@@ -21,13 +21,13 @@ import {
   deriveOrbitAngles,
   type ViewState,
 } from "@carma-mapping/engines-interop/view-state";
-import { clamp, isFiniteNumber, PI, PI_OVER_TWO } from "@carma/math";
+import { clamp, isFiniteNumber, PI, PI_OVER_TWO } from "@carma-commons/math";
 import {
   degToRadNumeric,
   radToDegNumeric,
   zeroToTwoPi,
-} from "@carma/units/helpers";
-import type { Radians } from "@carma/units/types";
+} from "@carma-units";
+import type { Radians } from "@carma-units";
 
 import {
   buildAltitudeStemGeometry,

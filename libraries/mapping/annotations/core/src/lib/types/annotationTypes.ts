@@ -1,4 +1,4 @@
-import type { Cartesian3Json } from "@carma/cesium";
+import type { MetricVector3 } from "@carma-units";
 
 import type { LinearSegmentLineMode } from "./linearSegment";
 // Tool and annotation identifiers
@@ -51,15 +51,15 @@ export type NodeChainAnnotationType =
   | PolygonType;
 
 export type PlanarPolygonPlane = {
-  anchorECEF: Cartesian3Json;
-  normalECEF: Cartesian3Json;
+  anchorECEF: MetricVector3;
+  normalECEF: MetricVector3;
 };
 
 export type PlanarPolygonLocalFrame = {
-  originECEF: Cartesian3Json;
-  eastECEF: Cartesian3Json;
-  northECEF: Cartesian3Json;
-  upECEF: Cartesian3Json;
+  originECEF: MetricVector3;
+  eastECEF: MetricVector3;
+  northECEF: MetricVector3;
+  upECEF: MetricVector3;
 };
 
 type NodeChainAnnotationBase = {

@@ -1,5 +1,5 @@
 import type { CSSProperties, FC } from "react";
-import { CssPixelHeight, CssPixelWidth } from "@carma/units/types";
+import { CssPixelHeight, CssPixelWidth } from "@carma-units";
 
 export type BlendMode = "normal" | "difference" | "normal50";
 
@@ -33,10 +33,10 @@ export const PreviewImage: FC<PreviewImageProps> = ({
     left: "50%",
     top: "50%",
     transform,
-    height,
-    width,
-    minWidth: `${width}px`,
-    minHeight: `${height}px`,
+    height: `var(--oblique-preview-height, ${height}px)`,
+    width: `var(--oblique-preview-width, ${width}px)`,
+    minWidth: `var(--oblique-preview-width, ${width}px)`,
+    minHeight: `var(--oblique-preview-height, ${height}px)`,
     boxSizing: "content-box",
     pointerEvents: "none",
     zIndex: 1200,

@@ -3,8 +3,8 @@ import type { Map } from "leaflet";
 import type {
   FeatureInfo,
   FeatureInfoProperties,
-  LayerProps,
-} from "@carma/types";
+} from "@carma-mapping/utils";
+import type { LayerProps as MappingLayerProps } from "@carma-mapping/layers";
 import { FeatureInfoIcon } from "./FeatureInfoIcon";
 import { proj4crs3857def } from "../../helper/gisHelper";
 import {
@@ -41,7 +41,7 @@ export const getFeatureForLayer = async (
   map: Map | maplibregl.Map,
   signal?: AbortSignal
 ) => {
-  const props = layer.props as LayerProps;
+  const props = layer.props as MappingLayerProps;
   const minimalBoxSize = 1;
 
   let viewportBbox = {

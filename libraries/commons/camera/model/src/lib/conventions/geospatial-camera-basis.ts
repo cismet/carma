@@ -1,6 +1,6 @@
 import { Matrix4, Quaternion, Vector3 } from "three";
 
-import { ecefToEnuMatrix } from "@carma/geo/utils";
+import { ecefToEnuMatrix } from "@carma-geo/utils";
 
 import {
   buildOrientationQuaternionFromLocalCameraBasis,

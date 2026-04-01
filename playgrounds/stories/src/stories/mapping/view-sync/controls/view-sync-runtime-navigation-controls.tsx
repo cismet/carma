@@ -13,7 +13,7 @@ import type { ViewState } from "@carma-mapping/engines-interop/view-state";
 import {
   createCesiumSceneOrbitController,
   type CesiumSceneOrbitController,
-} from "@carma-mapping/engines/cesium/api";
+} from "@carma-mapping/engines/cesium/core";
 
 import {
   CARMA_STORY_MAPPING_ENGINES,

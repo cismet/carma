@@ -1,5 +1,5 @@
-import { isFiniteNumber } from "@carma/math";
-import type { CssPixels, Meters, Radians } from "@carma/units/types";
+import { isFiniteNumber } from "@carma-commons/math";
+import type { CssPixels, Meters, Radians } from "@carma-units";
 
 import { CAMERA_TYPE } from "./camera-view-specification";
 import type {

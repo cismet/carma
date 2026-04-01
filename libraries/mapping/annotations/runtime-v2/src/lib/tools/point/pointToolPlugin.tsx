@@ -8,7 +8,7 @@ import {
   isKeyboardTargetEditable,
   type AnnotationToolType,
 } from "@carma-mapping/annotations/core";
-import { formatDecimalNumber } from "@carma/units/helpers";
+import { formatDecimalNumber } from "@carma-units";
 
 import {
   createMeasurementToolPlugin,

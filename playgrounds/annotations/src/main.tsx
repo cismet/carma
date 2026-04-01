@@ -1,14 +1,14 @@
 import { ConfigProvider, theme } from "antd";
 import * as ReactDOM from "react-dom/client";
 
-import { setupCesiumEnvironment } from "@carma-mapping/engines/cesium";
+import { setupCesiumEnvironment } from "@carma-mapping/engines/cesium/core";
 
-import { App } from "./App";
 import { APP_BASE_PATH, CESIUM_PATHNAME } from "./config";
+import { App } from "./App";
 
-import "./styles.css";
 import "antd/dist/reset.css";
 import "cesium/Build/Cesium/Widgets/widgets.css";
+import "./styles.css";
 const CESIUM_BASE_URL = `${APP_BASE_PATH}${CESIUM_PATHNAME}`;
 setupCesiumEnvironment({ baseUrl: CESIUM_BASE_URL });
 

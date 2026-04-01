@@ -1,4 +1,4 @@
-import type { CssPixelPosition } from "@carma/units/types";
+import type { CssPixelPosition } from "@carma-units";
 
 const MIN_SEGMENT_LENGTH_PX = 0.0001;
 const MIN_SIGNED_AREA_TWICE = 0.000001;

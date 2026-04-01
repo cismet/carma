@@ -5,9 +5,9 @@ import {
   buildOrthographicScale,
   CAMERA_TYPE,
 } from "@carma-commons/camera/model";
-import { getZoomFromPixelResolutionAtLatitudeRad } from "@carma/geo/utils";
-import { degToRadNumeric } from "@carma/units/helpers";
-import type { Meters, Radians } from "@carma/units/types";
+import { getZoomFromPixelResolutionAtLatitudeRad } from "@carma-geo/utils";
+import { degToRadNumeric } from "@carma-units";
+import type { Meters, Radians } from "@carma-units";
 
 import { buildViewState } from "../core/construct";
 import {

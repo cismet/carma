@@ -1,13 +1,13 @@
 import { Quaternion, Vector3 } from "three";
 
 import { type CameraIntrinsics } from "@carma-commons/camera/model";
-import type { Altitude } from "@carma/geo/types";
+import type { Altitude } from "@carma-geo/data-structures";
 import {
   cartographicToEcef,
   enuOffsetToEcef,
   ecefToCartographic,
-} from "@carma/geo/utils";
-import type { Meters, Radians } from "@carma/units/types";
+} from "@carma-geo/utils";
+import type { Meters, Radians } from "@carma-units";
 
 import {
   anchoredOrbitToEnuOffset,

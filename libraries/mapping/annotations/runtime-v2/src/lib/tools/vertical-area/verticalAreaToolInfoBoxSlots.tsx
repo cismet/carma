@@ -1,7 +1,7 @@
 import {
   formatAreaSquareMetersAdaptive,
   formatDegrees,
-} from "@carma/units/helpers";
+} from "@carma-units";
 
 import type { RuntimeAnnotationInfoBoxContext } from "../../components/annotation-info-box/annotationInfoBox.types";
 export const createVerticalAreaToolInfoBoxSlots = (

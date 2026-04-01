@@ -7,7 +7,7 @@ import {
   PrimitiveCollection,
   WallGeometry,
   type Color,
-} from "@carma/cesium";
+} from "@carma-cesium";
 
 type CreateWallPrimitivesOptions = {
   ring: number[][];

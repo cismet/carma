@@ -16,7 +16,10 @@ import {
   type PointAnnotationEntry,
   type PointLabelMetricMode,
 } from "@carma-mapping/annotations/core";
-import { projectCartesian3JsonToScreen } from "@carma-mapping/engines/cesium/api";
+import { Cartesian2, Cartesian3, type Scene } from "@carma-cesium";
+import {
+  getDegreesFromCartesian,
+} from "@carma-mapping/engines/cesium/core";
 import { useCesiumOverlayView } from "@carma-mapping/engines/cesium/react/interactions";
 import { useCesiumSceneVisibilityIndex } from "@carma-mapping/engines/cesium/react/visibility";
 import {
@@ -30,17 +33,11 @@ import {
   type PointLabelLayoutResult,
 } from "@carma-providers/label-overlay";
 import {
-  Cartesian2,
-  Cartesian3,
-  getDegreesFromCartesian,
-  type Scene,
-} from "@carma/cesium";
-import {
   formatDecimalNumber,
   formatLengthMeters,
   LENGTH_UNIT_MODE,
-} from "@carma/units/helpers";
-import type { CssPixelPosition } from "@carma/units/types";
+} from "@carma-units";
+import type { CssPixelPosition } from "@carma-units";
 
 import type { AnnotationPointMarkerBadge } from "../useRender";
 import type { AnnotationSelectionState } from "../../selection/types/annotationSelection.types";
@@ -1200,11 +1197,8 @@ export const usePointLabelVisualizer = (
           : undefined,
         longPressDurationMs: pointLongPressDurationMs,
         getSvgLine: () => {
-          const start = projectCartesian3JsonToScreen(
-            scene,
-            point.geometryECEF
-          );
-          const end = projectCartesian3JsonToScreen(scene, anchor);
+          const start = overlayView.projectWorldToScreen(point.geometryECEF);
+          const end = overlayView.projectWorldToScreen(anchor);
           if (!start || !end) {
             return null;
           }

@@ -1,6 +1,6 @@
 import React from "react";
 
-import type { CssPixelPosition } from "@carma/units/types";
+import type { CssPixelPosition } from "@carma-units";
 export type PointLabelStemAnchorPoints = {
   startDistancePx: number;
   endDistancePx: number;

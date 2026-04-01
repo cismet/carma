@@ -5,7 +5,7 @@
 
 import { useEffect } from "react";
 import type { LeafletMap } from "@carma-mapping/engines/leaflet";
-import { CesiumTerrainProvider, type Scene } from "@carma/cesium";
+import { CesiumTerrainProvider, type Scene } from "@carma-cesium";
 import { useMapFrameworkSwitcherContext } from "./MapFrameworkSwitcherContext";
 
 interface UseRegisterMapFrameworkParams {

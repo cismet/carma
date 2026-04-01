@@ -52,7 +52,7 @@ const areOptionalNumbersEqual = (
   return Math.abs(left - right) <= epsilon;
 };
 
-const areCartesian3JsonEqual = (
+const areMetricVector3Equal = (
   left:
     | {
         x: number;
@@ -86,8 +86,8 @@ const arePlanarPolygonPlanesEqual = (
   if (left === right) return true;
   if (!left || !right) return false;
   return (
-    areCartesian3JsonEqual(left.anchorECEF, right.anchorECEF, epsilon) &&
-    areCartesian3JsonEqual(left.normalECEF, right.normalECEF, epsilon)
+    areMetricVector3Equal(left.anchorECEF, right.anchorECEF, epsilon) &&
+    areMetricVector3Equal(left.normalECEF, right.normalECEF, epsilon)
   );
 };
 
@@ -99,10 +99,10 @@ const arePlanarPolygonLocalFramesEqual = (
   if (left === right) return true;
   if (!left || !right) return false;
   return (
-    areCartesian3JsonEqual(left.originECEF, right.originECEF, epsilon) &&
-    areCartesian3JsonEqual(left.eastECEF, right.eastECEF, epsilon) &&
-    areCartesian3JsonEqual(left.northECEF, right.northECEF, epsilon) &&
-    areCartesian3JsonEqual(left.upECEF, right.upECEF, epsilon)
+    areMetricVector3Equal(left.originECEF, right.originECEF, epsilon) &&
+    areMetricVector3Equal(left.eastECEF, right.eastECEF, epsilon) &&
+    areMetricVector3Equal(left.northECEF, right.northECEF, epsilon) &&
+    areMetricVector3Equal(left.upECEF, right.upECEF, epsilon)
   );
 };
 

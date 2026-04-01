@@ -6,7 +6,7 @@ import type {
   Layer,
   LayerFilterInfo,
   SavedLayerConfig,
-} from "@carma/types";
+} from "@carma-mapping/layers";
 import {
   SELECTED_LAYER_INDEX,
   SelectionItem,

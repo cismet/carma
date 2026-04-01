@@ -7,4 +7,4 @@ export {
   featuresFilter,
 } from "./lib/utils/fetchingHelper";
 export { getVCard, getFachobjektOfProtocol } from "./lib/utils/featureHelper";
-export * from "./index.d";
+export type { FilterItem, FilterState } from "./index.d";

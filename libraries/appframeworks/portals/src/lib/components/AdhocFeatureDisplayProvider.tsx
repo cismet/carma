@@ -9,10 +9,10 @@ import {
 } from "react";
 import type { Feature, FeatureCollection } from "geojson";
 import type {
-  CarmaMapLibreStyleData,
   FeatureInfoProperties,
-} from "@carma/types";
-import type { BoundingSphere } from "@carma/cesium";
+} from "@carma-mapping/utils";
+import type { BoundingSphere } from "@carma-cesium";
+import type { CarmaMapLibreStyleData } from "../contracts/maplibre-style.d";
 import { getGeoJsonFromFeature } from "../utils/adhoc-feature-utils";
 import {
   DEFAULT_ADHOC_FEATURE_COLLECTION_ID,

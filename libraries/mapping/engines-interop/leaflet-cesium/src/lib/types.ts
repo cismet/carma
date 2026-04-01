@@ -1,5 +1,5 @@
-import type { Altitude } from "@carma/geo/types";
-import type { Degrees } from "@carma/units/types";
+import type { Altitude } from "@carma-geo/data-structures";
+import type { Degrees } from "@carma-units";
 export enum TransitionStage {
   IDLE = "IDLE",
   PREPARE_2D = "PREPARE_2D",

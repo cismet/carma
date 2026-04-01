@@ -1,5 +1,5 @@
-import { formatLatLonDegrees } from "@carma/units/helpers";
-import type { Degrees } from "@carma/units/types";
+import { formatLatLonDegrees } from "@carma-units";
+import type { Degrees } from "@carma-units";
 
 import type { RuntimeAnnotationInfoBoxContext } from "../../components/annotation-info-box/annotationInfoBox.types";
 import { resolveMeasurementCoordinates } from "../../render/resolveMeasurementCoordinates";

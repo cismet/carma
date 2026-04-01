@@ -19,12 +19,12 @@ import {
 import isEqual from "lodash/isEqual";
 
 import { serviceOptions } from "@carma-commons/resources";
-import { BackgroundLayer, Item, Layer } from "@carma/types";
+import { FileUploader, uploadImage } from "@carma-commons/ui/components";
+import { BackgroundLayer, Item, Layer } from "@carma-mapping/layers";
 import { extractCarmaConfig } from "@carma-commons/utils";
 
 import { parseDescription } from "../helper/layerHelper";
 import { Fragment, useState } from "react";
-import { FileUploader, uploadImage } from "@carma-appframeworks/portals";
 import { TagSelector } from "@carma-commons/ui/tag-selection";
 import { useDispatch, useSelector } from "react-redux";
 import { getSelectedLayer, setSelectedLayer } from "../slices/mapLayers";

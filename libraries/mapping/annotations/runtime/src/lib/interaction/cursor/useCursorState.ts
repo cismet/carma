@@ -13,10 +13,12 @@ import {
   Cartesian3,
   SceneTransforms,
   defined,
+  type Scene,
+} from "@carma-cesium";
+import {
   isValidScene,
   getLocalUpDirectionAtAnchor,
-  type Scene,
-} from "@carma/cesium";
+} from "@carma-mapping/engines/cesium/core";
 type AnnotationCursorSource = "none" | "raw" | "snapped-node";
 
 type AnnotationCursorScreenPosition = { x: number; y: number };

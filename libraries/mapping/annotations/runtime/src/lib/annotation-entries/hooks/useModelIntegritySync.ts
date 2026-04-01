@@ -12,7 +12,7 @@ import {
   type NodeChainAnnotation,
   type PointDistanceRelation,
 } from "@carma-mapping/annotations/core";
-import { type Cartesian3 } from "@carma/cesium";
+import { type Cartesian3 } from "@carma-cesium";
 export const useModelIntegritySync = ({
   annotations,
   defaultPolylineSegmentLineMode,

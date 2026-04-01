@@ -1,8 +1,8 @@
-import type { CssPixelPosition } from "@carma/units/types";
+import type { CssPixelPosition } from "@carma-units";
 
 import type { PointLabelAnchorKind } from "../pointLabelAnchorSemantics";
 import type { PointLabelAttach } from "../pointLabelAttach";
-export type { CssPixelPosition } from "@carma/units/types";
+export type { CssPixelPosition } from "@carma-units";
 
 export type Rect = {
   left: number;

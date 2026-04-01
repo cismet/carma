@@ -7,7 +7,7 @@ import {
 } from "@carma-commons/camera/model";
 import { buildViewState } from "@carma-mapping/engines-interop/view-state";
 import type { ViewState } from "@carma-mapping/engines-interop/view-state";
-import { degToRadNumeric } from "@carma/units/helpers";
+import { degToRadNumeric } from "@carma-units";
 
 import { buildImagePlaneGeometry } from "./camera-view-geometry";
 const WORLD_UP = new Vector3(0, 1, 0);

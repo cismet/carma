@@ -6,12 +6,8 @@ import {
   type AnnotationCollection,
   type NodeChainAnnotation,
 } from "@carma-mapping/annotations/core";
-import {
-  BoundingSphere,
-  flyToBoundingSphereExtent,
-  type Cartesian3,
-  type Scene,
-} from "@carma/cesium";
+import { BoundingSphere, type Cartesian3, type Scene } from "@carma-cesium";
+import { flyToBoundingSphereExtent } from "@carma-mapping/engines/cesium/core";
 const FLY_TO_MIN_RADIUS_METERS = 50;
 const FLY_TO_PADDING_FACTOR = 1.1;
 

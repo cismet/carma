@@ -1,5 +1,5 @@
 import { readLongerEdgeFovFromIntrinsics } from "@carma-commons/camera/model";
-import { Cartesian3, Cartographic, Ellipsoid } from "@carma/cesium";
+import { Cartesian3, Cartographic, Ellipsoid } from "@carma-cesium";
 
 import { deriveView } from "../core/derivations";
 import type { ViewState } from "../core/types";

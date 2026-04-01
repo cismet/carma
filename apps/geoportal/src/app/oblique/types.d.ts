@@ -3,8 +3,8 @@ import { Easing } from "@carma-commons/math";
 import { UnitRgba } from "@carma-commons/utils";
 import type { Converter } from "proj4/dist/lib/core";
 
-import type { Matrix3RowMajor } from "@carma/math";
-import type { Radians } from "@carma/types";
+import type { Matrix3RowMajor } from "@carma-commons/math";
+import type { Radians } from "@carma-units";
 
 export type ExteriorPosition = {
   x: number;

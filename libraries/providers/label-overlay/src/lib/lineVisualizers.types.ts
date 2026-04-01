@@ -4,7 +4,7 @@ import type {
   SvgLineLabelDominantBaseline,
   SvgLineLabelRotationMode,
 } from "@carma-commons/svg";
-import type { CssPixelPosition } from "@carma/units/types";
+import type { CssPixelPosition } from "@carma-units";
 
 import type { LineVisualizerProps } from "./components/LineVisualizer";
 export type { SvgLine };

@@ -2,7 +2,7 @@ import type {
   FullScreenDocument,
   FullScreenHTMLElement,
   Layer,
-} from "@carma/types";
+} from "@carma-mapping/layers";
 
 export const getUrlPrefix = () =>
   window.location.origin + window.location.pathname;

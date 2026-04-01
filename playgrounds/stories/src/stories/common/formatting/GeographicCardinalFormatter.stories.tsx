@@ -10,8 +10,8 @@ import {
   formatLatLonDegrees,
   type GeographicDirectionStyle,
   type GeographicFractionDigits,
-} from "@carma/units/helpers";
-import type { Degrees } from "@carma/units/types";
+} from "@carma-units";
+import type { Degrees } from "@carma-units";
 type GeographicCardinalFormatterStoryProps = {
   latitudeDeg: number;
   longitudeDeg: number;

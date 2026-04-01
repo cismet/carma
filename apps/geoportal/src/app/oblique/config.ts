@@ -6,8 +6,8 @@ import {
   OBLIQUE_2024_EXT_ORI_UTM32_URI,
   OBLIQUE_2024_FPRFC_GEOJSON_URI,
 } from "@carma-commons/resources";
-import { Degrees } from "@carma/units/types";
-import { degToRad } from "@carma-commons/units/helpers";
+import { Degrees } from "@carma-units";
+import { degToRad } from "@carma-units";
 
 import { OBLIQUE_PREVIEW_QUALITY } from "./constants";
 import { ObliqueDataProviderConfig } from "./types";
@@ -15,7 +15,7 @@ import { CardinalDirectionEnum } from "./utils/orientationUtils";
 import { DEFAULT_CAMERA_FOV_DEG } from "../config/app.config";
 export const OBLIQUE_CONFIG: ObliqueDataProviderConfig = {
   fixedPitch: degToRad(-45 as Degrees), // Pitch in radians
-  fixedHeight: 900, // Height in meters
+  fixedHeight: 900, // Absolute camera height in meters (cartographic/ellipsoidal)
   minFov: degToRad(10 as Degrees), // Minimum field of view in radians
   maxFov: degToRad(120 as Degrees), // Maximum field of view in radians
   restoreFovOnLeave: degToRad(DEFAULT_CAMERA_FOV_DEG as Degrees),

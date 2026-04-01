@@ -20,7 +20,7 @@ import {
   type CesiumAdaptiveRenderScaleActivitySummary,
   type CesiumAdaptiveRenderScaleChange,
   type CesiumAdaptiveRenderScaleStatus,
-} from "@carma-mapping/engines/cesium/api";
+} from "@carma-mapping/engines/cesium/core";
 
 import { setupCesium } from "../../map-engine-switcher/helpers/cesium-setup";
 import { initializeLeaflet } from "../../map-engine-switcher/helpers/leaflet-setup";

@@ -1,4 +1,4 @@
-import { isValidScene } from "@carma/cesium";
+import { isValidScene } from "@carma-mapping/engines/cesium/core";
 import { LeafletMap, isLeafletMap } from "@carma-mapping/engines/leaflet";
 
 const isValidContainer = (container: unknown): boolean => {

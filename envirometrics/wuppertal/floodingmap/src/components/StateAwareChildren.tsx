@@ -15,10 +15,8 @@ import StyledWMSTileLayer from "react-cismap/StyledWMSTileLayer";
 
 import { isNumberArrayEqual } from "@carma-commons/utils";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
-import {
-  getTerrainElevationAsync,
-  useCesiumContext,
-} from "@carma-mapping/engines/cesium";
+import { getTerrainElevationAsync } from "@carma-mapping/engines/cesium/core";
+import { useCesiumContext } from "@carma-mapping/engines/cesium/legacy";
 import { useHashState } from "@carma-providers/hash-state";
 
 import config from "../config";

@@ -3,7 +3,7 @@ import { useEffect, useState, useRef } from "react";
 import { CesiumTerrainProvider } from "cesium";
 import type { Viewer } from "cesium";
 
-import { useCesiumContext } from "@carma-mapping/engines/cesium";
+import { useCesiumContext } from "@carma-mapping/engines/cesium/legacy";
 
 import { prepareSceneForHGK } from "../utils/scene";
 const MAX_RETRIES = 5;

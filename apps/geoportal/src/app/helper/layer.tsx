@@ -1,7 +1,7 @@
 import objectAssign from "object-assign";
 import CismapLayer from "react-cismap/CismapLayer";
 import { namedStyles, defaultLayerConfig, layerMap } from "../config";
-import { BackgroundLayer } from "@carma/types";
+import { BackgroundLayer } from "@carma-mapping/layers";
 interface backgroundLayersProps {
   layerString: string;
   masterOpacity?: number;

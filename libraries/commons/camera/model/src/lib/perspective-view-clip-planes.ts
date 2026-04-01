@@ -1,6 +1,6 @@
 import { Plane, Vector3 } from "three";
 
-import { isFiniteNumber } from "@carma/math";
+import { isFiniteNumber } from "@carma-commons/math";
 const createPlaneFromOriginAndNormal = ({
   origin,
   normal,

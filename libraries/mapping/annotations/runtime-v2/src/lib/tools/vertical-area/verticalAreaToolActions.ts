@@ -4,11 +4,11 @@ import {
   computePolygonGroupDerivedData,
   type NodeChainAnnotation,
 } from "@carma-mapping/annotations/core";
+import { Cartesian3 } from "@carma-cesium";
 import {
-  Cartesian3,
   getDegreesFromCartesian,
   getEllipsoidalAltitudeOrZero,
-} from "@carma/cesium";
+} from "@carma-mapping/engines/cesium/core";
 
 import type {
   RuntimeAddAnnotationOptions,

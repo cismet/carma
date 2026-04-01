@@ -148,4 +148,4 @@ export const formatBearingToGermanCardinal = (
     useFullLabel: false,
     mainCardinalRangeDeg: 45,
   });
-import { formatDegrees } from "@carma/units/helpers";
+import { formatDegrees } from "@carma-units";

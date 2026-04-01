@@ -7,7 +7,7 @@ import {
   type AnnotationToolType,
   type NodeChainAnnotation,
 } from "@carma-mapping/annotations/core";
-import type { Scene, Cartesian2, Cartesian3 } from "@carma/cesium";
+import type { Scene, Cartesian2, Cartesian3 } from "@carma-cesium";
 
 import type { EditingState } from "../../editing/useEditing";
 import { usePointQueryCreationController } from "../../point-query/usePointQueryCreationController";

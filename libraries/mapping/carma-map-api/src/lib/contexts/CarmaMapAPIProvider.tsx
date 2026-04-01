@@ -6,7 +6,7 @@ import {
 } from "react";
 import type { ReactNode } from "react";
 import type { Store, Dispatch, UnknownAction } from "redux";
-import type { Layer } from "@carma/types";
+import type { Layer } from "@carma-mapping/layers";
 
 export type APIRootState = Record<string, unknown>;
 

@@ -1,4 +1,4 @@
-import { formatDecimalNumber } from "@carma/units/helpers";
+import { formatDecimalNumber } from "@carma-units";
 
 import {
   DEFAULT_POINT_LABEL_METRIC_MODE,

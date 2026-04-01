@@ -1,4 +1,4 @@
-import { ModelConfig } from "../loaders/model";
+import type { ModelConfig } from "@carma-mapping/engines/cesium/core";
 
 export const BRUECKENENTWURF_GLB: ModelConfig = {
   position: {

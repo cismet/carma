@@ -1,13 +1,14 @@
 import { useEffect } from "react";
-
 import {
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
-  resolveGeographicCoordinateFromScreenPosition,
-  type CesiumGeographicCoordinate,
   type Cartesian2,
   type Scene,
-} from "@carma/cesium";
+} from "@carma-cesium";
+import {
+  resolveGeographicCoordinateFromScreenPosition,
+  type CesiumGeographicCoordinate,
+} from "@carma-mapping/engines/cesium/core";
 export type CesiumCoordinateHandlerOptions = {
   scene: Scene | null;
   enabled: boolean;

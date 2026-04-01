@@ -6,7 +6,7 @@ import {
   useInitialCesiumCameraView,
 } from "@carma-mapping/engines-interop/view-state";
 import { useHashState } from "@carma-providers/hash-state";
-import { Cartesian3 } from "@carma/cesium";
+import { Cartesian3 } from "@carma-cesium";
 
 import config from "../config";
 import { DEFAULT_HOME_VIEW_REF } from "../config/view.config";

@@ -5,7 +5,7 @@ import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 
 export default defineConfig({
   root: __dirname,
-  cacheDir: '../../node_modules/.vite/playgrounds/generic-topicmaps',
+  cacheDir: '../../node_modules/.vite/playgrounds/map-control-playground',
 
   server: {
     port: 4200,
@@ -28,7 +28,7 @@ export default defineConfig({
   // },
 
   build: {
-    outDir: '../../dist/playgrounds/generic-topicmaps',
+    outDir: '../../dist/playgrounds/map-control-playground',
     reportCompressedSize: true,
     commonjsOptions: {
       transformMixedEsModules: true,

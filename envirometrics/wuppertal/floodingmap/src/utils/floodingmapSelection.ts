@@ -1,6 +1,6 @@
 import type { SelectionMetaData } from "@carma-appframeworks/portals";
 import { ENDPOINT, isAreaTypeWithGEP } from "@carma-commons/resources";
-import type { SearchResultItem } from "@carma/types";
+import type { SearchResultItem } from "@carma-mapping/fuzzy-search";
 export const buildFloodingmapGazetteerSelection = (
   selection: SearchResultItem,
   timestampMs: number

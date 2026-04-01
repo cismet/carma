@@ -1,5 +1,5 @@
-import type { ModelConfig } from "@carma-commons/resources";
-import type { ColorConstructorArgs } from "@carma/cesium";
+import type { ModelConfig } from "@carma-mapping/engines/cesium/core";
+import { type ColorConstructorArgs } from "@carma-mapping/engines/cesium/core";
 
 import type { ProviderConfig } from "./utils/cesiumProviders";
 import type { TilesetConfigs } from "./utils/cesiumTilesetProviders";

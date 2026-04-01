@@ -7,7 +7,7 @@ import {
   type PointDistanceRelation,
 } from "@carma-mapping/annotations/core";
 import { useCesiumEdgeVisualizer } from "@carma-mapping/engines/cesium/react/primitives";
-import type { Cartesian3, Scene } from "@carma/cesium";
+import type { Cartesian3, Scene } from "@carma-cesium";
 
 import { useEdgeComponentOverlayVisualizer } from "../edge/overlay/useEdgeComponentOverlayVisualizer";
 import { usePolylineOverlayVisualizer } from "../edge/overlay/usePolylineOverlayVisualizer";

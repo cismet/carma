@@ -1,10 +1,10 @@
 import { QUADRATIC_OUT } from "@carma-commons/math";
+import { type Camera } from "@carma-cesium";
 import {
   getTopDownCameraDeviationAngle,
   getHeadingPitchRollDiff,
-} from "@carma/cesium";
-import type { Camera } from "@carma/cesium";
-import { PI } from "@carma/units/helpers";
+} from "@carma-mapping/engines/cesium/core";
+import { PI } from "@carma-units";
 const DEFAULT_MAX_DURATION_MS = 3000;
 const DEFAULT_ANGLE_MAX_DURATION_MS = 3000;
 const DEFAULT_HEADING_MAX_DURATION_MS = 3000;

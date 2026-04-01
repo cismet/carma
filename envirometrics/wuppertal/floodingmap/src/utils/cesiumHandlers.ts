@@ -2,12 +2,11 @@ import type { MutableRefObject } from "react";
 
 import { Cartographic, type Cartesian3, type Entity, Viewer } from "cesium";
 
-import { getTerrainElevationAsync } from "@carma-mapping/engines/cesium";
+import { type Scene, type CesiumTerrainProvider } from "@carma-cesium";
 import {
   getDegreesFromCartographic,
-  type Scene,
-  type CesiumTerrainProvider,
-} from "@carma/cesium";
+  getTerrainElevationAsync,
+} from "@carma-mapping/engines/cesium/core";
 
 import { updateMarkerPosition } from "./marker";
 export const onCesiumClick = async (

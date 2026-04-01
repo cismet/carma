@@ -24,19 +24,6 @@ import {
 
 import { ResponsiveStatusBar } from "@carma-commons/ui/components";
 import {
-  cartesian3FromGeographicCoordinate,
-  isPointOccluded,
-} from "@carma-mapping/engines/cesium/api";
-import {
-  CESIUM_LABEL_OVERLAY_FRAME_PHASES,
-  useCesiumLabelOverlayHost,
-  useCesiumViewProjector,
-} from "@carma-mapping/engines/cesium/react/interactions";
-import {
-  LabelOverlayProvider,
-  useLabelOverlay,
-} from "@carma-providers/label-overlay";
-import {
   BoundingSphere,
   Cartesian2,
   Cartesian3,
@@ -47,7 +34,20 @@ import {
   type Cesium3DTileset,
   type CesiumWidget,
   type Scene,
-} from "@carma/cesium";
+} from "@carma-cesium";
+import {
+  cartesian3FromGeographicCoordinate,
+  isPointOccluded,
+} from "@carma-mapping/engines/cesium/core";
+import {
+  CESIUM_LABEL_OVERLAY_FRAME_PHASES,
+  useCesiumLabelOverlayHost,
+  useCesiumViewProjector,
+} from "@carma-mapping/engines/cesium/react/interactions";
+import {
+  LabelOverlayProvider,
+  useLabelOverlay,
+} from "@carma-providers/label-overlay";
 
 import { setupCesium } from "../../map-engine-switcher/helpers/cesium-setup";
 import { requestStoryCesiumRender } from "../../shared/cesiumRuntimeGuards";

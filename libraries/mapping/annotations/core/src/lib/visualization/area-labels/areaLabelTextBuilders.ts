@@ -1,37 +1,38 @@
-import type { Cartesian3Json } from "@carma/cesium";
-import { formatAreaSquareMetersAdaptive } from "@carma/units/helpers";
+import type { Vector3 } from "@carma-units";
+import { formatAreaSquareMetersAdaptive } from "@carma-units";
 
 import { ANNOTATION_TYPE_AREA_VERTICAL } from "../../types/annotationTypes";
 import { type NodeChainAnnotation } from "../../types/annotationTypes";
+
 export type AreaLabelText = {
   primaryText: string;
   secondaryText?: string | null;
 };
 
 const computePolygonAreaFromVertices = (
-  vertices: ReadonlyArray<Cartesian3Json>
+  vertices: ReadonlyArray<{ x: number; y: number; z: number }>
 ) => {
   if (vertices.length < 3) return 0;
   const basePoint = vertices[0];
   if (!basePoint) return 0;
 
   const subtract = (
-    left: Cartesian3Json,
-    right: Cartesian3Json
-  ): Cartesian3Json => ({
+    left: { x: number; y: number; z: number },
+    right: { x: number; y: number; z: number }
+  ): Vector3<number> => ({
     x: left.x - right.x,
     y: left.y - right.y,
     z: left.z - right.z,
   });
   const cross = (
-    left: Cartesian3Json,
-    right: Cartesian3Json
-  ): Cartesian3Json => ({
+    left: { x: number; y: number; z: number },
+    right: { x: number; y: number; z: number }
+  ): Vector3<number> => ({
     x: left.y * right.z - left.z * right.y,
     y: left.z * right.x - left.x * right.z,
     z: left.x * right.y - left.y * right.x,
   });
-  const magnitude = (vector: Cartesian3Json) =>
+  const magnitude = (vector: Vector3<number>) =>
     Math.hypot(vector.x, vector.y, vector.z);
 
   let area = 0;
@@ -63,7 +64,7 @@ const resolveDisplayedAreaSquareMeters = (
 
 const buildAreaLabelText = (
   group: NodeChainAnnotation,
-  vertices: Cartesian3Json[]
+  vertices: Array<{ x: number; y: number; z: number }>
 ): AreaLabelText => {
   const previewAreaSquareMeters = computePolygonAreaFromVertices(vertices);
   const planarArea = resolveDisplayedAreaSquareMeters(
@@ -90,12 +91,12 @@ const buildAreaLabelText = (
 
 export const buildGroundAreaLabelText = (
   group: NodeChainAnnotation,
-  vertices: Cartesian3Json[]
+  vertices: Array<{ x: number; y: number; z: number }>
 ): AreaLabelText => buildAreaLabelText(group, vertices);
 
 export const buildPlanarAreaLabelText = (
   group: NodeChainAnnotation,
-  vertices: Cartesian3Json[]
+  vertices: Array<{ x: number; y: number; z: number }>
 ): AreaLabelText => buildAreaLabelText(group, vertices);
 
 export const buildVerticalAreaLabelText = (

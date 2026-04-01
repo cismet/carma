@@ -12,10 +12,8 @@ import {
   type AnnotationToolType,
   type NodeChainAnnotation,
 } from "@carma-mapping/annotations/core";
-import {
-  getPositionWithVerticalOffsetFromAnchor,
-  type Scene,
-} from "@carma/cesium";
+import { type Scene } from "@carma-cesium";
+import { getPositionWithVerticalOffsetFromAnchor } from "@carma-mapping/engines/cesium/core";
 
 import {
   ANNOTATION_CANDIDATE_KIND_DISTANCE,

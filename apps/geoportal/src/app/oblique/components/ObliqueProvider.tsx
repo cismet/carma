@@ -15,7 +15,7 @@ import { useSelection } from "@carma-appframeworks/portals";
 
 import { useHashState } from "@carma-providers/hash-state";
 
-import type { Radians } from "@carma/geo/types";
+import type { Radians } from "@carma-geo/data-structures";
 
 import type {
   ExteriorOrientations,
@@ -29,7 +29,7 @@ import type {
 } from "../types";
 
 import { useObliqueData } from "../hooks/useObliqueData";
-import { useCesiumContext } from "@carma-mapping/engines/cesium";
+import { useCesiumContext } from "@carma-mapping/engines/cesium/legacy";
 
 import { FootprintProperties } from "../utils/footprintUtils";
 import { RBushBySectorBlocks } from "../utils/spatialIndexing";

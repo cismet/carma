@@ -1,4 +1,9 @@
-import type { CismapLayerProps, Layer } from "@carma/types";
+import type { CismapLayerProps } from "../contracts/cismap-layer-props.d";
+import type {
+  BackgroundLayer,
+  Layer,
+  SavedLayerConfig,
+} from "@carma-mapping/layers";
 import { SELECTED_LAYER_INDEX, SelectionItem } from "../..";
 
 // TODO elevate some of the type here to carma-commons

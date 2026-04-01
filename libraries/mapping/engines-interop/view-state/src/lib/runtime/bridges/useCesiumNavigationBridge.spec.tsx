@@ -6,9 +6,9 @@ import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CAMERA_TYPE } from "@carma-commons/camera/model";
-import type { Scene } from "@carma-mapping/engines/cesium/api";
-import { degToRadNumeric } from "@carma/units/helpers";
-import type { Meters, Radians } from "@carma/units/types";
+import { type Scene } from "@carma-cesium";
+import { degToRadNumeric } from "@carma-units";
+import type { Meters, Radians } from "@carma-units";
 
 import { ViewStateNavigationManagerProvider } from "../providers/navigation/ViewStateNavigationManagerProvider";
 import { ViewStateContext } from "../providers/view-state/ViewStateContext";

@@ -11,7 +11,7 @@ import {
   getProj4Converter,
   type TypedConverter,
   type ManagedProjection,
-} from "@carma-commons/geo/proj";
+} from "@carma-geo/proj";
 
 export enum VerticalDatum {
   NHN2016 = "nhn2016",

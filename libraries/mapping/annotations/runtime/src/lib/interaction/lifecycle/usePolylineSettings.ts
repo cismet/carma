@@ -11,12 +11,12 @@ import {
   type LinearSegmentLineMode,
   type NodeChainAnnotation,
 } from "@carma-mapping/annotations/core";
+import { Cartesian3 } from "@carma-cesium";
 import {
-  Cartesian3,
   getDegreesFromCartesian,
   getEllipsoidalAltitudeOrZero,
   getPositionWithVerticalOffsetFromAnchor,
-} from "@carma/cesium";
+} from "@carma-mapping/engines/cesium/core";
 type UsePolylineSettingsParams = {
   focusedNodeChainAnnotationId: string | null;
   nodeChainAnnotations: NodeChainAnnotation[];

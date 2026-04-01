@@ -16,13 +16,13 @@ import {
   type NavigationOrbitOptions,
   type NavigationMethods,
 } from "@carma-mapping/engines-interop/navigation-controls";
+import { PerspectiveFrustum, type Scene } from "@carma-cesium";
 import {
   createCesiumSceneOrbitController,
   type CesiumSceneOrbitController,
   writePerspectiveFrustumVerticalFov,
-} from "@carma-mapping/engines/cesium/api";
-import { PerspectiveFrustum, type Scene } from "@carma/cesium";
-import type { Milliseconds, Seconds } from "@carma/units/types";
+} from "@carma-mapping/engines/cesium/core";
+import type { Milliseconds, Seconds } from "@carma-units";
 
 import type { AnnotationsDemoCameraState } from "../playground.types";
 const DEFAULT_CONTROL_STYLE = {

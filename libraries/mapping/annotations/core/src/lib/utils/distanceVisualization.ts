@@ -1,4 +1,4 @@
-import { Cartesian3 } from "@carma/cesium";
+import { Cartesian3 } from "@carma-cesium";
 
 import type { PointAnnotationEntry } from "../types/annotationCesiumTypes";
 import type { PointDistanceRelation } from "../types/distanceRelation";

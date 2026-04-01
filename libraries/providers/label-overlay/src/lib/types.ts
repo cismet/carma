@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import type { ReactNode } from "react";
 
-import type { CssPixelPosition } from "@carma/units/types";
+import type { CssPixelPosition } from "@carma-units";
 export interface LabelOverlayElement {
   id: string;
   getCanvasPosition?: () => CssPixelPosition | null;

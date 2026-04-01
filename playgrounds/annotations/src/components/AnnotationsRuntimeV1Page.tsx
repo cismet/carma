@@ -9,7 +9,7 @@ import {
 } from "@carma-mapping/annotations/runtime";
 import { useCesiumLabelOverlayHost } from "@carma-mapping/engines/cesium/react/interactions";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
-import { type Scene } from "@carma/cesium";
+import { type Scene } from "@carma-cesium";
 
 import type { PlaygroundRuntimePageProps } from "../playground.types";
 import { INFOBOX_WIDTH_PX, readInitialToolType } from "../playgroundConfig";

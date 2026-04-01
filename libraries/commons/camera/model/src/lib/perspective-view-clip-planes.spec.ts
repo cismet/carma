@@ -1,7 +1,7 @@
 import { Vector3 } from "three";
 import { describe, expect, it } from "vitest";
 
-import { clipConvexPolygonByPlanes3d } from "@carma/math";
+import { clipConvexPolygonByPlanes3d } from "@carma-commons/math";
 
 import { createPerspectiveViewClipPlanes3 } from "./perspective-view-clip-planes";
 const sortPointPairs = (points: readonly { x: number; y: number }[]) =>

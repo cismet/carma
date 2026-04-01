@@ -18,15 +18,14 @@ import {
   type PointDistanceRelation,
   type ReferenceLineLabelKind,
 } from "@carma-mapping/annotations/core";
+import { Cartesian3, type Scene } from "@carma-cesium";
 import {
-  Cartesian3,
   getDegreesFromCartesian,
   getEllipsoidalAltitudeOrZero,
   getPositionFromLocalFrame,
   getPositionInLocalFrame,
   resolveLocalFrameVectors,
-  type Scene,
-} from "@carma/cesium";
+} from "@carma-mapping/engines/cesium/core";
 
 import { createUniqueRuntimeId } from "../../create/createUniqueRuntimeId";
 type DistanceMeasureAuthoringDefaultsParams = {

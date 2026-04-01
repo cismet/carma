@@ -4,7 +4,7 @@ import {
   faLayerGroup,
   faSquare,
 } from "@fortawesome/free-solid-svg-icons";
-import { Layer } from "@carma/types";
+import { Layer } from "@carma-mapping/layers";
 
 export const tabItems = (
   currentLayer: Layer,

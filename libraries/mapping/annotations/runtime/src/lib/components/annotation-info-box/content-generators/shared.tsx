@@ -26,8 +26,8 @@ import {
   formatLatLonDegrees,
   formatLengthMeters,
   LENGTH_UNIT_MODE,
-} from "@carma/units/helpers";
-import type { Degrees } from "@carma/units/types";
+} from "@carma-units";
+import type { Degrees } from "@carma-units";
 
 import type {
   AnnotationDisplayPoint,

@@ -3,16 +3,18 @@ import { Ray } from "three";
 import { clamp, getClosestLineParamToRay } from "@carma-commons/math";
 import { AXIS_NUMERIC_EPSILON } from "@carma-mapping/gizmo/core";
 import {
-  CarmaTransforms,
   Cartesian2,
   Cartesian3,
   Matrix4,
   SceneTransforms,
   Transforms,
-  cartesian3ToVector3,
   defined,
   type Scene,
-} from "@carma/cesium";
+} from "@carma-cesium";
+import {
+  CarmaTransforms,
+  cartesian3ToVector3,
+} from "@carma-mapping/engines/cesium/core";
 export type PlaneBasis = {
   xAxis: Cartesian3;
   yAxis: Cartesian3;

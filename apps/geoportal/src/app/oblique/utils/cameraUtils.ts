@@ -1,24 +1,24 @@
-import { type MutableRefObject } from "react";
 import { Easing } from "@carma-commons/math";
 import {
-  BoundingSphere,
   Cartesian3,
-  HeadingPitchRange,
+  Cartographic,
   Matrix4,
   PerspectiveFrustum,
-  Ray,
   defined,
-  CesiumMath,
   type Scene,
-} from "@carma/cesium";
-import { pickSceneCenter } from "@carma-mapping/engines/cesium";
+  CesiumMath,
+} from "@carma-cesium";
+import {
+  animateCesiumSceneDollyZoom,
+  pickSceneCenter,
+} from "@carma-mapping/engines/cesium/core";
 import { DerivedExteriorOrientation } from "./transformExteriorOrientation";
 import type { AnimationConfig } from "../types";
 
 // ...
 
-const ENTER_DURATION = 1000;
-const LEAVE_BASE_DURATION = 800;
+const ENTER_DURATION = 1400;
+const LEAVE_BASE_DURATION = 1100;
 const MAX_FLY_DURATION_MS = 2000; // ms
 const MIN_FLY_DURATION_MS = 50; // should be about a frame to avoid zero duration artifacts in calculations and code paths taken
 const DEFAULT_EASING_FUNCTION = Easing.LINEAR_NONE;
@@ -128,21 +128,43 @@ export const getDynamicDurationSecondsFromDistance = (
   return duration;
 };
 
+const readTargetRangeForObliqueCameraHeight = (
+  targetCameraHeight: number,
+  targetPitch: number,
+  anchorPoint: Cartesian3
+) => {
+  const anchorCartographic = Cartographic.fromCartesian(anchorPoint);
+  const pitchSin = Math.sin(-targetPitch);
+  const anchorHeight = anchorCartographic?.height;
+
+  if (
+    !Number.isFinite(targetCameraHeight) ||
+    targetCameraHeight <= 0 ||
+    !Number.isFinite(anchorHeight) ||
+    !Number.isFinite(pitchSin) ||
+    Math.abs(pitchSin) <= 1e-6
+  ) {
+    return null;
+  }
+
+  const verticalOffsetToAnchor = targetCameraHeight - anchorHeight;
+  if (!Number.isFinite(verticalOffsetToAnchor) || verticalOffsetToAnchor <= 0) {
+    return null;
+  }
+
+  const targetRange = verticalOffsetToAnchor / Math.abs(pitchSin);
+  return Number.isFinite(targetRange) && targetRange > 0 ? targetRange : null;
+};
+
 export const enterObliqueMode = (
   scene: Scene,
-  originalFovRef: MutableRefObject<number | null>,
   targetPitch: number,
-  targetHeight: number,
+  targetCameraHeight: number,
+  minimumFovRad: number,
+  maximumFovRad: number,
   onComplete: () => void,
   duration?: number
 ) => {
-  const ellipsoid = scene.globe.ellipsoid;
-  const camera = scene.camera;
-
-  if (camera.frustum instanceof PerspectiveFrustum) {
-    originalFovRef.current = camera.frustum.fov;
-  }
-
   const center = pickSceneCenter(scene);
   if (!center) {
     // Terrain/tilesets may not be loaded yet - retry after a delay
@@ -178,98 +200,60 @@ export const enterObliqueMode = (
   performFlight(center);
 
   function performFlight(flightCenter: Cartesian3) {
-    const range = camera.positionCartographic.height / Math.tan(-targetPitch);
+    const targetRangeM = readTargetRangeForObliqueCameraHeight(
+      targetCameraHeight,
+      targetPitch,
+      flightCenter
+    );
+    if (targetRangeM === null) {
+      onComplete();
+      return;
+    }
 
-    const sphere = new BoundingSphere(flightCenter, range);
+    const effectiveDurationMs =
+      typeof duration === "number" && Number.isFinite(duration) && duration > 0
+        ? duration * 1000
+        : ENTER_DURATION;
 
-    const flightCompleteCallback = () => {
-      const ray = new Ray(camera.position, camera.direction);
-      const currentCartographic = ellipsoid.cartesianToCartographic(
-        camera.position
-      );
-
-      if (!currentCartographic) {
-        console.debug("Failed to get cartographic position");
-        return;
-      }
-
-      const currentHeight = currentCartographic.height;
-      const heightDifference = targetHeight - currentHeight;
-
-      if (Math.abs(heightDifference) > 100) {
-        const distanceToMove = heightDifference / Math.sin(-targetPitch);
-        const newPosition = Ray.getPoint(ray, -distanceToMove);
-
-        camera.flyTo({
-          destination: newPosition,
-          orientation: {
-            heading: camera.heading,
-            pitch: targetPitch,
-            roll: 0,
-          },
-          duration: 0.5,
-          complete: onComplete,
-        });
-      } else {
-        onComplete();
-      }
-    };
-
-    const effectiveDuration =
-      duration !== undefined ? duration : ENTER_DURATION / 1000;
-
-    camera.flyToBoundingSphere(sphere, {
-      offset: new HeadingPitchRange(camera.heading, targetPitch, range),
-      duration: effectiveDuration,
-      complete: flightCompleteCallback,
+    const didStart = animateCesiumSceneDollyZoom(scene, {
+      targetPoint: flightCenter,
+      targetRangeM,
+      targetPitchRad: targetPitch,
+      minimumFovRad,
+      maximumFovRad,
+      durationMs: effectiveDurationMs,
+      onCompleted: onComplete,
+      onCanceled: onComplete,
     });
+
+    if (!didStart) {
+      onComplete();
+    }
   }
 };
 
 export const leaveObliqueMode = (
   scene: Scene,
-  originalFovRef: MutableRefObject<number | null>,
   onComplete: () => void,
   fallbackRestoreFovRad = CesiumMath.toRadians(60)
 ) => {
   const camera = scene.camera;
-  if (camera.frustum instanceof PerspectiveFrustum) {
-    const targetFov = originalFovRef.current ?? fallbackRestoreFovRad;
-    const currentFov = camera.frustum.fov || 1;
+  if (!(camera.frustum instanceof PerspectiveFrustum)) {
+    onComplete();
+    return;
+  }
 
-    if (currentFov === targetFov) {
-      console.debug("No FOV change needed, skipping animation");
-      onComplete();
-      return;
-    }
+  const adaptiveLeaveDuration = LEAVE_BASE_DURATION;
+  const didStart = animateCesiumSceneDollyZoom(scene, {
+    targetPoint: pickSceneCenter(scene),
+    targetFovRad: fallbackRestoreFovRad,
+    durationMs: adaptiveLeaveDuration,
+    onCompleted: onComplete,
+    onCanceled: onComplete,
+  });
 
-    const adaptiveLeaveDuration =
-      LEAVE_BASE_DURATION * Math.abs(currentFov - targetFov);
-
-    const startTime = performance.now();
-    const animate = (time: number) => {
-      const elapsed = time - startTime;
-      const t = Math.min(elapsed / adaptiveLeaveDuration, 1);
-      const easedT = Easing.SINUSOIDAL_IN_OUT(t);
-      const newFov = currentFov + easedT * (targetFov - currentFov);
-
-      if (camera.frustum instanceof PerspectiveFrustum) {
-        camera.frustum.fov = newFov;
-      }
-      scene.requestRender();
-
-      if (t < 1) {
-        requestAnimationFrame(animate);
-      } else {
-        onComplete();
-      }
-    };
-    requestAnimationFrame(animate);
-  } else {
-    // If no animation is needed, directly reset the FOV and invoke the onComplete callback
-    if (camera.frustum instanceof PerspectiveFrustum) {
-      camera.frustum.fov = originalFovRef.current ?? fallbackRestoreFovRad;
-    }
+  if (!didStart) {
+    camera.frustum.fov = fallbackRestoreFovRad;
     onComplete();
   }
 };

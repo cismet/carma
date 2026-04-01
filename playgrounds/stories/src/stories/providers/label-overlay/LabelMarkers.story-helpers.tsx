@@ -17,8 +17,8 @@ import {
   type PointLabelAttach,
   type PointLabelStyleProps,
 } from "@carma-providers/label-overlay";
-import { MINUS_PI_OVER_FOUR } from "@carma/math";
-import type { CssPixelPosition } from "@carma/units/types";
+import { MINUS_PI_OVER_FOUR } from "@carma-commons/math";
+import type { CssPixelPosition } from "@carma-units";
 
 import { CenteredStoryFrame } from "../../common/ui/centered-story-frame";
 export type LabelMarkersStoryArgs = PointLabelStyleProps & {

@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Checkbox, Radio, Select } from "antd";
 
 import { WUPP_MESH_2024 } from "@carma-commons/resources";
-import type { Degrees } from "@carma/units/types";
-import type { LatLngAlt, Altitude } from "@carma/geo/types";
+import type { Degrees } from "@carma-units";
+import type { LatLngAlt, Altitude } from "@carma-geo/data-structures";
 
 import { Widget } from "@carma-mapping/engines/cesium-widget";
 

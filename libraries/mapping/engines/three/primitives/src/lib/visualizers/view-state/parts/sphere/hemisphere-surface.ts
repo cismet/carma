@@ -7,7 +7,7 @@ import {
   type Vector3,
 } from "three";
 
-import { PI, clamp } from "@carma/math";
+import { PI, clamp } from "@carma-commons/math";
 
 import { createThreePart } from "../../../../common/create-part";
 import { disposeMeshObject } from "../../../../common/mesh-helpers";

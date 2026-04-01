@@ -1,4 +1,4 @@
-import { CarmaConfig } from "@carma/types";
+import { CarmaConfig } from "@carma-mapping/layers";
 
 export const extractCarmaConfig = (
   keywords: string[] | undefined

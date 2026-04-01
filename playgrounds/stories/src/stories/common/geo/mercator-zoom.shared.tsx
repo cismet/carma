@@ -27,9 +27,9 @@ import {
   WEB_MERCATOR_MAX_LATITUDE_DEG,
   metersPerPixel,
   mercatorZoomFromDistanceAtLatitudeDeg,
-} from "@carma/geo/utils";
-import { degToRadNumeric } from "@carma/units/helpers";
-import type { Degrees, Meters, Radians } from "@carma/units/types";
+} from "@carma-geo/utils";
+import { degToRadNumeric } from "@carma-units";
+import type { Degrees, Meters, Radians } from "@carma-units";
 
 import { GeoChartStoryFrame } from "./geo-chart-story-frame";
 import { GEO_STORY_STYLES } from "./geo-story-styles";
@@ -2429,7 +2429,7 @@ export const MercatorZoomPlots = ({
             Web Mercator
           </a>{" "}
           zoom-equivalence helpers from{" "}
-          <span style={INLINE_CODE_STYLE}>@carma/geo/utils</span> to compare
+          <span style={INLINE_CODE_STYLE}>@carma-geo/utils</span> to compare
           zoom output over latitude, shared range, and{" "}
           <a
             href="https://en.wikipedia.org/wiki/Field_of_view"

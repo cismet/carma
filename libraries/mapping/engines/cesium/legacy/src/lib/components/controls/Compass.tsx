@@ -1,4 +1,4 @@
-import { MouseEvent, ReactNode, forwardRef } from "react";
+import { MouseEvent, ReactNode, forwardRef, useEffect } from "react";
 import { useSelector } from "react-redux";
 
 import { faCompass } from "@fortawesome/free-solid-svg-icons";
@@ -18,6 +18,9 @@ import { useCesiumContext } from "../../hooks/useCesiumContext";
 import { useCesiumViewer } from "../../hooks/useCesiumViewer";
 import { selectScreenSpaceCameraControllerMinimumZoomDistance } from "../../slices/cesium";
 import { pickScenePositions } from "../../utils/pick-position/pick-scene-positions";
+
+let hasWarnedAboutLegacyCompass = false;
+
 type CompassProps = {
   children?: ReactNode;
   disabled?: boolean;
@@ -29,6 +32,17 @@ const ORBIT_CENTER_POSITION: [number, number] = [0.5, 0.7]; // A bit lower than 
 
 export const Compass = forwardRef<Ref, CompassProps>(
   ({ children, disabled }, ref) => {
+    useEffect(() => {
+      if (hasWarnedAboutLegacyCompass) {
+        return;
+      }
+
+      hasWarnedAboutLegacyCompass = true;
+      console.warn(
+        "[DEPRECATED] legacy Cesium Compass is deprecated. Migrate to @carma-mapping/engines-interop/navigation-controls."
+      );
+    }, []);
+
     // todo remove cesium viewer dep for direct scene use
     const viewer = useCesiumViewer();
     const { withScene } = useCesiumContext();

@@ -1,6 +1,5 @@
 import { useCallback } from "react";
-
-import { projectGeographicCoordinateToScreen } from "@carma-mapping/engines/cesium/api";
+import { projectGeographicCoordinateToScreen } from "@carma-mapping/engines/cesium/core";
 
 import type { RuntimeCoordinate, RuntimeNode } from "../../store";
 import type {

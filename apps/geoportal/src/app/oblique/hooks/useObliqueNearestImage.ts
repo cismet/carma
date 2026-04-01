@@ -1,29 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import knn from "rbush-knn";
-
-import { waitForCondition } from "@carma/cesium";
 import { normalizeOptions } from "@carma-commons/utils";
-
 import {
-  sceneHasTweens,
-  useCesiumContext,
-  pickSceneCenter,
   isValidScene,
-} from "@carma-mapping/engines/cesium";
+  pickSceneCenter,
+  waitForCondition,
+} from "@carma-mapping/engines/cesium/core";
+import { readCesiumPrivateSceneTweens } from "@carma-cesium";
 
-import { useOblique } from "./useOblique";
+import { useCesiumContext } from "@carma-mapping/engines/cesium/legacy";
 
+import { NUM_NEAREST_IMAGES } from "../config";
+import type { NearestObliqueImageRecord } from "../types";
+import { calculateImageCoordsFromCartesian } from "../utils/obliqueReferenceUtils";
 import {
   getCardinalDirectionFromHeading,
   getHeadingFromCardinalDirection,
   type CardinalDirectionEnum,
 } from "../utils/orientationUtils";
-import { calculateImageCoordsFromCartesian } from "../utils/obliqueReferenceUtils";
 import type { RBushItem } from "../utils/spatialIndexing";
-
-import type { NearestObliqueImageRecord } from "../types";
-
-import { NUM_NEAREST_IMAGES } from "../config";
+import { useOblique } from "./useOblique";
 
 export interface UseObliqueNearestImageOptions {
   debounceTime?: number;
@@ -120,6 +116,10 @@ export function useObliqueNearestImage(
         return;
       }
       lastSearchTimeRef.current = now;
+
+      if ((readCesiumPrivateSceneTweens(scene)?.length ?? 0) > 0) {
+        return;
+      }
 
       try {
         const camera = scene.camera;
@@ -316,7 +316,7 @@ export function useObliqueNearestImage(
     const handleCameraMove = () => {
       if (timerIdRef.current) clearTimeout(timerIdRef.current);
       timerIdRef.current = setTimeout(() => {
-        if (!sceneHasTweens(scene)) {
+        if ((readCesiumPrivateSceneTweens(scene)?.length ?? 0) === 0) {
           refreshSearchRef.current();
         }
       }, debounceTime);

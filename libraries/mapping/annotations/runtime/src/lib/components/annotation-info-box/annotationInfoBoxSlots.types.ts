@@ -17,7 +17,7 @@ import {
   type AnnotationType,
   type LinearSegmentLineMode,
 } from "@carma-mapping/annotations/core";
-import type { Cartesian3 } from "@carma/cesium";
+import type { Cartesian3 } from "@carma-cesium";
 
 import type { AnnotationVisualizerOptionsPatch } from "../../context/annotationsContext.types";
 import type { AnnotationDisplayPoint } from "./utils/pointAnnotationDisplay";

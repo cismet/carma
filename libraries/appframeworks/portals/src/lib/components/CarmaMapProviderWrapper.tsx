@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { OverlayTourProvider } from "@carma-commons/ui/helper-overlay";
-import { CesiumContextProvider } from "@carma-mapping/engines/cesium";
+import { CesiumContextProvider } from "@carma-mapping/engines/cesium/legacy";
 import {
   LibreContextProvider,
   MapSelectionProvider,
@@ -14,7 +14,7 @@ import {
   MapStyleProvider,
   type MapStyleConfig,
 } from "../contexts/MapStyleProvider";
-import type { GazDataConfig } from "@carma-commons/utils";
+import type { GazDataConfig } from "@carma-mapping/fuzzy-search";
 import { defaultGazDataConfig } from "@carma-commons/resources";
 import { parseToMapLayer } from "@carma-mapping/utils";
 import { AuthProvider } from "@carma-providers/auth";
@@ -27,7 +27,7 @@ import {
 import { SandboxedEvalProvider } from "@carma-commons/sandbox-eval";
 
 import type { Store } from "redux";
-import type { Layer } from "@carma/types";
+import type { Layer } from "@carma-mapping/layers";
 
 // Selector factories for layer state operations
 const createLayerSelectors = {

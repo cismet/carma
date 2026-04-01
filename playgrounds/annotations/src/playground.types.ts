@@ -1,4 +1,4 @@
-import type { CameraStateRecord } from "@carma-mapping/engines/cesium/api";
+import { type CameraStateRecord } from "@carma-mapping/engines/cesium/core";
 
 export type PlaygroundRuntime = "v1" | "v2";
 

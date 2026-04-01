@@ -1,8 +1,5 @@
-import {
-  DEFAULT_WMS_IMAGE_PROVIDER_PARAMETERS,
-  WMSLayerDetails,
-  WMSLayerMap,
-} from "../wms";
+import type { WMSLayerDetails, WMSLayerMap } from "@carma-geo/utils";
+import { DEFAULT_WMS_IMAGE_PROVIDER_PARAMETERS } from "../base/wms";
 
 const SPW2_WMTS_TILEMATRIX_LABELS = [
   "00",

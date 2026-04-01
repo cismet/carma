@@ -7,18 +7,18 @@ import {
   type CameraIntrinsics,
 } from "@carma-commons/camera/model";
 import { formatFixedNumber } from "@carma-commons/utils/number-format";
+import { WEB_MERCATOR_MAX_LATITUDE_DEG } from "@carma-geo/data-structures";
 import {
   getPixelResolutionFromZoomAtLatitudeRad,
   getZoomFromPixelResolutionAtLatitudeRad,
-  WEB_MERCATOR_MAX_LATITUDE_DEG,
-} from "@carma/geo/utils";
-import { clamp, isFiniteNumber, isZeroish } from "@carma/math";
+} from "@carma-geo/utils";
+import { clamp, isFiniteNumber, isZeroish } from "@carma-commons/math";
 import {
   degToRadNumeric,
   radToDegNumeric,
   zeroToTwoPi,
-} from "@carma/units/helpers";
-import type { Meters, Radians } from "@carma/units/types";
+} from "@carma-units";
+import type { Meters, Radians } from "@carma-units";
 
 import { buildViewState } from "../core/construct";
 import { deriveView } from "../core/derivations";

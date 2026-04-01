@@ -23,14 +23,6 @@ export {
 export { fetchGraphQL } from "./lib/fetching/cids.ts";
 export type { FetchGraphQLResult } from "./lib/fetching/cids.ts";
 
-export {
-  getGazData,
-  type GazDataItem,
-  type GazDataConfig,
-  type GazDataSourceConfig,
-  builtInGazetteerHitTrigger,
-} from "./lib/gazData";
-
 export { extractInformation } from "./lib/layer-parser";
 
 export { suppressReactCismapErrors } from "./lib/log-react-cismap-errors";

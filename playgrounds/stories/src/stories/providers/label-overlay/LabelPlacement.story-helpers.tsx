@@ -22,7 +22,7 @@ import {
   useLabelOverlayHost,
   useLineVisualizers,
 } from "@carma-providers/label-overlay";
-import type { CssPixelPosition } from "@carma/units/types";
+import type { CssPixelPosition } from "@carma-units";
 
 import { CenteredStoryFrame } from "../../common/ui/centered-story-frame";
 const plotFrameStyle: CSSProperties = {

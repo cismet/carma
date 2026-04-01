@@ -38,7 +38,9 @@ export {
   ResponsiveStatusBar,
   type ResponsiveStatusBarProps,
 } from "./lib/components/ResponsiveStatusBar";
+export { FileUploader } from "./lib/components/FileUploader";
 export { MODES } from "./lib/components/responsiveInfoBoxModes";
+export { uploadImage } from "./lib/utils/uploadImage";
 export {
   createToolManager,
   type ToolDescriptor,

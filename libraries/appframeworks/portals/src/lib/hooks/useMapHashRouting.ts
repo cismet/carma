@@ -19,8 +19,8 @@ import {
   type HashChangeEvent,
 } from "@carma-providers/hash-state";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
-import { isMapCenterZoomEquivalent } from "@carma/geo/utils";
-import { Degrees } from "@carma/units/types";
+import { isMapCenterZoomEquivalent } from "@carma-geo/utils";
+import { Degrees } from "@carma-units";
 import { useRegisterDefaultMapHashClearKeySets } from "./useRegisterDefaultMapHashClearKeySets";
 
 export type LatLngZoom = { lat: number; lng: number; zoom: number };

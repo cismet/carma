@@ -17,9 +17,9 @@ import {
   PI,
   PI_OVER_THREE,
   PI_OVER_TWO,
-} from "@carma/math";
-import { zeroToTwoPi } from "@carma/units/helpers";
-import type { Radians } from "@carma/units/types";
+} from "@carma-commons/math";
+import { zeroToTwoPi } from "@carma-units";
+import type { Radians } from "@carma-units";
 
 import type { ResolvedViewStateVisualizerVisualizedOptions } from "../view-state-visualizer-types";
 import { pointOnBearingCircle } from "./angle-cue-geometry";

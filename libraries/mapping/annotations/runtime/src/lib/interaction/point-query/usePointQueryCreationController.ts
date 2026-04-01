@@ -13,15 +13,13 @@ import {
   useCesiumPointQuery,
   type CesiumPointQueryCreatePayload,
 } from "@carma-mapping/engines/cesium/react/interactions";
+import { Cartesian2, Cartesian3, type Scene } from "@carma-cesium";
 import {
-  Cartesian2,
-  Cartesian3,
   getDegreesFromCartesian,
   getEllipsoidalAltitudeOrZero,
   getLocalUpDirectionAtPosition,
   isValidScene,
-  type Scene,
-} from "@carma/cesium";
+} from "@carma-mapping/engines/cesium/core";
 
 import { useSessionPointCreation } from "../create/useSessionCreation";
 import { pickPolygonGroupId } from "../../selection/useSelection";

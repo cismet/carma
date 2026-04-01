@@ -1,10 +1,10 @@
-import type { ModelConfig } from "@carma-commons/resources";
-import type {
-  ColorConstructorArgs,
-  Model,
-  Matrix4,
-  PolylineCollection,
-} from "@carma/cesium";
+import type { ModelConfig } from "@carma-mapping/engines/cesium/core";
+import {
+  type Model,
+  type Matrix4,
+  type PolylineCollection,
+} from "@carma-cesium";
+import { type ColorConstructorArgs } from "@carma-mapping/engines/cesium/core";
 export type PolylineConfig = {
   color?: ColorConstructorArgs;
   width?: number;

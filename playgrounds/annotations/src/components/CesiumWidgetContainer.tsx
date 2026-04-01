@@ -11,15 +11,17 @@ import {
   WUPP_TERRAIN_PROVIDER,
   WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
 } from "@carma-commons/resources";
-import { createMinimalCesiumWidget } from "@carma-mapping/engines/cesium/api";
 import {
   Cartesian2,
   Cesium3DTileset,
   CesiumTerrainProvider,
-  setViewFromCameraState,
   type CesiumWidget,
   type Scene,
-} from "@carma/cesium";
+} from "@carma-cesium";
+import {
+  createMinimalCesiumWidget,
+  setViewFromCameraState,
+} from "@carma-mapping/engines/cesium/core";
 
 import type { AnnotationsDemoCameraState } from "../playground.types";
 const applyCameraState = async (

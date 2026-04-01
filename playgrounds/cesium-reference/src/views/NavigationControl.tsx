@@ -20,15 +20,17 @@ import {
   ControlButtonStyler,
   ControlLayout,
 } from "@carma-mapping/map-controls-layout";
+import {
+  initSceneAnimationMap,
+  type SceneAnimationMap,
+} from "@carma-mapping/engines/cesium/core";
 
 import {
   getIsViewerReadyAsync,
   useZoomControls,
   PitchingCompass,
-  initSceneAnimationMap,
-  type SceneAnimationMap,
-  CesiumContextType,
-} from "@carma-mapping/engines/cesium";
+  type CesiumContextType,
+} from "@carma-mapping/engines/cesium/legacy";
 
 import useTileset from "../hooks/useTileset";
 import { useZoomToTilesetOnReady } from "../hooks/useZoomToTilesetOnReady";

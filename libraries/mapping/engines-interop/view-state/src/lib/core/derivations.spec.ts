@@ -9,9 +9,9 @@ import {
   cartographicToEcef,
   enuOffsetToEcef,
   getZoomFromPixelResolutionAtLatitudeRad,
-} from "@carma/geo/utils";
-import { degToRadNumeric } from "@carma/units/helpers";
-import type { CssPixels, Meters, Radians } from "@carma/units/types";
+} from "@carma-geo/utils";
+import { degToRadNumeric } from "@carma-units";
+import type { CssPixels, Meters, Radians } from "@carma-units";
 
 import { buildAnchoredOrientationQuaternion } from "./anchoredOrbit";
 import { buildViewState, buildViewStateFromEcef } from "./construct";

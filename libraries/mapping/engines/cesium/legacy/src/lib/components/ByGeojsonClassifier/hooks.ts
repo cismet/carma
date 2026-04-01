@@ -6,7 +6,7 @@ import {
   GroundPrimitive,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
-} from "@carma/cesium";
+} from "@carma-cesium";
 
 import { CesiumContextType } from "../../CesiumContext";
 import { pickFromClampedGeojson } from "../../utils/pick-position/pick-ground-primitive";

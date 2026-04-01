@@ -2,7 +2,7 @@ import {
   Color,
   ColorGeometryInstanceAttribute,
   Primitive,
-} from "@carma/cesium";
+} from "@carma-cesium";
 
 export type GeometryInstanceRef = {
   primitive: Primitive;

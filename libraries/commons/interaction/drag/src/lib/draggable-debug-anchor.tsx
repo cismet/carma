@@ -1,5 +1,5 @@
-import { clamp } from "@carma/math";
-import type { CssPixelPosition } from "@carma/units/types";
+import { clamp } from "@carma-commons/math";
+import type { CssPixelPosition } from "@carma-units";
 import { useCallback, useEffect, useRef } from "react";
 import type {
   CSSProperties,

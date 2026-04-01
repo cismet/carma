@@ -5,8 +5,15 @@
   "projectType": "library",
   "tags": ["type:library", "scope:cesium"],
   "targets": {
+    "verify-private-shims": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node libraries/mapping/engines/cesium/api/scripts/verify-private-shims.mjs"
+      }
+    },
     "build": {
       "executor": "@nx/vite:build",
+      "dependsOn": ["verify-private-shims"],
       "outputs": [
         "{options.outputPath}"
       ],
@@ -25,6 +32,7 @@
     },
     "test": {
       "executor": "@nx/vite:test",
+      "dependsOn": ["verify-private-shims"],
       "outputs": [
         "{options.reportsDirectory}"
       ],

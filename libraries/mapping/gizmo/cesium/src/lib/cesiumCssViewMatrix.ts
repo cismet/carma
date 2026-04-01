@@ -4,7 +4,7 @@ import {
   SceneTransforms,
   defined,
   type Scene,
-} from "@carma/cesium";
+} from "@carma-cesium";
 
 export type CssMatrix2 = {
   a11: number;

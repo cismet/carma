@@ -1,7 +1,7 @@
 import type { GeometryCollection, Point, Polygon } from "geojson";
 import { describe, expect, it } from "vitest";
-
-import { Cartesian3, getDegreesFromCartesian } from "@carma/cesium";
+import { Cartesian3 } from "@carma-cesium";
+import { getDegreesFromCartesian } from "@carma-mapping/engines/cesium/core";
 
 import type { PointAnnotationEntry } from "../types/annotationCesiumTypes";
 import {

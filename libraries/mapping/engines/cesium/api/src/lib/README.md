@@ -1,65 +1,55 @@
-# Cesium Engine Namespace
+# @carma-cesium API Surface
 
-This folder mirrors the structure of [Cesium's engine source](https://github.com/CesiumGS/cesium/tree/main/packages/engine/Source) to organize re-exports and custom extensions.
+Curated raw Cesium surface for CARMA.
 
-## Structure
+This package is the vendor-facing Cesium boundary. It should stay as close as
+possible to Cesium itself and avoid carrying CARMA-specific helper or runtime
+policy logic.
 
-Based on Cesium's official package structure:
+## What belongs here
 
-### Core/
-Fundamental types and utilities:
-- Math types: `Cartesian2`, `Cartesian3`, `Matrix3`, `Matrix4`, etc.
-- `Color` - Color utilities and conversions
-- `Ellipsoid`, `Cartographic`
-- Core utilities and helpers
+- curated direct re-exports from `cesium`
+- type-only or zero-runtime compatibility shims that only patch gaps in Cesium's
+  own typings without introducing CARMA semantics
 
-### Scene/
-Rendering scene components:
-- `Scene`, `Camera`, `Globe`
-- `Primitive`, `GroundPrimitive`
-- `Cesium3DTileset`
-- Scene modes and settings
+## What does not belong here
 
-### DataSources/
-Entity-based data visualization:
-- `Entity`, `EntityCollection`
-- `DataSource` types
-- Graphics objects
+- CARMA guards
+- serialization and codecs
+- scene, terrain, picking, or camera helpers
+- widget factories
+- CARMA transforms
+- orchestration or runtime policy
+- React bindings
 
-### Renderer/
-Low-level WebGL rendering (rarely used directly)
+Those belong in [`@carma-mapping/engines/cesium/core`](../../README.md) or
+further runtime/legacy layers.
 
-### Widgets/
-UI components:
-- `CesiumWidget` - Minimal 3D viewer
-- `Viewer` - Full-featured viewer with UI
-- Widget configurations
+## Private Shims
 
-## Usage
+Vendor-near compatibility helpers for Cesium internals live in
+`lib/private-shims.ts` and are re-exported via `@carma-cesium`.
 
-Import from this namespace instead of directly from `cesium`:
+Private shim verification is intentionally enforced at build time:
 
-```typescript
-// ✅ Preferred
-import { Cartesian3 } from '../engine/Core';
-import { CesiumWidget } from '../engine/Widgets';
+- `private-shims.ts` carries the single verified Cesium version constant `VERIFIED_PRIVATE_SHIMS_CESIUM_VERSION`
+- `scripts/verify-private-shims.mjs` is committed with the `cesium-api` project
+- `cesium-api` build and test fail if the declared or installed Cesium version
+  drifts away from that verified version
+- upgrading Cesium therefore requires an explicit shim re-audit before the API
+  package can build again
+- private shims may use a direct raw `cesium` import internally when namespace
+  access is required; that does not make a public namespace escape hatch part of
+  `@carma-cesium`
 
-// ❌ Avoid
-import { Cartesian3, CesiumWidget } from 'cesium';
-```
+Examples:
 
-## Organization Rules
+- `getCesiumVersion()`
+- `VERSION`
+- `readCesiumPrivateSceneTweens()`
 
-**What belongs in `engine/`:**
-- ✅ Pure Cesium object re-exports (e.g., `Cartesian3`, `Color`, `Scene`)
-- ✅ Simple utilities that work directly with Cesium objects
-- ✅ Default configurations for Cesium constructors
-- ✅ Type definitions for Cesium objects
+## Rule of thumb
 
-**What stays outside `engine/`:**
-- ❌ React hooks → `hooks/`
-- ❌ React components → `components/`
-- ❌ High-level application logic
-- ❌ Complex integration/orchestration code → `utils/`
-
-**Principle:** Each file in `engine/` should map to a specific Cesium object or namespace. If it involves React, state management, or complex coordination, it belongs elsewhere.
+If a symbol is still semantically “just Cesium”, it may stay in `@carma-cesium`.
+If it expresses CARMA policy, convenience logic, or engine-owned helper
+behavior, it belongs somewhere else.

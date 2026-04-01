@@ -4,10 +4,12 @@ import {
   Matrix4,
   Transforms,
   Ellipsoid,
-  cartesian3FromJson,
-  cartesian3ToJson,
+} from "@carma-cesium";
+import {
+  cartesian3FromMetricVector3,
+  cartesian3ToMetricVector3,
   normalizeDirection,
-} from "@carma/cesium";
+} from "@carma-mapping/engines/cesium/core";
 
 import {
   ANNOTATION_TYPE_AREA_PLANAR,
@@ -39,10 +41,10 @@ const normalizeBearingDeg = (bearingDeg: number): number =>
 const computeBearingDegFromPlaneNormal = (
   plane: PlanarPolygonPlane
 ): number | undefined => {
-  const normal = normalizeDirection(cartesian3FromJson(plane.normalECEF));
+  const normal = normalizeDirection(cartesian3FromMetricVector3(plane.normalECEF));
   if (!normal) return undefined;
 
-  const anchor = cartesian3FromJson(plane.anchorECEF);
+  const anchor = cartesian3FromMetricVector3(plane.anchorECEF);
   const enuFrame = Transforms.eastNorthUpToFixedFrame(anchor, Ellipsoid.WGS84);
   const worldToEnu = Matrix4.inverse(enuFrame, new Matrix4());
 
@@ -73,8 +75,8 @@ export const createPlaneFromThreePoints = (
 
   const normalized = Cartesian3.normalize(normal, new Cartesian3());
   const plane: PlanarPolygonPlane = {
-    anchorECEF: cartesian3ToJson(a),
-    normalECEF: cartesian3ToJson(normalized),
+    anchorECEF: cartesian3ToMetricVector3(a),
+    normalECEF: cartesian3ToMetricVector3(normalized),
   };
   return orientPlaneNormalTowardPosition(plane, preferredFacingPositionECEF);
 };
@@ -85,8 +87,8 @@ export const orientPlaneNormalTowardPosition = (
 ): PlanarPolygonPlane => {
   if (!referencePositionECEF) return plane;
 
-  const anchor = cartesian3FromJson(plane.anchorECEF);
-  const normal = normalizeDirection(cartesian3FromJson(plane.normalECEF));
+  const anchor = cartesian3FromMetricVector3(plane.anchorECEF);
+  const normal = normalizeDirection(cartesian3FromMetricVector3(plane.normalECEF));
   if (!normal) return plane;
 
   const toReference = Cartesian3.subtract(
@@ -104,7 +106,7 @@ export const orientPlaneNormalTowardPosition = (
   );
   return {
     ...plane,
-    normalECEF: cartesian3ToJson(flippedNormal),
+    normalECEF: cartesian3ToMetricVector3(flippedNormal),
   };
 };
 
@@ -112,9 +114,9 @@ export const projectPointOntoPlane = (
   point: Cartesian3,
   plane: PlanarPolygonPlane
 ): Cartesian3 => {
-  const anchor = cartesian3FromJson(plane.anchorECEF);
+  const anchor = cartesian3FromMetricVector3(plane.anchorECEF);
   const normal = Cartesian3.normalize(
-    cartesian3FromJson(plane.normalECEF),
+    cartesian3FromMetricVector3(plane.normalECEF),
     new Cartesian3()
   );
   const delta = Cartesian3.subtract(point, anchor, new Cartesian3());
@@ -130,9 +132,9 @@ export const distancePointToPlane = (
   point: Cartesian3,
   plane: PlanarPolygonPlane
 ): number => {
-  const anchor = cartesian3FromJson(plane.anchorECEF);
+  const anchor = cartesian3FromMetricVector3(plane.anchorECEF);
   const normal = Cartesian3.normalize(
-    cartesian3FromJson(plane.normalECEF),
+    cartesian3FromMetricVector3(plane.normalECEF),
     new Cartesian3()
   );
   const delta = Cartesian3.subtract(point, anchor, new Cartesian3());
@@ -145,7 +147,7 @@ export const computePolylinePlanarAngleSumDeg = (
 ): number => {
   if (points.length < 4) return Number.POSITIVE_INFINITY;
   const normal = Cartesian3.normalize(
-    cartesian3FromJson(plane.normalECEF),
+    cartesian3FromMetricVector3(plane.normalECEF),
     new Cartesian3()
   );
 
@@ -251,9 +253,9 @@ export const computePlanarPolygonArea = (
   plane: PlanarPolygonPlane
 ): number => {
   if (vertices.length < 3) return 0;
-  const anchor = cartesian3FromJson(plane.anchorECEF);
+  const anchor = cartesian3FromMetricVector3(plane.anchorECEF);
   const normal = Cartesian3.normalize(
-    cartesian3FromJson(plane.normalECEF),
+    cartesian3FromMetricVector3(plane.normalECEF),
     new Cartesian3()
   );
   const u = getPlaneBasisU(vertices, anchor, normal);
@@ -281,9 +283,9 @@ export const computePlanarPolygonArea = (
 };
 
 export const computeVerticalityDeg = (plane: PlanarPolygonPlane): number => {
-  const anchor = cartesian3FromJson(plane.anchorECEF);
+  const anchor = cartesian3FromMetricVector3(plane.anchorECEF);
   const normal = Cartesian3.normalize(
-    cartesian3FromJson(plane.normalECEF),
+    cartesian3FromMetricVector3(plane.normalECEF),
     new Cartesian3()
   );
   const up = getEllipsoidalUpAtPoint(anchor);
@@ -355,13 +357,13 @@ const deriveVerticalPolygonLocalFrame = (
 ): PlanarPolygonLocalFrame | undefined => {
   if (vertices.length === 0) return undefined;
 
-  const origin = vertices[0] ?? cartesian3FromJson(plane.anchorECEF);
-  let north = normalizeDirection(cartesian3FromJson(plane.normalECEF));
+  const origin = vertices[0] ?? cartesian3FromMetricVector3(plane.anchorECEF);
+  let north = normalizeDirection(cartesian3FromMetricVector3(plane.normalECEF));
   if (!north) return undefined;
 
   if (previousFrame) {
     const previousNorth = normalizeDirection(
-      cartesian3FromJson(previousFrame.northECEF)
+      cartesian3FromMetricVector3(previousFrame.northECEF)
     );
     if (previousNorth && Cartesian3.dot(north, previousNorth) < 0) {
       north = Cartesian3.multiplyByScalar(north, -1, new Cartesian3());
@@ -428,7 +430,7 @@ const deriveVerticalPolygonLocalFrame = (
 
   if (previousFrame) {
     const previousEast = normalizeDirection(
-      cartesian3FromJson(previousFrame.eastECEF)
+      cartesian3FromMetricVector3(previousFrame.eastECEF)
     );
     if (previousEast && Cartesian3.dot(east, previousEast) < 0) {
       east = Cartesian3.multiplyByScalar(east, -1, new Cartesian3());
@@ -437,10 +439,10 @@ const deriveVerticalPolygonLocalFrame = (
   }
 
   return {
-    originECEF: cartesian3ToJson(origin),
-    eastECEF: cartesian3ToJson(east),
-    northECEF: cartesian3ToJson(north),
-    upECEF: cartesian3ToJson(upInPlane),
+    originECEF: cartesian3ToMetricVector3(origin),
+    eastECEF: cartesian3ToMetricVector3(east),
+    northECEF: cartesian3ToMetricVector3(north),
+    upECEF: cartesian3ToMetricVector3(upInPlane),
   };
 };
 

@@ -1,7 +1,7 @@
 import Color from "color";
 import { useEffect, useState } from "react";
 import { parseHeader } from "../utils/utils";
-import { FeatureInfoProperties } from "@carma/types";
+import { FeatureInfoProperties } from "@carma-mapping/utils";
 
 interface InfoBoxProps {
   headerColor?: string;

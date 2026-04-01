@@ -1,4 +1,4 @@
-import { ContentType, type TilesetConfig, TilesetType } from "../tilesets";
+import { ContentType, type TilesetConfig, TilesetType } from "../base/tilesets";
 
 export const WUPP_MESH_2020: TilesetConfig = {
   url: "https://wupp-3d-data.cismet.de/mesh/tileset.json",

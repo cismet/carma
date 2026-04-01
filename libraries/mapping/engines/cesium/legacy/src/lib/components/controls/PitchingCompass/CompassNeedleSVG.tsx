@@ -1,7 +1,6 @@
 import { forwardRef, type CSSProperties } from "react";
-
-import { CesiumMath } from "@carma/cesium";
-import type { Radians } from "@carma/units/types";
+import { CesiumMath } from "@carma-cesium";
+import type { Radians } from "@carma-units";
 const PITCH_HORIZON_OFFSET = CesiumMath.PI_OVER_TWO - 0.2; // avoid showing completely flat from the side
 
 export const computeCompassNeedleTransform = (

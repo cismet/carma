@@ -7,7 +7,7 @@ import { ResponsiveStatusBar } from "@carma-commons/ui/components";
 import {
   FORMAT_LOCALE,
   formatAreaSquareMetersAdaptive,
-} from "@carma/units/helpers";
+} from "@carma-units";
 type AreaFormatterStoryProps = {
   areaSquareMeters: number;
   locale: string;

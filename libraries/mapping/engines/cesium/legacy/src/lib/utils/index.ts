@@ -9,19 +9,14 @@ export {
   cesiumCameraForceOblique,
   testCameraObliqueCompliant,
   type CameraForceObliqueOptions,
-} from "./cesiumCameraForceOblique";
+} from "@carma-mapping/engines/cesium/core";
 
 // Scene utilities
 export { guardScene } from "./guardScene";
-export { sceneHasTweens } from "./sceneHasTweens";
 export { guardScreenSpaceCameraController } from "./guardScreenSpaceCameraController";
 
 // Animation utilities
-export {
-  cesiumAnimateFov,
-  type CesiumAnimateFovOptions,
-} from "./cesiumAnimateFov";
-export { getHeadingPitchForMouseEvent } from "./cesiumAnimateOrbits";
+export { getHeadingPitchForMouseEvent } from "@carma-mapping/engines/cesium/core";
 export { animateInterpolateHeadingPitchRange } from "./cesiumAnimations";
 export { animateOpacity } from "./animateOpacity";
 export {
@@ -33,7 +28,7 @@ export {
   type SceneAnimationMap,
   cancelSceneAnimation,
   initSceneAnimationMap,
-} from "./sceneAnimationMap";
+} from "@carma-mapping/engines/cesium/core";
 
 export {
   distanceFromZoomLevel,
@@ -74,7 +69,7 @@ export {
   type WallPrimitivesResult,
   type WallPrimitiveSegment,
 } from "./adhoc-primitives/create-wall-primitives";
-export { getBoundingSphereFromCoordinates } from "@carma/cesium";
+export { getBoundingSphereFromCoordinates } from "@carma-mapping/engines/cesium/core";
 export {
   getBoundingSphereFromGeoJson,
   getBoundingSphereFromGeoJsonGeometry,
@@ -128,7 +123,7 @@ export {
   getCesiumVersion,
   checkWindowEnv,
   assertWindowCesiumEnv,
-} from "./cesiumEnv";
+} from "@carma-mapping/engines/cesium/core";
 
 // Error handling
 export {

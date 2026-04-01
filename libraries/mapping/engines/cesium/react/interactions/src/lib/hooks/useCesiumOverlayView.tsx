@@ -6,12 +6,10 @@ import {
   type ViewState,
   type DerivedView,
 } from "@carma-mapping/engines-interop/view-state";
-import type {
-  Cartesian3Json,
-  Matrix4ConstructorArgs,
-  Scene,
-} from "@carma/cesium";
-import type { CssPixelPosition } from "@carma/units/types";
+import { type Scene } from "@carma-cesium";
+import {
+  type Matrix4ConstructorArgs,
+} from "@carma-mapping/engines/cesium/core";
 
 import { useCesiumViewProjector } from "./useCesiumViewProjector";
 const CESIUM_OVERLAY_VIEW_SOURCE_ID = "cesium-overlay-view";

@@ -1,12 +1,12 @@
-import { pickScenePositions } from "@carma-mapping/engines/cesium";
+import { pickScenePositions } from "@carma-mapping/engines/cesium/core";
 import {
   Cartesian3,
   Cartographic,
   CesiumTerrainProvider,
   defined,
   type Scene,
-} from "@carma/cesium";
-import type { Altitude } from "@carma/geo/types";
+} from "@carma-cesium";
+import type { Altitude } from "@carma-geo/data-structures";
 
 import { getCameraHeightAboveGroundAsync } from "./get-camera-height-above-ground";
 export type GroundPositionResult = {

@@ -1,11 +1,7 @@
 /* @refresh reset */
 import { useEffect, useMemo, useRef } from "react";
-
+import { Cartesian2, Cartesian3, Color, Primitive } from "@carma-cesium";
 import {
-  Cartesian2,
-  Cartesian3,
-  Color,
-  Primitive,
   GUIDE_NORMAL_EPSILON_SQUARED,
   createOrientedDiscModelMatrix,
   getDiscWorldRadius,
@@ -16,7 +12,7 @@ import {
   createRing,
   cartesian3FromGeographicCoordinate,
   sampleSurfaceNormalAtScreenPosition,
-} from "@carma/cesium";
+} from "@carma-mapping/engines/cesium/core";
 import {
   type PreviewRingSample,
   getAveragedPreviewRingNormal,

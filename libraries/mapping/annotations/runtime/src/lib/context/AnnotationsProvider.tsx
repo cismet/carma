@@ -5,7 +5,11 @@ import {
   Cartesian3,
   Cartesian4,
   Matrix4,
-  cartesian3FromJson,
+  type Scene,
+  Transforms,
+} from "@carma-cesium";
+import {
+  cartesian3FromMetricVector3,
   getDegreesFromCartesian,
   getEllipsoidalAltitudeOrZero,
   getLocalUpDirectionAtAnchor,
@@ -16,9 +20,7 @@ import {
   normalizeDirection,
   projectPointToHorizontalPlaneAtAnchor,
   resolveLocalFrameVectors,
-  type Scene,
-  Transforms,
-} from "@carma/cesium";
+} from "@carma-mapping/engines/cesium/core";
 import {
   LINEAR_SEGMENT_LINE_MODE_DIRECT,
   areDistanceRelationsEquivalent,

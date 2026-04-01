@@ -4,7 +4,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { Radio } from "antd";
 
 import { ResponsiveStatusBar } from "@carma-commons/ui/components";
-import { FORMAT_LOCALE, formatDecimalNumber } from "@carma/units/helpers";
+import { FORMAT_LOCALE, formatDecimalNumber } from "@carma-units";
 type DecimalNumberFormatterStoryProps = {
   value: number;
   fractionDigits: number;

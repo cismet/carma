@@ -1,7 +1,6 @@
 import { useCallback, useMemo, type MutableRefObject } from "react";
 
 import { Viewer } from "cesium";
-
 import {
   CesiumTerrainProvider,
   ImageryProvider,
@@ -9,8 +8,8 @@ import {
   ImageryLayer,
   Cesium3DTileset,
   Scene,
-  isValidScene,
-} from "@carma/cesium";
+} from "@carma-cesium";
+import { isValidScene } from "@carma-mapping/engines/cesium/core";
 
 import {
   isValidViewer as isValidViewerNoCtx,

@@ -1,13 +1,12 @@
 import { type MutableRefObject, useCallback, useEffect, useState } from "react";
-
-import { Cartesian3, Cartesian2, CesiumMath } from "@carma/cesium";
-import type { Radians } from "@carma/units/types";
-import { animateOrbitHeadingPitchRange } from "@carma-mapping/engines/cesium/api";
-
+import { Cartesian3, Cartesian2, CesiumMath } from "@carma-cesium";
+import type { Radians } from "@carma-units";
 import {
-  useCesiumContext,
+  animateOrbitHeadingPitchRange,
   pickSceneCenter,
-} from "@carma-mapping/engines/cesium";
+} from "@carma-mapping/engines/cesium/core";
+
+import { useCesiumContext } from "@carma-mapping/engines/cesium/legacy";
 
 import {
   CardinalDirectionEnum,
@@ -183,7 +182,7 @@ export const useObliqueCameraHandlers = (
         ? (closestCardinalIndex + 3) % 4 // Next clockwise cardinal
         : (closestCardinalIndex + 1) % 4; // Next counterclockwise cardinal (4-1)
 
-      rotateToDirection(nextCardinalIndex);
+      rotateToDirection(nextCardinalIndex as CardinalDirectionEnum);
     },
     [getScene, headingOffset, rotateToDirection]
   );

@@ -1,6 +1,6 @@
 import { format as d3Format } from "d3";
 
-import { degToRadNumeric } from "@carma/units/helpers";
+import { degToRadNumeric } from "@carma-units";
 export const DOLLY_ZOOM_X_AXIS_MODES = {
   FOV_DEG: "fov-deg",
   LOG_FOV_DEG: "log-fov-deg",

@@ -55,17 +55,17 @@ import {
   selectViewerModels,
   useCesiumContext,
   useZoomControls as useZoomControlsCesium,
-} from "@carma-mapping/engines/cesium";
+} from "@carma-mapping/engines/cesium/legacy";
 import {
   EmptySearchComponent,
   LibFuzzySearch,
+  type SearchResultItem,
 } from "@carma-mapping/fuzzy-search";
 import {
   Control,
   ControlButtonStyler,
   ControlLayout,
 } from "@carma-mapping/map-controls-layout";
-import { type SearchResultItem } from "@carma/types";
 
 import FloodingTopicMapContainer from "./components/FloodingTopicMapContainer";
 import { StateAwareChildren } from "./components/StateAwareChildren";

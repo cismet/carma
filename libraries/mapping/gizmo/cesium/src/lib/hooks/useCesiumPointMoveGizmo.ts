@@ -23,7 +23,6 @@ import {
 import { AXIS_NUMERIC_EPSILON, toSvgPathD } from "@carma-mapping/gizmo/core";
 import { useLabelOverlay } from "@carma-providers/label-overlay";
 import {
-  CarmaTransforms,
   Cartesian3,
   Color,
   Matrix4,
@@ -32,10 +31,13 @@ import {
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
   Transforms,
-  createRing,
   defined,
   type Scene,
-} from "@carma/cesium";
+} from "@carma-cesium";
+import {
+  CarmaTransforms,
+  createRing,
+} from "@carma-mapping/engines/cesium/core";
 
 import {
   createPlaneBasis,

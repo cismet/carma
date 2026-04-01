@@ -1,4 +1,4 @@
-import { getFromUTM32ToWGS84 } from "@carma/geo/proj";
+import { getFromUTM32ToWGS84 } from "@carma-geo/proj";
 import { buffer, convex, featureCollection, feature as turfFeature } from "@turf/turf";
 import type { ArbeitsauftragTileFeature } from "../store/slices/arbeitsauftraege";
 

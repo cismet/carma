@@ -1,6 +1,5 @@
 import { useMemo } from "react";
-
-import type { Scene } from "@carma-mapping/engines/cesium/api";
+import { type Scene } from "@carma-cesium";
 
 import { applyToCesium, readFromCesium } from "../../adapters/cesium";
 import type { WritePriority } from "../../core/types";

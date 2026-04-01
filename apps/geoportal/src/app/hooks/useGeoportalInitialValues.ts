@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 
-import { Cartesian3 } from "@carma/cesium";
+import { Cartesian3 } from "@carma-cesium";
 
 import {
   readLeafletHomeViewState,

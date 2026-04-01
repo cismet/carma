@@ -6,10 +6,10 @@ import {
   Color,
   Primitive,
   PrimitiveCollection,
-  getBoundingSphereFromCoordinates,
   type Scene,
-} from "@carma/cesium";
-import { extractRingsFromGeoJson } from "@carma/geo/utils";
+} from "@carma-cesium";
+import { getBoundingSphereFromCoordinates } from "@carma-mapping/engines/cesium/core";
+import { extractRingsFromGeoJson } from "@carma-geo/utils";
 
 import { createSelectionEdgePrimitive } from "./adhoc-primitives/create-selection-edge-primitive";
 import {

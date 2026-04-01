@@ -3,7 +3,7 @@ import type { CSSProperties } from "react";
 
 import { Card, Slider } from "antd";
 
-import type { CesiumWidget } from "@carma/cesium";
+import type { CesiumWidget } from "@carma-cesium";
 
 import {
   bindStoryCesiumCameraChangedListener,

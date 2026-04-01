@@ -24,7 +24,17 @@ import {
   CarmaResponsiveInfoBox,
   ResponsiveStatusBar,
 } from "@carma-commons/ui/components";
-import { cartesian3FromGeographicCoordinate } from "@carma-mapping/engines/cesium/api";
+import {
+  Cartesian3,
+  Cartographic,
+  type CesiumTerrainProvider,
+  type CesiumWidget,
+  type Scene,
+} from "@carma-cesium";
+import {
+  cartesian3FromGeographicCoordinate,
+  sampleTerrainMostDetailedGuardedAsync,
+} from "@carma-mapping/engines/cesium/core";
 import {
   useCesiumLabelOverlayHost,
   useCesiumOverlayView,
@@ -48,16 +58,8 @@ import {
   type LayoutPointInput,
   type PointLabelLayoutResult,
 } from "@carma-providers/label-overlay";
-import {
-  Cartesian3,
-  Cartographic,
-  sampleTerrainMostDetailedGuardedAsync,
-  type CesiumTerrainProvider,
-  type CesiumWidget,
-  type Scene,
-} from "@carma/cesium";
-import { degToRadNumeric, radToDegNumeric } from "@carma/units/helpers";
-import type { CssPixelPosition } from "@carma/units/types";
+import { degToRadNumeric, radToDegNumeric } from "@carma-units";
+import type { CssPixelPosition } from "@carma-units";
 
 import { setupCesium } from "../../map-engine-switcher/helpers/cesium-setup";
 import { requestStoryCesiumRender } from "../../shared/cesiumRuntimeGuards";

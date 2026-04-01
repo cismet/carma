@@ -35,10 +35,10 @@ vi.mock("@carma-commons/camera/model", async () => {
   };
 });
 
-vi.mock("@carma-mapping/engines/cesium/api", async () => {
+vi.mock("@carma-mapping/engines/cesium/core", async () => {
   const actual = await vi.importActual<
-    typeof import("@carma-mapping/engines/cesium/api")
-  >("@carma-mapping/engines/cesium/api");
+    typeof import("@carma-mapping/engines/cesium/core")
+  >("@carma-mapping/engines/cesium/core");
 
   return {
     ...actual,

@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useRef } from "react";
-
 import {
   cartesian3FromGeographicCoordinate,
   projectGeographicCoordinateToScreen,
-} from "@carma-mapping/engines/cesium/api";
+} from "@carma-mapping/engines/cesium/core";
 import { useCesiumSceneVisibilityIndex } from "@carma-mapping/engines/cesium/react/visibility";
 import {
   usePointLabels,

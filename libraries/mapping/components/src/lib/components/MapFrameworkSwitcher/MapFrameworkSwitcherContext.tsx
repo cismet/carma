@@ -18,12 +18,11 @@ import {
 } from "react";
 
 import type { LeafletMap } from "@carma-mapping/engines/leaflet";
+import { CesiumTerrainProvider, type Scene } from "@carma-cesium";
 import {
-  CesiumTerrainProvider,
-  type Scene,
   type SerializedCameraStateHeadingPitchRoll,
   waitForRenderFrames,
-} from "@carma/cesium";
+} from "@carma-mapping/engines/cesium/core";
 
 import {
   transitionToCesium,

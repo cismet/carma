@@ -1,5 +1,3 @@
-import type { Cartesian3Json } from "@carma/cesium";
-
 import type {
   AnnotationLabelAnchor,
   AnnotationLabelAppearance,
@@ -17,12 +15,12 @@ type PointGeometryLike = {
     latitude: number;
     altitude: number;
   };
-  geometryECEF: Cartesian3Json;
+  geometryECEF: { x: number; y: number; z: number };
   hidden?: boolean;
   locked?: boolean;
   pointLabelMode?: PointLabelMetricMode;
   auxiliaryLabelAnchor?: boolean;
-  verticalOffsetAnchorECEF?: Cartesian3Json;
+  verticalOffsetAnchorECEF?: { x: number; y: number; z: number };
   labelAnchor?: AnnotationLabelAnchor;
   labelAppearance?: AnnotationLabelAppearance;
 };
@@ -39,12 +37,18 @@ export const buildPointGeometryRows = <TPoint extends PointGeometryLike>(
       x: point.geometryECEF.x,
       y: point.geometryECEF.y,
       z: point.geometryECEF.z,
-    },
+    } as AnnotationGeometryPoint["geometryECEF"],
     hidden: point.hidden,
     locked: point.locked,
     pointLabelMode: point.pointLabelMode,
     auxiliaryLabelAnchor: point.auxiliaryLabelAnchor,
-    verticalOffsetAnchorECEF: point.verticalOffsetAnchorECEF,
+    verticalOffsetAnchorECEF: point.verticalOffsetAnchorECEF
+      ? ({
+          x: point.verticalOffsetAnchorECEF.x,
+          y: point.verticalOffsetAnchorECEF.y,
+          z: point.verticalOffsetAnchorECEF.z,
+        } as AnnotationGeometryPoint["verticalOffsetAnchorECEF"])
+      : undefined,
     labelAnchor: normalizeLabelAnchor(point.labelAnchor),
     labelAppearance: normalizeLabelAppearance(point.labelAppearance),
   }));

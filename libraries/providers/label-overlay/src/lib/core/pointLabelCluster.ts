@@ -1,4 +1,4 @@
-import type { CssPixelPosition } from "@carma/units/types";
+import type { CssPixelPosition } from "@carma-units";
 
 import type { PointLabelAttach } from "./pointLabelAttach";
 export type ClusterableScreenPoint<T> = {

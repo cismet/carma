@@ -15,7 +15,7 @@ import type {
   AnnotationCandidateDescriptor,
   NodeChainAnnotation,
 } from "@carma-mapping/annotations/core";
-import { Cartesian2, Cartesian3, type Scene } from "@carma/cesium";
+import { Cartesian2, Cartesian3, type Scene } from "@carma-cesium";
 
 import { useVerticalPolygonCandidate } from "../candidate/useVerticalPolygonCandidate";
 import { useCursorState } from "../cursor/useCursorState";

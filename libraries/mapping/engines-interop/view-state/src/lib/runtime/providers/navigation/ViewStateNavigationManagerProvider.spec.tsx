@@ -6,8 +6,8 @@ import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CAMERA_TYPE } from "@carma-commons/camera/model";
-import { degToRadNumeric } from "@carma/units/helpers";
-import type { Meters, Radians } from "@carma/units/types";
+import { degToRadNumeric } from "@carma-units";
+import type { Meters, Radians } from "@carma-units";
 
 import { ViewStateContext } from "../view-state/ViewStateContext";
 import { ViewStateProvider } from "../view-state/ViewStateProvider";

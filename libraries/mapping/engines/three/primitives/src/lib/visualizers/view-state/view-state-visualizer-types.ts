@@ -1,6 +1,6 @@
 import { CAMERA_TYPE } from "@carma-commons/camera/model";
 import type { ViewState } from "@carma-mapping/engines-interop/view-state";
-import type { Radians } from "@carma/units/types";
+import type { Radians } from "@carma-units";
 
 import type { ThreePart, ThreePartSize } from "../../common/create-part";
 export const VIEW_STATE_VISUALIZER_CAMERA_MODEL = {

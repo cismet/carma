@@ -1,27 +1,29 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-
 import {
-  applyRollToHeadingForCameraNearNadir,
   Cartesian3,
-  CesiumMath,
   HeadingPitchRange,
   Matrix4,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
-} from "@carma/cesium";
-import type { Radians, Meters } from "@carma/units/types";
-
-import { useCesiumContext } from "../../../hooks/useCesiumContext";
+  CesiumMath,
+} from "@carma-cesium";
 import {
+  applyRollToHeadingForCameraNearNadir,
   animateCamera,
+  cancelSceneAnimation,
   getHeadingPitchForMouseEvent,
   PITCH,
-} from "../../../utils/cesiumAnimateOrbits";
+} from "@carma-mapping/engines/cesium/core";
+import type { Radians, Meters } from "@carma-units";
+
+import { useCesiumContext } from "../../../hooks/useCesiumContext";
 import { guardCamera } from "../../../utils/guardCamera";
 import { isValidScreenSpaceEventHandler } from "../../../utils/instanceGates";
 import { pickSceneCenter } from "../../../utils/pick-position/pick-scene-positions";
-import { cancelSceneAnimation } from "../../../utils/sceneAnimationMap";
 import { Needle } from "./Needle";
+
+let hasWarnedAboutLegacyPitchingCompass = false;
+
 interface RotateButtonProps {
   minPitch?: Radians;
   maxPitch?: Radians;
@@ -49,6 +51,17 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
   pitchOblique = PITCH.OBLIQUE,
   headingFactor = 1,
 }) => {
+  useEffect(() => {
+    if (hasWarnedAboutLegacyPitchingCompass) {
+      return;
+    }
+
+    hasWarnedAboutLegacyPitchingCompass = true;
+    console.warn(
+      "[DEPRECATED] legacy Cesium PitchingCompass is deprecated. Migrate to @carma-mapping/engines-interop/navigation-controls."
+    );
+  }, []);
+
   const cesiumCtx = useCesiumContext();
   const { sceneAnimationMapRef } = cesiumCtx;
   const [isControlMouseDown, setIsControlMouseDown] = useState(false);

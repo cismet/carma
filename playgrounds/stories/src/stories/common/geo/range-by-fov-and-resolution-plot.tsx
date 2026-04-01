@@ -20,7 +20,7 @@ import {
   select,
 } from "d3";
 
-import type { Meters } from "@carma/units/types";
+import type { Meters } from "@carma-units";
 
 import {
   DOLLY_ZOOM_X_AXIS_MODES,

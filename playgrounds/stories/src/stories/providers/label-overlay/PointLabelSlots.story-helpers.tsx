@@ -8,9 +8,9 @@ import {
   type PointLabelExpansionSlotPreset,
   type PointLabelExpansionSlotStrategy,
 } from "@carma-providers/label-overlay";
-import { MINUS_PI_OVER_FOUR } from "@carma/math";
-import { degToRadNumeric, radToDegNumeric } from "@carma/units/helpers";
-import type { Radians } from "@carma/units/types";
+import { MINUS_PI_OVER_FOUR } from "@carma-commons/math";
+import { degToRadNumeric, radToDegNumeric } from "@carma-units";
+import type { Radians } from "@carma-units";
 
 import { CenteredStoryFrame } from "../../common/ui/centered-story-frame";
 export type PointLabelSlotsStoryArgs = {

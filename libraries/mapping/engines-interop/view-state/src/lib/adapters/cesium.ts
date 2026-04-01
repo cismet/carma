@@ -5,16 +5,18 @@ import {
 } from "@carma-commons/camera/model";
 import {
   Cartesian3,
-  type CameraStateRecord,
   Matrix4 as CesiumMatrix4,
   type Scene,
+} from "@carma-cesium";
+import {
+  type CameraStateRecord,
   pickBestAvailablePositionAtViewportCenter,
   readCameraWorldBasis,
   readSceneCameraIntrinsics,
   setViewFromCameraState,
   toSceneStateVec3,
-} from "@carma-mapping/engines/cesium/api";
-import { isFiniteNumber } from "@carma/math";
+} from "@carma-mapping/engines/cesium/core";
+import { isFiniteNumber } from "@carma-commons/math";
 
 import { buildViewStateFromEcef } from "../core/construct";
 import type { ViewState, ViewStateMetadata } from "../core/types";

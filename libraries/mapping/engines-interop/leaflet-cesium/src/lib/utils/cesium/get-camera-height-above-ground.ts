@@ -1,9 +1,5 @@
-import {
-  CesiumTerrainProvider,
-  Scene,
-  defined,
-  sampleTerrainMostDetailedGuardedAsync,
-} from "@carma/cesium";
+import { CesiumTerrainProvider, Scene, defined } from "@carma-cesium";
+import { sampleTerrainMostDetailedGuardedAsync } from "@carma-mapping/engines/cesium/core";
 
 export const getCameraHeightAboveGroundAsync = async (
   scene: Scene,

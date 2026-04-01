@@ -28,7 +28,7 @@ import {
   formatDegrees,
   formatLengthMeters,
   LENGTH_UNIT_MODE,
-} from "@carma/units/helpers";
+} from "@carma-units";
 
 import { formatBearingToGermanSectorLabel } from "../AnnotationInfoBox.formatters";
 import type {

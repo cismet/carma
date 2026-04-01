@@ -11,7 +11,7 @@ import {
   PointDistanceRelation,
   isPointMeasurementEntry,
 } from "@carma-mapping/annotations/core";
-import type { Cartesian3, Scene } from "@carma/cesium";
+import type { Cartesian3, Scene } from "@carma-cesium";
 
 import type { AnnotationsOptions } from "../config/annotationsOptions";
 import type { EditingState } from "../interaction/editing/useEditing";

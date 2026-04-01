@@ -11,7 +11,7 @@ import centroid from "@turf/centroid";
 
 import CismapLayer from "react-cismap/CismapLayer";
 
-import type { Layer } from "@carma/types";
+import type { Layer } from "@carma-mapping/layers";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 
 import {

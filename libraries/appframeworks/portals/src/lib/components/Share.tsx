@@ -5,17 +5,16 @@ import { Button, Input, Select, Tabs } from "antd";
 import { useState } from "react";
 
 import {
-  type ServiceOption,
   serviceOptions as defaultServiceOptions,
 } from "@carma-commons/resources";
+import { FileUploader, uploadImage } from "@carma-commons/ui/components";
+import type { ServiceOption } from "@carma-mapping/utils";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 
 import type { LayerState, SelectedObject } from "../types";
 import { SelectionItem } from "./SelectionProvider";
 import { useShareUrl } from "../hooks/useShareUrl";
-import { FileUploader } from "./FileUploader";
 import "./tabs.css";
-import { uploadImage } from "../utils/fileUpload";
 
 export type ShareProps = {
   layerState: LayerState;

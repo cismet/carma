@@ -15,8 +15,7 @@ import {
   useLabelOverlay,
   type LayoutPointInput,
 } from "@carma-providers/label-overlay";
-import type { Cartesian3Json } from "@carma/cesium";
-import type { CssPixelPosition } from "@carma/units/types";
+import type { CssPixelPosition } from "@carma-units";
 
 import {
   type AreaLabelViewProjector,
@@ -207,11 +206,13 @@ const createEmptyPolygonAreaLabelLayoutResult =
 const toMatrixCacheKey = (matrix: readonly number[]) =>
   matrix.map((value) => value.toFixed(6)).join(",");
 
+type Cartesian3Like = { x: number; y: number; z: number };
+
 export const useAreaLabelVisualizerBase = (
   viewProjector: AreaLabelViewProjector,
   polygonPreviewGroups: readonly {
     group: NodeChainAnnotation;
-    vertexPoints: Cartesian3Json[];
+    vertexPoints: Cartesian3Like[];
   }[],
   {
     overlayPrefix,

@@ -1,4 +1,4 @@
-import { Item } from "@carma/types";
+import { Item } from "@carma-mapping/layers";
 import LayerItem from "./LayerItem";
 import ItemSkeleton from "./ItemSkeleton";
 import { getLoadingCapabilities } from "../slices/mapLayers";

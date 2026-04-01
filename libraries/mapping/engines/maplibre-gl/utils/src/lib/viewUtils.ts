@@ -6,8 +6,8 @@ import {
   readHorizontalFovFromVertical,
   type CameraIntrinsics,
 } from "@carma-commons/camera/model";
-import { degToRadNumeric, negativePiToPi } from "@carma/units/helpers";
-import type { Radians } from "@carma/units/types";
+import { degToRadNumeric, negativePiToPi } from "@carma-units";
+import type { Radians } from "@carma-units";
 const CENTER_EPSILON_DEG = 1e-7;
 const ZOOM_EPSILON = 1e-6;
 const ANGLE_EPSILON_RAD = degToRadNumeric(1e-6)! as Radians;

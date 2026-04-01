@@ -5,5 +5,15 @@ export {
   OverlayTourContext,
   useOverlayTourContext,
 } from "./lib/components/OverlayTourProvider";
-
-export * from "./index.d";
+export type {
+  OverlayHelperHightlighterProps,
+  OverlayTourAction,
+  OverlayTourContextType,
+  PositionOverlayHelper,
+  Secondary,
+  OptionsOverlayHelper,
+  OverlayHelperConfig,
+  HighlightRect,
+  OverlayTourProviderProps,
+  GeoElementType,
+} from "./index.d";

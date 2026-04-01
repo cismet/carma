@@ -32,12 +32,12 @@ import {
   type NodeChainAnnotation,
   type PolygonAreaType,
 } from "@carma-mapping/annotations/core";
+import { Cartesian3 } from "@carma-cesium";
 import {
-  Cartesian3,
   getDegreesFromCartesian,
   getEllipsoidalAltitudeOrZero,
   projectPointToHorizontalPlaneAtAnchor,
-} from "@carma/cesium";
+} from "@carma-mapping/engines/cesium/core";
 
 import {
   finalizeDraftEntries,

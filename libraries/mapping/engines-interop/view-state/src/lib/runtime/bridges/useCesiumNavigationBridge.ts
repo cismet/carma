@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
-
-import type { Scene } from "@carma-mapping/engines/cesium/api";
+import { type Scene } from "@carma-cesium";
 
 import { useViewStateNavigationContext } from "../providers/navigation/useViewStateNavigationContext";
 import type {

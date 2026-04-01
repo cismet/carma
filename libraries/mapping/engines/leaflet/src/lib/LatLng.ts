@@ -1,6 +1,6 @@
 import { LatLng as LeafletLatLng } from "leaflet";
 
-import type { Degrees } from "@carma/units/types";
+import type { Degrees } from "@carma-units";
 export type LatLngJson = {
   latitude: Degrees;
   longitude: Degrees;

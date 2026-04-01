@@ -25,7 +25,7 @@ import {
 } from "@carma-appframeworks/portals";
 
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
-import type { SearchResultItem } from "@carma/types";
+import type { SearchResultItem } from "@carma-mapping/fuzzy-search";
 import { detectWebGLContext } from "@carma-commons/utils";
 import { ResponsiveStatusBar } from "@carma-commons/ui/components";
 
@@ -33,7 +33,7 @@ import {
   PitchingCompass,
   useCesiumContext,
   useZoomControls as useZoomControlsCesium,
-} from "@carma-mapping/engines/cesium";
+} from "@carma-mapping/engines/cesium/legacy";
 import { flyViewStateInCesium } from "@carma-mapping/engines-interop/view-state";
 import {
   MapFrameworkSwitcher,

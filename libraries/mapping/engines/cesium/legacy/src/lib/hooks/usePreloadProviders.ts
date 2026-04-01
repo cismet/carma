@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { MutableRefObject } from "react";
 
-import type { CesiumTerrainProvider, ImageryLayer } from "@carma/cesium";
+import type { CesiumTerrainProvider, ImageryLayer } from "@carma-cesium";
 
 import {
   loadCesiumTerrainProvider,

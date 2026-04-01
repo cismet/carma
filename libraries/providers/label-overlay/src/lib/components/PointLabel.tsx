@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 
-import { MINUS_PI_OVER_FOUR } from "@carma/math";
-import type { CssPixelPosition } from "@carma/units/types";
+import { MINUS_PI_OVER_FOUR } from "@carma-commons/math";
+import type { CssPixelPosition } from "@carma-units";
 
 import {
   estimatePillCapRadiusPx,

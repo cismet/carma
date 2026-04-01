@@ -1,14 +1,17 @@
 import type { Map as LeafletMap } from "leaflet";
 
 import { promiseWithTimeout } from "@carma-commons/utils/promise";
-import { isValidScene, Cartographic } from "@carma/cesium";
-import type {
-  Scene,
-  CesiumTerrainProvider,
-  SerializedCameraStateHeadingPitchRoll,
-} from "@carma/cesium";
-import { degToRad, isZoom } from "@carma/units/helpers";
-import { Degrees } from "@carma/units/types";
+import {
+  Cartographic,
+  type Scene,
+  type CesiumTerrainProvider,
+} from "@carma-cesium";
+import {
+  isValidScene,
+  type SerializedCameraStateHeadingPitchRoll,
+} from "@carma-mapping/engines/cesium/core";
+import { degToRad, isZoom } from "@carma-units";
+import { Degrees } from "@carma-units";
 
 import {
   TransitionStage,

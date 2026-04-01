@@ -1,4 +1,4 @@
-import type { Milliseconds, Seconds } from "@carma/units/types";
+import type { Milliseconds, Seconds } from "@carma-units";
 
 export const NAVIGATION_ZOOM_MODES = {
   AUTO: "auto",

@@ -4,8 +4,8 @@ import {
   Cartographic,
   HeadingPitchRange,
   defined,
-} from "@carma/cesium";
-import type { CesiumTerrainProvider, Model, Scene } from "@carma/cesium";
+} from "@carma-cesium";
+import type { CesiumTerrainProvider, Model, Scene } from "@carma-cesium";
 
 import { Easing } from "@carma-commons/math";
 
@@ -16,7 +16,7 @@ import {
   getHeadingPitchRangeFromZoom,
   removeCesiumMarker,
   type MarkerPrimitiveData,
-} from "@carma-mapping/engines/cesium";
+} from "@carma-mapping/engines/cesium/legacy";
 
 import type { HitTriggerOptions } from "./cesium-selection-types";
 import { DerivedGeometries } from "./getDerivedGeometries";

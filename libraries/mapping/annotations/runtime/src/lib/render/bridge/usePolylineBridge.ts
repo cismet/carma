@@ -8,7 +8,7 @@ import {
   buildDerivedPolylinePaths,
   isPointAnnotationEntry,
 } from "@carma-mapping/annotations/core";
-import type { Cartesian3, Scene } from "@carma/cesium";
+import type { Cartesian3, Scene } from "@carma-cesium";
 type UsePolylineBridgeParams = {
   scene: Scene;
   annotations: AnnotationCollection;

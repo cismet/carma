@@ -26,13 +26,15 @@ import {
   Cartesian4,
   Matrix4,
   Transforms,
-  cartesian3FromJson,
+  type Scene,
+} from "@carma-cesium";
+import {
+  cartesian3FromMetricVector3,
   getLocalUpDirectionAtAnchor,
   getSignedAngleDegAroundAxis,
   normalizeDirection,
   resolveLocalFrameVectors,
-} from "@carma/cesium";
-import type { Scene } from "@carma/cesium";
+} from "@carma-mapping/engines/cesium/core";
 
 import type { AnnotationEditingContextType } from "../../context/annotationsContext.types";
 import type { AnnotationsStore } from "../../store";
@@ -344,7 +346,7 @@ export const useEditing = (
 
           const planeNormalFromGroup = targetVerticalPolygonGroup.plane
             ? normalizeDirection(
-                cartesian3FromJson(targetVerticalPolygonGroup.plane.normalECEF)
+                cartesian3FromMetricVector3(targetVerticalPolygonGroup.plane.normalECEF)
               )
             : null;
           let planeNormal = planeNormalFromGroup;
@@ -362,7 +364,7 @@ export const useEditing = (
                 const orientedDerivedPlane =
                   orientPlaneTowardSceneCamera(derivedPlane);
                 planeNormal = normalizeDirection(
-                  cartesian3FromJson(orientedDerivedPlane.normalECEF)
+                  cartesian3FromMetricVector3(orientedDerivedPlane.normalECEF)
                 );
               }
             }
@@ -523,7 +525,7 @@ export const useEditing = (
         if (pointPosition) {
           const planeNormalFromGroup = targetPolygonAnnotation.plane
             ? normalizeDirection(
-                cartesian3FromJson(targetPolygonAnnotation.plane.normalECEF)
+                cartesian3FromMetricVector3(targetPolygonAnnotation.plane.normalECEF)
               )
             : null;
           let planeNormal = planeNormalFromGroup;
@@ -541,7 +543,7 @@ export const useEditing = (
                 const orientedDerivedPlane =
                   orientPlaneTowardSceneCamera(derivedPlane);
                 planeNormal = normalizeDirection(
-                  cartesian3FromJson(orientedDerivedPlane.normalECEF)
+                  cartesian3FromMetricVector3(orientedDerivedPlane.normalECEF)
                 );
               }
             }

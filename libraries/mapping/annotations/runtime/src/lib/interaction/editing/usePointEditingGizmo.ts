@@ -5,7 +5,7 @@ import {
   type AnnotationCollection,
 } from "@carma-mapping/annotations/core";
 import { useCesiumPointMoveGizmo } from "@carma-mapping/gizmo/cesium";
-import { Cartesian3, type Scene } from "@carma/cesium";
+import { Cartesian3, type Scene } from "@carma-cesium";
 
 import type { MoveGizmoSession } from "./annotationEdit.types";
 export type PointEditingGizmoOptions = {

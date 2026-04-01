@@ -21,12 +21,12 @@ import {
   MapFrameworkSwitcherProvider,
   MobileWarningMessage,
 } from "@carma-mapping/components";
+import { useCesiumDevConsoleTrigger } from "@carma-mapping/engines/cesium/react/interactions";
 import {
   FeatureFlagProvider,
   useFeatureFlags,
 } from "@carma-providers/feature-flag";
 import { HashStateProvider } from "@carma-providers/hash-state";
-import { useCesiumDevConsoleTrigger } from "@carma-mapping/engines/cesium";
 import {
   MapMeasurementsProvider,
   MEASUREMENT_MODE,

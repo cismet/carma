@@ -1,5 +1,7 @@
 import * as utils from "./lib/utils/utils";
 export type * from "./lib/types";
+export type * from "./lib/contracts/cismap-layer-props.d";
+export type * from "./lib/contracts/maplibre-style.d";
 
 export enum SELECTED_LAYER_INDEX {
   NO_SELECTION = -2,
@@ -11,7 +13,6 @@ export { utils };
 export { Save } from "./lib/components/Save.tsx";
 export { Share } from "./lib/components/Share.tsx";
 export { CarmaIconLink } from "./lib/components/CarmaIconLink.tsx";
-export { FileUploader } from "./lib/components/FileUploader.tsx";
 export { CarmaMapProviderWrapper } from "./lib/components/CarmaMapProviderWrapper.tsx";
 export { InfoBox } from "./lib/components/InfoBox.tsx";
 export { ResponsiveInfoBox } from "./lib/components/ResponsiveInfoBox.tsx";
@@ -85,7 +86,6 @@ export {
   useMapHashRouting,
   type LatLngZoom,
 } from "./lib/hooks/useMapHashRouting";
-export { uploadImage } from "./lib/utils/fileUpload";
 export {
   defaultBackgroundConfigurations,
   backgroundConfWithFastOrtho2024,

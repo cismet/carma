@@ -1,6 +1,7 @@
 import { isNaN } from "lodash";
 
-import type { FeatureInfoProperties, Item, Layer } from "@carma/types";
+import type { FeatureInfoProperties } from "./contracts/feature-info/feature-info";
+import type { Item, Layer } from "@carma-mapping/layers";
 import { extractCarmaConfig } from "@carma-commons/utils";
 import envelope from "@turf/envelope";
 import L from "leaflet";

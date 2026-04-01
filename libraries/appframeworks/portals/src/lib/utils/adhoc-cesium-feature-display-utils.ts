@@ -1,10 +1,10 @@
-import { BoundingSphere } from "@carma/cesium";
+import { BoundingSphere } from "@carma-cesium";
 import type {
   CarmaConf3D,
   CarmaMapLibreFeatureProperties,
-  FeatureInfo,
-} from "@carma/types";
-import { getBoundingSphereFromGeoJson } from "@carma-mapping/engines/cesium";
+} from "../contracts/maplibre-style.d";
+import type { FeatureInfo } from "@carma-mapping/utils";
+import { getBoundingSphereFromGeoJson } from "@carma-mapping/engines/cesium/core";
 import type { Feature, FeatureCollection } from "geojson";
 
 import type { AdhocFeature } from "../components/AdhocFeatureDisplayProvider";

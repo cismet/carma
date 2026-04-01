@@ -1,7 +1,8 @@
 import type { Feature, FeatureCollection } from "geojson";
 import type { GeoJSONSourceSpecification } from "maplibre-gl";
 
-import type { CarmaMapLibreStyleData, FeatureInfo } from "@carma/types";
+import type { FeatureInfo } from "@carma-mapping/utils";
+import type { CarmaMapLibreStyleData } from "../contracts/maplibre-style.d";
 
 import type { AdhocFeature } from "../components/AdhocFeatureDisplayProvider";
 

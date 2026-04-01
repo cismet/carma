@@ -1,8 +1,8 @@
+import { Cartesian3 } from "@carma-cesium";
 import {
-  Cartesian3,
   getDegreesFromCartesian,
   getEllipsoidalAltitudeOrZero,
-} from "@carma/cesium";
+} from "@carma-mapping/engines/cesium/core";
 
 import { isPointAnnotationEntry } from "../types/annotationCesiumTypes";
 import type {

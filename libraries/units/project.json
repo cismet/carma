@@ -1,0 +1,34 @@
+{
+  "name": "units",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libraries/units/src",
+  "projectType": "library",
+  "tags": ["scope:units", "type:data-structures"],
+  "targets": {
+    "build": {
+      "executor": "@nx/vite:build",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "outputPath": "dist/libraries/units"
+      },
+      "configurations": {
+        "development": {
+          "mode": "development"
+        },
+        "production": {
+          "mode": "production"
+        }
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "libraries/units/src/**/*.ts",
+          "libraries/units/src/**/*.d.ts"
+        ]
+      }
+    }
+  }
+}

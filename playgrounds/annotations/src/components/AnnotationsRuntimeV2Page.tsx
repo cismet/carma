@@ -25,9 +25,9 @@ import {
 import { useCesiumLabelOverlayHost } from "@carma-mapping/engines/cesium/react/interactions";
 import { ControlLayout } from "@carma-mapping/map-controls-layout";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
-import { type Scene } from "@carma/cesium";
-import { formatLatLonDegrees } from "@carma/units/helpers";
-import type { Degrees } from "@carma/units/types";
+import { type Scene } from "@carma-cesium";
+import { formatLatLonDegrees } from "@carma-units";
+import type { Degrees } from "@carma-units";
 
 import type { PlaygroundRuntimePageProps } from "../playground.types";
 import { CesiumNavigationOverlay } from "./CesiumNavigationOverlay";
