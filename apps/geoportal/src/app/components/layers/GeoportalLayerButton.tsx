@@ -355,6 +355,10 @@ const GeoportalLayerButton = ({
                   icon: opt?.icon,
                   legend: opt?.legend,
                   title: opt?.title,
+                  infoBoxMapping: opt?.infoBoxMapping as
+                    | string
+                    | string[]
+                    | undefined,
                 })
               );
             }}
@@ -477,11 +481,21 @@ const GeoportalLayerButton = ({
                     dynamicStylingSelections[idx] || config.default
                   }
                   onSelectionChange={(selection) => {
+                    const opt =
+                      config.type === "list"
+                        ? (config as DynamicStylingListConfig).options.find(
+                            (o) => o.id === selection
+                          )
+                        : undefined;
                     dispatch(
                       setLayerDynamicStylingSelection({
                         id,
                         configIndex: idx,
                         selection,
+                        infoBoxMapping: opt?.infoBoxMapping as
+                          | string
+                          | string[]
+                          | undefined,
                       })
                     );
                   }}

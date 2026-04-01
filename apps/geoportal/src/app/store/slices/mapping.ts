@@ -269,10 +269,18 @@ const slice = createSlice({
         icon?: string;
         legend?: string;
         title?: string;
+        infoBoxMapping?: string | string[];
       }>
     ) {
-      const { id, configIndex, selection, icon, legend, title } =
-        action.payload;
+      const {
+        id,
+        configIndex,
+        selection,
+        icon,
+        legend,
+        title,
+        infoBoxMapping,
+      } = action.payload;
       const layer = state.layers.find((l) => l.id === id);
       if (layer) {
         const prev =
@@ -290,6 +298,14 @@ const slice = createSlice({
         }
         if (title !== undefined) {
           layer.title = title;
+        }
+        if (infoBoxMapping !== undefined) {
+          layer.conf = {
+            ...layer.conf,
+            infoboxMapping: Array.isArray(infoBoxMapping)
+              ? infoBoxMapping
+              : [infoBoxMapping],
+          };
         }
       }
     },

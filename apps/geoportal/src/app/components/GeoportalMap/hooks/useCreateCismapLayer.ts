@@ -122,6 +122,8 @@ export const useCreateCismapLayers = (
   };
 
   const modeRef = useRef(mode);
+  const layersRef = useRef(layers);
+  layersRef.current = layers;
 
   const getLastDefinedObject = (o: Object) => {
     const keys = Object.keys(o);
@@ -448,6 +450,8 @@ export const useCreateCismapLayers = (
               });
             },
             onSelectionChanged: (e) => {
+              const currentLayer =
+                layersRef.current.find((l) => l.id === layer.id) || layer;
               const clickKey = e.latlng
                 ? `${e.latlng.lat},${e.latlng.lng}`
                 : null;
@@ -466,7 +470,7 @@ export const useCreateCismapLayers = (
               }
               if (modeRef.current === UIMode.DEFAULT) {
                 implicitVectorSelection(e, {
-                  layer,
+                  layer: currentLayer,
                   dispatch,
                   selectionHandler,
                   featureHandler,
@@ -475,7 +479,7 @@ export const useCreateCismapLayers = (
                 });
               } else if (modeRef.current === UIMode.FEATURE_INFO) {
                 onSelectionChangedVector(e, {
-                  layer,
+                  layer: currentLayer,
                   dispatch,
                   selectionHandler,
                   map: leafletMap,
