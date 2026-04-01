@@ -266,9 +266,10 @@ const slice = createSlice({
         id: string;
         configIndex: number;
         selection: string;
+        icon?: string;
       }>
     ) {
-      const { id, configIndex, selection } = action.payload;
+      const { id, configIndex, selection, icon } = action.payload;
       const layer = state.layers.find((l) => l.id === id);
       if (layer) {
         const prev =
@@ -277,6 +278,9 @@ const slice = createSlice({
             ? layer.dynamicStylingSelection
             : {};
         layer.dynamicStylingSelection = { ...prev, [configIndex]: selection };
+        if (icon !== undefined) {
+          layer.other = { ...layer.other, icon };
+        }
       }
     },
 

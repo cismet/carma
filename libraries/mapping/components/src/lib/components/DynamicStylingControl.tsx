@@ -8,10 +8,22 @@ import {
   faToggleOff,
   faToggleOn,
   faPalette,
+  faChevronDown,
+  faChevronUp,
 } from "@fortawesome/free-solid-svg-icons";
+import { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 const dynamicStylingOriginals: Record<string, Record<string, unknown>> = {};
+
+const ICON_PREFIX =
+  "https://geo.wuppertal.de/geoportal/geoportal_icon_legends/";
+
+const resolveIconSrc = (icon: string | undefined): string | undefined => {
+  if (!icon) return undefined;
+  if (icon.startsWith("http://") || icon.startsWith("https://")) return icon;
+  return `${ICON_PREFIX}${icon}.png`;
+};
 
 const parseTarget = (target: string) => {
   const firstDot = target.indexOf(".");
@@ -153,6 +165,7 @@ export interface DynamicStylingControlProps {
   currentSelection: string;
   onSelectionChange: (selection: string) => void;
   showIcon?: boolean;
+  children?: React.ReactNode;
 }
 
 const DynamicStylingList = ({
@@ -162,6 +175,7 @@ const DynamicStylingList = ({
   currentSelection,
   onSelectionChange,
   showIcon: showIconProp,
+  children,
 }: DynamicStylingControlProps) => {
   const listConfig = config as DynamicStylingListConfig;
   const currentOption = listConfig.options.find(
@@ -169,6 +183,67 @@ const DynamicStylingList = ({
   );
   const isBinaryToggle = listConfig.options.length === 2;
   const showIcon = showIconProp ?? config.showIcon !== false;
+
+  const handleOptionSelect = (key: string) => {
+    if (key === currentSelection) return;
+    const opt = listConfig.options.find((o) => o.id === key);
+    if (!opt) return;
+    if (maplibreMap) {
+      applyDynamicStyling(maplibreMap, carmaLayerId, listConfig, opt.id);
+    }
+    onSelectionChange(key);
+  };
+
+  const dropdownItems = listConfig.options.map((opt) => ({
+    key: opt.id,
+    label: (
+      <div className="flex items-center gap-2">
+        {resolveIconSrc(opt.icon) ? (
+          <img
+            src={resolveIconSrc(opt.icon)}
+            alt={opt.name}
+            className="w-4 h-4 object-contain"
+          />
+        ) : (
+          <span
+            className="inline-block w-3 h-3 rounded-full border border-gray-300"
+            style={{ backgroundColor: opt.color }}
+          />
+        )}
+        {opt.name}
+      </div>
+    ),
+  }));
+
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+
+  if (children) {
+    return (
+      <Dropdown
+        trigger={["click"]}
+        open={dropdownOpen}
+        onOpenChange={setDropdownOpen}
+        menu={{
+          selectedKeys: [currentSelection],
+          onClick: ({ key }) => handleOptionSelect(key),
+          items: dropdownItems,
+        }}
+      >
+        <div
+          className="flex items-center cursor-pointer"
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          {children}
+          <FontAwesomeIcon
+            icon={dropdownOpen ? faChevronUp : faChevronDown}
+            style={{ fontSize: "6px", marginLeft: "2px" }}
+            className="text-gray-500"
+          />
+        </div>
+      </Dropdown>
+    );
+  }
 
   const handleToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -199,12 +274,18 @@ const DynamicStylingList = ({
               className="text-sm text-gray-600 hover:text-gray-500"
             />
           )}
-          <span
-            className="inline-block w-2.5 h-2.5 rounded-full border border-gray-300"
-            style={{
-              backgroundColor: currentOption?.color,
-            }}
-          />
+          {resolveIconSrc(currentOption?.icon) ? (
+            <img
+              src={resolveIconSrc(currentOption?.icon)}
+              alt={currentOption?.name}
+              className="w-4 h-4 object-contain"
+            />
+          ) : (
+            <span
+              className="inline-block w-2.5 h-2.5 rounded-full border border-gray-300"
+              style={{ backgroundColor: currentOption?.color }}
+            />
+          )}
         </button>
       </div>
     );
@@ -219,32 +300,8 @@ const DynamicStylingList = ({
         trigger={["click"]}
         menu={{
           selectedKeys: [currentSelection],
-          onClick: ({ key }) => {
-            if (key === currentSelection) return;
-            const opt = listConfig.options.find((o) => o.id === key);
-            if (!opt) return;
-            if (maplibreMap) {
-              applyDynamicStyling(
-                maplibreMap,
-                carmaLayerId,
-                listConfig,
-                opt.id
-              );
-            }
-            onSelectionChange(key);
-          },
-          items: listConfig.options.map((opt) => ({
-            key: opt.id,
-            label: (
-              <div className="flex items-center gap-2">
-                <span
-                  className="inline-block w-3 h-3 rounded-full border border-gray-300"
-                  style={{ backgroundColor: opt.color }}
-                />
-                {opt.name}
-              </div>
-            ),
-          })),
+          onClick: ({ key }) => handleOptionSelect(key),
+          items: dropdownItems,
         }}
       >
         <button
@@ -257,12 +314,18 @@ const DynamicStylingList = ({
               className="text-sm text-gray-600 hover:text-gray-500"
             />
           )}
-          <span
-            className="inline-block w-2.5 h-2.5 rounded-full border border-gray-300"
-            style={{
-              backgroundColor: currentOption?.color,
-            }}
-          />
+          {resolveIconSrc(currentOption?.icon) ? (
+            <img
+              src={resolveIconSrc(currentOption?.icon)}
+              alt={currentOption?.name}
+              className="w-4 h-4 object-contain"
+            />
+          ) : (
+            <span
+              className="inline-block w-2.5 h-2.5 rounded-full border border-gray-300"
+              style={{ backgroundColor: currentOption?.color }}
+            />
+          )}
         </button>
       </Dropdown>
     </div>
