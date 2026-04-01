@@ -16,12 +16,8 @@
       "executor": "nx:run-commands",
       "outputs": ["{workspaceRoot}/dist/services/cidsDataBridge"],
       "options": {
-        "commands": [
-          "bun build src/index.tsx --outdir ../../dist/services/cidsDataBridge --target bun --minify",
-          "cp src/version.json ../../dist/services/cidsDataBridge/version.json"
-        ],
-        "cwd": "services/cidsDataBridge",
-        "parallel": false
+        "command": "mkdir -p ../../dist/services/cidsDataBridge && cp src/version.json ../../dist/services/cidsDataBridge/version.json",
+        "cwd": "services/cidsDataBridge"
       }
     },
     "container": {
