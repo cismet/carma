@@ -217,21 +217,28 @@ const DynamicStylingList = ({
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
+  const dropdownProps: Pick<
+    React.ComponentProps<typeof Dropdown>,
+    "trigger" | "align" | "menu"
+  > = {
+    trigger: ["click"],
+    align: { offset: [-16, 10] },
+    menu: {
+      selectedKeys: [currentSelection],
+      onClick: ({ key, domEvent }) => {
+        domEvent.stopPropagation();
+        handleOptionSelect(key);
+      },
+      items: dropdownItems,
+    },
+  };
+
   if (children) {
     return (
       <Dropdown
-        trigger={["click"]}
+        {...dropdownProps}
         open={dropdownOpen}
         onOpenChange={setDropdownOpen}
-        align={{ offset: [-16, 10] }}
-        menu={{
-          selectedKeys: [currentSelection],
-          onClick: ({ key, domEvent }) => {
-            domEvent.stopPropagation();
-            handleOptionSelect(key);
-          },
-          items: dropdownItems,
-        }}
       >
         <div
           className="flex items-center cursor-pointer"
@@ -300,18 +307,7 @@ const DynamicStylingList = ({
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
     >
-      <Dropdown
-        trigger={["click"]}
-        align={{ offset: [-16, 10] }}
-        menu={{
-          selectedKeys: [currentSelection],
-          onClick: ({ key, domEvent }) => {
-            domEvent.stopPropagation();
-            handleOptionSelect(key);
-          },
-          items: dropdownItems,
-        }}
-      >
+      <Dropdown {...dropdownProps}>
         <button
           id={`stylingLayerButton-${carmaLayerId}`}
           className="px-1.5 flex items-center gap-1 justify-center"
