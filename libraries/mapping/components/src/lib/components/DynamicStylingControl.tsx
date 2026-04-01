@@ -201,7 +201,7 @@ const DynamicStylingList = ({
         {resolveIconSrc(opt.icon) ? (
           <img
             src={resolveIconSrc(opt.icon)}
-            alt={opt.name}
+            alt={opt.title}
             className="w-4 h-4 object-contain"
           />
         ) : (
@@ -210,7 +210,7 @@ const DynamicStylingList = ({
             style={{ backgroundColor: opt.color }}
           />
         )}
-        {opt.name}
+        {opt.title}
       </div>
     ),
   }));
@@ -277,7 +277,7 @@ const DynamicStylingList = ({
           {resolveIconSrc(currentOption?.icon) ? (
             <img
               src={resolveIconSrc(currentOption?.icon)}
-              alt={currentOption?.name}
+              alt={currentOption?.title}
               className="w-4 h-4 object-contain"
             />
           ) : (
@@ -317,7 +317,7 @@ const DynamicStylingList = ({
           {resolveIconSrc(currentOption?.icon) ? (
             <img
               src={resolveIconSrc(currentOption?.icon)}
-              alt={currentOption?.name}
+              alt={currentOption?.title}
               className="w-4 h-4 object-contain"
             />
           ) : (

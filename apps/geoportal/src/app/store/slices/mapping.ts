@@ -268,9 +268,11 @@ const slice = createSlice({
         selection: string;
         icon?: string;
         legend?: string;
+        title?: string;
       }>
     ) {
-      const { id, configIndex, selection, icon, legend } = action.payload;
+      const { id, configIndex, selection, icon, legend, title } =
+        action.payload;
       const layer = state.layers.find((l) => l.id === id);
       if (layer) {
         const prev =
@@ -285,6 +287,9 @@ const slice = createSlice({
             ...(icon !== undefined && { icon }),
             ...(legend !== undefined && { vectorLegend: legend }),
           };
+        }
+        if (title !== undefined) {
+          layer.title = title;
         }
       }
     },
