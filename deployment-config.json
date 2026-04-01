@@ -1658,7 +1658,7 @@
           }
         }
       },
-      "projectPath": "./services/cidsDataBridge"
+      "projectPath": "./dist/services/cidsDataBridge"
     }
   }
 }

@@ -14,10 +14,14 @@
     },
     "build": {
       "executor": "nx:run-commands",
-      "outputs": ["{projectRoot}/dist"],
+      "outputs": ["{workspaceRoot}/dist/services/cidsDataBridge"],
       "options": {
-        "command": "bun build src/index.tsx --outdir dist --target bun --minify",
-        "cwd": "services/cidsDataBridge"
+        "commands": [
+          "bun build src/index.tsx --outdir ../../dist/services/cidsDataBridge --target bun --minify",
+          "cp src/version.json ../../dist/services/cidsDataBridge/version.json"
+        ],
+        "cwd": "services/cidsDataBridge",
+        "parallel": false
       }
     },
     "container": {
