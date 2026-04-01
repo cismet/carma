@@ -223,6 +223,7 @@ const DynamicStylingList = ({
         trigger={["click"]}
         open={dropdownOpen}
         onOpenChange={setDropdownOpen}
+        align={{ offset: [-16, 10] }}
         menu={{
           selectedKeys: [currentSelection],
           onClick: ({ key, domEvent }) => {
@@ -301,6 +302,7 @@ const DynamicStylingList = ({
     >
       <Dropdown
         trigger={["click"]}
+        align={{ offset: [-16, 10] }}
         menu={{
           selectedKeys: [currentSelection],
           onClick: ({ key, domEvent }) => {
