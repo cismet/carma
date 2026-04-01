@@ -267,9 +267,10 @@ const slice = createSlice({
         configIndex: number;
         selection: string;
         icon?: string;
+        legend?: string;
       }>
     ) {
-      const { id, configIndex, selection, icon } = action.payload;
+      const { id, configIndex, selection, icon, legend } = action.payload;
       const layer = state.layers.find((l) => l.id === id);
       if (layer) {
         const prev =
@@ -278,8 +279,12 @@ const slice = createSlice({
             ? layer.dynamicStylingSelection
             : {};
         layer.dynamicStylingSelection = { ...prev, [configIndex]: selection };
-        if (icon !== undefined) {
-          layer.other = { ...layer.other, icon };
+        if (icon !== undefined || legend !== undefined) {
+          layer.other = {
+            ...layer.other,
+            ...(icon !== undefined && { icon }),
+            ...(legend !== undefined && { vectorLegend: legend }),
+          };
         }
       }
     },

@@ -19,6 +19,7 @@ export type DynamicStylingOption = {
   name: string;
   color: string;
   icon?: string;
+  legend?: string;
   replacements?: Record<string, [string, string][]>;
   [key: string]: unknown;
 };

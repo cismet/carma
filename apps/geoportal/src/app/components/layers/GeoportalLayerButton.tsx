@@ -353,6 +353,7 @@ const GeoportalLayerButton = ({
                   configIndex: iconListConfigIndex,
                   selection,
                   icon: opt?.icon,
+                  legend: opt?.legend,
                 })
               );
             }}
