@@ -225,7 +225,10 @@ const DynamicStylingList = ({
         onOpenChange={setDropdownOpen}
         menu={{
           selectedKeys: [currentSelection],
-          onClick: ({ key }) => handleOptionSelect(key),
+          onClick: ({ key, domEvent }) => {
+            domEvent.stopPropagation();
+            handleOptionSelect(key);
+          },
           items: dropdownItems,
         }}
       >
@@ -300,7 +303,10 @@ const DynamicStylingList = ({
         trigger={["click"]}
         menu={{
           selectedKeys: [currentSelection],
-          onClick: ({ key }) => handleOptionSelect(key),
+          onClick: ({ key, domEvent }) => {
+            domEvent.stopPropagation();
+            handleOptionSelect(key);
+          },
           items: dropdownItems,
         }}
       >
