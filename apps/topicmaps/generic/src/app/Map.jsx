@@ -322,6 +322,7 @@ const Map = ({
                 clickAfterGazetteerHit={config.tm.clickAfterGazetteerHit}
                 layersIdleRef={layersIdleRef}
                 resetLayersIdle={resetLayersIdle}
+                landParcelSearch={config.tm.useLandparcelSearch}
               />
             </div>
           </Control>

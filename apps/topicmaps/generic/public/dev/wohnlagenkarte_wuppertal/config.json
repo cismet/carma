@@ -54,6 +54,7 @@
           "propertyValue": "exklusive Wohnlage"
         }
       ]
-    }
+    },
+    "useLandparcelSearch": true
   }
 }

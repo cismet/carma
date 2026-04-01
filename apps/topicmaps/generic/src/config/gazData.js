@@ -14,7 +14,12 @@ export const defaultEndpoints = [
 
 export const buildGazDataConfig = (endpoints) => {
   const sources = endpoints.map((ep) => createConfig(ep, { crs, host }));
-  return { crs, prefix, sources };
+  return {
+    crs,
+    prefix,
+    sources,
+    landParcelUrl: "https://wunda-geoportal.cismet.de/data/4326/fstck.json",
+  };
 };
 
 export const gazDataConfig = buildGazDataConfig(defaultEndpoints);
