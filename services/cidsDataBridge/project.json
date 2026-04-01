@@ -16,7 +16,7 @@
       "executor": "nx:run-commands",
       "outputs": ["{workspaceRoot}/dist/services/cidsDataBridge"],
       "options": {
-        "command": "mkdir -p ../../dist/services/cidsDataBridge && cp src/version.json ../../dist/services/cidsDataBridge/version.json",
+        "command": "bash -c 'mkdir -p ../../dist/services/cidsDataBridge && cp src/version.json ../../dist/services/cidsDataBridge/version.json'",
         "cwd": "services/cidsDataBridge"
       }
     },
