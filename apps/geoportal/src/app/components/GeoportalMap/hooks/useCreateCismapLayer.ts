@@ -20,10 +20,7 @@ import {
   setSelectedFeature,
 } from "../../../store/slices/features";
 import { setLayersIdle, updateLayer } from "../../../store/slices/mapping";
-import {
-  applyDynamicStyling,
-  applyDynamicVisibility,
-} from "@carma-mapping/components";
+import { applyDynamicStyling } from "@carma-mapping/components";
 
 import { UIMode } from "../../../store/slices/ui";
 import {
@@ -338,8 +335,8 @@ export const useCreateCismapLayers = (
               const configs = Array.isArray(layer.dynamicStyling)
                 ? layer.dynamicStyling
                 : layer.dynamicStyling
-                  ? [layer.dynamicStyling]
-                  : [];
+                ? [layer.dynamicStyling]
+                : [];
               const selections =
                 typeof layer.dynamicStylingSelection === "object" &&
                 layer.dynamicStylingSelection !== null
@@ -355,12 +352,6 @@ export const useCreateCismapLayers = (
                   if (!sel || sel === config.default) return;
                   if (config.type === "list") {
                     applyDynamicStyling(map, layer.id, config, sel);
-                  } else if (config.type === "visibility") {
-                    applyDynamicVisibility(
-                      map,
-                      config,
-                      sel as "visible" | "hidden"
-                    );
                   }
                 });
               };

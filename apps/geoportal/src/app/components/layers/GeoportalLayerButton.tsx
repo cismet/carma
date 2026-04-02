@@ -68,7 +68,6 @@ import {
   captureOriginalFilters,
   DynamicStylingControl,
   applyDynamicStyling,
-  applyDynamicVisibility,
 } from "@carma-mapping/components";
 import { Badge, Spin, Tooltip } from "antd";
 import { useLayerLoading } from "@carma-mapping/utils";
@@ -219,11 +218,13 @@ const GeoportalLayerButton = ({
     }
   }, [layer.filterConfig, layer.filterState, maplibreMaps, id]);
 
-  const dynamicStylingConfigs = Array.isArray(layer.dynamicStyling)
-    ? layer.dynamicStyling
-    : layer.dynamicStyling
-    ? [layer.dynamicStyling]
-    : [];
+  const dynamicStylingConfigs = (
+    Array.isArray(layer.dynamicStyling)
+      ? layer.dynamicStyling
+      : layer.dynamicStyling
+      ? [layer.dynamicStyling]
+      : []
+  ).filter((c): c is DynamicStylingListConfig => c.type === "list");
   const dynamicStylingSelections =
     typeof layer.dynamicStylingSelection === "object" &&
     layer.dynamicStylingSelection !== null
@@ -255,13 +256,6 @@ const GeoportalLayerButton = ({
 
       if (config.type === "list") {
         applyDynamicStyling(mapEntry.map, id, config, selection);
-        applied = true;
-      } else if (config.type === "visibility") {
-        applyDynamicVisibility(
-          mapEntry.map,
-          config,
-          selection as "visible" | "hidden"
-        );
         applied = true;
       }
     });

@@ -17,9 +17,7 @@ export type InteractionButton = {
 export type DynamicStylingOption = {
   id: string;
   title: string;
-  color: string;
   icon?: string;
-  legend?: string;
   replacements?: Record<string, [string, string][]>;
   [key: string]: unknown;
 };
