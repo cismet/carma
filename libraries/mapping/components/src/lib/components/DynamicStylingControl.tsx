@@ -26,29 +26,39 @@ const resolveIconSrc = (icon: string | undefined): string | undefined => {
 };
 
 const parseTarget = (target: string) => {
-  const firstDot = target.indexOf(".");
-  const secondDot = target.indexOf(".", firstDot + 1);
+  const parts = target.split(".");
   return {
-    layerId: target.substring(0, firstDot),
-    type: target.substring(firstDot + 1, secondDot) as "paint" | "layout",
-    property: target.substring(secondDot + 1),
+    category: parts[0],
+    rest: parts.slice(1),
   };
 };
 
 const getProperty = (libreMap: any, target: string) => {
-  const { layerId, type, property } = parseTarget(target);
-  if (!libreMap.getLayer(layerId)) return undefined;
-  return type === "paint"
-    ? libreMap.getPaintProperty(layerId, property)
-    : libreMap.getLayoutProperty(layerId, property);
+  const { category, rest } = parseTarget(target);
+
+  if (category === "layers") {
+    const [layerId, type, ...propertyParts] = rest;
+    const property = propertyParts.join(".");
+    if (!libreMap.getLayer(layerId)) return undefined;
+    return type === "paint"
+      ? libreMap.getPaintProperty(layerId, property)
+      : libreMap.getLayoutProperty(layerId, property);
+  }
+
+  return undefined;
 };
 
 const setProperty = (libreMap: any, target: string, value: unknown) => {
-  const { layerId, type, property } = parseTarget(target);
-  if (type === "paint") {
-    libreMap.setPaintProperty(layerId, property, value);
-  } else {
-    libreMap.setLayoutProperty(layerId, property, value);
+  const { category, rest } = parseTarget(target);
+
+  if (category === "layers") {
+    const [layerId, type, ...propertyParts] = rest;
+    const property = propertyParts.join(".");
+    if (type === "paint") {
+      libreMap.setPaintProperty(layerId, property, value);
+    } else {
+      libreMap.setLayoutProperty(layerId, property, value);
+    }
   }
 };
 
