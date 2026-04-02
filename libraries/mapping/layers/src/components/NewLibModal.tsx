@@ -754,14 +754,14 @@ export const NewLibModal = ({
       const featuredLayersWithServiceName = featuredLayers.map((layer) => ({
         ...layer,
         serviceName: "featured",
-        path: "Empfohlen",
+        path: "Neu",
         originalPath: layer.path,
       }));
       setAllLayers((prev) => {
         return [
           {
             id: "featured",
-            Title: "Empfohlen",
+            Title: "Neu",
             layers: featuredLayersWithServiceName,
           },
           ...prev,
@@ -769,7 +769,7 @@ export const NewLibModal = ({
       });
       addItemToCategory(
         "mapLayers",
-        { id: "featured", Title: "Empfohlen" },
+        { id: "featured", Title: "Neu" },
         // @ts-ignore
         featuredLayersWithServiceName
       );
