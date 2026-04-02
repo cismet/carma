@@ -3,6 +3,7 @@ export {
   applyDynamicStyling,
   applyDynamicVisibility,
   type DynamicStylingControlProps,
+  type MetadataChanges,
 } from "./lib/components/DynamicStylingControl";
 export { FontAwesomeLikeIcon } from "./lib/components/FontAwesomeLikeIcon.tsx";
 export {

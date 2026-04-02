@@ -50,6 +50,7 @@ import {
   toggleUseInFeatureInfo,
   getMaplibreMaps,
   setLayerDynamicStylingSelection,
+  applyLayerMetadataChanges,
 } from "../../store/slices/mapping";
 import {
   UIMode,
@@ -353,7 +354,6 @@ const GeoportalLayerButton = ({
                   configIndex: iconListConfigIndex,
                   selection,
                   icon: opt?.icon,
-                  legend: opt?.legend,
                   title: opt?.title,
                   infoBoxMapping: opt?.infoBoxMapping as
                     | string
@@ -361,6 +361,9 @@ const GeoportalLayerButton = ({
                     | undefined,
                 })
               );
+            }}
+            onMetadataChange={(changes) => {
+              dispatch(applyLayerMetadataChanges({ id, changes }));
             }}
           >
             <LayerIcon
@@ -498,6 +501,9 @@ const GeoportalLayerButton = ({
                           | undefined,
                       })
                     );
+                  }}
+                  onMetadataChange={(changes) => {
+                    dispatch(applyLayerMetadataChanges({ id, changes }));
                   }}
                   showIcon={false}
                 />

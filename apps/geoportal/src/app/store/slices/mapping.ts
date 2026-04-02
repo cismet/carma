@@ -310,6 +310,28 @@ const slice = createSlice({
       }
     },
 
+    applyLayerMetadataChanges(
+      state,
+      action: PayloadAction<{
+        id: string;
+        changes: Record<string, unknown>;
+      }>
+    ) {
+      const { id, changes } = action.payload;
+      const layer = state.layers.find((l) => l.id === id);
+      if (!layer) return;
+
+      const LAYER_INFO_PREFIX = "carmaConf.layerInfo.";
+
+      for (const [path, value] of Object.entries(changes)) {
+        if (path.startsWith(LAYER_INFO_PREFIX)) {
+          const key = path.slice(LAYER_INFO_PREFIX.length);
+          layer.other = { ...layer.other, [key]: value };
+          layer.layerInfo = { ...layer.layerInfo, [key]: value };
+        }
+      }
+    },
+
     setSelectedLayerIndex(state, action) {
       state.selectedLayerIndex = action.payload;
     },
@@ -462,6 +484,7 @@ export const {
   setLayerFilterInfo,
   setLayerFilterState,
   setLayerDynamicStylingSelection,
+  applyLayerMetadataChanges,
   setLibreMapRef,
   setMaplibreMaps,
   setConfigSelection,
