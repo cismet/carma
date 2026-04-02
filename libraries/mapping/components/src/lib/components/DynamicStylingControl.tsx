@@ -14,8 +14,6 @@ import {
 import { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
-const dynamicStylingOriginals: Record<string, Record<string, unknown>> = {};
-
 const ICON_PREFIX =
   "https://geo.wuppertal.de/geoportal/geoportal_icon_legends/";
 
@@ -33,92 +31,43 @@ const parseTarget = (target: string) => {
   };
 };
 
-const getNestedValue = (obj: any, path: string[]): unknown => {
+const setNestedValue = (obj: any, path: string[], value: unknown) => {
   let current = obj;
-  for (const key of path) {
-    if (current == null || typeof current !== "object") return undefined;
-    current = current[key];
-  }
-  return current;
-};
-
-const cloneAndSet = (obj: any, path: string[], value: unknown): any => {
-  if (path.length === 0) return value;
-  const [head, ...tail] = path;
-  const child = obj?.[head] ?? {};
-  const clone = Object.isFrozen(obj) ? { ...obj } : obj;
-  clone[head] = cloneAndSet(child, tail, value);
-  return clone;
-};
-
-const getProperty = (libreMap: any, target: string) => {
-  const { category, rest } = parseTarget(target);
-
-  if (category === "layers") {
-    const [layerId, type, ...propertyParts] = rest;
-    const property = propertyParts.join(".");
-    if (!libreMap.getLayer(layerId)) return undefined;
-    return type === "paint"
-      ? libreMap.getPaintProperty(layerId, property)
-      : libreMap.getLayoutProperty(layerId, property);
-  }
-
-  const stylesheet = libreMap.style?.stylesheet;
-  console.log("yyy", libreMap.style);
-  return stylesheet
-    ? getNestedValue(stylesheet, [category, ...rest])
-    : undefined;
-};
-
-const setProperty = (libreMap: any, target: string, value: unknown) => {
-  const { category, rest } = parseTarget(target);
-
-  if (category === "layers") {
-    const [layerId, type, ...propertyParts] = rest;
-    const property = propertyParts.join(".");
-    if (type === "paint") {
-      libreMap.setPaintProperty(layerId, property, value);
-    } else {
-      libreMap.setLayoutProperty(layerId, property, value);
+  for (let i = 0; i < path.length - 1; i++) {
+    if (current[path[i]] == null || typeof current[path[i]] !== "object") {
+      current[path[i]] = {};
     }
-    return;
+    current = current[path[i]];
   }
-
-  if (libreMap.style?.stylesheet) {
-    libreMap.style.stylesheet = cloneAndSet(
-      libreMap.style.stylesheet,
-      [category, ...rest],
-      value
-    );
-  }
+  current[path[path.length - 1]] = value;
 };
 
-const captureOriginals = (
-  libreMap: any,
+const defaultLayerValues: Record<string, Record<string, unknown>> = {};
+
+const captureDefaults = (
+  stylesheet: any,
   carmaLayerId: string,
   config: DynamicStylingListConfig
 ) => {
-  if (dynamicStylingOriginals[carmaLayerId]) {
-    return dynamicStylingOriginals[carmaLayerId];
-  }
-  const defaultOption = config.options.find((o) => o.id === config.default);
-  const originals: Record<string, unknown> = {};
-  for (const [key, targets] of Object.entries(config.targets)) {
+  if (defaultLayerValues[carmaLayerId]) return defaultLayerValues[carmaLayerId];
+
+  const defaults: Record<string, unknown> = {};
+  for (const [, targets] of Object.entries(config.targets)) {
     for (const target of targets) {
-      let val = getProperty(libreMap, target);
-      if (
-        (val === undefined || val === null) &&
-        defaultOption?.[key] !== undefined
-      ) {
-        val = defaultOption[key];
-      }
+      const { category, rest } = parseTarget(target);
+      if (category !== "layers") continue;
+      const [layerId, type, ...propertyParts] = rest;
+      const layer = stylesheet.layers?.find((l: any) => l.id === layerId);
+      if (!layer) continue;
+      const property = propertyParts.join(".");
+      const val = layer[type]?.[property];
       if (val !== undefined && val !== null) {
-        originals[target] = JSON.parse(JSON.stringify(val));
+        defaults[target] = JSON.parse(JSON.stringify(val));
       }
     }
   }
-  dynamicStylingOriginals[carmaLayerId] = originals;
-  return originals;
+  defaultLayerValues[carmaLayerId] = defaults;
+  return defaults;
 };
 
 export type MetadataChanges = Record<string, unknown>;
@@ -129,80 +78,62 @@ export const applyDynamicStyling = (
   config: DynamicStylingListConfig,
   selectedOptionId: string
 ): MetadataChanges => {
-  const originals = captureOriginals(libreMap, carmaLayerId, config);
+  const stylesheet = libreMap.style?.stylesheet;
+  if (!stylesheet) return {};
+
   const defaultOption = config.options.find((o) => o.id === config.default);
   const selectedOption = config.options.find((o) => o.id === selectedOptionId);
-  const metadataChanges: MetadataChanges = {};
-  if (!defaultOption || !selectedOption) return metadataChanges;
+  if (!defaultOption || !selectedOption) return {};
 
-  if (selectedOptionId === config.default) {
-    for (const [key, targets] of Object.entries(config.targets)) {
-      for (const target of targets) {
-        const { category, rest } = parseTarget(target);
-        if (category !== "layers") {
-          const originalVal = originals[target];
-          if (originalVal !== undefined) {
-            setProperty(
-              libreMap,
-              target,
-              JSON.parse(JSON.stringify(originalVal))
-            );
-            metadataChanges[rest.join(".")] = originalVal;
-          }
-          continue;
-        }
-        const originalVal = originals[target];
-        if (originalVal === undefined) continue;
-        try {
-          setProperty(
-            libreMap,
-            target,
-            JSON.parse(JSON.stringify(originalVal))
-          );
-        } catch (error) {
-          console.error(`[DynamicStyling] Error restoring ${target}:`, error);
-        }
-      }
-    }
-    return metadataChanges;
-  }
+  const defaults = captureDefaults(stylesheet, carmaLayerId, config);
+  const updatedStylesheet = JSON.parse(JSON.stringify(stylesheet));
+  const metadataChanges: MetadataChanges = {};
 
   for (const [key, targets] of Object.entries(config.targets)) {
-    const fromVal = defaultOption[key];
-    const toVal = selectedOption[key];
-    if (fromVal === undefined || toVal === undefined) continue;
+    const value = selectedOption[key];
+    if (value === undefined) continue;
 
     for (const target of targets) {
       const { category, rest } = parseTarget(target);
-      if (category !== "layers") {
-        setProperty(libreMap, target, toVal);
-        metadataChanges[rest.join(".")] = toVal;
-        continue;
-      }
 
-      const originalVal = originals[target];
-      if (originalVal === undefined) continue;
-
-      const replacements: [string, string][] = [
-        [String(fromVal), String(toVal)],
-      ];
-      if (selectedOption.replacements?.[key]) {
-        replacements.push(
-          ...(selectedOption.replacements[key] as [string, string][])
+      if (category === "layers") {
+        const [layerId, type, ...propertyParts] = rest;
+        const layer = updatedStylesheet.layers?.find(
+          (l: any) => l.id === layerId
         );
-      }
+        if (!layer) continue;
+        const property = propertyParts.join(".");
+        if (!layer[type]) layer[type] = {};
 
-      try {
+        const originalVal = defaults[target];
+        if (originalVal === undefined) {
+          layer[type][property] = value;
+          continue;
+        }
+
+        const fromVal = defaultOption[key];
+        const replacements: [string, string][] = [
+          [String(fromVal), String(value)],
+        ];
+        if (selectedOption.replacements?.[key]) {
+          replacements.push(
+            ...(selectedOption.replacements[key] as [string, string][])
+          );
+        }
+
         let serialized = JSON.stringify(originalVal);
         for (const [from, to] of replacements) {
           serialized = serialized.replaceAll(from, to);
         }
-        setProperty(libreMap, target, JSON.parse(serialized));
-      } catch (error) {
-        console.error(`[DynamicStyling] Error applying ${target}:`, error);
+        layer[type][property] = JSON.parse(serialized);
+      } else {
+        setNestedValue(updatedStylesheet, [category, ...rest], value);
+        metadataChanges[rest.join(".")] = value;
       }
     }
   }
+
+  libreMap.setStyle(updatedStylesheet);
   return metadataChanges;
 };
 
