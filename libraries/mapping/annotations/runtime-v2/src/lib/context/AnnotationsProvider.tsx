@@ -18,11 +18,12 @@ import {
   isManagedAnnotationKeyboardEvent,
   resolveAnnotationCommonShortcutAction,
 } from "@carma-mapping/annotations/core";
-import { Cartesian3 } from "@carma-cesium";
+import { Cartesian3, type Cesium3DTileset } from "@carma-cesium";
 import {
   getDegreesFromCartesian,
   getEllipsoidalAltitudeOrZero,
 } from "@carma-mapping/engines/cesium/core";
+import { registerCesiumScenePointQueryTileset } from "@carma-mapping/engines/cesium/react/interactions";
 
 import { runtimeMeasurementVisualDefaults } from "../config/measurementVisualDefaults";
 import {
@@ -37,12 +38,10 @@ import { useSceneCoordinateHandler } from "../interaction/useSceneCoordinateHand
 import { MeasurementPrimitivesVisualizer } from "../render/MeasurementPrimitivesVisualizer";
 import { RuntimePointLabelVisualizer } from "../render/RuntimePointLabelVisualizer";
 import {
-  areRuntimeCursorScreenPositionsEqual,
   areRuntimeRenderLayersEqual,
   type RuntimeCursorScreenPosition,
   type RuntimeRenderLayer,
 } from "../render/runtimeRenderLayer";
-import { useOverlayPositionSync } from "../render/useOverlayPositionSync";
 import {
   appendAnnotationEntities,
   createAnnotationsStore,
@@ -99,6 +98,7 @@ type AnnotationsRuntimeServices = {
 
 type AnnotationsProviderProps = {
   scene: RuntimeScene | null;
+  pointQueryTarget?: Cesium3DTileset | null;
   children?: ReactNode;
   initialActiveToolType?: RuntimeToolId;
   initialPointTemporaryMode?: boolean;
@@ -175,6 +175,11 @@ const POLYLINE_TOOL_ID = "polyline";
 const VERTICAL_AREA_TOOL_ID = ANNOTATION_TYPE_AREA_VERTICAL;
 const POINT_QUERY_DISC_RADIUS_METERS = 1;
 const NODE_LABEL_LONG_PRESS_DURATION_MS = 320;
+const HOVER_CLEAR_DELAY_MS = 34;
+const CURSOR_VISIBLE_SENTINEL: RuntimeCursorScreenPosition = {
+  x: Number.NaN,
+  y: Number.NaN,
+};
 
 const cartesianFromRuntimeCoordinate = ({
   longitude,
@@ -301,16 +306,6 @@ const buildPointQueryPreviewRenderLayer = ({
   }
 
   const defaults = runtimeMeasurementVisualDefaults;
-  const points = [
-    {
-      id: `${POINT_QUERY_PREVIEW_LAYER_ID}-point`,
-      coordinate: hoverCoordinate,
-      pixelSize: defaults.sizes.previewPointPixelSize,
-      fill: defaults.colors.preview,
-      outline: defaults.colors.surface,
-      outlineWidth: defaults.sizes.pointOutlineWidth,
-    },
-  ];
 
   const activeDraftCoordinates =
     activeToolType === DISTANCE_TOOL_ID
@@ -325,11 +320,7 @@ const buildPointQueryPreviewRenderLayer = ({
     const firstCorner = activeDraftCoordinates[0] ?? null;
 
     if (!firstCorner) {
-      return {
-        points,
-        edges: [],
-        pointLabels: [],
-      };
+      return null;
     }
 
     const firstCornerECEF = cartesianFromRuntimeCoordinate(firstCorner);
@@ -350,7 +341,6 @@ const buildPointQueryPreviewRenderLayer = ({
             outline: defaults.colors.surface,
             outlineWidth: defaults.sizes.pointOutlineWidth,
           },
-          ...points,
         ],
         edges: [
           {
@@ -390,7 +380,6 @@ const buildPointQueryPreviewRenderLayer = ({
           outline: defaults.colors.surface,
           outlineWidth: defaults.sizes.pointOutlineWidth,
         },
-        ...points,
         {
           id: `${POINT_QUERY_PREVIEW_LAYER_ID}-point-vertical`,
           coordinate: adjacentVerticalCorner,
@@ -433,8 +422,12 @@ const buildPointQueryPreviewRenderLayer = ({
       ]
     : [];
 
+  if (edges.length === 0) {
+    return null;
+  }
+
   return {
-    points,
+    points: [],
     edges,
     pointLabels: [],
   };
@@ -506,8 +499,16 @@ const RuntimeInteractionHost = ({
   );
   const [hoverCoordinate, setHoverCoordinate] =
     useState<RuntimeCoordinate | null>(null);
-  const [hoverScreenPosition, setHoverScreenPosition] =
-    useState<RuntimeCursorScreenPosition>(null);
+  const hoverClearTimeoutRef = useRef<number | null>(null);
+
+  const clearScheduledHoverReset = useCallback(() => {
+    if (hoverClearTimeoutRef.current === null) {
+      return;
+    }
+
+    window.clearTimeout(hoverClearTimeoutRef.current);
+    hoverClearTimeoutRef.current = null;
+  }, []);
 
   const sessionContext = useMemo(
     () => ({
@@ -591,25 +592,46 @@ const RuntimeInteractionHost = ({
       activePlugin?.pointQuery?.onPointCreated) &&
       !activeMoveGizmoNodeId
   );
+  const pointPreviewRing = usePointPreviewRingIndicator(scene, {
+    radius: POINT_QUERY_DISC_RADIUS_METERS,
+    enabled: pointQueryEnabled,
+  });
 
   useSceneCoordinateHandler(scene, {
     enabled: pointQueryEnabled,
     onCoordinate: handlePointQueryPointCreated,
-    onDoubleCoordinate: activeToolSession?.finishesOnLoopClosure
+    onLineFinish: activeToolSession?.finishesOnLoopClosure
       ? () => {
           requestFinishMeasurement();
         }
       : undefined,
     onScreenPositionChange: (screenPosition) => {
-      setHoverScreenPosition(screenPosition);
       setCursorScreenPosition(pointQueryEnabled ? screenPosition : null);
     },
     onHoverCoordinateChange: (coordinate, screenPosition) => {
-      setHoverCoordinate(
-        pointQueryEnabled && coordinate
-          ? resolvePointQueryCoordinate(coordinate, screenPosition)
-          : null
-      );
+      if (pointQueryEnabled && coordinate) {
+        clearScheduledHoverReset();
+        setHoverCoordinate(resolvePointQueryCoordinate(coordinate, screenPosition));
+        return;
+      }
+
+      clearScheduledHoverReset();
+      hoverClearTimeoutRef.current = window.setTimeout(() => {
+        hoverClearTimeoutRef.current = null;
+        setHoverCoordinate(null);
+        pointPreviewRing.clearPreview();
+      }, HOVER_CLEAR_DELAY_MS);
+    },
+    onHoverSampleChange: ({ pointECEF, surfaceNormalECEF }) => {
+      if (!pointQueryEnabled || !pointECEF) {
+        return;
+      }
+
+      clearScheduledHoverReset();
+      pointPreviewRing.setPreview({
+        pointECEF,
+        surfaceNormalECEF,
+      });
     },
   });
 
@@ -618,21 +640,22 @@ const RuntimeInteractionHost = ({
       return;
     }
 
+    clearScheduledHoverReset();
     setCursorScreenPosition(null);
     setHoverCoordinate(null);
-    setHoverScreenPosition(null);
-  }, [pointQueryEnabled, setCursorScreenPosition]);
+    pointPreviewRing.clearPreview();
+  }, [
+    clearScheduledHoverReset,
+    pointPreviewRing,
+    pointQueryEnabled,
+    setCursorScreenPosition,
+  ]);
 
-  usePointPreviewRingIndicator(
-    scene,
-    {
-      coordinate: hoverCoordinate,
-      screenPosition: hoverScreenPosition,
+  useEffect(
+    () => () => {
+      clearScheduledHoverReset();
     },
-    {
-      radius: POINT_QUERY_DISC_RADIUS_METERS,
-      enabled: pointQueryEnabled && Boolean(hoverCoordinate),
-    }
+    [clearScheduledHoverReset]
   );
 
   useEffect(() => {
@@ -785,8 +808,6 @@ const RuntimeVisualizationHost = ({
   onActiveMoveGizmoNodeIdChange: (nodeId: string | null) => void;
   bindApi: (api: RuntimeRenderHostApi) => void;
 }) => {
-  useOverlayPositionSync(scene);
-
   const state = useAnnotationsSelector((annotationsState) => annotationsState);
   const nodes = useAnnotationsSelector(
     (annotationsState) => annotationsState.nodes
@@ -852,15 +873,15 @@ const RuntimeVisualizationHost = ({
 
   const setCursorScreenPosition = useCallback(
     (cursorScreenPosition: RuntimeCursorScreenPosition) => {
+      const normalizedCursorScreenPosition =
+        cursorScreenPosition !== null ? CURSOR_VISIBLE_SENTINEL : null;
+
       setRenderState((previousState) =>
-        areRuntimeCursorScreenPositionsEqual(
-          previousState.cursorScreenPosition,
-          cursorScreenPosition
-        )
+        previousState.cursorScreenPosition === normalizedCursorScreenPosition
           ? previousState
           : {
               ...previousState,
-              cursorScreenPosition,
+              cursorScreenPosition: normalizedCursorScreenPosition,
             }
       );
     },
@@ -930,7 +951,7 @@ const RuntimeVisualizationHost = ({
     [aggregatedRenderLayer.pointLabels, handleNodeLongPress]
   );
 
-  useCursorOverlay(renderState.cursorScreenPosition, {
+  useCursorOverlay(scene, renderState.cursorScreenPosition, {
     enabled: renderState.cursorScreenPosition !== null,
   });
 
@@ -952,6 +973,7 @@ const RuntimeVisualizationHost = ({
 
 export const AnnotationsProvider = ({
   scene,
+  pointQueryTarget = null,
   children,
   initialActiveToolType,
   initialPointTemporaryMode = false,
@@ -981,6 +1003,14 @@ export const AnnotationsProvider = ({
   const measurementSequenceRef = useRef(0);
   const nodeSequenceRef = useRef(0);
   const edgeSequenceRef = useRef(0);
+
+  useEffect(() => {
+    if (!scene || scene.isDestroyed() || !pointQueryTarget) {
+      return;
+    }
+
+    return registerCesiumScenePointQueryTileset(scene, pointQueryTarget);
+  }, [pointQueryTarget, scene]);
   const [activeMoveGizmoNodeId, setActiveMoveGizmoNodeId] = useState<
     string | null
   >(null);

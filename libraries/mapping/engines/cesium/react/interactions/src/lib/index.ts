@@ -7,3 +7,6 @@ export * from "./hooks/useCesiumLabelOverlayHost";
 export * from "./hooks/useCesiumOverlaySync";
 export * from "./hooks/useCesiumPointQuery";
 export * from "./hooks/useCesiumViewProjector";
+export * from "./hooks/pointQueryPicking";
+export * from "./hooks/pointQueryTileset";
+export * from "./hooks/scenePointerTracker";

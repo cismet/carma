@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 import {
   getPointById,
@@ -8,29 +8,21 @@ import {
   type AnnotationCandidateKind,
   type AnnotationCollection,
 } from "@carma-mapping/annotations/core";
+import { Cartesian2, Cartesian3, type Scene } from "@carma-cesium";
+import { getLocalUpDirectionAtAnchor } from "@carma-mapping/engines/cesium/core";
 import {
-  Cartesian2,
-  Cartesian3,
-  SceneTransforms,
-  defined,
-  type Scene,
-} from "@carma-cesium";
-import {
-  isValidScene,
-  getLocalUpDirectionAtAnchor,
-} from "@carma-mapping/engines/cesium/core";
+  type AnnotationPreviewScreenPosition,
+  type PreviewRuntimeController,
+} from "../candidate/previewRuntime";
 type AnnotationCursorSource = "none" | "raw" | "snapped-node";
-
-type AnnotationCursorScreenPosition = { x: number; y: number };
 
 type AnnotationCursorState = {
   source: AnnotationCursorSource;
-  cursorScreenPosition: AnnotationCursorScreenPosition | null;
-  rawCursorScreenPosition: AnnotationCursorScreenPosition | null;
-  snappedCursorScreenPosition: AnnotationCursorScreenPosition | null;
   candidateNodePositionECEF: Cartesian3 | null;
+  candidateNodeScreenPosition: AnnotationPreviewScreenPosition | null;
   candidateNodeSurfaceNormalECEF: Cartesian3 | null;
   candidateNodeVerticalOffsetAnchorECEF: Cartesian3 | null;
+  candidateNodeVerticalOffsetAnchorScreenPosition: AnnotationPreviewScreenPosition | null;
   candidatePointId: string | null;
 };
 
@@ -43,6 +35,7 @@ type RawMeasurementPointerSample = {
 type UseAnnotationCursorStateParams = {
   enabled: boolean;
   snappedPointReleaseDelayMs: number;
+  previewRuntimeController: PreviewRuntimeController;
   getPositionWithVerticalOffsetFromAnchor: (
     positionECEF: Cartesian3,
     verticalOffsetMeters: number
@@ -50,51 +43,12 @@ type UseAnnotationCursorStateParams = {
   onCandidateNodePositionChange?: (positionECEF: Cartesian3 | null) => void;
 };
 
-const cloneCartesian3OrNull = (value: Cartesian3 | null) =>
-  value ? Cartesian3.clone(value) : null;
-
-const cloneCartesian2OrNull = (value: Cartesian2 | null) =>
-  value ? Cartesian2.clone(value) : null;
-
-const cloneRawPointerSample = (
-  sample: RawMeasurementPointerSample
-): RawMeasurementPointerSample => ({
-  positionECEF: cloneCartesian3OrNull(sample.positionECEF),
-  screenPosition: cloneCartesian2OrNull(sample.screenPosition),
-  surfaceNormalECEF: cloneCartesian3OrNull(sample.surfaceNormalECEF),
-});
-
 const toScreenPosition = (
-  screenPosition?: Cartesian2 | AnnotationCursorScreenPosition | null
-): AnnotationCursorScreenPosition | null => {
-  if (!screenPosition) return null;
-  if (
-    !Number.isFinite(screenPosition.x) ||
-    !Number.isFinite(screenPosition.y)
-  ) {
-    return null;
-  }
-  return { x: screenPosition.x, y: screenPosition.y };
-};
-
-const projectScreenPositionFromScene = (
-  scene: Scene | null,
-  positionECEF: Cartesian3 | null
-): AnnotationCursorScreenPosition | null => {
-  if (!isValidScene(scene) || !positionECEF) {
-    return null;
-  }
-
-  const screenPosition = SceneTransforms.worldToWindowCoordinates(
-    scene,
-    positionECEF
-  );
-  if (!defined(screenPosition)) {
-    return null;
-  }
-
-  return toScreenPosition(screenPosition);
-};
+  value: Cartesian2 | null | { x: number; y: number } | undefined
+): AnnotationPreviewScreenPosition | null =>
+  value && Number.isFinite(value.x) && Number.isFinite(value.y)
+    ? { x: value.x, y: value.y }
+    : null;
 
 const isSameCartesian3 = (left: Cartesian3 | null, right: Cartesian3 | null) =>
   left === right ||
@@ -105,11 +59,50 @@ const isSameCartesian3 = (left: Cartesian3 | null, right: Cartesian3 | null) =>
     left.z === right.z);
 
 const isSameScreenPosition = (
-  left: AnnotationCursorScreenPosition | null,
-  right: AnnotationCursorScreenPosition | null
+  left: AnnotationPreviewScreenPosition | null,
+  right: AnnotationPreviewScreenPosition | null
 ) =>
   left === right ||
   (!!left && !!right && left.x === right.x && left.y === right.y);
+
+const copyCartesian3OrNull = (
+  value: Cartesian3 | null,
+  target: Cartesian3 | null
+): Cartesian3 | null => {
+  if (!value) {
+    return null;
+  }
+
+  return Cartesian3.clone(value, target ?? new Cartesian3());
+};
+
+const copyCartesian2OrNull = (
+  value: Cartesian2 | null,
+  target: Cartesian2 | null
+): Cartesian2 | null => {
+  if (!value) {
+    return null;
+  }
+
+  return Cartesian2.clone(value, target ?? new Cartesian2());
+};
+
+const copyScreenPositionOrNull = (
+  value: AnnotationPreviewScreenPosition | null,
+  target: AnnotationPreviewScreenPosition | null
+): AnnotationPreviewScreenPosition | null => {
+  if (!value) {
+    return null;
+  }
+
+  if (target) {
+    target.x = value.x;
+    target.y = value.y;
+    return target;
+  }
+
+  return { x: value.x, y: value.y };
+};
 
 const resolveCandidateWorldState = ({
   candidateKind,
@@ -117,6 +110,9 @@ const resolveCandidateWorldState = ({
   getPositionWithVerticalOffsetFromAnchor,
   anchorPositionECEF,
   surfaceNormalECEF,
+  candidateNodePositionTarget,
+  candidateNodeSurfaceNormalTarget,
+  candidateNodeVerticalOffsetAnchorTarget,
 }: {
   candidateKind: AnnotationCandidateKind;
   verticalOffsetMeters: number;
@@ -126,6 +122,9 @@ const resolveCandidateWorldState = ({
   ) => Cartesian3;
   anchorPositionECEF: Cartesian3 | null;
   surfaceNormalECEF?: Cartesian3 | null;
+  candidateNodePositionTarget: Cartesian3 | null;
+  candidateNodeSurfaceNormalTarget: Cartesian3 | null;
+  candidateNodeVerticalOffsetAnchorTarget: Cartesian3 | null;
 }) => {
   const hasOffsetStem = hasPointCandidateOffsetStem(
     candidateKind,
@@ -133,18 +132,30 @@ const resolveCandidateWorldState = ({
   );
   const candidateNodeVerticalOffsetAnchorECEF =
     hasOffsetStem && anchorPositionECEF
-      ? Cartesian3.clone(anchorPositionECEF)
+      ? Cartesian3.clone(
+          anchorPositionECEF,
+          candidateNodeVerticalOffsetAnchorTarget ?? new Cartesian3()
+        )
       : null;
-  const candidateNodePositionECEF = anchorPositionECEF
+  const elevatedCandidatePositionECEF = anchorPositionECEF
     ? hasOffsetStem
       ? getPositionWithVerticalOffsetFromAnchor(
           anchorPositionECEF,
           verticalOffsetMeters
         )
-      : Cartesian3.clone(anchorPositionECEF)
+      : anchorPositionECEF
+    : null;
+  const candidateNodePositionECEF = elevatedCandidatePositionECEF
+    ? Cartesian3.clone(
+        elevatedCandidatePositionECEF,
+        candidateNodePositionTarget ?? new Cartesian3()
+      )
     : null;
   const candidateNodeSurfaceNormalECEF = surfaceNormalECEF
-    ? Cartesian3.normalize(surfaceNormalECEF, new Cartesian3())
+    ? Cartesian3.normalize(
+        surfaceNormalECEF,
+        candidateNodeSurfaceNormalTarget ?? new Cartesian3()
+      )
     : null;
 
   return {
@@ -155,12 +166,13 @@ const resolveCandidateWorldState = ({
 };
 
 export const useCursorState = (
-  scene: Scene | null,
+  _scene: Scene | null,
   annotations: AnnotationCollection,
   candidate: AnnotationCandidateDescriptor,
   {
     enabled,
     snappedPointReleaseDelayMs,
+    previewRuntimeController,
     getPositionWithVerticalOffsetFromAnchor,
     onCandidateNodePositionChange,
   }: UseAnnotationCursorStateParams
@@ -168,20 +180,17 @@ export const useCursorState = (
   const { hasCandidateNode } = resolveCandidateCapabilities(candidate.kind);
   const candidateKind = candidate.kind;
   const verticalOffsetMeters = candidate.verticalOffsetMeters;
-  const [cursorState, setCursorState] = useState<AnnotationCursorState>({
+  const cursorStateRef = useRef<AnnotationCursorState>({
     source: "none",
-    cursorScreenPosition: null,
-    rawCursorScreenPosition: null,
-    snappedCursorScreenPosition: null,
     candidateNodePositionECEF: null,
+    candidateNodeScreenPosition: null,
     candidateNodeSurfaceNormalECEF: null,
     candidateNodeVerticalOffsetAnchorECEF: null,
+    candidateNodeVerticalOffsetAnchorScreenPosition: null,
     candidatePointId: null,
   });
 
   const snappedPointIdRef = useRef<string | null>(null);
-  const snappedPointScreenPositionRef =
-    useRef<AnnotationCursorScreenPosition | null>(null);
   const snappedPointReleaseTimeoutRef = useRef<number | null>(null);
   const candidateNodePositionChangeRef = useRef(onCandidateNodePositionChange);
   const clearMeasurementCursorRef = useRef<(() => void) | null>(null);
@@ -195,55 +204,6 @@ export const useCursorState = (
     candidateNodePositionChangeRef.current = onCandidateNodePositionChange;
   }, [onCandidateNodePositionChange]);
 
-  useEffect(
-    function effectTrackRawPointerScreenPosition() {
-      if (!enabled || !hasCandidateNode) {
-        return;
-      }
-
-      const handlePointerMove = (event: PointerEvent) => {
-        const nextRawCursorScreenPosition = toScreenPosition({
-          x: event.clientX,
-          y: event.clientY,
-        });
-
-        rawPointerSampleRef.current = {
-          ...rawPointerSampleRef.current,
-          screenPosition: nextRawCursorScreenPosition
-            ? new Cartesian2(
-                nextRawCursorScreenPosition.x,
-                nextRawCursorScreenPosition.y
-              )
-            : null,
-        };
-
-        setCursorState((previousState) =>
-          isSameScreenPosition(
-            previousState.rawCursorScreenPosition,
-            nextRawCursorScreenPosition
-          ) &&
-          isSameScreenPosition(
-            previousState.cursorScreenPosition,
-            nextRawCursorScreenPosition
-          )
-            ? previousState
-            : {
-                ...previousState,
-                rawCursorScreenPosition: nextRawCursorScreenPosition,
-                cursorScreenPosition: nextRawCursorScreenPosition,
-              }
-        );
-      };
-
-      window.addEventListener("pointermove", handlePointerMove, true);
-
-      return () => {
-        window.removeEventListener("pointermove", handlePointerMove, true);
-      };
-    },
-    [enabled, hasCandidateNode]
-  );
-
   const clearSnappedPointReleaseTimeout = useCallback(() => {
     if (snappedPointReleaseTimeoutRef.current === null) return;
     window.clearTimeout(snappedPointReleaseTimeoutRef.current);
@@ -254,16 +214,14 @@ export const useCursorState = (
     ({
       source,
       anchorPositionECEF,
+      anchorScreenPosition,
       surfaceNormalECEF,
-      rawCursorScreenPosition,
-      snappedCursorScreenPosition,
       snappedPointId,
     }: {
       source: AnnotationCursorSource;
       anchorPositionECEF: Cartesian3 | null;
+      anchorScreenPosition?: AnnotationPreviewScreenPosition | null;
       surfaceNormalECEF?: Cartesian3 | null;
-      rawCursorScreenPosition?: AnnotationCursorScreenPosition | null;
-      snappedCursorScreenPosition?: AnnotationCursorScreenPosition | null;
       snappedPointId?: string | null;
     }) => {
       const {
@@ -276,78 +234,73 @@ export const useCursorState = (
         getPositionWithVerticalOffsetFromAnchor,
         anchorPositionECEF,
         surfaceNormalECEF,
+        candidateNodePositionTarget:
+          cursorStateRef.current.candidateNodePositionECEF,
+        candidateNodeSurfaceNormalTarget:
+          cursorStateRef.current.candidateNodeSurfaceNormalECEF,
+        candidateNodeVerticalOffsetAnchorTarget:
+          cursorStateRef.current.candidateNodeVerticalOffsetAnchorECEF,
       });
-      const nextRawCursorScreenPosition =
-        rawCursorScreenPosition === undefined ? null : rawCursorScreenPosition;
-      const nextSnappedCursorScreenPosition =
-        snappedCursorScreenPosition === undefined
-          ? null
-          : snappedCursorScreenPosition;
-      // Keep the crosshair overlay anchored to the actual pointer sample.
-      // Snapping should only affect the candidate world position/rendered
-      // preview, not visually drag the mouse cursor to the snapped node.
-      const nextCursorScreenPosition =
-        nextRawCursorScreenPosition ??
-        (source === "snapped-node" ? nextSnappedCursorScreenPosition : null);
       const nextSnappedPointId =
         source === "snapped-node" ? snappedPointId ?? null : null;
+      const candidateNodeScreenPosition = anchorScreenPosition ?? null;
+      const candidateNodeVerticalOffsetAnchorScreenPosition =
+        anchorScreenPosition ?? null;
 
-      let hasStateChanged = false;
-      setCursorState((previousState) => {
-        if (
-          previousState.source === source &&
-          previousState.candidatePointId === nextSnappedPointId &&
-          isSameCartesian3(
-            previousState.candidateNodePositionECEF,
-            candidateNodePositionECEF
-          ) &&
-          isSameCartesian3(
-            previousState.candidateNodeSurfaceNormalECEF,
-            candidateNodeSurfaceNormalECEF
-          ) &&
-          isSameCartesian3(
-            previousState.candidateNodeVerticalOffsetAnchorECEF,
-            candidateNodeVerticalOffsetAnchorECEF
-          ) &&
-          isSameScreenPosition(
-            previousState.rawCursorScreenPosition,
-            nextRawCursorScreenPosition
-          ) &&
-          isSameScreenPosition(
-            previousState.snappedCursorScreenPosition,
-            nextSnappedCursorScreenPosition
-          ) &&
-          isSameScreenPosition(
-            previousState.cursorScreenPosition,
-            nextCursorScreenPosition
-          )
-        ) {
-          return previousState;
-        }
-        hasStateChanged = true;
-
-        return {
-          source,
-          cursorScreenPosition: nextCursorScreenPosition,
-          rawCursorScreenPosition: nextRawCursorScreenPosition,
-          snappedCursorScreenPosition: nextSnappedCursorScreenPosition,
-          candidateNodePositionECEF,
-          candidateNodeSurfaceNormalECEF,
-          candidateNodeVerticalOffsetAnchorECEF,
-          candidatePointId: nextSnappedPointId,
-        };
-      });
-
-      if (!hasStateChanged) {
+      const previousState = cursorStateRef.current;
+      if (
+        previousState.source === source &&
+        previousState.candidatePointId === nextSnappedPointId &&
+        isSameCartesian3(
+        previousState.candidateNodePositionECEF,
+        candidateNodePositionECEF
+      ) &&
+        isSameScreenPosition(
+          previousState.candidateNodeScreenPosition,
+          candidateNodeScreenPosition
+        ) &&
+        isSameCartesian3(
+          previousState.candidateNodeSurfaceNormalECEF,
+          candidateNodeSurfaceNormalECEF
+        ) &&
+        isSameCartesian3(
+          previousState.candidateNodeVerticalOffsetAnchorECEF,
+          candidateNodeVerticalOffsetAnchorECEF
+        ) &&
+        isSameScreenPosition(
+          previousState.candidateNodeVerticalOffsetAnchorScreenPosition,
+          candidateNodeVerticalOffsetAnchorScreenPosition
+        )
+      ) {
         return;
       }
-      candidateNodePositionChangeRef.current?.(candidateNodePositionECEF);
-      scene?.requestRender();
+
+      previousState.source = source;
+      previousState.candidateNodePositionECEF = candidateNodePositionECEF;
+      previousState.candidateNodeScreenPosition = copyScreenPositionOrNull(
+        candidateNodeScreenPosition,
+        previousState.candidateNodeScreenPosition
+      );
+      previousState.candidateNodeSurfaceNormalECEF =
+        candidateNodeSurfaceNormalECEF;
+      previousState.candidateNodeVerticalOffsetAnchorECEF =
+        candidateNodeVerticalOffsetAnchorECEF;
+      previousState.candidateNodeVerticalOffsetAnchorScreenPosition =
+        copyScreenPositionOrNull(
+          candidateNodeVerticalOffsetAnchorScreenPosition,
+          previousState.candidateNodeVerticalOffsetAnchorScreenPosition
+        );
+      previousState.candidatePointId = nextSnappedPointId;
+
+      candidateNodePositionChangeRef.current?.(
+        previousState.candidateNodePositionECEF
+      );
+      previewRuntimeController.publish(previousState);
     },
     [
       candidateKind,
       getPositionWithVerticalOffsetFromAnchor,
-      scene,
+      previewRuntimeController,
       verticalOffsetMeters,
     ]
   );
@@ -355,17 +308,13 @@ export const useCursorState = (
   const clearMeasurementCursor = useCallback(() => {
     clearSnappedPointReleaseTimeout();
     snappedPointIdRef.current = null;
-    snappedPointScreenPositionRef.current = null;
-    rawPointerSampleRef.current = {
-      positionECEF: null,
-      screenPosition: null,
-      surfaceNormalECEF: null,
-    };
+    rawPointerSampleRef.current.positionECEF = null;
+    rawPointerSampleRef.current.screenPosition = null;
+    rawPointerSampleRef.current.surfaceNormalECEF = null;
     setCursorStateInternal({
       source: "none",
       anchorPositionECEF: null,
-      rawCursorScreenPosition: null,
-      snappedCursorScreenPosition: null,
+      anchorScreenPosition: null,
       snappedPointId: null,
     });
   }, [clearSnappedPointReleaseTimeout, setCursorStateInternal]);
@@ -377,17 +326,15 @@ export const useCursorState = (
   const clearSnappedMeasurementCursor = useCallback(() => {
     clearSnappedPointReleaseTimeout();
     snappedPointIdRef.current = null;
-    snappedPointScreenPositionRef.current = null;
   }, [clearSnappedPointReleaseTimeout]);
 
   const applyLastRawPointerSample = useCallback(() => {
-    const rawSample = cloneRawPointerSample(rawPointerSampleRef.current);
+    const rawSample = rawPointerSampleRef.current;
     setCursorStateInternal({
       source: rawSample.positionECEF ? "raw" : "none",
       anchorPositionECEF: rawSample.positionECEF,
+      anchorScreenPosition: toScreenPosition(rawSample.screenPosition),
       surfaceNormalECEF: rawSample.surfaceNormalECEF,
-      rawCursorScreenPosition: toScreenPosition(rawSample.screenPosition),
-      snappedCursorScreenPosition: null,
       snappedPointId: null,
     });
   }, [setCursorStateInternal]);
@@ -395,7 +342,7 @@ export const useCursorState = (
   const syncMeasurementCursorToExistingPoint = useCallback(
     (
       pointId: string,
-      anchorPosition?: AnnotationCursorScreenPosition | null
+      anchorPosition?: AnnotationPreviewScreenPosition | null
     ) => {
       clearSnappedPointReleaseTimeout();
       const hoveredPoint = getPointById(annotations, pointId);
@@ -403,34 +350,21 @@ export const useCursorState = (
         return false;
       }
 
-      const snappedScreenPosition =
-        projectScreenPositionFromScene(scene, hoveredPoint.geometryECEF) ??
-        toScreenPosition(anchorPosition) ??
-        (snappedPointIdRef.current === pointId
-          ? snappedPointScreenPositionRef.current
-          : null);
       snappedPointIdRef.current = pointId;
-      snappedPointScreenPositionRef.current = snappedScreenPosition;
       setCursorStateInternal({
         source: "snapped-node",
         anchorPositionECEF: hoveredPoint.geometryECEF,
+        anchorScreenPosition:
+          anchorPosition ??
+          toScreenPosition(rawPointerSampleRef.current.screenPosition),
         surfaceNormalECEF: getLocalUpDirectionAtAnchor(
           hoveredPoint.geometryECEF
         ),
-        rawCursorScreenPosition: toScreenPosition(
-          rawPointerSampleRef.current.screenPosition
-        ),
-        snappedCursorScreenPosition: snappedScreenPosition,
         snappedPointId: pointId,
       });
       return true;
     },
-    [
-      annotations,
-      clearSnappedPointReleaseTimeout,
-      scene,
-      setCursorStateInternal,
-    ]
+    [annotations, clearSnappedPointReleaseTimeout, setCursorStateInternal]
   );
 
   const handleRawMeasurementPointerMove = useCallback(
@@ -439,26 +373,31 @@ export const useCursorState = (
       screenPosition?: Cartesian2,
       surfaceNormalECEF?: Cartesian3 | null
     ) => {
-      rawPointerSampleRef.current = {
-        positionECEF: cloneCartesian3OrNull(positionECEF),
-        screenPosition:
-          screenPosition &&
-          Number.isFinite(screenPosition.x) &&
-          Number.isFinite(screenPosition.y)
-            ? Cartesian2.clone(screenPosition)
-            : null,
-        surfaceNormalECEF: cloneCartesian3OrNull(surfaceNormalECEF ?? null),
-      };
+      rawPointerSampleRef.current.positionECEF = copyCartesian3OrNull(
+        positionECEF,
+        rawPointerSampleRef.current.positionECEF
+      );
+      rawPointerSampleRef.current.screenPosition =
+        screenPosition &&
+        Number.isFinite(screenPosition.x) &&
+        Number.isFinite(screenPosition.y)
+          ? copyCartesian2OrNull(
+              screenPosition,
+              rawPointerSampleRef.current.screenPosition
+            )
+          : null;
+      rawPointerSampleRef.current.surfaceNormalECEF = copyCartesian3OrNull(
+        surfaceNormalECEF ?? null,
+        rawPointerSampleRef.current.surfaceNormalECEF
+      );
 
       const snappedPointId = snappedPointIdRef.current;
-      const nextRawCursorScreenPosition = toScreenPosition(screenPosition);
       if (!snappedPointId) {
         setCursorStateInternal({
           source: positionECEF ? "raw" : "none",
           anchorPositionECEF: positionECEF,
+          anchorScreenPosition: toScreenPosition(screenPosition),
           surfaceNormalECEF,
-          rawCursorScreenPosition: nextRawCursorScreenPosition,
-          snappedCursorScreenPosition: null,
           snappedPointId: null,
         });
         return;
@@ -470,20 +409,15 @@ export const useCursorState = (
         applyLastRawPointerSample();
         return;
       }
-
-      const nextSnappedCursorScreenPosition =
-        projectScreenPositionFromScene(scene, snappedPoint.geometryECEF) ??
-        snappedPointScreenPositionRef.current ??
-        nextRawCursorScreenPosition;
-      snappedPointScreenPositionRef.current = nextSnappedCursorScreenPosition;
       setCursorStateInternal({
         source: "snapped-node",
         anchorPositionECEF: snappedPoint.geometryECEF,
+        anchorScreenPosition: toScreenPosition(
+          rawPointerSampleRef.current.screenPosition
+        ),
         surfaceNormalECEF: getLocalUpDirectionAtAnchor(
           snappedPoint.geometryECEF
         ),
-        rawCursorScreenPosition: nextRawCursorScreenPosition,
-        snappedCursorScreenPosition: nextSnappedCursorScreenPosition,
         snappedPointId,
       });
     },
@@ -491,7 +425,6 @@ export const useCursorState = (
       annotations,
       applyLastRawPointerSample,
       clearSnappedMeasurementCursor,
-      scene,
       setCursorStateInternal,
     ]
   );
@@ -531,13 +464,12 @@ export const useCursorState = (
   useEffect(
     () => () => {
       clearMeasurementCursorRef.current?.();
+      previewRuntimeController.clear();
     },
-    []
+    [previewRuntimeController]
   );
 
   return {
-    ...cursorState,
-    cursorScreenPosition: cursorState.rawCursorScreenPosition,
     clearMeasurementCursor,
     handleAnnotationCursorMove: handleRawMeasurementPointerMove,
     releaseAnnotationCursorSnap: releaseMeasurementCursorSnap,

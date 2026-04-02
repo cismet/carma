@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Viewer, Cesium3DTileset } from "cesium";
 
+import { registerCesiumScenePointQueryTileset } from "@carma-mapping/engines/cesium/react/interactions";
+
 const defaultConstructorOptions: Cesium3DTileset.ConstructorOptions = {
   show: true,
 };
@@ -15,6 +17,7 @@ function useTileset(
   const [loading, setLoading] = useState<boolean>(true);
   const [tilesetReady, setTilesetReady] = useState<boolean>(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const unregisterQueryTilesetRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     // keep this for identifying users that don't memoize constructorOptions
@@ -73,6 +76,9 @@ function useTileset(
       try {
         if (viewer.scene && !viewer.isDestroyed() && viewer.scene.primitives) {
           viewer.scene.primitives.add(tilesetRef.current);
+          unregisterQueryTilesetRef.current?.();
+          unregisterQueryTilesetRef.current =
+            registerCesiumScenePointQueryTileset(viewer.scene, tilesetRef.current);
           console.debug("[useTileset] Added tileset to scene");
         } else {
           console.warn(
@@ -88,6 +94,8 @@ function useTileset(
     return () => {
       if (viewer && tilesetRef.current && !viewer.isDestroyed()) {
         try {
+          unregisterQueryTilesetRef.current?.();
+          unregisterQueryTilesetRef.current = null;
           if (viewer.scene && viewer.scene.primitives) {
             viewer.scene.primitives.remove(tilesetRef.current);
             console.debug("[useTileset] Removed tileset from scene");
@@ -103,6 +111,9 @@ function useTileset(
         } finally {
           tilesetRef.current = null;
         }
+      } else {
+        unregisterQueryTilesetRef.current?.();
+        unregisterQueryTilesetRef.current = null;
       }
     };
   }, [viewer, tilesetReady]);

@@ -26,6 +26,7 @@ import {
   type AnnotationCandidateDescriptor,
   useCandidateState,
 } from "../candidate/useCandidateState";
+import type { PreviewRuntimeController } from "./previewRuntime";
 type UseAnnotationCursorCandidateStateParams = {
   scene: Scene;
   annotations: AnnotationCollection;
@@ -36,6 +37,7 @@ type UseAnnotationCursorCandidateStateParams = {
   pointVerticalOffsetMeters: number;
   polylineVerticalOffsetMeters: number;
   pointQueryEnabled: boolean;
+  previewRuntimeController: PreviewRuntimeController;
   moveGizmoPointId: string | null;
   isMoveGizmoDragging: boolean;
   setNodeChainAnnotations: Dispatch<SetStateAction<NodeChainAnnotation[]>>;
@@ -51,6 +53,7 @@ export const useCursorCandidateState = ({
   pointVerticalOffsetMeters,
   polylineVerticalOffsetMeters,
   pointQueryEnabled,
+  previewRuntimeController,
   moveGizmoPointId,
   isMoveGizmoDragging,
   setNodeChainAnnotations,
@@ -159,6 +162,7 @@ export const useCursorCandidateState = ({
 
   return useCandidateState(scene, annotations, annotationCandidateDescriptor, {
     pointQueryEnabled,
+    previewRuntimeController,
     moveGizmoPointId,
     isMoveGizmoDragging,
     setNodeChainAnnotations,

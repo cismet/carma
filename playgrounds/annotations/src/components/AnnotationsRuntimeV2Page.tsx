@@ -25,7 +25,7 @@ import {
 import { useCesiumLabelOverlayHost } from "@carma-mapping/engines/cesium/react/interactions";
 import { ControlLayout } from "@carma-mapping/map-controls-layout";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
-import { type Scene } from "@carma-cesium";
+import { type Cesium3DTileset, type Scene } from "@carma-cesium";
 import { formatLatLonDegrees } from "@carma-units";
 import type { Degrees } from "@carma-units";
 
@@ -268,6 +268,8 @@ export const AnnotationsRuntimeV2Page = ({
 }: PlaygroundRuntimePageProps) => {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [scene, setScene] = useState<Scene | null>(null);
+  const [pointQueryTarget, setPointQueryTarget] =
+    useState<Cesium3DTileset | null>(null);
   const overlayHost = useCesiumLabelOverlayHost({
     scene,
     containerRef: rootRef,
@@ -277,11 +279,16 @@ export const AnnotationsRuntimeV2Page = ({
     <CesiumWidgetContainer
       rootRef={rootRef}
       onSceneChange={setScene}
+      onPointQueryTargetChange={setPointQueryTarget}
       initialCameraState={homeCameraState}
     >
       <LabelOverlayProvider host={overlayHost}>
         <ControlLayout>
-          <AnnotationsProvider scene={scene} initialActiveToolType="polyline">
+          <AnnotationsProvider
+            scene={scene}
+            pointQueryTarget={pointQueryTarget}
+            initialActiveToolType="polyline"
+          >
             <CesiumNavigationOverlay
               scene={scene}
               initialHomeCameraState={homeCameraState}

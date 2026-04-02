@@ -126,6 +126,49 @@ const getPointStyleSignature = (
     styleProps?.labelDistance ?? "",
   ].join(":");
 
+const getPointContentSignature = (
+  point: PointLabelData,
+  pointStyleSignature: string,
+  transitionDurationMs: number | undefined
+): string =>
+  `${point.id}:${
+    point.contentSignature ?? getOverlayReferenceSignature(point.content)
+  }:${point.selected}:${point.isOccluded}:${point.pitch}:${
+    point.labelAngleRad
+  }:${point.labelDistance}:${point.labelAttach}:${point.hideLabelAndStem}:${
+    point.hideMarker
+  }:${point.markerSize}:${point.markerStrokeWidth}:${
+    point.stemReferenceMarkerSize
+  }:${point.stemStartDistance}:${getOverlayReferenceSignature(
+    point.markerContent
+  )}:${point.markerBackgroundColor}:${point.markerTextColor}:${getOverlayReferenceSignature(
+    point.compactContent
+  )}:${Boolean(point.compactBorderless)}:${point.labelStyle}:${point.collapse}:${
+    point.forceCollapse
+  }:${point.fullBorder}:${point.resizeMode ?? "none"}:${
+    point.fontSize ?? ""
+  }:${point.fontFamily ?? ""}:${point.fontWeight ?? ""}:${
+    point.markerCursor ?? ""
+  }:${point.labelCursor ?? ""}:${point.textColor ?? ""}:${
+    point.textBackgroundColor ?? ""
+  }:${point.selectedBackgroundColor ?? ""}:${point.hoverBackgroundColor ?? ""}:${
+    point.longPressDurationMs ?? ""
+  }:${getOverlayReferenceSignature(point.onClick)}:${getOverlayReferenceSignature(
+    point.onDoubleClick
+  )}:${getOverlayReferenceSignature(
+    point.onLongPress
+  )}:${getOverlayReferenceSignature(
+    point.onHoverChange
+  )}:${getOverlayReferenceSignature(
+    point.onMarkerDragStart
+  )}:${getOverlayReferenceSignature(
+    point.onMarkerDragMove
+  )}:${getOverlayReferenceSignature(point.onMarkerDragEnd)}:${Boolean(
+    point.markerOnlyPointerEvents
+  )}:${Boolean(point.attachOverlayClickHandlers)}:${Boolean(
+    point.forceMarkerInteractionTarget
+  )}:transition:${transitionDurationMs ?? ""}:style:${pointStyleSignature}`;
+
 export const usePointLabels = (
   points: PointLabelData[],
   showLabels: boolean = true,
@@ -149,49 +192,11 @@ export const usePointLabels = (
       new Map(
         points.map((p) => [
           p.id,
-          `${p.id}:${
-            p.contentSignature ?? getOverlayReferenceSignature(p.content)
-          }:${p.anchorKind ?? ""}:${p.occlusionMode ?? ""}:${p.selected}:${
-            p.visible
-          }:${p.isOccluded}:${p.isHidden}:${p.zIndex}:${p.pitch}:${
-            p.labelAngleRad
-          }:${p.labelDistance}:${p.labelAttach}:${p.hideLabelAndStem}:${
-            p.hideMarker
-          }:${p.markerSize}:${p.markerStrokeWidth}:${
-            p.stemReferenceMarkerSize
-          }:${p.stemStartDistance}:${getOverlayReferenceSignature(
-            p.markerContent
-          )}:${p.markerBackgroundColor}:${
-            p.markerTextColor
-          }:${getOverlayReferenceSignature(p.compactContent)}:${Boolean(
-            p.compactBorderless
-          )}:${p.labelStyle}:${p.collapse}:${p.forceCollapse}:${p.fullBorder}:${
-            p.resizeMode ?? "none"
-          }:${p.fontSize ?? ""}:${p.fontFamily ?? ""}:${p.fontWeight ?? ""}:${
-            p.markerCursor ?? ""
-          }:${p.labelCursor ?? ""}:${p.textColor ?? ""}:${
-            p.textBackgroundColor ?? ""
-          }:${p.selectedBackgroundColor ?? ""}:${
-            p.hoverBackgroundColor ?? ""
-          }:${p.longPressDurationMs ?? ""}:${getOverlayReferenceSignature(
-            p.onClick
-          )}:${getOverlayReferenceSignature(
-            p.onDoubleClick
-          )}:${getOverlayReferenceSignature(
-            p.onLongPress
-          )}:${getOverlayReferenceSignature(
-            p.onHoverChange
-          )}:${getOverlayReferenceSignature(
-            p.onMarkerDragStart
-          )}:${getOverlayReferenceSignature(
-            p.onMarkerDragMove
-          )}:${getOverlayReferenceSignature(p.onMarkerDragEnd)}:${Boolean(
-            p.markerOnlyPointerEvents
-          )}:${Boolean(p.attachOverlayClickHandlers)}:${Boolean(
-            p.forceMarkerInteractionTarget
-          )}:transition:${
-            layoutOptions?.transitionDurationMs ?? ""
-          }:style:${pointStyleSignature}`,
+          getPointContentSignature(
+            p,
+            pointStyleSignature,
+            layoutOptions?.transitionDurationMs
+          ),
         ])
       ),
     [points, layoutOptions?.transitionDurationMs, pointStyleSignature]

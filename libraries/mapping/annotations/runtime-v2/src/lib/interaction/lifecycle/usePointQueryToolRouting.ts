@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { projectGeographicCoordinateToScreen } from "@carma-mapping/engines/cesium/core";
 
 import type { RuntimeCoordinate, RuntimeNode } from "../../store";
@@ -19,8 +19,34 @@ type UsePointQueryToolRoutingParams = {
 };
 
 const SNAP_DISTANCE_THRESHOLD_PX = 14;
+const SNAP_RELEASE_DISTANCE_THRESHOLD_PX = 18;
 
-const resolveSnappedNodeCoordinate = ({
+const findNodeById = (nodes: readonly RuntimeNode[], nodeId: string | null) =>
+  nodeId ? nodes.find((node) => node.id === nodeId) ?? null : null;
+
+const resolveScreenDistanceSquaredToNode = ({
+  scene,
+  node,
+  screenPosition,
+}: {
+  scene: RuntimeScene;
+  node: RuntimeNode;
+  screenPosition: { x: number; y: number };
+}) => {
+  const nodeScreenPosition = projectGeographicCoordinateToScreen(
+    scene,
+    node.coordinate
+  );
+  if (!nodeScreenPosition) {
+    return null;
+  }
+
+  const dx = nodeScreenPosition.x - screenPosition.x;
+  const dy = nodeScreenPosition.y - screenPosition.y;
+  return dx * dx + dy * dy;
+};
+
+const resolveSnappedNode = ({
   scene,
   nodes,
   coordinate,
@@ -30,14 +56,14 @@ const resolveSnappedNodeCoordinate = ({
   nodes: readonly RuntimeNode[];
   coordinate: RuntimeCoordinate;
   screenPosition?: { x: number; y: number };
-}): RuntimeCoordinate => {
+}): RuntimeNode | null => {
   if (!screenPosition || !scene || scene.isDestroyed() || nodes.length === 0) {
-    return coordinate;
+    return null;
   }
 
   const thresholdSquared = SNAP_DISTANCE_THRESHOLD_PX ** 2;
   let bestSquaredDistance = thresholdSquared;
-  let snappedCoordinate: RuntimeCoordinate | null = null;
+  let snappedNode: RuntimeNode | null = null;
 
   for (const node of nodes) {
     const nodeScreenPosition = projectGeographicCoordinateToScreen(
@@ -56,10 +82,10 @@ const resolveSnappedNodeCoordinate = ({
     }
 
     bestSquaredDistance = squaredDistance;
-    snappedCoordinate = node.coordinate;
+    snappedNode = node;
   }
 
-  return snappedCoordinate ?? coordinate;
+  return snappedNode;
 };
 
 export const usePointQueryToolRouting = ({
@@ -72,18 +98,48 @@ export const usePointQueryToolRouting = ({
 }: UsePointQueryToolRoutingParams) => {
   const activeToolSession = toolSessions[activeToolType] ?? null;
   const activePlugin = getToolPlugin(activeToolType);
+  const snappedNodeIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!findNodeById(nodes, snappedNodeIdRef.current)) {
+      snappedNodeIdRef.current = null;
+    }
+  }, [nodes]);
 
   const resolvePointQueryCoordinate = useCallback(
     (
       coordinate: RuntimeCoordinate,
       screenPosition?: { x: number; y: number }
-    ) =>
-      resolveSnappedNodeCoordinate({
+    ) => {
+      if (!screenPosition || !scene || scene.isDestroyed() || nodes.length === 0) {
+        snappedNodeIdRef.current = null;
+        return coordinate;
+      }
+
+      const lockedNode = findNodeById(nodes, snappedNodeIdRef.current);
+      if (lockedNode) {
+        const lockedDistanceSquared = resolveScreenDistanceSquaredToNode({
+          scene,
+          node: lockedNode,
+          screenPosition,
+        });
+        if (
+          lockedDistanceSquared !== null &&
+          lockedDistanceSquared <= SNAP_RELEASE_DISTANCE_THRESHOLD_PX ** 2
+        ) {
+          return lockedNode.coordinate;
+        }
+      }
+
+      const snappedNode = resolveSnappedNode({
         scene,
         nodes,
         coordinate,
         screenPosition,
-      }),
+      });
+      snappedNodeIdRef.current = snappedNode?.id ?? null;
+      return snappedNode?.coordinate ?? coordinate;
+    },
     [nodes, scene]
   );
 

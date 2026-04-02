@@ -7,7 +7,10 @@ import {
   AnnotationToolbar3D,
   useLocalAnnotationPersistence,
 } from "@carma-mapping/annotations/runtime";
-import { useCesiumLabelOverlayHost } from "@carma-mapping/engines/cesium/react/interactions";
+import {
+  CESIUM_LABEL_OVERLAY_FRAME_PHASES,
+  useCesiumLabelOverlayHost,
+} from "@carma-mapping/engines/cesium/react/interactions";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
 import { type Scene } from "@carma-cesium";
 
@@ -84,6 +87,8 @@ export const AnnotationsRuntimeV1Page = ({
   const overlayHost = useCesiumLabelOverlayHost({
     scene,
     containerRef: rootRef,
+    forceLayoutOnPortalRender: false,
+    framePhase: CESIUM_LABEL_OVERLAY_FRAME_PHASES.PRE_RENDER,
   });
   const [initialToolType] = useState(() => readInitialToolType());
   const { initialPersistenceState, onPersistenceStateChange } =

@@ -9,10 +9,8 @@ import {
 import {
   WUPP_MESH_2024,
   WUPP_TERRAIN_PROVIDER,
-  WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
 } from "@carma-commons/resources";
 import {
-  Cartesian2,
   Cesium3DTileset,
   CesiumTerrainProvider,
   type CesiumWidget,
@@ -22,6 +20,7 @@ import {
   createMinimalCesiumWidget,
   setViewFromCameraState,
 } from "@carma-mapping/engines/cesium/core";
+import { registerCesiumScenePointQueryTileset } from "@carma-mapping/engines/cesium/react/interactions";
 
 import type { AnnotationsDemoCameraState } from "../playground.types";
 const applyCameraState = async (
@@ -42,45 +41,10 @@ const initializeWidget = (
   });
 
   widget.scene.requestRenderMode = true;
+  widget.scene.pickTranslucentDepth = false;
+  widget.scene.globe.depthTestAgainstTerrain = true;
 
   return widget;
-};
-
-const initializeTerrainProviders = async () => {
-  const providers = {
-    terrain: null as CesiumTerrainProvider | null,
-    surface: null as CesiumTerrainProvider | null,
-  };
-
-  try {
-    providers.terrain = await CesiumTerrainProvider.fromUrl(
-      WUPP_TERRAIN_PROVIDER.url
-    );
-  } catch (error) {
-    console.warn(
-      "[annotations-playground] Failed to initialize terrain provider",
-      {
-        error,
-        url: WUPP_TERRAIN_PROVIDER.url,
-      }
-    );
-  }
-
-  try {
-    providers.surface = await CesiumTerrainProvider.fromUrl(
-      WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M.url
-    );
-  } catch (error) {
-    console.warn(
-      "[annotations-playground] Failed to initialize surface provider",
-      {
-        error,
-        url: WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M.url,
-      }
-    );
-  }
-
-  return providers;
 };
 
 const applyInitialCameraState = async ({
@@ -93,41 +57,29 @@ const applyInitialCameraState = async ({
   await applyCameraState(widget, initialCameraState);
 };
 
-const sampleScreenCenterTerrainIntersection = (scene: Scene) => {
-  const { camera, canvas, globe } = scene;
-  if (!camera || !canvas || typeof camera.getPickRay !== "function") {
+const initializeTerrainSamplingProvider = async () => {
+  try {
+    return await CesiumTerrainProvider.fromUrl(WUPP_TERRAIN_PROVIDER.url);
+  } catch (error) {
+    console.warn(
+      "[annotations-playground] Failed to initialize off-scene terrain sampling provider",
+      {
+        error,
+        url: WUPP_TERRAIN_PROVIDER.url,
+      }
+    );
     return null;
   }
-
-  const ray = camera.getPickRay(
-    new Cartesian2(canvas.clientWidth * 0.5, canvas.clientHeight * 0.5)
-  );
-  if (!ray || typeof globe?.pick !== "function") {
-    return null;
-  }
-
-  return globe.pick(ray, scene);
 };
 
-const ensureScreenCenterTerrainIntersection = async (
-  scene: Scene,
-  maxAttempts = 45
-) => {
-  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    const hit = sampleScreenCenterTerrainIntersection(scene);
-    if (hit) {
-      return true;
-    }
-    scene.requestRender();
-    await new Promise<void>((resolve) => {
-      window.setTimeout(resolve, 16);
+const waitForNextSceneRender = async (scene: Scene) => {
+  await new Promise<void>((resolve) => {
+    const removePostRenderListener = scene.postRender.addEventListener(() => {
+      removePostRenderListener?.();
+      resolve();
     });
-  }
-
-  console.warn(
-    "[annotations-playground] Missing terrain intersection at screen center during startup. Continuing with view-state fallback handling."
-  );
-  return false;
+    scene.requestRender();
+  });
 };
 
 const loadTileset = async (
@@ -163,6 +115,7 @@ const loadTileset = async (
 type CesiumWidgetContainerProps = {
   rootRef: MutableRefObject<HTMLDivElement | null>;
   onSceneChange?: (scene: Scene | null) => void;
+  onPointQueryTargetChange?: (tileset: Cesium3DTileset | null) => void;
   initialCameraState: AnnotationsDemoCameraState;
   startPoseResolved?: boolean;
   children: ReactNode;
@@ -171,15 +124,16 @@ type CesiumWidgetContainerProps = {
 export function CesiumWidgetContainer({
   rootRef,
   onSceneChange,
+  onPointQueryTargetChange,
   initialCameraState,
   startPoseResolved = true,
   children,
 }: CesiumWidgetContainerProps) {
   const cesiumContainerRef = useRef<HTMLDivElement>(null);
   const widgetRef = useRef<CesiumWidget | null>(null);
-  const terrainProviderRef = useRef<CesiumTerrainProvider | null>(null);
-  const surfaceProviderRef = useRef<CesiumTerrainProvider | null>(null);
+  const terrainSamplingProviderRef = useRef<CesiumTerrainProvider | null>(null);
   const tilesetRef = useRef<Cesium3DTileset | null>(null);
+  const unregisterQueryTilesetRef = useRef<(() => void) | null>(null);
   const [isWidgetReady, setIsWidgetReady] = useState(false);
 
   useEffect(() => {
@@ -196,39 +150,35 @@ export function CesiumWidgetContainer({
       }
 
       widgetRef.current = widget;
-      const providersPromise = initializeTerrainProviders();
       const tilesetPromise = loadTileset(widget);
+      void initializeTerrainSamplingProvider().then((provider) => {
+        if (disposed) {
+          return;
+        }
 
-      const providers = await providersPromise;
-
-      if (disposed || widget.isDestroyed()) return;
-
-      if (!providers.terrain) {
-        throw new Error(
-          "[annotations-playground] Terrain provider is required for this demo."
-        );
-      }
-
-      widget.scene.terrainProvider = providers.terrain;
+        terrainSamplingProviderRef.current = provider;
+      });
 
       await applyInitialCameraState({
         widget,
         initialCameraState,
       });
-      await ensureScreenCenterTerrainIntersection(widget.scene);
+
+      const tileset = await tilesetPromise;
+      if (disposed || widget.isDestroyed()) return;
+
+      tilesetRef.current = tileset;
+      onPointQueryTargetChange?.(tileset);
+      unregisterQueryTilesetRef.current?.();
+      unregisterQueryTilesetRef.current = tileset
+        ? registerCesiumScenePointQueryTileset(widget.scene, tileset)
+        : null;
+      await waitForNextSceneRender(widget.scene);
 
       if (disposed || widget.isDestroyed()) return;
 
       onSceneChange?.(widget.scene);
       setIsWidgetReady(true);
-
-      const tileset = await tilesetPromise;
-      if (disposed || widget.isDestroyed()) return;
-
-      terrainProviderRef.current = providers.terrain;
-      surfaceProviderRef.current = providers.surface;
-      tilesetRef.current = tileset;
-      widget.scene.requestRender();
     };
 
     initialize().catch((error) => {
@@ -237,10 +187,12 @@ export function CesiumWidgetContainer({
         error
       );
       onSceneChange?.(null);
+      onPointQueryTargetChange?.(null);
       setIsWidgetReady(false);
-      terrainProviderRef.current = null;
-      surfaceProviderRef.current = null;
+      terrainSamplingProviderRef.current = null;
       tilesetRef.current = null;
+      unregisterQueryTilesetRef.current?.();
+      unregisterQueryTilesetRef.current = null;
       const widget = widgetRef.current;
       widgetRef.current = null;
       if (widget && !widget.isDestroyed()) {
@@ -251,17 +203,24 @@ export function CesiumWidgetContainer({
     return () => {
       disposed = true;
       onSceneChange?.(null);
+      onPointQueryTargetChange?.(null);
       setIsWidgetReady(false);
-      terrainProviderRef.current = null;
-      surfaceProviderRef.current = null;
+      terrainSamplingProviderRef.current = null;
       tilesetRef.current = null;
+      unregisterQueryTilesetRef.current?.();
+      unregisterQueryTilesetRef.current = null;
       const widget = widgetRef.current;
       widgetRef.current = null;
       if (widget && !widget.isDestroyed()) {
         widget.destroy();
       }
     };
-  }, [initialCameraState, onSceneChange, startPoseResolved]);
+  }, [
+    initialCameraState,
+    onPointQueryTargetChange,
+    onSceneChange,
+    startPoseResolved,
+  ]);
 
   useEffect(() => {
     if (!isWidgetReady) {
@@ -273,6 +232,7 @@ export function CesiumWidgetContainer({
   return (
     <div
       ref={rootRef}
+      data-annotation-cursor-root="true"
       style={{
         position: "relative",
         width: "100%",

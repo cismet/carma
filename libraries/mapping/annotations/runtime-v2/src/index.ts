@@ -3,4 +3,7 @@ export * from "./lib/components/annotation-info-box/RuntimeAnnotationInfoBox";
 export * from "./lib/components/annotation-info-box/annotationInfoBox.types";
 export * from "./lib/components/annotation-info-box/RuntimeAnnotationInfoBoxActionIcon";
 export * from "./lib/components/annotation-info-box/RuntimeAnnotationInfoBoxNavigation";
+export * from "./lib/interaction/createPointQueryPreviewController";
+export * from "./lib/interaction/resolvePointPreviewDiscRadius";
+export * from "./lib/interaction/resolveCrosshairCanvasCursor";
 export * from "./lib/tools";

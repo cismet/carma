@@ -17,9 +17,7 @@ import {
   type PointLabelMetricMode,
 } from "@carma-mapping/annotations/core";
 import { Cartesian2, Cartesian3, type Scene } from "@carma-cesium";
-import {
-  getDegreesFromCartesian,
-} from "@carma-mapping/engines/cesium/core";
+import { getDegreesFromCartesian } from "@carma-mapping/engines/cesium/core";
 import { useCesiumOverlayView } from "@carma-mapping/engines/cesium/react/interactions";
 import { useCesiumSceneVisibilityIndex } from "@carma-mapping/engines/cesium/react/visibility";
 import {
@@ -61,10 +59,48 @@ const VIEWPORT_PADDING_HORIZONTAL = 100; // pixels
 const VIEWPORT_PADDING_VERTICAL = 50; // pixels
 const PLANE_INTERSECTION_EPSILON = 1e-8;
 
+type StablePointHoverChangeHandler = (
+  hovered: boolean,
+  anchorPosition?: CssPixelPosition | null
+) => void;
+
+type StablePointClientPositionHandler = (
+  clientX: number,
+  clientY: number
+) => void;
+
 const EMPTY_LAYOUT_RESULT: PointLabelLayoutResult = {
   placements: {},
   hiddenByLayout: new Set<string>(),
   collapsedToCompact: new Set<string>(),
+};
+
+const getOrCreateStablePointHandler = <THandler>(
+  handlerByPointId: Map<string, THandler>,
+  pointId: string,
+  createHandler: (pointId: string) => THandler
+): THandler => {
+  const existingHandler = handlerByPointId.get(pointId);
+  if (existingHandler) {
+    return existingHandler;
+  }
+
+  const nextHandler = createHandler(pointId);
+  handlerByPointId.set(pointId, nextHandler);
+  return nextHandler;
+};
+
+const pruneStablePointHandlerMap = <THandler>(
+  handlerByPointId: Map<string, THandler>,
+  activePointIds: ReadonlySet<string>
+) => {
+  handlerByPointId.forEach((_, pointId) => {
+    if (activePointIds.has(pointId)) {
+      return;
+    }
+
+    handlerByPointId.delete(pointId);
+  });
 };
 
 const formatMeters = (value: number): string =>
@@ -540,6 +576,66 @@ export const usePointLabelVisualizer = (
   const overlayView = useCesiumOverlayView(scene);
   const cameraPitch = overlayView.derivedView?.pitch ?? 0;
   const registeredPointIdSetRef = useRef<Set<string>>(new Set());
+  const interactionCallbacksRef = useRef({
+    onPointClick,
+    onPointDoubleClick,
+    onPointLongPress,
+    onPointHoverChange,
+    onPointVerticalOffsetStemLongPress,
+  });
+  const pointDragInteractionStateRef = useRef({
+    scene,
+    pointDragPlaneByPointId,
+    onPointPlaneDragStart,
+    onPointPlaneDragPositionChange,
+    onPointPlaneDragEnd,
+  });
+  const pointClickHandlerByIdRef = useRef<Map<string, () => void>>(new Map());
+  const pointDoubleClickHandlerByIdRef = useRef<Map<string, () => void>>(
+    new Map()
+  );
+  const pointLongPressHandlerByIdRef = useRef<Map<string, () => void>>(
+    new Map()
+  );
+  const pointHoverChangeHandlerByIdRef = useRef<
+    Map<string, StablePointHoverChangeHandler>
+  >(new Map());
+  const pointMarkerDragStartHandlerByIdRef = useRef<
+    Map<string, StablePointClientPositionHandler>
+  >(new Map());
+  const pointMarkerDragMoveHandlerByIdRef = useRef<
+    Map<string, StablePointClientPositionHandler>
+  >(new Map());
+  const pointMarkerDragEndHandlerByIdRef = useRef<Map<string, () => void>>(
+    new Map()
+  );
+  const pointVerticalOffsetStemLongPressHandlerByIdRef = useRef<
+    Map<string, () => void>
+  >(new Map());
+  interactionCallbacksRef.current = {
+    onPointClick,
+    onPointDoubleClick,
+    onPointLongPress,
+    onPointHoverChange,
+    onPointVerticalOffsetStemLongPress,
+  };
+  pointDragInteractionStateRef.current = {
+    scene,
+    pointDragPlaneByPointId,
+    onPointPlaneDragStart,
+    onPointPlaneDragPositionChange,
+    onPointPlaneDragEnd,
+  };
+  const hasPointClickHandler = Boolean(onPointClick);
+  const hasPointDoubleClickHandler = Boolean(onPointDoubleClick);
+  const hasPointLongPressHandler = Boolean(onPointLongPress);
+  const hasPointHoverChangeHandler = Boolean(onPointHoverChange);
+  const hasPointPlaneDragPositionChangeHandler = Boolean(
+    onPointPlaneDragPositionChange
+  );
+  const hasPointVerticalOffsetStemLongPressHandler = Boolean(
+    onPointVerticalOffsetStemLongPress
+  );
   const selectedAnnotationIdSet = useMemo(() => {
     const ids = new Set(selectedAnnotationIds);
     if (selectedAnnotationId) {
@@ -547,6 +643,154 @@ export const usePointLabelVisualizer = (
     }
     return ids;
   }, [selectedAnnotationId, selectedAnnotationIds]);
+
+  useEffect(() => {
+    const activePointIds = new Set(points.map((point) => point.id));
+
+    pruneStablePointHandlerMap(
+      pointClickHandlerByIdRef.current,
+      activePointIds
+    );
+    pruneStablePointHandlerMap(
+      pointDoubleClickHandlerByIdRef.current,
+      activePointIds
+    );
+    pruneStablePointHandlerMap(
+      pointLongPressHandlerByIdRef.current,
+      activePointIds
+    );
+    pruneStablePointHandlerMap(
+      pointHoverChangeHandlerByIdRef.current,
+      activePointIds
+    );
+    pruneStablePointHandlerMap(
+      pointMarkerDragStartHandlerByIdRef.current,
+      activePointIds
+    );
+    pruneStablePointHandlerMap(
+      pointMarkerDragMoveHandlerByIdRef.current,
+      activePointIds
+    );
+    pruneStablePointHandlerMap(
+      pointMarkerDragEndHandlerByIdRef.current,
+      activePointIds
+    );
+    pruneStablePointHandlerMap(
+      pointVerticalOffsetStemLongPressHandlerByIdRef.current,
+      activePointIds
+    );
+  }, [points]);
+
+  const updatePointFromLatestDragPosition = (
+    pointId: string,
+    clientX: number,
+    clientY: number
+  ) => {
+    const {
+      scene: activeScene,
+      pointDragPlaneByPointId: activePointDragPlaneByPointId,
+      onPointPlaneDragPositionChange: handlePointPlaneDragPositionChange,
+    } = pointDragInteractionStateRef.current;
+    const dragPlane = activePointDragPlaneByPointId?.[pointId];
+    if (!dragPlane || !handlePointPlaneDragPositionChange) {
+      return;
+    }
+
+    const nextPosition = getPlaneIntersectionForClientPosition(
+      activeScene,
+      clientX,
+      clientY,
+      dragPlane
+    );
+    if (!nextPosition) {
+      return;
+    }
+
+    handlePointPlaneDragPositionChange(pointId, nextPosition);
+  };
+
+  const getStablePointClickHandler = (pointId: string) =>
+    getOrCreateStablePointHandler(
+      pointClickHandlerByIdRef.current,
+      pointId,
+      (stablePointId) => () => {
+        interactionCallbacksRef.current.onPointClick?.(stablePointId);
+      }
+    );
+
+  const getStablePointDoubleClickHandler = (pointId: string) =>
+    getOrCreateStablePointHandler(
+      pointDoubleClickHandlerByIdRef.current,
+      pointId,
+      (stablePointId) => () => {
+        interactionCallbacksRef.current.onPointDoubleClick?.(stablePointId);
+      }
+    );
+
+  const getStablePointLongPressHandler = (pointId: string) =>
+    getOrCreateStablePointHandler(
+      pointLongPressHandlerByIdRef.current,
+      pointId,
+      (stablePointId) => () => {
+        interactionCallbacksRef.current.onPointLongPress?.(stablePointId);
+      }
+    );
+
+  const getStablePointHoverChangeHandler = (pointId: string) =>
+    getOrCreateStablePointHandler(
+      pointHoverChangeHandlerByIdRef.current,
+      pointId,
+      (stablePointId) => (hovered, anchorPosition) => {
+        interactionCallbacksRef.current.onPointHoverChange?.(
+          stablePointId,
+          hovered,
+          anchorPosition
+        );
+      }
+    );
+
+  const getStablePointMarkerDragStartHandler = (pointId: string) =>
+    getOrCreateStablePointHandler(
+      pointMarkerDragStartHandlerByIdRef.current,
+      pointId,
+      (stablePointId) => (clientX, clientY) => {
+        pointDragInteractionStateRef.current.onPointPlaneDragStart?.(
+          stablePointId
+        );
+        updatePointFromLatestDragPosition(stablePointId, clientX, clientY);
+      }
+    );
+
+  const getStablePointMarkerDragMoveHandler = (pointId: string) =>
+    getOrCreateStablePointHandler(
+      pointMarkerDragMoveHandlerByIdRef.current,
+      pointId,
+      (stablePointId) => (clientX, clientY) => {
+        updatePointFromLatestDragPosition(stablePointId, clientX, clientY);
+      }
+    );
+
+  const getStablePointMarkerDragEndHandler = (pointId: string) =>
+    getOrCreateStablePointHandler(
+      pointMarkerDragEndHandlerByIdRef.current,
+      pointId,
+      (stablePointId) => () => {
+        pointDragInteractionStateRef.current.onPointPlaneDragEnd?.(
+          stablePointId
+        );
+      }
+    );
+
+  const getStablePointVerticalOffsetStemLongPressHandler = (pointId: string) =>
+    getOrCreateStablePointHandler(
+      pointVerticalOffsetStemLongPressHandlerByIdRef.current,
+      pointId,
+      (stablePointId) => () => {
+        interactionCallbacksRef.current.onPointVerticalOffsetStemLongPress?.(
+          stablePointId
+        );
+      }
+    );
 
   const layoutConfig = useMemo(
     () => resolvePointLabelLayoutConfig(labelLayoutConfig),
@@ -1002,22 +1246,8 @@ export const usePointLabelVisualizer = (
       const disableInteractionsForEditingPoint = isEditingPoint;
       const dragPlane = pointDragPlaneByPointId?.[point.id];
       const canDirectPlaneDrag = Boolean(
-        dragPlane && onPointPlaneDragPositionChange
+        dragPlane && hasPointPlaneDragPositionChangeHandler
       );
-      const updatePointFromDragPosition = (
-        clientX: number,
-        clientY: number
-      ) => {
-        if (!dragPlane || !onPointPlaneDragPositionChange) return;
-        const nextPosition = getPlaneIntersectionForClientPosition(
-          scene,
-          clientX,
-          clientY,
-          dragPlane
-        );
-        if (!nextPosition) return;
-        onPointPlaneDragPositionChange(point.id, nextPosition);
-      };
 
       return {
         id: point.id,
@@ -1098,23 +1328,22 @@ export const usePointLabelVisualizer = (
           ((visibilityStateById[point.id]?.isHidden ?? false) ||
             Boolean(fullyHiddenPointIds?.has(point.id))),
         onClick:
-          !disableInteractionsForEditingPoint && onPointClick
-            ? () => onPointClick(point.id)
+          !disableInteractionsForEditingPoint && hasPointClickHandler
+            ? getStablePointClickHandler(point.id)
             : undefined,
         onDoubleClick:
-          !disableInteractionsForEditingPoint && onPointDoubleClick
-            ? () => onPointDoubleClick(point.id)
+          !disableInteractionsForEditingPoint && hasPointDoubleClickHandler
+            ? getStablePointDoubleClickHandler(point.id)
             : undefined,
         onLongPress:
           !disableInteractionsForEditingPoint &&
           !canDirectPlaneDrag &&
-          onPointLongPress
-            ? () => onPointLongPress(point.id)
+          hasPointLongPressHandler
+            ? getStablePointLongPressHandler(point.id)
             : undefined,
         onHoverChange:
-          !disableInteractionsForEditingPoint && onPointHoverChange
-            ? (hovered: boolean, anchorPosition?: CssPixelPosition | null) =>
-                onPointHoverChange(point.id, hovered, anchorPosition)
+          !disableInteractionsForEditingPoint && hasPointHoverChangeHandler
+            ? getStablePointHoverChangeHandler(point.id)
             : undefined,
         markerOnlyPointerEvents:
           markerOnlyOverlayNodeInteractions || isLockedPoint,
@@ -1128,18 +1357,13 @@ export const usePointLabelVisualizer = (
         ),
         longPressDurationMs: pointLongPressDurationMs,
         onMarkerDragStart: canDirectPlaneDrag
-          ? (clientX: number, clientY: number) => {
-              onPointPlaneDragStart?.(point.id);
-              updatePointFromDragPosition(clientX, clientY);
-            }
+          ? getStablePointMarkerDragStartHandler(point.id)
           : undefined,
         onMarkerDragMove: canDirectPlaneDrag
-          ? (clientX: number, clientY: number) => {
-              updatePointFromDragPosition(clientX, clientY);
-            }
+          ? getStablePointMarkerDragMoveHandler(point.id)
           : undefined,
         onMarkerDragEnd: canDirectPlaneDrag
-          ? () => onPointPlaneDragEnd?.(point.id)
+          ? getStablePointMarkerDragEndHandler(point.id)
           : undefined,
       };
     });
@@ -1156,10 +1380,11 @@ export const usePointLabelVisualizer = (
     editingPointMarkerSizePx,
     editingPointMarkerSizeDraggingPx,
     resolvedEditingPointLabelDistanceScale,
-    onPointClick,
-    onPointDoubleClick,
-    onPointLongPress,
-    onPointHoverChange,
+    hasPointClickHandler,
+    hasPointDoubleClickHandler,
+    hasPointLongPressHandler,
+    hasPointHoverChangeHandler,
+    hasPointPlaneDragPositionChangeHandler,
     pointLongPressDurationMs,
     hiddenPointLabelIds,
     fullyHiddenPointIds,
@@ -1168,9 +1393,6 @@ export const usePointLabelVisualizer = (
     polylinePointLabelTextByPointId,
     pillMarkerPointIds,
     pointDragPlaneByPointId,
-    onPointPlaneDragStart,
-    onPointPlaneDragPositionChange,
-    onPointPlaneDragEnd,
     markerlessPointIds,
     suppressCompactLabelPointIds,
     markerOnlyOverlayNodeInteractions,
@@ -1192,8 +1414,8 @@ export const usePointLabelVisualizer = (
         dashLengthRatio: 0.25,
         opacity: 0.9,
         visible: true,
-        onLineLongPress: onPointVerticalOffsetStemLongPress
-          ? () => onPointVerticalOffsetStemLongPress(point.id)
+        onLineLongPress: hasPointVerticalOffsetStemLongPressHandler
+          ? getStablePointVerticalOffsetStemLongPressHandler(point.id)
           : undefined,
         longPressDurationMs: pointLongPressDurationMs,
         getSvgLine: () => {
@@ -1210,7 +1432,7 @@ export const usePointLabelVisualizer = (
       });
     });
   }, [
-    onPointVerticalOffsetStemLongPress,
+    hasPointVerticalOffsetStemLongPressHandler,
     pointLongPressDurationMs,
     points,
     scene,

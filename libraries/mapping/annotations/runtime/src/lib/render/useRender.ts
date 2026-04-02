@@ -1,12 +1,12 @@
 import { useMemo, type Dispatch, type SetStateAction } from "react";
 
 import {
+  ANNOTATION_TYPE_DISTANCE,
   ANNOTATION_TYPE_POINT,
   SELECT_TOOL_TYPE,
   AnnotationCollection,
   AnnotationMode,
   AnnotationToolType,
-  LinearSegmentLineMode,
   NodeChainAnnotation,
   PointDistanceRelation,
   isPointMeasurementEntry,
@@ -16,7 +16,6 @@ import type { Cartesian3, Scene } from "@carma-cesium";
 import type { AnnotationsOptions } from "../config/annotationsOptions";
 import type { EditingState } from "../interaction/editing/useEditing";
 import type { UserInteractionState } from "../interaction/lifecycle/modes/useUserInteraction";
-import { useToolCandidatePreview } from "../interaction/useInteraction";
 import type { RectangleSelectionState } from "../selection/hooks/useRectangleSelectionOverlay";
 import type { AnnotationSelectionState } from "../selection/types/annotationSelection.types";
 import { useStoreSelector, type AnnotationsStore } from "../store";
@@ -28,7 +27,6 @@ import {
   useVisibilityBridge,
 } from "./bridge";
 import { usePointIndex } from "./point/usePointIndex";
-import { useOverlayPositionSync } from "./scene/useOverlayPositionSync";
 import { useVisualization } from "./scene/useVisualization";
 export {
   usePointMarkerBadges,
@@ -65,29 +63,11 @@ type RenderBridgeCandidateSessionParams = {
   selectablePointIds: ReadonlySet<string>;
   activeNodeChainAnnotationId: string | null;
   nodeChainAnnotations: readonly NodeChainAnnotation[];
-};
-
-type RenderBridgeCandidatePointerParams = {
-  activeCandidateNodeECEF: Cartesian3 | null;
   candidateSupportsEdgeLine: boolean;
-};
-
-type RenderBridgeCandidatePreviewParams = {
-  candidateForcesDirectEdgeLine: boolean;
-  candidateUsesPolylineEdgeRules: boolean;
-  polylineSegmentLineMode: LinearSegmentLineMode;
-  distanceCreationLineVisibility: {
-    direct: boolean;
-    vertical: boolean;
-    horizontal: boolean;
-  };
-  isPolylineCandidateMode: boolean;
 };
 
 type RenderBridgeCandidateParams = {
   session: RenderBridgeCandidateSessionParams;
-  pointer: RenderBridgeCandidatePointerParams;
-  preview: RenderBridgeCandidatePreviewParams;
 };
 
 type UseRenderBridgeStateParams = {
@@ -125,11 +105,7 @@ export const useRenderBridgeState = ({
     focusedNodeChainAnnotationId,
     activeNodeChainAnnotationId,
   } = selection;
-  const {
-    session: candidateSession,
-    pointer: candidatePointer,
-    preview: candidatePreview,
-  } = candidate;
+  const { session: candidateSession } = candidate;
   const activeToolType = useStoreSelector(
     candidateSession.annotationsStore,
     (state) => state.annotationToolType
@@ -138,8 +114,91 @@ export const useRenderBridgeState = ({
     candidateSession.annotationsStore,
     (state) => state.pendingLabelPlacementAnnotationId
   );
+  const distanceModeStickyToFirstPoint = useStoreSelector(
+    candidateSession.annotationsStore,
+    (state) => state.settingsState.distance.stickyToFirstPoint
+  );
+  const currentSelectedAnnotationId = useStoreSelector(
+    candidateSession.annotationsStore,
+    (state) =>
+      state.selectionState.selectedAnnotationIds[
+        state.selectionState.selectedAnnotationIds.length - 1
+      ] ?? null
+  );
+  const moveGizmoPointId = useStoreSelector(
+    candidateSession.annotationsStore,
+    (state) => state.editState.moveGizmo.pointId
+  );
   const showAllPointOverlays =
     activeToolType === SELECT_TOOL_TYPE || labelInputPromptPointId !== null;
+  const openChainPointId = useMemo(() => {
+    if (!candidateSession.activeNodeChainAnnotationId) {
+      return null;
+    }
+
+    const activeOpenAnnotation =
+      candidateSession.nodeChainAnnotations.find(
+        (annotation) =>
+          annotation.id === candidateSession.activeNodeChainAnnotationId &&
+          !annotation.closed
+      ) ?? null;
+
+    return (
+      activeOpenAnnotation?.nodeIds[activeOpenAnnotation.nodeIds.length - 1] ??
+      null
+    );
+  }, [
+    candidateSession.activeNodeChainAnnotationId,
+    candidateSession.nodeChainAnnotations,
+  ]);
+  const currentAnnotationId = useMemo(() => {
+    if (
+      moveGizmoPointId &&
+      candidateSession.selectablePointIds.has(moveGizmoPointId)
+    ) {
+      return moveGizmoPointId;
+    }
+
+    const candidateAnchorPointId = candidateSession.candidateSupportsEdgeLine
+      ? activeToolType === ANNOTATION_TYPE_DISTANCE &&
+        distanceModeStickyToFirstPoint &&
+        candidateSession.referencePointMeasurementId
+        ? candidateSession.referencePointMeasurementId
+        : openChainPointId &&
+          candidateSession.selectablePointIds.has(openChainPointId)
+        ? openChainPointId
+        : null
+      : null;
+
+    if (candidateAnchorPointId) {
+      return candidateAnchorPointId;
+    }
+
+    if (
+      openChainPointId &&
+      candidateSession.selectablePointIds.has(openChainPointId)
+    ) {
+      return openChainPointId;
+    }
+
+    if (
+      currentSelectedAnnotationId &&
+      candidateSession.selectablePointIds.has(currentSelectedAnnotationId)
+    ) {
+      return currentSelectedAnnotationId;
+    }
+
+    return null;
+  }, [
+    activeToolType,
+    candidateSession.candidateSupportsEdgeLine,
+    candidateSession.referencePointMeasurementId,
+    candidateSession.selectablePointIds,
+    distanceModeStickyToFirstPoint,
+    moveGizmoPointId,
+    openChainPointId,
+    currentSelectedAnnotationId,
+  ]);
   const { points: pointEntries } = usePointIndex(annotations);
   const pointMeasurementEntries = annotations.filter(isPointMeasurementEntry);
   const visiblePointEntries = useMemo(
@@ -210,27 +269,6 @@ export const useRenderBridgeState = ({
     showAllPointOverlays,
   });
 
-  const candidateState = useToolCandidatePreview({
-    annotationsStore: candidateSession.annotationsStore,
-    referencePointMeasurementId: candidateSession.referencePointMeasurementId,
-    selectablePointIds: candidateSession.selectablePointIds,
-    activeNodeChainAnnotationId: candidateSession.activeNodeChainAnnotationId,
-    nodeChainAnnotations: candidateSession.nodeChainAnnotations,
-    activeCandidateNodeECEF: candidatePointer.activeCandidateNodeECEF,
-    annotations,
-    focusedPolylineDistanceToStartByPointId:
-      polylineBridge.focusedPolylineDistanceToStartByPointId,
-    candidateSupportsEdgeLine: candidatePointer.candidateSupportsEdgeLine,
-    candidateForcesDirectEdgeLine:
-      candidatePreview.candidateForcesDirectEdgeLine,
-    candidateUsesPolylineEdgeRules:
-      candidatePreview.candidateUsesPolylineEdgeRules,
-    polylineSegmentLineMode: candidatePreview.polylineSegmentLineMode,
-    distanceCreationLineVisibility:
-      candidatePreview.distanceCreationLineVisibility,
-    isPolylineCandidateMode: candidatePreview.isPolylineCandidateMode,
-  });
-
   return {
     cumulativeDistanceByRelationId:
       polylineBridge.cumulativeDistanceByRelationId,
@@ -252,10 +290,9 @@ export const useRenderBridgeState = ({
       visibilityBridge.effectiveDistanceRelationsForRendering,
     hiddenPointLabelIds: visibilityBridge.hiddenPointLabelIds,
     effectiveFullyHiddenPointIds: visibilityBridge.effectiveFullyHiddenPointIds,
-    currentAnnotationId: candidateState.currentAnnotationId,
-    candidateConnectionPreview: candidateState.candidateConnectionPreview,
-    candidatePreviewDistanceMeters:
-      candidateState.candidatePreviewDistanceMeters,
+    currentAnnotationId,
+    focusedPolylineDistanceToStartByPointId:
+      polylineBridge.focusedPolylineDistanceToStartByPointId,
   };
 };
 
@@ -264,9 +301,6 @@ export type RenderBridgeState = ReturnType<typeof useRenderBridgeState>;
 type RenderEffectsSceneParams = {
   scene: Scene;
   options?: AnnotationsOptions;
-  activeToolType: AnnotationToolType;
-  referencePoint: Cartesian3 | null;
-  pointRadius: number;
 };
 
 type RenderEffectsOverlayParams = {
@@ -287,10 +321,6 @@ type RenderEffectsEditingParams = {
 
 type RenderEffectsCandidateParams = {
   annotationCursorEnabled: boolean;
-  activeCandidateNodeECEF: Cartesian3 | null;
-  cursorScreenPosition: { x: number; y: number } | null;
-  activeCandidateNodeSurfaceNormalECEF: Cartesian3 | null;
-  activeCandidateNodeVerticalOffsetAnchorECEF: Cartesian3 | null;
 };
 
 type RenderEffectsSelectionParams = {
@@ -318,8 +348,7 @@ export const useRenderEffects = (
   annotationUserInteraction: UserInteractionState,
   annotationEditing: EditingState
 ) => {
-  const { scene, options, activeToolType, referencePoint, pointRadius } =
-    sceneParams;
+  const { scene, options } = sceneParams;
   const {
     focusedNodeChainAnnotationId,
     activeNodeChainAnnotationId,
@@ -327,17 +356,21 @@ export const useRenderEffects = (
     labelInputPromptPointId,
   } = overlays;
   const { moveGizmoPointId, moveGizmoOptions, isMoveGizmoDragging } = editing;
-  const {
-    annotationCursorEnabled,
-    activeCandidateNodeECEF,
-    cursorScreenPosition,
-    activeCandidateNodeSurfaceNormalECEF,
-    activeCandidateNodeVerticalOffsetAnchorECEF,
-  } = candidate;
+  const { annotationCursorEnabled } = candidate;
   const { annotationSelection, rectangleSelection } = selection;
-
-  useOverlayPositionSync(scene);
-
+  const staticVisiblePolygonAnnotationsForRendering = useMemo(
+    () =>
+      annotationCursorEnabled && activeNodeChainAnnotationId
+        ? renderState.visiblePolygonAnnotationsForRendering.filter(
+            (annotation) => annotation.id !== activeNodeChainAnnotationId
+          )
+        : renderState.visiblePolygonAnnotationsForRendering,
+    [
+      activeNodeChainAnnotationId,
+      annotationCursorEnabled,
+      renderState.visiblePolygonAnnotationsForRendering,
+    ]
+  );
   useVisualization(
     {
       scene: {
@@ -349,11 +382,10 @@ export const useRenderEffects = (
         effectiveDistanceRelationsForRendering:
           renderState.effectiveDistanceRelationsForRendering,
         visiblePolygonAnnotationsForRendering:
-          renderState.visiblePolygonAnnotationsForRendering,
+          staticVisiblePolygonAnnotationsForRendering,
         cumulativeDistanceByRelationId:
           renderState.cumulativeDistanceByRelationId,
         visiblePointEntries: renderState.visiblePointEntries,
-        candidateConnectionPreview: renderState.candidateConnectionPreview,
       },
       display: {
         showPoints: renderState.showPoints,
@@ -361,8 +393,6 @@ export const useRenderEffects = (
         effectiveReferenceElevation: renderState.effectiveReferenceElevation,
         occlusionChecksEnabled,
         options,
-        referencePoint,
-        pointRadius,
       },
       pointLabels: {
         effectiveDistanceToReferenceByPointId:
@@ -383,13 +413,6 @@ export const useRenderEffects = (
       },
       candidate: {
         annotationCursorEnabled,
-        activeCandidateNodeECEF,
-        cursorScreenPosition,
-        activeCandidateNodeSurfaceNormalECEF,
-        activeCandidateNodeVerticalOffsetAnchorECEF,
-        activeToolType,
-        candidatePreviewDistanceMeters:
-          renderState.candidatePreviewDistanceMeters,
       },
       selection: {
         annotationSelection,

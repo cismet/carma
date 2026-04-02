@@ -1,9 +1,3 @@
-import {
-  configureStore,
-  createSlice,
-  type PayloadAction,
-} from "@reduxjs/toolkit";
-
 import { normalizeOptions } from "@carma-commons/utils";
 import {
   DEFAULT_LINEAR_SEGMENT_LINE_MODE,
@@ -20,8 +14,11 @@ import type {
   AnnotationEditStoreState,
   AnnotationSettingsStoreState,
   AnnotationsStore,
+  AnnotationsStoreListener,
   AnnotationsStoreState,
+  ReplaceAnnotationsStoreStateAction,
 } from "./annotationsStore.types";
+
 export type CreateInitialAnnotationsStoreStateOptions = {
   initialToolType?: AnnotationToolType;
   initialPointRadius?: number;
@@ -201,28 +198,47 @@ export const createInitialAnnotationsStoreState = (
   };
 };
 
-const annotationsRuntimeSlice = createSlice({
-  name: "annotationsRuntime",
-  initialState: createInitialAnnotationsStoreState(),
-  reducers: {
-    replaceState: (_, action: PayloadAction<AnnotationsStoreState>) =>
-      action.payload,
-  },
+export const replaceAnnotationsStoreState = (
+  payload: AnnotationsStoreState
+): ReplaceAnnotationsStoreStateAction => ({
+  type: "annotations/replace-state",
+  payload,
 });
 
-export const { replaceState: replaceAnnotationsStoreState } =
-  annotationsRuntimeSlice.actions;
+const notifyAnnotationsStoreListeners = (
+  listeners: ReadonlySet<AnnotationsStoreListener>
+) => {
+  listeners.forEach((listener) => {
+    listener();
+  });
+};
 
 export const createAnnotationsStore = (
   initialState: AnnotationsStoreState
-): AnnotationsStore =>
-  configureStore({
-    reducer: annotationsRuntimeSlice.reducer,
-    preloadedState: initialState,
-    middleware: (getDefaultMiddleware) =>
-      getDefaultMiddleware({
-        // The runtime store intentionally carries Cesium instances like
-        // Cartesian3 in annotation geometry and reference-point state.
-        serializableCheck: false,
-      }),
-  });
+): AnnotationsStore => {
+  let state = initialState;
+  const listeners = new Set<AnnotationsStoreListener>();
+
+  return {
+    getState: () => state,
+    dispatch: (action) => {
+      if (action.type !== "annotations/replace-state") {
+        throw new Error(`Unsupported annotations store action: ${action.type}`);
+      }
+
+      if (Object.is(action.payload, state)) {
+        return action;
+      }
+
+      state = action.payload;
+      notifyAnnotationsStoreListeners(listeners);
+      return action;
+    },
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+  };
+};
