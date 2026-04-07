@@ -296,8 +296,11 @@ const slice = createSlice({
       layer.layerInfo = { ...layer.layerInfo, ...layerInfo };
       layer.other = { ...layer.other, ...layerInfo };
 
-      if (typeof layerInfo.title === "string") {
-        layer.title = layerInfo.title;
+      const directKeys = ["title", "description"] as const;
+      for (const key of directKeys) {
+        if (typeof layerInfo[key] === "string") {
+          layer[key] = layerInfo[key] as string;
+        }
       }
 
       if (Array.isArray(layerInfo.keywords)) {
