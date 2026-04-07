@@ -50,7 +50,7 @@ import {
   toggleUseInFeatureInfo,
   getMaplibreMaps,
   setLayerDynamicStylingSelection,
-  applyLayerMetadataChanges,
+  updateLayerFromLayerInfo,
 } from "../../store/slices/mapping";
 import {
   UIMode,
@@ -339,25 +339,16 @@ const GeoportalLayerButton = ({
               iconListConfig.default
             }
             onSelectionChange={(selection) => {
-              const opt = iconListConfig.options.find(
-                (o) => o.id === selection
-              );
               dispatch(
                 setLayerDynamicStylingSelection({
                   id,
                   configIndex: iconListConfigIndex,
                   selection,
-                  icon: opt?.icon,
-                  title: opt?.title,
-                  infoBoxMapping: opt?.infoBoxMapping as
-                    | string
-                    | string[]
-                    | undefined,
                 })
               );
             }}
-            onMetadataChange={(changes) => {
-              dispatch(applyLayerMetadataChanges({ id, changes }));
+            onLayerInfoChange={(layerInfo) => {
+              dispatch(updateLayerFromLayerInfo({ id, layerInfo }));
             }}
           >
             <LayerIcon
@@ -478,26 +469,16 @@ const GeoportalLayerButton = ({
                     dynamicStylingSelections[idx] || config.default
                   }
                   onSelectionChange={(selection) => {
-                    const opt =
-                      config.type === "list"
-                        ? (config as DynamicStylingListConfig).options.find(
-                            (o) => o.id === selection
-                          )
-                        : undefined;
                     dispatch(
                       setLayerDynamicStylingSelection({
                         id,
                         configIndex: idx,
                         selection,
-                        infoBoxMapping: opt?.infoBoxMapping as
-                          | string
-                          | string[]
-                          | undefined,
                       })
                     );
                   }}
-                  onMetadataChange={(changes) => {
-                    dispatch(applyLayerMetadataChanges({ id, changes }));
+                  onLayerInfoChange={(layerInfo) => {
+                    dispatch(updateLayerFromLayerInfo({ id, layerInfo }));
                   }}
                   showIcon={false}
                 />

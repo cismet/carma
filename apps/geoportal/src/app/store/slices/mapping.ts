@@ -13,6 +13,8 @@ import {
   type MappingState,
 } from "@carma-appframeworks/portals";
 
+import { extractCarmaConfig } from "@carma-commons/utils";
+
 import { RootState } from "..";
 import { layerMap } from "../../config";
 
@@ -266,21 +268,9 @@ const slice = createSlice({
         id: string;
         configIndex: number;
         selection: string;
-        icon?: string;
-        legend?: string;
-        title?: string;
-        infoBoxMapping?: string | string[];
       }>
     ) {
-      const {
-        id,
-        configIndex,
-        selection,
-        icon,
-        legend,
-        title,
-        infoBoxMapping,
-      } = action.payload;
+      const { id, configIndex, selection } = action.payload;
       const layer = state.layers.find((l) => l.id === id);
       if (layer) {
         const prev =
@@ -289,45 +279,31 @@ const slice = createSlice({
             ? layer.dynamicStylingSelection
             : {};
         layer.dynamicStylingSelection = { ...prev, [configIndex]: selection };
-        if (icon !== undefined || legend !== undefined) {
-          layer.other = {
-            ...layer.other,
-            ...(icon !== undefined && { icon }),
-            ...(legend !== undefined && { vectorLegend: legend }),
-          };
-        }
-        if (title !== undefined) {
-          layer.title = title;
-        }
-        if (infoBoxMapping !== undefined) {
-          layer.conf = {
-            ...layer.conf,
-            infoboxMapping: Array.isArray(infoBoxMapping)
-              ? infoBoxMapping
-              : [infoBoxMapping],
-          };
-        }
       }
     },
 
-    applyLayerMetadataChanges(
+    updateLayerFromLayerInfo(
       state,
       action: PayloadAction<{
         id: string;
-        changes: Record<string, unknown>;
+        layerInfo: Record<string, unknown>;
       }>
     ) {
-      const { id, changes } = action.payload;
+      const { id, layerInfo } = action.payload;
       const layer = state.layers.find((l) => l.id === id);
       if (!layer) return;
 
-      const LAYER_INFO_PREFIX = "carmaConf.layerInfo.";
+      layer.layerInfo = { ...layer.layerInfo, ...layerInfo };
+      layer.other = { ...layer.other, ...layerInfo };
 
-      for (const [path, value] of Object.entries(changes)) {
-        if (path.startsWith(LAYER_INFO_PREFIX)) {
-          const key = path.slice(LAYER_INFO_PREFIX.length);
-          layer.other = { ...layer.other, [key]: value };
-          layer.layerInfo = { ...layer.layerInfo, [key]: value };
+      if (typeof layerInfo.title === "string") {
+        layer.title = layerInfo.title;
+      }
+
+      if (Array.isArray(layerInfo.keywords)) {
+        const conf = extractCarmaConfig(layerInfo.keywords as string[]);
+        if (conf) {
+          layer.conf = { ...layer.conf, ...conf };
         }
       }
     },
@@ -484,7 +460,7 @@ export const {
   setLayerFilterInfo,
   setLayerFilterState,
   setLayerDynamicStylingSelection,
-  applyLayerMetadataChanges,
+  updateLayerFromLayerInfo,
   setLibreMapRef,
   setMaplibreMaps,
   setConfigSelection,

@@ -59,3 +59,52 @@ export const captureDefaults = (
 };
 
 export type MetadataChanges = Record<string, unknown>;
+
+export type LayerInfo = Record<string, unknown> & {
+  keywords?: string[];
+  title?: string;
+  icon?: string;
+  vectorLegend?: string;
+};
+
+const KEYWORD_SEGMENT = "keywords";
+
+export const isKeywordTarget = (pathSegments: string[]): boolean => {
+  const kwIdx = pathSegments.indexOf(KEYWORD_SEGMENT);
+  return kwIdx >= 0 && kwIdx < pathSegments.length - 1;
+};
+
+export const setKeywordValue = (
+  obj: any,
+  pathToKeywords: string[],
+  keywordPrefix: string,
+  value: unknown
+) => {
+  let current = obj;
+  for (const segment of pathToKeywords) {
+    if (current[segment] == null || typeof current[segment] !== "object") {
+      current[segment] = {};
+    }
+    current = current[segment];
+  }
+
+  const fullPrefix = keywordPrefix + ":";
+  if (!Array.isArray(current)) return;
+
+  const idx = current.findIndex(
+    (kw: string) =>
+      typeof kw === "string" &&
+      kw.toLowerCase().startsWith(fullPrefix.toLowerCase())
+  );
+
+  const newEntry = `${fullPrefix}${value}`;
+  if (idx >= 0) {
+    current[idx] = newEntry;
+  } else {
+    current.push(newEntry);
+  }
+};
+
+export const extractLayerInfo = (stylesheet: any): LayerInfo | null => {
+  return stylesheet?.metadata?.carmaConf?.layerInfo ?? null;
+};

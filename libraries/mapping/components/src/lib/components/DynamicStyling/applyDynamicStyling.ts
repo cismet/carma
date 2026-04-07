@@ -3,7 +3,10 @@ import {
   captureDefaults,
   parseTarget,
   setNestedValue,
-  type MetadataChanges,
+  isKeywordTarget,
+  setKeywordValue,
+  extractLayerInfo,
+  type LayerInfo,
 } from "./dynamicStyling.helpers";
 
 export const applyDynamicStyling = (
@@ -11,17 +14,16 @@ export const applyDynamicStyling = (
   carmaLayerId: string,
   config: DynamicStylingListConfig,
   selectedOptionId: string
-): MetadataChanges => {
+): LayerInfo | null => {
   const stylesheet = libreMap.style?.stylesheet;
-  if (!stylesheet) return {};
+  if (!stylesheet) return null;
 
   const defaultOption = config.options.find((o) => o.id === config.default);
   const selectedOption = config.options.find((o) => o.id === selectedOptionId);
-  if (!defaultOption || !selectedOption) return {};
+  if (!defaultOption || !selectedOption) return null;
 
   const defaults = captureDefaults(stylesheet, carmaLayerId, config);
   const updatedStylesheet = JSON.parse(JSON.stringify(stylesheet));
-  const metadataChanges: MetadataChanges = {};
 
   for (const [key, targets] of Object.entries(config.targets)) {
     const value = selectedOption[key];
@@ -60,13 +62,22 @@ export const applyDynamicStyling = (
           serialized = serialized.replaceAll(from, to);
         }
         layer[type][property] = JSON.parse(serialized);
+      } else if (isKeywordTarget(rest)) {
+        const kwIdx = rest.indexOf("keywords");
+        const pathToKeywords = [category, ...rest.slice(0, kwIdx + 1)];
+        const keywordPrefix = rest.slice(kwIdx + 1).join(".");
+        setKeywordValue(
+          updatedStylesheet,
+          pathToKeywords,
+          keywordPrefix,
+          value
+        );
       } else {
         setNestedValue(updatedStylesheet, [category, ...rest], value);
-        metadataChanges[rest.join(".")] = value;
       }
     }
   }
 
   libreMap.setStyle(updatedStylesheet);
-  return metadataChanges;
+  return extractLayerInfo(updatedStylesheet);
 };

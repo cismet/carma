@@ -1,5 +1,5 @@
 import type { DynamicStylingListConfig } from "@carma/types";
-import type { MetadataChanges } from "./dynamicStyling.helpers";
+import type { LayerInfo } from "./dynamicStyling.helpers";
 import { DynamicStylingList } from "./DynamicStylingList";
 
 export interface DynamicStylingControlProps {
@@ -8,7 +8,7 @@ export interface DynamicStylingControlProps {
   carmaLayerId: string;
   currentSelection: string;
   onSelectionChange: (selection: string) => void;
-  onMetadataChange?: (changes: MetadataChanges) => void;
+  onLayerInfoChange?: (layerInfo: LayerInfo) => void;
   showIcon?: boolean;
   children?: React.ReactNode;
 }

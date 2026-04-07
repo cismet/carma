@@ -16,7 +16,7 @@ export const DynamicStylingList = ({
   carmaLayerId,
   currentSelection,
   onSelectionChange,
-  onMetadataChange,
+  onLayerInfoChange,
   showIcon: showIconProp,
   children,
 }: DynamicStylingControlProps) => {
@@ -31,14 +31,14 @@ export const DynamicStylingList = ({
     const opt = listConfig.options.find((o) => o.id === key);
     if (!opt) return;
     if (maplibreMap) {
-      const changes = applyDynamicStyling(
+      const layerInfo = applyDynamicStyling(
         maplibreMap,
         carmaLayerId,
         listConfig,
         opt.id
       );
-      if (onMetadataChange && Object.keys(changes).length > 0) {
-        onMetadataChange(changes);
+      if (onLayerInfoChange && layerInfo) {
+        onLayerInfoChange(layerInfo);
       }
     }
     onSelectionChange(key);
@@ -108,19 +108,7 @@ export const DynamicStylingList = ({
     const nextOption = listConfig.options.find(
       (o) => o.id !== currentSelection
     );
-    if (!nextOption) return;
-    if (maplibreMap) {
-      const changes = applyDynamicStyling(
-        maplibreMap,
-        carmaLayerId,
-        listConfig,
-        nextOption.id
-      );
-      if (onMetadataChange && Object.keys(changes).length > 0) {
-        onMetadataChange(changes);
-      }
-    }
-    onSelectionChange(nextOption.id);
+    if (nextOption) handleOptionSelect(nextOption.id);
   };
 
   if (isBinaryToggle) {
