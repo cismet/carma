@@ -4,7 +4,11 @@ import { CarmaMap } from "@carma-mapping/core";
 import type { AdvancedFilterState } from "@carma-mapping/components";
 import Menu from "./Menu";
 import { POI_LAYER_CONFIG } from "./helper/constants";
-import { applyPoiFilter, extractLebenslagen } from "./helper/filter";
+import {
+  applyPoiFilter,
+  extractLebenslagen,
+  getAllowedKombis,
+} from "./helper/filter";
 import { computePieChartStats } from "./helper/pieChartStats";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
@@ -86,6 +90,46 @@ export default function App() {
     [pieChartData]
   );
 
+  const [visiblePoiCount, setVisiblePoiCount] = useState(0);
+
+  const filteredFeatures = useMemo(() => {
+    if (allFeatures.length === 0) return [];
+    const allowedKombis = new Set(
+      getAllowedKombis(allKombisRef.current, filterState)
+    );
+    return allFeatures.filter((f: any) => {
+      const kombi = f.properties?.kombi;
+      if (typeof kombi !== "string" || kombi.length === 0) return true;
+      return allowedKombis.has(kombi);
+    });
+  }, [allFeatures, filterState]);
+
+  // Count filtered features inside the current viewport.
+  // Uses bounds checking against React state so clustering doesn't affect the count.
+  useEffect(() => {
+    const map = (window as any).__carmaMap;
+    if (!map) return;
+
+    const updateVisibleCount = () => {
+      const bounds = map.getBounds();
+      let count = 0;
+      for (const feature of filteredFeatures) {
+        const coords = feature.geometry?.coordinates;
+        if (!coords) continue;
+        const [lng, lat] = coords;
+        if (bounds.contains([lng, lat])) count++;
+      }
+      setVisiblePoiCount(count);
+    };
+
+    map.on("moveend", updateVisibleCount);
+    updateVisibleCount();
+
+    return () => {
+      map.off("moveend", updateVisibleCount);
+    };
+  }, [filteredFeatures]);
+
   const categories = useMemo(
     () => lebenslagen.map((ll) => ({ key: ll, label: ll })),
     [lebenslagen]
@@ -110,6 +154,7 @@ export default function App() {
             pieChartData={pieChartData}
             pieChartColors={pieChartColors}
             filteredPoiCount={filteredPoiCount}
+            visiblePoiCount={visiblePoiCount}
             totalPoiCount={allFeatures.length}
           />
         }

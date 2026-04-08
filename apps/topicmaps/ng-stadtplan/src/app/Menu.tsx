@@ -27,6 +27,7 @@ interface MenuProps {
   pieChartData?: [string, number][];
   pieChartColors?: string[];
   filteredPoiCount?: number;
+  visiblePoiCount?: number;
   totalPoiCount?: number;
 }
 
@@ -37,6 +38,7 @@ const Menu = ({
   pieChartData,
   pieChartColors,
   filteredPoiCount = 0,
+  visiblePoiCount = 0,
   totalPoiCount = 0,
 }: MenuProps) => {
   const { setAppMenuActiveMenuSection } =
@@ -44,7 +46,7 @@ const Menu = ({
 
   const hasFilter = categories && filterState && onFilterStateChange;
 
-  const filterTitle = `Mein Themenstadtplan (${filteredPoiCount} POIs gefunden, davon ${filteredPoiCount} in der Karte)`;
+  const filterTitle = `Mein Themenstadtplan (${filteredPoiCount} POIs gefunden, davon ${visiblePoiCount} in der Karte)`;
 
   return (
     <CustomizationContextProvider customizations={{}}>
