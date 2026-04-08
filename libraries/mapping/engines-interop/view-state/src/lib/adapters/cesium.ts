@@ -4,15 +4,16 @@ import {
   readLocalCameraBasis,
 } from "@carma-commons/camera/model";
 import {
+  Cartesian2,
   Cartesian3,
   Matrix4 as CesiumMatrix4,
   type Scene,
 } from "@carma-cesium";
 import {
   type CameraStateRecord,
-  pickBestAvailablePositionAtViewportCenter,
   readCameraWorldBasis,
   readSceneCameraIntrinsics,
+  resolvePreferredSurfacePick,
   setViewFromCameraState,
   toSceneStateVec3,
 } from "@carma-mapping/engines/cesium/core";
@@ -40,8 +41,28 @@ export const readFromCesium = (
       toSceneStateVec3(camera.positionWC) ?? toSceneStateVec3(camera.position);
     if (!cameraEcef) return null;
 
+    const viewportWidthPx = scene.canvas?.clientWidth;
+    const viewportHeightPx = scene.canvas?.clientHeight;
+    if (
+      !isFiniteNumber(viewportWidthPx) ||
+      viewportWidthPx <= 0 ||
+      !isFiniteNumber(viewportHeightPx) ||
+      viewportHeightPx <= 0
+    ) {
+      return null;
+    }
+
+    const centerScreenPosition = new Cartesian2(
+      viewportWidthPx * 0.5,
+      viewportHeightPx * 0.5
+    );
+    const resolvedAnchorPick = resolvePreferredSurfacePick(
+      scene,
+      centerScreenPosition
+    );
     const anchor = toSceneStateVec3(
-      pickBestAvailablePositionAtViewportCenter(scene)
+      resolvedAnchorPick.surfacePositionECEF ??
+        resolvedAnchorPick.globePositionECEF
     );
     if (!anchor) return null;
 
@@ -52,8 +73,6 @@ export const readFromCesium = (
 
     const intrinsics = readSceneCameraIntrinsics(scene);
     const frameNumber = (scene as SceneFrameStateLike).frameState?.frameNumber;
-    const viewportWidthPx = scene.canvas?.clientWidth;
-    const viewportHeightPx = scene.canvas?.clientHeight;
 
     const metadata: ViewStateMetadata = {
       frameId: isFiniteNumber(frameNumber) ? frameNumber : 0,

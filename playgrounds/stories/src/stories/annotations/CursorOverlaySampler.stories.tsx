@@ -16,6 +16,7 @@ import {
   NAVIGATION_ORBIT_DIRECTIONS,
 } from "@carma-mapping/engines-interop/navigation-controls";
 import {
+  registerCesiumSceneSurfacePickingTileset,
   RING_MATERIAL_PRESETS,
   type RingMaterialPreset,
 } from "@carma-mapping/engines/cesium/core";
@@ -25,7 +26,6 @@ import {
   type PointQueryPreviewController,
   type PointQueryPreviewDiscPlacementMode,
 } from "@carma-mapping/annotations/runtime-v2";
-import { registerCesiumScenePointQueryTileset } from "@carma-mapping/engines/cesium/react/interactions";
 import { type CesiumWidget } from "@carma-cesium";
 
 import { setupCesium } from "../map-engine-switcher/helpers/cesium-setup";
@@ -61,7 +61,6 @@ type CursorOverlaySamplerStoryProps = {
   discOpacity: number;
   discMaterialPreset: RingMaterialPreset;
   discColor: string;
-  discPlacementMode?: PointQueryPreviewDiscPlacementMode;
   tangentDiscVisualizerPlacementMode?: PointQueryPreviewDiscPlacementMode;
   tangentDiscVisualizerTrailSampleCount?: number;
   tangentDiscVisualizerWeightDecayGamma?: number;
@@ -140,7 +139,9 @@ const formatFixedStatusNumber = (
     fractionDigits: number;
   }
 ) => {
-  const [integerPart, fractionPart = ""] = value.toFixed(fractionDigits).split(".");
+  const [integerPart, fractionPart = ""] = value
+    .toFixed(fractionDigits)
+    .split(".");
   const paddedIntegerPart = integerPart.padStart(
     minimumIntegerDigits,
     FIGURE_SPACE
@@ -191,7 +192,11 @@ const buildAutomatedComparisonPath = (canvasRect: DOMRect) => {
   }));
   const path: Array<{ x: number; y: number }> = [];
 
-  for (let anchorIndex = 0; anchorIndex < anchorPoints.length - 1; anchorIndex += 1) {
+  for (
+    let anchorIndex = 0;
+    anchorIndex < anchorPoints.length - 1;
+    anchorIndex += 1
+  ) {
     const start = anchorPoints[anchorIndex];
     const end = anchorPoints[anchorIndex + 1];
     const segmentPointCount = 18;
@@ -229,7 +234,8 @@ const summarizeTelemetryRun = ({
   startedAtMs: number;
 }): CursorOverlayComparisonRunSummary => {
   const runEntries = telemetry.entries.filter(
-    (entry) => entry.t >= startedAtMs && entry.clientX !== null && entry.clientY !== null
+    (entry) =>
+      entry.t >= startedAtMs && entry.clientX !== null && entry.clientY !== null
   );
   const lagValues = runEntries.map((entry) => entry.measuredLagPx);
   const liveLagValues = runEntries.map((entry) => entry.liveLagPx);
@@ -297,9 +303,11 @@ const serializeComparisonSummaryToTsv = (
     .join("\n\n");
 };
 
-const serializeTelemetrySnapshotToTsv = (telemetry: NonNullable<
-  ReturnType<PointQueryPreviewController["getTelemetrySnapshot"]>
->) => {
+const serializeTelemetrySnapshotToTsv = (
+  telemetry: NonNullable<
+    ReturnType<PointQueryPreviewController["getTelemetrySnapshot"]>
+  >
+) => {
   const summaryRows = [
     ["metric", "value"],
     ["capturedAt", telemetry.capturedAt],
@@ -313,23 +321,50 @@ const serializeTelemetrySnapshotToTsv = (telemetry: NonNullable<
     ["lastProcessedInputVersion", String(telemetry.lastProcessedInputVersion)],
     ["latestRequestedAtMs", String(telemetry.latestRequestedAtMs)],
     ["latestRenderedAtMs", String(telemetry.latestRenderedAtMs)],
-    ["latestRequestToDiscLatencyMs", String(telemetry.latestRequestToDiscLatencyMs)],
+    [
+      "latestRequestToDiscLatencyMs",
+      String(telemetry.latestRequestToDiscLatencyMs),
+    ],
     ["latestMeasuredLagSource", String(telemetry.latestMeasuredLagSource)],
     ["latestMeasuredLagPx", String(telemetry.latestMeasuredLagPx)],
     ["latestLiveLagPx", String(telemetry.latestLiveLagPx)],
     ["latestSampleOffsetPx", String(telemetry.latestSampleOffsetPx)],
     ["latestClientX", String(telemetry.latestClientPosition?.x ?? "")],
     ["latestClientY", String(telemetry.latestClientPosition?.y ?? "")],
-    ["latestRenderedClientX", String(telemetry.latestRenderedClientPosition?.x ?? "")],
-    ["latestRenderedClientY", String(telemetry.latestRenderedClientPosition?.y ?? "")],
+    [
+      "latestRenderedClientX",
+      String(telemetry.latestRenderedClientPosition?.x ?? ""),
+    ],
+    [
+      "latestRenderedClientY",
+      String(telemetry.latestRenderedClientPosition?.y ?? ""),
+    ],
     ["latestDiscClientX", String(telemetry.latestDiscClientPosition?.x ?? "")],
     ["latestDiscClientY", String(telemetry.latestDiscClientPosition?.y ?? "")],
-    ["latestSampleClientX", String(telemetry.latestSampleClientPosition?.x ?? "")],
-    ["latestSampleClientY", String(telemetry.latestSampleClientPosition?.y ?? "")],
-    ["latestRequestClientX", String(telemetry.latestRequestedClientPosition?.x ?? "")],
-    ["latestRequestClientY", String(telemetry.latestRequestedClientPosition?.y ?? "")],
-    ["latestRequestSampleClientX", String(telemetry.latestRequestedSampleClientPosition?.x ?? "")],
-    ["latestRequestSampleClientY", String(telemetry.latestRequestedSampleClientPosition?.y ?? "")],
+    [
+      "latestSampleClientX",
+      String(telemetry.latestSampleClientPosition?.x ?? ""),
+    ],
+    [
+      "latestSampleClientY",
+      String(telemetry.latestSampleClientPosition?.y ?? ""),
+    ],
+    [
+      "latestRequestClientX",
+      String(telemetry.latestRequestedClientPosition?.x ?? ""),
+    ],
+    [
+      "latestRequestClientY",
+      String(telemetry.latestRequestedClientPosition?.y ?? ""),
+    ],
+    [
+      "latestRequestSampleClientX",
+      String(telemetry.latestRequestedSampleClientPosition?.x ?? ""),
+    ],
+    [
+      "latestRequestSampleClientY",
+      String(telemetry.latestRequestedSampleClientPosition?.y ?? ""),
+    ],
     ["tangentPlaneFailureCount", String(telemetry.tangentPlaneFailureCount)],
     [
       "latestTangentPlaneFailureReason",
@@ -552,9 +587,7 @@ const serializeTelemetrySnapshotToTsv = (telemetry: NonNullable<
     [jumpHeader, ...jumpRows],
     [scaleHeader, ...scaleRows],
   ]
-    .map((sectionRows) =>
-      sectionRows.map((row) => row.join("\t")).join("\n")
-    )
+    .map((sectionRows) => sectionRows.map((row) => row.join("\t")).join("\n"))
     .join("\n\n");
 };
 
@@ -571,7 +604,6 @@ const CursorOverlaySamplerSandbox = ({
   discOpacity,
   discMaterialPreset,
   discColor,
-  discPlacementMode,
   tangentDiscVisualizerPlacementMode,
   tangentDiscVisualizerTrailSampleCount = 90,
   tangentDiscVisualizerWeightDecayGamma = 2,
@@ -584,8 +616,7 @@ const CursorOverlaySamplerSandbox = ({
     useState<CesiumRuntimeHandle | null>(null);
   const [comparisonSummary, setComparisonSummary] =
     useState<CursorOverlayComparisonSummary | null>(null);
-  const [comparisonStatusText, setComparisonStatusText] =
-    useState("cmp idle");
+  const [comparisonStatusText, setComparisonStatusText] = useState("cmp idle");
   const controllerRef = useRef<PointQueryPreviewController | null>(null);
   const tilesetStatusRef = useRef<HTMLSpanElement | null>(null);
   const readoutRef = useRef<HTMLSpanElement | null>(null);
@@ -611,8 +642,7 @@ const CursorOverlaySamplerSandbox = ({
     () =>
       buildOrbitOptions({
         direction: NAVIGATION_ORBIT_DIRECTIONS.CW,
-        revolutionDurationSec:
-          DEFAULT_NAVIGATION_ORBIT_REVOLUTION_DURATION_SEC,
+        revolutionDurationSec: DEFAULT_NAVIGATION_ORBIT_REVOLUTION_DURATION_SEC,
         minPitchDeg: 30,
       }),
     []
@@ -657,7 +687,6 @@ const CursorOverlaySamplerSandbox = ({
       const resolvedTangentDiscVisualizerPlacementMode =
         placementModeOverride ??
         tangentDiscVisualizerPlacementMode ??
-        discPlacementMode ??
         POINT_QUERY_PREVIEW_DISC_PLACEMENT_MODES.TRUE_SAMPLE;
 
       return {
@@ -673,7 +702,6 @@ const CursorOverlaySamplerSandbox = ({
         discOpacity,
         discMaterialPreset,
         discColor,
-        discPlacementMode: resolvedTangentDiscVisualizerPlacementMode,
         tangentDiscVisualizerPlacementMode:
           resolvedTangentDiscVisualizerPlacementMode,
         tangentDiscVisualizerTrailSampleCount,
@@ -685,7 +713,6 @@ const CursorOverlaySamplerSandbox = ({
       discInnerHoleRadiusRatio,
       discMaterialPreset,
       discOpacity,
-      discPlacementMode,
       discRadiusMeters,
       discScalingMode,
       discTargetRadiusCssPx,
@@ -719,7 +746,12 @@ const CursorOverlaySamplerSandbox = ({
   const runAutomatedComparison = useCallback(async () => {
     const controller = controllerRef.current;
     const widget = runtimeHandle?.widget ?? widgetRef.current;
-    if (!controller || !widget || widget.isDestroyed() || comparisonRunningRef.current) {
+    if (
+      !controller ||
+      !widget ||
+      widget.isDestroyed() ||
+      comparisonRunningRef.current
+    ) {
       return null;
     }
 
@@ -751,7 +783,10 @@ const CursorOverlaySamplerSandbox = ({
         })
       );
     };
-    const dispatchSyntheticPointerSample = (point: { x: number; y: number }) => {
+    const dispatchSyntheticPointerSample = (point: {
+      x: number;
+      y: number;
+    }) => {
       if ("onpointerrawupdate" in window) {
         dispatchPointerEvent("pointerrawupdate", point);
       }
@@ -817,7 +852,13 @@ const CursorOverlaySamplerSandbox = ({
 
       setComparisonSummary(nextSummary);
       setComparisonStatusText(
-        `cmp lag ${trueLag.toFixed(1)}->${reprojectLag.toFixed(1)} px | drift ${reprojectOffset.toFixed(1)} px | sync ${trueLatency.toFixed(1)}->${reprojectLatency.toFixed(1)} ms`
+        `cmp lag ${trueLag.toFixed(1)}->${reprojectLag.toFixed(
+          1
+        )} px | drift ${reprojectOffset.toFixed(
+          1
+        )} px | sync ${trueLatency.toFixed(1)}->${reprojectLatency.toFixed(
+          1
+        )} ms`
       );
 
       return nextSummary;
@@ -831,7 +872,6 @@ const CursorOverlaySamplerSandbox = ({
     tangentDiscVisualizerEnabled ?? showDisc ?? true;
   const resolvedTangentDiscVisualizerPlacementMode =
     tangentDiscVisualizerPlacementMode ??
-    discPlacementMode ??
     POINT_QUERY_PREVIEW_DISC_PLACEMENT_MODES.TRUE_SAMPLE;
   const discPlacementStatusLabel = formatDiscPlacementModeLabel(
     resolvedTangentDiscVisualizerPlacementMode
@@ -842,7 +882,9 @@ const CursorOverlaySamplerSandbox = ({
     </span>,
     `query ${queryEnabled ? "on" : "off"}`,
     `cursor ${showCursor ? "on" : "off"}`,
-    `tangent-disc-visualizer ${resolvedTangentDiscVisualizerEnabled ? "on" : "off"}`,
+    `tangent-disc-visualizer ${
+      resolvedTangentDiscVisualizerEnabled ? "on" : "off"
+    }`,
     `place ${discPlacementStatusLabel}`,
     `scale ${discScalingMode}`,
     <span key="disc-hole-ratio" style={STATUS_NUMERIC_TEXT_STYLE}>
@@ -851,23 +893,21 @@ const CursorOverlaySamplerSandbox = ({
         fractionDigits: 2,
       })}`}
     </span>,
-    discScalingMode === "screen"
-      ? (
-          <span key="disc-target-radius" style={STATUS_NUMERIC_TEXT_STYLE}>
-            {`target ${formatFixedStatusNumber(discTargetRadiusCssPx, {
-              minimumIntegerDigits: 3,
-              fractionDigits: 0,
-            })} px`}
-          </span>
-        )
-      : (
-          <span key="disc-radius-meters" style={STATUS_NUMERIC_TEXT_STYLE}>
-            {`radius ${formatFixedStatusNumber(discRadiusMeters, {
-              minimumIntegerDigits: 2,
-              fractionDigits: 2,
-            })} m`}
-          </span>
-        ),
+    discScalingMode === "screen" ? (
+      <span key="disc-target-radius" style={STATUS_NUMERIC_TEXT_STYLE}>
+        {`target ${formatFixedStatusNumber(discTargetRadiusCssPx, {
+          minimumIntegerDigits: 3,
+          fractionDigits: 0,
+        })} px`}
+      </span>
+    ) : (
+      <span key="disc-radius-meters" style={STATUS_NUMERIC_TEXT_STYLE}>
+        {`radius ${formatFixedStatusNumber(discRadiusMeters, {
+          minimumIntegerDigits: 2,
+          fractionDigits: 2,
+        })} m`}
+      </span>
+    ),
     `material ${discMaterialPreset}`,
     <span key="tangent-disc-trail" style={STATUS_NUMERIC_TEXT_STYLE}>
       {`trail ${formatFixedStatusNumber(tangentDiscVisualizerTrailSampleCount, {
@@ -876,13 +916,10 @@ const CursorOverlaySamplerSandbox = ({
       })}`}
     </span>,
     <span key="tangent-disc-gamma" style={STATUS_NUMERIC_TEXT_STYLE}>
-      {`gamma ${formatFixedStatusNumber(
-        tangentDiscVisualizerWeightDecayGamma,
-        {
-          minimumIntegerDigits: 1,
-          fractionDigits: 2,
-        }
-      )}`}
+      {`gamma ${formatFixedStatusNumber(tangentDiscVisualizerWeightDecayGamma, {
+        minimumIntegerDigits: 1,
+        fractionDigits: 2,
+      })}`}
     </span>,
     <span key="readout" ref={readoutRef}>
       pointer idle
@@ -977,7 +1014,7 @@ const CursorOverlaySamplerSandbox = ({
     }
 
     let disposed = false;
-    let unregisterPointQueryTileset: (() => void) | null = null;
+    let unregisterSurfacePickingTileset: (() => void) | null = null;
 
     const initialize = async () => {
       if (tilesetStatusRef.current) {
@@ -1038,8 +1075,7 @@ const CursorOverlaySamplerSandbox = ({
         syncReadoutRef.current.textContent = "sync 0.0 ms";
       }
       if (requestTimingReadoutRef.current) {
-        requestTimingReadoutRef.current.textContent =
-          "live 0.0 | off 0.0 px";
+        requestTimingReadoutRef.current.textContent = "live 0.0 | off 0.0 px";
       }
       if (tangentPlaneFailureReadoutRef.current) {
         tangentPlaneFailureReadoutRef.current.textContent = "trace ok";
@@ -1083,8 +1119,8 @@ const CursorOverlaySamplerSandbox = ({
         viewSync: null,
       });
 
-      unregisterPointQueryTileset = result.tileset
-        ? registerCesiumScenePointQueryTileset(
+      unregisterSurfacePickingTileset = result.tileset
+        ? registerCesiumSceneSurfacePickingTileset(
             result.widget.scene,
             result.tileset
           )
@@ -1121,8 +1157,8 @@ const CursorOverlaySamplerSandbox = ({
       controllerRef.current?.destroy();
       controllerRef.current = null;
       setRuntimeHandle(null);
-      unregisterPointQueryTileset?.();
-      unregisterPointQueryTileset = null;
+      unregisterSurfacePickingTileset?.();
+      unregisterSurfacePickingTileset = null;
       if (tilesetStatusRef.current) {
         tilesetStatusRef.current.textContent = "tileset loading";
       }
@@ -1181,8 +1217,7 @@ const CursorOverlaySamplerSandbox = ({
         syncReadoutRef.current.textContent = "sync 0.0 ms";
       }
       if (requestTimingReadoutRef.current) {
-        requestTimingReadoutRef.current.textContent =
-          "live 0.0 | off 0.0 px";
+        requestTimingReadoutRef.current.textContent = "live 0.0 | off 0.0 px";
       }
       if (tangentPlaneFailureReadoutRef.current) {
         tangentPlaneFailureReadoutRef.current.textContent = "trace ok";
@@ -1246,7 +1281,10 @@ const CursorOverlaySamplerSandbox = ({
         overflow: "hidden",
       }}
     >
-      <div ref={cesiumContainerRef} style={{ position: "absolute", inset: 0 }} />
+      <div
+        ref={cesiumContainerRef}
+        style={{ position: "absolute", inset: 0 }}
+      />
       <div style={TOP_STATUS_BAR_OVERLAY_STYLE}>
         <ResponsiveStatusBar
           label="cursor overlay sampler"
@@ -1346,9 +1384,6 @@ const meta: Meta<CursorOverlaySamplerStoryProps> = {
       control: { type: "color" },
       table: { category: "Disc" },
     },
-    discPlacementMode: {
-      table: { disable: true },
-    },
     tangentDiscVisualizerPlacementMode: {
       control: { type: "inline-radio" },
       options: [
@@ -1405,7 +1440,9 @@ export const CursorOverlaySampler: StoryObj<CursorOverlaySamplerStoryProps> = {
     ).toBeInTheDocument();
     await expect(canvas.getByText(/lag 0\.0 px/)).toBeInTheDocument();
     await expect(canvas.getByText(/sync 0\.0 ms/)).toBeInTheDocument();
-    await expect(canvas.getByText(/live 0\.0 \| off 0\.0 px/)).toBeInTheDocument();
+    await expect(
+      canvas.getByText(/live 0\.0 \| off 0\.0 px/)
+    ).toBeInTheDocument();
     await expect(canvas.getByText(/trace ok/)).toBeInTheDocument();
     await expect(canvas.getByText(/jump ok/)).toBeInTheDocument();
     await expect(canvas.getByText(/scale ok/)).toBeInTheDocument();

@@ -7,11 +7,10 @@ import {
   ScreenSpaceEventType,
   type Scene,
 } from "@carma-cesium";
-
 import {
-  resolvePreferredPointQueryPick,
-  samplePreferredPointQuerySurfaceNormal,
-} from "./pointQueryPicking";
+  resolvePreferredSurfacePick,
+  sampleSurfacePickNormalAtScreenPosition,
+} from "@carma-mapping/engines/cesium/core";
 import {
   getCesiumScenePointerScreenPosition,
   registerCesiumScenePointerTracker,
@@ -210,12 +209,11 @@ export const useCesiumPointQuery = (
       );
       callbacksRef.current.onScreenPositionChange?.(currentPointerPosition);
 
-      const resolvedPick = resolvePreferredPointQueryPick(
+      const resolvedPick = resolvePreferredSurfacePick(
         scene,
         currentPointerPosition
       );
-      const authoritativePickedPositionECEF =
-        resolvedPick.pickedPositionECEF;
+      const authoritativePickedPositionECEF = resolvedPick.surfacePositionECEF;
       // Hover previews still need a usable position when the dedicated
       // point-query tileset misses, but we only trust tileset hits for
       // surface normals that drive tangent-plane visuals.
@@ -224,27 +222,27 @@ export const useCesiumPointQuery = (
 
       if (hoverPositionECEF) {
         const sampledSurfaceNormal = authoritativePickedPositionECEF
-          ? samplePreferredPointQuerySurfaceNormal(
+          ? sampleSurfacePickNormalAtScreenPosition(
               scene,
               currentPointerPosition,
-              authoritativePickedPositionECEF,
-              {
-                previousSurfaceNormalECEF:
-                  retainedHoverSample?.surfaceNormalECEF ?? null,
-              }
+              authoritativePickedPositionECEF
             )
           : null;
+        const resolvedSurfaceNormal =
+          sampledSurfaceNormal ??
+          retainedHoverSample?.surfaceNormalECEF ??
+          null;
         retainedHoverSample = {
           positionECEF: Cartesian3.clone(hoverPositionECEF, new Cartesian3()),
-          surfaceNormalECEF: sampledSurfaceNormal
-            ? Cartesian3.clone(sampledSurfaceNormal, new Cartesian3())
+          surfaceNormalECEF: resolvedSurfaceNormal
+            ? Cartesian3.clone(resolvedSurfaceNormal, new Cartesian3())
             : null,
           missedFrameCount: 0,
         };
         callbacksRef.current.onPointerMove?.(
           hoverPositionECEF,
           currentPointerPosition,
-          sampledSurfaceNormal
+          resolvedSurfaceNormal
         );
         return;
       }
@@ -287,11 +285,8 @@ export const useCesiumPointQuery = (
       Boolean(callbacksRef.current.onLineFinish);
 
     const createPointAt = (screenPosition: Cartesian2) => {
-      const resolvedPick = resolvePreferredPointQueryPick(
-        scene,
-        screenPosition
-      );
-      const pickedPosition = resolvedPick.scenePositionECEF;
+      const resolvedPick = resolvePreferredSurfacePick(scene, screenPosition);
+      const pickedPosition = resolvedPick.surfacePositionECEF;
 
       if (
         callbacksRef.current.onBeforePointCreate &&

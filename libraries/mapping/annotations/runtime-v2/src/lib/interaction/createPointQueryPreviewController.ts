@@ -18,14 +18,12 @@ import {
   createRing,
   getDiscWorldRadius,
   RING_MATERIAL_PRESETS,
+  resolvePreferredSurfacePick,
   resolveDiscNormal,
   safeRemovePrimitive,
+  sampleSurfacePickNormalAtScreenPosition,
 } from "@carma-mapping/engines/cesium/core";
-import {
-  registerCesiumScenePointerTracker,
-  resolvePreferredPointQueryPick,
-  samplePreferredPointQuerySurfaceNormal,
-} from "@carma-mapping/engines/cesium/react/interactions";
+import { registerCesiumScenePointerTracker } from "@carma-mapping/engines/cesium/react/interactions";
 import { pointPreviewRingVisualDefaults } from "../config/pointPreviewVisualDefaults";
 import { resolveCrosshairCanvasCursor } from "./resolveCrosshairCanvasCursor";
 import {
@@ -124,12 +122,16 @@ export const createPointQueryPreviewController = ({
   let lastQueuedDiscNormalInputVersion = -1;
   let pointerScreenPositionScratch: Cartesian2 | null = null;
   const averagedDiscNormalScratch = new Cartesian3();
-  let latestObservedClientPosition:
-    | { x: number; y: number; timestampMs: number }
-    | null = null;
-  let latestInputClientPosition:
-    | { x: number; y: number; timestampMs: number }
-    | null = null;
+  let latestObservedClientPosition: {
+    x: number;
+    y: number;
+    timestampMs: number;
+  } | null = null;
+  let latestInputClientPosition: {
+    x: number;
+    y: number;
+    timestampMs: number;
+  } | null = null;
   let latestRenderedClientPosition: ScreenVector | null = null;
   let latestDiscClientPosition: ScreenVector | null = null;
   let latestSampleClientPosition: ScreenVector | null = null;
@@ -160,7 +162,6 @@ export const createPointQueryPreviewController = ({
   const readTangentDiscVisualizerPlacementMode =
     (): PointQueryPreviewDiscPlacementMode =>
       currentOptions.tangentDiscVisualizerPlacementMode ??
-      currentOptions.discPlacementMode ??
       POINT_QUERY_PREVIEW_DISC_PLACEMENT_MODES.CAMERA_PLANE_REPROJECT;
   const readTangentDiscVisualizerTrailSampleCount = () =>
     Math.max(
@@ -228,8 +229,7 @@ export const createPointQueryPreviewController = ({
       return null;
     }
 
-    const nextScreenPosition =
-      pointerScreenPositionScratch ?? new Cartesian2();
+    const nextScreenPosition = pointerScreenPositionScratch ?? new Cartesian2();
     nextScreenPosition.x = nextX;
     nextScreenPosition.y = nextY;
     pointerScreenPositionScratch = nextScreenPosition;
@@ -267,7 +267,7 @@ export const createPointQueryPreviewController = ({
     return nextDiscPrimitive;
   };
 
-  const withDiscTemporarilyHidden = <T,>(callback: () => T): T => {
+  const withDiscTemporarilyHidden = <T>(callback: () => T): T => {
     if (!discPrimitive) {
       return callback();
     }
@@ -399,7 +399,9 @@ export const createPointQueryPreviewController = ({
       inputVersion,
       reason,
       requestedAtMs:
-        pendingRequest?.requestedAtMs ?? latestRequestedAtMs ?? performance.now(),
+        pendingRequest?.requestedAtMs ??
+        latestRequestedAtMs ??
+        performance.now(),
       placementMode: readDiscPlacementMode(),
       hasLatestTrueDiscWorldPosition: Boolean(latestTrueDiscWorldPosition),
       hasLatestDiscNormal: Boolean(latestDiscNormal),
@@ -493,13 +495,7 @@ export const createPointQueryPreviewController = ({
     };
   };
 
-  const updateObservedClientPosition = ({
-    x,
-    y,
-  }: {
-    x: number;
-    y: number;
-  }) => {
+  const updateObservedClientPosition = ({ x, y }: { x: number; y: number }) => {
     latestObservedClientPosition = {
       x,
       y,
@@ -567,27 +563,29 @@ export const createPointQueryPreviewController = ({
     }
 
     const resolvedPick = withDiscTemporarilyHidden(() =>
-      resolvePreferredPointQueryPick(scene, pointerScreenPosition, {
+      resolvePreferredSurfacePick(scene, pointerScreenPosition, {
         resolveGlobePosition: false,
       })
     );
     markSampleEvent();
-    const pickedPositionECEF = resolvedPick.pickedPositionECEF
-      ? Cartesian3.clone(resolvedPick.pickedPositionECEF, new Cartesian3())
+    const pickedPositionECEF = resolvedPick.surfacePositionECEF
+      ? Cartesian3.clone(resolvedPick.surfacePositionECEF, new Cartesian3())
       : null;
-    const surfaceNormalECEF =
+    const sampledSurfaceNormalECEF =
       sampleSurfaceNormal && pickedPositionECEF
         ? withDiscTemporarilyHidden(() =>
-            samplePreferredPointQuerySurfaceNormal(
+            sampleSurfacePickNormalAtScreenPosition(
               scene,
               pointerScreenPosition,
-              pickedPositionECEF,
-              {
-                previousSurfaceNormalECEF: previousSurfaceNormal,
-              }
+              pickedPositionECEF
             )
           )
         : null;
+    const surfaceNormalECEF =
+      sampledSurfaceNormalECEF ??
+      (previousSurfaceNormal
+        ? Cartesian3.clone(previousSurfaceNormal, new Cartesian3())
+        : null);
 
     if (!pickedPositionECEF) {
       recordTangentPlaneFailure({
@@ -608,7 +606,7 @@ export const createPointQueryPreviewController = ({
         hasSampledSurfaceNormal: false,
       });
       return null;
-    } else if (sampleSurfaceNormal && !surfaceNormalECEF) {
+    } else if (sampleSurfaceNormal && !sampledSurfaceNormalECEF) {
       recordTangentPlaneFailure({
         inputVersion: latestInputVersion,
         reason:
@@ -813,17 +811,16 @@ export const createPointQueryPreviewController = ({
   // real mesh sample. The tangent plane is the last true sampled mesh point plus
   // the latest smoothed disc normal. If that plane does not exist yet, we skip
   // the local reprojection step and wait for the regular true sample path.
-  const resolveLatestTrueTangentPlane =
-    (): TangentDiscSamplePlane | null => {
-      if (!latestTrueDiscWorldPosition || !latestDiscNormal) {
-        return null;
-      }
+  const resolveLatestTrueTangentPlane = (): TangentDiscSamplePlane | null => {
+    if (!latestTrueDiscWorldPosition || !latestDiscNormal) {
+      return null;
+    }
 
-      return {
-        pointECEF: latestTrueDiscWorldPosition,
-        normalECEF: latestDiscNormal,
-      };
+    return {
+      pointECEF: latestTrueDiscWorldPosition,
+      normalECEF: latestDiscNormal,
     };
+  };
 
   const applyFastReprojectedDiscSample = ({
     renderDiscSample,
@@ -986,7 +983,10 @@ export const createPointQueryPreviewController = ({
     return {
       inputVersion,
       screenPosition: Cartesian2.clone(screenPosition, new Cartesian2()),
-      pickedPositionECEF: Cartesian3.clone(reprojectedWorldPosition, new Cartesian3()),
+      pickedPositionECEF: Cartesian3.clone(
+        reprojectedWorldPosition,
+        new Cartesian3()
+      ),
       surfaceNormalECEF: latestDiscNormal
         ? Cartesian3.clone(latestDiscNormal, new Cartesian3())
         : null,
@@ -1072,9 +1072,8 @@ export const createPointQueryPreviewController = ({
         );
       }
     } else if (hasPendingDiscNormalSmoothing(nowMs)) {
-      renderDiscSample = prepareDisplayedDiscSampleForSmoothing(
-        latestInputVersion
-      );
+      renderDiscSample =
+        prepareDisplayedDiscSampleForSmoothing(latestInputVersion);
     }
 
     if (!renderDiscSample) {
@@ -1184,10 +1183,11 @@ export const createPointQueryPreviewController = ({
         pendingDiscRequests.delete(oldestInputVersion);
       }
     }
-    latestPreparedDiscSample =
-      isPointQueryPreviewDiscPlaneOffsetPlacementMode(readDiscPlacementMode())
-        ? prepareFastDiscSample(latestInputVersion, { x, y })
-        : null;
+    latestPreparedDiscSample = isPointQueryPreviewDiscPlaneOffsetPlacementMode(
+      readDiscPlacementMode()
+    )
+      ? prepareFastDiscSample(latestInputVersion, { x, y })
+      : null;
   };
 
   const handleCanvasPointerMove = (event: PointerEvent) => {
@@ -1202,7 +1202,9 @@ export const createPointQueryPreviewController = ({
     });
     if (
       rawPointerSupported &&
-      isPointQueryPreviewDiscPlaneOffsetPlacementMode(readDiscPlacementMode()) &&
+      isPointQueryPreviewDiscPlaneOffsetPlacementMode(
+        readDiscPlacementMode()
+      ) &&
       nowMs - lastRawPointerEventTimeMs < RAW_POINTER_FALLBACK_WINDOW_MS &&
       isSameClientPosition(nextClientPosition, latestInputClientPosition)
     ) {
@@ -1230,7 +1232,9 @@ export const createPointQueryPreviewController = ({
       x: latestEvent.clientX,
       y: latestEvent.clientY,
     });
-    if (!isPointQueryPreviewDiscPlaneOffsetPlacementMode(readDiscPlacementMode())) {
+    if (
+      !isPointQueryPreviewDiscPlaneOffsetPlacementMode(readDiscPlacementMode())
+    ) {
       return;
     }
     commitLatestInputClientPosition({
@@ -1294,9 +1298,9 @@ export const createPointQueryPreviewController = ({
       const primitiveDefinitionChanged =
         currentOptions.discColor !== nextOptions.discColor ||
         currentOptions.discOpacity !== nextOptions.discOpacity ||
-        currentOptions.discMaterialPreset !==
-          nextOptions.discMaterialPreset ||
-        currentOptions.innerHoleRadiusRatio !== nextOptions.innerHoleRadiusRatio;
+        currentOptions.discMaterialPreset !== nextOptions.discMaterialPreset ||
+        currentOptions.innerHoleRadiusRatio !==
+          nextOptions.innerHoleRadiusRatio;
       currentOptions = nextOptions;
       pointQueryPreviewDebugRuntime.setEnabled(readDebugTelemetryEnabled());
       applyCursorVisibility();

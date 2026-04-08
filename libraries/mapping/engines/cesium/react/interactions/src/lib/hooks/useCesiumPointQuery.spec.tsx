@@ -3,7 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const cesiumInteractionMocks = vi.hoisted(() => ({
   handlers: [] as Array<{
-    setInputAction: (callback: (event: { position: unknown }) => void, type: unknown) => void;
+    setInputAction: (
+      callback: (event: { position: unknown }) => void,
+      type: unknown
+    ) => void;
     destroy: () => void;
     inputActions: Map<unknown, (event: { position: unknown }) => void>;
   }>,
@@ -46,16 +49,18 @@ vi.mock("@carma-cesium", async () => {
 });
 
 const pointQueryPickingMocks = vi.hoisted(() => ({
-  resolvePreferredPointQueryPick: vi.fn(),
-  samplePreferredPointQuerySurfaceNormal: vi.fn(),
+  resolvePreferredSurfacePick: vi.fn(),
+  sampleSurfacePickNormalAtScreenPosition: vi.fn(),
 }));
 
-vi.mock("./pointQueryPicking", () => ({
-  resolvePreferredPointQueryPick:
-    pointQueryPickingMocks.resolvePreferredPointQueryPick,
-  samplePreferredPointQuerySurfaceNormal:
-    pointQueryPickingMocks.samplePreferredPointQuerySurfaceNormal,
-}));
+vi.mock("@carma-mapping/engines/cesium/core", () => {
+  return {
+    resolvePreferredSurfacePick:
+      pointQueryPickingMocks.resolvePreferredSurfacePick,
+    sampleSurfacePickNormalAtScreenPosition:
+      pointQueryPickingMocks.sampleSurfacePickNormalAtScreenPosition,
+  };
+});
 
 const scenePointerTrackerMocks = vi.hoisted(() => ({
   registerCesiumScenePointerTracker: vi.fn(() => vi.fn()),
@@ -124,9 +129,9 @@ describe("useCesiumPointQuery", () => {
     cesiumInteractionMocks.handlers = [];
     cesiumInteractionMocks.pointerSubscriber = null;
     cesiumInteractionMocks.currentPointerPosition = null;
-    pointQueryPickingMocks.resolvePreferredPointQueryPick.mockReset();
-    pointQueryPickingMocks.samplePreferredPointQuerySurfaceNormal.mockReset();
-    pointQueryPickingMocks.samplePreferredPointQuerySurfaceNormal.mockReturnValue(
+    pointQueryPickingMocks.resolvePreferredSurfacePick.mockReset();
+    pointQueryPickingMocks.sampleSurfacePickNormalAtScreenPosition.mockReset();
+    pointQueryPickingMocks.sampleSurfacePickNormalAtScreenPosition.mockReturnValue(
       null
     );
     scenePointerTrackerMocks.registerCesiumScenePointerTracker.mockClear();
@@ -138,20 +143,17 @@ describe("useCesiumPointQuery", () => {
     const initialHoverPick = new Cartesian3(1, 2, 3);
     const clickPick = new Cartesian3(4, 5, 6);
     const refreshedHoverPick = new Cartesian3(7, 8, 9);
-    pointQueryPickingMocks.resolvePreferredPointQueryPick
+    pointQueryPickingMocks.resolvePreferredSurfacePick
       .mockReturnValueOnce({
-        pickedPositionECEF: initialHoverPick,
-        scenePositionECEF: initialHoverPick,
+        surfacePositionECEF: initialHoverPick,
         globePositionECEF: null,
       })
       .mockReturnValueOnce({
-        pickedPositionECEF: clickPick,
-        scenePositionECEF: clickPick,
+        surfacePositionECEF: clickPick,
         globePositionECEF: null,
       })
       .mockReturnValueOnce({
-        pickedPositionECEF: refreshedHoverPick,
-        scenePositionECEF: refreshedHoverPick,
+        surfacePositionECEF: refreshedHoverPick,
         globePositionECEF: null,
       });
 
@@ -185,9 +187,9 @@ describe("useCesiumPointQuery", () => {
     expect(activeHandler).toBeDefined();
 
     act(() => {
-      activeHandler?.inputActions
-        .get(ScreenSpaceEventType.LEFT_CLICK)
-        ?.({ position: pointerPosition });
+      activeHandler?.inputActions.get(ScreenSpaceEventType.LEFT_CLICK)?.({
+        position: pointerPosition,
+      });
     });
 
     expect(onPointCreate).toHaveBeenCalledTimes(1);

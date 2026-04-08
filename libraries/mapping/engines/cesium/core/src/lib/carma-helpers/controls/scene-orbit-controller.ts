@@ -5,7 +5,7 @@ import {
 import { Easing, clamp } from "@carma-commons/math";
 import type { Seconds } from "@carma-units";
 
-import { pickBestAvailablePositionAtScreenPosition } from "../scene/Picking";
+import { resolvePreferredSurfacePick } from "../scene/SurfacePicking";
 import {
   Cartesian3,
   Ellipsoid,
@@ -230,10 +230,9 @@ export const createCesiumSceneOrbitController = (
     updateVisualizer?: boolean;
   } = {}): Cartesian3 | null => {
     const screenPosition = readOrbitCenterScreenPosition();
-    const scenePosition = pickBestAvailablePositionAtScreenPosition(
-      scene,
-      screenPosition
-    );
+    const resolvedPick = resolvePreferredSurfacePick(scene, screenPosition);
+    const scenePosition =
+      resolvedPick.surfacePositionECEF ?? resolvedPick.globePositionECEF;
     if (!scenePosition) {
       return null;
     }

@@ -10,14 +10,14 @@ import {
 } from "react";
 import { Provider as ReduxProvider } from "react-redux";
 
+import { registerCesiumSceneSurfacePickingTileset } from "@carma-mapping/engines/cesium/core";
+import { type Cesium3DTileset } from "@carma-cesium";
 import {
   ANNOTATION_COMMON_SHORTCUT_ACTIONS,
   SELECT_TOOL_TYPE,
   isManagedAnnotationKeyboardEvent,
   resolveAnnotationCommonShortcutAction,
 } from "@carma-mapping/annotations/core";
-import { type Cesium3DTileset } from "@carma-cesium";
-import { registerCesiumScenePointQueryTileset } from "@carma-mapping/engines/cesium/react/interactions";
 
 import {
   useModeLifecycle,
@@ -90,7 +90,7 @@ type AnnotationsRuntimeServices = {
 
 type AnnotationsProviderProps = {
   scene: RuntimeScene | null;
-  pointQueryTarget?: Cesium3DTileset | null;
+  surfacePickingTarget?: Cesium3DTileset | null;
   children?: ReactNode;
   initialActiveToolType?: RuntimeToolId;
   initialPointTemporaryMode?: boolean;
@@ -307,8 +307,7 @@ const RuntimeInteractionHost = ({
   const hoverClearTimeoutRef = useRef<number | null>(null);
   const activePreviewControllerRef =
     useRef<AnnotationToolPreviewController | null>(null);
-  const latestHoverSampleRef =
-    useRef<AnnotationToolPreviewSample | null>(null);
+  const latestHoverSampleRef = useRef<AnnotationToolPreviewSample | null>(null);
 
   const clearScheduledHoverReset = useCallback(() => {
     if (hoverClearTimeoutRef.current === null) {
@@ -342,9 +341,7 @@ const RuntimeInteractionHost = ({
     );
   }, [activePlugin?.kind, annotationsStore]);
 
-  const previousPointTemporaryModeRef = useRef(
-    pointTemporaryMode
-  );
+  const previousPointTemporaryModeRef = useRef(pointTemporaryMode);
   useEffect(() => {
     const previousPointTemporaryMode = previousPointTemporaryModeRef.current;
     const currentPointTemporaryMode = pointTemporaryMode;
@@ -697,16 +694,20 @@ const RuntimeVisualizationHost = ({
     onNodeLongPress: handleNodeLongPress,
   });
 
-  useCursorOverlay(scene, cursorOverlayVisible ? CURSOR_VISIBLE_SENTINEL : null, {
-    enabled: cursorOverlayVisible,
-  });
+  useCursorOverlay(
+    scene,
+    cursorOverlayVisible ? CURSOR_VISIBLE_SENTINEL : null,
+    {
+      enabled: cursorOverlayVisible,
+    }
+  );
 
   return null;
 };
 
 export const AnnotationsProvider = ({
   scene,
-  pointQueryTarget = null,
+  surfacePickingTarget = null,
   children,
   initialActiveToolType,
   initialPointTemporaryMode = false,
@@ -735,12 +736,15 @@ export const AnnotationsProvider = ({
   const edgeSequenceRef = useRef(0);
 
   useEffect(() => {
-    if (!scene || scene.isDestroyed() || !pointQueryTarget) {
+    if (!scene || scene.isDestroyed() || !surfacePickingTarget) {
       return;
     }
 
-    return registerCesiumScenePointQueryTileset(scene, pointQueryTarget);
-  }, [pointQueryTarget, scene]);
+    return registerCesiumSceneSurfacePickingTileset(
+      scene,
+      surfacePickingTarget
+    );
+  }, [scene, surfacePickingTarget]);
   const [activeMoveGizmoNodeId, setActiveMoveGizmoNodeId] = useState<
     string | null
   >(null);

@@ -75,7 +75,9 @@ const RuntimeToolbar = () => {
   const { registry, activeToolType, requestModeChange } =
     useAnnotationsRuntime();
   const visibleDescriptors = registry.orderedDescriptors;
-  const orderedToolTypes = visibleDescriptors.map((descriptor) => descriptor.id);
+  const orderedToolTypes = visibleDescriptors.map(
+    (descriptor) => descriptor.id
+  );
 
   useEffect(() => {
     const handleToolShortcutKeyDown = (event: KeyboardEvent) => {
@@ -308,7 +310,7 @@ export const AnnotationsRuntimeV2Page = ({
 }: PlaygroundRuntimePageProps) => {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [scene, setScene] = useState<Scene | null>(null);
-  const [pointQueryTarget, setPointQueryTarget] =
+  const [surfacePickingTarget, setSurfacePickingTarget] =
     useState<Cesium3DTileset | null>(null);
   const [initialToolType] = useState(() => ANNOTATION_TYPE_POINT);
   const overlayHost = useCesiumLabelOverlayHost({
@@ -320,14 +322,14 @@ export const AnnotationsRuntimeV2Page = ({
     <CesiumWidgetContainer
       rootRef={rootRef}
       onSceneChange={setScene}
-      onPointQueryTargetChange={setPointQueryTarget}
+      onSurfacePickingTargetChange={setSurfacePickingTarget}
       initialCameraState={homeCameraState}
     >
       <LabelOverlayProvider host={overlayHost}>
         <ControlLayout>
           <AnnotationsProvider
             scene={scene}
-            pointQueryTarget={pointQueryTarget}
+            surfacePickingTarget={surfacePickingTarget}
             initialActiveToolType={initialToolType}
             plugins={PLAYGROUND_ACTIVE_TOOL_PLUGINS}
           >
@@ -335,9 +337,7 @@ export const AnnotationsRuntimeV2Page = ({
               scene={scene}
               initialHomeCameraState={homeCameraState}
             />
-            <RuntimeToolbarWhenModeSettled
-              expectedToolType={initialToolType}
-            />
+            <RuntimeToolbarWhenModeSettled expectedToolType={initialToolType} />
             <RuntimeStatusBar
               runtimeVersion={runtimeVersion}
               onRuntimeVersionChange={onRuntimeVersionChange}

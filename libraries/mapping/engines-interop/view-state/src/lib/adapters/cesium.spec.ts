@@ -4,18 +4,30 @@ import type { CameraIntrinsics } from "@carma-commons/camera/model";
 const {
   buildViewStateFromEcefMock,
   buildOrientationQuaternionFromWorldCameraBasisAtAnchorMock,
-  pickBestAvailablePositionAtViewportCenterMock,
+  localYUpSceneDirectionToWorldDirectionAtAnchorMock,
+  readLocalCameraBasisMock,
+  resolvePreferredSurfacePickMock,
   readCameraWorldBasisMock,
   readSceneCameraIntrinsicsMock,
+  setViewFromCameraStateMock,
   toSceneStateVec3Mock,
 } = vi.hoisted(() => ({
   buildViewStateFromEcefMock: vi.fn((input) => input),
   buildOrientationQuaternionFromWorldCameraBasisAtAnchorMock: vi.fn(() => ({
     kind: "orientation",
   })),
-  pickBestAvailablePositionAtViewportCenterMock: vi.fn(),
+  localYUpSceneDirectionToWorldDirectionAtAnchorMock: vi.fn(
+    (direction) => direction
+  ),
+  readLocalCameraBasisMock: vi.fn(() => ({
+    forward: { x: 0, y: 0, z: -1 },
+    up: { x: 0, y: 1, z: 0 },
+    right: { x: 1, y: 0, z: 0 },
+  })),
+  resolvePreferredSurfacePickMock: vi.fn(),
   readCameraWorldBasisMock: vi.fn(() => ({ kind: "basis" })),
   readSceneCameraIntrinsicsMock: vi.fn(),
+  setViewFromCameraStateMock: vi.fn(),
   toSceneStateVec3Mock: vi.fn((value) => value ?? null),
 }));
 
@@ -23,29 +35,22 @@ vi.mock("../core/construct", () => ({
   buildViewStateFromEcef: buildViewStateFromEcefMock,
 }));
 
-vi.mock("@carma-commons/camera/model", async () => {
-  const actual = await vi.importActual<
-    typeof import("@carma-commons/camera/model")
-  >("@carma-commons/camera/model");
-
+vi.mock("@carma-commons/camera/model", () => {
   return {
-    ...actual,
     buildOrientationQuaternionFromWorldCameraBasisAtAnchor:
       buildOrientationQuaternionFromWorldCameraBasisAtAnchorMock,
+    localYUpSceneDirectionToWorldDirectionAtAnchor:
+      localYUpSceneDirectionToWorldDirectionAtAnchorMock,
+    readLocalCameraBasis: readLocalCameraBasisMock,
   };
 });
 
-vi.mock("@carma-mapping/engines/cesium/core", async () => {
-  const actual = await vi.importActual<
-    typeof import("@carma-mapping/engines/cesium/core")
-  >("@carma-mapping/engines/cesium/core");
-
+vi.mock("@carma-mapping/engines/cesium/core", () => {
   return {
-    ...actual,
-    pickBestAvailablePositionAtViewportCenter:
-      pickBestAvailablePositionAtViewportCenterMock,
+    resolvePreferredSurfacePick: resolvePreferredSurfacePickMock,
     readCameraWorldBasis: readCameraWorldBasisMock,
     readSceneCameraIntrinsics: readSceneCameraIntrinsicsMock,
+    setViewFromCameraState: setViewFromCameraStateMock,
     toSceneStateVec3: toSceneStateVec3Mock,
   };
 });
@@ -56,7 +61,7 @@ describe("readFromCesium", () => {
   beforeEach(() => {
     buildViewStateFromEcefMock.mockClear();
     buildOrientationQuaternionFromWorldCameraBasisAtAnchorMock.mockClear();
-    pickBestAvailablePositionAtViewportCenterMock.mockReset();
+    resolvePreferredSurfacePickMock.mockReset();
     readCameraWorldBasisMock.mockClear();
     readSceneCameraIntrinsicsMock.mockReset();
     toSceneStateVec3Mock.mockClear();
@@ -84,10 +89,13 @@ describe("readFromCesium", () => {
       fovHorizontal: 0.8,
     };
     readSceneCameraIntrinsicsMock.mockReturnValue(intrinsics);
-    pickBestAvailablePositionAtViewportCenterMock.mockReturnValue({
-      x: 1,
-      y: 2,
-      z: 3,
+    resolvePreferredSurfacePickMock.mockReturnValue({
+      surfacePositionECEF: {
+        x: 1,
+        y: 2,
+        z: 3,
+      },
+      globePositionECEF: null,
     });
 
     const state = readFromCesium(

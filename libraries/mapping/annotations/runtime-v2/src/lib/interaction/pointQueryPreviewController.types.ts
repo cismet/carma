@@ -16,7 +16,6 @@ export type PointQueryPreviewControllerOptions = {
   discOpacity: number;
   discMaterialPreset: RingMaterialPreset;
   discColor: string;
-  discPlacementMode?: PointQueryPreviewDiscPlacementMode;
   tangentDiscVisualizerPlacementMode?: PointQueryPreviewDiscPlacementMode;
   tangentDiscVisualizerTrailSampleCount?: number;
   tangentDiscVisualizerWeightDecayGamma?: number;
