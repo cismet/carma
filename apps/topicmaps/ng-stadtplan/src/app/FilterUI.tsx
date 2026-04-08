@@ -24,6 +24,18 @@ const FilterUI = ({
   pieChartData,
   pieChartColors,
 }: FilterUIProps) => {
+  const categoryFootnotes = useMemo(() => {
+    const footnotes: Record<string, string> = {};
+    for (const app of crossLinkApps) {
+      for (const ll of app.on) {
+        if (!footnotes[ll]) {
+          footnotes[ll] = " *";
+        }
+      }
+    }
+    return footnotes;
+  }, []);
+
   const additionalAppArray = useMemo(() => {
     if (!filterState?.positiv) return [];
     const usedApps: string[] = [];
@@ -75,10 +87,11 @@ const FilterUI = ({
         width={width}
         pieChartData={pieChartData}
         pieChartColors={pieChartColors}
+        categoryFootnotes={categoryFootnotes}
       />
       {additionalAppArray.length > 0 && (
         <div>
-          <hr />
+          <hr style={{ marginTop: "1.5rem", marginBottom: "1rem" }} />
           <strong>* Themenspezifische Karten:</strong>
           {"  "}
           <h4
