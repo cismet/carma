@@ -2,6 +2,7 @@ import {
   Cartesian2,
   Cartesian3,
   Color,
+  Matrix4,
   Primitive,
   SceneTransforms,
   defined,
@@ -19,7 +20,7 @@ import {
   getDiscWorldRadius,
   RING_MATERIAL_PRESETS,
   resolvePreferredSurfacePick,
-  resolveDiscNormal,
+  resolveStableDiscNormal,
   safeRemovePrimitive,
   sampleSurfacePickNormalAtScreenPosition,
 } from "@carma-mapping/engines/cesium/core";
@@ -36,6 +37,15 @@ import {
   resolveTangentDiscPlaneReprojectedWorldPosition,
   type TangentDiscSamplePlane,
 } from "./tangentDiscReprojection.shared";
+import {
+  applyLineRuntime,
+  clearLineRuntime,
+  createLineCollection,
+  createLineRuntime,
+  destroyLineCollection,
+  setLineRuntimeColor,
+  type PreviewLineRuntime,
+} from "./previewController.shared";
 import {
   createPointQueryPreviewDebugRuntime,
   formatPointQueryPreviewReadout as formatReadout,
@@ -112,6 +122,10 @@ export const createPointQueryPreviewController = ({
 
   let currentOptions = options;
   let discPrimitive: Primitive | null = null;
+  let discNormalLineCollection = null as ReturnType<
+    typeof createLineCollection
+  > | null;
+  let discNormalLineRuntime: PreviewLineRuntime | null = null;
   let discNeedsRender = false;
   let previousSurfaceNormal: Cartesian3 | null = null;
   let latestDiscWorldPosition: Cartesian3 | null = null;
@@ -147,8 +161,11 @@ export const createPointQueryPreviewController = ({
   let lastRawPointerEventTimeMs = 0;
   const PERFORMANCE_REPORT_INTERVAL_MS = 250;
   const MAX_RENDER_REQUEST_RATE_HZ = 0;
-  const TRUE_SAMPLE_REFRESH_INTERVAL_MS = 8;
-  const TRUE_NORMAL_REFRESH_INTERVAL_MS = 16;
+  // The visible disc stays responsive through fast tangent-plane reprojection,
+  // so authoritative mesh picks can run at a lower cadence and only catch up
+  // when drift becomes noticeable.
+  const TRUE_SAMPLE_REFRESH_INTERVAL_MS = 32;
+  const TRUE_NORMAL_REFRESH_INTERVAL_MS = 96;
   const MAX_FAST_SAMPLE_OFFSET_PX = 6;
   const RAW_POINTER_FALLBACK_WINDOW_MS = 12;
   const rawPointerSupported = "onpointerrawupdate" in window;
@@ -163,6 +180,8 @@ export const createPointQueryPreviewController = ({
     (): PointQueryPreviewDiscPlacementMode =>
       currentOptions.tangentDiscVisualizerPlacementMode ??
       POINT_QUERY_PREVIEW_DISC_PLACEMENT_MODES.CAMERA_PLANE_REPROJECT;
+  const readTangentDiscVisualizerShowNormalLine = () =>
+    currentOptions.tangentDiscVisualizerShowNormalLine ?? false;
   const readTangentDiscVisualizerTrailSampleCount = () =>
     Math.max(
       1,
@@ -267,17 +286,89 @@ export const createPointQueryPreviewController = ({
     return nextDiscPrimitive;
   };
 
-  const withDiscTemporarilyHidden = <T>(callback: () => T): T => {
-    if (!discPrimitive) {
-      return callback();
+  const ensureDiscNormalLineRuntime = () => {
+    if (discNormalLineRuntime) {
+      return discNormalLineRuntime;
     }
 
-    const previousShow = discPrimitive.show;
-    discPrimitive.show = false;
+    if (!discNormalLineCollection) {
+      discNormalLineCollection = createLineCollection(scene);
+    }
+
+    discNormalLineRuntime = createLineRuntime(
+      discNormalLineCollection,
+      "story-cursor-overlay-disc-normal",
+      Color.fromAlpha(
+        Color.fromCssColorString(currentOptions.discColor) ?? Color.WHITE,
+        currentOptions.discOpacity,
+        new Color()
+      ).toCssColorString()
+    );
+    return discNormalLineRuntime;
+  };
+
+  const applyDiscNormalLine = ({
+    modelMatrix,
+    lineLengthMeters,
+  }: {
+    modelMatrix: Matrix4 | null;
+    lineLengthMeters: number;
+  }) => {
+    if (!readTangentDiscVisualizerShowNormalLine()) {
+      if (discNormalLineRuntime) {
+        clearLineRuntime(discNormalLineRuntime);
+      }
+      return;
+    }
+
+    if (!modelMatrix) {
+      if (discNormalLineRuntime) {
+        clearLineRuntime(discNormalLineRuntime);
+      }
+      return;
+    }
+
+    const lineRuntime = ensureDiscNormalLineRuntime();
+    setLineRuntimeColor(
+      lineRuntime,
+      Color.fromAlpha(
+        Color.fromCssColorString(currentOptions.discColor) ?? Color.WHITE,
+        currentOptions.discOpacity,
+        new Color()
+      ).toCssColorString()
+    );
+    if (discNormalLineCollection) {
+      discNormalLineCollection.modelMatrix = Matrix4.clone(
+        modelMatrix,
+        discNormalLineCollection.modelMatrix
+      );
+    }
+    const halfLineLengthMeters = Math.max(lineLengthMeters, 0.1) / 2;
+    applyLineRuntime(lineRuntime, [
+      new Cartesian3(0, 0, -halfLineLengthMeters),
+      new Cartesian3(0, 0, halfLineLengthMeters),
+    ]);
+  };
+
+  const withDiscTemporarilyHidden = <T>(callback: () => T): T => {
+    const previousDiscShow = discPrimitive?.show ?? null;
+    const previousNormalLineShow = discNormalLineRuntime?.polyline.show ?? null;
+
+    if (discPrimitive) {
+      discPrimitive.show = false;
+    }
+    if (discNormalLineRuntime) {
+      discNormalLineRuntime.polyline.show = false;
+    }
     try {
       return callback();
     } finally {
-      discPrimitive.show = previousShow;
+      if (discPrimitive && previousDiscShow !== null) {
+        discPrimitive.show = previousDiscShow;
+      }
+      if (discNormalLineRuntime && previousNormalLineShow !== null) {
+        discNormalLineRuntime.polyline.show = previousNormalLineShow;
+      }
     }
   };
 
@@ -285,6 +376,9 @@ export const createPointQueryPreviewController = ({
     if (discPrimitive) {
       safeRemovePrimitive(scene, discPrimitive);
       discPrimitive = null;
+    }
+    if (discNormalLineRuntime) {
+      clearLineRuntime(discNormalLineRuntime);
     }
     pointQueryPreviewDebugRuntime.setLatestDiscScaleFactor(null);
     previousSurfaceNormal = null;
@@ -640,10 +734,14 @@ export const createPointQueryPreviewController = ({
     !isPointQueryPreviewDiscPlaneOffsetPlacementMode(readDiscPlacementMode()) ||
     !latestTrueDiscWorldPosition ||
     !latestDiscNormal ||
+    pointQueryPreviewDebugRuntime.readLatestSampleOffsetPx() >=
+      MAX_FAST_SAMPLE_OFFSET_PX ||
     nowMs - latestTrueDiscSampledAtMs >= TRUE_SAMPLE_REFRESH_INTERVAL_MS;
 
   const shouldRefreshTrueDiscNormal = (nowMs: number) =>
     !latestDiscNormal ||
+    pointQueryPreviewDebugRuntime.readLatestSampleOffsetPx() >=
+      MAX_FAST_SAMPLE_OFFSET_PX ||
     nowMs - latestTrueDiscNormalSampledAtMs >= TRUE_NORMAL_REFRESH_INTERVAL_MS;
 
   const consumeRenderedRequestMetrics = (
@@ -723,9 +821,10 @@ export const createPointQueryPreviewController = ({
       truePickedPositionECEF &&
       shouldQueueDiscNormalSample(renderDiscSample.inputVersion)
     ) {
-      const trueDiscNormal = resolveDiscNormal(
+      const trueDiscNormal = resolveStableDiscNormal(
         truePickedPositionECEF,
-        trueSampledSurfaceNormal ?? previousSurfaceNormal
+        trueSampledSurfaceNormal ?? null,
+        previousSurfaceNormal
       );
       queueDiscNormalSample(trueDiscNormal);
     }
@@ -734,8 +833,9 @@ export const createPointQueryPreviewController = ({
       renderDiscSample.surfaceNormalECEF ??
       latestDiscNormal ??
       previousSurfaceNormal;
-    const discNormal = resolveDiscNormal(
+    const discNormal = resolveStableDiscNormal(
       renderDiscPositionECEF,
+      renderDiscSample.surfaceNormalECEF ?? null,
       fallbackNormal ?? null
     );
     const averagedDiscNormal = getAveragedDiscNormal(discNormal);
@@ -757,6 +857,10 @@ export const createPointQueryPreviewController = ({
       sampledRadius,
       activeDiscPrimitive.modelMatrix
     );
+    applyDiscNormalLine({
+      modelMatrix: activeDiscPrimitive.modelMatrix,
+      lineLengthMeters: sampledRadius * 2,
+    });
     recordDiscScaleChange({
       inputVersion: renderDiscSample.inputVersion,
       requestedAtMs: requestMetrics?.requestedAtMs ?? renderedAtMs,
@@ -855,14 +959,10 @@ export const createPointQueryPreviewController = ({
     // The immediate local update only changes the visible position.
     // The displayed orientation keeps using the latest smoothed normal until the
     // next true sample updates depth and surface normal again.
-    const stableDiscNormal = Cartesian3.clone(
-      latestDiscNormal ??
-        previousSurfaceNormal ??
-        resolveDiscNormal(
-          latestTrueDiscWorldPosition ?? renderDiscPositionECEF,
-          null
-        ),
-      new Cartesian3()
+    const stableDiscNormal = resolveStableDiscNormal(
+      latestTrueDiscWorldPosition ?? renderDiscPositionECEF,
+      latestDiscNormal ?? null,
+      previousSurfaceNormal
     );
     const discRadius = Math.max(currentOptions.discRadiusMeters, 0.1);
     const sampledRadius = resolvePointPreviewDiscRadius({
@@ -882,6 +982,10 @@ export const createPointQueryPreviewController = ({
       sampledRadius,
       activeDiscPrimitive.modelMatrix
     );
+    applyDiscNormalLine({
+      modelMatrix: activeDiscPrimitive.modelMatrix,
+      lineLengthMeters: sampledRadius * 2,
+    });
     recordDiscScaleChange({
       inputVersion: renderDiscSample.inputVersion,
       requestedAtMs: requestMetrics?.requestedAtMs ?? renderedAtMs,
@@ -1256,11 +1360,7 @@ export const createPointQueryPreviewController = ({
     }
     syncDebugLagState();
     markMousePositionEvent();
-    if (
-      shouldRefreshTrueDiscSample(nowMs) ||
-      pointQueryPreviewDebugRuntime.readLatestSampleOffsetPx() >=
-        MAX_FAST_SAMPLE_OFFSET_PX
-    ) {
+    if (shouldRefreshTrueDiscSample(nowMs)) {
       queueRender();
       return;
     }
@@ -1344,6 +1444,9 @@ export const createPointQueryPreviewController = ({
       window.removeEventListener("blur", handleWindowBlur);
       window.clearInterval(performanceIntervalId);
       clearDiscPrimitive();
+      destroyLineCollection(scene, discNormalLineCollection);
+      discNormalLineCollection = null;
+      discNormalLineRuntime = null;
       pointQueryPreviewDebugRuntime.destroy();
       if (!scene.isDestroyed()) {
         scene.canvas.style.cursor = "";

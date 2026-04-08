@@ -97,8 +97,30 @@ import {
 
 import { useCesiumPointQuery } from "./useCesiumPointQuery";
 
+const mockedPerformanceNow = vi.spyOn(performance, "now");
+
+const createFakeEvent = () => {
+  let listener: (() => void) | null = null;
+
+  return {
+    addEventListener: (nextListener: () => void) => {
+      listener = nextListener;
+      return () => {
+        if (listener === nextListener) {
+          listener = null;
+        }
+      };
+    },
+    raiseEvent: () => {
+      listener?.();
+    },
+  };
+};
+
 const createFakeScene = () => {
   let preRenderListener: (() => void) | null = null;
+  const moveStart = createFakeEvent();
+  const moveEnd = createFakeEvent();
 
   return {
     scene: {
@@ -117,9 +139,19 @@ const createFakeScene = () => {
           };
         },
       },
+      camera: {
+        moveStart,
+        moveEnd,
+      },
     } as unknown as Scene,
     flushPreRender: () => {
       preRenderListener?.();
+    },
+    triggerCameraMoveStart: () => {
+      moveStart.raiseEvent();
+    },
+    triggerCameraMoveEnd: () => {
+      moveEnd.raiseEvent();
     },
   };
 };
@@ -137,6 +169,7 @@ describe("useCesiumPointQuery", () => {
     scenePointerTrackerMocks.registerCesiumScenePointerTracker.mockClear();
     scenePointerTrackerMocks.subscribeCesiumScenePointerClientPosition.mockClear();
     scenePointerTrackerMocks.getCesiumScenePointerScreenPosition.mockClear();
+    mockedPerformanceNow.mockReturnValue(0);
   });
 
   it("repicks hover state after point creation even when the pointer has not moved", () => {
@@ -208,6 +241,224 @@ describe("useCesiumPointQuery", () => {
       refreshedHoverPick,
       pointerPosition,
       null
+    );
+  });
+
+  it("throttles hover picks during camera movement while keeping screen-space updates live", () => {
+    const idleHoverPick = new Cartesian3(1, 2, 3);
+    const movingHoverPick = new Cartesian3(4, 5, 6);
+    const throttledHoverPick = new Cartesian3(7, 8, 9);
+    const settledHoverPick = new Cartesian3(10, 11, 12);
+    pointQueryPickingMocks.resolvePreferredSurfacePick
+      .mockReturnValueOnce({
+        surfacePositionECEF: idleHoverPick,
+        globePositionECEF: null,
+      })
+      .mockReturnValueOnce({
+        surfacePositionECEF: movingHoverPick,
+        globePositionECEF: null,
+      })
+      .mockReturnValueOnce({
+        surfacePositionECEF: throttledHoverPick,
+        globePositionECEF: null,
+      })
+      .mockReturnValueOnce({
+        surfacePositionECEF: settledHoverPick,
+        globePositionECEF: null,
+      });
+    pointQueryPickingMocks.sampleSurfacePickNormalAtScreenPosition
+      .mockReturnValueOnce(new Cartesian3(0, 0, 1))
+      .mockReturnValueOnce(new Cartesian3(0, 1, 0));
+
+    const onPointerMove = vi.fn();
+    const onScreenPositionChange = vi.fn();
+    const {
+      scene,
+      flushPreRender,
+      triggerCameraMoveEnd,
+      triggerCameraMoveStart,
+    } = createFakeScene();
+    const initialPointerPosition = new Cartesian2(10, 20);
+    const movingPointerPosition = new Cartesian2(11, 21);
+    const throttledPointerPosition = new Cartesian2(12, 22);
+    const settledPointerPosition = new Cartesian2(13, 23);
+
+    renderHook(() =>
+      useCesiumPointQuery(scene, {
+        enabled: true,
+        onPointerMove,
+        onScreenPositionChange,
+      })
+    );
+
+    mockedPerformanceNow.mockReturnValue(0);
+    cesiumInteractionMocks.currentPointerPosition = initialPointerPosition;
+    act(() => {
+      cesiumInteractionMocks.pointerSubscriber?.();
+      flushPreRender();
+    });
+
+    expect(pointQueryPickingMocks.resolvePreferredSurfacePick).toHaveBeenCalledTimes(
+      1
+    );
+    expect(
+      pointQueryPickingMocks.sampleSurfacePickNormalAtScreenPosition
+    ).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      triggerCameraMoveStart();
+    });
+
+    mockedPerformanceNow.mockReturnValue(10);
+    cesiumInteractionMocks.currentPointerPosition = movingPointerPosition;
+    act(() => {
+      cesiumInteractionMocks.pointerSubscriber?.();
+      flushPreRender();
+    });
+
+    expect(pointQueryPickingMocks.resolvePreferredSurfacePick).toHaveBeenCalledTimes(
+      2
+    );
+    expect(
+      pointQueryPickingMocks.sampleSurfacePickNormalAtScreenPosition
+    ).toHaveBeenCalledTimes(1);
+
+    mockedPerformanceNow.mockReturnValue(20);
+    cesiumInteractionMocks.currentPointerPosition = throttledPointerPosition;
+    act(() => {
+      cesiumInteractionMocks.pointerSubscriber?.();
+      flushPreRender();
+    });
+
+    expect(pointQueryPickingMocks.resolvePreferredSurfacePick).toHaveBeenCalledTimes(
+      2
+    );
+    expect(onScreenPositionChange).toHaveBeenCalledTimes(3);
+    expect(onScreenPositionChange).toHaveBeenLastCalledWith(
+      throttledPointerPosition
+    );
+
+    mockedPerformanceNow.mockReturnValue(90);
+    act(() => {
+      flushPreRender();
+    });
+
+    expect(pointQueryPickingMocks.resolvePreferredSurfacePick).toHaveBeenCalledTimes(
+      3
+    );
+    expect(
+      pointQueryPickingMocks.sampleSurfacePickNormalAtScreenPosition
+    ).toHaveBeenCalledTimes(1);
+
+    mockedPerformanceNow.mockReturnValue(91);
+    cesiumInteractionMocks.currentPointerPosition = settledPointerPosition;
+    act(() => {
+      triggerCameraMoveEnd();
+      flushPreRender();
+    });
+
+    expect(pointQueryPickingMocks.resolvePreferredSurfacePick).toHaveBeenCalledTimes(
+      4
+    );
+    expect(
+      pointQueryPickingMocks.sampleSurfacePickNormalAtScreenPosition
+    ).toHaveBeenCalledTimes(2);
+    expect(onPointerMove).toHaveBeenLastCalledWith(
+      settledHoverPick,
+      settledPointerPosition,
+      new Cartesian3(0, 1, 0)
+    );
+  });
+
+  it("reuses the last sampled surface normal across nearby static hover moves", () => {
+    const initialHoverPick = new Cartesian3(1, 2, 3);
+    const nearbyHoverPick = new Cartesian3(4, 5, 6);
+    const refreshedHoverPick = new Cartesian3(7, 8, 9);
+    pointQueryPickingMocks.resolvePreferredSurfacePick
+      .mockReturnValueOnce({
+        surfacePositionECEF: initialHoverPick,
+        globePositionECEF: null,
+      })
+      .mockReturnValueOnce({
+        surfacePositionECEF: nearbyHoverPick,
+        globePositionECEF: null,
+      })
+      .mockReturnValueOnce({
+        surfacePositionECEF: refreshedHoverPick,
+        globePositionECEF: null,
+      });
+    pointQueryPickingMocks.sampleSurfacePickNormalAtScreenPosition
+      .mockReturnValueOnce(new Cartesian3(0, 0, 1))
+      .mockReturnValueOnce(new Cartesian3(0, 1, 0));
+
+    const onPointerMove = vi.fn();
+    const { scene, flushPreRender } = createFakeScene();
+    const initialPointerPosition = new Cartesian2(10, 20);
+    const nearbyPointerPosition = new Cartesian2(11, 21);
+    const refreshedPointerPosition = new Cartesian2(20, 30);
+
+    renderHook(() =>
+      useCesiumPointQuery(scene, {
+        enabled: true,
+        onPointerMove,
+      })
+    );
+
+    mockedPerformanceNow.mockReturnValue(0);
+    cesiumInteractionMocks.currentPointerPosition = initialPointerPosition;
+    act(() => {
+      cesiumInteractionMocks.pointerSubscriber?.();
+      flushPreRender();
+    });
+
+    expect(pointQueryPickingMocks.resolvePreferredSurfacePick).toHaveBeenCalledTimes(
+      1
+    );
+    expect(
+      pointQueryPickingMocks.sampleSurfacePickNormalAtScreenPosition
+    ).toHaveBeenCalledTimes(1);
+    expect(onPointerMove).toHaveBeenLastCalledWith(
+      initialHoverPick,
+      initialPointerPosition,
+      new Cartesian3(0, 0, 1)
+    );
+
+    mockedPerformanceNow.mockReturnValue(10);
+    cesiumInteractionMocks.currentPointerPosition = nearbyPointerPosition;
+    act(() => {
+      cesiumInteractionMocks.pointerSubscriber?.();
+      flushPreRender();
+    });
+
+    expect(pointQueryPickingMocks.resolvePreferredSurfacePick).toHaveBeenCalledTimes(
+      2
+    );
+    expect(
+      pointQueryPickingMocks.sampleSurfacePickNormalAtScreenPosition
+    ).toHaveBeenCalledTimes(1);
+    expect(onPointerMove).toHaveBeenLastCalledWith(
+      nearbyHoverPick,
+      nearbyPointerPosition,
+      new Cartesian3(0, 0, 1)
+    );
+
+    mockedPerformanceNow.mockReturnValue(60);
+    cesiumInteractionMocks.currentPointerPosition = refreshedPointerPosition;
+    act(() => {
+      cesiumInteractionMocks.pointerSubscriber?.();
+      flushPreRender();
+    });
+
+    expect(pointQueryPickingMocks.resolvePreferredSurfacePick).toHaveBeenCalledTimes(
+      3
+    );
+    expect(
+      pointQueryPickingMocks.sampleSurfacePickNormalAtScreenPosition
+    ).toHaveBeenCalledTimes(2);
+    expect(onPointerMove).toHaveBeenLastCalledWith(
+      refreshedHoverPick,
+      refreshedPointerPosition,
+      new Cartesian3(0, 1, 0)
     );
   });
 });

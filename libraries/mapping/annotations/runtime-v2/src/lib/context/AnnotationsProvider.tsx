@@ -399,6 +399,7 @@ const RuntimeInteractionHost = ({
   const pointPreviewRing = usePointPreviewRingIndicator(scene, {
     radius: POINT_QUERY_DISC_RADIUS_METERS,
     enabled: pointQueryEnabled,
+    showNormalLine: true,
     tangentDiscVisualizerTrailSampleCount:
       POINT_QUERY_DISC_SMOOTHING_SAMPLE_COUNT,
     tangentDiscVisualizerSmoothingWindowMs:

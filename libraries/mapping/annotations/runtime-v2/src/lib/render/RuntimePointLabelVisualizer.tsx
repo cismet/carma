@@ -7,6 +7,7 @@ import {
   estimatePillCapRadiusPx,
   resolvePointLabelLayoutConfig,
   resolveSegmentEndOutsideCircle,
+  resolveSegmentEndOutsideHorizontalCapsule,
   shouldTestPointLabelOcclusion,
   useLabelOverlay,
   type LayoutPointInput,
@@ -18,8 +19,11 @@ import {
 import type { RuntimeScene } from "../types/runtimeScene.types";
 import type { RuntimePointLabelRenderModel } from "./measurementRenderModels";
 import {
+  areRuntimeOverlayVisibilitySceneSnapshotsEqual,
+  captureRuntimeOverlayVisibilitySceneSnapshot,
   computeRuntimeOverlayVisibilityState,
   getSceneFrameKey,
+  type RuntimeOverlayVisibilitySceneSnapshot,
   type RuntimeOverlayVisibilityState,
 } from "./runtimeOverlayVisibility.shared";
 
@@ -51,6 +55,8 @@ type RuntimePointLabelOverlayDomRefs = {
   stem: HTMLDivElement;
   stemLine: HTMLDivElement;
   labelRoot: HTMLDivElement;
+  pillBadge: HTMLSpanElement | null;
+  pillContent: HTMLSpanElement | null;
   pointLabelRoot: HTMLDivElement;
 };
 
@@ -113,7 +119,8 @@ const getAttachTransform = (attach: PointLabelAttach): string => {
 
 const getPillAnchorTransform = (
   attach: PointLabelAttach,
-  pillCapRadiusPx: number
+  pillCapRadiusPx: number,
+  compactCenterOffsetPx: number | null
 ): string => {
   if (attach === "left") {
     return pillCapRadiusPx > 0
@@ -127,7 +134,27 @@ const getPillAnchorTransform = (
       : getAttachTransform(attach);
   }
 
+  if (compactCenterOffsetPx !== null) {
+    return `translate(${-compactCenterOffsetPx}px, -50%)`;
+  }
+
   return getAttachTransform(attach);
+};
+
+const syncCompactBadgeMountSide = (
+  pillBadge: HTMLSpanElement,
+  attach: PointLabelAttach
+) => {
+  if (attach === "right") {
+    pillBadge.style.left = "auto";
+    pillBadge.style.right = "0px";
+    pillBadge.style.transform = "translate(0, -50%)";
+    return;
+  }
+
+  pillBadge.style.left = "0px";
+  pillBadge.style.right = "auto";
+  pillBadge.style.transform = "translate(0, -50%)";
 };
 
 const createEmptyLabelOverlayState = (): RuntimePointLabelOverlayState => ({
@@ -159,21 +186,63 @@ export const useRuntimePointLabelVisualizer = ({
   >(new Map());
   const stateCacheRef = useRef<{
     frameKey: number | null;
+    sceneSnapshot: RuntimeOverlayVisibilitySceneSnapshot | null;
     statesById: Map<string, RuntimePointLabelOverlayState>;
   }>({
     frameKey: null,
+    sceneSnapshot: null,
     statesById: new Map(),
   });
+  const isCameraMovingRef = useRef(false);
 
   useEffect(() => {
     labelsRef.current = labels;
     stateCacheRef.current = {
       frameKey: null,
+      sceneSnapshot: null,
       statesById: new Map(),
     };
     updatePositions();
     scene?.requestRender();
   }, [labels, scene, updatePositions]);
+
+  useEffect(() => {
+    if (!scene || scene.isDestroyed()) {
+      isCameraMovingRef.current = false;
+      return;
+    }
+
+    const invalidateVisibilityCache = () => {
+      stateCacheRef.current = {
+        frameKey: null,
+        sceneSnapshot: null,
+        statesById: stateCacheRef.current.statesById,
+      };
+    };
+
+    const handleCameraMoveStart = () => {
+      isCameraMovingRef.current = true;
+      invalidateVisibilityCache();
+    };
+
+    const handleCameraMoveEnd = () => {
+      isCameraMovingRef.current = false;
+      invalidateVisibilityCache();
+      updatePositions();
+      scene.requestRender();
+    };
+
+    const removeMoveStartListener =
+      scene.camera.moveStart.addEventListener(handleCameraMoveStart);
+    const removeMoveEndListener =
+      scene.camera.moveEnd.addEventListener(handleCameraMoveEnd);
+
+    return () => {
+      isCameraMovingRef.current = false;
+      removeMoveStartListener?.();
+      removeMoveEndListener?.();
+    };
+  }, [scene, updatePositions]);
 
   const computeStatesById = useCallback(() => {
     const nextStatesById = new Map<string, RuntimePointLabelOverlayState>();
@@ -184,20 +253,31 @@ export const useRuntimePointLabelVisualizer = ({
 
     const layoutInputs: LayoutPointInput[] = [];
     const baseStatesById = new Map<string, RuntimeOverlayVisibilityState>();
+    const previousStatesById = stateCacheRef.current.statesById;
     const viewportWidth = Math.max(1, scene.canvas.clientWidth);
     const viewportHeight = Math.max(1, scene.canvas.clientHeight);
     const cameraPitch =
       typeof scene.camera.pitch === "number" ? scene.camera.pitch : 0;
+    const preserveOcclusionDuringCameraMove = isCameraMovingRef.current;
 
     labelsRef.current.forEach((label, index) => {
-      const baseState = computeRuntimeOverlayVisibilityState({
+      const computedBaseState = computeRuntimeOverlayVisibilityState({
         scene,
         coordinate: label.coordinate,
-        shouldTestOcclusion: shouldTestPointLabelOcclusion({
-          anchorKind: label.anchorKind,
-          occlusionMode: label.occlusionMode,
-        }),
+        shouldTestOcclusion:
+          !preserveOcclusionDuringCameraMove &&
+          shouldTestPointLabelOcclusion({
+            anchorKind: label.anchorKind,
+            occlusionMode: label.occlusionMode,
+          }),
       });
+      const baseState = preserveOcclusionDuringCameraMove
+        ? {
+            ...computedBaseState,
+            isOccluded:
+              previousStatesById.get(label.id)?.isOccluded ?? false,
+          }
+        : computedBaseState;
       baseStatesById.set(label.id, baseState);
 
       if (!baseState.screenPosition || baseState.isHidden || label.hideLabelAndStem) {
@@ -256,10 +336,24 @@ export const useRuntimePointLabelVisualizer = ({
     (labelId: string) => {
       const frameKey = getSceneFrameKey(scene);
       if (stateCacheRef.current.frameKey !== frameKey) {
-        stateCacheRef.current = {
-          frameKey,
-          statesById: computeStatesById(),
-        };
+        const sceneSnapshot = captureRuntimeOverlayVisibilitySceneSnapshot(scene);
+        const shouldRecomputeStates =
+          !areRuntimeOverlayVisibilitySceneSnapshotsEqual(
+            stateCacheRef.current.sceneSnapshot,
+            sceneSnapshot
+          );
+
+        stateCacheRef.current = shouldRecomputeStates
+          ? {
+              frameKey,
+              sceneSnapshot,
+              statesById: computeStatesById(),
+            }
+          : {
+              frameKey,
+              sceneSnapshot,
+              statesById: stateCacheRef.current.statesById,
+            };
       }
 
       return (
@@ -297,6 +391,12 @@ export const useRuntimePointLabelVisualizer = ({
       const labelRoot = elementDiv.querySelector(
         '[data-pillbutton-root="true"], [data-point-label-content-root="true"]'
       ) as HTMLDivElement | null;
+      const pillBadge = elementDiv.querySelector(
+        '[data-pillbutton-badge="true"]'
+      ) as HTMLSpanElement | null;
+      const pillContent = elementDiv.querySelector(
+        '[data-pillbutton-content="true"]'
+      ) as HTMLSpanElement | null;
       const pointLabelRoot = elementDiv.querySelector(
         '[data-point-label-root="true"]'
       ) as HTMLDivElement | null;
@@ -309,6 +409,8 @@ export const useRuntimePointLabelVisualizer = ({
         stem,
         stemLine,
         labelRoot,
+        pillBadge,
+        pillContent,
         pointLabelRoot,
       } satisfies RuntimePointLabelOverlayDomRefs;
       overlayDomRefsByIdRef.current.set(labelId, nextDomRefs);
@@ -357,7 +459,18 @@ export const useRuntimePointLabelVisualizer = ({
             return false;
           }
 
-          const { stem, stemLine, labelRoot, pointLabelRoot } = domRefs;
+          const {
+            stem,
+            stemLine,
+            labelRoot,
+            pillBadge,
+            pillContent,
+            pointLabelRoot,
+          } = domRefs;
+
+          if (pillBadge) {
+            syncCompactBadgeMountSide(pillBadge, overlayState.attach);
+          }
 
           const dx = Math.cos(overlayState.angleRad) * overlayState.distance;
           const dy = Math.sin(overlayState.angleRad) * overlayState.distance;
@@ -365,10 +478,22 @@ export const useRuntimePointLabelVisualizer = ({
             ? 0
             : (label.markerPixelSize ?? DEFAULT_LABEL_MARKER_PIXEL_SIZE) / 2;
           const parsedFontSizePx = Number.parseFloat(label.fontSize ?? "12px");
+          const isCompactOnlyPill = pillBadge !== null && pillContent === null;
+          const compactBadgeWidthPx = isCompactOnlyPill ? pillBadge.offsetWidth : 0;
+          const compactBadgeHeightPx = isCompactOnlyPill
+            ? pillBadge.offsetHeight
+            : 0;
+          const compactBadgeCapRadiusPx =
+            compactBadgeHeightPx > 0 ? compactBadgeHeightPx / 2 : null;
           const pillCapRadiusPx =
             overlayState.attach === "center"
               ? 0
-              : estimatePillCapRadiusPx(parsedFontSizePx);
+              : compactBadgeCapRadiusPx ??
+                estimatePillCapRadiusPx(parsedFontSizePx);
+          const compactCenterOffsetPx =
+            overlayState.attach === "center" && compactBadgeWidthPx > 0
+              ? compactBadgeWidthPx / 2
+              : null;
           const stemStartPoint = {
             x: Math.cos(overlayState.angleRad) * markerRadius,
             y: Math.sin(overlayState.angleRad) * markerRadius,
@@ -382,7 +507,15 @@ export const useRuntimePointLabelVisualizer = ({
               (overlayState.distance + pillCapRadiusPx),
           } as CssPixelPosition;
           const visibleStemEndPoint =
-            pillCapRadiusPx > 0
+            compactBadgeWidthPx > 0 && compactBadgeHeightPx > 0
+              ? resolveSegmentEndOutsideHorizontalCapsule(
+                  stemStartPoint,
+                  pillAnchorPoint,
+                  overlayState.attach,
+                  compactBadgeWidthPx,
+                  compactBadgeHeightPx
+                )
+              : pillCapRadiusPx > 0
               ? resolveSegmentEndOutsideCircle(
                   stemStartPoint,
                   pillAnchorPoint,
@@ -412,7 +545,11 @@ export const useRuntimePointLabelVisualizer = ({
           labelRoot.style.transform = labelRoot.hasAttribute(
             "data-pillbutton-root"
           )
-            ? getPillAnchorTransform(overlayState.attach, pillCapRadiusPx)
+            ? getPillAnchorTransform(
+                overlayState.attach,
+                pillCapRadiusPx,
+                compactCenterOffsetPx
+              )
             : getAttachTransform(overlayState.attach);
           pointLabelRoot.style.opacity = overlayState.isOccluded ? "0.75" : "1";
 

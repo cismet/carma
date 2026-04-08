@@ -53,3 +53,122 @@ export const resolveSegmentEndOutsideCircle = (
     y: startPoint.y + dy * scale,
   } as CssPixelPosition;
 };
+
+const clamp = (value: number, min: number, max: number): number =>
+  Math.min(max, Math.max(min, value));
+
+const resolveHorizontalCapsuleSpine = (
+  attach: PointLabelAttach,
+  capsuleWidthPx: number,
+  capsuleHeightPx: number
+): { leftX: number; rightX: number; radiusPx: number } => {
+  const radiusPx = Math.max(0, capsuleHeightPx / 2);
+  const straightSectionWidthPx = Math.max(0, capsuleWidthPx - 2 * radiusPx);
+
+  if (attach === "left") {
+    return {
+      leftX: 0,
+      rightX: straightSectionWidthPx,
+      radiusPx,
+    };
+  }
+
+  if (attach === "right") {
+    return {
+      leftX: -straightSectionWidthPx,
+      rightX: 0,
+      radiusPx,
+    };
+  }
+
+  return {
+    leftX: -straightSectionWidthPx / 2,
+    rightX: straightSectionWidthPx / 2,
+    radiusPx,
+  };
+};
+
+const isInsideHorizontalCapsule = (
+  point: CssPixelPosition,
+  attach: PointLabelAttach,
+  capsuleWidthPx: number,
+  capsuleHeightPx: number
+): boolean => {
+  const { leftX, rightX, radiusPx } = resolveHorizontalCapsuleSpine(
+    attach,
+    capsuleWidthPx,
+    capsuleHeightPx
+  );
+
+  if (!(radiusPx > 0)) {
+    return false;
+  }
+
+  const closestSpineX = clamp(point.x, leftX, rightX);
+  const dx = point.x - closestSpineX;
+  return dx * dx + point.y * point.y <= radiusPx * radiusPx + GEOMETRY_EPSILON;
+};
+
+export const resolveSegmentEndOutsideHorizontalCapsule = (
+  startPoint: CssPixelPosition,
+  capsuleAnchorPoint: CssPixelPosition,
+  capsuleAttach: PointLabelAttach,
+  capsuleWidthPx: number,
+  capsuleHeightPx: number
+): CssPixelPosition => {
+  if (!(capsuleWidthPx > 0) || !(capsuleHeightPx > 0)) {
+    return capsuleAnchorPoint;
+  }
+
+  const localStartPoint = {
+    x: startPoint.x - capsuleAnchorPoint.x,
+    y: startPoint.y - capsuleAnchorPoint.y,
+  } as CssPixelPosition;
+  const distancePx = Math.hypot(localStartPoint.x, localStartPoint.y);
+
+  if (!(distancePx > GEOMETRY_EPSILON)) {
+    return startPoint;
+  }
+
+  if (
+    isInsideHorizontalCapsule(
+      localStartPoint,
+      capsuleAttach,
+      capsuleWidthPx,
+      capsuleHeightPx
+    )
+  ) {
+    return startPoint;
+  }
+
+  const dx = localStartPoint.x / distancePx;
+  const dy = localStartPoint.y / distancePx;
+  let lowPx = 0;
+  let highPx = distancePx;
+
+  for (let iteration = 0; iteration < 24; iteration += 1) {
+    const midPx = (lowPx + highPx) / 2;
+    const candidatePoint = {
+      x: dx * midPx,
+      y: dy * midPx,
+    } as CssPixelPosition;
+
+    if (
+      isInsideHorizontalCapsule(
+        candidatePoint,
+        capsuleAttach,
+        capsuleWidthPx,
+        capsuleHeightPx
+      )
+    ) {
+      lowPx = midPx;
+    } else {
+      highPx = midPx;
+    }
+  }
+
+  return {
+    x: capsuleAnchorPoint.x + dx * lowPx,
+    y: capsuleAnchorPoint.y + dy * lowPx,
+  } as CssPixelPosition;
+};

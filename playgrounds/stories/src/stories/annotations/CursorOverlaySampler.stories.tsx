@@ -62,6 +62,7 @@ type CursorOverlaySamplerStoryProps = {
   discMaterialPreset: RingMaterialPreset;
   discColor: string;
   tangentDiscVisualizerPlacementMode?: PointQueryPreviewDiscPlacementMode;
+  tangentDiscVisualizerShowNormalLine?: boolean;
   tangentDiscVisualizerTrailSampleCount?: number;
   tangentDiscVisualizerWeightDecayGamma?: number;
 };
@@ -704,6 +705,7 @@ const CursorOverlaySamplerSandbox = ({
         discColor,
         tangentDiscVisualizerPlacementMode:
           resolvedTangentDiscVisualizerPlacementMode,
+        tangentDiscVisualizerShowNormalLine,
         tangentDiscVisualizerTrailSampleCount,
         tangentDiscVisualizerWeightDecayGamma,
       };
@@ -722,6 +724,7 @@ const CursorOverlaySamplerSandbox = ({
       showDisc,
       tangentDiscVisualizerEnabled,
       tangentDiscVisualizerPlacementMode,
+      tangentDiscVisualizerShowNormalLine,
       tangentDiscVisualizerTrailSampleCount,
       tangentDiscVisualizerWeightDecayGamma,
     ]
@@ -1393,6 +1396,10 @@ const meta: Meta<CursorOverlaySamplerStoryProps> = {
       name: "tangentDiscVisualizerPlacementMode",
       table: { category: "Tangent Disc Visualizer" },
     },
+    tangentDiscVisualizerShowNormalLine: {
+      control: { type: "boolean" },
+      table: { category: "Tangent Disc Visualizer" },
+    },
     tangentDiscVisualizerTrailSampleCount: {
       control: { type: "range", min: 1, max: 180, step: 1 },
       table: { category: "Tangent Disc Visualizer" },
@@ -1422,6 +1429,7 @@ export const CursorOverlaySampler: StoryObj<CursorOverlaySamplerStoryProps> = {
     discColor: "#ffffff",
     tangentDiscVisualizerPlacementMode:
       POINT_QUERY_PREVIEW_DISC_PLACEMENT_MODES.CAMERA_PLANE_REPROJECT,
+    tangentDiscVisualizerShowNormalLine: true,
     tangentDiscVisualizerTrailSampleCount: 90,
     tangentDiscVisualizerWeightDecayGamma: 2,
   },

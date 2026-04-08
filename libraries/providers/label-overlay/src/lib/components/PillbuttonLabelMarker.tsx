@@ -147,6 +147,7 @@ export const PillbuttonLabelMarker = ({
     content !== null &&
     (typeof content !== "string" || content.trim().length > 0);
   const showExtended = !collapse && hasExtendedContent;
+  const isCompactOnly = hasCompact && !showExtended;
   const effectiveMarkerBorderStyle =
     fullBorder && solidBorderStyle ? solidBorderStyle : labelBorderStyle;
   const extendedBorderStyle = fullBorder ? effectiveMarkerBorderStyle : "none";
@@ -171,6 +172,8 @@ export const PillbuttonLabelMarker = ({
       : null;
   const compactRef = useRef<HTMLSpanElement | null>(null);
   const [compactWidthPx, setCompactWidthPx] = useState<number | null>(null);
+  const compactCenterOffsetPx =
+    compactWidthPx != null ? compactWidthPx / 2 : compactAnchorOffsetPx;
   const compactTextLength =
     typeof markerContent === "string" ? markerContent.trim().length : 0;
   const shouldForceCompactPill =
@@ -289,13 +292,22 @@ export const PillbuttonLabelMarker = ({
       return `translate(calc(-100% + ${compactAnchorOffsetPx}px), -50%)`;
     }
     if (mountSide === "center") {
+      if (isCompactOnly) {
+        return `translate(${-compactCenterOffsetPx}px, -50%)`;
+      }
       return "translate(-50%, -50%)";
     }
     if (!anchorAtSemicircleCenter) {
       return "translate(0%, -50%)";
     }
     return `translate(${-compactAnchorOffsetPx}px, -50%)`;
-  }, [anchorAtSemicircleCenter, compactAnchorOffsetPx, mountSide]);
+  }, [
+    anchorAtSemicircleCenter,
+    compactAnchorOffsetPx,
+    compactCenterOffsetPx,
+    isCompactOnly,
+    mountSide,
+  ]);
 
   return (
     <div

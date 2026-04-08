@@ -17,6 +17,8 @@ const DISC_MIN_WORLD_RADIUS = 1e-3;
 const DISC_MIN_PROJECTED_PIXEL_PER_WORLD = 1e-6;
 const DISC_PROJECTION_SCALE_SAMPLE_COUNT = 16;
 const LOCAL_UP_ENU_FRAME_SCRATCH = new Matrix4();
+const STABLE_DISC_NORMAL_LOCAL_UP_SCRATCH = new Cartesian3();
+const STABLE_DISC_NORMAL_SCRATCH = new Cartesian3();
 
 export const safeRemovePrimitive = (
   scene: Scene | null,
@@ -89,6 +91,61 @@ export const resolveDiscNormal = (
     return Cartesian3.normalize(preferredNormal, new Cartesian3());
   }
   return getLocalUpDirectionAtPosition(origin);
+};
+
+const resolveHealthyDiscNormalCandidate = (
+  normal: Cartesian3 | null | undefined
+) => {
+  if (
+    !normal ||
+    Cartesian3.magnitudeSquared(normal) <= GUIDE_NORMAL_EPSILON_SQUARED
+  ) {
+    return null;
+  }
+
+  return Cartesian3.normalize(
+    Cartesian3.clone(normal, STABLE_DISC_NORMAL_SCRATCH),
+    STABLE_DISC_NORMAL_SCRATCH
+  );
+};
+
+export const resolveStableDiscNormal = (
+  origin: Cartesian3,
+  preferredNormal: Cartesian3 | null | undefined,
+  fallbackNormal?: Cartesian3 | null
+): Cartesian3 => {
+  const preferredCandidate = resolveHealthyDiscNormalCandidate(preferredNormal);
+  const fallbackCandidate = resolveHealthyDiscNormalCandidate(
+    fallbackNormal ?? null
+  );
+
+  if (preferredCandidate) {
+    if (
+      fallbackCandidate &&
+      Cartesian3.dot(preferredCandidate, fallbackCandidate) < 0
+    ) {
+      return Cartesian3.negate(preferredCandidate, new Cartesian3());
+    }
+
+    const localUp = getLocalUpDirectionAtPosition(
+      origin,
+      STABLE_DISC_NORMAL_LOCAL_UP_SCRATCH
+    );
+    if (Cartesian3.dot(preferredCandidate, localUp) < 0) {
+      return Cartesian3.negate(preferredCandidate, new Cartesian3());
+    }
+
+    return Cartesian3.clone(preferredCandidate, new Cartesian3());
+  }
+
+  if (fallbackCandidate) {
+    return Cartesian3.clone(fallbackCandidate, new Cartesian3());
+  }
+
+  return Cartesian3.clone(
+    getLocalUpDirectionAtPosition(origin, STABLE_DISC_NORMAL_LOCAL_UP_SCRATCH),
+    new Cartesian3()
+  );
 };
 
 export const createOrientedDiscModelMatrix = (

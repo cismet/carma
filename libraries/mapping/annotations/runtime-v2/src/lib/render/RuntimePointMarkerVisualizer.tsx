@@ -5,8 +5,11 @@ import { useLabelOverlay } from "@carma-providers/label-overlay";
 import type { RuntimeScene } from "../types/runtimeScene.types";
 import type { RuntimePointMarkerRenderModel } from "./measurementRenderModels";
 import {
+  areRuntimeOverlayVisibilitySceneSnapshotsEqual,
+  captureRuntimeOverlayVisibilitySceneSnapshot,
   computeRuntimeOverlayVisibilityState,
   getSceneFrameKey,
+  type RuntimeOverlayVisibilitySceneSnapshot,
   type RuntimeOverlayVisibilityState,
 } from "./runtimeOverlayVisibility.shared";
 
@@ -62,33 +65,84 @@ export const useRuntimePointMarkerVisualizer = ({
   const pointsRef = useRef(points);
   const stateCacheRef = useRef<{
     frameKey: number | null;
+    sceneSnapshot: RuntimeOverlayVisibilitySceneSnapshot | null;
     statesById: Map<string, RuntimeOverlayVisibilityState>;
   }>({
     frameKey: null,
+    sceneSnapshot: null,
     statesById: new Map(),
   });
+  const isCameraMovingRef = useRef(false);
 
   useEffect(() => {
     pointsRef.current = points;
     stateCacheRef.current = {
       frameKey: null,
+      sceneSnapshot: null,
       statesById: new Map(),
     };
     updatePositions();
     scene?.requestRender();
   }, [points, scene, updatePositions]);
 
+  useEffect(() => {
+    if (!scene || scene.isDestroyed()) {
+      isCameraMovingRef.current = false;
+      return;
+    }
+
+    const invalidateVisibilityCache = () => {
+      stateCacheRef.current = {
+        frameKey: null,
+        sceneSnapshot: null,
+        statesById: stateCacheRef.current.statesById,
+      };
+    };
+
+    const handleCameraMoveStart = () => {
+      isCameraMovingRef.current = true;
+      invalidateVisibilityCache();
+    };
+
+    const handleCameraMoveEnd = () => {
+      isCameraMovingRef.current = false;
+      invalidateVisibilityCache();
+      updatePositions();
+      scene.requestRender();
+    };
+
+    const removeMoveStartListener =
+      scene.camera.moveStart.addEventListener(handleCameraMoveStart);
+    const removeMoveEndListener =
+      scene.camera.moveEnd.addEventListener(handleCameraMoveEnd);
+
+    return () => {
+      isCameraMovingRef.current = false;
+      removeMoveStartListener?.();
+      removeMoveEndListener?.();
+    };
+  }, [scene, updatePositions]);
+
   const computeStatesById = useCallback(() => {
     const nextStatesById = new Map<string, RuntimeOverlayVisibilityState>();
+    const previousStatesById = stateCacheRef.current.statesById;
+    const preserveOcclusionDuringCameraMove = isCameraMovingRef.current;
 
     pointsRef.current.forEach((point) => {
+      const computedState = computeRuntimeOverlayVisibilityState({
+        scene,
+        coordinate: point.coordinate,
+        shouldTestOcclusion: !preserveOcclusionDuringCameraMove,
+      });
       nextStatesById.set(
         point.id,
-        computeRuntimeOverlayVisibilityState({
-          scene,
-          coordinate: point.coordinate,
-          shouldTestOcclusion: true,
-        })
+        preserveOcclusionDuringCameraMove
+          ? {
+              ...computedState,
+              isOccluded:
+                previousStatesById.get(point.id)?.isOccluded ?? false,
+            }
+          : computedState
       );
     });
 
@@ -99,10 +153,24 @@ export const useRuntimePointMarkerVisualizer = ({
     (pointId: string) => {
       const frameKey = getSceneFrameKey(scene);
       if (stateCacheRef.current.frameKey !== frameKey) {
-        stateCacheRef.current = {
-          frameKey,
-          statesById: computeStatesById(),
-        };
+        const sceneSnapshot = captureRuntimeOverlayVisibilitySceneSnapshot(scene);
+        const shouldRecomputeStates =
+          !areRuntimeOverlayVisibilitySceneSnapshotsEqual(
+            stateCacheRef.current.sceneSnapshot,
+            sceneSnapshot
+          );
+
+        stateCacheRef.current = shouldRecomputeStates
+          ? {
+              frameKey,
+              sceneSnapshot,
+              statesById: computeStatesById(),
+            }
+          : {
+              frameKey,
+              sceneSnapshot,
+              statesById: stateCacheRef.current.statesById,
+            };
       }
 
       return (

@@ -33,6 +33,7 @@ import type { RuntimeScene } from "../types/runtimeScene.types";
 
 export type PreviewLineRuntime = {
   polyline: Polyline;
+  colorCss: string;
 };
 
 export type PreviewPointMarker = HTMLDivElement;
@@ -60,6 +61,13 @@ export type PreviewDistanceTriangleLabelReferences = {
 type ScreenPointLike = {
   x: number;
   y: number;
+};
+
+type PreviewLineCollectionFrameState = {
+  passes: {
+    pick: boolean;
+    render: boolean;
+  };
 };
 
 export const PREVIEW_LINE_STROKE_WIDTH_PX = 1;
@@ -126,6 +134,16 @@ export const destroyPreviewOverlayLayer = (overlayLayer: HTMLElement | null) => 
 
 export const createLineCollection = (scene: RuntimeScene) => {
   const collection = new PolylineCollection();
+  const originalUpdate = collection.update.bind(collection) as (
+    frameState: PreviewLineCollectionFrameState
+  ) => void;
+  collection.update = ((frameState: PreviewLineCollectionFrameState) => {
+    if (frameState.passes.pick && !frameState.passes.render) {
+      return;
+    }
+
+    return originalUpdate(frameState);
+  }) as typeof collection.update;
   scene.primitives.add(collection);
   return collection;
 };
@@ -165,7 +183,22 @@ export const createLineRuntime = (
     }),
     show: false,
   }),
+  colorCss,
 });
+
+export const setLineRuntimeColor = (
+  lineRuntime: PreviewLineRuntime,
+  colorCss: string
+) => {
+  if (lineRuntime.colorCss === colorCss) {
+    return;
+  }
+
+  lineRuntime.polyline.material = Material.fromType("Color", {
+    color: Color.fromCssColorString(colorCss) ?? Color.WHITE,
+  });
+  lineRuntime.colorCss = colorCss;
+};
 
 export const clearLineRuntime = (lineRuntime: PreviewLineRuntime) => {
   lineRuntime.polyline.show = false;

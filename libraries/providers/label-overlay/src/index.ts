@@ -41,6 +41,7 @@ export {
   estimatePillCapRadiusPx,
   resolvePillCapCenterPoint,
   resolveSegmentEndOutsideCircle,
+  resolveSegmentEndOutsideHorizontalCapsule,
   addCssPixelPositions,
   averageCssPixelPositions,
   createPointLabelExpansionSlots,

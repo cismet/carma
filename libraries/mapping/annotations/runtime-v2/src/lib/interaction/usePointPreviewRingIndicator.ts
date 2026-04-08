@@ -1,6 +1,6 @@
 /* @refresh reset */
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { Cartesian3, Color, Primitive } from "@carma-cesium";
+import { Cartesian3, Color, Matrix4, Primitive } from "@carma-cesium";
 import {
   getCesiumScenePointerScreenPosition,
   registerCesiumScenePointerTracker,
@@ -10,7 +10,7 @@ import {
   GUIDE_NORMAL_EPSILON_SQUARED,
   createOrientedDiscModelMatrix,
   isValidScene,
-  resolveDiscNormal,
+  resolveStableDiscNormal,
   safeCall,
   safeRemovePrimitive,
   createRing,
@@ -32,6 +32,15 @@ import {
 } from "./pointQueryPreviewDiscPlacementMode";
 import { resolvePointPreviewDiscRadius } from "./resolvePointPreviewDiscRadius";
 import { resolveTangentDiscPlaneReprojectedWorldPosition } from "./tangentDiscReprojection.shared";
+import {
+  applyLineRuntime,
+  clearLineRuntime,
+  createLineCollection,
+  createLineRuntime,
+  destroyLineCollection,
+  setLineRuntimeColor,
+  type PreviewLineRuntime,
+} from "./previewController.shared";
 
 type PreviewRingQueuedInput = {
   version: number;
@@ -52,6 +61,7 @@ type PointPreviewRingIndicatorOptions = {
   innerHoleRadiusRatio?: number;
   scalingMode?: "screen" | "world";
   targetScreenRadiusCssPx?: number;
+  showNormalLine?: boolean;
   tangentDiscVisualizerTrailSampleCount?: number;
   tangentDiscVisualizerSmoothingWindowMs?: number;
   tangentDiscVisualizerWeightDecayGamma?: number;
@@ -75,6 +85,7 @@ export const usePointPreviewRingIndicator = (
     innerHoleRadiusRatio = pointPreviewRingVisualDefaults.innerHoleRadiusRatio,
     scalingMode = pointPreviewRingVisualDefaults.scalingMode,
     targetScreenRadiusCssPx = pointPreviewRingVisualDefaults.targetScreenRadiusCssPx,
+    showNormalLine = false,
     tangentDiscVisualizerTrailSampleCount = pointPreviewRingVisualDefaults.smoothingSampleCount,
     tangentDiscVisualizerSmoothingWindowMs =
       pointPreviewRingVisualDefaults.smoothingWindowMs,
@@ -82,6 +93,12 @@ export const usePointPreviewRingIndicator = (
   }: PointPreviewRingIndicatorOptions
 ): PointPreviewRingIndicatorApi => {
   const previewRingRef = useRef<Primitive | null>(null);
+  const previewRingNormalLineCollectionRef = useRef<ReturnType<
+    typeof createLineCollection
+  > | null>(null);
+  const previewRingNormalLineRuntimeRef = useRef<PreviewLineRuntime | null>(
+    null
+  );
   const removePreviewRingPostRenderListenerRef = useRef<(() => void) | null>(
     null
   );
@@ -128,8 +145,64 @@ export const usePointPreviewRingIndicator = (
         safeRemovePrimitive(scene, previewRingRef.current);
       }
       previewRingRef.current = null;
+      if (previewRingNormalLineRuntimeRef.current) {
+        clearLineRuntime(previewRingNormalLineRuntimeRef.current);
+      }
       previewRingSamplesRef.current = [];
       previewRingLastQueuedInputRef.current = null;
+    };
+
+    const ensurePreviewRingNormalLine = () => {
+      if (previewRingNormalLineRuntimeRef.current) {
+        return previewRingNormalLineRuntimeRef.current;
+      }
+
+      if (!previewRingNormalLineCollectionRef.current) {
+        previewRingNormalLineCollectionRef.current = createLineCollection(scene);
+      }
+
+      previewRingNormalLineRuntimeRef.current = createLineRuntime(
+        previewRingNormalLineCollectionRef.current,
+        "measurement-preview-point-ring-normal",
+        previewRingColor.toCssColorString()
+      );
+      return previewRingNormalLineRuntimeRef.current;
+    };
+
+    const applyPreviewRingNormalLine = ({
+      modelMatrix,
+      lineLengthMeters,
+    }: {
+      modelMatrix: Matrix4 | null;
+      lineLengthMeters: number;
+    }) => {
+      if (!showNormalLine) {
+        if (previewRingNormalLineRuntimeRef.current) {
+          clearLineRuntime(previewRingNormalLineRuntimeRef.current);
+        }
+        return;
+      }
+
+      if (!modelMatrix) {
+        if (previewRingNormalLineRuntimeRef.current) {
+          clearLineRuntime(previewRingNormalLineRuntimeRef.current);
+        }
+        return;
+      }
+
+      const lineRuntime = ensurePreviewRingNormalLine();
+      setLineRuntimeColor(lineRuntime, previewRingColor.toCssColorString());
+      if (previewRingNormalLineCollectionRef.current) {
+        previewRingNormalLineCollectionRef.current.modelMatrix = Matrix4.clone(
+          modelMatrix,
+          previewRingNormalLineCollectionRef.current.modelMatrix
+        );
+      }
+      const halfLineLengthMeters = Math.max(lineLengthMeters, 0.1) / 2;
+      applyLineRuntime(lineRuntime, [
+        new Cartesian3(0, 0, -halfLineLengthMeters),
+        new Cartesian3(0, 0, halfLineLengthMeters),
+      ]);
     };
 
     const resolveDisplayedPreviewPoint = () => {
@@ -256,9 +329,10 @@ export const usePointPreviewRingIndicator = (
         previewPointRef.current ?? new Cartesian3()
       );
 
-      const discNormal = resolveDiscNormal(
+      const discNormal = resolveStableDiscNormal(
         center,
-        latestTrueSurfaceNormalRef.current ?? previewSurfaceNormalRef.current
+        latestTrueSurfaceNormalRef.current ?? previewSurfaceNormalRef.current,
+        previewSurfaceNormalRef.current
       );
       const sampledRadius = resolvePointPreviewDiscRadius({
         scene,
@@ -283,6 +357,10 @@ export const usePointPreviewRingIndicator = (
         sampledRadius,
         activeRing.modelMatrix
       );
+      applyPreviewRingNormalLine({
+        modelMatrix: activeRing.modelMatrix,
+        lineLengthMeters: sampledRadius * 2,
+      });
 
       if (hasPendingPreviewSmoothing()) {
         scene.requestRender();
@@ -330,6 +408,7 @@ export const usePointPreviewRingIndicator = (
     tangentDiscVisualizerTrailSampleCount,
     tangentDiscVisualizerSmoothingWindowMs,
     tangentDiscVisualizerWeightDecayGamma,
+    showNormalLine,
     previewRingColor,
   ]);
 
@@ -397,6 +476,9 @@ export const usePointPreviewRingIndicator = (
         safeRemovePrimitive(scene, previewRingRef.current);
         previewRingRef.current = null;
       }
+      destroyLineCollection(scene, previewRingNormalLineCollectionRef.current);
+      previewRingNormalLineCollectionRef.current = null;
+      previewRingNormalLineRuntimeRef.current = null;
       previewRingSamplesRef.current = [];
     };
   }, [scene]);
