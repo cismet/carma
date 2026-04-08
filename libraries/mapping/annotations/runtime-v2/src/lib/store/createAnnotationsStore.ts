@@ -10,6 +10,7 @@ import type {
   RuntimeCoordinate,
   RuntimeAnnotationEntry,
   RuntimeEdge,
+  RuntimeLabelAppearance,
   RuntimeNode,
 } from "./annotationsStore.types";
 export type CreateInitialAnnotationsStoreStateOptions = {
@@ -25,16 +26,14 @@ export type AppendAnnotationEntitiesPayload = {
   selectAnnotationId?: string | null;
 };
 
-export type SetPolylinePreviewCoordinatesPayload = {
+export type SetDraftCoordinatesByToolTypePayload = {
+  toolType: RuntimeToolId;
   coordinates: readonly RuntimeCoordinate[];
 };
 
-export type SetDistancePreviewCoordinatesPayload = {
-  coordinates: readonly RuntimeCoordinate[];
-};
-
-export type SetVerticalAreaPreviewCoordinatesPayload = {
-  coordinates: readonly RuntimeCoordinate[];
+export type SetPendingAnnotationIdByToolTypePayload = {
+  toolType: RuntimeToolId;
+  annotationId: string | null;
 };
 
 export type RemoveAnnotationByIdPayload = {
@@ -50,6 +49,12 @@ export type UpdateNodeCoordinateByIdPayload = {
 export type SetAnnotationTemporaryByIdPayload = {
   annotationId: string;
   temporary: boolean;
+};
+
+export type UpdateAnnotationEntryByIdPayload = {
+  annotationId: string;
+  displayName?: string;
+  labelAppearance?: RuntimeLabelAppearance;
 };
 
 const UNSET_TOOL_TYPE = "__unset__" as RuntimeToolId;
@@ -82,9 +87,8 @@ export const createInitialAnnotationsStoreState = (
       pointTemporaryMode: initialPointTemporaryMode,
     },
     draftState: {
-      polylinePreviewCoordinates: [],
-      distancePreviewCoordinates: [],
-      verticalAreaPreviewCoordinates: [],
+      draftCoordinatesByToolType: {},
+      pendingAnnotationIdByToolType: {},
     },
   };
 };
@@ -164,6 +168,19 @@ const annotationsSlice = createSlice({
       state.annotationEntries = state.annotationEntries.filter(
         (annotationEntry) => annotationEntry.id !== annotationId
       );
+      Object.keys(state.draftState.pendingAnnotationIdByToolType).forEach(
+        (toolType) => {
+          if (
+            state.draftState.pendingAnnotationIdByToolType[
+              toolType as RuntimeToolId
+            ] === annotationId
+          ) {
+            delete state.draftState.pendingAnnotationIdByToolType[
+              toolType as RuntimeToolId
+            ];
+          }
+        }
+      );
 
       const usedNodeIds = new Set(
         state.annotationEntries.flatMap(
@@ -222,6 +239,29 @@ const annotationsSlice = createSlice({
       }
       targetEntry.temporary = temporary;
     },
+    updateAnnotationEntryById: (
+      state,
+      action: PayloadAction<UpdateAnnotationEntryByIdPayload>
+    ) => {
+      const { annotationId, displayName, labelAppearance } = action.payload;
+      const targetEntry = state.annotationEntries.find(
+        (entry) => entry.id === annotationId
+      );
+      if (!targetEntry) {
+        return;
+      }
+
+      if (displayName !== undefined) {
+        targetEntry.displayName = displayName;
+      }
+
+      if (labelAppearance !== undefined) {
+        targetEntry.labelAppearance = {
+          ...(targetEntry.labelAppearance ?? {}),
+          ...labelAppearance,
+        };
+      }
+    },
     finalizeTemporaryAnnotationsByToolType: (
       state,
       action: PayloadAction<RuntimeAnnotationEntry["toolType"]>
@@ -268,38 +308,26 @@ const annotationsSlice = createSlice({
       state.infoBoxState.activeAnnotationId =
         nextSelectedAnnotationIds[nextSelectedAnnotationIds.length - 1] ?? null;
     },
-    setPolylinePreviewCoordinates: (
+    setDraftCoordinatesByToolType: (
       state,
-      action: PayloadAction<SetPolylinePreviewCoordinatesPayload>
+      action: PayloadAction<SetDraftCoordinatesByToolTypePayload>
     ) => {
-      state.draftState.polylinePreviewCoordinates = [
+      state.draftState.draftCoordinatesByToolType[action.payload.toolType] = [
         ...action.payload.coordinates,
       ];
     },
-    clearPolylinePreviewCoordinates: (state) => {
-      state.draftState.polylinePreviewCoordinates = [];
-    },
-    setDistancePreviewCoordinates: (
+    clearDraftCoordinatesByToolType: (
       state,
-      action: PayloadAction<SetDistancePreviewCoordinatesPayload>
+      action: PayloadAction<RuntimeToolId>
     ) => {
-      state.draftState.distancePreviewCoordinates = [
-        ...action.payload.coordinates,
-      ];
+      delete state.draftState.draftCoordinatesByToolType[action.payload];
     },
-    clearDistancePreviewCoordinates: (state) => {
-      state.draftState.distancePreviewCoordinates = [];
-    },
-    setVerticalAreaPreviewCoordinates: (
+    setPendingAnnotationIdByToolType: (
       state,
-      action: PayloadAction<SetVerticalAreaPreviewCoordinatesPayload>
+      action: PayloadAction<SetPendingAnnotationIdByToolTypePayload>
     ) => {
-      state.draftState.verticalAreaPreviewCoordinates = [
-        ...action.payload.coordinates,
-      ];
-    },
-    clearVerticalAreaPreviewCoordinates: (state) => {
-      state.draftState.verticalAreaPreviewCoordinates = [];
+      state.draftState.pendingAnnotationIdByToolType[action.payload.toolType] =
+        action.payload.annotationId;
     },
   },
 });
@@ -307,20 +335,18 @@ const annotationsSlice = createSlice({
 export const {
   appendAnnotationEntities,
   clearTemporaryAnnotationsByToolType,
-  clearDistancePreviewCoordinates,
-  clearVerticalAreaPreviewCoordinates,
-  clearPolylinePreviewCoordinates,
+  clearDraftCoordinatesByToolType,
   finalizeTemporaryAnnotationsByToolType,
   removeAnnotationById,
   setAnnotationTemporaryById,
   setPointTemporaryMode,
   updateNodeCoordinateById,
+  updateAnnotationEntryById,
   replaceState,
-  setDistancePreviewCoordinates,
   setAnnotationToolType,
   setSelectionModeActive,
-  setPolylinePreviewCoordinates,
-  setVerticalAreaPreviewCoordinates,
+  setDraftCoordinatesByToolType,
+  setPendingAnnotationIdByToolType,
   setSelectedAnnotationId,
 } = annotationsSlice.actions;
 

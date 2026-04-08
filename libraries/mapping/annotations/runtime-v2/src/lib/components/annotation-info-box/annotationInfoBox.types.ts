@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { CSSProperties } from "react";
 
 import type {
   RuntimeAnnotationEntry,
@@ -19,4 +20,19 @@ export type RuntimeAnnotationInfoBoxContext = {
   annotationEntries: readonly RuntimeAnnotationEntry[];
   nodes: readonly RuntimeNode[];
   selectedAnnotationId: string;
+  setSelectedAnnotationId: (annotationId: string | null) => void;
+};
+
+export type RuntimeAnnotationInfoBoxLayoutProps = {
+  pixelWidth?: number;
+  useControlLayout?: boolean;
+  controlPosition?:
+    | "topleft"
+    | "topright"
+    | "topcenter"
+    | "bottomleft"
+    | "bottomright"
+    | "bottomcenter";
+  controlOrder?: number;
+  style?: CSSProperties;
 };

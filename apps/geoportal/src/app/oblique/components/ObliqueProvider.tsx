@@ -75,6 +75,7 @@ interface ObliqueContextType {
   fixedHeight: number;
   minFov: Radians;
   maxFov: Radians;
+  targetEnterObliqueModeFov?: Radians;
   restoreFovOnLeave?: Radians;
   headingOffset: number;
 
@@ -140,6 +141,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     fixedHeight,
     minFov,
     maxFov,
+    targetEnterObliqueModeFov,
     restoreFovOnLeave,
     headingOffset,
     animations,
@@ -262,6 +264,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
       fixedHeight,
       minFov,
       maxFov,
+      targetEnterObliqueModeFov,
       restoreFovOnLeave,
       headingOffset,
       exteriorOrientations,
@@ -293,10 +296,12 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
       converter,
       previewPath,
       previewQualityLevel,
+      downloadQualityLevel,
       fixedPitch,
       fixedHeight,
       minFov,
       maxFov,
+      targetEnterObliqueModeFov,
       restoreFovOnLeave,
       headingOffset,
       exteriorOrientations,

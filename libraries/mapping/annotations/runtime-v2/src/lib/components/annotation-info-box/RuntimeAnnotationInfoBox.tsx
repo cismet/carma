@@ -2,15 +2,22 @@ import { useMemo } from "react";
 
 import { useAnnotationsRuntime } from "../../context/AnnotationsProvider";
 import { RuntimeAnnotationInfoBoxContainer } from "./RuntimeAnnotationInfoBoxContainer";
-type RuntimeAnnotationInfoBoxProps = {
-  pixelWidth?: number;
-};
+import type { RuntimeAnnotationInfoBoxLayoutProps } from "./annotationInfoBox.types";
 
 export const RuntimeAnnotationInfoBox = ({
   pixelWidth,
-}: RuntimeAnnotationInfoBoxProps) => {
-  const { registry, annotationEntries, nodes, selectedAnnotationId } =
-    useAnnotationsRuntime();
+  useControlLayout,
+  controlPosition,
+  controlOrder,
+  style,
+}: RuntimeAnnotationInfoBoxLayoutProps) => {
+  const {
+    registry,
+    annotationEntries,
+    nodes,
+    selectedAnnotationId,
+    setSelectedAnnotationId,
+  } = useAnnotationsRuntime();
 
   const slots = useMemo(() => {
     if (!selectedAnnotationId) {
@@ -36,14 +43,28 @@ export const RuntimeAnnotationInfoBox = ({
       annotationEntries,
       nodes,
       selectedAnnotationId,
+      setSelectedAnnotationId,
     });
-  }, [annotationEntries, nodes, registry, selectedAnnotationId]);
+  }, [
+    annotationEntries,
+    nodes,
+    registry,
+    selectedAnnotationId,
+    setSelectedAnnotationId,
+  ]);
 
   if (!slots) {
     return null;
   }
 
   return (
-    <RuntimeAnnotationInfoBoxContainer pixelWidth={pixelWidth} slots={slots} />
+    <RuntimeAnnotationInfoBoxContainer
+      pixelWidth={pixelWidth}
+      useControlLayout={useControlLayout}
+      controlPosition={controlPosition}
+      controlOrder={controlOrder}
+      style={style}
+      slots={slots}
+    />
   );
 };

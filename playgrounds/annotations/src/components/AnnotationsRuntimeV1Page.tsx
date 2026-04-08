@@ -15,7 +15,11 @@ import { LabelOverlayProvider } from "@carma-providers/label-overlay";
 import { type Scene } from "@carma-cesium";
 
 import type { PlaygroundRuntimePageProps } from "../playground.types";
-import { INFOBOX_WIDTH_PX, readInitialToolType } from "../playgroundConfig";
+import {
+  INFOBOX_WIDTH_PX,
+  PLAYGROUND_INFO_BOX_BOTTOM_OFFSET_PX,
+  readInitialToolType,
+} from "../playgroundConfig";
 import { CesiumNavigationOverlay } from "./CesiumNavigationOverlay";
 import { CesiumWidgetContainer } from "./CesiumWidgetContainer";
 import { PersistActiveToolMode } from "./PersistActiveToolMode";
@@ -52,7 +56,7 @@ const RuntimeInfoBox = () => (
   <div
     style={{
       position: "absolute",
-      bottom: 40,
+      bottom: PLAYGROUND_INFO_BOX_BOTTOM_OFFSET_PX,
       right: 12,
       zIndex: 1600,
       pointerEvents: "auto",

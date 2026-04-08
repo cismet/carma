@@ -25,6 +25,8 @@ export type RuntimeAnnotationEntry = {
   toolType: RuntimeMeasurementType;
   nodeIds: readonly string[];
   edgeIds: readonly string[];
+  displayName?: string;
+  labelAppearance?: RuntimeLabelAppearance;
   temporary?: boolean;
   closed?: boolean;
   areaSquareMeters?: number;
@@ -32,9 +34,20 @@ export type RuntimeAnnotationEntry = {
   bearingDeg?: number;
 };
 
+export type RuntimeLabelAppearance = {
+  fontSizePx?: number;
+  backgroundColor?: string;
+  textColor?: string;
+};
+
 export type RuntimeAddAnnotationOptions = Pick<
   RuntimeAnnotationEntry,
-  "closed" | "areaSquareMeters" | "verticalityDeg" | "bearingDeg"
+  | "closed"
+  | "areaSquareMeters"
+  | "verticalityDeg"
+  | "bearingDeg"
+  | "displayName"
+  | "labelAppearance"
 >;
 
 export type RuntimeMeasurement = RuntimeAnnotationEntry;
@@ -52,9 +65,12 @@ export type AnnotationInfoBoxStoreState = {
 };
 
 export type AnnotationDraftStoreState = {
-  polylinePreviewCoordinates: readonly RuntimeCoordinate[];
-  distancePreviewCoordinates: readonly RuntimeCoordinate[];
-  verticalAreaPreviewCoordinates: readonly RuntimeCoordinate[];
+  draftCoordinatesByToolType: Readonly<
+    Partial<Record<RuntimeToolId, readonly RuntimeCoordinate[]>>
+  >;
+  pendingAnnotationIdByToolType: Readonly<
+    Partial<Record<RuntimeToolId, string | null>>
+  >;
 };
 
 export type AnnotationSettingsStoreState = {

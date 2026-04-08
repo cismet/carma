@@ -92,13 +92,13 @@ export const createAnnotationToolPlugin = <
       capabilities.includes(
         ANNOTATION_TOOL_PLUGIN_CAPABILITIES.PREVIEW_PRIMITIVES
       )) &&
-    !normalizedPlugin.renderLayer
+    !normalizedPlugin.preview
   ) {
     normalizedPlugin = {
       ...normalizedPlugin,
-      renderLayer: {
-        build: () => {
-          warnFallback(plugin.id, "renderLayer", "build");
+      preview: {
+        createController: () => {
+          warnFallback(plugin.id, "preview", "createController");
           return null;
         },
       },

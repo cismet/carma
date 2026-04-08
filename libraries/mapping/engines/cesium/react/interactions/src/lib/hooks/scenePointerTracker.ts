@@ -25,11 +25,6 @@ type ScenePointerTracker = {
   removeListeners: () => void;
 };
 
-const INTERACTIVE_POINT_LABEL_SELECTOR =
-  '[data-point-label-interactive="true"]';
-const LABEL_OVERLAY_CONTAINER_SELECTOR =
-  '[data-label-overlay-container="true"]';
-
 const trackerByScene = new WeakMap<Scene, ScenePointerTracker>();
 
 const notifyTrackerListeners = (tracker: ScenePointerTracker) => {
@@ -117,7 +112,7 @@ const createScenePointerTracker = (scene: Scene): ScenePointerTracker => {
     tracker.canvasRectDirty = true;
   };
 
-  const handleWindowPointerMove = (event: PointerEvent) => {
+  const updateLatestPointerPosition = (event: PointerEvent) => {
     tracker.latestClientPosition = {
       x: event.clientX,
       y: event.clientY,
@@ -126,16 +121,22 @@ const createScenePointerTracker = (scene: Scene): ScenePointerTracker => {
     notifyTrackerListeners(tracker);
   };
 
-  const handleCanvasPointerLeave = (event: MouseEvent) => {
-    const relatedTarget = event.relatedTarget;
-    if (
-      relatedTarget instanceof Element &&
-      (relatedTarget.closest(INTERACTIVE_POINT_LABEL_SELECTOR) ||
-        relatedTarget.closest(LABEL_OVERLAY_CONTAINER_SELECTOR))
-    ) {
-      return;
-    }
+  const handleCanvasPointerMove = (event: PointerEvent) => {
+    updateLatestPointerPosition(event);
+  };
 
+  const handleCanvasPointerRawUpdate = (event: PointerEvent) => {
+    const coalescedEvents =
+      "getCoalescedEvents" in event ? event.getCoalescedEvents() : [];
+    const latestEvent =
+      coalescedEvents.length > 0
+        ? coalescedEvents[coalescedEvents.length - 1]
+        : event;
+
+    updateLatestPointerPosition(latestEvent);
+  };
+
+  const handleCanvasPointerLeave = () => {
     clearTrackerPointerPosition(tracker);
   };
 
@@ -154,11 +155,17 @@ const createScenePointerTracker = (scene: Scene): ScenePointerTracker => {
   };
 
   scene.canvas.addEventListener("mouseleave", handleCanvasPointerLeave);
-  scene.canvas.addEventListener("blur", handleCanvasBlur);
-  window.addEventListener("pointermove", handleWindowPointerMove, {
-    capture: true,
+  scene.canvas.addEventListener("pointermove", handleCanvasPointerMove, {
     passive: true,
   });
+  scene.canvas.addEventListener(
+    "pointerrawupdate",
+    handleCanvasPointerRawUpdate as EventListener,
+    {
+      passive: true,
+    }
+  );
+  scene.canvas.addEventListener("blur", handleCanvasBlur);
   window.addEventListener("blur", handleWindowBlur);
   window.addEventListener("resize", markCanvasRectDirty);
   window.addEventListener("scroll", markCanvasRectDirty, true);
@@ -166,8 +173,12 @@ const createScenePointerTracker = (scene: Scene): ScenePointerTracker => {
 
   tracker.removeListeners = () => {
     scene.canvas.removeEventListener("mouseleave", handleCanvasPointerLeave);
+    scene.canvas.removeEventListener("pointermove", handleCanvasPointerMove);
+    scene.canvas.removeEventListener(
+      "pointerrawupdate",
+      handleCanvasPointerRawUpdate as EventListener
+    );
     scene.canvas.removeEventListener("blur", handleCanvasBlur);
-    window.removeEventListener("pointermove", handleWindowPointerMove, true);
     window.removeEventListener("blur", handleWindowBlur);
     window.removeEventListener("resize", markCanvasRectDirty);
     window.removeEventListener("scroll", markCanvasRectDirty, true);

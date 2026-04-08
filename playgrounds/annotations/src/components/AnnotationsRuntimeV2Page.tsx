@@ -4,6 +4,7 @@ import { Tooltip } from "antd";
 
 import { CarmaResponsiveInfoBox } from "@carma-commons/ui/components";
 import {
+  ANNOTATION_TYPE_POINT,
   SELECT_TOOL_TYPE,
   isManagedAnnotationKeyboardEvent,
   listAnnotationToolShortcuts,
@@ -13,6 +14,9 @@ import {
 import {
   AnnotationsProvider,
   RuntimeAnnotationInfoBox,
+  distanceToolPlugin,
+  pointToolPlugin,
+  selectToolPlugin,
   useAnnotationsRuntime,
 } from "@carma-mapping/annotations/runtime-v2";
 import {
@@ -30,6 +34,10 @@ import { formatLatLonDegrees } from "@carma-units";
 import type { Degrees } from "@carma-units";
 
 import type { PlaygroundRuntimePageProps } from "../playground.types";
+import {
+  INFOBOX_WIDTH_PX,
+  PLAYGROUND_INFO_BOX_BOTTOM_OFFSET_PX,
+} from "../playgroundConfig";
 import { CesiumNavigationOverlay } from "./CesiumNavigationOverlay";
 import { CesiumWidgetContainer } from "./CesiumWidgetContainer";
 import { PlaygroundStatusBar } from "./PlaygroundStatusBar";
@@ -49,12 +57,25 @@ const renderShortcutBadges = (shortcuts: readonly string[]) => (
   </span>
 );
 
+const PLAYGROUND_ACTIVE_TOOL_PLUGINS = [
+  selectToolPlugin,
+  pointToolPlugin,
+  distanceToolPlugin,
+] as const;
+
+const selectionInfoBoxFloatingStyle = {
+  position: "absolute",
+  bottom: PLAYGROUND_INFO_BOX_BOTTOM_OFFSET_PX,
+  right: 12,
+  zIndex: 1600,
+  pointerEvents: "auto",
+} as const;
+
 const RuntimeToolbar = () => {
   const { registry, activeToolType, requestModeChange } =
     useAnnotationsRuntime();
-  const orderedToolTypes = registry.orderedDescriptors.map(
-    (descriptor) => descriptor.id
-  );
+  const visibleDescriptors = registry.orderedDescriptors;
+  const orderedToolTypes = visibleDescriptors.map((descriptor) => descriptor.id);
 
   useEffect(() => {
     const handleToolShortcutKeyDown = (event: KeyboardEvent) => {
@@ -100,7 +121,7 @@ const RuntimeToolbar = () => {
         }}
       >
         <AnnotationsToolbar>
-          {registry.orderedDescriptors.map((descriptor) => {
+          {visibleDescriptors.map((descriptor) => {
             const isActive = descriptor.id === activeToolType;
             const showSeparator = descriptor.id === SELECT_TOOL_TYPE;
             const shortcuts = listAnnotationToolShortcuts(
@@ -142,6 +163,23 @@ const RuntimeToolbar = () => {
       </div>
     </div>
   );
+};
+
+const RuntimeToolbarWhenModeSettled = ({
+  expectedToolType,
+}: {
+  expectedToolType: string;
+}) => {
+  const { activeToolType } = useAnnotationsRuntime();
+  const [toolbarReady, setToolbarReady] = useState(false);
+
+  useEffect(() => {
+    if (activeToolType === expectedToolType) {
+      setToolbarReady(true);
+    }
+  }, [activeToolType, expectedToolType]);
+
+  return toolbarReady ? <RuntimeToolbar /> : null;
 };
 
 const RuntimeStatusBar = ({
@@ -190,7 +228,13 @@ const RuntimeSelectionInfoBox = () => {
   const selectedPlugin =
     registry.getPlugin(selectedAnnotation.toolType) ?? null;
   if (selectedPlugin?.infoBox?.getSlots) {
-    return <RuntimeAnnotationInfoBox pixelWidth={350} />;
+    return (
+      <RuntimeAnnotationInfoBox
+        pixelWidth={INFOBOX_WIDTH_PX}
+        useControlLayout={false}
+        style={selectionInfoBoxFloatingStyle}
+      />
+    );
   }
 
   const nodeById = new Map(nodes.map((node) => [node.id, node] as const));
@@ -204,15 +248,11 @@ const RuntimeSelectionInfoBox = () => {
     <div
       data-test-id="annotation-info-box"
       style={{
-        position: "absolute",
-        bottom: 40,
-        right: 12,
-        zIndex: 1600,
-        pointerEvents: "auto",
+        ...selectionInfoBoxFloatingStyle,
       }}
     >
       <CarmaResponsiveInfoBox
-        width={350}
+        width={INFOBOX_WIDTH_PX}
         onPanelClick={(event) => event.stopPropagation()}
         collapsible={true}
         useControlLayout={false}
@@ -270,6 +310,7 @@ export const AnnotationsRuntimeV2Page = ({
   const [scene, setScene] = useState<Scene | null>(null);
   const [pointQueryTarget, setPointQueryTarget] =
     useState<Cesium3DTileset | null>(null);
+  const [initialToolType] = useState(() => ANNOTATION_TYPE_POINT);
   const overlayHost = useCesiumLabelOverlayHost({
     scene,
     containerRef: rootRef,
@@ -287,13 +328,16 @@ export const AnnotationsRuntimeV2Page = ({
           <AnnotationsProvider
             scene={scene}
             pointQueryTarget={pointQueryTarget}
-            initialActiveToolType="polyline"
+            initialActiveToolType={initialToolType}
+            plugins={PLAYGROUND_ACTIVE_TOOL_PLUGINS}
           >
             <CesiumNavigationOverlay
               scene={scene}
               initialHomeCameraState={homeCameraState}
             />
-            <RuntimeToolbar />
+            <RuntimeToolbarWhenModeSettled
+              expectedToolType={initialToolType}
+            />
             <RuntimeStatusBar
               runtimeVersion={runtimeVersion}
               onRuntimeVersionChange={onRuntimeVersionChange}

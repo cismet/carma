@@ -23,7 +23,6 @@ type BuildPolylineToolRenderModelsArgs = {
   getMeasurementLabel: (measurementIndex: number) => string;
   nodes: readonly RuntimeNode[];
   measurements: readonly RuntimeMeasurement[];
-  previewCoordinates: readonly RuntimeCoordinate[];
   selectedMeasurementId: string | null;
   onMeasurementSelect?: (measurementId: string) => void;
   onNodeLongPress?: (nodeId: string, measurementId: string) => void;
@@ -36,7 +35,6 @@ export const buildPolylineToolRenderModels = ({
   getMeasurementLabel,
   nodes,
   measurements,
-  previewCoordinates,
   selectedMeasurementId,
   onMeasurementSelect,
   onNodeLongPress,
@@ -90,24 +88,6 @@ export const buildPolylineToolRenderModels = ({
     })
   );
 
-  const previewEdges =
-    previewCoordinates.length >= 2
-      ? [
-          {
-            id: "polyline-preview-edge",
-            coordinates: previewCoordinates,
-            ...visuals.previewEdge,
-            dashed: true,
-          },
-        ]
-      : [];
-
-  const previewPoints = previewCoordinates.map((coordinate, index) => ({
-    id: `polyline-preview-node-${index}`,
-    coordinate,
-    ...visuals.previewPoint,
-  }));
-
   const committedPointLabels = committedPolylines.flatMap(
     (measurement, measurementIndex) => {
       const badgeText = getMeasurementLabel(measurementIndex + 1);
@@ -118,12 +98,18 @@ export const buildPolylineToolRenderModels = ({
           return [];
         }
 
+        const pointVisuals =
+          measurement.id === selectedMeasurementId
+            ? visuals.selectedPoint
+            : visuals.point;
+
         return [
           {
             id: `${measurement.id}-label-${index}`,
             measurementId: measurement.id,
             nodeId,
             coordinate,
+            markerPixelSize: pointVisuals.pixelSize,
             content: badgeText,
             markerContent: badgeText,
             markerBackgroundColor: badgeStyle.backgroundColor,
@@ -142,8 +128,8 @@ export const buildPolylineToolRenderModels = ({
   );
 
   return {
-    points: [...committedPoints, ...previewPoints],
-    edges: [...committedEdges, ...previewEdges],
+    points: committedPoints,
+    edges: committedEdges,
     pointLabels: committedPointLabels,
   };
 };

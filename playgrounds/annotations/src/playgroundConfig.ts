@@ -12,6 +12,7 @@ import {
 
 import type { PlaygroundRuntime } from "./playground.types";
 export const INFOBOX_WIDTH_PX = 430;
+export const PLAYGROUND_INFO_BOX_BOTTOM_OFFSET_PX = 48;
 export const ACTIVE_TOOL_STORAGE_KEY = "annotations-playground-active-tool.v1";
 export const RUNTIME_VERSION_STORAGE_KEY =
   "annotations-playground-runtime-version.v1";
@@ -51,7 +52,7 @@ const VALID_PLAYGROUND_RUNTIMES = new Set<PlaygroundRuntime>(["v1", "v2"]);
 
 export const readInitialRuntimeVersion = (): PlaygroundRuntime => {
   if (typeof window === "undefined") {
-    return "v1";
+    return "v2";
   }
 
   try {
@@ -68,7 +69,7 @@ export const readInitialRuntimeVersion = (): PlaygroundRuntime => {
     // ignore storage read errors
   }
 
-  return "v1";
+  return "v2";
 };
 
 export const persistRuntimeVersion = (runtimeVersion: PlaygroundRuntime) => {

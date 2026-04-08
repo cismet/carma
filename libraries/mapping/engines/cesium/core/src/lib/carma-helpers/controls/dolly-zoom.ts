@@ -2,6 +2,7 @@ import {
   readDollyCompensatedRange,
   interpolateDollyCompensatedRange,
   readLongerEdgeFovFromIntrinsics,
+  readMetersPerCssPixel,
 } from "@carma-commons/camera/model";
 import {
   Cartesian3,
@@ -11,9 +12,10 @@ import {
   type Scene,
 } from "@carma-cesium";
 import {
-  clamp,
+  lerp,
   readTimedInterpolationEasedProgress,
 } from "@carma-commons/math";
+import type { Easing as EasingFunction } from "@carma-commons/math";
 import type { Radians } from "@carma-units";
 
 import { writePerspectiveFrustumVerticalFov } from "../camera";
@@ -33,10 +35,15 @@ import {
   readCesiumSceneZoomState,
   readCesiumSceneZoomTargetFov,
 } from "./scene-zoom-state";
+import { readCesiumSceneVerticalFovForMetersPerCssPixel } from "./fov-resolution";
 import {
   CESIUM_PRE_RENDER_STOP_REASONS,
   startCesiumPreRenderTimeline,
 } from "./scene-runtime";
+import {
+  clampCesiumVerticalFov,
+  readCesiumVerticalFovBounds,
+} from "./fov-bounds";
 import type { CesiumTransitionLifecycle } from "./transition-lifecycle";
 const DOLLY_ZOOM_RENDER_SCALE_ACTIVITY_KEY = "dolly-zoom";
 
@@ -53,6 +60,9 @@ type ActiveCesiumSceneDollyZoom = {
   startRangeM: number;
   targetRangeM: number;
   minimumRangeM: number;
+  startMetersPerCssPixel: number | null;
+  targetMetersPerCssPixel: number | null;
+  targetMetersPerCssPixelFitMode: "longer-edge" | "shorter-edge";
   curve: TimedCesiumFovCurve;
 } & CesiumTransitionLifecycle & {
     settled: boolean;
@@ -146,6 +156,9 @@ export const animateCesiumSceneDollyZoom = (
     minimumFovRad,
     maximumFovRad,
     minimumRangeM = 0.01,
+    targetMetersPerCssPixel,
+    targetMetersPerCssPixelFitMode = "longer-edge",
+    easing,
     onStarted,
     onCompleted,
     onCanceled,
@@ -159,6 +172,9 @@ export const animateCesiumSceneDollyZoom = (
     minimumFovRad?: number;
     maximumFovRad?: number;
     minimumRangeM?: number;
+    targetMetersPerCssPixel?: number;
+    targetMetersPerCssPixelFitMode?: "longer-edge" | "shorter-edge";
+    easing?: EasingFunction;
   }
 ): boolean => {
   if (!(scene.camera.frustum instanceof PerspectiveFrustum)) {
@@ -176,24 +192,26 @@ export const animateCesiumSceneDollyZoom = (
   const resolvedTargetPoint = currentState.targetPoint;
   const startFovRad = currentState.currentVerticalFovRad;
   const startRangeM = currentState.currentRangeM;
+  const startMetersPerCssPixel = readMetersPerCssPixel({
+    rangeM: startRangeM,
+    fovRad: currentState.currentLongerEdgeFovRad,
+    viewportWidthPx: scene.canvas?.clientWidth,
+    viewportHeightPx: scene.canvas?.clientHeight,
+  });
+  const verticalFovBounds = readCesiumVerticalFovBounds({
+    minimumFovRad,
+    maximumFovRad,
+  });
 
   const resolvedTargetFovRad =
     typeof targetFovRad === "number" && Number.isFinite(targetFovRad)
-      ? typeof minimumFovRad === "number" &&
-        Number.isFinite(minimumFovRad) &&
-        typeof maximumFovRad === "number" &&
-        Number.isFinite(maximumFovRad)
-        ? clamp(targetFovRad, minimumFovRad, maximumFovRad)
-        : targetFovRad
+      ? clampCesiumVerticalFov(targetFovRad, verticalFovBounds)
       : typeof targetRangeM === "number" &&
         Number.isFinite(targetRangeM) &&
-        typeof minimumFovRad === "number" &&
-        Number.isFinite(minimumFovRad) &&
-        typeof maximumFovRad === "number" &&
-        Number.isFinite(maximumFovRad)
+        verticalFovBounds
       ? readCesiumSceneZoomTargetFov(scene, targetRangeM, {
-          minimumFovRad,
-          maximumFovRad,
+          minimumFovRad: verticalFovBounds.minimumFovRad,
+          maximumFovRad: verticalFovBounds.maximumFovRad,
         })
       : null;
 
@@ -242,10 +260,19 @@ export const animateCesiumSceneDollyZoom = (
     startRangeM,
     targetRangeM: resolvedTargetRangeM,
     minimumRangeM,
+    startMetersPerCssPixel,
+    targetMetersPerCssPixel:
+      typeof targetMetersPerCssPixel === "number" &&
+      Number.isFinite(targetMetersPerCssPixel) &&
+      targetMetersPerCssPixel > 0
+        ? targetMetersPerCssPixel
+        : null,
+    targetMetersPerCssPixelFitMode,
     curve: buildTimedCesiumFovCurve({
       scene,
       startedAtMs: nowMs,
       durationMs: resolvedDurationMs,
+      easing,
       startFovRad,
       targetFovRad: resolvedTargetFovRad,
     }),
@@ -257,12 +284,6 @@ export const animateCesiumSceneDollyZoom = (
   };
 
   const applyState = (frameNowMs: number, easedProgress: number) => {
-    const nextVerticalFov =
-      readTimedCesiumVerticalFov({
-        scene,
-        curve: nextAnimation.curve,
-        nowMs: frameNowMs,
-      }) ?? nextAnimation.curve.targetFovRad;
     const compensatedStartFov =
       typeof nextAnimation.curve.startLongerEdgeFovRad === "number"
         ? nextAnimation.curve.startLongerEdgeFovRad
@@ -272,15 +293,43 @@ export const animateCesiumSceneDollyZoom = (
         ? nextAnimation.curve.targetLongerEdgeFovRad
         : nextAnimation.curve.targetFovRad;
     const nextRangeM =
-      interpolateDollyCompensatedRange({
-        startRangeM: nextAnimation.startRangeM,
-        startFovRad: compensatedStartFov,
-        targetFovRad: compensatedTargetFov,
-        progress: easedProgress,
-        minRangeM: nextAnimation.minimumRangeM,
-        viewportWidthPx: scene.canvas?.clientWidth,
-        viewportHeightPx: scene.canvas?.clientHeight,
-      }) ?? nextAnimation.targetRangeM;
+      typeof nextAnimation.startMetersPerCssPixel === "number" &&
+      typeof nextAnimation.targetMetersPerCssPixel === "number"
+        ? lerp(
+            nextAnimation.startRangeM,
+            nextAnimation.targetRangeM,
+            easedProgress
+          )
+        : interpolateDollyCompensatedRange({
+            startRangeM: nextAnimation.startRangeM,
+            startFovRad: compensatedStartFov,
+            targetFovRad: compensatedTargetFov,
+            progress: easedProgress,
+            minRangeM: nextAnimation.minimumRangeM,
+            viewportWidthPx: scene.canvas?.clientWidth,
+            viewportHeightPx: scene.canvas?.clientHeight,
+          }) ?? nextAnimation.targetRangeM;
+    const nextResolutionDrivenVerticalFov =
+      typeof nextAnimation.startMetersPerCssPixel === "number" &&
+      typeof nextAnimation.targetMetersPerCssPixel === "number"
+        ? readCesiumSceneVerticalFovForMetersPerCssPixel(scene, {
+            metersPerCssPixel:
+              nextAnimation.startMetersPerCssPixel +
+              (nextAnimation.targetMetersPerCssPixel -
+                nextAnimation.startMetersPerCssPixel) *
+                easedProgress,
+            rangeM: nextRangeM,
+            fitMode: nextAnimation.targetMetersPerCssPixelFitMode,
+          })
+        : null;
+    const nextVerticalFov =
+      nextResolutionDrivenVerticalFov ??
+      readTimedCesiumVerticalFov({
+        scene,
+        curve: nextAnimation.curve,
+        nowMs: frameNowMs,
+      }) ??
+      nextAnimation.curve.targetFovRad;
     const nextHeadingRad =
       nextAnimation.startHeadingRad +
       (nextAnimation.targetHeadingRad - nextAnimation.startHeadingRad) *
@@ -302,7 +351,10 @@ export const animateCesiumSceneDollyZoom = (
     }
 
     if (scene.camera.frustum instanceof PerspectiveFrustum) {
-      writePerspectiveFrustumVerticalFov(scene.camera.frustum, nextVerticalFov);
+      writePerspectiveFrustumVerticalFov(
+        scene.camera.frustum,
+        clampCesiumVerticalFov(nextVerticalFov, verticalFovBounds)
+      );
     }
   };
 
@@ -374,7 +426,7 @@ export const animateCesiumSceneDollyZoom = (
           startedAtMs: nextAnimation.startedAtMs,
           durationMs: nextAnimation.durationMs,
           nowMs,
-          easing: DEFAULT_CESIUM_ZOOM_EASING,
+          easing: nextAnimation.curve.easing ?? DEFAULT_CESIUM_ZOOM_EASING,
         }) ?? 1;
 
       applyState(nowMs, easedProgress);

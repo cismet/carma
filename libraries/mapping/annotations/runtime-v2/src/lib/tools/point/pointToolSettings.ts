@@ -13,21 +13,22 @@ export type PointToolSettings = {
 };
 
 const defaults = runtimeMeasurementVisualDefaults;
+const TRANSPARENT_MARKER_FILL = "rgba(0, 0, 0, 0)";
 
-export const createPointToolSettings = (badgeStyle: {
+export const createPointToolSettings = (_badgeStyle: {
   backgroundColor: string;
   textColor: string;
 }): PointToolSettings => ({
   visuals: {
     point: {
       pixelSize: defaults.sizes.pointPixelSize,
-      fill: badgeStyle.backgroundColor,
+      fill: TRANSPARENT_MARKER_FILL,
       outline: defaults.colors.surface,
       outlineWidth: defaults.sizes.pointOutlineWidth,
     },
     selectedPoint: {
       pixelSize: defaults.sizes.selectedPointPixelSize,
-      fill: badgeStyle.backgroundColor,
+      fill: TRANSPARENT_MARKER_FILL,
       outline: defaults.colors.surface,
       outlineWidth: defaults.sizes.pointOutlineWidth,
     },

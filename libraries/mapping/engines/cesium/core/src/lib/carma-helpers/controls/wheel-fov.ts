@@ -3,8 +3,12 @@ import {
   readVerticalFovFromLongerEdge,
   readZoomStepScale,
 } from "@carma-commons/camera/model";
-import { clamp } from "@carma-commons/math";
 import type { Radians } from "@carma-units";
+
+import {
+  clampCesiumVerticalFov,
+  readCesiumVerticalFovBounds,
+} from "./fov-bounds";
 
 export const computeNextCesiumWheelFov = (
   currentFovRad: number,
@@ -23,6 +27,15 @@ export const computeNextCesiumWheelFov = (
     viewportHeightPx?: number;
   }
 ): Radians | null => {
+  const verticalFovBounds = readCesiumVerticalFovBounds({
+    minimumFovRad,
+    maximumFovRad,
+  });
+
+  if (!verticalFovBounds) {
+    return null;
+  }
+
   const currentLongerEdgeFov = readLongerEdgeFovFromIntrinsics(
     {
       fov: currentFovRad as Radians,
@@ -66,6 +79,6 @@ export const computeNextCesiumWheelFov = (
 
   return typeof targetVerticalFov === "number" &&
     Number.isFinite(targetVerticalFov)
-    ? (clamp(targetVerticalFov, minimumFovRad, maximumFovRad) as Radians)
+    ? (clampCesiumVerticalFov(targetVerticalFov, verticalFovBounds) as Radians)
     : null;
 };

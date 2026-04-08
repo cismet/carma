@@ -13,9 +13,11 @@ import {
   NODE_CHAIN_MEASUREMENT_PLUGIN_CAPABILITIES,
 } from "../pluginFactories";
 import {
-  clearVerticalAreaPreviewCoordinates,
-  setVerticalAreaPreviewCoordinates,
+  clearDraftCoordinatesByToolType,
+  getDraftCoordinatesForTool,
+  setDraftCoordinatesByToolType,
 } from "../../store";
+import { createVerticalAreaPreviewController } from "../../interaction/createVerticalAreaPreviewController";
 import {
   appendVerticalAreaPreviewPoint,
   commitVerticalAreaMeasurement,
@@ -65,27 +67,28 @@ export const verticalAreaToolPlugin = createMeasurementToolPlugin({
       requestFinish: () => {
         const nextMeasurement = commitVerticalAreaMeasurement(
           toolType,
-          getState().draftState.verticalAreaPreviewCoordinates,
+          getDraftCoordinatesForTool(getState().draftState, toolType),
           {
             addAnnotation,
           }
         );
 
-        dispatch(clearVerticalAreaPreviewCoordinates());
+        dispatch(clearDraftCoordinatesByToolType(toolType));
         return Boolean(nextMeasurement);
       },
       discardDraft: () => {
-        dispatch(clearVerticalAreaPreviewCoordinates());
+        dispatch(clearDraftCoordinatesByToolType(toolType));
       },
       onNodeCreated: (coordinate) => {
         const nextCoordinates = appendVerticalAreaPreviewPoint(
-          getState().draftState.verticalAreaPreviewCoordinates,
+          getDraftCoordinatesForTool(getState().draftState, toolType),
           coordinate
         );
 
         if (nextCoordinates.length < 2) {
           dispatch(
-            setVerticalAreaPreviewCoordinates({
+            setDraftCoordinatesByToolType({
+              toolType,
               coordinates: nextCoordinates,
             })
           );
@@ -95,7 +98,7 @@ export const verticalAreaToolPlugin = createMeasurementToolPlugin({
         commitVerticalAreaMeasurement(toolType, nextCoordinates, {
           addAnnotation,
         });
-        dispatch(clearVerticalAreaPreviewCoordinates());
+        dispatch(clearDraftCoordinatesByToolType(toolType));
       },
     }),
   },
@@ -112,6 +115,9 @@ export const verticalAreaToolPlugin = createMeasurementToolPlugin({
       );
     },
   },
+  preview: {
+    createController: (context) => createVerticalAreaPreviewController(context),
+  },
   keyboard: {
     onKeyDown: ({ event, activeToolSession, sessionContext }) => {
       const action = resolveVerticalAreaToolKeyAction(event);
@@ -127,10 +133,13 @@ export const verticalAreaToolPlugin = createMeasurementToolPlugin({
 
       if (action === "undoLastPoint") {
         sessionContext.dispatch(
-          setVerticalAreaPreviewCoordinates({
+          setDraftCoordinatesByToolType({
+            toolType,
             coordinates: undoVerticalAreaPreviewPoint(
-              sessionContext.getState().draftState
-                .verticalAreaPreviewCoordinates
+              getDraftCoordinatesForTool(
+                sessionContext.getState().draftState,
+                toolType
+              )
             ),
           })
         );
@@ -143,14 +152,13 @@ export const verticalAreaToolPlugin = createMeasurementToolPlugin({
   },
   renderLayer: {
     build: ({
-      state,
       nodes,
       annotationEntries,
       selectedAnnotationId,
       setSelectedAnnotationId,
       onNodeLongPress,
     }) => {
-      const { points, edges, pointLabels } = buildVerticalAreaToolRenderModels(
+      const { points, edges, polygonFills, pointLabels } = buildVerticalAreaToolRenderModels(
         toolType,
         nodes,
         annotationEntries,
@@ -159,7 +167,6 @@ export const verticalAreaToolPlugin = createMeasurementToolPlugin({
           badgeStyle,
           getMeasurementLabel: (counter) =>
             formatMeasurementShortLabelToken(toolType, counter),
-          previewCoordinates: state.draftState.verticalAreaPreviewCoordinates,
           selectedMeasurementId: selectedAnnotationId,
           onMeasurementSelect: setSelectedAnnotationId,
           onNodeLongPress,
@@ -169,6 +176,7 @@ export const verticalAreaToolPlugin = createMeasurementToolPlugin({
       return {
         points,
         edges,
+        polygonFills,
         pointLabels,
       };
     },

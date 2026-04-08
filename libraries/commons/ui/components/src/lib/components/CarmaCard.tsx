@@ -1,7 +1,10 @@
 import React from "react";
-import Icon from "react-cismap/commons/Icon";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faGripVertical } from "@fortawesome/free-solid-svg-icons";
+import {
+  faChevronCircleDown,
+  faChevronCircleUp,
+  faGripVertical,
+} from "@fortawesome/free-solid-svg-icons";
 
 const parseCssRgb = (colorValue: string): [number, number, number] | null => {
   const match = colorValue.match(/rgba?\(([^)]+)\)/i);
@@ -81,19 +84,19 @@ const CarmaCard = ({
   onClick,
   upButton = (
     <h4 style={{ margin: 2, fontSize: "18px" }}>
-      <Icon
+      <FontAwesomeIcon
+        icon={faChevronCircleUp}
         title="kompakte Info-Box"
         style={{ color: "#7e7e7e" }}
-        name="chevron-circle-up"
       />
     </h4>
   ),
   downButton = (
     <h4 style={{ margin: 2, fontSize: "18px" }}>
-      <Icon
+      <FontAwesomeIcon
+        icon={faChevronCircleDown}
         title="vollständige info-Box"
         style={{ color: "#7e7e7e" }}
-        name="chevron-circle-down"
       />
     </h4>
   ),

@@ -152,12 +152,24 @@ export const useCesiumPointQuery = (
     let latestClickPosition: Cartesian2 | null = null;
     let lastProcessedPointerPosition: Cartesian2 | null = null;
     let retainedHoverSample: RetainedHoverSample | null = null;
+    let forceHoverRefresh = false;
+
+    const requestForcedHoverRefresh = () => {
+      if (!scene || scene.isDestroyed()) {
+        return;
+      }
+
+      forceHoverRefresh = true;
+      pointerRenderQueued = true;
+      scene.requestRender();
+    };
 
     const flushPointerMove = () => {
       if (!scene || scene.isDestroyed()) {
         lastProcessedPointerPosition = null;
         retainedHoverSample = null;
         pointerRenderQueued = false;
+        forceHoverRefresh = false;
         return;
       }
       pointerRenderQueued = false;
@@ -170,6 +182,7 @@ export const useCesiumPointQuery = (
 
         lastProcessedPointerPosition = null;
         retainedHoverSample = null;
+        forceHoverRefresh = false;
         callbacksRef.current.onScreenPositionChange?.(null);
         callbacksRef.current.onPointerMove?.(
           null,
@@ -180,6 +193,7 @@ export const useCesiumPointQuery = (
       }
 
       if (
+        !forceHoverRefresh &&
         isSameScreenPosition(
           lastProcessedPointerPosition,
           currentPointerPosition
@@ -187,6 +201,8 @@ export const useCesiumPointQuery = (
       ) {
         return;
       }
+
+      forceHoverRefresh = false;
 
       lastProcessedPointerPosition = Cartesian2.clone(
         currentPointerPosition,
@@ -196,31 +212,37 @@ export const useCesiumPointQuery = (
 
       const resolvedPick = resolvePreferredPointQueryPick(
         scene,
-        currentPointerPosition,
-        {
-          resolveGlobePosition: false,
-        }
+        currentPointerPosition
       );
-      const pickedPositionECEF = resolvedPick.pickedPositionECEF;
-      if (pickedPositionECEF) {
-        const sampledSurfaceNormal = samplePreferredPointQuerySurfaceNormal(
-          scene,
-          currentPointerPosition,
-          pickedPositionECEF,
-          {
-            previousSurfaceNormalECEF:
-              retainedHoverSample?.surfaceNormalECEF ?? null,
-          }
-        );
+      const authoritativePickedPositionECEF =
+        resolvedPick.pickedPositionECEF;
+      // Hover previews still need a usable position when the dedicated
+      // point-query tileset misses, but we only trust tileset hits for
+      // surface normals that drive tangent-plane visuals.
+      const hoverPositionECEF =
+        authoritativePickedPositionECEF ?? resolvedPick.globePositionECEF;
+
+      if (hoverPositionECEF) {
+        const sampledSurfaceNormal = authoritativePickedPositionECEF
+          ? samplePreferredPointQuerySurfaceNormal(
+              scene,
+              currentPointerPosition,
+              authoritativePickedPositionECEF,
+              {
+                previousSurfaceNormalECEF:
+                  retainedHoverSample?.surfaceNormalECEF ?? null,
+              }
+            )
+          : null;
         retainedHoverSample = {
-          positionECEF: Cartesian3.clone(pickedPositionECEF, new Cartesian3()),
+          positionECEF: Cartesian3.clone(hoverPositionECEF, new Cartesian3()),
           surfaceNormalECEF: sampledSurfaceNormal
             ? Cartesian3.clone(sampledSurfaceNormal, new Cartesian3())
             : null,
           missedFrameCount: 0,
         };
         callbacksRef.current.onPointerMove?.(
-          pickedPositionECEF,
+          hoverPositionECEF,
           currentPointerPosition,
           sampledSurfaceNormal
         );
@@ -278,12 +300,12 @@ export const useCesiumPointQuery = (
           screenPosition
         )
       ) {
-        scene.requestRender();
+        requestForcedHoverRefresh();
         return;
       }
 
       if (!pickedPosition) {
-        scene.requestRender();
+        requestForcedHoverRefresh();
         return;
       }
 
@@ -293,7 +315,7 @@ export const useCesiumPointQuery = (
         globePositionECEF: resolvedPick.globePositionECEF,
       });
 
-      scene.requestRender();
+      requestForcedHoverRefresh();
     };
 
     handler.setInputAction((event: { position: Cartesian2 }) => {
@@ -329,6 +351,7 @@ export const useCesiumPointQuery = (
         clickTimeoutId = undefined;
       }
       callbacksRef.current.onLineFinish?.();
+      requestForcedHoverRefresh();
     }, ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
 
     return () => {

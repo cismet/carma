@@ -29,6 +29,8 @@ export function useObliqueInitializer(debug = false) {
     fixedPitch,
     minFov,
     maxFov,
+    targetEnterObliqueModeFov,
+    animations,
     restoreFovOnLeave,
     setSuspendSelectionSearch,
   } = useOblique();
@@ -127,6 +129,11 @@ export function useObliqueInitializer(debug = false) {
               setSuspendSelectionSearch(false);
               enableCameraForceOblique();
               requestRender({ delay: 50, repeat: 2 });
+            },
+            {
+              duration: animations.enterObliqueMode?.duration,
+              easingFunction: animations.enterObliqueMode?.easingFunction,
+              targetEnterObliqueModeFov,
             }
           );
         }
@@ -160,6 +167,8 @@ export function useObliqueInitializer(debug = false) {
     fixedHeight,
     minFov,
     maxFov,
+    targetEnterObliqueModeFov,
+    animations,
     restoreFovOnLeave,
     setWheelZoomEnabled,
     enableCameraForceOblique,

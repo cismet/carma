@@ -2,6 +2,11 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Cartesian3, Color, Primitive } from "@carma-cesium";
 import {
+  getCesiumScenePointerScreenPosition,
+  registerCesiumScenePointerTracker,
+  subscribeCesiumScenePointerClientPosition,
+} from "@carma-mapping/engines/cesium/react/interactions";
+import {
   GUIDE_NORMAL_EPSILON_SQUARED,
   createOrientedDiscModelMatrix,
   isValidScene,
@@ -20,7 +25,13 @@ import {
 import type { RuntimeCoordinate } from "../store";
 import type { RuntimeScene } from "../types/runtimeScene.types";
 import { pointPreviewRingVisualDefaults } from "../config/pointPreviewVisualDefaults";
+import {
+  isPointQueryPreviewDiscPlaneOffsetPlacementMode,
+  POINT_QUERY_PREVIEW_DISC_PLACEMENT_MODES,
+  type PointQueryPreviewDiscPlacementMode,
+} from "./pointQueryPreviewDiscPlacementMode";
 import { resolvePointPreviewDiscRadius } from "./resolvePointPreviewDiscRadius";
+import { resolveTangentDiscPlaneReprojectedWorldPosition } from "./tangentDiscReprojection.shared";
 
 type PreviewRingQueuedInput = {
   version: number;
@@ -34,12 +45,16 @@ export type PointPreviewRingIndicatorSample = {
 type PointPreviewRingIndicatorOptions = {
   radius: number;
   enabled?: boolean;
+  placementMode?: PointQueryPreviewDiscPlacementMode;
   color?: string;
   opacity?: number;
   materialPreset?: RingMaterialPreset;
   innerHoleRadiusRatio?: number;
   scalingMode?: "screen" | "world";
   targetScreenRadiusCssPx?: number;
+  tangentDiscVisualizerTrailSampleCount?: number;
+  tangentDiscVisualizerSmoothingWindowMs?: number;
+  tangentDiscVisualizerWeightDecayGamma?: number;
 };
 
 type PointPreviewRingIndicatorApi = {
@@ -52,12 +67,18 @@ export const usePointPreviewRingIndicator = (
   {
     radius,
     enabled = true,
+    placementMode =
+      POINT_QUERY_PREVIEW_DISC_PLACEMENT_MODES.CAMERA_PLANE_REPROJECT,
     color,
     opacity,
     materialPreset,
     innerHoleRadiusRatio = pointPreviewRingVisualDefaults.innerHoleRadiusRatio,
     scalingMode = pointPreviewRingVisualDefaults.scalingMode,
     targetScreenRadiusCssPx = pointPreviewRingVisualDefaults.targetScreenRadiusCssPx,
+    tangentDiscVisualizerTrailSampleCount = pointPreviewRingVisualDefaults.smoothingSampleCount,
+    tangentDiscVisualizerSmoothingWindowMs =
+      pointPreviewRingVisualDefaults.smoothingWindowMs,
+    tangentDiscVisualizerWeightDecayGamma = pointPreviewRingVisualDefaults.smoothingWeightDecayGamma,
   }: PointPreviewRingIndicatorOptions
 ): PointPreviewRingIndicatorApi => {
   const previewRingRef = useRef<Primitive | null>(null);
@@ -66,6 +87,8 @@ export const usePointPreviewRingIndicator = (
   );
   const previewPointRef = useRef<Cartesian3 | null>(null);
   const previewSurfaceNormalRef = useRef<Cartesian3 | null>(null);
+  const latestTruePreviewPointRef = useRef<Cartesian3 | null>(null);
+  const latestTrueSurfaceNormalRef = useRef<Cartesian3 | null>(null);
   const previewInputVersionRef = useRef(0);
   const previewRingSamplesRef = useRef<PreviewRingSample[]>([]);
   const previewRingLastQueuedInputRef = useRef<PreviewRingQueuedInput | null>(
@@ -107,6 +130,38 @@ export const usePointPreviewRingIndicator = (
       previewRingRef.current = null;
       previewRingSamplesRef.current = [];
       previewRingLastQueuedInputRef.current = null;
+    };
+
+    const resolveDisplayedPreviewPoint = () => {
+      const latestTruePreviewPoint = latestTruePreviewPointRef.current;
+      if (!latestTruePreviewPoint) {
+        return null;
+      }
+
+      if (!isPointQueryPreviewDiscPlaneOffsetPlacementMode(placementMode)) {
+        return latestTruePreviewPoint;
+      }
+
+      const latestTrueSurfaceNormal = latestTrueSurfaceNormalRef.current;
+      if (!latestTrueSurfaceNormal) {
+        return latestTruePreviewPoint;
+      }
+
+      const pointerScreenPosition = getCesiumScenePointerScreenPosition(scene);
+      if (!pointerScreenPosition) {
+        return latestTruePreviewPoint;
+      }
+
+      return (
+        resolveTangentDiscPlaneReprojectedWorldPosition({
+          scene,
+          screenPosition: pointerScreenPosition,
+          tangentPlane: {
+            pointECEF: latestTruePreviewPoint,
+            normalECEF: latestTrueSurfaceNormal,
+          },
+        }) ?? latestTruePreviewPoint
+      );
     };
 
     const ensurePreviewRing = () => {
@@ -155,7 +210,7 @@ export const usePointPreviewRingIndicator = (
       pushPreviewRingSample({
         samples: previewRingSamplesRef.current,
         normal,
-        maxSampleCount: pointPreviewRingVisualDefaults.smoothingSampleCount,
+        maxSampleCount: tangentDiscVisualizerTrailSampleCount,
         timestampMs: performance.now(),
       });
     };
@@ -166,10 +221,17 @@ export const usePointPreviewRingIndicator = (
         fallbackNormal,
         result: averagedNormal,
         epsilonSquared: GUIDE_NORMAL_EPSILON_SQUARED,
-        maxSampleAgeMs: pointPreviewRingVisualDefaults.smoothingWindowMs,
+        maxSampleAgeMs: tangentDiscVisualizerSmoothingWindowMs,
+        weightDecayGamma: tangentDiscVisualizerWeightDecayGamma,
         nowMs: performance.now(),
       });
     };
+
+    const hasPendingPreviewSmoothing = (nowMs = performance.now()) =>
+      previewRingSamplesRef.current.length > 1 &&
+      previewRingSamplesRef.current.some(
+        (sample) => nowMs - sample.timestampMs < tangentDiscVisualizerSmoothingWindowMs
+      );
 
     if (!enabled) {
       clearPreviewRing();
@@ -184,15 +246,19 @@ export const usePointPreviewRingIndicator = (
         return;
       }
 
-      const center = previewPointRef.current;
+      const center = resolveDisplayedPreviewPoint();
       if (!center) {
         clearPreviewRing();
         return;
       }
+      previewPointRef.current = Cartesian3.clone(
+        center,
+        previewPointRef.current ?? new Cartesian3()
+      );
 
       const discNormal = resolveDiscNormal(
         center,
-        previewSurfaceNormalRef.current
+        latestTrueSurfaceNormalRef.current ?? previewSurfaceNormalRef.current
       );
       const sampledRadius = resolvePointPreviewDiscRadius({
         scene,
@@ -217,16 +283,38 @@ export const usePointPreviewRingIndicator = (
         sampledRadius,
         activeRing.modelMatrix
       );
+
+      if (hasPendingPreviewSmoothing()) {
+        scene.requestRender();
+      }
     };
 
     updatePreviewRingRef.current = updatePreviewRing;
     clearPreviewRingRef.current = clearPreviewRing;
+    const unregisterPointerTracker = registerCesiumScenePointerTracker(scene);
+    const unsubscribeClientPosition = subscribeCesiumScenePointerClientPosition(
+      scene,
+      () => {
+        if (
+          !enabled ||
+          !latestTruePreviewPointRef.current ||
+          !isPointQueryPreviewDiscPlaneOffsetPlacementMode(placementMode)
+        ) {
+          return;
+        }
+
+        updatePreviewRingRef.current();
+        scene.requestRender();
+      }
+    );
     updatePreviewRing();
 
     removePreviewRingPostRenderListenerRef.current =
       scene.postRender.addEventListener(updatePreviewRing);
     scene.requestRender();
     return () => {
+      unsubscribeClientPosition();
+      unregisterPointerTracker();
       updatePreviewRingRef.current = () => undefined;
       clearPreviewRingRef.current = () => undefined;
     };
@@ -238,6 +326,10 @@ export const usePointPreviewRingIndicator = (
     scene,
     scalingMode,
     targetScreenRadiusCssPx,
+    placementMode,
+    tangentDiscVisualizerTrailSampleCount,
+    tangentDiscVisualizerSmoothingWindowMs,
+    tangentDiscVisualizerWeightDecayGamma,
     previewRingColor,
   ]);
 
@@ -246,6 +338,8 @@ export const usePointPreviewRingIndicator = (
       if (!preview?.pointECEF) {
         previewPointRef.current = null;
         previewSurfaceNormalRef.current = null;
+        latestTruePreviewPointRef.current = null;
+        latestTrueSurfaceNormalRef.current = null;
         previewInputVersionRef.current += 1;
         clearPreviewRingRef.current();
         if (isValidScene(scene)) {
@@ -254,10 +348,20 @@ export const usePointPreviewRingIndicator = (
         return;
       }
 
+      latestTruePreviewPointRef.current = Cartesian3.clone(
+        preview.pointECEF,
+        latestTruePreviewPointRef.current ?? new Cartesian3()
+      );
       previewPointRef.current = Cartesian3.clone(
         preview.pointECEF,
         previewPointRef.current ?? new Cartesian3()
       );
+      latestTrueSurfaceNormalRef.current = preview.surfaceNormalECEF
+        ? Cartesian3.clone(
+            preview.surfaceNormalECEF,
+            latestTrueSurfaceNormalRef.current ?? new Cartesian3()
+          )
+        : null;
       previewSurfaceNormalRef.current = preview.surfaceNormalECEF
         ? Cartesian3.clone(
             preview.surfaceNormalECEF,
@@ -276,6 +380,8 @@ export const usePointPreviewRingIndicator = (
   const clearPreview = useCallback(() => {
     previewPointRef.current = null;
     previewSurfaceNormalRef.current = null;
+    latestTruePreviewPointRef.current = null;
+    latestTrueSurfaceNormalRef.current = null;
     previewInputVersionRef.current += 1;
     clearPreviewRingRef.current();
     if (isValidScene(scene)) {

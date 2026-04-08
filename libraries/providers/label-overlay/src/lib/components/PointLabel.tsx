@@ -526,6 +526,7 @@ export const PointLabel = React.memo(
 
     return (
       <div
+        data-point-label-root="true"
         style={{
           position: "relative",
           mixBlendMode: "exclusion",
@@ -611,6 +612,7 @@ export const PointLabel = React.memo(
               />
             ) : (
               <div
+                data-point-label-content-root="true"
                 data-point-label-interactive="true"
                 data-point-label-id={pointId}
                 style={{

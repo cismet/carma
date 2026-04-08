@@ -1,4 +1,5 @@
-import { Easing } from "@carma-commons/math";
+import { readHorizontalFovFromVertical } from "@carma-commons/camera/model";
+import { clamp, Easing } from "@carma-commons/math";
 import {
   Cartesian3,
   Cartographic,
@@ -12,6 +13,7 @@ import {
   animateCesiumSceneDollyZoom,
   pickSceneCenter,
 } from "@carma-mapping/engines/cesium/core";
+import type { Radians } from "@carma-units";
 import { DerivedExteriorOrientation } from "./transformExteriorOrientation";
 import type { AnimationConfig } from "../types";
 
@@ -23,6 +25,117 @@ const MAX_FLY_DURATION_MS = 2000; // ms
 const MIN_FLY_DURATION_MS = 50; // should be about a frame to avoid zero duration artifacts in calculations and code paths taken
 const DEFAULT_EASING_FUNCTION = Easing.LINEAR_NONE;
 const DYNAMIC_DISTANCE_TO_MS_FACTOR = 100;
+
+const readSceneAspectRatio = (scene: Scene): number | null => {
+  const widthPx = scene.canvas?.clientWidth;
+  const heightPx = scene.canvas?.clientHeight;
+
+  return typeof widthPx === "number" &&
+    Number.isFinite(widthPx) &&
+    widthPx > 0 &&
+    typeof heightPx === "number" &&
+    Number.isFinite(heightPx) &&
+    heightPx > 0
+    ? widthPx / heightPx
+    : null;
+};
+
+const readVerticalFovFromShorterEdgeFov = (
+  shorterEdgeFovRad: number,
+  aspectRatio: number
+): Radians | null => {
+  if (
+    !Number.isFinite(shorterEdgeFovRad) ||
+    shorterEdgeFovRad <= 0 ||
+    !Number.isFinite(aspectRatio) ||
+    aspectRatio <= 0
+  ) {
+    return null;
+  }
+
+  return aspectRatio >= 1
+    ? (shorterEdgeFovRad as Radians)
+    : ((2 * Math.atan(Math.tan(shorterEdgeFovRad * 0.5) / aspectRatio)) as Radians);
+};
+
+const readShorterEdgeFovFromVerticalFov = (
+  verticalFovRad: number,
+  aspectRatio: number
+): Radians | null => {
+  if (
+    !Number.isFinite(verticalFovRad) ||
+    verticalFovRad <= 0 ||
+    !Number.isFinite(aspectRatio) ||
+    aspectRatio <= 0
+  ) {
+    return null;
+  }
+
+  return aspectRatio >= 1
+    ? (verticalFovRad as Radians)
+    : readHorizontalFovFromVertical(verticalFovRad, aspectRatio) ?? null;
+};
+
+const readMetersPerCssPixelFromShorterEdgeFov = (
+  scene: Scene,
+  {
+    shorterEdgeFovRad,
+    rangeM,
+  }: {
+    shorterEdgeFovRad: number;
+    rangeM: number;
+  }
+) => {
+  const widthPx = scene.canvas?.clientWidth;
+  const heightPx = scene.canvas?.clientHeight;
+  const projectionCenterRadiusPx =
+    typeof widthPx === "number" &&
+    Number.isFinite(widthPx) &&
+    widthPx > 0 &&
+    typeof heightPx === "number" &&
+    Number.isFinite(heightPx) &&
+    heightPx > 0
+      ? Math.min(widthPx, heightPx) * 0.5
+      : null;
+
+  if (
+    projectionCenterRadiusPx === null ||
+    !Number.isFinite(rangeM) ||
+    rangeM <= 0 ||
+    !Number.isFinite(shorterEdgeFovRad) ||
+    shorterEdgeFovRad <= 0
+  ) {
+    return null;
+  }
+
+  const tanHalfShorterEdgeFov = Math.tan(shorterEdgeFovRad * 0.5);
+  if (
+    !Number.isFinite(tanHalfShorterEdgeFov) ||
+    Math.abs(tanHalfShorterEdgeFov) <= 1e-6
+  ) {
+    return null;
+  }
+
+  const metersPerCssPixel =
+    (rangeM * Math.abs(tanHalfShorterEdgeFov)) / projectionCenterRadiusPx;
+
+  return Number.isFinite(metersPerCssPixel) && metersPerCssPixel > 0
+    ? metersPerCssPixel
+    : null;
+};
+
+export type EnterObliqueModeOptions = {
+  duration?: number;
+  easingFunction?: AnimationConfig["easingFunction"];
+  targetEnterObliqueModeFov?: Radians;
+};
+
+const normalizeEnterObliqueModeOptions = (
+  durationOrOptions?: number | EnterObliqueModeOptions
+): EnterObliqueModeOptions =>
+  typeof durationOrOptions === "number"
+    ? { duration: durationOrOptions }
+    : durationOrOptions ?? {};
 
 /**
  * Computes and flies to an improved camera orientation based on image metadata
@@ -163,8 +276,10 @@ export const enterObliqueMode = (
   minimumFovRad: number,
   maximumFovRad: number,
   onComplete: () => void,
-  duration?: number
+  durationOrOptions?: number | EnterObliqueModeOptions
 ) => {
+  const { duration, easingFunction, targetEnterObliqueModeFov } =
+    normalizeEnterObliqueModeOptions(durationOrOptions);
   const center = pickSceneCenter(scene);
   if (!center) {
     // Terrain/tilesets may not be loaded yet - retry after a delay
@@ -212,16 +327,58 @@ export const enterObliqueMode = (
 
     const effectiveDurationMs =
       typeof duration === "number" && Number.isFinite(duration) && duration > 0
-        ? duration * 1000
+        ? duration
         : ENTER_DURATION;
+    const sceneAspectRatio = readSceneAspectRatio(scene);
+    const targetEnterObliqueModeShorterEdgeFov =
+      typeof targetEnterObliqueModeFov === "number" &&
+      Number.isFinite(targetEnterObliqueModeFov) &&
+      targetEnterObliqueModeFov > 0
+        ? (targetEnterObliqueModeFov as Radians)
+        : null;
+    const targetEnterObliqueModeVerticalFov =
+      targetEnterObliqueModeShorterEdgeFov !== null &&
+      sceneAspectRatio !== null
+        ? readVerticalFovFromShorterEdgeFov(
+            targetEnterObliqueModeShorterEdgeFov,
+            sceneAspectRatio
+          )
+        : null;
+    const clampedTargetEnterObliqueModeVerticalFov =
+      targetEnterObliqueModeVerticalFov !== null
+        ? (clamp(
+            targetEnterObliqueModeVerticalFov,
+            minimumFovRad,
+            maximumFovRad
+          ) as Radians)
+        : null;
+    const clampedTargetEnterObliqueModeShorterEdgeFov =
+      clampedTargetEnterObliqueModeVerticalFov !== null &&
+      sceneAspectRatio !== null
+        ? readShorterEdgeFovFromVerticalFov(
+            clampedTargetEnterObliqueModeVerticalFov,
+            sceneAspectRatio
+          )
+        : null;
+    const targetMetersPerCssPixel =
+      clampedTargetEnterObliqueModeShorterEdgeFov !== null
+        ? readMetersPerCssPixelFromShorterEdgeFov(scene, {
+            shorterEdgeFovRad: clampedTargetEnterObliqueModeShorterEdgeFov,
+            rangeM: targetRangeM,
+          })
+        : null;
 
     const didStart = animateCesiumSceneDollyZoom(scene, {
       targetPoint: flightCenter,
+      targetFovRad: clampedTargetEnterObliqueModeVerticalFov ?? undefined,
       targetRangeM,
+      targetMetersPerCssPixel,
+      targetMetersPerCssPixelFitMode: "shorter-edge",
       targetPitchRad: targetPitch,
       minimumFovRad,
       maximumFovRad,
       durationMs: effectiveDurationMs,
+      easing: easingFunction,
       onCompleted: onComplete,
       onCanceled: onComplete,
     });

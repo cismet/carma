@@ -66,6 +66,7 @@ export const PointLabelStem = (props: PointLabelStemProps) => {
 
   return (
     <div
+      data-point-label-stem="true"
       style={{
         position: "absolute",
         left: `${startPoint.x}px`,
@@ -77,6 +78,7 @@ export const PointLabelStem = (props: PointLabelStemProps) => {
       }}
     >
       <div
+        data-point-label-stem-line="true"
         style={{
           position: "absolute",
           left: "0px",

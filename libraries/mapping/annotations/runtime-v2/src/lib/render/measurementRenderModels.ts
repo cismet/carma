@@ -1,3 +1,9 @@
+import type { ReactNode } from "react";
+import type {
+  PointLabelAnchorKind,
+  PointLabelOcclusionMode,
+} from "@carma-providers/label-overlay";
+
 import type { RuntimeCoordinate } from "../store";
 
 export type RuntimePointMarkerRenderModel = {
@@ -17,15 +23,36 @@ export type RuntimeEdgeRenderModel = {
   dashed?: boolean;
 };
 
+export type RuntimePolygonFillRenderModel = {
+  id: string;
+  coordinates: readonly RuntimeCoordinate[];
+  fill: string;
+  placement?: "ground" | "coplanar";
+  selected?: boolean;
+};
+
 export type RuntimePointLabelRenderModel = {
   id: string;
   measurementId?: string;
   nodeId?: string;
   coordinate: RuntimeCoordinate;
-  content: string;
-  markerContent?: string;
+  markerPixelSize?: number;
+  anchorKind?: PointLabelAnchorKind;
+  occlusionMode?: PointLabelOcclusionMode;
+  content: ReactNode;
+  markerContent?: ReactNode;
+  compactContent?: ReactNode;
   markerBackgroundColor?: string;
   markerTextColor?: string;
+  textBackgroundColor?: string;
+  textColor?: string;
+  fontSize?: string;
+  fontFamily?: string;
+  fontWeight?: string | number;
+  labelStyle?: "auto" | "capsule";
+  hideMarker?: boolean;
+  collapse?: boolean;
+  forceCollapse?: boolean;
   selected?: boolean;
   hideLabelAndStem?: boolean;
   onClick?: () => void;

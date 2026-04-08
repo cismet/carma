@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { Cartesian3 } from "@carma-cesium";
 
 import type {
   RuntimeAnnotationInfoBoxContext,
@@ -19,6 +20,7 @@ import type {
   RuntimeMeasurement,
   RuntimeNode,
 } from "../store";
+import type { RuntimeScene } from "../types/runtimeScene.types";
 import type { RuntimeToolId } from "../types/runtimeTool.types";
 export const ANNOTATION_TOOL_PLUGIN_KINDS = {
   INTERACTION: "interaction",
@@ -50,7 +52,6 @@ export type AnnotationToolDescriptor = {
 };
 
 export type AnnotationToolSessionContext = {
-  state: AnnotationsStoreState;
   getState: () => AnnotationsStoreState;
   dispatch: AnnotationsStore["dispatch"];
   setActiveToolType: (toolType: RuntimeToolId) => void;
@@ -69,6 +70,25 @@ export type PointQueryCreatedContext = {
   sessionContext: AnnotationToolSessionContext;
 };
 
+export type AnnotationToolPreviewSample = {
+  coordinate: RuntimeCoordinate | null;
+  screenPosition: { x: number; y: number } | null;
+  pointECEF: Cartesian3 | null;
+  surfaceNormalECEF: Cartesian3 | null;
+};
+
+export type AnnotationToolPreviewController = {
+  setEnabled: (enabled: boolean) => void;
+  setHoverSample: (sample: AnnotationToolPreviewSample | null) => void;
+  destroy: () => void;
+};
+
+export type AnnotationToolPreviewContext = {
+  scene: RuntimeScene | null;
+  annotationsStore: AnnotationsStore;
+  requestRender: () => void;
+};
+
 export type AnnotationToolKeyboardContext = {
   event: KeyboardEvent;
   activeToolType: RuntimeToolId;
@@ -80,7 +100,6 @@ export type AnnotationToolKeyboardContext = {
 };
 
 export type AnnotationToolRenderLayerContext = {
-  state: AnnotationsStoreState;
   nodes: readonly RuntimeNode[];
   edges: readonly RuntimeEdge[];
   annotationEntries: readonly RuntimeAnnotationEntry[];
@@ -102,6 +121,11 @@ export type AnnotationToolPlugin = {
   };
   pointQuery?: {
     onPointCreated: (context: PointQueryCreatedContext) => void;
+  };
+  preview?: {
+    createController: (
+      context: AnnotationToolPreviewContext
+    ) => AnnotationToolPreviewController | null;
   };
   keyboard?: {
     onKeyDown: (context: AnnotationToolKeyboardContext) => boolean;

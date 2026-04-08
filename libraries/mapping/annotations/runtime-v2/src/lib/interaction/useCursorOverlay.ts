@@ -260,9 +260,13 @@ export const useCursorOverlay = (
         return;
       }
 
+      const isPointerInsideCanvas =
+        clientPosition !== null && isInsideBounds(clientPosition, canvasBounds);
+
       if (
         clientPosition &&
-        isInsideBounds(clientPosition, containerBounds)
+        containerBounds &&
+        isPointerInsideCanvas
       ) {
         cursorElement.style.display = "block";
         cursorElement.style.transform = `translate(${
@@ -272,6 +276,7 @@ export const useCursorOverlay = (
       }
 
       if (
+        isPointerInsideCanvas &&
         screenPosition &&
         canvasBounds &&
         containerBounds &&

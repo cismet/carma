@@ -1,9 +1,7 @@
 import {
-  readLongerEdgeFovFromMetersPerCssPixel,
   readMetersPerCssPixel,
   readVerticalFovFromLongerEdge,
 } from "@carma-commons/camera/model";
-import { clamp } from "@carma-commons/math";
 import { Cartesian3, PerspectiveFrustum, type Scene } from "@carma-cesium";
 import type { Radians } from "@carma-units";
 
@@ -14,6 +12,11 @@ import {
   readTimedCesiumVerticalFov,
   type TimedCesiumFovCurve,
 } from "./cesium-zoom-curves";
+import {
+  clampCesiumVerticalFov,
+  readCesiumVerticalFovBounds,
+} from "./fov-bounds";
+import { readCesiumSceneVerticalFovForMetersPerCssPixel } from "./fov-resolution";
 import { readCachedCesiumViewportCenterZoomAnchor } from "./per-frame-cache";
 import { computeNextCesiumWheelFov } from "./wheel-fov";
 
@@ -176,6 +179,15 @@ export const readCesiumSceneZoomTargetFov = (
     maximumFovRad: number;
   }
 ) => {
+  const verticalFovBounds = readCesiumVerticalFovBounds({
+    minimumFovRad,
+    maximumFovRad,
+  });
+
+  if (!verticalFovBounds) {
+    return null;
+  }
+
   const currentState = readCesiumSceneZoomState(scene, performance.now());
   if (!currentState) {
     return null;
@@ -187,23 +199,16 @@ export const readCesiumSceneZoomTargetFov = (
     viewportWidthPx: scene.canvas?.clientWidth,
     viewportHeightPx: scene.canvas?.clientHeight,
   });
-  const targetLongerEdgeFov =
+  const targetVerticalFov =
     currentMetersPerCssPixel !== null
-      ? readLongerEdgeFovFromMetersPerCssPixel({
+      ? readCesiumSceneVerticalFovForMetersPerCssPixel(scene, {
           metersPerCssPixel: currentMetersPerCssPixel,
           rangeM: targetRangeM,
-          viewportWidthPx: scene.canvas?.clientWidth,
-          viewportHeightPx: scene.canvas?.clientHeight,
         })
-      : null;
-  const aspectRatio = readSceneAspectRatio(scene);
-  const targetVerticalFov =
-    targetLongerEdgeFov !== null && aspectRatio !== null
-      ? readVerticalFovFromLongerEdge(targetLongerEdgeFov, aspectRatio)
       : null;
 
   return typeof targetVerticalFov === "number" &&
     Number.isFinite(targetVerticalFov)
-    ? clamp(targetVerticalFov, minimumFovRad, maximumFovRad)
+    ? clampCesiumVerticalFov(targetVerticalFov, verticalFovBounds)
     : null;
 };

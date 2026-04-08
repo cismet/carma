@@ -13,8 +13,9 @@ import {
   NODE_CHAIN_MEASUREMENT_PLUGIN_CAPABILITIES,
 } from "../pluginFactories";
 import {
-  clearDistancePreviewCoordinates,
-  setDistancePreviewCoordinates,
+  clearDraftCoordinatesByToolType,
+  getDraftCoordinatesForTool,
+  setDraftCoordinatesByToolType,
 } from "../../store";
 import {
   appendDistancePreviewPoint,
@@ -22,11 +23,18 @@ import {
   undoDistancePreviewPoint,
 } from "./distanceToolActions";
 import { resolveDistanceToolKeyAction } from "./distanceToolBindings";
+import { createDistanceToolInfoBoxSlots } from "./distanceToolInfoBoxSlots";
+import { createDistanceToolPreviewController } from "./createDistanceToolPreviewController";
 import { buildDistanceToolRenderModels } from "./distanceToolRenderModels";
 import { createDistanceToolSettings } from "./distanceToolSettings";
 const toolType = ANNOTATION_TYPE_DISTANCE;
 const badgeStyle = DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG[toolType];
 const distanceToolSettings = createDistanceToolSettings(badgeStyle);
+const getDistanceToolInfoBoxSlots = createDistanceToolInfoBoxSlots(toolType, {
+  headingTitle: "Distanzmessung",
+  formatMeasurementLabelToken: (counter) =>
+    formatMeasurementShortLabelToken(toolType, counter),
+});
 
 export const distanceToolPlugin = createMeasurementToolPlugin({
   id: toolType satisfies AnnotationToolType,
@@ -41,7 +49,7 @@ export const distanceToolPlugin = createMeasurementToolPlugin({
     "Zwei Punkte klicken, um eine Distanzmessung zu erstellen.",
     "Backspace entfernt den letzten Vorschaupunkt, Escape verwirft ihn.",
   ],
-  capabilities: NODE_CHAIN_MEASUREMENT_PLUGIN_CAPABILITIES,
+  capabilities: [...NODE_CHAIN_MEASUREMENT_PLUGIN_CAPABILITIES, "infoBox"],
   session: {
     createSession: ({
       dispatch,
@@ -56,25 +64,26 @@ export const distanceToolPlugin = createMeasurementToolPlugin({
       requestFinish: () => {
         const nextMeasurement = commitDistanceMeasurement({
           toolType,
-          coordinates: getState().draftState.distancePreviewCoordinates,
+          coordinates: getDraftCoordinatesForTool(getState().draftState, toolType),
           addAnnotation,
         });
 
-        dispatch(clearDistancePreviewCoordinates());
+        dispatch(clearDraftCoordinatesByToolType(toolType));
         return Boolean(nextMeasurement);
       },
       discardDraft: () => {
-        dispatch(clearDistancePreviewCoordinates());
+        dispatch(clearDraftCoordinatesByToolType(toolType));
       },
       onNodeCreated: (coordinate) => {
         const nextCoordinates = appendDistancePreviewPoint(
-          getState().draftState.distancePreviewCoordinates,
+          getDraftCoordinatesForTool(getState().draftState, toolType),
           coordinate
         );
 
         if (nextCoordinates.length < 2) {
           dispatch(
-            setDistancePreviewCoordinates({
+            setDraftCoordinatesByToolType({
+              toolType,
               coordinates: nextCoordinates,
             })
           );
@@ -86,7 +95,7 @@ export const distanceToolPlugin = createMeasurementToolPlugin({
           coordinates: nextCoordinates,
           addAnnotation,
         });
-        dispatch(clearDistancePreviewCoordinates());
+        dispatch(clearDraftCoordinatesByToolType(toolType));
       },
     }),
   },
@@ -103,6 +112,13 @@ export const distanceToolPlugin = createMeasurementToolPlugin({
       );
     },
   },
+  preview: {
+    createController: (context) =>
+      createDistanceToolPreviewController({
+        toolType,
+        context,
+      }),
+  },
   keyboard: {
     onKeyDown: ({ event, activeToolSession, sessionContext }) => {
       const action = resolveDistanceToolKeyAction(event);
@@ -118,9 +134,13 @@ export const distanceToolPlugin = createMeasurementToolPlugin({
 
       if (action === "undoLastPoint") {
         sessionContext.dispatch(
-          setDistancePreviewCoordinates({
+          setDraftCoordinatesByToolType({
+            toolType,
             coordinates: undoDistancePreviewPoint(
-              sessionContext.getState().draftState.distancePreviewCoordinates
+              getDraftCoordinatesForTool(
+                sessionContext.getState().draftState,
+                toolType
+              )
             ),
           })
         );
@@ -133,7 +153,6 @@ export const distanceToolPlugin = createMeasurementToolPlugin({
   },
   renderLayer: {
     build: ({
-      state,
       nodes,
       annotationEntries,
       selectedAnnotationId,
@@ -148,7 +167,6 @@ export const distanceToolPlugin = createMeasurementToolPlugin({
           formatMeasurementShortLabelToken(toolType, counter),
         nodes,
         measurements: annotationEntries,
-        previewCoordinates: state.draftState.distancePreviewCoordinates,
         selectedMeasurementId: selectedAnnotationId,
         onMeasurementSelect: setSelectedAnnotationId,
         onNodeLongPress,
@@ -160,5 +178,8 @@ export const distanceToolPlugin = createMeasurementToolPlugin({
         pointLabels,
       };
     },
+  },
+  infoBox: {
+    getSlots: getDistanceToolInfoBoxSlots,
   },
 });

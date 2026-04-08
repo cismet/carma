@@ -12,9 +12,11 @@ import {
   NODE_CHAIN_MEASUREMENT_PLUGIN_CAPABILITIES,
 } from "../pluginFactories";
 import {
-  clearPolylinePreviewCoordinates,
-  setPolylinePreviewCoordinates,
+  clearDraftCoordinatesByToolType,
+  getDraftCoordinatesForTool,
+  setDraftCoordinatesByToolType,
 } from "../../store";
+import { createSegmentToolPreviewController } from "../../interaction/createSegmentToolPreviewController";
 import {
   appendPolylinePreviewPoint,
   finishPolylinePreview,
@@ -54,21 +56,22 @@ export const polylineToolPlugin = createMeasurementToolPlugin({
       requestFinish: () => {
         const nextMeasurement = finishPolylinePreview({
           toolType,
-          coordinates: getState().draftState.polylinePreviewCoordinates,
+          coordinates: getDraftCoordinatesForTool(getState().draftState, toolType),
           addAnnotation,
         });
 
-        dispatch(clearPolylinePreviewCoordinates());
+        dispatch(clearDraftCoordinatesByToolType(toolType));
         return Boolean(nextMeasurement);
       },
       discardDraft: () => {
-        dispatch(clearPolylinePreviewCoordinates());
+        dispatch(clearDraftCoordinatesByToolType(toolType));
       },
       onNodeCreated: (coordinate) => {
         dispatch(
-          setPolylinePreviewCoordinates({
+          setDraftCoordinatesByToolType({
+            toolType,
             coordinates: appendPolylinePreviewPoint(
-              getState().draftState.polylinePreviewCoordinates,
+              getDraftCoordinatesForTool(getState().draftState, toolType),
               coordinate
             ),
           })
@@ -89,6 +92,14 @@ export const polylineToolPlugin = createMeasurementToolPlugin({
         `[annotations-runtime] polyline pointQuery invoked without an active onNodeCreated session handler.`
       );
     },
+  },
+  preview: {
+    createController: (context) =>
+      createSegmentToolPreviewController({
+        toolType,
+        context,
+        showCommittedDraftChain: true,
+      }),
   },
   keyboard: {
     onKeyDown: ({ event, activeToolSession }) => {
@@ -118,7 +129,6 @@ export const polylineToolPlugin = createMeasurementToolPlugin({
   },
   renderLayer: {
     build: ({
-      state,
       nodes,
       annotationEntries,
       selectedAnnotationId,
@@ -133,7 +143,6 @@ export const polylineToolPlugin = createMeasurementToolPlugin({
           formatMeasurementShortLabelToken(toolType, counter),
         nodes,
         measurements: annotationEntries,
-        previewCoordinates: state.draftState.polylinePreviewCoordinates,
         selectedMeasurementId: selectedAnnotationId,
         onMeasurementSelect: setSelectedAnnotationId,
         onNodeLongPress,

@@ -1,73 +1,113 @@
-import { Cartesian3, Color, Primitive, type Scene } from "@carma-cesium";
 import {
+  Cartesian2,
+  Cartesian3,
+  Color,
+  Primitive,
+  SceneTransforms,
+  defined,
+  type Scene,
+} from "@carma-cesium";
+import {
+  type PreviewRingSample,
+  getAveragedPreviewRingNormal,
+  pushPreviewRingSample,
+} from "@carma-mapping/annotations/core";
+import {
+  GUIDE_NORMAL_EPSILON_SQUARED,
   createOrientedDiscModelMatrix,
   createRing,
+  getDiscWorldRadius,
   RING_MATERIAL_PRESETS,
   resolveDiscNormal,
   safeRemovePrimitive,
-  type RingMaterialPreset,
 } from "@carma-mapping/engines/cesium/core";
 import {
-  getCesiumScenePointerScreenPosition,
   registerCesiumScenePointerTracker,
   resolvePreferredPointQueryPick,
   samplePreferredPointQuerySurfaceNormal,
-  subscribeCesiumScenePointerClientPosition,
 } from "@carma-mapping/engines/cesium/react/interactions";
 import { pointPreviewRingVisualDefaults } from "../config/pointPreviewVisualDefaults";
 import { resolveCrosshairCanvasCursor } from "./resolveCrosshairCanvasCursor";
+import {
+  isPointQueryPreviewDiscPlaneOffsetPlacementMode,
+  POINT_QUERY_PREVIEW_DISC_PLACEMENT_MODES,
+  type PointQueryPreviewDiscPlacementMode,
+} from "./pointQueryPreviewDiscPlacementMode";
 import { resolvePointPreviewDiscRadius } from "./resolvePointPreviewDiscRadius";
+import {
+  resolveTangentDiscPlaneReprojectedWorldPosition,
+  type TangentDiscSamplePlane,
+} from "./tangentDiscReprojection.shared";
+import {
+  createPointQueryPreviewDebugRuntime,
+  formatPointQueryPreviewReadout as formatReadout,
+} from "./pointQueryPreviewDebugRuntime";
+import {
+  type PointQueryPreviewController,
+  type PointQueryPreviewControllerOptions,
+  type PointQueryPreviewTangentPlaneFailure,
+  type PointQueryPreviewTangentPlaneFailureReason,
+  POINT_QUERY_PREVIEW_TANGENT_PLANE_FAILURE_REASONS,
+} from "./pointQueryPreviewController.types";
 
-export type PointQueryPreviewControllerOptions = {
-  queryEnabled: boolean;
-  showCursor: boolean;
-  showDisc: boolean;
-  hideNativeCursor: boolean;
-  discRadiusMeters: number;
-  discScalingMode: "screen" | "world";
-  innerHoleRadiusRatio?: number;
-  targetScreenRadiusCssPx?: number;
-  discOpacity: number;
-  discMaterialPreset: RingMaterialPreset;
-  discColor: string;
+export * from "./pointQueryPreviewController.types";
+export {
+  POINT_QUERY_PREVIEW_DISC_PLACEMENT_MODES,
+  type PointQueryPreviewDiscPlacementMode,
+} from "./pointQueryPreviewDiscPlacementMode";
+
+type ScreenVector = {
+  x: number;
+  y: number;
 };
 
-export type PointQueryPreviewController = {
-  updateOptions: (options: PointQueryPreviewControllerOptions) => void;
-  destroy: () => void;
+type PreparedDiscSample = {
+  inputVersion: number;
+  screenPosition: Cartesian2;
+  pickedPositionECEF: Cartesian3 | null;
+  surfaceNormalECEF: Cartesian3 | null;
 };
 
-const formatReadout = (
-  screenPosition: { x: number; y: number } | null,
-  pickedPositionECEF: Cartesian3 | null
-) => {
-  if (!screenPosition) {
-    return "pointer idle";
-  }
-
-  const x = Math.round(screenPosition.x);
-  const y = Math.round(screenPosition.y);
-
-  if (!pickedPositionECEF) {
-    return `x ${x} y ${y} no hit`;
-  }
-
-  return `x ${x} y ${y} hit`;
+type PendingDiscRequest = {
+  inputVersion: number;
+  requestedAtMs: number;
+  requestClientPosition: ScreenVector;
+  requestSampleClientPosition: ScreenVector | null;
 };
 
 export const createPointQueryPreviewController = ({
   scene,
   readoutElement,
   mousePositionRateElement,
+  renderRequestRateElement,
   sampleRateElement,
   discUpdateRateElement,
+  skippedInputRateElement,
+  lagReadoutElement,
+  syncReadoutElement,
+  requestTimingReadoutElement,
+  tangentPlaneFailureReadoutElement,
+  discOriginJumpReadoutElement,
+  discScaleChangeReadoutElement,
+  onTangentPlaneFailure,
   options,
 }: {
   scene: Scene;
   readoutElement: HTMLElement | null;
   mousePositionRateElement?: HTMLElement | null;
+  renderRequestRateElement?: HTMLElement | null;
   sampleRateElement?: HTMLElement | null;
   discUpdateRateElement?: HTMLElement | null;
+  skippedInputRateElement?: HTMLElement | null;
+  lagReadoutElement?: HTMLElement | null;
+  syncReadoutElement?: HTMLElement | null;
+  requestTimingReadoutElement?: HTMLElement | null;
+  tangentPlaneFailureReadoutElement?: HTMLElement | null;
+  discOriginJumpReadoutElement?: HTMLElement | null;
+  discScaleChangeReadoutElement?: HTMLElement | null;
+  onTangentPlaneFailure?: (
+    failure: PointQueryPreviewTangentPlaneFailure
+  ) => void;
   options: PointQueryPreviewControllerOptions;
 }): PointQueryPreviewController => {
   const unregisterPointerTracker = registerCesiumScenePointerTracker(scene);
@@ -76,18 +116,68 @@ export const createPointQueryPreviewController = ({
   let discPrimitive: Primitive | null = null;
   let discNeedsRender = false;
   let previousSurfaceNormal: Cartesian3 | null = null;
-  let mousePositionEventCount = 0;
-  let sampleEventCount = 0;
-  let discUpdateEventCount = 0;
-  let lastMousePositionEventTimeMs = 0;
-  let lastSampleEventTimeMs = 0;
-  let lastDiscUpdateEventTimeMs = 0;
-  let lastPerformanceReportTimeMs = performance.now();
-  let latestMousePositionRateHz = 0;
-  let latestSampleRateHz = 0;
-  let latestDiscUpdateRateHz = 0;
-  const PERFORMANCE_IDLE_RESET_MS = 300;
+  let latestDiscWorldPosition: Cartesian3 | null = null;
+  let latestDiscNormal: Cartesian3 | null = null;
+  let latestTrueDiscSampledAtMs = 0;
+  let latestTrueDiscNormalSampledAtMs = 0;
+  let discNormalSamples: PreviewRingSample[] = [];
+  let lastQueuedDiscNormalInputVersion = -1;
+  let pointerScreenPositionScratch: Cartesian2 | null = null;
+  const averagedDiscNormalScratch = new Cartesian3();
+  let latestObservedClientPosition:
+    | { x: number; y: number; timestampMs: number }
+    | null = null;
+  let latestInputClientPosition:
+    | { x: number; y: number; timestampMs: number }
+    | null = null;
+  let latestRenderedClientPosition: ScreenVector | null = null;
+  let latestDiscClientPosition: ScreenVector | null = null;
+  let latestSampleClientPosition: ScreenVector | null = null;
+  let latestRequestedClientPosition: ScreenVector | null = null;
+  let latestRequestedSampleClientPosition: ScreenVector | null = null;
+  let latestPreparedDiscSample: PreparedDiscSample | null = null;
+  let latestTrueDiscWorldPosition: Cartesian3 | null = null;
+  let latestRequestedAtMs = 0;
+  let latestRenderedAtMs = 0;
+  let latestRequestToDiscLatencyMs = 0;
+  let latestInputVersion = 0;
+  let lastProcessedInputVersion = 0;
+  let lastRawPointerEventTimeMs = 0;
   const PERFORMANCE_REPORT_INTERVAL_MS = 250;
+  const MAX_RENDER_REQUEST_RATE_HZ = 0;
+  const TRUE_SAMPLE_REFRESH_INTERVAL_MS = 8;
+  const TRUE_NORMAL_REFRESH_INTERVAL_MS = 16;
+  const MAX_FAST_SAMPLE_OFFSET_PX = 6;
+  const RAW_POINTER_FALLBACK_WINDOW_MS = 12;
+  const rawPointerSupported = "onpointerrawupdate" in window;
+  const pendingDiscRequests = new Map<number, PendingDiscRequest>();
+  const projectedDiscScreenPositionScratch = new Cartesian2();
+  const projectedSampleScreenPositionScratch = new Cartesian2();
+  const readTangentDiscVisualizerEnabled = () =>
+    currentOptions.tangentDiscVisualizerEnabled ??
+    currentOptions.showDisc ??
+    true;
+  const readTangentDiscVisualizerPlacementMode =
+    (): PointQueryPreviewDiscPlacementMode =>
+      currentOptions.tangentDiscVisualizerPlacementMode ??
+      currentOptions.discPlacementMode ??
+      POINT_QUERY_PREVIEW_DISC_PLACEMENT_MODES.CAMERA_PLANE_REPROJECT;
+  const readTangentDiscVisualizerTrailSampleCount = () =>
+    Math.max(
+      1,
+      Math.round(
+        currentOptions.tangentDiscVisualizerTrailSampleCount ??
+          pointPreviewRingVisualDefaults.smoothingSampleCount
+      )
+    );
+  const readTangentDiscVisualizerWeightDecayGamma = () =>
+    Math.max(
+      0.01,
+      currentOptions.tangentDiscVisualizerWeightDecayGamma ??
+        pointPreviewRingVisualDefaults.smoothingWeightDecayGamma
+    );
+  const readDiscPlacementMode = (): PointQueryPreviewDiscPlacementMode =>
+    readTangentDiscVisualizerPlacementMode();
   const readInnerHoleRadiusRatio = () =>
     Math.min(
       Math.max(
@@ -97,6 +187,64 @@ export const createPointQueryPreviewController = ({
       ),
       0.999
     );
+  const pointQueryPreviewDebugRuntime = createPointQueryPreviewDebugRuntime({
+    scene,
+    statusElements: {
+      readoutElement,
+      mousePositionRateElement,
+      renderRequestRateElement,
+      sampleRateElement,
+      discUpdateRateElement,
+      skippedInputRateElement,
+      lagReadoutElement,
+      syncReadoutElement,
+      requestTimingReadoutElement,
+      tangentPlaneFailureReadoutElement,
+      discOriginJumpReadoutElement,
+      discScaleChangeReadoutElement,
+    },
+    onTangentPlaneFailure,
+  });
+  const readDebugTelemetryEnabled = () =>
+    currentOptions.debugTelemetryEnabled ??
+    pointQueryPreviewDebugRuntime.hasDebugSinks();
+
+  const resolvePointerScreenPositionFromClientPosition = (
+    clientPosition: { x: number; y: number } | null
+  ) => {
+    if (!clientPosition) {
+      return null;
+    }
+
+    const canvasRect = scene.canvas.getBoundingClientRect();
+    const nextX = clientPosition.x - canvasRect.left;
+    const nextY = clientPosition.y - canvasRect.top;
+    if (
+      nextX < 0 ||
+      nextY < 0 ||
+      nextX > canvasRect.width ||
+      nextY > canvasRect.height
+    ) {
+      return null;
+    }
+
+    const nextScreenPosition =
+      pointerScreenPositionScratch ?? new Cartesian2();
+    nextScreenPosition.x = nextX;
+    nextScreenPosition.y = nextY;
+    pointerScreenPositionScratch = nextScreenPosition;
+    return nextScreenPosition;
+  };
+
+  const syncDebugLagState = () => {
+    pointQueryPreviewDebugRuntime.syncLagState({
+      placementMode: readDiscPlacementMode(),
+      latestObservedClientPosition,
+      latestRenderedClientPosition,
+      latestDiscClientPosition,
+      latestSampleClientPosition,
+    });
+  };
 
   const ensureDiscPrimitive = () => {
     if (discPrimitive) {
@@ -119,13 +267,69 @@ export const createPointQueryPreviewController = ({
     return nextDiscPrimitive;
   };
 
+  const withDiscTemporarilyHidden = <T,>(callback: () => T): T => {
+    if (!discPrimitive) {
+      return callback();
+    }
+
+    const previousShow = discPrimitive.show;
+    discPrimitive.show = false;
+    try {
+      return callback();
+    } finally {
+      discPrimitive.show = previousShow;
+    }
+  };
+
   const clearDiscPrimitive = () => {
     if (discPrimitive) {
       safeRemovePrimitive(scene, discPrimitive);
       discPrimitive = null;
     }
+    pointQueryPreviewDebugRuntime.setLatestDiscScaleFactor(null);
     previousSurfaceNormal = null;
+    latestDiscWorldPosition = null;
+    latestDiscNormal = null;
+    discNormalSamples = [];
+    lastQueuedDiscNormalInputVersion = -1;
   };
+
+  const shouldQueueDiscNormalSample = (inputVersion: number) => {
+    if (inputVersion === lastQueuedDiscNormalInputVersion) {
+      return false;
+    }
+
+    lastQueuedDiscNormalInputVersion = inputVersion;
+    return true;
+  };
+
+  const queueDiscNormalSample = (discNormal: Cartesian3) => {
+    pushPreviewRingSample({
+      samples: discNormalSamples,
+      normal: discNormal,
+      maxSampleCount: readTangentDiscVisualizerTrailSampleCount(),
+      timestampMs: performance.now(),
+    });
+  };
+
+  const getAveragedDiscNormal = (fallbackNormal: Cartesian3) =>
+    getAveragedPreviewRingNormal({
+      samples: discNormalSamples,
+      fallbackNormal,
+      result: averagedDiscNormalScratch,
+      epsilonSquared: GUIDE_NORMAL_EPSILON_SQUARED,
+      maxSampleAgeMs: pointPreviewRingVisualDefaults.smoothingWindowMs,
+      weightDecayGamma: readTangentDiscVisualizerWeightDecayGamma(),
+      nowMs: performance.now(),
+    });
+
+  const hasPendingDiscNormalSmoothing = (nowMs = performance.now()) =>
+    discNormalSamples.length > 1 &&
+    discNormalSamples.some(
+      (sample) =>
+        nowMs - sample.timestampMs <
+        pointPreviewRingVisualDefaults.smoothingWindowMs
+    );
 
   const updateReadout = (
     screenPosition: { x: number; y: number } | null,
@@ -140,82 +344,168 @@ export const createPointQueryPreviewController = ({
       pickedPositionECEF
     );
   };
-
-  const updatePerformanceStats = (force = false) => {
-    const nowMs = performance.now();
-    const elapsedMs = nowMs - lastPerformanceReportTimeMs;
-    const mouseIdle =
-      lastMousePositionEventTimeMs <= 0 ||
-      nowMs - lastMousePositionEventTimeMs >= PERFORMANCE_IDLE_RESET_MS;
-    const sampleIdle =
-      lastSampleEventTimeMs <= 0 ||
-      nowMs - lastSampleEventTimeMs >= PERFORMANCE_IDLE_RESET_MS;
-    const discIdle =
-      lastDiscUpdateEventTimeMs <= 0 ||
-      nowMs - lastDiscUpdateEventTimeMs >= PERFORMANCE_IDLE_RESET_MS;
-
-    if (
-      !force &&
-      elapsedMs < PERFORMANCE_REPORT_INTERVAL_MS &&
-      !mouseIdle &&
-      !sampleIdle &&
-      !discIdle
-    ) {
-      return;
-    }
-
-    if (elapsedMs > 0) {
-      if (mousePositionEventCount > 0) {
-        latestMousePositionRateHz = (mousePositionEventCount * 1000) / elapsedMs;
-      } else if (mouseIdle) {
-        latestMousePositionRateHz = 0;
-      }
-
-      if (sampleEventCount > 0) {
-        latestSampleRateHz = (sampleEventCount * 1000) / elapsedMs;
-      } else if (sampleIdle) {
-        latestSampleRateHz = 0;
-      }
-
-      if (discUpdateEventCount > 0) {
-        latestDiscUpdateRateHz = (discUpdateEventCount * 1000) / elapsedMs;
-      } else if (discIdle) {
-        latestDiscUpdateRateHz = 0;
-      }
-    }
-
-    if (mousePositionRateElement) {
-      mousePositionRateElement.textContent = `mouse ${latestMousePositionRateHz.toFixed(1)} Hz`;
-    }
-    if (sampleRateElement) {
-      sampleRateElement.textContent = `sample ${latestSampleRateHz.toFixed(1)} Hz`;
-    }
-    if (discUpdateRateElement) {
-      discUpdateRateElement.textContent = `disc ${latestDiscUpdateRateHz.toFixed(1)} Hz`;
-    }
-
-    mousePositionEventCount = 0;
-    sampleEventCount = 0;
-    discUpdateEventCount = 0;
-    lastPerformanceReportTimeMs = nowMs;
+  const markMousePositionEvent = () => {
+    pointQueryPreviewDebugRuntime.markMousePositionEvent();
   };
 
-  const markMousePositionEvent = () => {
-    mousePositionEventCount += 1;
-    lastMousePositionEventTimeMs = performance.now();
-    updatePerformanceStats();
+  const markRenderRequestEvent = () => {
+    pointQueryPreviewDebugRuntime.markRenderRequestEvent();
   };
 
   const markSampleEvent = () => {
-    sampleEventCount += 1;
-    lastSampleEventTimeMs = performance.now();
-    updatePerformanceStats();
+    pointQueryPreviewDebugRuntime.markSampleEvent();
   };
 
   const markDiscUpdateEvent = () => {
-    discUpdateEventCount += 1;
-    lastDiscUpdateEventTimeMs = performance.now();
-    updatePerformanceStats();
+    pointQueryPreviewDebugRuntime.markDiscUpdateEvent();
+  };
+
+  const markSkippedInputEvents = (count: number) => {
+    pointQueryPreviewDebugRuntime.markSkippedInputEvents(count);
+  };
+
+  const recordTelemetryEntry = () => {
+    pointQueryPreviewDebugRuntime.recordTelemetryEntry({
+      latestInputVersion,
+      lastProcessedInputVersion,
+      latestRequestedAtMs,
+      latestRenderedAtMs,
+      latestClientPosition: latestObservedClientPosition,
+      latestRenderedClientPosition,
+      latestDiscClientPosition,
+      latestSampleClientPosition,
+      latestRequestedClientPosition,
+      latestRequestedSampleClientPosition,
+    });
+  };
+
+  const recordTangentPlaneFailure = ({
+    inputVersion,
+    reason,
+    clientPosition,
+    screenPosition,
+    hasSampledPoint,
+    hasSampledSurfaceNormal,
+  }: {
+    inputVersion: number;
+    reason: PointQueryPreviewTangentPlaneFailureReason;
+    clientPosition: ScreenVector | null;
+    screenPosition: ScreenVector | null;
+    hasSampledPoint: boolean;
+    hasSampledSurfaceNormal: boolean;
+  }) => {
+    const pendingRequest = pendingDiscRequests.get(inputVersion) ?? null;
+    pointQueryPreviewDebugRuntime.recordTangentPlaneFailure({
+      inputVersion,
+      reason,
+      requestedAtMs:
+        pendingRequest?.requestedAtMs ?? latestRequestedAtMs ?? performance.now(),
+      placementMode: readDiscPlacementMode(),
+      hasLatestTrueDiscWorldPosition: Boolean(latestTrueDiscWorldPosition),
+      hasLatestDiscNormal: Boolean(latestDiscNormal),
+      clientPosition,
+      screenPosition,
+      hasSampledPoint,
+      hasSampledSurfaceNormal,
+    });
+  };
+
+  const recordDiscOriginJump = ({
+    inputVersion,
+    requestedAtMs,
+    nextDiscWorldPosition,
+    nextDiscNormal,
+    nextClientPosition,
+    source,
+  }: {
+    inputVersion: number;
+    requestedAtMs: number;
+    nextDiscWorldPosition: Cartesian3;
+    nextDiscNormal: Cartesian3;
+    nextClientPosition: ScreenVector | null;
+    source: "true-sample" | "fast-reproject";
+  }) => {
+    pointQueryPreviewDebugRuntime.recordDiscOriginJump({
+      inputVersion,
+      requestedAtMs,
+      placementMode: readDiscPlacementMode(),
+      previousDiscWorldPosition: latestDiscWorldPosition,
+      source,
+      nextDiscWorldPosition,
+      nextClientPosition,
+      nextDiscNormal,
+      previousClientPosition: latestDiscClientPosition,
+    });
+  };
+
+  const recordDiscScaleChange = ({
+    inputVersion,
+    requestedAtMs,
+    nextScaleFactor,
+    source,
+  }: {
+    inputVersion: number;
+    requestedAtMs: number;
+    nextScaleFactor: number;
+    source: "true-sample" | "fast-reproject";
+  }) => {
+    pointQueryPreviewDebugRuntime.recordDiscScaleChange({
+      inputVersion,
+      requestedAtMs,
+      placementMode: readDiscPlacementMode(),
+      source,
+      nextScaleFactor,
+    });
+  };
+
+  const resolveClientPositionFromWorldPosition = ({
+    worldPosition,
+    canvasRect,
+    fallbackScreenPosition,
+    scratchScreenPosition,
+  }: {
+    worldPosition: Cartesian3 | null;
+    canvasRect: DOMRect;
+    fallbackScreenPosition: Cartesian2 | null;
+    scratchScreenPosition: Cartesian2;
+  }): ScreenVector | null => {
+    if (worldPosition) {
+      const projectedScreenPosition = SceneTransforms.worldToWindowCoordinates(
+        scene,
+        worldPosition,
+        scratchScreenPosition
+      );
+      if (defined(projectedScreenPosition)) {
+        return {
+          x: canvasRect.left + projectedScreenPosition.x,
+          y: canvasRect.top + projectedScreenPosition.y,
+        };
+      }
+    }
+
+    if (!fallbackScreenPosition) {
+      return null;
+    }
+
+    return {
+      x: canvasRect.left + fallbackScreenPosition.x,
+      y: canvasRect.top + fallbackScreenPosition.y,
+    };
+  };
+
+  const updateObservedClientPosition = ({
+    x,
+    y,
+  }: {
+    x: number;
+    y: number;
+  }) => {
+    latestObservedClientPosition = {
+      x,
+      y,
+      timestampMs: performance.now(),
+    };
+    syncDebugLagState();
   };
 
   const applyCursorVisibility = () => {
@@ -226,70 +516,236 @@ export const createPointQueryPreviewController = ({
     });
   };
 
-  const renderDiscAndReadout = () => {
-    discNeedsRender = false;
+  const resolvePointerScreenPosition = () => {
+    return resolvePointerScreenPositionFromClientPosition(
+      latestInputClientPosition
+        ? {
+            x: latestInputClientPosition.x,
+            y: latestInputClientPosition.y,
+          }
+        : null
+    );
+  };
 
-    if (!currentOptions.queryEnabled) {
-      clearDiscPrimitive();
-      updateReadout(null, null);
-      return;
+  const isSameClientPosition = (
+    left: ScreenVector | null,
+    right: ScreenVector | null,
+    epsilonPx = 0.5
+  ) => {
+    if (!left || !right) {
+      return false;
     }
 
-    const pointerScreenPosition = getCesiumScenePointerScreenPosition(scene);
-    const screenPosition = pointerScreenPosition
-      ? { x: pointerScreenPosition.x, y: pointerScreenPosition.y }
-      : null;
+    return (
+      Math.abs(left.x - right.x) <= epsilonPx &&
+      Math.abs(left.y - right.y) <= epsilonPx
+    );
+  };
 
+  const sampleTrueDiscAtCurrentPointer = ({
+    sampleSurfaceNormal,
+  }: {
+    sampleSurfaceNormal: boolean;
+  }): PreparedDiscSample | null => {
+    const pointerScreenPosition = resolvePointerScreenPosition();
     if (!pointerScreenPosition) {
-      clearDiscPrimitive();
-      updateReadout(null, null);
-      return;
+      recordTangentPlaneFailure({
+        inputVersion: latestInputVersion,
+        reason:
+          POINT_QUERY_PREVIEW_TANGENT_PLANE_FAILURE_REASONS.MISSING_SCREEN_POSITION,
+        clientPosition: latestInputClientPosition
+          ? {
+              x: latestInputClientPosition.x,
+              y: latestInputClientPosition.y,
+            }
+          : null,
+        screenPosition: null,
+        hasSampledPoint: false,
+        hasSampledSurfaceNormal: false,
+      });
+      return null;
     }
 
-    const resolvedPick = resolvePreferredPointQueryPick(
-      scene,
-      pointerScreenPosition,
-      {
+    const resolvedPick = withDiscTemporarilyHidden(() =>
+      resolvePreferredPointQueryPick(scene, pointerScreenPosition, {
         resolveGlobePosition: false,
-      }
+      })
     );
     markSampleEvent();
-    const pickedPositionECEF = resolvedPick.pickedPositionECEF;
+    const pickedPositionECEF = resolvedPick.pickedPositionECEF
+      ? Cartesian3.clone(resolvedPick.pickedPositionECEF, new Cartesian3())
+      : null;
+    const surfaceNormalECEF =
+      sampleSurfaceNormal && pickedPositionECEF
+        ? withDiscTemporarilyHidden(() =>
+            samplePreferredPointQuerySurfaceNormal(
+              scene,
+              pointerScreenPosition,
+              pickedPositionECEF,
+              {
+                previousSurfaceNormalECEF: previousSurfaceNormal,
+              }
+            )
+          )
+        : null;
 
-    updateReadout(screenPosition, pickedPositionECEF);
+    if (!pickedPositionECEF) {
+      recordTangentPlaneFailure({
+        inputVersion: latestInputVersion,
+        reason:
+          POINT_QUERY_PREVIEW_TANGENT_PLANE_FAILURE_REASONS.TRUE_SAMPLE_MISS,
+        clientPosition: latestInputClientPosition
+          ? {
+              x: latestInputClientPosition.x,
+              y: latestInputClientPosition.y,
+            }
+          : null,
+        screenPosition: {
+          x: pointerScreenPosition.x,
+          y: pointerScreenPosition.y,
+        },
+        hasSampledPoint: false,
+        hasSampledSurfaceNormal: false,
+      });
+      return null;
+    } else if (sampleSurfaceNormal && !surfaceNormalECEF) {
+      recordTangentPlaneFailure({
+        inputVersion: latestInputVersion,
+        reason:
+          POINT_QUERY_PREVIEW_TANGENT_PLANE_FAILURE_REASONS.TRUE_NORMAL_MISS,
+        clientPosition: latestInputClientPosition
+          ? {
+              x: latestInputClientPosition.x,
+              y: latestInputClientPosition.y,
+            }
+          : null,
+        screenPosition: {
+          x: pointerScreenPosition.x,
+          y: pointerScreenPosition.y,
+        },
+        hasSampledPoint: true,
+        hasSampledSurfaceNormal: false,
+      });
+    }
 
-    if (!currentOptions.showDisc || !pickedPositionECEF) {
+    return {
+      inputVersion: latestInputVersion,
+      screenPosition: Cartesian2.clone(pointerScreenPosition, new Cartesian2()),
+      pickedPositionECEF,
+      surfaceNormalECEF: surfaceNormalECEF
+        ? Cartesian3.clone(surfaceNormalECEF, new Cartesian3())
+        : null,
+    };
+  };
+
+  const shouldRefreshTrueDiscSample = (nowMs: number) =>
+    !isPointQueryPreviewDiscPlaneOffsetPlacementMode(readDiscPlacementMode()) ||
+    !latestTrueDiscWorldPosition ||
+    !latestDiscNormal ||
+    nowMs - latestTrueDiscSampledAtMs >= TRUE_SAMPLE_REFRESH_INTERVAL_MS;
+
+  const shouldRefreshTrueDiscNormal = (nowMs: number) =>
+    !latestDiscNormal ||
+    nowMs - latestTrueDiscNormalSampledAtMs >= TRUE_NORMAL_REFRESH_INTERVAL_MS;
+
+  const consumeRenderedRequestMetrics = (
+    inputVersion: number,
+    renderedAtMs: number
+  ) => {
+    const requestMetrics = pendingDiscRequests.get(inputVersion) ?? null;
+    if (requestMetrics) {
+      latestRenderedAtMs = renderedAtMs;
+      latestRequestedAtMs = requestMetrics.requestedAtMs;
+      latestRequestToDiscLatencyMs = Math.max(
+        latestRenderedAtMs - requestMetrics.requestedAtMs,
+        0
+      );
+      latestRequestedClientPosition = requestMetrics.requestClientPosition;
+      latestRequestedSampleClientPosition =
+        requestMetrics.requestSampleClientPosition;
+      latestRenderedClientPosition =
+        requestMetrics.requestSampleClientPosition ??
+        requestMetrics.requestClientPosition;
+      pointQueryPreviewDebugRuntime.updateRequestToDiscLatencyMs(
+        latestRequestToDiscLatencyMs
+      );
+    }
+
+    for (const pendingInputVersion of pendingDiscRequests.keys()) {
+      if (pendingInputVersion <= inputVersion) {
+        pendingDiscRequests.delete(pendingInputVersion);
+      }
+    }
+
+    return requestMetrics;
+  };
+
+  const applyRenderedDiscSample = ({
+    renderDiscSample,
+    truePickedPositionECEF,
+    trueSampledSurfaceNormal,
+    renderedAtMs,
+  }: {
+    renderDiscSample: PreparedDiscSample;
+    truePickedPositionECEF: Cartesian3 | null;
+    trueSampledSurfaceNormal: Cartesian3 | null;
+    renderedAtMs: number;
+  }) => {
+    const pointerScreenPosition = renderDiscSample.screenPosition;
+    const renderDiscPositionECEF = renderDiscSample.pickedPositionECEF;
+
+    updateReadout(pointerScreenPosition, renderDiscPositionECEF);
+    const skippedInputCount = Math.max(
+      latestInputVersion - lastProcessedInputVersion - 1,
+      0
+    );
+    markSkippedInputEvents(skippedInputCount);
+    lastProcessedInputVersion = latestInputVersion;
+    const requestMetrics = consumeRenderedRequestMetrics(
+      renderDiscSample.inputVersion,
+      renderedAtMs
+    );
+
+    if (!readTangentDiscVisualizerEnabled() || !renderDiscPositionECEF) {
       clearDiscPrimitive();
+      syncDebugLagState();
+      markDiscUpdateEvent();
+      recordTelemetryEntry();
       return;
     }
 
-    const sampledSurfaceNormal = samplePreferredPointQuerySurfaceNormal(
-      scene,
-      pointerScreenPosition,
-      pickedPositionECEF,
-      {
-        previousSurfaceNormalECEF: previousSurfaceNormal,
-      }
-    );
-    previousSurfaceNormal = sampledSurfaceNormal
+    previousSurfaceNormal = trueSampledSurfaceNormal
       ? Cartesian3.clone(
-          sampledSurfaceNormal,
+          trueSampledSurfaceNormal,
           previousSurfaceNormal ?? new Cartesian3()
         )
-      : null;
+      : previousSurfaceNormal;
 
+    if (
+      truePickedPositionECEF &&
+      shouldQueueDiscNormalSample(renderDiscSample.inputVersion)
+    ) {
+      const trueDiscNormal = resolveDiscNormal(
+        truePickedPositionECEF,
+        trueSampledSurfaceNormal ?? previousSurfaceNormal
+      );
+      queueDiscNormalSample(trueDiscNormal);
+    }
+
+    const fallbackNormal =
+      renderDiscSample.surfaceNormalECEF ??
+      latestDiscNormal ??
+      previousSurfaceNormal;
     const discNormal = resolveDiscNormal(
-      pickedPositionECEF,
-      sampledSurfaceNormal ?? null
+      renderDiscPositionECEF,
+      fallbackNormal ?? null
     );
-    const discRadius = Math.max(
-      currentOptions.discRadiusMeters,
-      0.1
-    );
+    const averagedDiscNormal = getAveragedDiscNormal(discNormal);
+    const discRadius = Math.max(currentOptions.discRadiusMeters, 0.1);
     const sampledRadius = resolvePointPreviewDiscRadius({
       scene,
-      pointECEF: pickedPositionECEF,
-      discNormalECEF: discNormal,
+      pointECEF: renderDiscPositionECEF,
+      discNormalECEF: averagedDiscNormal,
       radiusMeters: discRadius,
       scalingMode: currentOptions.discScalingMode,
       targetScreenRadiusCssPx:
@@ -298,21 +754,395 @@ export const createPointQueryPreviewController = ({
     });
     const activeDiscPrimitive = ensureDiscPrimitive();
     activeDiscPrimitive.modelMatrix = createOrientedDiscModelMatrix(
-      pickedPositionECEF,
-      discNormal,
+      renderDiscPositionECEF,
+      averagedDiscNormal,
       sampledRadius,
       activeDiscPrimitive.modelMatrix
     );
+    recordDiscScaleChange({
+      inputVersion: renderDiscSample.inputVersion,
+      requestedAtMs: requestMetrics?.requestedAtMs ?? renderedAtMs,
+      nextScaleFactor: sampledRadius,
+      source: "true-sample",
+    });
+    recordDiscOriginJump({
+      inputVersion: renderDiscSample.inputVersion,
+      source: "true-sample",
+      nextDiscWorldPosition: renderDiscPositionECEF,
+      nextClientPosition: pointerScreenPosition,
+      nextDiscNormal: averagedDiscNormal,
+      requestedAtMs: requestMetrics?.requestedAtMs ?? renderedAtMs,
+    });
+    previousSurfaceNormal = Cartesian3.clone(
+      averagedDiscNormal,
+      previousSurfaceNormal ?? new Cartesian3()
+    );
+    latestDiscWorldPosition = Cartesian3.clone(
+      renderDiscPositionECEF,
+      latestDiscWorldPosition ?? new Cartesian3()
+    );
+    latestDiscNormal = Cartesian3.clone(
+      averagedDiscNormal,
+      latestDiscNormal ?? new Cartesian3()
+    );
+    const canvasRect = scene.canvas.getBoundingClientRect();
+    latestDiscClientPosition = resolveClientPositionFromWorldPosition({
+      worldPosition: renderDiscPositionECEF,
+      canvasRect,
+      fallbackScreenPosition: pointerScreenPosition,
+      scratchScreenPosition: projectedDiscScreenPositionScratch,
+    });
+    latestSampleClientPosition = resolveClientPositionFromWorldPosition({
+      worldPosition: truePickedPositionECEF,
+      canvasRect,
+      fallbackScreenPosition: truePickedPositionECEF
+        ? pointerScreenPosition
+        : null,
+      scratchScreenPosition: projectedSampleScreenPositionScratch,
+    });
+    if (requestMetrics && latestSampleClientPosition) {
+      latestRequestedSampleClientPosition = { ...latestSampleClientPosition };
+    }
+    syncDebugLagState();
     markDiscUpdateEvent();
+    recordTelemetryEntry();
   };
 
-  const queueRender = () => {
-    if (discNeedsRender || scene.isDestroyed()) {
+  // Fast-path rule:
+  // only move the disc immediately when we already have a tangent plane from a
+  // real mesh sample. The tangent plane is the last true sampled mesh point plus
+  // the latest smoothed disc normal. If that plane does not exist yet, we skip
+  // the local reprojection step and wait for the regular true sample path.
+  const resolveLatestTrueTangentPlane =
+    (): TangentDiscSamplePlane | null => {
+      if (!latestTrueDiscWorldPosition || !latestDiscNormal) {
+        return null;
+      }
+
+      return {
+        pointECEF: latestTrueDiscWorldPosition,
+        normalECEF: latestDiscNormal,
+      };
+    };
+
+  const applyFastReprojectedDiscSample = ({
+    renderDiscSample,
+    renderedAtMs,
+  }: {
+    renderDiscSample: PreparedDiscSample;
+    renderedAtMs: number;
+  }) => {
+    const pointerScreenPosition = renderDiscSample.screenPosition;
+    const renderDiscPositionECEF = renderDiscSample.pickedPositionECEF;
+
+    updateReadout(pointerScreenPosition, renderDiscPositionECEF);
+    const skippedInputCount = Math.max(
+      latestInputVersion - lastProcessedInputVersion - 1,
+      0
+    );
+    markSkippedInputEvents(skippedInputCount);
+    lastProcessedInputVersion = latestInputVersion;
+    const requestMetrics = consumeRenderedRequestMetrics(
+      renderDiscSample.inputVersion,
+      renderedAtMs
+    );
+
+    if (!readTangentDiscVisualizerEnabled() || !renderDiscPositionECEF) {
+      clearDiscPrimitive();
+      syncDebugLagState();
+      markDiscUpdateEvent();
+      recordTelemetryEntry();
+      return;
+    }
+
+    // The immediate local update only changes the visible position.
+    // The displayed orientation keeps using the latest smoothed normal until the
+    // next true sample updates depth and surface normal again.
+    const stableDiscNormal = Cartesian3.clone(
+      latestDiscNormal ??
+        previousSurfaceNormal ??
+        resolveDiscNormal(
+          latestTrueDiscWorldPosition ?? renderDiscPositionECEF,
+          null
+        ),
+      new Cartesian3()
+    );
+    const discRadius = Math.max(currentOptions.discRadiusMeters, 0.1);
+    const sampledRadius = resolvePointPreviewDiscRadius({
+      scene,
+      pointECEF: renderDiscPositionECEF,
+      discNormalECEF: stableDiscNormal,
+      radiusMeters: discRadius,
+      scalingMode: currentOptions.discScalingMode,
+      targetScreenRadiusCssPx:
+        currentOptions.targetScreenRadiusCssPx ??
+        pointPreviewRingVisualDefaults.targetScreenRadiusCssPx,
+    });
+    const activeDiscPrimitive = ensureDiscPrimitive();
+    activeDiscPrimitive.modelMatrix = createOrientedDiscModelMatrix(
+      renderDiscPositionECEF,
+      stableDiscNormal,
+      sampledRadius,
+      activeDiscPrimitive.modelMatrix
+    );
+    recordDiscScaleChange({
+      inputVersion: renderDiscSample.inputVersion,
+      requestedAtMs: requestMetrics?.requestedAtMs ?? renderedAtMs,
+      nextScaleFactor: sampledRadius,
+      source: "fast-reproject",
+    });
+    recordDiscOriginJump({
+      inputVersion: renderDiscSample.inputVersion,
+      source: "fast-reproject",
+      nextDiscWorldPosition: renderDiscPositionECEF,
+      nextClientPosition: pointerScreenPosition,
+      nextDiscNormal: stableDiscNormal,
+      requestedAtMs: requestMetrics?.requestedAtMs ?? renderedAtMs,
+    });
+    latestDiscWorldPosition = Cartesian3.clone(
+      renderDiscPositionECEF,
+      latestDiscWorldPosition ?? new Cartesian3()
+    );
+    const canvasRect = scene.canvas.getBoundingClientRect();
+    latestDiscClientPosition = resolveClientPositionFromWorldPosition({
+      worldPosition: renderDiscPositionECEF,
+      canvasRect,
+      fallbackScreenPosition: pointerScreenPosition,
+      scratchScreenPosition: projectedDiscScreenPositionScratch,
+    });
+    latestSampleClientPosition = resolveClientPositionFromWorldPosition({
+      worldPosition: latestTrueDiscWorldPosition,
+      canvasRect,
+      fallbackScreenPosition: null,
+      scratchScreenPosition: projectedSampleScreenPositionScratch,
+    });
+    if (requestMetrics && latestSampleClientPosition) {
+      latestRequestedSampleClientPosition = { ...latestSampleClientPosition };
+    }
+    syncDebugLagState();
+    markDiscUpdateEvent();
+    recordTelemetryEntry();
+  };
+
+  const prepareFastDiscSample = (
+    inputVersion: number,
+    clientPosition: ScreenVector | null
+  ): PreparedDiscSample | null => {
+    const screenPosition =
+      resolvePointerScreenPositionFromClientPosition(clientPosition);
+    if (!screenPosition) {
+      recordTangentPlaneFailure({
+        inputVersion,
+        reason:
+          POINT_QUERY_PREVIEW_TANGENT_PLANE_FAILURE_REASONS.MISSING_SCREEN_POSITION,
+        clientPosition,
+        screenPosition: null,
+        hasSampledPoint: false,
+        hasSampledSurfaceNormal: false,
+      });
+      return null;
+    }
+
+    const tangentPlane = resolveLatestTrueTangentPlane();
+    if (!tangentPlane) {
+      recordTangentPlaneFailure({
+        inputVersion,
+        reason: latestTrueDiscWorldPosition
+          ? POINT_QUERY_PREVIEW_TANGENT_PLANE_FAILURE_REASONS.MISSING_TRUE_DISC_NORMAL
+          : POINT_QUERY_PREVIEW_TANGENT_PLANE_FAILURE_REASONS.MISSING_TRUE_DISC_POINT,
+        clientPosition,
+        screenPosition: {
+          x: screenPosition.x,
+          y: screenPosition.y,
+        },
+        hasSampledPoint: Boolean(latestTrueDiscWorldPosition),
+        hasSampledSurfaceNormal: Boolean(latestDiscNormal),
+      });
+      return null;
+    }
+
+    const reprojectedWorldPosition =
+      resolveTangentDiscPlaneReprojectedWorldPosition({
+        scene,
+        screenPosition,
+        tangentPlane,
+      });
+    if (!reprojectedWorldPosition) {
+      recordTangentPlaneFailure({
+        inputVersion,
+        reason:
+          POINT_QUERY_PREVIEW_TANGENT_PLANE_FAILURE_REASONS.REPROJECTION_MISS,
+        clientPosition,
+        screenPosition: {
+          x: screenPosition.x,
+          y: screenPosition.y,
+        },
+        hasSampledPoint: true,
+        hasSampledSurfaceNormal: Boolean(latestDiscNormal),
+      });
+      return null;
+    }
+
+    return {
+      inputVersion,
+      screenPosition: Cartesian2.clone(screenPosition, new Cartesian2()),
+      pickedPositionECEF: Cartesian3.clone(reprojectedWorldPosition, new Cartesian3()),
+      surfaceNormalECEF: latestDiscNormal
+        ? Cartesian3.clone(latestDiscNormal, new Cartesian3())
+        : null,
+    };
+  };
+
+  const prepareDisplayedDiscSampleForSmoothing = (
+    inputVersion: number
+  ): PreparedDiscSample | null => {
+    const screenPosition = resolvePointerScreenPosition();
+    const displayedDiscWorldPosition =
+      latestDiscWorldPosition ?? latestTrueDiscWorldPosition;
+    if (!screenPosition || !displayedDiscWorldPosition) {
+      return null;
+    }
+
+    return {
+      inputVersion,
+      screenPosition: Cartesian2.clone(screenPosition, new Cartesian2()),
+      pickedPositionECEF: Cartesian3.clone(
+        displayedDiscWorldPosition,
+        new Cartesian3()
+      ),
+      surfaceNormalECEF: latestDiscNormal
+        ? Cartesian3.clone(latestDiscNormal, new Cartesian3())
+        : null,
+    };
+  };
+
+  const renderDiscAndReadout = () => {
+    discNeedsRender = false;
+
+    if (!currentOptions.queryEnabled) {
+      clearDiscPrimitive();
+      updateReadout(null, null);
+      syncDebugLagState();
+      return;
+    }
+
+    const nowMs = performance.now();
+    const placementMode = readDiscPlacementMode();
+    const shouldUseFastReproject =
+      isPointQueryPreviewDiscPlaneOffsetPlacementMode(placementMode);
+
+    let trueDiscSample: PreparedDiscSample | null = null;
+    let renderDiscSample: PreparedDiscSample | null = null;
+
+    if (shouldRefreshTrueDiscSample(nowMs)) {
+      trueDiscSample = sampleTrueDiscAtCurrentPointer({
+        sampleSurfaceNormal: shouldRefreshTrueDiscNormal(nowMs),
+      });
+      if (trueDiscSample?.pickedPositionECEF) {
+        latestTrueDiscWorldPosition = Cartesian3.clone(
+          trueDiscSample.pickedPositionECEF,
+          latestTrueDiscWorldPosition ?? new Cartesian3()
+        );
+        latestTrueDiscSampledAtMs = nowMs;
+        if (trueDiscSample.surfaceNormalECEF) {
+          latestTrueDiscNormalSampledAtMs = nowMs;
+        }
+      }
+    }
+
+    if (trueDiscSample) {
+      renderDiscSample = trueDiscSample;
+      latestPreparedDiscSample = null;
+    } else if (shouldUseFastReproject) {
+      renderDiscSample =
+        latestPreparedDiscSample &&
+        latestPreparedDiscSample.inputVersion === latestInputVersion
+          ? latestPreparedDiscSample
+          : null;
+
+      if (!renderDiscSample) {
+        renderDiscSample = prepareFastDiscSample(
+          latestInputVersion,
+          latestInputClientPosition
+            ? {
+                x: latestInputClientPosition.x,
+                y: latestInputClientPosition.y,
+              }
+            : null
+        );
+      }
+    } else if (hasPendingDiscNormalSmoothing(nowMs)) {
+      renderDiscSample = prepareDisplayedDiscSampleForSmoothing(
+        latestInputVersion
+      );
+    }
+
+    if (!renderDiscSample) {
+      clearDiscPrimitive();
+      updateReadout(null, null);
+      syncDebugLagState();
+      return;
+    }
+    const pointerScreenPosition = renderDiscSample.screenPosition;
+    const pickedPositionECEF = renderDiscSample.pickedPositionECEF;
+    const truePickedPositionECEF =
+      trueDiscSample?.pickedPositionECEF ?? latestTrueDiscWorldPosition;
+    applyRenderedDiscSample({
+      renderDiscSample: {
+        ...renderDiscSample,
+        screenPosition: pointerScreenPosition,
+        pickedPositionECEF,
+      },
+      truePickedPositionECEF,
+      trueSampledSurfaceNormal: trueDiscSample?.surfaceNormalECEF ?? null,
+      renderedAtMs: nowMs,
+    });
+
+    if (hasPendingDiscNormalSmoothing(nowMs)) {
+      requestRenderNow();
+    }
+  };
+
+  const requestRenderOnly = () => {
+    if (scene.isDestroyed()) {
+      return;
+    }
+
+    markRenderRequestEvent();
+    scene.requestRender();
+  };
+
+  const requestRenderNow = () => {
+    if (scene.isDestroyed()) {
       return;
     }
 
     discNeedsRender = true;
-    scene.requestRender();
+    requestRenderOnly();
+  };
+
+  const queueRender = () => {
+    requestRenderNow();
+  };
+
+  const clearPointer = () => {
+    latestObservedClientPosition = null;
+    latestInputClientPosition = null;
+    latestRenderedClientPosition = null;
+    latestDiscClientPosition = null;
+    latestSampleClientPosition = null;
+    latestRequestedClientPosition = null;
+    latestRequestedSampleClientPosition = null;
+    latestPreparedDiscSample = null;
+    latestTrueDiscWorldPosition = null;
+    latestTrueDiscSampledAtMs = 0;
+    latestRequestToDiscLatencyMs = 0;
+    pendingDiscRequests.clear();
+    lastProcessedInputVersion = latestInputVersion;
+    clearDiscPrimitive();
+    pointQueryPreviewDebugRuntime.clearPointerState();
+    updateReadout(null, null);
+    queueRender();
   };
 
   const removePreRenderListener = scene.preRender.addEventListener(() => {
@@ -323,19 +1153,140 @@ export const createPointQueryPreviewController = ({
     renderDiscAndReadout();
   });
 
-  const unsubscribeClientPosition = subscribeCesiumScenePointerClientPosition(
-    scene,
-    () => {
+  const commitLatestInputClientPosition = ({
+    x,
+    y,
+    timestampMs,
+  }: {
+    x: number;
+    y: number;
+    timestampMs: number;
+  }) => {
+    latestInputClientPosition = {
+      x,
+      y,
+      timestampMs,
+    };
+    latestInputVersion += 1;
+    pendingDiscRequests.set(latestInputVersion, {
+      inputVersion: latestInputVersion,
+      requestedAtMs: timestampMs,
+      requestClientPosition: {
+        x,
+        y,
+      },
+      requestSampleClientPosition: null,
+    });
+    latestRequestedAtMs = timestampMs;
+    if (pendingDiscRequests.size > 32) {
+      const oldestInputVersion = pendingDiscRequests.keys().next().value;
+      if (typeof oldestInputVersion === "number") {
+        pendingDiscRequests.delete(oldestInputVersion);
+      }
+    }
+    latestPreparedDiscSample =
+      isPointQueryPreviewDiscPlaneOffsetPlacementMode(readDiscPlacementMode())
+        ? prepareFastDiscSample(latestInputVersion, { x, y })
+        : null;
+  };
+
+  const handleCanvasPointerMove = (event: PointerEvent) => {
+    const nowMs = performance.now();
+    const nextClientPosition = {
+      x: event.clientX,
+      y: event.clientY,
+    };
+    updateObservedClientPosition({
+      x: nextClientPosition.x,
+      y: nextClientPosition.y,
+    });
+    if (
+      rawPointerSupported &&
+      isPointQueryPreviewDiscPlaneOffsetPlacementMode(readDiscPlacementMode()) &&
+      nowMs - lastRawPointerEventTimeMs < RAW_POINTER_FALLBACK_WINDOW_MS &&
+      isSameClientPosition(nextClientPosition, latestInputClientPosition)
+    ) {
       markMousePositionEvent();
+      return;
+    }
+    commitLatestInputClientPosition({
+      x: nextClientPosition.x,
+      y: nextClientPosition.y,
+      timestampMs: latestObservedClientPosition?.timestampMs ?? nowMs,
+    });
+    syncDebugLagState();
+    markMousePositionEvent();
+    queueRender();
+  };
+  const handleCanvasPointerRawUpdate = (event: PointerEvent) => {
+    const coalescedEvents =
+      "getCoalescedEvents" in event ? event.getCoalescedEvents() : [];
+    const latestEvent =
+      coalescedEvents.length > 0
+        ? coalescedEvents[coalescedEvents.length - 1]
+        : event;
+    lastRawPointerEventTimeMs = performance.now();
+    updateObservedClientPosition({
+      x: latestEvent.clientX,
+      y: latestEvent.clientY,
+    });
+    if (!isPointQueryPreviewDiscPlaneOffsetPlacementMode(readDiscPlacementMode())) {
+      return;
+    }
+    commitLatestInputClientPosition({
+      x: latestEvent.clientX,
+      y: latestEvent.clientY,
+      timestampMs: performance.now(),
+    });
+    const fastDiscSample = latestPreparedDiscSample;
+    const nowMs = performance.now();
+    if (fastDiscSample?.pickedPositionECEF) {
+      // Immediate offline update:
+      // intersect the current screen ray with the last true tangent plane to
+      // keep the visible disc close to the cursor. The regular render cycle
+      // still applies the next true mesh depth and updated smoothed normal.
+      applyFastReprojectedDiscSample({
+        renderDiscSample: fastDiscSample,
+        renderedAtMs: nowMs,
+      });
+    }
+    syncDebugLagState();
+    markMousePositionEvent();
+    if (
+      shouldRefreshTrueDiscSample(nowMs) ||
+      pointQueryPreviewDebugRuntime.readLatestSampleOffsetPx() >=
+        MAX_FAST_SAMPLE_OFFSET_PX
+    ) {
       queueRender();
+      return;
+    }
+    requestRenderOnly();
+  };
+  const handleCanvasPointerLeave = () => {
+    clearPointer();
+  };
+  const handleWindowBlur = () => {
+    clearPointer();
+  };
+  scene.canvas.addEventListener("pointermove", handleCanvasPointerMove, {
+    passive: true,
+  });
+  scene.canvas.addEventListener(
+    "pointerrawupdate",
+    handleCanvasPointerRawUpdate as EventListener,
+    {
+      passive: true,
     }
   );
+  scene.canvas.addEventListener("pointerleave", handleCanvasPointerLeave);
+  window.addEventListener("blur", handleWindowBlur);
   const performanceIntervalId = window.setInterval(() => {
-    updatePerformanceStats();
+    pointQueryPreviewDebugRuntime.updatePerformanceStats();
   }, PERFORMANCE_REPORT_INTERVAL_MS);
 
+  pointQueryPreviewDebugRuntime.setEnabled(readDebugTelemetryEnabled());
   applyCursorVisibility();
-  updatePerformanceStats(true);
+  pointQueryPreviewDebugRuntime.resetStatusElements();
   queueRender();
 
   return {
@@ -347,28 +1298,49 @@ export const createPointQueryPreviewController = ({
           nextOptions.discMaterialPreset ||
         currentOptions.innerHoleRadiusRatio !== nextOptions.innerHoleRadiusRatio;
       currentOptions = nextOptions;
+      pointQueryPreviewDebugRuntime.setEnabled(readDebugTelemetryEnabled());
       applyCursorVisibility();
       if (primitiveDefinitionChanged) {
         clearDiscPrimitive();
       }
       queueRender();
     },
+    getTelemetrySnapshot: () =>
+      pointQueryPreviewDebugRuntime.getTelemetrySnapshot({
+        maxRenderRequestRateHz: MAX_RENDER_REQUEST_RATE_HZ,
+        latestInputVersion,
+        lastProcessedInputVersion,
+        latestRequestedAtMs,
+        latestRenderedAtMs,
+        latestRequestToDiscLatencyMs,
+        latestClientPosition: latestObservedClientPosition
+          ? {
+              x: latestObservedClientPosition.x,
+              y: latestObservedClientPosition.y,
+            }
+          : null,
+        latestRenderedClientPosition,
+        latestDiscClientPosition,
+        latestSampleClientPosition,
+        latestRequestedClientPosition,
+        latestRequestedSampleClientPosition,
+      }),
     destroy: () => {
       removePreRenderListener?.();
-      unsubscribeClientPosition();
       unregisterPointerTracker();
+      scene.canvas.removeEventListener("pointermove", handleCanvasPointerMove);
+      scene.canvas.removeEventListener(
+        "pointerrawupdate",
+        handleCanvasPointerRawUpdate as EventListener
+      );
+      scene.canvas.removeEventListener(
+        "pointerleave",
+        handleCanvasPointerLeave
+      );
+      window.removeEventListener("blur", handleWindowBlur);
       window.clearInterval(performanceIntervalId);
       clearDiscPrimitive();
-      updateReadout(null, null);
-      if (mousePositionRateElement) {
-        mousePositionRateElement.textContent = "mouse 0.0 Hz";
-      }
-      if (sampleRateElement) {
-        sampleRateElement.textContent = "sample 0.0 Hz";
-      }
-      if (discUpdateRateElement) {
-        discUpdateRateElement.textContent = "disc 0.0 Hz";
-      }
+      pointQueryPreviewDebugRuntime.destroy();
       if (!scene.isDestroyed()) {
         scene.canvas.style.cursor = "";
       }

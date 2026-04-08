@@ -74,6 +74,10 @@ export const buildPointToolRenderModels = ({
         return [];
       }
       const pointNodeId = measurement.nodeIds[0] ?? null;
+      const pointVisuals =
+        measurement.id === selectedMeasurementId
+          ? visuals.selectedPoint
+          : visuals.point;
 
       const badgeText = getMeasurementLabel(pointIndex + 1);
 
@@ -83,6 +87,7 @@ export const buildPointToolRenderModels = ({
           measurementId: measurement.id,
           nodeId: pointNodeId ?? undefined,
           coordinate,
+          markerPixelSize: pointVisuals.pixelSize,
           content: badgeText,
           markerBackgroundColor: badgeStyle.backgroundColor,
           markerTextColor: badgeStyle.textColor,

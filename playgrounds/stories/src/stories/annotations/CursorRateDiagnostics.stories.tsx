@@ -1,12 +1,60 @@
-import { useEffect, useMemo, useRef, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 
 import type { Meta, StoryObj } from "@storybook/react";
+import { useArgs } from "@storybook/preview-api";
 import { ResponsiveStatusBar } from "@carma-commons/ui/components";
+import {
+  CROSSHAIR_CURSOR_STYLES,
+  type CrosshairCursorStyle,
+} from "@carma-mapping/annotations/runtime-v2";
 
 import { createCursorRateDiagnosticsController } from "./create-cursor-rate-diagnostics-controller";
 
+const NATIVE_CURSOR_STYLE_OPTIONS = [
+  "auto",
+  "default",
+  "none",
+  "help",
+  "pointer",
+  "wait",
+  "cell",
+  "crosshair",
+  "text",
+  "vertical-text",
+  "alias",
+  "copy",
+  "move",
+  "not-allowed",
+  "grab",
+  "grabbing",
+  "e-resize",
+  "n-resize",
+  "ne-resize",
+  "nw-resize",
+  "s-resize",
+  "se-resize",
+  "sw-resize",
+  "w-resize",
+  "ew-resize",
+  "ns-resize",
+  "nesw-resize",
+  "nwse-resize",
+  "col-resize",
+  "row-resize",
+  "zoom-in",
+  "zoom-out",
+] as const;
+
+type NativeCursorStyle = (typeof NATIVE_CURSOR_STYLE_OPTIONS)[number];
+
 type CursorRateDiagnosticsStoryProps = {
-  maxRateHz: number;
+  showTopGraphPlotting: boolean;
+  showCustomCursorPreset: boolean;
+  customCursorStyle: CrosshairCursorStyle;
+  customCursorPrimaryColor: string;
+  customCursorSecondaryColor: string;
+  hideNativeCursor: boolean;
+  nativeCursorStyle: NativeCursorStyle;
   showPointerMove: boolean;
   showPointerRawUpdate: boolean;
   showCoalesced: boolean;
@@ -20,6 +68,45 @@ type CursorRateDiagnosticsStoryProps = {
   showTouchForceChange: boolean;
 };
 
+type CursorRateDiagnosticsSandboxProps = CursorRateDiagnosticsStoryProps & {
+  onNativeCursorStyleCommit?: (cursorStyle: NativeCursorStyle) => void;
+};
+
+const NATIVE_CURSOR_STYLE_TOKENS: Record<NativeCursorStyle, string> = {
+  auto: "A",
+  default: "↖",
+  none: "Ø",
+  help: "?",
+  pointer: "☞",
+  wait: "…",
+  cell: "+",
+  crosshair: "✚",
+  text: "I",
+  "vertical-text": "I|",
+  alias: "↗",
+  copy: "C+",
+  move: "✥",
+  "not-allowed": "⊘",
+  grab: "G",
+  grabbing: "g",
+  "e-resize": "E",
+  "n-resize": "N",
+  "ne-resize": "NE",
+  "nw-resize": "NW",
+  "s-resize": "S",
+  "se-resize": "SE",
+  "sw-resize": "SW",
+  "w-resize": "W",
+  "ew-resize": "EW",
+  "ns-resize": "NS",
+  "nesw-resize": "/",
+  "nwse-resize": "\\",
+  "col-resize": "||",
+  "row-resize": "=",
+  "zoom-in": "+",
+  "zoom-out": "-",
+};
+
 const SURFACE_STYLE = {
   position: "relative" as const,
   width: "100%",
@@ -30,14 +117,13 @@ const SURFACE_STYLE = {
 };
 
 const STATUS_BAR_HEIGHT_PX = 24;
-const CHART_HEIGHT_PX = 284;
 
 const CHART_STYLE = {
   position: "absolute" as const,
   left: 0,
   right: 0,
   top: STATUS_BAR_HEIGHT_PX,
-  height: CHART_HEIGHT_PX,
+  bottom: 0,
 };
 
 const STATUS_BAR_STYLE: CSSProperties = {
@@ -54,13 +140,87 @@ const ROW_LABELS_STYLE = {
   left: 0,
   right: 0,
   top: STATUS_BAR_HEIGHT_PX,
-  height: CHART_HEIGHT_PX,
+  bottom: 0,
   pointerEvents: "none" as const,
   zIndex: 2,
 };
 
+const NATIVE_CURSOR_GRID_PANEL_STYLE: CSSProperties = {
+  position: "absolute",
+  left: 0,
+  right: 0,
+  bottom: 0,
+  height: "33vh",
+  zIndex: 3,
+  pointerEvents: "none",
+  padding: "8px",
+  display: "flex",
+  alignItems: "flex-end",
+};
+
+const NATIVE_CURSOR_GRID_STYLE: CSSProperties = {
+  width: "100%",
+  height: "100%",
+  display: "grid",
+  gridTemplateColumns: "repeat(8, minmax(0, 1fr))",
+  gridTemplateRows: "repeat(4, minmax(0, 1fr))",
+  gap: "6px",
+  background: "rgba(255, 255, 255, 0.86)",
+  border: "1px solid rgba(15, 23, 42, 0.2)",
+  borderRadius: "8px",
+  padding: "8px",
+  pointerEvents: "auto",
+};
+
+const NATIVE_CURSOR_CELL_STYLE: CSSProperties = {
+  border: "1px solid rgba(15, 23, 42, 0.22)",
+  borderRadius: "6px",
+  background: "rgba(255, 255, 255, 0.96)",
+  color: "#0f172a",
+  font: "600 10px/1.1 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+  textAlign: "left",
+  padding: "6px 8px",
+  overflow: "hidden",
+  display: "flex",
+  flexDirection: "column",
+  justifyContent: "center",
+  gap: "4px",
+};
+
+const NATIVE_CURSOR_CELL_ACTIVE_STYLE: CSSProperties = {
+  borderColor: "#1d4ed8",
+  boxShadow: "inset 0 0 0 1px #1d4ed8",
+  background: "#eff6ff",
+};
+
+const NATIVE_CURSOR_PREVIEW_STYLE: CSSProperties = {
+  width: "24px",
+  height: "16px",
+  border: "1px solid rgba(15, 23, 42, 0.22)",
+  borderRadius: "3px",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  font: "700 9px/1 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+  color: "#0f172a",
+  background: "rgba(255,255,255,0.98)",
+};
+
+const NATIVE_CURSOR_NAME_STYLE: CSSProperties = {
+  font: "600 9px/1.1 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+  color: "#0f172a",
+  whiteSpace: "normal",
+  wordBreak: "break-word",
+};
+
 const CursorRateDiagnosticsSandbox = ({
-  maxRateHz,
+  showTopGraphPlotting,
+  showCustomCursorPreset,
+  customCursorStyle,
+  customCursorPrimaryColor,
+  customCursorSecondaryColor,
+  hideNativeCursor,
+  nativeCursorStyle,
   showPointerMove,
   showPointerRawUpdate,
   showCoalesced,
@@ -72,7 +232,8 @@ const CursorRateDiagnosticsSandbox = ({
   showTouchStart,
   showTouchEnd,
   showTouchForceChange,
-}: CursorRateDiagnosticsStoryProps) => {
+  onNativeCursorStyleCommit,
+}: CursorRateDiagnosticsSandboxProps) => {
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<HTMLDivElement | null>(null);
   const rowLabelsRef = useRef<HTMLDivElement | null>(null);
@@ -82,6 +243,12 @@ const CursorRateDiagnosticsSandbox = ({
   const controllerRef = useRef<ReturnType<
     typeof createCursorRateDiagnosticsController
   > | null>(null);
+  const [hoveredNativeCursorStyle, setHoveredNativeCursorStyle] = useState<
+    CursorRateDiagnosticsStoryProps["nativeCursorStyle"] | null
+  >(null);
+
+  const effectiveNativeCursorStyle =
+    hoveredNativeCursorStyle ?? nativeCursorStyle;
 
   const statusValues = useMemo(
     () => [
@@ -93,6 +260,41 @@ const CursorRateDiagnosticsSandbox = ({
     ],
     []
   );
+
+  useEffect(() => {
+    if (
+      hideNativeCursor ||
+      showCustomCursorPreset ||
+      customCursorStyle === CROSSHAIR_CURSOR_STYLES.DEFAULT ||
+      customCursorStyle === CROSSHAIR_CURSOR_STYLES.SIMPLE_HAIRLINE
+    ) {
+      setHoveredNativeCursorStyle(null);
+    }
+  }, [hideNativeCursor, showCustomCursorPreset, customCursorStyle]);
+
+  useEffect(() => {
+    const surfaceElement = surfaceRef.current;
+    if (!surfaceElement) {
+      return;
+    }
+
+    if (
+      hideNativeCursor ||
+      showCustomCursorPreset ||
+      customCursorStyle === CROSSHAIR_CURSOR_STYLES.DEFAULT ||
+      customCursorStyle === CROSSHAIR_CURSOR_STYLES.SIMPLE_HAIRLINE
+    ) {
+      return;
+    }
+
+    surfaceElement.style.cursor = hoveredNativeCursorStyle ?? nativeCursorStyle;
+  }, [
+    hoveredNativeCursorStyle,
+    hideNativeCursor,
+    showCustomCursorPreset,
+    customCursorStyle,
+    nativeCursorStyle,
+  ]);
 
   useEffect(() => {
     if (!surfaceRef.current || !chartRef.current) {
@@ -107,7 +309,13 @@ const CursorRateDiagnosticsSandbox = ({
       rawSupportElement: rawSupportRef.current,
       maxRateElement: maxRateRef.current,
       options: {
-        maxRateHz,
+        showTopGraphPlotting,
+        showCustomCursorPreset,
+        customCursorStyle,
+        customCursorPrimaryColor,
+        customCursorSecondaryColor,
+        hideNativeCursor,
+        nativeCursorStyle,
         showPointerMove,
         showPointerRawUpdate,
         showCoalesced,
@@ -130,7 +338,13 @@ const CursorRateDiagnosticsSandbox = ({
 
   useEffect(() => {
     controllerRef.current?.updateOptions({
-      maxRateHz,
+      showTopGraphPlotting,
+      showCustomCursorPreset,
+      customCursorStyle,
+      customCursorPrimaryColor,
+      customCursorSecondaryColor,
+      hideNativeCursor,
+      nativeCursorStyle,
       showPointerMove,
       showPointerRawUpdate,
       showCoalesced,
@@ -144,7 +358,13 @@ const CursorRateDiagnosticsSandbox = ({
       showTouchForceChange,
     });
   }, [
-    maxRateHz,
+    showTopGraphPlotting,
+    showCustomCursorPreset,
+    customCursorStyle,
+    customCursorPrimaryColor,
+    customCursorSecondaryColor,
+    nativeCursorStyle,
+    hideNativeCursor,
     showAnimationFrame,
     showCoalesced,
     showDistinctPosition,
@@ -169,6 +389,38 @@ const CursorRateDiagnosticsSandbox = ({
       </div>
       <div ref={chartRef} style={CHART_STYLE} />
       <div ref={rowLabelsRef} style={ROW_LABELS_STYLE} />
+      {!hideNativeCursor ? (
+        <div style={NATIVE_CURSOR_GRID_PANEL_STYLE}>
+          <div style={NATIVE_CURSOR_GRID_STYLE}>
+            {NATIVE_CURSOR_STYLE_OPTIONS.map((cursorStyle) => {
+              const isActive = cursorStyle === effectiveNativeCursorStyle;
+              return (
+                <button
+                  key={cursorStyle}
+                  type="button"
+                  style={{
+                    ...NATIVE_CURSOR_CELL_STYLE,
+                    ...(isActive ? NATIVE_CURSOR_CELL_ACTIVE_STYLE : null),
+                    cursor: cursorStyle,
+                  }}
+                  onMouseEnter={() => setHoveredNativeCursorStyle(cursorStyle)}
+                  onMouseLeave={() => setHoveredNativeCursorStyle(null)}
+                  onFocus={() => setHoveredNativeCursorStyle(cursorStyle)}
+                  onBlur={() => setHoveredNativeCursorStyle(null)}
+                  onClick={() => onNativeCursorStyleCommit?.(cursorStyle)}
+                  title={cursorStyle}
+                  aria-label={cursorStyle}
+                >
+                  <span style={NATIVE_CURSOR_PREVIEW_STYLE}>
+                    {NATIVE_CURSOR_STYLE_TOKENS[cursorStyle]}
+                  </span>
+                  <span style={NATIVE_CURSOR_NAME_STYLE}>{cursorStyle}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };
@@ -180,40 +432,107 @@ const meta: Meta<CursorRateDiagnosticsStoryProps> = {
     layout: "fullscreen",
   },
   argTypes: {
-    maxRateHz: {
-      control: { type: "range", min: 30, max: 240, step: 1 },
+    showTopGraphPlotting: {
+      control: { type: "boolean" },
+      table: { category: "Plot" },
+    },
+    showCustomCursorPreset: {
+      control: { type: "boolean" },
+      table: { category: "Cursor" },
+    },
+    customCursorStyle: {
+      control: { type: "inline-radio" },
+      options: [
+        CROSSHAIR_CURSOR_STYLES.DEFAULT,
+        CROSSHAIR_CURSOR_STYLES.SIMPLE_HAIRLINE,
+      ],
+      table: { category: "Cursor" },
+    },
+    customCursorPrimaryColor: {
+      control: { type: "color" },
+      table: { category: "Cursor" },
+    },
+    customCursorSecondaryColor: {
+      control: { type: "color" },
+      table: { category: "Cursor" },
+    },
+    hideNativeCursor: {
+      control: { type: "boolean" },
+      table: { category: "Cursor" },
+    },
+    nativeCursorStyle: {
+      control: false,
+      table: { category: "Cursor" },
     },
     showPointerMove: {
       control: { type: "boolean" },
+      table: { category: "Pointer" },
     },
     showPointerRawUpdate: {
       control: { type: "boolean" },
+      table: { category: "Pointer" },
     },
     showDistinctPosition: {
       control: { type: "boolean" },
+      table: { category: "Pointer" },
     },
     showPaintedPosition: {
       control: { type: "boolean" },
+      table: { category: "Pointer" },
     },
     showMouseMove: {
       control: { type: "boolean" },
+      table: { category: "Mouse" },
     },
     showAnimationFrame: {
       control: { type: "boolean" },
+      table: { category: "Plot" },
     },
-    showTouchMove: { control: { type: "boolean" } },
-    showTouchStart: { control: { type: "boolean" } },
-    showTouchEnd: { control: { type: "boolean" } },
-    showTouchForceChange: { control: { type: "boolean" } },
-    showCoalesced: { control: { type: "boolean" } },
+    showTouchMove: {
+      control: { type: "boolean" },
+      table: { category: "Touch" },
+    },
+    showTouchStart: {
+      control: { type: "boolean" },
+      table: { category: "Touch" },
+    },
+    showTouchEnd: {
+      control: { type: "boolean" },
+      table: { category: "Touch" },
+    },
+    showTouchForceChange: {
+      control: { type: "boolean" },
+      table: { category: "Touch" },
+    },
+    showCoalesced: {
+      control: { type: "boolean" },
+      table: { category: "Pointer" },
+    },
   },
 };
 
 export default meta;
 
 export const PollingRates: StoryObj<CursorRateDiagnosticsStoryProps> = {
+  render: (args) => {
+    const [, updateArgs] = useArgs<CursorRateDiagnosticsStoryProps>();
+    return (
+      <CursorRateDiagnosticsSandbox
+        {...args}
+        onNativeCursorStyleCommit={(cursorStyle) => {
+          updateArgs({ nativeCursorStyle: cursorStyle });
+        }}
+      />
+    );
+  },
   args: {
-    maxRateHz: 144,
+    showTopGraphPlotting: true,
+    showCustomCursorPreset: false,
+    customCursorStyle: CROSSHAIR_CURSOR_STYLES.DEFAULT,
+    customCursorPrimaryColor: "",
+    customCursorSecondaryColor: "",
+    hideNativeCursor: false,
+    nativeCursorStyle: "crosshair",
     showPointerMove: true,
     showPointerRawUpdate: true,
     showCoalesced: true,

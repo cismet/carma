@@ -63,7 +63,7 @@ const assertCapabilityContract = (
       ((capability === ANNOTATION_TOOL_PLUGIN_CAPABILITIES.PREVIEW ||
         capability ===
           ANNOTATION_TOOL_PLUGIN_CAPABILITIES.PREVIEW_PRIMITIVES) &&
-        plugin.renderLayer) ||
+        plugin.preview) ||
       (capability === ANNOTATION_TOOL_PLUGIN_CAPABILITIES.INFO_BOX &&
         plugin.infoBox) ||
       (capability !== ANNOTATION_TOOL_PLUGIN_CAPABILITIES.SESSION &&
@@ -122,8 +122,8 @@ const normalizePluginContract = (
     ) {
       normalizedPlugin = {
         ...normalizedPlugin,
-        renderLayer: {
-          build: () => null,
+        preview: {
+          createController: () => null,
         },
       };
       return;

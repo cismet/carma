@@ -58,6 +58,8 @@ export type AnimationConfig = {
 };
 
 export type ObliqueAnimationsConfig = {
+  // Enter animation when switching the viewer into oblique mode.
+  enterObliqueMode?: AnimationConfig;
   flyToExteriorOrientation?: AnimationConfig;
   // Optional: animation config for navigating to sibling/next image.
   // If omitted, consumers should derive it from flyToExteriorOrientation (e.g., half duration).
@@ -90,6 +92,7 @@ export interface ObliqueDataProviderConfig {
   fixedHeight?: number;
   minFov?: Radians;
   maxFov?: Radians;
+  targetEnterObliqueModeFov?: Radians;
   restoreFovOnLeave?: Radians;
   headingOffset?: number;
   animations?: ObliqueAnimationsConfig;

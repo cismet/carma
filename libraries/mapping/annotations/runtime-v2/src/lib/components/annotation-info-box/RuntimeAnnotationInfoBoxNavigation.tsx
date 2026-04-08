@@ -1,9 +1,11 @@
+import type { ReactNode } from "react";
 import { faAnglesLeft, faAnglesRight } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 type RuntimeAnnotationInfoBoxNavigationProps = {
   totalEntries: number;
   currentIndex: number;
   instructionText?: string | null;
+  availabilityLabel?: ReactNode;
   onPreviousMeasurement: () => void;
   onNextMeasurement: () => void;
 };
@@ -12,6 +14,7 @@ export const RuntimeAnnotationInfoBoxNavigation = ({
   totalEntries,
   currentIndex,
   instructionText,
+  availabilityLabel,
   onPreviousMeasurement,
   onNextMeasurement,
 }: RuntimeAnnotationInfoBoxNavigationProps) => {
@@ -22,6 +25,16 @@ export const RuntimeAnnotationInfoBoxNavigation = ({
       {instructionText ? (
         <div className="flex justify-center items-center w-full px-2 mt-1 pt-1 text-gray-500">
           <span>{instructionText}</span>
+        </div>
+      ) : null}
+      {totalEntries > 0 ? (
+        <div className="flex justify-center items-center w-full px-2 mt-1 pt-1">
+          <span className="text-[#0078a8]">
+            {availabilityLabel ??
+              `${totalEntries} ${
+                totalEntries === 1 ? "Messung" : "Messungen"
+              } verfügbar`}
+          </span>
         </div>
       ) : null}
       {totalEntries > 0 ? (
