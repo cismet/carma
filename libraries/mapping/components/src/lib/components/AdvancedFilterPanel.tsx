@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { Button } from "react-bootstrap";
 import { TriStateFilterButton, type TriState } from "./TriStateFilterButton";
 import { PieChart } from "./PieChart";
 
@@ -19,6 +20,7 @@ export interface AdvancedFilterPanelProps {
   width?: number;
   pieChartData?: [string, number][];
   pieChartColors?: string[];
+  categoryFootnotes?: Record<string, string>;
 }
 
 export const AdvancedFilterPanel = ({
@@ -28,6 +30,7 @@ export const AdvancedFilterPanel = ({
   width = 500,
   pieChartData,
   pieChartColors,
+  categoryFootnotes,
 }: AdvancedFilterPanelProps) => {
   const getTriState = useCallback(
     (key: string): TriState => {
@@ -72,13 +75,14 @@ export const AdvancedFilterPanel = ({
   }, [filterState, onFilterStateChange]);
 
   const filterRows = (
-    <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+    <div style={{ display: "flex", flexDirection: "column" }}>
       {categories.map((cat) => (
         <TriStateFilterButton
           key={cat.key}
           label={cat.label}
           state={getTriState(cat.key)}
           onChange={(newState) => handleToggle(cat.key, newState)}
+          footnote={categoryFootnotes?.[cat.key]}
         />
       ))}
     </div>
@@ -89,43 +93,49 @@ export const AdvancedFilterPanel = ({
 
   const isWide = width >= 600;
 
-  const btnStyle: React.CSSProperties = {
-    padding: "3px 8px",
-    border: "1px solid #ccc",
-    borderRadius: "4px",
-    background: "#f8f9fa",
-    cursor: "pointer",
-    fontSize: "11px",
-    whiteSpace: "nowrap",
-  };
-
   return (
-    <div style={{ fontSize: "13px" }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          gap: "4px",
-          flexWrap: "wrap",
-          marginBottom: "8px",
-        }}
-      >
-        <button onClick={handleSelectAll} style={btnStyle}>
+    <div>
+      <div style={{ textAlign: "center" }}>
+        <Button
+          variant="light"
+          style={{ margin: 4, marginLeft: 0 }}
+          onClick={handleSelectAll}
+        >
           alle Themen ausw&auml;hlen
-        </button>
-        <button onClick={handleClearPositiv} style={btnStyle}>
+        </Button>
+        <Button
+          variant="light"
+          style={{ margin: 4 }}
+          onClick={handleClearPositiv}
+        >
           keine Themen ausw&auml;hlen
-        </button>
-        <button onClick={handleClearNegativ} style={btnStyle}>
+        </Button>
+        <Button
+          variant="light"
+          style={{ margin: 4 }}
+          onClick={handleClearNegativ}
+        >
           keine Themen ausschlie&szlig;en
-        </button>
+        </Button>
       </div>
+      <br />
 
       {isWide && hasPieChartProps ? (
-        <div style={{ display: "flex", gap: "12px" }}>
-          <div style={{ flex: "0 0 auto" }}>{filterRows}</div>
+        <div
+          style={{
+            width: "100%",
+            display: "flex",
+            flexDirection: "row",
+            flexWrap: "nowrap",
+          }}
+        >
+          <div style={{ flexGrow: 0, flexShrink: 1 }}>{filterRows}</div>
           <div
-            style={{ flex: "1 1 auto", minWidth: 0, alignContent: "center" }}
+            style={{
+              flexGrow: 1,
+              flexShrink: 1,
+              alignContent: "center",
+            }}
           >
             <PieChart data={pieChartData!} colors={pieChartColors!} />
           </div>
