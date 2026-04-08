@@ -14,11 +14,11 @@ import {
 import versionData from "../version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
 import { PreviewLibreMap } from "@carma-mapping/engines/maplibre";
-import {
-  AdvancedFilterPanel,
-  type AdvancedFilterCategory,
-  type AdvancedFilterState,
+import type {
+  AdvancedFilterCategory,
+  AdvancedFilterState,
 } from "@carma-mapping/components";
+import FilterUI from "./FilterUI";
 
 interface MenuProps {
   categories?: AdvancedFilterCategory[];
@@ -46,7 +46,10 @@ const Menu = ({
 
   const hasFilter = categories && filterState && onFilterStateChange;
 
-  const filterTitle = `Mein Themenstadtplan (${filteredPoiCount} POIs gefunden, davon ${visiblePoiCount} in der Karte)`;
+  const getFilterHeader = () => {
+    const term = filteredPoiCount === 1 ? "POI" : "POIs";
+    return `Mein Themenstadtplan (${filteredPoiCount} ${term} gefunden, davon ${visiblePoiCount} in der Karte)`;
+  };
 
   return (
     <CustomizationContextProvider customizations={{}}>
@@ -70,14 +73,13 @@ const Menu = ({
                 <Section
                   key="filter"
                   sectionKey="filter"
-                  sectionTitle={filterTitle}
+                  sectionTitle={getFilterHeader()}
                   sectionBsStyle="primary"
                   sectionContent={
-                    <AdvancedFilterPanel
+                    <FilterUI
                       categories={categories}
                       filterState={filterState}
                       onFilterStateChange={onFilterStateChange}
-                      width={900}
                       pieChartData={pieChartData}
                       pieChartColors={pieChartColors}
                     />
