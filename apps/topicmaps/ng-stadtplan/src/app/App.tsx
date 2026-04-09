@@ -68,7 +68,7 @@ export default function App() {
           setFilterState(initialFilter);
         }
 
-        // Apply current filter (also handles style rebuilds)
+        // Re-apply filter (also handles style rebuilds that recreate the source)
         applyPoiFilter(
           map,
           allFeaturesRef.current,
@@ -149,6 +149,8 @@ export default function App() {
     };
   }, [filteredFeatures]);
 
+  const libreLayers = useMemo(() => [POI_LAYER_CONFIG], []);
+
   const categories = useMemo(
     () => lebenslagen.map((ll) => ({ key: ll, label: ll })),
     [lebenslagen]
@@ -166,7 +168,7 @@ export default function App() {
         exposeMapToWindow
         overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
         onProgressUpdate={handleProgressUpdate}
-        libreLayers={[POI_LAYER_CONFIG]}
+        libreLayers={libreLayers}
         filterFunction={handleFilter}
         gazetteerInfoOnClick={false}
         modalMenu={
