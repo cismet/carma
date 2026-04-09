@@ -11,6 +11,10 @@ import {
   extractLebenslagen,
   getAllowedKombis,
 } from "./helper/filter";
+import {
+  readFilterFromStorage,
+  writeFilterToStorage,
+} from "./helper/filterStorage";
 import { computePieChartStats } from "./helper/pieChartStats";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
@@ -55,7 +59,11 @@ export default function App() {
           setAllFeatures(data.features);
           setLebenslagen(data.lebenslagen);
 
-          const initialFilter = { positiv: data.lebenslagen, negativ: [] };
+          const restored = readFilterFromStorage(data.lebenslagen);
+          const initialFilter = restored ?? {
+            positiv: data.lebenslagen,
+            negativ: [],
+          };
           filterStateRef.current = initialFilter;
           setFilterState(initialFilter);
         }
@@ -87,6 +95,8 @@ export default function App() {
       allKombisRef.current,
       filterState
     );
+
+    writeFilterToStorage(filterState, lebenslagen);
   }, [filterState, lebenslagen]);
 
   const { pieChartData, pieChartColors } = useMemo(
