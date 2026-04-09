@@ -146,6 +146,7 @@ export default function App() {
         onProgressUpdate={handleProgressUpdate}
         libreLayers={[POI_LAYER_CONFIG]}
         filterFunction={handleFilter}
+        gazetteerInfoOnClick={false}
         modalMenu={
           <Menu
             categories={categories}
