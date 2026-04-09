@@ -109,15 +109,13 @@ const AUTO_SCALE_HEADROOM = 1.08;
 const ROW_LABEL_STYLE = [
   "position:absolute",
   "left:8px",
-  'font:600 12px/1.2 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+  "font:600 12px/1.2 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
   "color:#0f172a",
   "text-shadow:0 0 2px rgba(255,255,255,1),0 0 6px rgba(255,255,255,0.98),0 0 10px rgba(255,255,255,0.92)",
   "transform:translateY(-50%)",
   "pointer-events:none",
   "white-space:nowrap",
 ].join(";");
-
-
 
 const createMetricStates = (): CursorRateDiagnosticsMetricState[] => {
   const metrics = [
@@ -296,8 +294,10 @@ const formatMetricValue = (metric: CursorRateDiagnosticsMetricState) => {
 
   const trailingAverage =
     metric.averageWindowSamples.length > 0
-      ? metric.averageWindowSamples.reduce((sum, sample) => sum + sample.value, 0) /
-        metric.averageWindowSamples.length
+      ? metric.averageWindowSamples.reduce(
+          (sum, sample) => sum + sample.value,
+          0
+        ) / metric.averageWindowSamples.length
       : null;
 
   if (metric.kind === "ratio") {
@@ -308,7 +308,8 @@ const formatMetricValue = (metric: CursorRateDiagnosticsMetricState) => {
   }
 
   const currentHz = Math.round(metric.latestValue);
-  const averageHz = trailingAverage !== null ? Math.round(trailingAverage) : "--";
+  const averageHz =
+    trailingAverage !== null ? Math.round(trailingAverage) : "--";
   return `${currentHz} Hz [avg30 ${averageHz} Hz]`;
 };
 
@@ -317,8 +318,10 @@ const formatCountMetricValue = (
 ) => {
   const trailingAverage =
     metric.averageWindowSamples.length > 0
-      ? metric.averageWindowSamples.reduce((sum, sample) => sum + sample.value, 0) /
-        metric.averageWindowSamples.length
+      ? metric.averageWindowSamples.reduce(
+          (sum, sample) => sum + sample.value,
+          0
+        ) / metric.averageWindowSamples.length
       : null;
   const averageValue =
     trailingAverage !== null ? Math.round(trailingAverage) : "--";
@@ -330,7 +333,10 @@ const getMetricScaleMax = (
   scaleRateHz: number
 ) => (metric.kind === "ratio" ? 1 : Math.max(scaleRateHz, 1));
 
-const resolveAutoScaleRateHz = (averagedRateHz: number, fallbackRateHz: number) => {
+const resolveAutoScaleRateHz = (
+  averagedRateHz: number,
+  fallbackRateHz: number
+) => {
   const baseRateHz =
     averagedRateHz > 0
       ? averagedRateHz
@@ -340,10 +346,7 @@ const resolveAutoScaleRateHz = (averagedRateHz: number, fallbackRateHz: number) 
   const scaledRateHz =
     Math.round((baseRateHz * AUTO_SCALE_HEADROOM) / AUTO_SCALE_STEP_HZ) *
     AUTO_SCALE_STEP_HZ;
-  return Math.max(
-    AUTO_SCALE_MIN_HZ,
-    Math.min(AUTO_SCALE_MAX_HZ, scaledRateHz)
-  );
+  return Math.max(AUTO_SCALE_MIN_HZ, Math.min(AUTO_SCALE_MAX_HZ, scaledRateHz));
 };
 
 const getRateCanvasHeightPx = (
@@ -409,7 +412,8 @@ export const createCursorRateDiagnosticsController = ({
   let lastGridPitchPx = -1;
 
   const pointerRawSupported = "onpointerrawupdate" in window;
-  const coalescedSupported = pointerRawSupported && "getCoalescedEvents" in PointerEvent.prototype;
+  const coalescedSupported =
+    pointerRawSupported && "getCoalescedEvents" in PointerEvent.prototype;
   const touchSupported = "ontouchstart" in window;
   const touchForceChangeSupported = "ontouchforcechange" in window;
   const sampleTimestampsMs: number[] = [];
@@ -445,7 +449,9 @@ export const createCursorRateDiagnosticsController = ({
     }
 
     chartElement.style.gridTemplateRows = `${rateCanvasHeightPx}px ${COUNT_CANVAS_HEIGHT_PX}px`;
-    rateCanvas.style.display = currentOptions.showTopGraphPlotting ? "block" : "none";
+    rateCanvas.style.display = currentOptions.showTopGraphPlotting
+      ? "block"
+      : "none";
     rateCanvas.style.height = `${rateCanvasHeightPx}px`;
     countCanvas.style.height = `${COUNT_CANVAS_HEIGHT_PX}px`;
     rateCanvas.width = width;
@@ -484,8 +490,7 @@ export const createCursorRateDiagnosticsController = ({
       surfaceElement.style.cursor = resolveCrosshairCursorCssValue({
         style: currentOptions.customCursorStyle,
         primaryColor: currentOptions.customCursorPrimaryColor || undefined,
-        secondaryColor:
-          currentOptions.customCursorSecondaryColor || undefined,
+        secondaryColor: currentOptions.customCursorSecondaryColor || undefined,
       });
       return;
     }
@@ -501,9 +506,13 @@ export const createCursorRateDiagnosticsController = ({
   const syncRateStatus = () => {
     syncStatusValue(
       maxRateElement,
-      `auto ${Math.max(Math.round(autoScaleRateHz), 1)} Hz rAF ${currentAnimationFrameRateHz.toFixed(
+      `auto ${Math.max(
+        Math.round(autoScaleRateHz),
         1
-      )} Hz grid ${Math.max(Math.round(maxObservedAverageAnimationFrameRateHz), 1)} px`
+      )} Hz rAF ${currentAnimationFrameRateHz.toFixed(1)} Hz grid ${Math.max(
+        Math.round(maxObservedAverageAnimationFrameRateHz),
+        1
+      )} px`
     );
   };
 
@@ -594,7 +603,9 @@ export const createCursorRateDiagnosticsController = ({
         : 0;
     visibleRateMetrics.forEach((metric, rowIndex) => {
       const row = document.createElement("div");
-      row.style.cssText = `${ROW_LABEL_STYLE};top:${rateRowHeight * (rowIndex + 0.5)}px`;
+      row.style.cssText = `${ROW_LABEL_STYLE};top:${
+        rateRowHeight * (rowIndex + 0.5)
+      }px`;
       const nameSpan = document.createElement("span");
       nameSpan.style.cssText = "color:#020617";
       nameSpan.textContent = metric.label + "  ";
@@ -606,7 +617,8 @@ export const createCursorRateDiagnosticsController = ({
       rowLabelsElement.append(row);
     });
 
-    const countRowHeight = COUNT_CANVAS_HEIGHT_PX / Math.max(countMetrics.length, 1);
+    const countRowHeight =
+      COUNT_CANVAS_HEIGHT_PX / Math.max(countMetrics.length, 1);
     countMetrics.forEach((metric, rowIndex) => {
       const row = document.createElement("div");
       row.style.cssText = `${ROW_LABEL_STYLE};top:${
@@ -705,7 +717,10 @@ export const createCursorRateDiagnosticsController = ({
     const safeMaxCount = SAMPLE_COUNT_CHART_MAX;
 
     countMetrics.forEach((metric, rowIndex) => {
-      const clampedValue = Math.min(Math.max(metric.latestValue, 0), safeMaxCount);
+      const clampedValue = Math.min(
+        Math.max(metric.latestValue, 0),
+        safeMaxCount
+      );
       const rowTop = rowIndex * rowHeight;
       const rowBottom = rowTop + rowHeight - 1;
       const ratio = clampedValue / safeMaxCount;
@@ -728,7 +743,9 @@ export const createCursorRateDiagnosticsController = ({
           ? coalescedSupported
           : metric.id === "touchforcechange"
           ? touchForceChangeSupported
-          : metric.id === "touchmove" || metric.id === "touchstart" || metric.id === "touchend"
+          : metric.id === "touchmove" ||
+            metric.id === "touchstart" ||
+            metric.id === "touchend"
           ? touchSupported
           : true;
       metric.enabled =
@@ -765,7 +782,9 @@ export const createCursorRateDiagnosticsController = ({
       sampleTimestampsMs.shift();
     }
 
-    const samples1sMetric = countMetrics.find((metric) => metric.id === "samples-1s");
+    const samples1sMetric = countMetrics.find(
+      (metric) => metric.id === "samples-1s"
+    );
     if (samples1sMetric) {
       samples1sMetric.latestValue = sampleTimestampsMs.length;
       samples1sMetric.averageWindowSamples.push({
@@ -843,7 +862,10 @@ export const createCursorRateDiagnosticsController = ({
         nextRateHz
       );
       maxObservedAverageAnimationFrameRateHz = Math.max(
-        Math.max(maxObservedAverageAnimationFrameRateHz, averagedAnimationFrameRateHz),
+        Math.max(
+          maxObservedAverageAnimationFrameRateHz,
+          averagedAnimationFrameRateHz
+        ),
         1
       );
       syncRateStatus();
@@ -896,7 +918,9 @@ export const createCursorRateDiagnosticsController = ({
       pushMetricValue("pointerraw-pressure", event.pressure);
     }
     if (coalescedSupported) {
-      const coalesced = (event as PointerEvent & { getCoalescedEvents(): PointerEvent[] }).getCoalescedEvents();
+      const coalesced = (
+        event as PointerEvent & { getCoalescedEvents(): PointerEvent[] }
+      ).getCoalescedEvents();
       coalesced.forEach((e) => markRateEvent("coalesced", e.timeStamp));
     }
   };
@@ -1027,11 +1051,21 @@ export const createCursorRateDiagnosticsController = ({
   surfaceElement.addEventListener("mousemove", handleMouseMove, {
     passive: true,
   });
-  surfaceElement.addEventListener("touchmove", handleTouchMove, { passive: true });
-  surfaceElement.addEventListener("touchstart", handleTouchStart, { passive: true });
-  surfaceElement.addEventListener("touchend", handleTouchEnd, { passive: true });
-  surfaceElement.addEventListener("touchforcechange", handleTouchForceChange, { passive: true });
-  surfaceElement.addEventListener("pointerleave", handlePointerLeave, { passive: true });
+  surfaceElement.addEventListener("touchmove", handleTouchMove, {
+    passive: true,
+  });
+  surfaceElement.addEventListener("touchstart", handleTouchStart, {
+    passive: true,
+  });
+  surfaceElement.addEventListener("touchend", handleTouchEnd, {
+    passive: true,
+  });
+  surfaceElement.addEventListener("touchforcechange", handleTouchForceChange, {
+    passive: true,
+  });
+  surfaceElement.addEventListener("pointerleave", handlePointerLeave, {
+    passive: true,
+  });
   chartElement.addEventListener("pointerdown", handlePointerDown, {
     passive: true,
   });
@@ -1062,7 +1096,10 @@ export const createCursorRateDiagnosticsController = ({
       surfaceElement.removeEventListener("touchmove", handleTouchMove);
       surfaceElement.removeEventListener("touchstart", handleTouchStart);
       surfaceElement.removeEventListener("touchend", handleTouchEnd);
-      surfaceElement.removeEventListener("touchforcechange", handleTouchForceChange);
+      surfaceElement.removeEventListener(
+        "touchforcechange",
+        handleTouchForceChange
+      );
       surfaceElement.removeEventListener("pointerleave", handlePointerLeave);
       chartElement.removeEventListener("pointerdown", handlePointerDown);
       window.removeEventListener("resize", resizeCanvas);

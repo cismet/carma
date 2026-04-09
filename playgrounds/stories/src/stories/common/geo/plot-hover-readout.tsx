@@ -1,8 +1,10 @@
 import { type CSSProperties, type ReactNode } from "react";
 
 import {
+  PILLBUTTON_LABEL_MARKER_RESIZE_MODE,
   PILLBUTTON_BADGE_POSITIONS,
   PillbuttonLabelMarker,
+  POINT_LABEL_ATTACH,
   type PointLabelAttach,
 } from "@carma-providers/label-overlay";
 
@@ -270,9 +272,9 @@ export const PlotHoverReadout = ({
       ? readLabelRectX(
           tooltip.x,
           tooltip.width,
-          tooltip.anchorAttach === "left"
+          tooltip.anchorAttach === POINT_LABEL_ATTACH.LEFT
             ? "start"
-            : tooltip.anchorAttach === "right"
+            : tooltip.anchorAttach === POINT_LABEL_ATTACH.RIGHT
             ? "end"
             : "middle",
           tooltip.anchorAtSemicircleCenter
@@ -317,7 +319,11 @@ export const PlotHoverReadout = ({
             const rectY = label.y - PILL_HEIGHT_PX * 0.5;
             const attach = readAttachFromTextAnchor(textAnchor);
             const anchorLocalX =
-              attach === "left" ? 0 : attach === "right" ? width : width * 0.5;
+              attach === POINT_LABEL_ATTACH.LEFT
+                ? 0
+                : attach === POINT_LABEL_ATTACH.RIGHT
+                ? width
+                : width * 0.5;
             const anchorLocalY = PILL_HEIGHT_PX * 0.5;
 
             return (
@@ -352,10 +358,14 @@ export const PlotHoverReadout = ({
                     pointerEvents="none"
                     cursor="default"
                     collapse={false}
-                    compactBorderless
-                    fullBorder={false}
-                    anchorAtSemicircleCenter={label.anchorAtSemicircleCenter}
-                    resizeMode="none"
+                    badgeOptions={{
+                      compactBorderless: true,
+                      fullBorder: false,
+                      anchorAtSemicircleCenter: label.anchorAtSemicircleCenter,
+                    }}
+                    motionOptions={{
+                      resizeMode: PILLBUTTON_LABEL_MARKER_RESIZE_MODE.NONE,
+                    }}
                     content={label.text}
                     onClick={noopMouseEventHandler}
                     onDoubleClick={noopMouseEventHandler}
@@ -392,12 +402,15 @@ export const PlotHoverReadout = ({
           >
             <PillbuttonLabelMarker
               labelAttach={
-                tooltip.anchorAttach ?? (tooltip.onClose ? "right" : "center")
+                tooltip.anchorAttach ??
+                (tooltip.onClose
+                  ? POINT_LABEL_ATTACH.RIGHT
+                  : POINT_LABEL_ATTACH.CENTER)
               }
               labelOffsetX={
-                tooltip.anchorAttach === "left"
+                tooltip.anchorAttach === POINT_LABEL_ATTACH.LEFT
                   ? 0
-                  : tooltip.anchorAttach === "right"
+                  : tooltip.anchorAttach === POINT_LABEL_ATTACH.RIGHT
                   ? tooltip.width
                   : tooltip.onClose
                   ? tooltip.width
@@ -419,13 +432,17 @@ export const PlotHoverReadout = ({
                 tooltip.onClose ? CLOSE_BADGE_BACKGROUND : undefined
               }
               markerTextColor={tooltip.onClose ? "#ffffff" : undefined}
-              badgePosition={
-                tooltip.onClose ? PILLBUTTON_BADGE_POSITIONS.RIGHT : undefined
-              }
-              compactBorderless={false}
-              fullBorder={false}
-              anchorAtSemicircleCenter={tooltip.anchorAtSemicircleCenter}
-              resizeMode="none"
+              badgeOptions={{
+                position: tooltip.onClose
+                  ? PILLBUTTON_BADGE_POSITIONS.RIGHT
+                  : undefined,
+                compactBorderless: false,
+                fullBorder: false,
+                anchorAtSemicircleCenter: tooltip.anchorAtSemicircleCenter,
+              }}
+              motionOptions={{
+                resizeMode: PILLBUTTON_LABEL_MARKER_RESIZE_MODE.NONE,
+              }}
               content={
                 <span style={{ fontSize: `${PILL_FONT_SIZE_PX}px` }}>
                   {tooltip.children}

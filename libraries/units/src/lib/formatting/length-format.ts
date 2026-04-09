@@ -85,7 +85,7 @@ export const formatLengthMeters = (
       locale,
       fractionDigits: maximumFractionDigitsMeters,
       useGrouping: true,
-    })} m`;
+    })}${NARROW_NO_BREAK_SPACE}m`;
   }
 
   if (absoluteValue >= kilometerThresholdMeters) {
@@ -93,14 +93,14 @@ export const formatLengthMeters = (
       locale,
       fractionDigits: maximumFractionDigitsKilometers,
       useGrouping: true,
-    })} km`;
+    })}${NARROW_NO_BREAK_SPACE}km`;
   }
 
   return `${formatDecimalNumber(numericValue, {
     locale,
     fractionDigits: maximumFractionDigitsMeters,
     useGrouping: true,
-  })} m`;
+  })}${NARROW_NO_BREAK_SPACE}m`;
 };
 
 export const formatLengthMetersScientific = (
@@ -121,7 +121,7 @@ export const formatLengthMetersScientificParts = (
       coefficient: String(numericValue),
       exponent: null,
       unit: "m",
-      text: `${String(numericValue)} m`,
+      text: `${String(numericValue)}${NARROW_NO_BREAK_SPACE}m`,
     };
   }
 
@@ -130,7 +130,7 @@ export const formatLengthMetersScientificParts = (
       coefficient: "0",
       exponent: null,
       unit: "m",
-      text: "0 m",
+      text: `0${NARROW_NO_BREAK_SPACE}m`,
     };
   }
 

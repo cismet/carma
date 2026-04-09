@@ -87,8 +87,12 @@ export const commitAreaMeasurement = ({
     return null;
   }
 
-  return addAnnotation(toolType, coordinates, deriveAreaAnnotationOptions({
+  return addAnnotation(
     toolType,
     coordinates,
-  }));
+    deriveAreaAnnotationOptions({
+      toolType,
+      coordinates,
+    })
+  );
 };

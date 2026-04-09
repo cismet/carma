@@ -17,6 +17,7 @@ import {
   distanceToolPlugin,
   pointToolPlugin,
   selectToolPlugin,
+  useLocalAnnotationsRuntimePersistence,
   useAnnotationsRuntime,
 } from "@carma-mapping/annotations/runtime-v2";
 import {
@@ -29,20 +30,21 @@ import {
 import { useCesiumLabelOverlayHost } from "@carma-mapping/engines/cesium/react/interactions";
 import { ControlLayout } from "@carma-mapping/map-controls-layout";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
-import { type Cesium3DTileset, type Scene } from "@carma-cesium";
-import { formatLatLonDegrees } from "@carma-units";
+import { type Scene } from "@carma-cesium";
+import { formatLatLonDegrees, formatLengthMeters } from "@carma-units";
 import type { Degrees } from "@carma-units";
 
 import type { PlaygroundRuntimePageProps } from "../playground.types";
 import {
+  ANNOTATIONS_RUNTIME_V2_STORAGE_KEY,
   INFOBOX_WIDTH_PX,
-  PLAYGROUND_INFO_BOX_BOTTOM_OFFSET_PX,
+  PLAYGROUND_FLOATING_OVERLAY_WINDOW_MARGIN_PX,
+  PLAYGROUND_PREVIEW_LINE_LABEL_VISUAL_OPTIONS,
+  PLAYGROUND_RUNTIME_INFO_BOX_VISUAL_OPTIONS,
+  PLAYGROUND_RUNTIME_FORMAT_OPTIONS,
 } from "../playgroundConfig";
 import { CesiumNavigationOverlay } from "./CesiumNavigationOverlay";
 import { CesiumWidgetContainer } from "./CesiumWidgetContainer";
-import { PlaygroundStatusBar } from "./PlaygroundStatusBar";
-const formatCoordinate = (value: number, digits: number) =>
-  Number.isFinite(value) ? value.toFixed(digits) : "0";
 
 const renderShortcutBadges = (shortcuts: readonly string[]) => (
   <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
@@ -65,8 +67,8 @@ const PLAYGROUND_ACTIVE_TOOL_PLUGINS = [
 
 const selectionInfoBoxFloatingStyle = {
   position: "absolute",
-  bottom: PLAYGROUND_INFO_BOX_BOTTOM_OFFSET_PX,
-  right: 12,
+  bottom: PLAYGROUND_FLOATING_OVERLAY_WINDOW_MARGIN_PX,
+  right: PLAYGROUND_FLOATING_OVERLAY_WINDOW_MARGIN_PX,
   zIndex: 1600,
   pointerEvents: "auto",
 } as const;
@@ -184,36 +186,49 @@ const RuntimeToolbarWhenModeSettled = ({
   return toolbarReady ? <RuntimeToolbar /> : null;
 };
 
-const RuntimeStatusBar = ({
-  runtimeVersion,
-  onRuntimeVersionChange,
-}: Pick<
-  PlaygroundRuntimePageProps,
-  "runtimeVersion" | "onRuntimeVersionChange"
->) => {
-  const { registry, activeToolType, annotationEntries } =
-    useAnnotationsRuntime();
-  const activePlugin = registry.getPlugin(activeToolType);
-  const primaryHint = activePlugin?.helpText?.[0] ?? "Werkzeug bereit.";
-  const secondaryHint = `${annotationEntries.length} Annotation(en) gespeichert`;
+const RuntimeMeasurementsBootstrap = () => {
+  const {
+    scene,
+    annotationEntries,
+    selectedAnnotationId,
+    setSelectedAnnotationId,
+    flyToAllAnnotations,
+  } = useAnnotationsRuntime();
+  const hasInitializedRef = useRef(false);
 
-  return (
-    <PlaygroundStatusBar
-      runtimeVersion={runtimeVersion}
-      onRuntimeVersionChange={onRuntimeVersionChange}
-      label="annotations runtime"
-      values={[
-        activePlugin?.descriptor.label ?? "Werkzeug",
-        primaryHint,
-        secondaryHint,
-      ]}
-    />
-  );
+  useEffect(() => {
+    if (hasInitializedRef.current || !scene || scene.isDestroyed()) {
+      return;
+    }
+
+    if (annotationEntries.length === 0) {
+      return;
+    }
+
+    hasInitializedRef.current = true;
+    if (!selectedAnnotationId) {
+      setSelectedAnnotationId(annotationEntries[0]?.id ?? null);
+    }
+    flyToAllAnnotations();
+  }, [
+    annotationEntries,
+    flyToAllAnnotations,
+    scene,
+    selectedAnnotationId,
+    setSelectedAnnotationId,
+  ]);
+
+  return null;
 };
 
 const RuntimeSelectionInfoBox = () => {
-  const { registry, selectedAnnotationId, annotationEntries, nodes } =
-    useAnnotationsRuntime();
+  const {
+    registry,
+    formatOptions,
+    selectedAnnotationId,
+    annotationEntries,
+    nodes,
+  } = useAnnotationsRuntime();
 
   if (!selectedAnnotationId) {
     return null;
@@ -235,6 +250,7 @@ const RuntimeSelectionInfoBox = () => {
         pixelWidth={INFOBOX_WIDTH_PX}
         useControlLayout={false}
         style={selectionInfoBoxFloatingStyle}
+        visualOptions={PLAYGROUND_RUNTIME_INFO_BOX_VISUAL_OPTIONS}
       />
     );
   }
@@ -281,18 +297,15 @@ const RuntimeSelectionInfoBox = () => {
                   const [latitude, longitude] = formatLatLonDegrees(
                     coordinate.latitude as Degrees,
                     coordinate.longitude as Degrees,
-                    {
-                      fractionDigits: 6,
-                      locale: "de-DE",
-                    }
+                    formatOptions.geographicCoordinate
                   );
 
                   return `${
                     index + 1
-                  }: ${latitude} ${longitude} / NHN ${formatCoordinate(
+                  }: ${latitude} ${longitude} / NHN ${formatLengthMeters(
                     coordinate.altitude,
-                    2
-                  )} m`;
+                    formatOptions.lengthMeters
+                  )}`;
                 })()}
               </div>
             ))}
@@ -304,44 +317,46 @@ const RuntimeSelectionInfoBox = () => {
 };
 
 export const AnnotationsRuntimeV2Page = ({
-  runtimeVersion,
-  onRuntimeVersionChange,
   homeCameraState,
 }: PlaygroundRuntimePageProps) => {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [scene, setScene] = useState<Scene | null>(null);
-  const [surfacePickingTarget, setSurfacePickingTarget] =
-    useState<Cesium3DTileset | null>(null);
   const [initialToolType] = useState(() => ANNOTATION_TYPE_POINT);
   const overlayHost = useCesiumLabelOverlayHost({
     scene,
     containerRef: rootRef,
   });
+  const { initialPersistenceState, onPersistenceStateChange } =
+    useLocalAnnotationsRuntimePersistence({
+      enabled: true,
+      storageKey: ANNOTATIONS_RUNTIME_V2_STORAGE_KEY,
+    });
 
   return (
     <CesiumWidgetContainer
       rootRef={rootRef}
       onSceneChange={setScene}
-      onSurfacePickingTargetChange={setSurfacePickingTarget}
       initialCameraState={homeCameraState}
     >
       <LabelOverlayProvider host={overlayHost}>
         <ControlLayout>
           <AnnotationsProvider
             scene={scene}
-            surfacePickingTarget={surfacePickingTarget}
             initialActiveToolType={initialToolType}
             plugins={PLAYGROUND_ACTIVE_TOOL_PLUGINS}
+            formatOptions={PLAYGROUND_RUNTIME_FORMAT_OPTIONS}
+            previewLineLabelVisualOptions={
+              PLAYGROUND_PREVIEW_LINE_LABEL_VISUAL_OPTIONS
+            }
+            initialPersistenceState={initialPersistenceState}
+            onPersistenceStateChange={onPersistenceStateChange}
           >
+            <RuntimeMeasurementsBootstrap />
             <CesiumNavigationOverlay
               scene={scene}
               initialHomeCameraState={homeCameraState}
             />
             <RuntimeToolbarWhenModeSettled expectedToolType={initialToolType} />
-            <RuntimeStatusBar
-              runtimeVersion={runtimeVersion}
-              onRuntimeVersionChange={onRuntimeVersionChange}
-            />
             <RuntimeSelectionInfoBox />
           </AnnotationsProvider>
         </ControlLayout>

@@ -9,7 +9,10 @@ const rootPackageJsonPath =
   resolve(repoRoot, "package.json");
 const privateShimsPath =
   process.env.CARMA_CESIUM_VERIFY_PRIVATE_SHIMS ||
-  resolve(repoRoot, "libraries/mapping/engines/cesium/api/src/lib/private-shims.ts");
+  resolve(
+    repoRoot,
+    "libraries/mapping/engines/cesium/api/src/lib/private-shims.ts"
+  );
 const installedCesiumPackageJsonPath =
   process.env.CARMA_CESIUM_VERIFY_INSTALLED_CESIUM_PACKAGE_JSON ||
   resolve(repoRoot, "node_modules/cesium/package.json");

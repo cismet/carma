@@ -17,13 +17,12 @@ import { type Scene } from "@carma-cesium";
 import type { PlaygroundRuntimePageProps } from "../playground.types";
 import {
   INFOBOX_WIDTH_PX,
-  PLAYGROUND_INFO_BOX_BOTTOM_OFFSET_PX,
+  PLAYGROUND_FLOATING_OVERLAY_WINDOW_MARGIN_PX,
   readInitialToolType,
 } from "../playgroundConfig";
 import { CesiumNavigationOverlay } from "./CesiumNavigationOverlay";
 import { CesiumWidgetContainer } from "./CesiumWidgetContainer";
 import { PersistActiveToolMode } from "./PersistActiveToolMode";
-import { PlaygroundStatusBar } from "./PlaygroundStatusBar";
 const RuntimeToolbar = () => (
   <div
     style={{
@@ -56,8 +55,8 @@ const RuntimeInfoBox = () => (
   <div
     style={{
       position: "absolute",
-      bottom: PLAYGROUND_INFO_BOX_BOTTOM_OFFSET_PX,
-      right: 12,
+      bottom: PLAYGROUND_FLOATING_OVERLAY_WINDOW_MARGIN_PX,
+      right: PLAYGROUND_FLOATING_OVERLAY_WINDOW_MARGIN_PX,
       zIndex: 1600,
       pointerEvents: "auto",
     }}
@@ -66,24 +65,7 @@ const RuntimeInfoBox = () => (
   </div>
 );
 
-const RuntimeStatusBar = ({
-  runtimeVersion,
-  onRuntimeVersionChange,
-}: Pick<
-  PlaygroundRuntimePageProps,
-  "runtimeVersion" | "onRuntimeVersionChange"
->) => (
-  <PlaygroundStatusBar
-    runtimeVersion={runtimeVersion}
-    onRuntimeVersionChange={onRuntimeVersionChange}
-    label="annotations runtime"
-    values={["runtime-v1", "legacy prototype", "annotations stored locally"]}
-  />
-);
-
 export const AnnotationsRuntimeV1Page = ({
-  runtimeVersion,
-  onRuntimeVersionChange,
   homeCameraState,
 }: PlaygroundRuntimePageProps) => {
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -125,10 +107,6 @@ export const AnnotationsRuntimeV1Page = ({
             />
             <RuntimeToolbar />
             <RuntimeInfoBox />
-            <RuntimeStatusBar
-              runtimeVersion={runtimeVersion}
-              onRuntimeVersionChange={onRuntimeVersionChange}
-            />
           </AnnotationsProvider>
         ) : null}
       </LabelOverlayProvider>

@@ -23,7 +23,7 @@ type BuildPolylineToolRenderModelsArgs = {
   getMeasurementLabel: (measurementIndex: number) => string;
   nodes: readonly RuntimeNode[];
   measurements: readonly RuntimeMeasurement[];
-  selectedMeasurementId: string | null;
+  selectedMeasurementIds: readonly string[];
   onMeasurementSelect?: (measurementId: string) => void;
   onNodeLongPress?: (nodeId: string, measurementId: string) => void;
 };
@@ -35,7 +35,7 @@ export const buildPolylineToolRenderModels = ({
   getMeasurementLabel,
   nodes,
   measurements,
-  selectedMeasurementId,
+  selectedMeasurementIds,
   onMeasurementSelect,
   onNodeLongPress,
 }: BuildPolylineToolRenderModelsArgs): {
@@ -47,6 +47,7 @@ export const buildPolylineToolRenderModels = ({
   const committedPolylines = measurements.filter(
     (measurement) => measurement.toolType === toolType
   );
+  const selectedMeasurementIdSet = new Set(selectedMeasurementIds);
 
   const committedEdges = committedPolylines.flatMap((measurement) => {
     const coordinates = resolveMeasurementCoordinates(
@@ -62,7 +63,7 @@ export const buildPolylineToolRenderModels = ({
       {
         id: measurement.id,
         coordinates,
-        ...(measurement.id === selectedMeasurementId
+        ...(selectedMeasurementIdSet.has(measurement.id)
           ? visuals.selectedEdge
           : visuals.edge),
       },
@@ -80,7 +81,7 @@ export const buildPolylineToolRenderModels = ({
         {
           id: `${measurement.id}-node-${index}`,
           coordinate,
-          ...(measurement.id === selectedMeasurementId
+          ...(selectedMeasurementIdSet.has(measurement.id)
             ? visuals.selectedPoint
             : visuals.point),
         },
@@ -90,7 +91,9 @@ export const buildPolylineToolRenderModels = ({
 
   const committedPointLabels = committedPolylines.flatMap(
     (measurement, measurementIndex) => {
-      const badgeText = getMeasurementLabel(measurementIndex + 1);
+      const badgeText =
+        measurement.shortLabel?.trim() ||
+        getMeasurementLabel(measurementIndex + 1);
 
       return measurement.nodeIds.flatMap((nodeId, index) => {
         const coordinate = nodeCoordinatesById.get(nodeId);
@@ -98,10 +101,9 @@ export const buildPolylineToolRenderModels = ({
           return [];
         }
 
-        const pointVisuals =
-          measurement.id === selectedMeasurementId
-            ? visuals.selectedPoint
-            : visuals.point;
+        const pointVisuals = selectedMeasurementIdSet.has(measurement.id)
+          ? visuals.selectedPoint
+          : visuals.point;
 
         return [
           {
@@ -114,7 +116,7 @@ export const buildPolylineToolRenderModels = ({
             markerContent: badgeText,
             markerBackgroundColor: badgeStyle.backgroundColor,
             markerTextColor: badgeStyle.textColor,
-            selected: measurement.id === selectedMeasurementId,
+            selected: selectedMeasurementIdSet.has(measurement.id),
             onClick: onMeasurementSelect
               ? () => onMeasurementSelect(measurement.id)
               : undefined,

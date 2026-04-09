@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { CssPixelPosition } from "@carma-units";
+import { Cartesian3, SceneTransforms, defined } from "@carma-cesium";
 
 import {
   PointLabel,
@@ -15,9 +16,15 @@ import {
   type PointLabelAttach,
   type PointLabelLayoutResult,
 } from "@carma-providers/label-overlay";
+import { cartesian3FromGeographicCoordinate } from "@carma-mapping/engines/cesium/core";
 
 import type { RuntimeScene } from "../types/runtimeScene.types";
-import type { RuntimePointLabelRenderModel } from "./measurementRenderModels";
+import {
+  RUNTIME_POINT_LABEL_COORDINATE_SELECTION,
+  resolveRuntimeOverlayDistanceZIndex,
+  type RuntimePointLabelCoordinateCandidate,
+  type RuntimePointLabelRenderModel,
+} from "./measurementRenderModels";
 import {
   areRuntimeOverlayVisibilitySceneSnapshotsEqual,
   captureRuntimeOverlayVisibilitySceneSnapshot,
@@ -28,7 +35,6 @@ import {
 } from "./runtimeOverlayVisibility.shared";
 
 const NODE_LABEL_LAYOUT_CONFIG = resolvePointLabelLayoutConfig(undefined);
-const POINT_LABEL_OVERLAY_Z_INDEX = 20;
 const DEFAULT_LABEL_MARKER_PIXEL_SIZE = 10;
 const NOOP_OVERLAY_CLICK_HANDLER = () => undefined;
 
@@ -49,6 +55,7 @@ type RuntimePointLabelOverlayState = RuntimeOverlayVisibilityState & {
   angleRad: number;
   distance: number;
   attach: PointLabelAttach;
+  zIndex: number;
 };
 
 type RuntimePointLabelOverlayDomRefs = {
@@ -68,14 +75,14 @@ const toLayoutText = (value: unknown, fallback = ""): string => {
   return fallback;
 };
 
+const isNotNull = <T,>(value: T | null): value is T => value !== null;
+
 const getPointLabelOverlayId = (labelId: string) =>
   `runtime-point-label-${labelId}`;
 
-const getEffectiveCompactContent = (
-  label: RuntimePointLabelRenderModel
-) =>
+const getEffectiveCompactContent = (label: RuntimePointLabelRenderModel) =>
   label.markerPixelSize !== undefined
-    ? (label.compactContent ?? label.content)
+    ? label.compactContent ?? label.content
     : label.compactContent;
 
 const getPointLabelContentKey = (
@@ -99,10 +106,13 @@ const getPointLabelContentKey = (
     `${label.labelStyle ?? ""}`,
     `${label.collapse ?? false}`,
     `${label.forceCollapse ?? false}`,
+    `${label.coordinateSelection ?? ""}`,
+    `${label.coordinateCandidates?.length ?? 0}`,
     String(label.content),
     String(label.markerContent ?? ""),
     String(effectiveCompactContent ?? ""),
     `${blockLabelInteractions}`,
+    `${Boolean(label.onDoubleClick)}`,
   ].join(":");
 
 const getAttachTransform = (attach: PointLabelAttach): string => {
@@ -166,7 +176,80 @@ const createEmptyLabelOverlayState = (): RuntimePointLabelOverlayState => ({
   angleRad: 0,
   distance: NODE_LABEL_LAYOUT_CONFIG.stemDistance,
   attach: "center",
+  zIndex: 0,
 });
+
+const resolvePointLabelCoordinateCandidates = (
+  label: RuntimePointLabelRenderModel
+): readonly RuntimePointLabelCoordinateCandidate[] =>
+  label.coordinateCandidates && label.coordinateCandidates.length > 0
+    ? label.coordinateCandidates
+    : [
+        {
+          coordinate: label.coordinate,
+          nodeId: label.nodeId,
+        },
+      ];
+
+const resolvePointLabelCoordinateProjection = (
+  scene: RuntimeScene,
+  candidate: RuntimePointLabelCoordinateCandidate
+) => {
+  const canvasPosition = SceneTransforms.worldToWindowCoordinates(
+    scene,
+    cartesian3FromGeographicCoordinate(candidate.coordinate)
+  );
+
+  if (!defined(canvasPosition)) {
+    return null;
+  }
+
+  return {
+    candidate,
+    x: canvasPosition.x,
+    y: canvasPosition.y,
+  };
+};
+
+const resolveEffectivePointLabelCoordinateCandidate = ({
+  scene,
+  label,
+}: {
+  scene: RuntimeScene | null;
+  label: RuntimePointLabelRenderModel;
+}): RuntimePointLabelCoordinateCandidate => {
+  const candidates = resolvePointLabelCoordinateCandidates(label);
+  const fallbackCandidate = candidates[0] ?? {
+    coordinate: label.coordinate,
+    nodeId: label.nodeId,
+  };
+
+  if (
+    !scene ||
+    scene.isDestroyed() ||
+    !label.coordinateSelection ||
+    candidates.length <= 1
+  ) {
+    return fallbackCandidate;
+  }
+
+  const projectedCandidates = candidates
+    .map((candidate) => resolvePointLabelCoordinateProjection(scene, candidate))
+    .filter(isNotNull);
+
+  if (projectedCandidates.length === 0) {
+    return fallbackCandidate;
+  }
+
+  const sortedCandidates = [...projectedCandidates].sort((left, right) =>
+    label.coordinateSelection ===
+    RUNTIME_POINT_LABEL_COORDINATE_SELECTION.LEFTMOST_SCREEN_SPACE
+      ? left.x - right.x
+      : right.x - left.x
+  );
+
+  return sortedCandidates[0]?.candidate ?? fallbackCandidate;
+};
 
 export const useRuntimePointLabelVisualizer = ({
   scene,
@@ -232,8 +315,9 @@ export const useRuntimePointLabelVisualizer = ({
       scene.requestRender();
     };
 
-    const removeMoveStartListener =
-      scene.camera.moveStart.addEventListener(handleCameraMoveStart);
+    const removeMoveStartListener = scene.camera.moveStart.addEventListener(
+      handleCameraMoveStart
+    );
     const removeMoveEndListener =
       scene.camera.moveEnd.addEventListener(handleCameraMoveEnd);
 
@@ -253,6 +337,7 @@ export const useRuntimePointLabelVisualizer = ({
 
     const layoutInputs: LayoutPointInput[] = [];
     const baseStatesById = new Map<string, RuntimeOverlayVisibilityState>();
+    const overlayZIndexById = new Map<string, number>();
     const previousStatesById = stateCacheRef.current.statesById;
     const viewportWidth = Math.max(1, scene.canvas.clientWidth);
     const viewportHeight = Math.max(1, scene.canvas.clientHeight);
@@ -261,9 +346,14 @@ export const useRuntimePointLabelVisualizer = ({
     const preserveOcclusionDuringCameraMove = isCameraMovingRef.current;
 
     labelsRef.current.forEach((label, index) => {
+      const effectiveCoordinateCandidate =
+        resolveEffectivePointLabelCoordinateCandidate({
+          scene,
+          label,
+        });
       const computedBaseState = computeRuntimeOverlayVisibilityState({
         scene,
-        coordinate: label.coordinate,
+        coordinate: effectiveCoordinateCandidate.coordinate,
         shouldTestOcclusion:
           !preserveOcclusionDuringCameraMove &&
           shouldTestPointLabelOcclusion({
@@ -274,13 +364,25 @@ export const useRuntimePointLabelVisualizer = ({
       const baseState = preserveOcclusionDuringCameraMove
         ? {
             ...computedBaseState,
-            isOccluded:
-              previousStatesById.get(label.id)?.isOccluded ?? false,
+            isOccluded: previousStatesById.get(label.id)?.isOccluded ?? false,
           }
         : computedBaseState;
+      const cameraDistanceMeters = Cartesian3.distance(
+        scene.camera.positionWC,
+        cartesian3FromGeographicCoordinate(
+          effectiveCoordinateCandidate.coordinate
+        )
+      );
+      const overlayZIndex =
+        resolveRuntimeOverlayDistanceZIndex(cameraDistanceMeters);
       baseStatesById.set(label.id, baseState);
+      overlayZIndexById.set(label.id, overlayZIndex);
 
-      if (!baseState.screenPosition || baseState.isHidden || label.hideLabelAndStem) {
+      if (
+        !baseState.screenPosition ||
+        baseState.isHidden ||
+        label.hideLabelAndStem
+      ) {
         return;
       }
 
@@ -294,6 +396,12 @@ export const useRuntimePointLabelVisualizer = ({
           toLayoutText(label.content)
         ),
         index,
+        ...(label.preferredAttach !== undefined
+          ? {
+              lockPreferredPlacement: true,
+              preferredAttach: label.preferredAttach,
+            }
+          : {}),
         ...(label.selected
           ? {
               layoutPriority: Number.MAX_SAFE_INTEGER,
@@ -326,6 +434,7 @@ export const useRuntimePointLabelVisualizer = ({
         angleRad: placement?.angleRad ?? 0,
         distance: placement?.distance ?? NODE_LABEL_LAYOUT_CONFIG.stemDistance,
         attach: placement?.attach ?? "center",
+        zIndex: overlayZIndexById.get(label.id) ?? 0,
       });
     });
 
@@ -336,7 +445,8 @@ export const useRuntimePointLabelVisualizer = ({
     (labelId: string) => {
       const frameKey = getSceneFrameKey(scene);
       if (stateCacheRef.current.frameKey !== frameKey) {
-        const sceneSnapshot = captureRuntimeOverlayVisibilitySceneSnapshot(scene);
+        const sceneSnapshot =
+          captureRuntimeOverlayVisibilitySceneSnapshot(scene);
         const shouldRecomputeStates =
           !areRuntimeOverlayVisibilitySceneSnapshotsEqual(
             stateCacheRef.current.sceneSnapshot,
@@ -437,7 +547,7 @@ export const useRuntimePointLabelVisualizer = ({
       nextSignatureById.set(label.id, nextSignature);
 
       const overlayElementUpdate: Partial<LabelOverlayElement> = {
-        zIndex: POINT_LABEL_OVERLAY_Z_INDEX,
+        zIndex: stateCacheRef.current.statesById.get(label.id)?.zIndex ?? 0,
         onClick: interactive ? NOOP_OVERLAY_CLICK_HANDLER : undefined,
         cursor: interactive ? "pointer" : undefined,
         updatePosition: (elementDiv: HTMLElement) => {
@@ -453,6 +563,7 @@ export const useRuntimePointLabelVisualizer = ({
           elementDiv.style.left = `${overlayState.screenPosition.x}px`;
           elementDiv.style.top = `${overlayState.screenPosition.y}px`;
           elementDiv.style.transform = "none";
+          elementDiv.style.zIndex = `${overlayState.zIndex}`;
 
           const domRefs = resolveOverlayDomRefs(label.id, elementDiv);
           if (!domRefs) {
@@ -479,7 +590,9 @@ export const useRuntimePointLabelVisualizer = ({
             : (label.markerPixelSize ?? DEFAULT_LABEL_MARKER_PIXEL_SIZE) / 2;
           const parsedFontSizePx = Number.parseFloat(label.fontSize ?? "12px");
           const isCompactOnlyPill = pillBadge !== null && pillContent === null;
-          const compactBadgeWidthPx = isCompactOnlyPill ? pillBadge.offsetWidth : 0;
+          const compactBadgeWidthPx = isCompactOnlyPill
+            ? pillBadge.offsetWidth
+            : 0;
           const compactBadgeHeightPx = isCompactOnlyPill
             ? pillBadge.offsetHeight
             : 0;
@@ -575,12 +688,13 @@ export const useRuntimePointLabelVisualizer = ({
             selected={label.selected}
             hideLabelAndStem={label.hideLabelAndStem}
             hideMarker={true}
-            markerSize={label.markerPixelSize ?? DEFAULT_LABEL_MARKER_PIXEL_SIZE}
+            markerSize={
+              label.markerPixelSize ?? DEFAULT_LABEL_MARKER_PIXEL_SIZE
+            }
             stemStartDistance={
               label.hideMarker
                 ? 0
-                : (label.markerPixelSize ?? DEFAULT_LABEL_MARKER_PIXEL_SIZE) /
-                  2
+                : (label.markerPixelSize ?? DEFAULT_LABEL_MARKER_PIXEL_SIZE) / 2
             }
             markerContent={label.markerContent}
             markerBackgroundColor={label.markerBackgroundColor}
@@ -595,10 +709,13 @@ export const useRuntimePointLabelVisualizer = ({
             textBackgroundColor={label.textBackgroundColor}
             textColor={label.textColor}
             onClick={blockLabelInteractions ? undefined : label.onClick}
-            onLongPress={
-              blockLabelInteractions ? undefined : label.onLongPress
+            onDoubleClick={
+              blockLabelInteractions ? undefined : label.onDoubleClick
             }
+            onLongPress={blockLabelInteractions ? undefined : label.onLongPress}
             longPressDurationMs={label.longPressDurationMs}
+            longPressOnlyOnMarker={Boolean(label.onLongPress)}
+            renderHiddenMarkerInteractionTarget={Boolean(label.onLongPress)}
           />
         ),
         ...overlayElementUpdate,

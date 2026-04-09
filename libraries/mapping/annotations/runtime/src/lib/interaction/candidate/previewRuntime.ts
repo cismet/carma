@@ -117,78 +117,77 @@ const hasSameSnapshot = (
     input.candidateNodeVerticalOffsetAnchorScreenPosition ?? null
   );
 
-export const createPreviewRuntimeController =
-  (): PreviewRuntimeController => {
-    const snapshot = createPreviewRuntimeSnapshot();
-    let hasSnapshot = false;
-    const listeners = new Set<PreviewRuntimeListener>();
+export const createPreviewRuntimeController = (): PreviewRuntimeController => {
+  const snapshot = createPreviewRuntimeSnapshot();
+  let hasSnapshot = false;
+  const listeners = new Set<PreviewRuntimeListener>();
 
-    const publishSnapshot = () => {
-      listeners.forEach((listener) => {
-        listener(snapshot);
-      });
-    };
-
-    const resetSnapshot = () => {
-      snapshot.source = "none";
-      snapshot.candidateNodePositionECEF = null;
-      snapshot.candidateNodeScreenPosition = null;
-      snapshot.candidateNodeSurfaceNormalECEF = null;
-      snapshot.candidateNodeVerticalOffsetAnchorECEF = null;
-      snapshot.candidateNodeVerticalOffsetAnchorScreenPosition = null;
-      snapshot.candidatePointId = null;
-    };
-
-    return {
-      getSnapshot: () => snapshot,
-      publish: (input) => {
-        if (hasSameSnapshot(snapshot, input)) {
-          return false;
-        }
-
-        snapshot.source = input.source;
-        snapshot.candidateNodePositionECEF = copyCartesian3OrNull(
-          input.candidateNodePositionECEF,
-          snapshot.candidateNodePositionECEF
-        );
-        snapshot.candidateNodeScreenPosition = copyScreenPositionOrNull(
-          input.candidateNodeScreenPosition,
-          snapshot.candidateNodeScreenPosition
-        );
-        snapshot.candidateNodeSurfaceNormalECEF = copyCartesian3OrNull(
-          input.candidateNodeSurfaceNormalECEF,
-          snapshot.candidateNodeSurfaceNormalECEF
-        );
-        snapshot.candidateNodeVerticalOffsetAnchorECEF = copyCartesian3OrNull(
-          input.candidateNodeVerticalOffsetAnchorECEF,
-          snapshot.candidateNodeVerticalOffsetAnchorECEF
-        );
-        snapshot.candidateNodeVerticalOffsetAnchorScreenPosition =
-          copyScreenPositionOrNull(
-            input.candidateNodeVerticalOffsetAnchorScreenPosition,
-            snapshot.candidateNodeVerticalOffsetAnchorScreenPosition
-          );
-        snapshot.candidatePointId =
-          input.source === "snapped-node" ? input.candidatePointId ?? null : null;
-        hasSnapshot = true;
-        publishSnapshot();
-        return true;
-      },
-      clear: () => {
-        if (!hasSnapshot) {
-          return false;
-        }
-
-        hasSnapshot = false;
-        resetSnapshot();
-        publishSnapshot();
-        return true;
-      },
-      subscribe: (listener) => {
-        listeners.add(listener);
-        return () => {
-          listeners.delete(listener);
-        };
-      },
-    };
+  const publishSnapshot = () => {
+    listeners.forEach((listener) => {
+      listener(snapshot);
+    });
   };
+
+  const resetSnapshot = () => {
+    snapshot.source = "none";
+    snapshot.candidateNodePositionECEF = null;
+    snapshot.candidateNodeScreenPosition = null;
+    snapshot.candidateNodeSurfaceNormalECEF = null;
+    snapshot.candidateNodeVerticalOffsetAnchorECEF = null;
+    snapshot.candidateNodeVerticalOffsetAnchorScreenPosition = null;
+    snapshot.candidatePointId = null;
+  };
+
+  return {
+    getSnapshot: () => snapshot,
+    publish: (input) => {
+      if (hasSameSnapshot(snapshot, input)) {
+        return false;
+      }
+
+      snapshot.source = input.source;
+      snapshot.candidateNodePositionECEF = copyCartesian3OrNull(
+        input.candidateNodePositionECEF,
+        snapshot.candidateNodePositionECEF
+      );
+      snapshot.candidateNodeScreenPosition = copyScreenPositionOrNull(
+        input.candidateNodeScreenPosition,
+        snapshot.candidateNodeScreenPosition
+      );
+      snapshot.candidateNodeSurfaceNormalECEF = copyCartesian3OrNull(
+        input.candidateNodeSurfaceNormalECEF,
+        snapshot.candidateNodeSurfaceNormalECEF
+      );
+      snapshot.candidateNodeVerticalOffsetAnchorECEF = copyCartesian3OrNull(
+        input.candidateNodeVerticalOffsetAnchorECEF,
+        snapshot.candidateNodeVerticalOffsetAnchorECEF
+      );
+      snapshot.candidateNodeVerticalOffsetAnchorScreenPosition =
+        copyScreenPositionOrNull(
+          input.candidateNodeVerticalOffsetAnchorScreenPosition,
+          snapshot.candidateNodeVerticalOffsetAnchorScreenPosition
+        );
+      snapshot.candidatePointId =
+        input.source === "snapped-node" ? input.candidatePointId ?? null : null;
+      hasSnapshot = true;
+      publishSnapshot();
+      return true;
+    },
+    clear: () => {
+      if (!hasSnapshot) {
+        return false;
+      }
+
+      hasSnapshot = false;
+      resetSnapshot();
+      publishSnapshot();
+      return true;
+    },
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+  };
+};

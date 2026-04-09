@@ -1,4 +1,8 @@
-import { Easing, lerp, type Easing as EasingFunction } from "@carma-commons/math";
+import {
+  Easing,
+  lerp,
+  type Easing as EasingFunction,
+} from "@carma-commons/math";
 
 import {
   Cartesian3,

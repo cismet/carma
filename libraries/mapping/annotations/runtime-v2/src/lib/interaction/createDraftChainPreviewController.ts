@@ -6,7 +6,6 @@ import {
 import type { RuntimeCoordinate } from "../store";
 import type { RuntimeScene } from "../types/runtimeScene.types";
 import {
-  DRAFT_CHAIN_COLOR,
   applyLineRuntime,
   clearLineRuntime,
   coordinatesEqual,
@@ -17,6 +16,7 @@ import {
   destroyPreviewOverlayLayer,
   hidePointMarkers,
   placePointMarkers,
+  previewControllerDefaults,
   type PreviewPointMarker,
 } from "./previewController.shared";
 
@@ -52,7 +52,7 @@ export const createDraftChainPreviewController = (
   const draftChainLine = createLineRuntime(
     lineCollection,
     "draft-preview-chain",
-    DRAFT_CHAIN_COLOR
+    previewControllerDefaults.draftChainColor
   );
   const pointMarkers: PreviewPointMarker[] = [];
   let currentState: DraftChainPreviewControllerState = {
@@ -103,7 +103,10 @@ export const createDraftChainPreviewController = (
   return {
     setState: (nextState) => {
       if (
-        coordinatesEqual(currentState.chainCoordinates, nextState.chainCoordinates) &&
+        coordinatesEqual(
+          currentState.chainCoordinates,
+          nextState.chainCoordinates
+        ) &&
         coordinatesEqual(
           currentState.markerCoordinates,
           nextState.markerCoordinates

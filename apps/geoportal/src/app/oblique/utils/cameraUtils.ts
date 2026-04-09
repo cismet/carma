@@ -55,7 +55,8 @@ const readVerticalFovFromShorterEdgeFov = (
 
   return aspectRatio >= 1
     ? (shorterEdgeFovRad as Radians)
-    : ((2 * Math.atan(Math.tan(shorterEdgeFovRad * 0.5) / aspectRatio)) as Radians);
+    : ((2 *
+        Math.atan(Math.tan(shorterEdgeFovRad * 0.5) / aspectRatio)) as Radians);
 };
 
 const readShorterEdgeFovFromVerticalFov = (
@@ -337,8 +338,7 @@ export const enterObliqueMode = (
         ? (targetEnterObliqueModeFov as Radians)
         : null;
     const targetEnterObliqueModeVerticalFov =
-      targetEnterObliqueModeShorterEdgeFov !== null &&
-      sceneAspectRatio !== null
+      targetEnterObliqueModeShorterEdgeFov !== null && sceneAspectRatio !== null
         ? readVerticalFovFromShorterEdgeFov(
             targetEnterObliqueModeShorterEdgeFov,
             sceneAspectRatio

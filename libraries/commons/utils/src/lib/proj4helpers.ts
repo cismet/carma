@@ -2,9 +2,7 @@ import proj4 from "proj4";
 import type { Converter } from "proj4/dist/lib/core";
 import { logOnce } from "./console";
 
-logOnce(
-  "@carma-commons/utils proj4helpers is deprecated: Use @carma-geo/proj"
-);
+logOnce("@carma-commons/utils proj4helpers is deprecated: Use @carma-geo/proj");
 
 // Export proj4 with correct typing from proj4 package
 export default proj4;

@@ -75,9 +75,6 @@ export const readCesiumSceneVerticalFovForMetersPerCssPixel = (
     return null;
   }
 
-  const verticalFov = readVerticalFovFromLongerEdge(
-    longerEdgeFov,
-    aspectRatio
-  );
+  const verticalFov = readVerticalFovFromLongerEdge(longerEdgeFov, aspectRatio);
   return isFiniteNumber(verticalFov) ? (verticalFov as Radians) : null;
 };

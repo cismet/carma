@@ -11,10 +11,7 @@ import {
   PerspectiveFrustum,
   type Scene,
 } from "@carma-cesium";
-import {
-  lerp,
-  readTimedInterpolationEasedProgress,
-} from "@carma-commons/math";
+import { lerp, readTimedInterpolationEasedProgress } from "@carma-commons/math";
 import type { Easing as EasingFunction } from "@carma-commons/math";
 import type { Radians } from "@carma-units";
 

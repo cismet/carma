@@ -13,7 +13,6 @@ export type LabelToolSettings = {
 };
 
 const defaults = runtimeMeasurementVisualDefaults;
-const TRANSPARENT_MARKER_FILL = "rgba(0, 0, 0, 0)";
 
 export const createLabelToolSettings = (_badgeStyle: {
   backgroundColor: string;
@@ -22,13 +21,13 @@ export const createLabelToolSettings = (_badgeStyle: {
   visuals: {
     point: {
       pixelSize: 6,
-      fill: TRANSPARENT_MARKER_FILL,
+      fill: defaults.colors.transparent,
       outline: defaults.colors.surface,
       outlineWidth: defaults.sizes.pointOutlineWidth,
     },
     selectedPoint: {
       pixelSize: 8,
-      fill: TRANSPARENT_MARKER_FILL,
+      fill: defaults.colors.transparent,
       outline: defaults.colors.surface,
       outlineWidth: defaults.sizes.pointOutlineWidth,
     },

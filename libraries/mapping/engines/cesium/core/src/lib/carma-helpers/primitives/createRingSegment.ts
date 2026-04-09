@@ -10,10 +10,7 @@ import {
   PolygonHierarchy,
   Primitive,
 } from "@carma-cesium";
-import {
-  Appearance,
-  VertexFormat,
-} from "cesium";
+import { Appearance, VertexFormat } from "cesium";
 
 export const RING_MATERIAL_PRESETS = {
   COLOR: "color",
@@ -125,7 +122,9 @@ const toSafeRotationRad = (rotationRad?: number) =>
 
 const toSafeOpacity = (opacity: number | undefined, fallback: number) =>
   clamp(
-    typeof opacity === "number" && Number.isFinite(opacity) ? opacity : fallback,
+    typeof opacity === "number" && Number.isFinite(opacity)
+      ? opacity
+      : fallback,
     0,
     1
   );
@@ -442,7 +441,10 @@ const resolveRingSegmentOptions = (
   const baseModelMatrix = options.modelMatrix ?? Matrix4.IDENTITY;
   const materialPreset = toSafeMaterialPreset(options.materialPreset);
   const color = options.color ?? DEFAULT_COLOR;
-  const opacity = toSafeOpacity(options.opacity, color.alpha ?? DEFAULT_OPACITY);
+  const opacity = toSafeOpacity(
+    options.opacity,
+    color.alpha ?? DEFAULT_OPACITY
+  );
   const scaleAndRotation = createRingSegmentModelMatrix(
     Cartesian3.ZERO,
     safeRadius,

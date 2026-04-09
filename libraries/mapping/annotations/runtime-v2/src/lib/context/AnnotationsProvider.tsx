@@ -10,14 +10,22 @@ import {
 } from "react";
 import { Provider as ReduxProvider } from "react-redux";
 
-import { registerCesiumSceneSurfacePickingTileset } from "@carma-mapping/engines/cesium/core";
-import { type Cesium3DTileset } from "@carma-cesium";
 import {
+  ANNOTATION_TYPE_DISTANCE,
   ANNOTATION_COMMON_SHORTCUT_ACTIONS,
+  ANNOTATION_TYPE_AREA_GROUND,
+  ANNOTATION_TYPE_AREA_PLANAR,
+  ANNOTATION_TYPE_AREA_VERTICAL,
+  ANNOTATION_TYPE_POINT,
   SELECT_TOOL_TYPE,
   isManagedAnnotationKeyboardEvent,
   resolveAnnotationCommonShortcutAction,
 } from "@carma-mapping/annotations/core";
+import { BoundingSphere, SceneTransforms, defined } from "@carma-cesium";
+import {
+  cartesian3FromGeographicCoordinate,
+  flyToBoundingSphereExtent,
+} from "@carma-mapping/engines/cesium/core";
 
 import {
   useModeLifecycle,
@@ -39,10 +47,15 @@ import {
   createInitialAnnotationsStoreState,
   finalizeTemporaryAnnotationsByToolType,
   removeAnnotationById,
+  removeAnnotationsByIds,
+  RUNTIME_ELEVATION_DISPLAY_MODE,
+  setElevationReferenceAnnotationId as setElevationReferenceAnnotationIdAction,
   setAnnotationToolType,
   setPointTemporaryMode as setPointTemporaryModeInStoreAction,
   setSelectionModeActive,
   setSelectedAnnotationId,
+  setSelectedAnnotationIds,
+  updateAnnotationEntryById,
   AnnotationsReduxContext,
   useAnnotationsSelector,
   useAnnotationsStore,
@@ -59,6 +72,15 @@ import {
   buildAnnotationToolRegistry,
   defaultAnnotationToolPlugins,
 } from "../tools";
+import type { AnnotationsRuntimeFormatOptions } from "../config/annotationsRuntimeFormatOptions";
+import type { PreviewLineLabelVisualOptions } from "../config/previewLineLabelVisualDefaults";
+import {
+  buildAnnotationsRuntimePersistenceState,
+  resolvePersistedAnnotationsStoreState,
+  type AnnotationsRuntimePersistenceEnvelope,
+} from "../persistence/annotationsRuntimePersistence";
+import { RUNTIME_POINT_LABEL_COORDINATE_SELECTION } from "../render/measurementRenderModels";
+import { resolveDistanceTriangleAnchorCoordinateSelection } from "../render/runtimeDistanceTriangleOverlay";
 import type {
   AnnotationToolPreviewController,
   AnnotationToolPreviewSample,
@@ -71,6 +93,7 @@ type AnnotationsRuntimeServices = {
   scene: RuntimeScene | null;
   registry: AnnotationToolRegistry;
   annotationsStore: AnnotationsStore;
+  formatOptions: AnnotationsRuntimeFormatOptions;
   addAnnotation: (
     toolType: RuntimeMeasurement["toolType"],
     coordinates: readonly RuntimeCoordinate[],
@@ -81,8 +104,25 @@ type AnnotationsRuntimeServices = {
   requestStartMeasurement: (toolType?: RuntimeToolId) => void;
   requestFinishMeasurement: () => boolean;
   focusAdjacentAnnotationEntry: (offset: -1 | 1) => void;
+  focusAnnotationId: (annotationId: string | null) => void;
+  flyToAnnotationById: (annotationId: string | null) => void;
+  flyToAllAnnotations: () => void;
+  removeAnnotationById: (annotationId: string) => void;
+  removeSelectedAnnotations: () => void;
+  selectAllAnnotations: () => void;
+  setElevationReferenceAnnotationId: (annotationId: string | null) => void;
+  toggleAnnotationElevationDisplayMode: (annotationId: string) => void;
+  updateAnnotationDisplayName: (
+    annotationId: string,
+    displayName: string
+  ) => void;
+  updateAnnotationShortLabel: (
+    annotationId: string,
+    shortLabel: string
+  ) => void;
   setPointTemporaryMode: (temporaryMode: boolean) => void;
   setSelectedAnnotationId: (annotationId: string | null) => void;
+  setSelectedAnnotationIds: (annotationIds: readonly string[]) => void;
   setCursorScreenPosition: (
     cursorScreenPosition: RuntimeCursorScreenPosition
   ) => void;
@@ -90,11 +130,16 @@ type AnnotationsRuntimeServices = {
 
 type AnnotationsProviderProps = {
   scene: RuntimeScene | null;
-  surfacePickingTarget?: Cesium3DTileset | null;
   children?: ReactNode;
   initialActiveToolType?: RuntimeToolId;
   initialPointTemporaryMode?: boolean;
   plugins?: readonly AnnotationToolPlugin[];
+  formatOptions?: AnnotationsRuntimeFormatOptions;
+  previewLineLabelVisualOptions?: Partial<PreviewLineLabelVisualOptions>;
+  initialPersistenceState?: AnnotationsRuntimePersistenceEnvelope | null;
+  onPersistenceStateChange?: (
+    state: AnnotationsRuntimePersistenceEnvelope
+  ) => void;
 };
 
 type AnnotationsReduxProviderProps = {
@@ -135,6 +180,20 @@ const selectSelectedAnnotationId = (state: {
     state.selectionState.selectedAnnotationIds.length - 1
   ] ?? null;
 
+const isEditableKeyboardTarget = (target: EventTarget | null): boolean =>
+  target instanceof HTMLElement &&
+  (target.isContentEditable ||
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLSelectElement);
+
+const isSelectAllAnnotationsShortcut = (event: KeyboardEvent): boolean =>
+  !event.defaultPrevented &&
+  !event.altKey &&
+  !isEditableKeyboardTarget(event.target) &&
+  (event.ctrlKey || event.metaKey) &&
+  event.key.toLowerCase() === "a";
+
 const NOOP_RUNTIME_LIFECYCLE_HOST_API: RuntimeLifecycleHostApi = {
   requestModeChange: () => undefined,
   requestStartMeasurement: () => undefined,
@@ -147,10 +206,20 @@ const POINT_QUERY_DISC_SMOOTHING_SAMPLE_COUNT = 120;
 const POINT_QUERY_DISC_SMOOTHING_WINDOW_MS = 500;
 const POINT_QUERY_DISC_SMOOTHING_WEIGHT_DECAY_GAMMA = 3;
 const HOVER_CLEAR_DELAY_MS = 34;
+const RUNTIME_INFOBOX_FLY_TO_MIN_RADIUS_METERS = 80;
+const RUNTIME_INFOBOX_FLY_TO_PADDING_FACTOR = 1.15;
 const CURSOR_VISIBLE_SENTINEL: RuntimeCursorScreenPosition = {
   x: Number.NaN,
   y: Number.NaN,
 };
+
+const NAVIGABLE_MEASUREMENT_TOOL_TYPES: ReadonlySet<string> = new Set([
+  ANNOTATION_TYPE_POINT,
+  ANNOTATION_TYPE_DISTANCE,
+  ANNOTATION_TYPE_AREA_GROUND,
+  ANNOTATION_TYPE_AREA_PLANAR,
+  ANNOTATION_TYPE_AREA_VERTICAL,
+]);
 
 const selectAdjacentRuntimeAnnotationEntryId = (
   annotationEntries: readonly RuntimeAnnotationEntry[],
@@ -172,6 +241,64 @@ const selectAdjacentRuntimeAnnotationEntryId = (
         annotationEntries.length;
 
   return annotationEntries[nextIndex]?.id ?? null;
+};
+
+const resolveNextElevationDisplayMode = (
+  currentMode: RuntimeAnnotationEntry["elevationDisplayMode"]
+) =>
+  currentMode === RUNTIME_ELEVATION_DISPLAY_MODE.ABSOLUTE
+    ? RUNTIME_ELEVATION_DISPLAY_MODE.RELATIVE
+    : RUNTIME_ELEVATION_DISPLAY_MODE.ABSOLUTE;
+
+const resolveAnnotationEntryCartesianPoints = ({
+  annotationEntries,
+  nodes,
+  annotationId,
+}: {
+  annotationEntries: readonly RuntimeAnnotationEntry[];
+  nodes: readonly RuntimeNode[];
+  annotationId: string | null;
+}) => {
+  if (!annotationId) {
+    return [];
+  }
+
+  const annotationEntry =
+    annotationEntries.find((entry) => entry.id === annotationId) ?? null;
+  if (!annotationEntry) {
+    return [];
+  }
+
+  const nodeCoordinateById = new Map(
+    nodes.map((node) => [node.id, node.coordinate] as const)
+  );
+
+  return annotationEntry.nodeIds.flatMap((nodeId) => {
+    const coordinate = nodeCoordinateById.get(nodeId);
+    return coordinate ? [cartesian3FromGeographicCoordinate(coordinate)] : [];
+  });
+};
+
+const flyToAnnotationPoints = ({
+  scene,
+  points,
+}: {
+  scene: RuntimeScene | null;
+  points: readonly ReturnType<typeof cartesian3FromGeographicCoordinate>[];
+}) => {
+  if (!scene || scene.isDestroyed() || points.length === 0) {
+    return;
+  }
+
+  const sphere = BoundingSphere.fromPoints([...points]);
+  sphere.radius = Math.max(
+    sphere.radius,
+    RUNTIME_INFOBOX_FLY_TO_MIN_RADIUS_METERS
+  );
+  flyToBoundingSphereExtent(scene.camera, sphere, {
+    minRange: RUNTIME_INFOBOX_FLY_TO_MIN_RADIUS_METERS,
+    paddingFactor: RUNTIME_INFOBOX_FLY_TO_PADDING_FACTOR,
+  });
 };
 
 const buildMeasurementEntities = ({
@@ -242,6 +369,16 @@ const buildMeasurementEntities = ({
   };
 };
 
+const readMaxNumericSuffix = (ids: readonly string[]): number =>
+  ids.reduce((maxValue, id) => {
+    const match = id.match(/(\d+)$/);
+    const numericSuffix = match ? Number(match[1]) : Number.NaN;
+
+    return Number.isFinite(numericSuffix)
+      ? Math.max(maxValue, numericSuffix)
+      : maxValue;
+  }, 0);
+
 const RuntimeToolAvailabilityGuard = ({
   registry,
   setActiveToolType,
@@ -278,6 +415,8 @@ const RuntimeInteractionHost = ({
   setCursorScreenPosition,
   bindApi,
   activeMoveGizmoNodeId,
+  formatOptions,
+  previewLineLabelVisualOptions,
 }: {
   scene: RuntimeScene | null;
   registry: AnnotationToolRegistry;
@@ -294,6 +433,8 @@ const RuntimeInteractionHost = ({
   ) => void;
   bindApi: (api: RuntimeLifecycleHostApi) => void;
   activeMoveGizmoNodeId: string | null;
+  formatOptions: AnnotationsRuntimeFormatOptions;
+  previewLineLabelVisualOptions: Partial<PreviewLineLabelVisualOptions>;
 }) => {
   const activeToolType = useAnnotationsSelector(
     (state) => state.annotationToolType
@@ -419,6 +560,8 @@ const RuntimeInteractionHost = ({
             scene.requestRender();
           }
         },
+        formatOptions,
+        previewLineLabelVisualOptions,
       }) ?? null;
     activePreviewControllerRef.current = nextPreviewController;
     nextPreviewController?.setEnabled(pointQueryEnabled);
@@ -430,7 +573,14 @@ const RuntimeInteractionHost = ({
       activePreviewControllerRef.current?.destroy();
       activePreviewControllerRef.current = null;
     };
-  }, [activePlugin, annotationsStore, pointQueryEnabled, scene]);
+  }, [
+    activePlugin,
+    annotationsStore,
+    formatOptions,
+    pointQueryEnabled,
+    previewLineLabelVisualOptions,
+    scene,
+  ]);
 
   useEffect(() => {
     activePreviewControllerRef.current?.setEnabled(pointQueryEnabled);
@@ -511,6 +661,20 @@ const RuntimeInteractionHost = ({
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (isSelectAllAnnotationsShortcut(event)) {
+        const runtimeState = sessionContext.getState();
+        const annotationIds = runtimeState.annotationEntries.map(
+          (annotationEntry) => annotationEntry.id
+        );
+
+        if (annotationIds.length > 0) {
+          sessionContext.dispatch(setSelectedAnnotationIds(annotationIds));
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        return;
+      }
+
       const isManagedKeyEvent = isManagedAnnotationKeyboardEvent(event, {
         allowRepeat: true,
       });
@@ -523,19 +687,18 @@ const RuntimeInteractionHost = ({
         commonAction === ANNOTATION_COMMON_SHORTCUT_ACTIONS.UNDO_LAST_POINT
       ) {
         const runtimeState = sessionContext.getState();
-        const selectedAnnotationId =
-          runtimeState.selectionState.selectedAnnotationIds[
-            runtimeState.selectionState.selectedAnnotationIds.length - 1
-          ] ?? null;
+        const selectedAnnotationIds =
+          runtimeState.selectionState.selectedAnnotationIds;
 
-        if (selectedAnnotationId) {
+        if (selectedAnnotationIds.length > 0) {
           sessionContext.dispatch(
-            removeAnnotationById({
-              annotationId: selectedAnnotationId,
+            removeAnnotationsByIds({
+              annotationIds: selectedAnnotationIds,
               nextSelectedAnnotationId: null,
             })
           );
           event.preventDefault();
+          event.stopPropagation();
           return;
         }
       }
@@ -621,6 +784,8 @@ const RuntimeVisualizationHost = ({
   onActiveMoveGizmoNodeIdChange,
   cursorOverlayVisible,
   blockCommittedLabelInteractions,
+  formatOptions,
+  previewLineLabelVisualOptions,
 }: {
   scene: RuntimeScene | null;
   registry: AnnotationToolRegistry;
@@ -628,6 +793,8 @@ const RuntimeVisualizationHost = ({
   onActiveMoveGizmoNodeIdChange: (nodeId: string | null) => void;
   cursorOverlayVisible: boolean;
   blockCommittedLabelInteractions: boolean;
+  formatOptions: AnnotationsRuntimeFormatOptions;
+  previewLineLabelVisualOptions: Partial<PreviewLineLabelVisualOptions>;
 }) => {
   const activeToolType = useAnnotationsSelector(
     (annotationsState) => annotationsState.annotationToolType
@@ -644,12 +811,83 @@ const RuntimeVisualizationHost = ({
   const selectedAnnotationId = useAnnotationsSelector(
     selectSelectedAnnotationId
   );
+  const selectedAnnotationIds = useAnnotationsSelector(
+    (annotationsState) => annotationsState.selectionState.selectedAnnotationIds
+  );
+  const elevationReferenceAnnotationId = useAnnotationsSelector(
+    (annotationsState) =>
+      annotationsState.settingsState.elevationReferenceAnnotationId
+  );
   const annotationsStore = useAnnotationsStore("RuntimeVisualizationHost");
   const { handleNodeLongPress } = usePointEditingGizmo(scene, nodes, {
     annotationsStore,
     setSelectedAnnotationId,
     onActiveMoveGizmoNodeIdChange,
   });
+  const handleDistanceTriangleCornerClick = useCallback(
+    (measurementId: string) => {
+      const targetEntry = annotationsStore
+        .getState()
+        .annotationEntries.find((entry) => entry.id === measurementId);
+      if (!targetEntry) {
+        return;
+      }
+
+      const nextSelection =
+        (targetEntry.distanceAnchorCoordinateSelection ??
+          resolveDistanceTriangleAnchorCoordinateSelection(
+            targetEntry.nodeIds
+              .map(
+                (nodeId) =>
+                  annotationsStore
+                    .getState()
+                    .nodes.find((node) => node.id === nodeId)?.coordinate ??
+                  null
+              )
+              .filter((coordinate): coordinate is RuntimeCoordinate =>
+                Boolean(coordinate)
+              )
+          )) === RUNTIME_POINT_LABEL_COORDINATE_SELECTION.LEFTMOST_SCREEN_SPACE
+          ? RUNTIME_POINT_LABEL_COORDINATE_SELECTION.RIGHTMOST_SCREEN_SPACE
+          : RUNTIME_POINT_LABEL_COORDINATE_SELECTION.LEFTMOST_SCREEN_SPACE;
+
+      annotationsStore.dispatch(
+        updateAnnotationEntryById({
+          annotationId: measurementId,
+          distanceAnchorCoordinateSelection: nextSelection,
+        })
+      );
+    },
+    [annotationsStore]
+  );
+  const setElevationReferenceAnnotationId = useCallback(
+    (annotationId: string | null) => {
+      annotationsStore.dispatch(
+        setElevationReferenceAnnotationIdAction(annotationId)
+      );
+    },
+    [annotationsStore]
+  );
+  const toggleAnnotationElevationDisplayMode = useCallback(
+    (annotationId: string) => {
+      const targetEntry = annotationsStore
+        .getState()
+        .annotationEntries.find((entry) => entry.id === annotationId);
+      if (!targetEntry) {
+        return;
+      }
+
+      annotationsStore.dispatch(
+        updateAnnotationEntryById({
+          annotationId,
+          elevationDisplayMode: resolveNextElevationDisplayMode(
+            targetEntry.elevationDisplayMode
+          ),
+        })
+      );
+    },
+    [annotationsStore]
+  );
 
   const aggregatedRenderLayer = useMemo(() => {
     const pluginLayers = registry.plugins
@@ -659,9 +897,14 @@ const RuntimeVisualizationHost = ({
             nodes,
             edges,
             annotationEntries,
+            elevationReferenceAnnotationId,
             selectedAnnotationId,
+            selectedAnnotationIds,
             setSelectedAnnotationId,
+            setElevationReferenceAnnotationId,
+            toggleAnnotationElevationDisplayMode,
             onNodeLongPress: handleNodeLongPress,
+            formatOptions,
           }) ?? null
       )
       .filter((layer): layer is RuntimeRenderLayer => Boolean(layer));
@@ -676,10 +919,15 @@ const RuntimeVisualizationHost = ({
   }, [
     annotationEntries,
     edges,
+    elevationReferenceAnnotationId,
     nodes,
+    formatOptions,
     registry.plugins,
     selectedAnnotationId,
+    selectedAnnotationIds,
     setSelectedAnnotationId,
+    setElevationReferenceAnnotationId,
+    toggleAnnotationElevationDisplayMode,
     handleNodeLongPress,
   ]);
 
@@ -689,10 +937,13 @@ const RuntimeVisualizationHost = ({
     edges: aggregatedRenderLayer.edges ?? [],
     polygonFills: aggregatedRenderLayer.polygonFills ?? [],
     pointLabels: aggregatedRenderLayer.pointLabels ?? [],
+    formatOptions,
+    previewLineLabelVisualOptions,
     blockLabelInteractions:
       blockCommittedLabelInteractions ||
       registry.getPlugin(activeToolType)?.kind === "measurement",
     onNodeLongPress: handleNodeLongPress,
+    onDistanceTriangleCornerClick: handleDistanceTriangleCornerClick,
   });
 
   useCursorOverlay(
@@ -708,11 +959,14 @@ const RuntimeVisualizationHost = ({
 
 export const AnnotationsProvider = ({
   scene,
-  surfacePickingTarget = null,
   children,
   initialActiveToolType,
   initialPointTemporaryMode = false,
   plugins = defaultAnnotationToolPlugins,
+  formatOptions = {},
+  previewLineLabelVisualOptions = {},
+  initialPersistenceState = null,
+  onPersistenceStateChange,
 }: AnnotationsProviderProps) => {
   const registry = useMemo(
     () => buildAnnotationToolRegistry(plugins),
@@ -732,34 +986,47 @@ export const AnnotationsProvider = ({
   const lifecycleHostApiRef = useRef<RuntimeLifecycleHostApi>(
     NOOP_RUNTIME_LIFECYCLE_HOST_API
   );
+  const lastSerializedPersistenceStateRef = useRef<string | null>(null);
   const measurementSequenceRef = useRef(0);
   const nodeSequenceRef = useRef(0);
   const edgeSequenceRef = useRef(0);
 
-  useEffect(() => {
-    if (!scene || scene.isDestroyed() || !surfacePickingTarget) {
-      return;
-    }
-
-    return registerCesiumSceneSurfacePickingTileset(
-      scene,
-      surfacePickingTarget
-    );
-  }, [scene, surfacePickingTarget]);
   const [activeMoveGizmoNodeId, setActiveMoveGizmoNodeId] = useState<
     string | null
   >(null);
   const [cursorOverlayVisible, setCursorOverlayVisible] = useState(false);
 
   if (annotationsStoreRef.current === null) {
-    annotationsStoreRef.current = createAnnotationsStore(
-      createInitialAnnotationsStoreState({
-        initialToolType: resolvedInitialToolType,
-        initialPointTemporaryMode,
-        initialSelectionModeActive:
-          registry.getPlugin(resolvedInitialToolType)?.kind === "interaction",
-      })
+    const initialStoreState = initialPersistenceState
+      ? resolvePersistedAnnotationsStoreState({
+          initialToolType: resolvedInitialToolType,
+          initialPointTemporaryMode,
+          initialSelectionModeActive:
+            registry.getPlugin(resolvedInitialToolType)?.kind === "interaction",
+          initialPersistenceState,
+        })
+      : createInitialAnnotationsStoreState({
+          initialToolType: resolvedInitialToolType,
+          initialPointTemporaryMode,
+          initialSelectionModeActive:
+            registry.getPlugin(resolvedInitialToolType)?.kind === "interaction",
+        });
+
+    measurementSequenceRef.current = readMaxNumericSuffix(
+      initialStoreState.annotationEntries.map(
+        (annotationEntry) => annotationEntry.id
+      )
     );
+    nodeSequenceRef.current = readMaxNumericSuffix(
+      initialStoreState.nodes.map((node) => node.id)
+    );
+    edgeSequenceRef.current = readMaxNumericSuffix(
+      initialStoreState.edges.map((edge) => edge.id)
+    );
+    lastSerializedPersistenceStateRef.current = JSON.stringify(
+      buildAnnotationsRuntimePersistenceState(initialStoreState)
+    );
+    annotationsStoreRef.current = createAnnotationsStore(initialStoreState);
   }
 
   const annotationsStore = annotationsStoreRef.current;
@@ -790,6 +1057,22 @@ export const AnnotationsProvider = ({
     [annotationsStore]
   );
 
+  const setSelectedAnnotationIdsInStore = useCallback(
+    (annotationIds: readonly string[]) => {
+      annotationsStore.dispatch(setSelectedAnnotationIds(annotationIds));
+    },
+    [annotationsStore]
+  );
+
+  const setElevationReferenceAnnotationIdInStore = useCallback(
+    (annotationId: string | null) => {
+      annotationsStore.dispatch(
+        setElevationReferenceAnnotationIdAction(annotationId)
+      );
+    },
+    [annotationsStore]
+  );
+
   const focusAdjacentAnnotationEntry = useCallback(
     (offset: -1 | 1) => {
       const runtimeState = annotationsStore.getState();
@@ -800,6 +1083,127 @@ export const AnnotationsProvider = ({
       );
 
       annotationsStore.dispatch(setSelectedAnnotationId(nextAnnotationId));
+    },
+    [annotationsStore]
+  );
+
+  const flyToAnnotationById = useCallback(
+    (annotationId: string | null) => {
+      const runtimeState = annotationsStore.getState();
+      const points = resolveAnnotationEntryCartesianPoints({
+        annotationEntries: runtimeState.annotationEntries,
+        nodes: runtimeState.nodes,
+        annotationId,
+      });
+      flyToAnnotationPoints({
+        scene,
+        points,
+      });
+    },
+    [annotationsStore, scene]
+  );
+
+  const flyToAllAnnotations = useCallback(() => {
+    const runtimeState = annotationsStore.getState();
+    const points = runtimeState.annotationEntries.flatMap((annotationEntry) =>
+      resolveAnnotationEntryCartesianPoints({
+        annotationEntries: runtimeState.annotationEntries,
+        nodes: runtimeState.nodes,
+        annotationId: annotationEntry.id,
+      })
+    );
+    flyToAnnotationPoints({
+      scene,
+      points,
+    });
+  }, [annotationsStore, scene]);
+
+  const focusAnnotationId = useCallback(
+    (annotationId: string | null) => {
+      annotationsStore.dispatch(setSelectedAnnotationId(annotationId));
+      flyToAnnotationById(annotationId);
+    },
+    [annotationsStore, flyToAnnotationById]
+  );
+
+  const removeAnnotationEntryById = useCallback(
+    (annotationId: string) => {
+      annotationsStore.dispatch(
+        removeAnnotationById({
+          annotationId,
+          nextSelectedAnnotationId: null,
+        })
+      );
+    },
+    [annotationsStore]
+  );
+
+  const removeSelectedAnnotationEntries = useCallback(() => {
+    const runtimeState = annotationsStore.getState();
+    if (runtimeState.selectionState.selectedAnnotationIds.length === 0) {
+      return;
+    }
+
+    annotationsStore.dispatch(
+      removeAnnotationsByIds({
+        annotationIds: runtimeState.selectionState.selectedAnnotationIds,
+        nextSelectedAnnotationId: null,
+      })
+    );
+  }, [annotationsStore]);
+
+  const selectAllAnnotationEntries = useCallback(() => {
+    const runtimeState = annotationsStore.getState();
+    annotationsStore.dispatch(
+      setSelectedAnnotationIds(
+        runtimeState.annotationEntries.map(
+          (annotationEntry) => annotationEntry.id
+        )
+      )
+    );
+  }, [annotationsStore]);
+
+  const updateAnnotationDisplayName = useCallback(
+    (annotationId: string, displayName: string) => {
+      annotationsStore.dispatch(
+        updateAnnotationEntryById({
+          annotationId,
+          displayName: displayName.trim(),
+        })
+      );
+    },
+    [annotationsStore]
+  );
+
+  const updateAnnotationShortLabel = useCallback(
+    (annotationId: string, shortLabel: string) => {
+      annotationsStore.dispatch(
+        updateAnnotationEntryById({
+          annotationId,
+          shortLabel: shortLabel.trim(),
+        })
+      );
+    },
+    [annotationsStore]
+  );
+
+  const toggleAnnotationElevationDisplayMode = useCallback(
+    (annotationId: string) => {
+      const targetEntry = annotationsStore
+        .getState()
+        .annotationEntries.find((entry) => entry.id === annotationId);
+      if (!targetEntry) {
+        return;
+      }
+
+      annotationsStore.dispatch(
+        updateAnnotationEntryById({
+          annotationId,
+          elevationDisplayMode: resolveNextElevationDisplayMode(
+            targetEntry.elevationDisplayMode
+          ),
+        })
+      );
     },
     [annotationsStore]
   );
@@ -823,10 +1227,43 @@ export const AnnotationsProvider = ({
       coordinates: readonly RuntimeCoordinate[],
       options?: RuntimeAddAnnotationOptions
     ) => {
+      let resolvedOptions = options;
+
+      if (
+        toolType === ANNOTATION_TYPE_DISTANCE &&
+        options?.distanceAnchorCoordinateSelection === undefined &&
+        scene &&
+        !scene.isDestroyed()
+      ) {
+        const startCoordinate = coordinates[0];
+        const endCoordinate = coordinates[coordinates.length - 1];
+
+        if (startCoordinate && endCoordinate) {
+          const startScreenPosition = SceneTransforms.worldToWindowCoordinates(
+            scene,
+            cartesian3FromGeographicCoordinate(startCoordinate)
+          );
+          const endScreenPosition = SceneTransforms.worldToWindowCoordinates(
+            scene,
+            cartesian3FromGeographicCoordinate(endCoordinate)
+          );
+
+          if (defined(startScreenPosition) && defined(endScreenPosition)) {
+            resolvedOptions = {
+              ...options,
+              distanceAnchorCoordinateSelection:
+                startScreenPosition.x <= endScreenPosition.x
+                  ? RUNTIME_POINT_LABEL_COORDINATE_SELECTION.LEFTMOST_SCREEN_SPACE
+                  : RUNTIME_POINT_LABEL_COORDINATE_SELECTION.RIGHTMOST_SCREEN_SPACE,
+            };
+          }
+        }
+      }
+
       const { annotationEntry, nodes, edges } = buildMeasurementEntities({
         toolType,
         coordinates,
-        options,
+        options: resolvedOptions,
         measurementSequenceRef,
         nodeSequenceRef,
         edgeSequenceRef,
@@ -843,14 +1280,41 @@ export const AnnotationsProvider = ({
 
       return annotationEntry;
     },
-    [annotationsStore]
+    [annotationsStore, scene]
   );
+
+  useEffect(() => {
+    if (!onPersistenceStateChange) {
+      return;
+    }
+
+    const emitPersistenceState = () => {
+      const nextPersistenceState = buildAnnotationsRuntimePersistenceState(
+        annotationsStore.getState()
+      );
+      const serializedPersistenceState = JSON.stringify(nextPersistenceState);
+      if (
+        serializedPersistenceState === lastSerializedPersistenceStateRef.current
+      ) {
+        return;
+      }
+
+      onPersistenceStateChange(nextPersistenceState);
+      lastSerializedPersistenceStateRef.current = serializedPersistenceState;
+    };
+
+    const unsubscribe = annotationsStore.subscribe(emitPersistenceState);
+    return () => {
+      unsubscribe();
+    };
+  }, [annotationsStore, onPersistenceStateChange]);
 
   const services = useMemo<AnnotationsRuntimeServices>(
     () => ({
       scene,
       registry,
       annotationsStore,
+      formatOptions,
       addAnnotation,
       setActiveToolType,
       requestModeChange: (toolType) =>
@@ -860,8 +1324,20 @@ export const AnnotationsProvider = ({
       requestFinishMeasurement: () =>
         lifecycleHostApiRef.current.requestFinishMeasurement(),
       focusAdjacentAnnotationEntry,
+      focusAnnotationId,
+      flyToAnnotationById,
+      flyToAllAnnotations,
+      removeAnnotationById: removeAnnotationEntryById,
+      removeSelectedAnnotations: removeSelectedAnnotationEntries,
+      selectAllAnnotations: selectAllAnnotationEntries,
+      setElevationReferenceAnnotationId:
+        setElevationReferenceAnnotationIdInStore,
+      toggleAnnotationElevationDisplayMode,
+      updateAnnotationDisplayName,
+      updateAnnotationShortLabel,
       setPointTemporaryMode: setPointTemporaryModeInStore,
       setSelectedAnnotationId: setSelectedAnnotationIdInStore,
+      setSelectedAnnotationIds: setSelectedAnnotationIdsInStore,
       setCursorScreenPosition: (cursorScreenPosition) =>
         setCursorOverlayVisible(cursorScreenPosition !== null),
     }),
@@ -869,11 +1345,23 @@ export const AnnotationsProvider = ({
       addAnnotation,
       annotationsStore,
       focusAdjacentAnnotationEntry,
+      focusAnnotationId,
+      flyToAllAnnotations,
+      flyToAnnotationById,
+      formatOptions,
+      removeAnnotationEntryById,
+      removeSelectedAnnotationEntries,
       registry,
       scene,
+      selectAllAnnotationEntries,
+      setElevationReferenceAnnotationIdInStore,
       setActiveToolType,
       setPointTemporaryModeInStore,
       setSelectedAnnotationIdInStore,
+      setSelectedAnnotationIdsInStore,
+      toggleAnnotationElevationDisplayMode,
+      updateAnnotationDisplayName,
+      updateAnnotationShortLabel,
     ]
   );
 
@@ -898,6 +1386,8 @@ export const AnnotationsProvider = ({
             setCursorOverlayVisible(cursorScreenPosition !== null)
           }
           activeMoveGizmoNodeId={activeMoveGizmoNodeId}
+          formatOptions={formatOptions}
+          previewLineLabelVisualOptions={previewLineLabelVisualOptions}
           bindApi={bindLifecycleHostApi}
         />
         <RuntimeVisualizationHost
@@ -907,6 +1397,8 @@ export const AnnotationsProvider = ({
           onActiveMoveGizmoNodeIdChange={setActiveMoveGizmoNodeId}
           cursorOverlayVisible={cursorOverlayVisible}
           blockCommittedLabelInteractions={cursorOverlayVisible}
+          formatOptions={formatOptions}
+          previewLineLabelVisualOptions={previewLineLabelVisualOptions}
         />
         {children}
       </AnnotationsRuntimeContext.Provider>
@@ -918,14 +1410,26 @@ export const useAnnotationsRuntime = () => {
   const {
     scene,
     registry,
+    formatOptions,
     addAnnotation,
     setActiveToolType,
     requestModeChange,
     requestStartMeasurement,
     requestFinishMeasurement,
     focusAdjacentAnnotationEntry,
+    focusAnnotationId,
+    flyToAnnotationById,
+    flyToAllAnnotations,
+    removeAnnotationById,
+    removeSelectedAnnotations,
+    selectAllAnnotations,
+    setElevationReferenceAnnotationId,
+    toggleAnnotationElevationDisplayMode,
+    updateAnnotationDisplayName,
+    updateAnnotationShortLabel,
     setPointTemporaryMode,
     setSelectedAnnotationId,
+    setSelectedAnnotationIds,
     setCursorScreenPosition,
   } = useRequiredAnnotationsRuntimeServices();
   const activeToolType = useAnnotationsSelector(
@@ -939,6 +1443,12 @@ export const useAnnotationsRuntime = () => {
   const selectedAnnotationId = useAnnotationsSelector(
     selectSelectedAnnotationId
   );
+  const selectedAnnotationIds = useAnnotationsSelector(
+    (state) => state.selectionState.selectedAnnotationIds
+  );
+  const elevationReferenceAnnotationId = useAnnotationsSelector(
+    (state) => state.settingsState.elevationReferenceAnnotationId
+  );
   const pointTemporaryMode = useAnnotationsSelector(
     (state) => state.settingsState.pointTemporaryMode
   );
@@ -946,19 +1456,33 @@ export const useAnnotationsRuntime = () => {
   return {
     scene,
     registry,
+    formatOptions,
     activeToolType,
     setActiveToolType,
     requestModeChange,
     requestStartMeasurement,
     requestFinishMeasurement,
     focusAdjacentAnnotationEntry,
+    focusAnnotationId,
+    flyToAnnotationById,
+    flyToAllAnnotations,
+    removeAnnotationById,
+    removeSelectedAnnotations,
+    selectAllAnnotations,
+    elevationReferenceAnnotationId,
+    setElevationReferenceAnnotationId,
+    toggleAnnotationElevationDisplayMode,
+    updateAnnotationDisplayName,
+    updateAnnotationShortLabel,
     pointTemporaryMode,
     setPointTemporaryMode,
     nodes,
     edges,
     annotationEntries,
     selectedAnnotationId,
+    selectedAnnotationIds,
     setSelectedAnnotationId,
+    setSelectedAnnotationIds,
     addAnnotation,
     setCursorScreenPosition,
   };

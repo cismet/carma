@@ -77,8 +77,7 @@ export const usePointPreviewRingIndicator = (
   {
     radius,
     enabled = true,
-    placementMode =
-      POINT_QUERY_PREVIEW_DISC_PLACEMENT_MODES.CAMERA_PLANE_REPROJECT,
+    placementMode = POINT_QUERY_PREVIEW_DISC_PLACEMENT_MODES.CAMERA_PLANE_REPROJECT,
     color,
     opacity,
     materialPreset,
@@ -87,8 +86,7 @@ export const usePointPreviewRingIndicator = (
     targetScreenRadiusCssPx = pointPreviewRingVisualDefaults.targetScreenRadiusCssPx,
     showNormalLine = false,
     tangentDiscVisualizerTrailSampleCount = pointPreviewRingVisualDefaults.smoothingSampleCount,
-    tangentDiscVisualizerSmoothingWindowMs =
-      pointPreviewRingVisualDefaults.smoothingWindowMs,
+    tangentDiscVisualizerSmoothingWindowMs = pointPreviewRingVisualDefaults.smoothingWindowMs,
     tangentDiscVisualizerWeightDecayGamma = pointPreviewRingVisualDefaults.smoothingWeightDecayGamma,
   }: PointPreviewRingIndicatorOptions
 ): PointPreviewRingIndicatorApi => {
@@ -113,23 +111,20 @@ export const usePointPreviewRingIndicator = (
   );
   const updatePreviewRingRef = useRef<() => void>(() => undefined);
   const clearPreviewRingRef = useRef<() => void>(() => undefined);
-  const previewRingColor = useMemo(
-    () => {
-      const resolvedOpacity =
-        typeof opacity === "number" && Number.isFinite(opacity)
-          ? opacity
-          : pointPreviewRingVisualDefaults.alpha;
-      if (!color) {
-        return Color.WHITE.withAlpha(resolvedOpacity);
-      }
+  const previewRingColor = useMemo(() => {
+    const resolvedOpacity =
+      typeof opacity === "number" && Number.isFinite(opacity)
+        ? opacity
+        : pointPreviewRingVisualDefaults.alpha;
+    if (!color) {
+      return Color.WHITE.withAlpha(resolvedOpacity);
+    }
 
-      return (
-        Color.fromCssColorString(color)?.withAlpha(resolvedOpacity) ??
-        Color.WHITE.withAlpha(resolvedOpacity)
-      );
-    },
-    [color, opacity]
-  );
+    return (
+      Color.fromCssColorString(color)?.withAlpha(resolvedOpacity) ??
+      Color.WHITE.withAlpha(resolvedOpacity)
+    );
+  }, [color, opacity]);
 
   useEffect(() => {
     if (!isValidScene(scene)) return;
@@ -158,7 +153,8 @@ export const usePointPreviewRingIndicator = (
       }
 
       if (!previewRingNormalLineCollectionRef.current) {
-        previewRingNormalLineCollectionRef.current = createLineCollection(scene);
+        previewRingNormalLineCollectionRef.current =
+          createLineCollection(scene);
       }
 
       previewRingNormalLineRuntimeRef.current = createLineRuntime(
@@ -303,7 +299,8 @@ export const usePointPreviewRingIndicator = (
     const hasPendingPreviewSmoothing = (nowMs = performance.now()) =>
       previewRingSamplesRef.current.length > 1 &&
       previewRingSamplesRef.current.some(
-        (sample) => nowMs - sample.timestampMs < tangentDiscVisualizerSmoothingWindowMs
+        (sample) =>
+          nowMs - sample.timestampMs < tangentDiscVisualizerSmoothingWindowMs
       );
 
     if (!enabled) {

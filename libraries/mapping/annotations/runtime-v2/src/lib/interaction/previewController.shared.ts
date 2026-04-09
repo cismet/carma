@@ -21,15 +21,27 @@ import {
   getEllipsoidalAltitudeOrZero,
   isValidScene,
 } from "@carma-mapping/engines/cesium/core";
-import {
-  formatLengthMeters,
-  LENGTH_UNIT_MODE,
-  type CssPixelPosition,
-} from "@carma-units";
+import type { CssPixelPosition } from "@carma-units";
 
 import { runtimeMeasurementVisualDefaults } from "../config/measurementVisualDefaults";
+import {
+  previewLineLabelVisualDefaults,
+  resolvePreviewLineLabelVisualOptions,
+  type PreviewLineLabelVisualOptions,
+} from "../config/previewLineLabelVisualDefaults";
+import {
+  previewControllerDefaults,
+  type PreviewControllerOptions,
+} from "../config/previewControllerDefaults";
 import type { RuntimeCoordinate } from "../store";
 import type { RuntimeScene } from "../types/runtimeScene.types";
+
+import "./preview-line-label.css";
+
+export {
+  previewControllerDefaults,
+  type PreviewControllerOptions,
+} from "../config/previewControllerDefaults";
 
 export type PreviewLineRuntime = {
   polyline: Polyline;
@@ -58,9 +70,24 @@ export type PreviewDistanceTriangleLabelReferences = {
   nextVerticalOutsideSign: -1 | 1 | undefined;
 };
 
+export type PreviewDistanceTriangleComponentLabelVisibility = {
+  showVerticalLabel: boolean;
+  showHorizontalLabel: boolean;
+};
+
 type ScreenPointLike = {
   x: number;
   y: number;
+};
+
+type PreviewLineLabelAnchor = "center" | "left" | "right";
+
+type PreviewLineLabelPlacement = {
+  x: number;
+  y: number;
+  angleDeg: number;
+  anchor: PreviewLineLabelAnchor;
+  isShortEdge: boolean;
 };
 
 type PreviewLineCollectionFrameState = {
@@ -70,32 +97,94 @@ type PreviewLineCollectionFrameState = {
   };
 };
 
-export const PREVIEW_LINE_STROKE_WIDTH_PX = 1;
-export const PREVIEW_LAYER_Z_INDEX = "1650";
-export const PREVIEW_LINE_LABEL_OFFSET_PX = 18;
-export const PREVIEW_LINE_LABEL_MIN_LENGTH_PX = 44;
-export const PREVIEW_GEOMETRY_EPSILON_METERS = 0.01;
-export const PREVIEW_LABEL_REFERENCE_MIN_DISTANCE_PX = 24;
-export const PREVIEW_LABEL_REFERENCE_MAX_DISTANCE_PX = 48;
-export const PREVIEW_LABEL_REFERENCE_INSIDE_BLEND_FACTOR = 0.35;
-export const PREVIEW_LABEL_SIDE_SWITCH_THRESHOLD_PX = 4;
-export const DIRECT_LINE_COLOR = "rgba(255, 255, 255, 1)";
-export const VERTICAL_LINE_COLOR = "rgba(111, 168, 255, 0.96)";
-export const HORIZONTAL_LINE_COLOR = "rgba(188, 194, 102, 0.95)";
-export const DRAFT_CHAIN_COLOR = runtimeMeasurementVisualDefaults.colors.preview;
-
-export const formatMeters = (value: number): string =>
-  formatLengthMeters(value, {
-    locale: "de-DE",
-    unitMode: LENGTH_UNIT_MODE.METERS,
-  });
-
 export const applyStyles = (
   element: HTMLElement,
   styles: Partial<CSSStyleDeclaration>
 ) => {
   Object.assign(element.style, styles);
 };
+
+const PREVIEW_LINE_LABEL_CLASSNAME = "carma-preview-line-label";
+const PREVIEW_LINE_LABEL_FRAME_CLASSNAME = "carma-preview-line-label__frame";
+const PREVIEW_LINE_LABEL_BACKDROP_CLASSNAME =
+  "carma-preview-line-label__backdrop";
+const PREVIEW_LINE_LABEL_TEXT_CLASSNAME = "carma-preview-line-label__text";
+
+const createHtmlElement = <T extends keyof HTMLElementTagNameMap>(
+  tagName: T,
+  className: string
+) => {
+  const element = document.createElement(tagName);
+  element.className = className;
+  return element;
+};
+
+const applyPreviewLineLabelVisualOptions = ({
+  element,
+  backdrop,
+  accentColor,
+  visualOptions,
+}: {
+  element: HTMLDivElement;
+  backdrop: HTMLDivElement;
+  accentColor: string;
+  visualOptions: PreviewLineLabelVisualOptions;
+}) => {
+  element.style.setProperty(
+    "--carma-preview-line-label-font-family",
+    visualOptions.fontFamily
+  );
+  element.style.setProperty(
+    "--carma-preview-line-label-font-weight",
+    String(visualOptions.fontWeight)
+  );
+  element.style.setProperty(
+    "--carma-preview-line-label-glow-color",
+    accentColor
+  );
+  element.dataset.previewLineLabelShortEdgeOffsetPx = String(
+    visualOptions.shortEdgeOffsetPx
+  );
+  element.dataset.previewLineLabelTheme = visualOptions.theme;
+  backdrop.dataset.previewLineLabelBackgroundStyle =
+    visualOptions.backgroundStyle;
+};
+
+const resolvePreviewLineLabelTextElement = (element: HTMLDivElement) =>
+  element.querySelector(
+    '[data-preview-line-label-text="true"]'
+  ) as HTMLSpanElement | null;
+
+const resolvePreviewLineLabelShortEdgeOffsetPx = (
+  element: HTMLDivElement
+): number => {
+  const rawValue = element.dataset.previewLineLabelShortEdgeOffsetPx;
+  const parsedValue = rawValue ? Number(rawValue) : Number.NaN;
+
+  return Number.isFinite(parsedValue)
+    ? parsedValue
+    : previewLineLabelVisualDefaults.shortEdgeOffsetPx;
+};
+
+const resolvePreviewLineLabelKind = (element: HTMLDivElement) =>
+  element.dataset.previewLineLabelKind ?? "direct";
+
+const resolvePreviewLineLabelUsesShortEdgeRules = (element: HTMLDivElement) =>
+  resolvePreviewLineLabelKind(element) === "vertical";
+
+const resolvePreviewLineLabelTransform = ({
+  x,
+  y,
+  angleDeg,
+  anchor,
+}: PreviewLineLabelPlacement) =>
+  `translate(${Math.round(x)}px, ${Math.round(y)}px) ${
+    anchor === "left"
+      ? "translate(0%, -50%)"
+      : anchor === "right"
+      ? "translate(-100%, -50%)"
+      : "translate(-50%, -50%)"
+  } rotate(${angleDeg}deg)`;
 
 export const resolvePreviewContainer = (scene: RuntimeScene) => {
   const widgetContainer = scene.canvas.parentElement?.parentElement;
@@ -122,13 +211,17 @@ export const createPreviewOverlayLayer = (
     inset: "0",
     overflow: "hidden",
     pointerEvents: "none",
-    zIndex: PREVIEW_LAYER_Z_INDEX,
+    userSelect: "none",
+    webkitUserSelect: "none",
+    zIndex: "auto",
   });
   container.appendChild(overlayLayer);
   return overlayLayer;
 };
 
-export const destroyPreviewOverlayLayer = (overlayLayer: HTMLElement | null) => {
+export const destroyPreviewOverlayLayer = (
+  overlayLayer: HTMLElement | null
+) => {
   overlayLayer?.remove();
 };
 
@@ -172,12 +265,15 @@ export const destroyLineCollection = (
 export const createLineRuntime = (
   collection: PolylineCollection,
   id: string,
-  colorCss: string
+  colorCss: string,
+  options?: {
+    width?: number;
+  }
 ): PreviewLineRuntime => ({
   polyline: collection.add({
     id,
     positions: [Cartesian3.ZERO, Cartesian3.ZERO],
-    width: PREVIEW_LINE_STROKE_WIDTH_PX,
+    width: options?.width ?? previewControllerDefaults.lineStrokeWidthPx,
     material: Material.fromType("Color", {
       color: Color.fromCssColorString(colorCss) ?? Color.WHITE,
     }),
@@ -212,74 +308,63 @@ export const applyLineRuntime = (
   lineRuntime.polyline.show = positions.length >= 2;
 };
 
-export const createLineLabel = (accentColor: string) => {
-  const element = document.createElement("div");
-  applyStyles(element, {
-    position: "absolute",
-    left: "0",
-    top: "0",
-    display: "none",
-    pointerEvents: "none",
-    transform: "translate(-50%, -50%)",
-    willChange: "transform",
-  });
-
-  const frame = document.createElement("div");
-  applyStyles(frame, {
-    position: "relative",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "6px 10px",
-    whiteSpace: "nowrap",
-  });
-
-  const blurBackdrop = document.createElement("div");
-  applyStyles(blurBackdrop, {
-    position: "absolute",
-    inset: "-12px -20px",
-    background: `radial-gradient(ellipse at center, ${accentColor} 0%, rgba(20, 24, 31, 0.24) 38%, rgba(20, 24, 31, 0.08) 68%, rgba(20, 24, 31, 0) 100%)`,
-    backdropFilter: "blur(10px) saturate(1.08) brightness(1.14)",
-    maskImage:
-      "radial-gradient(ellipse at center, rgba(0, 0, 0, 0.98) 0%, rgba(0, 0, 0, 0.72) 46%, rgba(0, 0, 0, 0.18) 76%, rgba(0, 0, 0, 0) 100%)",
-    pointerEvents: "none",
-  });
-  blurBackdrop.style.setProperty(
-    "-webkit-backdrop-filter",
-    "blur(10px) saturate(1.08) brightness(1.14)"
+export const createLineLabel = (
+  accentColor: string,
+  visualOptions?: Partial<PreviewLineLabelVisualOptions>
+) => {
+  const resolvedVisualOptions =
+    resolvePreviewLineLabelVisualOptions(visualOptions);
+  const element = createHtmlElement("div", PREVIEW_LINE_LABEL_CLASSNAME);
+  const frame = createHtmlElement("div", PREVIEW_LINE_LABEL_FRAME_CLASSNAME);
+  const blurBackdrop = createHtmlElement(
+    "div",
+    PREVIEW_LINE_LABEL_BACKDROP_CLASSNAME
   );
-  blurBackdrop.style.setProperty(
-    "-webkit-mask-image",
-    "radial-gradient(ellipse at center, rgba(0, 0, 0, 0.98) 0%, rgba(0, 0, 0, 0.72) 46%, rgba(0, 0, 0, 0.18) 76%, rgba(0, 0, 0, 0) 100%)"
-  );
-
-  const text = document.createElement("span");
+  const text = createHtmlElement("span", PREVIEW_LINE_LABEL_TEXT_CLASSNAME);
   text.dataset.previewLineLabelText = "true";
-  applyStyles(text, {
-    position: "relative",
-    color: "rgba(255, 255, 255, 0.98)",
-    fontSize: "14px",
-    fontWeight: "400",
-    lineHeight: "1",
-    letterSpacing: "0.01em",
-    whiteSpace: "nowrap",
-    textShadow: "0 1px 2px rgba(0, 0, 0, 0.72), 0 0 10px rgba(0, 0, 0, 0.22)",
+  applyPreviewLineLabelVisualOptions({
+    element,
+    backdrop: blurBackdrop,
+    accentColor,
+    visualOptions: resolvedVisualOptions,
   });
-
   frame.append(blurBackdrop, text);
   element.appendChild(frame);
   return element;
 };
 
-export const createSegmentLineLabels = (): PreviewSegmentLineLabelElements => ({
-  direct: createLineLabel("rgba(255, 255, 255, 0.34)"),
-  vertical: createLineLabel("rgba(111, 168, 255, 0.54)"),
-  horizontal: createLineLabel("rgba(188, 194, 102, 0.5)"),
-});
+export const createSegmentLineLabels = (
+  visualOptions?: Partial<PreviewLineLabelVisualOptions>
+): PreviewSegmentLineLabelElements => {
+  const resolvedVisualOptions =
+    resolvePreviewLineLabelVisualOptions(visualOptions);
 
-export const hideLineLabels = (
-  lineLabels: PreviewSegmentLineLabelElements
-) => {
+  const direct = createLineLabel(
+    runtimeMeasurementVisualDefaults.colors.componentLabelAccents.direct,
+    resolvedVisualOptions
+  );
+  direct.dataset.previewLineLabelKind = "direct";
+
+  const vertical = createLineLabel(
+    runtimeMeasurementVisualDefaults.colors.componentLabelAccents.vertical,
+    resolvedVisualOptions
+  );
+  vertical.dataset.previewLineLabelKind = "vertical";
+
+  const horizontal = createLineLabel(
+    runtimeMeasurementVisualDefaults.colors.componentLabelAccents.horizontal,
+    resolvedVisualOptions
+  );
+  horizontal.dataset.previewLineLabelKind = "horizontal";
+
+  return {
+    direct,
+    vertical,
+    horizontal,
+  };
+};
+
+export const hideLineLabels = (lineLabels: PreviewSegmentLineLabelElements) => {
   lineLabels.direct.style.display = "none";
   lineLabels.vertical.style.display = "none";
   lineLabels.horizontal.style.display = "none";
@@ -300,6 +385,8 @@ export const createPointMarker = () => {
     transform: "translate(-50%, -50%)",
     boxSizing: "border-box",
     pointerEvents: "none",
+    userSelect: "none",
+    webkitUserSelect: "none",
     willChange: "transform",
   });
   return marker;
@@ -387,22 +474,83 @@ export const coordinatesEqual = (
     );
   });
 
+const normalizeReadablePreviewLineLabelAngleDeg = (angleDeg: number) => {
+  let normalizedAngleDeg = ((((angleDeg + 180) % 360) + 360) % 360) - 180;
+
+  if (normalizedAngleDeg > 90) {
+    normalizedAngleDeg -= 180;
+  } else if (normalizedAngleDeg < -90) {
+    normalizedAngleDeg += 180;
+  }
+
+  return normalizedAngleDeg;
+};
+
+const resolvePreviewLineLabelVerticalBaselineAngleDeg = ({
+  angleDeg,
+  lineSide,
+}: {
+  angleDeg: number;
+  lineSide: "left" | "right";
+}) => {
+  if (Math.abs(angleDeg) !== 90) {
+    return angleDeg;
+  }
+
+  return lineSide === "left" ? 90 : -90;
+};
+
+const resolvePreviewLineLabelAngleDeg = ({
+  deltaX,
+  deltaY,
+  lineSide,
+  flipReadingDirection,
+  forceHorizontal,
+}: {
+  deltaX: number;
+  deltaY: number;
+  lineSide: "left" | "right";
+  flipReadingDirection: boolean;
+  forceHorizontal: boolean;
+}) => {
+  if (forceHorizontal) {
+    return 0;
+  }
+
+  const baseAngleDeg = normalizeLabelAngleDeg(
+    (Math.atan2(deltaY, deltaX) * 180) / Math.PI
+  );
+  const preferredAngleDeg = flipReadingDirection
+    ? baseAngleDeg >= 0
+      ? baseAngleDeg - 180
+      : baseAngleDeg + 180
+    : baseAngleDeg;
+
+  return resolvePreviewLineLabelVerticalBaselineAngleDeg({
+    angleDeg: normalizeReadablePreviewLineLabelAngleDeg(preferredAngleDeg),
+    lineSide,
+  });
+};
+
 const resolveLabelOffsetPosition = ({
   start,
   end,
   outsideReferencePoint,
+  shortEdgeOffsetPx = previewLineLabelVisualDefaults.shortEdgeOffsetPx,
+  useShortEdgeRules = true,
+  flipReadingDirection = false,
 }: {
   start: ScreenPointLike;
   end: ScreenPointLike;
   outsideReferencePoint?: ScreenPointLike | null;
-}) => {
+  shortEdgeOffsetPx?: number;
+  useShortEdgeRules?: boolean;
+  flipReadingDirection?: boolean;
+}): PreviewLineLabelPlacement | null => {
   const deltaX = end.x - start.x;
   const deltaY = end.y - start.y;
   const distancePx = Math.hypot(deltaX, deltaY);
-  if (
-    !Number.isFinite(distancePx) ||
-    distancePx < PREVIEW_LINE_LABEL_MIN_LENGTH_PX
-  ) {
+  if (!Number.isFinite(distancePx) || distancePx <= 1e-3) {
     return null;
   }
 
@@ -421,10 +569,42 @@ const resolveLabelOffsetPosition = ({
     }
   }
 
+  if (
+    useShortEdgeRules &&
+    distancePx < previewControllerDefaults.lineLabelMinLengthPx
+  ) {
+    const labelIsPlacedRightOfSegment = normalX >= 0;
+    const lineSide = labelIsPlacedRightOfSegment ? "left" : "right";
+
+    return {
+      x: midX + normalX * shortEdgeOffsetPx,
+      y: midY + normalY * shortEdgeOffsetPx,
+      angleDeg: resolvePreviewLineLabelAngleDeg({
+        deltaX,
+        deltaY,
+        lineSide,
+        flipReadingDirection,
+        forceHorizontal: true,
+      }),
+      anchor: labelIsPlacedRightOfSegment ? "left" : "right",
+      isShortEdge: true,
+    };
+  }
+
+  const lineSide = normalX >= 0 ? "left" : "right";
+
   return {
-    x: midX + normalX * PREVIEW_LINE_LABEL_OFFSET_PX,
-    y: midY + normalY * PREVIEW_LINE_LABEL_OFFSET_PX,
-    angleDeg: normalizeLabelAngleDeg((Math.atan2(deltaY, deltaX) * 180) / Math.PI),
+    x: midX + normalX * previewControllerDefaults.lineLabelOffsetPx,
+    y: midY + normalY * previewControllerDefaults.lineLabelOffsetPx,
+    angleDeg: resolvePreviewLineLabelAngleDeg({
+      deltaX,
+      deltaY,
+      lineSide,
+      flipReadingDirection,
+      forceHorizontal: false,
+    }),
+    anchor: "center",
+    isShortEdge: false,
   };
 };
 
@@ -434,41 +614,45 @@ export const applyLineLabel = ({
   start,
   end,
   outsideReferencePoint,
+  flipReadingDirection = false,
 }: {
   element: HTMLDivElement;
   text: string;
   start: ScreenPointLike;
   end: ScreenPointLike;
   outsideReferencePoint?: ScreenPointLike | null;
+  flipReadingDirection?: boolean;
 }) => {
   const labelPosition = resolveLabelOffsetPosition({
     start,
     end,
     outsideReferencePoint,
+    shortEdgeOffsetPx: resolvePreviewLineLabelShortEdgeOffsetPx(element),
+    useShortEdgeRules: resolvePreviewLineLabelUsesShortEdgeRules(element),
+    flipReadingDirection,
   });
   if (!labelPosition) {
     element.style.display = "none";
     return;
   }
 
-  const textElement = element.querySelector(
-    '[data-preview-line-label-text="true"]'
-  );
+  const textElement = resolvePreviewLineLabelTextElement(element);
   if (textElement instanceof HTMLSpanElement) {
     textElement.textContent = text;
   } else {
     element.textContent = text;
   }
+  element.dataset.previewLineLabelShortEdge = labelPosition.isShortEdge
+    ? "true"
+    : "false";
   element.style.display = "block";
-  element.style.transform = `translate(${Math.round(
-    labelPosition.x
-  )}px, ${Math.round(labelPosition.y)}px) translate(-50%, -50%) rotate(${labelPosition.angleDeg}deg)`;
+  element.style.transform = resolvePreviewLineLabelTransform(labelPosition);
 };
 
 const clampPreviewReferenceDistance = (value: number) =>
   Math.min(
-    PREVIEW_LABEL_REFERENCE_MAX_DISTANCE_PX,
-    Math.max(PREVIEW_LABEL_REFERENCE_MIN_DISTANCE_PX, value)
+    previewControllerDefaults.labelReferenceMaxDistancePx,
+    Math.max(previewControllerDefaults.labelReferenceMinDistancePx, value)
   );
 
 const resolveOutsideReferencePoint = ({
@@ -499,7 +683,7 @@ const resolveOutsideReferencePoint = ({
   const outsideSign =
     previousOutsideSign &&
     previousOutsideSign !== suggestedOutsideSign &&
-    Math.abs(insideDot) < PREVIEW_LABEL_SIDE_SWITCH_THRESHOLD_PX
+    Math.abs(insideDot) < previewControllerDefaults.labelSideSwitchThresholdPx
       ? previousOutsideSign
       : suggestedOutsideSign;
   const referenceDistancePx = clampPreviewReferenceDistance(lineLength * 0.2);
@@ -532,7 +716,9 @@ export const buildPreviewDistanceTriangleLabelReferences = ({
   const targetPosition = { x: target.x, y: target.y } as CssPixelPosition;
   const auxPosition = { x: aux.x, y: aux.y } as CssPixelPosition;
   const highest =
-    anchorAltitudeMeters >= targetAltitudeMeters ? anchorPosition : targetPosition;
+    anchorAltitudeMeters >= targetAltitudeMeters
+      ? anchorPosition
+      : targetPosition;
   const triangle: DistanceScreenTriangle = {
     anchor: anchorPosition,
     target: targetPosition,
@@ -547,7 +733,8 @@ export const buildPreviewDistanceTriangleLabelReferences = ({
     triangle,
     auxiliaryAltitudeMeters: targetAltitudeMeters,
     highestAltitudeMeters: Math.max(anchorAltitudeMeters, targetAltitudeMeters),
-    insideBlendFactor: PREVIEW_LABEL_REFERENCE_INSIDE_BLEND_FACTOR,
+    insideBlendFactor:
+      previewControllerDefaults.labelReferenceInsideBlendFactor,
   });
   const directReference = resolveOutsideReferencePoint({
     start: anchorPosition,
@@ -569,10 +756,26 @@ export const buildPreviewDistanceTriangleLabelReferences = ({
   return {
     directOutsideReferencePoint: directReference?.referencePoint ?? null,
     verticalOutsideReferencePoint: verticalReference?.referencePoint ?? null,
-    horizontalOutsideReferencePoint: horizontalReference?.referencePoint ?? null,
+    horizontalOutsideReferencePoint:
+      horizontalReference?.referencePoint ?? null,
     nextVerticalOutsideSign: verticalReference?.outsideSign,
   };
 };
+
+export const resolvePreviewDistanceTriangleComponentLabelVisibility = ({
+  directLabelText,
+  verticalLabelText,
+  horizontalLabelText,
+}: {
+  directLabelText: string;
+  verticalLabelText: string | null;
+  horizontalLabelText: string | null;
+}): PreviewDistanceTriangleComponentLabelVisibility => ({
+  showVerticalLabel:
+    verticalLabelText !== null && verticalLabelText !== directLabelText,
+  showHorizontalLabel:
+    horizontalLabelText !== null && horizontalLabelText !== directLabelText,
+});
 
 export const createPreviewSegmentScratch = (): PreviewSegmentScratch => ({
   cartographicA: new Cartographic(),

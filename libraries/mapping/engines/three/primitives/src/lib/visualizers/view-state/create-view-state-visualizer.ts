@@ -22,11 +22,7 @@ import {
   type ViewState,
 } from "@carma-mapping/engines-interop/view-state";
 import { clamp, isFiniteNumber, PI, PI_OVER_TWO } from "@carma-commons/math";
-import {
-  degToRadNumeric,
-  radToDegNumeric,
-  zeroToTwoPi,
-} from "@carma-units";
+import { degToRadNumeric, radToDegNumeric, zeroToTwoPi } from "@carma-units";
 import type { Radians } from "@carma-units";
 
 import {

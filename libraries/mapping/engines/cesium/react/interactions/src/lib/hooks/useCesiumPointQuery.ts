@@ -266,8 +266,7 @@ export const useCesiumPointQuery = (
         const shouldSampleSurfaceNormal =
           Boolean(authoritativePickedPositionECEF) &&
           !isCameraMoving &&
-          (
-            shouldForceHoverRefresh ||
+          (shouldForceHoverRefresh ||
             !retainedHoverSample?.surfaceNormalECEF ||
             !lastHoverNormalSampleScreenPosition ||
             nowMs - lastHoverNormalSampleTimeMs >=
@@ -275,8 +274,7 @@ export const useCesiumPointQuery = (
             Cartesian2.distance(
               currentPointerPosition,
               lastHoverNormalSampleScreenPosition
-            ) >= STATIC_HOVER_NORMAL_SAMPLE_DISTANCE_THRESHOLD_PX
-          );
+            ) >= STATIC_HOVER_NORMAL_SAMPLE_DISTANCE_THRESHOLD_PX);
         const sampledSurfaceNormal = authoritativePickedPositionECEF
           ? shouldSampleSurfaceNormal
             ? sampleSurfacePickNormalAtScreenPosition(

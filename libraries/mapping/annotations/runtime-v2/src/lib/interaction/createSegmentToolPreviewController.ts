@@ -24,11 +24,17 @@ export const createSegmentToolPreviewController = ({
   }
 
   const draftChainController = createDraftChainPreviewController(scene);
-  const segmentController = createSegmentPreviewController(scene);
+  const segmentController = createSegmentPreviewController(scene, {
+    formatOptions: context.formatOptions,
+    previewLineLabelVisualOptions: context.previewLineLabelVisualOptions,
+  });
   let enabled = false;
   let hoverSample: AnnotationToolPreviewSample | null = null;
   let draftCoordinates = [
-    ...getDraftCoordinatesForTool(annotationsStore.getState().draftState, toolType),
+    ...getDraftCoordinatesForTool(
+      annotationsStore.getState().draftState,
+      toolType
+    ),
   ];
 
   const render = () => {

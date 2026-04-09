@@ -1,6 +1,11 @@
 import { useEffect, useState, type KeyboardEvent } from "react";
 
-import { faCheck, faMinus, faPlus, faTrashCan } from "@fortawesome/free-solid-svg-icons";
+import {
+  faCheck,
+  faMinus,
+  faPlus,
+  faTrashCan,
+} from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   PURE_LABEL_DEFAULT_BACKGROUND_COLOR,
@@ -17,6 +22,8 @@ import {
   useAnnotationsSelector,
 } from "../../store";
 import type { RuntimeAnnotationEntry } from "../../store";
+import type { RuntimeAnnotationInfoBoxVisualOptions } from "../../components/annotation-info-box/annotationInfoBoxVisualDefaults";
+import { resolveRuntimeAnnotationInfoBoxVisualOptions } from "../../components/annotation-info-box/annotationInfoBoxVisualDefaults";
 
 const PURE_LABEL_MIN_FONT_SIZE_PX = 10;
 const PURE_LABEL_MAX_FONT_SIZE_PX = 48;
@@ -59,7 +66,10 @@ const normalizeColorToHex = (
 };
 
 const clampFontSizePx = (value: number) =>
-  Math.min(PURE_LABEL_MAX_FONT_SIZE_PX, Math.max(PURE_LABEL_MIN_FONT_SIZE_PX, Math.round(value)));
+  Math.min(
+    PURE_LABEL_MAX_FONT_SIZE_PX,
+    Math.max(PURE_LABEL_MIN_FONT_SIZE_PX, Math.round(value))
+  );
 
 const commitDisplayName = ({
   annotation,
@@ -85,9 +95,13 @@ const commitDisplayName = ({
 
 export const LabelToolInfoBoxContent = ({
   annotation,
+  visualOptions,
 }: {
   annotation: RuntimeAnnotationEntry;
+  visualOptions?: RuntimeAnnotationInfoBoxVisualOptions;
 }) => {
+  const resolvedVisualOptions =
+    resolveRuntimeAnnotationInfoBoxVisualOptions(visualOptions);
   const dispatch = useAnnotationsDispatch();
   const pendingAnnotationId = useAnnotationsSelector((state) =>
     getPendingAnnotationIdForTool(state.draftState, annotation.toolType)
@@ -108,7 +122,8 @@ export const LabelToolInfoBoxContent = ({
     annotation.labelAppearance?.backgroundColor?.trim() ||
     PURE_LABEL_DEFAULT_BACKGROUND_COLOR;
   const textColor =
-    annotation.labelAppearance?.textColor?.trim() || PURE_LABEL_DEFAULT_TEXT_COLOR;
+    annotation.labelAppearance?.textColor?.trim() ||
+    PURE_LABEL_DEFAULT_TEXT_COLOR;
 
   const confirmPending = () => {
     dispatch(
@@ -142,12 +157,14 @@ export const LabelToolInfoBoxContent = ({
   };
 
   return (
-    <div className="text-[12px] leading-normal text-[#212529]">
+    <div className={resolvedVisualOptions.bodyTextClassName}>
       <div className="mb-2">
-        <div className="mb-1 text-[#6c757d]">Bezeichnung</div>
+        <div className={`mb-1 ${resolvedVisualOptions.mutedTextClassName}`}>
+          Bezeichnung
+        </div>
         <input
           type="text"
-          className="w-full rounded border border-[#ced4da] px-2 py-1"
+          className={`w-full rounded border px-2 py-1 ${resolvedVisualOptions.fieldInputBorderClassName}`}
           value={draftDisplayName}
           onChange={(event) => setDraftDisplayName(event.target.value)}
           onBlur={() =>
@@ -162,10 +179,12 @@ export const LabelToolInfoBoxContent = ({
       </div>
 
       <div className="mb-2 flex items-center gap-2">
-        <span className="text-[#6c757d]">Schriftgröße:</span>
+        <span className={resolvedVisualOptions.mutedTextClassName}>
+          Schriftgröße:
+        </span>
         <button
           type="button"
-          className="inline-flex h-5 w-5 items-center justify-center rounded border border-[#ced4da]"
+          className={resolvedVisualOptions.inlineFieldButtonClassName}
           onClick={() =>
             dispatch(
               updateAnnotationEntryById({
@@ -182,10 +201,12 @@ export const LabelToolInfoBoxContent = ({
         >
           <FontAwesomeIcon icon={faMinus} />
         </button>
-        <span className="min-w-[48px] text-center tabular-nums">{fontSizePx}px</span>
+        <span className="min-w-[48px] text-center tabular-nums">
+          {fontSizePx}px
+        </span>
         <button
           type="button"
-          className="inline-flex h-5 w-5 items-center justify-center rounded border border-[#ced4da]"
+          className={resolvedVisualOptions.inlineFieldButtonClassName}
           onClick={() =>
             dispatch(
               updateAnnotationEntryById({
@@ -205,10 +226,12 @@ export const LabelToolInfoBoxContent = ({
       </div>
 
       <div className="mb-2 flex items-center gap-2">
-        <span className="text-[#6c757d]">Hintergrund:</span>
+        <span className={resolvedVisualOptions.mutedTextClassName}>
+          Hintergrund:
+        </span>
         <input
           type="color"
-          className="h-6 w-8 cursor-pointer rounded border border-[#ced4da] bg-transparent p-0"
+          className={resolvedVisualOptions.colorInputClassName}
           aria-label="Hintergrundfarbe"
           value={normalizeColorToHex(backgroundColor, "#c8c8c8")}
           onChange={(event) =>
@@ -223,10 +246,10 @@ export const LabelToolInfoBoxContent = ({
             )
           }
         />
-        <span className="text-[#6c757d]">Text:</span>
+        <span className={resolvedVisualOptions.mutedTextClassName}>Text:</span>
         <input
           type="color"
-          className="h-6 w-8 cursor-pointer rounded border border-[#ced4da] bg-transparent p-0"
+          className={resolvedVisualOptions.colorInputClassName}
           aria-label="Textfarbe"
           value={normalizeColorToHex(textColor, "#000000")}
           onChange={(event) =>
@@ -247,7 +270,7 @@ export const LabelToolInfoBoxContent = ({
         <div className="flex items-center gap-2 pt-1">
           <button
             type="button"
-            className="inline-flex items-center gap-1 rounded border border-[#ced4da] px-2 py-1"
+            className={resolvedVisualOptions.inlineActionButtonClassName}
             onClick={() => {
               commitDisplayName({
                 annotation,
@@ -262,7 +285,7 @@ export const LabelToolInfoBoxContent = ({
           </button>
           <button
             type="button"
-            className="inline-flex items-center gap-1 rounded border border-[#ced4da] px-2 py-1"
+            className={resolvedVisualOptions.inlineActionButtonClassName}
             onClick={discardPending}
           >
             <FontAwesomeIcon icon={faTrashCan} />

@@ -33,8 +33,7 @@ const FIGURE_EIGHT_KEYFRAMES = `
 
 const PAGE_STYLE: CSSProperties = {
   minHeight: "100vh",
-  background:
-    "linear-gradient(180deg, #e2e8f0 0%, #f8fafc 22%, #e5e7eb 100%)",
+  background: "linear-gradient(180deg, #e2e8f0 0%, #f8fafc 22%, #e5e7eb 100%)",
 };
 
 const STATUS_BAR_STYLE: CSSProperties = {
@@ -70,8 +69,7 @@ const CARD_LABEL_STYLE: CSSProperties = {
   letterSpacing: "0.08em",
   textTransform: "uppercase",
   color: "#0f172a",
-  textShadow:
-    "0 0 2px rgba(255,255,255,0.95), 0 0 8px rgba(255,255,255,0.85)",
+  textShadow: "0 0 2px rgba(255,255,255,0.95), 0 0 8px rgba(255,255,255,0.85)",
 };
 
 const PREVIEW_ROW_STYLE: CSSProperties = {
@@ -225,7 +223,8 @@ const CursorDesignSandbox = ({
                       {[0, 1, 2].map((previewIndex) => {
                         const animationDelayMs = Math.round(
                           (figureEightDurationMs / 3) * previewIndex +
-                            (figureEightDurationMs / Math.max(backgrounds.length, 1)) *
+                            (figureEightDurationMs /
+                              Math.max(backgrounds.length, 1)) *
                               backgroundIndex
                         );
                         const orbitStyle = {

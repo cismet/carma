@@ -252,9 +252,9 @@ export const useCursorState = (
         previousState.source === source &&
         previousState.candidatePointId === nextSnappedPointId &&
         isSameCartesian3(
-        previousState.candidateNodePositionECEF,
-        candidateNodePositionECEF
-      ) &&
+          previousState.candidateNodePositionECEF,
+          candidateNodePositionECEF
+        ) &&
         isSameScreenPosition(
           previousState.candidateNodeScreenPosition,
           candidateNodeScreenPosition

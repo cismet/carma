@@ -8,7 +8,6 @@ import {
   isKeyboardTargetEditable,
   type AnnotationToolType,
 } from "@carma-mapping/annotations/core";
-import { formatDecimalNumber } from "@carma-units";
 
 import {
   createMeasurementToolPlugin,
@@ -34,8 +33,6 @@ const getPointToolInfoBoxSlots = createPointToolInfoBoxSlots(toolType, {
   headingTitle: "Punktmessung",
   formatMeasurementLabelToken: (counter) =>
     formatMeasurementShortLabelToken(toolType, counter),
-  formatCoordinateValue: (value) =>
-    formatDecimalNumber(value, { locale: "de-DE", fractionDigits: 2 }),
 });
 
 export const pointToolPlugin = createMeasurementToolPlugin({
@@ -134,20 +131,28 @@ export const pointToolPlugin = createMeasurementToolPlugin({
     build: ({
       nodes,
       annotationEntries,
-      selectedAnnotationId,
+      elevationReferenceAnnotationId,
+      selectedAnnotationIds,
       setSelectedAnnotationId,
+      setElevationReferenceAnnotationId,
+      toggleAnnotationElevationDisplayMode,
       onNodeLongPress,
+      formatOptions,
     }) => {
       const { points, pointLabels } = buildPointToolRenderModels({
         toolType,
         visuals: pointToolSettings.visuals,
         badgeStyle,
+        formatOptions,
         getMeasurementLabel: (counter) =>
           formatMeasurementShortLabelToken(toolType, counter),
         nodes,
         measurements: annotationEntries,
-        selectedMeasurementId: selectedAnnotationId,
+        elevationReferenceAnnotationId,
+        selectedMeasurementIds: selectedAnnotationIds,
         onMeasurementSelect: setSelectedAnnotationId,
+        onMeasurementLabelClick: toggleAnnotationElevationDisplayMode,
+        onMeasurementLabelDoubleClick: setElevationReferenceAnnotationId,
         onNodeLongPress,
       });
 

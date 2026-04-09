@@ -19,10 +19,14 @@ const NAVIGABLE_MEASUREMENT_TOOL_TYPES: ReadonlySet<string> = new Set([
 export const resolveRuntimeMeasurementNavigation = ({
   annotationEntries,
   selectedAnnotationId,
-  setSelectedAnnotationId,
+  focusAnnotationId,
+  flyToAllAnnotations,
 }: Pick<
   RuntimeAnnotationInfoBoxContext,
-  "annotationEntries" | "selectedAnnotationId" | "setSelectedAnnotationId"
+  | "annotationEntries"
+  | "selectedAnnotationId"
+  | "focusAnnotationId"
+  | "flyToAllAnnotations"
 >) => {
   const navigableEntries = annotationEntries.filter((annotationEntry) =>
     NAVIGABLE_MEASUREMENT_TOOL_TYPES.has(annotationEntry.toolType)
@@ -38,6 +42,7 @@ export const resolveRuntimeMeasurementNavigation = ({
   return {
     currentIndex,
     totalEntries: navigableEntries.length,
+    flyToAllMeasurements: flyToAllAnnotations,
     selectRelativeMeasurement: (offset: -1 | 1) => {
       const nextEntry =
         navigableEntries[
@@ -45,7 +50,7 @@ export const resolveRuntimeMeasurementNavigation = ({
             navigableEntries.length
         ] ?? null;
 
-      setSelectedAnnotationId(nextEntry?.id ?? null);
+      focusAnnotationId(nextEntry?.id ?? null);
     },
   };
 };

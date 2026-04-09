@@ -3,19 +3,30 @@ import React, { useEffect, useRef, useState } from "react";
 import { MINUS_PI_OVER_FOUR } from "@carma-commons/math";
 import type { CssPixelPosition } from "@carma-units";
 
+import { resolveSegmentEndOutsideCircle } from "../core/pillConnectorGeometry";
 import {
-  estimatePillCapRadiusPx,
-  resolveSegmentEndOutsideCircle,
-} from "../core/pillConnectorGeometry";
-import type { PointLabelAttach } from "../core/pointLabelAttach";
+  POINT_LABEL_ATTACH,
+  type PointLabelAttach,
+} from "../core/pointLabelAttach";
 import {
+  PILLBUTTON_LABEL_MARKER_RESIZE_MODE,
   PILLBUTTON_BADGE_POSITIONS,
   PillbuttonLabelMarker,
+  resolvePillbuttonLabelMarkerLayoutMetrics,
+  type PillbuttonLabelMarkerResizeMode,
   type PillbuttonBadgePosition,
 } from "./PillbuttonLabelMarker";
 import { PointLabelMarker } from "./PointLabelMarker";
 import { PointLabelStem } from "./PointLabelStem";
-export type { PointLabelAttach } from "../core/pointLabelAttach";
+export { POINT_LABEL_ATTACH, type PointLabelAttach };
+
+export const POINT_LABEL_STYLE = {
+  AUTO: "auto",
+  CAPSULE: "capsule",
+} as const;
+
+export type PointLabelStyle =
+  (typeof POINT_LABEL_STYLE)[keyof typeof POINT_LABEL_STYLE];
 
 export interface PointLabelStyleProps {
   fontSize?: string;
@@ -39,11 +50,11 @@ export interface PointLabelStyleProps {
   badgePosition?: PillbuttonBadgePosition;
   compactContent?: React.ReactNode;
   compactBorderless?: boolean;
-  labelStyle?: "auto" | "capsule";
+  labelStyle?: PointLabelStyle;
   collapse?: boolean;
   forceCollapse?: boolean;
   fullBorder?: boolean;
-  resizeMode?: "none" | "fast-grow-slow-shrink" | "snappy";
+  resizeMode?: PillbuttonLabelMarkerResizeMode;
   labelDistance?: number;
 }
 
@@ -62,6 +73,8 @@ interface PointLabelProps extends PointLabelStyleProps {
   onDoubleClick?: () => void;
   onLongPress?: () => void;
   longPressDurationMs?: number;
+  longPressOnlyOnMarker?: boolean;
+  renderHiddenMarkerInteractionTarget?: boolean;
   onHoverChange?: (
     hovered: boolean,
     anchorPosition?: CssPixelPosition | null
@@ -84,6 +97,7 @@ const baseStyles: React.CSSProperties = {
 
 const defaultPitch = MINUS_PI_OVER_FOUR;
 const DRAG_START_THRESHOLD_PX = 3;
+const PILL_STEM_END_INSET_PX = 1.5;
 export const POINT_LABEL_TEXT_BACKGROUND_COLOR = "rgba(200, 200, 200, 0.7)";
 export const POINT_LABEL_HOVER_BACKGROUND_COLOR = "rgba(255, 247, 230, 0.7)";
 export const POINT_LABEL_SELECTED_BACKGROUND_COLOR = "rgba(255, 229, 143, 0.7)";
@@ -142,18 +156,18 @@ export const PointLabel = React.memo(
     fontWeight = "400",
     markerCursor,
     labelCursor,
-    textColor = "black",
+    textColor = "rgba(17, 24, 39, 0.9)",
     textBackgroundColor = POINT_LABEL_TEXT_BACKGROUND_COLOR,
     selectedBackgroundColor = POINT_LABEL_SELECTED_BACKGROUND_COLOR,
     hoverBackgroundColor = POINT_LABEL_HOVER_BACKGROUND_COLOR,
     isOccluded = false,
     pitch = defaultPitch,
     labelAngleRad,
-    labelAttach = "left",
+    labelAttach = POINT_LABEL_ATTACH.LEFT,
     transitionDurationMs = 300,
     hideLabelAndStem = false,
     hideMarker = false,
-    lineColor = "white",
+    lineColor = "rgba(255, 255, 255, 0.88)",
     lineWidth = 1,
     markerSize = 10,
     markerStrokeWidth = 1,
@@ -161,20 +175,22 @@ export const PointLabel = React.memo(
     stemStartDistance,
     markerContent,
     markerBackgroundColor = "rgba(200, 200, 200, 0.92)",
-    markerTextColor = "#111111",
+    markerTextColor = "rgba(17, 24, 39, 0.9)",
     badgePosition = PILLBUTTON_BADGE_POSITIONS.LEFT,
     compactContent,
     compactBorderless = false,
-    labelStyle = "auto",
+    labelStyle = POINT_LABEL_STYLE.AUTO,
     collapse = false,
     forceCollapse = false,
     fullBorder = false,
-    resizeMode = "none",
+    resizeMode = PILLBUTTON_LABEL_MARKER_RESIZE_MODE.NONE,
     labelDistance = 20,
     onClick,
     onDoubleClick,
     onLongPress,
     longPressDurationMs = 300,
+    longPressOnlyOnMarker = false,
+    renderHiddenMarkerInteractionTarget = false,
     onHoverChange,
     markerOnlyPointerEvents = false,
     forceMarkerInteractionTarget = false,
@@ -200,9 +216,10 @@ export const PointLabel = React.memo(
     const yComponent = Math.sin(effectiveLabelAngleRad);
     const radius = markerSize / 2;
     const stemReferenceRadius = (stemReferenceMarkerSize ?? markerSize) / 2;
-    const parsedFontSizePx = Number.parseFloat(fontSize);
-    const effectivePillCornerRadiusPx =
-      estimatePillCapRadiusPx(parsedFontSizePx);
+    const pillLayoutMetrics = resolvePillbuttonLabelMarkerLayoutMetrics({
+      fontSize,
+    });
+    const effectivePillCornerRadiusPx = pillLayoutMetrics.capRadiusPx;
     const hasCompactContent =
       compactContent !== null &&
       compactContent !== undefined &&
@@ -215,13 +232,13 @@ export const PointLabel = React.memo(
     );
     const stemEndInsetDistance = hideMarker ? 0 : stemReferenceRadius;
     const baseLineLength = Math.max(0, labelDistance - stemEndInsetDistance);
-    const useCapsuleStyle = labelStyle === "capsule";
+    const useCapsuleStyle = labelStyle === POINT_LABEL_STYLE.CAPSULE;
     const hasAnyPillShape =
       useCapsuleStyle || collapse || hasCompactContent || fullBorder;
     const anchorAtSemicircleCenter =
       useCapsuleStyle || collapse || hasCompactContent || fullBorder;
     const pillCapRadiusPx =
-      hasAnyPillShape && labelAttach !== "center"
+      hasAnyPillShape && labelAttach !== POINT_LABEL_ATTACH.CENTER
         ? effectivePillCornerRadiusPx
         : 0;
     const stemStartPoint = {
@@ -243,7 +260,7 @@ export const PointLabel = React.memo(
         ? resolveSegmentEndOutsideCircle(
             stemStartPoint,
             labelAnchorPoint,
-            pillCapRadiusPx
+            pillCapRadiusPx + PILL_STEM_END_INSET_PX
           )
         : labelAnchorPoint;
     const isInteractive = Boolean(
@@ -263,7 +280,9 @@ export const PointLabel = React.memo(
     const renderInvisibleInteractionMarker =
       markerCapturesPointer &&
       hideMarker &&
-      (forceMarkerInteractionTarget || markerOnlyPointerEvents);
+      (forceMarkerInteractionTarget ||
+        markerOnlyPointerEvents ||
+        renderHiddenMarkerInteractionTarget);
     const resolvedMarkerCursor = forceMarkerInteractionTarget
       ? "none"
       : markerCursor ??
@@ -448,11 +467,16 @@ export const PointLabel = React.memo(
     };
     const handleMouseDown = (
       event: React.MouseEvent<HTMLDivElement>,
-      allowMarkerDrag: boolean = true
+      allowMarkerDrag: boolean = true,
+      allowLongPress: boolean = true
     ) => {
       event.stopPropagation();
       if (allowMarkerDrag && beginMarkerDragTracking(event)) {
         event.preventDefault();
+        clearLongPressTimeout();
+        return;
+      }
+      if (!allowLongPress) {
         clearLongPressTimeout();
         return;
       }
@@ -468,9 +492,9 @@ export const PointLabel = React.memo(
       clearLongPressTimeout();
     };
     const labelTransform =
-      labelAttach === "right"
+      labelAttach === POINT_LABEL_ATTACH.RIGHT
         ? "translate(-100%, -50%)"
-        : labelAttach === "center"
+        : labelAttach === POINT_LABEL_ATTACH.CENTER
         ? "translate(-50%, -50%)"
         : "translate(0%, -50%)";
     const labelBorderStyle = `${lineWidth}px ${
@@ -536,6 +560,7 @@ export const PointLabel = React.memo(
         {(!hideMarker || renderInvisibleInteractionMarker) && (
           <PointLabelMarker
             pointId={pointId}
+            hiddenInteractionTarget={renderInvisibleInteractionMarker}
             markerContent={
               renderInvisibleInteractionMarker ? undefined : markerContent
             }
@@ -556,7 +581,7 @@ export const PointLabel = React.memo(
             cursor={resolvedMarkerCursor}
             onClick={handleClick}
             onDoubleClick={handleDoubleClick}
-            onMouseDown={(event) => handleMouseDown(event)}
+            onMouseDown={(event) => handleMouseDown(event, true, true)}
             onMouseUp={handleMouseUp}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
@@ -596,16 +621,20 @@ export const PointLabel = React.memo(
                 markerContent={hasCompactContent ? compactContent : undefined}
                 markerBackgroundColor={effectiveCompactBackgroundColor}
                 markerTextColor={effectiveCompactTextColor}
-                badgePosition={badgePosition}
-                compactBorderless={compactBorderless}
-                anchorAtSemicircleCenter={anchorAtSemicircleCenter}
-                fullBorder={fullBorder}
-                solidBorderStyle={solidLabelBorderStyle}
-                resizeMode={resizeMode}
+                badgeOptions={{
+                  position: badgePosition,
+                  compactBorderless,
+                  anchorAtSemicircleCenter,
+                  fullBorder,
+                  solidBorderStyle: solidLabelBorderStyle,
+                }}
+                motionOptions={{ resizeMode }}
                 content={expandedPillContent}
                 onClick={handleClick}
                 onDoubleClick={handleDoubleClick}
-                onMouseDown={(event) => handleMouseDown(event, false)}
+                onMouseDown={(event) =>
+                  handleMouseDown(event, false, !longPressOnlyOnMarker)
+                }
                 onMouseUp={handleMouseUp}
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={handleMouseLeave}
@@ -620,15 +649,18 @@ export const PointLabel = React.memo(
                   border: labelBorderStyle,
                   ...(usePillLabelShape
                     ? {
-                        borderRadius: "999px",
-                        padding: collapseToCompact ? "0px 7px" : "1px 7px",
+                        borderRadius: `${pillLayoutMetrics.capRadiusPx}px`,
+                        minHeight: `${pillLayoutMetrics.labelHeightPx}px`,
+                        padding: `${pillLayoutMetrics.extendedVerticalPaddingPx}px ${pillLayoutMetrics.extendedHorizontalPaddingPx}px`,
+                        display: "inline-flex",
+                        alignItems: "center",
                       }
                     : null),
                   fontSize,
                   fontFamily,
                   fontWeight,
-                  fontVariantNumeric: "tabular-nums",
-                  fontFeatureSettings: '"tnum"',
+                  fontVariantNumeric: "tabular-nums lining-nums",
+                  fontFeatureSettings: '"tnum" 1, "lnum" 1',
                   backgroundColor: effectiveBackgroundColor,
                   color: effectiveTextColor,
                   position: "absolute",
@@ -641,12 +673,22 @@ export const PointLabel = React.memo(
                 }}
                 onClick={handleClick}
                 onDoubleClick={handleDoubleClick}
-                onMouseDown={(event) => handleMouseDown(event, false)}
+                onMouseDown={(event) =>
+                  handleMouseDown(event, false, !longPressOnlyOnMarker)
+                }
                 onMouseUp={handleMouseUp}
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={handleMouseLeave}
               >
-                {collapseToCompact ? compactContent : content}
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    transform: `translateY(${pillLayoutMetrics.contentBaselineShiftPx}px)`,
+                  }}
+                >
+                  {collapseToCompact ? compactContent : content}
+                </span>
               </div>
             )}
           </>

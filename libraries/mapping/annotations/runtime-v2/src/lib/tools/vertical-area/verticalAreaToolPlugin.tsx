@@ -154,24 +154,22 @@ export const verticalAreaToolPlugin = createMeasurementToolPlugin({
     build: ({
       nodes,
       annotationEntries,
-      selectedAnnotationId,
+      selectedAnnotationIds,
       setSelectedAnnotationId,
       onNodeLongPress,
+      formatOptions,
     }) => {
-      const { points, edges, polygonFills, pointLabels } = buildVerticalAreaToolRenderModels(
-        toolType,
-        nodes,
-        annotationEntries,
-        {
+      const { points, edges, polygonFills, pointLabels } =
+        buildVerticalAreaToolRenderModels(toolType, nodes, annotationEntries, {
           visuals: verticalAreaToolSettings.visuals,
           badgeStyle,
           getMeasurementLabel: (counter) =>
             formatMeasurementShortLabelToken(toolType, counter),
-          selectedMeasurementId: selectedAnnotationId,
+          formatOptions,
+          selectedMeasurementIds: selectedAnnotationIds,
           onMeasurementSelect: setSelectedAnnotationId,
           onNodeLongPress,
-        }
-      );
+        });
 
       return {
         points,

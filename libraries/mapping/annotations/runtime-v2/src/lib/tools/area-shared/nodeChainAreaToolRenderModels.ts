@@ -1,4 +1,5 @@
 import { Cartesian3 } from "@carma-cesium";
+import { POINT_LABEL_STYLE } from "@carma-providers/label-overlay";
 import { formatAreaSquareMetersAdaptive } from "@carma-units";
 import {
   getDegreesFromCartesian,
@@ -10,6 +11,7 @@ import type {
   RuntimeNode,
 } from "../../context/AnnotationsProvider";
 import type {
+  RuntimePolygonFillPlacement,
   RuntimeEdgeRenderModel,
   RuntimePointLabelRenderModel,
   RuntimePointMarkerRenderModel,
@@ -19,6 +21,7 @@ import {
   buildRuntimeNodeCoordinateMap,
   resolveMeasurementCoordinates,
 } from "../../render/resolveMeasurementCoordinates";
+import type { AnnotationsRuntimeFormatOptions } from "../../config/annotationsRuntimeFormatOptions";
 import type { NodeChainAreaToolVisualSettings } from "./nodeChainAreaToolSettings";
 
 const getPolygonLabelCoordinate = (
@@ -66,8 +69,9 @@ export const buildNodeChainAreaToolRenderModels = ({
   getMeasurementLabel,
   nodes,
   measurements,
-  selectedMeasurementId,
+  selectedMeasurementIds,
   fillPlacement,
+  formatOptions,
   onMeasurementSelect,
   onNodeLongPress,
 }: {
@@ -80,8 +84,9 @@ export const buildNodeChainAreaToolRenderModels = ({
   getMeasurementLabel: (measurementIndex: number) => string;
   nodes: readonly RuntimeNode[];
   measurements: readonly RuntimeMeasurement[];
-  selectedMeasurementId: string | null;
-  fillPlacement: "ground" | "coplanar";
+  selectedMeasurementIds: readonly string[];
+  fillPlacement: RuntimePolygonFillPlacement;
+  formatOptions: AnnotationsRuntimeFormatOptions;
   onMeasurementSelect?: (measurementId: string) => void;
   onNodeLongPress?: (nodeId: string, measurementId: string) => void;
 }): {
@@ -94,6 +99,7 @@ export const buildNodeChainAreaToolRenderModels = ({
   const areaMeasurements = measurements.filter(
     (measurement) => measurement.toolType === toolType
   );
+  const selectedMeasurementIdSet = new Set(selectedMeasurementIds);
 
   const committedEdges = areaMeasurements.flatMap((measurement) => {
     const coordinates = resolveMeasurementCoordinates(
@@ -108,7 +114,7 @@ export const buildNodeChainAreaToolRenderModels = ({
       {
         id: measurement.id,
         coordinates: [...coordinates, coordinates[0]!],
-        ...(measurement.id === selectedMeasurementId
+        ...(selectedMeasurementIdSet.has(measurement.id)
           ? visuals.selectedEdge
           : visuals.edge),
       },
@@ -128,12 +134,11 @@ export const buildNodeChainAreaToolRenderModels = ({
       {
         id: `${measurement.id}-fill`,
         coordinates,
-        fill:
-          measurement.id === selectedMeasurementId
-            ? visuals.selectedFill
-            : visuals.fill,
+        fill: selectedMeasurementIdSet.has(measurement.id)
+          ? visuals.selectedFill
+          : visuals.fill,
         placement: fillPlacement,
-        selected: measurement.id === selectedMeasurementId,
+        selected: selectedMeasurementIdSet.has(measurement.id),
       },
     ];
   });
@@ -149,7 +154,7 @@ export const buildNodeChainAreaToolRenderModels = ({
         {
           id: `${measurement.id}-node-${index}`,
           coordinate,
-          ...(measurement.id === selectedMeasurementId
+          ...(selectedMeasurementIdSet.has(measurement.id)
             ? visuals.selectedPoint
             : visuals.point),
         },
@@ -157,43 +162,46 @@ export const buildNodeChainAreaToolRenderModels = ({
     })
   );
 
-  const nodeLabels = areaMeasurements.flatMap((measurement, measurementIndex) => {
-    const badgeText = getMeasurementLabel(measurementIndex + 1);
+  const nodeLabels = areaMeasurements.flatMap(
+    (measurement, measurementIndex) => {
+      const badgeText =
+        measurement.shortLabel?.trim() ||
+        getMeasurementLabel(measurementIndex + 1);
 
-    return measurement.nodeIds.flatMap((nodeId, index) => {
-      const coordinate = nodeCoordinatesById.get(nodeId);
-      if (!coordinate) {
-        return [];
-      }
+      return measurement.nodeIds.flatMap((nodeId, index) => {
+        const coordinate = nodeCoordinatesById.get(nodeId);
+        if (!coordinate) {
+          return [];
+        }
 
-      const pointVisuals =
-        measurement.id === selectedMeasurementId
+        const pointVisuals = selectedMeasurementIdSet.has(measurement.id)
           ? visuals.selectedPoint
           : visuals.point;
 
-      return [
-        {
-          id: `${measurement.id}-label-${index}`,
-          measurementId: measurement.id,
-          nodeId,
-          coordinate,
-          markerPixelSize: pointVisuals.pixelSize,
-          content: badgeText,
-          markerContent: badgeText,
-          markerBackgroundColor: badgeStyle.backgroundColor,
-          markerTextColor: badgeStyle.textColor,
-          selected: measurement.id === selectedMeasurementId,
-          hideLabelAndStem: true,
-          onClick: onMeasurementSelect
-            ? () => onMeasurementSelect(measurement.id)
-            : undefined,
-          onLongPress: onNodeLongPress
-            ? () => onNodeLongPress(nodeId, measurement.id)
-            : undefined,
-        },
-      ];
-    });
-  });
+        return [
+          {
+            id: `${measurement.id}-label-${index}`,
+            measurementId: measurement.id,
+            nodeId,
+            coordinate,
+            markerPixelSize: pointVisuals.pixelSize,
+            content: badgeText,
+            markerContent: badgeText,
+            markerBackgroundColor: badgeStyle.backgroundColor,
+            markerTextColor: badgeStyle.textColor,
+            selected: selectedMeasurementIdSet.has(measurement.id),
+            hideLabelAndStem: true,
+            onClick: onMeasurementSelect
+              ? () => onMeasurementSelect(measurement.id)
+              : undefined,
+            onLongPress: onNodeLongPress
+              ? () => onNodeLongPress(nodeId, measurement.id)
+              : undefined,
+          },
+        ];
+      });
+    }
+  );
 
   const areaLabels = areaMeasurements.flatMap((measurement) => {
     const coordinates = resolveMeasurementCoordinates(
@@ -213,15 +221,13 @@ export const buildNodeChainAreaToolRenderModels = ({
         anchorKind: "area-centroid" as const,
         content: formatAreaSquareMetersAdaptive(
           Math.max(0, measurement.areaSquareMeters ?? 0),
-          {
-            locale: "de-DE",
-          }
+          formatOptions.areaSquareMeters
         ),
-        selected: measurement.id === selectedMeasurementId,
+        selected: selectedMeasurementIdSet.has(measurement.id),
         hideMarker: true,
         collapse: false,
         forceCollapse: false,
-        labelStyle: "auto" as const,
+        labelStyle: POINT_LABEL_STYLE.AUTO,
         onClick: onMeasurementSelect
           ? () => onMeasurementSelect(measurement.id)
           : undefined,

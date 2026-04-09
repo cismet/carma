@@ -9,4 +9,5 @@ export type PointQueryPreviewDiscPlacementMode =
 export const isPointQueryPreviewDiscPlaneOffsetPlacementMode = (
   placementMode: PointQueryPreviewDiscPlacementMode | undefined
 ) =>
-  placementMode === POINT_QUERY_PREVIEW_DISC_PLACEMENT_MODES.CAMERA_PLANE_REPROJECT;
+  placementMode ===
+  POINT_QUERY_PREVIEW_DISC_PLACEMENT_MODES.CAMERA_PLANE_REPROJECT;

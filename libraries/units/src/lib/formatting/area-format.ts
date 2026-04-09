@@ -1,5 +1,7 @@
 import { formatSignificantNumber } from "./formatSignificantNumber";
 
+const NARROW_NO_BREAK_SPACE = "\u202F";
+
 export type FormatAreaSquareMetersAdaptiveOptions = {
   locale?: Intl.LocalesArgument;
   significantDigits?: number;
@@ -13,7 +15,7 @@ export const formatAreaSquareMetersAdaptive = (
   options?: FormatAreaSquareMetersAdaptiveOptions
 ): string => {
   if (!Number.isFinite(areaSquareMeters) || areaSquareMeters <= 0) {
-    return "0 m²";
+    return `0${NARROW_NO_BREAK_SPACE}m²`;
   }
 
   const hectareThresholdSquareMeters =
@@ -28,11 +30,11 @@ export const formatAreaSquareMetersAdaptive = (
     return `${formatSignificantNumber(
       areaSquareMeters / 10000,
       sharedNumberFormatOptions
-    )} ha`;
+    )}${NARROW_NO_BREAK_SPACE}ha`;
   }
 
   return `${formatSignificantNumber(
     areaSquareMeters,
     sharedNumberFormatOptions
-  )} m²`;
+  )}${NARROW_NO_BREAK_SPACE}m²`;
 };

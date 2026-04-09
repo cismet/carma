@@ -13,11 +13,7 @@ import {
   getZoomFromPixelResolutionAtLatitudeRad,
 } from "@carma-geo/utils";
 import { clamp, isFiniteNumber, isZeroish } from "@carma-commons/math";
-import {
-  degToRadNumeric,
-  radToDegNumeric,
-  zeroToTwoPi,
-} from "@carma-units";
+import { degToRadNumeric, radToDegNumeric, zeroToTwoPi } from "@carma-units";
 import type { Meters, Radians } from "@carma-units";
 
 import { buildViewState } from "../core/construct";

@@ -2,10 +2,13 @@ import React from "react";
 
 import { Button } from "antd";
 
-import type { PointLabelAttach } from "../core/pointLabelAttach";
-export type { PointLabelAttach };
+import {
+  POINT_LABEL_ATTACH,
+  type PointLabelAttach,
+} from "../core/pointLabelAttach";
+export { POINT_LABEL_ATTACH, type PointLabelAttach };
 
-export type PillbuttonMountSide = "left" | "center" | "right";
+export type PillbuttonMountSide = PointLabelAttach;
 
 export const resolvePillbuttonMountSide = (
   labelAttach: PointLabelAttach
@@ -14,9 +17,9 @@ export const resolvePillbuttonMountSide = (
 export const getPillbuttonAnchorTransform = (
   labelAttach: PointLabelAttach
 ): string =>
-  resolvePillbuttonMountSide(labelAttach) === "right"
+  resolvePillbuttonMountSide(labelAttach) === POINT_LABEL_ATTACH.RIGHT
     ? "translate(-100%, -50%)"
-    : resolvePillbuttonMountSide(labelAttach) === "left"
+    : resolvePillbuttonMountSide(labelAttach) === POINT_LABEL_ATTACH.LEFT
     ? "translate(0%, -50%)"
     : "translate(-50%, -50%)";
 
@@ -24,14 +27,15 @@ export const getPillbuttonAnchorBorderStyle = (
   labelAttach: PointLabelAttach,
   borderStyle: string
 ): React.CSSProperties =>
-  resolvePillbuttonMountSide(labelAttach) === "right"
+  resolvePillbuttonMountSide(labelAttach) === POINT_LABEL_ATTACH.RIGHT
     ? { borderRight: borderStyle }
-    : resolvePillbuttonMountSide(labelAttach) === "left"
+    : resolvePillbuttonMountSide(labelAttach) === POINT_LABEL_ATTACH.LEFT
     ? { borderLeft: borderStyle }
     : { borderLeft: borderStyle, borderRight: borderStyle };
 
 interface PointLabelMarkerProps {
   pointId?: string;
+  hiddenInteractionTarget?: boolean;
   markerContent?: React.ReactNode;
   markerSize: number;
   markerStrokeWidth: number;
@@ -50,6 +54,7 @@ interface PointLabelMarkerProps {
 
 export const PointLabelMarker = ({
   pointId,
+  hiddenInteractionTarget = false,
   markerContent,
   markerSize,
   markerStrokeWidth,
@@ -69,6 +74,9 @@ export const PointLabelMarker = ({
     <div
       data-point-label-interactive="true"
       data-point-label-id={pointId}
+      data-point-label-hidden-marker-target={
+        hiddenInteractionTarget ? "true" : undefined
+      }
       style={{
         position: "absolute",
         left: "0px",
@@ -110,8 +118,8 @@ export const PointLabelMarker = ({
             color: markerTextColor,
             fontSize: markerSize <= 16 ? "10px" : "11px",
             fontWeight: 600,
-            fontVariantNumeric: "tabular-nums",
-            fontFeatureSettings: '"tnum"',
+            fontVariantNumeric: "tabular-nums lining-nums",
+            fontFeatureSettings: '"tnum" 1, "lnum" 1',
             boxShadow: "0 0 2px rgba(0,0,0,0.55)",
             pointerEvents: "none",
           }}

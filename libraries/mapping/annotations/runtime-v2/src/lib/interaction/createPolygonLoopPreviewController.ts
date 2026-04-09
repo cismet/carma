@@ -6,7 +6,6 @@ import {
 import type { RuntimeCoordinate } from "../store";
 import type { RuntimeScene } from "../types/runtimeScene.types";
 import {
-  DRAFT_CHAIN_COLOR,
   applyLineRuntime,
   clearLineRuntime,
   coordinatesEqual,
@@ -17,6 +16,7 @@ import {
   destroyPreviewOverlayLayer,
   hidePointMarkers,
   placePointMarkers,
+  previewControllerDefaults,
   type PreviewPointMarker,
 } from "./previewController.shared";
 
@@ -31,7 +31,8 @@ export type PolygonLoopPreviewController = {
   destroy: () => void;
 };
 
-const POLYGON_LOOP_PREVIEW_LAYER_ID = "annotation-v2-polygon-loop-preview-layer";
+const POLYGON_LOOP_PREVIEW_LAYER_ID =
+  "annotation-v2-polygon-loop-preview-layer";
 
 export const createPolygonLoopPreviewController = (
   scene: RuntimeScene
@@ -52,7 +53,7 @@ export const createPolygonLoopPreviewController = (
   const loopLine = createLineRuntime(
     lineCollection,
     "draft-preview-loop",
-    DRAFT_CHAIN_COLOR
+    previewControllerDefaults.draftChainColor
   );
   const pointMarkers: PreviewPointMarker[] = [];
   let currentState: PolygonLoopPreviewControllerState = {
@@ -103,7 +104,10 @@ export const createPolygonLoopPreviewController = (
   return {
     setState: (nextState) => {
       if (
-        coordinatesEqual(currentState.loopCoordinates, nextState.loopCoordinates) &&
+        coordinatesEqual(
+          currentState.loopCoordinates,
+          nextState.loopCoordinates
+        ) &&
         coordinatesEqual(
           currentState.markerCoordinates,
           nextState.markerCoordinates

@@ -346,7 +346,9 @@ export const useEditing = (
 
           const planeNormalFromGroup = targetVerticalPolygonGroup.plane
             ? normalizeDirection(
-                cartesian3FromMetricVector3(targetVerticalPolygonGroup.plane.normalECEF)
+                cartesian3FromMetricVector3(
+                  targetVerticalPolygonGroup.plane.normalECEF
+                )
               )
             : null;
           let planeNormal = planeNormalFromGroup;
@@ -525,7 +527,9 @@ export const useEditing = (
         if (pointPosition) {
           const planeNormalFromGroup = targetPolygonAnnotation.plane
             ? normalizeDirection(
-                cartesian3FromMetricVector3(targetPolygonAnnotation.plane.normalECEF)
+                cartesian3FromMetricVector3(
+                  targetPolygonAnnotation.plane.normalECEF
+                )
               )
             : null;
           let planeNormal = planeNormalFromGroup;

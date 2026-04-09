@@ -3,8 +3,10 @@ import type { MouseEvent as ReactMouseEvent } from "react";
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Tooltip } from "antd";
-const DEFAULT_ICON_CLASSNAME =
-  "cursor-pointer text-base text-[#808080] hover:text-[#a0a0a0]";
+import {
+  resolveRuntimeAnnotationInfoBoxVisualOptions,
+  type RuntimeAnnotationInfoBoxVisualOptions,
+} from "./annotationInfoBoxVisualDefaults";
 
 type RuntimeAnnotationInfoBoxActionIconProps = {
   title: string;
@@ -13,6 +15,7 @@ type RuntimeAnnotationInfoBoxActionIconProps = {
   dataTestId?: string;
   className?: string;
   ariaLabel?: string;
+  visualOptions?: RuntimeAnnotationInfoBoxVisualOptions;
 };
 
 export const RuntimeAnnotationInfoBoxActionIcon = ({
@@ -22,12 +25,19 @@ export const RuntimeAnnotationInfoBoxActionIcon = ({
   dataTestId,
   className,
   ariaLabel,
+  visualOptions,
 }: RuntimeAnnotationInfoBoxActionIconProps) => {
+  const resolvedVisualOptions =
+    resolveRuntimeAnnotationInfoBoxVisualOptions(visualOptions);
+
   return (
     <Tooltip title={title}>
       <FontAwesomeIcon
         onClick={onClick}
-        className={className ?? DEFAULT_ICON_CLASSNAME}
+        className={
+          className ??
+          `${resolvedVisualOptions.headerForegroundClassName} ${resolvedVisualOptions.actionIconClassName}`
+        }
         icon={icon}
         data-test-id={dataTestId}
         aria-label={ariaLabel}

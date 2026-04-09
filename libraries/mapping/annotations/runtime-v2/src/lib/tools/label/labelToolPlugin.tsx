@@ -17,7 +17,10 @@ import {
   POINT_MEASUREMENT_PLUGIN_CAPABILITIES,
 } from "../pluginFactories";
 import { createLabelToolInfoBoxSlots } from "./labelToolInfoBoxSlots";
-import { createLabelMeasurement, getDefaultLabelDisplayName } from "./labelToolActions";
+import {
+  createLabelMeasurement,
+  getDefaultLabelDisplayName,
+} from "./labelToolActions";
 import { buildLabelToolRenderModels } from "./labelToolRenderModels";
 import { createLabelToolSettings } from "./labelToolSettings";
 
@@ -41,7 +44,12 @@ export const labelToolPlugin = createMeasurementToolPlugin({
   ],
   capabilities: [...POINT_MEASUREMENT_PLUGIN_CAPABILITIES, "infoBox"],
   session: {
-    createSession: ({ dispatch, getState, setActiveToolType, addAnnotation }) => ({
+    createSession: ({
+      dispatch,
+      getState,
+      setActiveToolType,
+      addAnnotation,
+    }) => ({
       toolType,
       requestStart: () => {
         setActiveToolType(toolType);
@@ -127,7 +135,7 @@ export const labelToolPlugin = createMeasurementToolPlugin({
     build: ({
       nodes,
       annotationEntries,
-      selectedAnnotationId,
+      selectedAnnotationIds,
       setSelectedAnnotationId,
       onNodeLongPress,
     }) => {
@@ -136,7 +144,7 @@ export const labelToolPlugin = createMeasurementToolPlugin({
         visuals: labelToolSettings.visuals,
         nodes,
         measurements: annotationEntries,
-        selectedMeasurementId: selectedAnnotationId,
+        selectedMeasurementIds: selectedAnnotationIds,
         onMeasurementSelect: setSelectedAnnotationId,
         onNodeLongPress,
       });

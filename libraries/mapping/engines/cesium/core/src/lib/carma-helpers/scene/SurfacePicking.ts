@@ -1,26 +1,15 @@
-import {
-  Cesium3DTileset,
-  Cartesian2,
-  Cartesian3,
-  type Scene,
-} from "@carma-cesium";
+import { Cartesian2, Cartesian3, type Scene } from "@carma-cesium";
 import { warnOnce } from "@carma-commons/utils";
 
-import { pickGlobePositionAtScreenPosition } from "./Picking";
+import {
+  pickGlobePositionAtScreenPosition,
+  pickScenePositionAtScreenPosition,
+} from "./Picking";
 
 type SceneWithFrameState = Scene & {
   frameState?: {
     frameNumber?: number;
   };
-};
-
-type SurfacePickingTilesetWithPick = {
-  isDestroyed(): boolean;
-  pick(
-    ray: object,
-    frameState: object,
-    result?: Cartesian3
-  ): Cartesian3 | undefined;
 };
 
 export type ResolvedSurfacePick = {
@@ -38,7 +27,6 @@ type SurfacePickingFrameCache = {
   globePickByScreenKey: Map<string, Cartesian3 | null>;
 };
 
-const surfacePickingTilesetByScene = new WeakMap<Scene, Cesium3DTileset>();
 const surfacePickingFrameCacheByScene = new WeakMap<
   Scene,
   SurfacePickingFrameCache
@@ -54,12 +42,6 @@ const isUsablePickPosition = (
       Number.isFinite(positionECEF.y) &&
       Number.isFinite(positionECEF.z)
   );
-
-const isUsableSurfacePickingTileset = (
-  tileset: Cesium3DTileset | null | undefined
-): tileset is Cesium3DTileset =>
-  Boolean(tileset && typeof tileset.isDestroyed === "function") &&
-  tileset.isDestroyed() === false;
 
 const readSceneFrameNumber = (scene: SceneWithFrameState): number | null => {
   const frameNumber = scene.frameState?.frameNumber;
@@ -95,7 +77,18 @@ const readOrCreateSurfacePickingFrameCache = (
 const toScreenKey = (screenPosition: Cartesian2) =>
   `${screenPosition.x}:${screenPosition.y}`;
 
-const resolveSurfaceTilesetPickAtScreenPosition = (
+const isDepthPickingSupported = (
+  scene: Scene & {
+    pickPositionSupported?: boolean;
+    pickPosition?: (
+      screenPosition: Cartesian2
+    ) => Cartesian3 | null | undefined;
+  }
+) =>
+  scene.pickPositionSupported === true &&
+  typeof scene.pickPosition === "function";
+
+const resolveSurfaceDepthPickAtScreenPosition = (
   scene: Scene,
   screenPosition: Cartesian2
 ): Cartesian3 | null => {
@@ -105,71 +98,24 @@ const resolveSurfaceTilesetPickAtScreenPosition = (
     return frameCache.surfacePickByScreenKey.get(screenKey) ?? null;
   }
 
-  const surfaceTileset = getCesiumSceneSurfacePickingTileset(scene);
-  if (!surfaceTileset) {
+  if (!isDepthPickingSupported(scene)) {
     warnOnce(
-      `${SURFACE_PICKING_WARN_PREFIX} No surface-picking tileset is registered for this scene.`
+      `${SURFACE_PICKING_WARN_PREFIX} scene.pickPosition(...) is unavailable or unsupported while resolving a surface pick.`
     );
     frameCache.surfacePickByScreenKey.set(screenKey, null);
     return null;
   }
 
-  const pickRay = scene.camera.getPickRay(screenPosition);
-  const frameState = (scene as SceneWithFrameState).frameState;
-  if (!pickRay) {
-    warnOnce(
-      `${SURFACE_PICKING_WARN_PREFIX} camera.getPickRay(...) returned null while resolving a surface pick.`
-    );
-    frameCache.surfacePickByScreenKey.set(screenKey, null);
-    return null;
-  }
-
-  if (!frameState) {
-    warnOnce(
-      `${SURFACE_PICKING_WARN_PREFIX} scene.frameState is unavailable while resolving a surface pick.`
-    );
-    frameCache.surfacePickByScreenKey.set(screenKey, null);
-    return null;
-  }
-
-  const pickedPosition = (
-    surfaceTileset as unknown as SurfacePickingTilesetWithPick
-  ).pick(pickRay, frameState, new Cartesian3());
+  const pickedPosition = pickScenePositionAtScreenPosition(
+    scene,
+    screenPosition
+  );
 
   const resolvedPosition = isUsablePickPosition(pickedPosition)
     ? pickedPosition
     : null;
   frameCache.surfacePickByScreenKey.set(screenKey, resolvedPosition);
   return resolvedPosition;
-};
-
-export const registerCesiumSceneSurfacePickingTileset = (
-  scene: Scene,
-  tileset: Cesium3DTileset
-) => {
-  surfacePickingTilesetByScene.set(scene, tileset);
-
-  return () => {
-    if (surfacePickingTilesetByScene.get(scene) !== tileset) {
-      return;
-    }
-
-    surfacePickingTilesetByScene.delete(scene);
-  };
-};
-
-export const clearCesiumSceneSurfacePickingTileset = (scene: Scene) => {
-  surfacePickingTilesetByScene.delete(scene);
-};
-
-export const getCesiumSceneSurfacePickingTileset = (scene: Scene) => {
-  const tileset = surfacePickingTilesetByScene.get(scene);
-  if (!isUsableSurfacePickingTileset(tileset)) {
-    surfacePickingTilesetByScene.delete(scene);
-    return null;
-  }
-
-  return tileset;
 };
 
 export const resolvePreferredSurfacePick = (
@@ -179,7 +125,7 @@ export const resolvePreferredSurfacePick = (
 ): ResolvedSurfacePick => {
   const frameCache = readOrCreateSurfacePickingFrameCache(scene);
   const screenKey = toScreenKey(screenPosition);
-  const surfacePositionECEF = resolveSurfaceTilesetPickAtScreenPosition(
+  const surfacePositionECEF = resolveSurfaceDepthPickAtScreenPosition(
     scene,
     screenPosition
   );
@@ -198,7 +144,7 @@ export const resolvePreferredSurfacePick = (
 
   if (!surfacePositionECEF && !globePositionECEF && resolveGlobePosition) {
     warnOnce(
-      `${SURFACE_PICKING_WARN_PREFIX} Surface pick and globe fallback both missed at least once.`
+      `${SURFACE_PICKING_WARN_PREFIX} Depth-based surface pick and globe fallback both missed at least once.`
     );
   }
 

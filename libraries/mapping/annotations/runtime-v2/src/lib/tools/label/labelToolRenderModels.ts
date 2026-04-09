@@ -1,3 +1,5 @@
+import { POINT_LABEL_STYLE } from "@carma-providers/label-overlay";
+
 import type {
   RuntimeMeasurement,
   RuntimeNode,
@@ -18,7 +20,7 @@ export const buildLabelToolRenderModels = ({
   visuals,
   nodes,
   measurements,
-  selectedMeasurementId,
+  selectedMeasurementIds,
   onMeasurementSelect,
   onNodeLongPress,
 }: {
@@ -26,7 +28,7 @@ export const buildLabelToolRenderModels = ({
   visuals: LabelToolVisualSettings;
   nodes: readonly RuntimeNode[];
   measurements: readonly RuntimeMeasurement[];
-  selectedMeasurementId: string | null;
+  selectedMeasurementIds: readonly string[];
   onMeasurementSelect: (measurementId: string) => void;
   onNodeLongPress?: (nodeId: string, measurementId: string) => void;
 }): {
@@ -37,6 +39,7 @@ export const buildLabelToolRenderModels = ({
   const labelMeasurements = measurements.filter(
     (measurement) => measurement.toolType === toolType
   );
+  const selectedMeasurementIdSet = new Set(selectedMeasurementIds);
 
   return {
     points: labelMeasurements.flatMap((measurement) => {
@@ -51,7 +54,7 @@ export const buildLabelToolRenderModels = ({
         {
           id: `${measurement.id}-anchor`,
           coordinate,
-          ...(measurement.id === selectedMeasurementId
+          ...(selectedMeasurementIdSet.has(measurement.id)
             ? visuals.selectedPoint
             : visuals.point),
         },
@@ -66,7 +69,8 @@ export const buildLabelToolRenderModels = ({
       }
 
       const displayName =
-        measurement.displayName?.trim() || getDefaultLabelDisplayName(labelIndex + 1);
+        measurement.displayName?.trim() ||
+        getDefaultLabelDisplayName(labelIndex + 1);
       const pointNodeId = measurement.nodeIds[0] ?? null;
 
       return [
@@ -75,10 +79,9 @@ export const buildLabelToolRenderModels = ({
           measurementId: measurement.id,
           nodeId: pointNodeId ?? undefined,
           coordinate,
-          markerPixelSize:
-            measurement.id === selectedMeasurementId
-              ? visuals.selectedPoint.pixelSize
-              : visuals.point.pixelSize,
+          markerPixelSize: selectedMeasurementIdSet.has(measurement.id)
+            ? visuals.selectedPoint.pixelSize
+            : visuals.point.pixelSize,
           content: displayName,
           compactContent: displayName,
           textBackgroundColor:
@@ -87,11 +90,11 @@ export const buildLabelToolRenderModels = ({
           fontSize: Number.isFinite(measurement.labelAppearance?.fontSizePx)
             ? `${measurement.labelAppearance?.fontSizePx}px`
             : undefined,
-          labelStyle: "auto",
+          labelStyle: POINT_LABEL_STYLE.AUTO,
           hideMarker: true,
           collapse: false,
           forceCollapse: false,
-          selected: measurement.id === selectedMeasurementId,
+          selected: selectedMeasurementIdSet.has(measurement.id),
           onClick: () => onMeasurementSelect(measurement.id),
           onLongPress:
             onNodeLongPress && pointNodeId

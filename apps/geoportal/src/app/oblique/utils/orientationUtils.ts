@@ -40,12 +40,10 @@ const CARDINAL_STRINGS = Object.freeze({
 export function getCardinalDirectionFromHeading(
   heading: number
 ): CardinalDirectionEnum {
-  return ((
-    Math.floor(
-      CesiumMath.zeroToTwoPi(heading + CesiumMath.PI_OVER_FOUR) /
-        CesiumMath.PI_OVER_TWO
-    ) % 4
-  ) as CardinalDirectionEnum);
+  return (Math.floor(
+    CesiumMath.zeroToTwoPi(heading + CesiumMath.PI_OVER_FOUR) /
+      CesiumMath.PI_OVER_TWO
+  ) % 4) as CardinalDirectionEnum;
 }
 
 export function getHeadingFromCardinalDirection(

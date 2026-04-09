@@ -41,7 +41,9 @@ const normalizeBearingDeg = (bearingDeg: number): number =>
 const computeBearingDegFromPlaneNormal = (
   plane: PlanarPolygonPlane
 ): number | undefined => {
-  const normal = normalizeDirection(cartesian3FromMetricVector3(plane.normalECEF));
+  const normal = normalizeDirection(
+    cartesian3FromMetricVector3(plane.normalECEF)
+  );
   if (!normal) return undefined;
 
   const anchor = cartesian3FromMetricVector3(plane.anchorECEF);
@@ -88,7 +90,9 @@ export const orientPlaneNormalTowardPosition = (
   if (!referencePositionECEF) return plane;
 
   const anchor = cartesian3FromMetricVector3(plane.anchorECEF);
-  const normal = normalizeDirection(cartesian3FromMetricVector3(plane.normalECEF));
+  const normal = normalizeDirection(
+    cartesian3FromMetricVector3(plane.normalECEF)
+  );
   if (!normal) return plane;
 
   const toReference = Cartesian3.subtract(

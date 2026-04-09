@@ -7,7 +7,7 @@ describe("formatAreaSquareMetersAdaptive", () => {
       formatAreaSquareMetersAdaptive(123.456, {
         locale: "en-US",
       })
-    ).toBe("123 m²");
+    ).toBe("123 m²");
   });
 
   it("formats larger areas in hectares", () => {
@@ -15,7 +15,7 @@ describe("formatAreaSquareMetersAdaptive", () => {
       formatAreaSquareMetersAdaptive(54321, {
         locale: "de-DE",
       })
-    ).toBe("5,43 ha");
+    ).toBe("5,43 ha");
   });
 
   it("supports custom significant digits and threshold", () => {
@@ -25,12 +25,12 @@ describe("formatAreaSquareMetersAdaptive", () => {
         significantDigits: 4,
         hectareThresholdSquareMeters: 2000,
       })
-    ).toBe("0.25 ha");
+    ).toBe("0.25 ha");
   });
 
-  it('returns "0 m²" for invalid or non-positive values', () => {
-    expect(formatAreaSquareMetersAdaptive(Number.NaN)).toBe("0 m²");
-    expect(formatAreaSquareMetersAdaptive(0)).toBe("0 m²");
-    expect(formatAreaSquareMetersAdaptive(-5)).toBe("0 m²");
+  it('returns "0 m²" for invalid or non-positive values', () => {
+    expect(formatAreaSquareMetersAdaptive(Number.NaN)).toBe("0 m²");
+    expect(formatAreaSquareMetersAdaptive(0)).toBe("0 m²");
+    expect(formatAreaSquareMetersAdaptive(-5)).toBe("0 m²");
   });
 });

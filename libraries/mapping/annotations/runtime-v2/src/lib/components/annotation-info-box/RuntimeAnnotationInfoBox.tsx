@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { useAnnotationsRuntime } from "../../context/AnnotationsProvider";
 import { RuntimeAnnotationInfoBoxContainer } from "./RuntimeAnnotationInfoBoxContainer";
 import type { RuntimeAnnotationInfoBoxLayoutProps } from "./annotationInfoBox.types";
+import { resolveRuntimeAnnotationInfoBoxVisualOptions } from "./annotationInfoBoxVisualDefaults";
 
 export const RuntimeAnnotationInfoBox = ({
   pixelWidth,
@@ -10,14 +11,27 @@ export const RuntimeAnnotationInfoBox = ({
   controlPosition,
   controlOrder,
   style,
+  visualOptions,
 }: RuntimeAnnotationInfoBoxLayoutProps) => {
   const {
     registry,
     annotationEntries,
+    formatOptions,
     nodes,
     selectedAnnotationId,
     setSelectedAnnotationId,
+    focusAnnotationId,
+    flyToAllAnnotations,
+    removeAnnotationById,
+    elevationReferenceAnnotationId,
+    setElevationReferenceAnnotationId,
+    updateAnnotationDisplayName,
+    updateAnnotationShortLabel,
   } = useAnnotationsRuntime();
+  const resolvedInfoBoxVisualOptions = useMemo(
+    () => resolveRuntimeAnnotationInfoBoxVisualOptions(visualOptions),
+    [visualOptions]
+  );
 
   const slots = useMemo(() => {
     if (!selectedAnnotationId) {
@@ -44,13 +58,31 @@ export const RuntimeAnnotationInfoBox = ({
       nodes,
       selectedAnnotationId,
       setSelectedAnnotationId,
+      focusAnnotationId,
+      flyToAllAnnotations,
+      removeAnnotationById,
+      elevationReferenceAnnotationId,
+      setElevationReferenceAnnotationId,
+      updateAnnotationDisplayName,
+      updateAnnotationShortLabel,
+      formatOptions,
+      infoBoxVisualOptions: resolvedInfoBoxVisualOptions,
     });
   }, [
     annotationEntries,
+    flyToAllAnnotations,
+    formatOptions,
+    focusAnnotationId,
+    resolvedInfoBoxVisualOptions,
     nodes,
+    removeAnnotationById,
     registry,
     selectedAnnotationId,
     setSelectedAnnotationId,
+    elevationReferenceAnnotationId,
+    setElevationReferenceAnnotationId,
+    updateAnnotationDisplayName,
+    updateAnnotationShortLabel,
   ]);
 
   if (!slots) {
@@ -65,6 +97,7 @@ export const RuntimeAnnotationInfoBox = ({
       controlOrder={controlOrder}
       style={style}
       slots={slots}
+      visualOptions={resolvedInfoBoxVisualOptions}
     />
   );
 };

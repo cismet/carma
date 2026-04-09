@@ -2,6 +2,7 @@ import type {
   RuntimeCoordinate,
   RuntimeMeasurement,
 } from "../../context/AnnotationsProvider";
+import type { RuntimeAddAnnotationOptions } from "../../store";
 
 export type DistanceToolAction = "undoLastPoint" | "cancelPreview";
 
@@ -21,7 +22,8 @@ type CommitDistanceMeasurementArgs = {
   coordinates: readonly RuntimeCoordinate[];
   addAnnotation: (
     toolType: RuntimeMeasurement["toolType"],
-    nextCoordinates: readonly RuntimeCoordinate[]
+    nextCoordinates: readonly RuntimeCoordinate[],
+    options?: RuntimeAddAnnotationOptions
   ) => RuntimeMeasurement;
 };
 

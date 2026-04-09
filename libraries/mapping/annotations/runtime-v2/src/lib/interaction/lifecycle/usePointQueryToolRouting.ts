@@ -111,7 +111,12 @@ export const usePointQueryToolRouting = ({
       coordinate: RuntimeCoordinate,
       screenPosition?: { x: number; y: number }
     ) => {
-      if (!screenPosition || !scene || scene.isDestroyed() || nodes.length === 0) {
+      if (
+        !screenPosition ||
+        !scene ||
+        scene.isDestroyed() ||
+        nodes.length === 0
+      ) {
         snappedNodeIdRef.current = null;
         return coordinate;
       }

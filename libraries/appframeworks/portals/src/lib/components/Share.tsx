@@ -4,9 +4,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Button, Input, Select, Tabs } from "antd";
 import { useState } from "react";
 
-import {
-  serviceOptions as defaultServiceOptions,
-} from "@carma-commons/resources";
+import { serviceOptions as defaultServiceOptions } from "@carma-commons/resources";
 import { FileUploader, uploadImage } from "@carma-commons/ui/components";
 import type { ServiceOption } from "@carma-mapping/utils";
 import { useFeatureFlags } from "@carma-providers/feature-flag";

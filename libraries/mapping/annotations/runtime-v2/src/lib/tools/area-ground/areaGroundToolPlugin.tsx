@@ -7,6 +7,7 @@ import {
 } from "@carma-mapping/annotations/core";
 
 import { createPolygonToolPreviewController } from "../../interaction/createPolygonToolPreviewController";
+import { RUNTIME_POLYGON_FILL_PLACEMENT } from "../../render/measurementRenderModels";
 import {
   clearDraftCoordinatesByToolType,
   getDraftCoordinatesForTool,
@@ -57,7 +58,12 @@ export const areaGroundToolPlugin = createMeasurementToolPlugin({
   ],
   capabilities: [...NODE_CHAIN_MEASUREMENT_PLUGIN_CAPABILITIES, "infoBox"],
   session: {
-    createSession: ({ dispatch, getState, setActiveToolType, addAnnotation }) => ({
+    createSession: ({
+      dispatch,
+      getState,
+      setActiveToolType,
+      addAnnotation,
+    }) => ({
       toolType,
       requestStart: () => {
         setActiveToolType(toolType);
@@ -65,7 +71,10 @@ export const areaGroundToolPlugin = createMeasurementToolPlugin({
       requestFinish: () => {
         const nextMeasurement = commitAreaMeasurement({
           toolType,
-          coordinates: getDraftCoordinatesForTool(getState().draftState, toolType),
+          coordinates: getDraftCoordinatesForTool(
+            getState().draftState,
+            toolType
+          ),
           addAnnotation,
         });
 
@@ -137,9 +146,10 @@ export const areaGroundToolPlugin = createMeasurementToolPlugin({
     build: ({
       nodes,
       annotationEntries,
-      selectedAnnotationId,
+      selectedAnnotationIds,
       setSelectedAnnotationId,
       onNodeLongPress,
+      formatOptions,
     }) =>
       buildNodeChainAreaToolRenderModels({
         toolType,
@@ -149,8 +159,9 @@ export const areaGroundToolPlugin = createMeasurementToolPlugin({
           formatMeasurementShortLabelToken(toolType, counter),
         nodes,
         measurements: annotationEntries,
-        selectedMeasurementId: selectedAnnotationId,
-        fillPlacement: "ground",
+        selectedMeasurementIds: selectedAnnotationIds,
+        fillPlacement: RUNTIME_POLYGON_FILL_PLACEMENT.GROUND,
+        formatOptions,
         onMeasurementSelect: setSelectedAnnotationId,
         onNodeLongPress,
       }),

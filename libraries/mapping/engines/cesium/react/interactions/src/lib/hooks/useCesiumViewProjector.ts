@@ -7,9 +7,7 @@ import {
   defined,
   type Scene,
 } from "@carma-cesium";
-import {
-  type Matrix4ConstructorArgs,
-} from "@carma-mapping/engines/cesium/core";
+import { type Matrix4ConstructorArgs } from "@carma-mapping/engines/cesium/core";
 import type { CssPixelPosition, MetricVector3 } from "@carma-units";
 const WORLD_POINT_SCRATCH = new Cartesian3();
 

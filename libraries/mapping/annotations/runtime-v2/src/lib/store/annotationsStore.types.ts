@@ -2,6 +2,7 @@ import type {
   RuntimeMeasurementType,
   RuntimeToolId,
 } from "../types/runtimeTool.types";
+import type { RuntimePointLabelCoordinateSelection } from "../render/measurementRenderModels";
 
 export type RuntimeCoordinate = {
   latitude: number;
@@ -20,13 +21,24 @@ export type RuntimeEdge = {
   endNodeId: string;
 };
 
+export const RUNTIME_ELEVATION_DISPLAY_MODE = {
+  RELATIVE: "relative",
+  ABSOLUTE: "absolute",
+} as const;
+
+export type RuntimeElevationDisplayMode =
+  (typeof RUNTIME_ELEVATION_DISPLAY_MODE)[keyof typeof RUNTIME_ELEVATION_DISPLAY_MODE];
+
 export type RuntimeAnnotationEntry = {
   id: string;
   toolType: RuntimeMeasurementType;
   nodeIds: readonly string[];
   edgeIds: readonly string[];
   displayName?: string;
+  shortLabel?: string;
   labelAppearance?: RuntimeLabelAppearance;
+  elevationDisplayMode?: RuntimeElevationDisplayMode;
+  distanceAnchorCoordinateSelection?: RuntimePointLabelCoordinateSelection;
   temporary?: boolean;
   closed?: boolean;
   areaSquareMeters?: number;
@@ -47,7 +59,10 @@ export type RuntimeAddAnnotationOptions = Pick<
   | "verticalityDeg"
   | "bearingDeg"
   | "displayName"
+  | "shortLabel"
   | "labelAppearance"
+  | "elevationDisplayMode"
+  | "distanceAnchorCoordinateSelection"
 >;
 
 export type RuntimeMeasurement = RuntimeAnnotationEntry;
@@ -75,6 +90,7 @@ export type AnnotationDraftStoreState = {
 
 export type AnnotationSettingsStoreState = {
   pointTemporaryMode: boolean;
+  elevationReferenceAnnotationId: string | null;
 };
 
 export type AnnotationsStoreState = {

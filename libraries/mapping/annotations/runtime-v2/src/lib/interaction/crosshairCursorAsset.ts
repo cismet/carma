@@ -3,20 +3,10 @@ import { renderSimpleHairlineCrosshairCursorCanvas } from "./renderSimpleHairlin
 export const CROSSHAIR_CURSOR_SIZE_PX = 48;
 export const CROSSHAIR_CURSOR_ANCHOR_PX = 24;
 export const CROSSHAIR_CURSOR_DESIGN_SIZE_SERIES_PX = [
-  16,
-  24,
-  32,
-  48,
-  64,
-  96,
-  128,
+  16, 24, 32, 48, 64, 96, 128,
 ] as const;
 export const SIMPLE_HAIRLINE_CURSOR_SIZE_SERIES_PX = [
-  16,
-  24,
-  32,
-  48,
-  64,
+  16, 24, 32, 48, 64,
 ] as const;
 
 export const CROSSHAIR_CURSOR_STYLES = {
@@ -71,14 +61,18 @@ export type CrosshairCursorRasterMetrics = {
   anchorPx: number;
 };
 
-const resolveNormalizedDevicePixelRatio = (
-  devicePixelRatio?: number
-) => {
-  if (typeof devicePixelRatio === "number" && Number.isFinite(devicePixelRatio)) {
+const resolveNormalizedDevicePixelRatio = (devicePixelRatio?: number) => {
+  if (
+    typeof devicePixelRatio === "number" &&
+    Number.isFinite(devicePixelRatio)
+  ) {
     return Math.max(devicePixelRatio, 1);
   }
 
-  if (typeof window !== "undefined" && Number.isFinite(window.devicePixelRatio)) {
+  if (
+    typeof window !== "undefined" &&
+    Number.isFinite(window.devicePixelRatio)
+  ) {
     return Math.max(window.devicePixelRatio, 1);
   }
 
@@ -86,9 +80,8 @@ const resolveNormalizedDevicePixelRatio = (
 };
 
 const resolveSimpleHairlineCursorSizePx = (devicePixelRatio?: number) => {
-  const normalizedDevicePixelRatio = resolveNormalizedDevicePixelRatio(
-    devicePixelRatio
-  );
+  const normalizedDevicePixelRatio =
+    resolveNormalizedDevicePixelRatio(devicePixelRatio);
   const targetSizePx = 24 * normalizedDevicePixelRatio;
 
   return SIMPLE_HAIRLINE_CURSOR_SIZE_SERIES_PX.reduce(

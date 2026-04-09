@@ -230,7 +230,9 @@ const hidePreviewOverlay = (
   previewStem.style.display = "none";
 };
 
-const hideLineLabels = (lineLabels: DistancePreviewSceneRuntime["lineLabels"]) => {
+const hideLineLabels = (
+  lineLabels: DistancePreviewSceneRuntime["lineLabels"]
+) => {
   lineLabels.direct.style.display = "none";
   lineLabels.vertical.style.display = "none";
   lineLabels.horizontal.style.display = "none";
@@ -410,10 +412,14 @@ const buildAuxiliaryPoint = (
   result: Cartesian3
 ) => {
   const ellipsoid = scene.globe.ellipsoid;
-  const anchorCartographic =
-    ellipsoid.cartesianToCartographic(anchorPointECEF, cartographicScratchA);
-  const targetCartographic =
-    ellipsoid.cartesianToCartographic(targetPointECEF, cartographicScratchB);
+  const anchorCartographic = ellipsoid.cartesianToCartographic(
+    anchorPointECEF,
+    cartographicScratchA
+  );
+  const targetCartographic = ellipsoid.cartesianToCartographic(
+    targetPointECEF,
+    cartographicScratchB
+  );
   if (!anchorCartographic || !targetCartographic) {
     return null;
   }
@@ -473,7 +479,9 @@ const applyPreviewOverlay = (
     ? anchorPoint.geometryWGS84?.altitude ?? null
     : null;
   const relativeElevationMeters =
-    anchorHeightMeters === null ? null : targetHeightMeters - anchorHeightMeters;
+    anchorHeightMeters === null
+      ? null
+      : targetHeightMeters - anchorHeightMeters;
 
   runtime.previewPill.textContent = formatRelativeElevationText(
     relativeElevationMeters,
@@ -523,7 +531,10 @@ const resolveLabelOffsetPosition = ({
   const deltaX = end.x - start.x;
   const deltaY = end.y - start.y;
   const distancePx = Math.hypot(deltaX, deltaY);
-  if (!Number.isFinite(distancePx) || distancePx < PREVIEW_LINE_LABEL_MIN_LENGTH_PX) {
+  if (
+    !Number.isFinite(distancePx) ||
+    distancePx < PREVIEW_LINE_LABEL_MIN_LENGTH_PX
+  ) {
     return null;
   }
 
@@ -602,11 +613,10 @@ const applyDistancePreviewRuntime = (
   );
 
   const ellipsoid = scene.globe.ellipsoid;
-  const targetCartographic =
-    ellipsoid.cartesianToCartographic(
-      snapshot.candidateNodePositionECEF,
-      runtime.cartographicScratchA
-    );
+  const targetCartographic = ellipsoid.cartesianToCartographic(
+    snapshot.candidateNodePositionECEF,
+    runtime.cartographicScratchA
+  );
   const targetHeightMeters = targetCartographic?.height ?? 0;
 
   applyPreviewOverlay(
@@ -647,7 +657,10 @@ const applyDistancePreviewRuntime = (
       applyLineLabel({
         element: runtime.lineLabels.direct,
         text: formatMeters(
-          Cartesian3.distance(anchorPointECEF, snapshot.candidateNodePositionECEF)
+          Cartesian3.distance(
+            anchorPointECEF,
+            snapshot.candidateNodePositionECEF
+          )
         ),
         start: snapshot.candidateNodeVerticalOffsetAnchorScreenPosition,
         end: snapshot.candidateNodeScreenPosition,
@@ -685,7 +698,9 @@ const applyDistancePreviewRuntime = (
     ) {
       applyLineLabel({
         element: runtime.lineLabels.vertical,
-        text: formatMeters(Cartesian3.distance(anchorPointECEF, auxiliaryPoint)),
+        text: formatMeters(
+          Cartesian3.distance(anchorPointECEF, auxiliaryPoint)
+        ),
         start: snapshot.candidateNodeVerticalOffsetAnchorScreenPosition,
         end: auxiliaryScreenPosition,
       });
@@ -709,7 +724,10 @@ const applyDistancePreviewRuntime = (
       applyLineLabel({
         element: runtime.lineLabels.horizontal,
         text: formatMeters(
-          Cartesian3.distance(auxiliaryPoint, snapshot.candidateNodePositionECEF)
+          Cartesian3.distance(
+            auxiliaryPoint,
+            snapshot.candidateNodePositionECEF
+          )
         ),
         start: auxiliaryScreenPosition,
         end: snapshot.candidateNodeScreenPosition,

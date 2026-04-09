@@ -4,10 +4,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { Radio } from "antd";
 
 import { ResponsiveStatusBar } from "@carma-commons/ui/components";
-import {
-  FORMAT_LOCALE,
-  formatAreaSquareMetersAdaptive,
-} from "@carma-units";
+import { FORMAT_LOCALE, formatAreaSquareMetersAdaptive } from "@carma-units";
 type AreaFormatterStoryProps = {
   areaSquareMeters: number;
   locale: string;

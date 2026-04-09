@@ -3,6 +3,7 @@ import {
   type RuntimeEdgeVisualStyle,
   type RuntimePointMarkerVisualStyle,
 } from "../../config/measurementVisualDefaults";
+import { distanceToolVisualDefaults } from "./distanceToolVisualDefaults";
 
 export type DistanceToolVisualSettings = {
   edge: RuntimeEdgeVisualStyle;
@@ -18,7 +19,6 @@ export type DistanceToolSettings = {
 };
 
 const defaults = runtimeMeasurementVisualDefaults;
-const TRANSPARENT_MARKER_FILL = "rgba(0, 0, 0, 0)";
 
 export const createDistanceToolSettings = (_badgeStyle: {
   backgroundColor: string;
@@ -27,12 +27,12 @@ export const createDistanceToolSettings = (_badgeStyle: {
   visuals: {
     edge: {
       stroke: defaults.colors.accent,
-      strokeWidth: defaults.sizes.edgeStrokeWidth,
+      strokeWidth: distanceToolVisualDefaults.dashedLine.strokeWidthPx,
       dashed: true,
     },
     selectedEdge: {
       stroke: defaults.colors.neutral,
-      strokeWidth: defaults.sizes.selectedEdgeStrokeWidth,
+      strokeWidth: distanceToolVisualDefaults.dashedLine.strokeWidthPx,
       dashed: true,
     },
     previewEdge: {
@@ -41,13 +41,13 @@ export const createDistanceToolSettings = (_badgeStyle: {
     },
     point: {
       pixelSize: defaults.sizes.pointPixelSize,
-      fill: TRANSPARENT_MARKER_FILL,
+      fill: defaults.colors.transparent,
       outline: defaults.colors.surface,
       outlineWidth: defaults.sizes.pointOutlineWidth,
     },
     selectedPoint: {
       pixelSize: defaults.sizes.selectedPointPixelSize,
-      fill: TRANSPARENT_MARKER_FILL,
+      fill: defaults.colors.transparent,
       outline: defaults.colors.surface,
       outlineWidth: defaults.sizes.pointOutlineWidth,
     },

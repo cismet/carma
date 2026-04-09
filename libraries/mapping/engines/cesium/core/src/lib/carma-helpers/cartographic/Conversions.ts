@@ -1,4 +1,9 @@
-import { Altitude, LatLngAlt, Latitude, Longitude } from "@carma-geo/data-structures";
+import {
+  Altitude,
+  LatLngAlt,
+  Latitude,
+  Longitude,
+} from "@carma-geo/data-structures";
 import { radToDeg } from "@carma-units";
 import { Radians } from "@carma-units";
 

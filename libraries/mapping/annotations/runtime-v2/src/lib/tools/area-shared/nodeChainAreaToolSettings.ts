@@ -19,7 +19,6 @@ export type NodeChainAreaToolSettings = {
 };
 
 const defaults = runtimeMeasurementVisualDefaults;
-const TRANSPARENT_MARKER_FILL = "rgba(0, 0, 0, 0)";
 
 export const createNodeChainAreaToolSettings = ({
   badgeStyle: _badgeStyle,
@@ -52,13 +51,13 @@ export const createNodeChainAreaToolSettings = ({
     },
     point: {
       pixelSize: defaults.sizes.pointPixelSize,
-      fill: TRANSPARENT_MARKER_FILL,
+      fill: defaults.colors.transparent,
       outline: defaults.colors.surface,
       outlineWidth: defaults.sizes.pointOutlineWidth,
     },
     selectedPoint: {
       pixelSize: defaults.sizes.selectedPointPixelSize,
-      fill: TRANSPARENT_MARKER_FILL,
+      fill: defaults.colors.transparent,
       outline: defaults.colors.surface,
       outlineWidth: defaults.sizes.pointOutlineWidth,
     },

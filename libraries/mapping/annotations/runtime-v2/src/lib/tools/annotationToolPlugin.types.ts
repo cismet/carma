@@ -5,6 +5,8 @@ import type {
   RuntimeAnnotationInfoBoxContext,
   RuntimeAnnotationInfoBoxSlots,
 } from "../components/annotation-info-box/annotationInfoBox.types";
+import type { AnnotationsRuntimeFormatOptions } from "../config/annotationsRuntimeFormatOptions";
+import type { PreviewLineLabelVisualOptions } from "../config/previewLineLabelVisualDefaults";
 import type {
   AnnotationModeSession,
   AnnotationModeSessionMap,
@@ -87,6 +89,8 @@ export type AnnotationToolPreviewContext = {
   scene: RuntimeScene | null;
   annotationsStore: AnnotationsStore;
   requestRender: () => void;
+  formatOptions: AnnotationsRuntimeFormatOptions;
+  previewLineLabelVisualOptions: Partial<PreviewLineLabelVisualOptions>;
 };
 
 export type AnnotationToolKeyboardContext = {
@@ -103,9 +107,14 @@ export type AnnotationToolRenderLayerContext = {
   nodes: readonly RuntimeNode[];
   edges: readonly RuntimeEdge[];
   annotationEntries: readonly RuntimeAnnotationEntry[];
+  elevationReferenceAnnotationId: string | null;
   selectedAnnotationId: string | null;
+  selectedAnnotationIds: readonly string[];
   setSelectedAnnotationId: (annotationId: string | null) => void;
+  setElevationReferenceAnnotationId: (annotationId: string | null) => void;
+  toggleAnnotationElevationDisplayMode: (annotationId: string) => void;
   onNodeLongPress?: (nodeId: string, measurementId: string) => void;
+  formatOptions: AnnotationsRuntimeFormatOptions;
 };
 
 export type AnnotationToolPlugin = {

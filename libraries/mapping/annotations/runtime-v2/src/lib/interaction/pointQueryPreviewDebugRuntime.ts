@@ -134,10 +134,8 @@ const createInitialTangentPlaneFailureCounts = (): Record<
   number
 > => ({
   [POINT_QUERY_PREVIEW_TANGENT_PLANE_FAILURE_REASONS.MISSING_SCREEN_POSITION]: 0,
-  [POINT_QUERY_PREVIEW_TANGENT_PLANE_FAILURE_REASONS.MISSING_TRUE_DISC_POINT]:
-    0,
-  [POINT_QUERY_PREVIEW_TANGENT_PLANE_FAILURE_REASONS.MISSING_TRUE_DISC_NORMAL]:
-    0,
+  [POINT_QUERY_PREVIEW_TANGENT_PLANE_FAILURE_REASONS.MISSING_TRUE_DISC_POINT]: 0,
+  [POINT_QUERY_PREVIEW_TANGENT_PLANE_FAILURE_REASONS.MISSING_TRUE_DISC_NORMAL]: 0,
   [POINT_QUERY_PREVIEW_TANGENT_PLANE_FAILURE_REASONS.TRUE_SAMPLE_MISS]: 0,
   [POINT_QUERY_PREVIEW_TANGENT_PLANE_FAILURE_REASONS.TRUE_NORMAL_MISS]: 0,
   [POINT_QUERY_PREVIEW_TANGENT_PLANE_FAILURE_REASONS.REPROJECTION_MISS]: 0,
@@ -202,9 +200,9 @@ const formatDiscOriginJumpReadout = ({
     return "jump ok";
   }
 
-  return `jump ${jump.distanceMeters.toFixed(2)}m > ${jump.thresholdMeters.toFixed(
+  return `jump ${jump.distanceMeters.toFixed(
     2
-  )}m #${jumpCount}`;
+  )}m > ${jump.thresholdMeters.toFixed(2)}m #${jumpCount}`;
 };
 
 const formatDiscScaleChangeReadout = ({
@@ -322,8 +320,7 @@ const renderDebugVectorLine = ({
     headElement.style.display = "block";
     headElement.style.left = `${end.x}px`;
     headElement.style.top = `${end.y}px`;
-    headElement.style.transform =
-      `translate(-50%, -50%) rotate(${angleDeg}deg)`;
+    headElement.style.transform = `translate(-50%, -50%) rotate(${angleDeg}deg)`;
   }
 };
 
@@ -406,10 +403,7 @@ const createPointQueryPreviewLagDebugOverlay = () => {
 
     let primaryStart: ScreenVector | null = null;
     let primaryEnd: ScreenVector | null = null;
-    if (
-      metrics.latestMeasuredLagSource === "offset" &&
-      sampleClientPosition
-    ) {
+    if (metrics.latestMeasuredLagSource === "offset" && sampleClientPosition) {
       primaryStart = discClientPosition;
       primaryEnd = sampleClientPosition;
     } else if (renderedClientPosition && rawClientPosition) {
@@ -619,23 +613,26 @@ export const createPointQueryPreviewDebugRuntime = ({
   const updateLagReadouts = () => {
     if (statusElements.lagReadoutElement) {
       const sourceLabel =
-        latestMeasuredLagSource === "none"
-          ? ""
-          : ` ${latestMeasuredLagSource}`;
-      statusElements.lagReadoutElement.textContent =
-        `lag ${latestMeasuredLagPx.toFixed(1)} px${sourceLabel}`;
+        latestMeasuredLagSource === "none" ? "" : ` ${latestMeasuredLagSource}`;
+      statusElements.lagReadoutElement.textContent = `lag ${latestMeasuredLagPx.toFixed(
+        1
+      )} px${sourceLabel}`;
     }
     if (statusElements.syncReadoutElement) {
-      statusElements.syncReadoutElement.textContent =
-        `sync ${latestRequestToDiscLatencyMs.toFixed(1)} ms`;
+      statusElements.syncReadoutElement.textContent = `sync ${latestRequestToDiscLatencyMs.toFixed(
+        1
+      )} ms`;
     }
     if (statusElements.requestTimingReadoutElement) {
-      statusElements.requestTimingReadoutElement.textContent =
-        `live ${latestLiveLagPx.toFixed(1)} | off ${latestSampleOffsetPx.toFixed(1)} px`;
+      statusElements.requestTimingReadoutElement.textContent = `live ${latestLiveLagPx.toFixed(
+        1
+      )} | off ${latestSampleOffsetPx.toFixed(1)} px`;
     }
   };
 
-  const maybeLogFailedPick = (failure: PointQueryPreviewTangentPlaneFailure) => {
+  const maybeLogFailedPick = (
+    failure: PointQueryPreviewTangentPlaneFailure
+  ) => {
     if (
       failure.reason !==
       POINT_QUERY_PREVIEW_TANGENT_PLANE_FAILURE_REASONS.TRUE_SAMPLE_MISS
@@ -1269,10 +1266,12 @@ export const createPointQueryPreviewDebugRuntime = ({
         ? { ...latestDiscScaleChange }
         : null,
       entries: telemetryEntries.map((entry) => ({ ...entry })),
-      tangentPlaneFailures: tangentPlaneFailures.map((failure) =>
-        cloneTangentPlaneFailure(failure)!
+      tangentPlaneFailures: tangentPlaneFailures.map(
+        (failure) => cloneTangentPlaneFailure(failure)!
       ),
-      discOriginJumps: discOriginJumps.map((jump) => cloneDiscOriginJump(jump)!),
+      discOriginJumps: discOriginJumps.map(
+        (jump) => cloneDiscOriginJump(jump)!
+      ),
       discScaleChanges: discScaleChanges.map((scaleChange) => ({
         ...scaleChange,
       })),

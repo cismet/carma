@@ -111,8 +111,9 @@ export const useRuntimePointMarkerVisualizer = ({
       scene.requestRender();
     };
 
-    const removeMoveStartListener =
-      scene.camera.moveStart.addEventListener(handleCameraMoveStart);
+    const removeMoveStartListener = scene.camera.moveStart.addEventListener(
+      handleCameraMoveStart
+    );
     const removeMoveEndListener =
       scene.camera.moveEnd.addEventListener(handleCameraMoveEnd);
 
@@ -139,8 +140,7 @@ export const useRuntimePointMarkerVisualizer = ({
         preserveOcclusionDuringCameraMove
           ? {
               ...computedState,
-              isOccluded:
-                previousStatesById.get(point.id)?.isOccluded ?? false,
+              isOccluded: previousStatesById.get(point.id)?.isOccluded ?? false,
             }
           : computedState
       );
@@ -153,7 +153,8 @@ export const useRuntimePointMarkerVisualizer = ({
     (pointId: string) => {
       const frameKey = getSceneFrameKey(scene);
       if (stateCacheRef.current.frameKey !== frameKey) {
-        const sceneSnapshot = captureRuntimeOverlayVisibilitySceneSnapshot(scene);
+        const sceneSnapshot =
+          captureRuntimeOverlayVisibilitySceneSnapshot(scene);
         const shouldRecomputeStates =
           !areRuntimeOverlayVisibilitySceneSnapshotsEqual(
             stateCacheRef.current.sceneSnapshot,

@@ -18,7 +18,10 @@ import {
 import { offsetCartesian3Positions } from "@carma-mapping/engines/cesium/core";
 
 import type { RuntimeScene } from "../types/runtimeScene.types";
-import type { RuntimePolygonFillRenderModel } from "./measurementRenderModels";
+import {
+  RUNTIME_POLYGON_FILL_PLACEMENT,
+  type RuntimePolygonFillRenderModel,
+} from "./measurementRenderModels";
 
 type UseRuntimeMeasurementPolygonFillsControllerArgs = {
   scene: RuntimeScene | null;
@@ -56,7 +59,8 @@ export const useRuntimeMeasurementPolygonFillsController = ({
     () =>
       polygonFills.map((polygonFill) => ({
         ...polygonFill,
-        placement: polygonFill.placement ?? "coplanar",
+        placement:
+          polygonFill.placement ?? RUNTIME_POLYGON_FILL_PLACEMENT.COPLANAR,
       })),
     [polygonFills]
   );
@@ -95,7 +99,7 @@ export const useRuntimeMeasurementPolygonFillsController = ({
         )
       );
 
-      if (polygonFill.placement === "ground") {
+      if (polygonFill.placement === RUNTIME_POLYGON_FILL_PLACEMENT.GROUND) {
         const groundGeometry = new PolygonGeometry({
           polygonHierarchy: new PolygonHierarchy(positions),
           vertexFormat: PerInstanceColorAppearance.VERTEX_FORMAT,

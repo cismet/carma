@@ -1,2 +1,6 @@
 export { setupCesiumEnvironment, type CesiumBaseUrlInput } from "./Setup";
-export { assertWindowCesiumEnv, checkWindowEnv, getCesiumVersion } from "./WindowEnv";
+export {
+  assertWindowCesiumEnv,
+  checkWindowEnv,
+  getCesiumVersion,
+} from "./WindowEnv";

@@ -3,7 +3,15 @@ import React, { useEffect, useMemo, useRef } from "react";
 import { MINUS_PI_OVER_FOUR } from "@carma-commons/math";
 import type { CssPixelPosition } from "@carma-units";
 
-import { PointLabel, type PointLabelStyleProps } from "./components/PointLabel";
+import {
+  PointLabel,
+  type PointLabelStyleProps,
+  type PointLabelStyle,
+} from "./components/PointLabel";
+import {
+  PILLBUTTON_LABEL_MARKER_RESIZE_MODE,
+  type PillbuttonLabelMarkerResizeMode,
+} from "./components/PillbuttonLabelMarker";
 import type {
   PointLabelAnchorKind,
   PointLabelOcclusionMode,
@@ -40,11 +48,11 @@ export interface PointLabelData {
   markerTextColor?: string;
   compactContent?: React.ReactNode;
   compactBorderless?: boolean;
-  labelStyle?: "auto" | "capsule";
+  labelStyle?: PointLabelStyle;
   collapse?: boolean;
   forceCollapse?: boolean;
   fullBorder?: boolean;
-  resizeMode?: "none" | "fast-grow-slow-shrink" | "snappy";
+  resizeMode?: PillbuttonLabelMarkerResizeMode;
   content: React.ReactNode;
   contentSignature?: string;
   selected?: boolean;
@@ -122,7 +130,7 @@ const getPointStyleSignature = (
     String(styleProps?.collapse ?? false),
     String(styleProps?.forceCollapse ?? false),
     String(styleProps?.fullBorder ?? false),
-    styleProps?.resizeMode ?? "none",
+    styleProps?.resizeMode ?? PILLBUTTON_LABEL_MARKER_RESIZE_MODE.NONE,
     styleProps?.labelDistance ?? "",
   ].join(":");
 
@@ -141,19 +149,23 @@ const getPointContentSignature = (
     point.stemReferenceMarkerSize
   }:${point.stemStartDistance}:${getOverlayReferenceSignature(
     point.markerContent
-  )}:${point.markerBackgroundColor}:${point.markerTextColor}:${getOverlayReferenceSignature(
-    point.compactContent
-  )}:${Boolean(point.compactBorderless)}:${point.labelStyle}:${point.collapse}:${
-    point.forceCollapse
-  }:${point.fullBorder}:${point.resizeMode ?? "none"}:${
+  )}:${point.markerBackgroundColor}:${
+    point.markerTextColor
+  }:${getOverlayReferenceSignature(point.compactContent)}:${Boolean(
+    point.compactBorderless
+  )}:${point.labelStyle}:${point.collapse}:${point.forceCollapse}:${
+    point.fullBorder
+  }:${point.resizeMode ?? PILLBUTTON_LABEL_MARKER_RESIZE_MODE.NONE}:${
     point.fontSize ?? ""
   }:${point.fontFamily ?? ""}:${point.fontWeight ?? ""}:${
     point.markerCursor ?? ""
   }:${point.labelCursor ?? ""}:${point.textColor ?? ""}:${
     point.textBackgroundColor ?? ""
-  }:${point.selectedBackgroundColor ?? ""}:${point.hoverBackgroundColor ?? ""}:${
-    point.longPressDurationMs ?? ""
-  }:${getOverlayReferenceSignature(point.onClick)}:${getOverlayReferenceSignature(
+  }:${point.selectedBackgroundColor ?? ""}:${
+    point.hoverBackgroundColor ?? ""
+  }:${point.longPressDurationMs ?? ""}:${getOverlayReferenceSignature(
+    point.onClick
+  )}:${getOverlayReferenceSignature(
     point.onDoubleClick
   )}:${getOverlayReferenceSignature(
     point.onLongPress

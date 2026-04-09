@@ -11,6 +11,11 @@ import type {
 import { useRuntimeMeasurementEdgesController } from "./useRuntimeMeasurementEdgesController";
 import { useRuntimeMeasurementPolygonFillsController } from "./useRuntimeMeasurementPolygonFillsController";
 import type { RuntimeScene } from "../types/runtimeScene.types";
+import type { AnnotationsRuntimeFormatOptions } from "../config/annotationsRuntimeFormatOptions";
+import {
+  resolvePreviewLineLabelVisualOptions,
+  type PreviewLineLabelVisualOptions,
+} from "../config/previewLineLabelVisualDefaults";
 
 const NODE_LABEL_LONG_PRESS_DURATION_MS = 320;
 
@@ -20,8 +25,11 @@ type UseCommittedRuntimeVisualizationArgs = {
   edges: readonly RuntimeEdgeRenderModel[];
   polygonFills: readonly RuntimePolygonFillRenderModel[];
   pointLabels: readonly RuntimePointLabelRenderModel[];
+  formatOptions: AnnotationsRuntimeFormatOptions;
+  previewLineLabelVisualOptions?: Partial<PreviewLineLabelVisualOptions>;
   blockLabelInteractions: boolean;
   onNodeLongPress: (nodeId: string, measurementId: string) => void;
+  onDistanceTriangleCornerClick: (measurementId: string) => void;
 };
 
 export const useCommittedRuntimeVisualization = ({
@@ -30,12 +38,23 @@ export const useCommittedRuntimeVisualization = ({
   edges,
   polygonFills,
   pointLabels,
+  formatOptions,
+  previewLineLabelVisualOptions,
   blockLabelInteractions,
   onNodeLongPress,
+  onDistanceTriangleCornerClick,
 }: UseCommittedRuntimeVisualizationArgs) => {
+  const resolvedPreviewLineLabelVisualOptions = useMemo(
+    () => resolvePreviewLineLabelVisualOptions(previewLineLabelVisualOptions),
+    [previewLineLabelVisualOptions]
+  );
+
   useRuntimeMeasurementEdgesController({
     scene,
     edges,
+    formatOptions,
+    previewLineLabelVisualOptions: resolvedPreviewLineLabelVisualOptions,
+    onDistanceTriangleCornerClick,
   });
   useRuntimeMeasurementPolygonFillsController({
     scene,
@@ -51,6 +70,10 @@ export const useCommittedRuntimeVisualization = ({
     () =>
       pointLabels.map((pointLabel) => ({
         ...pointLabel,
+        fontFamily:
+          pointLabel.fontFamily ??
+          resolvedPreviewLineLabelVisualOptions.fontFamily,
+        fontWeight: pointLabel.fontWeight ?? 400,
         onLongPress:
           pointLabel.onLongPress ??
           (pointLabel.nodeId && pointLabel.measurementId
@@ -60,7 +83,7 @@ export const useCommittedRuntimeVisualization = ({
         longPressDurationMs:
           pointLabel.longPressDurationMs ?? NODE_LABEL_LONG_PRESS_DURATION_MS,
       })),
-    [onNodeLongPress, pointLabels]
+    [onNodeLongPress, pointLabels, resolvedPreviewLineLabelVisualOptions]
   );
 
   useRuntimePointLabelVisualizer({

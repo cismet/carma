@@ -18,7 +18,6 @@ import {
 } from "@carma-cesium";
 import {
   createMinimalCesiumWidget,
-  registerCesiumSceneSurfacePickingTileset,
   setViewFromCameraState,
 } from "@carma-mapping/engines/cesium/core";
 
@@ -115,7 +114,6 @@ const loadTileset = async (
 type CesiumWidgetContainerProps = {
   rootRef: MutableRefObject<HTMLDivElement | null>;
   onSceneChange?: (scene: Scene | null) => void;
-  onSurfacePickingTargetChange?: (tileset: Cesium3DTileset | null) => void;
   initialCameraState: AnnotationsDemoCameraState;
   startPoseResolved?: boolean;
   children: ReactNode;
@@ -124,7 +122,6 @@ type CesiumWidgetContainerProps = {
 export function CesiumWidgetContainer({
   rootRef,
   onSceneChange,
-  onSurfacePickingTargetChange,
   initialCameraState,
   startPoseResolved = true,
   children,
@@ -133,7 +130,6 @@ export function CesiumWidgetContainer({
   const widgetRef = useRef<CesiumWidget | null>(null);
   const terrainSamplingProviderRef = useRef<CesiumTerrainProvider | null>(null);
   const tilesetRef = useRef<Cesium3DTileset | null>(null);
-  const unregisterSurfacePickingTilesetRef = useRef<(() => void) | null>(null);
   const [isWidgetReady, setIsWidgetReady] = useState(false);
 
   useEffect(() => {
@@ -168,11 +164,6 @@ export function CesiumWidgetContainer({
       if (disposed || widget.isDestroyed()) return;
 
       tilesetRef.current = tileset;
-      onSurfacePickingTargetChange?.(tileset);
-      unregisterSurfacePickingTilesetRef.current?.();
-      unregisterSurfacePickingTilesetRef.current = tileset
-        ? registerCesiumSceneSurfacePickingTileset(widget.scene, tileset)
-        : null;
       await waitForNextSceneRender(widget.scene);
 
       if (disposed || widget.isDestroyed()) return;
@@ -187,12 +178,9 @@ export function CesiumWidgetContainer({
         error
       );
       onSceneChange?.(null);
-      onSurfacePickingTargetChange?.(null);
       setIsWidgetReady(false);
       terrainSamplingProviderRef.current = null;
       tilesetRef.current = null;
-      unregisterSurfacePickingTilesetRef.current?.();
-      unregisterSurfacePickingTilesetRef.current = null;
       const widget = widgetRef.current;
       widgetRef.current = null;
       if (widget && !widget.isDestroyed()) {
@@ -203,24 +191,16 @@ export function CesiumWidgetContainer({
     return () => {
       disposed = true;
       onSceneChange?.(null);
-      onSurfacePickingTargetChange?.(null);
       setIsWidgetReady(false);
       terrainSamplingProviderRef.current = null;
       tilesetRef.current = null;
-      unregisterSurfacePickingTilesetRef.current?.();
-      unregisterSurfacePickingTilesetRef.current = null;
       const widget = widgetRef.current;
       widgetRef.current = null;
       if (widget && !widget.isDestroyed()) {
         widget.destroy();
       }
     };
-  }, [
-    initialCameraState,
-    onSurfacePickingTargetChange,
-    onSceneChange,
-    startPoseResolved,
-  ]);
+  }, [initialCameraState, onSceneChange, startPoseResolved]);
 
   useEffect(() => {
     if (!isWidgetReady) {

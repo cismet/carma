@@ -1,5 +1,10 @@
 import { isPointInViewport } from "@carma-mapping/annotations/core";
-import { Cartesian2, Cartesian3, SceneTransforms, defined } from "@carma-cesium";
+import {
+  Cartesian2,
+  Cartesian3,
+  SceneTransforms,
+  defined,
+} from "@carma-cesium";
 import {
   cartesian3FromGeographicCoordinate,
   isPointOccluded,

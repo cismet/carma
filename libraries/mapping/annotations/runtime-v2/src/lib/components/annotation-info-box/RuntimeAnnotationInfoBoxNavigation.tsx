@@ -1,13 +1,19 @@
 import type { ReactNode } from "react";
 import { faAnglesLeft, faAnglesRight } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  resolveRuntimeAnnotationInfoBoxVisualOptions,
+  type RuntimeAnnotationInfoBoxVisualOptions,
+} from "./annotationInfoBoxVisualDefaults";
 type RuntimeAnnotationInfoBoxNavigationProps = {
   totalEntries: number;
   currentIndex: number;
   instructionText?: string | null;
   availabilityLabel?: ReactNode;
+  onFlyToAllMeasurements?: () => void;
   onPreviousMeasurement: () => void;
   onNextMeasurement: () => void;
+  visualOptions?: RuntimeAnnotationInfoBoxVisualOptions;
 };
 
 export const RuntimeAnnotationInfoBoxNavigation = ({
@@ -15,21 +21,39 @@ export const RuntimeAnnotationInfoBoxNavigation = ({
   currentIndex,
   instructionText,
   availabilityLabel,
+  onFlyToAllMeasurements,
   onPreviousMeasurement,
   onNextMeasurement,
+  visualOptions,
 }: RuntimeAnnotationInfoBoxNavigationProps) => {
+  const resolvedVisualOptions =
+    resolveRuntimeAnnotationInfoBoxVisualOptions(visualOptions);
+
   if (totalEntries <= 0 && !instructionText) return null;
 
   return (
     <>
       {instructionText ? (
-        <div className="flex justify-center items-center w-full px-2 mt-1 pt-1 text-gray-500">
+        <div
+          className={`${resolvedVisualOptions.navigationInstructionContainerClassName} ${resolvedVisualOptions.mutedTextClassName}`}
+        >
           <span>{instructionText}</span>
         </div>
       ) : null}
       {totalEntries > 0 ? (
-        <div className="flex justify-center items-center w-full px-2 mt-1 pt-1">
-          <span className="text-[#0078a8]">
+        <div
+          className={
+            resolvedVisualOptions.navigationAvailabilityContainerClassName
+          }
+        >
+          <span
+            className={
+              onFlyToAllMeasurements
+                ? `${resolvedVisualOptions.linkTextClassName} cursor-pointer`
+                : resolvedVisualOptions.linkTextClassName
+            }
+            onClick={onFlyToAllMeasurements}
+          >
             {availabilityLabel ??
               `${totalEntries} ${
                 totalEntries === 1 ? "Messung" : "Messungen"
@@ -38,12 +62,16 @@ export const RuntimeAnnotationInfoBoxNavigation = ({
         </div>
       ) : null}
       {totalEntries > 0 ? (
-        <div className="flex justify-between items-center w-full px-2 mt-0 mb-1">
+        <div
+          className={resolvedVisualOptions.navigationSummaryContainerClassName}
+        >
           <a
-            className="renderAsLink text-[#0078a8] cursor-pointer"
+            className={`renderAsLink cursor-pointer ${resolvedVisualOptions.linkTextClassName}`}
             onClick={onPreviousMeasurement}
             data-test-id="switch-measurement-left"
-            style={{ fontSize: "10.5px" }}
+            style={{
+              fontSize: `${resolvedVisualOptions.navigationLinkFontSizePx}px`,
+            }}
             aria-label="Vorherige Messung"
           >
             <FontAwesomeIcon icon={faAnglesLeft} />
@@ -52,10 +80,12 @@ export const RuntimeAnnotationInfoBoxNavigation = ({
             {currentIndex + 1} von {totalEntries}
           </span>
           <a
-            className="renderAsLink text-[#0078a8] cursor-pointer"
+            className={`renderAsLink cursor-pointer ${resolvedVisualOptions.linkTextClassName}`}
             onClick={onNextMeasurement}
             data-test-id="switch-measurement-right"
-            style={{ fontSize: "10.5px" }}
+            style={{
+              fontSize: `${resolvedVisualOptions.navigationLinkFontSizePx}px`,
+            }}
             aria-label="Nächste Messung"
           >
             <FontAwesomeIcon icon={faAnglesRight} />

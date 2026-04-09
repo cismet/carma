@@ -169,9 +169,10 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
 
   const ctx = useCesiumContext();
   const { rootRef } = useForwardZoomEventsToCesium();
-  const appliedPreviewSizeRef = useRef<{ width: number; height: number } | null>(
-    null
-  );
+  const appliedPreviewSizeRef = useRef<{
+    width: number;
+    height: number;
+  } | null>(null);
 
   const applyPreviewSizeCssVars = useCallback(
     (width: number, height: number) => {
@@ -214,8 +215,10 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
         applyPreviewSizeCssVars(Number(syncedWidth), Number(syncedHeight));
       };
 
-      removePreRenderListener = scene.preRender.addEventListener(syncPreviewSize);
-      removePostRenderListener = scene.postRender.addEventListener(syncPreviewSize);
+      removePreRenderListener =
+        scene.preRender.addEventListener(syncPreviewSize);
+      removePostRenderListener =
+        scene.postRender.addEventListener(syncPreviewSize);
       syncPreviewSize();
     });
 

@@ -82,9 +82,8 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
     overlayDiv.style.width = "100%";
     overlayDiv.style.height = "100%";
     overlayDiv.style.pointerEvents = "none";
-    overlayDiv.style.zIndex = "1000";
+    overlayDiv.style.zIndex = "auto";
     overlayDiv.style.overflow = "hidden";
-    overlayDiv.style.clipPath = "inset(0)";
 
     container.appendChild(overlayDiv);
     overlayRef.current = overlayDiv;

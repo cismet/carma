@@ -8,9 +8,12 @@ export type {
 } from "../host";
 export {
   PointLabel,
+  POINT_LABEL_STYLE,
+  POINT_LABEL_ATTACH,
   POINT_LABEL_TEXT_BACKGROUND_COLOR,
   POINT_LABEL_HOVER_BACKGROUND_COLOR,
   POINT_LABEL_SELECTED_BACKGROUND_COLOR,
+  type PointLabelStyle,
   type PointLabelStyleProps,
 } from "../components/PointLabel";
 export {
@@ -22,9 +25,20 @@ export {
 } from "../components/PointLabelMarker";
 export {
   PillbuttonLabelMarker,
+  PILLBUTTON_LABEL_MARKER_RESIZE_MODE,
   PILLBUTTON_BADGE_POSITIONS,
+  pillbuttonLabelMarkerBadgeDefaults,
+  pillbuttonLabelMarkerLayoutDefaults,
+  pillbuttonLabelMarkerMotionDefaults,
+  resolvePillbuttonLabelMarkerBadgeOptions,
+  resolvePillbuttonLabelMarkerLayoutOptions,
+  resolvePillbuttonLabelMarkerMotionOptions,
   type PillbuttonBadgePosition,
+  type PillbuttonLabelMarkerBadgeOptions,
+  type PillbuttonLabelMarkerLayoutOptions,
+  type PillbuttonLabelMarkerMotionOptions,
   type PillbuttonLabelMarkerProps,
+  type PillbuttonLabelMarkerResizeMode,
 } from "../components/PillbuttonLabelMarker";
 export {
   PointLabelStem,

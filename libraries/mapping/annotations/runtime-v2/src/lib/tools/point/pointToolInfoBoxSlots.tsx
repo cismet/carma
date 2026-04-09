@@ -1,27 +1,46 @@
-import { formatLatLonDegrees } from "@carma-units";
+import {
+  faArrowsDownToLine,
+  faCrosshairs,
+  faTrashCan,
+} from "@fortawesome/free-solid-svg-icons";
+import { formatLatLonDegrees, formatLengthMeters } from "@carma-units";
 import type { Degrees } from "@carma-units";
 
+import { RuntimeAnnotationInfoBoxActionIcon } from "../../components/annotation-info-box/RuntimeAnnotationInfoBoxActionIcon";
 import type { RuntimeAnnotationInfoBoxContext } from "../../components/annotation-info-box/annotationInfoBox.types";
 import { RuntimeAnnotationInfoBoxNavigation } from "../../components/annotation-info-box/RuntimeAnnotationInfoBoxNavigation";
+import { RuntimeAnnotationInfoBoxTitleInput } from "../../components/annotation-info-box/RuntimeAnnotationInfoBoxTitleInput";
 import { resolveRuntimeMeasurementNavigation } from "../../components/annotation-info-box/runtimeMeasurementNavigation";
 import { resolveMeasurementCoordinates } from "../../render/resolveMeasurementCoordinates";
+import {
+  formatPointRelativeHeightInfoText,
+  resolvePointElevationReferenceCoordinate,
+  resolvePointElevationReferenceAnnotationId,
+} from "./pointToolElevationDisplay";
+
 export const createPointToolInfoBoxSlots = (
   toolType: RuntimeAnnotationInfoBoxContext["annotation"]["toolType"],
   {
     headingTitle,
     formatMeasurementLabelToken,
-    formatCoordinateValue,
   }: {
     headingTitle: string;
     formatMeasurementLabelToken: (counter: number) => string;
-    formatCoordinateValue: (value: number) => string;
   }
 ) => {
   return ({
     annotation,
     annotationEntries,
+    flyToAllAnnotations,
+    formatOptions,
+    focusAnnotationId,
     nodes,
-    setSelectedAnnotationId,
+    removeAnnotationById,
+    elevationReferenceAnnotationId,
+    setElevationReferenceAnnotationId,
+    updateAnnotationDisplayName,
+    updateAnnotationShortLabel,
+    infoBoxVisualOptions,
   }: RuntimeAnnotationInfoBoxContext) => {
     if (annotation.toolType !== toolType) {
       return null;
@@ -42,7 +61,8 @@ export const createPointToolInfoBoxSlots = (
     const navigation = resolveRuntimeMeasurementNavigation({
       annotationEntries,
       selectedAnnotationId: annotation.id,
-      setSelectedAnnotationId,
+      focusAnnotationId,
+      flyToAllAnnotations,
     });
 
     if (!coordinate) {
@@ -51,36 +71,96 @@ export const createPointToolInfoBoxSlots = (
 
     const shortLabelToken = formatMeasurementLabelToken(pointOrder);
     const defaultDisplayName = `${headingTitle} ${shortLabelToken}`;
-    const displayName = annotation.displayName?.trim() || defaultDisplayName;
+    const effectiveShortLabel =
+      annotation.shortLabel?.trim() || shortLabelToken;
     const [latitude, longitude] = formatLatLonDegrees(
       coordinate.latitude as Degrees,
       coordinate.longitude as Degrees,
-      {
-        fractionDigits: 6,
-        locale: "de-DE",
-      }
+      formatOptions.geographicCoordinate
     );
+    const elevationText = `NHN ${formatLengthMeters(
+      coordinate.altitude,
+      formatOptions.lengthMeters
+    )}`;
+    const referenceCoordinate = resolvePointElevationReferenceCoordinate({
+      annotationEntries,
+      nodes,
+      configuredReferenceAnnotationId: elevationReferenceAnnotationId,
+    });
+    const referenceAnnotationId = resolvePointElevationReferenceAnnotationId({
+      annotationEntries,
+      configuredReferenceAnnotationId: elevationReferenceAnnotationId,
+    });
+    const isReferenceMeasurement = referenceAnnotationId === annotation.id;
+
     return {
       headingTitle,
+      actions: (
+        <div className="flex items-center gap-2">
+          <RuntimeAnnotationInfoBoxActionIcon
+            title="Zur Messung fliegen"
+            icon={faCrosshairs}
+            onClick={(event) => {
+              event.stopPropagation();
+              focusAnnotationId(annotation.id);
+            }}
+            dataTestId="carma-v2-flyto-point-measurement-btn"
+            visualOptions={infoBoxVisualOptions}
+          />
+          {!isReferenceMeasurement ? (
+            <RuntimeAnnotationInfoBoxActionIcon
+              title="Als Referenzhöhe setzen"
+              icon={faArrowsDownToLine}
+              onClick={(event) => {
+                event.stopPropagation();
+                setElevationReferenceAnnotationId(annotation.id);
+              }}
+              dataTestId="carma-v2-set-reference-point-measurement-btn"
+              visualOptions={infoBoxVisualOptions}
+            />
+          ) : null}
+          <RuntimeAnnotationInfoBoxActionIcon
+            title="Löschen"
+            icon={faTrashCan}
+            onClick={(event) => {
+              event.stopPropagation();
+              removeAnnotationById(annotation.id);
+            }}
+            dataTestId="carma-v2-delete-point-measurement-btn"
+            visualOptions={infoBoxVisualOptions}
+          />
+        </div>
+      ),
       subtitle: (
-        <div className="mt-1 mb-0 w-full px-3">
-          <div className="font-bold leading-snug text-[#111827] break-words">
-            {displayName}
-          </div>
-          <div className="text-[11px] leading-normal text-[#6b7280]">
-            {`Kurzlabel ${shortLabelToken}`}
+        <div className={infoBoxVisualOptions.subtitleContainerClassName}>
+          <RuntimeAnnotationInfoBoxTitleInput
+            value={annotation.displayName ?? ""}
+            placeholder={defaultDisplayName}
+            onCommit={(nextValue) =>
+              updateAnnotationDisplayName(annotation.id, nextValue)
+            }
+            shortLabelValue={annotation.shortLabel ?? ""}
+            shortLabelPlaceholder={effectiveShortLabel}
+            onShortLabelCommit={(nextValue) =>
+              updateAnnotationShortLabel(annotation.id, nextValue)
+            }
+            visualOptions={infoBoxVisualOptions}
+          />
+          <div className={infoBoxVisualOptions.subtitleMetaTextClassName}>
+            {`${latitude} ${longitude} • ${elevationText}`}
           </div>
         </div>
       ),
       content: (
-        <div className="px-3 pb-2 pt-1 text-[12px] leading-normal text-[#212529]">
-          <div className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1">
-            <span className="text-[#6b7280]">Breite</span>
-            <span>{latitude}</span>
-            <span className="text-[#6b7280]">Länge</span>
-            <span>{longitude}</span>
-            <span className="text-[#6b7280]">NHN</span>
-            <span>{`${formatCoordinateValue(coordinate.altitude)} m`}</span>
+        <div
+          className={`${infoBoxVisualOptions.bodyContainerClassName} ${infoBoxVisualOptions.bodyTextClassName}`}
+        >
+          <div>
+            {formatPointRelativeHeightInfoText({
+              coordinate,
+              referenceCoordinate,
+              formatOptions,
+            })}
           </div>
         </div>
       ),
@@ -88,10 +168,12 @@ export const createPointToolInfoBoxSlots = (
         <RuntimeAnnotationInfoBoxNavigation
           totalEntries={navigation?.totalEntries ?? 0}
           currentIndex={navigation?.currentIndex ?? 0}
+          onFlyToAllMeasurements={navigation?.flyToAllMeasurements}
           onPreviousMeasurement={() =>
             navigation?.selectRelativeMeasurement(-1)
           }
           onNextMeasurement={() => navigation?.selectRelativeMeasurement(1)}
+          visualOptions={infoBoxVisualOptions}
         />
       ),
       collapsible: true,

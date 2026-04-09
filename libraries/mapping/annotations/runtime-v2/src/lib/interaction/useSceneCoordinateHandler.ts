@@ -83,10 +83,7 @@ export const useSceneCoordinateHandler = (
         y: screenPosition.y,
       };
 
-      onHoverCoordinateChange?.(
-        runtimeCoordinate,
-        runtimeScreenPosition
-      );
+      onHoverCoordinateChange?.(runtimeCoordinate, runtimeScreenPosition);
       onHoverSampleChange?.({
         coordinate: runtimeCoordinate,
         screenPosition: runtimeScreenPosition,

@@ -45,6 +45,7 @@ export interface CarmaCardProps {
   bodyStyle?: React.CSSProperties;
   /** Always-visible line below header (not collapsed). */
   subtitle?: React.ReactNode;
+  hideSubtitleWhenCollapsed?: boolean;
   /** Collapsible body content. */
   content?: React.ReactNode;
   /** Always-visible line below collapsible content. */
@@ -72,6 +73,7 @@ const CarmaCard = ({
   headerColor,
   bodyStyle,
   subtitle,
+  hideSubtitleWhenCollapsed = false,
   content,
   footer,
   collapsed,
@@ -123,6 +125,9 @@ const CarmaCard = ({
     node !== undefined && node !== null && node !== false;
   const hasCollapsibleBodyContent = hasNode(content);
   const hasStaticBodyContent = hasNode(subtitle) || hasNode(footer);
+  const showSubtitle =
+    hasNode(subtitle) &&
+    !(collapsible && Boolean(collapsed) && hideSubtitleWhenCollapsed);
   const headerTextColor =
     React.isValidElement(header) &&
     (header.props as { style?: React.CSSProperties })?.style?.color
@@ -501,7 +506,7 @@ const CarmaCard = ({
               borderRadius: bodyContentAreaBorderRadius,
             }}
           >
-            {hasNode(subtitle) ? (
+            {showSubtitle ? (
               <div style={{ paddingBottom: 2 }}>{subtitle}</div>
             ) : null}
             <div

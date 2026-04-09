@@ -5,6 +5,8 @@ import type {
   RuntimeAnnotationEntry,
   RuntimeNode,
 } from "../../context/AnnotationsProvider";
+import type { AnnotationsRuntimeFormatOptions } from "../../config/annotationsRuntimeFormatOptions";
+import type { RuntimeAnnotationInfoBoxVisualOptions } from "./annotationInfoBoxVisualDefaults";
 export type RuntimeAnnotationInfoBoxSlots = {
   headingTitle: string;
   headingColor?: string;
@@ -21,6 +23,21 @@ export type RuntimeAnnotationInfoBoxContext = {
   nodes: readonly RuntimeNode[];
   selectedAnnotationId: string;
   setSelectedAnnotationId: (annotationId: string | null) => void;
+  focusAnnotationId: (annotationId: string | null) => void;
+  flyToAllAnnotations: () => void;
+  removeAnnotationById: (annotationId: string) => void;
+  elevationReferenceAnnotationId: string | null;
+  setElevationReferenceAnnotationId: (annotationId: string | null) => void;
+  updateAnnotationDisplayName: (
+    annotationId: string,
+    displayName: string
+  ) => void;
+  updateAnnotationShortLabel: (
+    annotationId: string,
+    shortLabel: string
+  ) => void;
+  formatOptions: AnnotationsRuntimeFormatOptions;
+  infoBoxVisualOptions: RuntimeAnnotationInfoBoxVisualOptions;
 };
 
 export type RuntimeAnnotationInfoBoxLayoutProps = {
@@ -35,4 +52,5 @@ export type RuntimeAnnotationInfoBoxLayoutProps = {
     | "bottomcenter";
   controlOrder?: number;
   style?: CSSProperties;
+  visualOptions?: Partial<RuntimeAnnotationInfoBoxVisualOptions>;
 };

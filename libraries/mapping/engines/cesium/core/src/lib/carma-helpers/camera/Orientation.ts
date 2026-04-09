@@ -1,10 +1,5 @@
 import { shortestAngleDelta } from "@carma-commons/math";
-import {
-  PI_OVER_TWO,
-  TWO_PI,
-  ZERO_PI,
-  MINUS_PI_OVER_TWO,
-} from "@carma-units";
+import { PI_OVER_TWO, TWO_PI, ZERO_PI, MINUS_PI_OVER_TWO } from "@carma-units";
 import type { Radians } from "@carma-units";
 
 import { Cartesian3, type Camera } from "@carma-cesium";

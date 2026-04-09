@@ -3,8 +3,20 @@ import type { CssPixelPosition } from "@carma-units";
 import type { PointLabelAttach } from "./pointLabelAttach";
 const GEOMETRY_EPSILON = 1e-6;
 
-export const estimatePillCapRadiusPx = (fontSizePx: number): number =>
-  Number.isFinite(fontSizePx) && fontSizePx > 0 ? fontSizePx * 0.95 : 10;
+export const DEFAULT_PILL_LABEL_HEIGHT_EM = 2;
+
+export const resolvePillLabelHeightPx = (
+  fontSizePx: number,
+  labelHeightEm: number = DEFAULT_PILL_LABEL_HEIGHT_EM
+): number =>
+  Number.isFinite(fontSizePx) && fontSizePx > 0
+    ? fontSizePx * labelHeightEm
+    : 10 * labelHeightEm;
+
+export const estimatePillCapRadiusPx = (
+  fontSizePx: number,
+  labelHeightEm: number = DEFAULT_PILL_LABEL_HEIGHT_EM
+): number => resolvePillLabelHeightPx(fontSizePx, labelHeightEm) / 2;
 
 export const resolvePillCapCenterPoint = (
   attach: PointLabelAttach,

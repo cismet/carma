@@ -1,12 +1,12 @@
+import { faCrosshairs, faTrashCan } from "@fortawesome/free-solid-svg-icons";
 import { Cartesian3 } from "@carma-cesium";
 import { cartesian3FromGeographicCoordinate } from "@carma-mapping/engines/cesium/core";
 import { CarmaTransforms } from "@carma-mapping/engines/cesium/core";
-import {
-  formatLengthMeters,
-  LENGTH_UNIT_MODE,
-} from "@carma-units";
+import { formatLengthMeters } from "@carma-units";
 
+import { RuntimeAnnotationInfoBoxActionIcon } from "../../components/annotation-info-box/RuntimeAnnotationInfoBoxActionIcon";
 import { RuntimeAnnotationInfoBoxNavigation } from "../../components/annotation-info-box/RuntimeAnnotationInfoBoxNavigation";
+import { RuntimeAnnotationInfoBoxTitleInput } from "../../components/annotation-info-box/RuntimeAnnotationInfoBoxTitleInput";
 import type { RuntimeAnnotationInfoBoxContext } from "../../components/annotation-info-box/annotationInfoBox.types";
 import { resolveRuntimeMeasurementNavigation } from "../../components/annotation-info-box/runtimeMeasurementNavigation";
 import { resolveMeasurementCoordinates } from "../../render/resolveMeasurementCoordinates";
@@ -24,8 +24,14 @@ export const createDistanceToolInfoBoxSlots = (
   return ({
     annotation,
     annotationEntries,
+    formatOptions,
+    flyToAllAnnotations,
+    focusAnnotationId,
     nodes,
-    setSelectedAnnotationId,
+    removeAnnotationById,
+    updateAnnotationDisplayName,
+    updateAnnotationShortLabel,
+    infoBoxVisualOptions,
   }: RuntimeAnnotationInfoBoxContext) => {
     if (annotation.toolType !== toolType) {
       return null;
@@ -45,7 +51,8 @@ export const createDistanceToolInfoBoxSlots = (
     const navigation = resolveRuntimeMeasurementNavigation({
       annotationEntries,
       selectedAnnotationId: annotation.id,
-      setSelectedAnnotationId,
+      focusAnnotationId,
+      flyToAllAnnotations,
     });
 
     if (coordinates.length < 2) {
@@ -68,33 +75,70 @@ export const createDistanceToolInfoBoxSlots = (
     const verticalDistanceMeters = Math.abs(enuOffset.up);
     const shortLabelToken = formatMeasurementLabelToken(distanceOrder);
     const defaultDisplayName = `${headingTitle} ${shortLabelToken}`;
-    const displayName = annotation.displayName?.trim() || defaultDisplayName;
+    const effectiveShortLabel =
+      annotation.shortLabel?.trim() || shortLabelToken;
     const formatDistance = (value: number) =>
-      formatLengthMeters(value, {
-        locale: "de-DE",
-        unitMode: LENGTH_UNIT_MODE.METERS,
-      });
+      formatLengthMeters(value, formatOptions.lengthMeters);
 
     return {
       headingTitle,
+      actions: (
+        <div className="flex items-center gap-2">
+          <RuntimeAnnotationInfoBoxActionIcon
+            title="Zur Messung fliegen"
+            icon={faCrosshairs}
+            onClick={(event) => {
+              event.stopPropagation();
+              focusAnnotationId(annotation.id);
+            }}
+            dataTestId="carma-v2-flyto-distance-measurement-btn"
+            visualOptions={infoBoxVisualOptions}
+          />
+          <RuntimeAnnotationInfoBoxActionIcon
+            title="Löschen"
+            icon={faTrashCan}
+            onClick={(event) => {
+              event.stopPropagation();
+              removeAnnotationById(annotation.id);
+            }}
+            dataTestId="carma-v2-delete-distance-measurement-btn"
+            visualOptions={infoBoxVisualOptions}
+          />
+        </div>
+      ),
       subtitle: (
-        <div className="mt-1 mb-0 w-full px-3">
-          <div className="font-bold leading-snug text-[#111827] break-words">
-            {displayName}
-          </div>
-          <div className="text-[11px] leading-normal text-[#6b7280]">
-            {`Kurzlabel ${shortLabelToken}`}
-          </div>
+        <div className={infoBoxVisualOptions.subtitleContainerClassName}>
+          <RuntimeAnnotationInfoBoxTitleInput
+            value={annotation.displayName ?? ""}
+            placeholder={defaultDisplayName}
+            onCommit={(nextValue) =>
+              updateAnnotationDisplayName(annotation.id, nextValue)
+            }
+            shortLabelValue={annotation.shortLabel ?? ""}
+            shortLabelPlaceholder={effectiveShortLabel}
+            onShortLabelCommit={(nextValue) =>
+              updateAnnotationShortLabel(annotation.id, nextValue)
+            }
+            visualOptions={infoBoxVisualOptions}
+          />
         </div>
       ),
       content: (
-        <div className="px-3 pb-2 pt-1 text-[12px] leading-normal text-[#212529]">
+        <div
+          className={`${infoBoxVisualOptions.bodyContainerClassName} ${infoBoxVisualOptions.bodyTextClassName}`}
+        >
           <div className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1">
-            <span className="text-[#6b7280]">Direkt</span>
+            <span className={infoBoxVisualOptions.mutedTextClassName}>
+              Direkt
+            </span>
             <span>{formatDistance(directDistanceMeters)}</span>
-            <span className="text-[#6b7280]">Horizontal</span>
+            <span className={infoBoxVisualOptions.mutedTextClassName}>
+              Horizontal
+            </span>
             <span>{formatDistance(horizontalDistanceMeters)}</span>
-            <span className="text-[#6b7280]">Vertikal</span>
+            <span className={infoBoxVisualOptions.mutedTextClassName}>
+              Vertikal
+            </span>
             <span>{formatDistance(verticalDistanceMeters)}</span>
           </div>
         </div>
@@ -103,10 +147,12 @@ export const createDistanceToolInfoBoxSlots = (
         <RuntimeAnnotationInfoBoxNavigation
           totalEntries={navigation?.totalEntries ?? 0}
           currentIndex={navigation?.currentIndex ?? 0}
+          onFlyToAllMeasurements={navigation?.flyToAllMeasurements}
           onPreviousMeasurement={() =>
             navigation?.selectRelativeMeasurement(-1)
           }
           onNextMeasurement={() => navigation?.selectRelativeMeasurement(1)}
+          visualOptions={infoBoxVisualOptions}
         />
       ),
       collapsible: true,

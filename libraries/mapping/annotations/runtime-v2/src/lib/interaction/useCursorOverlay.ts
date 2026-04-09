@@ -6,6 +6,7 @@ import {
   subscribeCesiumScenePointerClientPosition,
   type CesiumScenePointerClientPosition,
 } from "@carma-mapping/engines/cesium/react/interactions";
+import { previewControllerDefaults } from "../config/previewControllerDefaults";
 import type { RuntimeScene } from "../types/runtimeScene.types";
 const CURSOR_ROOT_SELECTOR = '[data-annotation-cursor-root="true"]';
 const CURSOR_LAYER_ID = "annotation-candidate-crosshair-layer";
@@ -234,7 +235,7 @@ export const useCursorOverlay = (
       inset: "0",
       pointerEvents: "none",
       overflow: "hidden",
-      zIndex: "1700",
+      zIndex: previewControllerDefaults.layerZIndex,
     });
 
     const cursorElement = createCursorElement();
@@ -263,15 +264,13 @@ export const useCursorOverlay = (
       const isPointerInsideCanvas =
         clientPosition !== null && isInsideBounds(clientPosition, canvasBounds);
 
-      if (
-        clientPosition &&
-        containerBounds &&
-        isPointerInsideCanvas
-      ) {
+      if (clientPosition && containerBounds && isPointerInsideCanvas) {
         cursorElement.style.display = "block";
         cursorElement.style.transform = `translate(${
           clientPosition.x - containerBounds.left
-        }px, ${clientPosition.y - containerBounds.top}px) translate(-50%, -50%)`;
+        }px, ${
+          clientPosition.y - containerBounds.top
+        }px) translate(-50%, -50%)`;
         return;
       }
 

@@ -56,7 +56,10 @@ export const polylineToolPlugin = createMeasurementToolPlugin({
       requestFinish: () => {
         const nextMeasurement = finishPolylinePreview({
           toolType,
-          coordinates: getDraftCoordinatesForTool(getState().draftState, toolType),
+          coordinates: getDraftCoordinatesForTool(
+            getState().draftState,
+            toolType
+          ),
           addAnnotation,
         });
 
@@ -131,7 +134,7 @@ export const polylineToolPlugin = createMeasurementToolPlugin({
     build: ({
       nodes,
       annotationEntries,
-      selectedAnnotationId,
+      selectedAnnotationIds,
       setSelectedAnnotationId,
       onNodeLongPress,
     }) => {
@@ -143,7 +146,7 @@ export const polylineToolPlugin = createMeasurementToolPlugin({
           formatMeasurementShortLabelToken(toolType, counter),
         nodes,
         measurements: annotationEntries,
-        selectedMeasurementId: selectedAnnotationId,
+        selectedMeasurementIds: selectedAnnotationIds,
         onMeasurementSelect: setSelectedAnnotationId,
         onNodeLongPress,
       });

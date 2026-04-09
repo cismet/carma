@@ -4,24 +4,33 @@ import type {
   RuntimeAnnotationInfoBoxLayoutProps,
   RuntimeAnnotationInfoBoxSlots,
 } from "./annotationInfoBox.types";
-type RuntimeAnnotationInfoBoxContainerProps = RuntimeAnnotationInfoBoxLayoutProps & {
-  slots: RuntimeAnnotationInfoBoxSlots;
-};
+import {
+  resolveRuntimeAnnotationInfoBoxVisualOptions,
+  type RuntimeAnnotationInfoBoxVisualOptions,
+} from "./annotationInfoBoxVisualDefaults";
 
-const DEFAULT_PIXEL_WIDTH = 350;
+type RuntimeAnnotationInfoBoxContainerProps =
+  RuntimeAnnotationInfoBoxLayoutProps & {
+    slots: RuntimeAnnotationInfoBoxSlots;
+    visualOptions?: Partial<RuntimeAnnotationInfoBoxVisualOptions>;
+  };
 
 export const RuntimeAnnotationInfoBoxContainer = ({
-  pixelWidth = DEFAULT_PIXEL_WIDTH,
+  pixelWidth,
   useControlLayout = true,
   controlPosition = "bottomright",
   controlOrder = 11,
   style,
   slots,
+  visualOptions,
 }: RuntimeAnnotationInfoBoxContainerProps) => {
+  const resolvedVisualOptions =
+    resolveRuntimeAnnotationInfoBoxVisualOptions(visualOptions);
+
   return (
     <div data-test-id="annotation-info-box">
       <CarmaResponsiveInfoBox
-        width={pixelWidth}
+        width={pixelWidth ?? resolvedVisualOptions.defaultPixelWidth}
         useControlLayout={useControlLayout}
         controlPosition={controlPosition}
         controlOrder={controlOrder}
@@ -29,11 +38,15 @@ export const RuntimeAnnotationInfoBoxContainer = ({
         onPanelClick={(event) => event.stopPropagation()}
         collapsible={slots.collapsible ?? true}
         header={undefined}
-        headingColor={slots.headingColor ?? "#4b7ed1"}
+        headingColor={slots.headingColor ?? resolvedVisualOptions.headingColor}
         footer={slots.footer}
+        hideSubtitleWhenCollapsed={true}
         heading={
-          <div className="w-full px-2 flex items-center justify-between gap-2">
-            <span className="truncate" title={slots.headingTitle}>
+          <div className="flex w-full items-center justify-between gap-2 px-1">
+            <span
+              className={`${resolvedVisualOptions.headerForegroundClassName} ${resolvedVisualOptions.headerTitleClassName}`}
+              title={slots.headingTitle}
+            >
               {slots.headingTitle}
             </span>
             {slots.actions ? (

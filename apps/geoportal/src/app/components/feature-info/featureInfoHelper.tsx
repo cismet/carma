@@ -1,9 +1,6 @@
 import proj4 from "proj4";
 import type { Map } from "leaflet";
-import type {
-  FeatureInfo,
-  FeatureInfoProperties,
-} from "@carma-mapping/utils";
+import type { FeatureInfo, FeatureInfoProperties } from "@carma-mapping/utils";
 import type { LayerProps as MappingLayerProps } from "@carma-mapping/layers";
 import { FeatureInfoIcon } from "./FeatureInfoIcon";
 import { proj4crs3857def } from "../../helper/gisHelper";

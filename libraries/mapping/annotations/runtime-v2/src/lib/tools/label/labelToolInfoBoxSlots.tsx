@@ -8,6 +8,7 @@ export const createLabelToolInfoBoxSlots = (
   return ({
     annotation,
     annotationEntries,
+    infoBoxVisualOptions,
   }: RuntimeAnnotationInfoBoxContext) => {
     if (annotation.toolType !== toolType) {
       return null;
@@ -24,12 +25,19 @@ export const createLabelToolInfoBoxSlots = (
     return {
       headingTitle: "Beschriftung",
       subtitle: (
-        <div className="text-[12px] leading-normal text-[#212529]">
+        <div className={infoBoxVisualOptions.subtitleTextClassName}>
           {annotation.displayName?.trim() ||
             getDefaultLabelDisplayName(labelOrder)}
         </div>
       ),
-      content: <LabelToolInfoBoxContent annotation={annotation} />,
+      content: (
+        <div className={infoBoxVisualOptions.bodyContainerClassName}>
+          <LabelToolInfoBoxContent
+            annotation={annotation}
+            visualOptions={infoBoxVisualOptions}
+          />
+        </div>
+      ),
       collapsible: false,
     };
   };

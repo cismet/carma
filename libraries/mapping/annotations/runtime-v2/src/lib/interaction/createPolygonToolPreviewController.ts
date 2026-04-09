@@ -37,7 +37,10 @@ export const createPolygonToolPreviewController = ({
   let enabled = false;
   let hoverSample: AnnotationToolPreviewSample | null = null;
   let draftCoordinates = [
-    ...getDraftCoordinatesForTool(annotationsStore.getState().draftState, toolType),
+    ...getDraftCoordinatesForTool(
+      annotationsStore.getState().draftState,
+      toolType
+    ),
   ];
 
   const render = () => {

@@ -73,7 +73,10 @@ export const getSceneSyncedDimensions = (
   baseScaleFactor: number,
   overrideFov?: number
 ): { syncedWidth: CssPixelWidth; syncedHeight: CssPixelHeight } => {
-  const width = Math.max(1, scene.canvas?.clientWidth || scene.canvas?.width || 1);
+  const width = Math.max(
+    1,
+    scene.canvas?.clientWidth || scene.canvas?.width || 1
+  );
   const height = Math.max(
     1,
     scene.canvas?.clientHeight || scene.canvas?.height || 1

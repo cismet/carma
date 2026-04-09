@@ -16,7 +16,6 @@ import {
   NAVIGATION_ORBIT_DIRECTIONS,
 } from "@carma-mapping/engines-interop/navigation-controls";
 import {
-  registerCesiumSceneSurfacePickingTileset,
   RING_MATERIAL_PRESETS,
   type RingMaterialPreset,
 } from "@carma-mapping/engines/cesium/core";
@@ -1017,7 +1016,6 @@ const CursorOverlaySamplerSandbox = ({
     }
 
     let disposed = false;
-    let unregisterSurfacePickingTileset: (() => void) | null = null;
 
     const initialize = async () => {
       if (tilesetStatusRef.current) {
@@ -1121,13 +1119,6 @@ const CursorOverlaySamplerSandbox = ({
         terrainProviders: result.terrainProviders,
         viewSync: null,
       });
-
-      unregisterSurfacePickingTileset = result.tileset
-        ? registerCesiumSceneSurfacePickingTileset(
-            result.widget.scene,
-            result.tileset
-          )
-        : null;
       if (tilesetStatusRef.current) {
         tilesetStatusRef.current.textContent = result.tileset
           ? "tileset ready"
@@ -1160,8 +1151,6 @@ const CursorOverlaySamplerSandbox = ({
       controllerRef.current?.destroy();
       controllerRef.current = null;
       setRuntimeHandle(null);
-      unregisterSurfacePickingTileset?.();
-      unregisterSurfacePickingTileset = null;
       if (tilesetStatusRef.current) {
         tilesetStatusRef.current.textContent = "tileset loading";
       }

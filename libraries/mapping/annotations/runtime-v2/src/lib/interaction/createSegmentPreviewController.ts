@@ -1,8 +1,5 @@
-import {
-  Cartesian3,
-  SceneTransforms,
-  defined,
-} from "@carma-cesium";
+import { Cartesian3, SceneTransforms, defined } from "@carma-cesium";
+import { formatLengthMeters } from "@carma-units";
 import {
   cartesian3FromGeographicCoordinate,
   isValidScene,
@@ -10,11 +7,9 @@ import {
 
 import type { RuntimeCoordinate } from "../store";
 import type { RuntimeScene } from "../types/runtimeScene.types";
+import type { AnnotationsRuntimeFormatOptions } from "../config/annotationsRuntimeFormatOptions";
+import type { PreviewLineLabelVisualOptions } from "../config/previewLineLabelVisualDefaults";
 import {
-  DIRECT_LINE_COLOR,
-  HORIZONTAL_LINE_COLOR,
-  PREVIEW_GEOMETRY_EPSILON_METERS,
-  VERTICAL_LINE_COLOR,
   applyLineLabel,
   applyLineRuntime,
   buildPreviewDistanceTriangleLabelReferences,
@@ -23,12 +18,13 @@ import {
   createLineCollection,
   createLineRuntime,
   createPreviewOverlayLayer,
+  resolvePreviewDistanceTriangleComponentLabelVisibility,
   createPreviewSegmentScratch,
   createSegmentLineLabels,
   destroyLineCollection,
   destroyPreviewOverlayLayer,
-  formatMeters,
   hideLineLabels,
+  previewControllerDefaults,
 } from "./previewController.shared";
 
 export type SegmentPreviewController = {
@@ -43,9 +39,19 @@ export type SegmentPreviewController = {
 const SEGMENT_PREVIEW_LAYER_ID = "annotation-v2-segment-preview-layer";
 
 export const createSegmentPreviewController = (
-  scene: RuntimeScene
+  scene: RuntimeScene,
+  {
+    formatOptions,
+    previewLineLabelVisualOptions,
+  }: {
+    formatOptions: AnnotationsRuntimeFormatOptions;
+    previewLineLabelVisualOptions?: Partial<PreviewLineLabelVisualOptions>;
+  }
 ): SegmentPreviewController => {
-  const overlayLayer = createPreviewOverlayLayer(scene, SEGMENT_PREVIEW_LAYER_ID);
+  const overlayLayer = createPreviewOverlayLayer(
+    scene,
+    SEGMENT_PREVIEW_LAYER_ID
+  );
   if (!overlayLayer) {
     return {
       setSegment: () => undefined,
@@ -54,7 +60,7 @@ export const createSegmentPreviewController = (
     };
   }
 
-  const lineLabels = createSegmentLineLabels();
+  const lineLabels = createSegmentLineLabels(previewLineLabelVisualOptions);
   overlayLayer.append(
     lineLabels.direct,
     lineLabels.vertical,
@@ -62,16 +68,20 @@ export const createSegmentPreviewController = (
   );
   const lineCollection = createLineCollection(scene);
   const lines = {
-    direct: createLineRuntime(lineCollection, "draft-preview-direct", DIRECT_LINE_COLOR),
+    direct: createLineRuntime(
+      lineCollection,
+      "draft-preview-direct",
+      previewControllerDefaults.directLineColor
+    ),
     vertical: createLineRuntime(
       lineCollection,
       "draft-preview-vertical",
-      VERTICAL_LINE_COLOR
+      previewControllerDefaults.verticalLineColor
     ),
     horizontal: createLineRuntime(
       lineCollection,
       "draft-preview-horizontal",
-      HORIZONTAL_LINE_COLOR
+      previewControllerDefaults.horizontalLineColor
     ),
   };
   const scratch = createPreviewSegmentScratch();
@@ -102,14 +112,15 @@ export const createSegmentPreviewController = (
       return;
     }
 
-    const anchorPointECEF = cartesian3FromGeographicCoordinate(anchorCoordinate);
+    const anchorPointECEF =
+      cartesian3FromGeographicCoordinate(anchorCoordinate);
     const hoverPointECEF = cartesian3FromGeographicCoordinate(hoverCoordinate);
 
     hide();
 
     if (
       Cartesian3.distance(anchorPointECEF, hoverPointECEF) <=
-      PREVIEW_GEOMETRY_EPSILON_METERS
+      previewControllerDefaults.geometryEpsilonMeters
     ) {
       if (requestRender) {
         scene.requestRender();
@@ -157,15 +168,41 @@ export const createSegmentPreviewController = (
             previousVerticalOutsideSign: previousVerticalLabelOutsideSign,
           })
         : null;
-    previousVerticalLabelOutsideSign =
-      labelReferences?.nextVerticalOutsideSign;
+    previousVerticalLabelOutsideSign = labelReferences?.nextVerticalOutsideSign;
+
+    const directLabelText = formatLengthMeters(
+      Cartesian3.distance(anchorPointECEF, hoverPointECEF),
+      formatOptions.lengthMeters
+    );
+    const verticalLabelText =
+      Cartesian3.distance(anchorPointECEF, auxiliaryPoint) >
+      previewControllerDefaults.geometryEpsilonMeters
+        ? formatLengthMeters(
+            Cartesian3.distance(anchorPointECEF, auxiliaryPoint),
+            formatOptions.lengthMeters
+          )
+        : null;
+    const horizontalLabelText =
+      Cartesian3.distance(auxiliaryPoint, hoverPointECEF) >
+      previewControllerDefaults.geometryEpsilonMeters
+        ? formatLengthMeters(
+            Cartesian3.distance(auxiliaryPoint, hoverPointECEF),
+            formatOptions.lengthMeters
+          )
+        : null;
+    const componentLabelVisibility =
+      resolvePreviewDistanceTriangleComponentLabelVisibility({
+        directLabelText,
+        verticalLabelText,
+        horizontalLabelText,
+      });
 
     applyLineRuntime(lines.direct, [anchorPointECEF, hoverPointECEF]);
 
     if (defined(anchorScreenPosition) && defined(hoverScreenPosition)) {
       applyLineLabel({
         element: lineLabels.direct,
-        text: formatMeters(Cartesian3.distance(anchorPointECEF, hoverPointECEF)),
+        text: directLabelText,
         start: anchorScreenPosition,
         end: hoverScreenPosition,
         outsideReferencePoint:
@@ -175,37 +212,51 @@ export const createSegmentPreviewController = (
 
     if (
       Cartesian3.distance(anchorPointECEF, auxiliaryPoint) >
-      PREVIEW_GEOMETRY_EPSILON_METERS
+      previewControllerDefaults.geometryEpsilonMeters
     ) {
       applyLineRuntime(lines.vertical, [anchorPointECEF, auxiliaryPoint]);
 
-      if (defined(anchorScreenPosition) && defined(auxiliaryScreenPosition)) {
+      if (
+        componentLabelVisibility.showVerticalLabel &&
+        defined(anchorScreenPosition) &&
+        defined(auxiliaryScreenPosition) &&
+        verticalLabelText
+      ) {
         applyLineLabel({
           element: lineLabels.vertical,
-          text: formatMeters(Cartesian3.distance(anchorPointECEF, auxiliaryPoint)),
+          text: verticalLabelText,
           start: anchorScreenPosition,
           end: auxiliaryScreenPosition,
           outsideReferencePoint:
             labelReferences?.verticalOutsideReferencePoint ?? null,
         });
+      } else {
+        lineLabels.vertical.style.display = "none";
       }
     }
 
     if (
       Cartesian3.distance(auxiliaryPoint, hoverPointECEF) >
-      PREVIEW_GEOMETRY_EPSILON_METERS
+      previewControllerDefaults.geometryEpsilonMeters
     ) {
       applyLineRuntime(lines.horizontal, [auxiliaryPoint, hoverPointECEF]);
 
-      if (defined(auxiliaryScreenPosition) && defined(hoverScreenPosition)) {
+      if (
+        componentLabelVisibility.showHorizontalLabel &&
+        defined(auxiliaryScreenPosition) &&
+        defined(hoverScreenPosition) &&
+        horizontalLabelText
+      ) {
         applyLineLabel({
           element: lineLabels.horizontal,
-          text: formatMeters(Cartesian3.distance(auxiliaryPoint, hoverPointECEF)),
+          text: horizontalLabelText,
           start: auxiliaryScreenPosition,
           end: hoverScreenPosition,
           outsideReferencePoint:
             labelReferences?.horizontalOutsideReferencePoint ?? null,
         });
+      } else {
+        lineLabels.horizontal.style.display = "none";
       }
     }
 

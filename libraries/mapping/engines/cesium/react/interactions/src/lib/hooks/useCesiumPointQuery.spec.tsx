@@ -298,9 +298,9 @@ describe("useCesiumPointQuery", () => {
       flushPreRender();
     });
 
-    expect(pointQueryPickingMocks.resolvePreferredSurfacePick).toHaveBeenCalledTimes(
-      1
-    );
+    expect(
+      pointQueryPickingMocks.resolvePreferredSurfacePick
+    ).toHaveBeenCalledTimes(1);
     expect(
       pointQueryPickingMocks.sampleSurfacePickNormalAtScreenPosition
     ).toHaveBeenCalledTimes(1);
@@ -316,9 +316,9 @@ describe("useCesiumPointQuery", () => {
       flushPreRender();
     });
 
-    expect(pointQueryPickingMocks.resolvePreferredSurfacePick).toHaveBeenCalledTimes(
-      2
-    );
+    expect(
+      pointQueryPickingMocks.resolvePreferredSurfacePick
+    ).toHaveBeenCalledTimes(2);
     expect(
       pointQueryPickingMocks.sampleSurfacePickNormalAtScreenPosition
     ).toHaveBeenCalledTimes(1);
@@ -330,9 +330,9 @@ describe("useCesiumPointQuery", () => {
       flushPreRender();
     });
 
-    expect(pointQueryPickingMocks.resolvePreferredSurfacePick).toHaveBeenCalledTimes(
-      2
-    );
+    expect(
+      pointQueryPickingMocks.resolvePreferredSurfacePick
+    ).toHaveBeenCalledTimes(2);
     expect(onScreenPositionChange).toHaveBeenCalledTimes(3);
     expect(onScreenPositionChange).toHaveBeenLastCalledWith(
       throttledPointerPosition
@@ -343,9 +343,9 @@ describe("useCesiumPointQuery", () => {
       flushPreRender();
     });
 
-    expect(pointQueryPickingMocks.resolvePreferredSurfacePick).toHaveBeenCalledTimes(
-      3
-    );
+    expect(
+      pointQueryPickingMocks.resolvePreferredSurfacePick
+    ).toHaveBeenCalledTimes(3);
     expect(
       pointQueryPickingMocks.sampleSurfacePickNormalAtScreenPosition
     ).toHaveBeenCalledTimes(1);
@@ -357,9 +357,9 @@ describe("useCesiumPointQuery", () => {
       flushPreRender();
     });
 
-    expect(pointQueryPickingMocks.resolvePreferredSurfacePick).toHaveBeenCalledTimes(
-      4
-    );
+    expect(
+      pointQueryPickingMocks.resolvePreferredSurfacePick
+    ).toHaveBeenCalledTimes(4);
     expect(
       pointQueryPickingMocks.sampleSurfacePickNormalAtScreenPosition
     ).toHaveBeenCalledTimes(2);
@@ -411,9 +411,9 @@ describe("useCesiumPointQuery", () => {
       flushPreRender();
     });
 
-    expect(pointQueryPickingMocks.resolvePreferredSurfacePick).toHaveBeenCalledTimes(
-      1
-    );
+    expect(
+      pointQueryPickingMocks.resolvePreferredSurfacePick
+    ).toHaveBeenCalledTimes(1);
     expect(
       pointQueryPickingMocks.sampleSurfacePickNormalAtScreenPosition
     ).toHaveBeenCalledTimes(1);
@@ -430,9 +430,9 @@ describe("useCesiumPointQuery", () => {
       flushPreRender();
     });
 
-    expect(pointQueryPickingMocks.resolvePreferredSurfacePick).toHaveBeenCalledTimes(
-      2
-    );
+    expect(
+      pointQueryPickingMocks.resolvePreferredSurfacePick
+    ).toHaveBeenCalledTimes(2);
     expect(
       pointQueryPickingMocks.sampleSurfacePickNormalAtScreenPosition
     ).toHaveBeenCalledTimes(1);
@@ -449,9 +449,9 @@ describe("useCesiumPointQuery", () => {
       flushPreRender();
     });
 
-    expect(pointQueryPickingMocks.resolvePreferredSurfacePick).toHaveBeenCalledTimes(
-      3
-    );
+    expect(
+      pointQueryPickingMocks.resolvePreferredSurfacePick
+    ).toHaveBeenCalledTimes(3);
     expect(
       pointQueryPickingMocks.sampleSurfacePickNormalAtScreenPosition
     ).toHaveBeenCalledTimes(2);

@@ -20,11 +20,7 @@ import {
 import { type CesiumWidget } from "@carma-cesium";
 import { type SerializedCameraStateHeadingPitchRoll } from "@carma-mapping/engines/cesium/core";
 import { PI_OVER_TWO } from "@carma-commons/math";
-import {
-  degToRadNumeric,
-  negativePiToPi,
-  radToDegNumeric,
-} from "@carma-units";
+import { degToRadNumeric, negativePiToPi, radToDegNumeric } from "@carma-units";
 
 import { initializeTerrainProviders } from "../../map-engine-switcher/helpers/cesium-setup";
 import {

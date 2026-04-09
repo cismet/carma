@@ -12,7 +12,7 @@ describe("formatLengthMeters", () => {
       formatLengthMeters(1234.56, {
         locale: "en-US",
       })
-    ).toBe("1.23 km");
+    ).toBe("1.23 km");
   });
 
   it("supports explicit meter mode", () => {
@@ -22,7 +22,7 @@ describe("formatLengthMeters", () => {
         maximumFractionDigitsMeters: 1,
         unitMode: LENGTH_UNIT_MODE.METERS,
       })
-    ).toBe("12.3 m");
+    ).toBe("12.3 m");
   });
 });
 
@@ -82,13 +82,13 @@ describe("formatLengthMetersScientificParts", () => {
       coefficient: "0",
       exponent: null,
       unit: "m",
-      text: "0 m",
+      text: "0 m",
     });
     expect(formatLengthMetersScientificParts(Number.NaN)).toEqual({
       coefficient: "NaN",
       exponent: null,
       unit: "m",
-      text: "NaN m",
+      text: "NaN m",
     });
   });
 });

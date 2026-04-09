@@ -1,17 +1,15 @@
-import {
-  Cartesian3,
-} from "@carma-cesium";
-import {
-  cartesian3FromGeographicCoordinate,
-} from "@carma-mapping/engines/cesium/core";
+import { faCrosshairs, faTrashCan } from "@fortawesome/free-solid-svg-icons";
+import { Cartesian3 } from "@carma-cesium";
+import { cartesian3FromGeographicCoordinate } from "@carma-mapping/engines/cesium/core";
 import {
   formatAreaSquareMetersAdaptive,
   formatDegrees,
   formatLengthMeters,
-  LENGTH_UNIT_MODE,
 } from "@carma-units";
 
+import { RuntimeAnnotationInfoBoxActionIcon } from "../../components/annotation-info-box/RuntimeAnnotationInfoBoxActionIcon";
 import { RuntimeAnnotationInfoBoxNavigation } from "../../components/annotation-info-box/RuntimeAnnotationInfoBoxNavigation";
+import { RuntimeAnnotationInfoBoxTitleInput } from "../../components/annotation-info-box/RuntimeAnnotationInfoBoxTitleInput";
 import type { RuntimeAnnotationInfoBoxContext } from "../../components/annotation-info-box/annotationInfoBox.types";
 import { resolveRuntimeMeasurementNavigation } from "../../components/annotation-info-box/runtimeMeasurementNavigation";
 import { resolveMeasurementCoordinates } from "../../render/resolveMeasurementCoordinates";
@@ -56,8 +54,14 @@ export const createNodeChainAreaToolInfoBoxSlots = (
   return ({
     annotation,
     annotationEntries,
+    flyToAllAnnotations,
+    formatOptions,
+    focusAnnotationId,
     nodes,
-    setSelectedAnnotationId,
+    removeAnnotationById,
+    updateAnnotationDisplayName,
+    updateAnnotationShortLabel,
+    infoBoxVisualOptions,
   }: RuntimeAnnotationInfoBoxContext) => {
     if (annotation.toolType !== toolType) {
       return null;
@@ -77,38 +81,86 @@ export const createNodeChainAreaToolInfoBoxSlots = (
     const navigation = resolveRuntimeMeasurementNavigation({
       annotationEntries,
       selectedAnnotationId: annotation.id,
-      setSelectedAnnotationId,
+      focusAnnotationId,
+      flyToAllAnnotations,
     });
     const perimeterMeters = computePerimeterMeters(coordinates);
     const areaSquareMeters = Math.max(0, annotation.areaSquareMeters ?? 0);
     const verticalityDeg = annotation.verticalityDeg;
     const bearingDeg = annotation.bearingDeg;
+    const shortLabelToken = formatMeasurementLabelToken(measurementOrder);
+    const defaultDisplayName = `${headingTitle} ${formatMeasurementLabelToken(
+      measurementOrder
+    )}`;
+    const effectiveShortLabel =
+      annotation.shortLabel?.trim() || shortLabelToken;
 
     return {
       headingTitle,
+      actions: (
+        <div className="flex items-center gap-2">
+          <RuntimeAnnotationInfoBoxActionIcon
+            title="Zur Messung fliegen"
+            icon={faCrosshairs}
+            onClick={(event) => {
+              event.stopPropagation();
+              focusAnnotationId(annotation.id);
+            }}
+            dataTestId="carma-v2-flyto-area-measurement-btn"
+            visualOptions={infoBoxVisualOptions}
+          />
+          <RuntimeAnnotationInfoBoxActionIcon
+            title="Löschen"
+            icon={faTrashCan}
+            onClick={(event) => {
+              event.stopPropagation();
+              removeAnnotationById(annotation.id);
+            }}
+            dataTestId="carma-v2-delete-area-measurement-btn"
+            visualOptions={infoBoxVisualOptions}
+          />
+        </div>
+      ),
       subtitle: (
-        <div className="text-[12px] leading-normal text-[#212529]">
-          {`${headingTitle} ${formatMeasurementLabelToken(measurementOrder)}`}
+        <div className={infoBoxVisualOptions.subtitleContainerClassName}>
+          <RuntimeAnnotationInfoBoxTitleInput
+            value={annotation.displayName ?? ""}
+            placeholder={defaultDisplayName}
+            onCommit={(nextValue) =>
+              updateAnnotationDisplayName(annotation.id, nextValue)
+            }
+            shortLabelValue={annotation.shortLabel ?? ""}
+            shortLabelPlaceholder={effectiveShortLabel}
+            onShortLabelCommit={(nextValue) =>
+              updateAnnotationShortLabel(annotation.id, nextValue)
+            }
+            visualOptions={infoBoxVisualOptions}
+          />
         </div>
       ),
       content: (
-        <div className="text-[12px] leading-normal text-[#212529]">
-          <div>{`Fläche: ${formatAreaSquareMetersAdaptive(areaSquareMeters, {
-            locale: "de-DE",
-          })}`}</div>
-          <div>{`Umfang: ${formatLengthMeters(perimeterMeters, {
-            locale: "de-DE",
-            unitMode: LENGTH_UNIT_MODE.METERS,
-          })}`}</div>
+        <div
+          className={`${infoBoxVisualOptions.bodyContainerClassName} ${infoBoxVisualOptions.bodyTextClassName}`}
+        >
+          <div>{`Fläche: ${formatAreaSquareMetersAdaptive(
+            areaSquareMeters,
+            formatOptions.areaSquareMeters
+          )}`}</div>
+          <div>{`Umfang: ${formatLengthMeters(
+            perimeterMeters,
+            formatOptions.lengthMeters
+          )}`}</div>
           {Number.isFinite(verticalityDeg) ? (
-            <div>{`Vertikalität: ${formatDegrees(verticalityDeg ?? 0, {
-              locale: "de-DE",
-            })}`}</div>
+            <div>{`Vertikalität: ${formatDegrees(
+              verticalityDeg ?? 0,
+              formatOptions.degrees
+            )}`}</div>
           ) : null}
           {Number.isFinite(bearingDeg) ? (
-            <div>{`Ausrichtung: ${formatDegrees(bearingDeg ?? 0, {
-              locale: "de-DE",
-            })}`}</div>
+            <div>{`Ausrichtung: ${formatDegrees(
+              bearingDeg ?? 0,
+              formatOptions.degrees
+            )}`}</div>
           ) : null}
         </div>
       ),
@@ -116,10 +168,12 @@ export const createNodeChainAreaToolInfoBoxSlots = (
         <RuntimeAnnotationInfoBoxNavigation
           totalEntries={navigation?.totalEntries ?? 0}
           currentIndex={navigation?.currentIndex ?? 0}
+          onFlyToAllMeasurements={navigation?.flyToAllMeasurements}
           onPreviousMeasurement={() =>
             navigation?.selectRelativeMeasurement(-1)
           }
           onNextMeasurement={() => navigation?.selectRelativeMeasurement(1)}
+          visualOptions={infoBoxVisualOptions}
         />
       ),
       collapsible: true,

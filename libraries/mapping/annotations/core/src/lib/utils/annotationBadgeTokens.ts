@@ -29,7 +29,7 @@ export const DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG: AnnotationShortLabelConfigMa
       prefix: "",
       counterStyle: "numeric",
       backgroundColor: "rgba(200, 200, 200, 0.92)",
-      textColor: "#111111",
+      textColor: "rgba(17, 24, 39, 0.9)",
     },
     [ANNOTATION_TYPE_DISTANCE]: {
       prefix: "",
@@ -41,7 +41,7 @@ export const DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG: AnnotationShortLabelConfigMa
       prefix: "L",
       counterStyle: "numeric",
       backgroundColor: "rgba(226, 178, 60, 0.95)",
-      textColor: "#111111",
+      textColor: "rgba(17, 24, 39, 0.9)",
     },
     [ANNOTATION_TYPE_AREA_GROUND]: {
       prefix: "A",

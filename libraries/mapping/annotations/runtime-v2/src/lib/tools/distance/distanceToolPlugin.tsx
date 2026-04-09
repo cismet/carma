@@ -64,7 +64,10 @@ export const distanceToolPlugin = createMeasurementToolPlugin({
       requestFinish: () => {
         const nextMeasurement = commitDistanceMeasurement({
           toolType,
-          coordinates: getDraftCoordinatesForTool(getState().draftState, toolType),
+          coordinates: getDraftCoordinatesForTool(
+            getState().draftState,
+            toolType
+          ),
           addAnnotation,
         });
 
@@ -155,7 +158,7 @@ export const distanceToolPlugin = createMeasurementToolPlugin({
     build: ({
       nodes,
       annotationEntries,
-      selectedAnnotationId,
+      selectedAnnotationIds,
       setSelectedAnnotationId,
       onNodeLongPress,
     }) => {
@@ -167,7 +170,7 @@ export const distanceToolPlugin = createMeasurementToolPlugin({
           formatMeasurementShortLabelToken(toolType, counter),
         nodes,
         measurements: annotationEntries,
-        selectedMeasurementId: selectedAnnotationId,
+        selectedMeasurementIds: selectedAnnotationIds,
         onMeasurementSelect: setSelectedAnnotationId,
         onNodeLongPress,
       });

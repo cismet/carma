@@ -9,10 +9,12 @@ import type {
   AnnotationsStoreState,
   RuntimeCoordinate,
   RuntimeAnnotationEntry,
+  RuntimeElevationDisplayMode,
   RuntimeEdge,
   RuntimeLabelAppearance,
   RuntimeNode,
 } from "./annotationsStore.types";
+import type { RuntimePointLabelCoordinateSelection } from "../render/measurementRenderModels";
 export type CreateInitialAnnotationsStoreStateOptions = {
   initialToolType?: RuntimeToolId;
   initialSelectionModeActive?: boolean;
@@ -41,6 +43,13 @@ export type RemoveAnnotationByIdPayload = {
   nextSelectedAnnotationId?: string | null;
 };
 
+export type RemoveAnnotationsByIdsPayload = {
+  annotationIds: readonly string[];
+  nextSelectedAnnotationId?: string | null;
+};
+
+export type SetSelectedAnnotationIdsPayload = readonly string[];
+
 export type UpdateNodeCoordinateByIdPayload = {
   nodeId: string;
   coordinate: RuntimeCoordinate;
@@ -54,8 +63,13 @@ export type SetAnnotationTemporaryByIdPayload = {
 export type UpdateAnnotationEntryByIdPayload = {
   annotationId: string;
   displayName?: string;
+  shortLabel?: string;
   labelAppearance?: RuntimeLabelAppearance;
+  elevationDisplayMode?: RuntimeElevationDisplayMode;
+  distanceAnchorCoordinateSelection?: RuntimePointLabelCoordinateSelection;
 };
+
+export type SetElevationReferenceAnnotationIdPayload = string | null;
 
 const UNSET_TOOL_TYPE = "__unset__" as RuntimeToolId;
 
@@ -85,6 +99,7 @@ export const createInitialAnnotationsStoreState = (
     },
     settingsState: {
       pointTemporaryMode: initialPointTemporaryMode,
+      elevationReferenceAnnotationId: null,
     },
     draftState: {
       draftCoordinatesByToolType: {},
@@ -108,6 +123,12 @@ const annotationsSlice = createSlice({
     setPointTemporaryMode: (state, action: PayloadAction<boolean>) => {
       state.settingsState.pointTemporaryMode = action.payload;
     },
+    setElevationReferenceAnnotationId: (
+      state,
+      action: PayloadAction<SetElevationReferenceAnnotationIdPayload>
+    ) => {
+      state.settingsState.elevationReferenceAnnotationId = action.payload;
+    },
     setSelectedAnnotationId: (state, action: PayloadAction<string | null>) => {
       const nextSelectedAnnotationId = action.payload;
       const previousSelectedAnnotationId =
@@ -121,6 +142,24 @@ const annotationsSlice = createSlice({
         ? [nextSelectedAnnotationId]
         : [];
       state.infoBoxState.activeAnnotationId = nextSelectedAnnotationId;
+    },
+    setSelectedAnnotationIds: (
+      state,
+      action: PayloadAction<SetSelectedAnnotationIdsPayload>
+    ) => {
+      const nextSelectedAnnotationIds = Array.from(
+        new Set(action.payload.filter(Boolean))
+      );
+      const previousSelectedAnnotationId =
+        state.selectionState.selectedAnnotationIds[
+          state.selectionState.selectedAnnotationIds.length - 1
+        ] ?? null;
+
+      state.selectionState.previousSelectedAnnotationId =
+        previousSelectedAnnotationId;
+      state.selectionState.selectedAnnotationIds = nextSelectedAnnotationIds;
+      state.infoBoxState.activeAnnotationId =
+        nextSelectedAnnotationIds[nextSelectedAnnotationIds.length - 1] ?? null;
     },
     appendAnnotationEntities: (
       state,
@@ -197,6 +236,9 @@ const annotationsSlice = createSlice({
       state.edges = state.edges.filter((edge) => usedEdgeIds.has(edge.id));
 
       state.selectionState.previousSelectedAnnotationId = previousSelectionId;
+      if (state.settingsState.elevationReferenceAnnotationId === annotationId) {
+        state.settingsState.elevationReferenceAnnotationId = null;
+      }
 
       if (nextSelectedAnnotationId !== undefined) {
         state.selectionState.selectedAnnotationIds = nextSelectedAnnotationId
@@ -210,6 +252,84 @@ const annotationsSlice = createSlice({
       const nextSelectedAnnotationIds =
         state.selectionState.selectedAnnotationIds.filter(
           (selectedAnnotationId) => selectedAnnotationId !== annotationId
+        );
+      state.selectionState.selectedAnnotationIds = nextSelectedAnnotationIds;
+      state.infoBoxState.activeAnnotationId =
+        nextSelectedAnnotationIds[nextSelectedAnnotationIds.length - 1] ?? null;
+    },
+    removeAnnotationsByIds: (
+      state,
+      action: PayloadAction<RemoveAnnotationsByIdsPayload>
+    ) => {
+      const annotationIdSet = new Set(action.payload.annotationIds);
+      if (annotationIdSet.size === 0) {
+        return;
+      }
+
+      const previousSelectionId =
+        state.selectionState.selectedAnnotationIds[
+          state.selectionState.selectedAnnotationIds.length - 1
+        ] ?? null;
+      const hasAnyTarget = state.annotationEntries.some((annotationEntry) =>
+        annotationIdSet.has(annotationEntry.id)
+      );
+      if (!hasAnyTarget) {
+        return;
+      }
+
+      state.annotationEntries = state.annotationEntries.filter(
+        (annotationEntry) => !annotationIdSet.has(annotationEntry.id)
+      );
+      Object.keys(state.draftState.pendingAnnotationIdByToolType).forEach(
+        (toolType) => {
+          if (
+            annotationIdSet.has(
+              state.draftState.pendingAnnotationIdByToolType[
+                toolType as RuntimeToolId
+              ] ?? ""
+            )
+          ) {
+            delete state.draftState.pendingAnnotationIdByToolType[
+              toolType as RuntimeToolId
+            ];
+          }
+        }
+      );
+
+      const usedNodeIds = new Set(
+        state.annotationEntries.flatMap(
+          (annotationEntry) => annotationEntry.nodeIds
+        )
+      );
+      const usedEdgeIds = new Set(
+        state.annotationEntries.flatMap(
+          (annotationEntry) => annotationEntry.edgeIds
+        )
+      );
+
+      state.nodes = state.nodes.filter((node) => usedNodeIds.has(node.id));
+      state.edges = state.edges.filter((edge) => usedEdgeIds.has(edge.id));
+      state.selectionState.previousSelectedAnnotationId = previousSelectionId;
+      if (
+        state.settingsState.elevationReferenceAnnotationId &&
+        annotationIdSet.has(state.settingsState.elevationReferenceAnnotationId)
+      ) {
+        state.settingsState.elevationReferenceAnnotationId = null;
+      }
+
+      if (action.payload.nextSelectedAnnotationId !== undefined) {
+        state.selectionState.selectedAnnotationIds = action.payload
+          .nextSelectedAnnotationId
+          ? [action.payload.nextSelectedAnnotationId]
+          : [];
+        state.infoBoxState.activeAnnotationId =
+          action.payload.nextSelectedAnnotationId ?? null;
+        return;
+      }
+
+      const nextSelectedAnnotationIds =
+        state.selectionState.selectedAnnotationIds.filter(
+          (annotationId) => !annotationIdSet.has(annotationId)
         );
       state.selectionState.selectedAnnotationIds = nextSelectedAnnotationIds;
       state.infoBoxState.activeAnnotationId =
@@ -243,7 +363,14 @@ const annotationsSlice = createSlice({
       state,
       action: PayloadAction<UpdateAnnotationEntryByIdPayload>
     ) => {
-      const { annotationId, displayName, labelAppearance } = action.payload;
+      const {
+        annotationId,
+        displayName,
+        shortLabel,
+        labelAppearance,
+        elevationDisplayMode,
+        distanceAnchorCoordinateSelection,
+      } = action.payload;
       const targetEntry = state.annotationEntries.find(
         (entry) => entry.id === annotationId
       );
@@ -255,11 +382,24 @@ const annotationsSlice = createSlice({
         targetEntry.displayName = displayName;
       }
 
+      if (shortLabel !== undefined) {
+        targetEntry.shortLabel = shortLabel;
+      }
+
       if (labelAppearance !== undefined) {
         targetEntry.labelAppearance = {
           ...(targetEntry.labelAppearance ?? {}),
           ...labelAppearance,
         };
+      }
+
+      if (elevationDisplayMode !== undefined) {
+        targetEntry.elevationDisplayMode = elevationDisplayMode;
+      }
+
+      if (distanceAnchorCoordinateSelection !== undefined) {
+        targetEntry.distanceAnchorCoordinateSelection =
+          distanceAnchorCoordinateSelection;
       }
     },
     finalizeTemporaryAnnotationsByToolType: (
@@ -338,7 +478,9 @@ export const {
   clearDraftCoordinatesByToolType,
   finalizeTemporaryAnnotationsByToolType,
   removeAnnotationById,
+  removeAnnotationsByIds,
   setAnnotationTemporaryById,
+  setElevationReferenceAnnotationId,
   setPointTemporaryMode,
   updateNodeCoordinateById,
   updateAnnotationEntryById,
@@ -348,6 +490,7 @@ export const {
   setDraftCoordinatesByToolType,
   setPendingAnnotationIdByToolType,
   setSelectedAnnotationId,
+  setSelectedAnnotationIds,
 } = annotationsSlice.actions;
 
 export const createAnnotationsStore = (initialState: AnnotationsStoreState) =>
