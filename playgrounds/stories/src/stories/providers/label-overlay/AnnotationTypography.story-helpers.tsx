@@ -13,16 +13,23 @@ import {
 } from "@carma-mapping/annotations/runtime-v2";
 import { formatLengthMeters, LENGTH_UNIT_MODE } from "@carma-units";
 
-import "../../../../../../libraries/mapping/annotations/runtime-v2/src/lib/interaction/preview-line-label.css";
+import "../../../../../../libraries/mapping/annotations/runtime-v2/src/lib/interaction/annotation-overlay-line-label.css";
 import { CenteredStoryFrame } from "../../common/ui/centered-story-frame";
+import {
+  LABEL_STORY_BACKGROUND_MODES,
+  readStoryBackground,
+  readStoryBackgroundStyle,
+} from "./LabelMarkers.story-helpers";
 
 const ROOT_BACKGROUND_STYLE: CSSProperties = {
   background: "linear-gradient(180deg, #edf1f4 0%, #f7f8fa 38%, #eef2f4 100%)",
 };
 
+const TYPOGRAPHY_OVERLAY_BACKGROUND_MODE = LABEL_STORY_BACKGROUND_MODES.URBAN;
+
 const GRID_STYLE: CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "minmax(320px, 1.15fr) minmax(320px, 1fr)",
+  gridTemplateColumns: "repeat(auto-fit, minmax(min(360px, 100%), 1fr))",
   gap: 24,
   alignItems: "start",
 };
@@ -47,33 +54,33 @@ const PANEL_TITLE_STYLE: CSSProperties = {
 
 const OVERLAY_CANVAS_STYLE: CSSProperties = {
   position: "relative",
-  minHeight: 280,
+  minHeight: 320,
   overflow: "hidden",
-  background:
-    "linear-gradient(180deg, rgba(251, 252, 253, 0.96), rgba(243, 246, 248, 0.98))",
+  background: readStoryBackground(TYPOGRAPHY_OVERLAY_BACKGROUND_MODE),
+  ...(readStoryBackgroundStyle(TYPOGRAPHY_OVERLAY_BACKGROUND_MODE) ?? {}),
   border: "1px solid rgba(148, 163, 184, 0.22)",
 };
 
 const OVERLAY_LINE_STYLE: CSSProperties = {
   position: "absolute",
-  left: 48,
-  right: 48,
+  left: 24,
+  right: 24,
   top: 72,
   borderTop: "1px dashed rgba(71, 85, 105, 0.38)",
 };
 
 const OVERLAY_LINE_SECONDARY_STYLE: CSSProperties = {
   position: "absolute",
-  left: 84,
-  right: 64,
-  top: 194,
+  left: 28,
+  right: 28,
+  top: 216,
   borderTop: "1px dashed rgba(71, 85, 105, 0.28)",
 };
 
 const METRICS_GRID_STYLE: CSSProperties = {
   display: "grid",
   gap: 10,
-  gridTemplateColumns: "minmax(180px, 1.2fr) minmax(170px, 1fr)",
+  gridTemplateColumns: "minmax(140px, 0.9fr) minmax(180px, 1.2fr)",
   alignItems: "center",
   background: "rgba(255, 255, 255, 0.78)",
   border: "1px solid rgba(148, 163, 184, 0.18)",
@@ -250,29 +257,30 @@ const PreviewLineLabelSpecimen = ({
   theme: PreviewLineLabelTheme;
 }) => (
   <div
-    className="carma-preview-line-label"
-    data-preview-line-label-theme={theme}
+    className="carma-annotation-overlay-line-label"
+    data-annotation-overlay-line-label-theme={theme}
     style={
       {
         position: "absolute",
-        left: 240,
+        left: "clamp(170px, 52%, 300px)",
         top: 72,
         display: "block",
         transform: "translate(-50%, -50%)",
-        "--carma-preview-line-label-font-family": fontFamily,
-        "--carma-preview-line-label-font-weight": `${fontWeight}`,
+        "--carma-annotation-overlay-line-label-font-family": fontFamily,
+        "--carma-annotation-overlay-line-label-font-size": `${fontSizePx}px`,
+        "--carma-annotation-overlay-line-label-font-weight": `${fontWeight}`,
       } as CSSProperties
     }
   >
-    <span className="carma-preview-line-label__frame">
+    <span className="carma-annotation-overlay-line-label__frame">
       <span
-        className="carma-preview-line-label__backdrop"
-        data-preview-line-label-background-style={
+        className="carma-annotation-overlay-line-label__backdrop"
+        data-annotation-overlay-line-label-background-style={
           PREVIEW_LINE_LABEL_BACKGROUND_STYLE.SOFT_RECT_FADE
         }
       />
       <span
-        className="carma-preview-line-label__text"
+        className="carma-annotation-overlay-line-label__text"
         style={{ fontSize: fontSizePx }}
       >
         {text}
@@ -360,13 +368,16 @@ const OverlayTypographyPanel = ({
         theme={args.lineLabelTheme}
       />
       <div style={OVERLAY_LINE_SECONDARY_STYLE} />
-      <div style={{ position: "absolute", left: 118, top: 204 }}>
+      <div
+        style={{
+          position: "absolute",
+          left: "clamp(56px, 22%, 132px)",
+          top: 226,
+        }}
+      >
         <PointLabel
           content={FORMATTED_ELEVATION}
-          compactContent="8"
-          fontSize={`${args.rootFontSizePx}px`}
-          fontFamily={args.fontFamily}
-          fontWeight={args.badgeFontWeight}
+          badgeContent="8"
           textBackgroundColor={POINT_LABEL_TEXT_BACKGROUND_COLOR}
           markerBackgroundColor="rgba(230, 231, 235, 0.94)"
           markerTextColor="#111827"
@@ -378,13 +389,16 @@ const OverlayTypographyPanel = ({
           selected={false}
         />
       </div>
-      <div style={{ position: "absolute", left: 398, top: 126 }}>
+      <div
+        style={{
+          position: "absolute",
+          left: "clamp(210px, 66%, 432px)",
+          top: 140,
+        }}
+      >
         <PointLabel
           content={FORMATTED_RELATIVE_HEIGHT_SHORT}
-          compactContent="11111"
-          fontSize={`${args.rootFontSizePx}px`}
-          fontFamily={args.fontFamily}
-          fontWeight={args.badgeFontWeight}
+          badgeContent="11111"
           textBackgroundColor="rgba(255, 248, 204, 0.75)"
           markerBackgroundColor="rgba(252, 211, 77, 0.96)"
           markerTextColor="#111827"

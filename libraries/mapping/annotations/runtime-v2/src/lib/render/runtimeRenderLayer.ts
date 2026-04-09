@@ -83,20 +83,17 @@ const arePointLabelsEqual = (
       label.id === otherLabel.id &&
       label.measurementId === otherLabel.measurementId &&
       label.nodeId === otherLabel.nodeId &&
+      label.pointMarkerId === otherLabel.pointMarkerId &&
       areCoordinatesEqual(label.coordinate, otherLabel.coordinate) &&
       label.markerPixelSize === otherLabel.markerPixelSize &&
       label.anchorKind === otherLabel.anchorKind &&
       label.occlusionMode === otherLabel.occlusionMode &&
       label.content === otherLabel.content &&
-      label.markerContent === otherLabel.markerContent &&
-      label.compactContent === otherLabel.compactContent &&
+      label.badgeContent === otherLabel.badgeContent &&
       label.markerBackgroundColor === otherLabel.markerBackgroundColor &&
       label.markerTextColor === otherLabel.markerTextColor &&
       label.textBackgroundColor === otherLabel.textBackgroundColor &&
       label.textColor === otherLabel.textColor &&
-      label.fontSize === otherLabel.fontSize &&
-      label.fontFamily === otherLabel.fontFamily &&
-      label.fontWeight === otherLabel.fontWeight &&
       label.labelStyle === otherLabel.labelStyle &&
       label.hideMarker === otherLabel.hideMarker &&
       label.collapse === otherLabel.collapse &&

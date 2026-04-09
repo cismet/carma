@@ -1,6 +1,17 @@
 import { useEffect, useRef } from "react";
 
 import {
+  ANNOTATION_CURSOR_DEFAULT_AURA_PADDING_PX,
+  ANNOTATION_CURSOR_DEFAULT_PATH_DEFINITIONS,
+  ANNOTATION_CURSOR_DEFAULT_SHAPE_HALF_EXTENT_PX,
+  ANNOTATION_CURSOR_OVERLAY_OUTLINE_PX,
+  ANNOTATION_CURSOR_OVERLAY_SHADOW_BLEND_MODE,
+  ANNOTATION_CURSOR_OVERLAY_SHADOW_BLUR_RADIUS_PX,
+  ANNOTATION_CURSOR_OVERLAY_SHADOW_COLOR,
+  ANNOTATION_CURSOR_OVERLAY_STROKE_COLOR,
+  createAnnotationCursorLayeredDomElement,
+} from "@carma-commons/ui/components";
+import {
   getCesiumScenePointerClientPosition,
   registerCesiumScenePointerTracker,
   subscribeCesiumScenePointerClientPosition,
@@ -11,17 +22,11 @@ import type { RuntimeScene } from "../types/runtimeScene.types";
 const CURSOR_ROOT_SELECTOR = '[data-annotation-cursor-root="true"]';
 const CURSOR_LAYER_ID = "annotation-candidate-crosshair-layer";
 const ANNOTATION_CURSOR_OVERLAY_ID = "annotation-preview-crosshair";
-const CURSOR_STROKE_COLOR = "rgba(255, 255, 255, 0.96)";
-const CURSOR_CONTRAST_FILTER =
-  "drop-shadow(0 0 1px rgba(0, 0, 0, 1)) drop-shadow(0 0 2px rgba(0, 0, 0, 0.95))";
-const CURSOR_THICKNESS_PX = 3;
-const CURSOR_CENTER_DOT_SIZE_PX = 1;
-const CURSOR_CENTER_GAP_PX = 5;
-const CURSOR_FAR_DASH_LENGTH_PX = 12;
-const CURSOR_INNER_TIP_PX = CURSOR_THICKNESS_PX / 2;
-const CURSOR_HALF_EXTENT_PX = CURSOR_CENTER_GAP_PX + CURSOR_FAR_DASH_LENGTH_PX;
-const CURSOR_SIZE_PX = CURSOR_HALF_EXTENT_PX * 2 + CURSOR_CENTER_DOT_SIZE_PX;
-const CURSOR_CENTER_PX = CURSOR_HALF_EXTENT_PX;
+const CURSOR_CANVAS_HALF_EXTENT_PX =
+  ANNOTATION_CURSOR_DEFAULT_SHAPE_HALF_EXTENT_PX +
+  ANNOTATION_CURSOR_DEFAULT_AURA_PADDING_PX;
+const CURSOR_CANVAS_SIZE_PX = CURSOR_CANVAS_HALF_EXTENT_PX * 2;
+const CURSOR_VIEW_BOX = `${-CURSOR_CANVAS_HALF_EXTENT_PX} ${-CURSOR_CANVAS_HALF_EXTENT_PX} ${CURSOR_CANVAS_SIZE_PX} ${CURSOR_CANVAS_SIZE_PX}`;
 
 type AnnotationCursorOverlayOptions = {
   enabled?: boolean;
@@ -41,114 +46,24 @@ const applyStyles = (
   Object.assign(element.style, styles);
 };
 
-const createCursorStroke = (
-  styles: Partial<CSSStyleDeclaration>,
-  key: string
-) => {
-  const element = document.createElement("div");
-  element.dataset.cursorPart = key;
-  applyStyles(element, styles);
-  return element;
-};
-
 const createCursorElement = () => {
-  const element = document.createElement("div");
+  const element = createAnnotationCursorLayeredDomElement({
+    canvasSizePx: CURSOR_CANVAS_SIZE_PX,
+    foregroundBlendMode: "normal",
+    foregroundFill: ANNOTATION_CURSOR_OVERLAY_STROKE_COLOR,
+    pathDefinitions: ANNOTATION_CURSOR_DEFAULT_PATH_DEFINITIONS,
+    shadowBlendMode: ANNOTATION_CURSOR_OVERLAY_SHADOW_BLEND_MODE,
+    shadowBlurPx: ANNOTATION_CURSOR_OVERLAY_SHADOW_BLUR_RADIUS_PX,
+    shadowStrokeColor: ANNOTATION_CURSOR_OVERLAY_SHADOW_COLOR,
+    shadowStrokeLinejoin: "round",
+    shadowStrokeWidth: Math.max(ANNOTATION_CURSOR_OVERLAY_OUTLINE_PX, 0) * 2,
+    showAura: true,
+    viewBox: CURSOR_VIEW_BOX,
+  });
   element.id = ANNOTATION_CURSOR_OVERLAY_ID;
   applyStyles(element, {
-    position: "absolute",
-    left: "0",
-    top: "0",
-    width: `${CURSOR_SIZE_PX}px`,
-    height: `${CURSOR_SIZE_PX}px`,
-    pointerEvents: "none",
     display: "none",
-    filter: CURSOR_CONTRAST_FILTER,
-    willChange: "transform",
   });
-
-  const strokeStyle = {
-    backgroundColor: CURSOR_STROKE_COLOR,
-  };
-
-  element.appendChild(
-    createCursorStroke(
-      {
-        position: "absolute",
-        left: `${CURSOR_CENTER_PX}px`,
-        top: `${CURSOR_CENTER_PX}px`,
-        width: `${CURSOR_CENTER_DOT_SIZE_PX}px`,
-        height: `${CURSOR_CENTER_DOT_SIZE_PX}px`,
-        transform: "translate(-50%, -50%)",
-        ...strokeStyle,
-      },
-      "center-dot"
-    )
-  );
-  element.appendChild(
-    createCursorStroke(
-      {
-        position: "absolute",
-        left: `${CURSOR_CENTER_PX + CURSOR_CENTER_GAP_PX}px`,
-        top: `${CURSOR_CENTER_PX}px`,
-        width: `${CURSOR_FAR_DASH_LENGTH_PX}px`,
-        height: `${CURSOR_THICKNESS_PX}px`,
-        transform: "translateY(-50%)",
-        clipPath: `polygon(0 50%, ${CURSOR_INNER_TIP_PX}px 0, 100% 0, 100% 100%, ${CURSOR_INNER_TIP_PX}px 100%)`,
-        ...strokeStyle,
-      },
-      "h-right-dash"
-    )
-  );
-  element.appendChild(
-    createCursorStroke(
-      {
-        position: "absolute",
-        left: `${
-          CURSOR_CENTER_PX - CURSOR_CENTER_GAP_PX - CURSOR_FAR_DASH_LENGTH_PX
-        }px`,
-        top: `${CURSOR_CENTER_PX}px`,
-        width: `${CURSOR_FAR_DASH_LENGTH_PX}px`,
-        height: `${CURSOR_THICKNESS_PX}px`,
-        transform: "translateY(-50%)",
-        clipPath: `polygon(0 0, calc(100% - ${CURSOR_INNER_TIP_PX}px) 0, 100% 50%, calc(100% - ${CURSOR_INNER_TIP_PX}px) 100%, 0 100%)`,
-        ...strokeStyle,
-      },
-      "h-left-dash"
-    )
-  );
-  element.appendChild(
-    createCursorStroke(
-      {
-        position: "absolute",
-        left: `${CURSOR_CENTER_PX}px`,
-        top: `${CURSOR_CENTER_PX + CURSOR_CENTER_GAP_PX}px`,
-        width: `${CURSOR_THICKNESS_PX}px`,
-        height: `${CURSOR_FAR_DASH_LENGTH_PX}px`,
-        transform: "translateX(-50%)",
-        clipPath: `polygon(0 ${CURSOR_INNER_TIP_PX}px, 50% 0, 100% ${CURSOR_INNER_TIP_PX}px, 100% 100%, 0 100%)`,
-        ...strokeStyle,
-      },
-      "v-bottom-dash"
-    )
-  );
-  element.appendChild(
-    createCursorStroke(
-      {
-        position: "absolute",
-        left: `${CURSOR_CENTER_PX}px`,
-        top: `${
-          CURSOR_CENTER_PX - CURSOR_CENTER_GAP_PX - CURSOR_FAR_DASH_LENGTH_PX
-        }px`,
-        width: `${CURSOR_THICKNESS_PX}px`,
-        height: `${CURSOR_FAR_DASH_LENGTH_PX}px`,
-        transform: "translateX(-50%)",
-        clipPath: `polygon(0 0, 100% 0, 100% calc(100% - ${CURSOR_INNER_TIP_PX}px), 50% 100%, 0 calc(100% - ${CURSOR_INNER_TIP_PX}px))`,
-        ...strokeStyle,
-      },
-      "v-top-dash"
-    )
-  );
-
   return element;
 };
 

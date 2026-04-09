@@ -13,6 +13,8 @@ type DraggableDebugAnchorProps = {
   color: string;
   containerRef: RefObject<HTMLElement | null>;
   onChange: (nextPosition: CssPixelPosition) => void;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
   sizePx?: number;
   zIndex?: number;
   lineOpacity?: number;
@@ -60,6 +62,8 @@ const DraggableDebugAnchor = ({
   color,
   containerRef,
   onChange,
+  onDragStart,
+  onDragEnd,
   sizePx = DEFAULT_SIZE_PX,
   zIndex = DEFAULT_Z_INDEX,
   lineOpacity = DEFAULT_LINE_OPACITY,
@@ -117,11 +121,12 @@ const DraggableDebugAnchor = ({
       event.stopPropagation();
       isDraggingRef.current = false;
       restoreNativeCursor();
+      onDragEnd?.();
       if (event.currentTarget.hasPointerCapture(event.pointerId)) {
         event.currentTarget.releasePointerCapture(event.pointerId);
       }
     },
-    [restoreNativeCursor]
+    [onDragEnd, restoreNativeCursor]
   );
 
   return (
@@ -133,6 +138,7 @@ const DraggableDebugAnchor = ({
         event.stopPropagation();
         isDraggingRef.current = true;
         hideNativeCursor();
+        onDragStart?.();
         event.currentTarget.setPointerCapture(event.pointerId);
         updateFromPointer(event);
       }}
@@ -147,6 +153,7 @@ const DraggableDebugAnchor = ({
       onLostPointerCapture={() => {
         isDraggingRef.current = false;
         restoreNativeCursor();
+        onDragEnd?.();
       }}
       style={{
         ...baseAnchorStyle,

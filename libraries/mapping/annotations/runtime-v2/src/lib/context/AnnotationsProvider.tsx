@@ -80,7 +80,11 @@ import {
   type AnnotationsRuntimePersistenceEnvelope,
 } from "../persistence/annotationsRuntimePersistence";
 import { RUNTIME_POINT_LABEL_COORDINATE_SELECTION } from "../render/measurementRenderModels";
-import { resolveDistanceTriangleAnchorCoordinateSelection } from "../render/runtimeDistanceTriangleOverlay";
+import {
+  resolveDistanceTriangleAnchorCoordinateRole,
+  resolveDistanceTriangleAnchorCoordinateSelection,
+  resolveOppositeDistanceTriangleAnchorCoordinateRole,
+} from "../render/runtimeDistanceTriangleOverlay";
 import type {
   AnnotationToolPreviewController,
   AnnotationToolPreviewSample,
@@ -833,21 +837,24 @@ const RuntimeVisualizationHost = ({
         return;
       }
 
+      const coordinates = targetEntry.nodeIds
+        .map(
+          (nodeId) =>
+            annotationsStore.getState().nodes.find((node) => node.id === nodeId)
+              ?.coordinate ?? null
+        )
+        .filter((coordinate): coordinate is RuntimeCoordinate =>
+          Boolean(coordinate)
+        );
+
+      const currentTriangleAnchorCoordinateRole =
+        targetEntry.distanceTriangleAnchorCoordinateRole ??
+        resolveDistanceTriangleAnchorCoordinateRole(coordinates);
+
       const nextSelection =
         (targetEntry.distanceAnchorCoordinateSelection ??
-          resolveDistanceTriangleAnchorCoordinateSelection(
-            targetEntry.nodeIds
-              .map(
-                (nodeId) =>
-                  annotationsStore
-                    .getState()
-                    .nodes.find((node) => node.id === nodeId)?.coordinate ??
-                  null
-              )
-              .filter((coordinate): coordinate is RuntimeCoordinate =>
-                Boolean(coordinate)
-              )
-          )) === RUNTIME_POINT_LABEL_COORDINATE_SELECTION.LEFTMOST_SCREEN_SPACE
+          resolveDistanceTriangleAnchorCoordinateSelection(coordinates)) ===
+        RUNTIME_POINT_LABEL_COORDINATE_SELECTION.LEFTMOST_SCREEN_SPACE
           ? RUNTIME_POINT_LABEL_COORDINATE_SELECTION.RIGHTMOST_SCREEN_SPACE
           : RUNTIME_POINT_LABEL_COORDINATE_SELECTION.LEFTMOST_SCREEN_SPACE;
 
@@ -855,6 +862,10 @@ const RuntimeVisualizationHost = ({
         updateAnnotationEntryById({
           annotationId: measurementId,
           distanceAnchorCoordinateSelection: nextSelection,
+          distanceTriangleAnchorCoordinateRole:
+            resolveOppositeDistanceTriangleAnchorCoordinateRole(
+              currentTriangleAnchorCoordinateRole
+            ),
         })
       );
     },
@@ -923,8 +934,6 @@ const RuntimeVisualizationHost = ({
     nodes,
     formatOptions,
     registry.plugins,
-    selectedAnnotationId,
-    selectedAnnotationIds,
     setSelectedAnnotationId,
     setElevationReferenceAnnotationId,
     toggleAnnotationElevationDisplayMode,

@@ -184,7 +184,7 @@ export const buildVerticalAreaToolRenderModels = (
             coordinate,
             markerPixelSize: pointVisuals.pixelSize,
             content: badgeText,
-            markerContent: badgeText,
+            badgeContent: badgeText,
             markerBackgroundColor: badgeStyle.backgroundColor,
             markerTextColor: badgeStyle.textColor,
             selected: selectedMeasurementIdSet.has(measurement.id),
@@ -223,7 +223,6 @@ export const buildVerticalAreaToolRenderModels = (
             Math.max(0, measurement.areaSquareMeters ?? 0),
             formatOptions.areaSquareMeters
           ),
-          markerContent: undefined,
           selected: selectedMeasurementIdSet.has(measurement.id),
           hideLabelAndStem: false,
           onClick: onMeasurementSelect

@@ -9,11 +9,23 @@ import {
 } from "./PointLabel";
 
 describe("PointLabel", () => {
+  it("renders the shared label root with normal blend mode", () => {
+    const { container } = render(
+      <PointLabel content="NHN 179,74 m" hideMarker={true} />
+    );
+
+    const labelRoot = container.querySelector(
+      '[data-point-label-root="true"]'
+    ) as HTMLDivElement | null;
+
+    expect(labelRoot?.style.mixBlendMode).toBe("normal");
+  });
+
   it("anchors center-attached compact-only pills at the badge center", () => {
     const { container } = render(
       <PointLabel
         content=""
-        compactContent="14"
+        badgeContent="14"
         collapse={true}
         hideMarker={true}
         fontSize="10px"
@@ -25,7 +37,7 @@ describe("PointLabel", () => {
       '[data-pillbutton-root="true"]'
     ) as HTMLDivElement | null;
 
-    expect(pillRoot?.style.transform).toBe("translate(-10px, -50%)");
+    expect(pillRoot?.style.transform).toBe("translate(-50%, -50%)");
   });
 
   it("keeps extended center-attached pills centered on the full badge", () => {
@@ -46,11 +58,11 @@ describe("PointLabel", () => {
     expect(pillRoot?.style.transform).toBe("translate(-50%, -50%)");
   });
 
-  it("right-aligns extended text when the badge is mounted on the right", () => {
+  it("renders right-slot badges after the content segment", () => {
     const { container } = render(
       <PointLabel
         content="NHN 179,74 m"
-        compactContent="3"
+        badgeContent="3"
         hideMarker={true}
         fontSize="10px"
         labelAttach={POINT_LABEL_ATTACH.RIGHT}
@@ -58,54 +70,72 @@ describe("PointLabel", () => {
       />
     );
 
+    const pillRoot = container.querySelector(
+      '[data-pillbutton-root="true"]'
+    ) as HTMLDivElement | null;
     const pillContent = container.querySelector(
       '[data-pillbutton-content="true"]'
     ) as HTMLSpanElement | null;
+    const contentSegment = container.querySelector(
+      '[data-pillbutton-segment="content"]'
+    ) as HTMLSpanElement | null;
+    const endBadge = container.querySelector(
+      '[data-pillbutton-badge-slot="end"]'
+    ) as HTMLSpanElement | null;
 
-    expect(pillContent?.style.justifyContent).toBe("flex-end");
-    expect(pillContent?.style.textAlign).toBe("right");
+    expect(pillRoot).not.toBeNull();
+    expect(pillContent).not.toBeNull();
+    expect(contentSegment).not.toBeNull();
+    expect(endBadge).not.toBeNull();
+    expect(
+      (contentSegment as Node).compareDocumentPosition(endBadge as Node) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(pillRoot?.contains(endBadge)).toBe(true);
+    expect(pillContent?.contains(endBadge)).toBe(false);
   });
 
-  it("offsets extended content by the measured wide badge width", () => {
-    const scrollWidthGetter = vi
-      .spyOn(HTMLElement.prototype, "scrollWidth", "get")
-      .mockReturnValue(36);
-    const offsetHeightGetter = vi
-      .spyOn(HTMLElement.prototype, "offsetHeight", "get")
-      .mockReturnValue(19);
-
+  it("renders left-slot badges before the content segment", () => {
     const { container } = render(
       <PointLabel
         content="NHN 179,74 m"
-        compactContent="33333"
+        badgeContent="33333"
         hideMarker={true}
         fontSize="10px"
         labelAttach={POINT_LABEL_ATTACH.LEFT}
       />
     );
 
+    const pillRoot = container.querySelector(
+      '[data-pillbutton-root="true"]'
+    ) as HTMLDivElement | null;
     const pillContent = container.querySelector(
       '[data-pillbutton-content="true"]'
     ) as HTMLSpanElement | null;
+    const contentSegment = container.querySelector(
+      '[data-pillbutton-segment="content"]'
+    ) as HTMLSpanElement | null;
+    const startBadge = container.querySelector(
+      '[data-pillbutton-badge-slot="start"]'
+    ) as HTMLSpanElement | null;
 
-    expect(pillContent?.style.paddingLeft).toBe("calc(36px)");
-
-    scrollWidthGetter.mockRestore();
-    offsetHeightGetter.mockRestore();
+    expect(pillRoot).not.toBeNull();
+    expect(pillContent).not.toBeNull();
+    expect(contentSegment).not.toBeNull();
+    expect(startBadge).not.toBeNull();
+    expect(
+      (startBadge as Node).compareDocumentPosition(contentSegment as Node) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(pillRoot?.contains(startBadge)).toBe(true);
+    expect(pillContent?.contains(startBadge)).toBe(false);
   });
 
-  it("anchors left-attached wide badges at the inner right badge cap", () => {
-    const scrollWidthGetter = vi
-      .spyOn(HTMLElement.prototype, "scrollWidth", "get")
-      .mockReturnValue(36);
-    const offsetHeightGetter = vi
-      .spyOn(HTMLElement.prototype, "offsetHeight", "get")
-      .mockReturnValue(19);
-
+  it("anchors left-attached labels at the capsule left cap", () => {
     const { container } = render(
       <PointLabel
         content="-24,86 m"
-        compactContent="11111"
+        badgeContent="11111"
         hideMarker={true}
         fontSize="10px"
         labelAttach={POINT_LABEL_ATTACH.LEFT}
@@ -116,10 +146,103 @@ describe("PointLabel", () => {
       '[data-pillbutton-root="true"]'
     ) as HTMLDivElement | null;
 
-    expect(pillRoot?.style.transform).toBe("translate(-26px, -50%)");
+    expect(pillRoot?.style.transform).toBe("translate(-1em, -50%)");
+  });
 
-    scrollWidthGetter.mockRestore();
-    offsetHeightGetter.mockRestore();
+  it("keeps badge slots compact with short x padding", () => {
+    const { container } = render(
+      <PointLabel
+        content="NHN 179,74 m"
+        badgeContent="11111"
+        hideMarker={true}
+        fontSize="10px"
+        labelAttach={POINT_LABEL_ATTACH.LEFT}
+      />
+    );
+
+    const badge = container.querySelector(
+      '[data-pillbutton-badge="true"]'
+    ) as HTMLDivElement | null;
+
+    expect(badge?.style.minWidth).toBe("2em");
+    expect(badge?.style.padding).toBe("0px 0.35em");
+  });
+
+  it("scales regular label x padding with the configured font size while keeping y padding at zero", () => {
+    const { container } = render(
+      <PointLabel
+        content="NHN 179,74 m"
+        hideMarker={true}
+        fontSize="20px"
+        labelAttach={POINT_LABEL_ATTACH.LEFT}
+      />
+    );
+
+    const labelRoot = container.querySelector(
+      '[data-point-label-content-root="true"]'
+    ) as HTMLDivElement | null;
+
+    expect(labelRoot?.style.padding).toBe("0px 20px");
+  });
+
+  it("scales pill label x padding from half the computed label height", () => {
+    const { container } = render(
+      <PointLabel
+        content="NHN 179,74 m"
+        hideMarker={true}
+        fontSize="20px"
+        labelAttach={POINT_LABEL_ATTACH.LEFT}
+        labelStyle={POINT_LABEL_STYLE.CAPSULE}
+      />
+    );
+
+    const pillContent = container.querySelector(
+      '[data-pillbutton-segment="content"]'
+    ) as HTMLSpanElement | null;
+
+    expect(pillContent?.style.paddingRight).toBe("1em");
+    expect(pillContent?.style.paddingLeft).toBe("1em");
+  });
+
+  it("shortens leading content x padding when a left badge is present", () => {
+    const { container } = render(
+      <PointLabel
+        content="NHN 179,74 m"
+        badgeContent="3"
+        hideMarker={true}
+        fontSize="20px"
+        labelAttach={POINT_LABEL_ATTACH.LEFT}
+        labelStyle={POINT_LABEL_STYLE.CAPSULE}
+      />
+    );
+
+    const pillContent = container.querySelector(
+      '[data-pillbutton-segment="content"]'
+    ) as HTMLSpanElement | null;
+
+    expect(pillContent?.style.paddingLeft).toBe("0em");
+    expect(pillContent?.style.paddingRight).toBe("1em");
+  });
+
+  it("shortens trailing content x padding when a right badge is present", () => {
+    const { container } = render(
+      <PointLabel
+        content="NHN 179,74 m"
+        badgeContent="3"
+        hideMarker={true}
+        fontSize="20px"
+        labelAttach={POINT_LABEL_ATTACH.RIGHT}
+        badgePosition={PILLBUTTON_BADGE_POSITIONS.RIGHT}
+        labelStyle={POINT_LABEL_STYLE.CAPSULE}
+      />
+    );
+
+    const pillContent = container.querySelector(
+      '[data-pillbutton-segment="content"]'
+    ) as HTMLSpanElement | null;
+
+    expect(pillContent?.style.paddingLeft).toBe("1em");
+    expect(pillContent?.style.paddingRight).toBe("0em");
   });
 
   it("does not arm long press on the label shell when marker-only long press is enabled", () => {
@@ -127,7 +250,7 @@ describe("PointLabel", () => {
     const { container } = render(
       <PointLabel
         content="NHN 179,74 m"
-        compactContent="3"
+        badgeContent="3"
         hideMarker={false}
         fontSize="10px"
         labelAttach={POINT_LABEL_ATTACH.RIGHT}
@@ -152,7 +275,7 @@ describe("PointLabel", () => {
     const { container } = render(
       <PointLabel
         content="NHN 179,74 m"
-        compactContent="3"
+        badgeContent="3"
         hideMarker={true}
         fontSize="10px"
         labelAttach={POINT_LABEL_ATTACH.RIGHT}

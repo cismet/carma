@@ -21,7 +21,6 @@ export type PointLabelSlotsStoryArgs = {
   startAngleDeg: number;
   includeCenter: boolean;
   compareStrategies: boolean;
-  labelFontSizePx: number;
   showHelperRing: boolean;
   showStems: boolean;
 };
@@ -35,8 +34,6 @@ const COLLAPSED_FLYOUT_SCALE = 0.05;
 const RADIAL_FLYOUT_TRANSITION_MS = 110;
 const POINT_LABEL_TRANSITION_MS = 110;
 const RADIAL_FLYOUT_TRANSITION_EASING = "cubic-bezier(0.22, 1, 0.36, 1)";
-const SLOT_LABEL_FONT_FAMILY =
-  'ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 
 const SLOT_STORY_GRID_STYLE: CSSProperties = {
   display: "grid",
@@ -88,7 +85,6 @@ const SlotCanvas = ({
   slots,
   radiusPx,
   startAngleRad,
-  labelFontSizePx,
   showHelperRing,
   showStems,
 }: {
@@ -97,7 +93,6 @@ const SlotCanvas = ({
   slots: readonly PointLabelExpansionSlotDescriptor[];
   radiusPx: number;
   startAngleRad: Radians;
-  labelFontSizePx: number;
   showHelperRing: boolean;
   showStems: boolean;
 }) => {
@@ -113,7 +108,6 @@ const SlotCanvas = ({
   const effectiveFlyoutSlots =
     flyoutSlots.length > 0 ? flyoutSlots : sortedSlots;
   const aggregateCount = effectiveFlyoutSlots.length;
-  const resolvedLabelFontSizePx = Math.max(10, Math.round(labelFontSizePx));
   const startGuideX = VIEWBOX_CENTER + Math.cos(startAngleRad) * radiusPx;
   const startGuideY = VIEWBOX_CENTER + Math.sin(startAngleRad) * radiusPx;
 
@@ -200,7 +194,7 @@ const SlotCanvas = ({
           <PointLabel
             pointId={`slot-cluster-${heading}`}
             content={`${aggregateCount}`}
-            compactContent={`${aggregateCount}`}
+            badgeContent={`${aggregateCount}`}
             selected={expanded}
             hideMarker
             labelStyle="capsule"
@@ -213,9 +207,6 @@ const SlotCanvas = ({
             labelDistance={0}
             lineColor={SLOT_DEMO_COLORS.stemStroke}
             lineWidth={0}
-            fontFamily={SLOT_LABEL_FONT_FAMILY}
-            fontSize={`${resolvedLabelFontSizePx}px`}
-            fontWeight={700}
             textColor={SLOT_DEMO_COLORS.aggregateText}
             textBackgroundColor={SLOT_DEMO_COLORS.aggregateFill}
             selectedBackgroundColor={SLOT_DEMO_COLORS.aggregateFill}
@@ -255,7 +246,7 @@ const SlotCanvas = ({
               <PointLabel
                 pointId={`slot-${slot.id}`}
                 content={fullText}
-                compactContent={compactText}
+                badgeContent={compactText}
                 selected={expanded}
                 hideMarker
                 labelStyle="capsule"
@@ -268,9 +259,6 @@ const SlotCanvas = ({
                 labelDistance={expanded ? FLYOUT_LABEL_DISTANCE_OFFSET_PX : 0}
                 lineColor={SLOT_DEMO_COLORS.stemStroke}
                 lineWidth={showStems && expanded ? 1 : 0}
-                fontFamily={SLOT_LABEL_FONT_FAMILY}
-                fontSize={`${resolvedLabelFontSizePx}px`}
-                fontWeight={600}
                 textColor={SLOT_DEMO_COLORS.flyoutText}
                 textBackgroundColor={SLOT_DEMO_COLORS.flyoutFill}
                 selectedBackgroundColor={SLOT_DEMO_COLORS.flyoutSelectedFill}
@@ -391,7 +379,6 @@ export const POINT_LABEL_SLOTS_DEFAULT_ARGS: PointLabelSlotsStoryArgs = {
   startAngleDeg: -45,
   includeCenter: true,
   compareStrategies: false,
-  labelFontSizePx: 12,
   showHelperRing: false,
   showStems: false,
 };
@@ -414,9 +401,6 @@ export const POINT_LABEL_SLOTS_ARG_TYPES = {
   startAngleDeg: {
     control: { type: "range", min: -180, max: 180, step: 5 },
   },
-  labelFontSizePx: {
-    control: { type: "range", min: 10, max: 26, step: 1 },
-  },
   showHelperRing: {
     control: "boolean",
   },
@@ -437,7 +421,6 @@ export const PointLabelSlotPresetStory = ({
   preset,
   radiusPx,
   startAngleDeg,
-  labelFontSizePx,
   showHelperRing,
   showStems,
 }: PointLabelSlotsStoryArgs) => {
@@ -450,7 +433,6 @@ export const PointLabelSlotPresetStory = ({
     `preset ${preset}`,
     `radius ${radiusPx}px`,
     `start ${startAngleDeg}deg`,
-    `font ${labelFontSizePx}px`,
     `stems ${showStems ? "on" : "off"}`,
   ];
 
@@ -463,7 +445,6 @@ export const PointLabelSlotPresetStory = ({
           slots={slots}
           radiusPx={radiusPx}
           startAngleRad={startAngleRad}
-          labelFontSizePx={labelFontSizePx}
           showHelperRing={showHelperRing}
           showStems={showStems}
         />
@@ -479,7 +460,6 @@ export const PointLabelSlotGeneratorStory = ({
   radiusPx,
   startAngleDeg,
   includeCenter,
-  labelFontSizePx,
   showHelperRing,
   showStems,
 }: PointLabelSlotsStoryArgs) => {
@@ -510,7 +490,6 @@ export const PointLabelSlotGeneratorStory = ({
           slots={slots}
           radiusPx={radiusPx}
           startAngleRad={startAngleRad}
-          labelFontSizePx={labelFontSizePx}
           showHelperRing={showHelperRing}
           showStems={showStems}
         />
@@ -525,7 +504,6 @@ export const PointLabelSlotComparisonStory = ({
   radiusPx,
   startAngleDeg,
   includeCenter,
-  labelFontSizePx,
   showHelperRing,
   showStems,
 }: PointLabelSlotsStoryArgs) => {
@@ -591,7 +569,6 @@ export const PointLabelSlotComparisonStory = ({
             slots={equalHeightSlots}
             radiusPx={radiusPx}
             startAngleRad={startAngleRad}
-            labelFontSizePx={labelFontSizePx}
             showHelperRing={showHelperRing}
             showStems={showStems}
           />
@@ -601,7 +578,6 @@ export const PointLabelSlotComparisonStory = ({
             slots={equalAngleSlots}
             radiusPx={radiusPx}
             startAngleRad={startAngleRad}
-            labelFontSizePx={labelFontSizePx}
             showHelperRing={showHelperRing}
             showStems={showStems}
           />

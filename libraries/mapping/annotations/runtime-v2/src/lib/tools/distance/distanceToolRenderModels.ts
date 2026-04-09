@@ -10,6 +10,7 @@ import type {
 } from "../../render/measurementRenderModels";
 import { RUNTIME_POINT_LABEL_COORDINATE_SELECTION } from "../../render/measurementRenderModels";
 import {
+  resolveDistanceTriangleAnchorCoordinateRole,
   resolveDistanceTriangleAnchorCoordinateSelection,
   resolveOppositePointLabelCoordinateSelection,
 } from "../../render/runtimeDistanceTriangleOverlay";
@@ -83,9 +84,9 @@ export const buildDistanceToolRenderModels = ({
         coordinates,
         distanceTriangleOverlay: {
           measurementId: measurement.id,
-          anchorCoordinateSelection:
-            measurement.distanceAnchorCoordinateSelection ??
-            resolveDistanceTriangleAnchorCoordinateSelection(coordinates),
+          anchorCoordinateRole:
+            measurement.distanceTriangleAnchorCoordinateRole ??
+            resolveDistanceTriangleAnchorCoordinateRole(coordinates),
         },
         ...(selectedMeasurementIdSet.has(measurement.id)
           ? visuals.selectedEdge
@@ -154,7 +155,7 @@ export const buildDistanceToolRenderModels = ({
           preferredAttach,
           markerPixelSize: pointVisuals.pixelSize,
           content: badgeText,
-          markerContent: badgeText,
+          badgeContent: badgeText,
           markerBackgroundColor: badgeStyle.backgroundColor,
           markerTextColor: badgeStyle.textColor,
           selected: selectedMeasurementIdSet.has(measurement.id),

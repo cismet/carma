@@ -83,13 +83,10 @@ export const buildLabelToolRenderModels = ({
             ? visuals.selectedPoint.pixelSize
             : visuals.point.pixelSize,
           content: displayName,
-          compactContent: displayName,
+          badgeContent: displayName,
           textBackgroundColor:
             measurement.labelAppearance?.backgroundColor ?? undefined,
           textColor: measurement.labelAppearance?.textColor ?? undefined,
-          fontSize: Number.isFinite(measurement.labelAppearance?.fontSizePx)
-            ? `${measurement.labelAppearance?.fontSizePx}px`
-            : undefined,
           labelStyle: POINT_LABEL_STYLE.AUTO,
           hideMarker: true,
           collapse: false,

@@ -15,6 +15,13 @@ export const RUNTIME_POINT_LABEL_COORDINATE_SELECTION = {
 export type RuntimePointLabelCoordinateSelection =
   (typeof RUNTIME_POINT_LABEL_COORDINATE_SELECTION)[keyof typeof RUNTIME_POINT_LABEL_COORDINATE_SELECTION];
 
+export const RUNTIME_DISTANCE_TRIANGLE_ANCHOR_COORDINATE_ROLE = {
+  START_COORDINATE: "start-coordinate",
+  END_COORDINATE: "end-coordinate",
+} as const;
+export type RuntimeDistanceTriangleAnchorCoordinateRole =
+  (typeof RUNTIME_DISTANCE_TRIANGLE_ANCHOR_COORDINATE_ROLE)[keyof typeof RUNTIME_DISTANCE_TRIANGLE_ANCHOR_COORDINATE_ROLE];
+
 export type RuntimePointLabelCoordinateCandidate = {
   coordinate: RuntimeCoordinate;
   nodeId?: string;
@@ -22,7 +29,7 @@ export type RuntimePointLabelCoordinateCandidate = {
 
 export type RuntimeDistanceTriangleOverlayRenderModel = {
   measurementId?: string;
-  anchorCoordinateSelection?: RuntimePointLabelCoordinateSelection;
+  anchorCoordinateRole?: RuntimeDistanceTriangleAnchorCoordinateRole;
 };
 
 export type RuntimePointMarkerRenderModel = {
@@ -90,6 +97,7 @@ export type RuntimePointLabelRenderModel = {
   id: string;
   measurementId?: string;
   nodeId?: string;
+  pointMarkerId?: string;
   coordinate: RuntimeCoordinate;
   coordinateCandidates?: readonly RuntimePointLabelCoordinateCandidate[];
   coordinateSelection?: RuntimePointLabelCoordinateSelection;
@@ -98,8 +106,7 @@ export type RuntimePointLabelRenderModel = {
   occlusionMode?: PointLabelOcclusionMode;
   preferredAttach?: PointLabelAttach;
   content: ReactNode;
-  markerContent?: ReactNode;
-  compactContent?: ReactNode;
+  badgeContent?: ReactNode;
   markerBackgroundColor?: string;
   markerTextColor?: string;
   textBackgroundColor?: string;

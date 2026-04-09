@@ -345,23 +345,26 @@ export const PlotHoverReadout = ({
                   }}
                 >
                   <PillbuttonLabelMarker
-                    labelAttach={attach}
-                    labelOffsetX={anchorLocalX}
-                    labelOffsetY={anchorLocalY}
-                    baseStyles={PILL_BASE_STYLES}
-                    labelBorderStyle="none"
-                    fontSize={`${PILL_FONT_SIZE_PX}px`}
-                    fontFamily={PILL_FONT_FAMILY}
-                    fontWeight="400"
-                    backgroundColor={PILL_BACKGROUND}
-                    textColor="#334155"
-                    pointerEvents="none"
-                    cursor="default"
+                    placement={{
+                      attach,
+                      offsetX: anchorLocalX,
+                      offsetY: anchorLocalY,
+                    }}
+                    containerStyle={{
+                      ...PILL_BASE_STYLES,
+                      border: "none",
+                      fontSize: `${PILL_FONT_SIZE_PX}px`,
+                      fontFamily: PILL_FONT_FAMILY,
+                      fontWeight: "400",
+                      backgroundColor: PILL_BACKGROUND,
+                      color: "#334155",
+                      pointerEvents: "none",
+                      cursor: "default",
+                    }}
                     collapse={false}
                     badgeOptions={{
                       compactBorderless: true,
                       fullBorder: false,
-                      anchorAtSemicircleCenter: label.anchorAtSemicircleCenter,
                     }}
                     motionOptions={{
                       resizeMode: PILLBUTTON_LABEL_MARKER_RESIZE_MODE.NONE,
@@ -401,44 +404,47 @@ export const PlotHoverReadout = ({
             }}
           >
             <PillbuttonLabelMarker
-              labelAttach={
-                tooltip.anchorAttach ??
-                (tooltip.onClose
-                  ? POINT_LABEL_ATTACH.RIGHT
-                  : POINT_LABEL_ATTACH.CENTER)
-              }
-              labelOffsetX={
-                tooltip.anchorAttach === POINT_LABEL_ATTACH.LEFT
-                  ? 0
-                  : tooltip.anchorAttach === POINT_LABEL_ATTACH.RIGHT
-                  ? tooltip.width
-                  : tooltip.onClose
-                  ? tooltip.width
-                  : tooltip.width * 0.5
-              }
-              labelOffsetY={tooltip.height * 0.5}
-              baseStyles={PILL_BASE_STYLES}
-              labelBorderStyle="none"
-              fontSize="11px"
-              fontFamily={PILL_FONT_FAMILY}
-              fontWeight="400"
-              backgroundColor={PILL_BACKGROUND}
-              textColor="#334155"
-              pointerEvents={tooltip.onClose ? "auto" : "none"}
-              cursor={tooltip.onClose ? "pointer" : "default"}
+              placement={{
+                attach:
+                  tooltip.anchorAttach ??
+                  (tooltip.onClose
+                    ? POINT_LABEL_ATTACH.RIGHT
+                    : POINT_LABEL_ATTACH.CENTER),
+                offsetX:
+                  tooltip.anchorAttach === POINT_LABEL_ATTACH.LEFT
+                    ? 0
+                    : tooltip.anchorAttach === POINT_LABEL_ATTACH.RIGHT
+                    ? tooltip.width
+                    : tooltip.onClose
+                    ? tooltip.width
+                    : tooltip.width * 0.5,
+                offsetY: tooltip.height * 0.5,
+              }}
+              containerStyle={{
+                ...PILL_BASE_STYLES,
+                border: "none",
+                fontSize: "11px",
+                fontFamily: PILL_FONT_FAMILY,
+                fontWeight: "400",
+                backgroundColor: PILL_BACKGROUND,
+                color: "#334155",
+                pointerEvents: tooltip.onClose ? "auto" : "none",
+                cursor: tooltip.onClose ? "pointer" : "default",
+              }}
+              badgeStyle={{
+                backgroundColor: tooltip.onClose
+                  ? CLOSE_BADGE_BACKGROUND
+                  : undefined,
+                color: tooltip.onClose ? "#ffffff" : undefined,
+              }}
               collapse={false}
-              markerContent={tooltip.onClose ? CLOSE_BADGE_CONTENT : undefined}
-              markerBackgroundColor={
-                tooltip.onClose ? CLOSE_BADGE_BACKGROUND : undefined
-              }
-              markerTextColor={tooltip.onClose ? "#ffffff" : undefined}
+              badgeContent={tooltip.onClose ? CLOSE_BADGE_CONTENT : undefined}
               badgeOptions={{
                 position: tooltip.onClose
                   ? PILLBUTTON_BADGE_POSITIONS.RIGHT
                   : undefined,
                 compactBorderless: false,
                 fullBorder: false,
-                anchorAtSemicircleCenter: tooltip.anchorAtSemicircleCenter,
               }}
               motionOptions={{
                 resizeMode: PILLBUTTON_LABEL_MARKER_RESIZE_MODE.NONE,

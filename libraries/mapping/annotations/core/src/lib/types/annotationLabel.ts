@@ -12,7 +12,7 @@ export const DEFAULT_POINT_LABEL_METRIC_MODE: PointLabelMetricMode =
 
 export type AnnotationLabelAnchor = {
   anchorPointId: string;
-  compactContent?: string;
+  badgeContent?: string;
   collapseToCompact: boolean;
 };
 

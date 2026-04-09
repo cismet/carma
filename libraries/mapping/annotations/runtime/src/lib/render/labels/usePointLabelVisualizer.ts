@@ -1142,9 +1142,6 @@ export const usePointLabelVisualizer = (
       const isDistanceMetricPoint = pointLabelMetricMode === "distance";
       const isAnnotationMarker = Boolean(point.auxiliaryLabelAnchor);
       const pointLabelAppearance = point.labelAppearance;
-      const resolvedPointLabelFontSizePx = sanitizePointLabelFontSizePx(
-        pointLabelAppearance?.fontSizePx
-      );
       const resolvedPointLabelBackgroundColor = sanitizeCssColorString(
         pointLabelAppearance?.backgroundColor
       );
@@ -1155,8 +1152,7 @@ export const usePointLabelVisualizer = (
         point.labelAnchor && point.labelAnchor.anchorPointId === point.id
           ? point.labelAnchor
           : undefined;
-      const declaredCompactContent =
-        declaredLabelAnchor?.compactContent?.trim();
+      const declaredBadgeContent = declaredLabelAnchor?.badgeContent?.trim();
       const declaredCollapseToCompact =
         declaredLabelAnchor?.collapseToCompact ?? false;
       const hasDeclaredLabelAnchor = Boolean(declaredLabelAnchor);
@@ -1173,11 +1169,11 @@ export const usePointLabelVisualizer = (
         : pointMarkerBadge?.text?.trim().length && pointMarkerBadge.text
         ? pointMarkerBadge.text
         : `${effectivePointIndex + 1}`;
-      const compactContent =
+      const badgeContent =
         suppressCompactLabel || isAnnotationMarker
           ? undefined
-          : declaredCompactContent
-          ? declaredCompactContent
+          : declaredBadgeContent
+          ? declaredBadgeContent
           : collapsedByLayout
           ? compactLayoutBadgeText
           : isPolylineLabelPoint
@@ -1189,23 +1185,23 @@ export const usePointLabelVisualizer = (
           : compactLabelText ||
             customPointName ||
             (isNodeChainBadge ? undefined : pointMarkerBadge?.text);
-      const fallbackCompactContent = suppressCompactLabel
+      const fallbackBadgeContent = suppressCompactLabel
         ? undefined
-        : compactContent ??
+        : badgeContent ??
           (declaredCollapseToCompact ? compactLayoutBadgeText : undefined);
-      const compactContentText =
-        typeof fallbackCompactContent === "string"
-          ? fallbackCompactContent
+      const badgeContentText =
+        typeof fallbackBadgeContent === "string"
+          ? fallbackBadgeContent
           : undefined;
       const compactAreaBadgeWithoutOutline = Boolean(
-        compactContentText &&
-          NODE_CHAIN_BADGE_REGEX.test(compactContentText.trim())
+        badgeContentText &&
+          NODE_CHAIN_BADGE_REGEX.test(badgeContentText.trim())
       );
       const extendedLabelContent =
-        useMarkerLabel && compactContentText
+        useMarkerLabel && badgeContentText
           ? getLabelTextWithoutLeadingBadge(
               labelTextRepresentation.layoutText,
-              compactContentText
+              badgeContentText
             )
           : useMarkerLabel &&
             suppressCompactLabel &&
@@ -1218,11 +1214,11 @@ export const usePointLabelVisualizer = (
       const forceCollapseToCompactByLayout =
         collapsedByLayout &&
         !isAnnotationMarker &&
-        Boolean(fallbackCompactContent);
+        Boolean(fallbackBadgeContent);
       const forceCollapseToCompactByAnchor =
         declaredCollapseToCompact &&
         !isAnnotationMarker &&
-        Boolean(fallbackCompactContent);
+        Boolean(fallbackBadgeContent);
       const collapseByLegacyRules =
         !hasDeclaredLabelAnchor &&
         !isPolylineLabelPoint &&
@@ -1289,10 +1285,9 @@ export const usePointLabelVisualizer = (
             ? editingPointMarkerSizeDraggingPx
             : editingPointMarkerSizePx
           : undefined,
-        fontSize: `${resolvedPointLabelFontSizePx}px`,
         textColor: resolvedPointLabelTextColor,
         textBackgroundColor: resolvedPointLabelBackgroundColor,
-        compactContent: useMarkerLabel ? fallbackCompactContent : undefined,
+        badgeContent: useMarkerLabel ? fallbackBadgeContent : undefined,
         compactBorderless:
           useMarkerLabel &&
           (compactAreaBadgeWithoutOutline || isPreviewLabelPoint),

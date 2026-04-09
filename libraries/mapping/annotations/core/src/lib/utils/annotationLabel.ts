@@ -9,11 +9,11 @@ import type {
   AnnotationLabelAppearance,
   PointLabelMetricMode,
 } from "../types/annotationLabel";
-const normalizeCompactLabelContent = (
-  compactContent?: string
+const normalizeBadgeLabelContent = (
+  badgeContent?: string
 ): string | undefined => {
-  if (!compactContent) return undefined;
-  const normalized = compactContent.trim();
+  if (!badgeContent) return undefined;
+  const normalized = badgeContent.trim();
   return normalized.length > 0 ? normalized : undefined;
 };
 
@@ -33,7 +33,7 @@ export const normalizeLabelAnchor = (
   return {
     anchorPointId,
     collapseToCompact: Boolean(labelAnchor.collapseToCompact),
-    compactContent: normalizeCompactLabelContent(labelAnchor.compactContent),
+    badgeContent: normalizeBadgeLabelContent(labelAnchor.badgeContent),
   };
 };
 
@@ -93,7 +93,7 @@ const areLabelAnchorsEqual = (
   return (
     normalizedLeft.anchorPointId === normalizedRight.anchorPointId &&
     normalizedLeft.collapseToCompact === normalizedRight.collapseToCompact &&
-    normalizedLeft.compactContent === normalizedRight.compactContent
+    normalizedLeft.badgeContent === normalizedRight.badgeContent
   );
 };
 
@@ -289,7 +289,7 @@ const buildPolylinePointLabelText = (
   badgeToken: string | undefined,
   distanceMeters?: number
 ): string | undefined => {
-  const normalizedBadgeToken = normalizeCompactLabelContent(badgeToken);
+  const normalizedBadgeToken = normalizeBadgeLabelContent(badgeToken);
   const normalizedDistanceText =
     distanceMeters !== undefined
       ? formatCompactDistanceLabel(distanceMeters)
@@ -393,13 +393,13 @@ export const buildDesiredPointLabelAnchorById = <
     byPointId[pointId] = undefined;
   });
   standaloneDistanceHighestPointIds.forEach((pointId) => {
-    const compactContent = normalizeCompactLabelContent(
+    const badgeContent = normalizeBadgeLabelContent(
       pointMarkerBadgeByPointId[pointId]?.text
     );
     byPointId[pointId] = {
       anchorPointId: pointId,
       collapseToCompact: true,
-      ...(compactContent ? { compactContent } : {}),
+      ...(badgeContent ? { badgeContent } : {}),
     };
   });
 
@@ -421,7 +421,7 @@ export const buildDesiredPointLabelAnchorById = <
 
     const firstPointId = polyline.nodeIds[0] ?? null;
     const lastPointId = polyline.nodeIds[polyline.nodeIds.length - 1] ?? null;
-    const badgeToken = normalizeCompactLabelContent(
+    const badgeToken = normalizeBadgeLabelContent(
       (firstPointId
         ? pointMarkerBadgeByPointId[firstPointId]?.text
         : undefined) ??
@@ -432,7 +432,7 @@ export const buildDesiredPointLabelAnchorById = <
       byPointId[firstPointId] = {
         anchorPointId: firstPointId,
         collapseToCompact: true,
-        compactContent: badgeToken,
+        badgeContent: badgeToken,
       };
     }
 
@@ -440,7 +440,7 @@ export const buildDesiredPointLabelAnchorById = <
       byPointId[lastPointId] = {
         anchorPointId: lastPointId,
         collapseToCompact: true,
-        compactContent: badgeToken
+        badgeContent: badgeToken
           ? `${badgeToken} ${formatCompactDistanceLabel(
               polyline.totalLengthMeters
             )}`

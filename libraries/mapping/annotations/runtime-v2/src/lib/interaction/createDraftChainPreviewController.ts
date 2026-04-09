@@ -31,7 +31,8 @@ export type DraftChainPreviewController = {
   destroy: () => void;
 };
 
-const DRAFT_CHAIN_PREVIEW_LAYER_ID = "annotation-v2-draft-chain-preview-layer";
+const DRAFT_CHAIN_PREVIEW_LAYER_ID =
+  "annotation-overlay-draft-chain-preview-layer";
 
 export const createDraftChainPreviewController = (
   scene: RuntimeScene

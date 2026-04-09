@@ -32,7 +32,7 @@ export type PolygonLoopPreviewController = {
 };
 
 const POLYGON_LOOP_PREVIEW_LAYER_ID =
-  "annotation-v2-polygon-loop-preview-layer";
+  "annotation-overlay-polygon-loop-preview-layer";
 
 export const createPolygonLoopPreviewController = (
   scene: RuntimeScene

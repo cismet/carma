@@ -4,17 +4,27 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
 } from "react";
 
 import type { Meta, StoryObj } from "@storybook/react";
 import { useArgs } from "@storybook/preview-api";
-import { ResponsiveStatusBar } from "@carma-commons/ui/components";
+import {
+  ANNOTATION_CURSOR_DEFAULT_AURA_PADDING_PX,
+  ANNOTATION_CURSOR_DEFAULT_SHAPE_HALF_EXTENT_PX,
+  ResponsiveStatusBar,
+} from "@carma-commons/ui/components";
 import {
   CROSSHAIR_CURSOR_STYLES,
   type CrosshairCursorStyle,
 } from "@carma-mapping/annotations/runtime-v2";
 
 import { createCursorRateDiagnosticsController } from "./create-cursor-rate-diagnostics-controller";
+import {
+  CursorOverlayGeometryLayers,
+  CURSOR_RENDER_MODES,
+  type CursorRenderMode,
+} from "./cursor-story-shared";
 
 const NATIVE_CURSOR_STYLE_OPTIONS = [
   "auto",
@@ -56,9 +66,8 @@ type NativeCursorStyle = (typeof NATIVE_CURSOR_STYLE_OPTIONS)[number];
 type CursorRateDiagnosticsStoryProps = {
   showTopGraphPlotting: boolean;
   showCustomCursorPreset: boolean;
+  customCursorRenderMode: CursorRenderMode;
   customCursorStyle: CrosshairCursorStyle;
-  customCursorPrimaryColor: string;
-  customCursorSecondaryColor: string;
   hideNativeCursor: boolean;
   nativeCursorStyle: NativeCursorStyle;
   showPointerMove: boolean;
@@ -219,12 +228,29 @@ const NATIVE_CURSOR_NAME_STYLE: CSSProperties = {
   wordBreak: "break-word",
 };
 
+const DOM_CURSOR_OVERLAY_SIZE_PX =
+  (ANNOTATION_CURSOR_DEFAULT_SHAPE_HALF_EXTENT_PX +
+    ANNOTATION_CURSOR_DEFAULT_AURA_PADDING_PX) *
+  2;
+
+const DOM_CURSOR_OVERLAY_STYLE = (
+  position: Readonly<{ x: number; y: number }>
+): CSSProperties => ({
+  position: "absolute",
+  left: `${position.x}px`,
+  top: `${position.y}px`,
+  width: DOM_CURSOR_OVERLAY_SIZE_PX,
+  height: DOM_CURSOR_OVERLAY_SIZE_PX,
+  transform: "translate(-50%, -50%)",
+  pointerEvents: "none",
+  zIndex: 4,
+});
+
 const CursorRateDiagnosticsSandbox = ({
   showTopGraphPlotting,
   showCustomCursorPreset,
+  customCursorRenderMode,
   customCursorStyle,
-  customCursorPrimaryColor,
-  customCursorSecondaryColor,
   hideNativeCursor,
   nativeCursorStyle,
   showPointerMove,
@@ -252,9 +278,17 @@ const CursorRateDiagnosticsSandbox = ({
   const [hoveredNativeCursorStyle, setHoveredNativeCursorStyle] = useState<
     CursorRateDiagnosticsStoryProps["nativeCursorStyle"] | null
   >(null);
+  const [domCursorPosition, setDomCursorPosition] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
 
   const effectiveNativeCursorStyle =
     hoveredNativeCursorStyle ?? nativeCursorStyle;
+  const showDomCursorOverlay =
+    showCustomCursorPreset &&
+    customCursorRenderMode === CURSOR_RENDER_MODES.DOM &&
+    domCursorPosition !== null;
 
   const statusValues = useMemo(
     () => [
@@ -270,13 +304,12 @@ const CursorRateDiagnosticsSandbox = ({
   useEffect(() => {
     if (
       hideNativeCursor ||
-      showCustomCursorPreset ||
-      customCursorStyle === CROSSHAIR_CURSOR_STYLES.DEFAULT ||
-      customCursorStyle === CROSSHAIR_CURSOR_STYLES.SIMPLE_HAIRLINE
+      (showCustomCursorPreset &&
+        customCursorRenderMode === CURSOR_RENDER_MODES.CURSOR_URL)
     ) {
       setHoveredNativeCursorStyle(null);
     }
-  }, [hideNativeCursor, showCustomCursorPreset, customCursorStyle]);
+  }, [customCursorRenderMode, hideNativeCursor, showCustomCursorPreset]);
 
   useEffect(() => {
     const surfaceElement = surfaceRef.current;
@@ -284,12 +317,7 @@ const CursorRateDiagnosticsSandbox = ({
       return;
     }
 
-    if (
-      hideNativeCursor ||
-      showCustomCursorPreset ||
-      customCursorStyle === CROSSHAIR_CURSOR_STYLES.DEFAULT ||
-      customCursorStyle === CROSSHAIR_CURSOR_STYLES.SIMPLE_HAIRLINE
-    ) {
+    if (hideNativeCursor || showCustomCursorPreset) {
       return;
     }
 
@@ -298,9 +326,17 @@ const CursorRateDiagnosticsSandbox = ({
     hoveredNativeCursorStyle,
     hideNativeCursor,
     showCustomCursorPreset,
-    customCursorStyle,
     nativeCursorStyle,
   ]);
+
+  useEffect(() => {
+    if (
+      !showCustomCursorPreset ||
+      customCursorRenderMode !== CURSOR_RENDER_MODES.DOM
+    ) {
+      setDomCursorPosition(null);
+    }
+  }, [customCursorRenderMode, showCustomCursorPreset]);
 
   useEffect(() => {
     if (!surfaceRef.current || !chartRef.current) {
@@ -317,9 +353,8 @@ const CursorRateDiagnosticsSandbox = ({
       options: {
         showTopGraphPlotting,
         showCustomCursorPreset,
+        customCursorRenderMode,
         customCursorStyle,
-        customCursorPrimaryColor,
-        customCursorSecondaryColor,
         hideNativeCursor,
         nativeCursorStyle,
         showPointerMove,
@@ -346,9 +381,8 @@ const CursorRateDiagnosticsSandbox = ({
     controllerRef.current?.updateOptions({
       showTopGraphPlotting,
       showCustomCursorPreset,
+      customCursorRenderMode,
       customCursorStyle,
-      customCursorPrimaryColor,
-      customCursorSecondaryColor,
       hideNativeCursor,
       nativeCursorStyle,
       showPointerMove,
@@ -366,9 +400,8 @@ const CursorRateDiagnosticsSandbox = ({
   }, [
     showTopGraphPlotting,
     showCustomCursorPreset,
+    customCursorRenderMode,
     customCursorStyle,
-    customCursorPrimaryColor,
-    customCursorSecondaryColor,
     nativeCursorStyle,
     hideNativeCursor,
     showAnimationFrame,
@@ -384,8 +417,39 @@ const CursorRateDiagnosticsSandbox = ({
     showTouchForceChange,
   ]);
 
+  const handleSurfacePointerMove = (
+    event: ReactPointerEvent<HTMLDivElement>
+  ) => {
+    if (
+      !showCustomCursorPreset ||
+      customCursorRenderMode !== CURSOR_RENDER_MODES.DOM
+    ) {
+      return;
+    }
+
+    const surfaceElement = surfaceRef.current;
+    if (!surfaceElement) {
+      return;
+    }
+
+    const rect = surfaceElement.getBoundingClientRect();
+    setDomCursorPosition({
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+    });
+  };
+
+  const handleSurfacePointerLeave = () => {
+    setDomCursorPosition(null);
+  };
+
   return (
-    <div ref={surfaceRef} style={SURFACE_STYLE}>
+    <div
+      ref={surfaceRef}
+      style={SURFACE_STYLE}
+      onPointerMove={handleSurfacePointerMove}
+      onPointerLeave={handleSurfacePointerLeave}
+    >
       <div style={STATUS_BAR_STYLE}>
         <ResponsiveStatusBar
           label="cursor diagnostics"
@@ -395,6 +459,14 @@ const CursorRateDiagnosticsSandbox = ({
       </div>
       <div ref={chartRef} style={CHART_STYLE} />
       <div ref={rowLabelsRef} style={ROW_LABELS_STYLE} />
+      {showDomCursorOverlay ? (
+        <div
+          aria-hidden="true"
+          style={DOM_CURSOR_OVERLAY_STYLE(domCursorPosition)}
+        >
+          <CursorOverlayGeometryLayers />
+        </div>
+      ) : null}
       {!hideNativeCursor ? (
         <div style={NATIVE_CURSOR_GRID_PANEL_STYLE}>
           <div style={NATIVE_CURSOR_GRID_STYLE}>
@@ -446,20 +518,13 @@ const meta: Meta<CursorRateDiagnosticsStoryProps> = {
       control: { type: "boolean" },
       table: { category: "Cursor" },
     },
-    customCursorStyle: {
+    customCursorRenderMode: {
       control: { type: "inline-radio" },
-      options: [
-        CROSSHAIR_CURSOR_STYLES.DEFAULT,
-        CROSSHAIR_CURSOR_STYLES.SIMPLE_HAIRLINE,
-      ],
+      options: [CURSOR_RENDER_MODES.DOM, CURSOR_RENDER_MODES.CURSOR_URL],
       table: { category: "Cursor" },
     },
-    customCursorPrimaryColor: {
-      control: { type: "color" },
-      table: { category: "Cursor" },
-    },
-    customCursorSecondaryColor: {
-      control: { type: "color" },
+    customCursorStyle: {
+      control: false,
       table: { category: "Cursor" },
     },
     hideNativeCursor: {
@@ -519,7 +584,7 @@ const meta: Meta<CursorRateDiagnosticsStoryProps> = {
 
 export default meta;
 
-export const PollingRates: StoryObj<CursorRateDiagnosticsStoryProps> = {
+export const Diagnostics: StoryObj<CursorRateDiagnosticsStoryProps> = {
   render: (args) => {
     const [, updateArgs] = useArgs<CursorRateDiagnosticsStoryProps>();
     return (
@@ -534,9 +599,8 @@ export const PollingRates: StoryObj<CursorRateDiagnosticsStoryProps> = {
   args: {
     showTopGraphPlotting: true,
     showCustomCursorPreset: false,
-    customCursorStyle: CROSSHAIR_CURSOR_STYLES.DEFAULT,
-    customCursorPrimaryColor: "",
-    customCursorSecondaryColor: "",
+    customCursorRenderMode: CURSOR_RENDER_MODES.CURSOR_URL,
+    customCursorStyle: CROSSHAIR_CURSOR_STYLES.ANNOTATION_PLAYGROUND,
     hideNativeCursor: false,
     nativeCursorStyle: "crosshair",
     showPointerMove: true,

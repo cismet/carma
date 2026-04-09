@@ -15,6 +15,11 @@ import {
   normalizeLabelAngleDeg,
   type DistanceScreenTriangle,
 } from "@carma-mapping/annotations/core";
+import { SVG_LINE_LABEL_ROTATION_MODE } from "@carma-commons/svg";
+import {
+  resolveOverlayLineLabelPlacement,
+  type LineLabelPlacementOptions,
+} from "@carma-providers/label-overlay";
 import {
   cartesian3FromGeographicCoordinate,
   getDegreesFromCartesian,
@@ -36,7 +41,7 @@ import {
 import type { RuntimeCoordinate } from "../store";
 import type { RuntimeScene } from "../types/runtimeScene.types";
 
-import "./preview-line-label.css";
+import "./annotation-overlay-line-label.css";
 
 export {
   previewControllerDefaults,
@@ -81,6 +86,7 @@ type ScreenPointLike = {
 };
 
 type PreviewLineLabelAnchor = "center" | "left" | "right";
+type PreviewLineLabelKind = "direct" | "vertical" | "horizontal";
 
 type PreviewLineLabelPlacement = {
   x: number;
@@ -88,6 +94,9 @@ type PreviewLineLabelPlacement = {
   angleDeg: number;
   anchor: PreviewLineLabelAnchor;
   isShortEdge: boolean;
+  shouldFlip: boolean;
+  normalX: number;
+  normalY: number;
 };
 
 type PreviewLineCollectionFrameState = {
@@ -104,11 +113,27 @@ export const applyStyles = (
   Object.assign(element.style, styles);
 };
 
-const PREVIEW_LINE_LABEL_CLASSNAME = "carma-preview-line-label";
-const PREVIEW_LINE_LABEL_FRAME_CLASSNAME = "carma-preview-line-label__frame";
+const PREVIEW_LINE_LABEL_CLASSNAME = "carma-annotation-overlay-line-label";
+const PREVIEW_LINE_LABEL_FRAME_CLASSNAME =
+  "carma-annotation-overlay-line-label__frame";
 const PREVIEW_LINE_LABEL_BACKDROP_CLASSNAME =
-  "carma-preview-line-label__backdrop";
-const PREVIEW_LINE_LABEL_TEXT_CLASSNAME = "carma-preview-line-label__text";
+  "carma-annotation-overlay-line-label__backdrop";
+const PREVIEW_LINE_LABEL_TEXT_CLASSNAME =
+  "carma-annotation-overlay-line-label__text";
+const PREVIEW_LINE_LABEL_UPPER_SIDE_GAP_FACTOR = 0.15;
+const PREVIEW_LINE_LABEL_SIDE_HYSTERESIS_PX = 1.5;
+const PREVIEW_LINE_LABEL_PLACEMENT_OPTIONS_BY_KIND: Record<
+  PreviewLineLabelKind,
+  LineLabelPlacementOptions
+> = Object.freeze({
+  direct: {},
+  vertical: {
+    labelOffsetPx: previewControllerDefaults.lineLabelOffsetPx,
+    labelFlippedBaselineOffsetPx: 6,
+    labelRotationMode: SVG_LINE_LABEL_ROTATION_MODE.CLOCKWISE,
+  },
+  horizontal: {},
+});
 
 const createHtmlElement = <T extends keyof HTMLElementTagNameMap>(
   tagName: T,
@@ -131,34 +156,39 @@ const applyPreviewLineLabelVisualOptions = ({
   visualOptions: PreviewLineLabelVisualOptions;
 }) => {
   element.style.setProperty(
-    "--carma-preview-line-label-font-family",
+    "--carma-annotation-overlay-line-label-font-family",
     visualOptions.fontFamily
   );
   element.style.setProperty(
-    "--carma-preview-line-label-font-weight",
+    "--carma-annotation-overlay-line-label-font-weight",
     String(visualOptions.fontWeight)
   );
   element.style.setProperty(
-    "--carma-preview-line-label-glow-color",
+    "--carma-annotation-overlay-line-label-glow-color",
     accentColor
   );
-  element.dataset.previewLineLabelShortEdgeOffsetPx = String(
+  element.dataset.annotationOverlayLineLabelShortEdgeOffsetPx = String(
     visualOptions.shortEdgeOffsetPx
   );
-  element.dataset.previewLineLabelTheme = visualOptions.theme;
-  backdrop.dataset.previewLineLabelBackgroundStyle =
+  element.dataset.annotationOverlayLineLabelTheme = visualOptions.theme;
+  backdrop.dataset.annotationOverlayLineLabelBackgroundStyle =
     visualOptions.backgroundStyle;
 };
 
 const resolvePreviewLineLabelTextElement = (element: HTMLDivElement) =>
   element.querySelector(
-    '[data-preview-line-label-text="true"]'
+    '[data-annotation-overlay-line-label-text="true"]'
   ) as HTMLSpanElement | null;
+
+const resolvePreviewLineLabelFrameElement = (element: HTMLDivElement) =>
+  element.querySelector(
+    `.${PREVIEW_LINE_LABEL_FRAME_CLASSNAME}`
+  ) as HTMLDivElement | null;
 
 const resolvePreviewLineLabelShortEdgeOffsetPx = (
   element: HTMLDivElement
 ): number => {
-  const rawValue = element.dataset.previewLineLabelShortEdgeOffsetPx;
+  const rawValue = element.dataset.annotationOverlayLineLabelShortEdgeOffsetPx;
   const parsedValue = rawValue ? Number(rawValue) : Number.NaN;
 
   return Number.isFinite(parsedValue)
@@ -166,11 +196,32 @@ const resolvePreviewLineLabelShortEdgeOffsetPx = (
     : previewLineLabelVisualDefaults.shortEdgeOffsetPx;
 };
 
-const resolvePreviewLineLabelKind = (element: HTMLDivElement) =>
-  element.dataset.previewLineLabelKind ?? "direct";
+const resolvePreviewLineLabelKind = (
+  element: HTMLDivElement
+): PreviewLineLabelKind =>
+  element.dataset.annotationOverlayLineLabelKind === "vertical" ||
+  element.dataset.annotationOverlayLineLabelKind === "horizontal"
+    ? element.dataset.annotationOverlayLineLabelKind
+    : "direct";
 
 const resolvePreviewLineLabelUsesShortEdgeRules = (element: HTMLDivElement) =>
   resolvePreviewLineLabelKind(element) === "vertical";
+
+const resolvePreviewLineLabelPlacementOptions = ({
+  kind,
+  outsideReferencePoint,
+}: {
+  kind: PreviewLineLabelKind;
+  outsideReferencePoint?: ScreenPointLike | null;
+}): LineLabelPlacementOptions => ({
+  ...PREVIEW_LINE_LABEL_PLACEMENT_OPTIONS_BY_KIND[kind],
+  getLabelOutsideReferencePoint: outsideReferencePoint
+    ? () => ({
+        x: outsideReferencePoint.x as CssPixelPosition["x"],
+        y: outsideReferencePoint.y as CssPixelPosition["y"],
+      })
+    : undefined,
+});
 
 const resolvePreviewLineLabelTransform = ({
   x,
@@ -321,7 +372,7 @@ export const createLineLabel = (
     PREVIEW_LINE_LABEL_BACKDROP_CLASSNAME
   );
   const text = createHtmlElement("span", PREVIEW_LINE_LABEL_TEXT_CLASSNAME);
-  text.dataset.previewLineLabelText = "true";
+  text.dataset.annotationOverlayLineLabelText = "true";
   applyPreviewLineLabelVisualOptions({
     element,
     backdrop: blurBackdrop,
@@ -343,19 +394,19 @@ export const createSegmentLineLabels = (
     runtimeMeasurementVisualDefaults.colors.componentLabelAccents.direct,
     resolvedVisualOptions
   );
-  direct.dataset.previewLineLabelKind = "direct";
+  direct.dataset.annotationOverlayLineLabelKind = "direct";
 
   const vertical = createLineLabel(
     runtimeMeasurementVisualDefaults.colors.componentLabelAccents.vertical,
     resolvedVisualOptions
   );
-  vertical.dataset.previewLineLabelKind = "vertical";
+  vertical.dataset.annotationOverlayLineLabelKind = "vertical";
 
   const horizontal = createLineLabel(
     runtimeMeasurementVisualDefaults.colors.componentLabelAccents.horizontal,
     resolvedVisualOptions
   );
-  horizontal.dataset.previewLineLabelKind = "horizontal";
+  horizontal.dataset.annotationOverlayLineLabelKind = "horizontal";
 
   return {
     direct,
@@ -535,50 +586,58 @@ const resolvePreviewLineLabelAngleDeg = ({
 const resolveLabelOffsetPosition = ({
   start,
   end,
+  kind,
   outsideReferencePoint,
   shortEdgeOffsetPx = previewLineLabelVisualDefaults.shortEdgeOffsetPx,
   useShortEdgeRules = true,
   flipReadingDirection = false,
+  previousShouldFlip = false,
 }: {
   start: ScreenPointLike;
   end: ScreenPointLike;
+  kind: PreviewLineLabelKind;
   outsideReferencePoint?: ScreenPointLike | null;
   shortEdgeOffsetPx?: number;
   useShortEdgeRules?: boolean;
   flipReadingDirection?: boolean;
+  previousShouldFlip?: boolean;
 }): PreviewLineLabelPlacement | null => {
-  const deltaX = end.x - start.x;
-  const deltaY = end.y - start.y;
-  const distancePx = Math.hypot(deltaX, deltaY);
-  if (!Number.isFinite(distancePx) || distancePx <= 1e-3) {
+  const sharedPlacement = resolveOverlayLineLabelPlacement({
+    svgLine: {
+      start: {
+        x: start.x as CssPixelPosition["x"],
+        y: start.y as CssPixelPosition["y"],
+      },
+      end: {
+        x: end.x as CssPixelPosition["x"],
+        y: end.y as CssPixelPosition["y"],
+      },
+    },
+    options: resolvePreviewLineLabelPlacementOptions({
+      kind,
+      outsideReferencePoint,
+    }),
+    previousShouldFlip,
+    sideSwitchThresholdPx: PREVIEW_LINE_LABEL_SIDE_HYSTERESIS_PX,
+  });
+  if (!sharedPlacement) {
     return null;
   }
 
-  const midX = (start.x + end.x) * 0.5;
-  const midY = (start.y + end.y) * 0.5;
-  let normalX = -deltaY / distancePx;
-  let normalY = deltaX / distancePx;
-
-  if (outsideReferencePoint) {
-    const dotWithNormal =
-      (outsideReferencePoint.x - midX) * normalX +
-      (outsideReferencePoint.y - midY) * normalY;
-    if (dotWithNormal < 0) {
-      normalX = -normalX;
-      normalY = -normalY;
-    }
-  }
+  const deltaX = end.x - start.x;
+  const deltaY = end.y - start.y;
 
   if (
     useShortEdgeRules &&
-    distancePx < previewControllerDefaults.lineLabelMinLengthPx
+    sharedPlacement.lineLengthPx <
+      previewControllerDefaults.lineLabelMinLengthPx
   ) {
-    const labelIsPlacedRightOfSegment = normalX >= 0;
+    const labelIsPlacedRightOfSegment = sharedPlacement.normalX >= 0;
     const lineSide = labelIsPlacedRightOfSegment ? "left" : "right";
 
     return {
-      x: midX + normalX * shortEdgeOffsetPx,
-      y: midY + normalY * shortEdgeOffsetPx,
+      x: sharedPlacement.midX + sharedPlacement.normalX * shortEdgeOffsetPx,
+      y: sharedPlacement.midY + sharedPlacement.normalY * shortEdgeOffsetPx,
       angleDeg: resolvePreviewLineLabelAngleDeg({
         deltaX,
         deltaY,
@@ -588,23 +647,21 @@ const resolveLabelOffsetPosition = ({
       }),
       anchor: labelIsPlacedRightOfSegment ? "left" : "right",
       isShortEdge: true,
+      shouldFlip: sharedPlacement.shouldFlip,
+      normalX: sharedPlacement.normalX,
+      normalY: sharedPlacement.normalY,
     };
   }
 
-  const lineSide = normalX >= 0 ? "left" : "right";
-
   return {
-    x: midX + normalX * previewControllerDefaults.lineLabelOffsetPx,
-    y: midY + normalY * previewControllerDefaults.lineLabelOffsetPx,
-    angleDeg: resolvePreviewLineLabelAngleDeg({
-      deltaX,
-      deltaY,
-      lineSide,
-      flipReadingDirection,
-      forceHorizontal: false,
-    }),
+    x: sharedPlacement.textX,
+    y: sharedPlacement.textY,
+    angleDeg: sharedPlacement.angleDeg,
     anchor: "center",
     isShortEdge: false,
+    shouldFlip: sharedPlacement.shouldFlip,
+    normalX: sharedPlacement.normalX,
+    normalY: sharedPlacement.normalY,
   };
 };
 
@@ -626,10 +683,13 @@ export const applyLineLabel = ({
   const labelPosition = resolveLabelOffsetPosition({
     start,
     end,
+    kind: resolvePreviewLineLabelKind(element),
     outsideReferencePoint,
     shortEdgeOffsetPx: resolvePreviewLineLabelShortEdgeOffsetPx(element),
     useShortEdgeRules: resolvePreviewLineLabelUsesShortEdgeRules(element),
     flipReadingDirection,
+    previousShouldFlip:
+      element.dataset.annotationOverlayLineLabelNormalFlip === "1",
   });
   if (!labelPosition) {
     element.style.display = "none";
@@ -642,11 +702,29 @@ export const applyLineLabel = ({
   } else {
     element.textContent = text;
   }
-  element.dataset.previewLineLabelShortEdge = labelPosition.isShortEdge
-    ? "true"
-    : "false";
+
+  const frameElement = resolvePreviewLineLabelFrameElement(element);
+  const upperSideGapBoostPx =
+    !labelPosition.isShortEdge && labelPosition.normalY < -1e-3 && frameElement
+      ? frameElement.getBoundingClientRect().height *
+        PREVIEW_LINE_LABEL_UPPER_SIDE_GAP_FACTOR
+      : 0;
+
+  const adjustedX =
+    labelPosition.x + labelPosition.normalX * upperSideGapBoostPx;
+  const adjustedY =
+    labelPosition.y + labelPosition.normalY * upperSideGapBoostPx;
+
+  element.dataset.annotationOverlayLineLabelShortEdge =
+    labelPosition.isShortEdge ? "true" : "false";
+  element.dataset.annotationOverlayLineLabelNormalFlip =
+    labelPosition.shouldFlip ? "1" : "0";
   element.style.display = "block";
-  element.style.transform = resolvePreviewLineLabelTransform(labelPosition);
+  element.style.transform = resolvePreviewLineLabelTransform({
+    ...labelPosition,
+    x: adjustedX,
+    y: adjustedY,
+  });
 };
 
 const clampPreviewReferenceDistance = (value: number) =>

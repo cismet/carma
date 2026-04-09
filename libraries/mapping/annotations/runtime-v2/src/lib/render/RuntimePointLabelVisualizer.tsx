@@ -80,15 +80,15 @@ const isNotNull = <T,>(value: T | null): value is T => value !== null;
 const getPointLabelOverlayId = (labelId: string) =>
   `runtime-point-label-${labelId}`;
 
-const getEffectiveCompactContent = (label: RuntimePointLabelRenderModel) =>
+const getEffectiveBadgeContent = (label: RuntimePointLabelRenderModel) =>
   label.markerPixelSize !== undefined
-    ? label.compactContent ?? label.content
-    : label.compactContent;
+    ? label.badgeContent ?? label.content
+    : label.badgeContent;
 
 const getPointLabelContentKey = (
   label: RuntimePointLabelRenderModel,
   blockLabelInteractions: boolean,
-  effectiveCompactContent: RuntimePointLabelRenderModel["compactContent"]
+  effectiveBadgeContent: RuntimePointLabelRenderModel["badgeContent"]
 ): string =>
   [
     label.id,
@@ -96,9 +96,6 @@ const getPointLabelContentKey = (
     `${label.hideMarker ?? false}`,
     `${label.hideLabelAndStem ?? false}`,
     `${label.markerPixelSize ?? ""}`,
-    `${label.fontSize ?? ""}`,
-    `${label.fontFamily ?? ""}`,
-    `${label.fontWeight ?? ""}`,
     `${label.textBackgroundColor ?? ""}`,
     `${label.textColor ?? ""}`,
     `${label.markerBackgroundColor ?? ""}`,
@@ -109,8 +106,7 @@ const getPointLabelContentKey = (
     `${label.coordinateSelection ?? ""}`,
     `${label.coordinateCandidates?.length ?? 0}`,
     String(label.content),
-    String(label.markerContent ?? ""),
-    String(effectiveCompactContent ?? ""),
+    String(effectiveBadgeContent ?? ""),
     `${blockLabelInteractions}`,
     `${Boolean(label.onDoubleClick)}`,
   ].join(":");
@@ -129,42 +125,17 @@ const getAttachTransform = (attach: PointLabelAttach): string => {
 
 const getPillAnchorTransform = (
   attach: PointLabelAttach,
-  pillCapRadiusPx: number,
-  compactCenterOffsetPx: number | null
+  pillCapRadiusPx: number
 ): string => {
   if (attach === "left") {
-    return pillCapRadiusPx > 0
-      ? `translate(${-pillCapRadiusPx}px, -50%)`
-      : getAttachTransform(attach);
+    return `translate(${-pillCapRadiusPx}px, -50%)`;
   }
 
   if (attach === "right") {
-    return pillCapRadiusPx > 0
-      ? `translate(calc(-100% + ${pillCapRadiusPx}px), -50%)`
-      : getAttachTransform(attach);
+    return `translate(calc(-100% + ${pillCapRadiusPx}px), -50%)`;
   }
 
-  if (compactCenterOffsetPx !== null) {
-    return `translate(${-compactCenterOffsetPx}px, -50%)`;
-  }
-
-  return getAttachTransform(attach);
-};
-
-const syncCompactBadgeMountSide = (
-  pillBadge: HTMLSpanElement,
-  attach: PointLabelAttach
-) => {
-  if (attach === "right") {
-    pillBadge.style.left = "auto";
-    pillBadge.style.right = "0px";
-    pillBadge.style.transform = "translate(0, -50%)";
-    return;
-  }
-
-  pillBadge.style.left = "0px";
-  pillBadge.style.right = "auto";
-  pillBadge.style.transform = "translate(0, -50%)";
+  return "translate(-50%, -50%)";
 };
 
 const createEmptyLabelOverlayState = (): RuntimePointLabelOverlayState => ({
@@ -392,7 +363,7 @@ export const useRuntimePointLabelVisualizer = ({
         anchorKind: label.anchorKind,
         text: toLayoutText(label.content),
         compactText: toLayoutText(
-          label.compactContent ?? label.markerContent,
+          label.badgeContent,
           toLayoutText(label.content)
         ),
         index,
@@ -538,11 +509,11 @@ export const useRuntimePointLabelVisualizer = ({
       const interactive =
         !blockLabelInteractions && Boolean(label.onClick || label.onLongPress);
       const overlayId = getPointLabelOverlayId(label.id);
-      const effectiveCompactContent = getEffectiveCompactContent(label);
+      const effectiveBadgeContent = getEffectiveBadgeContent(label);
       const nextSignature = getPointLabelContentKey(
         label,
         blockLabelInteractions,
-        effectiveCompactContent
+        effectiveBadgeContent
       );
       nextSignatureById.set(label.id, nextSignature);
 
@@ -579,10 +550,6 @@ export const useRuntimePointLabelVisualizer = ({
             pointLabelRoot,
           } = domRefs;
 
-          if (pillBadge) {
-            syncCompactBadgeMountSide(pillBadge, overlayState.attach);
-          }
-
           const dx = Math.cos(overlayState.angleRad) * overlayState.distance;
           const dy = Math.sin(overlayState.angleRad) * overlayState.distance;
           const markerRadius = label.hideMarker
@@ -603,10 +570,6 @@ export const useRuntimePointLabelVisualizer = ({
               ? 0
               : compactBadgeCapRadiusPx ??
                 estimatePillCapRadiusPx(parsedFontSizePx);
-          const compactCenterOffsetPx =
-            overlayState.attach === "center" && compactBadgeWidthPx > 0
-              ? compactBadgeWidthPx / 2
-              : null;
           const stemStartPoint = {
             x: Math.cos(overlayState.angleRad) * markerRadius,
             y: Math.sin(overlayState.angleRad) * markerRadius,
@@ -658,11 +621,7 @@ export const useRuntimePointLabelVisualizer = ({
           labelRoot.style.transform = labelRoot.hasAttribute(
             "data-pillbutton-root"
           )
-            ? getPillAnchorTransform(
-                overlayState.attach,
-                pillCapRadiusPx,
-                compactCenterOffsetPx
-              )
+            ? getPillAnchorTransform(overlayState.attach, pillCapRadiusPx)
             : getAttachTransform(overlayState.attach);
           pointLabelRoot.style.opacity = overlayState.isOccluded ? "0.75" : "1";
 
@@ -687,7 +646,7 @@ export const useRuntimePointLabelVisualizer = ({
             content={label.content}
             selected={label.selected}
             hideLabelAndStem={label.hideLabelAndStem}
-            hideMarker={true}
+            hideMarker={label.hideMarker ?? false}
             markerSize={
               label.markerPixelSize ?? DEFAULT_LABEL_MARKER_PIXEL_SIZE
             }
@@ -696,16 +655,12 @@ export const useRuntimePointLabelVisualizer = ({
                 ? 0
                 : (label.markerPixelSize ?? DEFAULT_LABEL_MARKER_PIXEL_SIZE) / 2
             }
-            markerContent={label.markerContent}
+            badgeContent={effectiveBadgeContent}
             markerBackgroundColor={label.markerBackgroundColor}
             markerTextColor={label.markerTextColor}
-            compactContent={effectiveCompactContent}
             labelStyle={label.labelStyle}
             collapse={label.collapse}
             forceCollapse={label.forceCollapse}
-            fontSize={label.fontSize}
-            fontFamily={label.fontFamily}
-            fontWeight={label.fontWeight}
             textBackgroundColor={label.textBackgroundColor}
             textColor={label.textColor}
             onClick={blockLabelInteractions ? undefined : label.onClick}

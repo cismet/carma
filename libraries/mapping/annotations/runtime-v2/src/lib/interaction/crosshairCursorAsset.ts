@@ -1,17 +1,27 @@
+import {
+  ANNOTATION_CURSOR_OVERLAY_CENTER_GAP_PX,
+  ANNOTATION_CURSOR_OVERLAY_CENTER_PX,
+  ANNOTATION_CURSOR_OVERLAY_FAR_DASH_LENGTH_PX,
+  ANNOTATION_CURSOR_OVERLAY_INNER_TIP_PX,
+  ANNOTATION_CURSOR_OVERLAY_OUTLINE_PX,
+  ANNOTATION_CURSOR_OVERLAY_SHADOW_COLOR,
+  ANNOTATION_CURSOR_OVERLAY_SIZE_PX,
+  ANNOTATION_CURSOR_OVERLAY_STROKE_COLOR,
+  ANNOTATION_CURSOR_OVERLAY_THICKNESS_PX,
+  type AnnotationCursorOverlayStrokeCapMode,
+} from "@carma-commons/ui/components";
+
 import { renderSimpleHairlineCrosshairCursorCanvas } from "./renderSimpleHairlineCrosshairCursorCanvas";
 
 export const CROSSHAIR_CURSOR_SIZE_PX = 48;
 export const CROSSHAIR_CURSOR_ANCHOR_PX = 24;
-export const CROSSHAIR_CURSOR_DESIGN_SIZE_SERIES_PX = [
-  16, 24, 32, 48, 64, 96, 128,
-] as const;
 export const SIMPLE_HAIRLINE_CURSOR_SIZE_SERIES_PX = [
   16, 24, 32, 48, 64,
 ] as const;
 
 export const CROSSHAIR_CURSOR_STYLES = {
-  DEFAULT: "default",
-  SIMPLE_HAIRLINE: "simple-hairline",
+  ANNOTATION_PLAYGROUND: "annotation-playground",
+  DEBUG_HAIRLINE: "debug-hairline",
 } as const;
 
 export type CrosshairCursorStyle =
@@ -19,10 +29,9 @@ export type CrosshairCursorStyle =
 
 export type CrosshairCursorRenderOptions = {
   style?: CrosshairCursorStyle;
-  primaryColor?: string;
-  secondaryColor?: string;
   devicePixelRatio?: number;
   sizePx?: number;
+  strokeCap?: AnnotationCursorOverlayStrokeCapMode;
 };
 
 export type CrosshairCursorCssValueOptions = CrosshairCursorRenderOptions;
@@ -30,24 +39,21 @@ export type CrosshairCursorCssValueOptions = CrosshairCursorRenderOptions;
 const crosshairCursorCssValueByKey = new Map<string, string>();
 const crosshairCursorDataUrlByKey = new Map<string, string>();
 
-const resolveCrosshairCursorStyleOptions = (
-  options: CrosshairCursorRenderOptions
-) => {
-  const style = options.style ?? CROSSHAIR_CURSOR_STYLES.DEFAULT;
-
+const resolveCrosshairCursorStyleOptions = (style?: CrosshairCursorStyle) => {
+  const effectiveStyle = style ?? CROSSHAIR_CURSOR_STYLES.ANNOTATION_PLAYGROUND;
   switch (style) {
-    case CROSSHAIR_CURSOR_STYLES.SIMPLE_HAIRLINE:
+    case CROSSHAIR_CURSOR_STYLES.DEBUG_HAIRLINE:
       return {
-        style,
-        primaryColor: options.primaryColor ?? "rgba(255,255,255,0.98)",
-        secondaryColor: options.secondaryColor ?? "rgba(0,0,0,0.98)",
+        style: effectiveStyle,
+        primaryColor: "rgba(255,255,255,0.98)",
+        secondaryColor: "rgba(0,0,0,0.98)",
       };
-    case CROSSHAIR_CURSOR_STYLES.DEFAULT:
+    case CROSSHAIR_CURSOR_STYLES.ANNOTATION_PLAYGROUND:
     default:
       return {
-        style: CROSSHAIR_CURSOR_STYLES.DEFAULT,
-        primaryColor: options.primaryColor ?? "hsla(0,0%,100%,0.98)",
-        secondaryColor: options.secondaryColor ?? "rgba(0,0,0,0.98)",
+        style: CROSSHAIR_CURSOR_STYLES.ANNOTATION_PLAYGROUND,
+        primaryColor: "hsla(0,0%,100%,0.98)",
+        secondaryColor: "rgba(0,0,0,0.98)",
       };
   }
 };
@@ -112,13 +118,13 @@ export const resolveCrosshairCursorRasterMetrics = ({
     return {
       sizePx: resolvedSizePx,
       anchorPx:
-        style === CROSSHAIR_CURSOR_STYLES.SIMPLE_HAIRLINE
+        style === CROSSHAIR_CURSOR_STYLES.DEBUG_HAIRLINE
           ? Math.max(Math.floor(resolvedSizePx / 2) - 1, 0)
           : Math.max(Math.floor(resolvedSizePx / 2), 0),
     };
   }
 
-  if (style === CROSSHAIR_CURSOR_STYLES.SIMPLE_HAIRLINE) {
+  if (style === CROSSHAIR_CURSOR_STYLES.DEBUG_HAIRLINE) {
     const sizePx = resolveSimpleHairlineCursorSizePx(devicePixelRatio);
     return {
       sizePx,
@@ -143,30 +149,198 @@ const createCursorCanvas = (sizePx: number) => {
   return canvas;
 };
 
-const drawDefaultCrosshairArm = ({
-  context,
-  primaryColor,
-  secondaryColor,
-}: {
-  context: CanvasRenderingContext2D;
-  primaryColor: string;
-  secondaryColor: string;
-}) => {
-  context.strokeStyle = secondaryColor;
-  context.lineWidth = 0.5;
-  context.lineCap = "butt";
-  context.beginPath();
-  context.moveTo(4, 0);
-  context.lineTo(8, 0);
-  context.stroke();
+const encodeSvgDataUrl = (svgMarkup: string) =>
+  `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgMarkup)}`;
 
-  context.strokeStyle = primaryColor;
-  context.lineWidth = 1.5;
-  context.lineCap = "round";
-  context.beginPath();
-  context.moveTo(8, 0);
-  context.lineTo(16, 0);
-  context.stroke();
+const createSvgPolygonMarkup = ({
+  points,
+  fill,
+}: {
+  points: Array<readonly [number, number]>;
+  fill: string;
+}) =>
+  `<polygon points="${points
+    .map(([x, y]) => `${x},${y}`)
+    .join(" ")}" fill="${fill}"/>`;
+
+const buildAnnotationPlaygroundCursorSvgMarkup = ({
+  metrics,
+  strokeCap = "round",
+}: {
+  metrics: CrosshairCursorRasterMetrics;
+  strokeCap?: AnnotationCursorOverlayStrokeCapMode;
+}) => {
+  const shadowStrokeThicknessPx =
+    ANNOTATION_CURSOR_OVERLAY_THICKNESS_PX +
+    ANNOTATION_CURSOR_OVERLAY_OUTLINE_PX * 2;
+  const shadowDashLengthPx =
+    ANNOTATION_CURSOR_OVERLAY_FAR_DASH_LENGTH_PX +
+    ANNOTATION_CURSOR_OVERLAY_OUTLINE_PX * 2;
+  const halfForegroundThicknessPx = ANNOTATION_CURSOR_OVERLAY_THICKNESS_PX / 2;
+  const centerPx = ANNOTATION_CURSOR_OVERLAY_CENTER_PX;
+  const innerTipPx = ANNOTATION_CURSOR_OVERLAY_INNER_TIP_PX;
+  const gapPx = ANNOTATION_CURSOR_OVERLAY_CENTER_GAP_PX;
+  const dashLengthPx = ANNOTATION_CURSOR_OVERLAY_FAR_DASH_LENGTH_PX;
+  const outlinePx = ANNOTATION_CURSOR_OVERLAY_OUTLINE_PX;
+  const shadowInnerTipPx = innerTipPx + outlinePx;
+  void strokeCap;
+
+  const shadowPartsMarkup = [
+    createSvgPolygonMarkup({
+      fill: ANNOTATION_CURSOR_OVERLAY_SHADOW_COLOR,
+      points: [
+        [centerPx + gapPx - outlinePx, centerPx],
+        [
+          centerPx + gapPx - outlinePx + shadowInnerTipPx,
+          centerPx - shadowStrokeThicknessPx / 2,
+        ],
+        [
+          centerPx + gapPx - outlinePx + shadowDashLengthPx,
+          centerPx - shadowStrokeThicknessPx / 2,
+        ],
+        [
+          centerPx + gapPx - outlinePx + shadowDashLengthPx,
+          centerPx + shadowStrokeThicknessPx / 2,
+        ],
+        [
+          centerPx + gapPx - outlinePx + shadowInnerTipPx,
+          centerPx + shadowStrokeThicknessPx / 2,
+        ],
+      ],
+    }),
+    createSvgPolygonMarkup({
+      fill: ANNOTATION_CURSOR_OVERLAY_SHADOW_COLOR,
+      points: [
+        [
+          centerPx - gapPx - dashLengthPx - outlinePx,
+          centerPx - shadowStrokeThicknessPx / 2,
+        ],
+        [
+          centerPx -
+            gapPx -
+            dashLengthPx -
+            outlinePx +
+            (shadowDashLengthPx - shadowInnerTipPx),
+          centerPx - shadowStrokeThicknessPx / 2,
+        ],
+        [centerPx - gapPx + outlinePx, centerPx],
+        [
+          centerPx -
+            gapPx -
+            dashLengthPx -
+            outlinePx +
+            (shadowDashLengthPx - shadowInnerTipPx),
+          centerPx + shadowStrokeThicknessPx / 2,
+        ],
+        [
+          centerPx - gapPx - dashLengthPx - outlinePx,
+          centerPx + shadowStrokeThicknessPx / 2,
+        ],
+      ],
+    }),
+    createSvgPolygonMarkup({
+      fill: ANNOTATION_CURSOR_OVERLAY_SHADOW_COLOR,
+      points: [
+        [
+          centerPx - shadowStrokeThicknessPx / 2,
+          centerPx + gapPx - outlinePx + shadowInnerTipPx,
+        ],
+        [centerPx, centerPx + gapPx - outlinePx],
+        [
+          centerPx + shadowStrokeThicknessPx / 2,
+          centerPx + gapPx - outlinePx + shadowInnerTipPx,
+        ],
+        [
+          centerPx + shadowStrokeThicknessPx / 2,
+          centerPx + gapPx - outlinePx + shadowDashLengthPx,
+        ],
+        [
+          centerPx - shadowStrokeThicknessPx / 2,
+          centerPx + gapPx - outlinePx + shadowDashLengthPx,
+        ],
+      ],
+    }),
+    createSvgPolygonMarkup({
+      fill: ANNOTATION_CURSOR_OVERLAY_SHADOW_COLOR,
+      points: [
+        [
+          centerPx - shadowStrokeThicknessPx / 2,
+          centerPx - gapPx - dashLengthPx - outlinePx,
+        ],
+        [
+          centerPx + shadowStrokeThicknessPx / 2,
+          centerPx - gapPx - dashLengthPx - outlinePx,
+        ],
+        [
+          centerPx + shadowStrokeThicknessPx / 2,
+          centerPx -
+            gapPx -
+            dashLengthPx -
+            outlinePx +
+            (shadowDashLengthPx - shadowInnerTipPx),
+        ],
+        [centerPx, centerPx - gapPx + outlinePx],
+        [
+          centerPx - shadowStrokeThicknessPx / 2,
+          centerPx -
+            gapPx -
+            dashLengthPx -
+            outlinePx +
+            (shadowDashLengthPx - shadowInnerTipPx),
+        ],
+      ],
+    }),
+  ].join("");
+
+  const foregroundPartsMarkup = [
+    createSvgPolygonMarkup({
+      fill: ANNOTATION_CURSOR_OVERLAY_STROKE_COLOR,
+      points: [
+        [centerPx + gapPx, centerPx],
+        [centerPx + gapPx + innerTipPx, centerPx - halfForegroundThicknessPx],
+        [centerPx + gapPx + dashLengthPx, centerPx - halfForegroundThicknessPx],
+        [centerPx + gapPx + dashLengthPx, centerPx + halfForegroundThicknessPx],
+        [centerPx + gapPx + innerTipPx, centerPx + halfForegroundThicknessPx],
+      ],
+    }),
+    createSvgPolygonMarkup({
+      fill: ANNOTATION_CURSOR_OVERLAY_STROKE_COLOR,
+      points: [
+        [centerPx - gapPx - dashLengthPx, centerPx - halfForegroundThicknessPx],
+        [centerPx - gapPx - innerTipPx, centerPx - halfForegroundThicknessPx],
+        [centerPx - gapPx, centerPx],
+        [centerPx - gapPx - innerTipPx, centerPx + halfForegroundThicknessPx],
+        [centerPx - gapPx - dashLengthPx, centerPx + halfForegroundThicknessPx],
+      ],
+    }),
+    createSvgPolygonMarkup({
+      fill: ANNOTATION_CURSOR_OVERLAY_STROKE_COLOR,
+      points: [
+        [centerPx - halfForegroundThicknessPx, centerPx + gapPx + innerTipPx],
+        [centerPx, centerPx + gapPx],
+        [centerPx + halfForegroundThicknessPx, centerPx + gapPx + innerTipPx],
+        [centerPx + halfForegroundThicknessPx, centerPx + gapPx + dashLengthPx],
+        [centerPx - halfForegroundThicknessPx, centerPx + gapPx + dashLengthPx],
+      ],
+    }),
+    createSvgPolygonMarkup({
+      fill: ANNOTATION_CURSOR_OVERLAY_STROKE_COLOR,
+      points: [
+        [centerPx - halfForegroundThicknessPx, centerPx - gapPx - dashLengthPx],
+        [centerPx + halfForegroundThicknessPx, centerPx - gapPx - dashLengthPx],
+        [centerPx + halfForegroundThicknessPx, centerPx - gapPx - innerTipPx],
+        [centerPx, centerPx - gapPx],
+        [centerPx - halfForegroundThicknessPx, centerPx - gapPx - innerTipPx],
+      ],
+    }),
+  ].join("");
+
+  return [
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${metrics.sizePx}" height="${metrics.sizePx}" viewBox="0 0 ${ANNOTATION_CURSOR_OVERLAY_SIZE_PX} ${ANNOTATION_CURSOR_OVERLAY_SIZE_PX}" preserveAspectRatio="xMidYMid meet" shape-rendering="geometricPrecision">`,
+    shadowPartsMarkup,
+    foregroundPartsMarkup,
+    "</svg>",
+  ].join("");
 };
 
 const buildCrosshairCursorCanvas = ({
@@ -190,7 +364,7 @@ const buildCrosshairCursorCanvas = ({
   context.save();
   context.translate(metrics.anchorPx, metrics.anchorPx);
 
-  if (styleOptions.style === CROSSHAIR_CURSOR_STYLES.SIMPLE_HAIRLINE) {
+  if (styleOptions.style === CROSSHAIR_CURSOR_STYLES.DEBUG_HAIRLINE) {
     renderSimpleHairlineCrosshairCursorCanvas({
       context,
       primaryColor: styleOptions.primaryColor,
@@ -202,20 +376,6 @@ const buildCrosshairCursorCanvas = ({
     return canvas;
   }
 
-  context.fillStyle = styleOptions.primaryColor;
-  context.fillRect(0, 0, 1, 1);
-
-  for (let rotationIndex = 0; rotationIndex < 4; rotationIndex += 1) {
-    context.save();
-    context.rotate((Math.PI / 2) * rotationIndex);
-    drawDefaultCrosshairArm({
-      context,
-      primaryColor: styleOptions.primaryColor,
-      secondaryColor: styleOptions.secondaryColor,
-    });
-    context.restore();
-  }
-
   context.restore();
   return canvas;
 };
@@ -223,7 +383,7 @@ const buildCrosshairCursorCanvas = ({
 export const buildCrosshairCursorDataUrl = (
   options: CrosshairCursorRenderOptions
 ) => {
-  const resolvedOptions = resolveCrosshairCursorStyleOptions(options);
+  const resolvedOptions = resolveCrosshairCursorStyleOptions(options.style);
   const metrics = resolveCrosshairCursorRasterMetrics({
     style: resolvedOptions.style,
     devicePixelRatio: options.devicePixelRatio,
@@ -235,10 +395,22 @@ export const buildCrosshairCursorDataUrl = (
     resolvedOptions.secondaryColor,
     metrics.sizePx,
     metrics.anchorPx,
+    options.strokeCap ?? "round",
   ].join(":");
   const cachedDataUrl = crosshairCursorDataUrlByKey.get(cacheKey);
   if (cachedDataUrl) {
     return cachedDataUrl;
+  }
+
+  if (resolvedOptions.style === CROSSHAIR_CURSOR_STYLES.ANNOTATION_PLAYGROUND) {
+    const dataUrl = encodeSvgDataUrl(
+      buildAnnotationPlaygroundCursorSvgMarkup({
+        metrics,
+        strokeCap: options.strokeCap,
+      })
+    );
+    crosshairCursorDataUrlByKey.set(cacheKey, dataUrl);
+    return dataUrl;
   }
 
   const canvas = buildCrosshairCursorCanvas({
@@ -255,17 +427,12 @@ export const buildCrosshairCursorDataUrl = (
 };
 
 export const resolveCrosshairCursorCssValue = ({
-  style = CROSSHAIR_CURSOR_STYLES.DEFAULT,
-  primaryColor,
-  secondaryColor,
+  style = CROSSHAIR_CURSOR_STYLES.ANNOTATION_PLAYGROUND,
   devicePixelRatio,
   sizePx,
+  strokeCap,
 }: CrosshairCursorCssValueOptions) => {
-  const resolvedOptions = resolveCrosshairCursorStyleOptions({
-    style,
-    primaryColor,
-    secondaryColor,
-  });
+  const resolvedOptions = resolveCrosshairCursorStyleOptions(style);
   const metrics = resolveCrosshairCursorRasterMetrics({
     style: resolvedOptions.style,
     devicePixelRatio,
@@ -277,6 +444,7 @@ export const resolveCrosshairCursorCssValue = ({
     resolvedOptions.secondaryColor,
     metrics.sizePx,
     metrics.anchorPx,
+    strokeCap ?? "round",
   ].join(":");
   const cachedCursorCssValue = crosshairCursorCssValueByKey.get(cacheKey);
   if (cachedCursorCssValue) {
@@ -285,10 +453,9 @@ export const resolveCrosshairCursorCssValue = ({
 
   const cursorCssValue = `url("${buildCrosshairCursorDataUrl({
     style: resolvedOptions.style,
-    primaryColor: resolvedOptions.primaryColor,
-    secondaryColor: resolvedOptions.secondaryColor,
     devicePixelRatio,
     sizePx,
+    strokeCap,
   })}") ${metrics.anchorPx} ${metrics.anchorPx}, crosshair`;
 
   crosshairCursorCssValueByKey.set(cacheKey, cursorCssValue);

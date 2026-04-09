@@ -38,6 +38,31 @@ export {
   ResponsiveStatusBar,
   type ResponsiveStatusBarProps,
 } from "./lib/components/ResponsiveStatusBar";
+export {
+  ANNOTATION_CURSOR_DEFAULT_AURA_PADDING_PX,
+  ANNOTATION_CURSOR_DEFAULT_CANVAS_SIZE_PX,
+  ANNOTATION_CURSOR_DEFAULT_PATH_DEFINITIONS,
+  ANNOTATION_CURSOR_DEFAULT_SHAPE_HALF_EXTENT_PX,
+  ANNOTATION_CURSOR_DEFAULT_VIEWBOX,
+  type AnnotationCursorSvgPathDefinition,
+  buildAnnotationCursorForegroundSvgMarkup,
+  buildAnnotationCursorForegroundSvgDataUrl,
+  buildAnnotationCursorShadowSvgMarkup,
+  buildAnnotationCursorShadowSvgDataUrl,
+  encodeAnnotationCursorSvgDataUrl,
+} from "./lib/utils/annotation-cursor-layered-svg-data-url";
+export {
+  createAnnotationCursorForegroundSvgElement,
+  createAnnotationCursorLayeredDomElement,
+  createAnnotationCursorLayerHostElement,
+  createAnnotationCursorShadowSvgElement,
+  encodeAnnotationCursorSvgElementDataUrl,
+  serializeAnnotationCursorSvgElement,
+  type AnnotationCursorForegroundSvgElementOptions,
+  type AnnotationCursorLayerHostElementOptions,
+  type AnnotationCursorLayeredDomElementOptions,
+  type AnnotationCursorShadowSvgElementOptions,
+} from "./lib/utils/annotation-cursor-dom";
 export { FileUploader } from "./lib/components/FileUploader";
 export { MODES } from "./lib/components/responsiveInfoBoxModes";
 export { uploadImage } from "./lib/utils/uploadImage";
@@ -58,3 +83,31 @@ export {
   readFrostedGlassShadow,
   readFrostedGlassShadowStyle,
 } from "./lib/utils/frostedGlass";
+export {
+  ANNOTATION_CURSOR_OVERLAY_CENTER_DOT_SIZE_PX,
+  ANNOTATION_CURSOR_OVERLAY_CENTER_GAP_PX,
+  ANNOTATION_CURSOR_OVERLAY_CENTER_PX,
+  ANNOTATION_CURSOR_OVERLAY_FAR_DASH_LENGTH_PX,
+  ANNOTATION_CURSOR_OVERLAY_HALF_EXTENT_PX,
+  ANNOTATION_CURSOR_OVERLAY_INNER_TIP_PX,
+  ANNOTATION_CURSOR_OVERLAY_OUTLINE_PX,
+  ANNOTATION_CURSOR_OVERLAY_SIZE_PX,
+  ANNOTATION_CURSOR_OVERLAY_SHADOW_BLEND_MODE,
+  ANNOTATION_CURSOR_OVERLAY_SHADOW_BLUR_RADIUS_PX,
+  ANNOTATION_CURSOR_OVERLAY_SHADOW_COLOR,
+  ANNOTATION_CURSOR_OVERLAY_SHADOW_DROP_SHADOW_RADIUS_PX,
+  ANNOTATION_CURSOR_OVERLAY_SHADOW_FILTER,
+  ANNOTATION_CURSOR_OVERLAY_SHADOW_OPACITY,
+  ANNOTATION_CURSOR_OVERLAY_STROKE_COLOR,
+  ANNOTATION_CURSOR_OVERLAY_THICKNESS_PX,
+  annotationCursorOverlayElementStyle,
+  annotationCursorOverlayForegroundLayerStyle,
+  annotationCursorOverlayForegroundPartDefinitions,
+  annotationCursorOverlayPartDefinitions,
+  buildAnnotationCursorOverlayForegroundStrokePartDefinitions,
+  buildAnnotationCursorOverlayShadowPartDefinitions,
+  annotationCursorOverlayShadowLayerStyle,
+  annotationCursorOverlayShadowPartDefinitions,
+  type AnnotationCursorOverlayPartDefinition,
+  type AnnotationCursorOverlayStrokeCapMode,
+} from "./lib/utils/annotation-cursor-overlay-style";

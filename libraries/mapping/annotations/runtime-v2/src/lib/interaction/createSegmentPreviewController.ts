@@ -36,7 +36,7 @@ export type SegmentPreviewController = {
   destroy: () => void;
 };
 
-const SEGMENT_PREVIEW_LAYER_ID = "annotation-v2-segment-preview-layer";
+const SEGMENT_PREVIEW_LAYER_ID = "annotation-overlay-segment-preview-layer";
 
 export const createSegmentPreviewController = (
   scene: RuntimeScene,

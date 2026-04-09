@@ -4,18 +4,17 @@ import {
   DISTANCE_TRIANGLE_OVERLAY_ARGS,
   DISTANCE_TRIANGLE_OVERLAY_ARG_TYPES,
   DistanceTriangleOverlayDebugStory,
+  LINE_LABEL_COMPONENT_ARGS,
+  LINE_LABEL_COMPONENT_ARG_TYPES,
   LABEL_PLACEMENT_POLYGON_ARGS,
   LABEL_PLACEMENT_POLYGON_ARG_TYPES,
   LABEL_PLACEMENT_SINGLE_LINE_ARGS,
   LABEL_PLACEMENT_SINGLE_LINE_ARG_TYPES,
+  LineLabelComponentStory,
   PolygonSegmentLabelDebugStory,
   SingleLineLabelDebugStory,
 } from "./LabelPlacement.story-helpers";
-import {
-  ANNOTATION_TYPOGRAPHY_ARGS,
-  ANNOTATION_TYPOGRAPHY_ARG_TYPES,
-  AnnotationTypographyStory,
-} from "./AnnotationTypography.story-helpers";
+
 const meta = {
   title: "Overlay/Labels",
   parameters: {
@@ -50,15 +49,15 @@ export const PolygonSegment = {
 };
 
 export const DistanceTriangleOverlay = {
-  name: "Distance Triangle Overlay",
+  name: "Distance Tool Overlay",
   argTypes: DISTANCE_TRIANGLE_OVERLAY_ARG_TYPES,
   args: DISTANCE_TRIANGLE_OVERLAY_ARGS,
   render: (args) => <DistanceTriangleOverlayDebugStory {...args} />,
 };
 
-export const Typography = {
-  name: "Annotation Typography",
-  argTypes: ANNOTATION_TYPOGRAPHY_ARG_TYPES,
-  args: ANNOTATION_TYPOGRAPHY_ARGS,
-  render: (args) => <AnnotationTypographyStory {...args} />,
+export const LineLabelComponent = {
+  name: "Line Label Component",
+  argTypes: LINE_LABEL_COMPONENT_ARG_TYPES,
+  args: LINE_LABEL_COMPONENT_ARGS,
+  render: (args) => <LineLabelComponentStory {...args} />,
 };

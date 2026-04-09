@@ -1,49 +1,58 @@
 import {
+  useCallback,
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
   type CSSProperties,
+  type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from "react";
 
 import { DraggableDebugAnchor } from "@carma-commons/interaction/drag";
-import { createScreenPointSvgLineVisualizers } from "@carma-commons/svg";
 import {
-  PREVIEW_LINE_LABEL_BACKGROUND_STYLE,
-  PREVIEW_LINE_LABEL_THEME,
   PILLBUTTON_LABEL_MARKER_RESIZE_MODE,
   PILLBUTTON_BADGE_POSITIONS,
   PillbuttonLabelMarker,
   PointLabel,
-  PointLabelMarker,
   POINT_LABEL_ATTACH,
+  resolvePillbuttonLabelMarkerLocalAnchorPoints,
   type PillbuttonBadgePosition,
   type PointLabelAttach,
   type PointLabelStyleProps,
 } from "@carma-providers/label-overlay";
 import { MINUS_PI_OVER_FOUR } from "@carma-commons/math";
+import { annotationTypographyDefaults } from "@carma-mapping/annotations/runtime-v2";
 import type { CssPixelPosition } from "@carma-units";
+import {
+  PREVIEW_LINE_LABEL_BACKGROUND_STYLE,
+  PREVIEW_LINE_LABEL_THEME,
+} from "../../../../../../libraries/mapping/annotations/runtime-v2/src/lib/config/previewLineLabelVisualDefaults";
+import barmenBackgroundUrl from "./assets/barmen-background.png";
 
 import { CenteredStoryFrame } from "../../common/ui/centered-story-frame";
-import "../../../../../../libraries/mapping/annotations/runtime-v2/src/lib/interaction/preview-line-label.css";
-export type LabelMarkersStoryArgs = PointLabelStyleProps & {
+import "../../../../../../libraries/mapping/annotations/runtime-v2/src/lib/interaction/annotation-overlay-line-label.css";
+export type LabelMarkersStoryArgs = {
   content: ReactNode;
-  compactContent?: ReactNode;
-  markerContent?: ReactNode;
-  badgeSlot?: PillboxStoryBadgeSlot;
-  showDebugAnchors?: boolean;
-  pageBackgroundMode?: LabelStoryBackgroundMode;
   badgeContent?: ReactNode;
-  badgeBackgroundColor?: string;
+  badgeSlot?: PillboxStoryBadgeSlot;
+  debugAnchors?: boolean;
+  storyBackground?: LabelStoryBackgroundMode;
+  pageBackgroundMode?: LabelStoryBackgroundMode;
+  labelTextColor?: string;
+  labelBackgroundColor?: string;
+  badgeFillColor?: string;
   badgeTextColor?: string;
-  badgeOutlineColor?: string;
-  badgeStrokeWidth?: number;
+  badgeBorderColor?: string;
+  badgeBorderWidth?: number;
+  badgeBorderless?: boolean;
 };
 
 export const LABEL_STORY_BACKGROUND_MODES = {
   PLAIN: "plain",
   SLATE: "slate",
   CHECKERBOARD: "checkerboard",
+  URBAN: "urban",
 } as const;
 
 export type LabelStoryBackgroundMode =
@@ -59,30 +68,72 @@ type PillboxStoryBadgeSlot =
   (typeof PILLBOX_STORY_BADGE_SLOTS)[keyof typeof PILLBOX_STORY_BADGE_SLOTS];
 
 type DraggableAnchorKind = PointLabelAttach;
+type DragSession = {
+  anchorKind: DraggableAnchorKind;
+  anchorStartPosition: AnchorPoint;
+  labelStartPosition: AnchorPoint;
+};
+type LabelDragSession = {
+  pointerStartPosition: AnchorPoint;
+  labelStartPosition: AnchorPoint;
+};
 
 const toCssPixelPosition = (x: number, y: number): CssPixelPosition => ({
   x: x as CssPixelPosition["x"],
   y: y as CssPixelPosition["y"],
 });
 
-const LABEL_MARKERS_FONT_FAMILY =
-  'ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+const LABEL_MARKERS_FONT_FAMILY = annotationTypographyDefaults.fontFamily;
+
+const STORY_SECTION_COLUMN_WIDTH = 352;
+const STORY_SECTION_GAP = 24;
+const MAX_STORY_SECTION_COLUMNS = 4;
+const STORY_ROW_PREVIEW_WIDTH = 240;
 
 const pageStyle: CSSProperties = {
   userSelect: "text",
 };
 
 const sectionStyle: CSSProperties = {
-  marginBottom: 24,
+  marginBottom: 0,
   minWidth: 0,
+  width: "100%",
+  maxWidth: "100%",
 };
 
 const sectionGridStyle: CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(320px, max-content))",
-  gap: 28,
+  gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, ${STORY_SECTION_COLUMN_WIDTH}px), ${STORY_SECTION_COLUMN_WIDTH}px))`,
+  gap: STORY_SECTION_GAP,
   alignItems: "start",
   justifyContent: "center",
+  width: "100%",
+  maxWidth: 1120,
+  margin: "0 auto",
+};
+
+const compactSectionStackStyle: CSSProperties = {
+  display: "flex",
+  gap: STORY_SECTION_GAP,
+  alignItems: "start",
+  justifyContent: "center",
+  width: "100%",
+  maxWidth: 1120,
+  margin: "0 auto",
+};
+
+const compactSectionColumnStyle: CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  gap: STORY_SECTION_GAP,
+  width: STORY_SECTION_COLUMN_WIDTH,
+  maxWidth: "100%",
+  minWidth: 0,
+};
+
+const compactSectionSingleColumnStyle: CSSProperties = {
+  ...compactSectionColumnStyle,
+  width: `min(100%, ${STORY_SECTION_COLUMN_WIDTH}px)`,
 };
 
 const sectionTitleStyle: CSSProperties = {
@@ -93,9 +144,10 @@ const sectionTitleStyle: CSSProperties = {
 };
 
 const rowListStyle: CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
   width: "100%",
-  borderCollapse: "collapse",
-  tableLayout: "fixed",
+  maxWidth: "100%",
   background: "transparent",
 };
 
@@ -103,32 +155,138 @@ const rowStyle: CSSProperties = {
   borderBottom: "1px solid rgba(148, 163, 184, 0.25)",
 };
 
+const readStorySectionColumnCount = (containerWidth: number): number => {
+  if (containerWidth <= 0) {
+    return 1;
+  }
+
+  return Math.max(
+    1,
+    Math.min(
+      MAX_STORY_SECTION_COLUMNS,
+      Math.floor(
+        (containerWidth + STORY_SECTION_GAP) /
+          (STORY_SECTION_COLUMN_WIDTH + STORY_SECTION_GAP)
+      )
+    )
+  );
+};
+
+const distributeItemsByEstimatedHeight = <T,>(
+  items: readonly T[],
+  columnCount: number,
+  estimateHeight: (item: T) => number
+): T[][] => {
+  if (columnCount <= 1) {
+    return [Array.from(items)];
+  }
+
+  const columns = Array.from({ length: columnCount }, () => [] as T[]);
+  const columnHeights = Array.from({ length: columnCount }, () => 0);
+
+  items.forEach((item) => {
+    const nextColumnIndex = columnHeights.reduce(
+      (bestIndex, currentHeight, currentIndex, heights) =>
+        currentHeight < heights[bestIndex] ? currentIndex : bestIndex,
+      0
+    );
+
+    columns[nextColumnIndex].push(item);
+    columnHeights[nextColumnIndex] += estimateHeight(item);
+  });
+
+  return columns;
+};
+
+const useMeasuredWidth = () => {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [width, setWidth] = useState(0);
+
+  useLayoutEffect(() => {
+    const element = containerRef.current;
+    if (!element) {
+      return;
+    }
+
+    const readWidth = () => {
+      setWidth(element.getBoundingClientRect().width);
+    };
+
+    readWidth();
+
+    const resizeObserver = new ResizeObserver(() => {
+      readWidth();
+    });
+
+    resizeObserver.observe(element);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, []);
+
+  return { containerRef, width };
+};
+
+const rowCellStyle: CSSProperties = {
+  display: "flex",
+  flexWrap: "wrap",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 12,
+  minWidth: 0,
+  padding: "5px 0",
+};
+
 const rowLabelStyle: CSSProperties = {
-  width: 240,
   textAlign: "left",
-  whiteSpace: "nowrap",
+  flex: "1 1 auto",
+  minWidth: 0,
+  whiteSpace: "normal",
   color: "#475569",
   fontSize: 13,
   lineHeight: 1.3,
-  padding: "5px 12px 5px 0",
-  verticalAlign: "middle",
+  padding: 0,
 };
 
 const rowGraphicStyle: CSSProperties = {
   position: "relative",
+  display: "flex",
+  justifyContent: "flex-end",
+  flex: "0 0 auto",
   minWidth: 0,
+  maxWidth: "100%",
   height: 34,
   overflow: "visible",
   padding: "3px 0",
-  verticalAlign: "middle",
+  marginLeft: "auto",
+  whiteSpace: "nowrap",
 };
 
-const tableHeaderCellStyle: CSSProperties = {
-  textAlign: "left",
+const FIXED_ROW_GRAPHIC_STYLE: CSSProperties = {
+  width: STORY_ROW_PREVIEW_WIDTH,
+  maxWidth: "100%",
+};
+
+const compactRowLabelStyle: CSSProperties = {
+  whiteSpace: "normal",
   fontSize: 12,
-  fontWeight: 600,
-  color: "#475569",
-  padding: "0 0 8px",
+  lineHeight: 1,
+  fontVariantNumeric: "tabular-nums lining-nums",
+  fontFeatureSettings: '"tnum" 1, "lnum" 1',
+  padding: "0 10px 0 0",
+};
+
+const compactRowGraphicStyle: CSSProperties = {
+  height: 30,
+  padding: "2px 0",
+};
+
+const sectionMetaStyle: CSSProperties = {
+  margin: "0 0 12px",
+  fontSize: 12,
+  lineHeight: 1.35,
+  color: "#64748b",
 };
 
 const anchorStyle: CSSProperties = {
@@ -178,6 +336,8 @@ const AnchorHairlineDebug = ({ visible }: { visible: boolean }) => {
   );
 };
 
+const LABEL_BACKDROP_FILTER = "blur(6px) brightness(1.06) saturate(0.88)";
+
 const pointLabelBaseStyles: CSSProperties = {
   padding: "2px 4px",
   boxSizing: "border-box",
@@ -185,6 +345,8 @@ const pointLabelBaseStyles: CSSProperties = {
   userSelect: "none",
   pointerEvents: "none",
   margin: 0,
+  backdropFilter: LABEL_BACKDROP_FILTER,
+  WebkitBackdropFilter: LABEL_BACKDROP_FILTER,
 };
 
 const noopMouseEventHandler = () => undefined;
@@ -193,58 +355,139 @@ const noopHoverHandler = () => undefined;
 const makeSharedStyleProps = (
   args: LabelMarkersStoryArgs
 ): PointLabelStyleProps => ({
-  fontSize: args.fontSize,
-  fontFamily: args.fontFamily,
-  fontWeight: args.fontWeight,
-  textColor: args.textColor,
-  textBackgroundColor: args.textBackgroundColor,
-  selectedBackgroundColor: args.selectedBackgroundColor,
-  hoverBackgroundColor: args.hoverBackgroundColor,
-  lineColor: args.lineColor,
-  lineWidth: args.lineWidth,
-  markerSize: args.markerSize,
-  markerStrokeWidth: args.badgeStrokeWidth ?? args.markerStrokeWidth,
-  stemStartDistance: args.stemStartDistance,
-  markerBackgroundColor:
-    args.badgeBackgroundColor ?? args.markerBackgroundColor,
-  markerTextColor: args.badgeTextColor ?? args.markerTextColor,
-  labelDistance: args.labelDistance,
+  textColor: args.labelTextColor,
+  textBackgroundColor: args.labelBackgroundColor,
+  selectedBackgroundColor: "rgba(251, 191, 36, 0.95)",
+  hoverBackgroundColor: "rgba(254, 243, 199, 0.98)",
+  lineColor: "rgba(30, 58, 138, 0.98)",
+  lineWidth: 1,
+  markerSize: 10,
+  markerStrokeWidth: args.badgeBorderWidth ?? 1,
+  stemStartDistance: 5,
+  markerBackgroundColor: args.badgeFillColor,
+  markerTextColor: args.badgeTextColor,
+  labelDistance: 20,
+  compactBorderless: args.badgeBorderless,
 });
 
 const InlineRow = ({
   label,
   children,
+  labelStyle,
+  graphicStyle,
+  cellStyle,
 }: {
   label: string;
   children: ReactNode;
+  labelStyle?: CSSProperties;
+  graphicStyle?: CSSProperties;
+  cellStyle?: CSSProperties;
 }) => (
-  <tr style={rowStyle}>
-    <td style={rowLabelStyle}>{label}</td>
-    <td style={rowGraphicStyle}>{children}</td>
-  </tr>
+  <div style={rowStyle}>
+    <div style={{ ...rowCellStyle, ...cellStyle }}>
+      <div style={{ ...rowLabelStyle, ...labelStyle }}>{label}</div>
+      <div style={{ ...rowGraphicStyle, ...graphicStyle }}>{children}</div>
+    </div>
+  </div>
 );
 
 const pillboxDemoViewportStyle: CSSProperties = {
   position: "relative",
-  minWidth: 420,
-  height: 56,
+  width: "100%",
+  minWidth: 0,
+  height: 44,
   overflow: "visible",
 };
 
-const pillboxDemoStageStyle: CSSProperties = {
-  position: "absolute",
-  inset: 0,
-  overflow: "visible",
+const DEFAULT_PILLBOX_LABEL_POSITION: AnchorPoint = {
+  x: 12,
+  y: 22,
+};
+
+const LEFT_ALIGNED_PILLBOX_LABEL_POSITION: AnchorPoint = {
+  x: 12,
+  y: 22,
 };
 
 const representativeLineLabelViewportStyle: CSSProperties = {
   position: "relative",
-  minWidth: 420,
+  width: "100%",
   height: 48,
   overflow: "visible",
 };
 
-const readStoryBackground = (
+const LABEL_COMPONENT_ROW_LABEL_STYLE: CSSProperties = {
+  ...compactRowLabelStyle,
+  flex: "0 1 auto",
+};
+const LABEL_COMPONENT_ROW_CELL_STYLE: CSSProperties = {
+  alignItems: "center",
+};
+const LABEL_COMPONENT_INLINE_ROW_GRAPHIC_STYLE: CSSProperties = {
+  position: "static",
+  display: "block",
+  flex: "0 0 auto",
+  width: "auto",
+  maxWidth: "100%",
+  minWidth: 0,
+  height: "auto",
+  minHeight: 0,
+  padding: 0,
+  lineHeight: 1,
+  textAlign: "right",
+  whiteSpace: "nowrap",
+};
+const REPRESENTATIVE_ROW_GRAPHIC_STYLE: CSSProperties = {
+  ...FIXED_ROW_GRAPHIC_STYLE,
+  height: 44,
+};
+const LINE_LABEL_ROW_GRAPHIC_STYLE: CSSProperties = {
+  ...FIXED_ROW_GRAPHIC_STYLE,
+  height: 48,
+};
+const LABEL_COMPONENT_VIEWPORT_STYLE: CSSProperties = {
+  minWidth: 0,
+  width: "100%",
+  display: "block",
+  height: 44,
+};
+
+const INLINE_PILL_LABEL_BASE_STYLES: CSSProperties = {
+  ...pointLabelBaseStyles,
+  padding: 0,
+};
+
+const resolveStoryBackgroundMode = (
+  args: LabelMarkersStoryArgs,
+  fallback: LabelStoryBackgroundMode
+): LabelStoryBackgroundMode =>
+  args.storyBackground ?? args.pageBackgroundMode ?? fallback;
+
+const readStaticAnchorHostStyle = (
+  labelAttach: PointLabelAttach
+): CSSProperties =>
+  labelAttach === POINT_LABEL_ATTACH.CENTER
+    ? {
+        position: "absolute",
+        left: "50%",
+        top: "50%",
+        transform: "translate(-50%, -50%)",
+      }
+    : labelAttach === POINT_LABEL_ATTACH.RIGHT
+    ? {
+        position: "absolute",
+        right: 12,
+        top: "50%",
+        transform: "translateY(-50%)",
+      }
+    : {
+        position: "absolute",
+        left: 12,
+        top: "50%",
+        transform: "translateY(-50%)",
+      };
+
+export const readStoryBackground = (
   mode: LabelStoryBackgroundMode | undefined
 ): string => {
   if (mode === LABEL_STORY_BACKGROUND_MODES.SLATE) {
@@ -261,16 +504,26 @@ const readStoryBackground = (
     ].join(", ");
   }
 
+  if (mode === LABEL_STORY_BACKGROUND_MODES.URBAN) {
+    return `linear-gradient(180deg, rgba(248, 250, 252, 0.08), rgba(241, 245, 249, 0.16)), url(${barmenBackgroundUrl})`;
+  }
+
   return "#f8fafc";
 };
 
-const readStoryBackgroundStyle = (
+export const readStoryBackgroundStyle = (
   mode: LabelStoryBackgroundMode | undefined
 ): CSSProperties | undefined =>
   mode === LABEL_STORY_BACKGROUND_MODES.CHECKERBOARD
     ? {
         backgroundSize: "24px 24px",
         backgroundPosition: "0 0, 0 12px, 12px -12px, -12px 0px",
+      }
+    : mode === LABEL_STORY_BACKGROUND_MODES.URBAN
+    ? {
+        backgroundPosition: "center center",
+        backgroundRepeat: "no-repeat",
+        backgroundSize: "cover",
       }
     : undefined;
 
@@ -292,7 +545,7 @@ const areAnchorPointsEqual = (
       current[anchorKind].y === next[anchorKind].y
   );
 
-const PillboxOnlyAnchorDemo = ({
+const DraggablePillbuttonLabelDemo = ({
   pointId,
   content,
   badgeContent,
@@ -301,8 +554,12 @@ const PillboxOnlyAnchorDemo = ({
   sharedStyleProps,
   showDebugAnchors,
   styleOverrides,
-  badgeOutlineColor,
+  badgeBorderColor,
   labelAttach = POINT_LABEL_ATTACH.CENTER,
+  initialLabelPosition = DEFAULT_PILLBOX_LABEL_POSITION,
+  viewportStyle,
+  alignPreviewRight = false,
+  previewRightInsetPx = 0,
 }: {
   pointId: string;
   content: ReactNode;
@@ -312,16 +569,39 @@ const PillboxOnlyAnchorDemo = ({
   sharedStyleProps: PointLabelStyleProps;
   showDebugAnchors: boolean;
   styleOverrides?: Partial<PointLabelStyleProps>;
-  badgeOutlineColor?: string;
+  badgeBorderColor?: string;
   labelAttach?: PointLabelAttach;
+  initialLabelPosition?: AnchorPoint;
+  viewportStyle?: CSSProperties;
+  alignPreviewRight?: boolean;
+  previewRightInsetPx?: number;
 }) => {
   const stageRef = useRef<HTMLDivElement | null>(null);
-  const [labelPosition, setLabelPosition] = useState({ x: 156, y: 40 });
+  const [labelPosition, setLabelPosition] = useState(initialLabelPosition);
   const [anchorPoints, setAnchorPoints] = useState<AnchorPointMap>({
     left: { x: 148, y: 40 },
     center: { x: 156, y: 40 },
     right: { x: 164, y: 40 },
   });
+  const labelPositionRef = useRef(labelPosition);
+  const anchorPointsRef = useRef(anchorPoints);
+  const dragSessionRef = useRef<DragSession | null>(null);
+  const labelDragSessionRef = useRef<LabelDragSession | null>(null);
+
+  useEffect(() => {
+    labelPositionRef.current = labelPosition;
+  }, [labelPosition]);
+
+  useEffect(() => {
+    anchorPointsRef.current = anchorPoints;
+  }, [anchorPoints]);
+
+  useEffect(() => {
+    setLabelPosition(initialLabelPosition);
+    labelPositionRef.current = initialLabelPosition;
+    dragSessionRef.current = null;
+    labelDragSessionRef.current = null;
+  }, [initialLabelPosition]);
 
   useLayoutEffect(() => {
     const stageElement = stageRef.current;
@@ -336,24 +616,53 @@ const PillboxOnlyAnchorDemo = ({
       const pillElement = stageElement.querySelector(
         `[data-point-label-id="${pointId}"]`
       ) as HTMLElement | null;
-      const contentElement = pillElement?.querySelector(
-        "[data-pillbutton-content='true']"
-      ) as HTMLElement | null;
-      if (!pillElement || !contentElement) {
+      if (!pillElement) {
         return;
       }
 
       const stageRect = stageElement.getBoundingClientRect();
-      const contentRect = contentElement.getBoundingClientRect();
-      const capRadius = contentRect.height * 0.5;
-      const top = contentRect.top - stageRect.top;
-      const left = contentRect.left - stageRect.left;
-      const width = contentRect.width;
-      const centerY = top + capRadius;
+      const pillRect = pillElement.getBoundingClientRect();
+
+      if (
+        alignPreviewRight &&
+        dragSessionRef.current === null &&
+        labelDragSessionRef.current === null
+      ) {
+        const currentRightPx = pillRect.right - stageRect.left;
+        const targetRightPx = stageRect.width - previewRightInsetPx;
+        const deltaPx = targetRightPx - currentRightPx;
+
+        if (Math.abs(deltaPx) > 0.5) {
+          const nextLabelPosition = {
+            x: labelPositionRef.current.x + deltaPx,
+            y: labelPositionRef.current.y,
+          };
+
+          labelPositionRef.current = nextLabelPosition;
+          setLabelPosition(nextLabelPosition);
+          return;
+        }
+      }
+
+      const top = pillRect.top - stageRect.top;
+      const left = pillRect.left - stageRect.left;
+      const localAnchors = resolvePillbuttonLabelMarkerLocalAnchorPoints({
+        fontSize: pillElement.style.fontSize,
+        widthPx: pillRect.width,
+      });
       const nextAnchorPoints: AnchorPointMap = {
-        left: { x: left + capRadius, y: centerY },
-        center: { x: left + width * 0.5, y: centerY },
-        right: { x: left + width - capRadius, y: centerY },
+        left: {
+          x: left + localAnchors.left.x,
+          y: top + localAnchors.left.y,
+        },
+        center: {
+          x: left + localAnchors.center.x,
+          y: top + localAnchors.center.y,
+        },
+        right: {
+          x: left + localAnchors.right.x,
+          y: top + localAnchors.right.y,
+        },
       };
 
       setAnchorPoints((current) =>
@@ -367,11 +676,8 @@ const PillboxOnlyAnchorDemo = ({
       const pillElement = stageElement.querySelector(
         `[data-point-label-id="${pointId}"]`
       ) as HTMLElement | null;
-      const contentElement = pillElement?.querySelector(
-        "[data-pillbutton-content='true']"
-      ) as HTMLElement | null;
 
-      if (!pillElement || !contentElement) {
+      if (!pillElement) {
         animationFrameId = window.requestAnimationFrame(connect);
         return;
       }
@@ -380,7 +686,6 @@ const PillboxOnlyAnchorDemo = ({
       resizeObserver = new ResizeObserver(() => readAnchors());
       resizeObserver.observe(stageElement);
       resizeObserver.observe(pillElement);
-      resizeObserver.observe(contentElement);
     };
 
     connect();
@@ -396,8 +701,10 @@ const PillboxOnlyAnchorDemo = ({
     badgeContent,
     badgePosition,
     content,
+    alignPreviewRight,
     labelAttach,
     pointId,
+    previewRightInsetPx,
     sharedStyleProps,
   ]);
 
@@ -406,42 +713,148 @@ const PillboxOnlyAnchorDemo = ({
   ): CssPixelPosition =>
     toCssPixelPosition(anchorPoints[anchorKind].x, anchorPoints[anchorKind].y);
 
+  const handleAnchorDragStart = (anchorKind: DraggableAnchorKind) => {
+    dragSessionRef.current = {
+      anchorKind,
+      anchorStartPosition: anchorPointsRef.current[anchorKind],
+      labelStartPosition: labelPositionRef.current,
+    };
+  };
+
+  const handleAnchorDragChange = (
+    anchorKind: DraggableAnchorKind,
+    nextPosition: CssPixelPosition
+  ) => {
+    const activeSession =
+      dragSessionRef.current?.anchorKind === anchorKind
+        ? dragSessionRef.current
+        : {
+            anchorKind,
+            anchorStartPosition: anchorPointsRef.current[anchorKind],
+            labelStartPosition: labelPositionRef.current,
+          };
+
+    const nextLabelPosition = {
+      x:
+        activeSession.labelStartPosition.x +
+        (Number(nextPosition.x) - activeSession.anchorStartPosition.x),
+      y:
+        activeSession.labelStartPosition.y +
+        (Number(nextPosition.y) - activeSession.anchorStartPosition.y),
+    };
+
+    dragSessionRef.current = activeSession;
+    labelPositionRef.current = nextLabelPosition;
+    setLabelPosition(nextLabelPosition);
+  };
+
+  const handleAnchorDragEnd = () => {
+    dragSessionRef.current = null;
+  };
+
+  const handleLabelDragMove = useCallback((event: MouseEvent) => {
+    const activeSession = labelDragSessionRef.current;
+    if (!activeSession) {
+      return;
+    }
+
+    const nextLabelPosition = {
+      x:
+        activeSession.labelStartPosition.x +
+        (event.clientX - activeSession.pointerStartPosition.x),
+      y:
+        activeSession.labelStartPosition.y +
+        (event.clientY - activeSession.pointerStartPosition.y),
+    };
+
+    labelPositionRef.current = nextLabelPosition;
+    setLabelPosition(nextLabelPosition);
+  }, []);
+
+  const handleLabelDragEnd = useCallback(() => {
+    labelDragSessionRef.current = null;
+    if (typeof window === "undefined") {
+      return;
+    }
+    window.removeEventListener("mousemove", handleLabelDragMove);
+    window.removeEventListener("mouseup", handleLabelDragEnd);
+  }, [handleLabelDragMove]);
+
+  useEffect(
+    () => () => {
+      handleLabelDragEnd();
+    },
+    [handleLabelDragEnd]
+  );
+
+  const handleLabelDragStart = (event: ReactMouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    labelDragSessionRef.current = {
+      pointerStartPosition: {
+        x: event.clientX,
+        y: event.clientY,
+      },
+      labelStartPosition: labelPositionRef.current,
+    };
+
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.addEventListener("mousemove", handleLabelDragMove);
+    window.addEventListener("mouseup", handleLabelDragEnd);
+  };
+
   const effectiveStyleProps = { ...sharedStyleProps, ...styleOverrides };
   const badgeBorderStyle = effectiveStyleProps.compactBorderless
     ? "none"
     : `${Math.max(effectiveStyleProps.markerStrokeWidth ?? 1, 1)}px solid ${
-        badgeOutlineColor ?? "rgba(255, 255, 255, 0.96)"
+        badgeBorderColor ?? "rgba(126, 126, 126, 0.96)"
       }`;
 
   return (
-    <div style={pillboxDemoViewportStyle}>
-      <div ref={stageRef} style={pillboxDemoStageStyle}>
+    <div style={{ ...pillboxDemoViewportStyle, ...viewportStyle }}>
+      <div
+        ref={stageRef}
+        style={{
+          position: "relative",
+          width: "100%",
+          height: "100%",
+          overflow: "visible",
+        }}
+      >
         <PillbuttonLabelMarker
           pointId={pointId}
-          labelAttach={labelAttach}
-          labelOffsetX={labelPosition.x}
-          labelOffsetY={labelPosition.y}
-          baseStyles={pointLabelBaseStyles}
-          labelBorderStyle={badgeBorderStyle}
-          fontSize={effectiveStyleProps.fontSize ?? "12px"}
-          fontFamily={
-            effectiveStyleProps.fontFamily ?? LABEL_MARKERS_FONT_FAMILY
-          }
-          fontWeight={effectiveStyleProps.fontWeight ?? "400"}
-          backgroundColor={backgroundColor}
-          textColor={effectiveStyleProps.textColor ?? "#0f172a"}
-          pointerEvents="auto"
-          cursor="default"
+          placement={{
+            attach: labelAttach,
+            offsetX: labelPosition.x,
+            offsetY: labelPosition.y,
+          }}
+          containerStyle={{
+            ...pointLabelBaseStyles,
+            border: badgeBorderStyle,
+            fontSize: effectiveStyleProps.fontSize ?? "12px",
+            fontFamily:
+              effectiveStyleProps.fontFamily ?? LABEL_MARKERS_FONT_FAMILY,
+            fontWeight: effectiveStyleProps.fontWeight ?? "400",
+            backgroundColor,
+            color: effectiveStyleProps.textColor ?? "#0f172a",
+            pointerEvents: "auto",
+            cursor: "grab",
+          }}
+          badgeStyle={{
+            backgroundColor: effectiveStyleProps.markerBackgroundColor,
+            color: effectiveStyleProps.markerTextColor,
+          }}
           collapse={false}
-          markerContent={badgeContent}
-          markerBackgroundColor={effectiveStyleProps.markerBackgroundColor}
-          markerTextColor={effectiveStyleProps.markerTextColor}
+          badgeContent={badgeContent}
           badgeOptions={{
             position: badgePosition,
             compactBorderless: effectiveStyleProps.compactBorderless ?? false,
             fullBorder: false,
             solidBorderStyle: "none",
-            anchorAtSemicircleCenter: true,
           }}
           motionOptions={{
             resizeMode: PILLBUTTON_LABEL_MARKER_RESIZE_MODE.NONE,
@@ -449,8 +862,8 @@ const PillboxOnlyAnchorDemo = ({
           content={content}
           onClick={noopMouseEventHandler}
           onDoubleClick={noopMouseEventHandler}
-          onMouseDown={noopMouseEventHandler}
-          onMouseUp={noopMouseEventHandler}
+          onMouseDown={handleLabelDragStart}
+          onMouseUp={handleLabelDragEnd}
           onMouseEnter={noopHoverHandler}
           onMouseLeave={noopHoverHandler}
         />
@@ -465,16 +878,11 @@ const PillboxOnlyAnchorDemo = ({
                   containerRef={stageRef}
                   zIndex={4}
                   blendMode="difference"
-                  onChange={(nextPosition) => {
-                    const pointerX = Number(nextPosition.x);
-                    const pointerY = Number(nextPosition.y);
-                    const currentAnchor = anchorPoints[anchorKind];
-
-                    setLabelPosition((current) => ({
-                      x: current.x + (pointerX - currentAnchor.x),
-                      y: current.y + (pointerY - currentAnchor.y),
-                    }));
-                  }}
+                  onDragStart={() => handleAnchorDragStart(anchorKind)}
+                  onChange={(nextPosition) =>
+                    handleAnchorDragChange(anchorKind, nextPosition)
+                  }
+                  onDragEnd={handleAnchorDragEnd}
                 />
               )
             )
@@ -483,6 +891,221 @@ const PillboxOnlyAnchorDemo = ({
     </div>
   );
 };
+
+const StaticAnchoredPillbuttonLabelDemo = ({
+  pointId,
+  content,
+  badgeContent,
+  badgePosition,
+  backgroundColor,
+  sharedStyleProps,
+  styleOverrides,
+  badgeBorderColor,
+  labelAttach = POINT_LABEL_ATTACH.LEFT,
+  collapse = false,
+  showDebugAnchors = false,
+  viewportStyle,
+}: {
+  pointId: string;
+  content: ReactNode;
+  badgeContent?: ReactNode;
+  badgePosition?: PillbuttonBadgePosition;
+  backgroundColor: string;
+  sharedStyleProps: PointLabelStyleProps;
+  styleOverrides?: Partial<PointLabelStyleProps>;
+  badgeBorderColor?: string;
+  labelAttach?: PointLabelAttach;
+  collapse?: boolean;
+  showDebugAnchors?: boolean;
+  viewportStyle?: CSSProperties;
+}) => {
+  const effectiveStyleProps = { ...sharedStyleProps, ...styleOverrides };
+  const badgeBorderStyle = effectiveStyleProps.compactBorderless
+    ? "none"
+    : `${Math.max(effectiveStyleProps.markerStrokeWidth ?? 1, 1)}px solid ${
+        badgeBorderColor ?? "rgba(126, 126, 126, 0.96)"
+      }`;
+
+  const anchorHostStyle = readStaticAnchorHostStyle(labelAttach);
+
+  return (
+    <div style={{ ...pillboxDemoViewportStyle, ...viewportStyle }}>
+      <div style={{ position: "relative", width: "100%", height: "100%" }}>
+        <div style={anchorHostStyle}>
+          <AnchorHairlineDebug visible={showDebugAnchors} />
+          <PillbuttonLabelMarker
+            pointId={pointId}
+            placement={{
+              attach: labelAttach,
+              offsetX: 0,
+              offsetY: 0,
+            }}
+            containerStyle={{
+              ...pointLabelBaseStyles,
+              border: badgeBorderStyle,
+              fontSize: effectiveStyleProps.fontSize ?? "12px",
+              fontFamily:
+                effectiveStyleProps.fontFamily ?? LABEL_MARKERS_FONT_FAMILY,
+              fontWeight: effectiveStyleProps.fontWeight ?? "400",
+              backgroundColor,
+              color: effectiveStyleProps.textColor ?? "#0f172a",
+              pointerEvents: "auto",
+              cursor: "default",
+            }}
+            badgeStyle={{
+              backgroundColor: effectiveStyleProps.markerBackgroundColor,
+              color: effectiveStyleProps.markerTextColor,
+            }}
+            collapse={collapse}
+            badgeContent={badgeContent}
+            badgeOptions={{
+              position: badgePosition,
+              compactBorderless: effectiveStyleProps.compactBorderless ?? false,
+              fullBorder: false,
+              solidBorderStyle: "none",
+            }}
+            motionOptions={{
+              resizeMode: PILLBUTTON_LABEL_MARKER_RESIZE_MODE.NONE,
+            }}
+            content={content}
+            onClick={noopMouseEventHandler}
+            onDoubleClick={noopMouseEventHandler}
+            onMouseDown={noopMouseEventHandler}
+            onMouseUp={noopMouseEventHandler}
+            onMouseEnter={noopHoverHandler}
+            onMouseLeave={noopHoverHandler}
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const InlinePillbuttonLabelDemo = ({
+  pointId,
+  content,
+  badgeContent,
+  badgePosition,
+  backgroundColor,
+  sharedStyleProps,
+  styleOverrides,
+  badgeBorderColor,
+}: {
+  pointId: string;
+  content: ReactNode;
+  badgeContent?: ReactNode;
+  badgePosition?: PillbuttonBadgePosition;
+  backgroundColor: string;
+  sharedStyleProps: PointLabelStyleProps;
+  styleOverrides?: Partial<PointLabelStyleProps>;
+  badgeBorderColor?: string;
+}) => {
+  const effectiveStyleProps = { ...sharedStyleProps, ...styleOverrides };
+  const badgeBorderStyle = effectiveStyleProps.compactBorderless
+    ? "none"
+    : `${Math.max(effectiveStyleProps.markerStrokeWidth ?? 1, 1)}px solid ${
+        badgeBorderColor ?? "rgba(126, 126, 126, 0.96)"
+      }`;
+
+  return (
+    <PillbuttonLabelMarker
+      pointId={pointId}
+      placement={{
+        attach: POINT_LABEL_ATTACH.LEFT,
+        inline: true,
+      }}
+      containerStyle={{
+        ...INLINE_PILL_LABEL_BASE_STYLES,
+        border: badgeBorderStyle,
+        fontSize: effectiveStyleProps.fontSize ?? "12px",
+        fontFamily: effectiveStyleProps.fontFamily ?? LABEL_MARKERS_FONT_FAMILY,
+        fontWeight: effectiveStyleProps.fontWeight ?? "400",
+        backgroundColor,
+        color: effectiveStyleProps.textColor ?? "#0f172a",
+        pointerEvents: "auto",
+        cursor: "default",
+      }}
+      badgeStyle={{
+        backgroundColor: effectiveStyleProps.markerBackgroundColor,
+        color: effectiveStyleProps.markerTextColor,
+      }}
+      collapse={false}
+      badgeContent={badgeContent}
+      badgeOptions={{
+        position: badgePosition,
+        compactBorderless: effectiveStyleProps.compactBorderless ?? false,
+        fullBorder: effectiveStyleProps.fullBorder ?? false,
+        solidBorderStyle: effectiveStyleProps.fullBorder
+          ? badgeBorderStyle
+          : "none",
+      }}
+      motionOptions={{
+        resizeMode: PILLBUTTON_LABEL_MARKER_RESIZE_MODE.NONE,
+      }}
+      content={content}
+      onClick={noopMouseEventHandler}
+      onDoubleClick={noopMouseEventHandler}
+      onMouseDown={noopMouseEventHandler}
+      onMouseUp={noopMouseEventHandler}
+      onMouseEnter={noopHoverHandler}
+      onMouseLeave={noopHoverHandler}
+    />
+  );
+};
+
+const StaticPointLabelPreview = ({
+  pointId,
+  content,
+  badgeContent,
+  pitch,
+  selected,
+  isOccluded,
+  hideLabelAndStem,
+  hideMarker,
+  labelAttach,
+  collapse,
+  forceCollapse,
+  sharedStyleProps,
+  showDebugAnchors,
+}: {
+  pointId: string;
+  content: ReactNode;
+  badgeContent?: ReactNode;
+  pitch: number;
+  selected: boolean;
+  isOccluded: boolean;
+  hideLabelAndStem: boolean;
+  hideMarker: boolean;
+  labelAttach: PointLabelAttach;
+  collapse: boolean;
+  forceCollapse: boolean;
+  sharedStyleProps?: PointLabelStyleProps;
+  showDebugAnchors: boolean;
+}) => (
+  <div style={pillboxDemoViewportStyle}>
+    <div style={{ position: "relative", width: "100%", height: "100%" }}>
+      <div style={{ ...anchorStyle, top: "54%" }}>
+        <AnchorHairlineDebug visible={showDebugAnchors} />
+        <PointLabel
+          pointId={pointId}
+          content={content}
+          badgeContent={badgeContent}
+          pitch={pitch}
+          selected={selected}
+          isOccluded={isOccluded}
+          hideLabelAndStem={hideLabelAndStem}
+          hideMarker={hideMarker}
+          labelAttach={labelAttach}
+          collapse={collapse}
+          forceCollapse={forceCollapse}
+          fullBorder={false}
+          resizeMode={PILLBUTTON_LABEL_MARKER_RESIZE_MODE.NONE}
+          {...(sharedStyleProps ?? {})}
+        />
+      </div>
+    </div>
+  </div>
+);
 
 const RepresentativeLineLabelDemo = ({
   text,
@@ -503,8 +1126,10 @@ const RepresentativeLineLabelDemo = ({
       }}
     />
     <div
-      className="carma-preview-line-label"
-      data-preview-line-label-theme={PREVIEW_LINE_LABEL_THEME.BRIGHT_ON_DARK}
+      className="carma-annotation-overlay-line-label"
+      data-annotation-overlay-line-label-theme={
+        PREVIEW_LINE_LABEL_THEME.BRIGHT_ON_DARK
+      }
       style={
         {
           position: "absolute",
@@ -512,22 +1137,24 @@ const RepresentativeLineLabelDemo = ({
           top: "50%",
           display: "block",
           transform: "translate(-50%, -50%)",
-          "--carma-preview-line-label-font-family": LABEL_MARKERS_FONT_FAMILY,
-          "--carma-preview-line-label-font-weight": "500",
+          "--carma-annotation-overlay-line-label-font-family":
+            LABEL_MARKERS_FONT_FAMILY,
+          "--carma-annotation-overlay-line-label-font-size": "14px",
+          "--carma-annotation-overlay-line-label-font-weight": "500",
         } as CSSProperties
       }
     >
-      <span className="carma-preview-line-label__frame">
+      <span className="carma-annotation-overlay-line-label__frame">
         {blur ? (
           <span
-            className="carma-preview-line-label__backdrop"
-            data-preview-line-label-background-style={
+            className="carma-annotation-overlay-line-label__backdrop"
+            data-annotation-overlay-line-label-background-style={
               PREVIEW_LINE_LABEL_BACKGROUND_STYLE.SOFT_RECT_FADE
             }
           />
         ) : null}
         <span
-          className="carma-preview-line-label__text"
+          className="carma-annotation-overlay-line-label__text"
           style={{ fontSize: 14 }}
         >
           {text}
@@ -537,97 +1164,19 @@ const RepresentativeLineLabelDemo = ({
   </div>
 );
 
-const GeneratedStemPreview = ({
-  angleRad,
-  anchors,
-  lineColor,
-  lineWidth,
-  isOccluded,
-}: {
-  angleRad: number;
-  anchors: { startDistancePx: number; endDistancePx: number };
-  lineColor: string;
-  lineWidth: number;
-  isOccluded: boolean;
-}) => {
-  const [line] = createScreenPointSvgLineVisualizers({
-    id: "stem-preview",
-    start: toCssPixelPosition(anchors.startDistancePx, 0),
-    end: toCssPixelPosition(anchors.endDistancePx, 0),
-    stroke: lineColor,
-    strokeWidth: Math.max(lineWidth, 1),
-    dashed: isOccluded,
-    capStyle: "round",
-    dashLengthRatio: 1,
-    dashGapRatio: 1,
-  });
-
-  const strokeWidth = Math.max(line.strokeWidth ?? lineWidth, 1);
-  const sidePadding = Math.max(strokeWidth * 1.5, 3);
-  const minX =
-    Math.min(anchors.startDistancePx, anchors.endDistancePx) - sidePadding;
-  const maxX =
-    Math.max(anchors.startDistancePx, anchors.endDistancePx) + sidePadding;
-  const width = Math.max(0.001, maxX - minX);
-  const height = Math.max(16, strokeWidth * 4);
-  const centerY = height * 0.5;
-  const x1 = anchors.startDistancePx - minX;
-  const x2 = anchors.endDistancePx - minX;
-
-  return (
-    <div
-      style={{
-        position: "absolute",
-        left: 0,
-        top: 0,
-        transformOrigin: "0 0",
-        transform: `rotate(${angleRad}rad)`,
-        pointerEvents: "none",
-      }}
-    >
-      <svg
-        width={width}
-        height={height}
-        viewBox={`0 0 ${width} ${height}`}
-        style={{
-          position: "absolute",
-          left: minX,
-          top: -centerY,
-          overflow: "visible",
-          pointerEvents: "none",
-        }}
-      >
-        <line
-          x1={x1}
-          y1={centerY}
-          x2={x2}
-          y2={centerY}
-          stroke={line.stroke ?? lineColor}
-          strokeWidth={strokeWidth}
-          strokeLinecap={line.strokeLinecap ?? "round"}
-          strokeDasharray={line.strokeDasharray ?? "none"}
-          strokeDashoffset={line.strokeDashoffset ?? 0}
-          opacity={line.opacity ?? 1}
-          vectorEffect="non-scaling-stroke"
-        />
-      </svg>
-    </div>
-  );
-};
-
 export const RepresentativeCasesStory = (args: LabelMarkersStoryArgs) => {
   const sharedStyleProps = makeSharedStyleProps(args);
-  const showDebugAnchors = args.showDebugAnchors === true;
-  const pageBackgroundMode =
-    args.pageBackgroundMode ?? LABEL_STORY_BACKGROUND_MODES.PLAIN;
+  const showDebugAnchors = args.debugAnchors === true;
+  const pageBackgroundMode = resolveStoryBackgroundMode(
+    args,
+    LABEL_STORY_BACKGROUND_MODES.PLAIN
+  );
   const labelBorderStyle = `${sharedStyleProps.lineWidth ?? 1}px solid ${
     sharedStyleProps.lineColor ?? "rgba(30, 64, 175, 0.95)"
   }`;
   const statusValues = [
     `content ${String(args.content)}`,
-    `badge ${String(
-      args.badgeContent ?? args.compactContent ?? args.markerContent ?? "7"
-    )}`,
+    `badge ${String(args.badgeContent ?? "7")}`,
     `debug ${showDebugAnchors ? "on" : "off"}`,
     `bg ${pageBackgroundMode}`,
   ];
@@ -642,601 +1191,246 @@ export const RepresentativeCasesStory = (args: LabelMarkersStoryArgs) => {
     >
       <div style={sectionGridStyle}>
         <section style={sectionStyle}>
-          <div style={sectionTitleStyle}>
-            varying: marker content, size, occlusion
+          <div style={sectionTitleStyle}>attach · collapse · text</div>
+          <div style={rowListStyle}>
+            {(
+              [
+                {
+                  id: "label-left",
+                  label: "attach left",
+                  attach: POINT_LABEL_ATTACH.LEFT,
+                  content: "14,92 m",
+                  collapse: false,
+                  fullBorder: false,
+                  compactBorderless: false,
+                },
+                {
+                  id: "label-center",
+                  label: "attach center",
+                  attach: POINT_LABEL_ATTACH.CENTER,
+                  content: "392.5px screen distance",
+                  collapse: false,
+                  fullBorder: false,
+                  compactBorderless: false,
+                },
+                {
+                  id: "label-right-selected",
+                  label: "attach right · selected",
+                  attach: POINT_LABEL_ATTACH.RIGHT,
+                  content: "selected",
+                  collapse: false,
+                  fullBorder: true,
+                  compactBorderless: false,
+                  backgroundColor: "rgba(251, 191, 36, 0.95)",
+                },
+                {
+                  id: "label-collapsed",
+                  label: "collapsed compact",
+                  attach: POINT_LABEL_ATTACH.LEFT,
+                  content: "14,92 m",
+                  collapse: true,
+                  fullBorder: false,
+                  compactBorderless: false,
+                  markerContent: args.badgeContent ?? "7",
+                },
+              ] as const
+            ).map((entry) => (
+              <InlineRow
+                key={entry.id}
+                label={entry.label}
+                graphicStyle={REPRESENTATIVE_ROW_GRAPHIC_STYLE}
+              >
+                <StaticAnchoredPillbuttonLabelDemo
+                  pointId={`pill-${entry.id}`}
+                  content={entry.content}
+                  badgeContent={entry.markerContent}
+                  backgroundColor={
+                    entry.backgroundColor ??
+                    sharedStyleProps.textBackgroundColor ??
+                    "rgba(255, 255, 255, 0.62)"
+                  }
+                  sharedStyleProps={sharedStyleProps}
+                  badgeBorderColor={
+                    sharedStyleProps.lineColor ?? "rgba(30, 64, 175, 0.95)"
+                  }
+                  labelAttach={entry.attach}
+                  collapse={entry.collapse}
+                  showDebugAnchors={showDebugAnchors}
+                  viewportStyle={LABEL_COMPONENT_VIEWPORT_STYLE}
+                  styleOverrides={{
+                    compactBorderless: entry.compactBorderless,
+                  }}
+                />
+              </InlineRow>
+            ))}
           </div>
-          <table style={rowListStyle}>
-            <thead>
-              <tr>
-                <th style={tableHeaderCellStyle}>case</th>
-                <th style={tableHeaderCellStyle}>preview</th>
-              </tr>
-            </thead>
-            <tbody>
-              <InlineRow label="outline (size 8)">
-                <div style={anchorStyle}>
-                  <AnchorHairlineDebug visible={showDebugAnchors} />
-                  <PointLabelMarker
-                    pointId="node-outline-sm"
-                    markerSize={8}
-                    markerStrokeWidth={args.markerStrokeWidth ?? 1}
-                    isOccluded={false}
-                    markerBackgroundColor={
-                      args.markerBackgroundColor ?? "rgba(200, 200, 200, 0.92)"
-                    }
-                    markerTextColor={args.markerTextColor ?? "#111111"}
-                    pointerEvents="auto"
-                    cursor="pointer"
-                    onClick={noopMouseEventHandler}
-                    onDoubleClick={noopMouseEventHandler}
-                    onMouseDown={noopMouseEventHandler}
-                    onMouseUp={noopMouseEventHandler}
-                    onMouseEnter={noopHoverHandler}
-                    onMouseLeave={noopHoverHandler}
-                  />
-                </div>
-              </InlineRow>
-              <InlineRow label="outline (size 16)">
-                <div style={anchorStyle}>
-                  <AnchorHairlineDebug visible={showDebugAnchors} />
-                  <PointLabelMarker
-                    pointId="node-outline-lg"
-                    markerSize={16}
-                    markerStrokeWidth={args.markerStrokeWidth ?? 1}
-                    isOccluded={false}
-                    markerBackgroundColor={
-                      args.markerBackgroundColor ?? "rgba(200, 200, 200, 0.92)"
-                    }
-                    markerTextColor={args.markerTextColor ?? "#111111"}
-                    pointerEvents="auto"
-                    cursor="pointer"
-                    onClick={noopMouseEventHandler}
-                    onDoubleClick={noopMouseEventHandler}
-                    onMouseDown={noopMouseEventHandler}
-                    onMouseUp={noopMouseEventHandler}
-                    onMouseEnter={noopHoverHandler}
-                    onMouseLeave={noopHoverHandler}
-                  />
-                </div>
-              </InlineRow>
-              <InlineRow label="badge (7)">
-                <div style={anchorStyle}>
-                  <AnchorHairlineDebug visible={showDebugAnchors} />
-                  <PointLabelMarker
-                    pointId="node-badge-7"
-                    markerSize={10}
-                    markerStrokeWidth={args.markerStrokeWidth ?? 1}
-                    markerContent={args.compactContent ?? "7"}
-                    isOccluded={false}
-                    markerBackgroundColor={
-                      args.markerBackgroundColor ?? "rgba(200, 200, 200, 0.92)"
-                    }
-                    markerTextColor={args.markerTextColor ?? "#111111"}
-                    pointerEvents="auto"
-                    cursor="pointer"
-                    onClick={noopMouseEventHandler}
-                    onDoubleClick={noopMouseEventHandler}
-                    onMouseDown={noopMouseEventHandler}
-                    onMouseUp={noopMouseEventHandler}
-                    onMouseEnter={noopHoverHandler}
-                    onMouseLeave={noopHoverHandler}
-                  />
-                </div>
-              </InlineRow>
-              <InlineRow label="badge (12)">
-                <div style={anchorStyle}>
-                  <AnchorHairlineDebug visible={showDebugAnchors} />
-                  <PointLabelMarker
-                    pointId="node-badge-12"
-                    markerSize={10}
-                    markerStrokeWidth={args.markerStrokeWidth ?? 1}
-                    markerContent="12"
-                    isOccluded={false}
-                    markerBackgroundColor={
-                      args.markerBackgroundColor ?? "rgba(200, 200, 200, 0.92)"
-                    }
-                    markerTextColor={args.markerTextColor ?? "#111111"}
-                    pointerEvents="auto"
-                    cursor="pointer"
-                    onClick={noopMouseEventHandler}
-                    onDoubleClick={noopMouseEventHandler}
-                    onMouseDown={noopMouseEventHandler}
-                    onMouseUp={noopMouseEventHandler}
-                    onMouseEnter={noopHoverHandler}
-                    onMouseLeave={noopHoverHandler}
-                  />
-                </div>
-              </InlineRow>
-              <InlineRow label="badge occluded">
-                <div style={anchorStyle}>
-                  <AnchorHairlineDebug visible={showDebugAnchors} />
-                  <PointLabelMarker
-                    pointId="node-badge-occluded"
-                    markerSize={10}
-                    markerStrokeWidth={args.markerStrokeWidth ?? 1}
-                    markerContent={args.compactContent ?? "7"}
-                    isOccluded
-                    markerBackgroundColor={
-                      args.markerBackgroundColor ?? "rgba(200, 200, 200, 0.92)"
-                    }
-                    markerTextColor={args.markerTextColor ?? "#111111"}
-                    pointerEvents="auto"
-                    cursor="pointer"
-                    onClick={noopMouseEventHandler}
-                    onDoubleClick={noopMouseEventHandler}
-                    onMouseDown={noopMouseEventHandler}
-                    onMouseUp={noopMouseEventHandler}
-                    onMouseEnter={noopHoverHandler}
-                    onMouseLeave={noopHoverHandler}
-                  />
-                </div>
-              </InlineRow>
-            </tbody>
-          </table>
         </section>
 
         <section style={sectionStyle}>
-          <div style={sectionTitleStyle}>
-            varying: stem angle, distances, occlusion
+          <div style={sectionTitleStyle}>attach · badge side · text</div>
+          <div style={rowListStyle}>
+            {(
+              [
+                {
+                  id: "slot-left-attach-left",
+                  label: "attach left · badge left",
+                  attach: POINT_LABEL_ATTACH.LEFT,
+                  badgePosition: PILLBUTTON_BADGE_POSITIONS.LEFT,
+                  content: "NHN 179,27 m",
+                  markerContent: "8",
+                },
+                {
+                  id: "slot-left-attach-right",
+                  label: "attach right · badge left",
+                  attach: POINT_LABEL_ATTACH.RIGHT,
+                  badgePosition: PILLBUTTON_BADGE_POSITIONS.LEFT,
+                  content: "NHN 179,27 m",
+                  markerContent: "8",
+                },
+                {
+                  id: "slot-right-attach-left",
+                  label: "attach left · badge right",
+                  attach: POINT_LABEL_ATTACH.LEFT,
+                  badgePosition: PILLBUTTON_BADGE_POSITIONS.RIGHT,
+                  content: "24,41 m über Bezugspunkt",
+                  markerContent: "11111",
+                },
+                {
+                  id: "slot-right-attach-right",
+                  label: "attach right · badge right",
+                  attach: POINT_LABEL_ATTACH.RIGHT,
+                  badgePosition: PILLBUTTON_BADGE_POSITIONS.RIGHT,
+                  content: "24,41 m über Bezugspunkt",
+                  markerContent: "11111",
+                },
+                {
+                  id: "slot-left-wide-badge",
+                  label: "wide badge left · long",
+                  attach: POINT_LABEL_ATTACH.LEFT,
+                  badgePosition: PILLBUTTON_BADGE_POSITIONS.LEFT,
+                  content: "relative Höhe über Bezugspunkt",
+                  markerContent: "33333",
+                },
+                {
+                  id: "slot-right-wide-badge",
+                  label: "wide badge right · long",
+                  attach: POINT_LABEL_ATTACH.RIGHT,
+                  badgePosition: PILLBUTTON_BADGE_POSITIONS.RIGHT,
+                  content: "relative Höhe über Bezugspunkt",
+                  markerContent: "33333",
+                },
+              ] as const
+            ).map((entry) => (
+              <InlineRow
+                key={entry.id}
+                label={entry.label}
+                graphicStyle={REPRESENTATIVE_ROW_GRAPHIC_STYLE}
+              >
+                <StaticAnchoredPillbuttonLabelDemo
+                  pointId={`pill-variant-${entry.id}`}
+                  content={entry.content}
+                  badgeContent={entry.markerContent}
+                  badgePosition={entry.badgePosition}
+                  backgroundColor={
+                    sharedStyleProps.textBackgroundColor ??
+                    "rgba(255, 255, 255, 0.62)"
+                  }
+                  sharedStyleProps={sharedStyleProps}
+                  badgeBorderColor={
+                    sharedStyleProps.lineColor ?? "rgba(30, 64, 175, 0.95)"
+                  }
+                  labelAttach={entry.attach}
+                  showDebugAnchors={showDebugAnchors}
+                  viewportStyle={LABEL_COMPONENT_VIEWPORT_STYLE}
+                />
+              </InlineRow>
+            ))}
           </div>
-          <table style={rowListStyle}>
-            <thead>
-              <tr>
-                <th style={tableHeaderCellStyle}>case</th>
-                <th style={tableHeaderCellStyle}>preview</th>
-              </tr>
-            </thead>
-            <tbody>
-              <InlineRow label="-90°, start 5, end 36">
-                <div style={anchorStyle}>
-                  <AnchorHairlineDebug visible={showDebugAnchors} />
-                  <GeneratedStemPreview
-                    angleRad={-Math.PI * 0.5}
-                    anchors={{ startDistancePx: 5, endDistancePx: 36 }}
-                    lineColor={
-                      sharedStyleProps.lineColor ?? "rgba(30, 64, 175, 0.95)"
-                    }
-                    lineWidth={sharedStyleProps.lineWidth ?? 1}
-                    isOccluded={false}
-                  />
-                </div>
-              </InlineRow>
-              <InlineRow label="-60°, start 5, end 42">
-                <div style={anchorStyle}>
-                  <AnchorHairlineDebug visible={showDebugAnchors} />
-                  <GeneratedStemPreview
-                    angleRad={-Math.PI / 3}
-                    anchors={{ startDistancePx: 5, endDistancePx: 42 }}
-                    lineColor={
-                      sharedStyleProps.lineColor ?? "rgba(30, 64, 175, 0.95)"
-                    }
-                    lineWidth={sharedStyleProps.lineWidth ?? 1}
-                    isOccluded={false}
-                  />
-                </div>
-              </InlineRow>
-              <InlineRow label="-45°, start 5, end 44">
-                <div style={anchorStyle}>
-                  <AnchorHairlineDebug visible={showDebugAnchors} />
-                  <GeneratedStemPreview
-                    angleRad={-Math.PI * 0.25}
-                    anchors={{ startDistancePx: 5, endDistancePx: 44 }}
-                    lineColor={
-                      sharedStyleProps.lineColor ?? "rgba(30, 64, 175, 0.95)"
-                    }
-                    lineWidth={sharedStyleProps.lineWidth ?? 1}
-                    isOccluded={false}
-                  />
-                </div>
-              </InlineRow>
-              <InlineRow label="-15°, start 8, end 52">
-                <div style={anchorStyle}>
-                  <AnchorHairlineDebug visible={showDebugAnchors} />
-                  <GeneratedStemPreview
-                    angleRad={-Math.PI / 12}
-                    anchors={{ startDistancePx: 8, endDistancePx: 52 }}
-                    lineColor={
-                      sharedStyleProps.lineColor ?? "rgba(30, 64, 175, 0.95)"
-                    }
-                    lineWidth={sharedStyleProps.lineWidth ?? 1}
-                    isOccluded={false}
-                  />
-                </div>
-              </InlineRow>
-              <InlineRow label="0°, start 8, end 52">
-                <div style={anchorStyle}>
-                  <AnchorHairlineDebug visible={showDebugAnchors} />
-                  <GeneratedStemPreview
-                    angleRad={0}
-                    anchors={{ startDistancePx: 8, endDistancePx: 52 }}
-                    lineColor={
-                      sharedStyleProps.lineColor ?? "rgba(30, 64, 175, 0.95)"
-                    }
-                    lineWidth={sharedStyleProps.lineWidth ?? 1}
-                    isOccluded={false}
-                  />
-                </div>
-              </InlineRow>
-              <InlineRow label="+15°, start 8, end 52">
-                <div style={anchorStyle}>
-                  <AnchorHairlineDebug visible={showDebugAnchors} />
-                  <GeneratedStemPreview
-                    angleRad={Math.PI / 12}
-                    anchors={{ startDistancePx: 8, endDistancePx: 52 }}
-                    lineColor={
-                      sharedStyleProps.lineColor ?? "rgba(30, 64, 175, 0.95)"
-                    }
-                    lineWidth={sharedStyleProps.lineWidth ?? 1}
-                    isOccluded={false}
-                  />
-                </div>
-              </InlineRow>
-              <InlineRow label="+45°, start 5, end 60">
-                <div style={anchorStyle}>
-                  <AnchorHairlineDebug visible={showDebugAnchors} />
-                  <GeneratedStemPreview
-                    angleRad={Math.PI * 0.25}
-                    anchors={{ startDistancePx: 5, endDistancePx: 60 }}
-                    lineColor={
-                      sharedStyleProps.lineColor ?? "rgba(30, 64, 175, 0.95)"
-                    }
-                    lineWidth={sharedStyleProps.lineWidth ?? 1}
-                    isOccluded={false}
-                  />
-                </div>
-              </InlineRow>
-              <InlineRow label="+60°, start 5, end 52">
-                <div style={anchorStyle}>
-                  <AnchorHairlineDebug visible={showDebugAnchors} />
-                  <GeneratedStemPreview
-                    angleRad={Math.PI / 3}
-                    anchors={{ startDistancePx: 5, endDistancePx: 52 }}
-                    lineColor={
-                      sharedStyleProps.lineColor ?? "rgba(30, 64, 175, 0.95)"
-                    }
-                    lineWidth={sharedStyleProps.lineWidth ?? 1}
-                    isOccluded={false}
-                  />
-                </div>
-              </InlineRow>
-              <InlineRow label="+90°, occluded">
-                <div style={anchorStyle}>
-                  <AnchorHairlineDebug visible={showDebugAnchors} />
-                  <GeneratedStemPreview
-                    angleRad={Math.PI * 0.5}
-                    anchors={{ startDistancePx: 5, endDistancePx: 36 }}
-                    lineColor={
-                      sharedStyleProps.lineColor ?? "rgba(30, 64, 175, 0.95)"
-                    }
-                    lineWidth={sharedStyleProps.lineWidth ?? 1}
-                    isOccluded
-                  />
-                </div>
-              </InlineRow>
-            </tbody>
-          </table>
         </section>
 
         <section style={sectionStyle}>
-          <div style={sectionTitleStyle}>
-            varying: attach, collapse, content length
+          <div style={sectionTitleStyle}>line label · backdrop</div>
+          <div style={rowListStyle}>
+            <InlineRow
+              label="text only"
+              graphicStyle={LINE_LABEL_ROW_GRAPHIC_STYLE}
+            >
+              <RepresentativeLineLabelDemo text="168,00 m" blur={false} />
+            </InlineRow>
+            <InlineRow
+              label="blur backdrop"
+              graphicStyle={LINE_LABEL_ROW_GRAPHIC_STYLE}
+            >
+              <RepresentativeLineLabelDemo text="168,00 m" blur />
+            </InlineRow>
           </div>
-          <table style={rowListStyle}>
-            <thead>
-              <tr>
-                <th style={tableHeaderCellStyle}>case</th>
-                <th style={tableHeaderCellStyle}>preview</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(
-                [
-                  {
-                    id: "label-left",
-                    label: "attach left",
-                    attach: POINT_LABEL_ATTACH.LEFT,
-                    content: "14,92 m",
-                    collapse: false,
-                    fullBorder: false,
-                    compactBorderless: false,
-                  },
-                  {
-                    id: "label-center",
-                    label: "attach center",
-                    attach: POINT_LABEL_ATTACH.CENTER,
-                    content: "392.5px screen distance",
-                    collapse: false,
-                    fullBorder: false,
-                    compactBorderless: false,
-                  },
-                  {
-                    id: "label-right-selected",
-                    label: "attach right (selected)",
-                    attach: POINT_LABEL_ATTACH.RIGHT,
-                    content: "selected",
-                    collapse: false,
-                    fullBorder: true,
-                    compactBorderless: false,
-                    backgroundColor: "rgba(251, 191, 36, 0.95)",
-                  },
-                  {
-                    id: "label-collapsed",
-                    label: "collapsed compact",
-                    attach: POINT_LABEL_ATTACH.LEFT,
-                    content: "14,92 m",
-                    collapse: true,
-                    fullBorder: false,
-                    compactBorderless: false,
-                    markerContent: args.compactContent ?? "7",
-                  },
-                ] as const
-              ).map((entry) => (
-                <InlineRow key={entry.id} label={entry.label}>
-                  <div style={anchorStyle}>
-                    <AnchorHairlineDebug visible={showDebugAnchors} />
-                    <PillbuttonLabelMarker
-                      pointId={`pill-${entry.id}`}
-                      labelAttach={entry.attach}
-                      labelOffsetX={0}
-                      labelOffsetY={0}
-                      baseStyles={pointLabelBaseStyles}
-                      labelBorderStyle={labelBorderStyle}
-                      fontSize={sharedStyleProps.fontSize ?? "12px"}
-                      fontFamily={
-                        sharedStyleProps.fontFamily ?? LABEL_MARKERS_FONT_FAMILY
-                      }
-                      fontWeight={sharedStyleProps.fontWeight ?? "400"}
-                      backgroundColor={
-                        entry.backgroundColor ??
-                        sharedStyleProps.textBackgroundColor ??
-                        "rgba(255, 255, 255, 0.98)"
-                      }
-                      textColor={sharedStyleProps.textColor ?? "black"}
-                      pointerEvents="auto"
-                      cursor="pointer"
-                      collapse={entry.collapse}
-                      markerContent={entry.markerContent}
-                      markerBackgroundColor={
-                        sharedStyleProps.markerBackgroundColor
-                      }
-                      markerTextColor={sharedStyleProps.markerTextColor}
-                      badgeOptions={{
-                        compactBorderless: entry.compactBorderless,
-                        fullBorder: entry.fullBorder,
-                        solidBorderStyle: labelBorderStyle,
-                      }}
-                      motionOptions={{
-                        resizeMode: PILLBUTTON_LABEL_MARKER_RESIZE_MODE.NONE,
-                      }}
-                      content={entry.content}
-                      onClick={noopMouseEventHandler}
-                      onDoubleClick={noopMouseEventHandler}
-                      onMouseDown={noopMouseEventHandler}
-                      onMouseUp={noopMouseEventHandler}
-                      onMouseEnter={noopHoverHandler}
-                      onMouseLeave={noopHoverHandler}
-                    />
-                  </div>
-                </InlineRow>
-              ))}
-            </tbody>
-          </table>
         </section>
 
         <section style={sectionStyle}>
-          <div style={sectionTitleStyle}>
-            varying: attach, badge slot, extended content direction
-          </div>
-          <table style={rowListStyle}>
-            <thead>
-              <tr>
-                <th style={tableHeaderCellStyle}>case</th>
-                <th style={tableHeaderCellStyle}>preview</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(
-                [
-                  {
-                    id: "slot-left-attach-left",
-                    label: "attach left · badge left",
-                    attach: POINT_LABEL_ATTACH.LEFT,
-                    badgePosition: PILLBUTTON_BADGE_POSITIONS.LEFT,
-                    content: "NHN 179,27 m",
-                    markerContent: "8",
-                  },
-                  {
-                    id: "slot-left-attach-right",
-                    label: "attach right · badge left",
-                    attach: POINT_LABEL_ATTACH.RIGHT,
-                    badgePosition: PILLBUTTON_BADGE_POSITIONS.LEFT,
-                    content: "NHN 179,27 m",
-                    markerContent: "8",
-                  },
-                  {
-                    id: "slot-right-attach-left",
-                    label: "attach left · badge right",
-                    attach: POINT_LABEL_ATTACH.LEFT,
-                    badgePosition: PILLBUTTON_BADGE_POSITIONS.RIGHT,
-                    content: "24,41 m über Bezugspunkt",
-                    markerContent: "11111",
-                  },
-                  {
-                    id: "slot-right-attach-right",
-                    label: "attach right · badge right",
-                    attach: POINT_LABEL_ATTACH.RIGHT,
-                    badgePosition: PILLBUTTON_BADGE_POSITIONS.RIGHT,
-                    content: "24,41 m über Bezugspunkt",
-                    markerContent: "11111",
-                  },
-                  {
-                    id: "slot-left-wide-badge",
-                    label: "wide badge left · long text",
-                    attach: POINT_LABEL_ATTACH.LEFT,
-                    badgePosition: PILLBUTTON_BADGE_POSITIONS.LEFT,
-                    content: "relative Höhe über Bezugspunkt",
-                    markerContent: "33333",
-                  },
-                  {
-                    id: "slot-right-wide-badge",
-                    label: "wide badge right · long text",
-                    attach: POINT_LABEL_ATTACH.RIGHT,
-                    badgePosition: PILLBUTTON_BADGE_POSITIONS.RIGHT,
-                    content: "relative Höhe über Bezugspunkt",
-                    markerContent: "33333",
-                  },
-                ] as const
-              ).map((entry) => (
-                <InlineRow key={entry.id} label={entry.label}>
-                  <div style={anchorStyle}>
-                    <AnchorHairlineDebug visible={showDebugAnchors} />
-                    <PillbuttonLabelMarker
-                      pointId={`pill-variant-${entry.id}`}
-                      labelAttach={entry.attach}
-                      labelOffsetX={0}
-                      labelOffsetY={0}
-                      baseStyles={pointLabelBaseStyles}
-                      labelBorderStyle={labelBorderStyle}
-                      fontSize={sharedStyleProps.fontSize ?? "12px"}
-                      fontFamily={
-                        sharedStyleProps.fontFamily ?? LABEL_MARKERS_FONT_FAMILY
-                      }
-                      fontWeight={sharedStyleProps.fontWeight ?? "400"}
-                      backgroundColor={
-                        sharedStyleProps.textBackgroundColor ??
-                        "rgba(255, 255, 255, 0.98)"
-                      }
-                      textColor={sharedStyleProps.textColor ?? "#0f172a"}
-                      pointerEvents="auto"
-                      cursor="pointer"
-                      collapse={false}
-                      markerContent={entry.markerContent}
-                      markerBackgroundColor={
-                        sharedStyleProps.markerBackgroundColor
-                      }
-                      markerTextColor={sharedStyleProps.markerTextColor}
-                      badgeOptions={{
-                        position: entry.badgePosition,
-                        compactBorderless:
-                          sharedStyleProps.compactBorderless ?? false,
-                        fullBorder: false,
-                        solidBorderStyle: labelBorderStyle,
-                        anchorAtSemicircleCenter: true,
-                      }}
-                      motionOptions={{
-                        resizeMode: PILLBUTTON_LABEL_MARKER_RESIZE_MODE.NONE,
-                      }}
-                      content={entry.content}
-                      onClick={noopMouseEventHandler}
-                      onDoubleClick={noopMouseEventHandler}
-                      onMouseDown={noopMouseEventHandler}
-                      onMouseUp={noopMouseEventHandler}
-                      onMouseEnter={noopHoverHandler}
-                      onMouseLeave={noopHoverHandler}
-                    />
-                  </div>
-                </InlineRow>
-              ))}
-            </tbody>
-          </table>
-        </section>
-
-        <section style={sectionStyle}>
-          <div style={sectionTitleStyle}>
-            varying: line label text vs backdrop blur container
-          </div>
-          <table style={rowListStyle}>
-            <thead>
-              <tr>
-                <th style={tableHeaderCellStyle}>case</th>
-                <th style={tableHeaderCellStyle}>preview</th>
-              </tr>
-            </thead>
-            <tbody>
-              <InlineRow label="text only">
-                <RepresentativeLineLabelDemo text="168,00 m" blur={false} />
+          <div style={sectionTitleStyle}>combined defaults</div>
+          <div style={rowListStyle}>
+            {(
+              [
+                {
+                  id: "combined-default",
+                  label: "default",
+                  selected: false,
+                  isOccluded: false,
+                  collapse: true,
+                  forceCollapse: false,
+                  pitch: MINUS_PI_OVER_FOUR,
+                  labelAttach: "left" as PointLabelAttach,
+                  hideMarker: false,
+                  hideLabelAndStem: false,
+                },
+                {
+                  id: "combined-selected",
+                  label: "selected",
+                  selected: true,
+                  isOccluded: false,
+                  collapse: true,
+                  forceCollapse: false,
+                  pitch: MINUS_PI_OVER_FOUR,
+                  labelAttach: "left" as PointLabelAttach,
+                  hideMarker: false,
+                  hideLabelAndStem: false,
+                },
+                {
+                  id: "combined-occluded",
+                  label: "occluded",
+                  selected: false,
+                  isOccluded: true,
+                  collapse: true,
+                  forceCollapse: false,
+                  pitch: MINUS_PI_OVER_FOUR,
+                  labelAttach: "left" as PointLabelAttach,
+                  hideMarker: false,
+                  hideLabelAndStem: false,
+                },
+              ] as const
+            ).map((entry) => (
+              <InlineRow
+                key={entry.id}
+                label={entry.label}
+                graphicStyle={REPRESENTATIVE_ROW_GRAPHIC_STYLE}
+              >
+                <StaticPointLabelPreview
+                  pointId={entry.id}
+                  content={args.content}
+                  badgeContent={args.badgeContent}
+                  pitch={entry.pitch}
+                  selected={entry.selected}
+                  isOccluded={entry.isOccluded}
+                  hideLabelAndStem={entry.hideLabelAndStem}
+                  hideMarker={entry.hideMarker}
+                  labelAttach={entry.labelAttach}
+                  collapse={entry.collapse}
+                  forceCollapse={entry.forceCollapse}
+                  showDebugAnchors={showDebugAnchors}
+                />
               </InlineRow>
-              <InlineRow label="text + blur backdrop">
-                <RepresentativeLineLabelDemo text="168,00 m" blur />
-              </InlineRow>
-            </tbody>
-          </table>
-        </section>
-
-        <section style={sectionStyle}>
-          <div style={sectionTitleStyle}>varying: combined defaults</div>
-          <table style={rowListStyle}>
-            <thead>
-              <tr>
-                <th style={tableHeaderCellStyle}>case</th>
-                <th style={tableHeaderCellStyle}>preview</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(
-                [
-                  {
-                    id: "combined-default",
-                    label: "default",
-                    selected: false,
-                    isOccluded: false,
-                    collapse: true,
-                    forceCollapse: false,
-                    pitch: MINUS_PI_OVER_FOUR,
-                    labelAttach: "left" as PointLabelAttach,
-                    hideMarker: false,
-                    hideLabelAndStem: false,
-                  },
-                  {
-                    id: "combined-selected",
-                    label: "selected",
-                    selected: true,
-                    isOccluded: false,
-                    collapse: true,
-                    forceCollapse: false,
-                    pitch: MINUS_PI_OVER_FOUR,
-                    labelAttach: "left" as PointLabelAttach,
-                    hideMarker: false,
-                    hideLabelAndStem: false,
-                  },
-                  {
-                    id: "combined-occluded",
-                    label: "occluded",
-                    selected: false,
-                    isOccluded: true,
-                    collapse: true,
-                    forceCollapse: false,
-                    pitch: MINUS_PI_OVER_FOUR,
-                    labelAttach: "left" as PointLabelAttach,
-                    hideMarker: false,
-                    hideLabelAndStem: false,
-                  },
-                ] as const
-              ).map((entry) => (
-                <InlineRow key={entry.id} label={entry.label}>
-                  <div style={{ ...anchorStyle, top: "54%" }}>
-                    <AnchorHairlineDebug visible={showDebugAnchors} />
-                    <PointLabel
-                      pointId={entry.id}
-                      content={args.content}
-                      compactContent={args.compactContent}
-                      pitch={entry.pitch}
-                      selected={entry.selected}
-                      isOccluded={entry.isOccluded}
-                      hideLabelAndStem={entry.hideLabelAndStem}
-                      hideMarker={entry.hideMarker}
-                      labelAttach={entry.labelAttach}
-                      collapse={entry.collapse}
-                      forceCollapse={entry.forceCollapse}
-                      fullBorder={false}
-                      resizeMode={PILLBUTTON_LABEL_MARKER_RESIZE_MODE.NONE}
-                      {...sharedStyleProps}
-                    />
-                  </div>
-                </InlineRow>
-              ))}
-            </tbody>
-          </table>
+            ))}
+          </div>
         </section>
       </div>
     </CenteredStoryFrame>
@@ -1245,14 +1439,18 @@ export const RepresentativeCasesStory = (args: LabelMarkersStoryArgs) => {
 
 export const PillboxOnlyStory = (args: LabelMarkersStoryArgs) => {
   const sharedStyleProps = makeSharedStyleProps(args);
-  const showDebugAnchors = args.showDebugAnchors === true;
-  const pageBackgroundMode =
-    args.pageBackgroundMode ?? LABEL_STORY_BACKGROUND_MODES.PLAIN;
+  const showDebugAnchors = args.debugAnchors === true;
+  const { containerRef: sectionLayoutRef, width: sectionLayoutWidth } =
+    useMeasuredWidth();
+  const pageBackgroundMode = resolveStoryBackgroundMode(
+    args,
+    LABEL_STORY_BACKGROUND_MODES.PLAIN
+  );
   const badgeSlot = args.badgeSlot ?? PILLBOX_STORY_BADGE_SLOTS.LEFT;
   const sharedBadgeContent =
     badgeSlot === PILLBOX_STORY_BADGE_SLOTS.NONE
       ? undefined
-      : args.badgeContent ?? args.compactContent ?? args.markerContent ?? "7";
+      : args.badgeContent ?? "7";
   const sharedBadgePosition = resolveBadgePositionFromSlot(badgeSlot);
   const statusValues = [
     `content ${String(args.content)}`,
@@ -1264,216 +1462,588 @@ export const PillboxOnlyStory = (args: LabelMarkersStoryArgs) => {
     `bg ${pageBackgroundMode}`,
   ];
 
-  const variants = [
+  type LabelComponentBadgeMode = "inherit" | "fixed" | "off";
+  type LabelComponentRow = {
+    id: string;
+    label: string;
+    content: ReactNode;
+    backgroundColor: string;
+    badgeMode?: LabelComponentBadgeMode;
+    badgeContent?: ReactNode;
+    badgePosition?: PillbuttonBadgePosition;
+    styleOverrides?: Partial<PointLabelStyleProps>;
+    sharedStyleOverrides?: Partial<PointLabelStyleProps>;
+    labelAttach?: PointLabelAttach;
+    initialLabelPosition?: AnchorPoint;
+  };
+  type LabelComponentSection = {
+    id: string;
+    title: string;
+    lockedSummary: string;
+    rows: readonly LabelComponentRow[];
+    defaultBadgeMode: LabelComponentBadgeMode;
+    defaultLabelAttach?: PointLabelAttach;
+    defaultInitialLabelPosition?: AnchorPoint;
+    sharedStyleOverrides?: Partial<PointLabelStyleProps>;
+  };
+
+  const sections: readonly LabelComponentSection[] = [
     {
-      id: "pillbox-xs",
-      label: "pill only · xs",
-      content: "7 m",
-      backgroundColor:
-        sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.98)",
-      badgeContent: undefined,
-      styleOverrides: { fontSize: "10px", fontWeight: "500" },
+      id: "controlled-baseline",
+      title: "control-driven baseline",
+      lockedSummary:
+        "locked: only row intent; rest follows current controls for content, slot, colors, debug and page background.",
+      defaultBadgeMode: "inherit",
+      defaultLabelAttach: POINT_LABEL_ATTACH.LEFT,
+      defaultInitialLabelPosition: LEFT_ALIGNED_PILLBOX_LABEL_POSITION,
+      rows: [
+        {
+          id: "controlled-pill",
+          label: "pill only",
+          content: args.content,
+          backgroundColor:
+            sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.62)",
+          badgeMode: "off",
+        },
+        {
+          id: "controlled-badge",
+          label: "badge from controls",
+          content: args.content,
+          backgroundColor:
+            sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.62)",
+        },
+        {
+          id: "controlled-borderless",
+          label: "borderless from controls",
+          content: args.content,
+          backgroundColor:
+            sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.62)",
+          sharedStyleOverrides: {
+            compactBorderless: true,
+          },
+        },
+      ],
     },
     {
-      id: "pillbox-md",
-      label: "pill only · md",
-      content: args.content,
-      backgroundColor:
-        sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.98)",
-      badgeContent: undefined,
+      id: "compact-scale-mixes",
+      title: "locked compact scales",
+      lockedSummary:
+        "locked: badge off, attach left, scale presets; rest keeps the active control palette.",
+      defaultBadgeMode: "off",
+      defaultLabelAttach: POINT_LABEL_ATTACH.LEFT,
+      defaultInitialLabelPosition: LEFT_ALIGNED_PILLBOX_LABEL_POSITION,
+      rows: [
+        {
+          id: "pillbox-xs",
+          label: "xs",
+          content: "7 m",
+          backgroundColor:
+            sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.62)",
+          styleOverrides: { fontSize: "10px", fontWeight: "500" },
+        },
+        {
+          id: "pillbox-md",
+          label: "md",
+          content: args.content,
+          backgroundColor:
+            sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.62)",
+        },
+        {
+          id: "pillbox-lg",
+          label: "lg",
+          content: "392.5px screen distance",
+          backgroundColor:
+            sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.62)",
+          styleOverrides: { fontSize: "16px", fontWeight: "600" },
+        },
+      ],
     },
     {
-      id: "pillbox-lg",
-      label: "pill only · lg",
-      content: "392.5px screen distance",
-      backgroundColor:
-        sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.98)",
-      badgeContent: undefined,
-      styleOverrides: { fontSize: "16px", fontWeight: "600" },
+      id: "locked-badge-mixes",
+      title: "locked badge/status",
+      lockedSummary:
+        "locked: badge text, badge side and status surface combinations; rest still follows the global controls where not overridden.",
+      defaultBadgeMode: "fixed",
+      defaultLabelAttach: POINT_LABEL_ATTACH.LEFT,
+      defaultInitialLabelPosition: LEFT_ALIGNED_PILLBOX_LABEL_POSITION,
+      rows: [
+        {
+          id: "pillbox-badge-left-ops",
+          label: "ops left",
+          content: "distance 14.92 m",
+          backgroundColor:
+            sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.62)",
+          badgeContent: "ops",
+          badgePosition: PILLBUTTON_BADGE_POSITIONS.LEFT,
+        },
+        {
+          id: "pillbox-badge-right-bus",
+          label: "bus right",
+          content: "station west",
+          backgroundColor:
+            sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.62)",
+          badgeContent: "bus",
+          badgePosition: PILLBUTTON_BADGE_POSITIONS.RIGHT,
+        },
+        {
+          id: "pillbox-badge-emergency",
+          label: "alert contrast",
+          content: "temporary stop moved to lane B",
+          backgroundColor: "rgba(255, 248, 204, 0.82)",
+          badgeContent: "alert",
+          badgePosition: PILLBUTTON_BADGE_POSITIONS.RIGHT,
+          sharedStyleOverrides: {
+            markerBackgroundColor: "rgba(185, 28, 28, 0.94)",
+            markerTextColor: "#fff7ed",
+          },
+        },
+        {
+          id: "pillbox-badge-borderless",
+          label: "borderless chip",
+          content: "platform south",
+          backgroundColor:
+            sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.62)",
+          badgeContent: "train",
+          badgePosition: PILLBUTTON_BADGE_POSITIONS.RIGHT,
+          sharedStyleOverrides: {
+            compactBorderless: true,
+          },
+        },
+      ],
     },
     {
-      id: "pillbox-frosted",
-      label: "pill only · frosted",
-      content: args.content,
-      backgroundColor: "rgba(255, 255, 255, 0.72)",
-      badgeContent: undefined,
+      id: "locked-extended-mixes",
+      title: "locked extended mixes",
+      lockedSummary:
+        "locked: long copy, wider badge words and representative content/badge pairings so growth behavior stays visible independent of controls.",
+      defaultBadgeMode: "fixed",
+      defaultLabelAttach: POINT_LABEL_ATTACH.LEFT,
+      defaultInitialLabelPosition: LEFT_ALIGNED_PILLBOX_LABEL_POSITION,
+      rows: [
+        {
+          id: "pillbox-extended-route-summary",
+          label: "route summary",
+          content: "route 602 to Rathaus",
+          badgeContent: "route",
+          badgePosition: PILLBUTTON_BADGE_POSITIONS.LEFT,
+          backgroundColor:
+            sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.62)",
+        },
+        {
+          id: "pillbox-extended-service-alert",
+          label: "service window",
+          content: "maintenance until 18:30",
+          badgeContent: "maintenance",
+          badgePosition: PILLBUTTON_BADGE_POSITIONS.RIGHT,
+          backgroundColor: "rgba(255, 248, 204, 0.82)",
+        },
+        {
+          id: "pillbox-extended-accessibility",
+          label: "accessibility",
+          content: "barrier-free entrance",
+          badgeContent: "accessible",
+          badgePosition: PILLBUTTON_BADGE_POSITIONS.LEFT,
+          backgroundColor:
+            sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.62)",
+        },
+        {
+          id: "pillbox-extended-platform-guidance",
+          label: "platform guidance",
+          content: "continue at platform 4",
+          badgeContent: "platform 4",
+          badgePosition: PILLBUTTON_BADGE_POSITIONS.LEFT,
+          backgroundColor:
+            sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.62)",
+        },
+        {
+          id: "pillbox-extended-vertical-metric",
+          label: "elevation metric",
+          content: "NHN 179.274 m ref.",
+          badgeContent: "delta +24.8 m",
+          badgePosition: PILLBUTTON_BADGE_POSITIONS.RIGHT,
+          backgroundColor:
+            sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.62)",
+          styleOverrides: { fontSize: "10px", fontWeight: "500" },
+        },
+        {
+          id: "pillbox-extended-selected",
+          label: "selected large",
+          content: "selected cluster label",
+          badgeContent: "12",
+          badgePosition: PILLBUTTON_BADGE_POSITIONS.LEFT,
+          backgroundColor:
+            sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.62)",
+          styleOverrides: { fontSize: "16px", fontWeight: "600" },
+        },
+      ],
     },
     {
-      id: "pillbox-badge",
-      label: "pill + badge",
-      content: args.content,
-      backgroundColor:
-        sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.98)",
-      badgeContent: sharedBadgeContent,
-      badgePosition: sharedBadgePosition,
+      id: "annotation-typography",
+      title: "locked annotation typography",
+      lockedSummary:
+        "locked: font family, size, weight and opacity mirror the Annotation/Typography story classes so the same type palette can be checked directly on label pills.",
+      defaultBadgeMode: "off",
+      defaultLabelAttach: POINT_LABEL_ATTACH.LEFT,
+      defaultInitialLabelPosition: LEFT_ALIGNED_PILLBOX_LABEL_POSITION,
+      sharedStyleOverrides: {
+        fontFamily: annotationTypographyDefaults.fontFamily,
+      },
+      rows: [
+        {
+          id: "pillbox-typography-heading",
+          label: "Heading",
+          content: "Punktmessung 3",
+          backgroundColor:
+            sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.62)",
+          sharedStyleOverrides: {
+            textColor: "rgba(17, 24, 39, 0.9)",
+          },
+          styleOverrides: {
+            fontSize: `${annotationTypographyDefaults.headingFontSizePx}px`,
+            fontWeight: annotationTypographyDefaults.headingFontWeight,
+          },
+        },
+        {
+          id: "pillbox-typography-root-medium",
+          label: "Root / Medium",
+          content: "NHN 179,27 m",
+          badgeMode: "fixed",
+          badgeContent: "8",
+          badgePosition: PILLBUTTON_BADGE_POSITIONS.LEFT,
+          backgroundColor:
+            sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.62)",
+          sharedStyleOverrides: {
+            textColor: "rgba(17, 24, 39, 1)",
+            markerTextColor: "rgba(17, 24, 39, 1)",
+          },
+          styleOverrides: {
+            fontSize: `${annotationTypographyDefaults.rootFontSizePx}px`,
+            fontWeight: annotationTypographyDefaults.badgeFontWeight,
+          },
+        },
+        {
+          id: "pillbox-typography-root-regular",
+          label: "Root / Regular",
+          content: "24,41 m relative Höhe über Bezugspunkt",
+          backgroundColor:
+            sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.62)",
+          sharedStyleOverrides: {
+            textColor: "rgba(17, 24, 39, 1)",
+          },
+          styleOverrides: {
+            fontSize: `${annotationTypographyDefaults.rootFontSizePx}px`,
+            fontWeight: "400",
+          },
+        },
+        {
+          id: "pillbox-typography-support-semibold",
+          label: "Support / Semibold",
+          content: "Punktmessung · Referenzhöhe",
+          backgroundColor:
+            sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.62)",
+          sharedStyleOverrides: {
+            textColor: "rgba(71, 85, 105, 0.8)",
+          },
+          styleOverrides: {
+            fontSize: `${annotationTypographyDefaults.supportFontSizePx}px`,
+            fontWeight: annotationTypographyDefaults.sectionTitleFontWeight,
+          },
+        },
+        {
+          id: "pillbox-typography-support-subtitle",
+          label: "Support / Subtitle",
+          content: "51,272102°N 7,200488°O • NHN 179,27 m",
+          backgroundColor:
+            sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.62)",
+          sharedStyleOverrides: {
+            textColor: "rgba(17, 24, 39, 0.5)",
+          },
+          styleOverrides: {
+            fontSize: `${annotationTypographyDefaults.supportFontSizePx}px`,
+            fontWeight: "600",
+          },
+        },
+        {
+          id: "pillbox-typography-support-regular",
+          label: "Support / Regular",
+          content: "3 von 20 Messungen",
+          backgroundColor:
+            sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.62)",
+          sharedStyleOverrides: {
+            textColor: "rgba(17, 24, 39, 1)",
+          },
+          styleOverrides: {
+            fontSize: `${annotationTypographyDefaults.supportFontSizePx}px`,
+            fontWeight: "400",
+          },
+        },
+        {
+          id: "pillbox-typography-border-root",
+          label: "Root · full border",
+          content: "NHN 179,27 m",
+          badgeMode: "fixed",
+          badgeContent: "8",
+          badgePosition: PILLBUTTON_BADGE_POSITIONS.LEFT,
+          backgroundColor:
+            sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.62)",
+          sharedStyleOverrides: {
+            textColor: "rgba(17, 24, 39, 1)",
+            markerTextColor: "rgba(17, 24, 39, 1)",
+            fullBorder: true,
+          },
+          styleOverrides: {
+            fontSize: `${annotationTypographyDefaults.rootFontSizePx}px`,
+            fontWeight: annotationTypographyDefaults.badgeFontWeight,
+          },
+        },
+        {
+          id: "pillbox-typography-border-support",
+          label: "Support · full border",
+          content: "Punktmessung · Referenzhöhe",
+          backgroundColor:
+            sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.62)",
+          sharedStyleOverrides: {
+            textColor: "rgba(71, 85, 105, 0.8)",
+            fullBorder: true,
+          },
+          styleOverrides: {
+            fontSize: `${annotationTypographyDefaults.supportFontSizePx}px`,
+            fontWeight: annotationTypographyDefaults.sectionTitleFontWeight,
+          },
+        },
+      ],
     },
     {
-      id: "pillbox-badge-frosted",
-      label: "pill + badge · frosted",
-      content: "distance 14.92 m",
-      backgroundColor: "rgba(255, 255, 255, 0.72)",
-      badgeContent: sharedBadgeContent,
-      badgePosition: sharedBadgePosition,
+      id: "anchor-reference",
+      title: "left and right badge",
+      lockedSummary: "locked: badge side; content follows active controls.",
+      defaultBadgeMode: "inherit",
+      defaultLabelAttach: POINT_LABEL_ATTACH.LEFT,
+      defaultInitialLabelPosition: LEFT_ALIGNED_PILLBOX_LABEL_POSITION,
+      rows: [
+        {
+          id: "pillbox-anchor-left-aligned",
+          label: "badge left",
+          content: args.content,
+          backgroundColor:
+            sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.62)",
+        },
+        {
+          id: "pillbox-anchor-right-aligned",
+          label: "badge right",
+          content: args.content,
+          backgroundColor:
+            sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.62)",
+          badgeMode: "fixed",
+          badgeContent: sharedBadgeContent,
+          badgePosition: PILLBUTTON_BADGE_POSITIONS.RIGHT,
+        },
+      ],
     },
-    {
-      id: "pillbox-badge-lg",
-      label: "pill + badge · lg",
-      content: "selected cluster label",
-      backgroundColor:
-        sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.98)",
-      badgeContent: "12",
-      badgePosition: PILLBUTTON_BADGE_POSITIONS.LEFT,
-      styleOverrides: { fontSize: "16px", fontWeight: "600" },
-    },
-    {
-      id: "pillbox-badge-left-ops",
-      label: "badge left · ops",
-      content: "distance 14.92 m",
-      backgroundColor:
-        sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.98)",
-      badgeContent: "ops",
-      badgePosition: PILLBUTTON_BADGE_POSITIONS.LEFT,
-    },
-    {
-      id: "pillbox-badge-right-warn",
-      label: "badge right · warn",
-      content: "selected cluster label",
-      backgroundColor: "rgba(255, 255, 255, 0.72)",
-      badgeContent: "warn",
-      badgePosition: PILLBUTTON_BADGE_POSITIONS.RIGHT,
-    },
-    {
-      id: "pillbox-badge-right-bus",
-      label: "badge right · bus",
-      content: "station west",
-      backgroundColor:
-        sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.98)",
-      badgeContent: "bus",
-      badgePosition: PILLBUTTON_BADGE_POSITIONS.RIGHT,
-    },
-    {
-      id: "pillbox-badge-right-train",
-      label: "badge right · train",
-      content: "platform south",
-      backgroundColor:
-        sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.98)",
-      badgeContent: "train",
-      badgePosition: PILLBUTTON_BADGE_POSITIONS.RIGHT,
-    },
-    {
-      id: "pillbox-badge-left-route",
-      label: "badge left · route",
-      content: "local transfer",
-      backgroundColor: "rgba(255, 255, 255, 0.84)",
-      badgeContent: "route",
-      badgePosition: PILLBUTTON_BADGE_POSITIONS.LEFT,
-    },
-  ] as const;
+  ];
+
+  const estimateSectionHeight = (section: LabelComponentSection): number =>
+    88 + section.rows.length * 48;
+
+  const sectionColumns = distributeItemsByEstimatedHeight(
+    sections,
+    readStorySectionColumnCount(sectionLayoutWidth),
+    estimateSectionHeight
+  );
+
+  const renderSection = (section: LabelComponentSection) => (
+    <section key={section.id} style={sectionStyle}>
+      <div style={sectionTitleStyle}>{section.title}</div>
+      <div style={sectionMetaStyle}>{section.lockedSummary}</div>
+      <div style={rowListStyle}>
+        {section.rows.map((row) => {
+          const badgeMode = row.badgeMode ?? section.defaultBadgeMode;
+          const badgeContent =
+            badgeMode === "off"
+              ? undefined
+              : badgeMode === "inherit"
+              ? badgeSlot === PILLBOX_STORY_BADGE_SLOTS.NONE
+                ? undefined
+                : sharedBadgeContent
+              : row.badgeContent;
+          const badgePosition =
+            badgeMode === "off"
+              ? undefined
+              : badgeMode === "inherit"
+              ? badgeSlot === PILLBOX_STORY_BADGE_SLOTS.NONE
+                ? undefined
+                : sharedBadgePosition
+              : row.badgePosition;
+
+          return (
+            <InlineRow
+              key={row.id}
+              label={row.label}
+              cellStyle={LABEL_COMPONENT_ROW_CELL_STYLE}
+              labelStyle={LABEL_COMPONENT_ROW_LABEL_STYLE}
+              graphicStyle={LABEL_COMPONENT_INLINE_ROW_GRAPHIC_STYLE}
+            >
+              <InlinePillbuttonLabelDemo
+                pointId={row.id}
+                content={row.content}
+                badgeContent={badgeContent}
+                badgePosition={badgePosition}
+                backgroundColor={row.backgroundColor}
+                sharedStyleProps={{
+                  ...sharedStyleProps,
+                  ...section.sharedStyleOverrides,
+                  ...row.sharedStyleOverrides,
+                }}
+                styleOverrides={row.styleOverrides}
+                badgeBorderColor={args.badgeBorderColor}
+              />
+            </InlineRow>
+          );
+        })}
+      </div>
+    </section>
+  );
 
   return (
     <CenteredStoryFrame
-      label="pillbox label only"
+      label="label component"
       values={statusValues}
       contentStyle={pageStyle}
       background={readStoryBackground(pageBackgroundMode)}
       backgroundStyle={readStoryBackgroundStyle(pageBackgroundMode)}
     >
-      <div style={sectionGridStyle}>
-        <section style={sectionStyle}>
-          <div style={sectionTitleStyle}>
-            draggable label-only variants without stem
+      <div ref={sectionLayoutRef} style={compactSectionStackStyle}>
+        {sectionColumns.map((column, columnIndex) => (
+          <div
+            key={`label-component-column-${columnIndex}`}
+            style={
+              sectionColumns.length === 1
+                ? compactSectionSingleColumnStyle
+                : compactSectionColumnStyle
+            }
+          >
+            {column.map(renderSection)}
           </div>
-          <table style={rowListStyle}>
-            <thead>
-              <tr>
-                <th style={tableHeaderCellStyle}>case</th>
-                <th style={tableHeaderCellStyle}>preview</th>
-              </tr>
-            </thead>
-            <tbody>
-              {variants.map((variant) => (
-                <InlineRow key={variant.id} label={variant.label}>
-                  <PillboxOnlyAnchorDemo
-                    pointId={variant.id}
-                    content={variant.content}
-                    badgeContent={
-                      badgeSlot === PILLBOX_STORY_BADGE_SLOTS.NONE
-                        ? undefined
-                        : variant.badgeContent
-                    }
-                    badgePosition={
-                      badgeSlot === PILLBOX_STORY_BADGE_SLOTS.NONE
-                        ? undefined
-                        : resolveBadgePositionFromSlot(badgeSlot) ??
-                          variant.badgePosition
-                    }
-                    backgroundColor={variant.backgroundColor}
-                    sharedStyleProps={sharedStyleProps}
-                    showDebugAnchors={showDebugAnchors}
-                    styleOverrides={variant.styleOverrides}
-                    badgeOutlineColor={args.badgeOutlineColor}
-                    labelAttach={POINT_LABEL_ATTACH.CENTER}
-                  />
-                </InlineRow>
-              ))}
-            </tbody>
-          </table>
-        </section>
-        <section style={sectionStyle}>
-          <div style={sectionTitleStyle}>
-            anchor behavior and debug visibility
-          </div>
-          <table style={rowListStyle}>
-            <thead>
-              <tr>
-                <th style={tableHeaderCellStyle}>case</th>
-                <th style={tableHeaderCellStyle}>preview</th>
-              </tr>
-            </thead>
-            <tbody>
-              <InlineRow label="left anchor drag">
-                <PillboxOnlyAnchorDemo
-                  pointId="pillbox-anchor-left"
-                  content={args.content}
-                  badgeContent={undefined}
-                  backgroundColor={
-                    sharedStyleProps.textBackgroundColor ??
-                    "rgba(255, 255, 255, 0.98)"
-                  }
-                  sharedStyleProps={sharedStyleProps}
-                  showDebugAnchors
-                  badgeOutlineColor={args.badgeOutlineColor}
-                  labelAttach={POINT_LABEL_ATTACH.RIGHT}
-                />
-              </InlineRow>
-              <InlineRow label="badge center drag">
-                <PillboxOnlyAnchorDemo
-                  pointId="pillbox-anchor-center"
-                  content={args.content}
-                  badgeContent={sharedBadgeContent}
-                  badgePosition={sharedBadgePosition}
-                  backgroundColor="rgba(255, 255, 255, 0.84)"
-                  sharedStyleProps={sharedStyleProps}
-                  showDebugAnchors
-                  badgeOutlineColor={args.badgeOutlineColor}
-                  labelAttach={POINT_LABEL_ATTACH.CENTER}
-                />
-              </InlineRow>
-              <InlineRow label="right anchor drag">
-                <PillboxOnlyAnchorDemo
-                  pointId="pillbox-anchor-right"
-                  content="longer anchored label"
-                  badgeContent={undefined}
-                  backgroundColor="rgba(255, 255, 255, 0.98)"
-                  sharedStyleProps={sharedStyleProps}
-                  showDebugAnchors
-                  badgeOutlineColor={args.badgeOutlineColor}
-                  labelAttach={POINT_LABEL_ATTACH.LEFT}
-                />
-              </InlineRow>
-            </tbody>
-          </table>
-        </section>
+        ))}
+      </div>
+    </CenteredStoryFrame>
+  );
+};
+
+export const LabelBackgroundsStory = (args: LabelMarkersStoryArgs) => {
+  const sharedStyleProps = makeSharedStyleProps(args);
+  const showDebugAnchors = args.debugAnchors === true;
+  const pageBackgroundMode = resolveStoryBackgroundMode(
+    args,
+    LABEL_STORY_BACKGROUND_MODES.URBAN
+  );
+
+  return (
+    <CenteredStoryFrame
+      label="label backgrounds"
+      values={[
+        `bg ${pageBackgroundMode}`,
+        `debug ${showDebugAnchors ? "on" : "off"}`,
+      ]}
+      contentStyle={pageStyle}
+      background={readStoryBackground(pageBackgroundMode)}
+      backgroundStyle={readStoryBackgroundStyle(pageBackgroundMode)}
+    >
+      <div
+        style={{
+          position: "relative",
+          width: "100%",
+          minHeight: 460,
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            left: 32,
+            right: 32,
+            top: 112,
+            borderTop: "1px dashed rgba(71, 85, 105, 0.38)",
+          }}
+        />
+        <div
+          className="carma-annotation-overlay-line-label"
+          data-annotation-overlay-line-label-theme={
+            PREVIEW_LINE_LABEL_THEME.BRIGHT_ON_DARK
+          }
+          style={
+            {
+              position: "absolute",
+              left: "50%",
+              top: 112,
+              display: "block",
+              transform: "translate(-50%, -50%)",
+              "--carma-annotation-overlay-line-label-font-family":
+                annotationTypographyDefaults.fontFamily,
+              "--carma-annotation-overlay-line-label-font-size": `${annotationTypographyDefaults.rootFontSizePx}px`,
+              "--carma-annotation-overlay-line-label-font-weight": `${annotationTypographyDefaults.lineLabelFontWeight}`,
+            } as CSSProperties
+          }
+        >
+          <span className="carma-annotation-overlay-line-label__frame">
+            <span
+              className="carma-annotation-overlay-line-label__backdrop"
+              data-annotation-overlay-line-label-background-style={
+                PREVIEW_LINE_LABEL_BACKGROUND_STYLE.SOFT_RECT_FADE
+              }
+            />
+            <span
+              className="carma-annotation-overlay-line-label__text"
+              style={{ fontSize: annotationTypographyDefaults.rootFontSizePx }}
+            >
+              168,00 m
+            </span>
+          </span>
+        </div>
+        <div
+          style={{
+            position: "absolute",
+            left: 32,
+            right: 32,
+            top: 328,
+            borderTop: "1px dashed rgba(71, 85, 105, 0.28)",
+          }}
+        />
+        <div style={{ position: "absolute", left: 56, top: 316 }}>
+          <DraggablePillbuttonLabelDemo
+            pointId="label-background-left"
+            content="NHN 179,27 m"
+            badgeContent="8"
+            badgePosition={PILLBUTTON_BADGE_POSITIONS.LEFT}
+            backgroundColor="rgba(255, 255, 255, 0.72)"
+            sharedStyleProps={{
+              ...sharedStyleProps,
+              markerBackgroundColor: "rgba(24, 24, 27, 0.86)",
+            }}
+            showDebugAnchors={showDebugAnchors}
+            badgeBorderColor={args.badgeBorderColor}
+            labelAttach={POINT_LABEL_ATTACH.LEFT}
+            initialLabelPosition={{ x: 64, y: 28 }}
+          />
+        </div>
+        <div style={{ position: "absolute", right: 72, top: 216 }}>
+          <DraggablePillbuttonLabelDemo
+            pointId="label-background-right"
+            content="24,41 m über Bezugspunkt"
+            badgeContent="11111"
+            badgePosition={PILLBUTTON_BADGE_POSITIONS.RIGHT}
+            backgroundColor="rgba(255, 248, 204, 0.74)"
+            sharedStyleProps={{
+              ...sharedStyleProps,
+              markerBackgroundColor: "rgba(252, 211, 77, 0.96)",
+              markerTextColor: "#111827",
+            }}
+            showDebugAnchors={showDebugAnchors}
+            badgeBorderColor={args.badgeBorderColor}
+            labelAttach={POINT_LABEL_ATTACH.RIGHT}
+            initialLabelPosition={{ x: 284, y: 28 }}
+          />
+        </div>
       </div>
     </CenteredStoryFrame>
   );
@@ -1481,104 +2051,82 @@ export const PillboxOnlyStory = (args: LabelMarkersStoryArgs) => {
 
 export const LABEL_MARKERS_DEFAULT_ARGS: LabelMarkersStoryArgs = {
   content: "14,92 m",
-  compactContent: "7",
-  markerContent: "7",
   badgeContent: "7",
   badgeSlot: PILLBOX_STORY_BADGE_SLOTS.LEFT,
-  fontSize: "12px",
-  fontFamily: LABEL_MARKERS_FONT_FAMILY,
-  fontWeight: "500",
-  textColor: "#0f172a",
-  textBackgroundColor: "rgba(255, 255, 255, 0.98)",
-  selectedBackgroundColor: "rgba(251, 191, 36, 0.95)",
-  hoverBackgroundColor: "rgba(254, 243, 199, 0.98)",
-  lineColor: "rgba(30, 58, 138, 0.98)",
-  lineWidth: 1,
-  markerSize: 10,
-  markerStrokeWidth: 1,
-  markerBackgroundColor: "rgba(15, 23, 42, 0.94)",
-  markerTextColor: "#f8fafc",
-  badgeStrokeWidth: 1,
-  badgeOutlineColor: "rgba(255, 255, 255, 0.96)",
-  badgeBackgroundColor: "rgba(15, 23, 42, 0.94)",
+  labelTextColor: "#0f172a",
+  labelBackgroundColor: "rgba(255, 255, 255, 0.62)",
+  badgeFillColor: "rgba(30, 58, 138, 0.98)",
   badgeTextColor: "#f8fafc",
-  stemStartDistance: 5,
-  labelDistance: 20,
-  compactBorderless: false,
-  showDebugAnchors: false,
-  pageBackgroundMode: LABEL_STORY_BACKGROUND_MODES.PLAIN,
+  badgeBorderColor: "rgba(126, 126, 126, 0.96)",
+  badgeBorderWidth: 1,
+  badgeBorderless: false,
+  debugAnchors: false,
+  storyBackground: LABEL_STORY_BACKGROUND_MODES.PLAIN,
 };
 
 export const LABEL_MARKERS_ARG_TYPES = {
-  showDebugAnchors: {
-    control: { type: "boolean" },
-  },
-  pageBackgroundMode: {
+  storyBackground: {
+    name: "background",
     control: { type: "inline-radio" },
     options: Object.values(LABEL_STORY_BACKGROUND_MODES),
+    table: { category: "Story / Canvas" },
+  },
+  debugAnchors: {
+    name: "debug anchors",
+    control: { type: "boolean" },
+    table: { category: "Story / Debug" },
   },
   badgeSlot: {
+    name: "badge side",
     control: { type: "inline-radio" },
     options: Object.values(PILLBOX_STORY_BADGE_SLOTS),
+    table: { category: "Component / Badge" },
   },
-  fontSize: {
-    control: { type: "inline-radio" },
-    options: ["10px", "12px", "14px", "16px", "20px", "24px"],
-  },
-  fontWeight: {
-    control: { type: "inline-radio" },
-    options: ["400", "500", "600", "700"],
-  },
-  textColor: {
+  labelTextColor: {
+    name: "text color",
     control: { type: "color" },
+    table: { category: "Component / Label" },
   },
-  textBackgroundColor: {
+  labelBackgroundColor: {
+    name: "fill color",
     control: { type: "color" },
+    table: { category: "Component / Label" },
   },
-  badgeBackgroundColor: {
+  badgeFillColor: {
+    name: "fill color",
     control: { type: "color" },
+    table: { category: "Component / Badge" },
   },
-  badgeOutlineColor: {
+  badgeBorderColor: {
+    name: "border color",
     control: { type: "color" },
+    table: { category: "Component / Badge" },
   },
   badgeTextColor: {
+    name: "text color",
     control: { type: "color" },
+    table: { category: "Component / Badge" },
   },
-  badgeStrokeWidth: {
+  badgeBorderWidth: {
+    name: "border width",
     control: { type: "range", min: 1, max: 4, step: 1 },
+    table: { category: "Component / Badge" },
   },
-  compactBorderless: {
+  badgeBorderless: {
+    name: "borderless",
     control: { type: "boolean" },
+    table: { category: "Component / Badge" },
   },
   badgeContent: {
+    name: "badge text",
     control: { type: "text" },
-  },
-  compactContent: {
-    control: { type: "text" },
+    table: { category: "Component / Badge" },
   },
   content: {
+    name: "label text",
     control: { type: "text" },
+    table: { category: "Component / Label" },
   },
 };
 
-export const LABEL_MARKERS_PARAMETERS = {
-  controls: {
-    include: [
-      "content",
-      "compactContent",
-      "badgeContent",
-      "badgeSlot",
-      "fontSize",
-      "fontWeight",
-      "textColor",
-      "textBackgroundColor",
-      "badgeBackgroundColor",
-      "badgeOutlineColor",
-      "badgeTextColor",
-      "badgeStrokeWidth",
-      "compactBorderless",
-      "showDebugAnchors",
-      "pageBackgroundMode",
-    ],
-  },
-};
+export const LABEL_MARKERS_PARAMETERS = {};

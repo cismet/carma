@@ -1,12 +1,14 @@
 import React, { useEffect, useMemo, useRef } from "react";
 
-import { AnchoredLabelVisualizer } from "./components/AnchoredLabelVisualizer";
-import type { LineVisualizerData, SvgLine } from "./lineVisualizers.types";
+import { AnchoredLineLabel } from "./components/AnchoredLineLabel";
+import {
+  resolveOverlayLineLabelPlacement,
+  type LineLabelPlacementOptions,
+} from "./lineLabelPlacement";
+import type { LineVisualizerData } from "./lineVisualizers.types";
 import { useLabelOverlay } from "./useLabelOverlay";
 import { createSvgLineScratch, resolveSvgLine } from "./utils/resolveSvgLine";
-const MIN_LINE_LENGTH_PX = 0.0001;
 const DEFAULT_MIN_LABEL_LINE_LENGTH_PX = 50;
-const LABEL_OFFSET_PX = 10;
 const LABEL_MIN_PADDING_PX = 6;
 const LINE_LABEL_OVERLAY_Z_INDEX = 6;
 const LABEL_SIDE_HYSTERESIS_PX = 1.5;
@@ -53,13 +55,10 @@ const buildLineLabelSignature = (line: LineVisualizerData): string => {
     `${line.labelFontWeight}`,
     `${line.labelPill ?? false}`,
     `${line.labelPillBackgroundColor ?? ""}`,
-    `${line.labelPillBorderColor ?? ""}`,
-    `${line.labelPillBorderWidth ?? ""}`,
     `${line.labelMinLineLengthPx}`,
     `${line.labelOffsetPx}`,
     `${line.labelFlippedBaselineOffsetPx ?? ""}`,
     `${line.labelRotationMode ?? "auto"}`,
-    `${line.labelDominantBaseline ?? "middle"}`,
     getOverlayReferenceSignature(line.onLabelClick),
     getOverlayReferenceSignature(line.onLineClick),
     `${line.contentSignature ?? ""}`,
@@ -68,81 +67,15 @@ const buildLineLabelSignature = (line: LineVisualizerData): string => {
   return tokens.join(":");
 };
 
-const resolveLineLabelPlacement = ({
-  line,
-  svgLine,
-  previousShouldFlip,
-}: {
-  line: LineVisualizerData;
-  svgLine: SvgLine;
-  previousShouldFlip: boolean;
-}) => {
-  const dx = svgLine.end.x - svgLine.start.x;
-  const dy = svgLine.end.y - svgLine.start.y;
-  const lineLength = Math.hypot(dx, dy);
-  if (lineLength <= MIN_LINE_LENGTH_PX) {
-    return null;
-  }
-
-  const midX = (svgLine.start.x + svgLine.end.x) * 0.5;
-  const midY = (svgLine.start.y + svgLine.end.y) * 0.5;
-  let normalX = -dy / lineLength;
-  let normalY = dx / lineLength;
-  const outsideRef = line.getLabelOutsideReferencePoint?.();
-  const insideRef = line.getLabelInsideReferencePoint?.();
-  let shouldFlip = previousShouldFlip;
-  const sideReferencePoint = outsideRef ?? insideRef;
-
-  if (sideReferencePoint) {
-    const refDx = sideReferencePoint.x - midX;
-    const refDy = sideReferencePoint.y - midY;
-    const dotWithNormal = refDx * normalX + refDy * normalY;
-
-    // Orient label normal toward the selected side reference point.
-    // Positive dot means the current normal already points to the target side.
-    if (dotWithNormal > LABEL_SIDE_HYSTERESIS_PX) {
-      shouldFlip = false;
-    } else if (dotWithNormal < -LABEL_SIDE_HYSTERESIS_PX) {
-      shouldFlip = true;
-    }
-  }
-
-  if (shouldFlip) {
-    normalX = -normalX;
-    normalY = -normalY;
-  }
-
-  const rawAngleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
-  const angleDeg =
-    line.labelRotationMode === "clockwise"
-      ? (rawAngleDeg + 360) % 360
-      : (() => {
-          const crossProduct =
-            (dx / lineLength) * normalY - (dy / lineLength) * normalX;
-          const sideAdjustedAngle =
-            crossProduct >= 0 ? rawAngleDeg : rawAngleDeg + 180;
-          const normalizedAngle = ((sideAdjustedAngle % 360) + 360) % 360;
-          return normalizedAngle > 90 && normalizedAngle < 270
-            ? (normalizedAngle + 180) % 360
-            : normalizedAngle;
-        })();
-
-  const labelOffsetPx = line.labelOffsetPx ?? LABEL_OFFSET_PX;
-  const flippedBaselineOffsetPx = shouldFlip
-    ? line.labelFlippedBaselineOffsetPx ?? 0
-    : 0;
-  const angleRad = (angleDeg * Math.PI) / 180;
-  const baselineOffsetX = -Math.sin(angleRad) * flippedBaselineOffsetPx;
-  const baselineOffsetY = Math.cos(angleRad) * flippedBaselineOffsetPx;
-
-  return {
-    lineLength,
-    shouldFlip,
-    angleDeg,
-    textX: midX + normalX * labelOffsetPx + baselineOffsetX,
-    textY: midY + normalY * labelOffsetPx + baselineOffsetY,
-  };
-};
+const resolveLineLabelPlacementOptions = (
+  line: LineVisualizerData
+): LineLabelPlacementOptions => ({
+  labelOffsetPx: line.labelOffsetPx,
+  labelFlippedBaselineOffsetPx: line.labelFlippedBaselineOffsetPx,
+  labelRotationMode: line.labelRotationMode,
+  getLabelOutsideReferencePoint: line.getLabelOutsideReferencePoint,
+  getLabelInsideReferencePoint: line.getLabelInsideReferencePoint,
+});
 
 const buildLineLabelOverlayUpdatePosition = (line: LineVisualizerData) => {
   const svgLineScratch = createSvgLineScratch();
@@ -154,17 +87,18 @@ const buildLineLabelOverlayUpdatePosition = (line: LineVisualizerData) => {
     if (!svgLine || !line.labelText) return false;
 
     const labelRootEl = elementDiv.querySelector(
-      '[data-anchored-label-root="true"]'
+      '[data-anchored-line-label-root="true"]'
     ) as HTMLDivElement | null;
     const labelTextEl = elementDiv.querySelector(
-      '[data-anchored-label-text="true"]'
+      '[data-anchored-line-label-text="true"]'
     ) as HTMLSpanElement | null;
     if (!labelRootEl || !labelTextEl) return false;
 
-    const placement = resolveLineLabelPlacement({
-      line,
+    const placement = resolveOverlayLineLabelPlacement({
       svgLine,
+      options: resolveLineLabelPlacementOptions(line),
       previousShouldFlip: elementDiv.dataset.normalFlip === "1",
+      sideSwitchThresholdPx: LABEL_SIDE_HYSTERESIS_PX,
     });
     if (!placement) {
       return false;
@@ -215,10 +149,10 @@ const buildLineLabelOverlayUpdatePosition = (line: LineVisualizerData) => {
       ? minLabelLineLengthPx - LABEL_VISIBILITY_HYSTERESIS_PX
       : minLabelLineLengthPx + LABEL_VISIBILITY_HYSTERESIS_PX;
     const fitThreshold = previousVisible
-      ? placement.lineLength + LABEL_VISIBILITY_HYSTERESIS_PX
-      : placement.lineLength - LABEL_VISIBILITY_HYSTERESIS_PX;
+      ? placement.lineLengthPx + LABEL_VISIBILITY_HYSTERESIS_PX
+      : placement.lineLengthPx - LABEL_VISIBILITY_HYSTERESIS_PX;
     const shouldShowLabel =
-      placement.lineLength >= lengthThreshold &&
+      placement.lineLengthPx >= lengthThreshold &&
       textWidthPx + LABEL_MIN_PADDING_PX <= fitThreshold;
 
     elementDiv.dataset.labelVisible = shouldShowLabel ? "1" : "0";
@@ -285,7 +219,7 @@ export const useLineLabelVisualizers = (
         id: labelOverlayId,
         zIndex: LINE_LABEL_OVERLAY_Z_INDEX,
         contentKey: nextLabelSignature,
-        content: React.createElement(AnchoredLabelVisualizer, {
+        content: React.createElement(AnchoredLineLabel, {
           text: line.labelText,
           color: line.labelColor,
           stroke: line.labelStroke,
@@ -294,8 +228,6 @@ export const useLineLabelVisualizers = (
           fontWeight: line.labelFontWeight,
           pill: line.labelPill,
           pillBackgroundColor: line.labelPillBackgroundColor,
-          pillBorderColor: line.labelPillBorderColor,
-          pillBorderWidth: line.labelPillBorderWidth,
           onClick: line.onLabelClick ?? line.onLineClick,
         }),
         visible: line.visible !== false,

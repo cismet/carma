@@ -34,7 +34,7 @@ import {
   previewControllerDefaults,
 } from "../../interaction/previewController.shared";
 
-const DISTANCE_PREVIEW_LAYER_ID = "annotation-v2-distance-preview-layer";
+const DISTANCE_PREVIEW_LAYER_ID = "annotation-overlay-distance-preview-layer";
 const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 
 type PreviewOverlayLines = {

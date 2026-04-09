@@ -17,25 +17,20 @@ export {
   type PointLabelStyleProps,
 } from "../components/PointLabel";
 export {
-  PointLabelMarker,
-  getPillbuttonAnchorBorderStyle,
-  getPillbuttonAnchorTransform,
-  resolvePillbuttonMountSide,
-  type PillbuttonMountSide,
-} from "../components/PointLabelMarker";
-export {
   PillbuttonLabelMarker,
   PILLBUTTON_LABEL_MARKER_RESIZE_MODE,
   PILLBUTTON_BADGE_POSITIONS,
   pillbuttonLabelMarkerBadgeDefaults,
-  pillbuttonLabelMarkerLayoutDefaults,
   pillbuttonLabelMarkerMotionDefaults,
   resolvePillbuttonLabelMarkerBadgeOptions,
-  resolvePillbuttonLabelMarkerLayoutOptions,
+  resolvePillbuttonLabelMarkerLocalAnchorPoints,
   resolvePillbuttonLabelMarkerMotionOptions,
+  resolvePillbuttonLabelMarkerPlacedAnchorPoints,
   type PillbuttonBadgePosition,
+  type PillbuttonLabelMarkerAnchorPoints,
   type PillbuttonLabelMarkerBadgeOptions,
-  type PillbuttonLabelMarkerLayoutOptions,
+  type PillbuttonLabelMarkerLayoutMetrics,
+  type PillbuttonLabelMarkerPlacement,
   type PillbuttonLabelMarkerMotionOptions,
   type PillbuttonLabelMarkerProps,
   type PillbuttonLabelMarkerResizeMode,
@@ -50,9 +45,15 @@ export {
   type LineVisualizerProps,
 } from "../components/LineVisualizer";
 export {
-  AnchoredLabelVisualizer,
-  type AnchoredLabelVisualizerProps,
-} from "../components/AnchoredLabelVisualizer";
+  AnchoredLineLabel,
+  type AnchoredLineLabelProps,
+} from "../components/AnchoredLineLabel";
+export {
+  DEFAULT_LINE_LABEL_OFFSET_PX,
+  resolveOverlayLineLabelPlacement,
+  type LineLabelPlacementOptions,
+  type ResolvedLineLabelPlacement,
+} from "../lineLabelPlacement";
 export { usePointLabels, type PointLabelData } from "../usePointLabels";
 export {
   useLineVisualizers,

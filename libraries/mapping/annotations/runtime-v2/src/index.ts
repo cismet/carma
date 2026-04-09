@@ -11,7 +11,6 @@ export * from "./lib/components/annotation-info-box/annotationInfoBoxVisualDefau
 export * from "./lib/components/annotation-info-box/RuntimeAnnotationInfoBoxActionIcon";
 export * from "./lib/components/annotation-info-box/RuntimeAnnotationInfoBoxNavigation";
 export * from "./lib/interaction/createPointQueryPreviewController";
-export * from "./lib/interaction/pointQueryPreviewDiscPlacementMode";
 export * from "./lib/interaction/crosshairCursorAsset";
 export * from "./lib/interaction/resolvePointPreviewDiscRadius";
 export * from "./lib/interaction/resolveCrosshairCanvasCursor";

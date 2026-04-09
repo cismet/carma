@@ -186,7 +186,7 @@ export const buildNodeChainAreaToolRenderModels = ({
             coordinate,
             markerPixelSize: pointVisuals.pixelSize,
             content: badgeText,
-            markerContent: badgeText,
+            badgeContent: badgeText,
             markerBackgroundColor: badgeStyle.backgroundColor,
             markerTextColor: badgeStyle.textColor,
             selected: selectedMeasurementIdSet.has(measurement.id),

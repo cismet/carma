@@ -1,4 +1,5 @@
 import {
+  LabelBackgroundsStory,
   LABEL_MARKERS_ARG_TYPES,
   LABEL_MARKERS_DEFAULT_ARGS,
   LABEL_MARKERS_PARAMETERS,
@@ -8,8 +9,11 @@ import {
 
 const meta = {
   title: "Overlay/Labels",
+  args: LABEL_MARKERS_DEFAULT_ARGS,
+  argTypes: LABEL_MARKERS_ARG_TYPES,
   parameters: {
     layout: "fullscreen",
+    ...LABEL_MARKERS_PARAMETERS,
   },
 };
 
@@ -17,16 +21,18 @@ export default meta;
 
 export const RepresentativeCases = {
   name: "Representative Cases",
-  args: LABEL_MARKERS_DEFAULT_ARGS,
-  parameters: LABEL_MARKERS_PARAMETERS,
-  argTypes: LABEL_MARKERS_ARG_TYPES,
   render: (args) => <RepresentativeCasesStory {...args} />,
 };
 
-export const PillboxLabelOnly = {
-  name: "Pillbox Label Only",
-  args: LABEL_MARKERS_DEFAULT_ARGS,
-  parameters: LABEL_MARKERS_PARAMETERS,
-  argTypes: LABEL_MARKERS_ARG_TYPES,
+export const LabelBackgrounds = {
+  name: "Label Backgrounds",
+  args: {
+    storyBackground: "urban",
+  },
+  render: (args) => <LabelBackgroundsStory {...args} />,
+};
+
+export const LabelComponent = {
+  name: "Label Component",
   render: (args) => <PillboxOnlyStory {...args} />,
 };

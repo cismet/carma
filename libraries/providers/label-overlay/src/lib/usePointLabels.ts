@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { type CSSProperties, useEffect, useMemo, useRef } from "react";
 
 import { MINUS_PI_OVER_FOUR } from "@carma-commons/math";
 import type { CssPixelPosition } from "@carma-units";
@@ -27,8 +27,8 @@ export interface PointLabelData {
   fontSize?: string;
   fontFamily?: string;
   fontWeight?: string | number;
-  markerCursor?: React.CSSProperties["cursor"];
-  labelCursor?: React.CSSProperties["cursor"];
+  markerCursor?: CSSProperties["cursor"];
+  labelCursor?: CSSProperties["cursor"];
   textColor?: string;
   textBackgroundColor?: string;
   selectedBackgroundColor?: string;
@@ -43,10 +43,11 @@ export interface PointLabelData {
   markerStrokeWidth?: number;
   stemReferenceMarkerSize?: number;
   stemStartDistance?: number;
+  nodeContent?: React.ReactNode;
+  badgeContent?: React.ReactNode;
   markerContent?: React.ReactNode;
   markerBackgroundColor?: string;
   markerTextColor?: string;
-  compactContent?: React.ReactNode;
   compactBorderless?: boolean;
   labelStyle?: PointLabelStyle;
   collapse?: boolean;
@@ -82,6 +83,14 @@ export type PointLabelLayoutOptions = {
 const overlayReferenceIdByValue = new WeakMap<object, number>();
 let nextOverlayReferenceId = 1;
 
+const resolvePointNodeContent = (
+  point: Pick<PointLabelData, "nodeContent" | "markerContent">
+) => point.nodeContent ?? point.markerContent;
+
+const resolvePointBadgeContent = (
+  point: Pick<PointLabelData, "badgeContent">
+) => point.badgeContent;
+
 const getOverlayReferenceSignature = (value: unknown): string => {
   if (value === null || value === undefined) {
     return "";
@@ -106,9 +115,6 @@ const getPointStyleSignature = (
   styleProps: PointLabelStyleProps | undefined
 ): string =>
   [
-    styleProps?.fontSize ?? "",
-    styleProps?.fontFamily ?? "",
-    styleProps?.fontWeight ?? "",
     styleProps?.markerCursor ?? "",
     styleProps?.labelCursor ?? "",
     styleProps?.textColor ?? "",
@@ -121,10 +127,10 @@ const getPointStyleSignature = (
     styleProps?.markerStrokeWidth ?? "",
     styleProps?.stemReferenceMarkerSize ?? "",
     styleProps?.stemStartDistance ?? "",
-    getOverlayReferenceSignature(styleProps?.markerContent),
+    getOverlayReferenceSignature(styleProps?.nodeContent ?? styleProps?.markerContent),
     styleProps?.markerBackgroundColor ?? "",
     styleProps?.markerTextColor ?? "",
-    getOverlayReferenceSignature(styleProps?.compactContent),
+    getOverlayReferenceSignature(styleProps?.badgeContent),
     String(styleProps?.compactBorderless ?? false),
     styleProps?.labelStyle ?? "",
     String(styleProps?.collapse ?? false),
@@ -148,16 +154,14 @@ const getPointContentSignature = (
   }:${point.markerSize}:${point.markerStrokeWidth}:${
     point.stemReferenceMarkerSize
   }:${point.stemStartDistance}:${getOverlayReferenceSignature(
-    point.markerContent
+    resolvePointNodeContent(point)
   )}:${point.markerBackgroundColor}:${
     point.markerTextColor
-  }:${getOverlayReferenceSignature(point.compactContent)}:${Boolean(
+  }:${getOverlayReferenceSignature(resolvePointBadgeContent(point))}:${Boolean(
     point.compactBorderless
   )}:${point.labelStyle}:${point.collapse}:${point.forceCollapse}:${
     point.fullBorder
   }:${point.resizeMode ?? PILLBUTTON_LABEL_MARKER_RESIZE_MODE.NONE}:${
-    point.fontSize ?? ""
-  }:${point.fontFamily ?? ""}:${point.fontWeight ?? ""}:${
     point.markerCursor ?? ""
   }:${point.labelCursor ?? ""}:${point.textColor ?? ""}:${
     point.textBackgroundColor ?? ""
@@ -241,15 +245,14 @@ export const usePointLabels = (
 
       const attachOverlayClickHandlers =
         point.attachOverlayClickHandlers ?? true;
+      const {
+        fontSize: _styleFontSize,
+        fontFamily: _styleFontFamily,
+        fontWeight: _styleFontWeight,
+        ...baseStyleProps
+      } = styleProps ?? {};
       const pointStyleProps: PointLabelStyleProps = {
-        ...styleProps,
-        ...(point.fontSize !== undefined ? { fontSize: point.fontSize } : {}),
-        ...(point.fontFamily !== undefined
-          ? { fontFamily: point.fontFamily }
-          : {}),
-        ...(point.fontWeight !== undefined
-          ? { fontWeight: point.fontWeight }
-          : {}),
+        ...baseStyleProps,
         ...(point.markerCursor !== undefined
           ? { markerCursor: point.markerCursor }
           : {}),
@@ -307,10 +310,10 @@ export const usePointLabels = (
           markerStrokeWidth: point.markerStrokeWidth,
           stemReferenceMarkerSize: point.stemReferenceMarkerSize,
           stemStartDistance: point.stemStartDistance,
-          markerContent: point.markerContent,
+          nodeContent: resolvePointNodeContent(point),
           markerBackgroundColor: point.markerBackgroundColor,
           markerTextColor: point.markerTextColor,
-          compactContent: point.compactContent,
+          badgeContent: resolvePointBadgeContent(point),
           compactBorderless: point.compactBorderless,
           labelStyle: point.labelStyle,
           collapse: point.collapse,

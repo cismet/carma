@@ -61,19 +61,10 @@ export const useCommittedRuntimeVisualization = ({
     polygonFills,
   });
 
-  useRuntimePointMarkerVisualizer({
-    scene,
-    points,
-  });
-
   const normalizedPointLabels = useMemo(
     () =>
       pointLabels.map((pointLabel) => ({
         ...pointLabel,
-        fontFamily:
-          pointLabel.fontFamily ??
-          resolvedPreviewLineLabelVisualOptions.fontFamily,
-        fontWeight: pointLabel.fontWeight ?? 400,
         onLongPress:
           pointLabel.onLongPress ??
           (pointLabel.nodeId && pointLabel.measurementId
@@ -83,8 +74,33 @@ export const useCommittedRuntimeVisualization = ({
         longPressDurationMs:
           pointLabel.longPressDurationMs ?? NODE_LABEL_LONG_PRESS_DURATION_MS,
       })),
-    [onNodeLongPress, pointLabels, resolvedPreviewLineLabelVisualOptions]
+    [onNodeLongPress, pointLabels]
   );
+
+  const pointMarkerIdsHandledByLabels = useMemo(
+    () =>
+      new Set(
+        normalizedPointLabels.flatMap((pointLabel) =>
+          pointLabel.pointMarkerId &&
+          pointLabel.hideLabelAndStem !== true &&
+          pointLabel.hideMarker !== true
+            ? [pointLabel.pointMarkerId]
+            : []
+        )
+      ),
+    [normalizedPointLabels]
+  );
+
+  const visibleStandalonePoints = useMemo(
+    () =>
+      points.filter((point) => !pointMarkerIdsHandledByLabels.has(point.id)),
+    [pointMarkerIdsHandledByLabels, points]
+  );
+
+  useRuntimePointMarkerVisualizer({
+    scene,
+    points: visibleStandalonePoints,
+  });
 
   useRuntimePointLabelVisualizer({
     scene,

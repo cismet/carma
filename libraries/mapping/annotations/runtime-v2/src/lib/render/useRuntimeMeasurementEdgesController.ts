@@ -38,7 +38,7 @@ import {
   type PreviewSegmentScratch,
 } from "../interaction/previewController.shared";
 import {
-  RUNTIME_POINT_LABEL_COORDINATE_SELECTION,
+  RUNTIME_DISTANCE_TRIANGLE_ANCHOR_COORDINATE_ROLE,
   resolveRuntimeOverlayDistanceZIndex,
   type RuntimeDistanceTriangleOverlayRenderModel,
   type RuntimeEdgeRenderModel,
@@ -355,7 +355,7 @@ const destroySceneLineHandles = (handles: Map<string, SceneLineHandle>) => {
 };
 
 const DISTANCE_TRIANGLE_LABEL_LAYER_ID =
-  "annotation-v2-distance-triangle-label-layer";
+  "annotation-overlay-distance-triangle-label-layer";
 
 const toCssPixelPosition = (x: number, y: number): CssPixelPosition =>
   ({
@@ -365,17 +365,11 @@ const toCssPixelPosition = (x: number, y: number): CssPixelPosition =>
 
 const resolveDistanceTriangleAnchorSelection = ({
   overlay,
-  startScreenPosition,
-  endScreenPosition,
 }: {
   overlay: RuntimeDistanceTriangleOverlayRenderModel;
-  startScreenPosition: CssPixelPosition;
-  endScreenPosition: CssPixelPosition;
 }) =>
-  overlay.anchorCoordinateSelection ===
-  RUNTIME_POINT_LABEL_COORDINATE_SELECTION.LEFTMOST_SCREEN_SPACE
-    ? startScreenPosition.x <= endScreenPosition.x
-    : startScreenPosition.x > endScreenPosition.x;
+  overlay.anchorCoordinateRole !==
+  RUNTIME_DISTANCE_TRIANGLE_ANCHOR_COORDINATE_ROLE.END_COORDINATE;
 
 const resolveDistanceTriangleOverlayScreenData = ({
   scene,
@@ -421,8 +415,6 @@ const resolveDistanceTriangleOverlayScreenData = ({
   );
   const anchorIsStart = resolveDistanceTriangleAnchorSelection({
     overlay,
-    startScreenPosition,
-    endScreenPosition,
   });
   const anchorCoordinate = anchorIsStart
     ? edge.startCoordinate

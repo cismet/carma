@@ -14,7 +14,10 @@ import type {
   RuntimeLabelAppearance,
   RuntimeNode,
 } from "./annotationsStore.types";
-import type { RuntimePointLabelCoordinateSelection } from "../render/measurementRenderModels";
+import type {
+  RuntimeDistanceTriangleAnchorCoordinateRole,
+  RuntimePointLabelCoordinateSelection,
+} from "../render/measurementRenderModels";
 export type CreateInitialAnnotationsStoreStateOptions = {
   initialToolType?: RuntimeToolId;
   initialSelectionModeActive?: boolean;
@@ -67,6 +70,7 @@ export type UpdateAnnotationEntryByIdPayload = {
   labelAppearance?: RuntimeLabelAppearance;
   elevationDisplayMode?: RuntimeElevationDisplayMode;
   distanceAnchorCoordinateSelection?: RuntimePointLabelCoordinateSelection;
+  distanceTriangleAnchorCoordinateRole?: RuntimeDistanceTriangleAnchorCoordinateRole;
 };
 
 export type SetElevationReferenceAnnotationIdPayload = string | null;
@@ -370,6 +374,7 @@ const annotationsSlice = createSlice({
         labelAppearance,
         elevationDisplayMode,
         distanceAnchorCoordinateSelection,
+        distanceTriangleAnchorCoordinateRole,
       } = action.payload;
       const targetEntry = state.annotationEntries.find(
         (entry) => entry.id === annotationId
@@ -400,6 +405,11 @@ const annotationsSlice = createSlice({
       if (distanceAnchorCoordinateSelection !== undefined) {
         targetEntry.distanceAnchorCoordinateSelection =
           distanceAnchorCoordinateSelection;
+      }
+
+      if (distanceTriangleAnchorCoordinateRole !== undefined) {
+        targetEntry.distanceTriangleAnchorCoordinateRole =
+          distanceTriangleAnchorCoordinateRole;
       }
     },
     finalizeTemporaryAnnotationsByToolType: (

@@ -2,7 +2,10 @@ import type {
   RuntimeMeasurementType,
   RuntimeToolId,
 } from "../types/runtimeTool.types";
-import type { RuntimePointLabelCoordinateSelection } from "../render/measurementRenderModels";
+import type {
+  RuntimeDistanceTriangleAnchorCoordinateRole,
+  RuntimePointLabelCoordinateSelection,
+} from "../render/measurementRenderModels";
 
 export type RuntimeCoordinate = {
   latitude: number;
@@ -39,6 +42,7 @@ export type RuntimeAnnotationEntry = {
   labelAppearance?: RuntimeLabelAppearance;
   elevationDisplayMode?: RuntimeElevationDisplayMode;
   distanceAnchorCoordinateSelection?: RuntimePointLabelCoordinateSelection;
+  distanceTriangleAnchorCoordinateRole?: RuntimeDistanceTriangleAnchorCoordinateRole;
   temporary?: boolean;
   closed?: boolean;
   areaSquareMeters?: number;
@@ -63,6 +67,7 @@ export type RuntimeAddAnnotationOptions = Pick<
   | "labelAppearance"
   | "elevationDisplayMode"
   | "distanceAnchorCoordinateSelection"
+  | "distanceTriangleAnchorCoordinateRole"
 >;
 
 export type RuntimeMeasurement = RuntimeAnnotationEntry;

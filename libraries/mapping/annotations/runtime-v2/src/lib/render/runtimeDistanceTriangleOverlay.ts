@@ -5,10 +5,25 @@ import {
 } from "@carma-mapping/engines/cesium/core";
 
 import {
+  RUNTIME_DISTANCE_TRIANGLE_ANCHOR_COORDINATE_ROLE,
   RUNTIME_POINT_LABEL_COORDINATE_SELECTION,
+  type RuntimeDistanceTriangleAnchorCoordinateRole,
   type RuntimePointLabelCoordinateSelection,
 } from "./measurementRenderModels";
 import type { RuntimeCoordinate } from "../store";
+
+export const resolveOppositeDistanceTriangleAnchorCoordinateRole = (
+  coordinateRole: RuntimeDistanceTriangleAnchorCoordinateRole
+): RuntimeDistanceTriangleAnchorCoordinateRole =>
+  coordinateRole ===
+  RUNTIME_DISTANCE_TRIANGLE_ANCHOR_COORDINATE_ROLE.START_COORDINATE
+    ? RUNTIME_DISTANCE_TRIANGLE_ANCHOR_COORDINATE_ROLE.END_COORDINATE
+    : RUNTIME_DISTANCE_TRIANGLE_ANCHOR_COORDINATE_ROLE.START_COORDINATE;
+
+export const resolveDistanceTriangleAnchorCoordinateRole = (
+  _coordinates: readonly RuntimeCoordinate[]
+): RuntimeDistanceTriangleAnchorCoordinateRole =>
+  RUNTIME_DISTANCE_TRIANGLE_ANCHOR_COORDINATE_ROLE.START_COORDINATE;
 
 export const resolveOppositePointLabelCoordinateSelection = (
   coordinateSelection: RuntimePointLabelCoordinateSelection

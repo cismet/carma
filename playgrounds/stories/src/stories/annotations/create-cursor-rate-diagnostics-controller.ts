@@ -3,6 +3,10 @@ import {
   resolveCrosshairCursorCssValue,
   type CrosshairCursorStyle,
 } from "@carma-mapping/annotations/runtime-v2";
+import {
+  CURSOR_RENDER_MODES,
+  type CursorRenderMode,
+} from "./cursor-story-shared";
 
 type CursorRateDiagnosticsMetricId =
   | "pointermove"
@@ -44,9 +48,8 @@ type CursorRateDiagnosticsCountMetricState = {
 export type CursorRateDiagnosticsControllerOptions = {
   showTopGraphPlotting?: boolean;
   showCustomCursorPreset?: boolean;
+  customCursorRenderMode?: CursorRenderMode;
   customCursorStyle?: CrosshairCursorStyle;
-  customCursorPrimaryColor?: string;
-  customCursorSecondaryColor?: string;
   hideNativeCursor?: boolean;
   nativeCursorStyle?: string;
   showPointerMove?: boolean;
@@ -70,9 +73,8 @@ export type CursorRateDiagnosticsController = {
 const DEFAULT_OPTIONS: Required<CursorRateDiagnosticsControllerOptions> = {
   showTopGraphPlotting: true,
   showCustomCursorPreset: false,
-  customCursorStyle: CROSSHAIR_CURSOR_STYLES.DEFAULT,
-  customCursorPrimaryColor: "",
-  customCursorSecondaryColor: "",
+  customCursorRenderMode: CURSOR_RENDER_MODES.CURSOR_URL,
+  customCursorStyle: CROSSHAIR_CURSOR_STYLES.ANNOTATION_PLAYGROUND,
   hideNativeCursor: false,
   nativeCursorStyle: "crosshair",
   showPointerMove: true,
@@ -480,17 +482,14 @@ export const createCursorRateDiagnosticsController = ({
   };
 
   const syncCursorStyle = () => {
-    const useCustomCursor =
-      currentOptions.showCustomCursorPreset ||
-      currentOptions.customCursorStyle === CROSSHAIR_CURSOR_STYLES.DEFAULT ||
-      currentOptions.customCursorStyle ===
-        CROSSHAIR_CURSOR_STYLES.SIMPLE_HAIRLINE;
+    if (currentOptions.showCustomCursorPreset) {
+      if (currentOptions.customCursorRenderMode === CURSOR_RENDER_MODES.DOM) {
+        surfaceElement.style.cursor = "none";
+        return;
+      }
 
-    if (useCustomCursor) {
       surfaceElement.style.cursor = resolveCrosshairCursorCssValue({
-        style: currentOptions.customCursorStyle,
-        primaryColor: currentOptions.customCursorPrimaryColor || undefined,
-        secondaryColor: currentOptions.customCursorSecondaryColor || undefined,
+        style: CROSSHAIR_CURSOR_STYLES.ANNOTATION_PLAYGROUND,
       });
       return;
     }

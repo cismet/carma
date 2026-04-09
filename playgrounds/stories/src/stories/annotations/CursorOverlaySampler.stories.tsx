@@ -605,6 +605,7 @@ const CursorOverlaySamplerSandbox = ({
   discMaterialPreset,
   discColor,
   tangentDiscVisualizerPlacementMode,
+  tangentDiscVisualizerShowNormalLine,
   tangentDiscVisualizerTrailSampleCount = 90,
   tangentDiscVisualizerWeightDecayGamma = 2,
 }: CursorOverlaySamplerStoryProps) => {
