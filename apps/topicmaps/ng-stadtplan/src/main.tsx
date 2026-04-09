@@ -10,7 +10,6 @@ import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvid
 import { defaultGazDataConfig } from "@carma-commons/resources";
 import { cjsGlobalShim } from "@carma-commons/utils";
 import App from "./app/App";
-import "./styles.css";
 
 cjsGlobalShim();
 
