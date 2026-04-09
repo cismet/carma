@@ -1,7 +1,7 @@
 import { useContext } from "react";
 import CustomizationContextProvider from "react-cismap/contexts/CustomizationContextProvider";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
-import DefaultSettingsPanel from "react-cismap/topicmaps/menu/DefaultSettingsPanel";
+import { DefaultSettingsPanel } from "@carma-commons/cismap";
 import ModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 import Section from "react-cismap/topicmaps/menu/Section";
 import { GenericDigitalTwinReferenceSection } from "@carma-collab/wuppertal/commons";
@@ -29,6 +29,7 @@ interface MenuProps {
   filteredPoiCount?: number;
   visiblePoiCount?: number;
   totalPoiCount?: number;
+  onTitleDisplayChange?: (show: boolean) => void;
 }
 
 const Menu = ({
@@ -40,6 +41,7 @@ const Menu = ({
   filteredPoiCount = 0,
   visiblePoiCount = 0,
   totalPoiCount = 0,
+  onTitleDisplayChange,
 }: MenuProps) => {
   const { setAppMenuActiveMenuSection } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
@@ -89,6 +91,8 @@ const Menu = ({
             : []),
           <DefaultSettingsPanel
             key="settings"
+            hasFilter={!!hasFilter}
+            onTitleDisplayChange={onTitleDisplayChange}
             getSymbolSVG={(size: number, color: string) => {
               return (
                 <img
