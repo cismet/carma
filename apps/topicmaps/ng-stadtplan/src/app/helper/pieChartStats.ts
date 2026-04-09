@@ -8,7 +8,7 @@ export interface PieChartResult {
 }
 
 export function computePieChartStats(
-  allFeatures: any[],
+  allFeatures: GeoJSON.Feature[],
   allKombis: string[],
   filterState: AdvancedFilterState
 ): PieChartResult {
