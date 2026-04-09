@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { ProgressIndicator, useProgress } from "@carma-appframeworks/portals";
-import { CarmaMap } from "@carma-mapping/core";
+import { CarmaMap, LibreLayer } from "@carma-mapping/core";
 import type { AdvancedFilterState } from "@carma-mapping/components";
+import type maplibregl from "maplibre-gl";
 import Menu from "./Menu";
 import { POI_LAYER_CONFIG } from "./helper/constants";
 import {
@@ -18,25 +19,27 @@ import "leaflet/dist/leaflet.css";
 export default function App() {
   const { progress, showProgress, handleProgressUpdate } = useProgress();
 
-  const [allFeatures, setAllFeatures] = useState<any[]>([]);
+  const [allFeatures, setAllFeatures] = useState<GeoJSON.Feature[]>([]);
   const [lebenslagen, setLebenslagen] = useState<string[]>([]);
   const [filterState, setFilterState] = useState<AdvancedFilterState>({
     positiv: [],
     negativ: [],
   });
-  const allFeaturesRef = useRef<any[]>([]);
+  const allFeaturesRef = useRef<GeoJSON.Feature[]>([]);
   const allKombisRef = useRef<string[]>([]);
   const filterStateRef = useRef(filterState);
   filterStateRef.current = filterState;
 
   // Capture original features and extract lebenslagen on first filterFunction call
   const handleFilter = useCallback(
-    (map: any, layers: any) => {
-      layers?.forEach((layer: any, index: number) => {
+    (map: maplibregl.Map, layers?: LibreLayer[]) => {
+      layers?.forEach((layer, index) => {
         if (layer.type !== "geojson") return;
 
         const sourceId = `geojson-source-${index}`;
-        const styleSource = map.getStyle().sources[sourceId] as any;
+        const styleSource = map.getStyle().sources[sourceId] as
+          | { data?: GeoJSON.FeatureCollection }
+          | undefined;
         if (!styleSource?.data?.features) return;
 
         // Extract lebenslagen and kombi values only once
@@ -69,7 +72,8 @@ export default function App() {
   useEffect(() => {
     if (allKombisRef.current.length === 0 || lebenslagen.length === 0) return;
 
-    const map = (window as any).__carmaMap;
+    const map = (window as unknown as { __carmaMap?: maplibregl.Map })
+      .__carmaMap;
     if (!map) return;
 
     applyPoiFilter(
@@ -97,7 +101,7 @@ export default function App() {
     const allowedKombis = new Set(
       getAllowedKombis(allKombisRef.current, filterState)
     );
-    return allFeatures.filter((f: any) => {
+    return allFeatures.filter((f) => {
       const kombi = f.properties?.kombi;
       if (typeof kombi !== "string" || kombi.length === 0) return true;
       return allowedKombis.has(kombi);
@@ -107,16 +111,16 @@ export default function App() {
   // Count filtered features inside the current viewport.
   // Uses bounds checking against React state so clustering doesn't affect the count.
   useEffect(() => {
-    const map = (window as any).__carmaMap;
+    const map = (window as unknown as { __carmaMap?: maplibregl.Map })
+      .__carmaMap;
     if (!map) return;
 
     const updateVisibleCount = () => {
       const bounds = map.getBounds();
       let count = 0;
       for (const feature of filteredFeatures) {
-        const coords = feature.geometry?.coordinates;
-        if (!coords) continue;
-        const [lng, lat] = coords;
+        if (feature.geometry?.type !== "Point") continue;
+        const [lng, lat] = feature.geometry.coordinates;
         if (bounds.contains([lng, lat])) count++;
       }
       setVisiblePoiCount(count);

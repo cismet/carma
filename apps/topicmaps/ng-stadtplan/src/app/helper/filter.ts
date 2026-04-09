@@ -1,13 +1,17 @@
 import type { AdvancedFilterState } from "@carma-mapping/components";
+import type maplibregl from "maplibre-gl";
+import type { FilterSpecification } from "maplibre-gl";
 import { POI_SOURCE_ID } from "./constants";
 
 export interface LebenslagenData {
   lebenslagen: string[];
   kombis: string[];
-  features: any[];
+  features: GeoJSON.Feature[];
 }
 
-export function extractLebenslagen(features: any[]): LebenslagenData {
+export function extractLebenslagen(
+  features: GeoJSON.Feature[]
+): LebenslagenData {
   const llSet = new Set<string>();
   const kombiSet = new Set<string>();
 
@@ -41,7 +45,9 @@ export function getAllowedKombis(
   });
 }
 
-function buildPoiFilterExpression(allowedKombis: string[]): any[] {
+function buildPoiFilterExpression(
+  allowedKombis: string[]
+): FilterSpecification {
   if (allowedKombis.length === 0) {
     return ["==", ["get", "kombi"], "___HIDE_ALL___"];
   }
@@ -54,8 +60,8 @@ function buildPoiFilterExpression(allowedKombis: string[]): any[] {
 }
 
 export function applyPoiFilter(
-  map: any,
-  allFeatures: any[],
+  map: maplibregl.Map,
+  allFeatures: GeoJSON.Feature[],
   allKombis: string[],
   filterState: AdvancedFilterState
 ) {
@@ -76,18 +82,20 @@ export function applyPoiFilter(
     }
   }
 
-  const source = map.getSource(POI_SOURCE_ID);
+  const source = map.getSource(POI_SOURCE_ID) as
+    | maplibregl.GeoJSONSource
+    | undefined;
   if (source && "setData" in source) {
     if (isShowingAll) {
-      (source as any).setData({
+      source.setData({
         type: "FeatureCollection",
         features: allFeatures,
       });
     } else {
       const allowedSet = new Set(allowedKombis);
-      (source as any).setData({
+      source.setData({
         type: "FeatureCollection",
-        features: allFeatures.filter((f: any) => {
+        features: allFeatures.filter((f) => {
           const kombi = f.properties?.kombi;
           if (typeof kombi !== "string" || kombi.length === 0) return true;
           return allowedSet.has(kombi);
