@@ -4,6 +4,7 @@ import { CarmaMap, LibreLayer } from "@carma-mapping/core";
 import type { AdvancedFilterState } from "@carma-mapping/components";
 import type maplibregl from "maplibre-gl";
 import Menu from "./Menu";
+import TitleBox from "./TitleBox";
 import { POI_LAYER_CONFIG } from "./helper/constants";
 import {
   applyPoiFilter,
@@ -25,6 +26,10 @@ export default function App() {
     positiv: [],
     negativ: [],
   });
+  const [showFilterTitle, setShowFilterTitle] = useState(() =>
+    new URLSearchParams(window.location.hash.split("?")[1] || "").has("title")
+  );
+
   const allFeaturesRef = useRef<GeoJSON.Feature[]>([]);
   const allKombisRef = useRef<string[]>([]);
   const filterStateRef = useRef(filterState);
@@ -142,6 +147,9 @@ export default function App() {
   return (
     <>
       <ProgressIndicator progress={progress} show={showProgress} />
+      {showFilterTitle && (
+        <TitleBox filterState={filterState} lebenslagen={lebenslagen} />
+      )}
       <CarmaMap
         onClick={() => {}}
         mapEngine="maplibre"
@@ -161,6 +169,7 @@ export default function App() {
             filteredPoiCount={filteredPoiCount}
             visiblePoiCount={visiblePoiCount}
             totalPoiCount={allFeatures.length}
+            onTitleDisplayChange={setShowFilterTitle}
           />
         }
       />
