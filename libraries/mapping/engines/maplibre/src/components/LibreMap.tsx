@@ -1,12 +1,12 @@
-import { cogProtocol } from "@geomatico/maplibre-cog-protocol";
+import type { LayerSpecification, StyleSpecification } from "maplibre-gl";
 import maplibregl from "maplibre-gl";
-import type { StyleSpecification } from "maplibre-gl";
-
 import "maplibre-gl/dist/maplibre-gl.css";
+import { cogProtocol } from "@geomatico/maplibre-cog-protocol";
 import {
   RETRY_TILE_PROTOCOL,
   retryTileProtocol,
 } from "../utils/retryTileProtocol";
+
 // Register COG protocol once
 maplibregl.addProtocol("cog", cogProtocol as any);
 // Tiles that must not stay missing after a dropped transfer (terrain DEM)
@@ -30,6 +30,7 @@ import PhotoLightBox from "react-cismap/topicmaps/PhotoLightbox";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import "../styles/map.css";
 import {
+  applySymbolScalingToMap,
   getVectorMapping,
   styleManipulation,
   vectorStylesToMapLibreStyle,
@@ -491,6 +492,7 @@ export const LibreMap = ({
     Array<{ sourceId: string; uniqueColors: string[] }>
   >([]);
   const isInitialGeoJsonLoad = useRef(true);
+  const baseStyleLayersRef = useRef<LayerSpecification[]>([]);
 
   const { clusteringEnabled } = useContext<typeof FeatureCollectionContext>(
     FeatureCollectionContext
@@ -499,6 +501,8 @@ export const LibreMap = ({
     typeof TopicMapStylingContext
   >(TopicMapStylingContext);
   const markerSymbolSize = markerSymbolSizeProp ?? markerSymbolSizeFromContext;
+  const markerSymbolSizeRef = useRef(markerSymbolSize);
+  markerSymbolSizeRef.current = markerSymbolSize;
   const {
     setMapStyle,
     geoJsonMetadata,
@@ -1580,8 +1584,16 @@ export const LibreMap = ({
           // Bail out if effect was cleaned up during async work (StrictMode double-fire)
           if (aborted) return;
 
-          // Apply marker symbol size scaling
-          const style = styleManipulation(markerSymbolSize, baseStyle);
+          // Store unscaled layers for live symbol-size updates
+          baseStyleLayersRef.current = baseStyle.layers
+            ? JSON.parse(JSON.stringify(baseStyle.layers))
+            : [];
+
+          // Apply marker symbol size scaling (use ref for current value since this is async)
+          const style = styleManipulation(
+            markerSymbolSizeRef.current,
+            baseStyle
+          );
 
           // Store geojson metadata for pie chart rendering (local ref and context)
           geoJsonMetadataRef.current = geoJsonMetadata;
@@ -1886,28 +1898,37 @@ export const LibreMap = ({
             const loadedSources = new Set<string>();
 
             const handleStyleLoad = () => {
-              const handleData = (e: any) => {
-                const isRelevantSource = geoJsonMetadata.some(
-                  ({ sourceId }) => e.sourceId === sourceId
-                );
-                if (!isRelevantSource || !e.isSourceLoaded) return;
+              const trackSource = (sourceId: string) => {
+                if (loadedSources.has(sourceId)) return;
+                loadedSources.add(sourceId);
+                if (isInitialGeoJsonLoad.current) {
+                  onProgressUpdate({
+                    current: loadedSources.size,
+                    total: geoJsonMetadata.length,
+                  });
 
-                if (!loadedSources.has(e.sourceId)) {
-                  loadedSources.add(e.sourceId);
-                  if (isInitialGeoJsonLoad.current) {
-                    onProgressUpdate({
-                      current: loadedSources.size,
-                      total: geoJsonMetadata.length,
-                    });
-
-                    if (loadedSources.size === geoJsonMetadata.length) {
-                      isInitialGeoJsonLoad.current = false;
-                    }
+                  if (loadedSources.size === geoJsonMetadata.length) {
+                    isInitialGeoJsonLoad.current = false;
                   }
                 }
               };
 
+              const handleData = (e: any) => {
+                const meta = geoJsonMetadata.find(
+                  ({ sourceId }) => e.sourceId === sourceId
+                );
+                if (!meta || !e.isSourceLoaded) return;
+                trackSource(meta.sourceId);
+              };
+
               map.current!.on("data", handleData);
+
+              // Check sources that may have loaded before the listener was attached
+              for (const { sourceId } of geoJsonMetadata) {
+                if (map.current!.isSourceLoaded(sourceId)) {
+                  trackSource(sourceId);
+                }
+              }
             };
 
             if (map.current!.isStyleLoaded()) {
@@ -1941,15 +1962,29 @@ export const LibreMap = ({
     return () => {
       aborted = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- markerSymbolSize handled by dedicated effect below
   }, [
     backgroundStyle,
     vectorBackgroundLayers,
     mapStyleLayers,
     clusteringEnabled,
-    markerSymbolSize,
     filterFunction,
     layerMode,
   ]);
+
+  useEffect(() => {
+    if (
+      !map.current ||
+      layerMode === "imperative" ||
+      baseStyleLayersRef.current.length === 0
+    )
+      return;
+    applySymbolScalingToMap(
+      map.current,
+      markerSymbolSize,
+      baseStyleLayersRef.current
+    );
+  }, [markerSymbolSize, layerMode]);
 
   const getLeafletMap = useCallback(() => {
     const m = map.current;
