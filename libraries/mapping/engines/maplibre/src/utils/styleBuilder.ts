@@ -184,6 +184,68 @@ export const styleManipulation = (
   return newStyle;
 };
 
+export const applySymbolScalingToMap = (
+  map: import("maplibre-gl").Map,
+  markerSymbolSize: number,
+  baseStyleLayers: LayerSpecification[]
+): void => {
+  const scale = (markerSymbolSize / 35) * 1.35;
+
+  for (const baseLayer of baseStyleLayers) {
+    if (baseLayer.type !== "symbol") continue;
+    const layout = baseLayer.layout || {};
+    const layerId = baseLayer.id;
+
+    // Check layer still exists on the map
+    if (!map.getLayer(layerId)) continue;
+
+    const iconSize = layout["icon-size"];
+    if (iconSize !== undefined) {
+      if (typeof iconSize === "number") {
+        map.setLayoutProperty(layerId, "icon-size", iconSize * scale);
+      } else if (Array.isArray(iconSize) && iconSize[0] === "interpolate") {
+        const newIconSize = [...iconSize] as unknown[];
+        for (let i = 3; i < newIconSize.length; i += 2) {
+          if (typeof newIconSize[i + 1] === "number") {
+            (newIconSize[i + 1] as number) =
+              (newIconSize[i + 1] as number) * scale;
+          }
+        }
+        map.setLayoutProperty(layerId, "icon-size", newIconSize);
+      }
+    }
+
+    const textSize = layout["text-size"];
+    if (textSize !== undefined && typeof textSize === "number") {
+      map.setLayoutProperty(layerId, "text-size", textSize * scale);
+    }
+
+    const textOffset = layout["text-offset"];
+    if (textOffset !== undefined) {
+      if (Array.isArray(textOffset) && textOffset[0] === "interpolate") {
+        const newTextOffset = [...textOffset] as unknown[];
+        for (let i = 3; i < newTextOffset.length; i += 2) {
+          if (
+            Array.isArray(newTextOffset[i + 1]) &&
+            (newTextOffset[i + 1] as unknown[])[0] === "literal"
+          ) {
+            const literalArray = [
+              ...((newTextOffset[i + 1] as unknown[])[1] as number[]),
+            ] as number[];
+            literalArray[1] = literalArray[1] * scale;
+            newTextOffset[i + 1] = ["literal", literalArray];
+          }
+        }
+        map.setLayoutProperty(layerId, "text-offset", newTextOffset);
+      } else if (Array.isArray(textOffset) && textOffset.length === 2) {
+        const x = typeof textOffset[0] === "number" ? textOffset[0] : 0;
+        const y = typeof textOffset[1] === "number" ? textOffset[1] : 0;
+        map.setLayoutProperty(layerId, "text-offset", [x, y * scale]);
+      }
+    }
+  }
+};
+
 /**
  * Get vector layer mapping from WMS capabilities or style metadata
  */
