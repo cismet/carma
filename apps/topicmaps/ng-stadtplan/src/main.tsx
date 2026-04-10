@@ -13,6 +13,19 @@ import App from "./app/App";
 
 cjsGlobalShim();
 
+const backgroundConfigurations = {
+  lbk: {
+    layerkey: "rvrGrundriss@100|trueOrtho2024@75|rvrSchriftNT@100",
+    src: "/images/rain-hazard-map-bg/ortho.png",
+    title: "Luftbildkarte",
+  },
+  stadtplan: {
+    layerkey: "amtlich@90",
+    src: "/images/rain-hazard-map-bg/citymap.png",
+    title: "Stadtplan",
+  },
+};
+
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement
 );
@@ -20,7 +33,10 @@ const root = ReactDOM.createRoot(
 root.render(
   <StrictMode>
     <SandboxedEvalProvider>
-      <TopicMapContextProvider infoBoxPixelWidth={350}>
+      <TopicMapContextProvider
+        infoBoxPixelWidth={350}
+        backgroundConfigurations={backgroundConfigurations}
+      >
         <GazDataProvider config={defaultGazDataConfig}>
           <SelectionProvider>
             <LibreContextProvider>
