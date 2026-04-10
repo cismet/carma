@@ -21,6 +21,7 @@ import type {
   RuntimeDistanceTriangleAnchorCoordinateRole,
   RuntimePointLabelCoordinateSelection,
 } from "../render/measurementRenderModels";
+import { resolveRuntimeNodeMoveScope } from "./nodeMoveScope.helpers";
 export type CreateInitialAnnotationsStoreStateOptions = {
   initialToolType?: RuntimeToolId;
   initialPointTemporaryMode?: boolean;
@@ -455,41 +456,18 @@ const annotationsSlice = createSlice({
         coordinate,
         selectedMeasurementIds = [],
       } = action.payload;
-      const targetNode = state.nodes.find((node) => node.id === nodeId);
+      const { targetNode, targetLinkedNodeGroup, movedNodeIds } =
+        resolveRuntimeNodeMoveScope({
+          nodeId,
+          nodes: state.nodes,
+          linkedNodeGroups: state.linkedNodeGroups,
+          annotationEntries: state.annotationEntries,
+          selectedMeasurementIds,
+        });
       if (!targetNode) {
         return;
       }
 
-      const targetLinkedNodeGroup =
-        state.linkedNodeGroups.find((linkedNodeGroup) =>
-          linkedNodeGroup.nodeIds.includes(nodeId)
-        ) ?? null;
-      const linkedNodeGroupNodeIds = targetLinkedNodeGroup?.nodeIds ?? [nodeId];
-      const selectedMeasurementIdSet = new Set(
-        selectedMeasurementIds.filter(Boolean)
-      );
-      const selectedNodeIdSet = new Set(
-        state.annotationEntries
-          .filter((annotationEntry) =>
-            selectedMeasurementIdSet.has(annotationEntry.id)
-          )
-          .flatMap((annotationEntry) => annotationEntry.nodeIds)
-      );
-      const selectedLinkedNodeIds = linkedNodeGroupNodeIds.filter(
-        (linkedNodeId) => selectedNodeIdSet.has(linkedNodeId)
-      );
-      const scopedMovedNodeIds =
-        selectedLinkedNodeIds.length > 0
-          ? selectedLinkedNodeIds
-          : [...linkedNodeGroupNodeIds];
-      const lockedNodeIdSet = new Set(
-        state.annotationEntries
-          .filter((annotationEntry) => annotationEntry.locked)
-          .flatMap((annotationEntry) => annotationEntry.nodeIds)
-      );
-      const movedNodeIds = scopedMovedNodeIds.filter(
-        (movedNodeId) => !lockedNodeIdSet.has(movedNodeId)
-      );
       const movedNodeIdSet = new Set(movedNodeIds);
 
       if (movedNodeIds.length === 0) {

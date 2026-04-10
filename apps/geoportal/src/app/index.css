@@ -17,6 +17,15 @@ code {
     monospace;
 }
 
+.leaflet-marker-icon.leaflet-div-icon {
+  width: 8px !important;
+  height: 8px !important;
+  margin-left: -4px !important;
+  margin-top: -4px !important;
+  background-color: rgba(255, 255, 255, 0.512);
+  border: 0.75px solid black;
+  border-radius: 50%;
+}
 
 path.leaflet-interactive {
   stroke: #267bdcd4;

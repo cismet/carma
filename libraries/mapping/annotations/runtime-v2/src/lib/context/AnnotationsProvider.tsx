@@ -975,6 +975,7 @@ const RuntimeVisualizationHost = ({
     []
   );
   const {
+    effectiveNodes,
     handleNodeLongPress,
     handleReferenceNodeClick,
     handleReferenceEdgeClick,
@@ -1133,7 +1134,7 @@ const RuntimeVisualizationHost = ({
       .map(
         (plugin) =>
           plugin.renderLayer?.build({
-            nodes,
+            nodes: effectiveNodes,
             edges,
             annotationEntries,
             elevationReferenceAnnotationId,
@@ -1160,7 +1161,7 @@ const RuntimeVisualizationHost = ({
     annotationEntries,
     edges,
     elevationReferenceAnnotationId,
-    nodes,
+    effectiveNodes,
     formatOptions,
     registry.plugins,
     selectedAnnotationId,
@@ -1232,7 +1233,7 @@ const RuntimeVisualizationHost = ({
   useCommittedRuntimeVisualization({
     scene,
     points: aggregatedRenderLayer.points ?? [],
-    nodes,
+    nodes: effectiveNodes,
     linkedNodeGroups,
     edges: aggregatedRenderLayer.edges ?? [],
     polygonFills: aggregatedRenderLayer.polygonFills ?? [],

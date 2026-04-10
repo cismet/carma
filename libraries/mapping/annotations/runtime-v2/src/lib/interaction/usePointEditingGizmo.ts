@@ -12,9 +12,11 @@ import {
 import { Cartesian3 } from "@carma-cesium";
 
 import {
+  resolveRuntimeNodeMoveScope,
   updateNodeCoordinateById,
   type AnnotationsStore,
   type RuntimeLinkedNodeGroup,
+  type RuntimeCoordinate,
   type RuntimeNode,
 } from "../store";
 import type { RuntimeScene } from "../types/runtimeScene.types";
@@ -78,10 +80,57 @@ type UsePointEditingGizmoOptions = {
   onActiveMoveGizmoNodeIdChange?: (nodeId: string | null) => void;
 };
 
+type DraftNodeCoordinateOverrides = Readonly<Record<string, RuntimeCoordinate>>;
+
+const EMPTY_DRAFT_NODE_COORDINATE_OVERRIDES =
+  {} as DraftNodeCoordinateOverrides;
+
+const coordinatesEqual = (
+  left: RuntimeCoordinate | undefined,
+  right: RuntimeCoordinate | undefined
+) =>
+  left?.latitude === right?.latitude &&
+  left?.longitude === right?.longitude &&
+  left?.altitude === right?.altitude;
+
+const draftNodeCoordinateOverridesEqual = (
+  left: DraftNodeCoordinateOverrides,
+  right: DraftNodeCoordinateOverrides
+) => {
+  const leftKeys = Object.keys(left);
+  const rightKeys = Object.keys(right);
+  if (leftKeys.length !== rightKeys.length) {
+    return false;
+  }
+
+  return leftKeys.every((key) => coordinatesEqual(left[key], right[key]));
+};
+
+const applyDraftNodeCoordinateOverrides = (
+  nodes: readonly RuntimeNode[],
+  draftNodeCoordinateOverrides: DraftNodeCoordinateOverrides
+) => {
+  if (Object.keys(draftNodeCoordinateOverrides).length === 0) {
+    return nodes;
+  }
+
+  return nodes.map((node) => {
+    const draftCoordinate = draftNodeCoordinateOverrides[node.id];
+    if (!draftCoordinate) {
+      return node;
+    }
+
+    return {
+      ...node,
+      coordinate: draftCoordinate,
+    };
+  });
+};
+
 export const usePointEditingGizmo = (
   scene: RuntimeScene | null,
   nodes: readonly RuntimeNode[],
-  _linkedNodeGroups: readonly RuntimeLinkedNodeGroup[],
+  linkedNodeGroups: readonly RuntimeLinkedNodeGroup[],
   {
     annotationsStore,
     onActiveMoveGizmoNodeIdChange,
@@ -102,6 +151,89 @@ export const usePointEditingGizmo = (
   >(null);
   const [axisOverride, setAxisOverride] =
     useState<MoveGizmoAxisOverride | null>(null);
+  const [draftNodeCoordinateOverrides, setDraftNodeCoordinateOverrides] =
+    useState<DraftNodeCoordinateOverrides>(
+      EMPTY_DRAFT_NODE_COORDINATE_OVERRIDES
+    );
+
+  const clearDraftNodeCoordinateOverrides = useCallback(() => {
+    setDraftNodeCoordinateOverrides((currentDraftNodeCoordinateOverrides) =>
+      Object.keys(currentDraftNodeCoordinateOverrides).length === 0
+        ? currentDraftNodeCoordinateOverrides
+        : EMPTY_DRAFT_NODE_COORDINATE_OVERRIDES
+    );
+  }, []);
+
+  const commitDraftNodeCoordinateOverrides = useCallback(
+    (nodeId: string | null) => {
+      if (!nodeId) {
+        clearDraftNodeCoordinateOverrides();
+        return;
+      }
+
+      const coordinate = draftNodeCoordinateOverrides[nodeId];
+      if (!coordinate) {
+        clearDraftNodeCoordinateOverrides();
+        return;
+      }
+
+      annotationsStore.dispatch(
+        updateNodeCoordinateById({
+          nodeId,
+          coordinate,
+          selectedMeasurementIds:
+            annotationsStore.getState().selectionState.selectedAnnotationIds,
+        })
+      );
+      clearDraftNodeCoordinateOverrides();
+    },
+    [
+      annotationsStore,
+      clearDraftNodeCoordinateOverrides,
+      draftNodeCoordinateOverrides,
+    ]
+  );
+
+  const setDraftCoordinateForScopedMove = useCallback(
+    (nodeId: string, coordinate: RuntimeCoordinate) => {
+      const runtimeState = annotationsStore.getState();
+      const { movedNodeIds } = resolveRuntimeNodeMoveScope({
+        nodeId,
+        nodes,
+        linkedNodeGroups,
+        annotationEntries: runtimeState.annotationEntries,
+        selectedMeasurementIds:
+          runtimeState.selectionState.selectedAnnotationIds,
+      });
+
+      if (movedNodeIds.length === 0) {
+        return;
+      }
+
+      const nextDraftNodeCoordinateOverrides = movedNodeIds.reduce<
+        Record<string, RuntimeCoordinate>
+      >((draftCoordinatesByNodeId, movedNodeId) => {
+        draftCoordinatesByNodeId[movedNodeId] = coordinate;
+        return draftCoordinatesByNodeId;
+      }, {});
+
+      setDraftNodeCoordinateOverrides((currentDraftNodeCoordinateOverrides) =>
+        draftNodeCoordinateOverridesEqual(
+          currentDraftNodeCoordinateOverrides,
+          nextDraftNodeCoordinateOverrides
+        )
+          ? currentDraftNodeCoordinateOverrides
+          : nextDraftNodeCoordinateOverrides
+      );
+    },
+    [annotationsStore, linkedNodeGroups, nodes]
+  );
+
+  const effectiveNodes = useMemo(
+    () =>
+      applyDraftNodeCoordinateOverrides(nodes, draftNodeCoordinateOverrides),
+    [draftNodeCoordinateOverrides, nodes]
+  );
 
   const handleNodeLongPress = useCallback(
     (nodeId: string, _measurementId?: string) => {
@@ -109,15 +241,23 @@ export const usePointEditingGizmo = (
         return;
       }
 
+      if (activeMoveGizmoNodeId && activeMoveGizmoNodeId !== nodeId) {
+        commitDraftNodeCoordinateOverrides(activeMoveGizmoNodeId);
+      }
+
       setAxisOverride(null);
       setActiveMoveGizmoNodeId(nodeId);
     },
-    [isNodeLocked]
+    [
+      activeMoveGizmoNodeId,
+      commitDraftNodeCoordinateOverrides,
+      isNodeLocked,
+    ]
   );
 
   const nodesById = useMemo(
-    () => new Map(nodes.map((node) => [node.id, node] as const)),
-    [nodes]
+    () => new Map(effectiveNodes.map((node) => [node.id, node] as const)),
+    [effectiveNodes]
   );
 
   const handleReferenceNodeClick = useCallback(
@@ -133,22 +273,15 @@ export const usePointEditingGizmo = (
       }
 
       if (activeNode.id !== referenceNode.id) {
-        annotationsStore.dispatch(
-          updateNodeCoordinateById({
-            nodeId: activeNode.id,
-            coordinate: {
-              ...activeNode.coordinate,
-              altitude: referenceNode.coordinate.altitude,
-            },
-            selectedMeasurementIds:
-              annotationsStore.getState().selectionState.selectedAnnotationIds,
-          })
-        );
+        setDraftCoordinateForScopedMove(activeNode.id, {
+          ...activeNode.coordinate,
+          altitude: referenceNode.coordinate.altitude,
+        });
       }
 
       return true;
     },
-    [activeMoveGizmoNodeId, annotationsStore, nodesById]
+    [activeMoveGizmoNodeId, nodesById, setDraftCoordinateForScopedMove]
   );
 
   const handleReferenceEdgeClick = useCallback(
@@ -182,11 +315,11 @@ export const usePointEditingGizmo = (
 
   const gizmoPoints = useMemo(
     () =>
-      nodes.map((node) => ({
+      effectiveNodes.map((node) => ({
         id: node.id,
         geometryECEF: cartesian3FromGeographicCoordinate(node.coordinate),
       })),
-    [nodes]
+    [effectiveNodes]
   );
 
   useCesiumPointMoveGizmo(scene, {
@@ -204,16 +337,13 @@ export const usePointEditingGizmo = (
         return;
       }
 
-      annotationsStore.dispatch(
-        updateNodeCoordinateById({
-          nodeId,
-          coordinate: geographicCoordinateFromCartesian3(nextPosition),
-          selectedMeasurementIds:
-            annotationsStore.getState().selectionState.selectedAnnotationIds,
-        })
+      setDraftCoordinateForScopedMove(
+        nodeId,
+        geographicCoordinateFromCartesian3(nextPosition)
       );
     },
     onExit: () => {
+      commitDraftNodeCoordinateOverrides(activeMoveGizmoNodeId);
       setAxisOverride(null);
       setActiveMoveGizmoNodeId(null);
     },
@@ -221,16 +351,23 @@ export const usePointEditingGizmo = (
 
   useEffect(() => {
     if (!activeMoveGizmoNodeId) {
+      clearDraftNodeCoordinateOverrides();
       return;
     }
     if (
-      !nodes.some((node) => node.id === activeMoveGizmoNodeId) ||
+      !effectiveNodes.some((node) => node.id === activeMoveGizmoNodeId) ||
       isNodeLocked(activeMoveGizmoNodeId)
     ) {
+      clearDraftNodeCoordinateOverrides();
       setAxisOverride(null);
       setActiveMoveGizmoNodeId(null);
     }
-  }, [activeMoveGizmoNodeId, isNodeLocked, nodes]);
+  }, [
+    activeMoveGizmoNodeId,
+    clearDraftNodeCoordinateOverrides,
+    effectiveNodes,
+    isNodeLocked,
+  ]);
 
   useEffect(() => {
     onActiveMoveGizmoNodeIdChange?.(activeMoveGizmoNodeId);
@@ -238,6 +375,7 @@ export const usePointEditingGizmo = (
 
   return {
     activeMoveGizmoNodeId,
+    effectiveNodes,
     handleNodeLongPress,
     handleReferenceNodeClick,
     handleReferenceEdgeClick,
