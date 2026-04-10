@@ -36,7 +36,9 @@ export const TriStateFilterButton = ({
           <Button
             variant="light"
             size="sm"
-            onClick={() => onChange("positiv")}
+            onClick={() =>
+              onChange(state === "positiv" ? "neutral" : "positiv")
+            }
             title="Ausgewählt"
             style={{
               color: state === "positiv" ? "#9FE628" : "grey",
@@ -58,7 +60,9 @@ export const TriStateFilterButton = ({
           <Button
             variant="light"
             size="sm"
-            onClick={() => onChange("negativ")}
+            onClick={() =>
+              onChange(state === "negativ" ? "neutral" : "negativ")
+            }
             title="Ausgeschlossen"
             style={{
               color: state === "negativ" ? "#C33D17" : "grey",
