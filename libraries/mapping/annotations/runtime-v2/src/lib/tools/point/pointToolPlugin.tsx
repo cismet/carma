@@ -3,7 +3,6 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import {
   ANNOTATION_TYPE_POINT,
-  DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG,
   formatMeasurementShortLabelToken,
   isKeyboardTargetEditable,
   type AnnotationToolType,
@@ -26,11 +25,18 @@ import { resolvePointToolKeyAction } from "./pointToolBindings";
 import { createPointToolInfoBoxSlots } from "./pointToolInfoBoxSlots";
 import { buildPointToolRenderModels } from "./pointToolRenderModels";
 import { createPointToolSettings } from "./pointToolSettings";
+import { resolveAnnotationMeasurementLabelTheme } from "../../config/annotationMeasurementLabelThemes";
 const toolType = ANNOTATION_TYPE_POINT;
-const badgeStyle = DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG[toolType];
+const labelTheme = resolveAnnotationMeasurementLabelTheme(toolType);
+const badgeStyle = {
+  backgroundColor: labelTheme.scheme.badgeBackgroundColor,
+  textColor: labelTheme.scheme.textColor,
+  selectionColor: labelTheme.selection.glowColor,
+};
 const pointToolSettings = createPointToolSettings(badgeStyle);
 const getPointToolInfoBoxSlots = createPointToolInfoBoxSlots(toolType, {
   headingTitle: "Punktmessung",
+  headingColor: labelTheme.scheme.badgeBackgroundColor,
   formatMeasurementLabelToken: (counter) =>
     formatMeasurementShortLabelToken(toolType, counter),
 });
@@ -45,8 +51,8 @@ export const pointToolPlugin = createMeasurementToolPlugin({
     icon: <FontAwesomeIcon icon={faLocationDot} />,
   },
   helpText: [
-    "Klicken, um eine Punktmessung zu setzen.",
-    "Jeder Klick erstellt sofort eine neue Punktmessung.",
+    "Klick auf eine Position in der Karte setzt dort eine Punktmessung.",
+    "Jeder weitere Klick erstellt sofort eine neue Punktmessung.",
   ],
   capabilities: POINT_MEASUREMENT_PLUGIN_CAPABILITIES,
   session: {
@@ -142,7 +148,7 @@ export const pointToolPlugin = createMeasurementToolPlugin({
       const { points, pointLabels } = buildPointToolRenderModels({
         toolType,
         visuals: pointToolSettings.visuals,
-        badgeStyle,
+        labelTheme,
         formatOptions,
         getMeasurementLabel: (counter) =>
           formatMeasurementShortLabelToken(toolType, counter),

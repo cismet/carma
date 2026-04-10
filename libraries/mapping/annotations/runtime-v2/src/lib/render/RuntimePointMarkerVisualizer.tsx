@@ -30,7 +30,13 @@ const createEmptyPointVisibilityState = (): RuntimeOverlayVisibilityState => ({
 const getPointMarkerOverlayId = (pointId: string) =>
   `runtime-point-marker-${pointId}`;
 
-const RuntimePointMarkerOverlayShell = () => (
+const RuntimePointMarkerOverlayShell = ({
+  interactive,
+  onClick,
+}: {
+  interactive: boolean;
+  onClick?: () => void;
+}) => (
   <div
     data-runtime-point-marker-shell="true"
     style={{
@@ -50,8 +56,10 @@ const RuntimePointMarkerOverlayShell = () => (
         transform: "translate(-50%, -50%)",
         borderRadius: "999px",
         boxSizing: "border-box",
-        pointerEvents: "none",
+        pointerEvents: interactive ? "auto" : "none",
+        cursor: interactive ? "pointer" : "default",
       }}
+      onClick={interactive ? onClick : undefined}
     />
   </div>
 );
@@ -195,8 +203,14 @@ export const useRuntimePointMarkerVisualizer = ({
           point.fill,
           point.outline,
           point.outlineWidth,
+          `${Boolean(point.onClick)}`,
         ].join(":"),
-        content: <RuntimePointMarkerOverlayShell />,
+        content: (
+          <RuntimePointMarkerOverlayShell
+            interactive={Boolean(point.onClick)}
+            onClick={point.onClick}
+          />
+        ),
         updatePosition: (elementDiv) => {
           const visibilityState = resolvePointVisibilityState(point.id);
           if (!visibilityState.screenPosition || visibilityState.isHidden) {

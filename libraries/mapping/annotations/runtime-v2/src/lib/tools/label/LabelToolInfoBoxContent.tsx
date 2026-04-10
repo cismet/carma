@@ -110,6 +110,7 @@ export const LabelToolInfoBoxContent = ({
   const [draftDisplayName, setDraftDisplayName] = useState(
     annotation.displayName ?? ""
   );
+  const isLocked = Boolean(annotation.locked);
 
   useEffect(() => {
     setDraftDisplayName(annotation.displayName ?? "");
@@ -166,6 +167,7 @@ export const LabelToolInfoBoxContent = ({
           type="text"
           className={`w-full rounded border px-2 py-1 ${resolvedVisualOptions.fieldInputBorderClassName}`}
           value={draftDisplayName}
+          disabled={isLocked}
           onChange={(event) => setDraftDisplayName(event.target.value)}
           onBlur={() =>
             commitDisplayName({
@@ -185,6 +187,7 @@ export const LabelToolInfoBoxContent = ({
         <button
           type="button"
           className={resolvedVisualOptions.inlineFieldButtonClassName}
+          disabled={isLocked || fontSizePx <= PURE_LABEL_MIN_FONT_SIZE_PX}
           onClick={() =>
             dispatch(
               updateAnnotationEntryById({
@@ -196,7 +199,6 @@ export const LabelToolInfoBoxContent = ({
               })
             )
           }
-          disabled={fontSizePx <= PURE_LABEL_MIN_FONT_SIZE_PX}
           aria-label="Schriftgröße verkleinern"
         >
           <FontAwesomeIcon icon={faMinus} />
@@ -207,6 +209,7 @@ export const LabelToolInfoBoxContent = ({
         <button
           type="button"
           className={resolvedVisualOptions.inlineFieldButtonClassName}
+          disabled={isLocked || fontSizePx >= PURE_LABEL_MAX_FONT_SIZE_PX}
           onClick={() =>
             dispatch(
               updateAnnotationEntryById({
@@ -218,7 +221,6 @@ export const LabelToolInfoBoxContent = ({
               })
             )
           }
-          disabled={fontSizePx >= PURE_LABEL_MAX_FONT_SIZE_PX}
           aria-label="Schriftgröße vergrößern"
         >
           <FontAwesomeIcon icon={faPlus} />
@@ -234,6 +236,7 @@ export const LabelToolInfoBoxContent = ({
           className={resolvedVisualOptions.colorInputClassName}
           aria-label="Hintergrundfarbe"
           value={normalizeColorToHex(backgroundColor, "#c8c8c8")}
+          disabled={isLocked}
           onChange={(event) =>
             dispatch(
               updateAnnotationEntryById({
@@ -252,6 +255,7 @@ export const LabelToolInfoBoxContent = ({
           className={resolvedVisualOptions.colorInputClassName}
           aria-label="Textfarbe"
           value={normalizeColorToHex(textColor, "#000000")}
+          disabled={isLocked}
           onChange={(event) =>
             dispatch(
               updateAnnotationEntryById({

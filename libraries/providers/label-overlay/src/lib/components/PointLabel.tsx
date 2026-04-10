@@ -43,6 +43,10 @@ export interface PointLabelStyleProps {
   textColor?: string;
   textBackgroundColor?: string;
   selectedBackgroundColor?: string;
+  selectedTextColor?: string;
+  selectedGlowColor?: string;
+  selectedGlowRadiusPx?: number;
+  preserveFillOnSelection?: boolean;
   hoverBackgroundColor?: string;
   lineWidth?: number;
   lineColor?: string;
@@ -115,6 +119,7 @@ const nodeMarkerBaseStyles: CSSProperties = {
   fontFeatureSettings: '"tnum" 1, "lnum" 1',
   boxShadow: "0 0 2px rgba(0,0,0,0.55)",
 };
+const HIDDEN_INTERACTION_MARKER_MIN_SIZE_PX = 18;
 
 const defaultPitch = MINUS_PI_OVER_FOUR;
 const DRAG_START_THRESHOLD_PX = 3;
@@ -222,6 +227,10 @@ export const PointLabel = React.memo(
     textColor = "rgba(248, 250, 252, 0.98)",
     textBackgroundColor = POINT_LABEL_TEXT_BACKGROUND_COLOR,
     selectedBackgroundColor = POINT_LABEL_SELECTED_BACKGROUND_COLOR,
+    selectedTextColor = "rgba(248, 250, 252, 0.98)",
+    selectedGlowColor,
+    selectedGlowRadiusPx = 0,
+    preserveFillOnSelection = false,
     hoverBackgroundColor = POINT_LABEL_HOVER_BACKGROUND_COLOR,
     isOccluded = false,
     pitch = defaultPitch,
@@ -361,19 +370,35 @@ export const PointLabel = React.memo(
         ? "pointer"
         : "default");
     const effectiveLineColor = lineColor;
-    const effectiveTextColor = textColor;
+    const effectiveTextColor = selected ? selectedTextColor : textColor;
     const effectiveBackgroundColor = selected
-      ? selectedBackgroundColor
+      ? preserveFillOnSelection
+        ? textBackgroundColor
+        : selectedBackgroundColor
       : isHovered
       ? hoverBackgroundColor
       : textBackgroundColor;
+    const selectedGlowBoxShadow =
+      selected && selectedGlowColor !== undefined && selectedGlowRadiusPx > 0
+        ? `0 0 ${selectedGlowRadiusPx}px ${selectedGlowColor}`
+        : undefined;
     const effectiveCompactBackgroundColor = selected
-      ? effectiveBackgroundColor
+      ? preserveFillOnSelection
+        ? markerBackgroundColor
+        : effectiveBackgroundColor
       : markerBackgroundColor;
     const effectiveCompactTextColor = selected
       ? effectiveTextColor
       : markerTextColor;
-    const markerDiameterPx = markerSize;
+    const effectiveBadgeBorder = selected
+      ? `1px solid ${selectedGlowColor ?? selectedTextColor}`
+      : "none";
+    const effectiveMarkerBorderColor = selected
+      ? selectedGlowColor ?? selectedTextColor ?? "#fff"
+      : "#fff";
+    const markerDiameterPx = renderInvisibleInteractionMarker
+      ? Math.max(markerSize, HIDDEN_INTERACTION_MARKER_MIN_SIZE_PX)
+      : markerSize;
     const markerStyles: CSSProperties = {
       ...nodeMarkerBaseStyles,
       width: `${markerDiameterPx}px`,
@@ -381,7 +406,7 @@ export const PointLabel = React.memo(
       height: `${markerDiameterPx}px`,
       borderWidth: renderInvisibleInteractionMarker ? 0 : markerStrokeWidth,
       borderStyle: isOccluded ? "dotted" : "solid",
-      borderColor: "#fff",
+      borderColor: effectiveMarkerBorderColor,
       backgroundColor:
         renderInvisibleInteractionMarker || !hasNodeMarkerContent
           ? "rgba(0, 0, 0, 0)"
@@ -429,14 +454,14 @@ export const PointLabel = React.memo(
         ?.getAttribute("data-point-label-id");
       return Boolean(pointId && relatedPointId === pointId);
     };
-    const handleMouseEnter = (event: React.MouseEvent<HTMLDivElement>) => {
+    const handleMouseEnter = (event: React.MouseEvent<HTMLElement>) => {
       if (isTransitionWithinSamePointLabel(event.relatedTarget)) return;
       if (!isInteractive || isHoveredRef.current) return;
       isHoveredRef.current = true;
       setIsHovered(true);
       onHoverChange?.(true, getOverlayAnchorPosition(event.currentTarget));
     };
-    const handleMouseLeave = (event: React.MouseEvent<HTMLDivElement>) => {
+    const handleMouseLeave = (event: React.MouseEvent<HTMLElement>) => {
       clearLongPressTimeout();
       if (isTransitionWithinSamePointLabel(event.relatedTarget)) return;
       if (!isInteractive || !isHoveredRef.current) return;
@@ -444,7 +469,7 @@ export const PointLabel = React.memo(
       setIsHovered(false);
       onHoverChange?.(false, getOverlayAnchorPosition(event.currentTarget));
     };
-    const handleClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    const handleClick = (event: React.MouseEvent<HTMLElement>) => {
       event.stopPropagation();
       if (suppressNextClickRef.current) {
         suppressNextClickRef.current = false;
@@ -470,7 +495,7 @@ export const PointLabel = React.memo(
         clickTimeoutRef.current = undefined;
       }, 220);
     };
-    const handleDoubleClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    const handleDoubleClick = (event: React.MouseEvent<HTMLElement>) => {
       event.stopPropagation();
       if (clickTimeoutRef.current !== undefined) {
         window.clearTimeout(clickTimeoutRef.current);
@@ -499,9 +524,7 @@ export const PointLabel = React.memo(
         suppressNextClickRef.current = true;
       }
     };
-    const beginMarkerDragTracking = (
-      event: React.MouseEvent<HTMLDivElement>
-    ) => {
+    const beginMarkerDragTracking = (event: React.MouseEvent<HTMLElement>) => {
       if (!onMarkerDragStart && !onMarkerDragMove && !onMarkerDragEnd) {
         return false;
       }
@@ -548,7 +571,7 @@ export const PointLabel = React.memo(
       return true;
     };
     const handleMouseDown = (
-      event: React.MouseEvent<HTMLDivElement>,
+      event: React.MouseEvent<HTMLElement>,
       allowMarkerDrag: boolean = true,
       allowLongPress: boolean = true
     ) => {
@@ -687,6 +710,7 @@ export const PointLabel = React.memo(
                   fontWeight,
                   backgroundColor: effectiveBackgroundColor,
                   color: effectiveTextColor,
+                  boxShadow: selectedGlowBoxShadow,
                   position: "absolute",
                   left: `${labelOffsetX}px`,
                   top: labelTop,
@@ -698,6 +722,7 @@ export const PointLabel = React.memo(
                 badgeStyle={{
                   backgroundColor: effectiveCompactBackgroundColor,
                   color: effectiveCompactTextColor,
+                  border: effectiveBadgeBorder,
                   fontWeight: DEFAULT_POINT_LABEL_FONT_WEIGHT,
                 }}
                 badgeContent={
@@ -740,6 +765,7 @@ export const PointLabel = React.memo(
                   fontFeatureSettings: '"tnum" 1, "lnum" 1',
                   backgroundColor: effectiveBackgroundColor,
                   color: effectiveTextColor,
+                  boxShadow: selectedGlowBoxShadow,
                   position: "absolute",
                   left: `${labelOffsetX}px`,
                   top: labelTop,

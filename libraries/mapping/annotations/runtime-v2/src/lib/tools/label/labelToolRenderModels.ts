@@ -39,10 +39,13 @@ export const buildLabelToolRenderModels = ({
   const labelMeasurements = measurements.filter(
     (measurement) => measurement.toolType === toolType
   );
+  const visibleLabelMeasurements = labelMeasurements.filter(
+    (measurement) => !measurement.hidden
+  );
   const selectedMeasurementIdSet = new Set(selectedMeasurementIds);
 
   return {
-    points: labelMeasurements.flatMap((measurement) => {
+    points: visibleLabelMeasurements.flatMap((measurement) => {
       const coordinate =
         resolveMeasurementCoordinates(measurement, nodeCoordinatesById)[0] ??
         null;
@@ -53,6 +56,8 @@ export const buildLabelToolRenderModels = ({
       return [
         {
           id: `${measurement.id}-anchor`,
+          measurementId: measurement.id,
+          nodeId: measurement.nodeIds[0],
           coordinate,
           ...(selectedMeasurementIdSet.has(measurement.id)
             ? visuals.selectedPoint
@@ -60,7 +65,7 @@ export const buildLabelToolRenderModels = ({
         },
       ];
     }),
-    pointLabels: labelMeasurements.flatMap((measurement, labelIndex) => {
+    pointLabels: visibleLabelMeasurements.flatMap((measurement, labelIndex) => {
       const coordinate =
         resolveMeasurementCoordinates(measurement, nodeCoordinatesById)[0] ??
         null;
@@ -93,7 +98,7 @@ export const buildLabelToolRenderModels = ({
           selected: selectedMeasurementIdSet.has(measurement.id),
           onClick: () => onMeasurementSelect(measurement.id),
           onLongPress:
-            onNodeLongPress && pointNodeId
+            onNodeLongPress && pointNodeId && !measurement.locked
               ? () => onNodeLongPress(pointNodeId, measurement.id)
               : undefined,
         },

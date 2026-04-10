@@ -28,6 +28,10 @@ export interface PointLabelData {
   textColor?: string;
   textBackgroundColor?: string;
   selectedBackgroundColor?: string;
+  selectedTextColor?: string;
+  selectedGlowColor?: string;
+  selectedGlowRadiusPx?: number;
+  preserveFillOnSelection?: boolean;
   hoverBackgroundColor?: string;
   pitch?: number;
   labelAngleRad?: number;
@@ -112,6 +116,10 @@ const getPointStyleSignature = (
     styleProps?.textColor ?? "",
     styleProps?.textBackgroundColor ?? "",
     styleProps?.selectedBackgroundColor ?? "",
+    styleProps?.selectedTextColor ?? "",
+    styleProps?.selectedGlowColor ?? "",
+    styleProps?.selectedGlowRadiusPx ?? "",
+    String(styleProps?.preserveFillOnSelection ?? false),
     styleProps?.hoverBackgroundColor ?? "",
     styleProps?.lineWidth ?? "",
     styleProps?.lineColor ?? "",
@@ -152,6 +160,10 @@ const getPointContentSignature = (
   }:${point.labelCursor ?? ""}:${point.textColor ?? ""}:${
     point.textBackgroundColor ?? ""
   }:${point.selectedBackgroundColor ?? ""}:${
+    point.selectedTextColor ?? ""
+  }:${point.selectedGlowColor ?? ""}:${
+    point.selectedGlowRadiusPx ?? ""
+  }:${Boolean(point.preserveFillOnSelection)}:${
     point.hoverBackgroundColor ?? ""
   }:${point.longPressDurationMs ?? ""}:${getOverlayReferenceSignature(
     point.onClick
@@ -253,6 +265,18 @@ export const usePointLabels = (
           : {}),
         ...(point.selectedBackgroundColor !== undefined
           ? { selectedBackgroundColor: point.selectedBackgroundColor }
+          : {}),
+        ...(point.selectedTextColor !== undefined
+          ? { selectedTextColor: point.selectedTextColor }
+          : {}),
+        ...(point.selectedGlowColor !== undefined
+          ? { selectedGlowColor: point.selectedGlowColor }
+          : {}),
+        ...(point.selectedGlowRadiusPx !== undefined
+          ? { selectedGlowRadiusPx: point.selectedGlowRadiusPx }
+          : {}),
+        ...(point.preserveFillOnSelection !== undefined
+          ? { preserveFillOnSelection: point.preserveFillOnSelection }
           : {}),
         ...(point.hoverBackgroundColor !== undefined
           ? { hoverBackgroundColor: point.hoverBackgroundColor }

@@ -17,14 +17,13 @@ import {
   resolvePointElevationReferenceCoordinate,
 } from "./pointToolElevationDisplay";
 import type { PointToolVisualSettings } from "./pointToolSettings";
+import { annotationTypographyDefaults } from "../../config/annotationTypographyDefaults";
+import type { AnnotationMeasurementLabelTheme } from "../../config/annotationMeasurementLabelThemes";
 
 type BuildPointToolRenderModelsArgs = {
   toolType: RuntimeMeasurement["toolType"];
   visuals: PointToolVisualSettings;
-  badgeStyle: {
-    backgroundColor: string;
-    textColor: string;
-  };
+  labelTheme: AnnotationMeasurementLabelTheme;
   formatOptions: AnnotationsRuntimeFormatOptions;
   getMeasurementLabel: (measurementIndex: number) => string;
   nodes: readonly RuntimeNode[];
@@ -40,7 +39,7 @@ type BuildPointToolRenderModelsArgs = {
 export const buildPointToolRenderModels = ({
   toolType,
   visuals,
-  badgeStyle,
+  labelTheme,
   formatOptions,
   getMeasurementLabel,
   nodes,
@@ -59,6 +58,9 @@ export const buildPointToolRenderModels = ({
   const pointMeasurements = measurements.filter(
     (measurement) => measurement.toolType === toolType
   );
+  const visiblePointMeasurements = pointMeasurements.filter(
+    (measurement) => !measurement.hidden
+  );
   const selectedMeasurementIdSet = new Set(selectedMeasurementIds);
   const referenceCoordinate = resolvePointElevationReferenceCoordinate({
     annotationEntries: pointMeasurements,
@@ -67,7 +69,7 @@ export const buildPointToolRenderModels = ({
   });
 
   return {
-    points: pointMeasurements.flatMap((measurement) => {
+    points: visiblePointMeasurements.flatMap((measurement) => {
       const coordinate =
         resolveMeasurementCoordinates(measurement, nodeCoordinatesById)[0] ??
         null;
@@ -79,6 +81,8 @@ export const buildPointToolRenderModels = ({
       return [
         {
           id: measurement.id,
+          measurementId: measurement.id,
+          nodeId: measurement.nodeIds[0],
           coordinate,
           ...(selectedMeasurementIdSet.has(measurement.id)
             ? visuals.selectedPoint
@@ -86,7 +90,7 @@ export const buildPointToolRenderModels = ({
         },
       ];
     }),
-    pointLabels: pointMeasurements.flatMap((measurement, pointIndex) => {
+    pointLabels: visiblePointMeasurements.flatMap((measurement, pointIndex) => {
       const coordinate =
         resolveMeasurementCoordinates(measurement, nodeCoordinatesById)[0] ??
         null;
@@ -99,6 +103,8 @@ export const buildPointToolRenderModels = ({
       const pointVisuals = isSelected
         ? visuals.selectedPoint
         : visuals.point;
+      const selectedHighlight = labelTheme.selection;
+      const labelColorScheme = labelTheme.scheme;
 
       const badgeText =
         measurement.shortLabel?.trim() || getMeasurementLabel(pointIndex + 1);
@@ -119,8 +125,20 @@ export const buildPointToolRenderModels = ({
           markerPixelSize: pointVisuals.pixelSize,
           content: elevationText,
           badgeContent: badgeText,
-          markerBackgroundColor: badgeStyle.backgroundColor,
-          markerTextColor: badgeStyle.textColor,
+          fontSize: `${annotationTypographyDefaults.rootFontSizePx}px`,
+          fontFamily: labelTheme.fontFamily,
+          fontWeight: labelTheme.contentFontWeight,
+          lineColor: labelColorScheme.lineColor,
+          textBackgroundColor: labelColorScheme.labelBackgroundColor,
+          textColor: labelColorScheme.textColor,
+          markerBackgroundColor: labelColorScheme.badgeBackgroundColor,
+          markerTextColor: labelColorScheme.textColor,
+          selectedBackgroundColor: selectedHighlight.backgroundColor,
+          selectedTextColor: selectedHighlight.textColor,
+          selectedGlowColor: selectedHighlight.glowColor,
+          selectedGlowRadiusPx: selectedHighlight.glowRadiusPx,
+          preserveFillOnSelection: selectedHighlight.preserveFillOnSelection,
+          hoverBackgroundColor: selectedHighlight.hoverBackgroundColor,
           selected: isSelected,
           onClick: () => {
             if (isSelected) {
@@ -133,7 +151,7 @@ export const buildPointToolRenderModels = ({
             onMeasurementSelect(measurement.id);
           },
           onLongPress:
-            onNodeLongPress && pointNodeId
+            onNodeLongPress && pointNodeId && !measurement.locked
               ? () => onNodeLongPress(pointNodeId, measurement.id)
               : undefined,
         },

@@ -1,10 +1,12 @@
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type KeyboardEvent,
   type MouseEvent,
 } from "react";
+import { CARMA_CARD_BORDER_RADIUS_CSS } from "@carma-commons/ui/components";
 import {
   resolveRuntimeAnnotationInfoBoxVisualOptions,
   type RuntimeAnnotationInfoBoxVisualOptions,
@@ -37,8 +39,14 @@ export const RuntimeAnnotationInfoBoxTitleInput = ({
   const [draftShortLabelValue, setDraftShortLabelValue] = useState(() =>
     normalizeTitle(shortLabelValue ?? "")
   );
+  const [titleWidthPx, setTitleWidthPx] = useState<number | null>(null);
+  const [shortLabelWidthPx, setShortLabelWidthPx] = useState<number | null>(
+    null
+  );
   const inputRef = useRef<HTMLInputElement | null>(null);
   const shortLabelInputRef = useRef<HTMLInputElement | null>(null);
+  const titleMeasureRef = useRef<HTMLSpanElement | null>(null);
+  const shortLabelMeasureRef = useRef<HTMLSpanElement | null>(null);
 
   useEffect(() => {
     setDraftValue(normalizeTitle(value));
@@ -47,6 +55,32 @@ export const RuntimeAnnotationInfoBoxTitleInput = ({
   useEffect(() => {
     setDraftShortLabelValue(normalizeTitle(shortLabelValue ?? ""));
   }, [shortLabelValue]);
+
+  useLayoutEffect(() => {
+    const titleMeasureElement = titleMeasureRef.current;
+    if (titleMeasureElement) {
+      const measuredTitleWidth = Math.ceil(
+        titleMeasureElement.getBoundingClientRect().width
+      );
+      setTitleWidthPx(measuredTitleWidth);
+    }
+
+    const measureElement = shortLabelMeasureRef.current;
+    if (!measureElement) {
+      return;
+    }
+
+    const measuredWidth = Math.ceil(
+      measureElement.getBoundingClientRect().width
+    );
+    setShortLabelWidthPx(measuredWidth);
+  }, [
+    draftShortLabelValue,
+    shortLabelPlaceholder,
+    draftValue,
+    placeholder,
+    resolvedVisualOptions,
+  ]);
 
   const commitValue = (nextValue: string) => {
     const normalizedValue = normalizeTitle(nextValue);
@@ -60,6 +94,12 @@ export const RuntimeAnnotationInfoBoxTitleInput = ({
     }
 
     const normalizedValue = normalizeTitle(nextValue);
+    if (!normalizedValue) {
+      const fallbackValue = normalizeTitle(shortLabelValue ?? "");
+      setDraftShortLabelValue(fallbackValue);
+      return;
+    }
+
     setDraftShortLabelValue(normalizedValue);
     onShortLabelCommit(normalizedValue);
   };
@@ -90,7 +130,7 @@ export const RuntimeAnnotationInfoBoxTitleInput = ({
 
   return (
     <div
-      className="flex items-center gap-2"
+      className="inline-flex max-w-full items-center gap-1"
       onMouseDown={stopPointerPropagation}
       onClick={stopPointerPropagation}
     >
@@ -100,6 +140,11 @@ export const RuntimeAnnotationInfoBoxTitleInput = ({
         value={draftValue}
         placeholder={placeholder}
         className={resolvedVisualOptions.titleInputClassName}
+        style={{
+          width: titleWidthPx === null ? undefined : `${titleWidthPx}px`,
+          minWidth: "1em",
+          maxWidth: "100%",
+        }}
         onMouseDown={stopPointerPropagation}
         onClick={stopPointerPropagation}
         onChange={(event) => setDraftValue(event.target.value)}
@@ -113,13 +158,34 @@ export const RuntimeAnnotationInfoBoxTitleInput = ({
           value={draftShortLabelValue}
           placeholder={shortLabelPlaceholder}
           className={resolvedVisualOptions.shortLabelInputClassName}
-          style={{ width: `${resolvedVisualOptions.shortLabelInputWidthPx}px` }}
+          style={{
+            borderRadius: CARMA_CARD_BORDER_RADIUS_CSS,
+            width:
+              shortLabelWidthPx === null ? undefined : `${shortLabelWidthPx}px`,
+            maxWidth: "100%",
+          }}
           onMouseDown={stopPointerPropagation}
           onClick={stopPointerPropagation}
           onChange={(event) => setDraftShortLabelValue(event.target.value)}
           onBlur={(event) => commitShortLabelValue(event.target.value)}
           onKeyDown={handleShortLabelKeyDown}
         />
+      ) : null}
+      <span
+        ref={titleMeasureRef}
+        aria-hidden="true"
+        className={`${resolvedVisualOptions.titleInputClassName} pointer-events-none absolute invisible w-max whitespace-pre`}
+      >
+        {draftValue || placeholder || " "}
+      </span>
+      {onShortLabelCommit ? (
+        <span
+          ref={shortLabelMeasureRef}
+          aria-hidden="true"
+          className={`${resolvedVisualOptions.shortLabelInputClassName} pointer-events-none absolute invisible w-max whitespace-pre`}
+        >
+          {draftShortLabelValue || shortLabelPlaceholder || ""}
+        </span>
       ) : null}
     </div>
   );

@@ -20,7 +20,6 @@ import type {
 } from "../render/measurementRenderModels";
 export type CreateInitialAnnotationsStoreStateOptions = {
   initialToolType?: RuntimeToolId;
-  initialSelectionModeActive?: boolean;
   initialPointTemporaryMode?: boolean;
 };
 
@@ -67,6 +66,8 @@ export type UpdateAnnotationEntryByIdPayload = {
   annotationId: string;
   displayName?: string;
   shortLabel?: string;
+  hidden?: boolean;
+  locked?: boolean;
   labelAppearance?: RuntimeLabelAppearance;
   elevationDisplayMode?: RuntimeElevationDisplayMode;
   distanceAnchorCoordinateSelection?: RuntimePointLabelCoordinateSelection;
@@ -74,6 +75,10 @@ export type UpdateAnnotationEntryByIdPayload = {
 };
 
 export type SetElevationReferenceAnnotationIdPayload = string | null;
+export type SetNextShortLabelCounterByToolTypePayload = {
+  toolType: string;
+  nextCounter: number;
+};
 
 const UNSET_TOOL_TYPE = "__unset__" as RuntimeToolId;
 
@@ -82,7 +87,6 @@ export const createInitialAnnotationsStoreState = (
 ): AnnotationsStoreState => {
   const {
     initialToolType = UNSET_TOOL_TYPE,
-    initialSelectionModeActive = false,
     initialPointTemporaryMode = false,
   } = options;
 
@@ -91,9 +95,6 @@ export const createInitialAnnotationsStoreState = (
     selectionState: {
       selectedAnnotationIds: [],
       previousSelectedAnnotationId: null,
-      selectionModeActive: initialSelectionModeActive,
-      selectModeAdditive: false,
-      selectModeRectangle: false,
     },
     annotationEntries: [],
     nodes: [],
@@ -104,6 +105,7 @@ export const createInitialAnnotationsStoreState = (
     settingsState: {
       pointTemporaryMode: initialPointTemporaryMode,
       elevationReferenceAnnotationId: null,
+      nextShortLabelCounterByToolType: {},
     },
     draftState: {
       draftCoordinatesByToolType: {},
@@ -121,9 +123,6 @@ const annotationsSlice = createSlice({
     setAnnotationToolType: (state, action: PayloadAction<RuntimeToolId>) => {
       state.annotationToolType = action.payload;
     },
-    setSelectionModeActive: (state, action: PayloadAction<boolean>) => {
-      state.selectionState.selectionModeActive = action.payload;
-    },
     setPointTemporaryMode: (state, action: PayloadAction<boolean>) => {
       state.settingsState.pointTemporaryMode = action.payload;
     },
@@ -132,6 +131,15 @@ const annotationsSlice = createSlice({
       action: PayloadAction<SetElevationReferenceAnnotationIdPayload>
     ) => {
       state.settingsState.elevationReferenceAnnotationId = action.payload;
+    },
+    setNextShortLabelCounterByToolType: (
+      state,
+      action: PayloadAction<SetNextShortLabelCounterByToolTypePayload>
+    ) => {
+      state.settingsState.nextShortLabelCounterByToolType = {
+        ...state.settingsState.nextShortLabelCounterByToolType,
+        [action.payload.toolType]: Math.max(1, action.payload.nextCounter),
+      };
     },
     setSelectedAnnotationId: (state, action: PayloadAction<string | null>) => {
       const nextSelectedAnnotationId = action.payload;
@@ -371,6 +379,8 @@ const annotationsSlice = createSlice({
         annotationId,
         displayName,
         shortLabel,
+        hidden,
+        locked,
         labelAppearance,
         elevationDisplayMode,
         distanceAnchorCoordinateSelection,
@@ -389,6 +399,14 @@ const annotationsSlice = createSlice({
 
       if (shortLabel !== undefined) {
         targetEntry.shortLabel = shortLabel;
+      }
+
+      if (hidden !== undefined) {
+        targetEntry.hidden = hidden;
+      }
+
+      if (locked !== undefined) {
+        targetEntry.locked = locked;
       }
 
       if (labelAppearance !== undefined) {
@@ -491,12 +509,12 @@ export const {
   removeAnnotationsByIds,
   setAnnotationTemporaryById,
   setElevationReferenceAnnotationId,
+  setNextShortLabelCounterByToolType,
   setPointTemporaryMode,
   updateNodeCoordinateById,
   updateAnnotationEntryById,
   replaceState,
   setAnnotationToolType,
-  setSelectionModeActive,
   setDraftCoordinatesByToolType,
   setPendingAnnotationIdByToolType,
   setSelectedAnnotationId,

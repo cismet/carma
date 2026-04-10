@@ -11,6 +11,7 @@ import {
 import { Provider as ReduxProvider } from "react-redux";
 
 import {
+  formatMeasurementShortLabelToken,
   ANNOTATION_TYPE_DISTANCE,
   ANNOTATION_COMMON_SHORTCUT_ACTIONS,
   ANNOTATION_TYPE_AREA_GROUND,
@@ -52,7 +53,6 @@ import {
   setElevationReferenceAnnotationId as setElevationReferenceAnnotationIdAction,
   setAnnotationToolType,
   setPointTemporaryMode as setPointTemporaryModeInStoreAction,
-  setSelectionModeActive,
   setSelectedAnnotationId,
   setSelectedAnnotationIds,
   updateAnnotationEntryById,
@@ -93,6 +93,15 @@ import type {
 } from "../tools/annotationToolPlugin.types";
 import type { RuntimeScene } from "../types/runtimeScene.types";
 import type { RuntimeToolId } from "../types/runtimeTool.types";
+import {
+  buildRuntimeAnnotationGeoJsonFeatureCollection,
+  resolveRuntimeAnnotationExportDescriptor,
+  sanitizeRuntimeAnnotationExportFileSegment,
+} from "../export/runtimeAnnotationGeoJsonExport";
+import {
+  isRuntimeShortLabelKind,
+  resolveNextShortLabelCounterForToolType,
+} from "../utils/runtimeShortLabelSequence";
 type AnnotationsRuntimeServices = {
   scene: RuntimeScene | null;
   registry: AnnotationToolRegistry;
@@ -112,6 +121,9 @@ type AnnotationsRuntimeServices = {
   flyToAnnotationById: (annotationId: string | null) => void;
   flyToAllAnnotations: () => void;
   removeAnnotationById: (annotationId: string) => void;
+  exportAnnotationGeoJson: (annotationId: string) => void;
+  toggleAnnotationVisibility: (annotationId: string) => void;
+  toggleAnnotationLocked: (annotationId: string) => void;
   removeSelectedAnnotations: () => void;
   selectAllAnnotations: () => void;
   setElevationReferenceAnnotationId: (annotationId: string | null) => void;
@@ -305,6 +317,35 @@ const flyToAnnotationPoints = ({
   });
 };
 
+const downloadGeoJsonFile = (
+  fileName: string,
+  featureCollection: ReturnType<typeof buildRuntimeAnnotationGeoJsonFeatureCollection>
+) => {
+  if (!featureCollection) {
+    return;
+  }
+
+  if (typeof window === "undefined" || typeof document === "undefined") {
+    return;
+  }
+
+  const blob = new Blob([JSON.stringify(featureCollection, null, 2)], {
+    type: "application/geo+json;charset=utf-8",
+  });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  window.setTimeout(() => {
+    window.URL.revokeObjectURL(url);
+  }, 0);
+};
+
 const buildMeasurementEntities = ({
   toolType,
   coordinates,
@@ -479,12 +520,6 @@ const RuntimeInteractionHost = ({
   );
   const toolSessions = useToolSessions(registry, sessionContext);
   const activePlugin = registry.getPlugin(activeToolType) ?? null;
-
-  useEffect(() => {
-    annotationsStore.dispatch(
-      setSelectionModeActive(activePlugin?.kind === "interaction")
-    );
-  }, [activePlugin?.kind, annotationsStore]);
 
   const previousPointTemporaryModeRef = useRef(pointTemporaryMode);
   useEffect(() => {
@@ -786,6 +821,7 @@ const RuntimeVisualizationHost = ({
   registry,
   setSelectedAnnotationId,
   onActiveMoveGizmoNodeIdChange,
+  activeMoveGizmoNodeId,
   cursorOverlayVisible,
   blockCommittedLabelInteractions,
   formatOptions,
@@ -795,6 +831,7 @@ const RuntimeVisualizationHost = ({
   registry: AnnotationToolRegistry;
   setSelectedAnnotationId: (annotationId: string | null) => void;
   onActiveMoveGizmoNodeIdChange: (nodeId: string | null) => void;
+  activeMoveGizmoNodeId: string | null;
   cursorOverlayVisible: boolean;
   blockCommittedLabelInteractions: boolean;
   formatOptions: AnnotationsRuntimeFormatOptions;
@@ -823,7 +860,11 @@ const RuntimeVisualizationHost = ({
       annotationsState.settingsState.elevationReferenceAnnotationId
   );
   const annotationsStore = useAnnotationsStore("RuntimeVisualizationHost");
-  const { handleNodeLongPress } = usePointEditingGizmo(scene, nodes, {
+  const {
+    handleNodeLongPress,
+    handleReferenceNodeClick,
+    handleReferenceEdgeClick,
+  } = usePointEditingGizmo(scene, nodes, {
     annotationsStore,
     setSelectedAnnotationId,
     onActiveMoveGizmoNodeIdChange,
@@ -934,6 +975,8 @@ const RuntimeVisualizationHost = ({
     nodes,
     formatOptions,
     registry.plugins,
+    selectedAnnotationId,
+    selectedAnnotationIds,
     setSelectedAnnotationId,
     setElevationReferenceAnnotationId,
     toggleAnnotationElevationDisplayMode,
@@ -948,10 +991,14 @@ const RuntimeVisualizationHost = ({
     pointLabels: aggregatedRenderLayer.pointLabels ?? [],
     formatOptions,
     previewLineLabelVisualOptions,
+    activeMoveGizmoNodeId,
     blockLabelInteractions:
       blockCommittedLabelInteractions ||
+      activeMoveGizmoNodeId !== null ||
       registry.getPlugin(activeToolType)?.kind === "measurement",
     onNodeLongPress: handleNodeLongPress,
+    onReferenceNodeClick: handleReferenceNodeClick,
+    onReferenceEdgeClick: handleReferenceEdgeClick,
     onDistanceTriangleCornerClick: handleDistanceTriangleCornerClick,
   });
 
@@ -1010,15 +1057,11 @@ export const AnnotationsProvider = ({
       ? resolvePersistedAnnotationsStoreState({
           initialToolType: resolvedInitialToolType,
           initialPointTemporaryMode,
-          initialSelectionModeActive:
-            registry.getPlugin(resolvedInitialToolType)?.kind === "interaction",
           initialPersistenceState,
         })
       : createInitialAnnotationsStoreState({
           initialToolType: resolvedInitialToolType,
           initialPointTemporaryMode,
-          initialSelectionModeActive:
-            registry.getPlugin(resolvedInitialToolType)?.kind === "interaction",
         });
 
     measurementSequenceRef.current = readMaxNumericSuffix(
@@ -1137,6 +1180,13 @@ export const AnnotationsProvider = ({
 
   const removeAnnotationEntryById = useCallback(
     (annotationId: string) => {
+      const targetEntry = annotationsStore
+        .getState()
+        .annotationEntries.find((entry) => entry.id === annotationId);
+      if (targetEntry?.locked) {
+        return;
+      }
+
       annotationsStore.dispatch(
         removeAnnotationById({
           annotationId,
@@ -1149,17 +1199,113 @@ export const AnnotationsProvider = ({
 
   const removeSelectedAnnotationEntries = useCallback(() => {
     const runtimeState = annotationsStore.getState();
-    if (runtimeState.selectionState.selectedAnnotationIds.length === 0) {
+    const removableAnnotationIds =
+      runtimeState.selectionState.selectedAnnotationIds.filter(
+        (annotationId) =>
+          !runtimeState.annotationEntries.find(
+            (annotationEntry) =>
+              annotationEntry.id === annotationId && annotationEntry.locked
+          )
+      );
+    if (removableAnnotationIds.length === 0) {
       return;
     }
 
     annotationsStore.dispatch(
       removeAnnotationsByIds({
-        annotationIds: runtimeState.selectionState.selectedAnnotationIds,
+        annotationIds: removableAnnotationIds,
         nextSelectedAnnotationId: null,
       })
     );
   }, [annotationsStore]);
+
+  const exportAnnotationGeoJson = useCallback(
+    (annotationId: string) => {
+      const runtimeState = annotationsStore.getState();
+      const annotation =
+        runtimeState.annotationEntries.find((entry) => entry.id === annotationId) ??
+        null;
+      if (!annotation) {
+        return;
+      }
+
+      const coordinates = annotation.nodeIds
+        .map(
+          (nodeId) =>
+            runtimeState.nodes.find((node) => node.id === nodeId)?.coordinate ??
+            null
+        )
+        .filter((coordinate): coordinate is RuntimeCoordinate =>
+          Boolean(coordinate)
+        );
+      const featureCollection = buildRuntimeAnnotationGeoJsonFeatureCollection({
+        annotation,
+        coordinates,
+      });
+      if (!featureCollection) {
+        return;
+      }
+
+      const exportDescriptor = resolveRuntimeAnnotationExportDescriptor(
+        annotation
+      );
+      const kindSegment = sanitizeRuntimeAnnotationExportFileSegment(
+        exportDescriptor.kind
+      );
+      const nameSegment = sanitizeRuntimeAnnotationExportFileSegment(
+        exportDescriptor.name
+      );
+
+      downloadGeoJsonFile(
+        `annotation-${kindSegment}-${nameSegment}.geojson`,
+        featureCollection
+      );
+    },
+    [annotationsStore]
+  );
+
+  const toggleAnnotationVisibility = useCallback(
+    (annotationId: string) => {
+      const targetEntry = annotationsStore
+        .getState()
+        .annotationEntries.find((entry) => entry.id === annotationId);
+      if (!targetEntry) {
+        return;
+      }
+
+      annotationsStore.dispatch(
+        updateAnnotationEntryById({
+          annotationId,
+          hidden: !targetEntry.hidden,
+        })
+      );
+    },
+    [annotationsStore]
+  );
+
+  const toggleAnnotationLocked = useCallback(
+    (annotationId: string) => {
+      const targetEntry = annotationsStore
+        .getState()
+        .annotationEntries.find((entry) => entry.id === annotationId);
+      if (!targetEntry) {
+        return;
+      }
+
+      const nextLocked = !targetEntry.locked;
+      annotationsStore.dispatch(
+        updateAnnotationEntryById({
+          annotationId,
+          locked: nextLocked,
+        })
+      );
+
+      if (nextLocked && targetEntry.nodeIds.includes(activeMoveGizmoNodeId ?? "")) {
+        setActiveMoveGizmoNodeId(null);
+      }
+    },
+    [activeMoveGizmoNodeId, annotationsStore]
+  );
 
   const selectAllAnnotationEntries = useCallback(() => {
     const runtimeState = annotationsStore.getState();
@@ -1236,6 +1382,7 @@ export const AnnotationsProvider = ({
       coordinates: readonly RuntimeCoordinate[],
       options?: RuntimeAddAnnotationOptions
     ) => {
+      const runtimeStateBeforeInsert = annotationsStore.getState();
       let resolvedOptions = options;
 
       if (
@@ -1269,6 +1416,19 @@ export const AnnotationsProvider = ({
         }
       }
 
+      if (isRuntimeShortLabelKind(toolType)) {
+        const nextShortLabelCounter = resolveNextShortLabelCounterForToolType({
+          annotationEntries: runtimeStateBeforeInsert.annotationEntries,
+          toolType,
+        });
+        resolvedOptions = {
+          ...resolvedOptions,
+          shortLabel:
+            resolvedOptions?.shortLabel?.trim() ||
+            formatMeasurementShortLabelToken(toolType, nextShortLabelCounter),
+        };
+      }
+
       const { annotationEntry, nodes, edges } = buildMeasurementEntities({
         toolType,
         coordinates,
@@ -1286,7 +1446,6 @@ export const AnnotationsProvider = ({
           selectAnnotationId: annotationEntry.id,
         })
       );
-
       return annotationEntry;
     },
     [annotationsStore, scene]
@@ -1337,6 +1496,9 @@ export const AnnotationsProvider = ({
       flyToAnnotationById,
       flyToAllAnnotations,
       removeAnnotationById: removeAnnotationEntryById,
+      exportAnnotationGeoJson,
+      toggleAnnotationVisibility,
+      toggleAnnotationLocked,
       removeSelectedAnnotations: removeSelectedAnnotationEntries,
       selectAllAnnotations: selectAllAnnotationEntries,
       setElevationReferenceAnnotationId:
@@ -1355,6 +1517,7 @@ export const AnnotationsProvider = ({
       annotationsStore,
       focusAdjacentAnnotationEntry,
       focusAnnotationId,
+      exportAnnotationGeoJson,
       flyToAllAnnotations,
       flyToAnnotationById,
       formatOptions,
@@ -1368,7 +1531,9 @@ export const AnnotationsProvider = ({
       setPointTemporaryModeInStore,
       setSelectedAnnotationIdInStore,
       setSelectedAnnotationIdsInStore,
+      toggleAnnotationLocked,
       toggleAnnotationElevationDisplayMode,
+      toggleAnnotationVisibility,
       updateAnnotationDisplayName,
       updateAnnotationShortLabel,
     ]
@@ -1404,6 +1569,7 @@ export const AnnotationsProvider = ({
           registry={registry}
           setSelectedAnnotationId={setSelectedAnnotationIdInStore}
           onActiveMoveGizmoNodeIdChange={setActiveMoveGizmoNodeId}
+          activeMoveGizmoNodeId={activeMoveGizmoNodeId}
           cursorOverlayVisible={cursorOverlayVisible}
           blockCommittedLabelInteractions={cursorOverlayVisible}
           formatOptions={formatOptions}
@@ -1430,6 +1596,9 @@ export const useAnnotationsRuntime = () => {
     flyToAnnotationById,
     flyToAllAnnotations,
     removeAnnotationById,
+    exportAnnotationGeoJson,
+    toggleAnnotationVisibility,
+    toggleAnnotationLocked,
     removeSelectedAnnotations,
     selectAllAnnotations,
     setElevationReferenceAnnotationId,
@@ -1476,6 +1645,9 @@ export const useAnnotationsRuntime = () => {
     flyToAnnotationById,
     flyToAllAnnotations,
     removeAnnotationById,
+    exportAnnotationGeoJson,
+    toggleAnnotationVisibility,
+    toggleAnnotationLocked,
     removeSelectedAnnotations,
     selectAllAnnotations,
     elevationReferenceAnnotationId,

@@ -78,7 +78,7 @@ describe("PointLabel", () => {
     expect(pillRoot?.style.transform).toBe("translate(-50%, -50%)");
   });
 
-  it("removes root border and backdrop for compact badge-only pills", () => {
+  it("uses the badge itself as the root element for compact badge-only pills", () => {
     const { container } = render(
       <PointLabel
         content=""
@@ -92,17 +92,20 @@ describe("PointLabel", () => {
 
     const pillRoot = container.querySelector(
       '[data-pillbutton-root="true"]'
-    ) as HTMLDivElement | null;
+    ) as HTMLElement | null;
     const badge = container.querySelector(
       '[data-pillbutton-badge="true"]'
     ) as HTMLSpanElement | null;
+    const pillContent = container.querySelector(
+      '[data-pillbutton-content="true"]'
+    ) as HTMLSpanElement | null;
 
-    expect(pillRoot?.getAttribute("style") ?? "").not.toContain(
-      "border: 1px"
+    expect(pillRoot).toBe(badge);
+    expect(pillContent).toBeNull();
+    expect(["rgb(75, 85, 99)", "rgba(75, 85, 99, 1)"]).toContain(
+      pillRoot?.style.backgroundColor ?? ""
     );
-    expect(pillRoot?.style.backgroundColor).toBe("transparent");
-    expect(pillRoot?.style.backdropFilter).toBe("none");
-    expect(badge?.style.border).toContain("1px");
+    expect(["", "none"]).toContain(badge?.style.border ?? "");
   });
 
   it("keeps extended center-attached pills centered on the full badge", () => {
@@ -143,7 +146,26 @@ describe("PointLabel", () => {
 
     expect(["", "none"]).toContain(pillRoot?.style.border ?? "");
     expect(pillRoot?.getAttribute("style") ?? "").not.toContain("border: 1px");
-    expect(badge?.style.border).toContain("1px");
+    expect(["", "none"]).toContain(badge?.style.border ?? "");
+  });
+
+  it("shows a single selection-colored badge border only while selected", () => {
+    const { container } = render(
+      <PointLabel
+        content="NHN 179,74 m"
+        badgeContent="8"
+        hideMarker={true}
+        selected={true}
+        selectedTextColor="rgba(253, 224, 71, 0.99)"
+        labelAttach={POINT_LABEL_ATTACH.LEFT}
+      />
+    );
+
+    const badge = container.querySelector(
+      '[data-pillbutton-badge="true"]'
+    ) as HTMLSpanElement | null;
+
+    expect(badge?.style.border).toBe("1px solid rgba(253, 224, 71, 0.99)");
   });
 
   it("applies explicit typography props to pill labels", () => {
@@ -190,6 +212,88 @@ describe("PointLabel", () => {
 
     expect(pillRoot?.style.fontWeight).toBe("400");
     expect(badge?.style.fontWeight).toBe("500");
+  });
+
+  it("keeps existing fills on selection while applying signal-yellow text and a matching 5px outer glow", () => {
+    const { container } = render(
+      <PointLabel
+        content="NHN 179,74 m"
+        badgeContent="8"
+        hideMarker={true}
+        selected={true}
+        textBackgroundColor="rgba(30, 64, 175, 0.78)"
+        markerBackgroundColor="rgba(30, 58, 138, 0.98)"
+        selectedBackgroundColor="rgba(15, 23, 42, 0.92)"
+        selectedTextColor="rgba(253, 224, 71, 0.99)"
+        selectedGlowColor="rgba(253, 224, 71, 0.99)"
+        selectedGlowRadiusPx={5}
+        preserveFillOnSelection={true}
+        labelAttach={POINT_LABEL_ATTACH.LEFT}
+      />
+    );
+
+    const pillRoot = container.querySelector(
+      '[data-pillbutton-root="true"]'
+    ) as HTMLDivElement | null;
+    const badge = container.querySelector(
+      '[data-pillbutton-badge="true"]'
+    ) as HTMLSpanElement | null;
+
+    expect(pillRoot?.style.backgroundColor).toBe("rgba(30, 64, 175, 0.78)");
+    expect(pillRoot?.style.color).toBe("rgba(253, 224, 71, 0.99)");
+    expect(pillRoot?.style.boxShadow).toBe(
+      "0 0 5px rgba(253, 224, 71, 0.99)"
+    );
+    expect(badge?.style.backgroundColor).toBe("rgba(30, 58, 138, 0.98)");
+    expect(badge?.style.color).toBe("rgba(253, 224, 71, 0.99)");
+  });
+
+  it("keeps compact badge-only selection styling on the single badge root", () => {
+    const { container } = render(
+      <PointLabel
+        content="B"
+        badgeContent="B"
+        collapse={true}
+        hideMarker={true}
+        selected={true}
+        markerBackgroundColor="rgba(17, 94, 89, 0.98)"
+        selectedTextColor="rgba(253, 224, 71, 0.99)"
+        selectedGlowColor="rgba(253, 224, 71, 0.99)"
+        selectedGlowRadiusPx={5}
+        preserveFillOnSelection={true}
+        labelAttach={POINT_LABEL_ATTACH.RIGHT}
+      />
+    );
+
+    const pillRoot = container.querySelector(
+      '[data-pillbutton-root="true"]'
+    ) as HTMLElement | null;
+    const badge = container.querySelector(
+      '[data-pillbutton-badge="true"]'
+    ) as HTMLSpanElement | null;
+
+    expect(pillRoot).toBe(badge);
+    expect(badge?.style.backgroundColor).toBe("rgba(17, 94, 89, 0.98)");
+    expect(badge?.style.boxShadow).toBe("0 0 5px rgba(253, 224, 71, 0.99)");
+  });
+
+  it("changes the point node marker ring to the selection color while selected", () => {
+    const { container } = render(
+      <PointLabel
+        content="NHN 179,74 m"
+        hideLabelAndStem={true}
+        hideMarker={false}
+        selected={true}
+        selectedTextColor="rgba(253, 224, 71, 0.99)"
+        selectedGlowColor="rgba(253, 224, 71, 0.99)"
+      />
+    );
+
+    const marker = container.querySelector(
+      '[data-point-label-interactive="true"]'
+    ) as HTMLDivElement | null;
+
+    expect(marker?.style.borderColor).toBe("rgba(253, 224, 71, 0.99)");
   });
 
   it("renders right-slot badges after the content segment", () => {

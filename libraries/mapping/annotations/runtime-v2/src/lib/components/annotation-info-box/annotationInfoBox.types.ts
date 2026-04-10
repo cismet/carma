@@ -26,6 +26,9 @@ export type RuntimeAnnotationInfoBoxContext = {
   focusAnnotationId: (annotationId: string | null) => void;
   flyToAllAnnotations: () => void;
   removeAnnotationById: (annotationId: string) => void;
+  exportAnnotationGeoJson: (annotationId: string) => void;
+  toggleAnnotationVisibility: (annotationId: string) => void;
+  toggleAnnotationLocked: (annotationId: string) => void;
   elevationReferenceAnnotationId: string | null;
   setElevationReferenceAnnotationId: (annotationId: string | null) => void;
   updateAnnotationDisplayName: (

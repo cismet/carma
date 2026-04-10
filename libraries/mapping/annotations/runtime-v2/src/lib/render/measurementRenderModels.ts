@@ -34,15 +34,20 @@ export type RuntimeDistanceTriangleOverlayRenderModel = {
 
 export type RuntimePointMarkerRenderModel = {
   id: string;
+  measurementId?: string;
+  nodeId?: string;
   coordinate: RuntimeCoordinate;
   pixelSize: number;
   fill: string;
   outline: string;
   outlineWidth: number;
+  onClick?: () => void;
 };
 
 export type RuntimeEdgeRenderModel = {
   id: string;
+  measurementId?: string;
+  nodeIds?: readonly string[];
   coordinates: readonly RuntimeCoordinate[];
   stroke: string;
   strokeWidth: number;
@@ -109,8 +114,15 @@ export type RuntimePointLabelRenderModel = {
   badgeContent?: ReactNode;
   markerBackgroundColor?: string;
   markerTextColor?: string;
+  lineColor?: string;
   textBackgroundColor?: string;
   textColor?: string;
+  selectedBackgroundColor?: string;
+  selectedTextColor?: string;
+  selectedGlowColor?: string;
+  selectedGlowRadiusPx?: number;
+  preserveFillOnSelection?: boolean;
+  hoverBackgroundColor?: string;
   fontSize?: string;
   fontFamily?: string;
   fontWeight?: string | number;
@@ -120,7 +132,10 @@ export type RuntimePointLabelRenderModel = {
   selected?: boolean;
   hideLabelAndStem?: boolean;
   onClick?: () => void;
+  allowClickWhenBlocked?: boolean;
   onDoubleClick?: () => void;
   onLongPress?: () => void;
+  markerOnlyPointerEvents?: boolean;
+  allowLongPressWhenBlocked?: boolean;
   longPressDurationMs?: number;
 };

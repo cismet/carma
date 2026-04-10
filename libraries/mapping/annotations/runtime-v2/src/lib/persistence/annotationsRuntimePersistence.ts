@@ -5,6 +5,10 @@ import type {
   RuntimeNode,
 } from "../store";
 import type { RuntimeToolId } from "../types/runtimeTool.types";
+import {
+  normalizeRuntimeAnnotationShortLabels,
+  resolveNextShortLabelCounterByToolType,
+} from "../utils/runtimeShortLabelSequence";
 
 export type AnnotationsRuntimePersistenceEnvelopeV1 = {
   version: 1;
@@ -27,13 +31,26 @@ export type AnnotationsRuntimePersistenceEnvelopeV2 = {
   };
 };
 
+export type AnnotationsRuntimePersistenceEnvelopeV3 = {
+  version: 3;
+  tables: {
+    annotationEntries: RuntimeAnnotationEntry[];
+    nodes: RuntimeNode[];
+    edges: RuntimeEdge[];
+  };
+  settings: {
+    elevationReferenceAnnotationId: string | null;
+    nextShortLabelCounterByToolType: Record<string, number>;
+  };
+};
+
 export type AnnotationsRuntimePersistenceEnvelope =
   | AnnotationsRuntimePersistenceEnvelopeV1
-  | AnnotationsRuntimePersistenceEnvelopeV2;
+  | AnnotationsRuntimePersistenceEnvelopeV2
+  | AnnotationsRuntimePersistenceEnvelopeV3;
 
 type ResolvePersistedAnnotationsStoreStateArgs = {
   initialToolType: RuntimeToolId;
-  initialSelectionModeActive: boolean;
   initialPointTemporaryMode: boolean;
   initialPersistenceState?: AnnotationsRuntimePersistenceEnvelope | null;
 };
@@ -57,7 +74,7 @@ const cloneEdge = (edge: RuntimeEdge): RuntimeEdge => ({
 
 export const buildAnnotationsRuntimePersistenceState = (
   state: AnnotationsStoreState
-): AnnotationsRuntimePersistenceEnvelopeV2 => {
+): AnnotationsRuntimePersistenceEnvelopeV3 => {
   const annotationEntries = state.annotationEntries
     .filter((annotationEntry) => !annotationEntry.temporary)
     .map(cloneAnnotationEntry);
@@ -69,7 +86,7 @@ export const buildAnnotationsRuntimePersistenceState = (
   );
 
   return {
-    version: 2,
+    version: 3,
     tables: {
       annotationEntries,
       nodes: state.nodes
@@ -82,29 +99,31 @@ export const buildAnnotationsRuntimePersistenceState = (
     settings: {
       elevationReferenceAnnotationId:
         state.settingsState.elevationReferenceAnnotationId,
+      nextShortLabelCounterByToolType:
+        resolveNextShortLabelCounterByToolType(annotationEntries),
     },
   };
 };
 
 export const resolvePersistedAnnotationsStoreState = ({
   initialToolType,
-  initialSelectionModeActive,
   initialPointTemporaryMode,
   initialPersistenceState,
 }: ResolvePersistedAnnotationsStoreStateArgs): AnnotationsStoreState => {
   const persistedTables = initialPersistenceState?.tables;
+  const normalizedAnnotationEntries = normalizeRuntimeAnnotationShortLabels(
+    persistedTables?.annotationEntries.map(cloneAnnotationEntry) ?? []
+  );
+  const resolvedNextShortLabelCounterByToolType =
+    resolveNextShortLabelCounterByToolType(normalizedAnnotationEntries);
 
   return {
     annotationToolType: initialToolType,
     selectionState: {
       selectedAnnotationIds: [],
       previousSelectedAnnotationId: null,
-      selectionModeActive: initialSelectionModeActive,
-      selectModeAdditive: false,
-      selectModeRectangle: false,
     },
-    annotationEntries:
-      persistedTables?.annotationEntries.map(cloneAnnotationEntry) ?? [],
+    annotationEntries: normalizedAnnotationEntries,
     nodes: persistedTables?.nodes.map(cloneNode) ?? [],
     edges: persistedTables?.edges.map(cloneEdge) ?? [],
     infoBoxState: {
@@ -113,9 +132,11 @@ export const resolvePersistedAnnotationsStoreState = ({
     settingsState: {
       pointTemporaryMode: initialPointTemporaryMode,
       elevationReferenceAnnotationId:
-        initialPersistenceState?.version === 2
+        initialPersistenceState?.version === 2 ||
+        initialPersistenceState?.version === 3
           ? initialPersistenceState.settings.elevationReferenceAnnotationId
           : null,
+      nextShortLabelCounterByToolType: resolvedNextShortLabelCounterByToolType,
     },
     draftState: {
       draftCoordinatesByToolType: {},
@@ -148,7 +169,7 @@ export const loadAnnotationsRuntimePersistenceState = (
     }
 
     const parsed = JSON.parse(raw) as AnnotationsRuntimePersistenceEnvelope;
-    if (parsed?.version !== 1 && parsed?.version !== 2) {
+    if (parsed?.version !== 1 && parsed?.version !== 2 && parsed?.version !== 3) {
       return null;
     }
 
@@ -162,6 +183,25 @@ export const loadAnnotationsRuntimePersistenceState = (
       !Array.isArray(parsed.tables.edges)
     ) {
       return null;
+    }
+
+    if (parsed.version === 3) {
+      return {
+        version: 3,
+        tables: {
+          annotationEntries:
+            parsed.tables.annotationEntries.map(cloneAnnotationEntry),
+          nodes: parsed.tables.nodes.map(cloneNode),
+          edges: parsed.tables.edges.map(cloneEdge),
+        },
+        settings: {
+          elevationReferenceAnnotationId:
+            parsed.settings?.elevationReferenceAnnotationId ?? null,
+          nextShortLabelCounterByToolType: {
+            ...(parsed.settings?.nextShortLabelCounterByToolType ?? {}),
+          },
+        },
+      };
     }
 
     if (parsed.version === 2) {

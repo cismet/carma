@@ -99,9 +99,12 @@ export const buildNodeChainAreaToolRenderModels = ({
   const areaMeasurements = measurements.filter(
     (measurement) => measurement.toolType === toolType
   );
+  const visibleAreaMeasurements = areaMeasurements.filter(
+    (measurement) => !measurement.hidden
+  );
   const selectedMeasurementIdSet = new Set(selectedMeasurementIds);
 
-  const committedEdges = areaMeasurements.flatMap((measurement) => {
+  const committedEdges = visibleAreaMeasurements.flatMap((measurement) => {
     const coordinates = resolveMeasurementCoordinates(
       measurement,
       nodeCoordinatesById
@@ -113,6 +116,8 @@ export const buildNodeChainAreaToolRenderModels = ({
     return [
       {
         id: measurement.id,
+        measurementId: measurement.id,
+        nodeIds: measurement.nodeIds,
         coordinates: [...coordinates, coordinates[0]!],
         ...(selectedMeasurementIdSet.has(measurement.id)
           ? visuals.selectedEdge
@@ -121,7 +126,7 @@ export const buildNodeChainAreaToolRenderModels = ({
     ];
   });
 
-  const polygonFills = areaMeasurements.flatMap((measurement) => {
+  const polygonFills = visibleAreaMeasurements.flatMap((measurement) => {
     const coordinates = resolveMeasurementCoordinates(
       measurement,
       nodeCoordinatesById
@@ -143,7 +148,7 @@ export const buildNodeChainAreaToolRenderModels = ({
     ];
   });
 
-  const points = areaMeasurements.flatMap((measurement) =>
+  const points = visibleAreaMeasurements.flatMap((measurement) =>
     measurement.nodeIds.flatMap((nodeId, index) => {
       const coordinate = nodeCoordinatesById.get(nodeId);
       if (!coordinate) {
@@ -153,6 +158,8 @@ export const buildNodeChainAreaToolRenderModels = ({
       return [
         {
           id: `${measurement.id}-node-${index}`,
+          measurementId: measurement.id,
+          nodeId,
           coordinate,
           ...(selectedMeasurementIdSet.has(measurement.id)
             ? visuals.selectedPoint
@@ -162,7 +169,7 @@ export const buildNodeChainAreaToolRenderModels = ({
     })
   );
 
-  const nodeLabels = areaMeasurements.flatMap(
+  const nodeLabels = visibleAreaMeasurements.flatMap(
     (measurement, measurementIndex) => {
       const badgeText =
         measurement.shortLabel?.trim() ||
@@ -194,7 +201,7 @@ export const buildNodeChainAreaToolRenderModels = ({
             onClick: onMeasurementSelect
               ? () => onMeasurementSelect(measurement.id)
               : undefined,
-            onLongPress: onNodeLongPress
+            onLongPress: onNodeLongPress && !measurement.locked
               ? () => onNodeLongPress(nodeId, measurement.id)
               : undefined,
           },
@@ -203,7 +210,7 @@ export const buildNodeChainAreaToolRenderModels = ({
     }
   );
 
-  const areaLabels = areaMeasurements.flatMap((measurement) => {
+  const areaLabels = visibleAreaMeasurements.flatMap((measurement) => {
     const coordinates = resolveMeasurementCoordinates(
       measurement,
       nodeCoordinatesById

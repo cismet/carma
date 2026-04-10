@@ -27,8 +27,11 @@ type UseCommittedRuntimeVisualizationArgs = {
   pointLabels: readonly RuntimePointLabelRenderModel[];
   formatOptions: AnnotationsRuntimeFormatOptions;
   previewLineLabelVisualOptions?: Partial<PreviewLineLabelVisualOptions>;
+  activeMoveGizmoNodeId: string | null;
   blockLabelInteractions: boolean;
   onNodeLongPress: (nodeId: string, measurementId: string) => void;
+  onReferenceNodeClick: (nodeId: string) => boolean;
+  onReferenceEdgeClick: (startNodeId: string, endNodeId: string) => boolean;
   onDistanceTriangleCornerClick: (measurementId: string) => void;
 };
 
@@ -40,8 +43,11 @@ export const useCommittedRuntimeVisualization = ({
   pointLabels,
   formatOptions,
   previewLineLabelVisualOptions,
+  activeMoveGizmoNodeId,
   blockLabelInteractions,
   onNodeLongPress,
+  onReferenceNodeClick,
+  onReferenceEdgeClick,
   onDistanceTriangleCornerClick,
 }: UseCommittedRuntimeVisualizationArgs) => {
   const resolvedPreviewLineLabelVisualOptions = useMemo(
@@ -54,6 +60,8 @@ export const useCommittedRuntimeVisualization = ({
     edges,
     formatOptions,
     previewLineLabelVisualOptions: resolvedPreviewLineLabelVisualOptions,
+    activeMoveGizmoNodeId,
+    onEdgeClick: onReferenceEdgeClick,
     onDistanceTriangleCornerClick,
   });
   useRuntimeMeasurementPolygonFillsController({
@@ -65,6 +73,23 @@ export const useCommittedRuntimeVisualization = ({
     () =>
       pointLabels.map((pointLabel) => ({
         ...pointLabel,
+        onClick:
+          pointLabel.onClick || (activeMoveGizmoNodeId && pointLabel.nodeId)
+            ? () => {
+                if (
+                  activeMoveGizmoNodeId &&
+                  pointLabel.nodeId &&
+                  onReferenceNodeClick(pointLabel.nodeId)
+                ) {
+                  return;
+                }
+
+                pointLabel.onClick?.();
+              }
+            : undefined,
+        allowClickWhenBlocked:
+          pointLabel.allowClickWhenBlocked ||
+          Boolean(activeMoveGizmoNodeId && pointLabel.nodeId),
         onLongPress:
           pointLabel.onLongPress ??
           (pointLabel.nodeId && pointLabel.measurementId
@@ -74,7 +99,12 @@ export const useCommittedRuntimeVisualization = ({
         longPressDurationMs:
           pointLabel.longPressDurationMs ?? NODE_LABEL_LONG_PRESS_DURATION_MS,
       })),
-    [onNodeLongPress, pointLabels]
+    [
+      activeMoveGizmoNodeId,
+      onNodeLongPress,
+      onReferenceNodeClick,
+      pointLabels,
+    ]
   );
 
   const pointMarkerIdsHandledByLabels = useMemo(
@@ -91,10 +121,26 @@ export const useCommittedRuntimeVisualization = ({
     [normalizedPointLabels]
   );
 
+  const normalizedPoints = useMemo(
+    () =>
+      points.map((point) => ({
+        ...point,
+        onClick:
+          activeMoveGizmoNodeId && point.nodeId
+            ? () => {
+                onReferenceNodeClick(point.nodeId!);
+              }
+            : undefined,
+      })),
+    [activeMoveGizmoNodeId, onReferenceNodeClick, points]
+  );
+
   const visibleStandalonePoints = useMemo(
     () =>
-      points.filter((point) => !pointMarkerIdsHandledByLabels.has(point.id)),
-    [pointMarkerIdsHandledByLabels, points]
+      normalizedPoints.filter(
+        (point) => !pointMarkerIdsHandledByLabels.has(point.id)
+      ),
+    [normalizedPoints, pointMarkerIdsHandledByLabels]
   );
 
   useRuntimePointMarkerVisualizer({

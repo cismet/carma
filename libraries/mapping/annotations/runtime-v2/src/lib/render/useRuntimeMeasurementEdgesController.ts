@@ -52,6 +52,8 @@ type UseRuntimeMeasurementEdgesControllerArgs = {
   edges: readonly RuntimeEdgeRenderModel[];
   formatOptions: AnnotationsRuntimeFormatOptions;
   previewLineLabelVisualOptions?: Partial<PreviewLineLabelVisualOptions>;
+  activeMoveGizmoNodeId: string | null;
+  onEdgeClick: (startNodeId: string, endNodeId: string) => boolean;
   onDistanceTriangleCornerClick: (measurementId: string) => void;
 };
 
@@ -66,6 +68,8 @@ type RuntimeEdgeSceneLine = {
 
 type RuntimeEdgeSegment = {
   id: string;
+  startNodeId?: string;
+  endNodeId?: string;
   startCoordinate: RuntimeEdgeRenderModel["coordinates"][number];
   endCoordinate: RuntimeEdgeRenderModel["coordinates"][number];
   stroke: string;
@@ -692,6 +696,8 @@ export const useRuntimeMeasurementEdgesController = ({
   edges,
   formatOptions,
   previewLineLabelVisualOptions,
+  activeMoveGizmoNodeId,
+  onEdgeClick,
   onDistanceTriangleCornerClick,
 }: UseRuntimeMeasurementEdgesControllerArgs) => {
   const sceneLineHandleByIdRef = useRef<Map<string, SceneLineHandle>>(
@@ -719,6 +725,8 @@ export const useRuntimeMeasurementEdgesController = ({
 
           segments.push({
             id: `${edge.id}-${index}`,
+            startNodeId: edge.nodeIds?.[index],
+            endNodeId: edge.nodeIds?.[index + 1],
             startCoordinate,
             endCoordinate,
             stroke: edge.stroke,
@@ -824,6 +832,10 @@ export const useRuntimeMeasurementEdgesController = ({
           strokeWidth: edge.strokeWidth,
           dashed: edge.dashed,
           hitTargetStrokeWidth: 10,
+          onLineClick:
+            activeMoveGizmoNodeId && edge.startNodeId && edge.endNodeId
+              ? () => onEdgeClick(edge.startNodeId!, edge.endNodeId!)
+              : undefined,
         });
 
         if (!edge.distanceTriangleOverlay || !scene || scene.isDestroyed()) {
@@ -858,6 +870,10 @@ export const useRuntimeMeasurementEdgesController = ({
             strokeWidth: edge.strokeWidth,
             dashed: true,
             hitTargetStrokeWidth: 8,
+            onLineClick:
+              activeMoveGizmoNodeId && edge.startNodeId && edge.endNodeId
+                ? () => onEdgeClick(edge.startNodeId!, edge.endNodeId!)
+                : undefined,
           }),
           ...createSvgLineVisualizers({
             id: `runtime-edge-overlay-${edge.id}-horizontal`,
@@ -876,10 +892,14 @@ export const useRuntimeMeasurementEdgesController = ({
             strokeWidth: edge.strokeWidth,
             dashed: true,
             hitTargetStrokeWidth: 8,
+            onLineClick:
+              activeMoveGizmoNodeId && edge.startNodeId && edge.endNodeId
+                ? () => onEdgeClick(edge.startNodeId!, edge.endNodeId!)
+                : undefined,
           }),
         ];
       }),
-    [edgeSegments, formatOptions, scene]
+    [activeMoveGizmoNodeId, edgeSegments, formatOptions, onEdgeClick, scene]
   );
 
   useLineVisualizers([...overlayLines], overlayLines.length > 0);

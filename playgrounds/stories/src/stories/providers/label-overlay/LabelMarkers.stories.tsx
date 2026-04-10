@@ -3,9 +3,9 @@ import {
   LABEL_MARKERS_ARG_TYPES,
   LABEL_MARKERS_DEFAULT_ARGS,
   LABEL_MARKERS_PARAMETERS,
+  LabelStatesAndThemesStory,
   PillboxOnlyStory,
   REPRESENTATIVE_CASES_STORY_ARGS,
-  RepresentativeCasesStory,
 } from "./LabelMarkers.story-helpers";
 
 const meta = {
@@ -20,16 +20,16 @@ const meta = {
 
 export default meta;
 
-export const RepresentativeCases = {
-  name: "Representative Cases",
+export const LabelStatesAndThemes = {
+  name: "States and Themes",
   args: {
     ...REPRESENTATIVE_CASES_STORY_ARGS,
   },
-  render: (args) => <RepresentativeCasesStory {...args} />,
+  render: (args) => <LabelStatesAndThemesStory {...args} />,
 };
 
 export const LabelBackgrounds = {
-  name: "Label Backgrounds",
+  name: "Backgrounds",
   args: {
     storyBackground: "urban",
   },
@@ -37,6 +37,6 @@ export const LabelBackgrounds = {
 };
 
 export const LabelComponent = {
-  name: "Label Component",
+  name: "Component",
   render: (args) => <PillboxOnlyStory {...args} />,
 };

@@ -39,6 +39,8 @@ export type RuntimeAnnotationEntry = {
   edgeIds: readonly string[];
   displayName?: string;
   shortLabel?: string;
+  hidden?: boolean;
+  locked?: boolean;
   labelAppearance?: RuntimeLabelAppearance;
   elevationDisplayMode?: RuntimeElevationDisplayMode;
   distanceAnchorCoordinateSelection?: RuntimePointLabelCoordinateSelection;
@@ -64,6 +66,8 @@ export type RuntimeAddAnnotationOptions = Pick<
   | "bearingDeg"
   | "displayName"
   | "shortLabel"
+  | "hidden"
+  | "locked"
   | "labelAppearance"
   | "elevationDisplayMode"
   | "distanceAnchorCoordinateSelection"
@@ -75,9 +79,6 @@ export type RuntimeMeasurement = RuntimeAnnotationEntry;
 export type AnnotationSelectionStoreState = {
   selectedAnnotationIds: readonly string[];
   previousSelectedAnnotationId: string | null;
-  selectionModeActive: boolean;
-  selectModeAdditive: boolean;
-  selectModeRectangle: boolean;
 };
 
 export type AnnotationInfoBoxStoreState = {
@@ -96,6 +97,7 @@ export type AnnotationDraftStoreState = {
 export type AnnotationSettingsStoreState = {
   pointTemporaryMode: boolean;
   elevationReferenceAnnotationId: string | null;
+  nextShortLabelCounterByToolType: Readonly<Record<string, number>>;
 };
 
 export type AnnotationsStoreState = {

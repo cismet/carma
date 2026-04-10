@@ -92,8 +92,15 @@ const arePointLabelsEqual = (
       label.badgeContent === otherLabel.badgeContent &&
       label.markerBackgroundColor === otherLabel.markerBackgroundColor &&
       label.markerTextColor === otherLabel.markerTextColor &&
+      label.lineColor === otherLabel.lineColor &&
       label.textBackgroundColor === otherLabel.textBackgroundColor &&
       label.textColor === otherLabel.textColor &&
+      label.selectedBackgroundColor === otherLabel.selectedBackgroundColor &&
+      label.selectedTextColor === otherLabel.selectedTextColor &&
+      label.selectedGlowColor === otherLabel.selectedGlowColor &&
+      label.selectedGlowRadiusPx === otherLabel.selectedGlowRadiusPx &&
+      label.preserveFillOnSelection === otherLabel.preserveFillOnSelection &&
+      label.hoverBackgroundColor === otherLabel.hoverBackgroundColor &&
       label.labelStyle === otherLabel.labelStyle &&
       label.hideMarker === otherLabel.hideMarker &&
       label.collapse === otherLabel.collapse &&

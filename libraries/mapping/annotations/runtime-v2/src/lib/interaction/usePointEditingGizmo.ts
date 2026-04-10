@@ -2,8 +2,14 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   cartesian3FromGeographicCoordinate,
   geographicCoordinateFromCartesian3,
+  createPlaneBasis,
+  normalizeDirection,
 } from "@carma-mapping/engines/cesium/core";
-import { useCesiumPointMoveGizmo } from "@carma-mapping/gizmo/cesium";
+import {
+  useCesiumPointMoveGizmo,
+  type CesiumMoveGizmoAxisCandidate,
+} from "@carma-mapping/gizmo/cesium";
+import { Cartesian3 } from "@carma-cesium";
 
 import {
   updateNodeCoordinateById,
@@ -12,6 +18,59 @@ import {
 } from "../store";
 import type { RuntimeScene } from "../types/runtimeScene.types";
 const NODE_GIZMO_RADIUS_METERS = 3;
+const REFERENCE_LINE_AXIS_ID_PARALLEL = "reference-line-parallel";
+const REFERENCE_LINE_AXIS_ID_SECONDARY = "reference-line-secondary";
+const REFERENCE_LINE_AXIS_ID_TERTIARY = "reference-line-tertiary";
+
+const REFERENCE_LINE_AXIS_CANDIDATE_COLORS = {
+  primary: "rgba(59, 130, 246, 0.98)",
+  secondary: "rgba(34, 197, 94, 0.98)",
+  tertiary: "rgba(239, 68, 68, 0.98)",
+} as const;
+
+type MoveGizmoAxisOverride = {
+  axisDirection: Cartesian3;
+  axisTitle: string;
+  preferredAxisId: string;
+  axisCandidates: CesiumMoveGizmoAxisCandidate[];
+};
+
+const createReferenceLineAxisOverride = (
+  lineDirection: Cartesian3
+): MoveGizmoAxisOverride | null => {
+  const normalizedLineDirection = normalizeDirection(lineDirection);
+  if (!normalizedLineDirection) {
+    return null;
+  }
+
+  const planeBasis = createPlaneBasis(normalizedLineDirection);
+
+  return {
+    axisDirection: normalizedLineDirection,
+    axisTitle: "Punkt parallel zur Referenzlinie verschieben",
+    preferredAxisId: REFERENCE_LINE_AXIS_ID_PARALLEL,
+    axisCandidates: [
+      {
+        id: REFERENCE_LINE_AXIS_ID_PARALLEL,
+        direction: normalizedLineDirection,
+        color: REFERENCE_LINE_AXIS_CANDIDATE_COLORS.primary,
+        title: "Punkt parallel zur Referenzlinie verschieben",
+      },
+      {
+        id: REFERENCE_LINE_AXIS_ID_SECONDARY,
+        direction: Cartesian3.clone(planeBasis.xAxis),
+        color: REFERENCE_LINE_AXIS_CANDIDATE_COLORS.secondary,
+        title: "Punkt orthogonal zur Referenzlinie verschieben",
+      },
+      {
+        id: REFERENCE_LINE_AXIS_ID_TERTIARY,
+        direction: Cartesian3.clone(planeBasis.yAxis),
+        color: REFERENCE_LINE_AXIS_CANDIDATE_COLORS.tertiary,
+        title: "Punkt entlang der aktiven Referenzebene verschieben",
+      },
+    ],
+  };
+};
 
 type UsePointEditingGizmoOptions = {
   annotationsStore: AnnotationsStore;
@@ -28,16 +87,95 @@ export const usePointEditingGizmo = (
     onActiveMoveGizmoNodeIdChange,
   }: UsePointEditingGizmoOptions
 ) => {
+  const isNodeLocked = useCallback(
+    (nodeId: string) =>
+      annotationsStore
+        .getState()
+        .annotationEntries.some(
+          (annotationEntry) =>
+            annotationEntry.locked && annotationEntry.nodeIds.includes(nodeId)
+        ),
+    [annotationsStore]
+  );
   const [activeMoveGizmoNodeId, setActiveMoveGizmoNodeId] = useState<
     string | null
   >(null);
+  const [axisOverride, setAxisOverride] = useState<MoveGizmoAxisOverride | null>(
+    null
+  );
 
   const handleNodeLongPress = useCallback(
     (nodeId: string, measurementId: string) => {
+      if (isNodeLocked(nodeId)) {
+        return;
+      }
+
       setSelectedAnnotationId(measurementId);
+      setAxisOverride(null);
       setActiveMoveGizmoNodeId(nodeId);
     },
-    [setSelectedAnnotationId]
+    [isNodeLocked, setSelectedAnnotationId]
+  );
+
+  const nodesById = useMemo(
+    () => new Map(nodes.map((node) => [node.id, node] as const)),
+    [nodes]
+  );
+
+  const handleReferenceNodeClick = useCallback(
+    (referenceNodeId: string) => {
+      if (!activeMoveGizmoNodeId) {
+        return false;
+      }
+
+      const activeNode = nodesById.get(activeMoveGizmoNodeId);
+      const referenceNode = nodesById.get(referenceNodeId);
+      if (!activeNode || !referenceNode) {
+        return false;
+      }
+
+      if (activeNode.id !== referenceNode.id) {
+        annotationsStore.dispatch(
+          updateNodeCoordinateById({
+            nodeId: activeNode.id,
+            coordinate: {
+              ...activeNode.coordinate,
+              altitude: referenceNode.coordinate.altitude,
+            },
+          })
+        );
+      }
+
+      return true;
+    },
+    [activeMoveGizmoNodeId, annotationsStore, nodesById]
+  );
+
+  const handleReferenceEdgeClick = useCallback(
+    (startNodeId: string, endNodeId: string) => {
+      if (!activeMoveGizmoNodeId) {
+        return false;
+      }
+
+      const startNode = nodesById.get(startNodeId);
+      const endNode = nodesById.get(endNodeId);
+      if (!startNode || !endNode) {
+        return false;
+      }
+
+      const startPoint = cartesian3FromGeographicCoordinate(startNode.coordinate);
+      const endPoint = cartesian3FromGeographicCoordinate(endNode.coordinate);
+      const axisOverrideFromLine = createReferenceLineAxisOverride(
+        Cartesian3.subtract(endPoint, startPoint, new Cartesian3())
+      );
+      if (!axisOverrideFromLine) {
+        return false;
+      }
+
+      setAxisOverride(axisOverrideFromLine);
+      return true;
+    },
+    [activeMoveGizmoNodeId, nodesById]
   );
 
   const gizmoPoints = useMemo(
@@ -52,10 +190,18 @@ export const usePointEditingGizmo = (
   useCesiumPointMoveGizmo(scene, {
     points: gizmoPoints,
     movePointId: activeMoveGizmoNodeId,
+    axisDirection: axisOverride?.axisDirection ?? null,
+    axisTitle: axisOverride?.axisTitle ?? null,
+    preferredAxisId: axisOverride?.preferredAxisId ?? null,
+    axisCandidates: axisOverride?.axisCandidates ?? null,
     radius: NODE_GIZMO_RADIUS_METERS,
     showRotationHandle: false,
-    snapPlaneDragToGround: false,
+    snapPlaneDragToGround: true,
     onPointPositionChange: (nodeId, nextPosition) => {
+      if (isNodeLocked(nodeId)) {
+        return;
+      }
+
       annotationsStore.dispatch(
         updateNodeCoordinateById({
           nodeId,
@@ -64,6 +210,7 @@ export const usePointEditingGizmo = (
       );
     },
     onExit: () => {
+      setAxisOverride(null);
       setActiveMoveGizmoNodeId(null);
     },
   });
@@ -72,10 +219,14 @@ export const usePointEditingGizmo = (
     if (!activeMoveGizmoNodeId) {
       return;
     }
-    if (!nodes.some((node) => node.id === activeMoveGizmoNodeId)) {
+    if (
+      !nodes.some((node) => node.id === activeMoveGizmoNodeId) ||
+      isNodeLocked(activeMoveGizmoNodeId)
+    ) {
+      setAxisOverride(null);
       setActiveMoveGizmoNodeId(null);
     }
-  }, [activeMoveGizmoNodeId, nodes]);
+  }, [activeMoveGizmoNodeId, isNodeLocked, nodes]);
 
   useEffect(() => {
     onActiveMoveGizmoNodeIdChange?.(activeMoveGizmoNodeId);
@@ -84,5 +235,7 @@ export const usePointEditingGizmo = (
   return {
     activeMoveGizmoNodeId,
     handleNodeLongPress,
+    handleReferenceNodeClick,
+    handleReferenceEdgeClick,
   } as const;
 };

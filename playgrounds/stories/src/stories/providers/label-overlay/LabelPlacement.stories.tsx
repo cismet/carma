@@ -29,14 +29,14 @@ const meta = {
 export default meta;
 
 export const SingleLine = {
-  name: "Label Placement Single Line",
+  name: "Placement Single Line",
   argTypes: LABEL_PLACEMENT_SINGLE_LINE_ARG_TYPES,
   args: LABEL_PLACEMENT_SINGLE_LINE_ARGS,
   render: (args) => <SingleLineLabelDebugStory args={args} />,
 };
 
 export const PolygonSegment = {
-  name: "Label Placement Polygon Segment",
+  name: "Placement Polygon Segment",
   argTypes: LABEL_PLACEMENT_POLYGON_ARG_TYPES,
   args: LABEL_PLACEMENT_POLYGON_ARGS,
   render: (args) => (
@@ -49,14 +49,14 @@ export const PolygonSegment = {
 };
 
 export const DistanceTriangleOverlay = {
-  name: "Distance Tool Overlay",
+  name: "Tool: Distance",
   argTypes: DISTANCE_TRIANGLE_OVERLAY_ARG_TYPES,
   args: DISTANCE_TRIANGLE_OVERLAY_ARGS,
   render: (args) => <DistanceTriangleOverlayDebugStory {...args} />,
 };
 
 export const LineLabelComponent = {
-  name: "Line Label Component",
+  name: "Line Component",
   argTypes: LINE_LABEL_COMPONENT_ARG_TYPES,
   args: LINE_LABEL_COMPONENT_ARGS,
   render: (args) => <LineLabelComponentStory {...args} />,

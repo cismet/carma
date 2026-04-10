@@ -31,6 +31,7 @@ export const RuntimeAnnotationInfoBoxContainer = ({
     <div data-test-id="annotation-info-box">
       <CarmaResponsiveInfoBox
         width={pixelWidth ?? resolvedVisualOptions.defaultPixelWidth}
+        fitContentWidth={true}
         useControlLayout={useControlLayout}
         controlPosition={controlPosition}
         controlOrder={controlOrder}
@@ -42,16 +43,13 @@ export const RuntimeAnnotationInfoBoxContainer = ({
         footer={slots.footer}
         hideSubtitleWhenCollapsed={true}
         heading={
-          <div className="flex w-full items-center justify-between gap-2 px-1">
+          <div className="flex w-full items-center gap-2 px-1">
             <span
               className={`${resolvedVisualOptions.headerForegroundClassName} ${resolvedVisualOptions.headerTitleClassName}`}
               title={slots.headingTitle}
             >
               {slots.headingTitle}
             </span>
-            {slots.actions ? (
-              <span className="shrink-0">{slots.actions}</span>
-            ) : null}
           </div>
         }
         subtitle={slots.subtitle}

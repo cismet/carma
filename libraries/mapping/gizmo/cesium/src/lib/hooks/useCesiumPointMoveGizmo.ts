@@ -239,6 +239,40 @@ const safeCall = (callback: (() => void) | null | undefined) => {
   }
 };
 
+const setGlobalDragCursor = (
+  restoreRef: { current: (() => void) | null },
+  cursor: string
+) => {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  const htmlElement = document.documentElement;
+  const bodyElement = document.body;
+  if (!htmlElement || !bodyElement) {
+    return;
+  }
+
+  if (!restoreRef.current) {
+    const previousHtmlCursor = htmlElement.style.cursor;
+    const previousBodyCursor = bodyElement.style.cursor;
+    restoreRef.current = () => {
+      htmlElement.style.cursor = previousHtmlCursor;
+      bodyElement.style.cursor = previousBodyCursor;
+      restoreRef.current = null;
+    };
+  }
+
+  htmlElement.style.cursor = cursor;
+  bodyElement.style.cursor = cursor;
+};
+
+const restoreGlobalDragCursor = (restoreRef: {
+  current: (() => void) | null;
+}) => {
+  restoreRef.current?.();
+};
+
 const safeRemovePrimitive = (
   scene: Scene | null,
   primitive: Primitive | null | undefined
@@ -375,6 +409,12 @@ export const useCesiumPointMoveGizmo = (
   const rotationStateRef = useRef<RotationState | null>(null);
   const rotationFrameRef = useRef<RotationFrameState | null>(null);
   const radiusRef = useRef(radius);
+  const restoreGlobalCursorRef = useRef<(() => void) | null>(null);
+  const onPointPositionChangeRef = useRef(onPointPositionChange);
+  const onDragStateChangeRef = useRef(onDragStateChange);
+  const onAxisDirectionChangeRef = useRef(onAxisDirectionChange);
+  const onRotationDeltaRef = useRef(onRotationDelta);
+  const onExitRef = useRef(onExit);
   const axisScreenDirectionRef = useRef<
     Record<string, { x: number; y: number; angleRad: number }>
   >({});
@@ -473,12 +513,16 @@ export const useCesiumPointMoveGizmo = (
         : null,
     [points, movePointId]
   );
+  const movePointKey = movePoint?.id ?? null;
 
   useEffect(() => {
     movePointRef.current = movePoint;
+  }, [movePoint]);
+
+  useEffect(() => {
     axisScreenDirectionRef.current = {};
     axisAnchorDistanceRef.current = {};
-  }, [movePoint]);
+  }, [movePointKey]);
 
   useEffect(() => {
     if (clearInitialSceneClickGuardTimeoutRef.current !== null) {
@@ -506,7 +550,7 @@ export const useCesiumPointMoveGizmo = (
         clearInitialSceneClickGuardTimeoutRef.current = null;
       }
     };
-  }, [movePoint]);
+  }, [movePointKey]);
 
   useEffect(() => {
     axisDirectionRef.current = axisDirection;
@@ -519,6 +563,26 @@ export const useCesiumPointMoveGizmo = (
   useEffect(() => {
     radiusRef.current = radius;
   }, [radius]);
+
+  useEffect(() => {
+    onPointPositionChangeRef.current = onPointPositionChange;
+  }, [onPointPositionChange]);
+
+  useEffect(() => {
+    onDragStateChangeRef.current = onDragStateChange;
+  }, [onDragStateChange]);
+
+  useEffect(() => {
+    onAxisDirectionChangeRef.current = onAxisDirectionChange;
+  }, [onAxisDirectionChange]);
+
+  useEffect(() => {
+    onRotationDeltaRef.current = onRotationDelta;
+  }, [onRotationDelta]);
+
+  useEffect(() => {
+    onExitRef.current = onExit;
+  }, [onExit]);
 
   useEffect(() => {
     axisCandidatesRef.current = axisCandidates;
@@ -582,7 +646,7 @@ export const useCesiumPointMoveGizmo = (
     }
 
     activeAxisIdRef.current = candidates[0].id;
-  }, [axisCandidates, axisDirection, axisTitle, movePoint, preferredAxisId]);
+  }, [axisCandidates, axisDirection, axisTitle, movePointKey, preferredAxisId]);
 
   const getAxisCandidatesAtPosition = useCallback(
     (origin: Cartesian3): CesiumMoveGizmoAxisCandidate[] => {
@@ -722,16 +786,18 @@ export const useCesiumPointMoveGizmo = (
         axisAnchorDistanceRef.current = {};
       }
 
+      restoreGlobalDragCursor(restoreGlobalCursorRef);
+
       if (isDraggingRef.current) {
         isDraggingRef.current = false;
-        onDragStateChange?.(false);
+        onDragStateChangeRef.current?.(false);
       }
 
       if (exitMoveMode) {
-        onExit?.();
+        onExitRef.current?.();
       }
     },
-    [onDragStateChange, onExit]
+    []
   );
 
   const startDragging = useCallback(
@@ -744,7 +810,7 @@ export const useCesiumPointMoveGizmo = (
         !scene ||
         scene.isDestroyed() ||
         !movePointRef.current ||
-        !onPointPositionChange
+        !onPointPositionChangeRef.current
       ) {
         return;
       }
@@ -771,7 +837,10 @@ export const useCesiumPointMoveGizmo = (
           scene.camera.position
         );
       }
-      onAxisDirectionChange?.(axisDirection, activeAxisCandidate.title);
+      onAxisDirectionChangeRef.current?.(
+        axisDirection,
+        activeAxisCandidate.title
+      );
       const startAxisParam = getAxisParamFromClientPosition(
         scene,
         clientX,
@@ -814,7 +883,7 @@ export const useCesiumPointMoveGizmo = (
           new Cartesian3()
         );
 
-        onPointPositionChange(dragState.pointId, nextPosition);
+        onPointPositionChangeRef.current?.(dragState.pointId, nextPosition);
         scene.requestRender();
       };
 
@@ -854,14 +923,12 @@ export const useCesiumPointMoveGizmo = (
       };
 
       isDraggingRef.current = true;
-      onDragStateChange?.(true);
+      setGlobalDragCursor(restoreGlobalCursorRef, "grabbing");
+      onDragStateChangeRef.current?.(true);
       scene.requestRender();
     },
     [
       getActiveAxisAtPosition,
-      onAxisDirectionChange,
-      onDragStateChange,
-      onPointPositionChange,
       scene,
       stopDragging,
       getAxisCandidatesAtPosition,
@@ -956,7 +1023,7 @@ export const useCesiumPointMoveGizmo = (
           angleRad: nextAngle,
         };
 
-        onRotationDelta?.({
+        onRotationDeltaRef.current?.({
           pointId: dragStateRef.current.pointId,
           axisOrigin: Cartesian3.clone(dragStateRef.current.axisOrigin),
           rotationNormal: Cartesian3.clone(dragStateRef.current.rotationNormal),
@@ -1008,14 +1075,13 @@ export const useCesiumPointMoveGizmo = (
       };
 
       isDraggingRef.current = true;
-      onDragStateChange?.(true);
+      setGlobalDragCursor(restoreGlobalCursorRef, "grabbing");
+      onDragStateChangeRef.current?.(true);
       scene.requestRender();
     },
     [
       getActiveAxisAtPosition,
       getAxisCandidatesAtPosition,
-      onDragStateChange,
-      onRotationDelta,
       scene,
       stopDragging,
     ]
@@ -1031,7 +1097,7 @@ export const useCesiumPointMoveGizmo = (
         !scene ||
         scene.isDestroyed() ||
         !movePointRef.current ||
-        !onPointPositionChange
+        !onPointPositionChangeRef.current
       ) {
         return;
       }
@@ -1081,7 +1147,12 @@ export const useCesiumPointMoveGizmo = (
           planeNormal
         );
       }
-      if (!startPlanePoint) return;
+      if (!startPlanePoint) {
+        if (!shouldSnapToGround) {
+          return;
+        }
+        startPlanePoint = Cartesian3.clone(planeOrigin);
+      }
 
       const onWindowMouseMove = (mouseMoveEvent: MouseEvent) => {
         const dragState = dragStateRef.current;
@@ -1092,10 +1163,14 @@ export const useCesiumPointMoveGizmo = (
             mouseMoveEvent.clientX,
             mouseMoveEvent.clientY
           );
-          if (!nextGroundPoint) return;
-          onPointPositionChange(dragState.pointId, nextGroundPoint);
-          scene.requestRender();
-          return;
+          if (nextGroundPoint) {
+            onPointPositionChangeRef.current?.(
+              dragState.pointId,
+              nextGroundPoint
+            );
+            scene.requestRender();
+            return;
+          }
         }
 
         const nextPlanePoint = getPlanePointFromClientPosition(
@@ -1133,7 +1208,7 @@ export const useCesiumPointMoveGizmo = (
           new Cartesian3()
         );
 
-        onPointPositionChange(dragState.pointId, nextPosition);
+        onPointPositionChangeRef.current?.(dragState.pointId, nextPosition);
         scene.requestRender();
       };
 
@@ -1175,14 +1250,13 @@ export const useCesiumPointMoveGizmo = (
       };
 
       isDraggingRef.current = true;
-      onDragStateChange?.(true);
+      setGlobalDragCursor(restoreGlobalCursorRef, "grabbing");
+      onDragStateChangeRef.current?.(true);
       scene.requestRender();
     },
     [
       getActiveAxisAtPosition,
       getAxisCandidatesAtPosition,
-      onDragStateChange,
-      onPointPositionChange,
       getGroundPointWithoutGizmoVisuals,
       scene,
       stopDragging,
@@ -1790,6 +1864,11 @@ export const useCesiumPointMoveGizmo = (
               discInteractionPath.style.display = "none";
               discInteractionPath.setAttribute("d", "");
             }
+            discInteractionPath.style.cursor =
+              isDraggingRef.current &&
+              dragStateRef.current?.mode === "plane-translate"
+                ? "grabbing"
+                : PLANE_DRAG_DISC_CURSOR;
           }
 
           if (rotationHandle) {
@@ -1927,6 +2006,10 @@ export const useCesiumPointMoveGizmo = (
                 "transform",
                 `rotate(${ellipseRotationDeg} ${handleX} ${handleY})`
               );
+              rotationHandle.style.cursor =
+                isDraggingRef.current && dragStateRef.current?.mode === "rotate"
+                  ? "grabbing"
+                  : "grab";
               rotationHandle.style.display = "block";
             } else {
               rotationHandle.style.display = "none";
@@ -2128,6 +2211,9 @@ export const useCesiumPointMoveGizmo = (
                 axisAngleRad + Math.PI / 2
               }rad)`;
               axisArrowUp.style.opacity = `${axisOpacity}`;
+              axisArrowUp.style.cursor = isDraggingRef.current
+                ? "grabbing"
+                : "move";
               updateTrianglePathAppearance(
                 axisArrowUp.querySelector("path") as SVGPathElement | null,
                 arrowEdgePx
@@ -2155,12 +2241,26 @@ export const useCesiumPointMoveGizmo = (
                 axisAngleRad + Math.PI / 2 + Math.PI
               }rad)`;
               axisArrowDown.style.opacity = `${axisOpacity}`;
+              axisArrowDown.style.cursor = isDraggingRef.current
+                ? "grabbing"
+                : "move";
               updateTrianglePathAppearance(
                 axisArrowDown.querySelector("path") as SVGPathElement | null,
                 arrowEdgePx
               );
             }
           });
+
+          const centerHit = elementDiv.querySelector(
+            '[data-point-move-axis-center-hit="true"]'
+          ) as HTMLElement | null;
+          if (centerHit) {
+            centerHit.style.cursor =
+              isDraggingRef.current &&
+              dragStateRef.current?.mode === "plane-translate"
+                ? "grabbing"
+                : centerPlaneDragCursor;
+          }
 
           return true;
         } catch {
@@ -2201,14 +2301,14 @@ export const useCesiumPointMoveGizmo = (
         return;
       }
       if (isDraggingRef.current) return;
-      onExit?.();
+      onExitRef.current?.();
     }, ScreenSpaceEventType.LEFT_CLICK);
 
     const handleKeyDown = (keyboardEvent: KeyboardEvent) => {
       if (keyboardEvent.key !== "Escape") return;
       keyboardEvent.preventDefault();
       stopDragging(false);
-      onExit?.();
+      onExitRef.current?.();
     };
     window.addEventListener("keydown", handleKeyDown);
 
@@ -2216,7 +2316,7 @@ export const useCesiumPointMoveGizmo = (
       sceneHandler.destroy();
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [movePoint?.id, onExit, scene, stopDragging]);
+  }, [movePoint?.id, scene, stopDragging]);
 
   useEffect(() => {
     if (movePoint) return;
@@ -2231,6 +2331,7 @@ export const useCesiumPointMoveGizmo = (
         clearInitialSceneClickGuardTimeoutRef.current = null;
       }
       stopDragging(false);
+      restoreGlobalDragCursor(restoreGlobalCursorRef);
       removeLabelOverlayElement(OVERLAY_HANDLE_ID);
       if (axisVisualizerRef.current) {
         safeDestroy(axisVisualizerRef.current);

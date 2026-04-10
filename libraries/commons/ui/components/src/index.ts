@@ -7,6 +7,10 @@ export {
   type CarmaCardProps,
 } from "./lib/components/CarmaCard";
 export {
+  CARMA_CARD_BORDER_RADIUS_CSS,
+  CARMA_CARD_BORDER_RADIUS_PX,
+} from "./lib/components/carmaCard.constants";
+export {
   EditableMetricValue,
   type EditableMetricValueProps,
 } from "./lib/components/EditableMetricValue";

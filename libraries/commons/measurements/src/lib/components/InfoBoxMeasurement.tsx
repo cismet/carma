@@ -35,7 +35,7 @@ export function InfoBoxMeasurement({
 
   const { editableTitle, infoBoxHeaderColor } = config;
 
-  const [currentMeasure, setCurrentMeasure] = useState(0);
+  const [currentMeasure, setCurrentMeasure] = useState(-1);
   const [oldDataLength, setOldDataLength] = useState(measurementsData.length);
   const [stepAfterMoveToShape, setStepAfterMoveToShape] = useState<
     number | string | null
@@ -94,18 +94,12 @@ export function InfoBoxMeasurement({
 
   // Handle activeShape changes - keep currentMeasure in sync
   useEffect(() => {
-    if (activeShape) {
-      const positionInArr = activeShapeHandler(activeShape);
-      if (positionInArr !== null) {
-        setCurrentMeasure(positionInArr);
-      }
-    }
+    const positionInArr = activeShapeHandler(activeShape ?? null);
+    setCurrentMeasure(positionInArr ?? -1);
   }, [activeShape, visibleShapesData]);
 
   useEffect(() => {
-    const positionInArr = activeShapeHandler(activeShape ?? null);
-
-    let checkIfActiveShapeIsVisible = visibleShapesData.some(
+    const checkIfActiveShapeIsVisible = visibleShapesData.some(
       (m) => m.shapeId === activeShape
     );
 
@@ -198,23 +192,13 @@ export function InfoBoxMeasurement({
   };
 
   const setLastMeasureActive = () => {
-    // Set activeShape (source of truth) to the last visible shape
-    if (activeShape === 5555) {
+    if (activeShape === 5555 || activeShape === null) {
+      setCurrentMeasure(-1);
       return;
     }
 
-    const isActiveShapeVisible = visibleShapesData.some(
-      (m) => m.shapeId === activeShape
-    );
-
-    const lastIndex = visibleShapesData.length - 1;
-    if (
-      lastIndex >= 0 &&
-      visibleShapesData[lastIndex] &&
-      !isActiveShapeVisible
-    ) {
-      setActiveShape(visibleShapesData[lastIndex].shapeId);
-    }
+    const positionInArr = activeShapeHandler(activeShape);
+    setCurrentMeasure(positionInArr ?? -1);
   };
 
   const updateTitleMeasurementById = (

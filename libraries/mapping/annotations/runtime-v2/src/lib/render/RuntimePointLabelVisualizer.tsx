@@ -36,7 +36,6 @@ import {
 
 const NODE_LABEL_LAYOUT_CONFIG = resolvePointLabelLayoutConfig(undefined);
 const DEFAULT_LABEL_MARKER_PIXEL_SIZE = 10;
-const NOOP_OVERLAY_CLICK_HANDLER = () => undefined;
 
 const EMPTY_LAYOUT_RESULT: PointLabelLayoutResult = {
   placements: {},
@@ -61,7 +60,7 @@ type RuntimePointLabelOverlayState = RuntimeOverlayVisibilityState & {
 type RuntimePointLabelOverlayDomRefs = {
   stem: HTMLDivElement;
   stemLine: HTMLDivElement;
-  labelRoot: HTMLDivElement;
+  labelRoot: HTMLElement;
   pillBadge: HTMLSpanElement | null;
   pillContent: HTMLSpanElement | null;
   pointLabelRoot: HTMLDivElement;
@@ -100,8 +99,15 @@ const getPointLabelContentKey = (
     `${label.textColor ?? ""}`,
     `${label.markerBackgroundColor ?? ""}`,
     `${label.markerTextColor ?? ""}`,
+    `${label.lineColor ?? ""}`,
     `${label.labelStyle ?? ""}`,
     `${label.collapse ?? false}`,
+    `${label.selectedBackgroundColor ?? ""}`,
+    `${label.selectedTextColor ?? ""}`,
+    `${label.selectedGlowColor ?? ""}`,
+    `${label.selectedGlowRadiusPx ?? ""}`,
+    `${label.preserveFillOnSelection ?? false}`,
+    `${label.hoverBackgroundColor ?? ""}`,
     `${label.fontSize ?? ""}`,
     `${label.fontFamily ?? ""}`,
     `${label.fontWeight ?? ""}`,
@@ -110,7 +116,11 @@ const getPointLabelContentKey = (
     String(label.content),
     String(effectiveBadgeContent ?? ""),
     `${blockLabelInteractions}`,
+    `${Boolean(label.onClick)}`,
     `${Boolean(label.onDoubleClick)}`,
+    `${Boolean(label.allowClickWhenBlocked)}`,
+    `${Boolean(label.markerOnlyPointerEvents)}`,
+    `${Boolean(label.allowLongPressWhenBlocked)}`,
   ].join(":");
 
 const getAttachTransform = (attach: PointLabelAttach): string => {
@@ -401,9 +411,9 @@ export const useRuntimePointLabelVisualizer = ({
 
       nextStatesById.set(label.id, {
         ...(baseState ?? createEmptyLabelOverlayState()),
-        hiddenByLayout:
-          Boolean(label.hideLabelAndStem) ||
-          layoutResult.hiddenByLayout.has(label.id),
+        hiddenByLayout: label.hideLabelAndStem
+          ? false
+          : layoutResult.hiddenByLayout.has(label.id),
         angleRad: placement?.angleRad ?? 0,
         distance: placement?.distance ?? NODE_LABEL_LAYOUT_CONFIG.stemDistance,
         attach: placement?.attach ?? "center",
@@ -448,7 +458,12 @@ export const useRuntimePointLabelVisualizer = ({
   );
 
   const normalizedLabels = useMemo(
-    () => labels.filter((label) => !label.hideLabelAndStem),
+    () =>
+      labels.filter(
+        (label) =>
+          !label.hideLabelAndStem ||
+          label.allowClickWhenBlocked === true
+      ),
     [labels]
   );
 
@@ -473,7 +488,7 @@ export const useRuntimePointLabelVisualizer = ({
       ) as HTMLDivElement | null;
       const labelRoot = elementDiv.querySelector(
         '[data-pillbutton-root="true"], [data-point-label-content-root="true"]'
-      ) as HTMLDivElement | null;
+      ) as HTMLElement | null;
       const pillBadge = elementDiv.querySelector(
         '[data-pillbutton-badge="true"]'
       ) as HTMLSpanElement | null;
@@ -508,8 +523,8 @@ export const useRuntimePointLabelVisualizer = ({
     const nextSignatureById = new Map<string, string>();
 
     normalizedLabels.forEach((label) => {
-      const interactive =
-        !blockLabelInteractions && Boolean(label.onClick || label.onLongPress);
+      const clickBlocked =
+        blockLabelInteractions && label.allowClickWhenBlocked !== true;
       const overlayId = getPointLabelOverlayId(label.id);
       const effectiveBadgeContent = getEffectiveBadgeContent(label);
       const nextSignature = getPointLabelContentKey(
@@ -521,8 +536,6 @@ export const useRuntimePointLabelVisualizer = ({
 
       const overlayElementUpdate: Partial<LabelOverlayElement> = {
         zIndex: stateCacheRef.current.statesById.get(label.id)?.zIndex ?? 0,
-        onClick: interactive ? NOOP_OVERLAY_CLICK_HANDLER : undefined,
-        cursor: interactive ? "pointer" : undefined,
         updatePosition: (elementDiv: HTMLElement) => {
           const overlayState = resolveLabelOverlayState(label.id);
           if (
@@ -537,6 +550,21 @@ export const useRuntimePointLabelVisualizer = ({
           elementDiv.style.top = `${overlayState.screenPosition.y}px`;
           elementDiv.style.transform = "none";
           elementDiv.style.zIndex = `${overlayState.zIndex}`;
+
+          if (label.hideLabelAndStem) {
+            const pointLabelRoot = elementDiv.querySelector(
+              '[data-point-label-root="true"]'
+            ) as HTMLDivElement | null;
+
+            if (!pointLabelRoot) {
+              return false;
+            }
+
+            pointLabelRoot.style.opacity = overlayState.isOccluded
+              ? "0.75"
+              : "1";
+            return true;
+          }
 
           const domRefs = resolveOverlayDomRefs(label.id, elementDiv);
           if (!domRefs) {
@@ -616,7 +644,7 @@ export const useRuntimePointLabelVisualizer = ({
           stemLine.style.width = `${lineLength}px`;
           stemLine.style.borderBottom = `1px ${
             overlayState.isOccluded ? "dashed" : "solid"
-          } rgba(255, 255, 255, 1)`;
+          } ${label.lineColor ?? "rgba(255, 255, 255, 1)"}`;
 
           labelRoot.style.left = `${pillAnchorPoint.x}px`;
           labelRoot.style.top = `${pillAnchorPoint.y}px`;
@@ -643,39 +671,53 @@ export const useRuntimePointLabelVisualizer = ({
         id: overlayId,
         contentKey: nextSignature,
         content: (
-          <PointLabel
-            pointId={label.id}
-            content={label.content}
-            selected={label.selected}
-            hideLabelAndStem={label.hideLabelAndStem}
-            hideMarker={label.hideMarker ?? false}
-            markerSize={
-              label.markerPixelSize ?? DEFAULT_LABEL_MARKER_PIXEL_SIZE
-            }
-            stemStartDistance={
-              label.hideMarker
-                ? 0
-                : (label.markerPixelSize ?? DEFAULT_LABEL_MARKER_PIXEL_SIZE) / 2
-            }
-            badgeContent={effectiveBadgeContent}
-            markerBackgroundColor={label.markerBackgroundColor}
-            markerTextColor={label.markerTextColor}
-            labelStyle={label.labelStyle}
-            collapse={label.collapse}
-            textBackgroundColor={label.textBackgroundColor}
-            textColor={label.textColor}
-            fontSize={label.fontSize}
-            fontFamily={label.fontFamily}
-            fontWeight={label.fontWeight}
-            onClick={blockLabelInteractions ? undefined : label.onClick}
-            onDoubleClick={
-              blockLabelInteractions ? undefined : label.onDoubleClick
-            }
-            onLongPress={blockLabelInteractions ? undefined : label.onLongPress}
-            longPressDurationMs={label.longPressDurationMs}
-            longPressOnlyOnMarker={Boolean(label.onLongPress)}
-            renderHiddenMarkerInteractionTarget={Boolean(label.onLongPress)}
-          />
+            <PointLabel
+              pointId={label.id}
+              content={label.content}
+              selected={label.selected}
+              hideLabelAndStem={label.hideLabelAndStem}
+              hideMarker={label.hideMarker ?? false}
+              markerSize={
+                label.markerPixelSize ?? DEFAULT_LABEL_MARKER_PIXEL_SIZE
+              }
+              stemStartDistance={
+                label.hideMarker
+                  ? 0
+                  : (label.markerPixelSize ?? DEFAULT_LABEL_MARKER_PIXEL_SIZE) / 2
+              }
+              badgeContent={effectiveBadgeContent}
+              markerBackgroundColor={label.markerBackgroundColor}
+              markerTextColor={label.markerTextColor}
+              lineColor={label.lineColor}
+              labelStyle={label.labelStyle}
+              collapse={label.collapse}
+              textBackgroundColor={label.textBackgroundColor}
+              textColor={label.textColor}
+              selectedBackgroundColor={label.selectedBackgroundColor}
+              selectedTextColor={label.selectedTextColor}
+              selectedGlowColor={label.selectedGlowColor}
+              selectedGlowRadiusPx={label.selectedGlowRadiusPx}
+              preserveFillOnSelection={label.preserveFillOnSelection}
+              hoverBackgroundColor={label.hoverBackgroundColor}
+              fontSize={label.fontSize}
+              fontFamily={label.fontFamily}
+              fontWeight={label.fontWeight}
+              onClick={clickBlocked ? undefined : label.onClick}
+              onDoubleClick={
+                blockLabelInteractions ? undefined : label.onDoubleClick
+              }
+              onLongPress={
+                blockLabelInteractions && !label.allowLongPressWhenBlocked
+                  ? undefined
+                  : label.onLongPress
+              }
+              markerOnlyPointerEvents={label.markerOnlyPointerEvents}
+              longPressDurationMs={label.longPressDurationMs}
+              longPressOnlyOnMarker={
+                Boolean(label.onLongPress) && Boolean(label.hideLabelAndStem)
+              }
+              renderHiddenMarkerInteractionTarget={Boolean(label.onLongPress)}
+            />
         ),
         ...overlayElementUpdate,
       });

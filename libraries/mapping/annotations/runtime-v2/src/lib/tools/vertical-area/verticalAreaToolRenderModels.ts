@@ -92,9 +92,12 @@ export const buildVerticalAreaToolRenderModels = (
   const verticalAreaMeasurements = measurements.filter(
     (measurement) => measurement.toolType === toolType
   );
+  const visibleVerticalAreaMeasurements = verticalAreaMeasurements.filter(
+    (measurement) => !measurement.hidden
+  );
   const selectedMeasurementIdSet = new Set(selectedMeasurementIds);
 
-  const committedEdges = verticalAreaMeasurements.flatMap((measurement) => {
+  const committedEdges = visibleVerticalAreaMeasurements.flatMap((measurement) => {
     const coordinates = resolveMeasurementCoordinates(
       measurement,
       nodeCoordinatesById
@@ -107,6 +110,8 @@ export const buildVerticalAreaToolRenderModels = (
     return [
       {
         id: measurement.id,
+        measurementId: measurement.id,
+        nodeIds: measurement.nodeIds,
         coordinates: measurement.closed
           ? [...coordinates, coordinates[0]!]
           : coordinates,
@@ -117,7 +122,7 @@ export const buildVerticalAreaToolRenderModels = (
     ];
   });
 
-  const committedPolygonFills = verticalAreaMeasurements.flatMap(
+  const committedPolygonFills = visibleVerticalAreaMeasurements.flatMap(
     (measurement) => {
       const coordinates = resolveMeasurementCoordinates(
         measurement,
@@ -141,7 +146,7 @@ export const buildVerticalAreaToolRenderModels = (
     }
   );
 
-  const committedPoints = verticalAreaMeasurements.flatMap((measurement) =>
+  const committedPoints = visibleVerticalAreaMeasurements.flatMap((measurement) =>
     measurement.nodeIds.flatMap((nodeId, index) => {
       const coordinate = nodeCoordinatesById.get(nodeId);
       if (!coordinate) {
@@ -151,6 +156,8 @@ export const buildVerticalAreaToolRenderModels = (
       return [
         {
           id: `${measurement.id}-node-${index}`,
+          measurementId: measurement.id,
+          nodeId,
           coordinate,
           ...(selectedMeasurementIdSet.has(measurement.id)
             ? visuals.selectedPoint
@@ -160,7 +167,7 @@ export const buildVerticalAreaToolRenderModels = (
     })
   );
 
-  const committedNodeLabels = verticalAreaMeasurements.flatMap(
+  const committedNodeLabels = visibleVerticalAreaMeasurements.flatMap(
     (measurement, measurementIndex) => {
       const badgeText =
         measurement.shortLabel?.trim() ||
@@ -192,7 +199,7 @@ export const buildVerticalAreaToolRenderModels = (
             onClick: onMeasurementSelect
               ? () => onMeasurementSelect(measurement.id)
               : undefined,
-            onLongPress: onNodeLongPress
+            onLongPress: onNodeLongPress && !measurement.locked
               ? () => onNodeLongPress(nodeId, measurement.id)
               : undefined,
           },
@@ -201,7 +208,7 @@ export const buildVerticalAreaToolRenderModels = (
     }
   );
 
-  const committedAreaLabels = verticalAreaMeasurements.flatMap(
+  const committedAreaLabels = visibleVerticalAreaMeasurements.flatMap(
     (measurement) => {
       const coordinates = resolveMeasurementCoordinates(
         measurement,

@@ -1447,7 +1447,7 @@ export const SingleLineLabelDebugStory = ({
 
   return (
     <CenteredStoryFrame
-      label="label placement single line"
+      label="placement single line"
       values={statusValues}
     >
       <div ref={rootRef} style={plotFrameStyle}>
@@ -1474,7 +1474,7 @@ export const PolygonSegmentLabelDebugStory = ({
 
   return (
     <CenteredStoryFrame
-      label="label placement polygon segment"
+      label="placement polygon segment"
       values={statusValues}
     >
       <div ref={rootRef} style={plotFrameStyle}>
@@ -1557,7 +1557,7 @@ export const LineLabelComponentStory = ({
   showBackdrop = true,
 }: LineLabelComponentStoryArgs) => (
   <CenteredStoryFrame
-    label="line label component"
+    label="line component"
     values={[
       "runtime-v2 line label shell",
       `bg ${backgroundMode}`,

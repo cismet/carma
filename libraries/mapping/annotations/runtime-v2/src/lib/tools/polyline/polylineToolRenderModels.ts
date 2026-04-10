@@ -47,9 +47,12 @@ export const buildPolylineToolRenderModels = ({
   const committedPolylines = measurements.filter(
     (measurement) => measurement.toolType === toolType
   );
+  const visiblePolylines = committedPolylines.filter(
+    (measurement) => !measurement.hidden
+  );
   const selectedMeasurementIdSet = new Set(selectedMeasurementIds);
 
-  const committedEdges = committedPolylines.flatMap((measurement) => {
+  const committedEdges = visiblePolylines.flatMap((measurement) => {
     const coordinates = resolveMeasurementCoordinates(
       measurement,
       nodeCoordinatesById
@@ -62,6 +65,8 @@ export const buildPolylineToolRenderModels = ({
     return [
       {
         id: measurement.id,
+        measurementId: measurement.id,
+        nodeIds: measurement.nodeIds,
         coordinates,
         ...(selectedMeasurementIdSet.has(measurement.id)
           ? visuals.selectedEdge
@@ -70,7 +75,7 @@ export const buildPolylineToolRenderModels = ({
     ];
   });
 
-  const committedPoints = committedPolylines.flatMap((measurement) =>
+  const committedPoints = visiblePolylines.flatMap((measurement) =>
     measurement.nodeIds.flatMap((nodeId, index) => {
       const coordinate = nodeCoordinatesById.get(nodeId);
       if (!coordinate) {
@@ -80,6 +85,8 @@ export const buildPolylineToolRenderModels = ({
       return [
         {
           id: `${measurement.id}-node-${index}`,
+          measurementId: measurement.id,
+          nodeId,
           coordinate,
           ...(selectedMeasurementIdSet.has(measurement.id)
             ? visuals.selectedPoint
@@ -89,7 +96,7 @@ export const buildPolylineToolRenderModels = ({
     })
   );
 
-  const committedPointLabels = committedPolylines.flatMap(
+  const committedPointLabels = visiblePolylines.flatMap(
     (measurement, measurementIndex) => {
       const badgeText =
         measurement.shortLabel?.trim() ||
@@ -121,7 +128,7 @@ export const buildPolylineToolRenderModels = ({
             onClick: onMeasurementSelect
               ? () => onMeasurementSelect(measurement.id)
               : undefined,
-            onLongPress: onNodeLongPress
+            onLongPress: onNodeLongPress && !measurement.locked
               ? () => onNodeLongPress(nodeId, measurement.id)
               : undefined,
           },

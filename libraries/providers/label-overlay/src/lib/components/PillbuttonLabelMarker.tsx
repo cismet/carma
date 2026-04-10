@@ -79,12 +79,12 @@ export interface PillbuttonLabelMarkerProps {
   badgeContent?: React.ReactNode;
   badgePosition?: PillbuttonBadgePosition;
   content?: React.ReactNode;
-  onClick: (event: MouseEvent<HTMLDivElement>) => void;
-  onDoubleClick: (event: MouseEvent<HTMLDivElement>) => void;
-  onMouseDown: (event: MouseEvent<HTMLDivElement>) => void;
+  onClick: (event: MouseEvent<HTMLElement>) => void;
+  onDoubleClick: (event: MouseEvent<HTMLElement>) => void;
+  onMouseDown: (event: MouseEvent<HTMLElement>) => void;
   onMouseUp: () => void;
-  onMouseEnter: (event: MouseEvent<HTMLDivElement>) => void;
-  onMouseLeave: (event: MouseEvent<HTMLDivElement>) => void;
+  onMouseEnter: (event: MouseEvent<HTMLElement>) => void;
+  onMouseLeave: (event: MouseEvent<HTMLElement>) => void;
 }
 
 export const PillbuttonLabelMarker = ({
@@ -141,6 +141,17 @@ export const PillbuttonLabelMarker = ({
     "--carma-annotation-overlay-line-label-font-weight":
       String(resolvedFontWeight),
   } as CSSProperties;
+  const sharedTypographyStyles: CSSProperties = {
+    ...typographyVariableStyles,
+    fontSize: resolvedFontSize,
+    fontFamily: resolvedFontFamily,
+    fontWeight: resolvedFontWeight,
+    fontVariantNumeric: "tabular-nums lining-nums",
+    fontFeatureSettings: '"tnum" 1, "lnum" 1',
+    lineHeight: 1,
+    verticalAlign: "baseline",
+    overflow: "visible",
+  };
   const badgeOuterBorderOverlap =
     hasContent && borderWidthPx > 0 ? `${-borderWidthPx}px` : undefined;
 
@@ -202,12 +213,46 @@ export const PillbuttonLabelMarker = ({
     color: containerStyle.color,
     border: "none",
   };
-  const rootBadgeOnlyStyles: CSSProperties = {
-    border: "none",
-    backgroundColor: "transparent",
-    backdropFilter: "none",
-    WebkitBackdropFilter: "none",
-  };
+
+  if (isBadgeOnly) {
+    const badgeSlot =
+      resolvedBadgePosition === PILLBUTTON_BADGE_POSITIONS.LEFT
+        ? "start"
+        : "end";
+
+    return (
+      <span
+        className={DEFAULT_ANNOTATION_TYPOGRAPHY_CLASSNAME}
+        data-point-label-interactive="true"
+        data-point-label-id={pointId}
+        data-pillbutton-root="true"
+        data-pillbutton-badge="true"
+        data-pillbutton-badge-slot={badgeSlot}
+        style={{
+          ...containerStyle,
+          ...sharedSegmentStyles,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minWidth: `${PILLBUTTON_LABEL_HEIGHT_EM}em`,
+          padding: `0 ${PILLBUTTON_BADGE_HORIZONTAL_PADDING_EM}em`,
+          border: borderStyle,
+          backgroundColor: containerStyle.backgroundColor,
+          color: containerStyle.color,
+          ...sharedTypographyStyles,
+          ...badgeStyle,
+        }}
+        onClick={onClick}
+        onDoubleClick={onDoubleClick}
+        onMouseDown={onMouseDown}
+        onMouseUp={onMouseUp}
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
+      >
+        {badgeContent}
+      </span>
+    );
+  }
 
   return (
     <div
@@ -216,19 +261,9 @@ export const PillbuttonLabelMarker = ({
       data-pillbutton-root="true"
       style={{
         ...containerStyle,
-        ...(hasContent || !hasBadgeContent ? rootLabelShellStyles : {}),
-        ...(isBadgeOnly ? rootBadgeOnlyStyles : {}),
-        ...typographyVariableStyles,
+        ...rootLabelShellStyles,
+        ...sharedTypographyStyles,
         padding: 0,
-        display: "inline-flex",
-        fontSize: resolvedFontSize,
-        fontFamily: resolvedFontFamily,
-        fontWeight: resolvedFontWeight,
-        fontVariantNumeric: "tabular-nums lining-nums",
-        fontFeatureSettings: '"tnum" 1, "lnum" 1',
-        lineHeight: 1,
-        verticalAlign: "baseline",
-        overflow: "visible",
       }}
       onClick={onClick}
       onDoubleClick={onDoubleClick}

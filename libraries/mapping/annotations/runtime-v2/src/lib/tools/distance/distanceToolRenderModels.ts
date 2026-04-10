@@ -19,6 +19,7 @@ import {
   buildRuntimeNodeCoordinateMap,
   resolveMeasurementCoordinates,
 } from "../../render/resolveMeasurementCoordinates";
+import type { AnnotationMeasurementLabelTheme } from "../../config/annotationMeasurementLabelThemes";
 import type { DistanceToolVisualSettings } from "./distanceToolSettings";
 
 const resolveDistanceBadgePreferredAttach = (
@@ -34,13 +35,31 @@ const resolveDistanceBadgeLabelCoordinateSelection = (
 ): RuntimePointLabelRenderModel["coordinateSelection"] =>
   resolveOppositePointLabelCoordinateSelection(anchorCoordinateSelection);
 
+const resolveDistanceBadgeNodeId = ({
+  coordinateCandidates,
+  coordinateSelection,
+}: {
+  coordinateCandidates: readonly RuntimePointLabelCoordinateCandidate[];
+  coordinateSelection: RuntimePointLabelRenderModel["coordinateSelection"];
+}): string | undefined => {
+  if (coordinateCandidates.length === 0) {
+    return undefined;
+  }
+
+  if (
+    coordinateSelection ===
+    RUNTIME_POINT_LABEL_COORDINATE_SELECTION.LEFTMOST_SCREEN_SPACE
+  ) {
+    return coordinateCandidates[0]?.nodeId;
+  }
+
+  return coordinateCandidates[coordinateCandidates.length - 1]?.nodeId;
+};
+
 type BuildDistanceToolRenderModelsArgs = {
   toolType: RuntimeMeasurement["toolType"];
   visuals: DistanceToolVisualSettings;
-  badgeStyle: {
-    backgroundColor: string;
-    textColor: string;
-  };
+  labelTheme: AnnotationMeasurementLabelTheme;
   getMeasurementLabel: (measurementIndex: number) => string;
   nodes: readonly RuntimeNode[];
   measurements: readonly RuntimeMeasurement[];
@@ -52,12 +71,13 @@ type BuildDistanceToolRenderModelsArgs = {
 export const buildDistanceToolRenderModels = ({
   toolType,
   visuals,
-  badgeStyle,
+  labelTheme,
   getMeasurementLabel,
   nodes,
   measurements,
   selectedMeasurementIds,
   onMeasurementSelect,
+  onNodeLongPress,
 }: BuildDistanceToolRenderModelsArgs): {
   points: readonly RuntimePointMarkerRenderModel[];
   edges: readonly RuntimeEdgeRenderModel[];
@@ -67,9 +87,12 @@ export const buildDistanceToolRenderModels = ({
   const distanceMeasurements = measurements.filter(
     (measurement) => measurement.toolType === toolType
   );
+  const visibleDistanceMeasurements = distanceMeasurements.filter(
+    (measurement) => !measurement.hidden
+  );
   const selectedMeasurementIdSet = new Set(selectedMeasurementIds);
 
-  const committedEdges = distanceMeasurements.flatMap((measurement) => {
+  const committedEdges = visibleDistanceMeasurements.flatMap((measurement) => {
     const coordinates = resolveMeasurementCoordinates(
       measurement,
       nodeCoordinatesById
@@ -82,6 +105,8 @@ export const buildDistanceToolRenderModels = ({
     return [
       {
         id: measurement.id,
+        measurementId: measurement.id,
+        nodeIds: measurement.nodeIds,
         coordinates,
         distanceTriangleOverlay: {
           measurementId: measurement.id,
@@ -96,10 +121,12 @@ export const buildDistanceToolRenderModels = ({
     ];
   });
 
-  const committedPoints = distanceMeasurements.flatMap((measurement) =>
+  const committedPoints = visibleDistanceMeasurements.flatMap((measurement) =>
     resolveMeasurementCoordinates(measurement, nodeCoordinatesById).map(
       (coordinate, index) => ({
         id: `${measurement.id}-node-${index}`,
+        measurementId: measurement.id,
+        nodeId: measurement.nodeIds[index],
         coordinate,
         ...(selectedMeasurementIdSet.has(measurement.id)
           ? visuals.selectedPoint
@@ -108,7 +135,7 @@ export const buildDistanceToolRenderModels = ({
     )
   );
 
-  const committedPointLabels = distanceMeasurements.flatMap(
+  const committedPointLabels = visibleDistanceMeasurements.flatMap(
     (measurement, measurementIndex) => {
       const badgeText =
         measurement.shortLabel?.trim() ||
@@ -140,16 +167,53 @@ export const buildDistanceToolRenderModels = ({
         anchorCoordinateSelection
       );
 
-      const pointVisuals = selectedMeasurementIdSet.has(measurement.id)
-        ? visuals.selectedPoint
-        : visuals.point;
+      const isSelected = selectedMeasurementIdSet.has(measurement.id);
+      const pointVisuals = isSelected ? visuals.selectedPoint : visuals.point;
       const preferredAttach =
         resolveDistanceBadgePreferredAttach(coordinateSelection);
+      const labelColorScheme = labelTheme.scheme;
+      const selectedHighlight = labelTheme.selection;
+      const badgeNodeId = resolveDistanceBadgeNodeId({
+        coordinateCandidates,
+        coordinateSelection,
+      });
+      const nodeInteractionLabels = measurement.nodeIds.flatMap(
+        (nodeId, index) => {
+          const nodeCoordinate = nodeCoordinatesById.get(nodeId);
+          if (!nodeCoordinate) {
+            return [];
+          }
+
+          return [
+            {
+              id: `${measurement.id}-node-label-${index}`,
+              measurementId: measurement.id,
+              nodeId,
+              coordinate: nodeCoordinate,
+              markerPixelSize: pointVisuals.pixelSize,
+              content: badgeText,
+              badgeContent: badgeText,
+              selected: isSelected,
+              hideLabelAndStem: true,
+              hideMarker: true,
+              allowLongPressWhenBlocked: true,
+              onClick: onMeasurementSelect
+                ? () => onMeasurementSelect(measurement.id)
+                : undefined,
+              onLongPress: onNodeLongPress && !measurement.locked
+                ? () => onNodeLongPress(nodeId, measurement.id)
+                : undefined,
+            },
+          ];
+        }
+      );
 
       return [
+        ...nodeInteractionLabels,
         {
           id: `${measurement.id}-label`,
           measurementId: measurement.id,
+          nodeId: badgeNodeId,
           coordinate,
           coordinateCandidates,
           coordinateSelection,
@@ -158,15 +222,30 @@ export const buildDistanceToolRenderModels = ({
           content: badgeText,
           badgeContent: badgeText,
           collapse: true,
-          markerBackgroundColor: badgeStyle.backgroundColor,
-          markerTextColor: badgeStyle.textColor,
+          hideMarker: true,
           fontSize: `${annotationTypographyDefaults.rootFontSizePx}px`,
-          fontFamily: annotationTypographyDefaults.fontFamily,
-          fontWeight: annotationTypographyDefaults.lineLabelFontWeight,
-          selected: selectedMeasurementIdSet.has(measurement.id),
+          fontFamily: labelTheme.fontFamily,
+          fontWeight: labelTheme.contentFontWeight,
+          lineColor: labelColorScheme.lineColor,
+          textBackgroundColor: labelColorScheme.labelBackgroundColor,
+          textColor: labelColorScheme.textColor,
+          markerBackgroundColor: labelColorScheme.badgeBackgroundColor,
+          markerTextColor: labelColorScheme.textColor,
+          selectedBackgroundColor: selectedHighlight.backgroundColor,
+          selectedTextColor: selectedHighlight.textColor,
+          selectedGlowColor: selectedHighlight.glowColor,
+          selectedGlowRadiusPx: selectedHighlight.glowRadiusPx,
+          preserveFillOnSelection: selectedHighlight.preserveFillOnSelection,
+          hoverBackgroundColor: selectedHighlight.hoverBackgroundColor,
+          selected: isSelected,
+          allowLongPressWhenBlocked: true,
           onClick: onMeasurementSelect
             ? () => onMeasurementSelect(measurement.id)
             : undefined,
+          onLongPress:
+            onNodeLongPress && badgeNodeId && !measurement.locked
+              ? () => onNodeLongPress(badgeNodeId, measurement.id)
+              : undefined,
         },
       ];
     }

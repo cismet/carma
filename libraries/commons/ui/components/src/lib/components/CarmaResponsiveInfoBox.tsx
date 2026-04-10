@@ -15,11 +15,13 @@ type ControlPosition =
   | "bottomright"
   | "bottomcenter";
 
-const COLLAPSED_INFO_BOX_MIN_WIDTH_PX = 220;
+const INFO_BOX_MIN_WIDTH_REM = "24rem";
+const CONTROL_LAYOUT_EDGE_MARGIN_PX = 25;
 
 export interface CarmaResponsiveInfoBoxProps {
   onPanelClick?: (event: React.MouseEvent) => void;
   width?: number;
+  fitContentWidth?: boolean;
   header?: React.ReactNode;
   heading?: React.ReactNode;
   headingColor?: string;
@@ -45,6 +47,7 @@ export interface CarmaResponsiveInfoBoxProps {
 export const CarmaResponsiveInfoBox = ({
   onPanelClick = () => {},
   width,
+  fitContentWidth = false,
   header,
   heading,
   headingColor,
@@ -88,23 +91,34 @@ export const CarmaResponsiveInfoBox = ({
   const resolvedExpandedWidth =
     typeof window !== "undefined" &&
     useControlLayout &&
-    fallbackWindowWidth - 25 - resolvedWidth - 300 <= 0
-      ? fallbackWindowWidth - 25
+    fallbackWindowWidth -
+      CONTROL_LAYOUT_EDGE_MARGIN_PX -
+      resolvedWidth -
+      300 <=
+      0
+      ? fallbackWindowWidth - CONTROL_LAYOUT_EDGE_MARGIN_PX
       : resolvedWidth;
 
   const infoBoxStyle: CSSProperties = actualCollapsed
     ? {
         width: "fit-content",
-        minWidth: COLLAPSED_INFO_BOX_MIN_WIDTH_PX,
+        minWidth: INFO_BOX_MIN_WIDTH_REM,
         maxWidth: useControlLayout
-          ? Math.max(COLLAPSED_INFO_BOX_MIN_WIDTH_PX, fallbackWindowWidth - 25)
+          ? `max(${INFO_BOX_MIN_WIDTH_REM}, calc(100vw - ${CONTROL_LAYOUT_EDGE_MARGIN_PX}px))`
           : resolvedExpandedWidth,
         marginLeft: "auto",
         display: "inline-block",
       }
-    : {
-        width: resolvedExpandedWidth,
-      };
+    : fitContentWidth
+      ? {
+          width: "fit-content",
+          minWidth: INFO_BOX_MIN_WIDTH_REM,
+          maxWidth: resolvedExpandedWidth,
+          display: "inline-block",
+        }
+      : {
+          width: resolvedExpandedWidth,
+        };
 
   useEffect(() => {
     if (!draggable) {

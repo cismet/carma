@@ -1427,7 +1427,7 @@ const meta: Meta<LandmarkLabelStoryArgs> = {
 export default meta;
 
 export const WuppertalLabelTestScene: StoryObj<LandmarkLabelStoryArgs> = {
-  name: "Wuppertal Label Test Scene",
+  name: "Wuppertal Test Scene",
   args: {
     syncLabelPitchToCamera: true,
     fixedLabelPitchDeg: -44,
@@ -1443,7 +1443,7 @@ export const WuppertalLabelTestScene: StoryObj<LandmarkLabelStoryArgs> = {
 };
 
 export const CollapsedLabelStacks: StoryObj<LandmarkLabelStoryArgs> = {
-  name: "Collapsed Label Stacks",
+  name: "Collapsed Stacks",
   args: {
     syncLabelPitchToCamera: true,
     fixedLabelPitchDeg: -50,

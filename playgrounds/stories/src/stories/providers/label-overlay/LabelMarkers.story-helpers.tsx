@@ -10,6 +10,7 @@ import {
 } from "react";
 
 import { DraggableDebugAnchor } from "@carma-commons/interaction/drag";
+import { ANNOTATION_TYPE_POINT } from "@carma-mapping/annotations/core";
 import {
   PILLBUTTON_BADGE_POSITIONS,
   PillbuttonLabelMarker,
@@ -21,7 +22,13 @@ import {
   type PointLabelStyleProps,
 } from "@carma-providers/label-overlay";
 import { MINUS_PI_OVER_FOUR } from "@carma-commons/math";
-import { annotationTypographyDefaults } from "@carma-mapping/annotations/runtime-v2";
+import {
+  ANNOTATION_MEASUREMENT_QUALITATIVE_DARK_COLOR_SCHEMES,
+  ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE,
+  ANNOTATION_MEASUREMENT_TEXT_COLOR,
+  annotationTypographyDefaults,
+  resolveAnnotationMeasurementLabelTheme,
+} from "@carma-mapping/annotations/runtime-v2";
 import type { CssPixelPosition } from "@carma-units";
 import {
   PREVIEW_LINE_LABEL_BACKGROUND_STYLE,
@@ -96,62 +103,79 @@ const LABEL_MARKERS_FONT_FAMILY = annotationTypographyDefaults.fontFamily;
 const REPRESENTATIVE_CONTENT_FONT_WEIGHT = 400;
 const REPRESENTATIVE_BADGE_FONT_WEIGHT =
   annotationTypographyDefaults.badgeFontWeight;
-const REPRESENTATIVE_TEXT_COLOR = "rgba(248, 250, 252, 0.98)";
+const REPRESENTATIVE_TEXT_COLOR = ANNOTATION_MEASUREMENT_TEXT_COLOR;
+
+const readQualitativeColorScheme = (id: string) => {
+  const colorScheme = ANNOTATION_MEASUREMENT_QUALITATIVE_DARK_COLOR_SCHEMES.find(
+    (entry) => entry.id === id
+  );
+
+  if (!colorScheme) {
+    throw new Error(`Unknown representative label color scheme: ${id}`);
+  }
+
+  return colorScheme;
+};
 
 const REPRESENTATIVE_DEFAULT_COLOR_SCHEME: QualitativePillColorScheme = {
-  id: "cobalt",
-  label: "Kobalt · Referenz",
+  ...resolveAnnotationMeasurementLabelTheme(ANNOTATION_TYPE_POINT).scheme,
   content: "NHN 179,27 m",
   badgeContent: "8",
-  labelBackgroundColor: "rgba(30, 64, 175, 0.78)",
-  badgeBackgroundColor: "rgba(30, 58, 138, 0.98)",
-  lineColor: "rgba(147, 197, 253, 0.88)",
 };
 
 const REPRESENTATIVE_SELECTED_COLOR_SCHEME = {
-  labelBackgroundColor: "rgba(8, 47, 73, 0.9)",
-  hoverBackgroundColor: "rgba(14, 116, 144, 0.82)",
-  lineColor: "rgba(125, 211, 252, 0.94)",
+  labelBackgroundColor:
+    ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE.backgroundColor,
+  hoverBackgroundColor:
+    ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE.hoverBackgroundColor,
+  lineColor: REPRESENTATIVE_DEFAULT_COLOR_SCHEME.lineColor,
 } as const;
+
+type RepresentativeSelectionVariant = Readonly<{
+  id: string;
+  label: string;
+  selectedBackgroundColor: string;
+  selectedTextColor: string;
+  selectedGlowColor: string;
+  selectedGlowRadiusPx: number;
+  preserveFillOnSelection?: boolean;
+}>;
+
+const REPRESENTATIVE_SELECTION_VARIANT: RepresentativeSelectionVariant = {
+  id: "dark-chip-white-light",
+  label: "dark chip · white light",
+  selectedBackgroundColor:
+    ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE.backgroundColor,
+  selectedTextColor: ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE.textColor,
+  selectedGlowColor: ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE.glowColor,
+  selectedGlowRadiusPx:
+    ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE.glowRadiusPx,
+  preserveFillOnSelection:
+    ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE.preserveFillOnSelection,
+};
 
 const REPRESENTATIVE_QUALITATIVE_COLOR_SCHEMES: readonly QualitativePillColorScheme[] =
   [
     REPRESENTATIVE_DEFAULT_COLOR_SCHEME,
     {
-      id: "teal",
-      label: "Teal · Status",
+      ...readQualitativeColorScheme("teal-status"),
       content: "24,41 m über Bezugspunkt",
       badgeContent: "A",
-      labelBackgroundColor: "rgba(15, 118, 110, 0.78)",
-      badgeBackgroundColor: "rgba(17, 94, 89, 0.98)",
-      lineColor: "rgba(94, 234, 212, 0.86)",
     },
     {
-      id: "violet",
-      label: "Violett · Analyse",
+      ...readQualitativeColorScheme("violet-analysis"),
       content: "relative Höhe über Bezugspunkt",
       badgeContent: "B",
-      labelBackgroundColor: "rgba(109, 40, 217, 0.78)",
-      badgeBackgroundColor: "rgba(91, 33, 182, 0.98)",
-      lineColor: "rgba(196, 181, 253, 0.88)",
     },
     {
-      id: "amber",
-      label: "Amber · Hinweis",
+      ...readQualitativeColorScheme("amber-notice"),
       content: "temporäre Referenzhöhe",
       badgeContent: "C",
-      labelBackgroundColor: "rgba(146, 64, 14, 0.8)",
-      badgeBackgroundColor: "rgba(120, 53, 15, 0.98)",
-      lineColor: "rgba(251, 191, 36, 0.88)",
     },
     {
-      id: "rose",
-      label: "Rose · Prüfung",
+      ...readQualitativeColorScheme("rose-review"),
       content: "Prüfung erforderlich",
       badgeContent: "D",
-      labelBackgroundColor: "rgba(190, 24, 93, 0.78)",
-      badgeBackgroundColor: "rgba(157, 23, 77, 0.98)",
-      lineColor: "rgba(251, 113, 133, 0.88)",
     },
   ] as const;
 
@@ -368,6 +392,26 @@ const sectionMetaStyle: CSSProperties = {
   color: "#64748b",
 };
 
+const REPRESENTATIVE_STORY_TEXT_GLOW_COLOR = "#f8fafc";
+const REPRESENTATIVE_STORY_TEXT_GLOW_STYLE: CSSProperties = {
+  textShadow: [
+    `0 0 8px rgba(248, 250, 252, 0.95)`,
+    `0 0 18px rgba(248, 250, 252, 0.88)`,
+    `0 0 32px rgba(248, 250, 252, 0.62)`,
+  ].join(", "),
+};
+const REPRESENTATIVE_STORY_SECTION_TITLE_STYLE: CSSProperties = {
+  ...sectionTitleStyle,
+  ...REPRESENTATIVE_STORY_TEXT_GLOW_STYLE,
+};
+const REPRESENTATIVE_STORY_SECTION_META_STYLE: CSSProperties = {
+  ...sectionMetaStyle,
+  ...REPRESENTATIVE_STORY_TEXT_GLOW_STYLE,
+};
+const REPRESENTATIVE_STORY_ROW_LABEL_STYLE: CSSProperties = {
+  ...REPRESENTATIVE_STORY_TEXT_GLOW_STYLE,
+};
+
 const anchorStyle: CSSProperties = {
   position: "absolute",
   left: 24,
@@ -441,6 +485,12 @@ const makeSharedStyleProps = (
   textBackgroundColor: args.labelBackgroundColor,
   selectedBackgroundColor:
     REPRESENTATIVE_SELECTED_COLOR_SCHEME.labelBackgroundColor,
+  selectedTextColor: ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE.textColor,
+  selectedGlowColor: ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE.glowColor,
+  selectedGlowRadiusPx:
+    ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE.glowRadiusPx,
+  preserveFillOnSelection:
+    ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE.preserveFillOnSelection,
   hoverBackgroundColor: REPRESENTATIVE_SELECTED_COLOR_SCHEME.hoverBackgroundColor,
   lineColor: REPRESENTATIVE_DEFAULT_COLOR_SCHEME.lineColor,
   lineWidth: 1,
@@ -1214,7 +1264,7 @@ const RepresentativeLineLabelDemo = ({
   </div>
 );
 
-export const RepresentativeCasesStory = (args: LabelMarkersStoryArgs) => {
+export const LabelStatesAndThemesStory = (args: LabelMarkersStoryArgs) => {
   const sharedStyleProps = makeSharedStyleProps(args);
   const showDebugAnchors = args.debugAnchors === true;
   const pageBackgroundMode = resolveStoryBackgroundMode(
@@ -1230,7 +1280,7 @@ export const RepresentativeCasesStory = (args: LabelMarkersStoryArgs) => {
 
   return (
     <CenteredStoryFrame
-      label="representative cases"
+      label="states and themes"
       values={statusValues}
       contentStyle={pageStyle}
       background={readStoryBackground(pageBackgroundMode)}
@@ -1238,7 +1288,54 @@ export const RepresentativeCasesStory = (args: LabelMarkersStoryArgs) => {
     >
       <div style={sectionGridStyle}>
         <section style={sectionStyle}>
-          <div style={sectionTitleStyle}>attach · collapse · text</div>
+          <div style={REPRESENTATIVE_STORY_SECTION_TITLE_STYLE}>
+            selection highlight
+          </div>
+          <div style={REPRESENTATIVE_STORY_SECTION_META_STYLE}>
+            finaler Selection-Stand: dunkler Chip mit heller Textfarbe und
+            weißem Lichtsaum statt gelbem Signal.
+          </div>
+          <div style={rowListStyle}>
+            <InlineRow
+              label={REPRESENTATIVE_SELECTION_VARIANT.label}
+              labelStyle={REPRESENTATIVE_STORY_ROW_LABEL_STYLE}
+              graphicStyle={REPRESENTATIVE_ROW_GRAPHIC_STYLE}
+            >
+              <StaticPointLabelPreview
+                pointId={`selection-${REPRESENTATIVE_SELECTION_VARIANT.id}`}
+                content="NHN 179,27 m"
+                badgeContent="8"
+                pitch={MINUS_PI_OVER_FOUR}
+                selected
+                isOccluded={false}
+                hideLabelAndStem={false}
+                hideMarker={false}
+                labelAttach={POINT_LABEL_ATTACH.LEFT}
+                collapse={true}
+                sharedStyleProps={{
+                  ...sharedStyleProps,
+                  selectedBackgroundColor:
+                    REPRESENTATIVE_SELECTION_VARIANT.selectedBackgroundColor,
+                  selectedTextColor:
+                    REPRESENTATIVE_SELECTION_VARIANT.selectedTextColor,
+                  selectedGlowColor:
+                    REPRESENTATIVE_SELECTION_VARIANT.selectedGlowColor,
+                  selectedGlowRadiusPx:
+                    REPRESENTATIVE_SELECTION_VARIANT.selectedGlowRadiusPx,
+                  preserveFillOnSelection:
+                    REPRESENTATIVE_SELECTION_VARIANT.preserveFillOnSelection ??
+                    true,
+                }}
+                showDebugAnchors={showDebugAnchors}
+              />
+            </InlineRow>
+          </div>
+        </section>
+
+        <section style={sectionStyle}>
+          <div style={REPRESENTATIVE_STORY_SECTION_TITLE_STYLE}>
+            attach · collapse · text
+          </div>
           <div style={rowListStyle}>
             {(
               [
@@ -1257,10 +1354,10 @@ export const RepresentativeCasesStory = (args: LabelMarkersStoryArgs) => {
                   collapse: false,
                 },
                 {
-                  id: "label-right-selected",
-                  label: "attach right · selected",
+                  id: "label-right",
+                  label: "attach right",
                   attach: POINT_LABEL_ATTACH.RIGHT,
-                  content: "selected",
+                  content: "24,41 m über Bezugspunkt",
                   collapse: false,
                 },
                 {
@@ -1276,6 +1373,7 @@ export const RepresentativeCasesStory = (args: LabelMarkersStoryArgs) => {
               <InlineRow
                 key={entry.id}
                 label={entry.label}
+                labelStyle={REPRESENTATIVE_STORY_ROW_LABEL_STYLE}
                 graphicStyle={REPRESENTATIVE_ROW_GRAPHIC_STYLE}
               >
                 <StaticAnchoredPillbuttonLabelDemo
@@ -1302,82 +1400,65 @@ export const RepresentativeCasesStory = (args: LabelMarkersStoryArgs) => {
         </section>
 
         <section style={sectionStyle}>
-          <div style={sectionTitleStyle}>attach · badge side · text</div>
+          <div style={REPRESENTATIVE_STORY_SECTION_TITLE_STYLE}>
+            runtime states
+          </div>
           <div style={rowListStyle}>
             {(
               [
                 {
-                  id: "slot-left-attach-left",
-                  label: "attach left · badge left",
-                  attach: POINT_LABEL_ATTACH.LEFT,
-                  badgePosition: PILLBUTTON_BADGE_POSITIONS.LEFT,
-                  content: "NHN 179,27 m",
-                  markerContent: "8",
+                  id: "state-default",
+                  label: "default",
+                  selected: false,
+                  isOccluded: false,
+                  collapse: true,
+                  pitch: MINUS_PI_OVER_FOUR,
+                  labelAttach: "left" as PointLabelAttach,
+                  hideMarker: false,
+                  hideLabelAndStem: false,
                 },
                 {
-                  id: "slot-left-attach-right",
-                  label: "attach right · badge left",
-                  attach: POINT_LABEL_ATTACH.RIGHT,
-                  badgePosition: PILLBUTTON_BADGE_POSITIONS.LEFT,
-                  content: "NHN 179,27 m",
-                  markerContent: "8",
+                  id: "state-occluded",
+                  label: "occluded",
+                  selected: false,
+                  isOccluded: true,
+                  collapse: true,
+                  pitch: MINUS_PI_OVER_FOUR,
+                  labelAttach: "left" as PointLabelAttach,
+                  hideMarker: false,
+                  hideLabelAndStem: false,
                 },
                 {
-                  id: "slot-right-attach-left",
-                  label: "attach left · badge right",
-                  attach: POINT_LABEL_ATTACH.LEFT,
-                  badgePosition: PILLBUTTON_BADGE_POSITIONS.RIGHT,
-                  content: "24,41 m über Bezugspunkt",
-                  markerContent: "11111",
-                },
-                {
-                  id: "slot-right-attach-right",
-                  label: "attach right · badge right",
-                  attach: POINT_LABEL_ATTACH.RIGHT,
-                  badgePosition: PILLBUTTON_BADGE_POSITIONS.RIGHT,
-                  content: "24,41 m über Bezugspunkt",
-                  markerContent: "11111",
-                },
-                {
-                  id: "slot-left-wide-badge",
-                  label: "wide badge left · long",
-                  attach: POINT_LABEL_ATTACH.LEFT,
-                  badgePosition: PILLBUTTON_BADGE_POSITIONS.LEFT,
-                  content: "relative Höhe über Bezugspunkt",
-                  markerContent: "33333",
-                },
-                {
-                  id: "slot-right-wide-badge",
-                  label: "wide badge right · long",
-                  attach: POINT_LABEL_ATTACH.RIGHT,
-                  badgePosition: PILLBUTTON_BADGE_POSITIONS.RIGHT,
-                  content: "relative Höhe über Bezugspunkt",
-                  markerContent: "33333",
+                  id: "state-marker-only",
+                  label: "marker only",
+                  selected: false,
+                  isOccluded: false,
+                  collapse: true,
+                  pitch: MINUS_PI_OVER_FOUR,
+                  labelAttach: "left" as PointLabelAttach,
+                  hideMarker: false,
+                  hideLabelAndStem: true,
                 },
               ] as const
             ).map((entry) => (
               <InlineRow
                 key={entry.id}
                 label={entry.label}
+                labelStyle={REPRESENTATIVE_STORY_ROW_LABEL_STYLE}
                 graphicStyle={REPRESENTATIVE_ROW_GRAPHIC_STYLE}
               >
-                <StaticAnchoredPillbuttonLabelDemo
-                  pointId={`pill-variant-${entry.id}`}
-                  content={entry.content}
-                  badgeContent={entry.markerContent}
-                  badgePosition={entry.badgePosition}
-                  backgroundColor={
-                    sharedStyleProps.textBackgroundColor ??
-                    REPRESENTATIVE_DEFAULT_COLOR_SCHEME.labelBackgroundColor
-                  }
-                  sharedStyleProps={sharedStyleProps}
-                  badgeBorderColor={
-                    args.badgeBorderColor ??
-                    REPRESENTATIVE_DEFAULT_COLOR_SCHEME.badgeBackgroundColor
-                  }
-                  labelAttach={entry.attach}
+                <StaticPointLabelPreview
+                  pointId={entry.id}
+                  content={args.content}
+                  badgeContent={args.badgeContent}
+                  pitch={entry.pitch}
+                  selected={entry.selected}
+                  isOccluded={entry.isOccluded}
+                  hideLabelAndStem={entry.hideLabelAndStem}
+                  hideMarker={entry.hideMarker}
+                  labelAttach={entry.labelAttach}
+                  collapse={entry.collapse}
                   showDebugAnchors={showDebugAnchors}
-                  viewportStyle={LABEL_COMPONENT_VIEWPORT_STYLE}
                 />
               </InlineRow>
             ))}
@@ -1385,17 +1466,19 @@ export const RepresentativeCasesStory = (args: LabelMarkersStoryArgs) => {
         </section>
 
         <section style={sectionStyle}>
-          <div style={sectionTitleStyle}>
-            qualitative hues · selected highlight reserved
+          <div style={REPRESENTATIVE_STORY_SECTION_TITLE_STYLE}>
+            qualitative hues
           </div>
-          <div style={sectionMetaStyle}>
-            five coherent dark measurement hues with white text; badge and label share the same hue family, while the selected state keeps a separate highlight palette.
+          <div style={REPRESENTATIVE_STORY_SECTION_META_STYLE}>
+            dark hue families for category or intent, with selection remaining a
+            separate treatment above instead of being baked into each hue.
           </div>
           <div style={rowListStyle}>
             {REPRESENTATIVE_QUALITATIVE_COLOR_SCHEMES.map((scheme) => (
               <InlineRow
                 key={scheme.id}
                 label={scheme.label}
+                labelStyle={REPRESENTATIVE_STORY_ROW_LABEL_STYLE}
                 graphicStyle={REPRESENTATIVE_ROW_GRAPHIC_STYLE}
               >
                 <StaticAnchoredPillbuttonLabelDemo
@@ -1422,83 +1505,24 @@ export const RepresentativeCasesStory = (args: LabelMarkersStoryArgs) => {
         </section>
 
         <section style={sectionStyle}>
-          <div style={sectionTitleStyle}>line label · backdrop</div>
+          <div style={REPRESENTATIVE_STORY_SECTION_TITLE_STYLE}>
+            line label · backdrop
+          </div>
           <div style={rowListStyle}>
             <InlineRow
               label="text only"
+              labelStyle={REPRESENTATIVE_STORY_ROW_LABEL_STYLE}
               graphicStyle={LINE_LABEL_ROW_GRAPHIC_STYLE}
             >
               <RepresentativeLineLabelDemo text="168,00 m" blur={false} />
             </InlineRow>
             <InlineRow
               label="blur backdrop"
+              labelStyle={REPRESENTATIVE_STORY_ROW_LABEL_STYLE}
               graphicStyle={LINE_LABEL_ROW_GRAPHIC_STYLE}
             >
               <RepresentativeLineLabelDemo text="168,00 m" blur />
             </InlineRow>
-          </div>
-        </section>
-
-        <section style={sectionStyle}>
-          <div style={sectionTitleStyle}>combined defaults</div>
-          <div style={rowListStyle}>
-            {(
-              [
-                {
-                  id: "combined-default",
-                  label: "default",
-                  selected: false,
-                  isOccluded: false,
-                  collapse: true,
-                  pitch: MINUS_PI_OVER_FOUR,
-                  labelAttach: "left" as PointLabelAttach,
-                  hideMarker: false,
-                  hideLabelAndStem: false,
-                },
-                {
-                  id: "combined-selected",
-                  label: "selected",
-                  selected: true,
-                  isOccluded: false,
-                  collapse: true,
-                  pitch: MINUS_PI_OVER_FOUR,
-                  labelAttach: "left" as PointLabelAttach,
-                  hideMarker: false,
-                  hideLabelAndStem: false,
-                },
-                {
-                  id: "combined-occluded",
-                  label: "occluded",
-                  selected: false,
-                  isOccluded: true,
-                  collapse: true,
-                  pitch: MINUS_PI_OVER_FOUR,
-                  labelAttach: "left" as PointLabelAttach,
-                  hideMarker: false,
-                  hideLabelAndStem: false,
-                },
-              ] as const
-            ).map((entry) => (
-              <InlineRow
-                key={entry.id}
-                label={entry.label}
-                graphicStyle={REPRESENTATIVE_ROW_GRAPHIC_STYLE}
-              >
-                <StaticPointLabelPreview
-                  pointId={entry.id}
-                  content={args.content}
-                  badgeContent={args.badgeContent}
-                  pitch={entry.pitch}
-                  selected={entry.selected}
-                  isOccluded={entry.isOccluded}
-                  hideLabelAndStem={entry.hideLabelAndStem}
-                  hideMarker={entry.hideMarker}
-                  labelAttach={entry.labelAttach}
-                  collapse={entry.collapse}
-                  showDebugAnchors={showDebugAnchors}
-                />
-              </InlineRow>
-            ))}
           </div>
         </section>
       </div>
@@ -1967,7 +1991,7 @@ export const PillboxOnlyStory = (args: LabelMarkersStoryArgs) => {
 
   return (
     <CenteredStoryFrame
-      label="label component"
+      label="component"
       values={statusValues}
       contentStyle={pageStyle}
       background={readStoryBackground(pageBackgroundMode)}
@@ -2001,7 +2025,7 @@ export const LabelBackgroundsStory = (args: LabelMarkersStoryArgs) => {
 
   return (
     <CenteredStoryFrame
-      label="label backgrounds"
+      label="backgrounds"
       values={[
         `bg ${pageBackgroundMode}`,
         `debug ${showDebugAnchors ? "on" : "off"}`,

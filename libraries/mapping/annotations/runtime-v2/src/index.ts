@@ -1,5 +1,6 @@
 export * from "./lib/context/AnnotationsProvider";
 export * from "./lib/config/annotationsRuntimeFormatOptions";
+export * from "./lib/config/annotationMeasurementLabelThemes";
 export * from "./lib/config/annotationTypographyDefaults";
 export * from "./lib/config/previewControllerDefaults";
 export * from "./lib/config/previewLineLabelVisualDefaults";

@@ -17,6 +17,7 @@ const defaults = runtimeMeasurementVisualDefaults;
 export const createPointToolSettings = (_badgeStyle: {
   backgroundColor: string;
   textColor: string;
+  selectionColor: string;
 }): PointToolSettings => ({
   visuals: {
     point: {
@@ -28,7 +29,7 @@ export const createPointToolSettings = (_badgeStyle: {
     selectedPoint: {
       pixelSize: defaults.sizes.selectedPointPixelSize,
       fill: defaults.colors.transparent,
-      outline: defaults.colors.surface,
+      outline: _badgeStyle.selectionColor,
       outlineWidth: defaults.sizes.pointOutlineWidth,
     },
   },

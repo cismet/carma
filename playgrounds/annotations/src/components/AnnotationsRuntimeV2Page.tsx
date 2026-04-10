@@ -14,6 +14,7 @@ import {
 import {
   AnnotationsProvider,
   RuntimeAnnotationInfoBox,
+  resolveRuntimeAnnotationInfoBoxVisualOptions,
   distanceToolPlugin,
   pointToolPlugin,
   selectToolPlugin,
@@ -169,69 +170,139 @@ const RuntimeToolbar = () => {
   );
 };
 
-const RuntimeToolbarWhenModeSettled = ({
-  expectedToolType,
+const resolvePlaygroundEmptyInfoBoxBodyText = ({
+  activeToolLabel,
+  activeToolType,
+  activeToolHelpText,
+  hasAnyAnnotations,
+  activeToolAnnotationCount,
 }: {
-  expectedToolType: string;
-}) => {
-  const { activeToolType } = useAnnotationsRuntime();
-  const [toolbarReady, setToolbarReady] = useState(false);
-
-  useEffect(() => {
-    if (activeToolType === expectedToolType) {
-      setToolbarReady(true);
+  activeToolLabel: string;
+  activeToolType: string;
+  activeToolHelpText: readonly string[];
+  hasAnyAnnotations: boolean;
+  activeToolAnnotationCount: number;
+}): readonly string[] => {
+  if (activeToolType === SELECT_TOOL_TYPE) {
+    if (!hasAnyAnnotations) {
+      return [
+        "Aktuell sind keine Messungen vorhanden.",
+        "Wählen Sie oben einen Messmodus und klicken Sie in die Karte, um eine neue Messung anzulegen.",
+      ];
     }
-  }, [activeToolType, expectedToolType]);
 
-  return toolbarReady ? <RuntimeToolbar /> : null;
+    return activeToolHelpText;
+  }
+
+  return activeToolAnnotationCount === 0 && hasAnyAnnotations
+    ? [
+        `Noch keine ${activeToolLabel} vorhanden.`,
+        ...activeToolHelpText,
+      ]
+    : activeToolHelpText;
 };
 
-const RuntimeMeasurementsBootstrap = () => {
-  const {
-    scene,
-    annotationEntries,
-    selectedAnnotationId,
-    setSelectedAnnotationId,
-    flyToAllAnnotations,
-  } = useAnnotationsRuntime();
-  const hasInitializedRef = useRef(false);
+const RuntimeSelectionInfoBoxEmptyState = ({
+  activeToolLabel,
+  bodyTextLines,
+}: {
+  activeToolLabel: string;
+  bodyTextLines: readonly string[];
+}) => {
+  const resolvedInfoBoxVisualOptions =
+    resolveRuntimeAnnotationInfoBoxVisualOptions(
+      PLAYGROUND_RUNTIME_INFO_BOX_VISUAL_OPTIONS
+    );
 
-  useEffect(() => {
-    if (hasInitializedRef.current || !scene || scene.isDestroyed()) {
-      return;
-    }
-
-    if (annotationEntries.length === 0) {
-      return;
-    }
-
-    hasInitializedRef.current = true;
-    if (!selectedAnnotationId) {
-      setSelectedAnnotationId(annotationEntries[0]?.id ?? null);
-    }
-    flyToAllAnnotations();
-  }, [
-    annotationEntries,
-    flyToAllAnnotations,
-    scene,
-    selectedAnnotationId,
-    setSelectedAnnotationId,
-  ]);
-
-  return null;
+  return (
+    <div
+      data-test-id="annotation-info-box"
+      style={{ ...selectionInfoBoxFloatingStyle, pointerEvents: "none" }}
+    >
+      <CarmaResponsiveInfoBox
+        width={INFOBOX_WIDTH_PX}
+        onPanelClick={(event) => event.stopPropagation()}
+        collapsible={false}
+        useControlLayout={false}
+        header={undefined}
+        headingColor={resolvedInfoBoxVisualOptions.headingColor}
+        style={{ pointerEvents: "none" }}
+        heading={
+          <div className="flex w-full items-center gap-2 px-1">
+            <span
+              className={`${resolvedInfoBoxVisualOptions.headerForegroundClassName} ${resolvedInfoBoxVisualOptions.headerTitleClassName}`}
+              title={activeToolLabel}
+            >
+              {activeToolLabel}
+            </span>
+          </div>
+        }
+        content={
+          <div className="px-3 pb-2 pt-2">
+            <div
+              className={`${resolvedInfoBoxVisualOptions.bodyTextClassName} space-y-2`}
+            >
+              {bodyTextLines.map((line, index) => (
+                <p
+                  key={`${activeToolLabel}-empty-state-line-${index}`}
+                  className={
+                    index > 0
+                      ? resolvedInfoBoxVisualOptions.mutedTextClassName
+                      : undefined
+                  }
+                >
+                  {line}
+                </p>
+              ))}
+            </div>
+          </div>
+        }
+      />
+    </div>
+  );
 };
 
 const RuntimeSelectionInfoBox = () => {
   const {
-    registry,
-    formatOptions,
-    selectedAnnotationId,
     annotationEntries,
+    activeToolType,
+    formatOptions,
     nodes,
+    registry,
+    selectedAnnotationId,
   } = useAnnotationsRuntime();
+  const hasAnnotations = annotationEntries.length > 0;
+  const activePlugin = registry.getPlugin(activeToolType) ?? null;
+  const activeToolLabel = activePlugin?.descriptor.label ?? "Messungen";
+  const activeToolHelpText =
+    activePlugin?.helpText?.length
+      ? activePlugin.helpText
+      : activeToolType === SELECT_TOOL_TYPE
+      ? [
+          "Messungen oder Anmerkungen anklicken, um sie auszuwählen.",
+          "Langes Drücken auf einen Punkt öffnet den Editiermodus.",
+        ]
+      : [
+          "Klicken Sie in die Karte, um eine neue Messung anzulegen.",
+        ];
+  const activeToolAnnotationCount = annotationEntries.filter(
+    (annotationEntry) => annotationEntry.toolType === activeToolType
+  ).length;
+  const emptyStateBodyText = resolvePlaygroundEmptyInfoBoxBodyText({
+    activeToolLabel,
+    activeToolType,
+    activeToolHelpText,
+    hasAnyAnnotations: hasAnnotations,
+    activeToolAnnotationCount,
+  });
 
   if (!selectedAnnotationId) {
-    return null;
+    return (
+      <RuntimeSelectionInfoBoxEmptyState
+        activeToolLabel={activeToolLabel}
+        bodyTextLines={emptyStateBodyText}
+      />
+    );
   }
 
   const selectedAnnotation =
@@ -239,7 +310,12 @@ const RuntimeSelectionInfoBox = () => {
       (annotation) => annotation.id === selectedAnnotationId
     ) ?? null;
   if (!selectedAnnotation) {
-    return null;
+    return (
+      <RuntimeSelectionInfoBoxEmptyState
+        activeToolLabel={activeToolLabel}
+        bodyTextLines={emptyStateBodyText}
+      />
+    );
   }
 
   const selectedPlugin =
@@ -351,12 +427,11 @@ export const AnnotationsRuntimeV2Page = ({
             initialPersistenceState={initialPersistenceState}
             onPersistenceStateChange={onPersistenceStateChange}
           >
-            <RuntimeMeasurementsBootstrap />
             <CesiumNavigationOverlay
               scene={scene}
               initialHomeCameraState={homeCameraState}
             />
-            <RuntimeToolbarWhenModeSettled expectedToolType={initialToolType} />
+            <RuntimeToolbar />
             <RuntimeSelectionInfoBox />
           </AnnotationsProvider>
         </ControlLayout>

@@ -1,4 +1,3 @@
-import { faCrosshairs, faTrashCan } from "@fortawesome/free-solid-svg-icons";
 import { Cartesian3 } from "@carma-cesium";
 import { cartesian3FromGeographicCoordinate } from "@carma-mapping/engines/cesium/core";
 import {
@@ -7,7 +6,7 @@ import {
   formatLengthMeters,
 } from "@carma-units";
 
-import { RuntimeAnnotationInfoBoxActionIcon } from "../../components/annotation-info-box/RuntimeAnnotationInfoBoxActionIcon";
+import { RuntimeAnnotationInfoBoxActions } from "../../components/annotation-info-box/RuntimeAnnotationInfoBoxActions";
 import { RuntimeAnnotationInfoBoxNavigation } from "../../components/annotation-info-box/RuntimeAnnotationInfoBoxNavigation";
 import { RuntimeAnnotationInfoBoxTitleInput } from "../../components/annotation-info-box/RuntimeAnnotationInfoBoxTitleInput";
 import type { RuntimeAnnotationInfoBoxContext } from "../../components/annotation-info-box/annotationInfoBox.types";
@@ -59,6 +58,9 @@ export const createNodeChainAreaToolInfoBoxSlots = (
     focusAnnotationId,
     nodes,
     removeAnnotationById,
+    exportAnnotationGeoJson,
+    toggleAnnotationVisibility,
+    toggleAnnotationLocked,
     updateAnnotationDisplayName,
     updateAnnotationShortLabel,
     infoBoxVisualOptions,
@@ -89,53 +91,68 @@ export const createNodeChainAreaToolInfoBoxSlots = (
     const verticalityDeg = annotation.verticalityDeg;
     const bearingDeg = annotation.bearingDeg;
     const shortLabelToken = formatMeasurementLabelToken(measurementOrder);
-    const defaultDisplayName = `${headingTitle} ${formatMeasurementLabelToken(
-      measurementOrder
-    )}`;
+    const defaultDisplayName = headingTitle;
     const effectiveShortLabel =
       annotation.shortLabel?.trim() || shortLabelToken;
+    const actionIcons = (
+      <RuntimeAnnotationInfoBoxActions
+        hidden={annotation.hidden}
+        locked={annotation.locked}
+        onFlyTo={(event) => {
+          event.stopPropagation();
+          focusAnnotationId(annotation.id);
+        }}
+        onExport={(event) => {
+          event.stopPropagation();
+          exportAnnotationGeoJson(annotation.id);
+        }}
+        onToggleVisibility={(event) => {
+          event.stopPropagation();
+          toggleAnnotationVisibility(annotation.id);
+        }}
+        onToggleLock={(event) => {
+          event.stopPropagation();
+          toggleAnnotationLocked(annotation.id);
+        }}
+        onDelete={(event) => {
+          event.stopPropagation();
+          removeAnnotationById(annotation.id);
+        }}
+        visualOptions={infoBoxVisualOptions}
+        dataTestIdPrefix="carma-v2-area-measurement"
+        dataTestIds={{
+          flyTo: "carma-v2-flyto-area-measurement-btn",
+          export: "carma-v2-export-area-measurement-geojson-btn",
+          visibility: "carma-v2-toggle-area-measurement-visibility-btn",
+          lock: "carma-v2-toggle-area-measurement-lock-btn",
+          delete: "carma-v2-delete-area-measurement-btn",
+        }}
+      />
+    );
 
     return {
       headingTitle,
-      actions: (
-        <div className="flex items-center gap-2">
-          <RuntimeAnnotationInfoBoxActionIcon
-            title="Zur Messung fliegen"
-            icon={faCrosshairs}
-            onClick={(event) => {
-              event.stopPropagation();
-              focusAnnotationId(annotation.id);
-            }}
-            dataTestId="carma-v2-flyto-area-measurement-btn"
-            visualOptions={infoBoxVisualOptions}
-          />
-          <RuntimeAnnotationInfoBoxActionIcon
-            title="Löschen"
-            icon={faTrashCan}
-            onClick={(event) => {
-              event.stopPropagation();
-              removeAnnotationById(annotation.id);
-            }}
-            dataTestId="carma-v2-delete-area-measurement-btn"
-            visualOptions={infoBoxVisualOptions}
-          />
-        </div>
-      ),
+      actions: actionIcons,
       subtitle: (
         <div className={infoBoxVisualOptions.subtitleContainerClassName}>
-          <RuntimeAnnotationInfoBoxTitleInput
-            value={annotation.displayName ?? ""}
-            placeholder={defaultDisplayName}
-            onCommit={(nextValue) =>
-              updateAnnotationDisplayName(annotation.id, nextValue)
-            }
-            shortLabelValue={annotation.shortLabel ?? ""}
-            shortLabelPlaceholder={effectiveShortLabel}
-            onShortLabelCommit={(nextValue) =>
-              updateAnnotationShortLabel(annotation.id, nextValue)
-            }
-            visualOptions={infoBoxVisualOptions}
-          />
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <RuntimeAnnotationInfoBoxTitleInput
+                value={annotation.displayName ?? ""}
+                placeholder={defaultDisplayName}
+                onCommit={(nextValue) =>
+                  updateAnnotationDisplayName(annotation.id, nextValue)
+                }
+                shortLabelValue={annotation.shortLabel ?? ""}
+                shortLabelPlaceholder={effectiveShortLabel}
+                onShortLabelCommit={(nextValue) =>
+                  updateAnnotationShortLabel(annotation.id, nextValue)
+                }
+                visualOptions={infoBoxVisualOptions}
+              />
+            </div>
+            <div className="shrink-0">{actionIcons}</div>
+          </div>
         </div>
       ),
       content: (

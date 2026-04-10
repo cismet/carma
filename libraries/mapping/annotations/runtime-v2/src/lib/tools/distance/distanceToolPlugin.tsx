@@ -3,7 +3,6 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import {
   ANNOTATION_TYPE_DISTANCE,
-  DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG,
   formatMeasurementShortLabelToken,
   type AnnotationToolType,
 } from "@carma-mapping/annotations/core";
@@ -27,11 +26,18 @@ import { createDistanceToolInfoBoxSlots } from "./distanceToolInfoBoxSlots";
 import { createDistanceToolPreviewController } from "./createDistanceToolPreviewController";
 import { buildDistanceToolRenderModels } from "./distanceToolRenderModels";
 import { createDistanceToolSettings } from "./distanceToolSettings";
+import { resolveAnnotationMeasurementLabelTheme } from "../../config/annotationMeasurementLabelThemes";
 const toolType = ANNOTATION_TYPE_DISTANCE;
-const badgeStyle = DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG[toolType];
+const labelTheme = resolveAnnotationMeasurementLabelTheme(toolType);
+const badgeStyle = {
+  backgroundColor: labelTheme.scheme.badgeBackgroundColor,
+  textColor: labelTheme.scheme.textColor,
+  selectionColor: labelTheme.selection.glowColor,
+};
 const distanceToolSettings = createDistanceToolSettings(badgeStyle);
 const getDistanceToolInfoBoxSlots = createDistanceToolInfoBoxSlots(toolType, {
   headingTitle: "Distanzmessung",
+  headingColor: labelTheme.scheme.badgeBackgroundColor,
   formatMeasurementLabelToken: (counter) =>
     formatMeasurementShortLabelToken(toolType, counter),
 });
@@ -46,7 +52,7 @@ export const distanceToolPlugin = createMeasurementToolPlugin({
     icon: <FontAwesomeIcon icon={faRuler} />,
   },
   helpText: [
-    "Zwei Punkte klicken, um eine Distanzmessung zu erstellen.",
+    "Zwei Positionen in der Karte anklicken, um eine Distanzmessung zu erstellen.",
     "Backspace entfernt den letzten Vorschaupunkt, Escape verwirft ihn.",
   ],
   capabilities: [...NODE_CHAIN_MEASUREMENT_PLUGIN_CAPABILITIES, "infoBox"],
@@ -165,7 +171,7 @@ export const distanceToolPlugin = createMeasurementToolPlugin({
       const { points, edges, pointLabels } = buildDistanceToolRenderModels({
         toolType,
         visuals: distanceToolSettings.visuals,
-        badgeStyle,
+        labelTheme,
         getMeasurementLabel: (counter) =>
           formatMeasurementShortLabelToken(toolType, counter),
         nodes,

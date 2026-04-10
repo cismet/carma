@@ -23,6 +23,7 @@ const defaults = runtimeMeasurementVisualDefaults;
 export const createDistanceToolSettings = (_badgeStyle: {
   backgroundColor: string;
   textColor: string;
+  selectionColor: string;
 }): DistanceToolSettings => ({
   visuals: {
     edge: {
@@ -48,7 +49,7 @@ export const createDistanceToolSettings = (_badgeStyle: {
     selectedPoint: {
       pixelSize: defaults.sizes.selectedPointPixelSize,
       fill: defaults.colors.transparent,
-      outline: defaults.colors.surface,
+      outline: _badgeStyle.selectionColor,
       outlineWidth: defaults.sizes.pointOutlineWidth,
     },
     previewPoint: {

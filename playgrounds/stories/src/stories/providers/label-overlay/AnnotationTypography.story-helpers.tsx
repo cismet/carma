@@ -532,7 +532,7 @@ export const AnnotationTypographyStory = (
   args: AnnotationTypographyStoryArgs
 ) => (
   <CenteredStoryFrame
-    label="annotation typography"
+    label="typography"
     values={[
       `${args.rootFontSizePx}px root`,
       `${args.headingFontSizePx}px heading`,

@@ -15,6 +15,7 @@ type RuntimeAnnotationInfoBoxActionIconProps = {
   dataTestId?: string;
   className?: string;
   ariaLabel?: string;
+  disabled?: boolean;
   visualOptions?: RuntimeAnnotationInfoBoxVisualOptions;
 };
 
@@ -25,6 +26,7 @@ export const RuntimeAnnotationInfoBoxActionIcon = ({
   dataTestId,
   className,
   ariaLabel,
+  disabled = false,
   visualOptions,
 }: RuntimeAnnotationInfoBoxActionIconProps) => {
   const resolvedVisualOptions =
@@ -33,14 +35,24 @@ export const RuntimeAnnotationInfoBoxActionIcon = ({
   return (
     <Tooltip title={title}>
       <FontAwesomeIcon
-        onClick={onClick}
+        onClick={(event) => {
+          if (disabled) {
+            event.stopPropagation();
+            return;
+          }
+
+          onClick(event);
+        }}
         className={
           className ??
-          `${resolvedVisualOptions.headerForegroundClassName} ${resolvedVisualOptions.actionIconClassName}`
+          (disabled
+            ? `${resolvedVisualOptions.actionIconClassName} cursor-not-allowed opacity-50`
+            : resolvedVisualOptions.actionIconClassName)
         }
         icon={icon}
         data-test-id={dataTestId}
         aria-label={ariaLabel}
+        aria-disabled={disabled}
       />
     </Tooltip>
   );

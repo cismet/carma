@@ -6,6 +6,8 @@ import {
   faGripVertical,
 } from "@fortawesome/free-solid-svg-icons";
 
+import { CARMA_CARD_BORDER_RADIUS_CSS } from "./carmaCard.constants";
+
 const parseCssRgb = (colorValue: string): [number, number, number] | null => {
   const match = colorValue.match(/rgba?\(([^)]+)\)/i);
   if (!match) {
@@ -147,11 +149,11 @@ const CarmaCard = ({
     collapsible && !shouldRenderCollapseInHeader;
   const bodyContentAreaBorderRadius = hasBodySideCollapseToggle
     ? header
-      ? "0 0 0 4px"
-      : "4px 0 0 4px"
+      ? `0 0 0 ${CARMA_CARD_BORDER_RADIUS_CSS}`
+      : `${CARMA_CARD_BORDER_RADIUS_CSS} 0 0 ${CARMA_CARD_BORDER_RADIUS_CSS}`
     : header
-    ? "0 0 4px 4px"
-    : "4px";
+    ? `0 0 ${CARMA_CARD_BORDER_RADIUS_CSS} ${CARMA_CARD_BORDER_RADIUS_CSS}`
+    : CARMA_CARD_BORDER_RADIUS_CSS;
   const collapseAreaWidth = collapseButtonAreaStyle.width;
   const resolvedHeaderToggleSlotWidthPx =
     typeof collapseAreaWidth === "number" ? collapseAreaWidth : 25;
@@ -300,7 +302,9 @@ const CarmaCard = ({
           ? headerToggleSlotStyle
           : {
               background: "#cccccc",
-              borderRadius: header ? "0 0 4px 0" : "0 4px 4px 0",
+              borderRadius: header
+                ? `0 0 ${CARMA_CARD_BORDER_RADIUS_CSS} 0`
+                : `0 ${CARMA_CARD_BORDER_RADIUS_CSS} ${CARMA_CARD_BORDER_RADIUS_CSS} 0`,
               ...collapseButtonAreaStyle,
             }),
       }}
@@ -407,7 +411,9 @@ const CarmaCard = ({
         <div
           ref={headerContainerRef}
           style={{
-            borderRadius: shouldRenderBody ? "4px 4px 0 0" : "4px",
+            borderRadius: shouldRenderBody
+              ? `${CARMA_CARD_BORDER_RADIUS_CSS} ${CARMA_CARD_BORDER_RADIUS_CSS} 0 0`
+              : CARMA_CARD_BORDER_RADIUS_CSS,
             overflow: "hidden",
             boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
             position: "relative",
@@ -494,7 +500,9 @@ const CarmaCard = ({
             backgroundColor: "rgba(245, 245, 245, 0.8)",
             backdropFilter: "blur(2px)",
             WebkitBackdropFilter: "blur(2px)",
-            borderRadius: header ? "0 0 4px 4px" : "4px",
+            borderRadius: header
+              ? `0 0 ${CARMA_CARD_BORDER_RADIUS_CSS} ${CARMA_CARD_BORDER_RADIUS_CSS}`
+              : CARMA_CARD_BORDER_RADIUS_CSS,
             overflow: "hidden",
             ...bodyStyle,
           }}
@@ -540,7 +548,9 @@ const CarmaCard = ({
                 justifyContent: "center",
                 flexShrink: 0,
                 background: "#cccccc",
-                borderRadius: header ? "0 0 4px 0" : "0 4px 4px 0",
+                borderRadius: header
+                  ? `0 0 ${CARMA_CARD_BORDER_RADIUS_CSS} 0`
+                  : `0 ${CARMA_CARD_BORDER_RADIUS_CSS} ${CARMA_CARD_BORDER_RADIUS_CSS} 0`,
                 visibility: "hidden",
                 pointerEvents: "none",
                 ...collapseButtonAreaStyle,
