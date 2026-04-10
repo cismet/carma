@@ -31,9 +31,7 @@ export type ResolvedLineLabelPlacement = {
 
 const normalizeAngleDeg = (angleDeg: number): number => {
   const normalizedAngleDeg = angleDeg % 360;
-  return normalizedAngleDeg < 0
-    ? normalizedAngleDeg + 360
-    : normalizedAngleDeg;
+  return normalizedAngleDeg < 0 ? normalizedAngleDeg + 360 : normalizedAngleDeg;
 };
 
 const resolveReadableLineLabelAngleDeg = ({
@@ -116,8 +114,7 @@ export const resolveOverlayLineLabelPlacement = ({
           normalX,
           normalY,
         });
-  const labelOffsetPx =
-    options?.labelOffsetPx ?? DEFAULT_LINE_LABEL_OFFSET_PX;
+  const labelOffsetPx = options?.labelOffsetPx ?? DEFAULT_LINE_LABEL_OFFSET_PX;
   const flippedBaselineOffsetPx = shouldFlip
     ? options?.labelFlippedBaselineOffsetPx ?? 0
     : 0;

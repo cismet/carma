@@ -82,7 +82,8 @@ export const createVerticalAreaToolInfoBoxSlots = (
         dataTestIds={{
           flyTo: "carma-v2-flyto-vertical-area-measurement-btn",
           export: "carma-v2-export-vertical-area-measurement-geojson-btn",
-          visibility: "carma-v2-toggle-vertical-area-measurement-visibility-btn",
+          visibility:
+            "carma-v2-toggle-vertical-area-measurement-visibility-btn",
           lock: "carma-v2-toggle-vertical-area-measurement-lock-btn",
           delete: "carma-v2-delete-vertical-area-measurement-btn",
         }}

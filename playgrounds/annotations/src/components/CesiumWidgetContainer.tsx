@@ -201,7 +201,10 @@ const installExplicitRenderScheduler = ({
     resizeObserver?.disconnect();
     window.removeEventListener("resize", refreshForResize);
     for (const eventName of interactionRenderEvents) {
-      scene.canvas.removeEventListener(eventName, requestInteractionDrivenRender);
+      scene.canvas.removeEventListener(
+        eventName,
+        requestInteractionDrivenRender
+      );
     }
     clearQueuedRender();
     mutableScene.requestRender = originalRequestRender;

@@ -106,9 +106,10 @@ const REPRESENTATIVE_BADGE_FONT_WEIGHT =
 const REPRESENTATIVE_TEXT_COLOR = ANNOTATION_MEASUREMENT_TEXT_COLOR;
 
 const readQualitativeColorScheme = (id: string) => {
-  const colorScheme = ANNOTATION_MEASUREMENT_QUALITATIVE_DARK_COLOR_SCHEMES.find(
-    (entry) => entry.id === id
-  );
+  const colorScheme =
+    ANNOTATION_MEASUREMENT_QUALITATIVE_DARK_COLOR_SCHEMES.find(
+      (entry) => entry.id === id
+    );
 
   if (!colorScheme) {
     throw new Error(`Unknown representative label color scheme: ${id}`);
@@ -146,8 +147,10 @@ const REPRESENTATIVE_SELECTION_VARIANT: RepresentativeSelectionVariant = {
   label: "dark chip · white light",
   selectedBackgroundColor:
     ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE.backgroundColor,
-  selectedTextColor: ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE.textColor,
-  selectedGlowColor: ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE.glowColor,
+  selectedTextColor:
+    ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE.textColor,
+  selectedGlowColor:
+    ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE.glowColor,
   selectedGlowRadiusPx:
     ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE.glowRadiusPx,
   preserveFillOnSelection:
@@ -181,7 +184,8 @@ const REPRESENTATIVE_QUALITATIVE_COLOR_SCHEMES: readonly QualitativePillColorSch
 
 export const REPRESENTATIVE_CASES_STORY_ARGS: Partial<LabelMarkersStoryArgs> = {
   labelTextColor: REPRESENTATIVE_TEXT_COLOR,
-  labelBackgroundColor: REPRESENTATIVE_DEFAULT_COLOR_SCHEME.labelBackgroundColor,
+  labelBackgroundColor:
+    REPRESENTATIVE_DEFAULT_COLOR_SCHEME.labelBackgroundColor,
   badgeFillColor: REPRESENTATIVE_DEFAULT_COLOR_SCHEME.badgeBackgroundColor,
   badgeTextColor: REPRESENTATIVE_TEXT_COLOR,
   badgeBorderColor: REPRESENTATIVE_DEFAULT_COLOR_SCHEME.badgeBackgroundColor,
@@ -485,13 +489,16 @@ const makeSharedStyleProps = (
   textBackgroundColor: args.labelBackgroundColor,
   selectedBackgroundColor:
     REPRESENTATIVE_SELECTED_COLOR_SCHEME.labelBackgroundColor,
-  selectedTextColor: ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE.textColor,
-  selectedGlowColor: ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE.glowColor,
+  selectedTextColor:
+    ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE.textColor,
+  selectedGlowColor:
+    ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE.glowColor,
   selectedGlowRadiusPx:
     ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE.glowRadiusPx,
   preserveFillOnSelection:
     ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE.preserveFillOnSelection,
-  hoverBackgroundColor: REPRESENTATIVE_SELECTED_COLOR_SCHEME.hoverBackgroundColor,
+  hoverBackgroundColor:
+    REPRESENTATIVE_SELECTED_COLOR_SCHEME.hoverBackgroundColor,
   lineColor: REPRESENTATIVE_DEFAULT_COLOR_SCHEME.lineColor,
   lineWidth: 1,
   markerSize: 10,
@@ -968,7 +975,8 @@ const DraggablePillbuttonLabelDemo = ({
             fontFamily:
               effectiveStyleProps.fontFamily ?? LABEL_MARKERS_FONT_FAMILY,
             fontWeight:
-              effectiveStyleProps.fontWeight ?? REPRESENTATIVE_CONTENT_FONT_WEIGHT,
+              effectiveStyleProps.fontWeight ??
+              REPRESENTATIVE_CONTENT_FONT_WEIGHT,
             backgroundColor,
             color: effectiveStyleProps.textColor ?? "#0f172a",
             pointerEvents: "auto",
@@ -1131,9 +1139,11 @@ const InlinePillbuttonLabelDemo = ({
           ...INLINE_PILL_LABEL_BASE_STYLES,
           border: badgeBorderStyle,
           fontSize: effectiveStyleProps.fontSize ?? "12px",
-          fontFamily: effectiveStyleProps.fontFamily ?? LABEL_MARKERS_FONT_FAMILY,
+          fontFamily:
+            effectiveStyleProps.fontFamily ?? LABEL_MARKERS_FONT_FAMILY,
           fontWeight:
-            effectiveStyleProps.fontWeight ?? REPRESENTATIVE_CONTENT_FONT_WEIGHT,
+            effectiveStyleProps.fontWeight ??
+            REPRESENTATIVE_CONTENT_FONT_WEIGHT,
           backgroundColor,
           color: effectiveStyleProps.textColor ?? "#0f172a",
           pointerEvents: "auto",

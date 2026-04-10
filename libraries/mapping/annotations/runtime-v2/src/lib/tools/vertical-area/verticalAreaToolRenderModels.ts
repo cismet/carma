@@ -97,30 +97,32 @@ export const buildVerticalAreaToolRenderModels = (
   );
   const selectedMeasurementIdSet = new Set(selectedMeasurementIds);
 
-  const committedEdges = visibleVerticalAreaMeasurements.flatMap((measurement) => {
-    const coordinates = resolveMeasurementCoordinates(
-      measurement,
-      nodeCoordinatesById
-    );
+  const committedEdges = visibleVerticalAreaMeasurements.flatMap(
+    (measurement) => {
+      const coordinates = resolveMeasurementCoordinates(
+        measurement,
+        nodeCoordinatesById
+      );
 
-    if (coordinates.length < 3) {
-      return [];
+      if (coordinates.length < 3) {
+        return [];
+      }
+
+      return [
+        {
+          id: measurement.id,
+          measurementId: measurement.id,
+          nodeIds: measurement.nodeIds,
+          coordinates: measurement.closed
+            ? [...coordinates, coordinates[0]!]
+            : coordinates,
+          ...(selectedMeasurementIdSet.has(measurement.id)
+            ? visuals.selectedEdge
+            : visuals.edge),
+        },
+      ];
     }
-
-    return [
-      {
-        id: measurement.id,
-        measurementId: measurement.id,
-        nodeIds: measurement.nodeIds,
-        coordinates: measurement.closed
-          ? [...coordinates, coordinates[0]!]
-          : coordinates,
-        ...(selectedMeasurementIdSet.has(measurement.id)
-          ? visuals.selectedEdge
-          : visuals.edge),
-      },
-    ];
-  });
+  );
 
   const committedPolygonFills = visibleVerticalAreaMeasurements.flatMap(
     (measurement) => {
@@ -146,25 +148,26 @@ export const buildVerticalAreaToolRenderModels = (
     }
   );
 
-  const committedPoints = visibleVerticalAreaMeasurements.flatMap((measurement) =>
-    measurement.nodeIds.flatMap((nodeId, index) => {
-      const coordinate = nodeCoordinatesById.get(nodeId);
-      if (!coordinate) {
-        return [];
-      }
+  const committedPoints = visibleVerticalAreaMeasurements.flatMap(
+    (measurement) =>
+      measurement.nodeIds.flatMap((nodeId, index) => {
+        const coordinate = nodeCoordinatesById.get(nodeId);
+        if (!coordinate) {
+          return [];
+        }
 
-      return [
-        {
-          id: `${measurement.id}-node-${index}`,
-          measurementId: measurement.id,
-          nodeId,
-          coordinate,
-          ...(selectedMeasurementIdSet.has(measurement.id)
-            ? visuals.selectedPoint
-            : visuals.point),
-        },
-      ];
-    })
+        return [
+          {
+            id: `${measurement.id}-node-${index}`,
+            measurementId: measurement.id,
+            nodeId,
+            coordinate,
+            ...(selectedMeasurementIdSet.has(measurement.id)
+              ? visuals.selectedPoint
+              : visuals.point),
+          },
+        ];
+      })
   );
 
   const committedNodeLabels = visibleVerticalAreaMeasurements.flatMap(
@@ -199,9 +202,10 @@ export const buildVerticalAreaToolRenderModels = (
             onClick: onMeasurementSelect
               ? () => onMeasurementSelect(measurement.id)
               : undefined,
-            onLongPress: onNodeLongPress && !measurement.locked
-              ? () => onNodeLongPress(nodeId, measurement.id)
-              : undefined,
+            onLongPress:
+              onNodeLongPress && !measurement.locked
+                ? () => onNodeLongPress(nodeId, measurement.id)
+                : undefined,
           },
         ];
       });

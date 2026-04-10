@@ -62,7 +62,9 @@ export const RuntimeAnnotationInfoBoxActions = ({
       title="Als GeoJSON exportieren"
       icon={faDownload}
       onClick={onExport}
-      dataTestId={dataTestIds?.export ?? `${dataTestIdPrefix}-export-geojson-btn`}
+      dataTestId={
+        dataTestIds?.export ?? `${dataTestIdPrefix}-export-geojson-btn`
+      }
       visualOptions={visualOptions}
     />
     <RuntimeAnnotationInfoBoxActionIcon
@@ -93,7 +95,9 @@ export const RuntimeAnnotationInfoBoxActions = ({
       visualOptions={visualOptions}
     />
     <RuntimeAnnotationInfoBoxActionIcon
-      title={locked ? "Gesperrte Messung kann nicht gelöscht werden" : "Löschen"}
+      title={
+        locked ? "Gesperrte Messung kann nicht gelöscht werden" : "Löschen"
+      }
       icon={faTrashCan}
       onClick={onDelete}
       dataTestId={dataTestIds?.delete ?? `${dataTestIdPrefix}-delete-btn`}

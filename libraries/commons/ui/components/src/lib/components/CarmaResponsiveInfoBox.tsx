@@ -91,10 +91,7 @@ export const CarmaResponsiveInfoBox = ({
   const resolvedExpandedWidth =
     typeof window !== "undefined" &&
     useControlLayout &&
-    fallbackWindowWidth -
-      CONTROL_LAYOUT_EDGE_MARGIN_PX -
-      resolvedWidth -
-      300 <=
+    fallbackWindowWidth - CONTROL_LAYOUT_EDGE_MARGIN_PX - resolvedWidth - 300 <=
       0
       ? fallbackWindowWidth - CONTROL_LAYOUT_EDGE_MARGIN_PX
       : resolvedWidth;
@@ -110,15 +107,15 @@ export const CarmaResponsiveInfoBox = ({
         display: "inline-block",
       }
     : fitContentWidth
-      ? {
-          width: "fit-content",
-          minWidth: INFO_BOX_MIN_WIDTH_REM,
-          maxWidth: resolvedExpandedWidth,
-          display: "inline-block",
-        }
-      : {
-          width: resolvedExpandedWidth,
-        };
+    ? {
+        width: "fit-content",
+        minWidth: INFO_BOX_MIN_WIDTH_REM,
+        maxWidth: resolvedExpandedWidth,
+        display: "inline-block",
+      }
+    : {
+        width: resolvedExpandedWidth,
+      };
 
   useEffect(() => {
     if (!draggable) {

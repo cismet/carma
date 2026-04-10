@@ -20,11 +20,7 @@ export const canFinishPolylinePreview = (
 type FinishPolylinePreviewArgs = {
   toolType: RuntimeMeasurement["toolType"];
   coordinates: readonly RuntimeCoordinate[];
-  linkedNodeGroupIds?: readonly (
-    | RuntimeLinkedNodeGroupId
-    | null
-    | undefined
-  )[];
+  linkedNodeGroupIds?: readonly (RuntimeLinkedNodeGroupId | null | undefined)[];
   addAnnotation: (
     toolType: RuntimeMeasurement["toolType"],
     nextCoordinates: readonly RuntimeCoordinate[],

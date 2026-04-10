@@ -128,9 +128,10 @@ export const buildPolylineToolRenderModels = ({
             onClick: onMeasurementSelect
               ? () => onMeasurementSelect(measurement.id)
               : undefined,
-            onLongPress: onNodeLongPress && !measurement.locked
-              ? () => onNodeLongPress(nodeId, measurement.id)
-              : undefined,
+            onLongPress:
+              onNodeLongPress && !measurement.locked
+                ? () => onNodeLongPress(nodeId, measurement.id)
+                : undefined,
           },
         ];
       });

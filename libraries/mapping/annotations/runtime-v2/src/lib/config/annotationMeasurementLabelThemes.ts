@@ -11,8 +11,7 @@ import {
 
 import { annotationTypographyDefaults } from "./annotationTypographyDefaults";
 
-export const ANNOTATION_MEASUREMENT_TEXT_COLOR =
-  "rgba(248, 250, 252, 0.98)";
+export const ANNOTATION_MEASUREMENT_TEXT_COLOR = "rgba(248, 250, 252, 0.98)";
 
 export type AnnotationMeasurementQualitativeColorScheme = Readonly<{
   id: string;
@@ -41,15 +40,14 @@ export type AnnotationMeasurementLabelTheme = Readonly<{
   selection: AnnotationMeasurementSelectedHighlightPalette;
 }>;
 
-export const ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE =
-  Object.freeze({
-    backgroundColor: "rgba(15, 23, 42, 0.92)",
-    hoverBackgroundColor: "rgba(30, 41, 59, 0.9)",
-    textColor: ANNOTATION_MEASUREMENT_TEXT_COLOR,
-    glowColor: "rgba(255, 255, 255, 0.98)",
-    glowRadiusPx: 5,
-    preserveFillOnSelection: true,
-  } satisfies AnnotationMeasurementSelectedHighlightPalette);
+export const ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE = Object.freeze({
+  backgroundColor: "rgba(15, 23, 42, 0.92)",
+  hoverBackgroundColor: "rgba(30, 41, 59, 0.9)",
+  textColor: ANNOTATION_MEASUREMENT_TEXT_COLOR,
+  glowColor: "rgba(255, 255, 255, 0.98)",
+  glowRadiusPx: 5,
+  preserveFillOnSelection: true,
+} satisfies AnnotationMeasurementSelectedHighlightPalette);
 
 export const ANNOTATION_MEASUREMENT_QUALITATIVE_DARK_COLOR_SCHEMES =
   Object.freeze([
@@ -114,78 +112,76 @@ export const ANNOTATION_MEASUREMENT_QUALITATIVE_DARK_COLOR_SCHEMES =
 const getQualitativeColorScheme = (
   id: string
 ): AnnotationMeasurementQualitativeColorScheme => {
-  const colorScheme = ANNOTATION_MEASUREMENT_QUALITATIVE_DARK_COLOR_SCHEMES.find(
-    (entry) => entry.id === id
-  );
+  const colorScheme =
+    ANNOTATION_MEASUREMENT_QUALITATIVE_DARK_COLOR_SCHEMES.find(
+      (entry) => entry.id === id
+    );
 
   if (!colorScheme) {
-    throw new Error(
-      `Unknown annotation measurement label color scheme: ${id}`
-    );
+    throw new Error(`Unknown annotation measurement label color scheme: ${id}`);
   }
 
   return colorScheme;
 };
 
-export const ANNOTATION_MEASUREMENT_LABEL_THEME_BY_TOOL_TYPE =
-  Object.freeze({
-    [ANNOTATION_TYPE_POINT]: {
-      toolType: ANNOTATION_TYPE_POINT,
-      scheme: getQualitativeColorScheme("cobalt-reference"),
-      fontFamily: annotationTypographyDefaults.fontFamily,
-      contentFontWeight: 400,
-      badgeFontWeight: annotationTypographyDefaults.badgeFontWeight,
-      selection: ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE,
-    },
-    [ANNOTATION_TYPE_DISTANCE]: {
-      toolType: ANNOTATION_TYPE_DISTANCE,
-      scheme: getQualitativeColorScheme("teal-status"),
-      fontFamily: annotationTypographyDefaults.fontFamily,
-      contentFontWeight: annotationTypographyDefaults.lineLabelFontWeight,
-      badgeFontWeight: annotationTypographyDefaults.badgeFontWeight,
-      selection: ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE,
-    },
-    [ANNOTATION_TYPE_POLYLINE]: {
-      toolType: ANNOTATION_TYPE_POLYLINE,
-      scheme: getQualitativeColorScheme("amber-notice"),
-      fontFamily: annotationTypographyDefaults.fontFamily,
-      contentFontWeight: 400,
-      badgeFontWeight: annotationTypographyDefaults.badgeFontWeight,
-      selection: ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE,
-    },
-    [ANNOTATION_TYPE_AREA_GROUND]: {
-      toolType: ANNOTATION_TYPE_AREA_GROUND,
-      scheme: getQualitativeColorScheme("emerald-surface"),
-      fontFamily: annotationTypographyDefaults.fontFamily,
-      contentFontWeight: 400,
-      badgeFontWeight: annotationTypographyDefaults.badgeFontWeight,
-      selection: ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE,
-    },
-    [ANNOTATION_TYPE_AREA_PLANAR]: {
-      toolType: ANNOTATION_TYPE_AREA_PLANAR,
-      scheme: getQualitativeColorScheme("violet-analysis"),
-      fontFamily: annotationTypographyDefaults.fontFamily,
-      contentFontWeight: 400,
-      badgeFontWeight: annotationTypographyDefaults.badgeFontWeight,
-      selection: ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE,
-    },
-    [ANNOTATION_TYPE_AREA_VERTICAL]: {
-      toolType: ANNOTATION_TYPE_AREA_VERTICAL,
-      scheme: getQualitativeColorScheme("rose-review"),
-      fontFamily: annotationTypographyDefaults.fontFamily,
-      contentFontWeight: 400,
-      badgeFontWeight: annotationTypographyDefaults.badgeFontWeight,
-      selection: ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE,
-    },
-    [ANNOTATION_TYPE_LABEL]: {
-      toolType: ANNOTATION_TYPE_LABEL,
-      scheme: getQualitativeColorScheme("slate-note"),
-      fontFamily: annotationTypographyDefaults.fontFamily,
-      contentFontWeight: 400,
-      badgeFontWeight: annotationTypographyDefaults.badgeFontWeight,
-      selection: ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE,
-    },
-  } satisfies Record<AnnotationShortLabelKind, AnnotationMeasurementLabelTheme>);
+export const ANNOTATION_MEASUREMENT_LABEL_THEME_BY_TOOL_TYPE = Object.freeze({
+  [ANNOTATION_TYPE_POINT]: {
+    toolType: ANNOTATION_TYPE_POINT,
+    scheme: getQualitativeColorScheme("cobalt-reference"),
+    fontFamily: annotationTypographyDefaults.fontFamily,
+    contentFontWeight: 400,
+    badgeFontWeight: annotationTypographyDefaults.badgeFontWeight,
+    selection: ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE,
+  },
+  [ANNOTATION_TYPE_DISTANCE]: {
+    toolType: ANNOTATION_TYPE_DISTANCE,
+    scheme: getQualitativeColorScheme("teal-status"),
+    fontFamily: annotationTypographyDefaults.fontFamily,
+    contentFontWeight: annotationTypographyDefaults.lineLabelFontWeight,
+    badgeFontWeight: annotationTypographyDefaults.badgeFontWeight,
+    selection: ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE,
+  },
+  [ANNOTATION_TYPE_POLYLINE]: {
+    toolType: ANNOTATION_TYPE_POLYLINE,
+    scheme: getQualitativeColorScheme("amber-notice"),
+    fontFamily: annotationTypographyDefaults.fontFamily,
+    contentFontWeight: 400,
+    badgeFontWeight: annotationTypographyDefaults.badgeFontWeight,
+    selection: ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE,
+  },
+  [ANNOTATION_TYPE_AREA_GROUND]: {
+    toolType: ANNOTATION_TYPE_AREA_GROUND,
+    scheme: getQualitativeColorScheme("emerald-surface"),
+    fontFamily: annotationTypographyDefaults.fontFamily,
+    contentFontWeight: 400,
+    badgeFontWeight: annotationTypographyDefaults.badgeFontWeight,
+    selection: ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE,
+  },
+  [ANNOTATION_TYPE_AREA_PLANAR]: {
+    toolType: ANNOTATION_TYPE_AREA_PLANAR,
+    scheme: getQualitativeColorScheme("violet-analysis"),
+    fontFamily: annotationTypographyDefaults.fontFamily,
+    contentFontWeight: 400,
+    badgeFontWeight: annotationTypographyDefaults.badgeFontWeight,
+    selection: ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE,
+  },
+  [ANNOTATION_TYPE_AREA_VERTICAL]: {
+    toolType: ANNOTATION_TYPE_AREA_VERTICAL,
+    scheme: getQualitativeColorScheme("rose-review"),
+    fontFamily: annotationTypographyDefaults.fontFamily,
+    contentFontWeight: 400,
+    badgeFontWeight: annotationTypographyDefaults.badgeFontWeight,
+    selection: ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE,
+  },
+  [ANNOTATION_TYPE_LABEL]: {
+    toolType: ANNOTATION_TYPE_LABEL,
+    scheme: getQualitativeColorScheme("slate-note"),
+    fontFamily: annotationTypographyDefaults.fontFamily,
+    contentFontWeight: 400,
+    badgeFontWeight: annotationTypographyDefaults.badgeFontWeight,
+    selection: ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE,
+  },
+} satisfies Record<AnnotationShortLabelKind, AnnotationMeasurementLabelTheme>);
 
 export const resolveAnnotationMeasurementLabelTheme = (
   toolType: AnnotationShortLabelKind

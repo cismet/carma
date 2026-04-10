@@ -121,11 +121,7 @@ export const verticalAreaToolPlugin = createMeasurementToolPlugin({
     }),
   },
   pointQuery: {
-    onPointCreated: ({
-      coordinate,
-      linkedNodeGroupId,
-      activeToolSession,
-    }) => {
+    onPointCreated: ({ coordinate, linkedNodeGroupId, activeToolSession }) => {
       if (activeToolSession?.onNodeCreated) {
         activeToolSession.onNodeCreated(coordinate, linkedNodeGroupId);
         return;

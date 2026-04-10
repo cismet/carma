@@ -6,9 +6,8 @@ import type {
 import type { RuntimeToolId } from "../types/runtimeTool.types";
 
 const EMPTY_DRAFT_COORDINATES: readonly RuntimeCoordinate[] = [];
-const EMPTY_DRAFT_LINKED_NODE_GROUP_IDS: readonly (
-  RuntimeLinkedNodeGroupId | null
-)[] = [];
+const EMPTY_DRAFT_LINKED_NODE_GROUP_IDS: readonly (RuntimeLinkedNodeGroupId | null)[] =
+  [];
 
 export const getDraftCoordinatesForTool = (
   draftState: AnnotationDraftStoreState,

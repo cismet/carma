@@ -30,8 +30,7 @@ export type RuntimeAnnotationInfoBoxVisualOptions = Readonly<{
   inlineActionButtonClassName: string;
 }>;
 
-const RUNTIME_INFO_BOX_HEADING_TYPOGRAPHY_CLASSNAME =
-  `text-[${annotationTypographyDefaults.supportFontSizePx}px] font-semibold tracking-[0.03em]`;
+const RUNTIME_INFO_BOX_HEADING_TYPOGRAPHY_CLASSNAME = `text-[${annotationTypographyDefaults.supportFontSizePx}px] font-semibold tracking-[0.03em]`;
 const RUNTIME_INFO_BOX_EDITABLE_TITLE_TYPOGRAPHY_CLASSNAME =
   "text-[16px] font-semibold leading-[1.25]";
 
@@ -42,16 +41,14 @@ export const runtimeAnnotationInfoBoxVisualDefaults: RuntimeAnnotationInfoBoxVis
     headerForegroundClassName: "text-white/80",
     headerTitleClassName: `truncate ${RUNTIME_INFO_BOX_HEADING_TYPOGRAPHY_CLASSNAME}`,
     subtitleContainerClassName: "mt-1 mb-0 w-full px-3",
-    subtitleTextClassName:
-      `px-3 text-[${annotationTypographyDefaults.supportFontSizePx}px] leading-normal font-semibold text-[#111827]/50`,
-    subtitleMetaTextClassName:
-      `whitespace-nowrap text-[${annotationTypographyDefaults.supportFontSizePx}px] leading-normal font-semibold text-[#111827]/50`,
+    subtitleTextClassName: `px-3 text-[${annotationTypographyDefaults.supportFontSizePx}px] leading-normal font-semibold text-[#111827]/50`,
+    subtitleMetaTextClassName: `whitespace-nowrap text-[${annotationTypographyDefaults.supportFontSizePx}px] leading-normal font-semibold text-[#111827]/50`,
     bodyContainerClassName: "px-3 pb-2 pt-1",
-    bodyTextClassName:
-      `text-[${annotationTypographyDefaults.rootFontSizePx}px] leading-[1.4] text-[#212529]`,
+    bodyTextClassName: `text-[${annotationTypographyDefaults.rootFontSizePx}px] leading-[1.4] text-[#212529]`,
     mutedTextClassName: "text-[#6b7280]",
     linkTextClassName: "text-[#0078a8]",
-    actionIconClassName: "cursor-pointer text-base text-[#7e7e7e] hover:text-[#7e7e7e]",
+    actionIconClassName:
+      "cursor-pointer text-base text-[#7e7e7e] hover:text-[#7e7e7e]",
     fieldTextClassName: "text-[#111827]",
     fieldBorderClassName: "border-[#d1d5db]",
     fieldInputBorderClassName: "border-[#ced4da]",
@@ -59,10 +56,8 @@ export const runtimeAnnotationInfoBoxVisualDefaults: RuntimeAnnotationInfoBoxVis
     fieldFocusOutlineClassName:
       "focus:outline focus:outline-2 focus:outline-[#1677ff]",
     subtleFieldBackgroundClassName: "bg-white/85",
-    titleInputClassName:
-      `min-w-0 w-auto max-w-full break-words rounded-[3px] bg-transparent text-[#111827]/80 placeholder:text-[#111827]/50 focus:bg-[#fef3c7] focus:outline focus:outline-2 focus:outline-[#1677ff] ${RUNTIME_INFO_BOX_EDITABLE_TITLE_TYPOGRAPHY_CLASSNAME}`,
-    shortLabelInputClassName:
-      `shrink-0 border px-[0.5ex] py-0 text-center tabular-nums border-[#d1d5db] bg-white/85 text-[#111827]/80 placeholder:text-[#111827]/80 focus:bg-[#fef3c7] focus:outline focus:outline-2 focus:outline-[#1677ff] ${RUNTIME_INFO_BOX_EDITABLE_TITLE_TYPOGRAPHY_CLASSNAME}`,
+    titleInputClassName: `min-w-0 w-auto max-w-full break-words rounded-[3px] bg-transparent text-[#111827]/80 placeholder:text-[#111827]/50 focus:bg-[#fef3c7] focus:outline focus:outline-2 focus:outline-[#1677ff] ${RUNTIME_INFO_BOX_EDITABLE_TITLE_TYPOGRAPHY_CLASSNAME}`,
+    shortLabelInputClassName: `shrink-0 border px-[0.5ex] py-0 text-center tabular-nums border-[#d1d5db] bg-white/85 text-[#111827]/80 placeholder:text-[#111827]/80 focus:bg-[#fef3c7] focus:outline focus:outline-2 focus:outline-[#1677ff] ${RUNTIME_INFO_BOX_EDITABLE_TITLE_TYPOGRAPHY_CLASSNAME}`,
     navigationInstructionContainerClassName:
       "mt-1 flex w-full items-center justify-center px-2 pt-1",
     navigationAvailabilityContainerClassName:

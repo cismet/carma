@@ -1446,10 +1446,7 @@ export const SingleLineLabelDebugStory = ({
   ];
 
   return (
-    <CenteredStoryFrame
-      label="placement single line"
-      values={statusValues}
-    >
+    <CenteredStoryFrame label="placement single line" values={statusValues}>
       <div ref={rootRef} style={plotFrameStyle}>
         <LabelOverlayProvider host={overlayHost}>
           <SingleLineLabelDebugOverlay containerRef={rootRef} args={args} />
@@ -1473,10 +1470,7 @@ export const PolygonSegmentLabelDebugStory = ({
   const statusValues = [`side ${sidePreference}`, `drag triangle vertices`];
 
   return (
-    <CenteredStoryFrame
-      label="placement polygon segment"
-      values={statusValues}
-    >
+    <CenteredStoryFrame label="placement polygon segment" values={statusValues}>
       <div ref={rootRef} style={plotFrameStyle}>
         <LabelOverlayProvider host={overlayHost}>
           <PolygonSegmentLabelDebugOverlay

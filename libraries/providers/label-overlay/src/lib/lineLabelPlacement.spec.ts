@@ -6,7 +6,12 @@ import {
   resolveOverlayLineLabelPlacement,
 } from "./lineLabelPlacement";
 
-const createSvgLine = (startX: number, startY: number, endX: number, endY: number): SvgLine => ({
+const createSvgLine = (
+  startX: number,
+  startY: number,
+  endX: number,
+  endY: number
+): SvgLine => ({
   start: { x: startX, y: startY },
   end: { x: endX, y: endY },
 });

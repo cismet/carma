@@ -94,11 +94,7 @@ const buildVerticalAreaMeasurementPayload = (
 ): {
   coordinates: readonly RuntimeCoordinate[];
   options: RuntimeAddAnnotationOptions;
-  linkedNodeGroupIds: readonly (
-    | RuntimeLinkedNodeGroupId
-    | null
-    | undefined
-  )[];
+  linkedNodeGroupIds: readonly (RuntimeLinkedNodeGroupId | null | undefined)[];
 } | null => {
   if (coordinates.length < 2) {
     return null;

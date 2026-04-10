@@ -44,7 +44,12 @@ export const createLabelMeasurement = ({
   ) => RuntimeMeasurement;
   linkedNodeGroupId?: RuntimeLinkedNodeGroupId | null;
 }) =>
-  addAnnotation(toolType, [coordinate], {
-    displayName,
-    labelAppearance: createDefaultLabelAppearance(),
-  }, [linkedNodeGroupId ?? null]);
+  addAnnotation(
+    toolType,
+    [coordinate],
+    {
+      displayName,
+      labelAppearance: createDefaultLabelAppearance(),
+    },
+    [linkedNodeGroupId ?? null]
+  );

@@ -20,11 +20,7 @@ export const undoDistancePreviewPoint = <T>(previousItems: readonly T[]) =>
 type CommitDistanceMeasurementArgs = {
   toolType: RuntimeMeasurement["toolType"];
   coordinates: readonly RuntimeCoordinate[];
-  linkedNodeGroupIds?: readonly (
-    | RuntimeLinkedNodeGroupId
-    | null
-    | undefined
-  )[];
+  linkedNodeGroupIds?: readonly (RuntimeLinkedNodeGroupId | null | undefined)[];
   addAnnotation: (
     toolType: RuntimeMeasurement["toolType"],
     nextCoordinates: readonly RuntimeCoordinate[],

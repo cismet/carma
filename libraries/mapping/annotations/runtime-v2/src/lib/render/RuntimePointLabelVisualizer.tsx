@@ -673,53 +673,53 @@ export const useRuntimePointLabelVisualizer = ({
         id: overlayId,
         contentKey: nextSignature,
         content: (
-            <PointLabel
-              pointId={label.id}
-              content={label.content}
-              selected={label.selected}
-              hideLabelAndStem={label.hideLabelAndStem}
-              hideMarker={label.hideMarker ?? false}
-              markerSize={
-                label.markerPixelSize ?? DEFAULT_LABEL_MARKER_PIXEL_SIZE
-              }
-              stemStartDistance={
-                label.hideMarker
-                  ? 0
-                  : (label.markerPixelSize ?? DEFAULT_LABEL_MARKER_PIXEL_SIZE) / 2
-              }
-              badgeContent={effectiveBadgeContent}
-              markerBackgroundColor={label.markerBackgroundColor}
-              markerTextColor={label.markerTextColor}
-              lineColor={label.lineColor}
-              labelStyle={label.labelStyle}
-              collapse={label.collapse}
-              textBackgroundColor={label.textBackgroundColor}
-              textColor={label.textColor}
-              selectedBackgroundColor={label.selectedBackgroundColor}
-              selectedTextColor={label.selectedTextColor}
-              selectedGlowColor={label.selectedGlowColor}
-              selectedGlowRadiusPx={label.selectedGlowRadiusPx}
-              preserveFillOnSelection={label.preserveFillOnSelection}
-              hoverBackgroundColor={label.hoverBackgroundColor}
-              fontSize={label.fontSize}
-              fontFamily={label.fontFamily}
-              fontWeight={label.fontWeight}
-              onClick={clickBlocked ? undefined : label.onClick}
-              onDoubleClick={
-                blockLabelInteractions ? undefined : label.onDoubleClick
-              }
-              onLongPress={
-                blockLabelInteractions && !label.allowLongPressWhenBlocked
-                  ? undefined
-                  : label.onLongPress
-              }
-              markerOnlyPointerEvents={label.markerOnlyPointerEvents}
-              longPressDurationMs={label.longPressDurationMs}
-              longPressOnlyOnMarker={
-                Boolean(label.onLongPress) && Boolean(label.hideLabelAndStem)
-              }
-              renderHiddenMarkerInteractionTarget={Boolean(label.onLongPress)}
-            />
+          <PointLabel
+            pointId={label.id}
+            content={label.content}
+            selected={label.selected}
+            hideLabelAndStem={label.hideLabelAndStem}
+            hideMarker={label.hideMarker ?? false}
+            markerSize={
+              label.markerPixelSize ?? DEFAULT_LABEL_MARKER_PIXEL_SIZE
+            }
+            stemStartDistance={
+              label.hideMarker
+                ? 0
+                : (label.markerPixelSize ?? DEFAULT_LABEL_MARKER_PIXEL_SIZE) / 2
+            }
+            badgeContent={effectiveBadgeContent}
+            markerBackgroundColor={label.markerBackgroundColor}
+            markerTextColor={label.markerTextColor}
+            lineColor={label.lineColor}
+            labelStyle={label.labelStyle}
+            collapse={label.collapse}
+            textBackgroundColor={label.textBackgroundColor}
+            textColor={label.textColor}
+            selectedBackgroundColor={label.selectedBackgroundColor}
+            selectedTextColor={label.selectedTextColor}
+            selectedGlowColor={label.selectedGlowColor}
+            selectedGlowRadiusPx={label.selectedGlowRadiusPx}
+            preserveFillOnSelection={label.preserveFillOnSelection}
+            hoverBackgroundColor={label.hoverBackgroundColor}
+            fontSize={label.fontSize}
+            fontFamily={label.fontFamily}
+            fontWeight={label.fontWeight}
+            onClick={clickBlocked ? undefined : label.onClick}
+            onDoubleClick={
+              blockLabelInteractions ? undefined : label.onDoubleClick
+            }
+            onLongPress={
+              blockLabelInteractions && !label.allowLongPressWhenBlocked
+                ? undefined
+                : label.onLongPress
+            }
+            markerOnlyPointerEvents={label.markerOnlyPointerEvents}
+            longPressDurationMs={label.longPressDurationMs}
+            longPressOnlyOnMarker={
+              Boolean(label.onLongPress) && Boolean(label.hideLabelAndStem)
+            }
+            renderHiddenMarkerInteractionTarget={Boolean(label.onLongPress)}
+          />
         ),
         ...overlayElementUpdate,
       });

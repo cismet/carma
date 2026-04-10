@@ -127,7 +127,9 @@ const getPointStyleSignature = (
     styleProps?.markerStrokeWidth ?? "",
     styleProps?.stemReferenceMarkerSize ?? "",
     styleProps?.stemStartDistance ?? "",
-    getOverlayReferenceSignature(styleProps?.nodeContent ?? styleProps?.markerContent),
+    getOverlayReferenceSignature(
+      styleProps?.nodeContent ?? styleProps?.markerContent
+    ),
     styleProps?.markerBackgroundColor ?? "",
     styleProps?.markerTextColor ?? "",
     getOverlayReferenceSignature(styleProps?.badgeContent),
@@ -155,11 +157,9 @@ const getPointContentSignature = (
     point.markerTextColor
   }:${getOverlayReferenceSignature(resolvePointBadgeContent(point))}:${
     point.labelStyle
-  }:${point.collapse}:${
-    point.markerCursor ?? ""
-  }:${point.labelCursor ?? ""}:${point.textColor ?? ""}:${
-    point.textBackgroundColor ?? ""
-  }:${point.selectedBackgroundColor ?? ""}:${
+  }:${point.collapse}:${point.markerCursor ?? ""}:${point.labelCursor ?? ""}:${
+    point.textColor ?? ""
+  }:${point.textBackgroundColor ?? ""}:${point.selectedBackgroundColor ?? ""}:${
     point.selectedTextColor ?? ""
   }:${point.selectedGlowColor ?? ""}:${
     point.selectedGlowRadiusPx ?? ""

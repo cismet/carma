@@ -221,7 +221,8 @@ const resolveRemovableSelectedAnnotationIds = (state: {
   return state.annotationEntries
     .filter(
       (annotationEntry) =>
-        selectedAnnotationIdSet.has(annotationEntry.id) && !annotationEntry.locked
+        selectedAnnotationIdSet.has(annotationEntry.id) &&
+        !annotationEntry.locked
     )
     .map((annotationEntry) => annotationEntry.id);
 };
@@ -287,7 +288,9 @@ const isRuntimeSceneSelectionTarget = ({
   ) {
     const polygonGroupId = (pickedId as { polygonGroupId?: unknown })
       .polygonGroupId;
-    return typeof polygonGroupId === "string" && polygonFillIds.has(polygonGroupId);
+    return (
+      typeof polygonGroupId === "string" && polygonFillIds.has(polygonGroupId)
+    );
   }
 
   return false;
@@ -383,7 +386,9 @@ const flyToAnnotationPoints = ({
 
 const downloadGeoJsonFile = (
   fileName: string,
-  featureCollection: ReturnType<typeof buildRuntimeAnnotationGeoJsonFeatureCollection>
+  featureCollection: ReturnType<
+    typeof buildRuntimeAnnotationGeoJsonFeatureCollection
+  >
 ) => {
   if (!featureCollection) {
     return;
@@ -422,11 +427,7 @@ const buildMeasurementEntities = ({
   toolType: RuntimeMeasurement["toolType"];
   coordinates: readonly RuntimeCoordinate[];
   options?: RuntimeAddAnnotationOptions;
-  linkedNodeGroupIds?: readonly (
-    | RuntimeLinkedNodeGroupId
-    | null
-    | undefined
-  )[];
+  linkedNodeGroupIds?: readonly (RuntimeLinkedNodeGroupId | null | undefined)[];
   measurementSequenceRef: React.MutableRefObject<number>;
   nodeSequenceRef: React.MutableRefObject<number>;
   edgeSequenceRef: React.MutableRefObject<number>;
@@ -968,9 +969,7 @@ const RuntimeVisualizationHost = ({
     (nextIsPressed: boolean) => {
       isSelectionAdditiveModifierPressedRef.current = nextIsPressed;
       setIsSelectionAdditiveModifierPressed((currentIsPressed) =>
-        currentIsPressed === nextIsPressed
-          ? currentIsPressed
-          : nextIsPressed
+        currentIsPressed === nextIsPressed ? currentIsPressed : nextIsPressed
       );
     },
     []
@@ -1068,12 +1067,13 @@ const RuntimeVisualizationHost = ({
 
       const currentlySelectedAnnotationIds =
         annotationsStore.getState().selectionState.selectedAnnotationIds;
-      const nextSelectedAnnotationIds =
-        currentlySelectedAnnotationIds.includes(annotationId)
-          ? currentlySelectedAnnotationIds.filter(
-              (selectedAnnotationId) => selectedAnnotationId !== annotationId
-            )
-          : [...currentlySelectedAnnotationIds, annotationId];
+      const nextSelectedAnnotationIds = currentlySelectedAnnotationIds.includes(
+        annotationId
+      )
+        ? currentlySelectedAnnotationIds.filter(
+            (selectedAnnotationId) => selectedAnnotationId !== annotationId
+          )
+        : [...currentlySelectedAnnotationIds, annotationId];
 
       annotationsStore.dispatch(
         setSelectedAnnotationIds(nextSelectedAnnotationIds)
@@ -1124,10 +1124,7 @@ const RuntimeVisualizationHost = ({
       window.removeEventListener("keyup", handleKeyUp, true);
       window.removeEventListener("pointerdown", handlePointerDown, true);
       window.removeEventListener("blur", clearModifierState);
-      document.removeEventListener(
-        "visibilitychange",
-        handleVisibilityChange
-      );
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [syncSelectionAdditiveModifierPressed]);
 
@@ -1182,25 +1179,23 @@ const RuntimeVisualizationHost = ({
   const runtimeSceneSelectionPolygonFillIdSet = useMemo(
     () =>
       new Set(
-        (aggregatedRenderLayer.polygonFills ?? []).map((polygonFill) => polygonFill.id)
+        (aggregatedRenderLayer.polygonFills ?? []).map(
+          (polygonFill) => polygonFill.id
+        )
       ),
     [aggregatedRenderLayer.polygonFills]
   );
 
   useEffect(() => {
-    if (
-      !scene ||
-      scene.isDestroyed() ||
-      activeToolType !== SELECT_TOOL_TYPE
-    ) {
+    if (!scene || scene.isDestroyed() || activeToolType !== SELECT_TOOL_TYPE) {
       return;
     }
 
     const handler = new ScreenSpaceEventHandler(scene.canvas);
     handler.setInputAction((event: { position: Cartesian2 }) => {
       if (
-        annotationsStore.getState().selectionState.selectedAnnotationIds.length ===
-        0
+        annotationsStore.getState().selectionState.selectedAnnotationIds
+          .length === 0
       ) {
         return;
       }
@@ -1266,8 +1261,7 @@ const RuntimeVisualizationHost = ({
   );
   useCursorOverlay(scene, null, {
     enabled:
-      activeToolType === SELECT_TOOL_TYPE &&
-      isSelectionAdditiveModifierPressed,
+      activeToolType === SELECT_TOOL_TYPE && isSelectionAdditiveModifierPressed,
     variant: "selection-additive-indicator",
   });
 
@@ -1477,8 +1471,9 @@ export const AnnotationsProvider = ({
     (annotationId: string) => {
       const runtimeState = annotationsStore.getState();
       const annotation =
-        runtimeState.annotationEntries.find((entry) => entry.id === annotationId) ??
-        null;
+        runtimeState.annotationEntries.find(
+          (entry) => entry.id === annotationId
+        ) ?? null;
       if (!annotation) {
         return;
       }
@@ -1500,9 +1495,8 @@ export const AnnotationsProvider = ({
         return;
       }
 
-      const exportDescriptor = resolveRuntimeAnnotationExportDescriptor(
-        annotation
-      );
+      const exportDescriptor =
+        resolveRuntimeAnnotationExportDescriptor(annotation);
       const kindSegment = sanitizeRuntimeAnnotationExportFileSegment(
         exportDescriptor.kind
       );
@@ -1554,7 +1548,10 @@ export const AnnotationsProvider = ({
         })
       );
 
-      if (nextLocked && targetEntry.nodeIds.includes(activeMoveGizmoNodeId ?? "")) {
+      if (
+        nextLocked &&
+        targetEntry.nodeIds.includes(activeMoveGizmoNodeId ?? "")
+      ) {
         setActiveMoveGizmoNodeId(null);
       }
     },

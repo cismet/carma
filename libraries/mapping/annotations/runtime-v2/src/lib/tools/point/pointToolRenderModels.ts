@@ -102,9 +102,7 @@ export const buildPointToolRenderModels = ({
       }
       const pointNodeId = measurement.nodeIds[0] ?? null;
       const isSelected = selectedMeasurementIdSet.has(measurement.id);
-      const pointVisuals = isSelected
-        ? visuals.selectedPoint
-        : visuals.point;
+      const pointVisuals = isSelected ? visuals.selectedPoint : visuals.point;
       const selectedHighlight = labelTheme.selection;
       const labelColorScheme = labelTheme.scheme;
 

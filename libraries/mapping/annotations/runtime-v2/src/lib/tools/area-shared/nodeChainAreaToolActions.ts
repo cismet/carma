@@ -78,11 +78,7 @@ export const commitAreaMeasurement = ({
 }: {
   toolType: RuntimeAreaToolType;
   coordinates: readonly RuntimeCoordinate[];
-  linkedNodeGroupIds?: readonly (
-    | RuntimeLinkedNodeGroupId
-    | null
-    | undefined
-  )[];
+  linkedNodeGroupIds?: readonly (RuntimeLinkedNodeGroupId | null | undefined)[];
   addAnnotation: (
     toolType: RuntimeMeasurement["toolType"],
     nextCoordinates: readonly RuntimeCoordinate[],

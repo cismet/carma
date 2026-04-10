@@ -128,11 +128,7 @@ export const labelToolPlugin = createMeasurementToolPlugin({
     }),
   },
   pointQuery: {
-    onPointCreated: ({
-      coordinate,
-      linkedNodeGroupId,
-      activeToolSession,
-    }) => {
+    onPointCreated: ({ coordinate, linkedNodeGroupId, activeToolSession }) => {
       activeToolSession?.onNodeCreated?.(coordinate, linkedNodeGroupId);
     },
   },

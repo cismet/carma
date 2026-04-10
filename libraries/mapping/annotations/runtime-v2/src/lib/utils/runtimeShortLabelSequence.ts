@@ -68,8 +68,10 @@ export const resolveNextShortLabelCounterByToolType = (
     }
 
     const counter =
-      parseShortLabelCounter(annotationEntry.toolType, annotationEntry.shortLabel) ??
-      1;
+      parseShortLabelCounter(
+        annotationEntry.toolType,
+        annotationEntry.shortLabel
+      ) ?? 1;
     nextCounterByToolType[annotationEntry.toolType] = Math.max(
       nextCounterByToolType[annotationEntry.toolType] ?? 1,
       counter + 1

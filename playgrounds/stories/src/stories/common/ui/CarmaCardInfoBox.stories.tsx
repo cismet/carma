@@ -118,9 +118,7 @@ const CardVariant = ({
                 }
               : undefined
           }
-          header={
-            <span style={infoBoxHeaderTextStyle}>{headerText}</span>
-          }
+          header={<span style={infoBoxHeaderTextStyle}>{headerText}</span>}
           headerColor={runtimeAnnotationInfoBoxVisualDefaults.headingColor}
           subtitle={
             subtitle ? (
@@ -129,7 +127,9 @@ const CardVariant = ({
           }
           content={<div style={infoBoxBodyTextStyle}>{content}</div>}
           footer={
-            footer ? <div style={infoBoxSupportTextStyle}>{footer}</div> : undefined
+            footer ? (
+              <div style={infoBoxSupportTextStyle}>{footer}</div>
+            ) : undefined
           }
           collapsible
           collapsed={collapsed}
@@ -168,9 +168,7 @@ const InfoBoxVariant = ({
         dragGripPlacement={dragGripPlacement}
         defaultCollapsed={defaultCollapsed}
         collapsible
-        heading={
-          <span style={infoBoxHeaderTextStyle}>{headerText}</span>
-        }
+        heading={<span style={infoBoxHeaderTextStyle}>{headerText}</span>}
         headingColor={runtimeAnnotationInfoBoxVisualDefaults.headingColor}
         subtitle={
           subtitle ? (
@@ -179,7 +177,9 @@ const InfoBoxVariant = ({
         }
         content={<div style={infoBoxBodyTextStyle}>{content}</div>}
         footer={
-          footer ? <div style={infoBoxSupportTextStyle}>{footer}</div> : undefined
+          footer ? (
+            <div style={infoBoxSupportTextStyle}>{footer}</div>
+          ) : undefined
         }
       />
     </div>

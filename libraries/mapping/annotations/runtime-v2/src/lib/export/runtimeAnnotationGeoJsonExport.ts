@@ -84,10 +84,7 @@ const resolveGeometry = ({
     return null;
   }
 
-  if (
-    POLYGON_TOOL_TYPES.has(toolType) &&
-    coordinates.length >= 3
-  ) {
+  if (POLYGON_TOOL_TYPES.has(toolType) && coordinates.length >= 3) {
     const ring = coordinates.map(toGeoJsonPosition);
     return {
       type: "Polygon",
@@ -95,10 +92,7 @@ const resolveGeometry = ({
     };
   }
 
-  if (
-    !POINT_LIKE_TOOL_TYPES.has(toolType) &&
-    coordinates.length >= 2
-  ) {
+  if (!POINT_LIKE_TOOL_TYPES.has(toolType) && coordinates.length >= 2) {
     return {
       type: "LineString",
       coordinates: coordinates.map(toGeoJsonPosition),

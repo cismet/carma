@@ -241,9 +241,7 @@ describe("PointLabel", () => {
 
     expect(pillRoot?.style.backgroundColor).toBe("rgba(30, 64, 175, 0.78)");
     expect(pillRoot?.style.color).toBe("rgba(253, 224, 71, 0.99)");
-    expect(pillRoot?.style.boxShadow).toBe(
-      "0 0 5px rgba(253, 224, 71, 0.99)"
-    );
+    expect(pillRoot?.style.boxShadow).toBe("0 0 5px rgba(253, 224, 71, 0.99)");
     expect(badge?.style.backgroundColor).toBe("rgba(30, 58, 138, 0.98)");
     expect(badge?.style.color).toBe("rgba(253, 224, 71, 0.99)");
   });
@@ -441,8 +439,8 @@ describe("PointLabel", () => {
       '[data-pillbutton-segment="content"]'
     ) as HTMLSpanElement | null;
 
-  expectEmOrEx(pillContent?.style.paddingRight, "1em");
-  expectEmOrEx(pillContent?.style.paddingLeft, "1em");
+    expectEmOrEx(pillContent?.style.paddingRight, "1em");
+    expectEmOrEx(pillContent?.style.paddingLeft, "1em");
   });
 
   it("shortens leading content x padding when a left badge is present", () => {
@@ -462,7 +460,7 @@ describe("PointLabel", () => {
     ) as HTMLSpanElement | null;
 
     expect(pillContent?.style.paddingLeft).toBe("0em");
-  expectEmOrEx(pillContent?.style.paddingRight, "1em");
+    expectEmOrEx(pillContent?.style.paddingRight, "1em");
   });
 
   it("shortens trailing content x padding when a right badge is present", () => {

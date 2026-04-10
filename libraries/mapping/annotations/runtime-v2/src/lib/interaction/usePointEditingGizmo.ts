@@ -100,9 +100,8 @@ export const usePointEditingGizmo = (
   const [activeMoveGizmoNodeId, setActiveMoveGizmoNodeId] = useState<
     string | null
   >(null);
-  const [axisOverride, setAxisOverride] = useState<MoveGizmoAxisOverride | null>(
-    null
-  );
+  const [axisOverride, setAxisOverride] =
+    useState<MoveGizmoAxisOverride | null>(null);
 
   const handleNodeLongPress = useCallback(
     (nodeId: string, _measurementId?: string) => {
@@ -164,7 +163,9 @@ export const usePointEditingGizmo = (
         return false;
       }
 
-      const startPoint = cartesian3FromGeographicCoordinate(startNode.coordinate);
+      const startPoint = cartesian3FromGeographicCoordinate(
+        startNode.coordinate
+      );
       const endPoint = cartesian3FromGeographicCoordinate(endNode.coordinate);
       const axisOverrideFromLine = createReferenceLineAxisOverride(
         Cartesian3.subtract(endPoint, startPoint, new Cartesian3())

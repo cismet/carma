@@ -774,31 +774,28 @@ export const useCesiumPointMoveGizmo = (
     [axisTitle, getAxisCandidatesAtPosition]
   );
 
-  const stopDragging = useCallback(
-    (exitMoveMode: boolean) => {
-      const dragMode = dragStateRef.current?.mode ?? null;
-      if (dragStateRef.current) {
-        dragStateRef.current.cleanupWindowListeners();
-        dragStateRef.current = null;
-      }
+  const stopDragging = useCallback((exitMoveMode: boolean) => {
+    const dragMode = dragStateRef.current?.mode ?? null;
+    if (dragStateRef.current) {
+      dragStateRef.current.cleanupWindowListeners();
+      dragStateRef.current = null;
+    }
 
-      if (dragMode === "rotate") {
-        axisAnchorDistanceRef.current = {};
-      }
+    if (dragMode === "rotate") {
+      axisAnchorDistanceRef.current = {};
+    }
 
-      restoreGlobalDragCursor(restoreGlobalCursorRef);
+    restoreGlobalDragCursor(restoreGlobalCursorRef);
 
-      if (isDraggingRef.current) {
-        isDraggingRef.current = false;
-        onDragStateChangeRef.current?.(false);
-      }
+    if (isDraggingRef.current) {
+      isDraggingRef.current = false;
+      onDragStateChangeRef.current?.(false);
+    }
 
-      if (exitMoveMode) {
-        onExitRef.current?.();
-      }
-    },
-    []
-  );
+    if (exitMoveMode) {
+      onExitRef.current?.();
+    }
+  }, []);
 
   const startDragging = useCallback(
     (
@@ -927,12 +924,7 @@ export const useCesiumPointMoveGizmo = (
       onDragStateChangeRef.current?.(true);
       scene.requestRender();
     },
-    [
-      getActiveAxisAtPosition,
-      scene,
-      stopDragging,
-      getAxisCandidatesAtPosition,
-    ]
+    [getActiveAxisAtPosition, scene, stopDragging, getAxisCandidatesAtPosition]
   );
 
   const startRotating = useCallback(
@@ -1079,12 +1071,7 @@ export const useCesiumPointMoveGizmo = (
       onDragStateChangeRef.current?.(true);
       scene.requestRender();
     },
-    [
-      getActiveAxisAtPosition,
-      getAxisCandidatesAtPosition,
-      scene,
-      stopDragging,
-    ]
+    [getActiveAxisAtPosition, getAxisCandidatesAtPosition, scene, stopDragging]
   );
 
   const startPlaneDragging = useCallback(

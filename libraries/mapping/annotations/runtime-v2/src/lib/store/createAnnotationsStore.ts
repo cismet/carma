@@ -450,7 +450,11 @@ const annotationsSlice = createSlice({
       state,
       action: PayloadAction<UpdateNodeCoordinateByIdPayload>
     ) => {
-      const { nodeId, coordinate, selectedMeasurementIds = [] } = action.payload;
+      const {
+        nodeId,
+        coordinate,
+        selectedMeasurementIds = [],
+      } = action.payload;
       const targetNode = state.nodes.find((node) => node.id === nodeId);
       if (!targetNode) {
         return;
@@ -683,9 +687,7 @@ const annotationsSlice = createSlice({
       action: PayloadAction<RuntimeToolId>
     ) => {
       delete state.draftState.draftCoordinatesByToolType[action.payload];
-      delete state.draftState.draftLinkedNodeGroupIdsByToolType[
-        action.payload
-      ];
+      delete state.draftState.draftLinkedNodeGroupIdsByToolType[action.payload];
     },
     setPendingAnnotationIdByToolType: (
       state,

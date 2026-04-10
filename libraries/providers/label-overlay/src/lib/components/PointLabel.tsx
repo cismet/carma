@@ -127,8 +127,7 @@ const PILL_STEM_END_INSET_PX = 1.5;
 const PILL_LABEL_CAP_RADIUS_EM = DEFAULT_PILL_LABEL_HEIGHT_EM / 2;
 export const POINT_LABEL_TEXT_BACKGROUND_COLOR = "rgba(30, 41, 59, 0.62)";
 export const POINT_LABEL_HOVER_BACKGROUND_COLOR = "rgba(51, 65, 85, 0.68)";
-export const POINT_LABEL_SELECTED_BACKGROUND_COLOR =
-  "rgba(71, 85, 105, 0.74)";
+export const POINT_LABEL_SELECTED_BACKGROUND_COLOR = "rgba(71, 85, 105, 0.74)";
 
 const parseFontSizePx = (fontSize: string): number => {
   const parsed = Number.parseFloat(fontSize);
@@ -418,7 +417,8 @@ export const PointLabel = React.memo(
       pointerEvents: markerPointerEvents,
       cursor: resolvedMarkerCursor,
     };
-    const collapseToCompact = hasCompactContent && collapse && !selected && !isHovered;
+    const collapseToCompact =
+      hasCompactContent && collapse && !selected && !isHovered;
     const expandedPillContent = stripLeadingBadgeFromText(
       content,
       resolvedBadgeContent

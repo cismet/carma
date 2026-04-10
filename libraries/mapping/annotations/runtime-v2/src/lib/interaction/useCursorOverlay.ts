@@ -101,8 +101,7 @@ const createSelectionAdditiveIndicatorElement = () => {
   applyStyles(element, {
     display: "none",
     color: "rgba(255, 255, 255, 0.98)",
-    fontFamily:
-      '"Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif',
+    fontFamily: '"Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif',
     fontSize: "18px",
     fontWeight: "700",
     lineHeight: "1",

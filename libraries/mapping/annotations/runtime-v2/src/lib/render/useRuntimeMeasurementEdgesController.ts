@@ -817,7 +817,9 @@ export const useRuntimeMeasurementEdgesController = ({
         const selectionEdgeClickHandler =
           !blockEdgeInteractions && edge.distanceTriangleOverlay?.measurementId
             ? () =>
-                onMeasurementSelect(edge.distanceTriangleOverlay!.measurementId!)
+                onMeasurementSelect(
+                  edge.distanceTriangleOverlay!.measurementId!
+                )
             : undefined;
         const lineClickHandler =
           referenceEdgeClickHandler ?? selectionEdgeClickHandler;
@@ -1158,8 +1160,7 @@ export const useRuntimeMeasurementEdgesController = ({
           applyDistanceTriangleStraightCornerHandleLayout({
             handle: cornerHandle,
             center: straightCenter,
-            clickable:
-              !blockEdgeInteractions && activeMoveGizmoNodeId === null,
+            clickable: !blockEdgeInteractions && activeMoveGizmoNodeId === null,
             onClick: () =>
               onDistanceTriangleCornerClick(
                 resolveDistanceTriangleMeasurementId(edge)

@@ -176,7 +176,7 @@ export const resolvePersistedAnnotationsStoreState = ({
   const persistedLegacyNodes =
     initialPersistenceState?.version === 5
       ? []
-      : (persistedTables?.nodes.map(cloneLegacyNode) ?? []);
+      : persistedTables?.nodes.map(cloneLegacyNode) ?? [];
   const normalizedNodes =
     initialPersistenceState?.version === 5
       ? initialPersistenceState.tables.nodes.map(cloneNode)

@@ -69,7 +69,9 @@ export const createLabelToolInfoBoxSlots = (
       subtitle: (
         <div className={infoBoxVisualOptions.subtitleContainerClassName}>
           <div className="flex items-start justify-between gap-2">
-            <div className={`min-w-0 flex-1 ${infoBoxVisualOptions.subtitleTextClassName}`}>
+            <div
+              className={`min-w-0 flex-1 ${infoBoxVisualOptions.subtitleTextClassName}`}
+            >
               {annotation.displayName?.trim() ||
                 getDefaultLabelDisplayName(labelOrder)}
             </div>

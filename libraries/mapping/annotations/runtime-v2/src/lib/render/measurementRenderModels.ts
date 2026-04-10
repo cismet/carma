@@ -91,9 +91,7 @@ export const resolveRuntimeOverlayDistanceZIndex = (
     RUNTIME_OVERLAY_DISTANCE_Z_INDEX.MIN,
     Math.min(
       RUNTIME_OVERLAY_DISTANCE_Z_INDEX.MAX,
-      Math.round(
-        RUNTIME_OVERLAY_DISTANCE_Z_INDEX.MAX - compressedDepth
-      )
+      Math.round(RUNTIME_OVERLAY_DISTANCE_Z_INDEX.MAX - compressedDepth)
     )
   );
 };

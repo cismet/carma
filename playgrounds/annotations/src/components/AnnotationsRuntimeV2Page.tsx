@@ -195,10 +195,7 @@ const resolvePlaygroundEmptyInfoBoxBodyText = ({
   }
 
   return activeToolAnnotationCount === 0 && hasAnyAnnotations
-    ? [
-        `Noch keine ${activeToolLabel} vorhanden.`,
-        ...activeToolHelpText,
-      ]
+    ? [`Noch keine ${activeToolLabel} vorhanden.`, ...activeToolHelpText]
     : activeToolHelpText;
 };
 
@@ -274,17 +271,14 @@ const RuntimeSelectionInfoBox = () => {
   const hasAnnotations = annotationEntries.length > 0;
   const activePlugin = registry.getPlugin(activeToolType) ?? null;
   const activeToolLabel = activePlugin?.descriptor.label ?? "Messungen";
-  const activeToolHelpText =
-    activePlugin?.helpText?.length
-      ? activePlugin.helpText
-      : activeToolType === SELECT_TOOL_TYPE
-      ? [
-          "Messungen oder Anmerkungen anklicken, um sie auszuwählen.",
-          "Langes Drücken auf einen Punkt öffnet den Editiermodus.",
-        ]
-      : [
-          "Klicken Sie in die Karte, um eine neue Messung anzulegen.",
-        ];
+  const activeToolHelpText = activePlugin?.helpText?.length
+    ? activePlugin.helpText
+    : activeToolType === SELECT_TOOL_TYPE
+    ? [
+        "Messungen oder Anmerkungen anklicken, um sie auszuwählen.",
+        "Langes Drücken auf einen Punkt öffnet den Editiermodus.",
+      ]
+    : ["Klicken Sie in die Karte, um eine neue Messung anzulegen."];
   const activeToolAnnotationCount = annotationEntries.filter(
     (annotationEntry) => annotationEntry.toolType === activeToolType
   ).length;

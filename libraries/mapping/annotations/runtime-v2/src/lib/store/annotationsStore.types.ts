@@ -97,9 +97,7 @@ export type AnnotationDraftStoreState = {
     Partial<Record<RuntimeToolId, readonly RuntimeCoordinate[]>>
   >;
   draftLinkedNodeGroupIdsByToolType: Readonly<
-    Partial<
-      Record<RuntimeToolId, readonly (RuntimeLinkedNodeGroupId | null)[]>
-    >
+    Partial<Record<RuntimeToolId, readonly (RuntimeLinkedNodeGroupId | null)[]>>
   >;
   pendingAnnotationIdByToolType: Readonly<
     Partial<Record<RuntimeToolId, string | null>>

@@ -1194,8 +1194,7 @@ export const usePointLabelVisualizer = (
           ? fallbackBadgeContent
           : undefined;
       const compactAreaBadgeWithoutOutline = Boolean(
-        badgeContentText &&
-          NODE_CHAIN_BADGE_REGEX.test(badgeContentText.trim())
+        badgeContentText && NODE_CHAIN_BADGE_REGEX.test(badgeContentText.trim())
       );
       const extendedLabelContent =
         useMarkerLabel && badgeContentText

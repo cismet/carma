@@ -104,7 +104,10 @@ export const areaGroundToolPlugin = createMeasurementToolPlugin({
           setDraftLinkedNodeGroupIdsByToolType({
             toolType,
             linkedNodeGroupIds: appendAreaPreviewPoint(
-              getDraftLinkedNodeGroupIdsForTool(getState().draftState, toolType),
+              getDraftLinkedNodeGroupIdsForTool(
+                getState().draftState,
+                toolType
+              ),
               linkedNodeGroupId ?? null
             ),
           })
@@ -114,11 +117,7 @@ export const areaGroundToolPlugin = createMeasurementToolPlugin({
     }),
   },
   pointQuery: {
-    onPointCreated: ({
-      coordinate,
-      linkedNodeGroupId,
-      activeToolSession,
-    }) => {
+    onPointCreated: ({ coordinate, linkedNodeGroupId, activeToolSession }) => {
       activeToolSession?.onNodeCreated?.(coordinate, linkedNodeGroupId);
     },
   },

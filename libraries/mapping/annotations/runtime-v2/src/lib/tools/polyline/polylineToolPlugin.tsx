@@ -89,7 +89,10 @@ export const polylineToolPlugin = createMeasurementToolPlugin({
           setDraftLinkedNodeGroupIdsByToolType({
             toolType,
             linkedNodeGroupIds: appendPolylinePreviewPoint(
-              getDraftLinkedNodeGroupIdsForTool(getState().draftState, toolType),
+              getDraftLinkedNodeGroupIdsForTool(
+                getState().draftState,
+                toolType
+              ),
               linkedNodeGroupId ?? null
             ),
           })
@@ -99,11 +102,7 @@ export const polylineToolPlugin = createMeasurementToolPlugin({
     }),
   },
   pointQuery: {
-    onPointCreated: ({
-      coordinate,
-      linkedNodeGroupId,
-      activeToolSession,
-    }) => {
+    onPointCreated: ({ coordinate, linkedNodeGroupId, activeToolSession }) => {
       if (activeToolSession?.onNodeCreated) {
         activeToolSession.onNodeCreated(coordinate, linkedNodeGroupId);
         return;

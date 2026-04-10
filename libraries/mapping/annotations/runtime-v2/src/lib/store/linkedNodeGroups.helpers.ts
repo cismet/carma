@@ -52,7 +52,9 @@ export const reconcileLinkedNodeGroups = ({
     .filter((linkedNodeGroup) => linkedNodeGroup.nodeIds.length > 0);
 
   const assignedNodeIdSet = new Set(
-    normalizedLinkedNodeGroups.flatMap((linkedNodeGroup) => linkedNodeGroup.nodeIds)
+    normalizedLinkedNodeGroups.flatMap(
+      (linkedNodeGroup) => linkedNodeGroup.nodeIds
+    )
   );
   const fallbackSingletonGroups = nodes
     .filter((node) => !assignedNodeIdSet.has(node.id))

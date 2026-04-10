@@ -1,7 +1,4 @@
-import type {
-  RuntimeCoordinate,
-  RuntimeLinkedNodeGroupId,
-} from "../../store";
+import type { RuntimeCoordinate, RuntimeLinkedNodeGroupId } from "../../store";
 import type { RuntimeToolId } from "../../types/runtimeTool.types";
 export type AnnotationModeSession = {
   toolType: RuntimeToolId;

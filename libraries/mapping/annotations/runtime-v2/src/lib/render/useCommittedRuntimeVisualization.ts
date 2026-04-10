@@ -130,17 +130,13 @@ export const useCommittedRuntimeVisualization = ({
         allowClickWhenBlocked:
           pointLabel.allowClickWhenBlocked ||
           Boolean(activeMoveGizmoNodeId && pointLabel.nodeId),
-        onLongPress:
-          blockLabelInteractions
-            ? undefined
-            : pointLabel.onLongPress ??
-              (pointLabel.nodeId && pointLabel.measurementId
-                ? () =>
-                    onNodeLongPress(
-                      pointLabel.nodeId!,
-                      pointLabel.measurementId!
-                    )
-                : undefined),
+        onLongPress: blockLabelInteractions
+          ? undefined
+          : pointLabel.onLongPress ??
+            (pointLabel.nodeId && pointLabel.measurementId
+              ? () =>
+                  onNodeLongPress(pointLabel.nodeId!, pointLabel.measurementId!)
+              : undefined),
         longPressDurationMs:
           pointLabel.longPressDurationMs ?? NODE_LABEL_LONG_PRESS_DURATION_MS,
       })),
