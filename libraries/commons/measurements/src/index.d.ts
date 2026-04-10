@@ -51,7 +51,6 @@ export interface MapMeasurementsContextType {
   setLastVisibleShapeActive: () => void;
   setDrawingWithLastActiveShape: () => void;
   setActiveShapeIfDrawCancelled: () => void;
-  restoreActiveShapeAfterDrawing: () => void;
   toggleMeasurementMode: () => void;
   updateAreaOfDrawing: (newArea: number) => void;
   updateTitle: (shapeId: string | number, customTitle: string) => void;

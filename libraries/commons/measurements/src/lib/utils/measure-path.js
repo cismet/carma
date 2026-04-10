@@ -59,9 +59,6 @@ L.Control.MeasurePolygon = L.Control.extend({
     cbChangeActiveCanceldShapeId: function () {
       console.debug("Callback function executed!");
     },
-    cbRestoreActiveShapeAfterDrawingHandler: function () {
-      console.debug("Callback function executed!");
-    },
     cbToggleMeasurementMode: function () {
       console.debug("Callback function executed!");
     },
@@ -384,7 +381,6 @@ L.Control.MeasurePolygon = L.Control.extend({
       const distance = this._UpdateDistance(layer);
 
       this.saveShapeHandler(layer, distance, null, map);
-      this.options.cbRestoreActiveShapeAfterDrawingHandler();
 
       layer.on(
         "editable:drag editable:vertex:drag editable:vertex:deleted editable:dragstart editable:dragend",

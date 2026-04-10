@@ -46,9 +46,9 @@ export function Measurements({
     setMapMovingEnd,
     deleteShapeById,
     updateShapeById,
+    setLastVisibleShapeActive,
     setDrawingWithLastActiveShape,
     setActiveShapeIfDrawCancelled,
-    restoreActiveShapeAfterDrawing,
     updateAreaOfDrawing,
     deleteVisibleShapeById,
     setCurrentDrawHandler,
@@ -106,8 +106,6 @@ export function Measurements({
         cbSaveLastActiveShapeIdBeforeDrawingHandler:
           saveLastActiveShapeIdBeforeDrawingHandler,
         cbChangeActiveCanceldShapeId: changeActiveCancelledShapeId,
-        cbRestoreActiveShapeAfterDrawingHandler:
-          restoreActiveShapeAfterDrawingHandler,
         cbToggleMeasurementMode: toggleMeasurementModeHandler,
         cbUpdateAreaOfDrawingMeasurement: updateAreaOfDrawingMeasurementHandler,
         cbSetCurrentDrawHandler: setCurrentDrawHandler,
@@ -236,12 +234,10 @@ export function Measurements({
     if (drawingShape) {
       const cleanArr = visibleShapes.filter((m) => m.shapeId !== 5555);
       setVisibleShapes([...cleanArr, drawingShape]);
-    } else if (visibleShapes.some((shape) => shape.shapeId === 5555)) {
-      setVisibleShapes(
-        visibleShapes.filter((shape) => shape.shapeId !== 5555)
-      );
+    } else {
+      setLastVisibleShapeActive();
     }
-  }, [drawingShape, visibleShapes, setVisibleShapes]);
+  }, [drawingShape]);
 
   const saveShapeHandler = (layer) => {
     addShape(layer);
@@ -261,9 +257,6 @@ export function Measurements({
   };
   const changeActiveCancelledShapeId = () => {
     setActiveShapeIfDrawCancelled();
-  };
-  const restoreActiveShapeAfterDrawingHandler = () => {
-    restoreActiveShapeAfterDrawing();
   };
 
   const visiblePolylinesChange = (arr) => {

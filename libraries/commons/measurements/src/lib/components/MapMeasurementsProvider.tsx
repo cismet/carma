@@ -79,7 +79,6 @@ export const MapMeasurementsContext = createContext<MapMeasurementsContextType>(
     setLastVisibleShapeActive: () => {},
     setDrawingWithLastActiveShape: () => {},
     setActiveShapeIfDrawCancelled: () => {},
-    restoreActiveShapeAfterDrawing: () => {},
     toggleMeasurementMode: () => {},
     updateAreaOfDrawing: (newArea: number) => {},
     updateTitle: (_shapeId: string | number, _customTitle: string) => {},
@@ -231,23 +230,27 @@ export const MapMeasurementsProvider = ({
 
   const setDrawingWithLastActiveShape = () => {
     setActiveShape((currentActiveShape) => {
-      setLastActiveShapeBeforeDrawing(currentActiveShape ?? null);
-      setDrawingShape(true);
+      if (currentActiveShape) {
+        setLastActiveShapeBeforeDrawing(currentActiveShape);
+        setDrawingShape(true);
+      }
       return currentActiveShape;
     });
   };
 
-  const restoreActiveShapeAfterDrawing = () => {
-    setActiveShape(lastActiveShapeBeforeDrawing ?? null);
-    setLastActiveShapeBeforeDrawing(null);
-    setDrawingShape(false);
-  };
-
   const setActiveShapeIfDrawCancelled = () => {
-    setVisibleShapes((visibleShapes) =>
-      visibleShapes.filter((shape) => shape.shapeId !== 5555)
-    );
-    restoreActiveShapeAfterDrawing();
+    setLastActiveShapeBeforeDrawing((lastActiveShape) => {
+      setVisibleShapes((visible) => {
+        if (lastActiveShape && visible[0]?.shapeId !== 55555) {
+          setActiveShape(lastActiveShape);
+          setDrawingShape(false);
+        } else {
+          return []; // Clear visible shapes
+        }
+        return visible;
+      });
+      return lastActiveShape;
+    });
   };
 
   const toggleMeasurementMode = () => {
@@ -256,6 +259,7 @@ export const MapMeasurementsProvider = ({
     } else {
       setMode(MEASUREMENT_MODE.DEFAULT);
       setDrawingShape(false);
+      setLastVisibleShapeActive();
     }
   };
 
@@ -359,7 +363,6 @@ export const MapMeasurementsProvider = ({
         setLastVisibleShapeActive,
         setDrawingWithLastActiveShape,
         setActiveShapeIfDrawCancelled,
-        restoreActiveShapeAfterDrawing,
         toggleMeasurementMode,
         updateAreaOfDrawing,
         updateTitle,
