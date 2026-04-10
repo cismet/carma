@@ -1,5 +1,10 @@
-import { getFromUTM32ToWGS84 } from "@carma/geo/proj";
-import { buffer, convex, featureCollection, feature as turfFeature } from "@turf/turf";
+import { getFromUTM32ToWGS84 } from "@carma-geo/proj";
+import {
+  buffer,
+  convex,
+  featureCollection,
+  feature as turfFeature,
+} from "@turf/turf";
 import type { ArbeitsauftragTileFeature } from "../store/slices/arbeitsauftraege";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

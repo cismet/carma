@@ -1,5 +1,5 @@
-import type { PositionPreset } from "../positions";
-import type { Altitude, Degrees } from "@carma/geo/types";
+import type { PositionPreset } from "@carma-geo/data-structures";
+import type { Altitude, Degrees } from "@carma-geo/data-structures";
 
 export const WUPPERTAL: PositionPreset = {
   name: "Wuppertal",

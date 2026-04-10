@@ -6,7 +6,7 @@ import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextPr
 import {
   CustomViewer,
   CesiumContextProvider,
-} from "@carma-mapping/engines/cesium";
+} from "@carma-mapping/engines/cesium/legacy";
 import { HashStateProvider } from "@carma-providers/hash-state";
 import {
   BASEMAP_METROPOLE_RUHR_WMS_GRAUBLAU,

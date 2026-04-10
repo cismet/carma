@@ -1,4 +1,4 @@
-import { Cartesian3, type Scene } from "@carma/cesium";
+import { Cartesian3, type Scene } from "@carma-cesium";
 
 export type VisibilityScreenPosition = { x: number; y: number } | null;
 

@@ -1,6 +1,6 @@
 import { Quaternion, Vector3 } from "three";
 
-import type { Meters, Radians } from "@carma/units/types";
+import type { Meters, Radians } from "@carma-units";
 const LOCAL_RIGHT = new Vector3(1, 0, 0);
 const LOCAL_UP = new Vector3(0, 1, 0);
 const LOCAL_ROLL_AXIS = new Vector3(0, 0, 1);

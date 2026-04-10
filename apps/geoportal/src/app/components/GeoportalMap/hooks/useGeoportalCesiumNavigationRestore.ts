@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from "react";
-import type { Scene } from "@carma-mapping/engines/cesium/api";
+import { type Scene } from "@carma-cesium";
 import {
   VIEW_STATE_NAVIGATION_EVENT,
   flyViewStateInCesium,

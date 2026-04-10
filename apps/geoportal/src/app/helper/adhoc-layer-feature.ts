@@ -1,4 +1,5 @@
-import type { CarmaMapLibreStyleData, Layer } from "@carma/types";
+import type { CarmaMapLibreStyleData } from "@carma-appframeworks/portals";
+import type { Layer } from "@carma-mapping/layers";
 import type {
   GeoJSONSourceSpecification,
   SourceSpecification,

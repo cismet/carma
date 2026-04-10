@@ -1,5 +1,5 @@
-import { PI_OVER_TWO } from "@carma/math";
-import { degToRadNumeric } from "@carma/units/helpers";
+import { PI_OVER_TWO } from "@carma-commons/math";
+import { degToRadNumeric } from "@carma-units";
 
 // MapLibre pitch is in degrees (0-85 typically)
 const MAX_PITCH_RAD = degToRadNumeric(85)!;

@@ -3,10 +3,12 @@ import type {
   RuntimeEdgeRenderModel,
   RuntimePointLabelRenderModel,
   RuntimePointMarkerRenderModel,
+  RuntimePolygonFillRenderModel,
 } from "./measurementRenderModels";
 export type RuntimeRenderLayer = {
   points?: readonly RuntimePointMarkerRenderModel[];
   edges?: readonly RuntimeEdgeRenderModel[];
+  polygonFills?: readonly RuntimePolygonFillRenderModel[];
   pointLabels?: readonly RuntimePointLabelRenderModel[];
 };
 
@@ -81,14 +83,56 @@ const arePointLabelsEqual = (
       label.id === otherLabel.id &&
       label.measurementId === otherLabel.measurementId &&
       label.nodeId === otherLabel.nodeId &&
+      label.pointMarkerId === otherLabel.pointMarkerId &&
       areCoordinatesEqual(label.coordinate, otherLabel.coordinate) &&
+      label.markerPixelSize === otherLabel.markerPixelSize &&
+      label.anchorKind === otherLabel.anchorKind &&
+      label.occlusionMode === otherLabel.occlusionMode &&
       label.content === otherLabel.content &&
-      label.markerContent === otherLabel.markerContent &&
+      label.badgeContent === otherLabel.badgeContent &&
       label.markerBackgroundColor === otherLabel.markerBackgroundColor &&
       label.markerTextColor === otherLabel.markerTextColor &&
+      label.lineColor === otherLabel.lineColor &&
+      label.textBackgroundColor === otherLabel.textBackgroundColor &&
+      label.textColor === otherLabel.textColor &&
+      label.selectedBackgroundColor === otherLabel.selectedBackgroundColor &&
+      label.selectedTextColor === otherLabel.selectedTextColor &&
+      label.selectedGlowColor === otherLabel.selectedGlowColor &&
+      label.selectedGlowRadiusPx === otherLabel.selectedGlowRadiusPx &&
+      label.preserveFillOnSelection === otherLabel.preserveFillOnSelection &&
+      label.hoverBackgroundColor === otherLabel.hoverBackgroundColor &&
+      label.labelStyle === otherLabel.labelStyle &&
+      label.hideMarker === otherLabel.hideMarker &&
+      label.collapse === otherLabel.collapse &&
       label.selected === otherLabel.selected &&
       label.hideLabelAndStem === otherLabel.hideLabelAndStem &&
       label.longPressDurationMs === otherLabel.longPressDurationMs
+    );
+  });
+
+const arePolygonFillsEqual = (
+  left: readonly RuntimePolygonFillRenderModel[] = [],
+  right: readonly RuntimePolygonFillRenderModel[] = []
+) =>
+  left.length === right.length &&
+  left.every((fill, index) => {
+    const otherFill = right[index];
+
+    return (
+      otherFill !== undefined &&
+      fill.id === otherFill.id &&
+      fill.fill === otherFill.fill &&
+      fill.placement === otherFill.placement &&
+      fill.selected === otherFill.selected &&
+      fill.coordinates.length === otherFill.coordinates.length &&
+      fill.coordinates.every((coordinate, coordinateIndex) => {
+        const otherCoordinate = otherFill.coordinates[coordinateIndex];
+
+        return (
+          otherCoordinate !== undefined &&
+          areCoordinatesEqual(coordinate, otherCoordinate)
+        );
+      })
     );
   });
 
@@ -99,6 +143,7 @@ export const areRuntimeRenderLayersEqual = (
   left !== undefined &&
   arePointMarkersEqual(left.points, right.points) &&
   areEdgesEqual(left.edges, right.edges) &&
+  arePolygonFillsEqual(left.polygonFills, right.polygonFills) &&
   arePointLabelsEqual(left.pointLabels, right.pointLabels);
 
 export const areRuntimeCursorScreenPositionsEqual = (

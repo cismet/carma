@@ -1,6 +1,5 @@
-import { Provider } from "react-redux";
-
 import { createRoot } from "react-dom/client";
+import { Provider } from "react-redux";
 import { createHashRouter, RouterProvider } from "react-router-dom";
 import { persistStore } from "redux-persist";
 import { PersistGate } from "redux-persist/integration/react";
@@ -23,10 +22,8 @@ import {
   MapFrameworkSwitcherProvider,
   type CarmaMapFramework,
 } from "@carma-mapping/components";
-import {
-  CesiumContextProvider,
-  setupCesiumEnvironment,
-} from "@carma-mapping/engines/cesium";
+import { CesiumContextProvider } from "@carma-mapping/engines/cesium/legacy";
+import { setupCesiumEnvironment } from "@carma-mapping/engines/cesium/core";
 import { HashStateProvider } from "@carma-providers/hash-state";
 
 import App from "./App";

@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 
 import { ANNOTATION_TYPE_LABEL } from "@carma-mapping/annotations/core";
-import type { Cartesian3 } from "@carma/cesium";
+import type { Cartesian3 } from "@carma-cesium";
 
 import type { AnnotationModeSession } from "../annotationModeSession.types";
 import { useModeSession } from "./useModeSession";

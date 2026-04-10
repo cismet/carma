@@ -11,7 +11,7 @@ import {
   type CandidateConnectionPreview,
   type LinearSegmentLineMode,
 } from "@carma-mapping/annotations/core";
-import { Cartesian3 } from "@carma/cesium";
+import { Cartesian3 } from "@carma-cesium";
 type CandidatePreviewSessionParams = {
   activeToolType: AnnotationToolType;
   distanceModeStickyToFirstPoint: boolean;

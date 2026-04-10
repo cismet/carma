@@ -19,7 +19,7 @@ export type VerticalAreaToolSettings = {
 
 const defaults = runtimeMeasurementVisualDefaults;
 
-export const createVerticalAreaToolSettings = (badgeStyle: {
+export const createVerticalAreaToolSettings = (_badgeStyle: {
   backgroundColor: string;
   textColor: string;
 }): VerticalAreaToolSettings => ({
@@ -27,10 +27,12 @@ export const createVerticalAreaToolSettings = (badgeStyle: {
     edge: {
       stroke: defaults.colors.accent,
       strokeWidth: defaults.sizes.edgeStrokeWidth,
+      dashed: true,
     },
     selectedEdge: {
       stroke: defaults.colors.neutral,
       strokeWidth: defaults.sizes.selectedEdgeStrokeWidth,
+      dashed: true,
     },
     previewEdge: {
       stroke: defaults.colors.preview,
@@ -39,13 +41,13 @@ export const createVerticalAreaToolSettings = (badgeStyle: {
     },
     point: {
       pixelSize: defaults.sizes.pointPixelSize,
-      fill: badgeStyle.backgroundColor,
+      fill: defaults.colors.transparent,
       outline: defaults.colors.surface,
       outlineWidth: defaults.sizes.pointOutlineWidth,
     },
     selectedPoint: {
       pixelSize: defaults.sizes.selectedPointPixelSize,
-      fill: badgeStyle.backgroundColor,
+      fill: defaults.colors.transparent,
       outline: defaults.colors.surface,
       outlineWidth: defaults.sizes.pointOutlineWidth,
     },

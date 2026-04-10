@@ -6,7 +6,7 @@ import {
   PolylineColorAppearance,
   PolylineGeometry,
   type Color,
-} from "@carma/cesium";
+} from "@carma-cesium";
 
 type CreateSelectionEdgeOptions = {
   ring: number[][];

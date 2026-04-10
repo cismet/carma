@@ -8,8 +8,8 @@ import {
   CesiumWidget,
   CesiumTerrainProvider,
   Cesium3DTileset,
-  waitForRenderFrames,
-} from "@carma/cesium";
+} from "@carma-cesium";
+import { waitForRenderFrames } from "@carma-mapping/engines/cesium/core";
 import L from "leaflet";
 import {
   initializeCesium,

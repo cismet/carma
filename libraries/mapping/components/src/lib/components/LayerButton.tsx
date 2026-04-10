@@ -1,4 +1,4 @@
-import type { Layer } from "@carma/types";
+import type { Layer } from "@carma-mapping/layers";
 import { HTMLAttributes, ReactNode, forwardRef, ForwardedRef } from "react";
 import { cn } from "@carma-commons/utils";
 

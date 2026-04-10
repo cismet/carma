@@ -41,22 +41,16 @@
       "@carma-commons/*": ["libraries/commons/*/src/index.ts"],
       "@carma-commons/ui/shadcn": ["libraries/commons/ui/shadcn/src/index.ts"],
       "@carma-commons/utils/*": ["libraries/commons/utils/src/lib/*/index.ts"],
+      "@carma-units": ["libraries/units/src/index.ts"],
+      "@carma-geo/*": ["libraries/geo/*/src/index.ts"],
       "@carma-mapping/*": ["libraries/mapping/*/src/index.ts"],
       "@carma-providers/*": ["libraries/providers/*/src/index.ts"],
-      "@carma/types": ["libraries/types/src/index.d.ts"],
-      
       "@carma-collab/pecher/*": ["libraries/collaboration/carma-pecher-collab/src/*/index.jsx"],
       "@carma-collab/wuppertal/*": ["libraries/collaboration/carma-wuppertal-collab/src/*/index.ts"],
-      
-      // aliases to carma root
-      "@carma/cesium": ["libraries/mapping/engines/cesium/api/src/index.ts"],
-      "@carma/geo/*": ["libraries/commons/geo/*/src/index.ts"],
-      "@carma/geo/types": ["libraries/commons/geo/types/src/index.d.ts"],
+      // legacy aliases to carma-commons/math, to be removed after collaboration code is migrated to use carma-commons/math instead of carma/math
       "@carma/math": ["libraries/commons/math/src/index.ts"],
-      "@carma/units/helpers": ["libraries/commons/units/helpers/src/index.ts"],
-      "@carma/units/types": ["libraries/commons/units/types/src/index.d.ts"],
-      // legacy cesium engine alias
-      "@carma-mapping/engines/cesium": ["libraries/mapping/engines/cesium/legacy/src/index.ts"]
-    }
+      // aliases to carma root
+      "@carma-cesium": ["libraries/mapping/engines/cesium/api/src/index.ts"], // curated low level API for Cesium replacing direct imports from cesium
+     }
   }
 }

@@ -1,10 +1,10 @@
 import { logOnce } from "@carma-commons/utils";
-import { Cartographic, type Cartesian3 } from "@carma/cesium";
-import { LatLngAlt, Altitude } from "@carma/geo/types";
-import { radToDeg } from "@carma/units/helpers";
-import { Radians } from "@carma/units/types";
+import { Cartographic, type Cartesian3 } from "@carma-cesium";
+import { LatLngAlt, Altitude } from "@carma-geo/data-structures";
+import { radToDeg } from "@carma-units";
+import { Radians } from "@carma-units";
 logOnce(
-  "Deprecated: Use @carma/cesium for conversion with pure cesium scope or conversion to generic geo types"
+  "Deprecated: Use @carma-cesium for conversion with pure cesium scope or conversion to generic geo types"
 );
 
 export const getDegreesFromCartographic = (

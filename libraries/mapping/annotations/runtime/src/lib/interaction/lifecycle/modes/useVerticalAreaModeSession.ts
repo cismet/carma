@@ -4,7 +4,7 @@ import {
   ANNOTATION_TYPE_AREA_VERTICAL,
   type NodeChainAnnotation,
 } from "@carma-mapping/annotations/core";
-import type { Cartesian3 } from "@carma/cesium";
+import type { Cartesian3 } from "@carma-cesium";
 
 import type { AnnotationModeSession } from "../annotationModeSession.types";
 import { MINIMUM_CLOSE_POINTS_BY_MODE } from "./modeCloseRequirements";

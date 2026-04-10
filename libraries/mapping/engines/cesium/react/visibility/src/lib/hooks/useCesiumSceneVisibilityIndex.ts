@@ -8,15 +8,15 @@ import {
 } from "react";
 
 import { isPointInViewport } from "@carma-mapping/annotations/core";
-import { isPointOccluded } from "@carma-mapping/engines/cesium/api";
 import {
   Cartesian3,
   SceneTransforms,
   defined,
   type Cartesian2,
   type Scene,
-} from "@carma/cesium";
-import type { CssPixelPosition } from "@carma/units/types";
+} from "@carma-cesium";
+import { isPointOccluded } from "@carma-mapping/engines/cesium/core";
+import type { CssPixelPosition } from "@carma-units";
 
 import {
   DEFAULT_OCCLUSION_TOLERANCE_METERS,

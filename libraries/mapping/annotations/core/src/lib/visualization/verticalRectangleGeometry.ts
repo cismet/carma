@@ -4,7 +4,7 @@ import {
   Ellipsoid,
   Matrix4,
   Transforms,
-} from "@carma/cesium";
+} from "@carma-cesium";
 
 const VERTICAL_RECTANGLE_COMPONENT_EPSILON_METERS = 0.05;
 const PLANE_NORMAL_EPSILON = 1e-8;

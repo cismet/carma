@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { CesiumMath } from "@carma/cesium";
-import { useCesiumContext } from "@carma-mapping/engines/cesium";
+import { CesiumMath } from "@carma-cesium";
+import { useCesiumContext } from "@carma-mapping/engines/cesium/legacy";
 import { Collapse } from "antd";
 
 import { useOblique } from "../../hooks/useOblique";

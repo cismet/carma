@@ -21,7 +21,7 @@ import {
   Transforms,
   type CesiumWidget,
   type Scene,
-} from "@carma/cesium";
+} from "@carma-cesium";
 
 import { setupCesium } from "../map-engine-switcher/helpers/cesium-setup";
 import {

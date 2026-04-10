@@ -8,7 +8,7 @@ import {
   type AnnotationToolType,
   type NodeChainAnnotation,
 } from "@carma-mapping/annotations/core";
-import { type Cartesian3 } from "@carma/cesium";
+import { type Cartesian3 } from "@carma-cesium";
 
 import { useModeLifecycle } from "../useModeLifecycle";
 import type { AnnotationToolsContextType } from "../../../context/annotationsContext.types";

@@ -1,149 +1,335 @@
-import { createElement, useEffect, useMemo } from "react";
+import { useEffect, useRef } from "react";
 
-import { useLabelOverlay } from "@carma-providers/label-overlay";
-import type { CssPixelPosition } from "@carma/units/types";
-const ANNOTATION_CURSOR_OVERLAY_ID = "annotation-preview-crosshair";
-const CURSOR_STROKE_COLOR = "rgba(255, 255, 255, 0.96)";
-const CURSOR_CONTRAST_FILTER =
-  "drop-shadow(0 0 1px rgba(0, 0, 0, 1)) drop-shadow(0 0 2px rgba(0, 0, 0, 0.95))";
-const CURSOR_THICKNESS_PX = 3;
-const CURSOR_CENTER_DOT_SIZE_PX = 1;
-const CURSOR_CENTER_GAP_PX = 5;
-const CURSOR_FAR_DASH_LENGTH_PX = 12;
-const CURSOR_INNER_TIP_PX = CURSOR_THICKNESS_PX / 2;
-const CURSOR_HALF_EXTENT_PX = CURSOR_CENTER_GAP_PX + CURSOR_FAR_DASH_LENGTH_PX;
-const CURSOR_SIZE_PX = CURSOR_HALF_EXTENT_PX * 2 + CURSOR_CENTER_DOT_SIZE_PX;
-const CURSOR_CENTER_PX = CURSOR_HALF_EXTENT_PX;
+import {
+  ANNOTATION_CURSOR_DEFAULT_AURA_PADDING_PX,
+  ANNOTATION_CURSOR_DEFAULT_PATH_DEFINITIONS,
+  ANNOTATION_CURSOR_DEFAULT_SHAPE_HALF_EXTENT_PX,
+  ANNOTATION_CURSOR_OVERLAY_OUTLINE_PX,
+  ANNOTATION_CURSOR_OVERLAY_SHADOW_BLEND_MODE,
+  ANNOTATION_CURSOR_OVERLAY_SHADOW_BLUR_RADIUS_PX,
+  ANNOTATION_CURSOR_OVERLAY_SHADOW_COLOR,
+  ANNOTATION_CURSOR_OVERLAY_STROKE_COLOR,
+  createAnnotationCursorLayeredDomElement,
+} from "@carma-commons/ui/components";
+import {
+  getCesiumScenePointerClientPosition,
+  registerCesiumScenePointerTracker,
+  subscribeCesiumScenePointerClientPosition,
+  type CesiumScenePointerClientPosition,
+} from "@carma-mapping/engines/cesium/react/interactions";
+import { previewControllerDefaults } from "../config/previewControllerDefaults";
+import type { RuntimeScene } from "../types/runtimeScene.types";
+const CURSOR_ROOT_SELECTOR = '[data-annotation-cursor-root="true"]';
+const CURSOR_CANVAS_HALF_EXTENT_PX =
+  ANNOTATION_CURSOR_DEFAULT_SHAPE_HALF_EXTENT_PX +
+  ANNOTATION_CURSOR_DEFAULT_AURA_PADDING_PX;
+const CURSOR_CANVAS_SIZE_PX = CURSOR_CANVAS_HALF_EXTENT_PX * 2;
+const CURSOR_VIEW_BOX = `${-CURSOR_CANVAS_HALF_EXTENT_PX} ${-CURSOR_CANVAS_HALF_EXTENT_PX} ${CURSOR_CANVAS_SIZE_PX} ${CURSOR_CANVAS_SIZE_PX}`;
+const SELECTION_ADDITIVE_INDICATOR_OFFSET_PX = {
+  x: 15,
+  y: -10,
+} as const;
+
+const ANNOTATION_CURSOR_OVERLAY_VARIANTS = {
+  CROSSHAIR: "crosshair",
+  SELECTION_ADDITIVE_INDICATOR: "selection-additive-indicator",
+} as const;
+
+type AnnotationCursorOverlayVariant =
+  (typeof ANNOTATION_CURSOR_OVERLAY_VARIANTS)[keyof typeof ANNOTATION_CURSOR_OVERLAY_VARIANTS];
+
+const CURSOR_LAYER_ID_BY_VARIANT: Readonly<
+  Record<AnnotationCursorOverlayVariant, string>
+> = {
+  [ANNOTATION_CURSOR_OVERLAY_VARIANTS.CROSSHAIR]:
+    "annotation-candidate-crosshair-layer",
+  [ANNOTATION_CURSOR_OVERLAY_VARIANTS.SELECTION_ADDITIVE_INDICATOR]:
+    "annotation-selection-additive-indicator-layer",
+};
+
+const CURSOR_ELEMENT_ID_BY_VARIANT: Readonly<
+  Record<AnnotationCursorOverlayVariant, string>
+> = {
+  [ANNOTATION_CURSOR_OVERLAY_VARIANTS.CROSSHAIR]:
+    "annotation-preview-crosshair",
+  [ANNOTATION_CURSOR_OVERLAY_VARIANTS.SELECTION_ADDITIVE_INDICATOR]:
+    "annotation-selection-additive-indicator",
+};
 
 type AnnotationCursorOverlayOptions = {
   enabled?: boolean;
+  variant?: AnnotationCursorOverlayVariant;
 };
 
-export const useCursorOverlay = (
-  cursorScreenPosition: { x: number; y: number } | null = null,
-  { enabled = true }: AnnotationCursorOverlayOptions = {}
+type BoundsSnapshot = {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+};
+
+const applyStyles = (
+  element: HTMLElement,
+  styles: Partial<CSSStyleDeclaration>
 ) => {
-  const { addLabelOverlayElement, removeLabelOverlayElement } =
-    useLabelOverlay();
+  Object.assign(element.style, styles);
+};
 
-  const cursorContent = useMemo(() => {
-    const strokeStyle = {
-      backgroundColor: CURSOR_STROKE_COLOR,
-    };
+const createCrosshairCursorElement = () => {
+  const element = createAnnotationCursorLayeredDomElement({
+    canvasSizePx: CURSOR_CANVAS_SIZE_PX,
+    foregroundBlendMode: "normal",
+    foregroundFill: ANNOTATION_CURSOR_OVERLAY_STROKE_COLOR,
+    pathDefinitions: ANNOTATION_CURSOR_DEFAULT_PATH_DEFINITIONS,
+    shadowBlendMode: ANNOTATION_CURSOR_OVERLAY_SHADOW_BLEND_MODE,
+    shadowBlurPx: ANNOTATION_CURSOR_OVERLAY_SHADOW_BLUR_RADIUS_PX,
+    shadowStrokeColor: ANNOTATION_CURSOR_OVERLAY_SHADOW_COLOR,
+    shadowStrokeLinejoin: "round",
+    shadowStrokeWidth: Math.max(ANNOTATION_CURSOR_OVERLAY_OUTLINE_PX, 0) * 2,
+    showAura: true,
+    viewBox: CURSOR_VIEW_BOX,
+  });
+  applyStyles(element, {
+    display: "none",
+  });
+  return element;
+};
 
-    return createElement(
-      "div",
-      {
-        style: {
-          position: "relative",
-          width: `${CURSOR_SIZE_PX}px`,
-          height: `${CURSOR_SIZE_PX}px`,
-          pointerEvents: "none",
-          filter: CURSOR_CONTRAST_FILTER,
-        },
-      },
-      createElement("div", {
-        key: "center-dot",
-        style: {
-          position: "absolute",
-          left: `${CURSOR_CENTER_PX}px`,
-          top: `${CURSOR_CENTER_PX}px`,
-          width: `${CURSOR_CENTER_DOT_SIZE_PX}px`,
-          height: `${CURSOR_CENTER_DOT_SIZE_PX}px`,
-          transform: "translate(-50%, -50%)",
-          ...strokeStyle,
-        },
-      }),
-      createElement("div", {
-        key: "h-right-dash",
-        style: {
-          position: "absolute",
-          left: `${CURSOR_CENTER_PX + CURSOR_CENTER_GAP_PX}px`,
-          top: `${CURSOR_CENTER_PX}px`,
-          width: `${CURSOR_FAR_DASH_LENGTH_PX}px`,
-          height: `${CURSOR_THICKNESS_PX}px`,
-          transform: "translateY(-50%)",
-          clipPath: `polygon(0 50%, ${CURSOR_INNER_TIP_PX}px 0, 100% 0, 100% 100%, ${CURSOR_INNER_TIP_PX}px 100%)`,
-          ...strokeStyle,
-        },
-      }),
-      createElement("div", {
-        key: "h-left-dash",
-        style: {
-          position: "absolute",
-          left: `${
-            CURSOR_CENTER_PX - CURSOR_CENTER_GAP_PX - CURSOR_FAR_DASH_LENGTH_PX
-          }px`,
-          top: `${CURSOR_CENTER_PX}px`,
-          width: `${CURSOR_FAR_DASH_LENGTH_PX}px`,
-          height: `${CURSOR_THICKNESS_PX}px`,
-          transform: "translateY(-50%)",
-          clipPath: `polygon(0 0, calc(100% - ${CURSOR_INNER_TIP_PX}px) 0, 100% 50%, calc(100% - ${CURSOR_INNER_TIP_PX}px) 100%, 0 100%)`,
-          ...strokeStyle,
-        },
-      }),
-      createElement("div", {
-        key: "v-bottom-dash",
-        style: {
-          position: "absolute",
-          left: `${CURSOR_CENTER_PX}px`,
-          top: `${CURSOR_CENTER_PX + CURSOR_CENTER_GAP_PX}px`,
-          width: `${CURSOR_THICKNESS_PX}px`,
-          height: `${CURSOR_FAR_DASH_LENGTH_PX}px`,
-          transform: "translateX(-50%)",
-          clipPath: `polygon(0 ${CURSOR_INNER_TIP_PX}px, 50% 0, 100% ${CURSOR_INNER_TIP_PX}px, 100% 100%, 0 100%)`,
-          ...strokeStyle,
-        },
-      }),
-      createElement("div", {
-        key: "v-top-dash",
-        style: {
-          position: "absolute",
-          left: `${CURSOR_CENTER_PX}px`,
-          top: `${
-            CURSOR_CENTER_PX - CURSOR_CENTER_GAP_PX - CURSOR_FAR_DASH_LENGTH_PX
-          }px`,
-          width: `${CURSOR_THICKNESS_PX}px`,
-          height: `${CURSOR_FAR_DASH_LENGTH_PX}px`,
-          transform: "translateX(-50%)",
-          clipPath: `polygon(0 0, 100% 0, 100% calc(100% - ${CURSOR_INNER_TIP_PX}px), 50% 100%, 0 calc(100% - ${CURSOR_INNER_TIP_PX}px))`,
-          ...strokeStyle,
-        },
-      })
-    );
-  }, []);
+const createSelectionAdditiveIndicatorElement = () => {
+  const element = document.createElement("div");
+  element.textContent = "+";
+  applyStyles(element, {
+    display: "none",
+    color: "rgba(255, 255, 255, 0.98)",
+    fontFamily: '"Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif',
+    fontSize: "18px",
+    fontWeight: "700",
+    lineHeight: "1",
+    pointerEvents: "none",
+    userSelect: "none",
+    filter:
+      "drop-shadow(0 0 1px rgba(0, 0, 0, 0.98)) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.98))",
+  });
+  return element;
+};
+
+const createCursorElement = (variant: AnnotationCursorOverlayVariant) => {
+  const element =
+    variant === ANNOTATION_CURSOR_OVERLAY_VARIANTS.SELECTION_ADDITIVE_INDICATOR
+      ? createSelectionAdditiveIndicatorElement()
+      : createCrosshairCursorElement();
+  element.id = CURSOR_ELEMENT_ID_BY_VARIANT[variant];
+  return element;
+};
+
+const resolveCursorContainer = (scene: RuntimeScene) => {
+  const explicitRoot = scene.canvas.closest(CURSOR_ROOT_SELECTOR);
+  if (explicitRoot instanceof HTMLElement) {
+    return explicitRoot;
+  }
+
+  const widgetContainer = scene.canvas.parentElement?.parentElement;
+  if (widgetContainer instanceof HTMLElement) {
+    return widgetContainer;
+  }
+
+  return scene.canvas.parentElement;
+};
+
+const readBounds = (element: HTMLElement): BoundsSnapshot => {
+  const rect = element.getBoundingClientRect();
+  return {
+    left: rect.left,
+    top: rect.top,
+    right: rect.right,
+    bottom: rect.bottom,
+  };
+};
+
+const isInsideBounds = (
+  clientPosition: CesiumScenePointerClientPosition,
+  bounds: BoundsSnapshot | null
+) =>
+  Boolean(
+    bounds &&
+      clientPosition.x >= bounds.left &&
+      clientPosition.x <= bounds.right &&
+      clientPosition.y >= bounds.top &&
+      clientPosition.y <= bounds.bottom
+  );
+
+export const useCursorOverlay = (
+  scene: RuntimeScene | null,
+  cursorScreenPosition: { x: number; y: number } | null = null,
+  {
+    enabled = true,
+    variant = ANNOTATION_CURSOR_OVERLAY_VARIANTS.CROSSHAIR,
+  }: AnnotationCursorOverlayOptions = {}
+) => {
+  const enabledRef = useRef(enabled);
+  const latestClientPositionRef =
+    useRef<CesiumScenePointerClientPosition | null>(null);
+  const latestScreenPositionRef = useRef<{ x: number; y: number } | null>(
+    cursorScreenPosition
+  );
+  const updateCursorPositionRef = useRef<
+    (
+      clientPosition: CesiumScenePointerClientPosition | null,
+      screenPosition: { x: number; y: number } | null
+    ) => void
+  >(() => undefined);
+
+  enabledRef.current = enabled;
+  latestScreenPositionRef.current = cursorScreenPosition;
 
   useEffect(() => {
-    addLabelOverlayElement({
-      id: ANNOTATION_CURSOR_OVERLAY_ID,
-      zIndex: 22,
-      getCanvasPosition: () => {
-        if (
-          !enabled ||
-          !cursorScreenPosition ||
-          !Number.isFinite(cursorScreenPosition.x) ||
-          !Number.isFinite(cursorScreenPosition.y)
-        ) {
-          return null;
-        }
+    updateCursorPositionRef.current(
+      latestClientPositionRef.current,
+      latestScreenPositionRef.current
+    );
+  }, [cursorScreenPosition, enabled]);
 
-        return {
-          x: cursorScreenPosition.x,
-          y: cursorScreenPosition.y,
-        } as CssPixelPosition;
-      },
-      content: cursorContent,
-      visible: enabled,
+  useEffect(() => {
+    if (!scene || scene.isDestroyed()) {
+      return;
+    }
+
+    const container = resolveCursorContainer(scene);
+    if (!container) {
+      return;
+    }
+
+    const unregisterScenePointerTracker =
+      registerCesiumScenePointerTracker(scene);
+    const cursorLayer = document.createElement("div");
+    cursorLayer.id = CURSOR_LAYER_ID_BY_VARIANT[variant];
+    applyStyles(cursorLayer, {
+      position: "absolute",
+      inset: "0",
+      pointerEvents: "none",
+      overflow: "hidden",
+      zIndex: previewControllerDefaults.layerZIndex,
     });
 
-    return () => {
-      removeLabelOverlayElement(ANNOTATION_CURSOR_OVERLAY_ID);
+    const cursorElement = createCursorElement(variant);
+    cursorLayer.appendChild(cursorElement);
+    container.appendChild(cursorLayer);
+
+    let containerBounds: BoundsSnapshot | null = readBounds(container);
+    let canvasBounds: BoundsSnapshot | null = readBounds(scene.canvas);
+
+    const hideCursor = () => {
+      cursorElement.style.display = "none";
     };
-  }, [
-    addLabelOverlayElement,
-    cursorContent,
-    cursorScreenPosition,
-    enabled,
-    removeLabelOverlayElement,
-  ]);
+
+    const updateCursorPosition = (
+      clientPosition: CesiumScenePointerClientPosition | null,
+      screenPosition: { x: number; y: number } | null
+    ) => {
+      latestClientPositionRef.current = clientPosition;
+      latestScreenPositionRef.current = screenPosition;
+
+      if (!enabledRef.current) {
+        hideCursor();
+        return;
+      }
+
+      const isPointerInsideCanvas =
+        clientPosition !== null && isInsideBounds(clientPosition, canvasBounds);
+
+      if (
+        variant ===
+        ANNOTATION_CURSOR_OVERLAY_VARIANTS.SELECTION_ADDITIVE_INDICATOR
+      ) {
+        if (clientPosition && containerBounds && isPointerInsideCanvas) {
+          cursorElement.style.display = "block";
+          cursorElement.style.transform = `translate(${
+            clientPosition.x -
+            containerBounds.left +
+            SELECTION_ADDITIVE_INDICATOR_OFFSET_PX.x
+          }px, ${
+            clientPosition.y -
+            containerBounds.top +
+            SELECTION_ADDITIVE_INDICATOR_OFFSET_PX.y
+          }px)`;
+          return;
+        }
+
+        hideCursor();
+        return;
+      }
+
+      if (clientPosition && containerBounds && isPointerInsideCanvas) {
+        cursorElement.style.display = "block";
+        cursorElement.style.transform = `translate(${
+          clientPosition.x - containerBounds.left
+        }px, ${
+          clientPosition.y - containerBounds.top
+        }px) translate(-50%, -50%)`;
+        return;
+      }
+
+      if (
+        isPointerInsideCanvas &&
+        screenPosition &&
+        canvasBounds &&
+        containerBounds &&
+        Number.isFinite(screenPosition.x) &&
+        Number.isFinite(screenPosition.y)
+      ) {
+        cursorElement.style.display = "block";
+        cursorElement.style.transform = `translate(${
+          screenPosition.x + canvasBounds.left - containerBounds.left
+        }px, ${
+          screenPosition.y + canvasBounds.top - containerBounds.top
+        }px) translate(-50%, -50%)`;
+        return;
+      }
+
+      hideCursor();
+    };
+
+    updateCursorPositionRef.current = updateCursorPosition;
+
+    const refreshBounds = () => {
+      containerBounds = readBounds(container);
+      canvasBounds = readBounds(scene.canvas);
+      updateCursorPosition(
+        latestClientPositionRef.current,
+        latestScreenPositionRef.current
+      );
+    };
+
+    const resizeObserver =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(() => {
+            refreshBounds();
+          })
+        : null;
+    resizeObserver?.observe(container);
+    resizeObserver?.observe(scene.canvas);
+    window.addEventListener("resize", refreshBounds);
+    window.addEventListener("scroll", refreshBounds, true);
+
+    const unsubscribeClientPosition = subscribeCesiumScenePointerClientPosition(
+      scene,
+      (clientPosition) => {
+        updateCursorPosition(clientPosition, latestScreenPositionRef.current);
+      }
+    );
+
+    updateCursorPosition(
+      getCesiumScenePointerClientPosition(scene),
+      latestScreenPositionRef.current
+    );
+
+    return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", refreshBounds);
+      window.removeEventListener("scroll", refreshBounds, true);
+      unsubscribeClientPosition();
+      unregisterScenePointerTracker();
+      cursorLayer.remove();
+    };
+  }, [scene, variant]);
 };

@@ -4,7 +4,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { Radio } from "antd";
 
 import { ResponsiveStatusBar } from "@carma-commons/ui/components";
-import { FORMAT_LOCALE, formatSignificantNumber } from "@carma/units/helpers";
+import { FORMAT_LOCALE, formatSignificantNumber } from "@carma-units";
 type SignificantNumberFormatterStoryProps = {
   value: number;
   significantDigits: number;

@@ -1,6 +1,6 @@
 /**
  * Mathematical constants related to π
- * Unitless values - use typed exports from @carma/units/helpers for Radians
+ * Unitless values - use typed exports from @carma-units for Radians
  */
 
 export const ZERO_PI = 0;

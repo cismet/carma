@@ -1,12 +1,11 @@
 import { useEffect } from "react";
-
 import {
   type Cartesian2,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
-  isValidScene,
   type Scene,
-} from "@carma/cesium";
+} from "@carma-cesium";
+import { isValidScene } from "@carma-mapping/engines/cesium/core";
 type UsePolygonFillSelectionHandlerParams = {
   scene: Scene;
   selectionModeActive: boolean;

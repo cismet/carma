@@ -3,7 +3,7 @@ import { negativePiToPi } from "./negative-pi-to-pi";
 /**
  * Calculate the shortest angular distance between two angles, accounting for wraparound.
  * Result is in range [-π, π] representing the direction and magnitude of rotation.
- * Unitless version - use wrapper from @carma/units/helpers for typed Radians
+ * Unitless version - use wrapper from @carma-units for typed Radians
  *
  * @param from - Starting angle in radians (unitless)
  * @param to - Target angle in radians (unitless)

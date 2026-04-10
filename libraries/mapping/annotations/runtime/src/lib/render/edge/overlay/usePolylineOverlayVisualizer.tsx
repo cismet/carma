@@ -5,12 +5,8 @@ import {
   type PolylinePreviewMeasurement,
 } from "@carma-mapping/annotations/core";
 import { useLabelOverlay } from "@carma-providers/label-overlay";
-import {
-  SceneTransforms,
-  defined,
-  isValidScene,
-  type Scene,
-} from "@carma/cesium";
+import { SceneTransforms, defined, type Scene } from "@carma-cesium";
+import { isValidScene } from "@carma-mapping/engines/cesium/core";
 const POLYLINE_OVERLAY_DEFAULTS = {
   ids: {
     verticalCornerOverlayPrefix: "distance-vertical-corner",

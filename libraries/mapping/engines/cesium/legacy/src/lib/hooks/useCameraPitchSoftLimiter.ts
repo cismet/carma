@@ -1,7 +1,6 @@
 import { useCallback, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-
-import { BoundingSphere, Cartesian3, CesiumMath } from "@carma/cesium";
+import { BoundingSphere, Cartesian3, CesiumMath } from "@carma-cesium";
 
 import {
   selectScreenSpaceCameraControllerEnableCollisionDetection,

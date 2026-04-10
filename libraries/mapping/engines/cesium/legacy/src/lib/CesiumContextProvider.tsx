@@ -3,17 +3,20 @@ import type { ReactNode } from "react";
 // legacy type, prefer using scene, graphic primitives and CesiumWidget where possible
 // eslint-disable-next-line carma/no-direct-cesium
 import type { Viewer } from "cesium";
-
 import {
   CesiumTerrainProvider,
   EllipsoidTerrainProvider,
   ImageryLayer,
   Cesium3DTileset,
   Scene,
+} from "@carma-cesium";
+import {
+  initSceneAnimationMap,
   isValidScene,
   isValidCesiumTerrainProvider,
   isValidImageryLayer,
-} from "@carma/cesium";
+  type SceneAnimationMap,
+} from "@carma-mapping/engines/cesium/core";
 
 import { handleDelayedRender } from "@carma-commons/utils/window";
 
@@ -24,11 +27,6 @@ import { loadTileset, TilesetConfigs } from "./utils/cesiumTilesetProviders";
 import { useValidInstances } from "./hooks/useValidInstances";
 import { usePreloadProviders } from "./hooks/usePreloadProviders";
 import { guardScene } from "./utils/guardScene";
-
-import {
-  initSceneAnimationMap,
-  SceneAnimationMap,
-} from "./utils/sceneAnimationMap";
 
 export const CesiumContextProvider = ({
   children,

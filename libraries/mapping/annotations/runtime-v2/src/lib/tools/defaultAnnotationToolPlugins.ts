@@ -1,5 +1,8 @@
 import type { AnnotationToolPlugin } from "./annotationToolPlugin.types";
+import { areaGroundToolPlugin } from "./area-ground/areaGroundToolPlugin";
+import { areaPlanarToolPlugin } from "./area-planar/areaPlanarToolPlugin";
 import { distanceToolPlugin } from "./distance/distanceToolPlugin";
+import { labelToolPlugin } from "./label/labelToolPlugin";
 import { pointToolPlugin } from "./point/pointToolPlugin";
 import { polylineToolPlugin } from "./polyline/polylineToolPlugin";
 import { selectToolPlugin } from "./select/selectToolPlugin";
@@ -9,5 +12,8 @@ export const defaultAnnotationToolPlugins: readonly AnnotationToolPlugin[] = [
   pointToolPlugin,
   distanceToolPlugin,
   polylineToolPlugin,
+  areaGroundToolPlugin,
+  areaPlanarToolPlugin,
   verticalAreaToolPlugin,
+  labelToolPlugin,
 ];

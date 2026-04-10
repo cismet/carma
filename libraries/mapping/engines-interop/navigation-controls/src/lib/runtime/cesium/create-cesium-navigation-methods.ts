@@ -1,4 +1,11 @@
 import {
+  Cartesian3,
+  HeadingPitchRange,
+  Matrix4,
+  PerspectiveFrustum,
+  type Scene,
+} from "@carma-cesium";
+import {
   bindCesiumCameraChangedListener,
   bindCesiumFrameListener,
   cancelCesiumSceneFovZoom,
@@ -11,30 +18,23 @@ import {
   requestCesiumRender,
   type CameraStateRecord,
   type CesiumSceneTarget,
-} from "@carma-mapping/engines/cesium/api";
-import {
   applyCesiumCompassBearingPitch,
   applyCesiumSceneTravelZoomStep,
   animateOrbitHeadingPitchRange,
   beginCesiumCompassDrag,
   cancelCesiumSceneTravelZoom,
-  Cartesian3,
   endCesiumCompassDrag,
   animateCesiumSceneTravelZoom,
   flyToCameraState,
-  HeadingPitchRange,
   MAX_CESIUM_COMPASS_PITCH_DEG,
-  Matrix4,
   MIN_CESIUM_COMPASS_PITCH_RAD,
-  PerspectiveFrustum,
   setViewFromCameraState,
   fromCompassPitchDegToCesiumPitchRad,
-  type Scene,
   type CesiumCompassDragSession,
-} from "@carma/cesium";
-import { clamp } from "@carma/math";
-import { degToRadNumeric } from "@carma/units/helpers";
-import type { Milliseconds, Radians } from "@carma/units/types";
+} from "@carma-mapping/engines/cesium/core";
+import { clamp } from "@carma-commons/math";
+import { degToRadNumeric } from "@carma-units";
+import type { Milliseconds, Radians } from "@carma-units";
 
 import {
   DEFAULT_NAVIGATION_ORBIT_REVOLUTION_DURATION_SEC,
@@ -342,14 +342,42 @@ export const createCesiumNavigationMethods = (
     const orbitSpeedRadPerSecond = degToRadNumeric(
       readOrbitSpeedDegPerSecond(options)
     );
-    let frameId: number | null = null;
+    let removePreRenderListener: (() => void) | null = null;
+    let renderRequested = false;
     let lastFrameTime: number | null = null;
 
-    const step = (frameTime: number) => {
-      if (!isOrbitActive) {
+    const requestNextRender = () => {
+      if (renderRequested) {
+        return;
+      }
+
+      renderRequested = true;
+      requestCesiumRender(activeScene);
+    };
+
+    const clearLoop = () => {
+      removePreRenderListener?.();
+      removePreRenderListener = null;
+      renderRequested = false;
+      lastFrameTime = null;
+    };
+
+    const step = () => {
+      renderRequested = false;
+
+      if (activeScene.isDestroyed()) {
+        clearLoop();
         cancelContinuousOrbit = null;
         return;
       }
+
+      if (!isOrbitActive) {
+        clearLoop();
+        cancelContinuousOrbit = null;
+        return;
+      }
+
+      const frameTime = performance.now();
 
       const deltaSeconds =
         lastFrameTime === null ? 0 : (frameTime - lastFrameTime) / 1000;
@@ -363,18 +391,21 @@ export const createCesiumNavigationMethods = (
           rangeM
         )
       );
-      requestCesiumRender(activeScene);
 
-      frameId = window.requestAnimationFrame(step);
+      try {
+        activeScene.camera.lookAtTransform(Matrix4.IDENTITY);
+      } catch {
+        // Ignore transient teardown races.
+      }
+
+      requestNextRender();
     };
 
-    frameId = window.requestAnimationFrame(step);
+    removePreRenderListener = activeScene.preRender.addEventListener(step);
+    requestNextRender();
 
     cancelContinuousOrbit = () => {
-      if (frameId !== null) {
-        window.cancelAnimationFrame(frameId);
-        frameId = null;
-      }
+      clearLoop();
 
       try {
         activeScene.camera.lookAtTransform(Matrix4.IDENTITY);
@@ -487,10 +518,37 @@ export const createCesiumNavigationMethods = (
             : DEFAULT_CONTINUOUS_ZOOM_EASE_IN_MS;
 
         let frameId: number | null = null;
+        let removePreRenderListener: (() => void) | null = null;
+        let renderRequested = false;
         let lastFrameTimeMs: number | null = null;
         const startedAtMs = performance.now();
 
-        const step = (frameTimeMs: number) => {
+        const requestNextRender = () => {
+          if (renderRequested) {
+            return;
+          }
+
+          renderRequested = true;
+          requestCesiumRender(activeScene);
+        };
+
+        const clearLoop = () => {
+          removePreRenderListener?.();
+          removePreRenderListener = null;
+          renderRequested = false;
+          lastFrameTimeMs = null;
+        };
+
+        const step = () => {
+          renderRequested = false;
+
+          if (activeScene.isDestroyed()) {
+            clearLoop();
+            cancelContinuousZoom = null;
+            return;
+          }
+
+          const frameTimeMs = performance.now();
           const deltaSeconds =
             lastFrameTimeMs === null
               ? 0
@@ -545,17 +603,17 @@ export const createCesiumNavigationMethods = (
             applyZoom(activeScene, options.direction, zoomOptions);
           }
 
-          frameId = window.requestAnimationFrame(step);
+          if (cancelContinuousZoom) {
+            requestNextRender();
+          }
         };
 
         cancelContinuousZoom?.();
-        frameId = window.requestAnimationFrame(step);
+        removePreRenderListener = activeScene.preRender.addEventListener(step);
+        requestNextRender();
 
         cancelContinuousZoom = () => {
-          if (frameId !== null) {
-            window.cancelAnimationFrame(frameId);
-            frameId = null;
-          }
+          clearLoop();
 
           cancelContinuousZoom = null;
         };

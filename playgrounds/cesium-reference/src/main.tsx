@@ -12,7 +12,7 @@ import "antd/dist/reset.css";
 import "./styles.css";
 import { ErrorBoundary } from "react-error-boundary";
 import ErrorFallback from "./components/ErrorFallback";
-import { setupCesiumEnvironment } from "@carma-mapping/engines/cesium";
+import { setupCesiumEnvironment } from "@carma-mapping/engines/cesium/core";
 
 const CESIUM_BASE_URL = `${APP_BASE_PATH}${CESIUM_PATHNAME}`;
 setupCesiumEnvironment({ baseUrl: CESIUM_BASE_URL });

@@ -3,7 +3,7 @@ import { useContext, useEffect, useRef } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import { SelectionItem, useSelection } from "../components/SelectionProvider";
-import { builtInGazetteerHitTrigger } from "@carma-commons/utils";
+import { builtInGazetteerHitTrigger } from "@carma-mapping/fuzzy-search";
 import type { Map } from "leaflet";
 
 const NEW_SELECTION_TIMEOUT = 200;

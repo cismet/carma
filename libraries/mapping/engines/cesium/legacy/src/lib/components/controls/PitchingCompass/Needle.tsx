@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
-
-import { CesiumMath } from "@carma/cesium";
-import type { Radians } from "@carma/units/types";
+import { CesiumMath } from "@carma-cesium";
+import type { Radians } from "@carma-units";
 
 import {
   CompassNeedleSVG,

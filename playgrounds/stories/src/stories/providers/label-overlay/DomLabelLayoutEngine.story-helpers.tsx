@@ -24,7 +24,7 @@ import {
   resolveSegmentEndOutsideCircle,
   type LayoutPointInput,
 } from "@carma-providers/label-overlay";
-import type { CssPixelPosition } from "@carma/units/types";
+import type { CssPixelPosition } from "@carma-units";
 
 import { buildAxisGridSegments3d } from "../../shared/buildAxisGridSegments3d";
 import {

@@ -2,7 +2,7 @@ import { createElement, CSSProperties } from "react";
 
 import CismapLayer from "react-cismap/CismapLayer";
 
-import type { Layer } from "@carma/types";
+import type { Layer } from "@carma-mapping/layers";
 
 interface WMTSLayerProps {
   type: "wmts";

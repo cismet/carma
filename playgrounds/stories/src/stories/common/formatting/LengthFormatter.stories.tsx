@@ -4,7 +4,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { Radio } from "antd";
 
 import { ResponsiveStatusBar } from "@carma-commons/ui/components";
-import { FORMAT_LOCALE, formatLengthMeters } from "@carma/units/helpers";
+import { FORMAT_LOCALE, formatLengthMeters } from "@carma-units";
 type LengthFormatterStoryProps = {
   meters: number;
   locale: string;

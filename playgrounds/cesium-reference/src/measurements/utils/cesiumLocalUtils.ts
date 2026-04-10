@@ -1,6 +1,6 @@
 import { Viewer } from "cesium";
 import { handleDelayedRender } from "@carma-commons/utils/window";
-import { withValidViewer } from "@carma-mapping/engines/cesium";
+import { withValidViewer } from "@carma-mapping/engines/cesium/legacy";
 
 /**
  * Local Cesium context utilities (can be replaced by context later)

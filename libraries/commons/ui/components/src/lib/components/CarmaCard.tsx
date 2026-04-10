@@ -1,7 +1,12 @@
 import React from "react";
-import Icon from "react-cismap/commons/Icon";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faGripVertical } from "@fortawesome/free-solid-svg-icons";
+import {
+  faChevronCircleDown,
+  faChevronCircleUp,
+  faGripVertical,
+} from "@fortawesome/free-solid-svg-icons";
+
+import { CARMA_CARD_BORDER_RADIUS_CSS } from "./carmaCard.constants";
 
 const parseCssRgb = (colorValue: string): [number, number, number] | null => {
   const match = colorValue.match(/rgba?\(([^)]+)\)/i);
@@ -42,6 +47,7 @@ export interface CarmaCardProps {
   bodyStyle?: React.CSSProperties;
   /** Always-visible line below header (not collapsed). */
   subtitle?: React.ReactNode;
+  hideSubtitleWhenCollapsed?: boolean;
   /** Collapsible body content. */
   content?: React.ReactNode;
   /** Always-visible line below collapsible content. */
@@ -69,6 +75,7 @@ const CarmaCard = ({
   headerColor,
   bodyStyle,
   subtitle,
+  hideSubtitleWhenCollapsed = false,
   content,
   footer,
   collapsed,
@@ -81,19 +88,19 @@ const CarmaCard = ({
   onClick,
   upButton = (
     <h4 style={{ margin: 2, fontSize: "18px" }}>
-      <Icon
+      <FontAwesomeIcon
+        icon={faChevronCircleUp}
         title="kompakte Info-Box"
         style={{ color: "#7e7e7e" }}
-        name="chevron-circle-up"
       />
     </h4>
   ),
   downButton = (
     <h4 style={{ margin: 2, fontSize: "18px" }}>
-      <Icon
+      <FontAwesomeIcon
+        icon={faChevronCircleDown}
         title="vollständige info-Box"
         style={{ color: "#7e7e7e" }}
-        name="chevron-circle-down"
       />
     </h4>
   ),
@@ -120,6 +127,9 @@ const CarmaCard = ({
     node !== undefined && node !== null && node !== false;
   const hasCollapsibleBodyContent = hasNode(content);
   const hasStaticBodyContent = hasNode(subtitle) || hasNode(footer);
+  const showSubtitle =
+    hasNode(subtitle) &&
+    !(collapsible && Boolean(collapsed) && hideSubtitleWhenCollapsed);
   const headerTextColor =
     React.isValidElement(header) &&
     (header.props as { style?: React.CSSProperties })?.style?.color
@@ -139,11 +149,11 @@ const CarmaCard = ({
     collapsible && !shouldRenderCollapseInHeader;
   const bodyContentAreaBorderRadius = hasBodySideCollapseToggle
     ? header
-      ? "0 0 0 4px"
-      : "4px 0 0 4px"
+      ? `0 0 0 ${CARMA_CARD_BORDER_RADIUS_CSS}`
+      : `${CARMA_CARD_BORDER_RADIUS_CSS} 0 0 ${CARMA_CARD_BORDER_RADIUS_CSS}`
     : header
-    ? "0 0 4px 4px"
-    : "4px";
+    ? `0 0 ${CARMA_CARD_BORDER_RADIUS_CSS} ${CARMA_CARD_BORDER_RADIUS_CSS}`
+    : CARMA_CARD_BORDER_RADIUS_CSS;
   const collapseAreaWidth = collapseButtonAreaStyle.width;
   const resolvedHeaderToggleSlotWidthPx =
     typeof collapseAreaWidth === "number" ? collapseAreaWidth : 25;
@@ -292,7 +302,9 @@ const CarmaCard = ({
           ? headerToggleSlotStyle
           : {
               background: "#cccccc",
-              borderRadius: header ? "0 0 4px 0" : "0 4px 4px 0",
+              borderRadius: header
+                ? `0 0 ${CARMA_CARD_BORDER_RADIUS_CSS} 0`
+                : `0 ${CARMA_CARD_BORDER_RADIUS_CSS} ${CARMA_CARD_BORDER_RADIUS_CSS} 0`,
               ...collapseButtonAreaStyle,
             }),
       }}
@@ -399,7 +411,9 @@ const CarmaCard = ({
         <div
           ref={headerContainerRef}
           style={{
-            borderRadius: shouldRenderBody ? "4px 4px 0 0" : "4px",
+            borderRadius: shouldRenderBody
+              ? `${CARMA_CARD_BORDER_RADIUS_CSS} ${CARMA_CARD_BORDER_RADIUS_CSS} 0 0`
+              : CARMA_CARD_BORDER_RADIUS_CSS,
             overflow: "hidden",
             boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
             position: "relative",
@@ -486,7 +500,9 @@ const CarmaCard = ({
             backgroundColor: "rgba(245, 245, 245, 0.8)",
             backdropFilter: "blur(2px)",
             WebkitBackdropFilter: "blur(2px)",
-            borderRadius: header ? "0 0 4px 4px" : "4px",
+            borderRadius: header
+              ? `0 0 ${CARMA_CARD_BORDER_RADIUS_CSS} ${CARMA_CARD_BORDER_RADIUS_CSS}`
+              : CARMA_CARD_BORDER_RADIUS_CSS,
             overflow: "hidden",
             ...bodyStyle,
           }}
@@ -498,7 +514,7 @@ const CarmaCard = ({
               borderRadius: bodyContentAreaBorderRadius,
             }}
           >
-            {hasNode(subtitle) ? (
+            {showSubtitle ? (
               <div style={{ paddingBottom: 2 }}>{subtitle}</div>
             ) : null}
             <div
@@ -532,7 +548,9 @@ const CarmaCard = ({
                 justifyContent: "center",
                 flexShrink: 0,
                 background: "#cccccc",
-                borderRadius: header ? "0 0 4px 0" : "0 4px 4px 0",
+                borderRadius: header
+                  ? `0 0 ${CARMA_CARD_BORDER_RADIUS_CSS} 0`
+                  : `0 ${CARMA_CARD_BORDER_RADIUS_CSS} ${CARMA_CARD_BORDER_RADIUS_CSS} 0`,
                 visibility: "hidden",
                 pointerEvents: "none",
                 ...collapseButtonAreaStyle,

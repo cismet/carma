@@ -10,7 +10,7 @@ import {
   type NodeChainAnnotation,
   type PointDistanceRelation,
 } from "@carma-mapping/annotations/core";
-import { Cartesian3 } from "@carma/cesium";
+import { Cartesian3 } from "@carma-cesium";
 type UseDeleteAndCleanupActionsParams = {
   annotations: AnnotationCollection;
   distanceRelations: PointDistanceRelation[];

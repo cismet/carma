@@ -33,7 +33,7 @@ import {
   useLeafletRuntimeBridge,
   type ViewState,
 } from "@carma-mapping/engines-interop/view-state";
-import { type CesiumWidget } from "@carma/cesium";
+import { type CesiumWidget } from "@carma-cesium";
 
 import {
   initializeCesium,

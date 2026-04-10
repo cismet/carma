@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { type Scene } from "@carma-cesium";
 import {
   createCesiumSceneOrbitController,
   type CesiumSceneOrbitController,
   type CesiumSceneOrbitControllerStopOptions,
-  type Scene,
-} from "@carma-mapping/engines/cesium/api";
-import type { Seconds } from "@carma/units/types";
+} from "@carma-mapping/engines/cesium/core";
+import type { Seconds } from "@carma-units";
 
 interface UseCameraOrbitOptions {
   scene: Scene | null;

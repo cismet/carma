@@ -1,4 +1,4 @@
-import type { Camera } from "@carma/cesium";
+import type { Camera } from "@carma-cesium";
 
 import { calculateAnimationDuration } from "./calculate-animation-duration";
 // Mock camera with deviation angle

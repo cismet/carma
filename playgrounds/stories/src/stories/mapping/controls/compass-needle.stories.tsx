@@ -16,7 +16,7 @@ import {
   readCompassNeedlePitchLimitEasing,
   readCompassNeedleVisualPitchDeg,
 } from "@carma-mapping/engines-interop/navigation-controls";
-import { clamp } from "@carma/math";
+import { clamp } from "@carma-commons/math";
 type CompassNeedleStoryArgs = {
   headingDeg: number;
   pitchDeg: number;

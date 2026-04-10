@@ -2,15 +2,39 @@ import { useMemo } from "react";
 
 import { useAnnotationsRuntime } from "../../context/AnnotationsProvider";
 import { RuntimeAnnotationInfoBoxContainer } from "./RuntimeAnnotationInfoBoxContainer";
-type RuntimeAnnotationInfoBoxProps = {
-  pixelWidth?: number;
-};
+import type { RuntimeAnnotationInfoBoxLayoutProps } from "./annotationInfoBox.types";
+import { resolveRuntimeAnnotationInfoBoxVisualOptions } from "./annotationInfoBoxVisualDefaults";
 
 export const RuntimeAnnotationInfoBox = ({
   pixelWidth,
-}: RuntimeAnnotationInfoBoxProps) => {
-  const { registry, annotationEntries, nodes, selectedAnnotationId } =
-    useAnnotationsRuntime();
+  useControlLayout,
+  controlPosition,
+  controlOrder,
+  style,
+  visualOptions,
+}: RuntimeAnnotationInfoBoxLayoutProps) => {
+  const {
+    registry,
+    annotationEntries,
+    formatOptions,
+    nodes,
+    selectedAnnotationId,
+    setSelectedAnnotationId,
+    focusAnnotationId,
+    flyToAllAnnotations,
+    removeAnnotationById,
+    exportAnnotationGeoJson,
+    toggleAnnotationVisibility,
+    toggleAnnotationLocked,
+    elevationReferenceAnnotationId,
+    setElevationReferenceAnnotationId,
+    updateAnnotationDisplayName,
+    updateAnnotationShortLabel,
+  } = useAnnotationsRuntime();
+  const resolvedInfoBoxVisualOptions = useMemo(
+    () => resolveRuntimeAnnotationInfoBoxVisualOptions(visualOptions),
+    [visualOptions]
+  );
 
   const slots = useMemo(() => {
     if (!selectedAnnotationId) {
@@ -36,14 +60,53 @@ export const RuntimeAnnotationInfoBox = ({
       annotationEntries,
       nodes,
       selectedAnnotationId,
+      setSelectedAnnotationId,
+      focusAnnotationId,
+      flyToAllAnnotations,
+      removeAnnotationById,
+      exportAnnotationGeoJson,
+      toggleAnnotationVisibility,
+      toggleAnnotationLocked,
+      elevationReferenceAnnotationId,
+      setElevationReferenceAnnotationId,
+      updateAnnotationDisplayName,
+      updateAnnotationShortLabel,
+      formatOptions,
+      infoBoxVisualOptions: resolvedInfoBoxVisualOptions,
     });
-  }, [annotationEntries, nodes, registry, selectedAnnotationId]);
+  }, [
+    annotationEntries,
+    flyToAllAnnotations,
+    formatOptions,
+    focusAnnotationId,
+    exportAnnotationGeoJson,
+    resolvedInfoBoxVisualOptions,
+    nodes,
+    removeAnnotationById,
+    registry,
+    selectedAnnotationId,
+    setSelectedAnnotationId,
+    elevationReferenceAnnotationId,
+    setElevationReferenceAnnotationId,
+    toggleAnnotationLocked,
+    toggleAnnotationVisibility,
+    updateAnnotationDisplayName,
+    updateAnnotationShortLabel,
+  ]);
 
   if (!slots) {
     return null;
   }
 
   return (
-    <RuntimeAnnotationInfoBoxContainer pixelWidth={pixelWidth} slots={slots} />
+    <RuntimeAnnotationInfoBoxContainer
+      pixelWidth={pixelWidth}
+      useControlLayout={useControlLayout}
+      controlPosition={controlPosition}
+      controlOrder={controlOrder}
+      style={style}
+      slots={slots}
+      visualOptions={resolvedInfoBoxVisualOptions}
+    />
   );
 };

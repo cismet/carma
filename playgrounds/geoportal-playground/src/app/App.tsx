@@ -7,7 +7,7 @@ import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextPr
 import { CrossTabCommunicationContextProvider } from "react-cismap/contexts/CrossTabCommunicationContextProvider";
 
 import { OverlayTourProvider } from "@carma-commons/ui/helper-overlay";
-import type { Layer } from "@carma/types";
+import type { Layer } from "@carma-mapping/layers";
 import {
   BackgroundLayer,
   getShowMeasurementButton,

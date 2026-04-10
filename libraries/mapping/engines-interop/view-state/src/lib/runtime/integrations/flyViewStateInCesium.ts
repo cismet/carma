@@ -1,10 +1,10 @@
 import { readLongerEdgeFovFromIntrinsics } from "@carma-commons/camera/model";
+import { type Scene } from "@carma-cesium";
 import {
   flyToCameraState,
   readSceneCameraIntrinsics,
-  type Scene,
-} from "@carma-mapping/engines/cesium/api";
-import type { Radians } from "@carma/units/types";
+} from "@carma-mapping/engines/cesium/core";
+import type { Radians } from "@carma-units";
 
 import { readCesiumCameraStateFromViewState } from "../../adapters/cesium";
 import type { ViewState } from "../../core/types";

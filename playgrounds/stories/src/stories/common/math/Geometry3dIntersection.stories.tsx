@@ -15,13 +15,9 @@ import {
   buildCirclePoints,
   clipConvexPolygonByPlanes3d,
   intersectRayWithPlane,
-} from "@carma/math";
-import {
-  degToRadNumeric,
-  radToDegNumeric,
-  zeroToTwoPi,
-} from "@carma/units/helpers";
-import type { Radians } from "@carma/units/types";
+} from "@carma-commons/math";
+import { degToRadNumeric, radToDegNumeric, zeroToTwoPi } from "@carma-units";
+import type { Radians } from "@carma-units";
 type PerspectiveClipPlanesStoryArgs = {
   targetShape: "circle" | "square";
   fovVerticalDeg: number;

@@ -5,7 +5,7 @@ import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 
 import { useMapHashRouting } from "@carma-appframeworks/portals";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
-import { useCesiumContext } from "@carma-mapping/engines/cesium";
+import { useCesiumContext } from "@carma-mapping/engines/cesium/legacy";
 type TopicMapComponentProps = ComponentProps<typeof TopicMapComponent>;
 
 const HASH_ROUTING_LABELS = {

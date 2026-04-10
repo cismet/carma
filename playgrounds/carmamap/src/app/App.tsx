@@ -17,7 +17,7 @@ import {
   CarmaMapProviderWrapper,
   type Settings,
 } from "@carma-appframeworks/portals";
-import type { BackgroundLayer, Layer } from "@carma/types";
+import type { BackgroundLayer, Layer } from "@carma-mapping/layers";
 
 // Local Modules
 import AppErrorFallback from "./components/AppErrorFallback";

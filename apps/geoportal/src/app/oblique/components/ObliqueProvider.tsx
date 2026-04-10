@@ -15,7 +15,7 @@ import { useSelection } from "@carma-appframeworks/portals";
 
 import { useHashState } from "@carma-providers/hash-state";
 
-import type { Radians } from "@carma/geo/types";
+import type { Radians } from "@carma-geo/data-structures";
 
 import type {
   ExteriorOrientations,
@@ -29,7 +29,7 @@ import type {
 } from "../types";
 
 import { useObliqueData } from "../hooks/useObliqueData";
-import { useCesiumContext } from "@carma-mapping/engines/cesium";
+import { useCesiumContext } from "@carma-mapping/engines/cesium/legacy";
 
 import { FootprintProperties } from "../utils/footprintUtils";
 import { RBushBySectorBlocks } from "../utils/spatialIndexing";
@@ -75,6 +75,7 @@ interface ObliqueContextType {
   fixedHeight: number;
   minFov: Radians;
   maxFov: Radians;
+  targetEnterObliqueModeFov?: Radians;
   restoreFovOnLeave?: Radians;
   headingOffset: number;
 
@@ -140,6 +141,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     fixedHeight,
     minFov,
     maxFov,
+    targetEnterObliqueModeFov,
     restoreFovOnLeave,
     headingOffset,
     animations,
@@ -262,6 +264,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
       fixedHeight,
       minFov,
       maxFov,
+      targetEnterObliqueModeFov,
       restoreFovOnLeave,
       headingOffset,
       exteriorOrientations,
@@ -293,10 +296,12 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
       converter,
       previewPath,
       previewQualityLevel,
+      downloadQualityLevel,
       fixedPitch,
       fixedHeight,
       minFov,
       maxFov,
+      targetEnterObliqueModeFov,
       restoreFovOnLeave,
       headingOffset,
       exteriorOrientations,

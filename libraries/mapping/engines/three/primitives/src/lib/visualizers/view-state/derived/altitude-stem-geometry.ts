@@ -1,6 +1,6 @@
 import { Vector3 } from "three";
 
-import { clamp, isFiniteNumber } from "@carma/math";
+import { clamp, isFiniteNumber } from "@carma-commons/math";
 export type ViewStateVisualizerAltitudeStemGeometry = {
   stemSegments: [Vector3, Vector3][];
   overflowScaleBreakMarkers: [upper: Vector3[], lower: Vector3[]] | null;

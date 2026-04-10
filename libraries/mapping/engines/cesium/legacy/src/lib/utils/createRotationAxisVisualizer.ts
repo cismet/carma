@@ -2,5 +2,5 @@ export {
   createRotationAxisVisualizer,
   type RotationAxisVisualizer,
   type RotationAxisVisualizerOptions,
-} from "@carma-mapping/engines/cesium/api";
-export { createRotationAxisVisualizer as default } from "@carma-mapping/engines/cesium/api";
+} from "@carma-mapping/engines/cesium/core";
+export { createRotationAxisVisualizer as default } from "@carma-mapping/engines/cesium/core";

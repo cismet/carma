@@ -15,9 +15,10 @@ import type {
   AnnotationCandidateDescriptor,
   NodeChainAnnotation,
 } from "@carma-mapping/annotations/core";
-import { Cartesian2, Cartesian3, type Scene } from "@carma/cesium";
+import { Cartesian2, Cartesian3, type Scene } from "@carma-cesium";
 
 import { useVerticalPolygonCandidate } from "../candidate/useVerticalPolygonCandidate";
+import type { PreviewRuntimeController } from "./previewRuntime";
 import { useCursorState } from "../cursor/useCursorState";
 export {
   ANNOTATION_CANDIDATE_KIND_DISTANCE,
@@ -34,6 +35,7 @@ type UseAnnotationCandidateStateParams = {
   pointQueryEnabled: boolean;
   moveGizmoPointId: string | null;
   isMoveGizmoDragging: boolean;
+  previewRuntimeController: PreviewRuntimeController;
   setNodeChainAnnotations: Dispatch<SetStateAction<NodeChainAnnotation[]>>;
   getPositionWithVerticalOffsetFromAnchor: (
     positionECEF: Cartesian3,
@@ -42,10 +44,6 @@ type UseAnnotationCandidateStateParams = {
 };
 
 type UseAnnotationCandidateStateResult = {
-  activeCandidateNodeECEF: Cartesian3 | null;
-  cursorScreenPosition: { x: number; y: number } | null;
-  activeCandidateNodeSurfaceNormalECEF: Cartesian3 | null;
-  activeCandidateNodeVerticalOffsetAnchorECEF: Cartesian3 | null;
   handleAnnotationCursorMove: (
     positionECEF: Cartesian3 | null,
     screenPosition?: Cartesian2,
@@ -76,6 +74,7 @@ export const useCandidateState = (
     pointQueryEnabled,
     moveGizmoPointId,
     isMoveGizmoDragging,
+    previewRuntimeController,
     setNodeChainAnnotations,
     getPositionWithVerticalOffsetFromAnchor,
   }: UseAnnotationCandidateStateParams
@@ -102,11 +101,6 @@ export const useCandidateState = (
   );
 
   const {
-    candidateNodePositionECEF: activeCandidateNodeECEF,
-    cursorScreenPosition,
-    candidateNodeSurfaceNormalECEF: activeCandidateNodeSurfaceNormalECEF,
-    candidateNodeVerticalOffsetAnchorECEF:
-      activeCandidateNodeVerticalOffsetAnchorECEF,
     clearMeasurementCursor,
     handleAnnotationCursorMove,
     releaseAnnotationCursorSnap,
@@ -115,15 +109,12 @@ export const useCandidateState = (
   } = useCursorState(scene, annotations, candidate, {
     enabled: annotationCursorEnabled,
     snappedPointReleaseDelayMs: SNAPPED_NODE_CURSOR_RELEASE_DELAY_MS,
+    previewRuntimeController,
     getPositionWithVerticalOffsetFromAnchor,
     onCandidateNodePositionChange: updateVerticalPolygonCandidate,
   });
 
   return {
-    activeCandidateNodeECEF,
-    cursorScreenPosition,
-    activeCandidateNodeSurfaceNormalECEF,
-    activeCandidateNodeVerticalOffsetAnchorECEF,
     clearAnnotationCursor: clearMeasurementCursor,
     handleAnnotationCursorMove,
     releaseAnnotationCursorSnap,

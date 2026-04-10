@@ -1,3 +1,4 @@
+import type { AnnotationsRuntimeFormatOptions } from "../../config/annotationsRuntimeFormatOptions";
 import type {
   RuntimeMeasurement,
   RuntimeNode,
@@ -10,31 +11,46 @@ import {
   buildRuntimeNodeCoordinateMap,
   resolveMeasurementCoordinates,
 } from "../../render/resolveMeasurementCoordinates";
+import {
+  formatPointElevationLabelText,
+  resolvePointElevationDisplayMode,
+  resolvePointElevationReferenceCoordinate,
+} from "./pointToolElevationDisplay";
 import type { PointToolVisualSettings } from "./pointToolSettings";
+import { annotationTypographyDefaults } from "../../config/annotationTypographyDefaults";
+import type { AnnotationMeasurementLabelTheme } from "../../config/annotationMeasurementLabelThemes";
+
 type BuildPointToolRenderModelsArgs = {
   toolType: RuntimeMeasurement["toolType"];
   visuals: PointToolVisualSettings;
-  badgeStyle: {
-    backgroundColor: string;
-    textColor: string;
-  };
+  labelTheme: AnnotationMeasurementLabelTheme;
+  formatOptions: AnnotationsRuntimeFormatOptions;
   getMeasurementLabel: (measurementIndex: number) => string;
   nodes: readonly RuntimeNode[];
   measurements: readonly RuntimeMeasurement[];
-  selectedMeasurementId: string | null;
+  elevationReferenceAnnotationId: string | null;
+  selectedMeasurementIds: readonly string[];
+  isSelectionAdditiveModifierPressed: boolean;
   onMeasurementSelect: (measurementId: string) => void;
+  onMeasurementLabelClick: (measurementId: string) => void;
+  onMeasurementLabelDoubleClick: (measurementId: string) => void;
   onNodeLongPress?: (nodeId: string, measurementId: string) => void;
 };
 
 export const buildPointToolRenderModels = ({
   toolType,
   visuals,
-  badgeStyle,
+  labelTheme,
+  formatOptions,
   getMeasurementLabel,
   nodes,
   measurements,
-  selectedMeasurementId,
+  elevationReferenceAnnotationId,
+  selectedMeasurementIds,
+  isSelectionAdditiveModifierPressed,
   onMeasurementSelect,
+  onMeasurementLabelClick,
+  onMeasurementLabelDoubleClick,
   onNodeLongPress,
 }: BuildPointToolRenderModelsArgs): {
   points: readonly RuntimePointMarkerRenderModel[];
@@ -44,9 +60,18 @@ export const buildPointToolRenderModels = ({
   const pointMeasurements = measurements.filter(
     (measurement) => measurement.toolType === toolType
   );
+  const visiblePointMeasurements = pointMeasurements.filter(
+    (measurement) => !measurement.hidden
+  );
+  const selectedMeasurementIdSet = new Set(selectedMeasurementIds);
+  const referenceCoordinate = resolvePointElevationReferenceCoordinate({
+    annotationEntries: pointMeasurements,
+    nodes,
+    configuredReferenceAnnotationId: elevationReferenceAnnotationId,
+  });
 
   return {
-    points: pointMeasurements.flatMap((measurement) => {
+    points: visiblePointMeasurements.flatMap((measurement) => {
       const coordinate =
         resolveMeasurementCoordinates(measurement, nodeCoordinatesById)[0] ??
         null;
@@ -58,14 +83,16 @@ export const buildPointToolRenderModels = ({
       return [
         {
           id: measurement.id,
+          measurementId: measurement.id,
+          nodeId: measurement.nodeIds[0],
           coordinate,
-          ...(measurement.id === selectedMeasurementId
+          ...(selectedMeasurementIdSet.has(measurement.id)
             ? visuals.selectedPoint
             : visuals.point),
         },
       ];
     }),
-    pointLabels: pointMeasurements.flatMap((measurement, pointIndex) => {
+    pointLabels: visiblePointMeasurements.flatMap((measurement, pointIndex) => {
       const coordinate =
         resolveMeasurementCoordinates(measurement, nodeCoordinatesById)[0] ??
         null;
@@ -74,22 +101,57 @@ export const buildPointToolRenderModels = ({
         return [];
       }
       const pointNodeId = measurement.nodeIds[0] ?? null;
+      const isSelected = selectedMeasurementIdSet.has(measurement.id);
+      const pointVisuals = isSelected ? visuals.selectedPoint : visuals.point;
+      const selectedHighlight = labelTheme.selection;
+      const labelColorScheme = labelTheme.scheme;
 
-      const badgeText = getMeasurementLabel(pointIndex + 1);
+      const badgeText =
+        measurement.shortLabel?.trim() || getMeasurementLabel(pointIndex + 1);
+      const elevationText = formatPointElevationLabelText({
+        coordinate,
+        referenceCoordinate,
+        elevationDisplayMode: resolvePointElevationDisplayMode(measurement),
+        formatOptions,
+      });
 
       return [
         {
           id: `${measurement.id}-label`,
           measurementId: measurement.id,
           nodeId: pointNodeId ?? undefined,
+          pointMarkerId: measurement.id,
           coordinate,
-          content: badgeText,
-          markerBackgroundColor: badgeStyle.backgroundColor,
-          markerTextColor: badgeStyle.textColor,
-          selected: measurement.id === selectedMeasurementId,
-          onClick: () => onMeasurementSelect(measurement.id),
+          markerPixelSize: pointVisuals.pixelSize,
+          content: elevationText,
+          badgeContent: badgeText,
+          fontSize: `${annotationTypographyDefaults.rootFontSizePx}px`,
+          fontFamily: labelTheme.fontFamily,
+          fontWeight: labelTheme.contentFontWeight,
+          lineColor: labelColorScheme.lineColor,
+          textBackgroundColor: labelColorScheme.labelBackgroundColor,
+          textColor: labelColorScheme.textColor,
+          markerBackgroundColor: labelColorScheme.badgeBackgroundColor,
+          markerTextColor: labelColorScheme.textColor,
+          selectedBackgroundColor: selectedHighlight.backgroundColor,
+          selectedTextColor: selectedHighlight.textColor,
+          selectedGlowColor: selectedHighlight.glowColor,
+          selectedGlowRadiusPx: selectedHighlight.glowRadiusPx,
+          preserveFillOnSelection: selectedHighlight.preserveFillOnSelection,
+          hoverBackgroundColor: selectedHighlight.hoverBackgroundColor,
+          selected: isSelected,
+          onClick: () => {
+            if (isSelected && !isSelectionAdditiveModifierPressed) {
+              onMeasurementLabelClick(measurement.id);
+            }
+            onMeasurementSelect(measurement.id);
+          },
+          onDoubleClick: () => {
+            onMeasurementLabelDoubleClick(measurement.id);
+            onMeasurementSelect(measurement.id);
+          },
           onLongPress:
-            onNodeLongPress && pointNodeId
+            onNodeLongPress && pointNodeId && !measurement.locked
               ? () => onNodeLongPress(pointNodeId, measurement.id)
               : undefined,
         },

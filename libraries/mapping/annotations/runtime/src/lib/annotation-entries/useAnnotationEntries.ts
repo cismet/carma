@@ -27,7 +27,7 @@ import {
   Cartesian3,
   type Cartesian3 as CesiumCartesian3,
   type Scene,
-} from "@carma/cesium";
+} from "@carma-cesium";
 
 import type {
   AnnotationCollectionContextType,

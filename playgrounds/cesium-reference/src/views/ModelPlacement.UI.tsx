@@ -16,8 +16,8 @@ import {
   LightingModel,
 } from "cesium";
 import { useControls, button, Leva } from "leva";
-import { type ModelConfig } from "@carma-commons/resources";
-import { CUSTOM_SHADERS_DEFINITIONS } from "@carma-mapping/engines/cesium";
+import type { ModelConfig } from "@carma-mapping/engines/cesium/core";
+import { CUSTOM_SHADERS_DEFINITIONS } from "@carma-mapping/engines/cesium/legacy";
 
 interface ModelPlacementUIProps {
   viewerRef: RefObject<Viewer | null>;

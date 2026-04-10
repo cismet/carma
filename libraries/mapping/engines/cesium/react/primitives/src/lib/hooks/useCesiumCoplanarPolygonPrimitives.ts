@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react";
-
 import {
   Cartesian3,
   CoplanarPolygonGeometry,
@@ -9,9 +8,9 @@ import {
   PerInstanceColorAppearance,
   Primitive,
   PrimitiveCollection,
-  offsetCartesian3Positions,
   type Scene,
-} from "@carma/cesium";
+} from "@carma-cesium";
+import { offsetCartesian3Positions } from "@carma-mapping/engines/cesium/core";
 
 import type { CesiumPolygonPrimitive } from "./useCesiumGroundPolygonPrimitives";
 const removePrimitiveCollection = (

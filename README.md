@@ -103,8 +103,8 @@ All configurations should allow importing `.js`
 Common custom CARMA types and type declarations for external libraries are defined in type-only packages. These packages use zero-build configuration: TypeScript consumes declaration files directly from source via path aliases, eliminating build steps for pure type definitions.
 
 **Type-only packages:**
-- `@carma/types` - Global types index ([`libraries/types/`](libraries/types/))
-- `@carma/geo/types` - Geographic types ([`libraries/commons/geo/types/`](libraries/commons/geo/types/))
+- `@carma-types` - Global types index ([`libraries/types/`](libraries/types/))
+- `@carma-geo/types` - Geographic types ([`libraries/geo/types/`](libraries/geo/types/))
 - `@carma/units/types` - Branded unit types with [Radians-first convention](libraries/commons/units/types/BRANDED-UNITS.md) ([`libraries/commons/units/types/`](libraries/commons/units/types/))
 
 **Configuration:** Type-only packages have no build target. Their `package.json` points exports directly to source (e.g., `"types": "./src/index.d.ts"`), and path aliases in `tsconfig.base.json` resolve directly to `.d.ts` files. This approach requires no compilation since TypeScript natively reads declaration files.
@@ -139,6 +139,43 @@ Use this canonical import order in repo code:
 6. side-effect imports last, especially CSS, widget styles, and other asset-only imports such as `import "cesium/Build/Cesium/Widgets/widgets.css";`
 
 Keep import blocks stable and alphabetized within each block.
+
+#### Cross-engine feature topology
+
+For platform features that should remain mapping-engine-agnostic, prefer one shared feature package plus one explicit engine bridge package per mapping engine.
+
+Example target shape:
+
+```text
+libraries/mapping/annotations/
+  src/lib/core/*              # contracts, domain logic, DTOs, pure transforms
+  src/lib/runtime/*           # engine-agnostic orchestration only, if needed
+
+libraries/mapping/annotations/cesium/
+  src/lib/runtime/*           # Cesium scene, widget, and primitive bindings
+
+libraries/mapping/annotations/maplibre/
+  src/lib/runtime/*           # MapLibre GL JS bindings
+
+libraries/mapping/annotations/leaflet/
+  src/lib/runtime/*           # Leaflet or react-cismap bindings
+```
+
+Dependency direction:
+
+- `annotations` must not depend on Cesium, MapLibre GL JS, Leaflet, or `react-cismap`
+- `annotations/cesium` may depend on `annotations`, `@carma-cesium`, and Cesium-specific helper packages
+- `annotations/maplibre` may depend on `annotations` and MapLibre-specific helper packages
+- `annotations/leaflet` may depend on `annotations` and Leaflet-specific helper packages
+- bridge packages should not depend on each other
+
+Why this shape is preferred:
+
+- shared feature logic stays vendor-light, testable, and easier to reuse
+- mapping-engine retirement or replacement is localized to one bridge package instead of leaking through the feature core
+- apps can opt into the engine bridges they need without scattering engine checks through shared providers or domain logic
+
+A concrete example of this pattern is documented in [`libraries/mapping/engines-interop/navigation-controls/README.md`](./libraries/mapping/engines-interop/navigation-controls/README.md).
 
 ### Linting
 

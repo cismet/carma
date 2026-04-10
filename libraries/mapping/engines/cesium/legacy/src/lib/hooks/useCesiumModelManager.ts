@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef } from "react";
 
-import type { ModelConfig } from "@carma-commons/resources";
+import type { ModelConfig } from "@carma-mapping/engines/cesium/core";
 import {
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
   CustomShader,
   Model,
-} from "@carma/cesium";
+} from "@carma-cesium";
 
 import { createModelPrimitiveFromConfig } from "../utils/createModelPrimitiveFromConfig";
 import { DEFAULT_MODEL_HIGHLIGHT_SHADER } from "../utils/modelHighlightShader";

@@ -1,6 +1,6 @@
 /**
  * Normalize an angle to the range [-π, π]
- * Unitless version - use wrapper from @carma/units/helpers for typed Radians
+ * Unitless version - use wrapper from @carma-units for typed Radians
  *
  * @param angle - Angle in radians (unitless)
  * @returns Normalized angle in range [-π, π]

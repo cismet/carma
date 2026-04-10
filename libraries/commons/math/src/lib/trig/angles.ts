@@ -1,7 +1,7 @@
 /**
  * Trigonometric and angle manipulation functions
  * All functions work with unitless numbers (assumed to be radians)
- * Use wrappers from @carma/units/helpers for typed Radians
+ * Use wrappers from @carma-units for typed Radians
  */
 
 /**

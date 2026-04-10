@@ -1,5 +1,6 @@
-import { Cartesian3, type Cartesian3Json } from "@carma/cesium";
-import type { Altitude, LatLngAlt } from "@carma/geo/types";
+import { Cartesian3 } from "@carma-cesium";
+import type { MetricVector3 } from "@carma-units";
+import type { Altitude, LatLngAlt } from "@carma-geo/data-structures";
 
 import type { BaseAnnotationEntry } from "./annotationEntry";
 import type { AnnotationPersistenceEnvelopeV2Base } from "./annotationPersistenceTypes";
@@ -35,7 +36,7 @@ export type AnnotationPointEntry = AnnotationEntry & {
     altitude: Altitude.EllipsoidalWGS84Meters;
   };
   radius?: number;
-  verticalOffsetAnchorECEF?: Cartesian3Json;
+  verticalOffsetAnchorECEF?: MetricVector3;
 };
 
 export type PointMeasurementEntry = AnnotationPointEntry & {

@@ -18,7 +18,7 @@ import L from "leaflet";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
-import type { Layer } from "@carma/types";
+import type { BackgroundLayer, Layer } from "@carma-mapping/layers";
 import { cn, getHashParams } from "@carma-commons/utils";
 
 import {
@@ -68,7 +68,7 @@ interface LayerButtonProps {
   title: string;
   id: string;
   index: number;
-  layer: Layer;
+  layer: Layer | BackgroundLayer;
   background?: boolean;
   hide?: boolean;
 }

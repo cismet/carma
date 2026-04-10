@@ -1,4 +1,4 @@
-import type { CssPixelPosition } from "@carma/units/types";
+import type { CssPixelPosition } from "@carma-units";
 
 export type SvgLine = {
   start: CssPixelPosition;

@@ -19,7 +19,7 @@ export type PolylineToolSettings = {
 
 const defaults = runtimeMeasurementVisualDefaults;
 
-export const createPolylineToolSettings = (badgeStyle: {
+export const createPolylineToolSettings = (_badgeStyle: {
   backgroundColor: string;
   textColor: string;
 }): PolylineToolSettings => ({
@@ -27,24 +27,27 @@ export const createPolylineToolSettings = (badgeStyle: {
     edge: {
       stroke: defaults.colors.accent,
       strokeWidth: defaults.sizes.edgeStrokeWidth,
+      dashed: true,
     },
     selectedEdge: {
       stroke: defaults.colors.neutral,
       strokeWidth: defaults.sizes.selectedEdgeStrokeWidth,
+      dashed: true,
     },
     previewEdge: {
       stroke: defaults.colors.preview,
       strokeWidth: defaults.sizes.edgeStrokeWidth,
+      dashed: true,
     },
     point: {
       pixelSize: defaults.sizes.pointPixelSize,
-      fill: badgeStyle.backgroundColor,
+      fill: defaults.colors.transparent,
       outline: defaults.colors.surface,
       outlineWidth: defaults.sizes.pointOutlineWidth,
     },
     selectedPoint: {
       pixelSize: defaults.sizes.selectedPointPixelSize,
-      fill: badgeStyle.backgroundColor,
+      fill: defaults.colors.transparent,
       outline: defaults.colors.surface,
       outlineWidth: defaults.sizes.pointOutlineWidth,
     },

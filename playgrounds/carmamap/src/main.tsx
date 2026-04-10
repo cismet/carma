@@ -5,11 +5,11 @@ import { persistStore } from "redux-persist";
 import { PersistGate } from "redux-persist/integration/react";
 
 import { suppressReactCismapErrors } from "@carma-commons/utils";
+import { setupCesiumEnvironment } from "@carma-mapping/engines/cesium/core";
 
+import { CESIUM_CONFIG } from "./app/config/app.config";
 import App from "./app/App";
 import store from "./app/store";
-import { CESIUM_CONFIG } from "./app/config/app.config";
-import { setupCesiumEnvironment } from "@carma-mapping/engines/cesium";
 
 const persistor = persistStore(store);
 

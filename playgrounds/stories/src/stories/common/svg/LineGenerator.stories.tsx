@@ -14,7 +14,7 @@ import {
   useLabelOverlayHost,
   useLineVisualizers,
 } from "@carma-providers/label-overlay";
-import type { CssPixelPosition } from "@carma/units/types";
+import type { CssPixelPosition } from "@carma-units";
 type LineGeneratorStoryArgs = {
   screenPointDistancePx: number;
   strokeWidth: number;

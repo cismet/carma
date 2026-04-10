@@ -25,8 +25,7 @@ import type {
   Item,
   Layer,
   SavedLayerConfig,
-} from "@carma/types";
-import { utils } from "@carma-appframeworks/portals";
+} from "../lib/contracts/carma-layers.d";
 import { useAuth } from "@carma-providers/auth";
 import {
   useFeatureFlags,
@@ -89,7 +88,7 @@ export interface LibModalProps {
   open: boolean;
   setOpen: (open: boolean) => void;
   setAdditionalLayers: any;
-  favorites?: Item[];
+  favorites?: Array<Item | SavedLayerConfig>;
   addFavorite: (layer: Item) => void;
   removeFavorite: (layer: Item) => void;
   updateFavorite?: (layer: Item) => void;

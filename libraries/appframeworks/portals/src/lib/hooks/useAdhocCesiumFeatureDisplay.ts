@@ -1,34 +1,35 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-
 import {
   BoundingSphere,
   Color,
   Model,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
-  flyToBoundingSphereExtent,
   type Cartesian2,
   type CesiumTerrainProvider,
   type Scene,
-} from "@carma/cesium";
-
-import { type Easing as EasingFunction } from "@carma-commons/math";
-import type { ModelConfig } from "@carma-commons/resources";
-import type { FeatureInfo } from "@carma/types";
+} from "@carma-cesium";
 import {
   addElevationsToGeoJson,
+  flyToBoundingSphereExtent,
+  getBoundingSphereFromGeoJson,
+  type GeoJsonElevationOptions,
+} from "@carma-mapping/engines/cesium/core";
+
+import { type Easing as EasingFunction } from "@carma-commons/math";
+import type { ModelConfig } from "@carma-mapping/engines/cesium/core";
+import type { FeatureInfo } from "@carma-mapping/utils";
+import {
   createExtrudedWallVisualizer,
   createGroundPolygonVisualizer,
   createGroundPolylineVisualizer,
-  getBoundingSphereFromGeoJson,
   useCesiumModelManager,
   type ExtrudedWallVisualizer,
-  type GeoJsonElevationOptions,
   type GroundPolygonVisualizer,
   type GroundPolylineVisualizer,
-} from "@carma-mapping/engines/cesium";
+} from "@carma-mapping/engines/cesium/legacy";
 import type { Feature, FeatureCollection } from "geojson";
-import { extractRingsFromGeoJson } from "@carma/geo/utils";
+import { extractRingsFromGeoJson } from "@carma-geo/utils";
 
 import {
   useAdhocFeatureDisplay,

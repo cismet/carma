@@ -17,8 +17,8 @@ import {
   type ViewStateVisualizerOverviewOptions,
   type ViewStateVisualizerVisualizedOptions,
 } from "@carma-mapping/engines/three/primitives";
-import { clamp, PI_OVER_TWO } from "@carma/math";
-import { degToRadNumeric, radToDegNumeric } from "@carma/units/helpers";
+import { clamp, PI_OVER_TWO } from "@carma-commons/math";
+import { degToRadNumeric, radToDegNumeric } from "@carma-units";
 type CameraStateVisualizerStoryProps = {
   altitudeM: number;
   bearingDeg: number;

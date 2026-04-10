@@ -14,7 +14,7 @@ import {
   type NodeChainAnnotation,
   type PointAnnotationEntry,
 } from "@carma-mapping/annotations/core";
-import { Cartesian3 } from "@carma/cesium";
+import { Cartesian3 } from "@carma-cesium";
 
 import type { PolygonAreaBadge } from "../labels";
 import type { AnnotationPointMarkerBadge } from "../point/usePointMarkerBadges";

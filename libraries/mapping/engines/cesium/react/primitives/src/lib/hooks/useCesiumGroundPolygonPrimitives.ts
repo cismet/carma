@@ -12,7 +12,7 @@ import {
   PolygonGeometry,
   PolygonHierarchy,
   type Scene,
-} from "@carma/cesium";
+} from "@carma-cesium";
 const removeGroundPrimitives = (
   scene: Scene,
   groundPrimitives: readonly GroundPrimitive[]

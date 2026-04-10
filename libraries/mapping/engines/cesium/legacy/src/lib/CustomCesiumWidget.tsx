@@ -18,8 +18,8 @@ import {
   ClippingPlaneCollection,
 } from "cesium";
 
-import type { Altitude, LatLngAlt } from "@carma/geo/types";
-import type { Degrees } from "@carma/units/types";
+import type { Altitude, LatLngAlt } from "@carma-geo/data-structures";
+import type { Degrees } from "@carma-units";
 
 import { CUSTOM_SHADERS_DEFINITIONS } from "./shaders";
 import { generateRingFromDegrees } from "./utils/geometryGenerators";

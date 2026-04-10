@@ -1,0 +1,12 @@
+{
+  "name": "@carma-geo/data-structures",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Core geographic data structures, branded types, and constants for the CARMA monorepo.",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "sideEffects": false,
+  "license": "MIT"
+}

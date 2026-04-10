@@ -9,14 +9,14 @@ import {
   isMapViewEqualToTarget,
   readMapLibrePerspectiveIntrinsics,
 } from "@carma-mapping/engines/maplibre-gl/utils";
+import { WEB_MERCATOR_MAX_LATITUDE_DEG } from "@carma-geo/data-structures";
 import {
   getPixelResolutionFromZoomAtLatitudeRad,
   clampLatitudeToWebMercatorExtent,
-  WEB_MERCATOR_MAX_LATITUDE_DEG,
-} from "@carma/geo/utils";
-import { isFiniteNumber, clamp } from "@carma/math";
-import { degToRadNumeric, radToDegNumeric } from "@carma/units/helpers";
-import type { Radians } from "@carma/units/types";
+} from "@carma-geo/utils";
+import { isFiniteNumber, clamp } from "@carma-commons/math";
+import { degToRadNumeric, radToDegNumeric } from "@carma-units";
+import type { Radians } from "@carma-units";
 
 import { buildViewState, type AngleBasedViewInput } from "../core/construct";
 import { deriveOrbitAngles, deriveZoom } from "../core/derivations";

@@ -5,9 +5,9 @@ import {
   readVerticalFovFromLongerEdge,
   type CameraIntrinsics,
 } from "@carma-commons/camera/model";
-import { getPixelResolutionFromZoomAtLatitudeRad } from "@carma/geo/utils";
-import { isFiniteNumber } from "@carma/math";
-import type { Meters, Radians } from "@carma/units/types";
+import { getPixelResolutionFromZoomAtLatitudeRad } from "@carma-geo/utils";
+import { isFiniteNumber } from "@carma-commons/math";
+import type { Meters, Radians } from "@carma-units";
 
 import { buildViewState } from "./construct";
 import { deriveView } from "./derivations";

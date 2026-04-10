@@ -1,24 +1,43 @@
 import { useEffect, useRef } from "react";
 
 import {
-  pickGlobePositionAtScreenPosition,
-  pickScenePositionAtScreenPosition,
-  sampleSurfaceNormalAtScreenPosition,
-} from "@carma-mapping/engines/cesium/api";
-import {
   Cartesian2,
   Cartesian3,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
   type Scene,
-} from "@carma/cesium";
+} from "@carma-cesium";
+import {
+  resolvePreferredSurfacePick,
+  sampleSurfacePickNormalAtScreenPosition,
+} from "@carma-mapping/engines/cesium/core";
+import {
+  getCesiumScenePointerScreenPosition,
+  registerCesiumScenePointerTracker,
+  subscribeCesiumScenePointerClientPosition,
+} from "./scenePointerTracker";
+
 const POINT_CLICK_DELAY_MS = 220;
 const DOUBLE_CLICK_POSITION_THRESHOLD_PX = 12;
+const HOVER_PICK_CONTINUITY_FRAME_COUNT = 2;
+const CAMERA_MOVING_HOVER_PICK_INTERVAL_MS = 75;
+const STATIC_HOVER_NORMAL_SAMPLE_INTERVAL_MS = 48;
+const STATIC_HOVER_NORMAL_SAMPLE_DISTANCE_THRESHOLD_PX = 6;
 const CLEARED_POINTER_POSITION = new Cartesian2(Number.NaN, Number.NaN);
-const INTERACTIVE_POINT_LABEL_SELECTOR =
-  '[data-point-label-interactive="true"]';
-const LABEL_OVERLAY_CONTAINER_SELECTOR =
-  '[data-label-overlay-container="true"]';
+
+export const CESIUM_POINT_QUERY_CLICK_STRATEGY = {
+  IMMEDIATE: "immediate",
+  DELAYED_LINE_FINISH: "delayed-line-finish",
+} as const;
+
+export type CesiumPointQueryClickStrategy =
+  (typeof CESIUM_POINT_QUERY_CLICK_STRATEGY)[keyof typeof CESIUM_POINT_QUERY_CLICK_STRATEGY];
+
+type RetainedHoverSample = {
+  positionECEF: Cartesian3;
+  surfaceNormalECEF: Cartesian3 | null;
+  missedFrameCount: number;
+};
 
 const isSameDoubleClickArea = (
   previousPosition: Cartesian2 | null,
@@ -34,6 +53,13 @@ const isSameDoubleClickArea = (
   );
 };
 
+const isSameScreenPosition = (
+  left: Cartesian2 | null,
+  right: Cartesian2 | null
+) =>
+  left === right ||
+  (!!left && !!right && left.x === right.x && left.y === right.y);
+
 export type CesiumPointQueryCreatePayload = {
   screenPosition: Cartesian2;
   pickedPositionECEF: Cartesian3;
@@ -46,9 +72,14 @@ export type CesiumPointQueryPointerMoveHandler = (
   surfaceNormalECEF?: Cartesian3 | null
 ) => void;
 
+export type CesiumPointQueryScreenPositionHandler = (
+  screenPosition: Cartesian2 | null
+) => void;
+
 export type CesiumPointQueryOptions = {
   enabled?: boolean;
   hideCursorWhileEnabled?: boolean;
+  clickStrategy?: CesiumPointQueryClickStrategy;
   pointClickDelayMs?: number;
   onBeforePointCreate?: (
     positionECEF: Cartesian3 | null,
@@ -57,11 +88,16 @@ export type CesiumPointQueryOptions = {
   onPointCreate?: (payload: CesiumPointQueryCreatePayload) => void;
   onLineFinish?: () => void;
   onPointerMove?: CesiumPointQueryPointerMoveHandler;
+  onScreenPositionChange?: CesiumPointQueryScreenPositionHandler;
 };
 
 type CesiumPointQueryCallbacks = Pick<
   CesiumPointQueryOptions,
-  "onBeforePointCreate" | "onPointCreate" | "onLineFinish" | "onPointerMove"
+  | "onBeforePointCreate"
+  | "onPointCreate"
+  | "onLineFinish"
+  | "onPointerMove"
+  | "onScreenPositionChange"
 >;
 
 export const useCesiumPointQuery = (
@@ -69,21 +105,22 @@ export const useCesiumPointQuery = (
   {
     enabled = true,
     hideCursorWhileEnabled = true,
+    clickStrategy = CESIUM_POINT_QUERY_CLICK_STRATEGY.IMMEDIATE,
     pointClickDelayMs = POINT_CLICK_DELAY_MS,
     onBeforePointCreate,
     onPointCreate,
     onLineFinish,
     onPointerMove,
+    onScreenPositionChange,
   }: CesiumPointQueryOptions = {}
 ) => {
-  const pendingPointerMovePositionRef = useRef<Cartesian2 | null>(null);
-  const pointerMoveFrameRef = useRef<number | null>(null);
   const callbacksRef = useRef<CesiumPointQueryCallbacks>({});
   callbacksRef.current = {
     onBeforePointCreate,
     onPointCreate,
     onLineFinish,
     onPointerMove,
+    onScreenPositionChange,
   };
 
   useEffect(() => {
@@ -99,11 +136,7 @@ export const useCesiumPointQuery = (
 
   useEffect(() => {
     if (!scene || scene.isDestroyed() || !enabled) {
-      if (pointerMoveFrameRef.current !== null) {
-        window.cancelAnimationFrame(pointerMoveFrameRef.current);
-        pointerMoveFrameRef.current = null;
-      }
-      pendingPointerMovePositionRef.current = null;
+      callbacksRef.current.onScreenPositionChange?.(null);
       callbacksRef.current.onPointerMove?.(
         null,
         CLEARED_POINTER_POSITION,
@@ -113,135 +146,214 @@ export const useCesiumPointQuery = (
     }
 
     const handler = new ScreenSpaceEventHandler(scene.canvas);
+    const unregisterScenePointerTracker =
+      registerCesiumScenePointerTracker(scene);
+    let pointerRenderQueued = false;
     let clickTimeoutId: number | undefined;
     let previousClickPosition: Cartesian2 | null = null;
     let latestClickPosition: Cartesian2 | null = null;
+    let lastProcessedPointerPosition: Cartesian2 | null = null;
+    let retainedHoverSample: RetainedHoverSample | null = null;
+    let forceHoverRefresh = false;
+    let isCameraMoving = false;
+    let lastHoverPickTimeMs = Number.NEGATIVE_INFINITY;
+    let lastHoverNormalSampleTimeMs = Number.NEGATIVE_INFINITY;
+    let lastHoverNormalSampleScreenPosition: Cartesian2 | null = null;
 
-    const clearCandidatePointerState = () => {
-      pendingPointerMovePositionRef.current = null;
-      if (pointerMoveFrameRef.current !== null) {
-        window.cancelAnimationFrame(pointerMoveFrameRef.current);
-        pointerMoveFrameRef.current = null;
+    const requestForcedHoverRefresh = () => {
+      if (!scene || scene.isDestroyed()) {
+        return;
       }
-      callbacksRef.current.onPointerMove?.(
-        null,
-        CLEARED_POINTER_POSITION,
-        null
-      );
+
+      forceHoverRefresh = true;
+      pointerRenderQueued = true;
       scene.requestRender();
     };
 
-    const queuePointerMove = (screenPosition: Cartesian2) => {
-      pendingPointerMovePositionRef.current = Cartesian2.clone(
-        screenPosition,
-        new Cartesian2()
-      );
-
-      if (pointerMoveFrameRef.current === null) {
-        pointerMoveFrameRef.current =
-          window.requestAnimationFrame(flushPointerMove);
-      }
+    const handleCameraMoveStart = () => {
+      isCameraMoving = true;
+      lastHoverPickTimeMs = Number.NEGATIVE_INFINITY;
     };
 
-    const handleCanvasPointerLeave = (event: MouseEvent) => {
-      const relatedTarget = event.relatedTarget;
-      if (
-        relatedTarget instanceof Element &&
-        (relatedTarget.closest(INTERACTIVE_POINT_LABEL_SELECTOR) ||
-          relatedTarget.closest(LABEL_OVERLAY_CONTAINER_SELECTOR))
-      ) {
-        return;
-      }
-      clearCandidatePointerState();
-    };
-
-    const handleCanvasBlur = () => {
-      clearCandidatePointerState();
-    };
-
-    const handleWindowBlur = () => {
-      clearCandidatePointerState();
-    };
-
-    const handleDocumentVisibilityChange = () => {
-      if (document.visibilityState !== "visible") {
-        clearCandidatePointerState();
-      }
-    };
-
-    const handleWindowPointerMove = (event: PointerEvent) => {
-      const canvasRect = scene.canvas.getBoundingClientRect();
-      const insideCanvasBounds =
-        event.clientX >= canvasRect.left &&
-        event.clientX <= canvasRect.right &&
-        event.clientY >= canvasRect.top &&
-        event.clientY <= canvasRect.bottom;
-
-      if (!insideCanvasBounds) {
+    const handleCameraMoveEnd = () => {
+      if (!isCameraMoving) {
         return;
       }
 
-      queuePointerMove(
-        new Cartesian2(
-          event.clientX - canvasRect.left,
-          event.clientY - canvasRect.top
-        )
-      );
+      isCameraMoving = false;
+      requestForcedHoverRefresh();
     };
-
-    scene.canvas.addEventListener("mouseleave", handleCanvasPointerLeave);
-    scene.canvas.addEventListener("blur", handleCanvasBlur);
-    window.addEventListener("blur", handleWindowBlur);
-    window.addEventListener("pointermove", handleWindowPointerMove, true);
-    document.addEventListener(
-      "visibilitychange",
-      handleDocumentVisibilityChange
-    );
 
     const flushPointerMove = () => {
-      pointerMoveFrameRef.current = null;
       if (!scene || scene.isDestroyed()) {
-        pendingPointerMovePositionRef.current = null;
+        lastProcessedPointerPosition = null;
+        retainedHoverSample = null;
+        pointerRenderQueued = false;
+        forceHoverRefresh = false;
+        isCameraMoving = false;
+        lastHoverPickTimeMs = Number.NEGATIVE_INFINITY;
+        lastHoverNormalSampleTimeMs = Number.NEGATIVE_INFINITY;
+        lastHoverNormalSampleScreenPosition = null;
+        return;
+      }
+      pointerRenderQueued = false;
+
+      const currentPointerPosition = getCesiumScenePointerScreenPosition(scene);
+      if (!currentPointerPosition) {
+        if (!lastProcessedPointerPosition) {
+          return;
+        }
+
+        lastProcessedPointerPosition = null;
+        retainedHoverSample = null;
+        forceHoverRefresh = false;
+        lastHoverNormalSampleTimeMs = Number.NEGATIVE_INFINITY;
+        lastHoverNormalSampleScreenPosition = null;
+        callbacksRef.current.onScreenPositionChange?.(null);
+        callbacksRef.current.onPointerMove?.(
+          null,
+          CLEARED_POINTER_POSITION,
+          null
+        );
         return;
       }
 
-      const pendingPosition = pendingPointerMovePositionRef.current;
-      pendingPointerMovePositionRef.current = null;
-      if (!pendingPosition) {
-        return;
-      }
+      const pointerPositionChanged = !isSameScreenPosition(
+        lastProcessedPointerPosition,
+        currentPointerPosition
+      );
+      const nowMs = performance.now();
+      const shouldRepickDuringCameraMove =
+        isCameraMoving &&
+        nowMs - lastHoverPickTimeMs >= CAMERA_MOVING_HOVER_PICK_INTERVAL_MS;
 
-      const pickedPosition = pickScenePositionAtScreenPosition(
-        scene,
-        pendingPosition
-      );
-      const sampledSurfaceNormal = pickedPosition
-        ? sampleSurfaceNormalAtScreenPosition(
-            scene,
-            pendingPosition,
-            pickedPosition
-          )
-        : null;
-      callbacksRef.current.onPointerMove?.(
-        pickedPosition ?? null,
-        pendingPosition,
-        sampledSurfaceNormal
-      );
+      if (!pointerPositionChanged) {
+        if (!forceHoverRefresh && !shouldRepickDuringCameraMove) {
+          return;
+        }
+      } else {
+        lastProcessedPointerPosition = Cartesian2.clone(
+          currentPointerPosition,
+          lastProcessedPointerPosition ?? new Cartesian2()
+        );
+        callbacksRef.current.onScreenPositionChange?.(currentPointerPosition);
+      }
 
       if (
-        pendingPointerMovePositionRef.current &&
-        pointerMoveFrameRef.current === null
+        !forceHoverRefresh &&
+        isCameraMoving &&
+        nowMs - lastHoverPickTimeMs < CAMERA_MOVING_HOVER_PICK_INTERVAL_MS
       ) {
-        pointerMoveFrameRef.current =
-          window.requestAnimationFrame(flushPointerMove);
+        return;
       }
+
+      const shouldForceHoverRefresh = forceHoverRefresh;
+      forceHoverRefresh = false;
+
+      const resolvedPick = resolvePreferredSurfacePick(
+        scene,
+        currentPointerPosition
+      );
+      lastHoverPickTimeMs = nowMs;
+      const authoritativePickedPositionECEF = resolvedPick.surfacePositionECEF;
+      // Hover previews still need a usable position when the dedicated
+      // point-query tileset misses, but we only trust tileset hits for
+      // surface normals that drive tangent-plane visuals.
+      const hoverPositionECEF =
+        authoritativePickedPositionECEF ?? resolvedPick.globePositionECEF;
+
+      if (hoverPositionECEF) {
+        const shouldSampleSurfaceNormal =
+          Boolean(authoritativePickedPositionECEF) &&
+          !isCameraMoving &&
+          (shouldForceHoverRefresh ||
+            !retainedHoverSample?.surfaceNormalECEF ||
+            !lastHoverNormalSampleScreenPosition ||
+            nowMs - lastHoverNormalSampleTimeMs >=
+              STATIC_HOVER_NORMAL_SAMPLE_INTERVAL_MS ||
+            Cartesian2.distance(
+              currentPointerPosition,
+              lastHoverNormalSampleScreenPosition
+            ) >= STATIC_HOVER_NORMAL_SAMPLE_DISTANCE_THRESHOLD_PX);
+        const sampledSurfaceNormal = authoritativePickedPositionECEF
+          ? shouldSampleSurfaceNormal
+            ? sampleSurfacePickNormalAtScreenPosition(
+                scene,
+                currentPointerPosition,
+                authoritativePickedPositionECEF
+              )
+            : null
+          : null;
+        if (shouldSampleSurfaceNormal) {
+          lastHoverNormalSampleTimeMs = nowMs;
+          lastHoverNormalSampleScreenPosition = Cartesian2.clone(
+            currentPointerPosition,
+            lastHoverNormalSampleScreenPosition ?? new Cartesian2()
+          );
+        }
+        const resolvedSurfaceNormal =
+          sampledSurfaceNormal ??
+          retainedHoverSample?.surfaceNormalECEF ??
+          null;
+        retainedHoverSample = {
+          positionECEF: Cartesian3.clone(hoverPositionECEF, new Cartesian3()),
+          surfaceNormalECEF: resolvedSurfaceNormal
+            ? Cartesian3.clone(resolvedSurfaceNormal, new Cartesian3())
+            : null,
+          missedFrameCount: 0,
+        };
+        callbacksRef.current.onPointerMove?.(
+          hoverPositionECEF,
+          currentPointerPosition,
+          resolvedSurfaceNormal
+        );
+        return;
+      }
+
+      if (
+        retainedHoverSample &&
+        retainedHoverSample.missedFrameCount < HOVER_PICK_CONTINUITY_FRAME_COUNT
+      ) {
+        retainedHoverSample = {
+          ...retainedHoverSample,
+          missedFrameCount: retainedHoverSample.missedFrameCount + 1,
+        };
+        callbacksRef.current.onPointerMove?.(
+          retainedHoverSample.positionECEF,
+          currentPointerPosition,
+          retainedHoverSample.surfaceNormalECEF
+        );
+        return;
+      }
+
+      retainedHoverSample = null;
+      callbacksRef.current.onPointerMove?.(null, currentPointerPosition, null);
     };
 
+    const removePreRenderListener =
+      scene.preRender.addEventListener(flushPointerMove);
+    const removeCameraMoveStartListener =
+      scene.camera.moveStart.addEventListener(handleCameraMoveStart);
+    const removeCameraMoveEndListener =
+      scene.camera.moveEnd.addEventListener(handleCameraMoveEnd);
+    const unsubscribeClientPosition = subscribeCesiumScenePointerClientPosition(
+      scene,
+      () => {
+        if (pointerRenderQueued || scene.isDestroyed()) {
+          return;
+        }
+
+        pointerRenderQueued = true;
+        scene.requestRender();
+      }
+    );
+    const useDelayedLineFinishClicks =
+      clickStrategy === CESIUM_POINT_QUERY_CLICK_STRATEGY.DELAYED_LINE_FINISH &&
+      Boolean(callbacksRef.current.onLineFinish);
+
     const createPointAt = (screenPosition: Cartesian2) => {
-      const pickedPosition = pickScenePositionAtScreenPosition(
-        scene,
-        screenPosition
-      );
+      const resolvedPick = resolvePreferredSurfacePick(scene, screenPosition);
+      const pickedPosition = resolvedPick.surfacePositionECEF;
 
       if (
         callbacksRef.current.onBeforePointCreate &&
@@ -250,28 +362,26 @@ export const useCesiumPointQuery = (
           screenPosition
         )
       ) {
-        scene.requestRender();
+        requestForcedHoverRefresh();
         return;
       }
 
       if (!pickedPosition) {
+        requestForcedHoverRefresh();
         return;
       }
 
       callbacksRef.current.onPointCreate?.({
         screenPosition,
         pickedPositionECEF: pickedPosition,
-        globePositionECEF: pickGlobePositionAtScreenPosition(
-          scene,
-          screenPosition
-        ),
+        globePositionECEF: resolvedPick.globePositionECEF,
       });
 
-      scene.requestRender();
+      requestForcedHoverRefresh();
     };
 
     handler.setInputAction((event: { position: Cartesian2 }) => {
-      if (!callbacksRef.current.onLineFinish) {
+      if (!useDelayedLineFinishClicks) {
         createPointAt(event.position);
         return;
       }
@@ -290,7 +400,7 @@ export const useCesiumPointQuery = (
     }, ScreenSpaceEventType.LEFT_CLICK);
 
     handler.setInputAction((event: { position: Cartesian2 }) => {
-      if (!callbacksRef.current.onLineFinish) {
+      if (!useDelayedLineFinishClicks) {
         return;
       }
 
@@ -303,33 +413,23 @@ export const useCesiumPointQuery = (
         clickTimeoutId = undefined;
       }
       callbacksRef.current.onLineFinish?.();
+      requestForcedHoverRefresh();
     }, ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
-
-    handler.setInputAction((event: { endPosition: Cartesian2 }) => {
-      queuePointerMove(event.endPosition);
-    }, ScreenSpaceEventType.MOUSE_MOVE);
 
     return () => {
       if (clickTimeoutId !== undefined) {
         window.clearTimeout(clickTimeoutId);
         clickTimeoutId = undefined;
       }
-      scene.canvas.removeEventListener("mouseleave", handleCanvasPointerLeave);
-      scene.canvas.removeEventListener("blur", handleCanvasBlur);
-      window.removeEventListener("blur", handleWindowBlur);
-      window.removeEventListener("pointermove", handleWindowPointerMove, true);
-      document.removeEventListener(
-        "visibilitychange",
-        handleDocumentVisibilityChange
-      );
-      if (pointerMoveFrameRef.current !== null) {
-        window.cancelAnimationFrame(pointerMoveFrameRef.current);
-        pointerMoveFrameRef.current = null;
-      }
-      pendingPointerMovePositionRef.current = null;
+      retainedHoverSample = null;
+      unsubscribeClientPosition();
+      removeCameraMoveStartListener?.();
+      removeCameraMoveEndListener?.();
+      removePreRenderListener?.();
+      unregisterScenePointerTracker();
       handler.destroy();
     };
-  }, [scene, enabled, pointClickDelayMs]);
+  }, [scene, enabled, clickStrategy, pointClickDelayMs]);
 };
 
 export default useCesiumPointQuery;

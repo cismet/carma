@@ -1,24 +1,27 @@
+import { Cartesian3 } from "@carma-cesium";
 import {
-  Cartesian3,
   getDegreesFromCartesian,
   getEllipsoidalAltitudeOrZero,
-} from "@carma/cesium";
-import { formatAreaSquareMetersAdaptive } from "@carma/units/helpers";
+} from "@carma-mapping/engines/cesium/core";
+import { formatAreaSquareMetersAdaptive } from "@carma-units";
 
 import type {
   RuntimeCoordinate,
   RuntimeMeasurement,
   RuntimeNode,
 } from "../../context/AnnotationsProvider";
-import type {
-  RuntimeEdgeRenderModel,
-  RuntimePointLabelRenderModel,
-  RuntimePointMarkerRenderModel,
+import {
+  RUNTIME_POLYGON_FILL_PLACEMENT,
+  type RuntimeEdgeRenderModel,
+  type RuntimePointLabelRenderModel,
+  type RuntimePointMarkerRenderModel,
+  type RuntimePolygonFillRenderModel,
 } from "../../render/measurementRenderModels";
 import {
   buildRuntimeNodeCoordinateMap,
   resolveMeasurementCoordinates,
 } from "../../render/resolveMeasurementCoordinates";
+import type { AnnotationsRuntimeFormatOptions } from "../../config/annotationsRuntimeFormatOptions";
 import type { VerticalAreaToolVisualSettings } from "./verticalAreaToolSettings";
 type BuildVerticalAreaToolRenderModelsArgs = {
   visuals: VerticalAreaToolVisualSettings;
@@ -27,8 +30,8 @@ type BuildVerticalAreaToolRenderModelsArgs = {
     textColor: string;
   };
   getMeasurementLabel: (measurementIndex: number) => string;
-  previewCoordinates: readonly RuntimeCoordinate[];
-  selectedMeasurementId: string | null;
+  formatOptions: AnnotationsRuntimeFormatOptions;
+  selectedMeasurementIds: readonly string[];
   onMeasurementSelect?: (measurementId: string) => void;
   onNodeLongPress?: (nodeId: string, measurementId: string) => void;
 };
@@ -74,74 +77,80 @@ export const buildVerticalAreaToolRenderModels = (
     visuals,
     badgeStyle,
     getMeasurementLabel,
-    previewCoordinates,
-    selectedMeasurementId,
+    formatOptions,
+    selectedMeasurementIds,
     onMeasurementSelect,
     onNodeLongPress,
   }: BuildVerticalAreaToolRenderModelsArgs
 ): {
   points: readonly RuntimePointMarkerRenderModel[];
   edges: readonly RuntimeEdgeRenderModel[];
+  polygonFills: readonly RuntimePolygonFillRenderModel[];
   pointLabels: readonly RuntimePointLabelRenderModel[];
 } => {
   const nodeCoordinatesById = buildRuntimeNodeCoordinateMap(nodes);
   const verticalAreaMeasurements = measurements.filter(
     (measurement) => measurement.toolType === toolType
   );
+  const visibleVerticalAreaMeasurements = verticalAreaMeasurements.filter(
+    (measurement) => !measurement.hidden
+  );
+  const selectedMeasurementIdSet = new Set(selectedMeasurementIds);
 
-  const committedEdges = verticalAreaMeasurements.flatMap((measurement) => {
-    const coordinates = resolveMeasurementCoordinates(
-      measurement,
-      nodeCoordinatesById
-    );
+  const committedEdges = visibleVerticalAreaMeasurements.flatMap(
+    (measurement) => {
+      const coordinates = resolveMeasurementCoordinates(
+        measurement,
+        nodeCoordinatesById
+      );
 
-    if (coordinates.length < 3) {
-      return [];
-    }
-
-    return [
-      {
-        id: measurement.id,
-        coordinates: measurement.closed
-          ? [...coordinates, coordinates[0]!]
-          : coordinates,
-        ...(measurement.id === selectedMeasurementId
-          ? visuals.selectedEdge
-          : visuals.edge),
-      },
-    ];
-  });
-
-  const committedPoints = verticalAreaMeasurements.flatMap((measurement) =>
-    measurement.nodeIds.flatMap((nodeId, index) => {
-      const coordinate = nodeCoordinatesById.get(nodeId);
-      if (!coordinate) {
+      if (coordinates.length < 3) {
         return [];
       }
 
       return [
         {
-          id: `${measurement.id}-node-${index}`,
-          coordinate,
-          ...(measurement.id === selectedMeasurementId
-            ? visuals.selectedPoint
-            : visuals.point),
+          id: measurement.id,
+          measurementId: measurement.id,
+          nodeIds: measurement.nodeIds,
+          coordinates: measurement.closed
+            ? [...coordinates, coordinates[0]!]
+            : coordinates,
+          ...(selectedMeasurementIdSet.has(measurement.id)
+            ? visuals.selectedEdge
+            : visuals.edge),
         },
       ];
-    })
+    }
   );
 
-  const previewPoints = previewCoordinates.map((coordinate, index) => ({
-    id: `vertical-area-preview-node-${index}`,
-    coordinate,
-    ...visuals.previewPoint,
-  }));
+  const committedPolygonFills = visibleVerticalAreaMeasurements.flatMap(
+    (measurement) => {
+      const coordinates = resolveMeasurementCoordinates(
+        measurement,
+        nodeCoordinatesById
+      );
+      if (coordinates.length < 3) {
+        return [];
+      }
 
-  const committedNodeLabels = verticalAreaMeasurements.flatMap(
-    (measurement, measurementIndex) => {
-      const badgeText = getMeasurementLabel(measurementIndex + 1);
+      return [
+        {
+          id: `${measurement.id}-fill`,
+          coordinates,
+          fill: selectedMeasurementIdSet.has(measurement.id)
+            ? "rgba(112, 168, 255, 0.35)"
+            : "rgba(112, 168, 255, 0.25)",
+          placement: RUNTIME_POLYGON_FILL_PLACEMENT.COPLANAR,
+          selected: selectedMeasurementIdSet.has(measurement.id),
+        },
+      ];
+    }
+  );
 
-      return measurement.nodeIds.flatMap((nodeId, index) => {
+  const committedPoints = visibleVerticalAreaMeasurements.flatMap(
+    (measurement) =>
+      measurement.nodeIds.flatMap((nodeId, index) => {
         const coordinate = nodeCoordinatesById.get(nodeId);
         if (!coordinate) {
           return [];
@@ -149,29 +158,61 @@ export const buildVerticalAreaToolRenderModels = (
 
         return [
           {
+            id: `${measurement.id}-node-${index}`,
+            measurementId: measurement.id,
+            nodeId,
+            coordinate,
+            ...(selectedMeasurementIdSet.has(measurement.id)
+              ? visuals.selectedPoint
+              : visuals.point),
+          },
+        ];
+      })
+  );
+
+  const committedNodeLabels = visibleVerticalAreaMeasurements.flatMap(
+    (measurement, measurementIndex) => {
+      const badgeText =
+        measurement.shortLabel?.trim() ||
+        getMeasurementLabel(measurementIndex + 1);
+
+      return measurement.nodeIds.flatMap((nodeId, index) => {
+        const coordinate = nodeCoordinatesById.get(nodeId);
+        if (!coordinate) {
+          return [];
+        }
+
+        const pointVisuals = selectedMeasurementIdSet.has(measurement.id)
+          ? visuals.selectedPoint
+          : visuals.point;
+
+        return [
+          {
             id: `${measurement.id}-label-${index}`,
             measurementId: measurement.id,
             nodeId,
             coordinate,
+            markerPixelSize: pointVisuals.pixelSize,
             content: badgeText,
-            markerContent: badgeText,
+            badgeContent: badgeText,
             markerBackgroundColor: badgeStyle.backgroundColor,
             markerTextColor: badgeStyle.textColor,
-            selected: measurement.id === selectedMeasurementId,
+            selected: selectedMeasurementIdSet.has(measurement.id),
             hideLabelAndStem: true,
             onClick: onMeasurementSelect
               ? () => onMeasurementSelect(measurement.id)
               : undefined,
-            onLongPress: onNodeLongPress
-              ? () => onNodeLongPress(nodeId, measurement.id)
-              : undefined,
+            onLongPress:
+              onNodeLongPress && !measurement.locked
+                ? () => onNodeLongPress(nodeId, measurement.id)
+                : undefined,
           },
         ];
       });
     }
   );
 
-  const committedAreaLabels = verticalAreaMeasurements.flatMap(
+  const committedAreaLabels = visibleVerticalAreaMeasurements.flatMap(
     (measurement) => {
       const coordinates = resolveMeasurementCoordinates(
         measurement,
@@ -188,14 +229,12 @@ export const buildVerticalAreaToolRenderModels = (
           id: `${measurement.id}-area-label`,
           measurementId: measurement.id,
           coordinate,
+          anchorKind: "area-centroid" as const,
           content: formatAreaSquareMetersAdaptive(
             Math.max(0, measurement.areaSquareMeters ?? 0),
-            {
-              locale: "de-DE",
-            }
+            formatOptions.areaSquareMeters
           ),
-          markerContent: undefined,
-          selected: measurement.id === selectedMeasurementId,
+          selected: selectedMeasurementIdSet.has(measurement.id),
           hideLabelAndStem: false,
           onClick: onMeasurementSelect
             ? () => onMeasurementSelect(measurement.id)
@@ -206,8 +245,9 @@ export const buildVerticalAreaToolRenderModels = (
   );
 
   return {
-    points: [...committedPoints, ...previewPoints],
+    points: committedPoints,
     edges: committedEdges,
+    polygonFills: committedPolygonFills,
     pointLabels: [...committedNodeLabels, ...committedAreaLabels],
   };
 };

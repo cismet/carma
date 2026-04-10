@@ -27,7 +27,7 @@ Current public seam:
 
 Cesium-specific low-level helpers now live one layer lower in:
 
-- `@carma/cesium`
+- `@carma-cesium`
 - `src/lib/carma-helpers/controls/*`
 
 Compass-specific interaction is handled semantically:

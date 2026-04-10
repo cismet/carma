@@ -7,7 +7,7 @@ import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 
 export default defineConfig({
   root: __dirname,
-  cacheDir: '../../../node_modules/.vite/libraries/resources',
+  cacheDir: '../../../node_modules/.vite/libraries/commons/resources',
 
   plugins: [
     react(),
@@ -26,7 +26,7 @@ export default defineConfig({
   // Configuration for building your library.
   // See: https://vitejs.dev/guide/build.html#library-mode
   build: {
-    outDir: '../../../dist/libraries/resources',
+    outDir: '../../../dist/libraries/commons/resources',
     reportCompressedSize: true,
     commonjsOptions: {
       transformMixedEsModules: true,

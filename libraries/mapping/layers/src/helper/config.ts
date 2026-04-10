@@ -1,4 +1,4 @@
-import type { Config, LayerConfig } from "@carma/types";
+import type { Config, LayerConfig } from "@carma-mapping/layers";
 import trinkwasserbrunnenThumb from "../thumbnails/trinkwasserbrunnen.jpg";
 import wohnlagenThumb from "../thumbnails/wonhlagen_topicmap.jpg";
 import fnpThumb from "../thumbnails/fnp.png";

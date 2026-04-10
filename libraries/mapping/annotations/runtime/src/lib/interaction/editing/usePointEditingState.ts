@@ -18,14 +18,14 @@ import {
   type AnnotationCollection,
   type NodeChainAnnotation,
 } from "@carma-mapping/annotations/core";
+import { Cartesian3 } from "@carma-cesium";
 import {
-  Cartesian3,
   getDegreesFromCartesian,
   getEllipsoidalAltitudeOrZero,
   getLocalUpDirectionAtAnchor,
   getPositionWithVerticalOffsetFromAnchor,
   normalizeDirection,
-} from "@carma/cesium";
+} from "@carma-mapping/engines/cesium/core";
 
 import type { MoveGizmoSession } from "./annotationEdit.types";
 import { usePointEditingController } from "./usePointEditingController";

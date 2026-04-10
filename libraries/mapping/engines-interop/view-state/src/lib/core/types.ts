@@ -5,7 +5,7 @@ import type {
   CameraIntrinsics,
   ObjectCentricCameraAnchor,
 } from "@carma-commons/camera/model";
-import type { Meters, Radians } from "@carma/units/types";
+import type { Meters, Radians } from "@carma-units";
 // ---------------------------------------------------------------------------
 // Canonical view state — ECEF positions + quaternion orientation.
 // All angles (bearing, pitch, roll, zoom) are derived, never stored.

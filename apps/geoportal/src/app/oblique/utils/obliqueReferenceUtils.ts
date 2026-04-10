@@ -1,10 +1,10 @@
 import {
   Cartesian3,
   Cartographic,
-  CesiumMath,
   type Scene,
-} from "@carma/cesium";
-import { pickSceneCenter } from "@carma-mapping/engines/cesium";
+  CesiumMath,
+} from "@carma-cesium";
+import { pickSceneCenter } from "@carma-mapping/engines/cesium/core";
 
 import { getHeadingFromCardinalDirection } from "./orientationUtils";
 import type { CardinalDirectionEnum } from "./orientationUtils";

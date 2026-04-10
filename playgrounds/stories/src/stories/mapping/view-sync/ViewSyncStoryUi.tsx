@@ -25,12 +25,12 @@ import {
   type ViewStateVisualizerDisplayOptions,
   type ViewStateVisualizerVisualizedOptions,
 } from "@carma-mapping/engines/three/primitives";
-import { latLngRadToDeg } from "@carma/geo/helpers";
+import { latLngRadToDeg } from "@carma-geo/helpers";
 import {
   formatLatLonDegrees,
   formatLengthMetersScientificParts,
   radToDegNumeric,
-} from "@carma/units/helpers";
+} from "@carma-units";
 
 import {
   CARMA_STORY_MAPPING_ENGINES,

@@ -3,7 +3,7 @@ import type {
   CssPixelDimensions,
   CssPixelPosition,
   CssPixels,
-} from "@carma/units/types";
+} from "@carma-units";
 
 /**
  * Convert normalized canvas coordinates [0..1] to window pixel coordinates.

@@ -1,4 +1,4 @@
-import { CesiumMath } from "@carma/cesium";
+import { CesiumMath } from "@carma-cesium";
 import { Easing } from "@carma-commons/math";
 
 const DEFAULT_ANIMATION_DURATION = 500; // milliseconds

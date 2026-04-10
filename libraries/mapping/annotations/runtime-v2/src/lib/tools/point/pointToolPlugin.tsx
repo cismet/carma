@@ -3,12 +3,10 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import {
   ANNOTATION_TYPE_POINT,
-  DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG,
   formatMeasurementShortLabelToken,
   isKeyboardTargetEditable,
   type AnnotationToolType,
 } from "@carma-mapping/annotations/core";
-import { formatDecimalNumber } from "@carma/units/helpers";
 
 import {
   createMeasurementToolPlugin,
@@ -27,15 +25,20 @@ import { resolvePointToolKeyAction } from "./pointToolBindings";
 import { createPointToolInfoBoxSlots } from "./pointToolInfoBoxSlots";
 import { buildPointToolRenderModels } from "./pointToolRenderModels";
 import { createPointToolSettings } from "./pointToolSettings";
+import { resolveAnnotationMeasurementLabelTheme } from "../../config/annotationMeasurementLabelThemes";
 const toolType = ANNOTATION_TYPE_POINT;
-const badgeStyle = DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG[toolType];
+const labelTheme = resolveAnnotationMeasurementLabelTheme(toolType);
+const badgeStyle = {
+  backgroundColor: labelTheme.scheme.badgeBackgroundColor,
+  textColor: labelTheme.scheme.textColor,
+  selectionColor: labelTheme.selection.glowColor,
+};
 const pointToolSettings = createPointToolSettings(badgeStyle);
 const getPointToolInfoBoxSlots = createPointToolInfoBoxSlots(toolType, {
   headingTitle: "Punktmessung",
+  headingColor: labelTheme.scheme.badgeBackgroundColor,
   formatMeasurementLabelToken: (counter) =>
     formatMeasurementShortLabelToken(toolType, counter),
-  formatCoordinateValue: (value) =>
-    formatDecimalNumber(value, { locale: "de-DE", fractionDigits: 2 }),
 });
 
 export const pointToolPlugin = createMeasurementToolPlugin({
@@ -48,8 +51,8 @@ export const pointToolPlugin = createMeasurementToolPlugin({
     icon: <FontAwesomeIcon icon={faLocationDot} />,
   },
   helpText: [
-    "Klicken, um eine Punktmessung zu setzen.",
-    "Jeder Klick erstellt sofort eine neue Punktmessung.",
+    "Klick auf eine Position in der Karte setzt dort eine Punktmessung.",
+    "Jeder weitere Klick erstellt sofort eine neue Punktmessung.",
   ],
   capabilities: POINT_MEASUREMENT_PLUGIN_CAPABILITIES,
   session: {
@@ -77,16 +80,21 @@ export const pointToolPlugin = createMeasurementToolPlugin({
     }),
   },
   pointQuery: {
-    onPointCreated: ({ coordinate, sessionContext }) => {
+    onPointCreated: ({ coordinate, linkedNodeGroupId, sessionContext }) => {
       const temporaryMode =
         sessionContext.getState().settingsState.pointTemporaryMode;
       if (temporaryMode) {
         sessionContext.dispatch(clearTemporaryAnnotationsByToolType(toolType));
       }
 
-      const createdMeasurement = addPointMeasurement(toolType, coordinate, {
-        addAnnotation: sessionContext.addAnnotation,
-      });
+      const createdMeasurement = addPointMeasurement(
+        toolType,
+        coordinate,
+        linkedNodeGroupId,
+        {
+          addAnnotation: sessionContext.addAnnotation,
+        }
+      );
       if (temporaryMode) {
         sessionContext.dispatch(
           setAnnotationTemporaryById({
@@ -134,20 +142,30 @@ export const pointToolPlugin = createMeasurementToolPlugin({
     build: ({
       nodes,
       annotationEntries,
-      selectedAnnotationId,
+      elevationReferenceAnnotationId,
+      selectedAnnotationIds,
+      isSelectionAdditiveModifierPressed,
       setSelectedAnnotationId,
+      setElevationReferenceAnnotationId,
+      toggleAnnotationElevationDisplayMode,
       onNodeLongPress,
+      formatOptions,
     }) => {
       const { points, pointLabels } = buildPointToolRenderModels({
         toolType,
         visuals: pointToolSettings.visuals,
-        badgeStyle,
+        labelTheme,
+        formatOptions,
         getMeasurementLabel: (counter) =>
           formatMeasurementShortLabelToken(toolType, counter),
         nodes,
         measurements: annotationEntries,
-        selectedMeasurementId: selectedAnnotationId,
+        elevationReferenceAnnotationId,
+        selectedMeasurementIds: selectedAnnotationIds,
+        isSelectionAdditiveModifierPressed,
         onMeasurementSelect: setSelectedAnnotationId,
+        onMeasurementLabelClick: toggleAnnotationElevationDisplayMode,
+        onMeasurementLabelDoubleClick: setElevationReferenceAnnotationId,
         onNodeLongPress,
       });
 

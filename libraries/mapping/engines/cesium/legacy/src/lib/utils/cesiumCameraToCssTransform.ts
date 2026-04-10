@@ -1,8 +1,6 @@
 import { clamp } from "@carma-commons/math";
-import {
-  applyRollToHeadingForCameraNearNadir,
-  type Camera,
-} from "@carma/cesium";
+import { type Camera } from "@carma-cesium";
+import { applyRollToHeadingForCameraNearNadir } from "@carma-mapping/engines/cesium/core";
 type PerspectiveFrustumLike = {
   fovy?: number;
   _fovy?: number;

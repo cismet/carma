@@ -1,4 +1,4 @@
-import { ForwardedCesiumError } from "@carma-mapping/engines/cesium";
+import { ForwardedCesiumError } from "@carma-mapping/engines/cesium/legacy";
 
 const ErrorFallback = ({
   error,

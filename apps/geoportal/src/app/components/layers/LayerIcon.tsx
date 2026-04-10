@@ -2,14 +2,14 @@ import { useEffect, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faLayerGroup, faMap } from "@fortawesome/free-solid-svg-icons";
 
-import type { Layer } from "@carma/types";
+import type { BackgroundLayer, Layer } from "@carma-mapping/layers";
 
 import { ICON_PREFIX } from "../../config/app.config";
 import { iconColorMap, iconMap } from "./items";
 import { FontAwesomeLikeIcon } from "@carma-mapping/components";
 
 interface LayerIconProps {
-  layer: Layer;
+  layer: Layer | BackgroundLayer;
   fallbackIcon?: string;
   isBaseLayer?: boolean;
   id?: string;

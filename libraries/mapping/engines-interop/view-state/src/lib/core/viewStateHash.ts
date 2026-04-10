@@ -1,4 +1,4 @@
-import { isFiniteNumber } from "@carma/math";
+import { isFiniteNumber } from "@carma-commons/math";
 
 export const HASH_ZOOM_CONVENTION = {
   MAPLIBRE_512: "maplibre-512",

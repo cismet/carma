@@ -3,8 +3,10 @@ import {
   type NodeChainAnnotation,
   type PolygonPreviewGroup,
 } from "@carma-mapping/annotations/core";
-import type { Cartesian3Json, Matrix4ConstructorArgs } from "@carma/cesium";
-import type { CssPixelPosition } from "@carma/units/types";
+import { type Matrix4ConstructorArgs } from "@carma-mapping/engines/cesium/core";
+import type { CssPixelPosition } from "@carma-units";
+
+type Cartesian3Like = { x: number; y: number; z: number };
 export type PolygonAreaBadge = {
   text: string;
   backgroundColor?: string;
@@ -26,7 +28,7 @@ export type AreaLabelViewState = {
 export type AreaLabelViewProjector = {
   getViewState: () => AreaLabelViewState | null;
   getViewProjectionMatrix: () => Readonly<Matrix4ConstructorArgs> | null;
-  projectWorldToScreen: (point: Cartesian3Json) => CssPixelPosition | null;
+  projectWorldToScreen: (point: Cartesian3Like) => CssPixelPosition | null;
 };
 
 export type GroundAreaLabelVisualizerOptions =
@@ -43,6 +45,6 @@ export type PolygonAreaLabelOverlayBaseOptions =
     overlayPrefix: string;
     resolveAreaLabelText: (
       group: NodeChainAnnotation,
-      vertices: Cartesian3Json[]
+      vertices: Cartesian3Like[]
     ) => AreaLabelText;
   };

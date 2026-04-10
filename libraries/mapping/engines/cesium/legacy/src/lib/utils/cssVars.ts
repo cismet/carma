@@ -1,5 +1,7 @@
-import { isColorConstructorArgs } from "@carma/cesium";
-import type { ColorConstructorArgs } from "@carma/cesium";
+import {
+  isColorConstructorArgs,
+  type ColorConstructorArgs,
+} from "@carma-mapping/engines/cesium/core";
 
 import { DEFAULT_BACKGROUND_COLOR } from "../viewerDefaults";
 const colorRgbaArrayToCssRgbaString = (color: ColorConstructorArgs): string => {

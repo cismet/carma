@@ -13,7 +13,7 @@ import {
   type NodeChainAnnotation,
   type PolygonAreaType,
 } from "@carma-mapping/annotations/core";
-import { Cartesian3 } from "@carma/cesium";
+import { Cartesian3 } from "@carma-cesium";
 type UseNodeChainFinishingParams = {
   sceneCameraPosition: Cartesian3 | null;
   activeToolType: AnnotationToolType;

@@ -18,12 +18,12 @@ export const selectToolPlugin = createInteractionToolPlugin({
     id: toolType,
     order: 10,
     label: "Auswahl",
-    tooltip: "Auswahlmodus",
+    tooltip: "Messungen auswählen",
     icon: <FontAwesomeIcon icon={faArrowPointer} />,
   },
   helpText: [
-    "Objekte anklicken, um sie auszuwaehlen.",
-    "Mit Mehrfachauswahl koennen mehrere Annotationen gemeinsam bearbeitet werden.",
+    "Messungen oder Anmerkungen anklicken, um sie auszuwählen.",
+    "Langes Drücken auf einen Punkt öffnet den Editiermodus.",
   ],
   capabilities: INTERACTION_PLUGIN_CAPABILITIES,
   session: {

@@ -1,7 +1,6 @@
 import { useCallback, useEffect } from "react";
 import { useDispatch } from "react-redux";
-
-import { CesiumMath } from "@carma/cesium";
+import { CesiumMath } from "@carma-cesium";
 
 import { clearIsAnimating, setIsAnimating } from "../slices/cesium";
 import { useCesiumContext } from "./useCesiumContext";

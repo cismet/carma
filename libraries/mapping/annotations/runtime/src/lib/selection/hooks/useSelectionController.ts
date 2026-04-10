@@ -8,7 +8,7 @@ import {
 } from "react";
 
 import { getUniqueIds } from "@carma-mapping/annotations/core";
-import { type Scene } from "@carma/cesium";
+import { type Scene } from "@carma-cesium";
 
 import type { AnnotationSelectionState } from "../types/annotationSelection.types";
 import { replaceAnnotationsStoreState, useStoreSelector } from "../../store";

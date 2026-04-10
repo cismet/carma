@@ -1,5 +1,5 @@
 import { sandboxedEvalExternal } from "@carma-commons/sandbox-eval";
-import { FeatureInfoProperties } from "@carma/types";
+import { FeatureInfoProperties } from "@carma-mapping/utils";
 import { utils } from "@carma-appframeworks/portals";
 
 export const parseColor = async (

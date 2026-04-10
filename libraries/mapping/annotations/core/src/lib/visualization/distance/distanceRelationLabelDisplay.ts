@@ -1,4 +1,4 @@
-import { formatLengthMeters, LENGTH_UNIT_MODE } from "@carma/units/helpers";
+import { formatLengthMeters, LENGTH_UNIT_MODE } from "@carma-units";
 
 import type { PointDistanceRelation } from "../../types/distanceRelation";
 import { REFERENCE_LINE_EPSILON_METERS } from "../../utils/distanceVisualization";

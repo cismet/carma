@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
-
 import {
   Cartesian2,
   Cartesian3,
@@ -7,11 +6,12 @@ import {
   SceneTransforms,
   defined,
   type Scene,
-  type Cartesian3Json,
-  type Matrix4ConstructorArgs,
-} from "@carma/cesium";
-import type { CssPixelPosition } from "@carma/units/types";
+} from "@carma-cesium";
+import { type Matrix4ConstructorArgs } from "@carma-mapping/engines/cesium/core";
+import type { CssPixelPosition, MetricVector3 } from "@carma-units";
 const WORLD_POINT_SCRATCH = new Cartesian3();
+
+type Cartesian3Like = Cartesian3 | MetricVector3;
 
 type ProjectedScreenPositionCacheEntry = {
   frameNumber: number;
@@ -132,7 +132,7 @@ const refreshCachedSnapshot = (
 
 const readCachedProjectedScreenPosition = (
   scene: Scene,
-  point: Cartesian3Json,
+  point: Cartesian3Like,
   cachedSnapshot: CachedCesiumViewProjectorSnapshot
 ): CssPixelPosition | null => {
   const frameNumber = cachedSnapshot.frameNumber;
@@ -238,7 +238,7 @@ export const useCesiumViewProjector = (scene: Scene | null) => {
   }, [scene, updateSnapshot]);
 
   const projectWorldToScreen = useCallback(
-    (point: Cartesian3Json) => {
+    (point: Cartesian3Like) => {
       if (!scene || scene.isDestroyed()) return null;
       const cachedSnapshot = refreshCachedSnapshot(scene);
       return readCachedProjectedScreenPosition(scene, point, cachedSnapshot);

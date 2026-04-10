@@ -1,10 +1,11 @@
-import type { CarmaMapLibreStyleData, Layer } from "@carma/types";
+import type { CarmaMapLibreStyleData } from "@carma-appframeworks/portals";
+import type { BackgroundLayer, Layer } from "@carma-mapping/layers";
 import type {
   GeoJSONSourceSpecification,
   SourceSpecification,
 } from "maplibre-gl";
 
-export const isAdhocVectorLayer = (layer: Layer): boolean =>
+export const isAdhocVectorLayer = (layer: Layer | BackgroundLayer): boolean =>
   layer.layerType === "vector" && layer.type === "object";
 
 const isUrl = (str: string): boolean =>
@@ -86,6 +87,6 @@ export const getVectorLayerStyle = async (
   return resolveAdhocStyleData(style);
 };
 
-export const filter3dLayers = (layer: Layer): Boolean => {
+export const filter3dLayers = (layer: Layer | BackgroundLayer): Boolean => {
   return layer.type === "object";
 };

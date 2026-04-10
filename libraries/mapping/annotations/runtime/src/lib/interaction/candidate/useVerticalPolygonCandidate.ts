@@ -9,7 +9,7 @@ import {
   type AnnotationCollection,
   type NodeChainAnnotation,
 } from "@carma-mapping/annotations/core";
-import { Cartesian3, type Scene } from "@carma/cesium";
+import { Cartesian3, type Scene } from "@carma-cesium";
 export const useVerticalPolygonCandidate = (
   scene: Scene | null,
   annotations: AnnotationCollection,

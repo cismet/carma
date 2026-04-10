@@ -1,5 +1,5 @@
 import L from "leaflet";
-import { getFromWebMercatorToWGS84 } from "@carma-commons/geo/proj";
+import { getFromWebMercatorToWGS84 } from "@carma-geo/proj";
 import {
   useCallback,
   useContext,
@@ -10,13 +10,12 @@ import {
   type CSSProperties,
 } from "react";
 import { useDispatch, useSelector } from "react-redux";
-
 import {
   BoundingSphere,
   Cartesian3,
-  flyToBoundingSphereExtent,
   type CesiumTerrainProvider,
-} from "@carma/cesium";
+} from "@carma-cesium";
+import { flyToBoundingSphereExtent } from "@carma-mapping/engines/cesium/core";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
 import { Button, Tooltip } from "antd";
@@ -48,7 +47,7 @@ import {
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
-import type { FeatureInfo } from "@carma/types";
+import type { FeatureInfo } from "@carma-mapping/utils";
 import { Measurements, InfoBoxMeasurement } from "@carma-commons/measurements";
 
 import {
@@ -67,7 +66,7 @@ import {
   selectViewerModels,
   setCurrentSceneStyle,
   useCesiumContext,
-} from "@carma-mapping/engines/cesium";
+} from "@carma-mapping/engines/cesium/legacy";
 import {
   createViewStateShareableHashCodec,
   HASH_ZOOM_CONVENTION,

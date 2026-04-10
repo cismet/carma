@@ -2,6 +2,7 @@
 // MapLibre GL JS integration for CARMA mapping framework
 
 export const MAPLIBRE_ENGINE_VERSION = "0.0.1";
+export * from "./lib/contracts/maplibre-style.d";
 
 // Components
 export { LibreMap } from "./components/LibreMap";

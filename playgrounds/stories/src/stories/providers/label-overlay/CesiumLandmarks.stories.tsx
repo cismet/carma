@@ -24,7 +24,17 @@ import {
   CarmaResponsiveInfoBox,
   ResponsiveStatusBar,
 } from "@carma-commons/ui/components";
-import { cartesian3FromGeographicCoordinate } from "@carma-mapping/engines/cesium/api";
+import {
+  Cartesian3,
+  Cartographic,
+  type CesiumTerrainProvider,
+  type CesiumWidget,
+  type Scene,
+} from "@carma-cesium";
+import {
+  cartesian3FromGeographicCoordinate,
+  sampleTerrainMostDetailedGuardedAsync,
+} from "@carma-mapping/engines/cesium/core";
 import {
   useCesiumLabelOverlayHost,
   useCesiumOverlayView,
@@ -48,16 +58,8 @@ import {
   type LayoutPointInput,
   type PointLabelLayoutResult,
 } from "@carma-providers/label-overlay";
-import {
-  Cartesian3,
-  Cartographic,
-  sampleTerrainMostDetailedGuardedAsync,
-  type CesiumTerrainProvider,
-  type CesiumWidget,
-  type Scene,
-} from "@carma/cesium";
-import { degToRadNumeric, radToDegNumeric } from "@carma/units/helpers";
-import type { CssPixelPosition } from "@carma/units/types";
+import { degToRadNumeric, radToDegNumeric } from "@carma-units";
+import type { CssPixelPosition } from "@carma-units";
 
 import { setupCesium } from "../../map-engine-switcher/helpers/cesium-setup";
 import { requestStoryCesiumRender } from "../../shared/cesiumRuntimeGuards";
@@ -404,7 +406,7 @@ type ProjectedLandmarkPoint = ClusterableScreenPoint<{
   orderIndex: number;
   markerBackgroundColor: string;
   markerTextColor: string;
-  compactContent: ReactNode;
+  badgeContent: ReactNode;
   distanceToCamera: number;
 }>;
 
@@ -414,7 +416,7 @@ type StoryDisplayEntry = {
   anchorKind?: PointLabelAnchorKind;
   occlusionMode?: PointLabelOcclusionMode;
   content: ReactNode;
-  compactContent?: ReactNode;
+  badgeContent?: ReactNode;
   markerSize?: number;
   stemReferenceMarkerSize?: number;
   markerBackgroundColor: string;
@@ -677,6 +679,7 @@ const configureCesiumStoryErrorHandling = (
 const CesiumLandmarksOverlay = ({
   scene,
   landmarks,
+  performanceStatus,
   syncLabelPitchToCamera,
   fixedLabelPitchDeg,
   enableOcclusionTesting,
@@ -691,6 +694,7 @@ const CesiumLandmarksOverlay = ({
 }: {
   scene: Scene | null;
   landmarks: readonly LandmarkPoint[];
+  performanceStatus: ReturnType<typeof useCesiumFramePerformanceStatus>;
   syncLabelPitchToCamera: boolean;
   fixedLabelPitchDeg: number;
   enableOcclusionTesting: boolean;
@@ -808,7 +812,7 @@ const CesiumLandmarksOverlay = ({
             orderIndex: index,
             markerBackgroundColor,
             markerTextColor: resolveLandmarkMarkerTextColor(),
-            compactContent: resolveLandmarkIconNode(landmark.icon),
+            badgeContent: resolveLandmarkIconNode(landmark.icon),
             distanceToCamera,
           },
         };
@@ -890,7 +894,7 @@ const CesiumLandmarksOverlay = ({
                 slot.id === "center" ? 0 : EXPANDED_CLUSTER_STEM_DISTANCE_PX,
             },
             content: member.item.landmark.name,
-            compactContent: member.item.compactContent,
+            badgeContent: member.item.badgeContent,
             markerBackgroundColor: member.item.markerBackgroundColor,
             markerTextColor: member.item.markerTextColor,
             selected,
@@ -947,7 +951,7 @@ const CesiumLandmarksOverlay = ({
             layoutPriority: representative.layoutPriority,
           },
           content: resolveClusterSummaryLabel(cluster.members),
-          compactContent: stackIndicator,
+          badgeContent: stackIndicator,
           markerSize: resolveCollapsedClusterAnchorMarkerSizePx(
             cluster.stackCount
           ),
@@ -1004,7 +1008,7 @@ const CesiumLandmarksOverlay = ({
         anchorKind: member.item.landmark.anchorKind,
         occlusionMode: member.item.landmark.occlusionMode,
         content: member.item.landmark.name,
-        compactContent: member.item.compactContent,
+        badgeContent: member.item.badgeContent,
         markerBackgroundColor: member.item.markerBackgroundColor,
         markerTextColor: member.item.markerTextColor,
         selected,
@@ -1057,16 +1061,18 @@ const CesiumLandmarksOverlay = ({
     () =>
       displayEntries.map((entry) => {
         const placement = layoutResult.placements[entry.id];
+        const collapseToCompact =
+          entry.forceCompact || layoutResult.collapsedToCompact.has(entry.id);
+
         return {
           id: entry.id,
-          content: entry.content,
-          compactContent: entry.compactContent,
+          content:
+            collapseToCompact && entry.badgeContent
+              ? entry.badgeContent
+              : entry.content,
+          badgeContent: entry.badgeContent,
           selected: entry.selected,
-          collapse:
-            entry.forceCompact || layoutResult.collapsedToCompact.has(entry.id),
-          forceCollapse:
-            entry.forceCompact || layoutResult.collapsedToCompact.has(entry.id),
-          fullBorder: entry.selected,
+          collapse: collapseToCompact,
           labelStyle: "capsule" as const,
           anchorKind: entry.anchorKind,
           occlusionMode: entry.occlusionMode,
@@ -1355,6 +1361,7 @@ const CesiumLandmarksStory = ({
         <CesiumLandmarksOverlay
           scene={scene}
           landmarks={landmarks}
+          performanceStatus={performanceStatus}
           syncLabelPitchToCamera={syncLabelPitchToCamera}
           fixedLabelPitchDeg={fixedLabelPitchDeg}
           enableOcclusionTesting={enableOcclusionTesting}
@@ -1420,7 +1427,7 @@ const meta: Meta<LandmarkLabelStoryArgs> = {
 export default meta;
 
 export const WuppertalLabelTestScene: StoryObj<LandmarkLabelStoryArgs> = {
-  name: "Wuppertal Label Test Scene",
+  name: "Wuppertal Test Scene",
   args: {
     syncLabelPitchToCamera: true,
     fixedLabelPitchDeg: -44,
@@ -1436,7 +1443,7 @@ export const WuppertalLabelTestScene: StoryObj<LandmarkLabelStoryArgs> = {
 };
 
 export const CollapsedLabelStacks: StoryObj<LandmarkLabelStoryArgs> = {
-  name: "Collapsed Label Stacks",
+  name: "Collapsed Stacks",
   args: {
     syncLabelPitchToCamera: true,
     fixedLabelPitchDeg: -50,

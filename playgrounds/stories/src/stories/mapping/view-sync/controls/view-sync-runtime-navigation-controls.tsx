@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import type { CSSProperties } from "react";
 
 import {
   mountNavigationControlsOverlay,
@@ -13,7 +14,7 @@ import type { ViewState } from "@carma-mapping/engines-interop/view-state";
 import {
   createCesiumSceneOrbitController,
   type CesiumSceneOrbitController,
-} from "@carma-mapping/engines/cesium/api";
+} from "@carma-mapping/engines/cesium/core";
 
 import {
   CARMA_STORY_MAPPING_ENGINES,
@@ -63,6 +64,7 @@ export const ViewSyncRuntimeNavigationControls = ({
   showFovZoomControl = false,
   showDollyZoomControl = false,
   showCompass,
+  controlStyle,
   homeOptions,
   orbitOptions,
   zoomOptions,
@@ -78,6 +80,7 @@ export const ViewSyncRuntimeNavigationControls = ({
   showFovZoomControl?: boolean;
   showDollyZoomControl?: boolean;
   showCompass?: boolean;
+  controlStyle?: Partial<CSSProperties>;
   homeOptions?: NavigationTransitionOptions;
   orbitOptions?: NavigationOrbitOptions;
   zoomOptions?: NavigationZoomOptions;
@@ -159,7 +162,10 @@ export const ViewSyncRuntimeNavigationControls = ({
       orbitOptions,
       zoomInOptions: zoomOptions,
       zoomOutOptions: zoomOptions,
-      style: DEFAULT_CONTROL_STYLE,
+      style: {
+        ...DEFAULT_CONTROL_STYLE,
+        ...(controlStyle ?? {}),
+      },
       messages: readStoryMessages(engine),
       secondaryZoomGroup:
         showFovZoomControl &&
@@ -207,6 +213,7 @@ export const ViewSyncRuntimeNavigationControls = ({
     showFovZoomControl,
     showOrbitControl,
     showCompass,
+    controlStyle,
     homeOptions,
     orbitOptions,
     zoomOptions,

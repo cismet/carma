@@ -1,5 +1,3 @@
-import type { Store } from "redux";
-
 import type {
   AnnotationCollection,
   AnnotationToolType,
@@ -9,7 +7,7 @@ import type {
   PointDistanceRelation,
   ReferenceLineLabelKind,
 } from "@carma-mapping/annotations/core";
-import type { Cartesian3 } from "@carma/cesium";
+import type { Cartesian3 } from "@carma-cesium";
 
 import type {
   AnnotationEditTarget,
@@ -77,4 +75,17 @@ export type AnnotationsStoreState = {
   nodeChainAnnotations: NodeChainAnnotation[];
 };
 
-export type AnnotationsStore = Store<AnnotationsStoreState>;
+export type ReplaceAnnotationsStoreStateAction = {
+  type: "annotations/replace-state";
+  payload: AnnotationsStoreState;
+};
+
+export type AnnotationsStoreListener = () => void;
+
+export type AnnotationsStore = {
+  getState: () => AnnotationsStoreState;
+  dispatch: (
+    action: ReplaceAnnotationsStoreStateAction
+  ) => ReplaceAnnotationsStoreStateAction;
+  subscribe: (listener: AnnotationsStoreListener) => () => void;
+};

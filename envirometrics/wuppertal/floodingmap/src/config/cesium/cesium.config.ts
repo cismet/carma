@@ -5,7 +5,7 @@ import {
   WUPP_TERRAIN_PROVIDER,
   WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
 } from "@carma-commons/resources";
-import { CesiumConfig } from "@carma-mapping/engines/cesium";
+import { CesiumConfig } from "@carma-mapping/engines/cesium/legacy";
 
 import { APP_BASE_PATH } from "../app.config";
 export const CESIUM_PATHNAME = "__cesium__";

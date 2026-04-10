@@ -1,6 +1,6 @@
 import type { Map as LeafletMap } from "leaflet";
 
-import { isZoom } from "@carma-commons/units/helpers";
+import { isZoom } from "@carma-units";
 import { promiseWithTimeout } from "@carma-commons/utils/promise";
 import { LeafletMapStateChangeEvents } from "@carma-mapping/engines/leaflet";
 type LeafletPrepOptions = {

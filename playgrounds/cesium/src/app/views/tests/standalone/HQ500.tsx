@@ -20,7 +20,7 @@ import {
   isValidCesiumTerrainProvider,
   useCesiumContext,
   useZoomControls as useZoomControlsCesium,
-} from "@carma-mapping/engines/cesium";
+} from "@carma-mapping/engines/cesium/legacy";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import { CESIUM_HOME_POSITION } from "../../../config/store.config";

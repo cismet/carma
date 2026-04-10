@@ -25,7 +25,7 @@ High-level package split for the annotations stack.
 - semantic measurement meaning belongs in `core`
 - user workflow and draft state belong in `provider`
 - Cesium scene/query/render runtime belongs in `cesium`
-- generic Cesium math belongs in `@carma/cesium`
+- generic Cesium math belongs in `@carma-cesium`
 
 ## Refactor Status
 

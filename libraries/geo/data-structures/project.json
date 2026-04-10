@@ -1,0 +1,18 @@
+{
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "name": "geo-data-structures",
+  "sourceRoot": "libraries/geo/data-structures/src",
+  "projectType": "library",
+  "tags": ["scope:geo", "type:data-structures"],
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "libraries/geo/data-structures/src/**/*.ts",
+          "libraries/geo/data-structures/src/**/*.d.ts"
+        ]
+      }
+    }
+  }
+}

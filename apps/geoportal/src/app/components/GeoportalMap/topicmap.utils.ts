@@ -5,7 +5,7 @@ import type maplibregl from "maplibre-gl";
 import proj4 from "proj4";
 
 import { functionToFeature, objectToFeature } from "@carma-mapping/utils";
-import type { Layer } from "@carma/types";
+import type { Layer } from "@carma-mapping/layers";
 
 import {
   addCompletedVectorLayer,

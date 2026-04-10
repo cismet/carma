@@ -1,4 +1,5 @@
-import { isValidScene, Scene } from "@carma/cesium";
+import { Scene } from "@carma-cesium";
+import { isValidScene } from "@carma-mapping/engines/cesium/core";
 
 import type { MarkerPrimitiveData } from "./index.d";
 import { updateTransform } from "./updateTransform";

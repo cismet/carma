@@ -27,7 +27,7 @@ import {
   useCreateGazetteerSelectorForLeaflet,
   removedDoubledSearchRes,
 } from "./utils/fuzzySearchHelper";
-import { type SearchResultItem } from "@carma/types";
+import { type SearchResultItem } from "@carma-mapping/fuzzy-search";
 
 import { SearchGazetteerProps, Option, GroupedOptions, SearchItem } from "..";
 import { stopwords as stopwordsDe } from "./config/stopwords.de-de";

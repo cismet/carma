@@ -1,8 +1,8 @@
 import { Quaternion } from "three";
 
 import { readLocalCameraBasis } from "@carma-commons/camera/model";
-import { clamp } from "@carma/math";
-import type { Radians } from "@carma/units/types";
+import { clamp } from "@carma-commons/math";
+import type { Radians } from "@carma-units";
 
 import { deriveAnchoredRoll } from "./anchoredOrbit";
 const MIN_HORIZONTAL_VECTOR_LENGTH_SQ = 1e-12;

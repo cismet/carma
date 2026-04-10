@@ -9,32 +9,45 @@ import type {
   AnnotationsStoreState,
   RuntimeCoordinate,
   RuntimeAnnotationEntry,
+  RuntimeElevationDisplayMode,
   RuntimeEdge,
+  RuntimeLabelAppearance,
+  RuntimeLinkedNodeGroup,
+  RuntimeLinkedNodeGroupId,
   RuntimeNode,
 } from "./annotationsStore.types";
+import { reconcileLinkedNodeGroups } from "./linkedNodeGroups.helpers";
+import type {
+  RuntimeDistanceTriangleAnchorCoordinateRole,
+  RuntimePointLabelCoordinateSelection,
+} from "../render/measurementRenderModels";
+import { resolveRuntimeNodeMoveScope } from "./nodeMoveScope.helpers";
 export type CreateInitialAnnotationsStoreStateOptions = {
   initialToolType?: RuntimeToolId;
-  initialSelectionModeActive?: boolean;
   initialPointTemporaryMode?: boolean;
 };
 
 export type AppendAnnotationEntitiesPayload = {
   annotationEntry: RuntimeAnnotationEntry;
   nodes: readonly RuntimeNode[];
+  linkedNodeGroups: readonly RuntimeLinkedNodeGroup[];
   edges: readonly RuntimeEdge[];
   selectAnnotationId?: string | null;
 };
 
-export type SetPolylinePreviewCoordinatesPayload = {
+export type SetDraftCoordinatesByToolTypePayload = {
+  toolType: RuntimeToolId;
   coordinates: readonly RuntimeCoordinate[];
 };
 
-export type SetDistancePreviewCoordinatesPayload = {
-  coordinates: readonly RuntimeCoordinate[];
+export type SetDraftLinkedNodeGroupIdsByToolTypePayload = {
+  toolType: RuntimeToolId;
+  linkedNodeGroupIds: readonly (RuntimeLinkedNodeGroupId | null)[];
 };
 
-export type SetVerticalAreaPreviewCoordinatesPayload = {
-  coordinates: readonly RuntimeCoordinate[];
+export type SetPendingAnnotationIdByToolTypePayload = {
+  toolType: RuntimeToolId;
+  annotationId: string | null;
 };
 
 export type RemoveAnnotationByIdPayload = {
@@ -42,9 +55,17 @@ export type RemoveAnnotationByIdPayload = {
   nextSelectedAnnotationId?: string | null;
 };
 
+export type RemoveAnnotationsByIdsPayload = {
+  annotationIds: readonly string[];
+  nextSelectedAnnotationId?: string | null;
+};
+
+export type SetSelectedAnnotationIdsPayload = readonly string[];
+
 export type UpdateNodeCoordinateByIdPayload = {
   nodeId: string;
   coordinate: RuntimeCoordinate;
+  selectedMeasurementIds?: readonly string[];
 };
 
 export type SetAnnotationTemporaryByIdPayload = {
@@ -52,14 +73,87 @@ export type SetAnnotationTemporaryByIdPayload = {
   temporary: boolean;
 };
 
+export type UpdateAnnotationEntryByIdPayload = {
+  annotationId: string;
+  displayName?: string;
+  shortLabel?: string;
+  hidden?: boolean;
+  locked?: boolean;
+  labelAppearance?: RuntimeLabelAppearance;
+  elevationDisplayMode?: RuntimeElevationDisplayMode;
+  distanceAnchorCoordinateSelection?: RuntimePointLabelCoordinateSelection;
+  distanceTriangleAnchorCoordinateRole?: RuntimeDistanceTriangleAnchorCoordinateRole;
+};
+
+export type SetElevationReferenceAnnotationIdPayload = string | null;
+export type SetNextShortLabelCounterByToolTypePayload = {
+  toolType: string;
+  nextCounter: number;
+};
+
 const UNSET_TOOL_TYPE = "__unset__" as RuntimeToolId;
+const EARTH_RADIUS_METERS = 6_378_137;
+const LINKED_NODE_GROUP_DETACH_EPSILON_METERS = 0.1;
+
+const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
+
+const resolveCoordinateDistanceMeters = (
+  left: RuntimeCoordinate,
+  right: RuntimeCoordinate
+) => {
+  const deltaLatitudeRad = toRadians(right.latitude - left.latitude);
+  const deltaLongitudeRad = toRadians(right.longitude - left.longitude);
+  const meanLatitudeRad = toRadians((left.latitude + right.latitude) / 2);
+  const horizontalEastMeters =
+    deltaLongitudeRad * Math.cos(meanLatitudeRad) * EARTH_RADIUS_METERS;
+  const horizontalNorthMeters = deltaLatitudeRad * EARTH_RADIUS_METERS;
+  const deltaAltitudeMeters = right.altitude - left.altitude;
+
+  return Math.hypot(
+    horizontalEastMeters,
+    horizontalNorthMeters,
+    deltaAltitudeMeters
+  );
+};
+
+const resolveDetachedLinkedNodeGroupId = ({
+  movedNodeIds,
+  existingLinkedNodeGroups,
+  excludedGroupIds = [],
+}: {
+  movedNodeIds: readonly string[];
+  existingLinkedNodeGroups: readonly RuntimeLinkedNodeGroup[];
+  excludedGroupIds?: readonly string[];
+}) => {
+  const existingLinkedNodeGroupIdSet = new Set(
+    existingLinkedNodeGroups.map((linkedNodeGroup) => linkedNodeGroup.id)
+  );
+  excludedGroupIds.forEach((excludedGroupId) => {
+    existingLinkedNodeGroupIdSet.delete(excludedGroupId);
+  });
+
+  const baseLinkedNodeGroupId = `linked-node-group-${[...movedNodeIds]
+    .sort()
+    .join("-")}`;
+  if (!existingLinkedNodeGroupIdSet.has(baseLinkedNodeGroupId)) {
+    return baseLinkedNodeGroupId;
+  }
+
+  let suffix = 2;
+  while (
+    existingLinkedNodeGroupIdSet.has(`${baseLinkedNodeGroupId}-${suffix}`)
+  ) {
+    suffix += 1;
+  }
+
+  return `${baseLinkedNodeGroupId}-${suffix}`;
+};
 
 export const createInitialAnnotationsStoreState = (
   options: CreateInitialAnnotationsStoreStateOptions = {}
 ): AnnotationsStoreState => {
   const {
     initialToolType = UNSET_TOOL_TYPE,
-    initialSelectionModeActive = false,
     initialPointTemporaryMode = false,
   } = options;
 
@@ -68,23 +162,23 @@ export const createInitialAnnotationsStoreState = (
     selectionState: {
       selectedAnnotationIds: [],
       previousSelectedAnnotationId: null,
-      selectionModeActive: initialSelectionModeActive,
-      selectModeAdditive: false,
-      selectModeRectangle: false,
     },
     annotationEntries: [],
     nodes: [],
+    linkedNodeGroups: [],
     edges: [],
     infoBoxState: {
       activeAnnotationId: null,
     },
     settingsState: {
       pointTemporaryMode: initialPointTemporaryMode,
+      elevationReferenceAnnotationId: null,
+      nextShortLabelCounterByToolType: {},
     },
     draftState: {
-      polylinePreviewCoordinates: [],
-      distancePreviewCoordinates: [],
-      verticalAreaPreviewCoordinates: [],
+      draftCoordinatesByToolType: {},
+      draftLinkedNodeGroupIdsByToolType: {},
+      pendingAnnotationIdByToolType: {},
     },
   };
 };
@@ -98,11 +192,23 @@ const annotationsSlice = createSlice({
     setAnnotationToolType: (state, action: PayloadAction<RuntimeToolId>) => {
       state.annotationToolType = action.payload;
     },
-    setSelectionModeActive: (state, action: PayloadAction<boolean>) => {
-      state.selectionState.selectionModeActive = action.payload;
-    },
     setPointTemporaryMode: (state, action: PayloadAction<boolean>) => {
       state.settingsState.pointTemporaryMode = action.payload;
+    },
+    setElevationReferenceAnnotationId: (
+      state,
+      action: PayloadAction<SetElevationReferenceAnnotationIdPayload>
+    ) => {
+      state.settingsState.elevationReferenceAnnotationId = action.payload;
+    },
+    setNextShortLabelCounterByToolType: (
+      state,
+      action: PayloadAction<SetNextShortLabelCounterByToolTypePayload>
+    ) => {
+      state.settingsState.nextShortLabelCounterByToolType = {
+        ...state.settingsState.nextShortLabelCounterByToolType,
+        [action.payload.toolType]: Math.max(1, action.payload.nextCounter),
+      };
     },
     setSelectedAnnotationId: (state, action: PayloadAction<string | null>) => {
       const nextSelectedAnnotationId = action.payload;
@@ -118,16 +224,57 @@ const annotationsSlice = createSlice({
         : [];
       state.infoBoxState.activeAnnotationId = nextSelectedAnnotationId;
     },
+    setSelectedAnnotationIds: (
+      state,
+      action: PayloadAction<SetSelectedAnnotationIdsPayload>
+    ) => {
+      const nextSelectedAnnotationIds = Array.from(
+        new Set(action.payload.filter(Boolean))
+      );
+      const previousSelectedAnnotationId =
+        state.selectionState.selectedAnnotationIds[
+          state.selectionState.selectedAnnotationIds.length - 1
+        ] ?? null;
+
+      state.selectionState.previousSelectedAnnotationId =
+        previousSelectedAnnotationId;
+      state.selectionState.selectedAnnotationIds = nextSelectedAnnotationIds;
+      state.infoBoxState.activeAnnotationId =
+        nextSelectedAnnotationIds[nextSelectedAnnotationIds.length - 1] ?? null;
+    },
     appendAnnotationEntities: (
       state,
       action: PayloadAction<AppendAnnotationEntitiesPayload>
     ) => {
       state.nodes.push(...action.payload.nodes);
+      action.payload.linkedNodeGroups.forEach((incomingLinkedNodeGroup) => {
+        const existingLinkedNodeGroup = state.linkedNodeGroups.find(
+          (linkedNodeGroup) => linkedNodeGroup.id === incomingLinkedNodeGroup.id
+        );
+        if (!existingLinkedNodeGroup) {
+          state.linkedNodeGroups.push({
+            id: incomingLinkedNodeGroup.id,
+            nodeIds: [...incomingLinkedNodeGroup.nodeIds],
+          });
+          return;
+        }
+
+        existingLinkedNodeGroup.nodeIds = Array.from(
+          new Set([
+            ...existingLinkedNodeGroup.nodeIds,
+            ...incomingLinkedNodeGroup.nodeIds,
+          ])
+        );
+      });
       state.edges.push(...action.payload.edges);
       state.annotationEntries.push({
         ...action.payload.annotationEntry,
         nodeIds: [...action.payload.annotationEntry.nodeIds],
         edgeIds: [...action.payload.annotationEntry.edgeIds],
+      });
+      state.linkedNodeGroups = reconcileLinkedNodeGroups({
+        nodes: state.nodes,
+        linkedNodeGroups: state.linkedNodeGroups,
       });
 
       if (action.payload.selectAnnotationId !== undefined) {
@@ -164,6 +311,19 @@ const annotationsSlice = createSlice({
       state.annotationEntries = state.annotationEntries.filter(
         (annotationEntry) => annotationEntry.id !== annotationId
       );
+      Object.keys(state.draftState.pendingAnnotationIdByToolType).forEach(
+        (toolType) => {
+          if (
+            state.draftState.pendingAnnotationIdByToolType[
+              toolType as RuntimeToolId
+            ] === annotationId
+          ) {
+            delete state.draftState.pendingAnnotationIdByToolType[
+              toolType as RuntimeToolId
+            ];
+          }
+        }
+      );
 
       const usedNodeIds = new Set(
         state.annotationEntries.flatMap(
@@ -177,9 +337,16 @@ const annotationsSlice = createSlice({
       );
 
       state.nodes = state.nodes.filter((node) => usedNodeIds.has(node.id));
+      state.linkedNodeGroups = reconcileLinkedNodeGroups({
+        nodes: state.nodes,
+        linkedNodeGroups: state.linkedNodeGroups,
+      });
       state.edges = state.edges.filter((edge) => usedEdgeIds.has(edge.id));
 
       state.selectionState.previousSelectedAnnotationId = previousSelectionId;
+      if (state.settingsState.elevationReferenceAnnotationId === annotationId) {
+        state.settingsState.elevationReferenceAnnotationId = null;
+      }
 
       if (nextSelectedAnnotationId !== undefined) {
         state.selectionState.selectedAnnotationIds = nextSelectedAnnotationId
@@ -198,16 +365,162 @@ const annotationsSlice = createSlice({
       state.infoBoxState.activeAnnotationId =
         nextSelectedAnnotationIds[nextSelectedAnnotationIds.length - 1] ?? null;
     },
+    removeAnnotationsByIds: (
+      state,
+      action: PayloadAction<RemoveAnnotationsByIdsPayload>
+    ) => {
+      const annotationIdSet = new Set(action.payload.annotationIds);
+      if (annotationIdSet.size === 0) {
+        return;
+      }
+
+      const previousSelectionId =
+        state.selectionState.selectedAnnotationIds[
+          state.selectionState.selectedAnnotationIds.length - 1
+        ] ?? null;
+      const hasAnyTarget = state.annotationEntries.some((annotationEntry) =>
+        annotationIdSet.has(annotationEntry.id)
+      );
+      if (!hasAnyTarget) {
+        return;
+      }
+
+      state.annotationEntries = state.annotationEntries.filter(
+        (annotationEntry) => !annotationIdSet.has(annotationEntry.id)
+      );
+      Object.keys(state.draftState.pendingAnnotationIdByToolType).forEach(
+        (toolType) => {
+          if (
+            annotationIdSet.has(
+              state.draftState.pendingAnnotationIdByToolType[
+                toolType as RuntimeToolId
+              ] ?? ""
+            )
+          ) {
+            delete state.draftState.pendingAnnotationIdByToolType[
+              toolType as RuntimeToolId
+            ];
+          }
+        }
+      );
+
+      const usedNodeIds = new Set(
+        state.annotationEntries.flatMap(
+          (annotationEntry) => annotationEntry.nodeIds
+        )
+      );
+      const usedEdgeIds = new Set(
+        state.annotationEntries.flatMap(
+          (annotationEntry) => annotationEntry.edgeIds
+        )
+      );
+
+      state.nodes = state.nodes.filter((node) => usedNodeIds.has(node.id));
+      state.linkedNodeGroups = reconcileLinkedNodeGroups({
+        nodes: state.nodes,
+        linkedNodeGroups: state.linkedNodeGroups,
+      });
+      state.edges = state.edges.filter((edge) => usedEdgeIds.has(edge.id));
+      state.selectionState.previousSelectedAnnotationId = previousSelectionId;
+      if (
+        state.settingsState.elevationReferenceAnnotationId &&
+        annotationIdSet.has(state.settingsState.elevationReferenceAnnotationId)
+      ) {
+        state.settingsState.elevationReferenceAnnotationId = null;
+      }
+
+      if (action.payload.nextSelectedAnnotationId !== undefined) {
+        state.selectionState.selectedAnnotationIds = action.payload
+          .nextSelectedAnnotationId
+          ? [action.payload.nextSelectedAnnotationId]
+          : [];
+        state.infoBoxState.activeAnnotationId =
+          action.payload.nextSelectedAnnotationId ?? null;
+        return;
+      }
+
+      const nextSelectedAnnotationIds =
+        state.selectionState.selectedAnnotationIds.filter(
+          (annotationId) => !annotationIdSet.has(annotationId)
+        );
+      state.selectionState.selectedAnnotationIds = nextSelectedAnnotationIds;
+      state.infoBoxState.activeAnnotationId =
+        nextSelectedAnnotationIds[nextSelectedAnnotationIds.length - 1] ?? null;
+    },
     updateNodeCoordinateById: (
       state,
       action: PayloadAction<UpdateNodeCoordinateByIdPayload>
     ) => {
-      const { nodeId, coordinate } = action.payload;
-      const targetNode = state.nodes.find((node) => node.id === nodeId);
+      const {
+        nodeId,
+        coordinate,
+        selectedMeasurementIds = [],
+      } = action.payload;
+      const { targetNode, targetLinkedNodeGroup, movedNodeIds } =
+        resolveRuntimeNodeMoveScope({
+          nodeId,
+          nodes: state.nodes,
+          linkedNodeGroups: state.linkedNodeGroups,
+          annotationEntries: state.annotationEntries,
+          selectedMeasurementIds,
+        });
       if (!targetNode) {
         return;
       }
-      targetNode.coordinate = coordinate;
+
+      const movedNodeIdSet = new Set(movedNodeIds);
+
+      if (movedNodeIds.length === 0) {
+        return;
+      }
+
+      state.nodes.forEach((node) => {
+        if (!movedNodeIdSet.has(node.id)) {
+          return;
+        }
+
+        node.coordinate = coordinate;
+      });
+
+      if (
+        !targetLinkedNodeGroup ||
+        movedNodeIds.length === 0 ||
+        movedNodeIds.length === targetLinkedNodeGroup.nodeIds.length
+      ) {
+        return;
+      }
+
+      const untouchedNodes = state.nodes.filter(
+        (node) =>
+          targetLinkedNodeGroup.nodeIds.includes(node.id) &&
+          !movedNodeIdSet.has(node.id)
+      );
+      const shouldDetachMovedNodes = untouchedNodes.some(
+        (untouchedNode) =>
+          resolveCoordinateDistanceMeters(
+            untouchedNode.coordinate,
+            coordinate
+          ) > LINKED_NODE_GROUP_DETACH_EPSILON_METERS
+      );
+      if (!shouldDetachMovedNodes) {
+        return;
+      }
+
+      targetLinkedNodeGroup.nodeIds = targetLinkedNodeGroup.nodeIds.filter(
+        (linkedNodeId) => !movedNodeIdSet.has(linkedNodeId)
+      );
+      state.linkedNodeGroups.push({
+        id: resolveDetachedLinkedNodeGroupId({
+          movedNodeIds,
+          existingLinkedNodeGroups: state.linkedNodeGroups,
+          excludedGroupIds: [targetLinkedNodeGroup.id],
+        }),
+        nodeIds: [...movedNodeIds],
+      });
+      state.linkedNodeGroups = reconcileLinkedNodeGroups({
+        nodes: state.nodes,
+        linkedNodeGroups: state.linkedNodeGroups,
+      });
     },
     setAnnotationTemporaryById: (
       state,
@@ -221,6 +534,65 @@ const annotationsSlice = createSlice({
         return;
       }
       targetEntry.temporary = temporary;
+    },
+    updateAnnotationEntryById: (
+      state,
+      action: PayloadAction<UpdateAnnotationEntryByIdPayload>
+    ) => {
+      const {
+        annotationId,
+        displayName,
+        shortLabel,
+        hidden,
+        locked,
+        labelAppearance,
+        elevationDisplayMode,
+        distanceAnchorCoordinateSelection,
+        distanceTriangleAnchorCoordinateRole,
+      } = action.payload;
+      const targetEntry = state.annotationEntries.find(
+        (entry) => entry.id === annotationId
+      );
+      if (!targetEntry) {
+        return;
+      }
+
+      if (displayName !== undefined) {
+        targetEntry.displayName = displayName;
+      }
+
+      if (shortLabel !== undefined) {
+        targetEntry.shortLabel = shortLabel;
+      }
+
+      if (hidden !== undefined) {
+        targetEntry.hidden = hidden;
+      }
+
+      if (locked !== undefined) {
+        targetEntry.locked = locked;
+      }
+
+      if (labelAppearance !== undefined) {
+        targetEntry.labelAppearance = {
+          ...(targetEntry.labelAppearance ?? {}),
+          ...labelAppearance,
+        };
+      }
+
+      if (elevationDisplayMode !== undefined) {
+        targetEntry.elevationDisplayMode = elevationDisplayMode;
+      }
+
+      if (distanceAnchorCoordinateSelection !== undefined) {
+        targetEntry.distanceAnchorCoordinateSelection =
+          distanceAnchorCoordinateSelection;
+      }
+
+      if (distanceTriangleAnchorCoordinateRole !== undefined) {
+        targetEntry.distanceTriangleAnchorCoordinateRole =
+          distanceTriangleAnchorCoordinateRole;
+      }
     },
     finalizeTemporaryAnnotationsByToolType: (
       state,
@@ -258,6 +630,10 @@ const annotationsSlice = createSlice({
         state.annotationEntries.flatMap((entry) => entry.edgeIds)
       );
       state.nodes = state.nodes.filter((node) => usedNodeIds.has(node.id));
+      state.linkedNodeGroups = reconcileLinkedNodeGroups({
+        nodes: state.nodes,
+        linkedNodeGroups: state.linkedNodeGroups,
+      });
       state.edges = state.edges.filter((edge) => usedEdgeIds.has(edge.id));
 
       const nextSelectedAnnotationIds =
@@ -268,38 +644,35 @@ const annotationsSlice = createSlice({
       state.infoBoxState.activeAnnotationId =
         nextSelectedAnnotationIds[nextSelectedAnnotationIds.length - 1] ?? null;
     },
-    setPolylinePreviewCoordinates: (
+    setDraftCoordinatesByToolType: (
       state,
-      action: PayloadAction<SetPolylinePreviewCoordinatesPayload>
+      action: PayloadAction<SetDraftCoordinatesByToolTypePayload>
     ) => {
-      state.draftState.polylinePreviewCoordinates = [
+      state.draftState.draftCoordinatesByToolType[action.payload.toolType] = [
         ...action.payload.coordinates,
       ];
     },
-    clearPolylinePreviewCoordinates: (state) => {
-      state.draftState.polylinePreviewCoordinates = [];
-    },
-    setDistancePreviewCoordinates: (
+    setDraftLinkedNodeGroupIdsByToolType: (
       state,
-      action: PayloadAction<SetDistancePreviewCoordinatesPayload>
+      action: PayloadAction<SetDraftLinkedNodeGroupIdsByToolTypePayload>
     ) => {
-      state.draftState.distancePreviewCoordinates = [
-        ...action.payload.coordinates,
-      ];
+      state.draftState.draftLinkedNodeGroupIdsByToolType[
+        action.payload.toolType
+      ] = [...action.payload.linkedNodeGroupIds];
     },
-    clearDistancePreviewCoordinates: (state) => {
-      state.draftState.distancePreviewCoordinates = [];
-    },
-    setVerticalAreaPreviewCoordinates: (
+    clearDraftCoordinatesByToolType: (
       state,
-      action: PayloadAction<SetVerticalAreaPreviewCoordinatesPayload>
+      action: PayloadAction<RuntimeToolId>
     ) => {
-      state.draftState.verticalAreaPreviewCoordinates = [
-        ...action.payload.coordinates,
-      ];
+      delete state.draftState.draftCoordinatesByToolType[action.payload];
+      delete state.draftState.draftLinkedNodeGroupIdsByToolType[action.payload];
     },
-    clearVerticalAreaPreviewCoordinates: (state) => {
-      state.draftState.verticalAreaPreviewCoordinates = [];
+    setPendingAnnotationIdByToolType: (
+      state,
+      action: PayloadAction<SetPendingAnnotationIdByToolTypePayload>
+    ) => {
+      state.draftState.pendingAnnotationIdByToolType[action.payload.toolType] =
+        action.payload.annotationId;
     },
   },
 });
@@ -307,21 +680,23 @@ const annotationsSlice = createSlice({
 export const {
   appendAnnotationEntities,
   clearTemporaryAnnotationsByToolType,
-  clearDistancePreviewCoordinates,
-  clearVerticalAreaPreviewCoordinates,
-  clearPolylinePreviewCoordinates,
+  clearDraftCoordinatesByToolType,
   finalizeTemporaryAnnotationsByToolType,
   removeAnnotationById,
+  removeAnnotationsByIds,
   setAnnotationTemporaryById,
+  setElevationReferenceAnnotationId,
+  setNextShortLabelCounterByToolType,
   setPointTemporaryMode,
   updateNodeCoordinateById,
+  updateAnnotationEntryById,
   replaceState,
-  setDistancePreviewCoordinates,
   setAnnotationToolType,
-  setSelectionModeActive,
-  setPolylinePreviewCoordinates,
-  setVerticalAreaPreviewCoordinates,
+  setDraftCoordinatesByToolType,
+  setDraftLinkedNodeGroupIdsByToolType,
+  setPendingAnnotationIdByToolType,
   setSelectedAnnotationId,
+  setSelectedAnnotationIds,
 } = annotationsSlice.actions;
 
 export const createAnnotationsStore = (initialState: AnnotationsStoreState) =>

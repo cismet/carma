@@ -1,4 +1,4 @@
-import type { SceneLike } from "@carma-mapping/engines/cesium/api";
+import { type SceneLike } from "@carma-mapping/engines/cesium/core";
 
 type StoryCesiumWidgetLike = {
   isDestroyed?: () => boolean;

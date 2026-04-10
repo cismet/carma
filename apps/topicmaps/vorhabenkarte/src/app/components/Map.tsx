@@ -26,6 +26,7 @@ import {
   EmptySearchComponent,
   LibFuzzySearch,
   defaultTypeInference,
+  type GazDataItem,
 } from "@carma-mapping/fuzzy-search";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import {
@@ -45,7 +46,6 @@ import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextPr
 import { isAreaType } from "@carma-commons/resources";
 import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 import { useGazData } from "@carma-appframeworks/portals";
-import { type GazDataItem } from "@carma-commons/utils";
 import versionData from "../../version.json";
 import { useUrlFeatureSelection } from "@carma-appframeworks/portals";
 

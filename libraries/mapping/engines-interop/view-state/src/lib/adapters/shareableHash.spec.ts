@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { CAMERA_TYPE } from "@carma-commons/camera/model";
-import type { CssPixels } from "@carma/units/types";
+import type { CssPixels } from "@carma-units";
 
 import { HASH_ZOOM_CONVENTION } from "../core/viewStateHash";
 import type { ShareableViewState } from "../types";

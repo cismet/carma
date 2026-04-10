@@ -1,8 +1,5 @@
-import {
-  ClassificationType,
-  Color,
-  colorFromConstructorArgs,
-} from "@carma/cesium";
+import { ClassificationType, Color } from "@carma-cesium";
+import { colorFromConstructorArgs } from "@carma-mapping/engines/cesium/core";
 
 import type { CesiumContextType } from "../CesiumContext";
 import { SceneStyle } from "../..";

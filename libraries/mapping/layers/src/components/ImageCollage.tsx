@@ -1,4 +1,4 @@
-import { Item } from "@carma/types";
+import { Item } from "@carma-mapping/layers";
 import { cn } from "@carma-commons/utils";
 
 interface ImageCollageProps {

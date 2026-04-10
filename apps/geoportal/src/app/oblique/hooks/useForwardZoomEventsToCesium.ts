@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { MutableRefObject } from "react";
-import { useFovWheelZoom } from "@carma-mapping/engines/cesium";
+import { useCesiumContext } from "@carma-mapping/engines/cesium/legacy";
+import { useCesiumFovWheelZoom } from "@carma-mapping/engines/cesium/react/interactions";
 
 const handledNativeEvents = new WeakSet<Event>();
 
@@ -14,9 +15,18 @@ export interface ForwardZoomEventsBindings {
  */
 export function useForwardZoomEventsToCesium(): ForwardZoomEventsBindings {
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const { getScene } = useCesiumContext();
+  const scene = getScene();
 
-  // Use Cesium FOV wheel zoom directly; re-render after each FOV change
-  const { handleWheel } = useFovWheelZoom(true);
+  // Preview overlays only forward wheel/pinch events into the existing oblique
+  // wheel-FOV path. They must not own the scene-level wheel listener, otherwise
+  // unmounting the preview could tear down the still-active oblique handler.
+  const { handleWheel } = useCesiumFovWheelZoom(
+    scene,
+    true,
+    {},
+    { attachSceneWheelHandler: false }
+  );
 
   useEffect(() => {
     const el = rootRef.current;

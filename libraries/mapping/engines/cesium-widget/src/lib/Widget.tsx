@@ -17,13 +17,13 @@ import {
   HeadingPitchRange,
   OrthographicFrustum,
   ClippingPlaneCollection,
-  // TODO delete or upgrade the widget demo to use the new Cesium from @carma/cesium
+  // TODO delete or upgrade the widget demo to use the new Cesium from @carma-cesium
   // playground use only and also obsolete
   // eslint-disable-next-line carma/no-direct-cesium
 } from "cesium";
 
-import { CUSTOM_SHADERS_DEFINITIONS } from "@carma-mapping/engines/cesium";
-import type { LatLng } from "@carma/types";
+import { CUSTOM_SHADERS_DEFINITIONS } from "@carma-mapping/engines/cesium/legacy";
+import type { LatLng, LatLngAlt } from "@carma-geo/data-structures";
 
 import { generateRingFromDegrees } from "./utils";
 const unlit = new CustomShader(CUSTOM_SHADERS_DEFINITIONS.UNLIT_ENHANCED_2024);
@@ -62,7 +62,7 @@ const addDebugPrimitives = (widget: CesiumWidget, cartesian: Cartesian3) => {
 
 export const Widget: FC<{
   pixelSize?: { width: number; height: number };
-  position: LatLng.deg;
+  position: LatLngAlt.deg;
   range?: number;
   clip?: boolean;
   clipPolygon?: LatLng.deg[];
@@ -85,7 +85,7 @@ export const Widget: FC<{
     longitude: 7.201578,
     latitude: 51.256565,
     altitude: 335,
-  } as LatLng.deg,
+  } as LatLngAlt.deg,
   debug = false,
   animate = false,
 }) => {

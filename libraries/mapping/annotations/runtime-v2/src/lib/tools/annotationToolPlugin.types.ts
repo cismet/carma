@@ -1,9 +1,12 @@
 import type { ReactNode } from "react";
+import type { Cartesian3 } from "@carma-cesium";
 
 import type {
   RuntimeAnnotationInfoBoxContext,
   RuntimeAnnotationInfoBoxSlots,
 } from "../components/annotation-info-box/annotationInfoBox.types";
+import type { AnnotationsRuntimeFormatOptions } from "../config/annotationsRuntimeFormatOptions";
+import type { PreviewLineLabelVisualOptions } from "../config/previewLineLabelVisualDefaults";
 import type {
   AnnotationModeSession,
   AnnotationModeSessionMap,
@@ -16,9 +19,11 @@ import type {
   RuntimeAnnotationEntry,
   RuntimeCoordinate,
   RuntimeEdge,
+  RuntimeLinkedNodeGroupId,
   RuntimeMeasurement,
   RuntimeNode,
 } from "../store";
+import type { RuntimeScene } from "../types/runtimeScene.types";
 import type { RuntimeToolId } from "../types/runtimeTool.types";
 export const ANNOTATION_TOOL_PLUGIN_KINDS = {
   INTERACTION: "interaction",
@@ -50,23 +55,49 @@ export type AnnotationToolDescriptor = {
 };
 
 export type AnnotationToolSessionContext = {
-  state: AnnotationsStoreState;
   getState: () => AnnotationsStoreState;
   dispatch: AnnotationsStore["dispatch"];
   setActiveToolType: (toolType: RuntimeToolId) => void;
   addAnnotation: (
     toolType: RuntimeMeasurement["toolType"],
     coordinates: readonly RuntimeCoordinate[],
-    options?: RuntimeAddAnnotationOptions
+    options?: RuntimeAddAnnotationOptions,
+    linkedNodeGroupIds?: readonly (
+      | RuntimeLinkedNodeGroupId
+      | null
+      | undefined
+    )[]
   ) => RuntimeMeasurement;
 };
 
 export type PointQueryCreatedContext = {
   coordinate: RuntimeCoordinate;
+  linkedNodeGroupId: RuntimeLinkedNodeGroupId | null;
   activeToolType: RuntimeToolId;
   activeToolSession: AnnotationModeSession | null;
   toolSessions: AnnotationModeSessionMap;
   sessionContext: AnnotationToolSessionContext;
+};
+
+export type AnnotationToolPreviewSample = {
+  coordinate: RuntimeCoordinate | null;
+  screenPosition: { x: number; y: number } | null;
+  pointECEF: Cartesian3 | null;
+  surfaceNormalECEF: Cartesian3 | null;
+};
+
+export type AnnotationToolPreviewController = {
+  setEnabled: (enabled: boolean) => void;
+  setHoverSample: (sample: AnnotationToolPreviewSample | null) => void;
+  destroy: () => void;
+};
+
+export type AnnotationToolPreviewContext = {
+  scene: RuntimeScene | null;
+  annotationsStore: AnnotationsStore;
+  requestRender: () => void;
+  formatOptions: AnnotationsRuntimeFormatOptions;
+  previewLineLabelVisualOptions: Partial<PreviewLineLabelVisualOptions>;
 };
 
 export type AnnotationToolKeyboardContext = {
@@ -80,13 +111,18 @@ export type AnnotationToolKeyboardContext = {
 };
 
 export type AnnotationToolRenderLayerContext = {
-  state: AnnotationsStoreState;
   nodes: readonly RuntimeNode[];
   edges: readonly RuntimeEdge[];
   annotationEntries: readonly RuntimeAnnotationEntry[];
+  elevationReferenceAnnotationId: string | null;
   selectedAnnotationId: string | null;
+  selectedAnnotationIds: readonly string[];
+  isSelectionAdditiveModifierPressed: boolean;
   setSelectedAnnotationId: (annotationId: string | null) => void;
+  setElevationReferenceAnnotationId: (annotationId: string | null) => void;
+  toggleAnnotationElevationDisplayMode: (annotationId: string) => void;
   onNodeLongPress?: (nodeId: string, measurementId: string) => void;
+  formatOptions: AnnotationsRuntimeFormatOptions;
 };
 
 export type AnnotationToolPlugin = {
@@ -102,6 +138,11 @@ export type AnnotationToolPlugin = {
   };
   pointQuery?: {
     onPointCreated: (context: PointQueryCreatedContext) => void;
+  };
+  preview?: {
+    createController: (
+      context: AnnotationToolPreviewContext
+    ) => AnnotationToolPreviewController | null;
   };
   keyboard?: {
     onKeyDown: (context: AnnotationToolKeyboardContext) => boolean;

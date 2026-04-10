@@ -1,4 +1,4 @@
-import { DEFAULT_WMS_IMAGE_PROVIDER_PARAMETERS } from "../wms";
+import { DEFAULT_WMS_IMAGE_PROVIDER_PARAMETERS } from "../base/wms";
 
 export const BASEMAP_BASEMAPDE_WMS_GRAU = {
   url: "https://sgx.geodatenzentrum.de/wms_basemapde?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities",

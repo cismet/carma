@@ -1,16 +1,38 @@
 import { useState, type CSSProperties } from "react";
 
 import type { Meta, StoryObj } from "@storybook/react";
+import {
+  annotationTypographyDefaults,
+  runtimeAnnotationInfoBoxVisualDefaults,
+} from "@carma-mapping/annotations/runtime-v2";
 
 import {
   CarmaCard,
   CarmaResponsiveInfoBox,
   ResponsiveStatusBar,
 } from "@carma-commons/ui/components";
-const bodyTextStyle: CSSProperties = {
-  fontSize: 12,
-  lineHeight: 1.45,
-  color: "#1f2937",
+
+const infoBoxHeaderTextStyle: CSSProperties = {
+  color: "rgba(255, 255, 255, 0.8)",
+  fontFamily: annotationTypographyDefaults.fontFamily,
+  fontSize: annotationTypographyDefaults.supportFontSizePx,
+  fontWeight: annotationTypographyDefaults.headingFontWeight,
+  letterSpacing: "0.03em",
+};
+
+const infoBoxSupportTextStyle: CSSProperties = {
+  fontFamily: annotationTypographyDefaults.fontFamily,
+  fontSize: annotationTypographyDefaults.supportFontSizePx,
+  fontWeight: annotationTypographyDefaults.sectionTitleFontWeight,
+  lineHeight: 1.35,
+  color: "rgba(17, 24, 39, 0.5)",
+};
+
+const infoBoxBodyTextStyle: CSSProperties = {
+  fontFamily: annotationTypographyDefaults.fontFamily,
+  fontSize: annotationTypographyDefaults.rootFontSizePx,
+  lineHeight: 1.4,
+  color: "#212529",
 };
 
 const surfaceStyle: CSSProperties = {
@@ -71,7 +93,7 @@ const CardVariant = ({
   dragGripPlacement = "auto",
   defaultCollapsed = false,
   headerText = "CarmaCard",
-  panelWidth,
+  panelWidth = runtimeAnnotationInfoBoxVisualDefaults.defaultPixelWidth,
 }: VariantProps) => {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
 
@@ -96,18 +118,18 @@ const CardVariant = ({
                 }
               : undefined
           }
-          header={
-            <span style={{ color: "#ffffff", fontWeight: 600 }}>
-              {headerText}
-            </span>
-          }
-          headerColor="rgba(15, 23, 42, 0.9)"
+          header={<span style={infoBoxHeaderTextStyle}>{headerText}</span>}
+          headerColor={runtimeAnnotationInfoBoxVisualDefaults.headingColor}
           subtitle={
-            subtitle ? <div style={bodyTextStyle}>{subtitle}</div> : undefined
+            subtitle ? (
+              <div style={infoBoxSupportTextStyle}>{subtitle}</div>
+            ) : undefined
           }
-          content={<div style={bodyTextStyle}>{content}</div>}
+          content={<div style={infoBoxBodyTextStyle}>{content}</div>}
           footer={
-            footer ? <div style={bodyTextStyle}>{footer}</div> : undefined
+            footer ? (
+              <div style={infoBoxSupportTextStyle}>{footer}</div>
+            ) : undefined
           }
           collapsible
           collapsed={collapsed}
@@ -128,7 +150,7 @@ const InfoBoxVariant = ({
   dragGripPlacement = "auto",
   defaultCollapsed = false,
   headerText = "InfoBox",
-  panelWidth,
+  panelWidth = runtimeAnnotationInfoBoxVisualDefaults.defaultPixelWidth,
 }: VariantProps) => (
   <div style={surfaceStyle}>
     <VariantLabel title={title} />
@@ -140,22 +162,25 @@ const InfoBoxVariant = ({
       }
     >
       <CarmaResponsiveInfoBox
+        width={panelWidth}
         useControlLayout={false}
         draggable={draggable}
         dragGripPlacement={dragGripPlacement}
         defaultCollapsed={defaultCollapsed}
         collapsible
-        heading={
-          <span style={{ color: "#ffffff", fontWeight: 600 }}>
-            {headerText}
-          </span>
-        }
-        headingColor="rgba(15, 23, 42, 0.9)"
+        heading={<span style={infoBoxHeaderTextStyle}>{headerText}</span>}
+        headingColor={runtimeAnnotationInfoBoxVisualDefaults.headingColor}
         subtitle={
-          subtitle ? <div style={bodyTextStyle}>{subtitle}</div> : undefined
+          subtitle ? (
+            <div style={infoBoxSupportTextStyle}>{subtitle}</div>
+          ) : undefined
         }
-        content={<div style={bodyTextStyle}>{content}</div>}
-        footer={footer ? <div style={bodyTextStyle}>{footer}</div> : undefined}
+        content={<div style={infoBoxBodyTextStyle}>{content}</div>}
+        footer={
+          footer ? (
+            <div style={infoBoxSupportTextStyle}>{footer}</div>
+          ) : undefined
+        }
       />
     </div>
   </div>

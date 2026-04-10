@@ -1,4 +1,4 @@
-import { BackgroundLayer, Layer } from "@carma/types";
+import { BackgroundLayer, Layer } from "@carma-mapping/layers";
 import { useContext, useEffect, useState } from "react";
 import L from "leaflet";
 

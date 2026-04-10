@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { CAMERA_TYPE } from "@carma-commons/camera/model";
-import { degToRadNumeric } from "@carma/units/helpers";
-import type { Radians } from "@carma/units/types";
+import { degToRadNumeric } from "@carma-units";
+import type { Radians } from "@carma-units";
 
 import {
   isMapViewEqualToTarget,

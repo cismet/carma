@@ -111,7 +111,43 @@ Toggle: calling while active stops the orbit. Not supported on Leaflet.
 - Leaflet-native low-level map helpers live in [`engines/leaflet`](../../engines/leaflet/README.md).
 - MapLibre GL JS-native low-level helper guidance lives in [`engines/maplibre-gl`](../../engines/maplibre-gl/README.md).
 
+## Preferred Final Package Topology
+
+Once more than one runtime adapter is productized, the intended end state is one engine-agnostic shared shell package plus one explicit runtime sibling package per mapping engine.
+
+```text
+libraries/mapping/engines-interop/navigation-controls/
+  src/lib/contracts/*
+  src/lib/dom/*
+  src/lib/mount/*
+
+libraries/mapping/engines-interop/navigation-controls/cesium/
+  src/lib/runtime/*
+
+libraries/mapping/engines-interop/navigation-controls/maplibre/
+  src/lib/runtime/*
+
+libraries/mapping/engines-interop/navigation-controls/leaflet/
+  src/lib/runtime/*
+```
+
+Dependency direction:
+
+- `navigation-controls` stays mapping-engine-agnostic
+- `navigation-controls/cesium` depends on `navigation-controls` plus Cesium-native helper packages
+- `navigation-controls/maplibre` depends on `navigation-controls` plus MapLibre-native helper packages
+- `navigation-controls/leaflet` depends on `navigation-controls` plus Leaflet-native helper packages
+- runtime sibling packages do not depend on each other
+
+Why this shape is preferred:
+
+- the shared control contract, DOM, and skinning seam stay stable even if one mapping engine is retired later
+- engine-native behavior stays localized instead of leaking into the shared control package
+- apps and playgrounds opt into runtime bindings explicitly instead of inheriting every engine dependency through the shared shell
+
 ## Planned Internal Split
+
+Inside the current shared package, the temporary internal split is:
 
 - `src/lib/contracts/*`
   Shared callback contracts and non-visual control types.

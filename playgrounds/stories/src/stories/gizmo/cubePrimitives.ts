@@ -9,10 +9,10 @@ import {
   PerInstanceColorAppearance,
   PolylineCollection,
   Primitive,
-  createPrimitiveGroup,
   defined,
   type Scene,
-} from "@carma/cesium";
+} from "@carma-cesium";
+import { createPrimitiveGroup } from "@carma-mapping/engines/cesium/core";
 
 export type CubeEdgeDef = {
   id: string;

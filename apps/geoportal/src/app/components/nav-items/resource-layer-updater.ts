@@ -1,6 +1,6 @@
 import type { Dispatch } from "redux";
 import { createElement, type ReactNode } from "react";
-import type { BackgroundLayer, Item, Layer } from "@carma/types";
+import type { BackgroundLayer, Item, Layer } from "@carma-mapping/layers";
 import { parseToMapLayer } from "@carma-mapping/utils";
 import { DEFAULT_ADHOC_FEATURE_LAYER_ID } from "@carma-appframeworks/portals";
 

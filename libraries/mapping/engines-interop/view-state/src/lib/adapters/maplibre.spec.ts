@@ -2,8 +2,8 @@ import type { Map as MapLibreMap } from "maplibre-gl";
 import { describe, expect, it, vi } from "vitest";
 
 import { CAMERA_TYPE } from "@carma-commons/camera/model";
-import { degToRadNumeric, radToDegNumeric } from "@carma/units/helpers";
-import type { Meters, Radians } from "@carma/units/types";
+import { degToRadNumeric, radToDegNumeric } from "@carma-units";
+import type { Meters, Radians } from "@carma-units";
 
 import { buildViewState } from "../core/construct";
 import { deriveOrbitAngles, deriveZoom } from "../core/derivations";

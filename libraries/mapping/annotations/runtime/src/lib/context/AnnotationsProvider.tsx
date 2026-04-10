@@ -5,7 +5,11 @@ import {
   Cartesian3,
   Cartesian4,
   Matrix4,
-  cartesian3FromJson,
+  type Scene,
+  Transforms,
+} from "@carma-cesium";
+import {
+  cartesian3FromMetricVector3,
   getDegreesFromCartesian,
   getEllipsoidalAltitudeOrZero,
   getLocalUpDirectionAtAnchor,
@@ -16,9 +20,7 @@ import {
   normalizeDirection,
   projectPointToHorizontalPlaneAtAnchor,
   resolveLocalFrameVectors,
-  type Scene,
-  Transforms,
-} from "@carma/cesium";
+} from "@carma-mapping/engines/cesium/core";
 import {
   LINEAR_SEGMENT_LINE_MODE_DIRECT,
   areDistanceRelationsEquivalent,
@@ -79,11 +81,13 @@ import {
   usePolylineSettings,
   useReferencePointMeasurementId,
 } from "../interaction/useInteraction";
+import { createPreviewRuntimeController } from "../interaction/candidate/previewRuntime";
 import {
   useRenderBridgeState,
   useRenderEffects,
   usePointIndex,
 } from "../render/useRender";
+import { ActiveMeasurementPreviewEffects } from "../render/scene/ActiveMeasurementPreviewEffects";
 import {
   useFocusActions,
   useSelectionController,
@@ -153,6 +157,7 @@ export const AnnotationsProvider: React.FC<AnnotationsProviderProps> = ({
   const initialPersistenceState = normalizedOptions.initialPersistenceState;
   const onPersistenceStateChange = normalizedOptions.onPersistenceStateChange;
   const annotationsStoreRef = useRef<AnnotationsStore | null>(null);
+  const previewRuntimeControllerRef = useRef(createPreviewRuntimeController());
 
   if (annotationsStoreRef.current === null) {
     annotationsStoreRef.current = createAnnotationsStore(
@@ -335,10 +340,6 @@ export const AnnotationsProvider: React.FC<AnnotationsProviderProps> = ({
   );
 
   const {
-    activeCandidateNodeECEF,
-    cursorScreenPosition,
-    activeCandidateNodeSurfaceNormalECEF,
-    activeCandidateNodeVerticalOffsetAnchorECEF,
     clearAnnotationCursor,
     handleAnnotationCursorMove,
     isPolylineCandidateMode,
@@ -360,6 +361,7 @@ export const AnnotationsProvider: React.FC<AnnotationsProviderProps> = ({
     pointVerticalOffsetMeters,
     polylineVerticalOffsetMeters,
     pointQueryEnabled,
+    previewRuntimeController: previewRuntimeControllerRef.current,
     moveGizmoPointId: moveGizmo.pointId,
     isMoveGizmoDragging: moveGizmo.isDragging,
     setNodeChainAnnotations,
@@ -453,8 +455,7 @@ export const AnnotationsProvider: React.FC<AnnotationsProviderProps> = ({
     hiddenPointLabelIds,
     effectiveFullyHiddenPointIds,
     currentAnnotationId,
-    candidateConnectionPreview,
-    candidatePreviewDistanceMeters,
+    focusedPolylineDistanceToStartByPointId,
   } = useRenderBridgeState({
     scene,
     data: {
@@ -484,17 +485,7 @@ export const AnnotationsProvider: React.FC<AnnotationsProviderProps> = ({
         selectablePointIds,
         activeNodeChainAnnotationId,
         nodeChainAnnotations,
-      },
-      pointer: {
-        activeCandidateNodeECEF,
         candidateSupportsEdgeLine,
-      },
-      preview: {
-        candidateForcesDirectEdgeLine,
-        candidateUsesPolylineEdgeRules,
-        polylineSegmentLineMode,
-        distanceCreationLineVisibility,
-        isPolylineCandidateMode,
       },
     },
   });
@@ -768,9 +759,6 @@ export const AnnotationsProvider: React.FC<AnnotationsProviderProps> = ({
       scene: {
         scene: cesiumScene,
         options,
-        activeToolType: activeToolType,
-        referencePoint: annotationEntryState.referencePoint,
-        pointRadius: annotationSettingsState.pointRadius,
       },
       overlays: {
         focusedNodeChainAnnotationId: focusedNodeChainAnnotationId,
@@ -786,12 +774,6 @@ export const AnnotationsProvider: React.FC<AnnotationsProviderProps> = ({
       },
       candidate: {
         annotationCursorEnabled: annotationCursorEnabled,
-        activeCandidateNodeECEF: activeCandidateNodeECEF,
-        cursorScreenPosition: cursorScreenPosition,
-        activeCandidateNodeSurfaceNormalECEF:
-          activeCandidateNodeSurfaceNormalECEF,
-        activeCandidateNodeVerticalOffsetAnchorECEF:
-          activeCandidateNodeVerticalOffsetAnchorECEF,
       },
       selection: {
         annotationSelection: annotationSelectionState.annotationSelection,
@@ -815,8 +797,7 @@ export const AnnotationsProvider: React.FC<AnnotationsProviderProps> = ({
       hiddenPointLabelIds,
       effectiveFullyHiddenPointIds,
       currentAnnotationId,
-      candidateConnectionPreview,
-      candidatePreviewDistanceMeters,
+      focusedPolylineDistanceToStartByPointId,
     },
     annotationUserInteraction,
     annotationEditing
@@ -869,6 +850,24 @@ export const AnnotationsProvider: React.FC<AnnotationsProviderProps> = ({
   return (
     <AnnotationsContext.Provider value={annotationsContextValue}>
       <AnnotationsStoreContext.Provider value={annotationsStore}>
+        <ActiveMeasurementPreviewEffects
+          scene={cesiumScene}
+          activeToolType={activeToolType}
+          previewRuntimeController={previewRuntimeControllerRef.current}
+          annotations={annotationEntryState.annotations}
+          nodeChainAnnotations={annotationEntryState.nodeChainAnnotations}
+          referencePointMeasurementId={referencePointMeasurementId}
+          selectablePointIds={selectablePointIds}
+          activeNodeChainAnnotationId={activeNodeChainAnnotationId}
+          distanceModeStickyToFirstPoint={distanceModeStickyToFirstPoint}
+          distanceCreationLineVisibility={distanceCreationLineVisibility}
+          annotationCursorEnabled={annotationCursorEnabled}
+          showPoints={showPoints}
+          pointRadius={annotationSettingsState.pointRadius}
+          suppressCandidateLabelOverlay={
+            annotationUserInteraction.isPointMeasureLabelModeActive
+          }
+        />
         {children}
       </AnnotationsStoreContext.Provider>
     </AnnotationsContext.Provider>

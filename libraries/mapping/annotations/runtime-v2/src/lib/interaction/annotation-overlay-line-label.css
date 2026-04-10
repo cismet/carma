@@ -1,0 +1,78 @@
+.carma-annotation-overlay-line-label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: none;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  transform: translate(-50%, -50%);
+  will-change: transform;
+  --carma-annotation-overlay-line-label-font-family: "Helvetica Neue", Arial,
+    Helvetica, sans-serif;
+  --carma-annotation-overlay-line-label-font-size: 14px;
+  --carma-annotation-overlay-line-label-font-weight: 400;
+  --carma-annotation-overlay-line-label-text-color: rgba(0, 0, 0, 0.98);
+}
+
+.carma-default-annotation-typography {
+  font-family: var(
+    --carma-annotation-overlay-line-label-font-family,
+    "Helvetica Neue",
+    Arial,
+    Helvetica,
+    sans-serif
+  );
+  font-weight: var(--carma-annotation-overlay-line-label-font-weight, 400);
+}
+
+.carma-annotation-overlay-line-label__frame {
+  position: relative;
+  display: inline-block;
+  padding: 3px 0.4em;
+  white-space: nowrap;
+  isolation: isolate;
+}
+
+.carma-annotation-overlay-line-label__backdrop {
+  position: absolute;
+  inset: 0;
+  border-radius: 3px;
+  background: rgba(128, 128, 128, 0.45);
+  mix-blend-mode: darken;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  pointer-events: none;
+}
+
+.carma-annotation-overlay-line-label[data-annotation-overlay-line-label-theme="dark-on-bright"] {
+  --carma-annotation-overlay-line-label-text-color: rgba(0, 0, 0, 0.98);
+}
+
+.carma-annotation-overlay-line-label[data-annotation-overlay-line-label-theme="bright-on-dark"] {
+  --carma-annotation-overlay-line-label-text-color: rgba(255, 255, 255, 0.98);
+}
+
+.carma-annotation-overlay-line-label__text {
+  position: relative;
+  mix-blend-mode: normal;
+  color: var(--carma-annotation-overlay-line-label-text-color);
+  font-family: var(--carma-annotation-overlay-line-label-font-family);
+  font-size: var(--carma-annotation-overlay-line-label-font-size);
+  font-weight: var(--carma-annotation-overlay-line-label-font-weight);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.carma-annotation-overlay-line-label[data-annotation-overlay-line-label-kind="vertical"][data-annotation-overlay-line-label-short-edge="true"]
+  .carma-annotation-overlay-line-label__text,
+.carma-annotation-overlay-line-label[data-annotation-overlay-line-label-kind="horizontal"][data-annotation-overlay-line-label-short-edge="true"]
+  .carma-annotation-overlay-line-label__text {
+  background-image: linear-gradient(
+    var(--carma-annotation-overlay-line-label-glow-color),
+    var(--carma-annotation-overlay-line-label-glow-color)
+  );
+  background-repeat: no-repeat;
+  background-size: 100% 2px;
+  background-position: 0 calc(100% - 1px);
+}

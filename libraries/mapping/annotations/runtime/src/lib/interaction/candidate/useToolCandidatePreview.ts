@@ -5,7 +5,7 @@ import type {
   LinearSegmentLineMode,
   NodeChainAnnotation,
 } from "@carma-mapping/annotations/core";
-import type { Cartesian3 } from "@carma/cesium";
+import type { Cartesian3 } from "@carma-cesium";
 
 import { useStoreSelector, type AnnotationsStore } from "../../store";
 import { useCandidatePreviewState } from "./useCandidatePreviewState";

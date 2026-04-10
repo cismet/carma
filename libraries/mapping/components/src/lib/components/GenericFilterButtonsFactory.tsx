@@ -1,4 +1,4 @@
-import type { FilterConfig } from "@carma/types";
+import type { FilterConfig } from "@carma-mapping/layers";
 import { useState, useEffect } from "react";
 
 // Types for filter configuration
@@ -14,6 +14,7 @@ export interface FilterOption {
   propertyValue: string;
   /** Whether to show icon in grayscale when not selected (ignored if inactiveIcon is set) */
   grayscaleWhenInactive?: boolean;
+  color?: string;
 }
 
 export interface FilterInfo {

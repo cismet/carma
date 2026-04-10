@@ -1,12 +1,11 @@
+import { Cartographic, type CesiumTerrainProvider } from "@carma-cesium";
 import {
-  Cartographic,
-  type CesiumTerrainProvider,
   isValidCesiumTerrainProvider,
   sampleTerrainMostDetailedGuardedAsync,
-} from "@carma/cesium";
+} from "@carma-mapping/engines/cesium/core";
 
 import { ElevationReference } from "./elevation-reference";
-// TODO move to @carma/cesium/core in next iterations ;
+// TODO move to @carma-cesium/core in next iterations ;
 
 export async function applyElevationToPosition(
   terrainProviders: {

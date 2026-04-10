@@ -11,12 +11,15 @@ import {
   Cartesian3,
   Cesium3DTileset,
   CesiumTerrainProvider,
-  createMinimalCesiumWidget,
   type CesiumWidget,
   type ImageryLayer,
   type Scene,
-} from "@carma/cesium";
-import { degToRadNumeric } from "@carma/units/helpers";
+} from "cesium";
+import {
+  createMinimalCesiumWidget,
+  type SceneAnimationMap,
+} from "@carma-mapping/engines/cesium/core";
+import { degToRadNumeric } from "@carma-units";
 import {
   WUPPERTAL,
   WUPP_MESH_2024,
@@ -26,7 +29,6 @@ import {
 import {
   CesiumContext,
   type CesiumContextType,
-  type SceneAnimationMap,
 } from "@carma-mapping/engines/cesium/legacy";
 
 const requestRenderWithOptions = (

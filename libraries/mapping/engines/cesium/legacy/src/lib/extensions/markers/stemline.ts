@@ -6,7 +6,7 @@ import {
   type Cartographic,
   type Polyline,
   type Scene,
-} from "@carma/cesium";
+} from "@carma-cesium";
 
 import type { PolylineConfig } from "../../../";
 import type { MarkerPrimitiveData } from "./index.d";

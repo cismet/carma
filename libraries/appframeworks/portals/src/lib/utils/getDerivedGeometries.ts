@@ -4,7 +4,7 @@ import type { Converter } from "proj4/dist/lib/core";
 import { PROJ4_CONVERTERS } from "@carma-commons/utils";
 
 import { DEFAULT_PROJ } from "@carma-commons/resources";
-import { SearchResultItem } from "@carma/types";
+import { SearchResultItem } from "@carma-mapping/fuzzy-search";
 
 const proj4ConverterLookup: Record<string, Converter> = {};
 const DEFAULT_ZOOM_LEVEL = 16;

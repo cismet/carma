@@ -12,10 +12,8 @@ import {
   type AnnotationToolType,
   type NodeChainAnnotation,
 } from "@carma-mapping/annotations/core";
-import {
-  getPositionWithVerticalOffsetFromAnchor,
-  type Scene,
-} from "@carma/cesium";
+import { type Scene } from "@carma-cesium";
+import { getPositionWithVerticalOffsetFromAnchor } from "@carma-mapping/engines/cesium/core";
 
 import {
   ANNOTATION_CANDIDATE_KIND_DISTANCE,
@@ -28,6 +26,7 @@ import {
   type AnnotationCandidateDescriptor,
   useCandidateState,
 } from "../candidate/useCandidateState";
+import type { PreviewRuntimeController } from "./previewRuntime";
 type UseAnnotationCursorCandidateStateParams = {
   scene: Scene;
   annotations: AnnotationCollection;
@@ -38,6 +37,7 @@ type UseAnnotationCursorCandidateStateParams = {
   pointVerticalOffsetMeters: number;
   polylineVerticalOffsetMeters: number;
   pointQueryEnabled: boolean;
+  previewRuntimeController: PreviewRuntimeController;
   moveGizmoPointId: string | null;
   isMoveGizmoDragging: boolean;
   setNodeChainAnnotations: Dispatch<SetStateAction<NodeChainAnnotation[]>>;
@@ -53,6 +53,7 @@ export const useCursorCandidateState = ({
   pointVerticalOffsetMeters,
   polylineVerticalOffsetMeters,
   pointQueryEnabled,
+  previewRuntimeController,
   moveGizmoPointId,
   isMoveGizmoDragging,
   setNodeChainAnnotations,
@@ -161,6 +162,7 @@ export const useCursorCandidateState = ({
 
   return useCandidateState(scene, annotations, annotationCandidateDescriptor, {
     pointQueryEnabled,
+    previewRuntimeController,
     moveGizmoPointId,
     isMoveGizmoDragging,
     setNodeChainAnnotations,

@@ -1,13 +1,10 @@
 import {
-  ANNOTATION_TYPE_POINT,
   type PointAnnotationEntry,
-  type AnnotationToolType,
-  type CandidateConnectionPreview,
   type NodeChainAnnotation,
   type PointDistanceRelation,
 } from "@carma-mapping/annotations/core";
 import { useCesiumEdgeVisualizer } from "@carma-mapping/engines/cesium/react/primitives";
-import type { Cartesian3, Scene } from "@carma/cesium";
+import type { Scene } from "@carma-cesium";
 
 import { useEdgeComponentOverlayVisualizer } from "../edge/overlay/useEdgeComponentOverlayVisualizer";
 import { usePolylineOverlayVisualizer } from "../edge/overlay/usePolylineOverlayVisualizer";
@@ -23,9 +20,6 @@ import {
 import { usePointLabelVisualizer } from "../labels/usePointLabelVisualizer";
 import type { AnnotationPointMarkerBadge } from "../point/usePointMarkerBadges";
 import type { AnnotationsOptions } from "../../config/annotationsOptions";
-import { usePointCandidateDomOverlay } from "../../interaction/candidate/usePointCandidateDomOverlay";
-import { usePointCandidateRingIndicator } from "../../interaction/candidate/usePointCandidateRingIndicator";
-import { useCursorOverlay } from "../../interaction/cursor/useCursorOverlay";
 import type { EditingState } from "../../interaction/editing/useEditing";
 import type { UserInteractionState } from "../../interaction/lifecycle/modes/useUserInteraction";
 import { useRectangleSelectionOverlay } from "../../selection/hooks/useRectangleSelectionOverlay";
@@ -50,7 +44,6 @@ type VisualizationGeometryParams = {
   visiblePolygonAnnotationsForRendering: NodeChainAnnotation[];
   cumulativeDistanceByRelationId: Readonly<Record<string, number>>;
   visiblePointEntries: PointAnnotationEntry[];
-  candidateConnectionPreview: CandidateConnectionPreview | null;
 };
 
 type VisualizationDisplayParams = {
@@ -59,8 +52,6 @@ type VisualizationDisplayParams = {
   effectiveReferenceElevation: number;
   occlusionChecksEnabled: boolean;
   options?: AnnotationsOptions;
-  referencePoint: Cartesian3 | null;
-  pointRadius: number;
 };
 
 type VisualizationPointLabelParams = {
@@ -84,12 +75,6 @@ type VisualizationEditingParams = {
 
 type VisualizationCandidateParams = {
   annotationCursorEnabled: boolean;
-  activeCandidateNodeECEF: Cartesian3 | null;
-  cursorScreenPosition: { x: number; y: number } | null;
-  activeCandidateNodeSurfaceNormalECEF: Cartesian3 | null;
-  activeCandidateNodeVerticalOffsetAnchorECEF: Cartesian3 | null;
-  activeToolType: AnnotationToolType;
-  candidatePreviewDistanceMeters: number | undefined;
 };
 
 type VisualizationSelectionParams = {
@@ -127,7 +112,6 @@ export const useVisualization = (
     visiblePolygonAnnotationsForRendering,
     cumulativeDistanceByRelationId,
     visiblePointEntries,
-    candidateConnectionPreview,
   } = geometry;
   const {
     showPoints,
@@ -135,8 +119,6 @@ export const useVisualization = (
     effectiveReferenceElevation,
     occlusionChecksEnabled,
     options,
-    referencePoint,
-    pointRadius,
   } = display;
   const {
     effectiveDistanceToReferenceByPointId,
@@ -149,15 +131,7 @@ export const useVisualization = (
     labelInputPromptPointId,
   } = pointLabels;
   const { moveGizmoPointId, moveGizmoOptions, isMoveGizmoDragging } = editing;
-  const {
-    annotationCursorEnabled,
-    activeCandidateNodeECEF,
-    cursorScreenPosition,
-    activeCandidateNodeSurfaceNormalECEF,
-    activeCandidateNodeVerticalOffsetAnchorECEF,
-    activeToolType,
-    candidatePreviewDistanceMeters,
-  } = candidate;
+  const { annotationCursorEnabled } = candidate;
   const { annotationSelection, rectangleSelection } = selection;
   const {
     interactivePointIds,
@@ -175,14 +149,12 @@ export const useVisualization = (
     requestStartEdit,
   } = annotationEditing;
   const selectedAnnotations = annotationSelection;
-  const isPointMeasurementToolActive = activeToolType === ANNOTATION_TYPE_POINT;
   const showMeasurementGeometry = true;
   const showAnnotationLabels = true;
 
   const markerOnlyOverlayNodeInteractions =
     (annotationCursorEnabled && !isPointMeasureLabelModeActive) ||
     isPointMeasureLabelInputPending;
-  const suppressCandidateLabelOverlay = isPointMeasureLabelModeActive;
   const sceneModels = useSceneModels({
     scene,
     visiblePointEntries,
@@ -190,7 +162,7 @@ export const useVisualization = (
     focusedNodeChainAnnotationId,
     activeNodeChainAnnotationId,
     pointMarkerBadgeByPointId,
-    candidateConnectionPreview,
+    candidateConnectionPreview: null,
     effectiveDistanceRelationsForRendering,
     showMeasurementGeometry,
   });
@@ -247,35 +219,6 @@ export const useVisualization = (
     planarPolygonPrimitives: sceneModels.planarPolygonPrimitives,
   });
 
-  usePointCandidateRingIndicator(
-    scene,
-    {
-      pointECEF: annotationCursorEnabled ? activeCandidateNodeECEF : null,
-      surfaceNormalECEF: annotationCursorEnabled
-        ? activeCandidateNodeSurfaceNormalECEF
-        : null,
-      verticalOffsetAnchorECEF:
-        annotationCursorEnabled && isPointMeasurementToolActive
-          ? activeCandidateNodeVerticalOffsetAnchorECEF
-          : null,
-    },
-    {
-      radius: pointRadius,
-    }
-  );
-
-  useCursorOverlay(annotationCursorEnabled ? cursorScreenPosition : null, {
-    enabled:
-      showPoints &&
-      annotationCursorEnabled &&
-      Boolean(activeCandidateNodeECEF) &&
-      !(
-        annotationCursorEnabled &&
-        isPointMeasurementToolActive &&
-        activeCandidateNodeVerticalOffsetAnchorECEF
-      ),
-  });
-
   const pointLabelData = usePointLabelVisualizer(
     scene,
     [...sceneModels.points],
@@ -319,22 +262,4 @@ export const useVisualization = (
   );
 
   useRectangleSelectionOverlay(scene, pointLabelData, rectangleSelection);
-
-  usePointCandidateDomOverlay(
-    scene,
-    {
-      pointECEF: annotationCursorEnabled ? activeCandidateNodeECEF : null,
-      verticalOffsetAnchorECEF:
-        annotationCursorEnabled && isPointMeasurementToolActive
-          ? activeCandidateNodeVerticalOffsetAnchorECEF
-          : null,
-      previewDistanceMeters: candidatePreviewDistanceMeters,
-      referenceElevation: effectiveReferenceElevation,
-      hasReferenceElevation: Boolean(referencePoint),
-      suppressLabelOverlay: suppressCandidateLabelOverlay,
-    },
-    {
-      labelLayoutConfig: options?.labels,
-    }
-  );
 };

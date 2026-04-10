@@ -1,5 +1,5 @@
 import { COLORS_HEX } from "@carma-commons/utils";
-import { PI_OVER_SIX, PI_OVER_TWO } from "@carma/math";
+import { PI_OVER_SIX, PI_OVER_TWO } from "@carma-commons/math";
 
 import type {
   ResolvedViewStateVisualizerDisplayOptions,

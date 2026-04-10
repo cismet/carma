@@ -1,6 +1,6 @@
 import { Easing, type Easing as EasingFunction } from "@carma-commons/math";
-import { clamp, PI_OVER_TWO } from "@carma/math";
-import { degToRadNumeric } from "@carma/units/helpers";
+import { clamp, PI_OVER_TWO } from "@carma-commons/math";
+import { degToRadNumeric } from "@carma-units";
 
 import type { NavigationNeedleOrientationDeg } from "../contracts";
 const SVG_NS = "http://www.w3.org/2000/svg";

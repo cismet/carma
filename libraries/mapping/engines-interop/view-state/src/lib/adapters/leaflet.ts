@@ -7,10 +7,10 @@ import {
 import {
   getPixelResolutionFromZoomAtLatitudeRad,
   getZoomFromPixelResolutionAtLatitudeRad,
-} from "@carma/geo/utils";
-import { isFiniteNumber } from "@carma/math";
-import { degToRadNumeric, radToDegNumeric } from "@carma/units/helpers";
-import type { Radians } from "@carma/units/types";
+} from "@carma-geo/utils";
+import { isFiniteNumber } from "@carma-commons/math";
+import { degToRadNumeric, radToDegNumeric } from "@carma-units";
+import type { Radians } from "@carma-units";
 
 import { buildViewState } from "../core/construct";
 import {

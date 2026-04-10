@@ -7,7 +7,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { faGripVertical, faX } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
-import type { Layer } from "@carma/types";
+import type { BackgroundLayer, Layer } from "@carma-mapping/layers";
 
 import { removeLayer, setSelectedLayerIndex } from "../../store/slices/mapping";
 import OpacitySlider from "./OpacitySlider";
@@ -21,7 +21,7 @@ import { isAdhocVectorLayer } from "../../helper/adhoc-feature-utils";
 import { cesiumBackgroundlayerNames } from "../../config";
 
 interface LayerRowProps {
-  layer: Layer;
+  layer: Layer | BackgroundLayer;
   id: string;
   isBackgroundLayer?: boolean;
   index: number;

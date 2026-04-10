@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { GroundPrimitive, Scene } from "@carma/cesium";
+import { GroundPrimitive, Scene } from "@carma-cesium";
 
 import {
   CesiumOptions,
@@ -7,7 +7,7 @@ import {
   removeCesiumMarker,
   removeGroundPrimitiveById,
   useCesiumContext,
-} from "@carma-mapping/engines/cesium";
+} from "@carma-mapping/engines/cesium/legacy";
 
 import {
   SelectionMapMode,

@@ -7,18 +7,38 @@ import {
   AnnotationToolbar3D,
   useLocalAnnotationPersistence,
 } from "@carma-mapping/annotations/runtime";
-import { useCesiumLabelOverlayHost } from "@carma-mapping/engines/cesium/react/interactions";
+import {
+  CESIUM_LABEL_OVERLAY_FRAME_PHASES,
+  clearCesiumScenePointerTracker,
+  useCesiumLabelOverlayHost,
+} from "@carma-mapping/engines/cesium/react/interactions";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
-import { type Scene } from "@carma/cesium";
+import { type Scene } from "@carma-cesium";
 
 import type { PlaygroundRuntimePageProps } from "../playground.types";
-import { INFOBOX_WIDTH_PX, readInitialToolType } from "../playgroundConfig";
+import {
+  INFOBOX_WIDTH_PX,
+  PLAYGROUND_FLOATING_OVERLAY_WINDOW_MARGIN_PX,
+  readInitialToolType,
+} from "../playgroundConfig";
 import { CesiumNavigationOverlay } from "./CesiumNavigationOverlay";
 import { CesiumWidgetContainer } from "./CesiumWidgetContainer";
 import { PersistActiveToolMode } from "./PersistActiveToolMode";
-import { PlaygroundStatusBar } from "./PlaygroundStatusBar";
-const RuntimeToolbar = () => (
+
+const clearPlaygroundPointerQueryPreview = (scene: Scene | null) => {
+  if (!scene || scene.isDestroyed()) {
+    return;
+  }
+
+  clearCesiumScenePointerTracker(scene);
+  scene.requestRender();
+};
+
+const RuntimeToolbar = ({ scene }: { scene: Scene | null }) => (
   <div
+    onPointerEnter={() => clearPlaygroundPointerQueryPreview(scene)}
+    onPointerMove={() => clearPlaygroundPointerQueryPreview(scene)}
+    onPointerDown={() => clearPlaygroundPointerQueryPreview(scene)}
     style={{
       position: "absolute",
       top: 12,
@@ -45,12 +65,15 @@ const RuntimeToolbar = () => (
   </div>
 );
 
-const RuntimeInfoBox = () => (
+const RuntimeInfoBox = ({ scene }: { scene: Scene | null }) => (
   <div
+    onPointerEnter={() => clearPlaygroundPointerQueryPreview(scene)}
+    onPointerMove={() => clearPlaygroundPointerQueryPreview(scene)}
+    onPointerDown={() => clearPlaygroundPointerQueryPreview(scene)}
     style={{
       position: "absolute",
-      bottom: 40,
-      right: 12,
+      bottom: PLAYGROUND_FLOATING_OVERLAY_WINDOW_MARGIN_PX,
+      right: PLAYGROUND_FLOATING_OVERLAY_WINDOW_MARGIN_PX,
       zIndex: 1600,
       pointerEvents: "auto",
     }}
@@ -59,24 +82,7 @@ const RuntimeInfoBox = () => (
   </div>
 );
 
-const RuntimeStatusBar = ({
-  runtimeVersion,
-  onRuntimeVersionChange,
-}: Pick<
-  PlaygroundRuntimePageProps,
-  "runtimeVersion" | "onRuntimeVersionChange"
->) => (
-  <PlaygroundStatusBar
-    runtimeVersion={runtimeVersion}
-    onRuntimeVersionChange={onRuntimeVersionChange}
-    label="annotations runtime"
-    values={["runtime-v1", "legacy prototype", "annotations stored locally"]}
-  />
-);
-
 export const AnnotationsRuntimeV1Page = ({
-  runtimeVersion,
-  onRuntimeVersionChange,
   homeCameraState,
 }: PlaygroundRuntimePageProps) => {
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -84,6 +90,8 @@ export const AnnotationsRuntimeV1Page = ({
   const overlayHost = useCesiumLabelOverlayHost({
     scene,
     containerRef: rootRef,
+    forceLayoutOnPortalRender: false,
+    framePhase: CESIUM_LABEL_OVERLAY_FRAME_PHASES.PRE_RENDER,
   });
   const [initialToolType] = useState(() => readInitialToolType());
   const { initialPersistenceState, onPersistenceStateChange } =
@@ -114,12 +122,8 @@ export const AnnotationsRuntimeV1Page = ({
               scene={scene}
               initialHomeCameraState={homeCameraState}
             />
-            <RuntimeToolbar />
-            <RuntimeInfoBox />
-            <RuntimeStatusBar
-              runtimeVersion={runtimeVersion}
-              onRuntimeVersionChange={onRuntimeVersionChange}
-            />
+            <RuntimeToolbar scene={scene} />
+            <RuntimeInfoBox scene={scene} />
           </AnnotationsProvider>
         ) : null}
       </LabelOverlayProvider>

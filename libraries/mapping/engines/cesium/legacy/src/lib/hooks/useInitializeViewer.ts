@@ -5,32 +5,30 @@ import {
   readLongerEdgeFovFromIntrinsics,
   readRangeFromMetersPerCssPixel,
 } from "@carma-commons/camera/model";
-import { getPixelResolutionFromZoomAtLatitudeRad } from "@carma/geo/utils";
+import { getPixelResolutionFromZoomAtLatitudeRad } from "@carma-geo/utils";
 // legacy viewer dependency should be widget only
 // eslint-disable-next-line carma/no-direct-cesium
 import { Viewer } from "cesium";
-
 import {
   Camera,
   Cartesian3,
   Cartographic,
-  CesiumMath,
   Matrix4,
   PerspectiveFrustum,
   Rectangle,
   ScreenSpaceCameraController,
-  colorFromConstructorArgs,
   Color,
   Globe,
   Ellipsoid,
-  waitForRenderFrames,
-} from "@carma/cesium";
-
-import type { Scene } from "@carma/cesium";
+  type Scene,
+  CesiumMath,
+} from "@carma-cesium";
 import {
+  colorFromConstructorArgs,
+  waitForRenderFrames,
   writePerspectiveFrustumLongerEdgeFov,
   writePerspectiveFrustumVerticalFov,
-} from "@carma-mapping/engines/cesium/api";
+} from "@carma-mapping/engines/cesium/core";
 
 import { useCesiumContext } from "./useCesiumContext";
 

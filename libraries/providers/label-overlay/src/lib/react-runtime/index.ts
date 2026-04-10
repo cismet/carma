@@ -8,22 +8,20 @@ export type {
 } from "../host";
 export {
   PointLabel,
+  POINT_LABEL_STYLE,
+  POINT_LABEL_ATTACH,
   POINT_LABEL_TEXT_BACKGROUND_COLOR,
   POINT_LABEL_HOVER_BACKGROUND_COLOR,
   POINT_LABEL_SELECTED_BACKGROUND_COLOR,
+  type PointLabelStyle,
   type PointLabelStyleProps,
 } from "../components/PointLabel";
 export {
-  PointLabelMarker,
-  getPillbuttonAnchorBorderStyle,
-  getPillbuttonAnchorTransform,
-  resolvePillbuttonMountSide,
-  type PillbuttonMountSide,
-} from "../components/PointLabelMarker";
-export {
   PillbuttonLabelMarker,
   PILLBUTTON_BADGE_POSITIONS,
+  resolvePillbuttonLabelMarkerLocalAnchorPoints,
   type PillbuttonBadgePosition,
+  type PillbuttonLabelMarkerAnchorPoints,
   type PillbuttonLabelMarkerProps,
 } from "../components/PillbuttonLabelMarker";
 export {
@@ -36,9 +34,11 @@ export {
   type LineVisualizerProps,
 } from "../components/LineVisualizer";
 export {
-  AnchoredLabelVisualizer,
-  type AnchoredLabelVisualizerProps,
-} from "../components/AnchoredLabelVisualizer";
+  DEFAULT_LINE_LABEL_OFFSET_PX,
+  resolveOverlayLineLabelPlacement,
+  type LineLabelPlacementOptions,
+  type ResolvedLineLabelPlacement,
+} from "../lineLabelPlacement";
 export { usePointLabels, type PointLabelData } from "../usePointLabels";
 export {
   useLineVisualizers,

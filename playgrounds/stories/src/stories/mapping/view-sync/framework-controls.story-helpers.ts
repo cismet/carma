@@ -6,8 +6,8 @@ import {
   type NavigationTransitionOptions,
   type NavigationZoomOptions,
 } from "@carma-mapping/engines-interop/navigation-controls";
-import { degToRadNumeric } from "@carma/units/helpers";
-import type { Seconds } from "@carma/units/types";
+import { degToRadNumeric } from "@carma-units";
+import type { Seconds } from "@carma-units";
 export const ZOOM_DELTA_PRESETS = {
   QUARTER: 0.25,
   THIRD: 1 / 3,
