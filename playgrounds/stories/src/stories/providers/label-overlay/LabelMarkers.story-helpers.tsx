@@ -11,7 +11,6 @@ import {
 
 import { DraggableDebugAnchor } from "@carma-commons/interaction/drag";
 import {
-  PILLBUTTON_LABEL_MARKER_RESIZE_MODE,
   PILLBUTTON_BADGE_POSITIONS,
   PillbuttonLabelMarker,
   PointLabel,
@@ -46,6 +45,16 @@ export type LabelMarkersStoryArgs = {
   badgeBorderColor?: string;
   badgeBorderWidth?: number;
   badgeBorderless?: boolean;
+};
+
+type QualitativePillColorScheme = {
+  id: string;
+  label: string;
+  content: ReactNode;
+  badgeContent: ReactNode;
+  labelBackgroundColor: string;
+  badgeBackgroundColor: string;
+  lineColor: string;
 };
 
 export const LABEL_STORY_BACKGROUND_MODES = {
@@ -84,6 +93,76 @@ const toCssPixelPosition = (x: number, y: number): CssPixelPosition => ({
 });
 
 const LABEL_MARKERS_FONT_FAMILY = annotationTypographyDefaults.fontFamily;
+const REPRESENTATIVE_CONTENT_FONT_WEIGHT = 400;
+const REPRESENTATIVE_BADGE_FONT_WEIGHT =
+  annotationTypographyDefaults.badgeFontWeight;
+const REPRESENTATIVE_TEXT_COLOR = "rgba(248, 250, 252, 0.98)";
+
+const REPRESENTATIVE_DEFAULT_COLOR_SCHEME: QualitativePillColorScheme = {
+  id: "cobalt",
+  label: "Kobalt · Referenz",
+  content: "NHN 179,27 m",
+  badgeContent: "8",
+  labelBackgroundColor: "rgba(30, 64, 175, 0.78)",
+  badgeBackgroundColor: "rgba(30, 58, 138, 0.98)",
+  lineColor: "rgba(147, 197, 253, 0.88)",
+};
+
+const REPRESENTATIVE_SELECTED_COLOR_SCHEME = {
+  labelBackgroundColor: "rgba(8, 47, 73, 0.9)",
+  hoverBackgroundColor: "rgba(14, 116, 144, 0.82)",
+  lineColor: "rgba(125, 211, 252, 0.94)",
+} as const;
+
+const REPRESENTATIVE_QUALITATIVE_COLOR_SCHEMES: readonly QualitativePillColorScheme[] =
+  [
+    REPRESENTATIVE_DEFAULT_COLOR_SCHEME,
+    {
+      id: "teal",
+      label: "Teal · Status",
+      content: "24,41 m über Bezugspunkt",
+      badgeContent: "A",
+      labelBackgroundColor: "rgba(15, 118, 110, 0.78)",
+      badgeBackgroundColor: "rgba(17, 94, 89, 0.98)",
+      lineColor: "rgba(94, 234, 212, 0.86)",
+    },
+    {
+      id: "violet",
+      label: "Violett · Analyse",
+      content: "relative Höhe über Bezugspunkt",
+      badgeContent: "B",
+      labelBackgroundColor: "rgba(109, 40, 217, 0.78)",
+      badgeBackgroundColor: "rgba(91, 33, 182, 0.98)",
+      lineColor: "rgba(196, 181, 253, 0.88)",
+    },
+    {
+      id: "amber",
+      label: "Amber · Hinweis",
+      content: "temporäre Referenzhöhe",
+      badgeContent: "C",
+      labelBackgroundColor: "rgba(146, 64, 14, 0.8)",
+      badgeBackgroundColor: "rgba(120, 53, 15, 0.98)",
+      lineColor: "rgba(251, 191, 36, 0.88)",
+    },
+    {
+      id: "rose",
+      label: "Rose · Prüfung",
+      content: "Prüfung erforderlich",
+      badgeContent: "D",
+      labelBackgroundColor: "rgba(190, 24, 93, 0.78)",
+      badgeBackgroundColor: "rgba(157, 23, 77, 0.98)",
+      lineColor: "rgba(251, 113, 133, 0.88)",
+    },
+  ] as const;
+
+export const REPRESENTATIVE_CASES_STORY_ARGS: Partial<LabelMarkersStoryArgs> = {
+  labelTextColor: REPRESENTATIVE_TEXT_COLOR,
+  labelBackgroundColor: REPRESENTATIVE_DEFAULT_COLOR_SCHEME.labelBackgroundColor,
+  badgeFillColor: REPRESENTATIVE_DEFAULT_COLOR_SCHEME.badgeBackgroundColor,
+  badgeTextColor: REPRESENTATIVE_TEXT_COLOR,
+  badgeBorderColor: REPRESENTATIVE_DEFAULT_COLOR_SCHEME.badgeBackgroundColor,
+  badgeBorderWidth: 1,
+};
 
 const STORY_SECTION_COLUMN_WIDTH = 352;
 const STORY_SECTION_GAP = 24;
@@ -355,11 +434,15 @@ const noopHoverHandler = () => undefined;
 const makeSharedStyleProps = (
   args: LabelMarkersStoryArgs
 ): PointLabelStyleProps => ({
+  fontSize: `${annotationTypographyDefaults.rootFontSizePx}px`,
+  fontFamily: annotationTypographyDefaults.fontFamily,
+  fontWeight: REPRESENTATIVE_CONTENT_FONT_WEIGHT,
   textColor: args.labelTextColor,
   textBackgroundColor: args.labelBackgroundColor,
-  selectedBackgroundColor: "rgba(251, 191, 36, 0.95)",
-  hoverBackgroundColor: "rgba(254, 243, 199, 0.98)",
-  lineColor: "rgba(30, 58, 138, 0.98)",
+  selectedBackgroundColor:
+    REPRESENTATIVE_SELECTED_COLOR_SCHEME.labelBackgroundColor,
+  hoverBackgroundColor: REPRESENTATIVE_SELECTED_COLOR_SCHEME.hoverBackgroundColor,
+  lineColor: REPRESENTATIVE_DEFAULT_COLOR_SCHEME.lineColor,
   lineWidth: 1,
   markerSize: 10,
   markerStrokeWidth: args.badgeBorderWidth ?? 1,
@@ -367,7 +450,6 @@ const makeSharedStyleProps = (
   markerBackgroundColor: args.badgeFillColor,
   markerTextColor: args.badgeTextColor,
   labelDistance: 20,
-  compactBorderless: args.badgeBorderless,
 });
 
 const InlineRow = ({
@@ -647,7 +729,7 @@ const DraggablePillbuttonLabelDemo = ({
       const top = pillRect.top - stageRect.top;
       const left = pillRect.left - stageRect.left;
       const localAnchors = resolvePillbuttonLabelMarkerLocalAnchorPoints({
-        fontSize: pillElement.style.fontSize,
+        heightPx: pillRect.height,
         widthPx: pillRect.width,
       });
       const nextAnchorPoints: AnchorPointMap = {
@@ -808,11 +890,10 @@ const DraggablePillbuttonLabelDemo = ({
   };
 
   const effectiveStyleProps = { ...sharedStyleProps, ...styleOverrides };
-  const badgeBorderStyle = effectiveStyleProps.compactBorderless
-    ? "none"
-    : `${Math.max(effectiveStyleProps.markerStrokeWidth ?? 1, 1)}px solid ${
-        badgeBorderColor ?? "rgba(126, 126, 126, 0.96)"
-      }`;
+  const badgeBorderStyle = `${Math.max(
+    effectiveStyleProps.markerStrokeWidth ?? 1,
+    1
+  )}px solid ${badgeBorderColor ?? "rgba(126, 126, 126, 0.96)"}`;
 
   return (
     <div style={{ ...pillboxDemoViewportStyle, ...viewportStyle }}>
@@ -827,18 +908,17 @@ const DraggablePillbuttonLabelDemo = ({
       >
         <PillbuttonLabelMarker
           pointId={pointId}
-          placement={{
-            attach: labelAttach,
-            offsetX: labelPosition.x,
-            offsetY: labelPosition.y,
-          }}
+          attach={labelAttach}
+          offsetX={labelPosition.x}
+          offsetY={labelPosition.y}
           containerStyle={{
             ...pointLabelBaseStyles,
             border: badgeBorderStyle,
             fontSize: effectiveStyleProps.fontSize ?? "12px",
             fontFamily:
               effectiveStyleProps.fontFamily ?? LABEL_MARKERS_FONT_FAMILY,
-            fontWeight: effectiveStyleProps.fontWeight ?? "400",
+            fontWeight:
+              effectiveStyleProps.fontWeight ?? REPRESENTATIVE_CONTENT_FONT_WEIGHT,
             backgroundColor,
             color: effectiveStyleProps.textColor ?? "#0f172a",
             pointerEvents: "auto",
@@ -848,17 +928,8 @@ const DraggablePillbuttonLabelDemo = ({
             backgroundColor: effectiveStyleProps.markerBackgroundColor,
             color: effectiveStyleProps.markerTextColor,
           }}
-          collapse={false}
           badgeContent={badgeContent}
-          badgeOptions={{
-            position: badgePosition,
-            compactBorderless: effectiveStyleProps.compactBorderless ?? false,
-            fullBorder: false,
-            solidBorderStyle: "none",
-          }}
-          motionOptions={{
-            resizeMode: PILLBUTTON_LABEL_MARKER_RESIZE_MODE.NONE,
-          }}
+          badgePosition={badgePosition}
           content={content}
           onClick={noopMouseEventHandler}
           onDoubleClick={noopMouseEventHandler}
@@ -920,11 +991,10 @@ const StaticAnchoredPillbuttonLabelDemo = ({
   viewportStyle?: CSSProperties;
 }) => {
   const effectiveStyleProps = { ...sharedStyleProps, ...styleOverrides };
-  const badgeBorderStyle = effectiveStyleProps.compactBorderless
-    ? "none"
-    : `${Math.max(effectiveStyleProps.markerStrokeWidth ?? 1, 1)}px solid ${
-        badgeBorderColor ?? "rgba(126, 126, 126, 0.96)"
-      }`;
+  const badgeBorderStyle = `${Math.max(
+    effectiveStyleProps.markerStrokeWidth ?? 1,
+    1
+  )}px solid ${badgeBorderColor ?? "rgba(126, 126, 126, 0.96)"}`;
 
   const anchorHostStyle = readStaticAnchorHostStyle(labelAttach);
 
@@ -935,11 +1005,9 @@ const StaticAnchoredPillbuttonLabelDemo = ({
           <AnchorHairlineDebug visible={showDebugAnchors} />
           <PillbuttonLabelMarker
             pointId={pointId}
-            placement={{
-              attach: labelAttach,
-              offsetX: 0,
-              offsetY: 0,
-            }}
+            attach={labelAttach}
+            offsetX={0}
+            offsetY={0}
             containerStyle={{
               ...pointLabelBaseStyles,
               border: badgeBorderStyle,
@@ -955,19 +1023,11 @@ const StaticAnchoredPillbuttonLabelDemo = ({
             badgeStyle={{
               backgroundColor: effectiveStyleProps.markerBackgroundColor,
               color: effectiveStyleProps.markerTextColor,
+              fontWeight: REPRESENTATIVE_BADGE_FONT_WEIGHT,
             }}
-            collapse={collapse}
             badgeContent={badgeContent}
-            badgeOptions={{
-              position: badgePosition,
-              compactBorderless: effectiveStyleProps.compactBorderless ?? false,
-              fullBorder: false,
-              solidBorderStyle: "none",
-            }}
-            motionOptions={{
-              resizeMode: PILLBUTTON_LABEL_MARKER_RESIZE_MODE.NONE,
-            }}
-            content={content}
+            badgePosition={badgePosition}
+            content={collapse ? undefined : content}
             onClick={noopMouseEventHandler}
             onDoubleClick={noopMouseEventHandler}
             onMouseDown={noopMouseEventHandler}
@@ -1001,55 +1061,50 @@ const InlinePillbuttonLabelDemo = ({
   badgeBorderColor?: string;
 }) => {
   const effectiveStyleProps = { ...sharedStyleProps, ...styleOverrides };
-  const badgeBorderStyle = effectiveStyleProps.compactBorderless
-    ? "none"
-    : `${Math.max(effectiveStyleProps.markerStrokeWidth ?? 1, 1)}px solid ${
-        badgeBorderColor ?? "rgba(126, 126, 126, 0.96)"
-      }`;
+  const badgeBorderStyle = `${Math.max(
+    effectiveStyleProps.markerStrokeWidth ?? 1,
+    1
+  )}px solid ${badgeBorderColor ?? "rgba(126, 126, 126, 0.96)"}`;
 
   return (
-    <PillbuttonLabelMarker
-      pointId={pointId}
-      placement={{
-        attach: POINT_LABEL_ATTACH.LEFT,
-        inline: true,
+    <span
+      style={{
+        position: "relative",
+        display: "inline-flex",
+        overflow: "visible",
       }}
-      containerStyle={{
-        ...INLINE_PILL_LABEL_BASE_STYLES,
-        border: badgeBorderStyle,
-        fontSize: effectiveStyleProps.fontSize ?? "12px",
-        fontFamily: effectiveStyleProps.fontFamily ?? LABEL_MARKERS_FONT_FAMILY,
-        fontWeight: effectiveStyleProps.fontWeight ?? "400",
-        backgroundColor,
-        color: effectiveStyleProps.textColor ?? "#0f172a",
-        pointerEvents: "auto",
-        cursor: "default",
-      }}
-      badgeStyle={{
-        backgroundColor: effectiveStyleProps.markerBackgroundColor,
-        color: effectiveStyleProps.markerTextColor,
-      }}
-      collapse={false}
-      badgeContent={badgeContent}
-      badgeOptions={{
-        position: badgePosition,
-        compactBorderless: effectiveStyleProps.compactBorderless ?? false,
-        fullBorder: effectiveStyleProps.fullBorder ?? false,
-        solidBorderStyle: effectiveStyleProps.fullBorder
-          ? badgeBorderStyle
-          : "none",
-      }}
-      motionOptions={{
-        resizeMode: PILLBUTTON_LABEL_MARKER_RESIZE_MODE.NONE,
-      }}
-      content={content}
-      onClick={noopMouseEventHandler}
-      onDoubleClick={noopMouseEventHandler}
-      onMouseDown={noopMouseEventHandler}
-      onMouseUp={noopMouseEventHandler}
-      onMouseEnter={noopHoverHandler}
-      onMouseLeave={noopHoverHandler}
-    />
+    >
+      <PillbuttonLabelMarker
+        pointId={pointId}
+        attach={POINT_LABEL_ATTACH.LEFT}
+        containerStyle={{
+          ...INLINE_PILL_LABEL_BASE_STYLES,
+          border: badgeBorderStyle,
+          fontSize: effectiveStyleProps.fontSize ?? "12px",
+          fontFamily: effectiveStyleProps.fontFamily ?? LABEL_MARKERS_FONT_FAMILY,
+          fontWeight:
+            effectiveStyleProps.fontWeight ?? REPRESENTATIVE_CONTENT_FONT_WEIGHT,
+          backgroundColor,
+          color: effectiveStyleProps.textColor ?? "#0f172a",
+          pointerEvents: "auto",
+          cursor: "default",
+        }}
+        badgeStyle={{
+          backgroundColor: effectiveStyleProps.markerBackgroundColor,
+          color: effectiveStyleProps.markerTextColor,
+          fontWeight: REPRESENTATIVE_BADGE_FONT_WEIGHT,
+        }}
+        badgeContent={badgeContent}
+        badgePosition={badgePosition}
+        content={content}
+        onClick={noopMouseEventHandler}
+        onDoubleClick={noopMouseEventHandler}
+        onMouseDown={noopMouseEventHandler}
+        onMouseUp={noopMouseEventHandler}
+        onMouseEnter={noopHoverHandler}
+        onMouseLeave={noopHoverHandler}
+      />
+    </span>
   );
 };
 
@@ -1064,7 +1119,6 @@ const StaticPointLabelPreview = ({
   hideMarker,
   labelAttach,
   collapse,
-  forceCollapse,
   sharedStyleProps,
   showDebugAnchors,
 }: {
@@ -1078,7 +1132,6 @@ const StaticPointLabelPreview = ({
   hideMarker: boolean;
   labelAttach: PointLabelAttach;
   collapse: boolean;
-  forceCollapse: boolean;
   sharedStyleProps?: PointLabelStyleProps;
   showDebugAnchors: boolean;
 }) => (
@@ -1097,9 +1150,6 @@ const StaticPointLabelPreview = ({
           hideMarker={hideMarker}
           labelAttach={labelAttach}
           collapse={collapse}
-          forceCollapse={forceCollapse}
-          fullBorder={false}
-          resizeMode={PILLBUTTON_LABEL_MARKER_RESIZE_MODE.NONE}
           {...(sharedStyleProps ?? {})}
         />
       </div>
@@ -1171,9 +1221,6 @@ export const RepresentativeCasesStory = (args: LabelMarkersStoryArgs) => {
     args,
     LABEL_STORY_BACKGROUND_MODES.PLAIN
   );
-  const labelBorderStyle = `${sharedStyleProps.lineWidth ?? 1}px solid ${
-    sharedStyleProps.lineColor ?? "rgba(30, 64, 175, 0.95)"
-  }`;
   const statusValues = [
     `content ${String(args.content)}`,
     `badge ${String(args.badgeContent ?? "7")}`,
@@ -1201,8 +1248,6 @@ export const RepresentativeCasesStory = (args: LabelMarkersStoryArgs) => {
                   attach: POINT_LABEL_ATTACH.LEFT,
                   content: "14,92 m",
                   collapse: false,
-                  fullBorder: false,
-                  compactBorderless: false,
                 },
                 {
                   id: "label-center",
@@ -1210,8 +1255,6 @@ export const RepresentativeCasesStory = (args: LabelMarkersStoryArgs) => {
                   attach: POINT_LABEL_ATTACH.CENTER,
                   content: "392.5px screen distance",
                   collapse: false,
-                  fullBorder: false,
-                  compactBorderless: false,
                 },
                 {
                   id: "label-right-selected",
@@ -1219,9 +1262,6 @@ export const RepresentativeCasesStory = (args: LabelMarkersStoryArgs) => {
                   attach: POINT_LABEL_ATTACH.RIGHT,
                   content: "selected",
                   collapse: false,
-                  fullBorder: true,
-                  compactBorderless: false,
-                  backgroundColor: "rgba(251, 191, 36, 0.95)",
                 },
                 {
                   id: "label-collapsed",
@@ -1229,8 +1269,6 @@ export const RepresentativeCasesStory = (args: LabelMarkersStoryArgs) => {
                   attach: POINT_LABEL_ATTACH.LEFT,
                   content: "14,92 m",
                   collapse: true,
-                  fullBorder: false,
-                  compactBorderless: false,
                   markerContent: args.badgeContent ?? "7",
                 },
               ] as const
@@ -1245,21 +1283,18 @@ export const RepresentativeCasesStory = (args: LabelMarkersStoryArgs) => {
                   content={entry.content}
                   badgeContent={entry.markerContent}
                   backgroundColor={
-                    entry.backgroundColor ??
                     sharedStyleProps.textBackgroundColor ??
-                    "rgba(255, 255, 255, 0.62)"
+                    REPRESENTATIVE_DEFAULT_COLOR_SCHEME.labelBackgroundColor
                   }
                   sharedStyleProps={sharedStyleProps}
                   badgeBorderColor={
-                    sharedStyleProps.lineColor ?? "rgba(30, 64, 175, 0.95)"
+                    args.badgeBorderColor ??
+                    REPRESENTATIVE_DEFAULT_COLOR_SCHEME.badgeBackgroundColor
                   }
                   labelAttach={entry.attach}
                   collapse={entry.collapse}
                   showDebugAnchors={showDebugAnchors}
                   viewportStyle={LABEL_COMPONENT_VIEWPORT_STYLE}
-                  styleOverrides={{
-                    compactBorderless: entry.compactBorderless,
-                  }}
                 />
               </InlineRow>
             ))}
@@ -1333,13 +1368,51 @@ export const RepresentativeCasesStory = (args: LabelMarkersStoryArgs) => {
                   badgePosition={entry.badgePosition}
                   backgroundColor={
                     sharedStyleProps.textBackgroundColor ??
-                    "rgba(255, 255, 255, 0.62)"
+                    REPRESENTATIVE_DEFAULT_COLOR_SCHEME.labelBackgroundColor
                   }
                   sharedStyleProps={sharedStyleProps}
                   badgeBorderColor={
-                    sharedStyleProps.lineColor ?? "rgba(30, 64, 175, 0.95)"
+                    args.badgeBorderColor ??
+                    REPRESENTATIVE_DEFAULT_COLOR_SCHEME.badgeBackgroundColor
                   }
                   labelAttach={entry.attach}
+                  showDebugAnchors={showDebugAnchors}
+                  viewportStyle={LABEL_COMPONENT_VIEWPORT_STYLE}
+                />
+              </InlineRow>
+            ))}
+          </div>
+        </section>
+
+        <section style={sectionStyle}>
+          <div style={sectionTitleStyle}>
+            qualitative hues · selected highlight reserved
+          </div>
+          <div style={sectionMetaStyle}>
+            five coherent dark measurement hues with white text; badge and label share the same hue family, while the selected state keeps a separate highlight palette.
+          </div>
+          <div style={rowListStyle}>
+            {REPRESENTATIVE_QUALITATIVE_COLOR_SCHEMES.map((scheme) => (
+              <InlineRow
+                key={scheme.id}
+                label={scheme.label}
+                graphicStyle={REPRESENTATIVE_ROW_GRAPHIC_STYLE}
+              >
+                <StaticAnchoredPillbuttonLabelDemo
+                  pointId={`pill-scheme-${scheme.id}`}
+                  content={scheme.content}
+                  badgeContent={scheme.badgeContent}
+                  backgroundColor={scheme.labelBackgroundColor}
+                  sharedStyleProps={{
+                    ...sharedStyleProps,
+                    textColor: REPRESENTATIVE_TEXT_COLOR,
+                    textBackgroundColor: scheme.labelBackgroundColor,
+                    markerBackgroundColor: scheme.badgeBackgroundColor,
+                    markerTextColor: REPRESENTATIVE_TEXT_COLOR,
+                    lineColor: scheme.lineColor,
+                  }}
+                  badgeBorderColor={scheme.badgeBackgroundColor}
+                  labelAttach={POINT_LABEL_ATTACH.LEFT}
                   showDebugAnchors={showDebugAnchors}
                   viewportStyle={LABEL_COMPONENT_VIEWPORT_STYLE}
                 />
@@ -1377,7 +1450,6 @@ export const RepresentativeCasesStory = (args: LabelMarkersStoryArgs) => {
                   selected: false,
                   isOccluded: false,
                   collapse: true,
-                  forceCollapse: false,
                   pitch: MINUS_PI_OVER_FOUR,
                   labelAttach: "left" as PointLabelAttach,
                   hideMarker: false,
@@ -1389,7 +1461,6 @@ export const RepresentativeCasesStory = (args: LabelMarkersStoryArgs) => {
                   selected: true,
                   isOccluded: false,
                   collapse: true,
-                  forceCollapse: false,
                   pitch: MINUS_PI_OVER_FOUR,
                   labelAttach: "left" as PointLabelAttach,
                   hideMarker: false,
@@ -1401,7 +1472,6 @@ export const RepresentativeCasesStory = (args: LabelMarkersStoryArgs) => {
                   selected: false,
                   isOccluded: true,
                   collapse: true,
-                  forceCollapse: false,
                   pitch: MINUS_PI_OVER_FOUR,
                   labelAttach: "left" as PointLabelAttach,
                   hideMarker: false,
@@ -1425,7 +1495,6 @@ export const RepresentativeCasesStory = (args: LabelMarkersStoryArgs) => {
                   hideMarker={entry.hideMarker}
                   labelAttach={entry.labelAttach}
                   collapse={entry.collapse}
-                  forceCollapse={entry.forceCollapse}
                   showDebugAnchors={showDebugAnchors}
                 />
               </InlineRow>
@@ -1518,9 +1587,6 @@ export const PillboxOnlyStory = (args: LabelMarkersStoryArgs) => {
           content: args.content,
           backgroundColor:
             sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.62)",
-          sharedStyleOverrides: {
-            compactBorderless: true,
-          },
         },
       ],
     },
@@ -1605,9 +1671,6 @@ export const PillboxOnlyStory = (args: LabelMarkersStoryArgs) => {
             sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.62)",
           badgeContent: "train",
           badgePosition: PILLBUTTON_BADGE_POSITIONS.RIGHT,
-          sharedStyleOverrides: {
-            compactBorderless: true,
-          },
         },
       ],
     },
@@ -1789,7 +1852,6 @@ export const PillboxOnlyStory = (args: LabelMarkersStoryArgs) => {
           sharedStyleOverrides: {
             textColor: "rgba(17, 24, 39, 1)",
             markerTextColor: "rgba(17, 24, 39, 1)",
-            fullBorder: true,
           },
           styleOverrides: {
             fontSize: `${annotationTypographyDefaults.rootFontSizePx}px`,
@@ -1804,7 +1866,6 @@ export const PillboxOnlyStory = (args: LabelMarkersStoryArgs) => {
             sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.62)",
           sharedStyleOverrides: {
             textColor: "rgba(71, 85, 105, 0.8)",
-            fullBorder: true,
           },
           styleOverrides: {
             fontSize: `${annotationTypographyDefaults.supportFontSizePx}px`,

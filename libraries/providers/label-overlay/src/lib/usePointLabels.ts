@@ -8,10 +8,6 @@ import {
   type PointLabelStyleProps,
   type PointLabelStyle,
 } from "./components/PointLabel";
-import {
-  PILLBUTTON_LABEL_MARKER_RESIZE_MODE,
-  type PillbuttonLabelMarkerResizeMode,
-} from "./components/PillbuttonLabelMarker";
 import type {
   PointLabelAnchorKind,
   PointLabelOcclusionMode,
@@ -48,12 +44,8 @@ export interface PointLabelData {
   markerContent?: React.ReactNode;
   markerBackgroundColor?: string;
   markerTextColor?: string;
-  compactBorderless?: boolean;
   labelStyle?: PointLabelStyle;
   collapse?: boolean;
-  forceCollapse?: boolean;
-  fullBorder?: boolean;
-  resizeMode?: PillbuttonLabelMarkerResizeMode;
   content: React.ReactNode;
   contentSignature?: string;
   selected?: boolean;
@@ -131,12 +123,8 @@ const getPointStyleSignature = (
     styleProps?.markerBackgroundColor ?? "",
     styleProps?.markerTextColor ?? "",
     getOverlayReferenceSignature(styleProps?.badgeContent),
-    String(styleProps?.compactBorderless ?? false),
     styleProps?.labelStyle ?? "",
     String(styleProps?.collapse ?? false),
-    String(styleProps?.forceCollapse ?? false),
-    String(styleProps?.fullBorder ?? false),
-    styleProps?.resizeMode ?? PILLBUTTON_LABEL_MARKER_RESIZE_MODE.NONE,
     styleProps?.labelDistance ?? "",
   ].join(":");
 
@@ -157,11 +145,9 @@ const getPointContentSignature = (
     resolvePointNodeContent(point)
   )}:${point.markerBackgroundColor}:${
     point.markerTextColor
-  }:${getOverlayReferenceSignature(resolvePointBadgeContent(point))}:${Boolean(
-    point.compactBorderless
-  )}:${point.labelStyle}:${point.collapse}:${point.forceCollapse}:${
-    point.fullBorder
-  }:${point.resizeMode ?? PILLBUTTON_LABEL_MARKER_RESIZE_MODE.NONE}:${
+  }:${getOverlayReferenceSignature(resolvePointBadgeContent(point))}:${
+    point.labelStyle
+  }:${point.collapse}:${
     point.markerCursor ?? ""
   }:${point.labelCursor ?? ""}:${point.textColor ?? ""}:${
     point.textBackgroundColor ?? ""
@@ -314,12 +300,8 @@ export const usePointLabels = (
           markerBackgroundColor: point.markerBackgroundColor,
           markerTextColor: point.markerTextColor,
           badgeContent: resolvePointBadgeContent(point),
-          compactBorderless: point.compactBorderless,
           labelStyle: point.labelStyle,
           collapse: point.collapse,
-          forceCollapse: point.forceCollapse,
-          fullBorder: point.fullBorder,
-          resizeMode: point.resizeMode,
           content: point.content,
           selected: point.selected,
           isOccluded: point.isOccluded,

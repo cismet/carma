@@ -18,22 +18,11 @@ export {
 } from "../components/PointLabel";
 export {
   PillbuttonLabelMarker,
-  PILLBUTTON_LABEL_MARKER_RESIZE_MODE,
   PILLBUTTON_BADGE_POSITIONS,
-  pillbuttonLabelMarkerBadgeDefaults,
-  pillbuttonLabelMarkerMotionDefaults,
-  resolvePillbuttonLabelMarkerBadgeOptions,
   resolvePillbuttonLabelMarkerLocalAnchorPoints,
-  resolvePillbuttonLabelMarkerMotionOptions,
-  resolvePillbuttonLabelMarkerPlacedAnchorPoints,
   type PillbuttonBadgePosition,
   type PillbuttonLabelMarkerAnchorPoints,
-  type PillbuttonLabelMarkerBadgeOptions,
-  type PillbuttonLabelMarkerLayoutMetrics,
-  type PillbuttonLabelMarkerPlacement,
-  type PillbuttonLabelMarkerMotionOptions,
   type PillbuttonLabelMarkerProps,
-  type PillbuttonLabelMarkerResizeMode,
 } from "../components/PillbuttonLabelMarker";
 export {
   PointLabelStem,
@@ -44,10 +33,6 @@ export {
   LineVisualizer,
   type LineVisualizerProps,
 } from "../components/LineVisualizer";
-export {
-  AnchoredLineLabel,
-  type AnchoredLineLabelProps,
-} from "../components/AnchoredLineLabel";
 export {
   DEFAULT_LINE_LABEL_OFFSET_PX,
   resolveOverlayLineLabelPlacement,

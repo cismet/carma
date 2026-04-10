@@ -1211,14 +1211,15 @@ export const usePointLabelVisualizer = (
               pointMarkerBadge.text
             )
           : labelTextRepresentation.layoutText;
-      const forceCollapseToCompactByLayout =
+      const compactOnlyByLayout =
         collapsedByLayout &&
         !isAnnotationMarker &&
         Boolean(fallbackBadgeContent);
-      const forceCollapseToCompactByAnchor =
+      const compactOnlyByAnchor =
         declaredCollapseToCompact &&
         !isAnnotationMarker &&
         Boolean(fallbackBadgeContent);
+      const useCompactOnlyContent = compactOnlyByLayout || compactOnlyByAnchor;
       const collapseByLegacyRules =
         !hasDeclaredLabelAnchor &&
         !isPolylineLabelPoint &&
@@ -1244,6 +1245,13 @@ export const usePointLabelVisualizer = (
       const canDirectPlaneDrag = Boolean(
         dragPlane && hasPointPlaneDragPositionChangeHandler
       );
+      const pointLabelContent = useMarkerLabel
+        ? useCompactOnlyContent
+          ? fallbackBadgeContent ?? extendedLabelContent
+          : extendedLabelContent
+        : inlineLabelBadgeContent ??
+          labelTextRepresentation.content ??
+          labelTextRepresentation.layoutText;
 
       return {
         id: point.id,
@@ -1267,11 +1275,7 @@ export const usePointLabelVisualizer = (
           (!forceVisibleDraftOverlay &&
             (layoutResult.hiddenByLayout.has(point.id) ||
               Boolean(hiddenPointLabelIds?.has(point.id)))),
-        content: useMarkerLabel
-          ? extendedLabelContent
-          : inlineLabelBadgeContent ??
-            labelTextRepresentation.content ??
-            labelTextRepresentation.layoutText,
+        content: pointLabelContent,
         contentSignature: inlineLabelBadgeContent
           ? `${pointMarkerBadge?.text ?? ""}:${
               labelTextRepresentation.layoutText
@@ -1288,21 +1292,12 @@ export const usePointLabelVisualizer = (
         textColor: resolvedPointLabelTextColor,
         textBackgroundColor: resolvedPointLabelBackgroundColor,
         badgeContent: useMarkerLabel ? fallbackBadgeContent : undefined,
-        compactBorderless:
-          useMarkerLabel &&
-          (compactAreaBadgeWithoutOutline || isPreviewLabelPoint),
         labelStyle: useMarkerLabel ? "capsule" : "auto",
         collapse:
           useMarkerLabel &&
           (declaredCollapseToCompact ||
             collapseByLegacyRules ||
             isPolylineLabelPoint),
-        forceCollapse:
-          forceCollapseToCompactByLayout || forceCollapseToCompactByAnchor,
-        fullBorder:
-          useMarkerLabel &&
-          !useBorderlessExtendedLabel &&
-          isDistanceMetricPoint,
         markerInnerScale: isEditingPoint
           ? editingPointIsDragging
             ? EDITING_POINT_MARKER_INNER_SCALE_DRAGGING

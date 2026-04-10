@@ -2,6 +2,7 @@ import type {
   RuntimeMeasurement,
   RuntimeNode,
 } from "../../context/AnnotationsProvider";
+import { annotationTypographyDefaults } from "../../config/annotationTypographyDefaults";
 import type {
   RuntimeEdgeRenderModel,
   RuntimePointLabelRenderModel,
@@ -156,8 +157,12 @@ export const buildDistanceToolRenderModels = ({
           markerPixelSize: pointVisuals.pixelSize,
           content: badgeText,
           badgeContent: badgeText,
+          collapse: true,
           markerBackgroundColor: badgeStyle.backgroundColor,
           markerTextColor: badgeStyle.textColor,
+          fontSize: `${annotationTypographyDefaults.rootFontSizePx}px`,
+          fontFamily: annotationTypographyDefaults.fontFamily,
+          fontWeight: annotationTypographyDefaults.lineLabelFontWeight,
           selected: selectedMeasurementIdSet.has(measurement.id),
           onClick: onMeasurementSelect
             ? () => onMeasurementSelect(measurement.id)

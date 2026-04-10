@@ -199,9 +199,6 @@ const SlotCanvas = ({
             hideMarker
             labelStyle="capsule"
             collapse={!expanded}
-            forceCollapse={!expanded}
-            compactBorderless
-            fullBorder={false}
             labelAttach="center"
             labelAngleRad={0}
             labelDistance={0}
@@ -213,7 +210,6 @@ const SlotCanvas = ({
             hoverBackgroundColor={SLOT_DEMO_COLORS.aggregateHoverFill}
             markerBackgroundColor={SLOT_DEMO_COLORS.aggregateFill}
             markerTextColor={SLOT_DEMO_COLORS.aggregateText}
-            resizeMode="snappy"
             transitionDurationMs={POINT_LABEL_TRANSITION_MS}
             onClick={() => setExpanded((previous) => !previous)}
           />
@@ -251,9 +247,6 @@ const SlotCanvas = ({
                 hideMarker
                 labelStyle="capsule"
                 collapse={!expanded}
-                forceCollapse={!expanded}
-                compactBorderless
-                fullBorder={false}
                 labelAttach={resolvedAttach}
                 labelAngleRad={slot.angleRad}
                 labelDistance={expanded ? FLYOUT_LABEL_DISTANCE_OFFSET_PX : 0}
@@ -265,7 +258,6 @@ const SlotCanvas = ({
                 hoverBackgroundColor={SLOT_DEMO_COLORS.flyoutHoverFill}
                 markerBackgroundColor={SLOT_DEMO_COLORS.flyoutSelectedFill}
                 markerTextColor={SLOT_DEMO_COLORS.flyoutText}
-                resizeMode="snappy"
                 transitionDurationMs={POINT_LABEL_TRANSITION_MS}
               />
             </div>

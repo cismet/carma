@@ -95,7 +95,8 @@ export const buildPointToolRenderModels = ({
         return [];
       }
       const pointNodeId = measurement.nodeIds[0] ?? null;
-      const pointVisuals = selectedMeasurementIdSet.has(measurement.id)
+      const isSelected = selectedMeasurementIdSet.has(measurement.id);
+      const pointVisuals = isSelected
         ? visuals.selectedPoint
         : visuals.point;
 
@@ -120,9 +121,11 @@ export const buildPointToolRenderModels = ({
           badgeContent: badgeText,
           markerBackgroundColor: badgeStyle.backgroundColor,
           markerTextColor: badgeStyle.textColor,
-          selected: selectedMeasurementIdSet.has(measurement.id),
+          selected: isSelected,
           onClick: () => {
-            onMeasurementLabelClick(measurement.id);
+            if (isSelected) {
+              onMeasurementLabelClick(measurement.id);
+            }
             onMeasurementSelect(measurement.id);
           },
           onDoubleClick: () => {

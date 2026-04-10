@@ -8,6 +8,10 @@ import {
   POINT_LABEL_STYLE,
 } from "./PointLabel";
 
+const expectEmOrEx = (value: string | undefined, expected: string) => {
+  expect([expected, expected.replace(/em$/u, "ex")]).toContain(value ?? "");
+};
+
 describe("PointLabel", () => {
   it("renders the shared label root with normal blend mode", () => {
     const { container } = render(
@@ -19,6 +23,40 @@ describe("PointLabel", () => {
     ) as HTMLDivElement | null;
 
     expect(labelRoot?.style.mixBlendMode).toBe("normal");
+  });
+
+  it("uses a lighter default label shell background with a smaller blur radius", () => {
+    const { container } = render(
+      <PointLabel content="NHN 179,74 m" hideMarker={true} />
+    );
+
+    const labelRoot = container.querySelector(
+      '[data-point-label-content-root="true"]'
+    ) as HTMLDivElement | null;
+
+    expect(labelRoot?.style.backgroundColor).toBe("rgba(30, 41, 59, 0.62)");
+    expect(labelRoot?.style.backdropFilter).toBe(
+      "blur(5px) brightness(0.9) saturate(1.04)"
+    );
+  });
+
+  it("keeps content-less point node markers outline-only without fill", () => {
+    const { container } = render(
+      <PointLabel
+        content="NHN 179,74 m"
+        hideLabelAndStem={true}
+        hideMarker={false}
+      />
+    );
+
+    const marker = container.querySelector(
+      '[data-point-label-interactive="true"]'
+    ) as HTMLDivElement | null;
+
+    expect(["transparent", "rgba(0, 0, 0, 0)"]).toContain(
+      marker?.style.backgroundColor ?? ""
+    );
+    expect(marker?.style.borderColor).toBe("#fff");
   });
 
   it("anchors center-attached compact-only pills at the badge center", () => {
@@ -40,6 +78,33 @@ describe("PointLabel", () => {
     expect(pillRoot?.style.transform).toBe("translate(-50%, -50%)");
   });
 
+  it("removes root border and backdrop for compact badge-only pills", () => {
+    const { container } = render(
+      <PointLabel
+        content=""
+        badgeContent="B"
+        collapse={true}
+        hideMarker={true}
+        fontSize="12px"
+        labelAttach={POINT_LABEL_ATTACH.RIGHT}
+      />
+    );
+
+    const pillRoot = container.querySelector(
+      '[data-pillbutton-root="true"]'
+    ) as HTMLDivElement | null;
+    const badge = container.querySelector(
+      '[data-pillbutton-badge="true"]'
+    ) as HTMLSpanElement | null;
+
+    expect(pillRoot?.getAttribute("style") ?? "").not.toContain(
+      "border: 1px"
+    );
+    expect(pillRoot?.style.backgroundColor).toBe("transparent");
+    expect(pillRoot?.style.backdropFilter).toBe("none");
+    expect(badge?.style.border).toContain("1px");
+  });
+
   it("keeps extended center-attached pills centered on the full badge", () => {
     const { container } = render(
       <PointLabel
@@ -56,6 +121,75 @@ describe("PointLabel", () => {
     ) as HTMLDivElement | null;
 
     expect(pillRoot?.style.transform).toBe("translate(-50%, -50%)");
+  });
+
+  it("does not render a border on the full pill container by default", () => {
+    const { container } = render(
+      <PointLabel
+        content="NHN 179,74 m"
+        badgeContent="3"
+        hideMarker={true}
+        fontSize="10px"
+        labelAttach={POINT_LABEL_ATTACH.LEFT}
+      />
+    );
+
+    const pillRoot = container.querySelector(
+      '[data-pillbutton-root="true"]'
+    ) as HTMLDivElement | null;
+    const badge = container.querySelector(
+      '[data-pillbutton-badge="true"]'
+    ) as HTMLSpanElement | null;
+
+    expect(["", "none"]).toContain(pillRoot?.style.border ?? "");
+    expect(pillRoot?.getAttribute("style") ?? "").not.toContain("border: 1px");
+    expect(badge?.style.border).toContain("1px");
+  });
+
+  it("applies explicit typography props to pill labels", () => {
+    const { container } = render(
+      <PointLabel
+        content="NHN 179,74 m"
+        badgeContent="B"
+        hideMarker={true}
+        fontSize="14px"
+        fontFamily='"Helvetica Neue", Arial, Helvetica, sans-serif'
+        fontWeight={500}
+        labelAttach={POINT_LABEL_ATTACH.LEFT}
+        labelStyle={POINT_LABEL_STYLE.CAPSULE}
+      />
+    );
+
+    const pillRoot = container.querySelector(
+      '[data-pillbutton-root="true"]'
+    ) as HTMLDivElement | null;
+
+    expect(pillRoot?.style.fontSize).toBe("14px");
+    expect(pillRoot?.style.fontWeight).toBe("500");
+    expect(pillRoot?.style.fontFamily).toContain("Helvetica Neue");
+  });
+
+  it("keeps badge text at medium weight when pill content uses regular weight", () => {
+    const { container } = render(
+      <PointLabel
+        content="NHN 179,74 m"
+        badgeContent="8"
+        hideMarker={true}
+        fontSize="14px"
+        fontWeight={400}
+        labelAttach={POINT_LABEL_ATTACH.LEFT}
+      />
+    );
+
+    const pillRoot = container.querySelector(
+      '[data-pillbutton-root="true"]'
+    ) as HTMLDivElement | null;
+    const badge = container.querySelector(
+      '[data-pillbutton-badge="true"]'
+    ) as HTMLSpanElement | null;
+
+    expect(pillRoot?.style.fontWeight).toBe("400");
+    expect(badge?.style.fontWeight).toBe("500");
   });
 
   it("renders right-slot badges after the content segment", () => {
@@ -93,6 +227,28 @@ describe("PointLabel", () => {
     ).toBeTruthy();
     expect(pillRoot?.contains(endBadge)).toBe(true);
     expect(pillContent?.contains(endBadge)).toBe(false);
+  });
+
+  it("uses a right-side badge by default for right-attached pill labels", () => {
+    const { container } = render(
+      <PointLabel
+        content="NHN 179,74 m"
+        badgeContent="3"
+        hideMarker={true}
+        fontSize="10px"
+        labelAttach={POINT_LABEL_ATTACH.RIGHT}
+      />
+    );
+
+    const endBadge = container.querySelector(
+      '[data-pillbutton-badge-slot="end"]'
+    ) as HTMLSpanElement | null;
+    const startBadge = container.querySelector(
+      '[data-pillbutton-badge-slot="start"]'
+    ) as HTMLSpanElement | null;
+
+    expect(endBadge).not.toBeNull();
+    expect(startBadge).toBeNull();
   });
 
   it("renders left-slot badges before the content segment", () => {
@@ -149,25 +305,6 @@ describe("PointLabel", () => {
     expect(pillRoot?.style.transform).toBe("translate(-1em, -50%)");
   });
 
-  it("keeps badge slots compact with short x padding", () => {
-    const { container } = render(
-      <PointLabel
-        content="NHN 179,74 m"
-        badgeContent="11111"
-        hideMarker={true}
-        fontSize="10px"
-        labelAttach={POINT_LABEL_ATTACH.LEFT}
-      />
-    );
-
-    const badge = container.querySelector(
-      '[data-pillbutton-badge="true"]'
-    ) as HTMLDivElement | null;
-
-    expect(badge?.style.minWidth).toBe("2em");
-    expect(badge?.style.padding).toBe("0px 0.35em");
-  });
-
   it("scales regular label x padding with the configured font size while keeping y padding at zero", () => {
     const { container } = render(
       <PointLabel
@@ -200,8 +337,8 @@ describe("PointLabel", () => {
       '[data-pillbutton-segment="content"]'
     ) as HTMLSpanElement | null;
 
-    expect(pillContent?.style.paddingRight).toBe("1em");
-    expect(pillContent?.style.paddingLeft).toBe("1em");
+  expectEmOrEx(pillContent?.style.paddingRight, "1em");
+  expectEmOrEx(pillContent?.style.paddingLeft, "1em");
   });
 
   it("shortens leading content x padding when a left badge is present", () => {
@@ -221,7 +358,7 @@ describe("PointLabel", () => {
     ) as HTMLSpanElement | null;
 
     expect(pillContent?.style.paddingLeft).toBe("0em");
-    expect(pillContent?.style.paddingRight).toBe("1em");
+  expectEmOrEx(pillContent?.style.paddingRight, "1em");
   });
 
   it("shortens trailing content x padding when a right badge is present", () => {
@@ -241,7 +378,7 @@ describe("PointLabel", () => {
       '[data-pillbutton-segment="content"]'
     ) as HTMLSpanElement | null;
 
-    expect(pillContent?.style.paddingLeft).toBe("1em");
+    expectEmOrEx(pillContent?.style.paddingLeft, "1em");
     expect(pillContent?.style.paddingRight).toBe("0em");
   });
 

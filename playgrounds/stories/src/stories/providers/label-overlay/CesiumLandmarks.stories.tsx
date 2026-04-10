@@ -1061,16 +1061,18 @@ const CesiumLandmarksOverlay = ({
     () =>
       displayEntries.map((entry) => {
         const placement = layoutResult.placements[entry.id];
+        const collapseToCompact =
+          entry.forceCompact || layoutResult.collapsedToCompact.has(entry.id);
+
         return {
           id: entry.id,
-          content: entry.content,
+          content:
+            collapseToCompact && entry.badgeContent
+              ? entry.badgeContent
+              : entry.content,
           badgeContent: entry.badgeContent,
           selected: entry.selected,
-          collapse:
-            entry.forceCompact || layoutResult.collapsedToCompact.has(entry.id),
-          forceCollapse:
-            entry.forceCompact || layoutResult.collapsedToCompact.has(entry.id),
-          fullBorder: entry.selected,
+          collapse: collapseToCompact,
           labelStyle: "capsule" as const,
           anchorKind: entry.anchorKind,
           occlusionMode: entry.occlusionMode,

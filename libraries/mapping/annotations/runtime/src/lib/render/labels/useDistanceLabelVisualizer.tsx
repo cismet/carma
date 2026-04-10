@@ -222,7 +222,7 @@ export const useDistanceLabelVisualizer = (
           textBackgroundColor: POINT_LABEL_TEXT_BACKGROUND_COLOR,
           selectedBackgroundColor: POINT_LABEL_SELECTED_BACKGROUND_COLOR,
           hoverBackgroundColor: POINT_LABEL_HOVER_BACKGROUND_COLOR,
-          fullBorder: true,
+          labelStyle: "capsule",
         }),
         visible: true,
         isHidden: isHiddenByLayout,

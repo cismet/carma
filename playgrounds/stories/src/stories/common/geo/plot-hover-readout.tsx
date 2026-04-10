@@ -1,7 +1,6 @@
 import { type CSSProperties, type ReactNode } from "react";
 
 import {
-  PILLBUTTON_LABEL_MARKER_RESIZE_MODE,
   PILLBUTTON_BADGE_POSITIONS,
   PillbuttonLabelMarker,
   POINT_LABEL_ATTACH,
@@ -345,11 +344,9 @@ export const PlotHoverReadout = ({
                   }}
                 >
                   <PillbuttonLabelMarker
-                    placement={{
-                      attach,
-                      offsetX: anchorLocalX,
-                      offsetY: anchorLocalY,
-                    }}
+                    attach={attach}
+                    offsetX={anchorLocalX}
+                    offsetY={anchorLocalY}
                     containerStyle={{
                       ...PILL_BASE_STYLES,
                       border: "none",
@@ -360,14 +357,6 @@ export const PlotHoverReadout = ({
                       color: "#334155",
                       pointerEvents: "none",
                       cursor: "default",
-                    }}
-                    collapse={false}
-                    badgeOptions={{
-                      compactBorderless: true,
-                      fullBorder: false,
-                    }}
-                    motionOptions={{
-                      resizeMode: PILLBUTTON_LABEL_MARKER_RESIZE_MODE.NONE,
                     }}
                     content={label.text}
                     onClick={noopMouseEventHandler}
@@ -404,22 +393,22 @@ export const PlotHoverReadout = ({
             }}
           >
             <PillbuttonLabelMarker
-              placement={{
-                attach:
-                  tooltip.anchorAttach ??
-                  (tooltip.onClose
-                    ? POINT_LABEL_ATTACH.RIGHT
-                    : POINT_LABEL_ATTACH.CENTER),
-                offsetX:
-                  tooltip.anchorAttach === POINT_LABEL_ATTACH.LEFT
-                    ? 0
-                    : tooltip.anchorAttach === POINT_LABEL_ATTACH.RIGHT
-                    ? tooltip.width
-                    : tooltip.onClose
-                    ? tooltip.width
-                    : tooltip.width * 0.5,
-                offsetY: tooltip.height * 0.5,
-              }}
+              attach={
+                tooltip.anchorAttach ??
+                (tooltip.onClose
+                  ? POINT_LABEL_ATTACH.RIGHT
+                  : POINT_LABEL_ATTACH.CENTER)
+              }
+              offsetX={
+                tooltip.anchorAttach === POINT_LABEL_ATTACH.LEFT
+                  ? 0
+                  : tooltip.anchorAttach === POINT_LABEL_ATTACH.RIGHT
+                  ? tooltip.width
+                  : tooltip.onClose
+                  ? tooltip.width
+                  : tooltip.width * 0.5
+              }
+              offsetY={tooltip.height * 0.5}
               containerStyle={{
                 ...PILL_BASE_STYLES,
                 border: "none",
@@ -437,18 +426,10 @@ export const PlotHoverReadout = ({
                   : undefined,
                 color: tooltip.onClose ? "#ffffff" : undefined,
               }}
-              collapse={false}
               badgeContent={tooltip.onClose ? CLOSE_BADGE_CONTENT : undefined}
-              badgeOptions={{
-                position: tooltip.onClose
-                  ? PILLBUTTON_BADGE_POSITIONS.RIGHT
-                  : undefined,
-                compactBorderless: false,
-                fullBorder: false,
-              }}
-              motionOptions={{
-                resizeMode: PILLBUTTON_LABEL_MARKER_RESIZE_MODE.NONE,
-              }}
+              badgePosition={
+                tooltip.onClose ? PILLBUTTON_BADGE_POSITIONS.RIGHT : undefined
+              }
               content={
                 <span style={{ fontSize: `${PILL_FONT_SIZE_PX}px` }}>
                   {tooltip.children}

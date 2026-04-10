@@ -4,6 +4,7 @@ import {
   LABEL_MARKERS_DEFAULT_ARGS,
   LABEL_MARKERS_PARAMETERS,
   PillboxOnlyStory,
+  REPRESENTATIVE_CASES_STORY_ARGS,
   RepresentativeCasesStory,
 } from "./LabelMarkers.story-helpers";
 
@@ -21,6 +22,9 @@ export default meta;
 
 export const RepresentativeCases = {
   name: "Representative Cases",
+  args: {
+    ...REPRESENTATIVE_CASES_STORY_ARGS,
+  },
   render: (args) => <RepresentativeCasesStory {...args} />,
 };
 

@@ -102,7 +102,9 @@ const getPointLabelContentKey = (
     `${label.markerTextColor ?? ""}`,
     `${label.labelStyle ?? ""}`,
     `${label.collapse ?? false}`,
-    `${label.forceCollapse ?? false}`,
+    `${label.fontSize ?? ""}`,
+    `${label.fontFamily ?? ""}`,
+    `${label.fontWeight ?? ""}`,
     `${label.coordinateSelection ?? ""}`,
     `${label.coordinateCandidates?.length ?? 0}`,
     String(label.content),
@@ -660,9 +662,11 @@ export const useRuntimePointLabelVisualizer = ({
             markerTextColor={label.markerTextColor}
             labelStyle={label.labelStyle}
             collapse={label.collapse}
-            forceCollapse={label.forceCollapse}
             textBackgroundColor={label.textBackgroundColor}
             textColor={label.textColor}
+            fontSize={label.fontSize}
+            fontFamily={label.fontFamily}
+            fontWeight={label.fontWeight}
             onClick={blockLabelInteractions ? undefined : label.onClick}
             onDoubleClick={
               blockLabelInteractions ? undefined : label.onDoubleClick

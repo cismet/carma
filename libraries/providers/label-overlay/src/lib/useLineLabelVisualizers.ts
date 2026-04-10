@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef } from "react";
 
-import { AnchoredLineLabel } from "./components/AnchoredLineLabel";
 import {
   resolveOverlayLineLabelPlacement,
   type LineLabelPlacementOptions,
@@ -8,6 +7,7 @@ import {
 import type { LineVisualizerData } from "./lineVisualizers.types";
 import { useLabelOverlay } from "./useLabelOverlay";
 import { createSvgLineScratch, resolveSvgLine } from "./utils/resolveSvgLine";
+
 const DEFAULT_MIN_LABEL_LINE_LENGTH_PX = 50;
 const LABEL_MIN_PADDING_PX = 6;
 const LINE_LABEL_OVERLAY_Z_INDEX = 6;
@@ -15,6 +15,13 @@ const LABEL_SIDE_HYSTERESIS_PX = 1.5;
 const LABEL_POSITION_STABILITY_EPSILON_PX = 0.85;
 const LABEL_ANGLE_STABILITY_EPSILON_DEG = 0.75;
 const LABEL_VISIBILITY_HYSTERESIS_PX = 2;
+const DEFAULT_LINE_LABEL_COLOR = "#000000";
+const DEFAULT_LINE_LABEL_STROKE = "rgba(255, 255, 255, 0.95)";
+const DEFAULT_LINE_LABEL_FONT_SIZE_PX = 12;
+const DEFAULT_LINE_LABEL_FONT_FAMILY = "Arial, sans-serif";
+const DEFAULT_LINE_LABEL_FONT_WEIGHT = "400";
+const DEFAULT_LINE_LABEL_PILL_BACKGROUND_COLOR = "rgba(200, 200, 200, 0.36)";
+const DEFAULT_LINE_LABEL_PILL_BORDER_COLOR = "rgba(255, 255, 255, 0.28)";
 
 const overlayReferenceIdByValue = new WeakMap<object, number>();
 let nextOverlayReferenceId = 1;
@@ -42,6 +49,65 @@ const getOverlayReferenceSignature = (value: unknown): string => {
 const getLineLabelOverlayId = (lineId: string): string =>
   `line-label-visualizer-${lineId}`;
 
+const buildLineLabelTextShadow = (strokeColor: string): string =>
+  [`0 1px 2px rgba(0, 0, 0, 0.68)`, `0 0 10px ${strokeColor}`].join(", ");
+
+const createLineLabelOverlayContent = (line: LineVisualizerData) => {
+  const color = line.labelColor ?? DEFAULT_LINE_LABEL_COLOR;
+  const stroke = line.labelStroke ?? DEFAULT_LINE_LABEL_STROKE;
+  const fontSizePx = line.labelFontSize ?? DEFAULT_LINE_LABEL_FONT_SIZE_PX;
+  const fontFamily = line.labelFontFamily ?? DEFAULT_LINE_LABEL_FONT_FAMILY;
+  const fontWeight = line.labelFontWeight ?? DEFAULT_LINE_LABEL_FONT_WEIGHT;
+  const showPill = Boolean(line.labelPill && line.labelText);
+  const pillBackgroundColor =
+    line.labelPillBackgroundColor ?? DEFAULT_LINE_LABEL_PILL_BACKGROUND_COLOR;
+  const pillBorderColor =
+    line.labelPillBorderColor ?? DEFAULT_LINE_LABEL_PILL_BORDER_COLOR;
+  const pillBorderWidth = line.labelPillBorderWidth ?? 0;
+
+  return React.createElement(
+    "div",
+    {
+      "data-anchored-line-label-root": "true",
+      style: {
+        position: "absolute",
+        left: 0,
+        top: 0,
+        transform: "translate(-50%, -50%)",
+        transformOrigin: "center center",
+        whiteSpace: "nowrap",
+        lineHeight: 1,
+        userSelect: "none",
+        pointerEvents: "none",
+      },
+    },
+    React.createElement(
+      "span",
+      {
+        "data-anchored-line-label-text": "true",
+        style: {
+          display: "inline-block",
+          color,
+          fontSize: `${fontSizePx}px`,
+          fontFamily,
+          fontWeight,
+          lineHeight: 1,
+          textShadow: buildLineLabelTextShadow(stroke),
+          padding: showPill ? "3px 8px" : "0px",
+          borderRadius: showPill ? "999px" : "0px",
+          backgroundColor: showPill ? pillBackgroundColor : "transparent",
+          border:
+            showPill && pillBorderWidth > 0
+              ? `${pillBorderWidth}px solid ${pillBorderColor}`
+              : "none",
+          boxSizing: "border-box",
+        },
+      },
+      line.labelText
+    )
+  );
+};
+
 const buildLineLabelSignature = (line: LineVisualizerData): string => {
   const tokens = [
     line.id,
@@ -55,6 +121,8 @@ const buildLineLabelSignature = (line: LineVisualizerData): string => {
     `${line.labelFontWeight}`,
     `${line.labelPill ?? false}`,
     `${line.labelPillBackgroundColor ?? ""}`,
+    `${line.labelPillBorderColor ?? ""}`,
+    `${line.labelPillBorderWidth ?? ""}`,
     `${line.labelMinLineLengthPx}`,
     `${line.labelOffsetPx}`,
     `${line.labelFlippedBaselineOffsetPx ?? ""}`,
@@ -197,6 +265,7 @@ export const useLineLabelVisualizers = (
     const nextLabelSignatureById = new Map<string, string>();
     lineIndexById.forEach((line, lineId) => {
       const labelOverlayId = getLineLabelOverlayId(line.id);
+      const labelClickHandler = line.onLabelClick ?? line.onLineClick;
       if (!line.labelText) {
         removeLabelOverlayElement(labelOverlayId);
         return;
@@ -210,6 +279,8 @@ export const useLineLabelVisualizers = (
         updateLabelOverlayElement(labelOverlayId, {
           visible: line.visible !== false,
           isHidden: line.isHidden,
+          onClick: labelClickHandler,
+          cursor: labelClickHandler ? "pointer" : undefined,
           updatePosition: buildLineLabelOverlayUpdatePosition(line),
         });
         return;
@@ -219,19 +290,11 @@ export const useLineLabelVisualizers = (
         id: labelOverlayId,
         zIndex: LINE_LABEL_OVERLAY_Z_INDEX,
         contentKey: nextLabelSignature,
-        content: React.createElement(AnchoredLineLabel, {
-          text: line.labelText,
-          color: line.labelColor,
-          stroke: line.labelStroke,
-          fontSize: line.labelFontSize,
-          fontFamily: line.labelFontFamily,
-          fontWeight: line.labelFontWeight,
-          pill: line.labelPill,
-          pillBackgroundColor: line.labelPillBackgroundColor,
-          onClick: line.onLabelClick ?? line.onLineClick,
-        }),
+        content: createLineLabelOverlayContent(line),
         visible: line.visible !== false,
         isHidden: line.isHidden,
+        onClick: labelClickHandler,
+        cursor: labelClickHandler ? "pointer" : undefined,
         updatePosition: buildLineLabelOverlayUpdatePosition(line),
       });
     });

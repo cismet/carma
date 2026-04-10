@@ -226,7 +226,6 @@ export const buildNodeChainAreaToolRenderModels = ({
         selected: selectedMeasurementIdSet.has(measurement.id),
         hideMarker: true,
         collapse: false,
-        forceCollapse: false,
         labelStyle: POINT_LABEL_STYLE.AUTO,
         onClick: onMeasurementSelect
           ? () => onMeasurementSelect(measurement.id)

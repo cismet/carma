@@ -90,7 +90,6 @@ export const buildLabelToolRenderModels = ({
           labelStyle: POINT_LABEL_STYLE.AUTO,
           hideMarker: true,
           collapse: false,
-          forceCollapse: false,
           selected: selectedMeasurementIdSet.has(measurement.id),
           onClick: () => onMeasurementSelect(measurement.id),
           onLongPress:

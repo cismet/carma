@@ -97,7 +97,6 @@ const arePointLabelsEqual = (
       label.labelStyle === otherLabel.labelStyle &&
       label.hideMarker === otherLabel.hideMarker &&
       label.collapse === otherLabel.collapse &&
-      label.forceCollapse === otherLabel.forceCollapse &&
       label.selected === otherLabel.selected &&
       label.hideLabelAndStem === otherLabel.hideLabelAndStem &&
       label.longPressDurationMs === otherLabel.longPressDurationMs

@@ -117,7 +117,6 @@ export type RuntimePointLabelRenderModel = {
   labelStyle?: PointLabelStyle;
   hideMarker?: boolean;
   collapse?: boolean;
-  forceCollapse?: boolean;
   selected?: boolean;
   hideLabelAndStem?: boolean;
   onClick?: () => void;
