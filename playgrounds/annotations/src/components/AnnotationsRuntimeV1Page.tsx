@@ -9,6 +9,7 @@ import {
 } from "@carma-mapping/annotations/runtime";
 import {
   CESIUM_LABEL_OVERLAY_FRAME_PHASES,
+  clearCesiumScenePointerTracker,
   useCesiumLabelOverlayHost,
 } from "@carma-mapping/engines/cesium/react/interactions";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
@@ -23,8 +24,21 @@ import {
 import { CesiumNavigationOverlay } from "./CesiumNavigationOverlay";
 import { CesiumWidgetContainer } from "./CesiumWidgetContainer";
 import { PersistActiveToolMode } from "./PersistActiveToolMode";
-const RuntimeToolbar = () => (
+
+const clearPlaygroundPointerQueryPreview = (scene: Scene | null) => {
+  if (!scene || scene.isDestroyed()) {
+    return;
+  }
+
+  clearCesiumScenePointerTracker(scene);
+  scene.requestRender();
+};
+
+const RuntimeToolbar = ({ scene }: { scene: Scene | null }) => (
   <div
+    onPointerEnter={() => clearPlaygroundPointerQueryPreview(scene)}
+    onPointerMove={() => clearPlaygroundPointerQueryPreview(scene)}
+    onPointerDown={() => clearPlaygroundPointerQueryPreview(scene)}
     style={{
       position: "absolute",
       top: 12,
@@ -51,8 +65,11 @@ const RuntimeToolbar = () => (
   </div>
 );
 
-const RuntimeInfoBox = () => (
+const RuntimeInfoBox = ({ scene }: { scene: Scene | null }) => (
   <div
+    onPointerEnter={() => clearPlaygroundPointerQueryPreview(scene)}
+    onPointerMove={() => clearPlaygroundPointerQueryPreview(scene)}
+    onPointerDown={() => clearPlaygroundPointerQueryPreview(scene)}
     style={{
       position: "absolute",
       bottom: PLAYGROUND_FLOATING_OVERLAY_WINDOW_MARGIN_PX,
@@ -105,8 +122,8 @@ export const AnnotationsRuntimeV1Page = ({
               scene={scene}
               initialHomeCameraState={homeCameraState}
             />
-            <RuntimeToolbar />
-            <RuntimeInfoBox />
+            <RuntimeToolbar scene={scene} />
+            <RuntimeInfoBox scene={scene} />
           </AnnotationsProvider>
         ) : null}
       </LabelOverlayProvider>

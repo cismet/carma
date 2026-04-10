@@ -8,23 +8,19 @@ export const CardinalDirections = {
 export type CardinalDirection =
   (typeof CardinalDirections)[keyof typeof CardinalDirections];
 
-export const CardinalDirectionClockwise = {
-  North: 0,
-  East: 1,
-  South: 2,
-  West: 3,
-} as const;
-export type CardinalDirectionClockwise =
-  (typeof CardinalDirectionClockwise)[keyof typeof CardinalDirectionClockwise];
+export enum CardinalDirectionClockwise {
+  North = 0,
+  East = 1,
+  South = 2,
+  West = 3,
+}
 
-export const CardinalDirectionCounterClockwise = {
-  North: 0,
-  West: 1,
-  South: 2,
-  East: 3,
-} as const;
-export type CardinalDirectionCounterClockwise =
-  (typeof CardinalDirectionCounterClockwise)[keyof typeof CardinalDirectionCounterClockwise];
+export enum CardinalDirectionCounterClockwise {
+  North = 0,
+  West = 1,
+  South = 2,
+  East = 3,
+}
 
 export const CardinalDirectionNames = Object.freeze({
   DE: new Map<CardinalDirectionClockwise, string>([

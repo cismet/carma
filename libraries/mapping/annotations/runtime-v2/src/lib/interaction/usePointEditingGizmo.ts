@@ -248,11 +248,7 @@ export const usePointEditingGizmo = (
       setAxisOverride(null);
       setActiveMoveGizmoNodeId(nodeId);
     },
-    [
-      activeMoveGizmoNodeId,
-      commitDraftNodeCoordinateOverrides,
-      isNodeLocked,
-    ]
+    [activeMoveGizmoNodeId, commitDraftNodeCoordinateOverrides, isNodeLocked]
   );
 
   const nodesById = useMemo(

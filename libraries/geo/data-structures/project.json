@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "name": "geo-data-structures",
   "sourceRoot": "libraries/geo/data-structures/src",
   "projectType": "library",

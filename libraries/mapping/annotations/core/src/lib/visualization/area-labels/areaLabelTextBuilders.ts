@@ -10,23 +10,23 @@ export type AreaLabelText = {
 };
 
 const computePolygonAreaFromVertices = (
-  vertices: ReadonlyArray<{ x: number; y: number; z: number }>
+  vertices: ReadonlyArray<Vector3<number>>
 ) => {
   if (vertices.length < 3) return 0;
   const basePoint = vertices[0];
   if (!basePoint) return 0;
 
   const subtract = (
-    left: { x: number; y: number; z: number },
-    right: { x: number; y: number; z: number }
+    left: Vector3<number>,
+    right: Vector3<number>
   ): Vector3<number> => ({
     x: left.x - right.x,
     y: left.y - right.y,
     z: left.z - right.z,
   });
   const cross = (
-    left: { x: number; y: number; z: number },
-    right: { x: number; y: number; z: number }
+    left: Vector3<number>,
+    right: Vector3<number>
   ): Vector3<number> => ({
     x: left.y * right.z - left.z * right.y,
     y: left.z * right.x - left.x * right.z,
@@ -64,7 +64,7 @@ const resolveDisplayedAreaSquareMeters = (
 
 const buildAreaLabelText = (
   group: NodeChainAnnotation,
-  vertices: Array<{ x: number; y: number; z: number }>
+  vertices: Vector3<number>[]
 ): AreaLabelText => {
   const previewAreaSquareMeters = computePolygonAreaFromVertices(vertices);
   const planarArea = resolveDisplayedAreaSquareMeters(
@@ -91,12 +91,12 @@ const buildAreaLabelText = (
 
 export const buildGroundAreaLabelText = (
   group: NodeChainAnnotation,
-  vertices: Array<{ x: number; y: number; z: number }>
+  vertices: Vector3<number>[]
 ): AreaLabelText => buildAreaLabelText(group, vertices);
 
 export const buildPlanarAreaLabelText = (
   group: NodeChainAnnotation,
-  vertices: Array<{ x: number; y: number; z: number }>
+  vertices: Vector3<number>[]
 ): AreaLabelText => buildAreaLabelText(group, vertices);
 
 export const buildVerticalAreaLabelText = (

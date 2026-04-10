@@ -1,6 +1,6 @@
 {
   "name": "geo-utils",
-  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libraries/geo/utils/src",
   "projectType": "library",
   "tags": ["type:util", "scope:geo"],

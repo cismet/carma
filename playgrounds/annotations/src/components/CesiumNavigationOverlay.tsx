@@ -22,6 +22,7 @@ import {
   type CesiumSceneOrbitController,
   writePerspectiveFrustumVerticalFov,
 } from "@carma-mapping/engines/cesium/core";
+import { clearCesiumScenePointerTracker } from "@carma-mapping/engines/cesium/react/interactions";
 import type { Milliseconds, Seconds } from "@carma-units";
 
 import type { AnnotationsDemoCameraState } from "../playground.types";
@@ -210,6 +211,15 @@ export const CesiumNavigationOverlay = ({
       return;
     }
 
+    const clearPointerQueryPreview = () => {
+      clearCesiumScenePointerTracker(scene);
+      scene.requestRender();
+    };
+
+    host.addEventListener("pointerenter", clearPointerQueryPreview, true);
+    host.addEventListener("pointermove", clearPointerQueryPreview, true);
+    host.addEventListener("pointerdown", clearPointerQueryPreview, true);
+
     const orbitController = orbitControllerRef.current;
 
     const baseMethods = createCesiumNavigationMethods(scene, {
@@ -234,7 +244,7 @@ export const CesiumNavigationOverlay = ({
           }
         : baseMethods;
 
-    return mountNavigationControlsOverlay(host, {
+    const removeOverlay = mountNavigationControlsOverlay(host, {
       controlId: "annotations",
       methods,
       style: DEFAULT_CONTROL_STYLE,
@@ -267,6 +277,12 @@ export const CesiumNavigationOverlay = ({
         zoomOutTooltip: "Dolly-Zoom out (Fahrt + FOV synchron)",
       },
     });
+    return () => {
+      host.removeEventListener("pointerenter", clearPointerQueryPreview, true);
+      host.removeEventListener("pointermove", clearPointerQueryPreview, true);
+      host.removeEventListener("pointerdown", clearPointerQueryPreview, true);
+      removeOverlay?.();
+    };
   }, [initialHomeCameraState, scene]);
 
   useEffect(() => {

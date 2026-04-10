@@ -60,7 +60,7 @@ const getViewerSyncedSize = (
 
   if (typeof syncedSize !== "number") {
     console.debug("getViewerSyncedSize: unsupported or missing frustum; skip");
-    return;
+    return Math.max(1, maxCanvas > 0 ? maxCanvas : maxWindow);
   }
 
   return syncedSize;
@@ -108,7 +108,7 @@ export const getViewerSyncedDimensions = (
   baseScaleFactor: number,
   overrideFov?: number
 ): { syncedWidth: CssPixelWidth; syncedHeight: CssPixelHeight } => {
-  const baseSize = Number(getViewerSyncedSize(ctx, overrideFov));
+  const baseSize = Number(getViewerSyncedSize(ctx, overrideFov) ?? 1);
   const widthScaleFactor =
     baseScaleFactor * (isVertical ? imageAspectRatio : 1);
   const heightScaleFactor =

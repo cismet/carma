@@ -28,7 +28,10 @@ import {
   AnnotationsToolbarItem,
   AnnotationsToolbarSeparator,
 } from "@carma-mapping/components";
-import { useCesiumLabelOverlayHost } from "@carma-mapping/engines/cesium/react/interactions";
+import {
+  clearCesiumScenePointerTracker,
+  useCesiumLabelOverlayHost,
+} from "@carma-mapping/engines/cesium/react/interactions";
 import { ControlLayout } from "@carma-mapping/map-controls-layout";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
 import { type Scene } from "@carma-cesium";
@@ -66,6 +69,15 @@ const PLAYGROUND_ACTIVE_TOOL_PLUGINS = [
   distanceToolPlugin,
 ] as const;
 
+const clearPlaygroundPointerQueryPreview = (scene: Scene | null) => {
+  if (!scene || scene.isDestroyed()) {
+    return;
+  }
+
+  clearCesiumScenePointerTracker(scene);
+  scene.requestRender();
+};
+
 const selectionInfoBoxFloatingStyle = {
   position: "absolute",
   bottom: PLAYGROUND_FLOATING_OVERLAY_WINDOW_MARGIN_PX,
@@ -74,7 +86,7 @@ const selectionInfoBoxFloatingStyle = {
   pointerEvents: "auto",
 } as const;
 
-const RuntimeToolbar = () => {
+const RuntimeToolbar = ({ scene }: { scene: Scene | null }) => {
   const { registry, activeToolType, requestModeChange } =
     useAnnotationsRuntime();
   const visibleDescriptors = registry.orderedDescriptors;
@@ -107,6 +119,9 @@ const RuntimeToolbar = () => {
 
   return (
     <div
+      onPointerEnter={() => clearPlaygroundPointerQueryPreview(scene)}
+      onPointerMove={() => clearPlaygroundPointerQueryPreview(scene)}
+      onPointerDown={() => clearPlaygroundPointerQueryPreview(scene)}
       style={{
         position: "absolute",
         top: 12,
@@ -202,9 +217,11 @@ const resolvePlaygroundEmptyInfoBoxBodyText = ({
 const RuntimeSelectionInfoBoxEmptyState = ({
   activeToolLabel,
   bodyTextLines,
+  scene,
 }: {
   activeToolLabel: string;
   bodyTextLines: readonly string[];
+  scene: Scene | null;
 }) => {
   const resolvedInfoBoxVisualOptions =
     resolveRuntimeAnnotationInfoBoxVisualOptions(
@@ -214,6 +231,9 @@ const RuntimeSelectionInfoBoxEmptyState = ({
   return (
     <div
       data-test-id="annotation-info-box"
+      onPointerEnter={() => clearPlaygroundPointerQueryPreview(scene)}
+      onPointerMove={() => clearPlaygroundPointerQueryPreview(scene)}
+      onPointerDown={() => clearPlaygroundPointerQueryPreview(scene)}
       style={{ ...selectionInfoBoxFloatingStyle, pointerEvents: "none" }}
     >
       <CarmaResponsiveInfoBox
@@ -259,7 +279,7 @@ const RuntimeSelectionInfoBoxEmptyState = ({
   );
 };
 
-const RuntimeSelectionInfoBox = () => {
+const RuntimeSelectionInfoBox = ({ scene }: { scene: Scene | null }) => {
   const {
     annotationEntries,
     activeToolType,
@@ -295,6 +315,7 @@ const RuntimeSelectionInfoBox = () => {
       <RuntimeSelectionInfoBoxEmptyState
         activeToolLabel={activeToolLabel}
         bodyTextLines={emptyStateBodyText}
+        scene={scene}
       />
     );
   }
@@ -308,6 +329,7 @@ const RuntimeSelectionInfoBox = () => {
       <RuntimeSelectionInfoBoxEmptyState
         activeToolLabel={activeToolLabel}
         bodyTextLines={emptyStateBodyText}
+        scene={scene}
       />
     );
   }
@@ -335,6 +357,9 @@ const RuntimeSelectionInfoBox = () => {
   return (
     <div
       data-test-id="annotation-info-box"
+      onPointerEnter={() => clearPlaygroundPointerQueryPreview(scene)}
+      onPointerMove={() => clearPlaygroundPointerQueryPreview(scene)}
+      onPointerDown={() => clearPlaygroundPointerQueryPreview(scene)}
       style={{
         ...selectionInfoBoxFloatingStyle,
       }}
@@ -425,8 +450,8 @@ export const AnnotationsRuntimeV2Page = ({
               scene={scene}
               initialHomeCameraState={homeCameraState}
             />
-            <RuntimeToolbar />
-            <RuntimeSelectionInfoBox />
+            <RuntimeToolbar scene={scene} />
+            <RuntimeSelectionInfoBox scene={scene} />
           </AnnotationsProvider>
         </ControlLayout>
       </LabelOverlayProvider>

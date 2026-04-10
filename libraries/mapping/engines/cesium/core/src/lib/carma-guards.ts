@@ -22,7 +22,6 @@ import {
   ScreenSpaceCameraController,
   ScreenSpaceEventHandler,
 } from "./cesium";
-import { ModelGraphics } from "cesium";
 export const isValidBoundingSphere = (
   sphere: unknown
 ): sphere is BoundingSphere => sphere instanceof BoundingSphere;
@@ -78,10 +77,6 @@ export const isValidImageryProvider = (
 
 export const isValidModel = (model: unknown): model is Model =>
   model instanceof Model;
-
-export const isValidModelGraphics = (
-  modelGraphics: unknown
-): modelGraphics is ModelGraphics => modelGraphics instanceof ModelGraphics;
 
 export const isPerspectiveFrustum = (
   frustum: unknown

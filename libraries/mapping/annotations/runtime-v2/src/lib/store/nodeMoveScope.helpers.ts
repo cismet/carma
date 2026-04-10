@@ -37,7 +37,9 @@ export const resolveRuntimeNodeMoveScope = ({
       linkedNodeGroup.nodeIds.includes(nodeId)
     ) ?? null;
   const linkedNodeGroupNodeIds = targetLinkedNodeGroup?.nodeIds ?? [nodeId];
-  const selectedMeasurementIdSet = new Set(selectedMeasurementIds.filter(Boolean));
+  const selectedMeasurementIdSet = new Set(
+    selectedMeasurementIds.filter(Boolean)
+  );
   const selectedNodeIdSet = new Set(
     annotationEntries
       .filter((annotationEntry) =>

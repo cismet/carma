@@ -1,6 +1,6 @@
 {
   "name": "units",
-  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libraries/units/src",
   "projectType": "library",
   "tags": ["scope:units", "type:data-structures"],

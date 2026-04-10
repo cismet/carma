@@ -400,9 +400,16 @@ export const leaveObliqueMode = (
     return;
   }
 
+  const targetPoint = pickSceneCenter(scene);
+  if (!targetPoint) {
+    camera.frustum.fov = fallbackRestoreFovRad;
+    onComplete();
+    return;
+  }
+
   const adaptiveLeaveDuration = LEAVE_BASE_DURATION;
   const didStart = animateCesiumSceneDollyZoom(scene, {
-    targetPoint: pickSceneCenter(scene),
+    targetPoint,
     targetFovRad: fallbackRestoreFovRad,
     durationMs: adaptiveLeaveDuration,
     onCompleted: onComplete,

@@ -1,3 +1,5 @@
+import type { Vector3 } from "@carma-units";
+
 import type {
   AnnotationLabelAnchor,
   AnnotationLabelAppearance,
@@ -15,12 +17,12 @@ type PointGeometryLike = {
     latitude: number;
     altitude: number;
   };
-  geometryECEF: { x: number; y: number; z: number };
+  geometryECEF: Vector3<number>;
   hidden?: boolean;
   locked?: boolean;
   pointLabelMode?: PointLabelMetricMode;
   auxiliaryLabelAnchor?: boolean;
-  verticalOffsetAnchorECEF?: { x: number; y: number; z: number };
+  verticalOffsetAnchorECEF?: Vector3<number>;
   labelAnchor?: AnnotationLabelAnchor;
   labelAppearance?: AnnotationLabelAppearance;
 };
