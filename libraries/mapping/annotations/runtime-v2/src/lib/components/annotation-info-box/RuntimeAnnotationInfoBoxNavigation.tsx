@@ -31,6 +31,13 @@ export const RuntimeAnnotationInfoBoxNavigation = ({
 
   if (totalEntries <= 0 && !instructionText) return null;
 
+  const navigationButtonStyle = {
+    fontSize: `${resolvedVisualOptions.navigationLinkFontSizePx}px`,
+    border: "none",
+    background: "transparent",
+    padding: 0,
+  } as const;
+
   return (
     <>
       {instructionText ? (
@@ -46,50 +53,59 @@ export const RuntimeAnnotationInfoBoxNavigation = ({
             resolvedVisualOptions.navigationAvailabilityContainerClassName
           }
         >
-          <span
-            className={
-              onFlyToAllMeasurements
-                ? `${resolvedVisualOptions.linkTextClassName} cursor-pointer`
-                : resolvedVisualOptions.linkTextClassName
-            }
-            onClick={onFlyToAllMeasurements}
-          >
-            {availabilityLabel ??
-              `${totalEntries} ${
-                totalEntries === 1 ? "Messung" : "Messungen"
-              } verfügbar`}
-          </span>
+          {onFlyToAllMeasurements ? (
+            <button
+              type="button"
+              className={`${resolvedVisualOptions.linkTextClassName} cursor-pointer`}
+              onClick={onFlyToAllMeasurements}
+              style={{
+                border: "none",
+                background: "transparent",
+                padding: 0,
+              }}
+            >
+              {availabilityLabel ??
+                `${totalEntries} ${
+                  totalEntries === 1 ? "Messung" : "Messungen"
+                } verfügbar`}
+            </button>
+          ) : (
+            <span className={resolvedVisualOptions.linkTextClassName}>
+              {availabilityLabel ??
+                `${totalEntries} ${
+                  totalEntries === 1 ? "Messung" : "Messungen"
+                } verfügbar`}
+            </span>
+          )}
         </div>
       ) : null}
       {totalEntries > 0 ? (
         <div
           className={resolvedVisualOptions.navigationSummaryContainerClassName}
         >
-          <a
+          <button
+            type="button"
             className={`renderAsLink cursor-pointer ${resolvedVisualOptions.linkTextClassName}`}
             onClick={onPreviousMeasurement}
             data-test-id="switch-measurement-left"
-            style={{
-              fontSize: `${resolvedVisualOptions.navigationLinkFontSizePx}px`,
-            }}
+            style={navigationButtonStyle}
             aria-label="Vorherige Messung"
           >
             <FontAwesomeIcon icon={faAnglesLeft} />
-          </a>
+          </button>
           <span className="mx-4">
             {currentIndex + 1} von {totalEntries}
           </span>
-          <a
+          <button
+            type="button"
             className={`renderAsLink cursor-pointer ${resolvedVisualOptions.linkTextClassName}`}
             onClick={onNextMeasurement}
             data-test-id="switch-measurement-right"
-            style={{
-              fontSize: `${resolvedVisualOptions.navigationLinkFontSizePx}px`,
-            }}
+            style={navigationButtonStyle}
             aria-label="Nächste Messung"
           >
             <FontAwesomeIcon icon={faAnglesRight} />
-          </a>
+          </button>
         </div>
       ) : null}
     </>

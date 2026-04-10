@@ -8,6 +8,7 @@ import {
   faSearchLocation,
   faTrashCan,
 } from "@fortawesome/free-solid-svg-icons";
+import type { MouseEvent as ReactMouseEvent } from "react";
 
 import { RuntimeAnnotationInfoBoxActionIcon } from "./RuntimeAnnotationInfoBoxActionIcon";
 import type { RuntimeAnnotationInfoBoxVisualOptions } from "./annotationInfoBoxVisualDefaults";
@@ -106,4 +107,3 @@ export const RuntimeAnnotationInfoBoxActions = ({
     />
   </div>
 );
-import type { MouseEvent as ReactMouseEvent } from "react";

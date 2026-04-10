@@ -51,16 +51,13 @@ export const createPolygonToolPreviewController = ({
     }
 
     const hoverCoordinate = hoverSample?.coordinate ?? null;
-    const visibleCoordinates = hoverCoordinate
-      ? [...draftCoordinates, hoverCoordinate]
-      : [...draftCoordinates];
     const previewCoordinates = hoverCoordinate
       ? [...draftCoordinates, hoverCoordinate]
       : [...draftCoordinates];
 
     draftChainController.setState({
       chainCoordinates: previewCoordinates,
-      markerCoordinates: visibleCoordinates,
+      markerCoordinates: previewCoordinates,
     });
     polygonLoopController.setState({
       loopCoordinates: buildClosedLoopCoordinates(previewCoordinates),

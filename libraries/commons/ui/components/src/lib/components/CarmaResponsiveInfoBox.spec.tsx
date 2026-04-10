@@ -2,6 +2,7 @@
 
 import { render } from "@testing-library/react";
 import type { ReactNode } from "react";
+import { describe, expect, it, vi } from "vitest";
 
 import { CarmaResponsiveInfoBox } from "./CarmaResponsiveInfoBox";
 
@@ -44,7 +45,7 @@ describe("CarmaResponsiveInfoBox", () => {
     ) as HTMLDivElement | null;
 
     expect(infoBox?.style.width).toBe("fit-content");
-    expect(infoBox?.style.minWidth).toBe("220px");
+    expect(infoBox?.style.minWidth).toBe("24rem");
     expect(infoBox?.style.maxWidth).toBe("350px");
   });
 });

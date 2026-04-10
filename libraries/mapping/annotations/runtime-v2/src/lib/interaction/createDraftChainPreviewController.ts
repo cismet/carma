@@ -33,6 +33,7 @@ export type DraftChainPreviewController = {
 
 const DRAFT_CHAIN_PREVIEW_LAYER_ID =
   "annotation-overlay-draft-chain-preview-layer";
+type RuntimeCartesian3 = ReturnType<typeof cartesian3FromGeographicCoordinate>;
 
 export const createDraftChainPreviewController = (
   scene: RuntimeScene
@@ -60,6 +61,7 @@ export const createDraftChainPreviewController = (
     chainCoordinates: [],
     markerCoordinates: [],
   };
+  let chainLinePositions: readonly RuntimeCartesian3[] = [];
 
   const hide = () => {
     clearLineRuntime(draftChainLine);
@@ -71,12 +73,9 @@ export const createDraftChainPreviewController = (
       return;
     }
 
-    const { chainCoordinates, markerCoordinates } = currentState;
-    if (chainCoordinates.length >= 2) {
-      applyLineRuntime(
-        draftChainLine,
-        chainCoordinates.map(cartesian3FromGeographicCoordinate)
-      );
+    const { markerCoordinates } = currentState;
+    if (chainLinePositions.length >= 2) {
+      applyLineRuntime(draftChainLine, chainLinePositions);
     } else {
       clearLineRuntime(draftChainLine);
     }
@@ -120,6 +119,9 @@ export const createDraftChainPreviewController = (
         chainCoordinates: [...nextState.chainCoordinates],
         markerCoordinates: [...nextState.markerCoordinates],
       };
+      chainLinePositions = currentState.chainCoordinates.map(
+        cartesian3FromGeographicCoordinate
+      );
       render();
     },
     clear: () => {
@@ -127,6 +129,7 @@ export const createDraftChainPreviewController = (
         chainCoordinates: [],
         markerCoordinates: [],
       };
+      chainLinePositions = [];
       hide();
       scene.requestRender();
     },

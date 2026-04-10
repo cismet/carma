@@ -1,6 +1,6 @@
 # @carma-geo/data-structures
 
-Buildable geo domain package for geographic and cartographic data structures, branded types, and a small set of shared constants.
+Geo domain package for geographic and cartographic data structures, branded types, and a small set of shared constants.
 
 ## Purpose
 
@@ -29,10 +29,9 @@ This library contains shared geo domain structures such as coordinates, extents,
 - Coordinate validation
 - Normalization functions
 
-## Lint
+## Validation
 
 ```sh
-nx build geo-data-structures
 nx lint geo-data-structures
 ```
 
@@ -50,4 +49,3 @@ nx lint geo-data-structures
 - **[`@carma-geo/utils`](../utils/README.md)** - Higher-level geographic utilities
 - **[`@carma-units`](../../commons/units/types/README.md)** - Unit type definitions
 - **[`@carma-units`](../../commons/units/helpers/README.md)** - Unit conversion helpers
-

@@ -8,8 +8,7 @@ import {
 // North is 0 and rotations are clockwise to the east
 
 export const CardinalDirectionEnum = CardinalDirectionClockwise;
-export type CardinalDirectionEnum =
-  (typeof CardinalDirectionEnum)[keyof typeof CardinalDirectionEnum];
+export type CardinalDirectionEnum = CardinalDirectionClockwise;
 
 export const InvertedCardinalDirectionEnum = {
   North: CardinalDirectionEnum.South,

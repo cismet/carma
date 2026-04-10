@@ -33,6 +33,7 @@ export type PolygonLoopPreviewController = {
 
 const POLYGON_LOOP_PREVIEW_LAYER_ID =
   "annotation-overlay-polygon-loop-preview-layer";
+type RuntimeCartesian3 = ReturnType<typeof cartesian3FromGeographicCoordinate>;
 
 export const createPolygonLoopPreviewController = (
   scene: RuntimeScene
@@ -60,6 +61,7 @@ export const createPolygonLoopPreviewController = (
     loopCoordinates: [],
     markerCoordinates: [],
   };
+  let loopLinePositions: readonly RuntimeCartesian3[] = [];
 
   const hide = () => {
     clearLineRuntime(loopLine);
@@ -71,12 +73,9 @@ export const createPolygonLoopPreviewController = (
       return;
     }
 
-    const { loopCoordinates, markerCoordinates } = currentState;
-    if (loopCoordinates.length >= 2) {
-      applyLineRuntime(
-        loopLine,
-        loopCoordinates.map(cartesian3FromGeographicCoordinate)
-      );
+    const { markerCoordinates } = currentState;
+    if (loopLinePositions.length >= 2) {
+      applyLineRuntime(loopLine, loopLinePositions);
     } else {
       clearLineRuntime(loopLine);
     }
@@ -120,6 +119,9 @@ export const createPolygonLoopPreviewController = (
         loopCoordinates: [...nextState.loopCoordinates],
         markerCoordinates: [...nextState.markerCoordinates],
       };
+      loopLinePositions = currentState.loopCoordinates.map(
+        cartesian3FromGeographicCoordinate
+      );
       render();
     },
     clear: () => {
@@ -127,6 +129,7 @@ export const createPolygonLoopPreviewController = (
         loopCoordinates: [],
         markerCoordinates: [],
       };
+      loopLinePositions = [];
       hide();
       scene.requestRender();
     },
