@@ -11,6 +11,8 @@ import { RUNTIME_POLYGON_FILL_PLACEMENT } from "../../render/measurementRenderMo
 import {
   clearDraftCoordinatesByToolType,
   getDraftCoordinatesForTool,
+  getDraftLinkedNodeGroupIdsForTool,
+  setDraftLinkedNodeGroupIdsByToolType,
   setDraftCoordinatesByToolType,
 } from "../../store";
 import {
@@ -75,6 +77,10 @@ export const areaGroundToolPlugin = createMeasurementToolPlugin({
             getState().draftState,
             toolType
           ),
+          linkedNodeGroupIds: getDraftLinkedNodeGroupIdsForTool(
+            getState().draftState,
+            toolType
+          ),
           addAnnotation,
         });
 
@@ -84,7 +90,7 @@ export const areaGroundToolPlugin = createMeasurementToolPlugin({
       discardDraft: () => {
         dispatch(clearDraftCoordinatesByToolType(toolType));
       },
-      onNodeCreated: (coordinate) => {
+      onNodeCreated: (coordinate, linkedNodeGroupId) => {
         dispatch(
           setDraftCoordinatesByToolType({
             toolType,
@@ -94,13 +100,26 @@ export const areaGroundToolPlugin = createMeasurementToolPlugin({
             ),
           })
         );
+        dispatch(
+          setDraftLinkedNodeGroupIdsByToolType({
+            toolType,
+            linkedNodeGroupIds: appendAreaPreviewPoint(
+              getDraftLinkedNodeGroupIdsForTool(getState().draftState, toolType),
+              linkedNodeGroupId ?? null
+            ),
+          })
+        );
       },
       finishesOnLoopClosure: true,
     }),
   },
   pointQuery: {
-    onPointCreated: ({ coordinate, activeToolSession }) => {
-      activeToolSession?.onNodeCreated?.(coordinate);
+    onPointCreated: ({
+      coordinate,
+      linkedNodeGroupId,
+      activeToolSession,
+    }) => {
+      activeToolSession?.onNodeCreated?.(coordinate, linkedNodeGroupId);
     },
   },
   preview: {
@@ -129,6 +148,17 @@ export const areaGroundToolPlugin = createMeasurementToolPlugin({
             toolType,
             coordinates: undoAreaPreviewPoint(
               getDraftCoordinatesForTool(
+                sessionContext.getState().draftState,
+                toolType
+              )
+            ),
+          })
+        );
+        sessionContext.dispatch(
+          setDraftLinkedNodeGroupIdsByToolType({
+            toolType,
+            linkedNodeGroupIds: undoAreaPreviewPoint(
+              getDraftLinkedNodeGroupIdsForTool(
                 sessionContext.getState().draftState,
                 toolType
               )

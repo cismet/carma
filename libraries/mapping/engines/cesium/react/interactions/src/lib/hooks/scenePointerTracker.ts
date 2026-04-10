@@ -63,6 +63,15 @@ const clearTrackerPointerPosition = (tracker: ScenePointerTracker) => {
   notifyTrackerListeners(tracker);
 };
 
+const ensureCanvasRect = (scene: Scene, tracker: ScenePointerTracker) => {
+  if (tracker.canvasRectDirty || !tracker.canvasRect) {
+    tracker.canvasRect = readCanvasRect(scene);
+    tracker.canvasRectDirty = false;
+  }
+
+  return tracker.canvasRect;
+};
+
 const syncTrackerPointerPosition = (
   scene: Scene,
   tracker: ScenePointerTracker
@@ -125,6 +134,28 @@ const createScenePointerTracker = (scene: Scene): ScenePointerTracker => {
     updateLatestPointerPosition(event);
   };
 
+  const handleWindowPointerMove = (event: PointerEvent) => {
+    const canvasRect = ensureCanvasRect(scene, tracker);
+    const nextClientPosition = {
+      x: event.clientX,
+      y: event.clientY,
+    };
+    const wasInsideCanvas = Boolean(
+      tracker.latestClientPosition &&
+        isClientPositionInsideCanvas(tracker.latestClientPosition, canvasRect)
+    );
+    const isInsideCanvas = isClientPositionInsideCanvas(
+      nextClientPosition,
+      canvasRect
+    );
+
+    if (!wasInsideCanvas && !isInsideCanvas) {
+      return;
+    }
+
+    updateLatestPointerPosition(event);
+  };
+
   const handleCanvasPointerRawUpdate = (event: PointerEvent) => {
     const coalescedEvents =
       "getCoalescedEvents" in event ? event.getCoalescedEvents() : [];
@@ -137,6 +168,15 @@ const createScenePointerTracker = (scene: Scene): ScenePointerTracker => {
   };
 
   const handleCanvasPointerLeave = () => {
+    if (
+      isClientPositionInsideCanvas(
+        tracker.latestClientPosition as ClientPosition | null,
+        ensureCanvasRect(scene, tracker)
+      )
+    ) {
+      return;
+    }
+
     clearTrackerPointerPosition(tracker);
   };
 
@@ -158,6 +198,10 @@ const createScenePointerTracker = (scene: Scene): ScenePointerTracker => {
   scene.canvas.addEventListener("pointermove", handleCanvasPointerMove, {
     passive: true,
   });
+  window.addEventListener("pointermove", handleWindowPointerMove, {
+    capture: true,
+    passive: true,
+  });
   scene.canvas.addEventListener(
     "pointerrawupdate",
     handleCanvasPointerRawUpdate as EventListener,
@@ -174,6 +218,7 @@ const createScenePointerTracker = (scene: Scene): ScenePointerTracker => {
   tracker.removeListeners = () => {
     scene.canvas.removeEventListener("mouseleave", handleCanvasPointerLeave);
     scene.canvas.removeEventListener("pointermove", handleCanvasPointerMove);
+    window.removeEventListener("pointermove", handleWindowPointerMove, true);
     scene.canvas.removeEventListener(
       "pointerrawupdate",
       handleCanvasPointerRawUpdate as EventListener

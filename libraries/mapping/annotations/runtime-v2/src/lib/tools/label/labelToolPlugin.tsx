@@ -93,7 +93,7 @@ export const labelToolPlugin = createMeasurementToolPlugin({
           })
         );
       },
-      onNodeCreated: (coordinate) => {
+      onNodeCreated: (coordinate, linkedNodeGroupId) => {
         const pendingAnnotationId = getPendingAnnotationIdForTool(
           getState().draftState,
           toolType
@@ -115,6 +115,7 @@ export const labelToolPlugin = createMeasurementToolPlugin({
           coordinate,
           displayName: getDefaultLabelDisplayName(labelCount + 1),
           addAnnotation,
+          linkedNodeGroupId,
         });
 
         dispatch(
@@ -127,8 +128,12 @@ export const labelToolPlugin = createMeasurementToolPlugin({
     }),
   },
   pointQuery: {
-    onPointCreated: ({ coordinate, activeToolSession }) => {
-      activeToolSession?.onNodeCreated?.(coordinate);
+    onPointCreated: ({
+      coordinate,
+      linkedNodeGroupId,
+      activeToolSession,
+    }) => {
+      activeToolSession?.onNodeCreated?.(coordinate, linkedNodeGroupId);
     },
   },
   renderLayer: {

@@ -14,6 +14,7 @@ import { Cartesian3 } from "@carma-cesium";
 import {
   updateNodeCoordinateById,
   type AnnotationsStore,
+  type RuntimeLinkedNodeGroup,
   type RuntimeNode,
 } from "../store";
 import type { RuntimeScene } from "../types/runtimeScene.types";
@@ -74,16 +75,15 @@ const createReferenceLineAxisOverride = (
 
 type UsePointEditingGizmoOptions = {
   annotationsStore: AnnotationsStore;
-  setSelectedAnnotationId: (annotationId: string | null) => void;
   onActiveMoveGizmoNodeIdChange?: (nodeId: string | null) => void;
 };
 
 export const usePointEditingGizmo = (
   scene: RuntimeScene | null,
   nodes: readonly RuntimeNode[],
+  _linkedNodeGroups: readonly RuntimeLinkedNodeGroup[],
   {
     annotationsStore,
-    setSelectedAnnotationId,
     onActiveMoveGizmoNodeIdChange,
   }: UsePointEditingGizmoOptions
 ) => {
@@ -105,18 +105,15 @@ export const usePointEditingGizmo = (
   );
 
   const handleNodeLongPress = useCallback(
-    (nodeId: string, measurementId?: string) => {
+    (nodeId: string, _measurementId?: string) => {
       if (isNodeLocked(nodeId)) {
         return;
       }
 
-      if (measurementId) {
-        setSelectedAnnotationId(measurementId);
-      }
       setAxisOverride(null);
       setActiveMoveGizmoNodeId(nodeId);
     },
-    [isNodeLocked, setSelectedAnnotationId]
+    [isNodeLocked]
   );
 
   const nodesById = useMemo(
@@ -144,6 +141,8 @@ export const usePointEditingGizmo = (
               ...activeNode.coordinate,
               altitude: referenceNode.coordinate.altitude,
             },
+            selectedMeasurementIds:
+              annotationsStore.getState().selectionState.selectedAnnotationIds,
           })
         );
       }
@@ -208,6 +207,8 @@ export const usePointEditingGizmo = (
         updateNodeCoordinateById({
           nodeId,
           coordinate: geographicCoordinateFromCartesian3(nextPosition),
+          selectedMeasurementIds:
+            annotationsStore.getState().selectionState.selectedAnnotationIds,
         })
       );
     },

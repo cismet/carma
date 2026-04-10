@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useRef } from "react";
 import { projectGeographicCoordinateToScreen } from "@carma-mapping/engines/cesium/core";
 
-import type { RuntimeCoordinate, RuntimeNode } from "../../store";
+import type {
+  RuntimeCoordinate,
+  RuntimeLinkedNodeGroup,
+  RuntimeLinkedNodeGroupId,
+  RuntimeNode,
+} from "../../store";
+import { resolveLinkedNodeGroupIdForNodeId } from "../../store";
 import type {
   AnnotationToolPlugin,
   AnnotationToolSessionContext,
@@ -12,6 +18,7 @@ import type { AnnotationModeSessionMap } from "./annotationModeSession.types";
 type UsePointQueryToolRoutingParams = {
   scene: RuntimeScene | null;
   nodes: readonly RuntimeNode[];
+  linkedNodeGroups: readonly RuntimeLinkedNodeGroup[];
   activeToolType: RuntimeToolId;
   toolSessions: AnnotationModeSessionMap;
   getToolPlugin: (toolType: RuntimeToolId) => AnnotationToolPlugin | null;
@@ -20,6 +27,11 @@ type UsePointQueryToolRoutingParams = {
 
 const SNAP_DISTANCE_THRESHOLD_PX = 14;
 const SNAP_RELEASE_DISTANCE_THRESHOLD_PX = 18;
+
+type PointQueryResolvedNodeSample = {
+  coordinate: RuntimeCoordinate;
+  linkedNodeGroupId: RuntimeLinkedNodeGroupId | null;
+};
 
 const findNodeById = (nodes: readonly RuntimeNode[], nodeId: string | null) =>
   nodeId ? nodes.find((node) => node.id === nodeId) ?? null : null;
@@ -91,6 +103,7 @@ const resolveSnappedNode = ({
 export const usePointQueryToolRouting = ({
   scene,
   nodes,
+  linkedNodeGroups,
   activeToolType,
   toolSessions,
   getToolPlugin,
@@ -106,11 +119,11 @@ export const usePointQueryToolRouting = ({
     }
   }, [nodes]);
 
-  const resolvePointQueryCoordinate = useCallback(
+  const resolvePointQuerySample = useCallback(
     (
       coordinate: RuntimeCoordinate,
       screenPosition?: { x: number; y: number }
-    ) => {
+    ): PointQueryResolvedNodeSample => {
       if (
         !screenPosition ||
         !scene ||
@@ -118,7 +131,10 @@ export const usePointQueryToolRouting = ({
         nodes.length === 0
       ) {
         snappedNodeIdRef.current = null;
-        return coordinate;
+        return {
+          coordinate,
+          linkedNodeGroupId: null,
+        };
       }
 
       const lockedNode = findNodeById(nodes, snappedNodeIdRef.current);
@@ -132,7 +148,13 @@ export const usePointQueryToolRouting = ({
           lockedDistanceSquared !== null &&
           lockedDistanceSquared <= SNAP_RELEASE_DISTANCE_THRESHOLD_PX ** 2
         ) {
-          return lockedNode.coordinate;
+          return {
+            coordinate: lockedNode.coordinate,
+            linkedNodeGroupId: resolveLinkedNodeGroupIdForNodeId(
+              linkedNodeGroups,
+              lockedNode.id
+            ),
+          };
         }
       }
 
@@ -143,9 +165,22 @@ export const usePointQueryToolRouting = ({
         screenPosition,
       });
       snappedNodeIdRef.current = snappedNode?.id ?? null;
-      return snappedNode?.coordinate ?? coordinate;
+      return {
+        coordinate: snappedNode?.coordinate ?? coordinate,
+        linkedNodeGroupId: snappedNode
+          ? resolveLinkedNodeGroupIdForNodeId(linkedNodeGroups, snappedNode.id)
+          : null,
+      };
     },
-    [nodes, scene]
+    [linkedNodeGroups, nodes, scene]
+  );
+
+  const resolvePointQueryCoordinate = useCallback(
+    (
+      coordinate: RuntimeCoordinate,
+      screenPosition?: { x: number; y: number }
+    ) => resolvePointQuerySample(coordinate, screenPosition).coordinate,
+    [resolvePointQuerySample]
   );
 
   const handlePointQueryPointCreated = useCallback(
@@ -153,18 +188,22 @@ export const usePointQueryToolRouting = ({
       coordinate: RuntimeCoordinate,
       screenPosition?: { x: number; y: number }
     ) => {
-      const resolvedCoordinate = resolvePointQueryCoordinate(
+      const resolvedPointQuerySample = resolvePointQuerySample(
         coordinate,
         screenPosition
       );
       const nodeCreatedHandler = activeToolSession?.onNodeCreated;
       if (nodeCreatedHandler) {
-        nodeCreatedHandler(resolvedCoordinate);
+        nodeCreatedHandler(
+          resolvedPointQuerySample.coordinate,
+          resolvedPointQuerySample.linkedNodeGroupId
+        );
         return;
       }
 
       activePlugin?.pointQuery?.onPointCreated({
-        coordinate: resolvedCoordinate,
+        coordinate: resolvedPointQuerySample.coordinate,
+        linkedNodeGroupId: resolvedPointQuerySample.linkedNodeGroupId,
         activeToolType,
         activeToolSession,
         toolSessions,
@@ -175,7 +214,7 @@ export const usePointQueryToolRouting = ({
       activePlugin,
       activeToolSession,
       activeToolType,
-      resolvePointQueryCoordinate,
+      resolvePointQuerySample,
       sessionContext,
       toolSessions,
     ]

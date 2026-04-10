@@ -14,6 +14,8 @@ import {
 import {
   clearDraftCoordinatesByToolType,
   getDraftCoordinatesForTool,
+  getDraftLinkedNodeGroupIdsForTool,
+  setDraftLinkedNodeGroupIdsByToolType,
   setDraftCoordinatesByToolType,
 } from "../../store";
 import { createSegmentToolPreviewController } from "../../interaction/createSegmentToolPreviewController";
@@ -60,6 +62,10 @@ export const polylineToolPlugin = createMeasurementToolPlugin({
             getState().draftState,
             toolType
           ),
+          linkedNodeGroupIds: getDraftLinkedNodeGroupIdsForTool(
+            getState().draftState,
+            toolType
+          ),
           addAnnotation,
         });
 
@@ -69,7 +75,7 @@ export const polylineToolPlugin = createMeasurementToolPlugin({
       discardDraft: () => {
         dispatch(clearDraftCoordinatesByToolType(toolType));
       },
-      onNodeCreated: (coordinate) => {
+      onNodeCreated: (coordinate, linkedNodeGroupId) => {
         dispatch(
           setDraftCoordinatesByToolType({
             toolType,
@@ -79,14 +85,27 @@ export const polylineToolPlugin = createMeasurementToolPlugin({
             ),
           })
         );
+        dispatch(
+          setDraftLinkedNodeGroupIdsByToolType({
+            toolType,
+            linkedNodeGroupIds: appendPolylinePreviewPoint(
+              getDraftLinkedNodeGroupIdsForTool(getState().draftState, toolType),
+              linkedNodeGroupId ?? null
+            ),
+          })
+        );
       },
       finishesOnLoopClosure: true,
     }),
   },
   pointQuery: {
-    onPointCreated: ({ coordinate, activeToolSession }) => {
+    onPointCreated: ({
+      coordinate,
+      linkedNodeGroupId,
+      activeToolSession,
+    }) => {
       if (activeToolSession?.onNodeCreated) {
-        activeToolSession.onNodeCreated(coordinate);
+        activeToolSession.onNodeCreated(coordinate, linkedNodeGroupId);
         return;
       }
 

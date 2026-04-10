@@ -30,6 +30,7 @@ type BuildPointToolRenderModelsArgs = {
   measurements: readonly RuntimeMeasurement[];
   elevationReferenceAnnotationId: string | null;
   selectedMeasurementIds: readonly string[];
+  isSelectionAdditiveModifierPressed: boolean;
   onMeasurementSelect: (measurementId: string) => void;
   onMeasurementLabelClick: (measurementId: string) => void;
   onMeasurementLabelDoubleClick: (measurementId: string) => void;
@@ -46,6 +47,7 @@ export const buildPointToolRenderModels = ({
   measurements,
   elevationReferenceAnnotationId,
   selectedMeasurementIds,
+  isSelectionAdditiveModifierPressed,
   onMeasurementSelect,
   onMeasurementLabelClick,
   onMeasurementLabelDoubleClick,
@@ -141,7 +143,7 @@ export const buildPointToolRenderModels = ({
           hoverBackgroundColor: selectedHighlight.hoverBackgroundColor,
           selected: isSelected,
           onClick: () => {
-            if (isSelected) {
+            if (isSelected && !isSelectionAdditiveModifierPressed) {
               onMeasurementLabelClick(measurement.id);
             }
             onMeasurementSelect(measurement.id);

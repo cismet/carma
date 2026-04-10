@@ -19,6 +19,7 @@ import type {
   RuntimeAnnotationEntry,
   RuntimeCoordinate,
   RuntimeEdge,
+  RuntimeLinkedNodeGroupId,
   RuntimeMeasurement,
   RuntimeNode,
 } from "../store";
@@ -60,12 +61,18 @@ export type AnnotationToolSessionContext = {
   addAnnotation: (
     toolType: RuntimeMeasurement["toolType"],
     coordinates: readonly RuntimeCoordinate[],
-    options?: RuntimeAddAnnotationOptions
+    options?: RuntimeAddAnnotationOptions,
+    linkedNodeGroupIds?: readonly (
+      | RuntimeLinkedNodeGroupId
+      | null
+      | undefined
+    )[]
   ) => RuntimeMeasurement;
 };
 
 export type PointQueryCreatedContext = {
   coordinate: RuntimeCoordinate;
+  linkedNodeGroupId: RuntimeLinkedNodeGroupId | null;
   activeToolType: RuntimeToolId;
   activeToolSession: AnnotationModeSession | null;
   toolSessions: AnnotationModeSessionMap;
@@ -110,6 +117,7 @@ export type AnnotationToolRenderLayerContext = {
   elevationReferenceAnnotationId: string | null;
   selectedAnnotationId: string | null;
   selectedAnnotationIds: readonly string[];
+  isSelectionAdditiveModifierPressed: boolean;
   setSelectedAnnotationId: (annotationId: string | null) => void;
   setElevationReferenceAnnotationId: (annotationId: string | null) => void;
   toggleAnnotationElevationDisplayMode: (annotationId: string) => void;

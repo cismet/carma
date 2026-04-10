@@ -80,16 +80,21 @@ export const pointToolPlugin = createMeasurementToolPlugin({
     }),
   },
   pointQuery: {
-    onPointCreated: ({ coordinate, sessionContext }) => {
+    onPointCreated: ({ coordinate, linkedNodeGroupId, sessionContext }) => {
       const temporaryMode =
         sessionContext.getState().settingsState.pointTemporaryMode;
       if (temporaryMode) {
         sessionContext.dispatch(clearTemporaryAnnotationsByToolType(toolType));
       }
 
-      const createdMeasurement = addPointMeasurement(toolType, coordinate, {
-        addAnnotation: sessionContext.addAnnotation,
-      });
+      const createdMeasurement = addPointMeasurement(
+        toolType,
+        coordinate,
+        linkedNodeGroupId,
+        {
+          addAnnotation: sessionContext.addAnnotation,
+        }
+      );
       if (temporaryMode) {
         sessionContext.dispatch(
           setAnnotationTemporaryById({
@@ -139,6 +144,7 @@ export const pointToolPlugin = createMeasurementToolPlugin({
       annotationEntries,
       elevationReferenceAnnotationId,
       selectedAnnotationIds,
+      isSelectionAdditiveModifierPressed,
       setSelectedAnnotationId,
       setElevationReferenceAnnotationId,
       toggleAnnotationElevationDisplayMode,
@@ -156,6 +162,7 @@ export const pointToolPlugin = createMeasurementToolPlugin({
         measurements: annotationEntries,
         elevationReferenceAnnotationId,
         selectedMeasurementIds: selectedAnnotationIds,
+        isSelectionAdditiveModifierPressed,
         onMeasurementSelect: setSelectedAnnotationId,
         onMeasurementLabelClick: toggleAnnotationElevationDisplayMode,
         onMeasurementLabelDoubleClick: setElevationReferenceAnnotationId,

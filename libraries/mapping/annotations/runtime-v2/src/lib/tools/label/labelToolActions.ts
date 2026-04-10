@@ -7,6 +7,7 @@ import {
 import type {
   RuntimeAddAnnotationOptions,
   RuntimeCoordinate,
+  RuntimeLinkedNodeGroupId,
   RuntimeMeasurement,
 } from "../../store";
 
@@ -26,6 +27,7 @@ export const createLabelMeasurement = ({
   coordinate,
   displayName,
   addAnnotation,
+  linkedNodeGroupId,
 }: {
   toolType: RuntimeMeasurement["toolType"];
   coordinate: RuntimeCoordinate;
@@ -33,10 +35,16 @@ export const createLabelMeasurement = ({
   addAnnotation: (
     toolType: RuntimeMeasurement["toolType"],
     nextCoordinates: readonly RuntimeCoordinate[],
-    options?: RuntimeAddAnnotationOptions
+    options?: RuntimeAddAnnotationOptions,
+    linkedNodeGroupIds?: readonly (
+      | RuntimeLinkedNodeGroupId
+      | null
+      | undefined
+    )[]
   ) => RuntimeMeasurement;
+  linkedNodeGroupId?: RuntimeLinkedNodeGroupId | null;
 }) =>
   addAnnotation(toolType, [coordinate], {
     displayName,
     labelAppearance: createDefaultLabelAppearance(),
-  });
+  }, [linkedNodeGroupId ?? null]);

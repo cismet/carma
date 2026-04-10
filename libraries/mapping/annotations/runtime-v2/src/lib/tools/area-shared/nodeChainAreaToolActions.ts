@@ -9,6 +9,7 @@ import { Cartesian3 } from "@carma-cesium";
 import type {
   RuntimeAddAnnotationOptions,
   RuntimeCoordinate,
+  RuntimeLinkedNodeGroupId,
   RuntimeMeasurement,
 } from "../../store";
 
@@ -18,14 +19,13 @@ type RuntimeAreaToolType =
 
 export type NodeChainAreaToolAction = "undoLastPoint" | "cancelPreview";
 
-export const appendAreaPreviewPoint = (
-  previousCoordinates: readonly RuntimeCoordinate[],
-  coordinate: RuntimeCoordinate
-) => [...previousCoordinates, coordinate];
+export const appendAreaPreviewPoint = <T>(
+  previousItems: readonly T[],
+  nextItem: T
+) => [...previousItems, nextItem];
 
-export const undoAreaPreviewPoint = (
-  previousCoordinates: readonly RuntimeCoordinate[]
-) => previousCoordinates.slice(0, -1);
+export const undoAreaPreviewPoint = <T>(previousItems: readonly T[]) =>
+  previousItems.slice(0, -1);
 
 const cartesianFromRuntimeCoordinate = ({
   longitude,
@@ -73,14 +73,25 @@ const deriveAreaAnnotationOptions = ({
 export const commitAreaMeasurement = ({
   toolType,
   coordinates,
+  linkedNodeGroupIds,
   addAnnotation,
 }: {
   toolType: RuntimeAreaToolType;
   coordinates: readonly RuntimeCoordinate[];
+  linkedNodeGroupIds?: readonly (
+    | RuntimeLinkedNodeGroupId
+    | null
+    | undefined
+  )[];
   addAnnotation: (
     toolType: RuntimeMeasurement["toolType"],
     nextCoordinates: readonly RuntimeCoordinate[],
-    options?: RuntimeAddAnnotationOptions
+    options?: RuntimeAddAnnotationOptions,
+    linkedNodeGroupIds?: readonly (
+      | RuntimeLinkedNodeGroupId
+      | null
+      | undefined
+    )[]
   ) => RuntimeMeasurement;
 }) => {
   if (coordinates.length < 3) {
@@ -93,6 +104,7 @@ export const commitAreaMeasurement = ({
     deriveAreaAnnotationOptions({
       toolType,
       coordinates,
-    })
+    }),
+    linkedNodeGroupIds
   );
 };

@@ -13,9 +13,16 @@ export type RuntimeCoordinate = {
   altitude: number;
 };
 
+export type RuntimeLinkedNodeGroupId = string;
+
 export type RuntimeNode = {
   id: string;
   coordinate: RuntimeCoordinate;
+};
+
+export type RuntimeLinkedNodeGroup = {
+  id: RuntimeLinkedNodeGroupId;
+  nodeIds: string[];
 };
 
 export type RuntimeEdge = {
@@ -89,6 +96,11 @@ export type AnnotationDraftStoreState = {
   draftCoordinatesByToolType: Readonly<
     Partial<Record<RuntimeToolId, readonly RuntimeCoordinate[]>>
   >;
+  draftLinkedNodeGroupIdsByToolType: Readonly<
+    Partial<
+      Record<RuntimeToolId, readonly (RuntimeLinkedNodeGroupId | null)[]>
+    >
+  >;
   pendingAnnotationIdByToolType: Readonly<
     Partial<Record<RuntimeToolId, string | null>>
   >;
@@ -105,6 +117,7 @@ export type AnnotationsStoreState = {
   selectionState: AnnotationSelectionStoreState;
   annotationEntries: readonly RuntimeAnnotationEntry[];
   nodes: readonly RuntimeNode[];
+  linkedNodeGroups: readonly RuntimeLinkedNodeGroup[];
   edges: readonly RuntimeEdge[];
   infoBoxState: AnnotationInfoBoxStoreState;
   settingsState: AnnotationSettingsStoreState;

@@ -53,6 +53,8 @@ type UseRuntimeMeasurementEdgesControllerArgs = {
   formatOptions: AnnotationsRuntimeFormatOptions;
   previewLineLabelVisualOptions?: Partial<PreviewLineLabelVisualOptions>;
   activeMoveGizmoNodeId: string | null;
+  blockEdgeInteractions: boolean;
+  onMeasurementSelect: (measurementId: string) => void;
   onEdgeClick: (startNodeId: string, endNodeId: string) => boolean;
   onDistanceTriangleCornerClick: (measurementId: string) => void;
 };
@@ -68,6 +70,7 @@ type RuntimeEdgeSceneLine = {
 
 type RuntimeEdgeSegment = {
   id: string;
+  measurementId?: string;
   startNodeId?: string;
   endNodeId?: string;
   startCoordinate: RuntimeEdgeRenderModel["coordinates"][number];
@@ -697,6 +700,8 @@ export const useRuntimeMeasurementEdgesController = ({
   formatOptions,
   previewLineLabelVisualOptions,
   activeMoveGizmoNodeId,
+  blockEdgeInteractions,
+  onMeasurementSelect,
   onEdgeClick,
   onDistanceTriangleCornerClick,
 }: UseRuntimeMeasurementEdgesControllerArgs) => {
@@ -725,6 +730,7 @@ export const useRuntimeMeasurementEdgesController = ({
 
           segments.push({
             id: `${edge.id}-${index}`,
+            measurementId: edge.measurementId,
             startNodeId: edge.nodeIds?.[index],
             endNodeId: edge.nodeIds?.[index + 1],
             startCoordinate,
@@ -804,6 +810,17 @@ export const useRuntimeMeasurementEdgesController = ({
   const overlayLines = useMemo<readonly LineVisualizerData[]>(
     () =>
       edgeSegments.flatMap((edge) => {
+        const referenceEdgeClickHandler =
+          activeMoveGizmoNodeId && edge.startNodeId && edge.endNodeId
+            ? () => onEdgeClick(edge.startNodeId!, edge.endNodeId!)
+            : undefined;
+        const selectionEdgeClickHandler =
+          !blockEdgeInteractions && edge.distanceTriangleOverlay?.measurementId
+            ? () =>
+                onMeasurementSelect(edge.distanceTriangleOverlay!.measurementId!)
+            : undefined;
+        const lineClickHandler =
+          referenceEdgeClickHandler ?? selectionEdgeClickHandler;
         const baseLines = createSvgLineVisualizers({
           id: `runtime-edge-overlay-${edge.id}`,
           getSvgLine: () => {
@@ -832,10 +849,7 @@ export const useRuntimeMeasurementEdgesController = ({
           strokeWidth: edge.strokeWidth,
           dashed: edge.dashed,
           hitTargetStrokeWidth: 10,
-          onLineClick:
-            activeMoveGizmoNodeId && edge.startNodeId && edge.endNodeId
-              ? () => onEdgeClick(edge.startNodeId!, edge.endNodeId!)
-              : undefined,
+          onLineClick: lineClickHandler,
         });
 
         if (!edge.distanceTriangleOverlay || !scene || scene.isDestroyed()) {
@@ -870,10 +884,7 @@ export const useRuntimeMeasurementEdgesController = ({
             strokeWidth: edge.strokeWidth,
             dashed: true,
             hitTargetStrokeWidth: 8,
-            onLineClick:
-              activeMoveGizmoNodeId && edge.startNodeId && edge.endNodeId
-                ? () => onEdgeClick(edge.startNodeId!, edge.endNodeId!)
-                : undefined,
+            onLineClick: lineClickHandler,
           }),
           ...createSvgLineVisualizers({
             id: `runtime-edge-overlay-${edge.id}-horizontal`,
@@ -892,14 +903,19 @@ export const useRuntimeMeasurementEdgesController = ({
             strokeWidth: edge.strokeWidth,
             dashed: true,
             hitTargetStrokeWidth: 8,
-            onLineClick:
-              activeMoveGizmoNodeId && edge.startNodeId && edge.endNodeId
-                ? () => onEdgeClick(edge.startNodeId!, edge.endNodeId!)
-                : undefined,
+            onLineClick: lineClickHandler,
           }),
         ];
       }),
-    [activeMoveGizmoNodeId, edgeSegments, formatOptions, onEdgeClick, scene]
+    [
+      activeMoveGizmoNodeId,
+      blockEdgeInteractions,
+      edgeSegments,
+      formatOptions,
+      onEdgeClick,
+      onMeasurementSelect,
+      scene,
+    ]
   );
 
   useLineVisualizers([...overlayLines], overlayLines.length > 0);
@@ -1142,7 +1158,8 @@ export const useRuntimeMeasurementEdgesController = ({
           applyDistanceTriangleStraightCornerHandleLayout({
             handle: cornerHandle,
             center: straightCenter,
-            clickable: true,
+            clickable:
+              !blockEdgeInteractions && activeMoveGizmoNodeId === null,
             onClick: () =>
               onDistanceTriangleCornerClick(
                 resolveDistanceTriangleMeasurementId(edge)
@@ -1259,6 +1276,8 @@ export const useRuntimeMeasurementEdgesController = ({
           onDistanceTriangleCornerClick(
             resolveDistanceTriangleMeasurementId(edge)
           );
+        const cornerHandleClickable =
+          !blockEdgeInteractions && activeMoveGizmoNodeId === null;
 
         applyDistanceTriangleCornerHandleLayout({
           handle: cornerHandle,
@@ -1268,7 +1287,7 @@ export const useRuntimeMeasurementEdgesController = ({
           minY,
           width,
           height,
-          clickable: true,
+          clickable: cornerHandleClickable,
           onClick,
         });
       });
@@ -1295,6 +1314,8 @@ export const useRuntimeMeasurementEdgesController = ({
       }
     };
   }, [
+    activeMoveGizmoNodeId,
+    blockEdgeInteractions,
     edgeSegments,
     formatOptions,
     onDistanceTriangleCornerClick,

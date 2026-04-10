@@ -14,6 +14,8 @@ import {
 import {
   clearDraftCoordinatesByToolType,
   getDraftCoordinatesForTool,
+  getDraftLinkedNodeGroupIdsForTool,
+  setDraftLinkedNodeGroupIdsByToolType,
   setDraftCoordinatesByToolType,
 } from "../../store";
 import {
@@ -74,6 +76,10 @@ export const distanceToolPlugin = createMeasurementToolPlugin({
             getState().draftState,
             toolType
           ),
+          linkedNodeGroupIds: getDraftLinkedNodeGroupIdsForTool(
+            getState().draftState,
+            toolType
+          ),
           addAnnotation,
         });
 
@@ -83,10 +89,14 @@ export const distanceToolPlugin = createMeasurementToolPlugin({
       discardDraft: () => {
         dispatch(clearDraftCoordinatesByToolType(toolType));
       },
-      onNodeCreated: (coordinate) => {
+      onNodeCreated: (coordinate, linkedNodeGroupId) => {
         const nextCoordinates = appendDistancePreviewPoint(
           getDraftCoordinatesForTool(getState().draftState, toolType),
           coordinate
+        );
+        const nextLinkedNodeGroupIds = appendDistancePreviewPoint(
+          getDraftLinkedNodeGroupIdsForTool(getState().draftState, toolType),
+          linkedNodeGroupId ?? null
         );
 
         if (nextCoordinates.length < 2) {
@@ -96,12 +106,19 @@ export const distanceToolPlugin = createMeasurementToolPlugin({
               coordinates: nextCoordinates,
             })
           );
+          dispatch(
+            setDraftLinkedNodeGroupIdsByToolType({
+              toolType,
+              linkedNodeGroupIds: nextLinkedNodeGroupIds,
+            })
+          );
           return;
         }
 
         commitDistanceMeasurement({
           toolType,
           coordinates: nextCoordinates,
+          linkedNodeGroupIds: nextLinkedNodeGroupIds,
           addAnnotation,
         });
         dispatch(clearDraftCoordinatesByToolType(toolType));
@@ -109,9 +126,13 @@ export const distanceToolPlugin = createMeasurementToolPlugin({
     }),
   },
   pointQuery: {
-    onPointCreated: ({ coordinate, activeToolSession }) => {
+    onPointCreated: ({
+      coordinate,
+      linkedNodeGroupId,
+      activeToolSession,
+    }) => {
       if (activeToolSession?.onNodeCreated) {
-        activeToolSession.onNodeCreated(coordinate);
+        activeToolSession.onNodeCreated(coordinate, linkedNodeGroupId);
         return;
       }
 
@@ -147,6 +168,17 @@ export const distanceToolPlugin = createMeasurementToolPlugin({
             toolType,
             coordinates: undoDistancePreviewPoint(
               getDraftCoordinatesForTool(
+                sessionContext.getState().draftState,
+                toolType
+              )
+            ),
+          })
+        );
+        sessionContext.dispatch(
+          setDraftLinkedNodeGroupIdsByToolType({
+            toolType,
+            linkedNodeGroupIds: undoDistancePreviewPoint(
+              getDraftLinkedNodeGroupIdsForTool(
                 sessionContext.getState().draftState,
                 toolType
               )

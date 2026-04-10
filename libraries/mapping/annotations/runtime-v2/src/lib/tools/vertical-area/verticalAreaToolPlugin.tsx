@@ -15,6 +15,8 @@ import {
 import {
   clearDraftCoordinatesByToolType,
   getDraftCoordinatesForTool,
+  getDraftLinkedNodeGroupIdsForTool,
+  setDraftLinkedNodeGroupIdsByToolType,
   setDraftCoordinatesByToolType,
 } from "../../store";
 import { createVerticalAreaPreviewController } from "../../interaction/createVerticalAreaPreviewController";
@@ -68,6 +70,7 @@ export const verticalAreaToolPlugin = createMeasurementToolPlugin({
         const nextMeasurement = commitVerticalAreaMeasurement(
           toolType,
           getDraftCoordinatesForTool(getState().draftState, toolType),
+          getDraftLinkedNodeGroupIdsForTool(getState().draftState, toolType),
           {
             addAnnotation,
           }
@@ -79,10 +82,14 @@ export const verticalAreaToolPlugin = createMeasurementToolPlugin({
       discardDraft: () => {
         dispatch(clearDraftCoordinatesByToolType(toolType));
       },
-      onNodeCreated: (coordinate) => {
+      onNodeCreated: (coordinate, linkedNodeGroupId) => {
         const nextCoordinates = appendVerticalAreaPreviewPoint(
           getDraftCoordinatesForTool(getState().draftState, toolType),
           coordinate
+        );
+        const nextLinkedNodeGroupIds = appendVerticalAreaPreviewPoint(
+          getDraftLinkedNodeGroupIdsForTool(getState().draftState, toolType),
+          linkedNodeGroupId ?? null
         );
 
         if (nextCoordinates.length < 2) {
@@ -92,20 +99,35 @@ export const verticalAreaToolPlugin = createMeasurementToolPlugin({
               coordinates: nextCoordinates,
             })
           );
+          dispatch(
+            setDraftLinkedNodeGroupIdsByToolType({
+              toolType,
+              linkedNodeGroupIds: nextLinkedNodeGroupIds,
+            })
+          );
           return;
         }
 
-        commitVerticalAreaMeasurement(toolType, nextCoordinates, {
-          addAnnotation,
-        });
+        commitVerticalAreaMeasurement(
+          toolType,
+          nextCoordinates,
+          nextLinkedNodeGroupIds,
+          {
+            addAnnotation,
+          }
+        );
         dispatch(clearDraftCoordinatesByToolType(toolType));
       },
     }),
   },
   pointQuery: {
-    onPointCreated: ({ coordinate, activeToolSession }) => {
+    onPointCreated: ({
+      coordinate,
+      linkedNodeGroupId,
+      activeToolSession,
+    }) => {
       if (activeToolSession?.onNodeCreated) {
-        activeToolSession.onNodeCreated(coordinate);
+        activeToolSession.onNodeCreated(coordinate, linkedNodeGroupId);
         return;
       }
 
@@ -137,6 +159,17 @@ export const verticalAreaToolPlugin = createMeasurementToolPlugin({
             toolType,
             coordinates: undoVerticalAreaPreviewPoint(
               getDraftCoordinatesForTool(
+                sessionContext.getState().draftState,
+                toolType
+              )
+            ),
+          })
+        );
+        sessionContext.dispatch(
+          setDraftLinkedNodeGroupIdsByToolType({
+            toolType,
+            linkedNodeGroupIds: undoVerticalAreaPreviewPoint(
+              getDraftLinkedNodeGroupIdsForTool(
                 sessionContext.getState().draftState,
                 toolType
               )

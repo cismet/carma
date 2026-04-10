@@ -22,7 +22,14 @@ import {
   isManagedAnnotationKeyboardEvent,
   resolveAnnotationCommonShortcutAction,
 } from "@carma-mapping/annotations/core";
-import { BoundingSphere, SceneTransforms, defined } from "@carma-cesium";
+import {
+  BoundingSphere,
+  SceneTransforms,
+  ScreenSpaceEventHandler,
+  ScreenSpaceEventType,
+  defined,
+  type Cartesian2,
+} from "@carma-cesium";
 import {
   cartesian3FromGeographicCoordinate,
   flyToBoundingSphereExtent,
@@ -65,6 +72,8 @@ import {
   type RuntimeAnnotationEntry,
   type RuntimeCoordinate,
   type RuntimeEdge,
+  type RuntimeLinkedNodeGroup,
+  type RuntimeLinkedNodeGroupId,
   type RuntimeMeasurement,
   type RuntimeNode,
 } from "../store";
@@ -110,7 +119,12 @@ type AnnotationsRuntimeServices = {
   addAnnotation: (
     toolType: RuntimeMeasurement["toolType"],
     coordinates: readonly RuntimeCoordinate[],
-    options?: RuntimeAddAnnotationOptions
+    options?: RuntimeAddAnnotationOptions,
+    linkedNodeGroupIds?: readonly (
+      | RuntimeLinkedNodeGroupId
+      | null
+      | undefined
+    )[]
   ) => RuntimeMeasurement;
   setActiveToolType: (toolType: RuntimeToolId) => void;
   requestModeChange: (toolType: RuntimeToolId) => void;
@@ -196,6 +210,22 @@ const selectSelectedAnnotationId = (state: {
     state.selectionState.selectedAnnotationIds.length - 1
   ] ?? null;
 
+const resolveRemovableSelectedAnnotationIds = (state: {
+  selectionState: { selectedAnnotationIds: readonly string[] };
+  annotationEntries: readonly RuntimeAnnotationEntry[];
+}) => {
+  const selectedAnnotationIdSet = new Set(
+    state.selectionState.selectedAnnotationIds
+  );
+
+  return state.annotationEntries
+    .filter(
+      (annotationEntry) =>
+        selectedAnnotationIdSet.has(annotationEntry.id) && !annotationEntry.locked
+    )
+    .map((annotationEntry) => annotationEntry.id);
+};
+
 const isEditableKeyboardTarget = (target: EventTarget | null): boolean =>
   target instanceof HTMLElement &&
   (target.isContentEditable ||
@@ -224,9 +254,43 @@ const POINT_QUERY_DISC_SMOOTHING_WEIGHT_DECAY_GAMMA = 3;
 const HOVER_CLEAR_DELAY_MS = 34;
 const RUNTIME_INFOBOX_FLY_TO_MIN_RADIUS_METERS = 80;
 const RUNTIME_INFOBOX_FLY_TO_PADDING_FACTOR = 1.15;
+const ADDITIVE_SELECTION_MODIFIER_KEY = "Shift";
 const CURSOR_VISIBLE_SENTINEL: RuntimeCursorScreenPosition = {
   x: Number.NaN,
   y: Number.NaN,
+};
+
+const isRuntimeSceneSelectionTarget = ({
+  pickedObject,
+  edgeIds,
+  polygonFillIds,
+}: {
+  pickedObject: unknown;
+  edgeIds: ReadonlySet<string>;
+  polygonFillIds: ReadonlySet<string>;
+}) => {
+  const pickedId =
+    typeof pickedObject === "object" && pickedObject !== null
+      ? (pickedObject as { id?: unknown }).id
+      : undefined;
+
+  if (typeof pickedId === "string") {
+    return [...edgeIds].some(
+      (edgeId) => pickedId === edgeId || pickedId.startsWith(`${edgeId}-`)
+    );
+  }
+
+  if (
+    typeof pickedId === "object" &&
+    pickedId !== null &&
+    "polygonGroupId" in pickedId
+  ) {
+    const polygonGroupId = (pickedId as { polygonGroupId?: unknown })
+      .polygonGroupId;
+    return typeof polygonGroupId === "string" && polygonFillIds.has(polygonGroupId);
+  }
+
+  return false;
 };
 
 const NAVIGABLE_MEASUREMENT_TOOL_TYPES: ReadonlySet<string> = new Set([
@@ -350,6 +414,7 @@ const buildMeasurementEntities = ({
   toolType,
   coordinates,
   options,
+  linkedNodeGroupIds,
   measurementSequenceRef,
   nodeSequenceRef,
   edgeSequenceRef,
@@ -357,22 +422,42 @@ const buildMeasurementEntities = ({
   toolType: RuntimeMeasurement["toolType"];
   coordinates: readonly RuntimeCoordinate[];
   options?: RuntimeAddAnnotationOptions;
+  linkedNodeGroupIds?: readonly (
+    | RuntimeLinkedNodeGroupId
+    | null
+    | undefined
+  )[];
   measurementSequenceRef: React.MutableRefObject<number>;
   nodeSequenceRef: React.MutableRefObject<number>;
   edgeSequenceRef: React.MutableRefObject<number>;
 }): {
   annotationEntry: RuntimeAnnotationEntry;
   nodes: readonly RuntimeNode[];
+  linkedNodeGroups: readonly RuntimeLinkedNodeGroup[];
   edges: readonly RuntimeEdge[];
 } => {
   measurementSequenceRef.current += 1;
   const annotationEntryId = `${toolType}-${measurementSequenceRef.current}`;
   const nodes = coordinates.map((coordinate) => {
     nodeSequenceRef.current += 1;
+    const nodeId = `node-${nodeSequenceRef.current}`;
 
     return {
-      id: `node-${nodeSequenceRef.current}`,
+      id: nodeId,
       coordinate,
+    };
+  });
+  const linkedNodeGroups = nodes.map((node, index) => {
+    const linkedNodeGroupId = linkedNodeGroupIds?.[index];
+    const normalizedLinkedNodeGroupId =
+      typeof linkedNodeGroupId === "string" &&
+      linkedNodeGroupId.trim().length > 0
+        ? linkedNodeGroupId.trim()
+        : node.id;
+
+    return {
+      id: normalizedLinkedNodeGroupId,
+      nodeIds: [node.id],
     };
   });
   const edges = nodes.slice(0, -1).map((node, index) => {
@@ -410,6 +495,7 @@ const buildMeasurementEntities = ({
   return {
     annotationEntry,
     nodes,
+    linkedNodeGroups,
     edges,
   };
 };
@@ -471,7 +557,12 @@ const RuntimeInteractionHost = ({
   addAnnotation: (
     toolType: RuntimeMeasurement["toolType"],
     coordinates: readonly RuntimeCoordinate[],
-    options?: RuntimeAddAnnotationOptions
+    options?: RuntimeAddAnnotationOptions,
+    linkedNodeGroupIds?: readonly (
+      | RuntimeLinkedNodeGroupId
+      | null
+      | undefined
+    )[]
   ) => RuntimeMeasurement;
   setCursorScreenPosition: (
     cursorScreenPosition: RuntimeCursorScreenPosition
@@ -486,6 +577,9 @@ const RuntimeInteractionHost = ({
   );
   const nodes = useAnnotationsSelector(
     (annotationsState) => annotationsState.nodes
+  );
+  const linkedNodeGroups = useAnnotationsSelector(
+    (annotationsState) => annotationsState.linkedNodeGroups
   );
   const pointTemporaryMode = useAnnotationsSelector(
     (annotationsState) => annotationsState.settingsState.pointTemporaryMode
@@ -548,6 +642,7 @@ const RuntimeInteractionHost = ({
   } = usePointQueryToolRouting({
     scene,
     nodes,
+    linkedNodeGroups,
     activeToolType,
     toolSessions,
     getToolPlugin: (toolType) => registry.getPlugin(toolType) ?? null,
@@ -730,12 +825,15 @@ const RuntimeInteractionHost = ({
           runtimeState.selectionState.selectedAnnotationIds;
 
         if (selectedAnnotationIds.length > 0) {
-          sessionContext.dispatch(
-            removeAnnotationsByIds({
-              annotationIds: selectedAnnotationIds,
-              nextSelectedAnnotationId: null,
-            })
-          );
+          const removableAnnotationIds =
+            resolveRemovableSelectedAnnotationIds(runtimeState);
+          if (removableAnnotationIds.length > 0) {
+            sessionContext.dispatch(
+              removeAnnotationsByIds({
+                annotationIds: removableAnnotationIds,
+              })
+            );
+          }
           event.preventDefault();
           event.stopPropagation();
           return;
@@ -819,7 +917,6 @@ const RuntimeInteractionHost = ({
 const RuntimeVisualizationHost = ({
   scene,
   registry,
-  setSelectedAnnotationId,
   onActiveMoveGizmoNodeIdChange,
   activeMoveGizmoNodeId,
   cursorOverlayVisible,
@@ -829,7 +926,6 @@ const RuntimeVisualizationHost = ({
 }: {
   scene: RuntimeScene | null;
   registry: AnnotationToolRegistry;
-  setSelectedAnnotationId: (annotationId: string | null) => void;
   onActiveMoveGizmoNodeIdChange: (nodeId: string | null) => void;
   activeMoveGizmoNodeId: string | null;
   cursorOverlayVisible: boolean;
@@ -842,6 +938,9 @@ const RuntimeVisualizationHost = ({
   );
   const nodes = useAnnotationsSelector(
     (annotationsState) => annotationsState.nodes
+  );
+  const linkedNodeGroups = useAnnotationsSelector(
+    (annotationsState) => annotationsState.linkedNodeGroups
   );
   const edges = useAnnotationsSelector(
     (annotationsState) => annotationsState.edges
@@ -860,13 +959,28 @@ const RuntimeVisualizationHost = ({
       annotationsState.settingsState.elevationReferenceAnnotationId
   );
   const annotationsStore = useAnnotationsStore("RuntimeVisualizationHost");
+  const [
+    isSelectionAdditiveModifierPressed,
+    setIsSelectionAdditiveModifierPressed,
+  ] = useState(false);
+  const isSelectionAdditiveModifierPressedRef = useRef(false);
+  const syncSelectionAdditiveModifierPressed = useCallback(
+    (nextIsPressed: boolean) => {
+      isSelectionAdditiveModifierPressedRef.current = nextIsPressed;
+      setIsSelectionAdditiveModifierPressed((currentIsPressed) =>
+        currentIsPressed === nextIsPressed
+          ? currentIsPressed
+          : nextIsPressed
+      );
+    },
+    []
+  );
   const {
     handleNodeLongPress,
     handleReferenceNodeClick,
     handleReferenceEdgeClick,
-  } = usePointEditingGizmo(scene, nodes, {
+  } = usePointEditingGizmo(scene, nodes, linkedNodeGroups, {
     annotationsStore,
-    setSelectedAnnotationId,
     onActiveMoveGizmoNodeIdChange,
   });
   const handleDistanceTriangleCornerClick = useCallback(
@@ -940,6 +1054,82 @@ const RuntimeVisualizationHost = ({
     },
     [annotationsStore]
   );
+  const handleMeasurementSelection = useCallback(
+    (annotationId: string | null) => {
+      if (!annotationId) {
+        annotationsStore.dispatch(setSelectedAnnotationId(null));
+        return;
+      }
+
+      if (!isSelectionAdditiveModifierPressedRef.current) {
+        annotationsStore.dispatch(setSelectedAnnotationId(annotationId));
+        return;
+      }
+
+      const currentlySelectedAnnotationIds =
+        annotationsStore.getState().selectionState.selectedAnnotationIds;
+      const nextSelectedAnnotationIds =
+        currentlySelectedAnnotationIds.includes(annotationId)
+          ? currentlySelectedAnnotationIds.filter(
+              (selectedAnnotationId) => selectedAnnotationId !== annotationId
+            )
+          : [...currentlySelectedAnnotationIds, annotationId];
+
+      annotationsStore.dispatch(
+        setSelectedAnnotationIds(nextSelectedAnnotationIds)
+      );
+    },
+    [annotationsStore]
+  );
+
+  useEffect(() => {
+    const syncModifierState = (event: KeyboardEvent) => {
+      syncSelectionAdditiveModifierPressed(event.shiftKey);
+    };
+
+    const clearModifierState = () => {
+      syncSelectionAdditiveModifierPressed(false);
+    };
+
+    const handlePointerDown = (event: PointerEvent) => {
+      syncSelectionAdditiveModifierPressed(event.shiftKey);
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === ADDITIVE_SELECTION_MODIFIER_KEY || event.shiftKey) {
+        syncModifierState(event);
+      }
+    };
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.key === ADDITIVE_SELECTION_MODIFIER_KEY || !event.shiftKey) {
+        syncModifierState(event);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        clearModifierState();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown, true);
+    window.addEventListener("keyup", handleKeyUp, true);
+    window.addEventListener("pointerdown", handlePointerDown, true);
+    window.addEventListener("blur", clearModifierState);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown, true);
+      window.removeEventListener("keyup", handleKeyUp, true);
+      window.removeEventListener("pointerdown", handlePointerDown, true);
+      window.removeEventListener("blur", clearModifierState);
+      document.removeEventListener(
+        "visibilitychange",
+        handleVisibilityChange
+      );
+    };
+  }, [syncSelectionAdditiveModifierPressed]);
 
   const aggregatedRenderLayer = useMemo(() => {
     const pluginLayers = registry.plugins
@@ -952,7 +1142,8 @@ const RuntimeVisualizationHost = ({
             elevationReferenceAnnotationId,
             selectedAnnotationId,
             selectedAnnotationIds,
-            setSelectedAnnotationId,
+            isSelectionAdditiveModifierPressed,
+            setSelectedAnnotationId: handleMeasurementSelection,
             setElevationReferenceAnnotationId,
             toggleAnnotationElevationDisplayMode,
             onNodeLongPress: handleNodeLongPress,
@@ -977,15 +1168,77 @@ const RuntimeVisualizationHost = ({
     registry.plugins,
     selectedAnnotationId,
     selectedAnnotationIds,
-    setSelectedAnnotationId,
+    isSelectionAdditiveModifierPressed,
+    handleMeasurementSelection,
     setElevationReferenceAnnotationId,
     toggleAnnotationElevationDisplayMode,
     handleNodeLongPress,
   ]);
 
+  const runtimeSceneSelectionEdgeIdSet = useMemo(
+    () => new Set((aggregatedRenderLayer.edges ?? []).map((edge) => edge.id)),
+    [aggregatedRenderLayer.edges]
+  );
+  const runtimeSceneSelectionPolygonFillIdSet = useMemo(
+    () =>
+      new Set(
+        (aggregatedRenderLayer.polygonFills ?? []).map((polygonFill) => polygonFill.id)
+      ),
+    [aggregatedRenderLayer.polygonFills]
+  );
+
+  useEffect(() => {
+    if (
+      !scene ||
+      scene.isDestroyed() ||
+      activeToolType !== SELECT_TOOL_TYPE
+    ) {
+      return;
+    }
+
+    const handler = new ScreenSpaceEventHandler(scene.canvas);
+    handler.setInputAction((event: { position: Cartesian2 }) => {
+      if (
+        annotationsStore.getState().selectionState.selectedAnnotationIds.length ===
+        0
+      ) {
+        return;
+      }
+
+      const pickedObject = scene.pick(event.position);
+      if (
+        isRuntimeSceneSelectionTarget({
+          pickedObject,
+          edgeIds: runtimeSceneSelectionEdgeIdSet,
+          polygonFillIds: runtimeSceneSelectionPolygonFillIdSet,
+        })
+      ) {
+        return;
+      }
+
+      handleMeasurementSelection(null);
+      scene.requestRender();
+    }, ScreenSpaceEventType.LEFT_CLICK);
+
+    return () => {
+      if (!handler.isDestroyed()) {
+        handler.destroy();
+      }
+    };
+  }, [
+    activeToolType,
+    annotationsStore,
+    handleMeasurementSelection,
+    runtimeSceneSelectionEdgeIdSet,
+    runtimeSceneSelectionPolygonFillIdSet,
+    scene,
+  ]);
+
   useCommittedRuntimeVisualization({
     scene,
     points: aggregatedRenderLayer.points ?? [],
+    nodes,
+    linkedNodeGroups,
     edges: aggregatedRenderLayer.edges ?? [],
     polygonFills: aggregatedRenderLayer.polygonFills ?? [],
     pointLabels: aggregatedRenderLayer.pointLabels ?? [],
@@ -997,6 +1250,7 @@ const RuntimeVisualizationHost = ({
       blockCommittedLabelInteractions ||
       activeMoveGizmoNodeId !== null ||
       registry.getPlugin(activeToolType)?.kind === "measurement",
+    onMeasurementSelect: handleMeasurementSelection,
     onNodeLongPress: handleNodeLongPress,
     onReferenceNodeClick: handleReferenceNodeClick,
     onReferenceEdgeClick: handleReferenceEdgeClick,
@@ -1010,6 +1264,12 @@ const RuntimeVisualizationHost = ({
       enabled: cursorOverlayVisible,
     }
   );
+  useCursorOverlay(scene, null, {
+    enabled:
+      activeToolType === SELECT_TOOL_TYPE &&
+      isSelectionAdditiveModifierPressed,
+    variant: "selection-additive-indicator",
+  });
 
   return null;
 };
@@ -1201,13 +1461,7 @@ export const AnnotationsProvider = ({
   const removeSelectedAnnotationEntries = useCallback(() => {
     const runtimeState = annotationsStore.getState();
     const removableAnnotationIds =
-      runtimeState.selectionState.selectedAnnotationIds.filter(
-        (annotationId) =>
-          !runtimeState.annotationEntries.find(
-            (annotationEntry) =>
-              annotationEntry.id === annotationId && annotationEntry.locked
-          )
-      );
+      resolveRemovableSelectedAnnotationIds(runtimeState);
     if (removableAnnotationIds.length === 0) {
       return;
     }
@@ -1215,7 +1469,6 @@ export const AnnotationsProvider = ({
     annotationsStore.dispatch(
       removeAnnotationsByIds({
         annotationIds: removableAnnotationIds,
-        nextSelectedAnnotationId: null,
       })
     );
   }, [annotationsStore]);
@@ -1381,7 +1634,12 @@ export const AnnotationsProvider = ({
     (
       toolType: RuntimeMeasurement["toolType"],
       coordinates: readonly RuntimeCoordinate[],
-      options?: RuntimeAddAnnotationOptions
+      options?: RuntimeAddAnnotationOptions,
+      linkedNodeGroupIds?: readonly (
+        | RuntimeLinkedNodeGroupId
+        | null
+        | undefined
+      )[]
     ) => {
       const runtimeStateBeforeInsert = annotationsStore.getState();
       let resolvedOptions = options;
@@ -1430,19 +1688,22 @@ export const AnnotationsProvider = ({
         };
       }
 
-      const { annotationEntry, nodes, edges } = buildMeasurementEntities({
-        toolType,
-        coordinates,
-        options: resolvedOptions,
-        measurementSequenceRef,
-        nodeSequenceRef,
-        edgeSequenceRef,
-      });
+      const { annotationEntry, nodes, linkedNodeGroups, edges } =
+        buildMeasurementEntities({
+          toolType,
+          coordinates,
+          options: resolvedOptions,
+          linkedNodeGroupIds,
+          measurementSequenceRef,
+          nodeSequenceRef,
+          edgeSequenceRef,
+        });
 
       annotationsStore.dispatch(
         appendAnnotationEntities({
           annotationEntry,
           nodes,
+          linkedNodeGroups,
           edges,
           selectAnnotationId: annotationEntry.id,
         })
@@ -1568,7 +1829,6 @@ export const AnnotationsProvider = ({
         <RuntimeVisualizationHost
           scene={scene}
           registry={registry}
-          setSelectedAnnotationId={setSelectedAnnotationIdInStore}
           onActiveMoveGizmoNodeIdChange={setActiveMoveGizmoNodeId}
           activeMoveGizmoNodeId={activeMoveGizmoNodeId}
           cursorOverlayVisible={cursorOverlayVisible}
@@ -1692,6 +1952,7 @@ export type {
   RuntimeAnnotationEntry,
   RuntimeCoordinate,
   RuntimeEdge,
+  RuntimeLinkedNodeGroupId,
   RuntimeMeasurement,
   RuntimeNode,
 } from "../store";

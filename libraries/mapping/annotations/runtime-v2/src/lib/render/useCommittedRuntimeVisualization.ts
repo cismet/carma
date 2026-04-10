@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 
 import { useRuntimePointMarkerVisualizer } from "./RuntimePointMarkerVisualizer";
 import { useRuntimePointLabelVisualizer } from "./RuntimePointLabelVisualizer";
@@ -12,6 +12,8 @@ import { useRuntimeMeasurementEdgesController } from "./useRuntimeMeasurementEdg
 import { useRuntimeMeasurementPolygonFillsController } from "./useRuntimeMeasurementPolygonFillsController";
 import type { RuntimeScene } from "../types/runtimeScene.types";
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotationsRuntimeFormatOptions";
+import type { RuntimeLinkedNodeGroup, RuntimeNode } from "../store";
+import { buildLinkedNodeGroupIdByNodeId } from "../store";
 import {
   resolvePreviewLineLabelVisualOptions,
   type PreviewLineLabelVisualOptions,
@@ -22,6 +24,8 @@ const NODE_LABEL_LONG_PRESS_DURATION_MS = 320;
 type UseCommittedRuntimeVisualizationArgs = {
   scene: RuntimeScene | null;
   points: readonly RuntimePointMarkerRenderModel[];
+  nodes: readonly RuntimeNode[];
+  linkedNodeGroups: readonly RuntimeLinkedNodeGroup[];
   edges: readonly RuntimeEdgeRenderModel[];
   polygonFills: readonly RuntimePolygonFillRenderModel[];
   pointLabels: readonly RuntimePointLabelRenderModel[];
@@ -30,6 +34,7 @@ type UseCommittedRuntimeVisualizationArgs = {
   previewLineLabelVisualOptions?: Partial<PreviewLineLabelVisualOptions>;
   activeMoveGizmoNodeId: string | null;
   blockLabelInteractions: boolean;
+  onMeasurementSelect: (measurementId: string) => void;
   onNodeLongPress: (nodeId: string, measurementId?: string) => void;
   onReferenceNodeClick: (nodeId: string) => boolean;
   onReferenceEdgeClick: (startNodeId: string, endNodeId: string) => boolean;
@@ -39,6 +44,8 @@ type UseCommittedRuntimeVisualizationArgs = {
 export const useCommittedRuntimeVisualization = ({
   scene,
   points,
+  nodes: _nodes,
+  linkedNodeGroups,
   edges,
   polygonFills,
   pointLabels,
@@ -47,6 +54,7 @@ export const useCommittedRuntimeVisualization = ({
   previewLineLabelVisualOptions,
   activeMoveGizmoNodeId,
   blockLabelInteractions,
+  onMeasurementSelect,
   onNodeLongPress,
   onReferenceNodeClick,
   onReferenceEdgeClick,
@@ -63,6 +71,8 @@ export const useCommittedRuntimeVisualization = ({
     formatOptions,
     previewLineLabelVisualOptions: resolvedPreviewLineLabelVisualOptions,
     activeMoveGizmoNodeId,
+    blockEdgeInteractions: blockLabelInteractions,
+    onMeasurementSelect,
     onEdgeClick: onReferenceEdgeClick,
     onDistanceTriangleCornerClick,
   });
@@ -75,8 +85,17 @@ export const useCommittedRuntimeVisualization = ({
     () => new Set(selectedAnnotationIds),
     [selectedAnnotationIds]
   );
+  const linkedNodeGroupIdByNodeId = useMemo(
+    () => buildLinkedNodeGroupIdByNodeId(linkedNodeGroups),
+    [linkedNodeGroups]
+  );
   const showNodeInteractionTargets =
     activeMoveGizmoNodeId !== null || !blockLabelInteractions;
+  const isMeasurementSelected = useCallback(
+    (measurementId?: string) =>
+      measurementId !== undefined && selectedAnnotationIdSet.has(measurementId),
+    [selectedAnnotationIdSet]
+  );
 
   const visiblePointLabels = useMemo(
     () =>
@@ -112,16 +131,22 @@ export const useCommittedRuntimeVisualization = ({
           pointLabel.allowClickWhenBlocked ||
           Boolean(activeMoveGizmoNodeId && pointLabel.nodeId),
         onLongPress:
-          pointLabel.onLongPress ??
-          (pointLabel.nodeId && pointLabel.measurementId
-            ? () =>
-                onNodeLongPress(pointLabel.nodeId!, pointLabel.measurementId!)
-            : undefined),
+          blockLabelInteractions
+            ? undefined
+            : pointLabel.onLongPress ??
+              (pointLabel.nodeId && pointLabel.measurementId
+                ? () =>
+                    onNodeLongPress(
+                      pointLabel.nodeId!,
+                      pointLabel.measurementId!
+                    )
+                : undefined),
         longPressDurationMs:
           pointLabel.longPressDurationMs ?? NODE_LABEL_LONG_PRESS_DURATION_MS,
       })),
     [
       activeMoveGizmoNodeId,
+      blockLabelInteractions,
       onNodeLongPress,
       onReferenceNodeClick,
       visiblePointLabels,
@@ -133,14 +158,18 @@ export const useCommittedRuntimeVisualization = ({
       return [];
     }
 
-    const unselectedNodeLabels: RuntimePointLabelRenderModel[] = [];
-    const selectedNodeLabels: RuntimePointLabelRenderModel[] = [];
+    const nodeInteractionLabelsByGroupId = new Map<
+      string,
+      RuntimePointLabelRenderModel
+    >();
 
     points.forEach((point) => {
       if (!point.nodeId) {
         return;
       }
 
+      const linkedNodeGroupId =
+        linkedNodeGroupIdByNodeId.get(point.nodeId) ?? point.nodeId;
       const nodeInteractionLabel: RuntimePointLabelRenderModel = {
         id: `${point.id}-node-interaction`,
         measurementId: point.measurementId,
@@ -159,29 +188,49 @@ export const useCommittedRuntimeVisualization = ({
             ? () => {
                 onReferenceNodeClick(point.nodeId!);
               }
+            : point.measurementId
+            ? () => {
+                onMeasurementSelect(point.measurementId!);
+              }
             : undefined,
-        onLongPress: () => onNodeLongPress(point.nodeId!, point.measurementId),
+        onLongPress: blockLabelInteractions
+          ? undefined
+          : () => onNodeLongPress(point.nodeId!, point.measurementId),
         longPressDurationMs: NODE_LABEL_LONG_PRESS_DURATION_MS,
       };
 
-      if (
-        point.measurementId &&
-        selectedAnnotationIdSet.has(point.measurementId)
-      ) {
-        selectedNodeLabels.push(nodeInteractionLabel);
+      const existingNodeInteractionLabel =
+        nodeInteractionLabelsByGroupId.get(linkedNodeGroupId) ?? null;
+      if (!existingNodeInteractionLabel) {
+        nodeInteractionLabelsByGroupId.set(
+          linkedNodeGroupId,
+          nodeInteractionLabel
+        );
         return;
       }
 
-      unselectedNodeLabels.push(nodeInteractionLabel);
+      const existingIsSelected = isMeasurementSelected(
+        existingNodeInteractionLabel.measurementId
+      );
+      const nextIsSelected = isMeasurementSelected(point.measurementId);
+
+      if (!existingIsSelected && nextIsSelected) {
+        nodeInteractionLabelsByGroupId.set(
+          linkedNodeGroupId,
+          nodeInteractionLabel
+        );
+      }
     });
 
-    return [...unselectedNodeLabels, ...selectedNodeLabels];
+    return [...nodeInteractionLabelsByGroupId.values()];
   }, [
     activeMoveGizmoNodeId,
+    isMeasurementSelected,
+    linkedNodeGroupIdByNodeId,
+    onMeasurementSelect,
     onNodeLongPress,
     onReferenceNodeClick,
     points,
-    selectedAnnotationIdSet,
     showNodeInteractionTargets,
   ]);
 

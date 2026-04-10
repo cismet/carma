@@ -12,8 +12,11 @@ import type {
   RuntimeElevationDisplayMode,
   RuntimeEdge,
   RuntimeLabelAppearance,
+  RuntimeLinkedNodeGroup,
+  RuntimeLinkedNodeGroupId,
   RuntimeNode,
 } from "./annotationsStore.types";
+import { reconcileLinkedNodeGroups } from "./linkedNodeGroups.helpers";
 import type {
   RuntimeDistanceTriangleAnchorCoordinateRole,
   RuntimePointLabelCoordinateSelection,
@@ -26,6 +29,7 @@ export type CreateInitialAnnotationsStoreStateOptions = {
 export type AppendAnnotationEntitiesPayload = {
   annotationEntry: RuntimeAnnotationEntry;
   nodes: readonly RuntimeNode[];
+  linkedNodeGroups: readonly RuntimeLinkedNodeGroup[];
   edges: readonly RuntimeEdge[];
   selectAnnotationId?: string | null;
 };
@@ -33,6 +37,11 @@ export type AppendAnnotationEntitiesPayload = {
 export type SetDraftCoordinatesByToolTypePayload = {
   toolType: RuntimeToolId;
   coordinates: readonly RuntimeCoordinate[];
+};
+
+export type SetDraftLinkedNodeGroupIdsByToolTypePayload = {
+  toolType: RuntimeToolId;
+  linkedNodeGroupIds: readonly (RuntimeLinkedNodeGroupId | null)[];
 };
 
 export type SetPendingAnnotationIdByToolTypePayload = {
@@ -55,6 +64,7 @@ export type SetSelectedAnnotationIdsPayload = readonly string[];
 export type UpdateNodeCoordinateByIdPayload = {
   nodeId: string;
   coordinate: RuntimeCoordinate;
+  selectedMeasurementIds?: readonly string[];
 };
 
 export type SetAnnotationTemporaryByIdPayload = {
@@ -81,6 +91,62 @@ export type SetNextShortLabelCounterByToolTypePayload = {
 };
 
 const UNSET_TOOL_TYPE = "__unset__" as RuntimeToolId;
+const EARTH_RADIUS_METERS = 6_378_137;
+const LINKED_NODE_GROUP_DETACH_EPSILON_METERS = 0.1;
+
+const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
+
+const resolveCoordinateDistanceMeters = (
+  left: RuntimeCoordinate,
+  right: RuntimeCoordinate
+) => {
+  const deltaLatitudeRad = toRadians(right.latitude - left.latitude);
+  const deltaLongitudeRad = toRadians(right.longitude - left.longitude);
+  const meanLatitudeRad = toRadians((left.latitude + right.latitude) / 2);
+  const horizontalEastMeters =
+    deltaLongitudeRad * Math.cos(meanLatitudeRad) * EARTH_RADIUS_METERS;
+  const horizontalNorthMeters = deltaLatitudeRad * EARTH_RADIUS_METERS;
+  const deltaAltitudeMeters = right.altitude - left.altitude;
+
+  return Math.hypot(
+    horizontalEastMeters,
+    horizontalNorthMeters,
+    deltaAltitudeMeters
+  );
+};
+
+const resolveDetachedLinkedNodeGroupId = ({
+  movedNodeIds,
+  existingLinkedNodeGroups,
+  excludedGroupIds = [],
+}: {
+  movedNodeIds: readonly string[];
+  existingLinkedNodeGroups: readonly RuntimeLinkedNodeGroup[];
+  excludedGroupIds?: readonly string[];
+}) => {
+  const existingLinkedNodeGroupIdSet = new Set(
+    existingLinkedNodeGroups.map((linkedNodeGroup) => linkedNodeGroup.id)
+  );
+  excludedGroupIds.forEach((excludedGroupId) => {
+    existingLinkedNodeGroupIdSet.delete(excludedGroupId);
+  });
+
+  const baseLinkedNodeGroupId = `linked-node-group-${[...movedNodeIds]
+    .sort()
+    .join("-")}`;
+  if (!existingLinkedNodeGroupIdSet.has(baseLinkedNodeGroupId)) {
+    return baseLinkedNodeGroupId;
+  }
+
+  let suffix = 2;
+  while (
+    existingLinkedNodeGroupIdSet.has(`${baseLinkedNodeGroupId}-${suffix}`)
+  ) {
+    suffix += 1;
+  }
+
+  return `${baseLinkedNodeGroupId}-${suffix}`;
+};
 
 export const createInitialAnnotationsStoreState = (
   options: CreateInitialAnnotationsStoreStateOptions = {}
@@ -98,6 +164,7 @@ export const createInitialAnnotationsStoreState = (
     },
     annotationEntries: [],
     nodes: [],
+    linkedNodeGroups: [],
     edges: [],
     infoBoxState: {
       activeAnnotationId: null,
@@ -109,6 +176,7 @@ export const createInitialAnnotationsStoreState = (
     },
     draftState: {
       draftCoordinatesByToolType: {},
+      draftLinkedNodeGroupIdsByToolType: {},
       pendingAnnotationIdByToolType: {},
     },
   };
@@ -178,11 +246,34 @@ const annotationsSlice = createSlice({
       action: PayloadAction<AppendAnnotationEntitiesPayload>
     ) => {
       state.nodes.push(...action.payload.nodes);
+      action.payload.linkedNodeGroups.forEach((incomingLinkedNodeGroup) => {
+        const existingLinkedNodeGroup = state.linkedNodeGroups.find(
+          (linkedNodeGroup) => linkedNodeGroup.id === incomingLinkedNodeGroup.id
+        );
+        if (!existingLinkedNodeGroup) {
+          state.linkedNodeGroups.push({
+            id: incomingLinkedNodeGroup.id,
+            nodeIds: [...incomingLinkedNodeGroup.nodeIds],
+          });
+          return;
+        }
+
+        existingLinkedNodeGroup.nodeIds = Array.from(
+          new Set([
+            ...existingLinkedNodeGroup.nodeIds,
+            ...incomingLinkedNodeGroup.nodeIds,
+          ])
+        );
+      });
       state.edges.push(...action.payload.edges);
       state.annotationEntries.push({
         ...action.payload.annotationEntry,
         nodeIds: [...action.payload.annotationEntry.nodeIds],
         edgeIds: [...action.payload.annotationEntry.edgeIds],
+      });
+      state.linkedNodeGroups = reconcileLinkedNodeGroups({
+        nodes: state.nodes,
+        linkedNodeGroups: state.linkedNodeGroups,
       });
 
       if (action.payload.selectAnnotationId !== undefined) {
@@ -245,6 +336,10 @@ const annotationsSlice = createSlice({
       );
 
       state.nodes = state.nodes.filter((node) => usedNodeIds.has(node.id));
+      state.linkedNodeGroups = reconcileLinkedNodeGroups({
+        nodes: state.nodes,
+        linkedNodeGroups: state.linkedNodeGroups,
+      });
       state.edges = state.edges.filter((edge) => usedEdgeIds.has(edge.id));
 
       state.selectionState.previousSelectedAnnotationId = previousSelectionId;
@@ -320,6 +415,10 @@ const annotationsSlice = createSlice({
       );
 
       state.nodes = state.nodes.filter((node) => usedNodeIds.has(node.id));
+      state.linkedNodeGroups = reconcileLinkedNodeGroups({
+        nodes: state.nodes,
+        linkedNodeGroups: state.linkedNodeGroups,
+      });
       state.edges = state.edges.filter((edge) => usedEdgeIds.has(edge.id));
       state.selectionState.previousSelectedAnnotationId = previousSelectionId;
       if (
@@ -351,12 +450,95 @@ const annotationsSlice = createSlice({
       state,
       action: PayloadAction<UpdateNodeCoordinateByIdPayload>
     ) => {
-      const { nodeId, coordinate } = action.payload;
+      const { nodeId, coordinate, selectedMeasurementIds = [] } = action.payload;
       const targetNode = state.nodes.find((node) => node.id === nodeId);
       if (!targetNode) {
         return;
       }
-      targetNode.coordinate = coordinate;
+
+      const targetLinkedNodeGroup =
+        state.linkedNodeGroups.find((linkedNodeGroup) =>
+          linkedNodeGroup.nodeIds.includes(nodeId)
+        ) ?? null;
+      const linkedNodeGroupNodeIds = targetLinkedNodeGroup?.nodeIds ?? [nodeId];
+      const selectedMeasurementIdSet = new Set(
+        selectedMeasurementIds.filter(Boolean)
+      );
+      const selectedNodeIdSet = new Set(
+        state.annotationEntries
+          .filter((annotationEntry) =>
+            selectedMeasurementIdSet.has(annotationEntry.id)
+          )
+          .flatMap((annotationEntry) => annotationEntry.nodeIds)
+      );
+      const selectedLinkedNodeIds = linkedNodeGroupNodeIds.filter(
+        (linkedNodeId) => selectedNodeIdSet.has(linkedNodeId)
+      );
+      const scopedMovedNodeIds =
+        selectedLinkedNodeIds.length > 0
+          ? selectedLinkedNodeIds
+          : [...linkedNodeGroupNodeIds];
+      const lockedNodeIdSet = new Set(
+        state.annotationEntries
+          .filter((annotationEntry) => annotationEntry.locked)
+          .flatMap((annotationEntry) => annotationEntry.nodeIds)
+      );
+      const movedNodeIds = scopedMovedNodeIds.filter(
+        (movedNodeId) => !lockedNodeIdSet.has(movedNodeId)
+      );
+      const movedNodeIdSet = new Set(movedNodeIds);
+
+      if (movedNodeIds.length === 0) {
+        return;
+      }
+
+      state.nodes.forEach((node) => {
+        if (!movedNodeIdSet.has(node.id)) {
+          return;
+        }
+
+        node.coordinate = coordinate;
+      });
+
+      if (
+        !targetLinkedNodeGroup ||
+        movedNodeIds.length === 0 ||
+        movedNodeIds.length === targetLinkedNodeGroup.nodeIds.length
+      ) {
+        return;
+      }
+
+      const untouchedNodes = state.nodes.filter(
+        (node) =>
+          targetLinkedNodeGroup.nodeIds.includes(node.id) &&
+          !movedNodeIdSet.has(node.id)
+      );
+      const shouldDetachMovedNodes = untouchedNodes.some(
+        (untouchedNode) =>
+          resolveCoordinateDistanceMeters(
+            untouchedNode.coordinate,
+            coordinate
+          ) > LINKED_NODE_GROUP_DETACH_EPSILON_METERS
+      );
+      if (!shouldDetachMovedNodes) {
+        return;
+      }
+
+      targetLinkedNodeGroup.nodeIds = targetLinkedNodeGroup.nodeIds.filter(
+        (linkedNodeId) => !movedNodeIdSet.has(linkedNodeId)
+      );
+      state.linkedNodeGroups.push({
+        id: resolveDetachedLinkedNodeGroupId({
+          movedNodeIds,
+          existingLinkedNodeGroups: state.linkedNodeGroups,
+          excludedGroupIds: [targetLinkedNodeGroup.id],
+        }),
+        nodeIds: [...movedNodeIds],
+      });
+      state.linkedNodeGroups = reconcileLinkedNodeGroups({
+        nodes: state.nodes,
+        linkedNodeGroups: state.linkedNodeGroups,
+      });
     },
     setAnnotationTemporaryById: (
       state,
@@ -466,6 +648,10 @@ const annotationsSlice = createSlice({
         state.annotationEntries.flatMap((entry) => entry.edgeIds)
       );
       state.nodes = state.nodes.filter((node) => usedNodeIds.has(node.id));
+      state.linkedNodeGroups = reconcileLinkedNodeGroups({
+        nodes: state.nodes,
+        linkedNodeGroups: state.linkedNodeGroups,
+      });
       state.edges = state.edges.filter((edge) => usedEdgeIds.has(edge.id));
 
       const nextSelectedAnnotationIds =
@@ -484,11 +670,22 @@ const annotationsSlice = createSlice({
         ...action.payload.coordinates,
       ];
     },
+    setDraftLinkedNodeGroupIdsByToolType: (
+      state,
+      action: PayloadAction<SetDraftLinkedNodeGroupIdsByToolTypePayload>
+    ) => {
+      state.draftState.draftLinkedNodeGroupIdsByToolType[
+        action.payload.toolType
+      ] = [...action.payload.linkedNodeGroupIds];
+    },
     clearDraftCoordinatesByToolType: (
       state,
       action: PayloadAction<RuntimeToolId>
     ) => {
       delete state.draftState.draftCoordinatesByToolType[action.payload];
+      delete state.draftState.draftLinkedNodeGroupIdsByToolType[
+        action.payload
+      ];
     },
     setPendingAnnotationIdByToolType: (
       state,
@@ -516,6 +713,7 @@ export const {
   replaceState,
   setAnnotationToolType,
   setDraftCoordinatesByToolType,
+  setDraftLinkedNodeGroupIdsByToolType,
   setPendingAnnotationIdByToolType,
   setSelectedAnnotationId,
   setSelectedAnnotationIds,

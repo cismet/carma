@@ -13,20 +13,20 @@ import {
 import type {
   RuntimeAddAnnotationOptions,
   RuntimeCoordinate,
+  RuntimeLinkedNodeGroupId,
   RuntimeMeasurement,
 } from "../../store";
 export type VerticalAreaToolAction = "undoLastPoint" | "cancelPreview";
 
-export const appendVerticalAreaPreviewPoint = (
-  previousCoordinates: readonly RuntimeCoordinate[],
-  coordinate: RuntimeCoordinate
-) => [...previousCoordinates.slice(0, 1), coordinate];
+export const appendVerticalAreaPreviewPoint = <T>(
+  previousItems: readonly T[],
+  nextItem: T
+) => [...previousItems.slice(0, 1), nextItem];
 
 export const clearVerticalAreaPreview = (): readonly RuntimeCoordinate[] => [];
 
-export const undoVerticalAreaPreviewPoint = (
-  previousCoordinates: readonly RuntimeCoordinate[]
-) => previousCoordinates.slice(0, -1);
+export const undoVerticalAreaPreviewPoint = <T>(previousItems: readonly T[]) =>
+  previousItems.slice(0, -1);
 
 const cartesianFromRuntimeCoordinate = ({
   longitude,
@@ -85,10 +85,20 @@ const deriveVerticalAreaAnnotationOptions = (
 };
 
 const buildVerticalAreaMeasurementPayload = (
-  coordinates: readonly RuntimeCoordinate[]
+  coordinates: readonly RuntimeCoordinate[],
+  linkedNodeGroupIds: readonly (
+    | RuntimeLinkedNodeGroupId
+    | null
+    | undefined
+  )[] = []
 ): {
   coordinates: readonly RuntimeCoordinate[];
   options: RuntimeAddAnnotationOptions;
+  linkedNodeGroupIds: readonly (
+    | RuntimeLinkedNodeGroupId
+    | null
+    | undefined
+  )[];
 } | null => {
   if (coordinates.length < 2) {
     return null;
@@ -115,6 +125,12 @@ const buildVerticalAreaMeasurementPayload = (
   return {
     coordinates: rectangleCornerPositions.map(runtimeCoordinateFromCartesian),
     options: deriveVerticalAreaAnnotationOptions(rectangleCornerPositions),
+    linkedNodeGroupIds: [
+      linkedNodeGroupIds[0] ?? null,
+      null,
+      linkedNodeGroupIds[1] ?? null,
+      null,
+    ],
   };
 };
 
@@ -122,19 +138,37 @@ type CommitVerticalAreaMeasurementArgs = {
   addAnnotation: (
     toolType: RuntimeMeasurement["toolType"],
     nextCoordinates: readonly RuntimeCoordinate[],
-    options?: RuntimeAddAnnotationOptions
+    options?: RuntimeAddAnnotationOptions,
+    linkedNodeGroupIds?: readonly (
+      | RuntimeLinkedNodeGroupId
+      | null
+      | undefined
+    )[]
   ) => RuntimeMeasurement;
 };
 
 export const commitVerticalAreaMeasurement = (
   toolType: RuntimeMeasurement["toolType"],
   coordinates: readonly RuntimeCoordinate[],
+  linkedNodeGroupIds: readonly (
+    | RuntimeLinkedNodeGroupId
+    | null
+    | undefined
+  )[] = [],
   { addAnnotation }: CommitVerticalAreaMeasurementArgs
 ) => {
-  const payload = buildVerticalAreaMeasurementPayload(coordinates);
+  const payload = buildVerticalAreaMeasurementPayload(
+    coordinates,
+    linkedNodeGroupIds
+  );
   if (!payload) {
     return null;
   }
 
-  return addAnnotation(toolType, payload.coordinates, payload.options);
+  return addAnnotation(
+    toolType,
+    payload.coordinates,
+    payload.options,
+    payload.linkedNodeGroupIds
+  );
 };

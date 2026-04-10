@@ -1,5 +1,6 @@
 import type {
   RuntimeCoordinate,
+  RuntimeLinkedNodeGroupId,
   RuntimeMeasurement,
 } from "../../context/AnnotationsProvider";
 import {
@@ -10,15 +11,23 @@ import {
 type AddPointMeasurementArgs = {
   addAnnotation: (
     toolType: RuntimeMeasurement["toolType"],
-    nextCoordinates: readonly RuntimeCoordinate[]
+    nextCoordinates: readonly RuntimeCoordinate[],
+    options?: undefined,
+    linkedNodeGroupIds?: readonly (
+      | RuntimeLinkedNodeGroupId
+      | null
+      | undefined
+    )[]
   ) => RuntimeMeasurement;
 };
 
 export const addPointMeasurement = (
   toolType: RuntimeMeasurement["toolType"],
   coordinate: RuntimeCoordinate,
+  linkedNodeGroupId: RuntimeLinkedNodeGroupId | null | undefined,
   { addAnnotation }: AddPointMeasurementArgs
-) => addAnnotation(toolType, [coordinate]);
+) =>
+  addAnnotation(toolType, [coordinate], undefined, [linkedNodeGroupId ?? null]);
 
 export type PointToolAction = "removeLatestPoint";
 
