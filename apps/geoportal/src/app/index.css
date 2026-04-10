@@ -17,27 +17,6 @@ code {
     monospace;
 }
 
-.leaflet-marker-icon.leaflet-div-icon {
-  width: 8px !important;
-  height: 8px !important;
-  margin-left: -4px !important;
-  margin-top: -4px !important;
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  overflow: visible;
-  position: relative;
-}
-
-.leaflet-marker-icon.leaflet-div-icon::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  box-sizing: border-box;
-  background-color: rgba(255, 255, 255, 0.512);
-  border: 0.75px solid black;
-  border-radius: 50%;
-}
 
 path.leaflet-interactive {
   stroke: #267bdcd4;
