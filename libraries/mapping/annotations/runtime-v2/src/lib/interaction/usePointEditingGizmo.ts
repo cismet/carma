@@ -105,12 +105,14 @@ export const usePointEditingGizmo = (
   );
 
   const handleNodeLongPress = useCallback(
-    (nodeId: string, measurementId: string) => {
+    (nodeId: string, measurementId?: string) => {
       if (isNodeLocked(nodeId)) {
         return;
       }
 
-      setSelectedAnnotationId(measurementId);
+      if (measurementId) {
+        setSelectedAnnotationId(measurementId);
+      }
       setAxisOverride(null);
       setActiveMoveGizmoNodeId(nodeId);
     },

@@ -14,6 +14,7 @@ import {
   Cesium3DTileset,
   CesiumTerrainProvider,
   SceneMode,
+  readCesiumPrivateSceneTweens,
   type CesiumWidget,
   type Scene,
 } from "@carma-cesium";
@@ -70,7 +71,7 @@ const hasOngoingSceneWork = (scene: Scene): boolean => {
 
   return Boolean(
     internalScene._renderRequested ||
-      (internalScene.tweens.length ?? 0) > 0 ||
+      (readCesiumPrivateSceneTweens(scene)?.length ?? 0) > 0 ||
       (internalScene._screenSpaceCameraController?._tweens?.length ?? 0) > 0 ||
       internalScene.camera._currentFlight ||
       scene.mode === SceneMode.MORPHING ||

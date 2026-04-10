@@ -989,6 +989,7 @@ const RuntimeVisualizationHost = ({
     edges: aggregatedRenderLayer.edges ?? [],
     polygonFills: aggregatedRenderLayer.polygonFills ?? [],
     pointLabels: aggregatedRenderLayer.pointLabels ?? [],
+    selectedAnnotationIds,
     formatOptions,
     previewLineLabelVisualOptions,
     activeMoveGizmoNodeId,

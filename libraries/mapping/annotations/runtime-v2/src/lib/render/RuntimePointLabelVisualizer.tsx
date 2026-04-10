@@ -462,7 +462,9 @@ export const useRuntimePointLabelVisualizer = ({
       labels.filter(
         (label) =>
           !label.hideLabelAndStem ||
-          label.allowClickWhenBlocked === true
+          label.allowClickWhenBlocked === true ||
+          (label.allowLongPressWhenBlocked === true &&
+            label.markerOnlyPointerEvents === true)
       ),
     [labels]
   );
