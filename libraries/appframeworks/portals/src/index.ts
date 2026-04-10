@@ -1,7 +1,37 @@
 import * as utils from "./lib/utils/utils";
-export type * from "./lib/types";
-export type * from "./lib/contracts/cismap-layer-props.d";
-export type * from "./lib/contracts/maplibre-style.d";
+
+export type {
+  GeoportalCollection,
+  LayerInfo,
+  LayerMap,
+  CSSFilter,
+  StyleProperties,
+  NamedStyles,
+  VectorLayerOptions,
+  WMSOptions,
+  WMTSOptions,
+  TilesOptions,
+  NamedLayers,
+  CismetDefaults,
+  LayerConfig,
+  DefaultLayerConfig,
+  Settings,
+  LayerState,
+  MappingState,
+  FeatureInfoState,
+  SelectedObject,
+} from "./lib/types";
+export type {
+  CismapSupportedLayerTypes,
+  CismapLayerProps,
+} from "./lib/contracts/cismap-layer-props.d";
+export type {
+  CarmaConf3DModel,
+  CarmaConf3D,
+  CarmaMapLibreStyleMetadata,
+  CarmaMapLibreStyleData,
+  CarmaMapLibreFeatureProperties,
+} from "./lib/contracts/maplibre-style.d";
 
 export enum SELECTED_LAYER_INDEX {
   NO_SELECTION = -2,

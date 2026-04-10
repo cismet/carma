@@ -111,6 +111,7 @@ import {
   isRuntimeShortLabelKind,
   resolveNextShortLabelCounterForToolType,
 } from "../utils/runtimeShortLabelSequence";
+import { NAVIGABLE_MEASUREMENT_TOOL_TYPES } from "../config/navigableMeasurementToolTypes";
 type AnnotationsRuntimeServices = {
   scene: RuntimeScene | null;
   registry: AnnotationToolRegistry;
@@ -295,14 +296,6 @@ const isRuntimeSceneSelectionTarget = ({
 
   return false;
 };
-
-const NAVIGABLE_MEASUREMENT_TOOL_TYPES: ReadonlySet<string> = new Set([
-  ANNOTATION_TYPE_POINT,
-  ANNOTATION_TYPE_DISTANCE,
-  ANNOTATION_TYPE_AREA_GROUND,
-  ANNOTATION_TYPE_AREA_PLANAR,
-  ANNOTATION_TYPE_AREA_VERTICAL,
-]);
 
 const selectAdjacentRuntimeAnnotationEntryId = (
   annotationEntries: readonly RuntimeAnnotationEntry[],

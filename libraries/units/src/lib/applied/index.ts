@@ -9,4 +9,4 @@ export type {
   CssPixelPosition,
 } from "./screen.d";
 export type { Zoom, Zoom256, Zoom512, ZoomUnits } from "./zoom.d";
-export * from "./zoom";
+export { isZoomClose, isZoom } from "./zoom";
