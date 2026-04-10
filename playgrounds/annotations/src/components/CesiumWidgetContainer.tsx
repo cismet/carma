@@ -13,6 +13,7 @@ import {
 import {
   Cesium3DTileset,
   CesiumTerrainProvider,
+  SceneMode,
   type CesiumWidget,
   type Scene,
 } from "@carma-cesium";
@@ -56,6 +57,27 @@ const initializeWidget = (
   return widget;
 };
 
+const hasOngoingSceneWork = (scene: Scene): boolean => {
+  const internalScene = scene as Scene & {
+    _renderRequested?: boolean;
+    _screenSpaceCameraController?: {
+      _tweens?: { length?: number } | null;
+    } | null;
+    camera: Scene["camera"] & {
+      _currentFlight?: unknown;
+    };
+  };
+
+  return Boolean(
+    internalScene._renderRequested ||
+      (internalScene.tweens.length ?? 0) > 0 ||
+      (internalScene._screenSpaceCameraController?._tweens?.length ?? 0) > 0 ||
+      internalScene.camera._currentFlight ||
+      scene.mode === SceneMode.MORPHING ||
+      scene.globe?.tilesLoaded === false
+  );
+};
+
 const installExplicitRenderScheduler = ({
   widget,
   container,
@@ -97,7 +119,10 @@ const installExplicitRenderScheduler = ({
     widget.render();
     lastRenderAtMs = performance.now();
 
-    if (lastRenderAtMs < interactionRenderUntilMs) {
+    if (
+      lastRenderAtMs < interactionRenderUntilMs ||
+      hasOngoingSceneWork(scene)
+    ) {
       scheduleRender();
     }
   };
