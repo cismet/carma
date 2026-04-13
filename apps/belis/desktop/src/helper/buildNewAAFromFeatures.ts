@@ -144,6 +144,10 @@ export function buildAddFeaturesToAAPayload({
 }): Record<string, unknown> {
   // Find the highest existing protokollnummer
   let maxProtokollnummer = 0;
+
+  // Build minimal references for existing protokolle — only send the id
+  // so the server doesn't choke on deeply nested data.
+  const existingRefs: Record<string, unknown>[] = [];
   for (const entry of existingProtokolle) {
     const ap = entry.arbeitsprotokoll as
       | Record<string, unknown>
@@ -151,6 +155,9 @@ export function buildAddFeaturesToAAPayload({
     const nr = Number(ap?.protokollnummer ?? 0);
     if (nr > maxProtokollnummer) {
       maxProtokollnummer = nr;
+    }
+    if (ap?.id != null) {
+      existingRefs.push({ arbeitsprotokoll: { id: ap.id } });
     }
   }
 
@@ -160,8 +167,15 @@ export function buildAddFeaturesToAAPayload({
     -2
   );
 
+  console.log("[buildAddFeaturesToAAPayload]", {
+    aaId,
+    existingCount: existingRefs.length,
+    maxProtokollnummer,
+    newEntries,
+  });
+
   return {
     id: aaId,
-    ar_protokolleArray: [...existingProtokolle, ...newEntries],
+    ar_protokolleArray: [...existingRefs, ...newEntries],
   };
 }
