@@ -13,6 +13,14 @@ import { degToRadNumeric, radToDegNumeric } from "@carma-units";
 import type { Radians } from "@carma-units";
 
 import { CenteredStoryFrame } from "../../common/ui/centered-story-frame";
+import {
+  STORY_MASONRY_BACKGROUND_MODES,
+  STORY_MASONRY_PAGE_STYLE,
+  StoryMasonrySection,
+  buildStoryMasonryGridStyle,
+  readStoryMasonryBackground,
+  readStoryMasonryBackgroundStyle,
+} from "../../common/ui/story-masonry-layout";
 export type PointLabelSlotsStoryArgs = {
   preset: PointLabelExpansionSlotPreset;
   strategy: PointLabelExpansionSlotStrategy;
@@ -45,6 +53,12 @@ const SLOT_TWO_COLUMN_STYLE: CSSProperties = {
   gap: 20,
   gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
 };
+
+const SLOT_MASONRY_GRID_STYLE = buildStoryMasonryGridStyle({
+  columnWidthPx: 420,
+  gapPx: 24,
+  maxWidthPx: 1120,
+});
 
 const SLOT_DEMO_COLORS = {
   helperRingStroke: "rgba(148, 163, 184, 0.42)",
@@ -429,18 +443,38 @@ export const PointLabelSlotPresetStory = ({
   ];
 
   return (
-    <CenteredStoryFrame label="presets" values={statusValues}>
-      <div style={SLOT_STORY_GRID_STYLE}>
-        <SlotCanvas
-          heading={resolvePresetLabel(preset)}
-          subheading="Preset exploration for canonical slot families."
-          slots={slots}
-          radiusPx={radiusPx}
-          startAngleRad={startAngleRad}
-          showHelperRing={showHelperRing}
-          showStems={showStems}
-        />
-        <SlotList slots={slots} />
+    <CenteredStoryFrame
+      label="presets"
+      values={statusValues}
+      contentStyle={STORY_MASONRY_PAGE_STYLE}
+      background={readStoryMasonryBackground(
+        STORY_MASONRY_BACKGROUND_MODES.CHECKERBOARD
+      )}
+      backgroundStyle={readStoryMasonryBackgroundStyle(
+        STORY_MASONRY_BACKGROUND_MODES.CHECKERBOARD
+      )}
+    >
+      <div style={SLOT_MASONRY_GRID_STYLE}>
+        <StoryMasonrySection
+          title={resolvePresetLabel(preset)}
+          meta="Preset exploration for canonical slot families."
+        >
+          <SlotCanvas
+            heading={resolvePresetLabel(preset)}
+            subheading="Preset exploration for canonical slot families."
+            slots={slots}
+            radiusPx={radiusPx}
+            startAngleRad={startAngleRad}
+            showHelperRing={showHelperRing}
+            showStems={showStems}
+          />
+        </StoryMasonrySection>
+        <StoryMasonrySection
+          title="slot table"
+          meta="Bestehende Tabellen-/Listenansicht bleibt im Fluss, aber in einem eigenen frosted container."
+        >
+          <SlotList slots={slots} />
+        </StoryMasonrySection>
       </div>
     </CenteredStoryFrame>
   );
@@ -472,20 +506,42 @@ export const PointLabelSlotGeneratorStory = ({
   ];
 
   return (
-    <CenteredStoryFrame label="arbitrary generator" values={statusValues}>
-      <div style={SLOT_STORY_GRID_STYLE}>
-        <SlotCanvas
-          heading="Arbitrary slot generator"
-          subheading={`${slotCount} ring slots, ${
+    <CenteredStoryFrame
+      label="arbitrary generator"
+      values={statusValues}
+      contentStyle={STORY_MASONRY_PAGE_STYLE}
+      background={readStoryMasonryBackground(
+        STORY_MASONRY_BACKGROUND_MODES.CHECKERBOARD
+      )}
+      backgroundStyle={readStoryMasonryBackgroundStyle(
+        STORY_MASONRY_BACKGROUND_MODES.CHECKERBOARD
+      )}
+    >
+      <div style={SLOT_MASONRY_GRID_STYLE}>
+        <StoryMasonrySection
+          title="Arbitrary slot generator"
+          meta={`${slotCount} ring slots, ${
             includeCenter ? "with" : "without"
           } center slot.`}
-          slots={slots}
-          radiusPx={radiusPx}
-          startAngleRad={startAngleRad}
-          showHelperRing={showHelperRing}
-          showStems={showStems}
-        />
-        <SlotList slots={slots} />
+        >
+          <SlotCanvas
+            heading="Arbitrary slot generator"
+            subheading={`${slotCount} ring slots, ${
+              includeCenter ? "with" : "without"
+            } center slot.`}
+            slots={slots}
+            radiusPx={radiusPx}
+            startAngleRad={startAngleRad}
+            showHelperRing={showHelperRing}
+            showStems={showStems}
+          />
+        </StoryMasonrySection>
+        <StoryMasonrySection
+          title="slot table"
+          meta="Bestehende Tabellen-/Listenansicht bleibt in einem eigenen frosted panel."
+        >
+          <SlotList slots={slots} />
+        </StoryMasonrySection>
       </div>
     </CenteredStoryFrame>
   );
@@ -523,21 +579,22 @@ export const PointLabelSlotComparisonStory = ({
   ];
 
   return (
-    <CenteredStoryFrame label="strategy comparison" values={statusValues}>
-      <div style={SLOT_STORY_GRID_STYLE}>
-        <div
-          style={{
-            display: "grid",
-            gap: 8,
-            maxWidth: 860,
-            color: "#0f172a",
-          }}
+    <CenteredStoryFrame
+      label="strategy comparison"
+      values={statusValues}
+      contentStyle={STORY_MASONRY_PAGE_STYLE}
+      background={readStoryMasonryBackground(
+        STORY_MASONRY_BACKGROUND_MODES.CHECKERBOARD
+      )}
+      backgroundStyle={readStoryMasonryBackgroundStyle(
+        STORY_MASONRY_BACKGROUND_MODES.CHECKERBOARD
+      )}
+    >
+      <div style={SLOT_MASONRY_GRID_STYLE}>
+        <StoryMasonrySection
+          title="Strategy comparison"
+          meta="equal-height-sides is highlighted first because it better exposes the side-balanced flyout pattern for clustered labels."
         >
-          <strong>Strategy comparison</strong>
-          <span style={{ fontSize: 12, color: "#475569" }}>
-            equal-height-sides is highlighted first because it better exposes
-            the side-balanced flyout pattern for clustered labels.
-          </span>
           <div
             style={{
               display: "inline-flex",
@@ -549,30 +606,41 @@ export const PointLabelSlotComparisonStory = ({
               color: "#1d4ed8",
               fontSize: 12,
               fontWeight: 600,
+              borderRadius: "999px",
             }}
           >
             Recommended focus: equal-height-sides
           </div>
-        </div>
+        </StoryMasonrySection>
         <div style={SLOT_TWO_COLUMN_STYLE}>
-          <SlotCanvas
-            heading="Equal-height sides"
-            subheading="Side-balanced circle distribution with constant y-spacing on both sides."
-            slots={equalHeightSlots}
-            radiusPx={radiusPx}
-            startAngleRad={startAngleRad}
-            showHelperRing={showHelperRing}
-            showStems={showStems}
-          />
-          <SlotCanvas
-            heading="Equal-angle"
-            subheading="Uniform ring angles, rotated to start at the nearest configured angle."
-            slots={equalAngleSlots}
-            radiusPx={radiusPx}
-            startAngleRad={startAngleRad}
-            showHelperRing={showHelperRing}
-            showStems={showStems}
-          />
+          <StoryMasonrySection
+            title="Equal-height sides"
+            meta="Side-balanced circle distribution with constant y-spacing on both sides."
+          >
+            <SlotCanvas
+              heading="Equal-height sides"
+              subheading="Side-balanced circle distribution with constant y-spacing on both sides."
+              slots={equalHeightSlots}
+              radiusPx={radiusPx}
+              startAngleRad={startAngleRad}
+              showHelperRing={showHelperRing}
+              showStems={showStems}
+            />
+          </StoryMasonrySection>
+          <StoryMasonrySection
+            title="Equal-angle"
+            meta="Uniform ring angles, rotated to start at the nearest configured angle."
+          >
+            <SlotCanvas
+              heading="Equal-angle"
+              subheading="Uniform ring angles, rotated to start at the nearest configured angle."
+              slots={equalAngleSlots}
+              radiusPx={radiusPx}
+              startAngleRad={startAngleRad}
+              showHelperRing={showHelperRing}
+              showStems={showStems}
+            />
+          </StoryMasonrySection>
         </div>
       </div>
     </CenteredStoryFrame>

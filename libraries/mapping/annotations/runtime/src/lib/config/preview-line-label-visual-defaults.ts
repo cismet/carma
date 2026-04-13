@@ -4,6 +4,7 @@ import { typographyDefaults } from "./annotation-typography-defaults";
 
 export const PREVIEW_LINE_LABEL_BACKGROUND_STYLE = {
   SOFT_RECT_FADE: "soft-rect-fade",
+  TEXT_ECHO_DARKEN: "text-echo-darken",
 } as const;
 
 export const PREVIEW_LINE_LABEL_THEME = {
@@ -29,6 +30,26 @@ export type PreviewLineLabelVisualOptions = Readonly<{
   backgroundStyle: PreviewLineLabelBackgroundStyle;
   theme: PreviewLineLabelTheme;
   shortEdgeOffsetPx: number;
+  showBackdrop?: boolean;
+  textColor?: string;
+  textBlendMode?: string;
+  backdropBackgroundColor?: string;
+  backdropBlendMode?: string;
+  surfaceBlendMode?: string;
+  textEchoColor?: string;
+  textEchoBlurPx?: number;
+  textEchoOpacity?: number;
+  textEchoBlendMode?: string;
+  backdropBlurPx?: number;
+  backdropBrightnessPct?: number;
+  backdropSaturatePct?: number;
+  backdropSurfaceAlpha?: number;
+  backdropRadiusEx?: number;
+  backdropEdgeBlurPx?: number;
+  backdropInsetBlockEx?: number;
+  backdropInsetInlineEx?: number;
+  framePaddingBlockEx?: number;
+  framePaddingInlineEx?: number;
   allowEarlyRemoval: boolean;
   collisionResolutionStrategy: PreviewLineLabelCollisionResolutionStrategy;
   anchorSlideStepRatio: number;
