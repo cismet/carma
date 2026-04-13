@@ -157,18 +157,6 @@ export const additionalLayerConfigs: Record<string, LayerEntry> = {
 export const BELIS_STYLE_URL = "https://tiles.cismet.de/belis/styleY.json";
 export const BELIS_ORIGINAL_SOURCE = "belis-source";
 
-/** Arbeitsaufträge data layer */
-export const ARBEITSAUFTRAEGE_STYLE_URL =
-  "https://tiles.cismet.de/belis/arbeitsauftraege.style.json";
-export const ARBEITSAUFTRAEGE_SOURCE_LAYER = "arbeitsauftraege";
-
-export const arbeitsauftraegeDataLayer: LibreLayer = {
-  type: "vector",
-  name: "Arbeitsaufträge",
-  style: ARBEITSAUFTRAEGE_STYLE_URL,
-  opacity: 1,
-};
-
 export const leuchtenDataLayer: LibreLayer = {
   type: "vector",
   name: "Leuchten",
