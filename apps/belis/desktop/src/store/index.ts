@@ -93,7 +93,7 @@ const arbeitsauftraegeConfig = {
 const arbeitsauftraegeDraftsConfig = {
   key: "@belis-desktop.arbeitsauftraegeDrafts",
   storage: localForage,
-  whitelist: ["aaDrafts", "apDrafts"],
+  whitelist: ["aaDrafts", "apDrafts", "apDeletions"],
 };
 
 const store = configureStore({

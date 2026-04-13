@@ -22,6 +22,9 @@ import {
   getAllAPDrafts,
   getAADraftCount,
   getAPDraftCount,
+  getAPDeletions,
+  getAPDeletionCount,
+  getAAIdsWithAPDrafts,
 } from "../../store/slices/arbeitsauftraegeDrafts";
 import type { APDraft } from "../../store/slices/arbeitsauftraegeDrafts";
 import { getSelectedTeamName } from "../../store/selectors";
@@ -102,6 +105,9 @@ const ArbeitsauftraegeSidebar = ({
 
   const aaDraftCount = useSelector(getAADraftCount);
   const apDraftCount = useSelector(getAPDraftCount);
+  const apDeletions = useSelector(getAPDeletions);
+  const apDeletionCount = useSelector(getAPDeletionCount);
+  const aaIdsWithAPDrafts = useSelector(getAAIdsWithAPDrafts);
 
   // Team filter: resolve selectedTeamId → team name, then filter features
   const selectedTeamName = useSelector(getSelectedTeamName);
@@ -111,29 +117,74 @@ const ArbeitsauftraegeSidebar = ({
       ? allFeatures.filter((f) => f.team === selectedTeamName)
       : allFeatures;
 
-    // In draft mode, show only AA features that have drafts
+    // In draft mode, show only AA features that have drafts or AP drafts/deletions
     if (draftMode) {
       const draftIdSet = new Set(Object.keys(aaDrafts).map(Number));
+      for (const aaId of aaIdsWithAPDrafts) {
+        draftIdSet.add(Number(aaId));
+      }
       filtered = filtered.filter((f) => draftIdSet.has(f.id));
     }
 
     return filtered;
-  }, [allFeatures, selectedTeamName, draftMode, aaDrafts]);
+  }, [allFeatures, selectedTeamName, draftMode, aaDrafts, aaIdsWithAPDrafts]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const protokolle: Record<string, any>[] = useMemo(() => {
     if (draftMode) {
-      // In draft mode, build AP list from draft entries
-      return Object.entries(apDrafts)
-        .map(([id, draft]: [string, APDraft]) => ({
+      // In draft mode, build AP list from draft entries + deletion-marked APs
+      const seenIds = new Set<number>();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const items: Record<string, any>[] = [];
+
+      // Add APs that have value/action drafts
+      for (const [id, draft] of Object.entries(apDrafts)) {
+        seenIds.add(Number(id));
+        items.push({
           id: Number(id),
           protokollnummer: draft.meta?.protokollnummer ?? id,
           _fachobjektType: draft.meta?.fachobjektType ?? "Unbekannt",
           veranlassung: draft.meta?.veranlassung
             ? { bezeichnung: draft.meta.veranlassung }
             : null,
-        }))
-        .sort((a, b) => Number(a.protokollnummer) - Number(b.protokollnummer));
+          _isMarkedForDeletion: id in apDeletions,
+        });
+      }
+
+      // Add APs that are only marked for deletion (no value draft)
+      // Pull their metadata from server data
+      for (const apId of Object.keys(apDeletions)) {
+        if (seenIds.has(Number(apId))) continue;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const serverAP = selectedAAData?.ar_protokolleArray?.find(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (entry: Record<string, any>) =>
+            entry.arbeitsprotokoll?.id === Number(apId)
+        )?.arbeitsprotokoll;
+        if (serverAP) {
+          const fachobjekt = getFachobjektOfProtocol(serverAP);
+          items.push({
+            id: Number(apId),
+            protokollnummer: serverAP.protokollnummer ?? apId,
+            _fachobjektType: fachobjekt?.shortname ?? getProtocolFeatureType(serverAP),
+            veranlassung: serverAP.veranlassung ?? null,
+            _isMarkedForDeletion: true,
+          });
+        } else {
+          // Fallback if server data not available
+          items.push({
+            id: Number(apId),
+            protokollnummer: apId,
+            _fachobjektType: "Unbekannt",
+            veranlassung: null,
+            _isMarkedForDeletion: true,
+          });
+        }
+      }
+
+      return items.sort(
+        (a, b) => Number(a.protokollnummer) - Number(b.protokollnummer)
+      );
     }
 
     return (
@@ -149,11 +200,11 @@ const ArbeitsauftraegeSidebar = ({
       (a: Record<string, any>, b: Record<string, any>) =>
         Number(a.protokollnummer) - Number(b.protokollnummer)
     );
-  }, [draftMode, apDrafts, selectedAAData]);
+  }, [draftMode, apDrafts, apDeletions, selectedAAData]);
 
   const selectedFeature = features.find((f) => f.id === selectedAAId);
   const protokolleCount = draftMode
-    ? apDraftCount
+    ? protokolle.length
     : selectedFeature?.total_protokolle ?? protokolle.length;
 
   // Keyboard navigation for AA tab
@@ -361,6 +412,7 @@ const ArbeitsauftraegeSidebar = ({
                   ? (p._fachobjektType ?? "Unbekannt")
                   : (getFachobjektOfProtocol(p)?.shortname ?? getProtocolFeatureType(p));
                 const isSelected = p.id === selectedAPId;
+                const isMarkedForDeletion = draftMode && (p._isMarkedForDeletion || String(p.id) in apDeletions);
                 return (
                   <div
                     key={p.id}
@@ -368,7 +420,7 @@ const ArbeitsauftraegeSidebar = ({
                       isSelected
                         ? "bg-blue-50 border-l-2 border-l-blue-500"
                         : "hover:bg-blue-50/50"
-                    }`}
+                    } ${isMarkedForDeletion ? "line-through opacity-50" : ""}`}
                     onClick={() => {
                       dispatch(setSelectedAPId(p.id));
                       dispatch(setApOpenedFrom("sidebar"));
