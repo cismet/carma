@@ -34,10 +34,24 @@ import {
   PREVIEW_LINE_LABEL_BACKGROUND_STYLE,
   PREVIEW_LINE_LABEL_THEME,
 } from "../../../../../../libraries/mapping/annotations/runtime-v2/src/lib/config/previewLineLabelVisualDefaults";
-import barmenBackgroundUrl from "./assets/barmen-background.png";
 
 import { CenteredStoryFrame } from "../../common/ui/centered-story-frame";
+import {
+  STORY_MASONRY_BACKGROUND_MODES,
+  STORY_MASONRY_PAGE_STYLE,
+  STORY_MASONRY_SECTION_META_STYLE,
+  STORY_MASONRY_SECTION_TITLE_STYLE,
+  StoryMasonrySection,
+  type StoryMasonryBackgroundMode,
+  buildStoryMasonryGridStyle,
+  readStoryMasonryBackground,
+  readStoryMasonryBackgroundStyle,
+} from "../../common/ui/story-masonry-layout";
 import "../../../../../../libraries/mapping/annotations/runtime-v2/src/lib/interaction/annotation-overlay-line-label.css";
+import {
+  ANNOTATION_TYPOGRAPHY_SAMPLE_IDS,
+  ANNOTATION_TYPOGRAPHY_SAMPLES,
+} from "./annotation-typography-samples";
 export type LabelMarkersStoryArgs = {
   content: ReactNode;
   badgeContent?: ReactNode;
@@ -64,15 +78,9 @@ type QualitativePillColorScheme = {
   lineColor: string;
 };
 
-export const LABEL_STORY_BACKGROUND_MODES = {
-  PLAIN: "plain",
-  SLATE: "slate",
-  CHECKERBOARD: "checkerboard",
-  URBAN: "urban",
-} as const;
+export const LABEL_STORY_BACKGROUND_MODES = STORY_MASONRY_BACKGROUND_MODES;
 
-export type LabelStoryBackgroundMode =
-  (typeof LABEL_STORY_BACKGROUND_MODES)[keyof typeof LABEL_STORY_BACKGROUND_MODES];
+export type LabelStoryBackgroundMode = StoryMasonryBackgroundMode;
 
 const PILLBOX_STORY_BADGE_SLOTS = {
   NONE: "none",
@@ -104,6 +112,12 @@ const REPRESENTATIVE_CONTENT_FONT_WEIGHT = 400;
 const REPRESENTATIVE_BADGE_FONT_WEIGHT =
   annotationTypographyDefaults.badgeFontWeight;
 const REPRESENTATIVE_TEXT_COLOR = ANNOTATION_MEASUREMENT_TEXT_COLOR;
+const ANNOTATION_TYPOGRAPHY_SAMPLE_BY_ID = Object.fromEntries(
+  ANNOTATION_TYPOGRAPHY_SAMPLES.map((sample) => [sample.id, sample])
+) as Record<
+  (typeof ANNOTATION_TYPOGRAPHY_SAMPLE_IDS)[keyof typeof ANNOTATION_TYPOGRAPHY_SAMPLE_IDS],
+  (typeof ANNOTATION_TYPOGRAPHY_SAMPLES)[number]
+>;
 
 const readQualitativeColorScheme = (id: string) => {
   const colorScheme =
@@ -194,61 +208,15 @@ export const REPRESENTATIVE_CASES_STORY_ARGS: Partial<LabelMarkersStoryArgs> = {
 
 const STORY_SECTION_COLUMN_WIDTH = 352;
 const STORY_SECTION_GAP = 24;
-const MAX_STORY_SECTION_COLUMNS = 4;
 const STORY_ROW_PREVIEW_WIDTH = 240;
 
-const pageStyle: CSSProperties = {
-  userSelect: "text",
-};
+const pageStyle: CSSProperties = STORY_MASONRY_PAGE_STYLE;
 
-const sectionStyle: CSSProperties = {
-  marginBottom: 0,
-  minWidth: 0,
-  width: "100%",
-  maxWidth: "100%",
-};
-
-const sectionGridStyle: CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, ${STORY_SECTION_COLUMN_WIDTH}px), ${STORY_SECTION_COLUMN_WIDTH}px))`,
-  gap: STORY_SECTION_GAP,
-  alignItems: "start",
-  justifyContent: "center",
-  width: "100%",
-  maxWidth: 1120,
-  margin: "0 auto",
-};
-
-const compactSectionStackStyle: CSSProperties = {
-  display: "flex",
-  gap: STORY_SECTION_GAP,
-  alignItems: "start",
-  justifyContent: "center",
-  width: "100%",
-  maxWidth: 1120,
-  margin: "0 auto",
-};
-
-const compactSectionColumnStyle: CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  gap: STORY_SECTION_GAP,
-  width: STORY_SECTION_COLUMN_WIDTH,
-  maxWidth: "100%",
-  minWidth: 0,
-};
-
-const compactSectionSingleColumnStyle: CSSProperties = {
-  ...compactSectionColumnStyle,
-  width: `min(100%, ${STORY_SECTION_COLUMN_WIDTH}px)`,
-};
-
-const sectionTitleStyle: CSSProperties = {
-  marginBottom: 10,
-  fontSize: 14,
-  fontWeight: 600,
-  color: "#334155",
-};
+const sectionGridStyle = buildStoryMasonryGridStyle({
+  columnWidthPx: STORY_SECTION_COLUMN_WIDTH,
+  gapPx: STORY_SECTION_GAP,
+  maxWidthPx: 1120,
+});
 
 const rowListStyle: CSSProperties = {
   display: "flex",
@@ -260,79 +228,6 @@ const rowListStyle: CSSProperties = {
 
 const rowStyle: CSSProperties = {
   borderBottom: "1px solid rgba(148, 163, 184, 0.25)",
-};
-
-const readStorySectionColumnCount = (containerWidth: number): number => {
-  if (containerWidth <= 0) {
-    return 1;
-  }
-
-  return Math.max(
-    1,
-    Math.min(
-      MAX_STORY_SECTION_COLUMNS,
-      Math.floor(
-        (containerWidth + STORY_SECTION_GAP) /
-          (STORY_SECTION_COLUMN_WIDTH + STORY_SECTION_GAP)
-      )
-    )
-  );
-};
-
-const distributeItemsByEstimatedHeight = <T,>(
-  items: readonly T[],
-  columnCount: number,
-  estimateHeight: (item: T) => number
-): T[][] => {
-  if (columnCount <= 1) {
-    return [Array.from(items)];
-  }
-
-  const columns = Array.from({ length: columnCount }, () => [] as T[]);
-  const columnHeights = Array.from({ length: columnCount }, () => 0);
-
-  items.forEach((item) => {
-    const nextColumnIndex = columnHeights.reduce(
-      (bestIndex, currentHeight, currentIndex, heights) =>
-        currentHeight < heights[bestIndex] ? currentIndex : bestIndex,
-      0
-    );
-
-    columns[nextColumnIndex].push(item);
-    columnHeights[nextColumnIndex] += estimateHeight(item);
-  });
-
-  return columns;
-};
-
-const useMeasuredWidth = () => {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const [width, setWidth] = useState(0);
-
-  useLayoutEffect(() => {
-    const element = containerRef.current;
-    if (!element) {
-      return;
-    }
-
-    const readWidth = () => {
-      setWidth(element.getBoundingClientRect().width);
-    };
-
-    readWidth();
-
-    const resizeObserver = new ResizeObserver(() => {
-      readWidth();
-    });
-
-    resizeObserver.observe(element);
-
-    return () => {
-      resizeObserver.disconnect();
-    };
-  }, []);
-
-  return { containerRef, width };
 };
 
 const rowCellStyle: CSSProperties = {
@@ -389,14 +284,6 @@ const compactRowGraphicStyle: CSSProperties = {
   padding: "2px 0",
 };
 
-const sectionMetaStyle: CSSProperties = {
-  margin: "0 0 12px",
-  fontSize: 12,
-  lineHeight: 1.35,
-  color: "#64748b",
-};
-
-const REPRESENTATIVE_STORY_TEXT_GLOW_COLOR = "#f8fafc";
 const REPRESENTATIVE_STORY_TEXT_GLOW_STYLE: CSSProperties = {
   textShadow: [
     `0 0 8px rgba(248, 250, 252, 0.95)`,
@@ -405,12 +292,10 @@ const REPRESENTATIVE_STORY_TEXT_GLOW_STYLE: CSSProperties = {
   ].join(", "),
 };
 const REPRESENTATIVE_STORY_SECTION_TITLE_STYLE: CSSProperties = {
-  ...sectionTitleStyle,
-  ...REPRESENTATIVE_STORY_TEXT_GLOW_STYLE,
+  ...STORY_MASONRY_SECTION_TITLE_STYLE,
 };
 const REPRESENTATIVE_STORY_SECTION_META_STYLE: CSSProperties = {
-  ...sectionMetaStyle,
-  ...REPRESENTATIVE_STORY_TEXT_GLOW_STYLE,
+  ...STORY_MASONRY_SECTION_META_STYLE,
 };
 const REPRESENTATIVE_STORY_ROW_LABEL_STYLE: CSSProperties = {
   ...REPRESENTATIVE_STORY_TEXT_GLOW_STYLE,
@@ -628,43 +513,11 @@ const readStaticAnchorHostStyle = (
 
 export const readStoryBackground = (
   mode: LabelStoryBackgroundMode | undefined
-): string => {
-  if (mode === LABEL_STORY_BACKGROUND_MODES.SLATE) {
-    return "#e5e7eb";
-  }
-
-  if (mode === LABEL_STORY_BACKGROUND_MODES.CHECKERBOARD) {
-    return [
-      "linear-gradient(45deg, rgba(148,163,184,0.14) 25%, transparent 25%)",
-      "linear-gradient(-45deg, rgba(148,163,184,0.14) 25%, transparent 25%)",
-      "linear-gradient(45deg, transparent 75%, rgba(148,163,184,0.14) 75%)",
-      "linear-gradient(-45deg, transparent 75%, rgba(148,163,184,0.14) 75%)",
-      "#f8fafc",
-    ].join(", ");
-  }
-
-  if (mode === LABEL_STORY_BACKGROUND_MODES.URBAN) {
-    return `linear-gradient(180deg, rgba(248, 250, 252, 0.08), rgba(241, 245, 249, 0.16)), url(${barmenBackgroundUrl})`;
-  }
-
-  return "#f8fafc";
-};
+): string => readStoryMasonryBackground(mode);
 
 export const readStoryBackgroundStyle = (
   mode: LabelStoryBackgroundMode | undefined
-): CSSProperties | undefined =>
-  mode === LABEL_STORY_BACKGROUND_MODES.CHECKERBOARD
-    ? {
-        backgroundSize: "24px 24px",
-        backgroundPosition: "0 0, 0 12px, 12px -12px, -12px 0px",
-      }
-    : mode === LABEL_STORY_BACKGROUND_MODES.URBAN
-    ? {
-        backgroundPosition: "center center",
-        backgroundRepeat: "no-repeat",
-        backgroundSize: "cover",
-      }
-    : undefined;
+): CSSProperties | undefined => readStoryMasonryBackgroundStyle(mode);
 
 const resolveBadgePositionFromSlot = (
   badgeSlot: PillboxStoryBadgeSlot | undefined
@@ -1255,19 +1108,25 @@ const RepresentativeLineLabelDemo = ({
       }
     >
       <span className="carma-annotation-overlay-line-label__frame">
-        {blur ? (
+        <span className="carma-annotation-overlay-line-label__content">
+          {blur ? (
+            <>
+              <span
+                className="carma-annotation-overlay-line-label__backdrop"
+                data-annotation-overlay-line-label-background-style={
+                  PREVIEW_LINE_LABEL_BACKGROUND_STYLE.SOFT_RECT_FADE
+                }
+              />
+              <span className="carma-annotation-overlay-line-label__surface" />
+            </>
+          ) : null}
           <span
-            className="carma-annotation-overlay-line-label__backdrop"
-            data-annotation-overlay-line-label-background-style={
-              PREVIEW_LINE_LABEL_BACKGROUND_STYLE.SOFT_RECT_FADE
-            }
-          />
-        ) : null}
-        <span
-          className="carma-annotation-overlay-line-label__text"
-          style={{ fontSize: 14 }}
-        >
-          {text}
+            className="carma-annotation-overlay-line-label__text"
+            data-annotation-overlay-line-label-text="foreground"
+            style={{ fontSize: 14 }}
+          >
+            {text}
+          </span>
         </span>
       </span>
     </div>
@@ -1297,14 +1156,11 @@ export const LabelStatesAndThemesStory = (args: LabelMarkersStoryArgs) => {
       backgroundStyle={readStoryBackgroundStyle(pageBackgroundMode)}
     >
       <div style={sectionGridStyle}>
-        <section style={sectionStyle}>
-          <div style={REPRESENTATIVE_STORY_SECTION_TITLE_STYLE}>
-            selection highlight
-          </div>
-          <div style={REPRESENTATIVE_STORY_SECTION_META_STYLE}>
-            finaler Selection-Stand: dunkler Chip mit heller Textfarbe und
-            weißem Lichtsaum statt gelbem Signal.
-          </div>
+        <StoryMasonrySection
+          title="selection highlight"
+          meta="finaler Selection-Stand: dunkler Chip mit heller Textfarbe und weißem Lichtsaum statt gelbem Signal."
+          style={{ minWidth: 0, width: "100%", maxWidth: "100%" }}
+        >
           <div style={rowListStyle}>
             <InlineRow
               label={REPRESENTATIVE_SELECTION_VARIANT.label}
@@ -1340,12 +1196,12 @@ export const LabelStatesAndThemesStory = (args: LabelMarkersStoryArgs) => {
               />
             </InlineRow>
           </div>
-        </section>
+        </StoryMasonrySection>
 
-        <section style={sectionStyle}>
-          <div style={REPRESENTATIVE_STORY_SECTION_TITLE_STYLE}>
-            attach · collapse · text
-          </div>
+        <StoryMasonrySection
+          title="attach · collapse · text"
+          style={{ minWidth: 0, width: "100%", maxWidth: "100%" }}
+        >
           <div style={rowListStyle}>
             {(
               [
@@ -1407,12 +1263,12 @@ export const LabelStatesAndThemesStory = (args: LabelMarkersStoryArgs) => {
               </InlineRow>
             ))}
           </div>
-        </section>
+        </StoryMasonrySection>
 
-        <section style={sectionStyle}>
-          <div style={REPRESENTATIVE_STORY_SECTION_TITLE_STYLE}>
-            runtime states
-          </div>
+        <StoryMasonrySection
+          title="runtime states"
+          style={{ minWidth: 0, width: "100%", maxWidth: "100%" }}
+        >
           <div style={rowListStyle}>
             {(
               [
@@ -1473,16 +1329,13 @@ export const LabelStatesAndThemesStory = (args: LabelMarkersStoryArgs) => {
               </InlineRow>
             ))}
           </div>
-        </section>
+        </StoryMasonrySection>
 
-        <section style={sectionStyle}>
-          <div style={REPRESENTATIVE_STORY_SECTION_TITLE_STYLE}>
-            qualitative hues
-          </div>
-          <div style={REPRESENTATIVE_STORY_SECTION_META_STYLE}>
-            dark hue families for category or intent, with selection remaining a
-            separate treatment above instead of being baked into each hue.
-          </div>
+        <StoryMasonrySection
+          title="qualitative hues"
+          meta="dark hue families for category or intent, with selection remaining a separate treatment above instead of being baked into each hue."
+          style={{ minWidth: 0, width: "100%", maxWidth: "100%" }}
+        >
           <div style={rowListStyle}>
             {REPRESENTATIVE_QUALITATIVE_COLOR_SCHEMES.map((scheme) => (
               <InlineRow
@@ -1512,12 +1365,12 @@ export const LabelStatesAndThemesStory = (args: LabelMarkersStoryArgs) => {
               </InlineRow>
             ))}
           </div>
-        </section>
+        </StoryMasonrySection>
 
-        <section style={sectionStyle}>
-          <div style={REPRESENTATIVE_STORY_SECTION_TITLE_STYLE}>
-            line label · backdrop
-          </div>
+        <StoryMasonrySection
+          title="line label · backdrop"
+          style={{ minWidth: 0, width: "100%", maxWidth: "100%" }}
+        >
           <div style={rowListStyle}>
             <InlineRow
               label="text only"
@@ -1534,7 +1387,7 @@ export const LabelStatesAndThemesStory = (args: LabelMarkersStoryArgs) => {
               <RepresentativeLineLabelDemo text="168,00 m" blur />
             </InlineRow>
           </div>
-        </section>
+        </StoryMasonrySection>
       </div>
     </CenteredStoryFrame>
   );
@@ -1543,8 +1396,6 @@ export const LabelStatesAndThemesStory = (args: LabelMarkersStoryArgs) => {
 export const PillboxOnlyStory = (args: LabelMarkersStoryArgs) => {
   const sharedStyleProps = makeSharedStyleProps(args);
   const showDebugAnchors = args.debugAnchors === true;
-  const { containerRef: sectionLayoutRef, width: sectionLayoutWidth } =
-    useMeasuredWidth();
   const pageBackgroundMode = resolveStoryBackgroundMode(
     args,
     LABEL_STORY_BACKGROUND_MODES.PLAIN
@@ -1788,8 +1639,14 @@ export const PillboxOnlyStory = (args: LabelMarkersStoryArgs) => {
       rows: [
         {
           id: "pillbox-typography-heading",
-          label: "Heading",
-          content: "Punktmessung 3",
+          label:
+            ANNOTATION_TYPOGRAPHY_SAMPLE_BY_ID[
+              ANNOTATION_TYPOGRAPHY_SAMPLE_IDS.HEADING
+            ].className,
+          content:
+            ANNOTATION_TYPOGRAPHY_SAMPLE_BY_ID[
+              ANNOTATION_TYPOGRAPHY_SAMPLE_IDS.HEADING
+            ].example,
           backgroundColor:
             sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.62)",
           sharedStyleOverrides: {
@@ -1802,10 +1659,19 @@ export const PillboxOnlyStory = (args: LabelMarkersStoryArgs) => {
         },
         {
           id: "pillbox-typography-root-medium",
-          label: "Root / Medium",
-          content: "NHN 179,27 m",
+          label:
+            ANNOTATION_TYPOGRAPHY_SAMPLE_BY_ID[
+              ANNOTATION_TYPOGRAPHY_SAMPLE_IDS.ROOT_MEDIUM
+            ].className,
+          content:
+            ANNOTATION_TYPOGRAPHY_SAMPLE_BY_ID[
+              ANNOTATION_TYPOGRAPHY_SAMPLE_IDS.ROOT_MEDIUM
+            ].example,
           badgeMode: "fixed",
-          badgeContent: "8",
+          badgeContent:
+            ANNOTATION_TYPOGRAPHY_SAMPLE_BY_ID[
+              ANNOTATION_TYPOGRAPHY_SAMPLE_IDS.ROOT_MEDIUM
+            ].badgeContent,
           badgePosition: PILLBUTTON_BADGE_POSITIONS.LEFT,
           backgroundColor:
             sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.62)",
@@ -1820,8 +1686,14 @@ export const PillboxOnlyStory = (args: LabelMarkersStoryArgs) => {
         },
         {
           id: "pillbox-typography-root-regular",
-          label: "Root / Regular",
-          content: "24,41 m relative Höhe über Bezugspunkt",
+          label:
+            ANNOTATION_TYPOGRAPHY_SAMPLE_BY_ID[
+              ANNOTATION_TYPOGRAPHY_SAMPLE_IDS.ROOT_REGULAR
+            ].className,
+          content:
+            ANNOTATION_TYPOGRAPHY_SAMPLE_BY_ID[
+              ANNOTATION_TYPOGRAPHY_SAMPLE_IDS.ROOT_REGULAR
+            ].example,
           backgroundColor:
             sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.62)",
           sharedStyleOverrides: {
@@ -1834,8 +1706,14 @@ export const PillboxOnlyStory = (args: LabelMarkersStoryArgs) => {
         },
         {
           id: "pillbox-typography-support-semibold",
-          label: "Support / Semibold",
-          content: "Punktmessung · Referenzhöhe",
+          label:
+            ANNOTATION_TYPOGRAPHY_SAMPLE_BY_ID[
+              ANNOTATION_TYPOGRAPHY_SAMPLE_IDS.SUPPORT_SEMIBOLD
+            ].className,
+          content:
+            ANNOTATION_TYPOGRAPHY_SAMPLE_BY_ID[
+              ANNOTATION_TYPOGRAPHY_SAMPLE_IDS.SUPPORT_SEMIBOLD
+            ].example,
           backgroundColor:
             sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.62)",
           sharedStyleOverrides: {
@@ -1848,8 +1726,14 @@ export const PillboxOnlyStory = (args: LabelMarkersStoryArgs) => {
         },
         {
           id: "pillbox-typography-support-subtitle",
-          label: "Support / Subtitle",
-          content: "51,272102°N 7,200488°O • NHN 179,27 m",
+          label:
+            ANNOTATION_TYPOGRAPHY_SAMPLE_BY_ID[
+              ANNOTATION_TYPOGRAPHY_SAMPLE_IDS.SUPPORT_SUBTITLE
+            ].className,
+          content:
+            ANNOTATION_TYPOGRAPHY_SAMPLE_BY_ID[
+              ANNOTATION_TYPOGRAPHY_SAMPLE_IDS.SUPPORT_SUBTITLE
+            ].example,
           backgroundColor:
             sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.62)",
           sharedStyleOverrides: {
@@ -1862,8 +1746,14 @@ export const PillboxOnlyStory = (args: LabelMarkersStoryArgs) => {
         },
         {
           id: "pillbox-typography-support-regular",
-          label: "Support / Regular",
-          content: "3 von 20 Messungen",
+          label:
+            ANNOTATION_TYPOGRAPHY_SAMPLE_BY_ID[
+              ANNOTATION_TYPOGRAPHY_SAMPLE_IDS.SUPPORT_REGULAR
+            ].className,
+          content:
+            ANNOTATION_TYPOGRAPHY_SAMPLE_BY_ID[
+              ANNOTATION_TYPOGRAPHY_SAMPLE_IDS.SUPPORT_REGULAR
+            ].example,
           backgroundColor:
             sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.62)",
           sharedStyleOverrides: {
@@ -1877,9 +1767,15 @@ export const PillboxOnlyStory = (args: LabelMarkersStoryArgs) => {
         {
           id: "pillbox-typography-border-root",
           label: "Root · full border",
-          content: "NHN 179,27 m",
+          content:
+            ANNOTATION_TYPOGRAPHY_SAMPLE_BY_ID[
+              ANNOTATION_TYPOGRAPHY_SAMPLE_IDS.ROOT_MEDIUM
+            ].example,
           badgeMode: "fixed",
-          badgeContent: "8",
+          badgeContent:
+            ANNOTATION_TYPOGRAPHY_SAMPLE_BY_ID[
+              ANNOTATION_TYPOGRAPHY_SAMPLE_IDS.ROOT_MEDIUM
+            ].badgeContent,
           badgePosition: PILLBUTTON_BADGE_POSITIONS.LEFT,
           backgroundColor:
             sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.62)",
@@ -1895,7 +1791,10 @@ export const PillboxOnlyStory = (args: LabelMarkersStoryArgs) => {
         {
           id: "pillbox-typography-border-support",
           label: "Support · full border",
-          content: "Punktmessung · Referenzhöhe",
+          content:
+            ANNOTATION_TYPOGRAPHY_SAMPLE_BY_ID[
+              ANNOTATION_TYPOGRAPHY_SAMPLE_IDS.SUPPORT_SEMIBOLD
+            ].example,
           backgroundColor:
             sharedStyleProps.textBackgroundColor ?? "rgba(255, 255, 255, 0.62)",
           sharedStyleOverrides: {
@@ -1937,19 +1836,13 @@ export const PillboxOnlyStory = (args: LabelMarkersStoryArgs) => {
     },
   ];
 
-  const estimateSectionHeight = (section: LabelComponentSection): number =>
-    88 + section.rows.length * 48;
-
-  const sectionColumns = distributeItemsByEstimatedHeight(
-    sections,
-    readStorySectionColumnCount(sectionLayoutWidth),
-    estimateSectionHeight
-  );
-
   const renderSection = (section: LabelComponentSection) => (
-    <section key={section.id} style={sectionStyle}>
-      <div style={sectionTitleStyle}>{section.title}</div>
-      <div style={sectionMetaStyle}>{section.lockedSummary}</div>
+    <StoryMasonrySection
+      key={section.id}
+      title={section.title}
+      meta={section.lockedSummary}
+      style={{ minWidth: 0, width: "100%", maxWidth: "100%" }}
+    >
       <div style={rowListStyle}>
         {section.rows.map((row) => {
           const badgeMode = row.badgeMode ?? section.defaultBadgeMode;
@@ -1996,7 +1889,7 @@ export const PillboxOnlyStory = (args: LabelMarkersStoryArgs) => {
           );
         })}
       </div>
-    </section>
+    </StoryMasonrySection>
   );
 
   return (
@@ -2007,20 +1900,7 @@ export const PillboxOnlyStory = (args: LabelMarkersStoryArgs) => {
       background={readStoryBackground(pageBackgroundMode)}
       backgroundStyle={readStoryBackgroundStyle(pageBackgroundMode)}
     >
-      <div ref={sectionLayoutRef} style={compactSectionStackStyle}>
-        {sectionColumns.map((column, columnIndex) => (
-          <div
-            key={`label-component-column-${columnIndex}`}
-            style={
-              sectionColumns.length === 1
-                ? compactSectionSingleColumnStyle
-                : compactSectionColumnStyle
-            }
-          >
-            {column.map(renderSection)}
-          </div>
-        ))}
-      </div>
+      <div style={sectionGridStyle}>{sections.map(renderSection)}</div>
     </CenteredStoryFrame>
   );
 };
@@ -2081,17 +1961,21 @@ export const LabelBackgroundsStory = (args: LabelMarkersStoryArgs) => {
           }
         >
           <span className="carma-annotation-overlay-line-label__frame">
-            <span
-              className="carma-annotation-overlay-line-label__backdrop"
-              data-annotation-overlay-line-label-background-style={
-                PREVIEW_LINE_LABEL_BACKGROUND_STYLE.SOFT_RECT_FADE
-              }
-            />
-            <span
-              className="carma-annotation-overlay-line-label__text"
-              style={{ fontSize: annotationTypographyDefaults.rootFontSizePx }}
-            >
-              168,00 m
+            <span className="carma-annotation-overlay-line-label__content">
+              <span
+                className="carma-annotation-overlay-line-label__backdrop"
+                data-annotation-overlay-line-label-background-style={
+                  PREVIEW_LINE_LABEL_BACKGROUND_STYLE.SOFT_RECT_FADE
+                }
+              />
+              <span className="carma-annotation-overlay-line-label__surface" />
+              <span
+                className="carma-annotation-overlay-line-label__text"
+                data-annotation-overlay-line-label-text="foreground"
+                style={{ fontSize: annotationTypographyDefaults.rootFontSizePx }}
+              >
+                168,00 m
+              </span>
             </span>
           </span>
         </div>

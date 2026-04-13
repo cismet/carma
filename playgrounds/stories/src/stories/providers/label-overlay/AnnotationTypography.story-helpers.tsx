@@ -20,6 +20,10 @@ import {
   readStoryBackground,
   readStoryBackgroundStyle,
 } from "./LabelMarkers.story-helpers";
+import {
+  ANNOTATION_TYPOGRAPHY_SAMPLE_IDS,
+  readAnnotationTypographySample,
+} from "./annotation-typography-samples";
 
 const ROOT_BACKGROUND_STYLE: CSSProperties = {
   background: "linear-gradient(180deg, #edf1f4 0%, #f7f8fa 38%, #eef2f4 100%)",
@@ -104,19 +108,29 @@ const LENGTH_FORMAT_OPTIONS = {
   maximumFractionDigitsMeters: 2,
 } as const;
 
-const FORMATTED_LINE_LENGTH = formatLengthMeters(168, LENGTH_FORMAT_OPTIONS);
 const FORMATTED_ELEVATION = `NHN ${formatLengthMeters(
   179.27,
   LENGTH_FORMAT_OPTIONS
 )}`;
-const FORMATTED_RELATIVE_HEIGHT = `${formatLengthMeters(
-  24.41,
-  LENGTH_FORMAT_OPTIONS
-)} relative Höhe über Bezugspunkt`;
-const FORMATTED_RELATIVE_HEIGHT_SHORT = `${formatLengthMeters(
-  24.41,
-  LENGTH_FORMAT_OPTIONS
-)} über Bezugspunkt`;
+
+const HEADING_SAMPLE = readAnnotationTypographySample(
+  ANNOTATION_TYPOGRAPHY_SAMPLE_IDS.HEADING
+);
+const ROOT_MEDIUM_SAMPLE = readAnnotationTypographySample(
+  ANNOTATION_TYPOGRAPHY_SAMPLE_IDS.ROOT_MEDIUM
+);
+const ROOT_REGULAR_SAMPLE = readAnnotationTypographySample(
+  ANNOTATION_TYPOGRAPHY_SAMPLE_IDS.ROOT_REGULAR
+);
+const SUPPORT_SEMIBOLD_SAMPLE = readAnnotationTypographySample(
+  ANNOTATION_TYPOGRAPHY_SAMPLE_IDS.SUPPORT_SEMIBOLD
+);
+const SUPPORT_SUBTITLE_SAMPLE = readAnnotationTypographySample(
+  ANNOTATION_TYPOGRAPHY_SAMPLE_IDS.SUPPORT_SUBTITLE
+);
+const SUPPORT_REGULAR_SAMPLE = readAnnotationTypographySample(
+  ANNOTATION_TYPOGRAPHY_SAMPLE_IDS.SUPPORT_REGULAR
+);
 
 type TypographyClassSample = {
   className: string;
@@ -188,54 +202,54 @@ const buildTypographyClassSamples = (
   args: AnnotationTypographyStoryArgs
 ): readonly TypographyClassSample[] => [
   {
-    className: "Heading",
-    role: "Infobox heading",
-    example: "Punktmessung 3",
+    className: HEADING_SAMPLE.className,
+    role: HEADING_SAMPLE.role,
+    example: HEADING_SAMPLE.example,
     sizePx: args.headingFontSizePx,
     weight: args.headingFontWeight,
     lineHeight: 1.25,
     opacity: 1,
   },
   {
-    className: "Root / Medium",
-    role: "Line labels, badge text",
-    example: `${FORMATTED_LINE_LENGTH} · ${FORMATTED_ELEVATION}`,
+    className: ROOT_MEDIUM_SAMPLE.className,
+    role: ROOT_MEDIUM_SAMPLE.role,
+    example: ROOT_MEDIUM_SAMPLE.example,
     sizePx: args.rootFontSizePx,
     weight: args.badgeFontWeight,
     lineHeight: 1.2,
     opacity: 1,
   },
   {
-    className: "Root / Regular",
-    role: "Infobox content",
-    example: FORMATTED_RELATIVE_HEIGHT,
+    className: ROOT_REGULAR_SAMPLE.className,
+    role: ROOT_REGULAR_SAMPLE.role,
+    example: ROOT_REGULAR_SAMPLE.example,
     sizePx: args.rootFontSizePx,
     weight: 400,
     lineHeight: 1.4,
     opacity: 1,
   },
   {
-    className: "Support / Semibold",
-    role: "Header, section title",
-    example: "Punktmessung · Referenzhöhe",
+    className: SUPPORT_SEMIBOLD_SAMPLE.className,
+    role: SUPPORT_SEMIBOLD_SAMPLE.role,
+    example: SUPPORT_SEMIBOLD_SAMPLE.example,
     sizePx: args.supportFontSizePx,
     weight: args.sectionTitleFontWeight,
     lineHeight: 1.35,
     opacity: 0.8,
   },
   {
-    className: "Support / Subtitle",
-    role: "Weight/opacity tradeoff for metadata",
-    example: `51,272102°N 7,200488°O • ${FORMATTED_ELEVATION}`,
+    className: SUPPORT_SUBTITLE_SAMPLE.className,
+    role: SUPPORT_SUBTITLE_SAMPLE.role,
+    example: SUPPORT_SUBTITLE_SAMPLE.example,
     sizePx: args.supportFontSizePx,
     weight: 600,
     lineHeight: 1.35,
     opacity: 0.5,
   },
   {
-    className: "Support / Regular",
-    role: "Navigation, secondary UI",
-    example: "3 von 20 Messungen",
+    className: SUPPORT_REGULAR_SAMPLE.className,
+    role: SUPPORT_REGULAR_SAMPLE.role,
+    example: SUPPORT_REGULAR_SAMPLE.example,
     sizePx: args.supportFontSizePx,
     weight: 400,
     lineHeight: 1.35,
@@ -273,17 +287,21 @@ const PreviewLineLabelSpecimen = ({
     }
   >
     <span className="carma-annotation-overlay-line-label__frame">
-      <span
-        className="carma-annotation-overlay-line-label__backdrop"
-        data-annotation-overlay-line-label-background-style={
-          PREVIEW_LINE_LABEL_BACKGROUND_STYLE.SOFT_RECT_FADE
-        }
-      />
-      <span
-        className="carma-annotation-overlay-line-label__text"
-        style={{ fontSize: fontSizePx }}
-      >
-        {text}
+      <span className="carma-annotation-overlay-line-label__content">
+        <span
+          className="carma-annotation-overlay-line-label__backdrop"
+          data-annotation-overlay-line-label-background-style={
+            PREVIEW_LINE_LABEL_BACKGROUND_STYLE.SOFT_RECT_FADE
+          }
+        />
+        <span className="carma-annotation-overlay-line-label__surface" />
+        <span
+          className="carma-annotation-overlay-line-label__text"
+          data-annotation-overlay-line-label-text="foreground"
+          style={{ fontSize: fontSizePx }}
+        >
+          {text}
+        </span>
       </span>
     </span>
   </div>
@@ -361,7 +379,7 @@ const OverlayTypographyPanel = ({
     <div style={OVERLAY_CANVAS_STYLE}>
       <div style={OVERLAY_LINE_STYLE} />
       <PreviewLineLabelSpecimen
-        text={FORMATTED_LINE_LENGTH}
+        text={ROOT_MEDIUM_SAMPLE.example}
         fontFamily={args.fontFamily}
         fontWeight={args.lineLabelFontWeight}
         fontSizePx={args.rootFontSizePx}
@@ -376,8 +394,8 @@ const OverlayTypographyPanel = ({
         }}
       >
         <PointLabel
-          content={FORMATTED_ELEVATION}
-          badgeContent="8"
+          content={ROOT_MEDIUM_SAMPLE.example}
+          badgeContent={ROOT_MEDIUM_SAMPLE.badgeContent}
           textBackgroundColor={POINT_LABEL_TEXT_BACKGROUND_COLOR}
           markerBackgroundColor="rgba(230, 231, 235, 0.94)"
           markerTextColor="#111827"
@@ -397,7 +415,7 @@ const OverlayTypographyPanel = ({
         }}
       >
         <PointLabel
-          content={FORMATTED_RELATIVE_HEIGHT_SHORT}
+          content={ROOT_REGULAR_SAMPLE.example}
           badgeContent="11111"
           textBackgroundColor="rgba(255, 248, 204, 0.75)"
           markerBackgroundColor="rgba(252, 211, 77, 0.96)"

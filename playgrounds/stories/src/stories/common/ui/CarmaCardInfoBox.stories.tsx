@@ -9,8 +9,17 @@ import {
 import {
   CarmaCard,
   CarmaResponsiveInfoBox,
-  ResponsiveStatusBar,
 } from "@carma-commons/ui/components";
+import { CenteredStoryFrame } from "./centered-story-frame";
+import {
+  STORY_MASONRY_BACKGROUND_MODES,
+  STORY_MASONRY_PAGE_STYLE,
+  StoryMasonrySection,
+  buildStoryMasonryGridStyle,
+  buildStoryMasonryPanelStyle,
+  readStoryMasonryBackground,
+  readStoryMasonryBackgroundStyle,
+} from "./story-masonry-layout";
 
 const infoBoxHeaderTextStyle: CSSProperties = {
   color: "rgba(255, 255, 255, 0.8)",
@@ -35,28 +44,21 @@ const infoBoxBodyTextStyle: CSSProperties = {
   color: "#212529",
 };
 
-const surfaceStyle: CSSProperties = {
-  borderRadius: 12,
-  border: "1px solid #e2e8f0",
-  background: "#f8fafc",
+const surfaceStyle: CSSProperties = buildStoryMasonryPanelStyle({
   padding: 12,
-  boxShadow: "0 4px 14px rgba(15,23,42,0.06)",
-};
+  gap: 8,
+});
 
-const sectionStyle: CSSProperties = {
-  ...surfaceStyle,
-  display: "flex",
-  flexDirection: "column",
+const sectionStackStyle: CSSProperties = {
+  display: "grid",
   gap: 12,
-  minWidth: 360,
 };
 
-const STICKY_STATUS_BAR_OVERLAY_STYLE: CSSProperties = {
-  position: "sticky",
-  top: 0,
-  zIndex: 1200,
-  pointerEvents: "none",
-};
+const showcaseGridStyle = buildStoryMasonryGridStyle({
+  columnWidthPx: 420,
+  gapPx: 16,
+  maxWidthPx: 1320,
+});
 
 type VariantProps = {
   title: string;
@@ -188,44 +190,27 @@ const InfoBoxVariant = ({
 
 const Showcase = () => {
   return (
-    <div
-      style={{
-        position: "relative",
-        width: "100vw",
-        minHeight: "100vh",
-        fontFamily:
-          "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif",
-        background: "linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%)",
-      }}
+    <CenteredStoryFrame
+      label="carma card and infobox"
+      values={[
+        "checkerboard backdrop",
+        "frosted masonry sections",
+        "drag handled by card header grips",
+      ]}
+      contentStyle={STORY_MASONRY_PAGE_STYLE}
+      background={readStoryMasonryBackground(
+        STORY_MASONRY_BACKGROUND_MODES.CHECKERBOARD
+      )}
+      backgroundStyle={readStoryMasonryBackgroundStyle(
+        STORY_MASONRY_BACKGROUND_MODES.CHECKERBOARD
+      )}
     >
-      <div style={{ minHeight: "100vh" }}>
-        <div style={STICKY_STATUS_BAR_OVERLAY_STYLE}>
-          <ResponsiveStatusBar text="CarmaCard + CarmaResponsiveInfoBox variants" />
-        </div>
-        <div style={{ padding: 16 }}>
-          <div
-            style={{
-              margin: "0 auto",
-              maxWidth: 1320,
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))",
-              gap: 16,
-              alignItems: "flex-start",
-            }}
-          >
-            <section style={sectionStyle}>
-              <h2
-                style={{
-                  margin: 0,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                  color: "#334155",
-                }}
-              >
-                CarmaCard
-              </h2>
+      <div style={showcaseGridStyle}>
+        <StoryMasonrySection
+          title="CarmaCard"
+          meta="Dieselbe checkerboard-basierte Masonry-Hülle wie in den Label-Stories, mit den bestehenden Drag-Header-Varianten im Inhalt."
+        >
+          <div style={sectionStackStyle}>
               <CardVariant
                 title="expanded • static"
                 subtitle="Subtitle row"
@@ -260,20 +245,13 @@ const Showcase = () => {
                 headerText="CarmaCard very long title for fallback"
                 panelWidth={300}
               />
-            </section>
-            <section style={sectionStyle}>
-              <h2
-                style={{
-                  margin: 0,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                  color: "#334155",
-                }}
-              >
-                CarmaResponsiveInfoBox
-              </h2>
+          </div>
+        </StoryMasonrySection>
+        <StoryMasonrySection
+          title="CarmaResponsiveInfoBox"
+          meta="Gleiche Masonry-Hülle, die eigentlichen Komponenten bleiben unverändert und behalten ihr bestehendes Drag-Verhalten."
+        >
+          <div style={sectionStackStyle}>
               <InfoBoxVariant
                 title="expanded • static"
                 subtitle="ResponsiveInfoBox"
@@ -308,11 +286,10 @@ const Showcase = () => {
                 headerText="InfoBox very long title for fallback"
                 panelWidth={300}
               />
-            </section>
           </div>
-        </div>
+        </StoryMasonrySection>
       </div>
-    </div>
+    </CenteredStoryFrame>
   );
 };
 

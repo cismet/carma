@@ -1,5 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties, RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type {
+  CSSProperties,
+  MouseEvent as ReactMouseEvent,
+  ReactNode,
+  RefObject,
+} from "react";
 
 import { DraggableDebugAnchor } from "@carma-commons/interaction/drag";
 import {
@@ -22,9 +27,12 @@ import {
   useLineVisualizers,
 } from "@carma-providers/label-overlay";
 import type { CssPixelPosition } from "@carma-units";
+import { annotationTypographyDefaults } from "@carma-mapping/annotations/runtime-v2";
 import {
+  PREVIEW_LINE_LABEL_BACKGROUND_STYLE,
   PREVIEW_LINE_LABEL_THEME,
   previewLineLabelVisualDefaults,
+  type PreviewLineLabelBackgroundStyle,
   type PreviewLineLabelTheme,
 } from "../../../../../../libraries/mapping/annotations/runtime-v2/src/lib/config/previewLineLabelVisualDefaults";
 import {
@@ -36,6 +44,15 @@ import {
   resolvePreviewDistanceTriangleComponentLabelVisibility,
 } from "../../../../../../libraries/mapping/annotations/runtime-v2/src/lib/interaction/previewController.shared";
 import barmenBackgroundUrl from "./assets/barmen-background.png";
+import {
+  LABEL_STORY_BACKGROUND_MODES,
+  readStoryBackground,
+  readStoryBackgroundStyle,
+} from "./LabelMarkers.story-helpers";
+import {
+  ANNOTATION_TYPOGRAPHY_SAMPLE_IDS,
+  ANNOTATION_TYPOGRAPHY_SAMPLES,
+} from "./annotation-typography-samples";
 
 import { CenteredStoryFrame } from "../../common/ui/centered-story-frame";
 const plotFrameStyle: CSSProperties = {
@@ -135,49 +152,95 @@ const distanceTriangleDefaultsValueStyle: CSSProperties = {
   overflowWrap: "anywhere",
 };
 
-const lineLabelTableStyle: CSSProperties = {
+const LINE_LABEL_SECTION_GAP = 24;
+const LINE_LABEL_ROW_PREVIEW_WIDTH = 560;
+
+const lineLabelPageStyle: CSSProperties = {
+  userSelect: "text",
+};
+
+const lineLabelSectionStyle: CSSProperties = {
+  marginBottom: 0,
+  minWidth: 0,
+  width: "100%",
+  maxWidth: "100%",
+};
+
+const lineLabelSectionGridStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "minmax(0, 1fr)",
+  gap: LINE_LABEL_SECTION_GAP,
+  alignItems: "start",
+  width: "100%",
+  maxWidth: 1120,
+  margin: "0 auto",
+};
+
+const lineLabelStoryTextSurfaceStyle: CSSProperties = {
+  display: "inline-block",
+  width: "fit-content",
+  maxWidth: "100%",
+  padding: "2px 5px 1px",
+  borderRadius: 0,
+  background: "rgba(255, 255, 255, 0.92)",
+  lineHeight: 1,
+};
+
+const lineLabelSectionTitleStyle: CSSProperties = {
+  ...distanceTrianglePanelTitleStyle,
+  ...lineLabelStoryTextSurfaceStyle,
+};
+
+const lineLabelRowListStyle: CSSProperties = {
   display: "flex",
   flexDirection: "column",
-  width: "fit-content",
+  width: "100%",
   maxWidth: "100%",
   background: "transparent",
 };
 
-const lineLabelTableRowStyle: CSSProperties = {
+const lineLabelRowStyle: CSSProperties = {
   borderBottom: "1px solid rgba(148, 163, 184, 0.24)",
 };
 
-const lineLabelTableRowCellStyle: CSSProperties = {
+const lineLabelRowCellStyle: CSSProperties = {
   display: "flex",
   flexWrap: "wrap",
   alignItems: "center",
   justifyContent: "space-between",
   gap: 12,
   minWidth: 0,
-  padding: "6px 0",
+  padding: "5px 0",
 };
 
-const lineLabelTableLabelCellStyle: CSSProperties = {
-  flex: "1 1 auto",
-  minWidth: 0,
-  textAlign: "left",
-  color: "#475569",
-  fontSize: 12,
-  lineHeight: 1.25,
-  padding: 0,
-};
-
-const lineLabelTablePreviewCellStyle: CSSProperties = {
+const lineLabelRowGraphicStyle: CSSProperties = {
   position: "relative",
   display: "flex",
-  justifyContent: "flex-end",
+  justifyContent: "flex-start",
   flex: "0 0 auto",
   minWidth: 0,
   maxWidth: "100%",
-  height: 64,
-  padding: "4px 0",
+  height: "auto",
+  minHeight: 0,
+  overflow: "visible",
+  padding: "3px 0",
   marginLeft: "auto",
   whiteSpace: "nowrap",
+  width: LINE_LABEL_ROW_PREVIEW_WIDTH,
+};
+
+const lineLabelVariantGridStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+  gap: 12,
+  width: "100%",
+  minWidth: 0,
+};
+
+const lineLabelVariantCellStyle: CSSProperties = {
+  display: "grid",
+  gap: 0,
+  minWidth: 0,
 };
 
 const lineLabelComponentViewportStyle: CSSProperties = {
@@ -185,8 +248,258 @@ const lineLabelComponentViewportStyle: CSSProperties = {
   width: "100%",
   minHeight: 52,
   height: 56,
-  overflow: "hidden",
+  overflow: "visible",
 };
+
+const resolveLineLabelComponentStyleVars = ({
+  backgroundStyle,
+  theme,
+  textColor,
+  textBlendMode,
+  textEchoColor,
+  backdropBackgroundColor,
+  backdropBlendMode,
+  surfaceBlendMode,
+  textEchoBlendMode,
+  textEchoBlurPx,
+  textEchoOpacity,
+  backdropBlurPx,
+  backdropBrightnessPct,
+  backdropSaturatePct,
+  backdropSurfaceAlpha,
+  backdropRadiusEx,
+  backdropEdgeBlurPx,
+  backdropInsetBlockEx,
+  backdropInsetInlineEx,
+  framePaddingBlockEx,
+  framePaddingInlineEx,
+  showLayerBounds,
+}: {
+  backgroundStyle: PreviewLineLabelBackgroundStyle;
+  theme: PreviewLineLabelTheme;
+  textColor?: string;
+  textBlendMode?: string;
+  textEchoColor?: string;
+  backdropBackgroundColor?: string;
+  backdropBlendMode?: string;
+  surfaceBlendMode?: string;
+  textEchoBlendMode?: string;
+  textEchoBlurPx?: number;
+  textEchoOpacity?: number;
+  backdropBlurPx?: number;
+  backdropBrightnessPct?: number;
+  backdropSaturatePct?: number;
+  backdropSurfaceAlpha?: number;
+  backdropRadiusEx?: number;
+  backdropEdgeBlurPx?: number;
+  backdropInsetBlockEx?: number;
+  backdropInsetInlineEx?: number;
+  framePaddingBlockEx?: number;
+  framePaddingInlineEx?: number;
+  showLayerBounds?: boolean;
+}): CSSProperties => {
+  const themePreset =
+    theme === PREVIEW_LINE_LABEL_THEME.DARK_ON_BRIGHT
+      ? LINE_LABEL_RUNTIME_THEME_PRESETS.darkOnBright
+      : LINE_LABEL_RUNTIME_THEME_PRESETS.brightOnDark;
+  const debugOutlineStyleVars =
+    showLayerBounds === true
+      ? ({
+          "--carma-annotation-overlay-line-label-debug-content-outline":
+            "1px solid rgba(14, 165, 233, 0.9)",
+          "--carma-annotation-overlay-line-label-debug-backdrop-outline":
+            "1px solid rgba(244, 63, 94, 0.95)",
+          "--carma-annotation-overlay-line-label-debug-text-outline":
+            "1px solid rgba(34, 197, 94, 0.95)",
+          "--carma-annotation-overlay-line-label-debug-text-echo-outline":
+            "1px dashed rgba(249, 115, 22, 0.9)",
+        } as CSSProperties)
+      : undefined;
+
+  const hasFramePaddingOverride =
+    (typeof framePaddingBlockEx === "number" &&
+      Number.isFinite(framePaddingBlockEx)) ||
+    (typeof framePaddingInlineEx === "number" &&
+      Number.isFinite(framePaddingInlineEx));
+  const hasBackdropInsetOverride =
+    (typeof backdropInsetBlockEx === "number" &&
+      Number.isFinite(backdropInsetBlockEx)) ||
+    (typeof backdropInsetInlineEx === "number" &&
+      Number.isFinite(backdropInsetInlineEx));
+  const hasTextEchoOverride =
+    (typeof textEchoBlurPx === "number" && Number.isFinite(textEchoBlurPx)) ||
+    (typeof textEchoOpacity === "number" && Number.isFinite(textEchoOpacity));
+
+  const layoutStyleVars = {
+    ...(hasFramePaddingOverride
+      ? {
+          "--carma-annotation-overlay-line-label-frame-padding-block": `${
+            typeof framePaddingBlockEx === "number" &&
+            Number.isFinite(framePaddingBlockEx)
+              ? Math.max(framePaddingBlockEx, 0)
+              : LINE_LABEL_RUNTIME_SHARED_DEFAULTS.framePaddingBlockEx
+          }ex`,
+          "--carma-annotation-overlay-line-label-frame-padding-inline": `${
+            typeof framePaddingInlineEx === "number" &&
+            Number.isFinite(framePaddingInlineEx)
+              ? Math.max(framePaddingInlineEx, 0)
+              : LINE_LABEL_RUNTIME_SHARED_DEFAULTS.framePaddingInlineEx
+          }ex`,
+        }
+      : undefined),
+    ...(typeof backdropRadiusEx === "number" && Number.isFinite(backdropRadiusEx)
+      ? {
+          "--carma-annotation-overlay-line-label-backdrop-radius": `${Math.max(
+            backdropRadiusEx,
+            0
+          )}ex`,
+        }
+      : undefined),
+    ...(hasBackdropInsetOverride
+      ? {
+          "--carma-annotation-overlay-line-label-backdrop-inset": `${
+            typeof backdropInsetBlockEx === "number" &&
+            Number.isFinite(backdropInsetBlockEx)
+              ? backdropInsetBlockEx
+              : LINE_LABEL_RUNTIME_SHARED_DEFAULTS.backdropInsetBlockEx
+          }ex ${
+            typeof backdropInsetInlineEx === "number" &&
+            Number.isFinite(backdropInsetInlineEx)
+              ? backdropInsetInlineEx
+              : LINE_LABEL_RUNTIME_SHARED_DEFAULTS.backdropInsetInlineEx
+          }ex`,
+        }
+      : undefined),
+  } as CSSProperties;
+
+    const surfaceFxStyleVars = {
+    ...(typeof backdropBlurPx === "number" && Number.isFinite(backdropBlurPx)
+      ? {
+          "--carma-annotation-overlay-line-label-surface-blur-px": `${Math.max(
+            backdropBlurPx,
+            0
+          )}px`,
+        }
+      : undefined),
+    ...(typeof backdropBrightnessPct === "number" &&
+      Number.isFinite(backdropBrightnessPct)
+      ? {
+          "--carma-annotation-overlay-line-label-surface-brightness-pct": `${Math.max(
+            backdropBrightnessPct,
+            0
+          )}%`,
+        }
+      : undefined),
+    ...(typeof backdropSaturatePct === "number" &&
+      Number.isFinite(backdropSaturatePct)
+      ? {
+          "--carma-annotation-overlay-line-label-surface-saturate-pct": `${Math.max(
+            backdropSaturatePct,
+            0
+          )}%`,
+        }
+      : undefined),
+    ...(typeof backdropEdgeBlurPx === "number" &&
+      Number.isFinite(backdropEdgeBlurPx)
+      ? {
+          "--carma-annotation-overlay-line-label-surface-edge-blur-px": `${Math.max(
+            backdropEdgeBlurPx,
+            0
+          )}px`,
+        }
+      : undefined),
+  } as CSSProperties;
+
+  const textEchoStyleVars =
+    backgroundStyle === PREVIEW_LINE_LABEL_BACKGROUND_STYLE.TEXT_ECHO_DARKEN &&
+    hasTextEchoOverride
+      ? ({
+          "--carma-annotation-overlay-line-label-text-echo-blur-px": `${Math.max(
+            typeof textEchoBlurPx === "number" && Number.isFinite(textEchoBlurPx)
+              ? textEchoBlurPx
+              : LINE_LABEL_RUNTIME_SHARED_DEFAULTS.textEchoBlurPx,
+            0
+          )}px`,
+          "--carma-annotation-overlay-line-label-text-echo-opacity": `${
+            typeof textEchoOpacity === "number" && Number.isFinite(textEchoOpacity)
+              ? Math.min(Math.max(textEchoOpacity, 0), 1)
+              : LINE_LABEL_RUNTIME_SHARED_DEFAULTS.textEchoOpacity
+          }`,
+        } as CSSProperties)
+      : undefined;
+
+  const colorOverrideStyleVars = {
+    ...(typeof textColor === "string" && textColor.trim().length > 0
+      ? {
+          "--carma-annotation-overlay-line-label-text-color": textColor,
+        }
+      : undefined),
+    ...(typeof textBlendMode === "string" && textBlendMode.length > 0
+      ? {
+          "--carma-annotation-overlay-line-label-text-blend-mode":
+            textBlendMode,
+        }
+      : undefined),
+    ...(typeof textEchoColor === "string" && textEchoColor.trim().length > 0
+      ? {
+          "--carma-annotation-overlay-line-label-text-echo-color":
+            textEchoColor,
+        }
+      : undefined),
+    ...(typeof backdropBackgroundColor === "string" &&
+    backdropBackgroundColor.trim().length > 0
+      ? {
+          "--carma-annotation-overlay-line-label-backdrop-background":
+            backdropBackgroundColor,
+        }
+      : undefined),
+    ...(typeof backdropBlendMode === "string" && backdropBlendMode.length > 0
+      ? {
+          "--carma-annotation-overlay-line-label-backdrop-blend-mode":
+            backdropBlendMode,
+        }
+      : undefined),
+    ...(typeof surfaceBlendMode === "string" && surfaceBlendMode.length > 0
+      ? {
+          "--carma-annotation-overlay-line-label-surface-blend-mode":
+            surfaceBlendMode,
+        }
+      : undefined),
+    ...(typeof textEchoBlendMode === "string" &&
+    textEchoBlendMode.length > 0
+      ? {
+          "--carma-annotation-overlay-line-label-text-echo-blend-mode":
+            textEchoBlendMode,
+        }
+      : undefined),
+  } as CSSProperties;
+
+  return {
+    ...debugOutlineStyleVars,
+    ...layoutStyleVars,
+    ...(typeof backdropSurfaceAlpha === "number" &&
+    Number.isFinite(backdropSurfaceAlpha)
+      ? {
+          "--carma-annotation-overlay-line-label-backdrop-background": `rgba(${themePreset.backdropBackgroundRgb}, ${Math.min(
+            Math.max(backdropSurfaceAlpha, 0),
+            1
+          )})`,
+        }
+      : undefined),
+    ...surfaceFxStyleVars,
+    ...textEchoStyleVars,
+    ...colorOverrideStyleVars,
+  } as CSSProperties;
+};
+
+const resolveLineLabelStoryBackgroundMode = (
+  backgroundMode: DistanceTriangleOverlayBackgroundMode
+) =>
+  backgroundMode === DISTANCE_TRIANGLE_OVERLAY_BACKGROUND_MODES.CHECKERBOARD
+    ? LABEL_STORY_BACKGROUND_MODES.CHECKERBOARD
+    : backgroundMode === DISTANCE_TRIANGLE_OVERLAY_BACKGROUND_MODES.PLAIN
+    ? LABEL_STORY_BACKGROUND_MODES.PLAIN
+    : LABEL_STORY_BACKGROUND_MODES.URBAN;
 
 const DISTANCE_TRIANGLE_DASH_PATTERN = "8 8";
 
@@ -369,10 +682,48 @@ export type DistanceTriangleOverlayStoryArgs = {
 
 export type LineLabelComponentStoryArgs = {
   backgroundMode?: DistanceTriangleOverlayBackgroundMode;
-  labelTheme?: PreviewLineLabelTheme;
   fontFamily?: string;
   fontWeight?: string | number;
+  brightOnDarkTextColor?: string;
+  brightOnDarkTextBlendMode?: string;
+  brightOnDarkTextEchoColor?: string;
+  brightOnDarkBackdropBackgroundColor?: string;
+  brightOnDarkBackdropBlendMode?: string;
+  brightOnDarkSurfaceBlendMode?: string;
+  brightOnDarkTextEchoBlendMode?: string;
+  darkOnBrightTextColor?: string;
+  darkOnBrightTextBlendMode?: string;
+  darkOnBrightTextEchoColor?: string;
+  darkOnBrightBackdropBackgroundColor?: string;
+  darkOnBrightBackdropBlendMode?: string;
+  darkOnBrightSurfaceBlendMode?: string;
+  darkOnBrightTextEchoBlendMode?: string;
+  textEchoBlurPx?: number;
+  textEchoOpacity?: number;
+  backdropBlurPx?: number;
+  backdropBrightnessPct?: number;
+  backdropSaturatePct?: number;
+  backdropSurfaceAlpha?: number;
+  backdropRadiusEx?: number;
+  backdropEdgeBlurPx?: number;
+  backdropInsetBlockEx?: number;
+  backdropInsetInlineEx?: number;
+  framePaddingBlockEx?: number;
+  framePaddingInlineEx?: number;
+  showLayerBounds?: boolean;
   showBackdrop?: boolean;
+};
+
+type LineLabelComponentPreviewArgs = LineLabelComponentStoryArgs & {
+  backgroundStyle: PreviewLineLabelBackgroundStyle;
+  labelTheme: PreviewLineLabelTheme;
+  textColor?: string;
+  textBlendMode?: string;
+  textEchoColor?: string;
+  backdropBackgroundColor?: string;
+  backdropBlendMode?: string;
+  surfaceBlendMode?: string;
+  textEchoBlendMode?: string;
 };
 
 type DistanceTrianglePreset = {
@@ -386,11 +737,21 @@ type DistanceTrianglePreset = {
 
 type LineLabelComponentRow = {
   id: string;
-  label: string;
   text: string;
   fontSizePx: number;
-  theme?: PreviewLineLabelTheme;
-  showBackdrop?: boolean;
+  fontWeight?: string | number;
+};
+
+type LineLabelComponentSection = {
+  id: string;
+  title: string;
+  theme: PreviewLineLabelTheme;
+  rows: readonly LineLabelComponentRow[];
+};
+
+type LineLabelComponentStyleVariant = {
+  id: string;
+  backgroundStyle: PreviewLineLabelBackgroundStyle;
 };
 
 const distanceTrianglePresets: readonly DistanceTrianglePreset[] = [
@@ -444,40 +805,287 @@ const distanceTrianglePresets: readonly DistanceTrianglePreset[] = [
   },
 ] as const;
 
-const lineLabelComponentRows: readonly LineLabelComponentRow[] = [
+const readLineLabelBackgroundStyleLabel = (
+  backgroundStyle: PreviewLineLabelBackgroundStyle
+) =>
+  backgroundStyle === PREVIEW_LINE_LABEL_BACKGROUND_STYLE.TEXT_ECHO_DARKEN
+    ? "text echo darken"
+    : "soft rect fade";
+
+const readLineLabelHeadingText = (
+  backgroundStyle: PreviewLineLabelBackgroundStyle
+) => `Label Heading · ${readLineLabelBackgroundStyleLabel(backgroundStyle)}`;
+
+const readLineLabelComponentRows = (
+  _backgroundMode: DistanceTriangleOverlayBackgroundMode
+): readonly LineLabelComponentRow[] =>
+  ANNOTATION_TYPOGRAPHY_SAMPLES.map((sample) => {
+    switch (sample.id) {
+      case ANNOTATION_TYPOGRAPHY_SAMPLE_IDS.HEADING:
+        return {
+          id: "line-label-heading",
+          text: "Label Heading",
+          fontSizePx: annotationTypographyDefaults.headingFontSizePx,
+          fontWeight: annotationTypographyDefaults.headingFontWeight,
+        };
+      case ANNOTATION_TYPOGRAPHY_SAMPLE_IDS.ROOT_MEDIUM:
+        return {
+          id: "line-label-root-medium",
+          text: sample.example,
+          fontSizePx: annotationTypographyDefaults.rootFontSizePx,
+          fontWeight: annotationTypographyDefaults.badgeFontWeight,
+        };
+      case ANNOTATION_TYPOGRAPHY_SAMPLE_IDS.ROOT_REGULAR:
+        return {
+          id: "line-label-root-regular",
+          text: sample.example,
+          fontSizePx: annotationTypographyDefaults.rootFontSizePx,
+          fontWeight: 400,
+        };
+      case ANNOTATION_TYPOGRAPHY_SAMPLE_IDS.SUPPORT_SEMIBOLD:
+        return {
+          id: "line-label-support-semibold",
+          text: sample.example,
+          fontSizePx: annotationTypographyDefaults.supportFontSizePx,
+          fontWeight: annotationTypographyDefaults.sectionTitleFontWeight,
+        };
+      case ANNOTATION_TYPOGRAPHY_SAMPLE_IDS.SUPPORT_SUBTITLE:
+        return {
+          id: "line-label-support-subtitle",
+          text: sample.example,
+          fontSizePx: annotationTypographyDefaults.supportFontSizePx,
+          fontWeight: 600,
+        };
+      case ANNOTATION_TYPOGRAPHY_SAMPLE_IDS.SUPPORT_REGULAR:
+        return {
+          id: "line-label-support-regular",
+          text: sample.example,
+          fontSizePx: annotationTypographyDefaults.supportFontSizePx,
+          fontWeight: 400,
+        };
+    }
+  });
+
+const lineLabelComponentStyleVariants: readonly LineLabelComponentStyleVariant[] =
+  [
+    {
+      id: "soft-rect-fade",
+      backgroundStyle: PREVIEW_LINE_LABEL_BACKGROUND_STYLE.SOFT_RECT_FADE,
+    },
+    {
+      id: "text-echo-darken",
+      backgroundStyle: PREVIEW_LINE_LABEL_BACKGROUND_STYLE.TEXT_ECHO_DARKEN,
+    },
+  ] as const;
+
+const LINE_LABEL_COMPONENT_SURFACE_VARIANTS: readonly LineLabelComponentStyleVariant[] =
+  [lineLabelComponentStyleVariants[0]];
+
+const LINE_LABEL_COMPONENT_ECHO_VARIANTS: readonly LineLabelComponentStyleVariant[] =
+  [lineLabelComponentStyleVariants[1]];
+
+const lineLabelComponentSections: readonly LineLabelComponentSection[] = [
   {
-    id: "line-label-metric",
-    label: "metric short",
-    text: "168,00 m",
-    fontSizePx: 14,
+    id: "line-label-bright-on-dark",
+    title: "bright on dark",
+    theme: PREVIEW_LINE_LABEL_THEME.BRIGHT_ON_DARK,
+    rows: [],
   },
   {
-    id: "line-label-route",
-    label: "route long",
-    text: "route 602 toward Barmen Rathaus",
-    fontSizePx: 14,
-  },
-  {
-    id: "line-label-large",
-    label: "large selected",
-    text: "selected segment label",
-    fontSizePx: 18,
-  },
-  {
-    id: "line-label-plain-dark",
-    label: "dark on bright",
-    text: "platform edge",
-    fontSizePx: 14,
+    id: "line-label-dark-on-bright",
+    title: "dark on bright",
     theme: PREVIEW_LINE_LABEL_THEME.DARK_ON_BRIGHT,
-  },
-  {
-    id: "line-label-no-backdrop",
-    label: "text only",
-    text: "without backdrop shell",
-    fontSizePx: 14,
-    showBackdrop: false,
+    rows: [],
   },
 ] as const;
+
+const LINE_LABEL_COMPONENT_BACKGROUND_MODE_OPTIONS = [
+  DISTANCE_TRIANGLE_OVERLAY_BACKGROUND_MODES.BARMEN,
+  DISTANCE_TRIANGLE_OVERLAY_BACKGROUND_MODES.PLAIN,
+  DISTANCE_TRIANGLE_OVERLAY_BACKGROUND_MODES.CHECKERBOARD,
+  DISTANCE_TRIANGLE_OVERLAY_BACKGROUND_MODES.URBAN,
+] as const;
+
+const LINE_LABEL_FONT_WEIGHT_OPTIONS = [400, 500, 600, 700] as const;
+
+const LINE_LABEL_BLEND_MODE_OPTIONS = [
+  "",
+  "darken",
+  "lighten",
+  "normal",
+] as const;
+
+const LINE_LABEL_BLEND_MODE_OPTION_LABELS = {
+  "": "auto",
+  darken: "darken",
+  lighten: "lighten",
+  normal: "normal",
+} as const;
+
+const LINE_LABEL_COLOR_PRESET_OPTIONS = [
+  "#0f172a",
+  "#e2e8f0",
+  "#ffffff",
+  "rgba(0, 0, 0, 0.98)",
+  "rgba(15, 23, 42, 0.92)",
+  "rgba(15, 23, 42, 0.28)",
+  "rgba(255, 255, 255, 0.92)",
+  "rgba(96, 106, 124, 0.62)",
+  "rgba(255, 255, 255, 0.32)",
+  "rgba(87, 96, 112, 0.76)",
+] as const;
+
+const LINE_LABEL_RUNTIME_SHARED_DEFAULTS = {
+  backdropBlurPx: 8,
+  textEchoBlurPx: 4,
+  textEchoOpacity: 0.82,
+  framePaddingBlockEx: 0.25,
+  framePaddingInlineEx: 0.65,
+  backdropInsetBlockEx: -0.35,
+  backdropInsetInlineEx: -0.75,
+} as const;
+
+const LINE_LABEL_RUNTIME_THEME_PRESETS = {
+  brightOnDark: {
+    textColor: "rgba(255, 255, 255, 0.98)",
+    textEchoColor: "rgba(15, 23, 42, 0.92)",
+    backdropBackgroundColor: "rgba(15, 23, 42, 0.28)",
+    backdropBackgroundRgb: "15, 23, 42",
+    backdropBrightnessPct: 78,
+    backdropSaturatePct: 55,
+    backdropSurfaceAlpha: 0.28,
+    backdropBlendMode: "darken",
+    textEchoBlendMode: "darken",
+  },
+  darkOnBright: {
+    textColor: "rgba(0, 0, 0, 0.98)",
+    textEchoColor: "rgba(255, 255, 255, 0.92)",
+    backdropBackgroundColor: "rgba(255, 255, 255, 0.32)",
+    backdropBackgroundRgb: "255, 255, 255",
+    backdropBrightnessPct: 118,
+    backdropSaturatePct: 45,
+    backdropSurfaceAlpha: 0.32,
+    backdropBlendMode: "lighten",
+    textEchoBlendMode: "lighten",
+  },
+} as const;
+
+const resolveLineLabelThemeOverrideArgs = (
+  args: LineLabelComponentStoryArgs,
+  theme: PreviewLineLabelTheme
+): Pick<
+  LineLabelComponentPreviewArgs,
+  | "textColor"
+  | "textBlendMode"
+  | "textEchoColor"
+  | "backdropBackgroundColor"
+  | "backdropBlendMode"
+  | "surfaceBlendMode"
+  | "textEchoBlendMode"
+> =>
+  theme === PREVIEW_LINE_LABEL_THEME.DARK_ON_BRIGHT
+    ? {
+        textColor: args.darkOnBrightTextColor,
+        textBlendMode: args.darkOnBrightTextBlendMode,
+        textEchoColor: args.darkOnBrightTextEchoColor,
+        backdropBackgroundColor: args.darkOnBrightBackdropBackgroundColor,
+        backdropBlendMode: args.darkOnBrightBackdropBlendMode,
+        surfaceBlendMode: args.darkOnBrightSurfaceBlendMode,
+        textEchoBlendMode: args.darkOnBrightTextEchoBlendMode,
+      }
+    : {
+        textColor: args.brightOnDarkTextColor,
+        textBlendMode: args.brightOnDarkTextBlendMode,
+        textEchoColor: args.brightOnDarkTextEchoColor,
+        backdropBackgroundColor: args.brightOnDarkBackdropBackgroundColor,
+        backdropBlendMode: args.brightOnDarkBackdropBlendMode,
+        surfaceBlendMode: args.brightOnDarkSurfaceBlendMode,
+        textEchoBlendMode: args.brightOnDarkTextEchoBlendMode,
+      };
+
+const buildLineLabelThemeOverrideArgTypes = ({
+  themeLabel,
+  includeEchoControls,
+}: {
+  themeLabel: string;
+  includeEchoControls: boolean;
+}) => ({
+  textColor: {
+    name: "Text Color",
+    control: {
+      type: "color",
+      presetColors: LINE_LABEL_COLOR_PRESET_OPTIONS,
+    },
+    table: { category: `Theme: ${themeLabel}` },
+  },
+  textBlendMode: {
+    name: "Text Blend",
+    control: { type: "inline-radio" },
+    options: LINE_LABEL_BLEND_MODE_OPTIONS,
+    labels: LINE_LABEL_BLEND_MODE_OPTION_LABELS,
+    table: { category: `Theme: ${themeLabel}` },
+  },
+  backdropBackgroundColor: {
+    name: "Backdrop Tint",
+    control: {
+      type: "color",
+      presetColors: LINE_LABEL_COLOR_PRESET_OPTIONS,
+    },
+    table: { category: `Theme: ${themeLabel}` },
+  },
+  backdropBlendMode: {
+    name: "Backdrop Blend",
+    control: { type: "inline-radio" },
+    options: LINE_LABEL_BLEND_MODE_OPTIONS,
+    labels: LINE_LABEL_BLEND_MODE_OPTION_LABELS,
+    table: { category: `Theme: ${themeLabel}` },
+  },
+  surfaceBlendMode: {
+    name: "Surface FX Blend",
+    control: { type: "inline-radio" },
+    options: LINE_LABEL_BLEND_MODE_OPTIONS,
+    labels: LINE_LABEL_BLEND_MODE_OPTION_LABELS,
+    table: { category: `Theme: ${themeLabel}` },
+  },
+  ...(includeEchoControls
+    ? {
+        textEchoColor: {
+          name: "Echo Color",
+          control: {
+            type: "color",
+            presetColors: LINE_LABEL_COLOR_PRESET_OPTIONS,
+          },
+          table: { category: `Theme: ${themeLabel}` },
+        },
+        textEchoBlendMode: {
+          name: "Echo Blend",
+          control: { type: "inline-radio" },
+          options: LINE_LABEL_BLEND_MODE_OPTIONS,
+          labels: LINE_LABEL_BLEND_MODE_OPTION_LABELS,
+          table: { category: `Theme: ${themeLabel}` },
+        },
+      }
+    : undefined),
+});
+
+const LINE_LABEL_BRIGHT_ON_DARK_ARG_TYPES = buildLineLabelThemeOverrideArgTypes({
+  themeLabel: "Bright on Dark",
+  includeEchoControls: true,
+});
+const LINE_LABEL_DARK_ON_BRIGHT_ARG_TYPES = buildLineLabelThemeOverrideArgTypes({
+  themeLabel: "Dark on Bright",
+  includeEchoControls: true,
+});
+const LINE_LABEL_BRIGHT_ON_DARK_SURFACE_ARG_TYPES =
+  buildLineLabelThemeOverrideArgTypes({
+    themeLabel: "Bright on Dark",
+    includeEchoControls: false,
+  });
+const LINE_LABEL_DARK_ON_BRIGHT_SURFACE_ARG_TYPES =
+  buildLineLabelThemeOverrideArgTypes({
+    themeLabel: "Dark on Bright",
+    includeEchoControls: false,
+  });
 
 type StoryLineLabelPlacement = {
   textX: number;
@@ -503,7 +1111,7 @@ const resolveDistanceTriangleLengthLabel = (
 
 const resolvePreviewLineLabelTextElement = (element: HTMLDivElement) =>
   element.querySelector(
-    '[data-annotation-overlay-line-label-text="true"]'
+    '[data-annotation-overlay-line-label-text="foreground"]'
   ) as HTMLSpanElement | null;
 
 const applyStoryLineLabel = ({
@@ -623,26 +1231,160 @@ const readDistanceTriangleStoryBackgroundStyle = (
   mode: DistanceTriangleOverlayBackgroundMode | undefined
 ): CSSProperties | undefined => undefined;
 
+const LineLabelInlineRow = ({ children }: { children: ReactNode }) => (
+  <div style={lineLabelRowStyle}>
+    <div style={lineLabelRowCellStyle}>
+      <div style={lineLabelRowGraphicStyle}>{children}</div>
+    </div>
+  </div>
+);
+
+const LineLabelVariantGrid = ({
+  row,
+  theme,
+  args,
+  variants,
+}: {
+  row: LineLabelComponentRow;
+  theme: PreviewLineLabelTheme;
+  args: LineLabelComponentStoryArgs;
+  variants: readonly LineLabelComponentStyleVariant[];
+}) => {
+  const themeOverrideArgs = resolveLineLabelThemeOverrideArgs(args, theme);
+
+  return (
+    <div style={lineLabelVariantGridStyle}>
+      {variants.map((variant) => (
+        <div key={`${row.id}-${theme}-${variant.id}`} style={lineLabelVariantCellStyle}>
+          <LineLabelComponentPreview
+            row={row}
+            args={{
+              ...args,
+              ...themeOverrideArgs,
+              labelTheme: theme,
+              backgroundStyle: variant.backgroundStyle,
+            }}
+          />
+        </div>
+      ))}
+    </div>
+  );
+};
+
+type LineLabelDragSession = {
+  pointerStartPosition: {
+    x: number;
+    y: number;
+  };
+  labelStartOffset: {
+    x: number;
+    y: number;
+  };
+};
+
 const LineLabelComponentPreview = ({
   row,
   args,
 }: {
   row: LineLabelComponentRow;
-  args: LineLabelComponentStoryArgs;
+  args: LineLabelComponentPreviewArgs;
 }) => {
-  const resolvedTheme =
-    row.theme ?? args.labelTheme ?? PREVIEW_LINE_LABEL_THEME.BRIGHT_ON_DARK;
-  const showBackdrop = row.showBackdrop ?? args.showBackdrop ?? true;
+  const resolvedTheme = args.labelTheme;
+  const resolvedBackgroundStyle = args.backgroundStyle;
+  const showBackdrop = args.showBackdrop ?? true;
+  const resolvedBackgroundMode =
+    args.backgroundMode ?? DISTANCE_TRIANGLE_OVERLAY_BACKGROUND_MODES.BARMEN;
+  const resolvedRowText =
+    row.id === "line-label-heading"
+      ? readLineLabelHeadingText(resolvedBackgroundStyle)
+      : row.text;
+  const [labelOffset, setLabelOffset] = useState({ x: 0, y: 0 });
+  const labelOffsetRef = useRef(labelOffset);
+  const labelDragSessionRef = useRef<LineLabelDragSession | null>(null);
+  const lineLabelComponentStyleVars = resolveLineLabelComponentStyleVars({
+    backgroundStyle: resolvedBackgroundStyle,
+    theme: resolvedTheme,
+    textColor: args.textColor,
+    textBlendMode: args.textBlendMode,
+    textEchoColor: args.textEchoColor,
+    backdropBackgroundColor: args.backdropBackgroundColor,
+    backdropBlendMode: args.backdropBlendMode,
+    surfaceBlendMode: args.surfaceBlendMode,
+    textEchoBlendMode: args.textEchoBlendMode,
+    textEchoBlurPx: args.textEchoBlurPx,
+    textEchoOpacity: args.textEchoOpacity,
+    backdropBlurPx: args.backdropBlurPx,
+    backdropBrightnessPct: args.backdropBrightnessPct,
+    backdropSaturatePct: args.backdropSaturatePct,
+    backdropSurfaceAlpha: args.backdropSurfaceAlpha,
+    backdropRadiusEx: args.backdropRadiusEx,
+    backdropEdgeBlurPx: args.backdropEdgeBlurPx,
+    backdropInsetBlockEx: args.backdropInsetBlockEx,
+    backdropInsetInlineEx: args.backdropInsetInlineEx,
+    framePaddingBlockEx: args.framePaddingBlockEx,
+    framePaddingInlineEx: args.framePaddingInlineEx,
+    showLayerBounds: args.showLayerBounds,
+  });
+
+  const handleLabelDragMove = useCallback((event: MouseEvent) => {
+    const activeSession = labelDragSessionRef.current;
+    if (!activeSession) {
+      return;
+    }
+
+    const nextOffset = {
+      x:
+        activeSession.labelStartOffset.x +
+        (event.clientX - activeSession.pointerStartPosition.x),
+      y:
+        activeSession.labelStartOffset.y +
+        (event.clientY - activeSession.pointerStartPosition.y),
+    };
+
+    labelOffsetRef.current = nextOffset;
+    setLabelOffset(nextOffset);
+  }, []);
+
+  const handleLabelDragEnd = useCallback(() => {
+    labelDragSessionRef.current = null;
+    if (typeof window === "undefined") {
+      return;
+    }
+    window.removeEventListener("mousemove", handleLabelDragMove);
+    window.removeEventListener("mouseup", handleLabelDragEnd);
+  }, [handleLabelDragMove]);
+
+  useEffect(
+    () => () => {
+      handleLabelDragEnd();
+    },
+    [handleLabelDragEnd]
+  );
+
+  const handleLabelDragStart = (event: ReactMouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    labelDragSessionRef.current = {
+      pointerStartPosition: {
+        x: event.clientX,
+        y: event.clientY,
+      },
+      labelStartOffset: labelOffsetRef.current,
+    };
+
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.addEventListener("mousemove", handleLabelDragMove);
+    window.addEventListener("mouseup", handleLabelDragEnd);
+  };
 
   return (
     <div
       style={{
         ...lineLabelComponentViewportStyle,
-        ...resolveDistanceTrianglePanelFrameStyle({
-          backgroundMode:
-            args.backgroundMode ??
-            DISTANCE_TRIANGLE_OVERLAY_BACKGROUND_MODES.BARMEN,
-        }),
         minHeight: 52,
         height: 56,
       }}
@@ -659,36 +1401,64 @@ const LineLabelComponentPreview = ({
       />
       <div
         className="carma-annotation-overlay-line-label"
+        data-annotation-overlay-line-label-background-style={
+          resolvedBackgroundStyle
+        }
         data-annotation-overlay-line-label-theme={resolvedTheme}
         style={
           {
             position: "absolute",
-            left: 168,
-            top: "50%",
+            left: `calc(168px + ${labelOffset.x}px)`,
+            top: `calc(50% + ${labelOffset.y}px)`,
             display: "block",
+            pointerEvents: "auto",
+            cursor: "grab",
             transform: "translate(-50%, -50%)",
             "--carma-annotation-overlay-line-label-font-family":
-              args.fontFamily ?? previewLineLabelVisualDefaults.fontFamily,
+              args.fontFamily ?? annotationTypographyDefaults.fontFamily,
             "--carma-annotation-overlay-line-label-font-size": `${row.fontSizePx}px`,
             "--carma-annotation-overlay-line-label-font-weight": `${
-              args.fontWeight ?? previewLineLabelVisualDefaults.fontWeight
+              row.fontWeight ??
+              args.fontWeight ??
+              previewLineLabelVisualDefaults.fontWeight
             }`,
+            ...lineLabelComponentStyleVars,
           } as CSSProperties
         }
+        onMouseDown={handleLabelDragStart}
+        onMouseUp={handleLabelDragEnd}
       >
-        <span className="carma-annotation-overlay-line-label__frame">
-          {showBackdrop ? (
-            <span
-              className="carma-annotation-overlay-line-label__backdrop"
-              data-annotation-overlay-line-label-background-style={
-                previewLineLabelVisualDefaults.backgroundStyle
-              }
-            />
-          ) : null}
-          <span className="carma-annotation-overlay-line-label__text">
-            {row.text}
-          </span>
-        </span>
+        <div className="carma-annotation-overlay-line-label__frame">
+          <div className="carma-annotation-overlay-line-label__content">
+            {showBackdrop ? (
+              <>
+                <div
+                  className="carma-annotation-overlay-line-label__backdrop"
+                  data-annotation-overlay-line-label-background-style={
+                    resolvedBackgroundStyle
+                  }
+                  style={{ pointerEvents: "none" }}
+                />
+                <div
+                  className="carma-annotation-overlay-line-label__surface"
+                  style={{ pointerEvents: "none" }}
+                />
+              </>
+            ) : null}
+            <div
+              className="carma-annotation-overlay-line-label__text-echo"
+              data-annotation-overlay-line-label-text-echo="true"
+            >
+              {resolvedRowText}
+            </div>
+            <div
+              className="carma-annotation-overlay-line-label__text"
+              data-annotation-overlay-line-label-text="foreground"
+            >
+              {resolvedRowText}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -734,7 +1504,7 @@ const DistanceTriangleDefaultsPanel = ({
   ] as const;
 
   const lineLabelDefaults = [
-    ["fontFamily", previewLineLabelVisualDefaults.fontFamily],
+    ["fontFamily", annotationTypographyDefaults.fontFamily],
     ["fontWeight", String(previewLineLabelVisualDefaults.fontWeight)],
     ["backgroundStyle", previewLineLabelVisualDefaults.backgroundStyle],
     ["theme", previewLineLabelVisualDefaults.theme],
@@ -1543,52 +2313,143 @@ export const DistanceTriangleOverlayDebugStory = ({
   </CenteredStoryFrame>
 );
 
-export const LineLabelComponentStory = ({
-  backgroundMode = DISTANCE_TRIANGLE_OVERLAY_BACKGROUND_MODES.BARMEN,
-  labelTheme = PREVIEW_LINE_LABEL_THEME.BRIGHT_ON_DARK,
-  fontFamily = previewLineLabelVisualDefaults.fontFamily,
-  fontWeight = previewLineLabelVisualDefaults.fontWeight,
-  showBackdrop = true,
-}: LineLabelComponentStoryArgs) => (
-  <CenteredStoryFrame
-    label="line component"
-    values={[
-      "runtime-v2 line label shell",
-      `bg ${backgroundMode}`,
-      `theme ${labelTheme}`,
-      `backdrop ${showBackdrop ? "on" : "off"}`,
-    ]}
-  >
-    <section style={{ display: "grid", gap: 10, width: "min(980px, 100%)" }}>
-      <div style={distanceTrianglePanelTitleStyle}>line label variants</div>
-      <div style={distanceTrianglePanelMetaStyle}>
-        Shared line-label shell as its own component surface, separate from
-        pillbox and badge labels.
-      </div>
-      <div style={lineLabelTableStyle}>
-        {lineLabelComponentRows.map((row) => (
-          <div key={row.id} style={lineLabelTableRowStyle}>
-            <div style={lineLabelTableRowCellStyle}>
-              <div style={lineLabelTableLabelCellStyle}>{row.label}</div>
-              <div style={lineLabelTablePreviewCellStyle}>
-                <LineLabelComponentPreview
-                  row={row}
-                  args={{
-                    backgroundMode,
-                    labelTheme,
-                    fontFamily,
-                    fontWeight,
-                    showBackdrop,
-                  }}
-                />
-              </div>
+const LineLabelComponentMatrixStory = ({
+  label,
+  variantSummary,
+  variants,
+  args,
+}: {
+  label: string;
+  variantSummary: string;
+  variants: readonly LineLabelComponentStyleVariant[];
+  args: LineLabelComponentStoryArgs;
+}) => {
+  const {
+    backgroundMode = DISTANCE_TRIANGLE_OVERLAY_BACKGROUND_MODES.BARMEN,
+    fontFamily = annotationTypographyDefaults.fontFamily,
+    fontWeight = previewLineLabelVisualDefaults.fontWeight,
+    brightOnDarkTextColor,
+    brightOnDarkTextBlendMode,
+    brightOnDarkTextEchoColor,
+    brightOnDarkBackdropBackgroundColor,
+    brightOnDarkBackdropBlendMode,
+    brightOnDarkSurfaceBlendMode,
+    brightOnDarkTextEchoBlendMode,
+    darkOnBrightTextColor,
+    darkOnBrightTextBlendMode,
+    darkOnBrightTextEchoColor,
+    darkOnBrightBackdropBackgroundColor,
+    darkOnBrightBackdropBlendMode,
+    darkOnBrightSurfaceBlendMode,
+    darkOnBrightTextEchoBlendMode,
+    textEchoBlurPx,
+    textEchoOpacity,
+    backdropBlurPx,
+    backdropBrightnessPct,
+    backdropSaturatePct,
+    backdropSurfaceAlpha,
+    backdropRadiusEx,
+    backdropEdgeBlurPx,
+    backdropInsetBlockEx,
+    backdropInsetInlineEx,
+    framePaddingBlockEx,
+    framePaddingInlineEx,
+    showLayerBounds = false,
+    showBackdrop = true,
+  } = args;
+  const statusBackdropBlurPx =
+    backdropBlurPx ?? LINE_LABEL_RUNTIME_SHARED_DEFAULTS.backdropBlurPx;
+  const pageBackgroundMode = resolveLineLabelStoryBackgroundMode(backgroundMode);
+  const lineLabelComponentRows = readLineLabelComponentRows(backgroundMode);
+
+  return (
+    <CenteredStoryFrame
+      label={label}
+      values={[
+        "runtime-v2 line label shell",
+        `bg ${backgroundMode}`,
+        variantSummary,
+        "themes bright-on-dark / dark-on-bright",
+        `bg blur ${statusBackdropBlurPx}px`,
+        `bounds ${showLayerBounds ? "on" : "off"}`,
+        `backdrop ${showBackdrop ? "on" : "off"}`,
+      ]}
+      contentStyle={lineLabelPageStyle}
+      background={readStoryBackground(pageBackgroundMode)}
+      backgroundStyle={readStoryBackgroundStyle(pageBackgroundMode)}
+    >
+      <div style={lineLabelSectionGridStyle}>
+        {lineLabelComponentSections.map((section) => (
+          <section key={section.id} style={lineLabelSectionStyle}>
+            <div style={lineLabelSectionTitleStyle}>{section.title}</div>
+            <div style={lineLabelRowListStyle}>
+              {lineLabelComponentRows.map((row) => (
+                <LineLabelInlineRow key={row.id}>
+                  <LineLabelVariantGrid
+                    row={row}
+                    theme={section.theme}
+                    variants={variants}
+                    args={{
+                      backgroundMode,
+                      fontFamily,
+                      fontWeight,
+                      brightOnDarkTextColor,
+                      brightOnDarkTextBlendMode,
+                      brightOnDarkTextEchoColor,
+                      brightOnDarkBackdropBackgroundColor,
+                      brightOnDarkBackdropBlendMode,
+                      brightOnDarkSurfaceBlendMode,
+                      brightOnDarkTextEchoBlendMode,
+                      darkOnBrightTextColor,
+                      darkOnBrightTextBlendMode,
+                      darkOnBrightTextEchoColor,
+                      darkOnBrightBackdropBackgroundColor,
+                      darkOnBrightBackdropBlendMode,
+                      darkOnBrightSurfaceBlendMode,
+                      darkOnBrightTextEchoBlendMode,
+                      textEchoBlurPx,
+                      textEchoOpacity,
+                      backdropBlurPx,
+                      backdropBrightnessPct,
+                      backdropSaturatePct,
+                      backdropSurfaceAlpha,
+                      backdropRadiusEx,
+                      backdropEdgeBlurPx,
+                      backdropInsetBlockEx,
+                      backdropInsetInlineEx,
+                      framePaddingBlockEx,
+                      framePaddingInlineEx,
+                      showLayerBounds,
+                      showBackdrop,
+                    }}
+                  />
+                </LineLabelInlineRow>
+              ))}
             </div>
-          </div>
+          </section>
         ))}
       </div>
-    </section>
-  </CenteredStoryFrame>
-);
+    </CenteredStoryFrame>
+  );
+};
+
+export const LineLabelComponentStory = (args: LineLabelComponentStoryArgs) =>
+  LineLabelComponentMatrixStory({
+    label: "line component",
+    variantSummary: "style soft-rect-fade",
+    variants: LINE_LABEL_COMPONENT_SURFACE_VARIANTS,
+    args,
+  });
+
+export const LineLabelEchoComponentStory = (args: LineLabelComponentStoryArgs) =>
+  LineLabelComponentMatrixStory({
+    label: "line component echo",
+    variantSummary: `style text-echo-darken · echo ${
+      (args.textEchoBlurPx ?? 4).toFixed(0)
+    }px · alpha ${(args.textEchoOpacity ?? 0.82).toFixed(2)}`,
+    variants: LINE_LABEL_COMPONENT_ECHO_VARIANTS,
+    args,
+  });
 
 export const DISTANCE_TRIANGLE_OVERLAY_ARG_TYPES = {
   backgroundMode: {
@@ -1640,36 +2501,143 @@ export const DISTANCE_TRIANGLE_OVERLAY_ARG_TYPES = {
   },
 };
 
-export const LINE_LABEL_COMPONENT_ARG_TYPES = {
+const LINE_LABEL_COMPONENT_BASE_ARG_TYPES = {
   backgroundMode: {
+    name: "Background",
     control: { type: "inline-radio" },
-    options: [
-      DISTANCE_TRIANGLE_OVERLAY_BACKGROUND_MODES.BARMEN,
-      DISTANCE_TRIANGLE_OVERLAY_BACKGROUND_MODES.PLAIN,
-      DISTANCE_TRIANGLE_OVERLAY_BACKGROUND_MODES.CHECKERBOARD,
-      DISTANCE_TRIANGLE_OVERLAY_BACKGROUND_MODES.URBAN,
-    ],
+    options: LINE_LABEL_COMPONENT_BACKGROUND_MODE_OPTIONS,
     table: { category: "Canvas" },
   },
-  labelTheme: {
-    control: { type: "inline-radio" },
-    options: [
-      PREVIEW_LINE_LABEL_THEME.DARK_ON_BRIGHT,
-      PREVIEW_LINE_LABEL_THEME.BRIGHT_ON_DARK,
-    ],
-    table: { category: "Label" },
-  },
   fontFamily: {
+    name: "Font Family",
     control: { type: "text" },
-    table: { category: "Label" },
+    table: { category: "Typography" },
   },
   fontWeight: {
-    control: { type: "text" },
-    table: { category: "Label" },
+    name: "Fallback Weight",
+    control: { type: "select" },
+    options: LINE_LABEL_FONT_WEIGHT_OPTIONS,
+    table: { category: "Typography" },
+  },
+  backdropBlurPx: {
+    name: "Surface Blur",
+    control: { type: "range", min: 0, max: 24, step: 1 },
+    table: { category: "Surface FX" },
+  },
+  backdropBrightnessPct: {
+    name: "Surface Brightness",
+    control: { type: "range", min: 0, max: 180, step: 1 },
+    table: { category: "Surface FX" },
+  },
+  backdropSaturatePct: {
+    name: "Surface Saturation",
+    control: { type: "range", min: 0, max: 180, step: 1 },
+    table: { category: "Surface FX" },
+  },
+  backdropSurfaceAlpha: {
+    name: "Backdrop Alpha",
+    control: { type: "range", min: 0, max: 1, step: 0.01 },
+    table: { category: "Backdrop" },
+  },
+  backdropRadiusEx: {
+    name: "Corner Radius",
+    control: { type: "range", min: 0, max: 12, step: 0.05 },
+    table: { category: "Backdrop" },
+  },
+  backdropEdgeBlurPx: {
+    name: "Surface Edge Softness",
+    control: { type: "range", min: 0, max: 16, step: 1 },
+    table: { category: "Surface FX" },
+  },
+  backdropInsetBlockEx: {
+    name: "Backdrop Block Inset",
+    control: { type: "range", min: -3, max: 3, step: 0.05 },
+    table: { category: "Backdrop" },
+  },
+  backdropInsetInlineEx: {
+    name: "Backdrop Inline Inset",
+    control: { type: "range", min: -4, max: 4, step: 0.05 },
+    table: { category: "Backdrop" },
+  },
+  framePaddingBlockEx: {
+    name: "Block Padding",
+    control: { type: "range", min: 0, max: 2, step: 0.05 },
+    table: { category: "Frame Layout" },
+  },
+  framePaddingInlineEx: {
+    name: "Inline Padding",
+    control: { type: "range", min: 0, max: 3, step: 0.05 },
+    table: { category: "Frame Layout" },
+  },
+  showLayerBounds: {
+    name: "Show Layer Bounds",
+    control: { type: "boolean" },
+    table: { category: "Debug" },
   },
   showBackdrop: {
+    name: "Show Backdrop",
     control: { type: "boolean" },
-    table: { category: "Label" },
+    table: { category: "Backdrop" },
+  },
+};
+
+export const LINE_LABEL_COMPONENT_ARG_TYPES = {
+  ...LINE_LABEL_COMPONENT_BASE_ARG_TYPES,
+  brightOnDarkTextColor: LINE_LABEL_BRIGHT_ON_DARK_SURFACE_ARG_TYPES.textColor,
+  brightOnDarkTextBlendMode:
+    LINE_LABEL_BRIGHT_ON_DARK_SURFACE_ARG_TYPES.textBlendMode,
+  brightOnDarkBackdropBackgroundColor:
+    LINE_LABEL_BRIGHT_ON_DARK_SURFACE_ARG_TYPES.backdropBackgroundColor,
+  brightOnDarkBackdropBlendMode:
+    LINE_LABEL_BRIGHT_ON_DARK_SURFACE_ARG_TYPES.backdropBlendMode,
+  brightOnDarkSurfaceBlendMode:
+    LINE_LABEL_BRIGHT_ON_DARK_SURFACE_ARG_TYPES.surfaceBlendMode,
+  darkOnBrightTextColor: LINE_LABEL_DARK_ON_BRIGHT_SURFACE_ARG_TYPES.textColor,
+  darkOnBrightTextBlendMode:
+    LINE_LABEL_DARK_ON_BRIGHT_SURFACE_ARG_TYPES.textBlendMode,
+  darkOnBrightBackdropBackgroundColor:
+    LINE_LABEL_DARK_ON_BRIGHT_SURFACE_ARG_TYPES.backdropBackgroundColor,
+  darkOnBrightBackdropBlendMode:
+    LINE_LABEL_DARK_ON_BRIGHT_SURFACE_ARG_TYPES.backdropBlendMode,
+  darkOnBrightSurfaceBlendMode:
+    LINE_LABEL_DARK_ON_BRIGHT_SURFACE_ARG_TYPES.surfaceBlendMode,
+};
+
+export const LINE_LABEL_ECHO_COMPONENT_ARG_TYPES = {
+  ...LINE_LABEL_COMPONENT_BASE_ARG_TYPES,
+  brightOnDarkTextColor: LINE_LABEL_BRIGHT_ON_DARK_ARG_TYPES.textColor,
+  brightOnDarkTextBlendMode: LINE_LABEL_BRIGHT_ON_DARK_ARG_TYPES.textBlendMode,
+  brightOnDarkTextEchoColor: LINE_LABEL_BRIGHT_ON_DARK_ARG_TYPES.textEchoColor,
+  brightOnDarkBackdropBackgroundColor:
+    LINE_LABEL_BRIGHT_ON_DARK_ARG_TYPES.backdropBackgroundColor,
+  brightOnDarkBackdropBlendMode:
+    LINE_LABEL_BRIGHT_ON_DARK_ARG_TYPES.backdropBlendMode,
+  brightOnDarkSurfaceBlendMode:
+    LINE_LABEL_BRIGHT_ON_DARK_ARG_TYPES.surfaceBlendMode,
+  brightOnDarkTextEchoBlendMode:
+    LINE_LABEL_BRIGHT_ON_DARK_ARG_TYPES.textEchoBlendMode,
+  darkOnBrightTextColor: LINE_LABEL_DARK_ON_BRIGHT_ARG_TYPES.textColor,
+  darkOnBrightTextBlendMode:
+    LINE_LABEL_DARK_ON_BRIGHT_ARG_TYPES.textBlendMode,
+  darkOnBrightTextEchoColor:
+    LINE_LABEL_DARK_ON_BRIGHT_ARG_TYPES.textEchoColor,
+  darkOnBrightBackdropBackgroundColor:
+    LINE_LABEL_DARK_ON_BRIGHT_ARG_TYPES.backdropBackgroundColor,
+  darkOnBrightBackdropBlendMode:
+    LINE_LABEL_DARK_ON_BRIGHT_ARG_TYPES.backdropBlendMode,
+  darkOnBrightSurfaceBlendMode:
+    LINE_LABEL_DARK_ON_BRIGHT_ARG_TYPES.surfaceBlendMode,
+  darkOnBrightTextEchoBlendMode:
+    LINE_LABEL_DARK_ON_BRIGHT_ARG_TYPES.textEchoBlendMode,
+  textEchoBlurPx: {
+    name: "Echo Blur",
+    control: { type: "range", min: 0, max: 16, step: 1 },
+    table: { category: "Echo Layer" },
+  },
+  textEchoOpacity: {
+    name: "Echo Opacity",
+    control: { type: "range", min: 0, max: 1, step: 0.01 },
+    table: { category: "Echo Layer" },
   },
 };
 
@@ -1690,12 +2658,21 @@ export const DISTANCE_TRIANGLE_OVERLAY_ARGS: DistanceTriangleOverlayStoryArgs =
     customBackgroundBlendMode: "normal, normal, normal, multiply",
   };
 
-export const LINE_LABEL_COMPONENT_ARGS: LineLabelComponentStoryArgs = {
+const LINE_LABEL_COMPONENT_BASE_ARGS: LineLabelComponentStoryArgs = {
   backgroundMode: DISTANCE_TRIANGLE_OVERLAY_BACKGROUND_MODES.BARMEN,
-  labelTheme: PREVIEW_LINE_LABEL_THEME.BRIGHT_ON_DARK,
-  fontFamily: previewLineLabelVisualDefaults.fontFamily,
+  fontFamily: annotationTypographyDefaults.fontFamily,
   fontWeight: previewLineLabelVisualDefaults.fontWeight,
+  showLayerBounds: false,
   showBackdrop: true,
+};
+
+export const LINE_LABEL_COMPONENT_ARGS: LineLabelComponentStoryArgs = {
+  ...LINE_LABEL_COMPONENT_BASE_ARGS,
+};
+
+export const LINE_LABEL_ECHO_COMPONENT_ARGS: LineLabelComponentStoryArgs = {
+  ...LINE_LABEL_COMPONENT_BASE_ARGS,
+  showBackdrop: false,
 };
 
 export const LABEL_PLACEMENT_SINGLE_LINE_ARG_TYPES = {

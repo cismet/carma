@@ -6,11 +6,14 @@ import {
   DistanceTriangleOverlayDebugStory,
   LINE_LABEL_COMPONENT_ARGS,
   LINE_LABEL_COMPONENT_ARG_TYPES,
+  LINE_LABEL_ECHO_COMPONENT_ARGS,
+  LINE_LABEL_ECHO_COMPONENT_ARG_TYPES,
   LABEL_PLACEMENT_POLYGON_ARGS,
   LABEL_PLACEMENT_POLYGON_ARG_TYPES,
   LABEL_PLACEMENT_SINGLE_LINE_ARGS,
   LABEL_PLACEMENT_SINGLE_LINE_ARG_TYPES,
   LineLabelComponentStory,
+  LineLabelEchoComponentStory,
   PolygonSegmentLabelDebugStory,
   SingleLineLabelDebugStory,
 } from "./LabelPlacement.story-helpers";
@@ -60,4 +63,11 @@ export const LineLabelComponent = {
   argTypes: LINE_LABEL_COMPONENT_ARG_TYPES,
   args: LINE_LABEL_COMPONENT_ARGS,
   render: (args) => <LineLabelComponentStory {...args} />,
+};
+
+export const LineLabelEchoComponent = {
+  name: "Line Component Echo",
+  argTypes: LINE_LABEL_ECHO_COMPONENT_ARG_TYPES,
+  args: LINE_LABEL_ECHO_COMPONENT_ARGS,
+  render: (args) => <LineLabelEchoComponentStory {...args} />,
 };

@@ -30,6 +30,7 @@ import type { CssPixelPosition } from "@carma-units";
 
 import { runtimeMeasurementVisualDefaults } from "../config/measurementVisualDefaults";
 import {
+  PREVIEW_LINE_LABEL_THEME,
   previewLineLabelVisualDefaults,
   resolvePreviewLineLabelVisualOptions,
   type PreviewLineLabelVisualOptions,
@@ -116,12 +117,28 @@ export const applyStyles = (
 const PREVIEW_LINE_LABEL_CLASSNAME = "carma-annotation-overlay-line-label";
 const PREVIEW_LINE_LABEL_FRAME_CLASSNAME =
   "carma-annotation-overlay-line-label__frame";
+const PREVIEW_LINE_LABEL_CONTENT_CLASSNAME =
+  "carma-annotation-overlay-line-label__content";
 const PREVIEW_LINE_LABEL_BACKDROP_CLASSNAME =
   "carma-annotation-overlay-line-label__backdrop";
+const PREVIEW_LINE_LABEL_SURFACE_CLASSNAME =
+  "carma-annotation-overlay-line-label__surface";
+const PREVIEW_LINE_LABEL_TEXT_ECHO_CLASSNAME =
+  "carma-annotation-overlay-line-label__text-echo";
 const PREVIEW_LINE_LABEL_TEXT_CLASSNAME =
   "carma-annotation-overlay-line-label__text";
 const PREVIEW_LINE_LABEL_UPPER_SIDE_GAP_FACTOR = 0.15;
 const PREVIEW_LINE_LABEL_SIDE_HYSTERESIS_PX = 1.5;
+const PREVIEW_LINE_LABEL_SHARED_STYLE_DEFAULTS = Object.freeze({
+  framePaddingBlockEx: 0.25,
+  framePaddingInlineEx: 0.65,
+  backdropInsetBlockEx: -0.35,
+  backdropInsetInlineEx: -0.75,
+});
+const PREVIEW_LINE_LABEL_THEME_BACKDROP_RGB = Object.freeze({
+  [PREVIEW_LINE_LABEL_THEME.BRIGHT_ON_DARK]: "15, 23, 42",
+  [PREVIEW_LINE_LABEL_THEME.DARK_ON_BRIGHT]: "255, 255, 255",
+});
 const PREVIEW_LINE_LABEL_PLACEMENT_OPTIONS_BY_KIND: Record<
   PreviewLineLabelKind,
   LineLabelPlacementOptions
@@ -147,11 +164,13 @@ const createHtmlElement = <T extends keyof HTMLElementTagNameMap>(
 const applyPreviewLineLabelVisualOptions = ({
   element,
   backdrop,
+  surface,
   accentColor,
   visualOptions,
 }: {
   element: HTMLDivElement;
   backdrop: HTMLDivElement;
+  surface: HTMLDivElement;
   accentColor: string;
   visualOptions: PreviewLineLabelVisualOptions;
 }) => {
@@ -171,14 +190,230 @@ const applyPreviewLineLabelVisualOptions = ({
     visualOptions.shortEdgeOffsetPx
   );
   element.dataset.annotationOverlayLineLabelTheme = visualOptions.theme;
+  element.dataset.annotationOverlayLineLabelBackgroundStyle =
+    visualOptions.backgroundStyle;
   backdrop.dataset.annotationOverlayLineLabelBackgroundStyle =
     visualOptions.backgroundStyle;
+
+  if (
+    typeof visualOptions.backdropSurfaceAlpha === "number" &&
+    Number.isFinite(visualOptions.backdropSurfaceAlpha) &&
+    !(
+      typeof visualOptions.backdropBackgroundColor === "string" &&
+      visualOptions.backdropBackgroundColor.trim().length > 0
+    )
+  ) {
+    element.style.setProperty(
+      "--carma-annotation-overlay-line-label-backdrop-background",
+      `rgba(${PREVIEW_LINE_LABEL_THEME_BACKDROP_RGB[visualOptions.theme]}, ${Math.min(
+        Math.max(visualOptions.backdropSurfaceAlpha, 0),
+        1
+      )})`
+    );
+  }
+
+  if (visualOptions.showBackdrop === false) {
+    backdrop.style.display = "none";
+    surface.style.display = "none";
+  } else {
+    backdrop.style.display = "block";
+    surface.style.display = "block";
+  }
+
+  if (
+    typeof visualOptions.textColor === "string" &&
+    visualOptions.textColor.trim().length > 0
+  ) {
+    element.style.setProperty(
+      "--carma-annotation-overlay-line-label-text-color",
+      visualOptions.textColor
+    );
+  }
+
+  if (
+    typeof visualOptions.textBlendMode === "string" &&
+    visualOptions.textBlendMode.trim().length > 0
+  ) {
+    element.style.setProperty(
+      "--carma-annotation-overlay-line-label-text-blend-mode",
+      visualOptions.textBlendMode
+    );
+  }
+
+  if (
+    typeof visualOptions.backdropBackgroundColor === "string" &&
+    visualOptions.backdropBackgroundColor.trim().length > 0
+  ) {
+    element.style.setProperty(
+      "--carma-annotation-overlay-line-label-backdrop-background",
+      visualOptions.backdropBackgroundColor
+    );
+  }
+
+  if (
+    typeof visualOptions.backdropBlendMode === "string" &&
+    visualOptions.backdropBlendMode.trim().length > 0
+  ) {
+    element.style.setProperty(
+      "--carma-annotation-overlay-line-label-backdrop-blend-mode",
+      visualOptions.backdropBlendMode
+    );
+  }
+
+  if (
+    typeof visualOptions.surfaceBlendMode === "string" &&
+    visualOptions.surfaceBlendMode.trim().length > 0
+  ) {
+    element.style.setProperty(
+      "--carma-annotation-overlay-line-label-surface-blend-mode",
+      visualOptions.surfaceBlendMode
+    );
+  }
+
+  if (
+    typeof visualOptions.textEchoColor === "string" &&
+    visualOptions.textEchoColor.trim().length > 0
+  ) {
+    element.style.setProperty(
+      "--carma-annotation-overlay-line-label-text-echo-color",
+      visualOptions.textEchoColor
+    );
+  }
+
+  if (
+    typeof visualOptions.textEchoBlendMode === "string" &&
+    visualOptions.textEchoBlendMode.trim().length > 0
+  ) {
+    element.style.setProperty(
+      "--carma-annotation-overlay-line-label-text-echo-blend-mode",
+      visualOptions.textEchoBlendMode
+    );
+  }
+
+  if (
+    typeof visualOptions.textEchoBlurPx === "number" &&
+    Number.isFinite(visualOptions.textEchoBlurPx)
+  ) {
+    element.style.setProperty(
+      "--carma-annotation-overlay-line-label-text-echo-blur-px",
+      `${Math.max(visualOptions.textEchoBlurPx, 0)}px`
+    );
+  }
+
+  if (
+    typeof visualOptions.textEchoOpacity === "number" &&
+    Number.isFinite(visualOptions.textEchoOpacity)
+  ) {
+    element.style.setProperty(
+      "--carma-annotation-overlay-line-label-text-echo-opacity",
+      `${Math.min(Math.max(visualOptions.textEchoOpacity, 0), 1)}`
+    );
+  }
+
+  if (
+    typeof visualOptions.backdropBlurPx === "number" &&
+    Number.isFinite(visualOptions.backdropBlurPx)
+  ) {
+    element.style.setProperty(
+      "--carma-annotation-overlay-line-label-surface-blur-px",
+      `${Math.max(visualOptions.backdropBlurPx, 0)}px`
+    );
+  }
+
+  if (
+    typeof visualOptions.backdropBrightnessPct === "number" &&
+    Number.isFinite(visualOptions.backdropBrightnessPct)
+  ) {
+    element.style.setProperty(
+      "--carma-annotation-overlay-line-label-surface-brightness-pct",
+      `${Math.max(visualOptions.backdropBrightnessPct, 0)}%`
+    );
+  }
+
+  if (
+    typeof visualOptions.backdropSaturatePct === "number" &&
+    Number.isFinite(visualOptions.backdropSaturatePct)
+  ) {
+    element.style.setProperty(
+      "--carma-annotation-overlay-line-label-surface-saturate-pct",
+      `${Math.max(visualOptions.backdropSaturatePct, 0)}%`
+    );
+  }
+
+  if (
+    typeof visualOptions.backdropRadiusEx === "number" &&
+    Number.isFinite(visualOptions.backdropRadiusEx)
+  ) {
+    element.style.setProperty(
+      "--carma-annotation-overlay-line-label-backdrop-radius",
+      `${Math.max(visualOptions.backdropRadiusEx, 0)}ex`
+    );
+  }
+
+  if (
+    typeof visualOptions.backdropEdgeBlurPx === "number" &&
+    Number.isFinite(visualOptions.backdropEdgeBlurPx)
+  ) {
+    element.style.setProperty(
+      "--carma-annotation-overlay-line-label-surface-edge-blur-px",
+      `${Math.max(visualOptions.backdropEdgeBlurPx, 0)}px`
+    );
+  }
+
+  if (
+    typeof visualOptions.framePaddingBlockEx === "number" ||
+    typeof visualOptions.framePaddingInlineEx === "number"
+  ) {
+    element.style.setProperty(
+      "--carma-annotation-overlay-line-label-frame-padding-block",
+      `${
+        typeof visualOptions.framePaddingBlockEx === "number" &&
+        Number.isFinite(visualOptions.framePaddingBlockEx)
+          ? Math.max(visualOptions.framePaddingBlockEx, 0)
+          : PREVIEW_LINE_LABEL_SHARED_STYLE_DEFAULTS.framePaddingBlockEx
+      }ex`
+    );
+    element.style.setProperty(
+      "--carma-annotation-overlay-line-label-frame-padding-inline",
+      `${
+        typeof visualOptions.framePaddingInlineEx === "number" &&
+        Number.isFinite(visualOptions.framePaddingInlineEx)
+          ? Math.max(visualOptions.framePaddingInlineEx, 0)
+          : PREVIEW_LINE_LABEL_SHARED_STYLE_DEFAULTS.framePaddingInlineEx
+      }ex`
+    );
+  }
+
+  if (
+    typeof visualOptions.backdropInsetBlockEx === "number" ||
+    typeof visualOptions.backdropInsetInlineEx === "number"
+  ) {
+    element.style.setProperty(
+      "--carma-annotation-overlay-line-label-backdrop-inset",
+      `${
+        typeof visualOptions.backdropInsetBlockEx === "number" &&
+        Number.isFinite(visualOptions.backdropInsetBlockEx)
+          ? visualOptions.backdropInsetBlockEx
+          : PREVIEW_LINE_LABEL_SHARED_STYLE_DEFAULTS.backdropInsetBlockEx
+      }ex ${
+        typeof visualOptions.backdropInsetInlineEx === "number" &&
+        Number.isFinite(visualOptions.backdropInsetInlineEx)
+          ? visualOptions.backdropInsetInlineEx
+          : PREVIEW_LINE_LABEL_SHARED_STYLE_DEFAULTS.backdropInsetInlineEx
+      }ex`
+    );
+  }
 };
 
 const resolvePreviewLineLabelTextElement = (element: HTMLDivElement) =>
   element.querySelector(
-    '[data-annotation-overlay-line-label-text="true"]'
-  ) as HTMLSpanElement | null;
+    '[data-annotation-overlay-line-label-text="foreground"]'
+  ) as HTMLElement | null;
+
+const resolvePreviewLineLabelTextEchoElement = (element: HTMLDivElement) =>
+  element.querySelector(
+    '[data-annotation-overlay-line-label-text-echo="true"]'
+  ) as HTMLElement | null;
 
 const resolvePreviewLineLabelFrameElement = (element: HTMLDivElement) =>
   element.querySelector(
@@ -367,19 +602,28 @@ export const createLineLabel = (
     resolvePreviewLineLabelVisualOptions(visualOptions);
   const element = createHtmlElement("div", PREVIEW_LINE_LABEL_CLASSNAME);
   const frame = createHtmlElement("div", PREVIEW_LINE_LABEL_FRAME_CLASSNAME);
+  const content = createHtmlElement("div", PREVIEW_LINE_LABEL_CONTENT_CLASSNAME);
   const blurBackdrop = createHtmlElement(
     "div",
     PREVIEW_LINE_LABEL_BACKDROP_CLASSNAME
   );
-  const text = createHtmlElement("span", PREVIEW_LINE_LABEL_TEXT_CLASSNAME);
-  text.dataset.annotationOverlayLineLabelText = "true";
+  const surface = createHtmlElement(
+    "div",
+    PREVIEW_LINE_LABEL_SURFACE_CLASSNAME
+  );
+  const textEcho = createHtmlElement("div", PREVIEW_LINE_LABEL_TEXT_ECHO_CLASSNAME);
+  textEcho.dataset.annotationOverlayLineLabelTextEcho = "true";
+  const text = createHtmlElement("div", PREVIEW_LINE_LABEL_TEXT_CLASSNAME);
+  text.dataset.annotationOverlayLineLabelText = "foreground";
   applyPreviewLineLabelVisualOptions({
     element,
     backdrop: blurBackdrop,
+    surface,
     accentColor,
     visualOptions: resolvedVisualOptions,
   });
-  frame.append(blurBackdrop, text);
+  content.append(blurBackdrop, surface, textEcho, text);
+  frame.append(content);
   element.appendChild(frame);
   return element;
 };
@@ -697,10 +941,14 @@ export const applyLineLabel = ({
   }
 
   const textElement = resolvePreviewLineLabelTextElement(element);
-  if (textElement instanceof HTMLSpanElement) {
+  if (textElement instanceof HTMLElement) {
     textElement.textContent = text;
   } else {
     element.textContent = text;
+  }
+  const textEchoElement = resolvePreviewLineLabelTextEchoElement(element);
+  if (textEchoElement instanceof HTMLElement) {
+    textEchoElement.textContent = text;
   }
 
   const frameElement = resolvePreviewLineLabelFrameElement(element);
