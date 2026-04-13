@@ -9,7 +9,6 @@ import { Badge, Button, Spin, Switch, Tooltip } from "antd";
 import {
   EditOutlined,
   LockOutlined,
-  PlusOutlined,
   SaveOutlined,
 } from "@ant-design/icons";
 import {
@@ -35,7 +34,6 @@ import type { SidebarFeature } from "../ui/BelisSidebar";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faDrawPolygon } from "@fortawesome/free-solid-svg-icons";
 import { useMapPage } from "../../contexts/MapPageContext";
-import CreateAAModal from "../ui/CreateAAModal";
 
 interface BelisStreet {
   s: string;
@@ -69,20 +67,18 @@ const BelisMapPageShell = () => {
   } = config;
 
   const [streets, setStreets] = useState<BelisStreet[]>([]);
+  const { setActiveHighlights } = useMapPage();
+
   const [highlightResults, setHighlightResults] = useState<
     SidebarFeature[] | null
   >(null);
   const [lassoActive, setLassoActive] = useState(false);
-  const [activeHighlights, setActiveHighlights] = useState<
-    SidebarFeature[] | null
-  >(null);
-  const [aaModalOpen, setAaModalOpen] = useState(false);
 
   const handleHighlightsChange = useCallback(
     (highlights: SidebarFeature[] | null) => {
       setActiveHighlights(highlights);
     },
-    []
+    [setActiveHighlights]
   );
 
   const { isDatasheetOpen, closeDatasheet } = useDatasheet();
@@ -193,29 +189,6 @@ const BelisMapPageShell = () => {
                       </button>
                     </Badge>
                   )}
-                {sidebarVariant === "fachobjekte" && (
-                  <Tooltip
-                    title={
-                      activeHighlights && activeHighlights.length > 0
-                        ? "AA erstellen"
-                        : "Zuerst Fachobjekte auswählen"
-                    }
-                  >
-                    <button
-                      onClick={() => setAaModalOpen(true)}
-                      disabled={
-                        !activeHighlights || activeHighlights.length === 0
-                      }
-                      className={`flex items-center justify-center w-[24px] h-[24px] rounded border ${
-                        activeHighlights && activeHighlights.length > 0
-                          ? "border-gray-300 bg-white text-gray-500 hover:bg-gray-50"
-                          : "border-gray-200 bg-gray-100 text-gray-300 cursor-not-allowed"
-                      }`}
-                    >
-                      <PlusOutlined style={{ fontSize: 14 }} />
-                    </button>
-                  </Tooltip>
-                )}
               </div>
             ) : undefined
           }
@@ -255,29 +228,6 @@ const BelisMapPageShell = () => {
                     </button>
                   </Badge>
                 )}
-              {windowWidth <= 1364 && sidebarVariant === "fachobjekte" && (
-                <Tooltip
-                  title={
-                    activeHighlights && activeHighlights.length > 0
-                      ? "AA erstellen"
-                      : "Zuerst Fachobjekte auswählen"
-                  }
-                >
-                  <button
-                    onClick={() => setAaModalOpen(true)}
-                    disabled={
-                      !activeHighlights || activeHighlights.length === 0
-                    }
-                    className={`flex items-center justify-center w-7 h-7 rounded border ${
-                      activeHighlights && activeHighlights.length > 0
-                        ? "border-gray-300 bg-white text-gray-500 hover:bg-gray-50"
-                        : "border-gray-200 bg-gray-100 text-gray-300 cursor-not-allowed"
-                    }`}
-                  >
-                    <PlusOutlined style={{ fontSize: 14 }} />
-                  </button>
-                </Tooltip>
-              )}
 
               {showSearch && (
                 <div className="flex items-center gap-2">
@@ -371,11 +321,6 @@ const BelisMapPageShell = () => {
             onHighlightsChange={handleHighlightsChange}
           />
         </CustomCard>
-        <CreateAAModal
-          open={aaModalOpen}
-          onClose={() => setAaModalOpen(false)}
-          highlights={activeHighlights ?? []}
-        />
       </div>
     </Spin>
   );
