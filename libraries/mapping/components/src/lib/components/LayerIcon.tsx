@@ -4,6 +4,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useEffect, useState } from "react";
 import { faLayerGroup, faMap } from "@fortawesome/free-solid-svg-icons";
 import { iconColorMap, iconMap } from "./iconMapping";
+import { resolveLayerIconUrl } from "@carma-mapping/utils";
 
 const ICON_PREFIX =
   "https://geo.wuppertal.de/geoportal/geoportal_icon_legends/";
@@ -18,11 +19,6 @@ interface LayerIconProps {
   displayUrl?: boolean;
   onError?: (title: string, url: string) => void;
 }
-
-const isUrl = (str: string | undefined): boolean => {
-  if (!str) return false;
-  return str.startsWith("http://") || str.startsWith("https://");
-};
 
 const iconPathAliases: Record<string, string> = {
   verkehr: "mobi",
@@ -54,12 +50,7 @@ export const LayerIcon = ({
         layer.other.name
       : undefined);
 
-  const isIconUrl = isUrl(layer.other?.icon);
-  const iconSrc = isIconUrl
-    ? layer.other?.icon
-    : iconName
-    ? iconPrefix + `${iconName}.png`
-    : undefined;
+  const iconSrc = resolveLayerIconUrl(layer, iconPrefix);
 
   useEffect(() => {
     if (iconSrc) {
