@@ -1,4 +1,4 @@
-import type { DynamicStylingListConfig } from "@carma/types";
+import type { DynamicStylingListConfig } from "@carma-mapping/layers";
 import {
   captureDefaults,
   parseTarget,

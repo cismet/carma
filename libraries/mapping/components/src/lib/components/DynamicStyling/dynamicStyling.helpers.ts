@@ -1,4 +1,4 @@
-import type { DynamicStylingListConfig } from "@carma/types";
+import type { DynamicStylingListConfig } from "@carma-mapping/layers";
 
 export const ICON_PREFIX =
   "https://geo.wuppertal.de/geoportal/geoportal_icon_legends/";
