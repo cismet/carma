@@ -296,7 +296,7 @@ const ArbeitsauftraegeSidebar = ({
         >
           AP
           <span className="ml-1 text-[10px] bg-gray-200 text-gray-600 rounded-full px-1.5 py-0.5">
-            {draftMode ? apDraftCount : protokolleCount}
+            {draftMode ? apDraftCount + apDeletionCount : protokolleCount}
           </span>
         </button>
       </div>
