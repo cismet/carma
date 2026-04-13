@@ -85,7 +85,7 @@ import {
   getDraftMode,
 } from "../../store/slices/arbeitsauftraege";
 import { getSelectedTeamName } from "../../store/selectors";
-import { buildApGeoJson, extractGeometry } from "../../helper/buildApGeoJson";
+import { buildApGeoJson, extractGeometry, getHeaderColorFromStatus } from "../../helper/buildApGeoJson";
 import { debugLayers, apInfoboxMapping, aaInfoboxMapping } from "../../config/debugLayers";
 import type { ArbeitsauftragTileFeature } from "../../store/slices/arbeitsauftraege";
 import { transformGqlToTileFeatures } from "../../helper/transformArbeitsauftraege";
@@ -105,6 +105,7 @@ import {
 import {
   getAllAADrafts,
   getAllAPDrafts,
+  getAPDeletions,
 } from "../../store/slices/arbeitsauftraegeDrafts";
 import { prepareDraftFeatures } from "../../helper/prepareDraftFeatures";
 // import { useAaLassoSelection } from "../../hooks/useAaLassoSelection";
@@ -216,6 +217,7 @@ const BelisMapLibWrapper = ({
   const aaFeatures = useSelector(getAAFeatures);
   const aaDrafts = useSelector(getAllAADrafts);
   const apDrafts = useSelector(getAllAPDrafts);
+  const apDeletions = useSelector(getAPDeletions);
   const draftMode = useSelector(getDraftMode);
 
   // Stable list of IDs for map filtering when search is active
@@ -1364,10 +1366,13 @@ const BelisMapLibWrapper = ({
     abzweigdosen: "abzweigdose",
   };
 
-  // Build GeoJSON from AP drafts for draft mode map rendering
+  // Build GeoJSON from AP drafts + deletion-marked APs for draft mode map rendering
   const apDraftGeoJson = useMemo((): GeoJSON.FeatureCollection => {
     const features: GeoJSON.Feature[] = [];
+    const seenIds = new Set<number>();
+
     for (const [id, d] of Object.entries(apDrafts)) {
+      seenIds.add(Number(id));
       let geometry = d.geometry ?? null;
       let featureType = d.featureType ?? "tdta_standort_mast";
 
@@ -1398,8 +1403,47 @@ const BelisMapLibWrapper = ({
         },
       });
     }
+
+    // Add deletion-marked APs not already in apDrafts, using server data
+    if (selectedAAData?.ar_protokolleArray) {
+      for (const apId of Object.keys(apDeletions)) {
+        if (seenIds.has(Number(apId))) continue;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const entry = selectedAAData.ar_protokolleArray.find(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (e: Record<string, any>) => e.arbeitsprotokoll?.id === Number(apId)
+        );
+        const protokoll = entry?.arbeitsprotokoll;
+        if (!protokoll) continue;
+        const result = extractGeometry(protokoll);
+        if (!result) continue;
+
+        features.push({
+          type: "Feature" as const,
+          geometry: result.geometry,
+          properties: {
+            id: Number(apId),
+            featureType: result.featureType,
+            protokollnummer: protokoll.protokollnummer ?? apId,
+            shortname: protokoll.shortname ?? result.featureType,
+            veranlassung: protokoll.veranlassung?.bezeichnung ?? "",
+            headerColor: getHeaderColorFromStatus(
+              protokoll.arbeitsprotokollstatus ?? null
+            ),
+            datum: protokoll.datum
+              ? new Date(protokoll.datum).toLocaleDateString("de-DE", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                })
+              : "",
+          },
+        });
+      }
+    }
+
     return { type: "FeatureCollection", features };
-  }, [apDrafts]);
+  }, [apDrafts, apDeletions, selectedAAData]);
 
   useEffect(() => {
     if (!map) return;

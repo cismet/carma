@@ -87,9 +87,12 @@ const ArbeitsauftraegeFormsWrapper = ({
     mode === "aa" ? getAADraft(state, id) : getAPDraft(state, id)
   );
 
+  const isCurrentAPMarkedForDeletion =
+    mode === "ap" && id ? id in apDeletions : false;
+
   const hasChanges = useSelector((state: RootState) =>
     mode === "aa" ? hasAADraftChanges(state, id) : hasAPDraftChanges(state, id)
-  );
+  ) || isCurrentAPMarkedForDeletion;
 
   const originalValues = useSelector((state: RootState) =>
     mode === "aa"
@@ -181,6 +184,7 @@ const ArbeitsauftraegeFormsWrapper = ({
       dispatch(removeAADraft(id));
     } else {
       dispatch(removeAPDraft(id));
+      dispatch(unmarkAPForDeletion(id));
     }
     setResetKey((prev) => prev + 1);
   }, [id, mode, dispatch]);
