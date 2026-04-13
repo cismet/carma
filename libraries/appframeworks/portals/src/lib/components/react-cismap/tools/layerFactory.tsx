@@ -116,8 +116,6 @@ const createLayerFactoryFunction = (key, _conf = defaultLayerConf) => {
     ..._conf,
   };
 
-  console.log("xxx", key);
-
   switch ((conf.namedLayers[key] || {}).type) {
     case "empty":
       return () => {
