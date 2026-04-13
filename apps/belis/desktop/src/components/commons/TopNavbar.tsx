@@ -6,6 +6,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { NavLink, useNavigate } from "react-router-dom";
 import SettingsUi from "../ui/SettingsUi";
 import SyncMenuModal from "../ui/SyncMenuModal";
+import { useMapHighlight } from "@carma-mapping/engines/maplibre";
 import { useMapPage } from "../../contexts/MapPageContext";
 import CreateAAModal from "../ui/CreateAAModal";
 
@@ -13,7 +14,8 @@ const TopNavbar = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const draftsCount = useSelector(getDraftFeaturesCount);
-  const { activeHighlights, aaModalOpen, setAaModalOpen } = useMapPage();
+  const { activeHighlights, setActiveHighlights, aaModalOpen, setAaModalOpen } = useMapPage();
+  const { setHighlightingActive, clearHighlights } = useMapHighlight();
   const hasHighlights = activeHighlights && activeHighlights.length > 0;
   const highlightCount = activeHighlights?.length ?? 0;
 
@@ -107,6 +109,11 @@ const TopNavbar = () => {
       <CreateAAModal
         open={aaModalOpen}
         onClose={() => setAaModalOpen(false)}
+        onCreated={() => {
+          setActiveHighlights(null);
+          setHighlightingActive(false);
+          clearHighlights();
+        }}
         highlights={activeHighlights ?? []}
       />
     </div>

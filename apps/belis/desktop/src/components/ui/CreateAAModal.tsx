@@ -15,10 +15,11 @@ const FormLabel = ({ children }: { children: React.ReactNode }) => (
 interface CreateAAModalProps {
   open: boolean;
   onClose: () => void;
+  onCreated?: () => void;
   highlights: SidebarFeature[];
 }
 
-const CreateAAModal = ({ open, onClose, highlights }: CreateAAModalProps) => {
+const CreateAAModal = ({ open, onClose, onCreated, highlights }: CreateAAModalProps) => {
   const [form] = Form.useForm();
   const login = useSelector(getLogin);
   const jwt = useSelector(getJWT);
@@ -75,6 +76,7 @@ const CreateAAModal = ({ open, onClose, highlights }: CreateAAModalProps) => {
       .then(() => {
         void message.success("Arbeitsauftrag erstellt");
         form.resetFields();
+        onCreated?.();
         onClose();
       })
       .catch((err: unknown) => {
