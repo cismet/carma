@@ -8,6 +8,8 @@ import {
   type RuntimeAnnotationInfoBoxVisualOptions,
 } from "./annotationInfoBoxVisualDefaults";
 
+const RUNTIME_INFO_BOX_ACTION_TOOLTIP_Z_INDEX = 1700;
+
 type RuntimeAnnotationInfoBoxActionIconProps = {
   title: string;
   icon: IconDefinition;
@@ -34,7 +36,13 @@ export const RuntimeAnnotationInfoBoxActionIcon = ({
   const [hovered, setHovered] = useState(false);
 
   return (
-    <Tooltip title={title}>
+    <Tooltip
+      title={title}
+      zIndex={RUNTIME_INFO_BOX_ACTION_TOOLTIP_Z_INDEX}
+      getPopupContainer={(triggerNode) =>
+        triggerNode.ownerDocument?.body ?? document.body
+      }
+    >
       <FontAwesomeIcon
         onClick={(event) => {
           if (disabled) {
