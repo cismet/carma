@@ -68,6 +68,19 @@ root.render(
                 />
               ),
             },
+            {
+              path: "/about/services.md",
+              element: (
+                <ServiceList
+                  discoverProps={{
+                    appKey: "Geoportal.Online.Wuppertal",
+                    apiUrl: apiUrl,
+                    daqKey: "gp_entdecken",
+                  }}
+                  markdown
+                />
+              ),
+            },
           ])}
         />
       </AdhocFeatureDisplayProvider>

@@ -508,7 +508,12 @@ const ItemEntry = ({
   );
 };
 
-const ServiceList = ({ discoverProps }: { discoverProps?: DiscoverProps }) => {
+interface ServiceListProps {
+  discoverProps?: DiscoverProps;
+  markdown?: boolean;
+}
+
+const ServiceList = ({ discoverProps, markdown = false }: ServiceListProps) => {
   const allLayers = useSelector(getAllLayers);
   const store = useStore();
   const additionalLayersRef = useRef<
@@ -929,6 +934,167 @@ const ServiceList = ({ discoverProps }: { discoverProps?: DiscoverProps }) => {
     getNumberOfLayers(filteredSensors) +
     getNumberOfLayers(filteredObjects) +
     getNumberOfLayers(filteredDiscover);
+
+  const formatLayerMarkdown = (
+    layer: Item,
+    meta?: VectorStyleMeta
+  ): string[] => {
+    const lines: string[] = [];
+    const carmaConf = extractCarmaConfig(layer.keywords);
+    const descriptions = parseDescription(layer.description);
+    const openDataUrl = carmaConf?.opendata as string | undefined;
+    const vectorStyle = layer.vectorStyle || carmaConf?.vectorStyle;
+    const vectorLegend = layer.vectorLegend || carmaConf?.vectorLegend;
+    const isVector = !!(
+      vectorStyle ||
+      vectorLegend ||
+      (layer as any).layerType === "vector"
+    );
+
+    const badges: string[] = layer.type ? [layer.type] : [];
+    if (layer.queryable) badges.push("queryable");
+    if (layer.type === "layer") badges.push(isVector ? "vector" : "raster");
+
+    lines.push(`### ${layer.title} [${badges.join(", ")}]`);
+    lines.push("");
+
+    if (descriptions.length > 0) {
+      for (const section of descriptions) {
+        if (section.title === "Sichtbarkeit") continue;
+        lines.push(
+          `**${section.title}:** ${section.description.replace(/<[^>]*>/g, "")}`
+        );
+      }
+      lines.push("");
+    }
+
+    if (layer.type === "link" && (layer as any).url) {
+      lines.push(`- **URL:** ${(layer as any).url}`);
+    }
+    if (layer.service?.url) {
+      const serviceUrl =
+        !isVector && layer.name
+          ? `${layer.service.url}?service=WMS&request=GetMap&layers=${layer.name}`
+          : layer.service.url;
+      lines.push(`- **Service-URL:** ${serviceUrl}`);
+    }
+    if (layer.minZoom !== undefined || layer.maxZoom !== undefined) {
+      lines.push(
+        `- **Zoom-Bereich:** ${layer.minZoom ?? "–"} – ${layer.maxZoom ?? "–"}`
+      );
+    }
+    if (layer.copyright) {
+      lines.push(`- **Bildnachweis:** ${layer.copyright}`);
+    }
+    if (openDataUrl) {
+      lines.push(`- **Open Data:** ${openDataUrl}`);
+    }
+    if (vectorStyle) {
+      lines.push(`- **Vector Style:** ${String(vectorStyle)}`);
+    }
+    if (vectorLegend) {
+      lines.push(`- **Vector Legend:** ${String(vectorLegend)}`);
+    }
+
+    if (layer.tags && layer.tags.length > 0) {
+      lines.push(`- **Tags:** ${layer.tags.join(", ")}`);
+    }
+
+    if (meta && meta.status === "loaded") {
+      const effectiveSource = getEffectiveSource(meta);
+      const effective = getEffectiveMapping(meta);
+      const isFunction = effective
+        ? parseMappingEntries(effective) === "function"
+        : false;
+      const hasFoto = effective ? mappingHasKey(effective, "foto") : false;
+
+      const mappingParts: string[] = [];
+      if (effectiveSource && sourceColors[effectiveSource]) {
+        mappingParts.push(sourceColors[effectiveSource].label);
+      }
+      if (isFunction) mappingParts.push("function");
+      if (hasFoto) mappingParts.push("foto");
+
+      if (mappingParts.length > 0) {
+        lines.push(`- **Infobox Mapping:** ${mappingParts.join(", ")}`);
+      }
+
+      if (meta.wmsInfoboxMapping?.length) {
+        lines.push(`  - WMS: ${meta.wmsInfoboxMapping.join("; ")}`);
+      }
+      if (meta.vectorInfoboxMapping?.length) {
+        lines.push(`  - Vector Style: ${meta.vectorInfoboxMapping.join("; ")}`);
+      }
+      if (meta.layerInfoboxMapping?.length) {
+        lines.push(`  - Style Layer: ${meta.layerInfoboxMapping.join("; ")}`);
+      }
+    }
+
+    lines.push("");
+    lines.push("---");
+    lines.push("");
+    return lines;
+  };
+
+  const formatSection = (
+    heading: string,
+    categories: { id: string; Title: string; layers: any[] }[]
+  ): string[] => {
+    if (categories.length === 0) return [];
+    const lines: string[] = [];
+    lines.push(`# ${heading}`);
+    lines.push("");
+    for (const category of categories) {
+      lines.push(`## ${category.Title}`);
+      lines.push("");
+      for (const layer of category.layers) {
+        lines.push(...formatLayerMarkdown(layer, vectorMetaMap[layer.id]));
+      }
+    }
+    return lines;
+  };
+
+  if (markdown) {
+    if (loading) return null;
+
+    const lines: string[] = [];
+    lines.push("# Geoportal Diensteübersicht");
+    lines.push("");
+    lines.push(
+      `${
+        displayLayers.length +
+        topicMaps.length +
+        sensorLayers.length +
+        objectLayers.length +
+        discoverLayers.length
+      } Kategorien, ${totalLayerCount} Einträge.`
+    );
+    lines.push("");
+
+    lines.push(...formatSection("Kartenebenen", displayLayers));
+    lines.push(...formatSection("Teilzwillinge", topicMaps));
+    lines.push(...formatSection("Sensoren", sensorLayers));
+    lines.push(...formatSection("Objekte", objectLayers));
+    lines.push(...formatSection("Entdecken", discoverLayers));
+
+    return (
+      <pre
+        style={{
+          padding: "32px 24px",
+          fontFamily: "monospace",
+          fontSize: 13,
+          lineHeight: 1.6,
+          backgroundColor: "#fff",
+          minHeight: "100vh",
+          whiteSpace: "pre-wrap",
+          wordBreak: "break-all",
+          margin: 0,
+        }}
+      >
+        {lines.join("\n")}
+      </pre>
+    );
+  }
 
   return (
     <PageLayout>
