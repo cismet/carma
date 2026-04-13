@@ -8,7 +8,10 @@ import React, {
 import { useSelector } from "react-redux";
 import { useStore } from "react-redux";
 import type { Item } from "@carma-mapping/layers";
-import { getAllLayers } from "../../slices/mapLayers";
+import {
+  getAllLayers,
+  getloadingCapabilitiesIDs,
+} from "../../slices/mapLayers";
 import { useAdditionalConfig } from "../../hooks/useAdditionalConfig";
 import { useLoadCapabilities } from "../../hooks/useLoadCapabilities";
 import { extractCarmaConfig } from "@carma-commons/utils";
@@ -515,8 +518,9 @@ interface ServiceListProps {
 
 const ServiceList = ({ discoverProps, markdown = false }: ServiceListProps) => {
   const allLayers = useSelector(getAllLayers);
+  const loadingCapabilitiesIDs = useSelector(getloadingCapabilitiesIDs);
   const store = useStore();
-  const additionalLayersRef = useRef<
+  const [additionalLayers, setAdditionalLayers] = useState<
     { serviceName: string; title: string; layers: any[] }[]
   >([]);
   const [sensorEntries, setSensorEntries] = useState<
@@ -528,6 +532,7 @@ const ServiceList = ({ discoverProps, markdown = false }: ServiceListProps) => {
   const [discoverLayers, setDiscoverLayers] = useState<
     { id: string; Title: string; layers: any[] }[]
   >([]);
+  const [discoverLoaded, setDiscoverLoaded] = useState(!discoverProps);
   const [search, setSearch] = useState("");
   const [badgeFilter, setBadgeFilter] = useState<string | null>(null);
   const [vectorMetaMap, setVectorMetaMap] = useState<
@@ -556,6 +561,7 @@ const ServiceList = ({ discoverProps, markdown = false }: ServiceListProps) => {
         }
       }
       setDiscoverLayers(categories);
+      setDiscoverLoaded(true);
     });
   }, []);
 
@@ -572,7 +578,7 @@ const ServiceList = ({ discoverProps, markdown = false }: ServiceListProps) => {
         layers,
       };
       if (categoryId === "mapLayers") {
-        additionalLayersRef.current.push(entry);
+        setAdditionalLayers((prev) => [...prev, entry]);
       } else if (categoryId === "sensors") {
         setSensorEntries((prev) => [...prev, entry]);
       } else if (categoryId === "objects") {
@@ -598,7 +604,7 @@ const ServiceList = ({ discoverProps, markdown = false }: ServiceListProps) => {
   const displayLayers = useMemo(() => {
     if (allLayers.length === 0) return allLayers;
     const merged = JSON.parse(JSON.stringify(allLayers));
-    for (const entry of additionalLayersRef.current) {
+    for (const entry of additionalLayers) {
       const existing = merged.find((cat: any) => cat.id === entry.serviceName);
       if (existing) {
         for (const layer of entry.layers) {
@@ -615,7 +621,7 @@ const ServiceList = ({ discoverProps, markdown = false }: ServiceListProps) => {
       }
     }
     return merged;
-  }, [allLayers]);
+  }, [allLayers, additionalLayers]);
 
   const topicMaps = useMemo(() => {
     const categories: { id: string; Title: string; layers: any[] }[] = [];
@@ -819,6 +825,45 @@ const ServiceList = ({ discoverProps, markdown = false }: ServiceListProps) => {
   }, [displayLayers, topicMaps, sensorLayers, objectLayers]);
 
   const loading = allLayers.length === 0;
+
+  const allDataLoaded = useMemo(() => {
+    // WMS capabilities still loading (individual services tracked by ID)
+    if (loadingCapabilitiesIDs.length > 0) return false;
+    // Additional/sensor/object configs still loading
+    if (loadingAdditionalConfig) return false;
+    // Discover items still loading
+    if (!discoverLoaded) return false;
+    // Vector metadata still loading
+    const allItems: Item[] = [];
+    for (const cat of [
+      ...displayLayers,
+      ...topicMaps,
+      ...sensorLayers,
+      ...objectLayers,
+    ]) {
+      for (const layer of cat.layers) {
+        allItems.push(layer);
+      }
+    }
+    for (const layer of allItems) {
+      if (layer.type !== "layer" && layer.type !== "object") continue;
+      const carmaConf = extractCarmaConfig(layer.keywords);
+      const vectorStyleRef = layer.vectorStyle || carmaConf?.vectorStyle;
+      if (!vectorStyleRef) continue;
+      const meta = vectorMetaMap[layer.id];
+      if (!meta || meta.status === "loading") return false;
+    }
+    return true;
+  }, [
+    loadingCapabilitiesIDs,
+    loadingAdditionalConfig,
+    discoverLoaded,
+    displayLayers,
+    topicMaps,
+    sensorLayers,
+    objectLayers,
+    vectorMetaMap,
+  ]);
 
   const getSearchableText = useCallback((layer: Item): string => {
     const parts: string[] = [
@@ -1055,7 +1100,7 @@ const ServiceList = ({ discoverProps, markdown = false }: ServiceListProps) => {
   };
 
   if (markdown) {
-    if (loading) return null;
+    if (!allDataLoaded) return null;
 
     const lines: string[] = [];
     lines.push("# Geoportal Diensteübersicht");
