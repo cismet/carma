@@ -137,10 +137,13 @@ const ArbeitsauftraegeSidebar = ({
     }
 
     return (
-      selectedAAData?.ar_protokolleArray?.map(
+      selectedAAData?.ar_protokolleArray
+        ?.map(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (entry: Record<string, any>) => entry.arbeitsprotokoll
+        )
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (entry: Record<string, any>) => entry.arbeitsprotokoll
-      ) ?? []
+        .filter((p: Record<string, any> | null): p is Record<string, any> => p != null) ?? []
     ).sort(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (a: Record<string, any>, b: Record<string, any>) =>

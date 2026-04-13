@@ -19,6 +19,9 @@ import {
   getTotalDraftCount,
   getAADraftCount,
   getAPDraftCount,
+  getAPDeletions,
+  getAPDeletionCount,
+  unmarkAPForDeletion,
 } from "../../../store/slices/arbeitsauftraegeDrafts";
 import { ChangedFieldsProvider } from "./DraftFieldHighlight";
 import type { RootState } from "../../../store";
@@ -37,6 +40,7 @@ import {
 import {
   saveAllArbeitsauftraegeDrafts,
   saveAllAPActions,
+  deleteAPsByIds,
 } from "../../../helper/arbeitsauftraegeSaveHelpers";
 import { useDatasheet } from "@carma-mapping/engines/maplibre";
 import ArbeitsauftragForm from "./ArbeitsauftragForm";
@@ -76,6 +80,8 @@ const ArbeitsauftraegeFormsWrapper = ({
   const totalDraftCount = useSelector(getTotalDraftCount);
   const aaDraftCount = useSelector(getAADraftCount);
   const apDraftCount = useSelector(getAPDraftCount);
+  const apDeletions = useSelector(getAPDeletions);
+  const apDeletionCount = useSelector(getAPDeletionCount);
 
   const draft = useSelector((state: RootState) =>
     mode === "aa" ? getAADraft(state, id) : getAPDraft(state, id)
@@ -199,14 +205,26 @@ const ArbeitsauftraegeFormsWrapper = ({
   }, [id, mode, draft, dispatch]);
 
   const handleSaveAll = useCallback(() => {
-    const totalCount = aaDraftCount + apDraftCount;
+    const totalCount = aaDraftCount + apDraftCount + apDeletionCount;
+
+    const parts: string[] = [];
+    if (aaDraftCount + apDraftCount > 0) {
+      parts.push(
+        `${aaDraftCount + apDraftCount} ${aaDraftCount + apDraftCount === 1 ? "Entwurf" : "Entwürfe"}`
+      );
+    }
+    if (apDeletionCount > 0) {
+      parts.push(
+        `${apDeletionCount} ${apDeletionCount === 1 ? "Löschung" : "Löschungen"}`
+      );
+    }
 
     Modal.confirm({
       title: "Alle Entwürfe speichern?",
       content:
         totalCount === 1
           ? "Entwurf wird gespeichert."
-          : `${totalCount} Entwürfe werden gespeichert.`,
+          : `${parts.join(" und ")} werden gespeichert.`,
       okText: "Alle speichern",
       cancelText: "Abbrechen",
       onOk: async () => {
@@ -225,6 +243,13 @@ const ArbeitsauftraegeFormsWrapper = ({
         // Save AP actions via dedicated action endpoints
         const apActionsResult = await saveAllAPActions(jwt, allAPDrafts);
 
+        // Delete APs marked for deletion
+        const apIdsToDelete = Object.keys(apDeletions);
+        const deleteResult =
+          apIdsToDelete.length > 0
+            ? await deleteAPsByIds(jwt, apIdsToDelete)
+            : { succeeded: [] as string[], failed: [] as { id: string; error: string }[] };
+
         // Clean up succeeded AA drafts
         for (const aaId of aaResult.aa.succeeded) {
           dispatch(removeAADraft(aaId));
@@ -241,6 +266,11 @@ const ArbeitsauftraegeFormsWrapper = ({
           }
         }
 
+        // Clean up succeeded AP deletions
+        for (const apId of deleteResult.succeeded) {
+          dispatch(unmarkAPForDeletion(apId));
+        }
+
         // Show errors
         for (const fail of aaResult.aa.failed) {
           message.error(`AA ${fail.id}: ${fail.error}`);
@@ -250,22 +280,27 @@ const ArbeitsauftraegeFormsWrapper = ({
             `AP ${fail.apId} (${fail.actionLabel}): ${fail.error}`
           );
         }
+        for (const fail of deleteResult.failed) {
+          message.error(`AP ${fail.id} (Löschung): ${fail.error}`);
+        }
 
         const succeeded =
           aaResult.aa.succeeded.length +
           aaResult.ap.succeeded.length +
-          apActionsResult.succeeded.length;
+          apActionsResult.succeeded.length +
+          deleteResult.succeeded.length;
         const failed =
           aaResult.aa.failed.length +
           aaResult.ap.failed.length +
-          apActionsResult.failed.length;
+          apActionsResult.failed.length +
+          deleteResult.failed.length;
 
         if (failed === 0 && succeeded > 0) {
           dispatch(setDraftMode(false));
         }
 
         // AA team may have changed — clear stale detail panel and show map
-        if (aaResult.aa.succeeded.length > 0) {
+        if (aaResult.aa.succeeded.length > 0 || deleteResult.succeeded.length > 0) {
           dispatch(clearSelection());
           closeDatasheet();
         }
@@ -286,7 +321,7 @@ const ArbeitsauftraegeFormsWrapper = ({
         }
       },
     });
-  }, [jwt, allAADrafts, allAPDrafts, aaDraftCount, apDraftCount, dispatch]);
+  }, [jwt, allAADrafts, allAPDrafts, apDeletions, aaDraftCount, apDraftCount, apDeletionCount, dispatch]);
 
   if (mode === "ap") {
     return (
@@ -332,6 +367,7 @@ const ArbeitsauftraegeFormsWrapper = ({
         onOriginalValues={handleOriginalValues}
         customDraftsCount={totalDraftCount}
         onSaveAll={handleSaveAll}
+        aaId={id}
       />
     </ChangedFieldsProvider>
   );

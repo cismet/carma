@@ -5,7 +5,11 @@ import type {
   DraftAction,
 } from "../store/slices/arbeitsauftraegeDrafts";
 import { DAYJS_PREFIX, deserializeValues } from "./draftSerialize";
-import { executeAction, updateDataByClassName } from "./apiMethods";
+import {
+  executeAction,
+  updateDataByClassName,
+  removeDataByClassName,
+} from "./apiMethods";
 
 // ---------------------------------------------------------------------------
 // Date transformation for updateDataByClassName payloads
@@ -391,6 +395,38 @@ export const saveAllAPActions = async (
           error: saveResult.error ?? "Unknown error",
         });
       }
+    }
+  }
+
+  return result;
+};
+
+// ---------------------------------------------------------------------------
+// Delete APs by IDs
+// ---------------------------------------------------------------------------
+
+export interface DeleteAPsResult {
+  succeeded: string[];
+  failed: { id: string; error: string }[];
+}
+
+export const deleteAPsByIds = async (
+  jwt: string,
+  apIds: string[]
+): Promise<DeleteAPsResult> => {
+  const result: DeleteAPsResult = { succeeded: [], failed: [] };
+
+  for (const apId of apIds) {
+    try {
+      await removeDataByClassName(jwt, "arbeitsprotokoll", {
+        id: Number(apId),
+      });
+      result.succeeded.push(apId);
+    } catch (error) {
+      result.failed.push({
+        id: apId,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
     }
   }
 
