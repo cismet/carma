@@ -1,4 +1,4 @@
-import type { MouseEvent as ReactMouseEvent } from "react";
+import { useState, type MouseEvent as ReactMouseEvent } from "react";
 
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -31,6 +31,7 @@ export const RuntimeAnnotationInfoBoxActionIcon = ({
 }: RuntimeAnnotationInfoBoxActionIconProps) => {
   const resolvedVisualOptions =
     resolveRuntimeAnnotationInfoBoxVisualOptions(visualOptions);
+  const [hovered, setHovered] = useState(false);
 
   return (
     <Tooltip title={title}>
@@ -43,12 +44,18 @@ export const RuntimeAnnotationInfoBoxActionIcon = ({
 
           onClick(event);
         }}
-        className={
-          className ??
-          (disabled
-            ? `${resolvedVisualOptions.actionIconClassName} cursor-not-allowed opacity-50`
-            : resolvedVisualOptions.actionIconClassName)
-        }
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        className={`${resolvedVisualOptions.actionIconClassName}${
+          className ? ` ${className}` : ""
+        }${disabled ? " cursor-not-allowed opacity-50" : " cursor-pointer"}`}
+        style={{
+          fontSize: resolvedVisualOptions.actionIconFontSize,
+          color:
+            hovered && !disabled
+              ? resolvedVisualOptions.actionIconHoverColor
+              : resolvedVisualOptions.actionIconColor,
+        }}
         icon={icon}
         data-test-id={dataTestId}
         aria-label={ariaLabel}

@@ -9,6 +9,7 @@ import {
   annotationTypographyDefaults,
   PREVIEW_LINE_LABEL_BACKGROUND_STYLE,
   PREVIEW_LINE_LABEL_THEME,
+  type AnnotationTypographyDefaults,
   type PreviewLineLabelTheme,
 } from "@carma-mapping/annotations/runtime-v2";
 import { formatLengthMeters, LENGTH_UNIT_MODE } from "@carma-units";
@@ -129,32 +130,25 @@ type TypographyClassSample = {
 };
 
 export type AnnotationTypographyStoryArgs = {
-  fontFamily: string;
-  rootFontSizePx: number;
-  headingFontSizePx: number;
-  supportFontSizePx: number;
-  lineLabelFontWeight: number;
-  badgeFontWeight: number;
-  headingFontWeight: number;
-  sectionTitleFontWeight: number;
+  typography: AnnotationTypographyDefaults;
   lineLabelTheme: PreviewLineLabelTheme;
 };
 
 const buildTypographyStyle = ({
   fontFamily,
-  fontSizePx,
+  fontSize,
   fontWeight,
   lineHeight,
   color,
 }: {
   fontFamily: string;
-  fontSizePx: number;
+  fontSize: number | string;
   fontWeight: number;
   lineHeight: number;
   color: string;
 }): CSSProperties => ({
   fontFamily,
-  fontSize: fontSizePx,
+  fontSize,
   fontWeight,
   lineHeight,
   color,
@@ -162,20 +156,20 @@ const buildTypographyStyle = ({
 
 const buildNumericTypographyStyle = ({
   fontFamily,
-  fontSizePx,
+  fontSize,
   fontWeight,
   lineHeight,
   color,
 }: {
   fontFamily: string;
-  fontSizePx: number;
+  fontSize: number | string;
   fontWeight: number;
   lineHeight: number;
   color: string;
 }): CSSProperties => ({
   ...buildTypographyStyle({
     fontFamily,
-    fontSizePx,
+    fontSize,
     fontWeight,
     lineHeight,
     color,
@@ -191,8 +185,8 @@ const buildTypographyClassSamples = (
     className: "Heading",
     role: "Infobox heading",
     example: "Punktmessung 3",
-    sizePx: args.headingFontSizePx,
-    weight: args.headingFontWeight,
+    sizePx: args.typography.headingFontSizePx,
+    weight: args.typography.headingFontWeight,
     lineHeight: 1.25,
     opacity: 1,
   },
@@ -200,8 +194,8 @@ const buildTypographyClassSamples = (
     className: "Root / Medium",
     role: "Line labels, badge text",
     example: `${FORMATTED_LINE_LENGTH} · ${FORMATTED_ELEVATION}`,
-    sizePx: args.rootFontSizePx,
-    weight: args.badgeFontWeight,
+    sizePx: args.typography.rootFontSizePx,
+    weight: args.typography.badgeFontWeight,
     lineHeight: 1.2,
     opacity: 1,
   },
@@ -209,7 +203,7 @@ const buildTypographyClassSamples = (
     className: "Root / Regular",
     role: "Infobox content",
     example: FORMATTED_RELATIVE_HEIGHT,
-    sizePx: args.rootFontSizePx,
+    sizePx: args.typography.rootFontSizePx,
     weight: 400,
     lineHeight: 1.4,
     opacity: 1,
@@ -218,8 +212,8 @@ const buildTypographyClassSamples = (
     className: "Support / Semibold",
     role: "Header, section title",
     example: "Punktmessung · Referenzhöhe",
-    sizePx: args.supportFontSizePx,
-    weight: args.sectionTitleFontWeight,
+    sizePx: args.typography.supportFontSizePx,
+    weight: args.typography.sectionTitleFontWeight,
     lineHeight: 1.35,
     opacity: 0.8,
   },
@@ -227,7 +221,7 @@ const buildTypographyClassSamples = (
     className: "Support / Subtitle",
     role: "Weight/opacity tradeoff for metadata",
     example: `51,272102°N 7,200488°O • ${FORMATTED_ELEVATION}`,
-    sizePx: args.supportFontSizePx,
+    sizePx: args.typography.supportFontSizePx,
     weight: 600,
     lineHeight: 1.35,
     opacity: 0.5,
@@ -236,7 +230,7 @@ const buildTypographyClassSamples = (
     className: "Support / Regular",
     role: "Navigation, secondary UI",
     example: "3 von 20 Messungen",
-    sizePx: args.supportFontSizePx,
+    sizePx: args.typography.supportFontSizePx,
     weight: 400,
     lineHeight: 1.35,
     opacity: 1,
@@ -302,8 +296,8 @@ const TypographyClassesPanel = ({
       <div style={METRICS_GRID_STYLE}>
         {samples.flatMap((sample) => {
           const sampleStyle = buildNumericTypographyStyle({
-            fontFamily: args.fontFamily,
-            fontSizePx: sample.sizePx,
+            fontFamily: args.typography.fontFamily,
+            fontSize: sample.sizePx,
             fontWeight: sample.weight,
             lineHeight: sample.lineHeight,
             color: `rgba(17, 24, 39, ${sample.opacity})`,
@@ -313,8 +307,8 @@ const TypographyClassesPanel = ({
               key={`${sample.className}-label`}
               style={{
                 ...buildTypographyStyle({
-                  fontFamily: args.fontFamily,
-                  fontSizePx: 11,
+                  fontFamily: args.typography.fontFamily,
+                  fontSize: 11,
                   fontWeight: 600,
                   lineHeight: 1.35,
                   color: "#475569",
@@ -332,8 +326,8 @@ const TypographyClassesPanel = ({
               <div
                 style={{
                   ...buildTypographyStyle({
-                    fontFamily: args.fontFamily,
-                    fontSizePx: 11,
+                    fontFamily: args.typography.fontFamily,
+                    fontSize: 11,
                     fontWeight: 500,
                     lineHeight: 1.35,
                     color: "#64748b",
@@ -362,9 +356,9 @@ const OverlayTypographyPanel = ({
       <div style={OVERLAY_LINE_STYLE} />
       <PreviewLineLabelSpecimen
         text={FORMATTED_LINE_LENGTH}
-        fontFamily={args.fontFamily}
-        fontWeight={args.lineLabelFontWeight}
-        fontSizePx={args.rootFontSizePx}
+        fontFamily={args.typography.fontFamily}
+        fontWeight={args.typography.lineLabelFontWeight}
+        fontSizePx={args.typography.rootFontSizePx}
         theme={args.lineLabelTheme}
       />
       <div style={OVERLAY_LINE_SECONDARY_STYLE} />
@@ -381,7 +375,7 @@ const OverlayTypographyPanel = ({
           textBackgroundColor={POINT_LABEL_TEXT_BACKGROUND_COLOR}
           markerBackgroundColor="rgba(230, 231, 235, 0.94)"
           markerTextColor="#111827"
-          lineColor="rgba(255, 255, 255, 0.96)"
+          lineColor="rgba(230, 231, 235, 0.94)"
           lineWidth={1}
           markerSize={14}
           labelAttach="left"
@@ -402,7 +396,7 @@ const OverlayTypographyPanel = ({
           textBackgroundColor="rgba(255, 248, 204, 0.75)"
           markerBackgroundColor="rgba(252, 211, 77, 0.96)"
           markerTextColor="#111827"
-          lineColor="rgba(255, 255, 255, 0.96)"
+          lineColor="rgba(252, 211, 77, 0.96)"
           lineWidth={1}
           markerSize={14}
           labelAttach="right"
@@ -420,43 +414,43 @@ const InfoboxTypographyPanel = ({
   args: AnnotationTypographyStoryArgs;
 }) => {
   const headerStyle = buildTypographyStyle({
-    fontFamily: args.fontFamily,
-    fontSizePx: args.supportFontSizePx,
-    fontWeight: args.sectionTitleFontWeight,
+    fontFamily: args.typography.fontFamily,
+    fontSize: args.typography.supportFontSizePx,
+    fontWeight: args.typography.sectionTitleFontWeight,
     lineHeight: 1.2,
     color: "rgba(255, 255, 255, 0.8)",
   });
   const headingStyle = buildTypographyStyle({
-    fontFamily: args.fontFamily,
-    fontSizePx: args.headingFontSizePx,
-    fontWeight: args.headingFontWeight,
+    fontFamily: args.typography.fontFamily,
+    fontSize: args.typography.headingFontSizeRem,
+    fontWeight: args.typography.headingFontWeight,
     lineHeight: 1.25,
     color: "rgba(17, 24, 39, 0.9)",
   });
   const subtitleStyle = buildNumericTypographyStyle({
-    fontFamily: args.fontFamily,
-    fontSizePx: args.supportFontSizePx,
+    fontFamily: args.typography.fontFamily,
+    fontSize: args.typography.supportFontSizePx,
     fontWeight: 600,
     lineHeight: 1.35,
     color: "rgba(17, 24, 39, 0.5)",
   });
   const sectionTitleStyle = buildTypographyStyle({
-    fontFamily: args.fontFamily,
-    fontSizePx: args.supportFontSizePx,
-    fontWeight: args.sectionTitleFontWeight,
+    fontFamily: args.typography.fontFamily,
+    fontSize: args.typography.supportFontSizePx,
+    fontWeight: args.typography.sectionTitleFontWeight,
     lineHeight: 1.35,
     color: "rgba(71, 85, 105, 0.8)",
   });
   const bodyStyle = buildNumericTypographyStyle({
-    fontFamily: args.fontFamily,
-    fontSizePx: args.rootFontSizePx,
+    fontFamily: args.typography.fontFamily,
+    fontSize: args.typography.rootFontSizeRem,
     fontWeight: 400,
     lineHeight: 1.4,
     color: "#212529",
   });
   const footerStyle = buildTypographyStyle({
-    fontFamily: args.fontFamily,
-    fontSizePx: args.supportFontSizePx,
+    fontFamily: args.typography.fontFamily,
+    fontSize: args.typography.supportFontSizePx,
     fontWeight: 400,
     lineHeight: 1.35,
     color: "#6b7280",
@@ -488,40 +482,12 @@ const InfoboxTypographyPanel = ({
 };
 
 export const ANNOTATION_TYPOGRAPHY_ARGS: AnnotationTypographyStoryArgs = {
-  fontFamily: annotationTypographyDefaults.fontFamily,
-  rootFontSizePx: annotationTypographyDefaults.rootFontSizePx,
-  headingFontSizePx: annotationTypographyDefaults.headingFontSizePx,
-  supportFontSizePx: annotationTypographyDefaults.supportFontSizePx,
-  lineLabelFontWeight: annotationTypographyDefaults.lineLabelFontWeight,
-  badgeFontWeight: annotationTypographyDefaults.badgeFontWeight,
-  headingFontWeight: annotationTypographyDefaults.headingFontWeight,
-  sectionTitleFontWeight: annotationTypographyDefaults.sectionTitleFontWeight,
+  typography: { ...annotationTypographyDefaults },
   lineLabelTheme: PREVIEW_LINE_LABEL_THEME.BRIGHT_ON_DARK,
 };
 
 export const ANNOTATION_TYPOGRAPHY_ARG_TYPES = {
-  fontFamily: { control: "text" },
-  rootFontSizePx: {
-    control: { type: "range", min: 12, max: 18, step: 1 },
-  },
-  headingFontSizePx: {
-    control: { type: "range", min: 14, max: 20, step: 1 },
-  },
-  supportFontSizePx: {
-    control: { type: "range", min: 10, max: 14, step: 1 },
-  },
-  lineLabelFontWeight: {
-    control: { type: "range", min: 400, max: 700, step: 100 },
-  },
-  badgeFontWeight: {
-    control: { type: "range", min: 400, max: 700, step: 100 },
-  },
-  headingFontWeight: {
-    control: { type: "range", min: 500, max: 700, step: 100 },
-  },
-  sectionTitleFontWeight: {
-    control: { type: "range", min: 500, max: 700, step: 100 },
-  },
+  typography: { control: "object" },
   lineLabelTheme: {
     control: "inline-radio",
     options: Object.values(PREVIEW_LINE_LABEL_THEME),
@@ -534,10 +500,10 @@ export const AnnotationTypographyStory = (
   <CenteredStoryFrame
     label="typography"
     values={[
-      `${args.rootFontSizePx}px root`,
-      `${args.headingFontSizePx}px heading`,
-      `${args.supportFontSizePx}px support`,
-      args.fontFamily,
+      `${args.typography.rootFontSizePx}px root`,
+      `${args.typography.headingFontSizePx}px heading`,
+      `${args.typography.supportFontSizePx}px support`,
+      args.typography.fontFamily,
     ]}
     background="#eef2f7"
     backgroundStyle={ROOT_BACKGROUND_STYLE}

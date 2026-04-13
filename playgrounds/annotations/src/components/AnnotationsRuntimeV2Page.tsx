@@ -14,6 +14,7 @@ import {
 import {
   AnnotationsProvider,
   RuntimeAnnotationInfoBox,
+  annotationTypographyDefaults,
   resolveRuntimeAnnotationInfoBoxVisualOptions,
   distanceToolPlugin,
   pointToolPlugin,
@@ -50,12 +51,16 @@ import {
 import { CesiumNavigationOverlay } from "./CesiumNavigationOverlay";
 import { CesiumWidgetContainer } from "./CesiumWidgetContainer";
 
+const PLAYGROUND_SHORTCUT_BADGE_TYPOGRAPHY_CLASSNAME = `text-[${annotationTypographyDefaults.rootFontSizeRem}] font-bold leading-none text-white`;
+const PLAYGROUND_BODY_TEXT_CLASSNAME = `text-[${annotationTypographyDefaults.rootFontSizeRem}] leading-[1.4] text-[#212529]`;
+const PLAYGROUND_SUPPORT_TEXT_CLASSNAME = `text-[${annotationTypographyDefaults.supportFontSizeRem}] leading-normal text-[#212529]`;
+
 const renderShortcutBadges = (shortcuts: readonly string[]) => (
   <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
     {shortcuts.map((shortcut) => (
       <span
         key={shortcut}
-        className="inline-flex items-center justify-center text-[14px] font-bold leading-none text-white"
+        className={`inline-flex items-center justify-center ${PLAYGROUND_SHORTCUT_BADGE_TYPOGRAPHY_CLASSNAME}`}
       >
         {renderAnnotationShortcutGlyph(shortcut)}
       </span>
@@ -243,6 +248,7 @@ const RuntimeSelectionInfoBoxEmptyState = ({
         useControlLayout={false}
         header={undefined}
         headingColor={resolvedInfoBoxVisualOptions.headingColor}
+        bodyStyle={resolvedInfoBoxVisualOptions.bodyPanelStyle}
         style={{ pointerEvents: "none" }}
         heading={
           <div className="flex w-full items-center gap-2 px-1">
@@ -257,16 +263,12 @@ const RuntimeSelectionInfoBoxEmptyState = ({
         content={
           <div className="px-3 pb-2 pt-2">
             <div
-              className={`${resolvedInfoBoxVisualOptions.bodyTextClassName} space-y-2`}
+              className={`${PLAYGROUND_BODY_TEXT_CLASSNAME} space-y-2`}
+              style={resolvedInfoBoxVisualOptions.bodyTextStyle}
             >
               {bodyTextLines.map((line, index) => (
                 <p
                   key={`${activeToolLabel}-empty-state-line-${index}`}
-                  className={
-                    index > 0
-                      ? resolvedInfoBoxVisualOptions.mutedTextClassName
-                      : undefined
-                  }
                 >
                   {line}
                 </p>
@@ -288,6 +290,10 @@ const RuntimeSelectionInfoBox = ({ scene }: { scene: Scene | null }) => {
     registry,
     selectedAnnotationId,
   } = useAnnotationsRuntime();
+  const resolvedInfoBoxVisualOptions =
+    resolveRuntimeAnnotationInfoBoxVisualOptions(
+      PLAYGROUND_RUNTIME_INFO_BOX_VISUAL_OPTIONS
+    );
   const hasAnnotations = annotationEntries.length > 0;
   const activePlugin = registry.getPlugin(activeToolType) ?? null;
   const activeToolLabel = activePlugin?.descriptor.label ?? "Messungen";
@@ -371,6 +377,7 @@ const RuntimeSelectionInfoBox = ({ scene }: { scene: Scene | null }) => {
         useControlLayout={false}
         header={undefined}
         headingColor="#4b7ed1"
+        bodyStyle={resolvedInfoBoxVisualOptions.bodyPanelStyle}
         heading={
           <div className="w-full px-2 flex items-center justify-between gap-2">
             <span className="truncate" title={selectedPlugin?.descriptor.label}>
@@ -379,12 +386,15 @@ const RuntimeSelectionInfoBox = ({ scene }: { scene: Scene | null }) => {
           </div>
         }
         subtitle={
-          <div className="text-[12px] leading-normal text-[#212529]">
+          <div className={PLAYGROUND_SUPPORT_TEXT_CLASSNAME}>
             {selectedAnnotation.id}
           </div>
         }
         content={
-          <div className="text-[12px] leading-normal text-[#212529] space-y-1">
+          <div
+            className={`${PLAYGROUND_BODY_TEXT_CLASSNAME} space-y-1`}
+            style={resolvedInfoBoxVisualOptions.bodyTextStyle}
+          >
             <div>{`Knoten: ${coordinates.length}`}</div>
             {coordinates.map((coordinate, index) => (
               <div key={`${selectedAnnotation.id}-node-${index}`}>

@@ -28,18 +28,18 @@ import { createDistanceToolInfoBoxSlots } from "./distanceToolInfoBoxSlots";
 import { createDistanceToolPreviewController } from "./createDistanceToolPreviewController";
 import { buildDistanceToolRenderModels } from "./distanceToolRenderModels";
 import { createDistanceToolSettings } from "./distanceToolSettings";
-import { resolveAnnotationMeasurementLabelTheme } from "../../config/annotationMeasurementLabelThemes";
+import { ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME } from "../../config/annotationMeasurementLabelThemes";
 const toolType = ANNOTATION_TYPE_DISTANCE;
-const labelTheme = resolveAnnotationMeasurementLabelTheme(toolType);
+const labelTheme = ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME;
 const badgeStyle = {
-  backgroundColor: labelTheme.scheme.badgeBackgroundColor,
+  backgroundColor: labelTheme.scheme.colorPrimary,
   textColor: labelTheme.scheme.textColor,
   selectionColor: labelTheme.selection.glowColor,
 };
 const distanceToolSettings = createDistanceToolSettings(badgeStyle);
 const getDistanceToolInfoBoxSlots = createDistanceToolInfoBoxSlots(toolType, {
   headingTitle: "Distanzmessung",
-  headingColor: labelTheme.scheme.badgeBackgroundColor,
+  headingColor: labelTheme.scheme.colorPrimary,
   formatMeasurementLabelToken: (counter) =>
     formatMeasurementShortLabelToken(toolType, counter),
 });

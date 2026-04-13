@@ -29,13 +29,20 @@ import { resolveVerticalAreaToolKeyAction } from "./verticalAreaToolBindings";
 import { createVerticalAreaToolInfoBoxSlots } from "./verticalAreaToolInfoBoxSlots";
 import { buildVerticalAreaToolRenderModels } from "./verticalAreaToolRenderModels";
 import { createVerticalAreaToolSettings } from "./verticalAreaToolSettings";
+import { ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME } from "../../config/annotationMeasurementLabelThemes";
 const toolType = ANNOTATION_TYPE_AREA_VERTICAL;
-const badgeStyle = DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG[toolType];
+const labelTheme = ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME;
+const badgeStyle = {
+  ...DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG[toolType],
+  backgroundColor: labelTheme.scheme.colorPrimary,
+  textColor: labelTheme.scheme.textColor,
+};
 const verticalAreaToolSettings = createVerticalAreaToolSettings(badgeStyle);
 const getVerticalAreaToolInfoBoxSlots = createVerticalAreaToolInfoBoxSlots(
   toolType,
   {
     headingTitle: "Vertikale Fläche",
+    headingColor: labelTheme.scheme.colorPrimary,
     formatMeasurementLabelToken: (counter) =>
       formatMeasurementShortLabelToken(toolType, counter),
   }

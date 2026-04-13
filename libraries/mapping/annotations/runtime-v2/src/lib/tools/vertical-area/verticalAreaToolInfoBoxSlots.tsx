@@ -9,9 +9,11 @@ export const createVerticalAreaToolInfoBoxSlots = (
   toolType: RuntimeAnnotationInfoBoxContext["annotation"]["toolType"],
   {
     headingTitle,
+    headingColor,
     formatMeasurementLabelToken,
   }: {
     headingTitle: string;
+    headingColor: string;
     formatMeasurementLabelToken: (counter: number) => string;
   }
 ) => {
@@ -92,10 +94,11 @@ export const createVerticalAreaToolInfoBoxSlots = (
 
     return {
       headingTitle,
+      headingColor,
       actions: actionIcons,
       subtitle: (
         <div className={infoBoxVisualOptions.subtitleContainerClassName}>
-          <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center justify-between gap-2">
             <div className="min-w-0 flex-1">
               <RuntimeAnnotationInfoBoxTitleInput
                 value={annotation.displayName ?? ""}
@@ -118,6 +121,7 @@ export const createVerticalAreaToolInfoBoxSlots = (
       content: (
         <div
           className={`${infoBoxVisualOptions.bodyContainerClassName} ${infoBoxVisualOptions.bodyTextClassName}`}
+          style={infoBoxVisualOptions.bodyTextStyle}
         >
           <div>{`Fläche: ${formatAreaSquareMetersAdaptive(
             areaSquareMeters,

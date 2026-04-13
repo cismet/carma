@@ -25,18 +25,18 @@ import { resolvePointToolKeyAction } from "./pointToolBindings";
 import { createPointToolInfoBoxSlots } from "./pointToolInfoBoxSlots";
 import { buildPointToolRenderModels } from "./pointToolRenderModels";
 import { createPointToolSettings } from "./pointToolSettings";
-import { resolveAnnotationMeasurementLabelTheme } from "../../config/annotationMeasurementLabelThemes";
+import { ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME } from "../../config/annotationMeasurementLabelThemes";
 const toolType = ANNOTATION_TYPE_POINT;
-const labelTheme = resolveAnnotationMeasurementLabelTheme(toolType);
+const labelTheme = ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME;
 const badgeStyle = {
-  backgroundColor: labelTheme.scheme.badgeBackgroundColor,
+  backgroundColor: labelTheme.scheme.colorPrimary,
   textColor: labelTheme.scheme.textColor,
   selectionColor: labelTheme.selection.glowColor,
 };
 const pointToolSettings = createPointToolSettings(badgeStyle);
 const getPointToolInfoBoxSlots = createPointToolInfoBoxSlots(toolType, {
   headingTitle: "Punktmessung",
-  headingColor: labelTheme.scheme.badgeBackgroundColor,
+  headingColor: labelTheme.scheme.colorPrimary,
   formatMeasurementLabelToken: (counter) =>
     formatMeasurementShortLabelToken(toolType, counter),
 });

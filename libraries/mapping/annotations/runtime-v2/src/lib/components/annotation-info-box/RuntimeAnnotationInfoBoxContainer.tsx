@@ -36,6 +36,7 @@ export const RuntimeAnnotationInfoBoxContainer = ({
         controlPosition={controlPosition}
         controlOrder={controlOrder}
         style={style}
+        bodyStyle={resolvedVisualOptions.bodyPanelStyle}
         onPanelClick={(event) => event.stopPropagation()}
         collapsible={slots.collapsible ?? true}
         header={undefined}

@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { runtimeAnnotationInfoBoxVisualDefaults } from "../components/annotation-info-box/annotationInfoBoxVisualDefaults";
 import type { RuntimeAnnotationInfoBoxContext } from "../components/annotation-info-box/annotationInfoBox.types";
-import { resolveAnnotationMeasurementLabelTheme } from "../config/annotationMeasurementLabelThemes";
+import { ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME } from "../config/annotationMeasurementLabelThemes";
 import type {
   RuntimeAnnotationEntry,
   RuntimeNode,
@@ -40,15 +40,13 @@ const createBaseContext = ({
 });
 
 describe("measurement info box theme header colors", () => {
-  it("uses the point measurement theme hue for the selected point info box header", () => {
-    const labelTheme = resolveAnnotationMeasurementLabelTheme(
-      ANNOTATION_TYPE_POINT
-    );
+  it("uses the shared measurement theme hue for the selected point info box header", () => {
+    const labelTheme = ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME;
     const getPointToolInfoBoxSlots = createPointToolInfoBoxSlots(
       ANNOTATION_TYPE_POINT,
       {
         headingTitle: "Punktmessung",
-        headingColor: labelTheme.scheme.badgeBackgroundColor,
+        headingColor: labelTheme.scheme.colorPrimary,
         formatMeasurementLabelToken: (counter) => `P${counter}`,
       }
     );
@@ -73,18 +71,16 @@ describe("measurement info box theme header colors", () => {
       })
     );
 
-    expect(slots?.headingColor).toBe(labelTheme.scheme.badgeBackgroundColor);
+    expect(slots?.headingColor).toBe(labelTheme.scheme.colorPrimary);
   });
 
-  it("uses the distance measurement theme hue for the selected distance info box header", () => {
-    const labelTheme = resolveAnnotationMeasurementLabelTheme(
-      ANNOTATION_TYPE_DISTANCE
-    );
+  it("uses the shared measurement theme hue for the selected distance info box header", () => {
+    const labelTheme = ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME;
     const getDistanceToolInfoBoxSlots = createDistanceToolInfoBoxSlots(
       ANNOTATION_TYPE_DISTANCE,
       {
         headingTitle: "Distanzmessung",
-        headingColor: labelTheme.scheme.badgeBackgroundColor,
+        headingColor: labelTheme.scheme.colorPrimary,
         formatMeasurementLabelToken: (counter) => `D${counter}`,
       }
     );
@@ -113,6 +109,6 @@ describe("measurement info box theme header colors", () => {
       })
     );
 
-    expect(slots?.headingColor).toBe(labelTheme.scheme.badgeBackgroundColor);
+    expect(slots?.headingColor).toBe(labelTheme.scheme.colorPrimary);
   });
 });

@@ -32,7 +32,7 @@ export const RuntimeAnnotationInfoBoxNavigation = ({
   if (totalEntries <= 0 && !instructionText) return null;
 
   const navigationButtonStyle = {
-    fontSize: `${resolvedVisualOptions.navigationLinkFontSizePx}px`,
+    fontSize: resolvedVisualOptions.navigationLinkFontSize,
     border: "none",
     background: "transparent",
     padding: 0,

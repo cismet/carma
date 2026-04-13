@@ -4,7 +4,12 @@ import { LabelToolInfoBoxContent } from "./LabelToolInfoBoxContent";
 import { getDefaultLabelDisplayName } from "./labelToolActions";
 
 export const createLabelToolInfoBoxSlots = (
-  toolType: RuntimeAnnotationInfoBoxContext["annotation"]["toolType"]
+  toolType: RuntimeAnnotationInfoBoxContext["annotation"]["toolType"],
+  {
+    headingColor,
+  }: {
+    headingColor: string;
+  }
 ) => {
   return ({
     annotation,
@@ -66,11 +71,13 @@ export const createLabelToolInfoBoxSlots = (
 
     return {
       headingTitle: "Beschriftung",
+      headingColor,
       subtitle: (
         <div className={infoBoxVisualOptions.subtitleContainerClassName}>
-          <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center justify-between gap-2">
             <div
-              className={`min-w-0 flex-1 ${infoBoxVisualOptions.subtitleTextClassName}`}
+              className={`min-w-0 flex-1 ${infoBoxVisualOptions.titleTextClassName}`}
+              style={infoBoxVisualOptions.titleTextStyle}
             >
               {annotation.displayName?.trim() ||
                 getDefaultLabelDisplayName(labelOrder)}

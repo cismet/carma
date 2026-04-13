@@ -105,11 +105,13 @@ export type RuntimePointLabelRenderModel = {
   coordinateCandidates?: readonly RuntimePointLabelCoordinateCandidate[];
   coordinateSelection?: RuntimePointLabelCoordinateSelection;
   markerPixelSize?: number;
+  stemStartDistance?: number;
   anchorKind?: PointLabelAnchorKind;
   occlusionMode?: PointLabelOcclusionMode;
   preferredAttach?: PointLabelAttach;
   content: ReactNode;
   badgeContent?: ReactNode;
+  markerOutlineWidth?: number;
   markerBackgroundColor?: string;
   markerTextColor?: string;
   lineColor?: string;

@@ -18,6 +18,7 @@ import {
 } from "@carma-providers/label-overlay";
 import { cartesian3FromGeographicCoordinate } from "@carma-mapping/engines/cesium/core";
 
+import { runtimeMeasurementVisualDefaults } from "../config/measurementVisualDefaults";
 import type { RuntimeScene } from "../types/runtimeScene.types";
 import {
   RUNTIME_POINT_LABEL_COORDINATE_SELECTION,
@@ -33,9 +34,13 @@ import {
   type RuntimeOverlayVisibilitySceneSnapshot,
   type RuntimeOverlayVisibilityState,
 } from "./runtimeOverlayVisibility.shared";
+import { annotationTypographyDefaults } from "../config/annotationTypographyDefaults";
 
 const NODE_LABEL_LAYOUT_CONFIG = resolvePointLabelLayoutConfig(undefined);
 const DEFAULT_LABEL_MARKER_PIXEL_SIZE = 10;
+const DEFAULT_LABEL_MARKER_OUTLINE_WIDTH =
+  runtimeMeasurementVisualDefaults.sizes.pointOutlineWidth;
+const DEFAULT_LABEL_STEM_COLOR = runtimeMeasurementVisualDefaults.colors.surface;
 
 const EMPTY_LAYOUT_RESULT: PointLabelLayoutResult = {
   placements: {},
@@ -148,6 +153,35 @@ const getPillAnchorTransform = (
   }
 
   return "translate(-50%, -50%)";
+};
+
+const resolveRootFontSizePx = () => {
+  if (typeof window === "undefined") {
+    return annotationTypographyDefaults.remBasePx;
+  }
+
+  const parsedRootFontSizePx = Number.parseFloat(
+    window.getComputedStyle(document.documentElement).fontSize
+  );
+
+  return Number.isFinite(parsedRootFontSizePx)
+    ? parsedRootFontSizePx
+    : annotationTypographyDefaults.remBasePx;
+};
+
+const resolveCssFontSizePx = (fontSize?: string) => {
+  if (!fontSize) {
+    return annotationTypographyDefaults.supportFontSizePx;
+  }
+
+  const parsedFontSize = Number.parseFloat(fontSize);
+  if (!Number.isFinite(parsedFontSize)) {
+    return annotationTypographyDefaults.supportFontSizePx;
+  }
+
+  return fontSize.trim().endsWith("rem")
+    ? parsedFontSize * resolveRootFontSizePx()
+    : parsedFontSize;
 };
 
 const createEmptyLabelOverlayState = (): RuntimePointLabelOverlayState => ({
@@ -584,10 +618,12 @@ export const useRuntimePointLabelVisualizer = ({
 
           const dx = Math.cos(overlayState.angleRad) * overlayState.distance;
           const dy = Math.sin(overlayState.angleRad) * overlayState.distance;
-          const markerRadius = label.hideMarker
+          const markerOuterRadius = label.hideMarker
             ? 0
-            : (label.markerPixelSize ?? DEFAULT_LABEL_MARKER_PIXEL_SIZE) / 2;
-          const parsedFontSizePx = Number.parseFloat(label.fontSize ?? "12px");
+            : (label.markerPixelSize ?? DEFAULT_LABEL_MARKER_PIXEL_SIZE) / 2 +
+              (label.markerOutlineWidth ?? DEFAULT_LABEL_MARKER_OUTLINE_WIDTH) /
+                2;
+          const parsedFontSizePx = resolveCssFontSizePx(label.fontSize);
           const isCompactOnlyPill = pillBadge !== null && pillContent === null;
           const compactBadgeWidthPx = isCompactOnlyPill
             ? pillBadge.offsetWidth
@@ -603,8 +639,12 @@ export const useRuntimePointLabelVisualizer = ({
               : compactBadgeCapRadiusPx ??
                 estimatePillCapRadiusPx(parsedFontSizePx);
           const stemStartPoint = {
-            x: Math.cos(overlayState.angleRad) * markerRadius,
-            y: Math.sin(overlayState.angleRad) * markerRadius,
+            x:
+              Math.cos(overlayState.angleRad) *
+              (label.stemStartDistance ?? markerOuterRadius),
+            y:
+              Math.sin(overlayState.angleRad) *
+              (label.stemStartDistance ?? markerOuterRadius),
           } as CssPixelPosition;
           const pillAnchorPoint = {
             x:
@@ -646,7 +686,7 @@ export const useRuntimePointLabelVisualizer = ({
           stemLine.style.width = `${lineLength}px`;
           stemLine.style.borderBottom = `1px ${
             overlayState.isOccluded ? "dashed" : "solid"
-          } ${label.lineColor ?? "rgba(255, 255, 255, 1)"}`;
+          } ${label.lineColor ?? DEFAULT_LABEL_STEM_COLOR}`;
 
           labelRoot.style.left = `${pillAnchorPoint.x}px`;
           labelRoot.style.top = `${pillAnchorPoint.y}px`;
@@ -682,15 +722,23 @@ export const useRuntimePointLabelVisualizer = ({
             markerSize={
               label.markerPixelSize ?? DEFAULT_LABEL_MARKER_PIXEL_SIZE
             }
+            markerStrokeWidth={
+              label.markerOutlineWidth ?? DEFAULT_LABEL_MARKER_OUTLINE_WIDTH
+            }
             stemStartDistance={
-              label.hideMarker
+              label.stemStartDistance ??
+              (label.hideMarker
                 ? 0
-                : (label.markerPixelSize ?? DEFAULT_LABEL_MARKER_PIXEL_SIZE) / 2
+                : (label.markerPixelSize ?? DEFAULT_LABEL_MARKER_PIXEL_SIZE) /
+                    2 +
+                  (label.markerOutlineWidth ??
+                    DEFAULT_LABEL_MARKER_OUTLINE_WIDTH) /
+                    2)
             }
             badgeContent={effectiveBadgeContent}
             markerBackgroundColor={label.markerBackgroundColor}
             markerTextColor={label.markerTextColor}
-            lineColor={label.lineColor}
+            lineColor={label.lineColor ?? DEFAULT_LABEL_STEM_COLOR}
             labelStyle={label.labelStyle}
             collapse={label.collapse}
             textBackgroundColor={label.textBackgroundColor}

@@ -23,11 +23,11 @@ import {
 } from "@carma-providers/label-overlay";
 import { MINUS_PI_OVER_FOUR } from "@carma-commons/math";
 import {
-  ANNOTATION_MEASUREMENT_QUALITATIVE_DARK_COLOR_SCHEMES,
   ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE,
   ANNOTATION_MEASUREMENT_TEXT_COLOR,
   annotationTypographyDefaults,
   resolveAnnotationMeasurementLabelTheme,
+  type AnnotationMeasurementQualitativeColorScheme,
 } from "@carma-mapping/annotations/runtime-v2";
 import type { CssPixelPosition } from "@carma-units";
 import {
@@ -105,23 +105,22 @@ const REPRESENTATIVE_BADGE_FONT_WEIGHT =
   annotationTypographyDefaults.badgeFontWeight;
 const REPRESENTATIVE_TEXT_COLOR = ANNOTATION_MEASUREMENT_TEXT_COLOR;
 
-const readQualitativeColorScheme = (id: string) => {
-  const colorScheme =
-    ANNOTATION_MEASUREMENT_QUALITATIVE_DARK_COLOR_SCHEMES.find(
-      (entry) => entry.id === id
-    );
-
-  if (!colorScheme) {
-    throw new Error(`Unknown representative label color scheme: ${id}`);
-  }
-
-  return colorScheme;
-};
-
-const REPRESENTATIVE_DEFAULT_COLOR_SCHEME: QualitativePillColorScheme = {
-  ...resolveAnnotationMeasurementLabelTheme(ANNOTATION_TYPE_POINT).scheme,
+const toRepresentativePillColorScheme = (
+  colorScheme: AnnotationMeasurementQualitativeColorScheme
+): QualitativePillColorScheme => ({
+  id: colorScheme.id,
+  label: colorScheme.label,
+  labelBackgroundColor: colorScheme.colorPrimaryReduced,
+  badgeBackgroundColor: colorScheme.colorPrimary,
+  lineColor: colorScheme.lineColor,
   content: "NHN 179,27 m",
   badgeContent: "8",
+});
+
+const REPRESENTATIVE_DEFAULT_COLOR_SCHEME: QualitativePillColorScheme = {
+  ...toRepresentativePillColorScheme(
+    resolveAnnotationMeasurementLabelTheme(ANNOTATION_TYPE_POINT).scheme
+  ),
 };
 
 const REPRESENTATIVE_SELECTED_COLOR_SCHEME = {
@@ -161,22 +160,30 @@ const REPRESENTATIVE_QUALITATIVE_COLOR_SCHEMES: readonly QualitativePillColorSch
   [
     REPRESENTATIVE_DEFAULT_COLOR_SCHEME,
     {
-      ...readQualitativeColorScheme("teal-status"),
+      ...REPRESENTATIVE_DEFAULT_COLOR_SCHEME,
+      id: "accent-measurements-relative-height",
+      label: "Measurements · Relative height",
       content: "24,41 m über Bezugspunkt",
       badgeContent: "A",
     },
     {
-      ...readQualitativeColorScheme("violet-analysis"),
+      ...REPRESENTATIVE_DEFAULT_COLOR_SCHEME,
+      id: "accent-measurements-analysis",
+      label: "Measurements · Analysis",
       content: "relative Höhe über Bezugspunkt",
       badgeContent: "B",
     },
     {
-      ...readQualitativeColorScheme("amber-notice"),
+      ...REPRESENTATIVE_DEFAULT_COLOR_SCHEME,
+      id: "accent-measurements-notice",
+      label: "Measurements · Notice",
       content: "temporäre Referenzhöhe",
       badgeContent: "C",
     },
     {
-      ...readQualitativeColorScheme("rose-review"),
+      ...REPRESENTATIVE_DEFAULT_COLOR_SCHEME,
+      id: "accent-measurements-review",
+      label: "Measurements · Review",
       content: "Prüfung erforderlich",
       badgeContent: "D",
     },

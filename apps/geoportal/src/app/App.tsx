@@ -56,6 +56,7 @@ import { featureFlagConfig } from "./config/featureFlags";
 
 import { OBLIQUE_CONFIG, CAMERA_ID_TO_DIRECTION } from "./oblique/config";
 import {
+  COLORS_HEX,
   getHashParams,
   HASH_LAUNCH_MODE,
   resolveHashLaunchMode,
@@ -64,6 +65,7 @@ import {
 // Stable config objects
 const MEASUREMENTS_BASE_CONFIG = {
   editableTitle: true,
+  infoBoxHeaderColor: COLORS_HEX.ACCENT_MEASUREMENTS,
   snappingEnabled: false,
   snappingOnUpdate: false,
   localStorageKey: "@" + APP_KEY + ".app.measurements",

@@ -16,6 +16,7 @@ import {
   createMeasurementToolPlugin,
   POINT_MEASUREMENT_PLUGIN_CAPABILITIES,
 } from "../pluginFactories";
+import { ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME } from "../../config/annotationMeasurementLabelThemes";
 import { createLabelToolInfoBoxSlots } from "./labelToolInfoBoxSlots";
 import {
   createLabelMeasurement,
@@ -25,9 +26,16 @@ import { buildLabelToolRenderModels } from "./labelToolRenderModels";
 import { createLabelToolSettings } from "./labelToolSettings";
 
 const toolType = ANNOTATION_TYPE_LABEL;
-const badgeStyle = DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG[toolType];
+const labelTheme = ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME;
+const badgeStyle = {
+  ...DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG[toolType],
+  backgroundColor: labelTheme.scheme.colorPrimary,
+  textColor: labelTheme.scheme.textColor,
+};
 const labelToolSettings = createLabelToolSettings(badgeStyle);
-const getLabelToolInfoBoxSlots = createLabelToolInfoBoxSlots(toolType);
+const getLabelToolInfoBoxSlots = createLabelToolInfoBoxSlots(toolType, {
+  headingColor: labelTheme.scheme.colorPrimary,
+});
 
 export const labelToolPlugin = createMeasurementToolPlugin({
   id: toolType satisfies AnnotationToolType,

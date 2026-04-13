@@ -1,3 +1,6 @@
+import { COLORS_HEX } from "@carma-commons/utils";
+import { rgb } from "d3-color";
+
 export type RuntimeEdgeVisualStyle = {
   stroke: string;
   strokeWidth: number;
@@ -39,21 +42,30 @@ export type RuntimeMeasurementVisualDefaults = {
   };
 };
 
+const neutralWhite = rgb(COLORS_HEX.NEUTRAL_WHITE);
+const neutralWhitePreview = rgb(COLORS_HEX.NEUTRAL_WHITE);
+const neutralWhiteSurface = rgb(COLORS_HEX.NEUTRAL_WHITE);
+const neutralWhiteComponentLabelAccent = rgb(COLORS_HEX.NEUTRAL_WHITE);
+
+neutralWhitePreview.opacity = 0.9;
+neutralWhiteSurface.opacity = 0.92;
+neutralWhiteComponentLabelAccent.opacity = 0.34;
+
 export const runtimeMeasurementVisualDefaults: RuntimeMeasurementVisualDefaults =
   {
     colors: {
-      neutral: "rgba(255, 255, 255, 1)",
-      accent: "rgba(255, 255, 255, 1)",
-      preview: "rgba(255, 255, 255, 0.9)",
-      surface: "rgba(255, 255, 255, 0.92)",
+      neutral: neutralWhite.toString(),
+      accent: neutralWhite.toString(),
+      preview: neutralWhitePreview.toString(),
+      surface: neutralWhiteSurface.toString(),
       transparent: "rgba(0, 0, 0, 0)",
       components: {
-        direct: "rgba(255, 255, 255, 1)",
+        direct: neutralWhite.toString(),
         vertical: "rgba(111, 168, 255, 0.96)",
         horizontal: "rgba(188, 194, 102, 0.95)",
       },
       componentLabelAccents: {
-        direct: "rgba(255, 255, 255, 0.34)",
+        direct: neutralWhiteComponentLabelAccent.toString(),
         vertical: "rgba(111, 168, 255, 0.54)",
         horizontal: "rgba(188, 194, 102, 0.5)",
       },

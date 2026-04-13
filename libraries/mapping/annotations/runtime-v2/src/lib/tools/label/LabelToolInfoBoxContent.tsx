@@ -158,7 +158,10 @@ export const LabelToolInfoBoxContent = ({
   };
 
   return (
-    <div className={resolvedVisualOptions.bodyTextClassName}>
+    <div
+      className={resolvedVisualOptions.bodyTextClassName}
+      style={resolvedVisualOptions.bodyTextStyle}
+    >
       <div className="mb-2">
         <div className={`mb-1 ${resolvedVisualOptions.mutedTextClassName}`}>
           Bezeichnung

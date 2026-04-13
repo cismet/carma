@@ -26,8 +26,14 @@ import {
 import { resolvePolylineToolKeyAction } from "./polylineToolBindings";
 import { buildPolylineToolRenderModels } from "./polylineToolRenderModels";
 import { createPolylineToolSettings } from "./polylineToolSettings";
+import { ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME } from "../../config/annotationMeasurementLabelThemes";
 const toolType = ANNOTATION_TYPE_POLYLINE;
-const badgeStyle = DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG[toolType];
+const labelTheme = ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME;
+const badgeStyle = {
+  ...DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG[toolType],
+  backgroundColor: labelTheme.scheme.colorPrimary,
+  textColor: labelTheme.scheme.textColor,
+};
 const polylineToolSettings = createPolylineToolSettings(badgeStyle);
 
 export const polylineToolPlugin = createMeasurementToolPlugin({

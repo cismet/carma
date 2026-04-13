@@ -141,6 +141,7 @@ export const RuntimeAnnotationInfoBoxTitleInput = ({
         placeholder={placeholder}
         className={resolvedVisualOptions.titleInputClassName}
         style={{
+          ...resolvedVisualOptions.titleTextStyle,
           width: titleWidthPx === null ? undefined : `${titleWidthPx}px`,
           minWidth: "1em",
           maxWidth: "100%",
@@ -159,6 +160,7 @@ export const RuntimeAnnotationInfoBoxTitleInput = ({
           placeholder={shortLabelPlaceholder}
           className={resolvedVisualOptions.shortLabelInputClassName}
           style={{
+            ...resolvedVisualOptions.titleTextStyle,
             borderRadius: CARMA_CARD_BORDER_RADIUS_CSS,
             width:
               shortLabelWidthPx === null ? undefined : `${shortLabelWidthPx}px`,
@@ -175,6 +177,7 @@ export const RuntimeAnnotationInfoBoxTitleInput = ({
         ref={titleMeasureRef}
         aria-hidden="true"
         className={`${resolvedVisualOptions.titleInputClassName} pointer-events-none absolute invisible w-max whitespace-pre`}
+        style={resolvedVisualOptions.titleTextStyle}
       >
         {draftValue || placeholder || " "}
       </span>
@@ -183,6 +186,7 @@ export const RuntimeAnnotationInfoBoxTitleInput = ({
           ref={shortLabelMeasureRef}
           aria-hidden="true"
           className={`${resolvedVisualOptions.shortLabelInputClassName} pointer-events-none absolute invisible w-max whitespace-pre`}
+          style={resolvedVisualOptions.titleTextStyle}
         >
           {draftShortLabelValue || shortLabelPlaceholder || ""}
         </span>

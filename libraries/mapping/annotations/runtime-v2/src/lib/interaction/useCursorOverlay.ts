@@ -19,12 +19,14 @@ import {
 } from "@carma-mapping/engines/cesium/react/interactions";
 import { previewControllerDefaults } from "../config/previewControllerDefaults";
 import type { RuntimeScene } from "../types/runtimeScene.types";
+
 const CURSOR_ROOT_SELECTOR = '[data-annotation-cursor-root="true"]';
 const CURSOR_CANVAS_HALF_EXTENT_PX =
   ANNOTATION_CURSOR_DEFAULT_SHAPE_HALF_EXTENT_PX +
   ANNOTATION_CURSOR_DEFAULT_AURA_PADDING_PX;
 const CURSOR_CANVAS_SIZE_PX = CURSOR_CANVAS_HALF_EXTENT_PX * 2;
 const CURSOR_VIEW_BOX = `${-CURSOR_CANVAS_HALF_EXTENT_PX} ${-CURSOR_CANVAS_HALF_EXTENT_PX} ${CURSOR_CANVAS_SIZE_PX} ${CURSOR_CANVAS_SIZE_PX}`;
+const SELECTION_ADDITIVE_INDICATOR_FONT_SIZE_REM = "1.2857rem";
 const SELECTION_ADDITIVE_INDICATOR_OFFSET_PX = {
   x: 15,
   y: -10,
@@ -102,7 +104,7 @@ const createSelectionAdditiveIndicatorElement = () => {
     display: "none",
     color: "rgba(255, 255, 255, 0.98)",
     fontFamily: '"Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif',
-    fontSize: "18px",
+    fontSize: SELECTION_ADDITIVE_INDICATOR_FONT_SIZE_REM,
     fontWeight: "700",
     lineHeight: "1",
     pointerEvents: "none",

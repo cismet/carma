@@ -20,6 +20,7 @@ root.render(
   <ConfigProvider
     theme={{
       algorithm: theme.compactAlgorithm,
+      token: { fontSize: 14 },
       components: { Collapse: { contentPadding: 0 } },
     }}
   >

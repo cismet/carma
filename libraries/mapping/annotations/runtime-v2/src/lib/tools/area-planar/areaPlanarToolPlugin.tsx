@@ -28,9 +28,15 @@ import { resolveNodeChainAreaToolKeyAction } from "../area-shared/nodeChainAreaT
 import { createNodeChainAreaToolInfoBoxSlots } from "../area-shared/nodeChainAreaToolInfoBoxSlots";
 import { buildNodeChainAreaToolRenderModels } from "../area-shared/nodeChainAreaToolRenderModels";
 import { createNodeChainAreaToolSettings } from "../area-shared/nodeChainAreaToolSettings";
+import { ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME } from "../../config/annotationMeasurementLabelThemes";
 
 const toolType = ANNOTATION_TYPE_AREA_PLANAR;
-const badgeStyle = DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG[toolType];
+const labelTheme = ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME;
+const badgeStyle = {
+  ...DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG[toolType],
+  backgroundColor: labelTheme.scheme.colorPrimary,
+  textColor: labelTheme.scheme.textColor,
+};
 const areaPlanarToolSettings = createNodeChainAreaToolSettings({
   badgeStyle,
   fill: "rgba(239, 223, 145, 0.25)",
@@ -40,6 +46,7 @@ const getAreaPlanarToolInfoBoxSlots = createNodeChainAreaToolInfoBoxSlots(
   toolType,
   {
     headingTitle: "Dach",
+    headingColor: labelTheme.scheme.colorPrimary,
     formatMeasurementLabelToken: (counter) =>
       formatMeasurementShortLabelToken(toolType, counter),
   }

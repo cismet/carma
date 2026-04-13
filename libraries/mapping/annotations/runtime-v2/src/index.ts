@@ -14,8 +14,11 @@ export type { AnnotationsRuntimeFormatOptions } from "./lib/config/annotationsRu
 export {
   ANNOTATION_MEASUREMENT_TEXT_COLOR,
   ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE,
+  ANNOTATION_MEASUREMENT_SHARED_COLOR_SCHEME,
   ANNOTATION_MEASUREMENT_QUALITATIVE_DARK_COLOR_SCHEMES,
-  ANNOTATION_MEASUREMENT_LABEL_THEME_BY_TOOL_TYPE,
+} from "./lib/config/annotationMeasurementLabelThemeDefaults";
+export {
+  ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME,
   resolveAnnotationMeasurementLabelTheme,
   type AnnotationMeasurementQualitativeColorScheme,
   type AnnotationMeasurementSelectedHighlightPalette,

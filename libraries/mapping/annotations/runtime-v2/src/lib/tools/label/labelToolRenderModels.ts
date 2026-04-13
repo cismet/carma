@@ -87,6 +87,9 @@ export const buildLabelToolRenderModels = ({
           markerPixelSize: selectedMeasurementIdSet.has(measurement.id)
             ? visuals.selectedPoint.pixelSize
             : visuals.point.pixelSize,
+          markerOutlineWidth: selectedMeasurementIdSet.has(measurement.id)
+            ? visuals.selectedPoint.outlineWidth
+            : visuals.point.outlineWidth,
           content: displayName,
           badgeContent: displayName,
           textBackgroundColor:

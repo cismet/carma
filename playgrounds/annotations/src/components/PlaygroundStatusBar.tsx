@@ -1,6 +1,9 @@
 import type { ReactNode } from "react";
 
 import type { PlaygroundRuntime } from "../playground.types";
+
+const PLAYGROUND_STATUS_BAR_FONT_SIZE_REM = "0.7857rem";
+
 type PlaygroundStatusBarProps = {
   runtimeVersion: PlaygroundRuntime;
   onRuntimeVersionChange: (runtimeVersion: PlaygroundRuntime) => void;
@@ -35,7 +38,7 @@ const shellStyle = {
   color: "#4b5563",
   fontFamily:
     'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-  fontSize: 11,
+  fontSize: PLAYGROUND_STATUS_BAR_FONT_SIZE_REM,
   lineHeight: 1.05,
   pointerEvents: "auto",
 } as const;

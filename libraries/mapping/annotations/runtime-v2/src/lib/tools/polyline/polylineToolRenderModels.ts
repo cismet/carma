@@ -120,6 +120,7 @@ export const buildPolylineToolRenderModels = ({
             pointMarkerId: `${measurement.id}-node-${index}`,
             coordinate,
             markerPixelSize: pointVisuals.pixelSize,
+            markerOutlineWidth: pointVisuals.outlineWidth,
             content: badgeText,
             badgeContent: badgeText,
             markerBackgroundColor: badgeStyle.backgroundColor,
