@@ -5,12 +5,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
-import {
-  Cartesian3,
-  getDegreesFromCartesian,
-  getEllipsoidalAltitudeOrZero,
-  projectPointToHorizontalPlaneAtAnchor,
-} from "@carma/cesium";
+
 import {
   ANNOTATION_TYPE_AREA_GROUND,
   ANNOTATION_TYPE_AREA_PLANAR,
@@ -37,13 +32,19 @@ import {
   type NodeChainAnnotation,
   type PolygonAreaType,
 } from "@carma-mapping/annotations/core";
-import type { AnnotationsStore } from "../../store";
-import { createUniqueRuntimeId } from "./createUniqueRuntimeId";
+import { Cartesian3 } from "@carma-cesium";
+import {
+  getDegreesFromCartesian,
+  getEllipsoidalAltitudeOrZero,
+  projectPointToHorizontalPlaneAtAnchor,
+} from "@carma-mapping/engines/cesium/core";
+
 import {
   finalizeDraftEntries,
   upsertDraftEntry,
 } from "../lifecycle/draftEntryCollection";
-
+import type { AnnotationsStore } from "../../store";
+import { createUniqueRuntimeId } from "./createUniqueRuntimeId";
 type UseNodeChainPointCreationParams = {
   annotationsStore: AnnotationsStore;
   activeToolType: AnnotationToolType;
@@ -122,6 +123,51 @@ type UsePointCreatedHandlersParams = {
 };
 
 const createDefaultPointId = () => createUniqueRuntimeId("point");
+const DISTANCE_FINISH_DEBUG_STORAGE_KEY =
+  "carma.annotations.debug.distanceFinish";
+const DISTANCE_FINISH_DEBUG_GLOBAL_KEY =
+  "__CARMA_ANNOTATIONS_DEBUG_DISTANCE_FINISH__";
+
+type DistanceFinishDebugStep = {
+  event: string;
+  payload: Record<string, unknown>;
+};
+
+const isDistanceFinishDebugEnabled = (): boolean => {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  const win = window as Window & {
+    [DISTANCE_FINISH_DEBUG_GLOBAL_KEY]?: unknown;
+  };
+  if (Boolean(win[DISTANCE_FINISH_DEBUG_GLOBAL_KEY])) {
+    return true;
+  }
+
+  try {
+    return (
+      window.localStorage.getItem(DISTANCE_FINISH_DEBUG_STORAGE_KEY) === "1"
+    );
+  } catch {
+    return false;
+  }
+};
+
+const logDistanceFinishDebugGroup = (
+  label: string,
+  steps: readonly DistanceFinishDebugStep[]
+) => {
+  if (!isDistanceFinishDebugEnabled()) {
+    return;
+  }
+
+  console.groupCollapsed(`[DistanceFinish] ${label}`);
+  steps.forEach(({ event, payload }) => {
+    console.debug(`[DistanceFinish] ${event}`, payload);
+  });
+  console.groupEnd();
+};
 
 export const useSessionPointCreation = <
   TEntry extends AnnotationCollectionEntry,
@@ -289,7 +335,20 @@ export const useNodeChainPointCreation = ({
         [newPointId]: newPointPositionECEF,
       });
       const isDistanceCreation = activeToolType === ANNOTATION_TYPE_DISTANCE;
+      const isFinalDistancePoint = isDistanceCreation && Boolean(sourcePointId);
       const isAreaCreation = isAreaToolType(activeToolType);
+      const distanceDebugActiveGroupBefore = isDistanceCreation
+        ? {
+            groupId: activeGroupSnapshot?.id ?? nextActiveGroupId,
+            nodeIds: [...(activeGroupSnapshot?.nodeIds ?? [])],
+            closed: Boolean(activeGroupSnapshot?.closed),
+          }
+        : null;
+      let distanceDebugActiveGroupAfter: {
+        groupId: string;
+        nodeIds: readonly string[];
+        closed: boolean;
+      } | null = null;
       const seedTypeForCreation: NodeChainAnnotation["type"] =
         isDistanceCreation
           ? ANNOTATION_TYPE_DISTANCE
@@ -405,6 +464,13 @@ export const useNodeChainPointCreation = ({
             false,
             getDistanceRelationId
           );
+          if (isDistanceCreation) {
+            distanceDebugActiveGroupAfter = {
+              groupId: nextActiveGroupId,
+              nodeIds: [...seedNodeIds],
+              closed: false,
+            };
+          }
           return [
             ...prev,
             {
@@ -567,6 +633,13 @@ export const useNodeChainPointCreation = ({
           },
           pointById
         );
+        if (isDistanceCreation) {
+          distanceDebugActiveGroupAfter = {
+            groupId: updatedGroup.id,
+            nodeIds: [...updatedGroup.nodeIds],
+            closed: updatedGroup.closed,
+          };
+        }
         return prev.map((group) =>
           group.id === activeGroup.id ? updatedGroup : group
         );
@@ -627,9 +700,56 @@ export const useNodeChainPointCreation = ({
         clearActiveNodeChainDrawingState();
         selectRepresentativeNodeForMeasurementId(nextActiveGroupId);
         clearMoveGizmo();
-      } else if (isDistanceCreation && sourcePointId) {
+      } else if (isFinalDistancePoint && sourcePointId) {
         clearActiveNodeChainDrawingState();
-        selectAnnotationById(newPointId);
+        selectAnnotationById(sourcePointId);
+        logDistanceFinishDebugGroup(`commit-new-point:${nextActiveGroupId}`, [
+          {
+            event: "click-received",
+            payload: {
+              pointId: newPointId,
+              sourcePointId,
+              groupId: nextActiveGroupId,
+            },
+          },
+          {
+            event: "point-created",
+            payload: {
+              pointId: newPointId,
+              geometryPositionECEF: newPointPositionECEF,
+            },
+          },
+          {
+            event: "active-group-before",
+            payload: distanceDebugActiveGroupBefore ?? {
+              groupId: nextActiveGroupId,
+              nodeIds: [],
+              closed: false,
+            },
+          },
+          {
+            event: "active-group-after",
+            payload: distanceDebugActiveGroupAfter ?? {
+              groupId: nextActiveGroupId,
+              nodeIds: [sourcePointId, newPointId],
+              closed: false,
+            },
+          },
+          {
+            event: "second-point-detected",
+            payload: {
+              nodeCount: distanceDebugActiveGroupAfter?.nodeIds.length ?? 2,
+              finalizeReason: "second-distance-point",
+            },
+          },
+          {
+            event: "finalize",
+            payload: {
+              clearedActiveDrawingState: true,
+              selectedPointId: sourcePointId,
+            },
+          },
+        ]);
       } else {
         setActiveNodeChainAnnotationId(nextActiveGroupId);
         if (!sourcePointId) {
@@ -685,7 +805,21 @@ export const useNodeChainPointCreation = ({
         : activeGroupSnapshot.id;
       const pointByIdSnapshot = getPointPositionMap(currentAnnotations);
       const isDistanceCreation = activeToolType === ANNOTATION_TYPE_DISTANCE;
+      const isFinalDistancePoint = isDistanceCreation && Boolean(sourcePointId);
       const isAreaCreation = isAreaToolType(activeToolType);
+      const distanceDebugActiveGroupBefore = isDistanceCreation
+        ? {
+            groupId: activeGroupSnapshot?.id ?? nextActiveGroupId,
+            nodeIds: [...(activeGroupSnapshot?.nodeIds ?? [])],
+            closed: Boolean(activeGroupSnapshot?.closed),
+          }
+        : null;
+      let distanceDebugActiveGroupAfter: {
+        groupId: string;
+        nodeIds: readonly string[];
+        closed: boolean;
+      } | null = null;
+      let didMutateNodeChain = false;
       const seedTypeForCreation: NodeChainAnnotation["type"] =
         isDistanceCreation
           ? ANNOTATION_TYPE_DISTANCE
@@ -793,6 +927,14 @@ export const useNodeChainPointCreation = ({
             false,
             getDistanceRelationId
           );
+          didMutateNodeChain = true;
+          if (isDistanceCreation) {
+            distanceDebugActiveGroupAfter = {
+              groupId: nextActiveGroupId,
+              nodeIds: [...seedNodeIds],
+              closed: false,
+            };
+          }
           return [
             ...prev,
             {
@@ -923,10 +1065,43 @@ export const useNodeChainPointCreation = ({
           },
           pointById
         );
+        didMutateNodeChain = true;
+        if (isDistanceCreation) {
+          distanceDebugActiveGroupAfter = {
+            groupId: updatedGroup.id,
+            nodeIds: [...updatedGroup.nodeIds],
+            closed: updatedGroup.closed,
+          };
+        }
         return prev.map((group) =>
           group.id === activeGroup.id ? updatedGroup : group
         );
       });
+
+      if (!didMutateNodeChain) {
+        if (isFinalDistancePoint) {
+          logDistanceFinishDebugGroup(
+            `skip-existing-point:${nextActiveGroupId}`,
+            [
+              {
+                event: "click-received",
+                payload: {
+                  pointId: existingPointId,
+                  sourcePointId: sourcePointId ?? null,
+                  groupId: nextActiveGroupId,
+                },
+              },
+              {
+                event: "no-op",
+                payload: {
+                  reason: "existing-point-already-last-node",
+                },
+              },
+            ]
+          );
+        }
+        return false;
+      }
 
       if (createdVerticalAutoCorners && createdVerticalAutoCorners.length > 0) {
         setAnnotations((prev) => {
@@ -963,9 +1138,59 @@ export const useNodeChainPointCreation = ({
         return true;
       }
 
-      if (isDistanceCreation && sourcePointId) {
+      if (isFinalDistancePoint && sourcePointId) {
         clearActiveNodeChainDrawingState();
-        selectAnnotationById(existingPointId);
+        selectAnnotationById(sourcePointId);
+        logDistanceFinishDebugGroup(
+          `commit-existing-point:${nextActiveGroupId}`,
+          [
+            {
+              event: "click-received",
+              payload: {
+                pointId: existingPointId,
+                sourcePointId,
+                groupId: nextActiveGroupId,
+              },
+            },
+            {
+              event: "point-created",
+              payload: {
+                pointId: existingPointId,
+                reusedExistingPoint: true,
+              },
+            },
+            {
+              event: "active-group-before",
+              payload: distanceDebugActiveGroupBefore ?? {
+                groupId: nextActiveGroupId,
+                nodeIds: [],
+                closed: false,
+              },
+            },
+            {
+              event: "active-group-after",
+              payload: distanceDebugActiveGroupAfter ?? {
+                groupId: nextActiveGroupId,
+                nodeIds: [sourcePointId, existingPointId],
+                closed: false,
+              },
+            },
+            {
+              event: "second-point-detected",
+              payload: {
+                nodeCount: distanceDebugActiveGroupAfter?.nodeIds.length ?? 2,
+                finalizeReason: "second-distance-point",
+              },
+            },
+            {
+              event: "finalize",
+              payload: {
+                clearedActiveDrawingState: true,
+                selectedPointId: sourcePointId,
+              },
+            },
+          ]
+        );
         return true;
       }
 

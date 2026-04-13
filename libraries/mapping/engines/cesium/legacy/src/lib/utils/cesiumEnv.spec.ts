@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
-import {
-  getCesiumVersion,
-  checkWindowEnv,
-  assertWindowCesiumEnv,
-} from "./cesiumEnv";
 
+import {
+  assertWindowCesiumEnv,
+  checkWindowEnv,
+  getCesiumVersion,
+} from "@carma-mapping/engines/cesium/core";
 describe("cesiumEnv helpers", () => {
   it("getCesiumVersion returns a string (unknown without runtime)", () => {
     const v = getCesiumVersion();

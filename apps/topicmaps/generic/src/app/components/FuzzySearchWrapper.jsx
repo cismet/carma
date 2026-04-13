@@ -20,6 +20,7 @@ const FuzzySearchWrapper = ({
   clickAfterGazetteerHit = true,
   layersIdleRef,
   resetLayersIdle,
+  landParcelSearch = false,
 }) => {
   const { responsiveState, gap, windowSize } = useContext(
     ResponsiveTopicMapContext
@@ -123,6 +124,7 @@ const FuzzySearchWrapper = ({
             onSelection={onGazetteerSelection}
             pixelwidth={pixelwidth}
             placeholder={placeholder || "Wohin?"}
+            landParcelSearch={landParcelSearch}
           />
         </>
       )}

@@ -1,25 +1,32 @@
 import { type RefObject, useMemo } from "react";
-import { Color, Viewer, Rectangle, Cartographic } from "cesium";
+
+import {
+  Color,
+  Viewer,
+  Rectangle,
+  Cartesian3,
+  type Cartographic,
+} from "cesium";
 import { merge } from "lodash";
 
 import {
   CesiumErrorHandler,
   type CesiumErrorHandlerOptions,
 } from "./CesiumErrorHandler";
-
-import useCameraRollSoftLimiter from "./hooks/useCameraRollSoftLimiter";
 import useCameraPitchEasingLimiter from "./hooks/useCameraPitchEasingLimiter";
 import useCameraPitchSoftLimiter from "./hooks/useCameraPitchSoftLimiter";
-import useDisableSSCC from "./hooks/useDisableSSCC";
+import useCameraRollSoftLimiter from "./hooks/useCameraRollSoftLimiter";
 import { useCesiumGlobe } from "./hooks/useCesiumGlobe";
+import useDisableSSCC from "./hooks/useDisableSSCC";
 import { useInitializeViewer } from "./hooks/useInitializeViewer";
-import { useOnSceneChange } from "./hooks/useOnSceneChange";
-import useTransitionTimeout from "./hooks/useTransitionTimeout";
-import { useTilesets } from "./hooks/useTilesets";
+import {
+  useOnSceneChange,
+  type StringifiedCameraState,
+} from "./hooks/useOnSceneChange";
 import { useSceneStyles } from "./hooks/useSceneStyles";
-import { StringifiedCameraState } from "./utils/cesiumHashParamsCodec";
+import { useTilesets } from "./hooks/useTilesets";
+import useTransitionTimeout from "./hooks/useTransitionTimeout";
 import { DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS } from "./viewerDefaults";
-
 export type GlobeOptions = {
   // https://cesium.com/learn/cesiumjs/ref-doc/Globe.html
   baseColor?: Color;
@@ -36,15 +43,19 @@ export type CameraLimiterOptions = {
 
 export type InitialCameraView = {
   position?: Cartographic;
-  heading?: number;
-  pitch?: number;
-  fov?: number;
+  anchor?: Cartographic;
+  zoom?: number;
+  direction?: Cartesian3;
+  up?: Cartesian3;
+  fov?: number | null;
+  fovLongerEdge?: number | null;
 };
 
 export type CustomViewerProps = {
   containerRef: RefObject<HTMLDivElement>;
   cameraLimiterOptions?: CameraLimiterOptions;
-  initialCameraView?: InitialCameraView;
+  initialCameraView?: InitialCameraView | null;
+  homeValidationCenter?: Cartesian3 | null;
   constructorOptions?: Viewer.ConstructorOptions;
   globeOptions?: GlobeOptions;
   // callbacks
@@ -70,6 +81,7 @@ const CustomViewerComponent = (props: CustomViewerProps) => {
     },
     cameraLimiterOptions,
     initialCameraView,
+    homeValidationCenter,
     constructorOptions,
     containerRef,
     onSceneChange,
@@ -81,7 +93,12 @@ const CustomViewerComponent = (props: CustomViewerProps) => {
     [constructorOptions]
   );
 
-  useInitializeViewer(containerRef, options, initialCameraView);
+  useInitializeViewer(
+    containerRef,
+    options,
+    initialCameraView,
+    homeValidationCenter
+  );
   useCesiumGlobe(globeOptions);
 
   useTransitionTimeout();

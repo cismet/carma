@@ -3,8 +3,7 @@ import type {
   PointAnnotationEntry,
   PolygonPreviewGroup,
 } from "@carma-mapping/annotations/core";
-import type { Color } from "@carma/cesium";
-
+import type { Color } from "@carma-cesium";
 export type EdgeSceneLineRenderModel = {
   id: string;
   start: PointAnnotationEntry["geometryECEF"];

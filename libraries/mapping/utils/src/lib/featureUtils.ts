@@ -3,7 +3,7 @@
  * Uses sandboxed eval for safe code execution.
  */
 
-import type { FeatureInfoProperties } from "@carma/types";
+import type { FeatureInfoProperties } from "./contracts/feature-info/feature-info";
 import { sandboxedEvalExternal } from "@carma-commons/sandbox-eval";
 
 /**

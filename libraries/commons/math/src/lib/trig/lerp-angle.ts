@@ -2,7 +2,7 @@ import { negativePiToPi } from "./negative-pi-to-pi";
 
 /**
  * Linear interpolation for angles (handles wrapping)
- * Unitless version - use wrapper from @carma/units/helpers for typed Radians
+ * Unitless version - use wrapper from @carma-units for typed Radians
  *
  * @param start - Starting angle in radians (unitless)
  * @param end - Ending angle in radians (unitless)

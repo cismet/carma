@@ -1,27 +1,26 @@
+import type { Feature, FeatureCollection } from "geojson";
+
+import { Easing, type Easing as EasingFunction } from "@carma-commons/math";
 import {
   BoundingSphere,
   Color,
   Primitive,
   PrimitiveCollection,
-  getBoundingSphereFromCoordinates,
   type Scene,
-} from "@carma/cesium";
-import type { Feature, FeatureCollection } from "geojson";
-import { Easing, type Easing as EasingFunction } from "@carma-commons/math";
+} from "@carma-cesium";
+import { getBoundingSphereFromCoordinates } from "@carma-mapping/engines/cesium/core";
+import { extractRingsFromGeoJson } from "@carma-geo/utils";
 
-import { extractRingsFromGeoJson } from "@carma/geo/utils";
-
+import { createSelectionEdgePrimitive } from "./adhoc-primitives/create-selection-edge-primitive";
 import {
   createWallPrimitives,
   type WallPrimitiveSegment,
 } from "./adhoc-primitives/create-wall-primitives";
-import { createSelectionEdgePrimitive } from "./adhoc-primitives/create-selection-edge-primitive";
 import { animateOpacity } from "./animateOpacity";
 import {
   applyGeometryInstanceOpacity,
   readGeometryInstanceOpacity,
 } from "./geometryInstanceOpacity";
-
 // Default values
 const DEFAULT_WALL_HEIGHT_METERS = 15;
 const DEFAULT_OPACITY = 0.7;
@@ -30,6 +29,10 @@ const DEFAULT_WALL_COLOR = "#3A7CEB";
 const DEFAULT_SELECTION_LINE_WIDTH = 1.5;
 const DEFAULT_SELECTION_COLOR = "#FFFF00";
 const DEFAULT_ANIMATION_DURATION_MS = 200;
+
+type PrimitiveWithGeometryInstances = {
+  geometryInstances?: { id?: unknown };
+};
 
 export type ExtrudedWallVisualizerOptions = {
   /** Wall height in meters, or array of per-segment heights */
@@ -393,9 +396,8 @@ export const createExtrudedWallVisualizer = (
         for (let i = 0; i < collection.length; i++) {
           const primitive = collection.get(i);
           if (primitive && "geometryInstances" in primitive) {
-            const instanceId = (
-              primitive as unknown as { geometryInstances?: { id?: unknown } }
-            ).geometryInstances?.id;
+            const instanceId = (primitive as PrimitiveWithGeometryInstances)
+              .geometryInstances?.id;
             if (instanceId) {
               allSegments.push({
                 primitive: primitive as Primitive,

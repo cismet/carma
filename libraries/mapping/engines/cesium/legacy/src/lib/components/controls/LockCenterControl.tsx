@@ -1,4 +1,5 @@
 import { type MouseEvent, type ReactNode, useState } from "react";
+
 import { faLock, faLockOpen } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { DebugModelMatrixPrimitive, Viewer } from "cesium";
@@ -6,7 +7,6 @@ import { DebugModelMatrixPrimitive, Viewer } from "cesium";
 import { useCesiumViewer } from "../../hooks/useCesiumViewer";
 import { lockPosition, unlockPosition } from "./lockCenterControl.utils";
 import OnMapButton from "./OnMapButton";
-
 type LockCenterControlProps = {
   children?: ReactNode;
 };

@@ -7,13 +7,11 @@ import type {
   EllipsoidTerrainProvider,
   ImageryLayer,
   Scene,
-} from "@carma/cesium";
-
+} from "@carma-cesium";
 // legacy types, prefer using scene, graphic primitives and CesiumWidget where possible
 // eslint-disable-next-line carma/no-direct-cesium
 import type { EntityCollection, Viewer } from "cesium";
-
-import { SceneAnimationMap } from "./utils/sceneAnimationMap";
+import type { SceneAnimationMap } from "@carma-mapping/engines/cesium/core";
 
 export interface CesiumContextType {
   viewerRef: MutableRefObject<Viewer | null>;

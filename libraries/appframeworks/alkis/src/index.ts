@@ -3,4 +3,18 @@ export { AlkisBookingSheetRenderer } from "./lib/components/AlkisBookingSheetRen
 export { PointSearchButton } from "./lib/components/PointSearchButton";
 export { PointSearch } from "./lib/components/PointSearch";
 export { AlkisNav } from "./lib/components/AlkisNav";
-export * from "./index.d";
+export type {
+  TaskParameters,
+  AdditionalSheetProps,
+  Address,
+  Owner,
+  AlkisRendererProps,
+  AlkisBookingSheetRendererProps,
+  MapExtractorResult,
+  MapProps,
+  LandparcelInfoProps,
+  DataItem,
+  AlkisFeature,
+  ConfigPdfProduct,
+  BookingResData,
+} from "./index.d";

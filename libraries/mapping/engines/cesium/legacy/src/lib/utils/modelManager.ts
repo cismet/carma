@@ -1,6 +1,5 @@
-import { Model } from "@carma/cesium";
-import type { ModelConfig } from "@carma-commons/resources";
-
+import type { ModelConfig } from "@carma-mapping/engines/cesium/core";
+import { Model } from "@carma-cesium";
 export const getPrimitiveSelectionId = (primitive: Model): string | null => {
   const pickId = primitive.id as { id?: unknown } | undefined;
   return typeof pickId?.id === "string" ? pickId.id : null;

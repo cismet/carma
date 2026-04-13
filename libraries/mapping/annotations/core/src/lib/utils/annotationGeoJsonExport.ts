@@ -1,12 +1,17 @@
+import type { Feature, FeatureCollection, Geometry, Position } from "geojson";
+import { Cartesian3 } from "@carma-cesium";
 import {
-  Cartesian3,
-  cartesian3FromJson,
-  cartesian3ToJson,
+  cartesian3FromMetricVector3,
+  cartesian3ToMetricVector3,
   getDegreesFromCartesian,
   getPositionWithVerticalOffsetFromAnchor,
-} from "@carma/cesium";
-import type { Feature, FeatureCollection, Geometry, Position } from "geojson";
+} from "@carma-mapping/engines/cesium/core";
 
+import {
+  isPointAnnotationEntry,
+  type AnnotationCollection,
+  type PointAnnotationEntry,
+} from "../types/annotationCesiumTypes";
 import {
   ANNOTATION_TYPE_AREA_GROUND,
   ANNOTATION_TYPE_AREA_PLANAR,
@@ -18,12 +23,6 @@ import {
   type NodeChainAnnotation,
 } from "../types/annotationTypes";
 import type { PointDistanceRelation } from "../types/distanceRelation";
-import {
-  isPointAnnotationEntry,
-  type AnnotationCollection,
-  type PointAnnotationEntry,
-} from "../types/annotationCesiumTypes";
-
 export type AnnotationGeoJsonFeatureCollection = FeatureCollection<
   Geometry,
   Record<string, unknown>
@@ -38,7 +37,7 @@ type BuildAnnotationGeoJsonFeatureCollectionParams = {
 
 const EXPORT_VERSION = 1 as const;
 
-type Cartesian3JsonLike = ReturnType<typeof cartesian3ToJson>;
+type MetricVector3Like = ReturnType<typeof cartesian3ToMetricVector3>;
 
 const isPolygonAnnotationKind = (
   kind: AnnotationType
@@ -81,7 +80,7 @@ const normalizePropertyValue = (value: unknown): unknown => {
   }
 
   if (value instanceof Cartesian3) {
-    return cartesian3ToJson(value);
+    return cartesian3ToMetricVector3(value);
   }
 
   if (Array.isArray(value)) {
@@ -119,7 +118,7 @@ const toGeoJsonPosition = (positionECEF: Cartesian3): Position => {
 
 const getPointBasePosition = (point: PointAnnotationEntry): Cartesian3 =>
   point.verticalOffsetAnchorECEF
-    ? cartesian3FromJson(point.verticalOffsetAnchorECEF)
+    ? cartesian3FromMetricVector3(point.verticalOffsetAnchorECEF)
     : point.geometryECEF;
 
 const getNodeChainPointPosition = (
@@ -157,7 +156,7 @@ const buildPointProperties = (
     annotationId: annotation.id,
     annotationKind: getPointSemanticKind(annotation),
     annotation: normalizePropertyRecord(rest as Record<string, unknown>),
-    geometryECEF: cartesian3ToJson(annotation.geometryECEF),
+    geometryECEF: cartesian3ToMetricVector3(annotation.geometryECEF),
   };
 };
 
@@ -263,7 +262,7 @@ const buildDistanceFeatureCollection = (
             ...rest
           }) => rest)(point) as Record<string, unknown>
         ),
-        geometryECEF: cartesian3ToJson(point.geometryECEF),
+        geometryECEF: cartesian3ToMetricVector3(point.geometryECEF),
       })),
       relations: relatedDistanceRelations.map((relation) => {
         const relatedPoint = pointsById.get(
@@ -278,14 +277,14 @@ const buildDistanceFeatureCollection = (
           ),
           geometryECEF: relatedPoint
             ? [
-                cartesian3ToJson(annotation.geometryECEF),
-                cartesian3ToJson(relatedPoint.geometryECEF),
+                cartesian3ToMetricVector3(annotation.geometryECEF),
+                cartesian3ToMetricVector3(relatedPoint.geometryECEF),
               ]
-            : [cartesian3ToJson(annotation.geometryECEF)],
+            : [cartesian3ToMetricVector3(annotation.geometryECEF)],
         };
       }),
       geometryECEF: {
-        point: cartesian3ToJson(annotation.geometryECEF),
+        point: cartesian3ToMetricVector3(annotation.geometryECEF),
         relationLines: relatedDistanceRelations
           .map((relation) => {
             const relatedPoint = pointsById.get(
@@ -301,8 +300,8 @@ const buildDistanceFeatureCollection = (
             return {
               relationId: relation.id,
               coordinates: [
-                cartesian3ToJson(annotation.geometryECEF),
-                cartesian3ToJson(relatedPoint.geometryECEF),
+                cartesian3ToMetricVector3(annotation.geometryECEF),
+                cartesian3ToMetricVector3(relatedPoint.geometryECEF),
               ],
             };
           })
@@ -311,7 +310,7 @@ const buildDistanceFeatureCollection = (
               entry
             ): entry is {
               relationId: string;
-              coordinates: Cartesian3JsonLike[];
+              coordinates: MetricVector3Like[];
             } => Boolean(entry)
           ),
       },
@@ -375,8 +374,8 @@ const buildNodeChainFeatureCollection = (
   ) {
     const closedRingWGS84 = [...nodePositionsWGS84, nodePositionsWGS84[0]];
     const closedRingECEF = [
-      ...nodePositionsECEF.map(cartesian3ToJson),
-      cartesian3ToJson(nodePositionsECEF[0]),
+      ...nodePositionsECEF.map(cartesian3ToMetricVector3),
+      cartesian3ToMetricVector3(nodePositionsECEF[0]),
     ];
 
     geometry = {
@@ -389,13 +388,13 @@ const buildNodeChainFeatureCollection = (
       type: "LineString",
       coordinates: nodePositionsWGS84,
     };
-    geometryECEF = nodePositionsECEF.map(cartesian3ToJson);
+    geometryECEF = nodePositionsECEF.map(cartesian3ToMetricVector3);
   } else {
     geometry = {
       type: "Point",
       coordinates: nodePositionsWGS84[0],
     };
-    geometryECEF = cartesian3ToJson(nodePositionsECEF[0]);
+    geometryECEF = cartesian3ToMetricVector3(nodePositionsECEF[0]);
   }
 
   return createFeatureCollection({
@@ -421,7 +420,7 @@ const buildNodeChainFeatureCollection = (
             ...rest
           }) => rest)(point) as Record<string, unknown>
         ),
-        geometryECEF: cartesian3ToJson(effectivePositionECEF),
+        geometryECEF: cartesian3ToMetricVector3(effectivePositionECEF),
       })),
     },
   });

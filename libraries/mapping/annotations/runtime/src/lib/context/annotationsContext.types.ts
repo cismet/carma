@@ -12,11 +12,11 @@ import type {
   AnnotationToolType,
   LinearSegmentLineMode,
 } from "@carma-mapping/annotations/core";
+
 import type {
   AnnotationEditTarget,
   AnnotationEditUpdateTarget,
 } from "../interaction/editing/annotationEdit.types";
-
 export type AnnotationVisualizerOptionsPatch = {
   segmentLineMode?: LinearSegmentLineMode;
 };
@@ -116,6 +116,7 @@ export type AnnotationsContextType = {
     confirmLabelPlacementById: (id: string) => void;
     flyToById: (id: string) => void;
     focusById: (id: string | null) => void;
+    focusAdjacentNavigationItem: (offset: -1 | 1) => void;
     flyToAll: () => void;
   };
   edit: {

@@ -1,15 +1,15 @@
-import { Cartesian3, type Cartesian3Json } from "@carma/cesium";
-import type { Altitude, LatLngAlt } from "@carma/geo/types";
+import { Cartesian3 } from "@carma-cesium";
+import type { MetricVector3 } from "@carma-units";
+import type { Altitude, LatLngAlt } from "@carma-geo/data-structures";
 
+import type { BaseAnnotationEntry } from "./annotationEntry";
+import type { AnnotationPersistenceEnvelopeV2Base } from "./annotationPersistenceTypes";
 import {
   ANNOTATION_TYPE_DISTANCE,
   ANNOTATION_TYPE_POINT,
   ANNOTATION_TYPE_POLYLINE,
   SELECT_TOOL_TYPE,
 } from "./annotationTypes";
-import type { BaseAnnotationEntry } from "./annotationEntry";
-import type { AnnotationPersistenceEnvelopeV2Base } from "./annotationPersistenceTypes";
-
 export type AnnotationMode =
   | typeof SELECT_TOOL_TYPE
   | typeof ANNOTATION_TYPE_POINT
@@ -36,7 +36,7 @@ export type AnnotationPointEntry = AnnotationEntry & {
     altitude: Altitude.EllipsoidalWGS84Meters;
   };
   radius?: number;
-  verticalOffsetAnchorECEF?: Cartesian3Json;
+  verticalOffsetAnchorECEF?: MetricVector3;
 };
 
 export type PointMeasurementEntry = AnnotationPointEntry & {

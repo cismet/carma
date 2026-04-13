@@ -2,10 +2,16 @@ import {
   isPointMeasurementEntry,
   type PointMeasurementEntry,
 } from "@carma-mapping/annotations/core";
+
 import type {
   AnnotationSlots,
   AnnotationInfoBoxEntryPayload,
 } from "../annotationInfoBoxSlots.types";
+import {
+  isPointReferenceMeasurement,
+  resolvePointAnnotationDisplayPoint,
+  resolvePointRelativeElevation,
+} from "../utils/pointAnnotationDisplay";
 import {
   getInfoBoxPointDefaultName,
   POINT_MODE_INSTRUCTION,
@@ -13,12 +19,6 @@ import {
   renderEditableAnnotationSubtitle,
   renderRelativeElevationContent,
 } from "./shared";
-import {
-  isPointReferenceMeasurement,
-  resolvePointAnnotationDisplayPoint,
-  resolvePointRelativeElevation,
-} from "../utils/pointAnnotationDisplay";
-
 export const getPointAnnotationInfoBoxSlots = (
   input: AnnotationInfoBoxEntryPayload
 ): AnnotationSlots => {

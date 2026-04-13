@@ -255,10 +255,8 @@ export const getFormLoading = (
   featureId: string | undefined
 ) => (featureId ? state.featuresForms?.loading[featureId] ?? false : false);
 
-export const getFormError = (
-  state: RootState,
-  featureId: string | undefined
-) => (featureId ? state.featuresForms?.errors[featureId] ?? null : null);
+export const getFormError = (state: RootState, featureId: string | undefined) =>
+  featureId ? state.featuresForms?.errors[featureId] ?? null : null;
 
 export const getOriginalValues = (
   state: RootState,
@@ -323,7 +321,10 @@ export const getAllDraftFeatures = (state: RootState) => {
   const drafts = state.featuresForms?.drafts ?? {};
   return Object.entries(drafts)
     .filter(([, draft]) => draft.feature != null)
-    .map(([, draft]) => ({ featureType: draft.featureType, feature: draft.feature }));
+    .map(([, draft]) => ({
+      featureType: draft.featureType,
+      feature: draft.feature,
+    }));
 };
 
 // Get count of drafts that have a stored feature
@@ -331,7 +332,9 @@ export const getGlobalEditMode = (state: RootState): boolean =>
   state.featuresForms?.globalEditMode ?? false;
 
 export const getDraftFeaturesCount = (state: RootState) =>
-  Object.values(state.featuresForms?.drafts ?? {}).filter((d) => d.feature != null).length;
+  Object.values(state.featuresForms?.drafts ?? {}).filter(
+    (d) => d.feature != null
+  ).length;
 
 // Get cached fetched data from a draft (avoids re-fetching on draft re-selection)
 export const getDraftFetchedData = (

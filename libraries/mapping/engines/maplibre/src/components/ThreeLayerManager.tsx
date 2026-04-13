@@ -1,12 +1,10 @@
 import { useEffect, useRef } from "react";
-import { useLibreContext } from "../contexts/LibreContext";
-import type {
-  Carma3dConfig,
-  ThreePerfData,
-  MappedFeature,
-  FactoryStats,
-  GenericCustomLayer,
-} from "@carma-mapping/engines/threejs";
+
+import { MercatorCoordinate } from "maplibre-gl";
+import type { Map as MaplibreMap } from "maplibre-gl";
+import * as THREE from "three";
+import type { Scene } from "three";
+
 import {
   buildGenericLayer,
   buildOverlayLayer,
@@ -17,11 +15,16 @@ import {
   ensureProfiles,
   resolveOrigin,
 } from "@carma-mapping/engines/threejs";
-import type { BuildingFeature } from "@carma-mapping/engines/threejs";
-import * as THREE from "three";
-import { MercatorCoordinate } from "maplibre-gl";
-import type { Map as MaplibreMap } from "maplibre-gl";
+import type {
+  BuildingFeature,
+  Carma3dConfig,
+  ThreePerfData,
+  MappedFeature,
+  FactoryStats,
+  GenericCustomLayer,
+} from "@carma-mapping/engines/threejs";
 
+import { useLibreContext } from "../contexts/LibreContext";
 // ─────────────────────────────────────────────────────────────
 //  ThreeLayerManager: bridges carma3d configs to the threejs engine
 // ─────────────────────────────────────────────────────────────
@@ -183,6 +186,15 @@ export function ThreeLayerManager({
       savedOpacityRef.current.clear();
     };
   }, [map]);
+
+  useEffect(() => {
+    if (!layerRef.current) {
+      return;
+    }
+
+    layerRef.current._config = config;
+    map?.triggerRepaint();
+  }, [config, map]);
 
   // Effect 3: Data sync (re-runs on radius change without tearing down)
   useEffect(() => {

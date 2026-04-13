@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from "react";
-import { useStoreSelector } from "@carma-commons/react-store";
+
 import {
   ANNOTATION_TYPE_DISTANCE,
   ANNOTATION_TYPE_POINT,
@@ -7,21 +7,17 @@ import {
   type LinearSegmentLineMode,
 } from "@carma-mapping/annotations/core";
 
+import {
+  replaceAnnotationsStoreState,
+  type AnnotationsStore,
+  useStoreSelector,
+} from "../store";
+import { resolveSetStateAction } from "../store/stateUpdateUtils";
 import type {
   AnnotationSettingsByToolKey,
   AnnotationSettingsContextType,
   AnnotationSettingsToolKey,
 } from "./annotationsContext.types";
-import type { AnnotationsStore } from "../store";
-
-const resolveSetStateAction = <TValue>(
-  action: React.SetStateAction<TValue>,
-  previousValue: TValue
-): TValue =>
-  typeof action === "function"
-    ? (action as (previousValue: TValue) => TValue)(previousValue)
-    : action;
-
 export const useProviderSettingsState = (
   annotationsStore: AnnotationsStore
 ) => {
@@ -57,19 +53,22 @@ export const useProviderSettingsState = (
     >
   >(
     (nextValueOrUpdater) => {
-      annotationsStore.setState((previousStoreState) => {
-        const nextSettingsState = resolveSetStateAction(
-          nextValueOrUpdater,
-          previousStoreState.settingsState
-        );
+      const previousStoreState = annotationsStore.getState();
+      const nextSettingsState = resolveSetStateAction(
+        nextValueOrUpdater,
+        previousStoreState.settingsState
+      );
 
-        return Object.is(nextSettingsState, previousStoreState.settingsState)
-          ? previousStoreState
-          : {
-              ...previousStoreState,
-              settingsState: nextSettingsState,
-            };
-      });
+      if (Object.is(nextSettingsState, previousStoreState.settingsState)) {
+        return;
+      }
+
+      annotationsStore.dispatch(
+        replaceAnnotationsStoreState({
+          ...previousStoreState,
+          settingsState: nextSettingsState,
+        })
+      );
     },
     [annotationsStore]
   );

@@ -1,10 +1,12 @@
-import maplibregl from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState } from "react";
+
+import maplibregl from "maplibre-gl";
+
+import { WUPPERTAL_PREVIEW_STYLE } from "../constants/wuppertalDefaultStyle";
 import { useLibreContext } from "../contexts/LibreContext";
 import { useClusterMarkers } from "../hooks/useClusterMarkers";
-import { WUPPERTAL_PREVIEW_STYLE } from "../constants/wuppertalDefaultStyle";
 
+import "maplibre-gl/dist/maplibre-gl.css";
 interface PreviewLibreMapProps {
   lat?: number;
   lng?: number;

@@ -1,4 +1,3 @@
-import { Cartesian3, getDegreesFromCartesian } from "@carma/cesium";
 import {
   type CandidateConnectionPreview,
   LINE_TYPE_CARTESIAN,
@@ -10,9 +9,10 @@ import {
   type PointAnnotationEntry,
   type PointDistanceRelation,
 } from "@carma-mapping/annotations/core";
+import { Cartesian3 } from "@carma-cesium";
+import { getDegreesFromCartesian } from "@carma-mapping/engines/cesium/core";
 
 import type { EdgeSceneLineRenderModel } from "../scene/visualization.types";
-
 const DEFAULT_LINE_TYPE: LineType = LINE_TYPE_CARTESIAN;
 
 const DEFAULT_EDGE_SCENE_LINE_STYLES = {

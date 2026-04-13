@@ -4,7 +4,10 @@ import { createLogger } from "redux-logger";
 import { persistReducer } from "redux-persist";
 import localForage from "localforage";
 
-import { getCesiumConfig, cesiumReducer } from "@carma-mapping/engines/cesium";
+import {
+  getCesiumConfig,
+  cesiumReducer,
+} from "@carma-mapping/engines/cesium/legacy";
 
 import { APP_KEY, STORAGE_PREFIX } from "../config";
 import { defaultCesiumState } from "../config/cesium/store.config";
@@ -53,11 +56,13 @@ if (stateLoggingEnabled === true) {
   middleware = (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: false,
+      immutableCheck: false,
     }).concat(logger);
 } else {
   middleware = (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: false,
+      immutableCheck: false,
     });
 }
 

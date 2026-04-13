@@ -1,28 +1,28 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
-  applyRollToHeadingForCameraNearNadir,
   Cartesian3,
-  CesiumMath,
   HeadingPitchRange,
   Matrix4,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
-} from "@carma/cesium";
-
-import type { Radians, Meters } from "@carma/units/types";
-
-import { useCesiumContext } from "../../../hooks/useCesiumContext";
-
+  CesiumMath,
+} from "@carma-cesium";
 import {
+  applyRollToHeadingForCameraNearNadir,
   animateCamera,
+  cancelSceneAnimation,
   getHeadingPitchForMouseEvent,
   PITCH,
-} from "../../../utils/cesiumAnimateOrbits";
+} from "@carma-mapping/engines/cesium/core";
+import type { Radians, Meters } from "@carma-units";
+
+import { useCesiumContext } from "../../../hooks/useCesiumContext";
 import { guardCamera } from "../../../utils/guardCamera";
 import { isValidScreenSpaceEventHandler } from "../../../utils/instanceGates";
-import { cancelSceneAnimation } from "../../../utils/sceneAnimationMap";
 import { pickSceneCenter } from "../../../utils/pick-position/pick-scene-positions";
 import { Needle } from "./Needle";
+
+let hasWarnedAboutLegacyPitchingCompass = false;
 
 interface RotateButtonProps {
   minPitch?: Radians;
@@ -51,6 +51,17 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
   pitchOblique = PITCH.OBLIQUE,
   headingFactor = 1,
 }) => {
+  useEffect(() => {
+    if (hasWarnedAboutLegacyPitchingCompass) {
+      return;
+    }
+
+    hasWarnedAboutLegacyPitchingCompass = true;
+    console.warn(
+      "[DEPRECATED] legacy Cesium PitchingCompass is deprecated. Migrate to @carma-mapping/engines-interop/navigation-controls."
+    );
+  }, []);
+
   const cesiumCtx = useCesiumContext();
   const { sceneAnimationMapRef } = cesiumCtx;
   const [isControlMouseDown, setIsControlMouseDown] = useState(false);
@@ -181,34 +192,26 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
     });
   }, [cesiumCtx, durationReset, initialRange, sceneAnimationMapRef]);
 
+  const registerNeedleOrientation = useCallback(
+    (setOrientation: (p: Radians, h: Radians) => void) => {
+      needleOrientationRef.current = setOrientation;
+    },
+    []
+  );
+
   useEffect(() => {
     const animationMap = sceneAnimationMapRef.current;
     let cleanup;
     cesiumCtx.withScene((scene) => {
       const camera = scene.camera;
-      const getCameraOrientation = () => {
-        // TODO why double withCamera here in original code?
-        needleOrientationRef.current?.(
-          camera.pitch as Radians,
-          camera.heading as Radians
-        );
-      };
-
       try {
         const handler = new ScreenSpaceEventHandler(scene.canvas);
         handler.setInputAction(() => {
           cancelSceneAnimation(scene, animationMap);
         }, ScreenSpaceEventType.LEFT_DOWN);
 
-        guardCamera(camera, "compass setup").changed.addEventListener(
-          getCameraOrientation
-        );
-
         cleanup = () => {
           isValidScreenSpaceEventHandler(handler) && handler.destroy();
-          guardCamera(camera, "compass cleanup").changed.removeEventListener(
-            getCameraOrientation
-          );
         };
       } catch (error) {
         console.warn("Error setting up screen space event handler:", error);
@@ -239,6 +242,7 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
           applyRollToHeadingForCameraNearNadir(camera)
         );
       };
+      updateOrientation();
       camera.percentageChanged = 0.01;
       guardCamera(camera).changed.addEventListener(updateOrientation);
 
@@ -269,7 +273,7 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
         alignItems: "center",
       }}
     >
-      <Needle register={(fn) => (needleOrientationRef.current = fn)} />
+      <Needle register={registerNeedleOrientation} />
     </div>
   );
 };

@@ -1,19 +1,21 @@
 import { useEffect, useRef, useState } from "react";
+
 import { Switch, Tooltip } from "antd";
+
+import { EditableMetricValue } from "@carma-commons/ui/components";
 import {
   LINEAR_SEGMENT_LINE_MODE_COMPONENTS,
   LINEAR_SEGMENT_LINE_MODE_DIRECT,
 } from "@carma-mapping/annotations/core";
-import { EditableMetricValue } from "@carma-commons/ui/components";
+
 import type { AnnotationToolbarPolylineProps } from "../../AnnotationModeToolbar.types";
 import { optionsLabelStyle } from "../../shared";
 import { annotationTooltipProps } from "../../../shared/annotationTooltip";
-import { ToolOptionsSection } from "./ToolOptionsSection";
 import {
   SEGMENT_LINE_MODE_OPTIONS,
   segmentLineModeOptionButtonStyle,
 } from "./segmentLineModeOptions";
-
+import { ToolOptionsSection } from "./ToolOptionsSection";
 type PolylineToolOptionsProps = {
   polyline?: AnnotationToolbarPolylineProps;
 };

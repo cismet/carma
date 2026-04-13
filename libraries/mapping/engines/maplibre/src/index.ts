@@ -2,6 +2,7 @@
 // MapLibre GL JS integration for CARMA mapping framework
 
 export const MAPLIBRE_ENGINE_VERSION = "0.0.1";
+export * from "./lib/contracts/maplibre-style.d";
 
 // Components
 export { LibreMap } from "./components/LibreMap";
@@ -160,6 +161,12 @@ export {
   WUPPERTAL_PREVIEW_STYLE,
   type CityMapConfig,
 } from "./constants/wuppertalDefaultStyle";
+
+export {
+  DEFAULT_MAPLIBRE_FOV_DEG,
+  DEFAULT_MAPLIBRE_PITCH_MAX_DEG,
+  DEFAULT_MAPLIBRE_PITCH_MIN_DEG,
+} from "./constants/cameraDefaults";
 
 // Three.js layer management
 export { ThreeLayerManager, get3dLayers } from "./components/ThreeLayerManager";

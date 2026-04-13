@@ -21,12 +21,12 @@ import {
   MapFrameworkSwitcherProvider,
   MobileWarningMessage,
 } from "@carma-mapping/components";
+import { useCesiumDevConsoleTrigger } from "@carma-mapping/engines/cesium/react/interactions";
 import {
   FeatureFlagProvider,
   useFeatureFlags,
 } from "@carma-providers/feature-flag";
 import { HashStateProvider } from "@carma-providers/hash-state";
-import { useCesiumDevConsoleTrigger } from "@carma-mapping/engines/cesium";
 import {
   MapMeasurementsProvider,
   MEASUREMENT_MODE,
@@ -55,6 +55,11 @@ import store from "./store";
 import { featureFlagConfig } from "./config/featureFlags";
 
 import { OBLIQUE_CONFIG, CAMERA_ID_TO_DIRECTION } from "./oblique/config";
+import {
+  getHashParams,
+  HASH_LAUNCH_MODE,
+  resolveHashLaunchMode,
+} from "@carma-commons/utils";
 
 // Stable config objects
 const MEASUREMENTS_BASE_CONFIG = {
@@ -81,6 +86,17 @@ import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import "./index.css";
 // import { setDrawingShape } from "./store/slices/measurements";
+
+const readInitialFrameworkFromHash = (): "leaflet" | "cesium" => {
+  if (typeof window === "undefined") {
+    return "leaflet";
+  }
+
+  const mode = resolveHashLaunchMode(getHashParams(), {
+    defaultMode: HASH_LAUNCH_MODE.TWO_D,
+  });
+  return mode === HASH_LAUNCH_MODE.THREE_D ? "cesium" : "leaflet";
+};
 
 function CesiumDevConsoleIntegration() {
   const flags = useFeatureFlags();
@@ -158,6 +174,7 @@ function App({ published }: { published?: boolean }) {
     () => ({ background: backgroundSettings }),
     []
   );
+  const initialFramework = readInitialFrameworkFromHash();
 
   if (isLoadingConfig === null) {
     // wait for the loading state to be determined to prevent re-rendering
@@ -170,7 +187,7 @@ function App({ published }: { published?: boolean }) {
       <FeatureFlagProvider config={featureFlagsMergedConfig}>
         <MatomoTracker>
           <CesiumDevConsoleIntegration />
-          <MapFrameworkSwitcherProvider initialFramework="leaflet">
+          <MapFrameworkSwitcherProvider initialFramework={initialFramework}>
             <CarmaMapProviderWrapper
               cesiumOptions={CESIUM_CONFIG}
               overlayOptions={overlayOptions}

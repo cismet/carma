@@ -1,7 +1,30 @@
 // Bring in ambient Window globals for consumers of this package
 import "./types/env";
 
-export * from "./index.d";
+export type {
+  CameraPositionAndOrientation,
+  CesiumOptions,
+  GeoJsonConfig,
+  TerrainProviderConfig,
+  SceneStyle,
+  SceneStyles,
+  CesiumConfig,
+  CesiumState,
+  RootState,
+  SceneStateDescription,
+  AppState,
+} from "./index.d";
+export type {
+  MarkerData,
+  Marker3dData,
+  MarkerPrimitiveData,
+  MarkerModelAsset,
+  ParsedMarkerModelAsset,
+  PolylineConfig,
+  MarkerOptions,
+} from "./extensions/markers";
+
+export { createModelEntityConstructorOptions } from "./loaders/model";
 
 export * from "./slices/cesium";
 
@@ -15,8 +38,8 @@ export {
 
 export {
   CustomViewer,
-  type InitialCameraView,
   type CameraLimiterOptions,
+  type InitialCameraView,
 } from "./CustomViewer";
 export { DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS } from "./viewerDefaults";
 
@@ -24,7 +47,6 @@ export { ByGeojsonClassifier } from "./components/ByGeojsonClassifier";
 export { ByTilesetClassifier } from "./components/ByTilesetClassifier";
 
 export { Compass } from "./components/controls/Compass";
-export { HomeControl } from "./components/controls/HomeControl";
 export { MarkerContainer } from "./components/MarkerContainer";
 export { PitchingCompass } from "./components/controls/PitchingCompass";
 export { SceneStyleToggle } from "./components/controls/SceneStyleToggle";
@@ -33,14 +55,10 @@ export {
   useCesiumContext,
   useCesiumContextOptional,
 } from "./hooks/useCesiumContext";
-export { useCesiumCameraForceOblique } from "./hooks/useCameraForceOblique";
 export {
   useCesiumModelManager,
   type UseCesiumModelManagerOptions,
 } from "./hooks/useCesiumModelManager";
-export { useHomeControl } from "./hooks/useHomeControl";
-export { useCesiumInitialCameraFromSearchParams } from "./hooks/useCesiumInitialCameraFromSearchParams";
-export { useFovWheelZoom } from "./hooks/useFovWheelZoom";
 export { useGeometryInstanceOpacityAnimation } from "./hooks/useGeometryInstanceOpacityAnimation";
 export { useSceneStyles } from "./hooks/useSceneStyles";
 export { useZoomControls } from "./hooks/useZoomControls";
@@ -49,7 +67,6 @@ export { VIEWERSTATE_KEYS } from "./constants";
 export { CUSTOM_SHADERS_DEFINITIONS } from "./shaders";
 
 // Hooks for app integration
-export { useCesiumDevConsoleTrigger } from "./hooks/useCesiumDevConsoleTrigger";
 export { useReloadOnCesiumRenderError } from "./hooks/useReloadOnCesiumRenderError";
 
 // Marker utilities

@@ -6,7 +6,6 @@ import {
   type AnnotationCollection,
   type AnnotationMode,
 } from "@carma-mapping/annotations/core";
-
 type AnnotationCreateDefaultsState = Partial<Record<AnnotationMode, string>>;
 
 const buildInitialAnnotationCreateDefaults = (

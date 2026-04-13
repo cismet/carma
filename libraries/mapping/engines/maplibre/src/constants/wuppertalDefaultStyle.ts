@@ -1,6 +1,6 @@
 import type { StyleSpecification } from "maplibre-gl";
-import { slugifyUrl } from "../utils/styleComposer";
 
+import { slugifyUrl } from "../utils/styleComposer";
 /**
  * Configuration for creating a city-specific MapLibre default style.
  * Other cities can define their own config and use createDefaultStyle().

@@ -1,9 +1,9 @@
+import { Ray, Vector3 } from "three";
+
 import {
   createAxisDragConnector,
   type GizmoAxisDragConnector,
 } from "./axisDragConnector";
-import { Ray, Vector3 } from "three";
-
 export type GizmoCssAxisSnapshot = {
   axisParam: number;
   isDragging: boolean;

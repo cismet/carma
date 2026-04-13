@@ -9,6 +9,8 @@ const initialState = {
   inSearchMode: true,
   inSearchWishedMode: true,
   zoom: -1,
+  enabledLeitungstypen: {} as Record<number, boolean>,
+  enabledCategoryFilters: {} as Record<string, boolean>,
 };
 export const searchMinimumZoomThreshhold = 18;
 
@@ -44,6 +46,28 @@ const slice = createSlice({
     setWishedSearchMode(state, action) {
       state.inSearchWishedMode = action.payload;
     },
+    setLeitungstypEnabled(
+      state,
+      action: { payload: { id: number; enabled: boolean } }
+    ) {
+      state.enabledLeitungstypen[action.payload.id] = action.payload.enabled;
+    },
+    setAllLeitungstypen(state, action: { payload: Record<number, boolean> }) {
+      state.enabledLeitungstypen = action.payload;
+    },
+    setCategoryFilterEnabled(
+      state,
+      action: { payload: { key: string; enabled: boolean } }
+    ) {
+      state.enabledCategoryFilters[action.payload.key] =
+        action.payload.enabled;
+    },
+    setAllCategoryFilters(
+      state,
+      action: { payload: Record<string, boolean> }
+    ) {
+      state.enabledCategoryFilters = action.payload;
+    },
   },
 });
 
@@ -58,6 +82,10 @@ export const {
   setZoom,
   setSearchMode,
   setWishedSearchMode,
+  setLeitungstypEnabled,
+  setAllLeitungstypen,
+  setCategoryFilterEnabled,
+  setAllCategoryFilters,
 } = slice.actions;
 
 export const getActiveBackgroundLayer = (state) => {
@@ -96,4 +124,12 @@ export const isSearchForbidden = (state) => {
   }
 
   return zoom >= searchMinimumZoomThreshhold && isInSearchMode;
+};
+
+export const getEnabledLeitungstypen = (state) => {
+  return state.mapSettings.enabledLeitungstypen;
+};
+
+export const getEnabledCategoryFilters = (state) => {
+  return state.mapSettings.enabledCategoryFilters;
 };

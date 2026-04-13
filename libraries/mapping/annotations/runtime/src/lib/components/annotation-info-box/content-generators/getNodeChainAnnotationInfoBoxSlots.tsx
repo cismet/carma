@@ -1,5 +1,5 @@
 import { type MouseEvent as ReactMouseEvent } from "react";
-import { Switch, Tooltip } from "antd";
+
 import {
   faDownload,
   faEye,
@@ -8,7 +8,10 @@ import {
   faLockOpen,
   faTrashCan,
 } from "@fortawesome/free-solid-svg-icons";
+import { Switch, Tooltip } from "antd";
+
 import Icon from "react-cismap/commons/Icon";
+
 import {
   ANNOTATION_TYPE_AREA_GROUND,
   ANNOTATION_TYPE_AREA_PLANAR,
@@ -17,12 +20,22 @@ import {
   ANNOTATION_TYPE_POLYLINE,
   LINEAR_SEGMENT_LINE_MODE_COMPONENTS,
   LINEAR_SEGMENT_LINE_MODE_DIRECT,
-  formatAreaAdaptive,
-  formatNumber,
   type DerivedPolylinePath,
   type NodeChainAnnotation,
 } from "@carma-mapping/annotations/core";
+import {
+  formatAreaSquareMetersAdaptive,
+  formatDegrees,
+  formatLengthMeters,
+  LENGTH_UNIT_MODE,
+} from "@carma-units";
+
 import { formatBearingToGermanSectorLabel } from "../AnnotationInfoBox.formatters";
+import type {
+  AnnotationInfoBoxEntryPayload,
+  AnnotationSlots,
+  PolylineSummary,
+} from "../annotationInfoBoxSlots.types";
 import {
   AnnotationInfoBoxActionIcon,
   AnnotationInfoTitleInput,
@@ -34,12 +47,6 @@ import {
   INFO_BOX_BODY_TEXT_CLASSNAME,
   stopInputEventPropagation,
 } from "./shared";
-import type {
-  AnnotationInfoBoxEntryPayload,
-  AnnotationSlots,
-  PolylineSummary,
-} from "../annotationInfoBoxSlots.types";
-
 const NODE_CHAIN_TYPE_TITLE_BY_KIND: Record<
   NodeChainAnnotation["type"],
   string
@@ -120,7 +127,11 @@ const getNodeChainMetricContent = (input: AnnotationInfoBoxEntryPayload) => {
     return (
       <div className={`w-full px-2 pb-1 ${INFO_BOX_BODY_TEXT_CLASSNAME}`}>
         <div className="mb-1">
-          Gesamtlänge: {formatNumber(totalLengthMeters)} m
+          Gesamtlänge:{" "}
+          {formatLengthMeters(totalLengthMeters, {
+            locale: "de-DE",
+            unitMode: LENGTH_UNIT_MODE.METERS,
+          })}
         </div>
         <div
           className="mb-1 flex items-center gap-2"
@@ -149,30 +160,48 @@ const getNodeChainMetricContent = (input: AnnotationInfoBoxEntryPayload) => {
             <div className="mb-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
               <span className="text-gray-500">Aufstieg:</span>
               <span className="tabular-nums">
-                {formatNumber(polylineSummary.ascentMeters)} m
+                {formatLengthMeters(polylineSummary.ascentMeters, {
+                  locale: "de-DE",
+                  unitMode: LENGTH_UNIT_MODE.METERS,
+                })}
               </span>
               <span className="text-gray-500">Abstieg:</span>
               <span className="tabular-nums">
-                {formatNumber(polylineSummary.descentMeters)} m
+                {formatLengthMeters(polylineSummary.descentMeters, {
+                  locale: "de-DE",
+                  unitMode: LENGTH_UNIT_MODE.METERS,
+                })}
               </span>
               <span className="text-gray-500">Summe:</span>
               <span className="tabular-nums">
-                {formatNumber(
-                  polylineSummary.totalAbsoluteElevationChangeMeters
-                )}{" "}
-                m
+                {formatLengthMeters(
+                  polylineSummary.totalAbsoluteElevationChangeMeters,
+                  {
+                    locale: "de-DE",
+                    unitMode: LENGTH_UNIT_MODE.METERS,
+                  }
+                )}
               </span>
             </div>
             <div className="mb-1">
               <span className="text-gray-500 mr-1">Δ Start/Ende:</span>
               <span className="tabular-nums">
-                {formatNumber(polylineSummary.startEndElevationDeltaMeters)} m
+                {formatLengthMeters(
+                  polylineSummary.startEndElevationDeltaMeters,
+                  {
+                    locale: "de-DE",
+                    unitMode: LENGTH_UNIT_MODE.METERS,
+                  }
+                )}
               </span>
             </div>
             <div className="mb-1">
               <span className="text-gray-500 mr-1">Ø Segmentlänge:</span>
               <span className="tabular-nums">
-                {formatNumber(polylineSummary.meanSegmentLengthMeters)} m
+                {formatLengthMeters(polylineSummary.meanSegmentLengthMeters, {
+                  locale: "de-DE",
+                  unitMode: LENGTH_UNIT_MODE.METERS,
+                })}
               </span>
             </div>
             <div>
@@ -200,13 +229,21 @@ const getNodeChainMetricContent = (input: AnnotationInfoBoxEntryPayload) => {
         <span>
           {areaLabel}:{" "}
           <span className="tabular-nums">
-            {formatAreaAdaptive(Math.max(0, annotation.areaSquareMeters ?? 0))}
+            {formatAreaSquareMetersAdaptive(
+              Math.max(0, annotation.areaSquareMeters ?? 0),
+              {
+                locale: "de-DE",
+              }
+            )}
           </span>
         </span>
         <span>
           Umfang:{" "}
           <span className="tabular-nums">
-            {formatNumber(totalLengthMeters)} m
+            {formatLengthMeters(totalLengthMeters, {
+              locale: "de-DE",
+              unitMode: LENGTH_UNIT_MODE.METERS,
+            })}
           </span>
         </span>
       </div>
@@ -217,7 +254,12 @@ const getNodeChainMetricContent = (input: AnnotationInfoBoxEntryPayload) => {
       ) : null}
       {annotation.type === ANNOTATION_TYPE_AREA_PLANAR &&
       Number.isFinite(annotation.verticalityDeg) ? (
-        <div>Vertikalität: {formatNumber(annotation.verticalityDeg ?? 0)}°</div>
+        <div>
+          Vertikalität:{" "}
+          {formatDegrees(annotation.verticalityDeg ?? 0, {
+            locale: "de-DE",
+          })}
+        </div>
       ) : null}
     </div>
   );
@@ -233,92 +275,83 @@ const stopHeadingActionPropagation = (
 
 const renderNodeChainHeadingActions = (
   input: AnnotationInfoBoxEntryPayload
-) => (
-  <div
-    className="flex items-center gap-2"
-    onMouseDown={stopInputEventPropagation}
-    onClick={stopInputEventPropagation}
-  >
-    <Tooltip {...annotationTooltipProps} title="Zur Messung fliegen">
-      <Icon
-        name="search-location"
-        onClick={(event: ReactMouseEvent<HTMLElement, MouseEvent>) => {
+) => {
+  const annotationLockedById = new Map(
+    input.annotations.map((entry) => [entry.id, Boolean(entry.locked)] as const)
+  );
+  const isLocked =
+    Boolean(input.nodeChainAnnotation) &&
+    input.nodeChainAnnotation.nodeIds.length > 0 &&
+    input.nodeChainAnnotation.nodeIds.every((nodeId) =>
+      Boolean(annotationLockedById.get(nodeId))
+    );
+
+  return (
+    <div
+      className="flex items-center gap-2"
+      onMouseDown={stopInputEventPropagation}
+      onClick={stopInputEventPropagation}
+    >
+      <Tooltip {...annotationTooltipProps} title="Zur Messung fliegen">
+        <Icon
+          name="search-location"
+          onClick={(event: ReactMouseEvent<HTMLElement, MouseEvent>) => {
+            stopHeadingActionPropagation(event);
+            if (!input.nodeChainAnnotation) return;
+            input.actions.flyToById(input.nodeChainAnnotation.id);
+          }}
+          className={INFO_BOX_ACTION_ICON_CLASSNAME}
+          data-test-id="carma-flyto-node-chain-annotation-btn"
+        />
+      </Tooltip>
+      <AnnotationInfoBoxActionIcon
+        title="Als GeoJSON exportieren"
+        icon={faDownload}
+        onClick={(event) => {
           stopHeadingActionPropagation(event);
           if (!input.nodeChainAnnotation) return;
-          input.actions.flyToById(input.nodeChainAnnotation.id);
+          input.actions.exportGeoJsonById(input.nodeChainAnnotation.id);
         }}
-        className={INFO_BOX_ACTION_ICON_CLASSNAME}
-        data-test-id="carma-flyto-node-chain-annotation-btn"
+        dataTestId="carma-export-node-chain-annotation-geojson-btn"
       />
-    </Tooltip>
-    <AnnotationInfoBoxActionIcon
-      title="Als GeoJSON exportieren"
-      icon={faDownload}
-      onClick={(event) => {
-        stopHeadingActionPropagation(event);
-        if (!input.nodeChainAnnotation) return;
-        input.actions.exportGeoJsonById(input.nodeChainAnnotation.id);
-      }}
-      dataTestId="carma-export-node-chain-annotation-geojson-btn"
-    />
-    <AnnotationInfoBoxActionIcon
-      title={input.nodeChainAnnotation?.hidden ? "Einblenden" : "Ausblenden"}
-      icon={input.nodeChainAnnotation?.hidden ? faEyeSlash : faEye}
-      onClick={(event) => {
-        stopHeadingActionPropagation(event);
-        if (!input.nodeChainAnnotation) return;
-        input.actions.toggleVisibilityByIds([input.nodeChainAnnotation.id]);
-      }}
-      dataTestId="carma-toggle-node-chain-annotation-visibility-btn"
-    />
-    <AnnotationInfoBoxActionIcon
-      title={(() => {
-        if (!input.nodeChainAnnotation) return "Sperren";
-        const annotationLockedById = new Map(
-          input.annotations.map(
-            (entry) => [entry.id, Boolean(entry.locked)] as const
-          )
-        );
-        const isLocked =
-          input.nodeChainAnnotation.nodeIds.length > 0 &&
-          input.nodeChainAnnotation.nodeIds.every((nodeId) =>
-            Boolean(annotationLockedById.get(nodeId))
-          );
-        return isLocked ? "Entsperren" : "Sperren";
-      })()}
-      icon={(() => {
-        if (!input.nodeChainAnnotation) return faLockOpen;
-        const annotationLockedById = new Map(
-          input.annotations.map(
-            (entry) => [entry.id, Boolean(entry.locked)] as const
-          )
-        );
-        const isLocked =
-          input.nodeChainAnnotation.nodeIds.length > 0 &&
-          input.nodeChainAnnotation.nodeIds.every((nodeId) =>
-            Boolean(annotationLockedById.get(nodeId))
-          );
-        return isLocked ? faLock : faLockOpen;
-      })()}
-      onClick={(event) => {
-        stopHeadingActionPropagation(event);
-        if (!input.nodeChainAnnotation) return;
-        input.actions.toggleLockByIds([input.nodeChainAnnotation.id]);
-      }}
-      dataTestId="carma-toggle-node-chain-annotation-lock-btn"
-    />
-    <AnnotationInfoBoxActionIcon
-      title="Löschen"
-      icon={faTrashCan}
-      onClick={(event) => {
-        stopHeadingActionPropagation(event);
-        if (!input.nodeChainAnnotation) return;
-        input.actions.removeByIds([input.nodeChainAnnotation.id]);
-      }}
-      dataTestId="carma-delete-node-chain-annotation-btn"
-    />
-  </div>
-);
+      <AnnotationInfoBoxActionIcon
+        title={input.nodeChainAnnotation?.hidden ? "Einblenden" : "Ausblenden"}
+        icon={input.nodeChainAnnotation?.hidden ? faEyeSlash : faEye}
+        onClick={(event) => {
+          stopHeadingActionPropagation(event);
+          if (!input.nodeChainAnnotation) return;
+          input.actions.toggleVisibilityByIds([input.nodeChainAnnotation.id]);
+        }}
+        dataTestId="carma-toggle-node-chain-annotation-visibility-btn"
+        fixedWidth={true}
+      />
+      <AnnotationInfoBoxActionIcon
+        title={isLocked ? "Entsperren" : "Sperren"}
+        icon={isLocked ? faLock : faLockOpen}
+        onClick={(event) => {
+          stopHeadingActionPropagation(event);
+          if (!input.nodeChainAnnotation) return;
+          input.actions.toggleLockByIds([input.nodeChainAnnotation.id]);
+        }}
+        dataTestId="carma-toggle-node-chain-annotation-lock-btn"
+        fixedWidth={true}
+      />
+      <AnnotationInfoBoxActionIcon
+        title={
+          isLocked ? "Gesperrte Messung kann nicht gelöscht werden" : "Löschen"
+        }
+        icon={faTrashCan}
+        onClick={(event) => {
+          stopHeadingActionPropagation(event);
+          if (!input.nodeChainAnnotation) return;
+          input.actions.removeByIds([input.nodeChainAnnotation.id]);
+        }}
+        dataTestId="carma-delete-node-chain-annotation-btn"
+        disabled={isLocked}
+      />
+    </div>
+  );
+};
 
 export const getNodeChainAnnotationInfoBoxSlots = (
   input: AnnotationInfoBoxEntryPayload

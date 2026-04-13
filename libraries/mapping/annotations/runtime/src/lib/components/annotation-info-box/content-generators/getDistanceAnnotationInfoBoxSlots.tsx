@@ -1,4 +1,3 @@
-import { Cartesian3, CarmaTransforms } from "@carma/cesium";
 import {
   ANNOTATION_TYPE_DISTANCE,
   ANNOTATION_TYPE_POINT,
@@ -7,12 +6,20 @@ import {
   isDistancePointEntry,
   type AnnotationPointEntry,
 } from "@carma-mapping/annotations/core";
-import { formatNumber } from "@carma-mapping/annotations/core";
+import { Cartesian3 } from "@carma-cesium";
+import { CarmaTransforms } from "@carma-mapping/engines/cesium/core";
+import { formatLengthMeters, LENGTH_UNIT_MODE } from "@carma-units";
+
 import type {
   AnnotationSlots,
   AnnotationInfoBoxEntryPayload,
   DistanceTableRow,
 } from "../annotationInfoBoxSlots.types";
+import {
+  findReferencePointMeasurement,
+  isPointReferenceMeasurement,
+  resolvePointAnnotationDisplayPoint,
+} from "../utils/pointAnnotationDisplay";
 import {
   DISTANCE_TITLE,
   getDistanceInstructionText,
@@ -20,12 +27,6 @@ import {
   renderDistanceTableContent,
   renderEditableAnnotationSubtitle,
 } from "./shared";
-import {
-  findReferencePointMeasurement,
-  isPointReferenceMeasurement,
-  resolvePointAnnotationDisplayPoint,
-} from "../utils/pointAnnotationDisplay";
-
 const getNodeChainNodeIdSet = (
   input: Pick<
     AnnotationInfoBoxEntryPayload,
@@ -253,7 +254,10 @@ export const getDistanceAnnotationInfoBoxSlots = (
       displayPoint,
       subtitleMetaText:
         subtitleDirectDistanceMeters !== null
-          ? `${formatNumber(subtitleDirectDistanceMeters)} m`
+          ? formatLengthMeters(subtitleDirectDistanceMeters, {
+              locale: "de-DE",
+              unitMode: LENGTH_UNIT_MODE.METERS,
+            })
           : null,
       isReference,
       actions: input.actions,

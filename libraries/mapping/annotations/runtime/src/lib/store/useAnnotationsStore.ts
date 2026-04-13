@@ -1,11 +1,17 @@
-import { createContext, useContext, useMemo } from "react";
-import { useStoreSelector } from "@carma-commons/react-store";
-import type { Cartesian3 } from "@carma/cesium";
+import {
+  createContext,
+  useContext,
+  useMemo,
+  useRef,
+  useSyncExternalStore,
+} from "react";
+
 import type {
   AnnotationCollection,
   AnnotationEntry,
   AnnotationMode,
 } from "@carma-mapping/annotations/core";
+import type { Cartesian3 } from "@carma-cesium";
 
 import type {
   AnnotationsContextType,
@@ -15,8 +21,10 @@ import type {
   AnnotationSettingsContextType,
   AnnotationToolsContextType,
 } from "../context/annotationsContext.types";
-import type { AnnotationsStore } from "./annotationsStore.types";
-
+import type {
+  AnnotationsStore,
+  AnnotationsStoreState,
+} from "./annotationsStore.types";
 const EMPTY_ANNOTATIONS: AnnotationEntry[] = [];
 
 export const AnnotationsStoreContext = createContext<
@@ -62,6 +70,30 @@ const useAnnotationsContext = (): AnnotationsContextType =>
 
 export const useAnnotationsStore = (hookName: string): AnnotationsStore =>
   useRequiredAnnotationsStore(useContext(AnnotationsStoreContext), hookName);
+
+export const useStoreSelector = <TSelected>(
+  annotationsStore: AnnotationsStore,
+  selector: (state: AnnotationsStoreState) => TSelected
+): TSelected => {
+  const selectorRef = useRef(selector);
+  selectorRef.current = selector;
+  const lastSelectedValueRef = useRef<TSelected>(
+    selector(annotationsStore.getState())
+  );
+
+  return useSyncExternalStore(
+    annotationsStore.subscribe,
+    () => {
+      const nextValue = selectorRef.current(annotationsStore.getState());
+      if (Object.is(lastSelectedValueRef.current, nextValue)) {
+        return lastSelectedValueRef.current;
+      }
+      lastSelectedValueRef.current = nextValue;
+      return nextValue;
+    },
+    () => lastSelectedValueRef.current
+  );
+};
 
 const useTable = (): AnnotationCollection => {
   const annotationsStore = useAnnotationsStore("useTable");

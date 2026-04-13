@@ -1,4 +1,4 @@
-import type { CssPixels, CssPixelDimensions } from "@carma/units/types";
+import type { CssPixels, CssPixelDimensions } from "@carma-units";
 import { isWindow } from "./isWindow";
 
 export const getWindowDimensions = (window: Window): CssPixelDimensions => {

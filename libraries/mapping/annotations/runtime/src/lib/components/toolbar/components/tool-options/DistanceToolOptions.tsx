@@ -1,12 +1,15 @@
 import type { CSSProperties, ReactNode } from "react";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+
 import { faArrowsToCircle } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Switch, Tooltip } from "antd";
+
 import {
   LINEAR_SEGMENT_LINE_MODE_COMPONENTS,
   LINEAR_SEGMENT_LINE_MODE_DIRECT,
   type LinearSegmentLineMode,
 } from "@carma-mapping/annotations/core";
+
 import type { AnnotationToolbarDistanceProps } from "../../AnnotationModeToolbar.types";
 import { INACTIVE_ICON_COLOR, toolButtonStyle } from "../../shared";
 import { annotationTooltipProps } from "../../../shared/annotationTooltip";
@@ -17,7 +20,6 @@ import {
   segmentLineModeOptionButtonStyle,
 } from "./segmentLineModeOptions";
 import { ToolOptionsSection } from "./ToolOptionsSection";
-
 type DistanceLineModePreset = LinearSegmentLineMode | "componentsWithDirect";
 
 type DistanceToolOptionsProps = {

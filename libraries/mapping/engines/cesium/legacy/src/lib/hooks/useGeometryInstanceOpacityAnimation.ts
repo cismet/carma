@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef } from "react";
 
 import type { Easing as EasingFunction } from "@carma-commons/math";
+
 import {
   animateOpacity,
   applyGeometryInstanceOpacity,
   readGeometryInstanceOpacity,
   type GeometryInstanceRef,
 } from "../utils";
-
 type OpacityAnimationConfig = {
   durationMs: number;
   easing: EasingFunction;

@@ -3,9 +3,9 @@ import {
   Color,
   Material,
   PolylineCollection,
-  isValidScene,
   type Scene,
-} from "@carma/cesium";
+} from "@carma-cesium";
+import { isValidScene } from "@carma-mapping/engines/cesium/core";
 
 export type LineVisualizerOptions = {
   start: Cartesian3;

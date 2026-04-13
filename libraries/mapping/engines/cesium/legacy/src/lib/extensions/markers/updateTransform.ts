@@ -3,14 +3,13 @@ import {
   Matrix3,
   Matrix4,
   Quaternion,
-  CesiumMath,
   Camera,
   Scene,
-} from "@carma/cesium";
-import { Radians } from "@carma/units/types";
+  CesiumMath,
+} from "@carma-cesium";
+import { Radians } from "@carma-units";
 
 import type { MarkerPrimitiveData } from "./index.d";
-
 type ScaleTranslation = {
   scale: Cartesian3;
   translation: Cartesian3;

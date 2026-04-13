@@ -1,4 +1,4 @@
-import type { CssPixelPosition } from "@carma/units/types";
+import type { CssPixelPosition } from "@carma-units";
 
 const isFiniteCssPixelPosition = (position: CssPixelPosition): boolean =>
   Number.isFinite(position.x) && Number.isFinite(position.y);

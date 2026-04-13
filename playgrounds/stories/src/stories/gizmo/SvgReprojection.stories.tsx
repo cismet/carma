@@ -1,5 +1,8 @@
-import type { Meta, StoryObj } from "@storybook/react";
 import { useMemo } from "react";
+
+import type { Meta, StoryObj } from "@storybook/react";
+
+import { ResponsiveStatusBar } from "@carma-commons/ui/components";
 import {
   projectPointToSvg,
   toSvgPathD,
@@ -7,7 +10,6 @@ import {
   type GizmoVec3,
   type SvgProjectedPoint,
 } from "@carma-mapping/gizmo/core";
-
 type SvgReprojectionProps = {
   fovDeg: number;
   zoomPx: number;
@@ -31,6 +33,8 @@ const CIRCLE_SEGMENTS = 64;
 const STAR_TIPS = 5;
 
 const toRad = (deg: number): number => (deg * Math.PI) / 180;
+const formatMatrixCell = (value: number): string =>
+  value.toFixed(3).padStart(7, " ");
 
 const buildSquarePoints = (
   center: GizmoVec3,
@@ -180,14 +184,65 @@ const SvgReprojectionStory = ({
     };
   }, [project]);
 
+  const matrixText = useMemo(
+    () =>
+      [
+        "view matrix (4x4 row-major)",
+        `[${formatMatrixCell(m00)} ${formatMatrixCell(m01)} ${formatMatrixCell(
+          m02
+        )} ${formatMatrixCell(m03)}]`,
+        `[${formatMatrixCell(m10)} ${formatMatrixCell(m11)} ${formatMatrixCell(
+          m12
+        )} ${formatMatrixCell(m13)}]`,
+        `[${formatMatrixCell(m20)} ${formatMatrixCell(m21)} ${formatMatrixCell(
+          m22
+        )} ${formatMatrixCell(m23)}]`,
+        `[${formatMatrixCell(0)} ${formatMatrixCell(0)} ${formatMatrixCell(
+          0
+        )} ${formatMatrixCell(1)}]`,
+      ].join("\n"),
+    [m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23]
+  );
+
   return (
     <div
       style={{
-        width: "100%",
+        width: "100vw",
         height: "100vh",
         background: "#0b1220",
+        position: "relative",
+        overflow: "hidden",
       }}
     >
+      <div
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          top: 0,
+          zIndex: 10,
+          pointerEvents: "none",
+        }}
+      >
+        <ResponsiveStatusBar
+          tone="dark"
+          text={
+            <pre
+              style={{
+                margin: 0,
+                width: "100%",
+                textAlign: "center",
+                whiteSpace: "pre",
+                lineHeight: 1.25,
+                fontSize: 11,
+              }}
+            >
+              {matrixText}
+            </pre>
+          }
+          barHeight="86px"
+        />
+      </div>
       <svg
         width="100%"
         height="100%"
@@ -240,7 +295,7 @@ const translationControl = {
 };
 
 const meta: Meta<SvgReprojectionProps> = {
-  title: "Gizmo/SVG Reprojection",
+  title: "Mapping Components/Gizmo",
   component: SvgReprojectionStory,
   parameters: {
     layout: "fullscreen",

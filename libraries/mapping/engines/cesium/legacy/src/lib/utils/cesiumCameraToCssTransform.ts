@@ -1,8 +1,11 @@
-import {
-  applyRollToHeadingForCameraNearNadir,
-  type Camera,
-} from "@carma/cesium";
 import { clamp } from "@carma-commons/math";
+import { type Camera } from "@carma-cesium";
+import { applyRollToHeadingForCameraNearNadir } from "@carma-mapping/engines/cesium/core";
+type PerspectiveFrustumLike = {
+  fovy?: number;
+  _fovy?: number;
+  aspectRatio?: number;
+};
 
 // Compute CSS perspective in px from an FOV angle (radians) and a DOM dimension (px)
 export function fovToCssPerspectiveByFov(
@@ -23,11 +26,7 @@ export function cssPerspectiveFromCesiumCameraForElement(
   const rect = targetEl.getBoundingClientRect();
   const w = rect.width;
   const h = rect.height;
-  const frustum = camera.frustum as unknown as {
-    fovy?: number;
-    _fovy?: number;
-    aspectRatio?: number;
-  };
+  const frustum = camera.frustum as PerspectiveFrustumLike;
   const fovy: number | undefined = frustum?.fovy ?? frustum?._fovy;
   const aspect: number = frustum?.aspectRatio ?? (w > 0 && h > 0 ? w / h : 1);
   const useW = w >= h;
@@ -79,11 +78,7 @@ export function cesiumCameraToCssTransform(
       const rect = el.getBoundingClientRect();
       const w = rect.width;
       const h = rect.height;
-      const frustum = camera.frustum as unknown as {
-        fovy?: number;
-        _fovy?: number;
-        aspectRatio?: number;
-      };
+      const frustum = camera.frustum as PerspectiveFrustumLike;
       const fovy: number | undefined = frustum?.fovy ?? frustum?._fovy;
       const aspect: number =
         frustum?.aspectRatio ?? (w > 0 && h > 0 ? w / h : 1);

@@ -1,25 +1,27 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useMemo } from "react";
+import type { CSSProperties } from "react";
+
 import { Modal } from "antd";
+
 import {
   ANNOTATION_TYPE_DISTANCE,
   ANNOTATION_TYPE_POINT,
   ANNOTATION_TYPE_POLYLINE,
-  isKeyboardTargetEditable,
   isPointAnnotationEntry,
   isPointMeasurementEntry,
 } from "@carma-mapping/annotations/core";
+
+import type { AnnotationModeToolbarProps } from "../AnnotationModeToolbar.types";
 import type { AnnotationToolManager } from "../annotationToolManager";
+import { useNodeChainAnnotations } from "../../../annotation-entries/hooks/useNodeChainAnnotationReadModel";
+import { findProtectedPolygonCandidateNodeIds } from "../../../interaction/lifecycle/modes/selectionDeletionPolicy";
 import {
   useCollection,
   useSelectionState,
   useSettings,
   useTools,
 } from "../../../store";
-import { useNodeChainAnnotations } from "../../../annotation-entries/hooks/useNodeChainAnnotationReadModel";
 import { useToolbarToolMode } from "./useToolbarToolMode";
-import type { AnnotationModeToolbarProps } from "../AnnotationModeToolbar.types";
-import type { CSSProperties } from "react";
-
 type UseToolbarModelOptions = {
   pixelWidth?: number;
   toolManager?: AnnotationToolManager;
@@ -31,41 +33,11 @@ type UseToolbarModelOptions = {
   secondaryToolbarDirection?: "down" | "right";
 };
 
-const findProtectedPolygonCandidateNodeIds = (
-  selectedPointIds: ReadonlySet<string>,
-  nodeChainAnnotations: ReturnType<typeof useNodeChainAnnotations>
-): string[] | null => {
-  const protectedPolygonCandidate = nodeChainAnnotations.find((group) => {
-    if (!group.closed || group.nodeIds.length > 3) {
-      return false;
-    }
-    const nodeIds = group.nodeIds.filter((nodeId): nodeId is string =>
-      Boolean(nodeId)
-    );
-    if (nodeIds.length === 0) {
-      return false;
-    }
-    const includesAnyNode = nodeIds.some((nodeId) =>
-      selectedPointIds.has(nodeId)
-    );
-    if (!includesAnyNode) {
-      return false;
-    }
-    const includesAllNodes = nodeIds.every((nodeId) =>
-      selectedPointIds.has(nodeId)
-    );
-    return !includesAllNodes;
-  });
-
-  return protectedPolygonCandidate?.nodeIds ?? null;
-};
-
 export const useToolbarModel = ({
   pixelWidth = 350,
   toolManager,
   showPrimaryToolbar = true,
   showSecondaryToolbar = true,
-  enableMultiDeleteHotkey = true,
   secondaryToolbarContainerStyle,
   secondaryToolbarCollapsedByDefault = false,
   secondaryToolbarDirection = "down",
@@ -213,31 +185,6 @@ export const useToolbarModel = ({
       },
     });
   }, [annotations, hasAnyAnnotations]);
-
-  useEffect(() => {
-    if (!enableMultiDeleteHotkey) return;
-
-    const handleMultiDeleteKey = (event: KeyboardEvent) => {
-      if (event.key !== "Delete" && event.key !== "Backspace") return;
-      if (event.defaultPrevented) return;
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
-      if (isKeyboardTargetEditable(event.target)) return;
-      if (deletableSelectedPointCount <= 1) return;
-
-      event.preventDefault();
-      event.stopPropagation();
-      requestDeleteSelected();
-    };
-
-    window.addEventListener("keydown", handleMultiDeleteKey, true);
-    return () => {
-      window.removeEventListener("keydown", handleMultiDeleteKey, true);
-    };
-  }, [
-    deletableSelectedPointCount,
-    enableMultiDeleteHotkey,
-    requestDeleteSelected,
-  ]);
 
   const { activeToolType, handleToolTypeChange } = useToolbarToolMode(
     tools.activeToolType,

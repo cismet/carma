@@ -1,10 +1,11 @@
 import { useEffect, useState, useRef } from "react";
-import type { Viewer } from "cesium";
+
 import { CesiumTerrainProvider } from "cesium";
+import type { Viewer } from "cesium";
 
-import { useCesiumContext } from "@carma-mapping/engines/cesium";
+import { useCesiumContext } from "@carma-mapping/engines/cesium/legacy";
+
 import { prepareSceneForHGK } from "../utils/scene";
-
 const MAX_RETRIES = 5;
 const RETRY_DELAY = 100;
 

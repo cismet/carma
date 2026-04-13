@@ -9,7 +9,7 @@ import {
   type SelectionItem,
   type Settings,
 } from "@carma-appframeworks/portals";
-import type { BackgroundLayer, Layer } from "@carma/types";
+import type { BackgroundLayer, Layer } from "@carma-mapping/layers";
 import { updateHashHistoryState, getHashParams } from "@carma-commons/utils";
 
 import {

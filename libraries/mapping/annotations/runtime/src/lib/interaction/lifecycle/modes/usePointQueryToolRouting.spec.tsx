@@ -1,13 +1,13 @@
 import { renderHook } from "@testing-library/react";
-import { Cartesian3 } from "@carma/cesium";
+import { describe, expect, it, vi } from "vitest";
+
 import {
   ANNOTATION_TYPE_POLYLINE,
   type AnnotationToolType,
 } from "@carma-mapping/annotations/core";
-import { describe, expect, it, vi } from "vitest";
+import { Cartesian3 } from "@carma-cesium";
 
 import { usePointQueryToolRouting } from "./usePointQueryToolRouting";
-
 describe("usePointQueryToolRouting", () => {
   it("routes multipoint tools to node-chain creation even if the session map is stale", () => {
     const handlePointAnnotationCreated = vi.fn();

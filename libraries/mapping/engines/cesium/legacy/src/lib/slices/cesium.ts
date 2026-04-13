@@ -1,14 +1,8 @@
-import {
-  Cartesian3,
-  type Cartesian3Json,
-  cartesian3FromJson,
-} from "@carma/cesium";
-import localForage from "localforage";
-import { createSelector, createSlice } from "@reduxjs/toolkit";
+import { createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
+import localForage from "localforage";
 
 import { type RootState, type CesiumState, SceneStyles } from "../..";
-
 export enum VIEWER_TRANSITION_STATE {
   NONE,
   TO3D,
@@ -18,8 +12,6 @@ export enum VIEWER_TRANSITION_STATE {
 const initialState: CesiumState = {
   isAnimating: false,
   currentTransition: VIEWER_TRANSITION_STATE.NONE,
-  homeOffset: null,
-  homePosition: null,
   showPrimaryTileset: true,
   showSecondaryTileset: false,
   styling: {
@@ -122,25 +114,10 @@ const sliceCesium = createSlice({
     setTilesetOpacity: (state: CesiumState, action: PayloadAction<number>) => {
       state.styling.tileset.opacity = action.payload;
     },
-    setHomePosition: (
-      state: CesiumState,
-      action: PayloadAction<Cartesian3Json>
-    ) => {
-      state.homePosition = action.payload;
-    },
-    setHomeOffset: (
-      state: CesiumState,
-      action: PayloadAction<Cartesian3Json>
-    ) => {
-      state.homeOffset = action.payload;
-    },
   },
 });
 
 export const {
-  setHomePosition,
-  setHomeOffset,
-
   setIsAnimating,
   clearIsAnimating,
   toggleIsAnimating,
@@ -163,61 +140,57 @@ export const {
 } = sliceCesium.actions;
 
 // selectors
+const selectCesiumState = (state: RootState | undefined) => state?.cesium;
 
-export const selectViewerIsAnimating = ({ cesium }: RootState) =>
-  cesium.isAnimating;
-export const selectViewerCurrentTransition = ({ cesium }: RootState) =>
-  cesium.currentTransition;
-export const selectViewerIsTransitioning = ({ cesium }: RootState) =>
-  cesium.currentTransition !== undefined &&
-  cesium.currentTransition !== VIEWER_TRANSITION_STATE.NONE;
+export const selectViewerIsAnimating = (state: RootState | undefined) =>
+  selectCesiumState(state)?.isAnimating ?? initialState.isAnimating;
+export const selectViewerCurrentTransition = (state: RootState | undefined) =>
+  selectCesiumState(state)?.currentTransition ?? initialState.currentTransition;
+export const selectViewerIsTransitioning = (state: RootState | undefined) =>
+  selectViewerCurrentTransition(state) !== VIEWER_TRANSITION_STATE.NONE;
 
-export const selectViewerDataSources = ({ cesium }: RootState) =>
-  cesium.dataSources;
-export const selectViewerModels = ({ cesium }: RootState) => cesium.models;
+export const selectViewerDataSources = (state: RootState | undefined) =>
+  selectCesiumState(state)?.dataSources;
+export const selectViewerModels = (state: RootState | undefined) =>
+  selectCesiumState(state)?.models;
 
-export const selectViewerHomePlain = ({ cesium }: RootState) =>
-  cesium.homePosition;
-export const selectViewerHomeOffsetPlain = ({ cesium }: RootState) =>
-  cesium.homeOffset;
+export const selectSceneStyles = (state: RootState | undefined) =>
+  selectCesiumState(state)?.sceneStyles;
+export const selectSceneStylePrimary = (state: RootState | undefined) =>
+  selectSceneStyles(state)?.primary;
+export const selectSceneStyleSecondary = (state: RootState | undefined) =>
+  selectSceneStyles(state)?.secondary;
+export const selectCurrentSceneStyle = (state: RootState | undefined) =>
+  selectCesiumState(state)?.currentSceneStyle ?? initialState.currentSceneStyle;
 
-// memoized selectors
-export const selectViewerHome: (state: RootState) => Cartesian3 | null =
-  createSelector(selectViewerHomePlain, (homePosition) => {
-    return homePosition ? cartesian3FromJson(homePosition) : null;
-  });
+export const selectScreenSpaceCameraControllerMinimumZoomDistance = (
+  state: RootState | undefined
+) =>
+  selectCesiumState(state)?.sceneSpaceCameraController?.minimumZoomDistance ??
+  initialState.sceneSpaceCameraController.minimumZoomDistance;
 
-export const selectViewerHomeOffset: (state: RootState) => Cartesian3 | null =
-  createSelector(selectViewerHomeOffsetPlain, (homeOffset) => {
-    return homeOffset ? cartesian3FromJson(homeOffset) : null;
-  });
+export const selectScreenSpaceCameraControllerMaximumZoomDistance = (
+  state: RootState | undefined
+) =>
+  selectCesiumState(state)?.sceneSpaceCameraController?.maximumZoomDistance ??
+  initialState.sceneSpaceCameraController.maximumZoomDistance;
 
-export const selectSceneStyles = ({ cesium }: RootState) => cesium.sceneStyles;
-export const selectSceneStylePrimary = ({ cesium }: RootState) =>
-  cesium?.sceneStyles?.primary;
-export const selectSceneStyleSecondary = ({ cesium }: RootState) =>
-  cesium?.sceneStyles?.secondary;
-export const selectCurrentSceneStyle = ({ cesium }: RootState) =>
-  cesium.currentSceneStyle;
+export const selectScreenSpaceCameraControllerEnableCollisionDetection = (
+  state: RootState | undefined
+) =>
+  selectCesiumState(state)?.sceneSpaceCameraController
+    ?.enableCollisionDetection ??
+  initialState.sceneSpaceCameraController.enableCollisionDetection;
 
-export const selectScreenSpaceCameraControllerMinimumZoomDistance = ({
-  cesium,
-}: RootState) => cesium.sceneSpaceCameraController.minimumZoomDistance;
-
-export const selectScreenSpaceCameraControllerMaximumZoomDistance = ({
-  cesium,
-}: RootState) => cesium.sceneSpaceCameraController.maximumZoomDistance;
-
-export const selectScreenSpaceCameraControllerEnableCollisionDetection = ({
-  cesium,
-}: RootState) => cesium.sceneSpaceCameraController.enableCollisionDetection;
-
-export const selectShowPrimaryTileset = ({ cesium }: RootState) =>
-  cesium.showPrimaryTileset;
-export const selectShowSecondaryTileset = ({ cesium }: RootState) =>
-  cesium.showSecondaryTileset;
-export const selectTilesetOpacity = ({ cesium }: RootState) =>
-  cesium.styling.tileset.opacity;
+export const selectShowPrimaryTileset = (state: RootState | undefined) =>
+  selectCesiumState(state)?.showPrimaryTileset ??
+  initialState.showPrimaryTileset;
+export const selectShowSecondaryTileset = (state: RootState | undefined) =>
+  selectCesiumState(state)?.showSecondaryTileset ??
+  initialState.showSecondaryTileset;
+export const selectTilesetOpacity = (state: RootState | undefined) =>
+  selectCesiumState(state)?.styling?.tileset?.opacity ??
+  initialState.styling.tileset.opacity;
 
 export const cesiumReducer = sliceCesium.reducer;
 

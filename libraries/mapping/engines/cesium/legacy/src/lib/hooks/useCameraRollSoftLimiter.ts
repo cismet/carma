@@ -1,11 +1,10 @@
 import { useCallback, useEffect } from "react";
 import { useDispatch } from "react-redux";
-import { CesiumMath } from "@carma/cesium";
+import { CesiumMath } from "@carma-cesium";
 
 import { clearIsAnimating, setIsAnimating } from "../slices/cesium";
-import { useCesiumViewer } from "./useCesiumViewer";
 import { useCesiumContext } from "./useCesiumContext";
-
+import { useCesiumViewer } from "./useCesiumViewer";
 const NADIR_THRESHOLD = 0.2;
 
 const useCameraRollSoftLimiter = ({
@@ -21,7 +20,8 @@ const useCameraRollSoftLimiter = ({
 } = {}) => {
   const viewer = useCesiumViewer();
   const dispatch = useDispatch();
-  const { shouldSuspendCameraLimitersRef } = useCesiumContext();
+  const { shouldSuspendCameraLimitersRef, initialViewApplied } =
+    useCesiumContext();
 
   const onComplete = useCallback(
     () => dispatch(clearIsAnimating()),
@@ -36,9 +36,11 @@ const useCameraRollSoftLimiter = ({
         );
       const moveEndListener = async () => {
         if (shouldSuspendCameraLimitersRef?.current) return;
+        if (!initialViewApplied) return;
         if (viewer.camera.position) {
+          const normalizedRoll = CesiumMath.negativePiToPi(viewer.camera.roll);
           const rollDeviation = CesiumMath.equalsEpsilon(
-            viewer.camera.roll,
+            normalizedRoll,
             0,
             0,
             rollThreshold
@@ -65,13 +67,8 @@ const useCameraRollSoftLimiter = ({
                 "LISTENER HOOK [2D3D|CESIUM|CAMERA]: flyTo reset roll 2D3D",
                 rollDeviation
               );
-            const rollDelta = Math.abs(viewer.camera.roll);
+            const rollDelta = Math.abs(normalizedRoll);
             const duration = Math.min(rollDelta, 1);
-            console.debug(
-              "Roll delta animation duration mapping",
-              rollDelta,
-              duration
-            );
             dispatch(setIsAnimating());
             viewer.camera.flyTo({
               destination: viewer.camera.position,
@@ -101,6 +98,7 @@ const useCameraRollSoftLimiter = ({
     debug,
     nadirThreshold,
     rollThreshold,
+    initialViewApplied,
     shouldSuspendCameraLimitersRef,
   ]);
 };

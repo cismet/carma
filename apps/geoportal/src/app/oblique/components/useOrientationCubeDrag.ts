@@ -3,14 +3,14 @@ import {
   Cartesian3,
   HeadingPitchRange,
   Matrix4,
-  CesiumMath,
   type Camera,
-} from "@carma/cesium";
+  CesiumMath,
+} from "@carma-cesium";
 import {
   cancelSceneAnimation,
-  pickSceneCenter,
   useCesiumContext,
-} from "@carma-mapping/engines/cesium";
+} from "@carma-mapping/engines/cesium/legacy";
+import { pickSceneCenter } from "@carma-mapping/engines/cesium/core";
 
 export type UseOrientationCubeDragParams = {
   dragThresholdPx?: number;

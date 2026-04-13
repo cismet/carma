@@ -1,6 +1,6 @@
 import { Viewer } from "cesium";
-import { useCesiumContext } from "./useCesiumContext";
 
+import { useCesiumContext } from "./useCesiumContext";
 export const useCesiumViewer = (): Viewer | undefined => {
   const { withViewer } = useCesiumContext();
   let viewer: Viewer | undefined;

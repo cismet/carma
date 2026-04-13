@@ -1,7 +1,9 @@
-import { Cartesian3, getDegreesFromCartesian } from "@carma/cesium";
 import type { GeometryCollection, Point, Polygon } from "geojson";
 import { describe, expect, it } from "vitest";
+import { Cartesian3 } from "@carma-cesium";
+import { getDegreesFromCartesian } from "@carma-mapping/engines/cesium/core";
 
+import type { PointAnnotationEntry } from "../types/annotationCesiumTypes";
 import {
   ANNOTATION_TYPE_AREA_PLANAR,
   ANNOTATION_TYPE_DISTANCE,
@@ -9,9 +11,7 @@ import {
   type NodeChainAnnotation,
 } from "../types/annotationTypes";
 import type { PointDistanceRelation } from "../types/distanceRelation";
-import type { PointAnnotationEntry } from "../types/annotationCesiumTypes";
 import { buildAnnotationGeoJsonFeatureCollection } from "./annotationGeoJsonExport";
-
 const buildPointAnnotation = ({
   id,
   type,

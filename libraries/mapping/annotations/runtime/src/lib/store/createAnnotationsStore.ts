@@ -1,4 +1,3 @@
-import { createStore } from "@carma-commons/react-store";
 import { normalizeOptions } from "@carma-commons/utils";
 import {
   DEFAULT_LINEAR_SEGMENT_LINE_MODE,
@@ -10,11 +9,14 @@ import type {
   LinearSegmentLineMode,
   ReferenceLineLabelKind,
 } from "@carma-mapping/annotations/core";
+
 import type {
   AnnotationEditStoreState,
   AnnotationSettingsStoreState,
   AnnotationsStore,
+  AnnotationsStoreListener,
   AnnotationsStoreState,
+  ReplaceAnnotationsStoreStateAction,
 } from "./annotationsStore.types";
 
 export type CreateInitialAnnotationsStoreStateOptions = {
@@ -34,8 +36,6 @@ export type CreateInitialAnnotationsStoreStateOptions = {
   initialPolylineSegmentLineMode?: LinearSegmentLineMode;
   initialHeightOffset?: number;
 };
-
-const noop = () => undefined;
 
 const DEFAULT_INITIAL_SETTINGS_STATE: AnnotationSettingsStoreState = {
   pointQuery: {
@@ -198,6 +198,47 @@ export const createInitialAnnotationsStoreState = (
   };
 };
 
+export const replaceAnnotationsStoreState = (
+  payload: AnnotationsStoreState
+): ReplaceAnnotationsStoreStateAction => ({
+  type: "annotations/replace-state",
+  payload,
+});
+
+const notifyAnnotationsStoreListeners = (
+  listeners: ReadonlySet<AnnotationsStoreListener>
+) => {
+  listeners.forEach((listener) => {
+    listener();
+  });
+};
+
 export const createAnnotationsStore = (
   initialState: AnnotationsStoreState
-): AnnotationsStore => createStore(initialState);
+): AnnotationsStore => {
+  let state = initialState;
+  const listeners = new Set<AnnotationsStoreListener>();
+
+  return {
+    getState: () => state,
+    dispatch: (action) => {
+      if (action.type !== "annotations/replace-state") {
+        throw new Error(`Unsupported annotations store action: ${action.type}`);
+      }
+
+      if (Object.is(action.payload, state)) {
+        return action;
+      }
+
+      state = action.payload;
+      notifyAnnotationsStoreListeners(listeners);
+      return action;
+    },
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+  };
+};

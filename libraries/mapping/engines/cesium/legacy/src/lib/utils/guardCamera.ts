@@ -4,8 +4,8 @@ import type {
   Cartesian3,
   HeadingPitchRange,
 } from "cesium";
-import { isValidCamera } from "./instanceGates";
 
+import { isValidCamera } from "./instanceGates";
 // Guard operations on a Cesium Camera instance. All methods are no-throw and
 // return safe defaults where applicable.
 export const guardCamera = (camera: Camera, label?: string) => {

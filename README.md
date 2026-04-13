@@ -86,22 +86,12 @@ the projects are not transpiled by TypeScript itself and does not emit js.
 
 vite build and [`vite-plugin-dts`](https://www.npmjs.com/package/vite-plugin-dts) are taking care of the actual transpiling and typescript declaration.
 
-#### For _new_ production level projects:
+#### Connector `tsconfig.json` rule (all libs/apps)
 
-- [`/tsconfig.strict.base.json`](/tsconfig.strict.base.json) should be extending the local project `./tsconfig.json`.
-
-- changes to [`compilerOptions`](https://www.typescriptlang.org/tsconfig/#compilerOptions) on a per project basis should be avoided.
-
-#### For _new_ playground level projects:
-
-- [`/tsconfig.strict.base.json`](/tsconfig.strict.base.json) is recommended but not required.
-- [`/tsconfig.base.json`](/tsconfig.base.json) can be used with local changes as needed.
-
-#### For _existing_ production level projects:
-
-- [`/tsconfig.legacy.base.json`](/tsconfig.legacy.base.json) as lowest level of existing strictness permitted.
-- [`/tsconfig.base.json`](/tsconfig.base.json) as optional intermediate step
-- [`/tsconfig.strict.base.json`](/tsconfig.strict.base.json) should be adopted, if feasible, on a per project commit basis.
+- use exactly one base extend in connector `tsconfig.json`:
+  - [`/tsconfig.base.json`](/tsconfig.base.json) as default.
+  - [`/tsconfig.legacy.base.json`](/tsconfig.legacy.base.json) only when dependency compatibility issues require fallback.
+- no custom project-level [`compilerOptions`](https://www.typescriptlang.org/tsconfig/#compilerOptions) in connector `tsconfig.json`.
 
 #### handling code imports
 
@@ -113,10 +103,9 @@ All configurations should allow importing `.js`
 Common custom CARMA types and type declarations for external libraries are defined in type-only packages. These packages use zero-build configuration: TypeScript consumes declaration files directly from source via path aliases, eliminating build steps for pure type definitions.
 
 **Type-only packages:**
-- `@carma/types` - Global types index ([`libraries/types/`](libraries/types/))
-- `@carma/geo/types` - Geographic types ([`libraries/commons/geo/types/`](libraries/commons/geo/types/))
+- `@carma-types` - Global types index ([`libraries/types/`](libraries/types/))
+- `@carma-geo/types` - Geographic types ([`libraries/geo/types/`](libraries/geo/types/))
 - `@carma/units/types` - Branded unit types with [Radians-first convention](libraries/commons/units/types/BRANDED-UNITS.md) ([`libraries/commons/units/types/`](libraries/commons/units/types/))
-- `@carma/cesium-types` - Cesium configuration types ([`libraries/mapping/engines/cesium/types/`](libraries/mapping/engines/cesium/types/))
 
 **Configuration:** Type-only packages have no build target. Their `package.json` points exports directly to source (e.g., `"types": "./src/index.d.ts"`), and path aliases in `tsconfig.base.json` resolve directly to `.d.ts` files. This approach requires no compilation since TypeScript natively reads declaration files.
 
@@ -135,6 +124,58 @@ not mixed in like
 ```
 import React, { useEffect, ReactNode } from "react";
 ```
+
+#### import order
+
+Use this canonical import order in repo code:
+
+1. `react`, `react-redux`, and Node built-ins
+2. true third-party packages such as `antd`, `d3`, `leaflet`, `maplibre-gl`, `three`, Storybook, Vitest, and similar vendor modules
+3. repo first-party packages that are not `@carma-*`, especially `react-cismap`, `react-cismap/*`, `@cismet-dev/*`, and `@cismet/*`
+4. monorepo packages under `@carma-*`
+5. local relative imports
+   - order local relative imports from far to near (for example `../../foo` before `../foo` before `./foo`)
+   - do not jump across monorepo library boundaries with relative paths; use the package alias/import surface instead
+6. side-effect imports last, especially CSS, widget styles, and other asset-only imports such as `import "cesium/Build/Cesium/Widgets/widgets.css";`
+
+Keep import blocks stable and alphabetized within each block.
+
+#### Cross-engine feature topology
+
+For platform features that should remain mapping-engine-agnostic, prefer one shared feature package plus one explicit engine bridge package per mapping engine.
+
+Example target shape:
+
+```text
+libraries/mapping/annotations/
+  src/lib/core/*              # contracts, domain logic, DTOs, pure transforms
+  src/lib/runtime/*           # engine-agnostic orchestration only, if needed
+
+libraries/mapping/annotations/cesium/
+  src/lib/runtime/*           # Cesium scene, widget, and primitive bindings
+
+libraries/mapping/annotations/maplibre/
+  src/lib/runtime/*           # MapLibre GL JS bindings
+
+libraries/mapping/annotations/leaflet/
+  src/lib/runtime/*           # Leaflet or react-cismap bindings
+```
+
+Dependency direction:
+
+- `annotations` must not depend on Cesium, MapLibre GL JS, Leaflet, or `react-cismap`
+- `annotations/cesium` may depend on `annotations`, `@carma-cesium`, and Cesium-specific helper packages
+- `annotations/maplibre` may depend on `annotations` and MapLibre-specific helper packages
+- `annotations/leaflet` may depend on `annotations` and Leaflet-specific helper packages
+- bridge packages should not depend on each other
+
+Why this shape is preferred:
+
+- shared feature logic stays vendor-light, testable, and easier to reuse
+- mapping-engine retirement or replacement is localized to one bridge package instead of leaking through the feature core
+- apps can opt into the engine bridges they need without scattering engine checks through shared providers or domain logic
+
+A concrete example of this pattern is documented in [`libraries/mapping/engines-interop/navigation-controls/README.md`](./libraries/mapping/engines-interop/navigation-controls/README.md).
 
 ### Linting
 
@@ -190,4 +231,3 @@ update the individual packages as needed or use interactive mode for batch updat
 
 should happen on a per package basis only as needed and has no update policy yet.
 be sure to check and update the complementing @types packages in dev deps as well.
-

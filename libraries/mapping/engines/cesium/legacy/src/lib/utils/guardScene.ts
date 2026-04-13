@@ -1,9 +1,9 @@
 import type { Scene, JulianDate } from "cesium";
-import { isValidScene } from "./instanceGates";
-import { guardScreenSpaceCameraController } from "./guardScreenSpaceCameraController";
+
 import { guardCamera } from "./guardCamera";
 import { guardPrimitiveCollection } from "./guardPrimitiveCollection";
-
+import { guardScreenSpaceCameraController } from "./guardScreenSpaceCameraController";
+import { isValidScene } from "./instanceGates";
 // Guard operations on Scene accessed via a Viewer instance. We validate the viewer,
 // then operate on its scene with safe defaults and no-throw semantics.
 export const guardScene = (scene: Scene, label?: string) => {

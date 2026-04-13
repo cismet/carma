@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { isEqual } from "lodash";
 import WMSCapabilities from "wms-capabilities";
-import type { Layer, SavedLayerConfig } from "@carma/types";
+import type { Layer, SavedLayerConfig } from "@carma-mapping/layers";
 import type { Store } from "redux";
 
 import {

@@ -4,7 +4,6 @@ import {
   SELECT_TOOL_TYPE,
   type AnnotationToolType,
 } from "@carma-mapping/annotations/core";
-
 export const useActiveToolType = (
   annotationToolType: AnnotationToolType,
   selectionModeActive: boolean

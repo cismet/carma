@@ -1,4 +1,5 @@
 import { FC, ReactNode, useEffect, useRef, useState } from "react";
+
 import {
   CesiumWidget,
   Cesium3DTileset,
@@ -16,11 +17,12 @@ import {
   OrthographicFrustum,
   ClippingPlaneCollection,
 } from "cesium";
-import { CUSTOM_SHADERS_DEFINITIONS } from "./shaders";
-import type { Degrees } from "@carma/units/types";
-import type { Altitude, LatLngAlt } from "@carma/geo/types";
-import { generateRingFromDegrees } from "./utils/geometryGenerators";
 
+import type { Altitude, LatLngAlt } from "@carma-geo/data-structures";
+import type { Degrees } from "@carma-units";
+
+import { CUSTOM_SHADERS_DEFINITIONS } from "./shaders";
+import { generateRingFromDegrees } from "./utils/geometryGenerators";
 const unlit = new CustomShader(CUSTOM_SHADERS_DEFINITIONS.UNLIT);
 
 const addDebugPrimitives = (widget: CesiumWidget, cartesian: Cartesian3) => {

@@ -8,7 +8,7 @@ const base = process.env.BASE_URL || "/";
 
 export default defineConfig({
   root: __dirname,
-  cacheDir: "../../node_modules/.vite/playgrounds/fuzzy-search-playground",
+  cacheDir: "../../node_modules/.vite/playgrounds/vectorlayer-filtering-playground",
 
   server: {
     port: 4200,
@@ -31,7 +31,7 @@ export default defineConfig({
   // },
 
   build: {
-    outDir: "../../dist/playgrounds/fuzzy-search-playground",
+    outDir: "../../dist/playgrounds/vectorlayer-filtering-playground",
     reportCompressedSize: true,
     commonjsOptions: {
       transformMixedEsModules: true,
@@ -48,7 +48,8 @@ export default defineConfig({
 
     reporters: ["default"],
     coverage: {
-      reportsDirectory: "../../coverage/playgrounds/stadtplan-playground",
+      reportsDirectory:
+        "../../coverage/playgrounds/vectorlayer-filtering-playground",
       provider: "v8",
     },
   },

@@ -1,8 +1,16 @@
-import type { Meta, StoryObj } from "@storybook/react";
-import { useCallback, useEffect, useRef, type MutableRefObject } from "react";
-import { Card } from "antd";
 import {
-  CarmaTransforms,
+  useCallback,
+  useEffect,
+  useRef,
+  type CSSProperties,
+  type MutableRefObject,
+} from "react";
+
+import type { Meta, StoryObj } from "@storybook/react";
+
+import { clamp, lerp } from "@carma-commons/math";
+import { ResponsiveStatusBar } from "@carma-commons/ui/components";
+import {
   Cartesian3,
   Color,
   ColorGeometryInstanceAttribute,
@@ -11,29 +19,27 @@ import {
   PerInstanceColorAppearance,
   Primitive as CesiumPrimitive,
   Transforms,
-  createMinimalCesiumWidget,
   type CesiumWidget,
   type Primitive,
-} from "@carma/cesium";
+} from "@carma-cesium";
 import {
+  CarmaTransforms,
   createDisc,
   createRing,
   createRingSegment,
   createUnitRingSegmentGeometry,
-} from "@carma-mapping/engines/cesium/primitives";
-import { clamp, lerp } from "@carma-commons/math";
-import {
-  StoryKeyValueList,
-  type StoryKeyValueItem,
-} from "../shared/StoryKeyValueList";
+  createMinimalCesiumWidget,
+} from "@carma-mapping/engines/cesium/core";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
-
 if (
   typeof window !== "undefined" &&
   !(window as { CESIUM_BASE_URL?: string }).CESIUM_BASE_URL
 ) {
-  (window as { CESIUM_BASE_URL?: string }).CESIUM_BASE_URL = "/__cesium__/";
+  (window as { CESIUM_BASE_URL?: string }).CESIUM_BASE_URL = new URL(
+    "__cesium__/",
+    document.baseURI
+  ).toString();
 }
 
 type PrimitiveContentMode = "unit-disc" | "unique-primitives";
@@ -66,7 +72,7 @@ type StressStoryArgs = {
   segments: number;
 };
 
-const PREVIEW_HEIGHT_PX = 640;
+const PREVIEW_HEIGHT = "100vh";
 const MIN_RADIUS = 0.1;
 const FULL_CIRCLE_DEG = 360;
 const FULL_CIRCLE_RAD = Math.PI * 2;
@@ -235,51 +241,38 @@ const setInitialTopDownCamera = (widget: CesiumWidget) => {
   widget.camera.lookAtTransform(Matrix4.IDENTITY);
 };
 
-const StoryOverlay = ({
-  title,
-  details,
+const formatNumber = (value: number, digits = 2) =>
+  Number.isFinite(value) ? value.toFixed(digits) : "0";
+
+const TOP_STATUS_BAR_OVERLAY_STYLE: CSSProperties = {
+  position: "absolute",
+  top: 0,
+  left: 0,
+  right: 0,
+  zIndex: 1800,
+  pointerEvents: "none",
+};
+
+const StoryStatusBar = ({
+  label,
+  values,
 }: {
-  title: string;
-  details: StoryKeyValueItem[];
+  label: string;
+  values: readonly string[];
 }) => (
-  <Card
-    size="small"
-    bordered={false}
-    style={{
-      position: "absolute",
-      top: 12,
-      left: 12,
-      display: "inline-block",
-      width: "fit-content",
-      maxWidth: "min(320px, calc(100vw - 24px))",
-      pointerEvents: "none",
-      background: "rgba(2, 6, 23, 0.85)",
-      boxShadow: "0 6px 18px rgba(2, 6, 23, 0.42)",
-    }}
-    bodyStyle={{ padding: "8px 10px" }}
-  >
-    <div
-      style={{
-        display: "block",
-        color: "#f8fafc",
-        fontWeight: 700,
-        marginBottom: 2,
-      }}
-    >
-      {title}
-    </div>
-    <StoryKeyValueList items={details} />
-  </Card>
+  <div style={TOP_STATUS_BAR_OVERLAY_STYLE}>
+    <ResponsiveStatusBar label={label} values={values} tone="dark" />
+  </div>
 );
 
 const SinglePrimitiveCanvas = ({
   createPrimitive,
-  title,
-  details,
+  statusLabel,
+  statusValues,
 }: {
   createPrimitive: (center: Cartesian3) => Primitive;
-  title: string;
-  details: StoryKeyValueItem[];
+  statusLabel: string;
+  statusValues: readonly string[];
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetRef = useRef<CesiumWidget | null>(null);
@@ -337,7 +330,7 @@ const SinglePrimitiveCanvas = ({
       style={{
         position: "relative",
         width: "100%",
-        height: PREVIEW_HEIGHT_PX,
+        height: PREVIEW_HEIGHT,
       }}
     >
       <div
@@ -347,7 +340,7 @@ const SinglePrimitiveCanvas = ({
           inset: 0,
         }}
       />
-      <StoryOverlay title={title} details={details} />
+      <StoryStatusBar label={statusLabel} values={statusValues} />
     </div>
   );
 };
@@ -371,15 +364,10 @@ const DiscPreview = ({ radius, segments }: DiscStoryArgs) => {
   return (
     <SinglePrimitiveCanvas
       createPrimitive={createPrimitive}
-      title="createDisc"
-      details={[
-        { id: "radius", label: "radius", value: safeRadius, fractionDigits: 2 },
-        {
-          id: "segments",
-          label: "segments",
-          value: safeSegments,
-          fractionDigits: 0,
-        },
+      statusLabel="createDisc"
+      statusValues={[
+        `radius ${formatNumber(safeRadius, 2)}`,
+        `segments ${safeSegments}`,
       ]}
     />
   );
@@ -411,21 +399,11 @@ const RingPreview = ({ radius, innerRadius, segments }: RingStoryArgs) => {
   return (
     <SinglePrimitiveCanvas
       createPrimitive={createPrimitive}
-      title="createRing"
-      details={[
-        { id: "radius", label: "radius", value: safeRadius, fractionDigits: 2 },
-        {
-          id: "inner",
-          label: "inner",
-          value: safeInnerRadius,
-          fractionDigits: 2,
-        },
-        {
-          id: "segments",
-          label: "segments",
-          value: safeSegments,
-          fractionDigits: 0,
-        },
+      statusLabel="createRing"
+      statusValues={[
+        `radius ${formatNumber(safeRadius, 2)}`,
+        `inner ${formatNumber(safeInnerRadius, 2)}`,
+        `segments ${safeSegments}`,
       ]}
     />
   );
@@ -474,29 +452,13 @@ const RingSegmentPreview = ({
   return (
     <SinglePrimitiveCanvas
       createPrimitive={createPrimitive}
-      title="createRingSegment"
-      details={[
-        { id: "radius", label: "radius", value: safeRadius, fractionDigits: 2 },
-        {
-          id: "inner",
-          label: "inner",
-          value: safeInnerRadius,
-          fractionDigits: 2,
-        },
-        {
-          id: "rotation",
-          label: "rotation",
-          value: safeRotationDeg,
-          unit: "°",
-          fractionDigits: 1,
-        },
-        {
-          id: "angle",
-          label: "angle",
-          value: safeAngleDeg,
-          unit: "°",
-          fractionDigits: 1,
-        },
+      statusLabel="createRingSegment"
+      statusValues={[
+        `radius ${formatNumber(safeRadius, 2)}`,
+        `inner ${formatNumber(safeInnerRadius, 2)}`,
+        `rotation ${formatNumber(safeRotationDeg, 1)}°`,
+        `angle ${formatNumber(safeAngleDeg, 1)}°`,
+        `segments ${safeSegments}`,
       ]}
     />
   );
@@ -717,7 +679,7 @@ const StressPreview = ({
       style={{
         position: "relative",
         width: "100%",
-        height: PREVIEW_HEIGHT_PX,
+        height: PREVIEW_HEIGHT,
       }}
     >
       <div
@@ -727,21 +689,15 @@ const StressPreview = ({
           inset: 0,
         }}
       />
-      <StoryOverlay
-        title="StressTest"
-        details={[
-          { id: "mode", label: "mode", value: safeContentMode },
-          {
-            id: "grid",
-            label: "grid",
-            value: `${safeEdgeLength}x${safeEdgeLength}x${safeDepth} (${total})`,
-          },
-          {
-            id: "radius",
-            label: "radius",
-            value: safeRadius,
-            fractionDigits: 2,
-          },
+      <StoryStatusBar
+        label="stress test"
+        values={[
+          `mode ${safeContentMode}`,
+          `grid ${safeEdgeLength}x${safeEdgeLength}x${safeDepth}`,
+          `total ${total}`,
+          `spacing ${formatNumber(safeSpacing, 2)}`,
+          `radius ${formatNumber(safeRadius, 2)}`,
+          `segments ${safeSegments}`,
         ]}
       />
     </div>
@@ -749,7 +705,7 @@ const StressPreview = ({
 };
 
 const meta = {
-  title: "cesium-primitives/Generators",
+  title: "Mapping Components/Cesium",
   parameters: {
     layout: "fullscreen",
   },
@@ -758,6 +714,7 @@ const meta = {
 export default meta;
 
 export const Disc: StoryObj<DiscStoryArgs> = {
+  name: "Disc",
   render: (args) => <DiscPreview {...args} />,
   args: {
     radius: 2.5,
@@ -774,6 +731,7 @@ export const Disc: StoryObj<DiscStoryArgs> = {
 };
 
 export const Ring: StoryObj<RingStoryArgs> = {
+  name: "Ring",
   render: (args) => <RingPreview {...args} />,
   args: {
     radius: 3,
@@ -794,6 +752,7 @@ export const Ring: StoryObj<RingStoryArgs> = {
 };
 
 export const RingSegment: StoryObj<RingSegmentStoryArgs> = {
+  name: "Ring Segment",
   render: (args) => <RingSegmentPreview {...args} />,
   args: {
     radius: 3,
@@ -827,6 +786,7 @@ export const RingSegment: StoryObj<RingSegmentStoryArgs> = {
 };
 
 export const StressTest: StoryObj<StressStoryArgs> = {
+  name: "Stress Test",
   render: (args) => <StressPreview {...args} />,
   args: {
     contentMode: "unique-primitives",

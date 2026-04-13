@@ -1,6 +1,6 @@
 import type { Cesium3DTileset } from "cesium";
-import { isValidTileset } from "./instanceGates";
 
+import { isValidTileset } from "./instanceGates";
 export const guardTileset = (tileset: Cesium3DTileset, label?: string) => {
   const ensure = <T>(fn: (t: Cesium3DTileset) => T, fallback: T): T => {
     try {

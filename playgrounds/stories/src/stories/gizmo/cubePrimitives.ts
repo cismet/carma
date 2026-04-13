@@ -11,8 +11,8 @@ import {
   Primitive,
   defined,
   type Scene,
-} from "@carma/cesium";
-import { createPrimitiveGroup } from "@carma-mapping/engines/cesium/primitives";
+} from "@carma-cesium";
+import { createPrimitiveGroup } from "@carma-mapping/engines/cesium/core";
 
 export type CubeEdgeDef = {
   id: string;

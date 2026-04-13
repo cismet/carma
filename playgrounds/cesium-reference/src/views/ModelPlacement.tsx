@@ -7,11 +7,8 @@ import {
   Cesium3DTileset,
   Cartesian3,
 } from "cesium";
-import {
-  BRUECKENENTWURF_GLB,
-  WUPP_MESH_2024,
-  createModelEntityConstructorOptions,
-} from "@carma-commons/resources";
+import { BRUECKENENTWURF_GLB, WUPP_MESH_2024 } from "@carma-commons/resources";
+import { createModelEntityConstructorOptions } from "@carma-mapping/engines/cesium/legacy";
 import { cesiumConstructorOptions } from "../config";
 import { useCameraPersistence } from "../hooks/useCameraPersistence";
 import { ModelPlacementUI } from "./ModelPlacement.UI";

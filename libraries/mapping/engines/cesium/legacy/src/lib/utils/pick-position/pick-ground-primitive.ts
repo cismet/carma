@@ -1,4 +1,4 @@
-import { Cartesian2, defined, GroundPrimitive, Scene } from "@carma/cesium";
+import { Cartesian2, defined, GroundPrimitive, Scene } from "@carma-cesium";
 
 const GEOJSON_DRILL_LIMIT = 10;
 

@@ -1,13 +1,14 @@
 import type { CSSProperties } from "react";
+
 import type {
   AnnotationToolType,
   LinearSegmentLineMode,
 } from "@carma-mapping/annotations/core";
+
 import type {
   AnnotationToolManager,
   AnnotationToolManagerContext,
 } from "./annotationToolManager";
-
 export type AnnotationToolbarLayoutProps = {
   showPrimaryToolbar?: boolean;
   showSecondaryToolbar?: boolean;

@@ -1,7 +1,7 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { isEqual } from "lodash";
 
-import type { FeatureInfo } from "@carma/types";
+import type { FeatureInfo } from "@carma-mapping/utils";
 import type { FeatureInfoState } from "@carma-appframeworks/portals";
 import type { RootState } from "..";
 

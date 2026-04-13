@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 
 import type { NodeChainAnnotation } from "@carma-mapping/annotations/core";
-
 export const useActiveDrawMode = (
   activeNodeChainAnnotationId: string | null,
   nodeChainAnnotations: readonly NodeChainAnnotation[]

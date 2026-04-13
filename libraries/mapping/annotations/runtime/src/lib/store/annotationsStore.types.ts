@@ -1,6 +1,3 @@
-import type { Cartesian3 } from "@carma/cesium";
-import type { Store } from "@carma-commons/react-store";
-
 import type {
   AnnotationCollection,
   AnnotationToolType,
@@ -10,12 +7,12 @@ import type {
   PointDistanceRelation,
   ReferenceLineLabelKind,
 } from "@carma-mapping/annotations/core";
+import type { Cartesian3 } from "@carma-cesium";
 
 import type {
   AnnotationEditTarget,
   MoveGizmoSession,
 } from "../interaction/editing/annotationEdit.types";
-
 export type AnnotationSelectionStoreState = {
   selectedAnnotationIds: string[];
   previousSelectedAnnotationId: string | null;
@@ -78,4 +75,17 @@ export type AnnotationsStoreState = {
   nodeChainAnnotations: NodeChainAnnotation[];
 };
 
-export type AnnotationsStore = Store<AnnotationsStoreState>;
+export type ReplaceAnnotationsStoreStateAction = {
+  type: "annotations/replace-state";
+  payload: AnnotationsStoreState;
+};
+
+export type AnnotationsStoreListener = () => void;
+
+export type AnnotationsStore = {
+  getState: () => AnnotationsStoreState;
+  dispatch: (
+    action: ReplaceAnnotationsStoreStateAction
+  ) => ReplaceAnnotationsStoreStateAction;
+  subscribe: (listener: AnnotationsStoreListener) => () => void;
+};

@@ -3,7 +3,6 @@ import { Cesium3DTileset, CustomShader, ShadowMode } from "cesium";
 import { TilesetConfig, TilesetType } from "@carma-commons/resources";
 
 import { CUSTOM_SHADERS_DEFINITIONS } from "../shaders";
-
 export type TilesetConfigs = {
   primary: TilesetConfig;
   secondary?: TilesetConfig;

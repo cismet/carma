@@ -5,9 +5,9 @@ import type {
   NodeChainAnnotation,
   PointDistanceRelation,
 } from "@carma-mapping/annotations/core";
+
 import type { AnnotationsStore } from "../../store";
 import type { DistanceSessionState } from "../../store";
-
 type UseAnnotationDraftActionsParams = {
   annotationsStore: AnnotationsStore;
   moveGizmoPointId: string | null;

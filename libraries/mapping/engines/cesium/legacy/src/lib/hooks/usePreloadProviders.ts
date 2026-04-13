@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import type { MutableRefObject } from "react";
-import type { CesiumTerrainProvider, ImageryLayer } from "@carma/cesium";
-import type { ProviderConfig } from "../utils/cesiumProviders";
+
+import type { CesiumTerrainProvider, ImageryLayer } from "@carma-cesium";
+
 import {
   loadCesiumTerrainProvider,
   loadCesiumImageryLayer,
 } from "../utils/cesiumProviders";
-
+import type { ProviderConfig } from "../utils/cesiumProviders";
 interface ProviderRefs {
   terrainProviderRef: MutableRefObject<CesiumTerrainProvider | null>;
   surfaceProviderRef: MutableRefObject<CesiumTerrainProvider | null>;

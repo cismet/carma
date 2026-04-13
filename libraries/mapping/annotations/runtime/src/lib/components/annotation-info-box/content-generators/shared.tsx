@@ -1,6 +1,5 @@
 import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
 
-import { Tooltip } from "antd";
 import {
   faArrowsDownToLine,
   faDownload,
@@ -10,30 +9,37 @@ import {
   faLockOpen,
   faTrashCan,
 } from "@fortawesome/free-solid-svg-icons";
+import { Tooltip } from "antd";
+
 import Icon from "react-cismap/commons/Icon";
+
 import {
   ANNOTATION_TYPE_DISTANCE,
   ANNOTATION_TYPE_LABEL,
   ANNOTATION_TYPE_POINT,
   formatMeasurementShortLabelToken,
-  formatNumber,
   getCustomPointAnnotationName,
   type PointAnnotationEntry,
   type AnnotationShortLabelKind,
 } from "@carma-mapping/annotations/core";
-import { formatCoordinateWithHemisphere } from "../AnnotationInfoBox.formatters";
 import {
-  AnnotationInfoBoxActionIcon,
-  AnnotationInfoTitleInput,
-} from "../components";
-import { annotationTooltipProps } from "../../shared/annotationTooltip";
+  formatLatLonDegrees,
+  formatLengthMeters,
+  LENGTH_UNIT_MODE,
+} from "@carma-units";
+import type { Degrees } from "@carma-units";
+
 import type {
   AnnotationDisplayPoint,
   AnnotationInfoBoxEntryPayload,
   AnnotationSlotActions,
   DistanceTableRow,
 } from "../annotationInfoBoxSlots.types";
-
+import {
+  AnnotationInfoBoxActionIcon,
+  AnnotationInfoTitleInput,
+} from "../components";
+import { annotationTooltipProps } from "../../shared/annotationTooltip";
 export const POINT_TITLE = "Punktmessung";
 export const DISTANCE_TITLE = "Distanzmessung";
 export const LABEL_TITLE = "Beschriftung";
@@ -144,13 +150,20 @@ const formatDisplayHeight = (displayPoint: AnnotationDisplayPoint): string => {
     Math.abs(displayPoint.verticalOffset ?? 0) > 1e-9;
 
   if (!hasOffset) {
-    return `${formatNumber(displayPoint.height)} m`;
+    return formatLengthMeters(displayPoint.height, {
+      locale: "de-DE",
+      unitMode: LENGTH_UNIT_MODE.METERS,
+    });
   }
 
   const sign = (displayPoint.verticalOffset ?? 0) >= 0 ? "+" : "-";
-  return `${formatNumber(
-    displayPoint.anchorHeight ?? 0
-  )} ${sign} ${formatNumber(Math.abs(displayPoint.verticalOffset ?? 0))}m`;
+  return `${formatLengthMeters(displayPoint.anchorHeight ?? 0, {
+    locale: "de-DE",
+    unitMode: LENGTH_UNIT_MODE.METERS,
+  })} ${sign} ${formatLengthMeters(Math.abs(displayPoint.verticalOffset ?? 0), {
+    locale: "de-DE",
+    unitMode: LENGTH_UNIT_MODE.METERS,
+  })}`;
 };
 
 const renderAnnotationActions = (
@@ -187,15 +200,7 @@ const renderAnnotationActions = (
         actions.toggleVisibilityByIds([measurement.id]);
       }}
       dataTestId="carma-toggle-measurement-visibility-btn"
-    />
-    <AnnotationInfoBoxActionIcon
-      title={measurement.locked ? "Entsperren" : "Sperren"}
-      icon={measurement.locked ? faLock : faLockOpen}
-      onClick={(event) => {
-        event.stopPropagation();
-        actions.toggleLockByIds([measurement.id]);
-      }}
-      dataTestId="carma-toggle-measurement-lock-btn"
+      fixedWidth={true}
     />
     {!isReference && (
       <AnnotationInfoBoxActionIcon
@@ -209,13 +214,28 @@ const renderAnnotationActions = (
       />
     )}
     <AnnotationInfoBoxActionIcon
-      title="Löschen"
+      title={measurement.locked ? "Entsperren" : "Sperren"}
+      icon={measurement.locked ? faLock : faLockOpen}
+      onClick={(event) => {
+        event.stopPropagation();
+        actions.toggleLockByIds([measurement.id]);
+      }}
+      dataTestId="carma-toggle-measurement-lock-btn"
+      fixedWidth={true}
+    />
+    <AnnotationInfoBoxActionIcon
+      title={
+        measurement.locked
+          ? "Gesperrte Messung kann nicht gelöscht werden"
+          : "Löschen"
+      }
       icon={faTrashCan}
       onClick={(event) => {
         event.stopPropagation();
         actions.removeByIds([measurement.id]);
       }}
       dataTestId="carma-delete-measurement-btn"
+      disabled={measurement.locked}
     />
   </div>
 );
@@ -279,9 +299,14 @@ export const renderEditableAnnotationSubtitle = ({
       </div>
     ) : displayPoint ? (
       <div className="w-full text-[10px] font-normal text-gray-500 -mt-1 min-h-[16px] flex items-center gap-2 whitespace-nowrap">
-        {formatCoordinateWithHemisphere(displayPoint.latitude, true)}{" "}
-        {formatCoordinateWithHemisphere(displayPoint.longitude, false)} • NHN{" "}
-        {formatDisplayHeight(displayPoint)}
+        {formatLatLonDegrees(
+          displayPoint.latitude as Degrees,
+          displayPoint.longitude as Degrees,
+          {
+            locale: "de-DE",
+          }
+        ).join(" ")}{" "}
+        • NHN {formatDisplayHeight(displayPoint)}
       </div>
     ) : null}
   </div>
@@ -293,7 +318,11 @@ export const renderRelativeElevationContent = (
   <div className={`w-full px-2 pb-1 ${INFO_BOX_BODY_TEXT_CLASSNAME}`}>
     {relativeElevation !== null ? (
       <div>
-        {formatNumber(relativeElevation)} m relative Höhe über Bezugspunkt
+        {formatLengthMeters(relativeElevation, {
+          locale: "de-DE",
+          unitMode: LENGTH_UNIT_MODE.METERS,
+        })}{" "}
+        relative Höhe über Bezugspunkt
       </div>
     ) : (
       <div>Keine Referenzhöhe gesetzt.</div>
@@ -333,13 +362,22 @@ export const renderDistanceTableContent = (
             >
               <td className="pr-2">{row.label}</td>
               <td className="text-right tabular-nums pr-2">
-                {formatNumber(row.vertical)} m
+                {formatLengthMeters(row.vertical, {
+                  locale: "de-DE",
+                  unitMode: LENGTH_UNIT_MODE.METERS,
+                })}
               </td>
               <td className="text-right tabular-nums pr-2">
-                {formatNumber(row.horizontalDistance)} m
+                {formatLengthMeters(row.horizontalDistance, {
+                  locale: "de-DE",
+                  unitMode: LENGTH_UNIT_MODE.METERS,
+                })}
               </td>
               <td className="text-right tabular-nums pr-2">
-                {formatNumber(row.distance)} m
+                {formatLengthMeters(row.distance, {
+                  locale: "de-DE",
+                  unitMode: LENGTH_UNIT_MODE.METERS,
+                })}
               </td>
             </tr>
           ))}

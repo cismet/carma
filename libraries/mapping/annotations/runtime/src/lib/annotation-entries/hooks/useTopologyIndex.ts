@@ -1,7 +1,6 @@
 import { useCallback, useMemo } from "react";
 
 import type { NodeChainAnnotation } from "@carma-mapping/annotations/core";
-
 const EMPTY_OWNER_GROUP_IDS: readonly string[] = [];
 
 const appendOwnerGroupId = (

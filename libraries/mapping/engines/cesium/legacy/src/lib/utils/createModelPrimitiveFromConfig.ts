@@ -1,8 +1,6 @@
-import { Cartesian3, HeadingPitchRoll, Model, Transforms } from "@carma/cesium";
-
-import type { ModelConfig } from "@carma-commons/resources";
-import type { FeatureInfoProperties } from "@carma/types";
-
+import type { ModelConfig } from "@carma-mapping/engines/cesium/core";
+import { Cartesian3, HeadingPitchRoll, Model, Transforms } from "@carma-cesium";
+import type { FeatureInfoProperties } from "@carma-mapping/utils";
 type ModelPickId = {
   id?: string;
   properties?: FeatureInfoProperties;

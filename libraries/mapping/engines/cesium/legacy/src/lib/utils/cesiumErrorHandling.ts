@@ -1,5 +1,8 @@
 import { Viewer } from "cesium";
-import { getCesiumVersion, checkWindowEnv } from "./cesiumEnv";
+import {
+  checkWindowEnv,
+  getCesiumVersion,
+} from "@carma-mapping/engines/cesium/core";
 
 const patchedScenes = new WeakSet<object>();
 

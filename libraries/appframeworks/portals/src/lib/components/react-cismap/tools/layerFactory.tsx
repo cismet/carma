@@ -23,12 +23,13 @@ const namedStyles = {
 };
 
 export default function getLayers(
-  layerString,
+  layerString: string,
+  mainOpacity = 1,
   namedMapStyle = "default",
-  config = {
+  config: { layerSeparator?: string } = {
     layerSeparator: "|",
   },
-  layerConfig
+  layerConfig?: typeof defaultLayerConf
 ) {
   let namedStylesConfig = namedStyles;
   const layerArr = (layerString || "").split(config.layerSeparator || "|");
@@ -78,7 +79,7 @@ export default function getLayers(
             layOp[0] + namedMapStyleExtension;
 
           const layerOptions = {
-            opacity: parseInt(layOp[1] || "100", 10) / 100.0,
+            opacity: (parseInt(layOp[1] || "100", 10) / 100.0) * mainOpacity,
           };
           return getLayer(layerWithNamedStyleExtension, layerOptions);
         }
@@ -114,6 +115,8 @@ const createLayerFactoryFunction = (key, _conf = defaultLayerConf) => {
     defaults: defaultLayerConf.defaults,
     ..._conf,
   };
+
+  console.log("xxx", key);
 
   switch ((conf.namedLayers[key] || {}).type) {
     case "empty":
@@ -466,6 +469,40 @@ export const defaultLayerConf = {
       type: "vector",
       style:
         "https://tiles.cismet.de/basemap_de/basemap_relief.style.json",
+    },
+    amtlich: {
+      type: "tiles",
+      maxNativeZoom: 20,
+      maxZoom: 22,
+      url: "https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_light&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
+    },
+    amtlichBasiskarte: {
+      type: "wmts",
+      // url: "https://maps.wuppertal.de/karten",
+      // layers: "abkf",
+      url: "https://geo.udsp.wuppertal.de/geoserver-cloud/ows",
+      layers: "GIS-102:abkf",
+      maxNativeZoom: 20,
+      transparent: true,
+    },
+    trueOrtho2024Alternative: {
+      type: "wms",
+      url: "https://geo.udsp.wuppertal.de/geoserver-cloud/ows",
+      layers: "GIS-102:trueortho2024",
+      maxNativeZoom: 22,
+      transparent: true,
+    },
+    trueOrtho2021: {
+      type: "wms",
+      url: "https://www.wms.nrw.de/geobasis/wms_nw_hist_dop",
+      layers: "nw_hist_dop_2021",
+      transparent: true,
+    },
+    trueOrtho2024cismet: {
+      type: "wms",
+      url: "https://woodaigooweve0oonga7phai.cismet.de/geoserver/ows",
+      layers: "ortho:trueortho_vrt",
+      transparent: true,
     },
   },
 };

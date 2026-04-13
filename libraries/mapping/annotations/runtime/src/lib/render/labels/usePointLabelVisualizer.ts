@@ -4,45 +4,41 @@ import {
   useEffect,
   useMemo,
   useRef,
-  useState,
   type CSSProperties,
   type ReactNode,
 } from "react";
 
-import {
-  Cartesian2,
-  Cartesian3,
-  SceneTransforms,
-  defined,
-  getDegreesFromCartesian,
-  type Scene,
-} from "@carma/cesium";
-
-import {
-  computePointLabelLayout,
-  resolvePointLabelLayoutConfig,
-  useLineVisualizers,
-  usePointLabels,
-  type LineVisualizerData,
-  type LayoutPointInput,
-  type PointLabelData,
-  type PointLabelLayoutConfigOverrides,
-  type PointLabelLayoutResult,
-} from "@carma-providers/label-overlay";
-import type { CssPixelPosition } from "@carma/units/types";
+import { createSvgLineVisualizers } from "@carma-commons/svg";
 import {
   DEFAULT_POINT_LABEL_METRIC_MODE,
-  formatNumber,
   getCustomPointAnnotationName,
   type PlanarPolygonPlane,
   type PointAnnotationEntry,
   type PointLabelMetricMode,
 } from "@carma-mapping/annotations/core";
+import { Cartesian2, Cartesian3, type Scene } from "@carma-cesium";
+import { getDegreesFromCartesian } from "@carma-mapping/engines/cesium/core";
+import { useCesiumOverlayView } from "@carma-mapping/engines/cesium/react/interactions";
+import { useCesiumSceneVisibilityIndex } from "@carma-mapping/engines/cesium/react/visibility";
+import {
+  computePointLabelLayout,
+  resolvePointLabelLayoutConfig,
+  useLineVisualizers,
+  usePointLabels,
+  type LayoutPointInput,
+  type PointLabelData,
+  type PointLabelLayoutConfigOverrides,
+  type PointLabelLayoutResult,
+} from "@carma-providers/label-overlay";
+import {
+  formatDecimalNumber,
+  formatLengthMeters,
+  LENGTH_UNIT_MODE,
+} from "@carma-units";
+import type { CssPixelPosition } from "@carma-units";
+
 import type { AnnotationPointMarkerBadge } from "../useRender";
 import type { AnnotationSelectionState } from "../../selection/types/annotationSelection.types";
-
-import { useCesiumSceneVisibilityIndex } from "@carma-mapping/annotations/cesium";
-
 const ELEVATION_NEUTRAL_THRESHOLD_METERS = 0.03;
 const REFERENCE_POINT_DISTANCE_EPSILON_METERS = 0.001;
 const GLYPH_SIZE_EM = 1;
@@ -63,13 +59,55 @@ const VIEWPORT_PADDING_HORIZONTAL = 100; // pixels
 const VIEWPORT_PADDING_VERTICAL = 50; // pixels
 const PLANE_INTERSECTION_EPSILON = 1e-8;
 
+type StablePointHoverChangeHandler = (
+  hovered: boolean,
+  anchorPosition?: CssPixelPosition | null
+) => void;
+
+type StablePointClientPositionHandler = (
+  clientX: number,
+  clientY: number
+) => void;
+
 const EMPTY_LAYOUT_RESULT: PointLabelLayoutResult = {
   placements: {},
   hiddenByLayout: new Set<string>(),
   collapsedToCompact: new Set<string>(),
 };
 
-const formatMeters = (value: number): string => `${formatNumber(value)}m`;
+const getOrCreateStablePointHandler = <THandler>(
+  handlerByPointId: Map<string, THandler>,
+  pointId: string,
+  createHandler: (pointId: string) => THandler
+): THandler => {
+  const existingHandler = handlerByPointId.get(pointId);
+  if (existingHandler) {
+    return existingHandler;
+  }
+
+  const nextHandler = createHandler(pointId);
+  handlerByPointId.set(pointId, nextHandler);
+  return nextHandler;
+};
+
+const pruneStablePointHandlerMap = <THandler>(
+  handlerByPointId: Map<string, THandler>,
+  activePointIds: ReadonlySet<string>
+) => {
+  handlerByPointId.forEach((_, pointId) => {
+    if (activePointIds.has(pointId)) {
+      return;
+    }
+
+    handlerByPointId.delete(pointId);
+  });
+};
+
+const formatMeters = (value: number): string =>
+  formatLengthMeters(value, {
+    locale: "de-DE",
+    unitMode: LENGTH_UNIT_MODE.METERS,
+  });
 const GLYPH_BASE_STYLE: CSSProperties = {
   display: "inline-block",
   fontSize: `${GLYPH_SIZE_EM}em`,
@@ -210,9 +248,13 @@ const formatOffsetElevationLabelText = (
 ): PointLabelTextRepresentation => {
   const offsetSign = offsetMeters >= 0 ? "+" : "-";
   return {
-    layoutText: `${labelBase} ${formatNumber(
-      baseRelativeHeightMeters
-    )} ${offsetSign} ${formatNumber(Math.abs(offsetMeters))}m`.trim(),
+    layoutText: `${labelBase} ${formatDecimalNumber(baseRelativeHeightMeters, {
+      locale: "de-DE",
+      fractionDigits: 2,
+    })} ${offsetSign} ${formatLengthMeters(Math.abs(offsetMeters), {
+      locale: "de-DE",
+      unitMode: LENGTH_UNIT_MODE.METERS,
+    })}`.trim(),
   };
 };
 
@@ -531,8 +573,69 @@ export const usePointLabelVisualizer = (
     onPointVerticalOffsetStemLongPress,
     pointLongPressDurationMs = 300,
   } = interactions ?? {};
-  const [cameraPitch, setCameraPitch] = useState<number>(-Math.PI / 4);
+  const overlayView = useCesiumOverlayView(scene);
+  const cameraPitch = overlayView.derivedView?.pitch ?? 0;
   const registeredPointIdSetRef = useRef<Set<string>>(new Set());
+  const interactionCallbacksRef = useRef({
+    onPointClick,
+    onPointDoubleClick,
+    onPointLongPress,
+    onPointHoverChange,
+    onPointVerticalOffsetStemLongPress,
+  });
+  const pointDragInteractionStateRef = useRef({
+    scene,
+    pointDragPlaneByPointId,
+    onPointPlaneDragStart,
+    onPointPlaneDragPositionChange,
+    onPointPlaneDragEnd,
+  });
+  const pointClickHandlerByIdRef = useRef<Map<string, () => void>>(new Map());
+  const pointDoubleClickHandlerByIdRef = useRef<Map<string, () => void>>(
+    new Map()
+  );
+  const pointLongPressHandlerByIdRef = useRef<Map<string, () => void>>(
+    new Map()
+  );
+  const pointHoverChangeHandlerByIdRef = useRef<
+    Map<string, StablePointHoverChangeHandler>
+  >(new Map());
+  const pointMarkerDragStartHandlerByIdRef = useRef<
+    Map<string, StablePointClientPositionHandler>
+  >(new Map());
+  const pointMarkerDragMoveHandlerByIdRef = useRef<
+    Map<string, StablePointClientPositionHandler>
+  >(new Map());
+  const pointMarkerDragEndHandlerByIdRef = useRef<Map<string, () => void>>(
+    new Map()
+  );
+  const pointVerticalOffsetStemLongPressHandlerByIdRef = useRef<
+    Map<string, () => void>
+  >(new Map());
+  interactionCallbacksRef.current = {
+    onPointClick,
+    onPointDoubleClick,
+    onPointLongPress,
+    onPointHoverChange,
+    onPointVerticalOffsetStemLongPress,
+  };
+  pointDragInteractionStateRef.current = {
+    scene,
+    pointDragPlaneByPointId,
+    onPointPlaneDragStart,
+    onPointPlaneDragPositionChange,
+    onPointPlaneDragEnd,
+  };
+  const hasPointClickHandler = Boolean(onPointClick);
+  const hasPointDoubleClickHandler = Boolean(onPointDoubleClick);
+  const hasPointLongPressHandler = Boolean(onPointLongPress);
+  const hasPointHoverChangeHandler = Boolean(onPointHoverChange);
+  const hasPointPlaneDragPositionChangeHandler = Boolean(
+    onPointPlaneDragPositionChange
+  );
+  const hasPointVerticalOffsetStemLongPressHandler = Boolean(
+    onPointVerticalOffsetStemLongPress
+  );
   const selectedAnnotationIdSet = useMemo(() => {
     const ids = new Set(selectedAnnotationIds);
     if (selectedAnnotationId) {
@@ -540,6 +643,154 @@ export const usePointLabelVisualizer = (
     }
     return ids;
   }, [selectedAnnotationId, selectedAnnotationIds]);
+
+  useEffect(() => {
+    const activePointIds = new Set(points.map((point) => point.id));
+
+    pruneStablePointHandlerMap(
+      pointClickHandlerByIdRef.current,
+      activePointIds
+    );
+    pruneStablePointHandlerMap(
+      pointDoubleClickHandlerByIdRef.current,
+      activePointIds
+    );
+    pruneStablePointHandlerMap(
+      pointLongPressHandlerByIdRef.current,
+      activePointIds
+    );
+    pruneStablePointHandlerMap(
+      pointHoverChangeHandlerByIdRef.current,
+      activePointIds
+    );
+    pruneStablePointHandlerMap(
+      pointMarkerDragStartHandlerByIdRef.current,
+      activePointIds
+    );
+    pruneStablePointHandlerMap(
+      pointMarkerDragMoveHandlerByIdRef.current,
+      activePointIds
+    );
+    pruneStablePointHandlerMap(
+      pointMarkerDragEndHandlerByIdRef.current,
+      activePointIds
+    );
+    pruneStablePointHandlerMap(
+      pointVerticalOffsetStemLongPressHandlerByIdRef.current,
+      activePointIds
+    );
+  }, [points]);
+
+  const updatePointFromLatestDragPosition = (
+    pointId: string,
+    clientX: number,
+    clientY: number
+  ) => {
+    const {
+      scene: activeScene,
+      pointDragPlaneByPointId: activePointDragPlaneByPointId,
+      onPointPlaneDragPositionChange: handlePointPlaneDragPositionChange,
+    } = pointDragInteractionStateRef.current;
+    const dragPlane = activePointDragPlaneByPointId?.[pointId];
+    if (!dragPlane || !handlePointPlaneDragPositionChange) {
+      return;
+    }
+
+    const nextPosition = getPlaneIntersectionForClientPosition(
+      activeScene,
+      clientX,
+      clientY,
+      dragPlane
+    );
+    if (!nextPosition) {
+      return;
+    }
+
+    handlePointPlaneDragPositionChange(pointId, nextPosition);
+  };
+
+  const getStablePointClickHandler = (pointId: string) =>
+    getOrCreateStablePointHandler(
+      pointClickHandlerByIdRef.current,
+      pointId,
+      (stablePointId) => () => {
+        interactionCallbacksRef.current.onPointClick?.(stablePointId);
+      }
+    );
+
+  const getStablePointDoubleClickHandler = (pointId: string) =>
+    getOrCreateStablePointHandler(
+      pointDoubleClickHandlerByIdRef.current,
+      pointId,
+      (stablePointId) => () => {
+        interactionCallbacksRef.current.onPointDoubleClick?.(stablePointId);
+      }
+    );
+
+  const getStablePointLongPressHandler = (pointId: string) =>
+    getOrCreateStablePointHandler(
+      pointLongPressHandlerByIdRef.current,
+      pointId,
+      (stablePointId) => () => {
+        interactionCallbacksRef.current.onPointLongPress?.(stablePointId);
+      }
+    );
+
+  const getStablePointHoverChangeHandler = (pointId: string) =>
+    getOrCreateStablePointHandler(
+      pointHoverChangeHandlerByIdRef.current,
+      pointId,
+      (stablePointId) => (hovered, anchorPosition) => {
+        interactionCallbacksRef.current.onPointHoverChange?.(
+          stablePointId,
+          hovered,
+          anchorPosition
+        );
+      }
+    );
+
+  const getStablePointMarkerDragStartHandler = (pointId: string) =>
+    getOrCreateStablePointHandler(
+      pointMarkerDragStartHandlerByIdRef.current,
+      pointId,
+      (stablePointId) => (clientX, clientY) => {
+        pointDragInteractionStateRef.current.onPointPlaneDragStart?.(
+          stablePointId
+        );
+        updatePointFromLatestDragPosition(stablePointId, clientX, clientY);
+      }
+    );
+
+  const getStablePointMarkerDragMoveHandler = (pointId: string) =>
+    getOrCreateStablePointHandler(
+      pointMarkerDragMoveHandlerByIdRef.current,
+      pointId,
+      (stablePointId) => (clientX, clientY) => {
+        updatePointFromLatestDragPosition(stablePointId, clientX, clientY);
+      }
+    );
+
+  const getStablePointMarkerDragEndHandler = (pointId: string) =>
+    getOrCreateStablePointHandler(
+      pointMarkerDragEndHandlerByIdRef.current,
+      pointId,
+      (stablePointId) => () => {
+        pointDragInteractionStateRef.current.onPointPlaneDragEnd?.(
+          stablePointId
+        );
+      }
+    );
+
+  const getStablePointVerticalOffsetStemLongPressHandler = (pointId: string) =>
+    getOrCreateStablePointHandler(
+      pointVerticalOffsetStemLongPressHandlerByIdRef.current,
+      pointId,
+      (stablePointId) => () => {
+        interactionCallbacksRef.current.onPointVerticalOffsetStemLongPress?.(
+          stablePointId
+        );
+      }
+    );
 
   const layoutConfig = useMemo(
     () => resolvePointLabelLayoutConfig(labelLayoutConfig),
@@ -563,32 +814,6 @@ export const usePointLabelVisualizer = (
       resolvedEditingPointMarkerSizeScale,
     [resolvedEditingPointMarkerSizeScale]
   );
-
-  // Keep camera pitch in sync while the camera moves.
-  useEffect(() => {
-    if (!scene || scene.isDestroyed() || !enabled) return;
-    const camera = scene.camera;
-
-    const updatePitch = () => {
-      const currentPitch = camera.pitch;
-      setCameraPitch((prev) =>
-        Math.abs(currentPitch - prev) > 0.001 ? currentPitch : prev
-      );
-    };
-
-    updatePitch();
-    const removeChangedListener = camera.changed.addEventListener(updatePitch);
-    const removeMoveEndListener = camera.moveEnd.addEventListener(updatePitch);
-
-    return () => {
-      if (removeChangedListener) {
-        removeChangedListener();
-      }
-      if (removeMoveEndListener) {
-        removeMoveEndListener();
-      }
-    };
-  }, [enabled, scene]);
 
   const realtimeOcclusionEditingPointIds = useMemo(() => {
     if (!occlusionChecksEnabled || !editingPointIsDragging) return [];
@@ -917,9 +1142,6 @@ export const usePointLabelVisualizer = (
       const isDistanceMetricPoint = pointLabelMetricMode === "distance";
       const isAnnotationMarker = Boolean(point.auxiliaryLabelAnchor);
       const pointLabelAppearance = point.labelAppearance;
-      const resolvedPointLabelFontSizePx = sanitizePointLabelFontSizePx(
-        pointLabelAppearance?.fontSizePx
-      );
       const resolvedPointLabelBackgroundColor = sanitizeCssColorString(
         pointLabelAppearance?.backgroundColor
       );
@@ -930,8 +1152,7 @@ export const usePointLabelVisualizer = (
         point.labelAnchor && point.labelAnchor.anchorPointId === point.id
           ? point.labelAnchor
           : undefined;
-      const declaredCompactContent =
-        declaredLabelAnchor?.compactContent?.trim();
+      const declaredBadgeContent = declaredLabelAnchor?.badgeContent?.trim();
       const declaredCollapseToCompact =
         declaredLabelAnchor?.collapseToCompact ?? false;
       const hasDeclaredLabelAnchor = Boolean(declaredLabelAnchor);
@@ -948,11 +1169,11 @@ export const usePointLabelVisualizer = (
         : pointMarkerBadge?.text?.trim().length && pointMarkerBadge.text
         ? pointMarkerBadge.text
         : `${effectivePointIndex + 1}`;
-      const compactContent =
+      const badgeContent =
         suppressCompactLabel || isAnnotationMarker
           ? undefined
-          : declaredCompactContent
-          ? declaredCompactContent
+          : declaredBadgeContent
+          ? declaredBadgeContent
           : collapsedByLayout
           ? compactLayoutBadgeText
           : isPolylineLabelPoint
@@ -964,23 +1185,22 @@ export const usePointLabelVisualizer = (
           : compactLabelText ||
             customPointName ||
             (isNodeChainBadge ? undefined : pointMarkerBadge?.text);
-      const fallbackCompactContent = suppressCompactLabel
+      const fallbackBadgeContent = suppressCompactLabel
         ? undefined
-        : compactContent ??
+        : badgeContent ??
           (declaredCollapseToCompact ? compactLayoutBadgeText : undefined);
-      const compactContentText =
-        typeof fallbackCompactContent === "string"
-          ? fallbackCompactContent
+      const badgeContentText =
+        typeof fallbackBadgeContent === "string"
+          ? fallbackBadgeContent
           : undefined;
       const compactAreaBadgeWithoutOutline = Boolean(
-        compactContentText &&
-          NODE_CHAIN_BADGE_REGEX.test(compactContentText.trim())
+        badgeContentText && NODE_CHAIN_BADGE_REGEX.test(badgeContentText.trim())
       );
       const extendedLabelContent =
-        useMarkerLabel && compactContentText
+        useMarkerLabel && badgeContentText
           ? getLabelTextWithoutLeadingBadge(
               labelTextRepresentation.layoutText,
-              compactContentText
+              badgeContentText
             )
           : useMarkerLabel &&
             suppressCompactLabel &&
@@ -990,14 +1210,15 @@ export const usePointLabelVisualizer = (
               pointMarkerBadge.text
             )
           : labelTextRepresentation.layoutText;
-      const forceCollapseToCompactByLayout =
+      const compactOnlyByLayout =
         collapsedByLayout &&
         !isAnnotationMarker &&
-        Boolean(fallbackCompactContent);
-      const forceCollapseToCompactByAnchor =
+        Boolean(fallbackBadgeContent);
+      const compactOnlyByAnchor =
         declaredCollapseToCompact &&
         !isAnnotationMarker &&
-        Boolean(fallbackCompactContent);
+        Boolean(fallbackBadgeContent);
+      const useCompactOnlyContent = compactOnlyByLayout || compactOnlyByAnchor;
       const collapseByLegacyRules =
         !hasDeclaredLabelAnchor &&
         !isPolylineLabelPoint &&
@@ -1008,6 +1229,7 @@ export const usePointLabelVisualizer = (
         !isEditingPoint &&
         !Boolean(markerlessPointIds?.has(point.id)) &&
         Boolean(pointMarkerBadge?.text);
+      const isLockedPoint = Boolean(point.locked);
       const inlineLabelBadgeContent =
         showInlineLabelBadge && pointMarkerBadge
           ? createInlineLabelBadgeContent(
@@ -1020,22 +1242,15 @@ export const usePointLabelVisualizer = (
       const disableInteractionsForEditingPoint = isEditingPoint;
       const dragPlane = pointDragPlaneByPointId?.[point.id];
       const canDirectPlaneDrag = Boolean(
-        dragPlane && onPointPlaneDragPositionChange
+        dragPlane && hasPointPlaneDragPositionChangeHandler
       );
-      const updatePointFromDragPosition = (
-        clientX: number,
-        clientY: number
-      ) => {
-        if (!dragPlane || !onPointPlaneDragPositionChange) return;
-        const nextPosition = getPlaneIntersectionForClientPosition(
-          scene,
-          clientX,
-          clientY,
-          dragPlane
-        );
-        if (!nextPosition) return;
-        onPointPlaneDragPositionChange(point.id, nextPosition);
-      };
+      const pointLabelContent = useMarkerLabel
+        ? useCompactOnlyContent
+          ? fallbackBadgeContent ?? extendedLabelContent
+          : extendedLabelContent
+        : inlineLabelBadgeContent ??
+          labelTextRepresentation.content ??
+          labelTextRepresentation.layoutText;
 
       return {
         id: point.id,
@@ -1043,13 +1258,7 @@ export const usePointLabelVisualizer = (
           if (!scene || scene.isDestroyed()) {
             return visibilityStateById[point.id]?.screenPosition ?? null;
           }
-          const canvasPosition = SceneTransforms.worldToWindowCoordinates(
-            scene,
-            point.geometryECEF
-          );
-          return defined(canvasPosition)
-            ? ({ x: canvasPosition.x, y: canvasPosition.y } as CssPixelPosition)
-            : null;
+          return overlayView.projectWorldToScreen(point.geometryECEF);
         },
         pitch: cameraPitch,
         labelAngleRad: layoutResult.placements[point.id]?.angleRad,
@@ -1065,11 +1274,7 @@ export const usePointLabelVisualizer = (
           (!forceVisibleDraftOverlay &&
             (layoutResult.hiddenByLayout.has(point.id) ||
               Boolean(hiddenPointLabelIds?.has(point.id)))),
-        content: useMarkerLabel
-          ? extendedLabelContent
-          : inlineLabelBadgeContent ??
-            labelTextRepresentation.content ??
-            labelTextRepresentation.layoutText,
+        content: pointLabelContent,
         contentSignature: inlineLabelBadgeContent
           ? `${pointMarkerBadge?.text ?? ""}:${
               labelTextRepresentation.layoutText
@@ -1083,25 +1288,15 @@ export const usePointLabelVisualizer = (
             ? editingPointMarkerSizeDraggingPx
             : editingPointMarkerSizePx
           : undefined,
-        fontSize: `${resolvedPointLabelFontSizePx}px`,
         textColor: resolvedPointLabelTextColor,
         textBackgroundColor: resolvedPointLabelBackgroundColor,
-        compactContent: useMarkerLabel ? fallbackCompactContent : undefined,
-        compactBorderless:
-          useMarkerLabel &&
-          (compactAreaBadgeWithoutOutline || isPreviewLabelPoint),
+        badgeContent: useMarkerLabel ? fallbackBadgeContent : undefined,
         labelStyle: useMarkerLabel ? "capsule" : "auto",
         collapse:
           useMarkerLabel &&
           (declaredCollapseToCompact ||
             collapseByLegacyRules ||
             isPolylineLabelPoint),
-        forceCollapse:
-          forceCollapseToCompactByLayout || forceCollapseToCompactByAnchor,
-        fullBorder:
-          useMarkerLabel &&
-          !useBorderlessExtendedLabel &&
-          isDistanceMetricPoint,
         markerInnerScale: isEditingPoint
           ? editingPointIsDragging
             ? EDITING_POINT_MARKER_INNER_SCALE_DRAGGING
@@ -1122,43 +1317,42 @@ export const usePointLabelVisualizer = (
           ((visibilityStateById[point.id]?.isHidden ?? false) ||
             Boolean(fullyHiddenPointIds?.has(point.id))),
         onClick:
-          !disableInteractionsForEditingPoint && onPointClick
-            ? () => onPointClick(point.id)
+          !disableInteractionsForEditingPoint && hasPointClickHandler
+            ? getStablePointClickHandler(point.id)
             : undefined,
         onDoubleClick:
-          !disableInteractionsForEditingPoint && onPointDoubleClick
-            ? () => onPointDoubleClick(point.id)
+          !disableInteractionsForEditingPoint && hasPointDoubleClickHandler
+            ? getStablePointDoubleClickHandler(point.id)
             : undefined,
         onLongPress:
           !disableInteractionsForEditingPoint &&
           !canDirectPlaneDrag &&
-          onPointLongPress
-            ? () => onPointLongPress(point.id)
+          hasPointLongPressHandler
+            ? getStablePointLongPressHandler(point.id)
             : undefined,
         onHoverChange:
-          !disableInteractionsForEditingPoint && onPointHoverChange
-            ? (hovered: boolean, anchorPosition?: CssPixelPosition | null) =>
-                onPointHoverChange(point.id, hovered, anchorPosition)
+          !disableInteractionsForEditingPoint && hasPointHoverChangeHandler
+            ? getStablePointHoverChangeHandler(point.id)
             : undefined,
-        markerOnlyPointerEvents: markerOnlyOverlayNodeInteractions,
-        attachOverlayClickHandlers: !markerOnlyOverlayNodeInteractions,
+        markerOnlyPointerEvents:
+          markerOnlyOverlayNodeInteractions || isLockedPoint,
+        attachOverlayClickHandlers: !(
+          markerOnlyOverlayNodeInteractions || isLockedPoint
+        ),
+        markerCursor: isLockedPoint ? "pointer" : "grab",
+        labelCursor: "pointer",
         forceMarkerInteractionTarget: Boolean(
           interactivePointIds?.has(point.id)
         ),
         longPressDurationMs: pointLongPressDurationMs,
         onMarkerDragStart: canDirectPlaneDrag
-          ? (clientX: number, clientY: number) => {
-              onPointPlaneDragStart?.(point.id);
-              updatePointFromDragPosition(clientX, clientY);
-            }
+          ? getStablePointMarkerDragStartHandler(point.id)
           : undefined,
         onMarkerDragMove: canDirectPlaneDrag
-          ? (clientX: number, clientY: number) => {
-              updatePointFromDragPosition(clientX, clientY);
-            }
+          ? getStablePointMarkerDragMoveHandler(point.id)
           : undefined,
         onMarkerDragEnd: canDirectPlaneDrag
-          ? () => onPointPlaneDragEnd?.(point.id)
+          ? getStablePointMarkerDragEndHandler(point.id)
           : undefined,
       };
     });
@@ -1175,10 +1369,11 @@ export const usePointLabelVisualizer = (
     editingPointMarkerSizePx,
     editingPointMarkerSizeDraggingPx,
     resolvedEditingPointLabelDistanceScale,
-    onPointClick,
-    onPointDoubleClick,
-    onPointLongPress,
-    onPointHoverChange,
+    hasPointClickHandler,
+    hasPointDoubleClickHandler,
+    hasPointLongPressHandler,
+    hasPointHoverChangeHandler,
+    hasPointPlaneDragPositionChangeHandler,
     pointLongPressDurationMs,
     hiddenPointLabelIds,
     fullyHiddenPointIds,
@@ -1187,9 +1382,6 @@ export const usePointLabelVisualizer = (
     polylinePointLabelTextByPointId,
     pillMarkerPointIds,
     pointDragPlaneByPointId,
-    onPointPlaneDragStart,
-    onPointPlaneDragPositionChange,
-    onPointPlaneDragEnd,
     markerlessPointIds,
     suppressCompactLabelPointIds,
     markerOnlyOverlayNodeInteractions,
@@ -1198,50 +1390,38 @@ export const usePointLabelVisualizer = (
     showLabels,
   ]);
 
-  const verticalOffsetStemLines = useMemo<LineVisualizerData[]>(() => {
+  const verticalOffsetStemLines = useMemo(() => {
     if (!scene || scene.isDestroyed()) return [];
-    return points
-      .map((point) => {
-        const anchor = point.verticalOffsetAnchorECEF;
-        if (!anchor) return null;
-        const anchorECEF = new Cartesian3(anchor.x, anchor.y, anchor.z);
-        return {
-          id: `point-vertical-offset-stem-${point.id}`,
-          stroke: "rgba(255, 255, 255, 1)",
-          strokeWidth: 2,
-          strokeDasharray: "0 3",
-          strokeDashoffset: 0,
-          opacity: 0.9,
-          visible: true,
-          onLineLongPress: onPointVerticalOffsetStemLongPress
-            ? () => onPointVerticalOffsetStemLongPress(point.id)
-            : undefined,
-          longPressDurationMs: pointLongPressDurationMs,
-          getCanvasLine: () => {
-            if (!scene || scene.isDestroyed()) {
-              return null;
-            }
-            const start = SceneTransforms.worldToWindowCoordinates(
-              scene,
-              point.geometryECEF
-            );
-            const end = SceneTransforms.worldToWindowCoordinates(
-              scene,
-              anchorECEF
-            );
-            if (!defined(start) || !defined(end)) {
-              return null;
-            }
-            return {
-              start: { x: start.x, y: start.y } as CssPixelPosition,
-              end: { x: end.x, y: end.y } as CssPixelPosition,
-            };
-          },
-        } as LineVisualizerData;
-      })
-      .filter((line): line is LineVisualizerData => Boolean(line));
+    return points.flatMap((point) => {
+      const anchor = point.verticalOffsetAnchorECEF;
+      if (!anchor) return [];
+      return createSvgLineVisualizers({
+        id: `point-vertical-offset-stem-${point.id}`,
+        stroke: "rgba(255, 255, 255, 1)",
+        strokeWidth: 2,
+        dashed: true,
+        dashLengthRatio: 0.25,
+        opacity: 0.9,
+        visible: true,
+        onLineLongPress: hasPointVerticalOffsetStemLongPressHandler
+          ? getStablePointVerticalOffsetStemLongPressHandler(point.id)
+          : undefined,
+        longPressDurationMs: pointLongPressDurationMs,
+        getSvgLine: () => {
+          const start = overlayView.projectWorldToScreen(point.geometryECEF);
+          const end = overlayView.projectWorldToScreen(anchor);
+          if (!start || !end) {
+            return null;
+          }
+          return {
+            start: { x: start.x, y: start.y } as CssPixelPosition,
+            end: { x: end.x, y: end.y } as CssPixelPosition,
+          };
+        },
+      });
+    });
   }, [
-    onPointVerticalOffsetStemLongPress,
+    hasPointVerticalOffsetStemLongPressHandler,
     pointLongPressDurationMs,
     points,
     scene,

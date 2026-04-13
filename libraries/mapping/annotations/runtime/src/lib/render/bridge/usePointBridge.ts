@@ -12,23 +12,22 @@ import {
   PointDistanceRelation,
   PointMeasurementEntry,
   applyDesiredPointLabelAnchors,
+  buildPolylinePointLabelTextByPointId,
   buildOrderByIdFromEntryOrder,
   buildDesiredPointLabelAnchorById,
   buildStandaloneDistancePointSets,
   collectCollapsedPillPointIds,
   collectLabelAnchorPointIdsWithForcedVisibility,
   collectPointIdsWithoutSelfLabelAnchor,
-  formatNumber,
   isPointAnnotationEntry,
 } from "@carma-mapping/annotations/core";
 
-import { useLockedAnnotationIdSet } from "../../annotation-entries/hooks/useLockedAnnotationIdSet";
 import {
   usePointMarkerBadges,
   type AnnotationPointMarkerBadge,
   type NodeChainBadgeKind,
 } from "../point/usePointMarkerBadges";
-
+import { useLockedAnnotationIdSet } from "../../annotation-entries/hooks/useLockedAnnotationIdSet";
 export const isPointVisibleForRendering = (
   annotation: PointAnnotationEntry,
   hideMeasurementsOfType: ReadonlySet<AnnotationMode>,
@@ -114,7 +113,6 @@ const derivePointLabelAnchors = (
       standaloneDistancePointState.unfocusedStandaloneDistanceNonHighestPointIds,
     focusedStandaloneDistanceNonHighestPointIds:
       standaloneDistancePointState.focusedStandaloneDistanceNonHighestPointIds,
-    formatDistanceLabel: formatNumber,
   });
 
 const applyPointLabelAnchors = (
@@ -260,6 +258,15 @@ export const usePointBridge = ({
       standaloneDistancePointState,
     ]
   );
+  const polylinePointLabelTextByPointId = useMemo(
+    () =>
+      buildPolylinePointLabelTextByPointId({
+        polylines,
+        focusedPolylineId: selectedNodeChainAnnotationId,
+        pointMarkerBadgeByPointId,
+      }),
+    [pointMarkerBadgeByPointId, polylines, selectedNodeChainAnnotationId]
+  );
   useEffect(() => {
     setAnnotations((previousAnnotations) =>
       applyPointLabelAnchors(previousAnnotations, desiredPointLabelAnchorById)
@@ -293,6 +300,7 @@ export const usePointBridge = ({
 
   return {
     pointMarkerBadgeByPointId,
+    polylinePointLabelTextByPointId,
     standaloneDistancePointState,
     collapsedPillPointIds,
     pointIdsWithoutLabelAnchor,

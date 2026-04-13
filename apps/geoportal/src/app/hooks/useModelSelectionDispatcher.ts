@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { useDispatch } from "react-redux";
-import type { FeatureInfo } from "@carma/types";
+import type { FeatureInfo } from "@carma-mapping/utils";
 import {
   setFeatures,
   setSecondaryInfoBoxElements,

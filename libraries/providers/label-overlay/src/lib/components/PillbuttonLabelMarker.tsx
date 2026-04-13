@@ -1,106 +1,100 @@
-import React, { useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { type CSSProperties, type MouseEvent } from "react";
+
+import type { CssPixelPosition } from "@carma-units";
 
 import {
-  resolvePillbuttonMountSide,
-  type PillbuttonMountSide,
+  POINT_LABEL_ATTACH,
   type PointLabelAttach,
-} from "./PointLabelMarker";
+} from "../core/pointLabelAttach";
 
-const COMPACT_DIAMETER_EM = 1.9;
-const COMPACT_HORIZONTAL_PADDING_PX = 6;
-const COMPACT_WIDTH_SHRINK_PX = 2;
-const COMPACT_WIDTH_EXTRA_PADDING_PX = 6;
-const COMPACT_PILL_TEXT_LENGTH_THRESHOLD = 2;
-const EXTENDED_VERTICAL_PADDING_PX = 0;
-const EXTENDED_HORIZONTAL_PADDING_PX = 8;
-const COMPACT_EXTENDED_GAP_PX = 4;
-const EXTENDED_LEFT_EXTRA_PADDING_PX = 2;
-const EXTENDED_RIGHT_EXTRA_PADDING_PX = 2;
-const GROW_SHRINK_WIDTH_TRANSITION_MS = 200;
-const SHRINK_WIDTH_TRANSITION_DELAY_MS = 3000;
+const DEFAULT_ANNOTATION_TYPOGRAPHY_CLASSNAME =
+  "carma-default-annotation-typography";
+import { DEFAULT_PILL_LABEL_HEIGHT_EM } from "../core/pillConnectorGeometry";
 
-const setNullableNumberStateIfChanged = (
-  setState: React.Dispatch<React.SetStateAction<number | null>>,
-  nextValue: number | null
-) => {
-  setState((previousValue) =>
-    previousValue === nextValue ? previousValue : nextValue
-  );
+export const PILLBUTTON_BADGE_POSITIONS = {
+  LEFT: "left",
+  RIGHT: "right",
+} as const;
+
+export const DEFAULT_POINT_LABEL_FONT_SIZE = "14px";
+export const DEFAULT_POINT_LABEL_FONT_FAMILY =
+  '"Helvetica Neue", Arial, Helvetica, sans-serif';
+export const DEFAULT_POINT_LABEL_FONT_WEIGHT = 500;
+
+const PILLBUTTON_LABEL_HEIGHT_EM = DEFAULT_PILL_LABEL_HEIGHT_EM;
+const PILLBUTTON_CAP_RADIUS_EM = PILLBUTTON_LABEL_HEIGHT_EM / 2;
+const PILLBUTTON_BADGE_HORIZONTAL_PADDING_EM = Math.max(
+  0.08,
+  PILLBUTTON_CAP_RADIUS_EM * 0.35
+);
+
+export type PillbuttonBadgePosition =
+  (typeof PILLBUTTON_BADGE_POSITIONS)[keyof typeof PILLBUTTON_BADGE_POSITIONS];
+
+export type PillbuttonLabelMarkerAnchorPoints = Readonly<{
+  left: CssPixelPosition;
+  center: CssPixelPosition;
+  right: CssPixelPosition;
+}>;
+
+export const resolvePillbuttonLabelMarkerLocalAnchorPoints = ({
+  heightPx,
+  widthPx,
+}: {
+  heightPx: number;
+  widthPx: number;
+}): PillbuttonLabelMarkerAnchorPoints => {
+  const labelHeightPx =
+    Number.isFinite(heightPx) && heightPx > 0 ? heightPx : 28;
+  const capRadiusPx = labelHeightPx / 2;
+  const centerY = labelHeightPx / 2;
+
+  return {
+    left: {
+      x: capRadiusPx,
+      y: centerY,
+    } as CssPixelPosition,
+    center: {
+      x: widthPx / 2,
+      y: centerY,
+    } as CssPixelPosition,
+    right: {
+      x: widthPx - capRadiusPx,
+      y: centerY,
+    } as CssPixelPosition,
+  };
 };
 
-const setNumberStateIfChanged = (
-  setState: React.Dispatch<React.SetStateAction<number>>,
-  nextValue: number
-) => {
-  setState((previousValue) =>
-    previousValue === nextValue ? previousValue : nextValue
-  );
-};
+const PILLBUTTON_DEFAULT_BADGE_POSITION_BY_ATTACH = {
+  [POINT_LABEL_ATTACH.LEFT]: PILLBUTTON_BADGE_POSITIONS.LEFT,
+  [POINT_LABEL_ATTACH.RIGHT]: PILLBUTTON_BADGE_POSITIONS.RIGHT,
+  [POINT_LABEL_ATTACH.CENTER]: PILLBUTTON_BADGE_POSITIONS.LEFT,
+} as const satisfies Record<PointLabelAttach, PillbuttonBadgePosition>;
 
-const estimateCompactAnchorOffsetPx = (fontSize: string): number => {
-  const parsed = Number.parseFloat(fontSize);
-  if (!Number.isFinite(parsed) || parsed <= 0) return 8;
-  return parsed * (COMPACT_DIAMETER_EM / 2);
-};
-
-interface PillbuttonLabelMarkerProps {
+export interface PillbuttonLabelMarkerProps {
   pointId?: string;
-  labelAttach: PointLabelAttach;
-  labelOffsetX: number;
-  labelOffsetY: number;
-  baseStyles: React.CSSProperties;
-  labelBorderStyle: string;
-  fontSize: string;
-  fontFamily: string;
-  fontWeight: string | number;
-  backgroundColor: string;
-  textColor: string;
-  pointerEvents: React.CSSProperties["pointerEvents"];
-  cursor: React.CSSProperties["cursor"];
-  transition?: string;
-  collapse: boolean;
-  markerContent?: React.ReactNode;
-  markerBackgroundColor?: string;
-  markerTextColor?: string;
-  compactBorderless?: boolean;
-  anchorAtSemicircleCenter?: boolean;
-  fullBorder?: boolean;
-  solidBorderStyle?: string;
-  resizeMode?: "none" | "fast-grow-slow-shrink";
-  content: React.ReactNode;
-  onClick: (event: React.MouseEvent<HTMLDivElement>) => void;
-  onDoubleClick: (event: React.MouseEvent<HTMLDivElement>) => void;
-  onMouseDown: (event: React.MouseEvent<HTMLDivElement>) => void;
+  attach: PointLabelAttach;
+  containerStyle: CSSProperties;
+  badgeStyle?: CSSProperties;
+  badgeContent?: React.ReactNode;
+  badgePosition?: PillbuttonBadgePosition;
+  content?: React.ReactNode;
+  onClick: (event: MouseEvent<HTMLElement>) => void;
+  onDoubleClick: (event: MouseEvent<HTMLElement>) => void;
+  onMouseDown: (event: MouseEvent<HTMLElement>) => void;
   onMouseUp: () => void;
-  onMouseEnter: (event: React.MouseEvent<HTMLDivElement>) => void;
-  onMouseLeave: (event: React.MouseEvent<HTMLDivElement>) => void;
+  onMouseEnter: (event: MouseEvent<HTMLElement>) => void;
+  onMouseLeave: (event: MouseEvent<HTMLElement>) => void;
 }
 
 export const PillbuttonLabelMarker = ({
   pointId,
-  labelAttach,
-  labelOffsetX,
-  labelOffsetY,
-  baseStyles,
-  labelBorderStyle,
-  fontSize,
-  fontFamily,
-  fontWeight,
-  backgroundColor,
-  textColor,
-  pointerEvents,
-  cursor,
-  transition,
-  collapse,
-  markerContent,
-  markerBackgroundColor,
-  markerTextColor,
-  compactBorderless = false,
-  anchorAtSemicircleCenter: anchorAtSemicircleCenterOverride,
-  fullBorder = false,
-  solidBorderStyle,
-  resizeMode = "none",
-  content,
+  attach,
+  containerStyle,
+  badgeStyle,
+  badgeContent,
+  badgePosition,
+  content: contentNode,
   onClick,
   onDoubleClick,
   onMouseDown,
@@ -108,201 +102,168 @@ export const PillbuttonLabelMarker = ({
   onMouseEnter,
   onMouseLeave,
 }: PillbuttonLabelMarkerProps) => {
-  const mountSide = resolvePillbuttonMountSide(labelAttach);
-  const hasCompact =
-    markerContent !== undefined &&
-    markerContent !== null &&
-    (typeof markerContent !== "string" || markerContent.trim().length > 0);
-  const hasExtendedContent =
-    content !== undefined &&
-    content !== null &&
-    (typeof content !== "string" || content.trim().length > 0);
-  const showExtended = !collapse && hasExtendedContent;
-  const effectiveMarkerBorderStyle =
-    fullBorder && solidBorderStyle ? solidBorderStyle : labelBorderStyle;
-  const extendedBorderStyle = fullBorder ? effectiveMarkerBorderStyle : "none";
-  const compactAnchorOffsetPx = estimateCompactAnchorOffsetPx(fontSize);
-  const anchorAtSemicircleCenter =
-    anchorAtSemicircleCenterOverride ?? (hasCompact || fullBorder);
-  const extendedPaddingBySide =
-    hasCompact && showExtended
-      ? mountSide === "right"
-        ? {
-            paddingRight: `calc(${EXTENDED_HORIZONTAL_PADDING_PX}px + ${
-              COMPACT_DIAMETER_EM / 2
-            }em + ${COMPACT_EXTENDED_GAP_PX}px + ${EXTENDED_RIGHT_EXTRA_PADDING_PX}px)`,
-            paddingLeft: `${
-              EXTENDED_HORIZONTAL_PADDING_PX + EXTENDED_LEFT_EXTRA_PADDING_PX
-            }px`,
-          }
-        : mountSide === "left"
-        ? {
-            paddingLeft: `calc(${EXTENDED_HORIZONTAL_PADDING_PX}px + ${
-              COMPACT_DIAMETER_EM / 2
-            }em + ${COMPACT_EXTENDED_GAP_PX}px + ${EXTENDED_LEFT_EXTRA_PADDING_PX}px)`,
-          }
-        : {
-            paddingLeft: `calc(${EXTENDED_HORIZONTAL_PADDING_PX}px + ${
-              COMPACT_DIAMETER_EM / 2
-            }em + ${COMPACT_EXTENDED_GAP_PX}px + ${EXTENDED_LEFT_EXTRA_PADDING_PX}px)`,
-            paddingRight: `calc(${EXTENDED_HORIZONTAL_PADDING_PX}px + ${
-              COMPACT_DIAMETER_EM / 2
-            }em + ${COMPACT_EXTENDED_GAP_PX}px + ${EXTENDED_RIGHT_EXTRA_PADDING_PX}px)`,
-          }
-      : null;
-  const extendedOffsetBySide =
-    hasCompact && showExtended
-      ? mountSide === "right"
-        ? { marginRight: `-${COMPACT_DIAMETER_EM / 2}em` }
-        : mountSide === "left"
-        ? { marginLeft: `-${COMPACT_DIAMETER_EM / 2}em` }
-        : null
-      : null;
-  const compactRef = useRef<HTMLSpanElement | null>(null);
-  const [compactWidthPx, setCompactWidthPx] = useState<number | null>(null);
-  const compactTextLength =
-    typeof markerContent === "string" ? markerContent.trim().length : 0;
-  const shouldForceCompactPill =
-    compactTextLength > COMPACT_PILL_TEXT_LENGTH_THRESHOLD;
+  const resolvedBadgePosition =
+    badgePosition ?? PILLBUTTON_DEFAULT_BADGE_POSITION_BY_ATTACH[attach];
+  const hasBadgeContent =
+    badgeContent !== undefined &&
+    badgeContent !== null &&
+    (typeof badgeContent !== "string" || badgeContent.trim().length > 0);
+  const hasContent =
+    contentNode !== undefined &&
+    contentNode !== null &&
+    (typeof contentNode !== "string" || contentNode.trim().length > 0);
+  const borderStyle =
+    typeof containerStyle.border === "string" ? containerStyle.border : "none";
+  const borderWidthPx =
+    typeof containerStyle.borderWidth === "number"
+      ? containerStyle.borderWidth
+      : typeof containerStyle.borderWidth === "string"
+      ? Number.parseFloat(containerStyle.borderWidth)
+      : typeof containerStyle.border === "string"
+      ? Number.parseFloat(containerStyle.border)
+      : 0;
+  const hasStartBadge =
+    hasBadgeContent &&
+    resolvedBadgePosition === PILLBUTTON_BADGE_POSITIONS.LEFT;
+  const hasEndBadge =
+    hasBadgeContent &&
+    resolvedBadgePosition === PILLBUTTON_BADGE_POSITIONS.RIGHT;
+  const isBadgeOnly = hasBadgeContent && !hasContent;
+  const resolvedFontSize =
+    containerStyle.fontSize ?? DEFAULT_POINT_LABEL_FONT_SIZE;
+  const resolvedFontFamily =
+    containerStyle.fontFamily ?? DEFAULT_POINT_LABEL_FONT_FAMILY;
+  const resolvedFontWeight =
+    containerStyle.fontWeight ?? DEFAULT_POINT_LABEL_FONT_WEIGHT;
+  const typographyVariableStyles = {
+    "--carma-annotation-overlay-line-label-font-family": resolvedFontFamily,
+    "--carma-annotation-overlay-line-label-font-size": resolvedFontSize,
+    "--carma-annotation-overlay-line-label-font-weight":
+      String(resolvedFontWeight),
+  } as CSSProperties;
+  const sharedTypographyStyles: CSSProperties = {
+    ...typographyVariableStyles,
+    fontSize: resolvedFontSize,
+    fontFamily: resolvedFontFamily,
+    fontWeight: resolvedFontWeight,
+    fontVariantNumeric: "tabular-nums lining-nums",
+    fontFeatureSettings: '"tnum" 1, "lnum" 1',
+    lineHeight: 1,
+    verticalAlign: "baseline",
+    overflow: "visible",
+  };
+  const badgeOuterBorderOverlap =
+    hasContent && borderWidthPx > 0 ? `${-borderWidthPx}px` : undefined;
 
-  useLayoutEffect(() => {
-    const el = compactRef.current;
-    if (!el || !hasCompact) {
-      setNullableNumberStateIfChanged(setCompactWidthPx, null);
-      return;
-    }
-    const scrollW = Math.ceil(el.scrollWidth);
-    const circlePx = el.offsetHeight;
-    if (shouldForceCompactPill || scrollW > circlePx) {
-      setNullableNumberStateIfChanged(
-        setCompactWidthPx,
-        Math.max(
-          scrollW +
-            COMPACT_HORIZONTAL_PADDING_PX * 2 +
-            COMPACT_WIDTH_EXTRA_PADDING_PX -
-            COMPACT_WIDTH_SHRINK_PX,
-          circlePx + 1
-        )
-      );
-    } else {
-      setNullableNumberStateIfChanged(setCompactWidthPx, null);
-    }
-  }, [
-    hasCompact,
-    markerContent,
-    fontSize,
-    fontFamily,
-    fontWeight,
-    shouldForceCompactPill,
-  ]);
-
-  const extendedRef = useRef<HTMLSpanElement | null>(null);
-  const previousExtendedWidthPxRef = useRef<number | null>(null);
-  const [animatedExtendedWidthPx, setAnimatedExtendedWidthPx] = useState<
-    number | null
-  >(null);
-  const [extendedWidthTransitionMs, setExtendedWidthTransitionMs] = useState(0);
-  const [extendedWidthTransitionDelayMs, setExtendedWidthTransitionDelayMs] =
-    useState(0);
-
-  useLayoutEffect(() => {
-    if (resizeMode !== "fast-grow-slow-shrink" || !showExtended) {
-      previousExtendedWidthPxRef.current = null;
-      setNullableNumberStateIfChanged(setAnimatedExtendedWidthPx, null);
-      setNumberStateIfChanged(setExtendedWidthTransitionMs, 0);
-      setNumberStateIfChanged(setExtendedWidthTransitionDelayMs, 0);
-      return;
-    }
-
-    const extendedElement = extendedRef.current;
-    if (!extendedElement) return;
-
-    const nextWidthPx = Math.ceil(extendedElement.scrollWidth);
-    const previousWidthPx = previousExtendedWidthPxRef.current;
-
-    if (previousWidthPx === null) {
-      setNumberStateIfChanged(setExtendedWidthTransitionMs, 0);
-      setNumberStateIfChanged(setExtendedWidthTransitionDelayMs, 0);
-    } else if (nextWidthPx > previousWidthPx) {
-      setNumberStateIfChanged(
-        setExtendedWidthTransitionMs,
-        GROW_SHRINK_WIDTH_TRANSITION_MS
-      );
-      setNumberStateIfChanged(setExtendedWidthTransitionDelayMs, 0);
-    } else if (nextWidthPx < previousWidthPx) {
-      setNumberStateIfChanged(
-        setExtendedWidthTransitionMs,
-        GROW_SHRINK_WIDTH_TRANSITION_MS
-      );
-      setNumberStateIfChanged(
-        setExtendedWidthTransitionDelayMs,
-        SHRINK_WIDTH_TRANSITION_DELAY_MS
-      );
-    } else {
-      setNumberStateIfChanged(setExtendedWidthTransitionDelayMs, 0);
-    }
-
-    previousExtendedWidthPxRef.current = nextWidthPx;
-    setNullableNumberStateIfChanged(setAnimatedExtendedWidthPx, nextWidthPx);
-  }, [resizeMode, showExtended, content, fontFamily, fontSize, fontWeight]);
-
-  const getCompactStylesByMountSide = (
-    side: PillbuttonMountSide
-  ): React.CSSProperties => {
-    if (side === "right") {
-      return {
-        right: 0,
-        transform: "translate(50%, -50%)",
-      };
-    }
-    if (side === "left") {
-      return {
-        left: 0,
-        transform: "translate(-50%, -50%)",
-      };
-    }
-    return {
-      left: "50%",
-      transform: "translate(-50%, -50%)",
-    };
+  const sharedSegmentStyles: CSSProperties = {
+    boxSizing: "border-box",
+    minHeight: `${PILLBUTTON_LABEL_HEIGHT_EM}em`,
+    whiteSpace: "nowrap",
+    lineHeight: 1,
+    borderRadius: `${PILLBUTTON_CAP_RADIUS_EM}em`,
+    verticalAlign: "baseline",
+  };
+  const badgeSegmentStyles: CSSProperties = {
+    ...sharedSegmentStyles,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: `${PILLBUTTON_LABEL_HEIGHT_EM}em`,
+    padding: `0 ${PILLBUTTON_BADGE_HORIZONTAL_PADDING_EM}em`,
+    border: borderStyle,
+    backgroundColor: containerStyle.backgroundColor,
+    color: containerStyle.color,
+    ...badgeStyle,
+  };
+  const startBadgeSegmentStyles: CSSProperties = {
+    ...badgeSegmentStyles,
+    ...(badgeOuterBorderOverlap
+      ? {
+          marginTop: badgeOuterBorderOverlap,
+          marginBottom: badgeOuterBorderOverlap,
+          marginLeft: badgeOuterBorderOverlap,
+          marginRight: "0.5ex",
+        }
+      : null),
+  };
+  const endBadgeSegmentStyles: CSSProperties = {
+    ...badgeSegmentStyles,
+    ...(badgeOuterBorderOverlap
+      ? {
+          marginTop: badgeOuterBorderOverlap,
+          marginBottom: badgeOuterBorderOverlap,
+          marginRight: badgeOuterBorderOverlap,
+          marginLeft: "0.5ex",
+        }
+      : null),
+  };
+  const contentSegmentStyles: CSSProperties = {
+    ...sharedSegmentStyles,
+    display: "inline-flex",
+    alignItems: "center",
+    paddingLeft: hasStartBadge ? "0em" : `1ex`,
+    paddingRight: hasEndBadge ? "0em" : `1ex`,
+  };
+  const rootLabelShellStyles: CSSProperties = {
+    ...sharedSegmentStyles,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    backgroundColor: containerStyle.backgroundColor,
+    color: containerStyle.color,
+    border: "none",
   };
 
-  const anchorTransform = useMemo(() => {
-    if (mountSide === "right") {
-      if (!anchorAtSemicircleCenter || hasCompact) {
-        return "translate(-100%, -50%)";
-      }
-      return `translate(calc(-100% + ${compactAnchorOffsetPx}px), -50%)`;
-    }
-    if (mountSide === "center") {
-      return "translate(-50%, -50%)";
-    }
-    if (!anchorAtSemicircleCenter || hasCompact) {
-      return "translate(0%, -50%)";
-    }
-    return `translate(${-compactAnchorOffsetPx}px, -50%)`;
-  }, [anchorAtSemicircleCenter, compactAnchorOffsetPx, hasCompact, mountSide]);
+  if (isBadgeOnly) {
+    const badgeSlot =
+      resolvedBadgePosition === PILLBUTTON_BADGE_POSITIONS.LEFT
+        ? "start"
+        : "end";
+
+    return (
+      <span
+        className={DEFAULT_ANNOTATION_TYPOGRAPHY_CLASSNAME}
+        data-point-label-interactive="true"
+        data-point-label-id={pointId}
+        data-pillbutton-root="true"
+        data-pillbutton-badge="true"
+        data-pillbutton-badge-slot={badgeSlot}
+        style={{
+          ...containerStyle,
+          ...sharedSegmentStyles,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minWidth: `${PILLBUTTON_LABEL_HEIGHT_EM}em`,
+          padding: `0 ${PILLBUTTON_BADGE_HORIZONTAL_PADDING_EM}em`,
+          border: borderStyle,
+          backgroundColor: containerStyle.backgroundColor,
+          color: containerStyle.color,
+          ...sharedTypographyStyles,
+          ...badgeStyle,
+        }}
+        onClick={onClick}
+        onDoubleClick={onDoubleClick}
+        onMouseDown={onMouseDown}
+        onMouseUp={onMouseUp}
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
+      >
+        {badgeContent}
+      </span>
+    );
+  }
 
   return (
     <div
       data-point-label-interactive="true"
       data-point-label-id={pointId}
+      data-pillbutton-root="true"
       style={{
-        ...baseStyles,
+        ...containerStyle,
+        ...rootLabelShellStyles,
+        ...sharedTypographyStyles,
         padding: 0,
-        display: "inline-block",
-        fontSize,
-        fontFamily,
-        fontWeight,
-        fontVariantNumeric: "tabular-nums",
-        fontFeatureSettings: '"tnum"',
-        position: "absolute",
-        left: `${labelOffsetX}px`,
-        top: `${labelOffsetY}px`,
-        transform: anchorTransform,
-        pointerEvents,
-        cursor,
-        transition,
       }}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
@@ -311,91 +272,34 @@ export const PillbuttonLabelMarker = ({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
-      {hasCompact ? (
+      {hasStartBadge ? (
         <span
-          ref={compactRef}
-          style={{
-            position: "absolute",
-            ...getCompactStylesByMountSide(mountSide),
-            top: "50%",
-            width:
-              compactWidthPx != null
-                ? `${compactWidthPx}px`
-                : `${COMPACT_DIAMETER_EM}em`,
-            minWidth: `${COMPACT_DIAMETER_EM}em`,
-            height: `${COMPACT_DIAMETER_EM}em`,
-            padding:
-              compactWidthPx != null
-                ? `0 ${COMPACT_HORIZONTAL_PADDING_PX}px`
-                : 0,
-            borderRadius: "999px",
-            border: compactBorderless ? "none" : effectiveMarkerBorderStyle,
-            boxSizing: "border-box",
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            overflow: "hidden",
-            whiteSpace: "nowrap",
-            backgroundColor: markerBackgroundColor ?? backgroundColor,
-            color: markerTextColor ?? textColor,
-            lineHeight: 1,
-            zIndex: 2,
-          }}
+          className={DEFAULT_ANNOTATION_TYPOGRAPHY_CLASSNAME}
+          data-pillbutton-badge="true"
+          data-pillbutton-badge-slot="start"
+          style={startBadgeSegmentStyles}
         >
-          {markerContent}
+          {badgeContent}
         </span>
       ) : null}
-
-      {showExtended ? (
+      {hasContent || !hasBadgeContent ? (
         <span
-          ref={extendedRef}
-          style={{
-            borderRadius: "999px",
-            padding: `${EXTENDED_VERTICAL_PADDING_PX}px ${EXTENDED_HORIZONTAL_PADDING_PX}px`,
-            paddingLeft: `${
-              EXTENDED_HORIZONTAL_PADDING_PX + EXTENDED_LEFT_EXTRA_PADDING_PX
-            }px`,
-            ...(extendedPaddingBySide ?? null),
-            ...(extendedOffsetBySide ?? null),
-            backgroundColor,
-            color: textColor,
-            border: extendedBorderStyle,
-            boxSizing: "border-box",
-            display: "inline-flex",
-            alignItems: "center",
-            minHeight: "1.9em",
-            position: "relative",
-            zIndex: 1,
-            width:
-              resizeMode === "fast-grow-slow-shrink" &&
-              animatedExtendedWidthPx !== null
-                ? `${animatedExtendedWidthPx}px`
-                : undefined,
-            overflow:
-              resizeMode === "fast-grow-slow-shrink" ? "hidden" : undefined,
-            transition:
-              resizeMode === "fast-grow-slow-shrink"
-                ? `width ${extendedWidthTransitionMs}ms ease ${extendedWidthTransitionDelayMs}ms`
-                : undefined,
-          }}
+          className={DEFAULT_ANNOTATION_TYPOGRAPHY_CLASSNAME}
+          data-pillbutton-content="true"
+          data-pillbutton-segment="content"
+          style={contentSegmentStyles}
         >
-          {content}
+          {contentNode}
         </span>
-      ) : !hasCompact ? (
+      ) : null}
+      {hasEndBadge ? (
         <span
-          style={{
-            borderRadius: "999px",
-            padding: `${EXTENDED_VERTICAL_PADDING_PX}px ${EXTENDED_HORIZONTAL_PADDING_PX}px`,
-            backgroundColor,
-            color: textColor,
-            border: extendedBorderStyle,
-            boxSizing: "border-box",
-            display: "inline-flex",
-            alignItems: "center",
-            minHeight: "1.9em",
-          }}
+          className={DEFAULT_ANNOTATION_TYPOGRAPHY_CLASSNAME}
+          data-pillbutton-badge="true"
+          data-pillbutton-badge-slot="end"
+          style={endBadgeSegmentStyles}
         >
-          {content}
+          {badgeContent}
         </span>
       ) : null}
     </div>

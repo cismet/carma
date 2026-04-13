@@ -1,3 +1,5 @@
+import { Vector3 } from "three";
+
 import {
   createCssAxisDragController,
   type GizmoCssAxisController,
@@ -7,8 +9,6 @@ import {
   createCssAxisGizmoView,
   type GizmoCssAxisView,
 } from "./cssAxisGizmoView";
-import { Vector3 } from "three";
-
 type AxisId = "x" | "y" | "z";
 
 const AXIS_DIRECTIONS: Record<AxisId, Vector3> = {

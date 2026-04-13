@@ -9,7 +9,6 @@ import {
   type ToolPrimitiveGeneratorContext,
   type ToolPrimitiveSet,
 } from "./primitiveGenerator.types";
-
 export const generateGroundAreaToolPrimitives = ({
   showMeasurementGeometry,
   activeNodeChainAnnotationId,

@@ -3,11 +3,10 @@
 import { useEffect, useRef } from "react";
 import { useSelector } from "react-redux";
 
-import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import StyledWMSTileLayer from "react-cismap/StyledWMSTileLayer";
+import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 
 import { selectShowPrimaryTileset } from "../slices/cesium";
-
 // TODO sync this setting across app
 const DEFAULT_MODE_2D_3D_CHANGE_FADE_DURATION = 1000;
 

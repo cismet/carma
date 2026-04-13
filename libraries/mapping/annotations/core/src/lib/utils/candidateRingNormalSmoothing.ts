@@ -1,4 +1,4 @@
-import { Cartesian3 } from "@carma/cesium";
+import { Cartesian3 } from "@carma-cesium";
 
 export type CandidateRingSample = {
   normalX: number;
@@ -6,6 +6,8 @@ export type CandidateRingSample = {
   normalZ: number;
   timestampMs: number;
 };
+
+export type PreviewRingSample = CandidateRingSample;
 
 const SAMPLE_NORMAL_SCRATCH = new Cartesian3();
 const REFERENCE_NORMAL_SCRATCH = new Cartesian3();
@@ -55,12 +57,16 @@ export const pushCandidateRingSample = ({
   }
 };
 
+export const pushPreviewRingSample = pushCandidateRingSample;
+
 export const getAveragedCandidateRingNormal = ({
   samples,
   fallbackNormal,
   result,
   epsilonSquared,
   maxSampleAgeMs,
+  weightDecayWindowMs = maxSampleAgeMs,
+  weightDecayGamma = 1,
   nowMs = performance.now(),
 }: {
   samples: CandidateRingSample[];
@@ -68,6 +74,8 @@ export const getAveragedCandidateRingNormal = ({
   result: Cartesian3;
   epsilonSquared: number;
   maxSampleAgeMs: number;
+  weightDecayWindowMs?: number;
+  weightDecayGamma?: number;
   nowMs?: number;
 }): Cartesian3 => {
   const cutoffTimestamp = nowMs - Math.max(0, maxSampleAgeMs);
@@ -82,23 +90,46 @@ export const getAveragedCandidateRingNormal = ({
   let sumNormalX = 0;
   let sumNormalY = 0;
   let sumNormalZ = 0;
+  let totalWeight = 0;
+  const effectiveWeightDecayWindowMs = Math.max(0, weightDecayWindowMs);
+  const effectiveWeightDecayGamma = Math.max(weightDecayGamma, 0.01);
 
   for (const sample of samples) {
     SAMPLE_NORMAL_SCRATCH.x = sample.normalX;
     SAMPLE_NORMAL_SCRATCH.y = sample.normalY;
     SAMPLE_NORMAL_SCRATCH.z = sample.normalZ;
     orientNormalTowardReference(SAMPLE_NORMAL_SCRATCH, fallbackNormal);
-    sumNormalX += SAMPLE_NORMAL_SCRATCH.x;
-    sumNormalY += SAMPLE_NORMAL_SCRATCH.y;
-    sumNormalZ += SAMPLE_NORMAL_SCRATCH.z;
+    const sampleAgeMs = Math.max(0, nowMs - sample.timestampMs);
+    const sampleWeight =
+      effectiveWeightDecayWindowMs > 0
+        ? Math.pow(
+            Math.max(0, 1 - sampleAgeMs / effectiveWeightDecayWindowMs),
+            effectiveWeightDecayGamma
+          )
+        : 1;
+
+    if (sampleWeight <= 0) {
+      continue;
+    }
+
+    sumNormalX += SAMPLE_NORMAL_SCRATCH.x * sampleWeight;
+    sumNormalY += SAMPLE_NORMAL_SCRATCH.y * sampleWeight;
+    sumNormalZ += SAMPLE_NORMAL_SCRATCH.z * sampleWeight;
+    totalWeight += sampleWeight;
   }
 
-  const sampleCount = Math.max(1, samples.length);
-  const inverseSampleCount = 1 / sampleCount;
+  if (totalWeight <= 0) {
+    result.x = fallbackNormal.x;
+    result.y = fallbackNormal.y;
+    result.z = fallbackNormal.z;
+    return result;
+  }
 
-  result.x = sumNormalX * inverseSampleCount;
-  result.y = sumNormalY * inverseSampleCount;
-  result.z = sumNormalZ * inverseSampleCount;
+  const inverseTotalWeight = 1 / totalWeight;
+
+  result.x = sumNormalX * inverseTotalWeight;
+  result.y = sumNormalY * inverseTotalWeight;
+  result.z = sumNormalZ * inverseTotalWeight;
 
   if (Cartesian3.magnitudeSquared(result) <= epsilonSquared) {
     result.x = fallbackNormal.x;
@@ -111,3 +142,5 @@ export const getAveragedCandidateRingNormal = ({
 
   return result;
 };
+
+export const getAveragedPreviewRingNormal = getAveragedCandidateRingNormal;

@@ -6,13 +6,13 @@ import React, {
   useMemo,
   useLayoutEffect,
   type ReactNode,
-  type RefObject,
 } from "react";
+
 import { createPortal } from "react-dom";
 
+import type { LabelOverlayHostBinding } from "./host";
 import { LabelOverlayContext } from "./LabelOverlayContext";
 import type { LabelOverlayElement, LabelOverlayContextType } from "./types";
-
 const hasSameOverlayPortalContent = (
   left: LabelOverlayElement,
   right: LabelOverlayElement
@@ -36,26 +36,20 @@ const shouldReuseOverlayPortal = (
 
 interface LabelOverlayProviderProps {
   children: ReactNode;
-  containerRef?: RefObject<HTMLElement | null>;
-  requestUpdateCallback?: (updateFn: () => void) => void;
+  host: LabelOverlayHostBinding;
 }
 
 export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
   children,
-  containerRef,
-  requestUpdateCallback,
+  host,
 }) => {
   const overlayRef = useRef<HTMLDivElement | null>(null);
+  const overlayElementNodeByIdRef = useRef<Map<string, HTMLDivElement>>(
+    new Map()
+  );
   const overlayElementsRef = useRef<Map<string, LabelOverlayElement>>(
     new Map()
   );
-  const externalUpdateDriverDetectedRef = useRef(false);
-  const overlayDebugSnapshotByIdRef = useRef<Map<string, string>>(new Map());
-  const overlayDebugMutationCountByIdRef = useRef<Map<string, number>>(
-    new Map()
-  );
-  const overlayDebugFrameRef = useRef(0);
-  const overlayDebugLastLogFrameRef = useRef(0);
   const renderScheduledRef = useRef(false);
   const requestRenderRef = useRef<(() => void) | null>(null);
   // Force a re-render when we need to update Portals (add/remove/content change)
@@ -71,23 +65,25 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
     }
     queueMicrotask(requestRenderRef.current);
   }, []);
+  const resolvedContainerRef = host.containerRef;
+  const resolvedFrameSubscription = host.subscribeFrame;
+  const forceLayoutOnPortalRender = host.forceLayoutOnPortalRender ?? true;
 
   // Create overlay container
   useEffect(() => {
-    const container = containerRef?.current || document.body;
+    const container = resolvedContainerRef.current;
     if (!container) return;
 
     const overlayDiv = document.createElement("div");
-    overlayDiv.id = "label-overlay-container";
+    overlayDiv.dataset.labelOverlayContainer = "true";
     overlayDiv.style.position = "absolute";
     overlayDiv.style.top = "0";
     overlayDiv.style.left = "0";
     overlayDiv.style.width = "100%";
     overlayDiv.style.height = "100%";
     overlayDiv.style.pointerEvents = "none";
-    overlayDiv.style.zIndex = "1000";
+    overlayDiv.style.zIndex = "auto";
     overlayDiv.style.overflow = "hidden";
-    overlayDiv.style.clipPath = "inset(0)";
 
     container.appendChild(overlayDiv);
     overlayRef.current = overlayDiv;
@@ -95,11 +91,12 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
     forceRender();
 
     return () => {
+      overlayElementNodeByIdRef.current.clear();
       if (overlayDiv && container.contains(overlayDiv)) {
         container.removeChild(overlayDiv);
       }
     };
-  }, [containerRef, forceRender]);
+  }, [forceRender, resolvedContainerRef]);
 
   const addLabelOverlayElement = useCallback(
     (element: LabelOverlayElement) => {
@@ -119,6 +116,7 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
     (id: string) => {
       if (!overlayElementsRef.current.has(id)) return;
       overlayElementsRef.current.delete(id);
+      overlayElementNodeByIdRef.current.delete(id);
       forceRender();
     },
     [forceRender]
@@ -143,6 +141,7 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
   const clearLabelOverlayElements = useCallback(() => {
     if (overlayElementsRef.current.size === 0) return;
     overlayElementsRef.current.clear();
+    overlayElementNodeByIdRef.current.clear();
     forceRender();
   }, [forceRender]);
 
@@ -150,53 +149,13 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
   const updatePositionsInternal = useCallback(() => {
     const overlayContainer = overlayRef.current;
     if (!overlayContainer) return;
-    const debugEnabled =
-      typeof window !== "undefined" &&
-      Boolean(
-        (
-          window as unknown as {
-            __CARMA_LABEL_OVERLAY_DEBUG__?: boolean;
-          }
-        ).__CARMA_LABEL_OVERLAY_DEBUG__
-      );
-    let debugChangedIds: string[] = [];
-    const captureDebugSnapshot = (id: string, elementDiv: HTMLElement) => {
-      if (!debugEnabled) return;
-      const lineLabelTextEl = elementDiv.querySelector(
-        '[data-line-visualizer-text="true"]'
-      ) as SVGTextElement | null;
-      const snapshot = [
-        elementDiv.style.display,
-        elementDiv.style.left,
-        elementDiv.style.top,
-        elementDiv.style.transform,
-        lineLabelTextEl?.getAttribute("x") ?? "",
-        lineLabelTextEl?.getAttribute("y") ?? "",
-        lineLabelTextEl?.getAttribute("transform") ?? "",
-        lineLabelTextEl?.style.display ?? "",
-      ].join("|");
-
-      const previousSnapshot = overlayDebugSnapshotByIdRef.current.get(id);
-      if (snapshot === previousSnapshot) return;
-      overlayDebugSnapshotByIdRef.current.set(id, snapshot);
-      const previousMutationCount =
-        overlayDebugMutationCountByIdRef.current.get(id) ?? 0;
-      overlayDebugMutationCountByIdRef.current.set(
-        id,
-        previousMutationCount + 1
-      );
-      debugChangedIds.push(id);
-    };
 
     overlayElementsRef.current.forEach((element, id) => {
-      const elementDiv = overlayContainer.querySelector(
-        `[data-label-overlay-id="${id}"]`
-      ) as HTMLElement;
+      const elementDiv = overlayElementNodeByIdRef.current.get(id);
       if (!elementDiv) return;
 
       if (element.isHidden === true) {
         elementDiv.style.display = "none";
-        captureDebugSnapshot(id, elementDiv);
         return;
       }
 
@@ -204,7 +163,6 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
         const hasPosition = element.updatePosition(elementDiv);
         elementDiv.style.display =
           hasPosition && element.visible !== false ? "block" : "none";
-        captureDebugSnapshot(id, elementDiv);
         return;
       }
 
@@ -221,52 +179,25 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
       } else {
         elementDiv.style.display = "none";
       }
-      captureDebugSnapshot(id, elementDiv);
     });
-
-    if (!debugEnabled) return;
-
-    overlayDebugFrameRef.current += 1;
-    const frame = overlayDebugFrameRef.current;
-    const shouldLog =
-      debugChangedIds.length > 0 &&
-      frame - overlayDebugLastLogFrameRef.current >= 30;
-    if (!shouldLog) return;
-
-    overlayDebugLastLogFrameRef.current = frame;
-    const sortedTopMutations = Array.from(
-      overlayDebugMutationCountByIdRef.current.entries()
-    )
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 8)
-      .map(([id, count]) => `${id}:${count}`);
-    // eslint-disable-next-line no-console
-    console.debug(
-      `[LabelOverlayProvider] frame=${frame} changed=${
-        debugChangedIds.length
-      } ids=${debugChangedIds
-        .slice(0, 8)
-        .join(",")} topMutations=${sortedTopMutations.join(",")}`
-    );
   }, []);
 
   const updatePositions = useCallback(() => {
-    externalUpdateDriverDetectedRef.current = true;
     updatePositionsInternal();
   }, [updatePositionsInternal]);
 
   // Register update loop
   useEffect(() => {
-    if (requestUpdateCallback) {
-      requestUpdateCallback(updatePositionsInternal);
-      externalUpdateDriverDetectedRef.current = true;
+    if (resolvedFrameSubscription) {
+      const cleanup = resolvedFrameSubscription(updatePositionsInternal);
+      return () => {
+        if (typeof cleanup === "function") {
+          cleanup();
+        }
+      };
     } else {
       let animationFrameId: number;
       const animationLoop = () => {
-        if (externalUpdateDriverDetectedRef.current) {
-          animationFrameId = 0;
-          return;
-        }
         updatePositionsInternal();
         animationFrameId = requestAnimationFrame(animationLoop);
       };
@@ -277,12 +208,15 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
         }
       };
     }
-  }, [requestUpdateCallback, updatePositionsInternal]);
+  }, [resolvedFrameSubscription, updatePositionsInternal]);
 
-  // Force update positions after DOM updates (e.g. adding new label)
   useLayoutEffect(() => {
+    if (!forceLayoutOnPortalRender) {
+      return;
+    }
+
     updatePositionsInternal();
-  }, [renderCounter, updatePositionsInternal]);
+  }, [forceLayoutOnPortalRender, renderCounter, updatePositionsInternal]);
 
   const contextValue: LabelOverlayContextType = useMemo(
     () => ({
@@ -310,6 +244,14 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
           <div
             key={id}
             data-label-overlay-id={id}
+            ref={(node) => {
+              if (node) {
+                overlayElementNodeByIdRef.current.set(id, node);
+                return;
+              }
+
+              overlayElementNodeByIdRef.current.delete(id);
+            }}
             style={{
               position: "absolute",
               zIndex: element.zIndex ?? 0,

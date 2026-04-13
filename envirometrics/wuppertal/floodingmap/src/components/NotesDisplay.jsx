@@ -1,10 +1,13 @@
-import { notification } from "antd";
 import { useContext, useEffect, useRef, useState } from "react";
-import ProjGeoJson from "react-cismap/ProjGeoJson";
-import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
-import verwallungBuchenhofen from "../assets/verwallung_buchenhofen.jpg";
-import "./notification.css";
 
+import { notification } from "antd";
+
+import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+import ProjGeoJson from "react-cismap/ProjGeoJson";
+
+import verwallungBuchenhofen from "../assets/verwallung_buchenhofen.jpg";
+
+import "./notification.css";
 export default function NotesDisplay() {
   const { routedMapRef } = useContext(TopicMapContext);
   const mapRef = routedMapRef?.leafletMap?.leafletElement;

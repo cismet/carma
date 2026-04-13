@@ -5,7 +5,6 @@ import type {
 
 import type { PolygonPrimitiveRenderModel } from "../visualization.types";
 import { getPolygonFillColor, type FillMeasurementType } from "../../fill";
-
 export const resolveActiveNodeChainType = (
   nodeChainAnnotations: readonly NodeChainAnnotation[],
   activeNodeChainAnnotationId: string | null

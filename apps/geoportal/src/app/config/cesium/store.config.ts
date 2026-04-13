@@ -1,32 +1,11 @@
-// TODO CONSOLIDATE_CESIUM
+import { Color } from "cesium";
 
-import { Cartesian3, Color } from "cesium";
-
-import { WUPPERTAL } from "@carma-commons/resources";
-import { CesiumState } from "@carma-mapping/engines/cesium";
-
-import { colorToConstructorArgs } from "@carma/cesium";
+import { CesiumState } from "@carma-mapping/engines/cesium/legacy";
+import { colorToConstructorArgs } from "@carma-mapping/engines/cesium/core";
 
 import { MODEL_ASSETS } from "./assets.config";
 
-// SETUP Store State
-
-const homePosition = Cartesian3.fromDegrees(
-  WUPPERTAL.position.longitude,
-  WUPPERTAL.position.latitude,
-  WUPPERTAL.position.altitude
-);
-
-// position relative to the home position
-const homeOffset = {
-  x: 0,
-  y: -50000, // southwards
-  z: 45000, // elevation
-};
-
 export const defaultCesiumState: CesiumState = {
-  homeOffset: homeOffset,
-  homePosition,
   showPrimaryTileset: false,
   showSecondaryTileset: true,
   styling: {

@@ -1,5 +1,5 @@
 import { APP_BASE_PATH } from "./app.config";
-import { MarkerModelAsset } from "@carma-mapping/engines/cesium";
+import { MarkerModelAsset } from "@carma-mapping/engines/cesium/legacy";
 
 const BEHOERDE_SVG = `${APP_BASE_PATH}data/img/behoerde.svg`;
 export const GLB_SAMPLE = `${APP_BASE_PATH}data/glb/map_pointer.glb`;

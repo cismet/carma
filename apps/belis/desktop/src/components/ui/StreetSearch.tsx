@@ -3,10 +3,20 @@ import {
   useLibreContext,
   useMapHighlight,
 } from "@carma-mapping/engines/maplibre";
-import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
-import { GazDataItem } from "@carma-commons/utils";
+import {
+  LibFuzzySearch,
+  type GazDataItem,
+  type SearchResultItem,
+} from "@carma-mapping/fuzzy-search";
 import proj4 from "proj4";
 import { proj4crs3857def, proj4crs4326def } from "@carma-mapping/utils";
+
+type StreetSearchSelection = SearchResultItem & {
+  more: SearchResultItem["more"] & {
+    id?: string | number;
+    bounds?: [number, number, number, number];
+  };
+};
 
 const StreetSearch = ({
   gazData,
@@ -42,9 +52,8 @@ const StreetSearch = ({
         priorityTypes={["adressen"]}
         showDropdownBelow={true}
         onSelection={(selection) => {
-          const bounds = selection?.more?.bounds as
-            | [number, number, number, number]
-            | undefined;
+          const streetSelection = selection as StreetSearchSelection | null;
+          const bounds = streetSelection?.more?.bounds;
 
           if (bounds && map) {
             const min = proj4(proj4crs3857def, proj4crs4326def, [
@@ -70,8 +79,9 @@ const StreetSearch = ({
             map.jumpTo({ center: [pos[0], pos[1]] });
             map.setZoom(14);
           }
-          if (selection?.string) {
-            const code = String(selection.more.id).padStart(5, "0");
+          const streetId = streetSelection?.more?.id;
+          if (selection?.string && streetId !== undefined) {
+            const code = String(streetId).padStart(5, "0");
             onClearHighlightResults?.();
             clearHighlights();
             setHighlightingActive(true);

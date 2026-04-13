@@ -1,8 +1,8 @@
-import type { StyleSpecification } from "maplibre-gl";
-import maplibregl from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
 import { cogProtocol } from "@geomatico/maplibre-cog-protocol";
+import maplibregl from "maplibre-gl";
+import type { StyleSpecification } from "maplibre-gl";
 
+import "maplibre-gl/dist/maplibre-gl.css";
 // Register COG protocol once
 maplibregl.addProtocol("cog", cogProtocol as any);
 import {
@@ -1502,6 +1502,12 @@ export const LibreMap = ({
         mappingRef.current[source] ||
         (sourcePrefix ? mappingRef.current[sourcePrefix] : undefined);
 
+      console.log("[AA-DEBUG] LibreMap external watcher: layerMapping found", {
+        layerMapping: !!layerMapping,
+        source: ctxSelectedFeatureId?.source,
+        sourceLayer: ctxSelectedFeatureId?.sourceLayer,
+        hasOpenDatasheet: !!openDatasheetRef.current,
+      });
       if (layerMapping) {
         void createFeature(
           ctxRawFeature,
@@ -1510,6 +1516,10 @@ export const LibreMap = ({
           useRoutingRef.current,
           openDatasheetRef.current
         ).then((feature) => {
+          console.log(
+            "[AA-DEBUG] LibreMap external watcher: createFeature result",
+            { hasFeature: !!feature, datasheet: feature?.properties?.datasheet }
+          );
           if (feature) {
             setSelectedFeature(feature);
             mapSelectionCtxRef.current.setSelectedFeature(feature);

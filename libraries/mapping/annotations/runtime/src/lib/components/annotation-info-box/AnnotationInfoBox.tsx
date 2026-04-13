@@ -1,13 +1,14 @@
 import { CarmaResponsiveInfoBox } from "@carma-commons/ui/components";
 
 import { usePayload } from "./usePayload";
-
 type AnnotationInfoBoxProps = {
   pixelWidth?: number;
+  useControlLayout?: boolean;
 };
 
 export function AnnotationInfoBox({
   pixelWidth = 350,
+  useControlLayout = true,
 }: AnnotationInfoBoxProps) {
   const payload = usePayload(pixelWidth);
   const {
@@ -26,6 +27,7 @@ export function AnnotationInfoBox({
         width={boxWidth}
         onPanelClick={(event) => event.stopPropagation()}
         collapsible={collapsible}
+        useControlLayout={useControlLayout}
         header={undefined}
         headingColor={headingColor}
         footer={footer}

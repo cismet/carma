@@ -1,13 +1,13 @@
 import { act, renderHook } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+
 import {
   ANNOTATION_TYPE_DISTANCE,
   ANNOTATION_TYPE_POINT,
   SELECT_TOOL_TYPE,
 } from "@carma-mapping/annotations/core";
-import { describe, expect, it, vi } from "vitest";
 
 import { useToolbarToolMode } from "./useToolbarToolMode";
-
 describe("useToolbarToolMode", () => {
   it("switches to select when the active non-select tool is clicked again", () => {
     const onToolTypeChange = vi.fn();

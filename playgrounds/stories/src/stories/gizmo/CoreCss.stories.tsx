@@ -1,19 +1,24 @@
-import type { Meta, StoryObj } from "@storybook/react";
 import {
   useEffect,
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type MouseEvent as ReactMouseEvent,
 } from "react";
+
+import type { Meta, StoryObj } from "@storybook/react";
+import { Vector3 } from "three";
+
+import { ResponsiveStatusBar } from "@carma-commons/ui/components";
 import {
   createProjectedMoveGizmoView,
   transformPointWithMatrix,
-  type GizmoVec3,
   type ProjectedMoveGizmoAxisCandidate,
   type ProjectedMoveGizmoView,
 } from "@carma-mapping/gizmo/core";
 
+import { buildAxisGridSegments3d } from "../shared/buildAxisGridSegments3d";
 type CoreCssStoryProps = {
   initialOffset: number;
   fovDeg: number;
@@ -37,12 +42,10 @@ type ProjectedScreenPoint = {
   depth: number;
 };
 
-type Segment3 = {
-  a: GizmoVec3;
-  b: GizmoVec3;
-  stroke: string;
-  strokeOpacity: number;
-  strokeWidth: number;
+type Vec3Like = {
+  x: number;
+  y: number;
+  z: number;
 };
 
 type AxisId = "x" | "y" | "z";
@@ -54,30 +57,39 @@ type OrbitDragState = {
   startPitchDeg: number;
 };
 
-const ORIGIN: GizmoVec3 = { x: 0, y: 0, z: 0 };
-const WORLD_UP: GizmoVec3 = { x: 0, y: 0, z: 1 };
-const SAFE_UP_FALLBACK: GizmoVec3 = { x: 0, y: 1, z: 0 };
+const ORIGIN: Vec3Like = { x: 0, y: 0, z: 0 };
+const WORLD_UP: Vec3Like = { x: 0, y: 0, z: 1 };
+const SAFE_UP_FALLBACK: Vec3Like = { x: 0, y: 1, z: 0 };
 
 const AXIS_CANDIDATES: ProjectedMoveGizmoAxisCandidate[] = [
   {
     id: "x",
-    direction: { x: 1, y: 0, z: 0 },
+    direction: new Vector3(1, 0, 0),
     color: "rgba(239, 68, 68, 0.98)",
     title: "Move along X axis",
   },
   {
     id: "y",
-    direction: { x: 0, y: 1, z: 0 },
+    direction: new Vector3(0, 1, 0),
     color: "rgba(34, 197, 94, 0.98)",
     title: "Move along Y axis",
   },
   {
     id: "z",
-    direction: { x: 0, y: 0, z: 1 },
+    direction: new Vector3(0, 0, 1),
     color: "rgba(59, 130, 246, 0.98)",
     title: "Move along Z axis",
   },
 ];
+
+const TOP_STATUS_BAR_OVERLAY_STYLE: CSSProperties = {
+  position: "absolute",
+  top: 0,
+  left: 0,
+  right: 0,
+  zIndex: 1800,
+  pointerEvents: "none",
+};
 
 const ORBIT_YAW_SENSITIVITY_DEG_PER_PX = 0.22;
 const ORBIT_PITCH_SENSITIVITY_DEG_PER_PX = 0.18;
@@ -87,16 +99,16 @@ const toRad = (deg: number): number => (deg * Math.PI) / 180;
 const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value));
 
-const dot = (a: GizmoVec3, b: GizmoVec3): number =>
+const dot = (a: Vec3Like, b: Vec3Like): number =>
   a.x * b.x + a.y * b.y + a.z * b.z;
 
-const cross = (a: GizmoVec3, b: GizmoVec3): GizmoVec3 => ({
+const cross = (a: Vec3Like, b: Vec3Like): Vec3Like => ({
   x: a.y * b.z - a.z * b.y,
   y: a.z * b.x - a.x * b.z,
   z: a.x * b.y - a.y * b.x,
 });
 
-const normalize = (vector: GizmoVec3): GizmoVec3 => {
+const normalize = (vector: Vec3Like): Vec3Like => {
   const length = Math.hypot(vector.x, vector.y, vector.z);
   if (length <= 1e-6) return { x: 0, y: 0, z: 1 };
   return {
@@ -117,7 +129,7 @@ const buildLookAtViewMatrix = (
   const pitch = toRad(cameraPitchDeg);
   const safeDistance = Math.max(0.2, cameraDistance);
 
-  const eye: GizmoVec3 = {
+  const eye: Vec3Like = {
     x: Math.cos(yaw) * Math.cos(pitch) * safeDistance,
     y: Math.sin(yaw) * Math.cos(pitch) * safeDistance,
     z: Math.sin(pitch) * safeDistance,
@@ -157,7 +169,7 @@ const buildLookAtViewMatrix = (
 };
 
 const projectPointWithView = (
-  point: GizmoVec3,
+  point: Vec3Like,
   viewMatrix: number[],
   viewport: ViewportSize,
   fovDeg: number
@@ -191,83 +203,6 @@ const projectPointWithView = (
   };
 };
 
-const buildGridSegments = (extent: number, step: number): Segment3[] => {
-  const safeExtent = Math.max(1, Math.floor(extent));
-  const safeStep = Math.max(0.5, step);
-  const segments: Segment3[] = [];
-
-  for (let t = -safeExtent; t <= safeExtent + 1e-6; t += safeStep) {
-    segments.push({
-      a: { x: -safeExtent, y: t, z: 0 },
-      b: { x: safeExtent, y: t, z: 0 },
-      stroke: "rgba(56,189,248,0.55)",
-      strokeOpacity: 0.55,
-      strokeWidth: 1,
-    });
-    segments.push({
-      a: { x: t, y: -safeExtent, z: 0 },
-      b: { x: t, y: safeExtent, z: 0 },
-      stroke: "rgba(56,189,248,0.55)",
-      strokeOpacity: 0.55,
-      strokeWidth: 1,
-    });
-
-    segments.push({
-      a: { x: -safeExtent, y: 0, z: t },
-      b: { x: safeExtent, y: 0, z: t },
-      stroke: "rgba(34,197,94,0.48)",
-      strokeOpacity: 0.48,
-      strokeWidth: 1,
-    });
-    segments.push({
-      a: { x: t, y: 0, z: -safeExtent },
-      b: { x: t, y: 0, z: safeExtent },
-      stroke: "rgba(34,197,94,0.48)",
-      strokeOpacity: 0.48,
-      strokeWidth: 1,
-    });
-
-    segments.push({
-      a: { x: 0, y: -safeExtent, z: t },
-      b: { x: 0, y: safeExtent, z: t },
-      stroke: "rgba(59,130,246,0.48)",
-      strokeOpacity: 0.48,
-      strokeWidth: 1,
-    });
-    segments.push({
-      a: { x: 0, y: t, z: -safeExtent },
-      b: { x: 0, y: t, z: safeExtent },
-      stroke: "rgba(59,130,246,0.48)",
-      strokeOpacity: 0.48,
-      strokeWidth: 1,
-    });
-  }
-
-  segments.push({
-    a: { x: -safeExtent, y: 0, z: 0 },
-    b: { x: safeExtent, y: 0, z: 0 },
-    stroke: "rgba(239,68,68,0.98)",
-    strokeOpacity: 1,
-    strokeWidth: 1.4,
-  });
-  segments.push({
-    a: { x: 0, y: -safeExtent, z: 0 },
-    b: { x: 0, y: safeExtent, z: 0 },
-    stroke: "rgba(34,197,94,0.98)",
-    strokeOpacity: 1,
-    strokeWidth: 1.4,
-  });
-  segments.push({
-    a: { x: 0, y: 0, z: -safeExtent },
-    b: { x: 0, y: 0, z: safeExtent },
-    stroke: "rgba(59,130,246,0.98)",
-    strokeOpacity: 1,
-    strokeWidth: 1.4,
-  });
-
-  return segments;
-};
-
 const CoreCssStory = ({
   initialOffset,
   fovDeg,
@@ -288,11 +223,7 @@ const CoreCssStory = ({
     width: 1,
     height: 1,
   });
-  const [point, setPoint] = useState<GizmoVec3>({
-    x: 0,
-    y: 0,
-    z: initialOffset,
-  });
+  const [point, setPoint] = useState<Vector3>(new Vector3(0, 0, initialOffset));
   const [activeAxis, setActiveAxis] = useState<AxisId>("z");
   const [dragging, setDragging] = useState(false);
   const [orbitYawDeg, setOrbitYawDeg] = useState(cameraYawDeg);
@@ -343,13 +274,13 @@ const CoreCssStory = ({
     const gizmo = createProjectedMoveGizmoView({
       container: viewportRef.current,
       axisCandidates: AXIS_CANDIDATES,
-      initialPoint: { x: 0, y: 0, z: initialOffset },
+      initialPoint: new Vector3(0, 0, initialOffset),
       initialActiveAxisId: "z",
       viewMatrix,
-      fovDeg,
+      fovRad: toRad(fovDeg),
       discRadius,
       showRotationHandle: false,
-      onPointChange: (nextPoint) => setPoint(nextPoint),
+      onPointChange: (nextPoint) => setPoint(nextPoint.clone()),
       onActiveAxisChange: (axisId) => {
         if (axisId === "x" || axisId === "y" || axisId === "z") {
           setActiveAxis(axisId);
@@ -359,7 +290,7 @@ const CoreCssStory = ({
     });
 
     gizmoRef.current = gizmo;
-    setPoint(gizmo.getPoint());
+    setPoint(gizmo.getPoint().clone());
     setActiveAxis(gizmo.getActiveAxisId() as AxisId);
 
     return () => {
@@ -377,7 +308,7 @@ const CoreCssStory = ({
   useEffect(() => {
     const gizmo = gizmoRef.current;
     if (!gizmo) return;
-    gizmo.setFovDeg(fovDeg);
+    gizmo.setFovRad(toRad(fovDeg));
   }, [fovDeg]);
 
   useEffect(() => {
@@ -397,13 +328,13 @@ const CoreCssStory = ({
     if (dragging) return;
 
     previousInitialOffsetRef.current = initialOffset;
-    const nextPoint = { x: 0, y: 0, z: initialOffset };
+    const nextPoint = new Vector3(0, 0, initialOffset);
     gizmo.setPoint(nextPoint);
-    setPoint(nextPoint);
+    setPoint(nextPoint.clone());
   }, [initialOffset, dragging]);
 
   const gridSegments = useMemo(
-    () => buildGridSegments(gridExtent, gridStep),
+    () => buildAxisGridSegments3d(gridExtent, gridStep),
     [gridExtent, gridStep]
   );
 
@@ -599,23 +530,14 @@ const CoreCssStory = ({
           ) : null}
         </svg>
 
-        <div
-          style={{
-            position: "absolute",
-            left: 14,
-            top: 14,
-            padding: "8px 10px",
-            borderRadius: 8,
-            background: "rgba(2, 6, 23, 0.82)",
-            border: "1px solid rgba(148, 163, 184, 0.35)",
-            fontSize: 12,
-            lineHeight: 1.4,
-            pointerEvents: "none",
-          }}
-        >
-          Drag gizmo arrows/disc to move the sphere.
-          <br />
-          Drag empty space to orbit the scene.
+        <div style={TOP_STATUS_BAR_OVERLAY_STYLE}>
+          <ResponsiveStatusBar
+            label="gizmo css view"
+            values={[
+              "Drag gizmo arrows/disc to move the sphere.",
+              "Drag empty space to orbit the scene.",
+            ]}
+          />
         </div>
 
         {showReadouts ? (
@@ -659,7 +581,7 @@ const CoreCssStory = ({
 };
 
 const meta: Meta<CoreCssStoryProps> = {
-  title: "Gizmo/CSS View Matrix (WIP)",
+  title: "Mapping Components/Gizmo",
   component: CoreCssStory,
   parameters: {
     layout: "fullscreen",

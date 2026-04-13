@@ -1,11 +1,13 @@
 import type { ReactNode } from "react";
 
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faMinus, faPlus } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+
 import type {
   AnnotationSlots,
   AnnotationInfoBoxEntryPayload,
 } from "../annotationInfoBoxSlots.types";
+import { resolvePointAnnotationDisplayPoint } from "../utils/pointAnnotationDisplay";
 import {
   INFO_BOX_BODY_TEXT_CLASSNAME,
   getInfoBoxLabelDefaultName,
@@ -14,8 +16,6 @@ import {
   renderEditableAnnotationSubtitle,
   stopInputEventPropagation,
 } from "./shared";
-import { resolvePointAnnotationDisplayPoint } from "../utils/pointAnnotationDisplay";
-
 const LABEL_MODE_INSTRUCTION =
   "Klick auf das Modell, um eine Beschriftung zu platzieren.";
 const PURE_LABEL_MIN_FONT_SIZE_PX = 10;

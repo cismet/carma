@@ -1,0 +1,1 @@
+export const VECTOR3_NUMERIC_EPSILON = 1e-6;

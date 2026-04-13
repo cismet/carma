@@ -6,7 +6,6 @@ import {
   type AnnotationType,
 } from "./types/annotationTypes";
 import type { NodeChainAnnotationType } from "./types/annotationTypes";
-
 export type PolygonAnnotationLike = {
   id: string;
   type: NodeChainAnnotationType;

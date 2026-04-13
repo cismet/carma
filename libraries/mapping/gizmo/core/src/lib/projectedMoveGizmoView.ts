@@ -1,3 +1,5 @@
+import { Plane, Vector3 } from "three";
+
 import {
   buildCirclePoints,
   createPlaneBasisFromNormal,
@@ -6,21 +8,21 @@ import {
   getEquilateralTriangleViewBox,
   intersectRayWithPlane,
   getSupportRadius2d,
+  MINUS_PI_OVER_FOUR,
   type Point2,
 } from "@carma-commons/math";
-import { Vector3 } from "three";
+
 import {
   createAxisDragConnector,
   type GizmoAxisDragConnector,
 } from "./axisDragConnector";
-import { toSvgPathD } from "./svgProjection";
 import { AXIS_NUMERIC_EPSILON } from "./constants";
 import {
   DEFAULT_VIEW_FOV_RAD,
   projectPointToViewport,
   rayFromClientPosition,
 } from "./projectedMoveGizmoMath";
-
+import { toSvgPathD } from "./svgProjection";
 const SVG_NS = "http://www.w3.org/2000/svg";
 
 const DEFAULT_DISC_RADIUS = 1.2;
@@ -42,7 +44,15 @@ const DISC_LAYER_Z_INDEX = 1;
 const CENTER_HIT_LAYER_Z_INDEX = 2;
 const ARROW_LAYER_Z_INDEX = 3;
 const ROTATION_HANDLE_RADIUS_PX = 8;
-const ROTATION_HANDLE_OFFSET_FROM_DISC_ZERO_RAD = -Math.PI / 4;
+const ROTATION_HANDLE_OFFSET_FROM_DISC_ZERO_RAD = MINUS_PI_OVER_FOUR;
+
+const createPlaneFromOriginAndNormal = ({
+  origin,
+  normal,
+}: {
+  origin: Vector3;
+  normal: Vector3;
+}): Plane => new Plane().setFromNormalAndCoplanarPoint(normal.clone(), origin);
 
 const ensureNormalizedAxisCandidates = (
   axisCandidates: ProjectedMoveGizmoAxisCandidate[]
@@ -509,8 +519,10 @@ export const createProjectedMoveGizmoView = (
     if (!ray) return;
     const startPlanePoint = intersectRayWithPlane(
       ray,
-      point,
-      activeAxis.direction
+      createPlaneFromOriginAndNormal({
+        origin: point,
+        normal: activeAxis.direction,
+      })
     );
     if (!startPlanePoint) return;
 
@@ -538,8 +550,10 @@ export const createProjectedMoveGizmoView = (
       if (!moveRay) return;
       const currentPlanePoint = intersectRayWithPlane(
         moveRay,
-        dragState.startPoint,
-        dragState.planeNormal
+        createPlaneFromOriginAndNormal({
+          origin: dragState.startPoint,
+          normal: dragState.planeNormal,
+        })
       );
       if (!currentPlanePoint) return;
       const delta = currentPlanePoint.clone().sub(dragState.startPlanePoint);

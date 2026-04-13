@@ -1,4 +1,5 @@
 import type { Map as MaplibreMap, MapGeoJSONFeature } from "maplibre-gl";
+
 import type {
   CarmaConf,
   EnrichedFeature,
@@ -7,7 +8,6 @@ import type {
   SelectionManagerOptions,
   SelectionResult,
 } from "./selectionTypes";
-
 // Re-export types for convenience
 export type { CarmaConf, FeatureIdentifier };
 

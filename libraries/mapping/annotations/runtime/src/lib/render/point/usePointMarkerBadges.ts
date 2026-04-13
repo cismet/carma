@@ -10,7 +10,6 @@ import {
   ANNOTATION_TYPE_LABEL,
   ANNOTATION_TYPE_POINT,
 } from "@carma-mapping/annotations/core";
-
 export type AnnotationPointMarkerBadge = {
   text: string;
   backgroundColor: string;

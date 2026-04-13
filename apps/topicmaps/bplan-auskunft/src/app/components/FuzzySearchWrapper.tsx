@@ -1,6 +1,6 @@
 import { SelectionMetaData, useSelection } from "@carma-appframeworks/portals";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
-import { type SearchResultItem } from "@carma/types";
+import { type SearchResultItem } from "@carma-mapping/fuzzy-search";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { useContext } from "react";
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";

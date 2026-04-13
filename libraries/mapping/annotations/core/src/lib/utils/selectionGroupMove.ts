@@ -1,15 +1,14 @@
+import { Cartesian3 } from "@carma-cesium";
 import {
-  Cartesian3,
   getDegreesFromCartesian,
   getEllipsoidalAltitudeOrZero,
-} from "@carma/cesium";
+} from "@carma-mapping/engines/cesium/core";
 
 import { isPointAnnotationEntry } from "../types/annotationCesiumTypes";
 import type {
   AnnotationCollection,
   PointAnnotationEntry,
 } from "../types/annotationCesiumTypes";
-
 const MOVE_DELTA_EPSILON = 1e-12;
 
 export const getSelectedPointIds = (

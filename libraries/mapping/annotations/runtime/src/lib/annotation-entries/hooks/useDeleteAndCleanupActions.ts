@@ -1,6 +1,5 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
 
-import { Cartesian3 } from "@carma/cesium";
 import {
   ANNOTATION_TYPE_DISTANCE,
   buildEdgeRelationIdsForPolygon,
@@ -11,7 +10,7 @@ import {
   type NodeChainAnnotation,
   type PointDistanceRelation,
 } from "@carma-mapping/annotations/core";
-
+import { Cartesian3 } from "@carma-cesium";
 type UseDeleteAndCleanupActionsParams = {
   annotations: AnnotationCollection;
   distanceRelations: PointDistanceRelation[];
@@ -255,19 +254,23 @@ export const useDeleteAndCleanupActions = ({
       );
       const expandedAnnotationIdSet = new Set<string>(
         ids.filter(
-          (id) => !targetedNodeChainAnnotations.some((group) => group.id === id)
+          (id) =>
+            !lockedAnnotationIdSet.has(id) &&
+            !targetedNodeChainAnnotations.some((group) => group.id === id)
         )
       );
 
       targetedNodeChainAnnotations.forEach((group) => {
         group.nodeIds.forEach((nodeId) => {
-          expandedAnnotationIdSet.add(nodeId);
+          if (!lockedAnnotationIdSet.has(nodeId)) {
+            expandedAnnotationIdSet.add(nodeId);
+          }
         });
       });
 
       clearAnnotationsByIds([...expandedAnnotationIdSet]);
     },
-    [clearAnnotationsByIds, nodeChainAnnotations]
+    [clearAnnotationsByIds, lockedAnnotationIdSet, nodeChainAnnotations]
   );
 
   const deleteSelectedAnnotations = useCallback(() => {

@@ -1,9 +1,8 @@
-import type { Cartesian3 } from "@carma/cesium";
 import {
   ANNOTATION_TYPE_POINT,
   ANNOTATION_TYPE_POLYLINE,
 } from "@carma-mapping/annotations/core";
-
+import type { Cartesian3 } from "@carma-cesium";
 export type AnnotationEditTarget =
   | { kind: "point"; pointId: string }
   | { kind: "point-label"; pointId: string }

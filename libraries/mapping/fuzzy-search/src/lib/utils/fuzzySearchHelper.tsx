@@ -13,7 +13,7 @@ import {
   SearchConfig,
   SearchResultItemWithScore,
 } from "../..";
-import { type SearchResultItem } from "@carma/types";
+import { type SearchResultItem } from "@carma-mapping/fuzzy-search";
 import { type FuseWithOption } from "../lib-fuzzy-search";
 
 import Icon from "react-cismap/commons/Icon";

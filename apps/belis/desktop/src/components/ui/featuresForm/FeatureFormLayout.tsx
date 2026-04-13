@@ -54,6 +54,7 @@ interface FeatureFormLayoutProps {
   hasDraft?: boolean;
   onToggleReadOnly?: () => void;
   singleColumn?: boolean;
+  onBack?: () => void;
 }
 
 const FeatureFormLayout = ({
@@ -79,6 +80,7 @@ const FeatureFormLayout = ({
   hasDraft,
   onToggleReadOnly,
   singleColumn,
+  onBack,
 }: FeatureFormLayoutProps) => {
   // Deduplicate documents to prevent stale data from appearing as extra items
   // when switching between features quickly.
@@ -95,11 +97,11 @@ const FeatureFormLayout = ({
   // Support both regular query params and hash-based routing (/#/?param=value)
   const showRaw = useMemo(() => {
     const hashQuery = window.location.hash.split("?")[1] || "";
-    return (
-      new URLSearchParams(hashQuery || window.location.search).get(
-        "showRaw"
-      ) === "true"
-    );
+    const param = new URLSearchParams(
+      hashQuery || window.location.search
+    ).get("showRaw");
+    if (param !== null) return param === "true";
+    return window.location.hostname === "localhost";
   }, []);
   const [isWideScreen, setIsWideScreen] = useState(
     typeof window !== "undefined" ? window.innerWidth > 1200 : false
@@ -170,7 +172,10 @@ const FeatureFormLayout = ({
 
   // Combine main + extra documents for image pre-fetching
   const allDocumentsForImages = useMemo(
-    () => [...uniqueDocuments, ...extraDocumentSections.flatMap((s) => s.documents)],
+    () => [
+      ...uniqueDocuments,
+      ...extraDocumentSections.flatMap((s) => s.documents),
+    ],
     [uniqueDocuments, extraDocumentSections]
   );
 
@@ -375,11 +380,14 @@ const FeatureFormLayout = ({
           readOnly={readOnly}
           hasDraft={hasDraft}
           onToggleReadOnly={onToggleReadOnly}
+          onBack={onBack}
         />
         <div className="flex flex-1 overflow-hidden">
           {/* Form column - 60% */}
           <div
-            className={`w-3/5 min-w-[400px] px-6 pb-4 overflow-y-auto border-r border-gray-100 transition-opacity ${saving ? "opacity-50 pointer-events-none" : ""}`}
+            className={`w-3/5 min-w-[400px] px-6 pb-4 overflow-y-auto border-r border-gray-100 transition-opacity ${
+              saving ? "opacity-50 pointer-events-none" : ""
+            }`}
           >
             {showRaw || additionalTabs.length > 0 ? (
               <div className="[&_.ant-tabs-nav]:sticky [&_.ant-tabs-nav]:top-0 [&_.ant-tabs-nav]:bg-white [&_.ant-tabs-nav]:z-10">
@@ -391,7 +399,9 @@ const FeatureFormLayout = ({
           </div>
           {/* Documents column - 40% */}
           <div
-            className={`w-2/5 min-w-[480px] px-6 py-4 overflow-y-auto transition-opacity ${saving ? "opacity-50 pointer-events-none" : ""}`}
+            className={`w-2/5 min-w-[480px] px-6 py-4 overflow-y-auto transition-opacity ${
+              saving ? "opacity-50 pointer-events-none" : ""
+            }`}
           >
             {documentsContent}
           </div>
@@ -402,7 +412,11 @@ const FeatureFormLayout = ({
 
   // Narrow screen: tabbed layout
   return (
-    <div className={`bg-white rounded-xl border border-gray-100 w-full h-full flex flex-col min-w-[350px] ${singleColumn ? "" : "max-w-4xl"}`}>
+    <div
+      className={`bg-white rounded-xl border border-gray-100 w-full h-full flex flex-col min-w-[350px] ${
+        singleColumn ? "" : "max-w-4xl"
+      }`}
+    >
       <FormHeader
         title={title}
         subtitle={subtitle}
@@ -414,9 +428,12 @@ const FeatureFormLayout = ({
         readOnly={readOnly}
         hasDraft={hasDraft}
         onToggleReadOnly={onToggleReadOnly}
+        onBack={onBack}
       />
       <div
-        className={`px-6 pb-60 overflow-y-auto flex-1 transition-opacity ${saving ? "opacity-50 pointer-events-none" : ""}`}
+        className={`px-6 pb-60 overflow-y-auto flex-1 transition-opacity ${
+          saving ? "opacity-50 pointer-events-none" : ""
+        }`}
       >
         {singleColumn && !showRaw ? (
           <div className="pt-4">{documentsContent}</div>

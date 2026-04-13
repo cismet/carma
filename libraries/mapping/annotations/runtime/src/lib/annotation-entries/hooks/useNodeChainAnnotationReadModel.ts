@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 
-import { useStoreSelector } from "@carma-commons/react-store";
 import {
   ANNOTATION_TYPE_AREA_GROUND,
   ANNOTATION_TYPE_AREA_PLANAR,
@@ -12,8 +11,7 @@ import {
   type NodeChainAnnotation,
 } from "@carma-mapping/annotations/core";
 
-import { useAnnotationsStore } from "../../store";
-
+import { useAnnotationsStore, useStoreSelector } from "../../store";
 export const useNodeChainAnnotations = (): NodeChainAnnotation[] => {
   const annotationsStore = useAnnotationsStore("useNodeChainAnnotations");
 

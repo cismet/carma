@@ -1,20 +1,21 @@
 import { useMemo, type Dispatch, type SetStateAction } from "react";
-import { type Cartesian3 } from "@carma/cesium";
+
 import {
   ANNOTATION_TYPE_LABEL,
   ANNOTATION_TYPE_POINT,
+  SELECT_TOOL_TYPE,
   type AnnotationCollection,
   type AnnotationToolType,
   type NodeChainAnnotation,
 } from "@carma-mapping/annotations/core";
+import { type Cartesian3 } from "@carma-cesium";
 
-import type { AnnotationToolsContextType } from "../../../context/annotationsContext.types";
 import { useModeLifecycle } from "../useModeLifecycle";
-import { useToolSessions } from "./useToolSessions";
-import { usePointMeasureModeSession } from "./usePointMeasureModeSession";
+import type { AnnotationToolsContextType } from "../../../context/annotationsContext.types";
 import { useLabelPlacementModeSession } from "./useLabelPlacementModeSession";
+import { usePointMeasureModeSession } from "./usePointMeasureModeSession";
 import { usePointQueryToolRouting } from "./usePointQueryToolRouting";
-
+import { useToolSessions } from "./useToolSessions";
 type UseAnnotationToolLifecycleParams = {
   activeToolType: AnnotationToolType;
   annotations: AnnotationCollection;
@@ -110,6 +111,17 @@ export const useToolLifecycle = ({
     requestStartMeasurement,
     requestFinishMeasurement,
   } = useModeLifecycle(activeToolType, toolSessions, clearSharedModeExitState);
+  const requestCancelActiveMeasurementAndEnterSelection = () => {
+    if (activeToolType === SELECT_TOOL_TYPE) {
+      return false;
+    }
+
+    activeToolSession?.discardDraft();
+    clearSharedModeExitState();
+    requestEnterToolType(SELECT_TOOL_TYPE);
+    return true;
+  };
+
   const contextValue = useMemo<AnnotationToolsContextType>(
     () => ({
       activeToolType,
@@ -130,6 +142,7 @@ export const useToolLifecycle = ({
     contextValue,
     confirmLabelPlacementById,
     handlePointQueryPointCreated,
+    requestCancelActiveMeasurementAndEnterSelection,
     requestModeChange,
     requestStartMeasurement,
     requestFinishMeasurement,

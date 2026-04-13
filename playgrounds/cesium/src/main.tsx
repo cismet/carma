@@ -1,11 +1,13 @@
 import { createRoot } from "react-dom/client";
-import { App } from "./app/App";
-import { CESIUM_BASE_URL } from "./app/config/app.config";
-import { suppressReactCismapErrors } from "@carma-commons/utils";
 import { Provider } from "react-redux";
-import { setupStore } from "./app/store";
+
+import { suppressReactCismapErrors } from "@carma-commons/utils";
+import { setupCesiumEnvironment } from "@carma-mapping/engines/cesium/core";
+
 import defaultViewerState from "./app/config";
-import { setupCesiumEnvironment } from "@carma-mapping/engines/cesium";
+import { CESIUM_BASE_URL } from "./app/config/app.config";
+import { App } from "./app/App";
+import { setupStore } from "./app/store";
 
 suppressReactCismapErrors();
 

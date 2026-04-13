@@ -1,0 +1,33 @@
+{
+  "name": "cids-data-bridge",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "services/cidsDataBridge/src",
+  "projectType": "application",
+  "tags": [],
+  "targets": {
+    "serve": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bun --watch run src/index.tsx",
+        "cwd": "services/cidsDataBridge"
+      }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/dist/services/cidsDataBridge"],
+      "options": {
+        "command": "bash -c 'mkdir -p ../../dist/services/cidsDataBridge && cp src/version.json ../../dist/services/cidsDataBridge/version.json'",
+        "cwd": "services/cidsDataBridge"
+      }
+    },
+    "container": {
+      "executor": "@nx-tools/nx-container:build",
+      "options": {
+        "engine": "docker",
+        "platforms": ["linux/amd64"],
+        "push": true,
+        "tags": ["cismet/cids-data-bridge:latest"]
+      }
+    }
+  }
+}

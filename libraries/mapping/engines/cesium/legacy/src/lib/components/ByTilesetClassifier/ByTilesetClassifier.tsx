@@ -1,16 +1,16 @@
 import { useState, useEffect, FC } from "react";
-import { Cesium3DTileset as Resium3dTileset, useCesium } from "resium";
+
 import {
   Cesium3DTileFeature,
   Cesium3DTileStyle,
   ClassificationType,
   Color,
 } from "cesium";
+import { Cesium3DTileset as Resium3dTileset, useCesium } from "resium";
 
 import { TilesetConfig } from "@carma-commons/resources";
 
 import { useClickActionTileset } from "./hooks";
-
 interface ByTilesetClassifier {
   debug?: boolean;
   target?: string;

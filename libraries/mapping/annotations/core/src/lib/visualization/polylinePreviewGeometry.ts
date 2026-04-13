@@ -1,15 +1,14 @@
-import { Cartesian3 } from "@carma/cesium";
+import { Cartesian3 } from "@carma-cesium";
 
 import { ANNOTATION_TYPE_AREA_VERTICAL } from "../types/annotationTypes";
 import type { NodeChainAnnotation } from "../types/annotationTypes";
-import { buildVerticalRectangleCornerFromDiagonal } from "./verticalRectangleGeometry";
 import type {
   VerticalPreviewCornerMarker,
   VerticalPreviewEdgeSegment,
   PointWithGeometryECEF,
   PolylinePreviewMeasurement,
 } from "./previewGeometry.types";
-
+import { buildVerticalRectangleCornerFromDiagonal } from "./verticalRectangleGeometry";
 export const buildPolylinePreviewMeasurements = ({
   nodeChainAnnotations,
   pointsById,

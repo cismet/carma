@@ -14,8 +14,7 @@ import {
   type PointLabelAttach,
   type PointLabelLayoutResult,
 } from "@carma-providers/label-overlay";
-import type { CssPixelPosition } from "@carma/units/types";
-
+import type { CssPixelPosition } from "@carma-units";
 const DEFAULT_PAIR_LABEL_ATTACH: PointLabelAttach = "left";
 const DEFAULT_OVERLAY_ID_PREFIX = "distance-pair-label";
 const LABEL_ATTACH_ORDER_WITH_POINT_LABEL: PointLabelAttach[] = [
@@ -223,7 +222,7 @@ export const useDistanceLabelVisualizer = (
           textBackgroundColor: POINT_LABEL_TEXT_BACKGROUND_COLOR,
           selectedBackgroundColor: POINT_LABEL_SELECTED_BACKGROUND_COLOR,
           hoverBackgroundColor: POINT_LABEL_HOVER_BACKGROUND_COLOR,
-          fullBorder: true,
+          labelStyle: "capsule",
         }),
         visible: true,
         isHidden: isHiddenByLayout,

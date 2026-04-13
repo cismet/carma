@@ -15,7 +15,7 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Button, Modal, Spin } from "antd";
 
-import { Item, Layer } from "@carma/types";
+import { Item, Layer, SavedLayerConfig } from "@carma-mapping/layers";
 import { cn, extractCarmaConfig, updateUrl } from "@carma-commons/utils";
 import {
   extServiceText,
@@ -35,7 +35,7 @@ interface LayerItemProps {
   setAdditionalLayers: any;
   layer: Item;
   activeLayers: ActiveLayers;
-  favorites?: Item[];
+  favorites?: Array<Item | SavedLayerConfig>;
   addFavorite: (layer: Item) => void;
   removeFavorite: (layer: Item) => void;
   setPreview: (preview: boolean) => void;

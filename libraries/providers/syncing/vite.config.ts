@@ -5,16 +5,16 @@ import { nxCopyAssetsPlugin } from '@nx/vite/plugins/nx-copy-assets.plugin';
 
 export default defineConfig({
   root: __dirname,
-  cacheDir: '../../../node_modules/.vite/libraries/providers/offline-sync',
+  cacheDir: '../../../node_modules/.vite/libraries/providers/syncing',
   plugins: [react(), nxViteTsPaths(), nxCopyAssetsPlugin(['*.md'])],
   build: {
     lib: {
       entry: 'src/index.ts',
-      name: 'offline-sync',
+      name: 'syncing',
       formats: ['es'],
       fileName: () => 'index.js',
     },
-    outDir: '../../../dist/libraries/providers/offline-sync',
+    outDir: '../../../dist/libraries/providers/syncing',
     emptyOutDir: true,
     rollupOptions: {
       external: [
@@ -33,7 +33,7 @@ export default defineConfig({
     include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     reporters: ['default'],
     coverage: {
-      reportsDirectory: '../../../coverage/libraries/providers/offline-sync',
+      reportsDirectory: '../../../coverage/libraries/providers/syncing',
       provider: 'v8',
     },
   },

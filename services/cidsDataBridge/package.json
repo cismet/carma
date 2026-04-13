@@ -1,0 +1,12 @@
+{
+  "name": "cids-data-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "hono": "^4.7.5"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.6"
+  }
+}

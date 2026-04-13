@@ -1,24 +1,23 @@
-import type { Cartesian3Json } from "@carma/cesium";
+import type { MetricVector3 } from "@carma-units";
 
 import type {
   AnnotationLabelAnchor,
   AnnotationLabelAppearance,
   PointLabelMetricMode,
 } from "./annotationLabel";
-import type { PointDistanceRelation } from "./distanceRelation";
 import type { NodeChainAnnotation } from "./annotationTypes";
-
+import type { PointDistanceRelation } from "./distanceRelation";
 export type AnnotationGeometryPoint = {
   id: string;
   longitude: number;
   latitude: number;
   height: number;
-  geometryECEF: Cartesian3Json;
+  geometryECEF: MetricVector3;
   hidden?: boolean;
   locked?: boolean;
   pointLabelMode?: PointLabelMetricMode;
   auxiliaryLabelAnchor?: boolean;
-  verticalOffsetAnchorECEF?: Cartesian3Json;
+  verticalOffsetAnchorECEF?: MetricVector3;
   labelAnchor?: AnnotationLabelAnchor;
   labelAppearance?: AnnotationLabelAppearance;
 };

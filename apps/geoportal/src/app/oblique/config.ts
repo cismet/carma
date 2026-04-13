@@ -6,17 +6,20 @@ import {
   OBLIQUE_2024_EXT_ORI_UTM32_URI,
   OBLIQUE_2024_FPRFC_GEOJSON_URI,
 } from "@carma-commons/resources";
-import { Degrees } from "@carma/units/types";
-import { degToRad } from "@carma-commons/units/helpers";
+import { Degrees } from "@carma-units";
+import { degToRad } from "@carma-units";
 
 import { OBLIQUE_PREVIEW_QUALITY } from "./constants";
 import { ObliqueDataProviderConfig } from "./types";
 import { CardinalDirectionEnum } from "./utils/orientationUtils";
+import { DEFAULT_CAMERA_FOV_DEG } from "../config/app.config";
 export const OBLIQUE_CONFIG: ObliqueDataProviderConfig = {
   fixedPitch: degToRad(-45 as Degrees), // Pitch in radians
-  fixedHeight: 900, // Height in meters
+  fixedHeight: 900, // Absolute camera height in meters (cartographic/ellipsoidal)
   minFov: degToRad(10 as Degrees), // Minimum field of view in radians
-  maxFov: degToRad(120 as Degrees), // Maximum field of view in radians
+  maxFov: degToRad(110 as Degrees), // Maximum field of view in radians
+  targetEnterObliqueModeFov: degToRad(34 as Degrees), // leave out for dolly zoom to OLB
+  restoreFovOnLeave: degToRad(DEFAULT_CAMERA_FOV_DEG as Degrees),
   headingOffset: degToRad(-34.3 as Degrees), // Heading offset in radians
   previewQualityLevel: OBLIQUE_PREVIEW_QUALITY.LEVEL_3,
   downloadQualityLevel: OBLIQUE_PREVIEW_QUALITY.LEVEL_1,
@@ -25,6 +28,10 @@ export const OBLIQUE_CONFIG: ObliqueDataProviderConfig = {
   exteriorOrientationsURI: OBLIQUE_2024_EXT_ORI_UTM32_URI,
   footprintsURI: OBLIQUE_2024_FPRFC_GEOJSON_URI,
   animations: {
+    enterObliqueMode: {
+      duration: 2000,
+      easingFunction: Easing.EXPONENTIAL_IN_OUT,
+    },
     flyToExteriorOrientation: {
       duration: 800,
       easingFunction: Easing.QUADRATIC_IN,

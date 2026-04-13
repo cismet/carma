@@ -1,20 +1,22 @@
-import { useState, useEffect, useCallback } from "react";
-import { Form, Row, Col, Select, message } from "antd";
+import { useState, useEffect, useCallback, useRef } from "react";
+import type { FormInstance } from "antd";
+import { message } from "antd";
 import { useSelector } from "react-redux";
 import type { DraftFile } from "../../../store/slices/featuresForms";
-import { getKeyTablesData } from "../../../store/slices/keyTables";
 import { getJWT } from "../../../store/slices/auth";
 import { DokumentItem } from "../DocumentPreview";
 import { getDocumentKey } from "../FilePreview";
 import FeatureFormLayout from "./FeatureFormLayout";
-import { getFormClassName, getPlaceholder } from "./readOnlyFormUtils";
-import { FormItem } from "./DraftFieldHighlight";
+import LeitungFormFields from "./LeitungFormFields";
 import { updateDataByClassName } from "../../../helper/apiMethods";
 import { uploadDraftFiles } from "../../../helper/uploadDraftFiles";
 
 interface LeitungFormProps {
   data: Record<string, unknown> | null;
-  rawFeature?: { id?: string | number; properties?: Record<string, unknown> } | null;
+  rawFeature?: {
+    id?: string | number;
+    properties?: Record<string, unknown>;
+  } | null;
   onClose?: () => void;
   readOnly?: boolean;
   loading?: boolean;
@@ -30,16 +32,6 @@ interface LeitungFormProps {
   removedDocumentKeys?: Set<string>;
   onRemovedDocumentKeysChange?: (keys: Set<string>) => void;
 }
-
-interface KeyTableItem {
-  id: number;
-  bezeichnung?: string;
-  groesse?: string;
-}
-
-const FormLabel = ({ children }: { children: React.ReactNode }) => (
-  <span className="text-sm font-medium text-gray-700">{children}</span>
-);
 
 const LeitungForm = ({
   data,
@@ -60,23 +52,23 @@ const LeitungForm = ({
   onRemovedDocumentKeysChange,
 }: LeitungFormProps) => {
   const removedDocumentKeys = removedDocumentKeysProp ?? new Set<string>();
-  const [form] = Form.useForm();
+  const formRef = useRef<FormInstance | null>(null);
   const [saving, setSaving] = useState(false);
   const [localDocuments, setLocalDocuments] = useState<DokumentItem[] | null>(
     null
   );
-  const keyTablesData = useSelector(getKeyTablesData);
   const jwt = useSelector(getJWT);
 
-  const leitungstypOptions = [
-    ...((keyTablesData.leitungstyp || []) as KeyTableItem[]),
-  ].sort((a, b) => (a.bezeichnung || "").localeCompare(b.bezeichnung || ""));
-  const materialOptions = [
-    ...((keyTablesData.materialLeitung || []) as KeyTableItem[]),
-  ].sort((a, b) => (a.bezeichnung || "").localeCompare(b.bezeichnung || ""));
-  const querschnittOptions = [
-    ...((keyTablesData.querschnitt || []) as KeyTableItem[]),
-  ].sort((a, b) => Number(a.groesse || 0) - Number(b.groesse || 0));
+  const setFormInstance = useCallback((form: FormInstance) => {
+    formRef.current = form;
+  }, []);
+
+  const handleValuesChange = useCallback(
+    (_: Record<string, unknown>, allValues: Record<string, unknown>) => {
+      onDraftChange?.(allValues);
+    },
+    [onDraftChange]
+  );
 
   const handleToggleRemoveDocument = useCallback(
     (key: string) => {
@@ -117,32 +109,7 @@ const LeitungForm = ({
     "-ohne Bezeichnung-";
 
   // Compute sidebar main title to display in form header
-  const sidebarMain = rawFeature?.id || rawProps?.id ? `L-${rawFeature?.id || rawProps?.id}` : "";
-
-  useEffect(() => {
-    // Reset form when data changes to clear old values
-    form.resetFields();
-
-    if (data) {
-      const leitungData = data.leitung?.[0] as
-        | Record<string, unknown>
-        | undefined;
-      if (leitungData) {
-        const serverValues = {
-          fk_leitungstyp: leitungData.fk_leitungstyp,
-          fk_material: leitungData.fk_material,
-          fk_querschnitt: leitungData.fk_querschnitt,
-        };
-        form.setFieldsValue(serverValues);
-        onOriginalValues?.(form.getFieldsValue());
-      }
-
-      if (draftValues) {
-        form.setFieldsValue(draftValues);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, form]);
+  const sidebarMain = rawProps?.id ? `L - ${rawProps?.id}` : "";
 
   const handleSave = async () => {
     if (!jwt) {
@@ -155,9 +122,13 @@ const LeitungForm = ({
       return;
     }
 
+    if (!formRef.current) {
+      return;
+    }
+
     setSaving(true);
     try {
-      const rawValues = form.getFieldsValue();
+      const rawValues = formRef.current.getFieldsValue();
       // Ensure cleared fields are sent as null instead of being omitted
       const formValues = {
         fk_leitungstyp: rawValues.fk_leitungstyp ?? null,
@@ -191,10 +162,7 @@ const LeitungForm = ({
           : {}),
       };
 
-      console.log(
-        "xxx saving leitung:",
-        JSON.stringify(dataToSave, null, 2)
-      );
+      console.log("xxx saving leitung:", JSON.stringify(dataToSave, null, 2));
       await updateDataByClassName(jwt, "leitung", dataToSave);
 
       // Update local documents so changes appear immediately
@@ -250,83 +218,14 @@ const LeitungForm = ({
       onCancel={onCancel}
       onSave={handleSave}
     >
-      <Form
-        form={form}
-        layout="vertical"
-        requiredMark={false}
-        className={getFormClassName(readOnly, "pr-2")}
-        onValuesChange={(_, allValues) => onDraftChange?.(allValues)}
-      >
-        {/* Leitungstyp - Full Width */}
-        <FormItem
-          name="fk_leitungstyp"
-          label={<FormLabel>Leitungstyp</FormLabel>}
-          className="mb-4"
-        >
-          <Select
-            placeholder={getPlaceholder(readOnly, "Leitungstyp auswählen")}
-            className="w-full"
-            size="large"
-            showSearch
-            allowClear
-            optionFilterProp="children"
-          >
-            {leitungstypOptions.map((item) => (
-              <Select.Option key={item.id} value={item.id}>
-                {item.bezeichnung}
-              </Select.Option>
-            ))}
-          </Select>
-        </FormItem>
-
-        {/* Material and Querschnitt - Side by Side */}
-        <Row gutter={16}>
-          <Col span={12}>
-            <FormItem
-              name="fk_material"
-              label={<FormLabel>Material</FormLabel>}
-              className="mb-4"
-            >
-              <Select
-                placeholder={getPlaceholder(readOnly, "Material auswählen")}
-                className="w-full"
-                size="large"
-                showSearch
-                allowClear
-                optionFilterProp="children"
-              >
-                {materialOptions.map((item) => (
-                  <Select.Option key={item.id} value={item.id}>
-                    {item.bezeichnung}
-                  </Select.Option>
-                ))}
-              </Select>
-            </FormItem>
-          </Col>
-          <Col span={12}>
-            <FormItem
-              name="fk_querschnitt"
-              label={<FormLabel>Querschnitt</FormLabel>}
-              className="mb-4"
-            >
-              <Select
-                placeholder={getPlaceholder(readOnly, "Querschnitt auswählen")}
-                className="w-full"
-                size="large"
-                showSearch
-                allowClear
-                optionFilterProp="children"
-              >
-                {querschnittOptions.map((item) => (
-                  <Select.Option key={item.id} value={item.id}>
-                    {item.groesse}
-                  </Select.Option>
-                ))}
-              </Select>
-            </FormItem>
-          </Col>
-        </Row>
-      </Form>
+      <LeitungFormFields
+        leitung={lt}
+        readOnly={readOnly}
+        onFormInstance={setFormInstance}
+        draftValues={draftValues}
+        onValuesChange={handleValuesChange}
+        onOriginalValues={onOriginalValues}
+      />
     </FeatureFormLayout>
   );
 };

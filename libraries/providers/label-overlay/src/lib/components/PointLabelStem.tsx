@@ -1,42 +1,76 @@
 import React from "react";
 
+import type { CssPixelPosition } from "@carma-units";
 export type PointLabelStemAnchorPoints = {
   startDistancePx: number;
   endDistancePx: number;
 };
 
-interface PointLabelStemProps {
-  angleRad: number;
-  anchors: PointLabelStemAnchorPoints;
-  lineColor: string;
-  lineWidth: number;
-  isOccluded: boolean;
-  transition?: string;
-}
+export type PointLabelStemLinePoints = {
+  startPoint: CssPixelPosition;
+  endPoint: CssPixelPosition;
+};
 
-export const PointLabelStem = ({
-  angleRad,
-  anchors,
-  lineColor,
-  lineWidth,
-  isOccluded,
-  transition,
-}: PointLabelStemProps) => {
+type PointLabelStemProps =
+  | {
+      angleRad: number;
+      anchors: PointLabelStemAnchorPoints;
+      lineColor: string;
+      lineWidth: number;
+      isOccluded: boolean;
+      transition?: string;
+    }
+  | {
+      startPoint: CssPixelPosition;
+      endPoint: CssPixelPosition;
+      lineColor: string;
+      lineWidth: number;
+      isOccluded: boolean;
+      transition?: string;
+    };
+
+const resolveStemLinePoints = (
+  props: PointLabelStemProps
+): PointLabelStemLinePoints => {
+  if ("startPoint" in props) {
+    return {
+      startPoint: props.startPoint,
+      endPoint: props.endPoint,
+    };
+  }
+
+  const { angleRad, anchors } = props;
+  return {
+    startPoint: {
+      x: Math.cos(angleRad) * anchors.startDistancePx,
+      y: Math.sin(angleRad) * anchors.startDistancePx,
+    } as CssPixelPosition,
+    endPoint: {
+      x: Math.cos(angleRad) * anchors.endDistancePx,
+      y: Math.sin(angleRad) * anchors.endDistancePx,
+    } as CssPixelPosition,
+  };
+};
+
+export const PointLabelStem = (props: PointLabelStemProps) => {
+  const { lineColor, lineWidth, isOccluded, transition } = props;
+  const { startPoint, endPoint } = resolveStemLinePoints(props);
+  const dx = endPoint.x - startPoint.x;
+  const dy = endPoint.y - startPoint.y;
+  const angleRad = Math.atan2(dy, dx);
+  const lineLength = Math.max(0, Math.hypot(dx, dy));
   const halfLineWidth = lineWidth / 2;
-  const lineLength = Math.max(
-    0,
-    anchors.endDistancePx - anchors.startDistancePx
-  );
   const borderStyle = `${lineWidth}px ${
     isOccluded ? "dashed" : "solid"
   } ${lineColor}`;
 
   return (
     <div
+      data-point-label-stem="true"
       style={{
         position: "absolute",
-        left: "0px",
-        top: "0px",
+        left: `${startPoint.x}px`,
+        top: `${startPoint.y}px`,
         transformOrigin: "0 0",
         transform: `rotate(${angleRad}rad)`,
         pointerEvents: "none",
@@ -44,9 +78,10 @@ export const PointLabelStem = ({
       }}
     >
       <div
+        data-point-label-stem-line="true"
         style={{
           position: "absolute",
-          left: `${anchors.startDistancePx}px`,
+          left: "0px",
           top: `${-halfLineWidth}px`,
           width: `${lineLength}px`,
           height: `${lineWidth}px`,

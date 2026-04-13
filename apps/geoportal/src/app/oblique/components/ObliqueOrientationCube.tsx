@@ -1,14 +1,14 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Button, Tooltip, Spin } from "antd";
-import { Cartesian3, HeadingPitchRange, Matrix4 } from "@carma/cesium";
+import { Cartesian3, HeadingPitchRange, Matrix4 } from "@carma-cesium";
 
 import {
-  useCesiumContext,
-  cesiumCameraToCssTransform,
-  pickSceneCenter,
   cancelSceneAnimation,
+  cesiumCameraToCssTransform,
   guardCamera,
-} from "@carma-mapping/engines/cesium";
+  useCesiumContext,
+} from "@carma-mapping/engines/cesium/legacy";
+import { pickSceneCenter } from "@carma-mapping/engines/cesium/core";
 
 import {
   CardinalDirectionEnum,
@@ -41,6 +41,12 @@ type Props = {
 };
 
 const eps = 0.001;
+
+type PerspectiveFrustumLike = {
+  fovy?: number;
+  _fovy?: number;
+  aspectRatio?: number;
+};
 
 const getTransforms = (tz: number) => ({
   top: `translateZ(${tz}px)`,
@@ -223,11 +229,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
           const rect = el.getBoundingClientRect();
           const w = rect.width;
           const h = rect.height;
-          const frustum = camera.frustum as unknown as {
-            fovy?: number;
-            _fovy?: number;
-            aspectRatio?: number;
-          };
+          const frustum = camera.frustum as PerspectiveFrustumLike;
           const fovy: number | undefined = frustum?.fovy ?? frustum?._fovy;
           if (!(w > 0) || !(h > 0) || !(typeof fovy === "number" && fovy > 0))
             return;

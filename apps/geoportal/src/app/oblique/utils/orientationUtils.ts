@@ -1,50 +1,26 @@
 import { Cartesian3, Math as CesiumMath } from "cesium";
+import {
+  CardinalDirectionClockwise,
+  CardinalDirectionLetters,
+  CardinalDirectionNames,
+} from "@carma-geo/data-structures";
 
 // North is 0 and rotations are clockwise to the east
 
-export enum CardinalDirectionEnum {
-  North = 0,
-  East = 1,
-  South = 2,
-  West = 3,
-}
+export const CardinalDirectionEnum = CardinalDirectionClockwise;
+export type CardinalDirectionEnum = CardinalDirectionClockwise;
 
-export enum InvertedCardinalDirectionEnum {
-  North = 2,
-  East = 3,
-  South = 0,
-  West = 1,
-}
+export const InvertedCardinalDirectionEnum = {
+  North: CardinalDirectionEnum.South,
+  East: CardinalDirectionEnum.West,
+  South: CardinalDirectionEnum.North,
+  West: CardinalDirectionEnum.East,
+} as const;
+export type InvertedCardinalDirectionEnum =
+  (typeof InvertedCardinalDirectionEnum)[keyof typeof InvertedCardinalDirectionEnum];
 
-export const CardinalNames = Object.freeze({
-  DE: new Map([
-    [CardinalDirectionEnum.North, "Norden"],
-    [CardinalDirectionEnum.East, "Osten"],
-    [CardinalDirectionEnum.South, "Süden"],
-    [CardinalDirectionEnum.West, "Westen"],
-  ]),
-  EN: new Map([
-    [CardinalDirectionEnum.North, "North"],
-    [CardinalDirectionEnum.East, "East"],
-    [CardinalDirectionEnum.South, "South"],
-    [CardinalDirectionEnum.West, "West"],
-  ]),
-});
-
-export const CardinalLetters = Object.freeze({
-  DE: new Map([
-    [CardinalDirectionEnum.North, "N"],
-    [CardinalDirectionEnum.East, "O"],
-    [CardinalDirectionEnum.South, "S"],
-    [CardinalDirectionEnum.West, "W"],
-  ]),
-  EN: new Map([
-    [CardinalDirectionEnum.North, "N"],
-    [CardinalDirectionEnum.East, "E"],
-    [CardinalDirectionEnum.South, "S"],
-    [CardinalDirectionEnum.West, "W"],
-  ]),
-});
+export const CardinalNames = CardinalDirectionNames;
+export const CardinalLetters = CardinalDirectionLetters;
 
 // for parser from provided GeoJSON File format.
 
@@ -63,12 +39,10 @@ const CARDINAL_STRINGS = Object.freeze({
 export function getCardinalDirectionFromHeading(
   heading: number
 ): CardinalDirectionEnum {
-  return (
-    Math.floor(
-      CesiumMath.zeroToTwoPi(heading + CesiumMath.PI_OVER_FOUR) /
-        CesiumMath.PI_OVER_TWO
-    ) % 4
-  );
+  return (Math.floor(
+    CesiumMath.zeroToTwoPi(heading + CesiumMath.PI_OVER_FOUR) /
+      CesiumMath.PI_OVER_TWO
+  ) % 4) as CardinalDirectionEnum;
 }
 
 export function getHeadingFromCardinalDirection(
@@ -83,7 +57,7 @@ export function getCardinalDirectionByLineAndCameraId(
   directionConfig: Record<string, Record<string, CardinalDirectionEnum>>
 ): CardinalDirectionEnum {
   const direction = directionConfig[flightLine % 2 === 1 ? "ODD" : "EVEN"];
-  return direction[cameraId];
+  return direction[cameraId] as CardinalDirectionEnum;
 }
 
 export function getApproximateHeadingBySector(
@@ -121,7 +95,7 @@ export const getDirectionFromCartesian = (
 export const findClosestCardinalIndex = (
   heading: number,
   cardinals: number[]
-) => {
+): CardinalDirectionEnum => {
   const normalizedHeading = CesiumMath.zeroToTwoPi(heading);
 
   let closestIndex = 0;
@@ -138,7 +112,7 @@ export const findClosestCardinalIndex = (
       closestIndex = index;
     }
   });
-  return closestIndex;
+  return closestIndex as CardinalDirectionEnum;
 };
 
 export const getCardinalHeadings = (headingOffset: number) => {

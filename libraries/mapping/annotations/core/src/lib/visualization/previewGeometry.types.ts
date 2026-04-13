@@ -1,7 +1,6 @@
-import { Cartesian3 } from "@carma/cesium";
+import { Cartesian3 } from "@carma-cesium";
 
 import type { NodeChainAnnotation } from "../types/annotationTypes";
-
 export const POLYGON_PREVIEW_STROKE = "rgba(255, 255, 255, 0.65)";
 export const POLYGON_PREVIEW_STROKE_WIDTH_PX = 1;
 

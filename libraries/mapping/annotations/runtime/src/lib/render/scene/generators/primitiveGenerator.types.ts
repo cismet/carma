@@ -7,13 +7,12 @@ import type {
   PolylinePreviewMeasurement,
 } from "@carma-mapping/annotations/core";
 
-import type { PolygonAreaBadge } from "../../labels";
+import type { NodeChainPreviewModels } from "../useNodeChainPreviewModels";
 import type {
   EdgeSceneLineRenderModel,
   PolygonPrimitiveRenderModel,
 } from "../visualization.types";
-import type { NodeChainPreviewModels } from "../useNodeChainPreviewModels";
-
+import type { PolygonAreaBadge } from "../../labels";
 export type ToolPrimitiveGeneratorContext = {
   showMeasurementGeometry: boolean;
   candidateConnectionPreview: CandidateConnectionPreview | null;

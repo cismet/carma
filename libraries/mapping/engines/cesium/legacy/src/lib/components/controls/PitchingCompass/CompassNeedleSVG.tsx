@@ -1,11 +1,12 @@
-import { type CSSProperties } from "react";
-import { CesiumMath } from "@carma/cesium";
-
-import type { Radians } from "@carma/units/types";
-
+import { forwardRef, type CSSProperties } from "react";
+import { CesiumMath } from "@carma-cesium";
+import type { Radians } from "@carma-units";
 const PITCH_HORIZON_OFFSET = CesiumMath.PI_OVER_TWO - 0.2; // avoid showing completely flat from the side
 
-const computeTransform = (pitch: Radians, heading: Radians): string => {
+export const computeCompassNeedleTransform = (
+  pitch: Radians,
+  heading: Radians
+): string => {
   const normalizedHeading = -heading;
   const normalizedPitch = CesiumMath.clamp(
     pitch + CesiumMath.PI_OVER_TWO, // rotate pitch range into screen plane
@@ -21,17 +22,25 @@ const computeTransform = (pitch: Radians, heading: Radians): string => {
   return transform;
 };
 
-export const CompassNeedleSVG = ({
-  pitch = 0 as Radians,
-  heading = 0 as Radians,
-  northColor = "#333",
-  neutralColor = "#ccc",
-}: {
+type CompassNeedleSVGProps = {
   pitch?: Radians;
   heading?: Radians;
   northColor?: string;
   neutralColor?: string;
-} = {}) => {
+};
+
+export const CompassNeedleSVG = forwardRef<
+  SVGSVGElement,
+  CompassNeedleSVGProps
+>(function CompassNeedleSVG(
+  {
+    pitch = 0 as Radians,
+    heading = 0 as Radians,
+    northColor = "#333",
+    neutralColor = "#ccc",
+  }: CompassNeedleSVGProps,
+  ref
+) {
   // style adjusted from maplibre-gl-ctrl-compass
   // https://github.com/maplibre/maplibre-gl-js/blob/a99fe93fe8ac1505b1b450cd3c1d9b2b8394bd8c/src/css/svg/maplibregl-ctrl-compass.svg#L3
 
@@ -39,12 +48,13 @@ export const CompassNeedleSVG = ({
     width: "100%",
     height: "100%",
     transformOrigin: "center",
-    transform: computeTransform(pitch, heading),
+    transform: computeCompassNeedleTransform(pitch, heading),
     transformStyle: "preserve-3d",
   };
 
   return (
     <svg
+      ref={ref}
       xmlns="http://www.w3.org/2000/svg"
       width="29"
       height="29"
@@ -56,6 +66,6 @@ export const CompassNeedleSVG = ({
       <path d="m10.5 16 4 8 4-8z" fill={neutralColor} />
     </svg>
   );
-};
+});
 
 export default CompassNeedleSVG;

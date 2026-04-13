@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
-import { type Scene } from "@carma/cesium";
+import { type Scene } from "@carma-cesium";
 import { handleDelayedRender } from "@carma-commons/utils";
-
+import { testCameraObliqueCompliant } from "@carma-mapping/engines/cesium/core";
 import {
-  useCesiumContext,
-  useFovWheelZoom,
   useCesiumCameraForceOblique,
-  testCameraObliqueCompliant,
-} from "@carma-mapping/engines/cesium";
+  useCesiumFovWheelZoom,
+} from "@carma-mapping/engines/cesium/react/interactions";
+
+import { useCesiumContext } from "@carma-mapping/engines/cesium/legacy";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
 import { useOblique } from "./useOblique";
@@ -17,6 +17,7 @@ import { enterObliqueMode, leaveObliqueMode } from "../utils/cameraUtils";
 export function useObliqueInitializer(debug = false) {
   const {
     shouldSuspendPitchLimiterRef,
+    shouldSuspendCameraLimitersRef,
     getScene,
     sceneAnimationMapRef,
     initialViewApplied,
@@ -28,13 +29,16 @@ export function useObliqueInitializer(debug = false) {
     fixedPitch,
     minFov,
     maxFov,
+    targetEnterObliqueModeFov,
+    animations,
+    restoreFovOnLeave,
     setSuspendSelectionSearch,
   } = useOblique();
-  const originalFovRef = useRef<number | null>(null);
 
   // Derived scene ref for useCesiumCameraForceOblique
   const sceneRef = useRef<Scene | null>(null);
-  sceneRef.current = getScene();
+  const scene = getScene();
+  sceneRef.current = scene;
 
   const checkExternalAnimations = useCallback(
     (scene: Scene) => {
@@ -53,7 +57,8 @@ export function useObliqueInitializer(debug = false) {
     [minFov, maxFov]
   );
 
-  const { setEnabled: setWheelZoomEnabled } = useFovWheelZoom(
+  const { setEnabled: setWheelZoomEnabled } = useCesiumFovWheelZoom(
+    scene,
     isObliqueMode,
     wheelZoomOptions
   );
@@ -70,6 +75,14 @@ export function useObliqueInitializer(debug = false) {
       shouldSuspendPitchLimiterRef,
       checkExternalAnimations
     );
+
+  const setTransitionLimitersSuspended = useCallback(
+    (isSuspended: boolean) => {
+      shouldSuspendPitchLimiterRef.current = isSuspended;
+      shouldSuspendCameraLimitersRef.current = isSuspended;
+    },
+    [shouldSuspendPitchLimiterRef, shouldSuspendCameraLimitersRef]
+  );
 
   useEffect(() => {
     // Always set the zoom handler state based on oblique mode; the hook will defer attaching until a viewer exists
@@ -104,28 +117,43 @@ export function useObliqueInitializer(debug = false) {
           requestRender({ delay: 50, repeat: 2 });
         } else {
           setSuspendSelectionSearch(true);
+          setTransitionLimitersSuspended(true);
           enterObliqueMode(
             scene,
-            originalFovRef,
             fixedPitch,
             fixedHeight,
+            minFov,
+            maxFov,
             () => {
+              setTransitionLimitersSuspended(false);
               setSuspendSelectionSearch(false);
               enableCameraForceOblique();
               requestRender({ delay: 50, repeat: 2 });
+            },
+            {
+              duration: animations.enterObliqueMode?.duration,
+              easingFunction: animations.enterObliqueMode?.easingFunction,
+              targetEnterObliqueModeFov,
             }
           );
         }
       } else {
-        debug && console.debug("leaving Oblique Mode", originalFovRef.current);
-        leaveObliqueMode(scene, originalFovRef, () => {
-          disableCameraForceOblique();
-          requestRender();
-        });
+        debug && console.debug("leaving Oblique Mode");
+        setTransitionLimitersSuspended(true);
+        leaveObliqueMode(
+          scene,
+          () => {
+            setTransitionLimitersSuspended(false);
+            disableCameraForceOblique();
+            requestRender();
+          },
+          restoreFovOnLeave
+        );
       }
     }
 
     return () => {
+      setTransitionLimitersSuspended(false);
       disableCameraForceOblique();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -139,9 +167,13 @@ export function useObliqueInitializer(debug = false) {
     fixedHeight,
     minFov,
     maxFov,
+    targetEnterObliqueModeFov,
+    animations,
+    restoreFovOnLeave,
     setWheelZoomEnabled,
     enableCameraForceOblique,
     disableCameraForceOblique,
+    setTransitionLimitersSuspended,
     setSuspendSelectionSearch,
   ]);
 

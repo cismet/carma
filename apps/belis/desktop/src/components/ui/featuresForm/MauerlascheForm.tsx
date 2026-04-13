@@ -1,16 +1,14 @@
-import { useState, useEffect, useCallback } from "react";
-import { Form, Select, Input, DatePicker, InputNumber, message } from "antd";
+import { useState, useEffect, useCallback, useRef } from "react";
+import type { FormInstance } from "antd";
+import { message } from "antd";
 import { useSelector } from "react-redux";
 import dayjs from "dayjs";
 import type { DraftFile } from "../../../store/slices/featuresForms";
-import { getKeyTablesData } from "../../../store/slices/keyTables";
 import { getJWT } from "../../../store/slices/auth";
 import { DokumentItem } from "../DocumentPreview";
 import { getDocumentKey } from "../FilePreview";
 import FeatureFormLayout from "./FeatureFormLayout";
-import StrassenschluesselFields from "./StrassenschluesselFields";
-import { getFormClassName, getPlaceholder } from "./readOnlyFormUtils";
-import { FormItem } from "./DraftFieldHighlight";
+import MauerlascheFormFields from "./MauerlascheFormFields";
 import toTitleCase from "../../../helper/toTitleCase";
 import { updateDataByClassName } from "../../../helper/apiMethods";
 import { uploadDraftFiles } from "../../../helper/uploadDraftFiles";
@@ -31,7 +29,10 @@ const transformDatesForBackend = (
 
 interface MauerlascheFormProps {
   data: Record<string, unknown> | null;
-  rawFeature?: { id?: string | number; properties?: Record<string, unknown> } | null;
+  rawFeature?: {
+    id?: string | number;
+    properties?: Record<string, unknown>;
+  } | null;
   onClose?: () => void;
   readOnly?: boolean;
   loading?: boolean;
@@ -47,15 +48,6 @@ interface MauerlascheFormProps {
   removedDocumentKeys?: Set<string>;
   onRemovedDocumentKeysChange?: (keys: Set<string>) => void;
 }
-
-interface MaterialMauerlascheItem {
-  id: number;
-  bezeichnung?: string;
-}
-
-const FormLabel = ({ children }: { children: React.ReactNode }) => (
-  <span className="text-sm font-medium text-gray-700">{children}</span>
-);
 
 const MauerlascheForm = ({
   data,
@@ -76,18 +68,23 @@ const MauerlascheForm = ({
   onRemovedDocumentKeysChange,
 }: MauerlascheFormProps) => {
   const removedDocumentKeys = removedDocumentKeysProp ?? new Set<string>();
-  const [form] = Form.useForm();
+  const formRef = useRef<FormInstance | null>(null);
   const [saving, setSaving] = useState(false);
   const [localDocuments, setLocalDocuments] = useState<DokumentItem[] | null>(
     null
   );
-  const keyTablesData = useSelector(getKeyTablesData);
   const jwt = useSelector(getJWT);
 
-  // Key table options - sorted alphabetically
-  const materialMauerlascheOptions = [
-    ...((keyTablesData.materialMauerlasche || []) as MaterialMauerlascheItem[]),
-  ].sort((a, b) => (a.bezeichnung || "").localeCompare(b.bezeichnung || ""));
+  const setFormInstance = useCallback((form: FormInstance) => {
+    formRef.current = form;
+  }, []);
+
+  const handleValuesChange = useCallback(
+    (_: Record<string, unknown>, allValues: Record<string, unknown>) => {
+      onDraftChange?.(allValues);
+    },
+    [onDraftChange]
+  );
 
   const handleToggleRemoveDocument = useCallback(
     (key: string) => {
@@ -133,55 +130,10 @@ const MauerlascheForm = ({
     "-ohne Straße-";
 
   // Compute sidebar main title to display in form header
-  const sidebarMain = rawProps?.laufende_nummer || rawFeature?.id || rawProps?.id
-    ? `M-${rawProps?.laufende_nummer || rawFeature?.id || rawProps?.id}`
-    : "";
-
-  useEffect(() => {
-    // Reset form when data changes to clear old values
-    form.resetFields();
-
-    if (data) {
-      const mauerlascheData = data as Record<string, unknown>;
-      const { mauerlasche } = mauerlascheData;
-      if (
-        !mauerlasche ||
-        !Array.isArray(mauerlasche) ||
-        mauerlasche.length === 0
-      ) {
-        return;
-      }
-      const ml = mauerlasche[0];
-      const serverValues = {
-        // Strassenschluessel
-        strassenschluessel_pk: ml.tkey_strassenschluessel?.pk,
-        strassenschluessel_strasse: toTitleCase(
-          ml.tkey_strassenschluessel?.strasse || ""
-        ),
-        // Laufende Nr.
-        laufende_nummer: ml.laufende_nummer,
-        // Montage (Erstellungsjahr) - can be a date string or year number
-        erstellungsjahr: ml.erstellungsjahr
-          ? dayjs(ml.erstellungsjahr as string | number)
-          : null,
-        // Material - use id from material_mauerlasche object or fk_material
-        fk_material:
-          (ml.material_mauerlasche as { id?: number } | undefined)?.id ??
-          ml.fk_material,
-        // Pruefung
-        pruefdatum: ml.pruefdatum ? dayjs(ml.pruefdatum as string) : null,
-        // Bemerkung
-        bemerkung: ml.bemerkung,
-      };
-      form.setFieldsValue(serverValues);
-      onOriginalValues?.(form.getFieldsValue());
-
-      if (draftValues) {
-        form.setFieldsValue(draftValues);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, form]);
+  const sidebarMain =
+    rawProps?.laufende_nummer || rawProps?.id
+      ? `M - ${rawProps?.laufende_nummer || rawProps?.id}`
+      : "";
 
   const handleSave = async () => {
     if (!jwt) {
@@ -194,9 +146,13 @@ const MauerlascheForm = ({
       return;
     }
 
+    if (!formRef.current) {
+      return;
+    }
+
     setSaving(true);
     try {
-      const formValues = form.getFieldsValue();
+      const formValues = formRef.current.getFieldsValue();
 
       // Remove display-only fields that the backend doesn't expect
       const { strassenschluessel_pk, strassenschluessel_strasse, ...rest } =
@@ -287,84 +243,14 @@ const MauerlascheForm = ({
       onCancel={onCancel}
       onSave={handleSave}
     >
-      <Form
-        form={form}
-        layout="vertical"
-        requiredMark={false}
-        className={getFormClassName(readOnly, "pr-2")}
-        onValuesChange={(_, allValues) => onDraftChange?.(allValues)}
-      >
-        {/* Strassenschluessel - always disabled */}
-        <StrassenschluesselFields label="Strassenschlüssel" />
-
-        {/* Laufende Nr. */}
-        <FormItem
-          name="laufende_nummer"
-          label={<FormLabel>Laufende Nr.</FormLabel>}
-          className="mb-4"
-        >
-          <InputNumber className="w-full" size="large" />
-        </FormItem>
-
-        {/* Montage (Erstellungsjahr) */}
-        <FormItem
-          name="erstellungsjahr"
-          label={<FormLabel>Montage</FormLabel>}
-          className="mb-4"
-        >
-          <DatePicker
-            className="w-full"
-            size="large"
-            format="DD.MM.YYYY"
-            placeholder={getPlaceholder(readOnly, "Datum auswählen")}
-          />
-        </FormItem>
-
-        {/* Material */}
-        <FormItem
-          name="fk_material"
-          label={<FormLabel>Material</FormLabel>}
-          className="mb-4"
-        >
-          <Select
-            placeholder={getPlaceholder(readOnly, "Material auswählen")}
-            className="w-full"
-            size="large"
-            allowClear
-            showSearch
-            optionFilterProp="children"
-          >
-            {materialMauerlascheOptions.map((item) => (
-              <Select.Option key={item.id} value={item.id}>
-                {item.bezeichnung}
-              </Select.Option>
-            ))}
-          </Select>
-        </FormItem>
-
-        {/* Prüfung */}
-        <FormItem
-          name="pruefdatum"
-          label={<FormLabel>Prüfung</FormLabel>}
-          className="mb-4"
-        >
-          <DatePicker
-            className="w-full"
-            size="large"
-            format="DD.MM.YYYY"
-            placeholder={getPlaceholder(readOnly, "Datum auswählen")}
-          />
-        </FormItem>
-
-        {/* Bemerkung */}
-        <FormItem
-          name="bemerkung"
-          label={<FormLabel>Bemerkung</FormLabel>}
-          className="mb-4"
-        >
-          <Input.TextArea rows={4} size="large" />
-        </FormItem>
-      </Form>
+      <MauerlascheFormFields
+        mauerlasche={ml}
+        readOnly={readOnly}
+        onFormInstance={setFormInstance}
+        draftValues={draftValues}
+        onValuesChange={handleValuesChange}
+        onOriginalValues={onOriginalValues}
+      />
     </FeatureFormLayout>
   );
 };

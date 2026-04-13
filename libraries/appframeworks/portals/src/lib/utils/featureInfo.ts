@@ -1,4 +1,4 @@
-import type { FeatureInfo, FeatureInfoProperties } from "@carma/types";
+import type { FeatureInfo, FeatureInfoProperties } from "@carma-mapping/utils";
 import { sandboxedEvalExternal } from "@carma-commons/sandbox-eval";
 
 /**

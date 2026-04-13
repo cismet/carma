@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Cartesian3 } from "@carma/cesium";
+
 import {
   ANNOTATION_TYPE_DISTANCE,
   LINEAR_SEGMENT_LINE_MODE_COMPONENTS,
@@ -11,7 +11,7 @@ import {
   type CandidateConnectionPreview,
   type LinearSegmentLineMode,
 } from "@carma-mapping/annotations/core";
-
+import { Cartesian3 } from "@carma-cesium";
 type CandidatePreviewSessionParams = {
   activeToolType: AnnotationToolType;
   distanceModeStickyToFirstPoint: boolean;

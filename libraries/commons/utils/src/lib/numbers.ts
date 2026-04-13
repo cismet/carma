@@ -45,3 +45,20 @@ export const clamp = (v: number, min?: number, max?: number): number => {
  */
 export const isClose = (a: number, b: number, epsilon: number): boolean =>
   Math.abs(a - b) <= epsilon;
+
+export const formatFixedNumber = (
+  value: number | undefined,
+  fixedDigits: number,
+  options: {
+    trimTrailingZeros?: boolean;
+  } = {}
+): string | undefined => {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return undefined;
+  }
+
+  const fixedValue = value.toFixed(fixedDigits);
+  return options.trimTrailingZeros === false
+    ? fixedValue
+    : parseFloat(fixedValue).toString();
+};

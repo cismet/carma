@@ -1,6 +1,6 @@
 import type { PrimitiveCollection } from "cesium";
-import { isValidPrimitiveCollection } from "./instanceGates";
 
+import { isValidPrimitiveCollection } from "./instanceGates";
 export const guardPrimitiveCollection = (
   collection: PrimitiveCollection,
   label?: string

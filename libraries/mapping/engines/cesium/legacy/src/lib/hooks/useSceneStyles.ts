@@ -8,11 +8,9 @@ import {
   setShowPrimaryTileset,
   setShowSecondaryTileset,
 } from "../slices/cesium";
-import { setupPrimaryStyle, setupSecondaryStyle } from "../utils/sceneStyles";
 import { setCesiumBackgroundCssVar } from "../utils/cssVars";
-
+import { setupPrimaryStyle, setupSecondaryStyle } from "../utils/sceneStyles";
 import { useCesiumContext } from "./useCesiumContext";
-
 export const useSceneStyles = (enabled = true) => {
   const dispatch = useDispatch();
   const currentSceneStyle = useSelector(selectCurrentSceneStyle);

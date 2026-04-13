@@ -7,15 +7,14 @@ import {
   type PointAnnotationEntry,
   type PointDistanceRelation,
 } from "@carma-mapping/annotations/core";
-import { useCesiumViewProjector } from "@carma-mapping/annotations/cesium";
-import type { Scene } from "@carma/cesium";
+import { useCesiumViewProjector } from "@carma-mapping/engines/cesium/react/interactions";
+import type { Scene } from "@carma-cesium";
 
 import { buildEdgeSceneLineRenderModels } from "../edge/buildEdgeSceneLineRenderModels";
-import type { AnnotationPointMarkerBadge } from "../point/usePointMarkerBadges";
 import { usePointIndex } from "../point/usePointIndex";
+import type { AnnotationPointMarkerBadge } from "../point/usePointMarkerBadges";
 import { generateToolPrimitives } from "./generators";
 import { useNodeChainPreviewModels } from "./useNodeChainPreviewModels";
-
 export type SceneModelsOptions = {
   scene: Scene;
   visiblePointEntries: PointAnnotationEntry[];

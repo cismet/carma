@@ -10,7 +10,6 @@ import {
   type AnnotationToolType,
   type NodeChainAnnotation,
 } from "@carma-mapping/annotations/core";
-
 const EMPTY_INTERACTIVE_POINT_ID_SET = new Set<string>();
 
 type UseAnnotationNodeInteractionControllerParams = {

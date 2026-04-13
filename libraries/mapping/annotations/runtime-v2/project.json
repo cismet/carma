@@ -1,0 +1,17 @@
+{
+  "name": "annotations-runtime-v2",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libraries/mapping/annotations/runtime-v2/src",
+  "projectType": "library",
+  "tags": [
+    "type:library",
+    "scope:mapping",
+    "scope:annotations-runtime",
+    "scope:annotations-runtime-v2"
+  ],
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  }
+}

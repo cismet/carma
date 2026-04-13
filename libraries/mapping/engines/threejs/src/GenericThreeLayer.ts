@@ -1,18 +1,18 @@
-import * as THREE from "three";
+import { MercatorCoordinate } from "maplibre-gl";
 import type {
   Map as MaplibreMap,
   CustomLayerInterface,
   CustomRenderMethodInput,
 } from "maplibre-gl";
-import { MercatorCoordinate } from "maplibre-gl";
+import * as THREE from "three";
+
+import { mapFeatures, deduplicateFeatures } from "./featureMapper";
 import type {
   Carma3dConfig,
   MappedFeature,
   FactoryStats,
   ThreePerfData,
 } from "./types";
-import { mapFeatures, deduplicateFeatures } from "./featureMapper";
-
 // ─────────────────────────────────────────────────────────────
 //  2D spatial grid for fast tree selection (replaces BVH)
 // ─────────────────────────────────────────────────────────────
@@ -198,6 +198,9 @@ function raycastLoftCandidates(
 
 // Wuppertal center as default Three.js origin
 const WUPPERTAL_CENTER: [number, number] = [7.150764, 51.256915];
+const DEFAULT_MAIN_LIGHT_COLOR = 0xfff8e8;
+const DEFAULT_MAIN_LIGHT_INTENSITY = 1.1;
+const DEFAULT_MAIN_LIGHT_POSITION = new THREE.Vector3(100, 300, 150);
 
 /** Resolve Three.js origin: config > env > Wuppertal default */
 export function resolveOrigin(config: Carma3dConfig): [number, number] {
@@ -346,9 +349,13 @@ export function buildGenericLayer(
       const ambient = new THREE.AmbientLight(0xffffff, 0.55);
       this.scene.add(ambient);
 
-      const sun = new THREE.DirectionalLight(0xfff8e8, 1.1);
-      sun.position.set(100, 300, 150);
+      const sun = new THREE.DirectionalLight(
+        DEFAULT_MAIN_LIGHT_COLOR,
+        DEFAULT_MAIN_LIGHT_INTENSITY
+      );
+      sun.position.copy(DEFAULT_MAIN_LIGHT_POSITION);
       this.scene.add(sun);
+      this.scene.add(sun.target);
 
       const fill = new THREE.DirectionalLight(0xc8d8ff, 0.35);
       fill.position.set(-80, 100, -60);

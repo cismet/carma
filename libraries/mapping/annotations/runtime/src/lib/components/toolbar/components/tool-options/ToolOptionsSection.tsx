@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
-import { optionsContainerStyle } from "../../shared";
 
+import { optionsContainerStyle } from "../../shared";
 type ToolOptionsSectionProps = {
   dataTestId: string;
   optionsStyle?: CSSProperties;

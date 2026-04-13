@@ -1,0 +1,57 @@
+import * as React from "react";
+
+import type { Preview } from "@storybook/react";
+
+import "../src/styles.css";
+import "../../../libraries/mapping/annotations/runtime-v2/src/lib/interaction/annotation-overlay-line-label.css";
+type StorybookRequireShim = {
+  require?: (id: string) => unknown;
+};
+
+const storybookRequireTarget = globalThis as typeof globalThis &
+  StorybookRequireShim;
+
+if (typeof storybookRequireTarget.require !== "function") {
+  storybookRequireTarget.require = (id: string) => {
+    if (id === "react") {
+      return React;
+    }
+
+    throw new Error(
+      `[storybook require shim] Unsupported dynamic require: ${id}`
+    );
+  };
+}
+
+const preview: Preview = {
+  parameters: {
+    layout: "fullscreen",
+    options: {
+      panelPosition: "right",
+      storySort: {
+        order: [
+          "Geo",
+          [
+            "Zoom by Latitude Overview",
+            "Range by FOV and Resolution",
+            "Mercator Zoom",
+          ],
+          "Mapping",
+          ["MapFrameworkSwitcher", "ViewSync", "Annotations", "Controls"],
+          "Mapping Components",
+          ["Controls", "Geo", "Gizmo", "Cesium", "Camera State Visualizer"],
+          "Overlay",
+          ["Layout", "Labels", "Labels (WIP)"],
+          "Common",
+          ["UI", "Formatter", "Svg", "Math"],
+        ],
+      },
+    },
+    controls: {
+      expanded: false,
+      sort: "requiredFirst",
+    },
+  },
+};
+
+export default preview;

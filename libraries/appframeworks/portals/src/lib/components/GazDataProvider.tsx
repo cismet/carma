@@ -9,12 +9,12 @@ import {
   useState,
 } from "react";
 
+import { md5FetchText } from "@carma-commons/utils";
 import {
+  type GazDataConfig,
   type GazDataItem,
   getGazData,
-  md5FetchText,
-} from "@carma-commons/utils";
-import { GazDataConfig } from "@carma-commons/utils";
+} from "@carma-mapping/fuzzy-search";
 import { defaultGazDataConfig } from "@carma-commons/resources";
 
 interface GazDataContextType {

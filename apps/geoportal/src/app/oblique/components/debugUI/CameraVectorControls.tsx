@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Collapse } from "antd";
 import type { CollapseProps } from "antd";
-import type { Vector3Arr } from "@carma/types";
+import type { Vector3Arr } from "@carma-commons/math";
 
 import VectorInput from "./VectorInput";
 import { UnitVectorDisplay } from "./UnitVectorDisplay";

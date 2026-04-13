@@ -128,7 +128,6 @@ const baseConfig = {
           "@carma/types",
           "@carma/geo/types",
           "@carma/units/types",
-          "@carma/cesium-types",
         ],
         depConstraints: [
           {

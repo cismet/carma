@@ -11,6 +11,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useSearchParams } from "react-router-dom";
 import L from "leaflet";
 import {
+  Cartesian3,
   Cartographic,
   Math as CesiumMath,
   CesiumTerrainProvider,
@@ -47,7 +48,6 @@ import {
   useSelectionCesium,
   useSelectionTopicMap,
 } from "@carma-appframeworks/portals";
-import { useHashState } from "@carma-providers/hash-state";
 import {
   getCollabedHelpComponentConfig,
   tooltipText,
@@ -64,15 +64,13 @@ import {
   selectShowPrimaryTileset,
   selectViewerModels,
   useCesiumContext,
-  useHomeControl,
   useZoomControls as useZoomControlsCesium,
   setCurrentSceneStyle,
   SceneStyleToggle,
-  selectViewerHome,
-} from "@carma-mapping/engines/cesium";
+} from "@carma-mapping/engines/cesium/legacy";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
-import { type SearchResultItem } from "@carma/types";
+import { type SearchResultItem } from "@carma-mapping/fuzzy-search";
 
 import versionData from "../../../version.json";
 import { getBackgroundLayers } from "../../helper/layer.tsx";
@@ -100,6 +98,7 @@ import { createCismapLayers } from "./layer.utils.ts";
 
 import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config.ts";
 import { layerMap } from "../../config/index.ts";
+import { CESIUM_HOME_POSITION } from "../../config/cesium/store.config.ts";
 
 import "../leaflet.css";
 import "cesium/Build/Cesium/Widgets/widgets.css";
@@ -202,7 +201,6 @@ export const CarmaMap = ({
   const ctx = useCesiumContext();
   const { viewerRef } = ctx;
 
-  const homeControl = useHomeControl();
   const {
     handleZoomIn: handleZoomInCesium,
     handleZoomOut: handleZoomOutCesium,
@@ -224,7 +222,6 @@ export const CarmaMap = ({
   const { width, height } = useWindowSize(wrapperRef);
 
   const { setSelection } = useSelection();
-  const { updateHash } = useHashState();
 
   useSelectionTopicMap();
   useSelectionCesium(
@@ -289,22 +286,24 @@ export const CarmaMap = ({
 
   console.debug("RENDER: [CARMAMAP] MAP", isLeaflet);
 
-  const homePosition = useSelector(selectViewerHome);
-
   const topicMapHomeClick = () => {
-    if (homePosition && routedMap?.leafletMap?.leafletElement) {
-      const { latitude, longitude } = Cartographic.fromCartesian(homePosition);
+    if (routedMap?.leafletMap?.leafletElement) {
+      const { latitude, longitude } =
+        Cartographic.fromCartesian(CESIUM_HOME_POSITION);
       const center = [
         CesiumMath.toDegrees(latitude),
         CesiumMath.toDegrees(longitude),
       ];
-      console.debug("topicMapHomeClick", center, homePosition);
+      console.debug("topicMapHomeClick", center, CESIUM_HOME_POSITION);
       routedMap.leafletMap.leafletElement.flyTo(center, 17);
     }
   };
 
   const onHomeClick = () => {
-    homeControl();
+    ctx.withViewer((viewer) => {
+      viewer.camera.flyHome(0.5);
+      viewer.scene.requestRender();
+    });
     topicMapHomeClick();
   };
 
@@ -559,20 +558,16 @@ export const CarmaMap = ({
                 pointerEvents: isLeaflet ? "none" : "auto",
               }}
             >
+              {/*
+                Legacy hash sync intentionally removed.
+                If 3D URL sync is needed again here, replace this with the current
+                `ViewStateProvider` + `ViewStateNavigationManagerProvider`
+                pattern instead of `onSceneChange` + legacy camera hash encoding.
+              */}
               <CustomViewer
                 containerRef={container3dMapRef}
                 cameraLimiterOptions={CESIUM_CONFIG.camera}
-                onSceneChange={(e) => {
-                  console.debug(
-                    "[GEOPORTALMAP|HASH|SCENE|CESIUM]cesium scene changed",
-                    e
-                  );
-                  updateHash(e.hashParams, {
-                    clearKeys: ["zoom"],
-                    label: "app/carma:3D",
-                    replace: true,
-                  });
-                }}
+                homeValidationCenter={CESIUM_HOME_POSITION}
               ></CustomViewer>
             </div>
           )}

@@ -1,7 +1,7 @@
 import { SceneMode, Viewer } from "cesium";
-import { COLORS } from "@carma-commons/utils";
 import UAParser from "ua-parser-js";
 
+import { COLORS } from "@carma-commons/utils";
 export const CESIUM_TARGET_FRAME_RATE = 120;
 const isMobile = new UAParser().getDevice().type === "mobile";
 

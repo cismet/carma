@@ -6,7 +6,7 @@ import type {
   Layer,
   LayerFilterInfo,
   SavedLayerConfig,
-} from "@carma/types";
+} from "@carma-mapping/layers";
 import {
   SELECTED_LAYER_INDEX,
   SelectionItem,
@@ -96,14 +96,10 @@ const slice = createSlice({
       state.layers = newLayers;
     },
     updateLayer(state, action: PayloadAction<Layer>) {
-      const newLayers = state.layers.map((obj) => {
-        if (obj.id === action.payload.id) {
-          return action.payload;
-        } else {
-          return obj;
-        }
-      });
-      state.layers = newLayers;
+      const layer = state.layers.find((obj) => obj.id === action.payload.id);
+      if (layer) {
+        Object.assign(layer, action.payload);
+      }
     },
     removeLayer(state, action: PayloadAction<string>) {
       const removedIndex = state.layers.findIndex(
@@ -218,6 +214,20 @@ const slice = createSlice({
       const layer = state.layers.find((l) => l.id === id);
       if (layer) {
         layer.filterInfo = filterInfo;
+      }
+    },
+
+    setLayerFilterState(
+      state,
+      action: PayloadAction<{
+        id: string;
+        filterState: Record<string, boolean>;
+      }>
+    ) {
+      const { id, filterState } = action.payload;
+      const layer = state.layers.find((l) => l.id === id);
+      if (layer) {
+        layer.filterState = filterState;
       }
     },
 
@@ -350,6 +360,7 @@ export const {
 
   toggleUseInFeatureInfo,
   setLayerFilterInfo,
+  setLayerFilterState,
   setLibreMapRef,
   setMaplibreMaps,
   setConfigSelection,

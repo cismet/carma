@@ -1,8 +1,10 @@
 import { createElement, type ReactElement } from "react";
-import type { CssPixelPosition } from "@carma/units/types";
 
-const RIGHT_ANGLE_PATH_SELECTOR = '[data-right-angle-corner-path="true"]';
-const RIGHT_ANGLE_DOT_SELECTOR = '[data-right-angle-corner-dot="true"]';
+import type { CssPixelPosition } from "@carma-units";
+const EDGE_OVERLAY_DOM_SELECTORS = {
+  rightAnglePath: '[data-right-angle-corner-path="true"]',
+  rightAngleDot: '[data-right-angle-corner-dot="true"]',
+} as const;
 
 export type RightAngleCornerOverlayProps = {
   strokeColor: string;
@@ -66,14 +68,14 @@ export const applyRightAngleCornerOverlayLayout = ({
   clickable: boolean;
 }) => {
   const pathEl = elementDiv.querySelector(
-    RIGHT_ANGLE_PATH_SELECTOR
+    EDGE_OVERLAY_DOM_SELECTORS.rightAnglePath
   ) as SVGPathElement | null;
   if (pathEl) {
     pathEl.setAttribute("d", pathData);
   }
 
   const dotEl = elementDiv.querySelector(
-    RIGHT_ANGLE_DOT_SELECTOR
+    EDGE_OVERLAY_DOM_SELECTORS.rightAngleDot
   ) as SVGCircleElement | null;
   if (dotEl) {
     dotEl.setAttribute("cx", `${dotScreen.x - minX + paddingPx}`);

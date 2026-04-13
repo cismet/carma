@@ -9,7 +9,7 @@ import {
 import type { MutableRefObject } from "react";
 import type { Feature } from "geojson";
 
-import { type SearchResultItem } from "@carma/types";
+import { type SearchResultItem } from "@carma-mapping/fuzzy-search";
 
 export enum SelectionMapMode {
   MODE_2D,

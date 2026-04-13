@@ -2,6 +2,7 @@ import {
   useEffect,
   useState,
   useRef,
+  useCallback,
   type FC,
   type CSSProperties,
 } from "react";
@@ -12,8 +13,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { Tooltip, Radio, type RadioChangeEvent } from "antd";
 
-import { PerspectiveFrustum } from "@carma/cesium";
-import { useCesiumContext } from "@carma-mapping/engines/cesium";
+import { useCesiumContext } from "@carma-mapping/engines/cesium/legacy";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { PREVIEW_IMAGE_BASE_SCALE_FACTOR } from "../config";
 import type { ObliqueImagePreviewStyle } from "../types";
@@ -26,7 +26,10 @@ import { ContactMailButton } from "@carma-appframeworks/portals";
 import { ObliqueDirectionControlsCompact } from "./ObliqueDirectionControls.Compact";
 import ObliqueOrientationCube from "./ObliqueOrientationCube";
 import type { CardinalDirectionEnum } from "../utils/orientationUtils";
-import { getViewerSyncedDimensions } from "../utils/getViewerSyncedDimensions";
+import {
+  getSceneSyncedDimensions,
+  getViewerSyncedDimensions,
+} from "../utils/getViewerSyncedDimensions";
 import { useProgressivePreviewSource } from "../hooks/useProgressivePreviewSource";
 import { useForwardZoomEventsToCesium } from "../hooks/useForwardZoomEventsToCesium";
 import { strings } from "../strings.de";
@@ -166,48 +169,71 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
 
   const ctx = useCesiumContext();
   const { rootRef } = useForwardZoomEventsToCesium();
-  const [externalFovOverride, setExternalFovOverride] = useState<
-    number | undefined
-  >(undefined);
+  const appliedPreviewSizeRef = useRef<{
+    width: number;
+    height: number;
+  } | null>(null);
+
+  const applyPreviewSizeCssVars = useCallback(
+    (width: number, height: number) => {
+      const root = rootRef.current;
+      if (!root || !(width > 0) || !(height > 0)) {
+        return;
+      }
+
+      const previous = appliedPreviewSizeRef.current;
+      if (previous?.width === width && previous.height === height) {
+        return;
+      }
+
+      root.style.setProperty("--oblique-preview-width", `${width}px`);
+      root.style.setProperty("--oblique-preview-height", `${height}px`);
+      appliedPreviewSizeRef.current = { width, height };
+    },
+    [rootRef]
+  );
 
   useEffect(() => {
-    if (!isVisible) return;
+    if (!isVisible) {
+      appliedPreviewSizeRef.current = null;
+      rootRef.current?.style.removeProperty("--oblique-preview-width");
+      rootRef.current?.style.removeProperty("--oblique-preview-height");
+      return;
+    }
 
-    let didAttach = false;
-    let detach: (() => void) | null = null;
+    let removePreRenderListener: (() => void) | null = null;
+    let removePostRenderListener: (() => void) | null = null;
 
     ctx.withScene((scene) => {
-      const handlePostRender = () => {
-        const frustum = scene.camera.frustum;
-        if (frustum instanceof PerspectiveFrustum) {
-          const nextFov = frustum.fov;
-          setExternalFovOverride((prev) => (prev === nextFov ? prev : nextFov));
-        } else {
-          setExternalFovOverride((prev) =>
-            prev === undefined ? prev : undefined
-          );
-        }
+      const syncPreviewSize = () => {
+        const { syncedWidth, syncedHeight } = getSceneSyncedDimensions(
+          scene,
+          isVertical,
+          imageAspectRatio,
+          PREVIEW_IMAGE_BASE_SCALE_FACTOR
+        );
+        applyPreviewSizeCssVars(Number(syncedWidth), Number(syncedHeight));
       };
 
-      scene.postRender.addEventListener(handlePostRender);
-      didAttach = true;
-      handlePostRender();
-
-      detach = () => {
-        if (!scene.isDestroyed()) {
-          scene.postRender.removeEventListener(handlePostRender);
-        }
-      };
+      removePreRenderListener =
+        scene.preRender.addEventListener(syncPreviewSize);
+      removePostRenderListener =
+        scene.postRender.addEventListener(syncPreviewSize);
+      syncPreviewSize();
     });
 
     return () => {
-      if (didAttach) {
-        detach?.();
-      }
+      removePreRenderListener?.();
+      removePostRenderListener?.();
     };
-  }, [ctx, isVisible]);
-
-  const effectiveFovOverride = externalFovOverride;
+  }, [
+    applyPreviewSizeCssVars,
+    ctx,
+    imageAspectRatio,
+    isVertical,
+    isVisible,
+    rootRef,
+  ]);
 
   const { xOffset, yOffset } = interiorOrientationOffsets;
 
@@ -411,8 +437,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
     ctx,
     isVertical,
     imageAspectRatio,
-    PREVIEW_IMAGE_BASE_SCALE_FACTOR,
-    effectiveFovOverride
+    PREVIEW_IMAGE_BASE_SCALE_FACTOR
   );
 
   return (

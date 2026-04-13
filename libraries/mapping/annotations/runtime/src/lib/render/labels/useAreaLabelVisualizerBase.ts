@@ -1,6 +1,13 @@
 import { createElement, useCallback, useEffect, useMemo, useRef } from "react";
 
 import {
+  ANNOTATION_TYPE_AREA_GROUND,
+  ANNOTATION_TYPE_AREA_PLANAR,
+  ANNOTATION_TYPE_AREA_VERTICAL,
+  computePolygonCentroid2D,
+  type NodeChainAnnotation,
+} from "@carma-mapping/annotations/core";
+import {
   computePointLabelLayout,
   POINT_LABEL_SELECTED_BACKGROUND_COLOR,
   POINT_LABEL_TEXT_BACKGROUND_COLOR,
@@ -8,20 +15,12 @@ import {
   useLabelOverlay,
   type LayoutPointInput,
 } from "@carma-providers/label-overlay";
-import {
-  ANNOTATION_TYPE_AREA_GROUND,
-  ANNOTATION_TYPE_AREA_PLANAR,
-  ANNOTATION_TYPE_AREA_VERTICAL,
-  computePolygonCentroid2D,
-  type NodeChainAnnotation,
-} from "@carma-mapping/annotations/core";
+import type { CssPixelPosition } from "@carma-units";
 
-import type { CssPixelPosition } from "@carma/units/types";
 import {
   type AreaLabelViewProjector,
   type PolygonAreaLabelOverlayBaseOptions,
 } from "./areaLabelVisualizer.types";
-
 const POLYGON_PREVIEW_PADDING_PX = 6;
 const POLYGON_STRIPE_SIZE_PX = 6;
 const POLYGON_STRIPE_WIDTH_PX = 1.5;
@@ -207,11 +206,13 @@ const createEmptyPolygonAreaLabelLayoutResult =
 const toMatrixCacheKey = (matrix: readonly number[]) =>
   matrix.map((value) => value.toFixed(6)).join(",");
 
+type Cartesian3Like = { x: number; y: number; z: number };
+
 export const useAreaLabelVisualizerBase = (
   viewProjector: AreaLabelViewProjector,
   polygonPreviewGroups: readonly {
     group: NodeChainAnnotation;
-    vertexPoints: import("@carma/cesium").Cartesian3Json[];
+    vertexPoints: Cartesian3Like[];
   }[],
   {
     overlayPrefix,

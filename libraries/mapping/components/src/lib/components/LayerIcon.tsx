@@ -1,4 +1,4 @@
-import type { Layer } from "@carma/types";
+import type { BackgroundLayer, Layer } from "@carma-mapping/layers";
 import { FontAwesomeLikeIcon } from "./FontAwesomeLikeIcon";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useEffect, useState } from "react";
@@ -9,7 +9,7 @@ const ICON_PREFIX =
   "https://geo.wuppertal.de/geoportal/geoportal_icon_legends/";
 
 interface LayerIconProps {
-  layer: Layer;
+  layer: Layer | BackgroundLayer;
   iconPrefix?: string;
   fallbackIcon?: string;
   isBaseLayer?: boolean;

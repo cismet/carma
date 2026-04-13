@@ -1,10 +1,8 @@
 import type { Cartographic, Model, Scene } from "cesium";
 
 import type { MarkerPrimitiveData, MarkerModelAsset, PolylineConfig } from ".";
-
-import { attachListeners, detachListeners } from "./listeners";
 import { buildMarkerData } from "./data";
-
+import { attachListeners, detachListeners } from "./listeners";
 const addMarkerModelToScene = (
   scene: Scene,
   markerData: MarkerPrimitiveData

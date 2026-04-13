@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useRef } from "react";
+
+import type { ModelConfig } from "@carma-mapping/engines/cesium/core";
 import {
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
   CustomShader,
   Model,
-} from "@carma/cesium";
-import type { ModelConfig } from "@carma-commons/resources";
+} from "@carma-cesium";
 
-import { DEFAULT_MODEL_HIGHLIGHT_SHADER } from "../utils/modelHighlightShader";
 import { createModelPrimitiveFromConfig } from "../utils/createModelPrimitiveFromConfig";
+import { DEFAULT_MODEL_HIGHLIGHT_SHADER } from "../utils/modelHighlightShader";
 import {
   buildModelKey,
   extractPickedProperties,
@@ -16,7 +17,6 @@ import {
   isModelPick,
 } from "../utils/modelManager";
 import { useCesiumContext } from "./useCesiumContext";
-
 export interface UseCesiumModelManagerOptions {
   models: ModelConfig[];
   enabled: boolean;
@@ -31,6 +31,10 @@ export interface UseCesiumModelManagerOptions {
     selectedId?: string | null;
   };
 }
+
+type ModelWithReadyPromise = {
+  readyPromise?: Promise<unknown>;
+};
 
 export const useCesiumModelManager = ({
   models,
@@ -105,9 +109,7 @@ export const useCesiumModelManager = ({
         requestRender();
         return;
       }
-      const readyPromise = (
-        primitive as unknown as { readyPromise?: Promise<unknown> }
-      ).readyPromise;
+      const readyPromise = (primitive as ModelWithReadyPromise).readyPromise;
       if (!readyPromise) {
         primitive.customShader = shader;
         requestRender();

@@ -1,8 +1,7 @@
-export * from "./lib/endpoints";
-
-export * from "./lib/service-options";
-export * from "./lib/tilesets";
-export * from "./lib/loaders/model";
+export * from "./lib/base/endpoints";
+export * from "./lib/base/service-options";
+export * from "./lib/base/tilesets";
+export * from "./lib/base/wms";
 
 export * from "./lib/de/tileset3d.ts";
 export * from "./lib/de/wms";

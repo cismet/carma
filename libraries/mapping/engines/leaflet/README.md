@@ -1,4 +1,6 @@
-# @carma/leaflet (@carma-mapping/engines/leaflet)
+# engines/leaflet/
+
+No sub-projects needed; root acts as api.
 
 **Leaflet Engine Helpers** - Typed wrappers and pure helper functions for Leaflet mapping engine.
 
@@ -12,26 +14,28 @@
 ## Usage
 
 ```typescript
-// Import from the leaflet engine package
-import { 
-  LeafletMap,
-  type LeafletView,
-  getLeafletView,
-  setLeafletView,
-  type LatLngJson,
-  leafletLatLngToLatLngJson,
-  latLngUnitsTypedToLatLngJson
-} from '@carma/leaflet';
+import { Map as LeafletMap } from "leaflet";
 ```
 
-**Import Path**: Always use `@carma/leaflet`  
-**Package Name**: `@carma/leaflet`
+Repo-internal code should prefer raw `leaflet` imports. This library exists for engine-local typed helpers and conversions, not as a repo-wide root alias policy.
 
 ## Structure
 
 - `Map.ts` - LeafletMap type alias, view helpers
 - `LatLng.ts` - Coordinate type conversions (Leaflet ↔ CARMA)
 - `events.ts` - Leaflet event type definitions
+
+## Navigation Controls Note
+
+Engine-native low-level Leaflet control helpers may live here, for example under `src/lib/controls/*`, when they are truly tied to raw `L.Map` behavior.
+
+Shared runtime-bound navigation control composition belongs in the sibling package:
+
+- [`../../engines-interop/navigation-controls/README.md`](../../engines-interop/navigation-controls/README.md)
+
+Presentation-only control chrome belongs in:
+
+- [`../../map-controls-layout/README.md`](../../map-controls-layout/README.md)
 
 ## Type Conversions
 
@@ -44,5 +48,5 @@ const latLngJson = leafletLatLngToLatLngJson(leafletLatLng);
 ## Build
 
 ```sh
-nx build engines/leaflet
+nx build engines-leaflet
 ```

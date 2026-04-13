@@ -1,6 +1,6 @@
-import type { GizmoCssAxisController } from "./cssAxisDragController";
 import type { Vector3 } from "three";
 
+import type { GizmoCssAxisController } from "./cssAxisDragController";
 export type GizmoAxisId = "x" | "y" | "z";
 
 export type GizmoCssAxisViewOptions = {

@@ -151,7 +151,7 @@ export const prepareSaveValues = (
     const result: Record<string, unknown> = {};
     for (const field of config.explicitFields) {
       result[field] = config.nullifyUndefined
-        ? (deserialized[field] ?? null)
+        ? deserialized[field] ?? null
         : deserialized[field];
     }
     return result;
@@ -235,11 +235,19 @@ export const saveFeatureDraft = async (
   const base = { featureId, featureType };
 
   if (!config) {
-    return { ...base, success: false, error: `Unknown feature type: ${featureType}` };
+    return {
+      ...base,
+      success: false,
+      error: `Unknown feature type: ${featureType}`,
+    };
   }
 
   if (featureDbId == null) {
-    return { ...base, success: false, error: "Missing database ID (featureDbId)" };
+    return {
+      ...base,
+      success: false,
+      error: "Missing database ID (featureDbId)",
+    };
   }
 
   try {
@@ -359,7 +367,10 @@ export const handleSaveAllDrafts = (deps: HandleSaveAllDeps) => {
 
   Modal.confirm({
     title: "Alle Entwürfe speichern?",
-    content: draftCount === 1 ? "Entwurf wird gespeichert." : "Entwürfe werden gespeichert.",
+    content:
+      draftCount === 1
+        ? "Entwurf wird gespeichert."
+        : "Entwürfe werden gespeichert.",
     okText: "Alle speichern",
     cancelText: "Abbrechen",
     onOk: async () => {

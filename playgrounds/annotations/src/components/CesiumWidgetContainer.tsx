@@ -5,174 +5,37 @@ import {
   type MutableRefObject,
   type ReactNode,
 } from "react";
+
 import {
-  Cartesian3,
-  Cesium3DTileset,
-  CesiumTerrainProvider,
-  createMinimalCesiumWidget,
-  type CesiumWidget,
-  type ImageryLayer,
-  type Scene,
-} from "@carma/cesium";
-import { degToRadNumeric } from "@carma/units/helpers";
-import {
-  WUPPERTAL,
   WUPP_MESH_2024,
   WUPP_TERRAIN_PROVIDER,
-  WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
 } from "@carma-commons/resources";
+import {
+  Cesium3DTileset,
+  CesiumTerrainProvider,
+  SceneMode,
+  readCesiumPrivateSceneTweens,
+  type CesiumWidget,
+  type Scene,
+} from "@carma-cesium";
+import {
+  createMinimalCesiumWidget,
+  setViewFromCameraState,
+} from "@carma-mapping/engines/cesium/core";
 
-type PersistedCameraState = {
-  longitude: number;
-  latitude: number;
-  height: number;
-  heading: number;
-  pitch: number;
-  roll: number;
-};
+import type { AnnotationsDemoCameraState } from "../playground.types";
 
-const CAMERA_STATE_STORAGE_KEY = "annotations-playground-camera-state";
-const CAMERA_SAVE_DELAY_MS = 750;
+const ANNOTATIONS_PLAYGROUND_MAX_RENDER_RATE_HZ = 144;
+const ANNOTATIONS_PLAYGROUND_MIN_RENDER_INTERVAL_MS =
+  1000 / ANNOTATIONS_PLAYGROUND_MAX_RENDER_RATE_HZ;
+const ANNOTATIONS_PLAYGROUND_INTERACTION_RENDER_GRACE_MS = 250;
 
-const isFiniteNumber = (value: unknown): value is number =>
-  typeof value === "number" && Number.isFinite(value);
-
-const parsePersistedCameraState = (
-  rawValue: string | null
-): PersistedCameraState | null => {
-  if (!rawValue) return null;
-
-  try {
-    const parsed = JSON.parse(rawValue) as Partial<PersistedCameraState>;
-    if (
-      !isFiniteNumber(parsed.longitude) ||
-      !isFiniteNumber(parsed.latitude) ||
-      !isFiniteNumber(parsed.height) ||
-      !isFiniteNumber(parsed.heading) ||
-      !isFiniteNumber(parsed.pitch) ||
-      !isFiniteNumber(parsed.roll)
-    ) {
-      return null;
-    }
-
-    return {
-      longitude: parsed.longitude,
-      latitude: parsed.latitude,
-      height: parsed.height,
-      heading: parsed.heading,
-      pitch: parsed.pitch,
-      roll: parsed.roll,
-    };
-  } catch {
-    return null;
-  }
-};
-
-const loadPersistedCameraState = (): PersistedCameraState | null =>
-  parsePersistedCameraState(localStorage.getItem(CAMERA_STATE_STORAGE_KEY));
-
-const savePersistedCameraState = (state: PersistedCameraState) => {
-  try {
-    localStorage.setItem(CAMERA_STATE_STORAGE_KEY, JSON.stringify(state));
-  } catch (error) {
-    console.warn(
-      "[annotations-playground] Failed to persist camera state",
-      error
-    );
-  }
-};
-
-const extractCameraState = (widget: CesiumWidget): PersistedCameraState => {
-  const camera = widget.camera;
-  const position = camera.positionCartographic;
-  return {
-    longitude: position.longitude,
-    latitude: position.latitude,
-    height: position.height,
-    heading: camera.heading,
-    pitch: camera.pitch,
-    roll: camera.roll,
-  };
-};
-
-const applyCameraState = (
+const applyCameraState = async (
   widget: CesiumWidget,
-  state: PersistedCameraState
+  state: AnnotationsDemoCameraState
 ) => {
-  widget.camera.setView({
-    destination: Cartesian3.fromRadians(
-      state.longitude,
-      state.latitude,
-      state.height
-    ),
-    orientation: {
-      heading: state.heading,
-      pitch: state.pitch,
-      roll: state.roll,
-    },
-  });
+  setViewFromCameraState(widget.camera, state);
   widget.scene.requestRender();
-};
-
-const setupCameraPersistence = (widget: CesiumWidget): (() => void) => {
-  const persistedState = loadPersistedCameraState();
-  if (persistedState) {
-    applyCameraState(widget, persistedState);
-  }
-
-  let saveTimeout: number | null = null;
-
-  const onCameraChanged = () => {
-    if (saveTimeout !== null) {
-      window.clearTimeout(saveTimeout);
-    }
-
-    saveTimeout = window.setTimeout(() => {
-      if (widget.isDestroyed()) return;
-      savePersistedCameraState(extractCameraState(widget));
-      saveTimeout = null;
-    }, CAMERA_SAVE_DELAY_MS);
-  };
-
-  const removeListener =
-    widget.camera.changed.addEventListener(onCameraChanged);
-
-  return () => {
-    removeListener?.();
-    if (saveTimeout !== null) {
-      window.clearTimeout(saveTimeout);
-    }
-  };
-};
-
-const requestRenderWithOptions = (
-  scene: Scene | null,
-  opts?: {
-    delay?: number;
-    repeat?: number;
-    repeatInterval?: number;
-  }
-) => {
-  if (!scene || scene.isDestroyed()) return;
-  const delay = Math.max(0, opts?.delay ?? 0);
-  const repeat = Math.max(1, opts?.repeat ?? 1);
-  const repeatInterval = Math.max(0, opts?.repeatInterval ?? 50);
-
-  const renderOnce = () => {
-    if (!scene.isDestroyed()) {
-      scene.requestRender();
-    }
-  };
-
-  if (delay > 0) {
-    window.setTimeout(renderOnce, delay);
-  } else {
-    renderOnce();
-  }
-
-  for (let index = 1; index < repeat; index += 1) {
-    window.setTimeout(renderOnce, delay + repeatInterval * index);
-  }
 };
 
 const initializeWidget = (
@@ -180,60 +43,207 @@ const initializeWidget = (
   useBrowserRecommendedResolution = false
 ): CesiumWidget => {
   const widget = createMinimalCesiumWidget(container, {
+    requestRenderMode: true,
+    targetFrameRate: ANNOTATIONS_PLAYGROUND_MAX_RENDER_RATE_HZ,
     useBrowserRecommendedResolution,
+    useDefaultRenderLoop: false,
   });
-  const position = Cartesian3.fromDegrees(
-    WUPPERTAL.position.longitude,
-    WUPPERTAL.position.latitude - 0.003,
-    500
-  );
-  widget.camera.setView({
-    destination: position,
-    orientation: {
-      heading: degToRadNumeric(0),
-      pitch: degToRadNumeric(-45),
-      roll: 0,
-    },
-  });
+
+  widget.useDefaultRenderLoop = false;
+  widget.targetFrameRate = ANNOTATIONS_PLAYGROUND_MAX_RENDER_RATE_HZ;
+  widget.scene.requestRenderMode = true;
+  widget.scene.pickTranslucentDepth = false;
+  widget.scene.globe.depthTestAgainstTerrain = true;
 
   return widget;
 };
 
-const initializeTerrainProviders = async () => {
-  const providers = {
-    terrain: null as CesiumTerrainProvider | null,
-    surface: null as CesiumTerrainProvider | null,
+const hasOngoingSceneWork = (scene: Scene): boolean => {
+  const internalScene = scene as Scene & {
+    _renderRequested?: boolean;
+    _screenSpaceCameraController?: {
+      _tweens?: { length?: number } | null;
+    } | null;
+    camera: Scene["camera"] & {
+      _currentFlight?: unknown;
+    };
   };
 
-  try {
-    providers.terrain = await CesiumTerrainProvider.fromUrl(
-      WUPP_TERRAIN_PROVIDER.url
+  return Boolean(
+    internalScene._renderRequested ||
+      (readCesiumPrivateSceneTweens(scene)?.length ?? 0) > 0 ||
+      (internalScene._screenSpaceCameraController?._tweens?.length ?? 0) > 0 ||
+      internalScene.camera._currentFlight ||
+      scene.mode === SceneMode.MORPHING ||
+      scene.globe?.tilesLoaded === false
+  );
+};
+
+const installExplicitRenderScheduler = ({
+  widget,
+  container,
+}: {
+  widget: CesiumWidget;
+  container: HTMLElement;
+}) => {
+  const { scene } = widget;
+  const originalRequestRender = scene.requestRender.bind(scene);
+  const mutableScene = scene as Scene & {
+    requestRender: () => void;
+  };
+  let queuedRenderFrameId = 0;
+  let queuedRenderTimeoutId = 0;
+  let renderQueued = false;
+  let destroyed = false;
+  let lastRenderAtMs = Number.NEGATIVE_INFINITY;
+  let interactionRenderUntilMs = Number.NEGATIVE_INFINITY;
+
+  const clearQueuedRender = () => {
+    if (queuedRenderFrameId !== 0) {
+      window.cancelAnimationFrame(queuedRenderFrameId);
+      queuedRenderFrameId = 0;
+    }
+    if (queuedRenderTimeoutId !== 0) {
+      window.clearTimeout(queuedRenderTimeoutId);
+      queuedRenderTimeoutId = 0;
+    }
+  };
+
+  const runQueuedRender = () => {
+    if (destroyed || widget.isDestroyed()) {
+      return;
+    }
+
+    clearQueuedRender();
+    renderQueued = false;
+    widget.resize();
+    widget.render();
+    lastRenderAtMs = performance.now();
+
+    if (
+      lastRenderAtMs < interactionRenderUntilMs ||
+      hasOngoingSceneWork(scene)
+    ) {
+      scheduleRender();
+    }
+  };
+
+  const scheduleRender = () => {
+    if (destroyed || widget.isDestroyed() || renderQueued) {
+      return;
+    }
+
+    renderQueued = true;
+    const elapsedMs = performance.now() - lastRenderAtMs;
+    const remainingDelayMs = Math.max(
+      0,
+      ANNOTATIONS_PLAYGROUND_MIN_RENDER_INTERVAL_MS - elapsedMs
     );
+    if (remainingDelayMs === 0) {
+      queuedRenderFrameId = window.requestAnimationFrame(() => {
+        runQueuedRender();
+      });
+      return;
+    }
+
+    queuedRenderTimeoutId = window.setTimeout(() => {
+      queuedRenderTimeoutId = 0;
+      queuedRenderFrameId = window.requestAnimationFrame(() => {
+        runQueuedRender();
+      });
+    }, remainingDelayMs);
+  };
+
+  const requestScheduledRender = () => {
+    originalRequestRender();
+    scheduleRender();
+  };
+
+  mutableScene.requestRender = requestScheduledRender;
+
+  const requestInteractionDrivenRender = () => {
+    // Keep the explicit render loop alive briefly while Cesium processes input.
+    interactionRenderUntilMs =
+      performance.now() + ANNOTATIONS_PLAYGROUND_INTERACTION_RENDER_GRACE_MS;
+    requestScheduledRender();
+  };
+  const interactionRenderEvents = [
+    "pointerdown",
+    "pointermove",
+    "pointerup",
+    "pointercancel",
+    "wheel",
+  ] as const;
+  for (const eventName of interactionRenderEvents) {
+    scene.canvas.addEventListener(eventName, requestInteractionDrivenRender, {
+      passive: true,
+    });
+  }
+
+  const refreshForResize = () => {
+    requestScheduledRender();
+  };
+
+  const resizeObserver =
+    typeof ResizeObserver !== "undefined"
+      ? new ResizeObserver(() => {
+          refreshForResize();
+        })
+      : null;
+  resizeObserver?.observe(container);
+  resizeObserver?.observe(scene.canvas);
+  window.addEventListener("resize", refreshForResize);
+
+  requestScheduledRender();
+
+  return () => {
+    destroyed = true;
+    resizeObserver?.disconnect();
+    window.removeEventListener("resize", refreshForResize);
+    for (const eventName of interactionRenderEvents) {
+      scene.canvas.removeEventListener(
+        eventName,
+        requestInteractionDrivenRender
+      );
+    }
+    clearQueuedRender();
+    mutableScene.requestRender = originalRequestRender;
+  };
+};
+
+const applyInitialCameraState = async ({
+  widget,
+  initialCameraState,
+}: {
+  widget: CesiumWidget;
+  initialCameraState: AnnotationsDemoCameraState;
+}) => {
+  await applyCameraState(widget, initialCameraState);
+};
+
+const initializeTerrainSamplingProvider = async () => {
+  try {
+    return await CesiumTerrainProvider.fromUrl(WUPP_TERRAIN_PROVIDER.url);
   } catch (error) {
     console.warn(
-      "[annotations-playground] Failed to initialize terrain provider",
+      "[annotations-playground] Failed to initialize off-scene terrain sampling provider",
       {
         error,
         url: WUPP_TERRAIN_PROVIDER.url,
       }
     );
+    return null;
   }
+};
 
-  try {
-    providers.surface = await CesiumTerrainProvider.fromUrl(
-      WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M.url
-    );
-  } catch (error) {
-    console.warn(
-      "[annotations-playground] Failed to initialize surface provider",
-      {
-        error,
-        url: WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M.url,
-      }
-    );
-  }
-
-  return providers;
+const waitForNextSceneRender = async (scene: Scene) => {
+  await new Promise<void>((resolve) => {
+    const removePostRenderListener = scene.postRender.addEventListener(() => {
+      removePostRenderListener?.();
+      resolve();
+    });
+    scene.requestRender();
+  });
 };
 
 const loadTileset = async (
@@ -269,27 +279,28 @@ const loadTileset = async (
 type CesiumWidgetContainerProps = {
   rootRef: MutableRefObject<HTMLDivElement | null>;
   onSceneChange?: (scene: Scene | null) => void;
+  initialCameraState: AnnotationsDemoCameraState;
+  startPoseResolved?: boolean;
   children: ReactNode;
 };
 
 export function CesiumWidgetContainer({
   rootRef,
   onSceneChange,
+  initialCameraState,
+  startPoseResolved = true,
   children,
 }: CesiumWidgetContainerProps) {
   const cesiumContainerRef = useRef<HTMLDivElement>(null);
   const widgetRef = useRef<CesiumWidget | null>(null);
-  const terrainProviderRef = useRef<CesiumTerrainProvider | null>(null);
-  const surfaceProviderRef = useRef<CesiumTerrainProvider | null>(null);
+  const cleanupRenderSchedulerRef = useRef<(() => void) | null>(null);
+  const terrainSamplingProviderRef = useRef<CesiumTerrainProvider | null>(null);
   const tilesetRef = useRef<Cesium3DTileset | null>(null);
-  const [providersReady, setProvidersReady] = useState(false);
-  const [isViewerReady, setIsViewerReady] = useState(false);
-  const [initialViewApplied, setInitialViewApplied] = useState(true);
+  const [isWidgetReady, setIsWidgetReady] = useState(false);
 
   useEffect(() => {
-    if (!cesiumContainerRef.current) return;
+    if (!startPoseResolved || !cesiumContainerRef.current) return;
     let disposed = false;
-    let teardownCameraPersistence: (() => void) | null = null;
 
     const initialize = async () => {
       const widget = initializeWidget(cesiumContainerRef.current);
@@ -301,23 +312,34 @@ export function CesiumWidgetContainer({
       }
 
       widgetRef.current = widget;
-      onSceneChange?.(widget.scene);
-      teardownCameraPersistence = setupCameraPersistence(widget);
-      setIsViewerReady(true);
-      setInitialViewApplied(true);
+      cleanupRenderSchedulerRef.current = installExplicitRenderScheduler({
+        widget,
+        container: cesiumContainerRef.current,
+      });
+      const tilesetPromise = loadTileset(widget);
+      void initializeTerrainSamplingProvider().then((provider) => {
+        if (disposed) {
+          return;
+        }
 
-      const [providers, tileset] = await Promise.all([
-        initializeTerrainProviders(),
-        loadTileset(widget),
-      ]);
+        terrainSamplingProviderRef.current = provider;
+      });
+
+      await applyInitialCameraState({
+        widget,
+        initialCameraState,
+      });
+
+      const tileset = await tilesetPromise;
+      if (disposed || widget.isDestroyed()) return;
+
+      tilesetRef.current = tileset;
+      await waitForNextSceneRender(widget.scene);
 
       if (disposed || widget.isDestroyed()) return;
 
-      terrainProviderRef.current = providers.terrain;
-      surfaceProviderRef.current = providers.surface;
-      tilesetRef.current = tileset;
-      setProvidersReady(true);
-      widget.scene.requestRender();
+      onSceneChange?.(widget.scene);
+      setIsWidgetReady(true);
     };
 
     initialize().catch((error) => {
@@ -325,28 +347,46 @@ export function CesiumWidgetContainer({
         "[annotations-playground] Failed to initialize CesiumWidget container",
         error
       );
+      onSceneChange?.(null);
+      setIsWidgetReady(false);
+      terrainSamplingProviderRef.current = null;
+      tilesetRef.current = null;
+      const widget = widgetRef.current;
+      widgetRef.current = null;
+      cleanupRenderSchedulerRef.current?.();
+      cleanupRenderSchedulerRef.current = null;
+      if (widget && !widget.isDestroyed()) {
+        widget.destroy();
+      }
     });
 
     return () => {
       disposed = true;
       onSceneChange?.(null);
-      teardownCameraPersistence?.();
-      setProvidersReady(false);
-      setIsViewerReady(false);
-      terrainProviderRef.current = null;
-      surfaceProviderRef.current = null;
+      setIsWidgetReady(false);
+      terrainSamplingProviderRef.current = null;
       tilesetRef.current = null;
       const widget = widgetRef.current;
       widgetRef.current = null;
+      cleanupRenderSchedulerRef.current?.();
+      cleanupRenderSchedulerRef.current = null;
       if (widget && !widget.isDestroyed()) {
         widget.destroy();
       }
     };
-  }, [onSceneChange]);
+  }, [initialCameraState, onSceneChange, startPoseResolved]);
+
+  useEffect(() => {
+    if (!isWidgetReady) {
+      return;
+    }
+    widgetRef.current?.scene.requestRender();
+  }, [isWidgetReady]);
 
   return (
     <div
       ref={rootRef}
+      data-annotation-cursor-root="true"
       style={{
         position: "relative",
         width: "100%",

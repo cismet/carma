@@ -1,5 +1,7 @@
 export { FontAwesomeLikeIcon } from "./lib/components/FontAwesomeLikeIcon.tsx";
 export {
+  buildFilterExpression,
+  captureOriginalFilters,
   createFilterButtons,
   type FilterInfo,
   type FilterOption,
@@ -15,8 +17,20 @@ export {
 export { MobileWarningMessage } from "./lib/components/MobileWarningMessage";
 export { LayerButton } from "./lib/components/LayerButton";
 export { LayerIcon } from "./lib/components/LayerIcon";
-export { ResponsiveStatusFooter } from "./lib/components/ResponsiveStatusFooter";
+export { ToolButton } from "./lib/components/ToolButton";
+export {
+  AnnotationsToolbar,
+  AnnotationsToolbarButton,
+  AnnotationsToolbarIcon,
+  AnnotationsToolbarItem,
+  AnnotationsToolbarSeparator,
+} from "./lib/components/AnnotationsToolbar";
 export { LibrePitchingCompass } from "./lib/components/PitchingControl/LibrePitchingCompass";
+export { CompassNeedleSVG } from "./lib/components/PitchingControl/CompassNeedleSVG";
+export {
+  SceneNavigationControls,
+  type SceneNavigationControlsProps,
+} from "./lib/components/SceneNavigationControls";
 
 export {
   MapFrameworkSwitcher,
@@ -39,3 +53,12 @@ export {
 } from "./lib/components/LibreMapLocateControl";
 
 export { ZoomControl } from "./lib/components/ZoomControl";
+export {
+  ViewStateVisualizer,
+  type ViewStateVisualizerProps,
+} from "./lib/components/ViewStateVisualizer";
+export {
+  ObjectCentricViewStateInfoBox,
+  type ObjectCentricViewStateInfoBoxProps,
+  type ObjectCentricViewStateInfoRow,
+} from "./lib/components/ObjectCentricViewStateInfoBox";

@@ -1,15 +1,6 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
 
 import {
-  Cartesian2,
-  Cartesian3,
-  getDegreesFromCartesian,
-  getEllipsoidalAltitudeOrZero,
-  getLocalUpDirectionAtPosition,
-  isValidScene,
-  type Scene,
-} from "@carma/cesium";
-import {
   ANNOTATION_TYPE_DISTANCE,
   ANNOTATION_TYPE_POINT,
   type ActivePointCreateConfig,
@@ -18,14 +9,21 @@ import {
   type AnnotationCollection,
   type AnnotationEntry,
 } from "@carma-mapping/annotations/core";
-import { useSessionPointCreation } from "../create/useSessionCreation";
-
 import {
+  CESIUM_POINT_QUERY_CLICK_STRATEGY,
   useCesiumPointQuery,
   type CesiumPointQueryCreatePayload,
-} from "@carma-mapping/annotations/cesium";
-import { pickPolygonGroupId } from "../../selection/useSelection";
+} from "@carma-mapping/engines/cesium/react/interactions";
+import { Cartesian2, Cartesian3, type Scene } from "@carma-cesium";
+import {
+  getDegreesFromCartesian,
+  getEllipsoidalAltitudeOrZero,
+  getLocalUpDirectionAtPosition,
+  isValidScene,
+} from "@carma-mapping/engines/cesium/core";
 
+import { useSessionPointCreation } from "../create/useSessionCreation";
+import { pickPolygonGroupId } from "../../selection/useSelection";
 type PointCreatePayload = {
   geometryPositionECEF: Cartesian3;
   anchorPositionECEF: Cartesian3;
@@ -209,6 +207,8 @@ export const usePointQueryCreationController = (
 
   const pointVerticalOffsetMeters =
     pointCreateConfig?.verticalOffsetMeters ?? 0;
+  const usesDelayedLineFinishClicks =
+    pointCreateConfig?.mode === "node-chain-measure";
 
   const handleBeforePointCreate = useCallback(
     (_positionECEF: Cartesian3 | null, screenPosition: Cartesian2) => {
@@ -247,6 +247,9 @@ export const usePointQueryCreationController = (
       !moveGizmoPointId &&
       !isMoveGizmoDragging &&
       Boolean(pointCreateConfig),
+    clickStrategy: usesDelayedLineFinishClicks
+      ? CESIUM_POINT_QUERY_CLICK_STRATEGY.DELAYED_LINE_FINISH
+      : CESIUM_POINT_QUERY_CLICK_STRATEGY.IMMEDIATE,
     onBeforePointCreate: handleBeforePointCreate,
     onPointCreate: (payload) =>
       pointCreateConfig
@@ -260,10 +263,12 @@ export const usePointQueryCreationController = (
             })
           )
         : false,
-    onLineFinish: () =>
-      pointCreateConfig
-        ? handlePointQueryLineFinish(pointCreateConfig.mode)
-        : false,
+    onLineFinish: usesDelayedLineFinishClicks
+      ? () =>
+          pointCreateConfig
+            ? handlePointQueryLineFinish(pointCreateConfig.mode)
+            : false
+      : undefined,
     onPointerMove: handleAnnotationCursorMove,
   });
 };

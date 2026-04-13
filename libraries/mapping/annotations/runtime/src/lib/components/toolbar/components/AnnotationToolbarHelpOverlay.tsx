@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
-import { DismissibleHelpBox } from "@carma-commons/ui/components";
-import { INFOBOX_SURFACE_BG, INFOBOX_SURFACE_BLUR } from "../shared";
 
+import { DismissibleHelpBox } from "@carma-commons/ui/components";
+
+import { INFOBOX_SURFACE_BG, INFOBOX_SURFACE_BLUR } from "../shared";
 type AnnotationToolbarHelpOverlayProps = {
   content: ReactNode;
   collapsed: boolean;

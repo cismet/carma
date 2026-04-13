@@ -21,7 +21,6 @@ import type {
   ToolPrimitiveSet,
   ToolPrimitiveSetByType,
 } from "./primitiveGenerator.types";
-
 const get = (
   byToolType: ToolPrimitiveSetByType,
   toolType: keyof ToolPrimitiveSetByType

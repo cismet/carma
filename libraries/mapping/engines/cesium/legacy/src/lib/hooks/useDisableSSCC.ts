@@ -7,7 +7,6 @@ import {
 } from "../slices/cesium";
 import { guardScreenSpaceCameraController } from "../utils/guardScreenSpaceCameraController";
 import { useCesiumContext } from "./useCesiumContext";
-
 const useDisableSSCC = () => {
   const isAnimating = useSelector(selectViewerIsAnimating);
   const isTransitioning = useSelector(selectViewerIsTransitioning);

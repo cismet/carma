@@ -1,11 +1,12 @@
 import type { CSSProperties, ReactNode } from "react";
+
 import {
   LINEAR_SEGMENT_LINE_MODE_COMPONENTS,
   LINEAR_SEGMENT_LINE_MODE_DIRECT,
   type LinearSegmentLineMode,
 } from "@carma-mapping/annotations/core";
-import { INACTIVE_ICON_COLOR, toolButtonStyle } from "../../shared";
 
+import { INACTIVE_ICON_COLOR, toolButtonStyle } from "../../shared";
 export type SegmentLineModeOption = {
   mode: LinearSegmentLineMode;
   label: string;

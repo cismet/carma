@@ -7,17 +7,6 @@ import {
 } from "react";
 
 import {
-  Cartesian3,
-  Cartesian4,
-  Matrix4,
-  Transforms,
-  cartesian3FromJson,
-  getLocalUpDirectionAtAnchor,
-  getSignedAngleDegAroundAxis,
-  normalizeDirection,
-  resolveLocalFrameVectors,
-} from "@carma/cesium";
-import {
   ANNOTATION_TYPE_AREA_PLANAR,
   ANNOTATION_TYPE_AREA_VERTICAL,
   ANNOTATION_TYPE_POINT,
@@ -27,24 +16,35 @@ import {
   getVerticalPolygonAxisRotationSuffix,
   isPointAnnotationEntry,
   orientPlaneNormalTowardPosition,
+  type AnnotationCollection,
+  type NodeChainAnnotation,
   type PlanarPolygonPlane,
   type ReferenceLineLabelKind,
 } from "@carma-mapping/annotations/core";
-import { usePointEditingGizmo } from "./usePointEditingGizmo";
-import { useEditState } from "./useEditState";
-import { usePointEditingState } from "./usePointEditingState";
+import {
+  Cartesian3,
+  Cartesian4,
+  Matrix4,
+  Transforms,
+  type Scene,
+} from "@carma-cesium";
+import {
+  cartesian3FromMetricVector3,
+  getLocalUpDirectionAtAnchor,
+  getSignedAngleDegAroundAxis,
+  normalizeDirection,
+  resolveLocalFrameVectors,
+} from "@carma-mapping/engines/cesium/core";
+
+import type { AnnotationEditingContextType } from "../../context/annotationsContext.types";
+import type { AnnotationsStore } from "../../store";
 import type {
   AnnotationEditTarget,
   AnnotationEditUpdateTarget,
 } from "./annotationEdit.types";
-import type {
-  AnnotationCollection,
-  NodeChainAnnotation,
-} from "@carma-mapping/annotations/core";
-import type { Scene } from "@carma/cesium";
-import type { AnnotationsStore } from "../../store";
-import type { AnnotationEditingContextType } from "../../context/annotationsContext.types";
-
+import { useEditState } from "./useEditState";
+import { usePointEditingGizmo } from "./usePointEditingGizmo";
+import { usePointEditingState } from "./usePointEditingState";
 const VERTICAL_POLYGON_AXIS_ID_ENU_UP = "enu-up";
 const VERTICAL_POLYGON_AXIS_ID_ENU_EAST = "enu-east";
 const VERTICAL_POLYGON_AXIS_ID_ENU_NORTH = "enu-north";
@@ -154,6 +154,16 @@ export const useEditing = (
     () => annotations.filter((measurement) => !measurement.hidden),
     [annotations]
   );
+  const isLockedPointMeasurement = useCallback(
+    (pointId: string) =>
+      annotations.some(
+        (annotation) =>
+          isPointAnnotationEntry(annotation) &&
+          annotation.id === pointId &&
+          Boolean(annotation.locked)
+      ),
+    [annotations]
+  );
 
   usePointEditingGizmo(scene, visibleAnnotationsForRendering, moveGizmo, {
     pointRadius,
@@ -191,6 +201,10 @@ export const useEditing = (
 
   const handlePointVerticalOffsetStemLongPress = useCallback(
     (pointId: string) => {
+      if (isLockedPointMeasurement(pointId)) {
+        return;
+      }
+
       const pointMeasurement = annotations.find(
         (annotation) =>
           isPointAnnotationEntry(annotation) && annotation.id === pointId
@@ -224,6 +238,7 @@ export const useEditing = (
     },
     [
       annotations,
+      isLockedPointMeasurement,
       nodeChainAnnotations,
       selectAnnotationById,
       startMoveGizmoForAnnotationId,
@@ -232,6 +247,10 @@ export const useEditing = (
 
   const handlePointLabelLongPress = useCallback(
     (pointId: string) => {
+      if (isLockedPointMeasurement(pointId)) {
+        return;
+      }
+
       const targetVerticalPolygonGroup =
         (focusedNodeChainAnnotationId
           ? nodeChainAnnotations.find(
@@ -327,7 +346,9 @@ export const useEditing = (
 
           const planeNormalFromGroup = targetVerticalPolygonGroup.plane
             ? normalizeDirection(
-                cartesian3FromJson(targetVerticalPolygonGroup.plane.normalECEF)
+                cartesian3FromMetricVector3(
+                  targetVerticalPolygonGroup.plane.normalECEF
+                )
               )
             : null;
           let planeNormal = planeNormalFromGroup;
@@ -345,7 +366,7 @@ export const useEditing = (
                 const orientedDerivedPlane =
                   orientPlaneTowardSceneCamera(derivedPlane);
                 planeNormal = normalizeDirection(
-                  cartesian3FromJson(orientedDerivedPlane.normalECEF)
+                  cartesian3FromMetricVector3(orientedDerivedPlane.normalECEF)
                 );
               }
             }
@@ -506,7 +527,9 @@ export const useEditing = (
         if (pointPosition) {
           const planeNormalFromGroup = targetPolygonAnnotation.plane
             ? normalizeDirection(
-                cartesian3FromJson(targetPolygonAnnotation.plane.normalECEF)
+                cartesian3FromMetricVector3(
+                  targetPolygonAnnotation.plane.normalECEF
+                )
               )
             : null;
           let planeNormal = planeNormalFromGroup;
@@ -524,7 +547,7 @@ export const useEditing = (
                 const orientedDerivedPlane =
                   orientPlaneTowardSceneCamera(derivedPlane);
                 planeNormal = normalizeDirection(
-                  cartesian3FromJson(orientedDerivedPlane.normalECEF)
+                  cartesian3FromMetricVector3(orientedDerivedPlane.normalECEF)
                 );
               }
             }
@@ -633,6 +656,7 @@ export const useEditing = (
     [
       annotations,
       focusedNodeChainAnnotationId,
+      isLockedPointMeasurement,
       orientPlaneTowardSceneCamera,
       nodeChainAnnotations,
       selectAnnotationById,
@@ -642,6 +666,10 @@ export const useEditing = (
 
   const requestStartEdit = useCallback(
     (target: AnnotationEditTarget) => {
+      if (isLockedPointMeasurement(target.pointId)) {
+        return;
+      }
+
       switch (target.kind) {
         case "point-vertical-offset-stem":
           handlePointVerticalOffsetStemLongPress(target.pointId);
@@ -661,6 +689,8 @@ export const useEditing = (
     [
       handlePointLabelLongPress,
       handlePointVerticalOffsetStemLongPress,
+      isLockedPointMeasurement,
+      setActiveEditTarget,
       selectAnnotationById,
       startMoveGizmoForAnnotationId,
     ]

@@ -43,7 +43,7 @@ import {
 import { parseColor } from "../../helper/color";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 import { addCustomFeatureFlags } from "../../store/slices/layers";
-import type { FeatureInfo } from "@carma/types";
+import type { FeatureInfo } from "@carma-mapping/utils";
 import { selectionPadding } from "../../constants/selection";
 
 interface InfoBoxProps {

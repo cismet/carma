@@ -19,3 +19,8 @@ nx lint utils
 ```
 
 TODO consolidate utils and remove most helpers methods into their more specialized packages, math, geo, units, etc, carma.
+
+## Number Format
+
+- `@carma-commons/utils/number-format`
+  - `formatFixedNumber(...)`

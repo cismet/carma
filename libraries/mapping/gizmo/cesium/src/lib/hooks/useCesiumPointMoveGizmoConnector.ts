@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { Cartesian3 } from "@carma/cesium";
+import { Cartesian3 } from "@carma-cesium";
 
 import type {
   CesiumGizmoPoint,
   UseCesiumPointMoveGizmoOptions,
 } from "./useCesiumPointMoveGizmo";
-
 const DEFAULT_MOVE_POINT_ID = "demo-point";
 
 export type UseCesiumPointMoveGizmoConnectorOptions = {

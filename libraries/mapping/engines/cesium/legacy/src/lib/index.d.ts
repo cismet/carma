@@ -1,9 +1,8 @@
-import type { Cartesian3Json, ColorConstructorArgs } from "@carma/cesium";
-import type { ModelConfig } from "@carma-commons/resources";
+import type { ModelConfig } from "@carma-mapping/engines/cesium/core";
+import { type ColorConstructorArgs } from "@carma-mapping/engines/cesium/core";
 
 import type { ProviderConfig } from "./utils/cesiumProviders";
 import type { TilesetConfigs } from "./utils/cesiumTilesetProviders";
-
 export type CameraPositionAndOrientation = {
   position: Cartesian3;
   up: Cartesian3;
@@ -78,8 +77,6 @@ export interface CesiumState {
   isAnimating?: boolean;
   currentTransition?: VIEWER_TRANSITION_STATE;
   currentSceneStyle?: keyof SceneStyles;
-  homePosition: null | Cartesian3Json;
-  homeOffset: null | Cartesian3Json;
   showPrimaryTileset: boolean; // tileset is the base 3D model equivalent to a basemap
   showSecondaryTileset: boolean; // tileset is the base 3D model equivalent to a basemap
 

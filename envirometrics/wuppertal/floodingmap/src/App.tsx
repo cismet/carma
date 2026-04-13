@@ -1,54 +1,39 @@
-import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useSelector } from "react-redux";
-import { useSearchParams } from "react-router-dom";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+
 import {
   faHouseChimney,
   faMinus,
   faPlus,
 } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import EnviroMetricMap from "@cismet-dev/react-cismap-envirometrics-maps/EnviroMetricMap";
 import { version as cismapEnvirometricsVersion } from "@cismet-dev/react-cismap-envirometrics-maps/meta";
-
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
-import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
-import CrossTabCommunicationControl from "react-cismap/CrossTabCommunicationControl";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+import CrossTabCommunicationControl from "react-cismap/CrossTabCommunicationControl";
+import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 
 import {
   SelectionMetaData,
   TopicMapSelectionContent,
   useGazData,
+  useHashLaunchMode,
   useSelection,
   useSelectionCesium,
   useSelectionTopicMap,
 } from "@carma-appframeworks/portals";
-import { useHashState } from "@carma-providers/hash-state";
-import { ENDPOINT, isAreaTypeWithGEP } from "@carma-commons/resources";
-import { getApplicationVersion } from "@carma-commons/utils";
-
-// TODO fix collab path names
 import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/hochwassergefahrenkarte";
-
-import { getDegreesFromCartesian } from "@carma/cesium";
-
-import {
-  CustomViewer,
-  PitchingCompass,
-  selectViewerHome,
-  selectViewerModels,
-  useCesiumContext,
-  useCesiumInitialCameraFromSearchParams,
-  useHomeControl,
-  useZoomControls as useZoomControlsCesium,
-} from "@carma-mapping/engines/cesium";
-import {
-  EmptySearchComponent,
-  LibFuzzySearch,
-} from "@carma-mapping/fuzzy-search";
-import { type SearchResultItem } from "@carma/types";
-
+import { ENDPOINT, isAreaTypeWithGEP } from "@carma-commons/resources";
+import { getApplicationVersion, HASH_LAUNCH_MODE } from "@carma-commons/utils";
 import {
   FullscreenControl,
   MapFrameworkSwitcher,
@@ -57,28 +42,55 @@ import {
   useRegisterMapFramework,
 } from "@carma-mapping/components";
 import {
+  createViewStateShareableHashCodec,
+  flyViewStateInCesium,
+  HASH_ZOOM_CONVENTION,
+  ViewStateNavigationManagerProvider,
+  ViewStateProvider,
+  useCesiumNavigationBridge,
+} from "@carma-mapping/engines-interop/view-state";
+import {
+  CustomViewer,
+  PitchingCompass,
+  selectViewerModels,
+  useCesiumContext,
+  useZoomControls as useZoomControlsCesium,
+} from "@carma-mapping/engines/cesium/legacy";
+import {
+  EmptySearchComponent,
+  LibFuzzySearch,
+  type SearchResultItem,
+} from "@carma-mapping/fuzzy-search";
+import {
   Control,
   ControlButtonStyler,
   ControlLayout,
 } from "@carma-mapping/map-controls-layout";
 
+import FloodingTopicMapContainer from "./components/FloodingTopicMapContainer";
 import { StateAwareChildren } from "./components/StateAwareChildren";
-
-import versionData from "./version.json";
-
-import useLeafletZoomControls from "./hooks/useLeafletZoomControls";
-import { useFloodingmapFrameworkSwitcher } from "./hooks/useFloodingmapFrameworkSwitcher";
-
 import config from "./config";
-import { EMAIL, HOME_ZOOM } from "./config/app.config";
+import { EMAIL } from "./config/app.config";
 import {
   CESIUM_CONFIG,
   CONSTRUCTOR_OPTIONS,
 } from "./config/cesium/cesium.config";
+import { useFloodingmapInitialValues } from "./hooks/useFloodingmapInitialValues";
+import useLeafletZoomControls from "./hooks/useLeafletZoomControls";
+import versionData from "./version.json";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
+const DEFAULT_HASH_FOV_DEG = 45;
+const FLOODINGMAP_CESIUM_VIEW_ADAPTER_ID = "floodingmap-cesium";
+const HIDDEN_DISPLAY_VALUE = "none" as const;
 
-function App({ sync = false }: { sync?: boolean }) {
+type CesiumViewerCreditContainer = {
+  _cesiumWidget?: {
+    _creditContainer?: { style?: { display?: string } };
+  };
+};
+
+function FloodingmapAppContent({ sync = false }: { sync?: boolean }) {
   const version = getApplicationVersion(versionData);
   const { responsiveState, gap, windowSize } = useContext<
     typeof ResponsiveTopicMapContext
@@ -88,18 +100,30 @@ function App({ sync = false }: { sync?: boolean }) {
     responsiveState === "normal" ? "300px" : windowSize.width - gap - 2;
 
   const { gazData } = useGazData();
-  const { updateHash } = useHashState();
+
+  // Resolve launch mode from hash, set framework, clean up flags
+  useHashLaunchMode({ defaultMode: HASH_LAUNCH_MODE.THREE_D });
 
   const reactCismapEnvirometricsVersion = cismapEnvirometricsVersion;
   const [hochwasserschutz, setHochwasserschutz] = useState(true);
-
-  const [searchParams] = useSearchParams();
-
-  const initialCameraView = useCesiumInitialCameraFromSearchParams();
-
+  const {
+    defaultHomeViewState,
+    homeCenter,
+    homeLeafletZoom,
+    homeValidationCenter,
+    initialCameraView,
+    initialEnviroMetricState,
+    isInitialCameraResolved,
+  } = useFloodingmapInitialValues();
   const ctx = useCesiumContext();
-  const { getScene, getTerrainProvider, getSurfaceProvider } = ctx;
-  const homeControl = useHomeControl();
+  const {
+    getScene,
+    getTerrainProvider,
+    getSurfaceProvider,
+    isViewerReady,
+    initialViewApplied,
+  } = ctx;
+  const cesiumScene = getScene();
   const {
     handleZoomIn: handleZoomInCesium,
     handleZoomOut: handleZoomOutCesium,
@@ -114,58 +138,106 @@ function App({ sync = false }: { sync?: boolean }) {
 
   // CESIUM related
   const container3dMapRef = useRef<HTMLDivElement>(null);
-  const homePosition = useSelector(selectViewerHome);
+  const [cesiumContainerElement, setCesiumContainerElement] =
+    useState<HTMLDivElement | null>(null);
+  const [shouldMountCesium, setShouldMountCesium] = useState(false);
+  const cesiumReadyPromiseRef = useRef<Promise<void> | null>(null);
+  const cesiumReadyResolversRef = useRef<Array<() => void>>([]);
+
+  const handleCesiumContainerRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      container3dMapRef.current = node;
+      setCesiumContainerElement(node);
+    },
+    []
+  );
 
   // Register map frameworks with switcher
-  const frameworkOptions = useMemo(() => {
-    const leafletMap = routedMap?.leafletMap?.leafletElement;
-    const cesiumScene = getScene();
-    const cesiumContainer = container3dMapRef.current;
-    const terrainProvider = getTerrainProvider();
-    const surfaceProvider = getSurfaceProvider();
+  const leafletMap = routedMap?.leafletMap?.leafletElement ?? null;
+  const isCesiumRuntimeReady = Boolean(
+    cesiumScene && cesiumContainerElement && isViewerReady
+  );
 
-    console.log("[FLOODINGMAP] Framework options check:", {
-      hasLeafletMap: !!leafletMap,
-      hasCesiumScene: !!cesiumScene,
-      hasCesiumContainer: !!cesiumContainer,
-      hasRoutedMap: !!routedMap,
-    });
+  const getLeafletMap = useCallback(
+    () => routedMap?.leafletMap?.leafletElement ?? null,
+    [routedMap]
+  );
+  const getCesiumContainer = useCallback(
+    () => container3dMapRef.current,
+    [container3dMapRef]
+  );
+  const getCesiumTerrainProviders = useCallback(
+    () => ({
+      TERRAIN: getTerrainProvider() ?? null,
+      SURFACE: getSurfaceProvider() ?? null,
+    }),
+    [getSurfaceProvider, getTerrainProvider]
+  );
 
-    if (!leafletMap || !cesiumScene || !cesiumContainer) {
-      return null;
-    }
+  useRegisterMapFramework({
+    getLeafletMap,
+    getCesiumScene: () => cesiumScene,
+    getCesiumContainer,
+    getCesiumTerrainProviders,
+  });
 
-    return {
-      leafletMap,
-      cesiumScene,
-      cesiumContainer,
-      terrainProviders: {
-        TERRAIN: terrainProvider ?? null,
-        SURFACE: surfaceProvider ?? null,
-      },
-    };
-  }, [routedMap, getScene, getTerrainProvider, getSurfaceProvider]);
-
-  useRegisterMapFramework(frameworkOptions);
-
-  const homeCenter = useMemo(() => {
-    if (!homePosition) {
-      return null;
-    }
-    const { longitude, latitude } = getDegreesFromCartesian(homePosition);
-    const center = [latitude, longitude];
-
-    return center;
-  }, [homePosition]);
-
-  const { isCesium, setActiveFrameworkCesium, isLeaflet, getIsCesium } =
+  const { isCesium, isLeaflet, getIsCesium, registerCallbacks } =
     useMapFrameworkSwitcherContext();
 
-  const models = useSelector(selectViewerModels);
+  useEffect(() => {
+    if (isCesium && !shouldMountCesium) {
+      setShouldMountCesium(true);
+    }
+  }, [isCesium, shouldMountCesium]);
 
-  // transitions (portals hook integrates with TopicMapContext + Redux)
-  // todo wire up MapFrameworkSwitcher to this hook see geoportal example
-  // const { transitionToMode2d, transitionToMode3d } = useMapFrameworkSwitcher();
+  useEffect(() => {
+    if (!isCesiumRuntimeReady) {
+      return;
+    }
+
+    const resolvers = cesiumReadyResolversRef.current;
+    if (resolvers.length === 0) {
+      cesiumReadyPromiseRef.current = null;
+      return;
+    }
+
+    cesiumReadyResolversRef.current = [];
+    cesiumReadyPromiseRef.current = null;
+    resolvers.forEach((resolve) => resolve());
+  }, [isCesiumRuntimeReady]);
+
+  const ensureCesiumReadyForTransition = useCallback(() => {
+    if (isCesiumRuntimeReady) {
+      return Promise.resolve();
+    }
+
+    setShouldMountCesium(true);
+
+    if (cesiumReadyPromiseRef.current) {
+      return cesiumReadyPromiseRef.current;
+    }
+
+    cesiumReadyPromiseRef.current = new Promise<void>((resolve) => {
+      cesiumReadyResolversRef.current.push(resolve);
+    });
+
+    return cesiumReadyPromiseRef.current;
+  }, [isCesiumRuntimeReady]);
+
+  useEffect(() => {
+    registerCallbacks({
+      onEnsureCesiumReady: ensureCesiumReadyForTransition,
+    });
+  }, [ensureCesiumReadyForTransition, registerCallbacks]);
+
+  useCesiumNavigationBridge({
+    id: FLOODINGMAP_CESIUM_VIEW_ADAPTER_ID,
+    scene: cesiumScene,
+    isSyncEnabled: Boolean(cesiumScene),
+    isCommitEnabled: isCesium && Boolean(cesiumScene) && initialViewApplied,
+  });
+
+  const models = useSelector(selectViewerModels);
 
   const markerAsset = models![CESIUM_CONFIG.markerKey!];
   const markerAnchorHeight = CESIUM_CONFIG.markerAnchorHeight ?? 10;
@@ -187,27 +259,25 @@ function App({ sync = false }: { sync?: boolean }) {
     setSelection(Object.assign({}, selection, selectionMetaData));
   };
 
-  const homeControlLeaflet = () => {
+  const homeControlLeaflet = useCallback(() => {
     if (homeCenter && routedMap?.leafletMap?.leafletElement) {
-      //console.debug("topicMapHomeClick", homeCenter, homePosition);
-      routedMap.leafletMap.leafletElement.flyTo(homeCenter, HOME_ZOOM);
+      routedMap.leafletMap.leafletElement.flyTo(homeCenter, homeLeafletZoom);
     }
-  };
+  }, [homeCenter, homeLeafletZoom, routedMap]);
 
-  const onHomeClick = () => {
-    homeControl();
+  const homeControlCesium = useCallback(() => {
+    if (!isCesium || !cesiumScene) return;
+
+    flyViewStateInCesium(cesiumScene, defaultHomeViewState, {
+      duration: 2,
+      applyFov: false,
+    });
+  }, [cesiumScene, defaultHomeViewState, isCesium]);
+
+  const onHomeClick = useCallback(() => {
     homeControlLeaflet();
-  };
-
-  const onCesiumSceneChange = (e) => {
-    if (isCesium) {
-      updateHash(e.hashParams, {
-        clearKeys: ["zoom"],
-        label: "app/hgk:3D",
-        replace: true,
-      });
-    }
-  };
+    homeControlCesium();
+  }, [homeControlCesium, homeControlLeaflet]);
 
   useSelectionTopicMap();
   useSelectionCesium(
@@ -224,26 +294,16 @@ function App({ sync = false }: { sync?: boolean }) {
     )
   );
 
-  // Register framework switcher callbacks
-  useFloodingmapFrameworkSwitcher();
-
-  useEffect(() => {
-    if (searchParams.has("is3d")) {
-      const is3d = searchParams.get("is3d") === "1";
-      is3d && setActiveFrameworkCesium();
-    }
-    // run only once on load
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   useEffect(() => {
     ctx.withViewer((viewer) => {
+      const viewerWithCreditContainer = viewer as CesiumViewerCreditContainer;
+
       // remove default cesium credit because no ion resource is used
-      (
-        viewer as unknown as {
-          _cesiumWidget: { _creditContainer: { style: { display: string } } };
-        }
-      )._cesiumWidget._creditContainer.style.display = "none";
+      const creditContainer =
+        viewerWithCreditContainer._cesiumWidget?._creditContainer;
+      if (creditContainer?.style) {
+        creditContainer.style.display = HIDDEN_DISPLAY_VALUE;
+      }
       ctx.requestRender();
     });
   }, [ctx]);
@@ -267,8 +327,8 @@ function App({ sync = false }: { sync?: boolean }) {
     />
   );
 
-  if (initialCameraView === null) {
-    // viewer from URL not yet evaluated, don't render anything yet
+  if (!isInitialCameraResolved) {
+    // initial camera state from URL not yet evaluated, don't render anything yet
     return null;
   }
 
@@ -380,11 +440,12 @@ function App({ sync = false }: { sync?: boolean }) {
         <EnviroMetricMap
           appMenu={appMenu}
           applicationMenuTooltipString="Anleitung | Hintergrund"
-          initialState={config.initialState}
+          initialState={initialEnviroMetricState}
+          mapContainer={FloodingTopicMapContainer}
           emailaddress="hochwasser@stadt.wuppertal.de"
           config={config.config}
           contactButtonEnabled={false}
-          homeZoom={HOME_ZOOM}
+          homeZoom={homeLeafletZoom}
           homeCenter={homeCenter}
           modeSwitcherTitle="Hochwassergefahrenkarte Wuppertal"
           documentTitle="Hochwassergefahrenkarte Wuppertal"
@@ -408,28 +469,53 @@ function App({ sync = false }: { sync?: boolean }) {
           <TopicMapSelectionContent />
         </EnviroMetricMap>
       </div>
-      <div
-        ref={container3dMapRef}
-        className={"map-container-3d"}
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 400,
-        }}
-      >
-        <CustomViewer
-          containerRef={container3dMapRef}
-          cameraLimiterOptions={CESIUM_CONFIG.camera}
-          initialCameraView={initialCameraView}
-          constructorOptions={CONSTRUCTOR_OPTIONS}
-          enableSceneStyles={false}
-          onSceneChange={onCesiumSceneChange}
-        ></CustomViewer>
-      </div>
+      {shouldMountCesium && (
+        <div
+          ref={handleCesiumContainerRef}
+          className={"map-container-3d"}
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 400,
+          }}
+        >
+          <CustomViewer
+            containerRef={container3dMapRef}
+            cameraLimiterOptions={CESIUM_CONFIG.camera}
+            homeValidationCenter={homeValidationCenter}
+            initialCameraView={initialCameraView}
+            constructorOptions={CONSTRUCTOR_OPTIONS}
+            enableSceneStyles={false}
+          ></CustomViewer>
+        </div>
+      )}
     </div>
+  );
+}
+
+function App({ sync = false }: { sync?: boolean }) {
+  const codec = useMemo(
+    () =>
+      createViewStateShareableHashCodec({
+        defaultFovDeg: DEFAULT_HASH_FOV_DEG,
+        zoomConvention: HASH_ZOOM_CONVENTION.LEAFLET_256,
+      }),
+    []
+  );
+
+  return (
+    <ViewStateProvider>
+      <ViewStateNavigationManagerProvider
+        codec={codec}
+        label="app/hgk:3D"
+        replace={true}
+      >
+        <FloodingmapAppContent sync={sync} />
+      </ViewStateNavigationManagerProvider>
+    </ViewStateProvider>
   );
 }
 

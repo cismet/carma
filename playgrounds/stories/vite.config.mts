@@ -1,15 +1,18 @@
 /// <reference types='vitest' />
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import { nxViteTsPaths } from "@nx/vite/plugins/nx-tsconfig-paths.plugin";
 import { nxCopyAssetsPlugin } from "@nx/vite/plugins/nx-copy-assets.plugin";
+import { nxViteTsPaths } from "@nx/vite/plugins/nx-tsconfig-paths.plugin";
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
 import { viteStaticCopy } from "vite-plugin-static-copy";
-
 const CESIUM_PATHNAME = "__cesium__";
 
 export default defineConfig({
   root: __dirname,
   cacheDir: "../../node_modules/.vite/playgrounds/stories",
+  base: process.env.BASE_URL || "/",
+  // Work around Storybook + Vite preview stalls around `/sb-preview/runtime.js`.
+  // See storybookjs/storybook#25256 for background.
+  assetsInclude: ["/sb-preview/runtime.js"],
   server: {
     proxy: {
       "/__wupp_terrain__": {
@@ -41,6 +44,11 @@ export default defineConfig({
       silent: false,
     }),
   ],
+  build: {
+    commonjsOptions: {
+      transformMixedEsModules: true,
+    },
+  },
   optimizeDeps: {
     include: ["cesium"],
   },

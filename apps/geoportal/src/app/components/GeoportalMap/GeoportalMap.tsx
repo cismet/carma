@@ -1,5 +1,5 @@
 import L from "leaflet";
-import { getFromWebMercatorToWGS84 } from "@carma-commons/geo/proj";
+import { getFromWebMercatorToWGS84 } from "@carma-geo/proj";
 import {
   useCallback,
   useContext,
@@ -10,12 +10,12 @@ import {
   type CSSProperties,
 } from "react";
 import { useDispatch, useSelector } from "react-redux";
-
 import {
   BoundingSphere,
-  flyToBoundingSphereExtent,
+  Cartesian3,
   type CesiumTerrainProvider,
-} from "@carma/cesium";
+} from "@carma-cesium";
+import { flyToBoundingSphereExtent } from "@carma-mapping/engines/cesium/core";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
 import { Button, Tooltip } from "antd";
@@ -47,7 +47,7 @@ import {
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
-import type { FeatureInfo } from "@carma/types";
+import type { FeatureInfo } from "@carma-mapping/utils";
 import { Measurements, InfoBoxMeasurement } from "@carma-commons/measurements";
 
 import {
@@ -66,8 +66,14 @@ import {
   selectViewerModels,
   setCurrentSceneStyle,
   useCesiumContext,
-  useCesiumInitialCameraFromSearchParams,
-} from "@carma-mapping/engines/cesium";
+} from "@carma-mapping/engines/cesium/legacy";
+import {
+  createViewStateShareableHashCodec,
+  HASH_ZOOM_CONVENTION,
+  ViewStateNavigationManagerProvider,
+  ViewStateProvider,
+  useCesiumNavigationBridge,
+} from "@carma-mapping/engines-interop/view-state";
 import {
   useMapFrameworkSwitcherContext,
   useRegisterMapFramework,
@@ -75,13 +81,13 @@ import {
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import { useAuth } from "@carma-providers/auth";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
+import { getLayers as getBackgroundLayers } from "@carma-appframeworks/portals";
 
 import FeatureInfoBox from "../feature-info/FeatureInfoBox.tsx";
 import PrintPreview from "../map-print/PrintPreview.tsx";
 
 import versionData from "../../../version.json";
 
-import { getBackgroundLayers } from "../../helper/layer.tsx";
 import { addCssToOverlayHelperItem } from "../../helper/overlayHelper.ts";
 
 import useLeafletZoomControls from "../../hooks/leaflet/useLeafletZoomControls.ts";
@@ -89,9 +95,10 @@ import { useDispatchSachdatenInfoText } from "../../hooks/useDispatchSachdatenIn
 import { useFeatureInfoModeCursorStyle } from "../../hooks/useFeatureInfoModeCursorStyle.ts";
 import { useObliqueInitializer } from "../../oblique/hooks/useObliqueInitializer.ts";
 import { useCameraOrbit } from "../../hooks/useCameraOrbit.ts";
-import { useGeoportalFrameworkSwitcher } from "./controls/use-geoportal-framework-switcher.ts";
+import { useGeoportalInitialValues } from "../../hooks/useGeoportalInitialValues.ts";
 
 import { onClickTopicMap } from "./topicmap.utils.ts";
+import { useGeoportalCesiumNavigationRestore } from "./hooks/useGeoportalCesiumNavigationRestore.ts";
 import { useCreateCismapLayers } from "./hooks/useCreateCismapLayer.ts";
 
 import store from "../../store/index.ts";
@@ -120,7 +127,11 @@ import {
 import LoginForm from "../LoginForm.tsx";
 import { useModelSelectionDispatcher } from "../../hooks/useModelSelectionDispatcher.ts";
 
-import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
+import {
+  CESIUM_CONFIG,
+  DEFAULT_CAMERA_FOV_DEG,
+  LEAFLET_CONFIG,
+} from "../../config/app.config";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../leaflet.css";
@@ -134,8 +145,8 @@ interface MapProps {
 }
 
 const CLICK_DELAY_MS = 200;
-
-export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
+const GEOPORTAL_CESIUM_VIEW_ADAPTER_ID = "geoportal-cesium";
+const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
   const dispatch = useDispatch();
 
   // Contexts
@@ -147,6 +158,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     getScene,
     isValidViewer: isValidViewerCtx,
     isViewerReady,
+    initialViewApplied,
   } = useCesiumContext();
 
   const rerenderCountRef = useRef(0);
@@ -174,6 +186,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     getIsCesium,
     getIsLeaflet,
     getIsTransitioning, // Check if framework transition in progress
+    registerCallbacks,
   } = useMapFrameworkSwitcherContext();
 
   const models = useSelector(selectViewerModels);
@@ -238,6 +251,11 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const { setAppMenuVisible } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
   const { setSecondaryWithKey, showOverlayHandler } = useOverlayTourContext();
+  const {
+    homeValidationCenter,
+    initialCameraView: cesiumInitialCameraView,
+    isInitialCameraResolved,
+  } = useGeoportalInitialValues();
 
   const [isLoginFormVisible, setIsLoginFormVisible] = useState(false);
   const markerRef = useRef(undefined);
@@ -264,23 +282,9 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   // custom hooks
   const flags = useFeatureFlags();
   const { isDebugMode } = flags;
-  const cesiumInitialCameraView = useCesiumInitialCameraFromSearchParams();
-
-  // One-time gate: Cesium can only initialize once we have determined initial position
-  // Once true, stays true forever (stored in ref to prevent re-renders)
-  const cesiumCanInitializeRef = useRef(false);
-  const cesiumInitialCameraViewRef =
-    useRef<typeof cesiumInitialCameraView>(undefined);
-
-  // Lock the gate once we have a valid initial position (from URL or will use config default)
-  if (cesiumInitialCameraView !== null && !cesiumCanInitializeRef.current) {
-    console.debug(
-      "[CESIUM|INIT|GATE] Initial camera position determined, unlocking Cesium initialization"
-    );
-    cesiumCanInitializeRef.current = true;
-    cesiumInitialCameraViewRef.current = cesiumInitialCameraView;
-  }
-
+  const [shouldMountCesium, setShouldMountCesium] = useState(false);
+  const cesiumReadyPromiseRef = useRef<Promise<void> | null>(null);
+  const cesiumReadyResolversRef = useRef<Array<() => void>>([]);
   const { isObliqueMode } = useObliqueInitializer(isDebugMode);
 
   const previousPositionRef = useRef<{
@@ -343,6 +347,17 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     () => ({
       getLeafletMap,
       getLeafletZoom,
+      isHashWriteEnabled: () => {
+        if (getIsTransitioning()) {
+          return false;
+        }
+
+        if (getIsCesium()) {
+          return initialViewApplied;
+        }
+
+        return isInitialCameraResolved;
+      },
       labels: {
         clearCesium: "GPM:2D:clearCesium",
         writeLeafletLike: "GPM:2D:writeLocation",
@@ -350,61 +365,90 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
         cesiumScene: "GPM:3D",
       },
     }),
-    [getLeafletMap, getLeafletZoom]
+    [
+      getLeafletMap,
+      getLeafletZoom,
+      getIsTransitioning,
+      getIsCesium,
+      initialViewApplied,
+      isInitialCameraResolved,
+    ]
   );
 
-  const { handleTopicMapLocationChange, handleCesiumSceneChange } =
-    useMapHashRouting(routingOptions);
+  const { handleTopicMapLocationChange } = useMapHashRouting(routingOptions);
 
   // Map framework switcher (2D ↔ 3D transitions)
-  // Register maps with context for framework switching
-  // Only register when both maps are actually initialized (not null)
   const leafletMap = getLeafletMap();
   const cesiumScene = getScene();
   const cesiumContainer = container3dMapRef.current;
-  const terrainProvider = getTerrainProvider();
-  const surfaceProvider = getSurfaceProvider();
+  const isCesiumRuntimeReady = Boolean(
+    cesiumScene && cesiumContainer && isViewerReady
+  );
 
-  const frameworkOptions = useMemo(() => {
-    // Gate: Only register when both frameworks have initialized
-    // Prevents registering null values that would keep the switcher disabled
-    if (
-      !leafletMap ||
-      !cesiumScene ||
-      !cesiumContainer ||
-      !isViewerReady ||
-      !routedMapRef.current
-    ) {
-      return null;
+  useEffect(() => {
+    if (!allow3d || !isInitialCameraResolved) {
+      return;
     }
 
-    return {
-      leafletMap,
-      cesiumScene,
-      cesiumContainer,
-      terrainProviders: {
-        TERRAIN: terrainProvider ?? null,
-        SURFACE: surfaceProvider ?? null,
-      },
-      // When useBrowserRecommendedResolution: false, Cesium renders at device pixels
-      // but reports resolutionScale = 1.0. For transition calculations, we need the
-      // actual device pixel ratio to correctly calculate zoom/distance equivalence.
-      resolutionScale: window.devicePixelRatio,
-    };
-  }, [
-    leafletMap,
-    cesiumScene,
-    cesiumContainer,
-    terrainProvider,
-    surfaceProvider,
-    isViewerReady,
-    routedMapRef,
-  ]);
+    if (isCesium && !shouldMountCesium) {
+      setShouldMountCesium(true);
+    }
+  }, [allow3d, isCesium, isInitialCameraResolved, shouldMountCesium]);
+
+  useEffect(() => {
+    if (!isCesiumRuntimeReady) {
+      return;
+    }
+
+    const resolvers = cesiumReadyResolversRef.current;
+    if (resolvers.length === 0) {
+      cesiumReadyPromiseRef.current = null;
+      return;
+    }
+
+    cesiumReadyResolversRef.current = [];
+    cesiumReadyPromiseRef.current = null;
+    resolvers.forEach((resolve) => resolve());
+  }, [isCesiumRuntimeReady]);
+
+  const ensureCesiumReadyForTransition = useCallback(() => {
+    if (!allow3d) {
+      return Promise.reject(new Error("3D is disabled for the current app."));
+    }
+
+    if (isCesiumRuntimeReady) {
+      return Promise.resolve();
+    }
+
+    setShouldMountCesium(true);
+
+    if (cesiumReadyPromiseRef.current) {
+      return cesiumReadyPromiseRef.current;
+    }
+
+    cesiumReadyPromiseRef.current = new Promise<void>((resolve) => {
+      cesiumReadyResolversRef.current.push(resolve);
+    });
+
+    return cesiumReadyPromiseRef.current;
+  }, [allow3d, isCesiumRuntimeReady]);
 
   // Camera orbit functionality for 3D mode
   const { isOrbiting, toggleOrbit, stopOrbit } = useCameraOrbit({
     scene: cesiumScene,
     enabled: getIsCesium(),
+  });
+  const { commitCurrentSceneState, suppressCommitsUntilInteraction } =
+    useCesiumNavigationBridge({
+      id: GEOPORTAL_CESIUM_VIEW_ADAPTER_ID,
+      scene: cesiumScene,
+      isSyncEnabled: Boolean(cesiumScene),
+      isCommitEnabled: isCesium && !getIsTransitioning() && initialViewApplied,
+    });
+  useGeoportalCesiumNavigationRestore({
+    scene: cesiumScene,
+    enabled: isCesiumRuntimeReady,
+    suppressCommitsUntilInteraction,
   });
 
   // Stop orbit when feature is deselected
@@ -414,12 +458,42 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     }
   }, [selectedFeature, isOrbiting, stopOrbit]);
 
-  useRegisterMapFramework(frameworkOptions);
+  const getCesiumContainer = useCallback(
+    () => container3dMapRef.current,
+    [container3dMapRef]
+  );
+  const getCesiumTerrainProviders = useCallback(
+    () => ({
+      TERRAIN: getTerrainProvider() ?? null,
+      SURFACE: getSurfaceProvider() ?? null,
+    }),
+    [getSurfaceProvider, getTerrainProvider]
+  );
 
-  // Register geoportal-specific framework switcher callbacks
-  useGeoportalFrameworkSwitcher({
-    onBeforeTransitionToCesium: stageCesiumPrimitivesForTransition,
+  useRegisterMapFramework({
+    getLeafletMap,
+    getCesiumScene: getScene,
+    getCesiumContainer,
+    getCesiumTerrainProviders,
   });
+
+  useEffect(() => {
+    registerCallbacks({
+      onEnsureCesiumReady: allow3d ? ensureCesiumReadyForTransition : undefined,
+      onBeforeTransitionToCesium: stageCesiumPrimitivesForTransition,
+      onAfterTransitionToCesium: () => {
+        commitCurrentSceneState("transition-complete", {
+          force: true,
+        });
+      },
+    });
+  }, [
+    allow3d,
+    commitCurrentSceneState,
+    ensureCesiumReadyForTransition,
+    registerCallbacks,
+    stageCesiumPrimitivesForTransition,
+  ]);
 
   const { gazData } = useGazData();
 
@@ -734,18 +808,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     []
   );
 
-  const onSceneChange = useCallback(
-    (e: { hashParams: Record<string, string> }) => {
-      if (getIsLeaflet()) {
-        console.debug(
-          "[CESIUM|DEBUG|CESIUM_WARN] Cesium scene change triggered while in Leaflet mode"
-        );
-        return;
-      }
-      handleCesiumSceneChange(e);
-    },
-    [getIsLeaflet, handleCesiumSceneChange]
-  );
+  const show2dContainer = !(isCesium && !initialViewApplied);
 
   const createLayerOptions = useMemo(
     () => ({
@@ -783,7 +846,13 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
 
   return (
     <>
-      <div className={"map-container-2d"} style={{ zIndex: 400 }}>
+      <div
+        className={"map-container-2d"}
+        style={{
+          zIndex: 400,
+          visibility: show2dContainer ? "visible" : "hidden",
+        }}
+      >
         <TopicMapComponent
           gazData={gazData}
           modalMenu={
@@ -971,10 +1040,10 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
           <TopicMapSelectionContent />
           {backgroundLayer &&
             backgroundLayer.visible &&
-            getBackgroundLayers({
-              layerString: backgroundLayer.layers,
-              masterOpacity: backgroundLayer.opacity,
-            })}
+            getBackgroundLayers(
+              backgroundLayer.layers,
+              backgroundLayer.opacity
+            )}
 
           {useCreateCismapLayers(layers, createLayerOptions)}
           <PrintPreview />
@@ -982,7 +1051,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
         </TopicMapComponent>
         <AdhocSelectionSync maplibreMapsRef={maplibreMapsRef} />
       </div>
-      {allow3d && cesiumCanInitializeRef.current && (
+      {allow3d && isInitialCameraResolved && shouldMountCesium && (
         <div
           ref={container3dMapRef}
           className={"map-container-3d"}
@@ -991,12 +1060,35 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
           <CustomViewer
             containerRef={container3dMapRef}
             cameraLimiterOptions={CESIUM_CONFIG.camera}
-            initialCameraView={cesiumInitialCameraViewRef.current ?? undefined}
-            onSceneChange={onSceneChange}
+            homeValidationCenter={homeValidationCenter}
+            initialCameraView={cesiumInitialCameraView}
           />
         </div>
       )}
     </>
+  );
+};
+
+export const GeoportalMap = (props: MapProps) => {
+  const codec = useMemo(
+    () =>
+      createViewStateShareableHashCodec({
+        defaultFovDeg: DEFAULT_CAMERA_FOV_DEG,
+        zoomConvention: HASH_ZOOM_CONVENTION.LEAFLET_256,
+      }),
+    []
+  );
+
+  return (
+    <ViewStateProvider>
+      <ViewStateNavigationManagerProvider
+        codec={codec}
+        label="[GEOPORTAL] Cesium camera hash"
+        replace={true}
+      >
+        <GeoportalMapInner {...props} />
+      </ViewStateNavigationManagerProvider>
+    </ViewStateProvider>
   );
 };
 

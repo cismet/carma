@@ -1,6 +1,6 @@
 import { useMemo } from "react";
-import type { Cartesian3 } from "@carma/cesium";
 
+import type { Cartesian3 } from "@carma-cesium";
 type ModeSessionStageHandlers = {
   start: () => void;
   finish: () => boolean;

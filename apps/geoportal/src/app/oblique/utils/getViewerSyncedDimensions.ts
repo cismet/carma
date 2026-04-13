@@ -1,8 +1,40 @@
-import { CssPixelHeight, CssPixelWidth } from "@carma/units/types";
+import {
+  PerspectiveFrustum,
+  type PerspectiveFrustum as PerspectiveFrustumLike,
+  type Scene,
+} from "@carma-cesium";
+import { CssPixelHeight, CssPixelWidth } from "@carma-units";
 import { getWindowDimensions } from "@carma-commons/dom/window";
 import { getCanvasDimensions } from "@carma-commons/dom/canvas";
-import { useCesiumContext } from "@carma-mapping/engines/cesium";
-import { PerspectiveFrustum } from "cesium";
+import { useCesiumContext } from "@carma-mapping/engines/cesium/legacy";
+
+const readViewerSyncedSizeFromViewport = (
+  maxViewportDimension: number,
+  frustum: PerspectiveFrustumLike | null,
+  overrideFov?: number
+): number | undefined => {
+  const dim =
+    typeof maxViewportDimension === "number" &&
+    Number.isFinite(maxViewportDimension) &&
+    maxViewportDimension > 0
+      ? maxViewportDimension
+      : undefined;
+  const fov =
+    typeof overrideFov === "number"
+      ? overrideFov
+      : frustum instanceof PerspectiveFrustum
+      ? frustum.fov
+      : undefined;
+
+  if (typeof dim !== "number" || typeof fov !== "number") {
+    return undefined;
+  }
+
+  const fovFactor = Math.tan(fov / 2);
+  return Number.isFinite(fovFactor) && fovFactor > 0
+    ? Math.max(1, dim / fovFactor)
+    : undefined;
+};
 
 const getViewerSyncedSize = (
   ctx: ReturnType<typeof useCesiumContext>,
@@ -20,22 +52,53 @@ const getViewerSyncedSize = (
     frustum = viewer?.scene?.camera?.frustum;
   });
 
-  // use maxCanvas if available, otherwise fall back to maxWindow
-  const dim = maxCanvas > 0 ? maxCanvas : maxWindow;
+  const syncedSize = readViewerSyncedSizeFromViewport(
+    maxCanvas > 0 ? maxCanvas : maxWindow,
+    frustum instanceof PerspectiveFrustum ? frustum : null,
+    overrideFov
+  );
 
-  const fov =
-    typeof overrideFov === "number"
-      ? overrideFov
-      : frustum instanceof PerspectiveFrustum
-      ? frustum.fov
-      : undefined;
-  if (typeof fov === "number") {
-    const fovFactor = Math.tan(fov / 2);
-    return Math.max(1, dim / fovFactor);
-  } else {
+  if (typeof syncedSize !== "number") {
     console.debug("getViewerSyncedSize: unsupported or missing frustum; skip");
-    return;
+    return Math.max(1, maxCanvas > 0 ? maxCanvas : maxWindow);
   }
+
+  return syncedSize;
+};
+
+export const getSceneSyncedDimensions = (
+  scene: Scene,
+  isVertical: boolean,
+  imageAspectRatio: number,
+  baseScaleFactor: number,
+  overrideFov?: number
+): { syncedWidth: CssPixelWidth; syncedHeight: CssPixelHeight } => {
+  const width = Math.max(
+    1,
+    scene.canvas?.clientWidth || scene.canvas?.width || 1
+  );
+  const height = Math.max(
+    1,
+    scene.canvas?.clientHeight || scene.canvas?.height || 1
+  );
+  const baseSize = Number(
+    readViewerSyncedSizeFromViewport(
+      Math.max(width, height),
+      scene.camera.frustum instanceof PerspectiveFrustum
+        ? scene.camera.frustum
+        : null,
+      overrideFov
+    ) ?? Math.max(width, height)
+  );
+  const widthScaleFactor =
+    baseScaleFactor * (isVertical ? imageAspectRatio : 1);
+  const heightScaleFactor =
+    baseScaleFactor * (isVertical ? 1 : 1 / imageAspectRatio);
+
+  return {
+    syncedWidth: (baseSize * widthScaleFactor) as CssPixelWidth,
+    syncedHeight: (baseSize * heightScaleFactor) as CssPixelHeight,
+  };
 };
 
 export const getViewerSyncedDimensions = (
@@ -45,12 +108,11 @@ export const getViewerSyncedDimensions = (
   baseScaleFactor: number,
   overrideFov?: number
 ): { syncedWidth: CssPixelWidth; syncedHeight: CssPixelHeight } => {
+  const baseSize = Number(getViewerSyncedSize(ctx, overrideFov) ?? 1);
   const widthScaleFactor =
     baseScaleFactor * (isVertical ? imageAspectRatio : 1);
   const heightScaleFactor =
     baseScaleFactor * (isVertical ? 1 : 1 / imageAspectRatio);
-
-  const baseSize = Number(getViewerSyncedSize(ctx, overrideFov));
   const syncedWidth = (baseSize * widthScaleFactor) as CssPixelWidth;
   const syncedHeight = (baseSize * heightScaleFactor) as CssPixelHeight;
 

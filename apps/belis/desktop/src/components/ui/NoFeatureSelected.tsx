@@ -21,9 +21,7 @@ const NoFeatureSelected = () => {
       <span style={{ fontWeight: 600, fontSize: 16 }}>
         Kein Objekt selektiert.
       </span>
-      <span>
-        Bitte selektieren Sie ein Objekt zur Anzeige im Datenblatt.
-      </span>
+      <span>Bitte selektieren Sie ein Objekt zur Anzeige im Datenblatt.</span>
       <span>
         Um zur Kartenansicht zurückzukehren klicken Sie{" "}
         <button

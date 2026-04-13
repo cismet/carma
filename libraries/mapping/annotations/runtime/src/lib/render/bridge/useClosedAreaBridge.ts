@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 
 import type { NodeChainAnnotation } from "@carma-mapping/annotations/core";
-
 type UseClosedAreaBridgeParams = {
   nodeChainAnnotations: readonly NodeChainAnnotation[];
   focusedNodeChainAnnotationId: string | null;

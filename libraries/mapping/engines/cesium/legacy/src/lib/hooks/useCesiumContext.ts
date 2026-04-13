@@ -1,8 +1,8 @@
 import { useContext } from "react";
+import { assertWindowCesiumEnv } from "@carma-mapping/engines/cesium/core";
+
 import { CesiumContext } from "../CesiumContext";
 import type { CesiumContextType } from "../CesiumContext";
-import { assertWindowCesiumEnv } from "../utils/cesiumEnv";
-
 export function useCesiumContext(): CesiumContextType {
   assertWindowCesiumEnv();
   const context = useContext(CesiumContext);

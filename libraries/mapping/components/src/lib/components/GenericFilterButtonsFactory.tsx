@@ -1,4 +1,4 @@
-import type { FilterConfig } from "@carma/types";
+import type { FilterConfig } from "@carma-mapping/layers";
 import { useState, useEffect } from "react";
 
 // Types for filter configuration
@@ -14,6 +14,7 @@ export interface FilterOption {
   propertyValue: string;
   /** Whether to show icon in grayscale when not selected (ignored if inactiveIcon is set) */
   grayscaleWhenInactive?: boolean;
+  color?: string;
 }
 
 export interface FilterInfo {
@@ -38,6 +39,88 @@ export type FilterState = Record<string, boolean>;
 // Survives closure recreation when the FilterComponent is unmounted and
 // remounted via useMemo in the parent.
 const originalFiltersCache = new Map<string, Record<string, any[] | null>>();
+
+/**
+ * Capture and cache the original (unfiltered) layer filters from the map.
+ * Must be called BEFORE applying any restored filters so that the cache
+ * holds the true originals. GenericFilterButtons will then skip its own
+ * capture when it sees the cache is already populated.
+ */
+export const captureOriginalFilters = (
+  layerPattern: string,
+  maplibreMap: any
+): Record<string, any[] | null> => {
+  if (originalFiltersCache.has(layerPattern)) {
+    return originalFiltersCache.get(layerPattern)!;
+  }
+
+  const layers = maplibreMap.getStyle()?.layers || [];
+  const targetLayers = layers.filter((layer: any) =>
+    layer.id.toLowerCase().includes(layerPattern.toLowerCase())
+  );
+
+  const captured: Record<string, any[] | null> = {};
+  targetLayers.forEach((layer: any) => {
+    captured[layer.id] = layer.filter || null;
+  });
+
+  originalFiltersCache.set(layerPattern, captured);
+  return captured;
+};
+
+// Function to build filter expression from selected filters
+export const buildFilterExpression = (
+  config: FilterConfig,
+  filters: FilterState
+): any[] | null => {
+  const isOrMode = config.filterMode === "or";
+
+  if (isOrMode) {
+    const conditions: any[] = [];
+
+    config.filters.forEach((filterOption) => {
+      if (filters[filterOption.key]) {
+        conditions.push([
+          "==",
+          ["get", filterOption.propertyName],
+          filterOption.propertyValue,
+        ]);
+      }
+    });
+
+    if (conditions.length === 0) {
+      return [
+        "==",
+        ["get", config.filters[0]?.propertyName || "wohnlage"],
+        "___HIDE_ALL___",
+      ];
+    }
+
+    return ["any", ...conditions];
+  } else {
+    if (filters.alle) {
+      return null;
+    }
+
+    const conditions: any[] = [];
+
+    config.filters.forEach((filterOption) => {
+      if (filters[filterOption.key]) {
+        conditions.push([
+          "==",
+          ["get", filterOption.propertyName],
+          filterOption.propertyValue,
+        ]);
+      }
+    });
+
+    if (conditions.length > 0) {
+      return ["all", ...conditions];
+    }
+
+    return null;
+  }
+};
 
 export const createFilterButtons = (config: FilterConfig) => {
   const isOrMode = config.filterMode === "or";
@@ -75,59 +158,6 @@ export const createFilterButtons = (config: FilterConfig) => {
     const [originalFilters, setOriginalFilters] = useState<
       Record<string, any[] | null>
     >(originalFiltersCache.get(config.layerPattern) ?? {});
-
-    // Function to build filter expression from selected filters
-    const buildFilterExpression = (filters: FilterState): any[] | null => {
-      if (isOrMode) {
-        // OR mode: show features matching ANY of the selected filters
-        const conditions: any[] = [];
-
-        config.filters.forEach((filterOption) => {
-          if (filters[filterOption.key]) {
-            conditions.push([
-              "==",
-              ["get", filterOption.propertyName],
-              filterOption.propertyValue,
-            ]);
-          }
-        });
-
-        // If no filters selected, hide all features using a filter that can never match
-        if (conditions.length === 0) {
-          return [
-            "==",
-            ["get", config.filters[0]?.propertyName || "wohnlage"],
-            "___HIDE_ALL___",
-          ];
-        }
-
-        // Always use explicit filter expression (don't optimize to null)
-        return ["any", ...conditions];
-      } else {
-        // AND mode: show features matching ALL selected filters
-        if (filters.alle) {
-          return null;
-        }
-
-        const conditions: any[] = [];
-
-        config.filters.forEach((filterOption) => {
-          if (filters[filterOption.key]) {
-            conditions.push([
-              "==",
-              ["get", filterOption.propertyName],
-              filterOption.propertyValue,
-            ]);
-          }
-        });
-
-        if (conditions.length > 0) {
-          return ["all", ...conditions];
-        }
-
-        return null;
-      }
-    };
 
     // Function to check if a feature matches the current filter criteria
     const checkFeatureMatchesFilter = (
@@ -220,7 +250,7 @@ export const createFilterButtons = (config: FilterConfig) => {
 
       try {
         const targetLayerIds = Object.keys(originalFilters);
-        const filterExpression = buildFilterExpression(selectedFilters);
+        const filterExpression = buildFilterExpression(config, selectedFilters);
 
         targetLayerIds.forEach((layerId: string) => {
           try {

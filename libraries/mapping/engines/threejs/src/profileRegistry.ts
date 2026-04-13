@@ -1,6 +1,6 @@
 import { sandboxedEvalExternal } from "@carma-commons/sandbox-eval";
-import type { Carma3dConfig, ProfileFn } from "./types";
 
+import type { Carma3dConfig, ProfileFn } from "./types";
 // ─────────────────────────────────────────────────────────────
 //  Profile registry: named curve functions for lathe/loft shapes
 // ─────────────────────────────────────────────────────────────

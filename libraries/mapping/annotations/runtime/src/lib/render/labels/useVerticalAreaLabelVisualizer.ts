@@ -1,8 +1,8 @@
 import { buildVerticalAreaLabelText } from "@carma-mapping/annotations/core";
-import { type VerticalAreaLabelVisualizerOptions } from "./areaLabelVisualizer.types";
-import { useAreaLabelVisualizerBase } from "./useAreaLabelVisualizerBase";
-import type { AreaLabelViewProjector } from "./areaLabelVisualizer.types";
 
+import { type VerticalAreaLabelVisualizerOptions } from "./areaLabelVisualizer.types";
+import type { AreaLabelViewProjector } from "./areaLabelVisualizer.types";
+import { useAreaLabelVisualizerBase } from "./useAreaLabelVisualizerBase";
 const VERTICAL_AREA_OVERLAY_PREFIX = "distance-vertical-polygon-preview";
 
 export const useVerticalAreaLabelVisualizer = (

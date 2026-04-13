@@ -23,21 +23,18 @@ export {
 export { fetchGraphQL } from "./lib/fetching/cids.ts";
 export type { FetchGraphQLResult } from "./lib/fetching/cids.ts";
 
-export {
-  getGazData,
-  type GazDataItem,
-  type GazDataConfig,
-  type GazDataSourceConfig,
-  builtInGazetteerHitTrigger,
-} from "./lib/gazData";
-
 export { extractInformation } from "./lib/layer-parser";
 
 export { suppressReactCismapErrors } from "./lib/log-react-cismap-errors";
 
 export { normalizeOptions } from "./lib/normalizeOptions";
 
-export { clampToToleranceRange, clamp, isClose } from "./lib/numbers";
+export {
+  clampToToleranceRange,
+  clamp,
+  isClose,
+  formatFixedNumber,
+} from "./lib/numbers";
 
 export { preventPinchZoom } from "./lib/prevent-pinch-zoom.ts";
 
@@ -52,10 +49,20 @@ export {
 export { isHtmlString } from "./lib/regex";
 
 export {
+  DEFAULT_HASH_LAUNCH_FLAG_2D_KEY,
+  DEFAULT_HASH_LAUNCH_FLAG_3D_KEY,
+  DEFAULT_HASH_LAUNCH_LEGACY_FLAG_2D_KEY,
+  DEFAULT_HASH_LAUNCH_LEGACY_FLAG_3D_KEY,
+  DEFAULT_HASH_LAUNCH_ALTITUDE_KEYS,
+  DEFAULT_HASH_LAUNCH_2D_VIEW_KEYS,
+  HASH_LAUNCH_MODE,
+  readHashLaunchMode,
+  resolveHashLaunchMode,
   updateHashHistoryState,
   getHashParams,
   diffHashParams,
 } from "./lib/routing.ts";
+export type { HashLaunchMode, HashLaunchModeConfig } from "./lib/routing.ts";
 
 export {
   generateRandomString,
@@ -75,3 +82,11 @@ export type { VersionData } from "./lib/version";
 export { detectWebGLContext } from "./lib/webgl";
 
 export * from "./lib/window";
+
+export {
+  createRingBuffer,
+  pushRingBufferEntry,
+  readRingBufferEntries,
+  clearRingBuffer,
+  type RingBuffer,
+} from "./lib/collections";

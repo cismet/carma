@@ -9,9 +9,10 @@ import {
   HeadingPitchRange,
   PerspectiveFrustum,
   PolygonGeometry,
-  getBoundingSphereFromCoordinates,
-} from "@carma/cesium";
-import type { CesiumTerrainProvider, Scene } from "@carma/cesium";
+  type CesiumTerrainProvider,
+  type Scene,
+} from "@carma-cesium";
+import { getBoundingSphereFromCoordinates } from "@carma-mapping/engines/cesium/core";
 
 import {
   getElevationAsync,
@@ -19,7 +20,7 @@ import {
   polygonHierarchyFromPolygonCoords,
   removeGroundPrimitiveById,
   type CesiumOptions,
-} from "@carma-mapping/engines/cesium";
+} from "@carma-mapping/engines/cesium/legacy";
 
 import type { HitTriggerOptions } from "./cesium-selection-types";
 import { DerivedGeometries } from "./getDerivedGeometries";

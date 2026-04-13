@@ -1,6 +1,5 @@
-import { Tooltip, Typography } from "antd";
 import { InfoCircleOutlined } from "@ant-design/icons";
-
+import { Tooltip, Typography } from "antd";
 const { Link } = Typography;
 
 interface InfoTooltipProps {

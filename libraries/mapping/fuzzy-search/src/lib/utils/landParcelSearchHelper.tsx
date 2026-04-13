@@ -3,7 +3,7 @@ import proj4 from "proj4";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faDrawPolygon } from "@fortawesome/free-solid-svg-icons";
 import { GroupedOptions } from "../..";
-import type { SearchResultItem } from "@carma/types";
+import type { SearchResultItem } from "@carma-mapping/fuzzy-search";
 
 export const LAND_PARCEL_SEPARATOR = "-";
 

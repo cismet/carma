@@ -1,12 +1,11 @@
 import { MutableRefObject, useEffect, useRef, useMemo } from "react";
 
+import { Color, type Cartesian3 } from "@carma-cesium";
+// Property-layer helpers still live outside the curated low-level @carma-cesium surface.
+// eslint-disable-next-line carma/no-direct-cesium
 import {
-  Color,
   ColorMaterialProperty,
   ConstantProperty,
-  type Cartesian3,
-} from "@carma/cesium";
-import {
   Entity,
   CallbackProperty,
   PolylineGraphics,
@@ -22,7 +21,7 @@ import {
 import {
   useCesiumContext,
   polygonHierarchyFromPolygonCoords,
-} from "@carma-mapping/engines/cesium";
+} from "@carma-mapping/engines/cesium/legacy";
 
 import { useOblique } from "../hooks/useOblique";
 import {

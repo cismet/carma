@@ -1,0 +1,275 @@
+import { useEffect } from "react";
+import {
+  Form,
+  Row,
+  Col,
+  Select,
+  Input,
+  DatePicker,
+  InputNumber,
+} from "antd";
+import type { FormInstance } from "antd";
+import { useSelector } from "react-redux";
+import dayjs from "dayjs";
+import { getKeyTablesData } from "../../../store/slices/keyTables";
+import StrassenschluesselFields from "./StrassenschluesselFields";
+import { getFormClassName, getPlaceholder } from "./readOnlyFormUtils";
+import { FormItem } from "./DraftFieldHighlight";
+import toTitleCase from "../../../helper/toTitleCase";
+
+interface SchaltstelleFormFieldsProps {
+  schaltstelle: Record<string, unknown> | null;
+  readOnly?: boolean;
+  onFormInstance?: (form: FormInstance) => void;
+  draftValues?: Record<string, unknown>;
+  onValuesChange?: (
+    changedValues: Record<string, unknown>,
+    allValues: Record<string, unknown>
+  ) => void;
+  onOriginalValues?: (values: Record<string, unknown>) => void;
+}
+
+interface BauartItem {
+  id: number;
+  bezeichnung?: string;
+}
+
+interface RundsteuerempfaengerItem {
+  id: number;
+  rs_typ?: string;
+}
+
+const FormLabel = ({ children }: { children: React.ReactNode }) => (
+  <span className="text-sm font-medium text-gray-700">{children}</span>
+);
+
+const SchaltstelleFormFields = ({
+  schaltstelle,
+  readOnly = true,
+  onFormInstance,
+  draftValues,
+  onValuesChange,
+  onOriginalValues,
+}: SchaltstelleFormFieldsProps) => {
+  const [form] = Form.useForm();
+  useEffect(() => {
+    onFormInstance?.(form);
+  }, [form, onFormInstance]);
+
+  const keyTablesData = useSelector(getKeyTablesData);
+
+  // Key table options - sorted alphabetically
+  const bauartOptions = [
+    ...((keyTablesData.bauart || []) as BauartItem[]),
+  ].sort((a, b) => (a.bezeichnung || "").localeCompare(b.bezeichnung || ""));
+  const rundsteuerempfaengerOptions = [
+    ...((keyTablesData["rundsteuerempfänger"] ||
+      []) as RundsteuerempfaengerItem[]),
+  ].sort((a, b) => (a.rs_typ || "").localeCompare(b.rs_typ || ""));
+
+  useEffect(() => {
+    form.resetFields();
+
+    if (schaltstelle) {
+      const ss = schaltstelle;
+      const tkey = ss.tkey_strassenschluessel as
+        | { pk?: string; strasse?: string }
+        | undefined;
+      const serverValues = {
+        // Strassenschluessel
+        strassenschluessel_pk: tkey?.pk,
+        strassenschluessel_strasse: toTitleCase(tkey?.strasse || ""),
+        // Hausnummer
+        haus_nummer: ss.haus_nummer,
+        // Standortbez.
+        zusaetzliche_standortbezeichnung: ss.zusaetzliche_standortbezeichnung,
+        // Laufende Nr.
+        laufende_nummer: ss.laufende_nummer,
+        // Schaltstellen Nr.
+        schaltstellen_nummer: ss.schaltstellen_nummer,
+        // Bauart - use id for Select value
+        fk_bauart: (ss.bauart as { id?: number } | undefined)?.id ?? null,
+        // Erstellungsjahr - parse as date string
+        erstellungsjahr: ss.erstellungsjahr
+          ? dayjs(ss.erstellungsjahr as string)
+          : null,
+        // Rundsteuerempfaenger - use id for Select value
+        rundsteuerempfaenger:
+          (ss.rundsteuerempfaengerObject as { id?: number } | undefined)?.id ??
+          null,
+        // Einbaudatum
+        einbaudatum_rs: ss.einbaudatum_rs
+          ? dayjs(ss.einbaudatum_rs as string)
+          : null,
+        // Pruefung
+        pruefdatum: ss.pruefdatum ? dayjs(ss.pruefdatum as string) : null,
+        // Bemerkung
+        bemerkung: ss.bemerkung,
+      };
+      form.setFieldsValue(serverValues);
+      onOriginalValues?.(form.getFieldsValue());
+
+      if (draftValues) {
+        form.setFieldsValue(draftValues);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schaltstelle, form]);
+
+  return (
+    <Form
+      form={form}
+      layout="vertical"
+      requiredMark={false}
+      className={getFormClassName(readOnly, "pr-2")}
+      onValuesChange={onValuesChange}
+    >
+      {/* Strassenschluessel - always disabled */}
+      <StrassenschluesselFields label="Strassenschlussel" />
+
+      {/* Hausnummer */}
+      <FormItem
+        name="haus_nummer"
+        label={<FormLabel>Hausnummer</FormLabel>}
+        className="mb-4"
+      >
+        <Input size="large" />
+      </FormItem>
+
+      {/* Standortbez. */}
+      <FormItem
+        name="zusaetzliche_standortbezeichnung"
+        label={<FormLabel>Standortbez.</FormLabel>}
+        className="mb-4"
+      >
+        <Input size="large" />
+      </FormItem>
+
+      {/* Laufende Nr. and Schaltstellen Nr. */}
+      <Row gutter={16}>
+        <Col span={12}>
+          <FormItem
+            name="laufende_nummer"
+            label={<FormLabel>Laufende Nr.</FormLabel>}
+            className="mb-4"
+          >
+            <InputNumber className="w-full" size="large" />
+          </FormItem>
+        </Col>
+        <Col span={12}>
+          <FormItem
+            name="schaltstellen_nummer"
+            label={<FormLabel>Schaltstellen Nr.</FormLabel>}
+            className="mb-4"
+          >
+            <Input size="large" />
+          </FormItem>
+        </Col>
+      </Row>
+
+      {/* Bauart */}
+      <FormItem
+        name="fk_bauart"
+        label={<FormLabel>Bauart</FormLabel>}
+        className="mb-4"
+      >
+        <Select
+          placeholder={getPlaceholder(readOnly, "Bauart auswählen")}
+          className="w-full"
+          size="large"
+          allowClear
+          showSearch
+          optionFilterProp="children"
+        >
+          {bauartOptions.map((item) => (
+            <Select.Option key={item.id} value={item.id}>
+              {item.bezeichnung}
+            </Select.Option>
+          ))}
+        </Select>
+      </FormItem>
+
+      {/* Erstellungsjahr */}
+      <FormItem
+        name="erstellungsjahr"
+        label={<FormLabel>Erstellungsjahr</FormLabel>}
+        className="mb-4"
+      >
+        <DatePicker
+          className="w-full"
+          size="large"
+          format="DD.MM.YYYY"
+          placeholder={getPlaceholder(readOnly, "Datum auswählen")}
+        />
+      </FormItem>
+
+      {/* Rundsteuerempfaenger */}
+      <FormItem
+        name="rundsteuerempfaenger"
+        label={<FormLabel>Rundsteuerempf.</FormLabel>}
+        className="mb-4"
+      >
+        <Select
+          placeholder={getPlaceholder(
+            readOnly,
+            "Rundsteuerempfänger auswählen"
+          )}
+          className="w-full"
+          size="large"
+          allowClear
+          showSearch
+          optionFilterProp="children"
+        >
+          {rundsteuerempfaengerOptions.map((item) => (
+            <Select.Option key={item.id} value={item.id}>
+              {item.rs_typ}
+            </Select.Option>
+          ))}
+        </Select>
+      </FormItem>
+
+      {/* Einbaudatum and Pruefung */}
+      <Row gutter={16}>
+        <Col span={12}>
+          <FormItem
+            name="einbaudatum_rs"
+            label={<FormLabel>Einbaudatum</FormLabel>}
+            className="mb-4"
+          >
+            <DatePicker
+              className="w-full"
+              size="large"
+              format="DD.MM.YYYY"
+              placeholder={getPlaceholder(readOnly, "Datum auswählen")}
+            />
+          </FormItem>
+        </Col>
+        <Col span={12}>
+          <FormItem
+            name="pruefdatum"
+            label={<FormLabel>Prüfung</FormLabel>}
+            className="mb-4"
+          >
+            <DatePicker
+              className="w-full"
+              size="large"
+              format="DD.MM.YYYY"
+              placeholder={getPlaceholder(readOnly, "Datum auswählen")}
+            />
+          </FormItem>
+        </Col>
+      </Row>
+
+      {/* Bemerkung */}
+      <FormItem
+        name="bemerkung"
+        label={<FormLabel>Bemerkung</FormLabel>}
+        className="mb-4"
+      >
+        <Input.TextArea rows={4} size="large" />
+      </FormItem>
+    </Form>
+  );
+};
+
+export default SchaltstelleFormFields;

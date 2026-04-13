@@ -3,7 +3,8 @@ import { Easing } from "@carma-commons/math";
 import { UnitRgba } from "@carma-commons/utils";
 import type { Converter } from "proj4/dist/lib/core";
 
-import type { Radians } from "@carma/types";
+import type { Matrix3RowMajor } from "@carma-commons/math";
+import type { Radians } from "@carma-units";
 
 export type ExteriorPosition = {
   x: number;
@@ -57,6 +58,8 @@ export type AnimationConfig = {
 };
 
 export type ObliqueAnimationsConfig = {
+  // Enter animation when switching the viewer into oblique mode.
+  enterObliqueMode?: AnimationConfig;
   flyToExteriorOrientation?: AnimationConfig;
   // Optional: animation config for navigating to sibling/next image.
   // If omitted, consumers should derive it from flyToExteriorOrientation (e.g., half duration).
@@ -89,6 +92,8 @@ export interface ObliqueDataProviderConfig {
   fixedHeight?: number;
   minFov?: Radians;
   maxFov?: Radians;
+  targetEnterObliqueModeFov?: Radians;
+  restoreFovOnLeave?: Radians;
   headingOffset?: number;
   animations?: ObliqueAnimationsConfig;
   footprintsStyle?: ObliqueFootprintsStyle;

@@ -1,8 +1,8 @@
-import * as THREE from "three";
 import { MercatorCoordinate } from "maplibre-gl";
-import type { Carma3dConfig, MappedFeature, FactoryStats } from "../types";
-import { getProfile } from "../profileRegistry";
+import * as THREE from "three";
 
+import { getProfile } from "../profileRegistry";
+import type { Carma3dConfig, MappedFeature, FactoryStats } from "../types";
 // ─────────────────────────────────────────────────────────────
 //  Merged loft mode: all features -> ONE crown mesh + ONE trunk mesh
 // ─────────────────────────────────────────────────────────────

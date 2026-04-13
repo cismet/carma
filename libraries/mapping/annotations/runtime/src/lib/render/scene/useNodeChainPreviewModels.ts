@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 
-import { Cartesian3 } from "@carma/cesium";
 import {
   ANNOTATION_TYPE_POLYLINE,
   ANNOTATION_TYPE_AREA_VERTICAL,
@@ -15,11 +14,11 @@ import {
   type NodeChainAnnotation,
   type PointAnnotationEntry,
 } from "@carma-mapping/annotations/core";
-import type { AnnotationPointMarkerBadge } from "../point/usePointMarkerBadges";
+import { Cartesian3 } from "@carma-cesium";
 
-import type { EdgeSceneLineRenderModel } from "./visualization.types";
 import type { PolygonAreaBadge } from "../labels";
-
+import type { AnnotationPointMarkerBadge } from "../point/usePointMarkerBadges";
+import type { EdgeSceneLineRenderModel } from "./visualization.types";
 const toPolygonAreaBadgeByGroupId = (
   nodeChainAnnotations: readonly NodeChainAnnotation[],
   pointMarkerBadgeByPointId: Readonly<

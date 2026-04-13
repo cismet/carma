@@ -7,11 +7,10 @@ import {
   getCesiumConfig,
   cesiumReducer,
   CesiumState,
-} from "@carma-mapping/engines/cesium";
+} from "@carma-mapping/engines/cesium/legacy";
 
-import { defaultCesiumState } from "../config/cesium/store.config";
 import { APP_KEY, STORAGE_PREFIX } from "../config/app.config";
-
+import { defaultCesiumState } from "../config/cesium/store.config";
 const devToolsEnabled =
   new URLSearchParams(window.location.search).get("devToolsEnabled") === "true";
 console.debug("devToolsEnabled:", devToolsEnabled);

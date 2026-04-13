@@ -18,7 +18,7 @@ import L from "leaflet";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
-import type { Layer } from "@carma/types";
+import type { BackgroundLayer, Layer } from "@carma-mapping/layers";
 import { cn, getHashParams } from "@carma-commons/utils";
 
 import {
@@ -52,7 +52,12 @@ import {
 import "./pulsing.css";
 import "./tabs.css";
 
-import { LayerButton, LayerIcon } from "@carma-mapping/components";
+import {
+  LayerButton,
+  LayerIcon,
+  buildFilterExpression,
+  captureOriginalFilters,
+} from "@carma-mapping/components";
 import { Badge, Spin } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import { useLayerLoading } from "@carma-mapping/utils";
@@ -63,7 +68,7 @@ interface LayerButtonProps {
   title: string;
   id: string;
   index: number;
-  layer: Layer;
+  layer: Layer | BackgroundLayer;
   background?: boolean;
   hide?: boolean;
 }
@@ -103,6 +108,7 @@ const GeoportalLayerButton = ({
   const showLeftScrollButton = useSelector(getShowLeftScrollButton);
   const clickFromInfoView = useSelector(getClickFromInfoView);
   const activeInteractionLayerID = useSelector(getActiveInteractionLayerID);
+  const maplibreMaps = useSelector(getMaplibreMaps);
   const mode = useSelector(getUIMode);
   const showSettings = index === selectedLayerIndex;
   const layers = useSelector(getLayers);
@@ -133,6 +139,12 @@ const GeoportalLayerButton = ({
   const map = routedMapRef?.leafletMap?.leafletElement as L.Map;
 
   useEffect(() => {
+    if (hide && activeInteractionLayerID === id) {
+      dispatch(setActiveInteractionLayerID(null));
+    }
+  }, [hide, activeInteractionLayerID, id, dispatch]);
+
+  useEffect(() => {
     if (!inView && selectedLayerIndex === index) {
       document.getElementById(`layer-${id}`).scrollIntoView();
     }
@@ -143,6 +155,55 @@ const GeoportalLayerButton = ({
       dispatch(setShowRightScrollButton(false));
     }
   }, [layersLength]);
+
+  const filterAppliedRef = useRef(false);
+  useEffect(() => {
+    if (!layer.filterConfig || !layer.filterState || filterAppliedRef.current)
+      return;
+
+    const mapEntry = maplibreMaps?.find((entry) => entry.id === id);
+    if (!mapEntry?.map) return;
+
+    const libreMap = mapEntry.map;
+    try {
+      const originals = captureOriginalFilters(
+        layer.filterConfig.layerPattern,
+        libreMap
+      );
+
+      const filterExpression = buildFilterExpression(
+        layer.filterConfig,
+        layer.filterState
+      );
+
+      Object.keys(originals).forEach((layerId) => {
+        try {
+          const origFilter = originals[layerId];
+          let combinedFilter = filterExpression;
+
+          if (origFilter && filterExpression) {
+            combinedFilter = ["all", origFilter, filterExpression];
+          } else if (origFilter && !filterExpression) {
+            combinedFilter = origFilter;
+          }
+
+          libreMap.setFilter(layerId, combinedFilter);
+        } catch (error) {
+          console.error(
+            `[FilterRestore] Error setting filter on layer ${layerId}:`,
+            error
+          );
+        }
+      });
+
+      filterAppliedRef.current = true;
+    } catch (error) {
+      console.error(
+        `[FilterRestore] Error restoring filters for ${id}:`,
+        error
+      );
+    }
+  }, [layer.filterConfig, layer.filterState, maplibreMaps, id]);
 
   const isCurrentlyVisible = () => {
     if (zoom >= layer?.props?.maxZoom || zoom <= layer?.props?.minZoom) {

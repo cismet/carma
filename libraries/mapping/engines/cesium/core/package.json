@@ -1,0 +1,15 @@
+{
+  "name": "@carma-cesium/core",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./index.js",
+  "types": "./index.d.ts",
+  "dependencies": {
+    "@carma-commons/math": "*",
+    "@carma-commons/utils": "*",
+    "@carma-geo/data-structures": "*",
+    "@carma-units": "*",
+    "cesium": "*"
+  }
+}
