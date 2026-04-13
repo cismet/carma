@@ -23,6 +23,7 @@ interface ArbeitsauftragFormProps {
   onOriginalValues?: (values: Record<string, unknown>) => void;
   customDraftsCount?: number;
   onSaveAll?: () => void;
+  aaId?: string;
 }
 
 const ArbeitsauftragForm = ({
@@ -39,6 +40,7 @@ const ArbeitsauftragForm = ({
   onOriginalValues,
   customDraftsCount,
   onSaveAll,
+  aaId,
 }: ArbeitsauftragFormProps) => {
   const jwt = useSelector(getJWT);
 
@@ -86,6 +88,7 @@ const ArbeitsauftragForm = ({
         draftValues={draftValues}
         onValuesChange={onValuesChange}
         onOriginalValues={onOriginalValues}
+        aaId={aaId}
       />
     </FeatureFormLayout>
   );

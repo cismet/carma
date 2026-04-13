@@ -61,12 +61,15 @@ interface ArbeitsauftraegeDraftsState {
   aaDrafts: Record<string, AADraft>;
   apDrafts: Record<string, APDraft>;
   originalValues: Record<string, Record<string, unknown>>;
+  /** AP ID → AA ID mapping for APs staged for deletion */
+  apDeletions: Record<string, string>;
 }
 
 const initialState: ArbeitsauftraegeDraftsState = {
   aaDrafts: {},
   apDrafts: {},
   originalValues: {},
+  apDeletions: {},
 };
 
 const arbeitsauftraegeDraftsSlice = createSlice({
@@ -152,6 +155,16 @@ const arbeitsauftraegeDraftsSlice = createSlice({
       state.aaDrafts = {};
       state.apDrafts = {};
       state.originalValues = {};
+      state.apDeletions = {};
+    },
+    markAPForDeletion(
+      state,
+      action: PayloadAction<{ apId: string; aaId: string }>
+    ) {
+      state.apDeletions[action.payload.apId] = action.payload.aaId;
+    },
+    unmarkAPForDeletion(state, action: PayloadAction<string>) {
+      delete state.apDeletions[action.payload];
     },
     setAAOriginalValues(
       state,
@@ -249,6 +262,8 @@ export const {
   setAPOriginalValues,
   addActionToAPDraft,
   removeActionFromAPDraft,
+  markAPForDeletion,
+  unmarkAPForDeletion,
 } = arbeitsauftraegeDraftsSlice.actions;
 
 // --- Selectors ---
@@ -277,8 +292,11 @@ export const getAADraftCount = (state: RootState): number =>
 export const getAPDraftCount = (state: RootState): number =>
   Object.keys(state.arbeitsauftraegeDrafts?.apDrafts ?? {}).length;
 
+export const getAPDeletionCount = (state: RootState): number =>
+  Object.keys(state.arbeitsauftraegeDrafts?.apDeletions ?? {}).length;
+
 export const getTotalDraftCount = (state: RootState): number =>
-  getAADraftCount(state) + getAPDraftCount(state);
+  getAADraftCount(state) + getAPDraftCount(state) + getAPDeletionCount(state);
 
 export const hasAADraftChanges = (
   state: RootState,
@@ -329,11 +347,25 @@ export const getAADraftIds = (state: RootState): string[] =>
 export const getAPDraftIds = (state: RootState): string[] =>
   Object.keys(state.arbeitsauftraegeDrafts?.apDrafts ?? {});
 
+export const getAPDeletions = (
+  state: RootState
+): Record<string, string> =>
+  state.arbeitsauftraegeDrafts?.apDeletions ?? {};
+
+export const isAPMarkedForDeletion = (
+  state: RootState,
+  apId: string
+): boolean => apId in (state.arbeitsauftraegeDrafts?.apDeletions ?? {});
+
 export const getAAIdsWithAPDrafts = (state: RootState): string[] => {
   const apDrafts = state.arbeitsauftraegeDrafts?.apDrafts ?? {};
+  const apDeletions = state.arbeitsauftraegeDrafts?.apDeletions ?? {};
   const aaIds = new Set<string>();
   for (const draft of Object.values(apDrafts)) {
     if (draft.aaId) aaIds.add(draft.aaId);
+  }
+  for (const aaId of Object.values(apDeletions)) {
+    aaIds.add(aaId);
   }
   return [...aaIds];
 };

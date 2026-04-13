@@ -2,14 +2,20 @@ import { useEffect, useMemo } from "react";
 import { Form, Input, Row, Col, Table, Select } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useDispatch, useSelector } from "react-redux";
+import { DeleteOutlined, UndoOutlined } from "@ant-design/icons";
 import { getFachobjektOfProtocol } from "@carma-appframeworks/belis";
 import {
   setSelectedAPId,
   setApOpenedFrom,
   getSelectedAPId,
 } from "../../../store/slices/arbeitsauftraege";
-import type { AppDispatch } from "../../../store";
+import type { AppDispatch, RootState } from "../../../store";
 import { getKeyTablesData } from "../../../store/slices/keyTables";
+import {
+  markAPForDeletion,
+  unmarkAPForDeletion,
+  getAPDeletions,
+} from "../../../store/slices/arbeitsauftraegeDrafts";
 import { getFormClassName } from "./readOnlyFormUtils";
 import { FormItem } from "./DraftFieldHighlight";
 import toTitleCase from "../../../helper/toTitleCase";
@@ -82,6 +88,7 @@ interface ArbeitsauftragFormFieldsProps {
     allValues: Record<string, unknown>,
   ) => void;
   onOriginalValues?: (values: Record<string, unknown>) => void;
+  aaId?: string;
 }
 
 const ArbeitsauftragFormFields = ({
@@ -91,11 +98,13 @@ const ArbeitsauftragFormFields = ({
   draftValues,
   onValuesChange,
   onOriginalValues,
+  aaId,
 }: ArbeitsauftragFormFieldsProps) => {
   const [form] = Form.useForm();
   const dispatch: AppDispatch = useDispatch();
   const selectedAPId = useSelector(getSelectedAPId);
   const keyTablesData = useSelector(getKeyTablesData);
+  const apDeletions = useSelector((state: RootState) => getAPDeletions(state));
 
   const teamOptions = useMemo(
     () =>
@@ -133,9 +142,13 @@ const ArbeitsauftragFormFields = ({
     const protokolle: Record<string, any>[] =
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (
-        data?.ar_protokolleArray?.map(
-          (entry: Record<string, any>) => entry.arbeitsprotokoll
-        ) ?? []
+        data?.ar_protokolleArray
+          ?.map(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (entry: Record<string, any>) => entry.arbeitsprotokoll
+          )
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .filter((p: Record<string, any> | null): p is Record<string, any> => p != null) ?? []
       ).sort(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (a: Record<string, any>, b: Record<string, any>) =>
@@ -264,6 +277,38 @@ const ArbeitsauftragFormFields = ({
       key: "status",
       width: 120,
     },
+    ...(!readOnly
+      ? [
+          {
+            title: "",
+            key: "actions",
+            width: 50,
+            render: (_: unknown, record: ProtokolleRow) => {
+              const apId = String(record.id);
+              const isMarked = apId in apDeletions;
+              return isMarked ? (
+                <UndoOutlined
+                  className="text-blue-500 cursor-pointer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    dispatch(unmarkAPForDeletion(apId));
+                  }}
+                />
+              ) : (
+                <DeleteOutlined
+                  className="text-red-500 cursor-pointer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (aaId) {
+                      dispatch(markAPForDeletion({ apId, aaId }));
+                    }
+                  }}
+                />
+              );
+            },
+          } satisfies ColumnsType<ProtokolleRow>[number],
+        ]
+      : []),
   ];
 
   return (
@@ -348,7 +393,8 @@ const ArbeitsauftragFormFields = ({
           scroll={{ y: 400 }}
           rowClassName={(record) => {
             const classes: string[] = [];
-            if (record.isDeleted) classes.push("line-through opacity-50");
+            if (record.isDeleted || String(record.id) in apDeletions)
+              classes.push("line-through opacity-50");
             if (record.id === selectedAPId) classes.push("bg-blue-50");
             return classes.join(" ");
           }}
