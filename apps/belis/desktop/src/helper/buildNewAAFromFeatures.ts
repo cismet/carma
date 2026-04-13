@@ -5,7 +5,7 @@ import dayjs from "dayjs";
 // ---------------------------------------------------------------------------
 
 /** Maps the vector-tile source layer name to the FK field on arbeitsprotokoll. */
-const SOURCE_LAYER_TO_FK: Record<string, string> = {
+export const SOURCE_LAYER_TO_FK: Record<string, string> = {
   leuchten: "fk_leuchte",
   standorte: "fk_standort",
   leitungen: "fk_leitung",
@@ -36,8 +36,64 @@ export interface NewAAInput {
 }
 
 // ---------------------------------------------------------------------------
-// Helper
+// Helpers
 // ---------------------------------------------------------------------------
+
+/**
+ * Build AP (Arbeitsprotokoll) entries from highlighted features.
+ *
+ * Each feature produces one entry in `ar_protokolleArray`.
+ * `startProtokollnummer` and `startNegativeId` allow callers to continue
+ * numbering after existing protokolle.
+ */
+export function buildAPEntriesFromFeatures(
+  features: AAFeatureInput[],
+  startProtokollnummer = 1,
+  startNegativeId = -2
+): Record<string, unknown>[] {
+  const entries: Record<string, unknown>[] = [];
+  let nextId = startNegativeId;
+
+  for (let i = 0; i < features.length; i++) {
+    const feature = features[i];
+    const sourceLayer = feature.sourceLayer ?? "";
+    const fkField = SOURCE_LAYER_TO_FK[sourceLayer];
+
+    if (!fkField) {
+      console.warn(
+        `[buildAPEntriesFromFeatures] Unknown sourceLayer "${sourceLayer}", skipping feature`,
+        feature
+      );
+      continue;
+    }
+
+    const rawId = feature.properties?.id;
+    if (rawId == null) {
+      throw new Error(
+        `[buildAPEntriesFromFeatures] Feature at index ${i} (sourceLayer="${sourceLayer}") has no properties.id`
+      );
+    }
+    const featureId = Number(rawId);
+    if (!featureId || isNaN(featureId)) {
+      throw new Error(
+        `[buildAPEntriesFromFeatures] Feature at index ${i} (sourceLayer="${sourceLayer}") has invalid properties.id: ${String(rawId)}`
+      );
+    }
+
+    entries.push({
+      arbeitsprotokoll: {
+        id: nextId,
+        protokollnummer: startProtokollnummer + i,
+        [fkField]: featureId,
+        arbeitsprotokollstatus: { id: 1 },
+      },
+    });
+
+    nextId--;
+  }
+
+  return entries;
+}
 
 /**
  * Build a single save-ready AA object with embedded protokolle
@@ -60,48 +116,7 @@ export function buildNewAAFromFeatures(
   const { team, angelegtVon, features, nummer } = input;
   const now = dayjs();
 
-  // --- Build one protokoll per feature ---
-  // Negative IDs: -2, -3, -4, … (new objects, -1 is reserved for the AA)
-  const arProtokollArray: Record<string, unknown>[] = [];
-  let nextId = -2;
-
-  for (let i = 0; i < features.length; i++) {
-    const feature = features[i];
-    const sourceLayer = feature.sourceLayer ?? "";
-    const fkField = SOURCE_LAYER_TO_FK[sourceLayer];
-
-    if (!fkField) {
-      console.warn(
-        `[buildNewAAFromFeatures] Unknown sourceLayer "${sourceLayer}", skipping feature`,
-        feature
-      );
-      continue;
-    }
-
-    const rawId = feature.properties?.id;
-    if (rawId == null) {
-      throw new Error(
-        `[buildNewAAFromFeatures] Feature at index ${i} (sourceLayer="${sourceLayer}") has no properties.id`
-      );
-    }
-    const featureId = Number(rawId);
-    if (!featureId || isNaN(featureId)) {
-      throw new Error(
-        `[buildNewAAFromFeatures] Feature at index ${i} (sourceLayer="${sourceLayer}") has invalid properties.id: ${String(rawId)}`
-      );
-    }
-
-    arProtokollArray.push({
-      arbeitsprotokoll: {
-        id: nextId,
-        protokollnummer: i + 1,
-        [fkField]: featureId,
-        arbeitsprotokollstatus: { id: 1 },
-      },
-    });
-
-    nextId--;
-  }
+  const arProtokollArray = buildAPEntriesFromFeatures(features);
 
   // --- Build AA save data (id=-1 signals new object to the server) ---
   return {
@@ -111,5 +126,42 @@ export function buildNewAAFromFeatures(
     angelegt_am: now.valueOf(),
     ...(nummer != null ? { nummer } : {}),
     ar_protokolleArray: arProtokollArray,
+  };
+}
+
+/**
+ * Build an update payload that appends new AP entries (from highlighted
+ * features) to an existing Arbeitsauftrag.
+ */
+export function buildAddFeaturesToAAPayload({
+  aaId,
+  existingProtokolle,
+  features,
+}: {
+  aaId: number;
+  existingProtokolle: Record<string, unknown>[];
+  features: AAFeatureInput[];
+}): Record<string, unknown> {
+  // Find the highest existing protokollnummer
+  let maxProtokollnummer = 0;
+  for (const entry of existingProtokolle) {
+    const ap = entry.arbeitsprotokoll as
+      | Record<string, unknown>
+      | undefined;
+    const nr = Number(ap?.protokollnummer ?? 0);
+    if (nr > maxProtokollnummer) {
+      maxProtokollnummer = nr;
+    }
+  }
+
+  const newEntries = buildAPEntriesFromFeatures(
+    features,
+    maxProtokollnummer + 1,
+    -2
+  );
+
+  return {
+    id: aaId,
+    ar_protokolleArray: [...existingProtokolle, ...newEntries],
   };
 }
