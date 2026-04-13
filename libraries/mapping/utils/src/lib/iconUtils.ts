@@ -1,4 +1,4 @@
-import type { Layer } from "@carma/types";
+import type { Layer } from "@carma-mapping/layers";
 
 const iconPathAliases: Record<string, string> = {
   verkehr: "mobi",
