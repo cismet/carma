@@ -130,13 +130,17 @@ const ArbeitsauftraegeSidebar = ({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const protokolle: Record<string, any>[] = useMemo(() => {
     if (draftMode) {
-      // In draft mode, build AP list from draft entries + deletion-marked APs
+      // In draft mode, build AP list only for the selected AA
+      const currentAAId = selectedAAId != null ? String(selectedAAId) : null;
+      if (!currentAAId) return [];
+
       const seenIds = new Set<number>();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const items: Record<string, any>[] = [];
 
-      // Add APs that have value/action drafts
+      // Add APs that have value/action drafts belonging to this AA
       for (const [id, draft] of Object.entries(apDrafts)) {
+        if (draft.aaId !== currentAAId) continue;
         seenIds.add(Number(id));
         items.push({
           id: Number(id),
@@ -149,9 +153,9 @@ const ArbeitsauftraegeSidebar = ({
         });
       }
 
-      // Add APs that are only marked for deletion (no value draft)
-      // Pull their metadata from server data
-      for (const apId of Object.keys(apDeletions)) {
+      // Add APs that are only marked for deletion (no value draft) for this AA
+      for (const [apId, aaId] of Object.entries(apDeletions)) {
+        if (aaId !== currentAAId) continue;
         if (seenIds.has(Number(apId))) continue;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const serverAP = selectedAAData?.ar_protokolleArray?.find(
@@ -198,15 +202,15 @@ const ArbeitsauftraegeSidebar = ({
       (a: Record<string, any>, b: Record<string, any>) =>
         Number(a.protokollnummer) - Number(b.protokollnummer)
     );
-  }, [draftMode, apDrafts, apDeletions, selectedAAData]);
+  }, [draftMode, apDrafts, apDeletions, selectedAAData, selectedAAId]);
 
   const selectedFeature = features.find((f) => f.id === selectedAAId);
   const protokolleCount = draftMode
     ? protokolle.length
     : selectedFeature?.total_protokolle ?? protokolle.length;
 
-  const apCount = draftMode ? apDraftCount + apDeletionCount : protokolleCount;
-  const showAPTab = apCount > 0;
+  const apCount = draftMode ? protokolle.length : protokolleCount;
+  const showAPTab = apCount > 0 && selectedAAId != null;
 
   // Auto-switch to AA tab when AP tab becomes empty
   useEffect(() => {
