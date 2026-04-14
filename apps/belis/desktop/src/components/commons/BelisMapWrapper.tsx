@@ -23,6 +23,7 @@ import {
   BELIS_STYLE_URL,
   BELIS_ORIGINAL_SOURCE,
   BELIS_SOURCE_LAYERS,
+  AA_LAYER_STYLES,
 } from "../../config/mapLayerConfigs";
 import type { LibreLayer } from "@carma-mapping/engines/maplibre";
 import { AppDispatch, type RootState } from "../../store";
@@ -1252,10 +1253,7 @@ const BelisMapLibWrapper = ({
         id: AA_FILL_LAYER,
         type: "fill",
         source: AA_SOURCE,
-        paint: {
-          "fill-color": "#E74C4C",
-          "fill-opacity": 0.45,
-        },
+        paint: AA_LAYER_STYLES.fill,
       });
       addedLayerIds.push(AA_FILL_LAYER);
     }
@@ -1269,10 +1267,7 @@ const BelisMapLibWrapper = ({
           "line-join": "round",
           "line-cap": "round",
         },
-        paint: {
-          "line-color": "#C0392B",
-          "line-width": 2,
-        },
+        paint: AA_LAYER_STYLES.outline,
       });
       addedLayerIds.push(AA_OUTLINE_LAYER);
     }
@@ -1286,16 +1281,7 @@ const BelisMapLibWrapper = ({
           "line-join": "round",
           "line-cap": "round",
         },
-        paint: {
-          "line-color": "#3A7CEB",
-          "line-width": 5,
-          "line-opacity": [
-            "case",
-            ["boolean", ["feature-state", "selected"], false],
-            1,
-            0,
-          ],
-        },
+        paint: AA_LAYER_STYLES.selection,
       });
       addedLayerIds.push(AA_SELECTION_LAYER);
     }
