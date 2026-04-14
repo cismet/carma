@@ -21,6 +21,7 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import Menu from "./Menu";
 import { PointCloudLayer } from "./pointCloud/PointCloudLayer";
+import type { Map as MaplibreMap } from "maplibre-gl";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
@@ -42,7 +43,7 @@ const CAMERA_KEY = `${LS_PREFIX}pointClouds-camera`;
 //  Catalog of available point clouds
 // ─────────────────────────────────────────────────────────────
 
-type CloudId = "kaiser_wilhelm_hain_rgb";
+type CloudId = "kaiser_wilhelm_hain_rgb" | "awg_2_wuppertal_seg";
 
 interface CloudEntry {
   id: CloudId;
@@ -61,12 +62,20 @@ const CLOUDS: CloudEntry[] = [
     url: "/pointclouds/kaiser_wilhelm_hain_rgb.las",
     center: [7.15076, 51.25692],
   },
+  {
+    id: "awg_2_wuppertal_seg",
+    label: "AWG 2 Wuppertal (3D-Seg)",
+    color: "#9C27B0",
+    url: "/pointclouds/awg_2_wuppertal_seg.las",
+    center: [7.15076, 51.25692],
+  },
 ];
 
 type Visibility = Record<CloudId, boolean>;
 
 const DEFAULT_VISIBILITY: Visibility = {
   kaiser_wilhelm_hain_rgb: false,
+  awg_2_wuppertal_seg: false,
 };
 
 function loadVisibility(): Visibility {
@@ -137,6 +146,58 @@ function CameraPersistence() {
 
 type LoadState = "idle" | "loading" | "ready" | "error";
 
+type Bbox4 = {
+  sw: [number, number];
+  nw: [number, number];
+  ne: [number, number];
+  se: [number, number];
+};
+
+function bboxSourceId(id: CloudId) {
+  return `pointcloud-bbox-${id}`;
+}
+
+function bboxLayerId(id: CloudId) {
+  return `pointcloud-bbox-${id}`;
+}
+
+function addBboxLayer(
+  map: MaplibreMap,
+  id: CloudId,
+  bbox: Bbox4,
+  color: string
+) {
+  const ring = [bbox.sw, bbox.nw, bbox.ne, bbox.se, bbox.sw];
+  const srcId = bboxSourceId(id);
+  const layerId = bboxLayerId(id);
+  if (map.getLayer(layerId)) map.removeLayer(layerId);
+  if (map.getSource(srcId)) map.removeSource(srcId);
+  map.addSource(srcId, {
+    type: "geojson",
+    data: {
+      type: "Feature",
+      properties: {},
+      geometry: { type: "LineString", coordinates: ring },
+    },
+  });
+  map.addLayer({
+    id: layerId,
+    type: "line",
+    source: srcId,
+    paint: {
+      "line-color": color,
+      "line-width": 2,
+    },
+  });
+}
+
+function removeBboxLayer(map: MaplibreMap, id: CloudId) {
+  const layerId = bboxLayerId(id);
+  const srcId = bboxSourceId(id);
+  if (map.getLayer(layerId)) map.removeLayer(layerId);
+  if (map.getSource(srcId)) map.removeSource(srcId);
+}
+
 function PointCloudLayerManager({
   visibility,
   onLoadStateChange,
@@ -146,35 +207,57 @@ function PointCloudLayerManager({
 }) {
   const { map } = useLibreContext();
   const layers = useRef<Map<CloudId, PointCloudLayer>>(new Map());
+  const bboxes = useRef<Map<CloudId, Bbox4>>(new Map());
   const visibilityRef = useRef(visibility);
   visibilityRef.current = visibility;
 
   useEffect(() => {
     if (!map) return;
 
-    const addIfMissing = (cloud: CloudEntry) => {
+    const ensureLayer = (cloud: CloudEntry): PointCloudLayer => {
       const existing = layers.current.get(cloud.id);
-      if (existing && map.getLayer(existing.id)) return;
-      const layer =
-        existing ??
-        new PointCloudLayer({
-          id: `pointcloud-${cloud.id}`,
-          url: cloud.url,
-          pointSize: 3,
-          onLoadStart: () => onLoadStateChange(cloud.id, "loading"),
-          onLoaded: ({ centerLngLat, zRange }) => {
-            onLoadStateChange(cloud.id, "ready");
-            console.log(
-              "[POINTCLOUD] ready — data center",
-              centerLngLat,
-              "z range:",
-              zRange
-            );
-          },
-          onLoadError: () => onLoadStateChange(cloud.id, "error"),
-        });
+      if (existing) return existing;
+      const layer = new PointCloudLayer({
+        id: `pointcloud-${cloud.id}`,
+        url: cloud.url,
+        pointSize: 3,
+        onLoadStart: () => onLoadStateChange(cloud.id, "loading"),
+        onLoaded: ({ centerLngLat, bboxWgs84, zRange }) => {
+          onLoadStateChange(cloud.id, "ready");
+          bboxes.current.set(cloud.id, bboxWgs84);
+          console.log(
+            "[POINTCLOUD] ready — data center",
+            centerLngLat,
+            "z range:",
+            zRange
+          );
+          if (visibilityRef.current[cloud.id]) {
+            addBboxLayer(map, cloud.id, bboxWgs84, "#e53935");
+          }
+        },
+        onLoadError: () => onLoadStateChange(cloud.id, "error"),
+      });
       layers.current.set(cloud.id, layer);
-      map.addLayer(layer);
+      return layer;
+    };
+
+    const addOnMap = (cloud: CloudEntry) => {
+      const layer = ensureLayer(cloud);
+      if (!map.getLayer(layer.id)) {
+        map.addLayer(layer);
+      }
+      const bbox = bboxes.current.get(cloud.id);
+      if (bbox && !map.getLayer(bboxLayerId(cloud.id))) {
+        addBboxLayer(map, cloud.id, bbox, "#e53935");
+      }
+    };
+
+    const removeFromMap = (cloud: CloudEntry) => {
+      const existing = layers.current.get(cloud.id);
+      if (existing && map.getLayer(existing.id)) {
+        map.removeLayer(existing.id);
+      }
+      removeBboxLayer(map, cloud.id);
     };
 
     const sync = () => {
@@ -184,17 +267,13 @@ function PointCloudLayerManager({
         const onMap = existing && map.getLayer(existing.id);
 
         if (wantVisible && !onMap) {
-          addIfMissing(cloud);
+          addOnMap(cloud);
         } else if (!wantVisible && onMap) {
-          map.removeLayer(existing!.id);
-          existing?.dispose();
-          layers.current.delete(cloud.id);
-          onLoadStateChange(cloud.id, "idle");
+          removeFromMap(cloud);
         }
       }
     };
 
-    // Re-mount layers after a style swap (background change removes custom layers)
     const onStyleData = () => {
       for (const cloud of CLOUDS) {
         if (
@@ -202,7 +281,7 @@ function PointCloudLayerManager({
           layers.current.has(cloud.id) &&
           !map.getLayer(`pointcloud-${cloud.id}`)
         ) {
-          addIfMissing(cloud);
+          addOnMap(cloud);
         }
       }
     };
@@ -217,16 +296,16 @@ function PointCloudLayerManager({
     return () => {
       map.off("styledata", onStyleData);
       for (const [id, layer] of layers.current) {
-        if (map.getLayer(layer.id)) {
-          map.removeLayer(layer.id);
-        }
+        if (map.getLayer(layer.id)) map.removeLayer(layer.id);
+        removeBboxLayer(map, id);
         layer.dispose();
         layers.current.delete(id);
+        bboxes.current.delete(id);
       }
     };
   }, [map, onLoadStateChange]);
 
-  // React to visibility changes without recreating the styledata listener
+  // React to visibility changes without touching the styledata listener
   useEffect(() => {
     if (!map) return;
     for (const cloud of CLOUDS) {
@@ -241,16 +320,22 @@ function PointCloudLayerManager({
             url: cloud.url,
             pointSize: 3,
             onLoadStart: () => onLoadStateChange(cloud.id, "loading"),
-            onLoaded: () => onLoadStateChange(cloud.id, "ready"),
+            onLoaded: ({ bboxWgs84 }) => {
+              onLoadStateChange(cloud.id, "ready");
+              bboxes.current.set(cloud.id, bboxWgs84);
+              if (visibilityRef.current[cloud.id]) {
+                addBboxLayer(map, cloud.id, bboxWgs84, "#e53935");
+              }
+            },
             onLoadError: () => onLoadStateChange(cloud.id, "error"),
           });
         layers.current.set(cloud.id, layer);
         map.addLayer(layer);
+        const bbox = bboxes.current.get(cloud.id);
+        if (bbox) addBboxLayer(map, cloud.id, bbox, "#e53935");
       } else if (!want && onMap) {
         map.removeLayer(existing!.id);
-        existing?.dispose();
-        layers.current.delete(cloud.id);
-        onLoadStateChange(cloud.id, "idle");
+        removeBboxLayer(map, cloud.id);
       }
     }
   }, [map, visibility, onLoadStateChange]);
@@ -348,6 +433,7 @@ function LayerToggleBar({
 
 const INITIAL_LOAD_STATES: Record<CloudId, LoadState> = {
   kaiser_wilhelm_hain_rgb: "idle",
+  awg_2_wuppertal_seg: "idle",
 };
 
 export function PointCloudsPlayground() {

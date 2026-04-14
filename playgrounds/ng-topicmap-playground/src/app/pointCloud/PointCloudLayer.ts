@@ -9,6 +9,21 @@ import { load } from "@loaders.gl/core";
 import { LASLoader } from "@loaders.gl/las";
 import { getProj4Converter } from "@carma-geo/proj";
 
+function hsvToRgb(h: number, s: number, v: number): [number, number, number] {
+  const c = v * s;
+  const hp = (h % 360) / 60;
+  const x = c * (1 - Math.abs((hp % 2) - 1));
+  let r = 0, g = 0, b = 0;
+  if (hp < 1) [r, g, b] = [c, x, 0];
+  else if (hp < 2) [r, g, b] = [x, c, 0];
+  else if (hp < 3) [r, g, b] = [0, c, x];
+  else if (hp < 4) [r, g, b] = [0, x, c];
+  else if (hp < 5) [r, g, b] = [x, 0, c];
+  else [r, g, b] = [c, 0, x];
+  const m = v - c;
+  return [r + m, g + m, b + m];
+}
+
 export interface PointCloudLayerOptions {
   id: string;
   url: string;
@@ -24,6 +39,12 @@ export interface PointCloudLayerOptions {
     hasColor: boolean;
     centerLngLat: [number, number];
     bboxSrc: { minX: number; minY: number; maxX: number; maxY: number };
+    bboxWgs84: {
+      sw: [number, number];
+      nw: [number, number];
+      ne: [number, number];
+      se: [number, number];
+    };
     zRange: { min: number; max: number };
   }) => void;
   onLoadError?: (err: unknown) => void;
@@ -60,6 +81,14 @@ export class PointCloudLayer implements CustomLayerInterface {
   private cachedColors?: Float32Array;
   private cachedHasColor = false;
   private loadPromise?: Promise<void>;
+
+  // For terrain-aware Y offset: positions are anchored to local minZ during
+  // load (cloud sits at scene.y >= 0). At render we add the terrain elevation
+  // at the cloud's center if terrain is active, so the cloud rides on top of
+  // terrain instead of being buried.
+  private centerLngLat?: [number, number];
+  private cachedMinZ = 0;
+  private lastLoggedYOffset?: number;
 
   constructor(opts: PointCloudLayerOptions) {
     this.id = opts.id;
@@ -115,6 +144,11 @@ export class PointCloudLayer implements CustomLayerInterface {
       sizeAttenuation: false,
       vertexColors: this.cachedHasColor,
       color: this.cachedHasColor ? 0xffffff : this.fallbackColor,
+      // Diagnostic: force visible regardless of depth buffer state.
+      // If this makes the cloud appear without terrain, the issue is depth-test
+      // vs MapLibre's basemap; we can then add a proper depth handling.
+      depthTest: false,
+      depthWrite: false,
     });
     this.points = new THREE.Points(geo, material);
     this.points.frustumCulled = false;
@@ -129,6 +163,15 @@ export class PointCloudLayer implements CustomLayerInterface {
     const data = await load(this.url, LASLoader, {
       las: { fp64: true, skip: 1, colorDepth: "auto" },
     });
+    // Log whatever the loader knows about the source CRS / header
+    const anyData = data as unknown as {
+      header?: unknown;
+      loaderData?: { header?: unknown };
+    };
+    console.log(
+      "[POINTCLOUD] LAS header:",
+      anyData.loaderData?.header ?? anyData.header ?? "(not exposed)"
+    );
 
     const positionsRaw = data.attributes?.POSITION?.value as
       | Float32Array
@@ -180,6 +223,29 @@ export class PointCloudLayer implements CustomLayerInterface {
       `Y[${minY.toFixed(1)}..${maxY.toFixed(1)}]`,
       `Z[${minZ.toFixed(1)}..${maxZ.toFixed(1)}]`
     );
+    const swArr = toWgs84.forward([minX, minY]) as number[];
+    const nwArr = toWgs84.forward([minX, maxY]) as number[];
+    const neArr = toWgs84.forward([maxX, maxY]) as number[];
+    const seArr = toWgs84.forward([maxX, minY]) as number[];
+    const sw: [number, number] = [swArr[0], swArr[1]];
+    const nw: [number, number] = [nwArr[0], nwArr[1]];
+    const ne: [number, number] = [neArr[0], neArr[1]];
+    const se: [number, number] = [seArr[0], seArr[1]];
+    console.log(
+      "[POINTCLOUD] bbox WGS84:",
+      `\n  SW lng=${sw[0].toFixed(6)} lat=${sw[1].toFixed(6)}`,
+      `\n  NW lng=${nw[0].toFixed(6)} lat=${nw[1].toFixed(6)}`,
+      `\n  NE lng=${ne[0].toFixed(6)} lat=${ne[1].toFixed(6)}`,
+      `\n  SE lng=${se[0].toFixed(6)} lat=${se[1].toFixed(6)}`
+    );
+    console.log(
+      "[POINTCLOUD] check center on map:",
+      `https://www.openstreetmap.org/?mlat=${originWgs84[1].toFixed(
+        6
+      )}&mlon=${originWgs84[0].toFixed(6)}#map=18/${originWgs84[1].toFixed(
+        6
+      )}/${originWgs84[0].toFixed(6)}`
+    );
     console.log(
       "[POINTCLOUD] origin src:",
       originSrcX.toFixed(1),
@@ -212,6 +278,16 @@ export class PointCloudLayer implements CustomLayerInterface {
     const yieldToUI = () =>
       new Promise<void>((resolve) => setTimeout(resolve, 0));
 
+    // Also compute WGS84 bbox from transformed lng/lat, so the bbox rectangle
+    // on the map truly contains every point (UTM grid rotation would cause
+    // straight-line connections of UTM corners to miss points near the edges).
+    let minLng = Infinity;
+    let maxLng = -Infinity;
+    let minLat = Infinity;
+    let maxLat = -Infinity;
+
+    this.centerLngLat = [originWgs84[0], originWgs84[1]];
+
     for (let batchStart = 0; batchStart < pointCount; batchStart += BATCH) {
       const batchEnd = Math.min(batchStart + BATCH, pointCount);
       for (let i = batchStart; i < batchEnd; i++) {
@@ -221,6 +297,10 @@ export class PointCloudLayer implements CustomLayerInterface {
         const wgs = toWgs84.forward([srcX, srcY]) as number[];
         const lng = wgs[0];
         const lat = wgs[1];
+        if (lng < minLng) minLng = lng;
+        if (lng > maxLng) maxLng = lng;
+        if (lat < minLat) minLat = lat;
+        if (lat > maxLat) maxLat = lat;
         const mx = (180 + lng) / 360;
         const my =
           (180 -
@@ -235,9 +315,35 @@ export class PointCloudLayer implements CustomLayerInterface {
     }
 
     this.cachedPositions = sceneXYZ;
-    this.cachedHasColor = hasColor;
 
+    // Check whether COLOR_0 actually has meaningful RGB or is just zeros
+    // (a PDAL downgrade from point format 6 to 3 produces zero-filled RGB).
+    // Use mean across full dataset: anything below ~5/255 is effectively black.
+    let rgbHasSignal = false;
     if (hasColor && colorAttr) {
+      const src = colorAttr.value as Uint8Array | Uint16Array;
+      const stride = colorAttr.size ?? 3;
+      let sum = 0;
+      const sampleStep = Math.max(1, Math.floor(pointCount / 5000));
+      let samples = 0;
+      for (let i = 0; i < pointCount; i += sampleStep) {
+        sum +=
+          src[i * stride + 0] +
+          src[i * stride + 1] +
+          src[i * stride + 2];
+        samples++;
+      }
+      const mean = sum / (samples * 3);
+      // Threshold: 16-bit RGB → mean > ~1280 (5/255 * 65535); 8-bit → mean > 5
+      rgbHasSignal = mean > 5;
+      console.log(
+        `[POINTCLOUD] RGB mean=${mean.toFixed(1)}, hasSignal=${rgbHasSignal}`
+      );
+    }
+    const useRgb = hasColor && rgbHasSignal;
+    this.cachedHasColor = useRgb;
+
+    if (useRgb && colorAttr) {
       const src = colorAttr.value as Uint8Array | Uint16Array;
       const stride = colorAttr.size ?? 3;
       // Detect 16-bit vs 8-bit from actual data
@@ -303,15 +409,37 @@ export class PointCloudLayer implements CustomLayerInterface {
 
     const dt = (performance.now() - t0).toFixed(0);
     console.log(`[POINTCLOUD] ready in ${dt}ms (${pointCount} pts)`);
+    // WGS84-aligned bbox computed from the actual transformed points —
+    // guaranteed to contain every point on the Mercator map, unlike the
+    // UTM-corner rectangle which is tilted by grid convergence.
+    const wgsSw: [number, number] = [minLng, minLat];
+    const wgsNw: [number, number] = [minLng, maxLat];
+    const wgsNe: [number, number] = [maxLng, maxLat];
+    const wgsSe: [number, number] = [maxLng, minLat];
+    console.log(
+      "[POINTCLOUD] bbox WGS84 tight:",
+      `lng[${minLng.toFixed(6)}..${maxLng.toFixed(6)}]`,
+      `lat[${minLat.toFixed(6)}..${maxLat.toFixed(6)}]`
+    );
+
     this.onLoaded?.({
       count: pointCount,
       hasColor,
       centerLngLat: [originWgs84[0], originWgs84[1]],
       bboxSrc: { minX, minY, maxX, maxY },
+      bboxWgs84: { sw: wgsSw, nw: wgsNw, ne: wgsNe, se: wgsSe },
       zRange: { min: minZ, max: maxZ },
     });
 
-    this.map?.triggerRepaint();
+    // The first time the layer is added the points don't exist yet, so MapLibre
+    // sets up GL state for an "empty" custom layer and the cloud doesn't render
+    // properly afterwards. Toggling the layer off+on uses the cached path which
+    // works. Auto-toggle here once load is done so first display also works.
+    const map = this.map;
+    if (map && map.getLayer(this.id)) {
+      map.removeLayer(this.id);
+      map.addLayer(this);
+    }
   }
 
   render(
@@ -319,6 +447,7 @@ export class PointCloudLayer implements CustomLayerInterface {
     options: CustomRenderMethodInput
   ): void {
     if (!this.originMerc || !this.renderer) return;
+
 
     const originMerc = this.originMerc;
     const mScale = this.mScale;
