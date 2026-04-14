@@ -400,9 +400,6 @@ const ArbeitsauftragFormFields = ({
             return classes.join(" ");
           }}
           onRow={(record) => ({
-            onClick: () => {
-              dispatch(setSelectedAPId(record.id));
-            },
             onDoubleClick: () => {
               dispatch(setSelectedAPId(record.id));
               dispatch(setApOpenedFrom("auTable"));
