@@ -315,7 +315,7 @@ const ArbeitsauftraegeSidebar = ({
       <div className="flex-1 overflow-y-auto">
         {activeTab === "aa" ? (
           /* Tab 1: Arbeitsaufträge list */
-          graphqlLoading && features.length === 0 ? (
+          graphqlLoading ? (
             <div className="flex justify-center py-8">
               <Spin size="small" />
             </div>
