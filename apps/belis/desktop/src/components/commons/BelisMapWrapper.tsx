@@ -77,6 +77,7 @@ import {
   getAAFeatures,
   setSelectedAPId,
   setApOpenedFrom,
+  setActiveAATab,
   getApOpenedFrom,
   clearSelection,
   getAALoading,
@@ -2184,7 +2185,10 @@ const BelisMapLibWrapper = ({
                       }
                       onBack={
                         apOpenedFrom === "auTable"
-                          ? () => dispatch(setApOpenedFrom(null))
+                          ? () => {
+                              dispatch(setApOpenedFrom(null));
+                              dispatch(setActiveAATab("aa"));
+                            }
                           : undefined
                       }
                     />

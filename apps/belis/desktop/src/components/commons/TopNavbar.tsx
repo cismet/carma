@@ -144,7 +144,7 @@ const TopNavbar = () => {
           Arbeitsaufträge
         </NavLink>
         {hasHighlights &&
-          (isOnAAPage ? (
+          (isOnAAPage && selectedAAId != null && selectedAAData != null ? (
             <Dropdown menu={{ items: dropdownItems }} trigger={["click"]}>
               <div className="flex items-center gap-0.5">
                 <Badge

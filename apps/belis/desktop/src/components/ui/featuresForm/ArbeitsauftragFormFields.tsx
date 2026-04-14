@@ -7,6 +7,7 @@ import { getFachobjektOfProtocol } from "@carma-appframeworks/belis";
 import {
   setSelectedAPId,
   setApOpenedFrom,
+  setActiveAATab,
   getSelectedAPId,
 } from "../../../store/slices/arbeitsauftraege";
 import type { AppDispatch, RootState } from "../../../store";
@@ -405,6 +406,7 @@ const ArbeitsauftragFormFields = ({
             onDoubleClick: () => {
               dispatch(setSelectedAPId(record.id));
               dispatch(setApOpenedFrom("auTable"));
+              dispatch(setActiveAATab("ap"));
             },
             style: { cursor: "pointer" },
           })}
