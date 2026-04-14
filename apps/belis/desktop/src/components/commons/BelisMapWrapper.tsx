@@ -239,6 +239,18 @@ const BelisMapLibWrapper = ({
   const apDeletions = useSelector(getAPDeletions);
   const draftMode = useSelector(getDraftMode);
 
+  const draftAAIdSet = useMemo(() => {
+    if (!draftMode) return null;
+    const ids = new Set(Object.keys(aaDrafts).map(Number));
+    for (const draft of Object.values(apDrafts)) {
+      if (draft.aaId) ids.add(Number(draft.aaId));
+    }
+    for (const aaId of Object.values(apDeletions)) {
+      ids.add(Number(aaId));
+    }
+    return ids;
+  }, [draftMode, aaDrafts, apDrafts, apDeletions]);
+
   const highlightSources = useMemo(
     () => [
       { source: namespacedSource, sourceLayers: [...BELIS_SOURCE_LAYERS] },
@@ -1090,8 +1102,8 @@ const BelisMapLibWrapper = ({
 
   // --- Arbeitsauftraege: GraphQL fetch draft AAs by IDs when in draft mode ---
   useEffect(() => {
-    if (sidebarVariant !== "arbeitsauftraege" || !draftMode || !jwt) return;
-    const ids = Object.keys(aaDrafts).map(Number);
+    if (sidebarVariant !== "arbeitsauftraege" || !draftMode || !draftAAIdSet || !jwt) return;
+    const ids = [...draftAAIdSet];
     if (ids.length === 0) {
       return;
     }
@@ -1123,7 +1135,7 @@ const BelisMapLibWrapper = ({
     return () => {
       cancelled = true;
     };
-  }, [sidebarVariant, draftMode, aaDrafts, jwt, dispatch]);
+  }, [sidebarVariant, draftMode, draftAAIdSet, jwt, dispatch]);
 
   // --- Arbeitsauftraege: selection feature-state on map ---
   const prevAAIdRef = useRef<number | null>(null);
@@ -1234,7 +1246,10 @@ const BelisMapLibWrapper = ({
       return removeLayers;
     }
 
-    const geojson = buildAAFeatureCollection(aaFeatures);
+    const visibleAA = draftAAIdSet
+      ? aaFeatures.filter((f) => draftAAIdSet.has(f.id))
+      : aaFeatures;
+    const geojson = buildAAFeatureCollection(visibleAA);
 
     const existing = map.getSource(AA_SOURCE) as
       | maplibregl.GeoJSONSource
@@ -1288,7 +1303,7 @@ const BelisMapLibWrapper = ({
     }
 
     return removeLayers;
-  }, [map, sidebarVariant, activeAATab, aaFeatures]);
+  }, [map, sidebarVariant, activeAATab, aaFeatures, draftAAIdSet]);
 
   // --- Arbeitsauftraege: show AP Fachobjekte on map when AP tab is active ---
   // Map debug layer source-layer names to featureType property values in AP GeoJSON
@@ -1554,7 +1569,10 @@ const BelisMapLibWrapper = ({
       return removeLayers;
     }
 
-    const geojson = buildAAFeatureCollection(aaFeatures);
+    const visibleAA = draftAAIdSet
+      ? aaFeatures.filter((f) => draftAAIdSet.has(f.id))
+      : aaFeatures;
+    const geojson = buildAAFeatureCollection(visibleAA);
 
     const existing = miniMap.getSource(AA_SOURCE) as
       | maplibregl.GeoJSONSource
@@ -1590,7 +1608,7 @@ const BelisMapLibWrapper = ({
     }
 
     return removeLayers;
-  }, [miniMap, sidebarVariant, activeAATab, aaFeatures]);
+  }, [miniMap, sidebarVariant, activeAATab, aaFeatures, draftAAIdSet]);
 
   // --- Mini-map: add AP GeoJSON overlay when in AP tab ---
   const MINI_AP_LAYER_PREFIX = "mini-ap-";
