@@ -1,4 +1,4 @@
-import { Badge, Popconfirm, Tooltip, message } from "antd";
+import { Badge, Modal, Tooltip, message } from "antd";
 import { AppstoreAddOutlined } from "@ant-design/icons";
 import { useDispatch, useSelector } from "react-redux";
 import { getJWT } from "../../store/slices/auth";
@@ -71,35 +71,42 @@ const AddToAAButton = () => {
 
   if (!canAddToAA) return null;
 
+  const handleClick = () => {
+    Modal.confirm({
+      title: `${highlightCount} Protokoll(e) zum ausgewählten Arbeitsauftrag hinzufügen?`,
+      okText: "Hinzufügen",
+      cancelText: "Abbrechen",
+      onOk: async () => {
+        await handleAddToExistingAA();
+      },
+    });
+  };
+
   return (
-    <Popconfirm
-      title={`${highlightCount} Protokoll(e) zum ausgewählten Arbeitsauftrag hinzufügen?`}
-      onConfirm={() => void handleAddToExistingAA()}
-      okText="Hinzufügen"
-      cancelText="Abbrechen"
+    <Tooltip
+      title={`${highlightCount} Protokoll(e) zum ausgewählten AA hinzufügen`}
     >
-      <Tooltip
-        title={`${highlightCount} Protokoll(e) zum ausgewählten AA hinzufügen`}
+      <Badge
+        count={highlightCount}
+        size="small"
+        offset={[-2, 2]}
+        color="#52c41a"
+        style={{
+          fontSize: 10,
+          minWidth: 14,
+          height: 14,
+          lineHeight: "14px",
+          padding: "0 3px",
+        }}
       >
-        <Badge
-          count={highlightCount}
-          size="small"
-          offset={[-2, 2]}
-          color="#52c41a"
-          style={{
-            fontSize: 10,
-            minWidth: 14,
-            height: 14,
-            lineHeight: "14px",
-            padding: "0 3px",
-          }}
+        <button
+          className="flex items-center justify-center w-6 h-6 rounded border border-gray-300 bg-white text-green-600 hover:bg-gray-50"
+          onClick={handleClick}
         >
-          <button className="flex items-center justify-center w-6 h-6 rounded border border-gray-300 bg-white text-green-600 hover:bg-gray-50">
-            <AppstoreAddOutlined style={{ fontSize: 14 }} />
-          </button>
-        </Badge>
-      </Tooltip>
-    </Popconfirm>
+          <AppstoreAddOutlined style={{ fontSize: 14 }} />
+        </button>
+      </Badge>
+    </Tooltip>
   );
 };
 
