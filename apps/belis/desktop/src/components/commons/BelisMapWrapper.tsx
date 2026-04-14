@@ -1320,10 +1320,14 @@ const BelisMapLibWrapper = ({
 
   // Build GeoJSON from AP drafts + deletion-marked APs for draft mode map rendering
   const apDraftGeoJson = useMemo((): GeoJSON.FeatureCollection => {
+    const currentAAId = selectedAAId != null ? String(selectedAAId) : null;
+    if (!currentAAId) return { type: "FeatureCollection", features: [] };
+
     const features: GeoJSON.Feature[] = [];
     const seenIds = new Set<number>();
 
     for (const [id, d] of Object.entries(apDrafts)) {
+      if (d.aaId !== currentAAId) continue;
       seenIds.add(Number(id));
       let geometry = d.geometry ?? null;
       let featureType = d.featureType ?? "tdta_standort_mast";
@@ -1358,7 +1362,8 @@ const BelisMapLibWrapper = ({
 
     // Add deletion-marked APs not already in apDrafts, using server data
     if (selectedAAData?.ar_protokolleArray) {
-      for (const apId of Object.keys(apDeletions)) {
+      for (const [apId, aaId] of Object.entries(apDeletions)) {
+        if (aaId !== currentAAId) continue;
         if (seenIds.has(Number(apId))) continue;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const entry = selectedAAData.ar_protokolleArray.find(
@@ -1395,7 +1400,7 @@ const BelisMapLibWrapper = ({
     }
 
     return { type: "FeatureCollection", features };
-  }, [apDrafts, apDeletions, selectedAAData]);
+  }, [apDrafts, apDeletions, selectedAAData, selectedAAId]);
 
   useEffect(() => {
     if (!map) return;
