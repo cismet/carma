@@ -85,6 +85,7 @@ import { buildApGeoJson, extractGeometry, getHeaderColorFromStatus } from "../..
 import { debugLayers, apInfoboxMapping, aaInfoboxMapping } from "../../config/debugLayers";
 import type { ArbeitsauftragTileFeature } from "../../store/slices/arbeitsauftraege";
 import { transformGqlToTileFeatures } from "../../helper/transformArbeitsauftraege";
+import { fitAABounds } from "../../helper/fitAABounds";
 
 const LIST_WIDTH = 300;
 
@@ -1067,6 +1068,7 @@ const BelisMapLibWrapper = ({
           raw as Record<string, unknown>[]
         );
         dispatch(setAAFeatures(features));
+        fitAABounds(features, map);
       } catch (err) {
         if (cancelled) return;
         dispatch(
@@ -1823,6 +1825,7 @@ const BelisMapLibWrapper = ({
         setOverrideSelectedFeature(null);
       }
     } else if (activeAATab === "aa") {
+      fitAABounds(aaFeatures, map);
       if (selectedAAId != null) {
         // handleAAFeatureSelect sets the override — don't clear it first
         handleAAFeatureSelect(selectedAAId);
