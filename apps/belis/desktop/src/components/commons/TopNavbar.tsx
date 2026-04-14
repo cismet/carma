@@ -53,31 +53,33 @@ const TopNavbar = () => {
         >
           Arbeitsaufträge
         </NavLink>
-        {hasHighlights && (
-          <Tooltip title={aaButtonTitle}>
-            <Badge
-              count={highlightCount}
-              size="small"
-              offset={[-2, 2]}
-              color="#faad14"
-              style={{
-                fontSize: 10,
-                minWidth: 14,
-                height: 14,
-                lineHeight: "14px",
-                padding: "0 3px",
-              }}
-            >
-              <button
-                onClick={() => setAaModalOpen(true)}
-                className="flex items-center justify-center w-6 h-6 rounded border border-gray-300 bg-white text-gray-500 hover:bg-gray-50"
+        <div className="flex items-center gap-2">
+          {hasHighlights && (
+            <Tooltip title={aaButtonTitle}>
+              <Badge
+                count={highlightCount}
+                size="small"
+                offset={[-2, 2]}
+                color="#faad14"
+                style={{
+                  fontSize: 10,
+                  minWidth: 14,
+                  height: 14,
+                  lineHeight: "14px",
+                  padding: "0 3px",
+                }}
               >
-                <PlusOutlined style={{ fontSize: 14 }} />
-              </button>
-            </Badge>
-          </Tooltip>
-        )}
-        <AddToAAButton />
+                <button
+                  onClick={() => setAaModalOpen(true)}
+                  className="flex items-center justify-center w-6 h-6 rounded border border-gray-300 bg-white text-gray-500 hover:bg-gray-50"
+                >
+                  <PlusOutlined style={{ fontSize: 14 }} />
+                </button>
+              </Badge>
+            </Tooltip>
+          )}
+          <AddToAAButton />
+        </div>
       </div>
       <div className="ml-auto flex items-center gap-4">
         {/* {draftsCount > 0 && (
