@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useKeyboardListNavigation } from "../../hooks/useKeyboardListNavigation";
 import { Spin } from "antd";
@@ -207,6 +207,16 @@ const ArbeitsauftraegeSidebar = ({
     ? protokolle.length
     : selectedFeature?.total_protokolle ?? protokolle.length;
 
+  const apCount = draftMode ? apDraftCount + apDeletionCount : protokolleCount;
+  const showAPTab = apCount > 0;
+
+  // Auto-switch to AA tab when AP tab becomes empty
+  useEffect(() => {
+    if (!showAPTab && activeTab === "ap") {
+      setActiveTab("aa");
+    }
+  }, [showAPTab, activeTab]);
+
   // Keyboard navigation for AA tab
   const selectedAAIndex = useMemo(
     () => features.findIndex((f) => f.id === selectedAAId),
@@ -286,19 +296,21 @@ const ArbeitsauftraegeSidebar = ({
             {draftMode ? aaDraftCount : features.length}
           </span>
         </button>
-        <button
-          className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors ${
-            activeTab === "ap"
-              ? "text-blue-600 border-b-2 border-blue-500 bg-blue-50/50"
-              : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-          }`}
-          onClick={() => setActiveTab("ap")}
-        >
-          AP
-          <span className="ml-1 text-[10px] bg-gray-200 text-gray-600 rounded-full px-1.5 py-0.5">
-            {draftMode ? apDraftCount + apDeletionCount : protokolleCount}
-          </span>
-        </button>
+        {showAPTab && (
+          <button
+            className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors ${
+              activeTab === "ap"
+                ? "text-blue-600 border-b-2 border-blue-500 bg-blue-50/50"
+                : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+            }`}
+            onClick={() => setActiveTab("ap")}
+          >
+            AP
+            <span className="ml-1 text-[10px] bg-gray-200 text-gray-600 rounded-full px-1.5 py-0.5">
+              {apCount}
+            </span>
+          </button>
+        )}
       </div>
 
       {/* Content */}
