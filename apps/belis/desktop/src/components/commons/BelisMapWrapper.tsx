@@ -1082,7 +1082,9 @@ const BelisMapLibWrapper = ({
           raw as Record<string, unknown>[]
         );
         dispatch(setAAFeatures(features));
-        fitAABounds(features, map);
+        if (activeAATab !== "ap") {
+          fitAABounds(features, map);
+        }
       } catch (err) {
         if (cancelled) return;
         dispatch(
@@ -2151,6 +2153,10 @@ const BelisMapLibWrapper = ({
                     aaId={draft.aaId}
                     geometry={draft.geometry}
                     fachobjektType={draft.featureType}
+                    onBack={() => {
+                      dispatch(setApOpenedFrom(null));
+                      dispatch(setActiveAATab("aa"));
+                    }}
                   />
                 );
               })()
@@ -2170,6 +2176,10 @@ const BelisMapLibWrapper = ({
                     aaId={draft.aaId}
                     geometry={draft.geometry}
                     fachobjektType={draft.featureType}
+                    onBack={() => {
+                      dispatch(setApOpenedFrom(null));
+                      dispatch(setActiveAATab("aa"));
+                    }}
                   />
                 );
               })()
