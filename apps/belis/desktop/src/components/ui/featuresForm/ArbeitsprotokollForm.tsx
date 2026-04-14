@@ -31,6 +31,7 @@ interface ArbeitsprotokollFormProps {
   ) => void;
   onOriginalValues?: (values: Record<string, unknown>) => void;
   apId?: string;
+  aaId?: string;
   customDraftsCount?: number;
   onSaveAll?: () => void;
 }
@@ -49,6 +50,7 @@ const ArbeitsprotokollForm = ({
   onValuesChange,
   onOriginalValues,
   apId,
+  aaId,
   customDraftsCount,
   onSaveAll,
 }: ArbeitsprotokollFormProps) => {
@@ -217,6 +219,7 @@ const ArbeitsprotokollForm = ({
         onValuesChange={onValuesChange}
         onOriginalValues={onOriginalValues}
         apId={apId}
+        aaId={aaId}
       />
     </FeatureFormLayout>
   );

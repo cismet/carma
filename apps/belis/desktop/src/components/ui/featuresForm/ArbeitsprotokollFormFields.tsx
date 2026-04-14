@@ -48,6 +48,7 @@ interface ArbeitsprotokollFormFieldsProps {
   ) => void;
   onOriginalValues?: (values: Record<string, unknown>) => void;
   apId?: string;
+  aaId?: string;
 }
 
 const ArbeitsprotokollFormFields = ({
@@ -59,6 +60,7 @@ const ArbeitsprotokollFormFields = ({
   onValuesChange,
   onOriginalValues,
   apId,
+  aaId,
 }: ArbeitsprotokollFormFieldsProps) => {
   const [form] = Form.useForm();
   const dispatch = useDispatch();
@@ -148,6 +150,7 @@ const ArbeitsprotokollFormFields = ({
       dispatch(
         addActionToAPDraft({
           id: apId,
+          aaId,
           draftAction: {
             actionLabel: aktionLabel,
             fachobjektType: fType,

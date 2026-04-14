@@ -95,9 +95,14 @@ const ArbeitsauftraegeFormsWrapper = ({
       ? Object.values(apDeletions).some((aaId) => aaId === id)
       : false;
 
+  const hasAPDraftsForCurrentAA =
+    mode === "aa" && id
+      ? Object.values(allAPDrafts).some((draft) => draft.aaId === id)
+      : false;
+
   const hasChanges = useSelector((state: RootState) =>
     mode === "aa" ? hasAADraftChanges(state, id) : hasAPDraftChanges(state, id)
-  ) || isCurrentAPMarkedForDeletion || hasAPDeletionsForCurrentAA;
+  ) || isCurrentAPMarkedForDeletion || hasAPDeletionsForCurrentAA || hasAPDraftsForCurrentAA;
 
   const originalValues = useSelector((state: RootState) =>
     mode === "aa"
@@ -187,7 +192,12 @@ const ArbeitsauftraegeFormsWrapper = ({
     if (!id) return;
     if (mode === "aa") {
       dispatch(removeAADraft(id));
-      // Also unmark all AP deletions belonging to this AA
+      // Also remove all AP drafts and deletions belonging to this AA
+      for (const [apId, draft] of Object.entries(allAPDrafts)) {
+        if (draft.aaId === id) {
+          dispatch(removeAPDraft(apId));
+        }
+      }
       for (const [apId, aaId] of Object.entries(apDeletions)) {
         if (aaId === id) {
           dispatch(unmarkAPForDeletion(apId));
@@ -198,7 +208,7 @@ const ArbeitsauftraegeFormsWrapper = ({
       dispatch(unmarkAPForDeletion(id));
     }
     setResetKey((prev) => prev + 1);
-  }, [id, mode, dispatch, apDeletions]);
+  }, [id, mode, dispatch, allAPDrafts, apDeletions]);
 
   const handleSave = useCallback(() => {
     if (!id || !draft) return;
@@ -357,6 +367,7 @@ const ArbeitsauftraegeFormsWrapper = ({
           onValuesChange={handleDraftChange}
           onOriginalValues={handleOriginalValues}
           apId={id}
+          aaId={aaId}
           customDraftsCount={totalDraftCount}
           onSaveAll={handleSaveAll}
         />

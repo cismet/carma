@@ -123,8 +123,11 @@ const arbeitsauftraegeDraftsSlice = createSlice({
       if (original && !isFormDirty(original, values)) {
         const existingActions = state.apDrafts[id]?.actions;
         if (existingActions && existingActions.length > 0) {
-          // Keep draft alive for actions, just update values
+          // Keep draft alive for actions, just update values and aaId
           state.apDrafts[id].values = values;
+          if (aaId && !state.apDrafts[id].aaId) {
+            state.apDrafts[id].aaId = aaId;
+          }
           state.apDrafts[id].updatedAt = Date.now();
           return;
         }
@@ -207,15 +210,17 @@ const arbeitsauftraegeDraftsSlice = createSlice({
         draftAction: DraftAction;
         serverData?: Record<string, unknown>;
         meta?: APDraftMeta;
+        aaId?: string;
       }>
     ) {
-      const { id, draftAction, serverData, meta } = action.payload;
+      const { id, draftAction, serverData, meta, aaId } = action.payload;
       if (!state.apDrafts[id]) {
         state.apDrafts[id] = {
           values: {},
           actions: [],
           serverData,
           meta,
+          aaId,
           updatedAt: Date.now(),
         };
       }
@@ -227,6 +232,9 @@ const arbeitsauftraegeDraftsSlice = createSlice({
       }
       if (meta && !draft.meta) {
         draft.meta = meta;
+      }
+      if (aaId && !draft.aaId) {
+        draft.aaId = aaId;
       }
       draft.updatedAt = Date.now();
     },
