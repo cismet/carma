@@ -20,7 +20,6 @@ import {
 import {
   getAllAADrafts,
   getAllAPDrafts,
-  getAADraftCount,
   getAPDraftCount,
   getAPDeletions,
   getAPDeletionCount,
@@ -103,7 +102,6 @@ const ArbeitsauftraegeSidebar = ({
   const aaDrafts = useSelector(getAllAADrafts);
   const apDrafts = useSelector(getAllAPDrafts);
 
-  const aaDraftCount = useSelector(getAADraftCount);
   const apDraftCount = useSelector(getAPDraftCount);
   const apDeletions = useSelector(getAPDeletions);
   const apDeletionCount = useSelector(getAPDeletionCount);
@@ -293,7 +291,7 @@ const ArbeitsauftraegeSidebar = ({
         >
           AA
           <span className="ml-1 text-[10px] bg-gray-200 text-gray-600 rounded-full px-1.5 py-0.5">
-            {draftMode ? aaDraftCount : features.length}
+            {features.length}
           </span>
         </button>
         {showAPTab && (
