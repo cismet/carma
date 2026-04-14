@@ -609,7 +609,8 @@ const BelisMapLibWrapper = ({
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!jwt) return;
+      // Only fetch Fachobjekte details — AA/AP have their own fetch pipeline
+      if (!jwt || sidebarVariant !== "fachobjekte") return;
 
       // Resolve sourceLayer + id from either the processed feature or the raw selection identifier
       let sourceLayer: string | undefined;
@@ -677,7 +678,7 @@ const BelisMapLibWrapper = ({
     };
 
     fetchData();
-  }, [selectedFeature, selectedFeatureId, jwt, featureDataVersion]);
+  }, [selectedFeature, selectedFeatureId, jwt, featureDataVersion, sidebarVariant]);
 
   // Close the datasheet when the selection is cleared in fachobjekte mode
   useEffect(() => {
@@ -751,6 +752,9 @@ const BelisMapLibWrapper = ({
   const [overrideSelectedFeature, setOverrideSelectedFeature] =
     useState<any>(null);
   useEffect(() => {
+    // Only run in Fachobjekte mode — AA/AP manage their own overrides
+    if (sidebarVariant !== "fachobjekte") return;
+
     const sourceLayer = selectedFeatureId?.sourceLayer ?? "";
     if (
       selectedFeature ||
@@ -823,6 +827,7 @@ const BelisMapLibWrapper = ({
     selectedFeatureId,
     infoboxMappingCode,
     rawFeature,
+    sidebarVariant,
   ]);
 
   // Visually select the MVT feature on the map when using the override path.
@@ -1701,6 +1706,54 @@ const BelisMapLibWrapper = ({
     }
   }, [miniMap, selectedAPId]);
 
+  // Build infobox override for AA features.
+  // Always uses the override path because the AA GeoJSON source has no
+  // createInfoBoxInfo metadata — selectFeature() would produce an empty infobox.
+  // Visual highlighting on the map is handled by the feature-state effect (selectedAAId).
+  const handleAAFeatureSelect = useCallback(
+    (aaId: number) => {
+      // Clear any existing map selection so the override takes precedence
+      clearMapSelection();
+
+      const aaFeature = aaFeatures.find((f) => f.id === aaId);
+      if (!aaFeature) return;
+
+      const mappingCode = aaInfoboxMapping.join("\n");
+      const versionAtStart = teamVersionRef.current;
+      objectToInfo(
+        aaFeature as unknown as Record<string, unknown>,
+        mappingCode
+      )
+        .then((info) => {
+          // Team changed while async — discard stale result
+          if (teamVersionRef.current !== versionAtStart) return;
+          if (info) {
+            const genericLinks: {
+              iconname: string;
+              tooltip: string;
+              action?: () => void;
+            }[] = [];
+            if ((info as Record<string, unknown>).datasheet && openDatasheet) {
+              genericLinks.push({
+                iconname: "info",
+                tooltip: "Datenblatt",
+                action: openDatasheet,
+              });
+            }
+            setOverrideSelectedFeature({
+              properties: { ...info, genericLinks },
+              geometry: aaFeature.geometry,
+              carmaInfo: { sourceLayer: "arbeitsauftraege" },
+            });
+          }
+        })
+        .catch(() => {
+          // ignore
+        });
+    },
+    [aaFeatures, clearMapSelection]
+  );
+
   // #554: Deterministic click selection: prefer standorte over leuchten
   // (Previous logic preferred leuchten, sorted by leuchtennummer:)
   // const leuchten = hits.filter((h) => h.sourceLayer === "leuchten");
@@ -1720,6 +1773,7 @@ const BelisMapLibWrapper = ({
           const aaId = Number(aaHit.properties?.id ?? aaHit.id);
           if (aaId != null) {
             dispatch(setSelectedAAId(aaId));
+            handleAAFeatureSelect(aaId);
           }
           // Return undefined to prevent normal selection flow
           return undefined;
@@ -1755,64 +1809,7 @@ const BelisMapLibWrapper = ({
       }
       return candidates[0];
     },
-    [map, sidebarVariant, dispatch]
-  );
-
-  // Sidebar click → trigger the same LibreMap selection pipeline that map clicks use.
-  // Finds the MVT feature in loaded tiles and calls selectFeature() so the infobox appears.
-  const handleAAFeatureSelect = useCallback(
-    (aaId: number) => {
-      if (!map) return;
-      const sourceFeatures = map.querySourceFeatures(AA_SOURCE);
-      const match = sourceFeatures.find(
-        (f) => f.id === aaId || f.properties?.id === aaId
-      );
-      if (match) {
-        selectFeature(
-          { source: AA_SOURCE, id: match.id },
-          match as any
-        );
-      } else {
-        // Tile not loaded — build override from Redux aaFeatures
-        clearMapSelection();
-        const aaFeature = aaFeatures.find((f) => f.id === aaId);
-        if (aaFeature) {
-          const mappingCode = aaInfoboxMapping.join("\n");
-          const versionAtStart = teamVersionRef.current;
-          objectToInfo(
-            aaFeature as unknown as Record<string, unknown>,
-            mappingCode
-          )
-            .then((info) => {
-              // Team changed while async — discard stale result
-              if (teamVersionRef.current !== versionAtStart) return;
-              if (info) {
-                const genericLinks: {
-                  iconname: string;
-                  tooltip: string;
-                  action?: () => void;
-                }[] = [];
-                if ((info as Record<string, unknown>).datasheet && openDatasheet) {
-                  genericLinks.push({
-                    iconname: "info",
-                    tooltip: "Datenblatt",
-                    action: openDatasheet,
-                  });
-                }
-                setOverrideSelectedFeature({
-                  properties: { ...info, genericLinks },
-                  geometry: aaFeature.geometry,
-                  carmaInfo: { sourceLayer: "arbeitsauftraege" },
-                });
-              }
-            })
-            .catch(() => {
-              // ignore
-            });
-        }
-      }
-    },
-    [map, selectFeature, aaFeatures, clearMapSelection]
+    [map, sidebarVariant, dispatch, handleAAFeatureSelect]
   );
 
   // --- Arbeitsauftraege: clear/restore map selection when switching tabs ---
@@ -1821,11 +1818,16 @@ const BelisMapLibWrapper = ({
 
     if (activeAATab === "ap") {
       clearMapSelection();
+      // AP infobox effect will set the override; only clear if no AP is selected
+      if (selectedAPId == null) {
+        setOverrideSelectedFeature(null);
+      }
     } else if (activeAATab === "aa") {
-      // Clear any stale AP override before the AA handler sets its own
-      setOverrideSelectedFeature(null);
       if (selectedAAId != null) {
+        // handleAAFeatureSelect sets the override — don't clear it first
         handleAAFeatureSelect(selectedAAId);
+      } else {
+        setOverrideSelectedFeature(null);
       }
     }
   }, [activeAATab]); // eslint-disable-line react-hooks/exhaustive-deps
