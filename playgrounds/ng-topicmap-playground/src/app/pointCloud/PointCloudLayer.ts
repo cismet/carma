@@ -484,6 +484,16 @@ export class PointCloudLayer implements CustomLayerInterface {
     this.renderer = undefined;
   }
 
+  setPointSize(size: number): void {
+    this.pointSize = size;
+    if (this.points) {
+      const mat = this.points.material as THREE.PointsMaterial;
+      mat.size = size;
+      mat.needsUpdate = true;
+      this.map?.triggerRepaint();
+    }
+  }
+
   /** Explicit final disposal; drops cached buffers so the layer cannot be re-mounted. */
   dispose(): void {
     this.onRemove();

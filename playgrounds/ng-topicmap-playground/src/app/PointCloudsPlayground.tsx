@@ -78,6 +78,13 @@ const DEFAULT_VISIBILITY: Visibility = {
   awg_2_wuppertal_seg: false,
 };
 
+type PointSizes = Record<CloudId, number>;
+const DEFAULT_POINT_SIZES: PointSizes = {
+  kaiser_wilhelm_hain_rgb: 3,
+  awg_2_wuppertal_seg: 3,
+};
+const POINT_SIZES_KEY = `${LS_PREFIX}pointClouds-pointSizes`;
+
 function loadVisibility(): Visibility {
   try {
     const raw = localStorage.getItem(VISIBILITY_KEY);
@@ -86,6 +93,16 @@ function loadVisibility(): Visibility {
     // ignore
   }
   return DEFAULT_VISIBILITY;
+}
+
+function loadPointSizes(): PointSizes {
+  try {
+    const raw = localStorage.getItem(POINT_SIZES_KEY);
+    if (raw) return { ...DEFAULT_POINT_SIZES, ...JSON.parse(raw) };
+  } catch {
+    // ignore
+  }
+  return DEFAULT_POINT_SIZES;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -200,9 +217,11 @@ function removeBboxLayer(map: MaplibreMap, id: CloudId) {
 
 function PointCloudLayerManager({
   visibility,
+  pointSizes,
   onLoadStateChange,
 }: {
   visibility: Visibility;
+  pointSizes: PointSizes;
   onLoadStateChange: (id: CloudId, state: LoadState) => void;
 }) {
   const { map } = useLibreContext();
@@ -210,6 +229,8 @@ function PointCloudLayerManager({
   const bboxes = useRef<Map<CloudId, Bbox4>>(new Map());
   const visibilityRef = useRef(visibility);
   visibilityRef.current = visibility;
+  const pointSizesRef = useRef(pointSizes);
+  pointSizesRef.current = pointSizes;
 
   useEffect(() => {
     if (!map) return;
@@ -220,7 +241,7 @@ function PointCloudLayerManager({
       const layer = new PointCloudLayer({
         id: `pointcloud-${cloud.id}`,
         url: cloud.url,
-        pointSize: 3,
+        pointSize: pointSizesRef.current[cloud.id] ?? 3,
         onLoadStart: () => onLoadStateChange(cloud.id, "loading"),
         onLoaded: ({ centerLngLat, bboxWgs84, zRange }) => {
           onLoadStateChange(cloud.id, "ready");
@@ -318,7 +339,7 @@ function PointCloudLayerManager({
           new PointCloudLayer({
             id: `pointcloud-${cloud.id}`,
             url: cloud.url,
-            pointSize: 3,
+            pointSize: pointSizesRef.current[cloud.id] ?? 3,
             onLoadStart: () => onLoadStateChange(cloud.id, "loading"),
             onLoaded: ({ bboxWgs84 }) => {
               onLoadStateChange(cloud.id, "ready");
@@ -339,6 +360,14 @@ function PointCloudLayerManager({
       }
     }
   }, [map, visibility, onLoadStateChange]);
+
+  // Push point-size changes to existing layers
+  useEffect(() => {
+    for (const cloud of CLOUDS) {
+      const layer = layers.current.get(cloud.id);
+      if (layer) layer.setPointSize(pointSizes[cloud.id] ?? 3);
+    }
+  }, [pointSizes]);
 
   return null;
 }
@@ -385,17 +414,22 @@ function LoadStateIcon({ state }: { state: LoadState }) {
 function LayerToggleBar({
   visibility,
   loadStates,
+  pointSizes,
   onToggle,
+  onPointSizeChange,
 }: {
   visibility: Visibility;
   loadStates: Record<CloudId, LoadState>;
+  pointSizes: PointSizes;
   onToggle: (id: CloudId) => void;
+  onPointSizeChange: (id: CloudId, size: number) => void;
 }) {
   return (
     <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[9999] flex gap-2 items-start">
       {CLOUDS.map((cloud) => {
         const visible = visibility[cloud.id];
         const state = loadStates[cloud.id];
+        const size = pointSizes[cloud.id] ?? 3;
         return (
           <div
             key={cloud.id}
@@ -410,6 +444,29 @@ function LayerToggleBar({
               />
               <span>{cloud.label}</span>
               <LoadStateIcon state={state} />
+              <span className="border-l border-gray-300 h-4" />
+              <input
+                type="range"
+                min={1}
+                max={10}
+                step={0.5}
+                value={size}
+                disabled={!visible}
+                onChange={(e) =>
+                  onPointSizeChange(cloud.id, parseFloat(e.target.value))
+                }
+                className={`w-20 h-1 accent-gray-600 ${
+                  !visible ? "opacity-30" : ""
+                }`}
+                title={`Punktgröße: ${size}px`}
+              />
+              <span
+                className={`text-xs text-gray-500 tabular-nums ${
+                  !visible ? "opacity-30" : ""
+                }`}
+              >
+                {size.toFixed(1)}px
+              </span>
               <button
                 onClick={() => onToggle(cloud.id)}
                 className="px-2 h-full flex items-center cursor-pointer hover:text-gray-500 text-gray-600"
@@ -440,11 +497,20 @@ export function PointCloudsPlayground() {
   const [visibility, setVisibility] = useState<Visibility>(loadVisibility);
   const [loadStates, setLoadStates] =
     useState<Record<CloudId, LoadState>>(INITIAL_LOAD_STATES);
+  const [pointSizes, setPointSizes] = useState<PointSizes>(loadPointSizes);
 
   const toggleCloud = (id: CloudId) => {
     setVisibility((prev) => {
       const next = { ...prev, [id]: !prev[id] };
       localStorage.setItem(VISIBILITY_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const setPointSize = (id: CloudId, size: number) => {
+    setPointSizes((prev) => {
+      const next = { ...prev, [id]: size };
+      localStorage.setItem(POINT_SIZES_KEY, JSON.stringify(next));
       return next;
     });
   };
@@ -475,12 +541,15 @@ export function PointCloudsPlayground() {
               />
               <PointCloudLayerManager
                 visibility={visibility}
+                pointSizes={pointSizes}
                 onLoadStateChange={handleLoadStateChange}
               />
               <LayerToggleBar
                 visibility={visibility}
                 loadStates={loadStates}
+                pointSizes={pointSizes}
                 onToggle={toggleCloud}
+                onPointSizeChange={setPointSize}
               />
             </LibreContextProvider>
           </SelectionProvider>
