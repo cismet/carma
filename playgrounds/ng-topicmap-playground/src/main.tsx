@@ -25,6 +25,7 @@ import { Buildings } from "./app/Buildings";
 import { TreesPlayground } from "./app/TreesPlayground";
 import { GenericTreesPlayground } from "./app/GenericTreesPlayground";
 import { CustomProfilePlayground } from "./app/CustomProfilePlayground";
+import { PointCloudsPlayground } from "./app/PointCloudsPlayground";
 import {
   backgroundModes,
   backgroundConfigurations,
@@ -73,6 +74,10 @@ root.render(
                       <Route
                         path="/custom-profile"
                         element={<CustomProfilePlayground />}
+                      />
+                      <Route
+                        path="/pointClouds"
+                        element={<PointCloudsPlayground />}
                       />
                     </Routes>
                   </MapHighlightProvider>
