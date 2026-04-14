@@ -9,8 +9,15 @@ import {
   type LayerInfo,
 } from "./dynamicStyling.helpers";
 
+function intermediateEmptyStyle(style: any) {
+  return {
+    ...style,
+    layers: [],
+  };
+}
+
 export const applyDynamicStyling = (
-  libreMap: any,
+  libreMap: maplibregl.Map,
   carmaLayerId: string,
   config: DynamicStylingListConfig,
   selectedOptionId: string
@@ -78,6 +85,8 @@ export const applyDynamicStyling = (
     }
   }
 
+  // Stop flickering after style changes with multiple fill-patterns. Just and temporary fix. Should not be used when switching to native maplibre map
+  libreMap.setStyle(intermediateEmptyStyle(libreMap.getStyle()));
   libreMap.setStyle(updatedStylesheet);
   return extractLayerInfo(updatedStylesheet);
 };
