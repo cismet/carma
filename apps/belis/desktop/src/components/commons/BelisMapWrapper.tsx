@@ -2144,6 +2144,25 @@ const BelisMapLibWrapper = ({
                   />
                 );
               })()
+            ) : draftMode &&
+              sidebarVariant === "arbeitsauftraege" &&
+              selectedAPId != null &&
+              !selectedAAData &&
+              apDrafts[String(selectedAPId)]?.serverData ? (
+              (() => {
+                const draft = apDrafts[String(selectedAPId)];
+                return (
+                  <ArbeitsauftraegeFormsWrapper
+                    mode="ap"
+                    id={String(selectedAPId)}
+                    data={draft.serverData as Record<string, unknown>}
+                    readOnly={!globalEditMode}
+                    aaId={draft.aaId}
+                    geometry={draft.geometry}
+                    fachobjektType={draft.featureType}
+                  />
+                );
+              })()
             ) : sidebarVariant === "arbeitsauftraege" && selectedAAData ? (
               (() => {
                 const selectedProtokoll =
