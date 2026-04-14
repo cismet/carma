@@ -225,6 +225,7 @@ const TopNavbar = () => {
           setActiveHighlights(null);
           setHighlightingActive(false);
           clearHighlights();
+          dispatch(incrementFeatureDataVersion());
         }}
         highlights={activeHighlights ?? []}
       />
