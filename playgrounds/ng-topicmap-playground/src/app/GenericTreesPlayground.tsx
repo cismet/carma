@@ -13,8 +13,17 @@ import {
 } from "@carma-mapping/engines/maplibre";
 import type { ThreePerfData } from "@carma-mapping/engines/threejs";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
+import {
+  backgroundModes,
+  backgroundConfigurations,
+} from "./backgroundConfig";
 import { defaultGazDataConfig } from "@carma-commons/resources";
-import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
+import {
+  faCrosshairs,
+  faEye,
+  faEyeSlash,
+  faUndo,
+} from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Switch } from "antd";
 import Menu from "./Menu";
@@ -27,9 +36,11 @@ import "leaflet/dist/leaflet.css";
 //  LocalStorage helpers
 // ─────────────────────────────────────────────────────────────
 
-const TREES_LOFT_KEY = "generic-trees-useLoft";
-const TREES_RADIUS_MIX_KEY = "generic-trees-radiusMix";
-const TREES_VISIBILITY_KEY = "generic-trees-layerVisibility";
+const LS_PREFIX = "ng-topicmap-playground:";
+const TREES_LOFT_KEY = `${LS_PREFIX}generic-trees-useLoft`;
+const TREES_RADIUS_MIX_KEY = `${LS_PREFIX}generic-trees-radiusMix`;
+const TREES_VISIBILITY_KEY = `${LS_PREFIX}generic-trees-layerVisibility`;
+const TREES_CROSSHAIR_KEY = `${LS_PREFIX}generic-trees-crosshair`;
 
 function loadUseLoft(): boolean {
   try {
@@ -62,7 +73,7 @@ function loadLayerVisibility(): LayerVisibility {
 //  Camera persistence
 // ─────────────────────────────────────────────────────────────
 
-const STORAGE_KEY = "generic-trees-camera";
+const STORAGE_KEY = `${LS_PREFIX}generic-trees-camera`;
 
 function CameraPersistence() {
   const { map } = useLibreContext();
@@ -166,7 +177,7 @@ function PerfOverlay({ perfRef }: { perfRef: React.RefObject<ThreePerfData> }) {
 
   return (
     <div
-      className="absolute bottom-2 right-2 z-[9999] px-2 py-1 rounded text-xs font-mono leading-snug"
+      className="absolute bottom-2 left-1/2 -translate-x-1/2 z-[9999] px-2 py-1 rounded text-xs font-mono leading-snug"
       style={{
         background: "rgba(0,0,0,0.55)",
         color: "#e0e0e0",
@@ -175,7 +186,17 @@ function PerfOverlay({ perfRef }: { perfRef: React.RefObject<ThreePerfData> }) {
       <div>
         <span style={{ color: "#8ecaff" }}>{modeLabel}</span>
         {perf.treeCount > 0 && (
-          <span> | {perf.treeCount.toLocaleString()} trees</span>
+          <span>
+            {" "}
+            | {perf.treeCount.toLocaleString()} trees
+            {perf.sourceCount != null &&
+              perf.sourceCount !== perf.treeCount && (
+                <span style={{ color: "#999" }}>
+                  {" "}
+                  / {perf.sourceCount.toLocaleString()} src
+                </span>
+              )}
+          </span>
         )}
       </div>
       <div>
@@ -195,7 +216,7 @@ function PerfOverlay({ perfRef }: { perfRef: React.RefObject<ThreePerfData> }) {
 //  Layer visibility sync (drives map layout property)
 // ─────────────────────────────────────────────────────────────
 
-type LayerGroupName = "Einzelbaum 3D" | "Einzelbaum Umringe" | "Gebaeude";
+type LayerGroupName = "Einzelbaum 3D" | "Wohnlagen" | "Einzelbaum Umringe" | "Gebaeude" | "POI";
 type LayerVisibility = Record<LayerGroupName, boolean>;
 
 const LAYER_GROUPS: {
@@ -204,14 +225,18 @@ const LAYER_GROUPS: {
   color: string;
 }[] = [
   { name: "Einzelbaum 3D", label: "3D Bäume", color: "#5D4037" },
+  { name: "Wohnlagen", label: "Wohnlagen", color: "#FF9800" },
   { name: "Einzelbaum Umringe", label: "Umringe", color: "#4CAF50" },
   { name: "Gebaeude", label: "Gebäude", color: "#607D8B" },
+  { name: "POI", label: "POI", color: "#E91E63" },
 ];
 
 const DEFAULT_VISIBILITY: LayerVisibility = {
   "Einzelbaum 3D": true,
-  "Einzelbaum Umringe": true,
+  Wohnlagen: false,
+  "Einzelbaum Umringe": false,
   Gebaeude: true,
+  POI: true,
 };
 
 function MapLayerVisibility({ visibility }: { visibility: LayerVisibility }) {
@@ -300,6 +325,13 @@ function LayerToggleBar({
   onLoftChange,
   radiusMix,
   onRadiusMixChange,
+  crosshair,
+  onCrosshairToggle,
+  buildingColor,
+  onBuildingColorChange,
+  buildingOpacity,
+  onBuildingOpacityChange,
+  onBuildingReset,
 }: {
   visibility: LayerVisibility;
   onToggle: (name: LayerGroupName) => void;
@@ -307,12 +339,21 @@ function LayerToggleBar({
   onLoftChange: (v: boolean) => void;
   radiusMix: number;
   onRadiusMixChange: (v: number) => void;
+  crosshair: boolean;
+  onCrosshairToggle: () => void;
+  buildingColor: string | null;
+  onBuildingColorChange: (color: string) => void;
+  buildingOpacity: number;
+  onBuildingOpacityChange: (opacity: number) => void;
+  onBuildingReset: () => void;
 }) {
   return (
     <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[9999] flex gap-2 items-start">
       {LAYER_GROUPS.map(({ name, label, color }) => {
         const visible = visibility[name];
         const is3D = name === "Einzelbaum 3D";
+        const isBuilding = name === "Gebaeude";
+        const hasCustomColor = buildingColor != null;
         return (
           <div
             key={name}
@@ -320,7 +361,7 @@ function LayerToggleBar({
               ${visible ? "bg-white" : "bg-neutral-200/70 opacity-70"}`}
             style={{ boxShadow: PILL_SHADOW }}
           >
-            <div className="flex items-center gap-2 pl-3 pr-1 h-8">
+            <div className="flex items-center gap-2 pl-3 pr-1 h-8 whitespace-nowrap">
               <span
                 className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
                 style={{ backgroundColor: color }}
@@ -368,6 +409,44 @@ function LayerToggleBar({
                   </span>
                 </>
               )}
+              {isBuilding && visible && (
+                <>
+                  <span className="border-l border-gray-300 h-4" />
+                  <input
+                    type="color"
+                    value={buildingColor ?? "#ffffff"}
+                    onClick={() => { if (!buildingColor) onBuildingColorChange("#ffffff"); }}
+                    onInput={(e) => onBuildingColorChange((e.target as HTMLInputElement).value)}
+                    className="w-6 h-6 p-0 border-0 cursor-pointer rounded"
+                    title="Gebäudefarbe"
+                  />
+                  <button
+                    onClick={onBuildingReset}
+                    disabled={!hasCustomColor}
+                    className={`px-1 flex items-center cursor-pointer text-gray-500 ${
+                      !hasCustomColor ? "opacity-30 cursor-default" : "hover:text-gray-700"
+                    }`}
+                    title="Farbe zurücksetzen (öffentl. Gebäude rötlich)"
+                  >
+                    <FontAwesomeIcon icon={faUndo} className="text-xs" />
+                  </button>
+                  <input
+                    type="range"
+                    min={0.1}
+                    max={1}
+                    step={0.05}
+                    value={buildingOpacity}
+                    onChange={(e) =>
+                      onBuildingOpacityChange(parseFloat(e.target.value))
+                    }
+                    className="w-14 h-1 accent-[#607D8B]"
+                    title={`Transparenz: ${Math.round(buildingOpacity * 100)}%`}
+                  />
+                  <span className="text-xs text-gray-500">
+                    {Math.round(buildingOpacity * 100)}%
+                  </span>
+                </>
+              )}
               <button
                 onClick={() => onToggle(name)}
                 className="px-2 h-full flex items-center cursor-pointer hover:text-gray-500 text-gray-600"
@@ -381,6 +460,31 @@ function LayerToggleBar({
           </div>
         );
       })}
+
+      {/* Crosshair debug pill */}
+      <div
+        className={`flex flex-col rounded-[10px] text-sm
+          ${crosshair ? "bg-white" : "bg-neutral-200/70 opacity-70"}`}
+        style={{ boxShadow: PILL_SHADOW }}
+      >
+        <div className="flex items-center gap-2 pl-3 pr-1 h-8">
+          <FontAwesomeIcon
+            icon={faCrosshairs}
+            className="text-xs"
+            style={{ color: "#e53935" }}
+          />
+          <span>Crosshair</span>
+          <button
+            onClick={onCrosshairToggle}
+            className="px-2 h-full flex items-center cursor-pointer hover:text-gray-500 text-gray-600"
+          >
+            <FontAwesomeIcon
+              icon={crosshair ? faEye : faEyeSlash}
+              className="text-xs"
+            />
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -397,6 +501,11 @@ const LIBRE_LAYERS = [
   },
   {
     type: "vector" as const,
+    name: "Wohnlagen",
+    style: "https://tiles.cismet.de/wohnlagen2024/style.json",
+  },
+  {
+    type: "vector" as const,
     name: "Einzelbaum Umringe",
     style: "https://tiles.cismet.de/einzelbaum_umringe/style.json",
   },
@@ -404,6 +513,11 @@ const LIBRE_LAYERS = [
     type: "vector" as const,
     name: "Gebaeude",
     style: "https://tiles.cismet.de/alkis/gebaeude-only.style.json",
+  },
+  {
+    type: "vector" as const,
+    name: "POI",
+    style: "https://tiles.cismet.de/poi/style.json",
   },
 ];
 
@@ -416,6 +530,15 @@ export function GenericTreesPlayground() {
   const [radiusMix, setRadiusMix] = useState(loadRadiusMix);
   const [layerVisibility, setLayerVisibility] =
     useState<LayerVisibility>(loadLayerVisibility);
+  const [crosshair, setCrosshair] = useState(() => {
+    try {
+      return localStorage.getItem(TREES_CROSSHAIR_KEY) === "true";
+    } catch {
+      return false;
+    }
+  });
+  const [buildingColor, setBuildingColor] = useState<string | null>(null);
+  const [buildingOpacity, setBuildingOpacity] = useState(0.65);
   const { progress, showProgress, handleProgressUpdate } = useProgress();
   const perfRef = useRef<ThreePerfData>(EMPTY_PERF);
 
@@ -438,34 +561,38 @@ export function GenericTreesPlayground() {
   };
 
   // Runtime params drive 3D layer behaviour via CarmaMap -> LibreMap -> ThreeLayerManager
-  const threeRuntimeParams = {
+  const threeRuntimeParams: Record<string, number | string> = {
     radiusMix,
+    //viewportPadding: 0.3000,
     useLoft: useLoft ? 1 : 0,
+    buildingOpacity,
+    ...(buildingColor ? { buildingColor } : {}),
   };
 
   return (
-    <TopicMapContextProvider infoBoxPixelWidth={350}>
+    <TopicMapContextProvider
+      infoBoxPixelWidth={350}
+      backgroundModes={backgroundModes}
+      backgroundConfigurations={backgroundConfigurations}
+    >
       <SandboxedEvalProvider>
         <GazDataProvider config={defaultGazDataConfig}>
           <SelectionProvider>
             <LibreContextProvider>
               <CameraPersistence />
               <PerfOverlay perfRef={perfRef} />
-              <MapLayerVisibility visibility={layerVisibility} />
               <ProgressIndicator progress={progress} show={showProgress} />
               <CarmaMap
-                onClick={() => {}}
+                clickCrosshairDebugMode={crosshair}
                 mapEngine="maplibre"
                 exposeMapToWindow
                 overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
                 onProgressUpdate={handleProgressUpdate}
-                libreLayers={LIBRE_LAYERS}
+                libreLayers={LIBRE_LAYERS.filter(
+                  (l) => layerVisibility[l.name as LayerGroupName] !== false
+                )}
                 modalMenu={<Menu />}
-                threeRuntimeParams={
-                  layerVisibility["Einzelbaum 3D"]
-                    ? threeRuntimeParams
-                    : undefined
-                }
+                threeRuntimeParams={threeRuntimeParams}
                 threePerfRef={perfRef}
               />
               <LayerToggleBar
@@ -475,6 +602,19 @@ export function GenericTreesPlayground() {
                 onLoftChange={handleLoftChange}
                 radiusMix={radiusMix}
                 onRadiusMixChange={handleRadiusMixChange}
+                crosshair={crosshair}
+                onCrosshairToggle={() =>
+                  setCrosshair((v) => {
+                    const next = !v;
+                    localStorage.setItem(TREES_CROSSHAIR_KEY, String(next));
+                    return next;
+                  })
+                }
+                buildingColor={buildingColor}
+                onBuildingColorChange={setBuildingColor}
+                buildingOpacity={buildingOpacity}
+                onBuildingOpacityChange={setBuildingOpacity}
+                onBuildingReset={() => setBuildingColor(null)}
               />
             </LibreContextProvider>
           </SelectionProvider>

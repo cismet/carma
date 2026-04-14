@@ -32,12 +32,30 @@ function makeCircleRing(
   return ring;
 }
 
+/** Maps a contiguous range of triangle indices to a source feature. */
+export interface FaceRange {
+  faceStart: number;
+  faceEnd: number;
+  sourceIndex: number;
+}
+
+/** Maps a contiguous range of vertices to a source feature (for fast highlight). */
+export interface VertexRange {
+  vertexStart: number;
+  vertexEnd: number;
+  sourceIndex: number;
+}
+
 interface BuildResult {
   crownGeo: THREE.BufferGeometry;
   trunkGeo: THREE.BufferGeometry;
   treeCount: number;
   crownTris: number;
   trunkTris: number;
+  crownFaceRanges: FaceRange[];
+  trunkFaceRanges: FaceRange[];
+  crownVertexRanges: VertexRange[];
+  trunkVertexRanges: VertexRange[];
 }
 
 function buildMergedGeometry(
@@ -78,6 +96,10 @@ function buildMergedGeometry(
       treeCount: 0,
       crownTris: 0,
       trunkTris: 0,
+      crownFaceRanges: [],
+      trunkFaceRanges: [],
+      crownVertexRanges: [],
+      trunkVertexRanges: [],
     };
   }
 
@@ -97,13 +119,18 @@ function buildMergedGeometry(
   let tv = 0;
   let ti = 0;
 
-  const trunkBaseCol = new THREE.Color(config.trunkColors[0]);
+  const trunkBaseCol = new THREE.Color(config.trunkColors![0]);
+
+  const crownFaceRanges: FaceRange[] = [];
+  const trunkFaceRanges: FaceRange[] = [];
+  const crownVertexRanges: VertexRange[] = [];
+  const trunkVertexRanges: VertexRange[] = [];
 
   // Pass 2: build geometry
   for (const tree of validTrees) {
     const ring = tree.ring!;
     const nR = ring.length;
-    const entry = config.typeMap[tree.type];
+    const entry = config.typeMap![tree.type];
     if (!entry) continue;
     const profileFn = getProfile(entry.profileName);
 
@@ -134,6 +161,7 @@ function buildMergedGeometry(
     cc.offsetHSL(0, 0, Math.random() * 0.06 - 0.03);
 
     const cvBase = cv;
+    const crownFaceStart = ci / 3;
 
     // Crown slices
     for (let s = 0; s < numSlices; s++) {
@@ -220,11 +248,14 @@ function buildMergedGeometry(
       cI[ci++] = btmI;
     }
 
+    crownVertexRanges.push({ vertexStart: cvBase, vertexEnd: cv + numSlices * nR + 2, sourceIndex: tree._sourceIndex });
     cv += numSlices * nR + 2;
+    crownFaceRanges.push({ faceStart: crownFaceStart, faceEnd: ci / 3, sourceIndex: tree._sourceIndex });
 
     // Trunk cylinder
     const tR = Math.max(0.08, 0.05 * tree.radiusMax);
     const tvBase = tv;
+    const trunkFaceStart = ti / 3;
 
     const tc = trunkBaseCol.clone();
     tc.offsetHSL(0, 0, Math.random() * 0.04 - 0.02);
@@ -296,7 +327,9 @@ function buildMergedGeometry(
       tI[ti++] = tci;
     }
 
+    trunkVertexRanges.push({ vertexStart: tvBase, vertexEnd: tv + TSEG * 2 + 2, sourceIndex: tree._sourceIndex });
     tv += TSEG * 2 + 2;
+    trunkFaceRanges.push({ faceStart: trunkFaceStart, faceEnd: ti / 3, sourceIndex: tree._sourceIndex });
   }
 
   // Build BufferGeometry objects
@@ -336,7 +369,25 @@ function buildMergedGeometry(
     treeCount: validTrees.length,
     crownTris: ci / 3,
     trunkTris: ti / 3,
+    crownFaceRanges,
+    trunkFaceRanges,
+    crownVertexRanges,
+    trunkVertexRanges,
   };
+}
+
+/** Build a Map<sourceIndex, VertexRange[]> for O(1) lookup during highlight. */
+function buildSourceIndexMap(ranges: VertexRange[]): Map<number, VertexRange[]> {
+  const map = new Map<number, VertexRange[]>();
+  for (const r of ranges) {
+    const existing = map.get(r.sourceIndex);
+    if (existing) {
+      existing.push(r);
+    } else {
+      map.set(r.sourceIndex, [r]);
+    }
+  }
+  return map;
 }
 
 /**
@@ -353,9 +404,11 @@ export function buildLoftMeshes(
   config: Carma3dConfig,
   numSlices = 14
 ): FactoryStats {
-  // Remove old meshes (keep lights)
+  // Remove old tree meshes (keep lights and building meshes)
   const toRemove = scene.children.filter(
-    (c): c is THREE.Mesh => (c as THREE.Mesh).isMesh === true
+    (c): c is THREE.Mesh =>
+      (c as THREE.Mesh).isMesh === true &&
+      !(c as THREE.Mesh).userData.isBuilding,
   );
   for (const m of toRemove) {
     m.geometry.dispose();
@@ -393,14 +446,28 @@ export function buildLoftMeshes(
       side: THREE.DoubleSide,
       transparent: true,
       opacity: 1,
+      depthWrite: true,
     });
     const trunkMat = new THREE.MeshLambertMaterial({
       vertexColors: true,
       flatShading: true,
     });
 
-    scene.add(new THREE.Mesh(result.crownGeo, crownMat));
-    scene.add(new THREE.Mesh(result.trunkGeo, trunkMat));
+    const crownMesh = new THREE.Mesh(result.crownGeo, crownMat);
+    crownMesh.userData.faceRanges = result.crownFaceRanges;
+    crownMesh.userData.vertexRanges = result.crownVertexRanges;
+    crownMesh.userData.originalColors = (result.crownGeo.getAttribute("color") as THREE.BufferAttribute).array.slice();
+    crownMesh.userData.sourceIndexMap = buildSourceIndexMap(result.crownVertexRanges);
+    crownMesh.frustumCulled = false;
+    scene.add(crownMesh);
+
+    const trunkMesh = new THREE.Mesh(result.trunkGeo, trunkMat);
+    trunkMesh.userData.faceRanges = result.trunkFaceRanges;
+    trunkMesh.userData.vertexRanges = result.trunkVertexRanges;
+    trunkMesh.userData.originalColors = (result.trunkGeo.getAttribute("color") as THREE.BufferAttribute).array.slice();
+    trunkMesh.userData.sourceIndexMap = buildSourceIndexMap(result.trunkVertexRanges);
+    trunkMesh.frustumCulled = false;
+    scene.add(trunkMesh);
   }
 
   return {

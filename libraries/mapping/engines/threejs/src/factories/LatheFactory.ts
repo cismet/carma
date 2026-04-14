@@ -63,10 +63,11 @@ export function buildLatheInstances(
   mScale: number,
   config: Carma3dConfig
 ): FactoryStats {
-  // Remove old InstancedMesh objects
+  // Remove old InstancedMesh objects (keep building meshes)
   const toRemove = scene.children.filter(
     (c): c is THREE.InstancedMesh =>
-      (c as THREE.InstancedMesh).isInstancedMesh === true
+      (c as THREE.InstancedMesh).isInstancedMesh === true &&
+      !(c as THREE.InstancedMesh).userData.isBuilding,
   );
   for (const m of toRemove) {
     m.geometry.dispose();
@@ -84,7 +85,7 @@ export function buildLatheInstances(
 
   // Build prototypes per type
   const prototypes = new Map<string, Prototype>();
-  for (const [typeName, entry] of Object.entries(config.typeMap)) {
+  for (const [typeName, entry] of Object.entries(config.typeMap!)) {
     prototypes.set(typeName, buildPrototype(entry));
   }
 
@@ -102,7 +103,7 @@ export function buildLatheInstances(
     if (feats.length === 0) continue;
     const proto = prototypes.get(typeName);
     if (!proto) continue;
-    const entry = config.typeMap[typeName];
+    const entry = config.typeMap![typeName];
     if (!entry) continue;
 
     const count = feats.length;
@@ -110,8 +111,7 @@ export function buildLatheInstances(
     const crownMat = new THREE.MeshLambertMaterial({
       color: 0xffffff,
       flatShading: true,
-      transparent: true,
-      opacity: 1,
+      depthWrite: true,
     });
     const crownMesh = new THREE.InstancedMesh(proto.crown, crownMat, count);
 
@@ -154,8 +154,8 @@ export function buildLatheInstances(
       crownColors.set([cc.r, cc.g, cc.b], i * 3);
 
       const tc = new THREE.Color(
-        config.trunkColors[
-          Math.floor(Math.random() * config.trunkColors.length)
+        config.trunkColors![
+          Math.floor(Math.random() * config.trunkColors!.length)
         ]
       );
       tc.offsetHSL(0, 0, Math.random() * 0.04 - 0.02);
@@ -172,6 +172,14 @@ export function buildLatheInstances(
     );
     crownMesh.instanceMatrix.needsUpdate = true;
     trunkMesh.instanceMatrix.needsUpdate = true;
+
+    // Store source indices for selection: instanceId -> _sourceIndex
+    const sourceIndices = feats.map((f) => f._sourceIndex);
+    crownMesh.userData.sourceIndices = sourceIndices;
+    trunkMesh.userData.sourceIndices = sourceIndices;
+
+    crownMesh.frustumCulled = false;
+    trunkMesh.frustumCulled = false;
 
     scene.add(crownMesh);
     scene.add(trunkMesh);

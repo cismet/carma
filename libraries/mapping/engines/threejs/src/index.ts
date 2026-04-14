@@ -26,10 +26,19 @@ export { mapFeatures, deduplicateFeatures } from "./featureMapper";
 // Generic layer builder + sync
 export {
   buildGenericLayer,
+  buildOverlayLayer,
   syncGenericLayerFromSource,
+  resolveOrigin,
 } from "./GenericThreeLayer";
-export type { RebuildFn, GenericCustomLayer } from "./GenericThreeLayer";
+export type {
+  RebuildFn,
+  GenericCustomLayer,
+  RaycastDebugResult,
+  SourceFeatureData,
+} from "./GenericThreeLayer";
 
 // Factories
 export { buildLatheInstances } from "./factories/LatheFactory";
 export { buildLoftMeshes } from "./factories/LoftFactory";
+export { buildExtrusionMeshes } from "./factories/ExtrusionFactory";
+export type { BuildingFeature } from "./factories/ExtrusionFactory";

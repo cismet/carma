@@ -29,7 +29,6 @@ export function CustomProfilePlayground() {
           <SelectionProvider>
             <LibreContextProvider>
               <CarmaMap
-                onClick={() => {}}
                 mapEngine="maplibre"
                 exposeMapToWindow
                 overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"

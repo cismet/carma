@@ -35,9 +35,12 @@ export function mapFeatures(
 ): MappedFeature[] {
   const result: MappedFeature[] = [];
   const t = Math.max(0, Math.min(1, radiusMix));
-  const { fields, typeMap, defaultType } = config;
+  const fields = config.fields!;
+  const typeMap = config.typeMap!;
+  const defaultType = config.defaultType!;
 
-  for (const f of features) {
+  for (let srcIdx = 0; srcIdx < features.length; srcIdx++) {
+    const f = features[srcIdx];
     const geom = f.geometry;
     if (!geom) continue;
     const props = f.properties ?? {};
@@ -59,17 +62,17 @@ export function mapFeatures(
       continue;
     }
 
-    const rawType = String(props[fields.typeField] ?? "")
+    const rawType = String(props[fields.typeField!] ?? "")
       .toUpperCase()
       .trim();
     const typeEntry = typeMap[rawType] ?? typeMap[defaultType];
     if (!typeEntry) continue;
     const type = rawType in typeMap ? rawType : defaultType;
 
-    const hMax = parseFloat(props[fields.heightField] as string);
+    const hMax = parseFloat(props[fields.heightField!] as string);
     const heightVar = hMax > 0 ? hMax / typeEntry.baseDims.height : 1.0;
 
-    const rInner = parseFloat(props[fields.radiusField] as string) || 0;
+    const rInner = parseFloat(props[fields.radiusField!] as string) || 0;
     const rOuter = fields.outerRadiusField
       ? parseFloat(props[fields.outerRadiusField] as string) || rInner
       : rInner;
@@ -109,6 +112,7 @@ export function mapFeatures(
       ring,
       heightMax: hMax > 0 ? hMax : typeEntry.baseDims.height,
       radiusMax: rMax > 0 ? rMax : typeEntry.baseDims.radius,
+      _sourceIndex: srcIdx,
     });
   }
 

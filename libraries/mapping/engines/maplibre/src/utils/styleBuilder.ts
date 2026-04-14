@@ -197,12 +197,14 @@ export const getVectorMapping = async (
     let capabilitiesUrl = "";
     let infoboxMapping: string[] | string | boolean =
       vectorStyle.infoboxMapping || [];
+    let fetchedStyleJson: Record<string, unknown> | undefined;
 
     // First, try to get mapping from the vector style's metadata
     if (!vectorStyle.infoboxMapping && vectorStyle.style) {
       try {
         const styleResponse = await fetch(vectorStyle.style);
         const styleJson = await styleResponse.json();
+        fetchedStyleJson = styleJson;
 
         const styleKeywords =
           styleJson.metadata?.carmaConf?.layerInfo?.keywords;
@@ -289,6 +291,32 @@ export const getVectorMapping = async (
       typeof infoboxMapping === "string"
     ) {
       mapping[layerId] = infoboxMapping;
+
+      // Also index by source IDs and source-layer names from the style JSON
+      // so 3D click handlers (which only know source/sourceLayer) can find the mapping.
+      if (fetchedStyleJson) {
+        const sources = fetchedStyleJson.sources as
+          | Record<string, unknown>
+          | undefined;
+        if (sources) {
+          for (const srcId of Object.keys(sources)) {
+            if (!mapping[srcId]) {
+              mapping[srcId] = infoboxMapping;
+            }
+          }
+        }
+        const styleLayers = fetchedStyleJson.layers as
+          | Array<Record<string, unknown>>
+          | undefined;
+        if (styleLayers) {
+          for (const sl of styleLayers) {
+            const srcLayer = sl["source-layer"] as string | undefined;
+            if (srcLayer && !mapping[srcLayer]) {
+              mapping[srcLayer] = infoboxMapping;
+            }
+          }
+        }
+      }
     }
   });
 

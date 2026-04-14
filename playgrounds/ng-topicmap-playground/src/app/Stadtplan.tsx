@@ -9,6 +9,10 @@ import { CarmaMap } from "@carma-mapping/core";
 import { LibreContextProvider } from "@carma-mapping/engines/maplibre";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
 import { defaultGazDataConfig } from "@carma-commons/resources";
+import {
+  backgroundModes,
+  backgroundConfigurations,
+} from "./backgroundConfig";
 import Menu from "./Menu";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
@@ -19,14 +23,17 @@ export function Stadtplan() {
   const { progress, showProgress, handleProgressUpdate } = useProgress();
 
   return (
-    <TopicMapContextProvider infoBoxPixelWidth={350}>
+    <TopicMapContextProvider
+      infoBoxPixelWidth={350}
+      backgroundModes={backgroundModes}
+      backgroundConfigurations={backgroundConfigurations}
+    >
       <SandboxedEvalProvider>
         <GazDataProvider config={defaultGazDataConfig}>
           <SelectionProvider>
             <LibreContextProvider>
               <ProgressIndicator progress={progress} show={showProgress} />
               <CarmaMap
-                onClick={() => {}}
                 mapEngine="maplibre"
                 exposeMapToWindow
                 overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"

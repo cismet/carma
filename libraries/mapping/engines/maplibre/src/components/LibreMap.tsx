@@ -29,6 +29,7 @@ import { HidingForwardingManager } from "../lib/HidingForwardingManager";
 import {
   applySelectionForwarding,
   getCarmaConf,
+  getCarmaConfFromStyle,
   resolvePropertyTarget,
 } from "../lib/SelectionManager";
 import type { FeatureIdentifier } from "../lib/selectionTypes";
@@ -54,7 +55,7 @@ import { SelectionItem, useSelection } from "@carma-appframeworks/portals";
 import { defaultLayerConf } from "@carma-appframeworks/portals";
 import { useMapHashRouting } from "@carma-appframeworks/portals";
 import { displayRouteOnMap } from "@carma-mapping/routing";
-import { ThreeLayerManager } from "./ThreeLayerManager";
+import { ThreeLayerManager, get3dLayers } from "./ThreeLayerManager";
 
 export interface GeoJsonData {
   sourceId: string;
@@ -159,11 +160,77 @@ export interface LibreMapProps {
   /** Raster paint overrides applied to all background raster layers (night mode, etc.) */
   backgroundRasterPaint?: RasterPaintOverrides;
   /** Runtime parameters for 3D layers (e.g. radiusMix, useLoft) */
-  threeRuntimeParams?: Record<string, number>;
+  threeRuntimeParams?: Record<string, number | string>;
   /** Ref for 3D layer performance data */
   threePerfRef?: React.MutableRefObject<
     import("@carma-mapping/engines/threejs").ThreePerfData
   >;
+}
+
+/**
+ * Query rendered features with a terrain workaround.
+ * When terrain is active, MapLibre's queryRenderedFeatures fails for fill-extrusion
+ * layers because internal matrices are terrain-biased. This helper temporarily
+ * suppresses terrain state, re-projects the click point, queries, then restores.
+ */
+function queryFeaturesWithTerrainFix(
+  map: maplibregl.Map,
+  clickPoint: maplibregl.Point
+): maplibregl.MapGeoJSONFeature[] {
+  const mapTerrain = (map as any).terrain;
+  if (!mapTerrain) {
+    return map.queryRenderedFeatures(clickPoint);
+  }
+
+  const transform = (map as any).transform;
+  type TerrainRef = { terrain: unknown };
+
+  // Step 1: Get terrain-aware lnglat BEFORE suppression
+  const clickLngLat = map.unproject(clickPoint);
+
+  // Step 2: Suppress terrain state
+  const savedElevation: number = transform._helper._elevation;
+  const savedScreenPointToMerc = transform.screenPointToMercatorCoordinate;
+  const savedTileManagers: TerrainRef[] = [];
+
+  try {
+    transform._helper._elevation = 0;
+    transform._calcMatrices();
+
+    (map as any).terrain = null;
+
+    const style = (map as any).style;
+    if (style?.tileManagers) {
+      for (const id in style.tileManagers) {
+        const tm = style.tileManagers[id];
+        if (tm.terrain) {
+          savedTileManagers.push(tm);
+          tm.terrain = null;
+        }
+      }
+    }
+
+    transform.screenPointToMercatorCoordinate = function (
+      p: unknown,
+      _terrain?: unknown
+    ) {
+      return this.screenPointToMercatorCoordinateAtZ(p);
+    };
+
+    // Step 3: Re-project and query
+    const projected = map.project(clickLngLat);
+    const queryPoint = new maplibregl.Point(projected.x, projected.y);
+    return map.queryRenderedFeatures(queryPoint);
+  } finally {
+    // Restore all terrain state
+    transform.screenPointToMercatorCoordinate = savedScreenPointToMerc;
+    (map as any).terrain = mapTerrain;
+    for (const tm of savedTileManagers) {
+      tm.terrain = mapTerrain;
+    }
+    transform._helper._elevation = savedElevation;
+    transform._calcMatrices();
+  }
 }
 
 export const LibreMap = ({
@@ -569,7 +636,7 @@ export const LibreMap = ({
 
       const zoom =
         hashParams["zoom"] !== undefined
-          ? parseFloat(hashParams["zoom"]) - 1
+          ? zoom256as512(parseFloat(hashParams["zoom"])) // -1: hash stores 256px tile zoom, MapLibre uses 512px
           : defaultZoom;
 
       const mapInstance = new maplibregl.Map({
@@ -578,6 +645,7 @@ export const LibreMap = ({
         center: [lng, lat],
         zoom: zoom,
         maxZoom: 21.9999,
+        maxPitch: 65,
         attributionControl: false,
         interactive,
         canvasContextAttributes: preserveDrawingBuffer
@@ -604,14 +672,222 @@ export const LibreMap = ({
       }
 
       mapInstance.on("click", async (e) => {
-        const point = mapInstance.project([e.lngLat.lng, e.lngLat.lat]);
-        const hits = mapInstance.queryRenderedFeatures(point);
+        // ── 3D raycast: check 3D layers before 2D ─────────────
+        const threeLayers = get3dLayers(mapInstance);
+        if (threeLayers.length > 0) {
+          console.log(
+            "[3D-SELECT] click at",
+            e.lngLat,
+            "3D layers:",
+            threeLayers.length
+          );
+
+          // Raycast ALL layers and pick the closest hit by distance
+          let bestHitLayer: (typeof threeLayers)[0] | null = null;
+          let bestResult: ReturnType<(typeof threeLayers)[0]["raycast"]> = null;
+          let bestDist = Infinity;
+
+          for (const threeLayer of threeLayers) {
+            const result = threeLayer.raycast(e.point.x, e.point.y);
+            // [3D-SELECT] per-layer raycast log suppressed
+            if (result && result.resolvedSourceIndex != null) {
+              const dist = result.hitDistance ?? Infinity;
+              if (dist < bestDist) {
+                bestDist = dist;
+                bestHitLayer = threeLayer;
+                bestResult = result;
+              }
+            }
+          }
+
+          if (bestHitLayer && bestResult && bestResult.resolvedSourceIndex != null) {
+              // Before accepting the 3D hit, check if there's a 2D symbol
+              // feature at the click point. Symbol layers (POI icons/text)
+              // render visually above 3D layers, so they should win clicks.
+              const hits2d = mapInstance.queryRenderedFeatures(e.point);
+              // queryRenderedFeatures returns hits in visual order (top first).
+              // If the topmost hit has a layerMapping, it's a selectable feature
+              // rendered above the 3D layer, so let the 2D path handle the click.
+              // If the topmost 2D hit is from a LIBRE_LAYERS sub-style (has
+              // layer-id metadata) but NOT from a source that has a 3D layer,
+              // it renders above the 3D objects, so let 2D selection win.
+              // Check if any 2D hit comes from a layer positioned after all
+              // 3D source layers in the style stack. Such layers render visually
+              // above the 3D objects and should win the click.
+              const styleLayers = mapInstance.getStyle()?.layers ?? [];
+              const threeSources = new Set(threeLayers.map((l) => l._config.sourceId));
+              let lastThreeSourceIdx = -1;
+              for (let i = 0; i < styleLayers.length; i++) {
+                const src = (styleLayers[i] as { source?: string }).source;
+                if (src && threeSources.has(src)) lastThreeSourceIdx = i;
+              }
+              const hitAbove3d = lastThreeSourceIdx >= 0 && hits2d.some((f) => {
+                const idx = styleLayers.findIndex((sl) => sl.id === f.layer.id);
+                return idx > lastThreeSourceIdx;
+              });
+              if (hitAbove3d) {
+                // Let the 2D selection path handle this click
+                threeLayers.forEach((l) => l.unhighlight());
+              }
+
+              if (!hitAbove3d) {
+              const threeLayer = bestHitLayer;
+              const result = bestResult;
+              // [3D-SELECT] closest hit log suppressed
+
+              // 3D hit detected: takes priority over 2D
+              clearVisualSelection(mapInstance);
+              setSelectedFeature(null);
+              mapSelectionCtxRef.current.clearSelection();
+
+              // Unhighlight all 3D layers, then highlight the hit one
+              threeLayers.forEach((l) => l.unhighlight());
+              threeLayer.highlight(result.resolvedSourceIndex);
+
+              if (result.sourceFeature) {
+                const sf = result.sourceFeature;
+                const featureId = {
+                  source: sf.source,
+                  sourceLayer: sf.sourceLayer,
+                  id: sf.id,
+                };
+                // [3D-SELECT] forwarding + properties logs suppressed
+
+                if (sf.id != null) {
+                  applyVisualSelection(mapInstance, featureId);
+                }
+
+                // Build synthetic MapGeoJSONFeature for createFeature
+                const carmaConf3d = getCarmaConfFromStyle(
+                  mapInstance,
+                  sf.sourceLayer
+                );
+                const syntheticFeature = {
+                  type: "Feature" as const,
+                  geometry: sf.geometry ?? {
+                    type: "Point" as const,
+                    coordinates: [0, 0],
+                  },
+                  properties: { ...sf.properties },
+                  id: sf.id,
+                  source: sf.source,
+                  sourceLayer: sf.sourceLayer,
+                  layer: {
+                    id: threeLayer.id,
+                    metadata: carmaConf3d ? { carmaConf: carmaConf3d } : {},
+                  },
+                  state: {},
+                } as maplibregl.MapGeoJSONFeature;
+
+                // Find layerMapping using the same keys as the 2D handler
+                const layerId3d = (carmaConf3d as Record<string, unknown>)?.[
+                  "layer-id"
+                ] as string | undefined;
+
+                // Fallback: scan style layers with matching source for a layer-id
+                let fallbackLayerId: string | undefined;
+                if (!layerId3d) {
+                  const style = mapInstance.getStyle();
+                  if (style?.layers) {
+                    for (const sl of style.layers) {
+                      if ("source" in sl && sl.source === sf.source) {
+                        const slMeta = sl.metadata as
+                          | Record<string, unknown>
+                          | undefined;
+                        const lid = slMeta?.["layer-id"] as string | undefined;
+                        if (lid && mappingRef.current[lid]) {
+                          fallbackLayerId = lid;
+                          break;
+                        }
+                      }
+                    }
+                  }
+                }
+
+                // [3D-SELECT] mapping lookup log suppressed
+                const layerMapping3d =
+                  mappingRef.current[layerId3d ?? ""] ||
+                  mappingRef.current[fallbackLayerId ?? ""] ||
+                  mappingRef.current[sf.source] ||
+                  mappingRef.current[sf.sourceLayer ?? ""];
+
+                if (layerMapping3d) {
+                  const feature = await createFeature(
+                    syntheticFeature,
+                    layerMapping3d,
+                    mapInstance,
+                    useRouting,
+                    openDatasheetRef.current
+                  );
+                  if (feature) {
+                    setSelectedFeature(feature);
+                    mapSelectionCtxRef.current.setSelectedFeature(feature);
+                    mapSelectionCtxRef.current.selectFeature(
+                      featureId,
+                      syntheticFeature
+                    );
+                    lastHandledVersionRef.current =
+                      mapSelectionCtxRef.current.selectionVersion + 1;
+                    onFeatureSelect?.(feature, featureId);
+                  }
+                } else {
+                  console.log(
+                    "[3D-SELECT] no layerMapping found, infobox skipped"
+                  );
+                }
+              } else {
+                console.log(
+                  "[3D-SELECT] 3D hit but source feature not resolved"
+                );
+              }
+              return; // skip 2D selection
+              } // end if (!hitAbove3d)
+          }
+        }
+        // ── end 3D raycast ────────────────────────────────────
+
+        // No 3D hit: clear any 3D highlights
+        const threeLayers2d = get3dLayers(mapInstance);
+        threeLayers2d.forEach((l) => l.unhighlight());
+
+        // Query with terrain fix (suppresses terrain state so fill-extrusion features
+        // are returned correctly, then restores)
+        const hasTerrain = !!(mapInstance as any).terrain;
+        const hits = queryFeaturesWithTerrainFix(mapInstance, e.point);
+        const queryPoint = hasTerrain
+          ? new maplibregl.Point(e.point.x, e.point.y)
+          : e.point;
+
         const filteredHits = hits.filter((hit) => {
           return (
             !hit.layer.id.includes("selection") &&
             !hit.layer.id.includes("cluster")
           );
         });
+
+        console.log(
+          "[TERRAIN CLICK]",
+          JSON.stringify({
+            screenPoint: { x: e.point.x, y: e.point.y },
+            queryPoint: { x: queryPoint.x, y: queryPoint.y },
+            hasTerrain,
+            camera: {
+              zoom: mapInstance.getZoom(),
+              pitch: mapInstance.getPitch(),
+              bearing: mapInstance.getBearing(),
+              center: mapInstance.getCenter(),
+            },
+            rawHits: hits.length,
+            rawHitLayers: hits.map((h) => h.layer.id),
+            filteredHits: filteredHits.length,
+            filteredHitLayers: filteredHits.map((h) => ({
+              layer: h.layer.id,
+              type: h.layer.type,
+              source: h.source,
+              id: h.id,
+            })),
+          })
+        );
 
         // Clear previous visual selection
         clearVisualSelection(mapInstance);

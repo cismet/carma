@@ -19,7 +19,8 @@ import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import "leaflet/dist/leaflet.css";
 
-const STORAGE_KEY = "buildings-camera";
+const LS_PREFIX = "ng-topicmap-playground:";
+const STORAGE_KEY = `${LS_PREFIX}buildings-camera`;
 
 function CameraPersistence() {
   const { map } = useLibreContext();
@@ -81,7 +82,6 @@ export function Buildings() {
               <CameraPersistence />
               <ProgressIndicator progress={progress} show={showProgress} />
               <CarmaMap
-                onClick={() => {}}
                 mapEngine="maplibre"
                 exposeMapToWindow
                 overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"

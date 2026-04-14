@@ -46,6 +46,7 @@ const LUT_SIZE = 101; // samples at t = 0.00 … 1.00
  * Must be called (and awaited) before the first synchronous rebuild().
  */
 export async function ensureProfiles(config: Carma3dConfig): Promise<void> {
+  if (!config.typeMap) return;
   for (const entry of Object.values(config.typeMap)) {
     if (hasProfile(entry.profileName)) continue;
 

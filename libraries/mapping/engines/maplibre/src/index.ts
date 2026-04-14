@@ -169,7 +169,7 @@ export {
 } from "./constants/cameraDefaults";
 
 // Three.js layer management
-export { ThreeLayerManager } from "./components/ThreeLayerManager";
+export { ThreeLayerManager, get3dLayers } from "./components/ThreeLayerManager";
 export type { ThreeLayerManagerProps } from "./components/ThreeLayerManager";
 
 // Styles (CSS should be imported by consumers)
