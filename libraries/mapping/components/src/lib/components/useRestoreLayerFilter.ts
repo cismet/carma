@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import type { FilterConfig } from "@carma/types";
+import type { FilterConfig } from "@carma-mapping/layers";
 import {
   buildFilterExpression,
   captureOriginalFilters,
