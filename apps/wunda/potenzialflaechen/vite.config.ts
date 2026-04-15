@@ -22,6 +22,10 @@ export default defineConfig({
 
   plugins: [react(), nxViteTsPaths()],
 
+  optimizeDeps: {
+    include: ['leaflet', 'leaflet-snap'],
+  },
+
   // Uncomment this if you are using workers.
   // worker: {
   //  plugins: [ nxViteTsPaths() ],
