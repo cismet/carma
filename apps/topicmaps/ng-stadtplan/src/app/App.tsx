@@ -163,7 +163,6 @@ export default function App() {
         <TitleBox filterState={filterState} lebenslagen={lebenslagen} />
       )}
       <CarmaMap
-        onClick={() => {}}
         mapEngine="maplibre"
         exposeMapToWindow
         overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
