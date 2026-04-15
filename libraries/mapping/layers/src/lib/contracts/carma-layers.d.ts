@@ -137,7 +137,7 @@ type BaseLayer = {
 
 export type Layer = BaseLayer & {
   type?: typeof LAYER_ENTITY_TYPES.LAYER | typeof LAYER_ENTITY_TYPES.OBJECT;
-  layerType:
+  layerType?:
     | typeof LAYER_PROVIDER_TYPES.WMTS
     | typeof LAYER_PROVIDER_TYPES.WMTS_NT
     | typeof LAYER_PROVIDER_TYPES.VECTOR;

@@ -46,6 +46,7 @@ import { useAppConfig } from "./hooks/useAppConfig";
 import { useManageLayers } from "./hooks/useManageLayers";
 import { useSyncToken } from "./hooks/useSyncToken";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
+import { useMeasurementLayerButton } from "./hooks/useMeasurementLayerButton";
 
 import { APP_KEY, layerMap } from "./config";
 import { geoportalMapStyleConfig } from "./config/mapStyleConfig";
@@ -152,6 +153,7 @@ function App({ published }: { published?: boolean }) {
   useManageLayers(layerMap);
   const syncToken = useSyncToken();
   useKeyboardShortcuts();
+  useMeasurementLayerButton();
   const customFeatureFlags = useSelector(getCustomFeatureFlags);
   const uiMode = useSelector(getUIMode);
   const mode =
