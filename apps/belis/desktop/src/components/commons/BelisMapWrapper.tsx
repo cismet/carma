@@ -1747,7 +1747,7 @@ const BelisMapLibWrapper = ({
     return removeLayers;
   }, [miniMap, miniMapReady, sidebarVariant, activeAATab, selectedAAData]);
 
-  // --- Mini-map: sync AP feature-state selection ---
+  // --- Mini-map: sync AP feature-state selection + fly to selected AP ---
   const prevMiniAPIdRef = useRef<number | null>(null);
   useEffect(() => {
     if (!miniMap) return;
@@ -1777,7 +1777,47 @@ const BelisMapLibWrapper = ({
     } catch {
       // source may not exist yet
     }
-  }, [miniMap, selectedAPId]);
+
+    // Fly the mini map to the selected AP feature
+    const geojson = draftMode
+      ? apDraftGeoJson
+      : selectedAAData
+        ? buildApGeoJson(selectedAAData)
+        : null;
+    const feature = geojson?.features.find(
+      (f) => f.properties?.id === selectedAPId
+    );
+    if (feature?.geometry) {
+      const geom = feature.geometry;
+      const flatCoords: number[][] =
+        geom.type === "Point"
+          ? [(geom as GeoJSON.Point).coordinates]
+          : geom.type === "LineString"
+            ? (geom as GeoJSON.LineString).coordinates
+            : geom.type === "MultiLineString"
+              ? (geom as GeoJSON.MultiLineString).coordinates.flat()
+              : [];
+      if (flatCoords.length > 0) {
+        let minLng = Infinity,
+          minLat = Infinity,
+          maxLng = -Infinity,
+          maxLat = -Infinity;
+        for (const [lng, lat] of flatCoords) {
+          if (lng < minLng) minLng = lng;
+          if (lat < minLat) minLat = lat;
+          if (lng > maxLng) maxLng = lng;
+          if (lat > maxLat) maxLat = lat;
+        }
+        miniMap.fitBounds(
+          [
+            [minLng, minLat],
+            [maxLng, maxLat],
+          ],
+          { padding: 40, maxZoom: 18 }
+        );
+      }
+    }
+  }, [miniMap, selectedAPId, selectedAAData, draftMode, apDraftGeoJson]);
 
   // Build infobox override for AA features.
   // Always uses the override path because the AA GeoJSON source has no
