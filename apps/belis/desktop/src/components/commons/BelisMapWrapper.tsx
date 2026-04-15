@@ -1586,6 +1586,28 @@ const BelisMapLibWrapper = ({
     setMiniMap(m);
   }, []);
 
+  // Hide Fachobjekte layers on the mini map when in Arbeitsaufträge mode.
+  useEffect(() => {
+    if (!miniMap || !miniMapReady || sidebarVariant !== "arbeitsauftraege")
+      return;
+    const hide = () => {
+      for (const layer of miniMap.getStyle()?.layers ?? []) {
+        if ("source" in layer && layer.source === namespacedSource) {
+          try {
+            miniMap.setLayoutProperty(layer.id, "visibility", "none");
+          } catch {
+            /* layer may not be ready */
+          }
+        }
+      }
+    };
+    hide();
+    miniMap.on("styledata", hide);
+    return () => {
+      miniMap.off("styledata", hide);
+    };
+  }, [sidebarVariant, miniMap, miniMapReady, namespacedSource]);
+
   // --- Mini-map: render AA convex hull polygons from client-side GeoJSON ---
   const MINI_AA_FILL = "mini-aa-fill";
   const MINI_AA_OUTLINE = "mini-aa-outline";
