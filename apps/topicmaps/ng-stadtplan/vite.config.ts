@@ -26,7 +26,7 @@ export default defineConfig({
   base: base,
 
   optimizeDeps: {
-    include: ["maplibre-gl"],
+    include: ["maplibre-gl", "leaflet-snap"],
     esbuildOptions: {
       target: "es2022",
     },
