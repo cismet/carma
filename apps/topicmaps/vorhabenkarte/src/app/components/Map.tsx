@@ -40,7 +40,19 @@ import {
   TAILWIND_CLASSNAMES_FULLSCREEN_FIXED,
 } from "@carma-commons/utils";
 import { GenericInfoBoxFromFeature } from "@carma-appframeworks/portals";
-import SecondaryInfoModal, { LightboxDispatch } from "./SecondaryInfoModal";
+import { genericSecondaryInfoFooterFactory } from "@carma-collab/wuppertal/commons";
+
+import SIMComponentDictionary from "@carma-collab/wuppertal/secondary-info-modals";
+
+const SecondaryInfoModal = SIMComponentDictionary["vorhabenkarteSIM"];
+
+type LightboxDispatch = {
+  setPhotoUrls: (urls: string[]) => void;
+  setIndex: (i: number) => void;
+  setTitle: (t: string) => void;
+  setCaptions: (t: string[]) => void;
+  setVisible: (v: boolean) => void;
+};
 import { FeatureIconOverlay } from "./FeatureIconOverlay";
 import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { isAreaType } from "@carma-commons/resources";
@@ -232,6 +244,10 @@ const Map = () => {
               versionString={getApplicationVersion(versionData)}
               feature={selectedFeature}
               setOpen={setSecondaryInfoVisible}
+              Footer={genericSecondaryInfoFooterFactory({
+                skipTeilzwilling: false,
+              })}
+              skipTeilzwilling={false}
             />
           )}
           <TopicMapSelectionContent />
