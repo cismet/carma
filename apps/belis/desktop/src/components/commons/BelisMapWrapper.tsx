@@ -1750,6 +1750,41 @@ const BelisMapLibWrapper = ({
       addedLayerIds.push(apLayerId);
     }
 
+    // Fit mini map to all AP features
+    if (geojson.features.length > 0) {
+      let minLng = Infinity,
+        minLat = Infinity,
+        maxLng = -Infinity,
+        maxLat = -Infinity;
+      for (const feature of geojson.features) {
+        const geom = feature.geometry;
+        if (!geom) continue;
+        const flatCoords: number[][] =
+          geom.type === "Point"
+            ? [(geom as GeoJSON.Point).coordinates]
+            : geom.type === "LineString"
+              ? (geom as GeoJSON.LineString).coordinates
+              : geom.type === "MultiLineString"
+                ? (geom as GeoJSON.MultiLineString).coordinates.flat()
+                : [];
+        for (const [lng, lat] of flatCoords) {
+          if (lng < minLng) minLng = lng;
+          if (lat < minLat) minLat = lat;
+          if (lng > maxLng) maxLng = lng;
+          if (lat > maxLat) maxLat = lat;
+        }
+      }
+      if (minLng !== Infinity) {
+        miniMap.fitBounds(
+          [
+            [minLng, minLat],
+            [maxLng, maxLat],
+          ],
+          { padding: 40, maxZoom: 18 }
+        );
+      }
+    }
+
     return removeLayers;
   }, [miniMap, miniMapReady, sidebarVariant, activeAATab, selectedAAData]);
 
