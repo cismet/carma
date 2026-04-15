@@ -11,11 +11,8 @@ export const MEASUREMENT_LAYER_ID = "__measurement__";
 const MEASUREMENT_LAYER: Layer = {
   id: MEASUREMENT_LAYER_ID,
   title: "Messung",
-  opacity: 1,
+  icon: "measurement",
   visible: true,
-  description: "",
-  queryable: false,
-  useInFeatureInfo: false,
 };
 
 export function useMeasurementLayerButton() {

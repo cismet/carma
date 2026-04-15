@@ -166,7 +166,7 @@ export const useLayerLoading = ({ map, layer }: UseLayerLoadingProps) => {
       : layer?.other?.name;
 
   const shouldShowLoading = () => {
-    if (layer.layerType === "vector") return false;
+    if (layer.layerType === "vector" || !layer.layerType) return false;
 
     return true;
   };
