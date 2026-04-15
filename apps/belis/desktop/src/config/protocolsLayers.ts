@@ -60,22 +60,39 @@ const COMPOSER_ICON_SCALE = 1.35;
 //
 // Match the circle diameter to the on-screen icon width at every zoom so the
 // underlay sits directly behind the sprite without a visible ring outside of
-// it. The sprite tiles are 66×66 but each icon's visible graphic only
-// occupies ~60% of that bounding box (the rest is transparent padding), so
-// using half-of-66 leaves the circle oversized. We tune SPRITE_HALF_PX to
-// the half-width of the visible icon graphic instead.
-const SPRITE_HALF_PX = 28;
-const circleRadius = [
-  "interpolate",
-  ["linear"],
-  ["zoom"],
-  10,
-  SPRITE_HALF_PX * 0.05 * COMPOSER_ICON_SCALE,
-  16,
-  SPRITE_HALF_PX * 0.3 * COMPOSER_ICON_SCALE,
-  23,
-  SPRITE_HALF_PX * 0.6 * COMPOSER_ICON_SCALE,
-] as unknown as number;
+// it. The sprite tiles are 66×66 but each icon's visible graphic occupies a
+// different fraction of that bounding box per type (leuchten's lamp is small,
+// schaltstelle's box is large, etc.), so we tune the half-width per type.
+const SPRITE_HALF_PX_BY_TYPE = {
+  leuchten: 14,
+  mast: 14,
+  abzweigdosen: 14,
+  mauerlaschen: 22,
+  schaltstelle: 28,
+} as const;
+type PointType = keyof typeof SPRITE_HALF_PX_BY_TYPE;
+
+// Global halo added to every SPRITE_HALF_PX value at render time, so the
+// green status circle extends a tiny bit beyond the visible icon. Expressed
+// in 66-px sprite units (scales with zoom via iconSize). Tweak here only —
+// do NOT inflate the per-type SPRITE_HALF_PX_BY_TYPE values, those represent
+// the actual icon footprint and should stay ground truth.
+const UNDERLAY_HALO_PX = 2;
+
+const buildCircleRadius = (halfPx: number) => {
+  const h = halfPx + UNDERLAY_HALO_PX;
+  return [
+    "interpolate",
+    ["linear"],
+    ["zoom"],
+    10,
+    h * 0.05 * COMPOSER_ICON_SCALE,
+    16,
+    h * 0.3 * COMPOSER_ICON_SCALE,
+    23,
+    h * 0.6 * COMPOSER_ICON_SCALE,
+  ] as unknown as number;
+};
 
 // Real leitungen line. Scaled ~2× styleY's "leitungen-base" for readability
 // of the bezeichnung-based status color.
@@ -136,10 +153,10 @@ const selectionIconOpacity = [
   0,
 ] as unknown as number;
 
-const circlePaint = {
-  "circle-radius": circleRadius,
+const buildCirclePaint = (type: PointType) => ({
+  "circle-radius": buildCircleRadius(SPRITE_HALF_PX_BY_TYPE[type]),
   "circle-color": statusColor,
-};
+});
 
 /**
  * Zoom-based icon sizing, copied from the main Fachobjekte styleY.json
@@ -270,35 +287,35 @@ export const protocolsLayers: LayerSpecification[] = [
     type: "circle",
     source: "belis-source",
     "source-layer": "leuchten",
-    paint: circlePaint,
+    paint: buildCirclePaint("leuchten"),
   },
   {
     id: "mast",
     type: "circle",
     source: "belis-source",
     "source-layer": "mast",
-    paint: circlePaint,
+    paint: buildCirclePaint("mast"),
   },
   {
     id: "abzweigdosen",
     type: "circle",
     source: "belis-source",
     "source-layer": "abzweigdosen",
-    paint: circlePaint,
+    paint: buildCirclePaint("abzweigdosen"),
   },
   {
     id: "mauerlaschen",
     type: "circle",
     source: "belis-source",
     "source-layer": "mauerlaschen",
-    paint: circlePaint,
+    paint: buildCirclePaint("mauerlaschen"),
   },
   {
     id: "schaltstelle",
     type: "circle",
     source: "belis-source",
     "source-layer": "schaltstelle",
-    paint: circlePaint,
+    paint: buildCirclePaint("schaltstelle"),
   },
   // Sprite-based icon overlay for leuchten. The sprite "leuchten" is provided
   // by the main BELIS style (styleY.json → "sprite": ".../belis/sprites") and
