@@ -96,7 +96,7 @@ import {
 import { protocolsLayers as protocolsLayersNew } from "../../config/protocolsLayers";
 
 // Toggle between the preliminary debug layer styles and the new protocols styles.
-const USE_DEBUG_LAYERS_FOR_PROTOCOLS_LAYERS = true;
+const USE_DEBUG_LAYERS_FOR_PROTOCOLS_LAYERS = false;
 const protocolsLayers = !USE_DEBUG_LAYERS_FOR_PROTOCOLS_LAYERS
   ? protocolsLayersNew
   : debugLayers;
