@@ -61,3 +61,22 @@ export const statusFallbackHex = (): string => {
   const [r, g, b] = STATUS_FALLBACK_RGB;
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 };
+
+/**
+ * Map an `arbeitsprotokollstatus.bezeichnung` string to one of the four known
+ * status keys. A null/empty bezeichnung is the canonical representation of
+ * "offen" in this system (matches the filter semantics in constants/queries.ts
+ * where `fk_status IS NULL || schluessel = "0"` selects offen). Returns `null`
+ * for a recognized-but-unknown label (e.g. a new status that isn't yet mapped).
+ */
+export function resolveStatusKey(
+  bezeichnung: string | null | undefined
+): StatusKey | null {
+  if (!bezeichnung) return "offen";
+  const b = String(bezeichnung).toLowerCase();
+  if (b.includes("offen")) return "offen";
+  if (b.includes("bearbeitung")) return "in_bearbeitung";
+  if (b.includes("erledigt")) return "erledigt";
+  if (b.includes("fehl")) return "fehlmeldung";
+  return null;
+}

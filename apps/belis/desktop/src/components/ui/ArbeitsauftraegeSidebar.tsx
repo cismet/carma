@@ -29,6 +29,7 @@ import type { APDraft } from "../../store/slices/arbeitsauftraegeDrafts";
 import { getSelectedTeamName } from "../../store/selectors";
 import {
   STATUS_LABELS,
+  resolveStatusKey,
   statusRgba,
   type StatusKey,
 } from "../../config/statusColors";
@@ -42,13 +43,15 @@ interface ArbeitsauftraegeSidebarProps {
 
 type TabKey = "aa" | "ap";
 
-// Alphas for the two sidebar surfaces. Progress bars sit on white with fine
+// Alphas for the three sidebar surfaces. Progress bars sit on white with fine
 // 2-3px heights, so a pastel 0.35 reads well. The legend dots are much smaller
 // and need more saturation to be legible; they reuse the same value as the
-// map (see config/protocolsLayers.ts). RGB values are centralized in
-// config/statusColors.ts.
+// map (see config/protocolsLayers.ts). Pills around the protokollnummer sit
+// behind text, so a softer alpha keeps the number legible. RGB values are
+// centralized in config/statusColors.ts.
 const SIDEBAR_STATUS_ALPHA = 0.35;
 const LEGEND_STATUS_ALPHA = 0.7;
+const PILL_STATUS_ALPHA = 0.35;
 const STATUS_COLORS: Record<StatusKey, string> = {
   offen: statusRgba("offen", SIDEBAR_STATUS_ALPHA),
   in_bearbeitung: statusRgba("in_bearbeitung", SIDEBAR_STATUS_ALPHA),
@@ -60,6 +63,12 @@ const LEGEND_COLORS: Record<StatusKey, string> = {
   in_bearbeitung: statusRgba("in_bearbeitung", LEGEND_STATUS_ALPHA),
   erledigt: statusRgba("erledigt", LEGEND_STATUS_ALPHA),
   fehlmeldung: statusRgba("fehlmeldung", LEGEND_STATUS_ALPHA),
+};
+const PILL_COLORS: Record<StatusKey, string> = {
+  offen: statusRgba("offen", PILL_STATUS_ALPHA),
+  in_bearbeitung: statusRgba("in_bearbeitung", PILL_STATUS_ALPHA),
+  erledigt: statusRgba("erledigt", PILL_STATUS_ALPHA),
+  fehlmeldung: statusRgba("fehlmeldung", PILL_STATUS_ALPHA),
 };
 
 const FEATURE_TYPE_LABELS: Record<string, string> = {
@@ -458,9 +467,26 @@ const ArbeitsauftraegeSidebar = ({
                     }}
                   >
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-sm text-gray-900">
-                        #{p.protokollnummer}
-                      </span>
+                      {(() => {
+                        const statusKey = resolveStatusKey(
+                          p.arbeitsprotokollstatus?.bezeichnung
+                        );
+                        const pillBg = statusKey
+                          ? PILL_COLORS[statusKey]
+                          : undefined;
+                        const pillTitle = statusKey
+                          ? STATUS_LABELS[statusKey]
+                          : "Unbekannt";
+                        return (
+                          <span
+                            className="inline-block px-1.5 py-0.5 rounded-full font-medium text-sm text-gray-900"
+                            style={{ backgroundColor: pillBg }}
+                            title={pillTitle}
+                          >
+                            #{p.protokollnummer}
+                          </span>
+                        );
+                      })()}
                       <span className="text-xs text-gray-400 ml-auto">
                         {shortname}
                       </span>

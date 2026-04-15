@@ -1,6 +1,11 @@
 import proj4 from "proj4";
 import { getFachobjektOfProtocol } from "@carma-appframeworks/belis";
-import { statusFallbackHex, statusHex } from "../config/statusColors";
+import {
+  STATUS_LABELS,
+  resolveStatusKey,
+  statusFallbackHex,
+  statusHex,
+} from "../config/statusColors";
 import type { ArbeitsauftragDetail } from "../store/slices/arbeitsauftraege";
 
 const proj4crs25832def = "+proj=utm +zone=32 +ellps=GRS80 +units=m +no_defs";
@@ -22,20 +27,9 @@ function getStatusInfo(status: Record<string, any> | null): {
   key: string;
   label: string;
 } {
-  // A missing status is the canonical representation of "offen" in this
-  // system — see constants/queries.ts where the "offen" filter matches
-  // `fk_status: { _is_null: true }` OR `schluessel: { _eq: "0" }`.
-  // `schluessel` carries the numeric code ("0", "1", …), so substring
-  // matching is done against `bezeichnung` (the German label), which is
-  // the same field getHeaderColorFromStatus below uses.
-  if (!status?.bezeichnung) return { key: "offen", label: "Offen" };
-  const b = String(status.bezeichnung).toLowerCase();
-  if (b.includes("offen")) return { key: "offen", label: "Offen" };
-  if (b.includes("bearbeitung"))
-    return { key: "in_bearbeitung", label: "In Bearbeitung" };
-  if (b.includes("erledigt")) return { key: "erledigt", label: "Erledigt" };
-  if (b.includes("fehl")) return { key: "fehlmeldung", label: "Fehlmeldung" };
-  return { key: "unknown", label: status.bezeichnung };
+  const key = resolveStatusKey(status?.bezeichnung);
+  if (key != null) return { key, label: STATUS_LABELS[key] };
+  return { key: "unknown", label: status?.bezeichnung ?? "Unbekannt" };
 }
 
 /**
@@ -46,14 +40,8 @@ function getStatusInfo(status: Record<string, any> | null): {
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function getHeaderColorFromStatus(status: Record<string, any> | null): string {
-  // Missing status == "offen" by this system's convention — see getStatusInfo.
-  if (!status?.bezeichnung) return statusHex("offen");
-  const b = String(status.bezeichnung).toLowerCase();
-  if (b.includes("offen")) return statusHex("offen");
-  if (b.includes("bearbeitung")) return statusHex("in_bearbeitung");
-  if (b.includes("erledigt")) return statusHex("erledigt");
-  if (b.includes("fehl")) return statusHex("fehlmeldung");
-  return statusFallbackHex();
+  const key = resolveStatusKey(status?.bezeichnung);
+  return key != null ? statusHex(key) : statusFallbackHex();
 }
 
 /**
