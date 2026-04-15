@@ -27,6 +27,11 @@ import {
 } from "../../store/slices/arbeitsauftraegeDrafts";
 import type { APDraft } from "../../store/slices/arbeitsauftraegeDrafts";
 import { getSelectedTeamName } from "../../store/selectors";
+import {
+  STATUS_LABELS,
+  statusRgba,
+  type StatusKey,
+} from "../../config/statusColors";
 import type { AppDispatch } from "../../store";
 
 interface ArbeitsauftraegeSidebarProps {
@@ -37,18 +42,24 @@ interface ArbeitsauftraegeSidebarProps {
 
 type TabKey = "aa" | "ap";
 
-const STATUS_COLORS: Record<string, string> = {
-  offen: "rgba(245, 158, 11, 0.35)",
-  in_bearbeitung: "rgba(59, 130, 246, 0.35)",
-  erledigt: "rgba(16, 185, 129, 0.35)",
-  fehlmeldung: "rgba(239, 68, 68, 0.35)",
+// Alphas for the two sidebar surfaces. Progress bars sit on white with fine
+// 2-3px heights, so a pastel 0.35 reads well. The legend dots are much smaller
+// and need more saturation to be legible; they reuse the same value as the
+// map (see config/protocolsLayers.ts). RGB values are centralized in
+// config/statusColors.ts.
+const SIDEBAR_STATUS_ALPHA = 0.35;
+const LEGEND_STATUS_ALPHA = 0.7;
+const STATUS_COLORS: Record<StatusKey, string> = {
+  offen: statusRgba("offen", SIDEBAR_STATUS_ALPHA),
+  in_bearbeitung: statusRgba("in_bearbeitung", SIDEBAR_STATUS_ALPHA),
+  erledigt: statusRgba("erledigt", SIDEBAR_STATUS_ALPHA),
+  fehlmeldung: statusRgba("fehlmeldung", SIDEBAR_STATUS_ALPHA),
 };
-
-const STATUS_LABELS: Record<string, string> = {
-  offen: "Offen",
-  in_bearbeitung: "In Bearbeitung",
-  erledigt: "Erledigt",
-  fehlmeldung: "Fehlmeldung",
+const LEGEND_COLORS: Record<StatusKey, string> = {
+  offen: statusRgba("offen", LEGEND_STATUS_ALPHA),
+  in_bearbeitung: statusRgba("in_bearbeitung", LEGEND_STATUS_ALPHA),
+  erledigt: statusRgba("erledigt", LEGEND_STATUS_ALPHA),
+  fehlmeldung: statusRgba("fehlmeldung", LEGEND_STATUS_ALPHA),
 };
 
 const FEATURE_TYPE_LABELS: Record<string, string> = {
@@ -471,15 +482,17 @@ const ArbeitsauftraegeSidebar = ({
       {/* Status bar legend */}
       {!draftMode && (
         <div className="px-3 py-1.5 border-t border-gray-200 bg-gray-50 flex gap-3 flex-wrap">
-          {Object.entries(STATUS_LABELS).map(([key, label]) => (
-            <div key={key} className="flex items-center gap-1">
-              <span
-                className="inline-block w-2 h-2 rounded-full"
-                style={{ backgroundColor: STATUS_COLORS[key] }}
-              />
-              <span className="text-[10px] text-gray-500">{label}</span>
-            </div>
-          ))}
+          {(Object.entries(STATUS_LABELS) as [StatusKey, string][]).map(
+            ([key, label]) => (
+              <div key={key} className="flex items-center gap-1">
+                <span
+                  className="inline-block w-2 h-2 rounded-full"
+                  style={{ backgroundColor: LEGEND_COLORS[key] }}
+                />
+                <span className="text-[10px] text-gray-500">{label}</span>
+              </div>
+            )
+          )}
         </div>
       )}
     </div>

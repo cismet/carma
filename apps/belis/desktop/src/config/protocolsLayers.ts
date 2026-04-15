@@ -1,5 +1,6 @@
 import type { LayerSpecification } from "maplibre-gl";
 import slugify from "slugify";
+import { statusFallbackRgba, statusRgba } from "./statusColors";
 
 /**
  * AP feature layer definitions for Arbeitsaufträge mode.
@@ -27,72 +28,65 @@ const BELIS_SPRITE_ID = slugify(BELIS_SPRITE_URL, {
 });
 const sprite = (name: string) => `${BELIS_SPRITE_ID}:${name}`;
 
+// Status palette driven centrally from ./statusColors. Alpha is lifted from
+// the sidebar's 0.35 so the underlays read stronger on the map than they do
+// in the white-backed AA list.
+const STATUS_COLOR_ALPHA = 0.7;
 const statusColor = [
   "match",
   ["get", "status"],
   "offen",
-  "#F59E0B",
+  statusRgba("offen", STATUS_COLOR_ALPHA),
   "in_bearbeitung",
-  "#3B82F6",
+  statusRgba("in_bearbeitung", STATUS_COLOR_ALPHA),
   "erledigt",
-  "#10B981",
+  statusRgba("erledigt", STATUS_COLOR_ALPHA),
   "fehlmeldung",
-  "#EF4444",
-  "#22C55E",
+  statusRgba("fehlmeldung", STATUS_COLOR_ALPHA),
+  statusFallbackRgba(STATUS_COLOR_ALPHA),
 ] as unknown as string;
 
-const circleRadius = [
-  "case",
-  ["boolean", ["feature-state", "selected"], false],
-  11,
-  7,
-] as unknown as number;
+// Selection no longer changes point geometry: a dedicated Icon_Full underlay
+// layer (see the *-selection entries below) visualizes the selection instead.
+const circleRadius = 7;
+const strokeColor = "#ffffff";
+const strokeWidth = 2;
 
-const strokeColor = [
-  "case",
-  ["boolean", ["feature-state", "selected"], false],
-  "#2563EB",
-  "#ffffff",
-] as unknown as string;
-
-const strokeWidth = [
-  "case",
-  ["boolean", ["feature-state", "selected"], false],
-  3,
-  2,
-] as unknown as number;
-
-const lineWidth = [
-  "case",
-  ["boolean", ["feature-state", "selected"], false],
-  7,
-  5,
-] as unknown as number;
+const lineWidth = 5;
 
 // Wider variant used by the green leitungen underlay so the real-color line on
 // top leaves a ~3px green halo on both sides.
-const underlayLineWidth = [
-  "case",
-  ["boolean", ["feature-state", "selected"], false],
-  13,
-  11,
-] as unknown as number;
+const underlayLineWidth = 11;
 
 // Real leitungen coloring copied from styleY.json's "leitungen-base" layer:
-// branches on the `bezeichnung` property.
+// selected → solid blue, otherwise match on the `bezeichnung` property.
 const bezeichnungColor = [
-  "match",
-  ["get", "bezeichnung"],
-  ["Freileitung", "Tragseil mit Freileitung"],
-  "#C04040",
-  "Tragseil",
-  "#333333",
-  "Leerrohr",
-  "#555555",
-  "Hinweis",
-  "#5B9A8B",
-  "#D3976C",
+  "case",
+  ["boolean", ["feature-state", "selected"], false],
+  "#4892F0",
+  [
+    "match",
+    ["get", "bezeichnung"],
+    ["Freileitung", "Tragseil mit Freileitung"],
+    "#C04040",
+    "Tragseil",
+    "#333333",
+    "Leerrohr",
+    "#555555",
+    "Hinweis",
+    "#5B9A8B",
+    "#D3976C",
+  ],
 ] as unknown as string;
+
+// Opacity expression for the Icon_Full selection underlay — mirrors styleY's
+// *-selection layers: shown only when the feature is selected.
+const selectionIconOpacity = [
+  "case",
+  ["boolean", ["feature-state", "selected"], false],
+  0.7,
+  0,
+] as unknown as number;
 
 const circlePaint = {
   "circle-radius": circleRadius,
@@ -178,6 +172,85 @@ export const protocolsLayers: LayerSpecification[] = [
     source: "belis-source",
     "source-layer": "schaltstelle",
     paint: circlePaint,
+  },
+  // Selection underlays. One per point type, each rendering the Icon_Full
+  // sprite (a halo-style marker) only when the feature is selected. Drawn
+  // ABOVE the green status circle but BELOW the real feature icon, exactly
+  // like the *-selection layers in the main Fachobjekte styleY.json.
+  {
+    id: "leuchten-selection",
+    type: "symbol",
+    source: "belis-source",
+    "source-layer": "leuchten",
+    layout: {
+      "icon-image": sprite("Icon_Full"),
+      "icon-anchor": "center",
+      "icon-size": iconSize,
+      "icon-allow-overlap": true,
+    },
+    paint: {
+      "icon-opacity": selectionIconOpacity,
+    },
+  },
+  {
+    id: "mast-selection",
+    type: "symbol",
+    source: "belis-source",
+    "source-layer": "mast",
+    layout: {
+      "icon-image": sprite("Icon_Full"),
+      "icon-anchor": "center",
+      "icon-size": iconSize,
+      "icon-allow-overlap": true,
+    },
+    paint: {
+      "icon-opacity": selectionIconOpacity,
+    },
+  },
+  {
+    id: "abzweigdosen-selection",
+    type: "symbol",
+    source: "belis-source",
+    "source-layer": "abzweigdosen",
+    layout: {
+      "icon-image": sprite("Icon_Full"),
+      "icon-anchor": "center",
+      "icon-size": iconSize,
+      "icon-allow-overlap": true,
+    },
+    paint: {
+      "icon-opacity": selectionIconOpacity,
+    },
+  },
+  {
+    id: "mauerlaschen-selection",
+    type: "symbol",
+    source: "belis-source",
+    "source-layer": "mauerlaschen",
+    layout: {
+      "icon-image": sprite("Icon_Full"),
+      "icon-anchor": "center",
+      "icon-size": iconSize,
+      "icon-allow-overlap": true,
+    },
+    paint: {
+      "icon-opacity": selectionIconOpacity,
+    },
+  },
+  {
+    id: "schaltstelle-selection",
+    type: "symbol",
+    source: "belis-source",
+    "source-layer": "schaltstelle",
+    layout: {
+      "icon-image": sprite("Icon_Full"),
+      "icon-anchor": "center",
+      "icon-size": iconSize,
+      "icon-allow-overlap": true,
+    },
+    paint: {
+      "icon-opacity": selectionIconOpacity,
+    },
   },
   // Sprite-based icon overlay for leuchten. The sprite "leuchten" is provided
   // by the main BELIS style (styleY.json → "sprite": ".../belis/sprites") and
