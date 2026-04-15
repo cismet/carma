@@ -46,17 +46,65 @@ const statusColor = [
   statusFallbackRgba(STATUS_COLOR_ALPHA),
 ] as unknown as string;
 
+// CARMA's StyleComposer silently multiplies every symbol layer's icon-size by
+// `(markerSymbolSize / 35) * 1.35` when it loads styleY.json (see
+// libraries/mapping/engines/maplibre/src/utils/styleComposer.ts). belis
+// desktop uses the default markerSymbolSize (35), so the scale is 1.35. Our
+// hand-written symbol layers bypass the composer, so to render at the same
+// on-screen size as the Fachobjekte icons we apply the same factor here —
+// both to iconSize and to circleRadius (so the halo stays proportional).
+const COMPOSER_ICON_SCALE = 1.35;
+
 // Selection no longer changes point geometry: a dedicated Icon_Full underlay
 // layer (see the *-selection entries below) visualizes the selection instead.
-const circleRadius = 7;
-const strokeColor = "#ffffff";
-const strokeWidth = 2;
+//
+// Match the circle diameter to the on-screen icon width at every zoom so the
+// underlay sits directly behind the sprite without a visible ring outside of
+// it. The sprite tiles are 66×66 but each icon's visible graphic only
+// occupies ~60% of that bounding box (the rest is transparent padding), so
+// using half-of-66 leaves the circle oversized. We tune SPRITE_HALF_PX to
+// the half-width of the visible icon graphic instead.
+const SPRITE_HALF_PX = 28;
+const circleRadius = [
+  "interpolate",
+  ["linear"],
+  ["zoom"],
+  10,
+  SPRITE_HALF_PX * 0.05 * COMPOSER_ICON_SCALE,
+  16,
+  SPRITE_HALF_PX * 0.3 * COMPOSER_ICON_SCALE,
+  23,
+  SPRITE_HALF_PX * 0.6 * COMPOSER_ICON_SCALE,
+] as unknown as number;
 
-const lineWidth = 5;
+// Real leitungen line. Scaled ~2× styleY's "leitungen-base" for readability
+// of the bezeichnung-based status color.
+//   styleY:  z10 → 0.5   z16 → 2    z22 → 6
+//   ours:    z10 → 1     z16 → 5    z22 → 12
+const lineWidth = [
+  "interpolate",
+  ["linear"],
+  ["zoom"],
+  10,
+  1,
+  16,
+  5,
+  22,
+  12,
+] as unknown as number;
 
-// Wider variant used by the green leitungen underlay so the real-color line on
-// top leaves a ~3px green halo on both sides.
-const underlayLineWidth = 11;
+// Green status underlay — ~3px halo each side of the real line at every zoom.
+const underlayLineWidth = [
+  "interpolate",
+  ["linear"],
+  ["zoom"],
+  10,
+  4,
+  16,
+  11,
+  22,
+  18,
+] as unknown as number;
 
 // Real leitungen coloring copied from styleY.json's "leitungen-base" layer:
 // selected → solid blue, otherwise match on the `bezeichnung` property.
@@ -91,92 +139,32 @@ const selectionIconOpacity = [
 const circlePaint = {
   "circle-radius": circleRadius,
   "circle-color": statusColor,
-  "circle-stroke-width": strokeWidth,
-  "circle-stroke-color": strokeColor,
 };
 
 /**
  * Zoom-based icon sizing, copied from the main Fachobjekte styleY.json
- * (leuchten-icon layer). Kept identical so the protocol icons visually match
- * the main map at every zoom level.
+ * (leuchten-icon layer), then multiplied by COMPOSER_ICON_SCALE so protocol
+ * icons render at the same on-screen size as Fachobjekte icons (the composer
+ * applies the same factor to styleY's layers on the way in).
  */
 const iconSize = [
   "interpolate",
   ["linear"],
   ["zoom"],
   10,
-  0.05,
+  0.05 * COMPOSER_ICON_SCALE,
   16,
-  0.3,
+  0.3 * COMPOSER_ICON_SCALE,
   23,
-  0.6,
+  0.6 * COMPOSER_ICON_SCALE,
 ] as unknown as number;
 
 export const protocolsLayers: LayerSpecification[] = [
-  // Green status underlay — widened so it shows as a halo next to the
-  // real-colored line drawn on top (see "leitungen-real" below).
-  {
-    id: "leitungen",
-    type: "line",
-    source: "belis-source",
-    "source-layer": "leitungen",
-    paint: {
-      "line-color": statusColor,
-      "line-width": underlayLineWidth,
-    },
-  },
-  // Real leitungen color on top, using the same bezeichnung-based match as the
-  // main Fachobjekte style. Narrower than the underlay so the green shows on
-  // both sides.
-  {
-    id: "leitungen-real",
-    type: "line",
-    source: "belis-source",
-    "source-layer": "leitungen",
-    paint: {
-      "line-color": bezeichnungColor,
-      "line-width": lineWidth,
-    },
-  },
-  {
-    id: "leuchten",
-    type: "circle",
-    source: "belis-source",
-    "source-layer": "leuchten",
-    paint: circlePaint,
-  },
-  {
-    id: "mast",
-    type: "circle",
-    source: "belis-source",
-    "source-layer": "mast",
-    paint: circlePaint,
-  },
-  {
-    id: "abzweigdosen",
-    type: "circle",
-    source: "belis-source",
-    "source-layer": "abzweigdosen",
-    paint: circlePaint,
-  },
-  {
-    id: "mauerlaschen",
-    type: "circle",
-    source: "belis-source",
-    "source-layer": "mauerlaschen",
-    paint: circlePaint,
-  },
-  {
-    id: "schaltstelle",
-    type: "circle",
-    source: "belis-source",
-    "source-layer": "schaltstelle",
-    paint: circlePaint,
-  },
-  // Selection underlays. One per point type, each rendering the Icon_Full
-  // sprite (a halo-style marker) only when the feature is selected. Drawn
-  // ABOVE the green status circle but BELOW the real feature icon, exactly
-  // like the *-selection layers in the main Fachobjekte styleY.json.
+  // Selection halos — one per point type, rendering Icon_Full only when the
+  // feature is selected. Placed FIRST in the array so they are drawn
+  // UNDERNEATH every other protocol layer (including the green status
+  // circles), peeking out as a ring around the underlay when a feature is
+  // selected.
   {
     id: "leuchten-selection",
     type: "symbol",
@@ -251,6 +239,66 @@ export const protocolsLayers: LayerSpecification[] = [
     paint: {
       "icon-opacity": selectionIconOpacity,
     },
+  },
+  // Green status underlay — widened so it shows as a halo next to the
+  // real-colored line drawn on top (see "leitungen-real" below).
+  {
+    id: "leitungen",
+    type: "line",
+    source: "belis-source",
+    "source-layer": "leitungen",
+    paint: {
+      "line-color": statusColor,
+      "line-width": underlayLineWidth,
+    },
+  },
+  // Real leitungen color on top, using the same bezeichnung-based match as the
+  // main Fachobjekte style. Narrower than the underlay so the green shows on
+  // both sides.
+  {
+    id: "leitungen-real",
+    type: "line",
+    source: "belis-source",
+    "source-layer": "leitungen",
+    paint: {
+      "line-color": bezeichnungColor,
+      "line-width": lineWidth,
+    },
+  },
+  {
+    id: "leuchten",
+    type: "circle",
+    source: "belis-source",
+    "source-layer": "leuchten",
+    paint: circlePaint,
+  },
+  {
+    id: "mast",
+    type: "circle",
+    source: "belis-source",
+    "source-layer": "mast",
+    paint: circlePaint,
+  },
+  {
+    id: "abzweigdosen",
+    type: "circle",
+    source: "belis-source",
+    "source-layer": "abzweigdosen",
+    paint: circlePaint,
+  },
+  {
+    id: "mauerlaschen",
+    type: "circle",
+    source: "belis-source",
+    "source-layer": "mauerlaschen",
+    paint: circlePaint,
+  },
+  {
+    id: "schaltstelle",
+    type: "circle",
+    source: "belis-source",
+    "source-layer": "schaltstelle",
+    paint: circlePaint,
   },
   // Sprite-based icon overlay for leuchten. The sprite "leuchten" is provided
   // by the main BELIS style (styleY.json → "sprite": ".../belis/sprites") and
