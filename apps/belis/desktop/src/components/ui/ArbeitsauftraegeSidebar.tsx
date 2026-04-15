@@ -210,14 +210,14 @@ const ArbeitsauftraegeSidebar = ({
     : selectedFeature?.total_protokolle ?? protokolle.length;
 
   const apCount = draftMode ? protokolle.length : protokolleCount;
-  const showAPTab = apCount > 0 && selectedAAId != null;
+  const isAPTabDisabled = apCount === 0 || selectedAAId == null;
 
-  // Auto-switch to AA tab when AP tab becomes empty
+  // Auto-switch to AA tab when AP tab becomes disabled
   useEffect(() => {
-    if (!showAPTab && activeTab === "ap") {
+    if (isAPTabDisabled && activeTab === "ap") {
       setActiveTab("aa");
     }
-  }, [showAPTab, activeTab]);
+  }, [isAPTabDisabled, activeTab]);
 
   // Keyboard navigation for AA tab
   const selectedAAIndex = useMemo(
@@ -298,21 +298,26 @@ const ArbeitsauftraegeSidebar = ({
             {features.length}
           </span>
         </button>
-        {showAPTab && (
-          <button
-            className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors ${
-              activeTab === "ap"
+        <button
+          className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors ${
+            isAPTabDisabled
+              ? "text-gray-300 cursor-not-allowed"
+              : activeTab === "ap"
                 ? "text-blue-600 border-b-2 border-blue-500 bg-blue-50/50"
                 : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-            }`}
-            onClick={() => setActiveTab("ap")}
-          >
-            AP
-            <span className="ml-1 text-[10px] bg-gray-200 text-gray-600 rounded-full px-1.5 py-0.5">
-              {apCount}
-            </span>
-          </button>
-        )}
+          }`}
+          disabled={isAPTabDisabled}
+          onClick={() => !isAPTabDisabled && setActiveTab("ap")}
+        >
+          AP
+          <span className={`ml-1 text-[10px] rounded-full px-1.5 py-0.5 ${
+            isAPTabDisabled
+              ? "bg-gray-100 text-gray-300"
+              : "bg-gray-200 text-gray-600"
+          }`}>
+            {apCount}
+          </span>
+        </button>
       </div>
 
       {/* Content */}
