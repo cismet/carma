@@ -8,6 +8,7 @@ import {
   type PointLabelStyleProps,
   type PointLabelStyle,
 } from "./components/PointLabel";
+import { getOverlayReferenceSignature } from "./overlayReferenceSignature";
 import type {
   PointLabelAnchorKind,
   PointLabelOcclusionMode,
@@ -76,9 +77,6 @@ export type PointLabelLayoutOptions = {
   transitionDurationMs?: number;
 };
 
-const overlayReferenceIdByValue = new WeakMap<object, number>();
-let nextOverlayReferenceId = 1;
-
 const resolvePointNodeContent = (
   point: Pick<PointLabelData, "nodeContent" | "markerContent">
 ) => point.nodeContent ?? point.markerContent;
@@ -86,26 +84,6 @@ const resolvePointNodeContent = (
 const resolvePointBadgeContent = (
   point: Pick<PointLabelData, "badgeContent">
 ) => point.badgeContent;
-
-const getOverlayReferenceSignature = (value: unknown): string => {
-  if (value === null || value === undefined) {
-    return "";
-  }
-
-  if (typeof value === "object" || typeof value === "function") {
-    const ref = value as object;
-    const existingId = overlayReferenceIdByValue.get(ref);
-    if (existingId) {
-      return `ref:${existingId}`;
-    }
-
-    const nextId = nextOverlayReferenceId++;
-    overlayReferenceIdByValue.set(ref, nextId);
-    return `ref:${nextId}`;
-  }
-
-  return String(value);
-};
 
 const getPointStyleSignature = (
   styleProps: PointLabelStyleProps | undefined
@@ -183,6 +161,20 @@ const getPointContentSignature = (
     point.forceMarkerInteractionTarget
   )}:transition:${transitionDurationMs ?? ""}:style:${pointStyleSignature}`;
 
+const resolveBasePointStyleProps = (
+  styleProps: PointLabelStyleProps | undefined
+): Omit<PointLabelStyleProps, "fontSize" | "fontFamily" | "fontWeight"> => {
+  if (!styleProps) {
+    return {};
+  }
+
+  const baseStyleProps = { ...styleProps };
+  delete baseStyleProps.fontSize;
+  delete baseStyleProps.fontFamily;
+  delete baseStyleProps.fontWeight;
+  return baseStyleProps;
+};
+
 export const usePointLabels = (
   points: PointLabelData[],
   showLabels: boolean = true,
@@ -243,12 +235,7 @@ export const usePointLabels = (
 
       const attachOverlayClickHandlers =
         point.attachOverlayClickHandlers ?? true;
-      const {
-        fontSize: _styleFontSize,
-        fontFamily: _styleFontFamily,
-        fontWeight: _styleFontWeight,
-        ...baseStyleProps
-      } = styleProps ?? {};
+      const baseStyleProps = resolveBasePointStyleProps(styleProps);
       const pointStyleProps: PointLabelStyleProps = {
         ...baseStyleProps,
         ...(point.markerCursor !== undefined

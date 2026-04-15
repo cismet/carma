@@ -1,0 +1,16 @@
+{
+  "name": "annotations-ui",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libraries/mapping/annotations/ui/src",
+  "projectType": "library",
+  "tags": [
+    "type:library",
+    "scope:mapping",
+    "scope:annotations-ui"
+  ],
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  }
+}

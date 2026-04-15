@@ -17,7 +17,7 @@ import {
 import {
   CROSSHAIR_CURSOR_STYLES,
   type CrosshairCursorStyle,
-} from "@carma-mapping/annotations/runtime-v2";
+} from "@carma-mapping/annotations/runtime";
 
 import { createCursorRateDiagnosticsController } from "./create-cursor-rate-diagnostics-controller";
 import {

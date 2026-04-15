@@ -8,9 +8,8 @@ import {
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from "react";
-
 import { DraggableDebugAnchor } from "@carma-commons/interaction/drag";
-import { ANNOTATION_TYPE_POINT } from "@carma-mapping/annotations/core";
+import { ANNOTATION_TYPES } from "@carma-mapping/annotations/core";
 import {
   PILLBUTTON_BADGE_POSITIONS,
   PillbuttonLabelMarker,
@@ -26,18 +25,17 @@ import {
   ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE,
   ANNOTATION_MEASUREMENT_TEXT_COLOR,
   annotationTypographyDefaults,
-  resolveAnnotationMeasurementLabelTheme,
-  type AnnotationMeasurementQualitativeColorScheme,
-} from "@carma-mapping/annotations/runtime-v2";
-import type { CssPixelPosition } from "@carma-units";
-import {
   PREVIEW_LINE_LABEL_BACKGROUND_STYLE,
   PREVIEW_LINE_LABEL_THEME,
-} from "../../../../../../libraries/mapping/annotations/runtime-v2/src/lib/config/previewLineLabelVisualDefaults";
+  resolveAnnotationMeasurementLabelTheme,
+  type AnnotationMeasurementQualitativeColorScheme,
+} from "@carma-mapping/annotations/runtime";
+import type { CssPixelPosition } from "@carma-units";
 import barmenBackgroundUrl from "./assets/barmen-background.png";
-
 import { CenteredStoryFrame } from "../../common/ui/centered-story-frame";
-import "../../../../../../libraries/mapping/annotations/runtime-v2/src/lib/interaction/annotation-overlay-line-label.css";
+import "../../../../../../libraries/mapping/annotations/runtime/src/lib/interaction/annotation-overlay-line-label.css";
+const { POINT: ANNOTATION_TYPE_POINT } = ANNOTATION_TYPES;
+
 export type LabelMarkersStoryArgs = {
   content: ReactNode;
   badgeContent?: ReactNode;

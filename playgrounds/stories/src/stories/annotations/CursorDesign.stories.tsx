@@ -20,7 +20,7 @@ import {
   ResponsiveStatusBar,
   type AnnotationCursorSvgPathDefinition,
 } from "@carma-commons/ui/components";
-import { annotationTypographyDefaults } from "@carma-mapping/annotations/runtime-v2";
+import { annotationTypographyDefaults } from "@carma-mapping/annotations/runtime";
 import barmenBackgroundUrl from "../providers/label-overlay/assets/barmen-background.png";
 import {
   CURSOR_RENDER_MODES,

@@ -20,11 +20,11 @@ import {
   type RingMaterialPreset,
 } from "@carma-mapping/engines/cesium/core";
 import {
-  createPointQueryPreviewController,
-  POINT_QUERY_PREVIEW_DISC_PLACEMENT_MODES,
-  type PointQueryPreviewController,
-  type PointQueryPreviewDiscPlacementMode,
-} from "@carma-mapping/annotations/runtime-v2";
+  createPointQueryController,
+  POINT_QUERY_DISC_PLACEMENT_MODES,
+  type PointQueryController,
+  type PointQueryDiscPlacementMode,
+} from "@carma-mapping/annotations/runtime";
 import { type CesiumWidget } from "@carma-cesium";
 
 import { setupCesium } from "../map-engine-switcher/helpers/cesium-setup";
@@ -60,14 +60,14 @@ type CursorOverlaySamplerStoryProps = {
   discOpacity: number;
   discMaterialPreset: RingMaterialPreset;
   discColor: string;
-  tangentDiscVisualizerPlacementMode?: PointQueryPreviewDiscPlacementMode;
+  tangentDiscVisualizerPlacementMode?: PointQueryDiscPlacementMode;
   tangentDiscVisualizerShowNormalLine?: boolean;
   tangentDiscVisualizerTrailSampleCount?: number;
   tangentDiscVisualizerWeightDecayGamma?: number;
 };
 
 type CursorOverlayComparisonRunSummary = {
-  mode: PointQueryPreviewDiscPlacementMode;
+  mode: PointQueryDiscPlacementMode;
   sampleCount: number;
   meanLagPx: number;
   p95LagPx: number;
@@ -219,7 +219,7 @@ const buildAutomatedComparisonPath = (canvasRect: DOMRect) => {
 };
 
 const formatDiscPlacementModeLabel = (
-  placementMode: PointQueryPreviewDiscPlacementMode
+  placementMode: PointQueryDiscPlacementMode
 ) => placementMode;
 
 const summarizeTelemetryRun = ({
@@ -228,9 +228,9 @@ const summarizeTelemetryRun = ({
   startedAtMs,
 }: {
   telemetry: NonNullable<
-    ReturnType<PointQueryPreviewController["getTelemetrySnapshot"]>
+    ReturnType<PointQueryController["getTelemetrySnapshot"]>
   >;
-  mode: PointQueryPreviewDiscPlacementMode;
+  mode: PointQueryDiscPlacementMode;
   startedAtMs: number;
 }): CursorOverlayComparisonRunSummary => {
   const runEntries = telemetry.entries.filter(
@@ -305,7 +305,7 @@ const serializeComparisonSummaryToTsv = (
 
 const serializeTelemetrySnapshotToTsv = (
   telemetry: NonNullable<
-    ReturnType<PointQueryPreviewController["getTelemetrySnapshot"]>
+    ReturnType<PointQueryController["getTelemetrySnapshot"]>
   >
 ) => {
   const summaryRows = [
@@ -618,7 +618,7 @@ const CursorOverlaySamplerSandbox = ({
   const [comparisonSummary, setComparisonSummary] =
     useState<CursorOverlayComparisonSummary | null>(null);
   const [comparisonStatusText, setComparisonStatusText] = useState("cmp idle");
-  const controllerRef = useRef<PointQueryPreviewController | null>(null);
+  const controllerRef = useRef<PointQueryController | null>(null);
   const tilesetStatusRef = useRef<HTMLSpanElement | null>(null);
   const readoutRef = useRef<HTMLSpanElement | null>(null);
   const mousePositionRateRef = useRef<HTMLSpanElement | null>(null);
@@ -682,13 +682,13 @@ const CursorOverlaySamplerSandbox = ({
     []
   );
   const buildControllerOptions = useCallback(
-    (placementModeOverride?: PointQueryPreviewDiscPlacementMode) => {
+    (placementModeOverride?: PointQueryDiscPlacementMode) => {
       const resolvedTangentDiscVisualizerEnabled =
         tangentDiscVisualizerEnabled ?? showDisc ?? true;
       const resolvedTangentDiscVisualizerPlacementMode =
         placementModeOverride ??
         tangentDiscVisualizerPlacementMode ??
-        POINT_QUERY_PREVIEW_DISC_PLACEMENT_MODES.TRUE_SAMPLE;
+        POINT_QUERY_DISC_PLACEMENT_MODES.TRUE_SAMPLE;
 
       return {
         queryEnabled,
@@ -796,7 +796,7 @@ const CursorOverlaySamplerSandbox = ({
       dispatchPointerEvent("pointermove", point);
     };
     const runMode = async (
-      mode: PointQueryPreviewDiscPlacementMode
+      mode: PointQueryDiscPlacementMode
     ): Promise<CursorOverlayComparisonRunSummary> => {
       controller.updateOptions(buildControllerOptions(mode));
       requestStoryCesiumRender(widget);
@@ -836,10 +836,10 @@ const CursorOverlaySamplerSandbox = ({
 
     try {
       const trueSampleRun = await runMode(
-        POINT_QUERY_PREVIEW_DISC_PLACEMENT_MODES.TRUE_SAMPLE
+        POINT_QUERY_DISC_PLACEMENT_MODES.TRUE_SAMPLE
       );
       const reprojectRun = await runMode(
-        POINT_QUERY_PREVIEW_DISC_PLACEMENT_MODES.CAMERA_PLANE_REPROJECT
+        POINT_QUERY_DISC_PLACEMENT_MODES.CAMERA_PLANE_REPROJECT
       );
       const nextSummary: CursorOverlayComparisonSummary = {
         capturedAt: new Date().toISOString(),
@@ -875,7 +875,7 @@ const CursorOverlaySamplerSandbox = ({
     tangentDiscVisualizerEnabled ?? showDisc ?? true;
   const resolvedTangentDiscVisualizerPlacementMode =
     tangentDiscVisualizerPlacementMode ??
-    POINT_QUERY_PREVIEW_DISC_PLACEMENT_MODES.TRUE_SAMPLE;
+    POINT_QUERY_DISC_PLACEMENT_MODES.TRUE_SAMPLE;
   const discPlacementStatusLabel = formatDiscPlacementModeLabel(
     resolvedTangentDiscVisualizerPlacementMode
   );
@@ -1125,7 +1125,7 @@ const CursorOverlaySamplerSandbox = ({
           ? "tileset ready"
           : "tileset missing";
       }
-      controllerRef.current = createPointQueryPreviewController({
+      controllerRef.current = createPointQueryController({
         scene: result.widget.scene,
         readoutElement: readoutRef.current,
         mousePositionRateElement: mousePositionRateRef.current,
@@ -1380,8 +1380,8 @@ const meta: Meta<CursorOverlaySamplerStoryProps> = {
     tangentDiscVisualizerPlacementMode: {
       control: { type: "inline-radio" },
       options: [
-        POINT_QUERY_PREVIEW_DISC_PLACEMENT_MODES.TRUE_SAMPLE,
-        POINT_QUERY_PREVIEW_DISC_PLACEMENT_MODES.CAMERA_PLANE_REPROJECT,
+        POINT_QUERY_DISC_PLACEMENT_MODES.TRUE_SAMPLE,
+        POINT_QUERY_DISC_PLACEMENT_MODES.CAMERA_PLANE_REPROJECT,
       ],
       name: "tangentDiscVisualizerPlacementMode",
       table: { category: "Tangent Disc Visualizer" },
@@ -1418,7 +1418,7 @@ export const CursorOverlaySampler: StoryObj<CursorOverlaySamplerStoryProps> = {
     discMaterialPreset: RING_MATERIAL_PRESETS.COLOR,
     discColor: "#ffffff",
     tangentDiscVisualizerPlacementMode:
-      POINT_QUERY_PREVIEW_DISC_PLACEMENT_MODES.CAMERA_PLANE_REPROJECT,
+      POINT_QUERY_DISC_PLACEMENT_MODES.CAMERA_PLANE_REPROJECT,
     tangentDiscVisualizerShowNormalLine: true,
     tangentDiscVisualizerTrailSampleCount: 90,
     tangentDiscVisualizerWeightDecayGamma: 2,

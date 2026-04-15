@@ -5,6 +5,7 @@ import {
   type LineLabelPlacementOptions,
 } from "./lineLabelPlacement";
 import type { LineVisualizerData } from "./lineVisualizers.types";
+import { getOverlayReferenceSignature } from "./overlayReferenceSignature";
 import { useLabelOverlay } from "./useLabelOverlay";
 import { createSvgLineScratch, resolveSvgLine } from "./utils/resolveSvgLine";
 
@@ -22,29 +23,6 @@ const DEFAULT_LINE_LABEL_FONT_FAMILY = "Arial, sans-serif";
 const DEFAULT_LINE_LABEL_FONT_WEIGHT = "400";
 const DEFAULT_LINE_LABEL_PILL_BACKGROUND_COLOR = "rgba(200, 200, 200, 0.36)";
 const DEFAULT_LINE_LABEL_PILL_BORDER_COLOR = "rgba(255, 255, 255, 0.28)";
-
-const overlayReferenceIdByValue = new WeakMap<object, number>();
-let nextOverlayReferenceId = 1;
-
-const getOverlayReferenceSignature = (value: unknown): string => {
-  if (value === null || value === undefined) {
-    return "";
-  }
-
-  if (typeof value === "object" || typeof value === "function") {
-    const ref = value as object;
-    const existingId = overlayReferenceIdByValue.get(ref);
-    if (existingId) {
-      return `ref:${existingId}`;
-    }
-
-    const nextId = nextOverlayReferenceId++;
-    overlayReferenceIdByValue.set(ref, nextId);
-    return `ref:${nextId}`;
-  }
-
-  return String(value);
-};
 
 const getLineLabelOverlayId = (lineId: string): string =>
   `line-label-visualizer-${lineId}`;

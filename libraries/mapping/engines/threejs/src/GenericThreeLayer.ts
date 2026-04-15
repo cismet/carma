@@ -58,7 +58,7 @@ function rayTriangle(
   dir: THREE.Vector3,
   a: THREE.Vector3,
   b: THREE.Vector3,
-  c: THREE.Vector3,
+  c: THREE.Vector3
 ): number {
   _edge1.subVectors(b, a);
   _edge2.subVectors(c, a);
@@ -95,7 +95,7 @@ function raycastLatheCandidates(
   origin: THREE.Vector3,
   dir: THREE.Vector3,
   meshes: THREE.InstancedMesh[],
-  candidateSourceIndices: Set<number>,
+  candidateSourceIndices: Set<number>
 ): { sourceIndex: number; t: number } | null {
   let bestDistSq = Infinity;
   let bestSourceIndex: number | undefined;
@@ -158,7 +158,7 @@ function raycastLoftCandidates(
   origin: THREE.Vector3,
   dir: THREE.Vector3,
   mesh: THREE.Mesh,
-  candidateSourceIndices: Set<number>,
+  candidateSourceIndices: Set<number>
 ): { sourceIndex: number; t: number } | null {
   const faceRanges = mesh.userData.faceRanges as
     | Array<{ faceStart: number; faceEnd: number; sourceIndex: number }>
@@ -193,7 +193,9 @@ function raycastLoftCandidates(
     }
   }
 
-  return bestSourceIndex != null ? { sourceIndex: bestSourceIndex, t: bestT } : null;
+  return bestSourceIndex != null
+    ? { sourceIndex: bestSourceIndex, t: bestT }
+    : null;
 }
 
 // Wuppertal center as default Three.js origin
@@ -390,10 +392,7 @@ export function buildGenericLayer(
       // Build 2D spatial grid for fast raycast selection
       const grid: SpatialGrid = new Map();
       for (const f of this._features) {
-        const mrc = MercatorCoordinate.fromLngLat(
-          [f.lng, f.lat],
-          f.elevation,
-        );
+        const mrc = MercatorCoordinate.fromLngLat([f.lng, f.lat], f.elevation);
         const x = (mrc.x - originMerc.x) / mScale;
         const z = (mrc.y - originMerc.y) / mScale;
         const yBase = (mrc.z - originMerc.z) / mScale;
@@ -459,7 +458,9 @@ export function buildGenericLayer(
       // Disable frustum culling on all scene objects: the base Camera's
       // projection matrix comes from MapLibre and the default bounding-sphere
       // test incorrectly culls InstancedMesh crowns at steep tilt angles.
-      this.scene.traverse((obj) => { obj.frustumCulled = false; });
+      this.scene.traverse((obj) => {
+        obj.frustumCulled = false;
+      });
 
       this.renderer.resetState();
       this.renderer.render(this.scene, this.camera);
@@ -508,7 +509,11 @@ export function buildGenericLayer(
         // Compute t values where ray enters/exits the Y range
         let t1 = (minY - near.y) / dir.y;
         let t2 = (maxY - near.y) / dir.y;
-        if (t1 > t2) { const tmp = t1; t1 = t2; t2 = tmp; }
+        if (t1 > t2) {
+          const tmp = t1;
+          t1 = t2;
+          t2 = tmp;
+        }
         t1 = Math.max(t1, 0);
 
         if (t2 > 0) {
@@ -550,7 +555,12 @@ export function buildGenericLayer(
             // Loft: merged Mesh with faceRanges
             const mesh = child as THREE.Mesh;
             if (mesh.isMesh && mesh.userData.faceRanges) {
-              const loftHit = raycastLoftCandidates(near, dir, mesh, candidateSet);
+              const loftHit = raycastLoftCandidates(
+                near,
+                dir,
+                mesh,
+                candidateSet
+              );
               if (loftHit && loftHit.t < bestT) {
                 bestT = loftHit.t;
                 bestSourceIndex = loftHit.sourceIndex;
@@ -561,7 +571,12 @@ export function buildGenericLayer(
             // Lathe: InstancedMesh with sourceIndices
             const im = child as THREE.InstancedMesh;
             if (im.isInstancedMesh) {
-              const latheHit = raycastLatheCandidates(near, dir, [im], candidateSet);
+              const latheHit = raycastLatheCandidates(
+                near,
+                dir,
+                [im],
+                candidateSet
+              );
               if (latheHit && latheHit.t < bestT) {
                 bestT = latheHit.t;
                 bestSourceIndex = latheHit.sourceIndex;
@@ -627,13 +642,17 @@ export function buildGenericLayer(
         // --- Loft path: regular Mesh with sourceIndexMap (fast vertex-range highlight) ---
         const mesh = child as THREE.Mesh;
         if (!mesh.isMesh) continue;
-        const srcMap = mesh.userData.sourceIndexMap as Map<number, Array<{ vertexStart: number; vertexEnd: number }>> | undefined;
+        const srcMap = mesh.userData.sourceIndexMap as
+          | Map<number, Array<{ vertexStart: number; vertexEnd: number }>>
+          | undefined;
         if (!srcMap) continue;
 
         const vRanges = srcMap.get(sourceIndex);
         if (!vRanges || vRanges.length === 0) continue;
 
-        const colorAttr = mesh.geometry.getAttribute("color") as THREE.BufferAttribute | undefined;
+        const colorAttr = mesh.geometry.getAttribute("color") as
+          | THREE.BufferAttribute
+          | undefined;
         if (!colorAttr) continue;
         const colorArray = colorAttr.array as Float32Array;
 
@@ -678,8 +697,12 @@ export function buildGenericLayer(
     unhighlight() {
       if (!this._highlightState) return;
 
-      const { instancedMeshes, instanceId, instanceSavedColors, vertexEntries } =
-        this._highlightState;
+      const {
+        instancedMeshes,
+        instanceId,
+        instanceSavedColors,
+        vertexEntries,
+      } = this._highlightState;
 
       // Restore Lathe (InstancedMesh) colors
       for (let i = 0; i < instancedMeshes.length; i++) {
@@ -692,9 +715,13 @@ export function buildGenericLayer(
 
       // Restore Loft (merged Mesh) vertex colors: only the highlighted ranges
       for (const entry of vertexEntries) {
-        const origColors = entry.mesh.userData.originalColors as Float32Array | undefined;
+        const origColors = entry.mesh.userData.originalColors as
+          | Float32Array
+          | undefined;
         if (!origColors) continue;
-        const colorAttr = entry.mesh.geometry.getAttribute("color") as THREE.BufferAttribute;
+        const colorAttr = entry.mesh.geometry.getAttribute(
+          "color"
+        ) as THREE.BufferAttribute;
         const colorArray = colorAttr.array as Float32Array;
         for (const range of entry.ranges) {
           const start = range.vertexStart * 3;
@@ -779,7 +806,9 @@ export function buildOverlayLayer(
         .copy(mainLayer.camera.projectionMatrix)
         .invert();
 
-      mainLayer.scene.traverse((obj) => { obj.frustumCulled = false; });
+      mainLayer.scene.traverse((obj) => {
+        obj.frustumCulled = false;
+      });
       mainLayer.renderer.resetState();
       mainLayer.renderer.render(mainLayer.scene, mainLayer.camera);
     },
@@ -825,15 +854,17 @@ export function syncGenericLayerFromSource(
   let visible: MappedFeature[];
   if (config.viewportPadding != null) {
     const bounds = map.getBounds();
-    const lngPad = (bounds.getEast() - bounds.getWest()) * config.viewportPadding;
-    const latPad = (bounds.getNorth() - bounds.getSouth()) * config.viewportPadding;
+    const lngPad =
+      (bounds.getEast() - bounds.getWest()) * config.viewportPadding;
+    const latPad =
+      (bounds.getNorth() - bounds.getSouth()) * config.viewportPadding;
     const west = bounds.getWest() - lngPad;
     const east = bounds.getEast() + lngPad;
     const south = bounds.getSouth() - latPad;
     const north = bounds.getNorth() + latPad;
 
     visible = mapped.filter(
-      (f) => f.lng >= west && f.lng <= east && f.lat >= south && f.lat <= north,
+      (f) => f.lng >= west && f.lng <= east && f.lat >= south && f.lat <= north
     );
   } else {
     visible = mapped;
@@ -854,13 +885,15 @@ export function syncGenericLayerFromSource(
   layer._lastTerrain = hasTerrain;
 
   // Snapshot source features for selection forwarding (MapLibre may recycle objects)
-  layer._sourceFeatures = (unique as Array<{
-    id?: string | number;
-    properties?: Record<string, unknown> | null;
-    source?: string;
-    sourceLayer?: string;
-    geometry?: GeoJSON.Geometry | null;
-  }>).map((f) => ({
+  layer._sourceFeatures = (
+    unique as Array<{
+      id?: string | number;
+      properties?: Record<string, unknown> | null;
+      source?: string;
+      sourceLayer?: string;
+      geometry?: GeoJSON.Geometry | null;
+    }>
+  ).map((f) => ({
     id: f.id,
     properties: { ...(f.properties ?? {}) },
     source: f.source ?? config.sourceId,

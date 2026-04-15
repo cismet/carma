@@ -7,32 +7,10 @@ import {
 
 import { LineVisualizer } from "./components/LineVisualizer";
 import type { LineVisualizerData, SvgLine } from "./lineVisualizers.types";
+import { getOverlayReferenceSignature } from "./overlayReferenceSignature";
 import { useLabelOverlay } from "./useLabelOverlay";
 import { createSvgLineScratch, resolveSvgLine } from "./utils/resolveSvgLine";
 const LINE_OVERLAY_Z_INDEX = 5;
-
-const overlayReferenceIdByValue = new WeakMap<object, number>();
-let nextOverlayReferenceId = 1;
-
-const getOverlayReferenceSignature = (value: unknown): string => {
-  if (value === null || value === undefined) {
-    return "";
-  }
-
-  if (typeof value === "object" || typeof value === "function") {
-    const ref = value as object;
-    const existingId = overlayReferenceIdByValue.get(ref);
-    if (existingId) {
-      return `ref:${existingId}`;
-    }
-
-    const nextId = nextOverlayReferenceId++;
-    overlayReferenceIdByValue.set(ref, nextId);
-    return `ref:${nextId}`;
-  }
-
-  return String(value);
-};
 
 const getLineOverlayId = (lineId: string): string =>
   `line-visualizer-${lineId}`;

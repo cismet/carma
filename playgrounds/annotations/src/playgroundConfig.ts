@@ -1,27 +1,32 @@
 import {
-  ANNOTATION_TYPE_AREA_GROUND,
-  ANNOTATION_TYPE_AREA_PLANAR,
-  ANNOTATION_TYPE_AREA_VERTICAL,
-  ANNOTATION_TYPE_DISTANCE,
-  ANNOTATION_TYPE_LABEL,
-  ANNOTATION_TYPE_POINT,
-  ANNOTATION_TYPE_POLYLINE,
-  SELECT_TOOL_TYPE,
   type AnnotationToolType,
+  ANNOTATION_TOOL_TYPES,
 } from "@carma-mapping/annotations/core";
+import type { AnnotationInfoBoxVisualOptions } from "@carma-mapping/annotations/ui";
 import {
   type AnnotationsRuntimeFormatOptions,
-  type RuntimeAnnotationInfoBoxVisualOptions,
   type PreviewLineLabelVisualOptions,
-} from "@carma-mapping/annotations/runtime-v2";
+} from "@carma-mapping/annotations/runtime";
 import { LENGTH_UNIT_MODE } from "@carma-units";
-
 import type { PlaygroundRuntime } from "./playground.types";
+const {
+  AREA_GROUND: ANNOTATION_TYPE_AREA_GROUND,
+  AREA_PLANAR: ANNOTATION_TYPE_AREA_PLANAR,
+  AREA_VERTICAL: ANNOTATION_TYPE_AREA_VERTICAL,
+  DISTANCE: ANNOTATION_TYPE_DISTANCE,
+  LABEL: ANNOTATION_TYPE_LABEL,
+  POINT: ANNOTATION_TYPE_POINT,
+  POLYLINE: ANNOTATION_TYPE_POLYLINE,
+  SELECT: SELECT_TOOL_TYPE,
+} = ANNOTATION_TOOL_TYPES;
+
 export const INFOBOX_WIDTH_PX = 430;
 export const PLAYGROUND_FLOATING_OVERLAY_WINDOW_MARGIN_PX = 12;
-export const ACTIVE_TOOL_STORAGE_KEY = "annotations-playground-active-tool.v1";
-export const ANNOTATIONS_RUNTIME_V2_STORAGE_KEY =
-  "annotations-playground-annotations.v2";
+export const ACTIVE_TOOL_STORAGE_KEY = "annotations-playground-active-tool";
+export const ANNOTATIONS_RUNTIME_STORAGE_KEY =
+  "annotations-playground-annotations";
+export const ANNOTATIONS_PROTOTYPE_STORAGE_KEY =
+  "annotations-playground-annotations-prototype";
 export const PLAYGROUND_RUNTIME_URL_PARAM = "runtime";
 export const PLAYGROUND_RUNTIME_FORMAT_OPTIONS: AnnotationsRuntimeFormatOptions =
   {
@@ -48,7 +53,7 @@ export const PLAYGROUND_RUNTIME_FORMAT_OPTIONS: AnnotationsRuntimeFormatOptions 
   };
 export const PLAYGROUND_PREVIEW_LINE_LABEL_VISUAL_OPTIONS: Partial<PreviewLineLabelVisualOptions> =
   {};
-export const PLAYGROUND_RUNTIME_INFO_BOX_VISUAL_OPTIONS: Partial<RuntimeAnnotationInfoBoxVisualOptions> =
+export const PLAYGROUND_RUNTIME_INFO_BOX_VISUAL_OPTIONS: Partial<AnnotationInfoBoxVisualOptions> =
   {};
 
 export const VALID_TOOL_TYPES = new Set<AnnotationToolType>([
@@ -82,12 +87,13 @@ export const readInitialToolType = (): AnnotationToolType => {
   return ANNOTATION_TYPE_POINT;
 };
 
-const VALID_PLAYGROUND_RUNTIMES = new Set<PlaygroundRuntime>(["v1", "v2"]);
+const VALID_PLAYGROUND_RUNTIMES = new Set<PlaygroundRuntime>([
+  "prototype",
+  "runtime",
+]);
 const PLAYGROUND_RUNTIME_URL_ALIASES = {
-  "1": "v1",
-  "2": "v2",
-  v1: "v1",
-  v2: "v2",
+  prototype: "prototype",
+  runtime: "runtime",
 } as const;
 
 const resolvePlaygroundRuntimeAlias = (
@@ -110,7 +116,7 @@ const resolvePlaygroundRuntimeAlias = (
 
 export const readInitialRuntimeVersion = (): PlaygroundRuntime => {
   if (typeof window === "undefined") {
-    return "v2";
+    return "runtime";
   }
 
   try {
@@ -133,5 +139,5 @@ export const readInitialRuntimeVersion = (): PlaygroundRuntime => {
     // ignore URL parsing errors
   }
 
-  return "v2";
+  return "runtime";
 };

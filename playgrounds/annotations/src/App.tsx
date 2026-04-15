@@ -3,8 +3,8 @@ import {
   readLeafletHomeViewState,
 } from "@carma-mapping/engines-interop/view-state";
 
-import { AnnotationsRuntimeV1Page } from "./components/AnnotationsRuntimeV1Page";
-import { AnnotationsRuntimeV2Page } from "./components/AnnotationsRuntimeV2Page";
+import { AnnotationsRuntimePrototypePage } from "./components/AnnotationsRuntimePrototypePage";
+import { AnnotationsRuntimePage } from "./components/AnnotationsRuntimePage";
 import { HOME_VIEW } from "./config";
 import { readInitialRuntimeVersion } from "./playgroundConfig";
 const HOME_CAMERA_STATE = readCesiumCameraStateFromViewState(
@@ -16,9 +16,9 @@ const HOME_CAMERA_STATE = readCesiumCameraStateFromViewState(
 export const App = () => {
   const runtimeVersion = readInitialRuntimeVersion();
 
-  return runtimeVersion === "v2" ? (
-    <AnnotationsRuntimeV2Page homeCameraState={HOME_CAMERA_STATE} />
+  return runtimeVersion === "runtime" ? (
+    <AnnotationsRuntimePage homeCameraState={HOME_CAMERA_STATE} />
   ) : (
-    <AnnotationsRuntimeV1Page homeCameraState={HOME_CAMERA_STATE} />
+    <AnnotationsRuntimePrototypePage homeCameraState={HOME_CAMERA_STATE} />
   );
 };

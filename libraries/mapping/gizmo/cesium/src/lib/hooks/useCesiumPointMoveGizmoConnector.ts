@@ -4,6 +4,7 @@ import { Cartesian3 } from "@carma-cesium";
 
 import type {
   CesiumGizmoPoint,
+  CesiumGizmoScreenPosition,
   UseCesiumPointMoveGizmoOptions,
 } from "./useCesiumPointMoveGizmo";
 const DEFAULT_MOVE_POINT_ID = "demo-point";
@@ -11,7 +12,11 @@ const DEFAULT_MOVE_POINT_ID = "demo-point";
 export type UseCesiumPointMoveGizmoConnectorOptions = {
   initialPoint: Cartesian3;
   movePointId?: string;
-  onPointPositionChange?: (pointId: string, nextPosition: Cartesian3) => void;
+  onPointPositionChange?: (
+    pointId: string,
+    nextPosition: Cartesian3,
+    screenPosition?: CesiumGizmoScreenPosition
+  ) => void;
   onDragStateChange?: (isDragging: boolean) => void;
   onAxisDirectionChange?: (
     axisDirection: Cartesian3,
@@ -60,10 +65,18 @@ export const useCesiumPointMoveGizmoConnector = ({
   }, []);
 
   const handlePointPositionChange = useCallback(
-    (pointId: string, nextPosition: Cartesian3) => {
+    (
+      pointId: string,
+      nextPosition: Cartesian3,
+      screenPosition?: CesiumGizmoScreenPosition
+    ) => {
       const clonedNextPosition = Cartesian3.clone(nextPosition);
       setPointPositionState(clonedNextPosition);
-      onPointPositionChange?.(pointId, clonedNextPosition);
+      onPointPositionChange?.(
+        pointId,
+        clonedNextPosition,
+        screenPosition ? { ...screenPosition } : undefined
+      );
     },
     [onPointPositionChange]
   );

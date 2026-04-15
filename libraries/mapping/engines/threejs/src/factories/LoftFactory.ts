@@ -248,9 +248,17 @@ function buildMergedGeometry(
       cI[ci++] = btmI;
     }
 
-    crownVertexRanges.push({ vertexStart: cvBase, vertexEnd: cv + numSlices * nR + 2, sourceIndex: tree._sourceIndex });
+    crownVertexRanges.push({
+      vertexStart: cvBase,
+      vertexEnd: cv + numSlices * nR + 2,
+      sourceIndex: tree._sourceIndex,
+    });
     cv += numSlices * nR + 2;
-    crownFaceRanges.push({ faceStart: crownFaceStart, faceEnd: ci / 3, sourceIndex: tree._sourceIndex });
+    crownFaceRanges.push({
+      faceStart: crownFaceStart,
+      faceEnd: ci / 3,
+      sourceIndex: tree._sourceIndex,
+    });
 
     // Trunk cylinder
     const tR = Math.max(0.08, 0.05 * tree.radiusMax);
@@ -327,9 +335,17 @@ function buildMergedGeometry(
       tI[ti++] = tci;
     }
 
-    trunkVertexRanges.push({ vertexStart: tvBase, vertexEnd: tv + TSEG * 2 + 2, sourceIndex: tree._sourceIndex });
+    trunkVertexRanges.push({
+      vertexStart: tvBase,
+      vertexEnd: tv + TSEG * 2 + 2,
+      sourceIndex: tree._sourceIndex,
+    });
     tv += TSEG * 2 + 2;
-    trunkFaceRanges.push({ faceStart: trunkFaceStart, faceEnd: ti / 3, sourceIndex: tree._sourceIndex });
+    trunkFaceRanges.push({
+      faceStart: trunkFaceStart,
+      faceEnd: ti / 3,
+      sourceIndex: tree._sourceIndex,
+    });
   }
 
   // Build BufferGeometry objects
@@ -377,7 +393,9 @@ function buildMergedGeometry(
 }
 
 /** Build a Map<sourceIndex, VertexRange[]> for O(1) lookup during highlight. */
-function buildSourceIndexMap(ranges: VertexRange[]): Map<number, VertexRange[]> {
+function buildSourceIndexMap(
+  ranges: VertexRange[]
+): Map<number, VertexRange[]> {
   const map = new Map<number, VertexRange[]>();
   for (const r of ranges) {
     const existing = map.get(r.sourceIndex);
@@ -408,7 +426,7 @@ export function buildLoftMeshes(
   const toRemove = scene.children.filter(
     (c): c is THREE.Mesh =>
       (c as THREE.Mesh).isMesh === true &&
-      !(c as THREE.Mesh).userData.isBuilding,
+      !(c as THREE.Mesh).userData.isBuilding
   );
   for (const m of toRemove) {
     m.geometry.dispose();
@@ -456,16 +474,24 @@ export function buildLoftMeshes(
     const crownMesh = new THREE.Mesh(result.crownGeo, crownMat);
     crownMesh.userData.faceRanges = result.crownFaceRanges;
     crownMesh.userData.vertexRanges = result.crownVertexRanges;
-    crownMesh.userData.originalColors = (result.crownGeo.getAttribute("color") as THREE.BufferAttribute).array.slice();
-    crownMesh.userData.sourceIndexMap = buildSourceIndexMap(result.crownVertexRanges);
+    crownMesh.userData.originalColors = (
+      result.crownGeo.getAttribute("color") as THREE.BufferAttribute
+    ).array.slice();
+    crownMesh.userData.sourceIndexMap = buildSourceIndexMap(
+      result.crownVertexRanges
+    );
     crownMesh.frustumCulled = false;
     scene.add(crownMesh);
 
     const trunkMesh = new THREE.Mesh(result.trunkGeo, trunkMat);
     trunkMesh.userData.faceRanges = result.trunkFaceRanges;
     trunkMesh.userData.vertexRanges = result.trunkVertexRanges;
-    trunkMesh.userData.originalColors = (result.trunkGeo.getAttribute("color") as THREE.BufferAttribute).array.slice();
-    trunkMesh.userData.sourceIndexMap = buildSourceIndexMap(result.trunkVertexRanges);
+    trunkMesh.userData.originalColors = (
+      result.trunkGeo.getAttribute("color") as THREE.BufferAttribute
+    ).array.slice();
+    trunkMesh.userData.sourceIndexMap = buildSourceIndexMap(
+      result.trunkVertexRanges
+    );
     trunkMesh.frustumCulled = false;
     scene.add(trunkMesh);
   }

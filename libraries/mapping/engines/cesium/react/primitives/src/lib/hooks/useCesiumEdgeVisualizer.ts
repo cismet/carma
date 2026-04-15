@@ -1,10 +1,5 @@
 import { useEffect, useRef } from "react";
-
-import {
-  LINE_TYPE_CARTESIAN,
-  LINE_TYPE_GEOGRAPHIC,
-  type LineType,
-} from "@carma-mapping/annotations/core";
+import { type LineType, LINE_TYPES } from "@carma-mapping/annotations/core";
 import {
   BoundingSphere,
   Cartesian3,
@@ -14,6 +9,9 @@ import {
   type Scene,
 } from "@carma-cesium";
 import { isValidScene } from "@carma-mapping/engines/cesium/core";
+const { CARTESIAN: LINE_TYPE_CARTESIAN, GEOGRAPHIC: LINE_TYPE_GEOGRAPHIC } =
+  LINE_TYPES;
+
 type CesiumEdgeLineRenderModel = {
   id: string;
   start: Cartesian3;

@@ -535,4 +535,33 @@ describe("PointLabel", () => {
     expect(onLongPress).toHaveBeenCalledTimes(1);
     vi.useRealTimers();
   });
+
+  it("keeps hidden marker interaction targets visually invisible while preserving their hit area", () => {
+    const { container } = render(
+      <PointLabel
+        content="NHN 179,74 m"
+        badgeContent="3"
+        hideMarker={true}
+        fontSize="10px"
+        labelAttach={POINT_LABEL_ATTACH.RIGHT}
+        onLongPress={vi.fn()}
+        longPressOnlyOnMarker={true}
+        renderHiddenMarkerInteractionTarget={true}
+      />
+    );
+
+    const markerTarget = container.querySelector(
+      '[data-point-label-hidden-marker-target="true"]'
+    ) as HTMLDivElement | null;
+
+    expect(markerTarget?.style.width).toBe("18px");
+    expect(markerTarget?.style.height).toBe("18px");
+    expect(markerTarget?.style.cursor).toBe("pointer");
+    expect(markerTarget?.style.opacity).toBe("0");
+    expect(markerTarget?.style.boxShadow).toBe("none");
+    expect(markerTarget?.style.borderWidth).toBe("0px");
+    expect(["transparent", "rgba(0, 0, 0, 0)"]).toContain(
+      markerTarget?.style.backgroundColor ?? ""
+    );
+  });
 });

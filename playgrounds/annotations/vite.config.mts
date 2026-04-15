@@ -1,13 +1,25 @@
 /// <reference types='vitest' />
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
 import { nxViteTsPaths } from "@nx/vite/plugins/nx-tsconfig-paths.plugin";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { viteStaticCopy } from "vite-plugin-static-copy";
+
 const CESIUM_PATHNAME = "__cesium__";
+const require = createRequire(import.meta.url);
+const cesiumPackageJsonPath = require.resolve("cesium/package.json");
+const workspaceNodeModulesPath = dirname(dirname(cesiumPackageJsonPath));
+const cesiumBuildPath = join(
+  dirname(cesiumPackageJsonPath),
+  "Build",
+  "Cesium",
+  "*"
+);
 
 export default defineConfig({
   root: __dirname,
-  cacheDir: "../../node_modules/.vite/playgrounds/annotations",
+  cacheDir: join(workspaceNodeModulesPath, ".vite", "playgrounds", "annotations"),
 
   server: {
     port: 4200,
@@ -29,7 +41,7 @@ export default defineConfig({
     viteStaticCopy({
       targets: [
         {
-          src: "../../node_modules/cesium/Build/Cesium/*",
+          src: cesiumBuildPath,
           dest: CESIUM_PATHNAME,
         },
       ],
@@ -52,7 +64,7 @@ export default defineConfig({
   test: {
     globals: true,
     cache: {
-      dir: "../../node_modules/.vitest",
+      dir: join(workspaceNodeModulesPath, ".vitest"),
     },
     environment: "jsdom",
     include: ["src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],

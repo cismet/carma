@@ -2,7 +2,7 @@ import {
   CROSSHAIR_CURSOR_STYLES,
   resolveCrosshairCursorCssValue,
   type CrosshairCursorStyle,
-} from "@carma-mapping/annotations/runtime-v2";
+} from "@carma-mapping/annotations/runtime";
 import {
   CURSOR_RENDER_MODES,
   type CursorRenderMode,

@@ -117,6 +117,8 @@ export type CesiumGizmoRotationDelta = {
   accumulatedAngleRad: number;
 };
 
+export type CesiumGizmoScreenPosition = ScreenPoint2;
+
 export type UseCesiumPointMoveGizmoOptions = {
   points: CesiumGizmoPoint[];
   movePointId?: string | null;
@@ -134,7 +136,11 @@ export type UseCesiumPointMoveGizmoOptions = {
   arrowInactiveEdgePx?: number;
   snapPlaneDragToGround?: boolean;
   radius: number;
-  onPointPositionChange?: (pointId: string, nextPosition: Cartesian3) => void;
+  onPointPositionChange?: (
+    pointId: string,
+    nextPosition: Cartesian3,
+    screenPosition?: CesiumGizmoScreenPosition
+  ) => void;
   onDragStateChange?: (isDragging: boolean) => void;
   onAxisDirectionChange?: (
     axisDirection: Cartesian3,
@@ -502,6 +508,23 @@ export const useCesiumPointMoveGizmo = (
           primitive.show = true;
         }
       }
+    },
+    [scene]
+  );
+  const getCanvasScreenPosition = useCallback(
+    (
+      clientX: number,
+      clientY: number
+    ): CesiumGizmoScreenPosition | undefined => {
+      if (!scene || scene.isDestroyed()) {
+        return undefined;
+      }
+
+      const canvasRect = scene.canvas.getBoundingClientRect();
+      return {
+        x: clientX - canvasRect.left,
+        y: clientY - canvasRect.top,
+      };
     },
     [scene]
   );
@@ -880,7 +903,14 @@ export const useCesiumPointMoveGizmo = (
           new Cartesian3()
         );
 
-        onPointPositionChangeRef.current?.(dragState.pointId, nextPosition);
+        onPointPositionChangeRef.current?.(
+          dragState.pointId,
+          nextPosition,
+          getCanvasScreenPosition(
+            mouseMoveEvent.clientX,
+            mouseMoveEvent.clientY
+          )
+        );
         scene.requestRender();
       };
 
@@ -1153,7 +1183,11 @@ export const useCesiumPointMoveGizmo = (
           if (nextGroundPoint) {
             onPointPositionChangeRef.current?.(
               dragState.pointId,
-              nextGroundPoint
+              nextGroundPoint,
+              getCanvasScreenPosition(
+                mouseMoveEvent.clientX,
+                mouseMoveEvent.clientY
+              )
             );
             scene.requestRender();
             return;
@@ -1195,7 +1229,14 @@ export const useCesiumPointMoveGizmo = (
           new Cartesian3()
         );
 
-        onPointPositionChangeRef.current?.(dragState.pointId, nextPosition);
+        onPointPositionChangeRef.current?.(
+          dragState.pointId,
+          nextPosition,
+          getCanvasScreenPosition(
+            mouseMoveEvent.clientX,
+            mouseMoveEvent.clientY
+          )
+        );
         scene.requestRender();
       };
 
@@ -1244,6 +1285,7 @@ export const useCesiumPointMoveGizmo = (
     [
       getActiveAxisAtPosition,
       getAxisCandidatesAtPosition,
+      getCanvasScreenPosition,
       getGroundPointWithoutGizmoVisuals,
       scene,
       stopDragging,

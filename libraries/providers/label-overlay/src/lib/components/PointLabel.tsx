@@ -1,6 +1,5 @@
 import React, { type CSSProperties, useEffect, useRef, useState } from "react";
 
-import { MINUS_PI_OVER_FOUR } from "@carma-commons/math";
 import type { CssPixelPosition } from "@carma-units";
 
 import {
@@ -21,7 +20,19 @@ import {
   type PillbuttonBadgePosition,
 } from "./PillbuttonLabelMarker";
 import { PointLabelStem } from "./PointLabelStem";
+import {
+  POINT_LABEL_COMPONENT_DEFAULTS,
+  POINT_LABEL_INTERACTION_DEFAULTS,
+  POINT_LABEL_LAYOUT_DEFAULTS,
+  POINT_LABEL_THEME_DEFAULTS,
+} from "./pointLabelDefaults";
 export { POINT_LABEL_ATTACH, type PointLabelAttach };
+export {
+  POINT_LABEL_COMPONENT_DEFAULTS,
+  POINT_LABEL_INTERACTION_DEFAULTS,
+  POINT_LABEL_LAYOUT_DEFAULTS,
+  POINT_LABEL_THEME_DEFAULTS,
+} from "./pointLabelDefaults";
 
 export const POINT_LABEL_STYLE = {
   AUTO: "auto",
@@ -119,15 +130,6 @@ const nodeMarkerBaseStyles: CSSProperties = {
   fontFeatureSettings: '"tnum" 1, "lnum" 1',
   boxShadow: "0 0 2px rgba(0,0,0,0.55)",
 };
-const HIDDEN_INTERACTION_MARKER_MIN_SIZE_PX = 18;
-
-const defaultPitch = MINUS_PI_OVER_FOUR;
-const DRAG_START_THRESHOLD_PX = 3;
-const PILL_STEM_END_INSET_PX = 1.5;
-const PILL_LABEL_CAP_RADIUS_EM = DEFAULT_PILL_LABEL_HEIGHT_EM / 2;
-export const POINT_LABEL_TEXT_BACKGROUND_COLOR = "rgba(30, 41, 59, 0.62)";
-export const POINT_LABEL_HOVER_BACKGROUND_COLOR = "rgba(51, 65, 85, 0.68)";
-export const POINT_LABEL_SELECTED_BACKGROUND_COLOR = "rgba(71, 85, 105, 0.74)";
 
 const parseFontSizePx = (fontSize: string): number => {
   const parsed = Number.parseFloat(fontSize);
@@ -223,32 +225,32 @@ export const PointLabel = React.memo(
     fontWeight = DEFAULT_POINT_LABEL_FONT_WEIGHT,
     markerCursor,
     labelCursor,
-    textColor = "rgba(248, 250, 252, 0.98)",
-    textBackgroundColor = POINT_LABEL_TEXT_BACKGROUND_COLOR,
-    selectedBackgroundColor = POINT_LABEL_SELECTED_BACKGROUND_COLOR,
-    selectedTextColor = "rgba(248, 250, 252, 0.98)",
+    textColor = POINT_LABEL_COMPONENT_DEFAULTS.textColor,
+    textBackgroundColor = POINT_LABEL_THEME_DEFAULTS.textBackgroundColor,
+    selectedBackgroundColor = POINT_LABEL_THEME_DEFAULTS.selectedBackgroundColor,
+    selectedTextColor = POINT_LABEL_COMPONENT_DEFAULTS.selectedTextColor,
     selectedGlowColor,
-    selectedGlowRadiusPx = 0,
-    preserveFillOnSelection = false,
-    hoverBackgroundColor = POINT_LABEL_HOVER_BACKGROUND_COLOR,
+    selectedGlowRadiusPx = POINT_LABEL_COMPONENT_DEFAULTS.selectedGlowRadiusPx,
+    preserveFillOnSelection = POINT_LABEL_COMPONENT_DEFAULTS.preserveFillOnSelection,
+    hoverBackgroundColor = POINT_LABEL_THEME_DEFAULTS.hoverBackgroundColor,
     isOccluded = false,
-    pitch = defaultPitch,
+    pitch = POINT_LABEL_COMPONENT_DEFAULTS.pitch,
     labelAngleRad,
     labelAttach = POINT_LABEL_ATTACH.LEFT,
-    transitionDurationMs = 300,
+    transitionDurationMs = POINT_LABEL_COMPONENT_DEFAULTS.transitionDurationMs,
     hideLabelAndStem = false,
     hideMarker = false,
-    lineColor = "rgba(255, 255, 255, 0.88)",
-    lineWidth = 1,
-    markerSize = 10,
-    markerStrokeWidth = 1,
+    lineColor = POINT_LABEL_COMPONENT_DEFAULTS.lineColor,
+    lineWidth = POINT_LABEL_COMPONENT_DEFAULTS.lineWidth,
+    markerSize = POINT_LABEL_COMPONENT_DEFAULTS.markerSize,
+    markerStrokeWidth = POINT_LABEL_COMPONENT_DEFAULTS.markerStrokeWidth,
     stemReferenceMarkerSize,
     stemStartDistance,
     nodeContent,
     badgeContent,
     markerContent,
-    markerBackgroundColor = "rgba(75, 85, 99, 1)",
-    markerTextColor = "rgba(239, 246, 255, 0.98)",
+    markerBackgroundColor = POINT_LABEL_COMPONENT_DEFAULTS.markerBackgroundColor,
+    markerTextColor = POINT_LABEL_COMPONENT_DEFAULTS.markerTextColor,
     badgePosition,
     labelStyle = POINT_LABEL_STYLE.AUTO,
     collapse = false,
@@ -256,7 +258,7 @@ export const PointLabel = React.memo(
     onClick,
     onDoubleClick,
     onLongPress,
-    longPressDurationMs = 300,
+    longPressDurationMs = POINT_LABEL_COMPONENT_DEFAULTS.longPressDurationMs,
     longPressOnlyOnMarker = false,
     renderHiddenMarkerInteractionTarget = false,
     onHoverChange,
@@ -334,7 +336,7 @@ export const PointLabel = React.memo(
         ? resolveSegmentEndOutsideCircle(
             stemStartPoint,
             labelAnchorPoint,
-            pillCapRadiusPx + PILL_STEM_END_INSET_PX
+            pillCapRadiusPx + POINT_LABEL_LAYOUT_DEFAULTS.pillStemEndInsetPx
           )
         : labelAnchorPoint;
     const isInteractive = Boolean(
@@ -396,8 +398,23 @@ export const PointLabel = React.memo(
       ? selectedGlowColor ?? selectedTextColor ?? "#fff"
       : "#fff";
     const markerDiameterPx = renderInvisibleInteractionMarker
-      ? Math.max(markerSize, HIDDEN_INTERACTION_MARKER_MIN_SIZE_PX)
+      ? Math.max(
+          markerSize,
+          POINT_LABEL_INTERACTION_DEFAULTS.hiddenInteractionMarkerDiameterPx
+        )
       : markerSize;
+    const hiddenInteractionMarkerStyles: CSSProperties | null =
+      renderInvisibleInteractionMarker
+        ? {
+            borderWidth: 0,
+            borderStyle: "none",
+            borderColor: "transparent",
+            backgroundColor: "transparent",
+            color: "transparent",
+            boxShadow: "none",
+            opacity: 0,
+          }
+        : null;
     const markerStyles: CSSProperties = {
       ...nodeMarkerBaseStyles,
       width: `${markerDiameterPx}px`,
@@ -416,6 +433,7 @@ export const PointLabel = React.memo(
       fontWeight,
       pointerEvents: markerPointerEvents,
       cursor: resolvedMarkerCursor,
+      ...(hiddenInteractionMarkerStyles ?? null),
     };
     const collapseToCompact =
       hasCompactContent && collapse && !selected && !isHovered;
@@ -542,7 +560,7 @@ export const PointLabel = React.memo(
 
         if (
           !isMarkerDragActiveRef.current &&
-          pixelDistance >= DRAG_START_THRESHOLD_PX
+          pixelDistance >= POINT_LABEL_INTERACTION_DEFAULTS.dragStartThresholdPx
         ) {
           isMarkerDragActiveRef.current = true;
           onMarkerDragStart?.(
@@ -599,7 +617,7 @@ export const PointLabel = React.memo(
     const labelTransform = readPointLabelTransform(labelAttach);
     const pillLabelTransform = readPointLabelTransform(
       labelAttach,
-      PILL_LABEL_CAP_RADIUS_EM
+      POINT_LABEL_LAYOUT_DEFAULTS.pillLabelCapRadiusEm
     );
     const labelBorderStyle = `${lineWidth}px ${
       isOccluded ? "dashed" : "solid"

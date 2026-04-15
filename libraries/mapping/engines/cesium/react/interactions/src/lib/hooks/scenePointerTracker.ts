@@ -45,11 +45,12 @@ const readCanvasRect = (scene: Scene): CanvasRectSnapshot => {
 };
 
 const isClientPositionInsideCanvas = (
-  clientPosition: ClientPosition,
+  clientPosition: ClientPosition | null,
   canvasRect: CanvasRectSnapshot | null
 ) =>
   Boolean(
-    canvasRect &&
+    clientPosition &&
+      canvasRect &&
       clientPosition.x >= canvasRect.left &&
       clientPosition.x <= canvasRect.right &&
       clientPosition.y >= canvasRect.top &&
@@ -170,7 +171,7 @@ const createScenePointerTracker = (scene: Scene): ScenePointerTracker => {
   const handleCanvasPointerLeave = () => {
     if (
       isClientPositionInsideCanvas(
-        tracker.latestClientPosition as ClientPosition | null,
+        tracker.latestClientPosition,
         ensureCanvasRect(scene, tracker)
       )
     ) {
