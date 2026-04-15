@@ -94,6 +94,7 @@ import {
   aaInfoboxMapping,
 } from "../../config/debugLayers";
 import { protocolsLayers as protocolsLayersNew } from "../../config/protocolsLayers";
+import { MINI_MAP_TRANSITION_MS } from "../../constants/belis";
 
 // Toggle between the preliminary debug layer styles and the new protocols styles.
 const USE_DEBUG_LAYERS_FOR_PROTOCOLS_LAYERS = false;
@@ -1610,6 +1611,8 @@ const BelisMapLibWrapper = ({
       sidebarVariant === "arbeitsauftraege" && selectedAAData ? null : miniMap,
     containerRef: mapContainerRef,
     debug: MINI_MAP_DEBUGGING,
+    // Share the same animation duration as the AA fitBounds calls below.
+    transitionMs: MINI_MAP_TRANSITION_MS,
   });
 
   const handleMiniMapReady = useCallback((m: maplibregl.Map) => {
@@ -1827,7 +1830,10 @@ const BelisMapLibWrapper = ({
             [minLng, minLat],
             [maxLng, maxLat],
           ],
-          { padding: 40, maxZoom: 18 }
+          // Match the Fachobjekte mini-map's transition so switching AP rows
+          // feels as snappy. Without `duration`, MapLibre defaults to 1000ms,
+          // which felt sluggish vs. useDatasheetMiniMap's 200ms easeTo.
+          { padding: 40, maxZoom: 18, duration: MINI_MAP_TRANSITION_MS }
         );
       }
     }
@@ -1901,7 +1907,10 @@ const BelisMapLibWrapper = ({
             [minLng, minLat],
             [maxLng, maxLat],
           ],
-          { padding: 40, maxZoom: 18 }
+          // Match the Fachobjekte mini-map's transition so switching AP rows
+          // feels as snappy. Without `duration`, MapLibre defaults to 1000ms,
+          // which felt sluggish vs. useDatasheetMiniMap's 200ms easeTo.
+          { padding: 40, maxZoom: 18, duration: MINI_MAP_TRANSITION_MS }
         );
       }
     }

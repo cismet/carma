@@ -165,3 +165,10 @@ export const arbeitsauftraegeByIdsQuery = gql`
 export const arbeitsauftragByIdQuery = gql`
   ${queries.arbeitsauftragById}
 `;
+
+/**
+ * Shared animation duration for mini-map view transitions (ms).
+ * Matches the default used by useDatasheetMiniMap for the Fachobjekte
+ * mini-map, so the Arbeitsaufträge mini-map feels equally snappy.
+ */
+export const MINI_MAP_TRANSITION_MS = 200;
