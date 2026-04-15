@@ -1589,26 +1589,37 @@ const BelisMapLibWrapper = ({
     setMiniMap(m);
   }, []);
 
-  // Hide Fachobjekte layers on the mini map when in Arbeitsaufträge mode.
+  // Hide Fachobjekte layers on the mini map when in Arbeitsaufträge mode,
+  // and restore them when switching back.
   useEffect(() => {
-    if (!miniMap || !miniMapReady || sidebarVariant !== "arbeitsauftraege")
-      return;
-    const hide = () => {
+    if (!miniMap || !miniMapReady) return;
+
+    const setVisibility = (visible: boolean) => {
       for (const layer of miniMap.getStyle()?.layers ?? []) {
         if ("source" in layer && layer.source === namespacedSource) {
           try {
-            miniMap.setLayoutProperty(layer.id, "visibility", "none");
+            miniMap.setLayoutProperty(
+              layer.id,
+              "visibility",
+              visible ? "visible" : "none"
+            );
           } catch {
             /* layer may not be ready */
           }
         }
       }
     };
-    hide();
-    miniMap.on("styledata", hide);
-    return () => {
-      miniMap.off("styledata", hide);
-    };
+
+    if (sidebarVariant === "arbeitsauftraege") {
+      setVisibility(false);
+      const hide = () => setVisibility(false);
+      miniMap.on("styledata", hide);
+      return () => {
+        miniMap.off("styledata", hide);
+      };
+    } else {
+      setVisibility(true);
+    }
   }, [sidebarVariant, miniMap, miniMapReady, namespacedSource]);
 
   // --- Mini-map: render AA convex hull polygons from client-side GeoJSON ---
