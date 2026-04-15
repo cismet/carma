@@ -94,10 +94,9 @@ const buildCircleRadius = (halfPx: number) => {
   ] as unknown as number;
 };
 
-// Real leitungen line. Scaled ~2× styleY's "leitungen-base" for readability
-// of the bezeichnung-based status color.
+// Real leitungen line. Thinned another step toward styleY's "leitungen-base".
 //   styleY:  z10 → 0.5   z16 → 2    z22 → 6
-//   ours:    z10 → 1     z16 → 5    z22 → 12
+//   ours:    z10 → 1     z16 → 3    z22 → 7
 const lineWidth = [
   "interpolate",
   ["linear"],
@@ -105,9 +104,9 @@ const lineWidth = [
   10,
   1,
   16,
-  5,
+  3,
   22,
-  12,
+  7,
 ] as unknown as number;
 
 // Green status underlay — ~3px halo each side of the real line at every zoom.
@@ -118,9 +117,9 @@ const underlayLineWidth = [
   10,
   4,
   16,
-  11,
+  9,
   22,
-  18,
+  13,
 ] as unknown as number;
 
 // Real leitungen coloring copied from styleY.json's "leitungen-base" layer:
