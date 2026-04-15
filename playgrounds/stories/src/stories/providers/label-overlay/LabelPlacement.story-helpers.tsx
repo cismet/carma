@@ -23,18 +23,16 @@ import {
 } from "@carma-providers/label-overlay";
 import type { CssPixelPosition } from "@carma-units";
 import {
-  PREVIEW_LINE_LABEL_THEME,
-  previewLineLabelVisualDefaults,
-  type PreviewLineLabelTheme,
-} from "../../../../../../libraries/mapping/annotations/runtime-v2/src/lib/config/previewLineLabelVisualDefaults";
-import {
   applyLineLabel,
   buildPreviewDistanceTriangleLabelReferences,
   createSegmentLineLabels,
   hideLineLabels,
   previewControllerDefaults,
+  PREVIEW_LINE_LABEL_THEME,
+  previewLineLabelVisualDefaults,
   resolvePreviewDistanceTriangleComponentLabelVisibility,
-} from "../../../../../../libraries/mapping/annotations/runtime-v2/src/lib/interaction/previewController.shared";
+  type PreviewLineLabelTheme,
+} from "@carma-mapping/annotations/runtime";
 import barmenBackgroundUrl from "./assets/barmen-background.png";
 
 import { CenteredStoryFrame } from "../../common/ui/centered-story-frame";
@@ -1497,7 +1495,7 @@ export const DistanceTriangleOverlayDebugStory = ({
   <CenteredStoryFrame
     label="distance triangle overlay"
     values={[
-      "runtime-v2 label shell",
+      "runtime label shell",
       dashed ? "dashed triangle segments" : "solid triangle segments",
       "drag all three nodes",
       `bg ${backgroundMode}`,
@@ -1553,7 +1551,7 @@ export const LineLabelComponentStory = ({
   <CenteredStoryFrame
     label="line component"
     values={[
-      "runtime-v2 line label shell",
+      "runtime line label shell",
       `bg ${backgroundMode}`,
       `theme ${labelTheme}`,
       `backdrop ${showBackdrop ? "on" : "off"}`,

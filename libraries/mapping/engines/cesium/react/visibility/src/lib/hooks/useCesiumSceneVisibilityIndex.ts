@@ -6,8 +6,6 @@ import {
   useRef,
   useState,
 } from "react";
-
-import { isPointInViewport } from "@carma-mapping/annotations/core";
 import {
   Cartesian3,
   SceneTransforms,
@@ -69,6 +67,18 @@ const EMPTY_VISIBILITY_STATE: SceneVisibilityState = {
   isOccluded: false,
   screenPosition: null,
 };
+
+const isPointInViewport = (
+  point: CssPixelPosition,
+  viewportWidth: number,
+  viewportHeight: number,
+  paddingHorizontal = 0,
+  paddingVertical = 0
+) =>
+  point.x >= -paddingHorizontal &&
+  point.y >= -paddingVertical &&
+  point.x <= viewportWidth + paddingHorizontal &&
+  point.y <= viewportHeight + paddingVertical;
 
 export const useCesiumSceneVisibilityIndex = (
   scene: Scene | null,

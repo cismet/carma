@@ -1,0 +1,34 @@
+export const ANNOTATION_CANDIDATE_KINDS = {
+  NONE: "none",
+  POINT: "point",
+  DISTANCE: "distance",
+  POLYLINE: "polyline",
+  POLYGON_GROUND: "polygon-ground",
+  POLYGON_PLANAR: "polygon-planar",
+  POLYGON_VERTICAL: "polygon-vertical",
+} as const;
+
+export const ANNOTATION_CANDIDATE_KIND_NONE = ANNOTATION_CANDIDATE_KINDS.NONE;
+export const ANNOTATION_CANDIDATE_KIND_POINT = ANNOTATION_CANDIDATE_KINDS.POINT;
+export const ANNOTATION_CANDIDATE_KIND_DISTANCE =
+  ANNOTATION_CANDIDATE_KINDS.DISTANCE;
+export const ANNOTATION_CANDIDATE_KIND_POLYLINE =
+  ANNOTATION_CANDIDATE_KINDS.POLYLINE;
+export const ANNOTATION_CANDIDATE_KIND_POLYGON_GROUND =
+  ANNOTATION_CANDIDATE_KINDS.POLYGON_GROUND;
+export const ANNOTATION_CANDIDATE_KIND_POLYGON_PLANAR =
+  ANNOTATION_CANDIDATE_KINDS.POLYGON_PLANAR;
+export const ANNOTATION_CANDIDATE_KIND_POLYGON_VERTICAL =
+  ANNOTATION_CANDIDATE_KINDS.POLYGON_VERTICAL;
+
+export type AnnotationCandidateKind =
+  (typeof ANNOTATION_CANDIDATE_KINDS)[keyof typeof ANNOTATION_CANDIDATE_KINDS];
+
+export type AnnotationCandidateDescriptor = {
+  kind: AnnotationCandidateKind;
+  verticalOffsetMeters: number;
+  verticalPolygonContext?: {
+    groupId: string;
+    firstNodeId: string;
+  };
+};

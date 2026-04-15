@@ -35,5 +35,5 @@ nx lint units
 
 ## Related Libraries
 
-- **[`@carma-geo/data-structures`](/Users/friedrich/cisgit/carma/libraries/geo/data-structures/README.md)** - Geographic coordinate and direction types
+- **[`@carma-geo/data-structures`](../geo/data-structures/README.md)** - Geographic coordinate and direction types
 - **[`@carma-geo/helpers`](../../../geo/helpers/README.md)** - Geographic coordinate helpers

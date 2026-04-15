@@ -3,7 +3,7 @@ import type { CSSProperties } from "react";
 import { CarmaResponsiveInfoBox } from "@carma-commons/ui/components";
 import {
   PointLabel,
-  POINT_LABEL_TEXT_BACKGROUND_COLOR,
+  POINT_LABEL_THEME_DEFAULTS,
 } from "@carma-providers/label-overlay";
 import {
   annotationTypographyDefaults,
@@ -11,10 +11,10 @@ import {
   PREVIEW_LINE_LABEL_THEME,
   type AnnotationTypographyDefaults,
   type PreviewLineLabelTheme,
-} from "@carma-mapping/annotations/runtime-v2";
+} from "@carma-mapping/annotations/runtime";
 import { formatLengthMeters, LENGTH_UNIT_MODE } from "@carma-units";
 
-import "../../../../../../libraries/mapping/annotations/runtime-v2/src/lib/interaction/annotation-overlay-line-label.css";
+import "../../../../../../libraries/mapping/annotations/runtime/src/lib/interaction/annotation-overlay-line-label.css";
 import { CenteredStoryFrame } from "../../common/ui/centered-story-frame";
 import {
   LABEL_STORY_BACKGROUND_MODES,
@@ -372,7 +372,7 @@ const OverlayTypographyPanel = ({
         <PointLabel
           content={FORMATTED_ELEVATION}
           badgeContent="8"
-          textBackgroundColor={POINT_LABEL_TEXT_BACKGROUND_COLOR}
+          textBackgroundColor={POINT_LABEL_THEME_DEFAULTS.textBackgroundColor}
           markerBackgroundColor="rgba(230, 231, 235, 0.94)"
           markerTextColor="#111827"
           lineColor="rgba(230, 231, 235, 0.94)"

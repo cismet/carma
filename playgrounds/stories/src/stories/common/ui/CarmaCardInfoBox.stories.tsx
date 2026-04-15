@@ -1,10 +1,8 @@
 import { useState, type CSSProperties } from "react";
 
 import type { Meta, StoryObj } from "@storybook/react";
-import {
-  annotationTypographyDefaults,
-  runtimeAnnotationInfoBoxVisualDefaults,
-} from "@carma-mapping/annotations/runtime-v2";
+import { annotationInfoBoxVisualDefaults } from "@carma-mapping/annotations/ui";
+import { annotationTypographyDefaults } from "@carma-mapping/annotations/runtime";
 
 import {
   CarmaCard,
@@ -93,7 +91,7 @@ const CardVariant = ({
   dragGripPlacement = "auto",
   defaultCollapsed = false,
   headerText = "CarmaCard",
-  panelWidth = runtimeAnnotationInfoBoxVisualDefaults.defaultPixelWidth,
+  panelWidth = annotationInfoBoxVisualDefaults.defaultPixelWidth,
 }: VariantProps) => {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
 
@@ -119,7 +117,7 @@ const CardVariant = ({
               : undefined
           }
           header={<span style={infoBoxHeaderTextStyle}>{headerText}</span>}
-          headerColor={runtimeAnnotationInfoBoxVisualDefaults.headingColor}
+          headerColor={annotationInfoBoxVisualDefaults.headingColor}
           subtitle={
             subtitle ? (
               <div style={infoBoxSupportTextStyle}>{subtitle}</div>
@@ -150,7 +148,7 @@ const InfoBoxVariant = ({
   dragGripPlacement = "auto",
   defaultCollapsed = false,
   headerText = "InfoBox",
-  panelWidth = runtimeAnnotationInfoBoxVisualDefaults.defaultPixelWidth,
+  panelWidth = annotationInfoBoxVisualDefaults.defaultPixelWidth,
 }: VariantProps) => (
   <div style={surfaceStyle}>
     <VariantLabel title={title} />
@@ -169,7 +167,7 @@ const InfoBoxVariant = ({
         defaultCollapsed={defaultCollapsed}
         collapsible
         heading={<span style={infoBoxHeaderTextStyle}>{headerText}</span>}
-        headingColor={runtimeAnnotationInfoBoxVisualDefaults.headingColor}
+        headingColor={annotationInfoBoxVisualDefaults.headingColor}
         subtitle={
           subtitle ? (
             <div style={infoBoxSupportTextStyle}>{subtitle}</div>

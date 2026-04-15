@@ -10,9 +10,10 @@ export {
   PointLabel,
   POINT_LABEL_STYLE,
   POINT_LABEL_ATTACH,
-  POINT_LABEL_TEXT_BACKGROUND_COLOR,
-  POINT_LABEL_HOVER_BACKGROUND_COLOR,
-  POINT_LABEL_SELECTED_BACKGROUND_COLOR,
+  POINT_LABEL_COMPONENT_DEFAULTS,
+  POINT_LABEL_INTERACTION_DEFAULTS,
+  POINT_LABEL_LAYOUT_DEFAULTS,
+  POINT_LABEL_THEME_DEFAULTS,
   type PointLabelStyle,
   type PointLabelStyleProps,
 } from "../components/PointLabel";
@@ -39,6 +40,7 @@ export {
   type LineLabelPlacementOptions,
   type ResolvedLineLabelPlacement,
 } from "../lineLabelPlacement";
+export { getOverlayReferenceSignature } from "../overlayReferenceSignature";
 export { usePointLabels, type PointLabelData } from "../usePointLabels";
 export {
   useLineVisualizers,

@@ -98,11 +98,16 @@ export const AnnotationsToolbarButton = ({
     type={type}
     className={cn(
       "relative inline-flex items-center justify-center w-11 min-w-11 h-8 px-0 rounded-none border-0 bg-transparent text-gray-700 hover:text-gray-900",
-      active
-        ? `bg-white/90 text-gray-900 shadow-[inset_0_0_0_1px_${ANNOTATIONS_TOOLBAR_DEFAULTS.activeInsetBorderColorHex}]`
-        : "",
+      active ? "bg-white/90 text-gray-900" : "",
       className
     )}
+    style={
+      active
+        ? {
+            boxShadow: `inset 0 0 0 1px ${ANNOTATIONS_TOOLBAR_DEFAULTS.activeInsetBorderColorHex}`,
+          }
+        : undefined
+    }
     {...buttonProps}
   >
     {children}

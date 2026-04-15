@@ -1,875 +1,261 @@
-/* @refresh reset */
-import React, { useMemo, useRef, useState } from "react";
-import { normalizeOptions } from "@carma-commons/utils";
-import {
-  Cartesian3,
-  Cartesian4,
-  Matrix4,
-  type Scene,
-  Transforms,
-} from "@carma-cesium";
-import {
-  cartesian3FromMetricVector3,
-  getDegreesFromCartesian,
-  getEllipsoidalAltitudeOrZero,
-  getLocalUpDirectionAtAnchor,
-  getPositionFromLocalFrame,
-  getPositionInLocalFrame,
-  getPositionWithVerticalOffsetFromAnchor,
-  getSignedAngleDegAroundAxis,
-  normalizeDirection,
-  projectPointToHorizontalPlaneAtAnchor,
-  resolveLocalFrameVectors,
-} from "@carma-mapping/engines/cesium/core";
-import {
-  LINEAR_SEGMENT_LINE_MODE_DIRECT,
-  areDistanceRelationsEquivalent,
-  arePolygonAnnotationsEquivalent,
-  buildEdgeRelationIdsForPolygon,
-  buildDerivedPolylinePaths,
-  buildVerticalAutoCloseRectangle,
-  computePolylinePlanarAngleSumDeg,
-  createPlaneFromThreePoints,
-  distancePointToPlane,
-  getConnectedOpenPolylineGroupIds,
-  getDistanceRelationId,
-  getMeasurementEdgeId,
-  getNextDirectLineLabelMode,
-  getPointPositionMap,
-  getVerticalPolygonAxisRotationSuffix,
-  hasAnyVisibleDistanceRelationLine,
-  type AnnotationEntry,
-  type AnnotationCollection,
-  type AnnotationMode,
-  type NodeChainAnnotation,
-  type PlanarPolygonPlane,
-  type PointDistanceRelation,
-  type PolygonAreaType,
-} from "@carma-mapping/annotations/core";
+import { createContext, useContext, useEffect, type ReactNode } from "react";
+import { Provider as ReduxProvider } from "react-redux";
 
-import { useAnnotationEntries } from "../annotation-entries/useAnnotationEntries";
-import {
-  syncNodeChainEdgeDistanceRelations,
-  useAnnotationEntriesDomainActions,
-  useAnnotationEntryNameAction,
-  useAnnotationEntriesStoreState,
-  useModelIntegritySync,
-  usePersistenceSync,
-  useSyncNodeChainEdgeRelations,
-} from "../annotation-entries/useAnnotationEntries";
-import {
-  useActiveToolType,
-  useCreateDefaults,
-  useCursorCandidateState,
-  useDraftActions,
-  useDraftRollbackState,
-  useDraftSessionState,
-  useActiveDrawMode,
-  type AnnotationDraftSessionState,
-  useEditState,
-  type AnnotationEditState,
-  useModeTransition,
-  useEditing,
-  useInteractionLifecycle,
-  useUserInteraction,
-  useToolLifecycle,
-  useDistanceMeasureAuthoring,
-  useLabelPlacementDraftActions,
-  useNodeChainFinishing,
-  useNodeChainPointCreation,
-  usePointCreatedHandlers,
-  usePolylineSettings,
-  useReferencePointMeasurementId,
-} from "../interaction/useInteraction";
-import { createPreviewRuntimeController } from "../interaction/candidate/previewRuntime";
-import {
-  useRenderBridgeState,
-  useRenderEffects,
-  usePointIndex,
-} from "../render/useRender";
-import { ActiveMeasurementPreviewEffects } from "../render/scene/ActiveMeasurementPreviewEffects";
-import {
-  useFocusActions,
-  useSelectionController,
-  useFocusedNodeChainAnnotationId,
-  usePolygonFillSelectionHandler,
-} from "../selection/useSelection";
-import { useTopologyIndex } from "../annotation-entries/hooks/useTopologyIndex";
-import { useNodeChainPlaneDerivation } from "../annotation-entries/hooks/useNodeChainPlaneDerivation";
-import {
-  defaultMoveGizmoOptions,
-  defaultOptions,
-  defaultPointQueryOptions,
-  type AnnotationsOptions,
-} from "../config/annotationsOptions";
-import { useProviderSettingsState } from "./useProviderSettingsState";
 import type {
-  AnnotationsContextType,
-  AnnotationCollectionContextType,
-  AnnotationEditingContextType,
-  AnnotationSelectionContextType,
-  AnnotationSettingsContextType,
-  AnnotationToolsContextType,
-} from "./annotationsContext.types";
+  RuntimeAddAnnotationOptions,
+  RuntimeCoordinate,
+  RuntimeMeasurement,
+  RuntimeNodeLinkId,
+} from "../store/annotations-store.types";
 import {
-  createAnnotationsStore,
-  createInitialAnnotationsStoreState,
+  selectSelectedAnnotationId,
+  AnnotationsReduxContext,
+  useAnnotationsSelector,
   type AnnotationsStore,
 } from "../store";
-import {
-  AnnotationsContext,
-  AnnotationsStoreContext,
-} from "../store/useAnnotationsStore";
+import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
+import type { PreviewLineLabelVisualOptions } from "../config/preview-line-label-visual-defaults";
+import type { AnnotationsRuntimePersistenceEnvelope } from "../persistence/annotations-runtime-persistence";
+import type {
+  AnnotationToolPlugin,
+  AnnotationToolRegistry,
+} from "../tools/annotation-tool-plugin.types";
+import type { RuntimeScene } from "../types/runtime-scene.types";
+import type { RuntimeToolId } from "../types/runtime-tool.types";
+import { RuntimeAuthoringHost } from "./RuntimeAuthoringHost";
+import { RuntimeToolAvailabilityGuard } from "./RuntimeToolAvailabilityGuard";
+import { RuntimeVisualHost } from "./RuntimeVisualHost";
+import { useAnnotationsRuntimeAssembly } from "./use-annotations-runtime-assembly";
 
-export type {
-  AnnotationsContextType,
-  AnnotationCollectionContextType,
-  AnnotationEditingContextType,
-  AnnotationSelectionContextType,
-  AnnotationSettingsContextType,
-  AnnotationToolsContextType,
+type AnnotationsRuntimeServices = {
+  scene: RuntimeScene | null;
+  registry: AnnotationToolRegistry;
+  annotationsStore: AnnotationsStore;
+  formatOptions: AnnotationsRuntimeFormatOptions;
+  addAnnotation: (
+    toolType: RuntimeMeasurement["toolType"],
+    coordinates: readonly RuntimeCoordinate[],
+    options?: RuntimeAddAnnotationOptions,
+    linkedNodeGroupIds?: readonly (RuntimeNodeLinkId | null | undefined)[]
+  ) => RuntimeMeasurement;
+  setActiveToolType: (toolType: RuntimeToolId) => void;
+  requestModeChange: (toolType: RuntimeToolId) => void;
+  requestStartMeasurement: (toolType?: RuntimeToolId) => void;
+  requestFinishMeasurement: () => boolean;
+  focusAdjacentAnnotationEntry: (offset: -1 | 1) => void;
+  focusAnnotationId: (annotationId: string | null) => void;
+  flyToAnnotationById: (annotationId: string | null) => void;
+  flyToAllAnnotations: () => void;
+  removeAnnotationById: (annotationId: string) => void;
+  exportAnnotationGeoJson: (annotationId: string) => void;
+  toggleAnnotationVisibility: (annotationId: string) => void;
+  toggleAnnotationLocked: (annotationId: string) => void;
+  removeSelectedAnnotations: () => void;
+  selectAllAnnotations: () => void;
+  setElevationReferenceAnnotationId: (annotationId: string | null) => void;
+  toggleAnnotationElevationDisplayMode: (annotationId: string) => void;
+  updateAnnotationDisplayName: (
+    annotationId: string,
+    displayName: string
+  ) => void;
+  updateAnnotationShortLabel: (
+    annotationId: string,
+    shortLabel: string
+  ) => void;
+  setPointTemporaryMode: (temporaryMode: boolean) => void;
+  setSelectedAnnotationId: (annotationId: string | null) => void;
+  setSelectedAnnotationIds: (annotationIds: readonly string[]) => void;
+  setCursorOverlayEnabled: (enabled: boolean) => void;
 };
-export type { AnnotationsOptions } from "../config/annotationsOptions";
 
-interface AnnotationsProviderProps {
-  children: React.ReactNode;
-  options?: AnnotationsOptions;
-  enabled?: boolean;
-  cesiumScene: Scene;
-}
+type AnnotationsProviderProps = {
+  scene: RuntimeScene | null;
+  children?: ReactNode;
+  initialActiveToolType?: RuntimeToolId;
+  initialPointTemporaryMode?: boolean;
+  plugins?: readonly AnnotationToolPlugin[];
+  formatOptions?: AnnotationsRuntimeFormatOptions;
+  previewLineLabelVisualOptions?: Partial<PreviewLineLabelVisualOptions>;
+  initialPersistenceState?: AnnotationsRuntimePersistenceEnvelope | null;
+  onPersistenceStateChange?: (
+    state: AnnotationsRuntimePersistenceEnvelope
+  ) => void;
+};
 
-export const AnnotationsProvider: React.FC<AnnotationsProviderProps> = ({
-  children,
-  options,
-  enabled = true,
-  cesiumScene,
-}) => {
-  const normalizedOptions = normalizeOptions(options, defaultOptions);
-  const pointQueryOptions = normalizeOptions(
-    options?.pointQueries,
-    defaultPointQueryOptions
-  );
-  const pointQueryEnabled = pointQueryOptions.enabled !== false;
-  const moveGizmoOptions = normalizeOptions(
-    options?.moveGizmo,
-    defaultMoveGizmoOptions
-  );
-  const initialPersistenceState = normalizedOptions.initialPersistenceState;
-  const onPersistenceStateChange = normalizedOptions.onPersistenceStateChange;
-  const annotationsStoreRef = useRef<AnnotationsStore | null>(null);
-  const previewRuntimeControllerRef = useRef(createPreviewRuntimeController());
+type AnnotationsReduxProviderProps = {
+  store: AnnotationsStore;
+  context: typeof AnnotationsReduxContext;
+  children?: ReactNode;
+};
 
-  if (annotationsStoreRef.current === null) {
-    annotationsStoreRef.current = createAnnotationsStore(
-      createInitialAnnotationsStoreState({
-        initialToolType: options?.initialToolType ?? "point",
-        initialPointRadius: pointQueryOptions.radius,
-        initialPointVerticalOffsetMeters:
-          pointQueryOptions.verticalOffsetMeters,
-        initialPointTemporaryMode: pointQueryOptions.temporaryMode,
-        initialDistanceStickyToFirstPoint:
-          options?.distance?.stickyToFirstPoint,
-        initialDistanceCreationLineVisibility:
-          options?.distance?.creationLineVisibility,
-        initialDistanceLabelVisibilityByKind:
-          options?.distance?.defaultLabelVisibilityByKind,
-        initialDistanceDirectLineLabelMode:
-          options?.distance?.defaultDirectLineLabelMode,
-        initialPolylineVerticalOffsetMeters:
-          pointQueryOptions.verticalOffsetMeters,
-        initialHeightOffset: pointQueryOptions.heightOffset,
-      })
+const AnnotationsReduxProvider = ReduxProvider as unknown as (
+  props: AnnotationsReduxProviderProps
+) => ReactNode;
+
+const AnnotationsRuntimeContext =
+  createContext<AnnotationsRuntimeServices | null>(null);
+const DEFAULT_RUNTIME_FORMAT_OPTIONS: AnnotationsRuntimeFormatOptions = {};
+const DEFAULT_PREVIEW_LINE_LABEL_VISUAL_OPTIONS: Partial<PreviewLineLabelVisualOptions> =
+  {};
+
+const useRequiredAnnotationsRuntimeServices = () => {
+  const context = useContext(AnnotationsRuntimeContext);
+
+  if (!context) {
+    throw new Error(
+      "useAnnotationsRuntime must be used within AnnotationsProvider."
     );
   }
 
-  const annotationsStore = annotationsStoreRef.current;
-  const annotationEntryState = useAnnotationEntriesStoreState(annotationsStore);
-  const annotationSettingsState = useProviderSettingsState(annotationsStore);
-  const annotationDraftSessionState = useDraftSessionState(annotationsStore);
-  const annotationDraftRollbackState = useDraftRollbackState(annotationsStore);
-  const { pointIds: selectablePointIds } = usePointIndex(
-    annotationEntryState.annotations
-  );
-  const annotationTopologyIndex = useTopologyIndex(
-    annotationEntryState.nodeChainAnnotations
-  );
-  const annotationEditState = useEditState(
+  return context;
+};
+
+export const AnnotationsProvider = ({
+  scene,
+  children,
+  initialActiveToolType,
+  initialPointTemporaryMode = false,
+  plugins,
+  formatOptions = DEFAULT_RUNTIME_FORMAT_OPTIONS,
+  previewLineLabelVisualOptions = DEFAULT_PREVIEW_LINE_LABEL_VISUAL_OPTIONS,
+  initialPersistenceState = null,
+  onPersistenceStateChange,
+}: AnnotationsProviderProps) => {
+  const {
     annotationsStore,
-    annotationEntryState.annotations
-  );
-  const annotationCreateDefaults = useCreateDefaults(
-    annotationEntryState.annotations
-  );
-  const referencePointMeasurementId = useReferencePointMeasurementId(
-    annotationEntryState.annotations,
-    annotationEntryState.referencePoint,
-    0.001
-  );
-  const annotationSelection = useSelectionController(
-    annotationsStore,
-    cesiumScene,
-    selectablePointIds
-  );
-  const focusedSelectedNodeChainAnnotationId = useFocusedNodeChainAnnotationId(
-    annotationSelection.selectedAnnotationId,
-    annotationSelection.selectedAnnotationIds,
-    annotationTopologyIndex.getOwnerGroupIdsForPointId,
-    annotationDraftSessionState.activeNodeChainAnnotationId
-  );
-  const annotationSelectionState = {
-    ...annotationSelection,
-    focusedNodeChainAnnotationId: focusedSelectedNodeChainAnnotationId,
-  };
-  const scene = cesiumScene;
-  const {
-    getPreferredPlaneFacingPosition,
-    orientPlaneTowardSceneCamera,
-    computePolygonGroupDerivedDataWithCamera,
-  } = useNodeChainPlaneDerivation(scene);
-  const isInteractionActive = enabled;
-  const {
-    annotations,
-    distanceRelations,
-    nodeChainAnnotations,
-    referencePoint,
-    annotationToolType,
-    showLabels,
-    occlusionChecksEnabled,
-    setAnnotations,
-    setDistanceRelations,
-    setNodeChainAnnotations,
-    setReferencePoint,
-  } = annotationEntryState;
-  const updateAnnotationEntryNameById =
-    useAnnotationEntryNameAction(setAnnotations);
-  const {
-    pointRadius,
-    pointVerticalOffsetMeters,
-    pointTemporaryMode,
-    defaultPolylineVerticalOffsetMeters,
-    defaultPolylineSegmentLineMode,
-    distanceModeStickyToFirstPoint,
-    distanceCreationLineVisibility,
-    distanceDefaultLabelVisibilityByKind,
-    distanceDefaultDirectLineLabelMode,
-    heightOffset,
-    setPointVerticalOffsetMeters,
-    setPointTemporaryMode,
-    setDefaultPolylineVerticalOffsetMeters,
-    setDefaultPolylineSegmentLineMode,
-    setDistanceModeStickyToFirstPoint,
-    setDistanceCreationLineVisibilityByKind,
-  } = annotationSettingsState;
-  const [hideMeasurementsOfType, setHideMeasurementsOfType] = useState<
-    Set<AnnotationMode>
-  >(new Set());
-  const [hideLabelsOfType, setHideLabelsOfType] = useState<Set<AnnotationMode>>(
-    new Set()
-  );
-  const {
-    clearMeasurementDraftSession,
-    trackMeasurementDraftPointIds,
-    pruneMeasurementDraftSession,
-  } = annotationDraftRollbackState;
-  const {
-    activeNodeChainAnnotationId,
-    labelInputPromptPointId,
-    distanceSession,
-    setActiveNodeChainAnnotationId,
-    setLabelInputPromptPointId,
-    clearDistanceSession,
-    pruneDistanceSession,
-  } = annotationDraftSessionState;
-  const {
-    selectedAnnotationId,
-    selectedAnnotationIds,
-    selectionModeActive,
-    setSelectionModeActive,
-    selectAnnotationById,
-    selectAnnotationByIdImmediate,
-    clearPointSelection,
-    clearAnnotationSelection,
-    pruneSelectionByRemovedIds,
-    focusedNodeChainAnnotationId,
-  } = annotationSelectionState;
-  const {
-    getOwnerGroupIdsForPointId,
-    getOwnerGroupIdsForEdgeRelationId,
-    getRepresentativePointIdForGroupId,
-  } = annotationTopologyIndex;
-
-  const { moveGizmo, clearMoveGizmo } = annotationEditState;
-
-  useModelIntegritySync({
-    annotations,
-    defaultPolylineSegmentLineMode,
-    setDistanceRelations,
-    setNodeChainAnnotations,
-    computePolygonGroupDerivedDataWithCamera,
-  });
-
-  usePersistenceSync({
+    services,
+    setActiveToolType,
+    runtimeAuthoringHost,
+    runtimeVisualHost,
+    registry,
+  } = useAnnotationsRuntimeAssembly({
+    scene,
+    plugins,
+    initialActiveToolType,
+    initialPointTemporaryMode,
+    formatOptions,
+    previewLineLabelVisualOptions,
     initialPersistenceState,
     onPersistenceStateChange,
-    annotations,
-    distanceRelations,
-    nodeChainAnnotations,
-    setAnnotations,
-    setDistanceRelations,
-    setNodeChainAnnotations,
   });
-
-  const {
-    polylineVerticalOffsetMeters,
-    setPolylineVerticalOffsetMeters,
-    polylineSegmentLineMode,
-    setPolylineSegmentLineMode,
-  } = usePolylineSettings({
-    focusedNodeChainAnnotationId,
-    nodeChainAnnotations,
-    defaultPolylineVerticalOffsetMeters,
-    defaultPolylineSegmentLineMode,
-    setDefaultPolylineVerticalOffsetMeters,
-    setDefaultPolylineSegmentLineMode,
-    setNodeChainAnnotations,
-    setAnnotations,
-  });
-  const activeToolType = useActiveToolType(
-    annotationToolType,
-    selectionModeActive
-  );
-
-  const {
-    clearAnnotationCursor,
-    handleAnnotationCursorMove,
-    isPolylineCandidateMode,
-    hasCandidateNode,
-    candidateSupportsEdgeLine,
-    candidateUsesPolylineEdgeRules,
-    candidateForcesDirectEdgeLine,
-    annotationCursorEnabled,
-    syncAnnotationCursorToExistingPoint,
-    releaseAnnotationCursorSnap,
-    scheduleAnnotationCursorSnapRelease,
-  } = useCursorCandidateState({
-    scene,
-    annotations,
-    activeToolType,
-    activeNodeChainAnnotationId,
-    labelInputPromptPointId,
-    nodeChainAnnotations,
-    pointVerticalOffsetMeters,
-    polylineVerticalOffsetMeters,
-    pointQueryEnabled,
-    previewRuntimeController: previewRuntimeControllerRef.current,
-    moveGizmoPointId: moveGizmo.pointId,
-    isMoveGizmoDragging: moveGizmo.isDragging,
-    setNodeChainAnnotations,
-  });
-  const { lastCustomPointAnnotationName } = annotationCreateDefaults;
-
-  const {
-    clearPendingLabelPlacementAnnotation,
-    clearActiveNodeChainDrawingState,
-    discardActiveMeasurementDraft,
-  } = useDraftActions({
-    annotationsStore,
-    moveGizmoPointId: moveGizmo.pointId,
-    distanceSession,
-    setActiveNodeChainAnnotationId,
-    setLabelInputPromptPointId,
-    setNodeChainAnnotations,
-    setDistanceRelations,
-    setAnnotations,
-    pruneSelectionByRemovedIds,
-    clearMeasurementDraftSession,
-    clearDistanceSession,
-    clearAnnotationCursor,
-    clearAnnotationSelection,
-    clearMoveGizmo,
-  });
-
-  const { selectRepresentativeNodeForMeasurementId, focusAnnotationById } =
-    useFocusActions({
-      nodeChainAnnotations,
-      getRepresentativePointIdForGroupId,
-      clearActiveNodeChainDrawingState,
-      clearMoveGizmo,
-      clearAnnotationSelection,
-      selectAnnotationById,
-    });
-
-  const isActiveDrawMode = useActiveDrawMode(
-    activeNodeChainAnnotationId,
-    nodeChainAnnotations
-  );
-
-  const {
-    handleDistanceRelationLineClick,
-    handleDistanceRelationLineLabelToggle,
-    handleDistanceRelationCornerClick,
-    handleDistanceRelationMidpointClick,
-  } = useDistanceMeasureAuthoring({
-    scene: cesiumScene,
-    annotations: annotationEntryState.annotations,
-    defaults: {
-      defaultDistanceRelationLabelVisibility:
-        distanceDefaultLabelVisibilityByKind,
-      defaultDirectLineLabelMode: distanceDefaultDirectLineLabelMode,
-    },
-    session: {
-      activeNodeChainAnnotationId,
-      focusedNodeChainAnnotationId,
-      nodeChainAnnotations,
-    },
-    selection: {
-      selectAnnotationById,
-      selectRepresentativeNodeForMeasurementId,
-    },
-    topology: {
-      getOwnerGroupIdsForEdgeRelationId:
-        annotationTopologyIndex.getOwnerGroupIdsForEdgeRelationId,
-    },
-    mutation: {
-      setDistanceRelations,
-      setAnnotations,
-      setNodeChainAnnotations,
-      setActiveNodeChainAnnotationId,
-    },
-  });
-
-  const {
-    cumulativeDistanceByRelationId,
-    effectiveReferenceElevation,
-    effectiveDistanceToReferenceByPointId,
-    pointMarkerBadgeByPointId,
-    polylinePointLabelTextByPointId,
-    collapsedPillPointIds,
-    visiblePointEntries,
-    showPoints,
-    showPointLabels,
-    lockedAnnotationIdSet,
-    markerlessPointIds,
-    visiblePolygonAnnotationsForRendering,
-    effectiveDistanceRelationsForRendering,
-    hiddenPointLabelIds,
-    effectiveFullyHiddenPointIds,
-    currentAnnotationId,
-    focusedPolylineDistanceToStartByPointId,
-  } = useRenderBridgeState({
-    scene,
-    data: {
-      annotations,
-      distanceRelations,
-      nodeChainAnnotations,
-      referencePoint,
-      defaultPolylineVerticalOffsetMeters,
-      setAnnotations,
-    },
-    display: {
-      hideMeasurementsOfType,
-      hideLabelsOfType,
-      showLabels,
-      annotationCursorEnabled,
-    },
-    selection: {
-      selectedAnnotationId,
-      selectedAnnotationIds,
-      focusedNodeChainAnnotationId,
-      activeNodeChainAnnotationId,
-    },
-    candidate: {
-      session: {
-        annotationsStore,
-        referencePointMeasurementId,
-        selectablePointIds,
-        activeNodeChainAnnotationId,
-        nodeChainAnnotations,
-        candidateSupportsEdgeLine,
-      },
-    },
-  });
-
-  const {
-    finishActivePolygonMeasurement,
-    finishActivePolylineMeasurement,
-    handlePointQueryDoubleClick,
-  } = useNodeChainFinishing({
-    sceneCameraPosition: getPreferredPlaneFacingPosition(),
-    activeToolType,
-    activeNodeChainAnnotationId,
-    annotations,
-    nodeChainAnnotations: nodeChainAnnotations,
-    setNodeChainAnnotations,
-    clearAnnotationCursor,
-    clearActiveNodeChainDrawingState,
-    selectRepresentativeNodeForMeasurementId,
-    discardActiveMeasurementDraft,
-  });
-
-  usePolygonFillSelectionHandler({
-    scene,
-    selectionModeActive,
-    clearSelection: () => selectAnnotationById(null),
-    selectByPolygonGroupId: selectRepresentativeNodeForMeasurementId,
-  });
-
-  const { handlePointAnnotationCreated, handleLabelAnnotationCreated } =
-    usePointCreatedHandlers({
-      selectAnnotationByIdImmediate,
-      setActiveNodeChainAnnotationId,
-      setLabelInputPromptPointId,
-    });
-
-  const { requestEnterToolType, clearSharedModeExitState } = useModeTransition({
-    annotationsStore,
-    setSelectionModeActive,
-    clearAnnotationCursor,
-    clearAnnotationSelection,
-    clearActiveNodeChainDrawingState: clearActiveNodeChainDrawingState,
-    clearMoveGizmo,
-    clearPendingLabelPlacementAnnotation,
-  });
-
-  const {
-    updatePointLabelAppearanceById,
-    updateNodeChainAnnotationNameById,
-    updateNodeChainAnnotationSegmentLineModeById,
-    updateAnnotationNameById,
-    updateAnnotationVisualizerOptionsById,
-    toggleNodeChainAnnotationVisibilityById,
-    toggleAnnotationsVisibilityByIds,
-    toggleNodeChainAnnotationLockById,
-    toggleAnnotationsLockByIds,
-    cyclePointLabelMetricModeByMeasurementId,
-    clearAllAnnotations,
-    clearAnnotationsByType,
-    clearAnnotationsByIds,
-    deletePolygonAnnotationById,
-    deleteAnnotationsByIds,
-    deleteSelectedAnnotations,
-  } = useAnnotationEntriesDomainActions({
-    annotations,
-    distanceRelations,
-    nodeChainAnnotations,
-    selectedAnnotationId,
-    selectedAnnotationIds,
-    selectablePointIds,
-    lockedAnnotationIdSet,
-    moveGizmoPointId: moveGizmo.pointId,
-    hideMeasurementsOfType,
-    setHideMeasurementsOfType,
-    setAnnotations,
-    setDistanceRelations,
-    setNodeChainAnnotations,
-    setActiveNodeChainAnnotationId,
-    clearAnnotationSelection,
-    clearPointSelection,
-    clearActiveNodeChainDrawingState,
-    clearMoveGizmo,
-    getOwnerGroupIdsForPointId,
-    computePolygonGroupDerivedDataWithCamera,
-    pruneDistanceSession,
-    pruneMeasurementDraftSession,
-    pruneSelectionByRemovedIds,
-    updateAnnotationEntryNameById,
-  });
-
-  useSyncNodeChainEdgeRelations({
-    setDistanceRelations,
-    nodeChainAnnotations,
-    defaultPolylineSegmentLineMode,
-    defaultDistanceRelationLabelVisibility:
-      distanceDefaultLabelVisibilityByKind,
-    defaultDirectLineLabelMode: distanceDefaultDirectLineLabelMode,
-  });
-
-  const { requestFinishLabelPlacementDraft, requestCancelLabelPlacementDraft } =
-    useLabelPlacementDraftActions({
-      labelInputPromptPointId,
-      setLabelInputPromptPointId,
-      clearAnnotationsByIds,
-    });
-
-  const { handleNodeChainPointCreated, insertExistingNodeIntoActiveChain } =
-    useNodeChainPointCreation({
-      annotationsStore,
-      activeToolType,
-      defaultPolylineSegmentLineMode,
-      defaultDistanceLineVisibility: distanceCreationLineVisibility,
-      polylineVerticalOffsetMeters,
-      setNodeChainAnnotations,
-      setAnnotations,
-      setActiveNodeChainAnnotationId,
-      trackMeasurementDraftPointIds,
-      clearActiveNodeChainDrawingState: clearActiveNodeChainDrawingState,
-      clearMoveGizmo,
-      selectAnnotationById,
-      selectRepresentativeNodeForMeasurementId,
-      orientPlaneTowardSceneCamera,
-      computePolygonGroupDerivedDataWithCamera,
-    });
-  const {
-    activeToolSession,
-    contextValue: toolsContextValue,
-    confirmLabelPlacementById,
-    handlePointQueryPointCreated,
-    requestCancelActiveMeasurementAndEnterSelection,
-    requestFinishMeasurement,
-    requestStartMeasurement,
-  } = useToolLifecycle({
-    activeToolType,
-    annotations,
-    setAnnotations,
-    clearAnnotationsByIds,
-    labelInputPromptPointId,
-    requestEnterToolType,
-    requestFinishLabelPlacementDraft,
-    requestCancelLabelPlacementDraft,
-    handlePointAnnotationCreated,
-    handleLabelAnnotationCreated,
-    activeNodeChainAnnotationId,
-    nodeChainAnnotations,
-    discardActiveMeasurementDraft,
-    finishActivePolylineMeasurement,
-    finishActivePolygonMeasurement,
-    handleNodeChainPointCreated,
-    clearSharedModeExitState,
-    setLabelInputPromptPointId,
-  });
-
-  const annotationEditing = useEditing({
-    annotationsStore,
-    currentAnnotationId,
-    scene: cesiumScene,
-    annotations: annotationEntryState.annotations,
-    nodeChainAnnotations: annotationEntryState.nodeChainAnnotations,
-    referencePoint: annotationEntryState.referencePoint,
-    selectedAnnotationIds: annotationSelectionState.selectedAnnotationIds,
-    focusedNodeChainAnnotationId: focusedNodeChainAnnotationId,
-    pointRadius: annotationSettingsState.pointRadius,
-    setAnnotations: annotationEntryState.setAnnotations,
-    setNodeChainAnnotations: annotationEntryState.setNodeChainAnnotations,
-    setReferencePoint: annotationEntryState.setReferencePoint,
-    selectAnnotationById: annotationSelectionState.selectAnnotationById,
-    handleDistanceRelationLineClick,
-    handleDistanceRelationLineLabelToggle,
-    handleDistanceRelationCornerClick,
-    handleDistanceRelationMidpointClick,
-  });
-  const annotationCollectionDomain = useAnnotationEntries({
-    scene: cesiumScene,
-    annotations: annotationEntryState.annotations,
-    nodeChainAnnotations: annotationEntryState.nodeChainAnnotations,
-    referencePoint: annotationEntryState.referencePoint,
-    setAnnotations: annotationEntryState.setAnnotations,
-    setReferencePoint: annotationEntryState.setReferencePoint,
-    referencePointSyncEpsilonMeters: 0.001,
-    updateAnnotationNameById,
-    updateAnnotationVisualizerOptionsById,
-    updatePointLabelAppearanceById,
-    deleteAnnotationsByIds,
-    deleteSelectedAnnotations,
-    clearAllAnnotations,
-    clearAnnotationsByType,
-    toggleAnnotationsLockByIds,
-    toggleAnnotationsVisibilityByIds,
-    confirmLabelPlacementById,
-    focusAnnotationById,
-    selectedAnnotationId: annotationSelectionState.selectedAnnotationId,
-  });
-
-  const annotationUserInteraction = useUserInteraction(
-    {
-      annotations: annotationEntryState.annotations,
-      activeToolType: activeToolType,
-      selectionModeActive: annotationSelectionState.selectionModeActive,
-      effectiveSelectModeAdditive:
-        annotationSelectionState.effectiveSelectModeAdditive,
-      selectablePointIds,
-      moveGizmoPointId: annotationEditing.moveGizmoPointId,
-      isMoveGizmoDragging: annotationEditing.isMoveGizmoDragging,
-      pointQueryEnabled: pointQueryEnabled,
-      hasCandidateNode: hasCandidateNode,
-      isActiveDrawMode: isActiveDrawMode,
-      activeNodeChainAnnotationId:
-        annotationDraftSessionState.activeNodeChainAnnotationId,
-      nodeChainAnnotations: annotationEntryState.nodeChainAnnotations,
-      selectAnnotationIds: annotationSelectionState.selectAnnotationIds,
-      selectAnnotationById: annotationSelectionState.selectAnnotationById,
-      syncAnnotationCursorToExistingPoint: syncAnnotationCursorToExistingPoint,
-      releaseAnnotationCursorSnap: releaseAnnotationCursorSnap,
-      scheduleAnnotationCursorSnapRelease: scheduleAnnotationCursorSnapRelease,
-      insertExistingNodeIntoActiveChain: insertExistingNodeIntoActiveChain,
-      finishesOnLoopClosure: activeToolSession?.finishesOnLoopClosure ?? false,
-      requestFinishMeasurement,
-      selectedAnnotationId: annotationSelectionState.selectedAnnotationId,
-      cyclePointLabelMetricModeByMeasurementId:
-        cyclePointLabelMetricModeByMeasurementId,
-      labelInputPromptPointId: labelInputPromptPointId,
-      setLabelInputPromptPointId: setLabelInputPromptPointId,
-      setReferencePointId: annotationCollectionDomain.setReferencePointId,
-      pointTemporaryMode: pointTemporaryMode,
-      pointVerticalOffsetMeters: pointVerticalOffsetMeters,
-      lastCustomPointAnnotationName: lastCustomPointAnnotationName,
-      isPolylineCandidateMode: isPolylineCandidateMode,
-      polylineVerticalOffsetMeters: polylineVerticalOffsetMeters,
-      scene: cesiumScene,
-      setAnnotations: annotationEntryState.setAnnotations,
-      handlePointQueryPointCreated: handlePointQueryPointCreated,
-      handlePointQueryDoubleClick: handlePointQueryDoubleClick,
-      hasFocusedSelection: focusedNodeChainAnnotationId !== null,
-      clearFocusedSelection: () =>
-        selectRepresentativeNodeForMeasurementId(null),
-      selectByPolygonGroupId: selectRepresentativeNodeForMeasurementId,
-      handleAnnotationCursorMove: handleAnnotationCursorMove,
-    },
-    annotationEditing
-  );
-  useInteractionLifecycle({
-    annotations: annotationEntryState.annotations,
-    selectedAnnotationIds: annotationSelectionState.selectedAnnotationIds,
-    selectablePointIds,
-    lockedAnnotationIdSet: lockedAnnotationIdSet,
-    selectedAnnotationId: annotationSelectionState.selectedAnnotationId,
-    deleteSelectedAnnotations: deleteSelectedAnnotations,
-    clearAnnotationsByIds: clearAnnotationsByIds,
-    selectAnnotationById: annotationSelectionState.selectAnnotationById,
-    setAnnotations: annotationEntryState.setAnnotations,
-    pointTemporaryMode: pointTemporaryMode,
-    activeToolType: activeToolType,
-    requestStartMeasurement: requestStartMeasurement,
-    requestCancelActiveMeasurementAndEnterSelection,
-    requestFinishMeasurement,
-    focusAdjacentNavigationItem:
-      annotationCollectionDomain.focusAdjacentNavigationItem,
-    isInteractionActive: isInteractionActive,
-    distanceRelations: annotationEntryState.distanceRelations,
-    nodeChainAnnotations: annotationEntryState.nodeChainAnnotations,
-    activeNodeChainAnnotationId:
-      annotationDraftSessionState.activeNodeChainAnnotationId,
-    setActiveNodeChainAnnotationId:
-      annotationDraftSessionState.setActiveNodeChainAnnotationId,
-    setNodeChainAnnotations: annotationEntryState.setNodeChainAnnotations,
-    isPointMeasureCreateModeActive:
-      annotationUserInteraction.isPointMeasureCreateModeActive,
-  });
-  useRenderEffects(
-    {
-      scene: {
-        scene: cesiumScene,
-        options,
-      },
-      overlays: {
-        focusedNodeChainAnnotationId: focusedNodeChainAnnotationId,
-        activeNodeChainAnnotationId:
-          annotationDraftSessionState.activeNodeChainAnnotationId,
-        occlusionChecksEnabled: occlusionChecksEnabled,
-        labelInputPromptPointId: labelInputPromptPointId,
-      },
-      editing: {
-        moveGizmoPointId: annotationEditing.moveGizmoPointId,
-        moveGizmoOptions: moveGizmoOptions,
-        isMoveGizmoDragging: annotationEditing.isMoveGizmoDragging,
-      },
-      candidate: {
-        annotationCursorEnabled: annotationCursorEnabled,
-      },
-      selection: {
-        annotationSelection: annotationSelectionState.annotationSelection,
-        rectangleSelection: annotationSelectionState.rectangleSelection,
-      },
-    },
-    {
-      cumulativeDistanceByRelationId,
-      effectiveReferenceElevation,
-      effectiveDistanceToReferenceByPointId,
-      pointMarkerBadgeByPointId,
-      polylinePointLabelTextByPointId,
-      collapsedPillPointIds,
-      visiblePointEntries,
-      showPoints,
-      showPointLabels,
-      lockedAnnotationIdSet,
-      markerlessPointIds,
-      visiblePolygonAnnotationsForRendering,
-      effectiveDistanceRelationsForRendering,
-      hiddenPointLabelIds,
-      effectiveFullyHiddenPointIds,
-      currentAnnotationId,
-      focusedPolylineDistanceToStartByPointId,
-    },
-    annotationUserInteraction,
-    annotationEditing
-  );
-
-  const selectionContextValue = useMemo<AnnotationSelectionContextType>(
-    () => ({
-      ids: annotationSelectionState.selectedAnnotationIds,
-      mode: {
-        active: annotationSelectionState.selectionModeActive,
-        additive: annotationSelectionState.selectModeAdditive,
-        rectangle: annotationSelectionState.selectModeRectangle,
-      },
-      setModeActive: annotationSelectionState.setSelectionModeActive,
-      setAdditiveMode: annotationSelectionState.setSelectModeAdditive,
-      setRectangleMode: annotationSelectionState.setSelectModeRectangle,
-      set: annotationSelectionState.selectAnnotationIds,
-      clear: annotationSelectionState.clearAnnotationSelection,
-    }),
-    [
-      annotationSelectionState.clearAnnotationSelection,
-      annotationSelectionState.selectAnnotationIds,
-      annotationSelectionState.selectModeAdditive,
-      annotationSelectionState.selectModeRectangle,
-      annotationSelectionState.selectedAnnotationIds,
-      annotationSelectionState.selectionModeActive,
-      annotationSelectionState.setSelectionModeActive,
-      annotationSelectionState.setSelectModeAdditive,
-      annotationSelectionState.setSelectModeRectangle,
-    ]
-  );
-
-  const annotationsContextValue = useMemo<AnnotationsContextType>(
-    () => ({
-      tools: toolsContextValue,
-      selection: selectionContextValue,
-      annotations: annotationCollectionDomain.contextValue,
-      edit: annotationEditing.contextValue,
-      settings: annotationSettingsState.contextValue,
-    }),
-    [
-      annotationCollectionDomain.contextValue,
-      annotationEditing.contextValue,
-      annotationSettingsState.contextValue,
-      selectionContextValue,
-      toolsContextValue,
-    ]
-  );
 
   return (
-    <AnnotationsContext.Provider value={annotationsContextValue}>
-      <AnnotationsStoreContext.Provider value={annotationsStore}>
-        <ActiveMeasurementPreviewEffects
-          scene={cesiumScene}
-          activeToolType={activeToolType}
-          previewRuntimeController={previewRuntimeControllerRef.current}
-          annotations={annotationEntryState.annotations}
-          nodeChainAnnotations={annotationEntryState.nodeChainAnnotations}
-          referencePointMeasurementId={referencePointMeasurementId}
-          selectablePointIds={selectablePointIds}
-          activeNodeChainAnnotationId={activeNodeChainAnnotationId}
-          distanceModeStickyToFirstPoint={distanceModeStickyToFirstPoint}
-          distanceCreationLineVisibility={distanceCreationLineVisibility}
-          annotationCursorEnabled={annotationCursorEnabled}
-          showPoints={showPoints}
-          pointRadius={annotationSettingsState.pointRadius}
-          suppressCandidateLabelOverlay={
-            annotationUserInteraction.isPointMeasureLabelModeActive
-          }
+    <AnnotationsReduxProvider
+      context={AnnotationsReduxContext}
+      store={annotationsStore}
+    >
+      <AnnotationsRuntimeContext.Provider value={services}>
+        <RuntimeToolAvailabilityGuard
+          registry={registry}
+          setActiveToolType={setActiveToolType}
         />
+        <RuntimeAuthoringHost {...runtimeAuthoringHost} />
+        <RuntimeVisualHost {...runtimeVisualHost} />
         {children}
-      </AnnotationsStoreContext.Provider>
-    </AnnotationsContext.Provider>
+      </AnnotationsRuntimeContext.Provider>
+    </AnnotationsReduxProvider>
+  );
+};
+
+export const useAnnotationsRuntime = () => {
+  const {
+    scene,
+    registry,
+    formatOptions,
+    addAnnotation,
+    setActiveToolType,
+    requestModeChange,
+    requestStartMeasurement,
+    requestFinishMeasurement,
+    focusAdjacentAnnotationEntry,
+    focusAnnotationId,
+    flyToAnnotationById,
+    flyToAllAnnotations,
+    removeAnnotationById,
+    exportAnnotationGeoJson,
+    toggleAnnotationVisibility,
+    toggleAnnotationLocked,
+    removeSelectedAnnotations,
+    selectAllAnnotations,
+    setElevationReferenceAnnotationId,
+    toggleAnnotationElevationDisplayMode,
+    updateAnnotationDisplayName,
+    updateAnnotationShortLabel,
+    setPointTemporaryMode,
+    setSelectedAnnotationId,
+    setSelectedAnnotationIds,
+    setCursorOverlayEnabled,
+  } = useRequiredAnnotationsRuntimeServices();
+  const activeToolType = useAnnotationsSelector(
+    (state) => state.annotationToolType
+  );
+  const nodes = useAnnotationsSelector((state) => state.nodes);
+  const edges = useAnnotationsSelector((state) => state.edges);
+  const annotationEntries = useAnnotationsSelector(
+    (state) => state.annotationEntries
+  );
+  const selectedAnnotationId = useAnnotationsSelector(
+    selectSelectedAnnotationId
+  );
+  const selectedAnnotationIds = useAnnotationsSelector(
+    (state) => state.selectionState.selectedAnnotationIds
+  );
+  const elevationReferenceAnnotationId = useAnnotationsSelector(
+    (state) => state.settingsState.elevationReferenceAnnotationId
+  );
+  const pointTemporaryMode = useAnnotationsSelector(
+    (state) => state.settingsState.pointTemporaryMode
+  );
+
+  return {
+    scene,
+    registry,
+    formatOptions,
+    activeToolType,
+    setActiveToolType,
+    requestModeChange,
+    requestStartMeasurement,
+    requestFinishMeasurement,
+    focusAdjacentAnnotationEntry,
+    focusAnnotationId,
+    flyToAnnotationById,
+    flyToAllAnnotations,
+    removeAnnotationById,
+    exportAnnotationGeoJson,
+    toggleAnnotationVisibility,
+    toggleAnnotationLocked,
+    removeSelectedAnnotations,
+    selectAllAnnotations,
+    elevationReferenceAnnotationId,
+    setElevationReferenceAnnotationId,
+    toggleAnnotationElevationDisplayMode,
+    updateAnnotationDisplayName,
+    updateAnnotationShortLabel,
+    pointTemporaryMode,
+    setPointTemporaryMode,
+    nodes,
+    edges,
+    annotationEntries,
+    selectedAnnotationId,
+    selectedAnnotationIds,
+    setSelectedAnnotationId,
+    setSelectedAnnotationIds,
+    addAnnotation,
+    setCursorOverlayEnabled,
+  };
+};
+
+export const useRuntimeCursorOverlay = (enabled: boolean) => {
+  const { setCursorOverlayEnabled } = useRequiredAnnotationsRuntimeServices();
+
+  useEffect(() => {
+    setCursorOverlayEnabled(enabled);
+  }, [enabled, setCursorOverlayEnabled]);
+
+  useEffect(
+    () => () => {
+      setCursorOverlayEnabled(false);
+    },
+    [setCursorOverlayEnabled]
   );
 };

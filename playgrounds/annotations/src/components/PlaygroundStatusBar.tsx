@@ -106,22 +106,22 @@ export const PlaygroundStatusBar = ({
         </span>
         <button
           type="button"
-          style={toggleButtonStyle(runtimeVersion === "v1")}
-          onClick={() => onRuntimeVersionChange("v1")}
-          aria-current={runtimeVersion === "v1" ? "page" : undefined}
-          disabled={runtimeVersion === "v1"}
+          style={toggleButtonStyle(runtimeVersion === "prototype")}
+          onClick={() => onRuntimeVersionChange("prototype")}
+          aria-current={runtimeVersion === "prototype" ? "page" : undefined}
+          disabled={runtimeVersion === "prototype"}
         >
-          v1
+          prototype
         </button>
         <span>•</span>
         <button
           type="button"
-          style={toggleButtonStyle(runtimeVersion === "v2")}
-          onClick={() => onRuntimeVersionChange("v2")}
-          aria-current={runtimeVersion === "v2" ? "page" : undefined}
-          disabled={runtimeVersion === "v2"}
+          style={toggleButtonStyle(runtimeVersion === "runtime")}
+          onClick={() => onRuntimeVersionChange("runtime")}
+          aria-current={runtimeVersion === "runtime" ? "page" : undefined}
+          disabled={runtimeVersion === "runtime"}
         >
-          v2
+          runtime
         </button>
       </div>
     </div>

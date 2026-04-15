@@ -1,1 +1,1 @@
-export * from "./areaLabelTextBuilders";
+export * from "./area-label-text-builders";
