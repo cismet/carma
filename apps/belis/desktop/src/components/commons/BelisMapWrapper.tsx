@@ -84,7 +84,16 @@ import {
   getDraftMode,
 } from "../../store/slices/arbeitsauftraege";
 import { buildApGeoJson, extractGeometry, getHeaderColorFromStatus } from "../../helper/buildApGeoJson";
-import { debugLayers, apInfoboxMapping, aaInfoboxMapping } from "../../config/debugLayers";
+import {
+  debugLayers,
+  apInfoboxMapping,
+  aaInfoboxMapping,
+} from "../../config/debugLayers";
+import { protocolsLayers as protocolsLayersNew } from "../../config/protocolsLayers";
+
+// Toggle between the preliminary debug layer styles and the new protocols styles.
+const USE_PROTOCOLS_LAYERS = true;
+const protocolsLayers = USE_PROTOCOLS_LAYERS ? protocolsLayersNew : debugLayers;
 import type { ArbeitsauftragTileFeature } from "../../store/slices/arbeitsauftraege";
 import { transformGqlToTileFeatures } from "../../helper/transformArbeitsauftraege";
 import { fitAABounds } from "../../helper/fitAABounds";
@@ -1511,8 +1520,8 @@ const BelisMapLibWrapper = ({
       }
     }
 
-    // Add layers derived from debugLayers, rewritten for the AP GeoJSON source
-    for (const layer of debugLayers) {
+    // Add layers derived from protocolsLayers, rewritten for the AP GeoJSON source
+    for (const layer of protocolsLayers) {
       const sourceLayer =
         "source-layer" in layer
           ? ((layer as Record<string, unknown>)["source-layer"] as string)
@@ -1739,7 +1748,7 @@ const BelisMapLibWrapper = ({
       });
     }
 
-    for (const layer of debugLayers) {
+    for (const layer of protocolsLayers) {
       const sourceLayer =
         "source-layer" in layer
           ? ((layer as Record<string, unknown>)["source-layer"] as string)
