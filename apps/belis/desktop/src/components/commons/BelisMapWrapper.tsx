@@ -83,7 +83,11 @@ import {
   getAALoading,
   getDraftMode,
 } from "../../store/slices/arbeitsauftraege";
-import { buildApGeoJson, extractGeometry, getHeaderColorFromStatus } from "../../helper/buildApGeoJson";
+import {
+  buildApGeoJson,
+  extractGeometry,
+  getHeaderColorFromStatus,
+} from "../../helper/buildApGeoJson";
 import {
   debugLayers,
   apInfoboxMapping,
@@ -92,8 +96,10 @@ import {
 import { protocolsLayers as protocolsLayersNew } from "../../config/protocolsLayers";
 
 // Toggle between the preliminary debug layer styles and the new protocols styles.
-const USE_PROTOCOLS_LAYERS = true;
-const protocolsLayers = USE_PROTOCOLS_LAYERS ? protocolsLayersNew : debugLayers;
+const USE_DEBUG_LAYERS_FOR_PROTOCOLS_LAYERS = true;
+const protocolsLayers = !USE_DEBUG_LAYERS_FOR_PROTOCOLS_LAYERS
+  ? protocolsLayersNew
+  : debugLayers;
 import type { ArbeitsauftragTileFeature } from "../../store/slices/arbeitsauftraege";
 import { transformGqlToTileFeatures } from "../../helper/transformArbeitsauftraege";
 import { fitAABounds } from "../../helper/fitAABounds";
@@ -722,7 +728,13 @@ const BelisMapLibWrapper = ({
     };
 
     fetchData();
-  }, [selectedFeature, selectedFeatureId, jwt, featureDataVersion, sidebarVariant]);
+  }, [
+    selectedFeature,
+    selectedFeatureId,
+    jwt,
+    featureDataVersion,
+    sidebarVariant,
+  ]);
 
   // Close the datasheet when the selection is cleared in fachobjekte mode
   useEffect(() => {
@@ -1133,7 +1145,13 @@ const BelisMapLibWrapper = ({
 
   // --- Arbeitsauftraege: GraphQL fetch draft AAs by IDs when in draft mode ---
   useEffect(() => {
-    if (sidebarVariant !== "arbeitsauftraege" || !draftMode || !draftAAIdSet || !jwt) return;
+    if (
+      sidebarVariant !== "arbeitsauftraege" ||
+      !draftMode ||
+      !draftAAIdSet ||
+      !jwt
+    )
+      return;
     const ids = [...draftAAIdSet];
     if (ids.length === 0) {
       return;
@@ -1704,7 +1722,14 @@ const BelisMapLibWrapper = ({
     }
 
     return removeLayers;
-  }, [miniMap, miniMapReady, sidebarVariant, activeAATab, aaFeatures, draftAAIdSet]);
+  }, [
+    miniMap,
+    miniMapReady,
+    sidebarVariant,
+    activeAATab,
+    aaFeatures,
+    draftAAIdSet,
+  ]);
 
   // --- Mini-map: add AP GeoJSON overlay when in AP tab ---
   const MINI_AP_LAYER_PREFIX = "mini-ap-";
@@ -1725,8 +1750,7 @@ const BelisMapLibWrapper = ({
     };
 
     const shouldShow =
-      sidebarVariant === "arbeitsauftraege" &&
-      selectedAAData != null;
+      sidebarVariant === "arbeitsauftraege" && selectedAAData != null;
 
     if (!shouldShow) {
       removeLayers();
@@ -1786,10 +1810,10 @@ const BelisMapLibWrapper = ({
           geom.type === "Point"
             ? [(geom as GeoJSON.Point).coordinates]
             : geom.type === "LineString"
-              ? (geom as GeoJSON.LineString).coordinates
-              : geom.type === "MultiLineString"
-                ? (geom as GeoJSON.MultiLineString).coordinates.flat()
-                : [];
+            ? (geom as GeoJSON.LineString).coordinates
+            : geom.type === "MultiLineString"
+            ? (geom as GeoJSON.MultiLineString).coordinates.flat()
+            : [];
         for (const [lng, lat] of flatCoords) {
           if (lng < minLng) minLng = lng;
           if (lat < minLat) minLat = lat;
@@ -1846,8 +1870,8 @@ const BelisMapLibWrapper = ({
     const geojson = draftMode
       ? apDraftGeoJson
       : selectedAAData
-        ? buildApGeoJson(selectedAAData)
-        : null;
+      ? buildApGeoJson(selectedAAData)
+      : null;
     const feature = geojson?.features.find(
       (f) => f.properties?.id === selectedAPId
     );
@@ -1857,10 +1881,10 @@ const BelisMapLibWrapper = ({
         geom.type === "Point"
           ? [(geom as GeoJSON.Point).coordinates]
           : geom.type === "LineString"
-            ? (geom as GeoJSON.LineString).coordinates
-            : geom.type === "MultiLineString"
-              ? (geom as GeoJSON.MultiLineString).coordinates.flat()
-              : [];
+          ? (geom as GeoJSON.LineString).coordinates
+          : geom.type === "MultiLineString"
+          ? (geom as GeoJSON.MultiLineString).coordinates.flat()
+          : [];
       if (flatCoords.length > 0) {
         let minLng = Infinity,
           minLat = Infinity,
@@ -1897,10 +1921,7 @@ const BelisMapLibWrapper = ({
 
       const mappingCode = aaInfoboxMapping.join("\n");
       const versionAtStart = teamVersionRef.current;
-      objectToInfo(
-        aaFeature as unknown as Record<string, unknown>,
-        mappingCode
-      )
+      objectToInfo(aaFeature as unknown as Record<string, unknown>, mappingCode)
         .then((info) => {
           // Team changed while async — discard stale result
           if (teamVersionRef.current !== versionAtStart) return;
@@ -2058,8 +2079,8 @@ const BelisMapLibWrapper = ({
     const geojson = draftMode
       ? apDraftGeoJson
       : selectedAAData
-        ? buildApGeoJson(selectedAAData)
-        : null;
+      ? buildApGeoJson(selectedAAData)
+      : null;
     if (!geojson) {
       setOverrideSelectedFeature(null);
       return;
@@ -2099,7 +2120,14 @@ const BelisMapLibWrapper = ({
         }
       })
       .catch(() => setOverrideSelectedFeature(null));
-  }, [activeAATab, selectedAPId, selectedAAData, sidebarVariant, draftMode, apDraftGeoJson]);
+  }, [
+    activeAATab,
+    selectedAPId,
+    selectedAAData,
+    sidebarVariant,
+    draftMode,
+    apDraftGeoJson,
+  ]);
 
   const handleReturnToMap = useCallback(() => {
     map?.resize();
@@ -2309,9 +2337,7 @@ const BelisMapLibWrapper = ({
                   <ArbeitsauftraegeFormsWrapper
                     mode="ap"
                     id={String(selectedAPId)}
-                    data={
-                      draft.serverData as Record<string, unknown>
-                    }
+                    data={draft.serverData as Record<string, unknown>}
                     readOnly={!globalEditMode}
                     aaId={draft.aaId}
                     geometry={draft.geometry}
