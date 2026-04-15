@@ -1609,6 +1609,8 @@ const BelisMapLibWrapper = ({
   }, [sidebarVariant, miniMap, miniMapReady, namespacedSource]);
 
   // --- Mini-map: render AA convex hull polygons from client-side GeoJSON ---
+  // AA convex-hull polygons are no longer shown on the mini map;
+  // the AP overlay is displayed instead regardless of the active tab.
   const MINI_AA_FILL = "mini-aa-fill";
   const MINI_AA_OUTLINE = "mini-aa-outline";
   useEffect(() => {
@@ -1627,6 +1629,10 @@ const BelisMapLibWrapper = ({
       }
     };
 
+    removeLayers();
+    return removeLayers;
+
+    /* AA overlay disabled — keeping dead code below for reference
     const shouldShow =
       sidebarVariant === "arbeitsauftraege" && activeAATab !== "ap";
 
@@ -1634,6 +1640,7 @@ const BelisMapLibWrapper = ({
       removeLayers();
       return removeLayers;
     }
+    */
 
     const visibleAA = draftAAIdSet
       ? aaFeatures.filter((f) => draftAAIdSet.has(f.id))
@@ -1696,7 +1703,6 @@ const BelisMapLibWrapper = ({
 
     const shouldShow =
       sidebarVariant === "arbeitsauftraege" &&
-      activeAATab === "ap" &&
       selectedAAData != null;
 
     if (!shouldShow) {
