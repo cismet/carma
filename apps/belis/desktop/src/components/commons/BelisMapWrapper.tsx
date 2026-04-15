@@ -1577,7 +1577,10 @@ const BelisMapLibWrapper = ({
     miniMapContainerRef,
   } = useDatasheetMiniMap({
     mainMap: map,
-    miniMap,
+    // #606: Pass null to disable the hook's center/zoom sync effects in AA mode,
+    // so the AP overlay's fitBounds (below) controls the minimap view instead.
+    miniMap:
+      sidebarVariant === "arbeitsauftraege" && selectedAAData ? null : miniMap,
     containerRef: mapContainerRef,
     debug: MINI_MAP_DEBUGGING,
   });
