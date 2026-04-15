@@ -1,7 +1,7 @@
 import { useContext } from "react";
 import CustomizationContextProvider from "react-cismap/contexts/CustomizationContextProvider";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
-import DefaultSettingsPanel from "react-cismap/topicmaps/menu/DefaultSettingsPanel";
+import { DefaultSettingsPanel } from "@carma-commons/cismap";
 import ModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 import Section from "react-cismap/topicmaps/menu/Section";
 import { GenericDigitalTwinReferenceSection } from "@carma-collab/wuppertal/commons";
@@ -14,11 +14,11 @@ import {
 import versionData from "../version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
 import { PreviewLibreMap } from "@carma-mapping/engines/maplibre";
-import {
-  AdvancedFilterPanel,
-  type AdvancedFilterCategory,
-  type AdvancedFilterState,
+import type {
+  AdvancedFilterCategory,
+  AdvancedFilterState,
 } from "@carma-mapping/components";
+import FilterUI from "./FilterUI";
 
 interface MenuProps {
   categories?: AdvancedFilterCategory[];
@@ -26,6 +26,10 @@ interface MenuProps {
   onFilterStateChange?: (state: AdvancedFilterState) => void;
   pieChartData?: [string, number][];
   pieChartColors?: string[];
+  filteredPoiCount?: number;
+  visiblePoiCount?: number;
+  totalPoiCount?: number;
+  onTitleDisplayChange?: (show: boolean) => void;
 }
 
 const Menu = ({
@@ -34,17 +38,20 @@ const Menu = ({
   onFilterStateChange,
   pieChartData,
   pieChartColors,
+  filteredPoiCount = 0,
+  visiblePoiCount = 0,
+  totalPoiCount = 0,
+  onTitleDisplayChange,
 }: MenuProps) => {
   const { setAppMenuActiveMenuSection } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
 
   const hasFilter = categories && filterState && onFilterStateChange;
 
-  const filterTitle =
-    filterState &&
-    (filterState.positiv.length > 0 || filterState.negativ.length > 0)
-      ? `Filter (${filterState.positiv.length} aktiv, ${filterState.negativ.length} ausgeschlossen)`
-      : "Filter";
+  const getFilterHeader = () => {
+    const term = filteredPoiCount === 1 ? "POI" : "POIs";
+    return `Mein Themenstadtplan (${filteredPoiCount} ${term} gefunden, davon ${visiblePoiCount} in der Karte)`;
+  };
 
   return (
     <CustomizationContextProvider customizations={{}}>
@@ -68,14 +75,13 @@ const Menu = ({
                 <Section
                   key="filter"
                   sectionKey="filter"
-                  sectionTitle={filterTitle}
+                  sectionTitle={getFilterHeader()}
                   sectionBsStyle="primary"
                   sectionContent={
-                    <AdvancedFilterPanel
+                    <FilterUI
                       categories={categories}
                       filterState={filterState}
                       onFilterStateChange={onFilterStateChange}
-                      width={900}
                       pieChartData={pieChartData}
                       pieChartColors={pieChartColors}
                     />
@@ -85,6 +91,8 @@ const Menu = ({
             : []),
           <DefaultSettingsPanel
             key="settings"
+            hasFilter={!!hasFilter}
+            onTitleDisplayChange={onTitleDisplayChange}
             getSymbolSVG={(size: number, color: string) => {
               return (
                 <img

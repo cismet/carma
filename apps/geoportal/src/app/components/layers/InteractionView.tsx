@@ -12,6 +12,7 @@ import {
   createFilterButtons,
   FilterInfo,
   FilterState,
+  PoiFilterPanel,
 } from "@carma-mapping/components";
 import {
   getSelectedFeature,
@@ -26,6 +27,7 @@ import { useFilterBackground } from "./useFilterBackground";
 import FilterBackdrop from "./FilterBackdrop";
 
 const InteractionView = ({ isDragging }: { isDragging?: boolean }) => {
+  const [filterState, setFilterState] = useState<FilterState | undefined>();
   const dispatch = useDispatch();
   const activeInteractionLayerID = useSelector(getActiveInteractionLayerID);
   const layers = useSelector(getLayers);
@@ -44,13 +46,53 @@ const InteractionView = ({ isDragging }: { isDragging?: boolean }) => {
     isDragging
   );
 
+  const filterType = layer?.filterConfig?.filterType;
+
   const FilterComponent = useMemo(
     () =>
-      layer?.filterConfig ? createFilterButtons(layer.filterConfig) : null,
-    [layer?.filterConfig]
+      layer?.filterConfig && filterType !== "poi"
+        ? createFilterButtons(layer.filterConfig)
+        : null,
+    [layer?.filterConfig, filterType]
   );
 
-  if (!layer) {
+  if (!layer || !layer.filterConfig) {
+    return null;
+  }
+
+  if (filterType === "poi") {
+    return (
+      <div ref={wrapperRef} className="relative">
+        {validBg && !isDragging && <FilterBackdrop bgData={validBg} />}
+        <div className="pt-3 w-full flex justify-center">
+          <div
+            ref={filterRef}
+            style={{
+              maxWidth: 700,
+              background: "rgba(255, 255, 255, 0.9)",
+              borderRadius: 12,
+              padding: "8px 12px",
+            }}
+          >
+            <PoiFilterPanel
+              maplibreMap={maplibreMap}
+              initialFilterState={layer.filterState}
+              onFilterChange={(info, state) => {
+                dispatch(
+                  setLayerFilterState({ id: layer.id, filterState: state })
+                );
+                dispatch(
+                  setLayerFilterInfo({ id: layer.id, filterInfo: info })
+                );
+              }}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!FilterComponent) {
     return null;
   }
 

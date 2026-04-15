@@ -65,7 +65,9 @@ export type FilterOption = {
   grayscaleWhenInactive?: boolean;
 };
 
-export type FilterConfig = {
+export type ButtonsFilterConfig = {
+  filterType?: "buttons";
+  /** The "show all" button label (not shown if filterMode is "or") */
   allLabel?: string;
   layerPattern: string;
   filterMode?: FilterMode;
@@ -79,6 +81,12 @@ export type FilterConfig = {
     maxWidth?: string;
   };
 };
+
+export type PoiFilterConfig = {
+  filterType: "poi";
+};
+
+export type FilterConfig = ButtonsFilterConfig | PoiFilterConfig;
 
 export type LayerProps = {
   url: string;

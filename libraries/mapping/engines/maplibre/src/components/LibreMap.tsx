@@ -1,8 +1,8 @@
-import { cogProtocol } from "@geomatico/maplibre-cog-protocol";
+import type { LayerSpecification, StyleSpecification } from "maplibre-gl";
 import maplibregl from "maplibre-gl";
-import type { StyleSpecification } from "maplibre-gl";
-
 import "maplibre-gl/dist/maplibre-gl.css";
+import { cogProtocol } from "@geomatico/maplibre-cog-protocol";
+
 // Register COG protocol once
 maplibregl.addProtocol("cog", cogProtocol as any);
 import {
@@ -19,6 +19,7 @@ import PhotoLightBox from "react-cismap/topicmaps/PhotoLightbox";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import "../styles/map.css";
 import {
+  applySymbolScalingToMap,
   getVectorMapping,
   styleManipulation,
   vectorStylesToMapLibreStyle,
@@ -287,6 +288,7 @@ export const LibreMap = ({
     Array<{ sourceId: string; uniqueColors: string[] }>
   >([]);
   const isInitialGeoJsonLoad = useRef(true);
+  const baseStyleLayersRef = useRef<LayerSpecification[]>([]);
 
   const { clusteringEnabled } = useContext<typeof FeatureCollectionContext>(
     FeatureCollectionContext
@@ -294,6 +296,8 @@ export const LibreMap = ({
   const { markerSymbolSize } = useContext<typeof TopicMapStylingContext>(
     TopicMapStylingContext
   );
+  const markerSymbolSizeRef = useRef(markerSymbolSize);
+  markerSymbolSizeRef.current = markerSymbolSize;
   const {
     setMapStyle,
     geoJsonMetadata,
@@ -700,37 +704,45 @@ export const LibreMap = ({
             }
           }
 
-          if (bestHitLayer && bestResult && bestResult.resolvedSourceIndex != null) {
-              // Before accepting the 3D hit, check if there's a 2D symbol
-              // feature at the click point. Symbol layers (POI icons/text)
-              // render visually above 3D layers, so they should win clicks.
-              const hits2d = mapInstance.queryRenderedFeatures(e.point);
-              // queryRenderedFeatures returns hits in visual order (top first).
-              // If the topmost hit has a layerMapping, it's a selectable feature
-              // rendered above the 3D layer, so let the 2D path handle the click.
-              // If the topmost 2D hit is from a LIBRE_LAYERS sub-style (has
-              // layer-id metadata) but NOT from a source that has a 3D layer,
-              // it renders above the 3D objects, so let 2D selection win.
-              // Check if any 2D hit comes from a layer positioned after all
-              // 3D source layers in the style stack. Such layers render visually
-              // above the 3D objects and should win the click.
-              const styleLayers = mapInstance.getStyle()?.layers ?? [];
-              const threeSources = new Set(threeLayers.map((l) => l._config.sourceId));
-              let lastThreeSourceIdx = -1;
-              for (let i = 0; i < styleLayers.length; i++) {
-                const src = (styleLayers[i] as { source?: string }).source;
-                if (src && threeSources.has(src)) lastThreeSourceIdx = i;
-              }
-              const hitAbove3d = lastThreeSourceIdx >= 0 && hits2d.some((f) => {
+          if (
+            bestHitLayer &&
+            bestResult &&
+            bestResult.resolvedSourceIndex != null
+          ) {
+            // Before accepting the 3D hit, check if there's a 2D symbol
+            // feature at the click point. Symbol layers (POI icons/text)
+            // render visually above 3D layers, so they should win clicks.
+            const hits2d = mapInstance.queryRenderedFeatures(e.point);
+            // queryRenderedFeatures returns hits in visual order (top first).
+            // If the topmost hit has a layerMapping, it's a selectable feature
+            // rendered above the 3D layer, so let the 2D path handle the click.
+            // If the topmost 2D hit is from a LIBRE_LAYERS sub-style (has
+            // layer-id metadata) but NOT from a source that has a 3D layer,
+            // it renders above the 3D objects, so let 2D selection win.
+            // Check if any 2D hit comes from a layer positioned after all
+            // 3D source layers in the style stack. Such layers render visually
+            // above the 3D objects and should win the click.
+            const styleLayers = mapInstance.getStyle()?.layers ?? [];
+            const threeSources = new Set(
+              threeLayers.map((l) => l._config.sourceId)
+            );
+            let lastThreeSourceIdx = -1;
+            for (let i = 0; i < styleLayers.length; i++) {
+              const src = (styleLayers[i] as { source?: string }).source;
+              if (src && threeSources.has(src)) lastThreeSourceIdx = i;
+            }
+            const hitAbove3d =
+              lastThreeSourceIdx >= 0 &&
+              hits2d.some((f) => {
                 const idx = styleLayers.findIndex((sl) => sl.id === f.layer.id);
                 return idx > lastThreeSourceIdx;
               });
-              if (hitAbove3d) {
-                // Let the 2D selection path handle this click
-                threeLayers.forEach((l) => l.unhighlight());
-              }
+            if (hitAbove3d) {
+              // Let the 2D selection path handle this click
+              threeLayers.forEach((l) => l.unhighlight());
+            }
 
-              if (!hitAbove3d) {
+            if (!hitAbove3d) {
               const threeLayer = bestHitLayer;
               const result = bestResult;
               // [3D-SELECT] closest hit log suppressed
@@ -841,7 +853,7 @@ export const LibreMap = ({
                 );
               }
               return; // skip 2D selection
-              } // end if (!hitAbove3d)
+            } // end if (!hitAbove3d)
           }
         }
         // ── end 3D raycast ────────────────────────────────────
@@ -1161,8 +1173,16 @@ export const LibreMap = ({
           // Bail out if effect was cleaned up during async work (StrictMode double-fire)
           if (aborted) return;
 
-          // Apply marker symbol size scaling
-          const style = styleManipulation(markerSymbolSize, baseStyle);
+          // Store unscaled layers for live symbol-size updates
+          baseStyleLayersRef.current = baseStyle.layers
+            ? JSON.parse(JSON.stringify(baseStyle.layers))
+            : [];
+
+          // Apply marker symbol size scaling (use ref for current value since this is async)
+          const style = styleManipulation(
+            markerSymbolSizeRef.current,
+            baseStyle
+          );
 
           // Store geojson metadata for pie chart rendering (local ref and context)
           geoJsonMetadataRef.current = geoJsonMetadata;
@@ -1348,28 +1368,37 @@ export const LibreMap = ({
             const loadedSources = new Set<string>();
 
             const handleStyleLoad = () => {
-              const handleData = (e: any) => {
-                const isRelevantSource = geoJsonMetadata.some(
-                  ({ sourceId }) => e.sourceId === sourceId
-                );
-                if (!isRelevantSource || !e.isSourceLoaded) return;
+              const trackSource = (sourceId: string) => {
+                if (loadedSources.has(sourceId)) return;
+                loadedSources.add(sourceId);
+                if (isInitialGeoJsonLoad.current) {
+                  onProgressUpdate({
+                    current: loadedSources.size,
+                    total: geoJsonMetadata.length,
+                  });
 
-                if (!loadedSources.has(e.sourceId)) {
-                  loadedSources.add(e.sourceId);
-                  if (isInitialGeoJsonLoad.current) {
-                    onProgressUpdate({
-                      current: loadedSources.size,
-                      total: geoJsonMetadata.length,
-                    });
-
-                    if (loadedSources.size === geoJsonMetadata.length) {
-                      isInitialGeoJsonLoad.current = false;
-                    }
+                  if (loadedSources.size === geoJsonMetadata.length) {
+                    isInitialGeoJsonLoad.current = false;
                   }
                 }
               };
 
+              const handleData = (e: any) => {
+                const meta = geoJsonMetadata.find(
+                  ({ sourceId }) => e.sourceId === sourceId
+                );
+                if (!meta || !e.isSourceLoaded) return;
+                trackSource(meta.sourceId);
+              };
+
               map.current!.on("data", handleData);
+
+              // Check sources that may have loaded before the listener was attached
+              for (const { sourceId } of geoJsonMetadata) {
+                if (map.current!.isSourceLoaded(sourceId)) {
+                  trackSource(sourceId);
+                }
+              }
             };
 
             if (map.current!.isStyleLoaded()) {
@@ -1397,15 +1426,29 @@ export const LibreMap = ({
     return () => {
       aborted = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- markerSymbolSize handled by dedicated effect below
   }, [
     backgroundStyle,
     vectorBackgroundLayers,
     layers,
     clusteringEnabled,
-    markerSymbolSize,
     filterFunction,
     layerMode,
   ]);
+
+  useEffect(() => {
+    if (
+      !map.current ||
+      layerMode === "imperative" ||
+      baseStyleLayersRef.current.length === 0
+    )
+      return;
+    applySymbolScalingToMap(
+      map.current,
+      markerSymbolSize,
+      baseStyleLayersRef.current
+    );
+  }, [markerSymbolSize, layerMode]);
 
   const getLeafletMap = useCallback(() => {
     const m = map.current;

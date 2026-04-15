@@ -1,4 +1,4 @@
-import type { FilterConfig } from "@carma-mapping/layers";
+import type { ButtonsFilterConfig } from "@carma-mapping/layers";
 import { useState, useEffect } from "react";
 
 // Types for filter configuration
@@ -27,7 +27,7 @@ export interface GenericFilterButtonsProps {
   maplibreMap: any;
   selectedFeature: any;
   setSelectedFeature: (feature: any) => void;
-  config: FilterConfig;
+  config: ButtonsFilterConfig;
   onFilterChange?: (filterInfo: FilterInfo, filterState: FilterState) => void;
   skipFeatureMatchCheck?: boolean;
   initialFilters?: FilterState;
@@ -70,7 +70,7 @@ export const captureOriginalFilters = (
 
 // Function to build filter expression from selected filters
 export const buildFilterExpression = (
-  config: FilterConfig,
+  config: ButtonsFilterConfig,
   filters: FilterState
 ): any[] | null => {
   const isOrMode = config.filterMode === "or";
@@ -122,7 +122,7 @@ export const buildFilterExpression = (
   }
 };
 
-export const createFilterButtons = (config: FilterConfig) => {
+export const createFilterButtons = (config: ButtonsFilterConfig) => {
   const isOrMode = config.filterMode === "or";
 
   const GenericFilterButtons = ({

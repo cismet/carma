@@ -55,8 +55,7 @@ import "./tabs.css";
 import {
   LayerButton,
   LayerIcon,
-  buildFilterExpression,
-  captureOriginalFilters,
+  useRestoreLayerFilter,
 } from "@carma-mapping/components";
 import { Badge, Spin } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
@@ -156,54 +155,13 @@ const GeoportalLayerButton = ({
     }
   }, [layersLength]);
 
-  const filterAppliedRef = useRef(false);
-  useEffect(() => {
-    if (!layer.filterConfig || !layer.filterState || filterAppliedRef.current)
-      return;
-
-    const mapEntry = maplibreMaps?.find((entry) => entry.id === id);
-    if (!mapEntry?.map) return;
-
-    const libreMap = mapEntry.map;
-    try {
-      const originals = captureOriginalFilters(
-        layer.filterConfig.layerPattern,
-        libreMap
-      );
-
-      const filterExpression = buildFilterExpression(
-        layer.filterConfig,
-        layer.filterState
-      );
-
-      Object.keys(originals).forEach((layerId) => {
-        try {
-          const origFilter = originals[layerId];
-          let combinedFilter = filterExpression;
-
-          if (origFilter && filterExpression) {
-            combinedFilter = ["all", origFilter, filterExpression];
-          } else if (origFilter && !filterExpression) {
-            combinedFilter = origFilter;
-          }
-
-          libreMap.setFilter(layerId, combinedFilter);
-        } catch (error) {
-          console.error(
-            `[FilterRestore] Error setting filter on layer ${layerId}:`,
-            error
-          );
-        }
-      });
-
-      filterAppliedRef.current = true;
-    } catch (error) {
-      console.error(
-        `[FilterRestore] Error restoring filters for ${id}:`,
-        error
-      );
-    }
-  }, [layer.filterConfig, layer.filterState, maplibreMaps, id]);
+  const layerMaplibreMap =
+    maplibreMaps?.find((entry) => entry.id === id)?.map ?? null;
+  useRestoreLayerFilter(
+    layer.filterConfig,
+    layer.filterState,
+    layerMaplibreMap
+  );
 
   const isCurrentlyVisible = () => {
     if (zoom >= layer?.props?.maxZoom || zoom <= layer?.props?.minZoom) {
