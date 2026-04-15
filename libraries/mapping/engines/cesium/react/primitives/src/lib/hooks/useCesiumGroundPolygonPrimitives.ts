@@ -1,6 +1,4 @@
 import { useEffect, useRef } from "react";
-
-import { type PolygonPreviewGroup } from "@carma-mapping/annotations/core";
 import {
   Cartesian3,
   ClassificationType,
@@ -13,6 +11,9 @@ import {
   PolygonHierarchy,
   type Scene,
 } from "@carma-cesium";
+
+type CesiumGroundPolygonVertexPoint = Cartesian3;
+
 const removeGroundPrimitives = (
   scene: Scene,
   groundPrimitives: readonly GroundPrimitive[]
@@ -24,7 +25,7 @@ const removeGroundPrimitives = (
 
 export type CesiumPolygonPrimitive = {
   id: string;
-  vertexPoints: ReadonlyArray<PolygonPreviewGroup["vertexPoints"][number]>;
+  vertexPoints: ReadonlyArray<CesiumGroundPolygonVertexPoint>;
   fillColor: Color;
 };
 

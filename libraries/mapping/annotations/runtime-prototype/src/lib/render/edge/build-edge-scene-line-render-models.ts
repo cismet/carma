@@ -4,17 +4,14 @@ import {
   isDistanceRelationHorizontalLineVisible,
   isDistanceRelationVerticalLineVisible,
   resolveDistanceRelation,
-  type LineType,
   type PointAnnotationEntry,
   type PointDistanceRelation,
-  LINE_TYPES,
 } from "@carma-mapping/annotations/core";
-import { Cartesian3 } from "@carma-cesium";
+import { ArcType, Cartesian3 } from "@carma-cesium";
 import { getDegreesFromCartesian } from "@carma-mapping/engines/cesium/core";
 import type { EdgeSceneLineRenderModel } from "../scene/visualization.types";
-const { CARTESIAN: LINE_TYPE_CARTESIAN } = LINE_TYPES;
 
-const DEFAULT_LINE_TYPE: LineType = LINE_TYPE_CARTESIAN;
+const DEFAULT_LINE_TYPE = ArcType.NONE;
 
 const DEFAULT_EDGE_SCENE_LINE_STYLES = {
   direct: {

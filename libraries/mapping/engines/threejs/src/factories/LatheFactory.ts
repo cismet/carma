@@ -67,7 +67,7 @@ export function buildLatheInstances(
   const toRemove = scene.children.filter(
     (c): c is THREE.InstancedMesh =>
       (c as THREE.InstancedMesh).isInstancedMesh === true &&
-      !(c as THREE.InstancedMesh).userData.isBuilding
+      !(c as THREE.InstancedMesh).userData.isBuilding,
   );
   for (const m of toRemove) {
     m.geometry.dispose();

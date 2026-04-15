@@ -1,9 +1,8 @@
 import type {
-  LineType,
   PointAnnotationEntry,
   PolygonPreviewGroup,
 } from "@carma-mapping/annotations/core";
-import type { Color } from "@carma-cesium";
+import type { ArcType, Color } from "@carma-cesium";
 export type EdgeSceneLineRenderModel = {
   id: string;
   start: PointAnnotationEntry["geometryECEF"];
@@ -11,7 +10,7 @@ export type EdgeSceneLineRenderModel = {
   stroke: string;
   strokeWidth: number;
   dashed?: boolean;
-  lineType?: LineType;
+  lineType?: ArcType;
 };
 
 export type PolygonPrimitiveRenderModel = {

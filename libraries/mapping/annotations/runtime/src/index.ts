@@ -27,6 +27,13 @@ export {
   CROSSHAIR_CURSOR_STYLES,
   resolveCrosshairCursorCssValue,
 } from "./lib/interaction/crosshair-cursor-asset";
+export {
+  applyLineLabel,
+  buildPreviewDistanceTriangleLabelReferences,
+  createSegmentLineLabels,
+  hideLineLabels,
+  resolvePreviewDistanceTriangleComponentLabelVisibility,
+} from "./lib/interaction/authoring-visual-runtime";
 export type { CrosshairCursorStyle } from "./lib/interaction/crosshair-cursor-asset";
 export type { PointQueryController } from "./lib/interaction/point-query-controller.types";
 export { POINT_QUERY_DISC_PLACEMENT_MODES } from "./lib/interaction/point-query-disc-placement-mode";

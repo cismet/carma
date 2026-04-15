@@ -55,8 +55,6 @@ export type {
 export type { DerivedPolylinePath } from "./lib/types/derived-polyline-path";
 export type { PointDistanceRelation } from "./lib/types/distance-relation";
 export type { DistanceRelationRenderContext } from "./lib/types/distance-relation-render-context";
-export { LINE_TYPES } from "./lib/types/line-type";
-export type { LineType } from "./lib/types/line-type";
 export {
   DEFAULT_LINEAR_SEGMENT_LINE_MODE,
   LINEAR_SEGMENT_LINE_MODES,

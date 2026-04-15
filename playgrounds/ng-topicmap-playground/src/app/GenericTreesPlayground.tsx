@@ -13,7 +13,10 @@ import {
 } from "@carma-mapping/engines/maplibre";
 import type { ThreePerfData } from "@carma-mapping/engines/threejs";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
-import { backgroundModes, backgroundConfigurations } from "./backgroundConfig";
+import {
+  backgroundModes,
+  backgroundConfigurations,
+} from "./backgroundConfig";
 import { defaultGazDataConfig } from "@carma-commons/resources";
 import {
   faCrosshairs,
@@ -213,12 +216,7 @@ function PerfOverlay({ perfRef }: { perfRef: React.RefObject<ThreePerfData> }) {
 //  Layer visibility sync (drives map layout property)
 // ─────────────────────────────────────────────────────────────
 
-type LayerGroupName =
-  | "Einzelbaum 3D"
-  | "Wohnlagen"
-  | "Einzelbaum Umringe"
-  | "Gebaeude"
-  | "POI";
+type LayerGroupName = "Einzelbaum 3D" | "Wohnlagen" | "Einzelbaum Umringe" | "Gebaeude" | "POI";
 type LayerVisibility = Record<LayerGroupName, boolean>;
 
 const LAYER_GROUPS: {
@@ -417,14 +415,8 @@ function LayerToggleBar({
                   <input
                     type="color"
                     value={buildingColor ?? "#ffffff"}
-                    onClick={() => {
-                      if (!buildingColor) onBuildingColorChange("#ffffff");
-                    }}
-                    onInput={(e) =>
-                      onBuildingColorChange(
-                        (e.target as HTMLInputElement).value
-                      )
-                    }
+                    onClick={() => { if (!buildingColor) onBuildingColorChange("#ffffff"); }}
+                    onInput={(e) => onBuildingColorChange((e.target as HTMLInputElement).value)}
                     className="w-6 h-6 p-0 border-0 cursor-pointer rounded"
                     title="Gebäudefarbe"
                   />
@@ -432,9 +424,7 @@ function LayerToggleBar({
                     onClick={onBuildingReset}
                     disabled={!hasCustomColor}
                     className={`px-1 flex items-center cursor-pointer text-gray-500 ${
-                      !hasCustomColor
-                        ? "opacity-30 cursor-default"
-                        : "hover:text-gray-700"
+                      !hasCustomColor ? "opacity-30 cursor-default" : "hover:text-gray-700"
                     }`}
                     title="Farbe zurücksetzen (öffentl. Gebäude rötlich)"
                   >

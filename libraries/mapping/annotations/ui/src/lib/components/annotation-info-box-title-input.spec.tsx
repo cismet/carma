@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import { AnnotationInfoBoxTitleInput } from "./AnnotationInfoBoxTitleInput";
 
 describe("AnnotationInfoBoxTitleInput", () => {
-  it("sizes the title input from the placeholder when the current value is empty", () => {
+  it("uses CSS content sizing without the old computed width attributes", () => {
     const placeholder = "Distanzmessung";
 
     render(
@@ -18,16 +19,15 @@ describe("AnnotationInfoBoxTitleInput", () => {
 
     const input = screen.getByPlaceholderText(placeholder);
 
-    expect(input).toHaveAttribute(
-      "size",
-      String(Math.min(18, placeholder.trim().length))
-    );
-    expect((input as HTMLInputElement).style.width).toBe(
-      `calc(${Math.min(18, placeholder.trim().length)}ch + 0.5rem)`
+    expect(input).not.toHaveAttribute("size");
+    expect((input as HTMLInputElement).style.width).toBe("");
+    expect((input as HTMLInputElement).style.minWidth).toBe("1ch");
+    expect((input as HTMLInputElement).className).toContain(
+      "[field-sizing:content]"
     );
   });
 
-  it("updates the title input width when committed content becomes longer than the placeholder", async () => {
+  it("keeps the current title value without restoring the old inline width calculation", () => {
     const placeholder = "Punktmessung";
     const value = "Relative Bezugshöhe";
     const { rerender } = render(
@@ -48,8 +48,8 @@ describe("AnnotationInfoBoxTitleInput", () => {
 
     const input = screen.getByDisplayValue(value) as HTMLInputElement;
 
-    await waitFor(() => {
-      expect(input.style.width).toBe("calc(18ch + 0.5rem)");
-    });
+    expect(input).not.toHaveAttribute("size");
+    expect(input.style.width).toBe("");
+    expect(input.style.minWidth).toBe("1ch");
   });
 });

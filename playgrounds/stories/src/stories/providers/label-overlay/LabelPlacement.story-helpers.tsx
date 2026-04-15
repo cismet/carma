@@ -23,18 +23,16 @@ import {
 } from "@carma-providers/label-overlay";
 import type { CssPixelPosition } from "@carma-units";
 import {
-  previewControllerDefaults,
-  PREVIEW_LINE_LABEL_THEME,
-  previewLineLabelVisualDefaults,
-  type PreviewLineLabelTheme,
-} from "@carma-mapping/annotations/runtime";
-import {
   applyLineLabel,
   buildPreviewDistanceTriangleLabelReferences,
   createSegmentLineLabels,
   hideLineLabels,
+  previewControllerDefaults,
+  PREVIEW_LINE_LABEL_THEME,
+  previewLineLabelVisualDefaults,
   resolvePreviewDistanceTriangleComponentLabelVisibility,
-} from "../../../../../../libraries/mapping/annotations/runtime/src/lib/interaction/authoring-visual-runtime";
+  type PreviewLineLabelTheme,
+} from "@carma-mapping/annotations/runtime";
 import barmenBackgroundUrl from "./assets/barmen-background.png";
 
 import { CenteredStoryFrame } from "../../common/ui/centered-story-frame";

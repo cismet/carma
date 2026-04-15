@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
-import { type LineType, LINE_TYPES } from "@carma-mapping/annotations/core";
 import {
+  ArcType,
   BoundingSphere,
   Cartesian3,
   Color,
@@ -9,8 +9,6 @@ import {
   type Scene,
 } from "@carma-cesium";
 import { isValidScene } from "@carma-mapping/engines/cesium/core";
-const { CARTESIAN: LINE_TYPE_CARTESIAN, GEOGRAPHIC: LINE_TYPE_GEOGRAPHIC } =
-  LINE_TYPES;
 
 type CesiumEdgeLineRenderModel = {
   id: string;
@@ -19,7 +17,7 @@ type CesiumEdgeLineRenderModel = {
   stroke: string;
   strokeWidth: number;
   dashed?: boolean;
-  lineType?: LineType;
+  lineType?: ArcType;
 };
 
 export type CesiumEdgeVisualizerOptions = {
@@ -277,7 +275,7 @@ export const useCesiumEdgeVisualizer = (
       }
 
       const hasGeographicPathLine = lines.some(
-        (line) => line.lineType === LINE_TYPE_GEOGRAPHIC
+        (line) => line.lineType === ArcType.GEODESIC
       );
       if (hasGeographicPathLine && !warnedAboutGeographicPathRef.current) {
         console.warn(
@@ -287,7 +285,7 @@ export const useCesiumEdgeVisualizer = (
       }
 
       lines.forEach((line) => {
-        const lineType = line.lineType ?? LINE_TYPE_CARTESIAN;
+        const lineType = line.lineType ?? ArcType.NONE;
         // Geographic line rendering is intentionally not implemented yet.
         // All scene lines still use straight Cartesian segments for now.
         void lineType;

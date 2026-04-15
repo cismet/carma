@@ -110,11 +110,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
     useContext<typeof TopicMapStylingContext>(TopicMapStylingContext);
   const [libreMap, setLibreMap] = useState<maplibregl.Map | null>(null);
   const [showTerrain, setShowTerrain] = useState(() => {
-    try {
-      return localStorage.getItem("carma-map-terrain") === "true";
-    } catch {
-      return false;
-    }
+    try { return localStorage.getItem("carma-map-terrain") === "true"; } catch { return false; }
   });
   // Crosshair debug: store geographic position so the crosshair tracks
   // correctly when terrain is toggled or camera moves
