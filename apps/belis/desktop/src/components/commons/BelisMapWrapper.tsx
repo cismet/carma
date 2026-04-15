@@ -169,6 +169,26 @@ const BelisMapLibWrapper = ({
   const reduxGeometryRef = useRef<any>(null);
   reduxGeometryRef.current = reduxSelectedFeature?.geometry ?? null;
   const { map } = useLibreContext();
+
+  // Track whether the map style has finished loading so effects that call
+  // addSource / addLayer don't fire too early ("Style is not done loading").
+  const [mapReady, setMapReady] = useState(false);
+  useEffect(() => {
+    if (!map) {
+      setMapReady(false);
+      return;
+    }
+    if (map.isStyleLoaded()) {
+      setMapReady(true);
+      return;
+    }
+    const onLoad = () => setMapReady(true);
+    map.once("load", onLoad);
+    return () => {
+      map.off("load", onLoad);
+    };
+  }, [map]);
+
   const {
     selectedFeature,
     rawFeature,
@@ -1225,7 +1245,7 @@ const BelisMapLibWrapper = ({
 
   // --- Arbeitsauftraege: render AA convex hull polygons from client-side GeoJSON ---
   useEffect(() => {
-    if (!map) return;
+    if (!map || !mapReady) return;
 
     const addedLayerIds: string[] = [];
 
@@ -1305,7 +1325,7 @@ const BelisMapLibWrapper = ({
     }
 
     return removeLayers;
-  }, [map, sidebarVariant, activeAATab, aaFeatures, draftAAIdSet]);
+  }, [map, mapReady, sidebarVariant, activeAATab, aaFeatures, draftAAIdSet]);
 
   // --- Arbeitsauftraege: show AP Fachobjekte on map when AP tab is active ---
   // Map debug layer source-layer names to featureType property values in AP GeoJSON
@@ -1405,7 +1425,7 @@ const BelisMapLibWrapper = ({
   }, [apDrafts, apDeletions, selectedAAData, selectedAAId]);
 
   useEffect(() => {
-    if (!map) return;
+    if (!map || !mapReady) return;
 
     const addedLayerIds: string[] = [];
 
@@ -1522,6 +1542,7 @@ const BelisMapLibWrapper = ({
     return removeLayers;
   }, [
     map,
+    mapReady,
     sidebarVariant,
     activeAATab,
     selectedAAData,
@@ -1531,6 +1552,22 @@ const BelisMapLibWrapper = ({
 
   // Mini-map state
   const [miniMap, setMiniMap] = useState<maplibregl.Map | null>(null);
+  const [miniMapReady, setMiniMapReady] = useState(false);
+  useEffect(() => {
+    if (!miniMap) {
+      setMiniMapReady(false);
+      return;
+    }
+    if (miniMap.isStyleLoaded()) {
+      setMiniMapReady(true);
+      return;
+    }
+    const onLoad = () => setMiniMapReady(true);
+    miniMap.once("load", onLoad);
+    return () => {
+      miniMap.off("load", onLoad);
+    };
+  }, [miniMap]);
   const mapContainerRef = useRef<HTMLDivElement>(null);
 
   const {
@@ -1553,7 +1590,7 @@ const BelisMapLibWrapper = ({
   const MINI_AA_FILL = "mini-aa-fill";
   const MINI_AA_OUTLINE = "mini-aa-outline";
   useEffect(() => {
-    if (!miniMap) return;
+    if (!miniMap || !miniMapReady) return;
 
     const addedLayerIds: string[] = [];
 
@@ -1615,12 +1652,12 @@ const BelisMapLibWrapper = ({
     }
 
     return removeLayers;
-  }, [miniMap, sidebarVariant, activeAATab, aaFeatures, draftAAIdSet]);
+  }, [miniMap, miniMapReady, sidebarVariant, activeAATab, aaFeatures, draftAAIdSet]);
 
   // --- Mini-map: add AP GeoJSON overlay when in AP tab ---
   const MINI_AP_LAYER_PREFIX = "mini-ap-";
   useEffect(() => {
-    if (!miniMap) return;
+    if (!miniMap || !miniMapReady) return;
 
     const addedLayerIds: string[] = [];
 
@@ -1686,7 +1723,7 @@ const BelisMapLibWrapper = ({
     }
 
     return removeLayers;
-  }, [miniMap, sidebarVariant, activeAATab, selectedAAData]);
+  }, [miniMap, miniMapReady, sidebarVariant, activeAATab, selectedAAData]);
 
   // --- Mini-map: sync AP feature-state selection ---
   const prevMiniAPIdRef = useRef<number | null>(null);
