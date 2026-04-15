@@ -3,7 +3,7 @@ import * as React from "react";
 import type { Preview } from "@storybook/react";
 
 import "../src/styles.css";
-import "../../../libraries/mapping/annotations/runtime-v2/src/lib/interaction/annotation-overlay-line-label.css";
+import "../../../libraries/mapping/annotations/runtime/src/lib/interaction/annotation-overlay-line-label.css";
 type StorybookRequireShim = {
   require?: (id: string) => unknown;
 };
