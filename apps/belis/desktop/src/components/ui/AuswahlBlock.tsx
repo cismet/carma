@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   useMapSelection,
   useMapHighlight,
@@ -42,20 +42,31 @@ const AuswahlBlock = ({
 
   // Track Alt key for button visibility (same pattern as BelisSidebar)
   const [altHeld, setAltHeld] = useState(false);
+  const altHeldRef = useRef(false);
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      if (e.key === "Alt") setAltHeld(true);
+      if (e.key === "Alt") {
+        setAltHeld(true);
+        altHeldRef.current = true;
+      }
     };
     const up = (e: KeyboardEvent) => {
-      if (e.key === "Alt") setAltHeld(false);
+      if (e.key === "Alt") {
+        setAltHeld(false);
+        altHeldRef.current = false;
+      }
+    };
+    const blur = () => {
+      setAltHeld(false);
+      altHeldRef.current = false;
     };
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
-    window.addEventListener("blur", () => setAltHeld(false));
+    window.addEventListener("blur", blur);
     return () => {
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
-      window.removeEventListener("blur", () => setAltHeld(false));
+      window.removeEventListener("blur", blur);
     };
   }, []);
 
@@ -68,6 +79,10 @@ const AuswahlBlock = ({
   // Auto-close when anything else is selected (highlighted mast, leuchte, other layer, etc.)
   useEffect(() => {
     if (!highlightingActive) return;
+    if (altHeldRef.current) {
+      setAuswahlFeatures(null); // Alt+click = normal highlight toggle, close Auswahl
+      return;
+    }
     if (!selectedFeatureId || !rawFeature || !map) {
       setAuswahlFeatures(null);
       return;
