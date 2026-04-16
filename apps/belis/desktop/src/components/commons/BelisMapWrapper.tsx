@@ -83,8 +83,27 @@ import {
   getAALoading,
   getDraftMode,
 } from "../../store/slices/arbeitsauftraege";
-import { buildApGeoJson, extractGeometry, getHeaderColorFromStatus } from "../../helper/buildApGeoJson";
-import { debugLayers, apInfoboxMapping, aaInfoboxMapping } from "../../config/debugLayers";
+import {
+  buildApGeoJson,
+  extractGeometry,
+  getHeaderColorFromStatus,
+} from "../../helper/buildApGeoJson";
+import {
+  debugLayers,
+  apInfoboxMapping,
+  aaInfoboxMapping,
+} from "../../config/debugLayers";
+import { protocolsLayers as protocolsLayersNew } from "../../config/protocolsLayers";
+import {
+  MINI_MAP_TARGET_ZOOM,
+  MINI_MAP_TRANSITION_MS,
+} from "../../constants/belis";
+
+// Toggle between the preliminary debug layer styles and the new protocols styles.
+const USE_DEBUG_LAYERS_FOR_PROTOCOLS_LAYERS = false;
+const protocolsLayers = !USE_DEBUG_LAYERS_FOR_PROTOCOLS_LAYERS
+  ? protocolsLayersNew
+  : debugLayers;
 import type { ArbeitsauftragTileFeature } from "../../store/slices/arbeitsauftraege";
 import { transformGqlToTileFeatures } from "../../helper/transformArbeitsauftraege";
 import { fitAABounds } from "../../helper/fitAABounds";
@@ -713,7 +732,13 @@ const BelisMapLibWrapper = ({
     };
 
     fetchData();
-  }, [selectedFeature, selectedFeatureId, jwt, featureDataVersion, sidebarVariant]);
+  }, [
+    selectedFeature,
+    selectedFeatureId,
+    jwt,
+    featureDataVersion,
+    sidebarVariant,
+  ]);
 
   // Close the datasheet when the selection is cleared in fachobjekte mode
   useEffect(() => {
@@ -1124,7 +1149,13 @@ const BelisMapLibWrapper = ({
 
   // --- Arbeitsauftraege: GraphQL fetch draft AAs by IDs when in draft mode ---
   useEffect(() => {
-    if (sidebarVariant !== "arbeitsauftraege" || !draftMode || !draftAAIdSet || !jwt) return;
+    if (
+      sidebarVariant !== "arbeitsauftraege" ||
+      !draftMode ||
+      !draftAAIdSet ||
+      !jwt
+    )
+      return;
     const ids = [...draftAAIdSet];
     if (ids.length === 0) {
       return;
@@ -1511,8 +1542,8 @@ const BelisMapLibWrapper = ({
       }
     }
 
-    // Add layers derived from debugLayers, rewritten for the AP GeoJSON source
-    for (const layer of debugLayers) {
+    // Add layers derived from protocolsLayers, rewritten for the AP GeoJSON source
+    for (const layer of protocolsLayers) {
       const sourceLayer =
         "source-layer" in layer
           ? ((layer as Record<string, unknown>)["source-layer"] as string)
@@ -1552,6 +1583,30 @@ const BelisMapLibWrapper = ({
 
   // Mini-map state
   const [miniMap, setMiniMap] = useState<maplibregl.Map | null>(null);
+  const [miniMapDebugInfo, setMiniMapDebugInfo] = useState<{
+    zoom: number;
+    center: [number, number];
+  } | null>(null);
+  useEffect(() => {
+    if (!miniMap) {
+      setMiniMapDebugInfo(null);
+      return;
+    }
+    const update = () => {
+      const c = miniMap.getCenter();
+      setMiniMapDebugInfo({
+        zoom: miniMap.getZoom(),
+        center: [c.lng, c.lat],
+      });
+    };
+    update();
+    miniMap.on("moveend", update);
+    miniMap.on("zoomend", update);
+    return () => {
+      miniMap.off("moveend", update);
+      miniMap.off("zoomend", update);
+    };
+  }, [miniMap]);
   const [miniMapReady, setMiniMapReady] = useState(false);
   useEffect(() => {
     if (!miniMap) {
@@ -1577,16 +1632,70 @@ const BelisMapLibWrapper = ({
     miniMapContainerRef,
   } = useDatasheetMiniMap({
     mainMap: map,
-    miniMap,
+    // #606: Pass null to disable the hook's center/zoom sync effects in AA mode,
+    // so the AP overlay's fitBounds (below) controls the minimap view instead.
+    miniMap:
+      sidebarVariant === "arbeitsauftraege" && selectedAAData ? null : miniMap,
     containerRef: mapContainerRef,
     debug: MINI_MAP_DEBUGGING,
+    // Share the same animation duration as the AA fitBounds calls below.
+    transitionMs: MINI_MAP_TRANSITION_MS,
+    // Fixed zoom: every feature selection eases to this level; user can
+    // adjust temporarily via mousewheel, but the next selection resets.
+    targetZoom: MINI_MAP_TARGET_ZOOM,
   });
 
   const handleMiniMapReady = useCallback((m: maplibregl.Map) => {
+    // Disable terrain on the minimap. Terrain causes getZoom() to report
+    // incorrect values because MapLibre recalculates zoom from the
+    // camera-to-terrain-surface distance instead of the requested zoom.
+    const disableTerrain = () => {
+      try { m.setTerrain(null); } catch { /* style not ready */ }
+    };
+    if (m.isStyleLoaded()) {
+      disableTerrain();
+    } else {
+      m.once("styledata", disableTerrain);
+    }
     setMiniMap(m);
   }, []);
 
+  // Hide Fachobjekte layers on the mini map when in Arbeitsaufträge mode,
+  // and restore them when switching back.
+  useEffect(() => {
+    if (!miniMap || !miniMapReady) return;
+
+    const setVisibility = (visible: boolean) => {
+      for (const layer of miniMap.getStyle()?.layers ?? []) {
+        if ("source" in layer && layer.source === namespacedSource) {
+          try {
+            miniMap.setLayoutProperty(
+              layer.id,
+              "visibility",
+              visible ? "visible" : "none"
+            );
+          } catch {
+            /* layer may not be ready */
+          }
+        }
+      }
+    };
+
+    if (sidebarVariant === "arbeitsauftraege") {
+      setVisibility(false);
+      const hide = () => setVisibility(false);
+      miniMap.on("styledata", hide);
+      return () => {
+        miniMap.off("styledata", hide);
+      };
+    } else {
+      setVisibility(true);
+    }
+  }, [sidebarVariant, miniMap, miniMapReady, namespacedSource]);
+
   // --- Mini-map: render AA convex hull polygons from client-side GeoJSON ---
+  // AA convex-hull polygons are no longer shown on the mini map;
+  // the AP overlay is displayed instead regardless of the active tab.
   const MINI_AA_FILL = "mini-aa-fill";
   const MINI_AA_OUTLINE = "mini-aa-outline";
   useEffect(() => {
@@ -1605,6 +1714,10 @@ const BelisMapLibWrapper = ({
       }
     };
 
+    removeLayers();
+    return removeLayers;
+
+    /* AA overlay disabled — keeping dead code below for reference
     const shouldShow =
       sidebarVariant === "arbeitsauftraege" && activeAATab !== "ap";
 
@@ -1612,6 +1725,7 @@ const BelisMapLibWrapper = ({
       removeLayers();
       return removeLayers;
     }
+    */
 
     const visibleAA = draftAAIdSet
       ? aaFeatures.filter((f) => draftAAIdSet.has(f.id))
@@ -1652,7 +1766,14 @@ const BelisMapLibWrapper = ({
     }
 
     return removeLayers;
-  }, [miniMap, miniMapReady, sidebarVariant, activeAATab, aaFeatures, draftAAIdSet]);
+  }, [
+    miniMap,
+    miniMapReady,
+    sidebarVariant,
+    activeAATab,
+    aaFeatures,
+    draftAAIdSet,
+  ]);
 
   // --- Mini-map: add AP GeoJSON overlay when in AP tab ---
   const MINI_AP_LAYER_PREFIX = "mini-ap-";
@@ -1673,9 +1794,7 @@ const BelisMapLibWrapper = ({
     };
 
     const shouldShow =
-      sidebarVariant === "arbeitsauftraege" &&
-      activeAATab === "ap" &&
-      selectedAAData != null;
+      sidebarVariant === "arbeitsauftraege" && selectedAAData != null;
 
     if (!shouldShow) {
       removeLayers();
@@ -1697,7 +1816,7 @@ const BelisMapLibWrapper = ({
       });
     }
 
-    for (const layer of debugLayers) {
+    for (const layer of protocolsLayers) {
       const sourceLayer =
         "source-layer" in layer
           ? ((layer as Record<string, unknown>)["source-layer"] as string)
@@ -1722,10 +1841,48 @@ const BelisMapLibWrapper = ({
       addedLayerIds.push(apLayerId);
     }
 
+    // Fit mini map to all AP features
+    if (geojson.features.length > 0) {
+      let minLng = Infinity,
+        minLat = Infinity,
+        maxLng = -Infinity,
+        maxLat = -Infinity;
+      for (const feature of geojson.features) {
+        const geom = feature.geometry;
+        if (!geom) continue;
+        const flatCoords: number[][] =
+          geom.type === "Point"
+            ? [(geom as GeoJSON.Point).coordinates]
+            : geom.type === "LineString"
+            ? (geom as GeoJSON.LineString).coordinates
+            : geom.type === "MultiLineString"
+            ? (geom as GeoJSON.MultiLineString).coordinates.flat()
+            : [];
+        for (const [lng, lat] of flatCoords) {
+          if (lng < minLng) minLng = lng;
+          if (lat < minLat) minLat = lat;
+          if (lng > maxLng) maxLng = lng;
+          if (lat > maxLat) maxLat = lat;
+        }
+      }
+      if (minLng !== Infinity) {
+        miniMap.fitBounds(
+          [
+            [minLng, minLat],
+            [maxLng, maxLat],
+          ],
+          // Match the Fachobjekte mini-map's transition so switching AP rows
+          // feels as snappy. Without `duration`, MapLibre defaults to 1000ms,
+          // which felt sluggish vs. useDatasheetMiniMap's 200ms easeTo.
+          { padding: 40, maxZoom: MINI_MAP_TARGET_ZOOM, duration: MINI_MAP_TRANSITION_MS }
+        );
+      }
+    }
+
     return removeLayers;
   }, [miniMap, miniMapReady, sidebarVariant, activeAATab, selectedAAData]);
 
-  // --- Mini-map: sync AP feature-state selection ---
+  // --- Mini-map: sync AP feature-state selection + fly to selected AP ---
   const prevMiniAPIdRef = useRef<number | null>(null);
   useEffect(() => {
     if (!miniMap) return;
@@ -1755,7 +1912,68 @@ const BelisMapLibWrapper = ({
     } catch {
       // source may not exist yet
     }
-  }, [miniMap, selectedAPId]);
+
+    // Fly the mini map to the selected AP feature
+    const geojson = draftMode
+      ? apDraftGeoJson
+      : selectedAAData
+      ? buildApGeoJson(selectedAAData)
+      : null;
+    const feature = geojson?.features.find(
+      (f) => f.properties?.id === selectedAPId
+    );
+    if (feature?.geometry) {
+      const geom = feature.geometry;
+      const flatCoords: number[][] =
+        geom.type === "Point"
+          ? [(geom as GeoJSON.Point).coordinates]
+          : geom.type === "LineString"
+          ? (geom as GeoJSON.LineString).coordinates
+          : geom.type === "MultiLineString"
+          ? (geom as GeoJSON.MultiLineString).coordinates.flat()
+          : [];
+      if (flatCoords.length > 0) {
+        let minLng = Infinity,
+          minLat = Infinity,
+          maxLng = -Infinity,
+          maxLat = -Infinity;
+        for (const [lng, lat] of flatCoords) {
+          if (lng < minLng) minLng = lng;
+          if (lat < minLat) minLat = lat;
+          if (lng > maxLng) maxLng = lng;
+          if (lat > maxLat) maxLat = lat;
+        }
+        miniMap.fitBounds(
+          [
+            [minLng, minLat],
+            [maxLng, maxLat],
+          ],
+          // Match the Fachobjekte mini-map's transition so switching AP rows
+          // feels as snappy. Without `duration`, MapLibre defaults to 1000ms,
+          // which felt sluggish vs. useDatasheetMiniMap's 200ms easeTo.
+          { padding: 40, maxZoom: MINI_MAP_TARGET_ZOOM, duration: MINI_MAP_TRANSITION_MS }
+        );
+      }
+    }
+  }, [miniMap, selectedAPId, selectedAAData, draftMode, apDraftGeoJson]);
+
+  // --- Mini-map: mousewheel zoom in AA mode ---
+  // The useDatasheetMiniMap hook's wheel handler is disabled in AA mode
+  // (miniMap is passed as null), so we add our own here.
+  useEffect(() => {
+    const el = miniMapContainerRef.current;
+    if (!el || !miniMap || sidebarVariant !== "arbeitsauftraege") return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const delta = -e.deltaY / 300;
+      const current = miniMap.getZoom();
+      miniMap.jumpTo({ zoom: Math.max(1, Math.min(22, current + delta)) });
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => {
+      el.removeEventListener("wheel", onWheel);
+    };
+  }, [miniMap, sidebarVariant, miniMapContainerRef]);
 
   // Build infobox override for AA features.
   // Always uses the override path because the AA GeoJSON source has no
@@ -1771,10 +1989,7 @@ const BelisMapLibWrapper = ({
 
       const mappingCode = aaInfoboxMapping.join("\n");
       const versionAtStart = teamVersionRef.current;
-      objectToInfo(
-        aaFeature as unknown as Record<string, unknown>,
-        mappingCode
-      )
+      objectToInfo(aaFeature as unknown as Record<string, unknown>, mappingCode)
         .then((info) => {
           // Team changed while async — discard stale result
           if (teamVersionRef.current !== versionAtStart) return;
@@ -1932,8 +2147,8 @@ const BelisMapLibWrapper = ({
     const geojson = draftMode
       ? apDraftGeoJson
       : selectedAAData
-        ? buildApGeoJson(selectedAAData)
-        : null;
+      ? buildApGeoJson(selectedAAData)
+      : null;
     if (!geojson) {
       setOverrideSelectedFeature(null);
       return;
@@ -1973,7 +2188,14 @@ const BelisMapLibWrapper = ({
         }
       })
       .catch(() => setOverrideSelectedFeature(null));
-  }, [activeAATab, selectedAPId, selectedAAData, sidebarVariant, draftMode, apDraftGeoJson]);
+  }, [
+    activeAATab,
+    selectedAPId,
+    selectedAAData,
+    sidebarVariant,
+    draftMode,
+    apDraftGeoJson,
+  ]);
 
   const handleReturnToMap = useCallback(() => {
     map?.resize();
@@ -2151,6 +2373,33 @@ const BelisMapLibWrapper = ({
               setLibreMap={handleMiniMapReady}
             />
           </LibreContextProvider>
+          {showRaw && miniMapDebugInfo && (
+            <div
+              style={{
+                position: "absolute",
+                top: 4,
+                left: 4,
+                zIndex: 10,
+                background: "rgba(255, 255, 0, 0.85)",
+                color: "#000",
+                fontSize: 10,
+                fontFamily: "monospace",
+                padding: "2px 5px",
+                borderRadius: 3,
+                pointerEvents: "none",
+                lineHeight: 1.4,
+              }}
+            >
+              z{miniMapDebugInfo.zoom.toFixed(1)}{" "}
+              {miniMapDebugInfo.center[0].toFixed(5)},{miniMapDebugInfo.center[1].toFixed(5)}
+              {miniMap && (
+                <>
+                  {" "}{miniMap.getCanvas().width}x{miniMap.getCanvas().height}
+                  {" "}{(() => { try { return miniMap.getTerrain() ? "TER" : ""; } catch { return ""; } })()}
+                </>
+              )}
+            </div>
+          )}
         </div>
         <DatasheetLayout
           mainMap={
@@ -2183,9 +2432,7 @@ const BelisMapLibWrapper = ({
                   <ArbeitsauftraegeFormsWrapper
                     mode="ap"
                     id={String(selectedAPId)}
-                    data={
-                      draft.serverData as Record<string, unknown>
-                    }
+                    data={draft.serverData as Record<string, unknown>}
                     readOnly={!globalEditMode}
                     aaId={draft.aaId}
                     geometry={draft.geometry}

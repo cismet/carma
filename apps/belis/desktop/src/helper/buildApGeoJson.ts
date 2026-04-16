@@ -1,5 +1,11 @@
 import proj4 from "proj4";
 import { getFachobjektOfProtocol } from "@carma-appframeworks/belis";
+import {
+  STATUS_LABELS,
+  resolveStatusKey,
+  statusFallbackHex,
+  statusHex,
+} from "../config/statusColors";
 import type { ArbeitsauftragDetail } from "../store/slices/arbeitsauftraege";
 
 const proj4crs25832def = "+proj=utm +zone=32 +ellps=GRS80 +units=m +no_defs";
@@ -21,30 +27,21 @@ function getStatusInfo(status: Record<string, any> | null): {
   key: string;
   label: string;
 } {
-  if (!status?.schluessel) return { key: "unknown", label: "Unbekannt" };
-  const s = String(status.schluessel).toLowerCase();
-  if (s.includes("offen")) return { key: "offen", label: "Offen" };
-  if (s.includes("bearbeitung"))
-    return { key: "in_bearbeitung", label: "In Bearbeitung" };
-  if (s.includes("erledigt")) return { key: "erledigt", label: "Erledigt" };
-  if (s.includes("fehl")) return { key: "fehlmeldung", label: "Fehlmeldung" };
-  return { key: "unknown", label: status.bezeichnung ?? "Unbekannt" };
+  const key = resolveStatusKey(status?.bezeichnung);
+  if (key != null) return { key, label: STATUS_LABELS[key] };
+  return { key: "unknown", label: status?.bezeichnung ?? "Unbekannt" };
 }
 
 /**
  * Derive a solid header color from the protokoll status `bezeichnung`.
- * Uses the same color families as ArbeitsauftraegeSidebar STATUS_COLORS
- * but fully opaque for use as infobox header background.
+ * Mirrors getStatusInfo above and pulls opaque hex values from the central
+ * status palette (config/statusColors.ts) so map, sidebar and infobox all
+ * stay in sync when the palette is retuned.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function getHeaderColorFromStatus(status: Record<string, any> | null): string {
-  if (!status?.bezeichnung) return "#9CA3AF";
-  const b = String(status.bezeichnung).toLowerCase();
-  if (b.includes("offen")) return "#F59E0B";
-  if (b.includes("bearbeitung")) return "#3B82F6";
-  if (b.includes("erledigt")) return "#10B981";
-  if (b.includes("fehl")) return "#EF4444";
-  return "#9CA3AF";
+  const key = resolveStatusKey(status?.bezeichnung);
+  return key != null ? statusHex(key) : statusFallbackHex();
 }
 
 /**
