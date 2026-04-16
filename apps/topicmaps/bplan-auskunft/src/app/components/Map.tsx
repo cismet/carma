@@ -257,7 +257,7 @@ const Map = () => {
           ref={refRoutedMap}
           gazetteerSearchControl={true}
           gazetteerSearchComponent={EmptySearchComponent}
-          backgroundlayers={"uwBPlan|rvrGrundriss@20"}
+          backgroundlayers={"bplan_ovl@100|rvrGrundriss@50"}
           // backgroundlayers={"bplan_abkg|rvrGrundriss@20"}
           modalMenu={<Modal version={getApplicationVersion(versionData)} />}
           locationChangedHandler={(location) => {
