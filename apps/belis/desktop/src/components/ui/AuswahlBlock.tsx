@@ -32,6 +32,25 @@ const AuswahlBlock = ({
   const { ensureToggledFeatures } = useMapHighlight();
   const { map } = useLibreContext();
 
+  // Track Alt key for button visibility (same pattern as BelisSidebar)
+  const [altHeld, setAltHeld] = useState(false);
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      if (e.key === "Alt") setAltHeld(true);
+    };
+    const up = (e: KeyboardEvent) => {
+      if (e.key === "Alt") setAltHeld(false);
+    };
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    window.addEventListener("blur", () => setAltHeld(false));
+    return () => {
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+      window.removeEventListener("blur", () => setAltHeld(false));
+    };
+  }, []);
+
   const [auswahlFeatures, setAuswahlFeatures] = useState<{
     standort: SidebarFeature;
     leuchten: SidebarFeature[];
@@ -202,8 +221,14 @@ const AuswahlBlock = ({
 
       <div className="max-h-[200px] overflow-y-auto">
         {/* Standort row */}
-        <div className="flex items-center gap-1 px-3 py-1.5 border-b border-blue-100">
-          <div className="flex-1 min-w-0">
+        <div className="group relative px-3 py-1.5 border-b border-blue-100">
+          <div
+            className={`transition-opacity ${
+              altHeld && !standortAlreadyHighlighted
+                ? "group-hover:opacity-30"
+                : ""
+            }`}
+          >
             <div className="flex justify-between gap-2 overflow-hidden">
               <span className="shrink-0 whitespace-nowrap text-sm">
                 <b>{standortItem.main}</b>
@@ -218,23 +243,26 @@ const AuswahlBlock = ({
               </div>
             )}
           </div>
-          {!standortAlreadyHighlighted && (
-            <button
-              onClick={handleAddStandort}
-              className="shrink-0 w-6 h-6 flex items-center justify-center rounded bg-blue-600 text-white text-xs font-bold hover:bg-blue-700"
-              title="Standort hinzufügen"
-            >
-              +
-            </button>
-          )}
-          {!allAlreadyHighlighted && auswahlFeatures.leuchten.length > 0 && (
-            <button
-              onClick={handleAddStandortWithLeuchten}
-              className="shrink-0 w-6 h-6 flex items-center justify-center rounded bg-blue-600 text-white text-xs font-bold hover:bg-blue-700"
-              title="Standort mit allen Leuchten hinzufügen"
-            >
-              ++
-            </button>
+          {altHeld && !standortAlreadyHighlighted && (
+            <div className="absolute inset-0 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
+              <button
+                onClick={handleAddStandort}
+                className="text-black text-lg font-bold"
+                title="Standort hinzufügen"
+              >
+                +
+              </button>
+              {!allAlreadyHighlighted &&
+                auswahlFeatures.leuchten.length > 0 && (
+                  <button
+                    onClick={handleAddStandortWithLeuchten}
+                    className="text-black text-lg font-bold"
+                    title="Standort mit allen Leuchten hinzufügen"
+                  >
+                    ++
+                  </button>
+                )}
+            </div>
           )}
         </div>
 
@@ -247,9 +275,15 @@ const AuswahlBlock = ({
           return (
             <div
               key={key}
-              className="flex items-center gap-1 pl-8 pr-3 py-1.5 border-b border-blue-100"
+              className="group relative pl-8 pr-3 py-1.5 border-b border-blue-100"
             >
-              <div className="flex-1 min-w-0">
+              <div
+                className={`transition-opacity ${
+                  altHeld && !alreadyHighlighted
+                    ? "group-hover:opacity-30"
+                    : ""
+                }`}
+              >
                 <div className="flex justify-between gap-2 overflow-hidden">
                   <span className="shrink-0 whitespace-nowrap text-sm">
                     <b>{item.main}</b>
@@ -264,10 +298,10 @@ const AuswahlBlock = ({
                   </div>
                 )}
               </div>
-              {!alreadyHighlighted && (
+              {altHeld && !alreadyHighlighted && (
                 <button
                   onClick={() => handleAddLeuchte(leuchte)}
-                  className="shrink-0 w-6 h-6 flex items-center justify-center rounded bg-blue-600 text-white text-xs font-bold hover:bg-blue-700"
+                  className="absolute inset-0 flex items-center justify-center text-black opacity-0 group-hover:opacity-100 text-lg font-bold"
                   title="Leuchte hinzufügen"
                 >
                   +
