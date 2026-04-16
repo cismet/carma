@@ -29,6 +29,15 @@ const mapIconPath = (path: string): string => {
   return iconPathAliases[lower] ?? lower;
 };
 
+function resolveIconKey(
+  ...candidates: (string | undefined)[]
+): string | undefined {
+  for (const key of candidates) {
+    if (key && key in iconMap) return key;
+  }
+  return undefined;
+}
+
 export const LayerIcon = ({
   layer,
   iconPrefix = ICON_PREFIX,
@@ -41,9 +50,10 @@ export const LayerIcon = ({
 }: LayerIconProps) => {
   const [imgError, setImgError] = useState(!layer.other?.icon);
 
+  const confIcon = layer.conf?.icon;
   const iconName =
     layer.other?.icon ||
-    layer.conf?.icon ||
+    (typeof confIcon === "string" ? confIcon : undefined) ||
     (layer.other?.path && layer.other?.name
       ? mapIconPath(layer.other?.originalPath ?? layer.other.path) +
         "/" +
@@ -66,6 +76,16 @@ export const LayerIcon = ({
     }
   }, [iconSrc]);
 
+  const mappedKey = resolveIconKey(fallbackIcon, iconName);
+  const faIcon = mappedKey
+    ? iconMap[mappedKey as keyof typeof iconMap]
+    : isBaseLayer
+    ? faLayerGroup
+    : faMap;
+  const faColor = mappedKey
+    ? iconColorMap[mappedKey as keyof typeof iconColorMap]
+    : undefined;
+
   return (
     <>
       {iconSrc && !imgError ? (
@@ -77,15 +97,9 @@ export const LayerIcon = ({
         />
       ) : (
         <FontAwesomeIcon
-          icon={
-            fallbackIcon
-              ? iconMap[fallbackIcon]
-              : isBaseLayer
-              ? faLayerGroup
-              : faMap
-          }
+          icon={faIcon}
           className={className + " text-base"}
-          style={{ color: fallbackIcon ? iconColorMap[fallbackIcon] : "" }}
+          style={{ color: faColor || "" }}
           id={id}
         />
       )}
