@@ -22,13 +22,20 @@ const slice = createSlice({
     setKeyTablesLoading(state, action) {
       state.loading = action.payload;
     },
+    resetKeyTablesFetched(state) {
+      state.fetched = false;
+    },
   },
 });
 
 export default slice;
 
-export const { setKeyTablesData, setKeyTablesErrors, setKeyTablesLoading } =
-  slice.actions;
+export const {
+  setKeyTablesData,
+  setKeyTablesErrors,
+  setKeyTablesLoading,
+  resetKeyTablesFetched,
+} = slice.actions;
 
 export const getKeyTablesData = (state: RootState) => state.keyTables.data;
 export const getKeyTablesErrors = (state: RootState) => state.keyTables.errors;
