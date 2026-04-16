@@ -1,4 +1,5 @@
 import localforage from "localforage";
+import { COLORS_HEX } from "@carma-commons/utils";
 
 export const setFromLocalforage = async (
   lfKey: string,
@@ -93,6 +94,166 @@ export const adjustClickPosition = (
 
   return false;
 };
+
+export interface MeasurementShapeData {
+  shapeId: number | string;
+  number: number;
+  shapeType: "line" | "polygon" | string;
+  coordinates: [number, number][];
+  distance?: string;
+  area?: string;
+  customTitle?: string;
+}
+
+function buildFeatureTitle(shape: MeasurementShapeData): string {
+  if (shape.customTitle) return shape.customTitle;
+  const label = shape.area ? "Fläche" : "Linienzug";
+  return `${label} #${shape.number}`;
+}
+
+function buildFeatureSubtitle(shape: MeasurementShapeData): string {
+  const parts: string[] = [];
+  if (shape.distance) {
+    parts.push(`${shape.area ? "Umfang" : "Strecke"}: ${shape.distance}`);
+  }
+  if (shape.area) {
+    parts.push(`Fläche: ${shape.area}`);
+  }
+  return parts.join(" | ");
+}
+
+export function shapesToFeatureCollection(shapes: MeasurementShapeData[]) {
+  const features = shapes
+    .filter((shape) => shape.shapeId !== 5555)
+    .map((shape) => {
+      const geoJsonCoords = shape.coordinates.map(
+        ([lat, lng]) => [lng, lat] as [number, number]
+      );
+
+      const isPolygon = shape.shapeType === "polygon";
+
+      return {
+        type: "Feature" as const,
+        id: shape.shapeId,
+        geometry: isPolygon
+          ? {
+              type: "Polygon" as const,
+              coordinates: [geoJsonCoords],
+            }
+          : {
+              type: "LineString" as const,
+              coordinates: geoJsonCoords,
+            },
+        properties: {
+          info: {
+            headerColor: COLORS_HEX.ACCENT_MEASUREMENTS,
+            title: buildFeatureTitle(shape),
+            subtitle: buildFeatureSubtitle(shape),
+            actions: [{ name: "zoomToFeature" }, {}],
+          },
+        },
+      };
+    });
+
+  return {
+    version: 8,
+    metadata: {
+      carmaConf: {
+        instant: true,
+        layerInfo: {
+          title: "Messungen",
+          icon: "measurement",
+          keywords: ["carmaconf://lazyInfoBox"],
+        },
+      },
+    },
+    sources: {
+      adhoc: {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection" as const,
+          features,
+        },
+      },
+    },
+    layers: [
+      {
+        id: "adhoc-polygons-fill",
+        type: "fill",
+        source: "adhoc",
+        filter: ["==", ["geometry-type"], "Polygon"],
+        paint: {
+          "fill-color": "#267bdc",
+          "fill-opacity": 0.3,
+        },
+      },
+      {
+        id: "adhoc-polygons-outline",
+        type: "line",
+        source: "adhoc",
+        filter: ["==", ["geometry-type"], "Polygon"],
+        paint: {
+          "line-color": "#267bdc",
+          "line-width": 2,
+        },
+      },
+      {
+        id: "adhoc-lines",
+        type: "line",
+        source: "adhoc",
+        filter: ["==", ["geometry-type"], "LineString"],
+        paint: {
+          "line-color": "#267bdc",
+          "line-width": 3,
+        },
+      },
+      {
+        id: "selection-line",
+        type: "line",
+        source: "adhoc",
+        filter: ["==", ["geometry-type"], "LineString"],
+        minzoom: 0,
+        maxzoom: 24,
+        layout: {
+          "line-join": "round",
+          "line-cap": "round",
+        },
+        paint: {
+          "line-color": "#3A7CEB",
+          "line-width": 4,
+          "line-opacity": [
+            "case",
+            ["boolean", ["feature-state", "selected"], false],
+            1,
+            0,
+          ],
+        },
+      },
+      {
+        id: "selection-polygon",
+        type: "line",
+        source: "adhoc",
+        filter: ["==", ["geometry-type"], "Polygon"],
+        minzoom: 0,
+        maxzoom: 24,
+        layout: {
+          "line-join": "round",
+          "line-cap": "round",
+        },
+        paint: {
+          "line-color": "#3A7CEB",
+          "line-width": 4,
+          "line-opacity": [
+            "case",
+            ["boolean", ["feature-state", "selected"], false],
+            1,
+            0,
+          ],
+        },
+      },
+    ],
+  };
+}
 
 // Prepare a Leaflet LatLng from a GeoJSON Point-like feature with coordinates [lng, lat]
 export const toLatLngFromClosestPoint = (closestPoint: any) => {
