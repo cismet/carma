@@ -1117,6 +1117,10 @@ const BelisMapLibWrapper = ({
 
     let cancelled = false;
 
+    // Clear old features immediately so stale data is not shown on the map
+    // while new data is being fetched for the newly selected team.
+    dispatch(setAAFeatures([]));
+
     const fetchData = async () => {
       dispatch(setGraphqlLoading(true));
       dispatch(setGraphqlError(null));
