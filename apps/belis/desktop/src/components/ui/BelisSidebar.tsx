@@ -5,6 +5,7 @@ export type { SidebarFeature };
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSpinner } from "@fortawesome/free-solid-svg-icons";
 import toTitleCase from "../../helper/toTitleCase";
+import AuswahlBlock from "./AuswahlBlock";
 
 export interface ListItemData {
   main: string;
@@ -184,6 +185,14 @@ export interface BelisSidebarProps {
     string,
     (feature: SidebarFeature) => ListItemData
   >;
+  /** Namespaced MVT source for querying features (needed by AuswahlBlock). */
+  namespacedSource?: string;
+  /** Current adjusted highlights list (needed by AuswahlBlock). */
+  adjustedHighlights?: SidebarFeature[] | null;
+  /** Setter for adjusted highlights (needed by AuswahlBlock). */
+  setAdjustedHighlights?: React.Dispatch<
+    React.SetStateAction<SidebarFeature[] | null>
+  >;
 }
 
 const BelisSidebar = ({
@@ -206,6 +215,9 @@ const BelisSidebar = ({
   draftsCount,
   onFeatureDismiss,
   listItemExtractors,
+  namespacedSource,
+  adjustedHighlights,
+  setAdjustedHighlights,
 }: BelisSidebarProps) => {
   // Filter features by active source layers
   const filteredFeatures = useMemo(() => {
@@ -609,6 +621,15 @@ const BelisSidebar = ({
           <FontAwesomeIcon icon={faSpinner} spin className="text-gray-400" />
         )}
       </div>
+      {namespacedSource && setAdjustedHighlights && (
+        <AuswahlBlock
+          sidebarMode={sidebarMode}
+          namespacedSource={namespacedSource}
+          adjustedHighlights={adjustedHighlights ?? null}
+          setAdjustedHighlights={setAdjustedHighlights}
+          getListItem={getListItem}
+        />
+      )}
       <div className="flex-1 overflow-y-auto overflow-x-hidden">
         {totalCount === 0 && !isLoading ? (
           <div className="p-4 text-gray-500 text-center text-sm">

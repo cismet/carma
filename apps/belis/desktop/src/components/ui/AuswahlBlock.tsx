@@ -1,0 +1,284 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useMapSelection,
+  useMapHighlight,
+  useLibreContext,
+} from "@carma-mapping/engines/maplibre";
+import type { MapGeoJSONFeature } from "maplibre-gl";
+import type { ListItemData, SidebarFeature } from "./BelisSidebar";
+import { buildFeatureKey } from "../../helper/featureKeys";
+
+export interface AuswahlBlockProps {
+  sidebarMode: "fachobjekte" | "highlights" | "drafts";
+  namespacedSource: string;
+  adjustedHighlights: SidebarFeature[] | null;
+  setAdjustedHighlights: React.Dispatch<
+    React.SetStateAction<SidebarFeature[] | null>
+  >;
+  getListItem: (feature: SidebarFeature) => ListItemData;
+}
+
+const toSidebarFeature = (f: MapGeoJSONFeature): SidebarFeature =>
+  Object.assign(f, { original: f }) as unknown as SidebarFeature;
+
+const AuswahlBlock = ({
+  sidebarMode,
+  namespacedSource,
+  adjustedHighlights,
+  setAdjustedHighlights,
+  getListItem,
+}: AuswahlBlockProps) => {
+  const { selectedFeatureId, rawFeature } = useMapSelection();
+  const { ensureToggledFeatures } = useMapHighlight();
+  const { map } = useLibreContext();
+
+  const [auswahlFeatures, setAuswahlFeatures] = useState<{
+    standort: SidebarFeature;
+    leuchten: SidebarFeature[];
+  } | null>(null);
+
+  // Auto-populate when a non-highlighted standort is selected in highlights mode.
+  // Auto-close when anything else is selected (highlighted mast, leuchte, other layer, etc.)
+  useEffect(() => {
+    if (sidebarMode !== "highlights") return;
+    if (!selectedFeatureId || !rawFeature || !map) {
+      setAuswahlFeatures(null);
+      return;
+    }
+
+    const sl = rawFeature.sourceLayer ?? "";
+    if (sl !== "standorte") {
+      setAuswahlFeatures(null);
+      return;
+    }
+
+    // Check if this standort is already highlighted
+    let isHighlighted = false;
+    try {
+      const state = map.getFeatureState({
+        source: selectedFeatureId.source,
+        sourceLayer: sl,
+        id: selectedFeatureId.id,
+      });
+      isHighlighted = !!state?.highlighted;
+    } catch {
+      // Feature state query failed — continue anyway
+    }
+
+    if (isHighlighted) {
+      setAuswahlFeatures(null);
+      return;
+    }
+
+    // Query associated leuchten
+    const standortDbId = String(
+      rawFeature.properties?.id ?? selectedFeatureId.id ?? ""
+    );
+    const allLeuchten = map.querySourceFeatures(namespacedSource, {
+      sourceLayer: "leuchten",
+    });
+
+    // Deduplicate by database id
+    const seen = new Map<string, SidebarFeature>();
+    for (const l of allLeuchten) {
+      const fkStandort = String(l.properties?.fk_standort ?? "");
+      if (fkStandort !== standortDbId) continue;
+      const lid = String(l.properties?.id ?? l.id ?? "");
+      if (!seen.has(lid)) {
+        seen.set(lid, toSidebarFeature(l));
+      }
+    }
+
+    setAuswahlFeatures({
+      standort: toSidebarFeature(rawFeature),
+      leuchten: [...seen.values()].sort(
+        (a, b) =>
+          (Number(a.properties?.leuchtennummer) || 0) -
+          (Number(b.properties?.leuchtennummer) || 0)
+      ),
+    });
+  }, [selectedFeatureId, rawFeature, map, sidebarMode, namespacedSource]);
+
+  // Auto-clear when leaving highlights mode
+  useEffect(() => {
+    if (sidebarMode !== "highlights") {
+      setAuswahlFeatures(null);
+    }
+  }, [sidebarMode]);
+
+  // Set of keys already in highlights — used to hide + buttons
+  const highlightedKeys = useMemo(() => {
+    if (!adjustedHighlights) return new Set<string>();
+    return new Set(adjustedHighlights.map(buildFeatureKey));
+  }, [adjustedHighlights]);
+
+  // Re-query MVT tile features by DB id to get current tile IDs, then add to highlights
+  const addFeaturesToHighlights = useCallback(
+    (features: SidebarFeature[]) => {
+      if (!map) return;
+
+      const toToggle: { source: string; sourceLayer: string; id: number }[] =
+        [];
+      const toAppend: SidebarFeature[] = [];
+
+      for (const f of features) {
+        const sl = f.sourceLayer ?? "";
+        const dbId = String(f.properties?.id ?? f.id ?? "");
+
+        // Re-query to get current MVT tile ID
+        const sourceFeatures = map.querySourceFeatures(namespacedSource, {
+          sourceLayer: sl,
+        });
+        const match = sourceFeatures.find(
+          (sf) => String(sf.properties?.id ?? "") === dbId
+        );
+
+        if (match?.id != null) {
+          toToggle.push({
+            source: namespacedSource,
+            sourceLayer: sl,
+            id: match.id as number,
+          });
+          toAppend.push(toSidebarFeature(match));
+        } else {
+          // Fallback: use the feature as-is
+          toAppend.push(f);
+        }
+      }
+
+      if (toToggle.length > 0) {
+        ensureToggledFeatures(toToggle, true);
+      }
+
+      setAdjustedHighlights((prev) => {
+        const existing = new Set((prev ?? []).map(buildFeatureKey));
+        const newItems = toAppend.filter(
+          (f) => !existing.has(buildFeatureKey(f))
+        );
+        if (newItems.length === 0) return prev;
+        return [...(prev ?? []), ...newItems];
+      });
+    },
+    [map, namespacedSource, ensureToggledFeatures, setAdjustedHighlights]
+  );
+
+  const handleAddStandort = useCallback(() => {
+    if (!auswahlFeatures) return;
+    addFeaturesToHighlights([auswahlFeatures.standort]);
+  }, [auswahlFeatures, addFeaturesToHighlights]);
+
+  const handleAddStandortWithLeuchten = useCallback(() => {
+    if (!auswahlFeatures) return;
+    addFeaturesToHighlights([
+      auswahlFeatures.standort,
+      ...auswahlFeatures.leuchten,
+    ]);
+  }, [auswahlFeatures, addFeaturesToHighlights]);
+
+  const handleAddLeuchte = useCallback(
+    (leuchte: SidebarFeature) => {
+      addFeaturesToHighlights([leuchte]);
+    },
+    [addFeaturesToHighlights]
+  );
+
+  if (!auswahlFeatures || sidebarMode !== "highlights") return null;
+
+  const standortItem = getListItem(auswahlFeatures.standort);
+  const standortKey = buildFeatureKey(auswahlFeatures.standort);
+  const standortAlreadyHighlighted = highlightedKeys.has(standortKey);
+  const allAlreadyHighlighted =
+    standortAlreadyHighlighted &&
+    auswahlFeatures.leuchten.every((l) =>
+      highlightedKeys.has(buildFeatureKey(l))
+    );
+
+  return (
+    <div className="border-b-2 border-blue-500 bg-blue-50">
+      {/* Header */}
+      <div className="px-3 py-1.5 bg-blue-100 border-b border-blue-200">
+        <span className="text-xs font-bold text-blue-800">Auswahl</span>
+      </div>
+
+      <div className="max-h-[200px] overflow-y-auto">
+        {/* Standort row */}
+        <div className="flex items-center gap-1 px-3 py-1.5 border-b border-blue-100">
+          <div className="flex-1 min-w-0">
+            <div className="flex justify-between gap-2 overflow-hidden">
+              <span className="shrink-0 whitespace-nowrap text-sm">
+                <b>{standortItem.main}</b>
+              </span>
+              <span className="grow text-right whitespace-nowrap text-ellipsis overflow-hidden text-sm text-gray-700">
+                {standortItem.upperright}
+              </span>
+            </div>
+            {standortItem.subtitle && (
+              <div className="text-left text-xs text-gray-500 whitespace-nowrap text-ellipsis overflow-hidden mt-0.5">
+                {standortItem.subtitle}
+              </div>
+            )}
+          </div>
+          {!standortAlreadyHighlighted && (
+            <button
+              onClick={handleAddStandort}
+              className="shrink-0 w-6 h-6 flex items-center justify-center rounded bg-blue-600 text-white text-xs font-bold hover:bg-blue-700"
+              title="Standort hinzufügen"
+            >
+              +
+            </button>
+          )}
+          {!allAlreadyHighlighted && auswahlFeatures.leuchten.length > 0 && (
+            <button
+              onClick={handleAddStandortWithLeuchten}
+              className="shrink-0 w-6 h-6 flex items-center justify-center rounded bg-blue-600 text-white text-xs font-bold hover:bg-blue-700"
+              title="Standort mit allen Leuchten hinzufügen"
+            >
+              ++
+            </button>
+          )}
+        </div>
+
+        {/* Leuchten rows */}
+        {auswahlFeatures.leuchten.map((leuchte) => {
+          const item = getListItem(leuchte);
+          const key = buildFeatureKey(leuchte);
+          const alreadyHighlighted = highlightedKeys.has(key);
+
+          return (
+            <div
+              key={key}
+              className="flex items-center gap-1 pl-8 pr-3 py-1.5 border-b border-blue-100"
+            >
+              <div className="flex-1 min-w-0">
+                <div className="flex justify-between gap-2 overflow-hidden">
+                  <span className="shrink-0 whitespace-nowrap text-sm">
+                    <b>{item.main}</b>
+                  </span>
+                  <span className="grow text-right whitespace-nowrap text-ellipsis overflow-hidden text-sm text-gray-700">
+                    {item.upperright}
+                  </span>
+                </div>
+                {item.subtitle && (
+                  <div className="text-left text-xs text-gray-500 whitespace-nowrap text-ellipsis overflow-hidden mt-0.5">
+                    {item.subtitle}
+                  </div>
+                )}
+              </div>
+              {!alreadyHighlighted && (
+                <button
+                  onClick={() => handleAddLeuchte(leuchte)}
+                  className="shrink-0 w-6 h-6 flex items-center justify-center rounded bg-blue-600 text-white text-xs font-bold hover:bg-blue-700"
+                  title="Leuchte hinzufügen"
+                >
+                  +
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+export default AuswahlBlock;

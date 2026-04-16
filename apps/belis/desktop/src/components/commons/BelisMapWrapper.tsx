@@ -2322,6 +2322,9 @@ const BelisMapLibWrapper = ({
           highlightCount={adjustedHighlights?.length ?? undefined}
           draftsCount={draftFeaturesCount}
           onFeatureDismiss={handleSidebarDismiss}
+          namespacedSource={namespacedSource}
+          adjustedHighlights={adjustedHighlights}
+          setAdjustedHighlights={setAdjustedHighlights}
         />
       )}
       <div
