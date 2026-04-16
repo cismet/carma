@@ -5,6 +5,7 @@ import { useWindowSize } from "@react-hook/window-size";
 import { useDispatch, useSelector } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
 import { storeJWT, storeLogin } from "../../store/slices/auth";
+import { resetKeyTablesFetched } from "../../store/slices/keyTables";
 import { DOMAIN, REST_SERVICE } from "../../constants/belis";
 
 export const background = "belis_background_iStock-139701369_blurred.jpg";
@@ -49,6 +50,7 @@ const Login = () => {
           response.json().then(function (responseWithJWT) {
             const jwt = responseWithJWT.jwt;
             setTimeout(() => {
+              dispatch(resetKeyTablesFetched());
               navigate("/" + browserlocation.search);
               dispatch(storeJWT(jwt));
               dispatch(storeLogin(user));
