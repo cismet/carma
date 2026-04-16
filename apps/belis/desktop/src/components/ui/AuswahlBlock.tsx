@@ -4,7 +4,7 @@ import {
   useMapHighlight,
   useLibreContext,
 } from "@carma-mapping/engines/maplibre";
-import type { MapGeoJSONFeature } from "maplibre-gl";
+import type { MapGeoJSONFeature, GeoJSONFeature } from "maplibre-gl";
 import type { ListItemData, SidebarFeature } from "./BelisSidebar";
 import { buildFeatureKey } from "../../helper/featureKeys";
 
@@ -18,16 +18,17 @@ export interface AuswahlBlockProps {
 }
 
 const toSidebarFeature = (
-  f: MapGeoJSONFeature,
+  f: MapGeoJSONFeature | GeoJSONFeature,
   source?: string,
   sourceLayer?: string
-): SidebarFeature =>
-  Object.assign(f, {
+): SidebarFeature => {
+  const feat = f as unknown as Record<string, unknown>;
+  return Object.assign(f, {
     original: f,
-    // querySourceFeatures doesn't always set source/sourceLayer — ensure they're present
-    source: f.source ?? source,
-    sourceLayer: f.sourceLayer ?? sourceLayer,
+    source: feat.source ?? source,
+    sourceLayer: feat.sourceLayer ?? sourceLayer,
   }) as unknown as SidebarFeature;
+};
 
 const AuswahlBlock = ({
   namespacedSource,
