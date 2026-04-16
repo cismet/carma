@@ -26,8 +26,15 @@ export interface UseDatasheetMiniMapOptions {
   padding?: number;
   /** CSS transition duration in ms */
   transitionMs?: number;
-  /** Default zoom offset relative to main map */
+  /** Default zoom offset relative to main map (ignored when targetZoom is set) */
   defaultZoomOffset?: number;
+  /**
+   * Fixed target zoom level. When set, the mini-map always eases to this zoom
+   * on feature selection instead of deriving it from the main map's zoom +
+   * offset. The user can still adjust zoom temporarily via mousewheel, but the
+   * next feature selection resets to targetZoom.
+   */
+  targetZoom?: number;
   /** Slow-mo transitions + red outline for debugging */
   debug?: boolean;
 }
@@ -55,6 +62,7 @@ export function useDatasheetMiniMap(
     padding: MINI_MAP_PAD = 16,
     transitionMs: rawTransitionMs = 200,
     defaultZoomOffset = 2,
+    targetZoom,
     debug = false,
   } = options;
 
@@ -69,6 +77,11 @@ export function useDatasheetMiniMap(
   const [miniMapCenter, setMiniMapCenter] = useState<
     [number, number] | undefined
   >();
+  // Track the selected feature's geometry type so the zoom sync effect can
+  // branch: lines → fitBounds (show full extent), points → easeTo targetZoom.
+  const [selectedGeometry, setSelectedGeometry] = useState<
+    GeoJSON.Geometry | null
+  >(null);
 
   // Every click on the main map sets center to click location.
   // When a feature is selected, the rawFeature effect below overrides this.
@@ -76,6 +89,7 @@ export function useDatasheetMiniMap(
     if (!mainMap) return;
     const onClick = (e: maplibregl.MapMouseEvent) => {
       setMiniMapCenter([e.lngLat.lng, e.lngLat.lat]);
+      setSelectedGeometry(null);
     };
     mainMap.on("click", onClick);
     return () => {
@@ -90,6 +104,7 @@ export function useDatasheetMiniMap(
     if (coords.length >= 2) {
       setMiniMapCenter([coords[0], coords[1]]);
     }
+    setSelectedGeometry(rawFeature.geometry as GeoJSON.Geometry);
   }, [rawFeature]);
 
   // ---------------------------------------------------------------------------
@@ -130,47 +145,108 @@ export function useDatasheetMiniMap(
   // ---------------------------------------------------------------------------
   useEffect(() => {
     if (!miniMap || !miniMapCenter) return;
-    const mainZoom = mainMap?.getZoom() ?? 15;
     miniMap.resize();
+
+    // For line geometries in targetZoom mode, fitBounds to the full extent
+    // so the entire line is visible. For everything else, use the fixed or
+    // relative zoom.
+    const isLine =
+      selectedGeometry?.type === "LineString" ||
+      selectedGeometry?.type === "MultiLineString";
+
+    if (targetZoom != null && isLine && isDatasheetOpen) {
+      const allCoords: number[][] =
+        selectedGeometry.type === "LineString"
+          ? (selectedGeometry as GeoJSON.LineString).coordinates
+          : (selectedGeometry as GeoJSON.MultiLineString).coordinates.flat();
+      if (allCoords.length > 0) {
+        let minLng = Infinity,
+          minLat = Infinity,
+          maxLng = -Infinity,
+          maxLat = -Infinity;
+        for (const [lng, lat] of allCoords) {
+          if (lng < minLng) minLng = lng;
+          if (lat < minLat) minLat = lat;
+          if (lng > maxLng) maxLng = lng;
+          if (lat > maxLat) maxLat = lat;
+        }
+        const bounds: [[number, number], [number, number]] = [
+          [minLng, minLat],
+          [maxLng, maxLat],
+        ];
+        const doFitBounds = () => {
+          miniMap.resize();
+          miniMap.fitBounds(bounds, {
+            padding: 40,
+            duration: MINI_MAP_TRANSITION_MS,
+          });
+        };
+        // When the mini-map is still transitioning into view (first open),
+        // its container hasn't reached its final size yet, so fitBounds
+        // computes the wrong viewport. Delay until the CSS transition is
+        // done so resize() picks up the correct dimensions.
+        if (isTransitioning) {
+          const timer = setTimeout(doFitBounds, MINI_MAP_TRANSITION_MS);
+          return () => clearTimeout(timer);
+        }
+        doFitBounds();
+        return;
+      }
+    }
+
+    const zoom =
+      targetZoom != null
+        ? targetZoom
+        : (mainMap?.getZoom() ?? 15) + effectiveZoomOffset;
     if (isDatasheetOpen) {
       miniMap.easeTo({
         center: miniMapCenter,
-        zoom: mainZoom + effectiveZoomOffset,
+        zoom,
         duration: MINI_MAP_TRANSITION_MS,
       });
     } else {
       miniMap.jumpTo({
         center: miniMapCenter,
-        zoom: mainZoom + effectiveZoomOffset,
+        zoom,
       });
     }
   }, [
     miniMap,
     mainMap,
     miniMapCenter,
+    selectedGeometry,
     isDatasheetOpen,
+    isTransitioning,
     effectiveZoomOffset,
+    targetZoom,
     MINI_MAP_TRANSITION_MS,
   ]);
 
   // Animate zoom when toggling between map/datasheet view
   useEffect(() => {
     if (!miniMap || !mainMap || !isTransitioning) return;
+    const zoom =
+      targetZoom != null
+        ? targetZoom
+        : mainMap.getZoom() + effectiveZoomOffset;
     miniMap.easeTo({
-      zoom: mainMap.getZoom() + effectiveZoomOffset,
+      zoom,
       duration: MINI_MAP_TRANSITION_MS,
     });
   }, [
     miniMap,
     mainMap,
     effectiveZoomOffset,
+    targetZoom,
     isTransitioning,
     MINI_MAP_TRANSITION_MS,
   ]);
 
-  // Keep mini-map zoom in sync when main map zoom changes (instant)
+  // Keep mini-map zoom in sync when main map zoom changes (instant).
+  // Skipped when targetZoom is set — the mini-map uses an absolute zoom
+  // level independent of the main map.
   useEffect(() => {
-    if (!mainMap || !miniMap) return;
+    if (!mainMap || !miniMap || targetZoom != null) return;
     const onZoom = () => {
       miniMap.jumpTo({ zoom: mainMap.getZoom() + effectiveZoomOffset });
     };
@@ -178,7 +254,7 @@ export function useDatasheetMiniMap(
     return () => {
       mainMap.off("zoom", onZoom);
     };
-  }, [mainMap, miniMap, effectiveZoomOffset]);
+  }, [mainMap, miniMap, effectiveZoomOffset, targetZoom]);
 
   // ---------------------------------------------------------------------------
   // Position alignment: mini-map center aligns with feature's pixel position
@@ -263,18 +339,26 @@ export function useDatasheetMiniMap(
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       const delta = -e.deltaY / 300;
-      setMiniMapZoomOffset((prev) => {
-        const next = Math.max(-5, Math.min(10, prev + delta));
-        const mainZoom = mainMap?.getZoom() ?? 15;
-        miniMap.jumpTo({ zoom: mainZoom + next });
-        return next;
-      });
+      if (targetZoom != null) {
+        // Fixed-zoom mode: adjust mini-map zoom directly, no stored offset.
+        // The next feature selection (easeTo) resets to targetZoom.
+        const current = miniMap.getZoom();
+        miniMap.jumpTo({ zoom: Math.max(1, Math.min(22, current + delta)) });
+      } else {
+        // Relative-zoom mode: adjust stored offset against main map zoom.
+        setMiniMapZoomOffset((prev) => {
+          const next = Math.max(-5, Math.min(10, prev + delta));
+          const mainZoom = mainMap?.getZoom() ?? 15;
+          miniMap.jumpTo({ zoom: mainZoom + next });
+          return next;
+        });
+      }
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => {
       el.removeEventListener("wheel", onWheel);
     };
-  }, [miniMap, mainMap]);
+  }, [miniMap, mainMap, targetZoom]);
 
   // ---------------------------------------------------------------------------
   // Compute corner position from container dimensions

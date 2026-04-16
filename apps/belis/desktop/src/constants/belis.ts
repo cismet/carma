@@ -172,3 +172,10 @@ export const arbeitsauftragByIdQuery = gql`
  * mini-map, so the Arbeitsaufträge mini-map feels equally snappy.
  */
 export const MINI_MAP_TRANSITION_MS = 200;
+
+/**
+ * Fixed zoom level for the Fachobjekte mini-map. On each feature selection
+ * the mini-map eases to this zoom; the user can temporarily adjust via
+ * mousewheel, but the next feature selection resets to this value.
+ */
+export const MINI_MAP_TARGET_ZOOM = 20;

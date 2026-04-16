@@ -94,7 +94,10 @@ import {
   aaInfoboxMapping,
 } from "../../config/debugLayers";
 import { protocolsLayers as protocolsLayersNew } from "../../config/protocolsLayers";
-import { MINI_MAP_TRANSITION_MS } from "../../constants/belis";
+import {
+  MINI_MAP_TARGET_ZOOM,
+  MINI_MAP_TRANSITION_MS,
+} from "../../constants/belis";
 
 // Toggle between the preliminary debug layer styles and the new protocols styles.
 const USE_DEBUG_LAYERS_FOR_PROTOCOLS_LAYERS = false;
@@ -1613,6 +1616,9 @@ const BelisMapLibWrapper = ({
     debug: MINI_MAP_DEBUGGING,
     // Share the same animation duration as the AA fitBounds calls below.
     transitionMs: MINI_MAP_TRANSITION_MS,
+    // Fixed zoom: every feature selection eases to this level; user can
+    // adjust temporarily via mousewheel, but the next selection resets.
+    targetZoom: MINI_MAP_TARGET_ZOOM,
   });
 
   const handleMiniMapReady = useCallback((m: maplibregl.Map) => {
