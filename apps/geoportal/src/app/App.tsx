@@ -146,6 +146,11 @@ function MeasurementsWrapper({
   );
 }
 
+function MeasurementLayerSync() {
+  useMeasurementLayerButton();
+  return null;
+}
+
 function App({ published }: { published?: boolean }) {
   const dispatch = useDispatch();
   const showLoginModal = useSelector(getShowLoginModal);
@@ -153,7 +158,6 @@ function App({ published }: { published?: boolean }) {
   useManageLayers(layerMap);
   const syncToken = useSyncToken();
   useKeyboardShortcuts();
-  useMeasurementLayerButton();
   const customFeatureFlags = useSelector(getCustomFeatureFlags);
   const uiMode = useSelector(getUIMode);
   const mode =
@@ -207,6 +211,7 @@ function App({ published }: { published?: boolean }) {
                   setModeExternal={handleSetMode}
                   baseConfig={MEASUREMENTS_BASE_CONFIG}
                 >
+                  <MeasurementLayerSync />
                   <ErrorBoundary FallbackComponent={AppErrorFallback}>
                     <AdhocFeatureRehydration />
                     <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
