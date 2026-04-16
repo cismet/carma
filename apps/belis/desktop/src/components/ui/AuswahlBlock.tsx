@@ -277,7 +277,7 @@ const AuswahlBlock = ({
             )}
           </div>
           {altHeld && !standortAlreadyHighlighted && (
-            <div className="absolute inset-0 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
+            <div className="absolute inset-0 flex items-center justify-center gap-6 opacity-0 group-hover:opacity-100">
               <button
                 onClick={handleAddStandort}
                 className="text-gray-700 text-3xl font-light"
