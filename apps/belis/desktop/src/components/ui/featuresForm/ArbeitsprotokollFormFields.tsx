@@ -51,6 +51,9 @@ interface ArbeitsprotokollFormFieldsProps {
   aaId?: string;
 }
 
+/** Sentinel value representing "Offen" (no status / fk_status IS NULL). */
+const OFFEN_STATUS_VALUE = 0;
+
 const ArbeitsprotokollFormFields = ({
   data,
   fachobjektType,
@@ -69,22 +72,32 @@ const ArbeitsprotokollFormFields = ({
     getAPDraftActions(state, apId)
   );
 
-  const statusOptions = useMemo(
-    () =>
-      [
-        ...((keyTablesData.arbeitsprotokollstatus || []) as {
-          id: number;
-          bezeichnung?: string;
-        }[]),
-      ]
-        .sort((a, b) =>
-          (a.bezeichnung || "").localeCompare(b.bezeichnung || "", "de", {
-            sensitivity: "base",
-          })
-        )
-        .map((s) => ({ value: s.id, label: s.bezeichnung || "" })),
-    [keyTablesData.arbeitsprotokollstatus]
-  );
+  const statusOptions = useMemo(() => {
+    const serverOptions = [
+      ...((keyTablesData.arbeitsprotokollstatus || []) as {
+        id: number;
+        bezeichnung?: string;
+      }[]),
+    ]
+      .sort((a, b) =>
+        (a.bezeichnung || "").localeCompare(b.bezeichnung || "", "de", {
+          sensitivity: "base",
+        })
+      )
+      .map((s) => ({ value: s.id, label: s.bezeichnung || "" }));
+
+    // Always include "Offen" if not already present in server data
+    const hasOffen = serverOptions.some(
+      (o) => o.label.toLowerCase() === "offen"
+    );
+    if (!hasOffen) {
+      return [
+        { value: OFFEN_STATUS_VALUE, label: "Offen" },
+        ...serverOptions,
+      ];
+    }
+    return serverOptions;
+  }, [keyTablesData.arbeitsprotokollstatus]);
 
   useEffect(() => {
     onFormInstance?.(form);
@@ -96,7 +109,7 @@ const ArbeitsprotokollFormFields = ({
       const serverValues = {
         monteur: data.monteur ?? "",
         datum: data.datum ? dayjs(data.datum) : null,
-        status: data.arbeitsprotokollstatus?.id ?? null,
+        status: data.arbeitsprotokollstatus?.id ?? OFFEN_STATUS_VALUE,
         material: data.material ?? "",
         bemerkung: data.bemerkung ?? "",
       };

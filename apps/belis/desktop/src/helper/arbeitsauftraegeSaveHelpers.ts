@@ -91,8 +91,13 @@ const saveAPDraft = async (
     }
 
     // Remap status (form field) → arbeitsprotokollstatus (server FK object)
+    // Value 0 is the sentinel for "Offen" (no status / fk_status IS NULL)
     if (prepared.status != null) {
-      prepared.arbeitsprotokollstatus = { id: prepared.status };
+      if (prepared.status === 0) {
+        prepared.arbeitsprotokollstatus = null;
+      } else {
+        prepared.arbeitsprotokollstatus = { id: prepared.status };
+      }
       delete prepared.status;
     }
 
