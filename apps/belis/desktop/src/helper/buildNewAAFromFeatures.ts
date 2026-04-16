@@ -85,7 +85,7 @@ export function buildAPEntriesFromFeatures(
         id: nextId,
         protokollnummer: startProtokollnummer + i,
         [fkField]: featureId,
-        arbeitsprotokollstatus: { id: 1 },
+        arbeitsprotokollstatus: null,
       },
     });
 
