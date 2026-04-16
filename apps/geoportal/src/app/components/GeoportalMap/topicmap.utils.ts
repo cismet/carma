@@ -584,12 +584,12 @@ export const implicitVectorSelection = async (
     //make sure to get a point from any geometry type
     const coordinates = getCoordinates(selectedVectorFeature.geometry);
     let headerColor = "#0078a8";
-    if (layer.other?.accentColor) {
-      headerColor = layer.other?.accentColor;
+    if (layer.layerInfo?.accentColor) {
+      headerColor = layer.layerInfo.accentColor;
     }
     let header = layer.title || "Information";
-    if (layer.other?.header) {
-      header = layer.other?.header;
+    if (layer.layerInfo?.header) {
+      header = layer.layerInfo.header;
     }
     const feature = {
       properties: {
@@ -688,7 +688,7 @@ export const onSelectionChangedVector = async (
     if (layer.queryable) {
       dispatch(addNothingFoundID(layer.id));
     } else if (
-      (layer.other.header || layer.other.headerColor) &&
+      (layer.layerInfo?.header || layer.layerInfo?.headerColor) &&
       e.hit &&
       e.hit.selectionLayerExists
     ) {
@@ -696,12 +696,12 @@ export const onSelectionChangedVector = async (
 
       const coordinates = getCoordinates(selectedVectorFeature.geometry);
       let headerColor = "#0078a8";
-      if (layer.other?.accentColor) {
-        headerColor = layer.other?.accentColor;
+      if (layer.layerInfo?.accentColor) {
+        headerColor = layer.layerInfo.accentColor;
       }
       let header = layer.title || "Information";
-      if (layer.other?.header) {
-        header = layer.other?.header;
+      if (layer.layerInfo?.header) {
+        header = layer.layerInfo.header;
       }
       const feature = {
         properties: {

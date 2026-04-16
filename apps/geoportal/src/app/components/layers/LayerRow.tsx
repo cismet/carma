@@ -31,7 +31,7 @@ const LayerRow = ({ layer, id, isBackgroundLayer, index }: LayerRowProps) => {
   const dispatch = useDispatch();
   const { clearFeatureCollections } = useAdhocFeatureDisplay();
   const { isCesium } = useMapFrameworkSwitcherContext();
-  const icon = layer?.icon || layer?.other?.icon;
+  const icon = (layer?.layerInfo?.icon as string) || layer?.other?.icon;
   const isPinned = !!(layer as Layer).pinned;
   const skipSelection = !!layer.skipSelection;
   const { attributes, listeners, setNodeRef, transform, transition } =

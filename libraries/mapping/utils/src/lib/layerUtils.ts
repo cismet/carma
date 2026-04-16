@@ -258,13 +258,17 @@ export const parseToMapLayer = async (
           metaData: layer?.props?.MetadataURL,
         },
         other: {
-          ...Object.fromEntries(
-            Object.entries(layer).filter(([key]) => !["props"].includes(key))
-          ),
+          name: layer.name,
           layerName: layer.name,
           capabilitiesUrl: capabilitiesUrl,
-          ...metaData,
-          ...layerInfo,
+          service: layer.service,
+          keywords: layer.keywords,
+          icon: layer.icon,
+          alternativeIcon: layer.alternativeIcon,
+          path: layer.path,
+          originalPath: layer.originalPath,
+          vectorLegend: layer.vectorLegend,
+          thumbnail: layer.thumbnail,
         },
         layerInfo: {
           ...layerInfo,
@@ -298,13 +302,17 @@ export const parseToMapLayer = async (
               metaData: layer.props.MetadataURL,
             },
             other: {
-              ...Object.fromEntries(
-                Object.entries(layer).filter(
-                  ([key]) => !["props"].includes(key)
-                )
-              ),
+              name: layer.name,
               layerName: layer.name,
               capabilitiesUrl: capabilitiesUrl,
+              service: layer.service,
+              keywords: layer.keywords,
+              icon: layer.icon,
+              alternativeIcon: layer.alternativeIcon,
+              path: layer.path,
+              originalPath: layer.originalPath,
+              vectorLegend: layer.vectorLegend,
+              thumbnail: layer.thumbnail,
             },
           };
           break;
@@ -330,13 +338,17 @@ export const parseToMapLayer = async (
               metaData: layer.props.MetadataURL,
             },
             other: {
-              ...Object.fromEntries(
-                Object.entries(layer).filter(
-                  ([key]) => !["props"].includes(key)
-                )
-              ),
+              name: layer.name,
               layerName: layer.name,
               capabilitiesUrl: capabilitiesUrl,
+              service: layer.service,
+              keywords: layer.keywords,
+              icon: layer.icon,
+              alternativeIcon: layer.alternativeIcon,
+              path: layer.path,
+              originalPath: layer.originalPath,
+              vectorLegend: layer.vectorLegend,
+              thumbnail: layer.thumbnail,
             },
           };
           break;

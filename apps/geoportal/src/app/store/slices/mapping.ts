@@ -294,7 +294,6 @@ const slice = createSlice({
       if (!layer) return;
 
       layer.layerInfo = { ...layer.layerInfo, ...layerInfo };
-      layer.other = { ...layer.other, ...layerInfo };
 
       const directKeys = ["title", "description"] as const;
       for (const key of directKeys) {

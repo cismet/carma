@@ -148,9 +148,6 @@ export type LayerProps = {
 type OtherLayerProps = Partial<LayerProps & Item> & {
   layerName?: string;
   capabilitiesUrl?: string;
-  header?: string;
-  accentColor?: string;
-  headerColor?: string;
 };
 
 type BaseLayer = {
@@ -174,6 +171,8 @@ type BaseLayer = {
   dynamicStylingSelection?: string | Record<number, string>;
   layerInfo?: {
     accentColor?: string;
+    header?: string;
+    headerColor?: string;
     title?: string;
     keywords?: string[];
     description?: string;
