@@ -18,8 +18,17 @@ export interface AuswahlBlockProps {
   getListItem: (feature: SidebarFeature) => ListItemData;
 }
 
-const toSidebarFeature = (f: MapGeoJSONFeature): SidebarFeature =>
-  Object.assign(f, { original: f }) as unknown as SidebarFeature;
+const toSidebarFeature = (
+  f: MapGeoJSONFeature,
+  source?: string,
+  sourceLayer?: string
+): SidebarFeature =>
+  Object.assign(f, {
+    original: f,
+    // querySourceFeatures doesn't always set source/sourceLayer — ensure they're present
+    source: f.source ?? source,
+    sourceLayer: f.sourceLayer ?? sourceLayer,
+  }) as unknown as SidebarFeature;
 
 const AuswahlBlock = ({
   sidebarMode,
@@ -104,12 +113,12 @@ const AuswahlBlock = ({
       if (fkStandort !== standortDbId) continue;
       const lid = String(l.properties?.id ?? l.id ?? "");
       if (!seen.has(lid)) {
-        seen.set(lid, toSidebarFeature(l));
+        seen.set(lid, toSidebarFeature(l, namespacedSource, "leuchten"));
       }
     }
 
     setAuswahlFeatures({
-      standort: toSidebarFeature(rawFeature),
+      standort: toSidebarFeature(rawFeature, namespacedSource, "standorte"),
       leuchten: [...seen.values()].sort(
         (a, b) =>
           (Number(a.properties?.leuchtennummer) || 0) -
@@ -158,7 +167,7 @@ const AuswahlBlock = ({
             sourceLayer: sl,
             id: match.id as number,
           });
-          toAppend.push(toSidebarFeature(match));
+          toAppend.push(toSidebarFeature(match, namespacedSource, sl));
         } else {
           // Fallback: use the feature as-is
           toAppend.push(f);
