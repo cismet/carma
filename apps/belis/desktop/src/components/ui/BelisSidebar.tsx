@@ -623,7 +623,6 @@ const BelisSidebar = ({
       </div>
       {namespacedSource && setAdjustedHighlights && (
         <AuswahlBlock
-          sidebarMode={sidebarMode}
           namespacedSource={namespacedSource}
           adjustedHighlights={adjustedHighlights ?? null}
           setAdjustedHighlights={setAdjustedHighlights}
