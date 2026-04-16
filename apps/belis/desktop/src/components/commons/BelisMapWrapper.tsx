@@ -1583,6 +1583,30 @@ const BelisMapLibWrapper = ({
 
   // Mini-map state
   const [miniMap, setMiniMap] = useState<maplibregl.Map | null>(null);
+  const [miniMapDebugInfo, setMiniMapDebugInfo] = useState<{
+    zoom: number;
+    center: [number, number];
+  } | null>(null);
+  useEffect(() => {
+    if (!miniMap) {
+      setMiniMapDebugInfo(null);
+      return;
+    }
+    const update = () => {
+      const c = miniMap.getCenter();
+      setMiniMapDebugInfo({
+        zoom: miniMap.getZoom(),
+        center: [c.lng, c.lat],
+      });
+    };
+    update();
+    miniMap.on("moveend", update);
+    miniMap.on("zoomend", update);
+    return () => {
+      miniMap.off("moveend", update);
+      miniMap.off("zoomend", update);
+    };
+  }, [miniMap]);
   const [miniMapReady, setMiniMapReady] = useState(false);
   useEffect(() => {
     if (!miniMap) {
@@ -1622,6 +1646,17 @@ const BelisMapLibWrapper = ({
   });
 
   const handleMiniMapReady = useCallback((m: maplibregl.Map) => {
+    // Disable terrain on the minimap. Terrain causes getZoom() to report
+    // incorrect values because MapLibre recalculates zoom from the
+    // camera-to-terrain-surface distance instead of the requested zoom.
+    const disableTerrain = () => {
+      try { m.setTerrain(null); } catch { /* style not ready */ }
+    };
+    if (m.isStyleLoaded()) {
+      disableTerrain();
+    } else {
+      m.once("styledata", disableTerrain);
+    }
     setMiniMap(m);
   }, []);
 
@@ -1839,7 +1874,7 @@ const BelisMapLibWrapper = ({
           // Match the Fachobjekte mini-map's transition so switching AP rows
           // feels as snappy. Without `duration`, MapLibre defaults to 1000ms,
           // which felt sluggish vs. useDatasheetMiniMap's 200ms easeTo.
-          { padding: 40, maxZoom: 18, duration: MINI_MAP_TRANSITION_MS }
+          { padding: 40, maxZoom: MINI_MAP_TARGET_ZOOM, duration: MINI_MAP_TRANSITION_MS }
         );
       }
     }
@@ -1916,11 +1951,29 @@ const BelisMapLibWrapper = ({
           // Match the Fachobjekte mini-map's transition so switching AP rows
           // feels as snappy. Without `duration`, MapLibre defaults to 1000ms,
           // which felt sluggish vs. useDatasheetMiniMap's 200ms easeTo.
-          { padding: 40, maxZoom: 18, duration: MINI_MAP_TRANSITION_MS }
+          { padding: 40, maxZoom: MINI_MAP_TARGET_ZOOM, duration: MINI_MAP_TRANSITION_MS }
         );
       }
     }
   }, [miniMap, selectedAPId, selectedAAData, draftMode, apDraftGeoJson]);
+
+  // --- Mini-map: mousewheel zoom in AA mode ---
+  // The useDatasheetMiniMap hook's wheel handler is disabled in AA mode
+  // (miniMap is passed as null), so we add our own here.
+  useEffect(() => {
+    const el = miniMapContainerRef.current;
+    if (!el || !miniMap || sidebarVariant !== "arbeitsauftraege") return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const delta = -e.deltaY / 300;
+      const current = miniMap.getZoom();
+      miniMap.jumpTo({ zoom: Math.max(1, Math.min(22, current + delta)) });
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => {
+      el.removeEventListener("wheel", onWheel);
+    };
+  }, [miniMap, sidebarVariant, miniMapContainerRef]);
 
   // Build infobox override for AA features.
   // Always uses the override path because the AA GeoJSON source has no
@@ -2320,6 +2373,33 @@ const BelisMapLibWrapper = ({
               setLibreMap={handleMiniMapReady}
             />
           </LibreContextProvider>
+          {showRaw && miniMapDebugInfo && (
+            <div
+              style={{
+                position: "absolute",
+                top: 4,
+                left: 4,
+                zIndex: 10,
+                background: "rgba(255, 255, 0, 0.85)",
+                color: "#000",
+                fontSize: 10,
+                fontFamily: "monospace",
+                padding: "2px 5px",
+                borderRadius: 3,
+                pointerEvents: "none",
+                lineHeight: 1.4,
+              }}
+            >
+              z{miniMapDebugInfo.zoom.toFixed(1)}{" "}
+              {miniMapDebugInfo.center[0].toFixed(5)},{miniMapDebugInfo.center[1].toFixed(5)}
+              {miniMap && (
+                <>
+                  {" "}{miniMap.getCanvas().width}x{miniMap.getCanvas().height}
+                  {" "}{(() => { try { return miniMap.getTerrain() ? "TER" : ""; } catch { return ""; } })()}
+                </>
+              )}
+            </div>
+          )}
         </div>
         <DatasheetLayout
           mainMap={

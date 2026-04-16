@@ -48,6 +48,11 @@ export type { VectorStyle, LibreLayer };
 
 interface CarmaMapProps extends LibreMapProps {
   mapEngine?: "leaflet" | "maplibre" | "cesium";
+  /**
+   * Application key used to scope localStorage keys (e.g. terrain setting).
+   * Without this, settings leak across apps on the same origin.
+   */
+  appKey?: string;
   /** Show a crosshair overlay that jumps to the last click position (debug aid for 3D selection) */
   clickCrosshairDebugMode?: boolean;
   modalMenu?: React.ReactNode;
@@ -76,9 +81,12 @@ interface CarmaMapProps extends LibreMapProps {
   >;
 }
 
+const TERRAIN_STORAGE_KEY = "carma-map-terrain";
+
 const CarmaMapContent = (props: CarmaMapProps) => {
   const {
     mapEngine = "leaflet",
+    appKey,
     miniMap = false,
     clickCrosshairDebugMode = false,
     locatorControl: locatorControlProp = true,
@@ -93,6 +101,20 @@ const CarmaMapContent = (props: CarmaMapProps) => {
     children,
     embedded = false,
   } = props;
+
+  const terrainStorageKey = appKey
+    ? `${appKey}:${TERRAIN_STORAGE_KEY}`
+    : TERRAIN_STORAGE_KEY;
+
+  // Warn once if appKey is missing (settings leak across apps on the same origin)
+  useState(() => {
+    if (!appKey && !miniMap) {
+      console.warn(
+        "[CarmaMap] appKey prop is not set. localStorage settings (e.g. terrain) " +
+        "will leak across all apps on this origin. Pass appKey to scope them."
+      );
+    }
+  });
 
   // miniMap mode: disable all controls, compass, interaction, infobox
   const locatorControl = miniMap ? false : locatorControlProp;
@@ -110,7 +132,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
     useContext<typeof TopicMapStylingContext>(TopicMapStylingContext);
   const [libreMap, setLibreMap] = useState<maplibregl.Map | null>(null);
   const [showTerrain, setShowTerrain] = useState(() => {
-    try { return localStorage.getItem("carma-map-terrain") === "true"; } catch { return false; }
+    try { return localStorage.getItem(terrainStorageKey) === "true"; } catch { return false; }
   });
   // Crosshair debug: store geographic position so the crosshair tracks
   // correctly when terrain is toggled or camera moves
@@ -227,7 +249,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                       if (libreMap?.terrain) {
                         libreMap.setTerrain(null);
                         setShowTerrain(false);
-                        localStorage.setItem("carma-map-terrain", "false");
+                        localStorage.setItem(terrainStorageKey, "false");
                       } else if (libreMap) {
                         libreMap.setTerrain({
                           source: WUPPERTAL_CONFIG.terrain
@@ -236,7 +258,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                           exaggeration: 1,
                         });
                         setShowTerrain(true);
-                        localStorage.setItem("carma-map-terrain", "true");
+                        localStorage.setItem(terrainStorageKey, "true");
                       }
                     }}
                     className="font-semibold"
