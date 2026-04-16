@@ -9,7 +9,6 @@ import type { ListItemData, SidebarFeature } from "./BelisSidebar";
 import { buildFeatureKey } from "../../helper/featureKeys";
 
 export interface AuswahlBlockProps {
-  sidebarMode: "fachobjekte" | "highlights" | "drafts";
   namespacedSource: string;
   adjustedHighlights: SidebarFeature[] | null;
   setAdjustedHighlights: React.Dispatch<
@@ -31,14 +30,13 @@ const toSidebarFeature = (
   }) as unknown as SidebarFeature;
 
 const AuswahlBlock = ({
-  sidebarMode,
   namespacedSource,
   adjustedHighlights,
   setAdjustedHighlights,
   getListItem,
 }: AuswahlBlockProps) => {
   const { selectedFeatureId, rawFeature } = useMapSelection();
-  const { ensureToggledFeatures } = useMapHighlight();
+  const { ensureToggledFeatures, highlightingActive } = useMapHighlight();
   const { map } = useLibreContext();
 
   // Track Alt key for button visibility (same pattern as BelisSidebar)
@@ -68,7 +66,7 @@ const AuswahlBlock = ({
   // Auto-populate when a non-highlighted standort is selected in highlights mode.
   // Auto-close when anything else is selected (highlighted mast, leuchte, other layer, etc.)
   useEffect(() => {
-    if (sidebarMode !== "highlights") return;
+    if (!highlightingActive) return;
     if (!selectedFeatureId || !rawFeature || !map) {
       setAuswahlFeatures(null);
       return;
@@ -125,14 +123,14 @@ const AuswahlBlock = ({
           (Number(b.properties?.leuchtennummer) || 0)
       ),
     });
-  }, [selectedFeatureId, rawFeature, map, sidebarMode, namespacedSource]);
+  }, [selectedFeatureId, rawFeature, map, highlightingActive, namespacedSource]);
 
   // Auto-clear when leaving highlights mode
   useEffect(() => {
-    if (sidebarMode !== "highlights") {
+    if (!highlightingActive) {
       setAuswahlFeatures(null);
     }
-  }, [sidebarMode]);
+  }, [highlightingActive]);
 
   // Set of keys already in highlights — used to hide + buttons
   const highlightedKeys = useMemo(() => {
@@ -210,7 +208,7 @@ const AuswahlBlock = ({
     [addFeaturesToHighlights]
   );
 
-  if (!auswahlFeatures || sidebarMode !== "highlights") return null;
+  if (!auswahlFeatures || !highlightingActive) return null;
 
   const standortItem = getListItem(auswahlFeatures.standort);
   const standortKey = buildFeatureKey(auswahlFeatures.standort);
