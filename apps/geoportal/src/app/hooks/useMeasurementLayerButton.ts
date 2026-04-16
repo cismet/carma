@@ -2,7 +2,10 @@ import { useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import type { Layer } from "@carma-mapping/layers";
-import { useMapMeasurementsContext } from "@carma-commons/measurements";
+import {
+  useMapMeasurementsContext,
+  shapesToFeatureCollection,
+} from "@carma-commons/measurements";
 
 import {
   appendLayer,
@@ -19,6 +22,7 @@ const MEASUREMENT_LAYER: Layer = {
   title: "Messung",
   icon: "measurement",
   visible: true,
+  pinned: "last",
 };
 
 function getMeasurementTitle(count: number) {
@@ -84,4 +88,10 @@ export function useMeasurementLayerButton() {
       })
     );
   }, [shapes.length, hasMeasurementLayer, dispatch]);
+
+  useEffect(() => {
+    if (shapes.length === 0) return;
+    const fc = shapesToFeatureCollection(shapes);
+    console.log("[MEASUREMENT FC]", fc);
+  }, [shapes]);
 }

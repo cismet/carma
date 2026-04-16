@@ -31,10 +31,12 @@ const LayerRow = ({ layer, id, isBackgroundLayer, index }: LayerRowProps) => {
   const dispatch = useDispatch();
   const { clearFeatureCollections } = useAdhocFeatureDisplay();
   const { isCesium } = useMapFrameworkSwitcherContext();
-  const icon = layer?.other?.icon;
+  const icon = layer?.icon || layer?.other?.icon;
+  const isPinned = !!(layer as Layer).pinned;
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
       id,
+      disabled: isPinned,
     });
 
   const style = { transform: CSS.Translate.toString(transform) };
@@ -50,7 +52,7 @@ const LayerRow = ({ layer, id, isBackgroundLayer, index }: LayerRowProps) => {
           {...listeners}
           {...attributes}
           className={`flex items-center justify-center !cursor-grab ${
-            isBackgroundLayer ? "invisible" : ""
+            isBackgroundLayer || isPinned ? "invisible" : ""
           }`}
         >
           <FontAwesomeIcon icon={faGripVertical} />

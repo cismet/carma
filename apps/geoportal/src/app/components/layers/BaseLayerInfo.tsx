@@ -34,10 +34,13 @@ const BaseLayerInfo = () => {
   const layers = useSelector(getLayers);
   const { isCesium } = useMapFrameworkSwitcherContext();
 
-  const reversedLayers = layers
-    .slice()
-    .reverse()
-    .filter((layer) => (isCesium ? filter3dLayers(layer) : true));
+  const filteredLayers = layers.filter((layer) =>
+    isCesium ? filter3dLayers(layer) : true
+  );
+  const reversedLayers = filteredLayers.slice().reverse();
+  const sortableLayers = filteredLayers.filter((l) => !l.pinned);
+  const pinnedFirstLayers = filteredLayers.filter((l) => l.pinned === "first");
+  const pinnedLastLayers = filteredLayers.filter((l) => l.pinned === "last");
 
   const getLayerPos = (id) => layers.findIndex((layer) => layer.id === id);
 
@@ -98,19 +101,40 @@ const BaseLayerInfo = () => {
                       modifiers={[restrictToVerticalAxis]}
                     >
                       <div className="h-full overflow-auto max-h-full flex flex-col gap-2 pr-1">
-                        <SortableContext
-                          items={layers}
-                          strategy={verticalListSortingStrategy}
-                        >
-                          {reversedLayers.map((layer, i) => (
+                        {pinnedLastLayers
+                          .slice()
+                          .reverse()
+                          .map((layer) => (
                             <LayerRow
-                              key={`layer.${i}`}
+                              key={`layer.${layer.id}`}
                               layer={layer}
                               id={layer.id}
-                              index={reversedLayers.length - 1 - i}
+                              index={layers.indexOf(layer)}
                             />
                           ))}
+                        <SortableContext
+                          items={sortableLayers}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          {reversedLayers
+                            .filter((l) => !l.pinned)
+                            .map((layer) => (
+                              <LayerRow
+                                key={`layer.${layer.id}`}
+                                layer={layer}
+                                id={layer.id}
+                                index={layers.indexOf(layer)}
+                              />
+                            ))}
                         </SortableContext>
+                        {pinnedFirstLayers.map((layer) => (
+                          <LayerRow
+                            key={`layer.${layer.id}`}
+                            layer={layer}
+                            id={layer.id}
+                            index={layers.indexOf(layer)}
+                          />
+                        ))}
                         <LayerRow
                           isBackgroundLayer
                           layer={backgroundLayer}

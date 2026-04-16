@@ -118,6 +118,7 @@ type BaseLayer = {
   useInFeatureInfo?: boolean;
   conf?: CarmaConfig;
   icon?: string;
+  pinned?: "first" | "last";
   other?: OtherLayerProps;
   filterConfig?: FilterConfig;
   filterInfo?: LayerFilterInfo;

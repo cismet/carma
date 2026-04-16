@@ -88,12 +88,39 @@ const slice = createSlice({
   initialState,
   reducers: {
     setLayers(state, action) {
-      state.layers = action.payload;
+      const incoming = action.payload as Layer[];
+      const pinnedFirst = incoming.filter((l) => l.pinned === "first");
+      const unpinned = incoming.filter((l) => !l.pinned);
+      const pinnedLast = incoming.filter((l) => l.pinned === "last");
+      state.layers = [...pinnedFirst, ...unpinned, ...pinnedLast];
     },
     appendLayer(state, action: PayloadAction<Layer>) {
-      let newLayers = state.layers;
-      newLayers.push(action.payload);
-      state.layers = newLayers;
+      const layer = action.payload;
+      if (layer.pinned === "first") {
+        const firstUnpinnedIndex = state.layers.findIndex(
+          (l) => l.pinned !== "first"
+        );
+        state.layers.splice(
+          firstUnpinnedIndex === -1 ? 0 : firstUnpinnedIndex,
+          0,
+          layer
+        );
+      } else if (layer.pinned === "last") {
+        state.layers.push(layer);
+      } else {
+        let lastPinnedIndex = -1;
+        for (let i = state.layers.length - 1; i >= 0; i--) {
+          if (state.layers[i].pinned === "last") {
+            lastPinnedIndex = i;
+            break;
+          }
+        }
+        if (lastPinnedIndex === -1) {
+          state.layers.push(layer);
+        } else {
+          state.layers.splice(lastPinnedIndex, 0, layer);
+        }
+      }
     },
     updateLayer(state, action: PayloadAction<Layer>) {
       const layer = state.layers.find((obj) => obj.id === action.payload.id);

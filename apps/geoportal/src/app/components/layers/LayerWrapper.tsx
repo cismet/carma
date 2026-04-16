@@ -73,6 +73,10 @@ const LayerWrapper = () => {
     color: isOver ? "green" : undefined,
   };
 
+  const pinnedFirstLayers = layers.filter((l) => l.pinned === "first");
+  const sortableLayers = layers.filter((l) => !l.pinned);
+  const pinnedLastLayers = layers.filter((l) => l.pinned === "last");
+
   const getLayerPos = (id) => layers.findIndex((layer) => layer.id === id);
 
   const handleDragEnd = (event) => {
@@ -182,21 +186,41 @@ const LayerWrapper = () => {
                     }
                   }}
                 >
+                  {pinnedFirstLayers.map((layer) => (
+                    <GeoportalLayerButton
+                      title={layer.title}
+                      id={layer.id}
+                      key={layer.id}
+                      index={layers.indexOf(layer)}
+                      layer={layer}
+                      hide={layer.type !== "object" && !isLeaflet}
+                    />
+                  ))}
                   <SortableContext
-                    items={layers}
+                    items={sortableLayers}
                     strategy={horizontalListSortingStrategy}
                   >
-                    {layers.map((layer, i) => (
+                    {sortableLayers.map((layer) => (
                       <GeoportalLayerButton
                         title={layer.title}
                         id={layer.id}
                         key={layer.id}
-                        index={i}
+                        index={layers.indexOf(layer)}
                         layer={layer}
                         hide={layer.type !== "object" && !isLeaflet}
                       />
                     ))}
                   </SortableContext>
+                  {pinnedLastLayers.map((layer) => (
+                    <GeoportalLayerButton
+                      title={layer.title}
+                      id={layer.id}
+                      key={layer.id}
+                      index={layers.indexOf(layer)}
+                      layer={layer}
+                      hide={layer.type !== "object" && !isLeaflet}
+                    />
+                  ))}
                 </div>
               )}
             </div>

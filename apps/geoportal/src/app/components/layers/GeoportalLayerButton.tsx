@@ -114,9 +114,11 @@ const GeoportalLayerButton = ({
   const layers = useSelector(getLayers);
   const layersLength = layers.length;
 
+  const isPinned = !!(layer as Layer).pinned;
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
       id,
+      disabled: isPinned,
     });
   const buttonRef = useRef<HTMLDivElement>(null);
 
