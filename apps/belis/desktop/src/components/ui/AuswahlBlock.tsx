@@ -221,7 +221,9 @@ const AuswahlBlock = ({
 
       <div className="max-h-[200px] overflow-y-auto">
         {/* Standort row */}
-        <div className="group relative px-3 py-1.5 border-b border-blue-100">
+        <div className={`group relative px-3 py-1.5 border-b border-blue-100 ${
+          standortAlreadyHighlighted ? "opacity-40" : ""
+        }`}>
           <div
             className={`transition-opacity ${
               altHeld && !standortAlreadyHighlighted
@@ -275,7 +277,9 @@ const AuswahlBlock = ({
           return (
             <div
               key={key}
-              className="group relative pl-8 pr-3 py-1.5 border-b border-blue-100"
+              className={`group relative pl-8 pr-3 py-1.5 border-b border-blue-100 ${
+                alreadyHighlighted ? "opacity-40" : ""
+              }`}
             >
               <div
                 className={`transition-opacity ${
