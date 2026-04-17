@@ -9,7 +9,9 @@ import {
   setApOpenedFrom,
   setActiveAATab,
   getSelectedAPId,
+  setProtokolleSort,
 } from "../../../store/slices/arbeitsauftraege";
+import type { ProtokolleSort } from "../../../store/slices/arbeitsauftraege";
 import type { AppDispatch, RootState } from "../../../store";
 import { getKeyTablesData } from "../../../store/slices/keyTables";
 import {
@@ -20,20 +22,7 @@ import {
 import { getFormClassName } from "./readOnlyFormUtils";
 import { FormItem } from "./DraftFieldHighlight";
 import toTitleCase from "../../../helper/toTitleCase";
-
-const compare = (a: string | number, b: string | number) => {
-  const valA = a === undefined || a === null ? "" : a;
-  const valB = b === undefined || b === null ? "" : b;
-
-  return (
-    (isFinite(valB as number) as unknown as number) -
-      (isFinite(valA as number) as unknown as number) ||
-    (valA as number) - (valB as number) ||
-    (String(valA).length === String(valB).length &&
-      String(valA).localeCompare(String(valB))) ||
-    String(valA).length - String(valB).length
-  );
-};
+import { compare } from "../../../helper/protokolleSortHelpers";
 
 const FormLabel = ({ children }: { children: React.ReactNode }) => (
   <span className="text-sm font-medium text-gray-700">{children}</span>
@@ -416,6 +405,18 @@ const ArbeitsauftragFormFields = ({
           size="small"
           pagination={false}
           scroll={{ y: 400 }}
+          onChange={(_pagination, _filters, sorter) => {
+            if (!Array.isArray(sorter) && sorter.field && sorter.order) {
+              dispatch(
+                setProtokolleSort({
+                  field: sorter.field as string,
+                  order: sorter.order,
+                } satisfies ProtokolleSort)
+              );
+            } else {
+              dispatch(setProtokolleSort(null));
+            }
+          }}
           rowClassName={(record) => {
             const classes: string[] = [];
             if (record.isDeleted || String(record.id) in apDeletions)

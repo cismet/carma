@@ -30,6 +30,11 @@ type AATabKey = "aa" | "ap";
 
 type ApOpenedFrom = "sidebar" | "auTable" | null;
 
+export interface ProtokolleSort {
+  field: string;
+  order: "ascend" | "descend";
+}
+
 interface ArbeitsauftraegeState {
   features: ArbeitsauftragTileFeature[];
   selectedAAId: number | null;
@@ -46,6 +51,7 @@ interface ArbeitsauftraegeState {
   graphqlError: string | null;
   draftMode: boolean;
   lassoSelectedFeatures: LassoSelectedFeature[];
+  protokolleSort: ProtokolleSort | null;
 }
 
 const initialState: ArbeitsauftraegeState = {
@@ -64,6 +70,7 @@ const initialState: ArbeitsauftraegeState = {
   graphqlError: null,
   draftMode: false,
   lassoSelectedFeatures: [],
+  protokolleSort: null,
 };
 
 const slice = createSlice({
@@ -146,6 +153,9 @@ const slice = createSlice({
     clearLassoSelectedFeatures(state) {
       state.lassoSelectedFeatures = [];
     },
+    setProtokolleSort(state, action: { payload: ProtokolleSort | null }) {
+      state.protokolleSort = action.payload;
+    },
   },
 });
 
@@ -169,6 +179,7 @@ export const {
   setPreviousTeamId,
   setLassoSelectedFeatures,
   clearLassoSelectedFeatures,
+  setProtokolleSort,
 } = slice.actions;
 
 export const getAAFeatures = (state: RootState) =>
@@ -200,3 +211,5 @@ export const getPreviousTeamId = (state: RootState) =>
   state.arbeitsauftraege.previousTeamId;
 export const getLassoSelectedFeatures = (state: RootState) =>
   state.arbeitsauftraege.lassoSelectedFeatures;
+export const getProtokolleSort = (state: RootState) =>
+  state.arbeitsauftraege.protokolleSort;
