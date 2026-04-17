@@ -7,6 +7,9 @@ import { faSpinner } from "@fortawesome/free-solid-svg-icons";
 import toTitleCase from "../../helper/toTitleCase";
 import AuswahlBlock from "./AuswahlBlock";
 
+export const SELECTED_ROW_STYLE =
+  "bg-blue-50 hover:bg-blue-50 border-l-2 border-l-blue-500";
+
 export interface ListItemData {
   main: string;
   upperright: string;
@@ -669,7 +672,7 @@ const BelisSidebar = ({
                             : "pl-4"
                         } ${
                           selected
-                            ? "bg-blue-50 hover:bg-blue-50 border-l-2 border-l-blue-500"
+                            ? SELECTED_ROW_STYLE
                             : "hover:bg-gray-50"
                         }`}
                       >
