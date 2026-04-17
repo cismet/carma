@@ -288,7 +288,7 @@ const AuswahlBlock = ({
         <b className="text-sm">Auswahl</b>
       </div>
 
-      <div className="max-h-[200px] overflow-y-auto">
+      <div>
         {/* Standort row */}
         {showStandort && auswahlFeatures.standort && standortItem && (
           <div
