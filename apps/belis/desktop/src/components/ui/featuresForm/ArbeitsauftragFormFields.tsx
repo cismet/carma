@@ -86,7 +86,7 @@ interface ArbeitsauftragFormFieldsProps {
   draftValues?: Record<string, unknown>;
   onValuesChange?: (
     changedValues: Record<string, unknown>,
-    allValues: Record<string, unknown>,
+    allValues: Record<string, unknown>
   ) => void;
   onOriginalValues?: (values: Record<string, unknown>) => void;
   aaId?: string;
@@ -113,10 +113,10 @@ const ArbeitsauftragFormFields = ({
         .sort((a, b) =>
           (a.name || "").localeCompare(b.name || "", "de", {
             sensitivity: "base",
-          }),
+          })
         )
         .map((team) => ({ value: team.id, label: team.name || "" })),
-    [keyTablesData.teams],
+    [keyTablesData.teams]
   );
 
   useEffect(() => {
@@ -149,7 +149,10 @@ const ArbeitsauftragFormFields = ({
             (entry: Record<string, any>) => entry.arbeitsprotokoll
           )
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .filter((p: Record<string, any> | null): p is Record<string, any> => p != null) ?? []
+          .filter(
+            (p: Record<string, any> | null): p is Record<string, any> =>
+              p != null
+          ) ?? []
       ).sort(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (a: Record<string, any>, b: Record<string, any>) =>
@@ -229,7 +232,7 @@ const ArbeitsauftragFormFields = ({
         kennzeichnung,
         bearbeiter: p.monteur ?? "",
         position: toTitleCase(getPosition(fachobjekt)),
-        status: p.arbeitsprotokollstatus?.bezeichnung ?? "Unbekannt",
+        status: p.arbeitsprotokollstatus?.bezeichnung ?? "Offen",
         isDeleted: p.is_deleted === true,
       };
     });
