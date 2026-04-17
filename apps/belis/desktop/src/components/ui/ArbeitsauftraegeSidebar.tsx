@@ -244,6 +244,14 @@ const ArbeitsauftraegeSidebar = ({
     }
   }, [isAPTabDisabled, activeTab]);
 
+  // Auto-select first AP when switching to AP tab with no selection
+  useEffect(() => {
+    if (activeTab === "ap" && selectedAPId == null && protokolle.length > 0) {
+      dispatch(setSelectedAPId(protokolle[0].id));
+      dispatch(setApOpenedFrom("sidebar"));
+    }
+  }, [activeTab, selectedAPId, protokolle]);
+
   // Keyboard navigation for AA tab
   const selectedAAIndex = useMemo(
     () => features.findIndex((f) => f.id === selectedAAId),
