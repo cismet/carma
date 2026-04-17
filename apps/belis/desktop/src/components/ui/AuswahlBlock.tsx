@@ -24,6 +24,7 @@ export interface AuswahlBlockProps {
     },
     feature: SidebarFeature
   ) => void;
+  activeSourceLayers: Set<string>;
 }
 
 const toSidebarFeature = (
@@ -45,6 +46,7 @@ const AuswahlBlock = ({
   setAdjustedHighlights,
   getListItem,
   onFeatureSelect,
+  activeSourceLayers,
 }: AuswahlBlockProps) => {
   const { selectedFeatureId, rawFeature } = useMapSelection();
   const { ensureToggledFeatures, highlightingActive } = useMapHighlight();
@@ -81,7 +83,7 @@ const AuswahlBlock = ({
   }, []);
 
   const [auswahlFeatures, setAuswahlFeatures] = useState<{
-    standort: SidebarFeature;
+    standort: SidebarFeature | null;
     leuchten: SidebarFeature[];
   } | null>(null);
 
@@ -106,56 +108,46 @@ const AuswahlBlock = ({
     }
 
     const sl = rawFeature.sourceLayer ?? "";
-    if (sl !== "standorte") {
-      setAuswahlFeatures(null);
-      return;
-    }
 
-    // Check if this standort is already highlighted
-    let isHighlighted = false;
-    try {
-      const state = map.getFeatureState({
-        source: selectedFeatureId.source,
-        sourceLayer: sl,
-        id: selectedFeatureId.id,
+    // Query all Leuchten for a given Standort DB id, deduplicated and sorted
+    const queryLeuchtenByStandort = (standortDbId: string): SidebarFeature[] => {
+      const allLeuchten = map.querySourceFeatures(namespacedSource, {
+        sourceLayer: "leuchten",
       });
-      isHighlighted = !!state?.highlighted;
-    } catch {
-      // Feature state query failed — continue anyway
-    }
-
-    if (isHighlighted) {
-      setAuswahlFeatures(null);
-      return;
-    }
-
-    // Query associated leuchten
-    const standortDbId = String(
-      rawFeature.properties?.id ?? selectedFeatureId.id ?? ""
-    );
-    const allLeuchten = map.querySourceFeatures(namespacedSource, {
-      sourceLayer: "leuchten",
-    });
-
-    // Deduplicate by database id
-    const seen = new Map<string, SidebarFeature>();
-    for (const l of allLeuchten) {
-      const fkStandort = String(l.properties?.fk_standort ?? "");
-      if (fkStandort !== standortDbId) continue;
-      const lid = String(l.properties?.id ?? l.id ?? "");
-      if (!seen.has(lid)) {
-        seen.set(lid, toSidebarFeature(l, namespacedSource, "leuchten"));
+      const seen = new Map<string, SidebarFeature>();
+      for (const l of allLeuchten) {
+        if (String(l.properties?.fk_standort ?? "") !== standortDbId) continue;
+        const lid = String(l.properties?.id ?? l.id ?? "");
+        if (!seen.has(lid)) {
+          seen.set(lid, toSidebarFeature(l, namespacedSource, "leuchten"));
+        }
       }
-    }
-
-    setAuswahlFeatures({
-      standort: toSidebarFeature(rawFeature, namespacedSource, "standorte"),
-      leuchten: [...seen.values()].sort(
+      return [...seen.values()].sort(
         (a, b) =>
           (Number(a.properties?.leuchtennummer) || 0) -
           (Number(b.properties?.leuchtennummer) || 0)
-      ),
-    });
+      );
+    };
+
+    if (sl === "standorte") {
+      const standortDbId = String(
+        rawFeature.properties?.id ?? selectedFeatureId.id ?? ""
+      );
+      setAuswahlFeatures({
+        standort: toSidebarFeature(rawFeature, namespacedSource, "standorte"),
+        leuchten: queryLeuchtenByStandort(standortDbId),
+      });
+    } else if (sl === "leuchten") {
+      const fkStandort = String(rawFeature.properties?.fk_standort ?? "");
+      setAuswahlFeatures({
+        standort: null,
+        leuchten: fkStandort
+          ? queryLeuchtenByStandort(fkStandort)
+          : [toSidebarFeature(rawFeature, namespacedSource, "leuchten")],
+      });
+    } else {
+      setAuswahlFeatures(null);
+    }
   }, [
     selectedFeatureId,
     rawFeature,
@@ -170,6 +162,18 @@ const AuswahlBlock = ({
       setAuswahlFeatures(null);
     }
   }, [highlightingActive]);
+
+  // Auto-clear when all relevant source layers are filtered out
+  useEffect(() => {
+    if (!auswahlFeatures) return;
+    const showStandort =
+      auswahlFeatures.standort && activeSourceLayers.has("standorte");
+    const showLeuchten =
+      auswahlFeatures.leuchten.length > 0 && activeSourceLayers.has("leuchten");
+    if (!showStandort && !showLeuchten) {
+      setAuswahlFeatures(null);
+    }
+  }, [activeSourceLayers, auswahlFeatures]);
 
   // Set of keys already in highlights — used to hide + buttons
   const highlightedKeys = useMemo(() => {
@@ -249,12 +253,26 @@ const AuswahlBlock = ({
 
   if (!auswahlFeatures || !highlightingActive) return null;
 
-  const standortItem = getListItem(auswahlFeatures.standort);
-  const standortKey = buildFeatureKey(auswahlFeatures.standort);
-  const standortAlreadyHighlighted = highlightedKeys.has(standortKey);
+  const showStandort =
+    auswahlFeatures.standort != null && activeSourceLayers.has("standorte");
+  const visibleLeuchten = activeSourceLayers.has("leuchten")
+    ? auswahlFeatures.leuchten
+    : [];
+
+  const standortItem =
+    showStandort && auswahlFeatures.standort
+      ? getListItem(auswahlFeatures.standort)
+      : null;
+  const standortKey =
+    showStandort && auswahlFeatures.standort
+      ? buildFeatureKey(auswahlFeatures.standort)
+      : "";
+  const standortAlreadyHighlighted = standortKey
+    ? highlightedKeys.has(standortKey)
+    : true;
   const allAlreadyHighlighted =
     standortAlreadyHighlighted &&
-    auswahlFeatures.leuchten.every((l) =>
+    visibleLeuchten.every((l) =>
       highlightedKeys.has(buildFeatureKey(l))
     );
 
@@ -272,68 +290,70 @@ const AuswahlBlock = ({
 
       <div className="max-h-[200px] overflow-y-auto">
         {/* Standort row */}
-        <div
-          onClick={() => {
-            internalClickRef.current = true;
-            onFeatureSelect(
-              {
-                source: auswahlFeatures.standort.source,
-                sourceLayer: auswahlFeatures.standort.sourceLayer,
-                id: auswahlFeatures.standort.id,
-              },
-              auswahlFeatures.standort
-            );
-          }}
-          className={`group relative px-3 pl-4 py-2 cursor-pointer border-b border-gray-100 ${
-            standortAlreadyHighlighted ? "opacity-40" : ""
-          } ${isSelected(auswahlFeatures.standort) ? SELECTED_ROW_STYLE : ""}`}
-        >
+        {showStandort && auswahlFeatures.standort && standortItem && (
           <div
-            className={`transition-opacity ${
-              altHeld && !standortAlreadyHighlighted
-                ? "group-hover:opacity-30"
-                : ""
-            }`}
+            onClick={() => {
+              internalClickRef.current = true;
+              onFeatureSelect(
+                {
+                  source: auswahlFeatures.standort!.source,
+                  sourceLayer: auswahlFeatures.standort!.sourceLayer,
+                  id: auswahlFeatures.standort!.id,
+                },
+                auswahlFeatures.standort!
+              );
+            }}
+            className={`group relative px-3 pl-4 py-2 cursor-pointer border-b border-gray-100 ${
+              standortAlreadyHighlighted ? "opacity-40" : ""
+            } ${isSelected(auswahlFeatures.standort) ? SELECTED_ROW_STYLE : ""}`}
           >
-            <div className="flex justify-between gap-2 overflow-hidden">
-              <span className="shrink-0 whitespace-nowrap text-sm">
-                <b>{standortItem.main}</b>
-              </span>
-              <span className="grow text-right whitespace-nowrap text-ellipsis overflow-hidden text-sm text-gray-700">
-                {standortItem.upperright}
-              </span>
+            <div
+              className={`transition-opacity ${
+                altHeld && !standortAlreadyHighlighted
+                  ? "group-hover:opacity-30"
+                  : ""
+              }`}
+            >
+              <div className="flex justify-between gap-2 overflow-hidden">
+                <span className="shrink-0 whitespace-nowrap text-sm">
+                  <b>{standortItem.main}</b>
+                </span>
+                <span className="grow text-right whitespace-nowrap text-ellipsis overflow-hidden text-sm text-gray-700">
+                  {standortItem.upperright}
+                </span>
+              </div>
+              {standortItem.subtitle && (
+                <div className="text-left text-xs text-gray-500 whitespace-nowrap text-ellipsis overflow-hidden mt-0.5">
+                  {standortItem.subtitle}
+                </div>
+              )}
             </div>
-            {standortItem.subtitle && (
-              <div className="text-left text-xs text-gray-500 whitespace-nowrap text-ellipsis overflow-hidden mt-0.5">
-                {standortItem.subtitle}
+            {altHeld && !standortAlreadyHighlighted && (
+              <div className="absolute inset-0 flex items-center justify-center gap-6 opacity-0 group-hover:opacity-100">
+                <button
+                  onClick={handleAddStandort}
+                  className="text-gray-700 text-3xl font-light"
+                  title="Standort hinzufügen"
+                >
+                  +
+                </button>
+                {!allAlreadyHighlighted &&
+                  visibleLeuchten.length > 0 && (
+                    <button
+                      onClick={handleAddStandortWithLeuchten}
+                      className="text-gray-700 text-3xl font-light"
+                      title="Standort mit allen Leuchten hinzufügen"
+                    >
+                      ++
+                    </button>
+                  )}
               </div>
             )}
           </div>
-          {altHeld && !standortAlreadyHighlighted && (
-            <div className="absolute inset-0 flex items-center justify-center gap-6 opacity-0 group-hover:opacity-100">
-              <button
-                onClick={handleAddStandort}
-                className="text-gray-700 text-3xl font-light"
-                title="Standort hinzufügen"
-              >
-                +
-              </button>
-              {!allAlreadyHighlighted &&
-                auswahlFeatures.leuchten.length > 0 && (
-                  <button
-                    onClick={handleAddStandortWithLeuchten}
-                    className="text-gray-700 text-3xl font-light"
-                    title="Standort mit allen Leuchten hinzufügen"
-                  >
-                    ++
-                  </button>
-                )}
-            </div>
-          )}
-        </div>
+        )}
 
         {/* Leuchten rows */}
-        {auswahlFeatures.leuchten.map((leuchte) => {
+        {visibleLeuchten.map((leuchte) => {
           const item = getListItem(leuchte);
           const key = buildFeatureKey(leuchte);
           const alreadyHighlighted = highlightedKeys.has(key);
@@ -352,7 +372,7 @@ const AuswahlBlock = ({
                   leuchte
                 );
               }}
-              className={`group relative pl-8 pr-3 py-2 cursor-pointer border-b border-gray-100 ${
+              className={`group relative ${showStandort ? "pl-8" : "pl-4"} pr-3 py-2 cursor-pointer border-b border-gray-100 ${
                 alreadyHighlighted ? "opacity-40" : ""
               } ${isSelected(leuchte) ? SELECTED_ROW_STYLE : ""}`}
             >
