@@ -2536,14 +2536,10 @@ const BelisMapLibWrapper = ({
                       fachobjektType={
                         apFeature?.properties?.featureType as string | undefined
                       }
-                      onBack={
-                        apOpenedFrom === "auTable"
-                          ? () => {
-                              dispatch(setApOpenedFrom(null));
-                              dispatch(setActiveAATab("aa"));
-                            }
-                          : undefined
-                      }
+                      onBack={() => {
+                        dispatch(setApOpenedFrom(null));
+                        dispatch(setActiveAATab("aa"));
+                      }}
                     />
                   );
                 }
