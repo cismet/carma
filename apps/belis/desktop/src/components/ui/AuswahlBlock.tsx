@@ -139,8 +139,21 @@ const AuswahlBlock = ({
       });
     } else if (sl === "leuchten") {
       const fkStandort = String(rawFeature.properties?.fk_standort ?? "");
+      // Query the related standort so AuswahlBlock can show it when the filter is toggled on
+      let standort: SidebarFeature | null = null;
+      if (fkStandort) {
+        const allStandorte = map.querySourceFeatures(namespacedSource, {
+          sourceLayer: "standorte",
+        });
+        const match = allStandorte.find(
+          (s) => String(s.properties?.id ?? "") === fkStandort
+        );
+        if (match) {
+          standort = toSidebarFeature(match, namespacedSource, "standorte");
+        }
+      }
       setAuswahlFeatures({
-        standort: null,
+        standort,
         leuchten: fkStandort
           ? queryLeuchtenByStandort(fkStandort)
           : [toSidebarFeature(rawFeature, namespacedSource, "leuchten")],
