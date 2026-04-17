@@ -2,17 +2,14 @@ import { getFachobjektOfProtocol } from "@carma-appframeworks/belis";
 import type { ProtokolleSort } from "../store/slices/arbeitsauftraege";
 
 export const compare = (a: string | number, b: string | number) => {
-  const valA = a === undefined || a === null ? "" : a;
-  const valB = b === undefined || b === null ? "" : b;
+  const valA = a ?? "";
+  const valB = b ?? "";
 
-  return (
-    (isFinite(valB as number) as unknown as number) -
-      (isFinite(valA as number) as unknown as number) ||
-    (valA as number) - (valB as number) ||
-    (String(valA).length === String(valB).length &&
-      String(valA).localeCompare(String(valB))) ||
-    String(valA).length - String(valB).length
-  );
+  // Both numeric → numeric comparison
+  if (typeof valA === "number" && typeof valB === "number") return valA - valB;
+
+  // Alphabetical comparison via locale
+  return String(valA).localeCompare(String(valB), "de", { sensitivity: "base" });
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
