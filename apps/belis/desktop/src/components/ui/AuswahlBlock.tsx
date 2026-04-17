@@ -5,6 +5,7 @@ import {
   useLibreContext,
 } from "@carma-mapping/engines/maplibre";
 import type { MapGeoJSONFeature, GeoJSONFeature } from "maplibre-gl";
+import { SELECTED_ROW_STYLE } from "./BelisSidebar";
 import type { ListItemData, SidebarFeature } from "./BelisSidebar";
 import { buildFeatureKey } from "../../helper/featureKeys";
 
@@ -257,6 +258,11 @@ const AuswahlBlock = ({
       highlightedKeys.has(buildFeatureKey(l))
     );
 
+  const isSelected = (f: SidebarFeature) =>
+    selectedFeatureId?.source === f.source &&
+    selectedFeatureId?.sourceLayer === f.sourceLayer &&
+    selectedFeatureId?.id === f.id;
+
   return (
     <div className="border-b border-gray-100">
       {/* Header */}
@@ -280,7 +286,7 @@ const AuswahlBlock = ({
           }}
           className={`group relative px-3 pl-4 py-2 cursor-pointer border-b border-gray-100 ${
             standortAlreadyHighlighted ? "opacity-40" : ""
-          }`}
+          } ${isSelected(auswahlFeatures.standort) ? SELECTED_ROW_STYLE : ""}`}
         >
           <div
             className={`transition-opacity ${
@@ -348,7 +354,7 @@ const AuswahlBlock = ({
               }}
               className={`group relative pl-8 pr-3 py-2 cursor-pointer border-b border-gray-100 ${
                 alreadyHighlighted ? "opacity-40" : ""
-              }`}
+              } ${isSelected(leuchte) ? SELECTED_ROW_STYLE : ""}`}
             >
               <div
                 className={`transition-opacity ${
