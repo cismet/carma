@@ -21,6 +21,20 @@ import { getFormClassName } from "./readOnlyFormUtils";
 import { FormItem } from "./DraftFieldHighlight";
 import toTitleCase from "../../../helper/toTitleCase";
 
+const compare = (a: string | number, b: string | number) => {
+  const valA = a === undefined || a === null ? "" : a;
+  const valB = b === undefined || b === null ? "" : b;
+
+  return (
+    (isFinite(valB as number) as unknown as number) -
+      (isFinite(valA as number) as unknown as number) ||
+    (valA as number) - (valB as number) ||
+    (String(valA).length === String(valB).length &&
+      String(valA).localeCompare(String(valB))) ||
+    String(valA).length - String(valB).length
+  );
+};
+
 const FormLabel = ({ children }: { children: React.ReactNode }) => (
   <span className="text-sm font-medium text-gray-700">{children}</span>
 );
@@ -244,42 +258,49 @@ const ArbeitsauftragFormFields = ({
       dataIndex: "protokollnummer",
       key: "protokollnummer",
       width: 50,
+      sorter: (a, b) => compare(a.protokollnummer, b.protokollnummer),
     },
     {
       title: "Herkunft",
       dataIndex: "herkunft",
       key: "herkunft",
       width: 100,
+      sorter: (a, b) => compare(a.herkunft, b.herkunft),
     },
     {
       title: "Fachobjekt",
       dataIndex: "fachobjektType",
       key: "fachobjektType",
       width: 110,
+      sorter: (a, b) => compare(a.fachobjektType, b.fachobjektType),
     },
     {
       title: "Kennzeichnung",
       dataIndex: "kennzeichnung",
       key: "kennzeichnung",
       ellipsis: true,
+      sorter: (a, b) => compare(a.kennzeichnung, b.kennzeichnung),
     },
     {
       title: "Bearbeiter",
       dataIndex: "bearbeiter",
       key: "bearbeiter",
       width: 100,
+      sorter: (a, b) => compare(a.bearbeiter, b.bearbeiter),
     },
     {
       title: "Position",
       dataIndex: "position",
       key: "position",
       ellipsis: true,
+      sorter: (a, b) => compare(a.position, b.position),
     },
     {
       title: "Status",
       dataIndex: "status",
       key: "status",
       width: 120,
+      sorter: (a, b) => compare(a.status, b.status),
     },
     ...(!readOnly
       ? [
