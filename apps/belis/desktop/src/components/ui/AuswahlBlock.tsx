@@ -15,6 +15,14 @@ export interface AuswahlBlockProps {
     React.SetStateAction<SidebarFeature[] | null>
   >;
   getListItem: (feature: SidebarFeature) => ListItemData;
+  onFeatureSelect: (
+    identifier: {
+      source: string;
+      sourceLayer?: string;
+      id?: string | number;
+    },
+    feature: SidebarFeature
+  ) => void;
 }
 
 const toSidebarFeature = (
@@ -35,6 +43,7 @@ const AuswahlBlock = ({
   adjustedHighlights,
   setAdjustedHighlights,
   getListItem,
+  onFeatureSelect,
 }: AuswahlBlockProps) => {
   const { selectedFeatureId, rawFeature } = useMapSelection();
   const { ensureToggledFeatures, highlightingActive } = useMapHighlight();
@@ -75,9 +84,16 @@ const AuswahlBlock = ({
     leuchten: SidebarFeature[];
   } | null>(null);
 
+  // Track clicks from within AuswahlBlock to avoid clearing on internal navigation
+  const internalClickRef = useRef(false);
+
   // Auto-populate when a non-highlighted standort is selected in highlights mode.
   // Auto-close when anything else is selected (highlighted mast, leuchte, other layer, etc.)
   useEffect(() => {
+    if (internalClickRef.current) {
+      internalClickRef.current = false;
+      return;
+    }
     if (!highlightingActive) return;
     if (altHeldRef.current) {
       setAuswahlFeatures(null); // Alt+click = normal highlight toggle, close Auswahl
@@ -251,7 +267,18 @@ const AuswahlBlock = ({
       <div className="max-h-[200px] overflow-y-auto">
         {/* Standort row */}
         <div
-          className={`group relative px-3 pl-4 py-2 border-b border-gray-100 ${
+          onClick={() => {
+            internalClickRef.current = true;
+            onFeatureSelect(
+              {
+                source: auswahlFeatures.standort.source,
+                sourceLayer: auswahlFeatures.standort.sourceLayer,
+                id: auswahlFeatures.standort.id,
+              },
+              auswahlFeatures.standort
+            );
+          }}
+          className={`group relative px-3 pl-4 py-2 cursor-pointer border-b border-gray-100 ${
             standortAlreadyHighlighted ? "opacity-40" : ""
           }`}
         >
@@ -308,7 +335,18 @@ const AuswahlBlock = ({
           return (
             <div
               key={key}
-              className={`group relative pl-8 pr-3 py-2 border-b border-gray-100 ${
+              onClick={() => {
+                internalClickRef.current = true;
+                onFeatureSelect(
+                  {
+                    source: leuchte.source,
+                    sourceLayer: leuchte.sourceLayer,
+                    id: leuchte.id,
+                  },
+                  leuchte
+                );
+              }}
+              className={`group relative pl-8 pr-3 py-2 cursor-pointer border-b border-gray-100 ${
                 alreadyHighlighted ? "opacity-40" : ""
               }`}
             >
