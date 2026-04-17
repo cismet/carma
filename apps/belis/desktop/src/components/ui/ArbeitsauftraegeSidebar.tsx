@@ -12,11 +12,13 @@ import {
   getSelectedAPId,
   getGraphqlLoading,
   getDraftMode,
+  getProtokolleSort,
   setSelectedAAId,
   setActiveAATab,
   setSelectedAPId,
   setApOpenedFrom,
 } from "../../store/slices/arbeitsauftraege";
+import { sortProtokolleByTableSort } from "../../helper/protokolleSortHelpers";
 import {
   sortAAFeatures,
   AA_DEFAULT_SORT,
@@ -126,6 +128,7 @@ const ArbeitsauftraegeSidebar = ({
 
   // Draft mode
   const draftMode = useSelector(getDraftMode);
+  const protokolleSort = useSelector(getProtokolleSort);
   const aaDrafts = useSelector(getAllAADrafts);
   const apDrafts = useSelector(getAllAPDrafts);
 
@@ -211,12 +214,10 @@ const ArbeitsauftraegeSidebar = ({
         }
       }
 
-      return items.sort(
-        (a, b) => Number(a.protokollnummer) - Number(b.protokollnummer)
-      );
+      return sortProtokolleByTableSort(items, protokolleSort);
     }
 
-    return (
+    const items = (
       selectedAAData?.ar_protokolleArray
         ?.map(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -224,12 +225,9 @@ const ArbeitsauftraegeSidebar = ({
         )
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .filter((p: Record<string, any> | null): p is Record<string, any> => p != null) ?? []
-    ).sort(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (a: Record<string, any>, b: Record<string, any>) =>
-        Number(a.protokollnummer) - Number(b.protokollnummer)
     );
-  }, [draftMode, apDrafts, apDeletions, selectedAAData, selectedAAId]);
+    return sortProtokolleByTableSort(items, protokolleSort);
+  }, [draftMode, apDrafts, apDeletions, selectedAAData, selectedAAId, protokolleSort]);
 
   const selectedFeature = features.find((f) => f.id === selectedAAId);
   const protokolleCount = draftMode
