@@ -18,6 +18,11 @@ import {
   setApOpenedFrom,
 } from "../../store/slices/arbeitsauftraege";
 import {
+  sortAAFeatures,
+  AA_DEFAULT_SORT,
+} from "../../helper/aaSortHelpers";
+import type { AASortConfig } from "../../helper/aaSortHelpers";
+import {
   getAllAADrafts,
   getAllAPDrafts,
   getAPDraftCount,
@@ -39,6 +44,7 @@ interface ArbeitsauftraegeSidebarProps {
   width: number;
   onFeatureSelect?: (aaId: number) => void;
   onProtokollSelect?: (protokollId: number) => void;
+  sort?: AASortConfig;
 }
 
 type TabKey = "aa" | "ap";
@@ -106,6 +112,7 @@ const ArbeitsauftraegeSidebar = ({
   width,
   onFeatureSelect,
   onProtokollSelect,
+  sort,
 }: ArbeitsauftraegeSidebarProps) => {
   const dispatch: AppDispatch = useDispatch();
   const allFeatures = useSelector(getAAFeatures);
@@ -144,8 +151,8 @@ const ArbeitsauftraegeSidebar = ({
       filtered = filtered.filter((f) => draftIdSet.has(f.id));
     }
 
-    return filtered;
-  }, [allFeatures, selectedTeamName, draftMode, aaDrafts, aaIdsWithAPDrafts]);
+    return sortAAFeatures(filtered, sort ?? AA_DEFAULT_SORT);
+  }, [allFeatures, selectedTeamName, draftMode, aaDrafts, aaIdsWithAPDrafts, sort]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const protokolle: Record<string, any>[] = useMemo(() => {

@@ -29,6 +29,7 @@ import type { LibreLayer } from "@carma-mapping/engines/maplibre";
 import { AppDispatch, type RootState } from "../../store";
 import BelisSidebar from "../ui/BelisSidebar";
 import ArbeitsauftraegeSidebar from "../ui/ArbeitsauftraegeSidebar";
+import { AA_SORT_BY_PROTOKOLLE_DESC } from "../../helper/aaSortHelpers";
 import {
   useVisibleMapFeatures,
   functionToInfo,
@@ -1654,7 +1655,11 @@ const BelisMapLibWrapper = ({
     // incorrect values because MapLibre recalculates zoom from the
     // camera-to-terrain-surface distance instead of the requested zoom.
     const disableTerrain = () => {
-      try { m.setTerrain(null); } catch { /* style not ready */ }
+      try {
+        m.setTerrain(null);
+      } catch {
+        /* style not ready */
+      }
     };
     if (m.isStyleLoaded()) {
       disableTerrain();
@@ -1878,7 +1883,11 @@ const BelisMapLibWrapper = ({
           // Match the Fachobjekte mini-map's transition so switching AP rows
           // feels as snappy. Without `duration`, MapLibre defaults to 1000ms,
           // which felt sluggish vs. useDatasheetMiniMap's 200ms easeTo.
-          { padding: 40, maxZoom: MINI_MAP_TARGET_ZOOM, duration: MINI_MAP_TRANSITION_MS }
+          {
+            padding: 40,
+            maxZoom: MINI_MAP_TARGET_ZOOM,
+            duration: MINI_MAP_TRANSITION_MS,
+          }
         );
       }
     }
@@ -1955,7 +1964,11 @@ const BelisMapLibWrapper = ({
           // Match the Fachobjekte mini-map's transition so switching AP rows
           // feels as snappy. Without `duration`, MapLibre defaults to 1000ms,
           // which felt sluggish vs. useDatasheetMiniMap's 200ms easeTo.
-          { padding: 40, maxZoom: MINI_MAP_TARGET_ZOOM, duration: MINI_MAP_TRANSITION_MS }
+          {
+            padding: 40,
+            maxZoom: MINI_MAP_TARGET_ZOOM,
+            duration: MINI_MAP_TRANSITION_MS,
+          }
         );
       }
     }
@@ -2298,6 +2311,14 @@ const BelisMapLibWrapper = ({
         <ArbeitsauftraegeSidebar
           width={LIST_WIDTH}
           onFeatureSelect={handleAAFeatureSelect}
+          // Sort options from ../../helper/aaSortHelpers:
+          // AA_SORT_BY_DATE_DESC / AA_SORT_BY_DATE_ASC     — by creation date
+          // AA_SORT_BY_NUMMER_ASC / AA_SORT_BY_NUMMER_DESC — by AA number
+          // AA_SORT_BY_PROTOKOLLE_DESC / _ASC              — by protocol count
+          // AA_SORT_BY_TEAM_ASC                            — by team name
+          // AA_SORT_BY_ERLEDIGT_DESC                       — by % completed
+          // or use { field: "...", direction: "asc"|"desc" } for custom config
+          sort={AA_SORT_BY_PROTOKOLLE_DESC}
           onProtokollSelect={() => {
             /* fly-to handled by selectedAPId effect */
           }}
@@ -2398,11 +2419,19 @@ const BelisMapLibWrapper = ({
               }}
             >
               z{miniMapDebugInfo.zoom.toFixed(1)}{" "}
-              {miniMapDebugInfo.center[0].toFixed(5)},{miniMapDebugInfo.center[1].toFixed(5)}
+              {miniMapDebugInfo.center[0].toFixed(5)},
+              {miniMapDebugInfo.center[1].toFixed(5)}
               {miniMap && (
                 <>
-                  {" "}{miniMap.getCanvas().width}x{miniMap.getCanvas().height}
-                  {" "}{(() => { try { return miniMap.getTerrain() ? "TER" : ""; } catch { return ""; } })()}
+                  {" "}
+                  {miniMap.getCanvas().width}x{miniMap.getCanvas().height}{" "}
+                  {(() => {
+                    try {
+                      return miniMap.getTerrain() ? "TER" : "";
+                    } catch {
+                      return "";
+                    }
+                  })()}
                 </>
               )}
             </div>
