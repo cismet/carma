@@ -146,9 +146,17 @@ function MeasurementsWrapper({
   );
 }
 
-function MeasurementLayerSync() {
+function MeasurementLayerSyncInner() {
   useMeasurementLayerButton();
   return null;
+}
+
+function MeasurementLayerSync() {
+  const flags = useFeatureFlags();
+  if (!flags.featureFlagMeasurementLayerButton) {
+    return null;
+  }
+  return <MeasurementLayerSyncInner />;
 }
 
 function App({ published }: { published?: boolean }) {
