@@ -38,4 +38,8 @@ export const featureFlagConfig: FeatureFlagConfig = {
     default: true,
     alias: "tracking",
   },
+  featureFlagMeasurementLayerButton: {
+    default: false,
+    alias: "measurementLayerBtn",
+  },
 };
