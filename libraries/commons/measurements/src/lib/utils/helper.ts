@@ -105,10 +105,12 @@ export interface MeasurementShapeData {
   customTitle?: string;
 }
 
-function buildFeatureTitle(shape: MeasurementShapeData): string {
-  if (shape.customTitle) return shape.customTitle;
-  const label = shape.area ? "Fläche" : "Linienzug";
-  return `${label} #${shape.number}`;
+function buildFeatureTitle(
+  shape: MeasurementShapeData,
+  order: number
+): string {
+  const label = shape.customTitle || (shape.area ? "Fläche" : "Linienzug");
+  return `${label} #${order}`;
 }
 
 function buildFeatureSubtitle(shape: MeasurementShapeData): string {
@@ -124,8 +126,9 @@ function buildFeatureSubtitle(shape: MeasurementShapeData): string {
 
 export function shapesToFeatureCollection(shapes: MeasurementShapeData[]) {
   const features = shapes
-    .filter((shape) => shape.shapeId !== 5555)
-    .map((shape) => {
+    .map((shape, index) => ({ shape, order: index + 1 }))
+    .filter(({ shape }) => shape.shapeId !== 5555)
+    .map(({ shape, order }) => {
       const geoJsonCoords = shape.coordinates.map(
         ([lat, lng]) => [lng, lat] as [number, number]
       );
@@ -147,7 +150,7 @@ export function shapesToFeatureCollection(shapes: MeasurementShapeData[]) {
         properties: {
           info: {
             headerColor: COLORS_HEX.ACCENT_MEASUREMENTS,
-            title: buildFeatureTitle(shape),
+            title: buildFeatureTitle(shape, order),
             subtitle: buildFeatureSubtitle(shape),
             actions: [{ name: "zoomToFeature" }, {}],
           },
