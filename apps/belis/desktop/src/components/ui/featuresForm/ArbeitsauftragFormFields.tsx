@@ -442,6 +442,11 @@ const ArbeitsauftragFormFields = ({
           size="small"
           pagination={false}
           scroll={{ y: 400 }}
+          locale={{
+            triggerAsc: "Aufsteigend sortieren",
+            triggerDesc: "Absteigend sortieren",
+            cancelSort: "Sortierung aufheben",
+          }}
           onChange={(_pagination, _filters, sorter) => {
             if (!Array.isArray(sorter) && sorter.field && sorter.order) {
               dispatch(
