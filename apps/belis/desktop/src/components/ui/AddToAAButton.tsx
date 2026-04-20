@@ -8,7 +8,6 @@ import {
   getSelectedAAId,
 } from "../../store/slices/arbeitsauftraege";
 import { incrementFeatureDataVersion } from "../../store/slices/featureCollection";
-import { useMapHighlight } from "@carma-mapping/engines/maplibre";
 import { useMapPage } from "../../contexts/MapPageContext";
 import { buildAddFeaturesToAAPayload } from "../../helper/buildNewAAFromFeatures";
 import { updateDataByClassName } from "../../helper/apiMethods";
@@ -23,7 +22,6 @@ const AddToAAButton = () => {
   > | null;
   const draftMode = useSelector(getDraftMode) as boolean;
   const { config, activeHighlights, setActiveHighlights } = useMapPage();
-  const { setHighlightingActive, clearHighlights } = useMapHighlight();
 
   const hasHighlights = activeHighlights && activeHighlights.length > 0;
   const highlightCount = activeHighlights?.length ?? 0;
@@ -60,8 +58,6 @@ const AddToAAButton = () => {
         `${activeHighlights.length} Protokoll(e) zum Arbeitsauftrag hinzugefügt`
       );
       setActiveHighlights(null);
-      setHighlightingActive(false);
-      clearHighlights();
       dispatch(incrementFeatureDataVersion());
     } catch (err) {
       console.error("[AddToAA] ERROR", err);

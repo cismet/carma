@@ -75,8 +75,6 @@ const TopNavbar = () => {
         `${activeHighlights.length} Protokoll(e) zum Arbeitsauftrag hinzugefügt`
       );
       setActiveHighlights(null);
-      setHighlightingActive(false);
-      clearHighlights();
       dispatch(incrementFeatureDataVersion());
     } catch (err) {
       console.error("[AddToAA] ERROR", err);
