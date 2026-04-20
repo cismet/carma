@@ -164,6 +164,15 @@ const ArbeitsauftraegeSidebar = ({
       const currentAAId = selectedAAId != null ? String(selectedAAId) : null;
       if (!currentAAId) return [];
 
+      // Build a lookup from server data for full AP objects
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const serverAPMap = new Map<number, Record<string, any>>();
+      for (const entry of selectedAAData?.ar_protokolleArray ?? []) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ap = (entry as Record<string, any>).arbeitsprotokoll;
+        if (ap?.id != null) serverAPMap.set(ap.id, ap);
+      }
+
       const seenIds = new Set<number>();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const items: Record<string, any>[] = [];
@@ -171,41 +180,45 @@ const ArbeitsauftraegeSidebar = ({
       // Add APs that have value/action drafts belonging to this AA
       for (const [id, draft] of Object.entries(apDrafts)) {
         if (draft.aaId !== currentAAId) continue;
-        seenIds.add(Number(id));
-        items.push({
-          id: Number(id),
-          protokollnummer: draft.meta?.protokollnummer ?? id,
-          _fachobjektType: draft.meta?.fachobjektType ?? "Unbekannt",
-          veranlassung: draft.meta?.veranlassung
-            ? { bezeichnung: draft.meta.veranlassung }
-            : null,
-          _isMarkedForDeletion: id in apDeletions,
-        });
+        const numId = Number(id);
+        seenIds.add(numId);
+        const serverAP = serverAPMap.get(numId);
+        if (serverAP) {
+          // Use full server object so sorting works identically to AA table
+          items.push({
+            ...serverAP,
+            _fachobjektType: draft.meta?.fachobjektType ?? "Unbekannt",
+            _isMarkedForDeletion: id in apDeletions,
+          });
+        } else {
+          items.push({
+            id: numId,
+            protokollnummer: draft.meta?.protokollnummer ?? id,
+            _fachobjektType: draft.meta?.fachobjektType ?? "Unbekannt",
+            veranlassung: draft.meta?.veranlassung
+              ? { bezeichnung: draft.meta.veranlassung }
+              : null,
+            _isMarkedForDeletion: id in apDeletions,
+          });
+        }
       }
 
       // Add APs that are only marked for deletion (no value draft) for this AA
       for (const [apId, aaId] of Object.entries(apDeletions)) {
         if (aaId !== currentAAId) continue;
-        if (seenIds.has(Number(apId))) continue;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const serverAP = selectedAAData?.ar_protokolleArray?.find(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (entry: Record<string, any>) =>
-            entry.arbeitsprotokoll?.id === Number(apId)
-        )?.arbeitsprotokoll;
+        const numId = Number(apId);
+        if (seenIds.has(numId)) continue;
+        const serverAP = serverAPMap.get(numId);
         if (serverAP) {
           const fachobjekt = getFachobjektOfProtocol(serverAP);
           items.push({
-            id: Number(apId),
-            protokollnummer: serverAP.protokollnummer ?? apId,
+            ...serverAP,
             _fachobjektType: fachobjekt?.shortname ?? getProtocolFeatureType(serverAP),
-            veranlassung: serverAP.veranlassung ?? null,
             _isMarkedForDeletion: true,
           });
         } else {
-          // Fallback if server data not available
           items.push({
-            id: Number(apId),
+            id: numId,
             protokollnummer: apId,
             _fachobjektType: "Unbekannt",
             veranlassung: null,
