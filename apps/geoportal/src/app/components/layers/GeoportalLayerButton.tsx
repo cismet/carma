@@ -236,6 +236,9 @@ const GeoportalLayerButton = ({
             showSettings,
             clickFromInfoView
           );
+          if (activeInteractionLayerID && activeInteractionLayerID !== id) {
+            dispatch(setActiveInteractionLayerID(null));
+          }
           if (layer.interactionButton) {
             return;
           }
