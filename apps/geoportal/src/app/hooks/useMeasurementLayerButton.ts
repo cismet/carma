@@ -1,11 +1,10 @@
 import { useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
+import { faFloppyDisk } from "@fortawesome/free-solid-svg-icons";
+
 import type { Layer } from "@carma-mapping/layers";
-import {
-  useMapMeasurementsContext,
-  shapesToFeatureCollection,
-} from "@carma-commons/measurements";
+import { useMapMeasurementsContext } from "@carma-commons/measurements";
 
 import {
   appendLayer,
@@ -23,6 +22,10 @@ const MEASUREMENT_LAYER: Layer = {
   icon: "measurement",
   visible: true,
   pinned: "last",
+  interactionButton: {
+    icon: faFloppyDisk,
+    id: "save-measurements",
+  },
 };
 
 function getMeasurementTitle(count: number) {
@@ -88,10 +91,4 @@ export function useMeasurementLayerButton() {
       })
     );
   }, [shapes.length, hasMeasurementLayer, dispatch]);
-
-  useEffect(() => {
-    if (shapes.length === 0) return;
-    const fc = shapesToFeatureCollection(shapes);
-    console.log("[MEASUREMENT FC]", fc);
-  }, [shapes]);
 }
