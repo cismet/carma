@@ -305,37 +305,36 @@ const ArbeitsauftragFormFields = ({
           {
             title: (() => {
               const nonDeletedRows = protokolleRows.filter((r) => !r.isDeleted);
-              const markedCount = nonDeletedRows.filter(
-                (r) => String(r.id) in apDeletions
-              ).length;
-              const allMarked = nonDeletedRows.length > 0 && markedCount === nonDeletedRows.length;
-              const someMarked = markedCount > 0 && !allMarked;
+              const hasMarked = nonDeletedRows.some((r) => String(r.id) in apDeletions);
               return (
-                <input
-                  type="checkbox"
-                  checked={allMarked}
-                  ref={(el) => {
-                    if (el) el.indeterminate = someMarked;
-                  }}
-                  className="cursor-pointer"
-                  onChange={() => {
-                    if (allMarked) {
-                      for (const row of nonDeletedRows) {
-                        dispatch(unmarkAPForDeletion(String(row.id)));
-                      }
-                    } else if (aaId) {
-                      for (const row of nonDeletedRows) {
-                        if (!(String(row.id) in apDeletions)) {
-                          dispatch(markAPForDeletion({ apId: String(row.id), aaId }));
+                <div className="flex gap-2">
+                  <DeleteOutlined
+                    className="text-red-500 cursor-pointer"
+                    onClick={() => {
+                      if (aaId) {
+                        for (const row of nonDeletedRows) {
+                          if (!(String(row.id) in apDeletions)) {
+                            dispatch(markAPForDeletion({ apId: String(row.id), aaId }));
+                          }
                         }
                       }
-                    }
-                  }}
-                />
+                    }}
+                  />
+                  {hasMarked && (
+                    <UndoOutlined
+                      className="text-blue-500 cursor-pointer"
+                      onClick={() => {
+                        for (const row of nonDeletedRows) {
+                          dispatch(unmarkAPForDeletion(String(row.id)));
+                        }
+                      }}
+                    />
+                  )}
+                </div>
               );
             })(),
             key: "actions",
-            width: 50,
+            width: 60,
             render: (_: unknown, record: ProtokolleRow) => {
               const apId = String(record.id);
               const isMarked = apId in apDeletions;
