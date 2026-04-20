@@ -33,6 +33,7 @@ export function Measurements({
     addShape,
     deleteAll,
     setDeleteAll,
+    clearAllShapesTrigger,
     setUpdateShape,
     visibleShapes,
     setVisibleShapes,
@@ -194,6 +195,18 @@ export function Measurements({
     moveToShape,
     currentMode,
   ]);
+
+  useEffect(() => {
+    if (!measureControl || clearAllShapesTrigger === null) return;
+    try {
+      if (measureControl._measureLayers) {
+        measureControl._measureLayers.clearLayers();
+      }
+      measureControl.options.shapes = [];
+    } catch (e) {
+      console.error("[MEASUREMENTS] clearAllShapes failed", e);
+    }
+  }, [clearAllShapesTrigger, measureControl]);
 
   // keep snappingLatlng and snappingEnabled in sync with control options
   useEffect(() => {

@@ -34,6 +34,8 @@ export interface MapMeasurementsContextType {
   setDrawingShape: (drawingShape: boolean) => void;
   setShowAll: (showAll: boolean) => void;
   setDeleteAll: (deleteAll: boolean) => void;
+  clearAllShapes: () => void;
+  clearAllShapesTrigger: number | null;
   setMoveToShape: (moveToShape: any) => void;
   setUpdateShape: (updateShape: boolean) => void;
   setMapMovingEnd: (mapMovingEnd: boolean) => void;

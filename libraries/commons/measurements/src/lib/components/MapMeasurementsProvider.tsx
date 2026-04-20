@@ -62,6 +62,8 @@ export const MapMeasurementsContext = createContext<MapMeasurementsContextType>(
     setDrawingShape: (drawingShape: boolean) => {},
     setShowAll: (showAll: boolean) => {},
     setDeleteAll: (deleteAll: boolean) => {},
+    clearAllShapes: () => {},
+    clearAllShapesTrigger: null,
     setMoveToShape: (moveToShape: any) => {},
     setUpdateShape: (updateShape: boolean) => {},
     setMapMovingEnd: (mapMovingEnd: boolean) => {},
@@ -128,6 +130,9 @@ export const MapMeasurementsProvider = ({
   const [snappingLatlng, setSnappingLatlng] = useState<any>(null);
   const [showAll, setShowAll] = useState(false);
   const [deleteAll, setDeleteAll] = useState(false);
+  const [clearAllShapesTrigger, setClearAllShapesTrigger] = useState<
+    number | null
+  >(null);
   const [drawingShape, setDrawingShape] = useState(false);
   const [lastActiveShapeBeforeDrawing, setLastActiveShapeBeforeDrawing] =
     useState<any>(null);
@@ -318,6 +323,13 @@ export const MapMeasurementsProvider = ({
     setUpdateTitleStatus(true);
   };
 
+  const clearAllShapes = () => {
+    setShapes([]);
+    setVisibleShapes([]);
+    setActiveShape(null);
+    setClearAllShapesTrigger(Date.now());
+  };
+
   const completeCurrentShape = () => {
     if (
       currentDrawHandler &&
@@ -345,6 +357,8 @@ export const MapMeasurementsProvider = ({
         setShowAll,
         deleteAll,
         setDeleteAll,
+        clearAllShapes,
+        clearAllShapesTrigger,
         drawingShape,
         setDrawingShape,
         lastActiveShapeBeforeDrawing,

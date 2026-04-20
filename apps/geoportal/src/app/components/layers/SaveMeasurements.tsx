@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useDispatch } from "react-redux";
-import { Button, Input } from "antd";
+import { Button, Checkbox, Input } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { iconMap } from "@carma-mapping/components";
 
@@ -20,12 +20,13 @@ const iconKeys = Object.keys(iconMap) as (keyof typeof iconMap)[];
 
 function SaveMeasurements({ layer }: { layer: Layer }) {
   const dispatch = useDispatch();
-  const { shapes } = useMapMeasurementsContext();
+  const { shapes, clearAllShapes } = useMapMeasurementsContext();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [selectedIcon, setSelectedIcon] = useState<keyof typeof iconMap>(
     iconKeys[0]
   );
+  const [clearAfterSave, setClearAfterSave] = useState(false);
 
   const handleSave = async () => {
     if (shapes.length === 0) return;
@@ -69,9 +70,14 @@ function SaveMeasurements({ layer }: { layer: Layer }) {
       dispatch(appendLayer(parsedLayer));
     }
 
+    if (clearAfterSave) {
+      clearAllShapes();
+    }
+
     setTitle("");
     setDescription("");
     setSelectedIcon(iconKeys[0]);
+    setClearAfterSave(false);
     dispatch(setActiveInteractionLayerID(null));
     dispatch(setUIMode(UIMode.DEFAULT));
   };
@@ -125,6 +131,12 @@ function SaveMeasurements({ layer }: { layer: Layer }) {
           </button>
         ))}
       </div>
+      <Checkbox
+        checked={clearAfterSave}
+        onChange={(e) => setClearAfterSave(e.target.checked)}
+      >
+        Messungen nach dem Speichern löschen
+      </Checkbox>
       <Button disabled={shapes.length === 0} onClick={handleSave}>
         Messung speichern
       </Button>
