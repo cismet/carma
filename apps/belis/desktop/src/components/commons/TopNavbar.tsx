@@ -108,14 +108,7 @@ const TopNavbar = () => {
   ];
 
   const aaButtonTitle = hasHighlights
-    ? highlightCount === 1
-      ? (() => {
-          const props = activeHighlights[0].properties || {};
-          const title =
-            props.name || props.title || props.label || props.bezeichnung || "";
-          return `neuer Arbeitsauftrag anlegen "${title}"`;
-        })()
-      : `neuer Arbeitsauftrag anlegen (mit ${highlightCount} Protokollen)`
+    ? `neuer Arbeitsauftrag anlegen (mit ${highlightCount} Protokollen)`
     : "";
 
   return (
