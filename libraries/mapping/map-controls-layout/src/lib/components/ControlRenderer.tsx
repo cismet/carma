@@ -95,6 +95,7 @@ function ControlRenderer({ controls }: ControlRendererProps) {
     display: "flex",
     zIndex: 1600, // should be above map controls on left and right if pressed
     fontSize: "14px",
+    pointerEvents: "none", // let map interactions pass through empty areas; children opt back in
   };
 
   const bottomLeftStyle: CSSProperties = {
@@ -141,6 +142,7 @@ function ControlRenderer({ controls }: ControlRendererProps) {
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
+                pointerEvents: "none",
               }}
               key={`topCenter-${index}`}
             >

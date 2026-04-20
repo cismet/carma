@@ -231,7 +231,7 @@ const MapWrapper = () => {
       {zenMode ? (
         <Control position="topcenter" order={10}>
           <button
-            className={`text-xl size-16 hover:text-gray-600 button-shadow bg-white/80 rounded-md transition-all duration-300`}
+            className={`text-xl size-16 hover:text-gray-600 button-shadow bg-white/80 rounded-md transition-all duration-300 pointer-events-auto`}
             onClick={() => {
               if (zenButtonHidden) {
                 setZenButtonHidden(false);

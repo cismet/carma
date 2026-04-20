@@ -104,10 +104,12 @@ const InteractionView = ({ isDragging }: { isDragging?: boolean }) => {
   };
 
   return (
-    <div ref={wrapperRef} className="relative">
+    <div ref={wrapperRef} className="relative pointer-events-none">
       {validBg && !isDragging && <FilterBackdrop bgData={validBg} />}
       <div className="pt-3 w-full flex items-center justify-center">
-        <div ref={filterRef}>{renderContent()}</div>
+        <div ref={filterRef} className="pointer-events-auto">
+          {renderContent()}
+        </div>
       </div>
     </div>
   );
