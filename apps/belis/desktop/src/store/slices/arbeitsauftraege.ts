@@ -102,7 +102,6 @@ const slice = createSlice({
     },
     setActiveAATab(state, action: { payload: AATabKey }) {
       state.activeAATab = action.payload;
-      if (action.payload === "aa") state.selectedAPId = null;
     },
     setSelectedAPId(state, action: { payload: number | null }) {
       state.selectedAPId = action.payload;

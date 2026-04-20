@@ -257,11 +257,15 @@ const ArbeitsauftraegeSidebar = ({
     }
   }, [isAPTabDisabled, activeTab]);
 
-  // Auto-select first AP when switching to AP tab with no selection
+  // Auto-select first AP when switching to AP tab with no valid selection
   useEffect(() => {
-    if (activeTab === "ap" && selectedAPId == null && protokolle.length > 0) {
-      dispatch(setSelectedAPId(protokolle[0].id));
-      dispatch(setApOpenedFrom("sidebar"));
+    if (activeTab === "ap" && protokolle.length > 0) {
+      const hasValidSelection =
+        selectedAPId != null && protokolle.some((p) => p.id === selectedAPId);
+      if (!hasValidSelection) {
+        dispatch(setSelectedAPId(protokolle[0].id));
+        dispatch(setApOpenedFrom("sidebar"));
+      }
     }
   }, [activeTab, selectedAPId, protokolle]);
 
