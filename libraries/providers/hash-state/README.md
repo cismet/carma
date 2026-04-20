@@ -22,9 +22,10 @@ Default shared CARMA map URL aliases are:
 - `lat`
 - `lng`
 - `zoom`
-- optional `b` (`bearing`)
-- optional `p` (`pitch`)
-- optional `altitude`
+- optional `b` (bearing 0 from north, clockwise in degrees)
+- optional `p` (pitch 0 from nadir, in degrees)
+- optional `r` (roll 0 clockwise from camera up in degrees)
+- optional `h` (height of viewed at point in ellipsoid meters)
 - optional `fov`
 
 Typical usage:

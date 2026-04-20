@@ -1,8 +1,9 @@
 import { useEffect, type MutableRefObject } from "react";
 import { getHashParams, diffHashParams } from "@carma-commons/utils";
+import type { HashKeyLookup, RawHashParams } from "@carma-providers/hash-state";
 
 type Emitter = (e: {
-  raw: Record<string, string>;
+  raw: RawHashParams;
   values: Record<string, unknown>;
   changedKeys: string[];
   removedKeys: string[];
@@ -12,8 +13,8 @@ type Emitter = (e: {
 export function useHashChangeEmit(args: {
   emit: Emitter;
   getHashValues: () => Record<string, unknown>;
-  aliasReverseLookup: Record<string, string>;
-  prevRawRef: MutableRefObject<Record<string, string>>;
+  aliasReverseLookup: HashKeyLookup;
+  prevRawRef: MutableRefObject<RawHashParams>;
 }) {
   const { emit, getHashValues, aliasReverseLookup, prevRawRef } = args;
 

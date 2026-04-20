@@ -44,7 +44,6 @@ export const sceneViewStateHashCodecs: HashCodecs = Object.freeze({
   [SCENE_VIEW_STATE_HASH_KEYS.LONGITUDE]: getNumberCodec(7),
   [SCENE_VIEW_STATE_HASH_KEYS.ZOOM]: getNumberCodec(3),
   [SCENE_VIEW_STATE_HASH_KEYS.ALTITUDE]: getNumberCodec(2),
-  [SCENE_VIEW_STATE_HASH_KEYS.RANGE]: getNumberCodec(2),
   [SCENE_VIEW_STATE_HASH_KEYS.BEARING]: getNumberCodec(2),
   [SCENE_VIEW_STATE_HASH_KEYS.PITCH]: getNumberCodec(2),
   [SCENE_VIEW_STATE_HASH_KEYS.ROLL]: getNumberCodec(2),

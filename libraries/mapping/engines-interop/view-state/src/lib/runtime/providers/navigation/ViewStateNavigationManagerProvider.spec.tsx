@@ -195,6 +195,61 @@ describe("ViewStateNavigationManagerProvider", () => {
     unregister?.();
   });
 
+  it("handles hash encode exceptions without updating the URL", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const throwingCodec: ViewStateHashCodec = {
+      encode: () => {
+        throw new Error("cannot encode");
+      },
+      decode: () => null,
+    };
+    const throwingWrapper = ({ children }: PropsWithChildren) => (
+      <ViewStateProvider>
+        <ViewStateNavigationManagerProvider codec={throwingCodec}>
+          {children}
+        </ViewStateNavigationManagerProvider>
+      </ViewStateProvider>
+    );
+
+    const { result } = renderHook(
+      () => ({
+        navigationContext: useViewStateNavigationContext(),
+        viewStateContext: useContext(ViewStateContext),
+      }),
+      {
+        wrapper: throwingWrapper,
+      }
+    );
+
+    act(() => {
+      result.current.viewStateContext?.register("cesium", "cesium");
+      result.current.viewStateContext?.claimControl("cesium", "sync");
+      result.current.viewStateContext?.update(
+        buildTestState({
+          sourceId: "cesium",
+          source: "sync",
+        }),
+        {
+          sourceId: "cesium",
+          timestampMs: 1_700_000_000_001,
+          priority: "sync",
+        }
+      );
+    });
+
+    act(() => {
+      expect(
+        result.current.navigationContext.commitCurrentState(
+          "interaction-settled"
+        )
+      ).toBe(false);
+    });
+
+    expect(updateHashMock).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
   it("updates restore state and emits a browser navigation event on popstate", () => {
     const { result } = renderHook(
       () => ({

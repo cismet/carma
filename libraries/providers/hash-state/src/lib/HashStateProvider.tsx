@@ -13,6 +13,8 @@ import {
   type HashCodecs,
   type HashCodec,
   type HashKeyAliases,
+  type HashKeyLookup,
+  type RawHashParams,
   type HashStateProviderSharedProps,
 } from "./hashStateShared";
 import { computeHashDiff } from "./utils";
@@ -26,6 +28,8 @@ export {
   type HashCodecs,
   type HashCodec,
   type HashKeyAliases,
+  type HashKeyLookup,
+  type RawHashParams,
   type HashStateProviderSharedProps,
 } from "./hashStateShared";
 

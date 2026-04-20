@@ -12,7 +12,6 @@ export type ShareableViewState = {
   // We keep `altitude` (not `elevation`/`height`) for one stable schema.
   altitude: number;
   zoom?: number;
-  range?: number;
   bearing?: number;
   pitch?: number;
   roll?: number;

@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { CAMERA_TYPE } from "@carma-commons/camera/model";
+import { degToRadNumeric, radToDegNumeric } from "@carma-units";
 import type { CssPixels } from "@carma-units";
 
+import { buildViewState } from "../core/construct";
+import { deriveOrbitAngles } from "../core/derivations";
 import { HASH_ZOOM_CONVENTION } from "../core/viewStateHash";
 import type { ShareableViewState } from "../types";
 import {
@@ -11,7 +14,7 @@ import {
   readFromShareableViewState,
   readShareableViewState,
   resolveViewStateForViewport,
-  type ShareableViewStateAdapterOptions,
+  type ShareableViewStateHashCodecOptions,
 } from "./shareable";
 const makeShareableViewState = (
   overrides: Partial<ShareableViewState> = {}
@@ -80,9 +83,20 @@ describe("readShareableViewState", () => {
     expect(readShareableViewState({ lat: 51, lng: 7, zoom: 12 })).toBeNull();
   });
 
-  it("returns null when both zoom and range are missing", () => {
+  it("returns null when zoom is missing", () => {
     expect(
       readShareableViewState({ lat: 51.2, lng: 7.1, altitude: 150 })
+    ).toBeNull();
+  });
+
+  it("ignores range-only payloads and requires zoom", () => {
+    expect(
+      readShareableViewState({
+        lat: 51.2,
+        lng: 7.1,
+        altitude: 150,
+        range: 620,
+      })
     ).toBeNull();
   });
 
@@ -136,7 +150,6 @@ describe("applyToShareableViewState", () => {
         bearing: 1,
         pitch: 1,
         roll: 1,
-        range: 1,
         fov: 1,
       },
     });
@@ -169,10 +182,105 @@ describe("applyToShareableViewState", () => {
     expect(encoded.zoom).toBeDefined();
     expect(encoded.fov).toBeUndefined();
   });
+
+  it.each([89, 90, -90, 91, -91])(
+    "throws instead of encoding non-Web-Mercator latitude %s",
+    (latitudeDeg) => {
+      const source = buildViewState({
+        longitude: degToRadNumeric(7.19163)!,
+        latitude: degToRadNumeric(latitudeDeg)!,
+        altitude: 200,
+        bearing: degToRadNumeric(180)!,
+        pitch: degToRadNumeric(45)!,
+        range: 620,
+        intrinsics: {
+          type: CAMERA_TYPE.PERSPECTIVE,
+          fov: degToRadNumeric(60)!,
+        },
+        metadata: {
+          frameId: 1,
+          timestampMs: 1_700_000_000_000,
+          sourceId: "test",
+          source: "hash",
+        },
+      });
+
+      expect(() => applyToShareableViewState(source)).toThrow(
+        "Cannot encode ShareableViewState without a valid Web Mercator zoom."
+      );
+    }
+  );
+});
+
+describe("readFromShareableViewState", () => {
+  it.each([
+    { pitch: -10, expectedPitch: 0 },
+    { pitch: 200, expectedPitch: 180 },
+  ])(
+    "clamps canonical pitch %s to the default 0..PI restore range",
+    ({ pitch, expectedPitch }) => {
+      const restored = readFromShareableViewState(
+        makeShareableViewState({
+          pitch,
+        })
+      );
+
+      const orbit = deriveOrbitAngles(restored);
+
+      expect(radToDegNumeric(orbit.pitch)).toBeCloseTo(expectedPitch, 8);
+    }
+  );
+
+  it("preserves over-horizon pitch when no restore limiter is configured", () => {
+    const restored = readFromShareableViewState(
+      makeShareableViewState({
+        pitch: 120,
+      })
+    );
+
+    const orbit = deriveOrbitAngles(restored);
+
+    expect(radToDegNumeric(orbit.pitch)).toBeCloseTo(120, 8);
+  });
+
+  it("clamps hash pitch only when restore pitch limits are configured", () => {
+    const restored = readFromShareableViewState(
+      makeShareableViewState({
+        pitch: 120,
+      }),
+      {
+        restorePitchLimitsRad: {
+          minPitchRad: degToRadNumeric(15)!,
+          maxPitchRad: degToRadNumeric(85)!,
+        },
+      }
+    );
+
+    const orbit = deriveOrbitAngles(restored);
+
+    expect(radToDegNumeric(orbit.pitch)).toBeCloseTo(85, 8);
+  });
+
+  it("applies a configured restore min pitch without adding a product max pitch", () => {
+    const restored = readFromShareableViewState(
+      makeShareableViewState({
+        pitch: 5,
+      }),
+      {
+        restorePitchLimitsRad: {
+          minPitchRad: degToRadNumeric(15)!,
+        },
+      }
+    );
+
+    const orbit = deriveOrbitAngles(restored);
+
+    expect(radToDegNumeric(orbit.pitch)).toBeCloseTo(15, 8);
+  });
 });
 
 const createShareableHashCodec = (
-  options: ShareableViewStateAdapterOptions = {}
+  options: ShareableViewStateHashCodecOptions = {}
 ) => createViewStateShareableHashCodec(options);
 
 describe("createViewStateShareableHashCodec", () => {
@@ -214,7 +322,6 @@ describe("createViewStateShareableHashCodec", () => {
         bearing: 1,
         pitch: 1,
         roll: 1,
-        range: 1,
         fov: 1,
       },
     });
@@ -240,6 +347,29 @@ describe("createViewStateShareableHashCodec", () => {
       bearing: 180,
       pitch: 45,
     });
+  });
+
+  it("applies Cesium restore pitch limiter semantics inside codec creation", () => {
+    const codec = createShareableHashCodec({
+      cameraLimiterOptions: {
+        pitchLimiter: true,
+        minPitch: 15,
+      },
+    });
+
+    const decoded = codec.decode({
+      lat: "51.2677",
+      lng: "7.19163",
+      altitude: "200",
+      zoom: "17",
+      pitch: "120",
+    });
+
+    expect(decoded).not.toBeNull();
+    expect(radToDegNumeric(deriveOrbitAngles(decoded!).pitch)).toBeCloseTo(
+      75,
+      8
+    );
   });
 
   it.each([

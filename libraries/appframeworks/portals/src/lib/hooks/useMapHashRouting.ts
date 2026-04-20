@@ -17,6 +17,7 @@ import {
   HASH_CLEAR_KEY_SET,
   useHashState,
   type HashChangeEvent,
+  type RawHashParams,
 } from "@carma-providers/hash-state";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { isMapCenterZoomEquivalent } from "@carma-geo/utils";
@@ -24,7 +25,7 @@ import { Degrees } from "@carma-units";
 import { useRegisterDefaultMapHashClearKeySets } from "./useRegisterDefaultMapHashClearKeySets";
 
 export type LatLngZoom = { lat: number; lng: number; zoom: number };
-export type CesiumSceneChangeEvent = { hashParams: Record<string, string> };
+export type CesiumSceneChangeEvent = { hashParams: RawHashParams };
 
 type Labels = {
   clearCesium?: string;

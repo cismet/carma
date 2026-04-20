@@ -2,7 +2,11 @@ import { useEffect, type MutableRefObject } from "react";
 
 import { getHashParams } from "@carma-commons/utils";
 
-import type { HashChangeEvent } from "../HashStateProvider";
+import type {
+  HashChangeEvent,
+  HashKeyLookup,
+  RawHashParams,
+} from "../HashStateProvider";
 import { computeHashDiff } from "../utils";
 const BROWSER_POPSTATE_EVENT = "popstate";
 const HASH_CHANGE_SOURCE_POPSTATE: HashChangeEvent["source"] =
@@ -14,9 +18,9 @@ const HASH_CHANGE_SOURCE_POPSTATE: HashChangeEvent["source"] =
  */
 export function usePopStateListener(
   onPopState: (e: HashChangeEvent) => void,
-  prevRawRef: MutableRefObject<Record<string, string>>,
+  prevRawRef: MutableRefObject<RawHashParams>,
   getHashValues: () => Record<string, unknown>,
-  aliasReverseLookup: Record<string, string>
+  aliasReverseLookup: HashKeyLookup
 ) {
   useEffect(() => {
     const handlePopState = () => {

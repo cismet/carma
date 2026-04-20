@@ -55,21 +55,17 @@ export const defaultHashCodecs: HashCodecs = Object.freeze({
   ...sceneViewStateHashCodecs,
 });
 
-export const encodeHashParams = (
-  params: Record<string, unknown>,
-  options: {
-    includeHashPrefix?: boolean;
-  } = {}
-): string => {
-  const { includeHashPrefix = true } = options;
+export type HashParamScalar = string | number | boolean | null | undefined;
+export type HashParams = Record<string, HashParamScalar>;
+
+export const encodeHashParams = (params: HashParams): string => {
   const { newParams } = applyHashCodecs(
     params,
     defaultHashCodecs,
     defaultHashKeyAliases
   );
-  const orderedEntries = Object.entries(
-    newParams as Record<string, string>
-  ).sort(([keyA], [keyB]) => {
+  const typedParams = newParams as HashParams;
+  const orderedEntries = Object.entries(typedParams).sort(([keyA], [keyB]) => {
     const indexA = defaultHashKeyOrder.indexOf(keyA);
     const indexB = defaultHashKeyOrder.indexOf(keyB);
     if (indexA !== -1 && indexB !== -1) {
@@ -85,11 +81,11 @@ export const encodeHashParams = (
   });
 
   const encoded = buildOrderedSearchParamsString(
-    Object.fromEntries(orderedEntries),
+    Object.fromEntries(orderedEntries) as HashParams,
     defaultHashKeyOrder
   );
-  if (!includeHashPrefix) {
-    return encoded;
-  }
-  return `#?${encoded}`;
+  return encoded;
 };
+
+export const encodeHashFragment = (params: HashParams): string =>
+  `#?${encodeHashParams(params)}`;

@@ -29,6 +29,7 @@ export const CESIUM_CONFIG: CesiumConfig = {
     },
   },
   camera: {
+    pitchLimiter: true,
     minPitch: 15,
     minPitchRange: 10,
   },

@@ -36,7 +36,6 @@ export type ShareableViewStatePrecision = {
   lng: number;
   zoom: number;
   altitude: number;
-  range: number;
   bearing: number;
   pitch: number;
   roll: number;
@@ -47,12 +46,32 @@ export type ShareableViewStateAdapterOptions = {
   defaultFovDeg?: number;
   zoomConvention?: HashZoomConvention;
   precision?: Partial<ShareableViewStatePrecision>;
+  restorePitchLimitsRad?: {
+    minPitchRad?: Radians;
+    maxPitchRad?: Radians;
+  };
   source?: ViewStateSource;
   sourceId?: string;
 };
 
+export type ShareableViewStateHashCodecOptions =
+  ShareableViewStateAdapterOptions & {
+    cameraLimiterOptions?: {
+      pitchLimiter?: boolean;
+      minPitch?: number;
+    };
+  };
+
+export class ShareableViewStateEncodingError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ShareableViewStateEncodingError";
+  }
+}
+
 const DEFAULT_FOV_DEG = 45;
-const DEFAULT_MAX_PITCH_DEG = 85;
+const DEFAULT_MIN_PITCH_RAD = 0 as Radians;
+const DEFAULT_MAX_CANONICAL_PITCH_RAD = Math.PI as Radians;
 const DEFAULT_MIN_RANGE_M = 10;
 const DEFAULT_SHAREABLE_VIEW_STATE_SOURCE_ID = "shareable-hash-restore";
 const MAPLIBRE_TILE_SIZE_PX = 512;
@@ -67,7 +86,6 @@ export const DEFAULT_SHAREABLE_VIEW_STATE_PRECISION: ShareableViewStatePrecision
     lng: 7,
     zoom: 3,
     altitude: 2,
-    range: 2,
     bearing: 2,
     pitch: 2,
     roll: 2,
@@ -167,6 +185,73 @@ const isHashPitchCloseToZeroDeg = (pitchDeg: number | undefined): boolean =>
   !isFiniteNumber(pitchDeg) ||
   Math.abs(pitchDeg) <= HASH_PITCH_ZERO_EPSILON_DEG;
 
+const resolveRestorePitchLimitsRad = (
+  options?: ShareableViewStateAdapterOptions
+): { minPitchRad: Radians; maxPitchRad: Radians } => {
+  const requestedMinPitchRad = options?.restorePitchLimitsRad?.minPitchRad;
+  const requestedMaxPitchRad = options?.restorePitchLimitsRad?.maxPitchRad;
+  const minPitchRad = isFiniteNumber(requestedMinPitchRad)
+    ? (clamp(
+        requestedMinPitchRad,
+        DEFAULT_MIN_PITCH_RAD,
+        DEFAULT_MAX_CANONICAL_PITCH_RAD
+      ) as Radians)
+    : DEFAULT_MIN_PITCH_RAD;
+  const maxPitchRad = isFiniteNumber(requestedMaxPitchRad)
+    ? (clamp(
+        requestedMaxPitchRad,
+        minPitchRad,
+        DEFAULT_MAX_CANONICAL_PITCH_RAD
+      ) as Radians)
+    : DEFAULT_MAX_CANONICAL_PITCH_RAD;
+
+  return {
+    minPitchRad,
+    maxPitchRad,
+  };
+};
+
+const resolveHashCodecOptions = (
+  options: ShareableViewStateHashCodecOptions = {}
+): ShareableViewStateAdapterOptions => {
+  const { cameraLimiterOptions, ...adapterOptions } = options;
+  if (adapterOptions.restorePitchLimitsRad) {
+    return adapterOptions;
+  }
+
+  if (
+    cameraLimiterOptions?.pitchLimiter === false ||
+    !isFiniteNumber(cameraLimiterOptions?.minPitch)
+  ) {
+    return adapterOptions;
+  }
+
+  // Cesium camera.pitch uses -PI/2..PI/2 with 0 at the horizon.
+  // The shared canonical pitch uses 0..PI with 0 at nadir, so a Cesium
+  // product limiter of minPitchDeg maps to a canonical max pitch of
+  // (90deg - minPitchDeg).
+  return {
+    ...adapterOptions,
+    restorePitchLimitsRad: {
+      maxPitchRad: degToRadNumeric(
+        90 - cameraLimiterOptions.minPitch
+      )! as Radians,
+    },
+  };
+};
+
+const clampPitchRadToLimits = (
+  pitchRad: number | undefined,
+  pitchLimitsRad: { minPitchRad: Radians; maxPitchRad: Radians }
+): Radians | undefined =>
+  isFiniteNumber(pitchRad)
+    ? (clamp(
+        pitchRad,
+        pitchLimitsRad.minPitchRad,
+        pitchLimitsRad.maxPitchRad
+      ) as Radians)
+    : undefined;
+
 const normalizeHashZoomToCanonical = (
   zoom: number,
   convention: HashZoomConvention
@@ -235,20 +320,21 @@ export const applyToShareableViewState = (
           : undefined;
       })();
 
-  if (isFiniteNumber(projectedZoom) && isWithinWebMercatorLat(lat)) {
-    const hashZoom = roundFixedNumber(
-      formatCanonicalZoomForHash(projectedZoom, zoomConvention),
-      precision.zoom
+  if (!isFiniteNumber(projectedZoom) || !isWithinWebMercatorLat(lat)) {
+    throw new ShareableViewStateEncodingError(
+      "Cannot encode ShareableViewState without a valid Web Mercator zoom."
     );
-    if (isFiniteNumber(hashZoom)) {
-      shareable.zoom = hashZoom;
-    }
-  } else if (isFiniteNumber(view.range)) {
-    const roundedRange = roundFixedNumber(view.range, precision.range);
-    if (isFiniteNumber(roundedRange)) {
-      shareable.range = roundedRange;
-    }
   }
+  const hashZoom = roundFixedNumber(
+    formatCanonicalZoomForHash(projectedZoom, zoomConvention),
+    precision.zoom
+  );
+  if (!isFiniteNumber(hashZoom)) {
+    throw new ShareableViewStateEncodingError(
+      "Cannot encode ShareableViewState without a finite hash zoom."
+    );
+  }
+  shareable.zoom = hashZoom;
 
   const bearing = roundFixedNumber(
     readBearingDegreesFromViewState(view.bearing),
@@ -258,8 +344,14 @@ export const applyToShareableViewState = (
     shareable.bearing = bearing;
   }
 
+  const clampedPitchRad = clampPitchRadToLimits(view.pitch, {
+    minPitchRad: DEFAULT_MIN_PITCH_RAD,
+    maxPitchRad: DEFAULT_MAX_CANONICAL_PITCH_RAD,
+  });
   const pitch = roundFixedNumber(
-    clamp(radToDegNumeric(view.pitch), 0, DEFAULT_MAX_PITCH_DEG),
+    isFiniteNumber(clampedPitchRad)
+      ? radToDegNumeric(clampedPitchRad)
+      : undefined,
     precision.pitch
   );
   if (!isHashPitchCloseToZeroDeg(pitch)) {
@@ -307,9 +399,7 @@ export const readShareableViewState = (
   }
 
   const zoom = readRoundedShareableNumber(value.zoom, precision.zoom);
-  const range = readRoundedShareableNumber(value.range, precision.range);
-
-  if (!isFiniteNumber(zoom) && !isFiniteNumber(range)) {
+  if (!isFiniteNumber(zoom)) {
     return null;
   }
 
@@ -323,7 +413,6 @@ export const readShareableViewState = (
     lng,
     altitude,
     ...(isFiniteNumber(zoom) ? { zoom } : {}),
-    ...(isFiniteNumber(range) ? { range } : {}),
     ...(isFiniteNumber(bearing) ? { bearing } : {}),
     ...(isFiniteNumber(pitch) ? { pitch } : {}),
     ...(isFiniteNumber(roll) ? { roll } : {}),
@@ -338,12 +427,13 @@ export const readFromShareableViewState = (
   const defaultFovDeg = options?.defaultFovDeg ?? DEFAULT_FOV_DEG;
   const zoomConvention =
     options?.zoomConvention ?? HASH_ZOOM_CONVENTION.MAPLIBRE_512;
+  const restorePitchLimitsRad = resolveRestorePitchLimitsRad(options);
 
   const normalizedShareable = readShareableViewState(viewState, options);
 
   if (!normalizedShareable) {
     throw new Error(
-      "Invalid ShareableViewState: lat/lng/altitude and zoom|range are required."
+      "Invalid ShareableViewState: lat/lng/altitude and zoom are required."
     );
   }
 
@@ -364,33 +454,27 @@ export const readFromShareableViewState = (
   }
 
   const rangeM = (() => {
-    if (isFiniteNumber(normalizedZoom)) {
-      const latitudeRad = degToRadNumeric(effectiveLatitudeDeg)! as Radians;
-      const metersPerCssPixel = getPixelResolutionFromZoomAtLatitudeRad(
-        normalizedZoom,
-        latitudeRad,
-        { tileSize: MAPLIBRE_TILE_SIZE_PX }
-      );
-      const fromZoom = readRangeFromMetersPerCssPixel({
-        metersPerCssPixel,
-        fovRad: resolvedFovRad,
-        minRangeM: DEFAULT_MIN_RANGE_M,
-      });
-      if (isFiniteNumber(fromZoom)) {
-        return fromZoom;
-      }
+    if (!isFiniteNumber(normalizedZoom)) {
+      return null;
     }
 
-    if (isFiniteNumber(normalizedShareable.range)) {
-      return Math.max(normalizedShareable.range, DEFAULT_MIN_RANGE_M);
-    }
-
-    return null;
+    const latitudeRad = degToRadNumeric(effectiveLatitudeDeg)! as Radians;
+    const metersPerCssPixel = getPixelResolutionFromZoomAtLatitudeRad(
+      normalizedZoom,
+      latitudeRad,
+      { tileSize: MAPLIBRE_TILE_SIZE_PX }
+    );
+    const fromZoom = readRangeFromMetersPerCssPixel({
+      metersPerCssPixel,
+      fovRad: resolvedFovRad,
+      minRangeM: DEFAULT_MIN_RANGE_M,
+    });
+    return isFiniteNumber(fromZoom) ? fromZoom : null;
   })();
 
   if (!isFiniteNumber(rangeM)) {
     throw new Error(
-      "Invalid ShareableViewState: either zoom or range must be finite."
+      "Invalid ShareableViewState: zoom could not be resolved to a finite range."
     );
   }
 
@@ -400,9 +484,10 @@ export const readFromShareableViewState = (
       ) as Radians)
     : (degToRadNumeric(0)! as Radians);
   const pitchRad = isFiniteNumber(normalizedShareable.pitch)
-    ? (degToRadNumeric(
-        clamp(normalizedShareable.pitch, 0, DEFAULT_MAX_PITCH_DEG)
-      )! as Radians)
+    ? clampPitchRadToLimits(
+        degToRadNumeric(normalizedShareable.pitch),
+        restorePitchLimitsRad
+      ) ?? (degToRadNumeric(0)! as Radians)
     : (degToRadNumeric(0)! as Radians);
   const rollRad = isFiniteNumber(normalizedShareable.roll)
     ? (degToRadNumeric(normalizedShareable.roll)! as Radians)
@@ -442,19 +527,23 @@ export const readFromShareableViewState = (
 };
 
 export const createViewStateShareableHashCodec = (
-  options: ShareableViewStateAdapterOptions = {}
+  options: ShareableViewStateHashCodecOptions = {}
 ): ViewStateHashCodec => ({
   encode: (state) => {
     if (!state) {
       return null;
     }
 
-    return applyToShareableViewState(state, options);
+    return applyToShareableViewState(state, resolveHashCodecOptions(options));
   },
   decode: (hashValues) => {
-    const shareableViewState = readShareableViewState(hashValues, options);
+    const resolvedOptions = resolveHashCodecOptions(options);
+    const shareableViewState = readShareableViewState(
+      hashValues,
+      resolvedOptions
+    );
     return shareableViewState
-      ? readFromShareableViewState(shareableViewState, options)
+      ? readFromShareableViewState(shareableViewState, resolvedOptions)
       : null;
   },
 });

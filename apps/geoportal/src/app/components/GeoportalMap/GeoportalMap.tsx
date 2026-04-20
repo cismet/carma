@@ -1070,14 +1070,13 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
 };
 
 export const GeoportalMap = (props: MapProps) => {
-  const codec = useMemo(
-    () =>
-      createViewStateShareableHashCodec({
-        defaultFovDeg: DEFAULT_CAMERA_FOV_DEG,
-        zoomConvention: HASH_ZOOM_CONVENTION.LEAFLET_256,
-      }),
-    []
-  );
+  const codec = useMemo(() => {
+    return createViewStateShareableHashCodec({
+      defaultFovDeg: DEFAULT_CAMERA_FOV_DEG,
+      zoomConvention: HASH_ZOOM_CONVENTION.LEAFLET_256,
+      cameraLimiterOptions: CESIUM_CONFIG.camera,
+    });
+  }, []);
 
   return (
     <ViewStateProvider>

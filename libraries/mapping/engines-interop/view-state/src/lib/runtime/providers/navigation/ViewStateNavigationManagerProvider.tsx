@@ -150,7 +150,17 @@ export const ViewStateNavigationManagerProvider = ({
         return false;
       }
 
-      const hashValues = codec.encode(currentState);
+      let hashValues: ViewStateHashValues | null;
+      try {
+        hashValues = codec.encode(currentState);
+      } catch (error) {
+        console.warn("[ViewStateNavigationManager] Failed to encode hash", {
+          label,
+          reason,
+          error,
+        });
+        return false;
+      }
       if (!hashValues) {
         return false;
       }

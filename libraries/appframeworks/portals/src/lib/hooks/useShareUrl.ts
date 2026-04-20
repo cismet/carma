@@ -1,8 +1,10 @@
 import { useCopyToClipboard } from "@uidotdev/usehooks";
 import { message } from "antd";
+import { encodeHashParams } from "@carma-providers/hash-state";
 import type { LayerState, SelectedObject } from "../types";
 import { SelectionItem } from "../components/SelectionProvider";
 import { getHashParams } from "@carma-commons/utils";
+import { normalizeShareHashParams } from "./shareHash";
 
 export const SHORTENER_URL =
   "https://ceepr.cismet.de/store/wuppertal/_dev_geoportal";
@@ -55,12 +57,9 @@ export const useShareUrl = () => {
       };
       const jsonString = JSON.stringify(newConfig);
       const baseUrl = window.location.origin + window.location.pathname;
-      let combinedHash = "";
-      newSearchParams.forEach((value, key) => {
-        if (key !== "config" && key !== "appKey") {
-          combinedHash += `${key}=${value}&`;
-        }
-      });
+      const combinedHash = encodeHashParams(
+        normalizeShareHashParams(Object.fromEntries(newSearchParams))
+      );
 
       const response = await fetch(SHORTENER_URL, {
         method: "POST",
@@ -71,7 +70,8 @@ export const useShareUrl = () => {
       });
       const data = await response.json();
       const key = data.key;
-      const url = `${baseUrl}#/?${combinedHash}&config=${key}&appKey=sharedurl`;
+      const prefixedHash = combinedHash.length > 0 ? `${combinedHash}&` : "";
+      const url = `${baseUrl}#/?${prefixedHash}config=${key}&appKey=sharedurl`;
       copyToClipboard(url);
       messageApi.open({
         type: "success",
