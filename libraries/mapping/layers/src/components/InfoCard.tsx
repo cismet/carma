@@ -110,6 +110,9 @@ const InfoCard = ({
   const carmaConf = extractCarmaConfig(layer.keywords);
   const vectorLegend = layer.vectorLegend || carmaConf?.vectorLegend;
   const vectorStyle = layer.vectorStyle || carmaConf?.vectorStyle;
+  const vectorLegendTitle =
+    layer.vectorLegendTitle || (carmaConf?.vectorLegendTitle as string);
+  const legendTitle = vectorLegendTitle || "Legende";
 
   const legends =
     vectorStyle && vectorLegend
@@ -604,7 +607,7 @@ const InfoCard = ({
             <>
               <div className="h-full w-0 border-r border-gray-300 my-0 hidden sm:block" />
               <div className="flex flex-col gap-0 sm:w-1/4 w-full">
-                <h5 className="font-semibold text-lg">Legende</h5>
+                <h5 className="font-semibold text-lg">{legendTitle}</h5>
                 <div className="h-full overflow-auto">
                   {legends?.map((legend, i) => (
                     <LegendDisplay
