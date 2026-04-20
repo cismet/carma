@@ -83,6 +83,7 @@ import {
   clearSelection,
   getAALoading,
   getDraftMode,
+  getGraphqlLoading,
 } from "../../store/slices/arbeitsauftraege";
 import {
   buildApGeoJson,
@@ -270,6 +271,7 @@ const BelisMapLibWrapper = ({
   const selectedAPId = useSelector(getSelectedAPId);
   const apOpenedFrom = useSelector(getApOpenedFrom);
   const aaLoading = useSelector(getAALoading);
+  const aaGraphqlLoading = useSelector(getGraphqlLoading);
   const globalEditMode = useSelector(getGlobalEditMode);
 
   const selectedTeamId = useSelector(getSelectedTeamId);
@@ -1223,6 +1225,19 @@ const BelisMapLibWrapper = ({
     }
     prevAAIdRef.current = selectedAAId;
   }, [sidebarVariant, map, selectedAAId]);
+
+  // --- Arbeitsauftraege: clear stale selection when AA disappears from features ---
+  useEffect(() => {
+    if (
+      sidebarVariant !== "arbeitsauftraege" ||
+      selectedAAId == null ||
+      aaGraphqlLoading // don't clear while features are being fetched (team switch / refetch)
+    )
+      return;
+    if (!aaFeatures.some((f) => f.id === selectedAAId)) {
+      dispatch(clearSelection());
+    }
+  }, [sidebarVariant, aaFeatures, selectedAAId, aaGraphqlLoading, dispatch]);
 
   // --- Arbeitsauftraege: fetch GraphQL detail on selection ---
   useEffect(() => {
