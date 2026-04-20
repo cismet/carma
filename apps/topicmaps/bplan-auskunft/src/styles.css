@@ -43,7 +43,8 @@ div.leaflet-top.leaflet-right > .leaflet-control {
   margin-right: 0 !important;
 }
 
-/* Fix Tailwind's .collapse overriding Bootstrap's accordion collapse */
-.collapse.show {
+/* Fix Tailwind's .collapse overriding Bootstrap's accordion/navbar collapse */
+.collapse.show,
+.navbar .navbar-collapse.collapse {
   visibility: visible;
 }
