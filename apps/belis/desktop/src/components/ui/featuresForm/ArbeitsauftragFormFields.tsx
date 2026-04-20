@@ -10,6 +10,7 @@ import {
   setActiveAATab,
   getSelectedAPId,
   setProtokolleSort,
+  getProtokolleSort,
 } from "../../../store/slices/arbeitsauftraege";
 import type { ProtokolleSort } from "../../../store/slices/arbeitsauftraege";
 import type { AppDispatch, RootState } from "../../../store";
@@ -107,6 +108,7 @@ const ArbeitsauftragFormFields = ({
   const [form] = Form.useForm();
   const dispatch: AppDispatch = useDispatch();
   const selectedAPId = useSelector(getSelectedAPId);
+  const protokolleSort = useSelector(getProtokolleSort);
   const keyTablesData = useSelector(getKeyTablesData);
   const apDeletions = useSelector((state: RootState) => getAPDeletions(state));
 
@@ -248,6 +250,7 @@ const ArbeitsauftragFormFields = ({
       key: "protokollnummer",
       width: 50,
       sorter: (a, b) => compare(a.protokollnummer, b.protokollnummer),
+      sortOrder: protokolleSort?.field === "protokollnummer" ? protokolleSort.order : null,
     },
     {
       title: "Herkunft",
@@ -255,6 +258,7 @@ const ArbeitsauftragFormFields = ({
       key: "herkunft",
       width: 100,
       sorter: (a, b) => compare(a.herkunft, b.herkunft),
+      sortOrder: protokolleSort?.field === "herkunft" ? protokolleSort.order : null,
     },
     {
       title: "Fachobjekt",
@@ -262,6 +266,7 @@ const ArbeitsauftragFormFields = ({
       key: "fachobjektType",
       width: 110,
       sorter: (a, b) => compare(a.fachobjektType, b.fachobjektType),
+      sortOrder: protokolleSort?.field === "fachobjektType" ? protokolleSort.order : null,
     },
     {
       title: "Kennzeichnung",
@@ -269,6 +274,7 @@ const ArbeitsauftragFormFields = ({
       key: "kennzeichnung",
       ellipsis: true,
       sorter: (a, b) => compare(a.kennzeichnung, b.kennzeichnung),
+      sortOrder: protokolleSort?.field === "kennzeichnung" ? protokolleSort.order : null,
     },
     {
       title: "Bearbeiter",
@@ -276,6 +282,7 @@ const ArbeitsauftragFormFields = ({
       key: "bearbeiter",
       width: 100,
       sorter: (a, b) => compare(a.bearbeiter, b.bearbeiter),
+      sortOrder: protokolleSort?.field === "bearbeiter" ? protokolleSort.order : null,
     },
     {
       title: "Position",
@@ -283,6 +290,7 @@ const ArbeitsauftragFormFields = ({
       key: "position",
       ellipsis: true,
       sorter: (a, b) => compare(a.position, b.position),
+      sortOrder: protokolleSort?.field === "position" ? protokolleSort.order : null,
     },
     {
       title: "Status",
@@ -290,6 +298,7 @@ const ArbeitsauftragFormFields = ({
       key: "status",
       width: 120,
       sorter: (a, b) => compare(a.status, b.status),
+      sortOrder: protokolleSort?.field === "status" ? protokolleSort.order : null,
     },
     ...(!readOnly
       ? [
