@@ -20,7 +20,7 @@ export const STATUS_RGB: Record<StatusKey, readonly [number, number, number]> =
   {
     offen: [245, 158, 11],
     // cyan (Tailwind cyan-500) — picked to stay clear of the selection blue.
-    in_bearbeitung: [6, 182, 212],
+    in_bearbeitung: [139, 92, 246],
     erledigt: [16, 185, 129],
     fehlmeldung: [239, 68, 68],
   };
