@@ -1941,53 +1941,53 @@ const BelisMapLibWrapper = ({
       // source may not exist yet
     }
 
-    // Fly the mini map to the selected AP feature
-    const geojson = draftMode
-      ? apDraftGeoJson
-      : selectedAAData
-      ? buildApGeoJson(selectedAAData)
-      : null;
-    const feature = geojson?.features.find(
-      (f) => f.properties?.id === selectedAPId
-    );
-    if (feature?.geometry) {
-      const geom = feature.geometry;
-      const flatCoords: number[][] =
-        geom.type === "Point"
-          ? [(geom as GeoJSON.Point).coordinates]
-          : geom.type === "LineString"
-          ? (geom as GeoJSON.LineString).coordinates
-          : geom.type === "MultiLineString"
-          ? (geom as GeoJSON.MultiLineString).coordinates.flat()
-          : [];
-      if (flatCoords.length > 0) {
-        let minLng = Infinity,
-          minLat = Infinity,
-          maxLng = -Infinity,
-          maxLat = -Infinity;
-        for (const [lng, lat] of flatCoords) {
-          if (lng < minLng) minLng = lng;
-          if (lat < minLat) minLat = lat;
-          if (lng > maxLng) maxLng = lng;
-          if (lat > maxLat) maxLat = lat;
-        }
-        miniMap.fitBounds(
-          [
-            [minLng, minLat],
-            [maxLng, maxLat],
-          ],
-          // Match the Fachobjekte mini-map's transition so switching AP rows
-          // feels as snappy. Without `duration`, MapLibre defaults to 1000ms,
-          // which felt sluggish vs. useDatasheetMiniMap's 200ms easeTo.
-          {
-            padding: 40,
-            maxZoom: MINI_MAP_TARGET_ZOOM,
-            duration: MINI_MAP_TRANSITION_MS,
+    // Only fly the mini map when on the AP tab (sidebar or double-click).
+    // When on the AA tab (single-click from Protokolle table), just highlight.
+    if (activeAATab === "ap") {
+      const geojson = draftMode
+        ? apDraftGeoJson
+        : selectedAAData
+        ? buildApGeoJson(selectedAAData)
+        : null;
+      const feature = geojson?.features.find(
+        (f) => f.properties?.id === selectedAPId
+      );
+      if (feature?.geometry) {
+        const geom = feature.geometry;
+        const flatCoords: number[][] =
+          geom.type === "Point"
+            ? [(geom as GeoJSON.Point).coordinates]
+            : geom.type === "LineString"
+            ? (geom as GeoJSON.LineString).coordinates
+            : geom.type === "MultiLineString"
+            ? (geom as GeoJSON.MultiLineString).coordinates.flat()
+            : [];
+        if (flatCoords.length > 0) {
+          let minLng = Infinity,
+            minLat = Infinity,
+            maxLng = -Infinity,
+            maxLat = -Infinity;
+          for (const [lng, lat] of flatCoords) {
+            if (lng < minLng) minLng = lng;
+            if (lat < minLat) minLat = lat;
+            if (lng > maxLng) maxLng = lng;
+            if (lat > maxLat) maxLat = lat;
           }
-        );
+          miniMap.fitBounds(
+            [
+              [minLng, minLat],
+              [maxLng, maxLat],
+            ],
+            {
+              padding: 40,
+              maxZoom: MINI_MAP_TARGET_ZOOM,
+              duration: MINI_MAP_TRANSITION_MS,
+            }
+          );
+        }
       }
     }
-  }, [miniMap, selectedAPId, selectedAAData, draftMode, apDraftGeoJson]);
+  }, [miniMap, selectedAPId, selectedAAData, draftMode, apDraftGeoJson, activeAATab]);
 
   // --- Mini-map: mousewheel zoom in AA mode ---
   // The useDatasheetMiniMap hook's wheel handler is disabled in AA mode
