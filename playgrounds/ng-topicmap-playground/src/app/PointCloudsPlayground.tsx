@@ -43,7 +43,7 @@ const CAMERA_KEY = `${LS_PREFIX}pointClouds-camera`;
 //  Catalog of available point clouds
 // ─────────────────────────────────────────────────────────────
 
-type CloudId = "kaiser_wilhelm_hain_rgb" | "awg_2_wuppertal_seg";
+type CloudId = "kaiser_wilhelm_hain" | "awg_2_wuppertal";
 
 interface CloudEntry {
   id: CloudId;
@@ -52,38 +52,48 @@ interface CloudEntry {
   url: string;
   /** Approximate WGS84 center for initial camera fly-to */
   center: [number, number];
+  /** Z offset in meters to subtract (geoid correction) */
+  elevationOffset?: number;
 }
 
 const CLOUDS: CloudEntry[] = [
   {
-    id: "kaiser_wilhelm_hain_rgb",
-    label: "Kaiser-Wilhelm-Hain (RGB)",
+    id: "kaiser_wilhelm_hain",
+    label: "Kaiser-Wilhelm-Hain (3D-Seg)",
     color: "#4CAF50",
-    url: "/pointclouds/kaiser_wilhelm_hain_rgb.las",
+    url: `${window.location.origin}/pointclouds/kaiser_wilhelm_hain.copc.laz`,
     center: [7.15076, 51.25692],
   },
   {
-    id: "awg_2_wuppertal_seg",
+    id: "awg_2_wuppertal",
     label: "AWG 2 Wuppertal (3D-Seg)",
     color: "#9C27B0",
-    url: "/pointclouds/awg_2_wuppertal_seg.las",
+    url: `${window.location.origin}/pointclouds/awg_2_wuppertal.copc.laz`,
     center: [7.15076, 51.25692],
+    elevationOffset: 46.5,
   },
 ];
 
 type Visibility = Record<CloudId, boolean>;
 
 const DEFAULT_VISIBILITY: Visibility = {
-  kaiser_wilhelm_hain_rgb: false,
-  awg_2_wuppertal_seg: false,
+  kaiser_wilhelm_hain: false,
+  awg_2_wuppertal: false,
 };
 
 type PointSizes = Record<CloudId, number>;
 const DEFAULT_POINT_SIZES: PointSizes = {
-  kaiser_wilhelm_hain_rgb: 3,
-  awg_2_wuppertal_seg: 3,
+  kaiser_wilhelm_hain: 3,
+  awg_2_wuppertal: 3,
 };
 const POINT_SIZES_KEY = `${LS_PREFIX}pointClouds-pointSizes`;
+const ELEVATION_OFFSETS_KEY = `${LS_PREFIX}pointClouds-elevationOffsets`;
+
+type ElevationOffsets = Partial<Record<CloudId, number>>;
+
+const DEFAULT_ELEVATION_OFFSETS: ElevationOffsets = Object.fromEntries(
+  CLOUDS.filter((c) => c.elevationOffset != null).map((c) => [c.id, c.elevationOffset])
+);
 
 function loadVisibility(): Visibility {
   try {
@@ -103,6 +113,16 @@ function loadPointSizes(): PointSizes {
     // ignore
   }
   return DEFAULT_POINT_SIZES;
+}
+
+function loadElevationOffsets(): ElevationOffsets {
+  try {
+    const raw = localStorage.getItem(ELEVATION_OFFSETS_KEY);
+    if (raw) return { ...DEFAULT_ELEVATION_OFFSETS, ...JSON.parse(raw) };
+  } catch {
+    // ignore
+  }
+  return DEFAULT_ELEVATION_OFFSETS;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -218,10 +238,12 @@ function removeBboxLayer(map: MaplibreMap, id: CloudId) {
 function PointCloudLayerManager({
   visibility,
   pointSizes,
+  elevationOffsets,
   onLoadStateChange,
 }: {
   visibility: Visibility;
   pointSizes: PointSizes;
+  elevationOffsets: ElevationOffsets;
   onLoadStateChange: (id: CloudId, state: LoadState) => void;
 }) {
   const { map } = useLibreContext();
@@ -242,6 +264,7 @@ function PointCloudLayerManager({
         id: `pointcloud-${cloud.id}`,
         url: cloud.url,
         pointSize: pointSizesRef.current[cloud.id] ?? 3,
+        elevationOffset: elevationOffsets[cloud.id],
         onLoadStart: () => onLoadStateChange(cloud.id, "loading"),
         onLoaded: ({ centerLngLat, bboxWgs84, zRange }) => {
           onLoadStateChange(cloud.id, "ready");
@@ -340,6 +363,7 @@ function PointCloudLayerManager({
             id: `pointcloud-${cloud.id}`,
             url: cloud.url,
             pointSize: pointSizesRef.current[cloud.id] ?? 3,
+            elevationOffset: elevationOffsets[cloud.id],
             onLoadStart: () => onLoadStateChange(cloud.id, "loading"),
             onLoaded: ({ bboxWgs84 }) => {
               onLoadStateChange(cloud.id, "ready");
@@ -368,6 +392,16 @@ function PointCloudLayerManager({
       if (layer) layer.setPointSize(pointSizes[cloud.id] ?? 3);
     }
   }, [pointSizes]);
+
+  // Push elevation offset changes to existing layers
+  useEffect(() => {
+    for (const cloud of CLOUDS) {
+      const offset = elevationOffsets[cloud.id];
+      if (offset == null) continue;
+      const layer = layers.current.get(cloud.id);
+      if (layer) layer.setElevationOffset(offset);
+    }
+  }, [elevationOffsets]);
 
   return null;
 }
@@ -415,14 +449,18 @@ function LayerToggleBar({
   visibility,
   loadStates,
   pointSizes,
+  elevationOffsets,
   onToggle,
   onPointSizeChange,
+  onElevationOffsetChange,
 }: {
   visibility: Visibility;
   loadStates: Record<CloudId, LoadState>;
   pointSizes: PointSizes;
+  elevationOffsets: ElevationOffsets;
   onToggle: (id: CloudId) => void;
   onPointSizeChange: (id: CloudId, size: number) => void;
+  onElevationOffsetChange: (id: CloudId, offset: number) => void;
 }) {
   return (
     <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[9999] flex gap-2 items-start">
@@ -430,6 +468,8 @@ function LayerToggleBar({
         const visible = visibility[cloud.id];
         const state = loadStates[cloud.id];
         const size = pointSizes[cloud.id] ?? 3;
+        const offset = elevationOffsets[cloud.id];
+        const hasOffset = offset != null;
         return (
           <div
             key={cloud.id}
@@ -477,6 +517,29 @@ function LayerToggleBar({
                 />
               </button>
             </div>
+            {hasOffset && visible && (
+              <div className="flex items-center gap-2 px-3 pb-1.5 whitespace-nowrap">
+                <span className="text-xs text-gray-500">Z</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={0.5}
+                  value={offset}
+                  onChange={(e) =>
+                    onElevationOffsetChange(
+                      cloud.id,
+                      parseFloat(e.target.value)
+                    )
+                  }
+                  className="w-20 h-1 accent-gray-600"
+                  title={`Z-Offset: ${offset.toFixed(1)}m`}
+                />
+                <span className="text-xs text-gray-500 tabular-nums">
+                  {offset.toFixed(1)}m
+                </span>
+              </div>
+            )}
           </div>
         );
       })}
@@ -489,8 +552,8 @@ function LayerToggleBar({
 // ─────────────────────────────────────────────────────────────
 
 const INITIAL_LOAD_STATES: Record<CloudId, LoadState> = {
-  kaiser_wilhelm_hain_rgb: "idle",
-  awg_2_wuppertal_seg: "idle",
+  kaiser_wilhelm_hain: "idle",
+  awg_2_wuppertal: "idle",
 };
 
 export function PointCloudsPlayground() {
@@ -498,6 +561,8 @@ export function PointCloudsPlayground() {
   const [loadStates, setLoadStates] =
     useState<Record<CloudId, LoadState>>(INITIAL_LOAD_STATES);
   const [pointSizes, setPointSizes] = useState<PointSizes>(loadPointSizes);
+  const [elevationOffsets, setElevationOffsets] =
+    useState<ElevationOffsets>(loadElevationOffsets);
 
   const toggleCloud = (id: CloudId) => {
     setVisibility((prev) => {
@@ -511,6 +576,14 @@ export function PointCloudsPlayground() {
     setPointSizes((prev) => {
       const next = { ...prev, [id]: size };
       localStorage.setItem(POINT_SIZES_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const handleElevationOffsetChange = (id: CloudId, offset: number) => {
+    setElevationOffsets((prev) => {
+      const next = { ...prev, [id]: offset };
+      localStorage.setItem(ELEVATION_OFFSETS_KEY, JSON.stringify(next));
       return next;
     });
   };
@@ -542,14 +615,17 @@ export function PointCloudsPlayground() {
               <PointCloudLayerManager
                 visibility={visibility}
                 pointSizes={pointSizes}
+                elevationOffsets={elevationOffsets}
                 onLoadStateChange={handleLoadStateChange}
               />
               <LayerToggleBar
                 visibility={visibility}
                 loadStates={loadStates}
                 pointSizes={pointSizes}
+                elevationOffsets={elevationOffsets}
                 onToggle={toggleCloud}
                 onPointSizeChange={setPointSize}
+                onElevationOffsetChange={handleElevationOffsetChange}
               />
             </LibreContextProvider>
           </SelectionProvider>
