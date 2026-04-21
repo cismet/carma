@@ -1,40 +1,55 @@
 import { useEffect, type MutableRefObject } from "react";
 import { getHashParams, diffHashParams } from "@carma-commons/utils";
-import type { HashKeyLookup, RawHashParams } from "@carma-providers/hash-state";
+import type {
+  HashParamNameToStateKeyMap,
+  HashParams,
+} from "@carma-providers/hash-state";
 
 type Emitter = (e: {
-  raw: RawHashParams;
-  values: Record<string, unknown>;
-  changedKeys: string[];
-  removedKeys: string[];
+  hashParams: HashParams;
+  stateValues: Record<string, unknown>;
+  changedStateKeys: string[];
+  removedStateKeys: string[];
   source: "popstate" | "hashchange";
 }) => void;
 
 export function useHashChangeEmit(args: {
   emit: Emitter;
-  getHashValues: () => Record<string, unknown>;
-  aliasReverseLookup: HashKeyLookup;
-  prevRawRef: MutableRefObject<RawHashParams>;
+  getHashStateValues: () => Record<string, unknown>;
+  hashParamNameToStateKey: HashParamNameToStateKeyMap;
+  previousHashParamsRef: MutableRefObject<HashParams>;
 }) {
-  const { emit, getHashValues, aliasReverseLookup, prevRawRef } = args;
+  const {
+    emit,
+    getHashStateValues,
+    hashParamNameToStateKey,
+    previousHashParamsRef,
+  } = args;
 
   useEffect(() => {
     const handle = (source: "popstate" | "hashchange") => () => {
-      const beforeRaw = prevRawRef.current || {};
-      const afterRaw = getHashParams();
-      const { changedKeys: changedAliasKeys, removedKeys: removedAliasKeys } =
-        diffHashParams(beforeRaw, afterRaw);
-      const toOriginal = (k: string) => aliasReverseLookup[k] || k;
-      const changedKeys = [...new Set(changedAliasKeys.map(toOriginal))];
-      const removedKeys = [...new Set(removedAliasKeys.map(toOriginal))];
+      const previousHashParams = previousHashParamsRef.current || {};
+      const nextHashParams = getHashParams();
+      const {
+        changedKeys: changedHashParamNames,
+        removedKeys: removedHashParamNames,
+      } = diffHashParams(previousHashParams, nextHashParams);
+      const toStateKey = (hashParamName: string) =>
+        hashParamNameToStateKey[hashParamName] || hashParamName;
+      const changedStateKeys = [
+        ...new Set(changedHashParamNames.map(toStateKey)),
+      ];
+      const removedStateKeys = [
+        ...new Set(removedHashParamNames.map(toStateKey)),
+      ];
       emit({
-        raw: afterRaw,
-        values: getHashValues(),
-        changedKeys,
-        removedKeys,
+        hashParams: nextHashParams,
+        stateValues: getHashStateValues(),
+        changedStateKeys,
+        removedStateKeys,
         source,
       });
-      prevRawRef.current = afterRaw;
+      previousHashParamsRef.current = nextHashParams;
     };
 
     const onPop = handle("popstate");
@@ -45,5 +60,10 @@ export function useHashChangeEmit(args: {
       window.removeEventListener("popstate", onPop);
       window.removeEventListener("hashchange", onHash);
     };
-  }, [emit, getHashValues, aliasReverseLookup, prevRawRef]);
+  }, [
+    emit,
+    getHashStateValues,
+    hashParamNameToStateKey,
+    previousHashParamsRef,
+  ]);
 }

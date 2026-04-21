@@ -8,7 +8,7 @@ export type {
   WriteResult,
   WriteRejectionReason,
   DerivedView,
-  ViewStateHashValues,
+  ViewStateHashParams,
   ViewStateHashCodec,
   ViewStateNavigationCommitReason,
   ViewStateNavigationEvent,

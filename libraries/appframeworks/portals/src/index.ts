@@ -111,7 +111,7 @@ export { useProgress } from "./lib/hooks/useProgress";
 export { useAdhocCesiumFeatureDisplay } from "./lib/hooks/useAdhocCesiumFeatureDisplay";
 export { useUrlFeatureSelection } from "./lib/hooks/useUrlFeatureSelection";
 export { useHashLaunchMode } from "./lib/hooks/useHashLaunchMode";
-export { useRegisterDefaultMapHashClearKeySets } from "./lib/hooks/useRegisterDefaultMapHashClearKeySets";
+export { useRegisterDefaultMapHashClearStateKeySets } from "./lib/hooks/useRegisterDefaultMapHashClearStateKeySets";
 export {
   useMapHashRouting,
   type LatLngZoom,

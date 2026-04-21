@@ -1,11 +1,11 @@
 import { useCallback, useEffect } from "react";
 import { useDispatch } from "react-redux";
-import { CesiumMath } from "@carma-cesium";
 import {
   CESIUM_UP_ROLL_RAD,
   computeCesiumPitchDistanceFromNadir,
   isCesiumPitchNearNadir,
 } from "@carma-commons/camera/model";
+import { negativePiToPi } from "@carma-commons/math";
 import { degToRadNumeric, type Radians } from "@carma-units";
 
 import { clearIsAnimating, setIsAnimating } from "../slices/cesium";
@@ -46,13 +46,8 @@ const useCameraRollSoftLimiter = ({
         if (!initialViewApplied) return;
         if (viewer.camera.position) {
           const currentPitch = viewer.camera.pitch as Radians;
-          const normalizedRoll = CesiumMath.negativePiToPi(viewer.camera.roll);
-          const rollDeviation = CesiumMath.equalsEpsilon(
-            normalizedRoll,
-            0,
-            0,
-            rollThreshold
-          );
+          const normalizedRoll = negativePiToPi(viewer.camera.roll);
+          const rollDeviation = Math.abs(normalizedRoll) <= rollThreshold;
 
           const isCloseToNadir = isCesiumPitchNearNadir(
             currentPitch,

@@ -1,15 +1,10 @@
 import { CESIUM_UP_ROLL_RAD } from "@carma-commons/camera/model";
 import { Easing } from "@carma-commons/math";
 import { clampToToleranceRange } from "@carma-commons/utils";
-import {
-  Cartesian3,
-  Cartographic,
-  CesiumMath,
-  defined,
-  type Scene,
-} from "@carma-cesium";
+import { degToRadNumeric } from "@carma-units";
+import { Cartesian3, Cartographic, defined, type Scene } from "@carma-cesium";
 
-export const OBLIQUE_PITCH_TOLERANCE = CesiumMath.toRadians(10);
+export const OBLIQUE_PITCH_TOLERANCE = degToRadNumeric(10)!;
 export const OBLIQUE_HEIGHT_TOLERANCE = 150.0;
 
 export interface CameraForceObliqueOptions {

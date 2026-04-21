@@ -113,10 +113,10 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
 }) => {
   const { isViewerReady, requestRender } = useCesiumContext();
   const { selectionFlyToCameraHeightRef } = useSelection();
-  const { updateHash, getHashValues } = useHashState();
+  const { updateHashState, getHashStateValues } = useHashState();
   // Read initial oblique mode from hash only once on mount
   const [isObliqueMode, setIsObliqueMode] = useState<boolean>(() => {
-    const { isOblique } = getHashValues();
+    const { isOblique } = getHashStateValues();
     return isOblique === "1";
   });
   const [lockFootprint, setLockFootprint] = useState(false);
@@ -195,10 +195,10 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   const performToggleAction = useCallback(() => {
     setIsObliqueMode((prevMode: boolean) => {
       const newMode = !prevMode;
-      updateHash?.({ isOblique: newMode ? "1" : undefined });
+      updateHashState?.({ isOblique: newMode ? "1" : undefined });
       return newMode;
     });
-  }, [setIsObliqueMode, updateHash]);
+  }, [setIsObliqueMode, updateHashState]);
 
   const toggleObliqueMode = useMemo(
     () => debounce(performToggleAction, DEBOUNCE_MS, DEBOUNCE_LEADING_EDGE),

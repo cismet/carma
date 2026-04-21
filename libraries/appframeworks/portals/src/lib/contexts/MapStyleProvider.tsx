@@ -28,9 +28,9 @@ export const MapStyleProvider = ({
   config,
 }: MapStyleProviderProps) => {
   const { defaultStyle } = config;
-  const { updateHash, getHashValues } = useHashState();
+  const { updateHashState, getHashStateValues } = useHashState();
   // get style on load from hash
-  const hashedStyle = getHashValues().mapStyle;
+  const hashedStyle = getHashStateValues().mapStyle;
   const initStyle =
     typeof hashedStyle === "string" &&
     config.availableStyles.includes(hashedStyle)
@@ -40,12 +40,12 @@ export const MapStyleProvider = ({
 
   useEffect(() => {
     // Update the hash state when the current style changes
-    updateHash(
-      // clear hash key if current style is default style
+    updateHashState(
+      // clear hash param if current style is default style
       { mapStyle: currentStyle === defaultStyle ? undefined : currentStyle },
       { label: "MapStyleProvider" }
     );
-  }, [currentStyle, updateHash, defaultStyle]);
+  }, [currentStyle, updateHashState, defaultStyle]);
 
   const value: MapStyleContextType = useMemo(
     () => ({

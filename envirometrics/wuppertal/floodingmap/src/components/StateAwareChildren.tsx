@@ -42,7 +42,7 @@ export const StateAwareChildren = () => {
     EnviroMetricMapContext
   );
   const { isLeaflet } = useMapFrameworkSwitcherContext();
-  const { updateHash } = useHashState();
+  const { updateHashState } = useHashState();
 
   const { executeFeatureInfoRequest, setBackgroundIndex } = useContext<
     typeof EnviroMetricMapDispatchContext
@@ -74,30 +74,30 @@ export const StateAwareChildren = () => {
       !controlState.featureInfoModeActivated ||
       !controlState.currentFeatureInfoPosition
     ) {
-      updateHash(undefined, {
+      updateHashState(undefined, {
         label: "app/hgk:query",
-        clearKeys: [...FLOODINGMAP_QUERY_HASH_CLEAR_KEYS],
+        clearStateKeys: [...FLOODINGMAP_QUERY_HASH_CLEAR_KEYS],
         replace: true,
       });
       return;
     }
 
     const [x, y] = controlState.currentFeatureInfoPosition;
-    updateHash(
+    updateHashState(
       {
         [FLOODINGMAP_HASH_KEYS.QUERY_X]: floorToMeterGrid(x),
         [FLOODINGMAP_HASH_KEYS.QUERY_Y]: floorToMeterGrid(y),
       },
       {
         label: "app/hgk:query",
-        clearKeys: [...FLOODINGMAP_QUERY_HASH_CLEAR_KEYS],
+        clearStateKeys: [...FLOODINGMAP_QUERY_HASH_CLEAR_KEYS],
         replace: true,
       }
     );
   }, [
     controlState.currentFeatureInfoPosition,
     controlState.featureInfoModeActivated,
-    updateHash,
+    updateHashState,
   ]);
 
   useEffect(() => {
@@ -285,7 +285,7 @@ export const StateAwareChildren = () => {
         lon: cesiumPickedPosition[1],
       });
 
-      updateHash(
+      updateHashState(
         {
           [FLOODINGMAP_HASH_KEYS.QUERY_X]: floorToMeterGrid(
             projectedQueryPosition.x
@@ -296,7 +296,7 @@ export const StateAwareChildren = () => {
         },
         {
           label: "app/hgk:query",
-          clearKeys: [...FLOODINGMAP_QUERY_HASH_CLEAR_KEYS],
+          clearStateKeys: [...FLOODINGMAP_QUERY_HASH_CLEAR_KEYS],
           replace: true,
         }
       );
@@ -310,7 +310,7 @@ export const StateAwareChildren = () => {
     cesiumPickedPosition,
     controlState.featureInfoModeActivated,
     executeFeatureInfoRequest,
-    updateHash,
+    updateHashState,
   ]);
 
   useHGKCesiumTerrain(

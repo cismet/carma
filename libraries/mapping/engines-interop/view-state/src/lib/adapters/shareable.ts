@@ -534,12 +534,19 @@ export const createViewStateShareableHashCodec = (
       return null;
     }
 
-    return applyToShareableViewState(state, resolveHashCodecOptions(options));
+    try {
+      return applyToShareableViewState(state, resolveHashCodecOptions(options));
+    } catch (error) {
+      if (!(error instanceof ShareableViewStateEncodingError)) {
+        throw error;
+      }
+      return null;
+    }
   },
-  decode: (hashValues) => {
+  decode: (hashParams) => {
     const resolvedOptions = resolveHashCodecOptions(options);
     const shareableViewState = readShareableViewState(
-      hashValues,
+      hashParams,
       resolvedOptions
     );
     return shareableViewState

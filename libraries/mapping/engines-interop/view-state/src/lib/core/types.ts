@@ -185,7 +185,7 @@ export type DerivedView = {
 // Navigation manager
 // ---------------------------------------------------------------------------
 
-export type ViewStateHashValues = Record<string, unknown>;
+export type ViewStateHashParams = Record<string, unknown>;
 
 export type ViewStateNavigationCommitReason =
   | "interaction-settled"
@@ -202,8 +202,8 @@ export type ViewStateNavigationEventType =
   (typeof VIEW_STATE_NAVIGATION_EVENT)[keyof typeof VIEW_STATE_NAVIGATION_EVENT];
 
 export type ViewStateHashCodec = {
-  encode: (state: ViewState | null | undefined) => ViewStateHashValues | null;
-  decode: (hashValues: ViewStateHashValues) => ViewState | null;
+  encode: (state: ViewState | null | undefined) => ViewStateHashParams | null;
+  decode: (hashParams: ViewStateHashParams) => ViewState | null;
 };
 
 export type ViewStateNavigationEvent = {

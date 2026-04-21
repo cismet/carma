@@ -19,7 +19,7 @@ import { defaultGazDataConfig } from "@carma-commons/resources";
 import { parseToMapLayer } from "@carma-mapping/utils";
 import { AuthProvider } from "@carma-providers/auth";
 
-import type { HashCodecs } from "@carma-providers/hash-state";
+import type { StateKeyToHashParamValueCodecMap } from "@carma-providers/hash-state";
 import {
   CarmaMapAPIProvider,
   type AddLayerOptions,
@@ -69,11 +69,11 @@ type CarmaMapProviderWrapperProps = {
   /** Redux store instance from the app for cross-library state access */
   store?: Store<PortalRootState>;
   /** @deprecated HashStateProvider should be placed higher in the tree. These props are ignored. */
-  hashKeyAliases?: Record<string, string>;
+  stateKeyAliases?: Record<string, string>;
   /** @deprecated HashStateProvider should be placed higher in the tree. These props are ignored. */
-  hashCodecs?: HashCodecs;
+  stateKeyToHashParamValueCodecMap?: StateKeyToHashParamValueCodecMap;
   /** @deprecated HashStateProvider should be placed higher in the tree. These props are ignored. */
-  keyOrder?: string[];
+  hashParamNameOrder?: string[];
   topicMapConfig?: {
     appKey?: string;
     featureItemsURL?: string;

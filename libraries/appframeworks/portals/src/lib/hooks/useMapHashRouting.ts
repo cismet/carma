@@ -14,18 +14,18 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import {
-  HASH_CLEAR_KEY_SET,
+  HASH_CLEAR_STATE_KEY_SET,
   useHashState,
-  type HashChangeEvent,
-  type RawHashParams,
+  type HashStateChangeEvent,
+  type HashParams,
 } from "@carma-providers/hash-state";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { isMapCenterZoomEquivalent } from "@carma-geo/utils";
 import { Degrees } from "@carma-units";
-import { useRegisterDefaultMapHashClearKeySets } from "./useRegisterDefaultMapHashClearKeySets";
+import { useRegisterDefaultMapHashClearStateKeySets } from "./useRegisterDefaultMapHashClearStateKeySets";
 
 export type LatLngZoom = { lat: number; lng: number; zoom: number };
-export type CesiumSceneChangeEvent = { hashParams: RawHashParams };
+export type CesiumSceneChangeEvent = { hashParams: HashParams };
 
 type Labels = {
   clearCesium?: string;
@@ -45,7 +45,7 @@ type LeafletLikeMap = {
 export interface UseMapHashRoutingOptions {
   getLeafletMap?: () => LeafletLikeMap | null | undefined;
   getLeafletZoom?: () => number;
-  additionalClearKeys?: string[];
+  additionalClearStateKeys?: string[];
   labels?: Labels;
   pixelTolerance?: number; // px
   isHashWriteEnabled?: () => boolean;
@@ -54,14 +54,15 @@ export interface UseMapHashRoutingOptions {
 export function useMapHashRouting({
   getLeafletMap,
   getLeafletZoom,
-  additionalClearKeys,
+  additionalClearStateKeys,
   labels,
   pixelTolerance,
   isHashWriteEnabled,
 }: UseMapHashRoutingOptions) {
-  useRegisterDefaultMapHashClearKeySets();
-  const resolvedAdditionalClearKeys = additionalClearKeys ?? [];
-  const { updateHash, registerOnPopState, getHashValues } = useHashState();
+  useRegisterDefaultMapHashClearStateKeySets();
+  const resolvedAdditionalClearStateKeys = additionalClearStateKeys ?? [];
+  const { updateHashState, registerOnPopState, getHashStateValues } =
+    useHashState();
   const { getIsLeaflet, getIsCesium, getIsTransitioning, activeFramework } =
     useMapFrameworkSwitcherContext();
 
@@ -129,7 +130,7 @@ export function useMapHashRouting({
       }
       // Skip writing if the map is already at the current hash location (within tolerance)
       try {
-        const vals = getHashValues?.() || {};
+        const vals = getHashStateValues?.() || {};
         const hLat = Number((vals as Record<string, unknown>).lat) as Degrees;
         const hLng = Number((vals as Record<string, unknown>).lng) as Degrees;
         const hZoom = Number((vals as Record<string, unknown>).zoom) as number;
@@ -158,14 +159,14 @@ export function useMapHashRouting({
           }
         }
       } catch {}
-      updateHash(
+      updateHashState(
         { lat, lng, zoom },
         {
-          clearKeySetIds: [
-            HASH_CLEAR_KEY_SET.SCENE_VIEW_STATE,
-            HASH_CLEAR_KEY_SET.LAUNCH_MODE,
+          clearStateKeySetIds: [
+            HASH_CLEAR_STATE_KEY_SET.SCENE_VIEW_STATE,
+            HASH_CLEAR_STATE_KEY_SET.LAUNCH_MODE,
           ],
-          clearKeys: resolvedAdditionalClearKeys,
+          clearStateKeys: resolvedAdditionalClearStateKeys,
           label: labels?.topicMapLocation ?? "Map:2D:location",
           replace: false,
         }
@@ -174,9 +175,9 @@ export function useMapHashRouting({
     [
       getIsLeaflet,
       getIsTransitioning,
-      updateHash,
-      getHashValues,
-      resolvedAdditionalClearKeys,
+      updateHashState,
+      getHashStateValues,
+      resolvedAdditionalClearStateKeys,
       labels?.topicMapLocation,
       pixelTolerance,
       isHashWriteEnabled,
@@ -189,15 +190,15 @@ export function useMapHashRouting({
         return;
       }
       if (!getIsCesium() || getIsTransitioning()) return;
-      updateHash(e.hashParams, {
-        clearKeys: ["zoom"],
+      updateHashState(e.hashParams, {
+        clearStateKeys: ["zoom"],
         label: labels?.cesiumScene ?? "Map:3D:scene",
         replace: true, // don't push to history until cesium handled history navigation
       });
     },
     [
       getIsCesium,
-      updateHash,
+      updateHashState,
       labels?.cesiumScene,
       getIsTransitioning,
       isHashWriteEnabled,
@@ -215,12 +216,12 @@ export function useMapHashRouting({
         return;
       }
       // Replace current entry to clear 3D-specific state
-      updateHash(undefined, {
-        clearKeySetIds: [
-          HASH_CLEAR_KEY_SET.SCENE_VIEW_STATE,
-          HASH_CLEAR_KEY_SET.LAUNCH_MODE,
+      updateHashState(undefined, {
+        clearStateKeySetIds: [
+          HASH_CLEAR_STATE_KEY_SET.SCENE_VIEW_STATE,
+          HASH_CLEAR_STATE_KEY_SET.LAUNCH_MODE,
         ],
-        clearKeys: resolvedAdditionalClearKeys,
+        clearStateKeys: resolvedAdditionalClearStateKeys,
         label: labels?.clearCesium ?? "Map:2D:clearCesium",
         replace: true,
       });
@@ -233,7 +234,7 @@ export function useMapHashRouting({
       ) {
         const center = map.getCenter();
         const zoom = getLeafletZoom();
-        updateHash(
+        updateHashState(
           {
             lat: center.lat,
             lng: center.lng,
@@ -247,10 +248,10 @@ export function useMapHashRouting({
   }, [
     getIsLeaflet,
     getIsTransitioning,
-    updateHash,
+    updateHashState,
     getLeafletMap,
     getLeafletZoom,
-    resolvedAdditionalClearKeys,
+    resolvedAdditionalClearStateKeys,
     labels?.clearCesium,
     labels?.writeLeafletLike,
     isHashWriteEnabled,
@@ -306,12 +307,12 @@ export function useMapHashRouting({
   useEffect(() => {
     if (!getLeafletMap) return;
 
-    const handlePopState = (e: HashChangeEvent) => {
+    const handlePopState = (e: HashStateChangeEvent) => {
       if (e.source !== "popstate") return;
       if (!getIsLeaflet()) return;
-      const lat = e.values.lat as number | undefined;
-      const lng = e.values.lng as number | undefined;
-      const zoomFromHash = e.values.zoom as number | undefined;
+      const lat = e.stateValues.lat as number | undefined;
+      const lng = e.stateValues.lng as number | undefined;
+      const zoomFromHash = e.stateValues.zoom as number | undefined;
       const fallbackZoom = getLeafletZoom?.();
       const zoom = zoomFromHash ?? fallbackZoom;
 

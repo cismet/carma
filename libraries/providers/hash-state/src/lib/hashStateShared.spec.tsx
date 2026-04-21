@@ -6,17 +6,17 @@ import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import {
-  HASH_CLEAR_KEY_SET,
-  HashStateProviderBase,
+  HASH_CLEAR_STATE_KEY_SET,
+  RoutedHashStateProvider,
   useHashState,
 } from "./hashStateShared";
 
 const TEST_ROUTED_PATH = "/test";
 
 const wrapper = ({ children }: PropsWithChildren) => (
-  <HashStateProviderBase routedPath={TEST_ROUTED_PATH}>
+  <RoutedHashStateProvider routedPath={TEST_ROUTED_PATH}>
     {children}
-  </HashStateProviderBase>
+  </RoutedHashStateProvider>
 );
 
 const setHash = (query: string) => {
@@ -24,7 +24,7 @@ const setHash = (query: string) => {
   window.history.replaceState({}, "", `#${TEST_ROUTED_PATH}${suffix}`);
 };
 
-describe("HashStateProviderBase alias handling", () => {
+describe("RoutedHashStateProvider alias handling", () => {
   beforeEach(() => {
     setHash("");
   });
@@ -34,7 +34,7 @@ describe("HashStateProviderBase alias handling", () => {
 
     const { result } = renderHook(() => useHashState(), { wrapper });
 
-    expect(result.current.getHashValues()).toEqual({});
+    expect(result.current.getHashStateValues()).toEqual({});
   });
 
   it("reads aliased scene-state keys into canonical decoded values", () => {
@@ -42,7 +42,7 @@ describe("HashStateProviderBase alias handling", () => {
 
     const { result } = renderHook(() => useHashState(), { wrapper });
 
-    expect(result.current.getHashValues()).toEqual({
+    expect(result.current.getHashStateValues()).toEqual({
       pitch: 45,
       bearing: 180,
       altitude: 157,
@@ -55,7 +55,7 @@ describe("HashStateProviderBase alias handling", () => {
 
     const { result } = renderHook(() => useHashState(), { wrapper });
 
-    expect(result.current.getHashValues()).toEqual({
+    expect(result.current.getHashStateValues()).toEqual({
       zoom: 17,
       pitch: 45,
     });
@@ -66,7 +66,7 @@ describe("HashStateProviderBase alias handling", () => {
 
     const { result } = renderHook(() => useHashState(), { wrapper });
 
-    expect(result.current.getHashValues()).toEqual({
+    expect(result.current.getHashStateValues()).toEqual({
       pitch: 45,
       bearing: 180,
     });
@@ -77,7 +77,7 @@ describe("HashStateProviderBase alias handling", () => {
 
     const { result } = renderHook(() => useHashState(), { wrapper });
 
-    expect(result.current.getHashValues()).toEqual({
+    expect(result.current.getHashStateValues()).toEqual({
       pitch: 40,
     });
   });
@@ -86,7 +86,7 @@ describe("HashStateProviderBase alias handling", () => {
     const { result } = renderHook(() => useHashState(), { wrapper });
 
     act(() => {
-      result.current.updateHash({
+      result.current.updateHashState({
         pitch: 45,
         bearing: 180,
         altitude: 157,
@@ -110,7 +110,7 @@ describe("HashStateProviderBase alias handling", () => {
     const { result } = renderHook(() => useHashState(), { wrapper });
 
     act(() => {
-      result.current.updateHash({
+      result.current.updateHashState({
         mapStyle: "unknown-style",
       });
     });
@@ -121,7 +121,7 @@ describe("HashStateProviderBase alias handling", () => {
 
     expect(searchParams.get("zoom")).toBe("17");
     expect(searchParams.has("m")).toBe(false);
-    expect(result.current.getHashValues()).toEqual({
+    expect(result.current.getHashStateValues()).toEqual({
       zoom: 17,
     });
   });
@@ -132,12 +132,12 @@ describe("HashStateProviderBase alias handling", () => {
     const { result } = renderHook(() => useHashState(), { wrapper });
 
     act(() => {
-      result.current.updateHash(
+      result.current.updateHashState(
         {
           pitch: 45,
         },
         {
-          clearKeySetIds: [HASH_CLEAR_KEY_SET.SCENE_VIEW_STATE],
+          clearStateKeySetIds: [HASH_CLEAR_STATE_KEY_SET.SCENE_VIEW_STATE],
         }
       );
     });
@@ -150,13 +150,13 @@ describe("HashStateProviderBase alias handling", () => {
     expect(searchParams.get("p")).toBe("45");
 
     act(() => {
-      result.current.updateHash(
+      result.current.updateHashState(
         {
           pitch: 45,
         },
         {
-          clearKeySetIds: [HASH_CLEAR_KEY_SET.SCENE_VIEW_STATE],
-          clearKeys: ["unmanagedhashparam"],
+          clearStateKeySetIds: [HASH_CLEAR_STATE_KEY_SET.SCENE_VIEW_STATE],
+          clearStateKeys: ["unmanagedhashparam"],
         }
       );
     });

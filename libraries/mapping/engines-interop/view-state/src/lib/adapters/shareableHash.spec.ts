@@ -372,6 +372,30 @@ describe("createViewStateShareableHashCodec", () => {
     );
   });
 
+  it("returns null instead of throwing when shareable encoding rejects the state", () => {
+    const codec = createShareableHashCodec();
+    const invalidState = buildViewState({
+      longitude: degToRadNumeric(7.19163)!,
+      latitude: degToRadNumeric(90)!,
+      altitude: 200,
+      bearing: degToRadNumeric(180)!,
+      pitch: degToRadNumeric(45)!,
+      range: 620,
+      intrinsics: {
+        type: CAMERA_TYPE.PERSPECTIVE,
+        fov: degToRadNumeric(60)!,
+      },
+      metadata: {
+        frameId: 1,
+        timestampMs: 1_700_000_000_000,
+        sourceId: "test",
+        source: "hash",
+      },
+    });
+
+    expect(codec.encode(invalidState)).toBeNull();
+  });
+
   it.each([
     [976, 732],
     [732, 976],

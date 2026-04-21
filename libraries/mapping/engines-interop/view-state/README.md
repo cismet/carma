@@ -6,8 +6,8 @@ Canonical runtime flow in this library:
    - pure read/apply adapters in `src/lib/adapters/*` plus runtime engine hooks in `src/lib/runtime/bridges/*`
 2. `ViewState <-> ShareableViewState`
    - pure adapter in `src/lib/adapters/shareable.ts`
-3. `ShareableViewState <-> hash key/value`
-   - `ShareableViewState` is the hash-equivalent numeric payload (degrees + rounded values)
+3. `ShareableViewState <-> hash params`
+   - `ShareableViewState` is the hash-equivalent numeric payload object (degrees + rounded values)
    - the same shareable adapter module owns parsing/normalization rules
    - navigation codec only performs thin transport wiring
 4. Navigation manager commits hash updates and restores initial state

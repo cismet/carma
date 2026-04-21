@@ -31,8 +31,8 @@ import { SYNC_TOKEN } from "./config/app.config";
 import { CESIUM_CONFIG } from "./config/cesium/cesium.config";
 import { gazDataConfig } from "./config/gazData";
 import {
-  FLOODINGMAP_HASH_CODECS,
-  FLOODINGMAP_HASH_KEY_ORDER,
+  FLOODINGMAP_HASH_PARAM_NAME_ORDER,
+  FLOODINGMAP_STATE_KEY_TO_HASH_PARAM_VALUE_CODEC_MAP,
 } from "./config/hash-state.config";
 import store from "./store";
 suppressReactCismapErrors();
@@ -62,8 +62,10 @@ const syncedApp = (
 
 const appWithContext = (
   <HashStateProvider
-    hashCodecs={FLOODINGMAP_HASH_CODECS}
-    keyOrder={FLOODINGMAP_HASH_KEY_ORDER}
+    stateKeyToHashParamValueCodecMap={
+      FLOODINGMAP_STATE_KEY_TO_HASH_PARAM_VALUE_CODEC_MAP
+    }
+    hashParamNameOrder={FLOODINGMAP_HASH_PARAM_NAME_ORDER}
   >
     <GazDataProvider config={gazDataConfig}>
       <SelectionProvider>

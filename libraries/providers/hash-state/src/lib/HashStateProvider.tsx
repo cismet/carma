@@ -1,35 +1,36 @@
-import React, { startTransition } from "react";
+import React from "react";
 
 import { useLocation } from "react-router-dom";
 
 import {
-  HASH_CHANGE_SOURCE,
-  HASH_CLEAR_KEY_SET,
-  HashStateProviderBase,
+  HASH_CLEAR_STATE_KEY_SET,
+  HASH_STATE_CHANGE_SOURCE,
+  RoutedHashStateProvider,
   useHashState,
-  type HashClearKeySetId,
-  type HashChangeEvent,
-  type HashChangeSource,
-  type HashCodecs,
-  type HashCodec,
-  type HashKeyAliases,
-  type HashKeyLookup,
-  type RawHashParams,
+  type HashClearStateKeySetId,
+  type StateKeyToHashParamValueCodecMap,
+  type HashParamValueCodec,
+  type HashStateChangeEvent,
+  type HashStateChangeSource,
+  type HashParamNameToStateKeyMap,
+  type HashParams,
+  type StateKeyToHashParamNameAliases,
+  type StateKeyToHashParamNameMap,
   type HashStateProviderSharedProps,
 } from "./hashStateShared";
-import { computeHashDiff } from "./utils";
 export {
-  HASH_CHANGE_SOURCE,
-  HASH_CLEAR_KEY_SET,
+  HASH_CLEAR_STATE_KEY_SET,
+  HASH_STATE_CHANGE_SOURCE,
   useHashState,
-  type HashClearKeySetId,
-  type HashChangeEvent,
-  type HashChangeSource,
-  type HashCodecs,
-  type HashCodec,
-  type HashKeyAliases,
-  type HashKeyLookup,
-  type RawHashParams,
+  type HashClearStateKeySetId,
+  type StateKeyToHashParamValueCodecMap,
+  type HashParamValueCodec,
+  type HashStateChangeEvent,
+  type HashStateChangeSource,
+  type HashParamNameToStateKeyMap,
+  type HashParams,
+  type StateKeyToHashParamNameAliases,
+  type StateKeyToHashParamNameMap,
   type HashStateProviderSharedProps,
 } from "./hashStateShared";
 
@@ -40,8 +41,8 @@ export const HashStateProvider: React.FC<HashStateProviderSharedProps> = ({
   const location = useLocation();
 
   return (
-    <HashStateProviderBase {...props} routedPath={location.pathname}>
+    <RoutedHashStateProvider {...props} routedPath={location.pathname}>
       {children}
-    </HashStateProviderBase>
+    </RoutedHashStateProvider>
   );
 };

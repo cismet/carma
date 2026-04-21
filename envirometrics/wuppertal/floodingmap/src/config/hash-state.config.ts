@@ -1,8 +1,8 @@
 import {
-  defaultHashCodecs,
-  defaultHashKeyOrder,
-  type HashCodec,
-  type HashCodecs,
+  defaultStateKeyToHashParamValueCodecMap,
+  defaultHashParamNameOrder,
+  type HashParamValueCodec,
+  type StateKeyToHashParamValueCodecMap,
 } from "@carma-providers/hash-state";
 
 export const FLOODINGMAP_HASH_KEYS = {
@@ -15,7 +15,7 @@ export const FLOODINGMAP_QUERY_HASH_CLEAR_KEYS = [
   FLOODINGMAP_HASH_KEYS.QUERY_Y,
 ] as const;
 
-const floodingmapQueryPositionHashCodec: HashCodec = {
+const floodingmapQueryPositionHashParamValueCodec: HashParamValueCodec = {
   decode: (value: string | undefined): number | undefined => {
     if (value === undefined) {
       return undefined;
@@ -33,13 +33,16 @@ const floodingmapQueryPositionHashCodec: HashCodec = {
   },
 };
 
-export const FLOODINGMAP_HASH_CODECS: HashCodecs = {
-  ...defaultHashCodecs,
-  [FLOODINGMAP_HASH_KEYS.QUERY_X]: floodingmapQueryPositionHashCodec,
-  [FLOODINGMAP_HASH_KEYS.QUERY_Y]: floodingmapQueryPositionHashCodec,
-};
+export const FLOODINGMAP_STATE_KEY_TO_HASH_PARAM_VALUE_CODEC_MAP: StateKeyToHashParamValueCodecMap =
+  {
+    ...defaultStateKeyToHashParamValueCodecMap,
+    [FLOODINGMAP_HASH_KEYS.QUERY_X]:
+      floodingmapQueryPositionHashParamValueCodec,
+    [FLOODINGMAP_HASH_KEYS.QUERY_Y]:
+      floodingmapQueryPositionHashParamValueCodec,
+  };
 
-export const FLOODINGMAP_HASH_KEY_ORDER: string[] = [
-  ...defaultHashKeyOrder,
+export const FLOODINGMAP_HASH_PARAM_NAME_ORDER: string[] = [
+  ...defaultHashParamNameOrder,
   ...FLOODINGMAP_QUERY_HASH_CLEAR_KEYS,
 ];

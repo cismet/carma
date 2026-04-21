@@ -1,22 +1,25 @@
 import { formatFixedNumber } from "@carma-commons/utils/number-format";
 
 import type {
-  HashCodec,
-  HashCodecs,
-  HashKeyAliases,
+  HashParamValueCodec,
+  StateKeyToHashParamValueCodecMap,
+  StateKeyToHashParamNameAliases,
 } from "../HashStateProvider";
 import {
-  SCENE_VIEW_STATE_HASH_KEY_ALIASES,
-  SCENE_VIEW_STATE_HASH_KEYS,
-  SCENE_VIEW_STATE_HASH_KEY_ORDER,
-} from "./hashKeys";
-export const sceneViewStateHashKeyAliases: HashKeyAliases =
-  SCENE_VIEW_STATE_HASH_KEY_ALIASES;
+  SCENE_VIEW_STATE_HASH_PARAM_NAMES,
+  SCENE_VIEW_STATE_HASH_PARAM_NAME_ORDER,
+  SCENE_VIEW_STATE_STATE_KEY_TO_HASH_PARAM_NAME_ALIASES,
+} from "./hashParamNames";
+export const sceneViewStateStateKeyToHashParamNameAliases: StateKeyToHashParamNameAliases =
+  SCENE_VIEW_STATE_STATE_KEY_TO_HASH_PARAM_NAME_ALIASES;
 
-export const sceneViewStateHashKeyOrder: string[] =
-  SCENE_VIEW_STATE_HASH_KEY_ORDER;
+export const sceneViewStateHashParamNameOrder: string[] =
+  SCENE_VIEW_STATE_HASH_PARAM_NAME_ORDER;
 
-const getNumberCodec = (fixed?: number, trailingZeros = false): HashCodec => ({
+const getNumberCodec = (
+  fixed?: number,
+  trailingZeros = false
+): HashParamValueCodec => ({
   encode: (value: unknown) => {
     if (typeof value === "string" && value.length > 0) {
       return value; // Allow preformatted string values to pass through as is
@@ -39,13 +42,14 @@ const getNumberCodec = (fixed?: number, trailingZeros = false): HashCodec => ({
     value !== undefined ? parseFloat(value) : undefined,
 });
 
-export const sceneViewStateHashCodecs: HashCodecs = Object.freeze({
-  [SCENE_VIEW_STATE_HASH_KEYS.LATITUDE]: getNumberCodec(7),
-  [SCENE_VIEW_STATE_HASH_KEYS.LONGITUDE]: getNumberCodec(7),
-  [SCENE_VIEW_STATE_HASH_KEYS.ZOOM]: getNumberCodec(3),
-  [SCENE_VIEW_STATE_HASH_KEYS.ALTITUDE]: getNumberCodec(2),
-  [SCENE_VIEW_STATE_HASH_KEYS.BEARING]: getNumberCodec(2),
-  [SCENE_VIEW_STATE_HASH_KEYS.PITCH]: getNumberCodec(2),
-  [SCENE_VIEW_STATE_HASH_KEYS.ROLL]: getNumberCodec(2),
-  [SCENE_VIEW_STATE_HASH_KEYS.FOV]: getNumberCodec(2),
-});
+export const sceneViewStateStateKeyToHashParamValueCodecMap: StateKeyToHashParamValueCodecMap =
+  Object.freeze({
+    [SCENE_VIEW_STATE_HASH_PARAM_NAMES.LATITUDE]: getNumberCodec(7),
+    [SCENE_VIEW_STATE_HASH_PARAM_NAMES.LONGITUDE]: getNumberCodec(7),
+    [SCENE_VIEW_STATE_HASH_PARAM_NAMES.ZOOM]: getNumberCodec(3),
+    [SCENE_VIEW_STATE_HASH_PARAM_NAMES.ALTITUDE]: getNumberCodec(2),
+    [SCENE_VIEW_STATE_HASH_PARAM_NAMES.BEARING]: getNumberCodec(2),
+    [SCENE_VIEW_STATE_HASH_PARAM_NAMES.PITCH]: getNumberCodec(2),
+    [SCENE_VIEW_STATE_HASH_PARAM_NAMES.ROLL]: getNumberCodec(2),
+    [SCENE_VIEW_STATE_HASH_PARAM_NAMES.FOV]: getNumberCodec(2),
+  });

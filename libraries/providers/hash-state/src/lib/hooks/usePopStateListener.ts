@@ -3,13 +3,13 @@ import { useEffect, type MutableRefObject } from "react";
 import { getHashParams } from "@carma-commons/utils";
 
 import type {
-  HashChangeEvent,
-  HashKeyLookup,
-  RawHashParams,
+  HashParamNameToStateKeyMap,
+  HashStateChangeEvent,
+  HashParams,
 } from "../HashStateProvider";
 import { computeHashDiff } from "../utils";
 const BROWSER_POPSTATE_EVENT = "popstate";
-const HASH_CHANGE_SOURCE_POPSTATE: HashChangeEvent["source"] =
+const HASH_CHANGE_SOURCE_POPSTATE: HashStateChangeEvent["source"] =
   BROWSER_POPSTATE_EVENT;
 
 /**
@@ -17,41 +17,46 @@ const HASH_CHANGE_SOURCE_POPSTATE: HashChangeEvent["source"] =
  * Does NOT listen to hashchange - hash is write-only after initial load.
  */
 export function usePopStateListener(
-  onPopState: (e: HashChangeEvent) => void,
-  prevRawRef: MutableRefObject<RawHashParams>,
-  getHashValues: () => Record<string, unknown>,
-  aliasReverseLookup: HashKeyLookup
+  onPopState: (e: HashStateChangeEvent) => void,
+  previousHashParamsRef: MutableRefObject<HashParams>,
+  getHashStateValues: () => Record<string, unknown>,
+  hashParamNameToStateKey: HashParamNameToStateKeyMap
 ) {
   useEffect(() => {
     const handlePopState = () => {
-      const beforeRaw = prevRawRef.current || {};
-      const afterRaw = getHashParams();
-      const { changedKeys, removedKeys } = computeHashDiff(
-        beforeRaw,
-        afterRaw,
-        aliasReverseLookup
+      const previousHashParams = previousHashParamsRef.current || {};
+      const nextHashParams = getHashParams();
+      const { changedStateKeys, removedStateKeys } = computeHashDiff(
+        previousHashParams,
+        nextHashParams,
+        hashParamNameToStateKey
       );
       onPopState({
-        raw: afterRaw,
-        values: getHashValues(),
-        changedKeys,
-        removedKeys,
+        hashParams: nextHashParams,
+        stateValues: getHashStateValues(),
+        changedStateKeys,
+        removedStateKeys,
         source: HASH_CHANGE_SOURCE_POPSTATE,
       });
       console.debug("[HASH]", {
         source: HASH_CHANGE_SOURCE_POPSTATE,
-        changedKeys,
-        removedKeys,
-        beforeRaw,
-        afterRaw,
+        changedStateKeys,
+        removedStateKeys,
+        previousHashParams,
+        nextHashParams,
         href: window.location.href,
       });
-      prevRawRef.current = afterRaw;
+      previousHashParamsRef.current = nextHashParams;
     };
 
     window.addEventListener(BROWSER_POPSTATE_EVENT, handlePopState);
     return () => {
       window.removeEventListener(BROWSER_POPSTATE_EVENT, handlePopState);
     };
-  }, [onPopState, getHashValues, aliasReverseLookup, prevRawRef]);
+  }, [
+    onPopState,
+    getHashStateValues,
+    hashParamNameToStateKey,
+    previousHashParamsRef,
+  ]);
 }

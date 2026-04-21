@@ -2,16 +2,10 @@ import {
   CESIUM_LOCAL_NORTH_HEADING_RAD,
   CESIUM_NADIR_PITCH_RAD,
 } from "@carma-commons/camera/model";
-import { Easing } from "@carma-commons/math";
+import { clamp, Easing, lerp, negativePiToPi } from "@carma-commons/math";
 
 import { isValidCamera } from "../../carma-guards";
-import {
-  Cartesian3,
-  CesiumMath,
-  HeadingPitchRange,
-  Matrix4,
-  Scene,
-} from "@carma-cesium";
+import { Cartesian3, HeadingPitchRange, Matrix4, Scene } from "@carma-cesium";
 
 const DEFAULT_MIN_RANGE = 10;
 const DEFAULT_MAX_RANGE = 40000;
@@ -95,7 +89,7 @@ export function animateInterpolateHeadingPitchRange(
       end: number,
       t: number
     ): number => {
-      const delta = CesiumMath.negativePiToPi(end - start);
+      const delta = negativePiToPi(end - start);
       return start + delta * t;
     };
 
@@ -104,15 +98,11 @@ export function animateInterpolateHeadingPitchRange(
       endHpr.heading,
       progress
     );
-    const currentPitch = CesiumMath.lerp(
-      startHpr.pitch,
-      endHpr.pitch,
-      progress
-    );
-    const currentRange = CesiumMath.clamp(
+    const currentPitch = lerp(startHpr.pitch, endHpr.pitch, progress);
+    const currentRange = clamp(
       useCurrentDistance
         ? startHpr.range
-        : CesiumMath.lerp(startHpr.range, endHpr.range, progress),
+        : lerp(startHpr.range, endHpr.range, progress),
       minRange,
       maxRange
     );
