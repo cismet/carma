@@ -55,6 +55,10 @@ const convertItemToFeature = async (itemIn, poiColors) => {
   const text = item.titel;
 
   const headerColor = adjustFeatureColors(item.thema.farbe);
+  if (item.fotos && item.fotos.length > 0) {
+    item.fotos.sort((a, b) => a.url.localeCompare(b.url));
+  }
+
   if (item.fotos && item.fotos.length > 0 && item.fotos[0].url.includes(".")) {
     item.foto = assetsBaseUrl + "fotos/" + item.fotos[0].url;
     item.originalPhotos = item.fotos;
