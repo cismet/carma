@@ -105,10 +105,7 @@ export interface MeasurementShapeData {
   customTitle?: string;
 }
 
-function buildFeatureTitle(
-  shape: MeasurementShapeData,
-  order: number
-): string {
+function buildFeatureTitle(shape: MeasurementShapeData, order: number): string {
   const label = shape.customTitle || (shape.area ? "Fläche" : "Linienzug");
   return `${label} #${order}`;
 }
@@ -124,7 +121,17 @@ function buildFeatureSubtitle(shape: MeasurementShapeData): string {
   return parts.join(" | ");
 }
 
-export function shapesToFeatureCollection(shapes: MeasurementShapeData[]) {
+export type ShapesToFeatureCollectionLayerInfo = {
+  title?: string;
+  icon?: string;
+  description?: string;
+  keywords?: string[];
+};
+
+export function shapesToFeatureCollection(
+  shapes: MeasurementShapeData[],
+  layerInfoOverrides?: ShapesToFeatureCollectionLayerInfo
+) {
   const features = shapes
     .map((shape, index) => ({ shape, order: index + 1 }))
     .filter(({ shape }) => shape.shapeId !== 5555)
@@ -166,7 +173,9 @@ export function shapesToFeatureCollection(shapes: MeasurementShapeData[]) {
         layerInfo: {
           title: "Messungen",
           icon: "measurement",
+          description: "",
           keywords: ["carmaconf://lazyInfoBox"],
+          ...layerInfoOverrides,
         },
       },
     },

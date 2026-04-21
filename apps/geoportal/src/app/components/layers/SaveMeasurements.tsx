@@ -41,18 +41,34 @@ function SaveMeasurements({ layer }: { layer: Layer }) {
     setEmojiPickerOpen(false);
   };
 
-  const handleSave = async () => {
-    if (shapes.length === 0) return;
-
-    const featureData = shapesToFeatureCollection(shapes);
+  const buildFeatureData = () => {
     const featureTitle = title.trim() || "Messung";
     const trimmedDescription = description.trim();
     const featureDescription = trimmedDescription
       ? `Inhalt: ${trimmedDescription}`
       : "";
 
-    featureData.metadata.carmaConf.layerInfo.title = featureTitle;
-    featureData.metadata.carmaConf.layerInfo.icon = `emoji:${selectedUnified}`;
+    const featureData = shapesToFeatureCollection(shapes, {
+      title: featureTitle,
+      icon: `emoji:${selectedUnified}`,
+      description: trimmedDescription,
+    });
+
+    return { featureData, featureTitle, featureDescription };
+  };
+
+  const resetForm = () => {
+    setTitle("");
+    setDescription("");
+    setSelectedUnified(DEFAULT_EMOJI_UNIFIED);
+    setClearAfterSave(false);
+  };
+
+  const handleSave = async () => {
+    if (shapes.length === 0) return;
+
+    const { featureData, featureTitle, featureDescription } =
+      buildFeatureData();
 
     const featureId = `measurement-${Date.now()}`;
     const carmaConf = featureData.metadata?.carmaConf;
@@ -87,10 +103,33 @@ function SaveMeasurements({ layer }: { layer: Layer }) {
       clearAllShapes();
     }
 
-    setTitle("");
-    setDescription("");
-    setSelectedUnified(DEFAULT_EMOJI_UNIFIED);
-    setClearAfterSave(false);
+    resetForm();
+    dispatch(setActiveInteractionLayerID(null));
+    dispatch(setUIMode(UIMode.DEFAULT));
+  };
+
+  const handleDownload = () => {
+    if (shapes.length === 0) return;
+
+    const { featureData, featureTitle } = buildFeatureData();
+
+    const blob = new Blob([JSON.stringify(featureData, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${featureTitle}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    if (clearAfterSave) {
+      clearAllShapes();
+    }
+
+    resetForm();
     dispatch(setActiveInteractionLayerID(null));
     dispatch(setUIMode(UIMode.DEFAULT));
   };
@@ -169,9 +208,22 @@ function SaveMeasurements({ layer }: { layer: Layer }) {
       >
         Messungen nach dem Speichern löschen
       </Checkbox>
-      <Button disabled={shapes.length === 0} onClick={handleSave}>
-        Messung speichern
-      </Button>
+      <div className="flex gap-2">
+        <Button
+          disabled={shapes.length === 0}
+          onClick={handleSave}
+          className="flex-1"
+        >
+          Zum Geoportal hinzufügen
+        </Button>
+        <Button
+          disabled={shapes.length === 0}
+          onClick={handleDownload}
+          className="flex-1"
+        >
+          Speichern
+        </Button>
+      </div>
     </div>
   );
 }
