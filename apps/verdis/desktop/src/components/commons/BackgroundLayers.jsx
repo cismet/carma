@@ -22,19 +22,6 @@ export const configuration = inIntranet
       //     format: "image/png",
       //   },
       // },
-      trueOrtho2024slow: {
-        title: "True Orthofoto 2024",
-        conf: {
-          type: "wms",
-          url: "https://maps.wuppertal.de/karten",
-          layers: "R102:trueortho2024",
-          tileSize: 256,
-          transparent: true,
-          pane: "backgroundLayers",
-          maxZoom: 26,
-          format: "image/png",
-        },
-      },
       trueOrtho2024: {
         title: "True Orthofoto 2024",
         conf: {
@@ -119,19 +106,6 @@ export const configuration = inIntranet
       },
     }
   : {
-      trueOrtho2024slow: {
-        title: "True Orthofoto 2024",
-        conf: {
-          type: "wms",
-          url: "https://maps.wuppertal.de/karten",
-          layers: "R102:trueortho2024",
-          tileSize: 256,
-          transparent: true,
-          pane: "backgroundLayers",
-          maxZoom: 26,
-          format: "image/png",
-        },
-      },
       trueOrtho2024: {
         title: "True Orthofoto 2024",
         conf: {
