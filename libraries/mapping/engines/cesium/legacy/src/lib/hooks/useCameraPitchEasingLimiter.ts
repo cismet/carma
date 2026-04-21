@@ -39,14 +39,15 @@ const computePitchDelta = (
 
 const computePitchDistanceToMinimum = (
   currentPitch: Radians,
-  minPitch: Radians
-): Radians => Math.abs(currentPitch - minPitch) as Radians;
+  minCesiumPitch: Radians
+): Radians => Math.abs(currentPitch - minCesiumPitch) as Radians;
 
 const computePitchEasingInput = (
   currentPitch: Radians,
-  minPitch: Radians,
+  minCesiumPitch: Radians,
   range: Radians
-): number => computePitchDistanceToMinimum(currentPitch, minPitch) / range;
+): number =>
+  computePitchDistanceToMinimum(currentPitch, minCesiumPitch) / range;
 
 const computeEasedPitchDelta = (
   pitchDelta: Radians,
@@ -56,13 +57,13 @@ const computeEasedPitchDelta = (
 const computeBoundedPitch = (
   lastPitch: Radians,
   newDelta: Radians,
-  minPitch: Radians
-): Radians => Math.min(lastPitch - newDelta, minPitch) as Radians;
+  minCesiumPitch: Radians
+): Radians => Math.min(lastPitch - newDelta, minCesiumPitch) as Radians;
 
-const computeMinRangePitch = (
-  minPitch: Radians,
-  minPitchRange: Radians
-): Radians => (minPitch - minPitchRange) as Radians;
+const computeCorrectionStartPitch = (
+  minCesiumPitch: Radians,
+  pitchCorrectionRange: Radians
+): Radians => (minCesiumPitch - pitchCorrectionRange) as Radians;
 
 const computeInterpolatedHeight = (
   unitEased: number,
@@ -86,7 +87,7 @@ const writeEasedPitchCorrectionScratch = (
   scratch: ScratchPitchCorrection,
   currentPitch: Radians,
   lastPitch: Radians,
-  minPitch: Radians,
+  minCesiumPitch: Radians,
   range: Radians,
   easing: EasingFunction
 ): ScratchPitchCorrection | null => {
@@ -99,10 +100,10 @@ const writeEasedPitchCorrectionScratch = (
     return null;
   }
 
-  const unitIn = computePitchEasingInput(currentPitch, minPitch, range);
+  const unitIn = computePitchEasingInput(currentPitch, minCesiumPitch, range);
   scratch.unitEased = easing(unitIn);
   const newDelta = computeEasedPitchDelta(pitchDelta, scratch.unitEased);
-  scratch.newPitch = computeBoundedPitch(lastPitch, newDelta, minPitch);
+  scratch.newPitch = computeBoundedPitch(lastPitch, newDelta, minCesiumPitch);
 
   return scratch;
 };
@@ -165,32 +166,41 @@ const resolvePitchEasingLimiterConfig = (
   enabled: boolean;
   pitchLimiter: boolean;
   easing: EasingFunction;
-  minPitch: Radians;
+  minCesiumPitch: Radians;
   range: Radians;
-  minRangePitch: Radians;
+  correctionStartPitch: Radians;
 } => {
-  const { pitchLimiter, minPitch, minPitchRange } =
+  const { pitchLimiter, minCesiumPitch, pitchCorrectionRange } =
     resolveCameraLimiterOptions(options);
   const enabled = options.enabled ?? true;
   const resolvedEasing = options.easing ?? Easing.CIRCULAR_IN;
-  const range = minPitchRange;
-  const minRangePitch = computeMinRangePitch(minPitch, minPitchRange);
+  const range = pitchCorrectionRange;
+  const correctionStartPitch = computeCorrectionStartPitch(
+    minCesiumPitch,
+    pitchCorrectionRange
+  );
 
   return {
     enabled,
     pitchLimiter,
     easing: resolvedEasing,
-    minPitch,
+    minCesiumPitch,
     range,
-    minRangePitch,
+    correctionStartPitch,
   };
 };
 
 const useCameraPitchEasingLimiter = (
   options: CameraPitchEasingLimiterOptions = {}
 ) => {
-  const { enabled, pitchLimiter, easing, minPitch, range, minRangePitch } =
-    resolvePitchEasingLimiterConfig(options);
+  const {
+    enabled,
+    pitchLimiter,
+    easing,
+    minCesiumPitch,
+    range,
+    correctionStartPitch,
+  } = resolvePitchEasingLimiterConfig(options);
   const viewer = useCesiumViewer();
   const { shouldSuspendCameraLimitersRef, initialViewApplied } =
     useCesiumContext();
@@ -208,10 +218,10 @@ const useCameraPitchEasingLimiter = (
   const hasLastPosition = useRef(false);
   const lastPosition = useRef(new Cartographic());
   const scratchPitchCorrectionRef = useRef(
-    createScratchPitchCorrection(minPitch)
+    createScratchPitchCorrection(minCesiumPitch)
   );
   const scratchSetViewPositionRef = useRef(new Cartographic());
-  const scratchSetViewRef = useRef(createScratchSetView(minPitch));
+  const scratchSetViewRef = useRef(createScratchSetView(minCesiumPitch));
 
   useEffect(() => {
     isAnimatingRef.current = isAnimating;
@@ -239,9 +249,8 @@ const useCameraPitchEasingLimiter = (
         }
 
         const currentPitch = camera.pitch as Radians;
-        const isPitchInRange = currentPitch > minRangePitch;
+        const isPitchInRange = currentPitch > correctionStartPitch;
 
-        //const isPitchTooLow = camera.pitch > minPitchRad;
         if (
           isPitchInRange &&
           lastPitch.current !== null &&
@@ -251,7 +260,7 @@ const useCameraPitchEasingLimiter = (
             scratchPitchCorrectionRef.current,
             currentPitch,
             lastPitch.current,
-            minPitch,
+            minCesiumPitch,
             range,
             easing
           );
@@ -289,8 +298,8 @@ const useCameraPitchEasingLimiter = (
     pitchLimiter,
     easing,
     range,
-    minPitch,
-    minRangePitch,
+    minCesiumPitch,
+    correctionStartPitch,
     initialViewApplied,
     shouldSuspendCameraLimitersRef,
   ]);

@@ -16,34 +16,36 @@ describe("resolveCameraLimiterOptions", () => {
 
     const resolved = resolveCameraLimiterOptions({
       pitchLimiter: null as never,
-      minPitchDeg: null as never,
-      minPitchRangeDeg: NaN,
+      maxPitchDeg: null as never,
+      maxPitchCorrectionRangeDeg: NaN,
     });
 
     expect(resolved.pitchLimiter).toBe(
       DEFAULT_CAMERA_LIMITER_OPTIONS.pitchLimiter
     );
-    expect(resolved.minPitch).toBeCloseTo(
-      degToRadNumeric(DEFAULT_CAMERA_LIMITER_OPTIONS.minPitchDeg - 90)!,
+    expect(resolved.minCesiumPitch).toBeCloseTo(
+      degToRadNumeric(DEFAULT_CAMERA_LIMITER_OPTIONS.maxPitchDeg - 90)!,
       12
     );
-    expect(resolved.minPitchRange).toBeCloseTo(
-      degToRadNumeric(DEFAULT_CAMERA_LIMITER_OPTIONS.minPitchRangeDeg)!,
+    expect(resolved.pitchCorrectionRange).toBeCloseTo(
+      degToRadNumeric(
+        DEFAULT_CAMERA_LIMITER_OPTIONS.maxPitchCorrectionRangeDeg
+      )!,
       12
     );
     expect(warnSpy).toHaveBeenCalled();
   });
 
-  it("clamps out-of-range degree values to the safe supported range", () => {
+  it("clamps out-of-range CARMA-view degree values to the safe supported range", () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     const resolved = resolveCameraLimiterOptions({
-      minPitchDeg: 22,
-      minPitchRangeDeg: 50,
+      maxPitchDeg: 22,
+      maxPitchCorrectionRangeDeg: 50,
     });
 
-    expect(resolved.minPitch).toBeCloseTo(degToRadNumeric(-68)!, 12);
-    expect(resolved.minPitchRange).toBeCloseTo(degToRadNumeric(22)!, 12);
+    expect(resolved.minCesiumPitch).toBeCloseTo(degToRadNumeric(-68)!, 12);
+    expect(resolved.pitchCorrectionRange).toBeCloseTo(degToRadNumeric(22)!, 12);
     expect(warnSpy).toHaveBeenCalled();
   });
 
@@ -52,13 +54,13 @@ describe("resolveCameraLimiterOptions", () => {
 
     const resolved = resolveCameraLimiterOptions({
       pitchLimiter: false,
-      minPitchDeg: 22,
-      minPitchRangeDeg: 8,
+      maxPitchDeg: 22,
+      maxPitchCorrectionRangeDeg: 8,
     });
 
     expect(resolved.pitchLimiter).toBe(false);
-    expect(resolved.minPitch).toBeCloseTo(degToRadNumeric(-68)!, 12);
-    expect(resolved.minPitchRange).toBeCloseTo(degToRadNumeric(8)!, 12);
+    expect(resolved.minCesiumPitch).toBeCloseTo(degToRadNumeric(-68)!, 12);
+    expect(resolved.pitchCorrectionRange).toBeCloseTo(degToRadNumeric(8)!, 12);
     expect(warnSpy).not.toHaveBeenCalled();
   });
 });

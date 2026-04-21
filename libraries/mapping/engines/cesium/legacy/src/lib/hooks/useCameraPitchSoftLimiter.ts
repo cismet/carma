@@ -52,9 +52,9 @@ const readPitchResetCenter = (
     ?.scenePosition ?? null;
 
 const computeResetPitch = (
-  minPitch: Radians,
-  minPitchRange: Radians
-): Radians => (minPitch - minPitchRange) as Radians;
+  minCesiumPitch: Radians,
+  pitchCorrectionRange: Radians
+): Radians => (minCesiumPitch - pitchCorrectionRange) as Radians;
 
 const writePitchResetFlightScratch = ({
   scratchFlight,
@@ -91,18 +91,18 @@ const resolvePitchSoftLimiterConfig = (
 ): {
   debug: boolean;
   pitchLimiter: boolean;
-  minPitch: Radians;
+  minCesiumPitch: Radians;
   resetPitch: Radians;
 } => {
-  const { pitchLimiter, minPitch, minPitchRange } =
+  const { pitchLimiter, minCesiumPitch, pitchCorrectionRange } =
     resolveCameraLimiterOptions(options);
   const debug = options.debug ?? false;
-  const resetPitch = computeResetPitch(minPitch, minPitchRange);
+  const resetPitch = computeResetPitch(minCesiumPitch, pitchCorrectionRange);
 
   return {
     debug,
     pitchLimiter,
-    minPitch,
+    minCesiumPitch,
     resetPitch,
   };
 };
@@ -110,7 +110,7 @@ const resolvePitchSoftLimiterConfig = (
 const useCameraPitchSoftLimiter = (
   options: CameraPitchSoftLimiterOptions = {}
 ) => {
-  const { debug, pitchLimiter, minPitch, resetPitch } =
+  const { debug, pitchLimiter, minCesiumPitch, resetPitch } =
     resolvePitchSoftLimiterConfig(options);
 
   const viewer = useCesiumViewer();
@@ -150,10 +150,11 @@ const useCameraPitchSoftLimiter = (
           console.debug(
             "HOOK [2D3D|CESIUM] Soft Pitch Limiter",
             viewer.camera.pitch,
-            minPitch,
+            minCesiumPitch,
             resetPitch
           );
-        const isPitchTooLow = collisions && viewer.camera.pitch > minPitch;
+        const isPitchTooLow =
+          collisions && viewer.camera.pitch > minCesiumPitch;
         if (isPitchTooLow) {
           debug &&
             console.debug(
@@ -198,7 +199,7 @@ const useCameraPitchSoftLimiter = (
     onComplete,
     dispatch,
     getScene,
-    minPitch,
+    minCesiumPitch,
     resetPitch,
     debug,
     initialViewApplied,

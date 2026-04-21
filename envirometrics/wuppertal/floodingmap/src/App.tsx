@@ -502,6 +502,7 @@ function App({ sync = false }: { sync?: boolean }) {
       createViewStateShareableHashCodec({
         defaultFovDeg: DEFAULT_HASH_FOV_DEG,
         zoomConvention: HASH_ZOOM_CONVENTION.LEAFLET_256,
+        cameraLimiterOptions: CESIUM_CONFIG.camera,
       }),
     []
   );
