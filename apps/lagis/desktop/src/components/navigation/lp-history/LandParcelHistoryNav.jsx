@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useCallback } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faChevronLeft,
@@ -23,6 +23,13 @@ function LandParcelHistoryNav() {
   const previous = useSelector(getPrevious);
   const next = useSelector(getNext);
   const [urlParams, setUrlParams] = useSearchParams();
+  const [prevOpen, setPrevOpen] = useState(false);
+  const [nextOpen, setNextOpen] = useState(false);
+
+  const closeDropdowns = useCallback(() => {
+    setPrevOpen(false);
+    setNextOpen(false);
+  }, []);
 
   const handleLParcelUpdate = (q) => {
     const searchParamsObj = convertLParcelStrToSetUrlParams(q);
@@ -33,7 +40,12 @@ function LandParcelHistoryNav() {
     items.map((item, idx) => ({
       key: `${idx}-${item}`,
       label: (
-        <div onClick={() => dispatch(actionCreator(handleLParcelUpdate, idx))}>
+        <div
+          onClick={() => {
+            closeDropdowns();
+            dispatch(actionCreator(handleLParcelUpdate, idx));
+          }}
+        >
           {item}
         </div>
       ),
@@ -61,15 +73,28 @@ function LandParcelHistoryNav() {
     onClick,
     icon,
     ariaLabel,
+    open,
+    onOpenChange,
   }) => (
-    <Dropdown menu={{ items }} placement={placement} disabled={disabled}>
+    <Dropdown
+      menu={{ items }}
+      placement={placement}
+      disabled={disabled}
+      open={open}
+      onOpenChange={onOpenChange}
+    >
       <button
         type="button"
         aria-label={ariaLabel}
         className={`${baseBtnClasses} ${
           disabled ? disabledClasses : enabledClasses
         }`}
-        onClick={() => !disabled && onClick()}
+        onClick={() => {
+          if (!disabled) {
+            closeDropdowns();
+            onClick();
+          }
+        }}
         disabled={disabled}
       >
         <FontAwesomeIcon icon={icon} className="text-xs" />
@@ -87,6 +112,8 @@ function LandParcelHistoryNav() {
         onClick: () => dispatch(hitPrevious(handleLParcelUpdate)),
         icon: faChevronLeft,
         ariaLabel: "Zurück",
+        open: prevOpen,
+        onOpenChange: setPrevOpen,
       })}
       {/* </Tooltip> */}
       {/* <Tooltip title="Klicken, um vorwärtszugehen"> */}
@@ -97,6 +124,8 @@ function LandParcelHistoryNav() {
         onClick: () => dispatch(hitNext(handleLParcelUpdate)),
         icon: faChevronRight,
         ariaLabel: "Vorwärts",
+        open: nextOpen,
+        onOpenChange: setNextOpen,
       })}
       {/* </Tooltip> */}
     </div>

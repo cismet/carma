@@ -15,6 +15,7 @@ interface MoreData {
   kid?: number;
   v?: string;
   g?: PolygonGeometryData;
+  parcel?: Record<string, unknown>;
 }
 
 export interface SearchResultItem {
