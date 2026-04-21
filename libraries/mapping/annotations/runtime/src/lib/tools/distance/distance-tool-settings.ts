@@ -1,62 +1,29 @@
 import {
-  runtimeMeasurementVisualDefaults,
-  type RuntimeEdgeVisualStyle,
-  type RuntimePointMarkerVisualStyle,
+  measurementVisualStyles,
+  type EdgeVisualStyle,
+  type PointMarkerVisualStyle,
+  withEdgeVisualStyle,
+  withPointMarkerVisualStyle,
 } from "../../config/measurement-visual-defaults";
 import { distanceToolVisualDefaults } from "./distance-tool-visual-defaults";
 
 export type DistanceToolVisualSettings = {
-  edge: RuntimeEdgeVisualStyle;
-  selectedEdge: RuntimeEdgeVisualStyle;
-  previewEdge: RuntimeEdgeVisualStyle;
-  point: RuntimePointMarkerVisualStyle;
-  selectedPoint: RuntimePointMarkerVisualStyle;
-  previewPoint: RuntimePointMarkerVisualStyle;
+  edge: EdgeVisualStyle;
+  point: PointMarkerVisualStyle;
 };
 
 export type DistanceToolSettings = {
   visuals: DistanceToolVisualSettings;
 };
 
-const defaults = runtimeMeasurementVisualDefaults;
+const defaults = measurementVisualStyles;
 
-export const createDistanceToolSettings = (_badgeStyle: {
-  backgroundColor: string;
-  textColor: string;
-  selectionColor: string;
-}): DistanceToolSettings => ({
+export const createDistanceToolSettings = (): DistanceToolSettings => ({
   visuals: {
-    edge: {
-      stroke: defaults.colors.accent,
+    edge: withEdgeVisualStyle(defaults.edge, {
       strokeWidth: distanceToolVisualDefaults.dashedLine.strokeWidthPx,
       dashed: true,
-    },
-    selectedEdge: {
-      stroke: defaults.colors.neutral,
-      strokeWidth: distanceToolVisualDefaults.dashedLine.strokeWidthPx,
-      dashed: true,
-    },
-    previewEdge: {
-      stroke: defaults.colors.preview,
-      strokeWidth: defaults.sizes.edgeStrokeWidth,
-    },
-    point: {
-      pixelSize: defaults.sizes.pointPixelSize,
-      fill: defaults.colors.transparent,
-      outline: defaults.colors.surface,
-      outlineWidth: defaults.sizes.pointOutlineWidth,
-    },
-    selectedPoint: {
-      pixelSize: defaults.sizes.selectedPointPixelSize,
-      fill: defaults.colors.transparent,
-      outline: _badgeStyle.selectionColor,
-      outlineWidth: defaults.sizes.pointOutlineWidth,
-    },
-    previewPoint: {
-      pixelSize: defaults.sizes.previewPointPixelSize,
-      fill: defaults.colors.preview,
-      outline: defaults.colors.surface,
-      outlineWidth: defaults.sizes.pointOutlineWidth,
-    },
+    }),
+    point: withPointMarkerVisualStyle(defaults.point),
   },
 });

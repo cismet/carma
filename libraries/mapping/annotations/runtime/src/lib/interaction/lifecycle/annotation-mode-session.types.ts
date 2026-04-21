@@ -1,17 +1,17 @@
-import type { RuntimeCoordinate, RuntimeNodeLinkId } from "../../store";
-import type { RuntimeToolId } from "../../types/runtime-tool.types";
+import type { AnnotationToolType } from "@carma-mapping/annotations/core";
+import type { CesiumGeographicCoordinate, AnnotationNodeLinkId } from "../../store";
 export type AnnotationModeSession = {
-  toolType: RuntimeToolId;
+  toolType: AnnotationToolType;
   requestStart: () => void;
   requestFinish: () => boolean;
   discardDraft: () => void;
   onNodeCreated?: (
-    coordinate: RuntimeCoordinate,
-    linkedNodeGroupId?: RuntimeNodeLinkId | null
+    coordinate: CesiumGeographicCoordinate,
+    linkedNodeGroupId?: AnnotationNodeLinkId | null
   ) => void;
   finishesOnLoopClosure?: boolean;
 };
 
 export type AnnotationModeSessionMap = Partial<
-  Record<RuntimeToolId, AnnotationModeSession>
+  Record<AnnotationToolType, AnnotationModeSession>
 >;

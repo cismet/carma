@@ -1,8 +1,5 @@
 import {
   buildVerticalRectangleCornerFromDiagonal,
-  computePolygonGroupDerivedData,
-  type NodeChainAnnotation,
-  ANNOTATION_TYPES,
 } from "@carma-mapping/annotations/core";
 import { Cartesian3 } from "@carma-cesium";
 import {
@@ -10,13 +7,11 @@ import {
   getEllipsoidalAltitudeOrZero,
 } from "@carma-mapping/engines/cesium/core";
 import type {
-  RuntimeAddAnnotationOptions,
-  RuntimeCoordinate,
-  RuntimeNodeLinkId,
-  RuntimeMeasurement,
+  AddAnnotationOptions,
+  CesiumGeographicCoordinate,
+  AnnotationNodeLinkId,
+  StoredAnnotation,
 } from "../../store";
-const { AREA_VERTICAL: ANNOTATION_TYPE_AREA_VERTICAL } = ANNOTATION_TYPES;
-
 export type VerticalAreaToolAction = "undoLastPoint" | "cancelPreview";
 
 export const appendVerticalAreaPreviewPoint = <T>(
@@ -24,7 +19,7 @@ export const appendVerticalAreaPreviewPoint = <T>(
   nextItem: T
 ) => [...previousItems.slice(0, 1), nextItem];
 
-export const clearVerticalAreaPreview = (): readonly RuntimeCoordinate[] => [];
+export const clearVerticalAreaPreview = (): readonly CesiumGeographicCoordinate[] => [];
 
 export const undoVerticalAreaPreviewPoint = <T>(previousItems: readonly T[]) =>
   previousItems.slice(0, -1);
@@ -33,12 +28,12 @@ const cartesianFromRuntimeCoordinate = ({
   longitude,
   latitude,
   altitude,
-}: RuntimeCoordinate): Cartesian3 =>
+}: CesiumGeographicCoordinate): Cartesian3 =>
   Cartesian3.fromDegrees(longitude, latitude, altitude);
 
 const runtimeCoordinateFromCartesian = (
   coordinateECEF: Cartesian3
-): RuntimeCoordinate => {
+): CesiumGeographicCoordinate => {
   const coordinateWgs84 = getDegreesFromCartesian(coordinateECEF);
 
   return {
@@ -48,50 +43,13 @@ const runtimeCoordinateFromCartesian = (
   };
 };
 
-const deriveVerticalAreaAnnotationOptions = (
-  rectangleCornerPositions: readonly Cartesian3[]
-): RuntimeAddAnnotationOptions => {
-  const pointById = new Map(
-    rectangleCornerPositions.map((position, index) => [
-      `vertical-area-node-${index}`,
-      position,
-    ])
-  );
-
-  const derivedMeasurement = computePolygonGroupDerivedData(
-    {
-      id: "vertical-area-preview",
-      type: ANNOTATION_TYPE_AREA_VERTICAL,
-      nodeIds: [
-        "vertical-area-node-0",
-        "vertical-area-node-1",
-        "vertical-area-node-2",
-        "vertical-area-node-3",
-      ],
-      edgeRelationIds: [],
-      closed: true,
-      planeLocked: true,
-      areaSquareMeters: 0,
-      verticalityDeg: 0,
-    } satisfies NodeChainAnnotation,
-    pointById
-  );
-
-  return {
-    closed: true,
-    areaSquareMeters: Math.max(0, derivedMeasurement.areaSquareMeters ?? 0),
-    verticalityDeg: derivedMeasurement.verticalityDeg ?? 0,
-    bearingDeg: derivedMeasurement.bearingDeg,
-  };
-};
-
 const buildVerticalAreaMeasurementPayload = (
-  coordinates: readonly RuntimeCoordinate[],
-  linkedNodeGroupIds: readonly (RuntimeNodeLinkId | null | undefined)[] = []
+  coordinates: readonly CesiumGeographicCoordinate[],
+  linkedNodeGroupIds: readonly (AnnotationNodeLinkId | null | undefined)[] = []
 ): {
-  coordinates: readonly RuntimeCoordinate[];
-  options: RuntimeAddAnnotationOptions;
-  linkedNodeGroupIds: readonly (RuntimeNodeLinkId | null | undefined)[];
+  coordinates: readonly CesiumGeographicCoordinate[];
+  options?: AddAnnotationOptions;
+  linkedNodeGroupIds: readonly (AnnotationNodeLinkId | null | undefined)[];
 } | null => {
   if (coordinates.length < 2) {
     return null;
@@ -117,7 +75,7 @@ const buildVerticalAreaMeasurementPayload = (
 
   return {
     coordinates: rectangleCornerPositions.map(runtimeCoordinateFromCartesian),
-    options: deriveVerticalAreaAnnotationOptions(rectangleCornerPositions),
+    options: undefined,
     linkedNodeGroupIds: [
       linkedNodeGroupIds[0] ?? null,
       null,
@@ -129,17 +87,17 @@ const buildVerticalAreaMeasurementPayload = (
 
 type CommitVerticalAreaMeasurementArgs = {
   addAnnotation: (
-    toolType: RuntimeMeasurement["toolType"],
-    nextCoordinates: readonly RuntimeCoordinate[],
-    options?: RuntimeAddAnnotationOptions,
-    linkedNodeGroupIds?: readonly (RuntimeNodeLinkId | null | undefined)[]
-  ) => RuntimeMeasurement;
+    toolType: StoredAnnotation["toolType"],
+    nextCoordinates: readonly CesiumGeographicCoordinate[],
+    options?: AddAnnotationOptions,
+    linkedNodeGroupIds?: readonly (AnnotationNodeLinkId | null | undefined)[]
+  ) => StoredAnnotation;
 };
 
 export const commitVerticalAreaMeasurement = (
-  toolType: RuntimeMeasurement["toolType"],
-  coordinates: readonly RuntimeCoordinate[],
-  linkedNodeGroupIds: readonly (RuntimeNodeLinkId | null | undefined)[] = [],
+  toolType: StoredAnnotation["toolType"],
+  coordinates: readonly CesiumGeographicCoordinate[],
+  linkedNodeGroupIds: readonly (AnnotationNodeLinkId | null | undefined)[] = [],
   { addAnnotation }: CommitVerticalAreaMeasurementArgs
 ) => {
   const payload = buildVerticalAreaMeasurementPayload(

@@ -1,78 +1,65 @@
 import type {
-  RuntimeMeasurementType,
-  RuntimeToolId,
-} from "../types/runtime-tool.types";
+  AnnotationLabelAppearance,
+  AnnotationToolType,
+  AnnotationType,
+} from "@carma-mapping/annotations/core";
+import type { CesiumGeographicCoordinate } from "@carma-mapping/engines/cesium/core";
 import type {
   RuntimeDistanceTriangleAnchorCoordinateRole,
   RuntimePointLabelCoordinateSelection,
 } from "../render/measurement-render-models";
+export type { CesiumGeographicCoordinate } from "@carma-mapping/engines/cesium/core";
+export type { AnnotationLabelAppearance } from "@carma-mapping/annotations/core";
 
-export type RuntimeCoordinate = {
-  latitude: number;
-  longitude: number;
-  altitude: number;
-};
+export type AnnotationNodeLinkId = string;
 
-export type RuntimeNodeLinkId = string;
-
-export type RuntimeNode = {
+export type AnnotationNode = {
   id: string;
-  coordinate: RuntimeCoordinate;
+  coordinate: CesiumGeographicCoordinate;
 };
 
-export type RuntimeNodeId = RuntimeNode["id"];
+export type AnnotationNodeId = AnnotationNode["id"];
 
-export type RuntimeNodeLink = {
-  id: RuntimeNodeLinkId;
+export type AnnotationNodeLink = {
+  id: AnnotationNodeLinkId;
   nodeIds: string[];
 };
 
-export type RuntimeEdge = {
+export type AnnotationEdge = {
   id: string;
   startNodeId: string;
   endNodeId: string;
 };
 
-export const RUNTIME_ELEVATION_DISPLAY_MODE = {
+export const ANNOTATION_ELEVATION_DISPLAY_MODES = {
   RELATIVE: "relative",
   ABSOLUTE: "absolute",
 } as const;
 
-export type RuntimeElevationDisplayMode =
-  (typeof RUNTIME_ELEVATION_DISPLAY_MODE)[keyof typeof RUNTIME_ELEVATION_DISPLAY_MODE];
+export type AnnotationElevationDisplayMode =
+  (typeof ANNOTATION_ELEVATION_DISPLAY_MODES)[keyof typeof ANNOTATION_ELEVATION_DISPLAY_MODES];
 
-export type RuntimeAnnotationEntry = {
+export type StoredAnnotation = {
   id: string;
-  toolType: RuntimeMeasurementType;
+  toolType: AnnotationType;
   nodeIds: readonly string[];
   edgeIds: readonly string[];
   displayName?: string;
   shortLabel?: string;
   hidden?: boolean;
   locked?: boolean;
-  labelAppearance?: RuntimeLabelAppearance;
-  elevationDisplayMode?: RuntimeElevationDisplayMode;
+  labelAppearance?: AnnotationLabelAppearance;
+  elevationDisplayMode?: AnnotationElevationDisplayMode;
   distanceAnchorCoordinateSelection?: RuntimePointLabelCoordinateSelection;
   distanceTriangleAnchorCoordinateRole?: RuntimeDistanceTriangleAnchorCoordinateRole;
-  temporary?: boolean;
   closed?: boolean;
-  areaSquareMeters?: number;
-  verticalityDeg?: number;
-  bearingDeg?: number;
+  preferredNormalBearingDeg?: number;
 };
 
-export type RuntimeLabelAppearance = {
-  fontSizePx?: number;
-  backgroundColor?: string;
-  textColor?: string;
-};
-
-export type RuntimeAddAnnotationOptions = Pick<
-  RuntimeAnnotationEntry,
+export type AddAnnotationOptions = Pick<
+  StoredAnnotation,
   | "closed"
-  | "areaSquareMeters"
-  | "verticalityDeg"
-  | "bearingDeg"
+  | "preferredNormalBearingDeg"
   | "displayName"
   | "shortLabel"
   | "hidden"
@@ -83,8 +70,6 @@ export type RuntimeAddAnnotationOptions = Pick<
   | "distanceTriangleAnchorCoordinateRole"
 >;
 
-export type RuntimeMeasurement = RuntimeAnnotationEntry;
-
 export type AnnotationSelectionStoreState = {
   selectedAnnotationIds: readonly string[];
   previousSelectedAnnotationId: string | null;
@@ -94,12 +79,6 @@ export type AnnotationInfoBoxStoreState = {
   activeAnnotationId: string | null;
 };
 
-export type AnnotationDraftStoreState = {
-  pendingAnnotationIdByToolType: Readonly<
-    Partial<Record<RuntimeToolId, string | null>>
-  >;
-};
-
 export type AnnotationSettingsStoreState = {
   pointTemporaryMode: boolean;
   elevationReferenceAnnotationId: string | null;
@@ -107,13 +86,12 @@ export type AnnotationSettingsStoreState = {
 };
 
 export type AnnotationsStoreState = {
-  annotationToolType: RuntimeToolId;
+  annotationToolType: AnnotationToolType;
   selectionState: AnnotationSelectionStoreState;
-  annotationEntries: readonly RuntimeAnnotationEntry[];
-  nodes: readonly RuntimeNode[];
-  linkedNodeGroups: readonly RuntimeNodeLink[];
-  edges: readonly RuntimeEdge[];
+  annotationEntries: readonly StoredAnnotation[];
+  nodes: readonly AnnotationNode[];
+  linkedNodeGroups: readonly AnnotationNodeLink[];
+  edges: readonly AnnotationEdge[];
   infoBoxState: AnnotationInfoBoxStoreState;
   settingsState: AnnotationSettingsStoreState;
-  draftState: AnnotationDraftStoreState;
 };

@@ -31,6 +31,7 @@ export type RingSegmentOptions = {
   materialPreset?: RingMaterialPreset;
   segments?: number;
   modelMatrix?: Matrix4;
+  asynchronous?: boolean;
 };
 
 export type RingOptions = Omit<RingSegmentOptions, "angleRad" | "rotationRad">;
@@ -390,6 +391,7 @@ const createPrimitiveFill = ({
   opacity,
   materialPreset,
   modelMatrix,
+  asynchronous = true,
 }: {
   id: string;
   geometry: CoplanarPolygonGeometry;
@@ -397,6 +399,7 @@ const createPrimitiveFill = ({
   opacity: number;
   materialPreset: RingMaterialPreset;
   modelMatrix: Matrix4;
+  asynchronous?: boolean;
 }) => {
   const materialColor = Color.fromAlpha(color, opacity, new Color());
 
@@ -408,7 +411,7 @@ const createPrimitiveFill = ({
       }),
       appearance: createSolidColorAppearance(materialColor),
       allowPicking: false,
-      asynchronous: true,
+      asynchronous,
       releaseGeometryInstances: true,
       show: true,
       modelMatrix,
@@ -422,7 +425,7 @@ const createPrimitiveFill = ({
     }),
     appearance: createDiscShaderAppearance(materialPreset, materialColor),
     allowPicking: false,
-    asynchronous: true,
+    asynchronous,
     releaseGeometryInstances: true,
     show: true,
     modelMatrix,
@@ -500,6 +503,7 @@ export const createRingSegment = (
     opacity: resolvedOptions.opacity,
     materialPreset: resolvedOptions.materialPreset,
     modelMatrix: resolvedOptions.modelMatrix,
+    asynchronous: options.asynchronous,
   });
 };
 

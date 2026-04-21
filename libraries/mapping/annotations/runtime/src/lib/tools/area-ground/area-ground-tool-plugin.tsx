@@ -1,6 +1,5 @@
 import { VectorSquareIcon } from "@carma-commons/ui/components";
 import {
-  DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG,
   formatMeasurementShortLabelToken,
   type AnnotationToolType,
   ANNOTATION_TYPES,
@@ -18,24 +17,20 @@ import {
   commitAreaMeasurement,
   undoAreaPreviewPoint,
 } from "../area-shared/node-chain-area-tool-actions";
+import { resolveAreaToolAddAnnotationOptions } from "../area-shared/resolve-area-tool-add-annotation-options";
 import { resolveNodeChainAreaToolKeyAction } from "../area-shared/node-chain-area-tool-bindings";
 import { createNodeChainAreaToolInfoBoxSlots } from "../area-shared/node-chain-area-tool-info-box-slots";
-import { buildNodeChainAreaToolRenderModels } from "../area-shared/node-chain-area-tool-render-models";
-import { createNodeChainAreaToolSettings } from "../area-shared/node-chain-area-tool-settings";
+import {
+  buildNodeChainAreaToolRenderModels,
+  createNodeChainAreaToolVisuals,
+} from "../area-shared/node-chain-area-tool-render-models";
 import { ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME } from "../../config/annotation-measurement-label-themes";
 const { AREA_GROUND: ANNOTATION_TYPE_AREA_GROUND } = ANNOTATION_TYPES;
 
 const toolType = ANNOTATION_TYPE_AREA_GROUND;
 const labelTheme = ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME;
-const badgeStyle = {
-  ...DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG[toolType],
-  backgroundColor: labelTheme.scheme.colorPrimary,
-  textColor: labelTheme.scheme.textColor,
-};
-const areaGroundToolSettings = createNodeChainAreaToolSettings({
-  badgeStyle,
-  fill: "rgba(107, 188, 123, 0.25)",
-  selectedFill: "rgba(107, 188, 123, 0.35)",
+const areaGroundToolVisuals = createNodeChainAreaToolVisuals({
+  fillType: toolType,
 });
 const getAreaGroundToolInfoBoxSlots = createNodeChainAreaToolInfoBoxSlots(
   toolType,
@@ -62,6 +57,7 @@ export const areaGroundToolPlugin = createMeasurementToolPlugin({
   ],
   capabilities: [
     ...AUTHORING_MEASUREMENT_PLUGIN_CAPABILITIES,
+    ANNOTATION_TOOL_PLUGIN_CAPABILITIES.ADD_ANNOTATION,
     ANNOTATION_TOOL_PLUGIN_CAPABILITIES.INFO_BOX,
   ],
   session: {
@@ -106,6 +102,9 @@ export const areaGroundToolPlugin = createMeasurementToolPlugin({
     onPointCreated: ({ coordinate, linkedNodeGroupId, activeToolSession }) => {
       activeToolSession?.onNodeCreated?.(coordinate, linkedNodeGroupId);
     },
+  },
+  addAnnotation: {
+    resolveOptions: resolveAreaToolAddAnnotationOptions,
   },
   authoringVisuals: {
     createController: (context) =>
@@ -152,7 +151,7 @@ export const areaGroundToolPlugin = createMeasurementToolPlugin({
     }) =>
       buildNodeChainAreaToolRenderModels({
         toolType,
-        visuals: areaGroundToolSettings.visuals,
+        visuals: areaGroundToolVisuals,
         nodes,
         measurements: annotationEntries,
         selectedMeasurementIds: selectedAnnotationIds,

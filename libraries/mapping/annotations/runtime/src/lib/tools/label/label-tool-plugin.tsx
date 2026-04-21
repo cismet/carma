@@ -1,41 +1,21 @@
 import { faMessage } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG,
-  type AnnotationToolType,
-  ANNOTATION_TYPES,
-} from "@carma-mapping/annotations/core";
+import { type AnnotationToolType, ANNOTATION_TYPES } from "@carma-mapping/annotations/core";
 import { ANNOTATION_TOOL_PLUGIN_CAPABILITIES } from "../annotation-tool-plugin.types";
-import {
-  getPendingAnnotationIdForTool,
-  removeAnnotationById,
-  setPendingAnnotationIdByToolType,
-} from "../../store";
 import {
   BASE_MEASUREMENT_PLUGIN_CAPABILITIES,
   createMeasurementToolPlugin,
 } from "../plugin-factories";
-import { ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME } from "../../config/annotation-measurement-label-themes";
 import { createLabelToolInfoBoxSlots } from "./label-tool-info-box-slots";
 import {
   createLabelMeasurement,
   getDefaultLabelDisplayName,
 } from "./label-tool-actions";
 import { buildLabelToolRenderModels } from "./label-tool-render-models";
-import { createLabelToolSettings } from "./label-tool-settings";
 const { LABEL: ANNOTATION_TYPE_LABEL } = ANNOTATION_TYPES;
 
 const toolType = ANNOTATION_TYPE_LABEL;
-const labelTheme = ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME;
-const badgeStyle = {
-  ...DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG[toolType],
-  backgroundColor: labelTheme.scheme.colorPrimary,
-  textColor: labelTheme.scheme.textColor,
-};
-const labelToolSettings = createLabelToolSettings(badgeStyle);
-const getLabelToolInfoBoxSlots = createLabelToolInfoBoxSlots(toolType, {
-  headingColor: labelTheme.scheme.colorPrimary,
-});
+const getLabelToolInfoBoxSlots = createLabelToolInfoBoxSlots(toolType);
 
 export const labelToolPlugin = createMeasurementToolPlugin({
   id: toolType satisfies AnnotationToolType,
@@ -48,93 +28,31 @@ export const labelToolPlugin = createMeasurementToolPlugin({
   },
   helpText: [
     "Klicken, um eine Beschriftung zu platzieren.",
-    "Die neue Beschriftung bleibt aktiv, bis sie bestätigt oder verworfen wird.",
+    "Aussehen und Text koennen danach direkt im Info-Panel angepasst werden.",
   ],
   capabilities: [
     ...BASE_MEASUREMENT_PLUGIN_CAPABILITIES,
     ANNOTATION_TOOL_PLUGIN_CAPABILITIES.INFO_BOX,
   ],
   session: {
-    createSession: ({
-      dispatch,
-      getState,
-      setActiveToolType,
-      addAnnotation,
-    }) => ({
+    createSession: ({ getState, setActiveToolType, addAnnotation }) => ({
       toolType,
       requestStart: () => {
         setActiveToolType(toolType);
       },
-      requestFinish: () => {
-        const pendingAnnotationId = getPendingAnnotationIdForTool(
-          getState().draftState,
-          toolType
-        );
-        if (!pendingAnnotationId) {
-          return false;
-        }
-
-        dispatch(
-          setPendingAnnotationIdByToolType({
-            toolType,
-            annotationId: null,
-          })
-        );
-        return true;
-      },
-      discardDraft: () => {
-        const pendingAnnotationId = getPendingAnnotationIdForTool(
-          getState().draftState,
-          toolType
-        );
-        if (!pendingAnnotationId) {
-          return;
-        }
-
-        dispatch(
-          removeAnnotationById({
-            annotationId: pendingAnnotationId,
-            nextSelectedAnnotationId: null,
-          })
-        );
-        dispatch(
-          setPendingAnnotationIdByToolType({
-            toolType,
-            annotationId: null,
-          })
-        );
-      },
+      requestFinish: () => false,
+      discardDraft: () => undefined,
       onNodeCreated: (coordinate, linkedNodeGroupId) => {
-        const pendingAnnotationId = getPendingAnnotationIdForTool(
-          getState().draftState,
-          toolType
-        );
-        if (pendingAnnotationId) {
-          dispatch(
-            setPendingAnnotationIdByToolType({
-              toolType,
-              annotationId: null,
-            })
-          );
-        }
-
         const labelCount = getState().annotationEntries.filter(
           (entry) => entry.toolType === toolType
         ).length;
-        const createdMeasurement = createLabelMeasurement({
+        createLabelMeasurement({
           toolType,
           coordinate,
           displayName: getDefaultLabelDisplayName(labelCount + 1),
           addAnnotation,
           linkedNodeGroupId,
         });
-
-        dispatch(
-          setPendingAnnotationIdByToolType({
-            toolType,
-            annotationId: createdMeasurement.id,
-          })
-        );
       },
     }),
   },
@@ -153,7 +71,6 @@ export const labelToolPlugin = createMeasurementToolPlugin({
     }) => {
       const { points, pointLabels } = buildLabelToolRenderModels({
         toolType,
-        visuals: labelToolSettings.visuals,
         nodes,
         measurements: annotationEntries,
         selectedMeasurementIds: selectedAnnotationIds,

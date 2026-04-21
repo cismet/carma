@@ -1,9 +1,11 @@
 import type { ReactNode } from "react";
-import type { Cartesian3 } from "@carma-cesium";
+import type { Cartesian3, Scene } from "@carma-cesium";
+import type { AnnotationToolType } from "@carma-mapping/annotations/core";
+import type { AnnotationInfoBoxSlots } from "@carma-mapping/annotations/ui";
+import type { LabelOverlayContextType } from "@carma-providers/label-overlay";
 
 import type {
   RuntimeAnnotationInfoBoxContext,
-  RuntimeAnnotationInfoBoxSlots,
 } from "../components/annotation-info-box/annotation-info-box.types";
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import type { PreviewLineLabelVisualOptions } from "../config/preview-line-label-visual-defaults";
@@ -11,21 +13,18 @@ import type {
   AnnotationModeSession,
   AnnotationModeSessionMap,
 } from "../interaction/lifecycle/annotation-mode-session.types";
-import type { RuntimeVisualModels } from "../render/runtime-visual-models";
+import type { RuntimeVisualModels } from "../render/visual-models";
 import type {
   AnnotationsStore,
   AnnotationsStoreState,
-  RuntimeAddAnnotationOptions,
-  RuntimeAnnotationEntry,
-  RuntimeCoordinate,
-  RuntimeEdge,
-  RuntimeNodeLink,
-  RuntimeNodeLinkId,
-  RuntimeMeasurement,
-  RuntimeNode,
+  AddAnnotationOptions,
+  StoredAnnotation,
+  CesiumGeographicCoordinate,
+  AnnotationEdge,
+  AnnotationNodeLink,
+  AnnotationNodeLinkId,
+  AnnotationNode,
 } from "../store";
-import type { RuntimeScene } from "../types/runtime-scene.types";
-import type { RuntimeToolId } from "../types/runtime-tool.types";
 export const ANNOTATION_TOOL_PLUGIN_KINDS = {
   INTERACTION: "interaction",
   MEASUREMENT: "measurement",
@@ -48,7 +47,7 @@ export type AnnotationToolPluginCapability =
   (typeof ANNOTATION_TOOL_PLUGIN_CAPABILITIES)[keyof typeof ANNOTATION_TOOL_PLUGIN_CAPABILITIES];
 
 export type AnnotationToolDescriptor = {
-  id: RuntimeToolId;
+  id: AnnotationToolType;
   order: number;
   label: string;
   tooltip: string;
@@ -56,49 +55,49 @@ export type AnnotationToolDescriptor = {
 };
 
 export type AnnotationToolDraftState = {
-  coordinates: readonly RuntimeCoordinate[];
-  linkedNodeGroupIds: readonly (RuntimeNodeLinkId | null)[];
+  coordinates: readonly CesiumGeographicCoordinate[];
+  linkedNodeGroupIds: readonly (AnnotationNodeLinkId | null)[];
 };
 
 export type AnnotationToolDraftStore = {
-  get: (toolType: RuntimeToolId) => AnnotationToolDraftState;
-  set: (toolType: RuntimeToolId, draft: AnnotationToolDraftState) => void;
-  clear: (toolType: RuntimeToolId) => void;
-  subscribe: (toolType: RuntimeToolId, listener: () => void) => () => void;
+  get: (toolType: AnnotationToolType) => AnnotationToolDraftState;
+  set: (toolType: AnnotationToolType, draft: AnnotationToolDraftState) => void;
+  clear: (toolType: AnnotationToolType) => void;
+  subscribe: (toolType: AnnotationToolType, listener: () => void) => () => void;
 };
 
 export type AnnotationToolSessionContext = {
   getState: () => AnnotationsStoreState;
   dispatch: AnnotationsStore["dispatch"];
-  setActiveToolType: (toolType: RuntimeToolId) => void;
+  setActiveToolType: (toolType: AnnotationToolType) => void;
   drafts: AnnotationToolDraftStore;
   addAnnotation: (
-    toolType: RuntimeMeasurement["toolType"],
-    coordinates: readonly RuntimeCoordinate[],
-    options?: RuntimeAddAnnotationOptions,
-    linkedNodeGroupIds?: readonly (RuntimeNodeLinkId | null | undefined)[]
-  ) => RuntimeMeasurement;
+    toolType: StoredAnnotation["toolType"],
+    coordinates: readonly CesiumGeographicCoordinate[],
+    options?: AddAnnotationOptions,
+    linkedNodeGroupIds?: readonly (AnnotationNodeLinkId | null | undefined)[]
+  ) => StoredAnnotation;
 };
 
 export type AnnotationToolAddAnnotationContext = {
-  toolType: RuntimeMeasurement["toolType"];
-  scene: RuntimeScene | null;
-  coordinates: readonly RuntimeCoordinate[];
-  options?: RuntimeAddAnnotationOptions;
-  linkedNodeGroupIds?: readonly (RuntimeNodeLinkId | null | undefined)[];
+  toolType: StoredAnnotation["toolType"];
+  scene: Scene | null;
+  coordinates: readonly CesiumGeographicCoordinate[];
+  options?: AddAnnotationOptions;
+  linkedNodeGroupIds?: readonly (AnnotationNodeLinkId | null | undefined)[];
 };
 
 export type PointQueryCreatedContext = {
-  coordinate: RuntimeCoordinate;
-  linkedNodeGroupId: RuntimeNodeLinkId | null;
-  activeToolType: RuntimeToolId;
+  coordinate: CesiumGeographicCoordinate;
+  linkedNodeGroupId: AnnotationNodeLinkId | null;
+  activeToolType: AnnotationToolType;
   activeToolSession: AnnotationModeSession | null;
   toolSessions: AnnotationModeSessionMap;
   sessionContext: AnnotationToolSessionContext;
 };
 
 export type PointQueryPickResult = {
-  coordinate: RuntimeCoordinate | null;
+  coordinate: CesiumGeographicCoordinate | null;
   screenPosition: { x: number; y: number } | null;
   pointECEF: Cartesian3 | null;
   surfaceNormalECEF: Cartesian3 | null;
@@ -111,9 +110,10 @@ export type AnnotationToolAuthoringController = {
 };
 
 export type AnnotationToolAuthoringContext = {
-  scene: RuntimeScene | null;
+  scene: Scene | null;
   annotationsStore: AnnotationsStore;
   drafts: AnnotationToolDraftStore;
+  labelOverlay: LabelOverlayContextType;
   requestRender: () => void;
   formatOptions: AnnotationsRuntimeFormatOptions;
   previewLineLabelVisualOptions: Partial<PreviewLineLabelVisualOptions>;
@@ -121,19 +121,22 @@ export type AnnotationToolAuthoringContext = {
 
 export type AnnotationToolKeyboardContext = {
   event: KeyboardEvent;
-  activeToolType: RuntimeToolId;
+  activeToolType: AnnotationToolType;
   activeToolSession: AnnotationModeSession | null;
   requestFinishMeasurement: () => boolean;
-  requestStartMeasurement: (toolType?: RuntimeToolId) => void;
-  requestModeChange: (toolType: RuntimeToolId) => void;
+  requestStartMeasurement: (toolType?: AnnotationToolType) => void;
+  requestModeChange: (toolType: AnnotationToolType) => void;
   sessionContext: AnnotationToolSessionContext;
 };
 
 export type AnnotationToolVisualModelContext = {
-  nodes: readonly RuntimeNode[];
-  edges: readonly RuntimeEdge[];
-  linkedNodeGroups: readonly RuntimeNodeLink[];
-  annotationEntries: readonly RuntimeAnnotationEntry[];
+  nodes: readonly AnnotationNode[];
+  edges: readonly AnnotationEdge[];
+  linkedNodeGroups: readonly AnnotationNodeLink[];
+  annotationEntries: readonly StoredAnnotation[];
+  draftStatesByToolType: Readonly<
+    Partial<Record<AnnotationToolType, AnnotationToolDraftState>>
+  >;
   elevationReferenceAnnotationId: string | null;
   selectedAnnotationId: string | null;
   selectedAnnotationIds: readonly string[];
@@ -146,7 +149,7 @@ export type AnnotationToolVisualModelContext = {
 };
 
 export type AnnotationToolPlugin = {
-  id: RuntimeToolId;
+  id: AnnotationToolType;
   kind: AnnotationToolPluginKind;
   descriptor: AnnotationToolDescriptor;
   helpText?: readonly string[];
@@ -162,7 +165,7 @@ export type AnnotationToolPlugin = {
   addAnnotation?: {
     resolveOptions: (
       context: AnnotationToolAddAnnotationContext
-    ) => RuntimeAddAnnotationOptions | undefined;
+    ) => AddAnnotationOptions | undefined;
   };
   authoringVisuals?: {
     createController: (
@@ -180,14 +183,14 @@ export type AnnotationToolPlugin = {
   infoBox?: {
     getSlots: (
       context: RuntimeAnnotationInfoBoxContext
-    ) => RuntimeAnnotationInfoBoxSlots | null;
+    ) => AnnotationInfoBoxSlots | null;
   };
 };
 
 export type AnnotationToolRegistry = {
   plugins: readonly AnnotationToolPlugin[];
   orderedDescriptors: readonly AnnotationToolDescriptor[];
-  byId: ReadonlyMap<RuntimeToolId, AnnotationToolPlugin>;
-  getPlugin: (toolType: RuntimeToolId) => AnnotationToolPlugin | undefined;
-  assertPlugin: (toolType: RuntimeToolId) => AnnotationToolPlugin;
+  byId: ReadonlyMap<AnnotationToolType, AnnotationToolPlugin>;
+  getPlugin: (toolType: AnnotationToolType) => AnnotationToolPlugin | undefined;
+  assertPlugin: (toolType: AnnotationToolType) => AnnotationToolPlugin;
 };

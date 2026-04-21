@@ -4,8 +4,8 @@ import { describe, expect, it, vi } from "vitest";
 import type { RuntimeAnnotationInfoBoxContext } from "../components/annotation-info-box/annotation-info-box.types";
 import { ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME } from "../config/annotation-measurement-label-themes";
 import type {
-  RuntimeAnnotationEntry,
-  RuntimeNode,
+  StoredAnnotation,
+  AnnotationNode,
 } from "../store/annotations-store.types";
 import { createDistanceToolInfoBoxSlots } from "./distance/distance-tool-info-box-slots";
 import { createPointToolInfoBoxSlots } from "./point/point-tool-info-box-slots";
@@ -17,9 +17,9 @@ const createBaseContext = ({
   annotationEntries,
   nodes,
 }: {
-  annotation: RuntimeAnnotationEntry;
-  annotationEntries: readonly RuntimeAnnotationEntry[];
-  nodes: readonly RuntimeNode[];
+  annotation: StoredAnnotation;
+  annotationEntries: readonly StoredAnnotation[];
+  nodes: readonly AnnotationNode[];
 }): RuntimeAnnotationInfoBoxContext => ({
   annotation,
   annotationEntries,
@@ -48,13 +48,13 @@ describe("measurement info box theme header colors", () => {
         formatMeasurementLabelToken: (counter) => `P${counter}`,
       }
     );
-    const annotation: RuntimeAnnotationEntry = {
+    const annotation: StoredAnnotation = {
       id: "point-1",
       toolType: ANNOTATION_TYPE_POINT,
       nodeIds: ["node-1"],
       edgeIds: [],
     };
-    const nodes: readonly RuntimeNode[] = [
+    const nodes: readonly AnnotationNode[] = [
       {
         id: "node-1",
         coordinate: { latitude: 51.0, longitude: 7.0, altitude: 123.4 },
@@ -82,13 +82,13 @@ describe("measurement info box theme header colors", () => {
         formatMeasurementLabelToken: (counter) => `D${counter}`,
       }
     );
-    const annotation: RuntimeAnnotationEntry = {
+    const annotation: StoredAnnotation = {
       id: "distance-1",
       toolType: ANNOTATION_TYPE_DISTANCE,
       nodeIds: ["node-1", "node-2"],
       edgeIds: [],
     };
-    const nodes: readonly RuntimeNode[] = [
+    const nodes: readonly AnnotationNode[] = [
       {
         id: "node-1",
         coordinate: { latitude: 51.0, longitude: 7.0, altitude: 123.4 },

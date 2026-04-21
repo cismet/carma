@@ -6,11 +6,14 @@ import {
   DistanceTriangleOverlayDebugStory,
   LINE_LABEL_COMPONENT_ARGS,
   LINE_LABEL_COMPONENT_ARG_TYPES,
+  LABEL_PLACEMENT_SINGLE_LINE_COLLISION_ARGS,
+  LABEL_PLACEMENT_SINGLE_LINE_COLLISION_ARG_TYPES,
   LABEL_PLACEMENT_POLYGON_ARGS,
   LABEL_PLACEMENT_POLYGON_ARG_TYPES,
   LABEL_PLACEMENT_SINGLE_LINE_ARGS,
   LABEL_PLACEMENT_SINGLE_LINE_ARG_TYPES,
   LineLabelComponentStory,
+  SingleLineCollisionResolutionDebugStory,
   PolygonSegmentLabelDebugStory,
   SingleLineLabelDebugStory,
 } from "./LabelPlacement.story-helpers";
@@ -33,6 +36,13 @@ export const SingleLine = {
   argTypes: LABEL_PLACEMENT_SINGLE_LINE_ARG_TYPES,
   args: LABEL_PLACEMENT_SINGLE_LINE_ARGS,
   render: (args) => <SingleLineLabelDebugStory args={args} />,
+};
+
+export const SingleLineCollisionStrategy = {
+  name: "Placement Single Line Collision Strategy",
+  argTypes: LABEL_PLACEMENT_SINGLE_LINE_COLLISION_ARG_TYPES,
+  args: LABEL_PLACEMENT_SINGLE_LINE_COLLISION_ARGS,
+  render: (args) => <SingleLineCollisionResolutionDebugStory args={args} />,
 };
 
 export const PolygonSegment = {

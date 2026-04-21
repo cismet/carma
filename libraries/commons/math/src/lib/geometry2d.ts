@@ -9,6 +9,13 @@ export type ConvexPolygonIntersectionRelation2d =
   | "clip-inside-subject"
   | "overlap";
 
+export type SegmentFrame2d = {
+  delta: Point2;
+  length: number;
+  midpoint: Point2;
+  leftUnitNormal: Point2;
+};
+
 export const getEquilateralTriangleHeight = (edgeLength: number): number =>
   (edgeLength * Math.sqrt(3)) / 2;
 
@@ -43,6 +50,58 @@ export const getSupportRadius2d = (points: Point2[]): number => {
   return maxProjectedRadius;
 };
 
+export const addPoint2d = (left: Point2, right: Point2): Point2 => ({
+  x: left.x + right.x,
+  y: left.y + right.y,
+});
+
+export const subtractPoint2d = (left: Point2, right: Point2): Point2 => ({
+  x: left.x - right.x,
+  y: left.y - right.y,
+});
+
+export const scalePoint2d = (point: Point2, scalar: number): Point2 => ({
+  x: point.x * scalar,
+  y: point.y * scalar,
+});
+
+export const dotPoint2d = (left: Point2, right: Point2): number =>
+  left.x * right.x + left.y * right.y;
+
+export const getPointLength2d = (point: Point2): number =>
+  Math.hypot(point.x, point.y);
+
+export const getMidpoint2d = (left: Point2, right: Point2): Point2 =>
+  scalePoint2d(addPoint2d(left, right), 0.5);
+
+export const getLeftPerpendicular2d = (point: Point2): Point2 => ({
+  x: -point.y,
+  y: point.x,
+});
+
+export const getSegmentFrame2d = ({
+  start,
+  end,
+  epsilon = 0,
+}: {
+  start: Point2;
+  end: Point2;
+  epsilon?: number;
+}): SegmentFrame2d | null => {
+  const delta = subtractPoint2d(end, start);
+  const length = getPointLength2d(delta);
+  if (length <= epsilon) {
+    return null;
+  }
+
+  return {
+    delta,
+    length,
+    midpoint: getMidpoint2d(start, end),
+    leftUnitNormal: scalePoint2d(getLeftPerpendicular2d(delta), 1 / length),
+  };
+};
+
 export const getSignedPolygonArea2d = (points: readonly Point2[]): number => {
   if (points.length < 3) {
     return 0;
@@ -61,6 +120,42 @@ export const getSignedPolygonArea2d = (points: readonly Point2[]): number => {
 export const getPolygonArea2d = (points: readonly Point2[]): number =>
   Math.abs(getSignedPolygonArea2d(points));
 
+export const getPolygonCentroid2d = ({
+  points,
+  degenerateAreaEpsilon = 0,
+}: {
+  points: readonly Point2[];
+  degenerateAreaEpsilon?: number;
+}): Point2 | null => {
+  if (points.length < 3) {
+    return null;
+  }
+
+  const signedArea = getSignedPolygonArea2d(points);
+  if (Math.abs(signedArea) <= degenerateAreaEpsilon) {
+    return {
+      x: points.reduce((sum, point) => sum + point.x, 0) / points.length,
+      y: points.reduce((sum, point) => sum + point.y, 0) / points.length,
+    };
+  }
+
+  let centroidX = 0;
+  let centroidY = 0;
+  for (let index = 0; index < points.length; index += 1) {
+    const current = points[index]!;
+    const next = points[(index + 1) % points.length]!;
+    const cross = current.x * next.y - next.x * current.y;
+    centroidX += (current.x + next.x) * cross;
+    centroidY += (current.y + next.y) * cross;
+  }
+
+  const factor = 1 / (6 * signedArea);
+  return {
+    x: centroidX * factor,
+    y: centroidY * factor,
+  };
+};
+
 const normalizeConvexPolygonWinding = (
   points: readonly Point2[]
 ): readonly Point2[] =>
@@ -69,11 +164,6 @@ const normalizeConvexPolygonWinding = (
 const cross2d = (left: Point2, right: Point2): number =>
   left.x * right.y - left.y * right.x;
 
-const subtractPoint2 = (left: Point2, right: Point2): Point2 => ({
-  x: left.x - right.x,
-  y: left.y - right.y,
-});
-
 const isPointInsideDirectedEdge = (
   point: Point2,
   edgeStart: Point2,
@@ -81,8 +171,8 @@ const isPointInsideDirectedEdge = (
   epsilon: number
 ): boolean =>
   cross2d(
-    subtractPoint2(edgeEnd, edgeStart),
-    subtractPoint2(point, edgeStart)
+    subtractPoint2d(edgeEnd, edgeStart),
+    subtractPoint2d(point, edgeStart)
   ) >= -epsilon;
 
 const intersectSegmentWithInfiniteLine2d = ({
@@ -98,15 +188,15 @@ const intersectSegmentWithInfiniteLine2d = ({
   lineEnd: Point2;
   epsilon: number;
 }): Point2 | null => {
-  const segmentDirection = subtractPoint2(segmentEnd, segmentStart);
-  const lineDirection = subtractPoint2(lineEnd, lineStart);
+  const segmentDirection = subtractPoint2d(segmentEnd, segmentStart);
+  const lineDirection = subtractPoint2d(lineEnd, lineStart);
   const denominator = cross2d(segmentDirection, lineDirection);
 
   if (Math.abs(denominator) <= epsilon) {
     return null;
   }
 
-  const originDelta = subtractPoint2(lineStart, segmentStart);
+  const originDelta = subtractPoint2d(lineStart, segmentStart);
   const segmentT = cross2d(originDelta, lineDirection) / denominator;
 
   return {

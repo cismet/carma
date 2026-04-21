@@ -12,7 +12,6 @@ import {
 import {
   buildDistanceTriangleInsidePoint2D,
   buildVerticalRectangleCornerFromDiagonal,
-  normalizeLabelAngleDeg,
   type DistanceScreenTriangle,
 } from "@carma-mapping/annotations/core";
 import { SVG_LINE_LABEL_ROTATION_MODE } from "@carma-commons/svg";
@@ -26,17 +25,36 @@ import {
   getEllipsoidalAltitudeOrZero,
   isValidScene,
 } from "@carma-mapping/engines/cesium/core";
-import type { CssPixelPosition } from "@carma-units";
-
-import { runtimeMeasurementVisualDefaults } from "../config/measurement-visual-defaults";
 import {
+  clampUnitRangeRatio,
+  negativePiToPi,
+  PI,
+  PI_OVER_TWO,
+  type CssPixels,
+  type CssPixelPosition,
+  type Ratio,
+  type Radians,
+} from "@carma-units";
+
+import { measurementVisualDefaults } from "../config/measurement-visual-defaults";
+import {
+  PREVIEW_LINE_LABEL_THEME,
+  previewLineLabelPlacementDefaults,
   previewLineLabelVisualDefaults,
   resolvePreviewLineLabelVisualOptions,
   type PreviewLineLabelVisualOptions,
 } from "../config/preview-line-label-visual-defaults";
-import { previewControllerDefaults } from "../config/preview-controller-defaults";
-import type { RuntimeCoordinate } from "../store";
-import type { RuntimeScene } from "../types/runtime-scene.types";
+import {
+  previewControllerDefaults,
+  type PreviewControllerOptions,
+} from "../config/preview-controller-defaults";
+import type { CesiumGeographicCoordinate } from "../store";
+import type { Scene } from "@carma-cesium";
+import {
+  PREVIEW_OVERLAY_GROUP,
+  resolvePreviewContainer,
+  type PreviewOverlayGroup,
+} from "./preview-overlay-mount.shared";
 
 import "./annotation-overlay-line-label.css";
 
@@ -44,13 +62,16 @@ export {
   previewControllerDefaults,
   type PreviewControllerOptions,
 } from "../config/preview-controller-defaults";
+export {
+  PREVIEW_OVERLAY_GROUP,
+  resolvePreviewContainer,
+  type PreviewOverlayGroup,
+} from "./preview-overlay-mount.shared";
 
 export type PreviewLineRuntime = {
   polyline: Polyline;
   colorCss: string;
 };
-
-export type PreviewPointMarker = HTMLDivElement;
 
 export type PreviewSegmentLineLabelElements = {
   direct: HTMLDivElement;
@@ -86,10 +107,11 @@ type PreviewLineLabelAnchor = "center" | "left" | "right";
 type PreviewLineLabelKind = "direct" | "vertical" | "horizontal";
 
 type PreviewLineLabelPlacement = {
-  x: number;
-  y: number;
-  angleDeg: number;
+  x: CssPixels;
+  y: CssPixels;
+  angleRad: Radians;
   anchor: PreviewLineLabelAnchor;
+  anchorRatio: Ratio;
   isShortEdge: boolean;
   shouldFlip: boolean;
   normalX: number;
@@ -110,26 +132,24 @@ export const applyStyles = (
   Object.assign(element.style, styles);
 };
 
-const previewLineLabelRuntimeDefaults = Object.freeze({
-  classNames: Object.freeze({
-    root: "carma-annotation-overlay-line-label",
-    frame: "carma-annotation-overlay-line-label__frame",
-    backdrop: "carma-annotation-overlay-line-label__backdrop",
-    text: "carma-annotation-overlay-line-label__text",
-  }),
-  placement: Object.freeze({
-    upperSideGapFactor: 0.15,
-    sideHysteresisPx: 1.5,
-    optionsByKind: Object.freeze({
-      direct: {},
-      vertical: {
-        labelOffsetPx: previewControllerDefaults.lineLabelOffsetPx,
-        labelFlippedBaselineOffsetPx: 6,
-        labelRotationMode: SVG_LINE_LABEL_ROTATION_MODE.CLOCKWISE,
-      },
-      horizontal: {},
-    } satisfies Record<PreviewLineLabelKind, LineLabelPlacementOptions>),
-  }),
+const previewLineLabelDomDefaults = Object.freeze({
+  className: "carma-annotation-overlay-line-label",
+  frameClassName: "carma-annotation-overlay-line-label__frame",
+  backdropClassName: "carma-annotation-overlay-line-label__backdrop",
+  textClassName: "carma-annotation-overlay-line-label__text",
+});
+const PREVIEW_LINE_LABEL_PLACEMENT_OPTIONS_BY_KIND: Record<
+  PreviewLineLabelKind,
+  LineLabelPlacementOptions
+> = Object.freeze({
+  direct: {},
+  vertical: {
+    labelOffsetPx: previewControllerDefaults.lineLabelOffsetPx,
+    labelFlippedBaselineOffsetPx:
+      previewLineLabelPlacementDefaults.verticalFlippedBaselineOffsetPx,
+    labelRotationMode: SVG_LINE_LABEL_ROTATION_MODE.CLOCKWISE,
+  },
+  horizontal: {},
 });
 
 const createHtmlElement = <T extends keyof HTMLElementTagNameMap>(
@@ -179,7 +199,7 @@ const resolvePreviewLineLabelTextElement = (element: HTMLDivElement) =>
 
 const resolvePreviewLineLabelFrameElement = (element: HTMLDivElement) =>
   element.querySelector(
-    `.${previewLineLabelRuntimeDefaults.classNames.frame}`
+    `.${previewLineLabelDomDefaults.frameClassName}`
   ) as HTMLDivElement | null;
 
 const resolvePreviewLineLabelShortEdgeOffsetPx = (
@@ -207,11 +227,15 @@ const resolvePreviewLineLabelUsesShortEdgeRules = (element: HTMLDivElement) =>
 const resolvePreviewLineLabelPlacementOptions = ({
   kind,
   outsideReferencePoint,
+  anchorRatio,
 }: {
   kind: PreviewLineLabelKind;
   outsideReferencePoint?: ScreenPointLike | null;
+  anchorRatio?: number;
 }): LineLabelPlacementOptions => ({
-  ...previewLineLabelRuntimeDefaults.placement.optionsByKind[kind],
+  ...PREVIEW_LINE_LABEL_PLACEMENT_OPTIONS_BY_KIND[kind],
+  anchorRatio:
+    anchorRatio === undefined ? undefined : clampUnitRangeRatio(anchorRatio),
   getLabelOutsideReferencePoint: outsideReferencePoint
     ? () => ({
         x: outsideReferencePoint.x as CssPixelPosition["x"],
@@ -223,7 +247,7 @@ const resolvePreviewLineLabelPlacementOptions = ({
 const resolvePreviewLineLabelTransform = ({
   x,
   y,
-  angleDeg,
+  angleRad,
   anchor,
 }: PreviewLineLabelPlacement) =>
   `translate(${Math.round(x)}px, ${Math.round(y)}px) ${
@@ -232,28 +256,21 @@ const resolvePreviewLineLabelTransform = ({
       : anchor === "right"
       ? "translate(-100%, -50%)"
       : "translate(-50%, -50%)"
-  } rotate(${angleDeg}deg)`;
-
-export const resolvePreviewContainer = (scene: RuntimeScene) => {
-  const widgetContainer = scene.canvas.parentElement?.parentElement;
-  if (widgetContainer instanceof HTMLElement) {
-    return widgetContainer;
-  }
-
-  return scene.canvas.parentElement;
-};
+  } rotate(${angleRad}rad)`;
 
 export const createPreviewOverlayLayer = (
-  scene: RuntimeScene,
-  layerId: string
+  scene: Scene,
+  layerId: string,
+  group: PreviewOverlayGroup = PREVIEW_OVERLAY_GROUP.LABEL
 ) => {
-  const container = resolvePreviewContainer(scene);
+  const container = resolvePreviewContainer(scene, group);
   if (!container) {
     return null;
   }
 
   const overlayLayer = document.createElement("div");
   overlayLayer.id = layerId;
+  overlayLayer.dataset.annotationOverlayLayer = "true";
   applyStyles(overlayLayer, {
     position: "absolute",
     inset: "0",
@@ -267,13 +284,30 @@ export const createPreviewOverlayLayer = (
   return overlayLayer;
 };
 
+export const createPreviewOverlayLayers = (
+  scene: Scene,
+  layerIdByGroup: Partial<Record<PreviewOverlayGroup, string>>
+): Partial<Record<PreviewOverlayGroup, HTMLDivElement | null>> =>
+  Object.fromEntries(
+    Object.entries(layerIdByGroup).map(([group, layerId]) => [
+      group,
+      layerId
+        ? createPreviewOverlayLayer(
+            scene,
+            layerId,
+            group as PreviewOverlayGroup
+          )
+        : null,
+    ])
+  ) as Partial<Record<PreviewOverlayGroup, HTMLDivElement | null>>;
+
 export const destroyPreviewOverlayLayer = (
   overlayLayer: HTMLElement | null
 ) => {
   overlayLayer?.remove();
 };
 
-export const createLineCollection = (scene: RuntimeScene) => {
+export const createLineCollection = (scene: Scene) => {
   const collection = new PolylineCollection();
   const originalUpdate = collection.update.bind(collection) as (
     frameState: PreviewLineCollectionFrameState
@@ -290,7 +324,7 @@ export const createLineCollection = (scene: RuntimeScene) => {
 };
 
 export const destroyLineCollection = (
-  scene: RuntimeScene,
+  scene: Scene,
   collection: PolylineCollection | null
 ) => {
   if (!collection || !isValidScene(scene)) {
@@ -362,21 +396,18 @@ export const createLineLabel = (
 ) => {
   const resolvedVisualOptions =
     resolvePreviewLineLabelVisualOptions(visualOptions);
-  const element = createHtmlElement(
-    "div",
-    previewLineLabelRuntimeDefaults.classNames.root
-  );
+  const element = createHtmlElement("div", previewLineLabelDomDefaults.className);
   const frame = createHtmlElement(
     "div",
-    previewLineLabelRuntimeDefaults.classNames.frame
+    previewLineLabelDomDefaults.frameClassName
   );
   const blurBackdrop = createHtmlElement(
     "div",
-    previewLineLabelRuntimeDefaults.classNames.backdrop
+    previewLineLabelDomDefaults.backdropClassName
   );
   const text = createHtmlElement(
     "span",
-    previewLineLabelRuntimeDefaults.classNames.text
+    previewLineLabelDomDefaults.textClassName
   );
   text.dataset.annotationOverlayLineLabelText = "true";
   applyPreviewLineLabelVisualOptions({
@@ -397,19 +428,19 @@ export const createSegmentLineLabels = (
     resolvePreviewLineLabelVisualOptions(visualOptions);
 
   const direct = createLineLabel(
-    runtimeMeasurementVisualDefaults.colors.componentLabelAccents.direct,
+    measurementVisualDefaults.colors.componentLabelAccents.direct,
     resolvedVisualOptions
   );
   direct.dataset.annotationOverlayLineLabelKind = "direct";
 
   const vertical = createLineLabel(
-    runtimeMeasurementVisualDefaults.colors.componentLabelAccents.vertical,
+    measurementVisualDefaults.colors.componentLabelAccents.vertical,
     resolvedVisualOptions
   );
   vertical.dataset.annotationOverlayLineLabelKind = "vertical";
 
   const horizontal = createLineLabel(
-    runtimeMeasurementVisualDefaults.colors.componentLabelAccents.horizontal,
+    measurementVisualDefaults.colors.componentLabelAccents.horizontal,
     resolvedVisualOptions
   );
   horizontal.dataset.annotationOverlayLineLabelKind = "horizontal";
@@ -434,11 +465,11 @@ export const createPointMarker = () => {
     left: "0",
     top: "0",
     display: "none",
-    width: `${runtimeMeasurementVisualDefaults.sizes.previewPointPixelSize}px`,
-    height: `${runtimeMeasurementVisualDefaults.sizes.previewPointPixelSize}px`,
+    width: `${measurementVisualDefaults.sizes.previewPointPixelSize}px`,
+    height: `${measurementVisualDefaults.sizes.previewPointPixelSize}px`,
     borderRadius: "999px",
-    border: `${runtimeMeasurementVisualDefaults.sizes.pointOutlineWidth}px solid ${runtimeMeasurementVisualDefaults.colors.surface}`,
-    background: runtimeMeasurementVisualDefaults.colors.preview,
+    border: `${measurementVisualDefaults.sizes.pointOutlineWidth}px solid ${measurementVisualDefaults.colors.surface}`,
+    background: measurementVisualDefaults.colors.preview,
     transform: "translate(-50%, -50%)",
     boxSizing: "border-box",
     pointerEvents: "none",
@@ -455,7 +486,7 @@ export const ensurePointMarkerCount = ({
   count,
 }: {
   overlayLayer: HTMLElement;
-  pointMarkers: PreviewPointMarker[];
+  pointMarkers: HTMLDivElement[];
   count: number;
 }) => {
   while (pointMarkers.length < count) {
@@ -466,7 +497,7 @@ export const ensurePointMarkerCount = ({
 };
 
 export const hidePointMarkers = (
-  pointMarkers: readonly PreviewPointMarker[]
+  pointMarkers: readonly HTMLDivElement[]
 ) => {
   pointMarkers.forEach((pointMarker) => {
     pointMarker.style.display = "none";
@@ -479,10 +510,10 @@ export const placePointMarkers = ({
   pointMarkers,
   coordinates,
 }: {
-  scene: RuntimeScene;
+  scene: Scene;
   overlayLayer: HTMLElement;
-  pointMarkers: PreviewPointMarker[];
-  coordinates: readonly RuntimeCoordinate[];
+  pointMarkers: HTMLDivElement[];
+  coordinates: readonly CesiumGeographicCoordinate[];
 }) => {
   ensurePointMarkerCount({
     overlayLayer,
@@ -516,33 +547,60 @@ export const placePointMarkers = ({
   });
 };
 
-const normalizeReadablePreviewLineLabelAngleDeg = (angleDeg: number) => {
-  let normalizedAngleDeg = ((((angleDeg + 180) % 360) + 360) % 360) - 180;
+export const coordinatesEqual = (
+  left: readonly CesiumGeographicCoordinate[],
+  right: readonly CesiumGeographicCoordinate[]
+) =>
+  left.length === right.length &&
+  left.every((coordinate, index) => {
+    const otherCoordinate = right[index];
+    return (
+      otherCoordinate !== undefined &&
+      coordinate.longitude === otherCoordinate.longitude &&
+      coordinate.latitude === otherCoordinate.latitude &&
+      coordinate.altitude === otherCoordinate.altitude
+    );
+  });
 
-  if (normalizedAngleDeg > 90) {
-    normalizedAngleDeg -= 180;
-  } else if (normalizedAngleDeg < -90) {
-    normalizedAngleDeg += 180;
+const normalizeLabelAngleRad = (angleRad: Radians): Radians =>
+  negativePiToPi(
+    (angleRad > PI_OVER_TWO || angleRad < -PI_OVER_TWO
+      ? angleRad + PI
+      : angleRad) as Radians
+  );
+
+const normalizeReadablePreviewLineLabelAngleRad = (
+  angleRad: Radians
+): Radians => {
+  let normalizedAngleRad = negativePiToPi(angleRad);
+
+  if (normalizedAngleRad > PI_OVER_TWO) {
+    normalizedAngleRad = (normalizedAngleRad - PI) as Radians;
+  } else if (normalizedAngleRad < -PI_OVER_TWO) {
+    normalizedAngleRad = (normalizedAngleRad + PI) as Radians;
   }
 
-  return normalizedAngleDeg;
+  return normalizedAngleRad;
 };
 
-const resolvePreviewLineLabelVerticalBaselineAngleDeg = ({
-  angleDeg,
+const resolvePreviewLineLabelVerticalBaselineAngleRad = ({
+  angleRad,
   lineSide,
 }: {
-  angleDeg: number;
+  angleRad: Radians;
   lineSide: "left" | "right";
-}) => {
-  if (Math.abs(angleDeg) !== 90) {
-    return angleDeg;
+}): Radians => {
+  if (
+    Math.abs(Math.abs(angleRad) - PI_OVER_TWO) >
+    previewLineLabelPlacementDefaults.verticalBaselineAngleEpsilonRad
+  ) {
+    return angleRad;
   }
 
-  return lineSide === "left" ? 90 : -90;
+  return (lineSide === "left" ? PI_OVER_TWO : -PI_OVER_TWO) as Radians;
 };
 
-const resolvePreviewLineLabelAngleDeg = ({
+const resolvePreviewLineLabelAngleRad = ({
   deltaX,
   deltaY,
   lineSide,
@@ -554,22 +612,20 @@ const resolvePreviewLineLabelAngleDeg = ({
   lineSide: "left" | "right";
   flipReadingDirection: boolean;
   forceHorizontal: boolean;
-}) => {
+}): Radians => {
   if (forceHorizontal) {
-    return 0;
+    return 0 as Radians;
   }
 
-  const baseAngleDeg = normalizeLabelAngleDeg(
-    (Math.atan2(deltaY, deltaX) * 180) / Math.PI
+  const baseAngleRad = normalizeLabelAngleRad(
+    Math.atan2(deltaY, deltaX) as Radians
   );
-  const preferredAngleDeg = flipReadingDirection
-    ? baseAngleDeg >= 0
-      ? baseAngleDeg - 180
-      : baseAngleDeg + 180
-    : baseAngleDeg;
+  const preferredAngleRad = flipReadingDirection
+    ? ((baseAngleRad >= 0 ? baseAngleRad - PI : baseAngleRad + PI) as Radians)
+    : baseAngleRad;
 
-  return resolvePreviewLineLabelVerticalBaselineAngleDeg({
-    angleDeg: normalizeReadablePreviewLineLabelAngleDeg(preferredAngleDeg),
+  return resolvePreviewLineLabelVerticalBaselineAngleRad({
+    angleRad: normalizeReadablePreviewLineLabelAngleRad(preferredAngleRad),
     lineSide,
   });
 };
@@ -583,6 +639,7 @@ const resolveLabelOffsetPosition = ({
   useShortEdgeRules = true,
   flipReadingDirection = false,
   previousShouldFlip = false,
+  anchorRatio,
 }: {
   start: ScreenPointLike;
   end: ScreenPointLike;
@@ -592,6 +649,7 @@ const resolveLabelOffsetPosition = ({
   useShortEdgeRules?: boolean;
   flipReadingDirection?: boolean;
   previousShouldFlip?: boolean;
+  anchorRatio?: number;
 }): PreviewLineLabelPlacement | null => {
   const sharedPlacement = resolveOverlayLineLabelPlacement({
     svgLine: {
@@ -607,10 +665,10 @@ const resolveLabelOffsetPosition = ({
     options: resolvePreviewLineLabelPlacementOptions({
       kind,
       outsideReferencePoint,
+      anchorRatio,
     }),
     previousShouldFlip,
-    sideSwitchThresholdPx:
-      previewLineLabelRuntimeDefaults.placement.sideHysteresisPx,
+    sideSwitchThresholdPx: previewLineLabelPlacementDefaults.sideHysteresisPx,
   });
   if (!sharedPlacement) {
     return null;
@@ -628,9 +686,11 @@ const resolveLabelOffsetPosition = ({
     const lineSide = labelIsPlacedRightOfSegment ? "left" : "right";
 
     return {
-      x: sharedPlacement.midX + sharedPlacement.normalX * shortEdgeOffsetPx,
-      y: sharedPlacement.midY + sharedPlacement.normalY * shortEdgeOffsetPx,
-      angleDeg: resolvePreviewLineLabelAngleDeg({
+      x: (sharedPlacement.midX +
+        sharedPlacement.normalX * shortEdgeOffsetPx) as CssPixels,
+      y: (sharedPlacement.midY +
+        sharedPlacement.normalY * shortEdgeOffsetPx) as CssPixels,
+      angleRad: resolvePreviewLineLabelAngleRad({
         deltaX,
         deltaY,
         lineSide,
@@ -638,6 +698,7 @@ const resolveLabelOffsetPosition = ({
         forceHorizontal: true,
       }),
       anchor: labelIsPlacedRightOfSegment ? "left" : "right",
+      anchorRatio: sharedPlacement.anchorRatio,
       isShortEdge: true,
       shouldFlip: sharedPlacement.shouldFlip,
       normalX: sharedPlacement.normalX,
@@ -648,8 +709,9 @@ const resolveLabelOffsetPosition = ({
   return {
     x: sharedPlacement.textX,
     y: sharedPlacement.textY,
-    angleDeg: sharedPlacement.angleDeg,
+    angleRad: sharedPlacement.angleRad,
     anchor: "center",
+    anchorRatio: sharedPlacement.anchorRatio,
     isShortEdge: false,
     shouldFlip: sharedPlacement.shouldFlip,
     normalX: sharedPlacement.normalX,
@@ -664,6 +726,7 @@ export const applyLineLabel = ({
   end,
   outsideReferencePoint,
   flipReadingDirection = false,
+  anchorRatio,
 }: {
   element: HTMLDivElement;
   text: string;
@@ -671,6 +734,7 @@ export const applyLineLabel = ({
   end: ScreenPointLike;
   outsideReferencePoint?: ScreenPointLike | null;
   flipReadingDirection?: boolean;
+  anchorRatio?: number;
 }) => {
   const labelPosition = resolveLabelOffsetPosition({
     start,
@@ -680,6 +744,7 @@ export const applyLineLabel = ({
     shortEdgeOffsetPx: resolvePreviewLineLabelShortEdgeOffsetPx(element),
     useShortEdgeRules: resolvePreviewLineLabelUsesShortEdgeRules(element),
     flipReadingDirection,
+    anchorRatio,
     previousShouldFlip:
       element.dataset.annotationOverlayLineLabelNormalFlip === "1",
   });
@@ -697,18 +762,22 @@ export const applyLineLabel = ({
 
   const frameElement = resolvePreviewLineLabelFrameElement(element);
   const upperSideGapBoostPx =
-    !labelPosition.isShortEdge && labelPosition.normalY < -1e-3 && frameElement
+    !labelPosition.isShortEdge &&
+    labelPosition.normalY <
+      -previewLineLabelPlacementDefaults.upperSideGapNormalYEpsilon &&
+    frameElement
       ? frameElement.getBoundingClientRect().height *
-        previewLineLabelRuntimeDefaults.placement.upperSideGapFactor
+        previewLineLabelPlacementDefaults.upperSideGapFactor
       : 0;
 
-  const adjustedX =
-    labelPosition.x + labelPosition.normalX * upperSideGapBoostPx;
-  const adjustedY =
-    labelPosition.y + labelPosition.normalY * upperSideGapBoostPx;
+  const adjustedX = (labelPosition.x +
+    labelPosition.normalX * upperSideGapBoostPx) as CssPixels;
+  const adjustedY = (labelPosition.y +
+    labelPosition.normalY * upperSideGapBoostPx) as CssPixels;
 
   element.dataset.annotationOverlayLineLabelShortEdge =
     labelPosition.isShortEdge ? "true" : "false";
+  element.dataset.annotationOverlayLineLabelAnchorRatio = `${labelPosition.anchorRatio}`;
   element.dataset.annotationOverlayLineLabelNormalFlip =
     labelPosition.shouldFlip ? "1" : "0";
   element.style.display = "block";
@@ -739,7 +808,10 @@ const resolveOutsideReferencePoint = ({
   const deltaX = end.x - start.x;
   const deltaY = end.y - start.y;
   const lineLength = Math.hypot(deltaX, deltaY);
-  if (!Number.isFinite(lineLength) || lineLength <= 1e-3) {
+  if (
+    !Number.isFinite(lineLength) ||
+    lineLength <= previewControllerDefaults.labelReferenceLineLengthEpsilonPx
+  ) {
     return null;
   }
 
@@ -756,7 +828,9 @@ const resolveOutsideReferencePoint = ({
     Math.abs(insideDot) < previewControllerDefaults.labelSideSwitchThresholdPx
       ? previousOutsideSign
       : suggestedOutsideSign;
-  const referenceDistancePx = clampPreviewReferenceDistance(lineLength * 0.2);
+  const referenceDistancePx = clampPreviewReferenceDistance(
+    lineLength * previewControllerDefaults.labelReferenceDistanceFactor
+  );
 
   return {
     outsideSign,
@@ -860,7 +934,7 @@ export const buildAuxiliaryPoint = ({
   targetPointECEF,
   scratch,
 }: {
-  scene: RuntimeScene;
+  scene: Scene;
   anchorPointECEF: Cartesian3;
   targetPointECEF: Cartesian3;
   scratch: PreviewSegmentScratch;
@@ -889,7 +963,7 @@ export const buildAuxiliaryPoint = ({
 
 export const runtimeCoordinateFromCartesian = (
   coordinateECEF: Cartesian3
-): RuntimeCoordinate => {
+): CesiumGeographicCoordinate => {
   const coordinateWgs84 = getDegreesFromCartesian(coordinateECEF);
 
   return {
@@ -903,8 +977,8 @@ export const buildVerticalAreaLoopCoordinates = ({
   firstCorner,
   oppositeCorner,
 }: {
-  firstCorner: RuntimeCoordinate;
-  oppositeCorner: RuntimeCoordinate;
+  firstCorner: CesiumGeographicCoordinate;
+  oppositeCorner: CesiumGeographicCoordinate;
 }) => {
   const firstCornerECEF = cartesian3FromGeographicCoordinate(firstCorner);
   const oppositeCornerECEF = cartesian3FromGeographicCoordinate(oppositeCorner);

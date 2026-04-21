@@ -7,7 +7,7 @@ import type {
   PointLabelStyle,
 } from "@carma-providers/label-overlay";
 
-import type { RuntimeCoordinate } from "../store";
+import type { CesiumGeographicCoordinate } from "../store";
 
 export const RUNTIME_POINT_LABEL_COORDINATE_SELECTION = {
   RIGHTMOST_SCREEN_SPACE: "rightmost-screen-space",
@@ -24,7 +24,7 @@ export type RuntimeDistanceTriangleAnchorCoordinateRole =
   (typeof RUNTIME_DISTANCE_TRIANGLE_ANCHOR_COORDINATE_ROLE)[keyof typeof RUNTIME_DISTANCE_TRIANGLE_ANCHOR_COORDINATE_ROLE];
 
 export type RuntimePointLabelCoordinateCandidate = {
-  coordinate: RuntimeCoordinate;
+  coordinate: CesiumGeographicCoordinate;
   nodeId?: string;
 };
 
@@ -37,7 +37,7 @@ export type RuntimePointMarkerRenderModel = {
   id: string;
   measurementId?: string;
   nodeId?: string;
-  coordinate: RuntimeCoordinate;
+  coordinate: CesiumGeographicCoordinate;
   pixelSize: number;
   fill: string;
   outline: string;
@@ -49,10 +49,11 @@ export type RuntimeEdgeRenderModel = {
   id: string;
   measurementId?: string;
   nodeIds?: readonly string[];
-  coordinates: readonly RuntimeCoordinate[];
+  coordinates: readonly CesiumGeographicCoordinate[];
   stroke: string;
   strokeWidth: number;
-  dashed?: boolean;
+  dashed?: true;
+  showSegmentLengthLabels?: true;
   distanceTriangleOverlay?: RuntimeDistanceTriangleOverlayRenderModel;
 };
 
@@ -60,7 +61,7 @@ export type RuntimePolygonFillRenderModel = {
   id: string;
   measurementId?: string;
   nodeIds?: readonly string[];
-  coordinates: readonly RuntimeCoordinate[];
+  coordinates: readonly CesiumGeographicCoordinate[];
   fill: string;
   placement?: RuntimePolygonFillPlacement;
   selected?: boolean;
@@ -104,7 +105,7 @@ export type RuntimePointLabelRenderModel = {
   measurementId?: string;
   nodeId?: string;
   pointMarkerId?: string;
-  coordinate: RuntimeCoordinate;
+  coordinate: CesiumGeographicCoordinate;
   coordinateCandidates?: readonly RuntimePointLabelCoordinateCandidate[];
   coordinateSelection?: RuntimePointLabelCoordinateSelection;
   markerPixelSize?: number;

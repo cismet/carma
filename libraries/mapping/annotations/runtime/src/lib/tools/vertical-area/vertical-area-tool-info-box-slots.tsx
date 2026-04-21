@@ -1,14 +1,22 @@
-import { formatAreaSquareMetersAdaptive, formatDegrees } from "@carma-units";
+import { formatAreaSquareMetersAdaptive } from "@carma-units";
+import type { PolygonType } from "@carma-mapping/annotations/core";
 import {
-  AnnotationInfoBoxActions,
-  AnnotationInfoBoxNavigation,
-  AnnotationInfoBoxTitleInput,
+  buildAnnotationMeasurementInfoBoxSlots,
 } from "@carma-mapping/annotations/ui";
 
 import type { RuntimeAnnotationInfoBoxContext } from "../../components/annotation-info-box/annotation-info-box.types";
 import { resolveRuntimeMeasurementNavigation } from "../../components/annotation-info-box/runtime-measurement-navigation";
+import {
+  resolveAreaMeasurementSummary,
+} from "../../derived/measurement-summaries";
+import { formatGermanCardinalBearing } from "../../utils/german-cardinal-bearing";
+import {
+  buildRuntimeNodeCoordinateMap,
+  resolveMeasurementCoordinates,
+} from "../../render/resolve-measurement-coordinates";
+
 export const createVerticalAreaToolInfoBoxSlots = (
-  toolType: RuntimeAnnotationInfoBoxContext["annotation"]["toolType"],
+  toolType: PolygonType,
   {
     headingTitle,
     headingColor,
@@ -25,6 +33,7 @@ export const createVerticalAreaToolInfoBoxSlots = (
     flyToAllAnnotations,
     formatOptions,
     focusAnnotationId,
+    nodes,
     removeAnnotationById,
     exportAnnotationGeoJson,
     toggleAnnotationVisibility,
@@ -51,39 +60,60 @@ export const createVerticalAreaToolInfoBoxSlots = (
       focusAnnotationId,
       flyToAllAnnotations,
     });
-    const verticalityDeg = annotation.verticalityDeg ?? 0;
-    const areaSquareMeters = Math.max(0, annotation.areaSquareMeters ?? 0);
-    const bearingDeg = annotation.bearingDeg;
+    const coordinates = resolveMeasurementCoordinates(
+      annotation,
+      buildRuntimeNodeCoordinateMap(nodes)
+    );
+    const summary = resolveAreaMeasurementSummary({
+      measurement: annotation,
+      toolType,
+      coordinates,
+    });
+    const areaText = formatAreaSquareMetersAdaptive(
+      summary.areaSquareMeters,
+      formatOptions.areaSquareMeters
+    );
     const defaultDisplayName = headingTitle;
     const effectiveShortLabel =
       annotation.shortLabel?.trim() || shortLabelToken;
-    const actionIcons = (
-      <AnnotationInfoBoxActions
-        hidden={annotation.hidden}
-        locked={annotation.locked}
-        onFlyTo={(event) => {
+    return buildAnnotationMeasurementInfoBoxSlots({
+      headingTitle,
+      headingColor,
+      titleInput: {
+        value: annotation.displayName ?? "",
+        placeholder: defaultDisplayName,
+        onCommit: (nextValue) =>
+          updateAnnotationDisplayName(annotation.id, nextValue),
+        shortLabelValue: annotation.shortLabel ?? "",
+        shortLabelPlaceholder: effectiveShortLabel,
+        onShortLabelCommit: (nextValue) =>
+          updateAnnotationShortLabel(annotation.id, nextValue),
+      },
+      actions: {
+        hidden: annotation.hidden,
+        locked: annotation.locked,
+        onFlyTo: (event) => {
           event.stopPropagation();
           focusAnnotationId(annotation.id);
-        }}
-        onExport={(event) => {
+        },
+        onExport: (event) => {
           event.stopPropagation();
           exportAnnotationGeoJson(annotation.id);
-        }}
-        onToggleVisibility={(event) => {
+        },
+        onToggleVisibility: (event) => {
           event.stopPropagation();
           toggleAnnotationVisibility(annotation.id);
-        }}
-        onToggleLock={(event) => {
+        },
+        onToggleLock: (event) => {
           event.stopPropagation();
           toggleAnnotationLocked(annotation.id);
-        }}
-        onDelete={(event) => {
+        },
+        onDelete: (event) => {
           event.stopPropagation();
           removeAnnotationById(annotation.id);
-        }}
-        visualOptions={infoBoxVisualOptions}
-        dataTestIdPrefix="carma-annotation-vertical-area-measurement"
-        dataTestIds={{
+        },
+        dataTestIdPrefix: "carma-annotation-vertical-area-measurement",
+        dataTestIds: {
           flyTo: "carma-annotation-flyto-vertical-area-measurement-btn",
           export:
             "carma-annotation-export-vertical-area-measurement-geojson-btn",
@@ -91,69 +121,26 @@ export const createVerticalAreaToolInfoBoxSlots = (
             "carma-annotation-toggle-vertical-area-measurement-visibility-btn",
           lock: "carma-annotation-toggle-vertical-area-measurement-lock-btn",
           delete: "carma-annotation-delete-vertical-area-measurement-btn",
-        }}
-      />
-    );
-
-    return {
-      headingTitle,
-      headingColor,
-      subtitle: (
-        <div className={infoBoxVisualOptions.subtitleContainerClassName}>
-          <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0 flex-1">
-              <AnnotationInfoBoxTitleInput
-                value={annotation.displayName ?? ""}
-                placeholder={defaultDisplayName}
-                onCommit={(nextValue) =>
-                  updateAnnotationDisplayName(annotation.id, nextValue)
-                }
-                shortLabelValue={annotation.shortLabel ?? ""}
-                shortLabelPlaceholder={effectiveShortLabel}
-                onShortLabelCommit={(nextValue) =>
-                  updateAnnotationShortLabel(annotation.id, nextValue)
-                }
-                visualOptions={infoBoxVisualOptions}
-              />
-            </div>
-            <div className="shrink-0">{actionIcons}</div>
-          </div>
-        </div>
-      ),
+        },
+      },
+      metaText: areaText,
       content: (
-        <div
-          className={`${infoBoxVisualOptions.bodyContainerClassName} ${infoBoxVisualOptions.bodyTextClassName}`}
-          style={infoBoxVisualOptions.bodyTextStyle}
-        >
-          <div>{`Fläche: ${formatAreaSquareMetersAdaptive(
-            areaSquareMeters,
-            formatOptions.areaSquareMeters
-          )}`}</div>
-          <div>{`Vertikalität: ${formatDegrees(
-            verticalityDeg,
-            formatOptions.degrees
-          )}`}</div>
-          {Number.isFinite(bearingDeg) ? (
-            <div>{`Ausrichtung: ${formatDegrees(
-              bearingDeg ?? 0,
-              formatOptions.degrees
+        <>
+          {Number.isFinite(summary.bearingDeg) ? (
+            <div>{`Ausrichtung: ${formatGermanCardinalBearing(
+              summary.bearingDeg ?? 0
             )}`}</div>
           ) : null}
-        </div>
+        </>
       ),
-      footer: (
-        <AnnotationInfoBoxNavigation
-          totalEntries={navigation?.totalEntries ?? 0}
-          currentIndex={navigation?.currentIndex ?? 0}
-          onFlyToAllMeasurements={navigation?.flyToAllMeasurements}
-          onPreviousMeasurement={() =>
-            navigation?.selectRelativeMeasurement(-1)
-          }
-          onNextMeasurement={() => navigation?.selectRelativeMeasurement(1)}
-          visualOptions={infoBoxVisualOptions}
-        />
-      ),
-      collapsible: true,
-    };
+      navigation: {
+        totalEntries: navigation?.totalEntries ?? 0,
+        currentIndex: navigation?.currentIndex ?? 0,
+        onFlyToAllMeasurements: navigation?.flyToAllMeasurements,
+        onPreviousMeasurement: () => navigation?.selectRelativeMeasurement(-1),
+        onNextMeasurement: () => navigation?.selectRelativeMeasurement(1),
+      },
+      visualOptions: infoBoxVisualOptions,
+    });
   };
 };

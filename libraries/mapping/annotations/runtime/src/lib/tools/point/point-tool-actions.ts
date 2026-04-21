@@ -1,29 +1,48 @@
 import type {
-  RuntimeCoordinate,
-  RuntimeNodeLinkId,
-  RuntimeMeasurement,
+  CesiumGeographicCoordinate,
+  AnnotationNodeLinkId,
+  StoredAnnotation,
 } from "../../store/annotations-store.types";
 import {
   removeAnnotationById,
   type AnnotationsStore,
   type AnnotationsStoreState,
 } from "../../store";
+import type { AnnotationToolDraftState } from "../annotation-tool-plugin.types";
 type AddPointMeasurementArgs = {
   addAnnotation: (
-    toolType: RuntimeMeasurement["toolType"],
-    nextCoordinates: readonly RuntimeCoordinate[],
+    toolType: StoredAnnotation["toolType"],
+    nextCoordinates: readonly CesiumGeographicCoordinate[],
     options?: undefined,
-    linkedNodeGroupIds?: readonly (RuntimeNodeLinkId | null | undefined)[]
-  ) => RuntimeMeasurement;
+    linkedNodeGroupIds?: readonly (AnnotationNodeLinkId | null | undefined)[]
+  ) => StoredAnnotation;
 };
 
 export const addPointMeasurement = (
-  toolType: RuntimeMeasurement["toolType"],
-  coordinate: RuntimeCoordinate,
-  linkedNodeGroupId: RuntimeNodeLinkId | null | undefined,
+  toolType: StoredAnnotation["toolType"],
+  coordinate: CesiumGeographicCoordinate,
+  linkedNodeGroupId: AnnotationNodeLinkId | null | undefined,
   { addAnnotation }: AddPointMeasurementArgs
 ) =>
   addAnnotation(toolType, [coordinate], undefined, [linkedNodeGroupId ?? null]);
+
+export const commitPointMeasurementDraft = (
+  toolType: StoredAnnotation["toolType"],
+  draft: AnnotationToolDraftState,
+  { addAnnotation }: AddPointMeasurementArgs
+): readonly StoredAnnotation[] =>
+  draft.coordinates.flatMap((coordinate, index) => [
+    addAnnotation(toolType, [coordinate], undefined, [
+      draft.linkedNodeGroupIds[index] ?? null,
+    ]),
+  ]);
+
+export const trimLatestPointMeasurementDraft = (
+  draft: AnnotationToolDraftState
+): AnnotationToolDraftState => ({
+  coordinates: draft.coordinates.slice(0, -1),
+  linkedNodeGroupIds: draft.linkedNodeGroupIds.slice(0, -1),
+});
 
 export type PointToolAction = "removeLatestPoint";
 
@@ -33,7 +52,7 @@ type RemovePointMeasurementArgs = {
 };
 
 export const removeLatestPointMeasurement = (
-  toolType: RuntimeMeasurement["toolType"],
+  toolType: StoredAnnotation["toolType"],
   { state, dispatch }: RemovePointMeasurementArgs
 ): boolean => {
   const selectedAnnotationId =

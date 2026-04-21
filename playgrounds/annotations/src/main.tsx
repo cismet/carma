@@ -1,6 +1,7 @@
 import { ConfigProvider, theme } from "antd";
 import * as ReactDOM from "react-dom/client";
 
+import { preventPinchZoom } from "@carma-commons/dom/window";
 import { setupCesiumEnvironment } from "@carma-mapping/engines/cesium/core";
 
 import { APP_BASE_PATH, CESIUM_PATHNAME } from "./config";
@@ -11,6 +12,7 @@ import "cesium/Build/Cesium/Widgets/widgets.css";
 import "./styles.css";
 const CESIUM_BASE_URL = `${APP_BASE_PATH}${CESIUM_PATHNAME}`;
 setupCesiumEnvironment({ baseUrl: CESIUM_BASE_URL });
+preventPinchZoom();
 
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement

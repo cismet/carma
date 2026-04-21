@@ -22,17 +22,16 @@ import {
   type CesiumSceneOrbitController,
   writePerspectiveFrustumVerticalFov,
 } from "@carma-mapping/engines/cesium/core";
-import { clearCesiumScenePointerTracker } from "@carma-mapping/engines/cesium/react/interactions";
 import type { Milliseconds, Seconds } from "@carma-units";
 
 import type { AnnotationsDemoCameraState } from "../playground.types";
+import { PLAYGROUND_UI_Z_INDEX } from "../playgroundConfig";
+import { clearPlaygroundPointerQueryPreview } from "./playgroundFloatingOverlay.shared";
 const DEFAULT_CONTROL_STYLE = {
   top: 10,
   left: 10,
   zIndex: 16,
 };
-
-const CONTROL_HOST_Z_INDEX = 1200;
 
 const DEFAULT_ORBIT_REVOLUTION_DURATION_SEC = 30 as Seconds;
 const DEFAULT_ORBIT_MIN_PITCH_DEG = 30;
@@ -175,6 +174,39 @@ const readOverlayMessages = (): Partial<NavigationControlsOverlayMessages> => ({
   compassTitle: "Kompass",
 });
 
+const resolveCesiumNavigationMethods = ({
+  scene,
+  orbitController,
+  initialHomeCameraState,
+}: {
+  scene: Scene;
+  orbitController: CesiumSceneOrbitController | null;
+  initialHomeCameraState: AnnotationsDemoCameraState | null;
+}) => {
+  const baseMethods = createCesiumNavigationMethods(scene, {
+    homeCameraState: initialHomeCameraState,
+  });
+
+  if (orbitController === null) {
+    return baseMethods;
+  }
+
+  return {
+    ...baseMethods,
+    orbit: (options: NavigationOrbitOptions = {}) => {
+      if (orbitController.isOrbiting) {
+        orbitController.stopOrbit();
+        options.onCanceled?.();
+      } else {
+        options.onStarted?.();
+        orbitController.startOrbit();
+      }
+    },
+    subscribeOrbitActive: (sink: (active: boolean) => void) =>
+      orbitController.subscribeIsOrbiting(sink),
+  };
+};
+
 export const CesiumNavigationOverlay = ({
   disabledNavigationShortcutActions = [],
   scene,
@@ -211,38 +243,18 @@ export const CesiumNavigationOverlay = ({
       return;
     }
 
-    const clearPointerQueryPreview = () => {
-      clearCesiumScenePointerTracker(scene);
-      scene.requestRender();
-    };
+    const clearPointerQueryPreview = () =>
+      clearPlaygroundPointerQueryPreview(scene);
 
     host.addEventListener("pointerenter", clearPointerQueryPreview, true);
     host.addEventListener("pointermove", clearPointerQueryPreview, true);
     host.addEventListener("pointerdown", clearPointerQueryPreview, true);
 
-    const orbitController = orbitControllerRef.current;
-
-    const baseMethods = createCesiumNavigationMethods(scene, {
-      homeCameraState: initialHomeCameraState,
+    const methods = resolveCesiumNavigationMethods({
+      scene,
+      orbitController: orbitControllerRef.current,
+      initialHomeCameraState,
     });
-
-    const methods =
-      orbitController !== null
-        ? {
-            ...baseMethods,
-            orbit: (options: NavigationOrbitOptions = {}) => {
-              if (orbitController.isOrbiting) {
-                orbitController.stopOrbit();
-                options.onCanceled?.();
-              } else {
-                options.onStarted?.();
-                orbitController.startOrbit();
-              }
-            },
-            subscribeOrbitActive: (sink: (active: boolean) => void) =>
-              orbitController.subscribeIsOrbiting(sink),
-          }
-        : baseMethods;
 
     const removeOverlay = mountNavigationControlsOverlay(host, {
       controlId: "annotations",
@@ -290,28 +302,11 @@ export const CesiumNavigationOverlay = ({
       return;
     }
 
-    const orbitController = orbitControllerRef.current;
-    const baseMethods = createCesiumNavigationMethods(scene, {
-      homeCameraState: initialHomeCameraState,
+    const methods = resolveCesiumNavigationMethods({
+      scene,
+      orbitController: orbitControllerRef.current,
+      initialHomeCameraState,
     });
-
-    const methods =
-      orbitController !== null
-        ? {
-            ...baseMethods,
-            orbit: (options: NavigationOrbitOptions = {}) => {
-              if (orbitController.isOrbiting) {
-                orbitController.stopOrbit();
-                options.onCanceled?.();
-              } else {
-                options.onStarted?.();
-                orbitController.startOrbit();
-              }
-            },
-            subscribeOrbitActive: (sink: (active: boolean) => void) =>
-              orbitController.subscribeIsOrbiting(sink),
-          }
-        : baseMethods;
 
     return bindNavigationKeyboardShortcuts({
       disabledNavigationShortcutActions,
@@ -327,7 +322,7 @@ export const CesiumNavigationOverlay = ({
       style={{
         position: "absolute",
         inset: 0,
-        zIndex: CONTROL_HOST_Z_INDEX,
+        zIndex: PLAYGROUND_UI_Z_INDEX,
         pointerEvents: "none",
       }}
     />

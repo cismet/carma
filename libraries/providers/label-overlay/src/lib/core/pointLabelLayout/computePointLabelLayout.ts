@@ -1,5 +1,7 @@
 import { createPlacement, getPerspectiveStemAngleMagnitude } from "./config";
 import { relaxPlacementWithForces } from "./forceDirectedPlacement";
+import { shouldMountPointLabelAtAnchor } from "../pointLabelAnchorSemantics";
+import { POINT_LABEL_ATTACH } from "../pointLabelAttach";
 import {
   ANCHOR_LABEL_COLLISION_PADDING,
   LABEL_COLLISION_PADDING,
@@ -47,6 +49,43 @@ type LayoutAccumulator = {
   occupiedStemSegments: StemSegment[];
 };
 
+const resolveFixedPlacement = ({
+  point,
+  defaultPlacement,
+  perspectiveStemAngle,
+}: {
+  point: LayoutPointInput;
+  defaultPlacement: CandidateEvaluation["placement"] | undefined;
+  perspectiveStemAngle: number;
+}): CandidateEvaluation["placement"] | null => {
+  if (shouldMountPointLabelAtAnchor({ anchorKind: point.anchorKind })) {
+    return createPlacement(
+      POINT_LABEL_ATTACH.CENTER,
+      0,
+      perspectiveStemAngle,
+      `anchor-mounted:${point.id}`
+    );
+  }
+
+  if (!point.lockPreferredPlacement || !defaultPlacement) {
+    return null;
+  }
+
+  if (
+    point.preferredAttach !== undefined ||
+    point.preferredStemDistance !== undefined
+  ) {
+    return createPlacement(
+      point.preferredAttach ?? defaultPlacement.attach,
+      point.preferredStemDistance ?? defaultPlacement.distance,
+      perspectiveStemAngle,
+      `locked:${point.id}`
+    );
+  }
+
+  return defaultPlacement;
+};
+
 const createRegularCandidates = (
   config: PointLabelLayoutConfig,
   perspectiveStemAngle: number
@@ -62,23 +101,57 @@ const createRegularCandidates = (
     )
   );
 
-const createStaticPlacements = (
-  points: LayoutPointInput[],
-  defaultPlacement: CandidateEvaluation["placement"] | undefined
-): PointLabelLayoutResult =>
-  defaultPlacement
-    ? {
-        placements: Object.fromEntries(
-          points.map((point) => [point.id, defaultPlacement])
-        ),
-        hiddenByLayout: new Set<string>(),
-        collapsedToCompact: new Set<string>(),
-      }
-    : {
-        placements: {},
-        hiddenByLayout: new Set<string>(),
-        collapsedToCompact: new Set<string>(),
-      };
+const createStaticPlacements = ({
+  points,
+  defaultPlacement,
+  perspectiveStemAngle,
+}: {
+  points: LayoutPointInput[];
+  defaultPlacement: CandidateEvaluation["placement"] | undefined;
+  perspectiveStemAngle: number;
+}): PointLabelLayoutResult => ({
+  placements: Object.fromEntries(
+    points.flatMap((point) => {
+      const placement =
+        resolveFixedPlacement({
+          point,
+          defaultPlacement,
+          perspectiveStemAngle,
+        }) ?? defaultPlacement;
+
+      return placement ? ([[point.id, placement]] as const) : [];
+    })
+  ),
+  hiddenByLayout: new Set<string>(),
+  collapsedToCompact: new Set<string>(),
+});
+
+const applyPlacementToState = ({
+  state,
+  point,
+  placement,
+  text,
+}: {
+  state: LayoutAccumulator;
+  point: LayoutPointInput;
+  placement: CandidateEvaluation["placement"];
+  text: string;
+}): LayoutAccumulator => ({
+  placements: {
+    ...state.placements,
+    [point.id]: placement,
+  },
+  hiddenByLayout: state.hiddenByLayout,
+  collapsedToCompact: state.collapsedToCompact,
+  occupiedLabelRects: [
+    ...state.occupiedLabelRects,
+    createLabelRect(point.anchor, text, placement),
+  ],
+  occupiedStemSegments: [
+    ...state.occupiedStemSegments,
+    createStemSegment(point.anchor, placement),
+  ],
+});
 
 const resolveCompactText = (point: LayoutPointInput): string | null => {
   const normalizedCompactText = point.compactText?.trim() ?? "";
@@ -221,6 +294,11 @@ const pickCompactBestEffortEvaluation = (
   return [...nonCrossingEvaluations].sort(sortByScoreThenOrder)[0];
 };
 
+const pickBestEffortEvaluation = (
+  evaluations: CandidateEvaluation[]
+): CandidateEvaluation | undefined =>
+  [...evaluations].sort(sortByScoreThenOrder)[0];
+
 export const computePointLabelLayout = ({
   points,
   viewportWidth,
@@ -246,7 +324,11 @@ export const computePointLabelLayout = ({
 
   // Static mode: keep labels on preferred slot, skip dynamic collision resolution.
   if (!config.dynamicLabelPlacement) {
-    return createStaticPlacements(sortedPoints, regularCandidates[0]);
+    return createStaticPlacements({
+      points: sortedPoints,
+      defaultPlacement: regularCandidates[0],
+      perspectiveStemAngle,
+    });
   }
 
   const anchorRectsById = sortedPoints.reduce<Record<string, Rect>>(
@@ -260,34 +342,18 @@ export const computePointLabelLayout = ({
   const finalState = sortedPoints.reduce<LayoutAccumulator>(
     (state, point) => {
       const preferredPlacement = regularCandidates[0];
-      if (point.lockPreferredPlacement && preferredPlacement) {
-        const lockedPlacement =
-          point.preferredAttach !== undefined ||
-          point.preferredStemDistance !== undefined
-            ? createPlacement(
-                point.preferredAttach ?? preferredPlacement.attach,
-                point.preferredStemDistance ?? preferredPlacement.distance,
-                perspectiveStemAngle,
-                `locked:${point.id}`
-              )
-            : preferredPlacement;
-
-        return {
-          placements: {
-            ...state.placements,
-            [point.id]: lockedPlacement,
-          },
-          hiddenByLayout: state.hiddenByLayout,
-          collapsedToCompact: state.collapsedToCompact,
-          occupiedLabelRects: [
-            ...state.occupiedLabelRects,
-            createLabelRect(point.anchor, point.text, lockedPlacement),
-          ],
-          occupiedStemSegments: [
-            ...state.occupiedStemSegments,
-            createStemSegment(point.anchor, lockedPlacement),
-          ],
-        };
+      const fixedPlacement = resolveFixedPlacement({
+        point,
+        defaultPlacement: preferredPlacement,
+        perspectiveStemAngle,
+      });
+      if (fixedPlacement) {
+        return applyPlacementToState({
+          state,
+          point,
+          placement: fixedPlacement,
+          text: point.text,
+        });
       }
 
       const otherAnchorRects = sortedPoints
@@ -449,6 +515,60 @@ export const computePointLabelLayout = ({
             occupiedStemSegments: [
               ...state.occupiedStemSegments,
               compactBestEffortEvaluation.stemSegment,
+            ],
+          };
+        }
+
+        if (!config.allowEarlyRemoval) {
+          const compactFallbackEvaluation = pickBestEffortEvaluation([
+            ...compactRegularEvaluations,
+            ...compactForcedEvaluations,
+          ]);
+
+          if (compactFallbackEvaluation) {
+            const collapsedToCompact = new Set(state.collapsedToCompact);
+            collapsedToCompact.add(point.id);
+            return {
+              placements: {
+                ...state.placements,
+                [point.id]: compactFallbackEvaluation.placement,
+              },
+              hiddenByLayout: state.hiddenByLayout,
+              collapsedToCompact,
+              occupiedLabelRects: [
+                ...state.occupiedLabelRects,
+                compactFallbackEvaluation.rect,
+              ],
+              occupiedStemSegments: [
+                ...state.occupiedStemSegments,
+                compactFallbackEvaluation.stemSegment,
+              ],
+            };
+          }
+        }
+      }
+
+      if (!config.allowEarlyRemoval) {
+        const fallbackEvaluation = pickBestEffortEvaluation([
+          ...regularEvaluations,
+          ...forcedEvaluations,
+        ]);
+
+        if (fallbackEvaluation) {
+          return {
+            placements: {
+              ...state.placements,
+              [point.id]: fallbackEvaluation.placement,
+            },
+            hiddenByLayout: state.hiddenByLayout,
+            collapsedToCompact: state.collapsedToCompact,
+            occupiedLabelRects: [
+              ...state.occupiedLabelRects,
+              fallbackEvaluation.rect,
+            ],
+            occupiedStemSegments: [
+              ...state.occupiedStemSegments,
+              fallbackEvaluation.stemSegment,
             ],
           };
         }

@@ -1,17 +1,17 @@
 import type {
-  RuntimeAnnotationEntry,
-  RuntimeNodeLink,
-  RuntimeNodeId,
-  RuntimeNode,
+  StoredAnnotation,
+  AnnotationNodeLink,
+  AnnotationNodeId,
+  AnnotationNode,
 } from "./annotations-store.types";
 
-export type RuntimeNodeMoveScope = {
-  targetNode: RuntimeNode | null;
-  targetLinkedNodeGroup: RuntimeNodeLink | null;
+export type AnnotationNodeMoveScope = {
+  targetNode: AnnotationNode | null;
+  targetLinkedNodeGroup: AnnotationNodeLink | null;
   movedNodeIds: readonly string[];
 };
 
-export const resolveRuntimeNodeMoveScope = ({
+export const resolveAnnotationNodeMoveScope = ({
   nodeId,
   nodes,
   linkedNodeGroups,
@@ -20,12 +20,12 @@ export const resolveRuntimeNodeMoveScope = ({
   preferredMovedNodeIds,
 }: {
   nodeId: string;
-  nodes: readonly RuntimeNode[];
-  linkedNodeGroups: readonly RuntimeNodeLink[];
-  annotationEntries: readonly RuntimeAnnotationEntry[];
+  nodes: readonly AnnotationNode[];
+  linkedNodeGroups: readonly AnnotationNodeLink[];
+  annotationEntries: readonly StoredAnnotation[];
   selectedMeasurementIds?: readonly string[];
-  preferredMovedNodeIds?: readonly RuntimeNodeId[];
-}): RuntimeNodeMoveScope => {
+  preferredMovedNodeIds?: readonly AnnotationNodeId[];
+}): AnnotationNodeMoveScope => {
   const targetNode = nodes.find((node) => node.id === nodeId) ?? null;
   if (!targetNode) {
     return {

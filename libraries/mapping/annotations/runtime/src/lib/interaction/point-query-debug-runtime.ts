@@ -1,5 +1,6 @@
 import { Cartesian3, type Scene } from "@carma-cesium";
 import { getDiscWorldRadius } from "@carma-mapping/engines/cesium/core";
+import type { Radians } from "@carma-units";
 
 import {
   isPointQueryDiscPlaneOffsetPlacementMode,
@@ -118,16 +119,31 @@ type PointQueryRecordDiscScaleChangeArgs = {
   source: "true-sample" | "fast-reproject";
 };
 
-const FIGURE_SPACE = "\u2007";
-const PERFORMANCE_IDLE_RESET_MS = 300;
-const PERFORMANCE_REPORT_INTERVAL_MS = 250;
-const MAX_TELEMETRY_ENTRY_COUNT = 600;
-const MAX_TANGENT_PLANE_FAILURE_COUNT = 200;
-const MAX_DISC_ORIGIN_JUMP_COUNT = 200;
-const DISC_ORIGIN_JUMP_PIXEL_RESOLUTION_MULTIPLIER = 100;
-const DISC_SCALE_CHANGE_RELATIVE_THRESHOLD = 0.2;
-const FAILED_PICK_LOG_THROTTLE_MS = 250;
-const FAILED_PICK_LOG_SCREEN_BUCKET_PX = 8;
+const pointQueryDebugDefaults = Object.freeze({
+  formatting: Object.freeze({
+    figureSpace: "\u2007",
+  }),
+  performance: Object.freeze({
+    idleResetMs: 300,
+    reportIntervalMs: 250,
+  }),
+  history: Object.freeze({
+    maxTelemetryEntryCount: 600,
+    maxTangentPlaneFailureCount: 200,
+    maxDiscOriginJumpCount: 200,
+    maxDiscScaleChangeCount: 200,
+  }),
+  discOriginJump: Object.freeze({
+    pixelResolutionMultiplier: 100,
+  }),
+  discScaleChange: Object.freeze({
+    relativeThreshold: 0.2,
+  }),
+  failedPickLog: Object.freeze({
+    throttleMs: 250,
+    screenBucketPx: 8,
+  }),
+});
 
 const createInitialTangentPlaneFailureCounts = (): Record<
   PointQueryTangentPlaneFailureReason,
@@ -163,8 +179,8 @@ const formatPointQueryStatusRate = (label: string, valueHz: number) => {
   const clampedValueHz = Number.isFinite(valueHz) ? Math.max(valueHz, 0) : 0;
   const paddedValue = clampedValueHz
     .toFixed(1)
-    .replace(/ /g, FIGURE_SPACE)
-    .padStart(7, FIGURE_SPACE);
+    .replace(/ /g, pointQueryDebugDefaults.formatting.figureSpace)
+    .padStart(7, pointQueryDebugDefaults.formatting.figureSpace);
 
   return `${label} ${paddedValue} Hz`;
 };
@@ -301,17 +317,17 @@ const renderDebugVectorLine = ({
     return;
   }
 
-  const angleDeg = (Math.atan2(deltaY, deltaX) * 180) / Math.PI;
+  const angleRad = Math.atan2(deltaY, deltaX) as Radians;
   element.style.display = "block";
   element.style.left = `${start.x}px`;
   element.style.top = `${start.y}px`;
   element.style.width = `${lengthPx}px`;
-  element.style.transform = `translateY(-50%) rotate(${angleDeg}deg)`;
+  element.style.transform = `translateY(-50%) rotate(${angleRad}rad)`;
   if (headElement) {
     headElement.style.display = "block";
     headElement.style.left = `${end.x}px`;
     headElement.style.top = `${end.y}px`;
-    headElement.style.transform = `translate(-50%, -50%) rotate(${angleDeg}deg)`;
+    headElement.style.transform = `translate(-50%, -50%) rotate(${angleRad}rad)`;
   }
 };
 
@@ -474,10 +490,16 @@ const buildFailedPickLogSignature = (failure: PointQueryTangentPlaneFailure) =>
     failure.reason,
     failure.placementMode,
     failure.screenPosition
-      ? Math.round(failure.screenPosition.x / FAILED_PICK_LOG_SCREEN_BUCKET_PX)
+      ? Math.round(
+          failure.screenPosition.x /
+            pointQueryDebugDefaults.failedPickLog.screenBucketPx
+        )
       : "none",
     failure.screenPosition
-      ? Math.round(failure.screenPosition.y / FAILED_PICK_LOG_SCREEN_BUCKET_PX)
+      ? Math.round(
+          failure.screenPosition.y /
+            pointQueryDebugDefaults.failedPickLog.screenBucketPx
+        )
       : "none",
   ].join(":");
 
@@ -625,7 +647,8 @@ export const createPointQueryDebugRuntime = ({
     const signature = buildFailedPickLogSignature(failure);
     if (
       lastFailedPickLogSignature === signature &&
-      failure.t - lastFailedPickLogTimeMs < FAILED_PICK_LOG_THROTTLE_MS
+      failure.t - lastFailedPickLogTimeMs <
+        pointQueryDebugDefaults.failedPickLog.throttleMs
     ) {
       return;
     }
@@ -695,21 +718,29 @@ export const createPointQueryDebugRuntime = ({
     const elapsedMs = nowMs - lastPerformanceReportTimeMs;
     const mouseIdle =
       lastMousePositionEventTimeMs <= 0 ||
-      nowMs - lastMousePositionEventTimeMs >= PERFORMANCE_IDLE_RESET_MS;
+      nowMs - lastMousePositionEventTimeMs >=
+        pointQueryDebugDefaults.performance.idleResetMs;
     const renderIdle =
       lastRenderRequestEventTimeMs <= 0 ||
-      nowMs - lastRenderRequestEventTimeMs >= PERFORMANCE_IDLE_RESET_MS;
+      nowMs - lastRenderRequestEventTimeMs >=
+        pointQueryDebugDefaults.performance.idleResetMs;
     const sampleIdle =
       lastSampleEventTimeMs <= 0 ||
-      nowMs - lastSampleEventTimeMs >= PERFORMANCE_IDLE_RESET_MS;
+      nowMs - lastSampleEventTimeMs >=
+        pointQueryDebugDefaults.performance.idleResetMs;
     const discIdle =
       lastDiscUpdateEventTimeMs <= 0 ||
-      nowMs - lastDiscUpdateEventTimeMs >= PERFORMANCE_IDLE_RESET_MS;
+      nowMs - lastDiscUpdateEventTimeMs >=
+        pointQueryDebugDefaults.performance.idleResetMs;
     const skippedIdle =
       lastSkippedInputEventTimeMs <= 0 ||
-      nowMs - lastSkippedInputEventTimeMs >= PERFORMANCE_IDLE_RESET_MS;
+      nowMs - lastSkippedInputEventTimeMs >=
+        pointQueryDebugDefaults.performance.idleResetMs;
 
-    if (!force && elapsedMs < PERFORMANCE_REPORT_INTERVAL_MS) {
+    if (
+      !force &&
+      elapsedMs < pointQueryDebugDefaults.performance.reportIntervalMs
+    ) {
       return;
     }
 
@@ -1013,10 +1044,14 @@ export const createPointQueryDebugRuntime = ({
         requestSampleClientX: latestRequestedSampleClientPosition?.x ?? null,
         requestSampleClientY: latestRequestedSampleClientPosition?.y ?? null,
       });
-      if (telemetryEntries.length > MAX_TELEMETRY_ENTRY_COUNT) {
+      if (
+        telemetryEntries.length >
+        pointQueryDebugDefaults.history.maxTelemetryEntryCount
+      ) {
         telemetryEntries.splice(
           0,
-          telemetryEntries.length - MAX_TELEMETRY_ENTRY_COUNT
+          telemetryEntries.length -
+            pointQueryDebugDefaults.history.maxTelemetryEntryCount
         );
       }
     },
@@ -1070,10 +1105,14 @@ export const createPointQueryDebugRuntime = ({
       tangentPlaneFailureCount += 1;
       tangentPlaneFailureCounts[reason] += 1;
       tangentPlaneFailures.push(failure);
-      if (tangentPlaneFailures.length > MAX_TANGENT_PLANE_FAILURE_COUNT) {
+      if (
+        tangentPlaneFailures.length >
+        pointQueryDebugDefaults.history.maxTangentPlaneFailureCount
+      ) {
         tangentPlaneFailures.splice(
           0,
-          tangentPlaneFailures.length - MAX_TANGENT_PLANE_FAILURE_COUNT
+          tangentPlaneFailures.length -
+            pointQueryDebugDefaults.history.maxTangentPlaneFailureCount
         );
       }
       maybeLogFailedPick(failure);
@@ -1115,7 +1154,7 @@ export const createPointQueryDebugRuntime = ({
       );
       const thresholdMeters =
         metersPerPixelAtPreviousDiscPosition *
-        DISC_ORIGIN_JUMP_PIXEL_RESOLUTION_MULTIPLIER;
+        pointQueryDebugDefaults.discOriginJump.pixelResolutionMultiplier;
       if (jumpDistanceMeters <= thresholdMeters) {
         return;
       }
@@ -1129,7 +1168,7 @@ export const createPointQueryDebugRuntime = ({
         thresholdMeters,
         metersPerPixel: metersPerPixelAtPreviousDiscPosition,
         thresholdPixelResolutionMultiplier:
-          DISC_ORIGIN_JUMP_PIXEL_RESOLUTION_MULTIPLIER,
+          pointQueryDebugDefaults.discOriginJump.pixelResolutionMultiplier,
         source,
         previousClientPosition: cloneScreenVector(previousClientPosition),
         nextClientPosition: nextClientPosition
@@ -1138,10 +1177,14 @@ export const createPointQueryDebugRuntime = ({
       };
       discOriginJumpCount += 1;
       discOriginJumps.push(latestDiscOriginJump);
-      if (discOriginJumps.length > MAX_DISC_ORIGIN_JUMP_COUNT) {
+      if (
+        discOriginJumps.length >
+        pointQueryDebugDefaults.history.maxDiscOriginJumpCount
+      ) {
         discOriginJumps.splice(
           0,
-          discOriginJumps.length - MAX_DISC_ORIGIN_JUMP_COUNT
+          discOriginJumps.length -
+            pointQueryDebugDefaults.history.maxDiscOriginJumpCount
         );
       }
       updateDiscOriginJumpReadout();
@@ -1168,7 +1211,9 @@ export const createPointQueryDebugRuntime = ({
       const relativeChange =
         Math.abs(nextScaleFactor - latestDiscScaleFactor) /
         latestDiscScaleFactor;
-      if (relativeChange <= DISC_SCALE_CHANGE_RELATIVE_THRESHOLD) {
+      if (
+        relativeChange <= pointQueryDebugDefaults.discScaleChange.relativeThreshold
+      ) {
         latestDiscScaleFactor = nextScaleFactor;
         return;
       }
@@ -1182,14 +1227,19 @@ export const createPointQueryDebugRuntime = ({
         previousScaleFactor: latestDiscScaleFactor,
         nextScaleFactor,
         relativeChange,
-        thresholdRelativeChange: DISC_SCALE_CHANGE_RELATIVE_THRESHOLD,
+        thresholdRelativeChange:
+          pointQueryDebugDefaults.discScaleChange.relativeThreshold,
       };
       discScaleChangeCount += 1;
       discScaleChanges.push(latestDiscScaleChange);
-      if (discScaleChanges.length > MAX_DISC_ORIGIN_JUMP_COUNT) {
+      if (
+        discScaleChanges.length >
+        pointQueryDebugDefaults.history.maxDiscScaleChangeCount
+      ) {
         discScaleChanges.splice(
           0,
-          discScaleChanges.length - MAX_DISC_ORIGIN_JUMP_COUNT
+          discScaleChanges.length -
+            pointQueryDebugDefaults.history.maxDiscScaleChangeCount
         );
       }
       latestDiscScaleFactor = nextScaleFactor;

@@ -2,14 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import { RUNTIME_POINT_LABEL_COORDINATE_SELECTION } from "../../render/measurement-render-models";
 import type {
-  RuntimeEdge,
-  RuntimeNodeLink,
-  RuntimeMeasurement,
-  RuntimeNode,
+  AnnotationEdge,
+  AnnotationNodeLink,
+  StoredAnnotation,
+  AnnotationNode,
 } from "../../store";
 import { buildDistanceToolRenderModels } from "./distance-tool-render-models";
 import type { DistanceToolVisualSettings } from "./distance-tool-settings";
-import type { AnnotationMeasurementLabelTheme } from "../../config/annotation-measurement-label-themes";
+import type { StoredAnnotationLabelTheme } from "../../config/annotation-measurement-label-themes";
 
 const visuals: DistanceToolVisualSettings = {
   edge: {
@@ -46,7 +46,7 @@ const visuals: DistanceToolVisualSettings = {
   },
 };
 
-const labelTheme: AnnotationMeasurementLabelTheme = {
+const labelTheme: StoredAnnotationLabelTheme = {
   scheme: {
     id: "default",
     label: "Default",
@@ -68,7 +68,7 @@ const labelTheme: AnnotationMeasurementLabelTheme = {
   },
 };
 
-const nodes: readonly RuntimeNode[] = [
+const nodes: readonly AnnotationNode[] = [
   {
     id: "node-a",
     coordinate: {
@@ -111,7 +111,7 @@ const nodes: readonly RuntimeNode[] = [
   },
 ];
 
-const primaryMeasurement: RuntimeMeasurement = {
+const primaryMeasurement: StoredAnnotation = {
   id: "distance-1",
   toolType: "distance",
   nodeIds: ["node-a", "node-b"],
@@ -126,9 +126,9 @@ const getBadgeLabel = ({
   measurements = [primaryMeasurement],
   edges = [],
 }: {
-  linkedNodeGroups: readonly RuntimeNodeLink[];
-  measurements?: readonly RuntimeMeasurement[];
-  edges?: readonly RuntimeEdge[];
+  linkedNodeGroups: readonly AnnotationNodeLink[];
+  measurements?: readonly StoredAnnotation[];
+  edges?: readonly AnnotationEdge[];
 }) =>
   buildDistanceToolRenderModels({
     toolType: "distance",
@@ -189,7 +189,7 @@ describe("buildDistanceToolRenderModels", () => {
   });
 
   it("anchors the distance badge on the endpoint with fewer incident edges at the linked position", () => {
-    const secondaryMeasurement: RuntimeMeasurement = {
+    const secondaryMeasurement: StoredAnnotation = {
       id: "distance-2",
       toolType: "distance",
       nodeIds: ["node-c", "node-e"],

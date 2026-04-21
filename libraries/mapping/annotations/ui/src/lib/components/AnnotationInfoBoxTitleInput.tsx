@@ -8,7 +8,7 @@ import {
 import { resolveAnnotationInfoBoxVisualOptions } from "../config/annotation-info-box-visual-defaults";
 import type { AnnotationInfoBoxVisualOptions } from "../annotation-info-box.types";
 
-type AnnotationInfoBoxTitleInputProps = {
+export type AnnotationInfoBoxTitleInputProps = {
   value: string;
   placeholder: string;
   onCommit: (nextValue: string) => void;

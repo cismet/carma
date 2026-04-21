@@ -21,16 +21,24 @@ import {
   useLabelOverlayHost,
   useLineVisualizers,
 } from "@carma-providers/label-overlay";
-import type { CssPixelPosition } from "@carma-units";
 import {
+  radToDegNumeric,
+  type CssPixels,
+  type CssPixelPosition,
+  type Radians,
+} from "@carma-units";
+import {
+  PREVIEW_LINE_LABEL_COLLISION_RESOLUTION_STRATEGY,
+  PREVIEW_LINE_LABEL_THEME,
   applyLineLabel,
+  applySecondaryLineLabelPlacementStrategy,
   buildPreviewDistanceTriangleLabelReferences,
   createSegmentLineLabels,
   hideLineLabels,
   previewControllerDefaults,
-  PREVIEW_LINE_LABEL_THEME,
   previewLineLabelVisualDefaults,
   resolvePreviewDistanceTriangleComponentLabelVisibility,
+  type PreviewLineLabelCollisionResolutionStrategy,
   type PreviewLineLabelTheme,
 } from "@carma-mapping/annotations/runtime";
 import barmenBackgroundUrl from "./assets/barmen-background.png";
@@ -186,6 +194,37 @@ const lineLabelComponentViewportStyle: CSSProperties = {
   overflow: "hidden",
 };
 
+const singleLineCollisionObstacleStyle: CSSProperties = {
+  position: "absolute",
+  transform: "translate(-50%, -50%)",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  whiteSpace: "nowrap",
+  padding: "8px 14px",
+  borderRadius: 999,
+  boxShadow: "0 1px 3px rgba(15, 23, 42, 0.18)",
+  userSelect: "none",
+  pointerEvents: "none",
+};
+
+const singleLineCollisionPrimaryObstacleStyle: CSSProperties = {
+  ...singleLineCollisionObstacleStyle,
+  background: "rgba(59, 130, 246, 0.95)",
+  color: "#f8fafc",
+  fontSize: 14,
+  fontWeight: 600,
+};
+
+const singleLineCollisionSecondaryObstacleStyle: CSSProperties = {
+  ...singleLineCollisionObstacleStyle,
+  background: "rgba(255, 255, 255, 0.95)",
+  border: "1px solid rgba(59, 130, 246, 0.18)",
+  color: "#0f172a",
+  fontSize: 13,
+  fontWeight: 600,
+};
+
 const DISTANCE_TRIANGLE_DASH_PATTERN = "8 8";
 
 const toCssPixelPosition = (x: number, y: number): CssPixelPosition => ({
@@ -195,6 +234,13 @@ const toCssPixelPosition = (x: number, y: number): CssPixelPosition => ({
 
 const formatStatusNumber = (value: number, digits = 2): string =>
   Number.isFinite(value) ? value.toFixed(digits) : "0";
+
+const toLayoutRect = (domRect: DOMRect) => ({
+  left: domRect.left,
+  top: domRect.top,
+  right: domRect.right,
+  bottom: domRect.bottom,
+});
 
 const useContainerSize = (containerRef: RefObject<HTMLDivElement | null>) => {
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -236,7 +282,7 @@ const LabelAnchorAngleDebug = ({
   placement,
   color,
 }: {
-  placement: { textX: number; textY: number; angleDeg: number } | null;
+  placement: { textX: CssPixels; textY: CssPixels; angleRad: Radians } | null;
   color: string;
 }) => {
   const hairlinePx =
@@ -294,7 +340,7 @@ const LabelAnchorAngleDebug = ({
           top: placement.textY,
           width: angleLengthPx,
           height: hairlinePx,
-          transform: `translateY(-50%) rotate(${placement.angleDeg}deg)`,
+          transform: `translateY(-50%) rotate(${placement.angleRad}rad)`,
           transformOrigin: "0 50%",
           backgroundColor: color,
           opacity: 0.7,
@@ -336,6 +382,14 @@ type SingleLineStoryArgs = {
   visible: boolean;
   isHidden: boolean;
   contentSignature: string;
+};
+
+export type SingleLineCollisionStrategyStoryArgs = {
+  labelText: string;
+  allowEarlyRemoval: boolean;
+  collisionResolutionStrategy: PreviewLineLabelCollisionResolutionStrategy;
+  anchorSlideStepRatio: number;
+  maxAnchorSlideDeltaRatio: number;
 };
 
 export type LabelPlacementStoryArgs = SingleLineStoryArgs & {
@@ -478,9 +532,15 @@ const lineLabelComponentRows: readonly LineLabelComponentRow[] = [
 ] as const;
 
 type StoryLineLabelPlacement = {
-  textX: number;
-  textY: number;
-  angleDeg: number;
+  textX: CssPixels;
+  textY: CssPixels;
+  angleRad: Radians;
+};
+
+type SingleLineCollisionStrategyStatus = {
+  visible: boolean;
+  anchorRatio: number | null;
+  collisionCount: number;
 };
 
 const scalePresetPoint = (
@@ -538,8 +598,8 @@ const applyStoryLineLabel = ({
   element.style.transform = `translate(${Math.round(
     placement.textX
   )}px, ${Math.round(placement.textY)}px) translate(-50%, -50%) rotate(${
-    placement.angleDeg
-  }deg)`;
+    placement.angleRad
+  }rad)`;
 };
 
 const resolveDistanceTrianglePanelFrameStyle = (
@@ -736,6 +796,22 @@ const DistanceTriangleDefaultsPanel = ({
     ["fontWeight", String(previewLineLabelVisualDefaults.fontWeight)],
     ["backgroundStyle", previewLineLabelVisualDefaults.backgroundStyle],
     ["theme", previewLineLabelVisualDefaults.theme],
+    [
+      "allowEarlyRemoval",
+      String(previewLineLabelVisualDefaults.allowEarlyRemoval),
+    ],
+    [
+      "collisionResolutionStrategy",
+      previewLineLabelVisualDefaults.collisionResolutionStrategy,
+    ],
+    [
+      "anchorSlideStepRatio",
+      String(previewLineLabelVisualDefaults.anchorSlideStepRatio),
+    ],
+    [
+      "maxAnchorSlideDeltaRatio",
+      String(previewLineLabelVisualDefaults.maxAnchorSlideDeltaRatio),
+    ],
     [
       "shortEdgeOffsetPx",
       String(previewLineLabelVisualDefaults.shortEdgeOffsetPx),
@@ -1101,7 +1177,7 @@ const SingleLineLabelDebugOverlay = ({
   const lineDx = end.x - start.x;
   const lineDy = end.y - start.y;
   const lineLengthPx = Math.hypot(lineDx, lineDy);
-  const lineAngleDeg = (Math.atan2(lineDy, lineDx) * 180) / Math.PI;
+  const lineAngleDeg = radToDegNumeric(Math.atan2(lineDy, lineDx) as Radians)!;
   const statusValues = useMemo(
     () => [
       `start (${formatStatusNumber(start.x, 1)}, ${formatStatusNumber(
@@ -1113,7 +1189,7 @@ const SingleLineLabelDebugOverlay = ({
       `lineAngle ${formatStatusNumber(lineAngleDeg, 1)}°`,
       `labelAngle ${
         labelPlacement
-          ? `${formatStatusNumber(labelPlacement.angleDeg, 1)}°`
+          ? `${formatStatusNumber(radToDegNumeric(labelPlacement.angleRad)!, 1)}°`
           : "n/a"
       }`,
     ],
@@ -1425,6 +1501,193 @@ const PolygonSegmentLabelDebugOverlay = ({
   );
 };
 
+const DEFAULT_SINGLE_LINE_COLLISION_STRATEGY_STATUS: SingleLineCollisionStrategyStatus =
+  {
+    visible: false,
+    anchorRatio: null,
+    collisionCount: 0,
+  };
+
+const SingleLineCollisionStrategyDebugOverlay = ({
+  containerRef,
+  args,
+  onStatusChange,
+}: {
+  containerRef: RefObject<HTMLDivElement | null>;
+  args: SingleLineCollisionStrategyStoryArgs;
+  onStatusChange: (status: SingleLineCollisionStrategyStatus) => void;
+}) => {
+  const labelRef = useRef<ReturnType<typeof createSegmentLineLabels> | null>(
+    null
+  );
+  const primaryObstacleRef = useRef<HTMLDivElement | null>(null);
+  const secondaryObstacleRef = useRef<HTMLDivElement | null>(null);
+  const { width: containerWidth, height: containerHeight } =
+    useContainerSize(containerRef);
+  const resolvedWidth = containerWidth > 0 ? containerWidth : 1280;
+  const resolvedHeight = containerHeight > 0 ? containerHeight : 720;
+
+  const defaults = useMemo(
+    () => ({
+      start: toCssPixelPosition(resolvedWidth * 0.18, resolvedHeight * 0.46),
+      end: toCssPixelPosition(resolvedWidth * 0.82, resolvedHeight * 0.58),
+    }),
+    [resolvedHeight, resolvedWidth]
+  );
+
+  const [start, setStart] = useState<CssPixelPosition>(defaults.start);
+  const [end, setEnd] = useState<CssPixelPosition>(defaults.end);
+
+  useEffect(() => {
+    setStart(defaults.start);
+    setEnd(defaults.end);
+  }, [defaults]);
+
+  const obstacleLayout = useMemo(
+    () => ({
+      primary: toCssPixelPosition(resolvedWidth * 0.49, resolvedHeight * 0.43),
+      secondary: toCssPixelPosition(
+        resolvedWidth * 0.62,
+        resolvedHeight * 0.585
+      ),
+    }),
+    [resolvedHeight, resolvedWidth]
+  );
+
+  const lines = useMemo(
+    () => [
+      ...createScreenPointSvgLineVisualizers({
+        id: "single-line-collision-strategy-debug",
+        start,
+        end,
+        stroke: "rgba(30, 64, 175, 0.95)",
+        strokeWidth: 10,
+        opacity: 1,
+        hitTargetStrokeWidth: 12,
+        dashed: true,
+        capStyle: "round",
+        dashLengthRatio: 1,
+        dashGapRatio: 1.5,
+        collapseNegativeGaps: true,
+        collapseCapThresholdEffectiveGapRatio: -0.1,
+        visible: true,
+        isHidden: false,
+      }),
+    ],
+    [end, start]
+  );
+
+  useLineVisualizers(lines, true);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) {
+      return;
+    }
+
+    const labels = createSegmentLineLabels({
+      theme: PREVIEW_LINE_LABEL_THEME.BRIGHT_ON_DARK,
+    });
+    labelRef.current = labels;
+    container.append(labels.direct);
+
+    return () => {
+      labels.direct.remove();
+      labels.vertical.remove();
+      labels.horizontal.remove();
+      labelRef.current = null;
+    };
+  }, [containerRef]);
+
+  useEffect(() => {
+    const labelElement = labelRef.current?.direct;
+    if (!labelElement) {
+      onStatusChange(DEFAULT_SINGLE_LINE_COLLISION_STRATEGY_STATUS);
+      return;
+    }
+
+    const occupiedLabelRects = [
+      primaryObstacleRef.current,
+      secondaryObstacleRef.current,
+    ]
+      .map((element) =>
+        element ? toLayoutRect(element.getBoundingClientRect()) : null
+      )
+      .filter(
+        (rect): rect is ReturnType<typeof toLayoutRect> =>
+          rect !== null && rect.right > rect.left && rect.bottom > rect.top
+      );
+
+    const placementResult = applySecondaryLineLabelPlacementStrategy({
+      candidate: {
+        element: labelElement,
+        text: args.labelText,
+        start,
+        end,
+      },
+      occupiedLabelRects,
+      allowEarlyRemoval: args.allowEarlyRemoval,
+      collisionResolutionStrategy: args.collisionResolutionStrategy,
+      anchorSlideStepRatio: args.anchorSlideStepRatio,
+      maxAnchorSlideDeltaRatio: args.maxAnchorSlideDeltaRatio,
+    });
+
+    onStatusChange({
+      visible: placementResult.visible,
+      anchorRatio: placementResult.anchorRatio,
+      collisionCount: placementResult.collisionCount,
+    });
+  }, [
+    args.allowEarlyRemoval,
+    args.anchorSlideStepRatio,
+    args.collisionResolutionStrategy,
+    args.labelText,
+    args.maxAnchorSlideDeltaRatio,
+    end,
+    onStatusChange,
+    start,
+  ]);
+
+  return (
+    <>
+      <div
+        ref={primaryObstacleRef}
+        style={{
+          ...singleLineCollisionPrimaryObstacleStyle,
+          left: obstacleLayout.primary.x,
+          top: obstacleLayout.primary.y,
+        }}
+      >
+        primary pill label
+      </div>
+      <div
+        ref={secondaryObstacleRef}
+        style={{
+          ...singleLineCollisionSecondaryObstacleStyle,
+          left: obstacleLayout.secondary.x,
+          top: obstacleLayout.secondary.y,
+        }}
+      >
+        proper label
+      </div>
+      <DraggableDebugAnchor
+        anchorId="single-line-collision-start"
+        position={start}
+        color="#1d4ed8"
+        containerRef={containerRef}
+        onChange={setStart}
+      />
+      <DraggableDebugAnchor
+        anchorId="single-line-collision-end"
+        position={end}
+        color="#1d4ed8"
+        containerRef={containerRef}
+        onChange={setEnd}
+      />
+    </>
+  );
+};
+
 export const SingleLineLabelDebugStory = ({
   args,
 }: {
@@ -1448,6 +1711,51 @@ export const SingleLineLabelDebugStory = ({
       <div ref={rootRef} style={plotFrameStyle}>
         <LabelOverlayProvider host={overlayHost}>
           <SingleLineLabelDebugOverlay containerRef={rootRef} args={args} />
+        </LabelOverlayProvider>
+      </div>
+    </CenteredStoryFrame>
+  );
+};
+
+export const SingleLineCollisionResolutionDebugStory = ({
+  args,
+}: {
+  args: SingleLineCollisionStrategyStoryArgs;
+}) => {
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const overlayHost = useLabelOverlayHost({
+    kind: "dom",
+    containerRef: rootRef,
+  });
+  const [status, setStatus] = useState<SingleLineCollisionStrategyStatus>(
+    DEFAULT_SINGLE_LINE_COLLISION_STRATEGY_STATUS
+  );
+
+  const statusValues = [
+    `strategy ${args.collisionResolutionStrategy}`,
+    `early removal ${args.allowEarlyRemoval ? "on" : "off"}`,
+    `visible ${status.visible ? "yes" : "no"}`,
+    `anchor ${
+      status.anchorRatio === null
+        ? "hidden"
+        : formatStatusNumber(status.anchorRatio, 2)
+    }`,
+    `collisions ${status.collisionCount}`,
+    "drag endpoints",
+  ];
+
+  return (
+    <CenteredStoryFrame
+      label="placement single line collision strategy"
+      values={statusValues}
+    >
+      <div ref={rootRef} style={plotFrameStyle}>
+        <LabelOverlayProvider host={overlayHost}>
+          <SingleLineCollisionStrategyDebugOverlay
+            containerRef={rootRef}
+            args={args}
+            onStatusChange={setStatus}
+          />
         </LabelOverlayProvider>
       </div>
     </CenteredStoryFrame>
@@ -1834,6 +2142,38 @@ export const LABEL_PLACEMENT_SINGLE_LINE_ARGS = {
   isHidden: false,
   contentSignature: "",
 };
+
+export const LABEL_PLACEMENT_SINGLE_LINE_COLLISION_ARG_TYPES = {
+  labelText: { control: { type: "text" }, table: { category: "Label" } },
+  allowEarlyRemoval: {
+    control: { type: "boolean" },
+    table: { category: "Collision" },
+  },
+  collisionResolutionStrategy: {
+    control: { type: "inline-radio" },
+    options: Object.values(PREVIEW_LINE_LABEL_COLLISION_RESOLUTION_STRATEGY),
+    table: { category: "Collision" },
+  },
+  anchorSlideStepRatio: {
+    control: { type: "range", min: 0.02, max: 0.25, step: 0.01 },
+    table: { category: "Collision" },
+  },
+  maxAnchorSlideDeltaRatio: {
+    control: { type: "range", min: 0, max: 0.5, step: 0.01 },
+    table: { category: "Collision" },
+  },
+};
+
+export const LABEL_PLACEMENT_SINGLE_LINE_COLLISION_ARGS: SingleLineCollisionStrategyStoryArgs =
+  {
+    labelText: "30,38 m",
+    allowEarlyRemoval: true,
+    collisionResolutionStrategy:
+      PREVIEW_LINE_LABEL_COLLISION_RESOLUTION_STRATEGY.MOVE_ON_LINE,
+    anchorSlideStepRatio: previewLineLabelVisualDefaults.anchorSlideStepRatio,
+    maxAnchorSlideDeltaRatio:
+      previewLineLabelVisualDefaults.maxAnchorSlideDeltaRatio,
+  };
 
 export const LABEL_PLACEMENT_POLYGON_ARG_TYPES = {
   polygonSidePreference: {

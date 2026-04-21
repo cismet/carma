@@ -8,7 +8,6 @@ import {
   type PreviewLineLabelVisualOptions,
 } from "@carma-mapping/annotations/runtime";
 import { LENGTH_UNIT_MODE } from "@carma-units";
-import type { PlaygroundRuntime } from "./playground.types";
 const {
   AREA_GROUND: ANNOTATION_TYPE_AREA_GROUND,
   AREA_PLANAR: ANNOTATION_TYPE_AREA_PLANAR,
@@ -22,12 +21,18 @@ const {
 
 export const INFOBOX_WIDTH_PX = 430;
 export const PLAYGROUND_FLOATING_OVERLAY_WINDOW_MARGIN_PX = 12;
-export const ACTIVE_TOOL_STORAGE_KEY = "annotations-playground-active-tool";
+// The playground UI stays above the runtime-managed overlay roots.
+export const PLAYGROUND_UI_Z_INDEX = 200;
+export const ACTIVE_TOOL_STORAGE_KEY = "annotations-playground-active-tool.v1";
 export const ANNOTATIONS_RUNTIME_STORAGE_KEY =
-  "annotations-playground-annotations";
-export const ANNOTATIONS_PROTOTYPE_STORAGE_KEY =
-  "annotations-playground-annotations-prototype";
-export const PLAYGROUND_RUNTIME_URL_PARAM = "runtime";
+  "annotations-playground-annotations.v2";
+export const PLAYGROUND_RUNTIME_TOOLSET_URL_PARAM = "runtimeToolset";
+export const PLAYGROUND_RUNTIME_TOOLSETS = {
+  ALL: "all",
+  STABLE: "stable",
+} as const;
+export type PlaygroundRuntimeToolset =
+  (typeof PLAYGROUND_RUNTIME_TOOLSETS)[keyof typeof PLAYGROUND_RUNTIME_TOOLSETS];
 export const PLAYGROUND_RUNTIME_FORMAT_OPTIONS: AnnotationsRuntimeFormatOptions =
   {
     lengthMeters: {
@@ -87,57 +92,47 @@ export const readInitialToolType = (): AnnotationToolType => {
   return ANNOTATION_TYPE_POINT;
 };
 
-const VALID_PLAYGROUND_RUNTIMES = new Set<PlaygroundRuntime>([
-  "prototype",
-  "runtime",
+const VALID_PLAYGROUND_RUNTIME_TOOLSETS = new Set<PlaygroundRuntimeToolset>([
+  PLAYGROUND_RUNTIME_TOOLSETS.ALL,
+  PLAYGROUND_RUNTIME_TOOLSETS.STABLE,
 ]);
-const PLAYGROUND_RUNTIME_URL_ALIASES = {
-  prototype: "prototype",
-  runtime: "runtime",
-} as const;
 
-const resolvePlaygroundRuntimeAlias = (
-  value: string | null
-): PlaygroundRuntime | null => {
-  if (!value) {
-    return null;
+const isPlaygroundLocalhost = () => {
+  if (typeof window === "undefined") {
+    return true;
   }
 
-  if (VALID_PLAYGROUND_RUNTIMES.has(value as PlaygroundRuntime)) {
-    return value as PlaygroundRuntime;
-  }
-
+  const { hostname } = window.location;
   return (
-    PLAYGROUND_RUNTIME_URL_ALIASES[
-      value as keyof typeof PLAYGROUND_RUNTIME_URL_ALIASES
-    ] ?? null
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "[::1]"
   );
 };
 
-export const readInitialRuntimeVersion = (): PlaygroundRuntime => {
+export const readInitialRuntimeToolset = (): PlaygroundRuntimeToolset => {
   if (typeof window === "undefined") {
-    return "runtime";
+    return PLAYGROUND_RUNTIME_TOOLSETS.ALL;
   }
 
   try {
     const searchParams = new URLSearchParams(window.location.search);
-    const explicitRuntimeVersion = resolvePlaygroundRuntimeAlias(
-      searchParams.get(PLAYGROUND_RUNTIME_URL_PARAM)
+    const requestedToolset = searchParams.get(
+      PLAYGROUND_RUNTIME_TOOLSET_URL_PARAM
     );
-    if (explicitRuntimeVersion) {
-      return explicitRuntimeVersion;
-    }
-
-    for (const alias of Object.keys(PLAYGROUND_RUNTIME_URL_ALIASES)) {
-      if (searchParams.has(alias)) {
-        return PLAYGROUND_RUNTIME_URL_ALIASES[
-          alias as keyof typeof PLAYGROUND_RUNTIME_URL_ALIASES
-        ];
-      }
+    if (
+      requestedToolset &&
+      VALID_PLAYGROUND_RUNTIME_TOOLSETS.has(
+        requestedToolset as PlaygroundRuntimeToolset
+      )
+    ) {
+      return requestedToolset as PlaygroundRuntimeToolset;
     }
   } catch {
     // ignore URL parsing errors
   }
 
-  return "runtime";
+  return isPlaygroundLocalhost()
+    ? PLAYGROUND_RUNTIME_TOOLSETS.ALL
+    : PLAYGROUND_RUNTIME_TOOLSETS.STABLE;
 };

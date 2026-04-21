@@ -1,7 +1,7 @@
 import type { AnnotationsRuntimeFormatOptions } from "../../config/annotations-runtime-format-options";
 import type {
-  RuntimeMeasurement,
-  RuntimeNode,
+  StoredAnnotation,
+  AnnotationNode,
 } from "../../store/annotations-store.types";
 import type {
   RuntimePointLabelRenderModel,
@@ -17,17 +17,20 @@ import {
   resolvePointElevationReferenceCoordinate,
 } from "./point-tool-elevation-display";
 import type { PointToolVisualSettings } from "./point-tool-settings";
-import { annotationTypographyDefaults } from "../../config/annotation-typography-defaults";
-import type { AnnotationMeasurementLabelTheme } from "../../config/annotation-measurement-label-themes";
+import { typographyDefaults } from "../../config/annotation-typography-defaults";
+import { applySelectedPointMarkerVisualStyle } from "../../config/measurement-visual-defaults";
+import type { StoredAnnotationLabelTheme } from "../../config/annotation-measurement-label-themes";
+import type { AnnotationToolDraftState } from "../annotation-tool-plugin.types";
 
 type BuildPointToolRenderModelsArgs = {
-  toolType: RuntimeMeasurement["toolType"];
+  toolType: StoredAnnotation["toolType"];
   visuals: PointToolVisualSettings;
-  labelTheme: AnnotationMeasurementLabelTheme;
+  labelTheme: StoredAnnotationLabelTheme;
   formatOptions: AnnotationsRuntimeFormatOptions;
   getMeasurementLabel: (measurementIndex: number) => string;
-  nodes: readonly RuntimeNode[];
-  measurements: readonly RuntimeMeasurement[];
+  nodes: readonly AnnotationNode[];
+  measurements: readonly StoredAnnotation[];
+  draft?: AnnotationToolDraftState;
   elevationReferenceAnnotationId: string | null;
   selectedMeasurementIds: readonly string[];
   isSelectionAdditiveModifierPressed: boolean;
@@ -45,6 +48,7 @@ export const buildPointToolRenderModels = ({
   getMeasurementLabel,
   nodes,
   measurements,
+  draft,
   elevationReferenceAnnotationId,
   selectedMeasurementIds,
   isSelectionAdditiveModifierPressed,
@@ -63,6 +67,7 @@ export const buildPointToolRenderModels = ({
   const visiblePointMeasurements = pointMeasurements.filter(
     (measurement) => !measurement.hidden
   );
+  const draftCoordinates = draft?.coordinates ?? [];
   const selectedMeasurementIdSet = new Set(selectedMeasurementIds);
   const referenceCoordinate = resolvePointElevationReferenceCoordinate({
     annotationEntries: pointMeasurements,
@@ -71,92 +76,144 @@ export const buildPointToolRenderModels = ({
   });
 
   return {
-    points: visiblePointMeasurements.flatMap((measurement) => {
-      const coordinate =
-        resolveMeasurementCoordinates(measurement, nodeCoordinatesById)[0] ??
-        null;
+    pointLabels: [
+      ...visiblePointMeasurements.flatMap((measurement, pointIndex) => {
+        const coordinate =
+          resolveMeasurementCoordinates(measurement, nodeCoordinatesById)[0] ??
+          null;
 
-      if (!coordinate) {
-        return [];
-      }
+        if (!coordinate) {
+          return [];
+        }
+        const pointNodeId = measurement.nodeIds[0] ?? null;
+        const isSelected = selectedMeasurementIdSet.has(measurement.id);
+        const pointVisuals = isSelected
+          ? applySelectedPointMarkerVisualStyle(visuals.point)
+          : visuals.point;
+        const selectedHighlight = labelTheme.selection;
+        const labelColorScheme = labelTheme.scheme;
 
-      return [
-        {
-          id: measurement.id,
-          measurementId: measurement.id,
-          nodeId: measurement.nodeIds[0],
+        const badgeText =
+          measurement.shortLabel?.trim() || getMeasurementLabel(pointIndex + 1);
+        const elevationText = formatPointElevationLabelText({
           coordinate,
-          ...(selectedMeasurementIdSet.has(measurement.id)
-            ? visuals.selectedPoint
-            : visuals.point),
-        },
-      ];
-    }),
-    pointLabels: visiblePointMeasurements.flatMap((measurement, pointIndex) => {
-      const coordinate =
-        resolveMeasurementCoordinates(measurement, nodeCoordinatesById)[0] ??
-        null;
+          referenceCoordinate,
+          elevationDisplayMode: resolvePointElevationDisplayMode(measurement),
+          formatOptions,
+        });
 
-      if (!coordinate) {
-        return [];
-      }
-      const pointNodeId = measurement.nodeIds[0] ?? null;
-      const isSelected = selectedMeasurementIdSet.has(measurement.id);
-      const pointVisuals = isSelected ? visuals.selectedPoint : visuals.point;
-      const selectedHighlight = labelTheme.selection;
-      const labelColorScheme = labelTheme.scheme;
-
-      const badgeText =
-        measurement.shortLabel?.trim() || getMeasurementLabel(pointIndex + 1);
-      const elevationText = formatPointElevationLabelText({
-        coordinate,
-        referenceCoordinate,
-        elevationDisplayMode: resolvePointElevationDisplayMode(measurement),
-        formatOptions,
-      });
-
-      return [
-        {
-          id: `${measurement.id}-label`,
-          measurementId: measurement.id,
-          nodeId: pointNodeId ?? undefined,
-          pointMarkerId: measurement.id,
+        return [
+          {
+            id: `${measurement.id}-label`,
+            measurementId: measurement.id,
+            nodeId: pointNodeId ?? undefined,
+            pointMarkerId: measurement.id,
+            coordinate,
+            markerPixelSize: pointVisuals.pixelSize,
+            markerOutlineWidth: pointVisuals.outlineWidth,
+            content: elevationText,
+            badgeContent: badgeText,
+            fontSize: typographyDefaults.rootFontSizeRem,
+            fontFamily: labelTheme.fontFamily,
+            fontWeight: labelTheme.contentFontWeight,
+            lineColor: labelColorScheme.lineColor,
+            textBackgroundColor: labelColorScheme.colorPrimaryReduced,
+            textColor: labelColorScheme.textColor,
+            markerBackgroundColor: labelColorScheme.colorPrimary,
+            markerTextColor: labelColorScheme.textColor,
+            selectedBackgroundColor: selectedHighlight.backgroundColor,
+            selectedTextColor: selectedHighlight.textColor,
+            selectedGlowColor: selectedHighlight.glowColor,
+            selectedGlowRadiusPx: selectedHighlight.glowRadiusPx,
+            preserveFillOnSelection: selectedHighlight.preserveFillOnSelection,
+            hoverBackgroundColor: selectedHighlight.hoverBackgroundColor,
+            selected: isSelected,
+            onClick: () => {
+              if (isSelected && !isSelectionAdditiveModifierPressed) {
+                onMeasurementLabelClick(measurement.id);
+              }
+              onMeasurementSelect(measurement.id);
+            },
+            onDoubleClick: () => {
+              onMeasurementLabelDoubleClick(measurement.id);
+              onMeasurementSelect(measurement.id);
+            },
+            onLongPress:
+              onNodeLongPress && pointNodeId && !measurement.locked
+                ? () => onNodeLongPress(pointNodeId, measurement.id)
+                : undefined,
+          },
+        ];
+      }),
+      ...draftCoordinates.flatMap((coordinate, pointIndex) => {
+        const badgeText = getMeasurementLabel(
+          visiblePointMeasurements.length + pointIndex + 1
+        );
+        const elevationText = formatPointElevationLabelText({
           coordinate,
-          markerPixelSize: pointVisuals.pixelSize,
-          markerOutlineWidth: pointVisuals.outlineWidth,
-          content: elevationText,
-          badgeContent: badgeText,
-          fontSize: annotationTypographyDefaults.rootFontSizeRem,
-          fontFamily: labelTheme.fontFamily,
-          fontWeight: labelTheme.contentFontWeight,
-          lineColor: labelColorScheme.lineColor,
-          textBackgroundColor: labelColorScheme.colorPrimaryReduced,
-          textColor: labelColorScheme.textColor,
-          markerBackgroundColor: labelColorScheme.colorPrimary,
-          markerTextColor: labelColorScheme.textColor,
-          selectedBackgroundColor: selectedHighlight.backgroundColor,
-          selectedTextColor: selectedHighlight.textColor,
-          selectedGlowColor: selectedHighlight.glowColor,
-          selectedGlowRadiusPx: selectedHighlight.glowRadiusPx,
-          preserveFillOnSelection: selectedHighlight.preserveFillOnSelection,
-          hoverBackgroundColor: selectedHighlight.hoverBackgroundColor,
-          selected: isSelected,
-          onClick: () => {
-            if (isSelected && !isSelectionAdditiveModifierPressed) {
-              onMeasurementLabelClick(measurement.id);
-            }
-            onMeasurementSelect(measurement.id);
+          referenceCoordinate,
+          elevationDisplayMode: undefined,
+          formatOptions,
+        });
+        const labelColorScheme = labelTheme.scheme;
+        const selectedHighlight = labelTheme.selection;
+
+        return [
+          {
+            id: `${toolType}-draft-label-${pointIndex}`,
+            coordinate,
+            pointMarkerId: `${toolType}-draft-point-${pointIndex}`,
+            markerPixelSize: visuals.point.pixelSize,
+            markerOutlineWidth: visuals.point.outlineWidth,
+            content: elevationText,
+            badgeContent: badgeText,
+            fontSize: typographyDefaults.rootFontSizeRem,
+            fontFamily: labelTheme.fontFamily,
+            fontWeight: labelTheme.contentFontWeight,
+            lineColor: labelColorScheme.lineColor,
+            textBackgroundColor: labelColorScheme.colorPrimaryReduced,
+            textColor: labelColorScheme.textColor,
+            markerBackgroundColor: labelColorScheme.colorPrimary,
+            markerTextColor: labelColorScheme.textColor,
+            selectedBackgroundColor: selectedHighlight.backgroundColor,
+            selectedTextColor: selectedHighlight.textColor,
+            selectedGlowColor: selectedHighlight.glowColor,
+            selectedGlowRadiusPx: selectedHighlight.glowRadiusPx,
+            preserveFillOnSelection: selectedHighlight.preserveFillOnSelection,
+            hoverBackgroundColor: selectedHighlight.hoverBackgroundColor,
           },
-          onDoubleClick: () => {
-            onMeasurementLabelDoubleClick(measurement.id);
-            onMeasurementSelect(measurement.id);
+        ] satisfies RuntimePointLabelRenderModel[];
+      }),
+    ],
+    points: [
+      ...visiblePointMeasurements.flatMap((measurement) => {
+        const coordinate =
+          resolveMeasurementCoordinates(measurement, nodeCoordinatesById)[0] ??
+          null;
+
+        if (!coordinate) {
+          return [];
+        }
+
+        return [
+          {
+            id: measurement.id,
+            measurementId: measurement.id,
+            nodeId: measurement.nodeIds[0],
+            coordinate,
+            ...(selectedMeasurementIdSet.has(measurement.id)
+              ? applySelectedPointMarkerVisualStyle(visuals.point)
+              : visuals.point),
           },
-          onLongPress:
-            onNodeLongPress && pointNodeId && !measurement.locked
-              ? () => onNodeLongPress(pointNodeId, measurement.id)
-              : undefined,
+        ];
+      }),
+      ...draftCoordinates.flatMap((coordinate, pointIndex) => [
+        {
+          id: `${toolType}-draft-point-${pointIndex}`,
+          coordinate,
+          ...visuals.point,
         },
-      ];
-    }),
+      ]),
+    ],
   };
 };

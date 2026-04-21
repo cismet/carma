@@ -1,36 +1,21 @@
 import {
-  runtimeMeasurementVisualDefaults,
-  type RuntimePointMarkerVisualStyle,
+  measurementVisualStyles,
+  type PointMarkerVisualStyle,
+  withPointMarkerVisualStyle,
 } from "../../config/measurement-visual-defaults";
 
 export type PointToolVisualSettings = {
-  point: RuntimePointMarkerVisualStyle;
-  selectedPoint: RuntimePointMarkerVisualStyle;
+  point: PointMarkerVisualStyle;
 };
 
 export type PointToolSettings = {
   visuals: PointToolVisualSettings;
 };
 
-const defaults = runtimeMeasurementVisualDefaults;
+const defaults = measurementVisualStyles;
 
-export const createPointToolSettings = (_badgeStyle: {
-  backgroundColor: string;
-  textColor: string;
-  selectionColor: string;
-}): PointToolSettings => ({
+export const createPointToolSettings = (): PointToolSettings => ({
   visuals: {
-    point: {
-      pixelSize: defaults.sizes.pointPixelSize,
-      fill: defaults.colors.transparent,
-      outline: defaults.colors.surface,
-      outlineWidth: defaults.sizes.pointOutlineWidth,
-    },
-    selectedPoint: {
-      pixelSize: defaults.sizes.selectedPointPixelSize,
-      fill: defaults.colors.transparent,
-      outline: _badgeStyle.selectionColor,
-      outlineWidth: defaults.sizes.pointOutlineWidth,
-    },
+    point: withPointMarkerVisualStyle(defaults.point),
   },
 });

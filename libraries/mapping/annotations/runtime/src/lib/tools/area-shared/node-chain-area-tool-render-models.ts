@@ -1,14 +1,30 @@
 import { Cartesian3 } from "@carma-cesium";
-import { POINT_LABEL_STYLE } from "@carma-providers/label-overlay";
+import {
+  POINT_LABEL_ANCHOR_KIND,
+  POINT_LABEL_STYLE,
+} from "@carma-providers/label-overlay";
 import { formatAreaSquareMetersAdaptive } from "@carma-units";
+import {
+  getAnnotationAreaFillCssColor,
+  type PolygonType,
+} from "@carma-mapping/annotations/core";
 import {
   getDegreesFromCartesian,
   getEllipsoidalAltitudeOrZero,
 } from "@carma-mapping/engines/cesium/core";
+import {
+  applySelectedEdgeVisualStyle,
+  applySelectedPointMarkerVisualStyle,
+  measurementVisualStyles,
+  type EdgeVisualStyle,
+  type PointMarkerVisualStyle,
+  withEdgeVisualStyle,
+  withPointMarkerVisualStyle,
+} from "../../config/measurement-visual-defaults";
 
 import type {
-  RuntimeMeasurement,
-  RuntimeNode,
+  StoredAnnotation,
+  AnnotationNode,
 } from "../../store/annotations-store.types";
 import type {
   RuntimePolygonFillPlacement,
@@ -22,7 +38,27 @@ import {
   resolveMeasurementCoordinates,
 } from "../../render/resolve-measurement-coordinates";
 import type { AnnotationsRuntimeFormatOptions } from "../../config/annotations-runtime-format-options";
-import type { NodeChainAreaToolVisualSettings } from "./node-chain-area-tool-settings";
+import { resolveAreaMeasurementSummary } from "../../derived/measurement-summaries";
+
+export type NodeChainAreaToolVisualSettings = {
+  edge: EdgeVisualStyle;
+  point: PointMarkerVisualStyle;
+  fill: string;
+  selectedFill: string;
+};
+
+const defaults = measurementVisualStyles;
+
+export const createNodeChainAreaToolVisuals = ({
+  fillType,
+}: {
+  fillType: PolygonType;
+}): NodeChainAreaToolVisualSettings => ({
+  edge: withEdgeVisualStyle(defaults.edge),
+  point: withPointMarkerVisualStyle(defaults.point),
+  fill: getAnnotationAreaFillCssColor(fillType, false),
+  selectedFill: getAnnotationAreaFillCssColor(fillType, true),
+});
 
 const getPolygonLabelCoordinate = (
   coordinates: readonly {
@@ -72,10 +108,10 @@ export const buildNodeChainAreaToolRenderModels = ({
   formatOptions,
   onMeasurementSelect,
 }: {
-  toolType: RuntimeMeasurement["toolType"];
+  toolType: PolygonType;
   visuals: NodeChainAreaToolVisualSettings;
-  nodes: readonly RuntimeNode[];
-  measurements: readonly RuntimeMeasurement[];
+  nodes: readonly AnnotationNode[];
+  measurements: readonly StoredAnnotation[];
   selectedMeasurementIds: readonly string[];
   fillPlacement: RuntimePolygonFillPlacement;
   formatOptions: AnnotationsRuntimeFormatOptions;
@@ -111,7 +147,7 @@ export const buildNodeChainAreaToolRenderModels = ({
         nodeIds: measurement.nodeIds,
         coordinates: [...coordinates, coordinates[0]!],
         ...(selectedMeasurementIdSet.has(measurement.id)
-          ? visuals.selectedEdge
+          ? applySelectedEdgeVisualStyle(visuals.edge)
           : visuals.edge),
       },
     ];
@@ -154,8 +190,11 @@ export const buildNodeChainAreaToolRenderModels = ({
           measurementId: measurement.id,
           nodeId,
           coordinate,
+          onClick: onMeasurementSelect
+            ? () => onMeasurementSelect(measurement.id)
+            : undefined,
           ...(selectedMeasurementIdSet.has(measurement.id)
-            ? visuals.selectedPoint
+            ? applySelectedPointMarkerVisualStyle(visuals.point)
             : visuals.point),
         },
       ];
@@ -177,9 +216,13 @@ export const buildNodeChainAreaToolRenderModels = ({
         id: `${measurement.id}-area-label`,
         measurementId: measurement.id,
         coordinate,
-        anchorKind: "area-centroid" as const,
+        anchorKind: POINT_LABEL_ANCHOR_KIND.AREA_CENTROID,
         content: formatAreaSquareMetersAdaptive(
-          Math.max(0, measurement.areaSquareMeters ?? 0),
+          resolveAreaMeasurementSummary({
+            measurement,
+            toolType,
+            coordinates,
+          }).areaSquareMeters,
           formatOptions.areaSquareMeters
         ),
         selected: selectedMeasurementIdSet.has(measurement.id),

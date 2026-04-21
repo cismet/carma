@@ -1,38 +1,41 @@
 import { POINT_LABEL_STYLE } from "@carma-providers/label-overlay";
 
 import type {
-  RuntimeMeasurement,
-  RuntimeNode,
+  StoredAnnotation,
+  AnnotationNode,
 } from "../../store/annotations-store.types";
-import type {
-  RuntimePointLabelRenderModel,
-  RuntimePointMarkerRenderModel,
-} from "../../render/measurement-render-models";
+import type { RuntimePointLabelRenderModel } from "../../render/measurement-render-models";
 import {
   buildRuntimeNodeCoordinateMap,
   resolveMeasurementCoordinates,
 } from "../../render/resolve-measurement-coordinates";
-import type { LabelToolVisualSettings } from "./label-tool-settings";
 import { getDefaultLabelDisplayName } from "./label-tool-actions";
+
+const resolveLabelAppearanceFontSize = (
+  fontSizePx: number | undefined
+): string | undefined => {
+  const resolvedFontSizePx = Number(fontSizePx);
+  return Number.isFinite(resolvedFontSizePx) && resolvedFontSizePx > 0
+    ? `${Math.round(resolvedFontSizePx)}px`
+    : undefined;
+};
 
 export const buildLabelToolRenderModels = ({
   toolType,
-  visuals,
   nodes,
   measurements,
   selectedMeasurementIds,
   onMeasurementSelect,
   onNodeLongPress,
 }: {
-  toolType: RuntimeMeasurement["toolType"];
-  visuals: LabelToolVisualSettings;
-  nodes: readonly RuntimeNode[];
-  measurements: readonly RuntimeMeasurement[];
+  toolType: StoredAnnotation["toolType"];
+  nodes: readonly AnnotationNode[];
+  measurements: readonly StoredAnnotation[];
   selectedMeasurementIds: readonly string[];
   onMeasurementSelect: (measurementId: string) => void;
   onNodeLongPress?: (nodeId: string, measurementId: string) => void;
 }): {
-  points: readonly RuntimePointMarkerRenderModel[];
+  points: readonly [];
   pointLabels: readonly RuntimePointLabelRenderModel[];
 } => {
   const nodeCoordinatesById = buildRuntimeNodeCoordinateMap(nodes);
@@ -45,26 +48,7 @@ export const buildLabelToolRenderModels = ({
   const selectedMeasurementIdSet = new Set(selectedMeasurementIds);
 
   return {
-    points: visibleLabelMeasurements.flatMap((measurement) => {
-      const coordinate =
-        resolveMeasurementCoordinates(measurement, nodeCoordinatesById)[0] ??
-        null;
-      if (!coordinate) {
-        return [];
-      }
-
-      return [
-        {
-          id: `${measurement.id}-anchor`,
-          measurementId: measurement.id,
-          nodeId: measurement.nodeIds[0],
-          coordinate,
-          ...(selectedMeasurementIdSet.has(measurement.id)
-            ? visuals.selectedPoint
-            : visuals.point),
-        },
-      ];
-    }),
+    points: [],
     pointLabels: visibleLabelMeasurements.flatMap((measurement, labelIndex) => {
       const coordinate =
         resolveMeasurementCoordinates(measurement, nodeCoordinatesById)[0] ??
@@ -84,14 +68,11 @@ export const buildLabelToolRenderModels = ({
           measurementId: measurement.id,
           nodeId: pointNodeId ?? undefined,
           coordinate,
-          markerPixelSize: selectedMeasurementIdSet.has(measurement.id)
-            ? visuals.selectedPoint.pixelSize
-            : visuals.point.pixelSize,
-          markerOutlineWidth: selectedMeasurementIdSet.has(measurement.id)
-            ? visuals.selectedPoint.outlineWidth
-            : visuals.point.outlineWidth,
           content: displayName,
           badgeContent: displayName,
+          fontSize: resolveLabelAppearanceFontSize(
+            measurement.labelAppearance?.fontSizePx
+          ),
           textBackgroundColor:
             measurement.labelAppearance?.backgroundColor ?? undefined,
           textColor: measurement.labelAppearance?.textColor ?? undefined,

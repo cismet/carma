@@ -1,8 +1,5 @@
 import {
-  ANNOTATION_TYPE_AREA_GROUND,
-  ANNOTATION_TYPE_AREA_PLANAR,
-  ANNOTATION_TYPE_AREA_VERTICAL,
-  ANNOTATION_TYPE_POLYLINE,
+  ANNOTATION_TYPES,
   type AnnotationType,
 } from "./types/annotation-types";
 import type { NodeChainAnnotationType } from "./types/annotation-types";
@@ -13,10 +10,10 @@ export type PolygonAnnotationLike = {
 };
 
 export const EDITABLE_LINE_MEASUREMENT_KINDS = [
-  ANNOTATION_TYPE_POLYLINE,
-  ANNOTATION_TYPE_AREA_GROUND,
-  ANNOTATION_TYPE_AREA_PLANAR,
-  ANNOTATION_TYPE_AREA_VERTICAL,
+  ANNOTATION_TYPES.POLYLINE,
+  ANNOTATION_TYPES.AREA_GROUND,
+  ANNOTATION_TYPES.AREA_PLANAR,
+  ANNOTATION_TYPES.AREA_VERTICAL,
 ] as const;
 
 export type EditableLineMeasurementKind = Extract<
@@ -32,10 +29,10 @@ const createEditableLineRelationIdsByKind = (): Record<
   EditableLineMeasurementKind,
   Set<string>
 > => ({
-  [ANNOTATION_TYPE_POLYLINE]: new Set<string>(),
-  [ANNOTATION_TYPE_AREA_GROUND]: new Set<string>(),
-  [ANNOTATION_TYPE_AREA_PLANAR]: new Set<string>(),
-  [ANNOTATION_TYPE_AREA_VERTICAL]: new Set<string>(),
+  [ANNOTATION_TYPES.POLYLINE]: new Set<string>(),
+  [ANNOTATION_TYPES.AREA_GROUND]: new Set<string>(),
+  [ANNOTATION_TYPES.AREA_PLANAR]: new Set<string>(),
+  [ANNOTATION_TYPES.AREA_VERTICAL]: new Set<string>(),
 });
 
 const resolveEditableLineMeasurementKind = (
@@ -142,7 +139,7 @@ export const getPlanarSharedEdgeRelationIds = (
     if (
       count >= 2 &&
       measurementKinds.size === 1 &&
-      measurementKinds.has(ANNOTATION_TYPE_AREA_PLANAR)
+      measurementKinds.has(ANNOTATION_TYPES.AREA_PLANAR)
     ) {
       sharedPlanarEdgeIds.add(edgeRelationId);
     }

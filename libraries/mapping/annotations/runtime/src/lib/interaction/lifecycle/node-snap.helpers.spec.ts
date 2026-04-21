@@ -10,17 +10,17 @@ vi.mock("@carma-mapping/engines/cesium/core", () => ({
 }));
 
 import type {
-  RuntimeCoordinate,
-  RuntimeNodeLink,
-  RuntimeNode,
+  CesiumGeographicCoordinate,
+  AnnotationNodeLink,
+  AnnotationNode,
 } from "../../store";
-import { resolveRuntimeNodeSnapSample } from "./node-snap.helpers";
+import { resolveNodeSnapSample } from "./node-snap.helpers";
 
 const createCoordinate = (
   longitude: number,
   latitude: number,
   altitude = 0
-): RuntimeCoordinate => ({
+): CesiumGeographicCoordinate => ({
   longitude,
   latitude,
   altitude,
@@ -30,7 +30,7 @@ const createNode = (
   id: string,
   longitude: number,
   latitude: number
-): RuntimeNode => ({
+): AnnotationNode => ({
   id,
   coordinate: createCoordinate(longitude, latitude),
 });
@@ -39,15 +39,15 @@ const scene = {
   isDestroyed: () => false,
 } as const;
 
-describe("resolveRuntimeNodeSnapSample", () => {
+describe("resolveNodeSnapSample", () => {
   it("snaps to the nearest eligible node and returns its linked group", () => {
     const nodes = [createNode("node-a", 10, 10), createNode("node-b", 40, 40)];
-    const linkedNodeGroups: RuntimeNodeLink[] = [
+    const linkedNodeGroups: AnnotationNodeLink[] = [
       { id: "group-a", nodeIds: ["node-a"] },
       { id: "group-b", nodeIds: ["node-b"] },
     ];
 
-    const sample = resolveRuntimeNodeSnapSample({
+    const sample = resolveNodeSnapSample({
       scene,
       nodes,
       linkedNodeGroups,
@@ -63,7 +63,7 @@ describe("resolveRuntimeNodeSnapSample", () => {
   it("keeps the currently locked snap target until the release distance is exceeded", () => {
     const nodes = [createNode("node-a", 0, 0), createNode("node-b", 15, 0)];
 
-    const sample = resolveRuntimeNodeSnapSample({
+    const sample = resolveNodeSnapSample({
       scene,
       nodes,
       linkedNodeGroups: [
@@ -82,7 +82,7 @@ describe("resolveRuntimeNodeSnapSample", () => {
   it("never snaps to excluded move-scope nodes", () => {
     const nodes = [createNode("node-a", 10, 10), createNode("node-b", 40, 40)];
 
-    const sample = resolveRuntimeNodeSnapSample({
+    const sample = resolveNodeSnapSample({
       scene,
       nodes,
       linkedNodeGroups: [
@@ -102,7 +102,7 @@ describe("resolveRuntimeNodeSnapSample", () => {
   it("can force the preview to a concrete snap target without screen coordinates", () => {
     const nodes = [createNode("node-a", 10, 10), createNode("node-b", 40, 40)];
 
-    const sample = resolveRuntimeNodeSnapSample({
+    const sample = resolveNodeSnapSample({
       scene,
       nodes,
       linkedNodeGroups: [

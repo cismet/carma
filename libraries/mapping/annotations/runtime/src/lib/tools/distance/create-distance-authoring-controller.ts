@@ -1,12 +1,13 @@
 import { isValidScene } from "@carma-mapping/engines/cesium/core";
+import type { AnnotationToolType } from "@carma-mapping/annotations/core";
 
-import { type RuntimeCoordinate } from "../../store";
+import { type CesiumGeographicCoordinate } from "../../store";
 import type {
   AnnotationToolAuthoringController,
   AnnotationToolAuthoringContext,
   PointQueryPickResult,
 } from "../annotation-tool-plugin.types";
-import { areRuntimeCoordinateListsEqual } from "../../utils/runtime-coordinate-equality";
+import { areCoordinateListsEqual } from "../../utils/coordinate-equality";
 import { distanceToolVisualDefaults } from "./distance-tool-visual-defaults";
 import {
   applyLineLabel,
@@ -102,7 +103,7 @@ export const createDistanceAuthoringController = ({
   toolType,
   context,
 }: {
-  toolType: string;
+  toolType: AnnotationToolType;
   context: AnnotationToolAuthoringContext;
 }): AnnotationToolAuthoringController | null => {
   const { scene, drafts, formatOptions, previewLineLabelVisualOptions } =
@@ -176,7 +177,7 @@ export const createDistanceAuthoringController = ({
     }
   };
 
-  const resolveAnchorCoordinate = (): RuntimeCoordinate | null =>
+  const resolveAnchorCoordinate = (): CesiumGeographicCoordinate | null =>
     draftCoordinates[draftCoordinates.length - 1] ?? null;
 
   const render = (requestRender = true) => {
@@ -306,7 +307,7 @@ export const createDistanceAuthoringController = ({
   const unsubscribe = drafts.subscribe(toolType, () => {
     const nextDraftCoordinates = drafts.get(toolType).coordinates;
     if (
-      areRuntimeCoordinateListsEqual(draftCoordinates, nextDraftCoordinates)
+      areCoordinateListsEqual(draftCoordinates, nextDraftCoordinates)
     ) {
       return;
     }

@@ -12,29 +12,22 @@ import {
   KEYBOARD_MEASUREMENT_PLUGIN_CAPABILITIES,
 } from "../plugin-factories";
 import {
-  clearTemporaryAnnotationsByToolType,
-  finalizeTemporaryAnnotationsByToolType,
-  setAnnotationTemporaryById,
-} from "../../store";
-import {
   addPointMeasurement,
+  commitPointMeasurementDraft,
   removeLatestPointMeasurement,
+  trimLatestPointMeasurementDraft,
 } from "./point-tool-actions";
 import { resolvePointToolKeyAction } from "./point-tool-bindings";
 import { createPointToolInfoBoxSlots } from "./point-tool-info-box-slots";
 import { buildPointToolRenderModels } from "./point-tool-render-models";
 import { createPointToolSettings } from "./point-tool-settings";
 import { ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME } from "../../config/annotation-measurement-label-themes";
+import type { AnnotationToolDraftState } from "../annotation-tool-plugin.types";
 const { POINT: ANNOTATION_TYPE_POINT } = ANNOTATION_TYPES;
 
 const toolType = ANNOTATION_TYPE_POINT;
 const labelTheme = ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME;
-const badgeStyle = {
-  backgroundColor: labelTheme.scheme.colorPrimary,
-  textColor: labelTheme.scheme.textColor,
-  selectionColor: labelTheme.selection.glowColor,
-};
-const pointToolSettings = createPointToolSettings(badgeStyle);
+const pointToolSettings = createPointToolSettings();
 const getPointToolInfoBoxSlots = createPointToolInfoBoxSlots(toolType, {
   headingTitle: "Punktmessung",
   headingColor: labelTheme.scheme.colorPrimary,
@@ -60,26 +53,27 @@ export const pointToolPlugin = createMeasurementToolPlugin({
     ANNOTATION_TOOL_PLUGIN_CAPABILITIES.INFO_BOX,
   ],
   session: {
-    createSession: ({ setActiveToolType, getState, dispatch }) => ({
+    createSession: ({ setActiveToolType, drafts, addAnnotation }) => ({
       toolType,
       requestStart: () => {
         setActiveToolType(toolType);
       },
       requestFinish: () => {
-        const hasTemporaryPointMeasurements = Boolean(
-          getState().annotationEntries.some(
-            (entry) => entry.toolType === toolType && entry.temporary
-          )
-        );
-        if (!hasTemporaryPointMeasurements) {
+        const draft = drafts.get(toolType);
+        if (draft.coordinates.length === 0) {
           return false;
         }
 
-        dispatch(finalizeTemporaryAnnotationsByToolType(toolType));
-        return true;
+        const committedMeasurements = commitPointMeasurementDraft(
+          toolType,
+          draft,
+          { addAnnotation }
+        );
+        drafts.clear(toolType);
+        return committedMeasurements.length > 0;
       },
       discardDraft: () => {
-        dispatch(clearTemporaryAnnotationsByToolType(toolType));
+        drafts.clear(toolType);
       },
     }),
   },
@@ -88,25 +82,20 @@ export const pointToolPlugin = createMeasurementToolPlugin({
       const temporaryMode =
         sessionContext.getState().settingsState.pointTemporaryMode;
       if (temporaryMode) {
-        sessionContext.dispatch(clearTemporaryAnnotationsByToolType(toolType));
+        const currentDraft = sessionContext.drafts.get(toolType);
+        sessionContext.drafts.set(toolType, {
+          coordinates: [...currentDraft.coordinates, coordinate],
+          linkedNodeGroupIds: [
+            ...currentDraft.linkedNodeGroupIds,
+            linkedNodeGroupId ?? null,
+          ],
+        } satisfies AnnotationToolDraftState);
+        return;
       }
 
-      const createdMeasurement = addPointMeasurement(
-        toolType,
-        coordinate,
-        linkedNodeGroupId,
-        {
-          addAnnotation: sessionContext.addAnnotation,
-        }
-      );
-      if (temporaryMode) {
-        sessionContext.dispatch(
-          setAnnotationTemporaryById({
-            annotationId: createdMeasurement.id,
-            temporary: true,
-          })
-        );
-      }
+      addPointMeasurement(toolType, coordinate, linkedNodeGroupId, {
+        addAnnotation: sessionContext.addAnnotation,
+      });
     },
   },
   keyboard: {
@@ -127,6 +116,16 @@ export const pointToolPlugin = createMeasurementToolPlugin({
       }
 
       if (action === "removeLatestPoint") {
+        const currentDraft = sessionContext.drafts.get(toolType);
+        if (currentDraft.coordinates.length > 0) {
+          sessionContext.drafts.set(
+            toolType,
+            trimLatestPointMeasurementDraft(currentDraft)
+          );
+          event.preventDefault();
+          return true;
+        }
+
         const removed = removeLatestPointMeasurement(toolType, {
           state: sessionContext.getState(),
           dispatch: sessionContext.dispatch,
@@ -146,6 +145,7 @@ export const pointToolPlugin = createMeasurementToolPlugin({
     build: ({
       nodes,
       annotationEntries,
+      draftStatesByToolType,
       elevationReferenceAnnotationId,
       selectedAnnotationIds,
       isSelectionAdditiveModifierPressed,
@@ -164,6 +164,7 @@ export const pointToolPlugin = createMeasurementToolPlugin({
           formatMeasurementShortLabelToken(toolType, counter),
         nodes,
         measurements: annotationEntries,
+        draft: draftStatesByToolType[toolType],
         elevationReferenceAnnotationId,
         selectedMeasurementIds: selectedAnnotationIds,
         isSelectionAdditiveModifierPressed,

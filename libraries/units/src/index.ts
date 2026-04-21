@@ -35,6 +35,7 @@ export {
   MINUS_PI_OVER_SIX,
   MINUS_THREE_PI_OVER_TWO,
   MINUS_ONE_OVER_TWO_PI,
+  clampUnitRangeRatio,
   isUnitRangeRatio,
   isPositiveRatio,
   isRatio,

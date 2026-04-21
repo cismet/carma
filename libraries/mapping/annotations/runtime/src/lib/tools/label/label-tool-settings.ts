@@ -1,35 +1,12 @@
 import {
-  runtimeMeasurementVisualDefaults,
-  type RuntimePointMarkerVisualStyle,
-} from "../../config/measurement-visual-defaults";
+  annotationTypographyTokens,
+  type AnnotationLabelAppearance,
+} from "@carma-mapping/annotations/core";
 
-export type LabelToolVisualSettings = {
-  point: RuntimePointMarkerVisualStyle;
-  selectedPoint: RuntimePointMarkerVisualStyle;
-};
+import { pointLabelVisualDefaults } from "../../config/runtime-point-label-visual-defaults";
 
-export type LabelToolSettings = {
-  visuals: LabelToolVisualSettings;
-};
-
-const defaults = runtimeMeasurementVisualDefaults;
-
-export const createLabelToolSettings = (_badgeStyle: {
-  backgroundColor: string;
-  textColor: string;
-}): LabelToolSettings => ({
-  visuals: {
-    point: {
-      pixelSize: 6,
-      fill: defaults.colors.transparent,
-      outline: defaults.colors.surface,
-      outlineWidth: defaults.sizes.pointOutlineWidth,
-    },
-    selectedPoint: {
-      pixelSize: 8,
-      fill: defaults.colors.transparent,
-      outline: defaults.colors.surface,
-      outlineWidth: defaults.sizes.pointOutlineWidth,
-    },
-  },
-});
+export const labelToolDefaultAppearance = Object.freeze({
+  fontSizePx: annotationTypographyTokens.fontSizePx.measurementLabel,
+  backgroundColor: pointLabelVisualDefaults.textBackgroundColor,
+  textColor: pointLabelVisualDefaults.textColor,
+} satisfies Required<AnnotationLabelAppearance>);

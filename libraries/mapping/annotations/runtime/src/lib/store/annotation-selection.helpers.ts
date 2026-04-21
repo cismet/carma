@@ -1,6 +1,6 @@
 import type {
   AnnotationsStoreState,
-  RuntimeAnnotationEntry,
+  StoredAnnotation,
 } from "./annotations-store.types";
 
 export const selectSelectedAnnotationId = (state: {
@@ -12,7 +12,7 @@ export const selectSelectedAnnotationId = (state: {
 
 export const resolveRemovableSelectedAnnotationIds = (state: {
   selectionState: { selectedAnnotationIds: readonly string[] };
-  annotationEntries: readonly RuntimeAnnotationEntry[];
+  annotationEntries: readonly StoredAnnotation[];
 }) => {
   const selectedAnnotationIdSet = new Set(
     state.selectionState.selectedAnnotationIds
@@ -31,8 +31,8 @@ export const selectAllAnnotationIds = (
   state: Pick<AnnotationsStoreState, "annotationEntries">
 ) => state.annotationEntries.map((annotationEntry) => annotationEntry.id);
 
-export const selectAdjacentRuntimeAnnotationEntryId = (
-  annotationEntries: readonly RuntimeAnnotationEntry[],
+export const selectAdjacentAnnotationEntryId = (
+  annotationEntries: readonly StoredAnnotation[],
   selectedAnnotationId: string | null,
   offset: -1 | 1
 ): string | null => {

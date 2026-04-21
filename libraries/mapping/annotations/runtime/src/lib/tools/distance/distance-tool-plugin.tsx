@@ -27,12 +27,7 @@ const { DISTANCE: ANNOTATION_TYPE_DISTANCE } = ANNOTATION_TYPES;
 
 const toolType = ANNOTATION_TYPE_DISTANCE;
 const labelTheme = ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME;
-const badgeStyle = {
-  backgroundColor: labelTheme.scheme.colorPrimary,
-  textColor: labelTheme.scheme.textColor,
-  selectionColor: labelTheme.selection.glowColor,
-};
-const distanceToolSettings = createDistanceToolSettings(badgeStyle);
+const distanceToolSettings = createDistanceToolSettings();
 const getDistanceToolInfoBoxSlots = createDistanceToolInfoBoxSlots(toolType, {
   headingTitle: "Distanzmessung",
   headingColor: labelTheme.scheme.colorPrimary,

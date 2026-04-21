@@ -1,3 +1,5 @@
+import { getAnnotationSurfaceAccentCssColor } from "@carma-mapping/annotations/core";
+
 export const distanceToolVisualDefaults = Object.freeze({
   dashedLine: {
     strokeWidthPx: 1.5,
@@ -10,7 +12,7 @@ export const distanceToolVisualDefaults = Object.freeze({
     targetRadiusPx: 20,
     segments: 20,
     strokeWidthPx: 1.25,
-    color: "rgba(246, 248, 255, 0.95)",
+    color: getAnnotationSurfaceAccentCssColor(),
     straightHitTargetPx: 20,
   },
 });

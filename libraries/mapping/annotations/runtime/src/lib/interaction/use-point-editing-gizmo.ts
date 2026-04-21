@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  ANNOTATION_TYPES,
+  computePolygonGroupDerivedData,
+  projectPointOntoPlane,
+  type NodeChainAnnotation,
+  type PlanarPolygonPlane,
+} from "@carma-mapping/annotations/core";
+import {
   cartesian3FromGeographicCoordinate,
+  cartesian3FromMetricVector3,
   geographicCoordinateFromCartesian3,
   createPlaneBasis,
   normalizeDirection,
@@ -14,23 +22,28 @@ import {
 import { Cartesian3 } from "@carma-cesium";
 
 import {
-  resolveRuntimeNodeMoveScope,
+  resolveAnnotationNodeMoveScope,
   resolveNextNodeLinksForNodeMove,
+  setSelectedAnnotationIds,
   updateNodeCoordinateById,
   type AnnotationsStore,
-  type RuntimeNodeLink,
-  type RuntimeCoordinate,
-  type RuntimeNode,
+  type AnnotationNodeLink,
+  type CesiumGeographicCoordinate,
+  type AnnotationNode,
+  type StoredAnnotation,
 } from "../store";
-import type { RuntimeScene } from "../types/runtime-scene.types";
+import type { Scene } from "@carma-cesium";
 import {
-  applyRuntimeCoordinateOverridesToNodes,
-  areRuntimeCoordinateOverridesEqual,
-  EMPTY_RUNTIME_NODE_COORDINATE_OVERRIDES,
-  hasRuntimeCoordinateOverrides,
-  type RuntimeNodeCoordinateOverrides,
-} from "../utils/runtime-coordinate-overrides";
-import { resolveRuntimeNodeSnapSample } from "./lifecycle/node-snap.helpers";
+  applyNodeCoordinateOverridesToNodes,
+  areNodeCoordinateOverridesEqual,
+  EMPTY_NODE_COORDINATE_OVERRIDES,
+  hasNodeCoordinateOverrides,
+  type NodeCoordinateOverrides,
+} from "../utils/node-coordinate-overrides";
+import { resolveNodeSnapSample } from "./lifecycle/node-snap.helpers";
+
+const { AREA_PLANAR: ANNOTATION_TYPE_AREA_PLANAR } = ANNOTATION_TYPES;
+
 const POINT_EDITING_GIZMO_DEFAULTS = {
   radiusMeters: 3,
   referenceNodeInteractionReleaseGuardMs: 48,
@@ -101,6 +114,8 @@ const createReferenceLineAxisOverride = (
 
 type UsePointEditingGizmoOptions = {
   annotationsStore: AnnotationsStore;
+  annotationEntries: readonly StoredAnnotation[];
+  selectedAnnotationIds: readonly string[];
   onActiveMoveGizmoNodeIdChange?: (nodeId: string | null) => void;
 };
 
@@ -111,12 +126,134 @@ type DraftCoordinatePreviewOptions = {
   disableSnap?: boolean;
 };
 
+const resolveSelectedPlanarAreaMeasurement = ({
+  nodeId,
+  annotationEntries,
+  selectedAnnotationIds,
+}: {
+  nodeId: string;
+  annotationEntries: readonly StoredAnnotation[];
+  selectedAnnotationIds: readonly string[];
+}): StoredAnnotation | null => {
+  const planarAreaMeasurements = annotationEntries.filter(
+    (annotationEntry) =>
+      annotationEntry.toolType === ANNOTATION_TYPE_AREA_PLANAR &&
+      annotationEntry.nodeIds.includes(nodeId)
+  );
+  if (planarAreaMeasurements.length === 0) {
+    return null;
+  }
+
+  for (
+    let selectionIndex = selectedAnnotationIds.length - 1;
+    selectionIndex >= 0;
+    selectionIndex -= 1
+  ) {
+    const selectedAnnotationId = selectedAnnotationIds[selectionIndex];
+    const selectedPlanarAreaMeasurement =
+      planarAreaMeasurements.find(
+        (annotationEntry) => annotationEntry.id === selectedAnnotationId
+      ) ?? null;
+    if (selectedPlanarAreaMeasurement) {
+      return selectedPlanarAreaMeasurement;
+    }
+  }
+
+  return planarAreaMeasurements[0] ?? null;
+};
+
+const resolvePlanarAreaEditPlane = ({
+  nodeId,
+  nodes,
+  annotationEntries,
+  selectedAnnotationIds,
+}: {
+  nodeId: string;
+  nodes: readonly AnnotationNode[];
+  annotationEntries: readonly StoredAnnotation[];
+  selectedAnnotationIds: readonly string[];
+}): PlanarPolygonPlane | null => {
+  const planarAreaMeasurement = resolveSelectedPlanarAreaMeasurement({
+    nodeId,
+    annotationEntries,
+    selectedAnnotationIds,
+  });
+  if (!planarAreaMeasurement) {
+    return null;
+  }
+
+  const pointById = new Map(
+    nodes.map((node) => [
+      node.id,
+      cartesian3FromGeographicCoordinate(node.coordinate),
+    ] as const)
+  );
+  const derivedPlanarAreaMeasurement = computePolygonGroupDerivedData(
+    {
+      id: planarAreaMeasurement.id,
+      type: ANNOTATION_TYPE_AREA_PLANAR,
+      nodeIds: [...planarAreaMeasurement.nodeIds],
+      edgeRelationIds: [],
+      closed: planarAreaMeasurement.closed ?? true,
+      planeLocked: true,
+    } satisfies NodeChainAnnotation,
+    pointById
+  );
+
+  return derivedPlanarAreaMeasurement.plane ?? null;
+};
+
+const resolveLinkedMeasurementIdsForNode = ({
+  nodeId,
+  nodes,
+  linkedNodeGroups,
+  annotationEntries,
+  preferredMeasurementId,
+}: {
+  nodeId: string;
+  nodes: readonly AnnotationNode[];
+  linkedNodeGroups: readonly AnnotationNodeLink[];
+  annotationEntries: readonly StoredAnnotation[];
+  preferredMeasurementId?: string;
+}) => {
+  const { targetLinkedNodeGroup } = resolveAnnotationNodeMoveScope({
+    nodeId,
+    nodes,
+    linkedNodeGroups,
+    annotationEntries,
+  });
+  const linkedNodeIdSet = new Set(targetLinkedNodeGroup?.nodeIds ?? [nodeId]);
+  const linkedMeasurementIds = annotationEntries.flatMap((annotationEntry) =>
+    annotationEntry.nodeIds.some((annotationNodeId) =>
+      linkedNodeIdSet.has(annotationNodeId)
+    )
+      ? [annotationEntry.id]
+      : []
+  );
+
+  if (
+    preferredMeasurementId &&
+    linkedMeasurementIds.includes(preferredMeasurementId)
+  ) {
+    return [
+      ...linkedMeasurementIds.filter(
+        (measurementId) => measurementId !== preferredMeasurementId
+      ),
+      preferredMeasurementId,
+    ];
+  }
+
+  return linkedMeasurementIds;
+};
+
 export const usePointEditingGizmo = (
-  scene: RuntimeScene | null,
-  nodes: readonly RuntimeNode[],
-  linkedNodeGroups: readonly RuntimeNodeLink[],
+  scene: Scene | null,
+  nodes: readonly AnnotationNode[],
+  linkedNodeGroups: readonly AnnotationNodeLink[],
   {
     annotationsStore,
+    annotationEntries,
+    selectedAnnotationIds,
     onActiveMoveGizmoNodeIdChange,
   }: UsePointEditingGizmoOptions
 ) => {
@@ -137,26 +274,41 @@ export const usePointEditingGizmo = (
   const [axisOverride, setAxisOverride] =
     useState<MoveGizmoAxisOverride | null>(null);
   const [draftNodeCoordinateOverrides, setDraftNodeCoordinateOverrides] =
-    useState<RuntimeNodeCoordinateOverrides>(
-      EMPTY_RUNTIME_NODE_COORDINATE_OVERRIDES
-    );
+    useState<NodeCoordinateOverrides>(EMPTY_NODE_COORDINATE_OVERRIDES);
   const [draftLinkToNodeId, setDraftLinkToNodeId] = useState<string | null>(
     null
   );
   const draftNodeCoordinateOverridesRef =
-    useRef<RuntimeNodeCoordinateOverrides>(
-      EMPTY_RUNTIME_NODE_COORDINATE_OVERRIDES
-    );
+    useRef<NodeCoordinateOverrides>(EMPTY_NODE_COORDINATE_OVERRIDES);
   const draftLinkToNodeIdRef = useRef<string | null>(null);
   const draftPreviewAnimationFrameRef = useRef<number | null>(null);
   const snappedNodeIdRef = useRef<string | null>(null);
-  const draftBaseCoordinateRef = useRef<RuntimeCoordinate | null>(null);
+  const draftBaseCoordinateRef = useRef<CesiumGeographicCoordinate | null>(null);
   const draftBaseScreenPositionRef = useRef<CesiumGizmoScreenPosition | null>(
     null
   );
   const hoveredReferenceNodeIdRef = useRef<string | null>(null);
   const isMoveGizmoDraggingRef = useRef(false);
   const suppressReferenceInteractionsUntilRef = useRef(0);
+  const activePlanarAreaEditPlane = useMemo(
+    () =>
+      activeMoveGizmoNodeId
+        ? resolvePlanarAreaEditPlane({
+            nodeId: activeMoveGizmoNodeId,
+            nodes,
+            annotationEntries,
+            selectedAnnotationIds,
+          })
+        : null,
+    [activeMoveGizmoNodeId, annotationEntries, nodes, selectedAnnotationIds]
+  );
+  const activePlanarAreaDiscNormal = useMemo(
+    () =>
+      activePlanarAreaEditPlane
+        ? cartesian3FromMetricVector3(activePlanarAreaEditPlane.normalECEF)
+        : null,
+    [activePlanarAreaEditPlane]
+  );
 
   const areReferenceInteractionsSuppressed = useCallback(() => {
     if (isMoveGizmoDraggingRef.current) {
@@ -174,7 +326,7 @@ export const usePointEditingGizmo = (
         : draftLinkToNodeIdRef.current
     );
     setDraftNodeCoordinateOverrides((currentDraftNodeCoordinateOverrides) =>
-      areRuntimeCoordinateOverridesEqual(
+      areNodeCoordinateOverridesEqual(
         currentDraftNodeCoordinateOverrides,
         draftNodeCoordinateOverridesRef.current
       )
@@ -203,15 +355,15 @@ export const usePointEditingGizmo = (
       nextDraftNodeCoordinateOverrides,
       nextDraftLinkToNodeId,
     }: {
-      nextDraftNodeCoordinateOverrides: RuntimeNodeCoordinateOverrides;
+      nextDraftNodeCoordinateOverrides: NodeCoordinateOverrides;
       nextDraftLinkToNodeId: string | null;
     }) => {
       const normalizedDraftNodeCoordinateOverrides =
-        !hasRuntimeCoordinateOverrides(nextDraftNodeCoordinateOverrides)
-          ? EMPTY_RUNTIME_NODE_COORDINATE_OVERRIDES
+        !hasNodeCoordinateOverrides(nextDraftNodeCoordinateOverrides)
+          ? EMPTY_NODE_COORDINATE_OVERRIDES
           : nextDraftNodeCoordinateOverrides;
       const draftNodeCoordinateOverridesChanged =
-        !areRuntimeCoordinateOverridesEqual(
+        !areNodeCoordinateOverridesEqual(
           draftNodeCoordinateOverridesRef.current,
           normalizedDraftNodeCoordinateOverrides
         );
@@ -240,7 +392,7 @@ export const usePointEditingGizmo = (
     }
 
     draftNodeCoordinateOverridesRef.current =
-      EMPTY_RUNTIME_NODE_COORDINATE_OVERRIDES;
+      EMPTY_NODE_COORDINATE_OVERRIDES;
     draftLinkToNodeIdRef.current = null;
     snappedNodeIdRef.current = null;
     draftBaseCoordinateRef.current = null;
@@ -250,9 +402,9 @@ export const usePointEditingGizmo = (
       currentDraftLinkToNodeId === null ? currentDraftLinkToNodeId : null
     );
     setDraftNodeCoordinateOverrides((currentDraftNodeCoordinateOverrides) =>
-      !hasRuntimeCoordinateOverrides(currentDraftNodeCoordinateOverrides)
+      !hasNodeCoordinateOverrides(currentDraftNodeCoordinateOverrides)
         ? currentDraftNodeCoordinateOverrides
-        : EMPTY_RUNTIME_NODE_COORDINATE_OVERRIDES
+        : EMPTY_NODE_COORDINATE_OVERRIDES
     );
   }, []);
 
@@ -296,7 +448,7 @@ export const usePointEditingGizmo = (
   const setDraftCoordinateForScopedMove = useCallback(
     (
       nodeId: string,
-      coordinate: RuntimeCoordinate,
+      coordinate: CesiumGeographicCoordinate,
       {
         screenPosition,
         forcedSnappedNodeId,
@@ -304,8 +456,16 @@ export const usePointEditingGizmo = (
         disableSnap = false,
       }: DraftCoordinatePreviewOptions = {}
     ) => {
+      const constrainedCoordinate = activePlanarAreaEditPlane
+        ? geographicCoordinateFromCartesian3(
+            projectPointOntoPlane(
+              cartesian3FromGeographicCoordinate(coordinate),
+              activePlanarAreaEditPlane
+            )
+          )
+        : coordinate;
       const runtimeState = annotationsStore.getState();
-      const { movedNodeIds } = resolveRuntimeNodeMoveScope({
+      const { movedNodeIds } = resolveAnnotationNodeMoveScope({
         nodeId,
         nodes,
         linkedNodeGroups,
@@ -319,7 +479,7 @@ export const usePointEditingGizmo = (
       }
 
       if (rememberBaseCoordinate) {
-        draftBaseCoordinateRef.current = coordinate;
+        draftBaseCoordinateRef.current = constrainedCoordinate;
         draftBaseScreenPositionRef.current = screenPosition ?? null;
       }
 
@@ -327,9 +487,9 @@ export const usePointEditingGizmo = (
         snappedNodeIdRef.current = null;
 
         const nextDraftNodeCoordinateOverrides = movedNodeIds.reduce<
-          Record<string, RuntimeCoordinate>
+          Record<string, CesiumGeographicCoordinate>
         >((draftCoordinatesByNodeId, movedNodeId) => {
-          draftCoordinatesByNodeId[movedNodeId] = coordinate;
+          draftCoordinatesByNodeId[movedNodeId] = constrainedCoordinate;
           return draftCoordinatesByNodeId;
         }, {});
 
@@ -342,13 +502,14 @@ export const usePointEditingGizmo = (
 
       const projectedScreenPosition =
         scene && !scene.isDestroyed()
-          ? projectGeographicCoordinateToScreen(scene, coordinate) ?? undefined
+          ? projectGeographicCoordinateToScreen(scene, constrainedCoordinate) ??
+            undefined
           : undefined;
-      const resolvedNodeSnapSample = resolveRuntimeNodeSnapSample({
+      const resolvedNodeSnapSample = resolveNodeSnapSample({
         scene,
         nodes,
         linkedNodeGroups,
-        coordinate,
+        coordinate: constrainedCoordinate,
         screenPosition:
           screenPosition ??
           draftBaseScreenPositionRef.current ??
@@ -361,7 +522,7 @@ export const usePointEditingGizmo = (
       snappedNodeIdRef.current = resolvedNodeSnapSample.snappedNodeId;
 
       const nextDraftNodeCoordinateOverrides = movedNodeIds.reduce<
-        Record<string, RuntimeCoordinate>
+        Record<string, CesiumGeographicCoordinate>
       >((draftCoordinatesByNodeId, movedNodeId) => {
         draftCoordinatesByNodeId[movedNodeId] =
           resolvedNodeSnapSample.coordinate;
@@ -373,7 +534,14 @@ export const usePointEditingGizmo = (
         nextDraftLinkToNodeId: resolvedNodeSnapSample.snappedNodeId,
       });
     },
-    [annotationsStore, linkedNodeGroups, nodes, scene, updateDraftPreviewState]
+    [
+      activePlanarAreaEditPlane,
+      annotationsStore,
+      linkedNodeGroups,
+      nodes,
+      scene,
+      updateDraftPreviewState,
+    ]
   );
 
   const resolveDraftBaseCoordinate = useCallback(
@@ -386,7 +554,7 @@ export const usePointEditingGizmo = (
 
   const effectiveNodes = useMemo(
     () =>
-      applyRuntimeCoordinateOverridesToNodes(
+      applyNodeCoordinateOverridesToNodes(
         nodes,
         draftNodeCoordinateOverrides
       ),
@@ -415,7 +583,7 @@ export const usePointEditingGizmo = (
   ]);
 
   const handleNodeLongPress = useCallback(
-    (nodeId: string) => {
+    (nodeId: string, measurementId?: string) => {
       if (isNodeLocked(nodeId)) {
         return;
       }
@@ -424,10 +592,38 @@ export const usePointEditingGizmo = (
         commitDraftNodeCoordinateOverrides(activeMoveGizmoNodeId);
       }
 
+      const runtimeState = annotationsStore.getState();
+      const linkedMeasurementIds = resolveLinkedMeasurementIdsForNode({
+        nodeId,
+        nodes,
+        linkedNodeGroups,
+        annotationEntries: runtimeState.annotationEntries,
+        preferredMeasurementId: measurementId,
+      });
+      if (
+        linkedMeasurementIds.length > 0 &&
+        (linkedMeasurementIds.length !==
+          runtimeState.selectionState.selectedAnnotationIds.length ||
+          linkedMeasurementIds.some(
+            (linkedMeasurementId, index) =>
+              linkedMeasurementId !==
+              runtimeState.selectionState.selectedAnnotationIds[index]
+          ))
+      ) {
+        annotationsStore.dispatch(setSelectedAnnotationIds(linkedMeasurementIds));
+      }
+
       setAxisOverride(null);
       setActiveMoveGizmoNodeId(nodeId);
     },
-    [activeMoveGizmoNodeId, commitDraftNodeCoordinateOverrides, isNodeLocked]
+    [
+      activeMoveGizmoNodeId,
+      annotationsStore,
+      commitDraftNodeCoordinateOverrides,
+      isNodeLocked,
+      linkedNodeGroups,
+      nodes,
+    ]
   );
 
   const nodesById = useMemo(
@@ -581,12 +777,13 @@ export const usePointEditingGizmo = (
     points: gizmoPoints,
     movePointId: activeMoveGizmoNodeId,
     axisDirection: axisOverride?.axisDirection ?? null,
+    discPlaneNormal: activePlanarAreaDiscNormal,
     axisTitle: axisOverride?.axisTitle ?? null,
     preferredAxisId: axisOverride?.preferredAxisId ?? null,
     axisCandidates: axisOverride?.axisCandidates ?? null,
     radius: POINT_EDITING_GIZMO_DEFAULTS.radiusMeters,
     showRotationHandle: false,
-    snapPlaneDragToGround: true,
+    snapPlaneDragToGround: activePlanarAreaEditPlane === null,
     onDragStateChange: handleGizmoDragStateChange,
     onPointPositionChange: (nodeId, nextPosition, screenPosition) => {
       if (isNodeLocked(nodeId)) {

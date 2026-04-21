@@ -3,11 +3,9 @@ import { describe, expect, it } from "vitest";
 import { Cartesian3 } from "@carma-cesium";
 import { getDegreesFromCartesian } from "@carma-mapping/engines/cesium/core";
 
-import type { PointAnnotationEntry } from "../types/annotation-cesium-types";
+import type { AnnotationPointEntry } from "../types/annotation-cesium-types";
 import {
-  ANNOTATION_TYPE_AREA_PLANAR,
-  ANNOTATION_TYPE_DISTANCE,
-  ANNOTATION_TYPE_POINT,
+  ANNOTATION_TYPES,
   type NodeChainAnnotation,
 } from "../types/annotation-types";
 import type { PointDistanceRelation } from "../types/distance-relation";
@@ -21,12 +19,12 @@ const buildPointAnnotation = ({
   name,
 }: {
   id: string;
-  type: PointAnnotationEntry["type"];
+  type: AnnotationPointEntry["type"];
   longitude: number;
   latitude: number;
   altitude: number;
   name?: string;
-}): PointAnnotationEntry => {
+}): AnnotationPointEntry => {
   const geometryECEF = Cartesian3.fromDegrees(longitude, latitude, altitude);
   const geometryWGS84 = getDegreesFromCartesian(geometryECEF);
 
@@ -48,7 +46,7 @@ describe("annotationGeoJsonExport", () => {
   it("exports point annotations as a GeoJSON point feature", () => {
     const pointAnnotation = buildPointAnnotation({
       id: "point-1",
-      type: ANNOTATION_TYPE_POINT,
+      type: ANNOTATION_TYPES.POINT,
       longitude: 7.1234,
       latitude: 51.2345,
       altitude: 120,
@@ -73,21 +71,21 @@ describe("annotationGeoJsonExport", () => {
     ).toBeCloseTo(51.2345, 6);
     expect(featureCollection?.features[0].properties).toMatchObject({
       annotationId: "point-1",
-      annotationKind: ANNOTATION_TYPE_POINT,
+      annotationKind: ANNOTATION_TYPES.POINT,
     });
   });
 
   it("exports distance annotations as a GeoJSON geometry collection", () => {
     const distancePoint = buildPointAnnotation({
       id: "distance-1",
-      type: ANNOTATION_TYPE_DISTANCE,
+      type: ANNOTATION_TYPES.DISTANCE,
       longitude: 7.1,
       latitude: 51.2,
       altitude: 100,
     });
     const targetPoint = buildPointAnnotation({
       id: "point-2",
-      type: ANNOTATION_TYPE_POINT,
+      type: ANNOTATION_TYPES.POINT,
       longitude: 7.1004,
       latitude: 51.2002,
       altitude: 105,
@@ -117,7 +115,7 @@ describe("annotationGeoJsonExport", () => {
     ).toHaveLength(3);
     expect(featureCollection?.features[0].properties).toMatchObject({
       annotationId: "distance-1",
-      annotationKind: ANNOTATION_TYPE_DISTANCE,
+      annotationKind: ANNOTATION_TYPES.DISTANCE,
     });
     expect(featureCollection?.features[0].properties?.relations).toHaveLength(
       1
@@ -130,28 +128,28 @@ describe("annotationGeoJsonExport", () => {
   it("exports node-chain area annotations as a GeoJSON polygon", () => {
     const pointA = buildPointAnnotation({
       id: "point-a",
-      type: ANNOTATION_TYPE_POINT,
+      type: ANNOTATION_TYPES.POINT,
       longitude: 7.0,
       latitude: 51.0,
       altitude: 100,
     });
     const pointB = buildPointAnnotation({
       id: "point-b",
-      type: ANNOTATION_TYPE_POINT,
+      type: ANNOTATION_TYPES.POINT,
       longitude: 7.001,
       latitude: 51.0,
       altitude: 100,
     });
     const pointC = buildPointAnnotation({
       id: "point-c",
-      type: ANNOTATION_TYPE_POINT,
+      type: ANNOTATION_TYPES.POINT,
       longitude: 7.001,
       latitude: 51.001,
       altitude: 100,
     });
     const nodeChainAnnotation: NodeChainAnnotation = {
       id: "area-1",
-      type: ANNOTATION_TYPE_AREA_PLANAR,
+      type: ANNOTATION_TYPES.AREA_PLANAR,
       nodeIds: [pointA.id, pointB.id, pointC.id],
       edgeRelationIds: [],
       closed: true,
@@ -173,7 +171,7 @@ describe("annotationGeoJsonExport", () => {
     ).toHaveLength(4);
     expect(featureCollection?.features[0].properties).toMatchObject({
       annotationId: "area-1",
-      annotationKind: ANNOTATION_TYPE_AREA_PLANAR,
+      annotationKind: ANNOTATION_TYPES.AREA_PLANAR,
     });
     expect(featureCollection?.features[0].properties?.nodes).toHaveLength(3);
   });

@@ -123,6 +123,7 @@ export type UseCesiumPointMoveGizmoOptions = {
   points: CesiumGizmoPoint[];
   movePointId?: string | null;
   axisDirection?: Cartesian3 | null;
+  discPlaneNormal?: Cartesian3 | null;
   axisTitle?: string | null;
   preferredAxisId?: string | null;
   axisCandidates?: CesiumMoveGizmoAxisCandidate[] | null;
@@ -382,6 +383,7 @@ export const useCesiumPointMoveGizmo = (
     points,
     movePointId = null,
     axisDirection = null,
+    discPlaneNormal = null,
     axisTitle = null,
     preferredAxisId = null,
     axisCandidates = null,
@@ -426,6 +428,7 @@ export const useCesiumPointMoveGizmo = (
   >({});
   const axisAnchorDistanceRef = useRef<Record<string, number>>({});
   const axisDirectionRef = useRef<Cartesian3 | null>(axisDirection);
+  const discPlaneNormalRef = useRef<Cartesian3 | null>(discPlaneNormal);
   const preferredAxisIdRef = useRef<string | null>(preferredAxisId);
   const axisCandidatesRef = useRef<CesiumMoveGizmoAxisCandidate[] | null>(
     axisCandidates
@@ -578,6 +581,10 @@ export const useCesiumPointMoveGizmo = (
   useEffect(() => {
     axisDirectionRef.current = axisDirection;
   }, [axisDirection]);
+
+  useEffect(() => {
+    discPlaneNormalRef.current = discPlaneNormal;
+  }, [discPlaneNormal]);
 
   useEffect(() => {
     preferredAxisIdRef.current = preferredAxisId;
@@ -795,6 +802,25 @@ export const useCesiumPointMoveGizmo = (
       return candidates[0];
     },
     [axisTitle, getAxisCandidatesAtPosition]
+  );
+
+  const getDiscPlaneNormalAtPosition = useCallback(
+    (origin: Cartesian3) => {
+      const configuredDiscPlaneNormal = discPlaneNormalRef.current;
+      if (
+        configuredDiscPlaneNormal &&
+        Cartesian3.magnitudeSquared(configuredDiscPlaneNormal) >
+          AXIS_NUMERIC_EPSILON
+      ) {
+        return Cartesian3.normalize(
+          configuredDiscPlaneNormal,
+          new Cartesian3()
+        );
+      }
+
+      return Cartesian3.clone(getActiveAxisAtPosition(origin).direction);
+    },
+    [getActiveAxisAtPosition]
   );
 
   const stopDragging = useCallback((exitMoveMode: boolean) => {
@@ -1126,30 +1152,41 @@ export const useCesiumPointMoveGizmo = (
       const activePoint = movePointRef.current;
       const shouldSnapToGround = options?.snapToGround === true;
       const planeOrigin = Cartesian3.clone(activePoint.geometryECEF);
-      const activeAxisCandidate = getActiveAxisAtPosition(planeOrigin);
-      const planeNormal = Cartesian3.clone(activeAxisCandidate.direction);
-      const axisCandidatesAtOrigin = getAxisCandidatesAtPosition(planeOrigin);
-
-      const nonActiveAxes = axisCandidatesAtOrigin
-        .filter((candidate) => candidate.id !== activeAxisCandidate.id)
-        .map((candidate) =>
-          Cartesian3.normalize(candidate.direction, new Cartesian3())
-        );
+      const planeNormal = getDiscPlaneNormalAtPosition(planeOrigin);
+      const configuredDiscPlaneNormal = discPlaneNormalRef.current;
 
       let planeBasisX: Cartesian3;
       let planeBasisY: Cartesian3;
       if (
-        nonActiveAxes.length >= 2 &&
-        Cartesian3.magnitudeSquared(
-          Cartesian3.cross(nonActiveAxes[0], nonActiveAxes[1], new Cartesian3())
-        ) > AXIS_NUMERIC_EPSILON
+        configuredDiscPlaneNormal &&
+        Cartesian3.magnitudeSquared(configuredDiscPlaneNormal) >
+          AXIS_NUMERIC_EPSILON
       ) {
-        planeBasisX = nonActiveAxes[0];
-        planeBasisY = nonActiveAxes[1];
+        const planeBasis = createPlaneBasis(planeNormal);
+        planeBasisX = planeBasis.xAxis;
+        planeBasisY = planeBasis.yAxis;
       } else {
-        const fallbackBasis = createPlaneBasis(planeNormal);
-        planeBasisX = fallbackBasis.xAxis;
-        planeBasisY = fallbackBasis.yAxis;
+        const activeAxisCandidate = getActiveAxisAtPosition(planeOrigin);
+        const axisCandidatesAtOrigin = getAxisCandidatesAtPosition(planeOrigin);
+        const nonActiveAxes = axisCandidatesAtOrigin
+          .filter((candidate) => candidate.id !== activeAxisCandidate.id)
+          .map((candidate) =>
+            Cartesian3.normalize(candidate.direction, new Cartesian3())
+          );
+
+        if (
+          nonActiveAxes.length >= 2 &&
+          Cartesian3.magnitudeSquared(
+            Cartesian3.cross(nonActiveAxes[0], nonActiveAxes[1], new Cartesian3())
+          ) > AXIS_NUMERIC_EPSILON
+        ) {
+          planeBasisX = nonActiveAxes[0];
+          planeBasisY = nonActiveAxes[1];
+        } else {
+          const fallbackBasis = createPlaneBasis(planeNormal);
+          planeBasisX = fallbackBasis.xAxis;
+          planeBasisY = fallbackBasis.yAxis;
+        }
       }
 
       let startPlanePoint = shouldSnapToGround
@@ -1286,6 +1323,7 @@ export const useCesiumPointMoveGizmo = (
       getActiveAxisAtPosition,
       getAxisCandidatesAtPosition,
       getCanvasScreenPosition,
+      getDiscPlaneNormalAtPosition,
       getGroundPointWithoutGizmoVisuals,
       scene,
       stopDragging,
@@ -1326,6 +1364,9 @@ export const useCesiumPointMoveGizmo = (
     const initialAxisDirection = getActiveAxisAtPosition(
       movePoint.geometryECEF
     ).direction;
+    const initialDiscPlaneNormal = getDiscPlaneNormalAtPosition(
+      movePoint.geometryECEF
+    );
     const visualizer = createRotationAxisVisualizer(
       `point-move-axis-${movePoint.id}`,
       {
@@ -1345,7 +1386,7 @@ export const useCesiumPointMoveGizmo = (
     if (showDisc) {
       const initialDiscRadius = getDiscWorldRadius(
         movePoint.geometryECEF,
-        initialAxisDirection,
+        initialDiscPlaneNormal,
         radiusRef.current
       );
       const disc = createRing(`point-move-disc-${movePoint.id}`, {
@@ -1355,7 +1396,7 @@ export const useCesiumPointMoveGizmo = (
         segments: 24,
         modelMatrix: createOrientedDiscModelMatrix(
           movePoint.geometryECEF,
-          initialAxisDirection,
+          initialDiscPlaneNormal,
           initialDiscRadius
         ),
       });
@@ -1374,6 +1415,9 @@ export const useCesiumPointMoveGizmo = (
         const axisDirection = getActiveAxisAtPosition(
           currentPoint.geometryECEF
         ).direction;
+        const discPlaneNormal = getDiscPlaneNormalAtPosition(
+          currentPoint.geometryECEF
+        );
         axisVisualizer.update(
           currentPoint.geometryECEF,
           axisDirection,
@@ -1384,12 +1428,12 @@ export const useCesiumPointMoveGizmo = (
         if (discVisualizer) {
           const discWorldRadius = getDiscWorldRadius(
             currentPoint.geometryECEF,
-            axisDirection,
+            discPlaneNormal,
             radiusRef.current
           );
           discVisualizer.modelMatrix = createOrientedDiscModelMatrix(
             currentPoint.geometryECEF,
-            axisDirection,
+            discPlaneNormal,
             discWorldRadius,
             discVisualizer.modelMatrix
           );
@@ -1420,6 +1464,7 @@ export const useCesiumPointMoveGizmo = (
       }
     };
   }, [
+    getDiscPlaneNormalAtPosition,
     resolvedAxisWidthPx,
     getActiveAxisAtPosition,
     getDiscWorldRadius,
@@ -1747,6 +1792,10 @@ export const useCesiumPointMoveGizmo = (
             axisCandidatesAtPoint[0] ??
             null;
           const activeAxisId = activeAxisCandidateAtPoint?.id ?? null;
+          const configuredDiscPlaneNormal = discPlaneNormalRef.current;
+          const activeDiscPlaneNormal = getDiscPlaneNormalAtPosition(
+            activePoint.geometryECEF
+          );
           const projectedOutlinesByAxisId = new Map<
             string,
             {
@@ -1799,7 +1848,13 @@ export const useCesiumPointMoveGizmo = (
               discOutlinePath.style.stroke = DISC_OUTLINE_COLOR;
             };
 
-            const planeBasis = createPlaneBasis(planeCandidate.direction);
+            const planeBasis = createPlaneBasis(
+              configuredDiscPlaneNormal &&
+                Cartesian3.magnitudeSquared(configuredDiscPlaneNormal) >
+                  AXIS_NUMERIC_EPSILON
+                ? activeDiscPlaneNormal
+                : planeCandidate.direction
+            );
             let discWorldRadius = Math.max(radius, AXIS_NUMERIC_EPSILON);
 
             if (discOutlineFixedScreenSize) {
@@ -1977,8 +2032,12 @@ export const useCesiumPointMoveGizmo = (
               }
 
               const activeNormal = Cartesian3.normalize(
-                activeAxisCandidateAtPoint?.direction ??
-                  getUpVectorAtPosition(activePoint.geometryECEF),
+                configuredDiscPlaneNormal &&
+                  Cartesian3.magnitudeSquared(configuredDiscPlaneNormal) >
+                    AXIS_NUMERIC_EPSILON
+                  ? activeDiscPlaneNormal
+                  : activeAxisCandidateAtPoint?.direction ??
+                      getUpVectorAtPosition(activePoint.geometryECEF),
                 new Cartesian3()
               );
               const toCamera = Cartesian3.normalize(

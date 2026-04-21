@@ -1,17 +1,17 @@
 import { useCallback } from "react";
 
-import type { RuntimeToolId } from "../../types/runtime-tool.types";
+import type { AnnotationToolType } from "@carma-mapping/annotations/core";
 import type {
   AnnotationModeSession,
   AnnotationModeSessionMap,
 } from "./annotation-mode-session.types";
 const getModeSession = (
   sessionsByToolType: AnnotationModeSessionMap,
-  toolType: RuntimeToolId
+  toolType: AnnotationToolType
 ): AnnotationModeSession | null => sessionsByToolType[toolType] ?? null;
 
 export const useModeLifecycle = (
-  activeToolType: RuntimeToolId,
+  activeToolType: AnnotationToolType,
   sessionsByToolType: AnnotationModeSessionMap,
   clearSharedModeExitState: () => void
 ) => {
@@ -25,7 +25,7 @@ export const useModeLifecycle = (
   }, [activeToolType, sessionsByToolType]);
 
   const requestModeChange = useCallback(
-    (nextToolType: RuntimeToolId) => {
+    (nextToolType: AnnotationToolType) => {
       if (nextToolType === activeToolType) {
         return;
       }
@@ -43,7 +43,7 @@ export const useModeLifecycle = (
   );
 
   const requestStartMeasurement = useCallback(
-    (toolType: RuntimeToolId = activeToolType) => {
+    (toolType: AnnotationToolType = activeToolType) => {
       if (toolType !== activeToolType) {
         requestModeChange(toolType);
         return;

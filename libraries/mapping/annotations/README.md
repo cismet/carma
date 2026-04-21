@@ -20,26 +20,11 @@ High-level package split and runtime-line policy for the annotations stack.
 - visual defaults and generic info-box layout/components
 - no scene/render/runtime orchestration
 
-### `runtime-prototype`
-- legacy prototype runtime line
-- preserved temporarily for comparison and migration support
-- intentionally not the long-term canonical runtime package name
-
-## Runtime Line Policy
-
-- Treat `runtime` as the canonical annotations runtime line.
-- Treat `runtime-prototype` as a temporary legacy line only.
-- The target end state is:
-  - `libraries/mapping/annotations/runtime/` remains the canonical runtime package
-  - `libraries/mapping/annotations/runtime-prototype/` is removed
-- No new work should prefer `runtime-prototype` over `runtime` except explicit prototype maintenance.
-
 ## Release Positioning
 
 - The first public release after the canonical rename should target `0.1.0`, not `0.0.1`.
 - `0.0.1` reads too much like an internal spike or throwaway experiment for this runtime line.
 - `0.1.0` better signals an intentional pre-1.0 public line with known follow-up work still open.
-- Removal of the current `runtime-prototype` line remains a release precondition for that first public canonical runtime release.
 
 ## Placement Rules
 

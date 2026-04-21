@@ -1,6 +1,5 @@
 import {
-  ANNOTATION_TYPE_DISTANCE,
-  ANNOTATION_TYPE_POLYLINE,
+  ANNOTATION_TYPES,
   type NodeChainAnnotation,
 } from "../types/annotation-types";
 import { areDistanceRelationsEquivalent } from "./annotation-state-equality";
@@ -11,8 +10,7 @@ import {
   withDistanceRelationEdgeId,
 } from "./measurement-relations";
 import {
-  LINEAR_SEGMENT_LINE_MODE_COMPONENTS,
-  LINEAR_SEGMENT_LINE_MODE_DIRECT,
+  LINEAR_SEGMENT_LINE_MODES,
   type LinearSegmentLineMode,
 } from "../types/linear-segment";
 import type {
@@ -53,31 +51,29 @@ export const syncNodeChainEdgeDistanceRelations = ({
 
   nodeChainAnnotations.forEach((group) => {
     if (group.nodeIds.length < 2) return;
-    const isPolylineGroup = group.type === ANNOTATION_TYPE_POLYLINE;
-    const isDistanceGroup = group.type === ANNOTATION_TYPE_DISTANCE;
+    const isPolylineGroup = group.type === ANNOTATION_TYPES.POLYLINE;
+    const isDistanceGroup = group.type === ANNOTATION_TYPES.DISTANCE;
     const segmentLineMode =
       group.segmentLineMode ??
       (isPolylineGroup
         ? defaultPolylineSegmentLineMode
-        : LINEAR_SEGMENT_LINE_MODE_DIRECT);
+        : LINEAR_SEGMENT_LINE_MODES.DIRECT);
     const showDirectLine = isDistanceGroup
       ? group.distanceLineVisibility?.direct ?? true
       : isPolylineGroup
-      ? segmentLineMode === LINEAR_SEGMENT_LINE_MODE_DIRECT
+      ? segmentLineMode === LINEAR_SEGMENT_LINE_MODES.DIRECT
       : true;
     const showVerticalLine = isDistanceGroup
       ? group.distanceLineVisibility?.vertical ?? false
       : isPolylineGroup
-      ? segmentLineMode === LINEAR_SEGMENT_LINE_MODE_COMPONENTS
+      ? segmentLineMode === LINEAR_SEGMENT_LINE_MODES.COMPONENTS
       : false;
     const showHorizontalLine = isDistanceGroup
       ? group.distanceLineVisibility?.horizontal ?? false
       : isPolylineGroup
-      ? segmentLineMode === LINEAR_SEGMENT_LINE_MODE_COMPONENTS
+      ? segmentLineMode === LINEAR_SEGMENT_LINE_MODES.COMPONENTS
       : false;
-    const showComponentLines = isDistanceGroup
-      ? showVerticalLine || showHorizontalLine
-      : showVerticalLine || showHorizontalLine;
+    const showComponentLines = showVerticalLine || showHorizontalLine;
     const orderedVertices = group.nodeIds;
     for (let index = 0; index < orderedVertices.length - 1; index += 1) {
       const pointAId = orderedVertices[index];

@@ -1,14 +1,13 @@
 import type { MutableRefObject } from "react";
 
 import type {
-  RuntimeAddAnnotationOptions,
-  RuntimeAnnotationEntry,
-  RuntimeCoordinate,
-  RuntimeEdge,
-  RuntimeNodeLink,
-  RuntimeNodeLinkId,
-  RuntimeMeasurement,
-  RuntimeNode,
+  AddAnnotationOptions,
+  StoredAnnotation,
+  CesiumGeographicCoordinate,
+  AnnotationEdge,
+  AnnotationNodeLink,
+  AnnotationNodeLinkId,
+  AnnotationNode,
 } from "./annotations-store.types";
 
 export const readMaxNumericSuffix = (ids: readonly string[]): number =>
@@ -30,18 +29,18 @@ export const buildMeasurementEntities = ({
   nodeSequenceRef,
   edgeSequenceRef,
 }: {
-  toolType: RuntimeMeasurement["toolType"];
-  coordinates: readonly RuntimeCoordinate[];
-  options?: RuntimeAddAnnotationOptions;
-  linkedNodeGroupIds?: readonly (RuntimeNodeLinkId | null | undefined)[];
+  toolType: StoredAnnotation["toolType"];
+  coordinates: readonly CesiumGeographicCoordinate[];
+  options?: AddAnnotationOptions;
+  linkedNodeGroupIds?: readonly (AnnotationNodeLinkId | null | undefined)[];
   measurementSequenceRef: MutableRefObject<number>;
   nodeSequenceRef: MutableRefObject<number>;
   edgeSequenceRef: MutableRefObject<number>;
 }): {
-  annotationEntry: RuntimeAnnotationEntry;
-  nodes: readonly RuntimeNode[];
-  linkedNodeGroups: readonly RuntimeNodeLink[];
-  edges: readonly RuntimeEdge[];
+  annotationEntry: StoredAnnotation;
+  nodes: readonly AnnotationNode[];
+  linkedNodeGroups: readonly AnnotationNodeLink[];
+  edges: readonly AnnotationEdge[];
 } => {
   measurementSequenceRef.current += 1;
   const annotationEntryId = `${toolType}-${measurementSequenceRef.current}`;
@@ -90,7 +89,7 @@ export const buildMeasurementEntities = ({
       });
     }
   }
-  const annotationEntry: RuntimeAnnotationEntry = {
+  const annotationEntry: StoredAnnotation = {
     id: annotationEntryId,
     toolType,
     ...options,

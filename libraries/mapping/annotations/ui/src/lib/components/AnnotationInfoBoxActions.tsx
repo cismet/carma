@@ -13,7 +13,7 @@ import type { MouseEvent as ReactMouseEvent } from "react";
 import { AnnotationInfoBoxActionIcon } from "./AnnotationInfoBoxActionIcon";
 import type { AnnotationInfoBoxVisualOptions } from "../annotation-info-box.types";
 
-type AnnotationInfoBoxActionsProps = {
+export type AnnotationInfoBoxActionsProps = {
   hidden?: boolean;
   locked?: boolean;
   onFlyTo: AnnotationInfoBoxActionHandler;

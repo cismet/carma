@@ -1,9 +1,12 @@
 export {
   LabelOverlayProvider,
+  LABEL_OVERLAY_CONTAINER_ATTRIBUTE,
+  LABEL_OVERLAY_CONTAINER_SELECTOR,
   useLabelOverlay,
   useLabelOverlayHost,
   getOverlayReferenceSignature,
   PointLabel,
+  DEFAULT_POINT_LABEL_FONT_SIZE,
   POINT_LABEL_STYLE,
   POINT_LABEL_ATTACH,
   POINT_LABEL_COMPONENT_DEFAULTS,
@@ -14,8 +17,21 @@ export {
   PillbuttonLabelMarker,
   resolvePillbuttonLabelMarkerLocalAnchorPoints,
   PointLabelStem,
+  buildTextOnlyPointLabelOverlayState,
+  createTransientPointLabelController,
+  getPointLabelOverlayContentSignature,
+  renderPointLabelOverlayContent,
+  readPointLabelOverlayDomRefs,
+  applyPointLabelOverlayState,
+  labelOverlayLayerDefaults,
+  labelOverlayAffordanceDefaults,
+  buildOverlayRingBoxShadowCss,
+  buildOverlayGlowBoxShadowCss,
+  buildOverlaySoftShadowBoxShadowCss,
+  buildOverlayHoverFilterCss,
+  buildOverlayHoverTransitionCss,
+  resolveOverlayMidpointTickMetrics,
   LineVisualizer,
-  DEFAULT_LINE_LABEL_OFFSET_PX,
   resolveOverlayLineLabelPlacement,
   usePointLabels,
   useLineVisualizers,
@@ -32,6 +48,11 @@ export {
   type PillbuttonLabelMarkerProps,
   type PointLabelStemAnchorPoints,
   type PointLabelStemLinePoints,
+  type PointLabelOverlayDomRefs,
+  type PointLabelOverlayRenderState,
+  type TextOnlyPointLabelOverlayStateOptions,
+  type TextOnlyPointLabelOverlayTheme,
+  type TransientPointLabelController,
   type LineVisualizerProps,
   type LineLabelPlacementOptions,
   type PointLabelData,
@@ -40,7 +61,10 @@ export {
 } from "./lib/react-runtime";
 export type { PointLabelAttach } from "./lib/core";
 export {
+  POINT_LABEL_ANCHOR_KIND,
+  POINT_LABEL_OCCLUSION_MODE,
   resolvePointLabelOcclusionMode,
+  shouldMountPointLabelAtAnchor,
   shouldTestPointLabelOcclusion,
   estimatePillCapRadiusPx,
   resolvePillCapCenterPoint,
@@ -70,4 +94,8 @@ export {
   type PointLabelClusterExpansionConfig,
   type AssignPointLabelClusterExpansionSlotsResult,
 } from "./lib/core";
+export {
+  LABEL_COLLISION_PADDING,
+  rectsIntersect,
+} from "./lib/core/pointLabelLayout/geometry";
 export * from "./lib/core/pointLabelLayout";

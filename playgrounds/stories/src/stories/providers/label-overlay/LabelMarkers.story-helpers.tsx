@@ -24,16 +24,15 @@ import { MINUS_PI_OVER_FOUR } from "@carma-commons/math";
 import {
   ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE,
   ANNOTATION_MEASUREMENT_TEXT_COLOR,
-  annotationTypographyDefaults,
   PREVIEW_LINE_LABEL_BACKGROUND_STYLE,
   PREVIEW_LINE_LABEL_THEME,
-  resolveAnnotationMeasurementLabelTheme,
-  type AnnotationMeasurementQualitativeColorScheme,
+  resolveStoredAnnotationLabelTheme,
+  typographyDefaults,
+  type StoredAnnotationQualitativeColorScheme,
 } from "@carma-mapping/annotations/runtime";
 import type { CssPixelPosition } from "@carma-units";
 import barmenBackgroundUrl from "./assets/barmen-background.png";
 import { CenteredStoryFrame } from "../../common/ui/centered-story-frame";
-import "../../../../../../libraries/mapping/annotations/runtime/src/lib/interaction/annotation-overlay-line-label.css";
 const { POINT: ANNOTATION_TYPE_POINT } = ANNOTATION_TYPES;
 
 export type LabelMarkersStoryArgs = {
@@ -97,14 +96,14 @@ const toCssPixelPosition = (x: number, y: number): CssPixelPosition => ({
   y: y as CssPixelPosition["y"],
 });
 
-const LABEL_MARKERS_FONT_FAMILY = annotationTypographyDefaults.fontFamily;
+const LABEL_MARKERS_FONT_FAMILY = typographyDefaults.fontFamily;
 const REPRESENTATIVE_CONTENT_FONT_WEIGHT = 400;
 const REPRESENTATIVE_BADGE_FONT_WEIGHT =
-  annotationTypographyDefaults.badgeFontWeight;
+  typographyDefaults.badgeFontWeight;
 const REPRESENTATIVE_TEXT_COLOR = ANNOTATION_MEASUREMENT_TEXT_COLOR;
 
 const toRepresentativePillColorScheme = (
-  colorScheme: AnnotationMeasurementQualitativeColorScheme
+  colorScheme: StoredAnnotationQualitativeColorScheme
 ): QualitativePillColorScheme => ({
   id: colorScheme.id,
   label: colorScheme.label,
@@ -117,7 +116,7 @@ const toRepresentativePillColorScheme = (
 
 const REPRESENTATIVE_DEFAULT_COLOR_SCHEME: QualitativePillColorScheme = {
   ...toRepresentativePillColorScheme(
-    resolveAnnotationMeasurementLabelTheme(ANNOTATION_TYPE_POINT).scheme
+    resolveStoredAnnotationLabelTheme(ANNOTATION_TYPE_POINT).scheme
   ),
 };
 
@@ -487,8 +486,8 @@ const noopHoverHandler = () => undefined;
 const makeSharedStyleProps = (
   args: LabelMarkersStoryArgs
 ): PointLabelStyleProps => ({
-  fontSize: `${annotationTypographyDefaults.rootFontSizePx}px`,
-  fontFamily: annotationTypographyDefaults.fontFamily,
+  fontSize: `${typographyDefaults.rootFontSizePx}px`,
+  fontFamily: typographyDefaults.fontFamily,
   fontWeight: REPRESENTATIVE_CONTENT_FONT_WEIGHT,
   textColor: args.labelTextColor,
   textBackgroundColor: args.labelBackgroundColor,
@@ -1788,7 +1787,7 @@ export const PillboxOnlyStory = (args: LabelMarkersStoryArgs) => {
       defaultLabelAttach: POINT_LABEL_ATTACH.LEFT,
       defaultInitialLabelPosition: LEFT_ALIGNED_PILLBOX_LABEL_POSITION,
       sharedStyleOverrides: {
-        fontFamily: annotationTypographyDefaults.fontFamily,
+        fontFamily: typographyDefaults.fontFamily,
       },
       rows: [
         {
@@ -1801,8 +1800,8 @@ export const PillboxOnlyStory = (args: LabelMarkersStoryArgs) => {
             textColor: "rgba(17, 24, 39, 0.9)",
           },
           styleOverrides: {
-            fontSize: `${annotationTypographyDefaults.headingFontSizePx}px`,
-            fontWeight: annotationTypographyDefaults.headingFontWeight,
+            fontSize: `${typographyDefaults.headingFontSizePx}px`,
+            fontWeight: typographyDefaults.headingFontWeight,
           },
         },
         {
@@ -1819,8 +1818,8 @@ export const PillboxOnlyStory = (args: LabelMarkersStoryArgs) => {
             markerTextColor: "rgba(17, 24, 39, 1)",
           },
           styleOverrides: {
-            fontSize: `${annotationTypographyDefaults.rootFontSizePx}px`,
-            fontWeight: annotationTypographyDefaults.badgeFontWeight,
+            fontSize: `${typographyDefaults.rootFontSizePx}px`,
+            fontWeight: typographyDefaults.badgeFontWeight,
           },
         },
         {
@@ -1833,7 +1832,7 @@ export const PillboxOnlyStory = (args: LabelMarkersStoryArgs) => {
             textColor: "rgba(17, 24, 39, 1)",
           },
           styleOverrides: {
-            fontSize: `${annotationTypographyDefaults.rootFontSizePx}px`,
+            fontSize: `${typographyDefaults.rootFontSizePx}px`,
             fontWeight: "400",
           },
         },
@@ -1847,8 +1846,8 @@ export const PillboxOnlyStory = (args: LabelMarkersStoryArgs) => {
             textColor: "rgba(71, 85, 105, 0.8)",
           },
           styleOverrides: {
-            fontSize: `${annotationTypographyDefaults.supportFontSizePx}px`,
-            fontWeight: annotationTypographyDefaults.sectionTitleFontWeight,
+            fontSize: `${typographyDefaults.supportFontSizePx}px`,
+            fontWeight: typographyDefaults.sectionTitleFontWeight,
           },
         },
         {
@@ -1861,7 +1860,7 @@ export const PillboxOnlyStory = (args: LabelMarkersStoryArgs) => {
             textColor: "rgba(17, 24, 39, 0.5)",
           },
           styleOverrides: {
-            fontSize: `${annotationTypographyDefaults.supportFontSizePx}px`,
+            fontSize: `${typographyDefaults.supportFontSizePx}px`,
             fontWeight: "600",
           },
         },
@@ -1875,7 +1874,7 @@ export const PillboxOnlyStory = (args: LabelMarkersStoryArgs) => {
             textColor: "rgba(17, 24, 39, 1)",
           },
           styleOverrides: {
-            fontSize: `${annotationTypographyDefaults.supportFontSizePx}px`,
+            fontSize: `${typographyDefaults.supportFontSizePx}px`,
             fontWeight: "400",
           },
         },
@@ -1893,8 +1892,8 @@ export const PillboxOnlyStory = (args: LabelMarkersStoryArgs) => {
             markerTextColor: "rgba(17, 24, 39, 1)",
           },
           styleOverrides: {
-            fontSize: `${annotationTypographyDefaults.rootFontSizePx}px`,
-            fontWeight: annotationTypographyDefaults.badgeFontWeight,
+            fontSize: `${typographyDefaults.rootFontSizePx}px`,
+            fontWeight: typographyDefaults.badgeFontWeight,
           },
         },
         {
@@ -1907,8 +1906,8 @@ export const PillboxOnlyStory = (args: LabelMarkersStoryArgs) => {
             textColor: "rgba(71, 85, 105, 0.8)",
           },
           styleOverrides: {
-            fontSize: `${annotationTypographyDefaults.supportFontSizePx}px`,
-            fontWeight: annotationTypographyDefaults.sectionTitleFontWeight,
+            fontSize: `${typographyDefaults.supportFontSizePx}px`,
+            fontWeight: typographyDefaults.sectionTitleFontWeight,
           },
         },
       ],
@@ -2079,9 +2078,9 @@ export const LabelBackgroundsStory = (args: LabelMarkersStoryArgs) => {
               display: "block",
               transform: "translate(-50%, -50%)",
               "--carma-annotation-overlay-line-label-font-family":
-                annotationTypographyDefaults.fontFamily,
-              "--carma-annotation-overlay-line-label-font-size": `${annotationTypographyDefaults.rootFontSizePx}px`,
-              "--carma-annotation-overlay-line-label-font-weight": `${annotationTypographyDefaults.lineLabelFontWeight}`,
+                typographyDefaults.fontFamily,
+              "--carma-annotation-overlay-line-label-font-size": `${typographyDefaults.rootFontSizePx}px`,
+              "--carma-annotation-overlay-line-label-font-weight": `${typographyDefaults.lineLabelFontWeight}`,
             } as CSSProperties
           }
         >
@@ -2094,7 +2093,7 @@ export const LabelBackgroundsStory = (args: LabelMarkersStoryArgs) => {
             />
             <span
               className="carma-annotation-overlay-line-label__text"
-              style={{ fontSize: annotationTypographyDefaults.rootFontSizePx }}
+              style={{ fontSize: typographyDefaults.rootFontSizePx }}
             >
               168,00 m
             </span>

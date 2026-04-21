@@ -1,5 +1,41 @@
-import { clamp } from "@carma-commons/math";
-import type { CssPixelPosition } from "@carma-units";
+import {
+  addPoint2d,
+  clamp,
+  dotPoint2d,
+  getPolygonArea2d,
+  getPolygonCentroid2d,
+  getSegmentFrame2d,
+  scalePoint2d,
+  subtractPoint2d,
+} from "@carma-commons/math";
+import { clampUnitRangeRatio, type CssPixelPosition } from "@carma-units";
+
+const distanceScreenSpaceDefaults = (() => {
+  const geometryEpsilonPx = 1e-6;
+  const polygonAreaEpsilonPx2 = 1e-6;
+
+  return Object.freeze({
+    lineLengthEpsilonPx: 1e-3,
+    referenceDistanceFactor: 0.2,
+    flipThresholdPx: 4,
+    referenceMinDistancePx: 24,
+    referenceMaxDistancePx: 48,
+    insideBlendFactor: 0.35,
+    elevationEpsilonMeters: 0.001,
+    geometryEpsilonPx,
+    geometryEpsilonPxSquared: geometryEpsilonPx ** 2,
+    polygonAreaEpsilonPx2,
+    interiorSampleGridResolution: 18,
+    minInteriorSampleGridResolution: 6,
+    inwardProbeStepsPx: [0.5, 1, 2, 4, 8, 12, 16, 24, 32] as const,
+    polygonLabelPaddingXPx: 6,
+    polygonLabelPaddingYPx: 4,
+    polygonLabelMinAreaToLabelRatio: 1.15,
+    polylabelPrecisionPx: 0.5,
+    polylabelMaxCellsToProcess: 20000,
+    minSafeLabelDimensionPx: 1,
+  });
+})();
 export type PointDistanceRelationLike = {
   showVerticalLine?: boolean;
   showHorizontalLine?: boolean;
@@ -19,9 +55,6 @@ export const hasVisibleDistanceRelationComponentLines = (
 ) =>
   isDistanceRelationVerticalLineVisible(relation) &&
   isDistanceRelationHorizontalLineVisible(relation);
-
-export const normalizeLabelAngleDeg = (angleDeg: number) =>
-  angleDeg > 90 || angleDeg < -90 ? angleDeg + 180 : angleDeg;
 
 export type DistanceScreenTriangle = {
   anchor: CssPixelPosition;
@@ -45,7 +78,7 @@ export type VerticalDistanceLineScreenData = {
 const resolveStableSideSign = (
   signedDistance: number,
   previousSign: -1 | 1 | undefined,
-  flipThresholdPx = 4
+  flipThresholdPx: number = distanceScreenSpaceDefaults.flipThresholdPx
 ): -1 | 1 => {
   if (!Number.isFinite(signedDistance)) return previousSign ?? 1;
   const nextSign: -1 | 1 = signedDistance >= 0 ? 1 : -1;
@@ -58,37 +91,40 @@ export const buildOutsideReferencePoint2D = (
   start: CssPixelPosition,
   end: CssPixelPosition,
   insidePoint: CssPixelPosition,
-  minDistancePx = 24,
-  maxDistancePx = 48
+  minDistancePx = distanceScreenSpaceDefaults.referenceMinDistancePx,
+  maxDistancePx = distanceScreenSpaceDefaults.referenceMaxDistancePx
 ): CssPixelPosition | null => {
-  const dx = end.x - start.x;
-  const dy = end.y - start.y;
-  const lineLength = Math.hypot(dx, dy);
-  if (lineLength <= 1e-3) return null;
-  const midX = (start.x + end.x) * 0.5;
-  const midY = (start.y + end.y) * 0.5;
-  const normalX = -dy / lineLength;
-  const normalY = dx / lineLength;
-  const dot =
-    (insidePoint.x - midX) * normalX + (insidePoint.y - midY) * normalY;
-  const insideSign = dot >= 0 ? 1 : -1;
+  const edgeFrame = getSegmentFrame2d({
+    start,
+    end,
+    epsilon: distanceScreenSpaceDefaults.lineLengthEpsilonPx,
+  });
+  if (!edgeFrame) {
+    return null;
+  }
+
+  const insideOffset = subtractPoint2d(insidePoint, edgeFrame.midpoint);
+  const insideProjection = dotPoint2d(insideOffset, edgeFrame.leftUnitNormal);
+  const insideSign = insideProjection >= 0 ? 1 : -1;
   const referenceDistancePx = clamp(
-    lineLength * 0.2,
+    edgeFrame.length * distanceScreenSpaceDefaults.referenceDistanceFactor,
     minDistancePx,
     maxDistancePx
   );
-  return {
-    x: midX + normalX * insideSign * referenceDistancePx,
-    y: midY + normalY * insideSign * referenceDistancePx,
-  } as CssPixelPosition;
+  const referenceOffset = scalePoint2d(
+    edgeFrame.leftUnitNormal,
+    insideSign * referenceDistancePx
+  );
+
+  return addPoint2d(edgeFrame.midpoint, referenceOffset) as CssPixelPosition;
 };
 
 export const buildDistanceTriangleInsidePoint2D = ({
   triangle,
   auxiliaryAltitudeMeters,
   highestAltitudeMeters,
-  insideBlendFactor = 0.35,
-  elevationEpsilonMeters = 0.001,
+  insideBlendFactor = distanceScreenSpaceDefaults.insideBlendFactor,
+  elevationEpsilonMeters = distanceScreenSpaceDefaults.elevationEpsilonMeters,
 }: {
   triangle: DistanceScreenTriangle;
   auxiliaryAltitudeMeters: number;
@@ -113,7 +149,7 @@ export const buildDistanceTriangleInsidePoint2D = ({
 export const buildVerticalDistanceLineScreenData = ({
   triangle,
   previousInsideSign,
-  flipThresholdPx = 4,
+  flipThresholdPx = distanceScreenSpaceDefaults.flipThresholdPx,
 }: {
   triangle: DistanceScreenTriangle;
   previousInsideSign?: -1 | 1;
@@ -134,21 +170,24 @@ export const buildVerticalDistanceLineScreenData = ({
     lineLength: number;
     insideDot: number;
   } | null => {
-    const dx = nextEnd.x - nextStart.x;
-    const dy = nextEnd.y - nextStart.y;
-    const lineLength = Math.hypot(dx, dy);
-    if (lineLength <= 1e-3) return null;
-    const midX = (nextStart.x + nextEnd.x) * 0.5;
-    const midY = (nextStart.y + nextEnd.y) * 0.5;
-    const normalX = -dy / lineLength;
-    const normalY = dx / lineLength;
-    const insideDot = (inside.x - midX) * normalX + (inside.y - midY) * normalY;
+    const edgeFrame = getSegmentFrame2d({
+      start: nextStart,
+      end: nextEnd,
+      epsilon: distanceScreenSpaceDefaults.lineLengthEpsilonPx,
+    });
+    if (!edgeFrame) {
+      return null;
+    }
+
+    const insideOffset = subtractPoint2d(inside, edgeFrame.midpoint);
+    const insideDot = dotPoint2d(insideOffset, edgeFrame.leftUnitNormal);
+
     return {
-      midX,
-      midY,
-      normalX,
-      normalY,
-      lineLength,
+      midX: edgeFrame.midpoint.x,
+      midY: edgeFrame.midpoint.y,
+      normalX: edgeFrame.leftUnitNormal.x,
+      normalY: edgeFrame.leftUnitNormal.y,
+      lineLength: edgeFrame.length,
       insideDot,
     };
   };
@@ -183,39 +222,50 @@ export const buildVerticalDistanceLineScreenData = ({
 
 export const buildVerticalLabelReferencePoint2D = (
   edge: VerticalDistanceLineScreenData,
-  minDistancePx = 24,
-  maxDistancePx = 48
+  minDistancePx = distanceScreenSpaceDefaults.referenceMinDistancePx,
+  maxDistancePx = distanceScreenSpaceDefaults.referenceMaxDistancePx
 ): CssPixelPosition => {
   const referenceDistancePx = clamp(
-    edge.lineLength * 0.2,
+    edge.lineLength * distanceScreenSpaceDefaults.referenceDistanceFactor,
     minDistancePx,
     maxDistancePx
   );
+  const edgeMidpoint = { x: edge.midX, y: edge.midY };
+  const edgeNormal = { x: edge.normalX, y: edge.normalY };
+  const referenceOffset = scalePoint2d(
+    edgeNormal,
+    edge.insideSign * referenceDistancePx
+  );
 
-  return {
-    x: edge.midX + edge.normalX * edge.insideSign * referenceDistancePx,
-    y: edge.midY + edge.normalY * edge.insideSign * referenceDistancePx,
-  } as CssPixelPosition;
+  return addPoint2d(edgeMidpoint, referenceOffset) as CssPixelPosition;
 };
 
 const isPointOnSegment2D = (
   point: CssPixelPosition,
   start: CssPixelPosition,
   end: CssPixelPosition,
-  tolerancePx = 1e-6
+  tolerancePx = distanceScreenSpaceDefaults.geometryEpsilonPx
 ) => {
   const segmentX = end.x - start.x;
   const segmentY = end.y - start.y;
   const pointX = point.x - start.x;
   const pointY = point.y - start.y;
-  const cross = Math.abs(segmentX * pointY - segmentY * pointX);
-  if (cross > tolerancePx) return false;
-
-  const dot = pointX * segmentX + pointY * segmentY;
-  if (dot < -tolerancePx) return false;
-
   const segmentLengthSquared = segmentX * segmentX + segmentY * segmentY;
-  if (dot - segmentLengthSquared > tolerancePx) return false;
+  if (
+    segmentLengthSquared <= distanceScreenSpaceDefaults.geometryEpsilonPxSquared
+  ) {
+    return Math.hypot(pointX, pointY) <= tolerancePx;
+  }
+
+  const segmentLength = Math.sqrt(segmentLengthSquared);
+  const signedDistanceFromLinePx =
+    Math.abs(segmentX * pointY - segmentY * pointX) / segmentLength;
+  if (signedDistanceFromLinePx > tolerancePx) return false;
+
+  const alongDistancePx =
+    (pointX * segmentX + pointY * segmentY) / segmentLength;
+  if (alongDistancePx < -tolerancePx) return false;
+  if (alongDistancePx - segmentLength > tolerancePx) return false;
 
   return true;
 };
@@ -228,14 +278,17 @@ const distancePointToSegment2D = (
   const segmentX = end.x - start.x;
   const segmentY = end.y - start.y;
   const segmentLengthSquared = segmentX * segmentX + segmentY * segmentY;
-  if (segmentLengthSquared <= 1e-12) {
+  if (
+    segmentLengthSquared <=
+    distanceScreenSpaceDefaults.geometryEpsilonPxSquared
+  ) {
     return Math.hypot(point.x - start.x, point.y - start.y);
   }
 
   const projection =
     ((point.x - start.x) * segmentX + (point.y - start.y) * segmentY) /
     segmentLengthSquared;
-  const t = clamp(projection, 0, 1);
+  const t = clampUnitRangeRatio(projection);
   const closestX = start.x + segmentX * t;
   const closestY = start.y + segmentY * t;
   return Math.hypot(point.x - closestX, point.y - closestY);
@@ -249,14 +302,17 @@ const closestPointOnSegment2D = (
   const segmentX = end.x - start.x;
   const segmentY = end.y - start.y;
   const segmentLengthSquared = segmentX * segmentX + segmentY * segmentY;
-  if (segmentLengthSquared <= 1e-12) {
+  if (
+    segmentLengthSquared <=
+    distanceScreenSpaceDefaults.geometryEpsilonPxSquared
+  ) {
     return { x: start.x, y: start.y } as CssPixelPosition;
   }
 
   const projection =
     ((point.x - start.x) * segmentX + (point.y - start.y) * segmentY) /
     segmentLengthSquared;
-  const t = clamp(projection, 0, 1);
+  const t = clampUnitRangeRatio(projection);
   return {
     x: start.x + segmentX * t,
     y: start.y + segmentY * t,
@@ -297,18 +353,6 @@ export const isPointInsidePolygon2D = (
   return inside;
 };
 
-export const computePolygonArea2D = (points: CssPixelPosition[]) => {
-  if (points.length < 3) return 0;
-  let areaAccumulator = 0;
-  for (let i = 0; i < points.length; i += 1) {
-    const current = points[i];
-    const next = points[(i + 1) % points.length];
-    if (!current || !next) continue;
-    areaAccumulator += current.x * next.y - next.x * current.y;
-  }
-  return Math.abs(areaAccumulator) * 0.5;
-};
-
 export const computeDistanceToPolygonEdges2D = (
   polygonPoints: CssPixelPosition[],
   point: CssPixelPosition
@@ -329,38 +373,11 @@ export const computeDistanceToPolygonEdges2D = (
   return Number.isFinite(minDistancePx) ? minDistancePx : 0;
 };
 
-export const computePolygonCentroid2D = (points: CssPixelPosition[]) => {
-  if (points.length < 3) return null;
-
-  let signedArea = 0;
-  let centroidX = 0;
-  let centroidY = 0;
-
-  for (let i = 0; i < points.length; i += 1) {
-    const current = points[i];
-    const next = points[(i + 1) % points.length];
-    if (!current || !next) continue;
-    const cross = current.x * next.y - next.x * current.y;
-    signedArea += cross;
-    centroidX += (current.x + next.x) * cross;
-    centroidY += (current.y + next.y) * cross;
-  }
-
-  signedArea *= 0.5;
-  if (Math.abs(signedArea) <= 1e-6) {
-    const avgX =
-      points.reduce((sum, point) => sum + point.x, 0) / points.length;
-    const avgY =
-      points.reduce((sum, point) => sum + point.y, 0) / points.length;
-    return { x: avgX, y: avgY } as CssPixelPosition;
-  }
-
-  const factor = 1 / (6 * signedArea);
-  return {
-    x: centroidX * factor,
-    y: centroidY * factor,
-  } as CssPixelPosition;
-};
+export const computePolygonCentroid2D = (points: CssPixelPosition[]) =>
+  getPolygonCentroid2d({
+    points,
+    degenerateAreaEpsilon: distanceScreenSpaceDefaults.polygonAreaEpsilonPx2,
+  }) as CssPixelPosition | null;
 
 export type LargestInscribedPoint2D = {
   center: CssPixelPosition;
@@ -405,7 +422,7 @@ const createPolylabelCell = (
 
 const findInteriorSamplePoint2D = (
   polygonPoints: CssPixelPosition[],
-  gridResolution = 18
+  gridResolution = distanceScreenSpaceDefaults.interiorSampleGridResolution
 ): LargestInscribedPoint2D | null => {
   if (polygonPoints.length < 3) return null;
 
@@ -417,7 +434,10 @@ const findInteriorSamplePoint2D = (
   const height = maxY - minY;
   if (width <= 0 || height <= 0) return null;
 
-  const samplesPerAxis = Math.max(6, Math.floor(gridResolution));
+  const samplesPerAxis = Math.max(
+    distanceScreenSpaceDefaults.minInteriorSampleGridResolution,
+    Math.floor(gridResolution)
+  );
   let bestPoint: CssPixelPosition | null = null;
   let bestRadiusPx = Number.NEGATIVE_INFINITY;
 
@@ -460,8 +480,8 @@ const computePolygonCentroidCell2D = (
 
 export const findLargestInscribedPoint2D = (
   polygonPoints: CssPixelPosition[],
-  precisionPx = 0.5,
-  maxCellsToProcess = 20000
+  precisionPx = distanceScreenSpaceDefaults.polylabelPrecisionPx,
+  maxCellsToProcess = distanceScreenSpaceDefaults.polylabelMaxCellsToProcess
 ): LargestInscribedPoint2D | null => {
   if (polygonPoints.length < 3) return null;
   if (
@@ -481,7 +501,9 @@ export const findLargestInscribedPoint2D = (
   const height = maxY - minY;
   if (width <= 0 || height <= 0) return null;
   const cellSize = Math.min(width, height);
-  if (cellSize <= 1e-6) return null;
+  if (cellSize <= distanceScreenSpaceDefaults.geometryEpsilonPx) {
+    return null;
+  }
   const h = cellSize / 2;
 
   const cellQueue: PolylabelCell[] = [];
@@ -605,11 +627,10 @@ export const coercePointInsidePolygon2D = (
     const directionX = inwardTarget.x - nearestBoundaryPoint.x;
     const directionY = inwardTarget.y - nearestBoundaryPoint.y;
     const directionLength = Math.hypot(directionX, directionY);
-    if (directionLength > 1e-6) {
+    if (directionLength > distanceScreenSpaceDefaults.geometryEpsilonPx) {
       const normX = directionX / directionLength;
       const normY = directionY / directionLength;
-      const probeStepsPx = [0.5, 1, 2, 4, 8, 12, 16, 24, 32];
-      for (const stepPx of probeStepsPx) {
+      for (const stepPx of distanceScreenSpaceDefaults.inwardProbeStepsPx) {
         const candidate = {
           x: nearestBoundaryPoint.x + normX * stepPx,
           y: nearestBoundaryPoint.y + normY * stepPx,
@@ -662,14 +683,18 @@ export const computePolygonLabelFitMetrics = (
       bestAnchor: null,
     };
   }
-  const polygonAreaPx2 = computePolygonArea2D(polygonPoints);
+  const polygonAreaPx2 = getPolygonArea2d(polygonPoints);
   const safeLabelWidthPx = Math.max(
-    1,
-    Number.isFinite(labelWidthPx) ? labelWidthPx : 1
+    distanceScreenSpaceDefaults.minSafeLabelDimensionPx,
+    Number.isFinite(labelWidthPx)
+      ? labelWidthPx
+      : distanceScreenSpaceDefaults.minSafeLabelDimensionPx
   );
   const safeLabelHeightPx = Math.max(
-    1,
-    Number.isFinite(labelHeightPx) ? labelHeightPx : 1
+    distanceScreenSpaceDefaults.minSafeLabelDimensionPx,
+    Number.isFinite(labelHeightPx)
+      ? labelHeightPx
+      : distanceScreenSpaceDefaults.minSafeLabelDimensionPx
   );
   const labelAreaPx2 = safeLabelWidthPx * safeLabelHeightPx;
   const areaToLabelRatio = polygonAreaPx2 / labelAreaPx2;
@@ -692,11 +717,10 @@ export const computePolygonLabelFitMetrics = (
       ? computeDistanceToPolygonEdges2D(polygonPoints, bestAnchor)
       : 0);
 
-  const paddingX = 6;
-  const paddingY = 4;
   const requiredRadiusPx = Math.hypot(
-    safeLabelWidthPx * 0.5 + paddingX,
-    safeLabelHeightPx * 0.5 + paddingY
+    safeLabelWidthPx * 0.5 + distanceScreenSpaceDefaults.polygonLabelPaddingXPx,
+    safeLabelHeightPx * 0.5 +
+      distanceScreenSpaceDefaults.polygonLabelPaddingYPx
   );
 
   return {
@@ -706,7 +730,8 @@ export const computePolygonLabelFitMetrics = (
     maxInscribedRadiusPx,
     requiredRadiusPx,
     fitsInsidePolygon:
-      maxInscribedRadiusPx >= requiredRadiusPx && areaToLabelRatio >= 1.15,
+      maxInscribedRadiusPx >= requiredRadiusPx &&
+      areaToLabelRatio >= distanceScreenSpaceDefaults.polygonLabelMinAreaToLabelRatio,
     bestAnchor,
   };
 };

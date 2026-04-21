@@ -1,7 +1,7 @@
 import type {
-  RuntimeCoordinate,
-  RuntimeNodeLinkId,
-  RuntimeMeasurement,
+  CesiumGeographicCoordinate,
+  AnnotationNodeLinkId,
+  StoredAnnotation,
 } from "../../store/annotations-store.types";
 
 export type PolylineToolAction = "appendPoint" | "cancelPreview";
@@ -11,22 +11,22 @@ export const appendPolylinePreviewPoint = <T>(
   nextItem: T
 ) => [...previousItems, nextItem];
 
-export const clearPolylinePreview = (): readonly RuntimeCoordinate[] => [];
+export const clearPolylinePreview = (): readonly CesiumGeographicCoordinate[] => [];
 
 export const canFinishPolylinePreview = (
-  coordinates: readonly RuntimeCoordinate[]
+  coordinates: readonly CesiumGeographicCoordinate[]
 ) => coordinates.length >= 2;
 
 type FinishPolylinePreviewArgs = {
-  toolType: RuntimeMeasurement["toolType"];
-  coordinates: readonly RuntimeCoordinate[];
-  linkedNodeGroupIds?: readonly (RuntimeNodeLinkId | null | undefined)[];
+  toolType: StoredAnnotation["toolType"];
+  coordinates: readonly CesiumGeographicCoordinate[];
+  linkedNodeGroupIds?: readonly (AnnotationNodeLinkId | null | undefined)[];
   addAnnotation: (
-    toolType: RuntimeMeasurement["toolType"],
-    nextCoordinates: readonly RuntimeCoordinate[],
+    toolType: StoredAnnotation["toolType"],
+    nextCoordinates: readonly CesiumGeographicCoordinate[],
     options?: undefined,
-    linkedNodeGroupIds?: readonly (RuntimeNodeLinkId | null | undefined)[]
-  ) => RuntimeMeasurement;
+    linkedNodeGroupIds?: readonly (AnnotationNodeLinkId | null | undefined)[]
+  ) => StoredAnnotation;
 };
 
 export const finishPolylinePreview = ({

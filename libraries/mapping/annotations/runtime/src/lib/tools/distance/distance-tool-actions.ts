@@ -1,8 +1,8 @@
 import type {
-  RuntimeAddAnnotationOptions,
-  RuntimeCoordinate,
-  RuntimeNodeLinkId,
-  RuntimeMeasurement,
+  AddAnnotationOptions,
+  CesiumGeographicCoordinate,
+  AnnotationNodeLinkId,
+  StoredAnnotation,
 } from "../../store/annotations-store.types";
 
 export type DistanceToolAction = "undoLastPoint" | "cancelPreview";
@@ -12,21 +12,21 @@ export const appendDistancePreviewPoint = <T>(
   nextItem: T
 ) => [...previousItems.slice(0, 1), nextItem];
 
-export const clearDistancePreview = (): readonly RuntimeCoordinate[] => [];
+export const clearDistancePreview = (): readonly CesiumGeographicCoordinate[] => [];
 
 export const undoDistancePreviewPoint = <T>(previousItems: readonly T[]) =>
   previousItems.slice(0, -1);
 
 type CommitDistanceMeasurementArgs = {
-  toolType: RuntimeMeasurement["toolType"];
-  coordinates: readonly RuntimeCoordinate[];
-  linkedNodeGroupIds?: readonly (RuntimeNodeLinkId | null | undefined)[];
+  toolType: StoredAnnotation["toolType"];
+  coordinates: readonly CesiumGeographicCoordinate[];
+  linkedNodeGroupIds?: readonly (AnnotationNodeLinkId | null | undefined)[];
   addAnnotation: (
-    toolType: RuntimeMeasurement["toolType"],
-    nextCoordinates: readonly RuntimeCoordinate[],
-    options?: RuntimeAddAnnotationOptions,
-    linkedNodeGroupIds?: readonly (RuntimeNodeLinkId | null | undefined)[]
-  ) => RuntimeMeasurement;
+    toolType: StoredAnnotation["toolType"],
+    nextCoordinates: readonly CesiumGeographicCoordinate[],
+    options?: AddAnnotationOptions,
+    linkedNodeGroupIds?: readonly (AnnotationNodeLinkId | null | undefined)[]
+  ) => StoredAnnotation;
 };
 
 export const commitDistanceMeasurement = ({

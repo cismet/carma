@@ -1,7 +1,7 @@
 import { isValidScene } from "@carma-mapping/engines/cesium/core";
 
-import type { RuntimeCoordinate } from "../store";
-import type { RuntimeScene } from "../types/runtime-scene.types";
+import type { CesiumGeographicCoordinate } from "../store";
+import type { Scene } from "@carma-cesium";
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import type { PreviewLineLabelVisualOptions } from "../config/preview-line-label-visual-defaults";
 import {
@@ -22,8 +22,8 @@ import { resolveSegmentGuideFrame } from "./resolve-segment-guide-frame";
 
 export type SegmentGuideController = {
   setSegment: (
-    anchorCoordinate: RuntimeCoordinate | null,
-    hoverCoordinate: RuntimeCoordinate | null
+    anchorCoordinate: CesiumGeographicCoordinate | null,
+    hoverCoordinate: CesiumGeographicCoordinate | null
   ) => void;
   clear: () => void;
   destroy: () => void;
@@ -32,7 +32,7 @@ export type SegmentGuideController = {
 const SEGMENT_GUIDE_LAYER_ID = "annotation-overlay-segment-preview-layer";
 
 export const createSegmentGuideController = (
-  scene: RuntimeScene,
+  scene: Scene,
   {
     formatOptions,
     previewLineLabelVisualOptions,
@@ -75,8 +75,8 @@ export const createSegmentGuideController = (
     ),
   };
   const scratch = createPreviewSegmentScratch();
-  let currentAnchorCoordinate: RuntimeCoordinate | null = null;
-  let currentHoverCoordinate: RuntimeCoordinate | null = null;
+  let currentAnchorCoordinate: CesiumGeographicCoordinate | null = null;
+  let currentHoverCoordinate: CesiumGeographicCoordinate | null = null;
   let previousVerticalLabelOutsideSign: -1 | 1 | undefined;
 
   const hide = (resetVerticalOutsideSign = true) => {

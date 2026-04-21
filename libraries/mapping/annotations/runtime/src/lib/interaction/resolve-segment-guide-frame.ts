@@ -8,8 +8,8 @@ import { formatLengthMeters } from "@carma-units";
 import { cartesian3FromGeographicCoordinate } from "@carma-mapping/engines/cesium/core";
 
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
-import type { RuntimeCoordinate } from "../store";
-import type { RuntimeScene } from "../types/runtime-scene.types";
+import type { CesiumGeographicCoordinate } from "../store";
+import type { Scene } from "@carma-cesium";
 import {
   buildAuxiliaryPoint,
   buildPreviewDistanceTriangleLabelReferences,
@@ -42,7 +42,7 @@ export type SegmentGuideFrame = {
 };
 
 const toScreenPoint = (
-  scene: RuntimeScene,
+  scene: Scene,
   coordinateECEF: Cartesian3,
   result?: Cartesian2
 ): ScreenPointLike | null => {
@@ -99,9 +99,9 @@ export const resolveSegmentGuideFrame = ({
   previousVerticalOutsideSign,
   scratch = createPreviewSegmentScratch(),
 }: {
-  scene: RuntimeScene;
-  anchorCoordinate: RuntimeCoordinate | null;
-  hoverCoordinate: RuntimeCoordinate | null;
+  scene: Scene;
+  anchorCoordinate: CesiumGeographicCoordinate | null;
+  hoverCoordinate: CesiumGeographicCoordinate | null;
   hoverPointECEF?: Cartesian3 | null;
   hoverScreenPosition?: ScreenPointLike | null;
   formatOptions: AnnotationsRuntimeFormatOptions;

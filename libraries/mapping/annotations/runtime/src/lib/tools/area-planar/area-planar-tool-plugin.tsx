@@ -1,6 +1,5 @@
 import { VectorTrapezoidIcon } from "@carma-commons/ui/components";
 import {
-  DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG,
   formatMeasurementShortLabelToken,
   type AnnotationToolType,
   ANNOTATION_TYPES,
@@ -18,32 +17,30 @@ import {
   commitAreaMeasurement,
   undoAreaPreviewPoint,
 } from "../area-shared/node-chain-area-tool-actions";
+import { resolveAreaToolAddAnnotationOptions } from "../area-shared/resolve-area-tool-add-annotation-options";
 import { resolveNodeChainAreaToolKeyAction } from "../area-shared/node-chain-area-tool-bindings";
 import { createNodeChainAreaToolInfoBoxSlots } from "../area-shared/node-chain-area-tool-info-box-slots";
-import { buildNodeChainAreaToolRenderModels } from "../area-shared/node-chain-area-tool-render-models";
-import { createNodeChainAreaToolSettings } from "../area-shared/node-chain-area-tool-settings";
+import {
+  buildNodeChainAreaToolRenderModels,
+  createNodeChainAreaToolVisuals,
+} from "../area-shared/node-chain-area-tool-render-models";
 import { ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME } from "../../config/annotation-measurement-label-themes";
+import { formatGermanCardinalBearing } from "../../utils/german-cardinal-bearing";
 const { AREA_PLANAR: ANNOTATION_TYPE_AREA_PLANAR } = ANNOTATION_TYPES;
 
 const toolType = ANNOTATION_TYPE_AREA_PLANAR;
 const labelTheme = ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME;
-const badgeStyle = {
-  ...DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG[toolType],
-  backgroundColor: labelTheme.scheme.colorPrimary,
-  textColor: labelTheme.scheme.textColor,
-};
-const areaPlanarToolSettings = createNodeChainAreaToolSettings({
-  badgeStyle,
-  fill: "rgba(239, 223, 145, 0.25)",
-  selectedFill: "rgba(239, 223, 145, 0.35)",
+const areaPlanarToolVisuals = createNodeChainAreaToolVisuals({
+  fillType: toolType,
 });
 const getAreaPlanarToolInfoBoxSlots = createNodeChainAreaToolInfoBoxSlots(
   toolType,
   {
-    headingTitle: "Dach",
+    headingTitle: "Plane Fläche (Dachfläche)",
     headingColor: labelTheme.scheme.colorPrimary,
     formatMeasurementLabelToken: (counter) =>
       formatMeasurementShortLabelToken(toolType, counter),
+    formatBearing: (bearingDeg) => formatGermanCardinalBearing(bearingDeg),
   }
 );
 
@@ -62,6 +59,7 @@ export const areaPlanarToolPlugin = createMeasurementToolPlugin({
   ],
   capabilities: [
     ...AUTHORING_MEASUREMENT_PLUGIN_CAPABILITIES,
+    ANNOTATION_TOOL_PLUGIN_CAPABILITIES.ADD_ANNOTATION,
     ANNOTATION_TOOL_PLUGIN_CAPABILITIES.INFO_BOX,
   ],
   session: {
@@ -106,6 +104,9 @@ export const areaPlanarToolPlugin = createMeasurementToolPlugin({
     onPointCreated: ({ coordinate, linkedNodeGroupId, activeToolSession }) => {
       activeToolSession?.onNodeCreated?.(coordinate, linkedNodeGroupId);
     },
+  },
+  addAnnotation: {
+    resolveOptions: resolveAreaToolAddAnnotationOptions,
   },
   authoringVisuals: {
     createController: (context) =>
@@ -152,7 +153,7 @@ export const areaPlanarToolPlugin = createMeasurementToolPlugin({
     }) =>
       buildNodeChainAreaToolRenderModels({
         toolType,
-        visuals: areaPlanarToolSettings.visuals,
+        visuals: areaPlanarToolVisuals,
         nodes,
         measurements: annotationEntries,
         selectedMeasurementIds: selectedAnnotationIds,

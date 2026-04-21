@@ -1,45 +1,39 @@
 import {
-  ANNOTATION_TYPE_AREA_GROUND,
-  ANNOTATION_TYPE_AREA_PLANAR,
-  ANNOTATION_TYPE_AREA_VERTICAL,
-  ANNOTATION_TYPE_DISTANCE,
-  ANNOTATION_TYPE_LABEL,
-  ANNOTATION_TYPE_POINT,
-  ANNOTATION_TYPE_POLYLINE,
-  SELECT_TOOL_TYPE,
+  ANNOTATION_TYPES,
+  ANNOTATION_TOOL_TYPES,
   type AnnotationToolType,
 } from "../types/annotation-types";
 
 const TOOL_LETTER_SHORTCUTS = {
-  [SELECT_TOOL_TYPE]: "S",
-  [ANNOTATION_TYPE_POINT]: "M",
-  [ANNOTATION_TYPE_DISTANCE]: "D",
-  [ANNOTATION_TYPE_POLYLINE]: "P",
-  [ANNOTATION_TYPE_AREA_GROUND]: "A",
-  [ANNOTATION_TYPE_AREA_PLANAR]: "C",
-  [ANNOTATION_TYPE_AREA_VERTICAL]: "V",
-  [ANNOTATION_TYPE_LABEL]: "B",
+  [ANNOTATION_TOOL_TYPES.SELECT]: "S",
+  [ANNOTATION_TYPES.POINT]: "M",
+  [ANNOTATION_TYPES.DISTANCE]: "D",
+  [ANNOTATION_TYPES.POLYLINE]: "P",
+  [ANNOTATION_TYPES.AREA_GROUND]: "A",
+  [ANNOTATION_TYPES.AREA_PLANAR]: "C",
+  [ANNOTATION_TYPES.AREA_VERTICAL]: "V",
+  [ANNOTATION_TYPES.LABEL]: "B",
 } as const satisfies Partial<Record<AnnotationToolType, string>>;
 
 export const getAnnotationToolLetterShortcut = (
-  toolType: string
+  toolType: AnnotationToolType
 ): string | null =>
-  TOOL_LETTER_SHORTCUTS[toolType as AnnotationToolType] ?? null;
+  TOOL_LETTER_SHORTCUTS[toolType] ?? null;
 
 export const getAnnotationToolPositionShortcut = (
-  toolType: string,
-  orderedToolTypes: readonly string[]
+  toolType: AnnotationToolType,
+  orderedToolTypes: readonly AnnotationToolType[]
 ): string | null => {
   if (!orderedToolTypes.includes(toolType)) {
     return null;
   }
 
-  if (toolType === SELECT_TOOL_TYPE) {
+  if (toolType === ANNOTATION_TOOL_TYPES.SELECT) {
     return "0";
   }
 
   const nonSelectionToolTypes = orderedToolTypes.filter(
-    (candidateToolType) => candidateToolType !== SELECT_TOOL_TYPE
+    (candidateToolType) => candidateToolType !== ANNOTATION_TOOL_TYPES.SELECT
   );
   const index = nonSelectionToolTypes.indexOf(toolType);
   if (index < 0) {
@@ -51,8 +45,8 @@ export const getAnnotationToolPositionShortcut = (
 };
 
 export const listAnnotationToolShortcuts = (
-  toolType: string,
-  orderedToolTypes: readonly string[]
+  toolType: AnnotationToolType,
+  orderedToolTypes: readonly AnnotationToolType[]
 ): string[] => {
   const shortcuts = [
     getAnnotationToolLetterShortcut(toolType),
@@ -64,8 +58,8 @@ export const listAnnotationToolShortcuts = (
 
 export const resolveAnnotationToolShortcutTarget = (
   key: string,
-  orderedToolTypes: readonly string[]
-): string | null => {
+  orderedToolTypes: readonly AnnotationToolType[]
+): AnnotationToolType | null => {
   const normalizedKey = key.trim().toLowerCase();
   if (!normalizedKey) {
     return null;

@@ -7,27 +7,20 @@ export {
   hasVisibleDistanceRelationComponentLines,
   isDistanceRelationHorizontalLineVisible,
   isDistanceRelationVerticalLineVisible,
-  normalizeLabelAngleDeg,
 } from "./lib/distance-screen-space";
 export type { DistanceScreenTriangle } from "./lib/distance-screen-space";
 export { ANNOTATION_CANDIDATE_KINDS } from "./lib/types/annotation-candidate";
-export type {
-  AnnotationCandidateDescriptor,
-  AnnotationCandidateKind,
-} from "./lib/types/annotation-candidate";
+export type { AnnotationCandidateKind } from "./lib/types/annotation-candidate";
 export {
   isDistancePointEntry,
   isPointAnnotationEntry,
   isPointMeasurementEntry,
 } from "./lib/types/annotation-cesium-types";
 export type {
-  AnnotationCollection,
   AnnotationEntry,
   AnnotationMode,
-  AnnotationPersistenceEnvelope,
   AnnotationPointEntry,
   DistancePointEntry,
-  PointAnnotationEntry,
   PointMeasurementEntry,
 } from "./lib/types/annotation-cesium-types";
 export type { AnnotationCreatePayload } from "./lib/types/annotation-create-payload";
@@ -45,27 +38,63 @@ export {
   isAreaToolType,
 } from "./lib/types/annotation-types";
 export type {
-  AnnotationShortLabelKind,
   AnnotationToolType,
+  AnnotationToolTypes,
   AnnotationType,
+  AnnotationTypes,
+  DerivedNodeChainAnnotation,
+  DerivedNodeChainAnnotationGeometry,
   NodeChainAnnotation,
   PlanarPolygonPlane,
-  PolygonAreaType,
+  PolygonType,
 } from "./lib/types/annotation-types";
 export type { DerivedPolylinePath } from "./lib/types/derived-polyline-path";
-export type { PointDistanceRelation } from "./lib/types/distance-relation";
 export type { DistanceRelationRenderContext } from "./lib/types/distance-relation-render-context";
 export {
   DEFAULT_LINEAR_SEGMENT_LINE_MODE,
-  LINEAR_SEGMENT_LINE_MODES,
 } from "./lib/types/linear-segment";
 export type { LinearSegmentLineMode } from "./lib/types/linear-segment";
 export { fromAlphabeticSequence } from "./lib/utils/alphabetic-sequence";
 export {
+  annotationAreaPalette,
+  getAnnotationAreaCssColor,
+  getAnnotationAreaFillCssColor,
+  getAnnotationAreaRgb255,
+} from "./lib/utils/annotation-area-palette";
+export {
+  ANNOTATION_LINE_COMPONENT_KINDS,
+  annotationVisualDefaults,
+  annotationVisualPalette,
+  formatAnnotationRgbCss,
+  formatAnnotationRgbaCss,
+  getAnnotationLineComponentCssColor,
+  getAnnotationLineComponentLabelAccentCssColor,
+  getAnnotationMeasurementTextCssColor,
+  getAnnotationSelectionCssColor,
+  getAnnotationShortLabelBackgroundCssColor,
+  getAnnotationShortLabelBackgroundRgb255,
+  getAnnotationSurfaceAccentCssColor,
+  getAnnotationSurfaceStrokeCssColor,
+  getAnnotationTextCssColor,
+} from "./lib/utils/annotation-visual-tokens";
+export type {
+  AnnotationLineComponentKind,
+  AnnotationTextTone,
+} from "./lib/utils/annotation-visual-tokens";
+export { annotationTypographyTokens } from "./lib/utils/annotation-typography-tokens";
+export {
+  annotationGeometryDefaults,
+  hasSignificantVerticalOffsetMeters,
+} from "./lib/utils/annotation-geometry-defaults";
+export {
+  ANNOTATION_SHORT_LABEL_COUNTER_STYLES,
   DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG,
   formatMeasurementShortLabelToken,
 } from "./lib/utils/annotation-badge-tokens";
-export type { AnnotationShortLabelConfigMap } from "./lib/utils/annotation-badge-tokens";
+export type {
+  AnnotationShortLabelConfigMap,
+  AnnotationShortLabelCounterStyle,
+} from "./lib/utils/annotation-badge-tokens";
 export {
   getAnnotationFlyToPointsById,
   getLastCustomPointAnnotationName,
@@ -112,18 +141,13 @@ export {
 } from "./lib/utils/candidate-capabilities";
 export {
   getAveragedCandidateRingNormal,
-  getAveragedPreviewRingNormal,
   pushCandidateRingSample,
-  pushPreviewRingSample,
 } from "./lib/utils/candidate-ring-normal-smoothing";
-export type {
-  CandidateRingSample,
-  PreviewRingSample,
-} from "./lib/utils/candidate-ring-normal-smoothing";
+export type { CandidateRingSample } from "./lib/utils/candidate-ring-normal-smoothing";
 export { buildDerivedPolylinePaths } from "./lib/utils/derived-polyline-paths";
 export { hasAnyVisibleDistanceRelationLine } from "./lib/utils/distance-relation-display";
 export {
-  REFERENCE_LINE_EPSILON_METERS,
+  distanceVisualizationDefaults,
   resolveDistanceRelation,
 } from "./lib/utils/distance-visualization";
 export type { ResolvedDistanceRelation } from "./lib/utils/distance-visualization";
@@ -149,11 +173,6 @@ export {
   projectPointOntoPlane,
 } from "./lib/utils/planar-geometry";
 export { getConnectedOpenPolylineGroupIds } from "./lib/utils/planar-measurement-groups";
-export {
-  buildActivePointCreateConfig,
-  PURE_LABEL_DEFAULTS,
-} from "./lib/utils/point-create-config";
-export type { ActivePointCreateConfig } from "./lib/utils/point-create-config";
 export { buildPointGeometryRows } from "./lib/utils/point-geometry-persistence";
 export {
   buildScreenRectangle,
@@ -168,39 +187,6 @@ export {
   hasReferencePointInSelection,
   shouldMoveSelectionAsGroup,
 } from "./lib/utils/selection-group-move";
-export { getUniqueIds } from "./lib/utils/selection-set";
-export { syncNodeChainEdgeDistanceRelations } from "./lib/utils/sync-node-chain-edge-distance-relations";
-export {
-  buildGroundAreaLabelText,
-  buildPlanarAreaLabelText,
-  buildVerticalAreaLabelText,
-} from "./lib/visualization/area-labels/area-label-text-builders";
-export type { AreaLabelText } from "./lib/visualization/area-labels/area-label-text-builders";
-export {
-  buildDistanceRelationEdgeLabelOverlays,
-  getNextDirectLineLabelMode,
-} from "./lib/visualization/distance/distance-relation-label-display";
-export type {
-  DirectLineLabelMode,
-  DistanceRelationLabelVisibilityByKind,
-  ReferenceLineLabelKind,
-} from "./lib/visualization/distance/distance-relation-label.types";
-export {
-  buildGroundPolygonPreviewGroups,
-  buildPlanarPolygonPreviewGroups,
-  buildVerticalPolygonPreviewGroups,
-} from "./lib/visualization/polygon-preview-groups";
-export {
-  buildPolylinePreviewCornerMarkers,
-  buildPolylinePreviewEdgeSegments,
-  buildPolylinePreviewMeasurements,
-} from "./lib/visualization/polyline-preview-geometry";
-export { POLYGON_PREVIEW_STYLE } from "./lib/visualization/preview-geometry.types";
-export type {
-  CandidateConnectionPreview,
-  PolygonPreviewGroup,
-  PolylinePreviewMeasurement,
-} from "./lib/visualization/preview-geometry.types";
 export {
   buildVerticalAutoCloseRectangle,
   buildVerticalRectangleCornerFromDiagonal,

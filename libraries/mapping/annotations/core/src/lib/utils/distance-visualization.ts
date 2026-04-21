@@ -1,28 +1,31 @@
 import { Cartesian3 } from "@carma-cesium";
 
-import type { PointAnnotationEntry } from "../types/annotation-cesium-types";
+import type { AnnotationPointEntry } from "../types/annotation-cesium-types";
 import type { PointDistanceRelation } from "../types/distance-relation";
-export const REFERENCE_LINE_EPSILON_METERS = 0.001;
+
+export const distanceVisualizationDefaults = Object.freeze({
+  referenceLineEpsilonMeters: 0.001,
+});
 
 export type ResolvedDistanceRelation = {
   relation: PointDistanceRelation;
-  pointA: PointAnnotationEntry;
-  pointB: PointAnnotationEntry;
-  anchorPoint: PointAnnotationEntry;
-  targetPoint: PointAnnotationEntry;
+  pointA: AnnotationPointEntry;
+  pointB: AnnotationPointEntry;
+  anchorPoint: AnnotationPointEntry;
+  targetPoint: AnnotationPointEntry;
   auxiliaryPoint: Cartesian3;
 };
 
 export const resolveDistanceRelation = (
   relation: PointDistanceRelation,
-  pointsById: Map<string, PointAnnotationEntry>
+  pointsById: Map<string, AnnotationPointEntry>
 ): ResolvedDistanceRelation | null => {
   const pointA = pointsById.get(relation.pointAId);
   const pointB = pointsById.get(relation.pointBId);
   if (!pointA || !pointB) return null;
   if (
     Cartesian3.distance(pointA.geometryECEF, pointB.geometryECEF) <=
-    REFERENCE_LINE_EPSILON_METERS
+    distanceVisualizationDefaults.referenceLineEpsilonMeters
   ) {
     return null;
   }

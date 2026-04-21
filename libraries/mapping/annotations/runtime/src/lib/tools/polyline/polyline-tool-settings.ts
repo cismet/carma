@@ -1,61 +1,25 @@
 import {
-  runtimeMeasurementVisualDefaults,
-  type RuntimeEdgeVisualStyle,
-  type RuntimePointMarkerVisualStyle,
+  measurementVisualStyles,
+  type EdgeVisualStyle,
+  type PointMarkerVisualStyle,
+  withEdgeVisualStyle,
+  withPointMarkerVisualStyle,
 } from "../../config/measurement-visual-defaults";
 
 export type PolylineToolVisualSettings = {
-  edge: RuntimeEdgeVisualStyle;
-  selectedEdge: RuntimeEdgeVisualStyle;
-  previewEdge: RuntimeEdgeVisualStyle;
-  point: RuntimePointMarkerVisualStyle;
-  selectedPoint: RuntimePointMarkerVisualStyle;
-  previewPoint: RuntimePointMarkerVisualStyle;
+  edge: EdgeVisualStyle;
+  point: PointMarkerVisualStyle;
 };
 
 export type PolylineToolSettings = {
   visuals: PolylineToolVisualSettings;
 };
 
-const defaults = runtimeMeasurementVisualDefaults;
+const defaults = measurementVisualStyles;
 
-export const createPolylineToolSettings = (_badgeStyle: {
-  backgroundColor: string;
-  textColor: string;
-}): PolylineToolSettings => ({
+export const createPolylineToolSettings = (): PolylineToolSettings => ({
   visuals: {
-    edge: {
-      stroke: defaults.colors.accent,
-      strokeWidth: defaults.sizes.edgeStrokeWidth,
-      dashed: true,
-    },
-    selectedEdge: {
-      stroke: defaults.colors.neutral,
-      strokeWidth: defaults.sizes.selectedEdgeStrokeWidth,
-      dashed: true,
-    },
-    previewEdge: {
-      stroke: defaults.colors.preview,
-      strokeWidth: defaults.sizes.edgeStrokeWidth,
-      dashed: true,
-    },
-    point: {
-      pixelSize: defaults.sizes.pointPixelSize,
-      fill: defaults.colors.transparent,
-      outline: defaults.colors.surface,
-      outlineWidth: defaults.sizes.pointOutlineWidth,
-    },
-    selectedPoint: {
-      pixelSize: defaults.sizes.selectedPointPixelSize,
-      fill: defaults.colors.transparent,
-      outline: defaults.colors.surface,
-      outlineWidth: defaults.sizes.pointOutlineWidth,
-    },
-    previewPoint: {
-      pixelSize: defaults.sizes.previewPointPixelSize,
-      fill: defaults.colors.preview,
-      outline: defaults.colors.surface,
-      outlineWidth: defaults.sizes.pointOutlineWidth,
-    },
+    edge: withEdgeVisualStyle(defaults.edge),
+    point: withPointMarkerVisualStyle(defaults.point),
   },
 });

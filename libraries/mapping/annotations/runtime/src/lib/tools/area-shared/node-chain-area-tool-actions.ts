@@ -1,24 +1,10 @@
-import {
-  computePolygonGroupDerivedData,
-  type NodeChainAnnotation,
-  ANNOTATION_TYPES,
-} from "@carma-mapping/annotations/core";
-import { Cartesian3 } from "@carma-cesium";
+import type { AnnotationTypes } from "@carma-mapping/annotations/core";
 import type {
-  RuntimeAddAnnotationOptions,
-  RuntimeCoordinate,
-  RuntimeNodeLinkId,
-  RuntimeMeasurement,
+  AddAnnotationOptions,
+  CesiumGeographicCoordinate,
+  AnnotationNodeLinkId,
+  StoredAnnotation,
 } from "../../store";
-const {
-  AREA_GROUND: ANNOTATION_TYPE_AREA_GROUND,
-  AREA_PLANAR: ANNOTATION_TYPE_AREA_PLANAR,
-} = ANNOTATION_TYPES;
-
-type RuntimeAreaToolType =
-  | typeof ANNOTATION_TYPE_AREA_GROUND
-  | typeof ANNOTATION_TYPE_AREA_PLANAR;
-
 export type NodeChainAreaToolAction = "undoLastPoint" | "cancelPreview";
 
 export const appendAreaPreviewPoint = <T>(
@@ -29,64 +15,21 @@ export const appendAreaPreviewPoint = <T>(
 export const undoAreaPreviewPoint = <T>(previousItems: readonly T[]) =>
   previousItems.slice(0, -1);
 
-const cartesianFromRuntimeCoordinate = ({
-  longitude,
-  latitude,
-  altitude,
-}: RuntimeCoordinate): Cartesian3 =>
-  Cartesian3.fromDegrees(longitude, latitude, altitude);
-
-const deriveAreaAnnotationOptions = ({
-  toolType,
-  coordinates,
-}: {
-  toolType: RuntimeAreaToolType;
-  coordinates: readonly RuntimeCoordinate[];
-}): RuntimeAddAnnotationOptions => {
-  const pointById = new Map(
-    coordinates.map((coordinate, index) => [
-      `area-node-${index}`,
-      cartesianFromRuntimeCoordinate(coordinate),
-    ])
-  );
-
-  const derivedMeasurement = computePolygonGroupDerivedData(
-    {
-      id: "area-preview",
-      type: toolType,
-      nodeIds: coordinates.map((_, index) => `area-node-${index}`),
-      edgeRelationIds: [],
-      closed: true,
-      planeLocked: toolType === ANNOTATION_TYPE_AREA_PLANAR,
-      areaSquareMeters: 0,
-      verticalityDeg: 0,
-    } satisfies NodeChainAnnotation,
-    pointById
-  );
-
-  return {
-    closed: true,
-    areaSquareMeters: Math.max(0, derivedMeasurement.areaSquareMeters ?? 0),
-    verticalityDeg: derivedMeasurement.verticalityDeg ?? 0,
-    bearingDeg: derivedMeasurement.bearingDeg,
-  };
-};
-
 export const commitAreaMeasurement = ({
   toolType,
   coordinates,
   linkedNodeGroupIds,
   addAnnotation,
 }: {
-  toolType: RuntimeAreaToolType;
-  coordinates: readonly RuntimeCoordinate[];
-  linkedNodeGroupIds?: readonly (RuntimeNodeLinkId | null | undefined)[];
+  toolType: AnnotationTypes["AREA_GROUND"] | AnnotationTypes["AREA_PLANAR"];
+  coordinates: readonly CesiumGeographicCoordinate[];
+  linkedNodeGroupIds?: readonly (AnnotationNodeLinkId | null | undefined)[];
   addAnnotation: (
-    toolType: RuntimeMeasurement["toolType"],
-    nextCoordinates: readonly RuntimeCoordinate[],
-    options?: RuntimeAddAnnotationOptions,
-    linkedNodeGroupIds?: readonly (RuntimeNodeLinkId | null | undefined)[]
-  ) => RuntimeMeasurement;
+    toolType: StoredAnnotation["toolType"],
+    nextCoordinates: readonly CesiumGeographicCoordinate[],
+    options?: AddAnnotationOptions,
+    linkedNodeGroupIds?: readonly (AnnotationNodeLinkId | null | undefined)[]
+  ) => StoredAnnotation;
 }) => {
   if (coordinates.length < 3) {
     return null;
@@ -95,10 +38,7 @@ export const commitAreaMeasurement = ({
   return addAnnotation(
     toolType,
     coordinates,
-    deriveAreaAnnotationOptions({
-      toolType,
-      coordinates,
-    }),
+    undefined,
     linkedNodeGroupIds
   );
 };

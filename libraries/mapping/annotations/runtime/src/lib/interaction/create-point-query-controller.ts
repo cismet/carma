@@ -9,9 +9,9 @@ import {
   type Scene,
 } from "@carma-cesium";
 import {
-  type PreviewRingSample,
-  getAveragedPreviewRingNormal,
-  pushPreviewRingSample,
+  type CandidateRingSample,
+  getAveragedCandidateRingNormal,
+  pushCandidateRingSample,
 } from "@carma-mapping/annotations/core";
 import {
   GUIDE_NORMAL_EPSILON_SQUARED,
@@ -92,6 +92,19 @@ type PendingDiscRequest = {
   requestSampleClientPosition: ScreenVector | null;
 };
 
+const pointQueryControllerDefaults = Object.freeze({
+  performance: Object.freeze({
+    reportIntervalMs: 250,
+    maxRenderRequestRateHz: 0,
+  }),
+  sampling: Object.freeze({
+    trueSampleRefreshIntervalMs: 32,
+    trueNormalRefreshIntervalMs: 96,
+    maxFastSampleOffsetPx: 6,
+    rawPointerFallbackWindowMs: 12,
+  }),
+});
+
 export const createPointQueryController = ({
   scene,
   readoutElement,
@@ -139,7 +152,7 @@ export const createPointQueryController = ({
   let latestDiscNormal: Cartesian3 | null = null;
   let latestTrueDiscSampledAtMs = 0;
   let latestTrueDiscNormalSampledAtMs = 0;
-  let discNormalSamples: PreviewRingSample[] = [];
+  let discNormalSamples: CandidateRingSample[] = [];
   let lastQueuedDiscNormalInputVersion = -1;
   let pointerScreenPositionScratch: Cartesian2 | null = null;
   const averagedDiscNormalScratch = new Cartesian3();
@@ -166,15 +179,9 @@ export const createPointQueryController = ({
   let latestInputVersion = 0;
   let lastProcessedInputVersion = 0;
   let lastRawPointerEventTimeMs = 0;
-  const PERFORMANCE_REPORT_INTERVAL_MS = 250;
-  const MAX_RENDER_REQUEST_RATE_HZ = 0;
   // The visible disc stays responsive through fast tangent-plane reprojection,
   // so authoritative mesh picks can run at a lower cadence and only catch up
   // when drift becomes noticeable.
-  const TRUE_SAMPLE_REFRESH_INTERVAL_MS = 32;
-  const TRUE_NORMAL_REFRESH_INTERVAL_MS = 96;
-  const MAX_FAST_SAMPLE_OFFSET_PX = 6;
-  const RAW_POINTER_FALLBACK_WINDOW_MS = 12;
   const rawPointerSupported = "onpointerrawupdate" in window;
   const pendingDiscRequests = new Map<number, PendingDiscRequest>();
   const projectedDiscScreenPositionScratch = new Cartesian2();
@@ -405,7 +412,7 @@ export const createPointQueryController = ({
   };
 
   const queueDiscNormalSample = (discNormal: Cartesian3) => {
-    pushPreviewRingSample({
+    pushCandidateRingSample({
       samples: discNormalSamples,
       normal: discNormal,
       maxSampleCount: readTangentDiscVisualizerTrailSampleCount(),
@@ -414,7 +421,7 @@ export const createPointQueryController = ({
   };
 
   const getAveragedDiscNormal = (fallbackNormal: Cartesian3) =>
-    getAveragedPreviewRingNormal({
+    getAveragedCandidateRingNormal({
       samples: discNormalSamples,
       fallbackNormal,
       result: averagedDiscNormalScratch,
@@ -740,14 +747,16 @@ export const createPointQueryController = ({
     !latestTrueDiscWorldPosition ||
     !latestDiscNormal ||
     pointQueryDebugRuntime.readLatestSampleOffsetPx() >=
-      MAX_FAST_SAMPLE_OFFSET_PX ||
-    nowMs - latestTrueDiscSampledAtMs >= TRUE_SAMPLE_REFRESH_INTERVAL_MS;
+      pointQueryControllerDefaults.sampling.maxFastSampleOffsetPx ||
+    nowMs - latestTrueDiscSampledAtMs >=
+      pointQueryControllerDefaults.sampling.trueSampleRefreshIntervalMs;
 
   const shouldRefreshTrueDiscNormal = (nowMs: number) =>
     !latestDiscNormal ||
     pointQueryDebugRuntime.readLatestSampleOffsetPx() >=
-      MAX_FAST_SAMPLE_OFFSET_PX ||
-    nowMs - latestTrueDiscNormalSampledAtMs >= TRUE_NORMAL_REFRESH_INTERVAL_MS;
+      pointQueryControllerDefaults.sampling.maxFastSampleOffsetPx ||
+    nowMs - latestTrueDiscNormalSampledAtMs >=
+      pointQueryControllerDefaults.sampling.trueNormalRefreshIntervalMs;
 
   const consumeRenderedRequestMetrics = (
     inputVersion: number,
@@ -1311,7 +1320,8 @@ export const createPointQueryController = ({
     if (
       rawPointerSupported &&
       isPointQueryDiscPlaneOffsetPlacementMode(readDiscPlacementMode()) &&
-      nowMs - lastRawPointerEventTimeMs < RAW_POINTER_FALLBACK_WINDOW_MS &&
+      nowMs - lastRawPointerEventTimeMs <
+        pointQueryControllerDefaults.sampling.rawPointerFallbackWindowMs &&
       isSameClientPosition(nextClientPosition, latestInputClientPosition)
     ) {
       markMousePositionEvent();
@@ -1386,7 +1396,7 @@ export const createPointQueryController = ({
   window.addEventListener("blur", handleWindowBlur);
   const performanceIntervalId = window.setInterval(() => {
     pointQueryDebugRuntime.updatePerformanceStats();
-  }, PERFORMANCE_REPORT_INTERVAL_MS);
+  }, pointQueryControllerDefaults.performance.reportIntervalMs);
 
   pointQueryDebugRuntime.setEnabled(readDebugTelemetryEnabled());
   applyCursorVisibility();
@@ -1411,7 +1421,8 @@ export const createPointQueryController = ({
     },
     getTelemetrySnapshot: () =>
       pointQueryDebugRuntime.getTelemetrySnapshot({
-        maxRenderRequestRateHz: MAX_RENDER_REQUEST_RATE_HZ,
+        maxRenderRequestRateHz:
+          pointQueryControllerDefaults.performance.maxRenderRequestRateHz,
         latestInputVersion,
         lastProcessedInputVersion,
         latestRequestedAtMs,

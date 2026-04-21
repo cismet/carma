@@ -7,10 +7,11 @@ import {
 
 import { LineVisualizer } from "./components/LineVisualizer";
 import type { LineVisualizerData, SvgLine } from "./lineVisualizers.types";
+import { labelOverlayLayerDefaults } from "./overlayAffordanceDefaults";
 import { getOverlayReferenceSignature } from "./overlayReferenceSignature";
 import { useLabelOverlay } from "./useLabelOverlay";
 import { createSvgLineScratch, resolveSvgLine } from "./utils/resolveSvgLine";
-const LINE_OVERLAY_Z_INDEX = 5;
+const LINE_OVERLAY_Z_INDEX = labelOverlayLayerDefaults.zIndex.line;
 
 const getLineOverlayId = (lineId: string): string =>
   `line-visualizer-${lineId}`;

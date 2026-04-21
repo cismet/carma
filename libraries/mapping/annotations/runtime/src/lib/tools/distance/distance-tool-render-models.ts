@@ -1,4 +1,8 @@
-import { annotationTypographyDefaults } from "../../config/annotation-typography-defaults";
+import { typographyDefaults } from "../../config/annotation-typography-defaults";
+import {
+  applySelectedEdgeVisualStyle,
+  applySelectedPointMarkerVisualStyle,
+} from "../../config/measurement-visual-defaults";
 import type {
   RuntimeEdgeRenderModel,
   RuntimePointLabelRenderModel,
@@ -7,22 +11,22 @@ import type {
 } from "../../render/measurement-render-models";
 import { RUNTIME_POINT_LABEL_COORDINATE_SELECTION } from "../../render/measurement-render-models";
 import type {
-  RuntimeEdge,
-  RuntimeNodeLink,
-  RuntimeMeasurement,
-  RuntimeNode,
+  AnnotationEdge,
+  AnnotationNodeLink,
+  StoredAnnotation,
+  AnnotationNode,
 } from "../../store";
 import { buildNodeLinkIdByNodeId } from "../../store";
 import {
   resolveDistanceTriangleAnchorCoordinateRole,
   resolveDistanceTriangleAnchorCoordinateSelection,
   resolveOppositePointLabelCoordinateSelection,
-} from "../../render/runtime-distance-triangle-overlay";
+} from "../../render/distance-triangle-overlay";
 import {
   buildRuntimeNodeCoordinateMap,
   resolveMeasurementCoordinates,
 } from "../../render/resolve-measurement-coordinates";
-import type { AnnotationMeasurementLabelTheme } from "../../config/annotation-measurement-label-themes";
+import type { StoredAnnotationLabelTheme } from "../../config/annotation-measurement-label-themes";
 import type { DistanceToolVisualSettings } from "./distance-tool-settings";
 
 const resolveDistanceBadgePreferredAttach = (
@@ -59,7 +63,7 @@ const resolveDistanceBadgeNodeId = ({
   return coordinateCandidates[coordinateCandidates.length - 1]?.nodeId;
 };
 
-const buildNodeLinkSizeByNodeId = (nodeLinks: readonly RuntimeNodeLink[]) =>
+const buildNodeLinkSizeByNodeId = (nodeLinks: readonly AnnotationNodeLink[]) =>
   new Map(
     nodeLinks.flatMap((nodeLink) =>
       nodeLink.nodeIds.map((nodeId) => [nodeId, nodeLink.nodeIds.length])
@@ -70,8 +74,8 @@ const buildNodeLinkIncidentEdgeCountByNodeId = ({
   nodeLinks,
   edges,
 }: {
-  nodeLinks: readonly RuntimeNodeLink[];
-  edges: readonly RuntimeEdge[];
+  nodeLinks: readonly AnnotationNodeLink[];
+  edges: readonly AnnotationEdge[];
 }) => {
   const nodeLinkIdByNodeId = buildNodeLinkIdByNodeId(nodeLinks);
   const incidentEdgeCountByGroupId = new Map<string, number>();
@@ -174,14 +178,14 @@ const resolveLeastLinkedBadgeCandidate = ({
 };
 
 type BuildDistanceToolRenderModelsArgs = {
-  toolType: RuntimeMeasurement["toolType"];
+  toolType: StoredAnnotation["toolType"];
   visuals: DistanceToolVisualSettings;
-  labelTheme: AnnotationMeasurementLabelTheme;
+  labelTheme: StoredAnnotationLabelTheme;
   getMeasurementLabel: (measurementIndex: number) => string;
-  nodes: readonly RuntimeNode[];
-  edges: readonly RuntimeEdge[];
-  linkedNodeGroups: readonly RuntimeNodeLink[];
-  measurements: readonly RuntimeMeasurement[];
+  nodes: readonly AnnotationNode[];
+  edges: readonly AnnotationEdge[];
+  linkedNodeGroups: readonly AnnotationNodeLink[];
+  measurements: readonly StoredAnnotation[];
   selectedMeasurementIds: readonly string[];
   onMeasurementSelect?: (measurementId: string) => void;
   onNodeLongPress?: (nodeId: string, measurementId: string) => void;
@@ -242,7 +246,7 @@ export const buildDistanceToolRenderModels = ({
             resolveDistanceTriangleAnchorCoordinateRole(coordinates),
         },
         ...(selectedMeasurementIdSet.has(measurement.id)
-          ? visuals.selectedEdge
+          ? applySelectedEdgeVisualStyle(visuals.edge)
           : visuals.edge),
       },
     ];
@@ -255,8 +259,11 @@ export const buildDistanceToolRenderModels = ({
         measurementId: measurement.id,
         nodeId: measurement.nodeIds[index],
         coordinate,
+        onClick: onMeasurementSelect
+          ? () => onMeasurementSelect(measurement.id)
+          : undefined,
         ...(selectedMeasurementIdSet.has(measurement.id)
-          ? visuals.selectedPoint
+          ? applySelectedPointMarkerVisualStyle(visuals.point)
           : visuals.point),
       })
     )
@@ -305,7 +312,9 @@ export const buildDistanceToolRenderModels = ({
         leastLinkedBadgeCandidate?.coordinate ?? coordinate;
 
       const isSelected = selectedMeasurementIdSet.has(measurement.id);
-      const pointVisuals = isSelected ? visuals.selectedPoint : visuals.point;
+      const pointVisuals = isSelected
+        ? applySelectedPointMarkerVisualStyle(visuals.point)
+        : visuals.point;
       const preferredAttach = leastLinkedBadgeCandidate
         ? undefined
         : resolveDistanceBadgePreferredAttach(coordinateSelection);
@@ -334,7 +343,7 @@ export const buildDistanceToolRenderModels = ({
           badgeContent: badgeText,
           collapse: true,
           hideMarker: true,
-          fontSize: annotationTypographyDefaults.rootFontSizeRem,
+          fontSize: typographyDefaults.rootFontSizeRem,
           fontFamily: labelTheme.fontFamily,
           fontWeight: labelTheme.contentFontWeight,
           lineColor: labelColorScheme.lineColor,

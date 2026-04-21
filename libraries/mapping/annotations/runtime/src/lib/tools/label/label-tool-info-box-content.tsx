@@ -1,32 +1,31 @@
-import { useEffect, useState, type KeyboardEvent } from "react";
-
 import {
-  faCheck,
   faMinus,
   faPlus,
-  faTrashCan,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { PURE_LABEL_DEFAULTS } from "@carma-mapping/annotations/core";
+import {
+  ANNOTATION_TYPES,
+  annotationVisualPalette,
+  getAnnotationShortLabelBackgroundRgb255,
+} from "@carma-mapping/annotations/core";
+import type { Rgb255 } from "@carma-commons/utils";
 import {
   resolveAnnotationInfoBoxVisualOptions,
   type AnnotationInfoBoxVisualOptions,
 } from "@carma-mapping/annotations/ui";
 
 import {
-  getPendingAnnotationIdForTool,
-  removeAnnotationById,
-  setPendingAnnotationIdByToolType,
   updateAnnotationEntryById,
   useAnnotationsDispatch,
-  useAnnotationsSelector,
 } from "../../store";
-import type { RuntimeAnnotationEntry } from "../../store";
+import type { StoredAnnotation } from "../../store";
+import { labelToolDefaultAppearance } from "./label-tool-settings";
 
-const pureLabelInfoBoxDefaults = Object.freeze({
+const labelToolInfoBoxDefaults = Object.freeze({
   fontSizePx: Object.freeze({
     min: 10,
     max: 48,
+    step: 1,
   }),
 });
 
@@ -34,6 +33,9 @@ const toHexChannel = (value: number): string =>
   Math.max(0, Math.min(255, Math.round(value)))
     .toString(16)
     .padStart(2, "0");
+
+const toHexColor = ([red, green, blue]: Rgb255): string =>
+  `#${toHexChannel(red)}${toHexChannel(green)}${toHexChannel(blue)}`;
 
 const normalizeColorToHex = (
   value: string | undefined,
@@ -61,102 +63,77 @@ const normalizeColorToHex = (
     return fallbackHex;
   }
 
-  const [, r, g, b] = rgbMatch;
-  return `#${toHexChannel(Number(r))}${toHexChannel(Number(g))}${toHexChannel(
-    Number(b)
-  )}`;
+  const [, red, green, blue] = rgbMatch;
+  return `#${toHexChannel(Number(red))}${toHexChannel(
+    Number(green)
+  )}${toHexChannel(Number(blue))}`;
 };
+
+const labelToolInfoBoxHexDefaults = Object.freeze({
+  background: toHexColor(
+    getAnnotationShortLabelBackgroundRgb255(ANNOTATION_TYPES.LABEL)
+  ),
+  text: toHexColor(annotationVisualPalette.textRgb255.dark),
+});
+
+const labelToolDefaultBackgroundHex = normalizeColorToHex(
+  labelToolDefaultAppearance.backgroundColor,
+  labelToolInfoBoxHexDefaults.background
+);
+const labelToolDefaultTextHex = normalizeColorToHex(
+  labelToolDefaultAppearance.textColor,
+  labelToolInfoBoxHexDefaults.text
+);
 
 const clampFontSizePx = (value: number) =>
   Math.min(
-    pureLabelInfoBoxDefaults.fontSizePx.max,
-    Math.max(pureLabelInfoBoxDefaults.fontSizePx.min, Math.round(value))
+    labelToolInfoBoxDefaults.fontSizePx.max,
+    Math.max(labelToolInfoBoxDefaults.fontSizePx.min, Math.round(value))
   );
 
-const commitDisplayName = ({
-  annotation,
-  draftDisplayName,
-  dispatch,
-}: {
-  annotation: RuntimeAnnotationEntry;
-  draftDisplayName: string;
-  dispatch: ReturnType<typeof useAnnotationsDispatch>;
-}) => {
-  const trimmedDisplayName = draftDisplayName.trim();
-  if (!trimmedDisplayName) {
-    return;
-  }
+const resolveFontSizePercent = (fontSizePx: number): number =>
+  (fontSizePx / labelToolDefaultAppearance.fontSizePx) * 100;
 
-  dispatch(
-    updateAnnotationEntryById({
-      annotationId: annotation.id,
-      displayName: trimmedDisplayName,
-    })
-  );
+const formatFontSizePercent = (fontSizePx: number): string => {
+  const percent = resolveFontSizePercent(fontSizePx);
+  const roundedPercent = Math.round(percent * 10) / 10;
+  return Number.isInteger(roundedPercent)
+    ? `${roundedPercent}%`
+    : `${roundedPercent.toFixed(1)}%`;
 };
 
 export const LabelToolInfoBoxContent = ({
   annotation,
   visualOptions,
 }: {
-  annotation: RuntimeAnnotationEntry;
+  annotation: StoredAnnotation;
   visualOptions?: AnnotationInfoBoxVisualOptions;
 }) => {
   const resolvedVisualOptions =
     resolveAnnotationInfoBoxVisualOptions(visualOptions);
   const dispatch = useAnnotationsDispatch();
-  const pendingAnnotationId = useAnnotationsSelector((state) =>
-    getPendingAnnotationIdForTool(state.draftState, annotation.toolType)
-  );
-  const isPending = pendingAnnotationId === annotation.id;
-  const [draftDisplayName, setDraftDisplayName] = useState(
-    annotation.displayName ?? ""
-  );
   const isLocked = Boolean(annotation.locked);
 
-  useEffect(() => {
-    setDraftDisplayName(annotation.displayName ?? "");
-  }, [annotation.displayName]);
-
   const fontSizePx = clampFontSizePx(
-    annotation.labelAppearance?.fontSizePx ?? PURE_LABEL_DEFAULTS.fontSizePx
+    annotation.labelAppearance?.fontSizePx ?? labelToolDefaultAppearance.fontSizePx
   );
   const backgroundColor =
     annotation.labelAppearance?.backgroundColor?.trim() ||
-    PURE_LABEL_DEFAULTS.backgroundColor;
+    labelToolDefaultAppearance.backgroundColor;
   const textColor =
     annotation.labelAppearance?.textColor?.trim() ||
-    PURE_LABEL_DEFAULTS.textColor;
+    labelToolDefaultAppearance.textColor;
 
-  const confirmPending = () => {
+  const applyFontSizePx = (nextFontSizePx: number) => {
     dispatch(
-      setPendingAnnotationIdByToolType({
-        toolType: annotation.toolType,
-        annotationId: null,
-      })
-    );
-  };
-
-  const discardPending = () => {
-    dispatch(
-      removeAnnotationById({
+      updateAnnotationEntryById({
         annotationId: annotation.id,
-        nextSelectedAnnotationId: null,
+        labelAppearance: {
+          ...(annotation.labelAppearance ?? {}),
+          fontSizePx: clampFontSizePx(nextFontSizePx),
+        },
       })
     );
-  };
-
-  const handleNameKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Enter") {
-      commitDisplayName({
-        annotation,
-        draftDisplayName,
-        dispatch,
-      });
-      if (isPending) {
-        confirmPending();
-      }
-    }
   };
 
   return (
@@ -164,27 +141,6 @@ export const LabelToolInfoBoxContent = ({
       className={resolvedVisualOptions.bodyTextClassName}
       style={resolvedVisualOptions.bodyTextStyle}
     >
-      <div className="mb-2">
-        <div className={`mb-1 ${resolvedVisualOptions.mutedTextClassName}`}>
-          Bezeichnung
-        </div>
-        <input
-          type="text"
-          className={`w-full rounded px-2 py-1 ${resolvedVisualOptions.fieldInputBorderClassName}`}
-          value={draftDisplayName}
-          disabled={isLocked}
-          onChange={(event) => setDraftDisplayName(event.target.value)}
-          onBlur={() =>
-            commitDisplayName({
-              annotation,
-              draftDisplayName,
-              dispatch,
-            })
-          }
-          onKeyDown={handleNameKeyDown}
-        />
-      </div>
-
       <div className="mb-2 flex items-center gap-2">
         <span className={resolvedVisualOptions.mutedTextClassName}>
           Schriftgröße:
@@ -193,42 +149,26 @@ export const LabelToolInfoBoxContent = ({
           type="button"
           className={resolvedVisualOptions.inlineFieldButtonClassName}
           disabled={
-            isLocked || fontSizePx <= pureLabelInfoBoxDefaults.fontSizePx.min
+            isLocked || fontSizePx <= labelToolInfoBoxDefaults.fontSizePx.min
           }
           onClick={() =>
-            dispatch(
-              updateAnnotationEntryById({
-                annotationId: annotation.id,
-                labelAppearance: {
-                  ...(annotation.labelAppearance ?? {}),
-                  fontSizePx: clampFontSizePx(fontSizePx - 1),
-                },
-              })
-            )
+            applyFontSizePx(fontSizePx - labelToolInfoBoxDefaults.fontSizePx.step)
           }
           aria-label="Schriftgröße verkleinern"
         >
           <FontAwesomeIcon icon={faMinus} />
         </button>
-        <span className="min-w-[4ch] text-center tabular-nums">
-          {fontSizePx}px
+        <span className="min-w-[4.5ch] text-center tabular-nums">
+          {formatFontSizePercent(fontSizePx)}
         </span>
         <button
           type="button"
           className={resolvedVisualOptions.inlineFieldButtonClassName}
           disabled={
-            isLocked || fontSizePx >= pureLabelInfoBoxDefaults.fontSizePx.max
+            isLocked || fontSizePx >= labelToolInfoBoxDefaults.fontSizePx.max
           }
           onClick={() =>
-            dispatch(
-              updateAnnotationEntryById({
-                annotationId: annotation.id,
-                labelAppearance: {
-                  ...(annotation.labelAppearance ?? {}),
-                  fontSizePx: clampFontSizePx(fontSizePx + 1),
-                },
-              })
-            )
+            applyFontSizePx(fontSizePx + labelToolInfoBoxDefaults.fontSizePx.step)
           }
           aria-label="Schriftgröße vergrößern"
         >
@@ -244,7 +184,10 @@ export const LabelToolInfoBoxContent = ({
           type="color"
           className={resolvedVisualOptions.colorInputClassName}
           aria-label="Hintergrundfarbe"
-          value={normalizeColorToHex(backgroundColor, "#c8c8c8")}
+          value={normalizeColorToHex(
+            backgroundColor,
+            labelToolDefaultBackgroundHex
+          )}
           disabled={isLocked}
           onChange={(event) =>
             dispatch(
@@ -263,7 +206,7 @@ export const LabelToolInfoBoxContent = ({
           type="color"
           className={resolvedVisualOptions.colorInputClassName}
           aria-label="Textfarbe"
-          value={normalizeColorToHex(textColor, "#000000")}
+          value={normalizeColorToHex(textColor, labelToolDefaultTextHex)}
           disabled={isLocked}
           onChange={(event) =>
             dispatch(
@@ -278,34 +221,6 @@ export const LabelToolInfoBoxContent = ({
           }
         />
       </div>
-
-      {isPending ? (
-        <div className="flex items-center gap-2 pt-1">
-          <button
-            type="button"
-            className={resolvedVisualOptions.inlineActionButtonClassName}
-            onClick={() => {
-              commitDisplayName({
-                annotation,
-                draftDisplayName,
-                dispatch,
-              });
-              confirmPending();
-            }}
-          >
-            <FontAwesomeIcon icon={faCheck} />
-            <span>Übernehmen</span>
-          </button>
-          <button
-            type="button"
-            className={resolvedVisualOptions.inlineActionButtonClassName}
-            onClick={discardPending}
-          >
-            <FontAwesomeIcon icon={faTrashCan} />
-            <span>Verwerfen</span>
-          </button>
-        </div>
-      ) : null}
     </div>
   );
 };

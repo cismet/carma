@@ -22,6 +22,12 @@ import {
   createMinimalCesiumWidget,
   setViewFromCameraState,
 } from "@carma-mapping/engines/cesium/core";
+import {
+  PREVIEW_OVERLAY_GROUP,
+  PREVIEW_OVERLAY_GROUP_RENDER_ORDER,
+  resolvePreviewOverlayMountConfig,
+  type PreviewOverlayGroup,
+} from "@carma-mapping/annotations/runtime";
 
 import type { AnnotationsDemoCameraState } from "../playground.types";
 
@@ -29,6 +35,25 @@ const ANNOTATIONS_PLAYGROUND_MAX_RENDER_RATE_HZ = 144;
 const ANNOTATIONS_PLAYGROUND_MIN_RENDER_INTERVAL_MS =
   1000 / ANNOTATIONS_PLAYGROUND_MAX_RENDER_RATE_HZ;
 const ANNOTATIONS_PLAYGROUND_INTERACTION_RENDER_GRACE_MS = 250;
+const ANNOTATION_OVERLAY_ROOT_STYLE = {
+  position: "absolute",
+  inset: 0,
+  overflow: "hidden",
+  pointerEvents: "none",
+  isolation: "isolate",
+} as const;
+const ANNOTATION_OVERLAY_CONTAINER_STYLE = {
+  position: "absolute",
+  inset: 0,
+  overflow: "hidden",
+  pointerEvents: "none",
+} as const;
+const ANNOTATION_OVERLAY_EXTERNAL_Z_INDEX_BY_GROUP: Readonly<
+  Record<PreviewOverlayGroup, number>
+> = Object.freeze({
+  [PREVIEW_OVERLAY_GROUP.VISUALIZER]: 100,
+  [PREVIEW_OVERLAY_GROUP.LABEL]: 110,
+});
 
 const applyCameraState = async (
   widget: CesiumWidget,
@@ -401,6 +426,30 @@ export function CesiumWidgetContainer({
           inset: 0,
         }}
       />
+      {PREVIEW_OVERLAY_GROUP_RENDER_ORDER.map((group) => {
+        const { rootAttribute, containerAttribute } =
+          resolvePreviewOverlayMountConfig(group);
+
+        return (
+          <div
+            key={group}
+            {...{
+              [rootAttribute]: "true",
+            }}
+            style={{
+              ...ANNOTATION_OVERLAY_ROOT_STYLE,
+              zIndex: ANNOTATION_OVERLAY_EXTERNAL_Z_INDEX_BY_GROUP[group],
+            }}
+          >
+            <div
+              {...{
+                [containerAttribute]: "true",
+              }}
+              style={ANNOTATION_OVERLAY_CONTAINER_STYLE}
+            />
+          </div>
+        );
+      })}
       {children}
     </div>
   );

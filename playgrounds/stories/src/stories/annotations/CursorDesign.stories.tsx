@@ -20,7 +20,7 @@ import {
   ResponsiveStatusBar,
   type AnnotationCursorSvgPathDefinition,
 } from "@carma-commons/ui/components";
-import { annotationTypographyDefaults } from "@carma-mapping/annotations/runtime";
+import { typographyDefaults } from "@carma-mapping/annotations/runtime";
 import barmenBackgroundUrl from "../providers/label-overlay/assets/barmen-background.png";
 import {
   CURSOR_RENDER_MODES,
@@ -218,9 +218,9 @@ const CARD_STYLE: CSSProperties = {
 };
 
 const CARD_LABEL_STYLE: CSSProperties = {
-  fontFamily: annotationTypographyDefaults.fontFamily,
-  fontSize: annotationTypographyDefaults.supportFontSizePx,
-  fontWeight: annotationTypographyDefaults.sectionTitleFontWeight,
+  fontFamily: typographyDefaults.fontFamily,
+  fontSize: typographyDefaults.supportFontSizePx,
+  fontWeight: typographyDefaults.sectionTitleFontWeight,
   lineHeight: 1.35,
   letterSpacing: "0.08em",
   textTransform: "uppercase",
@@ -651,9 +651,9 @@ const SCALE_LABEL_STYLE: CSSProperties = {
   left: "50%",
   bottom: 0,
   transform: "translateX(-50%)",
-  fontFamily: annotationTypographyDefaults.fontFamily,
-  fontSize: annotationTypographyDefaults.supportFontSizePx,
-  fontWeight: annotationTypographyDefaults.sectionTitleFontWeight,
+  fontFamily: typographyDefaults.fontFamily,
+  fontSize: typographyDefaults.supportFontSizePx,
+  fontWeight: typographyDefaults.sectionTitleFontWeight,
   lineHeight: 1.35,
   letterSpacing: "0.03em",
   color: "rgba(15, 23, 42, 0.78)",
@@ -1044,11 +1044,11 @@ const CursorDesignSandbox = ({
                               8
                             }px)`,
                             transform: "translateX(-50%)",
-                            fontFamily: annotationTypographyDefaults.fontFamily,
+                            fontFamily: typographyDefaults.fontFamily,
                             fontSize:
-                              annotationTypographyDefaults.supportFontSizePx,
+                              typographyDefaults.supportFontSizePx,
                             fontWeight:
-                              annotationTypographyDefaults.sectionTitleFontWeight,
+                              typographyDefaults.sectionTitleFontWeight,
                             lineHeight: 1.35,
                             letterSpacing: "0.03em",
                             color: "rgba(15, 23, 42, 0.68)",

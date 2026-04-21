@@ -1,6 +1,5 @@
 import { useEffect, useRef } from "react";
 import {
-  ArcType,
   BoundingSphere,
   Cartesian3,
   Color,
@@ -10,14 +9,13 @@ import {
 } from "@carma-cesium";
 import { isValidScene } from "@carma-mapping/engines/cesium/core";
 
-type CesiumEdgeLineRenderModel = {
+type CesiumStraightEdgeLineRenderModel = {
   id: string;
   start: Cartesian3;
   end: Cartesian3;
   stroke: string;
   strokeWidth: number;
-  dashed?: boolean;
-  lineType?: ArcType;
+  dashed?: true;
 };
 
 export type CesiumEdgeVisualizerOptions = {
@@ -154,32 +152,27 @@ const buildLineSegments = (
 
 const createAttachedLine = (
   scene: Scene,
-  line: CesiumEdgeLineRenderModel
+  line: CesiumStraightEdgeLineRenderModel
 ): { destroy: () => void } => {
+  const dashed = line.dashed === true;
   const metersPerPixel = estimateMetersPerPixel(scene, line.start, line.end);
-  const dashLengthMeters =
-    line.dashed ?? false
-      ? Math.max(
-          DEFAULT_DASH_LENGTH_PX * metersPerPixel,
-          MIN_SEGMENT_LENGTH_METERS
-        )
-      : DEFAULT_DASH_LENGTH_METERS;
-  const gapLengthMeters =
-    line.dashed ?? false
-      ? Math.max(DEFAULT_GAP_LENGTH_PX * metersPerPixel, 0)
-      : DEFAULT_GAP_LENGTH_METERS;
-  const capLengthMeters =
-    line.dashed ?? false
-      ? Math.max(
-          line.strokeWidth * metersPerPixel,
-          MIN_SEGMENT_LENGTH_METERS * 2
-        )
-      : 0;
+  const dashLengthMeters = dashed
+    ? Math.max(DEFAULT_DASH_LENGTH_PX * metersPerPixel, MIN_SEGMENT_LENGTH_METERS)
+    : DEFAULT_DASH_LENGTH_METERS;
+  const gapLengthMeters = dashed
+    ? Math.max(DEFAULT_GAP_LENGTH_PX * metersPerPixel, 0)
+    : DEFAULT_GAP_LENGTH_METERS;
+  const capLengthMeters = dashed
+    ? Math.max(
+        line.strokeWidth * metersPerPixel,
+        MIN_SEGMENT_LENGTH_METERS * 2
+      )
+    : 0;
 
   const segments = buildLineSegments(
     line.start,
     line.end,
-    line.dashed ?? false,
+    dashed,
     dashLengthMeters,
     gapLengthMeters,
     capLengthMeters
@@ -252,11 +245,10 @@ const createAttachedLine = (
 
 export const useCesiumEdgeVisualizer = (
   scene: Scene | null,
-  lines: readonly CesiumEdgeLineRenderModel[],
+  lines: readonly CesiumStraightEdgeLineRenderModel[],
   { enabled = true }: CesiumEdgeVisualizerOptions = {}
 ) => {
   const lineRefs = useRef<Record<string, { destroy: () => void }>>({});
-  const warnedAboutGeographicPathRef = useRef(false);
 
   useEffect(() => {
     if (!scene) return;
@@ -274,21 +266,10 @@ export const useCesiumEdgeVisualizer = (
         return;
       }
 
-      const hasGeographicPathLine = lines.some(
-        (line) => line.lineType === ArcType.GEODESIC
-      );
-      if (hasGeographicPathLine && !warnedAboutGeographicPathRef.current) {
-        console.warn(
-          "[annotations/cesium] Geographic edge line paths are not implemented yet; rendering them as Cartesian lines."
-        );
-        warnedAboutGeographicPathRef.current = true;
-      }
-
       lines.forEach((line) => {
-        const lineType = line.lineType ?? ArcType.NONE;
-        // Geographic line rendering is intentionally not implemented yet.
-        // All scene lines still use straight Cartesian segments for now.
-        void lineType;
+        // This visualizer currently renders only straight Cartesian segments
+        // between start and end. Great-circle/geodesic paths need a dedicated
+        // render model and renderer instead of being approximated here.
         lineRefs.current[line.id] = createAttachedLine(scene, line);
       });
 

@@ -15,12 +15,12 @@ import {
   type RingMaterialPreset,
 } from "@carma-mapping/engines/cesium/core";
 import {
-  type PreviewRingSample,
-  getAveragedPreviewRingNormal,
-  pushPreviewRingSample,
+  type CandidateRingSample,
+  getAveragedCandidateRingNormal,
+  pushCandidateRingSample,
 } from "@carma-mapping/annotations/core";
 
-import type { RuntimeScene } from "../types/runtime-scene.types";
+import type { Scene } from "@carma-cesium";
 import { pointPreviewRingVisualDefaults } from "../config/point-preview-visual-defaults";
 import {
   isPointQueryDiscPlaneOffsetPlacementMode,
@@ -72,7 +72,7 @@ export type PointQueryIndicatorController = {
 };
 
 export const createPointQueryIndicatorController = (
-  scene: RuntimeScene | null,
+  scene: Scene | null,
   {
     radius,
     placementMode = POINT_QUERY_DISC_PLACEMENT_MODES.CAMERA_PLANE_REPROJECT,
@@ -121,7 +121,7 @@ export const createPointQueryIndicatorController = (
   let latestTrueSurfaceNormal: Cartesian3 | null = null;
   let latestPreviewPointLocked = false;
   let previewInputVersion = 0;
-  let previewRingSamples: PreviewRingSample[] = [];
+  let previewRingSamples: CandidateRingSample[] = [];
   let previewRingLastQueuedInput: PreviewRingQueuedInput | null = null;
 
   const clearPreviewRing = () => {
@@ -226,6 +226,7 @@ export const createPointQueryIndicatorController = (
         innerRadius: Math.min(Math.max(innerHoleRadiusRatio, 0), 0.999),
         color: previewRingColor,
         opacity: previewRingColor.alpha,
+        asynchronous: false,
         materialPreset:
           materialPreset ?? pointPreviewRingVisualDefaults.materialPreset,
         segments: 20,
@@ -254,7 +255,7 @@ export const createPointQueryIndicatorController = (
   };
 
   const queuePreviewSample = (normal: Cartesian3) => {
-    pushPreviewRingSample({
+    pushCandidateRingSample({
       samples: previewRingSamples,
       normal,
       maxSampleCount: tangentDiscVisualizerTrailSampleCount,
@@ -263,7 +264,7 @@ export const createPointQueryIndicatorController = (
   };
 
   const getAveragedPreviewNormal = (fallbackNormal: Cartesian3) =>
-    getAveragedPreviewRingNormal({
+    getAveragedCandidateRingNormal({
       samples: previewRingSamples,
       fallbackNormal,
       result: averagedNormal,

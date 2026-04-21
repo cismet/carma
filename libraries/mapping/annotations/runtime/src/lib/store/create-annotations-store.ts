@@ -4,42 +4,39 @@ import {
   type PayloadAction,
 } from "@reduxjs/toolkit";
 
-import type { RuntimeToolId } from "../types/runtime-tool.types";
+import type { AnnotationToolType } from "@carma-mapping/annotations/core";
 import type {
   AnnotationsStoreState,
-  RuntimeCoordinate,
-  RuntimeAnnotationEntry,
-  RuntimeElevationDisplayMode,
-  RuntimeEdge,
-  RuntimeLabelAppearance,
-  RuntimeNodeLink,
-  RuntimeNodeId,
-  RuntimeNode,
+  CesiumGeographicCoordinate,
+  StoredAnnotation,
+  AnnotationElevationDisplayMode,
+  AnnotationEdge,
+  AnnotationLabelAppearance,
+  AnnotationNodeLink,
+  AnnotationNodeId,
+  AnnotationNode,
 } from "./annotations-store.types";
 import {
   reconcileNodeLinks,
   resolveNextNodeLinksForNodeMove,
 } from "./node-links.helpers";
+import { readMaxNumericSuffix } from "./annotation-entity-builder.helpers";
 import type {
   RuntimeDistanceTriangleAnchorCoordinateRole,
   RuntimePointLabelCoordinateSelection,
 } from "../render/measurement-render-models";
-import { resolveRuntimeNodeMoveScope } from "./node-move-scope.helpers";
+import { resolveAnnotationNodeMoveScope } from "./node-move-scope.helpers";
 export type CreateInitialAnnotationsStoreStateOptions = {
-  initialToolType?: RuntimeToolId;
+  initialToolType?: AnnotationToolType;
   initialPointTemporaryMode?: boolean;
 };
 
 export type AppendAnnotationEntitiesPayload = {
-  annotationEntry: RuntimeAnnotationEntry;
-  nodes: readonly RuntimeNode[];
-  linkedNodeGroups: readonly RuntimeNodeLink[];
-  edges: readonly RuntimeEdge[];
+  annotationEntry: StoredAnnotation;
+  nodes: readonly AnnotationNode[];
+  linkedNodeGroups: readonly AnnotationNodeLink[];
+  edges: readonly AnnotationEdge[];
   selectAnnotationId?: string | null;
-};
-export type SetPendingAnnotationIdByToolTypePayload = {
-  toolType: RuntimeToolId;
-  annotationId: string | null;
 };
 
 export type RemoveAnnotationByIdPayload = {
@@ -56,15 +53,17 @@ export type SetSelectedAnnotationIdsPayload = readonly string[];
 
 export type UpdateNodeCoordinateByIdPayload = {
   nodeId: string;
-  coordinate: RuntimeCoordinate;
+  coordinate: CesiumGeographicCoordinate;
   selectedMeasurementIds?: readonly string[];
-  movedNodeIds?: readonly RuntimeNodeId[];
-  linkToNodeId?: RuntimeNodeId | null;
+  movedNodeIds?: readonly AnnotationNodeId[];
+  linkToNodeId?: AnnotationNodeId | null;
 };
 
-export type SetAnnotationTemporaryByIdPayload = {
-  annotationId: string;
-  temporary: boolean;
+export type InsertNodeIntoMeasurementEdgePayload = {
+  measurementId: string;
+  startNodeId: string;
+  endNodeId: string;
+  coordinate: CesiumGeographicCoordinate;
 };
 
 export type UpdateAnnotationEntryByIdPayload = {
@@ -73,8 +72,8 @@ export type UpdateAnnotationEntryByIdPayload = {
   shortLabel?: string;
   hidden?: boolean;
   locked?: boolean;
-  labelAppearance?: RuntimeLabelAppearance;
-  elevationDisplayMode?: RuntimeElevationDisplayMode;
+  labelAppearance?: AnnotationLabelAppearance;
+  elevationDisplayMode?: AnnotationElevationDisplayMode;
   distanceAnchorCoordinateSelection?: RuntimePointLabelCoordinateSelection;
   distanceTriangleAnchorCoordinateRole?: RuntimeDistanceTriangleAnchorCoordinateRole;
 };
@@ -85,7 +84,7 @@ export type SetNextShortLabelCounterByToolTypePayload = {
   nextCounter: number;
 };
 
-const UNSET_TOOL_TYPE = "__unset__" as RuntimeToolId;
+const UNSET_TOOL_TYPE = "__unset__" as AnnotationToolType;
 export const createInitialAnnotationsStoreState = (
   options: CreateInitialAnnotationsStoreStateOptions = {}
 ): AnnotationsStoreState => {
@@ -112,9 +111,6 @@ export const createInitialAnnotationsStoreState = (
       elevationReferenceAnnotationId: null,
       nextShortLabelCounterByToolType: {},
     },
-    draftState: {
-      pendingAnnotationIdByToolType: {},
-    },
   };
 };
 
@@ -124,7 +120,10 @@ const annotationsSlice = createSlice({
   reducers: {
     replaceState: (_, action: PayloadAction<AnnotationsStoreState>) =>
       action.payload,
-    setAnnotationToolType: (state, action: PayloadAction<RuntimeToolId>) => {
+    setAnnotationToolType: (
+      state,
+      action: PayloadAction<AnnotationToolType>
+    ) => {
       state.annotationToolType = action.payload;
     },
     setPointTemporaryMode: (state, action: PayloadAction<boolean>) => {
@@ -243,19 +242,6 @@ const annotationsSlice = createSlice({
       state.annotationEntries = state.annotationEntries.filter(
         (annotationEntry) => annotationEntry.id !== annotationId
       );
-      Object.keys(state.draftState.pendingAnnotationIdByToolType).forEach(
-        (toolType) => {
-          if (
-            state.draftState.pendingAnnotationIdByToolType[
-              toolType as RuntimeToolId
-            ] === annotationId
-          ) {
-            delete state.draftState.pendingAnnotationIdByToolType[
-              toolType as RuntimeToolId
-            ];
-          }
-        }
-      );
 
       const usedNodeIds = new Set(
         state.annotationEntries.flatMap(
@@ -320,21 +306,6 @@ const annotationsSlice = createSlice({
       state.annotationEntries = state.annotationEntries.filter(
         (annotationEntry) => !annotationIdSet.has(annotationEntry.id)
       );
-      Object.keys(state.draftState.pendingAnnotationIdByToolType).forEach(
-        (toolType) => {
-          if (
-            annotationIdSet.has(
-              state.draftState.pendingAnnotationIdByToolType[
-                toolType as RuntimeToolId
-              ] ?? ""
-            )
-          ) {
-            delete state.draftState.pendingAnnotationIdByToolType[
-              toolType as RuntimeToolId
-            ];
-          }
-        }
-      );
 
       const usedNodeIds = new Set(
         state.annotationEntries.flatMap(
@@ -390,7 +361,7 @@ const annotationsSlice = createSlice({
         movedNodeIds: preferredMovedNodeIds,
         linkToNodeId,
       } = action.payload;
-      const { targetNode, movedNodeIds } = resolveRuntimeNodeMoveScope({
+      const { targetNode, movedNodeIds } = resolveAnnotationNodeMoveScope({
         nodeId,
         nodes: state.nodes,
         linkedNodeGroups: state.linkedNodeGroups,
@@ -424,18 +395,101 @@ const annotationsSlice = createSlice({
         linkToNodeId,
       });
     },
-    setAnnotationTemporaryById: (
+    insertNodeIntoMeasurementEdge: (
       state,
-      action: PayloadAction<SetAnnotationTemporaryByIdPayload>
+      action: PayloadAction<InsertNodeIntoMeasurementEdgePayload>
     ) => {
-      const { annotationId, temporary } = action.payload;
-      const targetEntry = state.annotationEntries.find(
-        (entry) => entry.id === annotationId
+      const { measurementId, startNodeId, endNodeId, coordinate } =
+        action.payload;
+      const measurement = state.annotationEntries.find(
+        (entry) => entry.id === measurementId
       );
-      if (!targetEntry) {
+      if (!measurement) {
         return;
       }
-      targetEntry.temporary = temporary;
+
+      const targetNodePairIndex = measurement.nodeIds.findIndex(
+        (nodeId, index) =>
+          nodeId === startNodeId && measurement.nodeIds[index + 1] === endNodeId
+      );
+      const insertNodeIndex =
+        targetNodePairIndex >= 0
+          ? targetNodePairIndex + 1
+          : measurement.closed &&
+            measurement.nodeIds.length >= 3 &&
+            measurement.nodeIds[measurement.nodeIds.length - 1] ===
+              startNodeId &&
+            measurement.nodeIds[0] === endNodeId
+          ? measurement.nodeIds.length
+          : -1;
+
+      if (insertNodeIndex < 0) {
+        return;
+      }
+
+      const edgeById = new Map(state.edges.map((edge) => [edge.id, edge]));
+      const targetEdgeIdIndex = measurement.edgeIds.findIndex((edgeId) => {
+        const edge = edgeById.get(edgeId);
+        return (
+          edge?.startNodeId === startNodeId && edge.endNodeId === endNodeId
+        );
+      });
+      const targetEdgeId =
+        targetEdgeIdIndex >= 0 ? measurement.edgeIds[targetEdgeIdIndex] : null;
+      const targetEdge = targetEdgeId ? edgeById.get(targetEdgeId) : undefined;
+
+      if (!targetEdge || targetEdgeIdIndex < 0) {
+        return;
+      }
+
+      const nextNodeId = `node-${
+        readMaxNumericSuffix(state.nodes.map((node) => node.id)) + 1
+      }`;
+      const nextEdgeId = `edge-${
+        readMaxNumericSuffix(state.edges.map((edge) => edge.id)) + 1
+      }`;
+
+      state.nodes.push({
+        id: nextNodeId,
+        coordinate,
+      });
+      state.linkedNodeGroups = reconcileNodeLinks({
+        nodes: state.nodes,
+        nodeLinks: [
+          ...state.linkedNodeGroups,
+          {
+            id: nextNodeId,
+            nodeIds: [nextNodeId],
+          },
+        ],
+      });
+
+      targetEdge.endNodeId = nextNodeId;
+
+      const nextEdge = {
+        id: nextEdgeId,
+        startNodeId: nextNodeId,
+        endNodeId,
+      };
+      const targetEdgeStateIndex = state.edges.findIndex(
+        (edge) => edge.id === targetEdgeId
+      );
+      if (targetEdgeStateIndex >= 0) {
+        state.edges.splice(targetEdgeStateIndex + 1, 0, nextEdge);
+      } else {
+        state.edges.push(nextEdge);
+      }
+
+      measurement.nodeIds = [
+        ...measurement.nodeIds.slice(0, insertNodeIndex),
+        nextNodeId,
+        ...measurement.nodeIds.slice(insertNodeIndex),
+      ];
+      measurement.edgeIds = [
+        ...measurement.edgeIds.slice(0, targetEdgeIdIndex + 1),
+        nextEdgeId,
+        ...measurement.edgeIds.slice(targetEdgeIdIndex + 1),
+      ];
     },
     updateAnnotationEntryById: (
       state,
@@ -496,89 +550,21 @@ const annotationsSlice = createSlice({
           distanceTriangleAnchorCoordinateRole;
       }
     },
-    finalizeTemporaryAnnotationsByToolType: (
-      state,
-      action: PayloadAction<RuntimeAnnotationEntry["toolType"]>
-    ) => {
-      const toolType = action.payload;
-      state.annotationEntries.forEach((entry) => {
-        if (entry.toolType === toolType && entry.temporary) {
-          entry.temporary = false;
-        }
-      });
-    },
-    finalizeTemporaryAnnotations: (state) => {
-      state.annotationEntries.forEach((entry) => {
-        if (entry.temporary) {
-          entry.temporary = false;
-        }
-      });
-    },
-    clearTemporaryAnnotationsByToolType: (
-      state,
-      action: PayloadAction<RuntimeAnnotationEntry["toolType"]>
-    ) => {
-      const toolType = action.payload;
-      const temporaryEntryIdSet = new Set(
-        state.annotationEntries
-          .filter((entry) => entry.toolType === toolType && entry.temporary)
-          .map((entry) => entry.id)
-      );
-      if (temporaryEntryIdSet.size === 0) {
-        return;
-      }
-
-      state.annotationEntries = state.annotationEntries.filter(
-        (entry) => !temporaryEntryIdSet.has(entry.id)
-      );
-
-      const usedNodeIds = new Set(
-        state.annotationEntries.flatMap((entry) => entry.nodeIds)
-      );
-      const usedEdgeIds = new Set(
-        state.annotationEntries.flatMap((entry) => entry.edgeIds)
-      );
-      state.nodes = state.nodes.filter((node) => usedNodeIds.has(node.id));
-      state.linkedNodeGroups = reconcileNodeLinks({
-        nodes: state.nodes,
-        nodeLinks: state.linkedNodeGroups,
-      });
-      state.edges = state.edges.filter((edge) => usedEdgeIds.has(edge.id));
-
-      const nextSelectedAnnotationIds =
-        state.selectionState.selectedAnnotationIds.filter(
-          (annotationId) => !temporaryEntryIdSet.has(annotationId)
-        );
-      state.selectionState.selectedAnnotationIds = nextSelectedAnnotationIds;
-      state.infoBoxState.activeAnnotationId =
-        nextSelectedAnnotationIds[nextSelectedAnnotationIds.length - 1] ?? null;
-    },
-    setPendingAnnotationIdByToolType: (
-      state,
-      action: PayloadAction<SetPendingAnnotationIdByToolTypePayload>
-    ) => {
-      state.draftState.pendingAnnotationIdByToolType[action.payload.toolType] =
-        action.payload.annotationId;
-    },
   },
 });
 
 export const {
   appendAnnotationEntities,
-  finalizeTemporaryAnnotations,
-  clearTemporaryAnnotationsByToolType,
-  finalizeTemporaryAnnotationsByToolType,
   removeAnnotationById,
   removeAnnotationsByIds,
-  setAnnotationTemporaryById,
   setElevationReferenceAnnotationId,
   setNextShortLabelCounterByToolType,
   setPointTemporaryMode,
+  insertNodeIntoMeasurementEdge,
   updateNodeCoordinateById,
   updateAnnotationEntryById,
   replaceState,
   setAnnotationToolType,
-  setPendingAnnotationIdByToolType,
   setSelectedAnnotationId,
   setSelectedAnnotationIds,
 } = annotationsSlice.actions;

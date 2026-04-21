@@ -1,66 +1,125 @@
 import { useCallback, useEffect, useMemo } from "react";
 import {
+  Cartesian3,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
   type Cartesian2,
 } from "@carma-cesium";
+import { ANNOTATION_TYPES } from "@carma-mapping/annotations/core";
+import {
+  cartesian3FromGeographicCoordinate,
+  getDegreesFromCartesian,
+  getEllipsoidalAltitudeOrZero,
+} from "@carma-mapping/engines/cesium/core";
 
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import type { PreviewLineLabelVisualOptions } from "../config/preview-line-label-visual-defaults";
+import { useAnnotationToolDraftStates } from "./use-annotation-tool-draft-states";
 import { useCursorOverlay } from "../interaction/use-cursor-overlay";
 import { usePointEditingGizmo } from "../interaction/use-point-editing-gizmo";
 import {
   type AnnotationsStore,
   findAnnotationEntryById,
+  insertNodeIntoMeasurementEdge,
   selectSelectedAnnotationId,
+  type StoredAnnotation,
   updateAnnotationEntryById,
   useAnnotationsSelector,
 } from "../store";
 import { ANNOTATION_TOOL_PLUGIN_KINDS } from "../tools";
-import type { AnnotationToolRegistry } from "../tools/annotation-tool-plugin.types";
-import type { RuntimeScene } from "../types/runtime-scene.types";
+import type {
+  AnnotationToolDraftStore,
+  AnnotationToolRegistry,
+} from "../tools/annotation-tool-plugin.types";
+import type { Scene } from "@carma-cesium";
 import { RUNTIME_POINT_LABEL_COORDINATE_SELECTION } from "../render/measurement-render-models";
-import { useRuntimeVisualizers } from "../render/use-runtime-visualizers";
-import { useRuntimeVisualLayers } from "../render/use-runtime-visual-layers";
+import { useMeasurementVisualizers } from "../render/use-measurement-visualizers";
+import { useVisualLayers } from "../render/use-visual-layers";
 import {
   resolveDistanceTriangleAnchorCoordinateRole,
   resolveDistanceTriangleAnchorCoordinateSelection,
   resolveOppositeDistanceTriangleAnchorCoordinateRole,
-} from "../render/runtime-distance-triangle-overlay";
-import { resolveAnnotationEntryCoordinates } from "../utils/runtime-annotation-coordinates";
+} from "../render/distance-triangle-overlay";
+import { resolveAnnotationEntryCoordinates } from "../utils/annotation-coordinates";
 import { useSelectionAdditiveModifierState } from "./use-selection-additive-modifier-state";
-import { useRuntimeAnnotationSelection } from "./use-runtime-annotation-selection";
-import { ANNOTATIONS_RUNTIME_HOST_DEFAULTS } from "./annotations-runtime-host-defaults";
-import { isRuntimeSceneSelectionTarget } from "./runtime-scene-selection-target";
+import { useAnnotationSelection } from "./use-annotation-selection";
+import { ANNOTATIONS_HOST_DEFAULTS } from "./annotations-host-defaults";
+import { resolveSceneSelectionTarget } from "./scene-selection-target";
+
+const {
+  POLYLINE: ANNOTATION_TYPE_POLYLINE,
+  AREA_GROUND: ANNOTATION_TYPE_AREA_GROUND,
+  AREA_PLANAR: ANNOTATION_TYPE_AREA_PLANAR,
+  AREA_VERTICAL: ANNOTATION_TYPE_AREA_VERTICAL,
+} = ANNOTATION_TYPES;
+
+const isInsertNodeTargetToolType = (toolType: StoredAnnotation["toolType"]) =>
+  toolType === ANNOTATION_TYPE_POLYLINE ||
+  toolType === ANNOTATION_TYPE_AREA_GROUND ||
+  toolType === ANNOTATION_TYPE_AREA_PLANAR ||
+  toolType === ANNOTATION_TYPE_AREA_VERTICAL;
 
 type RuntimeVisualHostProps = {
-  scene: RuntimeScene | null;
+  scene: Scene | null;
   registry: AnnotationToolRegistry;
   annotationsStore: AnnotationsStore;
+  annotationToolDraftStore: AnnotationToolDraftStore;
   setElevationReferenceAnnotationId: (annotationId: string | null) => void;
   toggleAnnotationElevationDisplayMode: (annotationId: string) => void;
   onActiveMoveGizmoNodeIdChange: (nodeId: string | null) => void;
   onHoveredPointQueryNodeIdChange: (nodeId: string | null) => void;
   onPreviewSnapTargetNodeClick: (nodeId: string) => boolean;
   activeMoveGizmoNodeId: string | null;
-  cursorOverlayVisible: boolean;
-  blockCommittedLabelInteractions: boolean;
   formatOptions: AnnotationsRuntimeFormatOptions;
   previewLineLabelVisualOptions: Partial<PreviewLineLabelVisualOptions>;
+};
+
+const resolveInsertedNodeCoordinate = ({
+  toolType,
+  startCoordinate,
+  endCoordinate,
+}: {
+  toolType: StoredAnnotation["toolType"];
+  startCoordinate: {
+    longitude: number;
+    latitude: number;
+    altitude: number;
+  };
+  endCoordinate: {
+    longitude: number;
+    latitude: number;
+    altitude: number;
+  };
+}) => {
+  const midpointCoordinate = getDegreesFromCartesian(
+    Cartesian3.midpoint(
+      cartesian3FromGeographicCoordinate(startCoordinate),
+      cartesian3FromGeographicCoordinate(endCoordinate),
+      new Cartesian3()
+    )
+  );
+
+  return {
+    longitude: midpointCoordinate.longitude,
+    latitude: midpointCoordinate.latitude,
+    altitude:
+      toolType === ANNOTATION_TYPE_AREA_GROUND
+        ? getEllipsoidalAltitudeOrZero(midpointCoordinate.altitude)
+        : midpointCoordinate.altitude,
+  };
 };
 
 export const RuntimeVisualHost = ({
   scene,
   registry,
   annotationsStore,
+  annotationToolDraftStore,
   setElevationReferenceAnnotationId,
   toggleAnnotationElevationDisplayMode,
   onActiveMoveGizmoNodeIdChange,
   onHoveredPointQueryNodeIdChange,
   onPreviewSnapTargetNodeClick,
   activeMoveGizmoNodeId,
-  cursorOverlayVisible,
-  blockCommittedLabelInteractions,
   formatOptions,
   previewLineLabelVisualOptions,
 }: RuntimeVisualHostProps) => {
@@ -75,8 +134,9 @@ export const RuntimeVisualHost = ({
     activePlugin?.kind === ANNOTATION_TOOL_PLUGIN_KINDS.INTERACTION;
   const isMeasurementToolActive =
     activePlugin?.kind === ANNOTATION_TOOL_PLUGIN_KINDS.MEASUREMENT;
-  const previewSnapTargetHoverEnabled =
+  const pointQueryToolActive =
     activeMoveGizmoNodeId === null && isMeasurementToolActive;
+  const previewSnapTargetHoverEnabled = pointQueryToolActive;
   const nodes = useAnnotationsSelector(
     (annotationsState) => annotationsState.nodes
   );
@@ -95,12 +155,20 @@ export const RuntimeVisualHost = ({
   const selectedAnnotationIds = useAnnotationsSelector(
     (annotationsState) => annotationsState.selectionState.selectedAnnotationIds
   );
+  const draftToolTypes = useMemo(
+    () => registry.plugins.map((plugin) => plugin.id),
+    [registry.plugins]
+  );
+  const draftStatesByToolType = useAnnotationToolDraftStates({
+    draftStore: annotationToolDraftStore,
+    toolTypes: draftToolTypes,
+  });
   const elevationReferenceAnnotationId = useAnnotationsSelector(
     (annotationsState) =>
       annotationsState.settingsState.elevationReferenceAnnotationId
   );
   const isSelectionAdditiveModifierPressed = useSelectionAdditiveModifierState(
-    ANNOTATIONS_RUNTIME_HOST_DEFAULTS.additiveSelectionModifierKey
+    ANNOTATIONS_HOST_DEFAULTS.additiveSelectionModifierKey
   );
   const {
     draftNodeCoordinateOverrides,
@@ -113,6 +181,8 @@ export const RuntimeVisualHost = ({
     handleReferenceEdgeClick,
   } = usePointEditingGizmo(scene, nodes, linkedNodeGroups, {
     annotationsStore,
+    annotationEntries,
+    selectedAnnotationIds,
     onActiveMoveGizmoNodeIdChange,
   });
   const handleDistanceTriangleCornerClick = useCallback(
@@ -156,10 +226,64 @@ export const RuntimeVisualHost = ({
     },
     [annotationsStore]
   );
-  const handleMeasurementSelection = useRuntimeAnnotationSelection({
+  const handleMeasurementSelection = useAnnotationSelection({
     annotationsStore,
     isSelectionAdditiveModifierPressed,
   });
+  const selectedAnnotationIdSet = useMemo(
+    () => new Set(selectedAnnotationIds),
+    [selectedAnnotationIds]
+  );
+  const insertNodeTargetMeasurementIds = useMemo(
+    () =>
+      annotationEntries
+        .filter(
+          (annotationEntry) =>
+            selectedAnnotationIdSet.has(annotationEntry.id) &&
+            !annotationEntry.locked &&
+            isInsertNodeTargetToolType(annotationEntry.toolType)
+        )
+        .map((annotationEntry) => annotationEntry.id),
+    [annotationEntries, selectedAnnotationIdSet]
+  );
+  const handleInsertNodeTargetClick = useCallback(
+    (measurementId: string, startNodeId: string, endNodeId: string) => {
+      const runtimeState = annotationsStore.getState();
+      const targetEntry = findAnnotationEntryById(
+        runtimeState.annotationEntries,
+        measurementId
+      );
+      if (
+        !targetEntry ||
+        targetEntry.locked ||
+        !isInsertNodeTargetToolType(targetEntry.toolType)
+      ) {
+        return false;
+      }
+
+      const startNode = runtimeState.nodes.find((node) => node.id === startNodeId);
+      const endNode = runtimeState.nodes.find((node) => node.id === endNodeId);
+      if (!startNode || !endNode) {
+        return false;
+      }
+
+      annotationsStore.dispatch(
+        insertNodeIntoMeasurementEdge({
+          measurementId,
+          startNodeId,
+          endNodeId,
+          coordinate: resolveInsertedNodeCoordinate({
+            toolType: targetEntry.toolType,
+            startCoordinate: startNode.coordinate,
+            endCoordinate: endNode.coordinate,
+          }),
+        })
+      );
+      scene?.requestRender();
+      return true;
+    },
+    [annotationsStore, scene]
+  );
   const handlePreviewSnapTargetNodeHover = useCallback(
     (nodeId: string, hovered: boolean) => {
       onHoveredPointQueryNodeIdChange(hovered ? nodeId : null);
@@ -175,12 +299,13 @@ export const RuntimeVisualHost = ({
     onHoveredPointQueryNodeIdChange(null);
   }, [onHoveredPointQueryNodeIdChange, previewSnapTargetHoverEnabled]);
 
-  const runtimeVisualLayers = useRuntimeVisualLayers({
+  const runtimeVisualLayers = useVisualLayers({
     plugins: registry.plugins,
     nodes,
     edges,
     linkedNodeGroups,
     annotationEntries,
+    draftStatesByToolType,
     elevationReferenceAnnotationId,
     selectedAnnotationId,
     selectedAnnotationIds,
@@ -196,23 +321,26 @@ export const RuntimeVisualHost = ({
   });
   const overlayVisualModels = runtimeVisualLayers.overlayVisualModels ?? null;
 
-  const runtimeSceneSelectionEdgeIdSet = useMemo(
+  const runtimeSceneSelectionEdgeMeasurementIdsById = useMemo(
     () =>
-      new Set(
+      new Map(
         [
           ...(runtimeVisualLayers.baseVisualModels.edges ?? []),
           ...(overlayVisualModels?.edges ?? []),
-        ].map((edge) => edge.id)
+        ].map((edge) => [edge.id, edge.measurementId ?? null] as const)
       ),
     [overlayVisualModels?.edges, runtimeVisualLayers.baseVisualModels.edges]
   );
-  const runtimeSceneSelectionPolygonFillIdSet = useMemo(
+  const runtimeSceneSelectionPolygonFillMeasurementIdsById = useMemo(
     () =>
-      new Set(
+      new Map(
         [
           ...(runtimeVisualLayers.baseVisualModels.polygonFills ?? []),
           ...(overlayVisualModels?.polygonFills ?? []),
-        ].map((polygonFill) => polygonFill.id)
+        ].map(
+          (polygonFill) =>
+            [polygonFill.id, polygonFill.measurementId ?? null] as const
+        )
       ),
     [
       overlayVisualModels?.polygonFills,
@@ -227,21 +355,18 @@ export const RuntimeVisualHost = ({
 
     const handler = new ScreenSpaceEventHandler(scene.canvas);
     handler.setInputAction((event: { position: Cartesian2 }) => {
-      if (
-        annotationsStore.getState().selectionState.selectedAnnotationIds
-          .length === 0
-      ) {
-        return;
-      }
-
       const pickedObject = scene.pick(event.position);
-      if (
-        isRuntimeSceneSelectionTarget({
-          pickedObject,
-          edgeIds: runtimeSceneSelectionEdgeIdSet,
-          polygonFillIds: runtimeSceneSelectionPolygonFillIdSet,
-        })
-      ) {
+      const runtimeSceneSelectionTarget = resolveSceneSelectionTarget({
+        pickedObject,
+        edgeMeasurementIdsById: runtimeSceneSelectionEdgeMeasurementIdsById,
+        polygonFillMeasurementIdsById:
+          runtimeSceneSelectionPolygonFillMeasurementIdsById,
+      });
+      if (runtimeSceneSelectionTarget.isRuntimeTarget) {
+        if (runtimeSceneSelectionTarget.measurementId) {
+          handleMeasurementSelection(runtimeSceneSelectionTarget.measurementId);
+          scene.requestRender();
+        }
         return;
       }
 
@@ -258,12 +383,12 @@ export const RuntimeVisualHost = ({
     annotationsStore,
     handleMeasurementSelection,
     isInteractionToolActive,
-    runtimeSceneSelectionEdgeIdSet,
-    runtimeSceneSelectionPolygonFillIdSet,
+    runtimeSceneSelectionEdgeMeasurementIdsById,
+    runtimeSceneSelectionPolygonFillMeasurementIdsById,
     scene,
   ]);
 
-  useRuntimeVisualizers(scene, {
+  useMeasurementVisualizers(scene, {
     surfaceKey: "committed",
     enableHostInteractionTargets: true,
     points: runtimeVisualLayers.baseVisualModels.points ?? [],
@@ -277,9 +402,7 @@ export const RuntimeVisualHost = ({
     activeMoveGizmoNodeId,
     isMoveGizmoDragging,
     blockLabelInteractions:
-      blockCommittedLabelInteractions ||
-      activeMoveGizmoNodeId !== null ||
-      isMeasurementToolActive,
+      activeMoveGizmoNodeId !== null || isMeasurementToolActive,
     previewSnapTargetHoverEnabled,
     onPreviewSnapTargetNodeClick,
     onMeasurementSelect: handleMeasurementSelection,
@@ -290,10 +413,12 @@ export const RuntimeVisualHost = ({
         ? handleReferenceNodeHover
         : handlePreviewSnapTargetNodeHover,
     onReferenceEdgeClick: handleReferenceEdgeClick,
+    insertNodeTargetMeasurementIds,
+    onInsertNodeTargetClick: handleInsertNodeTargetClick,
     onDistanceTriangleCornerClick: handleDistanceTriangleCornerClick,
   });
 
-  useRuntimeVisualizers(scene, {
+  useMeasurementVisualizers(scene, {
     surfaceKey: "preview",
     enableHostInteractionTargets: false,
     points: overlayVisualModels?.points ?? [],
@@ -310,7 +435,7 @@ export const RuntimeVisualHost = ({
   });
 
   useCursorOverlay(scene, null, {
-    enabled: cursorOverlayVisible,
+    enabled: pointQueryToolActive,
   });
   useCursorOverlay(scene, null, {
     enabled: isInteractionToolActive && isSelectionAdditiveModifierPressed,

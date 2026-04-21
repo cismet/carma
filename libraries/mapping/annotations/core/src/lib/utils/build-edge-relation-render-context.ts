@@ -7,14 +7,17 @@ import {
   getSplitMarkerRelationIdsByKindForGroups,
   getSplitMarkerRelationIdsForGroups,
 } from "../editable-line-policies";
-import type { PointAnnotationEntry } from "../types/annotation-cesium-types";
+import type { AnnotationPointEntry } from "../types/annotation-cesium-types";
 import {
-  ANNOTATION_TYPE_AREA_VERTICAL,
+  ANNOTATION_TYPES,
   type NodeChainAnnotation,
 } from "../types/annotation-types";
 import type { DistanceRelationRenderContext } from "../types/distance-relation-render-context";
 import { getDistanceRelationId } from "./measurement-relations";
-const VERTICAL_OPPOSING_EDGE_LABEL_EPSILON_METERS = 0.01;
+
+const edgeRelationRenderContextDefaults = Object.freeze({
+  verticalOpposingEdgeLabelEpsilonMeters: 0.01,
+});
 
 export const buildEdgeRelationRenderContext = ({
   nodeChainAnnotations,
@@ -25,7 +28,7 @@ export const buildEdgeRelationRenderContext = ({
   nodeChainAnnotations: readonly NodeChainAnnotation[];
   focusedNodeChainAnnotationId?: string | null;
   activeNodeChainAnnotationId?: string | null;
-  pointsById: ReadonlyMap<string, PointAnnotationEntry>;
+  pointsById: ReadonlyMap<string, AnnotationPointEntry>;
 }): DistanceRelationRenderContext => {
   const editableLineRelationIdsByKind =
     getSplitMarkerRelationIdsByKind(nodeChainAnnotations);
@@ -65,7 +68,7 @@ export const buildEdgeRelationRenderContext = ({
   const duplicateVerticalOpposingRelationIds = new Set<string>();
   nodeChainAnnotations.forEach((group) => {
     if (!group.closed) return;
-    if (group.type !== ANNOTATION_TYPE_AREA_VERTICAL) return;
+    if (group.type !== ANNOTATION_TYPES.AREA_VERTICAL) return;
     if (group.nodeIds.length !== 4) return;
 
     const [point0Id, point1Id, point2Id, point3Id] = group.nodeIds;
@@ -81,7 +84,7 @@ export const buildEdgeRelationRenderContext = ({
     const length23 = Cartesian3.distance(point2, point3);
     if (
       Math.abs(length01 - length23) <=
-      VERTICAL_OPPOSING_EDGE_LABEL_EPSILON_METERS
+      edgeRelationRenderContextDefaults.verticalOpposingEdgeLabelEpsilonMeters
     ) {
       duplicateVerticalOpposingRelationIds.add(
         getDistanceRelationId(point2Id, point3Id)
@@ -92,7 +95,7 @@ export const buildEdgeRelationRenderContext = ({
     const length30 = Cartesian3.distance(point3, point0);
     if (
       Math.abs(length12 - length30) <=
-      VERTICAL_OPPOSING_EDGE_LABEL_EPSILON_METERS
+      edgeRelationRenderContextDefaults.verticalOpposingEdgeLabelEpsilonMeters
     ) {
       duplicateVerticalOpposingRelationIds.add(
         getDistanceRelationId(point3Id, point0Id)

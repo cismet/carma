@@ -1,28 +1,43 @@
 import React, { useEffect, useMemo, useRef } from "react";
+import {
+  degToRadNumeric,
+  negativePiToPi,
+  type CssPixels,
+  type Radians,
+} from "@carma-units";
 
 import {
   resolveOverlayLineLabelPlacement,
   type LineLabelPlacementOptions,
 } from "./lineLabelPlacement";
 import type { LineVisualizerData } from "./lineVisualizers.types";
+import { labelOverlayLayerDefaults } from "./overlayAffordanceDefaults";
 import { getOverlayReferenceSignature } from "./overlayReferenceSignature";
 import { useLabelOverlay } from "./useLabelOverlay";
 import { createSvgLineScratch, resolveSvgLine } from "./utils/resolveSvgLine";
 
-const DEFAULT_MIN_LABEL_LINE_LENGTH_PX = 50;
-const LABEL_MIN_PADDING_PX = 6;
-const LINE_LABEL_OVERLAY_Z_INDEX = 6;
-const LABEL_SIDE_HYSTERESIS_PX = 1.5;
-const LABEL_POSITION_STABILITY_EPSILON_PX = 0.85;
-const LABEL_ANGLE_STABILITY_EPSILON_DEG = 0.75;
-const LABEL_VISIBILITY_HYSTERESIS_PX = 2;
-const DEFAULT_LINE_LABEL_COLOR = "#000000";
-const DEFAULT_LINE_LABEL_STROKE = "rgba(255, 255, 255, 0.95)";
-const DEFAULT_LINE_LABEL_FONT_SIZE_PX = 12;
-const DEFAULT_LINE_LABEL_FONT_FAMILY = "Arial, sans-serif";
-const DEFAULT_LINE_LABEL_FONT_WEIGHT = "400";
-const DEFAULT_LINE_LABEL_PILL_BACKGROUND_COLOR = "rgba(200, 200, 200, 0.36)";
-const DEFAULT_LINE_LABEL_PILL_BORDER_COLOR = "rgba(255, 255, 255, 0.28)";
+const lineLabelVisualizerDefaults = Object.freeze({
+  overlayZIndex: labelOverlayLayerDefaults.zIndex.lineLabel,
+  placement: Object.freeze({
+    sideHysteresisPx: 1.5,
+    positionStabilityEpsilonPx: 0.85,
+    angleStabilityEpsilonRad: degToRadNumeric(0.75)! as Radians,
+  }),
+  visibility: Object.freeze({
+    minPaddingPx: 6,
+    minLineLengthPx: 50,
+    hysteresisPx: 2,
+  }),
+  theme: Object.freeze({
+    color: "#000000",
+    stroke: "rgba(255, 255, 255, 0.95)",
+    fontSizePx: 12,
+    fontFamily: "Arial, sans-serif",
+    fontWeight: "400",
+    pillBackgroundColor: "rgba(200, 200, 200, 0.36)",
+    pillBorderColor: "rgba(255, 255, 255, 0.28)",
+  }),
+});
 
 const getLineLabelOverlayId = (lineId: string): string =>
   `line-label-visualizer-${lineId}`;
@@ -31,16 +46,21 @@ const buildLineLabelTextShadow = (strokeColor: string): string =>
   [`0 1px 2px rgba(0, 0, 0, 0.68)`, `0 0 10px ${strokeColor}`].join(", ");
 
 const createLineLabelOverlayContent = (line: LineVisualizerData) => {
-  const color = line.labelColor ?? DEFAULT_LINE_LABEL_COLOR;
-  const stroke = line.labelStroke ?? DEFAULT_LINE_LABEL_STROKE;
-  const fontSizePx = line.labelFontSize ?? DEFAULT_LINE_LABEL_FONT_SIZE_PX;
-  const fontFamily = line.labelFontFamily ?? DEFAULT_LINE_LABEL_FONT_FAMILY;
-  const fontWeight = line.labelFontWeight ?? DEFAULT_LINE_LABEL_FONT_WEIGHT;
+  const color = line.labelColor ?? lineLabelVisualizerDefaults.theme.color;
+  const stroke = line.labelStroke ?? lineLabelVisualizerDefaults.theme.stroke;
+  const fontSizePx =
+    line.labelFontSize ?? lineLabelVisualizerDefaults.theme.fontSizePx;
+  const fontFamily =
+    line.labelFontFamily ?? lineLabelVisualizerDefaults.theme.fontFamily;
+  const fontWeight =
+    line.labelFontWeight ?? lineLabelVisualizerDefaults.theme.fontWeight;
   const showPill = Boolean(line.labelPill && line.labelText);
   const pillBackgroundColor =
-    line.labelPillBackgroundColor ?? DEFAULT_LINE_LABEL_PILL_BACKGROUND_COLOR;
+    line.labelPillBackgroundColor ??
+    lineLabelVisualizerDefaults.theme.pillBackgroundColor;
   const pillBorderColor =
-    line.labelPillBorderColor ?? DEFAULT_LINE_LABEL_PILL_BORDER_COLOR;
+    line.labelPillBorderColor ??
+    lineLabelVisualizerDefaults.theme.pillBorderColor;
   const pillBorderWidth = line.labelPillBorderWidth ?? 0;
 
   return React.createElement(
@@ -104,6 +124,7 @@ const buildLineLabelSignature = (line: LineVisualizerData): string => {
     `${line.labelMinLineLengthPx}`,
     `${line.labelOffsetPx}`,
     `${line.labelFlippedBaselineOffsetPx ?? ""}`,
+    `${line.anchorRatio ?? ""}`,
     `${line.labelRotationMode ?? "auto"}`,
     getOverlayReferenceSignature(line.onLabelClick),
     getOverlayReferenceSignature(line.onLineClick),
@@ -119,6 +140,7 @@ const resolveLineLabelPlacementOptions = (
   labelOffsetPx: line.labelOffsetPx,
   labelFlippedBaselineOffsetPx: line.labelFlippedBaselineOffsetPx,
   labelRotationMode: line.labelRotationMode,
+  anchorRatio: line.anchorRatio,
   getLabelOutsideReferencePoint: line.getLabelOutsideReferencePoint,
   getLabelInsideReferencePoint: line.getLabelInsideReferencePoint,
 });
@@ -144,7 +166,8 @@ const buildLineLabelOverlayUpdatePosition = (line: LineVisualizerData) => {
       svgLine,
       options: resolveLineLabelPlacementOptions(line),
       previousShouldFlip: elementDiv.dataset.normalFlip === "1",
-      sideSwitchThresholdPx: LABEL_SIDE_HYSTERESIS_PX,
+      sideSwitchThresholdPx:
+        lineLabelVisualizerDefaults.placement.sideHysteresisPx,
     });
     if (!placement) {
       return false;
@@ -164,42 +187,57 @@ const buildLineLabelOverlayUpdatePosition = (line: LineVisualizerData) => {
       Math.hypot(
         placement.textX - previousTextX,
         placement.textY - previousTextY
-      ) <= LABEL_POSITION_STABILITY_EPSILON_PX
-        ? { x: previousTextX, y: previousTextY }
+      ) <= lineLabelVisualizerDefaults.placement.positionStabilityEpsilonPx
+        ? { x: previousTextX as CssPixels, y: previousTextY as CssPixels }
         : { x: placement.textX, y: placement.textY };
 
-    const previousAngleDeg = Number.parseFloat(
-      elementDiv.dataset.stableAngleDeg ?? ""
+    const previousAngleRad = Number.parseFloat(
+      elementDiv.dataset.stableAngleRad ?? ""
     );
-    const hasPreviousAngle = Number.isFinite(previousAngleDeg);
+    const hasPreviousAngle = Number.isFinite(previousAngleRad);
     const normalizedAngleDelta = hasPreviousAngle
-      ? Math.abs(((placement.angleDeg - previousAngleDeg + 540) % 360) - 180)
+      ? Math.abs(
+          negativePiToPi(
+            (placement.angleRad - previousAngleRad) as Radians
+          )
+        )
       : Number.POSITIVE_INFINITY;
-    const stableAngleDeg =
+    const stableAngleRad =
       hasPreviousAngle &&
-      normalizedAngleDelta <= LABEL_ANGLE_STABILITY_EPSILON_DEG
-        ? previousAngleDeg
-        : placement.angleDeg;
+      normalizedAngleDelta <=
+        lineLabelVisualizerDefaults.placement.angleStabilityEpsilonRad
+        ? (previousAngleRad as Radians)
+        : placement.angleRad;
 
     elementDiv.dataset.stableTextX = `${stableTextPosition.x}`;
     elementDiv.dataset.stableTextY = `${stableTextPosition.y}`;
-    elementDiv.dataset.stableAngleDeg = `${stableAngleDeg}`;
+    elementDiv.dataset.stableAngleRad = `${stableAngleRad}`;
 
-    labelRootEl.style.transform = `translate(${stableTextPosition.x}px, ${stableTextPosition.y}px) translate(-50%, -50%) rotate(${stableAngleDeg}deg)`;
+    labelRootEl.style.transform = [
+      `translate(${stableTextPosition.x}px, ${stableTextPosition.y}px)`,
+      "translate(-50%, -50%)",
+      `rotate(${stableAngleRad}rad)`,
+    ].join(" ");
 
     const textWidthPx = labelTextEl.getBoundingClientRect().width;
     const minLabelLineLengthPx =
-      line.labelMinLineLengthPx ?? DEFAULT_MIN_LABEL_LINE_LENGTH_PX;
+      line.labelMinLineLengthPx ??
+      lineLabelVisualizerDefaults.visibility.minLineLengthPx;
     const previousVisible = elementDiv.dataset.labelVisible === "1";
     const lengthThreshold = previousVisible
-      ? minLabelLineLengthPx - LABEL_VISIBILITY_HYSTERESIS_PX
-      : minLabelLineLengthPx + LABEL_VISIBILITY_HYSTERESIS_PX;
+      ? minLabelLineLengthPx -
+        lineLabelVisualizerDefaults.visibility.hysteresisPx
+      : minLabelLineLengthPx +
+        lineLabelVisualizerDefaults.visibility.hysteresisPx;
     const fitThreshold = previousVisible
-      ? placement.lineLengthPx + LABEL_VISIBILITY_HYSTERESIS_PX
-      : placement.lineLengthPx - LABEL_VISIBILITY_HYSTERESIS_PX;
+      ? placement.lineLengthPx +
+        lineLabelVisualizerDefaults.visibility.hysteresisPx
+      : placement.lineLengthPx -
+        lineLabelVisualizerDefaults.visibility.hysteresisPx;
     const shouldShowLabel =
       placement.lineLengthPx >= lengthThreshold &&
-      textWidthPx + LABEL_MIN_PADDING_PX <= fitThreshold;
+      textWidthPx + lineLabelVisualizerDefaults.visibility.minPaddingPx <=
+        fitThreshold;
 
     elementDiv.dataset.labelVisible = shouldShowLabel ? "1" : "0";
     labelTextEl.style.visibility = shouldShowLabel ? "visible" : "hidden";
@@ -266,7 +304,7 @@ export const useLineLabelVisualizers = (
 
       addLabelOverlayElement({
         id: labelOverlayId,
-        zIndex: LINE_LABEL_OVERLAY_Z_INDEX,
+        zIndex: lineLabelVisualizerDefaults.overlayZIndex,
         contentKey: nextLabelSignature,
         content: createLineLabelOverlayContent(line),
         visible: line.visible !== false,

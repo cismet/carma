@@ -17,50 +17,61 @@ import {
   subscribeCesiumScenePointerClientPosition,
   type CesiumScenePointerClientPosition,
 } from "@carma-mapping/engines/cesium/react/interactions";
-import { previewControllerDefaults } from "../config/preview-controller-defaults";
-import type { RuntimeScene } from "../types/runtime-scene.types";
+import type { Scene } from "@carma-cesium";
+import {
+  createPreviewOverlayLayer,
+  destroyPreviewOverlayLayer,
+  previewControllerDefaults,
+  PREVIEW_OVERLAY_GROUP,
+} from "./authoring-visual-runtime";
 
-const annotationCursorOverlayDefaults = (() => {
+const cursorOverlayDefaults = (() => {
   const crosshairCanvasHalfExtentPx =
     ANNOTATION_CURSOR_DEFAULT_SHAPE_HALF_EXTENT_PX +
     ANNOTATION_CURSOR_DEFAULT_AURA_PADDING_PX;
   const crosshairCanvasSizePx = crosshairCanvasHalfExtentPx * 2;
 
   return Object.freeze({
-    rootSelector: '[data-annotation-cursor-root="true"]',
     crosshair: Object.freeze({
       canvasHalfExtentPx: crosshairCanvasHalfExtentPx,
       canvasSizePx: crosshairCanvasSizePx,
       viewBox: `${-crosshairCanvasHalfExtentPx} ${-crosshairCanvasHalfExtentPx} ${crosshairCanvasSizePx} ${crosshairCanvasSizePx}`,
     }),
     selectionAdditiveIndicator: Object.freeze({
-      fontSizeRem: "1.2857rem", // 18 / 14
-      offsetPx: {
+      fontSizeRem: "1.2857rem",
+      offsetPx: Object.freeze({
         x: 15,
         y: -10,
-      } as const,
+      }),
     }),
-    variants: {
-      CROSSHAIR: "crosshair",
-      SELECTION_ADDITIVE_INDICATOR: "selection-additive-indicator",
-    } as const,
-    layerIdByVariant: {
-      crosshair: "annotation-candidate-crosshair-layer",
-      "selection-additive-indicator":
-        "annotation-selection-additive-indicator-layer",
-    } as const,
-    elementIdByVariant: {
-      crosshair: "annotation-preview-crosshair",
-      "selection-additive-indicator": "annotation-selection-additive-indicator",
-    } as const,
   });
 })();
 
-const ANNOTATION_CURSOR_OVERLAY_VARIANTS =
-  annotationCursorOverlayDefaults.variants;
+const ANNOTATION_CURSOR_OVERLAY_VARIANTS = {
+  CROSSHAIR: "crosshair",
+  SELECTION_ADDITIVE_INDICATOR: "selection-additive-indicator",
+} as const;
 
 type AnnotationCursorOverlayVariant =
   (typeof ANNOTATION_CURSOR_OVERLAY_VARIANTS)[keyof typeof ANNOTATION_CURSOR_OVERLAY_VARIANTS];
+
+const CURSOR_LAYER_ID_BY_VARIANT: Readonly<
+  Record<AnnotationCursorOverlayVariant, string>
+> = {
+  [ANNOTATION_CURSOR_OVERLAY_VARIANTS.CROSSHAIR]:
+    "annotation-candidate-crosshair-layer",
+  [ANNOTATION_CURSOR_OVERLAY_VARIANTS.SELECTION_ADDITIVE_INDICATOR]:
+    "annotation-selection-additive-indicator-layer",
+};
+
+const CURSOR_ELEMENT_ID_BY_VARIANT: Readonly<
+  Record<AnnotationCursorOverlayVariant, string>
+> = {
+  [ANNOTATION_CURSOR_OVERLAY_VARIANTS.CROSSHAIR]:
+    "annotation-preview-crosshair",
+  [ANNOTATION_CURSOR_OVERLAY_VARIANTS.SELECTION_ADDITIVE_INDICATOR]:
+    "annotation-selection-additive-indicator",
+};
 
 type AnnotationCursorOverlayOptions = {
   enabled?: boolean;
@@ -83,7 +94,7 @@ const applyStyles = (
 
 const createCrosshairCursorElement = () => {
   const element = createAnnotationCursorLayeredDomElement({
-    canvasSizePx: annotationCursorOverlayDefaults.crosshair.canvasSizePx,
+    canvasSizePx: cursorOverlayDefaults.crosshair.canvasSizePx,
     foregroundBlendMode: "normal",
     foregroundFill: ANNOTATION_CURSOR_OVERLAY_STROKE_COLOR,
     pathDefinitions: ANNOTATION_CURSOR_DEFAULT_PATH_DEFINITIONS,
@@ -93,7 +104,7 @@ const createCrosshairCursorElement = () => {
     shadowStrokeLinejoin: "round",
     shadowStrokeWidth: Math.max(ANNOTATION_CURSOR_OVERLAY_OUTLINE_PX, 0) * 2,
     showAura: true,
-    viewBox: annotationCursorOverlayDefaults.crosshair.viewBox,
+    viewBox: cursorOverlayDefaults.crosshair.viewBox,
   });
   applyStyles(element, {
     display: "none",
@@ -108,8 +119,7 @@ const createSelectionAdditiveIndicatorElement = () => {
     display: "none",
     color: "rgba(255, 255, 255, 0.98)",
     fontFamily: '"Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif',
-    fontSize:
-      annotationCursorOverlayDefaults.selectionAdditiveIndicator.fontSizeRem,
+    fontSize: cursorOverlayDefaults.selectionAdditiveIndicator.fontSizeRem,
     fontWeight: "700",
     lineHeight: "1",
     pointerEvents: "none",
@@ -125,24 +135,8 @@ const createCursorElement = (variant: AnnotationCursorOverlayVariant) => {
     variant === ANNOTATION_CURSOR_OVERLAY_VARIANTS.SELECTION_ADDITIVE_INDICATOR
       ? createSelectionAdditiveIndicatorElement()
       : createCrosshairCursorElement();
-  element.id = annotationCursorOverlayDefaults.elementIdByVariant[variant];
+  element.id = CURSOR_ELEMENT_ID_BY_VARIANT[variant];
   return element;
-};
-
-const resolveCursorContainer = (scene: RuntimeScene) => {
-  const explicitRoot = scene.canvas.closest(
-    annotationCursorOverlayDefaults.rootSelector
-  );
-  if (explicitRoot instanceof HTMLElement) {
-    return explicitRoot;
-  }
-
-  const widgetContainer = scene.canvas.parentElement?.parentElement;
-  if (widgetContainer instanceof HTMLElement) {
-    return widgetContainer;
-  }
-
-  return scene.canvas.parentElement;
 };
 
 const readBounds = (element: HTMLElement): BoundsSnapshot => {
@@ -168,7 +162,7 @@ const isInsideBounds = (
   );
 
 export const useCursorOverlay = (
-  scene: RuntimeScene | null,
+  scene: Scene | null,
   cursorScreenPosition: { x: number; y: number } | null = null,
   {
     enabled = true,
@@ -203,26 +197,24 @@ export const useCursorOverlay = (
       return;
     }
 
-    const container = resolveCursorContainer(scene);
-    if (!container) {
+    const cursorLayer = createPreviewOverlayLayer(
+      scene,
+      CURSOR_LAYER_ID_BY_VARIANT[variant],
+      PREVIEW_OVERLAY_GROUP.VISUALIZER
+    );
+    const container = cursorLayer?.parentElement;
+    if (!cursorLayer || !(container instanceof HTMLElement)) {
       return;
     }
 
     const unregisterScenePointerTracker =
       registerCesiumScenePointerTracker(scene);
-    const cursorLayer = document.createElement("div");
-    cursorLayer.id = annotationCursorOverlayDefaults.layerIdByVariant[variant];
     applyStyles(cursorLayer, {
-      position: "absolute",
-      inset: "0",
-      pointerEvents: "none",
-      overflow: "hidden",
       zIndex: previewControllerDefaults.layerZIndex,
     });
 
     const cursorElement = createCursorElement(variant);
     cursorLayer.appendChild(cursorElement);
-    container.appendChild(cursorLayer);
 
     let containerBounds: BoundsSnapshot | null = readBounds(container);
     let canvasBounds: BoundsSnapshot | null = readBounds(scene.canvas);
@@ -255,13 +247,11 @@ export const useCursorOverlay = (
           cursorElement.style.transform = `translate(${
             clientPosition.x -
             containerBounds.left +
-            annotationCursorOverlayDefaults.selectionAdditiveIndicator.offsetPx
-              .x
+            cursorOverlayDefaults.selectionAdditiveIndicator.offsetPx.x
           }px, ${
             clientPosition.y -
             containerBounds.top +
-            annotationCursorOverlayDefaults.selectionAdditiveIndicator.offsetPx
-              .y
+            cursorOverlayDefaults.selectionAdditiveIndicator.offsetPx.y
           }px)`;
           return;
         }
@@ -340,7 +330,7 @@ export const useCursorOverlay = (
       window.removeEventListener("scroll", refreshBounds, true);
       unsubscribeClientPosition();
       unregisterScenePointerTracker();
-      cursorLayer.remove();
+      destroyPreviewOverlayLayer(cursorLayer);
     };
   }, [scene, variant]);
 };

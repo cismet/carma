@@ -1,4 +1,4 @@
-import type { RuntimeToolId } from "../types/runtime-tool.types";
+import type { AnnotationToolType } from "@carma-mapping/annotations/core";
 import { ANNOTATION_TOOL_PLUGIN_CAPABILITIES } from "./annotation-tool-plugin.types";
 import type {
   AnnotationToolPlugin,
@@ -34,8 +34,8 @@ const comparePlugins = (
 
 const toByIdMap = (
   plugins: readonly AnnotationToolPlugin[]
-): Map<RuntimeToolId, AnnotationToolPlugin> => {
-  const byId = new Map<RuntimeToolId, AnnotationToolPlugin>();
+): Map<AnnotationToolType, AnnotationToolPlugin> => {
+  const byId = new Map<AnnotationToolType, AnnotationToolPlugin>();
 
   plugins.forEach((plugin) => {
     const existing = byId.get(plugin.id);
@@ -192,8 +192,8 @@ export const buildAnnotationToolRegistry = (
     plugins: orderedPlugins,
     orderedDescriptors: orderedPlugins.map((plugin) => plugin.descriptor),
     byId,
-    getPlugin: (toolType: RuntimeToolId) => byId.get(toolType),
-    assertPlugin: (toolType: RuntimeToolId) => {
+    getPlugin: (toolType: AnnotationToolType) => byId.get(toolType),
+    assertPlugin: (toolType: AnnotationToolType) => {
       const plugin = byId.get(toolType);
       if (!plugin) {
         throw new Error(

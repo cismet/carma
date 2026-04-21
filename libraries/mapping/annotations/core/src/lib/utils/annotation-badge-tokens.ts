@@ -1,15 +1,20 @@
 import {
-  ANNOTATION_TYPE_AREA_GROUND,
-  ANNOTATION_TYPE_AREA_PLANAR,
-  ANNOTATION_TYPE_AREA_VERTICAL,
-  ANNOTATION_TYPE_DISTANCE,
-  ANNOTATION_TYPE_LABEL,
-  ANNOTATION_TYPE_POINT,
-  ANNOTATION_TYPE_POLYLINE,
-  type AnnotationShortLabelKind,
+  ANNOTATION_TYPES,
+  type AnnotationType,
 } from "../types/annotation-types";
+import {
+  getAnnotationShortLabelBackgroundCssColor,
+  getAnnotationTextCssColor,
+} from "./annotation-visual-tokens";
 import { toAlphabeticSequence } from "./alphabetic-sequence";
-export type AnnotationShortLabelCounterStyle = "numeric" | "alphabetic";
+
+export const ANNOTATION_SHORT_LABEL_COUNTER_STYLES = {
+  NUMERIC: "numeric",
+  ALPHABETIC: "alphabetic",
+} as const;
+
+export type AnnotationShortLabelCounterStyle =
+  (typeof ANNOTATION_SHORT_LABEL_COUNTER_STYLES)[keyof typeof ANNOTATION_SHORT_LABEL_COUNTER_STYLES];
 
 export type AnnotationShortLabelStyleConfig = {
   prefix: string;
@@ -19,58 +24,72 @@ export type AnnotationShortLabelStyleConfig = {
 };
 
 export type AnnotationShortLabelConfigMap = Record<
-  AnnotationShortLabelKind,
+  AnnotationType,
   AnnotationShortLabelStyleConfig
 >;
 
 export const DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG: AnnotationShortLabelConfigMap =
   {
-    [ANNOTATION_TYPE_POINT]: {
+    [ANNOTATION_TYPES.POINT]: {
       prefix: "",
-      counterStyle: "numeric",
-      backgroundColor: "rgba(200, 200, 200, 0.92)",
-      textColor: "rgba(17, 24, 39, 0.9)",
+      counterStyle: ANNOTATION_SHORT_LABEL_COUNTER_STYLES.NUMERIC,
+      backgroundColor: getAnnotationShortLabelBackgroundCssColor(
+        ANNOTATION_TYPES.POINT
+      ),
+      textColor: getAnnotationTextCssColor("dark"),
     },
-    [ANNOTATION_TYPE_DISTANCE]: {
+    [ANNOTATION_TYPES.DISTANCE]: {
       prefix: "",
-      counterStyle: "alphabetic",
-      backgroundColor: "rgba(102, 126, 234, 0.95)",
-      textColor: "#ffffff",
+      counterStyle: ANNOTATION_SHORT_LABEL_COUNTER_STYLES.ALPHABETIC,
+      backgroundColor: getAnnotationShortLabelBackgroundCssColor(
+        ANNOTATION_TYPES.DISTANCE
+      ),
+      textColor: getAnnotationTextCssColor("light"),
     },
-    [ANNOTATION_TYPE_POLYLINE]: {
+    [ANNOTATION_TYPES.POLYLINE]: {
       prefix: "L",
-      counterStyle: "numeric",
-      backgroundColor: "rgba(226, 178, 60, 0.95)",
-      textColor: "rgba(17, 24, 39, 0.9)",
+      counterStyle: ANNOTATION_SHORT_LABEL_COUNTER_STYLES.NUMERIC,
+      backgroundColor: getAnnotationShortLabelBackgroundCssColor(
+        ANNOTATION_TYPES.POLYLINE
+      ),
+      textColor: getAnnotationTextCssColor("dark"),
     },
-    [ANNOTATION_TYPE_AREA_GROUND]: {
+    [ANNOTATION_TYPES.AREA_GROUND]: {
       prefix: "A",
-      counterStyle: "numeric",
-      backgroundColor: "rgba(111, 188, 123, 0.95)",
-      textColor: "#ffffff",
+      counterStyle: ANNOTATION_SHORT_LABEL_COUNTER_STYLES.NUMERIC,
+      backgroundColor: getAnnotationShortLabelBackgroundCssColor(
+        ANNOTATION_TYPES.AREA_GROUND
+      ),
+      textColor: getAnnotationTextCssColor("light"),
     },
-    [ANNOTATION_TYPE_AREA_PLANAR]: {
+    [ANNOTATION_TYPES.AREA_PLANAR]: {
       prefix: "D",
-      counterStyle: "numeric",
-      backgroundColor: "rgba(111, 188, 123, 0.95)",
-      textColor: "#ffffff",
+      counterStyle: ANNOTATION_SHORT_LABEL_COUNTER_STYLES.NUMERIC,
+      backgroundColor: getAnnotationShortLabelBackgroundCssColor(
+        ANNOTATION_TYPES.AREA_PLANAR
+      ),
+      textColor: getAnnotationTextCssColor("light"),
     },
-    [ANNOTATION_TYPE_AREA_VERTICAL]: {
+    [ANNOTATION_TYPES.AREA_VERTICAL]: {
       prefix: "F",
-      counterStyle: "numeric",
-      backgroundColor: "rgba(88, 152, 255, 0.95)",
-      textColor: "#ffffff",
+      counterStyle: ANNOTATION_SHORT_LABEL_COUNTER_STYLES.NUMERIC,
+      backgroundColor: getAnnotationShortLabelBackgroundCssColor(
+        ANNOTATION_TYPES.AREA_VERTICAL
+      ),
+      textColor: getAnnotationTextCssColor("light"),
     },
-    [ANNOTATION_TYPE_LABEL]: {
+    [ANNOTATION_TYPES.LABEL]: {
       prefix: "T",
-      counterStyle: "numeric",
-      backgroundColor: "rgba(88, 152, 255, 0.95)",
-      textColor: "#ffffff",
+      counterStyle: ANNOTATION_SHORT_LABEL_COUNTER_STYLES.NUMERIC,
+      backgroundColor: getAnnotationShortLabelBackgroundCssColor(
+        ANNOTATION_TYPES.LABEL
+      ),
+      textColor: getAnnotationTextCssColor("light"),
     },
   };
 
 export const formatMeasurementShortLabelToken = (
-  kind: AnnotationShortLabelKind,
+  kind: AnnotationType,
   counter: number,
   configMap: AnnotationShortLabelConfigMap = DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG
 ): string => {
@@ -78,7 +97,7 @@ export const formatMeasurementShortLabelToken = (
   const safeCounter =
     Number.isFinite(counter) && counter > 0 ? Math.floor(counter) : 1;
   const counterToken =
-    config.counterStyle === "alphabetic"
+    config.counterStyle === ANNOTATION_SHORT_LABEL_COUNTER_STYLES.ALPHABETIC
       ? toAlphabeticSequence(safeCounter - 1)
       : `${safeCounter}`;
   return `${config.prefix}${counterToken}`;

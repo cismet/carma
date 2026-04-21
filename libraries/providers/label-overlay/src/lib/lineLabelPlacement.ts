@@ -1,13 +1,30 @@
 import {
+  addPoint2d,
+  dotPoint2d,
+  getSegmentFrame2d,
+  scalePoint2d,
+  subtractPoint2d,
+} from "@carma-commons/math";
+import {
   SVG_LINE_LABEL_ROTATION_MODE,
   type SvgLine,
   type SvgLineLabelRotationMode,
 } from "@carma-commons/svg";
-import type { CssPixelPosition } from "@carma-units";
+import {
+  clampUnitRangeRatio,
+  PI,
+  PI_OVER_TWO,
+  type CssPixels,
+  type CssPixelPosition,
+  type Ratio,
+  type Radians,
+  zeroToTwoPi,
+} from "@carma-units";
 
-const MIN_LINE_LENGTH_PX = 0.0001;
-
-export const DEFAULT_LINE_LABEL_OFFSET_PX = 10;
+const overlayLineLabelPlacementDefaults = Object.freeze({
+  minLineLengthPx: 0.0001,
+  offsetPx: 10,
+});
 
 export type LineLabelPlacementOptions = {
   labelOffsetPx?: number;
@@ -15,26 +32,30 @@ export type LineLabelPlacementOptions = {
   labelRotationMode?: SvgLineLabelRotationMode;
   getLabelOutsideReferencePoint?: () => CssPixelPosition | null;
   getLabelInsideReferencePoint?: () => CssPixelPosition | null;
+  anchorRatio?: number;
 };
 
 export type ResolvedLineLabelPlacement = {
-  lineLengthPx: number;
+  lineLengthPx: CssPixels;
   shouldFlip: boolean;
-  angleDeg: number;
-  midX: number;
-  midY: number;
+  angleRad: Radians;
+  anchorRatio: Ratio;
+  anchorX: CssPixels;
+  anchorY: CssPixels;
+  midX: CssPixels;
+  midY: CssPixels;
   normalX: number;
   normalY: number;
-  textX: number;
-  textY: number;
+  textX: CssPixels;
+  textY: CssPixels;
 };
 
-const normalizeAngleDeg = (angleDeg: number): number => {
-  const normalizedAngleDeg = angleDeg % 360;
-  return normalizedAngleDeg < 0 ? normalizedAngleDeg + 360 : normalizedAngleDeg;
-};
+const toCssPixels = (value: number): CssPixels => value as CssPixels;
 
-const resolveReadableLineLabelAngleDeg = ({
+const clampLineLabelAnchorRatio = (value: number): Ratio =>
+  clampUnitRangeRatio(value);
+
+const resolveReadableLineLabelAngleRad = ({
   dx,
   dy,
   lineLengthPx,
@@ -43,20 +64,25 @@ const resolveReadableLineLabelAngleDeg = ({
 }: {
   dx: number;
   dy: number;
-  lineLengthPx: number;
+  lineLengthPx: CssPixels;
   normalX: number;
   normalY: number;
-}) => {
-  const rawAngleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
+}): Radians => {
+  const rawAngleRad = Math.atan2(dy, dx) as Radians;
   const lineUnitX = dx / lineLengthPx;
   const lineUnitY = dy / lineLengthPx;
   const crossProduct = lineUnitX * normalY - lineUnitY * normalX;
-  const sideAdjustedAngle = crossProduct >= 0 ? rawAngleDeg : rawAngleDeg + 180;
-  const normalizedAngleDeg = normalizeAngleDeg(sideAdjustedAngle);
+  const sideAdjustedAngleRad =
+    crossProduct >= 0 ? rawAngleRad : ((rawAngleRad + PI) as Radians);
+  const uprightAngleRad =
+    sideAdjustedAngleRad > PI_OVER_TWO &&
+    sideAdjustedAngleRad < ((PI + PI_OVER_TWO) as Radians)
+      ? ((sideAdjustedAngleRad - PI) as Radians)
+      : sideAdjustedAngleRad < -PI_OVER_TWO
+      ? ((sideAdjustedAngleRad + PI) as Radians)
+      : sideAdjustedAngleRad;
 
-  return normalizedAngleDeg > 90 && normalizedAngleDeg < 270
-    ? normalizeAngleDeg(normalizedAngleDeg + 180)
-    : normalizedAngleDeg;
+  return zeroToTwoPi(uprightAngleRad);
 };
 
 export const resolveOverlayLineLabelPlacement = ({
@@ -70,17 +96,25 @@ export const resolveOverlayLineLabelPlacement = ({
   previousShouldFlip?: boolean;
   sideSwitchThresholdPx?: number;
 }): ResolvedLineLabelPlacement | null => {
-  const dx = svgLine.end.x - svgLine.start.x;
-  const dy = svgLine.end.y - svgLine.start.y;
-  const lineLengthPx = Math.hypot(dx, dy);
-  if (lineLengthPx <= MIN_LINE_LENGTH_PX) {
+  const segmentFrame = getSegmentFrame2d({
+    start: svgLine.start,
+    end: svgLine.end,
+    epsilon: overlayLineLabelPlacementDefaults.minLineLengthPx,
+  });
+  if (!segmentFrame) {
     return null;
   }
 
-  const midX = (svgLine.start.x + svgLine.end.x) * 0.5;
-  const midY = (svgLine.start.y + svgLine.end.y) * 0.5;
-  let normalX = -dy / lineLengthPx;
-  let normalY = dx / lineLengthPx;
+  const anchorRatio = clampLineLabelAnchorRatio(options?.anchorRatio ?? 0.5);
+  const anchorPoint = addPoint2d(
+    svgLine.start,
+    scalePoint2d(segmentFrame.delta, anchorRatio)
+  );
+  const anchorX = toCssPixels(anchorPoint.x);
+  const anchorY = toCssPixels(anchorPoint.y);
+  const midX = anchorX;
+  const midY = anchorY;
+  let labelNormal = segmentFrame.leftUnitNormal;
   let shouldFlip = previousShouldFlip;
   const sideReferencePoint =
     options?.getLabelOutsideReferencePoint?.() ??
@@ -88,9 +122,11 @@ export const resolveOverlayLineLabelPlacement = ({
     null;
 
   if (sideReferencePoint) {
-    const refDx = sideReferencePoint.x - midX;
-    const refDy = sideReferencePoint.y - midY;
-    const dotWithNormal = refDx * normalX + refDy * normalY;
+    const sideReferenceOffset = subtractPoint2d(
+      sideReferencePoint,
+      anchorPoint
+    );
+    const dotWithNormal = dotPoint2d(sideReferenceOffset, labelNormal);
 
     if (dotWithNormal > sideSwitchThresholdPx) {
       shouldFlip = false;
@@ -100,37 +136,46 @@ export const resolveOverlayLineLabelPlacement = ({
   }
 
   if (shouldFlip) {
-    normalX = -normalX;
-    normalY = -normalY;
+    labelNormal = scalePoint2d(labelNormal, -1);
   }
 
-  const angleDeg =
+  const angleRad =
     options?.labelRotationMode === SVG_LINE_LABEL_ROTATION_MODE.CLOCKWISE
-      ? normalizeAngleDeg((Math.atan2(dy, dx) * 180) / Math.PI)
-      : resolveReadableLineLabelAngleDeg({
-          dx,
-          dy,
-          lineLengthPx,
-          normalX,
-          normalY,
+      ? zeroToTwoPi(
+          Math.atan2(segmentFrame.delta.y, segmentFrame.delta.x) as Radians
+        )
+      : resolveReadableLineLabelAngleRad({
+          dx: segmentFrame.delta.x,
+          dy: segmentFrame.delta.y,
+          lineLengthPx: segmentFrame.length as CssPixels,
+          normalX: labelNormal.x,
+          normalY: labelNormal.y,
         });
-  const labelOffsetPx = options?.labelOffsetPx ?? DEFAULT_LINE_LABEL_OFFSET_PX;
+  const labelOffsetPx =
+    options?.labelOffsetPx ?? overlayLineLabelPlacementDefaults.offsetPx;
   const flippedBaselineOffsetPx = shouldFlip
     ? options?.labelFlippedBaselineOffsetPx ?? 0
     : 0;
-  const angleRad = (angleDeg * Math.PI) / 180;
-  const baselineOffsetX = -Math.sin(angleRad) * flippedBaselineOffsetPx;
-  const baselineOffsetY = Math.cos(angleRad) * flippedBaselineOffsetPx;
+  const labelOffset = scalePoint2d(labelNormal, labelOffsetPx);
+  const baselineOffset = {
+    x: -Math.sin(angleRad) * flippedBaselineOffsetPx,
+    y: Math.cos(angleRad) * flippedBaselineOffsetPx,
+  };
+  const textOffset = addPoint2d(labelOffset, baselineOffset);
+  const textPoint = addPoint2d(anchorPoint, textOffset);
 
   return {
-    lineLengthPx,
+    lineLengthPx: segmentFrame.length as CssPixels,
     shouldFlip,
-    angleDeg,
+    angleRad,
+    anchorRatio,
+    anchorX,
+    anchorY,
     midX,
     midY,
-    normalX,
-    normalY,
-    textX: midX + normalX * labelOffsetPx + baselineOffsetX,
-    textY: midY + normalY * labelOffsetPx + baselineOffsetY,
+    normalX: labelNormal.x,
+    normalY: labelNormal.y,
+    textX: toCssPixels(textPoint.x),
+    textY: toCssPixels(textPoint.y),
   };
 };

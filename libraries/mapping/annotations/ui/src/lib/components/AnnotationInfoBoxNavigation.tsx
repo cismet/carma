@@ -4,7 +4,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { resolveAnnotationInfoBoxVisualOptions } from "../config/annotation-info-box-visual-defaults";
 import type { AnnotationInfoBoxVisualOptions } from "../annotation-info-box.types";
 
-type AnnotationInfoBoxNavigationProps = {
+export type AnnotationInfoBoxNavigationProps = {
   totalEntries: number;
   currentIndex: number;
   instructionText?: string | null;

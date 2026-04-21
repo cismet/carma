@@ -2,11 +2,11 @@ import { ANNOTATION_TYPES } from "@carma-mapping/annotations/core";
 import { formatLengthMeters } from "@carma-units";
 import type { AnnotationsRuntimeFormatOptions } from "../../config/annotations-runtime-format-options";
 import {
-  RUNTIME_ELEVATION_DISPLAY_MODE,
-  type RuntimeAnnotationEntry,
-  type RuntimeCoordinate,
-  type RuntimeElevationDisplayMode,
-  type RuntimeNode,
+  ANNOTATION_ELEVATION_DISPLAY_MODES,
+  type StoredAnnotation,
+  type CesiumGeographicCoordinate,
+  type AnnotationElevationDisplayMode,
+  type AnnotationNode,
 } from "../../store/annotations-store.types";
 const { POINT: ANNOTATION_TYPE_POINT } = ANNOTATION_TYPES;
 
@@ -19,15 +19,15 @@ const pointElevationDisplayDefaults = Object.freeze({
 });
 
 export const resolvePointElevationDisplayMode = (
-  annotation: RuntimeAnnotationEntry
-): RuntimeElevationDisplayMode =>
-  annotation.elevationDisplayMode ?? RUNTIME_ELEVATION_DISPLAY_MODE.RELATIVE;
+  annotation: StoredAnnotation
+): AnnotationElevationDisplayMode =>
+  annotation.elevationDisplayMode ?? ANNOTATION_ELEVATION_DISPLAY_MODES.RELATIVE;
 
 export const resolvePointElevationReferenceAnnotationId = ({
   annotationEntries,
   configuredReferenceAnnotationId,
 }: {
-  annotationEntries: readonly RuntimeAnnotationEntry[];
+  annotationEntries: readonly StoredAnnotation[];
   configuredReferenceAnnotationId: string | null;
 }): string | null => {
   const pointMeasurements = annotationEntries.filter(
@@ -52,10 +52,10 @@ export const resolvePointElevationReferenceCoordinate = ({
   nodes,
   configuredReferenceAnnotationId,
 }: {
-  annotationEntries: readonly RuntimeAnnotationEntry[];
-  nodes: readonly RuntimeNode[];
+  annotationEntries: readonly StoredAnnotation[];
+  nodes: readonly AnnotationNode[];
   configuredReferenceAnnotationId: string | null;
-}): RuntimeCoordinate | null => {
+}): CesiumGeographicCoordinate | null => {
   const referenceAnnotationId = resolvePointElevationReferenceAnnotationId({
     annotationEntries,
     configuredReferenceAnnotationId,
@@ -77,8 +77,8 @@ export const resolvePointRelativeElevationMeters = ({
   coordinate,
   referenceCoordinate,
 }: {
-  coordinate: RuntimeCoordinate;
-  referenceCoordinate: RuntimeCoordinate | null;
+  coordinate: CesiumGeographicCoordinate;
+  referenceCoordinate: CesiumGeographicCoordinate | null;
 }): number | null =>
   referenceCoordinate
     ? coordinate.altitude - referenceCoordinate.altitude
@@ -90,13 +90,13 @@ export const formatPointElevationLabelText = ({
   elevationDisplayMode,
   formatOptions,
 }: {
-  coordinate: RuntimeCoordinate;
-  referenceCoordinate: RuntimeCoordinate | null;
-  elevationDisplayMode: RuntimeElevationDisplayMode;
+  coordinate: CesiumGeographicCoordinate;
+  referenceCoordinate: CesiumGeographicCoordinate | null;
+  elevationDisplayMode: AnnotationElevationDisplayMode;
   formatOptions: AnnotationsRuntimeFormatOptions;
 }): string => {
   if (
-    elevationDisplayMode === RUNTIME_ELEVATION_DISPLAY_MODE.ABSOLUTE ||
+    elevationDisplayMode === ANNOTATION_ELEVATION_DISPLAY_MODES.ABSOLUTE ||
     !referenceCoordinate
   ) {
     return `NHN ${formatLengthMeters(
@@ -130,8 +130,8 @@ export const formatPointRelativeHeightInfoText = ({
   referenceCoordinate,
   formatOptions,
 }: {
-  coordinate: RuntimeCoordinate;
-  referenceCoordinate: RuntimeCoordinate | null;
+  coordinate: CesiumGeographicCoordinate;
+  referenceCoordinate: CesiumGeographicCoordinate | null;
   formatOptions: AnnotationsRuntimeFormatOptions;
 }): string =>
   referenceCoordinate

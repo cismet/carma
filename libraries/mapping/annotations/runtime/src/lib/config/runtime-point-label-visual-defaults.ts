@@ -1,11 +1,11 @@
 import type { RuntimePointLabelRenderModel } from "../render/measurement-render-models";
 
-import { annotationTypographyDefaults } from "./annotation-typography-defaults";
+import { typographyDefaults } from "./annotation-typography-defaults";
 import { ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME } from "./annotation-measurement-label-themes";
-import { runtimeMeasurementVisualDefaults } from "./measurement-visual-defaults";
+import { measurementVisualDefaults } from "./measurement-visual-defaults";
 
-export const runtimePointLabelVisualDefaults = Object.freeze({
-  fontSize: annotationTypographyDefaults.rootFontSizeRem,
+export const pointLabelVisualDefaults = Object.freeze({
+  fontSize: typographyDefaults.rootFontSizeRem,
   fontFamily: ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME.fontFamily,
   fontWeight: ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME.contentFontWeight,
   lineColor: ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME.scheme.lineColor,
@@ -28,48 +28,39 @@ export const runtimePointLabelVisualDefaults = Object.freeze({
       .preserveFillOnSelection,
   hoverBackgroundColor:
     ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME.selection.hoverBackgroundColor,
-  markerPixelSize: runtimeMeasurementVisualDefaults.sizes.pointPixelSize,
-  markerOutlineWidth: runtimeMeasurementVisualDefaults.sizes.pointOutlineWidth,
+  markerPixelSize: measurementVisualDefaults.sizes.pointPixelSize,
+  markerOutlineWidth: measurementVisualDefaults.sizes.pointOutlineWidth,
 } satisfies Pick<RuntimePointLabelRenderModel, "fontSize" | "fontFamily" | "fontWeight" | "lineColor" | "textBackgroundColor" | "textColor" | "markerBackgroundColor" | "markerTextColor" | "selectedBackgroundColor" | "selectedTextColor" | "selectedGlowColor" | "selectedGlowRadiusPx" | "preserveFillOnSelection" | "hoverBackgroundColor" | "markerPixelSize" | "markerOutlineWidth">);
 
-export const resolveRuntimePointLabelVisualDefaults = (
+export const resolvePointLabelVisualDefaults = (
   label: RuntimePointLabelRenderModel
 ): RuntimePointLabelRenderModel => ({
   ...label,
-  fontSize: label.fontSize ?? runtimePointLabelVisualDefaults.fontSize,
-  fontFamily: label.fontFamily ?? runtimePointLabelVisualDefaults.fontFamily,
-  fontWeight: label.fontWeight ?? runtimePointLabelVisualDefaults.fontWeight,
-  lineColor: label.lineColor ?? runtimePointLabelVisualDefaults.lineColor,
+  fontSize: label.fontSize ?? pointLabelVisualDefaults.fontSize,
+  fontFamily: label.fontFamily ?? pointLabelVisualDefaults.fontFamily,
+  fontWeight: label.fontWeight ?? pointLabelVisualDefaults.fontWeight,
+  lineColor: label.lineColor ?? pointLabelVisualDefaults.lineColor,
   textBackgroundColor:
-    label.textBackgroundColor ??
-    runtimePointLabelVisualDefaults.textBackgroundColor,
-  textColor: label.textColor ?? runtimePointLabelVisualDefaults.textColor,
+    label.textBackgroundColor ?? pointLabelVisualDefaults.textBackgroundColor,
+  textColor: label.textColor ?? pointLabelVisualDefaults.textColor,
   markerBackgroundColor:
-    label.markerBackgroundColor ??
-    runtimePointLabelVisualDefaults.markerBackgroundColor,
+    label.markerBackgroundColor ?? pointLabelVisualDefaults.markerBackgroundColor,
   markerTextColor:
-    label.markerTextColor ?? runtimePointLabelVisualDefaults.markerTextColor,
+    label.markerTextColor ?? pointLabelVisualDefaults.markerTextColor,
   selectedBackgroundColor:
-    label.selectedBackgroundColor ??
-    runtimePointLabelVisualDefaults.selectedBackgroundColor,
+    label.selectedBackgroundColor ?? pointLabelVisualDefaults.selectedBackgroundColor,
   selectedTextColor:
-    label.selectedTextColor ??
-    runtimePointLabelVisualDefaults.selectedTextColor,
+    label.selectedTextColor ?? pointLabelVisualDefaults.selectedTextColor,
   selectedGlowColor:
-    label.selectedGlowColor ??
-    runtimePointLabelVisualDefaults.selectedGlowColor,
+    label.selectedGlowColor ?? pointLabelVisualDefaults.selectedGlowColor,
   selectedGlowRadiusPx:
-    label.selectedGlowRadiusPx ??
-    runtimePointLabelVisualDefaults.selectedGlowRadiusPx,
+    label.selectedGlowRadiusPx ?? pointLabelVisualDefaults.selectedGlowRadiusPx,
   preserveFillOnSelection:
-    label.preserveFillOnSelection ??
-    runtimePointLabelVisualDefaults.preserveFillOnSelection,
+    label.preserveFillOnSelection ?? pointLabelVisualDefaults.preserveFillOnSelection,
   hoverBackgroundColor:
-    label.hoverBackgroundColor ??
-    runtimePointLabelVisualDefaults.hoverBackgroundColor,
+    label.hoverBackgroundColor ?? pointLabelVisualDefaults.hoverBackgroundColor,
   markerPixelSize:
-    label.markerPixelSize ?? runtimePointLabelVisualDefaults.markerPixelSize,
+    label.markerPixelSize ?? pointLabelVisualDefaults.markerPixelSize,
   markerOutlineWidth:
-    label.markerOutlineWidth ??
-    runtimePointLabelVisualDefaults.markerOutlineWidth,
+    label.markerOutlineWidth ?? pointLabelVisualDefaults.markerOutlineWidth,
 });

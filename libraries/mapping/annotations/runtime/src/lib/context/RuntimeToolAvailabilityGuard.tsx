@@ -1,12 +1,12 @@
 import { useEffect } from "react";
 
+import type { AnnotationToolType } from "@carma-mapping/annotations/core";
 import { useAnnotationsSelector } from "../store";
 import type { AnnotationToolRegistry } from "../tools/annotation-tool-plugin.types";
-import type { RuntimeToolId } from "../types/runtime-tool.types";
 
 type RuntimeToolAvailabilityGuardProps = {
   registry: AnnotationToolRegistry;
-  setActiveToolType: (toolType: RuntimeToolId) => void;
+  setActiveToolType: (toolType: AnnotationToolType) => void;
 };
 
 export const RuntimeToolAvailabilityGuard = ({

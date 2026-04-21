@@ -1,10 +1,10 @@
 import { useCallback, useMemo } from "react";
 
-import type { AnnotationsRuntimePersistenceEnvelope } from "./annotations-runtime-persistence";
+import type { AnnotationsRuntimePersistenceEnvelope } from "./annotations-persistence";
 import {
   loadAnnotationsRuntimePersistenceState,
   saveAnnotationsRuntimePersistenceState,
-} from "./annotations-runtime-persistence";
+} from "./annotations-persistence";
 
 type UseLocalAnnotationsRuntimePersistenceOptions = {
   enabled?: boolean;

@@ -3,8 +3,8 @@ import {
   isValidScene,
 } from "@carma-mapping/engines/cesium/core";
 
-import type { RuntimeCoordinate } from "../store";
-import type { RuntimeScene } from "../types/runtime-scene.types";
+import type { CesiumGeographicCoordinate } from "../store";
+import type { Cartesian3, Scene } from "@carma-cesium";
 import {
   applyLineRuntime,
   clearLineRuntime,
@@ -15,13 +15,12 @@ import {
   destroyPreviewOverlayLayer,
   hidePointMarkers,
   placePointMarkers,
-  type PreviewPointMarker,
 } from "./authoring-visual-runtime";
-import { areRuntimeCoordinateListsEqual } from "../utils/runtime-coordinate-equality";
+import { areCoordinateListsEqual } from "../utils/coordinate-equality";
 
 export type PathAuthoringControllerState = {
-  lineCoordinates: readonly RuntimeCoordinate[];
-  markerCoordinates: readonly RuntimeCoordinate[];
+  lineCoordinates: readonly CesiumGeographicCoordinate[];
+  markerCoordinates: readonly CesiumGeographicCoordinate[];
 };
 
 export type PathAuthoringController = {
@@ -30,23 +29,23 @@ export type PathAuthoringController = {
   destroy: () => void;
 };
 
-type RuntimeCartesian3 = ReturnType<typeof cartesian3FromGeographicCoordinate>;
-
 const EMPTY_PATH_AUTHORING_STATE: PathAuthoringControllerState = {
   lineCoordinates: [],
   markerCoordinates: [],
 };
 
 export const createPathAuthoringController = (
-  scene: RuntimeScene,
+  scene: Scene,
   {
     overlayLayerId,
     lineId,
     lineColor,
+    showPointMarkers = true,
   }: {
     overlayLayerId: string;
     lineId: string;
     lineColor: string;
+    showPointMarkers?: boolean;
   }
 ): PathAuthoringController => {
   const overlayLayer = createPreviewOverlayLayer(scene, overlayLayerId);
@@ -60,9 +59,9 @@ export const createPathAuthoringController = (
 
   const lineCollection = createLineCollection(scene);
   const pathLine = createLineRuntime(lineCollection, lineId, lineColor);
-  const pointMarkers: PreviewPointMarker[] = [];
+  const pointMarkers: HTMLDivElement[] = [];
   let currentState = EMPTY_PATH_AUTHORING_STATE;
-  let linePositions: readonly RuntimeCartesian3[] = [];
+  let linePositions: readonly Cartesian3[] = [];
 
   const hide = () => {
     clearLineRuntime(pathLine);
@@ -80,7 +79,7 @@ export const createPathAuthoringController = (
       clearLineRuntime(pathLine);
     }
 
-    if (currentState.markerCoordinates.length > 0) {
+    if (showPointMarkers && currentState.markerCoordinates.length > 0) {
       placePointMarkers({
         scene,
         overlayLayer,
@@ -103,11 +102,11 @@ export const createPathAuthoringController = (
   return {
     setState: (nextState) => {
       if (
-        areRuntimeCoordinateListsEqual(
+        areCoordinateListsEqual(
           currentState.lineCoordinates,
           nextState.lineCoordinates
         ) &&
-        areRuntimeCoordinateListsEqual(
+        areCoordinateListsEqual(
           currentState.markerCoordinates,
           nextState.markerCoordinates
         )

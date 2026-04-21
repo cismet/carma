@@ -1,7 +1,6 @@
-import { faVectorSquare } from "@fortawesome/free-solid-svg-icons";
+import { faBuilding } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG,
   formatMeasurementShortLabelToken,
   type AnnotationToolType,
   ANNOTATION_TYPES,
@@ -18,6 +17,7 @@ import {
   commitVerticalAreaMeasurement,
   undoVerticalAreaPreviewPoint,
 } from "./vertical-area-tool-actions";
+import { resolveAreaToolAddAnnotationOptions } from "../area-shared/resolve-area-tool-add-annotation-options";
 import { resolveVerticalAreaToolKeyAction } from "./vertical-area-tool-bindings";
 import { createVerticalAreaToolInfoBoxSlots } from "./vertical-area-tool-info-box-slots";
 import { buildVerticalAreaToolRenderModels } from "./vertical-area-tool-render-models";
@@ -27,12 +27,7 @@ const { AREA_VERTICAL: ANNOTATION_TYPE_AREA_VERTICAL } = ANNOTATION_TYPES;
 
 const toolType = ANNOTATION_TYPE_AREA_VERTICAL;
 const labelTheme = ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME;
-const badgeStyle = {
-  ...DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG[toolType],
-  backgroundColor: labelTheme.scheme.colorPrimary,
-  textColor: labelTheme.scheme.textColor,
-};
-const verticalAreaToolSettings = createVerticalAreaToolSettings(badgeStyle);
+const verticalAreaToolSettings = createVerticalAreaToolSettings();
 const getVerticalAreaToolInfoBoxSlots = createVerticalAreaToolInfoBoxSlots(
   toolType,
   {
@@ -50,7 +45,7 @@ export const verticalAreaToolPlugin = createMeasurementToolPlugin({
     order: 50,
     label: "Vertikal",
     tooltip: "Vertikale Fläche messen",
-    icon: <FontAwesomeIcon icon={faVectorSquare} />,
+    icon: <FontAwesomeIcon icon={faBuilding} />,
   },
   helpText: [
     "Ersten Eckpunkt klicken, dann den diagonal gegenüberliegenden Eckpunkt setzen.",
@@ -58,6 +53,7 @@ export const verticalAreaToolPlugin = createMeasurementToolPlugin({
   ],
   capabilities: [
     ...AUTHORING_MEASUREMENT_PLUGIN_CAPABILITIES,
+    ANNOTATION_TOOL_PLUGIN_CAPABILITIES.ADD_ANNOTATION,
     ANNOTATION_TOOL_PLUGIN_CAPABILITIES.INFO_BOX,
   ],
   session: {
@@ -125,6 +121,9 @@ export const verticalAreaToolPlugin = createMeasurementToolPlugin({
         `[annotations-runtime] vertical area pointQuery invoked without an active onNodeCreated session handler.`
       );
     },
+  },
+  addAnnotation: {
+    resolveOptions: resolveAreaToolAddAnnotationOptions,
   },
   authoringVisuals: {
     createController: (context) =>

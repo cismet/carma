@@ -6,10 +6,13 @@ import {
 
 import { isPointAnnotationEntry } from "../types/annotation-cesium-types";
 import type {
-  AnnotationCollection,
-  PointAnnotationEntry,
+  AnnotationEntry,
+  AnnotationPointEntry,
 } from "../types/annotation-cesium-types";
-const MOVE_DELTA_EPSILON = 1e-12;
+
+const selectionGroupMoveDefaults = Object.freeze({
+  deltaMagnitudeSquaredEpsilon: 1e-12,
+});
 
 export const getSelectedPointIds = (
   selectedAnnotationIds: string[],
@@ -34,17 +37,20 @@ export const computeMoveDelta = (
     currentPosition,
     new Cartesian3()
   );
-  if (Cartesian3.magnitudeSquared(delta) <= MOVE_DELTA_EPSILON) {
+  if (
+    Cartesian3.magnitudeSquared(delta) <=
+    selectionGroupMoveDefaults.deltaMagnitudeSquaredEpsilon
+  ) {
     return null;
   }
   return delta;
 };
 
 export const applyDeltaToSelectedPoints = (
-  annotations: AnnotationCollection,
+  annotations: AnnotationEntry[],
   selectedPointIdSet: Set<string>,
   delta: Cartesian3
-): AnnotationCollection =>
+): AnnotationEntry[] =>
   annotations.map((measurement) => {
     if (
       !isPointAnnotationEntry(measurement) ||
@@ -92,7 +98,7 @@ export const applyDeltaToSelectedPoints = (
   });
 
 export const hasReferencePointInSelection = (
-  annotations: AnnotationCollection,
+  annotations: AnnotationEntry[],
   selectedPointIdSet: Set<string>,
   referencePoint: Cartesian3 | null,
   epsilonMeters: number
@@ -100,7 +106,7 @@ export const hasReferencePointInSelection = (
   if (!referencePoint) return false;
 
   return annotations.some(
-    (measurement): measurement is PointAnnotationEntry =>
+    (measurement): measurement is AnnotationPointEntry =>
       isPointAnnotationEntry(measurement) &&
       selectedPointIdSet.has(measurement.id) &&
       Cartesian3.distance(measurement.geometryECEF, referencePoint) <=

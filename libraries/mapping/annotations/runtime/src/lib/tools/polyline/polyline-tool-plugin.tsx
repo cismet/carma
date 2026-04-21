@@ -10,6 +10,7 @@ import {
   AUTHORING_MEASUREMENT_PLUGIN_CAPABILITIES,
   createMeasurementToolPlugin,
 } from "../plugin-factories";
+import { ANNOTATION_TOOL_PLUGIN_CAPABILITIES } from "../annotation-tool-plugin.types";
 import type { AnnotationToolDraftState } from "../annotation-tool-plugin.types";
 import { createSegmentAuthoringController } from "../../interaction/create-segment-authoring-controller";
 import {
@@ -17,6 +18,7 @@ import {
   finishPolylinePreview,
 } from "./polyline-tool-actions";
 import { resolvePolylineToolKeyAction } from "./polyline-tool-bindings";
+import { createPolylineToolInfoBoxSlots } from "./polyline-tool-info-box-slots";
 import { buildPolylineToolRenderModels } from "./polyline-tool-render-models";
 import { createPolylineToolSettings } from "./polyline-tool-settings";
 import { ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME } from "../../config/annotation-measurement-label-themes";
@@ -29,7 +31,13 @@ const badgeStyle = {
   backgroundColor: labelTheme.scheme.colorPrimary,
   textColor: labelTheme.scheme.textColor,
 };
-const polylineToolSettings = createPolylineToolSettings(badgeStyle);
+const polylineToolSettings = createPolylineToolSettings();
+const getPolylineToolInfoBoxSlots = createPolylineToolInfoBoxSlots(toolType, {
+  headingTitle: "Polygonzug",
+  headingColor: labelTheme.scheme.colorPrimary,
+  formatMeasurementLabelToken: (counter) =>
+    formatMeasurementShortLabelToken(toolType, counter),
+});
 
 export const polylineToolPlugin = createMeasurementToolPlugin({
   id: toolType satisfies AnnotationToolType,
@@ -44,7 +52,10 @@ export const polylineToolPlugin = createMeasurementToolPlugin({
     "Punkte nacheinander setzen, um einen Polygonzug zu erstellen.",
     "Doppelklick schliesst die Messung ab, Escape verwirft den Entwurf.",
   ],
-  capabilities: AUTHORING_MEASUREMENT_PLUGIN_CAPABILITIES,
+  capabilities: [
+    ...AUTHORING_MEASUREMENT_PLUGIN_CAPABILITIES,
+    ANNOTATION_TOOL_PLUGIN_CAPABILITIES.INFO_BOX,
+  ],
   session: {
     createSession: ({ drafts, setActiveToolType, addAnnotation }) => ({
       toolType,
@@ -136,11 +147,13 @@ export const polylineToolPlugin = createMeasurementToolPlugin({
       annotationEntries,
       selectedAnnotationIds,
       setSelectedAnnotationId,
+      formatOptions,
       onNodeLongPress,
     }) => {
       const { points, edges, pointLabels } = buildPolylineToolRenderModels({
         toolType,
         visuals: polylineToolSettings.visuals,
+        formatOptions,
         badgeStyle,
         getMeasurementLabel: (counter) =>
           formatMeasurementShortLabelToken(toolType, counter),
@@ -157,5 +170,8 @@ export const polylineToolPlugin = createMeasurementToolPlugin({
         pointLabels,
       };
     },
+  },
+  infoBox: {
+    getSlots: getPolylineToolInfoBoxSlots,
   },
 });

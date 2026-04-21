@@ -1,28 +1,38 @@
 import type {
-  RuntimeCoordinate,
-  RuntimeNode,
-  RuntimeMeasurement,
+  AnnotationNode,
+  StoredAnnotation,
 } from "../../store/annotations-store.types";
 import type {
   RuntimeEdgeRenderModel,
   RuntimePointLabelRenderModel,
   RuntimePointMarkerRenderModel,
 } from "../../render/measurement-render-models";
+import type { AnnotationsRuntimeFormatOptions } from "../../config/annotations-runtime-format-options";
 import {
   buildRuntimeNodeCoordinateMap,
   resolveMeasurementCoordinates,
 } from "../../render/resolve-measurement-coordinates";
 import type { PolylineToolVisualSettings } from "./polyline-tool-settings";
+import { formatLengthMeters } from "@carma-units";
+import {
+  applySelectedEdgeVisualStyle,
+  applySelectedPointMarkerVisualStyle,
+} from "../../config/measurement-visual-defaults";
+import {
+  computePolylineTotalLengthMeters,
+} from "../../derived/measurement-summaries";
+
 type BuildPolylineToolRenderModelsArgs = {
-  toolType: RuntimeMeasurement["toolType"];
+  toolType: StoredAnnotation["toolType"];
   visuals: PolylineToolVisualSettings;
+  formatOptions: AnnotationsRuntimeFormatOptions;
   badgeStyle: {
     backgroundColor: string;
     textColor: string;
   };
   getMeasurementLabel: (measurementIndex: number) => string;
-  nodes: readonly RuntimeNode[];
-  measurements: readonly RuntimeMeasurement[];
+  nodes: readonly AnnotationNode[];
+  measurements: readonly StoredAnnotation[];
   selectedMeasurementIds: readonly string[];
   onMeasurementSelect?: (measurementId: string) => void;
   onNodeLongPress?: (nodeId: string, measurementId: string) => void;
@@ -31,6 +41,7 @@ type BuildPolylineToolRenderModelsArgs = {
 export const buildPolylineToolRenderModels = ({
   toolType,
   visuals,
+  formatOptions,
   badgeStyle,
   getMeasurementLabel,
   nodes,
@@ -68,8 +79,9 @@ export const buildPolylineToolRenderModels = ({
         measurementId: measurement.id,
         nodeIds: measurement.nodeIds,
         coordinates,
+        showSegmentLengthLabels: true as const,
         ...(selectedMeasurementIdSet.has(measurement.id)
-          ? visuals.selectedEdge
+          ? applySelectedEdgeVisualStyle(visuals.edge)
           : visuals.edge),
       },
     ];
@@ -88,8 +100,11 @@ export const buildPolylineToolRenderModels = ({
           measurementId: measurement.id,
           nodeId,
           coordinate,
+          onClick: onMeasurementSelect
+            ? () => onMeasurementSelect(measurement.id)
+            : undefined,
           ...(selectedMeasurementIdSet.has(measurement.id)
-            ? visuals.selectedPoint
+            ? applySelectedPointMarkerVisualStyle(visuals.point)
             : visuals.point),
         },
       ];
@@ -101,41 +116,49 @@ export const buildPolylineToolRenderModels = ({
       const badgeText =
         measurement.shortLabel?.trim() ||
         getMeasurementLabel(measurementIndex + 1);
+      const lastNodeIndex = measurement.nodeIds.length - 1;
+      const lastNodeId =
+        lastNodeIndex >= 0 ? measurement.nodeIds[lastNodeIndex] : undefined;
+      const coordinate = lastNodeId
+        ? nodeCoordinatesById.get(lastNodeId)
+        : undefined;
+      if (!coordinate || !lastNodeId) {
+        return [];
+      }
 
-      return measurement.nodeIds.flatMap((nodeId, index) => {
-        const coordinate = nodeCoordinatesById.get(nodeId);
-        if (!coordinate) {
-          return [];
-        }
+      const pointVisuals = selectedMeasurementIdSet.has(measurement.id)
+        ? applySelectedPointMarkerVisualStyle(visuals.point)
+        : visuals.point;
+      const totalLengthText = formatLengthMeters(
+        computePolylineTotalLengthMeters(
+          resolveMeasurementCoordinates(measurement, nodeCoordinatesById)
+        ),
+        formatOptions.lengthMeters
+      );
 
-        const pointVisuals = selectedMeasurementIdSet.has(measurement.id)
-          ? visuals.selectedPoint
-          : visuals.point;
-
-        return [
-          {
-            id: `${measurement.id}-label-${index}`,
-            measurementId: measurement.id,
-            nodeId,
-            pointMarkerId: `${measurement.id}-node-${index}`,
-            coordinate,
-            markerPixelSize: pointVisuals.pixelSize,
-            markerOutlineWidth: pointVisuals.outlineWidth,
-            content: badgeText,
-            badgeContent: badgeText,
-            markerBackgroundColor: badgeStyle.backgroundColor,
-            markerTextColor: badgeStyle.textColor,
-            selected: selectedMeasurementIdSet.has(measurement.id),
-            onClick: onMeasurementSelect
-              ? () => onMeasurementSelect(measurement.id)
+      return [
+        {
+          id: `${measurement.id}-label`,
+          measurementId: measurement.id,
+          nodeId: lastNodeId,
+          pointMarkerId: `${measurement.id}-node-${lastNodeIndex}`,
+          coordinate,
+          markerPixelSize: pointVisuals.pixelSize,
+          markerOutlineWidth: pointVisuals.outlineWidth,
+          content: `${badgeText} ${totalLengthText}`,
+          badgeContent: badgeText,
+          markerBackgroundColor: badgeStyle.backgroundColor,
+          markerTextColor: badgeStyle.textColor,
+          selected: selectedMeasurementIdSet.has(measurement.id),
+          onClick: onMeasurementSelect
+            ? () => onMeasurementSelect(measurement.id)
+            : undefined,
+          onLongPress:
+            onNodeLongPress && !measurement.locked
+              ? () => onNodeLongPress(lastNodeId, measurement.id)
               : undefined,
-            onLongPress:
-              onNodeLongPress && !measurement.locked
-                ? () => onNodeLongPress(nodeId, measurement.id)
-                : undefined,
-          },
-        ];
-      });
+        },
+      ];
     }
   );
 

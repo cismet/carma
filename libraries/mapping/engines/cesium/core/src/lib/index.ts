@@ -43,6 +43,10 @@ export {
 } from "./carma-helpers/camera";
 export {
   cartesian3Distance,
+  getNormalizedCartesian3TriangleNormal,
+  getSignedCartesian3DistanceToPlane,
+  projectCartesian3PointOntoPlane,
+  removeCartesian3ComponentAlongAxis,
   cartesian3ToVector3,
   offsetCartesian3Positions,
 } from "./carma-helpers/cartesian3";

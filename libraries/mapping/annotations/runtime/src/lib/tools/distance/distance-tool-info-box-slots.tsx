@@ -3,15 +3,19 @@ import { cartesian3FromGeographicCoordinate } from "@carma-mapping/engines/cesiu
 import { CarmaTransforms } from "@carma-mapping/engines/cesium/core";
 import { formatLengthMeters } from "@carma-units";
 import {
-  AnnotationInfoBoxActions,
-  AnnotationInfoBoxMetaText,
-  AnnotationInfoBoxNavigation,
-  AnnotationInfoBoxTitleInput,
+  buildAnnotationMeasurementInfoBoxSlots,
 } from "@carma-mapping/annotations/ui";
 
 import type { RuntimeAnnotationInfoBoxContext } from "../../components/annotation-info-box/annotation-info-box.types";
 import { resolveRuntimeMeasurementNavigation } from "../../components/annotation-info-box/runtime-measurement-navigation";
-import { resolveMeasurementCoordinates } from "../../render/resolve-measurement-coordinates";
+import {
+  buildRuntimeNodeCoordinateMap,
+  resolveMeasurementCoordinates,
+} from "../../render/resolve-measurement-coordinates";
+import {
+  formatGermanCardinalBearing,
+  resolveBearingDegFromFirstToLastCoordinate,
+} from "../../utils/german-cardinal-bearing";
 
 export const createDistanceToolInfoBoxSlots = (
   toolType: RuntimeAnnotationInfoBoxContext["annotation"]["toolType"],
@@ -53,7 +57,7 @@ export const createDistanceToolInfoBoxSlots = (
       ) + 1;
     const coordinates = resolveMeasurementCoordinates(
       annotation,
-      new Map(nodes.map((node) => [node.id, node.coordinate]))
+      buildRuntimeNodeCoordinateMap(nodes)
     );
     const navigation = resolveRuntimeMeasurementNavigation({
       annotationEntries,
@@ -80,6 +84,7 @@ export const createDistanceToolInfoBoxSlots = (
       enuOffset.north
     );
     const verticalDistanceMeters = Math.abs(enuOffset.up);
+    const bearingDeg = resolveBearingDegFromFirstToLastCoordinate(coordinates);
     const shortLabelToken = formatMeasurementLabelToken(distanceOrder);
     const defaultDisplayName = headingTitle;
     const effectiveShortLabel =
@@ -87,105 +92,85 @@ export const createDistanceToolInfoBoxSlots = (
     const formatDistance = (value: number) =>
       formatLengthMeters(value, formatOptions.lengthMeters);
     const directDistanceText = formatDistance(directDistanceMeters);
-    const actionIcons = (
-      <AnnotationInfoBoxActions
-        hidden={annotation.hidden}
-        locked={annotation.locked}
-        onFlyTo={(event) => {
+    return buildAnnotationMeasurementInfoBoxSlots({
+      headingTitle,
+      headingColor,
+      titleInput: {
+        value: annotation.displayName ?? "",
+        placeholder: defaultDisplayName,
+        onCommit: (nextValue) =>
+          updateAnnotationDisplayName(annotation.id, nextValue),
+        shortLabelValue: annotation.shortLabel ?? "",
+        shortLabelPlaceholder: effectiveShortLabel,
+        onShortLabelCommit: (nextValue) =>
+          updateAnnotationShortLabel(annotation.id, nextValue),
+      },
+      actions: {
+        hidden: annotation.hidden,
+        locked: annotation.locked,
+        onFlyTo: (event) => {
           event.stopPropagation();
           focusAnnotationId(annotation.id);
-        }}
-        onExport={(event) => {
+        },
+        onExport: (event) => {
           event.stopPropagation();
           exportAnnotationGeoJson(annotation.id);
-        }}
-        onToggleVisibility={(event) => {
+        },
+        onToggleVisibility: (event) => {
           event.stopPropagation();
           toggleAnnotationVisibility(annotation.id);
-        }}
-        onToggleLock={(event) => {
+        },
+        onToggleLock: (event) => {
           event.stopPropagation();
           toggleAnnotationLocked(annotation.id);
-        }}
-        onDelete={(event) => {
+        },
+        onDelete: (event) => {
           event.stopPropagation();
           removeAnnotationById(annotation.id);
-        }}
-        visualOptions={infoBoxVisualOptions}
-        dataTestIdPrefix="carma-annotation-distance-measurement"
-        dataTestIds={{
+        },
+        dataTestIdPrefix: "carma-annotation-distance-measurement",
+        dataTestIds: {
           flyTo: "carma-annotation-flyto-distance-measurement-btn",
           export: "carma-annotation-export-distance-measurement-geojson-btn",
           visibility:
             "carma-annotation-toggle-distance-measurement-visibility-btn",
           lock: "carma-annotation-toggle-distance-measurement-lock-btn",
           delete: "carma-annotation-delete-distance-measurement-btn",
-        }}
-      />
-    );
-
-    return {
-      headingTitle,
-      headingColor,
-      subtitle: (
-        <div className={infoBoxVisualOptions.subtitleContainerClassName}>
-          <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0 flex-1">
-              <AnnotationInfoBoxTitleInput
-                value={annotation.displayName ?? ""}
-                placeholder={defaultDisplayName}
-                onCommit={(nextValue) =>
-                  updateAnnotationDisplayName(annotation.id, nextValue)
-                }
-                shortLabelValue={annotation.shortLabel ?? ""}
-                shortLabelPlaceholder={effectiveShortLabel}
-                onShortLabelCommit={(nextValue) =>
-                  updateAnnotationShortLabel(annotation.id, nextValue)
-                }
-                visualOptions={infoBoxVisualOptions}
-              />
-            </div>
-            <div className="shrink-0">{actionIcons}</div>
-          </div>
-          <AnnotationInfoBoxMetaText visualOptions={infoBoxVisualOptions}>
-            {directDistanceText}
-          </AnnotationInfoBoxMetaText>
-        </div>
-      ),
+        },
+      },
+      metaText: directDistanceText,
       content: (
-        <div
-          className={`${infoBoxVisualOptions.bodyContainerClassName} ${infoBoxVisualOptions.bodyTextClassName}`}
-          style={infoBoxVisualOptions.bodyTextStyle}
-        >
-          <div className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1 tabular-nums">
-            <span className={infoBoxVisualOptions.mutedTextClassName}>
-              Direkt
-            </span>
-            <span>{formatDistance(directDistanceMeters)}</span>
-            <span className={infoBoxVisualOptions.mutedTextClassName}>
-              Horizontal
-            </span>
-            <span>{formatDistance(horizontalDistanceMeters)}</span>
-            <span className={infoBoxVisualOptions.mutedTextClassName}>
-              Vertikal
-            </span>
-            <span>{formatDistance(verticalDistanceMeters)}</span>
-          </div>
+        <div className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1 tabular-nums">
+          <span className={infoBoxVisualOptions.mutedTextClassName}>
+            Direkt
+          </span>
+          <span>{formatDistance(directDistanceMeters)}</span>
+          <span className={infoBoxVisualOptions.mutedTextClassName}>
+            Horizontal
+          </span>
+          <span>{formatDistance(horizontalDistanceMeters)}</span>
+          <span className={infoBoxVisualOptions.mutedTextClassName}>
+            Vertikal
+          </span>
+          <span>{formatDistance(verticalDistanceMeters)}</span>
+          {Number.isFinite(bearingDeg) ? (
+            <>
+              <span className={infoBoxVisualOptions.mutedTextClassName}>
+                Ausrichtung
+              </span>
+              <span>{formatGermanCardinalBearing(bearingDeg ?? 0)}</span>
+            </>
+          ) : null}
         </div>
       ),
-      footer: (
-        <AnnotationInfoBoxNavigation
-          totalEntries={navigation?.totalEntries ?? 0}
-          currentIndex={navigation?.currentIndex ?? 0}
-          onFlyToAllMeasurements={navigation?.flyToAllMeasurements}
-          onPreviousMeasurement={() =>
-            navigation?.selectRelativeMeasurement(-1)
-          }
-          onNextMeasurement={() => navigation?.selectRelativeMeasurement(1)}
-          visualOptions={infoBoxVisualOptions}
-        />
-      ),
-      collapsible: true,
-    };
+      navigation: {
+        totalEntries: navigation?.totalEntries ?? 0,
+        currentIndex: navigation?.currentIndex ?? 0,
+        onFlyToAllMeasurements: navigation?.flyToAllMeasurements,
+        onPreviousMeasurement: () => navigation?.selectRelativeMeasurement(-1),
+        onNextMeasurement: () => navigation?.selectRelativeMeasurement(1),
+      },
+      visualOptions: infoBoxVisualOptions,
+    });
   };
 };

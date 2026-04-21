@@ -1,10 +1,15 @@
 import { COLORS_HEX } from "@carma-commons/utils";
+import {
+  getAnnotationMeasurementTextCssColor,
+  getAnnotationSelectionCssColor,
+  getAnnotationSurfaceStrokeCssColor,
+} from "@carma-mapping/annotations/core";
 import { rgb } from "d3-color";
 
-import { runtimeMeasurementVisualDefaults } from "./measurement-visual-defaults";
+import { measurementVisualDefaults } from "./measurement-visual-defaults";
 import type {
-  AnnotationMeasurementQualitativeColorScheme,
-  AnnotationMeasurementSelectedHighlightPalette,
+  StoredAnnotationQualitativeColorScheme,
+  StoredAnnotationSelectedHighlightPalette,
 } from "./annotation-measurement-label-themes";
 
 const annotationMeasurementPrimaryReducedColor = rgb(
@@ -13,27 +18,28 @@ const annotationMeasurementPrimaryReducedColor = rgb(
 
 annotationMeasurementPrimaryReducedColor.opacity = 0.5;
 
-export const ANNOTATION_MEASUREMENT_TEXT_COLOR = "rgb(248, 250, 252)";
+export const ANNOTATION_MEASUREMENT_TEXT_COLOR =
+  getAnnotationMeasurementTextCssColor();
 
 export const ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE = Object.freeze({
-  backgroundColor: "rgba(15, 23, 42, 0.92)",
-  hoverBackgroundColor: "rgba(30, 41, 59, 0.9)",
+  backgroundColor: getAnnotationSelectionCssColor("background"),
+  hoverBackgroundColor: getAnnotationSelectionCssColor("hoverBackground"),
   textColor: ANNOTATION_MEASUREMENT_TEXT_COLOR,
-  glowColor: "rgb(255, 255, 255)",
+  glowColor: getAnnotationSurfaceStrokeCssColor(1),
   glowRadiusPx: 5,
   preserveFillOnSelection: true,
-} satisfies AnnotationMeasurementSelectedHighlightPalette);
+} satisfies StoredAnnotationSelectedHighlightPalette);
 
 export const ANNOTATION_MEASUREMENT_SHARED_COLOR_SCHEME = Object.freeze({
   id: "accent-measurements",
   label: "Measurements · Accent",
   colorPrimaryReduced: annotationMeasurementPrimaryReducedColor.toString(),
   colorPrimary: COLORS_HEX.ACCENT_MEASUREMENTS,
-  lineColor: runtimeMeasurementVisualDefaults.colors.surface,
+  lineColor: measurementVisualDefaults.colors.surface,
   textColor: ANNOTATION_MEASUREMENT_TEXT_COLOR,
-} satisfies AnnotationMeasurementQualitativeColorScheme);
+} satisfies StoredAnnotationQualitativeColorScheme);
 
 export const ANNOTATION_MEASUREMENT_QUALITATIVE_DARK_COLOR_SCHEMES =
   Object.freeze([
     ANNOTATION_MEASUREMENT_SHARED_COLOR_SCHEME,
-  ] satisfies readonly AnnotationMeasurementQualitativeColorScheme[]);
+  ] satisfies readonly StoredAnnotationQualitativeColorScheme[]);

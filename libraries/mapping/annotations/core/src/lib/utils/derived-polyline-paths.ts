@@ -6,14 +6,17 @@ import {
 
 import {
   isPointAnnotationEntry,
-  type AnnotationCollection,
+  type AnnotationEntry,
 } from "../types/annotation-cesium-types";
-import { ANNOTATION_TYPE_POLYLINE } from "../types/annotation-types";
-import type { NodeChainAnnotation } from "../types/annotation-types";
+import {
+  ANNOTATION_TYPES,
+  type NodeChainAnnotation,
+} from "../types/annotation-types";
 import type { DerivedPolylinePath } from "../types/derived-polyline-path";
 import { getDistanceRelationId } from "./measurement-relations";
+import { hasSignificantVerticalOffsetMeters } from "./annotation-geometry-defaults";
 const getPolylineComputationPointPositionMap = (
-  annotations: AnnotationCollection,
+  annotations: AnnotationEntry[],
   useOffsetAnchors: boolean
 ) => {
   const map = new Map<string, Cartesian3>();
@@ -51,7 +54,7 @@ export const buildDerivedPolylinePath = (
   }
 
   const applyGroupVerticalOffset = (position: Cartesian3) =>
-    Math.abs(verticalOffsetMeters) > 1e-9
+    hasSignificantVerticalOffsetMeters(verticalOffsetMeters)
       ? getPositionWithVerticalOffsetFromAnchor(position, verticalOffsetMeters)
       : position;
 
@@ -121,7 +124,7 @@ export const buildDerivedPolylinePaths = ({
   defaultVerticalOffsetMeters,
   useOffsetAnchors,
 }: {
-  annotations: AnnotationCollection;
+  annotations: AnnotationEntry[];
   nodeChainAnnotations: readonly NodeChainAnnotation[];
   defaultVerticalOffsetMeters: number;
   useOffsetAnchors: boolean;
@@ -134,7 +137,7 @@ export const buildDerivedPolylinePaths = ({
   return nodeChainAnnotations
     .filter(
       (group): group is NodeChainAnnotation =>
-        group.type === ANNOTATION_TYPE_POLYLINE
+        group.type === ANNOTATION_TYPES.POLYLINE
     )
     .map((group) =>
       buildDerivedPolylinePath(

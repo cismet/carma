@@ -1,20 +1,25 @@
-import { COLORS_HEX } from "@carma-commons/utils";
-import { rgb } from "d3-color";
+import {
+  ANNOTATION_LINE_COMPONENT_KINDS,
+  getAnnotationLineComponentCssColor,
+  getAnnotationLineComponentLabelAccentCssColor,
+  getAnnotationSurfaceStrokeCssColor,
+} from "@carma-mapping/annotations/core";
+import { resolveDisplayP3WhiteCssColor } from "@carma-commons/utils";
 
-export type RuntimeEdgeVisualStyle = {
+export type EdgeVisualStyle = {
   stroke: string;
   strokeWidth: number;
-  dashed?: boolean;
+  dashed?: true;
 };
 
-export type RuntimePointMarkerVisualStyle = {
+export type PointMarkerVisualStyle = {
   pixelSize: number;
   fill: string;
   outline: string;
   outlineWidth: number;
 };
 
-export type RuntimeMeasurementVisualDefaults = {
+export type MeasurementVisualDefaults = {
   colors: {
     neutral: string;
     accent: string;
@@ -34,48 +39,118 @@ export type RuntimeMeasurementVisualDefaults = {
   };
   sizes: {
     edgeStrokeWidth: number;
-    selectedEdgeStrokeWidth: number;
     pointPixelSize: number;
-    selectedPointPixelSize: number;
     previewPointPixelSize: number;
     pointOutlineWidth: number;
   };
 };
 
-const neutralWhite = rgb(COLORS_HEX.NEUTRAL_WHITE);
-const neutralWhitePreview = rgb(COLORS_HEX.NEUTRAL_WHITE);
-const neutralWhiteSurface = rgb(COLORS_HEX.NEUTRAL_WHITE);
-const neutralWhiteComponentLabelAccent = rgb(COLORS_HEX.NEUTRAL_WHITE);
+export type MeasurementVisualStyles = {
+  edge: EdgeVisualStyle;
+  point: PointMarkerVisualStyle;
+};
 
-neutralWhitePreview.opacity = 0.9;
-neutralWhiteSurface.opacity = 0.92;
-neutralWhiteComponentLabelAccent.opacity = 0.34;
+export type MeasurementVisualSelectionStyleOverrides = {
+  edge: Partial<EdgeVisualStyle>;
+  point: Partial<PointMarkerVisualStyle>;
+};
 
-export const runtimeMeasurementVisualDefaults: RuntimeMeasurementVisualDefaults =
-  {
-    colors: {
-      neutral: neutralWhite.toString(),
-      accent: neutralWhite.toString(),
-      preview: neutralWhitePreview.toString(),
-      surface: neutralWhiteSurface.toString(),
-      transparent: "rgba(0, 0, 0, 0)",
-      components: {
-        direct: neutralWhite.toString(),
-        vertical: "rgba(111, 168, 255, 0.96)",
-        horizontal: "rgba(188, 194, 102, 0.95)",
-      },
-      componentLabelAccents: {
-        direct: neutralWhiteComponentLabelAccent.toString(),
-        vertical: "rgba(111, 168, 255, 0.54)",
-        horizontal: "rgba(188, 194, 102, 0.5)",
-      },
+const measurementVisualColorDefaults = Object.freeze({
+  previewAlpha: 0.9,
+  surfaceAlpha: 0.92,
+});
+
+export const measurementVisualDefaults: MeasurementVisualDefaults = {
+  colors: {
+    neutral: getAnnotationSurfaceStrokeCssColor(1),
+    accent: getAnnotationSurfaceStrokeCssColor(1),
+    preview: getAnnotationSurfaceStrokeCssColor(
+      measurementVisualColorDefaults.previewAlpha
+    ),
+    surface: resolveDisplayP3WhiteCssColor(
+      measurementVisualColorDefaults.surfaceAlpha
+    ),
+    transparent: "transparent",
+    components: {
+      direct: getAnnotationLineComponentCssColor(
+        ANNOTATION_LINE_COMPONENT_KINDS.DIRECT
+      ),
+      vertical: getAnnotationLineComponentCssColor(
+        ANNOTATION_LINE_COMPONENT_KINDS.VERTICAL
+      ),
+      horizontal: getAnnotationLineComponentCssColor(
+        ANNOTATION_LINE_COMPONENT_KINDS.HORIZONTAL
+      ),
     },
-    sizes: {
-      edgeStrokeWidth: 1,
-      selectedEdgeStrokeWidth: 1,
-      pointPixelSize: 10,
-      selectedPointPixelSize: 10,
-      previewPointPixelSize: 10,
-      pointOutlineWidth: 1,
+    componentLabelAccents: {
+      direct: getAnnotationLineComponentLabelAccentCssColor(
+        ANNOTATION_LINE_COMPONENT_KINDS.DIRECT
+      ),
+      vertical: getAnnotationLineComponentLabelAccentCssColor(
+        ANNOTATION_LINE_COMPONENT_KINDS.VERTICAL
+      ),
+      horizontal: getAnnotationLineComponentLabelAccentCssColor(
+        ANNOTATION_LINE_COMPONENT_KINDS.HORIZONTAL
+      ),
     },
-  };
+  },
+  sizes: {
+    edgeStrokeWidth: 1,
+    pointPixelSize: 10,
+    previewPointPixelSize: 10,
+    pointOutlineWidth: 1,
+  },
+};
+
+export const measurementVisualStyles: MeasurementVisualStyles =
+  Object.freeze({
+    edge: Object.freeze({
+      stroke: measurementVisualDefaults.colors.accent,
+      strokeWidth: measurementVisualDefaults.sizes.edgeStrokeWidth,
+    } satisfies EdgeVisualStyle),
+    point: Object.freeze({
+      pixelSize: measurementVisualDefaults.sizes.pointPixelSize,
+      fill: measurementVisualDefaults.colors.transparent,
+      outline: measurementVisualDefaults.colors.surface,
+      outlineWidth: measurementVisualDefaults.sizes.pointOutlineWidth,
+    } satisfies PointMarkerVisualStyle),
+  });
+
+export const measurementVisualSelectionStyleOverrides: MeasurementVisualSelectionStyleOverrides =
+  Object.freeze({
+    edge: Object.freeze({
+      stroke: measurementVisualDefaults.colors.neutral,
+    } satisfies Partial<EdgeVisualStyle>),
+    point: Object.freeze({
+      outline: measurementVisualDefaults.colors.neutral,
+    } satisfies Partial<PointMarkerVisualStyle>),
+  });
+
+export const withEdgeVisualStyle = (
+  base: EdgeVisualStyle,
+  overrides: Partial<EdgeVisualStyle> = {}
+): EdgeVisualStyle => ({
+  ...base,
+  ...overrides,
+});
+
+export const withPointMarkerVisualStyle = (
+  base: PointMarkerVisualStyle,
+  overrides: Partial<PointMarkerVisualStyle> = {}
+): PointMarkerVisualStyle => ({
+  ...base,
+  ...overrides,
+});
+
+export const applySelectedEdgeVisualStyle = (
+  base: EdgeVisualStyle
+): EdgeVisualStyle =>
+  withEdgeVisualStyle(base, measurementVisualSelectionStyleOverrides.edge);
+
+export const applySelectedPointMarkerVisualStyle = (
+  base: PointMarkerVisualStyle
+): PointMarkerVisualStyle =>
+  withPointMarkerVisualStyle(
+    base,
+    measurementVisualSelectionStyleOverrides.point
+  );
