@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Form, Input, Row, Col, Table, Select } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useDispatch, useSelector } from "react-redux";
@@ -24,6 +24,7 @@ import { getFormClassName } from "./readOnlyFormUtils";
 import { FormItem } from "./DraftFieldHighlight";
 import toTitleCase from "../../../helper/toTitleCase";
 import { compare } from "../../../helper/protokolleSortHelpers";
+import { useScrollToSelectedTableRow } from "../../../hooks/useScrollToSelectedTableRow";
 
 const FormLabel = ({ children }: { children: React.ReactNode }) => (
   <span className="text-sm font-medium text-gray-700">{children}</span>
@@ -111,6 +112,14 @@ const ArbeitsauftragFormFields = ({
   const protokolleSort = useSelector(getProtokolleSort);
   const keyTablesData = useSelector(getKeyTablesData);
   const apDeletions = useSelector((state: RootState) => getAPDeletions(state));
+  const tableWrapperRef = useRef<HTMLDivElement>(null);
+  const fromTableClickRef = useRef(false);
+
+  useScrollToSelectedTableRow({
+    selectedId: selectedAPId,
+    wrapperRef: tableWrapperRef,
+    fromClickRef: fromTableClickRef,
+  });
 
   const teamOptions = useMemo(
     () =>
@@ -433,7 +442,7 @@ const ArbeitsauftragFormFields = ({
       </Form>
 
       {/* Protokolle table */}
-      <div>
+      <div ref={tableWrapperRef}>
         <div className="text-sm font-medium text-gray-700 mb-2">
           Protokolle ({protokolleRows.length})
         </div>
@@ -469,9 +478,11 @@ const ArbeitsauftragFormFields = ({
           }}
           onRow={(record) => ({
             onClick: () => {
+              fromTableClickRef.current = true;
               dispatch(setSelectedAPId(record.id));
             },
             onDoubleClick: () => {
+              fromTableClickRef.current = true;
               dispatch(setSelectedAPId(record.id));
               dispatch(setApOpenedFrom("auTable"));
               dispatch(setActiveAATab("ap"));
