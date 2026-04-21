@@ -931,6 +931,14 @@
               "prj": "stories"
             }
           }
+        },
+        "auto": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "stories"
+            }
+          }
         }
       },
       "projectPath": "./dist/playgrounds/stories"
