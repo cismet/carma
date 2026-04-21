@@ -292,10 +292,10 @@ const GeoportalLayerButton = ({
         {!background && (
           <>
             <span className="text-base ml-1">{title}</span>
-            {layer.filterConfig && (
+            {(layer.filterConfig || layer.interactionButton) && (
               <button
-                id={`filterLayerButton-${id}`}
-                className={cn("px-1.5 flex items-center justify-center")}
+                id={`layerInteractionButton-${id}`}
+                className="px-1.5 flex items-center justify-center"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -313,10 +313,10 @@ const GeoportalLayerButton = ({
                       : 0
                   }
                   size="small"
-                  color={"#4b5563"}
+                  color="#4b5563"
                 >
                   <FontAwesomeIcon
-                    icon={faFilter}
+                    icon={layer.interactionButton?.icon ?? faFilter}
                     className={cn(
                       "text-sm",
                       activeInteractionLayerID === id
@@ -325,29 +325,6 @@ const GeoportalLayerButton = ({
                     )}
                   />
                 </Badge>
-              </button>
-            )}
-
-            {layer.interactionButton && (
-              <button
-                id={`interactionLayerButton-${id}`}
-                className={cn(
-                  "px-1.5 text-sm flex items-center justify-center",
-                  activeInteractionLayerID === id
-                    ? "text-[#1677ff]"
-                    : "text-gray-600 hover:text-gray-500"
-                )}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  dispatch(
-                    setActiveInteractionLayerID(
-                      activeInteractionLayerID === id ? null : id
-                    )
-                  );
-                }}
-              >
-                <FontAwesomeIcon icon={layer.interactionButton.icon} />
               </button>
             )}
 
