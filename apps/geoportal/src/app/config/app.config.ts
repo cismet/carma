@@ -21,6 +21,7 @@ export const MIN_MOBILE_WIDTH = 600;
 export const DEFAULT_CAMERA_FOV_DEG = 60;
 
 const CESIUM_PATHNAME = "__cesium__";
+const METROPOLE_RUHR_GRAUBLAU_RECTANGLE = Rectangle.fromDegrees(4, 48, 10, 52);
 
 export const CESIUM_CONFIG: CesiumConfig = {
   transitions: {
@@ -42,7 +43,7 @@ export const CESIUM_CONFIG: CesiumConfig = {
     surfaceProvider: WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
     imageryProvider: {
       ...BASEMAP_METROPOLE_RUHR_WMTS_GRAUBLAU_HQ,
-      rectangle: Rectangle.fromDegrees(4, 48, 10, 52),
+      rectangle: METROPOLE_RUHR_GRAUBLAU_RECTANGLE,
     },
   },
   tilesetConfigs: {

@@ -36,11 +36,8 @@ export {
   type ForwardedCesiumError,
 } from "./CesiumErrorHandler";
 
-export {
-  CustomViewer,
-  type CameraLimiterOptions,
-  type InitialCameraView,
-} from "./CustomViewer";
+export { CustomViewer, type InitialCameraView } from "./CustomViewer";
+export type { CameraLimiterOptions } from "./camera-limiter-options";
 export { DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS } from "./viewerDefaults";
 
 export { ByGeojsonClassifier } from "./components/ByGeojsonClassifier";
