@@ -1,5 +1,11 @@
 import type { Layer } from "@carma-mapping/layers";
 
+const TWEMOJI_BASE =
+  "https://cdn.jsdelivr.net/npm/emoji-datasource-twitter@15.1.2/img/twitter/64";
+
+export const twemojiUrl = (unified: string): string =>
+  `${TWEMOJI_BASE}/${unified.toLowerCase()}.png`;
+
 const iconPathAliases: Record<string, string> = {
   verkehr: "mobi",
 };
@@ -22,6 +28,13 @@ export const resolveLayerIconUrl = (
   layer: Layer,
   iconPrefix: string
 ): string | undefined => {
+  if (
+    typeof layer.other?.icon === "string" &&
+    layer.other.icon.startsWith("emoji:")
+  ) {
+    return undefined;
+  }
+
   const iconName =
     layer.other?.icon ||
     layer.conf?.icon ||

@@ -4,7 +4,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useEffect, useState } from "react";
 import { faLayerGroup, faMap } from "@fortawesome/free-solid-svg-icons";
 import { iconColorMap, iconMap } from "./iconMapping";
-import { resolveLayerIconUrl } from "@carma-mapping/utils";
+import { resolveLayerIconUrl, twemojiUrl } from "@carma-mapping/utils";
 
 const ICON_PREFIX =
   "https://geo.wuppertal.de/geoportal/geoportal_icon_legends/";
@@ -38,6 +38,8 @@ function resolveIconKey(
   return undefined;
 }
 
+const EMOJI_PREFIX = "emoji:";
+
 export const LayerIcon = ({
   layer,
   iconPrefix = ICON_PREFIX,
@@ -48,6 +50,12 @@ export const LayerIcon = ({
   displayUrl = false,
   onError,
 }: LayerIconProps) => {
+  const rawIcon = layer.other?.icon;
+  const emoji =
+    typeof rawIcon === "string" && rawIcon.startsWith(EMOJI_PREFIX)
+      ? rawIcon.slice(EMOJI_PREFIX.length)
+      : null;
+
   const [imgError, setImgError] = useState(!layer.other?.icon);
 
   const confIcon = layer.conf?.icon;
@@ -85,6 +93,18 @@ export const LayerIcon = ({
   const faColor = mappedKey
     ? iconColorMap[mappedKey as keyof typeof iconColorMap]
     : undefined;
+
+  if (emoji) {
+    return (
+      <FontAwesomeLikeIcon
+        src={twemojiUrl(emoji)}
+        alt="Layer Icon"
+        className={(className ?? "") + " text-base"}
+        blendMode="normal"
+        id={id}
+      />
+    );
+  }
 
   return (
     <>
