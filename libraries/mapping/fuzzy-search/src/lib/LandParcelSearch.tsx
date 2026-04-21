@@ -9,8 +9,7 @@ import {
 import type { BaseSelectRef } from "rc-select";
 
 import { useGazData } from "@carma-appframeworks/portals";
-import type { SearchResultItem } from "@carma/types";
-import { GroupedOptions, Option } from "..";
+import { GroupedOptions, Option, SearchResultItem } from "..";
 import {
   parseLandParcelInput,
   generateLandParcelOptions,
