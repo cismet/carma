@@ -4,3 +4,5 @@ export * from "./perspective-view-clip-planes";
 export * from "./conventions/geospatial-camera-basis";
 export * from "./conventions/local-camera-basis";
 export * from "./conventions/local-y-up-scene";
+export * from "./conventions/orientation-conventions";
+export * from "./conventions/pitch-conventions";

@@ -127,7 +127,7 @@ describe("HashStateProviderBase alias handling", () => {
   });
 
   it("keeps an unmanaged hash param unchanged unless it is explicitly cleared", () => {
-    setHash("unmanangehashparam=keep-me&zoom=17&p=40");
+    setHash("unmanagedhashparam=keep-me&zoom=17&p=40");
 
     const { result } = renderHook(() => useHashState(), { wrapper });
 
@@ -146,7 +146,7 @@ describe("HashStateProviderBase alias handling", () => {
       window.location.hash.split("?")[1] ?? ""
     );
 
-    expect(searchParams.get("unmanangehashparam")).toBe("keep-me");
+    expect(searchParams.get("unmanagedhashparam")).toBe("keep-me");
     expect(searchParams.get("p")).toBe("45");
 
     act(() => {
@@ -156,7 +156,7 @@ describe("HashStateProviderBase alias handling", () => {
         },
         {
           clearKeySetIds: [HASH_CLEAR_KEY_SET.SCENE_VIEW_STATE],
-          clearKeys: ["unmanangehashparam"],
+          clearKeys: ["unmanagedhashparam"],
         }
       );
     });
@@ -165,7 +165,7 @@ describe("HashStateProviderBase alias handling", () => {
       window.location.hash.split("?")[1] ?? ""
     );
 
-    expect(searchParams.has("unmanangehashparam")).toBe(false);
+    expect(searchParams.has("unmanagedhashparam")).toBe(false);
     expect(searchParams.get("p")).toBe("45");
   });
 });

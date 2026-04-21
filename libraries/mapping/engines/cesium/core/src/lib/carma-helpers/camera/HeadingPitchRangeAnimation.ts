@@ -1,3 +1,7 @@
+import {
+  CESIUM_LOCAL_NORTH_HEADING_RAD,
+  CESIUM_NADIR_PITCH_RAD,
+} from "@carma-commons/camera/model";
 import { Easing } from "@carma-commons/math";
 
 import { isValidCamera } from "../../carma-guards";
@@ -27,7 +31,11 @@ interface CesiumAnimateOrbitsOptions {
 export function animateInterpolateHeadingPitchRange(
   scene: Scene,
   destination: Cartesian3,
-  hpr: HeadingPitchRange = new HeadingPitchRange(0, -Math.PI / 2, 0),
+  hpr: HeadingPitchRange = new HeadingPitchRange(
+    CESIUM_LOCAL_NORTH_HEADING_RAD,
+    CESIUM_NADIR_PITCH_RAD,
+    0
+  ),
   {
     delay = 0,
     duration = 1000,

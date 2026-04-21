@@ -1,4 +1,4 @@
-import { diffHashParams, getHashParams } from "@carma-commons/utils";
+import { diffHashParams } from "@carma-commons/utils";
 import type {
   HashCodecs,
   HashKeyAliases,

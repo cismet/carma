@@ -1,3 +1,4 @@
+import { CESIUM_UP_ROLL_RAD } from "@carma-commons/camera/model";
 import { Easing } from "@carma-commons/math";
 import { clampToToleranceRange } from "@carma-commons/utils";
 import {
@@ -160,7 +161,7 @@ export const cesiumCameraForceOblique = (
             orientation: {
               heading: scene.camera.heading,
               pitch: targetPitch,
-              roll: 0,
+              roll: CESIUM_UP_ROLL_RAD,
             },
           });
       } catch (error) {

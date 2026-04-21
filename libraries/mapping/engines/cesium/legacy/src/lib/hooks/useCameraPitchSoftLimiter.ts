@@ -51,6 +51,11 @@ const readPitchResetCenter = (
   pickScenePositions(scene, [CENTER_TEST_POSITION], "test for pitch limiter")[0]
     ?.scenePosition ?? null;
 
+const computeResetPitch = (
+  minPitch: Radians,
+  minPitchRange: Radians
+): Radians => (minPitch - minPitchRange) as Radians;
+
 const writePitchResetFlightScratch = ({
   scratchFlight,
   center,
@@ -91,12 +96,14 @@ const resolvePitchSoftLimiterConfig = (
 } => {
   const { pitchLimiter, minPitch, minPitchRange } =
     resolveCameraLimiterOptions(options);
+  const debug = options.debug ?? false;
+  const resetPitch = computeResetPitch(minPitch, minPitchRange);
 
   return {
-    debug: options.debug ?? false,
+    debug,
     pitchLimiter,
     minPitch,
-    resetPitch: (minPitch - minPitchRange) as Radians,
+    resetPitch,
   };
 };
 

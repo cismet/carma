@@ -1,7 +1,14 @@
 import { forwardRef, type CSSProperties } from "react";
 import { CesiumMath } from "@carma-cesium";
+import {
+  CARMA_VIEW_HORIZON_PITCH_RAD,
+  CESIUM_HORIZON_PITCH_RAD,
+  CESIUM_LOCAL_NORTH_HEADING_RAD,
+  fromCesiumPitchRadToCarmaViewPitchRad,
+} from "@carma-commons/camera/model";
 import type { Radians } from "@carma-units";
-const PITCH_HORIZON_OFFSET = CesiumMath.PI_OVER_TWO - 0.2; // avoid showing completely flat from the side
+
+const PITCH_HORIZON_OFFSET = (CARMA_VIEW_HORIZON_PITCH_RAD - 0.2) as Radians; // avoid showing completely flat from the side
 
 export const computeCompassNeedleTransform = (
   pitch: Radians,
@@ -9,7 +16,7 @@ export const computeCompassNeedleTransform = (
 ): string => {
   const normalizedHeading = -heading;
   const normalizedPitch = CesiumMath.clamp(
-    pitch + CesiumMath.PI_OVER_TWO, // rotate pitch range into screen plane
+    fromCesiumPitchRadToCarmaViewPitchRad(pitch),
     0, // NADIR end of range
     PITCH_HORIZON_OFFSET // Horizon end of range
   );
@@ -34,8 +41,8 @@ export const CompassNeedleSVG = forwardRef<
   CompassNeedleSVGProps
 >(function CompassNeedleSVG(
   {
-    pitch = 0 as Radians,
-    heading = 0 as Radians,
+    pitch = CESIUM_HORIZON_PITCH_RAD,
+    heading = CESIUM_LOCAL_NORTH_HEADING_RAD,
     northColor = "#333",
     neutralColor = "#ccc",
   }: CompassNeedleSVGProps,

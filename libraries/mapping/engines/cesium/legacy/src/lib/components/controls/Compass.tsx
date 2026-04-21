@@ -12,6 +12,11 @@ import {
   Cartesian2,
 } from "cesium";
 
+import {
+  CESIUM_LOCAL_NORTH_HEADING_RAD,
+  CESIUM_NADIR_PITCH_RAD,
+  CESIUM_UP_ROLL_RAD,
+} from "@carma-commons/camera/model";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 
 import { useCesiumContext } from "../../hooks/useCesiumContext";
@@ -115,9 +120,9 @@ export const Compass = forwardRef<Ref, CompassProps>(
         viewer.camera.flyTo({
           destination,
           orientation: {
-            heading: CesiumMath.toRadians(0), // facing north
-            pitch: CesiumMath.toRadians(-90), // looking straight down
-            roll: 0.0,
+            heading: CESIUM_LOCAL_NORTH_HEADING_RAD, // facing north
+            pitch: CESIUM_NADIR_PITCH_RAD, // looking straight down
+            roll: CESIUM_UP_ROLL_RAD,
           },
         });
       }

@@ -1,12 +1,17 @@
+import {
+  CESIUM_NADIR_PITCH_RAD,
+  fromCarmaViewPitchDegToCesiumPitchRad,
+} from "@carma-commons/camera/model";
 import { CesiumMath } from "@carma-cesium";
 import type { Radians } from "@carma-units";
 
-const OFFSET_NADIR = -Math.PI / 2 + 0.0001;
+const OFFSET_NADIR = (CESIUM_NADIR_PITCH_RAD + 0.0001) as Radians;
+const DEFAULT_OBLIQUE_PITCH_RAD = fromCarmaViewPitchDegToCesiumPitchRad(45)!;
 
 export enum PITCH {
   HORIZONTAL = 0,
-  OBLIQUE = CesiumMath.toRadians(-45),
-  ORTHO = CesiumMath.toRadians(-90),
+  OBLIQUE = DEFAULT_OBLIQUE_PITCH_RAD,
+  ORTHO = CESIUM_NADIR_PITCH_RAD,
 }
 
 export const getHeadingPitchForMouseEvent = (

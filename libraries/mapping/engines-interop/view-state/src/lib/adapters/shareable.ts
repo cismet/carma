@@ -226,15 +226,15 @@ const resolveHashCodecOptions = (
     return adapterOptions;
   }
 
-  // Cesium camera.pitch uses -PI/2..PI/2 with 0 at the horizon.
-  // The shared canonical pitch uses 0..PI with 0 at nadir, so a Cesium
-  // product limiter of minPitchDeg maps to a canonical max pitch of
-  // (90deg - minPitchDeg).
+  // CARMA view pitch convention uses 0 at nadir and PI/2 at the horizon.
+  // The shareable canonical pitch follows the same convention, so a Cesium
+  // product limiter configured via minPitchDeg maps directly to a canonical
+  // maximum pitch of minPitchDeg.
   return {
     ...adapterOptions,
     restorePitchLimitsRad: {
       maxPitchRad: degToRadNumeric(
-        90 - cameraLimiterOptions.minPitchDeg
+        cameraLimiterOptions.minPitchDeg
       )! as Radians,
     },
   };

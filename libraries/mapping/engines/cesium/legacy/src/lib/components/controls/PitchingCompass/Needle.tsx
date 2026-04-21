@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useRef } from "react";
-import { CesiumMath } from "@carma-cesium";
+import {
+  CESIUM_LOCAL_NORTH_HEADING_RAD,
+  CESIUM_NADIR_PITCH_RAD,
+} from "@carma-commons/camera/model";
 import type { Radians } from "@carma-units";
 
 import {
@@ -16,8 +19,8 @@ export const Needle = ({ register }: Props) => {
     pitch: Radians;
     heading: Radians;
   }>({
-    pitch: CesiumMath.toRadians(-90) as Radians,
-    heading: 0 as Radians,
+    pitch: CESIUM_NADIR_PITCH_RAD,
+    heading: CESIUM_LOCAL_NORTH_HEADING_RAD,
   });
 
   const applyPendingOrientation = useCallback(() => {

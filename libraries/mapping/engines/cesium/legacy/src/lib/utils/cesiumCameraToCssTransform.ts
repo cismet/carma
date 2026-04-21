@@ -1,6 +1,8 @@
+import { fromCesiumPitchRadToCarmaViewPitchRad } from "@carma-commons/camera/model";
 import { clamp } from "@carma-commons/math";
 import { type Camera } from "@carma-cesium";
 import { applyRollToHeadingForCameraNearNadir } from "@carma-mapping/engines/cesium/core";
+import type { Radians } from "@carma-units";
 type PerspectiveFrustumLike = {
   fovy?: number;
   _fovy?: number;
@@ -66,7 +68,9 @@ export function cesiumCameraToCssTransform(
 ) {
   const { offsetRad, targetEl, fallback = 1600 } = opts;
   const headingRad = applyRollToHeadingForCameraNearNadir(camera);
-  const mappedPitchRad = camera.pitch + Math.PI / 2; // align top/bottom as default plane
+  const mappedPitchRad = fromCesiumPitchRadToCarmaViewPitchRad(
+    camera.pitch as Radians
+  );
   const headingAdjRad = headingRad - offsetRad; // compensate imagery north offset
   const transform = `rotateX(${mappedPitchRad}rad) rotateZ(${-headingAdjRad}rad)`;
   const inverseTransform = `rotateZ(${headingAdjRad}rad) rotateX(${-mappedPitchRad}rad)`;

@@ -1,3 +1,4 @@
+import { CESIUM_LOCAL_NORTH_HEADING_RAD } from "@carma-commons/camera/model";
 import {
   Cartesian3,
   HeadingPitchRange,
@@ -29,7 +30,7 @@ import {
   MAX_CESIUM_COMPASS_PITCH_DEG,
   MIN_CESIUM_COMPASS_PITCH_RAD,
   setViewFromCameraState,
-  fromCompassPitchDegToCesiumPitchRad,
+  fromCarmaViewPitchDegToCesiumCompassPitchRad,
   type CesiumCompassDragSession,
 } from "@carma-mapping/engines/cesium/core";
 import { clamp } from "@carma-commons/math";
@@ -52,7 +53,6 @@ import {
   type NavigationTransitionOptions,
   type NavigationZoomOptions,
 } from "../../contracts";
-const ZERO_RADIANS = degToRadNumeric(0)! as Radians;
 const ABSOLUTE_MIN_CESIUM_FOV_RAD = degToRadNumeric(0.1)! as Radians;
 const DEFAULT_MIN_CESIUM_FOV_RAD = degToRadNumeric(2)! as Radians;
 const DEFAULT_MAX_CESIUM_FOV_RAD = degToRadNumeric(120)! as Radians;
@@ -338,7 +338,8 @@ export const createCesiumNavigationMethods = (
     rangeM: number,
     pitchDeg: number
   ) => {
-    const targetPitchRad = fromCompassPitchDegToCesiumPitchRad(pitchDeg);
+    const targetPitchRad =
+      fromCarmaViewPitchDegToCesiumCompassPitchRad(pitchDeg);
     const orbitSpeedRadPerSecond = degToRadNumeric(
       readOrbitSpeedDegPerSecond(options)
     );
@@ -739,7 +740,8 @@ export const createCesiumNavigationMethods = (
             orbitCenter,
             {
               heading: activeScene.camera.heading as Radians,
-              pitch: fromCompassPitchDegToCesiumPitchRad(orbitPitchDeg),
+              pitch:
+                fromCarmaViewPitchDegToCesiumCompassPitchRad(orbitPitchDeg),
               range: targetRange,
             },
             {
@@ -817,7 +819,7 @@ export const createCesiumNavigationMethods = (
             activeScene,
             orbitCenter,
             {
-              heading: ZERO_RADIANS,
+              heading: CESIUM_LOCAL_NORTH_HEADING_RAD,
               pitch: activeScene.camera.pitch as Radians,
               range,
             },
@@ -839,7 +841,11 @@ export const createCesiumNavigationMethods = (
         options.onStarted?.();
         activeScene.camera.lookAt(
           orbitCenter,
-          new HeadingPitchRange(0, activeScene.camera.pitch, range)
+          new HeadingPitchRange(
+            CESIUM_LOCAL_NORTH_HEADING_RAD,
+            activeScene.camera.pitch,
+            range
+          )
         );
         activeScene.camera.lookAtTransform(Matrix4.IDENTITY);
         requestCesiumRender(activeScene);
@@ -851,7 +857,7 @@ export const createCesiumNavigationMethods = (
       activeScene.camera.setView({
         destination: activeScene.camera.position,
         orientation: {
-          heading: 0,
+          heading: CESIUM_LOCAL_NORTH_HEADING_RAD,
           pitch: activeScene.camera.pitch,
           roll: activeScene.camera.roll,
         },
@@ -880,7 +886,7 @@ export const createCesiumNavigationMethods = (
             activeScene,
             orbitCenter,
             {
-              heading: ZERO_RADIANS,
+              heading: CESIUM_LOCAL_NORTH_HEADING_RAD,
               pitch: MIN_CESIUM_COMPASS_PITCH_RAD,
               range,
             },
@@ -914,7 +920,7 @@ export const createCesiumNavigationMethods = (
       activeScene.camera.setView({
         destination: activeScene.camera.position,
         orientation: {
-          heading: 0,
+          heading: CESIUM_LOCAL_NORTH_HEADING_RAD,
           pitch: MIN_CESIUM_COMPASS_PITCH_RAD,
           roll: activeScene.camera.roll,
         },

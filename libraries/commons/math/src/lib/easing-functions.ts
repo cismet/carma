@@ -60,6 +60,34 @@ export const CUBIC_IN_OUT: Easing = (time: number) => {
 };
 
 /**
+ * Circular ease-in
+ */
+export const CIRCULAR_IN: Easing = (time: number) => {
+  return 1 - Math.sqrt(1 - time * time);
+};
+
+/**
+ * Circular ease-out
+ */
+export const CIRCULAR_OUT: Easing = (time: number) => {
+  const t = time - 1;
+  return Math.sqrt(1 - t * t);
+};
+
+/**
+ * Circular ease-in-out
+ */
+export const CIRCULAR_IN_OUT: Easing = (time: number) => {
+  if (time < 0.5) {
+    const t = 2 * time;
+    return (1 - Math.sqrt(1 - t * t)) / 2;
+  }
+
+  const t = -2 * time + 2;
+  return (Math.sqrt(1 - t * t) + 1) / 2;
+};
+
+/**
  * Sinusoidal ease-in
  */
 export const SINUSOIDAL_IN: Easing = (time: number) => {
@@ -117,6 +145,9 @@ export const Easing = {
   CUBIC_IN,
   CUBIC_OUT,
   CUBIC_IN_OUT,
+  CIRCULAR_IN,
+  CIRCULAR_OUT,
+  CIRCULAR_IN_OUT,
   SINUSOIDAL_IN,
   SINUSOIDAL_OUT,
   SINUSOIDAL_IN_OUT,

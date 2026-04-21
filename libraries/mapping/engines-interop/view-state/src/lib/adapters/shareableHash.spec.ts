@@ -367,7 +367,7 @@ describe("createViewStateShareableHashCodec", () => {
 
     expect(decoded).not.toBeNull();
     expect(radToDegNumeric(deriveOrbitAngles(decoded!).pitch)).toBeCloseTo(
-      75,
+      15,
       8
     );
   });
