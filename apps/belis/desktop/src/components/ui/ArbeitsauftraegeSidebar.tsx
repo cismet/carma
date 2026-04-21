@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useKeyboardListNavigation } from "../../hooks/useKeyboardListNavigation";
+
 import { Spin } from "antd";
 import { getFachobjektOfProtocol } from "@carma-appframeworks/belis";
 import {
@@ -17,6 +18,7 @@ import {
   setActiveAATab,
   setSelectedAPId,
   setApOpenedFrom,
+  getApOpenedFrom,
 } from "../../store/slices/arbeitsauftraege";
 import { sortProtokolleByTableSort } from "../../helper/protokolleSortHelpers";
 import {
@@ -257,7 +259,9 @@ const ArbeitsauftraegeSidebar = ({
     }
   }, [isAPTabDisabled, activeTab]);
 
-  // Auto-select first AP when switching to AP tab with no valid selection
+  // Auto-select first AP when switching to AP tab with no valid selection,
+  // and ensure apOpenedFrom is set so the AP form renders.
+  const apOpenedFrom = useSelector(getApOpenedFrom);
   useEffect(() => {
     if (activeTab === "ap" && protokolle.length > 0) {
       const hasValidSelection =
@@ -265,9 +269,11 @@ const ArbeitsauftraegeSidebar = ({
       if (!hasValidSelection) {
         dispatch(setSelectedAPId(protokolle[0].id));
         dispatch(setApOpenedFrom("sidebar"));
+      } else if (apOpenedFrom == null) {
+        dispatch(setApOpenedFrom("sidebar"));
       }
     }
-  }, [activeTab, selectedAPId, protokolle]);
+  }, [activeTab, selectedAPId, protokolle, apOpenedFrom]);
 
   // Keyboard navigation for AA tab
   const selectedAAIndex = useMemo(

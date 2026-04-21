@@ -262,6 +262,8 @@ const BelisSidebar = ({
   } | null>(null);
 
   // Scroll selected item into view only when selection comes from map (not list)
+
+
   useEffect(() => {
     if (!selectedFeatureId) return;
 
