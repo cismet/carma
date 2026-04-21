@@ -2,14 +2,14 @@ import {
   faCircle,
   faGlobe,
   faLayerGroup,
+  faRuler,
   faSquare,
 } from "@fortawesome/free-solid-svg-icons";
 
 export const iconMap = {
-  bäume: faCircle,
-  gärten: faSquare,
-  ortho: faGlobe,
+  measurement: faRuler,
   background: faLayerGroup,
+  ortho: faGlobe,
 };
 
 export const iconColorMap = {

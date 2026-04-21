@@ -26,4 +26,4 @@ export {
   type VectorFeatureResult,
 } from "./lib/featureUtils";
 export { parseToMapLayer } from "./lib/layerUtils";
-export { resolveLayerIconUrl } from "./lib/iconUtils";
+export { resolveLayerIconUrl, twemojiUrl } from "./lib/iconUtils";

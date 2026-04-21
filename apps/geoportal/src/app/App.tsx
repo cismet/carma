@@ -46,6 +46,7 @@ import { useAppConfig } from "./hooks/useAppConfig";
 import { useManageLayers } from "./hooks/useManageLayers";
 import { useSyncToken } from "./hooks/useSyncToken";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
+import { useMeasurementLayerButton } from "./hooks/useMeasurementLayerButton";
 
 import { APP_KEY, layerMap } from "./config";
 import { geoportalMapStyleConfig } from "./config/mapStyleConfig";
@@ -145,6 +146,19 @@ function MeasurementsWrapper({
   );
 }
 
+function MeasurementLayerSyncInner() {
+  useMeasurementLayerButton();
+  return null;
+}
+
+function MeasurementLayerSync() {
+  const flags = useFeatureFlags();
+  if (!flags.featureFlagMeasurementLayerButton) {
+    return null;
+  }
+  return <MeasurementLayerSyncInner />;
+}
+
 function App({ published }: { published?: boolean }) {
   const dispatch = useDispatch();
   const showLoginModal = useSelector(getShowLoginModal);
@@ -205,6 +219,7 @@ function App({ published }: { published?: boolean }) {
                   setModeExternal={handleSetMode}
                   baseConfig={MEASUREMENTS_BASE_CONFIG}
                 >
+                  <MeasurementLayerSync />
                   <ErrorBoundary FallbackComponent={AppErrorFallback}>
                     <AdhocFeatureRehydration />
                     <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>

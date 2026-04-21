@@ -1,16 +1,12 @@
 import { createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
 
-import { Layer } from "@carma-mapping/layers";
+import { BackgroundLayer, Layer } from "@carma-mapping/layers";
 
 import { RootState } from "..";
 import { layerMap } from "../../helper/layer";
 
-export type BackgroundLayer = Layer & {
-  layers: string;
-  inhalt?: string;
-  eignung?: string;
-};
+export type { BackgroundLayer };
 
 export type SavedLayerConfig = {
   title: string;

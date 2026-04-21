@@ -38,7 +38,6 @@ import {
   getShowRightScrollButton,
   setLayers,
   setSelectedLayerIndex,
-  setSelectedLayerIndexNoSelection,
   setShowLeftScrollButton,
   setShowRightScrollButton,
 } from "../../store/slices/mapping";
@@ -72,6 +71,10 @@ const LayerWrapper = () => {
   const style = {
     color: isOver ? "green" : undefined,
   };
+
+  const pinnedFirstLayers = layers.filter((l) => l.pinned === "first");
+  const sortableLayers = layers.filter((l) => !l.pinned);
+  const pinnedLastLayers = layers.filter((l) => l.pinned === "last");
 
   const getLayerPos = (id) => layers.findIndex((layer) => layer.id === id);
 
@@ -124,17 +127,13 @@ const LayerWrapper = () => {
           ref={setNodeRef}
           style={style}
           id="buttonWrapper"
-          className="relative w-full h-9 z-[999]"
-          onClick={() => {
-            console.debug("onClick buttonWrapper");
-            dispatch(setSelectedLayerIndexNoSelection());
-          }}
+          className="relative w-full h-9 z-[999] pointer-events-none"
         >
           <div className="relative w-[calc(100%-40px)] mx-auto h-full">
             {showLeftScrollButton && (
               <div
                 className={cn(
-                  "absolute left-14 top-0.5 bg-neutral-100 w-fit min-w-max flex items-center gap-2 px-3 rounded-3xl h-8 z-[99999999] button-shadow"
+                  "absolute left-14 top-0.5 bg-neutral-100 w-fit min-w-max flex items-center gap-2 px-3 rounded-3xl h-8 z-[99999999] button-shadow pointer-events-auto"
                 )}
                 role="button"
                 onClick={() => {
@@ -150,7 +149,7 @@ const LayerWrapper = () => {
             {showRightScrollButton && (
               <div
                 className={cn(
-                  "absolute -right-7 top-0.5 bg-neutral-100 w-fit min-w-max flex items-center gap-2 px-3 rounded-3xl h-8 z-[99999999] button-shadow"
+                  "absolute -right-7 top-0.5 bg-neutral-100 w-fit min-w-max flex items-center gap-2 px-3 rounded-3xl h-8 z-[99999999] button-shadow pointer-events-auto"
                 )}
                 role="button"
                 onClick={() => {
@@ -163,7 +162,7 @@ const LayerWrapper = () => {
                 <FontAwesomeIcon icon={faChevronRight} />
               </div>
             )}
-            <div className="w-full flex justify-center items-center h-full gap-2">
+            <div className="w-full flex justify-center items-center h-full gap-2 pointer-events-none [&>*]:pointer-events-auto">
               <GeoportalLayerButton
                 layer={backgroundLayer}
                 index={-1}
@@ -182,21 +181,41 @@ const LayerWrapper = () => {
                     }
                   }}
                 >
+                  {pinnedFirstLayers.map((layer) => (
+                    <GeoportalLayerButton
+                      title={layer.title}
+                      id={layer.id}
+                      key={layer.id}
+                      index={layers.indexOf(layer)}
+                      layer={layer}
+                      hide={layer.type !== "object" && !isLeaflet}
+                    />
+                  ))}
                   <SortableContext
-                    items={layers}
+                    items={sortableLayers}
                     strategy={horizontalListSortingStrategy}
                   >
-                    {layers.map((layer, i) => (
+                    {sortableLayers.map((layer) => (
                       <GeoportalLayerButton
                         title={layer.title}
                         id={layer.id}
                         key={layer.id}
-                        index={i}
+                        index={layers.indexOf(layer)}
                         layer={layer}
                         hide={layer.type !== "object" && !isLeaflet}
                       />
                     ))}
                   </SortableContext>
+                  {pinnedLastLayers.map((layer) => (
+                    <GeoportalLayerButton
+                      title={layer.title}
+                      id={layer.id}
+                      key={layer.id}
+                      index={layers.indexOf(layer)}
+                      layer={layer}
+                      hide={layer.type !== "object" && !isLeaflet}
+                    />
+                  ))}
                 </div>
               )}
             </div>

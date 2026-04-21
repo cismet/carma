@@ -283,7 +283,7 @@ export const useCreateCismapLayers = (
 
   // const ntList = [""];
 
-  return layers.map((layer, i) => {
+  return layers.filter((layer) => layer.props).map((layer, i) => {
     if (layer.visible) {
       switch (layer.layerType) {
         case "wmts-nt":

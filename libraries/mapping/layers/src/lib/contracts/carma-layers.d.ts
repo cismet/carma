@@ -1,3 +1,4 @@
+import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import type { CarmaConfig } from "./carma-config";
 
 export type LayerFilterInfo = {
@@ -111,13 +112,18 @@ type OtherLayerProps = Partial<LayerProps & Item> & {
 type BaseLayer = {
   title: string;
   id: string;
-  opacity: number;
-  description: string;
+  opacity?: number;
+  description?: string;
   visible: boolean;
   queryable?: boolean;
   useInFeatureInfo?: boolean;
   conf?: CarmaConfig;
   icon?: string;
+  pinned?: "first" | "last";
+  interactionButton?: {
+    icon: IconDefinition;
+    id: string;
+  };
   other?: OtherLayerProps;
   filterConfig?: FilterConfig;
   filterInfo?: LayerFilterInfo;
@@ -137,7 +143,7 @@ type BaseLayer = {
 
 export type Layer = BaseLayer & {
   type?: typeof LAYER_ENTITY_TYPES.LAYER | typeof LAYER_ENTITY_TYPES.OBJECT;
-  layerType:
+  layerType?:
     | typeof LAYER_PROVIDER_TYPES.WMTS
     | typeof LAYER_PROVIDER_TYPES.WMTS_NT
     | typeof LAYER_PROVIDER_TYPES.VECTOR;

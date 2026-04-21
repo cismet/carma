@@ -4,7 +4,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useEffect, useState } from "react";
 import { faLayerGroup, faMap } from "@fortawesome/free-solid-svg-icons";
 import { iconColorMap, iconMap } from "./iconMapping";
-import { resolveLayerIconUrl } from "@carma-mapping/utils";
+import { resolveLayerIconUrl, twemojiUrl } from "@carma-mapping/utils";
 
 const ICON_PREFIX =
   "https://geo.wuppertal.de/geoportal/geoportal_icon_legends/";
@@ -29,6 +29,17 @@ const mapIconPath = (path: string): string => {
   return iconPathAliases[lower] ?? lower;
 };
 
+function resolveIconKey(
+  ...candidates: (string | undefined)[]
+): string | undefined {
+  for (const key of candidates) {
+    if (key && key in iconMap) return key;
+  }
+  return undefined;
+}
+
+const EMOJI_PREFIX = "emoji:";
+
 export const LayerIcon = ({
   layer,
   iconPrefix = ICON_PREFIX,
@@ -39,11 +50,18 @@ export const LayerIcon = ({
   displayUrl = false,
   onError,
 }: LayerIconProps) => {
+  const rawIcon = layer.other?.icon;
+  const emoji =
+    typeof rawIcon === "string" && rawIcon.startsWith(EMOJI_PREFIX)
+      ? rawIcon.slice(EMOJI_PREFIX.length)
+      : null;
+
   const [imgError, setImgError] = useState(!layer.other?.icon);
 
+  const confIcon = layer.conf?.icon;
   const iconName =
     layer.other?.icon ||
-    layer.conf?.icon ||
+    (typeof confIcon === "string" ? confIcon : undefined) ||
     (layer.other?.path && layer.other?.name
       ? mapIconPath(layer.other?.originalPath ?? layer.other.path) +
         "/" +
@@ -66,6 +84,28 @@ export const LayerIcon = ({
     }
   }, [iconSrc]);
 
+  const mappedKey = resolveIconKey(fallbackIcon, iconName);
+  const faIcon = mappedKey
+    ? iconMap[mappedKey as keyof typeof iconMap]
+    : isBaseLayer
+    ? faLayerGroup
+    : faMap;
+  const faColor = mappedKey
+    ? iconColorMap[mappedKey as keyof typeof iconColorMap]
+    : undefined;
+
+  if (emoji) {
+    return (
+      <FontAwesomeLikeIcon
+        src={twemojiUrl(emoji)}
+        alt="Layer Icon"
+        className={(className ?? "") + " text-base"}
+        blendMode="normal"
+        id={id}
+      />
+    );
+  }
+
   return (
     <>
       {iconSrc && !imgError ? (
@@ -77,15 +117,9 @@ export const LayerIcon = ({
         />
       ) : (
         <FontAwesomeIcon
-          icon={
-            fallbackIcon
-              ? iconMap[fallbackIcon]
-              : isBaseLayer
-              ? faLayerGroup
-              : faMap
-          }
+          icon={faIcon}
           className={className + " text-base"}
-          style={{ color: fallbackIcon ? iconColorMap[fallbackIcon] : "" }}
+          style={{ color: faColor || "" }}
           id={id}
         />
       )}

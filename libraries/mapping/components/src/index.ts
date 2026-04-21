@@ -17,6 +17,7 @@ export {
 export { MobileWarningMessage } from "./lib/components/MobileWarningMessage";
 export { LayerButton } from "./lib/components/LayerButton";
 export { LayerIcon } from "./lib/components/LayerIcon";
+export { iconMap, iconColorMap } from "./lib/components/iconMapping";
 export { ToolButton } from "./lib/components/ToolButton";
 export {
   AnnotationsToolbar,

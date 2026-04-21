@@ -170,6 +170,12 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
 
       layerButtons.forEach((layerButton, i) => {
         if (layerButton.contains(event.target as Node)) {
+          const layerId = layerButton.id.replace("layer-", "");
+          const clickedLayer = layers.find((l) => l.id === layerId);
+          if (clickedLayer?.interactionButton) {
+            returnFunction = true;
+            return;
+          }
           newLayerIndex = i - 1;
         }
       });
@@ -205,19 +211,12 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
   const iconId = `secview-icon-${layer.id}`;
 
   return (
-    <div
-      onClick={() => {
-        dispatch(setSelectedLayerIndexNoSelection());
-      }}
-      className="pt-3 w-full"
-    >
+    <div className="pt-3 w-full pointer-events-none">
       <div className="flex items-center justify-center w-full">
         <div
           ref={infoRef}
-          onClick={(e) => {
-            e.stopPropagation();
-          }}
           className={cn(
+            "pointer-events-auto",
             "min-w-[280px] sm:max-w-[560px] md:max-w-[720px] lg:w-full w-full sm:w-3/4 sm:mx-0",
             "h-fit bg-white button-shadow rounded-[10px] flex flex-col relative secondary-view gap-2 py-2 transition-all duration-300",
             showInfo
