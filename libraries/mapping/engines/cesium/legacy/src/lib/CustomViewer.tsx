@@ -37,8 +37,8 @@ export type GlobeOptions = {
 
 export type CameraLimiterOptions = {
   pitchLimiter?: boolean;
-  minPitch?: number;
-  minPitchRange?: number;
+  minPitchDeg?: number;
+  minPitchRangeDeg?: number;
 };
 
 export type InitialCameraView = {

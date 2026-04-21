@@ -64,7 +64,7 @@ export type CesiumConfig = {
   camera: {
     pitchLimiter?: boolean;
     minPitchDeg: number;
-    minPitchRange: number;
+    minPitchRangeDeg: number;
   };
   markerKey?: string;
   markerAnchorHeight?: number;

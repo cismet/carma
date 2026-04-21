@@ -31,7 +31,7 @@ export const CESIUM_CONFIG: CesiumConfig = {
   camera: {
     pitchLimiter: true,
     minPitchDeg: 15,
-    minPitchRange: 10,
+    minPitchRangeDeg: 10,
   },
   markerKey: "MarkerGlowLine",
   markerAnchorHeight: 10,
