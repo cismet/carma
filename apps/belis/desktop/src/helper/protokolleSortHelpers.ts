@@ -130,5 +130,9 @@ export function sortProtokolleByTableSort(
     );
   }
   const dir = sort.order === "descend" ? -1 : 1;
-  return items.sort((a, b) => dir * compare(extractor(a), extractor(b)));
+  return items.sort((a, b) => {
+    const primary = dir * compare(extractor(a), extractor(b));
+    if (primary !== 0) return primary;
+    return (Number(a.protokollnummer) || 0) - (Number(b.protokollnummer) || 0);
+  });
 }
