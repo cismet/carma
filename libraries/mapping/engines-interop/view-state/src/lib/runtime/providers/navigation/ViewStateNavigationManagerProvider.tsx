@@ -37,11 +37,47 @@ const serializeHashValues = (values: ViewStateHashValues): string =>
       .map((key) => [key, values[key]])
   );
 
+const tryEncodeHashValues = ({
+  codec,
+  state,
+  label,
+  reason,
+}: {
+  codec: ViewStateHashCodec;
+  state: ViewState | null | undefined;
+  label: string;
+  reason: string;
+}): ViewStateHashValues | null => {
+  if (!state) {
+    return null;
+  }
+
+  try {
+    return codec.encode(state);
+  } catch (error) {
+    console.warn("[ViewStateNavigationManager] Failed to encode hash", {
+      label,
+      reason,
+      error,
+    });
+    return null;
+  }
+};
+
 const readRestoreCommitSignature = (
   codec: ViewStateHashCodec,
-  state: ViewState | null
+  state: ViewState | null,
+  options: {
+    label: string;
+    reason: string;
+  }
 ): string | null => {
-  const restoreHashValues = state ? codec.encode(state) : null;
+  const restoreHashValues = tryEncodeHashValues({
+    codec,
+    state,
+    label: options.label,
+    reason: options.reason,
+  });
   return restoreHashValues ? serializeHashValues(restoreHashValues) : null;
 };
 
@@ -86,7 +122,10 @@ export const ViewStateNavigationManagerProvider = ({
     Set<(event: ViewStateNavigationEvent) => void>
   >(new Set());
   const pendingRestoreCommitSignatureRef = useRef<string | null>(
-    readRestoreCommitSignature(codec, restoreState)
+    readRestoreCommitSignature(codec, restoreState, {
+      label,
+      reason: "initial-restore-signature",
+    })
   );
   const isRestoreResolved = true;
 
@@ -119,7 +158,11 @@ export const ViewStateNavigationManagerProvider = ({
       setRestoreState(nextRestoreState);
       pendingRestoreCommitSignatureRef.current = readRestoreCommitSignature(
         codec,
-        nextRestoreState
+        nextRestoreState,
+        {
+          label,
+          reason: "browser-popstate-restore-signature",
+        }
       );
 
       if (!nextRestoreState) {
@@ -131,7 +174,7 @@ export const ViewStateNavigationManagerProvider = ({
         state: nextRestoreState,
       });
     });
-  }, [codec, emitNavigationEvent, registerOnPopState]);
+  }, [codec, emitNavigationEvent, label, registerOnPopState]);
 
   const commitCurrentState = useCallback<
     ViewStateNavigationManagerContextValue["commitCurrentState"]
@@ -150,17 +193,12 @@ export const ViewStateNavigationManagerProvider = ({
         return false;
       }
 
-      let hashValues: ViewStateHashValues | null;
-      try {
-        hashValues = codec.encode(currentState);
-      } catch (error) {
-        console.warn("[ViewStateNavigationManager] Failed to encode hash", {
-          label,
-          reason,
-          error,
-        });
-        return false;
-      }
+      const hashValues = tryEncodeHashValues({
+        codec,
+        state: currentState,
+        label,
+        reason,
+      });
       if (!hashValues) {
         return false;
       }

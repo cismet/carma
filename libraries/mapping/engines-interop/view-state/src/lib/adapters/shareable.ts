@@ -58,7 +58,7 @@ export type ShareableViewStateHashCodecOptions =
   ShareableViewStateAdapterOptions & {
     cameraLimiterOptions?: {
       pitchLimiter?: boolean;
-      minPitch?: number;
+      minPitchDeg?: number;
     };
   };
 
@@ -221,7 +221,7 @@ const resolveHashCodecOptions = (
 
   if (
     cameraLimiterOptions?.pitchLimiter === false ||
-    !isFiniteNumber(cameraLimiterOptions?.minPitch)
+    !isFiniteNumber(cameraLimiterOptions?.minPitchDeg)
   ) {
     return adapterOptions;
   }
@@ -234,7 +234,7 @@ const resolveHashCodecOptions = (
     ...adapterOptions,
     restorePitchLimitsRad: {
       maxPitchRad: degToRadNumeric(
-        90 - cameraLimiterOptions.minPitch
+        90 - cameraLimiterOptions.minPitchDeg
       )! as Radians,
     },
   };

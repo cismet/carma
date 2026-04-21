@@ -353,7 +353,7 @@ describe("createViewStateShareableHashCodec", () => {
     const codec = createShareableHashCodec({
       cameraLimiterOptions: {
         pitchLimiter: true,
-        minPitch: 15,
+        minPitchDeg: 15,
       },
     });
 

@@ -5,7 +5,11 @@ import type { PropsWithChildren } from "react";
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { HashStateProviderBase, useHashState } from "./hashStateShared";
+import {
+  HASH_CLEAR_KEY_SET,
+  HashStateProviderBase,
+  useHashState,
+} from "./hashStateShared";
 
 const TEST_ROUTED_PATH = "/test";
 
@@ -98,5 +102,70 @@ describe("HashStateProviderBase alias handling", () => {
     expect(window.location.hash).not.toContain("bearing=");
     expect(window.location.hash).not.toContain("altitude=");
     expect(window.location.hash).not.toContain("roll=");
+  });
+
+  it("removes an aliased managed key when its codec encodes to undefined", () => {
+    setHash("m=1&zoom=17");
+
+    const { result } = renderHook(() => useHashState(), { wrapper });
+
+    act(() => {
+      result.current.updateHash({
+        mapStyle: "unknown-style",
+      });
+    });
+
+    const searchParams = new URLSearchParams(
+      window.location.hash.split("?")[1] ?? ""
+    );
+
+    expect(searchParams.get("zoom")).toBe("17");
+    expect(searchParams.has("m")).toBe(false);
+    expect(result.current.getHashValues()).toEqual({
+      zoom: 17,
+    });
+  });
+
+  it("keeps an unmanaged hash param unchanged unless it is explicitly cleared", () => {
+    setHash("unmanangehashparam=keep-me&zoom=17&p=40");
+
+    const { result } = renderHook(() => useHashState(), { wrapper });
+
+    act(() => {
+      result.current.updateHash(
+        {
+          pitch: 45,
+        },
+        {
+          clearKeySetIds: [HASH_CLEAR_KEY_SET.SCENE_VIEW_STATE],
+        }
+      );
+    });
+
+    let searchParams = new URLSearchParams(
+      window.location.hash.split("?")[1] ?? ""
+    );
+
+    expect(searchParams.get("unmanangehashparam")).toBe("keep-me");
+    expect(searchParams.get("p")).toBe("45");
+
+    act(() => {
+      result.current.updateHash(
+        {
+          pitch: 45,
+        },
+        {
+          clearKeySetIds: [HASH_CLEAR_KEY_SET.SCENE_VIEW_STATE],
+          clearKeys: ["unmanangehashparam"],
+        }
+      );
+    });
+
+    searchParams = new URLSearchParams(
+      window.location.hash.split("?")[1] ?? ""
+    );
+
+    expect(searchParams.has("unmanangehashparam")).toBe(false);
+    expect(searchParams.get("p")).toBe("45");
   });
 });

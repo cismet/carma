@@ -140,6 +140,49 @@ describe("ViewStateNavigationManagerProvider", () => {
     expect(result.current.restoreState?.metadata.source).toBe("hash");
   });
 
+  it("keeps restore state resolved when restore-signature encoding throws", () => {
+    currentHashValues = {
+      lat: 51.27,
+    };
+
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const restoreThrowingCodec: ViewStateHashCodec = {
+      encode: () => {
+        throw new Error("cannot encode");
+      },
+      decode: (hashValues) =>
+        typeof hashValues.lat === "number"
+          ? buildTestState({
+              sourceId: "hash",
+              source: "hash",
+            })
+          : null,
+    };
+    const restoreThrowingWrapper = ({ children }: PropsWithChildren) => (
+      <ViewStateProvider>
+        <ViewStateNavigationManagerProvider codec={restoreThrowingCodec}>
+          {children}
+        </ViewStateNavigationManagerProvider>
+      </ViewStateProvider>
+    );
+
+    const { result } = renderHook(() => useViewStateNavigationRestore(), {
+      wrapper: restoreThrowingWrapper,
+    });
+
+    expect(result.current.isRestoreResolved).toBe(true);
+    expect(result.current.restoreState?.metadata.sourceId).toBe("hash");
+    expect(result.current.restoreState?.metadata.source).toBe("hash");
+    expect(warnSpy).toHaveBeenCalledWith(
+      "[ViewStateNavigationManager] Failed to encode hash",
+      expect.objectContaining({
+        label: "ViewStateNavigationManager",
+        reason: "initial-restore-signature",
+      })
+    );
+    warnSpy.mockRestore();
+  });
+
   it("writes hash on explicit commits", () => {
     const { result } = renderHook(
       () => ({

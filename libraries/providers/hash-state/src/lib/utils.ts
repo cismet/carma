@@ -131,7 +131,8 @@ export const applyHashCodecs = (
   const undefinedKeys: string[] = [];
 
   for (const [key, value] of Object.entries(params)) {
-    const encoded = hashCodecs?.[key]?.encode(value) ?? value;
+    const codec = hashCodecs[key];
+    const encoded = codec ? codec.encode(value) : value;
     const aliasedKey = keyAliases?.[key] ?? key;
 
     if (encoded === undefined) {
