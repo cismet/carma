@@ -319,6 +319,12 @@ iframe {
   font-size: 12px !important;
 }
 
+/* Keep selected Protokolle row blue on hover */
+.ant-table-tbody > tr.bg-blue-50 > td,
+.ant-table-tbody > tr.bg-blue-50:hover > td {
+  background-color: #eff6ff !important;
+}
+
 /* Fix input background to be white in production */
 .ant-input {
   background-color: #ffffff !important;
