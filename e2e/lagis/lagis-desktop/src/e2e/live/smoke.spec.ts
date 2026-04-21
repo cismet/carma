@@ -150,15 +150,59 @@ test.describe("lagis smoke test", () => {
       page.locator("[data-test-id=land-parcel-search]")
     ).toBeVisible();
 
-    // TODO: Update LandParcelChooser e2e tests for the new LandParcelSearch component
-    // The old tests interacted with 3 separate ant-select dropdowns (Gemarkung, Flur, Flurstück).
-    // The new component uses a single autocomplete input.
-    // Tests should be updated to:
-    //   1. Type "Barmen-3-39/0" into the search input
-    //   2. Select the matching option from the dropdown
-    //   3. Verify URL params (gem=Barmen, flur=..., fstck=...)
-    //   4. Verify Verwaltungsbereiche section shows 2 items
-    //   5. Verify office data (GMW., area 7719)
+    // Wait for landparcel data to be loaded into the store
+    await page.waitForTimeout(2000);
+
+    // Focus the autocomplete input and type the full landparcel key.
+    // The new LandParcelSearch calls tryDirectLandParcelMatch on a full
+    // "Gemarkung-Flur-Flurstück" input and renders a single matching option.
+    const landParcelInput = page.locator(
+      "[data-test-id=land-parcel-search] input"
+    );
+    await landParcelInput.click();
+    await page.waitForTimeout(500);
+    await landParcelInput.pressSequentially("Barmen-3-39/0", { delay: 50 });
+    await page.waitForTimeout(1000);
+
+    // Select the matching flurstueck option from the dropdown
+    const flurstueckOption = page
+      .locator(".ant-select-dropdown .ant-select-item")
+      .filter({ hasText: "Barmen-3-39/0" })
+      .first();
+    await expect(flurstueckOption).toBeVisible();
+    await flurstueckOption.click();
+    await page.waitForTimeout(1500);
+
+    // Verify URL parameters are set correctly
+    const currentUrl = page.url();
+    expect(currentUrl).toContain("gem=Barmen");
+    expect(currentUrl).toContain("flur=3");
+    expect(currentUrl).toContain("fstck=39-0");
+
+    // Verify Verwaltungsbereiche section shows 2 items
+    const verwaltungsbereicheText = page.locator("text=Verwaltungsbereiche");
+    await expect(verwaltungsbereicheText).toBeVisible();
+
+    const verwaltungsbereicheContainer = page
+      .locator("text=Verwaltungsbereiche")
+      .locator("..");
+    const containerText = await verwaltungsbereicheContainer.textContent();
+    expect(containerText).toContain("2");
+
+    const link = await page.getByRole("link", {
+      name: "Verwaltungsbereiche",
+    });
+    await link.click();
+
+    await page.waitForTimeout(1000);
+    const officesTitle = page.locator("text=Dienststellen");
+    await expect(officesTitle).toBeVisible();
+
+    // Check one office
+    const officeName = page.getByRole("row", { name: "GMW." }).locator("div");
+    await expect(officeName).toBeVisible();
+    const officeArea = page.getByRole("cell", { name: "7719" });
+    await expect(officeArea).toBeVisible();
 
     // Logout
     // await page.click(".logout");
