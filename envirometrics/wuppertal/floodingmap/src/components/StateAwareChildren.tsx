@@ -25,6 +25,10 @@ import {
   HGK_KEYS,
   HGK_TERRAIN_PROVIDER_URLS,
 } from "../config/app.config";
+import {
+  FLOODINGMAP_HASH_KEYS,
+  FLOODINGMAP_QUERY_HASH_CLEAR_KEYS,
+} from "../config/hash-state.config";
 import { useHGKCesiumTerrain } from "../hooks/useHGKCesiumTerrain";
 import { onCesiumClick } from "../utils/cesiumHandlers";
 import { getWebMercatorInWGS84, getWGS84InWebMercator } from "../utils/geo";
@@ -38,7 +42,7 @@ export const StateAwareChildren = () => {
     EnviroMetricMapContext
   );
   const { isLeaflet } = useMapFrameworkSwitcherContext();
-  const { updateHash } = useHashState();
+  const { updateHashState } = useHashState();
 
   const { executeFeatureInfoRequest, setBackgroundIndex } = useContext<
     typeof EnviroMetricMapDispatchContext
@@ -70,27 +74,30 @@ export const StateAwareChildren = () => {
       !controlState.featureInfoModeActivated ||
       !controlState.currentFeatureInfoPosition
     ) {
-      updateHash(undefined, {
+      updateHashState(undefined, {
         label: "app/hgk:query",
-        clearKeys: ["qx", "qy"],
+        clearStateKeys: [...FLOODINGMAP_QUERY_HASH_CLEAR_KEYS],
         replace: true,
       });
       return;
     }
 
     const [x, y] = controlState.currentFeatureInfoPosition;
-    updateHash(
-      { qx: floorToMeterGrid(x), qy: floorToMeterGrid(y) },
+    updateHashState(
+      {
+        [FLOODINGMAP_HASH_KEYS.QUERY_X]: floorToMeterGrid(x),
+        [FLOODINGMAP_HASH_KEYS.QUERY_Y]: floorToMeterGrid(y),
+      },
       {
         label: "app/hgk:query",
-        clearKeys: ["qx", "qy"],
+        clearStateKeys: [...FLOODINGMAP_QUERY_HASH_CLEAR_KEYS],
         replace: true,
       }
     );
   }, [
     controlState.currentFeatureInfoPosition,
     controlState.featureInfoModeActivated,
-    updateHash,
+    updateHashState,
   ]);
 
   useEffect(() => {
@@ -278,14 +285,18 @@ export const StateAwareChildren = () => {
         lon: cesiumPickedPosition[1],
       });
 
-      updateHash(
+      updateHashState(
         {
-          qx: floorToMeterGrid(projectedQueryPosition.x),
-          qy: floorToMeterGrid(projectedQueryPosition.y),
+          [FLOODINGMAP_HASH_KEYS.QUERY_X]: floorToMeterGrid(
+            projectedQueryPosition.x
+          ),
+          [FLOODINGMAP_HASH_KEYS.QUERY_Y]: floorToMeterGrid(
+            projectedQueryPosition.y
+          ),
         },
         {
           label: "app/hgk:query",
-          clearKeys: ["qx", "qy"],
+          clearStateKeys: [...FLOODINGMAP_QUERY_HASH_CLEAR_KEYS],
           replace: true,
         }
       );
@@ -299,7 +310,7 @@ export const StateAwareChildren = () => {
     cesiumPickedPosition,
     controlState.featureInfoModeActivated,
     executeFeatureInfoRequest,
-    updateHash,
+    updateHashState,
   ]);
 
   useHGKCesiumTerrain(

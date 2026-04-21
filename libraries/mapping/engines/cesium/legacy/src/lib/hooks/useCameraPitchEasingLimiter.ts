@@ -1,32 +1,206 @@
 import { useEffect, useRef } from "react";
 import { useSelector } from "react-redux";
 
-import { Math as CesiumMath, Cartographic, EasingFunction } from "cesium";
+import {
+  CESIUM_LOCAL_NORTH_HEADING_RAD,
+  CESIUM_UP_ROLL_RAD,
+} from "@carma-commons/camera/model";
+import { Easing, type Easing as EasingFunction } from "@carma-commons/math";
+import { Cartesian3, Cartographic } from "cesium";
+import type { Radians } from "@carma-units";
 
 import {
   selectScreenSpaceCameraControllerEnableCollisionDetection,
   selectViewerIsAnimating,
   selectViewerIsTransitioning,
 } from "../slices/cesium";
+import {
+  resolveCameraLimiterOptions,
+  type CameraLimiterOptions,
+} from "../camera-limiter-options";
 import { useCesiumContext } from "./useCesiumContext";
 import { useCesiumViewer } from "./useCesiumViewer";
-const DEFAULT_MIN_PITCH = 12;
+
+const writeCartographicScratch = (
+  scratch: Cartographic,
+  source: Cartographic
+): Cartographic => {
+  scratch.longitude = source.longitude;
+  scratch.latitude = source.latitude;
+  scratch.height = source.height;
+
+  return scratch;
+};
+
+const computePitchDelta = (
+  lastPitch: Radians,
+  currentPitch: Radians
+): Radians => (lastPitch - currentPitch) as Radians;
+
+const computePitchDistanceToMinimum = (
+  currentPitch: Radians,
+  minCesiumPitch: Radians
+): Radians => Math.abs(currentPitch - minCesiumPitch) as Radians;
+
+const computePitchEasingInput = (
+  currentPitch: Radians,
+  minCesiumPitch: Radians,
+  range: Radians
+): number =>
+  computePitchDistanceToMinimum(currentPitch, minCesiumPitch) / range;
+
+const computeEasedPitchDelta = (
+  pitchDelta: Radians,
+  unitEased: number
+): Radians => (pitchDelta * unitEased) as Radians;
+
+const computeBoundedPitch = (
+  lastPitch: Radians,
+  newDelta: Radians,
+  minCesiumPitch: Radians
+): Radians => Math.min(lastPitch - newDelta, minCesiumPitch) as Radians;
+
+const computeCorrectionStartPitch = (
+  minCesiumPitch: Radians,
+  pitchCorrectionRange: Radians
+): Radians => (minCesiumPitch - pitchCorrectionRange) as Radians;
+
+const computeInterpolatedHeight = (
+  unitEased: number,
+  height: number,
+  lastHeight: number
+): number => unitEased * height + (1 - unitEased) * lastHeight;
+
+type ScratchPitchCorrection = {
+  unitEased: number;
+  newPitch: Radians;
+};
+
+const createScratchPitchCorrection = (
+  newPitch: Radians
+): ScratchPitchCorrection => ({
+  unitEased: 0,
+  newPitch,
+});
+
+const writeEasedPitchCorrectionScratch = (
+  scratch: ScratchPitchCorrection,
+  currentPitch: Radians,
+  lastPitch: Radians,
+  minCesiumPitch: Radians,
+  range: Radians,
+  easing: EasingFunction
+): ScratchPitchCorrection | null => {
+  if (range <= 0) {
+    return null;
+  }
+
+  const pitchDelta = computePitchDelta(lastPitch, currentPitch);
+  if (pitchDelta === 0) {
+    return null;
+  }
+
+  const unitIn = computePitchEasingInput(currentPitch, minCesiumPitch, range);
+  scratch.unitEased = easing(unitIn);
+  const newDelta = computeEasedPitchDelta(pitchDelta, scratch.unitEased);
+  scratch.newPitch = computeBoundedPitch(lastPitch, newDelta, minCesiumPitch);
+
+  return scratch;
+};
+
+type ScratchSetView = {
+  destination: Cartesian3;
+  orientation: {
+    heading: Radians;
+    pitch: Radians;
+    roll: Radians;
+  };
+};
+
+const createScratchSetView = (pitch: Radians): ScratchSetView => ({
+  destination: new Cartesian3(),
+  orientation: {
+    heading: CESIUM_LOCAL_NORTH_HEADING_RAD,
+    pitch,
+    roll: CESIUM_UP_ROLL_RAD,
+  },
+});
+
+const writeEasedPitchSetViewScratch = (
+  scratchPosition: Cartographic,
+  scratchView: ScratchSetView,
+  currentPosition: Cartographic,
+  lastPosition: Cartographic,
+  unitEased: number,
+  heading: Radians,
+  pitch: Radians,
+  roll: Radians
+): ScratchSetView => {
+  const { latitude, longitude, height } = currentPosition;
+  const lastHeight = lastPosition.height;
+  scratchPosition.longitude = longitude;
+  scratchPosition.latitude = latitude;
+  scratchPosition.height = computeInterpolatedHeight(
+    unitEased,
+    height,
+    lastHeight
+  );
+
+  Cartographic.toCartesian(scratchPosition, undefined, scratchView.destination);
+
+  scratchView.orientation.heading = heading;
+  scratchView.orientation.pitch = pitch;
+  scratchView.orientation.roll = roll;
+
+  return scratchView;
+};
+
+type CameraPitchEasingLimiterOptions = CameraLimiterOptions & {
+  easing?: EasingFunction;
+  enabled?: boolean;
+};
+
+const resolvePitchEasingLimiterConfig = (
+  options: CameraPitchEasingLimiterOptions = {}
+): {
+  enabled: boolean;
+  pitchLimiter: boolean;
+  easing: EasingFunction;
+  minCesiumPitch: Radians;
+  range: Radians;
+  correctionStartPitch: Radians;
+} => {
+  const { pitchLimiter, minCesiumPitch, pitchCorrectionRange } =
+    resolveCameraLimiterOptions(options);
+  const enabled = options.enabled ?? true;
+  const resolvedEasing = options.easing ?? Easing.CIRCULAR_IN;
+  const range = pitchCorrectionRange;
+  const correctionStartPitch = computeCorrectionStartPitch(
+    minCesiumPitch,
+    pitchCorrectionRange
+  );
+
+  return {
+    enabled,
+    pitchLimiter,
+    easing: resolvedEasing,
+    minCesiumPitch,
+    range,
+    correctionStartPitch,
+  };
+};
 
 const useCameraPitchEasingLimiter = (
-  options: {
-    minPitchDeg?: number;
-    easingRangeDeg?: number;
-    easing?: (x: number) => number;
-    pitchLimiter?: boolean;
-    enabled?: boolean;
-  } = {}
+  options: CameraPitchEasingLimiterOptions = {}
 ) => {
-  const minPitchDeg = options.minPitchDeg ?? DEFAULT_MIN_PITCH;
-  const easingRangeDeg = options.easingRangeDeg ?? 20;
-  const easing = options.easing ?? EasingFunction.CIRCULAR_IN;
-  const pitchLimiter =
-    options.pitchLimiter === undefined ? true : options.pitchLimiter;
-  const enabled = options.enabled ?? true;
+  const {
+    enabled,
+    pitchLimiter,
+    easing,
+    minCesiumPitch,
+    range,
+    correctionStartPitch,
+  } = resolvePitchEasingLimiterConfig(options);
   const viewer = useCesiumViewer();
   const { shouldSuspendCameraLimitersRef, initialViewApplied } =
     useCesiumContext();
@@ -40,15 +214,29 @@ const useCameraPitchEasingLimiter = (
 
   const isAnimatingRef = useRef(isAnimating);
   const isTransitioningRef = useRef(isTransitioning);
-  const lastPitch = useRef<number | null>(null);
-  const lastPosition = useRef<Cartographic | null>(null);
+  const lastPitch = useRef<Radians | null>(null);
+  const hasLastPosition = useRef(false);
+  const lastPosition = useRef(new Cartographic());
+  const scratchPitchCorrectionRef = useRef(
+    createScratchPitchCorrection(minCesiumPitch)
+  );
+  const scratchSetViewPositionRef = useRef(new Cartographic());
+  const scratchSetViewRef = useRef(createScratchSetView(minCesiumPitch));
+
+  useEffect(() => {
+    isAnimatingRef.current = isAnimating;
+  }, [isAnimating]);
+
+  useEffect(() => {
+    isTransitioningRef.current = isTransitioning;
+  }, [isTransitioning]);
 
   useEffect(() => {
     if (viewer && enabled && collisions && pitchLimiter) {
       const { camera, scene } = viewer;
       console.debug("HOOK [CESIUM|CAMERA] EASING Pitch Limiter added");
       lastPitch.current = null;
-      lastPosition.current = null;
+      hasLastPosition.current = false;
 
       const onUpdate = async () => {
         if (shouldSuspendCameraLimitersRef?.current) return;
@@ -60,60 +248,42 @@ const useCameraPitchEasingLimiter = (
           return;
         }
 
-        const minPitchRad = CesiumMath.toRadians(-minPitchDeg);
-        const rangeRad = CesiumMath.toRadians(
-          Math.min(easingRangeDeg, 90 - minPitchDeg)
-        ); // Limit wasing range to remainder of right angle
-        const minRangePitchRad = CesiumMath.toRadians(-minPitchDeg) - rangeRad;
+        const currentPitch = camera.pitch as Radians;
+        const isPitchInRange = currentPitch > correctionStartPitch;
 
-        const isPitchInRange = camera.pitch > minRangePitchRad;
-
-        //const isPitchTooLow = camera.pitch > minPitchRad;
-        if (isPitchInRange && lastPitch.current) {
-          const pitchDelta = lastPitch.current - camera.pitch;
-          if (pitchDelta) {
-            // only apply in both directions for consistent behavior
-            // if only applied when pitch down it would results in some ratchet-like behavior - moving the camera up
-            const unitIn = Math.abs(camera.pitch - minPitchRad) / rangeRad;
-            const unitEased = easing(unitIn);
-            const newDelta = pitchDelta * unitEased;
-            const newPitch = Math.min(
-              lastPitch.current - newDelta,
-              minPitchRad
+        if (
+          isPitchInRange &&
+          lastPitch.current !== null &&
+          hasLastPosition.current
+        ) {
+          const pitchCorrection = writeEasedPitchCorrectionScratch(
+            scratchPitchCorrectionRef.current,
+            currentPitch,
+            lastPitch.current,
+            minCesiumPitch,
+            range,
+            easing
+          );
+          if (pitchCorrection) {
+            const currentView = writeEasedPitchSetViewScratch(
+              scratchSetViewPositionRef.current,
+              scratchSetViewRef.current,
+              camera.positionCartographic,
+              lastPosition.current,
+              pitchCorrection.unitEased,
+              camera.heading as Radians,
+              pitchCorrection.newPitch,
+              camera.roll as Radians
             );
-
-            /*
-            console.debug(
-              "LISTENER HOOK [2D3D|CESIUM|CAMERA]: apply easing pitch limiter",
-              Math.round(unitIn * 100),
-              Math.round(unitEased * 100),
-              Math.round(CesiumMath.toDegrees(-newPitch))
-            );
-            */
-
-            if (lastPitch.current !== null && lastPosition.current !== null) {
-              const { latitude, longitude, height } =
-                camera.positionCartographic;
-              const lastHeight = lastPosition.current.height;
-              camera.setView({
-                destination: Cartographic.toCartesian(
-                  new Cartographic(
-                    longitude,
-                    latitude,
-                    unitEased * height + (1 - unitEased) * lastHeight
-                  )
-                ),
-                orientation: {
-                  heading: camera.heading,
-                  pitch: newPitch,
-                  roll: camera.roll,
-                },
-              });
-            }
+            camera.setView(currentView);
           }
         }
-        lastPitch.current = viewer.camera.pitch;
-        lastPosition.current = viewer.camera.positionCartographic.clone();
+        lastPitch.current = camera.pitch as Radians;
+        writeCartographicScratch(
+          lastPosition.current,
+          camera.positionCartographic
+        );
+        hasLastPosition.current = true;
       };
       scene.preUpdate.addEventListener(onUpdate);
       return () => {
@@ -127,8 +297,9 @@ const useCameraPitchEasingLimiter = (
     enabled,
     pitchLimiter,
     easing,
-    easingRangeDeg,
-    minPitchDeg,
+    range,
+    minCesiumPitch,
+    correctionStartPitch,
     initialViewApplied,
     shouldSuspendCameraLimitersRef,
   ]);

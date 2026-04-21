@@ -13,6 +13,7 @@ import {
   CesiumErrorHandler,
   type CesiumErrorHandlerOptions,
 } from "./CesiumErrorHandler";
+import type { CameraLimiterOptions } from "./camera-limiter-options";
 import useCameraPitchEasingLimiter from "./hooks/useCameraPitchEasingLimiter";
 import useCameraPitchSoftLimiter from "./hooks/useCameraPitchSoftLimiter";
 import useCameraRollSoftLimiter from "./hooks/useCameraRollSoftLimiter";
@@ -27,6 +28,7 @@ import { useSceneStyles } from "./hooks/useSceneStyles";
 import { useTilesets } from "./hooks/useTilesets";
 import useTransitionTimeout from "./hooks/useTransitionTimeout";
 import { DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS } from "./viewerDefaults";
+
 export type GlobeOptions = {
   // https://cesium.com/learn/cesiumjs/ref-doc/Globe.html
   baseColor?: Color;
@@ -35,11 +37,17 @@ export type GlobeOptions = {
   showSkirts?: boolean;
 };
 
-export type CameraLimiterOptions = {
-  pitchLimiter?: boolean;
-  minPitch?: number;
-  minPitchRange?: number;
+const DEFAULT_GLOBE_OPTIONS: GlobeOptions = {
+  baseColor: Color.TRANSPARENT,
+  cartographicLimitRectangle: undefined,
+  showGroundAtmosphere: false,
+  showSkirts: false,
 };
+
+const resolveViewerConstructorOptions = (
+  constructorOptions?: Viewer.ConstructorOptions
+): Viewer.ConstructorOptions =>
+  merge({}, DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS, constructorOptions);
 
 export type InitialCameraView = {
   position?: Cartographic;
@@ -73,12 +81,7 @@ export type CustomViewerProps = {
 
 const CustomViewerComponent = (props: CustomViewerProps) => {
   const {
-    globeOptions = {
-      baseColor: Color.TRANSPARENT,
-      cartographicLimitRectangle: undefined,
-      showGroundAtmosphere: false,
-      showSkirts: false,
-    },
+    globeOptions = DEFAULT_GLOBE_OPTIONS,
     cameraLimiterOptions,
     initialCameraView,
     homeValidationCenter,
@@ -89,7 +92,7 @@ const CustomViewerComponent = (props: CustomViewerProps) => {
   } = props;
 
   const options: Viewer.ConstructorOptions = useMemo(
-    () => merge({}, DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS, constructorOptions),
+    () => resolveViewerConstructorOptions(constructorOptions),
     [constructorOptions]
   );
 

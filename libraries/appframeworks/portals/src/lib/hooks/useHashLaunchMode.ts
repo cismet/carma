@@ -30,7 +30,7 @@ export const useHashLaunchMode = (
 ): void => {
   const { setActiveFrameworkCesium, setActiveFrameworkLeaflet } =
     useMapFrameworkSwitcherContext();
-  const { updateHash } = useHashState();
+  const { updateHashState } = useHashState();
 
   useEffect(() => {
     const hashParams = getHashParams();
@@ -45,7 +45,7 @@ export const useHashLaunchMode = (
     }
 
     // Remove consumed launch-mode flags from the hash
-    updateHash(
+    updateHashState(
       {
         [DEFAULT_HASH_LAUNCH_FLAG_2D_KEY]: undefined,
         [DEFAULT_HASH_LAUNCH_FLAG_3D_KEY]: undefined,

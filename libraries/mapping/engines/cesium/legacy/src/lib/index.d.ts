@@ -1,6 +1,7 @@
 import type { ModelConfig } from "@carma-mapping/engines/cesium/core";
 import { type ColorConstructorArgs } from "@carma-mapping/engines/cesium/core";
 
+import type { CameraLimiterOptions } from "./camera-limiter-options";
 import type { ProviderConfig } from "./utils/cesiumProviders";
 import type { TilesetConfigs } from "./utils/cesiumTilesetProviders";
 export type CameraPositionAndOrientation = {
@@ -61,10 +62,7 @@ export type CesiumConfig = {
       duration: number;
     };
   };
-  camera: {
-    minPitch: number;
-    minPitchRange: number;
-  };
+  camera: CameraLimiterOptions;
   markerKey?: string;
   markerAnchorHeight?: number;
   baseUrl: string;

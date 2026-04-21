@@ -4,15 +4,15 @@ import { useSelector } from "react-redux";
 import { faCompass } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Tooltip } from "antd";
-import {
-  Cartesian3,
-  Cartographic,
-  Math as CesiumMath,
-  defined,
-  Cartesian2,
-} from "cesium";
+import { Cartesian3, Cartographic, defined, Cartesian2 } from "cesium";
 
+import {
+  CESIUM_LOCAL_NORTH_HEADING_RAD,
+  CESIUM_NADIR_PITCH_RAD,
+  CESIUM_UP_ROLL_RAD,
+} from "@carma-commons/camera/model";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
+import { radToDegNumeric } from "@carma-units";
 
 import { useCesiumContext } from "../../hooks/useCesiumContext";
 import { useCesiumViewer } from "../../hooks/useCesiumViewer";
@@ -85,8 +85,8 @@ export const Compass = forwardRef<Ref, CompassProps>(
               viewer.camera.position
             );
             const cartographic = coordinates;
-            const longitude = CesiumMath.toDegrees(cartographic.longitude);
-            const latitude = CesiumMath.toDegrees(cartographic.latitude);
+            const longitude = radToDegNumeric(cartographic.longitude)!;
+            const latitude = radToDegNumeric(cartographic.latitude)!;
             destination = Cartesian3.fromDegrees(
               longitude,
               latitude,
@@ -102,8 +102,8 @@ export const Compass = forwardRef<Ref, CompassProps>(
           const cartographic = Cartographic.fromCartesian(
             viewer.camera.position
           );
-          const longitude = CesiumMath.toDegrees(cartographic.longitude);
-          const latitude = CesiumMath.toDegrees(cartographic.latitude);
+          const longitude = radToDegNumeric(cartographic.longitude)!;
+          const latitude = radToDegNumeric(cartographic.latitude)!;
           destination = Cartesian3.fromDegrees(
             longitude,
             latitude,
@@ -115,9 +115,9 @@ export const Compass = forwardRef<Ref, CompassProps>(
         viewer.camera.flyTo({
           destination,
           orientation: {
-            heading: CesiumMath.toRadians(0), // facing north
-            pitch: CesiumMath.toRadians(-90), // looking straight down
-            roll: 0.0,
+            heading: CESIUM_LOCAL_NORTH_HEADING_RAD, // facing north
+            pitch: CESIUM_NADIR_PITCH_RAD, // looking straight down
+            roll: CESIUM_UP_ROLL_RAD,
           },
         });
       }

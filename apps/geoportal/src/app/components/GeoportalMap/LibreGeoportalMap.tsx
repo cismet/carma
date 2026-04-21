@@ -107,7 +107,7 @@ const LibreGeoportalMap = ({
 }: {
   mapOptions?: LibreGeoportalMapOptions;
 }) => {
-  const { getHashValues } = useHashState();
+  const { getHashStateValues } = useHashState();
   const normalizedMapOptions = useMemo(
     () => normalizeOptions(mapOptions, defaultMapOptions),
     [mapOptions]
@@ -265,7 +265,7 @@ const LibreGeoportalMap = ({
     if (map.current) return; // initialize map only once
 
     if (mapContainerRef.current) {
-      const { lng, lat, zoom, bearing, pitch } = getHashValues();
+      const { lng, lat, zoom, bearing, pitch } = getHashStateValues();
       const mapOptionsFromHash = {
         center:
           typeof lng === "number" && typeof lat === "number"

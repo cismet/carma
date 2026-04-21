@@ -9,6 +9,7 @@ import { useHashState } from "@carma-providers/hash-state";
 import { Cartesian3 } from "@carma-cesium";
 
 import config from "../config";
+import { FLOODINGMAP_HASH_KEYS } from "../config/hash-state.config";
 import { DEFAULT_HOME_VIEW_REF } from "../config/view.config";
 const DEFAULT_HOME_VIEW_STATE = readLeafletHomeViewState(
   DEFAULT_HOME_VIEW_REF,
@@ -26,13 +27,17 @@ const readRestoredQueryPosition = (
     : undefined;
 
 export const useFloodingmapInitialValues = () => {
-  const { getHashValues } = useHashState();
+  const { getHashStateValues } = useHashState();
   const { initialCameraView, isInitialCameraResolved } =
     useInitialCesiumCameraView(DEFAULT_HOME_VIEW_STATE);
 
-  const initialHashValues = getHashValues();
-  const initialQueryX = readViewStateHashNumber(initialHashValues.qx);
-  const initialQueryY = readViewStateHashNumber(initialHashValues.qy);
+  const initialHashStateValues = getHashStateValues();
+  const initialQueryX = readViewStateHashNumber(
+    initialHashStateValues[FLOODINGMAP_HASH_KEYS.QUERY_X]
+  );
+  const initialQueryY = readViewStateHashNumber(
+    initialHashStateValues[FLOODINGMAP_HASH_KEYS.QUERY_Y]
+  );
   const restoredQueryPosition = readRestoredQueryPosition(
     initialQueryX,
     initialQueryY

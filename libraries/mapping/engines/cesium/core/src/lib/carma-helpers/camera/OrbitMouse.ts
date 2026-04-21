@@ -1,12 +1,17 @@
-import { CesiumMath } from "@carma-cesium";
+import {
+  CESIUM_NADIR_PITCH_RAD,
+  fromCarmaViewPitchDegToCesiumPitchRad,
+} from "@carma-commons/camera/model";
+import { clamp, TWO_PI } from "@carma-commons/math";
 import type { Radians } from "@carma-units";
 
-const OFFSET_NADIR = -Math.PI / 2 + 0.0001;
+const OFFSET_NADIR = (CESIUM_NADIR_PITCH_RAD + 0.0001) as Radians;
+const DEFAULT_OBLIQUE_PITCH_RAD = fromCarmaViewPitchDegToCesiumPitchRad(45)!;
 
 export enum PITCH {
   HORIZONTAL = 0,
-  OBLIQUE = CesiumMath.toRadians(-45),
-  ORTHO = CesiumMath.toRadians(-90),
+  OBLIQUE = DEFAULT_OBLIQUE_PITCH_RAD,
+  ORTHO = CESIUM_NADIR_PITCH_RAD,
 }
 
 export const getHeadingPitchForMouseEvent = (
@@ -24,15 +29,11 @@ export const getHeadingPitchForMouseEvent = (
   const absoluteMaxPitch = Math.min(maxPitch, 0);
   const deltaX = event.clientX - initialMouseX;
   const deltaY = event.clientY - initialMouseY;
-  const headingChange = (deltaX * 0.01 * headingFactor) % CesiumMath.TWO_PI;
-  const newHeading = (initialHeading + headingChange) % CesiumMath.TWO_PI;
+  const headingChange = (deltaX * 0.01 * headingFactor) % TWO_PI;
+  const newHeading = (initialHeading + headingChange) % TWO_PI;
   const pitchChange = -deltaY * 0.01 * pitchFactor;
 
-  const newPitchRaw = (initialPitch + pitchChange) % CesiumMath.TWO_PI;
-  const newPitch = CesiumMath.clamp(
-    newPitchRaw,
-    absoluteMinPitch,
-    absoluteMaxPitch
-  );
+  const newPitchRaw = (initialPitch + pitchChange) % TWO_PI;
+  const newPitch = clamp(newPitchRaw, absoluteMinPitch, absoluteMaxPitch);
   return { heading: newHeading as Radians, pitch: newPitch as Radians };
 };

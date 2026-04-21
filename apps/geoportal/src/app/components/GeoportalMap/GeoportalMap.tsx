@@ -146,6 +146,21 @@ interface MapProps {
 
 const CLICK_DELAY_MS = 200;
 const GEOPORTAL_CESIUM_VIEW_ADAPTER_ID = "geoportal-cesium";
+const DEFAULT_MARKER_ANCHOR_HEIGHT = 10;
+const FLY_TO_BOUNDING_SPHERE_PADDING_FACTOR = 1.1;
+
+const buildTerrainAwareBoundingSphereOptions = (
+  terrainProvider: CesiumTerrainProvider | undefined
+) => ({
+  terrainProvider,
+  elevationSamplingOptions: { overrideExisting: true as const },
+});
+
+const buildFlyToBoundingSphereOptions = (minRange: number) => ({
+  minRange,
+  paddingFactor: FLY_TO_BOUNDING_SPHERE_PADDING_FACTOR,
+});
+
 const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
   const dispatch = useDispatch();
 
@@ -191,7 +206,8 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
 
   const models = useSelector(selectViewerModels);
   const markerAsset = models[CESIUM_CONFIG.markerKey]; //
-  const markerAnchorHeight = CESIUM_CONFIG.markerAnchorHeight ?? 10;
+  const markerAnchorHeight =
+    CESIUM_CONFIG.markerAnchorHeight ?? DEFAULT_MARKER_ANCHOR_HEIGHT;
   const minimumCameraHeight = useSelector(
     selectScreenSpaceCameraControllerMinimumZoomDistance
   );
@@ -616,10 +632,7 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
 
       const sphere = await getTerrainAwareBoundingSphereFromGeoJsonGeometry(
         feature.geometry,
-        {
-          terrainProvider,
-          elevationSamplingOptions: { overrideExisting: true },
-        }
+        buildTerrainAwareBoundingSphereOptions(terrainProvider)
       );
       if (!sphere) return null;
 
@@ -642,10 +655,11 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
         const sphere = sphereFromGeometry ?? getAdhocBoundingSphere(feature);
         if (!sphere) return;
 
-        flyToBoundingSphereExtent(scene.camera, sphere, {
-          minRange: minFlyToRange,
-          paddingFactor: 1.1,
-        });
+        flyToBoundingSphereExtent(
+          scene.camera,
+          sphere,
+          buildFlyToBoundingSphereOptions(minFlyToRange)
+        );
         scene.requestRender();
       })();
     },
@@ -1070,14 +1084,13 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
 };
 
 export const GeoportalMap = (props: MapProps) => {
-  const codec = useMemo(
-    () =>
-      createViewStateShareableHashCodec({
-        defaultFovDeg: DEFAULT_CAMERA_FOV_DEG,
-        zoomConvention: HASH_ZOOM_CONVENTION.LEAFLET_256,
-      }),
-    []
-  );
+  const codec = useMemo(() => {
+    return createViewStateShareableHashCodec({
+      defaultFovDeg: DEFAULT_CAMERA_FOV_DEG,
+      zoomConvention: HASH_ZOOM_CONVENTION.LEAFLET_256,
+      cameraLimiterOptions: CESIUM_CONFIG.camera,
+    });
+  }, []);
 
   return (
     <ViewStateProvider>

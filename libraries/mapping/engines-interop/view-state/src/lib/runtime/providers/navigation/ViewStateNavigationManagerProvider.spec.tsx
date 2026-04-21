@@ -23,23 +23,23 @@ import { useViewStateNavigationContext } from "./useViewStateNavigationContext";
 import { useViewStateNavigationRestore } from "./useViewStateNavigationRestore";
 import { ViewStateNavigationManagerProvider } from "./ViewStateNavigationManagerProvider";
 const updateHashMock = vi.fn();
-let currentHashValues: Record<string, unknown> = {};
+let currentHashParams: Record<string, unknown> = {};
 let popStateListener:
   | ((event: {
-      values: Record<string, unknown>;
-      raw: Record<string, string>;
-      changedKeys: string[];
-      removedKeys: string[];
+      stateValues: Record<string, unknown>;
+      hashParams: Record<string, string>;
+      changedStateKeys: string[];
+      removedStateKeys: string[];
       source: "popstate";
     }) => void)
   | undefined;
 
 vi.mock("@carma-providers/hash-state", () => ({
-  HASH_CLEAR_KEY_SET: {
+  HASH_CLEAR_STATE_KEY_SET: {
     SCENE_VIEW_STATE: "scene-view-state",
   },
   useHashState: () => ({
-    getHashValues: () => currentHashValues,
+    getHashStateValues: () => currentHashParams,
     registerOnPopState: (callback: NonNullable<typeof popStateListener>) => {
       popStateListener = callback;
       return () => {
@@ -48,7 +48,7 @@ vi.mock("@carma-providers/hash-state", () => ({
         }
       };
     },
-    updateHash: updateHashMock,
+    updateHashState: updateHashMock,
   }),
 }));
 
@@ -94,8 +94,8 @@ const codec: ViewStateHashCodec = {
           altitude: 180,
         }
       : null,
-  decode: (hashValues) =>
-    typeof hashValues.lat === "number"
+  decode: (hashParams) =>
+    typeof hashParams.lat === "number"
       ? buildTestState({
           sourceId: "hash",
           source: "hash",
@@ -121,13 +121,13 @@ const useNavigationEventCollector = () => {
 
 describe("ViewStateNavigationManagerProvider", () => {
   beforeEach(() => {
-    currentHashValues = {};
+    currentHashParams = {};
     popStateListener = undefined;
     updateHashMock.mockReset();
   });
 
   it("decodes the initial restore state synchronously", () => {
-    currentHashValues = {
+    currentHashParams = {
       lat: 51.27,
     };
 
@@ -138,6 +138,49 @@ describe("ViewStateNavigationManagerProvider", () => {
     expect(result.current.isRestoreResolved).toBe(true);
     expect(result.current.restoreState?.metadata.sourceId).toBe("hash");
     expect(result.current.restoreState?.metadata.source).toBe("hash");
+  });
+
+  it("keeps restore state resolved when restore-signature encoding throws", () => {
+    currentHashParams = {
+      lat: 51.27,
+    };
+
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const restoreThrowingCodec: ViewStateHashCodec = {
+      encode: () => {
+        throw new Error("cannot encode");
+      },
+      decode: (hashParams) =>
+        typeof hashParams.lat === "number"
+          ? buildTestState({
+              sourceId: "hash",
+              source: "hash",
+            })
+          : null,
+    };
+    const restoreThrowingWrapper = ({ children }: PropsWithChildren) => (
+      <ViewStateProvider>
+        <ViewStateNavigationManagerProvider codec={restoreThrowingCodec}>
+          {children}
+        </ViewStateNavigationManagerProvider>
+      </ViewStateProvider>
+    );
+
+    const { result } = renderHook(() => useViewStateNavigationRestore(), {
+      wrapper: restoreThrowingWrapper,
+    });
+
+    expect(result.current.isRestoreResolved).toBe(true);
+    expect(result.current.restoreState?.metadata.sourceId).toBe("hash");
+    expect(result.current.restoreState?.metadata.source).toBe("hash");
+    expect(warnSpy).toHaveBeenCalledWith(
+      "[ViewStateNavigationManager] Failed to encode hash",
+      expect.objectContaining({
+        label: "ViewStateNavigationManager",
+        reason: "initial-restore-signature",
+      })
+    );
+    warnSpy.mockRestore();
   });
 
   it("writes hash on explicit commits", () => {
@@ -186,13 +229,68 @@ describe("ViewStateNavigationManagerProvider", () => {
         altitude: 180,
       },
       expect.objectContaining({
-        clearKeySetIds: ["scene-view-state"],
+        clearStateKeySetIds: ["scene-view-state"],
         label: "ViewStateNavigationManager",
         replace: true,
       })
     );
 
     unregister?.();
+  });
+
+  it("handles hash encode exceptions without updating the URL", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const throwingCodec: ViewStateHashCodec = {
+      encode: () => {
+        throw new Error("cannot encode");
+      },
+      decode: () => null,
+    };
+    const throwingWrapper = ({ children }: PropsWithChildren) => (
+      <ViewStateProvider>
+        <ViewStateNavigationManagerProvider codec={throwingCodec}>
+          {children}
+        </ViewStateNavigationManagerProvider>
+      </ViewStateProvider>
+    );
+
+    const { result } = renderHook(
+      () => ({
+        navigationContext: useViewStateNavigationContext(),
+        viewStateContext: useContext(ViewStateContext),
+      }),
+      {
+        wrapper: throwingWrapper,
+      }
+    );
+
+    act(() => {
+      result.current.viewStateContext?.register("cesium", "cesium");
+      result.current.viewStateContext?.claimControl("cesium", "sync");
+      result.current.viewStateContext?.update(
+        buildTestState({
+          sourceId: "cesium",
+          source: "sync",
+        }),
+        {
+          sourceId: "cesium",
+          timestampMs: 1_700_000_000_001,
+          priority: "sync",
+        }
+      );
+    });
+
+    act(() => {
+      expect(
+        result.current.navigationContext.commitCurrentState(
+          "interaction-settled"
+        )
+      ).toBe(false);
+    });
+
+    expect(updateHashMock).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
   });
 
   it("updates restore state and emits a browser navigation event on popstate", () => {
@@ -209,14 +307,14 @@ describe("ViewStateNavigationManagerProvider", () => {
 
     act(() => {
       popStateListener?.({
-        values: {
+        stateValues: {
           lat: 51.27,
         },
-        raw: {
+        hashParams: {
           lat: "51.27",
         },
-        changedKeys: ["lat"],
-        removedKeys: [],
+        changedStateKeys: ["lat"],
+        removedStateKeys: [],
         source: "popstate",
       });
     });
@@ -254,10 +352,10 @@ describe("ViewStateNavigationManagerProvider", () => {
 
     act(() => {
       popStateListener?.({
-        values: {},
-        raw: {},
-        changedKeys: [],
-        removedKeys: ["lat"],
+        stateValues: {},
+        hashParams: {},
+        changedStateKeys: [],
+        removedStateKeys: ["lat"],
         source: "popstate",
       });
     });
@@ -288,14 +386,14 @@ describe("ViewStateNavigationManagerProvider", () => {
 
     act(() => {
       popStateListener?.({
-        values: {
+        stateValues: {
           lat: 51.27,
         },
-        raw: {
+        hashParams: {
           lat: "51.27",
         },
-        changedKeys: ["lat"],
-        removedKeys: [],
+        changedStateKeys: ["lat"],
+        removedStateKeys: [],
         source: "popstate",
       });
       result.current.viewStateContext?.update(
@@ -349,14 +447,14 @@ describe("ViewStateNavigationManagerProvider", () => {
         "user-interaction"
       );
       popStateListener?.({
-        values: {
+        stateValues: {
           lat: 51.27,
         },
-        raw: {
+        hashParams: {
           lat: "51.27",
         },
-        changedKeys: ["lat"],
-        removedKeys: [],
+        changedStateKeys: ["lat"],
+        removedStateKeys: [],
         source: "popstate",
       });
       result.current.viewStateContext?.update(
@@ -391,7 +489,7 @@ describe("ViewStateNavigationManagerProvider", () => {
         altitude: 180,
       },
       expect.objectContaining({
-        clearKeySetIds: ["scene-view-state"],
+        clearStateKeySetIds: ["scene-view-state"],
         replace: false,
       })
     );

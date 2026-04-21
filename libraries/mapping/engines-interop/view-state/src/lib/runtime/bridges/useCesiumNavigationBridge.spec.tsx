@@ -23,19 +23,19 @@ const releaseControlMock = vi.fn();
 const pushStateMock = vi.fn();
 const readCurrentStateMock = vi.fn(() => null);
 
-let currentHashValues: Record<string, unknown> = {};
+let currentHashParams: Record<string, unknown> = {};
 let lastOnInteraction: (() => void) | undefined;
 
 vi.mock("@carma-providers/hash-state", () => ({
-  HASH_CLEAR_KEY_SET: {
+  HASH_CLEAR_STATE_KEY_SET: {
     SCENE_VIEW_STATE: "scene-view-state",
   },
   useHashState: () => ({
-    getHashValues: () => currentHashValues,
+    getHashStateValues: () => currentHashParams,
     registerOnPopState: () => () => {
       // intentionally no-op for bridge-level tests
     },
-    updateHash: updateHashMock,
+    updateHashState: updateHashMock,
   }),
 }));
 
@@ -99,8 +99,8 @@ const codec: ViewStateHashCodec = {
           altitude: 180,
         }
       : null,
-  decode: (hashValues) =>
-    typeof hashValues.lat === "number"
+  decode: (hashParams) =>
+    typeof hashParams.lat === "number"
       ? buildTestState({
           sourceId: "hash",
           source: "hash",
@@ -133,7 +133,7 @@ const createSceneStub = (): Scene =>
 
 describe("useCesiumNavigationBridge", () => {
   beforeEach(() => {
-    currentHashValues = {};
+    currentHashParams = {};
     lastOnInteraction = undefined;
     updateHashMock.mockReset();
     publishCurrentStateMock.mockClear();
@@ -220,7 +220,7 @@ describe("useCesiumNavigationBridge", () => {
         altitude: 180,
       },
       expect.objectContaining({
-        clearKeySetIds: ["scene-view-state"],
+        clearStateKeySetIds: ["scene-view-state"],
         replace: false,
       })
     );

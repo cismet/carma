@@ -1,11 +1,13 @@
+import { fromCesiumPitchRadToCarmaViewPitchDeg } from "@carma-commons/camera/model";
+import { clamp } from "@carma-commons/math";
 import { Cartesian2, Cartesian3, type Scene } from "@carma-cesium";
-import { radToDegNumeric } from "@carma-units";
+import { radToDegNumeric, type Radians } from "@carma-units";
 
 import {
   applyRollToHeadingForCameraNearNadir,
   captureCurrentCameraState,
 } from "../camera";
-const MAX_COMPASS_PITCH_RAD = Math.PI / 2;
+const MAX_COMPASS_PITCH_DEG = 90;
 const VIEWPORT_CENTER = new Cartesian2();
 
 export type CesiumCompassOrientationDeg = {
@@ -185,9 +187,11 @@ const pickViewportCenterZoomAnchor = (
   }
 };
 
-const toCesiumCompassPitchDeg = (pitchRad: number): number =>
-  radToDegNumeric(
-    Math.min(Math.max(pitchRad + Math.PI / 2, 0), MAX_COMPASS_PITCH_RAD)
+const toCompassPitchDeg = (pitchRad: Radians): number =>
+  clamp(
+    fromCesiumPitchRadToCarmaViewPitchDeg(pitchRad) ?? 0,
+    0,
+    MAX_COMPASS_PITCH_DEG
   );
 
 export const readCachedCesiumSceneCenter = (
@@ -228,7 +232,7 @@ export const readCachedCesiumCompassOrientationDeg = (
     headingDeg: radToDegNumeric(
       applyRollToHeadingForCameraNearNadir(scene.camera)
     ),
-    pitchDeg: toCesiumCompassPitchDeg(scene.camera.pitch),
+    pitchDeg: toCompassPitchDeg(scene.camera.pitch as Radians),
   };
 
   frameCache.compassOrientationForFrame = orientation;

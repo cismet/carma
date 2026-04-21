@@ -1,4 +1,4 @@
-import { ZERO_PI } from "@carma-units";
+import { CESIUM_UP_ROLL_RAD } from "@carma-commons/camera/model";
 import type { HeadingPitchRollValues } from "cesium";
 
 import {
@@ -44,7 +44,7 @@ export const setViewFromCameraState = (
     const orientation: HeadingPitchRollValues = {
       heading: state.heading,
       pitch: state.pitch,
-      roll: ZERO_PI,
+      roll: CESIUM_UP_ROLL_RAD,
     };
 
     if (state.roll !== undefined) {

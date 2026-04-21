@@ -14,7 +14,7 @@ import {
   selectViewerIsTransitioning,
 } from "../slices/cesium";
 import { useCesiumContext } from "./useCesiumContext";
-type HashCodec = {
+type HashParamEncoder = {
   key: string;
   encode: (value: number) => string;
 };
@@ -27,7 +27,7 @@ const CAMERA_DEGREE_DIGITS = 2;
 const formatRadians = (value: number, fixed = DEGREE_DIGITS): string =>
   parseFloat(CesiumMath.toDegrees(value).toFixed(fixed)).toString();
 
-const cameraCodec: Record<string, HashCodec> = {
+const cameraHashParamEncoders: Record<string, HashParamEncoder> = {
   longitude: {
     key: "lng",
     encode: (value: number) => formatRadians(value),
@@ -67,13 +67,13 @@ const encodeCesiumCamera = (camera: Camera): StringifiedCameraState => {
   const { longitude, latitude, height } = positionCartographic;
   const fov = frustum instanceof PerspectiveFrustum ? frustum.fov : undefined;
 
-  const orderedParams: [number | undefined, HashCodec][] = [
-    [longitude, cameraCodec.longitude],
-    [latitude, cameraCodec.latitude],
-    [height, cameraCodec.height],
-    [heading, cameraCodec.heading],
-    [pitch, cameraCodec.pitch],
-    [fov, cameraCodec.fov],
+  const orderedParams: [number | undefined, HashParamEncoder][] = [
+    [longitude, cameraHashParamEncoders.longitude],
+    [latitude, cameraHashParamEncoders.latitude],
+    [height, cameraHashParamEncoders.height],
+    [heading, cameraHashParamEncoders.heading],
+    [pitch, cameraHashParamEncoders.pitch],
+    [fov, cameraHashParamEncoders.fov],
   ];
 
   return orderedParams

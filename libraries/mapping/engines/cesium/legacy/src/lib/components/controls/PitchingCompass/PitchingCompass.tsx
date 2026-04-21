@@ -1,11 +1,16 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
+  CESIUM_HORIZON_PITCH_RAD,
+  CESIUM_LOCAL_NORTH_HEADING_RAD,
+  CESIUM_NADIR_PITCH_RAD,
+  fromCarmaViewPitchDegToCesiumPitchRad,
+} from "@carma-commons/camera/model";
+import {
   Cartesian3,
   HeadingPitchRange,
   Matrix4,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
-  CesiumMath,
 } from "@carma-cesium";
 import {
   applyRollToHeadingForCameraNearNadir,
@@ -23,6 +28,7 @@ import { pickSceneCenter } from "../../../utils/pick-position/pick-scene-positio
 import { Needle } from "./Needle";
 
 let hasWarnedAboutLegacyPitchingCompass = false;
+const DEFAULT_MAX_PITCH_RAD = fromCarmaViewPitchDegToCesiumPitchRad(60)!;
 
 interface RotateButtonProps {
   minPitch?: Radians;
@@ -44,8 +50,8 @@ interface RotateButtonProps {
  */
 
 export const PitchingCompass: React.FC<RotateButtonProps> = ({
-  minPitch = CesiumMath.toRadians(-90),
-  maxPitch = CesiumMath.toRadians(-30),
+  minPitch = CESIUM_NADIR_PITCH_RAD,
+  maxPitch = DEFAULT_MAX_PITCH_RAD,
   durationReset = 1500,
   pitchFactor = 1,
   pitchOblique = PITCH.OBLIQUE,
@@ -67,8 +73,12 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
   const [isControlMouseDown, setIsControlMouseDown] = useState(false);
   const [initialMouseX, setInitialMouseX] = useState(0);
   const [initialMouseY, setInitialMouseY] = useState(0);
-  const [initialHeading, setInitialHeading] = useState<Radians>(0 as Radians);
-  const [initialPitch, setInitialPitch] = useState<Radians>(0 as Radians);
+  const [initialHeading, setInitialHeading] = useState<Radians>(
+    CESIUM_LOCAL_NORTH_HEADING_RAD
+  );
+  const [initialPitch, setInitialPitch] = useState<Radians>(
+    CESIUM_HORIZON_PITCH_RAD
+  );
   const [initialRange, setInitialRange] = useState<Meters>(100 as Meters);
   const needleOrientationRef = useRef<
     ((p: Radians, h: Radians) => void) | null

@@ -9,8 +9,8 @@ import {
 } from "react";
 
 import {
-  HASH_CLEAR_KEY_SET,
-  type HashClearKeySetId,
+  HASH_CLEAR_STATE_KEY_SET,
+  type HashClearStateKeySetId,
   useHashState,
 } from "@carma-providers/hash-state";
 
@@ -19,30 +19,66 @@ import { VIEW_STATE_NAVIGATION_EVENT } from "../../../core/types";
 import type {
   ViewState,
   ViewStateHashCodec,
-  ViewStateHashValues,
+  ViewStateHashParams,
   ViewStateNavigationEvent,
   ViewStateNavigationManagerContextValue,
 } from "../../../core/types";
 import { ViewStateNavigationManagerContext } from "./ViewStateNavigationManagerContext";
 const DEFAULT_HASH_LABEL = "ViewStateNavigationManager";
 const DEFAULT_MIN_COMMIT_INTERVAL_MS = 100;
-const DEFAULT_CLEAR_KEY_SET_IDS: readonly HashClearKeySetId[] = [
-  HASH_CLEAR_KEY_SET.SCENE_VIEW_STATE,
+const DEFAULT_CLEAR_STATE_KEY_SET_IDS: readonly HashClearStateKeySetId[] = [
+  HASH_CLEAR_STATE_KEY_SET.SCENE_VIEW_STATE,
 ];
 
-const serializeHashValues = (values: ViewStateHashValues): string =>
+const serializeHashParams = (params: ViewStateHashParams): string =>
   JSON.stringify(
-    Object.keys(values)
+    Object.keys(params)
       .sort()
-      .map((key) => [key, values[key]])
+      .map((key) => [key, params[key]])
   );
+
+const tryEncodeHashParams = ({
+  codec,
+  state,
+  label,
+  reason,
+}: {
+  codec: ViewStateHashCodec;
+  state: ViewState | null | undefined;
+  label: string;
+  reason: string;
+}): ViewStateHashParams | null => {
+  if (!state) {
+    return null;
+  }
+
+  try {
+    return codec.encode(state);
+  } catch (error) {
+    console.warn("[ViewStateNavigationManager] Failed to encode hash", {
+      label,
+      reason,
+      error,
+    });
+    return null;
+  }
+};
 
 const readRestoreCommitSignature = (
   codec: ViewStateHashCodec,
-  state: ViewState | null
+  state: ViewState | null,
+  options: {
+    label: string;
+    reason: string;
+  }
 ): string | null => {
-  const restoreHashValues = state ? codec.encode(state) : null;
-  return restoreHashValues ? serializeHashValues(restoreHashValues) : null;
+  const restoreHashParams = tryEncodeHashParams({
+    codec,
+    state,
+    label: options.label,
+    reason: options.reason,
+  });
+  return restoreHashParams ? serializeHashParams(restoreHashParams) : null;
 };
 
 type ViewStateNavigationManagerProviderProps = {
@@ -50,8 +86,8 @@ type ViewStateNavigationManagerProviderProps = {
   codec: ViewStateHashCodec;
   label?: string;
   replace?: boolean;
-  clearKeys?: readonly string[];
-  clearKeySetIds?: readonly HashClearKeySetId[];
+  clearStateKeys?: readonly string[];
+  clearStateKeySetIds?: readonly HashClearStateKeySetId[];
   minCommitIntervalMs?: number;
   isHashWriteEnabled?: () => boolean;
 };
@@ -61,8 +97,8 @@ export const ViewStateNavigationManagerProvider = ({
   codec,
   label = DEFAULT_HASH_LABEL,
   replace = true,
-  clearKeys,
-  clearKeySetIds,
+  clearStateKeys,
+  clearStateKeySetIds,
   minCommitIntervalMs = DEFAULT_MIN_COMMIT_INTERVAL_MS,
   isHashWriteEnabled,
 }: ViewStateNavigationManagerProviderProps) => {
@@ -73,10 +109,11 @@ export const ViewStateNavigationManagerProvider = ({
     );
   }
 
-  const { getHashValues, registerOnPopState, updateHash } = useHashState();
+  const { getHashStateValues, registerOnPopState, updateHashState } =
+    useHashState();
 
   const [restoreState, setRestoreState] = useState<ViewState | null>(() =>
-    codec.decode(getHashValues())
+    codec.decode(getHashStateValues())
   );
   const lastCommitSignatureRef = useRef<string | null>(null);
   const lastCommitReplaceRef = useRef<boolean>(replace);
@@ -86,17 +123,20 @@ export const ViewStateNavigationManagerProvider = ({
     Set<(event: ViewStateNavigationEvent) => void>
   >(new Set());
   const pendingRestoreCommitSignatureRef = useRef<string | null>(
-    readRestoreCommitSignature(codec, restoreState)
+    readRestoreCommitSignature(codec, restoreState, {
+      label,
+      reason: "initial-restore-signature",
+    })
   );
   const isRestoreResolved = true;
 
-  const resolvedClearKeys = useMemo(
-    () => [...new Set((clearKeys ?? []).filter((key) => key.length > 0))],
-    [clearKeys]
+  const resolvedClearStateKeys = useMemo(
+    () => [...new Set((clearStateKeys ?? []).filter((key) => key.length > 0))],
+    [clearStateKeys]
   );
-  const resolvedClearKeySetIds = useMemo(
-    () => [...(clearKeySetIds ?? DEFAULT_CLEAR_KEY_SET_IDS)],
-    [clearKeySetIds]
+  const resolvedClearStateKeySetIds = useMemo(
+    () => [...(clearStateKeySetIds ?? DEFAULT_CLEAR_STATE_KEY_SET_IDS)],
+    [clearStateKeySetIds]
   );
 
   const emitNavigationEvent = useCallback((event: ViewStateNavigationEvent) => {
@@ -115,11 +155,15 @@ export const ViewStateNavigationManagerProvider = ({
 
   useEffect(() => {
     return registerOnPopState((event) => {
-      const nextRestoreState = codec.decode(event.values);
+      const nextRestoreState = codec.decode(event.stateValues);
       setRestoreState(nextRestoreState);
       pendingRestoreCommitSignatureRef.current = readRestoreCommitSignature(
         codec,
-        nextRestoreState
+        nextRestoreState,
+        {
+          label,
+          reason: "browser-popstate-restore-signature",
+        }
       );
 
       if (!nextRestoreState) {
@@ -131,7 +175,7 @@ export const ViewStateNavigationManagerProvider = ({
         state: nextRestoreState,
       });
     });
-  }, [codec, emitNavigationEvent, registerOnPopState]);
+  }, [codec, emitNavigationEvent, label, registerOnPopState]);
 
   const commitCurrentState = useCallback<
     ViewStateNavigationManagerContextValue["commitCurrentState"]
@@ -150,15 +194,20 @@ export const ViewStateNavigationManagerProvider = ({
         return false;
       }
 
-      const hashValues = codec.encode(currentState);
-      if (!hashValues) {
+      const hashParams = tryEncodeHashParams({
+        codec,
+        state: currentState,
+        label,
+        reason,
+      });
+      if (!hashParams) {
         return false;
       }
 
       const replaceHash = options?.replace ?? replace;
       const forceCommit = options?.force ?? false;
       const commitTimestamp = Date.now();
-      const nextSignature = serializeHashValues(hashValues);
+      const nextSignature = serializeHashParams(hashParams);
       const restoreCommitSignature = pendingRestoreCommitSignatureRef.current;
 
       if (!forceCommit && nextSignature === restoreCommitSignature) {
@@ -185,9 +234,9 @@ export const ViewStateNavigationManagerProvider = ({
         }
       }
 
-      updateHash(hashValues, {
-        clearKeySetIds: resolvedClearKeySetIds as string[],
-        clearKeys: resolvedClearKeys,
+      updateHashState(hashParams, {
+        clearStateKeySetIds: resolvedClearStateKeySetIds as string[],
+        clearStateKeys: resolvedClearStateKeys,
         label,
         replace: replaceHash,
       });
@@ -205,9 +254,9 @@ export const ViewStateNavigationManagerProvider = ({
       label,
       minCommitIntervalMs,
       replace,
-      resolvedClearKeySetIds,
-      resolvedClearKeys,
-      updateHash,
+      resolvedClearStateKeySetIds,
+      resolvedClearStateKeys,
+      updateHashState,
       viewStateContext,
     ]
   );

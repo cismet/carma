@@ -13,51 +13,56 @@ import {
 } from "@carma-commons/utils";
 
 import {
-  defaultHashCodecs,
-  defaultHashKeyAliases,
-  defaultHashKeyOrder,
-} from "./hashCodecs";
+  defaultStateKeyToHashParamValueCodecMap,
+  defaultHashParamNameOrder,
+  defaultStateKeyToHashParamNameAliases,
+} from "./hashParamValueCodecs";
 import { usePopStateListener } from "./hooks/usePopStateListener";
-import { sceneViewStateHashCodecs } from "./scene-state-hash/hashParamCodecs";
 import {
-  getAliasReverseLookup,
-  applyHashCodecs,
+  applyHashParamValueCodecs,
+  compileManagedSceneViewStateClearStateKeys,
   computeHashDiff,
+  createHashParamNameMaps,
+  decodeHashParamsToStateValues,
+  normalizeClearStateKeySetStateKeys,
+  resolveClearAndUndefinedKeys,
+  resolveScopedClearStateKeys,
 } from "./utils";
-interface HashUpdateOptions {
-  clearKeys?: string[];
-  clearKeySetIds?: string[];
+interface HashStateUpdateOptions {
+  clearStateKeys?: string[];
+  clearStateKeySetIds?: string[];
   label?: string;
   replace?: boolean;
 }
 
-export const HASH_CLEAR_KEY_SET = {
+export const HASH_CLEAR_STATE_KEY_SET = {
   SCENE_VIEW_STATE: "scene-view-state",
   LAUNCH_MODE: "launch-mode",
 } as const;
 
-export type HashClearKeySetId =
-  (typeof HASH_CLEAR_KEY_SET)[keyof typeof HASH_CLEAR_KEY_SET];
+export type HashClearStateKeySetId =
+  (typeof HASH_CLEAR_STATE_KEY_SET)[keyof typeof HASH_CLEAR_STATE_KEY_SET];
 
-const compileManagedSceneViewStateClearKeys = (
-  hashCodecs: HashCodecs
-): string[] =>
-  Object.keys(sceneViewStateHashCodecs).filter((key) => key in hashCodecs);
-
-export type HashCodec<T = unknown> = {
+export type HashParamValueCodec<T = unknown> = {
   name?: string;
   decode: (value: string | undefined) => T;
   encode: (value: T) => string | undefined;
 };
 
-export type HashCodecs = Record<string, HashCodec>;
-export type HashKeyAliases = Record<string, string>;
+export type StateKeyToHashParamValueCodecMap = Record<
+  string,
+  HashParamValueCodec
+>;
+export type StateKeyToHashParamNameAliases = Record<string, string>;
+export type HashParamNameToStateKeyMap = Record<string, string>;
+export type StateKeyToHashParamNameMap = Record<string, string>;
+export type HashParams = Record<string, string>;
 
 const HASH_UPDATE_LABEL_UNSPECIFIED = "unspecified";
 
-const hashUpdateDefaults: Required<HashUpdateOptions> = {
-  clearKeys: [],
-  clearKeySetIds: [],
+const hashStateUpdateDefaults: Required<HashStateUpdateOptions> = {
+  clearStateKeys: [],
+  clearStateKeySetIds: [],
   label: HASH_UPDATE_LABEL_UNSPECIFIED,
   replace: false,
 };
@@ -69,21 +74,21 @@ const logHashChange = ({
   params,
   encodedParams,
   removeKeys,
-  beforeRaw,
-  afterRaw,
-  changedKeys,
-  removedKeys,
+  previousHashParams,
+  nextHashParams,
+  changedStateKeys,
+  removedStateKeys,
 }: {
-  source: HashChangeSource;
+  source: HashStateChangeSource;
   label?: string;
   replace?: boolean;
   params?: Record<string, unknown>;
   encodedParams?: Record<string, unknown>;
   removeKeys?: string[];
-  beforeRaw: Record<string, string>;
-  afterRaw: Record<string, string>;
-  changedKeys: string[];
-  removedKeys: string[];
+  previousHashParams: HashParams;
+  nextHashParams: HashParams;
+  changedStateKeys: string[];
+  removedStateKeys: string[];
 }) => {
   console.debug("[HASH]", {
     source,
@@ -92,40 +97,45 @@ const logHashChange = ({
     params,
     encodedParams,
     removeKeys,
-    changedKeys,
-    removedKeys,
-    beforeRaw,
-    afterRaw,
+    changedStateKeys,
+    removedStateKeys,
+    previousHashParams,
+    nextHashParams,
     href: window.location.href,
   });
 };
 
-export const HASH_CHANGE_SOURCE = {
+export const HASH_STATE_CHANGE_SOURCE = {
   UPDATE: "update",
   POPSTATE: "popstate",
   HASHCHANGE: "hashchange",
 } as const;
-export type HashChangeSource =
-  (typeof HASH_CHANGE_SOURCE)[keyof typeof HASH_CHANGE_SOURCE];
-export type HashChangeEvent = {
-  raw: Record<string, string>;
-  values: Record<string, unknown>;
-  changedKeys: string[];
-  removedKeys: string[];
+export type HashStateChangeSource =
+  (typeof HASH_STATE_CHANGE_SOURCE)[keyof typeof HASH_STATE_CHANGE_SOURCE];
+export type HashStateChangeEvent = {
+  hashParams: HashParams;
+  stateValues: Record<string, unknown>;
+  changedStateKeys: string[];
+  removedStateKeys: string[];
   label?: string;
   replace?: boolean;
-  source: HashChangeSource;
+  source: HashStateChangeSource;
 };
 
 interface HashStateContextType {
-  getHash: () => Record<string, string>;
-  getHashValues: () => Record<string, unknown>;
-  updateHash: (
+  getHashParams: () => HashParams;
+  getHashStateValues: () => Record<string, unknown>;
+  updateHashState: (
     params?: Record<string, unknown>,
-    options?: HashUpdateOptions
+    options?: HashStateUpdateOptions
   ) => void;
-  registerClearKeySet: (id: string, keys: readonly string[]) => () => void;
-  registerOnPopState: (callback: (e: HashChangeEvent) => void) => () => void;
+  registerClearStateKeySet: (
+    id: string,
+    stateKeys: readonly string[]
+  ) => () => void;
+  registerOnPopState: (
+    callback: (e: HashStateChangeEvent) => void
+  ) => () => void;
 }
 
 const HashStateContext = createContext<HashStateContextType | undefined>(
@@ -134,58 +144,67 @@ const HashStateContext = createContext<HashStateContextType | undefined>(
 
 export type HashStateProviderSharedProps = {
   children: React.ReactNode;
-  keyAliases?: Record<string, string>;
-  hashCodecs?: HashCodecs;
-  keyOrder?: string[];
+  stateKeyAliases?: StateKeyToHashParamNameAliases;
+  stateKeyToHashParamValueCodecMap?: StateKeyToHashParamValueCodecMap;
+  hashParamNameOrder?: string[];
 };
 
-export type HashStateProviderBaseProps = HashStateProviderSharedProps & {
+export type RoutedHashStateProviderProps = HashStateProviderSharedProps & {
   routedPath: string;
 };
 
-export const HashStateProviderBase: React.FC<HashStateProviderBaseProps> = ({
+export const RoutedHashStateProvider: React.FC<
+  RoutedHashStateProviderProps
+> = ({
   children,
-  keyAliases = defaultHashKeyAliases,
-  hashCodecs = defaultHashCodecs,
-  keyOrder = defaultHashKeyOrder,
+  stateKeyAliases = defaultStateKeyToHashParamNameAliases,
+  stateKeyToHashParamValueCodecMap = defaultStateKeyToHashParamValueCodecMap,
+  hashParamNameOrder = defaultHashParamNameOrder,
   routedPath,
 }) => {
-  const aliasReverseLookup = useMemo(
-    () => getAliasReverseLookup(keyAliases),
-    [keyAliases]
+  const hashParamNameMaps = useMemo(
+    () =>
+      createHashParamNameMaps(
+        stateKeyToHashParamValueCodecMap,
+        stateKeyAliases
+      ),
+    [stateKeyToHashParamValueCodecMap, stateKeyAliases]
   );
-  const onPopStateCallbacksRef = useRef<Array<(e: HashChangeEvent) => void>>(
+  const popStateCallbacksRef = useRef<Array<(e: HashStateChangeEvent) => void>>(
     []
   );
-  const clearKeySetsRef = useRef<Map<string, readonly string[]>>(new Map());
-  const managedSceneViewStateClearKeys = useMemo(
-    () => compileManagedSceneViewStateClearKeys(hashCodecs),
-    [hashCodecs]
+  const clearStateKeySetsRef = useRef<Map<string, readonly string[]>>(
+    new Map()
   );
-  const prevRawRef = useRef<Record<string, string>>(getHashParams());
+  const managedSceneViewStateClearStateKeys = useMemo(
+    () =>
+      compileManagedSceneViewStateClearStateKeys(
+        stateKeyToHashParamValueCodecMap
+      ),
+    [stateKeyToHashParamValueCodecMap]
+  );
+  const previousHashParamsRef = useRef<HashParams>(getHashParams());
 
-  const registerClearKeySet = useCallback(
-    (id: string, keys: readonly string[]) => {
-      const normalizedKeys = Array.from(
-        new Set(keys.filter((key) => key.length > 0))
-      );
+  const registerClearStateKeySet = useCallback(
+    (id: string, stateKeys: readonly string[]) => {
+      const normalizedStateKeys = normalizeClearStateKeySetStateKeys(stateKeys);
 
-      clearKeySetsRef.current.set(id, normalizedKeys);
+      clearStateKeySetsRef.current.set(id, normalizedStateKeys);
 
       return () => {
-        clearKeySetsRef.current.delete(id);
+        clearStateKeySetsRef.current.delete(id);
       };
     },
     []
   );
 
   const registerOnPopState = useCallback(
-    (callback: (e: HashChangeEvent) => void) => {
-      if (!onPopStateCallbacksRef.current.includes(callback)) {
-        onPopStateCallbacksRef.current.push(callback);
+    (callback: (e: HashStateChangeEvent) => void) => {
+      if (!popStateCallbacksRef.current.includes(callback)) {
+        popStateCallbacksRef.current.push(callback);
       }
       const cleanup = () => {
-        onPopStateCallbacksRef.current = onPopStateCallbacksRef.current.filter(
+        popStateCallbacksRef.current = popStateCallbacksRef.current.filter(
           (cb) => cb !== callback
         );
       };
@@ -194,119 +213,109 @@ export const HashStateProviderBase: React.FC<HashStateProviderBaseProps> = ({
     []
   );
 
-  const onPopState = useCallback((e: HashChangeEvent) => {
-    onPopStateCallbacksRef.current.forEach((callback) => callback(e));
+  const dispatchPopState = useCallback((e: HashStateChangeEvent) => {
+    popStateCallbacksRef.current.forEach((callback) => callback(e));
   }, []);
 
-  const getHash = useCallback(() => getHashParams(), []);
+  const getHashParamsFromLocation = useCallback(() => getHashParams(), []);
 
-  const getHashValues = useCallback(() => {
-    const params = getHashParams();
-    const values: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(params)) {
-      const fullKey = aliasReverseLookup[key] || key;
-      const newValue =
-        hashCodecs && hashCodecs[fullKey]
-          ? hashCodecs[fullKey].decode(value)
-          : value;
-      values[fullKey] = newValue;
-    }
-    return values;
-  }, [hashCodecs, aliasReverseLookup]);
+  const getHashStateValues = useCallback(() => {
+    return decodeHashParamsToStateValues(
+      getHashParams(),
+      hashParamNameMaps.hashParamNameToStateKey,
+      stateKeyToHashParamValueCodecMap
+    );
+  }, [stateKeyToHashParamValueCodecMap, hashParamNameMaps]);
 
-  const updateHash = useCallback(
+  const updateHashState = useCallback(
     (
       params: Record<string, unknown> | undefined,
-      options?: HashUpdateOptions
+      options?: HashStateUpdateOptions
     ) => {
-      const beforeRaw = prevRawRef.current || getHashParams();
-      const { clearKeys, clearKeySetIds, label, replace } = normalizeOptions(
-        options,
-        hashUpdateDefaults
-      );
+      const previousHashParams =
+        previousHashParamsRef.current || getHashParams();
+      const { clearStateKeys, clearStateKeySetIds, label, replace } =
+        normalizeOptions(options, hashStateUpdateDefaults);
 
       const { newParams, undefinedKeys } = params
-        ? applyHashCodecs(params, hashCodecs, keyAliases)
+        ? applyHashParamValueCodecs(
+            params,
+            stateKeyToHashParamValueCodecMap,
+            hashParamNameMaps.stateKeyToHashParamName
+          )
         : { newParams: {}, undefinedKeys: [] };
 
-      const writtenKeys = new Set(Object.keys(newParams));
-      const scopedClearKeys = clearKeySetIds.flatMap((id) => {
-        const registered = clearKeySetsRef.current.get(id);
-        if (registered) {
-          return registered;
-        }
-
-        if (id === HASH_CLEAR_KEY_SET.SCENE_VIEW_STATE) {
-          return managedSceneViewStateClearKeys;
-        }
-
-        return [];
+      const writtenHashParamNames = new Set(Object.keys(newParams));
+      const scopedClearStateKeys = resolveScopedClearStateKeys(
+        clearStateKeySetIds,
+        clearStateKeySetsRef.current,
+        managedSceneViewStateClearStateKeys,
+        HASH_CLEAR_STATE_KEY_SET.SCENE_VIEW_STATE
+      );
+      const clearedHashParamNames = resolveClearAndUndefinedKeys({
+        clearStateKeys,
+        scopedClearStateKeys,
+        stateKeyToHashParamName: hashParamNameMaps.stateKeyToHashParamName,
+        undefinedKeys,
+        writtenKeys: writtenHashParamNames,
       });
-      const resolvedClearKeys = [
-        ...new Set([...clearKeys, ...scopedClearKeys]),
-      ].map((key) => keyAliases?.[key] ?? key);
-      const clearAndUndefinedKeys = [
-        ...resolvedClearKeys,
-        ...undefinedKeys,
-      ].filter((key) => !writtenKeys.has(key));
 
       updateHashHistoryState(newParams, routedPath, {
-        removeKeys: clearAndUndefinedKeys,
-        keyOrder,
+        removeKeys: clearedHashParamNames,
+        keyOrder: hashParamNameOrder,
         label: label || HASH_UPDATE_LABEL_UNSPECIFIED,
         replace,
       });
 
-      const afterRaw = getHashParams();
-      const { changedKeys, removedKeys } = computeHashDiff(
-        beforeRaw,
-        afterRaw,
-        aliasReverseLookup
+      const nextHashParams = getHashParams();
+      const { changedStateKeys, removedStateKeys } = computeHashDiff(
+        previousHashParams,
+        nextHashParams,
+        hashParamNameMaps.hashParamNameToStateKey
       );
       logHashChange({
-        source: HASH_CHANGE_SOURCE.UPDATE,
+        source: HASH_STATE_CHANGE_SOURCE.UPDATE,
         label,
         replace,
         params,
         encodedParams: newParams,
-        removeKeys: clearAndUndefinedKeys,
-        beforeRaw,
-        afterRaw,
-        changedKeys,
-        removedKeys,
+        removeKeys: clearedHashParamNames,
+        previousHashParams,
+        nextHashParams,
+        changedStateKeys,
+        removedStateKeys,
       });
-      prevRawRef.current = afterRaw;
+      previousHashParamsRef.current = nextHashParams;
     },
     [
-      aliasReverseLookup,
+      hashParamNameMaps,
       routedPath,
-      keyAliases,
-      hashCodecs,
-      keyOrder,
-      managedSceneViewStateClearKeys,
+      stateKeyToHashParamValueCodecMap,
+      hashParamNameOrder,
+      managedSceneViewStateClearStateKeys,
     ]
   );
 
   usePopStateListener(
-    onPopState,
-    prevRawRef,
-    getHashValues,
-    aliasReverseLookup
+    dispatchPopState,
+    previousHashParamsRef,
+    getHashStateValues,
+    hashParamNameMaps.hashParamNameToStateKey
   );
 
   const value = useMemo(
     () => ({
-      getHash,
-      getHashValues,
-      updateHash,
-      registerClearKeySet,
+      getHashParams: getHashParamsFromLocation,
+      getHashStateValues,
+      updateHashState,
+      registerClearStateKeySet,
       registerOnPopState,
     }),
     [
-      getHash,
-      getHashValues,
-      updateHash,
-      registerClearKeySet,
+      getHashParamsFromLocation,
+      getHashStateValues,
+      updateHashState,
+      registerClearStateKeySet,
       registerOnPopState,
     ]
   );

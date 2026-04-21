@@ -1,5 +1,11 @@
+import {
+  CESIUM_LOCAL_NORTH_HEADING_RAD,
+  CESIUM_NADIR_PITCH_RAD,
+  CESIUM_UP_ROLL_RAD,
+  computeCesiumPitchDistanceFromNadir,
+} from "@carma-commons/camera/model";
 import { shortestAngleDelta } from "@carma-commons/math";
-import { PI_OVER_TWO, TWO_PI, ZERO_PI, MINUS_PI_OVER_TWO } from "@carma-units";
+import { TWO_PI } from "@carma-units";
 import type { Radians } from "@carma-units";
 
 import { Cartesian3, type Camera } from "@carma-cesium";
@@ -26,9 +32,10 @@ export const getHeadingPitchRollDiff = (
   camera: Camera,
   target: Partial<HeadingPitchRollJson> = {}
 ): { heading: Radians; pitch: Radians; roll: Radians } => {
-  const targetHeading = (target.heading ?? ZERO_PI) as Radians;
-  const targetPitch = (target.pitch ?? MINUS_PI_OVER_TWO) as Radians;
-  const targetRoll = (target.roll ?? ZERO_PI) as Radians;
+  const targetHeading = (target.heading ??
+    CESIUM_LOCAL_NORTH_HEADING_RAD) as Radians;
+  const targetPitch = (target.pitch ?? CESIUM_NADIR_PITCH_RAD) as Radians;
+  const targetRoll = (target.roll ?? CESIUM_UP_ROLL_RAD) as Radians;
 
   const headingDiff = Math.abs(
     shortestAngleDelta(camera.heading as Radians, targetHeading)
@@ -54,7 +61,8 @@ export const applyRollToHeadingForCameraNearNadir = (
   camera: Camera,
   nadirRange = 0.2 as Radians
 ): Radians => {
-  const isInNadirRange = Math.abs(camera.pitch + PI_OVER_TWO) < nadirRange;
+  const isInNadirRange =
+    computeCesiumPitchDistanceFromNadir(camera.pitch as Radians) < nadirRange;
   const rollCorrectedHeading = isInNadirRange
     ? (camera.heading + camera.roll) % TWO_PI
     : camera.heading;

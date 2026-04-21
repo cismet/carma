@@ -1,9 +1,14 @@
 import {
+  CARMA_VIEW_HORIZON_PITCH_RAD,
+  fromCesiumPitchRadToCarmaViewPitchDeg,
+  fromCesiumPitchRadToCarmaViewPitchRad,
+} from "@carma-commons/camera/model";
+import {
   getCanvasDimensions,
   normalizedToPixelPosition,
 } from "@carma-commons/dom/canvas";
 import { Easing, clamp } from "@carma-commons/math";
-import type { Seconds } from "@carma-units";
+import type { Radians, Seconds } from "@carma-units";
 
 import { resolvePreferredSurfacePick } from "../scene/SurfacePicking";
 import {
@@ -87,9 +92,9 @@ const getVerticalFov = (scene: Scene): number => {
 
 const getOrbitScreenY = (scene: Scene): number => {
   const tiltFromNadir = clamp(
-    Math.abs(scene.camera.pitch + Math.PI / 2),
+    fromCesiumPitchRadToCarmaViewPitchRad(scene.camera.pitch as Radians),
     0,
-    Math.PI / 2
+    CARMA_VIEW_HORIZON_PITCH_RAD
   );
   const pitchFactor = Math.sin(tiltFromNadir);
   if (pitchFactor <= 0) {
@@ -596,13 +601,14 @@ export const createCesiumSceneOrbitController = (
     orbitPoint = cachedCenter ? Cartesian3.clone(cachedCenter) : null;
 
     // Compute pitch correction: if camera is closer to nadir than minPitchDeg
-    // (MapLibre convention: 0 = nadir, 90 = horizon), schedule a gradual tilt.
+    // (CARMA view convention: 0 = nadir, 90 = horizon), schedule a gradual tilt.
     if (minPitchDeg > 0) {
-      const currentMaplibrePitchDeg =
-        (scene.camera.pitch + Math.PI / 2) * (180 / Math.PI);
+      const currentCarmaViewPitchDeg =
+        fromCesiumPitchRadToCarmaViewPitchDeg(scene.camera.pitch as Radians) ??
+        0;
       pitchCorrectionRad = Math.max(
         0,
-        (minPitchDeg - currentMaplibrePitchDeg) * (Math.PI / 180)
+        ((minPitchDeg - currentCarmaViewPitchDeg) * Math.PI) / 180
       );
     } else {
       pitchCorrectionRad = 0;

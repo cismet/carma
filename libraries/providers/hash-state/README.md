@@ -7,7 +7,7 @@ Hash state provider for URL-based application state management.
 `@carma-providers/hash-state` is intentionally a **hash codec/state transport layer**.
 
 - It owns hash read/write mechanics and string-to-value / value-to-string codec behavior.
-- It may expose raw decoded hash values and generic update APIs.
+- It may expose hash params, decoded state values, and generic update APIs.
 - It does **not** own domain interpretation of those values (for example startup framework choice, map launch preference policy, or view-mode business decisions).
 - It does **not** own engine/view-state orchestration logic.
 
@@ -22,9 +22,10 @@ Default shared CARMA map URL aliases are:
 - `lat`
 - `lng`
 - `zoom`
-- optional `b` (`bearing`)
-- optional `p` (`pitch`)
-- optional `altitude`
+- optional `b` (bearing 0 from north, clockwise in degrees)
+- optional `p` (pitch 0 from nadir, in degrees)
+- optional `r` (roll 0 clockwise from camera up in degrees)
+- optional `h` (height of viewed at point in ellipsoid meters)
 - optional `fov`
 
 Typical usage:
@@ -36,13 +37,16 @@ import {
 } from "@carma-providers/hash-state";
 
 function HashConsumer() {
-  const { getHash, getHashValues, updateHash } = useHashState();
+  const { getHashParams, getHashStateValues, updateHashState } = useHashState();
 
-  const raw = getHash();
-  const decoded = getHashValues();
+  const hashParams = getHashParams();
+  const stateValues = getHashStateValues();
 
   const writeExample = () => {
-    updateHash({ lat: 51.25, lng: 7.15, zoom: 13 }, { replace: true });
+    updateHashState(
+      { lat: 51.25, lng: 7.15, zoom: 13 },
+      { replace: true }
+    );
   };
 
   return null;

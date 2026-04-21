@@ -1,22 +1,29 @@
 import { useCallback, useEffect } from "react";
 import { useDispatch } from "react-redux";
-import { CesiumMath } from "@carma-cesium";
+import {
+  CESIUM_UP_ROLL_RAD,
+  computeCesiumPitchDistanceFromNadir,
+  isCesiumPitchNearNadir,
+} from "@carma-commons/camera/model";
+import { negativePiToPi } from "@carma-commons/math";
+import { degToRadNumeric, type Radians } from "@carma-units";
 
 import { clearIsAnimating, setIsAnimating } from "../slices/cesium";
 import { useCesiumContext } from "./useCesiumContext";
 import { useCesiumViewer } from "./useCesiumViewer";
 const NADIR_THRESHOLD = 0.2;
+const DEFAULT_ROLL_THRESHOLD_RAD = degToRadNumeric(5)! as Radians;
 
 const useCameraRollSoftLimiter = ({
   pitchLimiter = true,
   debug = false,
-  nadirThreshold = NADIR_THRESHOLD,
-  rollThreshold = CesiumMath.toRadians(5),
+  nadirThreshold = NADIR_THRESHOLD as Radians,
+  rollThreshold = DEFAULT_ROLL_THRESHOLD_RAD,
 }: {
   pitchLimiter?: boolean;
   debug?: boolean;
-  nadirThreshold?: number;
-  rollThreshold?: number;
+  nadirThreshold?: Radians;
+  rollThreshold?: Radians;
 } = {}) => {
   const viewer = useCesiumViewer();
   const dispatch = useDispatch();
@@ -38,18 +45,12 @@ const useCameraRollSoftLimiter = ({
         if (shouldSuspendCameraLimitersRef?.current) return;
         if (!initialViewApplied) return;
         if (viewer.camera.position) {
-          const normalizedRoll = CesiumMath.negativePiToPi(viewer.camera.roll);
-          const rollDeviation = CesiumMath.equalsEpsilon(
-            normalizedRoll,
-            0,
-            0,
-            rollThreshold
-          );
+          const currentPitch = viewer.camera.pitch as Radians;
+          const normalizedRoll = negativePiToPi(viewer.camera.roll);
+          const rollDeviation = Math.abs(normalizedRoll) <= rollThreshold;
 
-          const isCloseToNadir = CesiumMath.equalsEpsilon(
-            viewer.camera.pitch,
-            -Math.PI / 2,
-            0,
+          const isCloseToNadir = isCesiumPitchNearNadir(
+            currentPitch,
             nadirThreshold
           );
 
@@ -57,8 +58,8 @@ const useCameraRollSoftLimiter = ({
             console.debug(
               "LISTENER HOOK [2D3D|CESIUM|CAMERA]: nadir",
               isCloseToNadir,
-              viewer.camera.pitch,
-              Math.abs(viewer.camera.pitch + Math.PI / 2)
+              currentPitch,
+              computeCesiumPitchDistanceFromNadir(currentPitch)
             );
 
           if (!rollDeviation && !isCloseToNadir) {
@@ -75,7 +76,7 @@ const useCameraRollSoftLimiter = ({
               orientation: {
                 heading: viewer.camera.heading,
                 pitch: viewer.camera.pitch,
-                roll: 0,
+                roll: CESIUM_UP_ROLL_RAD,
               },
               duration,
               complete: onComplete,

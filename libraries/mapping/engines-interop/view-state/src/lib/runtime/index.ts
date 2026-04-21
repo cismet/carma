@@ -8,7 +8,7 @@ export type {
   WriteResult,
   WriteRejectionReason,
   DerivedView,
-  ViewStateHashValues,
+  ViewStateHashParams,
   ViewStateHashCodec,
   ViewStateNavigationCommitReason,
   ViewStateNavigationEvent,
@@ -94,6 +94,7 @@ export {
   createViewStateShareableHashCodec,
   type ShareableViewStatePrecision,
   type ShareableViewStateAdapterOptions,
+  type ShareableViewStateHashCodecOptions,
 } from "../adapters/shareable";
 
 // Cesium initial camera (pure functions, no React)

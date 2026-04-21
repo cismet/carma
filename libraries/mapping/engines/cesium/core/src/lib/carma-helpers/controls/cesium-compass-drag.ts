@@ -1,5 +1,10 @@
+import {
+  CESIUM_HORIZON_PITCH_RAD,
+  CESIUM_NADIR_PITCH_RAD,
+  fromCarmaViewPitchDegToCesiumPitchRad,
+} from "@carma-commons/camera/model";
 import { clamp, shortestAngleDelta } from "@carma-commons/math";
-import { degToRadNumeric, PI_OVER_TWO } from "@carma-units";
+import { degToRadNumeric } from "@carma-units";
 import type { Radians } from "@carma-units";
 
 import { applyRollToHeadingForCameraNearNadir } from "../camera";
@@ -30,7 +35,7 @@ export type CesiumCompassDragSession = {
   startCameraRight: Cartesian3;
 };
 
-export const MIN_CESIUM_COMPASS_PITCH_RAD = degToRadNumeric(-90)! as Radians;
+export const MIN_CESIUM_COMPASS_PITCH_RAD = CESIUM_NADIR_PITCH_RAD;
 export const MAX_CESIUM_COMPASS_PITCH_DEG = 85;
 
 const readCameraBasisVector = (
@@ -87,15 +92,18 @@ const orthonormalizeOrientation = (
   };
 };
 
-export const fromCompassPitchDegToCesiumPitchRad = (
+export const fromCarmaViewPitchDegToCesiumCompassPitchRad = (
   pitchDeg: number,
   maxPitchDeg = MAX_CESIUM_COMPASS_PITCH_DEG
-): Radians =>
-  clamp(
-    degToRadNumeric(clamp(pitchDeg, 0, maxPitchDeg)) - PI_OVER_TWO,
+): Radians => {
+  const clampedPitchDeg = clamp(pitchDeg, 0, maxPitchDeg);
+  const pitch = fromCarmaViewPitchDegToCesiumPitchRad(clampedPitchDeg)!;
+  return clamp(
+    pitch,
     MIN_CESIUM_COMPASS_PITCH_RAD,
-    0
+    CESIUM_HORIZON_PITCH_RAD
   ) as Radians;
+};
 
 export const beginCesiumCompassDrag = (
   scene: Scene
@@ -139,7 +147,7 @@ export const applyCesiumCompassBearingPitch = (
   } = {}
 ) => {
   const targetHeadingRad = degToRadNumeric(orientation.headingDeg) as Radians;
-  const targetPitchRad = fromCompassPitchDegToCesiumPitchRad(
+  const targetPitchRad = fromCarmaViewPitchDegToCesiumCompassPitchRad(
     orientation.pitchDeg,
     maxPitchDeg
   );

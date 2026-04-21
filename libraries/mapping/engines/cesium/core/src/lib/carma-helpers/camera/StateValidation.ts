@@ -1,5 +1,9 @@
+import {
+  CESIUM_LOCAL_NORTH_HEADING_RAD,
+  CESIUM_NADIR_PITCH_RAD,
+  CESIUM_UP_ROLL_RAD,
+} from "@carma-commons/camera/model";
 import type { Altitude } from "@carma-geo/data-structures";
-import { MINUS_PI_OVER_TWO, ZERO_PI } from "@carma-units";
 
 import type { CameraStateHeadingPitchRoll } from "./Types";
 /**
@@ -32,9 +36,9 @@ export function validateCameraStateHeadingPitchRoll(
     latitude: latitude,
     longitude: longitude,
     altitude: altitude as Altitude.EllipsoidalWGS84Meters,
-    heading: ZERO_PI,
-    pitch: MINUS_PI_OVER_TWO,
-    roll: ZERO_PI,
+    heading: CESIUM_LOCAL_NORTH_HEADING_RAD,
+    pitch: CESIUM_NADIR_PITCH_RAD,
+    roll: CESIUM_UP_ROLL_RAD,
   };
 
   const hasOrientation =
