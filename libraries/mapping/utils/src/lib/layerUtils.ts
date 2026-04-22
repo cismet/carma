@@ -165,7 +165,10 @@ export const parseToMapLayer = async (
           ? JSON.parse(carmaConf.vectorStyle as string)
           : carmaConf.vectorStyle;
       } else if (layer.vectorStyle) {
-        vectorStyle = layer.vectorStyle;
+        localJson = isJson(layer.vectorStyle);
+        vectorStyle = localJson
+          ? JSON.parse(layer.vectorStyle as string)
+          : layer.vectorStyle;
       }
 
       let metaData: {

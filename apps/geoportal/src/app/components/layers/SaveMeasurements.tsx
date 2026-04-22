@@ -9,6 +9,7 @@ import {
   appendLayer,
   setActiveInteractionLayerID,
 } from "../../store/slices/mapping";
+import { addMeasurement } from "../../store/slices/measurements";
 import { setUIMode, UIMode } from "../../store/slices/ui";
 import {
   useMapMeasurementsContext,
@@ -71,33 +72,34 @@ function SaveMeasurements({ layer }: { layer: Layer }) {
       buildFeatureData();
 
     const featureId = `measurement-${Date.now()}`;
-    const carmaConf = featureData.metadata?.carmaConf;
+    const layerInfo: Record<string, unknown> =
+      featureData.metadata?.carmaConf?.layerInfo ?? {};
+    const layerInfoTags = Array.isArray(layerInfo.tags) ? layerInfo.tags : [];
+    const layerInfoKeywords = Array.isArray(layerInfo.keywords)
+      ? layerInfo.keywords
+      : [];
 
-    let item: any = {
+    const item: any = {
+      ...layerInfo,
       description: featureDescription,
       id: featureId,
       layerType: "vector",
       title: featureTitle,
-      serviceName: "custom",
-      type: "layer",
-      keywords: [`carmaConf://vectorStyle:${JSON.stringify(featureData)}`],
+      serviceName: "measurements",
+      type: "object",
+      thumbnail: "/measurements.jpg",
+      vectorStyle: JSON.stringify(featureData),
+      tags: ["Messung", ...layerInfoTags],
+      keywords: layerInfoKeywords,
     };
-
-    if (carmaConf?.layerInfo) {
-      item = {
-        ...item,
-        ...carmaConf.layerInfo,
-        title: featureTitle,
-        description: featureDescription,
-        keywords: [...item.keywords, ...(carmaConf.layerInfo.keywords || [])],
-      };
-    }
 
     const parsedLayer = await parseToMapLayer(item, false, true);
 
     if (parsedLayer) {
       dispatch(appendLayer(parsedLayer));
     }
+
+    dispatch(addMeasurement(item));
 
     if (clearAfterSave) {
       clearAllShapes();

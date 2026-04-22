@@ -1,19 +1,9 @@
 import { Button, Input, message, Select, Tabs, Tooltip } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faBan,
-  faCircleMinus,
-  faCirclePlus,
-  faEdit,
-  faExternalLink,
-  faMap,
   faPlus,
   faRotateLeft,
-  faSave,
   faSquareUpRight,
-  faStar,
-  faTrash,
-  faUpload,
   faX,
 } from "@fortawesome/free-solid-svg-icons";
 import isEqual from "lodash/isEqual";
@@ -33,6 +23,7 @@ import { LayerButton, LayerIcon } from "@carma-mapping/components";
 
 import { useAuth } from "@carma-providers/auth";
 import type { ActiveLayers } from "./NewLibModal";
+import InfoCardActions from "./InfoCardActions";
 import LegendDisplay from "./LegendDisplay";
 
 interface InfoCardProps {
@@ -114,10 +105,7 @@ const InfoCard = ({
     return newDescription.trim();
   };
 
-  const { jwt, userGroups } = useAuth();
-
-  const allowPublishing =
-    userGroups.includes("_Geoportal_Publizieren") && !!jwt;
+  const { jwt } = useAuth();
 
   const carmaConf = extractCarmaConfig(layer.keywords);
   const vectorLegend = layer.vectorLegend || carmaConf?.vectorLegend;
@@ -129,10 +117,6 @@ const InfoCard = ({
       : (layer as unknown as any).props?.Style?.[0]?.LegendURL; // TODO: fix type
   const parsedDescriptions = parseDescription(description);
   const isVectorLayer = carmaConf?.vectorStyle;
-  const canFavoriteItem =
-    layer.type !== "collection" ||
-    (layer.type === "collection" && layer.serviceName.includes("discover"));
-  const isDiscoverItem = layer.serviceName.includes("discover");
   const isGenericTopicMap = layer?.name?.startsWith("wuppGenericTopicMaps_");
   const isTopicMap = layer?.name?.startsWith("wuppTopicMaps_");
   const isArcGisOnline = layer?.name?.startsWith("wuppArcGisOnline_");
@@ -270,121 +254,29 @@ const InfoCard = ({
                 {title}
               </h3>
             )}
-            <div className="flex flex-wrap items-center gap-4">
-              {(layer.type === "layer" || layer.type === "object") && (
-                <Button
-                  onClick={handleAddClick}
-                  icon={
-                    <FontAwesomeIcon
-                      icon={isActiveLayer ? faCircleMinus : faCirclePlus}
-                    />
-                  }
-                >
-                  <span className="!hidden sm:!inline-block">
-                    {isActiveLayer ? "Entfernen" : "Hinzufügen"}
-                  </span>
-                </Button>
-              )}
-              {layer.type === "collection" && (
-                <>
-                  <Button
-                    onClick={handleAddClick}
-                    icon={<FontAwesomeIcon icon={faSquareUpRight} />}
-                  >
-                    <span className="!hidden sm:!inline-block">Laden</span>
-                  </Button>
-                  {!layer.serviceName.includes("discover") && (
-                    <Button
-                      onClick={deleteCollection}
-                      icon={<FontAwesomeIcon icon={faTrash} />}
-                    >
-                      <span className="!hidden sm:!inline-block">Löschen</span>
-                    </Button>
-                  )}
-                </>
-              )}
-              {layer.type === "link" && (
-                <Button
-                  href={layer.url}
-                  target="_topicMaps"
-                  icon={<FontAwesomeIcon icon={faExternalLink} />}
-                >
-                  <span className="!hidden sm:!inline-block">Öffnen</span>
-                </Button>
-              )}
-              {canFavoriteItem && (
-                <Button
-                  onClick={handleFavoriteClick}
-                  icon={<FontAwesomeIcon icon={faStar} />}
-                >
-                  <span className="!hidden sm:!inline-block">
-                    {isFavorite ? "Favorit entfernen" : "Favorisieren"}
-                  </span>
-                </Button>
-              )}
-              {allowPublishing && isDiscoverItem && (
-                <>
-                  {layer.isDraft && (
-                    <Button
-                      icon={<FontAwesomeIcon icon={faUpload} />}
-                      onClick={() => updateItem(true)}
-                    >
-                      Publizieren
-                    </Button>
-                  )}
-                  <Button
-                    onClick={() => {
-                      if (editCollection) {
-                        updateItem();
-                      } else {
-                        setEditCollection(true);
-                      }
-                    }}
-                    icon={
-                      <FontAwesomeIcon
-                        icon={editCollection ? faSave : faEdit}
-                      />
-                    }
-                    loading={loading}
-                  >
-                    <span className="!hidden sm:!inline-block">
-                      {editCollection ? "Speichern" : "Bearbeiten"}
-                    </span>
-                  </Button>
-                  {editCollection ? (
-                    <Button
-                      icon={<FontAwesomeIcon icon={faBan} />}
-                      onClick={() => {
-                        setEditCollection(false);
-                        setErrorMessage("");
-                      }}
-                    >
-                      Abbrechen
-                    </Button>
-                  ) : (
-                    <Button
-                      type="primary"
-                      danger
-                      icon={<FontAwesomeIcon icon={faTrash} />}
-                      onClick={() => deleteCollection()}
-                    >
-                      Löschen
-                    </Button>
-                  )}
-                </>
-              )}
-              {layer.type === "layer" && (
-                <Button
-                  onClick={(e) => {
-                    setPreview(true);
-                    handleAddClick(e, true);
-                  }}
-                  icon={<FontAwesomeIcon icon={faMap} />}
-                >
-                  <span className="!hidden sm:!inline-block">Vorschau</span>
-                </Button>
-              )}
-            </div>
+            <InfoCardActions
+              layer={layer}
+              isActiveLayer={isActiveLayer}
+              isFavorite={isFavorite}
+              editCollection={editCollection}
+              loading={loading}
+              handleAddClick={handleAddClick}
+              handleFavoriteClick={handleFavoriteClick}
+              deleteCollection={deleteCollection}
+              setPreview={setPreview}
+              onPublish={() => updateItem(true)}
+              onEditOrSave={() => {
+                if (editCollection) {
+                  updateItem();
+                } else {
+                  setEditCollection(true);
+                }
+              }}
+              onCancelEdit={() => {
+                setEditCollection(false);
+                setErrorMessage("");
+              }}
+            />
           </div>
           <button
             onClick={() => {

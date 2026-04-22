@@ -70,6 +70,8 @@ type LayerCategories = {
   Title: string;
   layers: SavedLayerConfig[];
   id?: string;
+  mainCategoryId?: string;
+  hideWhenEmpty?: boolean;
 };
 
 export type ActiveLayers = [BackgroundLayer, ...Layer[]];
@@ -544,29 +546,82 @@ export const NewLibModal = ({
     }
 
     if (customCategories) {
-      if (!searchValue) {
-        setFilteredCategories((prev) => {
-          if (prev.find((item) => item.id === "favorites")) {
-            prev.splice(
-              prev.findIndex((item) => item.id === "favorites"),
-              1
-            );
-          }
-          return [...prev, { id: "favorites", categories: customCategories }];
-        });
+      const DEFAULT_MAIN_CATEGORY_ID = "favorites";
+      const subCategoriesByMainCategoryId = new Map<
+        string,
+        LayerCategories[]
+      >();
+      customCategories.forEach((subCategory) => {
+        const mainCategoryId =
+          subCategory.mainCategoryId ?? DEFAULT_MAIN_CATEGORY_ID;
+        const existingForMain =
+          subCategoriesByMainCategoryId.get(mainCategoryId) ?? [];
+        existingForMain.push(subCategory);
+        subCategoriesByMainCategoryId.set(mainCategoryId, existingForMain);
+      });
+      if (!subCategoriesByMainCategoryId.has(DEFAULT_MAIN_CATEGORY_ID)) {
+        subCategoriesByMainCategoryId.set(DEFAULT_MAIN_CATEGORY_ID, []);
       }
 
-      setAllCategories((prev) => {
-        if (prev.find((item) => item.id === "favorites")) {
-          prev.splice(
-            prev.findIndex((item) => item.id === "favorites"),
-            1
-          );
+      const mergeSubCategoriesIntoMainCategories = (
+        previousMainCategories: {
+          id: string;
+          categories: LayerCategories[];
+        }[]
+      ) => {
+        const nextMainCategories = [...previousMainCategories];
+        subCategoriesByMainCategoryId.forEach(
+          (subCategories, mainCategoryId) => {
+            const mainCategoryIndex = nextMainCategories.findIndex(
+              (mainCategory) => mainCategory.id === mainCategoryId
+            );
+            if (mainCategoryId === DEFAULT_MAIN_CATEGORY_ID) {
+              if (mainCategoryIndex !== -1) {
+                nextMainCategories.splice(mainCategoryIndex, 1);
+              }
+              nextMainCategories.push({
+                id: DEFAULT_MAIN_CATEGORY_ID,
+                categories: subCategories,
+              });
+            } else {
+              const customSubCategoryIds = new Set(
+                subCategories
+                  .map((subCategory) => subCategory.id)
+                  .filter(Boolean) as string[]
+              );
+              if (mainCategoryIndex !== -1) {
+                const preservedSubCategories = nextMainCategories[
+                  mainCategoryIndex
+                ].categories.filter(
+                  (existingSubCategory) =>
+                    !existingSubCategory.id ||
+                    !customSubCategoryIds.has(existingSubCategory.id)
+                );
+                nextMainCategories[mainCategoryIndex] = {
+                  ...nextMainCategories[mainCategoryIndex],
+                  categories: [...subCategories, ...preservedSubCategories],
+                };
+              } else {
+                nextMainCategories.push({
+                  id: mainCategoryId,
+                  categories: subCategories,
+                });
+              }
+            }
+          }
+        );
+        if (isEqual(nextMainCategories, previousMainCategories)) {
+          return previousMainCategories;
         }
-        return [...prev, { id: "favorites", categories: customCategories }];
-      });
+        return nextMainCategories;
+      };
+
+      if (!searchValue) {
+        setFilteredCategories(mergeSubCategoriesIntoMainCategories);
+      }
+      setAllCategories(mergeSubCategoriesIntoMainCategories);
     }
-  }, [customCategories]);
+  }, [customCategories, allCategories]);
 
   useEffect(() => {
     search(debouncedSearchTerm);
@@ -875,8 +930,13 @@ export const NewLibModal = ({
       }
     }
 
-    return categories.filter((category) => category.id === shownId)?.[0]
-      ?.categories;
+    const subCategories = categories.filter(
+      (mainCategory) => mainCategory.id === shownId
+    )?.[0]?.categories;
+    return subCategories?.filter(
+      (subCategory) =>
+        !(subCategory.hideWhenEmpty && subCategory.layers.length === 0)
+    );
   };
 
   return (
