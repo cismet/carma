@@ -109,6 +109,18 @@ const AuswahlBlock = ({
 
     const sl = rawFeature.sourceLayer ?? "";
 
+    // Skip Auswahl for features that are already highlighted
+    const clickedKey = buildFeatureKey(
+      toSidebarFeature(rawFeature, namespacedSource, sl)
+    );
+    const isAlreadyHighlighted = adjustedHighlights?.some(
+      (h) => buildFeatureKey(h) === clickedKey
+    );
+    if (isAlreadyHighlighted) {
+      setAuswahlFeatures(null);
+      return;
+    }
+
     // Query all Leuchten for a given Standort DB id, deduplicated and sorted
     const queryLeuchtenByStandort = (standortDbId: string): SidebarFeature[] => {
       const allLeuchten = map.querySourceFeatures(namespacedSource, {
