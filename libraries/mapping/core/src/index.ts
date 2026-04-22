@@ -9,6 +9,9 @@ export { FeatureDataView } from "./components/FeatureDataView";
 export type { FeatureDataViewProps } from "./components/FeatureDataView";
 export { DatasheetLayout } from "./components/DatasheetLayout";
 export type { DatasheetLayoutProps } from "./components/DatasheetLayout";
+export { CarmaMapCompare } from "./components/compare/CarmaMapCompare";
+export type { CarmaMapCompareProps, CompareMode } from "./components/compare/CarmaMapCompare";
+export type { CompareMapConfig } from "./components/compare/ComparePanel";
 
 // Re-export types from maplibre engine for convenience
 export type { VectorStyle, LibreLayer } from "@carma-mapping/engines/maplibre";

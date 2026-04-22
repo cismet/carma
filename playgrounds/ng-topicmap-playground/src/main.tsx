@@ -31,6 +31,7 @@ import { CustomProfilePlayground } from "./app/CustomProfilePlayground";
 import { FilterMap } from "./app/FilterMap";
 import { PointCloudPlayground } from "./app/pointcloud/PointCloudPlayground";
 import { DynamicMap } from "./app/DynamicMap";
+import { ComparePlayground } from "./app/ComparePlayground";
 import {
   backgroundModes,
   backgroundConfigurations,
@@ -92,6 +93,10 @@ root.render(
                         element={<PointCloudPlayground />}
                       />
                       <Route path="/dynamic" element={<DynamicMap />} />
+                      <Route
+                        path="/compare"
+                        element={<ComparePlayground />}
+                      />
                     </Routes>
                     </MapHighlightProvider>
                   </MapSelectionProvider>
