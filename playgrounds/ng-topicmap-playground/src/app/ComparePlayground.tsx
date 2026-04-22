@@ -196,6 +196,16 @@ export function ComparePlayground() {
     });
   }, [numPanels]);
 
+  // Spyglass is only meaningful with two maps (one base + one overlay).
+  // With three panels, force the mode back to side-by-side. Also covers
+  // the case where localStorage holds a stale "spyglass + 3 panels"
+  // combination from a previous session.
+  useEffect(() => {
+    if (numPanels === 3 && modeKey === "spyglass") {
+      setModeKey("sbs-h");
+    }
+  }, [numPanels, modeKey]);
+
   // Persist state.
   useEffect(() => {
     try {
@@ -279,7 +289,11 @@ export function ComparePlayground() {
               size="small"
               value={modeKey}
               onChange={(v) => setModeKey(v as ModeKey)}
-              options={MODE_OPTIONS}
+              options={MODE_OPTIONS.map((opt) =>
+                opt.value === "spyglass"
+                  ? { ...opt, disabled: numPanels === 3 }
+                  : opt
+              )}
             />
           </div>
 

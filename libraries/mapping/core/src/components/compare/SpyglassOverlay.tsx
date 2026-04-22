@@ -16,23 +16,26 @@ interface SpyglassOverlayProps {
  *
  * The ring is an SVG with two concentric circles:
  *   1. A thin (2 px) visible stroke that paints the Lupe outline.
- *   2. A wide (16 px) fully-transparent stroke on top, used only as a
- *      pointer hit target so the ring is comfortable to grab.
+ *   2. A wide (16 px) fully-transparent hit circle on top, with
+ *      `pointer-events: all` so BOTH the interior and the edge band
+ *      act as a drag handle.
  *
- * Both circles have `fill="none"`, and the SVG itself is
- * `pointer-events: none`. Only the wide transparent stroke has
- * `pointer-events: stroke`. That means:
- *   - clicks / drags on the ring edge: grab and drag the Lupe,
- *   - clicks / drags inside the ring (but not on the edge): pass
- *     through to the overlay map, which is clipped to the circle and
- *     therefore receives them,
+ * The SVG itself is `pointer-events: none`. The hit circle opts back
+ * in via `pointer-events: all`. That means:
+ *   - clicks / drags anywhere on or inside the ring: grab and drag
+ *     the Lupe (i.e. the Lupe moves, the maps stay still),
  *   - clicks / drags outside the ring: pass through to the base map.
+ *
+ * Trade-off: because the interior of the ring now consumes pointer
+ * events, panning or click-selecting the overlay map *through* the
+ * Lupe is no longer possible. To restore click-through while keeping
+ * drag-to-move, we'd need a movement-threshold guard in onPointerMove
+ * and only `setPointerCapture` once the threshold is exceeded.
  *
  * We deliberately do NOT track the mouse pointer. An earlier version
  * installed a follow-mouse listener, but that made panning the map
- * impossible (the Lupe kept racing ahead of the cursor). Dragging the
- * ring to position it is the standard cartographic Lupe UX and plays
- * nicely with map panning.
+ * impossible (the Lupe kept racing ahead of the cursor). Drag-based
+ * positioning is the standard cartographic Lupe UX.
  */
 export function SpyglassOverlay({
   position,
@@ -114,9 +117,10 @@ export function SpyglassOverlay({
             "drop-shadow(0 0 1px rgba(0,0,0,0.5)) drop-shadow(0 4px 16px rgba(0,0,0,0.4))",
         }}
       />
-      {/* Wide transparent hit ring. pointerEvents: stroke means only
-       *  the annulus (ring band) is a hit target; the interior is not,
-       *  so drags there go to the overlay map below. */}
+      {/* Wide transparent hit circle. pointerEvents: all makes BOTH the
+       *  interior (fill) and the edge band (16 px stroke) into drag
+       *  handles, so the user can grab the Lupe from anywhere on or
+       *  inside the ring. */}
       <circle
         cx={center}
         cy={center}
@@ -125,7 +129,7 @@ export function SpyglassOverlay({
         stroke="transparent"
         strokeWidth={16}
         style={{
-          pointerEvents: "stroke",
+          pointerEvents: "all",
           cursor: "grab",
           touchAction: "none",
         }}
