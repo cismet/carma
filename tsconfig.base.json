@@ -48,8 +48,6 @@
       "@carma-collab/pecher/*": ["libraries/collaboration/carma-pecher-collab/src/*/index.jsx"],
       "@carma-collab/wuppertal/*": ["libraries/collaboration/carma-wuppertal-collab/src/*/index.ts"],
       // legacy aliases to carma-commons/math, to be removed after collaboration code is migrated to use carma-commons/math instead of carma/math
-      "@carma/math": ["libraries/commons/math/src/index.ts"],
-      // aliases to carma root
       "@carma-cesium": ["libraries/mapping/engines/cesium/api/src/index.ts"], // curated low level API for Cesium replacing direct imports from cesium
      }
   }
