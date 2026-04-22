@@ -29,7 +29,7 @@ import type { LibreLayer } from "@carma-mapping/engines/maplibre";
 import { AppDispatch, type RootState } from "../../store";
 import BelisSidebar from "../ui/BelisSidebar";
 import ArbeitsauftraegeSidebar from "../ui/ArbeitsauftraegeSidebar";
-import { AA_SORT_BY_PROTOKOLLE_DESC } from "../../helper/aaSortHelpers";
+import { AA_SORT_BY_NUMMER_ASC, AA_SORT_BY_PROTOKOLLE_DESC } from "../../helper/aaSortHelpers";
 import {
   useVisibleMapFeatures,
   functionToInfo,
@@ -1987,7 +1987,14 @@ const BelisMapLibWrapper = ({
         }
       }
     }
-  }, [miniMap, selectedAPId, selectedAAData, draftMode, apDraftGeoJson, activeAATab]);
+  }, [
+    miniMap,
+    selectedAPId,
+    selectedAAData,
+    draftMode,
+    apDraftGeoJson,
+    activeAATab,
+  ]);
 
   // --- Mini-map: mousewheel zoom in AA mode ---
   // The useDatasheetMiniMap hook's wheel handler is disabled in AA mode
@@ -2333,7 +2340,7 @@ const BelisMapLibWrapper = ({
           // AA_SORT_BY_TEAM_ASC                            — by team name
           // AA_SORT_BY_ERLEDIGT_DESC                       — by % completed
           // or use { field: "...", direction: "asc"|"desc" } for custom config
-          sort={AA_SORT_BY_PROTOKOLLE_DESC}
+          sort={AA_SORT_BY_NUMMER_ASC}
           onProtokollSelect={() => {
             /* fly-to handled by selectedAPId effect */
           }}
