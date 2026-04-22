@@ -18,7 +18,8 @@ import "leaflet/dist/leaflet.css";
 
 const LAYER_PRESETS: { label: string; value: string }[] = [
   { label: "Stadtplan (Wuppertal)", value: "wupp-plan-live@100" },
-  { label: "Luftbild 2024", value: "rvrGrundriss@100|trueOrtho2024@75|rvrSchriftNT@100" },
+  { label: "Luftbildkarte 2024", value: "rvrGrundriss@100|trueOrtho2024Alternative@75|rvrSchriftNT@100" },
+  { label: "True Ortho 2024", value: "trueOrtho2024Alternative@100" },
   { label: "basemap.de Farbe", value: "our_basemap_color@100" },
   { label: "basemap.de Grau", value: "our_basemap_grey@100" },
   { label: "basemap.de Relief", value: "our_basemap_relief@100" },
