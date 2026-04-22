@@ -9,7 +9,20 @@ interface SpyglassOverlayProps {
   /** Called while the user drags the ring. The parent owns the position
    *  state so the clip-path on the overlay panel stays in sync. */
   onPositionChange: (position: { x: number; y: number }) => void;
+  /** Optional: when provided, wheeling over the Lupe grows / shrinks
+   *  the radius instead of falling through to the map's wheel zoom. */
+  onRadiusChange?: (radius: number) => void;
 }
+
+// Clamp range for wheel-driven radius changes. Matches the slider range
+// used in the compare playground so keyboard / wheel / slider all agree
+// on the min / max the user can reach.
+const MIN_RADIUS = 60;
+const MAX_RADIUS = 400;
+// Pixels of radius per unit of deltaY. Mouse wheels deliver ~100 per
+// notch, trackpads much smaller, so 0.3 feels snappy on mice and is
+// still controllable on trackpads.
+const WHEEL_STEP = 0.3;
 
 /**
  * Draggable spyglass ring.
@@ -41,6 +54,7 @@ export function SpyglassOverlay({
   position,
   radius = 150,
   onPositionChange,
+  onRadiusChange,
 }: SpyglassOverlayProps) {
   // Delta-based drag: record pointer clientX / Y and the Lupe position
   // at pointerDown, then translate by the raw delta on every move. We
@@ -80,6 +94,21 @@ export function SpyglassOverlay({
     if (e.currentTarget.hasPointerCapture(e.pointerId)) {
       e.currentTarget.releasePointerCapture(e.pointerId);
     }
+  };
+
+  // Wheeling over the Lupe scales its radius. Target is the hit circle
+  // (pointer-events: all), so maplibre's canvas below never sees the
+  // event; stopPropagation is belt-and-suspenders for parent listeners.
+  // Upward wheel (deltaY < 0) grows the Lupe, downward shrinks it.
+  const onWheel = (e: React.WheelEvent<SVGCircleElement>) => {
+    if (!onRadiusChange) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const next = Math.max(
+      MIN_RADIUS,
+      Math.min(MAX_RADIUS, radius - e.deltaY * WHEEL_STEP)
+    );
+    if (next !== radius) onRadiusChange(next);
   };
 
   // Give the SVG a bit of extra room around the radius so the 16 px
@@ -137,6 +166,7 @@ export function SpyglassOverlay({
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
+        onWheel={onWheel}
       />
     </svg>
   );

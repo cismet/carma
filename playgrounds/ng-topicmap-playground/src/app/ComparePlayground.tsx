@@ -18,8 +18,11 @@ import "leaflet/dist/leaflet.css";
 
 const LAYER_PRESETS: { label: string; value: string }[] = [
   { label: "Stadtplan (Wuppertal)", value: "wupp-plan-live@100" },
-  { label: "Luftbildkarte 2024", value: "rvrGrundriss@100|trueOrtho2024Alternative@75|rvrSchriftNT@100" },
-  { label: "True Ortho 2024", value: "trueOrtho2024Alternative@100" },
+  {
+    label: "Luftbildkarte 2024",
+    value: "rvrGrundriss@100|trueOrtho2024Alternative@75|rvrSchriftNT@100",
+  },
+  { label: "True Ortho 2024", value: "trueOrtho2024Alternative@75" },
   { label: "basemap.de Farbe", value: "our_basemap_color@100" },
   { label: "basemap.de Grau", value: "our_basemap_grey@100" },
   { label: "basemap.de Relief", value: "our_basemap_relief@100" },
@@ -78,10 +81,10 @@ function loadMode(): ModeKey {
   return "sbs-h";
 }
 
-function loadNumPanels(): 2 | 3 {
+function loadNumPanels(): 2 | 3 | 4 {
   try {
     const n = parseInt(localStorage.getItem(LS_NUM_PANELS) ?? "2", 10);
-    return n === 3 ? 3 : 2;
+    return n === 3 ? 3 : n === 4 ? 4 : 2;
   } catch {
     return 2;
   }
@@ -97,7 +100,11 @@ function loadLayers(count: number): string[] {
         for (let i = 0; i < count; i++) {
           result.push(
             parsed[i] ??
-              (i === 0 ? DEFAULT_LEFT : i === 1 ? DEFAULT_RIGHT : DEFAULT_MIDDLE)
+              (i === 0
+                ? DEFAULT_LEFT
+                : i === 1
+                ? DEFAULT_RIGHT
+                : DEFAULT_MIDDLE)
           );
         }
         return result;
@@ -106,9 +113,13 @@ function loadLayers(count: number): string[] {
   } catch {
     /* ignore */
   }
-  return count === 3
-    ? [DEFAULT_LEFT, DEFAULT_MIDDLE, DEFAULT_RIGHT]
-    : [DEFAULT_LEFT, DEFAULT_RIGHT];
+  if (count === 4) {
+    return [DEFAULT_LEFT, DEFAULT_RIGHT, DEFAULT_MIDDLE, DEFAULT_MIDDLE];
+  }
+  if (count === 3) {
+    return [DEFAULT_LEFT, DEFAULT_MIDDLE, DEFAULT_RIGHT];
+  }
+  return [DEFAULT_LEFT, DEFAULT_RIGHT];
 }
 
 function loadSpyRadius(): number {
@@ -162,9 +173,9 @@ function PanelLayerPicker({
   );
 }
 
-// Palette used to decorate panel labels and pickers so panel 1/2/3 are
+// Palette used to decorate panel labels and pickers so panels 1–4 are
 // visually distinguishable even when they all show the same label text.
-const PANEL_ACCENTS = ["#1677ff", "#13c2c2", "#f59f00"];
+const PANEL_ACCENTS = ["#1677ff", "#13c2c2", "#f59f00", "#7c3aed"];
 
 // ─────────────────────────────────────────────────────────────
 // Main component
@@ -172,7 +183,7 @@ const PANEL_ACCENTS = ["#1677ff", "#13c2c2", "#f59f00"];
 
 export function ComparePlayground() {
   const [modeKey, setModeKey] = useState<ModeKey>(() => loadMode());
-  const [numPanels, setNumPanels] = useState<2 | 3>(() => loadNumPanels());
+  const [numPanels, setNumPanels] = useState<2 | 3 | 4>(() => loadNumPanels());
   const [layers, setLayers] = useState<string[]>(() =>
     loadLayers(loadNumPanels())
   );
@@ -198,11 +209,14 @@ export function ComparePlayground() {
   }, [numPanels]);
 
   // Spyglass is only meaningful with two maps (one base + one overlay).
-  // With three panels, force the mode back to side-by-side. Also covers
-  // the case where localStorage holds a stale "spyglass + 3 panels"
-  // combination from a previous session.
+  // With three or four panels, force the mode back to side-by-side. For
+  // four panels we additionally force horizontal orientation because the
+  // layout becomes a 2x2 grid that has no orientation concept. Also
+  // covers stale localStorage combinations from a previous session.
   useEffect(() => {
-    if (numPanels === 3 && modeKey === "spyglass") {
+    if (numPanels >= 3 && modeKey === "spyglass") {
+      setModeKey("sbs-h");
+    } else if (numPanels === 4 && modeKey === "sbs-v") {
       setModeKey("sbs-h");
     }
   }, [numPanels, modeKey]);
@@ -258,14 +272,17 @@ export function ComparePlayground() {
     [layers]
   );
 
-  const mode = useMemo(() => buildMode(modeKey, spyRadius), [modeKey, spyRadius]);
+  const mode = useMemo(
+    () => buildMode(modeKey, spyRadius),
+    [modeKey, spyRadius]
+  );
 
   return (
     <div
       style={{
         position: "fixed",
         inset: 0,
-        backgroundColor: "#111",
+        backgroundColor: "#fff",
       }}
     >
       {/* Map area fills the whole viewport; controls float on top. */}
@@ -273,6 +290,7 @@ export function ComparePlayground() {
         maps={maps}
         mode={mode}
         overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
+        onSpyglassRadiusChange={(r) => setSpyRadius(Math.round(r))}
       />
 
       {/* Floating control stack (mode row + layer row) */}
@@ -282,21 +300,32 @@ export function ComparePlayground() {
       >
         {/* Mode row */}
         <div className="flex flex-wrap gap-2 items-center justify-center">
-          <div
-            className="bg-white rounded-[10px] px-1 py-0.5"
-            style={{ boxShadow: PILL_SHADOW }}
-          >
-            <Segmented
-              size="small"
-              value={modeKey}
-              onChange={(v) => setModeKey(v as ModeKey)}
-              options={MODE_OPTIONS.map((opt) =>
-                opt.value === "spyglass"
-                  ? { ...opt, disabled: numPanels === 3 }
-                  : opt
-              )}
-            />
-          </div>
+          {numPanels === 4 ? (
+            // 2x2 grid has no orientation concept, so replace the mode
+            // picker with a static label.
+            <div
+              className="bg-white rounded-[10px] h-8 flex items-center px-3 text-sm text-gray-700"
+              style={{ boxShadow: PILL_SHADOW }}
+            >
+              Gitter 2×2
+            </div>
+          ) : (
+            <div
+              className="bg-white rounded-[10px] px-1 py-0.5"
+              style={{ boxShadow: PILL_SHADOW }}
+            >
+              <Segmented
+                size="small"
+                value={modeKey}
+                onChange={(v) => setModeKey(v as ModeKey)}
+                options={MODE_OPTIONS.map((opt) =>
+                  opt.value === "spyglass"
+                    ? { ...opt, disabled: numPanels >= 3 }
+                    : opt
+                )}
+              />
+            </div>
+          )}
 
           <div
             className="bg-white rounded-[10px] px-1 py-0.5"
@@ -305,10 +334,11 @@ export function ComparePlayground() {
             <Segmented
               size="small"
               value={numPanels}
-              onChange={(v) => setNumPanels(v as 2 | 3)}
+              onChange={(v) => setNumPanels(v as 2 | 3 | 4)}
               options={[
                 { label: "2 Karten", value: 2 },
                 { label: "3 Karten", value: 3 },
+                { label: "4 Karten", value: 4 },
               ]}
             />
           </div>

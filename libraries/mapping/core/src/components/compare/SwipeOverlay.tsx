@@ -1,14 +1,19 @@
 import { useRef, useCallback } from "react";
 
 /**
- * Controlled splitter overlay. Renders one draggable circular grabber
- * per split line between adjacent panels. The parent owns the
- * `positions` state (so it can also apply them to the grid template).
+ * Controlled splitter overlay. For each split between adjacent panels,
+ * renders a thin visible white divider line plus an invisible wider
+ * hit strip sitting on top of it, so the user can grab the line
+ * directly, no visible knob required. The cursor changes to
+ * col-resize / row-resize on hover over the hit strip so the
+ * interaction is discoverable.
  *
  * `orientation` here refers to the LAYOUT of the panels, matching
  * `side-by-side.orientation`:
- *   - "horizontal": panels are in a row, the grabber slides left/right
- *   - "vertical":   panels are stacked, the grabber slides up/down
+ *   - "horizontal": panels are in a row, the split is a vertical line
+ *     that slides left/right
+ *   - "vertical":   panels are stacked, the split is a horizontal line
+ *     that slides up/down
  */
 interface SwipeOverlayProps {
   orientation?: "horizontal" | "vertical";
@@ -16,13 +21,12 @@ interface SwipeOverlayProps {
   onPositionsChange: (positions: number[]) => void;
 }
 
-const GRABBER_SIZE = 40;
 const LINE_THICKNESS = 2;
 const LINE_COLOR = "rgba(255, 255, 255, 0.9)";
 const LINE_SHADOW = "0 0 0 1px rgba(0,0,0,0.25)";
-const GRABBER_SHADOW =
-  "0 1px 2px rgba(0,0,0,0.3), 0 2px 6px rgba(0,0,0,0.25)";
-const ARROW_COLOR = "#3a3a3a";
+// Invisible hit target centered on the visible line; wide enough that
+// grabbing the 2 px line is comfortable on both mouse and touch.
+const HIT_THICKNESS = 16;
 
 export function SwipeOverlay({
   orientation = "horizontal",
@@ -116,7 +120,10 @@ export function SwipeOverlay({
                   }),
             }}
           />
-          {/* White circular grabber with neutral arrow glyphs. */}
+          {/* Invisible wide hit strip centered on the line. This is
+           *  the actual drag target; the visible line above is purely
+           *  cosmetic. Cursor changes to col-/row-resize on hover so
+           *  the interaction is discoverable. */}
           <div
             onPointerDown={handlePointerDown(index)}
             onPointerMove={handlePointerMove}
@@ -129,56 +136,26 @@ export function SwipeOverlay({
               position: "absolute",
               pointerEvents: "auto",
               cursor: isRowLayout ? "col-resize" : "row-resize",
-              width: GRABBER_SIZE,
-              height: GRABBER_SIZE,
-              borderRadius: "50%",
-              backgroundColor: "#ffffff",
-              boxShadow: GRABBER_SHADOW,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: ARROW_COLOR,
+              backgroundColor: "transparent",
               userSelect: "none",
               touchAction: "none",
               ...(isRowLayout
                 ? {
                     left: `${pos * 100}%`,
-                    top: "50%",
-                    transform: `translate(-${GRABBER_SIZE / 2}px, -${
-                      GRABBER_SIZE / 2
-                    }px)`,
+                    top: 0,
+                    width: HIT_THICKNESS,
+                    height: "100%",
+                    transform: `translateX(-${HIT_THICKNESS / 2}px)`,
                   }
                 : {
-                    left: "50%",
+                    left: 0,
                     top: `${pos * 100}%`,
-                    transform: `translate(-${GRABBER_SIZE / 2}px, -${
-                      GRABBER_SIZE / 2
-                    }px)`,
+                    width: "100%",
+                    height: HIT_THICKNESS,
+                    transform: `translateY(-${HIT_THICKNESS / 2}px)`,
                   }),
             }}
-          >
-            {isRowLayout ? (
-              <svg
-                width="20"
-                height="14"
-                viewBox="0 0 20 14"
-                aria-hidden="true"
-              >
-                <path d="M5 7 L0 3.5 L0 10.5 Z" fill="currentColor" />
-                <path d="M15 7 L20 3.5 L20 10.5 Z" fill="currentColor" />
-              </svg>
-            ) : (
-              <svg
-                width="14"
-                height="20"
-                viewBox="0 0 14 20"
-                aria-hidden="true"
-              >
-                <path d="M7 5 L3.5 0 L10.5 0 Z" fill="currentColor" />
-                <path d="M7 15 L3.5 20 L10.5 20 Z" fill="currentColor" />
-              </svg>
-            )}
-          </div>
+          />
         </div>
       ))}
     </div>

@@ -60,6 +60,11 @@ export interface CarmaMapCompareProps {
   logErrors?: boolean;
   /** Fires once all map instances have been created. */
   onMapsReady?: (maps: Array<maplibregl.Map>) => void;
+  /** Fires when the user wheels over the spyglass ring. Parent should
+   *  update its `mode.radius` on the next render so the Lupe visually
+   *  reflects the new size. Optional; when omitted, wheel-over-Lupe is
+   *  a no-op (and falls through to whatever is beneath). */
+  onSpyglassRadiusChange?: (radius: number) => void;
 }
 
 function equalSplit(n: number): number[] {
@@ -102,6 +107,7 @@ export function CarmaMapCompare({
   debugLog,
   logErrors,
   onMapsReady,
+  onSpyglassRadiusChange,
 }: CarmaMapCompareProps) {
   // Stable per-index div refs for the stacked panels.
   const panelRefsContainer = useRef<
@@ -307,6 +313,21 @@ export function CarmaMapCompare({
     setSplitPositions(equalSplit(maps.length));
   }, [maps.length, mode.type, sbsOrientation]);
 
+  // ─── 2x2 grid mode (side-by-side with exactly 4 maps) ─────────
+  // The linear splitPositions array isn't expressive enough here; a
+  // grid needs one fraction for the column split (x) and one for the
+  // row split (y). When isGrid is false splitPositions wins and
+  // gridSplit is ignored; when isGrid is true we flip over.
+  const isGrid = isSideBySide && maps.length === 4;
+  const [gridSplit, setGridSplit] = useState<{ x: number; y: number }>({
+    x: 0.5,
+    y: 0.5,
+  });
+
+  useEffect(() => {
+    if (isGrid) setGridSplit({ x: 0.5, y: 0.5 });
+  }, [isGrid]);
+
   // ─── Spyglass pointer position ─────────────────────────────────
   const [spyglassPos, setSpyglassPos] = useState<{
     x: number;
@@ -351,6 +372,22 @@ export function CarmaMapCompare({
         return `circle(${radius}px at ${spyglassPos.x}px ${spyglassPos.y}px)`;
       });
     }
+    if (isGrid) {
+      // 2x2 grid: M0 top-left, M1 top-right, M2 bottom-left, M3
+      // bottom-right. inset(top right bottom left), where each value
+      // is the distance from the respective edge as a percentage.
+      const { x, y } = gridSplit;
+      const xPct = (x * 100).toFixed(4);
+      const yPct = (y * 100).toFixed(4);
+      const rxPct = ((1 - x) * 100).toFixed(4);
+      const ryPct = ((1 - y) * 100).toFixed(4);
+      return [
+        `inset(0 ${rxPct}% ${ryPct}% 0)`,
+        `inset(0 0 ${ryPct}% ${xPct}%)`,
+        `inset(${yPct}% ${rxPct}% 0 0)`,
+        `inset(${yPct}% 0 0 ${xPct}%)`,
+      ];
+    }
     return maps.map((_, idx) => {
       const leftFrac = idx === 0 ? 0 : splitPositions[idx - 1] ?? 0;
       const rightFrac =
@@ -362,7 +399,7 @@ export function CarmaMapCompare({
       }
       return `inset(${leftPct}% 0 ${rightPct}% 0)`;
     });
-  }, [mode, maps, splitPositions, sbsOrientation, spyglassPos]);
+  }, [mode, maps, splitPositions, sbsOrientation, spyglassPos, isGrid, gridSplit]);
 
   const spyglassOverlayIdx =
     mode.type === "spyglass" ? mode.overlayMapIndex ?? 1 : -1;
@@ -409,7 +446,7 @@ export function CarmaMapCompare({
         </div>
       ))}
 
-      {isSideBySide &&
+      {isSideBySide && !isGrid &&
         maps.map((config, index) => {
           if (!config.label) return null;
           const leftFrac = index === 0 ? 0 : splitPositions[index - 1] ?? 0;
@@ -436,7 +473,31 @@ export function CarmaMapCompare({
           );
         })}
 
-      {isSideBySide && maps.length > 1 && (
+      {isGrid &&
+        maps.map((config, index) => {
+          if (!config.label) return null;
+          // Top-left corner of each quadrant, offset by 16 px inset.
+          const leftFrac = index % 2 === 0 ? 0 : gridSplit.x;
+          const topFrac = index < 2 ? 0 : gridSplit.y;
+          const style: React.CSSProperties = {
+            position: "absolute",
+            zIndex: 3,
+            pointerEvents: "none",
+            left: `calc(${(leftFrac * 100).toFixed(4)}% + 16px)`,
+            top: `calc(${(topFrac * 100).toFixed(4)}% + 16px)`,
+          };
+          return (
+            <div
+              key={`label-${index}`}
+              className="carma-compare-panel-label"
+              style={style}
+            >
+              {config.label}
+            </div>
+          );
+        })}
+
+      {isSideBySide && !isGrid && maps.length > 1 && (
         <SwipeOverlay
           orientation={sbsOrientation}
           positions={splitPositions}
@@ -444,11 +505,33 @@ export function CarmaMapCompare({
         />
       )}
 
+      {isGrid && (
+        <>
+          {/* Vertical line splitting the two columns. */}
+          <SwipeOverlay
+            orientation="horizontal"
+            positions={[gridSplit.x]}
+            onPositionsChange={([x]) =>
+              setGridSplit((prev) => ({ ...prev, x }))
+            }
+          />
+          {/* Horizontal line splitting the two rows. */}
+          <SwipeOverlay
+            orientation="vertical"
+            positions={[gridSplit.y]}
+            onPositionsChange={([y]) =>
+              setGridSplit((prev) => ({ ...prev, y }))
+            }
+          />
+        </>
+      )}
+
       {mode.type === "spyglass" && (
         <SpyglassOverlay
           position={spyglassPos}
           radius={mode.radius}
           onPositionChange={setSpyglassPos}
+          onRadiusChange={onSpyglassRadiusChange}
         />
       )}
     </div>
