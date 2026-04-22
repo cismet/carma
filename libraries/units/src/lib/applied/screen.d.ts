@@ -21,8 +21,8 @@ export type CssPixelWidth = CssPixelQuality<typeof widthSymbol>;
 export type CssPixelHeight = CssPixelQuality<typeof heightSymbol>;
 
 export type CssPixelDimensions = {
-  width: CssPixel;
-  height: CssPixel;
+  width: CssPixels;
+  height: CssPixels;
 };
 
 export type CssPixelDimensionArgs = [

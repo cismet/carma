@@ -1,12 +1,10 @@
 {
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "jsx": "react-jsx",
     "jsxImportSource": "hono/jsx",
-    "strict": true,
-    "skipLibCheck": true,
     "types": ["bun"],
     "outDir": "dist",
     "rootDir": "src",

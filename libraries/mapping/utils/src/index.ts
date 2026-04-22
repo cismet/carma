@@ -1,7 +1,7 @@
 export * from "./lib/utils";
-export * from "./lib/contracts/catalog/service-options.d";
-export * from "./lib/contracts/feature-info/feature-info.d";
-export * from "./lib/contracts/results/results.d";
+export * from "./lib/contracts/catalog/service-options";
+export * from "./lib/contracts/feature-info/feature-info";
+export * from "./lib/contracts/results/results";
 export { useLeafletZoomControls } from "./lib/hooks/useLeafletZoomControls";
 export { useLayerLoading } from "./lib/hooks/useLayerLoading";
 export { useLibreZoomControls } from "./lib/hooks/useLibreZoomControls";

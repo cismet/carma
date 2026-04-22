@@ -3,8 +3,11 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { nxViteTsPaths } from "@nx/vite/plugins/nx-tsconfig-paths.plugin";
 import { viteStaticCopy } from "vite-plugin-static-copy";
+import { fileURLToPath } from "node:url";
 
 const CESIUM_PATHNAME = "__cesium__";
+const resolveLocal = (relativePath: string) =>
+  fileURLToPath(new URL(relativePath, import.meta.url));
 
 export default defineConfig({
   root: __dirname,
@@ -28,6 +31,14 @@ export default defineConfig({
   plugins: [
     react(),
     nxViteTsPaths(),
+    {
+      name: "markdown-loader",
+      transform(code, id) {
+        if (id.endsWith(".md")) {
+          return `export default ${JSON.stringify(code)};`;
+        }
+      },
+    },
     viteStaticCopy({
       targets: [
         {
@@ -38,6 +49,20 @@ export default defineConfig({
       silent: false,
     }),
   ],
+
+  resolve: {
+    alias: {
+      "@carma-collab/wuppertal/geoportal": resolveLocal(
+        "../../libraries/collaboration/carma-wuppertal-collab/geoportal/index.ts"
+      ),
+      "@carma-collab/wuppertal/helper-overlay": resolveLocal(
+        "../../libraries/collaboration/carma-wuppertal-collab/helper-overlay/index.ts"
+      ),
+      "@carma-collab/wuppertal/commons": resolveLocal(
+        "../../libraries/collaboration/carma-wuppertal-collab/src/commons/index.ts"
+      ),
+    },
+  },
 
   worker: {
     plugins: () => [nxViteTsPaths()],

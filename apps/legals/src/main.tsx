@@ -7,7 +7,7 @@ import {
   ImpressumGeoportal,
   DatenschutzerklärungTopicMaps,
   ImpressumTopicMaps,
-} from "@carma-collab/wuppertal/legals";
+} from "@carma-collab/wuppertal";
 
 // Title wrapper components
 const DatenschutzWrapper = () => {

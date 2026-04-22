@@ -20,7 +20,18 @@ export default defineConfig({
     host: 'localhost',
   },
 
-  plugins: [react(), nxViteTsPaths()],
+  plugins: [
+    react(),
+    nxViteTsPaths(),
+    {
+      name: 'markdown-loader',
+      transform(code, id) {
+        if (id.endsWith('.md')) {
+          return `export default ${JSON.stringify(code)};`;
+        }
+      },
+    },
+  ],
 
   // Uncomment this if you are using workers.
   // worker: {

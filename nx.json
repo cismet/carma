@@ -52,27 +52,13 @@
       "dependsOn": [
         "^build"
       ],
+      "options": {
+        "buildLibsFromSource": false
+      },
       "inputs": [
         "production",
         "^production"
       ]
-    },
-    "@nx/jest:jest": {
-      "cache": true,
-      "inputs": [
-        "default",
-        "^production",
-        "{workspaceRoot}/jest.preset.js"
-      ],
-      "options": {
-        "passWithNoTests": true
-      },
-      "configurations": {
-        "ci": {
-          "ci": true,
-          "codeCoverage": true
-        }
-      }
     },
     "@nx/esbuild:esbuild": {
       "cache": true,
@@ -109,7 +95,6 @@
       "!{projectRoot}/tsconfig.storybook.json",
       "!{projectRoot}/**/*.stories.@(js|jsx|ts|tsx|mdx)",
       "!{projectRoot}/playwright.config.@(js|cjs|mjs|ts|cts|mts)",
-      "!{projectRoot}/jest.config.[jt]s",
       "!{projectRoot}/eslint.config.@(js|cjs|mjs|ts|cts|mts)",
       "!{projectRoot}/src/setupTests.[jt]s",
       "!{projectRoot}/src/setup-tests.[jt]s",

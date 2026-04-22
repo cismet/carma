@@ -57,11 +57,6 @@
     "lint": {
       "executor": "@nx/eslint:lint"
     },
-    "test": {
-      "options": {
-        "passWithNoTests": true
-      }
-    },
     "container": {
       "executor": "@nx-tools/nx-container:build",
       "dependsOn": ["build"],

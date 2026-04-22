@@ -3,7 +3,7 @@ import bboxPolygon from "@turf/bbox-polygon";
 import booleanDisjoint from "@turf/boolean-disjoint";
 import { getAEVByNr, getAEVsByNrs } from "./aenderungsverfahren";
 import { setFeatureCollection, setSelectedFeatureIndex } from "./mapping";
-import { md5FetchJSON } from "@carma-commons/utils/fetching";
+import { md5FetchJSON } from "@carma-commons/utils";
 
 const initialState = {
   data: undefined,

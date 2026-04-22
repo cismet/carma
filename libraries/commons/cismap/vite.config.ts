@@ -12,9 +12,18 @@ export default defineConfig({
   plugins: [
     react(),
     nxViteTsPaths(),
+    {
+      name: 'markdown-loader',
+      transform(code, id) {
+        if (id.endsWith('.md')) {
+          return `export default ${JSON.stringify(code)};`;
+        }
+      },
+    },
     dts({
       entryRoot: 'src',
-      tsconfigPath: path.join(__dirname, 'tsconfig.lib.json'),
+      tsconfigPath:
+        process.env.NX_TSCONFIG_PATH ?? path.join(__dirname, 'tsconfig.lib.json'),
     }),
   ],
 

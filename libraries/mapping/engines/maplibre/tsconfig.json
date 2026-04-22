@@ -1,8 +1,5 @@
 {
-  "extends": "../../../../tsconfig.legacy.base.json",
-  "compilerOptions": {
-    "jsx": "react-jsx"
-  },
+  "extends": "../../../../tsconfig.base.json",
   "files": [],
   "references": [
     {

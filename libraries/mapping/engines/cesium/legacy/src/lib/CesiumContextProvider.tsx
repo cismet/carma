@@ -18,7 +18,7 @@ import {
   type SceneAnimationMap,
 } from "@carma-mapping/engines/cesium/core";
 
-import { handleDelayedRender } from "@carma-commons/utils/window";
+import { handleDelayedRender } from "@carma-commons/utils";
 
 import { CesiumContext, type CesiumContextType } from "./CesiumContext";
 

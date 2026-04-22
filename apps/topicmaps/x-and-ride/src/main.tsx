@@ -6,7 +6,7 @@ import {
 } from "@carma-appframeworks/portals";
 import App from "./app/App";
 import { gazDataConfig } from "./config/gazData";
-import { cjsGlobalShim } from "@carma-commons/utils/window";
+import { cjsGlobalShim } from "@carma-commons/utils";
 cjsGlobalShim();
 
 const root = ReactDOM.createRoot(
