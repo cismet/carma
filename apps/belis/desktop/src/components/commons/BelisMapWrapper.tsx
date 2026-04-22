@@ -317,6 +317,13 @@ const BelisMapLibWrapper = ({
     setAdjustedHighlights(highlightResults);
   }, [highlightResults]);
 
+  // Clear selection when highlighting activates (e.g. search)
+  useEffect(() => {
+    if (highlightingActive) {
+      clearMapSelection();
+    }
+  }, [highlightingActive]);
+
   // Notify parent about highlight changes
   useEffect(() => {
     onHighlightsChange?.(adjustedHighlights);
