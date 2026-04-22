@@ -186,7 +186,7 @@ function SaveMeasurements({ layer }: { layer: Layer }) {
           id="measurement-title"
           value={title}
           className="bg-white flex-1"
-          placeholder="Unter welchem Namen soll die Messung gespeichert werden?"
+          placeholder="Bezeichnung der Messungen?"
           onChange={(e) => setTitle(e.target.value)}
           onPressEnter={handleSave}
         />
@@ -198,7 +198,7 @@ function SaveMeasurements({ layer }: { layer: Layer }) {
         id="measurement-description"
         value={description}
         className="bg-white"
-        placeholder="Was enthalten die Messungen?"
+        placeholder="Was wurde gemessen?"
         onChange={(e) => setDescription(e.target.value)}
         autoSize={{ minRows: 2, maxRows: 4 }}
       />
