@@ -37,11 +37,11 @@ export const buildArbeitsauftragWhereClause = (
   // "alle" = no condition, "offen" = at least one protokoll with schluessel "0", "abgearbeitet" = no protokoll with schluessel "0"
   if (values.bearbeitungsstand?.value === "offen") {
     conditions.push(
-      `ar_protokolleArray: {arbeitsprotokoll: {arbeitsprotokollstatus: {schluessel: {_eq: "0"}}}}`
+      `ar_protokolleArray: {arbeitsprotokoll: {_or: [{fk_status: {_is_null: true}}, {arbeitsprotokollstatus: {schluessel: {_eq: "0"}}}]}}`
     );
   } else if (values.bearbeitungsstand?.value === "abgearbeitet") {
     conditions.push(
-      `_not: {ar_protokolleArray: {arbeitsprotokoll: {arbeitsprotokollstatus: {schluessel: {_eq: "0"}}}}}`
+      `_not: {ar_protokolleArray: {arbeitsprotokoll: {_or: [{fk_status: {_is_null: true}}, {arbeitsprotokollstatus: {schluessel: {_eq: "0"}}}]}}}`
     );
   }
   // "alle" or undefined = no condition added
