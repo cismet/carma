@@ -69,14 +69,14 @@ const BelisDataProvider = ({ jwt, children }: BelisDataProviderProps) => {
       return;
     }
 
-    // First-ever load: default to "erledigte Arbeitsaufträge"
+    // First-ever load: default to "Störungsbeseitigung"
     if (selectedTeamId == null && previousTeamId == null) {
       const teams = (keyTablesData.teams || []) as {
         id: number;
         name?: string;
       }[];
       const defaultTeam = teams.find(
-        (t) => t.name === "erledigte Arbeitsaufträge"
+        (t) => t.name === "Störungsbeseitigung"
       );
       if (defaultTeam) {
         dispatch(setSelectedTeamId(defaultTeam.id));
