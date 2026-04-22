@@ -11,16 +11,16 @@ import {
   selectSelectedAnnotationId,
   AnnotationsReduxContext,
   useAnnotationsSelector,
+  type AnnotationsRuntimePersistenceEnvelope,
   type AnnotationsStore,
 } from "../store";
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import type { PreviewLineLabelVisualOptions } from "../config/preview-line-label-visual-defaults";
-import type { AnnotationsRuntimePersistenceEnvelope } from "../persistence/annotations-persistence";
 import type {
   AnnotationToolPlugin,
   AnnotationToolRegistry,
-} from "../tools/annotation-tool-plugin.types";
-import type { AnnotationToolType } from "@carma-mapping/annotations/core";
+} from "../registry/annotation-tool-plugin.types";
+import type { AnnotationToolId } from "../registry/annotation-tool-id";
 import type { Scene } from "@carma-cesium";
 import { RuntimeAuthoringHost } from "./RuntimeAuthoringHost";
 import { RuntimeToolAvailabilityGuard } from "./RuntimeToolAvailabilityGuard";
@@ -36,11 +36,12 @@ type AnnotationsRuntimeServices = {
     toolType: StoredAnnotation["toolType"],
     coordinates: readonly CesiumGeographicCoordinate[],
     options?: AddAnnotationOptions,
-    linkedNodeGroupIds?: readonly (AnnotationNodeLinkId | null | undefined)[]
+    linkedNodeGroupIds?: readonly (AnnotationNodeLinkId | null | undefined)[],
+    sourceToolId?: AnnotationToolId
   ) => StoredAnnotation;
-  setActiveToolType: (toolType: AnnotationToolType) => void;
-  requestModeChange: (toolType: AnnotationToolType) => void;
-  requestStartMeasurement: (toolType?: AnnotationToolType) => void;
+  setActiveToolType: (toolId: AnnotationToolId) => void;
+  requestModeChange: (toolId: AnnotationToolId) => void;
+  requestActivateTool: (toolId?: AnnotationToolId) => void;
   requestFinishMeasurement: () => boolean;
   focusAdjacentAnnotationEntry: (offset: -1 | 1) => void;
   focusAnnotationId: (annotationId: string | null) => void;
@@ -69,10 +70,10 @@ type AnnotationsRuntimeServices = {
 
 type AnnotationsProviderProps = {
   scene: Scene | null;
+  plugins: readonly AnnotationToolPlugin[];
   children?: ReactNode;
-  initialActiveToolType?: AnnotationToolType;
+  initialActiveToolType?: AnnotationToolId;
   initialPointTemporaryMode?: boolean;
-  plugins?: readonly AnnotationToolPlugin[];
   formatOptions?: AnnotationsRuntimeFormatOptions;
   previewLineLabelVisualOptions?: Partial<PreviewLineLabelVisualOptions>;
   initialPersistenceState?: AnnotationsRuntimePersistenceEnvelope | null;
@@ -111,10 +112,10 @@ const useRequiredAnnotationsRuntimeServices = () => {
 
 export const AnnotationsProvider = ({
   scene,
+  plugins,
   children,
   initialActiveToolType,
   initialPointTemporaryMode = false,
-  plugins,
   formatOptions = DEFAULT_RUNTIME_FORMAT_OPTIONS,
   previewLineLabelVisualOptions = DEFAULT_PREVIEW_LINE_LABEL_VISUAL_OPTIONS,
   initialPersistenceState = null,
@@ -164,7 +165,7 @@ export const useAnnotationsRuntime = () => {
     addAnnotation,
     setActiveToolType,
     requestModeChange,
-    requestStartMeasurement,
+    requestActivateTool,
     requestFinishMeasurement,
     focusAdjacentAnnotationEntry,
     focusAnnotationId,
@@ -212,7 +213,7 @@ export const useAnnotationsRuntime = () => {
     activeToolType,
     setActiveToolType,
     requestModeChange,
-    requestStartMeasurement,
+    requestActivateTool,
     requestFinishMeasurement,
     focusAdjacentAnnotationEntry,
     focusAnnotationId,

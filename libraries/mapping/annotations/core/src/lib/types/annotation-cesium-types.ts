@@ -5,11 +5,9 @@ import type { Altitude, LatLngAlt } from "@carma-geo/data-structures";
 import type { BaseAnnotationEntry } from "./annotation-entry";
 import {
   ANNOTATION_TYPES,
-  type AnnotationToolTypes,
   type AnnotationTypes,
 } from "./annotation-types";
 export type AnnotationMode =
-  | AnnotationToolTypes["SELECT"]
   | AnnotationTypes["POINT"]
   | AnnotationTypes["DISTANCE"]
   | AnnotationTypes["POLYLINE"];

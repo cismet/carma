@@ -1,7 +1,7 @@
-import type { AnnotationToolType } from "@carma-mapping/annotations/core";
 import type { CesiumGeographicCoordinate, AnnotationNodeLinkId } from "../../store";
+import type { AnnotationToolId } from "../../registry/annotation-tool-id";
 export type AnnotationModeSession = {
-  toolType: AnnotationToolType;
+  toolType: AnnotationToolId;
   requestStart: () => void;
   requestFinish: () => boolean;
   discardDraft: () => void;
@@ -13,5 +13,5 @@ export type AnnotationModeSession = {
 };
 
 export type AnnotationModeSessionMap = Partial<
-  Record<AnnotationToolType, AnnotationModeSession>
+  Record<AnnotationToolId, AnnotationModeSession>
 >;

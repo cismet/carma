@@ -21,6 +21,18 @@ export {
   type AnnotationNodeId,
 } from "./annotations-store.types";
 export {
+  buildAnnotationsRuntimePersistenceState,
+  loadAnnotationsRuntimePersistenceState,
+  resolvePersistedAnnotationsStoreState,
+  saveAnnotationsRuntimePersistenceState,
+  type AnnotationsRuntimePersistenceEnvelope,
+  type AnnotationsRuntimePersistenceEnvelopeLegacy,
+  type AnnotationsRuntimePersistenceEnvelopeV3,
+  type AnnotationsRuntimePersistenceEnvelopeV4,
+  type AnnotationsRuntimePersistenceEnvelopeV5,
+  type AnnotationsRuntimePersistenceEnvelopeWithElevationReference,
+} from "./persistence/annotations-store-persistence";
+export {
   resolveRemovableSelectedAnnotationIds,
   selectAdjacentAnnotationEntryId,
   selectAllAnnotationIds,
@@ -73,3 +85,7 @@ export {
   useAnnotationsSelector,
   useAnnotationsStore,
 } from "./use-annotations-store";
+export {
+  useLocalAnnotationsStorePersistence,
+  useLocalAnnotationsRuntimePersistence,
+} from "./persistence/useLocalAnnotationsStorePersistence";

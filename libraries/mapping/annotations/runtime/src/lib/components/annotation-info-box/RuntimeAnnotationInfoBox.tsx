@@ -52,7 +52,9 @@ export const RuntimeAnnotationInfoBox = ({
       return null;
     }
 
-    const plugin = registry.getPlugin(selectedAnnotation.toolType);
+    const plugin = registry
+      .getPluginsByAnnotationType(selectedAnnotation.toolType)
+      .find((candidatePlugin) => candidatePlugin.infoBox?.getSlots);
     if (!plugin?.infoBox?.getSlots) {
       return null;
     }

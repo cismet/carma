@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import {
-  formatMeasurementShortLabelToken,
-  type AnnotationToolType,
-} from "@carma-mapping/annotations/core";
+import { formatMeasurementShortLabelToken } from "@carma-mapping/annotations/core";
 
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import type { PreviewLineLabelVisualOptions } from "../config/preview-line-label-visual-defaults";
@@ -12,14 +9,10 @@ import {
   downloadAnnotationGeoJsonFile,
   resolveAnnotationExportDescriptor,
   sanitizeAnnotationExportFileSegment,
-} from "../export/annotation-geo-json-export";
-import {
-  buildAnnotationsRuntimePersistenceState,
-  resolvePersistedAnnotationsStoreState,
-  type AnnotationsRuntimePersistenceEnvelope,
-} from "../persistence/annotations-persistence";
+} from "../utils/annotation-geo-json-export";
 import {
   appendAnnotationEntities,
+  buildAnnotationsRuntimePersistenceState,
   buildMeasurementEntities,
   createAnnotationsStore,
   createInitialAnnotationsStoreState,
@@ -27,6 +20,7 @@ import {
   removeAnnotationById,
   removeAnnotationsByIds,
   readMaxNumericSuffix,
+  resolvePersistedAnnotationsStoreState,
   resolveRemovableSelectedAnnotationIds,
   resolveNextElevationDisplayMode,
   selectAdjacentAnnotationEntryId,
@@ -40,18 +34,17 @@ import {
   updateAnnotationEntryById,
   type AnnotationsStore,
   type AddAnnotationOptions,
+  type AnnotationsRuntimePersistenceEnvelope,
   type CesiumGeographicCoordinate,
   type AnnotationNodeLinkId,
   type StoredAnnotation,
 } from "../store";
-import {
-  buildAnnotationToolRegistry,
-  defaultAnnotationToolPlugins,
-} from "../tools";
+import { buildAnnotationToolRegistry } from "../registry";
+import type { AnnotationToolId } from "../registry/annotation-tool-id";
 import type {
   AnnotationToolDraftStore,
   AnnotationToolPlugin,
-} from "../tools/annotation-tool-plugin.types";
+} from "../registry/annotation-tool-plugin.types";
 import type { Scene } from "@carma-cesium";
 import {
   isShortLabelKind,
@@ -70,8 +63,8 @@ import {
 
 type UseAnnotationsRuntimeAssemblyOptions = {
   scene: Scene | null;
-  plugins?: readonly AnnotationToolPlugin[];
-  initialActiveToolType?: AnnotationToolType;
+  plugins: readonly AnnotationToolPlugin[];
+  initialActiveToolType?: AnnotationToolId;
   initialPointTemporaryMode: boolean;
   formatOptions: AnnotationsRuntimeFormatOptions;
   previewLineLabelVisualOptions: Partial<PreviewLineLabelVisualOptions>;
@@ -83,7 +76,7 @@ type UseAnnotationsRuntimeAssemblyOptions = {
 
 export const useAnnotationsAssembly = ({
   scene,
-  plugins = defaultAnnotationToolPlugins,
+  plugins,
   initialActiveToolType,
   initialPointTemporaryMode,
   formatOptions,
@@ -168,14 +161,14 @@ export const useAnnotationsAssembly = ({
   const annotationToolDraftStore = annotationToolDraftStoreRef.current;
 
   const setActiveToolTypeInStore = useCallback(
-    (toolType: AnnotationToolType) => {
+    (toolType: AnnotationToolId) => {
       annotationsStore.dispatch(setAnnotationToolType(toolType));
     },
     [annotationsStore]
   );
 
   const setActiveToolType = useCallback(
-    (toolType: AnnotationToolType) => {
+    (toolType: AnnotationToolId) => {
       if (lifecycleHostApiRef.current === NOOP_RUNTIME_LIFECYCLE_HOST_API) {
         setActiveToolTypeInStore(toolType);
         return;
@@ -466,18 +459,45 @@ export const useAnnotationsAssembly = ({
     lifecycleHostApiRef.current = api;
   }, []);
 
+  const resolvePluginForAnnotationAdd = useCallback(
+    (
+      annotationType: StoredAnnotation["toolType"],
+      sourceToolId?: AnnotationToolId
+    ) => {
+      if (sourceToolId) {
+        const sourcePlugin = registry.getPlugin(sourceToolId);
+        if (sourcePlugin) {
+          return sourcePlugin;
+        }
+      }
+
+      const matchingPlugins = registry.getPluginsByAnnotationType(annotationType);
+      return (
+        matchingPlugins.find((plugin) => plugin.addAnnotation) ??
+        matchingPlugins[0] ??
+        null
+      );
+    },
+    [registry]
+  );
+
   const addAnnotation = useCallback(
     (
       toolType: StoredAnnotation["toolType"],
       coordinates: readonly CesiumGeographicCoordinate[],
       options?: AddAnnotationOptions,
-      linkedNodeGroupIds?: readonly (AnnotationNodeLinkId | null | undefined)[]
+      linkedNodeGroupIds?: readonly (AnnotationNodeLinkId | null | undefined)[],
+      sourceToolId?: AnnotationToolId
     ) => {
       const runtimeStateBeforeInsert = annotationsStore.getState();
-      const resolvedToolPlugin = registry.getPlugin(toolType);
+      const resolvedToolPlugin = resolvePluginForAnnotationAdd(
+        toolType,
+        sourceToolId
+      );
       let resolvedOptions =
         resolvedToolPlugin?.addAnnotation?.resolveOptions({
-          toolType,
+          annotationType: toolType,
+          toolId: sourceToolId ?? resolvedToolPlugin?.id ?? null,
           scene,
           coordinates,
           options,
@@ -519,7 +539,7 @@ export const useAnnotationsAssembly = ({
       );
       return annotationEntry;
     },
-    [annotationsStore, registry, scene]
+    [annotationsStore, resolvePluginForAnnotationAdd, scene]
   );
 
   useEffect(() => {
@@ -556,10 +576,10 @@ export const useAnnotationsAssembly = ({
       formatOptions,
       addAnnotation,
       setActiveToolType,
-      requestModeChange: (toolType: AnnotationToolType) =>
+      requestModeChange: (toolType: AnnotationToolId) =>
         lifecycleHostApiRef.current.requestModeChange(toolType),
-      requestStartMeasurement: (toolType?: AnnotationToolType) =>
-        lifecycleHostApiRef.current.requestStartMeasurement(toolType),
+      requestActivateTool: (toolType?: AnnotationToolId) =>
+        lifecycleHostApiRef.current.requestActivateTool(toolType),
       requestFinishMeasurement: () =>
         lifecycleHostApiRef.current.requestFinishMeasurement(),
       focusAdjacentAnnotationEntry,

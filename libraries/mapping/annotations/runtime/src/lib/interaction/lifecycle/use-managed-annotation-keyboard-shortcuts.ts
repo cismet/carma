@@ -5,7 +5,6 @@ import {
   isSelectAllAnnotationKeyboardShortcut,
   isManagedAnnotationKeyboardEvent,
   resolveAnnotationCommonShortcutAction,
-  type AnnotationToolType,
 } from "@carma-mapping/annotations/core";
 
 import {
@@ -17,20 +16,21 @@ import {
 import type {
   AnnotationToolPlugin,
   AnnotationToolSessionContext,
-} from "../../tools/annotation-tool-plugin.types";
+} from "../../registry/annotation-tool-plugin.types";
+import type { AnnotationToolId } from "../../registry/annotation-tool-id";
 import type { AnnotationModeSession } from "./annotation-mode-session.types";
 
 type UseManagedAnnotationKeyboardShortcutsOptions = {
   activePlugin: AnnotationToolPlugin | null;
-  activeToolType: AnnotationToolType;
+  activeToolType: AnnotationToolId;
   activeToolSession: AnnotationModeSession | null;
-  primaryInteractionToolId: AnnotationToolType | null;
+  primaryInteractionToolId: AnnotationToolId | null;
   focusAdjacentAnnotationEntry: (offset: -1 | 1) => void;
   requestFinishMeasurement: () => boolean;
-  requestStartMeasurement: (toolType?: AnnotationToolType) => void;
-  requestModeChange: (toolType: AnnotationToolType) => void;
+  requestActivateTool: (toolId?: AnnotationToolId) => void;
+  requestModeChange: (toolId: AnnotationToolId) => void;
   sessionContext: AnnotationToolSessionContext;
-  setActiveToolTypeInStore: (toolType: AnnotationToolType) => void;
+  setActiveToolTypeInStore: (toolId: AnnotationToolId) => void;
 };
 
 export const useManagedAnnotationKeyboardShortcuts = ({
@@ -40,7 +40,7 @@ export const useManagedAnnotationKeyboardShortcuts = ({
   primaryInteractionToolId,
   focusAdjacentAnnotationEntry,
   requestFinishMeasurement,
-  requestStartMeasurement,
+  requestActivateTool,
   requestModeChange,
   sessionContext,
   setActiveToolTypeInStore,
@@ -126,7 +126,7 @@ export const useManagedAnnotationKeyboardShortcuts = ({
           activeToolType,
           activeToolSession,
           requestFinishMeasurement,
-          requestStartMeasurement,
+          requestActivateTool,
           requestModeChange,
           sessionContext,
         })
@@ -156,7 +156,7 @@ export const useManagedAnnotationKeyboardShortcuts = ({
     primaryInteractionToolId,
     requestFinishMeasurement,
     requestModeChange,
-    requestStartMeasurement,
+    requestActivateTool,
     sessionContext,
     setActiveToolTypeInStore,
   ]);

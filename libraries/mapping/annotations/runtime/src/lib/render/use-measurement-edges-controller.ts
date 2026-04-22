@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef } from "react";
 
 import { createSvgLineVisualizers } from "@carma-commons/svg";
-import { distanceVisualizationDefaults } from "@carma-mapping/annotations/core";
+import {
+  distanceVisualizationDefaults,
+  getAnnotationSurfaceAccentCssColor,
+} from "@carma-mapping/annotations/core";
 import {
   cartesian3FromGeographicCoordinate,
   getArcPointsInSpannedPlane,
@@ -67,7 +70,6 @@ import {
   resolvePreviewLineLabelVisualOptions,
   type PreviewLineLabelVisualOptions,
 } from "../config/preview-line-label-visual-defaults";
-import { distanceToolVisualDefaults } from "../tools/distance/distance-tool-visual-defaults";
 import { measurementVisualDefaults } from "../config/measurement-visual-defaults";
 
 type UseRuntimeMeasurementEdgesControllerArgs = {
@@ -154,9 +156,24 @@ const measurementEdgeDefaults = Object.freeze({
   }),
   svgNamespace: "http://www.w3.org/2000/svg",
   distanceTriangle: Object.freeze({
-    cornerDotRadiusPx: distanceToolVisualDefaults.cornerOverlay.strokeWidthPx / 2,
+    cornerDotRadiusPx: 1.25 / 2,
   }),
   midpointMarker: measurementEdgeMidpointMarkerDefaults,
+});
+
+const distanceTriangleVisualDefaults = Object.freeze({
+  dashedLine: Object.freeze({
+    renderInScene: false,
+  }),
+  cornerOverlay: Object.freeze({
+    minBoxPx: 20,
+    paddingPx: 6,
+    targetRadiusPx: 20,
+    segments: 20,
+    strokeWidthPx: 1.25,
+    color: getAnnotationSurfaceAccentCssColor(),
+    straightHitTargetPx: 20,
+  }),
 });
 
 const toLayoutRect = (domRect: DOMRect): Rect => ({
@@ -708,10 +725,10 @@ const createDistanceTriangleCornerHandle = (
     "path"
   );
   path.setAttribute("fill", "none");
-  path.setAttribute("stroke", distanceToolVisualDefaults.cornerOverlay.color);
+  path.setAttribute("stroke", distanceTriangleVisualDefaults.cornerOverlay.color);
   path.setAttribute(
     "stroke-width",
-    `${distanceToolVisualDefaults.cornerOverlay.strokeWidthPx}`
+    `${distanceTriangleVisualDefaults.cornerOverlay.strokeWidthPx}`
   );
   path.setAttribute("stroke-linecap", "round");
   path.setAttribute("stroke-linejoin", "round");
@@ -724,7 +741,7 @@ const createDistanceTriangleCornerHandle = (
     "r",
     `${measurementEdgeDefaults.distanceTriangle.cornerDotRadiusPx}`
   );
-  dot.setAttribute("fill", distanceToolVisualDefaults.cornerOverlay.color);
+  dot.setAttribute("fill", distanceTriangleVisualDefaults.cornerOverlay.color);
 
   svg.append(path, dot);
   root.appendChild(svg);
@@ -786,17 +803,17 @@ const applyDistanceTriangleCornerHandleLayout = ({
   handle.svg.style.display = "block";
   handle.dot.setAttribute(
     "cx",
-    `${dotScreen.x - minX + distanceToolVisualDefaults.cornerOverlay.paddingPx}`
+    `${dotScreen.x - minX + distanceTriangleVisualDefaults.cornerOverlay.paddingPx}`
   );
   handle.dot.setAttribute(
     "cy",
-    `${dotScreen.y - minY + distanceToolVisualDefaults.cornerOverlay.paddingPx}`
+    `${dotScreen.y - minY + distanceTriangleVisualDefaults.cornerOverlay.paddingPx}`
   );
   handle.root.style.left = `${
-    minX - distanceToolVisualDefaults.cornerOverlay.paddingPx
+    minX - distanceTriangleVisualDefaults.cornerOverlay.paddingPx
   }px`;
   handle.root.style.top = `${
-    minY - distanceToolVisualDefaults.cornerOverlay.paddingPx
+    minY - distanceTriangleVisualDefaults.cornerOverlay.paddingPx
   }px`;
   handle.root.style.width = `${width}px`;
   handle.root.style.height = `${height}px`;
@@ -819,7 +836,7 @@ const applyDistanceTriangleStraightCornerHandleLayout = ({
   onClick?: (() => void) | null;
 }) => {
   const hitTargetPx =
-    distanceToolVisualDefaults.cornerOverlay.straightHitTargetPx;
+    distanceTriangleVisualDefaults.cornerOverlay.straightHitTargetPx;
   const centerPx = hitTargetPx / 2;
 
   handle.path.style.display = "none";
@@ -1048,7 +1065,7 @@ export const useMeasurementEdgesController = (
       edgeSegments.flatMap((edge) => {
         const renderDistanceDashesInScene =
           !edge.distanceTriangleOverlay ||
-          distanceToolVisualDefaults.dashedLine.renderInScene;
+          distanceTriangleVisualDefaults.dashedLine.renderInScene;
         const directLine: EdgeSceneLine = {
           id: edge.id,
           start: cartesian3FromGeographicCoordinate(edge.startCoordinate),
@@ -1701,9 +1718,9 @@ export const useMeasurementEdgesController = (
           screenData.auxiliaryPointECEF,
           screenData.anchorPointECEF,
           screenData.targetPointECEF,
-          distanceToolVisualDefaults.cornerOverlay.targetRadiusPx *
+          distanceTriangleVisualDefaults.cornerOverlay.targetRadiusPx *
             metersPerPixel,
-          distanceToolVisualDefaults.cornerOverlay.segments
+          distanceTriangleVisualDefaults.cornerOverlay.segments
         );
         if (!arcPointsWorld || arcPointsWorld.length < 2) {
           hideDistanceTriangleCornerHandle(cornerHandle);
@@ -1746,23 +1763,23 @@ export const useMeasurementEdgesController = (
         const minY = Math.min(...arcPointsScreen.map((point) => point.y));
         const maxY = Math.max(...arcPointsScreen.map((point) => point.y));
         const width = Math.max(
-          distanceToolVisualDefaults.cornerOverlay.minBoxPx,
-          maxX - minX + distanceToolVisualDefaults.cornerOverlay.paddingPx * 2
+          distanceTriangleVisualDefaults.cornerOverlay.minBoxPx,
+          maxX - minX + distanceTriangleVisualDefaults.cornerOverlay.paddingPx * 2
         );
         const height = Math.max(
-          distanceToolVisualDefaults.cornerOverlay.minBoxPx,
-          maxY - minY + distanceToolVisualDefaults.cornerOverlay.paddingPx * 2
+          distanceTriangleVisualDefaults.cornerOverlay.minBoxPx,
+          maxY - minY + distanceTriangleVisualDefaults.cornerOverlay.paddingPx * 2
         );
         const pathData = arcPointsScreen
           .map((point, index) => {
             const x =
               point.x -
               minX +
-              distanceToolVisualDefaults.cornerOverlay.paddingPx;
+              distanceTriangleVisualDefaults.cornerOverlay.paddingPx;
             const y =
               point.y -
               minY +
-              distanceToolVisualDefaults.cornerOverlay.paddingPx;
+              distanceTriangleVisualDefaults.cornerOverlay.paddingPx;
             return `${index === 0 ? "M" : "L"} ${x} ${y}`;
           })
           .join(" ");

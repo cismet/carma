@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import type { AnnotationToolType } from "@carma-mapping/annotations/core";
 
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import type {
@@ -8,8 +7,9 @@ import type {
   AnnotationNodeLink,
   AnnotationNode,
 } from "../store";
-import type { AnnotationToolPlugin } from "../tools/annotation-tool-plugin.types";
-import type { AnnotationToolDraftState } from "../tools/annotation-tool-plugin.types";
+import type { AnnotationToolPlugin } from "../registry/annotation-tool-plugin.types";
+import type { AnnotationToolDraftState } from "../registry/annotation-tool-plugin.types";
+import type { AnnotationToolId } from "../registry/annotation-tool-id";
 import {
   hasNodeCoordinateOverrides,
   splitRuntimeVisualModelsForCoordinateOverlay,
@@ -25,7 +25,7 @@ type BuildVisualModelsArgs = {
   linkedNodeGroups: readonly AnnotationNodeLink[];
   annotationEntries: readonly StoredAnnotation[];
   draftStatesByToolType: Readonly<
-    Partial<Record<AnnotationToolType, AnnotationToolDraftState>>
+    Partial<Record<AnnotationToolId, AnnotationToolDraftState>>
   >;
   elevationReferenceAnnotationId: string | null;
   selectedAnnotationId: string | null;

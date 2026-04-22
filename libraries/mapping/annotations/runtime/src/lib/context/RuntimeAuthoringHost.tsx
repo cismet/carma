@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { SceneTransforms, defined } from "@carma-cesium";
-import {
-  ANNOTATION_TYPES,
-  type AnnotationToolType,
-} from "@carma-mapping/annotations/core";
+import { ANNOTATION_TYPES } from "@carma-mapping/annotations/core";
 import { useLabelOverlay } from "@carma-providers/label-overlay";
 import {
   cartesian3FromGeographicCoordinate,
@@ -29,7 +26,8 @@ import type {
   AnnotationNodeLinkId,
   StoredAnnotation,
 } from "../store";
-import { ANNOTATION_TOOL_PLUGIN_KINDS } from "../tools";
+import { ANNOTATION_TOOL_PLUGIN_KINDS } from "../registry";
+import type { AnnotationToolId } from "../registry/annotation-tool-id";
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import type { PreviewLineLabelVisualOptions } from "../config/preview-line-label-visual-defaults";
 import type {
@@ -38,10 +36,9 @@ import type {
   AnnotationToolRegistry,
   AnnotationToolAuthoringContext,
   PointQueryPickResult,
-} from "../tools/annotation-tool-plugin.types";
+} from "../registry/annotation-tool-plugin.types";
 import type { Scene } from "@carma-cesium";
 import { ANNOTATIONS_HOST_DEFAULTS } from "./annotations-host-defaults";
-import { commitPointMeasurementDraft } from "../tools/point/point-tool-actions";
 import {
   type RuntimeLifecycleHostApi,
   NOOP_RUNTIME_LIFECYCLE_HOST_API,
@@ -54,13 +51,14 @@ type RuntimeAuthoringHostProps = {
   registry: AnnotationToolRegistry;
   annotationsStore: AnnotationsStore;
   annotationToolDraftStore: AnnotationToolDraftStore;
-  setActiveToolTypeInStore: (toolType: AnnotationToolType) => void;
+  setActiveToolTypeInStore: (toolType: AnnotationToolId) => void;
   focusAdjacentAnnotationEntry: (offset: -1 | 1) => void;
   addAnnotation: (
     toolType: StoredAnnotation["toolType"],
     coordinates: readonly CesiumGeographicCoordinate[],
     options?: AddAnnotationOptions,
-    linkedNodeGroupIds?: readonly (AnnotationNodeLinkId | null | undefined)[]
+    linkedNodeGroupIds?: readonly (AnnotationNodeLinkId | null | undefined)[],
+    sourceToolId?: AnnotationToolId
   ) => StoredAnnotation;
   bindApi: (api: RuntimeLifecycleHostApi) => void;
   bindPreviewSnapTargetNodeClick: (
@@ -171,8 +169,14 @@ export const RuntimeAuthoringHost = ({
     if (previousPointTemporaryMode && !currentPointTemporaryMode) {
       const pointDraft = annotationToolDraftStore.get(ANNOTATION_TYPE_POINT);
       if (pointDraft.coordinates.length > 0) {
-        commitPointMeasurementDraft(ANNOTATION_TYPE_POINT, pointDraft, {
-          addAnnotation,
+        pointDraft.coordinates.forEach((coordinate, index) => {
+          addAnnotation(
+            ANNOTATION_TYPE_POINT,
+            [coordinate],
+            undefined,
+            [pointDraft.linkedNodeGroupIds[index] ?? null],
+            ANNOTATION_TYPE_POINT
+          );
         });
         annotationToolDraftStore.clear(ANNOTATION_TYPE_POINT);
       }
@@ -182,7 +186,7 @@ export const RuntimeAuthoringHost = ({
 
   const {
     requestModeChange,
-    requestStartMeasurement,
+    requestActivateTool,
     requestFinishMeasurement,
   } = useModeLifecycle(
     activeToolType,
@@ -207,7 +211,7 @@ export const RuntimeAuthoringHost = ({
   useEffect(() => {
     bindApi({
       requestModeChange,
-      requestStartMeasurement,
+      requestActivateTool,
       requestFinishMeasurement,
     });
 
@@ -218,7 +222,7 @@ export const RuntimeAuthoringHost = ({
     bindApi,
     requestFinishMeasurement,
     requestModeChange,
-    requestStartMeasurement,
+    requestActivateTool,
   ]);
 
   const pointQueryEnabled = Boolean(
@@ -463,7 +467,7 @@ export const RuntimeAuthoringHost = ({
     primaryInteractionToolId,
     requestFinishMeasurement,
     requestModeChange,
-    requestStartMeasurement,
+    requestActivateTool,
     sessionContext,
     setActiveToolTypeInStore,
   });

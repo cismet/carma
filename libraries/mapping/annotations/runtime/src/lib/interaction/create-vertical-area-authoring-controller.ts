@@ -2,7 +2,7 @@ import type {
   AnnotationToolAuthoringController,
   AnnotationToolAuthoringContext,
   PointQueryPickResult,
-} from "../tools/annotation-tool-plugin.types";
+} from "../registry/annotation-tool-plugin.types";
 import {
   ANNOTATION_TYPES,
   buildOutsideReferencePoint2D,

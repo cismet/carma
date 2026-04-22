@@ -14,6 +14,12 @@ High-level package split and runtime-line policy for the annotations stack.
 - current canonical annotations runtime line
 - active pluginized runtime package
 - the intended long-term runtime package name
+- owns runtime host/tooling and remains compatibility-export surface for the shipped built-in tools during the current transition
+
+### `builtin-tools`
+- shipped built-in annotation tool plugins and the default bundled tool list
+- consumer-facing package for the seven built-in tools
+- depends on the runtime host/tooling surface
 
 ### `ui`
 - reusable annotation info-box UI primitives
@@ -32,6 +38,13 @@ High-level package split and runtime-line policy for the annotations stack.
 - runtime authoring, persistence wiring, and UI/workflow orchestration belong in the active runtime line
 - Cesium scene/query/render runtime belongs in the runtime’s engine-facing layers
 - generic Cesium math belongs in `@carma-cesium`
+
+## Internal Seam Rules
+
+- `builtin-tools` should import shared runtime helpers directly from `@carma-mapping/annotations/runtime`.
+- Do not add local re-export seams such as `builtin-tools/src/lib/runtime.ts`.
+- Keep cross-package access on explicit named exports from the runtime root `src/index.ts`.
+- Tool-specific implementation details stay in `builtin-tools`.
 
 ## Refactor Status
 

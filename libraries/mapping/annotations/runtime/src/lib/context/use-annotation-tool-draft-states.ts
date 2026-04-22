@@ -1,20 +1,20 @@
 import { useEffect, useMemo, useReducer } from "react";
-import type { AnnotationToolType } from "@carma-mapping/annotations/core";
 import type {
   AnnotationToolDraftState,
   AnnotationToolDraftStore,
-} from "../tools/annotation-tool-plugin.types";
+} from "../registry/annotation-tool-plugin.types";
+import type { AnnotationToolId } from "../registry/annotation-tool-id";
 
 type UseAnnotationToolDraftStatesArgs = {
   draftStore: AnnotationToolDraftStore;
-  toolTypes: readonly AnnotationToolType[];
+  toolTypes: readonly AnnotationToolId[];
 };
 
 export const useAnnotationToolDraftStates = ({
   draftStore,
   toolTypes,
 }: UseAnnotationToolDraftStatesArgs): Readonly<
-  Partial<Record<AnnotationToolType, AnnotationToolDraftState>>
+  Partial<Record<AnnotationToolId, AnnotationToolDraftState>>
 > => {
   const [version, bumpVersion] = useReducer((current: number) => current + 1, 0);
 
@@ -38,7 +38,7 @@ export const useAnnotationToolDraftStates = ({
 
           return hasDraftContent ? ([[toolType, draft]] as const) : [];
         })
-      ) as Partial<Record<AnnotationToolType, AnnotationToolDraftState>>,
+      ) as Partial<Record<AnnotationToolId, AnnotationToolDraftState>>,
     [draftStore, toolTypes, version]
   );
 };

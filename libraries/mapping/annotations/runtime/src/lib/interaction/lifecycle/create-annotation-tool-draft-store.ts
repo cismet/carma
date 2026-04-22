@@ -1,9 +1,9 @@
-import type { AnnotationToolType } from "@carma-mapping/annotations/core";
 import type { CesiumGeographicCoordinate, AnnotationNodeLinkId } from "../../store";
 import type {
   AnnotationToolDraftState,
   AnnotationToolDraftStore,
-} from "../../tools/annotation-tool-plugin.types";
+} from "../../registry/annotation-tool-plugin.types";
+import type { AnnotationToolId } from "../../registry/annotation-tool-id";
 import { areCoordinateListsEqual } from "../../utils/coordinate-equality";
 
 const EMPTY_DRAFT_COORDINATES: readonly CesiumGeographicCoordinate[] = [];
@@ -28,14 +28,14 @@ const areAnnotationToolDraftStatesEqual = (
   areNodeLinkIdsEqual(left.linkedNodeGroupIds, right.linkedNodeGroupIds);
 
 export const createAnnotationToolDraftStore = (): AnnotationToolDraftStore => {
-  const draftByToolType = new Map<AnnotationToolType, AnnotationToolDraftState>();
-  const listenersByToolType = new Map<AnnotationToolType, Set<() => void>>();
+  const draftByToolType = new Map<AnnotationToolId, AnnotationToolDraftState>();
+  const listenersByToolType = new Map<AnnotationToolId, Set<() => void>>();
 
-  const notifyListeners = (toolType: AnnotationToolType) => {
+  const notifyListeners = (toolType: AnnotationToolId) => {
     listenersByToolType.get(toolType)?.forEach((listener) => listener());
   };
 
-  const getDraft = (toolType: AnnotationToolType): AnnotationToolDraftState =>
+  const getDraft = (toolType: AnnotationToolId): AnnotationToolDraftState =>
     draftByToolType.get(toolType) ?? EMPTY_ANNOTATION_TOOL_DRAFT_STATE;
 
   return {

@@ -33,13 +33,10 @@ export type {
 } from "./lib/types/annotation-label";
 export type { AnnotationPersistenceEnvelopeBase } from "./lib/types/annotation-persistence-types";
 export {
-  ANNOTATION_TOOL_TYPES,
   ANNOTATION_TYPES,
-  isAreaToolType,
+  isAreaAnnotationType,
 } from "./lib/types/annotation-types";
 export type {
-  AnnotationToolType,
-  AnnotationToolTypes,
   AnnotationType,
   AnnotationTypes,
   DerivedNodeChainAnnotation,
@@ -131,10 +128,8 @@ export {
   arePolygonAnnotationsEquivalent,
 } from "./lib/utils/annotation-state-equality";
 export {
-  listAnnotationToolShortcuts,
-  resolveAnnotationToolShortcutTarget,
-} from "./lib/utils/annotation-tool-shortcuts";
-export { buildEdgeRelationRenderContext } from "./lib/utils/build-edge-relation-render-context";
+  buildEdgeRelationRenderContext,
+} from "./lib/utils/build-edge-relation-render-context";
 export {
   hasPointCandidateOffsetStem,
   resolveCandidateCapabilities,

@@ -2,8 +2,7 @@ import type {
   AnnotationToolAuthoringController,
   AnnotationToolAuthoringContext,
   PointQueryPickResult,
-} from "../tools/annotation-tool-plugin.types";
-import type { AnnotationToolType } from "@carma-mapping/annotations/core";
+} from "../registry/annotation-tool-plugin.types";
 import type { CesiumGeographicCoordinate } from "../store";
 import { formatLengthMeters, type CssPixelPosition } from "@carma-units";
 import { SceneTransforms, defined } from "@carma-cesium";
@@ -28,10 +27,11 @@ import {
 import {
   computePolylineSegmentLengthsMeters,
   computePolylineTotalLengthMeters,
-} from "../derived/measurement-summaries";
+} from "../utils/measurement-summaries";
 import {
   resolvePreviewLineLabelVisualOptions,
 } from "../config/preview-line-label-visual-defaults";
+import type { AnnotationToolId } from "../registry/annotation-tool-id";
 
 const DRAFT_CHAIN_OVERLAY_LAYER_ID =
   "annotation-overlay-draft-chain-preview-layer";
@@ -61,7 +61,7 @@ export const createSegmentAuthoringController = ({
   context,
   showCommittedDraftChain,
 }: {
-  toolType: AnnotationToolType;
+  toolType: AnnotationToolId;
   context: AnnotationToolAuthoringContext;
   showCommittedDraftChain: boolean;
 }): AnnotationToolAuthoringController | null => {

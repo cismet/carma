@@ -4,7 +4,6 @@ import {
   type PayloadAction,
 } from "@reduxjs/toolkit";
 
-import type { AnnotationToolType } from "@carma-mapping/annotations/core";
 import type {
   AnnotationsStoreState,
   CesiumGeographicCoordinate,
@@ -16,6 +15,7 @@ import type {
   AnnotationNodeId,
   AnnotationNode,
 } from "./annotations-store.types";
+import type { AnnotationToolId } from "../registry/annotation-tool-id";
 import {
   reconcileNodeLinks,
   resolveNextNodeLinksForNodeMove,
@@ -27,7 +27,7 @@ import type {
 } from "../render/measurement-render-models";
 import { resolveAnnotationNodeMoveScope } from "./node-move-scope.helpers";
 export type CreateInitialAnnotationsStoreStateOptions = {
-  initialToolType?: AnnotationToolType;
+  initialToolType?: AnnotationToolId;
   initialPointTemporaryMode?: boolean;
 };
 
@@ -84,7 +84,7 @@ export type SetNextShortLabelCounterByToolTypePayload = {
   nextCounter: number;
 };
 
-const UNSET_TOOL_TYPE = "__unset__" as AnnotationToolType;
+const UNSET_TOOL_TYPE = "__unset__" as AnnotationToolId;
 export const createInitialAnnotationsStoreState = (
   options: CreateInitialAnnotationsStoreStateOptions = {}
 ): AnnotationsStoreState => {
@@ -122,7 +122,7 @@ const annotationsSlice = createSlice({
       action.payload,
     setAnnotationToolType: (
       state,
-      action: PayloadAction<AnnotationToolType>
+      action: PayloadAction<AnnotationToolId>
     ) => {
       state.annotationToolType = action.payload;
     },

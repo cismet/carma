@@ -2,10 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Tooltip } from "antd";
 import {
   isManagedAnnotationKeyboardEvent,
-  listAnnotationToolShortcuts,
   renderAnnotationShortcutGlyph,
-  resolveAnnotationToolShortcutTarget,
-  ANNOTATION_TOOL_TYPES,
 } from "@carma-mapping/annotations/core";
 import {
   AnnotationInfoBoxContainer,
@@ -14,13 +11,12 @@ import {
   resolveAnnotationInfoBoxVisualOptions,
 } from "@carma-mapping/annotations/ui";
 import {
+  ANNOTATION_TOOL_PLUGIN_KINDS,
   AnnotationsProvider,
   RuntimeAnnotationInfoBox,
-  defaultAnnotationToolPlugins,
-  distanceToolPlugin,
-  pointToolPlugin,
-  selectToolPlugin,
+  listAnnotationToolShortcuts,
   typographyDefaults,
+  resolveAnnotationToolShortcutTarget,
   useLocalAnnotationsRuntimePersistence,
   useAnnotationsRuntime,
 } from "@carma-mapping/annotations/runtime";
@@ -42,11 +38,13 @@ import {
   ACTIVE_TOOL_STORAGE_KEY,
   ANNOTATIONS_RUNTIME_STORAGE_KEY,
   INFOBOX_WIDTH_PX,
+  PLAYGROUND_ALL_RUNTIME_TOOL_PLUGINS,
   PLAYGROUND_PREVIEW_LINE_LABEL_VISUAL_OPTIONS,
   PLAYGROUND_RUNTIME_INFO_BOX_VISUAL_OPTIONS,
   PLAYGROUND_RUNTIME_FORMAT_OPTIONS,
-  PLAYGROUND_RUNTIME_TOOLSETS,
-  readInitialRuntimeToolset,
+  PLAYGROUND_STABLE_RUNTIME_TOOL_PLUGINS,
+  PLAYGROUND_TOOLSETS,
+  readInitialToolset,
   readInitialToolType,
 } from "../playgroundConfig";
 import { CesiumNavigationOverlay } from "./CesiumNavigationOverlay";
@@ -57,7 +55,6 @@ import {
   createPlaygroundFloatingOverlayInteractionProps,
   resolvePlaygroundFloatingOverlayTooltipContainer,
 } from "./playgroundFloatingOverlay.shared";
-const { SELECT: SELECT_TOOL_TYPE } = ANNOTATION_TOOL_TYPES;
 
 const PLAYGROUND_SHORTCUT_BADGE_TYPOGRAPHY_CLASSNAME = `text-[${typographyDefaults.rootFontSizeRem}] font-bold leading-none text-white`;
 const PLAYGROUND_BODY_TEXT_CLASSNAME = `text-[${typographyDefaults.rootFontSizeRem}] leading-[1.4] text-[#212529]`;
@@ -75,12 +72,6 @@ const renderShortcutBadges = (shortcuts: readonly string[]) => (
   </span>
 );
 
-const PLAYGROUND_STABLE_RUNTIME_TOOL_PLUGINS = [
-  selectToolPlugin,
-  pointToolPlugin,
-  distanceToolPlugin,
-] as const;
-const PLAYGROUND_ALL_RUNTIME_TOOL_PLUGINS = defaultAnnotationToolPlugins;
 const PLAYGROUND_INFO_BOX_VISUAL_OPTIONS = {
   ...PLAYGROUND_RUNTIME_INFO_BOX_VISUAL_OPTIONS,
   resolveActionTooltipPopupContainer:
@@ -91,9 +82,10 @@ const RuntimeToolbar = ({ scene }: { scene: Scene | null }) => {
   const { registry, activeToolType, requestModeChange } =
     useAnnotationsRuntime();
   const visibleDescriptors = registry.orderedDescriptors;
-  const orderedToolTypes = visibleDescriptors.map(
-    (descriptor) => descriptor.id
-  );
+  const primaryInteractionToolId =
+    registry.plugins.find(
+      (plugin) => plugin.kind === ANNOTATION_TOOL_PLUGIN_KINDS.INTERACTION
+    )?.id ?? null;
 
   useEffect(() => {
     const handleToolShortcutKeyDown = (event: KeyboardEvent) => {
@@ -101,7 +93,8 @@ const RuntimeToolbar = ({ scene }: { scene: Scene | null }) => {
 
       const targetToolType = resolveAnnotationToolShortcutTarget(
         event.key,
-        orderedToolTypes
+        visibleDescriptors,
+        primaryInteractionToolId
       );
       if (!targetToolType || targetToolType === activeToolType) {
         return;
@@ -116,7 +109,7 @@ const RuntimeToolbar = ({ scene }: { scene: Scene | null }) => {
     return () => {
       window.removeEventListener("keydown", handleToolShortcutKeyDown, true);
     };
-  }, [activeToolType, orderedToolTypes, requestModeChange]);
+  }, [activeToolType, primaryInteractionToolId, requestModeChange, visibleDescriptors]);
 
   return (
     <div
@@ -133,10 +126,11 @@ const RuntimeToolbar = ({ scene }: { scene: Scene | null }) => {
         <AnnotationsToolbar>
           {visibleDescriptors.map((descriptor) => {
             const isActive = descriptor.id === activeToolType;
-            const showSeparator = descriptor.id === SELECT_TOOL_TYPE;
+            const showSeparator = descriptor.id === primaryInteractionToolId;
             const shortcuts = listAnnotationToolShortcuts(
               descriptor.id,
-              orderedToolTypes
+              visibleDescriptors,
+              primaryInteractionToolId
             );
 
             return (
@@ -201,18 +195,18 @@ const PersistActiveRuntimeToolMode = () => {
 
 const resolvePlaygroundEmptyInfoBoxBodyText = ({
   activeToolLabel,
-  activeToolType,
+  activeToolKind,
   activeToolHelpText,
   hasAnyAnnotations,
   activeToolAnnotationCount,
 }: {
   activeToolLabel: string;
-  activeToolType: string;
+  activeToolKind: string | null;
   activeToolHelpText: readonly string[];
   hasAnyAnnotations: boolean;
   activeToolAnnotationCount: number;
 }): readonly string[] => {
-  if (activeToolType === SELECT_TOOL_TYPE) {
+  if (activeToolKind === ANNOTATION_TOOL_PLUGIN_KINDS.INTERACTION) {
     if (!hasAnyAnnotations) {
       return [
         "Aktuell sind keine Messungen vorhanden.",
@@ -295,18 +289,21 @@ const RuntimeSelectionInfoBox = ({ scene }: { scene: Scene | null }) => {
   const activeToolLabel = activePlugin?.descriptor.label ?? "Messungen";
   const activeToolHelpText = activePlugin?.helpText?.length
     ? activePlugin.helpText
-    : activeToolType === SELECT_TOOL_TYPE
+    : activePlugin?.kind === ANNOTATION_TOOL_PLUGIN_KINDS.INTERACTION
     ? [
         "Messungen oder Anmerkungen anklicken, um sie auszuwählen.",
         "Langes Drücken auf einen Punkt öffnet den Editiermodus.",
       ]
     : ["Klicken Sie in die Karte, um eine neue Messung anzulegen."];
-  const activeToolAnnotationCount = annotationEntries.filter(
-    (annotationEntry) => annotationEntry.toolType === activeToolType
-  ).length;
+  const activeToolAnnotationCount = activePlugin?.annotationType
+    ? annotationEntries.filter(
+        (annotationEntry) =>
+          annotationEntry.toolType === activePlugin.annotationType
+      ).length
+    : 0;
   const emptyStateBodyText = resolvePlaygroundEmptyInfoBoxBodyText({
     activeToolLabel,
-    activeToolType,
+    activeToolKind: activePlugin?.kind ?? null,
     activeToolHelpText,
     hasAnyAnnotations: hasAnnotations,
     activeToolAnnotationCount,
@@ -337,7 +334,9 @@ const RuntimeSelectionInfoBox = ({ scene }: { scene: Scene | null }) => {
   }
 
   const selectedPlugin =
-    registry.getPlugin(selectedAnnotation.toolType) ?? null;
+    registry
+      .getPluginsByAnnotationType(selectedAnnotation.toolType)
+      .find((plugin) => plugin.infoBox?.getSlots) ?? null;
   if (selectedPlugin?.infoBox?.getSlots) {
     return (
       <div
@@ -419,13 +418,13 @@ export const AnnotationsRuntimePage = ({
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [scene, setScene] = useState<Scene | null>(null);
   const [initialToolType] = useState(() => readInitialToolType());
-  const [runtimeToolset] = useState(() => readInitialRuntimeToolset());
+  const [toolset] = useState(() => readInitialToolset());
   const overlayHost = useCesiumLabelOverlayHost({
     scene,
     containerRef: rootRef,
   });
   const toolPlugins =
-    runtimeToolset === PLAYGROUND_RUNTIME_TOOLSETS.ALL
+    toolset === PLAYGROUND_TOOLSETS.ALL
       ? PLAYGROUND_ALL_RUNTIME_TOOL_PLUGINS
       : PLAYGROUND_STABLE_RUNTIME_TOOL_PLUGINS;
   const { initialPersistenceState, onPersistenceStateChange } =

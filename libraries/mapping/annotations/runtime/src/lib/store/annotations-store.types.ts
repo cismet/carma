@@ -1,6 +1,5 @@
 import type {
   AnnotationLabelAppearance,
-  AnnotationToolType,
   AnnotationType,
 } from "@carma-mapping/annotations/core";
 import type { CesiumGeographicCoordinate } from "@carma-mapping/engines/cesium/core";
@@ -8,6 +7,7 @@ import type {
   RuntimeDistanceTriangleAnchorCoordinateRole,
   RuntimePointLabelCoordinateSelection,
 } from "../render/measurement-render-models";
+import type { AnnotationToolId } from "../registry/annotation-tool-id";
 export type { CesiumGeographicCoordinate } from "@carma-mapping/engines/cesium/core";
 export type { AnnotationLabelAppearance } from "@carma-mapping/annotations/core";
 
@@ -86,7 +86,7 @@ export type AnnotationSettingsStoreState = {
 };
 
 export type AnnotationsStoreState = {
-  annotationToolType: AnnotationToolType;
+  annotationToolType: AnnotationToolId;
   selectionState: AnnotationSelectionStoreState;
   annotationEntries: readonly StoredAnnotation[];
   nodes: readonly AnnotationNode[];

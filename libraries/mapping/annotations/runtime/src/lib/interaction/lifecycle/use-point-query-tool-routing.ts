@@ -9,18 +9,18 @@ import type {
 import type {
   AnnotationToolPlugin,
   AnnotationToolSessionContext,
-} from "../../tools/annotation-tool-plugin.types";
-import type { AnnotationToolType } from "@carma-mapping/annotations/core";
+} from "../../registry/annotation-tool-plugin.types";
 import type { Scene } from "@carma-cesium";
+import type { AnnotationToolId } from "../../registry/annotation-tool-id";
 import type { AnnotationModeSessionMap } from "./annotation-mode-session.types";
 import { resolveNodeSnapSample } from "./node-snap.helpers";
 type UsePointQueryToolRoutingParams = {
   scene: Scene | null;
   nodes: readonly AnnotationNode[];
   linkedNodeGroups: readonly AnnotationNodeLink[];
-  activeToolType: AnnotationToolType;
+  activeToolType: AnnotationToolId;
   toolSessions: AnnotationModeSessionMap;
-  getToolPlugin: (toolType: AnnotationToolType) => AnnotationToolPlugin | null;
+  getToolPlugin: (toolId: AnnotationToolId) => AnnotationToolPlugin | null;
   sessionContext: AnnotationToolSessionContext;
 };
 
