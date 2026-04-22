@@ -18,6 +18,8 @@ import {
 import type { Layer } from "@carma-mapping/layers";
 import { parseToMapLayer, twemojiUrl } from "@carma-mapping/utils";
 
+import { APP_BASE_PATH } from "../../config/app.config";
+
 const DEFAULT_EMOJI_UNIFIED = "1f4cf";
 
 type PickedEmoji = {
@@ -87,7 +89,7 @@ function SaveMeasurements({ layer }: { layer: Layer }) {
       title: featureTitle,
       serviceName: "measurements",
       type: "object",
-      thumbnail: "/measurements.jpg",
+      thumbnail: `${APP_BASE_PATH}measurements.jpg`,
       vectorStyle: JSON.stringify(featureData),
       tags: ["Messung", ...layerInfoTags],
       keywords: layerInfoKeywords,
@@ -155,7 +157,7 @@ function SaveMeasurements({ layer }: { layer: Layer }) {
   return (
     <div className="bg-white button-shadow rounded-xl p-4 flex flex-col gap-3 w-[500px]">
       <div className="flex items-center gap-2">
-        <h4 className="mb-0">Messung speichern</h4>
+        <h4 className="mb-0">Messungen speichern</h4>
       </div>
       <hr className="my-0" />
       <label htmlFor="measurement-title" className="-mb-1 font-semibold">
