@@ -33,6 +33,7 @@ const LayerRow = ({ layer, id, isBackgroundLayer, index }: LayerRowProps) => {
   const { isCesium } = useMapFrameworkSwitcherContext();
   const icon = layer?.icon || layer?.other?.icon;
   const isPinned = !!(layer as Layer).pinned;
+  const isInteractionButton = !!(layer as Layer).interactionButton;
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
       id,
@@ -75,14 +76,16 @@ const LayerRow = ({ layer, id, isBackgroundLayer, index }: LayerRowProps) => {
       </div>
       <OpacitySlider
         isBackgroundLayer={isBackgroundLayer}
-        opacity={layer.opacity}
+        opacity={isInteractionButton ? 1 : layer.opacity}
         id={layer.id}
         isVisible={layer.visible}
+        disabled={isInteractionButton}
       />
       <VisibilityToggle
         visible={layer.visible}
         id={id}
         isBackgroundLayer={isBackgroundLayer}
+        disabled={isInteractionButton}
       />
       <button
         className={`hover:text-gray-500 text-gray-600 flex items-center justify-center ${
