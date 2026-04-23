@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom";
-import { cjsGlobalShim } from "@carma-commons/utils/window";
+import { cjsGlobalShim } from "@carma-commons/utils";
 import App from "./App";
 import * as serviceWorkerRegistration from "./serviceWorkerRegistration";
 

@@ -56,13 +56,6 @@
     },
     "lint": {
       "executor": "@nx/eslint:lint"
-    },
-    "test": {
-      "executor": "@nx/jest:jest",
-      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
-      "options": {
-        "jestConfig": "playgrounds/fuzzy-search-lib-playground/jest.config.ts"
-      }
     }
   }
 }

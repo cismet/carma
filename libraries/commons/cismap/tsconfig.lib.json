@@ -1,9 +1,28 @@
 {
   "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "outDir": "../../../dist/out-tsc",
-    "types": ["node", "@nx/react/typings/cssmodule.d.ts", "@nx/react/typings/image.d.ts", "vite/client"]
-  },
-  "exclude": ["**/*.spec.ts", "**/*.test.ts", "**/*.spec.tsx", "**/*.test.tsx", "**/*.spec.js", "**/*.test.js", "**/*.spec.jsx", "**/*.test.jsx"],
-  "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"]
+  "exclude": [
+    "vite.config.ts",
+    "vite.config.mts",
+    "vitest.config.ts",
+    "vitest.config.mts",
+    "src/**/*.spec.js",
+    "src/**/*.spec.jsx",
+    "src/**/*.spec.ts",
+    "src/**/*.spec.tsx",
+    "src/**/*.test.js",
+    "src/**/*.test.jsx",
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "src/**/*.stories.js",
+    "src/**/*.stories.jsx",
+    "src/**/*.stories.ts",
+    "src/**/*.stories.tsx"
+  ],
+  "include": [
+    "src/**/*.js",
+    "src/**/*.jsx",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "src/**/*.d.ts"
+  ]
 }

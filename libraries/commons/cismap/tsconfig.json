@@ -1,12 +1,9 @@
 {
-  "extends": "../../../tsconfig.legacy.base.json",
-  "compilerOptions": {
-    "allowJs": true
-  },
+  "extends": "../../../tsconfig.base.json",
   "files": [],
   "references": [
     {
       "path": "./tsconfig.lib.json"
     }
-  ],
+  ]
 }

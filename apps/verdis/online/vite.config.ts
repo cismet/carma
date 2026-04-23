@@ -2,6 +2,10 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
+import { fileURLToPath } from 'node:url';
+
+const resolveLocal = (relativePath: string) =>
+  fileURLToPath(new URL(relativePath, import.meta.url));
 
 export default defineConfig({
   root: __dirname,
@@ -21,6 +25,14 @@ export default defineConfig({
   },
 
   plugins: [react(), nxViteTsPaths()],
+
+  resolve: {
+    alias: {
+      '@carma-collab/wuppertal/verdis-online': resolveLocal(
+        '../../../libraries/collaboration/carma-wuppertal-collab/src/verdis-online/index.ts'
+      ),
+    },
+  },
 
   // Uncomment this if you are using workers.
   // worker: {

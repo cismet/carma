@@ -1,10 +1,10 @@
 {
-  "extends": "../../../tsconfig.base.json",
-  "compilerOptions": {
-    "allowJs": true,
-    "outDir": "../../../dist/out-tsc",
-    "module": "commonjs",
-    "types": ["node", "@playwright/test"]
-  },
-  "include": ["src/**/*.ts", "playwright.config.ts"]
+  "extends": [
+    "../../../tsconfig.base.json",
+    "../../../tsconfig.e2e.base.json"
+  ],
+  "include": [
+    "src/**/*.ts",
+    "playwright.config.ts"
+  ]
 }

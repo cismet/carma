@@ -4,18 +4,18 @@ import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextPr
 import { useContext, useState, useCallback, useEffect, useRef } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
-import { additionalInfoFactory } from "@carma-collab/wuppertal/geoportal";
-import { genericSecondaryInfoFooterFactory } from "@carma-collab/wuppertal/commons";
+import {
+  additionalInfoFactory,
+  genericSecondaryInfoFooterFactory,
+} from "@carma-collab/wuppertal";
 import {
   getApplicationVersion,
   updateUrl,
   type VersionData,
 } from "@carma-commons/utils";
-import {
-  InfoBox,
-  utils,
-  getActionLinksForFeature,
-} from "@carma-appframeworks/portals";
+import { InfoBox } from "./InfoBox";
+import { getActionLinksForFeature } from "./helper";
+import * as utils from "../utils/utils";
 import {
   fetchRouteOptions,
   displaySelectedRouteOnMap,

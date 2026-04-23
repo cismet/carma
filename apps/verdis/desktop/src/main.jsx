@@ -52,7 +52,7 @@ import AlkisLandparcelPage from "./pages/AlkisLandparcelPage";
 import AlkisBookingSheetPage from "./pages/AlkisBookingSheetPage";
 import { AlkisNav } from "@carma-appframeworks/alkis";
 import { gazDataConfig } from "./config/gazData";
-import { mobileInfo } from "@carma-collab/wuppertal/verdis-desktop";
+import { mobileInfo } from "@carma-collab/wuppertal";
 import { MobileWarningMessage } from "@carma-mapping/components";
 
 const logoSrc = "/logo.svg";

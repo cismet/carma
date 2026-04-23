@@ -1,11 +1,20 @@
 {
   "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "composite": false,
-    "outDir": "../../../../dist/out-tsc",
-    "types": ["node"],
-    "skipLibCheck": true
-  },
-  "include": ["src/**/*.ts"],
-  "exclude": ["src/**/*.spec.ts"]
+  "exclude": [
+    "vite.config.ts",
+    "vite.config.mts",
+    "vitest.config.ts",
+    "vitest.config.mts",
+    "src/**/*.spec.ts",
+    "src/**/*.spec.tsx",
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "src/**/*.stories.ts",
+    "src/**/*.stories.tsx"
+  ],
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "src/**/*.d.ts"
+  ]
 }

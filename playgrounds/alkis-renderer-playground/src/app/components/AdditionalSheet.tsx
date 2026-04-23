@@ -1,4 +1,3 @@
-import { it } from "node:test";
 import { buildGroupedOwnersArr } from "../helper/landparcel";
 
 export type Props = {

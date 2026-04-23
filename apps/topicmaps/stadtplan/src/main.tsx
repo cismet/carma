@@ -8,7 +8,7 @@ import {
 import App from "./app/App.jsx";
 import { suppressReactCismapErrors } from "@carma-commons/utils";
 import { gazDataConfig } from "./config/gazData.js";
-import { cjsGlobalShim } from "@carma-commons/utils/window";
+import { cjsGlobalShim } from "@carma-commons/utils";
 
 suppressReactCismapErrors();
 cjsGlobalShim();

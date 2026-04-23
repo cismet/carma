@@ -6,7 +6,7 @@ import {
   readVerticalFovFromLongerEdge,
   type CameraIntrinsics,
 } from "@carma-commons/camera/model";
-import { formatFixedNumber } from "@carma-commons/utils/number-format";
+import { formatFixedNumber } from "@carma-commons/utils";
 import { WEB_MERCATOR_MAX_LATITUDE_DEG } from "@carma-geo/data-structures";
 import {
   getPixelResolutionFromZoomAtLatitudeRad,

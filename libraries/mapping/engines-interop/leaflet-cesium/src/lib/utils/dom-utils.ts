@@ -1,4 +1,4 @@
-import { promiseWithTimeout } from "@carma-commons/utils/promise";
+import { promiseWithTimeout } from "@carma-commons/utils";
 
 export const fadeOutContainer = async (
   container: HTMLElement,

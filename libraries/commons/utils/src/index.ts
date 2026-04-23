@@ -81,7 +81,8 @@ export type { VersionData } from "./lib/version";
 
 export { detectWebGLContext } from "./lib/webgl";
 
-export * from "./lib/window";
+// Legacy convenience re-exports. New code should prefer @carma-commons/dom/window.
+export { carmaWindow, handleDelayedRender, cjsGlobalShim } from "./lib/window";
 
 export {
   createRingBuffer,

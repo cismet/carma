@@ -1,5 +1,5 @@
 import { Viewer } from "cesium";
-import { handleDelayedRender } from "@carma-commons/utils/window";
+import { handleDelayedRender } from "@carma-commons/utils";
 import { withValidViewer } from "@carma-mapping/engines/cesium/legacy";
 
 /**

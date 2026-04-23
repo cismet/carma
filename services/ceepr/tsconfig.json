@@ -1,17 +1,10 @@
 {
-  "extends": "../../tsconfig.legacy.base.json",
+  "extends": "../../tsconfig.base.json",
   "files": [],
   "include": [],
   "references": [
     {
       "path": "./tsconfig.app.json"
-    },
-    {
-      "path": "./tsconfig.spec.json"
     }
-  ],
-  "compilerOptions": {
-    "resolveJsonModule": true,
-    "esModuleInterop": true
-  }
+  ]
 }
