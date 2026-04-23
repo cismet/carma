@@ -1,8 +1,8 @@
 import { useState, type CSSProperties } from "react";
 
 import type { Meta, StoryObj } from "@storybook/react";
+import { typographyDefaults } from "@carma-mapping/annotations/runtime";
 import { annotationInfoBoxVisualDefaults } from "@carma-mapping/annotations/ui";
-import { annotationTypographyDefaults } from "@carma-mapping/annotations/runtime";
 
 import {
   CarmaCard,
@@ -12,23 +12,23 @@ import {
 
 const infoBoxHeaderTextStyle: CSSProperties = {
   color: "rgba(255, 255, 255, 0.8)",
-  fontFamily: annotationTypographyDefaults.fontFamily,
-  fontSize: annotationTypographyDefaults.supportFontSizePx,
-  fontWeight: annotationTypographyDefaults.headingFontWeight,
+  fontFamily: typographyDefaults.fontFamily,
+  fontSize: typographyDefaults.supportFontSizePx,
+  fontWeight: typographyDefaults.headingFontWeight,
   letterSpacing: "0.03em",
 };
 
 const infoBoxSupportTextStyle: CSSProperties = {
-  fontFamily: annotationTypographyDefaults.fontFamily,
-  fontSize: annotationTypographyDefaults.supportFontSizePx,
-  fontWeight: annotationTypographyDefaults.sectionTitleFontWeight,
+  fontFamily: typographyDefaults.fontFamily,
+  fontSize: typographyDefaults.supportFontSizePx,
+  fontWeight: typographyDefaults.sectionTitleFontWeight,
   lineHeight: 1.35,
   color: "rgba(17, 24, 39, 0.5)",
 };
 
 const infoBoxBodyTextStyle: CSSProperties = {
-  fontFamily: annotationTypographyDefaults.fontFamily,
-  fontSize: annotationTypographyDefaults.rootFontSizePx,
+  fontFamily: typographyDefaults.fontFamily,
+  fontSize: typographyDefaults.rootFontSizePx,
   lineHeight: 1.4,
   color: "#212529",
 };

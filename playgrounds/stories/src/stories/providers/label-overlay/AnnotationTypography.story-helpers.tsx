@@ -6,15 +6,14 @@ import {
   POINT_LABEL_THEME_DEFAULTS,
 } from "@carma-providers/label-overlay";
 import {
-  annotationTypographyDefaults,
   PREVIEW_LINE_LABEL_BACKGROUND_STYLE,
   PREVIEW_LINE_LABEL_THEME,
-  type AnnotationTypographyDefaults,
+  typographyDefaults,
+  type TypographyDefaults,
   type PreviewLineLabelTheme,
 } from "@carma-mapping/annotations/runtime";
 import { formatLengthMeters, LENGTH_UNIT_MODE } from "@carma-units";
 
-import "../../../../../../libraries/mapping/annotations/runtime/src/lib/interaction/annotation-overlay-line-label.css";
 import { CenteredStoryFrame } from "../../common/ui/centered-story-frame";
 import {
   LABEL_STORY_BACKGROUND_MODES,
@@ -130,7 +129,7 @@ type TypographyClassSample = {
 };
 
 export type AnnotationTypographyStoryArgs = {
-  typography: AnnotationTypographyDefaults;
+  typography: TypographyDefaults;
   lineLabelTheme: PreviewLineLabelTheme;
 };
 
@@ -482,7 +481,7 @@ const InfoboxTypographyPanel = ({
 };
 
 export const ANNOTATION_TYPOGRAPHY_ARGS: AnnotationTypographyStoryArgs = {
-  typography: { ...annotationTypographyDefaults },
+  typography: { ...typographyDefaults },
   lineLabelTheme: PREVIEW_LINE_LABEL_THEME.BRIGHT_ON_DARK,
 };
 

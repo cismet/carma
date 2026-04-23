@@ -1,4 +1,5 @@
 import { MINUS_PI_OVER_FOUR } from "@carma-commons/math";
+import { resolveDisplayP3WhiteCssColor } from "@carma-commons/utils";
 
 import { DEFAULT_PILL_LABEL_HEIGHT_EM } from "../core/pillConnectorGeometry";
 
@@ -15,7 +16,7 @@ export const POINT_LABEL_COMPONENT_DEFAULTS = {
   selectedTextColor: "rgba(248, 250, 252, 0.98)",
   selectedGlowRadiusPx: 0,
   preserveFillOnSelection: false,
-  lineColor: "rgba(255, 255, 255, 0.88)",
+  lineColor: resolveDisplayP3WhiteCssColor(0.88),
   lineWidth: 1,
   markerSize: 10,
   markerStrokeWidth: 1,

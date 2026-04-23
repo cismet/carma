@@ -1,12 +1,32 @@
-import type { CssPixelPosition } from "@carma-units";
+import {
+  addPoint2d,
+  dotPoint2d,
+  getMidpoint2d,
+  getSegmentFrame2d,
+  getSignedPolygonArea2d,
+  scalePoint2d,
+  subtractPoint2d,
+} from "@carma-commons/math";
+import {
+  PI,
+  PI_OVER_TWO,
+  type CssPixels,
+  type CssPixelPosition,
+  type Radians,
+  zeroToTwoPi,
+} from "@carma-units";
 
-const MIN_SEGMENT_LENGTH_PX = 0.0001;
-const MIN_SIGNED_AREA_TWICE = 0.000001;
+const lineLabelPlacementDefaults = Object.freeze({
+  minSegmentLengthPx: 0.0001,
+  minSignedAreaTwice: 0.000001,
+  lineOffsetPx: 14,
+  polygonSegmentOffsetPx: 10,
+});
 
 export type LineLabelPlacement = {
-  textX: number;
-  textY: number;
-  angleDeg: number;
+  textX: CssPixels;
+  textY: CssPixels;
+  angleRad: Radians;
 };
 
 export const POLYGON_SEGMENT_LABEL_SIDE = {
@@ -43,8 +63,8 @@ export type PolygonSegmentLabelPlacement = {
   start: CssPixelPosition;
   end: CssPixelPosition;
   anchor: CssPixelPosition;
-  rotationDeg: number;
-  lineLengthPx: number;
+  rotationRad: Radians;
+  lineLengthPx: CssPixels;
   inputWindingOrder: PolygonSegmentLabelWindingOrder | null;
   resolvedWindingOrder: PolygonSegmentLabelWindingOrder;
   insideReferencePoint: CssPixelPosition;
@@ -66,13 +86,7 @@ const toCssPixelPosition = (x: number, y: number): CssPixelPosition => ({
   y: y as CssPixelPosition["y"],
 });
 
-const normalizeAngleDeg = (angleDeg: number): number => {
-  const normalized = angleDeg % 360;
-  return normalized < 0 ? normalized + 360 : normalized;
-};
-
-const pointsEqual = (a: CssPixelPosition, b: CssPixelPosition): boolean =>
-  a.x === b.x && a.y === b.y;
+const toCssPixels = (value: number): CssPixels => value as CssPixels;
 
 const normalizePolygonVertices = (
   polygon: readonly CssPixelPosition[]
@@ -81,31 +95,17 @@ const normalizePolygonVertices = (
     return [];
   }
 
-  if (pointsEqual(polygon[0], polygon[polygon.length - 1])) {
+  if (
+    polygon[0].x === polygon[polygon.length - 1].x &&
+    polygon[0].y === polygon[polygon.length - 1].y
+  ) {
     return polygon.slice(0, -1) as CssPixelPosition[];
   }
 
   return polygon.slice() as CssPixelPosition[];
 };
 
-const computeSignedAreaTwice = (
-  polygon: readonly CssPixelPosition[]
-): number => {
-  if (polygon.length < 3) {
-    return 0;
-  }
-
-  let areaTwice = 0;
-  for (let i = 0; i < polygon.length; i += 1) {
-    const current = polygon[i];
-    const next = polygon[(i + 1) % polygon.length];
-    areaTwice += current.x * next.y - next.x * current.y;
-  }
-
-  return areaTwice;
-};
-
-const resolveReadableRotationDeg = ({
+const resolveReadableRotationRad = ({
   dx,
   dy,
   lineLengthPx,
@@ -114,73 +114,66 @@ const resolveReadableRotationDeg = ({
 }: {
   dx: number;
   dy: number;
-  lineLengthPx: number;
+  lineLengthPx: CssPixels;
   normalX: number;
   normalY: number;
-}): number => {
-  if (lineLengthPx <= MIN_SEGMENT_LENGTH_PX) {
-    return 0;
+}): Radians => {
+  if (lineLengthPx <= lineLabelPlacementDefaults.minSegmentLengthPx) {
+    return 0 as Radians;
   }
 
-  const rawAngleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
+  const rawAngleRad = Math.atan2(dy, dx) as Radians;
   const lineUnitX = dx / lineLengthPx;
   const lineUnitY = dy / lineLengthPx;
   const crossProduct = lineUnitX * normalY - lineUnitY * normalX;
-  const sideAdjustedAngle = crossProduct >= 0 ? rawAngleDeg : rawAngleDeg + 180;
-  const normalizedAngle = normalizeAngleDeg(sideAdjustedAngle);
+  const sideAdjustedAngleRad =
+    crossProduct >= 0 ? rawAngleRad : ((rawAngleRad + PI) as Radians);
+  const uprightAngleRad =
+    sideAdjustedAngleRad > PI_OVER_TWO &&
+    sideAdjustedAngleRad < ((PI + PI_OVER_TWO) as Radians)
+      ? ((sideAdjustedAngleRad - PI) as Radians)
+      : sideAdjustedAngleRad < -PI_OVER_TWO
+      ? ((sideAdjustedAngleRad + PI) as Radians)
+      : sideAdjustedAngleRad;
 
-  return normalizedAngle > 90 && normalizedAngle < 270
-    ? normalizeAngleDeg(normalizedAngle + 180)
-    : normalizedAngle;
-};
-
-const resolveWindingOrder = ({
-  inputWindingOrder,
-  windingPolicy,
-}: {
-  inputWindingOrder: PolygonSegmentLabelWindingOrder | null;
-  windingPolicy: PolygonSegmentLabelWindingPolicy;
-}): PolygonSegmentLabelWindingOrder => {
-  if (windingPolicy === POLYGON_SEGMENT_LABEL_WINDING_POLICY.ENFORCE_CW) {
-    return POLYGON_SEGMENT_LABEL_WINDING_ORDER.CW;
-  }
-  if (windingPolicy === POLYGON_SEGMENT_LABEL_WINDING_POLICY.ENFORCE_CCW) {
-    return POLYGON_SEGMENT_LABEL_WINDING_ORDER.CCW;
-  }
-  return inputWindingOrder ?? POLYGON_SEGMENT_LABEL_WINDING_ORDER.CCW;
+  return zeroToTwoPi(uprightAngleRad);
 };
 
 export const resolveLineLabelPlacement = ({
   start,
   end,
-  offsetPx = 14,
+  offsetPx = lineLabelPlacementDefaults.lineOffsetPx,
 }: {
   start: CssPixelPosition;
   end: CssPixelPosition;
   offsetPx?: number;
 }): LineLabelPlacement | null => {
-  const dx = end.x - start.x;
-  const dy = end.y - start.y;
-  const lineLength = Math.hypot(dx, dy);
-  if (lineLength <= MIN_SEGMENT_LENGTH_PX) {
+  const segmentFrame = getSegmentFrame2d({
+    start,
+    end,
+    epsilon: lineLabelPlacementDefaults.minSegmentLengthPx,
+  });
+  if (!segmentFrame) {
     return null;
   }
 
-  const midX = (start.x + end.x) * 0.5;
-  const midY = (start.y + end.y) * 0.5;
-  const normalX = -dy / lineLength;
-  const normalY = dx / lineLength;
-  const rawAngleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
-  const normalizedAngle = normalizeAngleDeg(rawAngleDeg);
-  const angleDeg =
-    normalizedAngle > 90 && normalizedAngle < 270
-      ? normalizeAngleDeg(normalizedAngle + 180)
-      : normalizedAngle;
+  const labelOffset = scalePoint2d(segmentFrame.leftUnitNormal, offsetPx);
+  const textPoint = addPoint2d(segmentFrame.midpoint, labelOffset);
+  const rawAngleRad = Math.atan2(
+    segmentFrame.delta.y,
+    segmentFrame.delta.x
+  ) as Radians;
+  const angleRad =
+    rawAngleRad > PI_OVER_TWO
+      ? zeroToTwoPi((rawAngleRad - PI) as Radians)
+      : rawAngleRad < -PI_OVER_TWO
+      ? zeroToTwoPi((rawAngleRad + PI) as Radians)
+      : zeroToTwoPi(rawAngleRad);
 
   return {
-    textX: midX + normalX * offsetPx,
-    textY: midY + normalY * offsetPx,
-    angleDeg,
+    textX: toCssPixels(textPoint.x),
+    textY: toCssPixels(textPoint.y),
+    angleRad,
   };
 };
 
@@ -188,47 +181,49 @@ export const resolveLineLabelPlacementWithReference = ({
   start,
   end,
   targetReferencePoint,
-  offsetPx = 14,
+  offsetPx = lineLabelPlacementDefaults.lineOffsetPx,
 }: {
   start: CssPixelPosition;
   end: CssPixelPosition;
   targetReferencePoint: CssPixelPosition | null;
   offsetPx?: number;
 }): LineLabelPlacement | null => {
-  const dx = end.x - start.x;
-  const dy = end.y - start.y;
-  const lineLength = Math.hypot(dx, dy);
-  if (lineLength <= MIN_SEGMENT_LENGTH_PX) {
+  const segmentFrame = getSegmentFrame2d({
+    start,
+    end,
+    epsilon: lineLabelPlacementDefaults.minSegmentLengthPx,
+  });
+  if (!segmentFrame) {
     return null;
   }
 
-  const midX = (start.x + end.x) * 0.5;
-  const midY = (start.y + end.y) * 0.5;
-  let normalX = -dy / lineLength;
-  let normalY = dx / lineLength;
+  let labelNormal = segmentFrame.leftUnitNormal;
 
   if (targetReferencePoint) {
-    const refDx = targetReferencePoint.x - midX;
-    const refDy = targetReferencePoint.y - midY;
-    const dotWithNormal = refDx * normalX + refDy * normalY;
+    const referenceOffset = subtractPoint2d(
+      targetReferencePoint,
+      segmentFrame.midpoint
+    );
+    const dotWithNormal = dotPoint2d(referenceOffset, labelNormal);
     if (dotWithNormal < 0) {
-      normalX = -normalX;
-      normalY = -normalY;
+      labelNormal = scalePoint2d(labelNormal, -1);
     }
   }
 
-  const angleDeg = resolveReadableRotationDeg({
-    dx,
-    dy,
-    lineLengthPx: lineLength,
-    normalX,
-    normalY,
+  const angleRad = resolveReadableRotationRad({
+    dx: segmentFrame.delta.x,
+    dy: segmentFrame.delta.y,
+    lineLengthPx: segmentFrame.length as CssPixels,
+    normalX: labelNormal.x,
+    normalY: labelNormal.y,
   });
+  const labelOffset = scalePoint2d(labelNormal, offsetPx);
+  const textPoint = addPoint2d(segmentFrame.midpoint, labelOffset);
 
   return {
-    textX: midX + normalX * offsetPx,
-    textY: midY + normalY * offsetPx,
-    angleDeg,
+    textX: toCssPixels(textPoint.x),
+    textY: toCssPixels(textPoint.y),
+    angleRad,
   };
 };
 
@@ -240,8 +235,10 @@ export const computePolygonScreenWindingOrder = (
     return null;
   }
 
-  const signedAreaTwice = computeSignedAreaTwice(vertices);
-  if (Math.abs(signedAreaTwice) <= MIN_SIGNED_AREA_TWICE) {
+  const signedAreaTwice = getSignedPolygonArea2d(vertices) * 2;
+  if (
+    Math.abs(signedAreaTwice) <= lineLabelPlacementDefaults.minSignedAreaTwice
+  ) {
     return null;
   }
   return signedAreaTwice >= 0
@@ -253,7 +250,7 @@ export const computePolygonSegmentLabelPlacements = ({
   polygon,
   closed = true,
   side = POLYGON_SEGMENT_LABEL_SIDE.OUTSIDE,
-  offsetPx = 10,
+  offsetPx = lineLabelPlacementDefaults.polygonSegmentOffsetPx,
   rotationMode = POLYGON_SEGMENT_LABEL_ROTATION_MODE.READABLE,
   windingPolicy = POLYGON_SEGMENT_LABEL_WINDING_POLICY.ENFORCE_CCW,
   includeDegenerateSegments = false,
@@ -269,10 +266,12 @@ export const computePolygonSegmentLabelPlacements = ({
   }
 
   const inputWindingOrder = computePolygonScreenWindingOrder(vertices);
-  const resolvedWindingOrder = resolveWindingOrder({
-    inputWindingOrder,
-    windingPolicy,
-  });
+  const resolvedWindingOrder =
+    windingPolicy === POLYGON_SEGMENT_LABEL_WINDING_POLICY.ENFORCE_CW
+      ? POLYGON_SEGMENT_LABEL_WINDING_ORDER.CW
+      : windingPolicy === POLYGON_SEGMENT_LABEL_WINDING_POLICY.ENFORCE_CCW
+      ? POLYGON_SEGMENT_LABEL_WINDING_ORDER.CCW
+      : inputWindingOrder ?? POLYGON_SEGMENT_LABEL_WINDING_ORDER.CCW;
   const insideNormalSign =
     resolvedWindingOrder === POLYGON_SEGMENT_LABEL_WINDING_ORDER.CCW ? 1 : -1;
   const placements: PolygonSegmentLabelPlacement[] = [];
@@ -280,55 +279,58 @@ export const computePolygonSegmentLabelPlacements = ({
   for (let segmentIndex = 0; segmentIndex < segmentCount; segmentIndex += 1) {
     const start = vertices[segmentIndex];
     const end = vertices[(segmentIndex + 1) % vertices.length];
-    const dx = end.x - start.x;
-    const dy = end.y - start.y;
-    const lineLengthPx = Math.hypot(dx, dy);
-    if (lineLengthPx <= MIN_SEGMENT_LENGTH_PX && !includeDegenerateSegments) {
+    const segmentFrame = getSegmentFrame2d({
+      start,
+      end,
+      epsilon: lineLabelPlacementDefaults.minSegmentLengthPx,
+    });
+    if (!segmentFrame && !includeDegenerateSegments) {
       continue;
     }
 
-    const midX = (start.x + end.x) * 0.5;
-    const midY = (start.y + end.y) * 0.5;
-    const leftNormalX =
-      lineLengthPx <= MIN_SEGMENT_LENGTH_PX ? 0 : -dy / lineLengthPx;
-    const leftNormalY =
-      lineLengthPx <= MIN_SEGMENT_LENGTH_PX ? 0 : dx / lineLengthPx;
-    const insideNormalX = leftNormalX * insideNormalSign;
-    const insideNormalY = leftNormalY * insideNormalSign;
-    const outsideNormalX = -insideNormalX;
-    const outsideNormalY = -insideNormalY;
-    const selectedNormalX =
+    const segmentMidpoint = segmentFrame
+      ? segmentFrame.midpoint
+      : getMidpoint2d(start, end);
+    const segmentDelta = segmentFrame?.delta ?? { x: 0, y: 0 };
+    const lineLengthPx = (segmentFrame?.length ?? 0) as CssPixels;
+    const leftUnitNormal = segmentFrame?.leftUnitNormal ?? { x: 0, y: 0 };
+    const insideUnitNormal = scalePoint2d(leftUnitNormal, insideNormalSign);
+    const outsideUnitNormal = scalePoint2d(insideUnitNormal, -1);
+    const selectedUnitNormal =
       side === POLYGON_SEGMENT_LABEL_SIDE.INSIDE
-        ? insideNormalX
-        : outsideNormalX;
-    const selectedNormalY =
-      side === POLYGON_SEGMENT_LABEL_SIDE.INSIDE
-        ? insideNormalY
-        : outsideNormalY;
-
-    const anchor = toCssPixelPosition(
-      midX + selectedNormalX * offsetPx,
-      midY + selectedNormalY * offsetPx
+        ? insideUnitNormal
+        : outsideUnitNormal;
+    const anchorPoint = addPoint2d(
+      segmentMidpoint,
+      scalePoint2d(selectedUnitNormal, offsetPx)
     );
+    const insideReference = addPoint2d(
+      segmentMidpoint,
+      scalePoint2d(insideUnitNormal, offsetPx)
+    );
+    const outsideReference = addPoint2d(
+      segmentMidpoint,
+      scalePoint2d(outsideUnitNormal, offsetPx)
+    );
+    const anchor = toCssPixelPosition(anchorPoint.x, anchorPoint.y);
     const insideReferencePoint = toCssPixelPosition(
-      midX + insideNormalX * offsetPx,
-      midY + insideNormalY * offsetPx
+      insideReference.x,
+      insideReference.y
     );
     const outsideReferencePoint = toCssPixelPosition(
-      midX + outsideNormalX * offsetPx,
-      midY + outsideNormalY * offsetPx
+      outsideReference.x,
+      outsideReference.y
     );
 
-    const rawAngleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
-    const rotationDeg =
+    const rotationRad =
       rotationMode === POLYGON_SEGMENT_LABEL_ROTATION_MODE.CLOCKWISE
-        ? normalizeAngleDeg(rawAngleDeg)
-        : resolveReadableRotationDeg({
-            dx,
-            dy,
+        ? zeroToTwoPi(Math.atan2(segmentDelta.y, segmentDelta.x) as Radians)
+        : resolveReadableRotationRad({
+            dx: segmentDelta.x,
+            dy: segmentDelta.y,
             lineLengthPx,
-            normalX: selectedNormalX,
-            normalY: selectedNormalY,
+            normalX: selectedUnitNormal.x,
+            normalY: selectedUnitNormal.y,
           });
 
     placements.push({
@@ -336,7 +338,7 @@ export const computePolygonSegmentLabelPlacements = ({
       start,
       end,
       anchor,
-      rotationDeg,
+      rotationRad,
       lineLengthPx,
       inputWindingOrder,
       resolvedWindingOrder,

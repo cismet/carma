@@ -56,6 +56,7 @@ export type PointLabelLayoutConfig = {
   stemDistance: number;
   stemDistanceScaleOrder: number[];
   dynamicLabelPlacement: boolean;
+  allowEarlyRemoval: boolean;
   dynamicLabelPlacementConfig: DynamicLabelPlacementConfig;
   pitchResponsiveAngle: boolean;
   pitchResponseStrength: number;

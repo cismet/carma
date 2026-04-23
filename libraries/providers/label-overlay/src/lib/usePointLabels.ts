@@ -8,6 +8,7 @@ import {
   type PointLabelStyleProps,
   type PointLabelStyle,
 } from "./components/PointLabel";
+import { labelOverlayLayerDefaults } from "./overlayAffordanceDefaults";
 import { getOverlayReferenceSignature } from "./overlayReferenceSignature";
 import type {
   PointLabelAnchorKind,
@@ -279,7 +280,7 @@ export const usePointLabels = (
       if (previousSignature === nextSignature) {
         updateLabelOverlayElement(labelId, {
           getCanvasPosition: point.getCanvasPosition,
-          zIndex: point.zIndex ?? 20,
+          zIndex: point.zIndex ?? labelOverlayLayerDefaults.zIndex.pointLabel,
           visible: point.visible !== false,
           isHidden: point.isHidden,
           onClick: overlayClickHandler,
@@ -291,7 +292,7 @@ export const usePointLabels = (
 
       addLabelOverlayElement({
         id: labelId,
-        zIndex: point.zIndex ?? 20,
+        zIndex: point.zIndex ?? labelOverlayLayerDefaults.zIndex.pointLabel,
         contentKey: nextSignature,
         getCanvasPosition: point.getCanvasPosition,
         content: React.createElement(PointLabel, {

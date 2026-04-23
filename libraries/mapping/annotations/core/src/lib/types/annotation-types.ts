@@ -1,7 +1,7 @@
 import type { MetricVector3 } from "@carma-units";
 
 import type { LinearSegmentLineMode } from "./linear-segment";
-// Tool and annotation identifiers
+// Semantic annotation identifiers
 export const ANNOTATION_TYPES = {
   POINT: "point",
   DISTANCE: "distance",
@@ -12,12 +12,6 @@ export const ANNOTATION_TYPES = {
   LABEL: "label",
 } as const;
 
-export const ANNOTATION_TOOL_TYPES = {
-  SELECT: "select",
-  ...ANNOTATION_TYPES,
-} as const;
-
-export const SELECT_TOOL_TYPE = ANNOTATION_TOOL_TYPES.SELECT;
 export const ANNOTATION_TYPE_POINT = ANNOTATION_TYPES.POINT;
 export const ANNOTATION_TYPE_DISTANCE = ANNOTATION_TYPES.DISTANCE;
 export const ANNOTATION_TYPE_POLYLINE = ANNOTATION_TYPES.POLYLINE;
@@ -26,35 +20,29 @@ export const ANNOTATION_TYPE_AREA_PLANAR = ANNOTATION_TYPES.AREA_PLANAR;
 export const ANNOTATION_TYPE_AREA_VERTICAL = ANNOTATION_TYPES.AREA_VERTICAL;
 export const ANNOTATION_TYPE_LABEL = ANNOTATION_TYPES.LABEL;
 
-export type AnnotationType =
-  (typeof ANNOTATION_TYPES)[keyof typeof ANNOTATION_TYPES];
-export type AnnotationShortLabelKind = AnnotationType;
+export type AnnotationTypes = typeof ANNOTATION_TYPES;
 
-export type AnnotationToolType =
-  (typeof ANNOTATION_TOOL_TYPES)[keyof typeof ANNOTATION_TOOL_TYPES];
+export type AnnotationType = AnnotationTypes[keyof AnnotationTypes];
 
-export const isAreaToolType = (
-  toolType: AnnotationToolType
-): toolType is
-  | typeof ANNOTATION_TYPES.AREA_GROUND
-  | typeof ANNOTATION_TYPES.AREA_VERTICAL
-  | typeof ANNOTATION_TYPES.AREA_PLANAR =>
-  toolType === ANNOTATION_TYPES.AREA_GROUND ||
-  toolType === ANNOTATION_TYPES.AREA_VERTICAL ||
-  toolType === ANNOTATION_TYPES.AREA_PLANAR;
+export const isAreaAnnotationType = (
+  annotationType: AnnotationType
+): annotationType is
+  | AnnotationTypes["AREA_GROUND"]
+  | AnnotationTypes["AREA_VERTICAL"]
+  | AnnotationTypes["AREA_PLANAR"] =>
+  annotationType === ANNOTATION_TYPES.AREA_GROUND ||
+  annotationType === ANNOTATION_TYPES.AREA_VERTICAL ||
+  annotationType === ANNOTATION_TYPES.AREA_PLANAR;
 
 export type PlanarPolygonType =
-  | typeof ANNOTATION_TYPES.AREA_PLANAR
-  | typeof ANNOTATION_TYPES.AREA_VERTICAL;
+  | AnnotationTypes["AREA_PLANAR"]
+  | AnnotationTypes["AREA_VERTICAL"];
 
-export type GroundPolygonType = typeof ANNOTATION_TYPES.AREA_GROUND;
-
-export type PolygonType = GroundPolygonType | PlanarPolygonType;
-export type PolygonAreaType = PolygonType;
+export type PolygonType = AnnotationTypes["AREA_GROUND"] | PlanarPolygonType;
 
 export type NodeChainAnnotationType =
-  | typeof ANNOTATION_TYPES.DISTANCE
-  | typeof ANNOTATION_TYPES.POLYLINE
+  | AnnotationTypes["DISTANCE"]
+  | AnnotationTypes["POLYLINE"]
   | PolygonType;
 
 export type PlanarPolygonPlane = {
@@ -85,14 +73,20 @@ type NodeChainAnnotationBase = {
   distanceMeasurementStartPointId?: string;
   closed: boolean;
   planeLocked: boolean;
-  plane?: PlanarPolygonPlane;
-  planarPolygonLocalFrame?: PlanarPolygonLocalFrame;
-  perimeterMeters?: number;
-  areaSquareMeters?: number;
-  verticalityDeg?: number;
-  bearingDeg?: number;
 };
 
 export type NodeChainAnnotation = NodeChainAnnotationBase & {
   type: NodeChainAnnotationType;
 };
+
+export type DerivedNodeChainAnnotationGeometry = {
+  plane?: PlanarPolygonPlane;
+  planarPolygonLocalFrame?: PlanarPolygonLocalFrame;
+  perimeterMeters: number;
+  areaSquareMeters: number;
+  verticalityDeg?: number;
+  bearingRad?: number;
+};
+
+export type DerivedNodeChainAnnotation = NodeChainAnnotation &
+  DerivedNodeChainAnnotationGeometry;

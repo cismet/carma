@@ -6,6 +6,7 @@ import {
   PI_OVER_FOUR,
   negativePiToPi,
 } from "@carma-commons/math";
+import { clampUnitRangeRatio } from "@carma-units";
 
 import {
   POINT_LABEL_ATTACHES,
@@ -41,6 +42,7 @@ export const DEFAULT_POINT_LABEL_LAYOUT_CONFIG: PointLabelLayoutConfig = {
   stemDistance: 20,
   stemDistanceScaleOrder: DEFAULT_STEM_DISTANCE_SCALE_ORDER,
   dynamicLabelPlacement: true,
+  allowEarlyRemoval: true,
   dynamicLabelPlacementConfig: DEFAULT_DYNAMIC_LABEL_PLACEMENT_CONFIG,
   pitchResponsiveAngle: true,
   pitchResponseStrength: 1,
@@ -179,7 +181,7 @@ export const getPerspectiveStemAngleMagnitude = (
 
   // 0 at nadir, 1 near horizon — uses sin because view-sync pitch
   // starts at 0 (nadir) and increases toward π/2 (horizon).
-  const pitchFactor = clamp(Math.abs(Math.sin(cameraPitch)), 0, 1);
+  const pitchFactor = clampUnitRangeRatio(Math.abs(Math.sin(cameraPitch)));
   const rawMagnitude =
     DEFAULT_STEM_ANGLE_RAD * pitchFactor * config.pitchResponseStrength;
 

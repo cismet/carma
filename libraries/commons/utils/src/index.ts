@@ -36,8 +36,6 @@ export {
   formatFixedNumber,
 } from "./lib/numbers";
 
-export { preventPinchZoom } from "./lib/prevent-pinch-zoom.ts";
-
 export * from "./lib/promise";
 
 export {

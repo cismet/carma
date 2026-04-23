@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import type {
-  RuntimeAnnotationEntry,
-  RuntimeCoordinate,
+  StoredAnnotation,
+  CesiumGeographicCoordinate,
 } from "./annotations-store.types";
 import {
   createAnnotationsStore,
   createInitialAnnotationsStoreState,
+  insertNodeIntoMeasurementEdge,
   updateNodeCoordinateById,
 } from "./create-annotations-store";
 import { buildNodeLinkIdByNodeId } from "./node-links.helpers";
@@ -15,7 +16,7 @@ const createCoordinate = (
   longitude: number,
   latitude: number,
   altitude = 0
-): RuntimeCoordinate => ({
+): CesiumGeographicCoordinate => ({
   longitude,
   latitude,
   altitude,
@@ -24,11 +25,31 @@ const createCoordinate = (
 const createAnnotationEntry = (
   annotationId: string,
   nodeId: string
-): RuntimeAnnotationEntry => ({
+): StoredAnnotation => ({
   id: annotationId,
   toolType: "distance",
   nodeIds: [nodeId],
   edgeIds: [],
+});
+
+const createNodeChainAnnotationEntry = ({
+  annotationId,
+  toolType,
+  nodeIds,
+  edgeIds,
+  closed = false,
+}: {
+  annotationId: string;
+  toolType: StoredAnnotation["toolType"];
+  nodeIds: readonly string[];
+  edgeIds: readonly string[];
+  closed?: boolean;
+}): StoredAnnotation => ({
+  id: annotationId,
+  toolType,
+  nodeIds,
+  edgeIds,
+  closed,
 });
 
 describe("createAnnotationsStore", () => {
@@ -223,5 +244,111 @@ describe("createAnnotationsStore", () => {
     expect(nodeLinkIdByNodeId.get("node-a")).toBe("target-group");
     expect(nodeLinkIdByNodeId.get("node-b")).toBe("source-group");
     expect(nodeLinkIdByNodeId.get("node-c")).toBe("target-group");
+  });
+
+  it("inserts a node into an open node chain edge", () => {
+    const store = createAnnotationsStore({
+      ...createInitialAnnotationsStoreState(),
+      annotationEntries: [
+        createNodeChainAnnotationEntry({
+          annotationId: "polyline-1",
+          toolType: "polyline",
+          nodeIds: ["node-1", "node-2", "node-3"],
+          edgeIds: ["edge-1", "edge-2"],
+        }),
+      ],
+      nodes: [
+        { id: "node-1", coordinate: createCoordinate(7.0, 51.0, 1) },
+        { id: "node-2", coordinate: createCoordinate(7.1, 51.1, 2) },
+        { id: "node-3", coordinate: createCoordinate(7.2, 51.2, 3) },
+      ],
+      linkedNodeGroups: [
+        { id: "node-1", nodeIds: ["node-1"] },
+        { id: "node-2", nodeIds: ["node-2"] },
+        { id: "node-3", nodeIds: ["node-3"] },
+      ],
+      edges: [
+        { id: "edge-1", startNodeId: "node-1", endNodeId: "node-2" },
+        { id: "edge-2", startNodeId: "node-2", endNodeId: "node-3" },
+      ],
+    });
+
+    store.dispatch(
+      insertNodeIntoMeasurementEdge({
+        measurementId: "polyline-1",
+        startNodeId: "node-1",
+        endNodeId: "node-2",
+        coordinate: createCoordinate(7.05, 51.05, 1.5),
+      })
+    );
+
+    expect(store.getState().annotationEntries[0]).toMatchObject({
+      id: "polyline-1",
+      nodeIds: ["node-1", "node-4", "node-2", "node-3"],
+      edgeIds: ["edge-1", "edge-3", "edge-2"],
+    });
+    expect(store.getState().edges).toEqual([
+      { id: "edge-1", startNodeId: "node-1", endNodeId: "node-4" },
+      { id: "edge-3", startNodeId: "node-4", endNodeId: "node-2" },
+      { id: "edge-2", startNodeId: "node-2", endNodeId: "node-3" },
+    ]);
+    expect(store.getState().nodes[3]).toEqual({
+      id: "node-4",
+      coordinate: createCoordinate(7.05, 51.05, 1.5),
+    });
+    expect(
+      buildNodeLinkIdByNodeId(store.getState().linkedNodeGroups).get("node-4")
+    ).toBe("node-4");
+  });
+
+  it("inserts a node into a closing polygon edge", () => {
+    const store = createAnnotationsStore({
+      ...createInitialAnnotationsStoreState(),
+      annotationEntries: [
+        createNodeChainAnnotationEntry({
+          annotationId: "area-1",
+          toolType: "area-ground",
+          nodeIds: ["node-1", "node-2", "node-3"],
+          edgeIds: ["edge-1", "edge-2", "edge-3"],
+          closed: true,
+        }),
+      ],
+      nodes: [
+        { id: "node-1", coordinate: createCoordinate(7.0, 51.0, 0) },
+        { id: "node-2", coordinate: createCoordinate(7.1, 51.0, 0) },
+        { id: "node-3", coordinate: createCoordinate(7.05, 51.1, 0) },
+      ],
+      linkedNodeGroups: [
+        { id: "node-1", nodeIds: ["node-1"] },
+        { id: "node-2", nodeIds: ["node-2"] },
+        { id: "node-3", nodeIds: ["node-3"] },
+      ],
+      edges: [
+        { id: "edge-1", startNodeId: "node-1", endNodeId: "node-2" },
+        { id: "edge-2", startNodeId: "node-2", endNodeId: "node-3" },
+        { id: "edge-3", startNodeId: "node-3", endNodeId: "node-1" },
+      ],
+    });
+
+    store.dispatch(
+      insertNodeIntoMeasurementEdge({
+        measurementId: "area-1",
+        startNodeId: "node-3",
+        endNodeId: "node-1",
+        coordinate: createCoordinate(7.025, 51.05, 0),
+      })
+    );
+
+    expect(store.getState().annotationEntries[0]).toMatchObject({
+      id: "area-1",
+      nodeIds: ["node-1", "node-2", "node-3", "node-4"],
+      edgeIds: ["edge-1", "edge-2", "edge-3", "edge-4"],
+    });
+    expect(store.getState().edges).toEqual([
+      { id: "edge-1", startNodeId: "node-1", endNodeId: "node-2" },
+      { id: "edge-2", startNodeId: "node-2", endNodeId: "node-3" },
+      { id: "edge-3", startNodeId: "node-3", endNodeId: "node-4" },
+      { id: "edge-4", startNodeId: "node-4", endNodeId: "node-1" },
+    ]);
   });
 });

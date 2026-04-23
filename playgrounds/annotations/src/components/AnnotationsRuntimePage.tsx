@@ -2,10 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Tooltip } from "antd";
 import {
   isManagedAnnotationKeyboardEvent,
-  listAnnotationToolShortcuts,
   renderAnnotationShortcutGlyph,
-  resolveAnnotationToolShortcutTarget,
-  ANNOTATION_TOOL_TYPES,
 } from "@carma-mapping/annotations/core";
 import {
   AnnotationInfoBoxContainer,
@@ -14,12 +11,12 @@ import {
   resolveAnnotationInfoBoxVisualOptions,
 } from "@carma-mapping/annotations/ui";
 import {
+  ANNOTATION_TOOL_PLUGIN_KINDS,
   AnnotationsProvider,
   RuntimeAnnotationInfoBox,
-  annotationTypographyDefaults,
-  distanceToolPlugin,
-  pointToolPlugin,
-  selectToolPlugin,
+  listAnnotationToolShortcuts,
+  typographyDefaults,
+  resolveAnnotationToolShortcutTarget,
   useLocalAnnotationsRuntimePersistence,
   useAnnotationsRuntime,
 } from "@carma-mapping/annotations/runtime";
@@ -30,10 +27,7 @@ import {
   AnnotationsToolbarItem,
   AnnotationsToolbarSeparator,
 } from "@carma-mapping/components";
-import {
-  clearCesiumScenePointerTracker,
-  useCesiumLabelOverlayHost,
-} from "@carma-mapping/engines/cesium/react/interactions";
+import { useCesiumLabelOverlayHost } from "@carma-mapping/engines/cesium/react/interactions";
 import { ControlLayout } from "@carma-mapping/map-controls-layout";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
 import { type Scene } from "@carma-cesium";
@@ -41,19 +35,29 @@ import { formatLatLonDegrees, formatLengthMeters } from "@carma-units";
 import type { Degrees } from "@carma-units";
 import type { PlaygroundRuntimePageProps } from "../playground.types";
 import {
+  ACTIVE_TOOL_STORAGE_KEY,
   ANNOTATIONS_RUNTIME_STORAGE_KEY,
   INFOBOX_WIDTH_PX,
-  PLAYGROUND_FLOATING_OVERLAY_WINDOW_MARGIN_PX,
+  PLAYGROUND_ALL_RUNTIME_TOOL_PLUGINS,
   PLAYGROUND_PREVIEW_LINE_LABEL_VISUAL_OPTIONS,
   PLAYGROUND_RUNTIME_INFO_BOX_VISUAL_OPTIONS,
   PLAYGROUND_RUNTIME_FORMAT_OPTIONS,
+  PLAYGROUND_STABLE_RUNTIME_TOOL_PLUGINS,
+  PLAYGROUND_TOOLSETS,
+  readInitialToolset,
+  readInitialToolType,
 } from "../playgroundConfig";
 import { CesiumNavigationOverlay } from "./CesiumNavigationOverlay";
 import { CesiumWidgetContainer } from "./CesiumWidgetContainer";
-const { POINT: ANNOTATION_TYPE_POINT, SELECT: SELECT_TOOL_TYPE } =
-  ANNOTATION_TOOL_TYPES;
+import {
+  PLAYGROUND_SELECTION_INFO_BOX_FLOATING_STYLE,
+  PLAYGROUND_TOOLBAR_FLOATING_STYLE,
+  createPlaygroundFloatingOverlayInteractionProps,
+  resolvePlaygroundFloatingOverlayTooltipContainer,
+} from "./playgroundFloatingOverlay.shared";
 
-const PLAYGROUND_SHORTCUT_BADGE_TYPOGRAPHY_CLASSNAME = `text-[${annotationTypographyDefaults.rootFontSizeRem}] font-bold leading-none text-white`;
+const PLAYGROUND_SHORTCUT_BADGE_TYPOGRAPHY_CLASSNAME = `text-[${typographyDefaults.rootFontSizeRem}] font-bold leading-none text-white`;
+const PLAYGROUND_BODY_TEXT_CLASSNAME = `text-[${typographyDefaults.rootFontSizeRem}] leading-[1.4] text-[#212529]`;
 
 const renderShortcutBadges = (shortcuts: readonly string[]) => (
   <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
@@ -68,36 +72,20 @@ const renderShortcutBadges = (shortcuts: readonly string[]) => (
   </span>
 );
 
-const PLAYGROUND_ACTIVE_TOOL_PLUGINS = [
-  selectToolPlugin,
-  pointToolPlugin,
-  distanceToolPlugin,
-] as const;
-
-const clearPlaygroundPointerQueryPreview = (scene: Scene | null) => {
-  if (!scene || scene.isDestroyed()) {
-    return;
-  }
-
-  clearCesiumScenePointerTracker(scene);
-  scene.requestRender();
-};
-
-const selectionInfoBoxFloatingStyle = {
-  position: "absolute",
-  bottom: PLAYGROUND_FLOATING_OVERLAY_WINDOW_MARGIN_PX,
-  right: PLAYGROUND_FLOATING_OVERLAY_WINDOW_MARGIN_PX,
-  zIndex: 1600,
-  pointerEvents: "auto",
+const PLAYGROUND_INFO_BOX_VISUAL_OPTIONS = {
+  ...PLAYGROUND_RUNTIME_INFO_BOX_VISUAL_OPTIONS,
+  resolveActionTooltipPopupContainer:
+    resolvePlaygroundFloatingOverlayTooltipContainer,
 } as const;
 
 const RuntimeToolbar = ({ scene }: { scene: Scene | null }) => {
   const { registry, activeToolType, requestModeChange } =
     useAnnotationsRuntime();
   const visibleDescriptors = registry.orderedDescriptors;
-  const orderedToolTypes = visibleDescriptors.map(
-    (descriptor) => descriptor.id
-  );
+  const primaryInteractionToolId =
+    registry.plugins.find(
+      (plugin) => plugin.kind === ANNOTATION_TOOL_PLUGIN_KINDS.INTERACTION
+    )?.id ?? null;
 
   useEffect(() => {
     const handleToolShortcutKeyDown = (event: KeyboardEvent) => {
@@ -105,7 +93,8 @@ const RuntimeToolbar = ({ scene }: { scene: Scene | null }) => {
 
       const targetToolType = resolveAnnotationToolShortcutTarget(
         event.key,
-        orderedToolTypes
+        visibleDescriptors,
+        primaryInteractionToolId
       );
       if (!targetToolType || targetToolType === activeToolType) {
         return;
@@ -120,23 +109,17 @@ const RuntimeToolbar = ({ scene }: { scene: Scene | null }) => {
     return () => {
       window.removeEventListener("keydown", handleToolShortcutKeyDown, true);
     };
-  }, [activeToolType, orderedToolTypes, requestModeChange]);
+  }, [
+    activeToolType,
+    primaryInteractionToolId,
+    requestModeChange,
+    visibleDescriptors,
+  ]);
 
   return (
     <div
-      onPointerEnter={() => clearPlaygroundPointerQueryPreview(scene)}
-      onPointerMove={() => clearPlaygroundPointerQueryPreview(scene)}
-      onPointerDown={() => clearPlaygroundPointerQueryPreview(scene)}
-      style={{
-        position: "absolute",
-        top: 12,
-        left: 72,
-        right: 12,
-        zIndex: 1600,
-        display: "flex",
-        justifyContent: "center",
-        pointerEvents: "none",
-      }}
+      {...createPlaygroundFloatingOverlayInteractionProps(scene)}
+      style={PLAYGROUND_TOOLBAR_FLOATING_STYLE}
     >
       <div
         style={{
@@ -148,10 +131,11 @@ const RuntimeToolbar = ({ scene }: { scene: Scene | null }) => {
         <AnnotationsToolbar>
           {visibleDescriptors.map((descriptor) => {
             const isActive = descriptor.id === activeToolType;
-            const showSeparator = descriptor.id === SELECT_TOOL_TYPE;
+            const showSeparator = descriptor.id === primaryInteractionToolId;
             const shortcuts = listAnnotationToolShortcuts(
               descriptor.id,
-              orderedToolTypes
+              visibleDescriptors,
+              primaryInteractionToolId
             );
 
             return (
@@ -164,6 +148,9 @@ const RuntimeToolbar = ({ scene }: { scene: Scene | null }) => {
                     </span>
                   }
                   placement="bottom"
+                  getPopupContainer={
+                    resolvePlaygroundFloatingOverlayTooltipContainer
+                  }
                 >
                   <span className="inline-block">
                     <AnnotationsToolbarButton
@@ -190,20 +177,38 @@ const RuntimeToolbar = ({ scene }: { scene: Scene | null }) => {
   );
 };
 
+const PersistActiveRuntimeToolMode = () => {
+  const { activeToolType } = useAnnotationsRuntime();
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    try {
+      window.localStorage.setItem(ACTIVE_TOOL_STORAGE_KEY, activeToolType);
+    } catch {
+      // ignore storage write errors
+    }
+  }, [activeToolType]);
+
+  return null;
+};
+
 const resolvePlaygroundEmptyInfoBoxBodyText = ({
   activeToolLabel,
-  activeToolType,
+  activeToolKind,
   activeToolHelpText,
   hasAnyAnnotations,
   activeToolAnnotationCount,
 }: {
   activeToolLabel: string;
-  activeToolType: string;
+  activeToolKind: string | null;
   activeToolHelpText: readonly string[];
   hasAnyAnnotations: boolean;
   activeToolAnnotationCount: number;
 }): readonly string[] => {
-  if (activeToolType === SELECT_TOOL_TYPE) {
+  if (activeToolKind === ANNOTATION_TOOL_PLUGIN_KINDS.INTERACTION) {
     if (!hasAnyAnnotations) {
       return [
         "Aktuell sind keine Messungen vorhanden.",
@@ -229,27 +234,29 @@ const RuntimeSelectionInfoBoxEmptyState = ({
   scene: Scene | null;
 }) => {
   const resolvedInfoBoxVisualOptions = resolveAnnotationInfoBoxVisualOptions(
-    PLAYGROUND_RUNTIME_INFO_BOX_VISUAL_OPTIONS
+    PLAYGROUND_INFO_BOX_VISUAL_OPTIONS
   );
 
   return (
     <div
-      onPointerEnter={() => clearPlaygroundPointerQueryPreview(scene)}
-      onPointerMove={() => clearPlaygroundPointerQueryPreview(scene)}
-      onPointerDown={() => clearPlaygroundPointerQueryPreview(scene)}
-      style={{ ...selectionInfoBoxFloatingStyle, pointerEvents: "none" }}
+      data-test-id="annotation-info-box"
+      {...createPlaygroundFloatingOverlayInteractionProps(scene)}
+      style={{
+        ...PLAYGROUND_SELECTION_INFO_BOX_FLOATING_STYLE,
+        pointerEvents: "none",
+      }}
     >
       <AnnotationInfoBoxContainer
         pixelWidth={INFOBOX_WIDTH_PX}
         useControlLayout={false}
         style={{ pointerEvents: "none" }}
-        visualOptions={PLAYGROUND_RUNTIME_INFO_BOX_VISUAL_OPTIONS}
+        visualOptions={PLAYGROUND_INFO_BOX_VISUAL_OPTIONS}
         slots={{
           headingTitle: activeToolLabel,
           content: (
             <div className="px-3 pb-2 pt-2">
               <AnnotationInfoBoxTextContent
-                className="space-y-2"
+                className={`${PLAYGROUND_BODY_TEXT_CLASSNAME} space-y-2`}
                 visualOptions={resolvedInfoBoxVisualOptions}
               >
                 {bodyTextLines.map((line, index) => (
@@ -277,25 +284,28 @@ const RuntimeSelectionInfoBox = ({ scene }: { scene: Scene | null }) => {
     selectedAnnotationId,
   } = useAnnotationsRuntime();
   const resolvedInfoBoxVisualOptions = resolveAnnotationInfoBoxVisualOptions(
-    PLAYGROUND_RUNTIME_INFO_BOX_VISUAL_OPTIONS
+    PLAYGROUND_INFO_BOX_VISUAL_OPTIONS
   );
   const hasAnnotations = annotationEntries.length > 0;
   const activePlugin = registry.getPlugin(activeToolType) ?? null;
   const activeToolLabel = activePlugin?.descriptor.label ?? "Messungen";
   const activeToolHelpText = activePlugin?.helpText?.length
     ? activePlugin.helpText
-    : activeToolType === SELECT_TOOL_TYPE
+    : activePlugin?.kind === ANNOTATION_TOOL_PLUGIN_KINDS.INTERACTION
     ? [
         "Messungen oder Anmerkungen anklicken, um sie auszuwählen.",
         "Langes Drücken auf einen Punkt öffnet den Editiermodus.",
       ]
     : ["Klicken Sie in die Karte, um eine neue Messung anzulegen."];
-  const activeToolAnnotationCount = annotationEntries.filter(
-    (annotationEntry) => annotationEntry.toolType === activeToolType
-  ).length;
+  const activeToolAnnotationCount = activePlugin?.annotationType
+    ? annotationEntries.filter(
+        (annotationEntry) =>
+          annotationEntry.toolType === activePlugin.annotationType
+      ).length
+    : 0;
   const emptyStateBodyText = resolvePlaygroundEmptyInfoBoxBodyText({
     activeToolLabel,
-    activeToolType,
+    activeToolKind: activePlugin?.kind ?? null,
     activeToolHelpText,
     hasAnyAnnotations: hasAnnotations,
     activeToolAnnotationCount,
@@ -326,15 +336,22 @@ const RuntimeSelectionInfoBox = ({ scene }: { scene: Scene | null }) => {
   }
 
   const selectedPlugin =
-    registry.getPlugin(selectedAnnotation.toolType) ?? null;
+    registry
+      .getPluginsByAnnotationType(selectedAnnotation.toolType)
+      .find((plugin) => plugin.infoBox?.getSlots) ?? null;
   if (selectedPlugin?.infoBox?.getSlots) {
     return (
-      <RuntimeAnnotationInfoBox
-        pixelWidth={INFOBOX_WIDTH_PX}
-        useControlLayout={false}
-        style={selectionInfoBoxFloatingStyle}
-        visualOptions={PLAYGROUND_RUNTIME_INFO_BOX_VISUAL_OPTIONS}
-      />
+      <div
+        data-test-id="annotation-info-box"
+        {...createPlaygroundFloatingOverlayInteractionProps(scene)}
+        style={PLAYGROUND_SELECTION_INFO_BOX_FLOATING_STYLE}
+      >
+        <RuntimeAnnotationInfoBox
+          pixelWidth={INFOBOX_WIDTH_PX}
+          useControlLayout={false}
+          visualOptions={PLAYGROUND_INFO_BOX_VISUAL_OPTIONS}
+        />
+      </div>
     );
   }
 
@@ -347,17 +364,14 @@ const RuntimeSelectionInfoBox = ({ scene }: { scene: Scene | null }) => {
 
   return (
     <div
-      onPointerEnter={() => clearPlaygroundPointerQueryPreview(scene)}
-      onPointerMove={() => clearPlaygroundPointerQueryPreview(scene)}
-      onPointerDown={() => clearPlaygroundPointerQueryPreview(scene)}
-      style={{
-        ...selectionInfoBoxFloatingStyle,
-      }}
+      data-test-id="annotation-info-box"
+      {...createPlaygroundFloatingOverlayInteractionProps(scene)}
+      style={PLAYGROUND_SELECTION_INFO_BOX_FLOATING_STYLE}
     >
       <AnnotationInfoBoxContainer
         pixelWidth={INFOBOX_WIDTH_PX}
         useControlLayout={false}
-        visualOptions={PLAYGROUND_RUNTIME_INFO_BOX_VISUAL_OPTIONS}
+        visualOptions={PLAYGROUND_INFO_BOX_VISUAL_OPTIONS}
         slots={{
           headingTitle: selectedPlugin?.descriptor.label ?? "Messung",
           subtitle: (
@@ -405,11 +419,16 @@ export const AnnotationsRuntimePage = ({
 }: PlaygroundRuntimePageProps) => {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [scene, setScene] = useState<Scene | null>(null);
-  const [initialToolType] = useState(() => ANNOTATION_TYPE_POINT);
+  const [initialToolType] = useState(() => readInitialToolType());
+  const [toolset] = useState(() => readInitialToolset());
   const overlayHost = useCesiumLabelOverlayHost({
     scene,
     containerRef: rootRef,
   });
+  const toolPlugins =
+    toolset === PLAYGROUND_TOOLSETS.ALL
+      ? PLAYGROUND_ALL_RUNTIME_TOOL_PLUGINS
+      : PLAYGROUND_STABLE_RUNTIME_TOOL_PLUGINS;
   const { initialPersistenceState, onPersistenceStateChange } =
     useLocalAnnotationsRuntimePersistence({
       enabled: true,
@@ -427,7 +446,7 @@ export const AnnotationsRuntimePage = ({
           <AnnotationsProvider
             scene={scene}
             initialActiveToolType={initialToolType}
-            plugins={PLAYGROUND_ACTIVE_TOOL_PLUGINS}
+            plugins={toolPlugins}
             formatOptions={PLAYGROUND_RUNTIME_FORMAT_OPTIONS}
             previewLineLabelVisualOptions={
               PLAYGROUND_PREVIEW_LINE_LABEL_VISUAL_OPTIONS
@@ -435,6 +454,7 @@ export const AnnotationsRuntimePage = ({
             initialPersistenceState={initialPersistenceState}
             onPersistenceStateChange={onPersistenceStateChange}
           >
+            <PersistActiveRuntimeToolMode />
             <CesiumNavigationOverlay
               scene={scene}
               initialHomeCameraState={homeCameraState}

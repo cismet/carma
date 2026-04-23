@@ -1,4 +1,5 @@
 /// <reference types='vitest' />
+import { readFileSync, writeFileSync } from "node:fs";
 import * as path from "path";
 
 import { nxViteTsPaths } from "@nx/vite/plugins/nx-tsconfig-paths.plugin";
@@ -14,6 +15,18 @@ export default defineConfig({
       entryRoot: "src",
       tsconfigPath: path.join(__dirname, "tsconfig.lib.json"),
     }),
+    {
+      name: "restore-legacy-lib-index-types",
+      closeBundle() {
+        const sourceIndexPath = path.join(__dirname, "src/lib/index.ts");
+        const distIndexPath = path.join(
+          __dirname,
+          "../../../../../dist/libraries/mapping/engines/cesium/legacy/lib/index.d.ts"
+        );
+
+        writeFileSync(distIndexPath, readFileSync(sourceIndexPath, "utf8"));
+      },
+    },
   ],
 
   // Uncomment this if you are using workers.

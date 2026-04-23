@@ -2,26 +2,74 @@ import type {
   AnnotationToolAuthoringController,
   AnnotationToolAuthoringContext,
   PointQueryPickResult,
-} from "../tools/annotation-tool-plugin.types";
-import type { RuntimeToolId } from "../types/runtime-tool.types";
-import { areRuntimeCoordinateListsEqual } from "../utils/runtime-coordinate-equality";
+} from "../registry/annotation-tool-plugin.types";
+import type { CesiumGeographicCoordinate } from "../store";
+import { formatLengthMeters, type CssPixelPosition } from "@carma-units";
+import { SceneTransforms, defined } from "@carma-cesium";
+import {
+  buildTextOnlyPointLabelOverlayState,
+  createTransientPointLabelController,
+} from "@carma-providers/label-overlay";
+import {
+  cartesian3FromGeographicCoordinate,
+  isValidScene,
+} from "@carma-mapping/engines/cesium/core";
+import { areCoordinateListsEqual } from "../utils/coordinate-equality";
 import { createPathAuthoringController } from "./create-path-authoring-controller";
 import { createSegmentGuideController } from "./create-segment-guide-controller";
-import { previewControllerDefaults } from "./authoring-visual-runtime";
+import {
+  applyLineLabel,
+  createLineLabel,
+  createPreviewOverlayLayer,
+  destroyPreviewOverlayLayer,
+  previewControllerDefaults,
+} from "./authoring-visual-runtime";
+import {
+  computePolylineSegmentLengthsMeters,
+  computePolylineTotalLengthMeters,
+} from "../utils/measurement-summaries";
+import { resolvePreviewLineLabelVisualOptions } from "../config/preview-line-label-visual-defaults";
+import type { AnnotationToolId } from "../registry/annotation-tool-id";
 
 const DRAFT_CHAIN_OVERLAY_LAYER_ID =
   "annotation-overlay-draft-chain-preview-layer";
+const DRAFT_CHAIN_LABEL_LAYER_ID =
+  "annotation-overlay-draft-chain-preview-label-layer";
+
+const toScreenPoint = (
+  scene: NonNullable<AnnotationToolAuthoringContext["scene"]>,
+  coordinate: CesiumGeographicCoordinate
+): CssPixelPosition | null => {
+  const screenPosition = SceneTransforms.worldToWindowCoordinates(
+    scene,
+    cartesian3FromGeographicCoordinate(coordinate)
+  );
+  if (!defined(screenPosition)) {
+    return null;
+  }
+
+  return {
+    x: screenPosition.x as CssPixelPosition["x"],
+    y: screenPosition.y as CssPixelPosition["y"],
+  };
+};
 
 export const createSegmentAuthoringController = ({
   toolType,
   context,
   showCommittedDraftChain,
 }: {
-  toolType: RuntimeToolId;
+  toolType: AnnotationToolId;
   context: AnnotationToolAuthoringContext;
   showCommittedDraftChain: boolean;
 }): AnnotationToolAuthoringController | null => {
-  const { scene, drafts } = context;
+  const {
+    scene,
+    drafts,
+    labelOverlay,
+    formatOptions,
+    previewLineLabelVisualOptions,
+  } = context;
   if (!scene || scene.isDestroyed()) {
     return null;
   }
@@ -30,19 +78,151 @@ export const createSegmentAuthoringController = ({
     overlayLayerId: DRAFT_CHAIN_OVERLAY_LAYER_ID,
     lineId: "draft-preview-chain",
     lineColor: previewControllerDefaults.draftChainColor,
+    showPointMarkers: false,
   });
   const segmentController = createSegmentGuideController(scene, {
-    formatOptions: context.formatOptions,
-    previewLineLabelVisualOptions: context.previewLineLabelVisualOptions,
+    formatOptions,
+    previewLineLabelVisualOptions,
+  });
+  const labelOverlayLayer = createPreviewOverlayLayer(
+    scene,
+    DRAFT_CHAIN_LABEL_LAYER_ID
+  );
+  const committedSegmentLabels: HTMLDivElement[] = [];
+  const totalLengthLabelController = createTransientPointLabelController({
+    labelOverlay,
+    overlayId: `${toolType}-draft-total-length-label`,
+    requestRender: () => scene.requestRender(),
   });
   let enabled = false;
   let pointQueryPickResult: PointQueryPickResult | null = null;
   let draftCoordinates = [...drafts.get(toolType).coordinates];
+  const resolvedPreviewLineLabelVisualOptions =
+    resolvePreviewLineLabelVisualOptions(previewLineLabelVisualOptions);
+
+  const ensureCommittedSegmentLabelCount = (count: number) => {
+    if (!labelOverlayLayer) {
+      return;
+    }
+
+    while (committedSegmentLabels.length < count) {
+      const label = createLineLabel(
+        previewControllerDefaults.directLineColor,
+        previewLineLabelVisualOptions
+      );
+      committedSegmentLabels.push(label);
+      labelOverlayLayer.appendChild(label);
+    }
+  };
+
+  const hideCommittedSegmentLabels = (startIndex = 0) => {
+    committedSegmentLabels.slice(startIndex).forEach((label) => {
+      label.style.display = "none";
+    });
+  };
+
+  const renderLabels = (requestRender = true) => {
+    if (!isValidScene(scene)) {
+      return;
+    }
+
+    const hoverCoordinate = pointQueryPickResult?.coordinate ?? null;
+    const previewCoordinates = hoverCoordinate
+      ? [...draftCoordinates, hoverCoordinate]
+      : [...draftCoordinates];
+    const committedLabelCoordinates = showCommittedDraftChain
+      ? draftCoordinates
+      : [];
+    const segmentLengthsMeters = computePolylineSegmentLengthsMeters(
+      committedLabelCoordinates
+    );
+
+    ensureCommittedSegmentLabelCount(segmentLengthsMeters.length);
+    segmentLengthsMeters.forEach((segmentLengthMeters, index) => {
+      const startCoordinate = committedLabelCoordinates[index];
+      const endCoordinate = committedLabelCoordinates[index + 1];
+      const label = committedSegmentLabels[index];
+      if (!startCoordinate || !endCoordinate || !label) {
+        return;
+      }
+
+      const startScreenPosition = toScreenPoint(scene, startCoordinate);
+      const endScreenPosition = toScreenPoint(scene, endCoordinate);
+      if (!startScreenPosition || !endScreenPosition) {
+        label.style.display = "none";
+        return;
+      }
+
+      applyLineLabel({
+        element: label,
+        text: formatLengthMeters(
+          segmentLengthMeters,
+          formatOptions.lengthMeters
+        ),
+        start: startScreenPosition,
+        end: endScreenPosition,
+      });
+    });
+    hideCommittedSegmentLabels(segmentLengthsMeters.length);
+
+    if (previewCoordinates.length < 2) {
+      totalLengthLabelController.setState(null);
+      if (requestRender) {
+        scene.requestRender();
+      }
+      return;
+    }
+
+    const endCoordinate =
+      hoverCoordinate ??
+      previewCoordinates[previewCoordinates.length - 1] ??
+      null;
+    const endScreenPosition = endCoordinate
+      ? toScreenPoint(scene, endCoordinate)
+      : null;
+    if (!endScreenPosition) {
+      totalLengthLabelController.setState(null);
+      if (requestRender) {
+        scene.requestRender();
+      }
+      return;
+    }
+
+    totalLengthLabelController.setState(
+      buildTextOnlyPointLabelOverlayState({
+        text: formatLengthMeters(
+          computePolylineTotalLengthMeters(previewCoordinates),
+          formatOptions.lengthMeters
+        ),
+        lineColor: previewControllerDefaults.directLineColor,
+        theme: resolvedPreviewLineLabelVisualOptions.theme,
+        fontFamily: resolvedPreviewLineLabelVisualOptions.fontFamily,
+        fontWeight: resolvedPreviewLineLabelVisualOptions.fontWeight,
+        getScreenPosition: () => {
+          const nextEndCoordinate =
+            pointQueryPickResult?.coordinate ??
+            draftCoordinates[draftCoordinates.length - 1] ??
+            null;
+          return nextEndCoordinate
+            ? toScreenPoint(scene, nextEndCoordinate)
+            : null;
+        },
+      })
+    );
+    if (requestRender) {
+      scene.requestRender();
+    }
+  };
 
   const render = () => {
     if (!enabled) {
       draftChainController.clear();
       segmentController.clear();
+      hideCommittedSegmentLabels();
+      totalLengthLabelController.setState(null);
+      if (!scene.isDestroyed()) {
+        scene.requestRender();
+      }
       return;
     }
 
@@ -59,13 +239,12 @@ export const createSegmentAuthoringController = ({
       draftCoordinates[draftCoordinates.length - 1] ?? null,
       hoverCoordinate
     );
+    renderLabels();
   };
 
   const unsubscribe = drafts.subscribe(toolType, () => {
     const nextDraftCoordinates = drafts.get(toolType).coordinates;
-    if (
-      areRuntimeCoordinateListsEqual(draftCoordinates, nextDraftCoordinates)
-    ) {
+    if (areCoordinateListsEqual(draftCoordinates, nextDraftCoordinates)) {
       return;
     }
 
@@ -91,6 +270,8 @@ export const createSegmentAuthoringController = ({
       unsubscribe();
       draftChainController.destroy();
       segmentController.destroy();
+      totalLengthLabelController.destroy();
+      destroyPreviewOverlayLayer(labelOverlayLayer);
     },
   };
 };

@@ -1,5 +1,5 @@
 {
-  "name": "@carma-mapping/cesium-engine-legacy",
+  "name": "@carma-mapping/engines/cesium/legacy",
   "version": "0.0.1",
   "private": true,
   "dependencies": {},

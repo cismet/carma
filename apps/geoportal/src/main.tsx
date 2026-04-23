@@ -5,9 +5,9 @@ import { persistStore } from "redux-persist";
 import { PersistGate } from "redux-persist/integration/react";
 
 import { AdhocFeatureDisplayProvider } from "@carma-appframeworks/portals";
+import { preventPinchZoom } from "@carma-commons/dom/window";
 import {
   cjsGlobalShim,
-  preventPinchZoom,
   suppressReactCismapErrors,
 } from "@carma-commons/utils";
 import { setupCesiumEnvironment } from "@carma-mapping/engines/cesium/core";

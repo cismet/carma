@@ -1,4 +1,8 @@
 export { LabelOverlayProvider } from "../LabelOverlayProvider";
+export {
+  LABEL_OVERLAY_CONTAINER_ATTRIBUTE,
+  LABEL_OVERLAY_CONTAINER_SELECTOR,
+} from "../constants";
 export { useLabelOverlay } from "../useLabelOverlay";
 export { useLabelOverlayHost } from "../useLabelOverlayHost";
 export type { LabelOverlayElement, LabelOverlayContextType } from "../types";
@@ -8,6 +12,7 @@ export type {
 } from "../host";
 export {
   PointLabel,
+  DEFAULT_POINT_LABEL_FONT_SIZE,
   POINT_LABEL_STYLE,
   POINT_LABEL_ATTACH,
   POINT_LABEL_COMPONENT_DEFAULTS,
@@ -35,14 +40,38 @@ export {
   type LineVisualizerProps,
 } from "../components/LineVisualizer";
 export {
-  DEFAULT_LINE_LABEL_OFFSET_PX,
   resolveOverlayLineLabelPlacement,
   type LineLabelPlacementOptions,
   type ResolvedLineLabelPlacement,
 } from "../lineLabelPlacement";
 export { getOverlayReferenceSignature } from "../overlayReferenceSignature";
+export {
+  buildTextOnlyPointLabelOverlayState,
+  createTransientPointLabelController,
+  getPointLabelOverlayContentSignature,
+  renderPointLabelOverlayContent,
+  readPointLabelOverlayDomRefs,
+  applyPointLabelOverlayState,
+} from "../transientPointLabelController";
+export {
+  labelOverlayLayerDefaults,
+  labelOverlayAffordanceDefaults,
+  buildOverlayRingBoxShadowCss,
+  buildOverlayGlowBoxShadowCss,
+  buildOverlaySoftShadowBoxShadowCss,
+  buildOverlayHoverFilterCss,
+  buildOverlayHoverTransitionCss,
+  resolveOverlayMidpointTickMetrics,
+} from "../overlayAffordanceDefaults";
 export { usePointLabels, type PointLabelData } from "../usePointLabels";
 export {
   useLineVisualizers,
   type LineVisualizerData,
 } from "../useLineVisualizers";
+export type {
+  PointLabelOverlayDomRefs,
+  PointLabelOverlayRenderState,
+  TextOnlyPointLabelOverlayStateOptions,
+  TextOnlyPointLabelOverlayTheme,
+  TransientPointLabelController,
+} from "../transientPointLabelController";

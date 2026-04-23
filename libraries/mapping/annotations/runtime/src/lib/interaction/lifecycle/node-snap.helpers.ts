@@ -1,14 +1,14 @@
 import { projectGeographicCoordinateToScreen } from "@carma-mapping/engines/cesium/core";
 
 import type {
-  RuntimeCoordinate,
-  RuntimeNodeLink,
-  RuntimeNodeLinkId,
-  RuntimeNode,
-  RuntimeNodeId,
+  CesiumGeographicCoordinate,
+  AnnotationNodeLink,
+  AnnotationNodeLinkId,
+  AnnotationNode,
+  AnnotationNodeId,
 } from "../../store";
 import { resolveNodeLinkIdForNodeId } from "../../store";
-import type { RuntimeScene } from "../../types/runtime-scene.types";
+import type { Scene } from "@carma-cesium";
 
 // Cursor-to-node acquire radius in screen pixels.
 // This is separate from the DOM hidden-target diameter in PointLabel.tsx.
@@ -16,15 +16,15 @@ export const NODE_SNAP_ACQUIRE_DISTANCE_THRESHOLD_PX = 14;
 // Slightly larger release radius to avoid snap flicker while hovering nearby.
 export const NODE_SNAP_RELEASE_DISTANCE_THRESHOLD_PX = 18;
 
-export type RuntimeNodeSnapSample = {
-  coordinate: RuntimeCoordinate;
-  linkedNodeGroupId: RuntimeNodeLinkId | null;
-  snappedNodeId: RuntimeNodeId | null;
+export type NodeSnapSample = {
+  coordinate: CesiumGeographicCoordinate;
+  linkedNodeGroupId: AnnotationNodeLinkId | null;
+  snappedNodeId: AnnotationNodeId | null;
 };
 
 const findNodeById = (
-  nodes: readonly RuntimeNode[],
-  nodeId: RuntimeNodeId | null
+  nodes: readonly AnnotationNode[],
+  nodeId: AnnotationNodeId | null
 ) => (nodeId ? nodes.find((node) => node.id === nodeId) ?? null : null);
 
 const resolveScreenDistanceSquaredToNode = ({
@@ -32,8 +32,8 @@ const resolveScreenDistanceSquaredToNode = ({
   node,
   screenPosition,
 }: {
-  scene: RuntimeScene;
-  node: RuntimeNode;
+  scene: Scene;
+  node: AnnotationNode;
   screenPosition: { x: number; y: number };
 }) => {
   const nodeScreenPosition = projectGeographicCoordinateToScreen(
@@ -54,17 +54,17 @@ const resolveSnappedNode = ({
   nodes,
   screenPosition,
 }: {
-  scene: RuntimeScene | null;
-  nodes: readonly RuntimeNode[];
+  scene: Scene | null;
+  nodes: readonly AnnotationNode[];
   screenPosition?: { x: number; y: number };
-}): RuntimeNode | null => {
+}): AnnotationNode | null => {
   if (!screenPosition || !scene || scene.isDestroyed() || nodes.length === 0) {
     return null;
   }
 
   const thresholdSquared = NODE_SNAP_ACQUIRE_DISTANCE_THRESHOLD_PX ** 2;
   let bestSquaredDistance = thresholdSquared;
-  let snappedNode: RuntimeNode | null = null;
+  let snappedNode: AnnotationNode | null = null;
 
   for (const node of nodes) {
     const squaredDistance = resolveScreenDistanceSquaredToNode({
@@ -83,7 +83,7 @@ const resolveSnappedNode = ({
   return snappedNode;
 };
 
-export const resolveRuntimeNodeSnapSample = ({
+export const resolveNodeSnapSample = ({
   scene,
   nodes,
   linkedNodeGroups,
@@ -93,15 +93,15 @@ export const resolveRuntimeNodeSnapSample = ({
   lockedNodeId = null,
   excludedNodeIds = [],
 }: {
-  scene: RuntimeScene | null;
-  nodes: readonly RuntimeNode[];
-  linkedNodeGroups: readonly RuntimeNodeLink[];
-  coordinate: RuntimeCoordinate;
+  scene: Scene | null;
+  nodes: readonly AnnotationNode[];
+  linkedNodeGroups: readonly AnnotationNodeLink[];
+  coordinate: CesiumGeographicCoordinate;
   screenPosition?: { x: number; y: number };
-  forcedSnappedNodeId?: RuntimeNodeId | null;
-  lockedNodeId?: RuntimeNodeId | null;
-  excludedNodeIds?: readonly RuntimeNodeId[];
-}): RuntimeNodeSnapSample => {
+  forcedSnappedNodeId?: AnnotationNodeId | null;
+  lockedNodeId?: AnnotationNodeId | null;
+  excludedNodeIds?: readonly AnnotationNodeId[];
+}): NodeSnapSample => {
   if (!scene || scene.isDestroyed() || nodes.length === 0) {
     return {
       coordinate,

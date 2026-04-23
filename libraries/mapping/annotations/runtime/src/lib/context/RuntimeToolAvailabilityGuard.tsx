@@ -1,12 +1,12 @@
 import { useEffect } from "react";
 
 import { useAnnotationsSelector } from "../store";
-import type { AnnotationToolRegistry } from "../tools/annotation-tool-plugin.types";
-import type { RuntimeToolId } from "../types/runtime-tool.types";
+import type { AnnotationToolRegistry } from "../registry/annotation-tool-plugin.types";
+import type { AnnotationToolId } from "../registry/annotation-tool-id";
 
 type RuntimeToolAvailabilityGuardProps = {
   registry: AnnotationToolRegistry;
-  setActiveToolType: (toolType: RuntimeToolId) => void;
+  setActiveToolType: (toolId: AnnotationToolId) => void;
 };
 
 export const RuntimeToolAvailabilityGuard = ({

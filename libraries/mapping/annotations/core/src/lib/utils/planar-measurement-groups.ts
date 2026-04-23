@@ -1,12 +1,14 @@
-import { ANNOTATION_TYPE_POLYLINE } from "../types/annotation-types";
-import type { NodeChainAnnotation } from "../types/annotation-types";
+import {
+  ANNOTATION_TYPES,
+  type NodeChainAnnotation,
+} from "../types/annotation-types";
 export const getConnectedOpenPolylineGroupIds = (
   groups: readonly NodeChainAnnotation[],
   startGroupId: string
 ) => {
   const openGroups = groups.filter(
     (group): group is NodeChainAnnotation =>
-      !group.closed && group.type === ANNOTATION_TYPE_POLYLINE
+      !group.closed && group.type === ANNOTATION_TYPES.POLYLINE
   );
   const startGroup = openGroups.find((group) => group.id === startGroupId);
   if (!startGroup) {

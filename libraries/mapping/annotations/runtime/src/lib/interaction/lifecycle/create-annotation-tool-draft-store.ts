@@ -1,21 +1,24 @@
-import type { RuntimeCoordinate, RuntimeNodeLinkId } from "../../store";
-import type { RuntimeToolId } from "../../types/runtime-tool.types";
+import type {
+  CesiumGeographicCoordinate,
+  AnnotationNodeLinkId,
+} from "../../store";
 import type {
   AnnotationToolDraftState,
   AnnotationToolDraftStore,
-} from "../../tools/annotation-tool-plugin.types";
-import { areRuntimeCoordinateListsEqual } from "../../utils/runtime-coordinate-equality";
+} from "../../registry/annotation-tool-plugin.types";
+import type { AnnotationToolId } from "../../registry/annotation-tool-id";
+import { areCoordinateListsEqual } from "../../utils/coordinate-equality";
 
-const EMPTY_DRAFT_COORDINATES: readonly RuntimeCoordinate[] = [];
-const EMPTY_DRAFT_NODE_LINK_IDS: readonly (RuntimeNodeLinkId | null)[] = [];
+const EMPTY_DRAFT_COORDINATES: readonly CesiumGeographicCoordinate[] = [];
+const EMPTY_DRAFT_NODE_LINK_IDS: readonly (AnnotationNodeLinkId | null)[] = [];
 const EMPTY_ANNOTATION_TOOL_DRAFT_STATE: AnnotationToolDraftState = {
   coordinates: EMPTY_DRAFT_COORDINATES,
   linkedNodeGroupIds: EMPTY_DRAFT_NODE_LINK_IDS,
 };
 
 const areNodeLinkIdsEqual = (
-  left: readonly (RuntimeNodeLinkId | null)[],
-  right: readonly (RuntimeNodeLinkId | null)[]
+  left: readonly (AnnotationNodeLinkId | null)[],
+  right: readonly (AnnotationNodeLinkId | null)[]
 ) =>
   left.length === right.length &&
   left.every((nodeLinkId, index) => nodeLinkId === right[index]);
@@ -24,18 +27,18 @@ const areAnnotationToolDraftStatesEqual = (
   left: AnnotationToolDraftState,
   right: AnnotationToolDraftState
 ) =>
-  areRuntimeCoordinateListsEqual(left.coordinates, right.coordinates) &&
+  areCoordinateListsEqual(left.coordinates, right.coordinates) &&
   areNodeLinkIdsEqual(left.linkedNodeGroupIds, right.linkedNodeGroupIds);
 
 export const createAnnotationToolDraftStore = (): AnnotationToolDraftStore => {
-  const draftByToolType = new Map<RuntimeToolId, AnnotationToolDraftState>();
-  const listenersByToolType = new Map<RuntimeToolId, Set<() => void>>();
+  const draftByToolType = new Map<AnnotationToolId, AnnotationToolDraftState>();
+  const listenersByToolType = new Map<AnnotationToolId, Set<() => void>>();
 
-  const notifyListeners = (toolType: RuntimeToolId) => {
+  const notifyListeners = (toolType: AnnotationToolId) => {
     listenersByToolType.get(toolType)?.forEach((listener) => listener());
   };
 
-  const getDraft = (toolType: RuntimeToolId): AnnotationToolDraftState =>
+  const getDraft = (toolType: AnnotationToolId): AnnotationToolDraftState =>
     draftByToolType.get(toolType) ?? EMPTY_ANNOTATION_TOOL_DRAFT_STATE;
 
   return {

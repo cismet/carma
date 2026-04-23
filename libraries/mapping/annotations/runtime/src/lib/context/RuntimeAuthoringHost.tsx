@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { SceneTransforms, defined } from "@carma-cesium";
+import { ANNOTATION_TYPES } from "@carma-mapping/annotations/core";
+import { useLabelOverlay } from "@carma-providers/label-overlay";
 import {
   cartesian3FromGeographicCoordinate,
   getLocalUpDirectionAtAnchor,
@@ -16,15 +18,16 @@ import {
   type PointQueryIndicatorController,
 } from "../interaction/create-point-query-indicator-controller";
 import { useSceneCoordinateHandler } from "../interaction/use-scene-coordinate-handler";
-import { finalizeTemporaryAnnotations, useAnnotationsSelector } from "../store";
+import { useAnnotationsSelector } from "../store";
 import type {
   AnnotationsStore,
-  RuntimeAddAnnotationOptions,
-  RuntimeCoordinate,
-  RuntimeNodeLinkId,
-  RuntimeMeasurement,
+  AddAnnotationOptions,
+  CesiumGeographicCoordinate,
+  AnnotationNodeLinkId,
+  StoredAnnotation,
 } from "../store";
-import { ANNOTATION_TOOL_PLUGIN_KINDS } from "../tools";
+import { ANNOTATION_TOOL_PLUGIN_KINDS } from "../registry";
+import type { AnnotationToolId } from "../registry/annotation-tool-id";
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import type { PreviewLineLabelVisualOptions } from "../config/preview-line-label-visual-defaults";
 import type {
@@ -33,36 +36,37 @@ import type {
   AnnotationToolRegistry,
   AnnotationToolAuthoringContext,
   PointQueryPickResult,
-} from "../tools/annotation-tool-plugin.types";
-import type { RuntimeScene } from "../types/runtime-scene.types";
-import type { RuntimeToolId } from "../types/runtime-tool.types";
-import { ANNOTATIONS_RUNTIME_HOST_DEFAULTS } from "./annotations-runtime-host-defaults";
+} from "../registry/annotation-tool-plugin.types";
+import type { Scene } from "@carma-cesium";
+import { ANNOTATIONS_HOST_DEFAULTS } from "./annotations-host-defaults";
 import {
   type RuntimeLifecycleHostApi,
   NOOP_RUNTIME_LIFECYCLE_HOST_API,
-} from "./runtime-lifecycle-host-api";
+} from "./lifecycle-host-api";
+
+const { POINT: ANNOTATION_TYPE_POINT } = ANNOTATION_TYPES;
 
 type RuntimeAuthoringHostProps = {
-  scene: RuntimeScene | null;
+  scene: Scene | null;
   registry: AnnotationToolRegistry;
   annotationsStore: AnnotationsStore;
   annotationToolDraftStore: AnnotationToolDraftStore;
-  setActiveToolTypeInStore: (toolType: RuntimeToolId) => void;
+  setActiveToolTypeInStore: (toolType: AnnotationToolId) => void;
   focusAdjacentAnnotationEntry: (offset: -1 | 1) => void;
   addAnnotation: (
-    toolType: RuntimeMeasurement["toolType"],
-    coordinates: readonly RuntimeCoordinate[],
-    options?: RuntimeAddAnnotationOptions,
-    linkedNodeGroupIds?: readonly (RuntimeNodeLinkId | null | undefined)[]
-  ) => RuntimeMeasurement;
-  setCursorOverlayEnabled: (enabled: boolean) => void;
+    toolType: StoredAnnotation["toolType"],
+    coordinates: readonly CesiumGeographicCoordinate[],
+    options?: AddAnnotationOptions,
+    linkedNodeGroupIds?: readonly (AnnotationNodeLinkId | null | undefined)[],
+    sourceToolId?: AnnotationToolId
+  ) => StoredAnnotation;
   bindApi: (api: RuntimeLifecycleHostApi) => void;
   bindPreviewSnapTargetNodeClick: (
     handler: (nodeId: string) => boolean
   ) => void | (() => void);
   activeMoveGizmoNodeId: string | null;
-  hoveredPointQueryNodeId: string | null;
-  onHoveredPointQueryNodeIdChange: (nodeId: string | null) => void;
+  getHoveredPointQueryNodeId: () => string | null;
+  setHoveredPointQueryNodeId: (nodeId: string | null) => void;
   formatOptions: AnnotationsRuntimeFormatOptions;
   previewLineLabelVisualOptions: Partial<PreviewLineLabelVisualOptions>;
 };
@@ -75,15 +79,15 @@ export const RuntimeAuthoringHost = ({
   setActiveToolTypeInStore,
   focusAdjacentAnnotationEntry,
   addAnnotation,
-  setCursorOverlayEnabled,
   bindApi,
   bindPreviewSnapTargetNodeClick,
   activeMoveGizmoNodeId,
-  hoveredPointQueryNodeId,
-  onHoveredPointQueryNodeIdChange,
+  getHoveredPointQueryNodeId,
+  setHoveredPointQueryNodeId,
   formatOptions,
   previewLineLabelVisualOptions,
 }: RuntimeAuthoringHostProps) => {
+  const labelOverlay = useLabelOverlay();
   const activeToolType = useAnnotationsSelector(
     (state) => state.annotationToolType
   );
@@ -104,12 +108,9 @@ export const RuntimeAuthoringHost = ({
   const latestPointQueryPickResultRef = useRef<PointQueryPickResult | null>(
     null
   );
-  const hoveredPointQueryNode = useMemo(
-    () =>
-      hoveredPointQueryNodeId
-        ? nodes.find((node) => node.id === hoveredPointQueryNodeId) ?? null
-        : null,
-    [hoveredPointQueryNodeId, nodes]
+  const nodeById = useMemo(
+    () => new Map(nodes.map((node) => [node.id, node])),
+    [nodes]
   );
 
   const clearScheduledHoverReset = useCallback(() => {
@@ -121,9 +122,13 @@ export const RuntimeAuthoringHost = ({
     hoverClearTimeoutRef.current = null;
   }, []);
   const clearHoveredPointQueryNode = useCallback(
-    () => onHoveredPointQueryNodeIdChange(null),
-    [onHoveredPointQueryNodeIdChange]
+    () => setHoveredPointQueryNodeId(null),
+    [setHoveredPointQueryNodeId]
   );
+  const resolveHoveredPointQueryNode = useCallback(() => {
+    const hoveredNodeId = getHoveredPointQueryNodeId();
+    return hoveredNodeId ? nodeById.get(hoveredNodeId) ?? null : null;
+  }, [getHoveredPointQueryNodeId, nodeById]);
 
   const sessionContext = useMemo(
     () => ({
@@ -159,18 +164,25 @@ export const RuntimeAuthoringHost = ({
     const previousPointTemporaryMode = previousPointTemporaryModeRef.current;
     const currentPointTemporaryMode = pointTemporaryMode;
     if (previousPointTemporaryMode && !currentPointTemporaryMode) {
-      annotationsStore.dispatch(finalizeTemporaryAnnotations());
+      const pointDraft = annotationToolDraftStore.get(ANNOTATION_TYPE_POINT);
+      if (pointDraft.coordinates.length > 0) {
+        pointDraft.coordinates.forEach((coordinate, index) => {
+          addAnnotation(
+            ANNOTATION_TYPE_POINT,
+            [coordinate],
+            undefined,
+            [pointDraft.linkedNodeGroupIds[index] ?? null],
+            ANNOTATION_TYPE_POINT
+          );
+        });
+        annotationToolDraftStore.clear(ANNOTATION_TYPE_POINT);
+      }
     }
     previousPointTemporaryModeRef.current = currentPointTemporaryMode;
-  }, [annotationsStore, pointTemporaryMode]);
+  }, [addAnnotation, annotationToolDraftStore, pointTemporaryMode]);
 
-  const {
-    requestModeChange,
-    requestStartMeasurement,
-    requestFinishMeasurement,
-  } = useModeLifecycle(activeToolType, toolSessions, () => {
-    setCursorOverlayEnabled(false);
-  });
+  const { requestModeChange, requestActivateTool, requestFinishMeasurement } =
+    useModeLifecycle(activeToolType, toolSessions, clearHoveredPointQueryNode);
 
   const {
     handlePointQueryPointCreated,
@@ -189,7 +201,7 @@ export const RuntimeAuthoringHost = ({
   useEffect(() => {
     bindApi({
       requestModeChange,
-      requestStartMeasurement,
+      requestActivateTool,
       requestFinishMeasurement,
     });
 
@@ -200,7 +212,7 @@ export const RuntimeAuthoringHost = ({
     bindApi,
     requestFinishMeasurement,
     requestModeChange,
-    requestStartMeasurement,
+    requestActivateTool,
   ]);
 
   const pointQueryEnabled = Boolean(
@@ -235,24 +247,36 @@ export const RuntimeAuthoringHost = ({
 
   useEffect(() => {
     pointQueryIndicatorControllerRef.current?.destroy();
-    pointQueryIndicatorControllerRef.current =
+    const nextPointQueryIndicatorController =
       createPointQueryIndicatorController(scene, {
-        radius: ANNOTATIONS_RUNTIME_HOST_DEFAULTS.pointQuery.discRadiusMeters,
+        radius: ANNOTATIONS_HOST_DEFAULTS.pointQuery.discRadiusMeters,
         showNormalLine: true,
         tangentDiscVisualizerTrailSampleCount:
-          ANNOTATIONS_RUNTIME_HOST_DEFAULTS.pointQuery.discSmoothingSampleCount,
+          ANNOTATIONS_HOST_DEFAULTS.pointQuery.discSmoothingSampleCount,
         tangentDiscVisualizerSmoothingWindowMs:
-          ANNOTATIONS_RUNTIME_HOST_DEFAULTS.pointQuery.discSmoothingWindowMs,
+          ANNOTATIONS_HOST_DEFAULTS.pointQuery.discSmoothingWindowMs,
         tangentDiscVisualizerWeightDecayGamma:
-          ANNOTATIONS_RUNTIME_HOST_DEFAULTS.pointQuery
-            .discSmoothingWeightDecayGamma,
+          ANNOTATIONS_HOST_DEFAULTS.pointQuery.discSmoothingWeightDecayGamma,
       });
+    pointQueryIndicatorControllerRef.current =
+      nextPointQueryIndicatorController;
+    nextPointQueryIndicatorController?.setEnabled(pointQueryEnabled);
+    if (pointQueryEnabled && latestPointQueryPickResultRef.current) {
+      nextPointQueryIndicatorController?.setPreview({
+        pointECEF: latestPointQueryPickResultRef.current.pointECEF,
+        surfaceNormalECEF:
+          latestPointQueryPickResultRef.current.surfaceNormalECEF,
+        lockToPreviewPoint: resolveHoveredPointQueryNode() !== null,
+      });
+    } else {
+      nextPointQueryIndicatorController?.clearPreview();
+    }
 
     return () => {
       pointQueryIndicatorControllerRef.current?.destroy();
       pointQueryIndicatorControllerRef.current = null;
     };
-  }, [scene]);
+  }, [pointQueryEnabled, resolveHoveredPointQueryNode, scene]);
 
   useEffect(() => {
     pointQueryIndicatorControllerRef.current?.setEnabled(pointQueryEnabled);
@@ -265,6 +289,7 @@ export const RuntimeAuthoringHost = ({
         scene,
         annotationsStore,
         drafts: annotationToolDraftStore,
+        labelOverlay,
         requestRender: () => {
           if (scene && !scene.isDestroyed()) {
             scene.requestRender();
@@ -288,6 +313,7 @@ export const RuntimeAuthoringHost = ({
     annotationsStore,
     annotationToolDraftStore,
     formatOptions,
+    labelOverlay,
     pointQueryEnabled,
     previewLineLabelVisualOptions,
     scene,
@@ -315,11 +341,12 @@ export const RuntimeAuthoringHost = ({
       pointECEF,
       surfaceNormalECEF,
     }: {
-      coordinate: RuntimeCoordinate;
+      coordinate: CesiumGeographicCoordinate;
       screenPosition: { x: number; y: number };
       pointECEF: PointQueryPickResult["pointECEF"];
       surfaceNormalECEF: PointQueryPickResult["surfaceNormalECEF"];
     }): PointQueryPickResult => {
+      const hoveredPointQueryNode = resolveHoveredPointQueryNode();
       const resolvedHoverCoordinate =
         hoveredPointQueryNode?.coordinate ??
         resolvePointQueryCoordinate(coordinate, screenPosition);
@@ -355,7 +382,7 @@ export const RuntimeAuthoringHost = ({
         surfaceNormalECEF: resolvedHoverSurfaceNormalECEF,
       };
     },
-    [hoveredPointQueryNode, resolvePointQueryCoordinate, scene]
+    [resolveHoveredPointQueryNode, resolvePointQueryCoordinate, scene]
   );
 
   useSceneCoordinateHandler(scene, {
@@ -366,9 +393,6 @@ export const RuntimeAuthoringHost = ({
           requestFinishMeasurement();
         }
       : undefined,
-    onScreenPositionChange: (screenPosition) => {
-      setCursorOverlayEnabled(pointQueryEnabled && screenPosition !== null);
-    },
     onHoverSampleChange: ({
       coordinate,
       screenPosition,
@@ -382,7 +406,7 @@ export const RuntimeAuthoringHost = ({
           latestPointQueryPickResultRef.current = null;
           activeAuthoringControllerRef.current?.setPointQueryPickResult(null);
           pointQueryIndicatorControllerRef.current?.clearPreview();
-        }, ANNOTATIONS_RUNTIME_HOST_DEFAULTS.hoverClearDelayMs);
+        }, ANNOTATIONS_HOST_DEFAULTS.hoverClearDelayMs);
         return;
       }
 
@@ -393,6 +417,7 @@ export const RuntimeAuthoringHost = ({
         pointECEF,
         surfaceNormalECEF,
       });
+      const hoveredPointQueryNode = resolveHoveredPointQueryNode();
       pointQueryIndicatorControllerRef.current?.setPreview({
         pointECEF: latestPointQueryPickResultRef.current.pointECEF,
         surfaceNormalECEF:
@@ -411,12 +436,11 @@ export const RuntimeAuthoringHost = ({
     }
 
     clearScheduledHoverReset();
-    setCursorOverlayEnabled(false);
     latestPointQueryPickResultRef.current = null;
     activeAuthoringControllerRef.current?.setPointQueryPickResult(null);
     activeAuthoringControllerRef.current?.setEnabled(false);
     pointQueryIndicatorControllerRef.current?.clearPreview();
-  }, [clearScheduledHoverReset, pointQueryEnabled, setCursorOverlayEnabled]);
+  }, [clearScheduledHoverReset, pointQueryEnabled]);
 
   useEffect(
     () => () => {
@@ -433,10 +457,9 @@ export const RuntimeAuthoringHost = ({
     primaryInteractionToolId,
     requestFinishMeasurement,
     requestModeChange,
-    requestStartMeasurement,
+    requestActivateTool,
     sessionContext,
     setActiveToolTypeInStore,
-    setCursorOverlayEnabled,
   });
 
   return null;

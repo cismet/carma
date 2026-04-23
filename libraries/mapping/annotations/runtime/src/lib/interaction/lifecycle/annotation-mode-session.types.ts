@@ -1,17 +1,20 @@
-import type { RuntimeCoordinate, RuntimeNodeLinkId } from "../../store";
-import type { RuntimeToolId } from "../../types/runtime-tool.types";
+import type {
+  CesiumGeographicCoordinate,
+  AnnotationNodeLinkId,
+} from "../../store";
+import type { AnnotationToolId } from "../../registry/annotation-tool-id";
 export type AnnotationModeSession = {
-  toolType: RuntimeToolId;
+  toolType: AnnotationToolId;
   requestStart: () => void;
   requestFinish: () => boolean;
   discardDraft: () => void;
   onNodeCreated?: (
-    coordinate: RuntimeCoordinate,
-    linkedNodeGroupId?: RuntimeNodeLinkId | null
+    coordinate: CesiumGeographicCoordinate,
+    linkedNodeGroupId?: AnnotationNodeLinkId | null
   ) => void;
   finishesOnLoopClosure?: boolean;
 };
 
 export type AnnotationModeSessionMap = Partial<
-  Record<RuntimeToolId, AnnotationModeSession>
+  Record<AnnotationToolId, AnnotationModeSession>
 >;

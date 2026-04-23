@@ -29,4 +29,9 @@ export {
   MINUS_THREE_PI_OVER_TWO,
   MINUS_ONE_OVER_TWO_PI,
 } from "./angles/index";
-export { isUnitRangeRatio, isPositiveRatio, isRatio } from "./dimensionless";
+export {
+  clampUnitRangeRatio,
+  isUnitRangeRatio,
+  isPositiveRatio,
+  isRatio,
+} from "./dimensionless";

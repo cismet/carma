@@ -84,9 +84,11 @@ export type SvgLineVisualizerData = {
   onLabelClick?: () => void;
 };
 
-const DEFAULT_DASH_LENGTH_TO_STROKE_WIDTH_RATIO = 4;
-const DEFAULT_DASH_GAP_TO_DASH_LENGTH_RATIO = 8 / 6;
-const DEFAULT_COLLAPSE_CAP_THRESHOLD_EFFECTIVE_GAP_RATIO = -0.1;
+const svgLineGeneratorDefaults = Object.freeze({
+  dashLengthToStrokeWidthRatio: 4,
+  dashGapToDashLengthRatio: 8 / 6,
+  collapseCapThresholdEffectiveGapRatio: -0.1,
+});
 
 type BaseLineVisualizerOptions = Omit<
   SvgLineVisualizerData,
@@ -144,16 +146,16 @@ const resolveDynamicDashPattern = ({
   const resolvedDashLengthRatio =
     Number.isFinite(dashLengthRatio) && (dashLengthRatio as number) >= 1
       ? (dashLengthRatio as number)
-      : DEFAULT_DASH_LENGTH_TO_STROKE_WIDTH_RATIO;
+      : svgLineGeneratorDefaults.dashLengthToStrokeWidthRatio;
   const resolvedDashGapRatio =
     Number.isFinite(dashGapRatio) && (dashGapRatio as number) >= -1
       ? (dashGapRatio as number)
-      : DEFAULT_DASH_GAP_TO_DASH_LENGTH_RATIO;
+      : svgLineGeneratorDefaults.dashGapToDashLengthRatio;
   const resolvedCollapseCapThresholdEffectiveGapRatio = Number.isFinite(
     collapseCapThresholdEffectiveGapRatio
   )
     ? (collapseCapThresholdEffectiveGapRatio as number)
-    : DEFAULT_COLLAPSE_CAP_THRESHOLD_EFFECTIVE_GAP_RATIO;
+    : svgLineGeneratorDefaults.collapseCapThresholdEffectiveGapRatio;
 
   return {
     dashLengthToStrokeWidthRatio: resolvedDashLengthRatio,

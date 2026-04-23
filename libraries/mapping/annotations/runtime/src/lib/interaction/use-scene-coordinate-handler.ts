@@ -1,4 +1,4 @@
-import type { Cartesian3 } from "@carma-cesium";
+import type { Cartesian3, Scene } from "@carma-cesium";
 import {
   CESIUM_POINT_QUERY_CLICK_STRATEGY,
   useCesiumPointQuery,
@@ -8,21 +8,20 @@ import {
   getEllipsoidalAltitudeOrZero,
 } from "@carma-mapping/engines/cesium/core";
 
-import type { RuntimeCoordinate } from "../store";
-import type { RuntimeScene } from "../types/runtime-scene.types";
+import type { CesiumGeographicCoordinate } from "../store";
 type UseSceneCoordinateHandlerOptions = {
   enabled: boolean;
   onCoordinate?: (
-    coordinate: RuntimeCoordinate,
+    coordinate: CesiumGeographicCoordinate,
     screenPosition?: { x: number; y: number }
   ) => void;
   onLineFinish?: () => void;
   onHoverCoordinateChange?: (
-    coordinate: RuntimeCoordinate | null,
+    coordinate: CesiumGeographicCoordinate | null,
     screenPosition?: { x: number; y: number }
   ) => void;
   onHoverSampleChange?: (sample: {
-    coordinate: RuntimeCoordinate | null;
+    coordinate: CesiumGeographicCoordinate | null;
     screenPosition: { x: number; y: number };
     pointECEF: Cartesian3 | null;
     surfaceNormalECEF: Cartesian3 | null;
@@ -35,7 +34,7 @@ type UseSceneCoordinateHandlerOptions = {
 
 const runtimeCoordinateFromCartesian = (
   positionECEF: Cartesian3
-): RuntimeCoordinate => {
+): CesiumGeographicCoordinate => {
   const coordinateWgs84 = getDegreesFromCartesian(positionECEF);
 
   return {
@@ -46,7 +45,7 @@ const runtimeCoordinateFromCartesian = (
 };
 
 export const useSceneCoordinateHandler = (
-  scene: RuntimeScene | null,
+  scene: Scene | null,
   {
     enabled,
     onCoordinate,

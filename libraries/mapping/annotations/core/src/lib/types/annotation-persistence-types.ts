@@ -5,7 +5,10 @@ import type {
   AnnotationLabelAppearance,
   PointLabelMetricMode,
 } from "./annotation-label";
-import type { NodeChainAnnotation } from "./annotation-types";
+import type {
+  DerivedNodeChainAnnotationGeometry,
+  NodeChainAnnotation,
+} from "./annotation-types";
 import type { PointDistanceRelation } from "./distance-relation";
 export type AnnotationGeometryPoint = {
   id: string;
@@ -44,7 +47,9 @@ export type AnnotationPersistenceEnvelopeBase<TMeasurementEntry> = {
   tables: {
     annotations: TMeasurementEntry[];
     distanceRelations: PointDistanceRelation[];
-    nodeChainAnnotations: NodeChainAnnotation[];
+    nodeChainAnnotations: Array<
+      NodeChainAnnotation & Partial<DerivedNodeChainAnnotationGeometry>
+    >;
     planarPolygonGroupVertices: PolygonAnnotationVertex[];
   };
 };

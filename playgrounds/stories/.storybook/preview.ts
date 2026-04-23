@@ -1,27 +1,7 @@
-import * as React from "react";
-
 import type { Preview } from "@storybook/react";
 
 import "../src/styles.css";
 import "../../../libraries/mapping/annotations/runtime/src/lib/interaction/annotation-overlay-line-label.css";
-type StorybookRequireShim = {
-  require?: (id: string) => unknown;
-};
-
-const storybookRequireTarget = globalThis as typeof globalThis &
-  StorybookRequireShim;
-
-if (typeof storybookRequireTarget.require !== "function") {
-  storybookRequireTarget.require = (id: string) => {
-    if (id === "react") {
-      return React;
-    }
-
-    throw new Error(
-      `[storybook require shim] Unsupported dynamic require: ${id}`
-    );
-  };
-}
 
 const preview: Preview = {
   parameters: {

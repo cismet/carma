@@ -34,8 +34,6 @@ export type CrosshairCursorRenderOptions = {
   strokeCap?: AnnotationCursorOverlayStrokeCapMode;
 };
 
-export type CrosshairCursorCssValueOptions = CrosshairCursorRenderOptions;
-
 const crosshairCursorCssValueByKey = new Map<string, string>();
 const crosshairCursorDataUrlByKey = new Map<string, string>();
 
@@ -431,7 +429,7 @@ export const resolveCrosshairCursorCssValue = ({
   devicePixelRatio,
   sizePx,
   strokeCap,
-}: CrosshairCursorCssValueOptions) => {
+}: CrosshairCursorRenderOptions) => {
   const resolvedOptions = resolveCrosshairCursorStyleOptions(style);
   const metrics = resolveCrosshairCursorRasterMetrics({
     style: resolvedOptions.style,

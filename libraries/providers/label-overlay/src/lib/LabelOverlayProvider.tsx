@@ -12,6 +12,10 @@ import { createPortal } from "react-dom";
 
 import type { LabelOverlayHostBinding } from "./host";
 import { LabelOverlayContext } from "./LabelOverlayContext";
+import {
+  LABEL_OVERLAY_CONTAINER_ATTRIBUTE,
+  LABEL_OVERLAY_CONTAINER_SELECTOR,
+} from "./constants";
 import type { LabelOverlayElement, LabelOverlayContextType } from "./types";
 const hasSameOverlayPortalContent = (
   left: LabelOverlayElement,
@@ -39,11 +43,40 @@ interface LabelOverlayProviderProps {
   host: LabelOverlayHostBinding;
 }
 
+const resolveExistingLabelOverlayContainer = (container: HTMLElement) => {
+  if (container.getAttribute(LABEL_OVERLAY_CONTAINER_ATTRIBUTE) === "true") {
+    return container;
+  }
+
+  const explicitOverlayContainer = container.querySelector(
+    LABEL_OVERLAY_CONTAINER_SELECTOR
+  );
+  if (explicitOverlayContainer instanceof HTMLElement) {
+    return explicitOverlayContainer;
+  }
+
+  return null;
+};
+
+const createLabelOverlayContainerElement = () => {
+  const overlayDiv = document.createElement("div");
+  overlayDiv.setAttribute(LABEL_OVERLAY_CONTAINER_ATTRIBUTE, "true");
+  overlayDiv.style.position = "absolute";
+  overlayDiv.style.top = "0";
+  overlayDiv.style.left = "0";
+  overlayDiv.style.width = "100%";
+  overlayDiv.style.height = "100%";
+  overlayDiv.style.pointerEvents = "none";
+  overlayDiv.style.zIndex = "auto";
+  overlayDiv.style.overflow = "hidden";
+  return overlayDiv;
+};
+
 export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
   children,
   host,
 }) => {
-  const overlayRef = useRef<HTMLDivElement | null>(null);
+  const overlayRef = useRef<HTMLElement | null>(null);
   const overlayElementNodeByIdRef = useRef<Map<string, HTMLDivElement>>(
     new Map()
   );
@@ -70,31 +103,52 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
   const forceLayoutOnPortalRender = host.forceLayoutOnPortalRender ?? true;
 
   // Create overlay container
-  useEffect(() => {
-    const container = resolvedContainerRef.current;
-    if (!container) return;
+  useLayoutEffect(() => {
+    let cancelled = false;
+    let attachFrameId = 0;
+    let mountedContainer: HTMLElement | null = null;
+    let createdOverlayDiv: HTMLDivElement | null = null;
 
-    const overlayDiv = document.createElement("div");
-    overlayDiv.dataset.labelOverlayContainer = "true";
-    overlayDiv.style.position = "absolute";
-    overlayDiv.style.top = "0";
-    overlayDiv.style.left = "0";
-    overlayDiv.style.width = "100%";
-    overlayDiv.style.height = "100%";
-    overlayDiv.style.pointerEvents = "none";
-    overlayDiv.style.zIndex = "auto";
-    overlayDiv.style.overflow = "hidden";
+    const attachOverlayContainer = () => {
+      if (cancelled) {
+        return;
+      }
 
-    container.appendChild(overlayDiv);
-    overlayRef.current = overlayDiv;
-    // Trigger render to ensure portals can mount to the new container
-    forceRender();
+      const hostContainer = resolvedContainerRef.current;
+      if (!hostContainer) {
+        attachFrameId = window.requestAnimationFrame(attachOverlayContainer);
+        return;
+      }
+
+      const existingOverlayContainer =
+        resolveExistingLabelOverlayContainer(hostContainer);
+      if (existingOverlayContainer) {
+        overlayRef.current = existingOverlayContainer;
+        forceRender();
+        return;
+      }
+
+      mountedContainer = hostContainer;
+      const overlayDiv = createLabelOverlayContainerElement();
+      mountedContainer.appendChild(overlayDiv);
+      createdOverlayDiv = overlayDiv;
+      overlayRef.current = overlayDiv;
+      // Trigger render to ensure portals can mount to the new container
+      forceRender();
+    };
+
+    attachOverlayContainer();
 
     return () => {
-      overlayElementNodeByIdRef.current.clear();
-      if (overlayDiv && container.contains(overlayDiv)) {
-        container.removeChild(overlayDiv);
+      cancelled = true;
+      if (attachFrameId !== 0) {
+        window.cancelAnimationFrame(attachFrameId);
       }
+      overlayElementNodeByIdRef.current.clear();
+      if (createdOverlayDiv && mountedContainer?.contains(createdOverlayDiv)) {
+        mountedContainer.removeChild(createdOverlayDiv);
+      }
+      overlayRef.current = null;
     };
   }, [forceRender, resolvedContainerRef]);
 

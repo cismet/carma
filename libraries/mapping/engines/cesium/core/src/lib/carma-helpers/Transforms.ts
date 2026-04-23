@@ -6,7 +6,11 @@ import {
   Matrix4,
   Transforms,
 } from "@carma-cesium";
-import type { MetricVector3 } from "@carma-units";
+import type { MetricVector3, Radians } from "@carma-units";
+import {
+  projectCartesian3PointOntoPlane,
+  removeCartesian3ComponentAlongAxis,
+} from "./cartesian3";
 import { cartesian3FromMetricVector3 } from "../serialization";
 const PLANAR_TRANSFORM_ELEMENTS = new Array<number>(16);
 const BASIS_SCALE_TRANSLATION_ELEMENTS = new Array<number>(16);
@@ -161,49 +165,32 @@ export const getLocalUpDirectionAtAnchor = (
   anchorECEF: Cartesian3
 ): Cartesian3 => Cartesian3.normalize(anchorECEF, new Cartesian3());
 
+export const getEllipsoidalUpDirectionAtAnchor = (
+  anchorECEF: Cartesian3,
+  ellipsoid: Ellipsoid = Ellipsoid.WGS84
+): Cartesian3 => ellipsoid.geodeticSurfaceNormal(anchorECEF, new Cartesian3());
+
 export const projectPointToHorizontalPlaneAtAnchor = (
   pointECEF: Cartesian3,
   anchorECEF: Cartesian3
 ): Cartesian3 => {
   const localUp = getLocalUpDirectionAtAnchor(anchorECEF);
-  const delta = Cartesian3.subtract(pointECEF, anchorECEF, new Cartesian3());
-  const distanceAlongUp = Cartesian3.dot(delta, localUp);
-  return Cartesian3.subtract(
-    pointECEF,
-    Cartesian3.multiplyByScalar(localUp, distanceAlongUp, new Cartesian3()),
-    new Cartesian3()
-  );
+  return projectCartesian3PointOntoPlane(pointECEF, anchorECEF, localUp);
 };
 
-export const getSignedAngleDegAroundAxis = (
+export const getSignedAngleRadAroundAxis = (
   fromDirection: Cartesian3,
   toDirection: Cartesian3,
   axisDirection: Cartesian3
-): number | null => {
+): Radians | null => {
   const normalizedAxis = normalizeDirection(axisDirection);
   if (!normalizedAxis) return null;
 
   const fromProjected = normalizeDirection(
-    Cartesian3.subtract(
-      fromDirection,
-      Cartesian3.multiplyByScalar(
-        normalizedAxis,
-        Cartesian3.dot(fromDirection, normalizedAxis),
-        new Cartesian3()
-      ),
-      new Cartesian3()
-    )
+    removeCartesian3ComponentAlongAxis(fromDirection, normalizedAxis)
   );
   const toProjected = normalizeDirection(
-    Cartesian3.subtract(
-      toDirection,
-      Cartesian3.multiplyByScalar(
-        normalizedAxis,
-        Cartesian3.dot(toDirection, normalizedAxis),
-        new Cartesian3()
-      ),
-      new Cartesian3()
-    )
+    removeCartesian3ComponentAlongAxis(toDirection, normalizedAxis)
   );
   if (!fromProjected || !toProjected) {
     return null;
@@ -217,7 +204,7 @@ export const getSignedAngleDegAroundAxis = (
     -1,
     Math.min(1, Cartesian3.dot(fromProjected, toProjected))
   );
-  return (Math.atan2(sinComponent, cosComponent) * 180) / Math.PI;
+  return Math.atan2(sinComponent, cosComponent) as Radians;
 };
 
 export const resolveLocalFrameVectors = (

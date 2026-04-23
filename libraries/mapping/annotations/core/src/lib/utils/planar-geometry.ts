@@ -1,3 +1,4 @@
+import { getPolygonArea2d } from "@carma-commons/math";
 import {
   Cartesian3,
   Cartesian4,
@@ -5,40 +6,38 @@ import {
   Transforms,
   Ellipsoid,
 } from "@carma-cesium";
+import { radToDegNumeric, type Radians, zeroToTwoPi } from "@carma-units";
 import {
   cartesian3FromMetricVector3,
   cartesian3ToMetricVector3,
+  getEllipsoidalUpDirectionAtAnchor,
+  getNormalizedCartesian3TriangleNormal,
+  getSignedCartesian3DistanceToPlane,
+  matrix4ColumnToCartesian3,
   normalizeDirection,
+  projectCartesian3PointOntoPlane,
+  removeCartesian3ComponentAlongAxis,
 } from "@carma-mapping/engines/cesium/core";
 
 import {
-  ANNOTATION_TYPE_AREA_PLANAR,
-  ANNOTATION_TYPE_AREA_VERTICAL,
+  ANNOTATION_TYPES,
+  type AnnotationTypes,
 } from "../types/annotation-types";
 import type {
+  DerivedNodeChainAnnotation,
+  DerivedNodeChainAnnotationGeometry,
   NodeChainAnnotation,
   PlanarPolygonLocalFrame,
   PlanarPolygonPlane,
 } from "../types/annotation-types";
-const EPSILON = 1e-8;
 
-const getEllipsoidalUpAtPoint = (anchorECEF: Cartesian3): Cartesian3 => {
-  const upMatrix = Transforms.eastNorthUpToFixedFrame(
-    anchorECEF,
-    Ellipsoid.WGS84
-  );
-  const up4 = Matrix4.getColumn(upMatrix, 2, new Cartesian4());
+const planarGeometryDefaults = Object.freeze({
+  bearingHorizontalMagnitudeEpsilon: 1e-8,
+  cartesianMagnitudeSquaredEpsilon: 1e-8,
+  polygonTypeVerticalityThresholdDeg: 85,
+});
 
-  return Cartesian3.normalize(
-    new Cartesian3(up4.x, up4.y, up4.z),
-    new Cartesian3()
-  );
-};
-
-const normalizeBearingDeg = (bearingDeg: number): number =>
-  ((bearingDeg % 360) + 360) % 360;
-
-const computeBearingDegFromPlaneNormal = (
+const computeBearingRadFromPlaneNormal = (
   plane: PlanarPolygonPlane
 ): number | undefined => {
   const normal = normalizeDirection(
@@ -58,10 +57,14 @@ const computeBearingDegFromPlaneNormal = (
   const east = normalEnu4.x;
   const north = normalEnu4.y;
   const horizontalMagnitude = Math.hypot(east, north);
-  if (horizontalMagnitude <= EPSILON) return undefined;
+  if (
+    horizontalMagnitude <=
+    planarGeometryDefaults.bearingHorizontalMagnitudeEpsilon
+  ) {
+    return undefined;
+  }
 
-  const bearingDeg = (Math.atan2(east, north) * 180) / Math.PI;
-  return normalizeBearingDeg(bearingDeg);
+  return zeroToTwoPi(Math.atan2(east, north) as Radians);
 };
 
 export const createPlaneFromThreePoints = (
@@ -70,12 +73,9 @@ export const createPlaneFromThreePoints = (
   c: Cartesian3,
   preferredFacingPositionECEF?: Cartesian3 | null
 ): PlanarPolygonPlane | null => {
-  const ab = Cartesian3.subtract(b, a, new Cartesian3());
-  const ac = Cartesian3.subtract(c, a, new Cartesian3());
-  const normal = Cartesian3.cross(ab, ac, new Cartesian3());
-  if (Cartesian3.magnitudeSquared(normal) <= EPSILON) return null;
+  const normalized = getNormalizedCartesian3TriangleNormal(a, b, c);
+  if (!normalized) return null;
 
-  const normalized = Cartesian3.normalize(normal, new Cartesian3());
   const plane: PlanarPolygonPlane = {
     anchorECEF: cartesian3ToMetricVector3(a),
     normalECEF: cartesian3ToMetricVector3(normalized),
@@ -100,7 +100,12 @@ export const orientPlaneNormalTowardPosition = (
     anchor,
     new Cartesian3()
   );
-  if (Cartesian3.magnitudeSquared(toReference) <= EPSILON) return plane;
+  if (
+    Cartesian3.magnitudeSquared(toReference) <=
+    planarGeometryDefaults.cartesianMagnitudeSquaredEpsilon
+  ) {
+    return plane;
+  }
   if (Cartesian3.dot(normal, toReference) >= 0) return plane;
 
   const flippedNormal = Cartesian3.multiplyByScalar(
@@ -119,16 +124,10 @@ export const projectPointOntoPlane = (
   plane: PlanarPolygonPlane
 ): Cartesian3 => {
   const anchor = cartesian3FromMetricVector3(plane.anchorECEF);
-  const normal = Cartesian3.normalize(
-    cartesian3FromMetricVector3(plane.normalECEF),
-    new Cartesian3()
-  );
-  const delta = Cartesian3.subtract(point, anchor, new Cartesian3());
-  const distanceAlongNormal = Cartesian3.dot(delta, normal);
-  return Cartesian3.subtract(
+  return projectCartesian3PointOntoPlane(
     point,
-    Cartesian3.multiplyByScalar(normal, distanceAlongNormal, new Cartesian3()),
-    new Cartesian3()
+    anchor,
+    cartesian3FromMetricVector3(plane.normalECEF)
   );
 };
 
@@ -137,12 +136,13 @@ export const distancePointToPlane = (
   plane: PlanarPolygonPlane
 ): number => {
   const anchor = cartesian3FromMetricVector3(plane.anchorECEF);
-  const normal = Cartesian3.normalize(
-    cartesian3FromMetricVector3(plane.normalECEF),
-    new Cartesian3()
+  return Math.abs(
+    getSignedCartesian3DistanceToPlane(
+      point,
+      anchor,
+      cartesian3FromMetricVector3(plane.normalECEF)
+    )
   );
-  const delta = Cartesian3.subtract(point, anchor, new Cartesian3());
-  return Math.abs(Cartesian3.dot(delta, normal));
 };
 
 export const computePolylinePlanarAngleSumDeg = (
@@ -165,28 +165,20 @@ export const computePolylinePlanarAngleSumDeg = (
     const incoming = Cartesian3.subtract(current, prev, new Cartesian3());
     const outgoing = Cartesian3.subtract(next, current, new Cartesian3());
 
-    const incomingOnPlane = Cartesian3.subtract(
+    const incomingOnPlane = removeCartesian3ComponentAlongAxis(
       incoming,
-      Cartesian3.multiplyByScalar(
-        normal,
-        Cartesian3.dot(incoming, normal),
-        new Cartesian3()
-      ),
-      new Cartesian3()
+      normal
     );
-    const outgoingOnPlane = Cartesian3.subtract(
+    const outgoingOnPlane = removeCartesian3ComponentAlongAxis(
       outgoing,
-      Cartesian3.multiplyByScalar(
-        normal,
-        Cartesian3.dot(outgoing, normal),
-        new Cartesian3()
-      ),
-      new Cartesian3()
+      normal
     );
 
     if (
-      Cartesian3.magnitudeSquared(incomingOnPlane) <= EPSILON ||
-      Cartesian3.magnitudeSquared(outgoingOnPlane) <= EPSILON
+      Cartesian3.magnitudeSquared(incomingOnPlane) <=
+        planarGeometryDefaults.cartesianMagnitudeSquaredEpsilon ||
+      Cartesian3.magnitudeSquared(outgoingOnPlane) <=
+        planarGeometryDefaults.cartesianMagnitudeSquaredEpsilon
     ) {
       continue;
     }
@@ -194,7 +186,7 @@ export const computePolylinePlanarAngleSumDeg = (
     const inNorm = Cartesian3.normalize(incomingOnPlane, new Cartesian3());
     const outNorm = Cartesian3.normalize(outgoingOnPlane, new Cartesian3());
     const dot = Math.max(-1, Math.min(1, Cartesian3.dot(inNorm, outNorm)));
-    const angleDeg = (Math.acos(dot) * 180) / Math.PI;
+    const angleDeg = radToDegNumeric(Math.acos(dot) as Radians)!;
     if (Number.isFinite(angleDeg)) {
       sumDeg += angleDeg;
     }
@@ -213,36 +205,25 @@ const getPlaneBasisU = (
     if (!current || !next) continue;
 
     const edge = Cartesian3.subtract(next, current, new Cartesian3());
-    const edgeOnPlane = Cartesian3.subtract(
-      edge,
-      Cartesian3.multiplyByScalar(
-        normal,
-        Cartesian3.dot(edge, normal),
-        new Cartesian3()
-      ),
-      new Cartesian3()
-    );
-    if (Cartesian3.magnitudeSquared(edgeOnPlane) > EPSILON) {
+    const edgeOnPlane = removeCartesian3ComponentAlongAxis(edge, normal);
+    if (
+      Cartesian3.magnitudeSquared(edgeOnPlane) >
+      planarGeometryDefaults.cartesianMagnitudeSquaredEpsilon
+    ) {
       return Cartesian3.normalize(edgeOnPlane, new Cartesian3());
     }
   }
 
   const upMatrix = Transforms.eastNorthUpToFixedFrame(anchor, Ellipsoid.WGS84);
-  const east4 = Matrix4.getColumn(upMatrix, 0, new Cartesian4());
   const east = Cartesian3.normalize(
-    new Cartesian3(east4.x, east4.y, east4.z),
+    matrix4ColumnToCartesian3(upMatrix, 0, new Cartesian3()),
     new Cartesian3()
   );
-  const eastOnPlane = Cartesian3.subtract(
-    east,
-    Cartesian3.multiplyByScalar(
-      normal,
-      Cartesian3.dot(east, normal),
-      new Cartesian3()
-    ),
-    new Cartesian3()
-  );
-  if (Cartesian3.magnitudeSquared(eastOnPlane) > EPSILON) {
+  const eastOnPlane = removeCartesian3ComponentAlongAxis(east, normal);
+  if (
+    Cartesian3.magnitudeSquared(eastOnPlane) >
+    planarGeometryDefaults.cartesianMagnitudeSquaredEpsilon
+  ) {
     return Cartesian3.normalize(eastOnPlane, new Cartesian3());
   }
 
@@ -275,15 +256,7 @@ export const computePlanarPolygonArea = (
       y: Cartesian3.dot(delta, v),
     };
   });
-
-  let shoelace = 0;
-  for (let index = 0; index < coords.length; index += 1) {
-    const current = coords[index];
-    const next = coords[(index + 1) % coords.length];
-    if (!current || !next) continue;
-    shoelace += current.x * next.y - current.y * next.x;
-  }
-  return Math.abs(shoelace) * 0.5;
+  return getPolygonArea2d(coords);
 };
 
 export const computeVerticalityDeg = (plane: PlanarPolygonPlane): number => {
@@ -292,17 +265,17 @@ export const computeVerticalityDeg = (plane: PlanarPolygonPlane): number => {
     cartesian3FromMetricVector3(plane.normalECEF),
     new Cartesian3()
   );
-  const up = getEllipsoidalUpAtPoint(anchor);
+  const up = getEllipsoidalUpDirectionAtAnchor(anchor);
   const dot = Math.max(-1, Math.min(1, Math.abs(Cartesian3.dot(normal, up))));
-  return (Math.acos(dot) * 180) / Math.PI;
+  return radToDegNumeric(Math.acos(dot) as Radians)!;
 };
 
 export const classifyPlanarPolygonType = (
   verticalityDeg: number
-): typeof ANNOTATION_TYPE_AREA_PLANAR | typeof ANNOTATION_TYPE_AREA_VERTICAL =>
-  verticalityDeg > 85
-    ? ANNOTATION_TYPE_AREA_VERTICAL
-    : ANNOTATION_TYPE_AREA_PLANAR;
+): AnnotationTypes["AREA_PLANAR"] | AnnotationTypes["AREA_VERTICAL"] =>
+  verticalityDeg > planarGeometryDefaults.polygonTypeVerticalityThresholdDeg
+    ? ANNOTATION_TYPES.AREA_VERTICAL
+    : ANNOTATION_TYPES.AREA_PLANAR;
 
 export const buildEdgeRelationIdsForPolygon = (
   nodeIds: string[],
@@ -374,18 +347,10 @@ const deriveVerticalPolygonLocalFrame = (
     }
   }
 
-  const ellipsoidalUp = getEllipsoidalUpAtPoint(origin);
+  const ellipsoidalUp = getEllipsoidalUpDirectionAtAnchor(origin);
   let upInPlane = ellipsoidalUp
     ? normalizeDirection(
-        Cartesian3.subtract(
-          ellipsoidalUp,
-          Cartesian3.multiplyByScalar(
-            north,
-            Cartesian3.dot(ellipsoidalUp, north),
-            new Cartesian3()
-          ),
-          new Cartesian3()
-        )
+        removeCartesian3ComponentAlongAxis(ellipsoidalUp, north)
       )
     : null;
 
@@ -399,15 +364,7 @@ const deriveVerticalPolygonLocalFrame = (
       const end = vertices[index + 1];
       if (!start || !end) continue;
       const edge = Cartesian3.subtract(end, start, new Cartesian3());
-      const inPlaneEdge = Cartesian3.subtract(
-        edge,
-        Cartesian3.multiplyByScalar(
-          north,
-          Cartesian3.dot(edge, north),
-          new Cartesian3()
-        ),
-        new Cartesian3()
-      );
+      const inPlaneEdge = removeCartesian3ComponentAlongAxis(edge, north);
       east = normalizeDirection(inPlaneEdge);
       if (east) break;
     }
@@ -455,10 +412,12 @@ export const computePolygonGroupDerivedData = (
   pointById: Map<string, Cartesian3>,
   options?: {
     preferredFacingPositionECEF?: Cartesian3 | null;
+    previousDerivedGeometry?: DerivedNodeChainAnnotationGeometry | null;
   }
-): NodeChainAnnotation => {
+): DerivedNodeChainAnnotation => {
   const preferredFacingPositionECEF =
     options?.preferredFacingPositionECEF ?? null;
+  const previousDerivedGeometry = options?.previousDerivedGeometry ?? null;
   const computePerimeterMeters = () => {
     if (vertices.length < 2) return 0;
     let perimeterMeters = 0;
@@ -487,20 +446,15 @@ export const computePolygonGroupDerivedData = (
       ...group,
       perimeterMeters,
       areaSquareMeters: 0,
-      verticalityDeg: group.verticalityDeg ?? 0,
     };
   }
 
-  // Keep existing plane if present, otherwise derive one from non-collinear vertices.
-  const plane =
-    group.plane ??
-    derivePlaneFromVertices(vertices, preferredFacingPositionECEF);
+  const plane = derivePlaneFromVertices(vertices, preferredFacingPositionECEF);
   if (!plane) {
     return {
       ...group,
       perimeterMeters,
       areaSquareMeters: 0,
-      verticalityDeg: group.verticalityDeg ?? 0,
     };
   }
 
@@ -510,13 +464,13 @@ export const computePolygonGroupDerivedData = (
     ? computePlanarPolygonArea(vertices, plane)
     : 0;
   const verticalityDeg = computeVerticalityDeg(plane);
-  const bearingDeg = computeBearingDegFromPlaneNormal(plane);
+  const bearingRad = computeBearingRadFromPlaneNormal(plane);
   const planarPolygonLocalFrame =
-    group.type === ANNOTATION_TYPE_AREA_VERTICAL
+    group.type === ANNOTATION_TYPES.AREA_VERTICAL
       ? deriveVerticalPolygonLocalFrame(
           vertices,
           plane,
-          group.planarPolygonLocalFrame
+          previousDerivedGeometry?.planarPolygonLocalFrame
         )
       : undefined;
 
@@ -527,6 +481,6 @@ export const computePolygonGroupDerivedData = (
     perimeterMeters,
     areaSquareMeters,
     verticalityDeg,
-    bearingDeg,
+    bearingRad,
   };
 };

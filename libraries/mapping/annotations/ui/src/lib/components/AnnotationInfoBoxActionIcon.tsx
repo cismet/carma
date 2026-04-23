@@ -39,9 +39,14 @@ export const AnnotationInfoBoxActionIcon = ({
     <Tooltip
       title={title}
       zIndex={annotationInfoBoxActionIconDefaults.tooltipZIndex}
-      getPopupContainer={(triggerNode) =>
-        triggerNode.ownerDocument?.body ?? document.body
-      }
+      getPopupContainer={(triggerNode) => {
+        const fallbackTriggerNode =
+          triggerNode instanceof HTMLElement ? triggerNode : document.body;
+
+        return resolvedVisualOptions.resolveActionTooltipPopupContainer(
+          fallbackTriggerNode
+        );
+      }}
     >
       <FontAwesomeIcon
         onClick={(event) => {

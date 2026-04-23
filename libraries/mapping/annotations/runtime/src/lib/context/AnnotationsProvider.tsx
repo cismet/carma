@@ -1,46 +1,47 @@
-import { createContext, useContext, useEffect, type ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import { Provider as ReduxProvider } from "react-redux";
 
 import type {
-  RuntimeAddAnnotationOptions,
-  RuntimeCoordinate,
-  RuntimeMeasurement,
-  RuntimeNodeLinkId,
+  AddAnnotationOptions,
+  CesiumGeographicCoordinate,
+  StoredAnnotation,
+  AnnotationNodeLinkId,
 } from "../store/annotations-store.types";
 import {
   selectSelectedAnnotationId,
   AnnotationsReduxContext,
   useAnnotationsSelector,
+  type AnnotationsRuntimePersistenceEnvelope,
   type AnnotationsStore,
 } from "../store";
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import type { PreviewLineLabelVisualOptions } from "../config/preview-line-label-visual-defaults";
-import type { AnnotationsRuntimePersistenceEnvelope } from "../persistence/annotations-runtime-persistence";
 import type {
   AnnotationToolPlugin,
   AnnotationToolRegistry,
-} from "../tools/annotation-tool-plugin.types";
-import type { RuntimeScene } from "../types/runtime-scene.types";
-import type { RuntimeToolId } from "../types/runtime-tool.types";
+} from "../registry/annotation-tool-plugin.types";
+import type { AnnotationToolId } from "../registry/annotation-tool-id";
+import type { Scene } from "@carma-cesium";
 import { RuntimeAuthoringHost } from "./RuntimeAuthoringHost";
 import { RuntimeToolAvailabilityGuard } from "./RuntimeToolAvailabilityGuard";
 import { RuntimeVisualHost } from "./RuntimeVisualHost";
-import { useAnnotationsRuntimeAssembly } from "./use-annotations-runtime-assembly";
+import { useAnnotationsAssembly } from "./use-annotations-assembly";
 
 type AnnotationsRuntimeServices = {
-  scene: RuntimeScene | null;
+  scene: Scene | null;
   registry: AnnotationToolRegistry;
   annotationsStore: AnnotationsStore;
   formatOptions: AnnotationsRuntimeFormatOptions;
   addAnnotation: (
-    toolType: RuntimeMeasurement["toolType"],
-    coordinates: readonly RuntimeCoordinate[],
-    options?: RuntimeAddAnnotationOptions,
-    linkedNodeGroupIds?: readonly (RuntimeNodeLinkId | null | undefined)[]
-  ) => RuntimeMeasurement;
-  setActiveToolType: (toolType: RuntimeToolId) => void;
-  requestModeChange: (toolType: RuntimeToolId) => void;
-  requestStartMeasurement: (toolType?: RuntimeToolId) => void;
+    toolType: StoredAnnotation["toolType"],
+    coordinates: readonly CesiumGeographicCoordinate[],
+    options?: AddAnnotationOptions,
+    linkedNodeGroupIds?: readonly (AnnotationNodeLinkId | null | undefined)[],
+    sourceToolId?: AnnotationToolId
+  ) => StoredAnnotation;
+  setActiveToolType: (toolId: AnnotationToolId) => void;
+  requestModeChange: (toolId: AnnotationToolId) => void;
+  requestActivateTool: (toolId?: AnnotationToolId) => void;
   requestFinishMeasurement: () => boolean;
   focusAdjacentAnnotationEntry: (offset: -1 | 1) => void;
   focusAnnotationId: (annotationId: string | null) => void;
@@ -65,15 +66,14 @@ type AnnotationsRuntimeServices = {
   setPointTemporaryMode: (temporaryMode: boolean) => void;
   setSelectedAnnotationId: (annotationId: string | null) => void;
   setSelectedAnnotationIds: (annotationIds: readonly string[]) => void;
-  setCursorOverlayEnabled: (enabled: boolean) => void;
 };
 
 type AnnotationsProviderProps = {
-  scene: RuntimeScene | null;
+  scene: Scene | null;
+  plugins: readonly AnnotationToolPlugin[];
   children?: ReactNode;
-  initialActiveToolType?: RuntimeToolId;
+  initialActiveToolType?: AnnotationToolId;
   initialPointTemporaryMode?: boolean;
-  plugins?: readonly AnnotationToolPlugin[];
   formatOptions?: AnnotationsRuntimeFormatOptions;
   previewLineLabelVisualOptions?: Partial<PreviewLineLabelVisualOptions>;
   initialPersistenceState?: AnnotationsRuntimePersistenceEnvelope | null;
@@ -112,10 +112,10 @@ const useRequiredAnnotationsRuntimeServices = () => {
 
 export const AnnotationsProvider = ({
   scene,
+  plugins,
   children,
   initialActiveToolType,
   initialPointTemporaryMode = false,
-  plugins,
   formatOptions = DEFAULT_RUNTIME_FORMAT_OPTIONS,
   previewLineLabelVisualOptions = DEFAULT_PREVIEW_LINE_LABEL_VISUAL_OPTIONS,
   initialPersistenceState = null,
@@ -128,7 +128,7 @@ export const AnnotationsProvider = ({
     runtimeAuthoringHost,
     runtimeVisualHost,
     registry,
-  } = useAnnotationsRuntimeAssembly({
+  } = useAnnotationsAssembly({
     scene,
     plugins,
     initialActiveToolType,
@@ -165,7 +165,7 @@ export const useAnnotationsRuntime = () => {
     addAnnotation,
     setActiveToolType,
     requestModeChange,
-    requestStartMeasurement,
+    requestActivateTool,
     requestFinishMeasurement,
     focusAdjacentAnnotationEntry,
     focusAnnotationId,
@@ -184,7 +184,6 @@ export const useAnnotationsRuntime = () => {
     setPointTemporaryMode,
     setSelectedAnnotationId,
     setSelectedAnnotationIds,
-    setCursorOverlayEnabled,
   } = useRequiredAnnotationsRuntimeServices();
   const activeToolType = useAnnotationsSelector(
     (state) => state.annotationToolType
@@ -214,7 +213,7 @@ export const useAnnotationsRuntime = () => {
     activeToolType,
     setActiveToolType,
     requestModeChange,
-    requestStartMeasurement,
+    requestActivateTool,
     requestFinishMeasurement,
     focusAdjacentAnnotationEntry,
     focusAnnotationId,
@@ -241,21 +240,5 @@ export const useAnnotationsRuntime = () => {
     setSelectedAnnotationId,
     setSelectedAnnotationIds,
     addAnnotation,
-    setCursorOverlayEnabled,
   };
-};
-
-export const useRuntimeCursorOverlay = (enabled: boolean) => {
-  const { setCursorOverlayEnabled } = useRequiredAnnotationsRuntimeServices();
-
-  useEffect(() => {
-    setCursorOverlayEnabled(enabled);
-  }, [enabled, setCursorOverlayEnabled]);
-
-  useEffect(
-    () => () => {
-      setCursorOverlayEnabled(false);
-    },
-    [setCursorOverlayEnabled]
-  );
 };

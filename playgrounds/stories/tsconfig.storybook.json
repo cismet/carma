@@ -1,19 +1,10 @@
 {
   "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "emitDecoratorMetadata": true,
-    "outDir": ""
-  },
   "exclude": ["stories/**/*.spec.ts", "stories/**/*.spec.tsx"],
   "include": [
     "stories/**/*.stories.ts",
     "stories/**/*.stories.tsx",
     "stories/**/*.stories.mdx",
     ".storybook/*.ts"
-  ],
-  "files": [
-    "../../node_modules/@nx/react/typings/styled-jsx.d.ts",
-    "../../node_modules/@nx/react/typings/cssmodule.d.ts",
-    "../../node_modules/@nx/react/typings/image.d.ts"
   ]
 }

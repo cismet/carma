@@ -1,21 +1,16 @@
-import type {
-  AnnotationInfoBoxLayoutProps,
-  AnnotationInfoBoxSlots,
-  AnnotationInfoBoxVisualOptions,
-} from "@carma-mapping/annotations/ui";
+import type { AnnotationInfoBoxVisualOptions } from "@carma-mapping/annotations/ui";
+import type { AnnotationInfoBoxSlots } from "@carma-mapping/annotations/ui";
 
 import type {
-  RuntimeAnnotationEntry,
-  RuntimeNode,
+  StoredAnnotation,
+  AnnotationNode,
 } from "../../store/annotations-store.types";
 import type { AnnotationsRuntimeFormatOptions } from "../../config/annotations-runtime-format-options";
 
-export type RuntimeAnnotationInfoBoxSlots = AnnotationInfoBoxSlots;
-
 export type RuntimeAnnotationInfoBoxContext = {
-  annotation: RuntimeAnnotationEntry;
-  annotationEntries: readonly RuntimeAnnotationEntry[];
-  nodes: readonly RuntimeNode[];
+  annotation: StoredAnnotation;
+  annotationEntries: readonly StoredAnnotation[];
+  nodes: readonly AnnotationNode[];
   selectedAnnotationId: string;
   setSelectedAnnotationId: (annotationId: string | null) => void;
   focusAnnotationId: (annotationId: string | null) => void;
@@ -37,5 +32,3 @@ export type RuntimeAnnotationInfoBoxContext = {
   formatOptions: AnnotationsRuntimeFormatOptions;
   infoBoxVisualOptions: AnnotationInfoBoxVisualOptions;
 };
-
-export type RuntimeAnnotationInfoBoxLayoutProps = AnnotationInfoBoxLayoutProps;

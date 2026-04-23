@@ -13,25 +13,24 @@ import {
   selectAllAnnotationIds,
   setSelectedAnnotationIds,
 } from "../../store";
-import type { RuntimeToolId } from "../../types/runtime-tool.types";
 import type {
   AnnotationToolPlugin,
   AnnotationToolSessionContext,
-} from "../../tools/annotation-tool-plugin.types";
+} from "../../registry/annotation-tool-plugin.types";
+import type { AnnotationToolId } from "../../registry/annotation-tool-id";
 import type { AnnotationModeSession } from "./annotation-mode-session.types";
 
 type UseManagedAnnotationKeyboardShortcutsOptions = {
   activePlugin: AnnotationToolPlugin | null;
-  activeToolType: RuntimeToolId;
+  activeToolType: AnnotationToolId;
   activeToolSession: AnnotationModeSession | null;
-  primaryInteractionToolId: RuntimeToolId | null;
+  primaryInteractionToolId: AnnotationToolId | null;
   focusAdjacentAnnotationEntry: (offset: -1 | 1) => void;
   requestFinishMeasurement: () => boolean;
-  requestStartMeasurement: (toolType?: RuntimeToolId) => void;
-  requestModeChange: (toolType: RuntimeToolId) => void;
+  requestActivateTool: (toolId?: AnnotationToolId) => void;
+  requestModeChange: (toolId: AnnotationToolId) => void;
   sessionContext: AnnotationToolSessionContext;
-  setActiveToolTypeInStore: (toolType: RuntimeToolId) => void;
-  setCursorOverlayEnabled: (enabled: boolean) => void;
+  setActiveToolTypeInStore: (toolId: AnnotationToolId) => void;
 };
 
 export const useManagedAnnotationKeyboardShortcuts = ({
@@ -41,11 +40,10 @@ export const useManagedAnnotationKeyboardShortcuts = ({
   primaryInteractionToolId,
   focusAdjacentAnnotationEntry,
   requestFinishMeasurement,
-  requestStartMeasurement,
+  requestActivateTool,
   requestModeChange,
   sessionContext,
   setActiveToolTypeInStore,
-  setCursorOverlayEnabled,
 }: UseManagedAnnotationKeyboardShortcutsOptions) => {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -99,7 +97,6 @@ export const useManagedAnnotationKeyboardShortcuts = ({
         activeToolType !== primaryInteractionToolId
       ) {
         activeToolSession?.discardDraft();
-        setCursorOverlayEnabled(false);
         setActiveToolTypeInStore(primaryInteractionToolId);
         event.preventDefault();
         return;
@@ -129,7 +126,7 @@ export const useManagedAnnotationKeyboardShortcuts = ({
           activeToolType,
           activeToolSession,
           requestFinishMeasurement,
-          requestStartMeasurement,
+          requestActivateTool,
           requestModeChange,
           sessionContext,
         })
@@ -159,9 +156,8 @@ export const useManagedAnnotationKeyboardShortcuts = ({
     primaryInteractionToolId,
     requestFinishMeasurement,
     requestModeChange,
-    requestStartMeasurement,
+    requestActivateTool,
     sessionContext,
     setActiveToolTypeInStore,
-    setCursorOverlayEnabled,
   ]);
 };

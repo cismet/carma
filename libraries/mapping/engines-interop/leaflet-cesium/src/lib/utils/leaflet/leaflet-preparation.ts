@@ -1,7 +1,7 @@
 import type { Map as LeafletMap } from "leaflet";
 
 import { isZoom } from "@carma-units";
-import { promiseWithTimeout } from "@carma-commons/utils/promise";
+import { promiseWithTimeout } from "@carma-commons/utils";
 import { LeafletMapStateChangeEvents } from "@carma-mapping/engines/leaflet";
 type LeafletPrepOptions = {
   maxZoom: number;

@@ -1,13 +1,8 @@
 import {
-  ANNOTATION_CANDIDATE_KIND_DISTANCE,
-  ANNOTATION_CANDIDATE_KIND_NONE,
-  ANNOTATION_CANDIDATE_KIND_POINT,
-  ANNOTATION_CANDIDATE_KIND_POLYGON_GROUND,
-  ANNOTATION_CANDIDATE_KIND_POLYGON_PLANAR,
-  ANNOTATION_CANDIDATE_KIND_POLYGON_VERTICAL,
-  ANNOTATION_CANDIDATE_KIND_POLYLINE,
+  ANNOTATION_CANDIDATE_KINDS,
   type AnnotationCandidateKind,
 } from "../types/annotation-candidate";
+import { hasSignificantVerticalOffsetMeters } from "./annotation-geometry-defaults";
 
 export type AnnotationCandidateCapabilities = {
   isPolylineCandidateMode: boolean;
@@ -21,24 +16,24 @@ export type AnnotationCandidateCapabilities = {
 export const resolveCandidateCapabilities = (
   kind: AnnotationCandidateKind
 ): AnnotationCandidateCapabilities => {
-  const isPolylineCandidateMode = kind === ANNOTATION_CANDIDATE_KIND_POLYLINE;
+  const isPolylineCandidateMode = kind === ANNOTATION_CANDIDATE_KINDS.POLYLINE;
   const isVerticalPolygonCandidate =
-    kind === ANNOTATION_CANDIDATE_KIND_POLYGON_VERTICAL;
-  const hasCandidateNode = kind !== ANNOTATION_CANDIDATE_KIND_NONE;
+    kind === ANNOTATION_CANDIDATE_KINDS.POLYGON_VERTICAL;
+  const hasCandidateNode = kind !== ANNOTATION_CANDIDATE_KINDS.NONE;
   const candidateSupportsEdgeLine =
-    kind === ANNOTATION_CANDIDATE_KIND_DISTANCE ||
-    kind === ANNOTATION_CANDIDATE_KIND_POLYLINE ||
-    kind === ANNOTATION_CANDIDATE_KIND_POLYGON_GROUND ||
-    kind === ANNOTATION_CANDIDATE_KIND_POLYGON_PLANAR ||
-    kind === ANNOTATION_CANDIDATE_KIND_POLYGON_VERTICAL;
+    kind === ANNOTATION_CANDIDATE_KINDS.DISTANCE ||
+    kind === ANNOTATION_CANDIDATE_KINDS.POLYLINE ||
+    kind === ANNOTATION_CANDIDATE_KINDS.POLYGON_GROUND ||
+    kind === ANNOTATION_CANDIDATE_KINDS.POLYGON_PLANAR ||
+    kind === ANNOTATION_CANDIDATE_KINDS.POLYGON_VERTICAL;
   const candidateUsesPolylineEdgeRules =
-    kind === ANNOTATION_CANDIDATE_KIND_POLYLINE ||
-    kind === ANNOTATION_CANDIDATE_KIND_POLYGON_GROUND ||
-    kind === ANNOTATION_CANDIDATE_KIND_POLYGON_PLANAR;
+    kind === ANNOTATION_CANDIDATE_KINDS.POLYLINE ||
+    kind === ANNOTATION_CANDIDATE_KINDS.POLYGON_GROUND ||
+    kind === ANNOTATION_CANDIDATE_KINDS.POLYGON_PLANAR;
   const candidateForcesDirectEdgeLine =
-    kind === ANNOTATION_CANDIDATE_KIND_POLYGON_GROUND ||
-    kind === ANNOTATION_CANDIDATE_KIND_POLYGON_PLANAR ||
-    kind === ANNOTATION_CANDIDATE_KIND_POLYGON_VERTICAL;
+    kind === ANNOTATION_CANDIDATE_KINDS.POLYGON_GROUND ||
+    kind === ANNOTATION_CANDIDATE_KINDS.POLYGON_PLANAR ||
+    kind === ANNOTATION_CANDIDATE_KINDS.POLYGON_VERTICAL;
 
   return {
     isPolylineCandidateMode,
@@ -54,5 +49,5 @@ export const hasPointCandidateOffsetStem = (
   kind: AnnotationCandidateKind,
   verticalOffsetMeters: number
 ): boolean =>
-  kind === ANNOTATION_CANDIDATE_KIND_POINT &&
-  Math.abs(verticalOffsetMeters) > 1e-9;
+  kind === ANNOTATION_CANDIDATE_KINDS.POINT &&
+  hasSignificantVerticalOffsetMeters(verticalOffsetMeters);

@@ -7,38 +7,43 @@ export {
   readMaxNumericSuffix,
 } from "./annotation-entity-builder.helpers";
 export {
+  ANNOTATION_ELEVATION_DISPLAY_MODES,
   type AnnotationsStoreState,
-  type RuntimeAddAnnotationOptions,
-  type RuntimeAnnotationEntry,
-  type RuntimeCoordinate,
-  type RuntimeEdge,
-  type RuntimeNodeLink,
-  type RuntimeNodeLinkId,
-  type RuntimeMeasurement,
-  type RuntimeNode,
-  type RuntimeNodeId,
+  type AnnotationElevationDisplayMode,
+  type AnnotationLabelAppearance,
+  type CesiumGeographicCoordinate,
+  type AddAnnotationOptions,
+  type StoredAnnotation,
+  type AnnotationEdge,
+  type AnnotationNodeLink,
+  type AnnotationNodeLinkId,
+  type AnnotationNode,
+  type AnnotationNodeId,
 } from "./annotations-store.types";
 export {
+  buildAnnotationsRuntimePersistenceState,
+  loadAnnotationsRuntimePersistenceState,
+  resolvePersistedAnnotationsStoreState,
+  saveAnnotationsRuntimePersistenceState,
+  type AnnotationsRuntimePersistenceEnvelope,
+} from "./persistence/annotations-store-persistence";
+export {
   resolveRemovableSelectedAnnotationIds,
-  selectAdjacentRuntimeAnnotationEntryId,
+  selectAdjacentAnnotationEntryId,
   selectAllAnnotationIds,
   selectSelectedAnnotationId,
 } from "./annotation-selection.helpers";
 export {
   appendAnnotationEntities,
-  clearTemporaryAnnotationsByToolType,
   createAnnotationsStore,
   createInitialAnnotationsStoreState,
-  finalizeTemporaryAnnotations,
-  finalizeTemporaryAnnotationsByToolType,
+  insertNodeIntoMeasurementEdge,
   removeAnnotationById,
   removeAnnotationsByIds,
   replaceState,
-  setAnnotationTemporaryById,
   setAnnotationToolType,
   setElevationReferenceAnnotationId,
   setNextShortLabelCounterByToolType,
-  setPendingAnnotationIdByToolType,
   setPointTemporaryMode,
   setSelectedAnnotationId,
   setSelectedAnnotationIds,
@@ -47,17 +52,15 @@ export {
   type AnnotationsStore,
   type AppendAnnotationEntitiesPayload,
   type CreateInitialAnnotationsStoreStateOptions,
+  type InsertNodeIntoMeasurementEdgePayload,
   type RemoveAnnotationByIdPayload,
   type RemoveAnnotationsByIdsPayload,
-  type SetAnnotationTemporaryByIdPayload,
   type SetElevationReferenceAnnotationIdPayload,
   type SetNextShortLabelCounterByToolTypePayload,
-  type SetPendingAnnotationIdByToolTypePayload,
   type SetSelectedAnnotationIdsPayload,
   type UpdateAnnotationEntryByIdPayload,
   type UpdateNodeCoordinateByIdPayload,
 } from "./create-annotations-store";
-export { getPendingAnnotationIdForTool } from "./draft-state.helpers";
 export {
   buildNodeLinkIdByNodeId,
   buildNodeLinksFromLegacyNodes,
@@ -65,11 +68,11 @@ export {
   resolveNodeLinkIdForNodeId,
   resolveNodeLinkNodeIds,
   resolveNextNodeLinksForNodeMove,
-  type LegacyRuntimeNodeWithLinkedGroupId,
+  type LegacyAnnotationNodeWithLinkedGroupId,
 } from "./node-links.helpers";
 export {
-  resolveRuntimeNodeMoveScope,
-  type RuntimeNodeMoveScope,
+  resolveAnnotationNodeMoveScope,
+  type AnnotationNodeMoveScope,
 } from "./node-move-scope.helpers";
 export {
   AnnotationsReduxContext,
@@ -77,3 +80,7 @@ export {
   useAnnotationsSelector,
   useAnnotationsStore,
 } from "./use-annotations-store";
+export {
+  useLocalAnnotationsStorePersistence,
+  useLocalAnnotationsRuntimePersistence,
+} from "./persistence/useLocalAnnotationsStorePersistence";

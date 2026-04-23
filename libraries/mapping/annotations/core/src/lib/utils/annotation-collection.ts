@@ -2,22 +2,21 @@ import { Cartesian3 } from "@carma-cesium";
 
 import {
   isPointAnnotationEntry,
-  type AnnotationCollection,
   type AnnotationEntry,
-  type PointAnnotationEntry,
+  type AnnotationPointEntry,
 } from "../types/annotation-cesium-types";
 import type { NodeChainAnnotation } from "../types/annotation-types";
 import { getCustomPointAnnotationName } from "./annotation-naming";
 export const getPointById = (
-  annotations: AnnotationCollection,
+  annotations: AnnotationEntry[],
   pointId: string
-): PointAnnotationEntry | null => {
+): AnnotationPointEntry | null => {
   const point = annotations.find((measurement) => measurement.id === pointId);
   return point && isPointAnnotationEntry(point) ? point : null;
 };
 
 export const getPointPositionMap = (
-  annotations: AnnotationCollection,
+  annotations: AnnotationEntry[],
   overrides?: Readonly<Record<string, Cartesian3>>
 ) => {
   const map = new Map<string, Cartesian3>();
@@ -54,7 +53,7 @@ export const getMeasurementEntryFlyToPoints = (
 
 export const getAnnotationFlyToPointsById = (
   id: string,
-  annotations: AnnotationCollection,
+  annotations: AnnotationEntry[],
   nodeChainAnnotations: readonly NodeChainAnnotation[]
 ): Cartesian3[] => {
   if (!id) {
@@ -79,7 +78,7 @@ export const getAnnotationFlyToPointsById = (
 };
 
 export const getLastCustomPointAnnotationName = (
-  annotations: AnnotationCollection
+  annotations: AnnotationEntry[]
 ): string | undefined => {
   for (let index = annotations.length - 1; index >= 0; index -= 1) {
     const annotation = annotations[index];

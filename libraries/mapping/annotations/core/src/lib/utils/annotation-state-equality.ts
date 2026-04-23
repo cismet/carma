@@ -1,11 +1,18 @@
+import { arePoint3Close } from "@carma-commons/math";
+import { isClose } from "@carma-commons/utils";
+
 import type {
+  DerivedNodeChainAnnotationGeometry,
   NodeChainAnnotation,
   PlanarPolygonLocalFrame,
   PlanarPolygonPlane,
 } from "../types/annotation-types";
 import type { PointDistanceRelation } from "../types/distance-relation";
 import type { ReferenceLineLabelKind } from "../visualization/distance/distance-relation-label.types";
-const DEFAULT_NUMERIC_EPSILON = 1e-9;
+
+const annotationStateEqualityDefaults = Object.freeze({
+  numericEpsilon: 1e-9,
+});
 
 const areStringArraysEqual = (
   left: readonly string[],
@@ -45,14 +52,14 @@ const areDistanceLineVisibilityEqual = (
 const areOptionalNumbersEqual = (
   left: number | undefined,
   right: number | undefined,
-  epsilon: number = DEFAULT_NUMERIC_EPSILON
+  epsilon: number = annotationStateEqualityDefaults.numericEpsilon
 ) => {
   if (left === right) return true;
   if (left === undefined || right === undefined) return false;
-  return Math.abs(left - right) <= epsilon;
+  return isClose(left, right, epsilon);
 };
 
-const areMetricVector3Equal = (
+const areOptionalPoint3Close = (
   left:
     | {
         x: number;
@@ -67,49 +74,48 @@ const areMetricVector3Equal = (
         z: number;
       }
     | undefined,
-  epsilon: number = DEFAULT_NUMERIC_EPSILON
+  epsilon: number = annotationStateEqualityDefaults.numericEpsilon
 ) => {
   if (left === right) return true;
   if (!left || !right) return false;
-  return (
-    Math.abs(left.x - right.x) <= epsilon &&
-    Math.abs(left.y - right.y) <= epsilon &&
-    Math.abs(left.z - right.z) <= epsilon
-  );
+  return arePoint3Close(left, right, epsilon);
 };
 
 const arePlanarPolygonPlanesEqual = (
   left: PlanarPolygonPlane | undefined,
   right: PlanarPolygonPlane | undefined,
-  epsilon: number = DEFAULT_NUMERIC_EPSILON
+  epsilon: number = annotationStateEqualityDefaults.numericEpsilon
 ) => {
   if (left === right) return true;
   if (!left || !right) return false;
   return (
-    areMetricVector3Equal(left.anchorECEF, right.anchorECEF, epsilon) &&
-    areMetricVector3Equal(left.normalECEF, right.normalECEF, epsilon)
+    areOptionalPoint3Close(left.anchorECEF, right.anchorECEF, epsilon) &&
+    areOptionalPoint3Close(left.normalECEF, right.normalECEF, epsilon)
   );
 };
 
 const arePlanarPolygonLocalFramesEqual = (
   left: PlanarPolygonLocalFrame | undefined,
   right: PlanarPolygonLocalFrame | undefined,
-  epsilon: number = DEFAULT_NUMERIC_EPSILON
+  epsilon: number = annotationStateEqualityDefaults.numericEpsilon
 ) => {
   if (left === right) return true;
   if (!left || !right) return false;
   return (
-    areMetricVector3Equal(left.originECEF, right.originECEF, epsilon) &&
-    areMetricVector3Equal(left.eastECEF, right.eastECEF, epsilon) &&
-    areMetricVector3Equal(left.northECEF, right.northECEF, epsilon) &&
-    areMetricVector3Equal(left.upECEF, right.upECEF, epsilon)
+    areOptionalPoint3Close(left.originECEF, right.originECEF, epsilon) &&
+    areOptionalPoint3Close(left.eastECEF, right.eastECEF, epsilon) &&
+    areOptionalPoint3Close(left.northECEF, right.northECEF, epsilon) &&
+    areOptionalPoint3Close(left.upECEF, right.upECEF, epsilon)
   );
 };
 
+type ComparablePolygonAnnotation = NodeChainAnnotation &
+  Partial<DerivedNodeChainAnnotationGeometry>;
+
 export const arePolygonAnnotationsEquivalent = (
-  left: NodeChainAnnotation,
-  right: NodeChainAnnotation,
-  epsilon: number = DEFAULT_NUMERIC_EPSILON
+  left: ComparablePolygonAnnotation,
+  right: ComparablePolygonAnnotation,
+  epsilon: number = annotationStateEqualityDefaults.numericEpsilon
 ) =>
   left === right ||
   (left.id === right.id &&
@@ -153,7 +159,7 @@ export const arePolygonAnnotationsEquivalent = (
       right.verticalityDeg,
       epsilon
     ) &&
-    areOptionalNumbersEqual(left.bearingDeg, right.bearingDeg, epsilon));
+    areOptionalNumbersEqual(left.bearingRad, right.bearingRad, epsilon));
 
 const areDistanceLabelVisibilityEquivalent = (
   left: PointDistanceRelation["labelVisibilityByKind"],

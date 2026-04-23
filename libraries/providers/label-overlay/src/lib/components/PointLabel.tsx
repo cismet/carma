@@ -26,7 +26,17 @@ import {
   POINT_LABEL_LAYOUT_DEFAULTS,
   POINT_LABEL_THEME_DEFAULTS,
 } from "./pointLabelDefaults";
+import {
+  buildOverlayGlowBoxShadowCss,
+  buildOverlaySoftShadowBoxShadowCss,
+  labelOverlayAffordanceDefaults,
+} from "../overlayAffordanceDefaults";
 export { POINT_LABEL_ATTACH, type PointLabelAttach };
+export {
+  DEFAULT_POINT_LABEL_FONT_FAMILY,
+  DEFAULT_POINT_LABEL_FONT_SIZE,
+  DEFAULT_POINT_LABEL_FONT_WEIGHT,
+} from "./PillbuttonLabelMarker";
 export {
   POINT_LABEL_COMPONENT_DEFAULTS,
   POINT_LABEL_INTERACTION_DEFAULTS,
@@ -128,8 +138,12 @@ const nodeMarkerBaseStyles: CSSProperties = {
   borderRadius: "50%",
   fontVariantNumeric: "tabular-nums lining-nums",
   fontFeatureSettings: '"tnum" 1, "lnum" 1',
-  boxShadow: "0 0 2px rgba(0,0,0,0.55)",
+  boxShadow: buildOverlaySoftShadowBoxShadowCss(),
 };
+
+const pointLabelVisualDefaults = Object.freeze({
+  markerBorderColor: labelOverlayAffordanceDefaults.colors.surfaceMax,
+});
 
 const parseFontSizePx = (fontSize: string): number => {
   const parsed = Number.parseFloat(fontSize);
@@ -381,12 +395,17 @@ export const PointLabel = React.memo(
       : textBackgroundColor;
     const selectedGlowBoxShadow =
       selected && selectedGlowColor !== undefined && selectedGlowRadiusPx > 0
-        ? `0 0 ${selectedGlowRadiusPx}px ${selectedGlowColor}`
+        ? buildOverlayGlowBoxShadowCss({
+            color: selectedGlowColor,
+            blurRadiusPx: selectedGlowRadiusPx,
+          })
         : undefined;
     const effectiveCompactBackgroundColor = selected
       ? preserveFillOnSelection
         ? markerBackgroundColor
         : effectiveBackgroundColor
+      : isHovered
+      ? hoverBackgroundColor
       : markerBackgroundColor;
     const effectiveCompactTextColor = selected
       ? effectiveTextColor
@@ -395,8 +414,10 @@ export const PointLabel = React.memo(
       ? `1px solid ${selectedGlowColor ?? selectedTextColor}`
       : "none";
     const effectiveMarkerBorderColor = selected
-      ? selectedGlowColor ?? selectedTextColor ?? "#fff"
-      : "#fff";
+      ? selectedGlowColor ??
+        selectedTextColor ??
+        pointLabelVisualDefaults.markerBorderColor
+      : pointLabelVisualDefaults.markerBorderColor;
     const markerDiameterPx = renderInvisibleInteractionMarker
       ? Math.max(
           markerSize,

@@ -1,17 +1,17 @@
 import type {
-  RuntimeCoordinate,
-  RuntimeNodeLink,
-  RuntimeNodeLinkId,
-  RuntimeNodeId,
-  RuntimeNode,
+  CesiumGeographicCoordinate,
+  AnnotationNodeLink,
+  AnnotationNodeLinkId,
+  AnnotationNodeId,
+  AnnotationNode,
 } from "./annotations-store.types";
 
-export type LegacyRuntimeNodeWithLinkedGroupId = RuntimeNode & {
-  linkedNodeGroupId?: RuntimeNodeLinkId;
+export type LegacyAnnotationNodeWithLinkedGroupId = AnnotationNode & {
+  linkedNodeGroupId?: AnnotationNodeLinkId;
 };
 
 export const buildNodeLinkIdByNodeId = (
-  nodeLinks: readonly RuntimeNodeLink[]
+  nodeLinks: readonly AnnotationNodeLink[]
 ) =>
   new Map(
     nodeLinks.flatMap((nodeLink) =>
@@ -20,12 +20,12 @@ export const buildNodeLinkIdByNodeId = (
   );
 
 export const resolveNodeLinkIdForNodeId = (
-  nodeLinks: readonly RuntimeNodeLink[],
+  nodeLinks: readonly AnnotationNodeLink[],
   nodeId: string
 ) => buildNodeLinkIdByNodeId(nodeLinks).get(nodeId) ?? null;
 
 export const resolveNodeLinkNodeIds = (
-  nodeLinks: readonly RuntimeNodeLink[],
+  nodeLinks: readonly AnnotationNodeLink[],
   nodeId: string
 ) =>
   nodeLinks.find((nodeLink) => nodeLink.nodeIds.includes(nodeId))?.nodeIds ?? [
@@ -36,9 +36,9 @@ export const reconcileNodeLinks = ({
   nodes,
   nodeLinks,
 }: {
-  nodes: readonly RuntimeNode[];
-  nodeLinks: readonly RuntimeNodeLink[];
-}): RuntimeNodeLink[] => {
+  nodes: readonly AnnotationNode[];
+  nodeLinks: readonly AnnotationNodeLink[];
+}): AnnotationNodeLink[] => {
   const validNodeIdSet = new Set(nodes.map((node) => node.id));
   const normalizedNodeLinks = nodeLinks
     .map((nodeLink) => ({
@@ -68,8 +68,8 @@ const NODE_LINK_DETACH_EPSILON_METERS = 0.1;
 const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
 
 const resolveCoordinateDistanceMeters = (
-  left: RuntimeCoordinate,
-  right: RuntimeCoordinate
+  left: CesiumGeographicCoordinate,
+  right: CesiumGeographicCoordinate
 ) => {
   const deltaLatitudeRad = toRadians(right.latitude - left.latitude);
   const deltaLongitudeRad = toRadians(right.longitude - left.longitude);
@@ -96,12 +96,12 @@ export const resolveNextNodeLinksForNodeMove = ({
   movedNodeIds,
   linkToNodeId,
 }: {
-  nodes: readonly RuntimeNode[];
-  nodeLinks: readonly RuntimeNodeLink[];
-  nodeId: RuntimeNodeId;
-  movedNodeIds: readonly RuntimeNodeId[];
-  linkToNodeId?: RuntimeNodeId | null;
-}): RuntimeNodeLink[] => {
+  nodes: readonly AnnotationNode[];
+  nodeLinks: readonly AnnotationNodeLink[];
+  nodeId: AnnotationNodeId;
+  movedNodeIds: readonly AnnotationNodeId[];
+  linkToNodeId?: AnnotationNodeId | null;
+}): AnnotationNodeLink[] => {
   const targetNode = nodes.find((node) => node.id === nodeId) ?? null;
   const normalizedMovedNodeIds = Array.from(
     new Set(movedNodeIds.filter(Boolean))
@@ -185,9 +185,9 @@ export const resolveNextNodeLinksForNodeMove = ({
 };
 
 export const buildNodeLinksFromLegacyNodes = (
-  nodes: readonly LegacyRuntimeNodeWithLinkedGroupId[]
-): RuntimeNodeLink[] => {
-  const nodeIdsByGroupId = new Map<RuntimeNodeLinkId, string[]>();
+  nodes: readonly LegacyAnnotationNodeWithLinkedGroupId[]
+): AnnotationNodeLink[] => {
+  const nodeIdsByGroupId = new Map<AnnotationNodeLinkId, string[]>();
 
   nodes.forEach((node) => {
     const nodeLinkId =

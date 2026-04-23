@@ -1,4 +1,4 @@
-import { COLORS_HEX } from "@carma-commons/utils";
+import { COLORS_HEX, formatHexRgbaCss } from "@carma-commons/utils";
 
 import type { AnnotationInfoBoxVisualOptions } from "../annotation-info-box.types";
 
@@ -25,17 +25,56 @@ const annotationInfoBoxUiDefaults = Object.freeze({
   panelBackdropBlurRem: "0.1429rem", // 2 / 14
 });
 
+const annotationInfoBoxColorPalette = Object.freeze({
+  heading: COLORS_HEX.ACCENT_MEASUREMENTS,
+  panelSurface: COLORS_HEX.NEUTRAL_SURFACE_SUBTLE,
+  panelBorder: COLORS_HEX.NEUTRAL_BORDER_SUBTLE,
+  shadowBase: COLORS_HEX.NEUTRAL_BLACK,
+  bodyText: COLORS_HEX.NEUTRAL_TEXT_PRIMARY,
+  mutedText: COLORS_HEX.NEUTRAL_TEXT_MUTED,
+  linkText: COLORS_HEX.WUPP_BLUE,
+  fieldText: COLORS_HEX.NEUTRAL_TEXT_STRONG,
+  fieldBorder: COLORS_HEX.NEUTRAL_BORDER_DEFAULT,
+  fieldInputBorder: COLORS_HEX.NEUTRAL_BORDER_INPUT,
+  fieldFocusBackground: COLORS_HEX.STATE_FOCUS_BACKGROUND_WARM,
+  fieldFocusOutline: COLORS_HEX.STATE_FOCUS_OUTLINE,
+  titleText: COLORS_HEX.NEUTRAL_TEXT_STRONG,
+});
+
+const annotationInfoBoxAlpha = Object.freeze({
+  panelSurface: 0.9,
+  panelBorder: 0.9,
+  panelInsetShadow: 0.02,
+});
+
 export const annotationInfoBoxVisualDefaults: AnnotationInfoBoxVisualOptions =
   Object.freeze({
     defaultPixelWidth: 430,
-    headingColor: "#4b7ed1",
+    headingColor: annotationInfoBoxColorPalette.heading,
     bodyPanelStyle: {
-      backgroundColor: "rgba(245, 245, 245, 0.9)",
-      border: `${annotationInfoBoxUiDefaults.hairlineBorderWidthRem} solid rgba(227, 227, 227, 0.9)`,
-      boxShadow: `rgba(0, 0, 0, 0.02) 0 ${annotationInfoBoxUiDefaults.panelInsetShadowYOffsetRem} ${annotationInfoBoxUiDefaults.panelInsetShadowBlurRem} inset`,
+      backgroundColor: formatHexRgbaCss(
+        annotationInfoBoxColorPalette.panelSurface,
+        annotationInfoBoxAlpha.panelSurface
+      ),
+      border: `${
+        annotationInfoBoxUiDefaults.hairlineBorderWidthRem
+      } solid ${formatHexRgbaCss(
+        annotationInfoBoxColorPalette.panelBorder,
+        annotationInfoBoxAlpha.panelBorder
+      )}`,
+      boxShadow: `${formatHexRgbaCss(
+        annotationInfoBoxColorPalette.shadowBase,
+        annotationInfoBoxAlpha.panelInsetShadow
+      )} 0 ${annotationInfoBoxUiDefaults.panelInsetShadowYOffsetRem} ${
+        annotationInfoBoxUiDefaults.panelInsetShadowBlurRem
+      } inset`,
       backdropFilter: `blur(${annotationInfoBoxUiDefaults.panelBackdropBlurRem})`,
       WebkitBackdropFilter: `blur(${annotationInfoBoxUiDefaults.panelBackdropBlurRem})`,
     },
+    resolveActionTooltipPopupContainer: (triggerNode) =>
+      (triggerNode.closest(
+        '[data-test-id="annotation-info-box"]'
+      ) as HTMLElement | null) ?? triggerNode.ownerDocument.body,
     headerForegroundClassName: "text-white/80",
     headerTitleClassName: `truncate ${annotationInfoBoxTypographyDefaults.headingTypographyClassName}`,
     subtitleContainerClassName: "mb-0 w-full px-3 pt-[0.28em]",
@@ -51,30 +90,29 @@ export const annotationInfoBoxVisualDefaults: AnnotationInfoBoxVisualOptions =
     bodyTextStyle: {
       fontSize: annotationInfoBoxTypographyDefaults.rootFontSizeRem,
       lineHeight: 1.4,
-      color: "#212529",
+      color: annotationInfoBoxColorPalette.bodyText,
     },
-    bodyTextClassName: `text-[${annotationInfoBoxTypographyDefaults.rootFontSizeRem}] leading-[1.4] text-[#212529]`,
-    mutedTextClassName: "text-[#6b7280]",
-    linkTextClassName: "text-[#0078a8]",
+    bodyTextClassName: `text-[${annotationInfoBoxTypographyDefaults.rootFontSizeRem}] leading-[1.4] text-[${annotationInfoBoxColorPalette.bodyText}]`,
+    mutedTextClassName: `text-[${annotationInfoBoxColorPalette.mutedText}]`,
+    linkTextClassName: `text-[${annotationInfoBoxColorPalette.linkText}]`,
     actionIconClassName: "transition-colors",
     actionIconColor: COLORS_HEX.ACCENT_NEUTRALS,
     actionIconHoverColor: COLORS_HEX.ACCENT_NEUTRALS_HOVER,
     actionIconFontSize: "1rem",
-    fieldTextClassName: "text-[#111827]",
-    fieldBorderClassName: `border-[${annotationInfoBoxUiDefaults.hairlineBorderWidthRem}] border-[#d1d5db]`,
-    fieldInputBorderClassName: `border-[${annotationInfoBoxUiDefaults.hairlineBorderWidthRem}] border-[#ced4da]`,
-    fieldFocusBackgroundClassName: "focus:bg-[#fef3c7]",
-    fieldFocusOutlineClassName:
-      "focus:outline focus:outline-2 focus:outline-[#1677ff]",
+    fieldTextClassName: `text-[${annotationInfoBoxColorPalette.fieldText}]`,
+    fieldBorderClassName: `border-[${annotationInfoBoxUiDefaults.hairlineBorderWidthRem}] border-[${annotationInfoBoxColorPalette.fieldBorder}]`,
+    fieldInputBorderClassName: `border-[${annotationInfoBoxUiDefaults.hairlineBorderWidthRem}] border-[${annotationInfoBoxColorPalette.fieldInputBorder}]`,
+    fieldFocusBackgroundClassName: `focus:bg-[${annotationInfoBoxColorPalette.fieldFocusBackground}]`,
+    fieldFocusOutlineClassName: `focus:outline focus:outline-2 focus:outline-[${annotationInfoBoxColorPalette.fieldFocusOutline}]`,
     subtleFieldBackgroundClassName: "bg-white/85",
     titleTextStyle: {
       fontSize: annotationInfoBoxTypographyDefaults.headingFontSizeRem,
       fontWeight: annotationInfoBoxTypographyDefaults.headingFontWeight,
       lineHeight: 1.25,
     },
-    titleTextClassName: `text-[#111827]/80 ${annotationInfoBoxTypographyDefaults.titleTypographyClassName}`,
-    titleInputClassName: `min-w-0 w-auto max-w-full appearance-none [field-sizing:content] break-words rounded-[${annotationInfoBoxUiDefaults.borderRadiusRem}] border border-transparent bg-transparent pl-0 pr-[0.35em] py-[0.05em] text-[#111827]/80 placeholder:text-[#111827]/50 focus:bg-[#fef3c7] focus:outline focus:outline-2 focus:outline-[#1677ff] ${annotationInfoBoxTypographyDefaults.titleTypographyClassName}`,
-    shortLabelInputClassName: `shrink-0 w-auto appearance-none [field-sizing:content] border-[${annotationInfoBoxUiDefaults.hairlineBorderWidthRem}] px-[0.5ex] py-0 text-center tabular-nums border-[#d1d5db] bg-white/85 text-[#111827]/80 placeholder:text-[#111827]/80 focus:bg-[#fef3c7] focus:outline focus:outline-2 focus:outline-[#1677ff] ${annotationInfoBoxTypographyDefaults.titleTypographyClassName}`,
+    titleTextClassName: `text-[${annotationInfoBoxColorPalette.titleText}]/80 ${annotationInfoBoxTypographyDefaults.titleTypographyClassName}`,
+    titleInputClassName: `min-w-0 w-auto max-w-full appearance-none [field-sizing:content] break-words rounded-[${annotationInfoBoxUiDefaults.borderRadiusRem}] border border-transparent bg-transparent pl-0 pr-[0.35em] py-[0.05em] text-[${annotationInfoBoxColorPalette.titleText}]/80 placeholder:text-[${annotationInfoBoxColorPalette.titleText}]/50 focus:bg-[${annotationInfoBoxColorPalette.fieldFocusBackground}] focus:outline focus:outline-2 focus:outline-[${annotationInfoBoxColorPalette.fieldFocusOutline}] ${annotationInfoBoxTypographyDefaults.titleTypographyClassName}`,
+    shortLabelInputClassName: `shrink-0 w-auto appearance-none [field-sizing:content] border-[${annotationInfoBoxUiDefaults.hairlineBorderWidthRem}] px-[0.5ex] py-0 text-center tabular-nums border-[${annotationInfoBoxColorPalette.fieldBorder}] bg-white/85 text-[${annotationInfoBoxColorPalette.titleText}]/80 placeholder:text-[${annotationInfoBoxColorPalette.titleText}]/80 focus:bg-[${annotationInfoBoxColorPalette.fieldFocusBackground}] focus:outline focus:outline-2 focus:outline-[${annotationInfoBoxColorPalette.fieldFocusOutline}] ${annotationInfoBoxTypographyDefaults.titleTypographyClassName}`,
     navigationInstructionContainerClassName:
       "mt-1 flex w-full items-center justify-center px-2 pt-1",
     navigationAvailabilityContainerClassName:
@@ -83,9 +121,9 @@ export const annotationInfoBoxVisualDefaults: AnnotationInfoBoxVisualOptions =
       "mb-1 mt-0 flex w-full items-center justify-between px-2",
     navigationLinkFontSize:
       annotationInfoBoxTypographyDefaults.supportFontSizeRem,
-    inlineFieldButtonClassName: `inline-flex h-5 w-5 items-center justify-center rounded border-[${annotationInfoBoxUiDefaults.hairlineBorderWidthRem}] border-[#ced4da]`,
-    colorInputClassName: `h-6 w-8 cursor-pointer rounded border-[${annotationInfoBoxUiDefaults.hairlineBorderWidthRem}] border-[#ced4da] bg-transparent p-0`,
-    inlineActionButtonClassName: `inline-flex items-center gap-1 rounded border-[${annotationInfoBoxUiDefaults.hairlineBorderWidthRem}] border-[#ced4da] px-2 py-1`,
+    inlineFieldButtonClassName: `inline-flex h-5 w-5 items-center justify-center rounded border-[${annotationInfoBoxUiDefaults.hairlineBorderWidthRem}] border-[${annotationInfoBoxColorPalette.fieldInputBorder}]`,
+    colorInputClassName: `h-6 w-8 cursor-pointer rounded border-[${annotationInfoBoxUiDefaults.hairlineBorderWidthRem}] border-[${annotationInfoBoxColorPalette.fieldInputBorder}] bg-transparent p-0`,
+    inlineActionButtonClassName: `inline-flex items-center gap-1 rounded border-[${annotationInfoBoxUiDefaults.hairlineBorderWidthRem}] border-[${annotationInfoBoxColorPalette.fieldInputBorder}] px-2 py-1`,
   });
 
 export const resolveAnnotationInfoBoxVisualOptions = (

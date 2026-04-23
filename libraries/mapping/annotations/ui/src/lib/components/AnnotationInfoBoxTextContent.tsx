@@ -21,9 +21,9 @@ export const AnnotationInfoBoxTextContent = ({
 
   return (
     <div
-      className={`${resolvedVisualOptions.bodyTextClassName}${
-        className ? ` ${className}` : ""
-      }`}
+      className={`${resolvedVisualOptions.bodyContainerClassName} ${
+        resolvedVisualOptions.bodyTextClassName
+      }${className ? ` ${className}` : ""}`}
       style={{
         ...resolvedVisualOptions.bodyTextStyle,
         ...style,

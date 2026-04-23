@@ -4,6 +4,7 @@ export type AnnotationInfoBoxVisualOptions = Readonly<{
   defaultPixelWidth: number;
   headingColor: string;
   bodyPanelStyle: CSSProperties;
+  resolveActionTooltipPopupContainer: (triggerNode: HTMLElement) => HTMLElement;
   headerForegroundClassName: string;
   headerTitleClassName: string;
   subtitleContainerClassName: string;

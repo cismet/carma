@@ -1,10 +1,8 @@
 import { SVG_LINE_LABEL_ROTATION_MODE, type SvgLine } from "@carma-commons/svg";
+import { PI_OVER_TWO } from "@carma-units";
 import { describe, expect, it } from "vitest";
 
-import {
-  DEFAULT_LINE_LABEL_OFFSET_PX,
-  resolveOverlayLineLabelPlacement,
-} from "./lineLabelPlacement";
+import { resolveOverlayLineLabelPlacement } from "./lineLabelPlacement";
 
 const createSvgLine = (
   startX: number,
@@ -26,14 +24,14 @@ describe("resolveOverlayLineLabelPlacement", () => {
     });
 
     expect(placement).toMatchObject({
-      angleDeg: 0,
+      angleRad: 0,
       lineLengthPx: 10,
       midX: 5,
       midY: 0,
       normalY: 1,
       shouldFlip: false,
       textX: 5,
-      textY: DEFAULT_LINE_LABEL_OFFSET_PX,
+      textY: 10,
     });
     expect(placement?.normalX).toBeCloseTo(0);
   });
@@ -53,7 +51,7 @@ describe("resolveOverlayLineLabelPlacement", () => {
       normalY: -1,
       shouldFlip: true,
       textX: 5,
-      textY: -DEFAULT_LINE_LABEL_OFFSET_PX,
+      textY: -10,
     });
   });
 
@@ -69,12 +67,32 @@ describe("resolveOverlayLineLabelPlacement", () => {
     });
 
     expect(placement).toMatchObject({
-      angleDeg: 90,
       normalX: 1,
       shouldFlip: true,
       textX: 2,
       textY: 5,
     });
+    expect(placement?.angleRad).toBeCloseTo(PI_OVER_TWO);
     expect(placement?.normalY).toBeCloseTo(0);
+  });
+
+  it("can slide the label anchor along the described line segment", () => {
+    const placement = resolveOverlayLineLabelPlacement({
+      svgLine: createSvgLine(0, 0, 10, 0),
+      options: {
+        anchorRatio: 0.8,
+        getLabelOutsideReferencePoint: () => ({ x: 8, y: 20 }),
+      },
+    });
+
+    expect(placement).toMatchObject({
+      anchorRatio: 0.8,
+      anchorX: 8,
+      anchorY: 0,
+      midX: 8,
+      midY: 0,
+      textX: 8,
+      textY: 10,
+    });
   });
 });

@@ -23,6 +23,7 @@ export const AnnotationInfoBoxContainer = ({
 }: AnnotationInfoBoxContainerProps) => {
   const resolvedVisualOptions =
     resolveAnnotationInfoBoxVisualOptions(visualOptions);
+  const headingTitle = slots.headingTitle.trim();
 
   return (
     <div data-test-id="annotation-info-box">
@@ -41,14 +42,16 @@ export const AnnotationInfoBoxContainer = ({
         footer={slots.footer}
         hideSubtitleWhenCollapsed={true}
         heading={
-          <div className="flex w-full items-center gap-2 px-1">
-            <span
-              className={`${resolvedVisualOptions.headerForegroundClassName} ${resolvedVisualOptions.headerTitleClassName}`}
-              title={slots.headingTitle}
-            >
-              {slots.headingTitle}
-            </span>
-          </div>
+          headingTitle ? (
+            <div className="flex w-full items-center gap-2 px-1">
+              <span
+                className={`${resolvedVisualOptions.headerForegroundClassName} ${resolvedVisualOptions.headerTitleClassName}`}
+                title={headingTitle}
+              >
+                {headingTitle}
+              </span>
+            </div>
+          ) : undefined
         }
         subtitle={slots.subtitle}
         content={slots.content}

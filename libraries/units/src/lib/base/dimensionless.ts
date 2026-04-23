@@ -3,6 +3,9 @@ import type { Ratio } from "./dimensionless.d";
 // like unit-range-ratio, but restrict them from using branded ops
 // for this just returns the same Type
 
+export const clampUnitRangeRatio = (value: number): Ratio =>
+  Math.min(Math.max(value, 0), 1) as Ratio;
+
 export const isUnitRangeRatio = (value: unknown): value is Ratio => {
   return (
     typeof value === "number" &&

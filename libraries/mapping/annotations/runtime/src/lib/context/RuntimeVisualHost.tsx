@@ -1,50 +1,39 @@
-import { useCallback, useEffect, useMemo } from "react";
-import {
-  ScreenSpaceEventHandler,
-  ScreenSpaceEventType,
-  type Cartesian2,
-} from "@carma-cesium";
+import { useMemo } from "react";
+import type { Scene } from "@carma-cesium";
 
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import type { PreviewLineLabelVisualOptions } from "../config/preview-line-label-visual-defaults";
-import { useCursorOverlay } from "../interaction/use-cursor-overlay";
-import { usePointEditingGizmo } from "../interaction/use-point-editing-gizmo";
+import { useAnnotationToolDraftStates } from "./use-annotation-tool-draft-states";
 import {
   type AnnotationsStore,
-  findAnnotationEntryById,
   selectSelectedAnnotationId,
-  updateAnnotationEntryById,
   useAnnotationsSelector,
 } from "../store";
-import { ANNOTATION_TOOL_PLUGIN_KINDS } from "../tools";
-import type { AnnotationToolRegistry } from "../tools/annotation-tool-plugin.types";
-import type { RuntimeScene } from "../types/runtime-scene.types";
-import { RUNTIME_POINT_LABEL_COORDINATE_SELECTION } from "../render/measurement-render-models";
-import { useRuntimeVisualizers } from "../render/use-runtime-visualizers";
-import { useRuntimeVisualLayers } from "../render/use-runtime-visual-layers";
-import {
-  resolveDistanceTriangleAnchorCoordinateRole,
-  resolveDistanceTriangleAnchorCoordinateSelection,
-  resolveOppositeDistanceTriangleAnchorCoordinateRole,
-} from "../render/runtime-distance-triangle-overlay";
-import { resolveAnnotationEntryCoordinates } from "../utils/runtime-annotation-coordinates";
+import { ANNOTATION_TOOL_PLUGIN_KINDS } from "../registry";
+import type { AnnotationToolId } from "../registry/annotation-tool-id";
+import type {
+  AnnotationToolDraftStore,
+  AnnotationToolRegistry,
+} from "../registry/annotation-tool-plugin.types";
+import { VisualSurfaces } from "../render/VisualSurfaces";
+import { useVisualLayers } from "../render/use-visual-layers";
 import { useSelectionAdditiveModifierState } from "./use-selection-additive-modifier-state";
-import { useRuntimeAnnotationSelection } from "./use-runtime-annotation-selection";
-import { ANNOTATIONS_RUNTIME_HOST_DEFAULTS } from "./annotations-runtime-host-defaults";
-import { isRuntimeSceneSelectionTarget } from "./runtime-scene-selection-target";
+import { useAnnotationSelection } from "./use-annotation-selection";
+import { ANNOTATIONS_HOST_DEFAULTS } from "./annotations-host-defaults";
+import { SceneSelectionHost } from "./SceneSelectionHost";
+import { useVisualInteraction } from "./use-visual-interaction";
 
 type RuntimeVisualHostProps = {
-  scene: RuntimeScene | null;
+  scene: Scene | null;
   registry: AnnotationToolRegistry;
   annotationsStore: AnnotationsStore;
+  annotationToolDraftStore: AnnotationToolDraftStore;
   setElevationReferenceAnnotationId: (annotationId: string | null) => void;
   toggleAnnotationElevationDisplayMode: (annotationId: string) => void;
   onActiveMoveGizmoNodeIdChange: (nodeId: string | null) => void;
   onHoveredPointQueryNodeIdChange: (nodeId: string | null) => void;
   onPreviewSnapTargetNodeClick: (nodeId: string) => boolean;
   activeMoveGizmoNodeId: string | null;
-  cursorOverlayVisible: boolean;
-  blockCommittedLabelInteractions: boolean;
   formatOptions: AnnotationsRuntimeFormatOptions;
   previewLineLabelVisualOptions: Partial<PreviewLineLabelVisualOptions>;
 };
@@ -53,14 +42,13 @@ export const RuntimeVisualHost = ({
   scene,
   registry,
   annotationsStore,
+  annotationToolDraftStore,
   setElevationReferenceAnnotationId,
   toggleAnnotationElevationDisplayMode,
   onActiveMoveGizmoNodeIdChange,
   onHoveredPointQueryNodeIdChange,
   onPreviewSnapTargetNodeClick,
   activeMoveGizmoNodeId,
-  cursorOverlayVisible,
-  blockCommittedLabelInteractions,
   formatOptions,
   previewLineLabelVisualOptions,
 }: RuntimeVisualHostProps) => {
@@ -75,8 +63,6 @@ export const RuntimeVisualHost = ({
     activePlugin?.kind === ANNOTATION_TOOL_PLUGIN_KINDS.INTERACTION;
   const isMeasurementToolActive =
     activePlugin?.kind === ANNOTATION_TOOL_PLUGIN_KINDS.MEASUREMENT;
-  const previewSnapTargetHoverEnabled =
-    activeMoveGizmoNodeId === null && isMeasurementToolActive;
   const nodes = useAnnotationsSelector(
     (annotationsState) => annotationsState.nodes
   );
@@ -95,92 +81,60 @@ export const RuntimeVisualHost = ({
   const selectedAnnotationIds = useAnnotationsSelector(
     (annotationsState) => annotationsState.selectionState.selectedAnnotationIds
   );
+  const draftToolTypes = useMemo<readonly AnnotationToolId[]>(
+    () => registry.plugins.map((plugin) => plugin.id),
+    [registry.plugins]
+  );
+  const draftStatesByToolType = useAnnotationToolDraftStates({
+    draftStore: annotationToolDraftStore,
+    toolTypes: draftToolTypes,
+  });
   const elevationReferenceAnnotationId = useAnnotationsSelector(
     (annotationsState) =>
       annotationsState.settingsState.elevationReferenceAnnotationId
   );
   const isSelectionAdditiveModifierPressed = useSelectionAdditiveModifierState(
-    ANNOTATIONS_RUNTIME_HOST_DEFAULTS.additiveSelectionModifierKey
+    ANNOTATIONS_HOST_DEFAULTS.additiveSelectionModifierKey
   );
+  const handleMeasurementSelection = useAnnotationSelection({
+    annotationsStore,
+    isSelectionAdditiveModifierPressed,
+  });
   const {
     draftNodeCoordinateOverrides,
     effectiveLinkedNodeGroups,
     effectiveNodes,
+    handleDistanceTriangleCornerClick,
+    handleInsertNodeTargetClick,
     handleNodeLongPress,
-    isMoveGizmoDragging,
+    handlePreviewSnapTargetNodeHover,
+    handleReferenceEdgeClick,
     handleReferenceNodeClick,
     handleReferenceNodeHover,
-    handleReferenceEdgeClick,
-  } = usePointEditingGizmo(scene, nodes, linkedNodeGroups, {
+    insertNodeTargetMeasurementIds,
+    isMoveGizmoDragging,
+    previewSnapTargetHoverEnabled,
+  } = useVisualInteraction({
+    scene,
+    nodes,
+    linkedNodeGroups,
+    annotationEntries,
+    selectedAnnotationIds,
     annotationsStore,
-    onActiveMoveGizmoNodeIdChange,
-  });
-  const handleDistanceTriangleCornerClick = useCallback(
-    (measurementId: string) => {
-      const runtimeState = annotationsStore.getState();
-      const targetEntry = findAnnotationEntryById(
-        runtimeState.annotationEntries,
-        measurementId
-      );
-      if (!targetEntry) {
-        return;
-      }
-
-      const coordinates = resolveAnnotationEntryCoordinates({
-        annotationEntries: runtimeState.annotationEntries,
-        nodes: runtimeState.nodes,
-        annotationId: measurementId,
-      });
-
-      const currentTriangleAnchorCoordinateRole =
-        targetEntry.distanceTriangleAnchorCoordinateRole ??
-        resolveDistanceTriangleAnchorCoordinateRole(coordinates);
-
-      const nextSelection =
-        (targetEntry.distanceAnchorCoordinateSelection ??
-          resolveDistanceTriangleAnchorCoordinateSelection(coordinates)) ===
-        RUNTIME_POINT_LABEL_COORDINATE_SELECTION.LEFTMOST_SCREEN_SPACE
-          ? RUNTIME_POINT_LABEL_COORDINATE_SELECTION.RIGHTMOST_SCREEN_SPACE
-          : RUNTIME_POINT_LABEL_COORDINATE_SELECTION.LEFTMOST_SCREEN_SPACE;
-
-      annotationsStore.dispatch(
-        updateAnnotationEntryById({
-          annotationId: measurementId,
-          distanceAnchorCoordinateSelection: nextSelection,
-          distanceTriangleAnchorCoordinateRole:
-            resolveOppositeDistanceTriangleAnchorCoordinateRole(
-              currentTriangleAnchorCoordinateRole
-            ),
-        })
-      );
-    },
-    [annotationsStore]
-  );
-  const handleMeasurementSelection = useRuntimeAnnotationSelection({
-    annotationsStore,
+    activeMoveGizmoNodeId,
+    isInteractionToolActive,
+    isMeasurementToolActive,
     isSelectionAdditiveModifierPressed,
+    onActiveMoveGizmoNodeIdChange,
+    onHoveredPointQueryNodeIdChange,
   });
-  const handlePreviewSnapTargetNodeHover = useCallback(
-    (nodeId: string, hovered: boolean) => {
-      onHoveredPointQueryNodeIdChange(hovered ? nodeId : null);
-    },
-    [onHoveredPointQueryNodeIdChange]
-  );
-
-  useEffect(() => {
-    if (previewSnapTargetHoverEnabled) {
-      return;
-    }
-
-    onHoveredPointQueryNodeIdChange(null);
-  }, [onHoveredPointQueryNodeIdChange, previewSnapTargetHoverEnabled]);
-
-  const runtimeVisualLayers = useRuntimeVisualLayers({
+  const { baseVisualModels, overlayVisualModels } = useVisualLayers({
     plugins: registry.plugins,
     nodes,
     edges,
     linkedNodeGroups,
     annotationEntries,
+    draftStatesByToolType,
     elevationReferenceAnnotationId,
     selectedAnnotationId,
     selectedAnnotationIds,
@@ -194,128 +148,42 @@ export const RuntimeVisualHost = ({
     effectiveNodes,
     effectiveLinkedNodeGroups,
   });
-  const overlayVisualModels = runtimeVisualLayers.overlayVisualModels ?? null;
 
-  const runtimeSceneSelectionEdgeIdSet = useMemo(
-    () =>
-      new Set(
-        [
-          ...(runtimeVisualLayers.baseVisualModels.edges ?? []),
-          ...(overlayVisualModels?.edges ?? []),
-        ].map((edge) => edge.id)
-      ),
-    [overlayVisualModels?.edges, runtimeVisualLayers.baseVisualModels.edges]
+  return (
+    <>
+      <SceneSelectionHost
+        scene={scene}
+        enabled={isInteractionToolActive}
+        baseEdges={baseVisualModels.edges ?? []}
+        overlayEdges={overlayVisualModels?.edges ?? []}
+        basePolygonFills={baseVisualModels.polygonFills ?? []}
+        overlayPolygonFills={overlayVisualModels?.polygonFills ?? []}
+        onMeasurementSelect={handleMeasurementSelection}
+      />
+      <VisualSurfaces
+        scene={scene}
+        baseVisualModels={baseVisualModels}
+        overlayVisualModels={overlayVisualModels}
+        linkedNodeGroups={linkedNodeGroups}
+        effectiveLinkedNodeGroups={effectiveLinkedNodeGroups}
+        selectedAnnotationIds={selectedAnnotationIds}
+        formatOptions={formatOptions}
+        previewLineLabelVisualOptions={previewLineLabelVisualOptions}
+        activeMoveGizmoNodeId={activeMoveGizmoNodeId}
+        isMoveGizmoDragging={isMoveGizmoDragging}
+        isMeasurementToolActive={isMeasurementToolActive}
+        previewSnapTargetHoverEnabled={previewSnapTargetHoverEnabled}
+        onPreviewSnapTargetNodeClick={onPreviewSnapTargetNodeClick}
+        onMeasurementSelect={handleMeasurementSelection}
+        onNodeLongPress={handleNodeLongPress}
+        onReferenceNodeClick={handleReferenceNodeClick}
+        onReferenceNodeHover={handleReferenceNodeHover}
+        onPreviewNodeHover={handlePreviewSnapTargetNodeHover}
+        onReferenceEdgeClick={handleReferenceEdgeClick}
+        insertNodeTargetMeasurementIds={insertNodeTargetMeasurementIds}
+        onInsertNodeTargetClick={handleInsertNodeTargetClick}
+        onDistanceTriangleCornerClick={handleDistanceTriangleCornerClick}
+      />
+    </>
   );
-  const runtimeSceneSelectionPolygonFillIdSet = useMemo(
-    () =>
-      new Set(
-        [
-          ...(runtimeVisualLayers.baseVisualModels.polygonFills ?? []),
-          ...(overlayVisualModels?.polygonFills ?? []),
-        ].map((polygonFill) => polygonFill.id)
-      ),
-    [
-      overlayVisualModels?.polygonFills,
-      runtimeVisualLayers.baseVisualModels.polygonFills,
-    ]
-  );
-
-  useEffect(() => {
-    if (!scene || scene.isDestroyed() || !isInteractionToolActive) {
-      return;
-    }
-
-    const handler = new ScreenSpaceEventHandler(scene.canvas);
-    handler.setInputAction((event: { position: Cartesian2 }) => {
-      if (
-        annotationsStore.getState().selectionState.selectedAnnotationIds
-          .length === 0
-      ) {
-        return;
-      }
-
-      const pickedObject = scene.pick(event.position);
-      if (
-        isRuntimeSceneSelectionTarget({
-          pickedObject,
-          edgeIds: runtimeSceneSelectionEdgeIdSet,
-          polygonFillIds: runtimeSceneSelectionPolygonFillIdSet,
-        })
-      ) {
-        return;
-      }
-
-      handleMeasurementSelection(null);
-      scene.requestRender();
-    }, ScreenSpaceEventType.LEFT_CLICK);
-
-    return () => {
-      if (!handler.isDestroyed()) {
-        handler.destroy();
-      }
-    };
-  }, [
-    annotationsStore,
-    handleMeasurementSelection,
-    isInteractionToolActive,
-    runtimeSceneSelectionEdgeIdSet,
-    runtimeSceneSelectionPolygonFillIdSet,
-    scene,
-  ]);
-
-  useRuntimeVisualizers(scene, {
-    surfaceKey: "committed",
-    enableHostInteractionTargets: true,
-    points: runtimeVisualLayers.baseVisualModels.points ?? [],
-    linkedNodeGroups,
-    edges: runtimeVisualLayers.baseVisualModels.edges ?? [],
-    polygonFills: runtimeVisualLayers.baseVisualModels.polygonFills ?? [],
-    pointLabels: runtimeVisualLayers.baseVisualModels.pointLabels ?? [],
-    selectedAnnotationIds,
-    formatOptions,
-    previewLineLabelVisualOptions,
-    activeMoveGizmoNodeId,
-    isMoveGizmoDragging,
-    blockLabelInteractions:
-      blockCommittedLabelInteractions ||
-      activeMoveGizmoNodeId !== null ||
-      isMeasurementToolActive,
-    previewSnapTargetHoverEnabled,
-    onPreviewSnapTargetNodeClick,
-    onMeasurementSelect: handleMeasurementSelection,
-    onNodeLongPress: handleNodeLongPress,
-    onReferenceNodeClick: handleReferenceNodeClick,
-    onReferenceNodeHover:
-      activeMoveGizmoNodeId !== null
-        ? handleReferenceNodeHover
-        : handlePreviewSnapTargetNodeHover,
-    onReferenceEdgeClick: handleReferenceEdgeClick,
-    onDistanceTriangleCornerClick: handleDistanceTriangleCornerClick,
-  });
-
-  useRuntimeVisualizers(scene, {
-    surfaceKey: "preview",
-    enableHostInteractionTargets: false,
-    points: overlayVisualModels?.points ?? [],
-    linkedNodeGroups: effectiveLinkedNodeGroups,
-    edges: overlayVisualModels?.edges ?? [],
-    polygonFills: overlayVisualModels?.polygonFills ?? [],
-    pointLabels: overlayVisualModels?.pointLabels ?? [],
-    selectedAnnotationIds,
-    formatOptions,
-    previewLineLabelVisualOptions,
-    activeMoveGizmoNodeId,
-    isMoveGizmoDragging,
-    blockLabelInteractions: true,
-  });
-
-  useCursorOverlay(scene, null, {
-    enabled: cursorOverlayVisible,
-  });
-  useCursorOverlay(scene, null, {
-    enabled: isInteractionToolActive && isSelectionAdditiveModifierPressed,
-    variant: "selection-additive-indicator",
-  });
-
-  return null;
 };

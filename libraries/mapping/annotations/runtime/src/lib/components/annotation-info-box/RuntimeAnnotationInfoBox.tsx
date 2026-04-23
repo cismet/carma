@@ -1,11 +1,11 @@
 import { useMemo } from "react";
 import {
   AnnotationInfoBoxContainer,
+  type AnnotationInfoBoxLayoutProps,
   resolveAnnotationInfoBoxVisualOptions,
 } from "@carma-mapping/annotations/ui";
 
 import { useAnnotationsRuntime } from "../../context/AnnotationsProvider";
-import type { RuntimeAnnotationInfoBoxLayoutProps } from "./annotation-info-box.types";
 
 export const RuntimeAnnotationInfoBox = ({
   pixelWidth,
@@ -14,7 +14,7 @@ export const RuntimeAnnotationInfoBox = ({
   controlOrder,
   style,
   visualOptions,
-}: RuntimeAnnotationInfoBoxLayoutProps) => {
+}: AnnotationInfoBoxLayoutProps) => {
   const {
     registry,
     annotationEntries,
@@ -52,7 +52,9 @@ export const RuntimeAnnotationInfoBox = ({
       return null;
     }
 
-    const plugin = registry.getPlugin(selectedAnnotation.toolType);
+    const plugin = registry
+      .getPluginsByAnnotationType(selectedAnnotation.toolType)
+      .find((candidatePlugin) => candidatePlugin.infoBox?.getSlots);
     if (!plugin?.infoBox?.getSlots) {
       return null;
     }

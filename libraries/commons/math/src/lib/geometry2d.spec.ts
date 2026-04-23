@@ -1,15 +1,24 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  addPoint2d,
   buildCirclePoints,
   classifyConvexPolygonIntersection2d,
   clipConvexPolygonByConvexPolygon2d,
+  dotPoint2d,
   getEquilateralTriangleHeight,
   getEquilateralTrianglePathD,
   getEquilateralTriangleViewBox,
+  getLeftPerpendicular2d,
+  getPolygonCentroid2d,
+  getMidpoint2d,
   getPolygonArea2d,
+  getPointLength2d,
+  getSegmentFrame2d,
   getSignedPolygonArea2d,
   getSupportRadius2d,
+  scalePoint2d,
+  subtractPoint2d,
 } from "./geometry2d";
 const sortPoints = (
   points: readonly {
@@ -54,6 +63,56 @@ describe("geometry2d", () => {
     expect(getSignedPolygonArea2d(ccwSquare)).toBeCloseTo(4);
     expect(getSignedPolygonArea2d(cwSquare)).toBeCloseTo(-4);
     expect(getPolygonArea2d(cwSquare)).toBeCloseTo(4);
+  });
+
+  it("computes polygon centroids and handles degenerate polygons", () => {
+    expect(
+      getPolygonCentroid2d({
+        points: [
+          { x: 0, y: 0 },
+          { x: 4, y: 0 },
+          { x: 4, y: 4 },
+          { x: 0, y: 4 },
+        ],
+      })
+    ).toEqual({ x: 2, y: 2 });
+
+    expect(
+      getPolygonCentroid2d({
+        points: [
+          { x: 0, y: 0 },
+          { x: 2, y: 0 },
+          { x: 4, y: 0 },
+        ],
+        degenerateAreaEpsilon: 1e-9,
+      })
+    ).toEqual({ x: 2, y: 0 });
+  });
+
+  it("provides point and segment helpers", () => {
+    const start = { x: 2, y: 4 };
+    const end = { x: 8, y: 4 };
+
+    expect(addPoint2d(start, end)).toEqual({ x: 10, y: 8 });
+    expect(subtractPoint2d(end, start)).toEqual({ x: 6, y: 0 });
+    expect(scalePoint2d({ x: 3, y: -2 }, 2)).toEqual({ x: 6, y: -4 });
+    expect(dotPoint2d({ x: 3, y: 4 }, { x: -2, y: 5 })).toBe(14);
+    expect(getPointLength2d({ x: 3, y: 4 })).toBe(5);
+    expect(getMidpoint2d(start, end)).toEqual({ x: 5, y: 4 });
+    expect(getLeftPerpendicular2d({ x: 6, y: 0 })).toEqual({ x: 0, y: 6 });
+    expect(getSegmentFrame2d({ start, end })).toEqual({
+      delta: { x: 6, y: 0 },
+      length: 6,
+      midpoint: { x: 5, y: 4 },
+      leftUnitNormal: { x: 0, y: 1 },
+    });
+    expect(
+      getSegmentFrame2d({
+        start,
+        end: start,
+        epsilon: 1e-9,
+      })
+    ).toBeNull();
   });
 
   it("clips overlapping convex polygons", () => {

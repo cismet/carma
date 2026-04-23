@@ -9,20 +9,17 @@ import {
 
 import {
   isPointAnnotationEntry,
-  type AnnotationCollection,
-  type PointAnnotationEntry,
+  type AnnotationEntry,
+  type AnnotationPointEntry,
 } from "../types/annotation-cesium-types";
 import {
-  ANNOTATION_TYPE_AREA_GROUND,
-  ANNOTATION_TYPE_AREA_PLANAR,
-  ANNOTATION_TYPE_AREA_VERTICAL,
-  ANNOTATION_TYPE_DISTANCE,
-  ANNOTATION_TYPE_LABEL,
-  ANNOTATION_TYPE_POINT,
+  ANNOTATION_TYPES,
   type AnnotationType,
+  type AnnotationTypes,
   type NodeChainAnnotation,
 } from "../types/annotation-types";
 import type { PointDistanceRelation } from "../types/distance-relation";
+import { hasSignificantVerticalOffsetMeters } from "./annotation-geometry-defaults";
 export type AnnotationGeoJsonFeatureCollection = FeatureCollection<
   Geometry,
   Record<string, unknown>
@@ -30,7 +27,7 @@ export type AnnotationGeoJsonFeatureCollection = FeatureCollection<
 
 type BuildAnnotationGeoJsonFeatureCollectionParams = {
   annotationId: string;
-  annotations: AnnotationCollection;
+  annotations: AnnotationEntry[];
   nodeChainAnnotations: readonly NodeChainAnnotation[];
   distanceRelations: readonly PointDistanceRelation[];
 };
@@ -42,23 +39,23 @@ type MetricVector3Like = ReturnType<typeof cartesian3ToMetricVector3>;
 const isPolygonAnnotationKind = (
   kind: AnnotationType
 ): kind is
-  | typeof ANNOTATION_TYPE_AREA_GROUND
-  | typeof ANNOTATION_TYPE_AREA_PLANAR
-  | typeof ANNOTATION_TYPE_AREA_VERTICAL =>
-  kind === ANNOTATION_TYPE_AREA_GROUND ||
-  kind === ANNOTATION_TYPE_AREA_PLANAR ||
-  kind === ANNOTATION_TYPE_AREA_VERTICAL;
+  | AnnotationTypes["AREA_GROUND"]
+  | AnnotationTypes["AREA_PLANAR"]
+  | AnnotationTypes["AREA_VERTICAL"] =>
+  kind === ANNOTATION_TYPES.AREA_GROUND ||
+  kind === ANNOTATION_TYPES.AREA_PLANAR ||
+  kind === ANNOTATION_TYPES.AREA_VERTICAL;
 
 const getPointSemanticKind = (
-  annotation: PointAnnotationEntry
+  annotation: AnnotationPointEntry
 ): AnnotationType => {
   if (annotation.auxiliaryLabelAnchor) {
-    return ANNOTATION_TYPE_LABEL;
+    return ANNOTATION_TYPES.LABEL;
   }
 
-  return annotation.type === ANNOTATION_TYPE_DISTANCE
-    ? ANNOTATION_TYPE_DISTANCE
-    : ANNOTATION_TYPE_POINT;
+  return annotation.type === ANNOTATION_TYPES.DISTANCE
+    ? ANNOTATION_TYPES.DISTANCE
+    : ANNOTATION_TYPES.POINT;
 };
 
 const normalizePropertyValue = (value: unknown): unknown => {
@@ -116,18 +113,18 @@ const toGeoJsonPosition = (positionECEF: Cartesian3): Position => {
   ];
 };
 
-const getPointBasePosition = (point: PointAnnotationEntry): Cartesian3 =>
+const getPointBasePosition = (point: AnnotationPointEntry): Cartesian3 =>
   point.verticalOffsetAnchorECEF
     ? cartesian3FromMetricVector3(point.verticalOffsetAnchorECEF)
     : point.geometryECEF;
 
 const getNodeChainPointPosition = (
-  point: PointAnnotationEntry,
+  point: AnnotationPointEntry,
   verticalOffsetMeters: number
 ): Cartesian3 => {
   const basePosition = getPointBasePosition(point);
 
-  return Math.abs(verticalOffsetMeters) > 1e-9
+  return hasSignificantVerticalOffsetMeters(verticalOffsetMeters)
     ? getPositionWithVerticalOffsetFromAnchor(
         basePosition,
         verticalOffsetMeters
@@ -143,7 +140,7 @@ const createFeatureCollection = (
 });
 
 const buildPointProperties = (
-  annotation: PointAnnotationEntry
+  annotation: AnnotationPointEntry
 ): Record<string, unknown> => {
   const {
     geometryECEF: _geometryECEF,
@@ -161,7 +158,7 @@ const buildPointProperties = (
 };
 
 const buildPointFeatureCollection = (
-  annotation: PointAnnotationEntry
+  annotation: AnnotationPointEntry
 ): AnnotationGeoJsonFeatureCollection =>
   createFeatureCollection({
     type: "Feature",
@@ -174,8 +171,8 @@ const buildPointFeatureCollection = (
   });
 
 const buildDistanceFeatureCollection = (
-  annotation: PointAnnotationEntry,
-  annotations: AnnotationCollection,
+  annotation: AnnotationPointEntry,
+  annotations: AnnotationEntry[],
   distanceRelations: readonly PointDistanceRelation[]
 ): AnnotationGeoJsonFeatureCollection => {
   const pointsById = new Map(
@@ -195,7 +192,7 @@ const buildDistanceFeatureCollection = (
           : relation.pointAId
       )
     )
-    .filter((point): point is PointAnnotationEntry => Boolean(point));
+    .filter((point): point is AnnotationPointEntry => Boolean(point));
   const uniqueRelatedPoints = Array.from(
     new Map(relatedPoints.map((point) => [point.id, point] as const)).values()
   );
@@ -320,7 +317,7 @@ const buildDistanceFeatureCollection = (
 
 const buildNodeChainFeatureCollection = (
   annotation: NodeChainAnnotation,
-  annotations: AnnotationCollection
+  annotations: AnnotationEntry[]
 ): AnnotationGeoJsonFeatureCollection | null => {
   const pointsById = new Map(
     annotations
@@ -351,7 +348,7 @@ const buildNodeChainFeatureCollection = (
         entry
       ): entry is {
         order: number;
-        point: PointAnnotationEntry;
+        point: AnnotationPointEntry;
         effectivePositionECEF: Cartesian3;
       } => Boolean(entry)
     );
@@ -441,7 +438,7 @@ export const buildAnnotationGeoJsonFeatureCollection = ({
 
   const pointAnnotation =
     annotations.find(
-      (entry): entry is PointAnnotationEntry =>
+      (entry): entry is AnnotationPointEntry =>
         entry.id === annotationId && isPointAnnotationEntry(entry)
     ) ?? null;
 
@@ -449,7 +446,7 @@ export const buildAnnotationGeoJsonFeatureCollection = ({
     return null;
   }
 
-  if (pointAnnotation.type === ANNOTATION_TYPE_DISTANCE) {
+  if (pointAnnotation.type === ANNOTATION_TYPES.DISTANCE) {
     return buildDistanceFeatureCollection(
       pointAnnotation,
       annotations,

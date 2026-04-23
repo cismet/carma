@@ -1,4 +1,4 @@
-import { formatFixedNumber } from "@carma-commons/utils/number-format";
+import { formatFixedNumber } from "@carma-commons/utils";
 
 import type {
   HashParamValueCodec,

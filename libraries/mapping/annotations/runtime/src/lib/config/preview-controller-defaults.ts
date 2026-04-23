@@ -1,4 +1,4 @@
-import { runtimeMeasurementVisualDefaults } from "./measurement-visual-defaults";
+import { measurementVisualDefaults } from "./measurement-visual-defaults";
 
 export const previewControllerDefaults = Object.freeze({
   lineStrokeWidthPx: 1,
@@ -6,16 +6,16 @@ export const previewControllerDefaults = Object.freeze({
   lineLabelOffsetPx: 8,
   lineLabelMinLengthPx: 44,
   geometryEpsilonMeters: 0.01,
+  labelReferenceLineLengthEpsilonPx: 1e-3,
+  labelReferenceDistanceFactor: 0.2,
   labelReferenceMinDistancePx: 24,
   labelReferenceMaxDistancePx: 48,
   labelReferenceInsideBlendFactor: 0.35,
   labelSideSwitchThresholdPx: 4,
-  directLineColor: runtimeMeasurementVisualDefaults.colors.components.direct,
-  verticalLineColor:
-    runtimeMeasurementVisualDefaults.colors.components.vertical,
-  horizontalLineColor:
-    runtimeMeasurementVisualDefaults.colors.components.horizontal,
-  draftChainColor: runtimeMeasurementVisualDefaults.colors.preview,
+  directLineColor: measurementVisualDefaults.colors.components.direct,
+  verticalLineColor: measurementVisualDefaults.colors.components.vertical,
+  horizontalLineColor: measurementVisualDefaults.colors.components.horizontal,
+  draftChainColor: measurementVisualDefaults.colors.preview,
 });
 
 export type PreviewControllerOptions = typeof previewControllerDefaults;

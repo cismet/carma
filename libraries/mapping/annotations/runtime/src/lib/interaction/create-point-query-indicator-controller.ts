@@ -15,12 +15,12 @@ import {
   type RingMaterialPreset,
 } from "@carma-mapping/engines/cesium/core";
 import {
-  type PreviewRingSample,
-  getAveragedPreviewRingNormal,
-  pushPreviewRingSample,
+  type CandidateRingSample,
+  getAveragedCandidateRingNormal,
+  pushCandidateRingSample,
 } from "@carma-mapping/annotations/core";
 
-import type { RuntimeScene } from "../types/runtime-scene.types";
+import type { Scene } from "@carma-cesium";
 import { pointPreviewRingVisualDefaults } from "../config/point-preview-visual-defaults";
 import {
   isPointQueryDiscPlaneOffsetPlacementMode,
@@ -72,7 +72,7 @@ export type PointQueryIndicatorController = {
 };
 
 export const createPointQueryIndicatorController = (
-  scene: RuntimeScene | null,
+  scene: Scene | null,
   {
     radius,
     placementMode = POINT_QUERY_DISC_PLACEMENT_MODES.CAMERA_PLANE_REPROJECT,
@@ -88,7 +88,7 @@ export const createPointQueryIndicatorController = (
     tangentDiscVisualizerWeightDecayGamma = pointPreviewRingVisualDefaults.smoothingWeightDecayGamma,
   }: PointQueryIndicatorControllerOptions
 ): PointQueryIndicatorController => {
-  if (!isValidScene(scene)) {
+  if (!scene || !isValidScene(scene)) {
     return {
       setEnabled: () => undefined,
       setPreview: () => undefined,
@@ -96,6 +96,7 @@ export const createPointQueryIndicatorController = (
       destroy: () => undefined,
     };
   }
+  const activeScene = scene;
 
   const previewRingRadius = Math.max(radius, 0.1);
   const averagedNormal = new Cartesian3();
@@ -121,12 +122,12 @@ export const createPointQueryIndicatorController = (
   let latestTrueSurfaceNormal: Cartesian3 | null = null;
   let latestPreviewPointLocked = false;
   let previewInputVersion = 0;
-  let previewRingSamples: PreviewRingSample[] = [];
+  let previewRingSamples: CandidateRingSample[] = [];
   let previewRingLastQueuedInput: PreviewRingQueuedInput | null = null;
 
   const clearPreviewRing = () => {
     if (previewRing) {
-      safeRemovePrimitive(scene, previewRing);
+      safeRemovePrimitive(activeScene, previewRing);
     }
     previewRing = null;
     if (previewRingNormalLineRuntime) {
@@ -142,7 +143,7 @@ export const createPointQueryIndicatorController = (
     }
 
     if (!previewRingNormalLineCollection) {
-      previewRingNormalLineCollection = createLineCollection(scene);
+      previewRingNormalLineCollection = createLineCollection(activeScene);
     }
 
     previewRingNormalLineRuntime = createLineRuntime(
@@ -197,14 +198,15 @@ export const createPointQueryIndicatorController = (
       return latestTruePreviewPoint;
     }
 
-    const pointerScreenPosition = getCesiumScenePointerScreenPosition(scene);
+    const pointerScreenPosition =
+      getCesiumScenePointerScreenPosition(activeScene);
     if (!pointerScreenPosition) {
       return latestTruePreviewPoint;
     }
 
     return (
       resolveTangentDiscPlaneReprojectedWorldPosition({
-        scene,
+        scene: activeScene,
         screenPosition: pointerScreenPosition,
         tangentPlane: {
           pointECEF: latestTruePreviewPoint,
@@ -226,11 +228,12 @@ export const createPointQueryIndicatorController = (
         innerRadius: Math.min(Math.max(innerHoleRadiusRatio, 0), 0.999),
         color: previewRingColor,
         opacity: previewRingColor.alpha,
+        asynchronous: false,
         materialPreset:
           materialPreset ?? pointPreviewRingVisualDefaults.materialPreset,
         segments: 20,
       });
-      scene.primitives.add(nextRing);
+      activeScene.primitives.add(nextRing);
       previewRing = nextRing;
     }
 
@@ -254,7 +257,7 @@ export const createPointQueryIndicatorController = (
   };
 
   const queuePreviewSample = (normal: Cartesian3) => {
-    pushPreviewRingSample({
+    pushCandidateRingSample({
       samples: previewRingSamples,
       normal,
       maxSampleCount: tangentDiscVisualizerTrailSampleCount,
@@ -263,7 +266,7 @@ export const createPointQueryIndicatorController = (
   };
 
   const getAveragedPreviewNormal = (fallbackNormal: Cartesian3) =>
-    getAveragedPreviewRingNormal({
+    getAveragedCandidateRingNormal({
       samples: previewRingSamples,
       fallbackNormal,
       result: averagedNormal,
@@ -299,7 +302,7 @@ export const createPointQueryIndicatorController = (
       previewSurfaceNormal
     );
     const sampledRadius = resolvePointQueryDiscRadius({
-      scene,
+      scene: activeScene,
       pointECEF: center,
       discNormalECEF: discNormal,
       radiusMeters: previewRingRadius,
@@ -327,13 +330,14 @@ export const createPointQueryIndicatorController = (
     });
 
     if (hasPendingPreviewSmoothing()) {
-      scene.requestRender();
+      activeScene.requestRender();
     }
   };
 
-  const unregisterPointerTracker = registerCesiumScenePointerTracker(scene);
+  const unregisterPointerTracker =
+    registerCesiumScenePointerTracker(activeScene);
   const unsubscribeClientPosition = subscribeCesiumScenePointerClientPosition(
-    scene,
+    activeScene,
     () => {
       if (
         !enabled ||
@@ -345,12 +349,12 @@ export const createPointQueryIndicatorController = (
       }
 
       updatePreviewRing();
-      scene.requestRender();
+      activeScene.requestRender();
     }
   );
 
   removePreviewRingPostRenderListener =
-    scene.postRender.addEventListener(updatePreviewRing);
+    activeScene.postRender.addEventListener(updatePreviewRing);
 
   return {
     setEnabled: (nextEnabled) => {
@@ -364,7 +368,7 @@ export const createPointQueryIndicatorController = (
       } else {
         updatePreviewRing();
       }
-      scene.requestRender();
+      activeScene.requestRender();
     },
     setPreview: (preview) => {
       if (!preview?.pointECEF) {
@@ -375,7 +379,7 @@ export const createPointQueryIndicatorController = (
         latestPreviewPointLocked = false;
         previewInputVersion += 1;
         clearPreviewRing();
-        scene.requestRender();
+        activeScene.requestRender();
         return;
       }
 
@@ -402,7 +406,7 @@ export const createPointQueryIndicatorController = (
       latestPreviewPointLocked = preview.lockToPreviewPoint === true;
       previewInputVersion += 1;
       updatePreviewRing();
-      scene.requestRender();
+      activeScene.requestRender();
     },
     clearPreview: () => {
       previewPoint = null;
@@ -412,7 +416,7 @@ export const createPointQueryIndicatorController = (
       latestPreviewPointLocked = false;
       previewInputVersion += 1;
       clearPreviewRing();
-      scene.requestRender();
+      activeScene.requestRender();
     },
     destroy: () => {
       unsubscribeClientPosition();
@@ -420,7 +424,7 @@ export const createPointQueryIndicatorController = (
       safeCall(removePreviewRingPostRenderListener);
       removePreviewRingPostRenderListener = null;
       clearPreviewRing();
-      destroyLineCollection(scene, previewRingNormalLineCollection);
+      destroyLineCollection(activeScene, previewRingNormalLineCollection);
       previewRingNormalLineCollection = null;
       previewRingNormalLineRuntime = null;
       previewRingSamples = [];

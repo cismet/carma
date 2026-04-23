@@ -56,7 +56,9 @@ describe("PointLabel", () => {
     expect(["transparent", "rgba(0, 0, 0, 0)"]).toContain(
       marker?.style.backgroundColor ?? ""
     );
-    expect(marker?.style.borderColor).toBe("#fff");
+    expect(["#fff", "rgb(255, 255, 255)", "rgba(255, 255, 255, 1)"]).toContain(
+      marker?.style.borderColor ?? ""
+    );
   });
 
   it("anchors center-attached compact-only pills at the badge center", () => {
