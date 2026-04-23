@@ -53,6 +53,7 @@ interface LeuchteSearchValues {
   schaltstelle?: { value?: string };
   dk1?: { value?: number };
   dk2?: { value?: number };
+  bezirk?: { value?: number };
 }
 
 interface MastSearchValues {
@@ -66,6 +67,7 @@ interface MastSearchValues {
   klassifizierung?: { value?: number };
   anlagengruppe?: { value?: number };
   unterhaltMast?: { value?: number };
+  bezirk?: { value?: number };
 }
 
 interface SchaltstelleSearchValues {
@@ -258,6 +260,11 @@ const buildLeuchteWhereClause = (values: LeuchteSearchValues): string => {
   if (values.dk2?.value) {
     conditions.push(`fk_dk2: {_eq: ${values.dk2.value}}`);
   }
+  if (values.bezirk?.value) {
+    conditions.push(
+      `tdta_standort_mast: {fk_bezirk: {_eq: ${values.bezirk.value}}}`
+    );
+  }
 
   return conditions.length > 0 ? `where: {${conditions.join(", ")}}` : "";
 };
@@ -338,6 +345,9 @@ const buildMastWhereClause = (values: MastSearchValues): string => {
     conditions.push(
       `tkey_unterh_mast: {id: {_eq: ${values.unterhaltMast.value}}}`
     );
+  }
+  if (values.bezirk?.value) {
+    conditions.push(`fk_bezirk: {_eq: ${values.bezirk.value}}`);
   }
 
   return conditions.length > 0 ? `where: {${conditions.join(", ")}}` : "";

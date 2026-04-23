@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Form, Row, Col, Select, DatePicker } from "antd";
 import { useSelector } from "react-redux";
 import { getKeyTablesData } from "../../../store/slices/keyTables";
+import SearchDistrictInput from "./SearchDistrictInput";
 
 interface MastSearchProps {
   onValuesChange?: (values: SearchValues) => void;
@@ -18,6 +19,7 @@ interface SearchValues {
   klassifizierung?: { value?: number };
   anlagengruppe?: { value?: number };
   unterhaltMast?: { value?: number };
+  bezirk?: { value?: number };
 }
 
 interface MasttypItem {
@@ -109,6 +111,7 @@ const MastSearch = ({ onValuesChange }: MastSearchProps) => {
     klassifizierung: { value: undefined },
     anlagengruppe: { value: undefined },
     unterhaltMast: { value: undefined },
+    bezirk: { value: undefined },
   });
 
   const updateField = (
@@ -309,6 +312,10 @@ const MastSearch = ({ onValuesChange }: MastSearchProps) => {
               ))}
             </Select>
           </Form.Item>
+
+          <SearchDistrictInput
+            onChange={(value) => updateField("bezirk", { value })}
+          />
         </Col>
       </Row>
     </Form>
