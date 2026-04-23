@@ -4,7 +4,10 @@ import type {
   StoredAnnotation,
   AnnotationNode,
 } from "@carma-mapping/annotations/runtime";
-import type { RuntimePointLabelRenderModel } from "@carma-mapping/annotations/runtime";
+import type {
+  RuntimePointLabelRenderModel,
+  RuntimePointMarkerRenderModel,
+} from "@carma-mapping/annotations/runtime";
 import {
   buildRuntimeNodeCoordinateMap,
   resolveMeasurementCoordinates,
@@ -35,7 +38,7 @@ export const buildLabelToolRenderModels = ({
   onMeasurementSelect: (measurementId: string) => void;
   onNodeLongPress?: (nodeId: string, measurementId: string) => void;
 }): {
-  points: readonly [];
+  points: readonly RuntimePointMarkerRenderModel[];
   pointLabels: readonly RuntimePointLabelRenderModel[];
 } => {
   const nodeCoordinatesById = buildRuntimeNodeCoordinateMap(nodes);

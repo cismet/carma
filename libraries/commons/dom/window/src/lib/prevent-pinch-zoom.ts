@@ -1,4 +1,6 @@
-export const preventPinchZoom = (): (() => void) => {
+let preventPinchZoomInstalled = false;
+
+const installPreventPinchZoom = (): (() => void) => {
   if (typeof window === "undefined" || typeof document === "undefined") {
     return () => {};
   }
@@ -36,4 +38,13 @@ export const preventPinchZoom = (): (() => void) => {
     document.removeEventListener("gestureend", handleGesture);
     document.removeEventListener("touchmove", handleTouchMove);
   };
+};
+
+export const preventPinchZoom = (): void => {
+  if (preventPinchZoomInstalled) {
+    return;
+  }
+
+  preventPinchZoomInstalled = true;
+  installPreventPinchZoom();
 };

@@ -44,16 +44,12 @@ export default defineConfig({
       name: 'write-secondary-entrypoint-shims',
       closeBundle() {
         const outDir = path.resolve(__dirname, '../../../dist/libraries/commons/utils');
+        mkdirSync(outDir, { recursive: true });
 
         for (const { entryName, typesTarget } of secondaryEntryPoints) {
-          mkdirSync(outDir, { recursive: true });
           writeFileSync(
             path.join(outDir, `${entryName}.d.ts`),
             `export * from "${typesTarget}";\n`
-          );
-          writeFileSync(
-            path.join(outDir, entryName),
-            `export * from "./${entryName}.mjs";\n`
           );
         }
       },
