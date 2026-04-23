@@ -12,12 +12,34 @@ import {
   getDefaultLabelDisplayName,
 } from "./label-tool-actions";
 import { buildLabelToolRenderModels } from "./label-tool-render-models";
+import type {
+  AnnotationNodeLinkId,
+  AnnotationToolPlugin,
+  CesiumGeographicCoordinate,
+} from "@carma-mapping/annotations/runtime";
 const { LABEL: ANNOTATION_TYPE_LABEL } = ANNOTATION_TYPES;
 
 const toolType = ANNOTATION_TYPE_LABEL;
 const getLabelToolInfoBoxSlots = createLabelToolInfoBoxSlots(toolType);
 
-export const labelToolPlugin = createMeasurementToolPlugin({
+export type LabelToolTextRequestContext = {
+  coordinate: CesiumGeographicCoordinate;
+  defaultText: string;
+  linkedNodeGroupId?: AnnotationNodeLinkId | null;
+};
+
+export type LabelToolTextRequester = (
+  context: LabelToolTextRequestContext
+) => string | null | Promise<string | null>;
+
+export type LabelToolPluginOptions = {
+  requestLabelText?: LabelToolTextRequester;
+};
+
+export const createLabelToolPlugin = ({
+  requestLabelText,
+}: LabelToolPluginOptions = {}): AnnotationToolPlugin =>
+  createMeasurementToolPlugin({
   id: toolType,
   annotationType: toolType,
   descriptor: {
@@ -48,14 +70,42 @@ export const labelToolPlugin = createMeasurementToolPlugin({
         const labelCount = getState().annotationEntries.filter(
           (entry) => entry.toolType === toolType
         ).length;
-        createLabelMeasurement({
-          toolType,
-          coordinate,
-          displayName: getDefaultLabelDisplayName(labelCount + 1),
-          addAnnotation,
-          linkedNodeGroupId,
-          sourceToolId: toolType,
-        });
+        const defaultText = getDefaultLabelDisplayName(labelCount + 1);
+        const addLabel = (text: string) => {
+          createLabelMeasurement({
+            toolType,
+            coordinate,
+            displayName: text.trim() || defaultText,
+            addAnnotation,
+            linkedNodeGroupId,
+            sourceToolId: toolType,
+          });
+        };
+
+        if (!requestLabelText) {
+          addLabel(defaultText);
+          return;
+        }
+
+        void Promise.resolve(
+          requestLabelText({
+            coordinate,
+            defaultText,
+            linkedNodeGroupId,
+          })
+        )
+          .then((text) => {
+            if (text === null) {
+              return;
+            }
+            addLabel(text);
+          })
+          .catch((error) => {
+            console.error(
+              "[annotations][label] Failed to request label text",
+              error
+            );
+          });
       },
     }),
   },
@@ -92,3 +142,5 @@ export const labelToolPlugin = createMeasurementToolPlugin({
     getSlots: getLabelToolInfoBoxSlots,
   },
 });
+
+export const labelToolPlugin = createLabelToolPlugin();

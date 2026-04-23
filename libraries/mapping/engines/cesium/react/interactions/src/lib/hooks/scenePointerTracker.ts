@@ -1,5 +1,19 @@
 import { Cartesian2, type Scene } from "@carma-cesium";
 
+const LABEL_OVERLAY_CONTAINER_ATTRIBUTE = "data-label-overlay-container";
+const LABEL_OVERLAY_ROOT_ATTRIBUTE = "data-annotation-label-overlay-root";
+const VISUALIZER_OVERLAY_ROOT_ATTRIBUTE =
+  "data-annotation-visualizer-overlay-root";
+const VISUALIZER_OVERLAY_CONTAINER_ATTRIBUTE =
+  "data-annotation-visualizer-overlay-container";
+
+const ALLOWED_POINTER_TARGET_SELECTOR = [
+  `[${LABEL_OVERLAY_CONTAINER_ATTRIBUTE}="true"]`,
+  `[${LABEL_OVERLAY_ROOT_ATTRIBUTE}="true"]`,
+  `[${VISUALIZER_OVERLAY_ROOT_ATTRIBUTE}="true"]`,
+  `[${VISUALIZER_OVERLAY_CONTAINER_ATTRIBUTE}="true"]`,
+].join(", ");
+
 type ClientPosition = {
   x: number;
   y: number;
@@ -62,6 +76,34 @@ const clearTrackerPointerPosition = (tracker: ScenePointerTracker) => {
   tracker.pointerPositionDirty = false;
   tracker.screenPosition = null;
   notifyTrackerListeners(tracker);
+};
+
+const resolveEventTargetElement = (event: PointerEvent): Element | null => {
+  const eventTarget = event.target;
+
+  if (eventTarget instanceof Element) {
+    return eventTarget;
+  }
+
+  if (eventTarget instanceof Node) {
+    return eventTarget.parentElement;
+  }
+
+  return null;
+};
+
+const isAllowedPointerEventTarget = (scene: Scene, event: PointerEvent) => {
+  const eventTargetElement = resolveEventTargetElement(event);
+
+  if (!eventTargetElement) {
+    return false;
+  }
+
+  return (
+    eventTargetElement === scene.canvas ||
+    scene.canvas.contains(eventTargetElement) ||
+    eventTargetElement.closest(ALLOWED_POINTER_TARGET_SELECTOR) !== null
+  );
 };
 
 const ensureCanvasRect = (scene: Scene, tracker: ScenePointerTracker) => {
@@ -151,6 +193,11 @@ const createScenePointerTracker = (scene: Scene): ScenePointerTracker => {
     );
 
     if (!wasInsideCanvas && !isInsideCanvas) {
+      return;
+    }
+
+    if (!isAllowedPointerEventTarget(scene, event)) {
+      clearTrackerPointerPosition(tracker);
       return;
     }
 

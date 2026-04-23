@@ -59,6 +59,11 @@ export {
 export { useGeometryInstanceOpacityAnimation } from "./hooks/useGeometryInstanceOpacityAnimation";
 export { useSceneStyles } from "./hooks/useSceneStyles";
 export { useZoomControls } from "./hooks/useZoomControls";
+export {
+  useCesiumCameraLimiterToggle,
+  type CesiumCameraLimiterReenableOptions,
+  type UseCesiumCameraLimiterToggleOptions,
+} from "./hooks/useCesiumCameraLimiterToggle";
 
 export { VIEWERSTATE_KEYS } from "./constants";
 export { CUSTOM_SHADERS_DEFINITIONS } from "./shaders";

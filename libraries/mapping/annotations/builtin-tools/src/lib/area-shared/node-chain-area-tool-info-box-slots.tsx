@@ -5,7 +5,10 @@ import {
   radToDegNumeric,
 } from "@carma-units";
 import type { PolygonType } from "@carma-mapping/annotations/core";
-import { buildAnnotationMeasurementInfoBoxSlots } from "@carma-mapping/annotations/ui";
+import {
+  AnnotationInfoBoxMetricGrid,
+  buildAnnotationMeasurementInfoBoxSlots,
+} from "@carma-mapping/annotations/ui";
 
 import type { RuntimeAnnotationInfoBoxContext } from "@carma-mapping/annotations/runtime";
 import { resolveRuntimeMeasurementNavigation } from "@carma-mapping/annotations/runtime";
@@ -129,24 +132,43 @@ export const createNodeChainAreaToolInfoBoxSlots = (
       },
       metaText: areaText,
       content: (
-        <>
-          <div>{`Umfang: ${formatLengthMeters(
-            summary.perimeterMeters,
-            formatOptions.lengthMeters
-          )}`}</div>
-          {Number.isFinite(summary.verticalityDeg) ? (
-            <div>{`Vertikalität: ${formatDegrees(
-              summary.verticalityDeg ?? 0,
-              formatOptions.degrees
-            )}`}</div>
-          ) : null}
-          {Number.isFinite(summary.bearingRad) ? (
-            <div>{`Ausrichtung: ${formatBearing(
-              summary.bearingRad ?? 0,
-              formatOptions
-            )}`}</div>
-          ) : null}
-        </>
+        <AnnotationInfoBoxMetricGrid
+          items={[
+            {
+              id: "perimeter",
+              label: "Umfang",
+              value: formatLengthMeters(
+                summary.perimeterMeters,
+                formatOptions.lengthMeters
+              ),
+            },
+            ...(Number.isFinite(summary.verticalityDeg)
+              ? [
+                  {
+                    id: "verticality",
+                    label: "Vertikalität",
+                    value: formatDegrees(
+                      summary.verticalityDeg ?? 0,
+                      formatOptions.degrees
+                    ),
+                  },
+                ]
+              : []),
+            ...(Number.isFinite(summary.bearingRad)
+              ? [
+                  {
+                    id: "bearing",
+                    label: "Ausrichtung",
+                    value: formatBearing(
+                      summary.bearingRad ?? 0,
+                      formatOptions
+                    ),
+                  },
+                ]
+              : []),
+          ]}
+          visualOptions={infoBoxVisualOptions}
+        />
       ),
       navigation: {
         totalEntries: navigation?.totalEntries ?? 0,

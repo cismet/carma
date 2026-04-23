@@ -1,4 +1,4 @@
-import { isKeyboardTargetEditable } from "./dom";
+import { isKeyboardTargetBlockedForAnnotationShortcuts } from "./dom";
 
 export const ANNOTATION_SHORTCUT_GLYPHS: Readonly<Record<string, string>> = {
   A: "🅰",
@@ -185,7 +185,7 @@ export const isManagedAnnotationKeyboardEvent = (
     return false;
   }
 
-  if (isKeyboardTargetEditable(event.target)) {
+  if (isKeyboardTargetBlockedForAnnotationShortcuts(event.target)) {
     return false;
   }
 
@@ -197,7 +197,7 @@ export const isSelectAllAnnotationKeyboardShortcut = (
 ): boolean =>
   !event.defaultPrevented &&
   !event.altKey &&
-  !isKeyboardTargetEditable(event.target) &&
+  !isKeyboardTargetBlockedForAnnotationShortcuts(event.target) &&
   (event.ctrlKey || event.metaKey) &&
   event.key.toLowerCase() === "a";
 

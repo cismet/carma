@@ -85,7 +85,7 @@ const resolveLaunchModeConfig = (config: HashLaunchModeConfig = {}) => ({
   flag3dKey: config.flag3dKey ?? DEFAULT_HASH_LAUNCH_FLAG_3D_KEY,
 });
 
-const hasTruthyLegacyLaunchFlag = (value: unknown): boolean => {
+export const isTruthyHashValue = (value: unknown): boolean => {
   if (value === undefined || value === null) {
     return false;
   }
@@ -148,7 +148,7 @@ export const readHashLaunchMode = (
   }
 
   if (
-    hasTruthyLegacyLaunchFlag(params[DEFAULT_HASH_LAUNCH_LEGACY_FLAG_3D_KEY])
+    isTruthyHashValue(params[DEFAULT_HASH_LAUNCH_LEGACY_FLAG_3D_KEY])
   ) {
     return HASH_LAUNCH_MODE.THREE_D;
   }
@@ -158,7 +158,7 @@ export const readHashLaunchMode = (
   }
 
   if (
-    hasTruthyLegacyLaunchFlag(params[DEFAULT_HASH_LAUNCH_LEGACY_FLAG_2D_KEY])
+    isTruthyHashValue(params[DEFAULT_HASH_LAUNCH_LEGACY_FLAG_2D_KEY])
   ) {
     return HASH_LAUNCH_MODE.TWO_D;
   }

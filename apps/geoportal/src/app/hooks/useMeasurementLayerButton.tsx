@@ -4,13 +4,13 @@ import Icon from "react-cismap/commons/Icon";
 
 import {
   faFloppyDisk,
-  faMagnifyingGlassLocation,
   faTrashCan,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import type { InteractionButton, Layer } from "@carma-mapping/layers";
 import { useMapMeasurementsContext } from "@carma-commons/measurements";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
 import {
   appendLayer,
@@ -31,6 +31,7 @@ export function useMeasurementLayerButton() {
   const uiMode = useSelector(getUIMode);
   const layers = useSelector(getLayers);
   const { shapes, clearAllShapes, setShowAll } = useMapMeasurementsContext();
+  const { isLeaflet } = useMapFrameworkSwitcherContext();
 
   const interactionButtons: InteractionButton[] = [
     {
@@ -55,6 +56,7 @@ export function useMeasurementLayerButton() {
   const measurementLayer: Layer = {
     id: MEASUREMENT_LAYER_ID,
     title: "Messung",
+    type: "object",
     icon: "measurement",
     visible: true,
     pinned: "last",
@@ -63,10 +65,11 @@ export function useMeasurementLayerButton() {
   };
 
   const isMeasurementMode = uiMode === UIMode.MEASUREMENT;
+  const shouldShowMeasurementLayer = isLeaflet && isMeasurementMode;
   const hasMeasurementLayer = layers.some((l) => l.id === MEASUREMENT_LAYER_ID);
 
   // Track previous values to detect what changed
-  const prevRef = useRef({ isMeasurementMode, hasMeasurementLayer });
+  const prevRef = useRef({ shouldShowMeasurementLayer, hasMeasurementLayer });
   const initialCleanupDone = useRef(false);
 
   // Clean up stale measurement layers persisted from a previous session
@@ -74,17 +77,21 @@ export function useMeasurementLayerButton() {
     if (initialCleanupDone.current) return;
     initialCleanupDone.current = true;
 
-    if (!isMeasurementMode && hasMeasurementLayer) {
+    if (!shouldShowMeasurementLayer && hasMeasurementLayer) {
       dispatch(removeLayer(MEASUREMENT_LAYER_ID));
     }
   }, []);
 
   useEffect(() => {
     const prev = prevRef.current;
-    prevRef.current = { isMeasurementMode, hasMeasurementLayer };
+    prevRef.current = { shouldShowMeasurementLayer, hasMeasurementLayer };
 
     // Mode just turned ON and layer doesn't exist yet: add it
-    if (isMeasurementMode && !prev.isMeasurementMode && !hasMeasurementLayer) {
+    if (
+      shouldShowMeasurementLayer &&
+      !prev.shouldShowMeasurementLayer &&
+      !hasMeasurementLayer
+    ) {
       dispatch(
         appendLayer({
           ...measurementLayer,
@@ -95,24 +102,32 @@ export function useMeasurementLayerButton() {
     }
 
     // Mode just turned OFF and layer still exists: remove it
-    if (!isMeasurementMode && prev.isMeasurementMode && hasMeasurementLayer) {
+    if (
+      !shouldShowMeasurementLayer &&
+      prev.shouldShowMeasurementLayer &&
+      hasMeasurementLayer
+    ) {
       dispatch(removeLayer(MEASUREMENT_LAYER_ID));
       return;
     }
 
     // Layer was removed (by the user via X button) while mode is still active: deactivate mode
-    if (isMeasurementMode && !hasMeasurementLayer && prev.hasMeasurementLayer) {
+    if (
+      shouldShowMeasurementLayer &&
+      !hasMeasurementLayer &&
+      prev.hasMeasurementLayer
+    ) {
       dispatch(setUIMode(UIMode.DEFAULT));
     }
-  }, [isMeasurementMode, hasMeasurementLayer, dispatch]);
+  }, [dispatch, hasMeasurementLayer, shouldShowMeasurementLayer, shapes.length]);
 
   useEffect(() => {
-    if (!hasMeasurementLayer) return;
+    if (!shouldShowMeasurementLayer || !hasMeasurementLayer) return;
     dispatch(
       updateLayer({
         ...measurementLayer,
         title: getMeasurementTitle(shapes.length),
       })
     );
-  }, [shapes.length, hasMeasurementLayer, dispatch]);
+  }, [dispatch, hasMeasurementLayer, shapes.length, shouldShowMeasurementLayer]);
 }

@@ -2,7 +2,10 @@ import { Cartesian3 } from "@carma-cesium";
 import { cartesian3FromGeographicCoordinate } from "@carma-mapping/engines/cesium/core";
 import { CarmaTransforms } from "@carma-mapping/engines/cesium/core";
 import { formatLengthMeters } from "@carma-units";
-import { buildAnnotationMeasurementInfoBoxSlots } from "@carma-mapping/annotations/ui";
+import {
+  AnnotationInfoBoxMetricGrid,
+  buildAnnotationMeasurementInfoBoxSlots,
+} from "@carma-mapping/annotations/ui";
 
 import type { RuntimeAnnotationInfoBoxContext } from "@carma-mapping/annotations/runtime";
 import { resolveRuntimeMeasurementNavigation } from "@carma-mapping/annotations/runtime";
@@ -138,28 +141,35 @@ export const createDistanceToolInfoBoxSlots = (
       },
       metaText: directDistanceText,
       content: (
-        <div className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1 tabular-nums">
-          <span className={infoBoxVisualOptions.mutedTextClassName}>
-            Direkt
-          </span>
-          <span>{formatDistance(directDistanceMeters)}</span>
-          <span className={infoBoxVisualOptions.mutedTextClassName}>
-            Horizontal
-          </span>
-          <span>{formatDistance(horizontalDistanceMeters)}</span>
-          <span className={infoBoxVisualOptions.mutedTextClassName}>
-            Vertikal
-          </span>
-          <span>{formatDistance(verticalDistanceMeters)}</span>
-          {Number.isFinite(bearingRad) ? (
-            <>
-              <span className={infoBoxVisualOptions.mutedTextClassName}>
-                Ausrichtung
-              </span>
-              <span>{formatCardinalBearing(bearingRad ?? 0)}</span>
-            </>
-          ) : null}
-        </div>
+        <AnnotationInfoBoxMetricGrid
+          items={[
+            {
+              id: "direct",
+              label: "Direkt",
+              value: formatDistance(directDistanceMeters),
+            },
+            {
+              id: "horizontal",
+              label: "Horizontal",
+              value: formatDistance(horizontalDistanceMeters),
+            },
+            {
+              id: "vertical",
+              label: "Vertikal",
+              value: formatDistance(verticalDistanceMeters),
+            },
+            ...(Number.isFinite(bearingRad)
+              ? [
+                  {
+                    id: "bearing",
+                    label: "Ausrichtung",
+                    value: formatCardinalBearing(bearingRad ?? 0),
+                  },
+                ]
+              : []),
+          ]}
+          visualOptions={infoBoxVisualOptions}
+        />
       ),
       navigation: {
         totalEntries: navigation?.totalEntries ?? 0,

@@ -22,7 +22,7 @@ export const LayerButton = forwardRef(
       <div
         ref={ref}
         className={cn(
-          "w-fit min-w-max relative flex items-center gap-2 sm:gap-1 rounded-[10px] h-8 z-[9999999] bg-white",
+          "w-fit min-w-max relative flex items-center gap-2 sm:gap-1 rounded-[10px] h-8 z-[9999999] bg-white overflow-visible",
           useShadow ? "button-shadow" : "",
           ...classNames
         )}

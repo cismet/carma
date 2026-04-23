@@ -109,6 +109,7 @@ type EdgeSegment = {
   stroke: string;
   strokeWidth: number;
   dashed?: true;
+  overlayDashed?: true;
   showSegmentLengthLabels?: true;
   distanceTriangleOverlay?: RuntimeDistanceTriangleOverlayRenderModel;
 };
@@ -1044,6 +1045,7 @@ export const useMeasurementEdgesController = (
             stroke: edge.stroke,
             strokeWidth: edge.strokeWidth,
             ...(edge.dashed ? { dashed: true as const } : {}),
+            ...(edge.overlayDashed ? { overlayDashed: true as const } : {}),
             ...(edge.showSegmentLengthLabels
               ? { showSegmentLengthLabels: true as const }
               : {}),
@@ -1177,7 +1179,7 @@ export const useMeasurementEdgesController = (
           },
           stroke: edge.stroke,
           strokeWidth: edge.strokeWidth,
-          dashed: edge.dashed,
+          dashed: edge.overlayDashed ?? edge.dashed,
           hitTargetStrokeWidth: 10,
           onLineClick: lineClickHandler,
         });

@@ -3,7 +3,10 @@ import {
   formatLengthMeters,
   radToDegNumeric,
 } from "@carma-units";
-import { buildAnnotationMeasurementInfoBoxSlots } from "@carma-mapping/annotations/ui";
+import {
+  AnnotationInfoBoxMetricGrid,
+  buildAnnotationMeasurementInfoBoxSlots,
+} from "@carma-mapping/annotations/ui";
 
 import type { RuntimeAnnotationInfoBoxContext } from "@carma-mapping/annotations/runtime";
 import { resolveRuntimeMeasurementNavigation } from "@carma-mapping/annotations/runtime";
@@ -122,51 +125,58 @@ export const createPolylineToolInfoBoxSlots = (
       },
       metaText: formatDistance(summary.totalLengthMeters),
       content: (
-        <div className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1 tabular-nums">
-          <span className={infoBoxVisualOptions.mutedTextClassName}>
-            Gesamtlänge
-          </span>
-          <span>{formatDistance(summary.totalLengthMeters)}</span>
-          <span className={infoBoxVisualOptions.mutedTextClassName}>
-            Segmente
-          </span>
-          <span>{summary.segmentCount}</span>
-          <span className={infoBoxVisualOptions.mutedTextClassName}>
-            Ø Segment
-          </span>
-          <span>{formatDistance(summary.meanSegmentLengthMeters)}</span>
-          <span className={infoBoxVisualOptions.mutedTextClassName}>
-            Aufstieg
-          </span>
-          <span>{formatDistance(summary.ascentMeters)}</span>
-          <span className={infoBoxVisualOptions.mutedTextClassName}>
-            Abstieg
-          </span>
-          <span>{formatDistance(summary.descentMeters)}</span>
-          <span className={infoBoxVisualOptions.mutedTextClassName}>
-            Summe H
-          </span>
-          <span>
-            {formatDistance(summary.totalAbsoluteElevationChangeMeters)}
-          </span>
-          <span className={infoBoxVisualOptions.mutedTextClassName}>
-            Δ Start/Ende
-          </span>
-          <span>{formatDistance(summary.startEndElevationDeltaMeters)}</span>
-          {Number.isFinite(bearingRad) ? (
-            <>
-              <span className={infoBoxVisualOptions.mutedTextClassName}>
-                Ausrichtung
-              </span>
-              <span>
-                {formatDegrees(
-                  radToDegNumeric(bearingRad ?? 0),
-                  formatOptions.degrees
-                )}
-              </span>
-            </>
-          ) : null}
-        </div>
+        <AnnotationInfoBoxMetricGrid
+          items={[
+            {
+              id: "total-length",
+              label: "Gesamtlänge",
+              value: formatDistance(summary.totalLengthMeters),
+            },
+            {
+              id: "segment-count",
+              label: "Segmente",
+              value: summary.segmentCount,
+            },
+            {
+              id: "mean-segment-length",
+              label: "Ø Segment",
+              value: formatDistance(summary.meanSegmentLengthMeters),
+            },
+            {
+              id: "ascent",
+              label: "Aufstieg",
+              value: formatDistance(summary.ascentMeters),
+            },
+            {
+              id: "descent",
+              label: "Abstieg",
+              value: formatDistance(summary.descentMeters),
+            },
+            {
+              id: "absolute-elevation-change",
+              label: "Summe H",
+              value: formatDistance(summary.totalAbsoluteElevationChangeMeters),
+            },
+            {
+              id: "start-end-elevation-delta",
+              label: "Δ Start/Ende",
+              value: formatDistance(summary.startEndElevationDeltaMeters),
+            },
+            ...(Number.isFinite(bearingRad)
+              ? [
+                  {
+                    id: "bearing",
+                    label: "Ausrichtung",
+                    value: formatDegrees(
+                      radToDegNumeric(bearingRad ?? 0),
+                      formatOptions.degrees
+                    ),
+                  },
+                ]
+              : []),
+          ]}
+          visualOptions={infoBoxVisualOptions}
+        />
       ),
       navigation: {
         totalEntries: navigation?.totalEntries ?? 0,

@@ -56,6 +56,7 @@ export {
   HASH_LAUNCH_MODE,
   readHashLaunchMode,
   resolveHashLaunchMode,
+  isTruthyHashValue,
   updateHashHistoryState,
   getHashParams,
   diffHashParams,

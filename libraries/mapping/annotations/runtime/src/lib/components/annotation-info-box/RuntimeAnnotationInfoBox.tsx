@@ -9,6 +9,7 @@ import { useAnnotationsRuntime } from "../../context/AnnotationsProvider";
 
 export const RuntimeAnnotationInfoBox = ({
   pixelWidth,
+  fitContentWidth,
   useControlLayout,
   controlPosition,
   controlOrder,
@@ -105,6 +106,7 @@ export const RuntimeAnnotationInfoBox = ({
   return (
     <AnnotationInfoBoxContainer
       pixelWidth={pixelWidth}
+      fitContentWidth={fitContentWidth}
       useControlLayout={useControlLayout}
       controlPosition={controlPosition}
       controlOrder={controlOrder}

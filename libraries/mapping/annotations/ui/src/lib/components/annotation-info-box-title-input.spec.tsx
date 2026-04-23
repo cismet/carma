@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import { AnnotationInfoBoxTitleInput } from "./AnnotationInfoBoxTitleInput";
 
 describe("AnnotationInfoBoxTitleInput", () => {
-  it("uses CSS content sizing without the old computed width attributes", () => {
+  it("keeps the title input content-sized without forcing an inline width", () => {
     const placeholder = "Distanzmessung";
 
     render(
@@ -19,15 +19,14 @@ describe("AnnotationInfoBoxTitleInput", () => {
 
     const input = screen.getByPlaceholderText(placeholder);
 
-    expect(input).not.toHaveAttribute("size");
-    expect((input as HTMLInputElement).style.width).toBe("");
-    expect((input as HTMLInputElement).style.minWidth).toBe("1ch");
-    expect((input as HTMLInputElement).className).toContain(
-      "[field-sizing:content]"
-    );
+    const htmlInput = input as HTMLInputElement;
+
+    expect(htmlInput.hasAttribute("size")).toBe(false);
+    expect(htmlInput.style.width).toBe("");
+    expect(htmlInput.style.minWidth).toBe("1ch");
   });
 
-  it("keeps the current title value without restoring the old inline width calculation", () => {
+  it("does not add an inline width when the title value changes", () => {
     const placeholder = "Punktmessung";
     const value = "Relative Bezugshöhe";
     const { rerender } = render(
@@ -48,7 +47,7 @@ describe("AnnotationInfoBoxTitleInput", () => {
 
     const input = screen.getByDisplayValue(value) as HTMLInputElement;
 
-    expect(input).not.toHaveAttribute("size");
+    expect(input.hasAttribute("size")).toBe(false);
     expect(input.style.width).toBe("");
     expect(input.style.minWidth).toBe("1ch");
   });

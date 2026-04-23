@@ -1,5 +1,6 @@
 import "./lib/interaction/annotation-overlay-line-label.css";
 
+export { AnnotationPreviewOverlayRoots } from "./lib/components/AnnotationPreviewOverlayRoots";
 export { RuntimeAnnotationInfoBox } from "./lib/components/annotation-info-box/RuntimeAnnotationInfoBox";
 export {
   ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE,

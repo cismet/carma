@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   HASH_LAUNCH_MODE,
+  isTruthyHashValue,
   readHashLaunchMode,
   resolveHashLaunchMode,
 } from "./routing";
@@ -51,5 +52,20 @@ describe("routing launch-mode helpers", () => {
         }
       )
     ).toBe(HASH_LAUNCH_MODE.TWO_D);
+  });
+});
+
+describe("hash value helpers", () => {
+  it("treats common enabled hash values as truthy", () => {
+    expect(isTruthyHashValue("1")).toBe(true);
+    expect(isTruthyHashValue("true")).toBe(true);
+    expect(isTruthyHashValue(true)).toBe(true);
+  });
+
+  it("treats common disabled hash values as false", () => {
+    expect(isTruthyHashValue(undefined)).toBe(false);
+    expect(isTruthyHashValue("0")).toBe(false);
+    expect(isTruthyHashValue("false")).toBe(false);
+    expect(isTruthyHashValue("off")).toBe(false);
   });
 });

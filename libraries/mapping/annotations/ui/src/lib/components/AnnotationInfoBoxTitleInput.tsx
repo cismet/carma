@@ -1,4 +1,5 @@
 import {
+  type CSSProperties,
   useEffect,
   useRef,
   useState,
@@ -41,6 +42,14 @@ export const AnnotationInfoBoxTitleInput = ({
   );
   const inputRef = useRef<HTMLInputElement | null>(null);
   const shortLabelInputRef = useRef<HTMLInputElement | null>(null);
+  const shortLabelWidthCh = Math.min(
+    Math.max(
+      normalizeTitle(draftShortLabelValue || shortLabelPlaceholder || "").length +
+        0.5,
+      2.5
+    ),
+    4.5
+  );
 
   useEffect(() => {
     setDraftValue(normalizeTitle(value));
@@ -96,9 +105,28 @@ export const AnnotationInfoBoxTitleInput = ({
     shortLabelInputRef.current?.blur();
   };
 
+  const titleInputStyle = {
+    ...resolvedVisualOptions.titleTextStyle,
+    flex: "0 1 auto",
+    minWidth: "1ch",
+    maxWidth: "100%",
+    fieldSizing: "content",
+  } as CSSProperties;
+
+  const shortLabelInputStyle = {
+    ...resolvedVisualOptions.titleTextStyle,
+    borderRadius: annotationInfoBoxTitleInputDefaults.borderRadiusRem,
+    flex: "0 1 auto",
+    width: `${shortLabelWidthCh}ch`,
+    minWidth: "2.5ch",
+    maxWidth: "4.5ch",
+    fieldSizing: "content",
+  } as CSSProperties;
+
   return (
     <div
-      className="inline-flex min-w-0 max-w-full items-center gap-1"
+      className="inline-flex min-w-0 max-w-full items-center"
+      style={{ columnGap: "0.35em" }}
       onMouseDown={stopPointerPropagation}
       onClick={stopPointerPropagation}
     >
@@ -108,12 +136,7 @@ export const AnnotationInfoBoxTitleInput = ({
         value={draftValue}
         placeholder={placeholder}
         className={resolvedVisualOptions.titleInputClassName}
-        style={{
-          ...resolvedVisualOptions.titleTextStyle,
-          flex: "0 1 auto",
-          minWidth: "1ch",
-          maxWidth: "100%",
-        }}
+        style={titleInputStyle}
         onMouseDown={stopPointerPropagation}
         onClick={stopPointerPropagation}
         onChange={(event) => setDraftValue(event.target.value)}
@@ -127,12 +150,7 @@ export const AnnotationInfoBoxTitleInput = ({
           value={draftShortLabelValue}
           placeholder={shortLabelPlaceholder}
           className={resolvedVisualOptions.shortLabelInputClassName}
-          style={{
-            ...resolvedVisualOptions.titleTextStyle,
-            borderRadius: annotationInfoBoxTitleInputDefaults.borderRadiusRem,
-            flex: "0 1 auto",
-            minWidth: "1ch",
-          }}
+          style={shortLabelInputStyle}
           onMouseDown={stopPointerPropagation}
           onClick={stopPointerPropagation}
           onChange={(event) => setDraftShortLabelValue(event.target.value)}
