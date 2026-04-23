@@ -11,7 +11,11 @@ export const tabItems = (
   metadataText?: string,
   pdfUrl?: string
 ) => {
-  return [
+  const wmsUrl = currentLayer?.other?.service?.url;
+  const opendataUrl = currentLayer?.conf?.opendata;
+  const hasLinks = Boolean(wmsUrl || opendataUrl);
+
+  const items = [
     {
       label: "Datenquelle",
       key: "1",
@@ -26,28 +30,33 @@ export const tabItems = (
         </>
       ),
     },
-    {
+  ];
+
+  if (hasLinks) {
+    items.push({
       label: "Links",
       key: "2",
       children: (
         <div className="flex flex-col gap-2">
-          {currentLayer?.other?.service?.url && (
+          {wmsUrl && (
             <a
-              href={`${currentLayer.other.service.url}?service=WMS&request=GetCapabilities&version=1.1.1`}
+              href={`${wmsUrl}?service=WMS&request=GetCapabilities&version=1.1.1`}
               target="_blank"
             >
               Inhaltsverzeichnis des Kartendienstes (WMS Capabilities)
             </a>
           )}
-          {currentLayer?.conf?.opendata && (
-            <a href={currentLayer.conf.opendata as string} target="_blank">
+          {opendataUrl && (
+            <a href={opendataUrl as string} target="_blank">
               Datenquelle im Open-Data-Portal Wuppertal
             </a>
           )}
         </div>
       ),
-    },
-  ];
+    });
+  }
+
+  return items;
 };
 
 export const iconMap = {
