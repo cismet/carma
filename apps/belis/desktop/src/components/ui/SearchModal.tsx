@@ -262,7 +262,7 @@ const buildLeuchteWhereClause = (values: LeuchteSearchValues): string => {
   }
   if (values.bezirk?.value) {
     conditions.push(
-      `tdta_standort_mast: {fk_bezirk: {_eq: ${values.bezirk.value}}}`
+      `tdta_standort_mast: {tkey_bezirk: {id: {_eq: ${values.bezirk.value}}}}`
     );
   }
 
@@ -347,7 +347,7 @@ const buildMastWhereClause = (values: MastSearchValues): string => {
     );
   }
   if (values.bezirk?.value) {
-    conditions.push(`fk_bezirk: {_eq: ${values.bezirk.value}}`);
+    conditions.push(`tkey_bezirk: {id: {_eq: ${values.bezirk.value}}}`);
   }
 
   return conditions.length > 0 ? `where: {${conditions.join(", ")}}` : "";
