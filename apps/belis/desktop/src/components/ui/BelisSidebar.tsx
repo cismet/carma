@@ -188,6 +188,8 @@ export interface BelisSidebarProps {
     string,
     (feature: SidebarFeature) => ListItemData
   >;
+  /** Unmerged activeSourceLayers for AuswahlBlock (respects filter toggles). */
+  auswahlActiveSourceLayers?: Set<string>;
   /** Namespaced MVT source for querying features (needed by AuswahlBlock). */
   namespacedSource?: string;
   /** Current adjusted highlights list (needed by AuswahlBlock). */
@@ -218,6 +220,7 @@ const BelisSidebar = ({
   draftsCount,
   onFeatureDismiss,
   listItemExtractors,
+  auswahlActiveSourceLayers,
   namespacedSource,
   adjustedHighlights,
   setAdjustedHighlights,
@@ -633,7 +636,7 @@ const BelisSidebar = ({
           setAdjustedHighlights={setAdjustedHighlights}
           getListItem={getListItem}
           onFeatureSelect={onFeatureSelect}
-          activeSourceLayers={activeSourceLayers}
+          activeSourceLayers={auswahlActiveSourceLayers ?? activeSourceLayers}
         />
       )}
       <div className="flex-1 overflow-y-auto overflow-x-hidden">
