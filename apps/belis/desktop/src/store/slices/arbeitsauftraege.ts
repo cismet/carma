@@ -52,6 +52,7 @@ interface ArbeitsauftraegeState {
   draftMode: boolean;
   lassoSelectedFeatures: LassoSelectedFeature[];
   protokolleSort: ProtokolleSort | null;
+  searchResultsVersion: number;
 }
 
 const initialState: ArbeitsauftraegeState = {
@@ -71,6 +72,7 @@ const initialState: ArbeitsauftraegeState = {
   draftMode: false,
   lassoSelectedFeatures: [],
   protokolleSort: null,
+  searchResultsVersion: 0,
 };
 
 const slice = createSlice({
@@ -156,6 +158,9 @@ const slice = createSlice({
     setProtokolleSort(state, action: { payload: ProtokolleSort | null }) {
       state.protokolleSort = action.payload;
     },
+    bumpSearchResultsVersion(state) {
+      state.searchResultsVersion += 1;
+    },
   },
 });
 
@@ -180,6 +185,7 @@ export const {
   setLassoSelectedFeatures,
   clearLassoSelectedFeatures,
   setProtokolleSort,
+  bumpSearchResultsVersion,
 } = slice.actions;
 
 export const getAAFeatures = (state: RootState) =>
@@ -213,3 +219,5 @@ export const getLassoSelectedFeatures = (state: RootState) =>
   state.arbeitsauftraege.lassoSelectedFeatures;
 export const getProtokolleSort = (state: RootState) =>
   state.arbeitsauftraege.protokolleSort;
+export const getSearchResultsVersion = (state: RootState) =>
+  state.arbeitsauftraege.searchResultsVersion;
