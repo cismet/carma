@@ -462,7 +462,7 @@ const createPointQueryLagDebugOverlay = () => {
   };
 };
 
-const cloneScreenVector = (value: ScreenVector | null) =>
+const cloneScreenVector = (value: ScreenVector | null): ScreenVector | null =>
   value ? { ...value } : null;
 
 const cloneTangentPlaneFailure = (
@@ -476,12 +476,14 @@ const cloneTangentPlaneFailure = (
       }
     : null;
 
-const cloneDiscOriginJump = (jump: PointQueryDiscOriginJump | null) =>
+const cloneDiscOriginJump = (
+  jump: PointQueryDiscOriginJump | null
+): PointQueryDiscOriginJump | null =>
   jump
     ? {
         ...jump,
         previousClientPosition: cloneScreenVector(jump.previousClientPosition),
-        nextClientPosition: { ...jump.nextClientPosition },
+        nextClientPosition: cloneScreenVector(jump.nextClientPosition),
       }
     : null;
 

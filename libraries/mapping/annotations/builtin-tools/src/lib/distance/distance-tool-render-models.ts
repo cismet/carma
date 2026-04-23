@@ -35,8 +35,12 @@ type DistanceToolVisuals = {
   point: PointMarkerVisualStyle;
 };
 
+type PointLabelCoordinateSelection = NonNullable<
+  RuntimePointLabelRenderModel["coordinateSelection"]
+>;
+
 const resolveDistanceBadgePreferredAttach = (
-  coordinateSelection: RuntimePointLabelRenderModel["coordinateSelection"]
+  coordinateSelection: PointLabelCoordinateSelection
 ): RuntimePointLabelRenderModel["preferredAttach"] =>
   coordinateSelection ===
   RUNTIME_POINT_LABEL_COORDINATE_SELECTION.LEFTMOST_SCREEN_SPACE
@@ -44,8 +48,8 @@ const resolveDistanceBadgePreferredAttach = (
     : "left";
 
 const resolveDistanceBadgeLabelCoordinateSelection = (
-  anchorCoordinateSelection: RuntimePointLabelRenderModel["coordinateSelection"]
-): RuntimePointLabelRenderModel["coordinateSelection"] =>
+  anchorCoordinateSelection: PointLabelCoordinateSelection
+): PointLabelCoordinateSelection =>
   resolveOppositePointLabelCoordinateSelection(anchorCoordinateSelection);
 
 const resolveDistanceBadgeNodeId = ({
@@ -53,7 +57,7 @@ const resolveDistanceBadgeNodeId = ({
   coordinateSelection,
 }: {
   coordinateCandidates: readonly RuntimePointLabelCoordinateCandidate[];
-  coordinateSelection: RuntimePointLabelRenderModel["coordinateSelection"];
+  coordinateSelection: PointLabelCoordinateSelection;
 }): string | undefined => {
   if (coordinateCandidates.length === 0) {
     return undefined;

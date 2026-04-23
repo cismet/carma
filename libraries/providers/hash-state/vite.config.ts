@@ -1,12 +1,21 @@
-
 import { nxCopyAssetsPlugin } from '@nx/vite/plugins/nx-copy-assets.plugin';
 import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 import react from '@vitejs/plugin-react';
+import dts from 'vite-plugin-dts';
 import { defineConfig } from 'vite';
+import path from 'path';
 export default defineConfig({
   root: __dirname,
   cacheDir: '../../../node_modules/.vite/libraries/providers/hash-state',
-  plugins: [react(), nxViteTsPaths(), nxCopyAssetsPlugin(['*.md'])],
+  plugins: [
+    react(),
+    nxViteTsPaths(),
+    dts({
+      entryRoot: 'src',
+      tsconfigPath: path.join(__dirname, 'tsconfig.lib.json'),
+    }),
+    nxCopyAssetsPlugin(['*.md']),
+  ],
   build: {
     lib: {
       entry: 'src/index.ts',

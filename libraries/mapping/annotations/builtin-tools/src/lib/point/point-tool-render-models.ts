@@ -9,6 +9,7 @@ import type {
   RuntimePointMarkerRenderModel,
 } from "@carma-mapping/annotations/runtime";
 import {
+  ANNOTATION_ELEVATION_DISPLAY_MODES,
   buildRuntimeNodeCoordinateMap,
   resolveMeasurementCoordinates,
 } from "@carma-mapping/annotations/runtime";
@@ -156,7 +157,8 @@ export const buildPointToolRenderModels = ({
         const elevationText = formatPointElevationLabelText({
           coordinate,
           referenceCoordinate,
-          elevationDisplayMode: undefined,
+          elevationDisplayMode:
+            ANNOTATION_ELEVATION_DISPLAY_MODES.RELATIVE,
           formatOptions,
         });
         const labelColorScheme = labelTheme.scheme;

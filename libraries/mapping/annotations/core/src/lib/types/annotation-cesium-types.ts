@@ -1,12 +1,18 @@
 import { Cartesian3 } from "@carma-cesium";
-import type { MetricVector3 } from "@carma-units";
-import type { Altitude, LatLngAlt } from "@carma-geo/data-structures";
+import type { Degrees, Meters, MetricVector3 } from "@carma-units";
 
 import type { BaseAnnotationEntry } from "./annotation-entry";
 import {
   ANNOTATION_TYPES,
   type AnnotationTypes,
 } from "./annotation-types";
+
+type AnnotationWgs84Coordinate = {
+  longitude: Degrees;
+  latitude: Degrees;
+  altitude: Meters | undefined;
+};
+
 export type AnnotationMode =
   | AnnotationTypes["POINT"]
   | AnnotationTypes["DISTANCE"]
@@ -14,23 +20,13 @@ export type AnnotationMode =
 
 export type AnnotationEntry = BaseAnnotationEntry<AnnotationMode> & {
   geometryECEF: Cartesian3[] | Cartesian3;
-  geometryWGS84:
-    | (LatLngAlt.deg & {
-        altitude: Altitude.EllipsoidalWGS84Meters;
-      })
-    | Array<
-        LatLngAlt.deg & {
-          altitude: Altitude.EllipsoidalWGS84Meters;
-        }
-      >;
+  geometryWGS84: AnnotationWgs84Coordinate | AnnotationWgs84Coordinate[];
 };
 
 export type AnnotationPointEntry = AnnotationEntry & {
   type: AnnotationTypes["POINT"] | AnnotationTypes["DISTANCE"];
   geometryECEF: Cartesian3;
-  geometryWGS84: LatLngAlt.deg & {
-    altitude: Altitude.EllipsoidalWGS84Meters;
-  };
+  geometryWGS84: AnnotationWgs84Coordinate;
   radius?: number;
   verticalOffsetAnchorECEF?: MetricVector3;
 };

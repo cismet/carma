@@ -1,5 +1,5 @@
 {
-  "name": "@carma-mapping/engines-interop-view-state",
+  "name": "@carma-mapping/engines-interop/view-state",
   "version": "0.0.1",
   "private": true,
   "dependencies": {},
