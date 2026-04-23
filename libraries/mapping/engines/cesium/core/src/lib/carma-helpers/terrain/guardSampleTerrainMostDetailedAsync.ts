@@ -1,4 +1,4 @@
-import { waitFrames } from "@carma-commons/utils/promise";
+import { waitFrames } from "@carma-commons/utils";
 
 import {
   isValidCesiumTerrainProvider,

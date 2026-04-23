@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import { type Scene } from "@carma-cesium";
-import { handleDelayedRender } from "@carma-commons/utils";
+import { handleDelayedRender } from "@carma-commons/dom/window";
 import { testCameraObliqueCompliant } from "@carma-mapping/engines/cesium/core";
 import {
   useCesiumCameraForceOblique,

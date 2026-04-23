@@ -1,6 +1,6 @@
 import type { Map as LeafletMap } from "leaflet";
 
-import { promiseWithTimeout } from "@carma-commons/utils/promise";
+import { promiseWithTimeout } from "@carma-commons/utils";
 import {
   Cartographic,
   type Scene,

@@ -10,7 +10,4 @@ export const carmaWindow = {
   location,
 };
 
-// as individual exports
-export { handleDelayedRender } from "./handleDelayedRender";
-
 export { cjsGlobalShim } from "./cjsGlobalShim";
