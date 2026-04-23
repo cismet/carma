@@ -55,12 +55,14 @@ import { MeasurementControl } from "@carma-commons/measurements";
 import { GeoportalMap } from "../GeoportalMap.tsx";
 import LibreGeoportalMap from "../LibreGeoportalMap.tsx";
 import { ObliqueControls } from "../../../oblique/components/ObliqueControls.tsx";
+import CesiumMeasurementInfoBox from "../../annotations/CesiumMeasurementInfoBox.tsx";
 import LayerWrapper from "../../layers/LayerWrapper.tsx";
 
 import useLeafletZoomControls from "../../../hooks/leaflet/useLeafletZoomControls.ts";
 import { useAppSearchParams } from "../../../hooks/useAppSearchParams";
 import { useDispatchSachdatenInfoText } from "../../../hooks/useDispatchSachdatenInfoText.ts";
 import { useFeatureInfoModeCursorStyle } from "../../../hooks/useFeatureInfoModeCursorStyle.ts";
+import { useGeoportalMeasurementModeHash } from "../../../hooks/use-geoportal-measurement-mode-hash";
 import { useMapStyleReduxSync } from "../../../hooks/useMapStyleReduxSync";
 import { useTourRefCollabLabels } from "../../../hooks/useTourRefCollabLabels.ts";
 import { useWindowSize } from "../../../hooks/useWindowSize.ts";
@@ -189,6 +191,7 @@ const MapWrapper = () => {
   // custom hooks
 
   useAppSearchParams();
+  useGeoportalMeasurementModeHash();
   useDispatchSachdatenInfoText();
   useMapStyleReduxSync();
 
@@ -399,12 +402,10 @@ const MapWrapper = () => {
             <MeasurementControl
               position="topleft"
               order={60}
-              disabled={!isLeaflet || (isLeaflet && showLibreMap)}
+              disabled={isLeaflet && showLibreMap}
               useDisabledStyle={isLeaflet && showLibreMap}
               tooltip={
-                isCesium
-                  ? "zum Messen zu 2D-Modus wechseln"
-                  : isModeMeasurement
+                isModeMeasurement
                   ? "Messungsmodus ausschalten"
                   : "Messungsmodus einschalten"
               }
@@ -477,6 +478,7 @@ const MapWrapper = () => {
               <LayerWrapper />
             </Control>
           )}
+          {!isObliquePreviewVisible && <CesiumMeasurementInfoBox />}
           <Control position="bottomleft" order={10}>
             <div
               ref={tourRefLabels.gazetteer}

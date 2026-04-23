@@ -137,6 +137,7 @@ import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../leaflet.css";
 import AdhocSelectionSync from "../feature-info/AdhocSelectionSync.tsx";
 import { selectionPadding } from "../../constants/selection.ts";
+import { GEOPORTAL_CESIUM_CONTAINER_ID } from "../annotations/cesium-annotations.constants.ts";
 
 interface MapProps {
   height: number;
@@ -737,10 +738,11 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
   }, [getLeafletMap]);
 
   const renderInfoBox = useCallback(() => {
+    if (isModeMeasurement && getIsLeaflet()) {
+      return <InfoBoxMeasurement key={uiMode} />;
+    }
+
     if (getIsLeaflet()) {
-      if (isModeMeasurement) {
-        return <InfoBoxMeasurement key={uiMode} />;
-      }
       if (selectedFeature || loadingFeatureInfo) {
         return (
           <FeatureInfoBox pos={pos} onZoomToFeature={handleZoomToFeature} />
@@ -1067,6 +1069,7 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
       </div>
       {allow3d && isInitialCameraResolved && shouldMountCesium && (
         <div
+          id={GEOPORTAL_CESIUM_CONTAINER_ID}
           ref={container3dMapRef}
           className={"map-container-3d"}
           style={containerStyle}

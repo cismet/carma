@@ -9,6 +9,7 @@ import type {
   RuntimePolygonFillRenderModel,
 } from "./measurement-render-models";
 import { useMeasurementEdgesController } from "./use-measurement-edges-controller";
+import { useMeasurementOverlayPolygonFillsController } from "./use-measurement-overlay-polygon-fills-controller";
 import { useMeasurementPolygonFillsController } from "./use-measurement-polygon-fills-controller";
 import type { Scene } from "@carma-cesium";
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
@@ -104,6 +105,7 @@ export const useMeasurementVisualizers = (
     onDistanceTriangleCornerClick,
   });
   useMeasurementPolygonFillsController(scene, polygonFills);
+  useMeasurementOverlayPolygonFillsController(scene, polygonFills, surfaceKey);
 
   const selectedAnnotationIdSet = useMemo(
     () => new Set(selectedAnnotationIds),

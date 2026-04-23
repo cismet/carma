@@ -27,6 +27,14 @@ export {
   type LockToggleButtonProps,
 } from "./lib/components/LockToggleButton";
 export {
+  CameraLimiterIcon,
+  type CameraLimiterIconProps,
+} from "./lib/components/CameraLimiterIcon";
+export {
+  CameraLimiterToggleButton,
+  type CameraLimiterToggleButtonProps,
+} from "./lib/components/CameraLimiterToggleButton";
+export {
   VectorSquareIcon,
   type VectorSquareIconProps,
 } from "./lib/components/VectorSquareIcon";

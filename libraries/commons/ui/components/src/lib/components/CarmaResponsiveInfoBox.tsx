@@ -30,6 +30,7 @@ export interface CarmaResponsiveInfoBoxProps {
   hideSubtitleWhenCollapsed?: boolean;
   content?: React.ReactNode;
   footer?: React.ReactNode;
+  hideFooterWhenCollapsed?: boolean;
   collapsed?: boolean;
   onCollapsedChange?: (value: boolean) => void;
   collapsible?: boolean;
@@ -56,6 +57,7 @@ export const CarmaResponsiveInfoBox = ({
   hideSubtitleWhenCollapsed = false,
   content,
   footer,
+  hideFooterWhenCollapsed = false,
   collapsed,
   onCollapsedChange,
   collapsible = false,
@@ -95,6 +97,9 @@ export const CarmaResponsiveInfoBox = ({
       0
       ? fallbackWindowWidth - CONTROL_LAYOUT_EDGE_MARGIN_PX
       : resolvedWidth;
+  const isRightAnchoredControl =
+    useControlLayout &&
+    (controlPosition === "topright" || controlPosition === "bottomright");
 
   const infoBoxStyle: CSSProperties = actualCollapsed
     ? {
@@ -103,15 +108,14 @@ export const CarmaResponsiveInfoBox = ({
         maxWidth: useControlLayout
           ? `max(${INFO_BOX_MIN_WIDTH_REM}, calc(100vw - ${CONTROL_LAYOUT_EDGE_MARGIN_PX}px))`
           : resolvedExpandedWidth,
-        marginLeft: "auto",
-        display: "inline-block",
+        display: "block",
       }
     : fitContentWidth
     ? {
         width: "fit-content",
         minWidth: INFO_BOX_MIN_WIDTH_REM,
         maxWidth: resolvedExpandedWidth,
-        display: "inline-block",
+        display: "block",
       }
     : {
         width: resolvedExpandedWidth,
@@ -150,6 +154,7 @@ export const CarmaResponsiveInfoBox = ({
       data-test-id="info-box"
       style={{
         ...infoBoxStyle,
+        ...(isRightAnchoredControl ? { marginLeft: "auto" } : null),
         fontFamily: "Helvetica Neue, Arial, Helvetica, sans-serif",
         fontSize: "0.75rem",
         pointerEvents: "auto",
@@ -170,6 +175,7 @@ export const CarmaResponsiveInfoBox = ({
         hideSubtitleWhenCollapsed={hideSubtitleWhenCollapsed}
         content={content}
         footer={footer}
+        hideFooterWhenCollapsed={hideFooterWhenCollapsed}
         collapsed={actualCollapsed}
         onCollapsedChange={actualSetCollapsed}
         style={{ pointerEvents: "auto" }}

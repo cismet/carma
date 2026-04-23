@@ -27,10 +27,12 @@ import {
   UIMode,
 } from "../../store/slices/ui";
 import { useFilterBackground } from "./useFilterBackground";
+import CesiumAnnotationTools from "./CesiumAnnotationTools";
 import FilterBackdrop from "./FilterBackdrop";
 import SaveMeasurements from "./SaveMeasurements";
 
 const INTERACTION_COMPONENTS: Record<string, FC<{ layer: Layer }>> = {
+  "cesium-annotation-tools": CesiumAnnotationTools,
   "save-measurements": SaveMeasurements,
 };
 
@@ -42,6 +44,8 @@ const FILTER_FACTORIES: Partial<
 > = {
   [FILTER_TYPES.BUTTON]: createFilterButtons,
 };
+
+const INTERACTION_TYPES_WITHOUT_BACKDROP = new Set(["cesium-annotation-tools"]);
 
 const InteractionView = ({ isDragging }: { isDragging?: boolean }) => {
   const dispatch = useDispatch();
@@ -84,6 +88,11 @@ const InteractionView = ({ isDragging }: { isDragging?: boolean }) => {
     return null;
   }
 
+  const shouldRenderBackdrop =
+    Boolean(validBg) &&
+    !isDragging &&
+    !INTERACTION_TYPES_WITHOUT_BACKDROP.has(interactionType ?? "");
+
   const renderContent = () => {
     if (InteractionComponent) {
       return <InteractionComponent layer={layer} />;
@@ -123,8 +132,8 @@ const InteractionView = ({ isDragging }: { isDragging?: boolean }) => {
 
   return (
     <div ref={wrapperRef} className="relative pointer-events-none">
-      {validBg && !isDragging && <FilterBackdrop bgData={validBg} />}
-      <div className="pt-3 w-full flex items-center justify-center">
+      {shouldRenderBackdrop && <FilterBackdrop bgData={validBg} />}
+      <div className="pt-1 w-full flex items-center justify-center">
         <div ref={filterRef} className="pointer-events-auto">
           {renderContent()}
         </div>

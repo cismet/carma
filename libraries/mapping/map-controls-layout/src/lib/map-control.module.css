@@ -1,14 +1,5 @@
-/*
- * Replace this with your own classes
- *
- * e.g.
- * .container {
- * }
-*/
-
 .container {
   width: 100%;
-  /* height: calc(100vh - 30px); */
   background-color: transparent;
   position: relative;
 }
@@ -53,7 +44,6 @@
   gap: 10px;
   z-index: 500;
   margin: 10px;
-  border: "1px solid red";
 }
 .topcenter {
   position: absolute;
@@ -91,11 +81,11 @@
   margin: 10px 10px 5px 10px;
 }
 
-.bottomright * {
+.bottomright > * {
   margin-left: auto;
 }
 
-.bottomleft * {
+.bottomleft > * {
   margin-right: auto;
 }
 
@@ -110,9 +100,6 @@
   margin: 10px;
 }
 
-.full-collapse-width {
-}
-
 .controls-container__mobile {
   display: flex;
   flex-direction: column-reverse;
@@ -122,14 +109,10 @@
 
 .bottomleft__mobile {
   position: static;
-  /* width: calc(100% - 20px) !important; */
   order: -1;
   margin-top: 0 !important;
   margin-bottom: 0 !important;
   margin-right: auto;
-}
-
-.bottomright__first {
 }
 
 .bottomright__mobile {

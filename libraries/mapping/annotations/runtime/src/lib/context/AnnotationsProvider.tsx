@@ -74,6 +74,7 @@ type AnnotationsProviderProps = {
   children?: ReactNode;
   initialActiveToolType?: AnnotationToolId;
   initialPointTemporaryMode?: boolean;
+  renderEnabled?: boolean;
   formatOptions?: AnnotationsRuntimeFormatOptions;
   previewLineLabelVisualOptions?: Partial<PreviewLineLabelVisualOptions>;
   initialPersistenceState?: AnnotationsRuntimePersistenceEnvelope | null;
@@ -116,6 +117,7 @@ export const AnnotationsProvider = ({
   children,
   initialActiveToolType,
   initialPointTemporaryMode = false,
+  renderEnabled = true,
   formatOptions = DEFAULT_RUNTIME_FORMAT_OPTIONS,
   previewLineLabelVisualOptions = DEFAULT_PREVIEW_LINE_LABEL_VISUAL_OPTIONS,
   initialPersistenceState = null,
@@ -149,8 +151,12 @@ export const AnnotationsProvider = ({
           registry={registry}
           setActiveToolType={setActiveToolType}
         />
-        <RuntimeAuthoringHost {...runtimeAuthoringHost} />
-        <RuntimeVisualHost {...runtimeVisualHost} />
+        {renderEnabled ? (
+          <>
+            <RuntimeAuthoringHost {...runtimeAuthoringHost} />
+            <RuntimeVisualHost {...runtimeVisualHost} />
+          </>
+        ) : null}
         {children}
       </AnnotationsRuntimeContext.Provider>
     </AnnotationsReduxProvider>
