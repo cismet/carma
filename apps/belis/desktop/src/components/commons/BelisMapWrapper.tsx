@@ -84,6 +84,7 @@ import {
   getAALoading,
   getDraftMode,
   getGraphqlLoading,
+  getSearchResultsVersion,
 } from "../../store/slices/arbeitsauftraege";
 import {
   buildApGeoJson,
@@ -276,6 +277,7 @@ const BelisMapLibWrapper = ({
 
   const selectedTeamId = useSelector(getSelectedTeamId);
   const aaFeatures = useSelector(getAAFeatures);
+  const searchResultsVersion = useSelector(getSearchResultsVersion);
   const aaDrafts = useSelector(getAllAADrafts);
   const apDrafts = useSelector(getAllAPDrafts);
   const apDeletions = useSelector(getAPDeletions);
@@ -1160,6 +1162,19 @@ const BelisMapLibWrapper = ({
       cancelled = true;
     };
   }, [sidebarVariant, selectedTeamId, jwt, dispatch, featureDataVersion]);
+
+  // --- Arbeitsauftraege: fit map bounds after a search returns results ---
+  // Keeps a ref to aaFeatures so the effect only fires on a fresh search
+  // (bumped version), not on every feature mutation while searchActive is true.
+  const aaFeaturesRef = useRef(aaFeatures);
+  useEffect(() => {
+    aaFeaturesRef.current = aaFeatures;
+  }, [aaFeatures]);
+  useEffect(() => {
+    if (searchResultsVersion === 0) return;
+    if (activeAATab === "ap") return;
+    fitAABounds(aaFeaturesRef.current, map);
+  }, [searchResultsVersion, map, activeAATab]);
 
   // --- Arbeitsauftraege: GraphQL fetch draft AAs by IDs when in draft mode ---
   useEffect(() => {

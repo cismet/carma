@@ -12,6 +12,7 @@ import {
   setSelectedTeamId,
   setSearchActive,
   clearSelection,
+  bumpSearchResultsVersion,
 } from "../../store/slices/arbeitsauftraege";
 import { buildArbeitsauftragWhereClause } from "../../helper/arbeitsauftragSearchUtils";
 import type { ArbeitsauftragSearchValues } from "../../helper/arbeitsauftragSearchUtils";
@@ -185,6 +186,7 @@ const ArbeitsauftragSearchModal = ({ onSearchDone }: ArbeitsauftragSearchModalPr
         dispatch(setSelectedTeamId(null));
         dispatch(clearSelection());
         dispatch(setFeatures(transformed));
+        dispatch(bumpSearchResultsVersion());
         console.log("yyy [AA_SEARCH] dispatched setSearchActive + setSelectedTeamId(null) + setFeatures");
 
         setIsSearching(false);
