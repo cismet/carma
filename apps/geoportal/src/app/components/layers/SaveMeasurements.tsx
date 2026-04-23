@@ -89,7 +89,8 @@ function SaveMeasurements({ layer }: { layer: Layer }) {
       title: featureTitle,
       serviceName: "measurements",
       type: "object",
-      thumbnail: `${APP_BASE_PATH}measurements.jpg`,
+      thumbnail:
+        "https://wupp-digitaltwin-assets.cismet.de/v2/geoportal/thumbnails/measurements.png",
       vectorStyle: JSON.stringify(featureData),
       tags: ["Messung", ...layerInfoTags],
       keywords: layerInfoKeywords,
