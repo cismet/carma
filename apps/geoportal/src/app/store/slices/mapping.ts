@@ -268,7 +268,13 @@ const slice = createSlice({
       state.selectedLayerIndex = SELECTED_LAYER_INDEX.NO_SELECTION;
     },
     setNextSelectedLayerIndex(state) {
-      const newIndex = state.selectedLayerIndex + 1;
+      let newIndex = state.selectedLayerIndex + 1;
+      while (
+        newIndex < state.layers.length &&
+        state.layers[newIndex]?.interactionButton
+      ) {
+        newIndex += 1;
+      }
       if (newIndex >= state.layers.length) {
         state.selectedLayerIndex = SELECTED_LAYER_INDEX.BACKGROUND_LAYER;
       } else {
@@ -276,9 +282,17 @@ const slice = createSlice({
       }
     },
     setPreviousSelectedLayerIndex(state) {
-      const newIndex = state.selectedLayerIndex - 1;
+      let newIndex = state.selectedLayerIndex - 1;
+      while (newIndex >= 0 && state.layers[newIndex]?.interactionButton) {
+        newIndex -= 1;
+      }
       if (newIndex < SELECTED_LAYER_INDEX.BACKGROUND_LAYER) {
-        state.selectedLayerIndex = state.layers.length - 1;
+        let wrapIndex = state.layers.length - 1;
+        while (wrapIndex >= 0 && state.layers[wrapIndex]?.interactionButton) {
+          wrapIndex -= 1;
+        }
+        state.selectedLayerIndex =
+          wrapIndex >= 0 ? wrapIndex : SELECTED_LAYER_INDEX.BACKGROUND_LAYER;
       } else {
         state.selectedLayerIndex = newIndex;
       }

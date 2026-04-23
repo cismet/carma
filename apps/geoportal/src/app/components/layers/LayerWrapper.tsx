@@ -224,7 +224,11 @@ const LayerWrapper = () => {
       </DndContext>
 
       <InteractionView isDragging={isDragging} />
-      {!isNoSelectionIndex && <SecondaryView />}
+      {!isNoSelectionIndex &&
+        !(
+          selectedLayerIndex >= 0 &&
+          layers[selectedLayerIndex]?.interactionButton
+        ) && <SecondaryView />}
     </>
   );
 };
