@@ -18,8 +18,14 @@ import {
   useMapMeasurementsContext,
   shapesToFeatureCollection,
 } from "@carma-commons/measurements";
+import { ResponsiveInfoBox } from "@carma-appframeworks/portals";
 import type { Layer } from "@carma-mapping/layers";
 import { parseToMapLayer, twemojiUrl } from "@carma-mapping/utils";
+import {
+  getMeasurementTypeKeyword,
+  getMeasurementTypeTag,
+  resolveMeasurementTypesFromFeatureStyle,
+} from "../../helper/measurement-types";
 
 import { APP_BASE_PATH } from "../../config/app.config";
 
@@ -53,7 +59,7 @@ type PickedEmoji = {
 function SaveMeasurements({ layer }: { layer: Layer }) {
   const dispatch = useDispatch();
   const measurements = useSelector(getMeasurements);
-  const { shapes, clearAllShapes } = useMapMeasurementsContext();
+  const { shapes, clearAllShapes, config } = useMapMeasurementsContext();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [selectedUnified, setSelectedUnified] = useState<string>(
@@ -61,6 +67,7 @@ function SaveMeasurements({ layer }: { layer: Layer }) {
   );
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [clearAfterSave, setClearAfterSave] = useState(false);
+  const { infoBoxHeaderColor } = config;
 
   const handleEmojiSelect = (emoji: PickedEmoji) => {
     setSelectedUnified(emoji.unified);
@@ -113,6 +120,12 @@ function SaveMeasurements({ layer }: { layer: Layer }) {
     const layerInfoKeywords = Array.isArray(layerInfo.keywords)
       ? layerInfo.keywords
       : [];
+    const measurementTypes =
+      resolveMeasurementTypesFromFeatureStyle(featureData);
+    const measurementTypeTags = measurementTypes.map(getMeasurementTypeTag);
+    const measurementTypeKeywords = measurementTypes.map(
+      getMeasurementTypeKeyword
+    );
 
     const item: any = {
       ...layerInfo,
@@ -127,8 +140,8 @@ function SaveMeasurements({ layer }: { layer: Layer }) {
       vectorStyle: JSON.stringify(featureData),
       vectorLegend:
         "https://wupp-digitaltwin-assets.cismet.de/v2/geoportal/legenden/measurements.png",
-      tags: ["Messung", ...layerInfoTags],
-      keywords: layerInfoKeywords,
+      tags: ["Messung", ...measurementTypeTags, ...layerInfoTags],
+      keywords: [...measurementTypeKeywords, ...layerInfoKeywords],
     };
 
     const parsedLayer = await parseToMapLayer(item, false, true);
@@ -192,80 +205,97 @@ function SaveMeasurements({ layer }: { layer: Layer }) {
   );
 
   return (
-    <div className="bg-white button-shadow rounded-xl p-4 flex flex-col gap-3 w-[500px]">
-      <div className="flex items-center gap-2">
-        <h4 className="mb-0">Messungen speichern</h4>
-      </div>
-      <hr className="my-0" />
-      <label htmlFor="measurement-title" className="-mb-1 font-semibold">
-        Titel
-      </label>
-      <div className="flex items-center gap-2">
-        <Popover
-          open={emojiPickerOpen}
-          onOpenChange={setEmojiPickerOpen}
-          trigger="click"
-          placement="bottomLeft"
-          destroyTooltipOnHide
-          content={emojiPicker}
-          overlayInnerStyle={{ padding: 0, background: "transparent" }}
+    <ResponsiveInfoBox
+      panelClick={(event) => event.stopPropagation()}
+      pixelwidth={500}
+      useControlLayout={false}
+      isCollapsible={false}
+      fixedRow={false}
+      header={
+        <div
+          className="w-full"
+          style={{ backgroundColor: infoBoxHeaderColor }}
         >
-          <button
-            type="button"
-            title="Emoji wählen"
-            className="flex items-center justify-center shrink-0 h-8 w-10 rounded-md border border-gray-300 bg-white hover:border-gray-400 cursor-pointer"
-          >
-            <img
-              src={twemojiUrl(selectedUnified)}
-              alt=""
-              className="w-5 h-5"
-              draggable={false}
+          Messungen speichern
+        </div>
+      }
+      alwaysVisibleDiv={
+        <div className="flex flex-col gap-3 p-3">
+          <label htmlFor="measurement-title" className="-mb-1 font-semibold">
+            Titel
+          </label>
+          <div className="flex items-center gap-2">
+            <Popover
+              open={emojiPickerOpen}
+              onOpenChange={setEmojiPickerOpen}
+              trigger="click"
+              placement="bottomLeft"
+              destroyTooltipOnHide
+              content={emojiPicker}
+              overlayInnerStyle={{ padding: 0, background: "transparent" }}
+            >
+              <button
+                type="button"
+                title="Emoji wählen"
+                className="flex items-center justify-center shrink-0 h-8 w-10 rounded-md border border-gray-300 bg-white hover:border-gray-400 cursor-pointer"
+              >
+                <img
+                  src={twemojiUrl(selectedUnified)}
+                  alt=""
+                  className="w-5 h-5"
+                  draggable={false}
+                />
+              </button>
+            </Popover>
+            <Input
+              id="measurement-title"
+              value={title}
+              className="bg-white flex-1"
+              placeholder="Bezeichnung der Messungen?"
+              onChange={(e) => setTitle(e.target.value)}
+              onPressEnter={handleSave}
             />
-          </button>
-        </Popover>
-        <Input
-          id="measurement-title"
-          value={title}
-          className="bg-white flex-1"
-          placeholder="Bezeichnung der Messungen?"
-          onChange={(e) => setTitle(e.target.value)}
-          onPressEnter={handleSave}
-        />
-      </div>
-      <label htmlFor="measurement-description" className="-mb-1 font-semibold">
-        Inhalt
-      </label>
-      <Input.TextArea
-        id="measurement-description"
-        value={description}
-        className="bg-white"
-        placeholder="Was wurde gemessen?"
-        onChange={(e) => setDescription(e.target.value)}
-        autoSize={{ minRows: 2, maxRows: 4 }}
-      />
-      <Checkbox
-        checked={clearAfterSave}
-        onChange={(e) => setClearAfterSave(e.target.checked)}
-      >
-        Messungen nach dem Speichern löschen
-      </Checkbox>
-      <div className="flex gap-2">
-        <Button
-          disabled={shapes.length === 0}
-          onClick={handleSave}
-          className="flex-1"
-        >
-          Zum Geoportal hinzufügen
-        </Button>
-        <Button
-          disabled={shapes.length === 0}
-          onClick={handleDownload}
-          className="flex-1"
-        >
-          Speichern
-        </Button>
-      </div>
-    </div>
+          </div>
+          <label
+            htmlFor="measurement-description"
+            className="-mb-1 font-semibold"
+          >
+            Inhalt
+          </label>
+          <Input.TextArea
+            id="measurement-description"
+            value={description}
+            className="bg-white"
+            placeholder="Was wurde gemessen?"
+            onChange={(e) => setDescription(e.target.value)}
+            autoSize={{ minRows: 2, maxRows: 4 }}
+          />
+          <Checkbox
+            checked={clearAfterSave}
+            onChange={(e) => setClearAfterSave(e.target.checked)}
+          >
+            Messungen nach dem Speichern löschen
+          </Checkbox>
+          <div className="flex gap-2">
+            <Button
+              disabled={shapes.length === 0}
+              onClick={handleSave}
+              className="flex-1"
+            >
+              Zum Geoportal hinzufügen
+            </Button>
+            <Button
+              disabled={shapes.length === 0}
+              onClick={handleDownload}
+              className="flex-1"
+            >
+              Speichern
+            </Button>
+          </div>
+        </div>
+      }
+      collapsibleDiv={<div />}
+    />
   );
 }
 

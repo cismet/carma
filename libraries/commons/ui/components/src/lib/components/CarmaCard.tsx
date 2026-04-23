@@ -52,6 +52,7 @@ export interface CarmaCardProps {
   content?: React.ReactNode;
   /** Always-visible line below collapsible content. */
   footer?: React.ReactNode;
+  hideFooterWhenCollapsed?: boolean;
   collapsed?: boolean;
   onCollapsedChange?: (collapsed: boolean) => void;
   collapsible?: boolean;
@@ -78,6 +79,7 @@ const CarmaCard = ({
   hideSubtitleWhenCollapsed = false,
   content,
   footer,
+  hideFooterWhenCollapsed = false,
   collapsed,
   onCollapsedChange,
   collapsible = false,
@@ -130,6 +132,9 @@ const CarmaCard = ({
   const showSubtitle =
     hasNode(subtitle) &&
     !(collapsible && Boolean(collapsed) && hideSubtitleWhenCollapsed);
+  const showFooter =
+    hasNode(footer) &&
+    !(collapsible && Boolean(collapsed) && hideFooterWhenCollapsed);
   const headerTextColor =
     React.isValidElement(header) &&
     (header.props as { style?: React.CSSProperties })?.style?.color
@@ -534,7 +539,7 @@ const CarmaCard = ({
             >
               <div ref={collapsibleContentRef}>{content}</div>
             </div>
-            {footer ? <div style={{ paddingTop: 2 }}>{footer}</div> : null}
+            {showFooter ? <div style={{ paddingTop: 2 }}>{footer}</div> : null}
           </div>
           {collapsible && !shouldRenderCollapseInHeader
             ? renderCollapseToggle(false)

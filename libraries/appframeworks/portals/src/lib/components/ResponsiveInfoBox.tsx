@@ -15,6 +15,7 @@ interface ResponsiveInfoBoxProps {
   panelClick: (event: React.MouseEvent) => void;
   pixelwidth: number;
   header: React.ReactNode;
+  useControlLayout?: boolean;
   collapsedInfoBox?: boolean;
   setCollapsedInfoBox?: (value: boolean) => void;
   isCollapsible?: boolean;
@@ -37,6 +38,7 @@ export const ResponsiveInfoBox = ({
   panelClick,
   pixelwidth,
   header,
+  useControlLayout = true,
   collapsedInfoBox,
   setCollapsedInfoBox,
   isCollapsible = true,
@@ -93,92 +95,101 @@ export const ResponsiveInfoBox = ({
     setInfoBoxPixelWidth(pixelwidth);
   }, [pixelwidth]);
 
+  const infoBox = (
+    <div
+      data-test-id="info-box"
+      style={{
+        ...infoBoxStyle,
+        marginBottom: infoBoxBottomMargin,
+        fontFamily: "Helvetica Neue, Arial, Helvetica, sans-serif",
+        fontSize: "0.75rem",
+        pointerEvents: "auto",
+      }}
+    >
+      {header}
+      {mode === MODES.DEFAULT && (
+        <CollapsibleWell
+          collapsed={collapsed}
+          setCollapsed={setCollapsed}
+          style={{
+            pointerEvents: "auto",
+            padding: 0,
+            paddingLeft: 9,
+            ...collapsibleStyle,
+          }}
+          debugBorder={0}
+          tableStyle={{ margin: 0 }}
+          fixedRow={fixedRow}
+          alwaysVisibleDiv={alwaysVisibleDiv}
+          collapsibleDiv={collapsibleDiv}
+          collapseButtonAreaStyle={collapseButtonAreaStyle}
+          onClick={panelClick}
+          pixelwidth={pixelwidth}
+          isCollapsible={isCollapsible}
+        />
+      )}
+      {mode === MODES.BIG_MOBILE_ICONS && (
+        <CollapsibleWell
+          collapsed={actualCollapsed}
+          setCollapsed={actualSetCollapsed}
+          style={{
+            pointerEvents: "auto",
+            padding: 0,
+            paddingLeft: 9,
+            ...collapsibleStyle,
+          }}
+          debugBorder={0}
+          tableStyle={{ margin: 0 }}
+          fixedRow={fixedRow}
+          alwaysVisibleDiv={
+            <div>
+              {alwaysVisibleDiv}
+              {collapsibleDiv}
+            </div>
+          }
+          collapsibleDiv={<div style={{ display: "none" }} />}
+          collapseButtonAreaStyle={collapseButtonAreaStyle}
+          onClick={panelClick}
+          pixelwidth={pixelwidth}
+          isCollapsible={isCollapsible}
+        />
+      )}
+
+      {mode === MODES.AB && (
+        <CollapsibleABWell
+          collapsed={collapsed}
+          setCollapsed={setCollapsed}
+          style={{
+            pointerEvents: "auto",
+            padding: 0,
+            paddingLeft: 9,
+            ...collapsibleStyle,
+          }}
+          debugBorder={0}
+          tableStyle={{ margin: 0 }}
+          fixedRow={fixedRow}
+          divWhenCollapsed={divWhenCollapsed}
+          divWhenLarge={divWhenLarge}
+          collapseButtonAreaStyle={collapseButtonAreaStyle}
+          onClick={panelClick}
+          pixelwidth={pixelwidth}
+          isCollapsible={isCollapsible}
+        />
+      )}
+    </div>
+  );
+
   return (
     <div>
-      <Control position="bottomright" order={11}>
-        <div
-          data-test-id="info-box"
-          style={{
-            ...infoBoxStyle,
-            marginBottom: infoBoxBottomMargin,
-            fontFamily: "Helvetica Neue, Arial, Helvetica, sans-serif",
-            fontSize: "0.75rem",
-            pointerEvents: "auto",
-          }}
-        >
-          {header}
-          {mode === MODES.DEFAULT && (
-            <CollapsibleWell
-              collapsed={collapsed}
-              setCollapsed={setCollapsed}
-              style={{
-                pointerEvents: "auto",
-                padding: 0,
-                paddingLeft: 9,
-                ...collapsibleStyle,
-              }}
-              debugBorder={0}
-              tableStyle={{ margin: 0 }}
-              fixedRow={fixedRow}
-              alwaysVisibleDiv={alwaysVisibleDiv}
-              collapsibleDiv={collapsibleDiv}
-              collapseButtonAreaStyle={collapseButtonAreaStyle}
-              onClick={panelClick}
-              pixelwidth={pixelwidth}
-              isCollapsible={isCollapsible}
-            />
-          )}
-          {mode === MODES.BIG_MOBILE_ICONS && (
-            <CollapsibleWell
-              collapsed={actualCollapsed}
-              setCollapsed={actualSetCollapsed}
-              style={{
-                pointerEvents: "auto",
-                padding: 0,
-                paddingLeft: 9,
-                ...collapsibleStyle,
-              }}
-              debugBorder={0}
-              tableStyle={{ margin: 0 }}
-              fixedRow={fixedRow}
-              alwaysVisibleDiv={
-                <div>
-                  {alwaysVisibleDiv}
-                  {collapsibleDiv}
-                </div>
-              }
-              collapsibleDiv={<div style={{ display: "none" }} />}
-              collapseButtonAreaStyle={collapseButtonAreaStyle}
-              onClick={panelClick}
-              pixelwidth={pixelwidth}
-              isCollapsible={isCollapsible}
-            />
-          )}
-
-          {mode === MODES.AB && (
-            <CollapsibleABWell
-              collapsed={collapsed}
-              setCollapsed={setCollapsed}
-              style={{
-                pointerEvents: "auto",
-                padding: 0,
-                paddingLeft: 9,
-                ...collapsibleStyle,
-              }}
-              debugBorder={0}
-              tableStyle={{ margin: 0 }}
-              fixedRow={fixedRow}
-              divWhenCollapsed={divWhenCollapsed}
-              divWhenLarge={divWhenLarge}
-              collapseButtonAreaStyle={collapseButtonAreaStyle}
-              onClick={panelClick}
-              pixelwidth={pixelwidth}
-              isCollapsible={isCollapsible}
-            />
-          )}
-        </div>
-      </Control>
-      {secondaryInfoBoxElements.map((element, index) => (
+      {useControlLayout ? (
+        <Control position="bottomright" order={11}>
+          {infoBox}
+        </Control>
+      ) : (
+        infoBox
+      )}
+      {useControlLayout &&
+        secondaryInfoBoxElements.map((element, index) => (
         <Control
           position="bottomright"
           order={10 - index}

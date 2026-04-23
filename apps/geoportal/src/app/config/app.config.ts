@@ -8,6 +8,7 @@ import {
 
 import type { CesiumConfig } from "@carma-mapping/engines/cesium/legacy";
 import type { LeafletConfig } from "@carma-mapping/engines/leaflet";
+import { Easing, type Easing as EasingFunction } from "@carma-commons/math";
 import { Rectangle } from "cesium";
 
 export const APP_BASE_PATH = import.meta.env.BASE_URL;
@@ -23,7 +24,26 @@ export const DEFAULT_CAMERA_FOV_DEG = 60;
 const CESIUM_PATHNAME = "__cesium__";
 const METROPOLE_RUHR_GRAUBLAU_RECTANGLE = Rectangle.fromDegrees(4, 48, 10, 52);
 
-export const CESIUM_CONFIG: CesiumConfig = {
+type CesiumCameraLimiterReenableOptions = {
+  pitch: {
+    durationSeconds: number;
+    validRangeBufferRadians: number;
+  };
+  travelZoom: {
+    durationMilliseconds: number;
+    easing: EasingFunction;
+    minHeightBufferMeters: number;
+    minViewAxisVerticalRatio: number;
+  };
+};
+
+type GeoportalCesiumConfig = Omit<CesiumConfig, "camera"> & {
+  camera: CesiumConfig["camera"] & {
+    limiterReenable: CesiumCameraLimiterReenableOptions;
+  };
+};
+
+export const CESIUM_CONFIG: GeoportalCesiumConfig = {
   transitions: {
     mapMode: {
       duration: 1000,
@@ -33,6 +53,18 @@ export const CESIUM_CONFIG: CesiumConfig = {
     pitchLimiter: true,
     maxPitchDeg: 75,
     maxPitchCorrectionRangeDeg: 10,
+    limiterReenable: {
+      pitch: {
+        durationSeconds: 0.8,
+        validRangeBufferRadians: Math.PI / 360,
+      },
+      travelZoom: {
+        durationMilliseconds: 1500,
+        easing: Easing.CUBIC_IN_OUT,
+        minHeightBufferMeters: 5,
+        minViewAxisVerticalRatio: 0.15,
+      },
+    },
   },
   markerKey: "MarkerGlowLine",
   markerAnchorHeight: 10,
@@ -60,4 +92,5 @@ export const LEAFLET_CONFIG: LeafletConfig = {
 // URL hash parameter keys for viewer state
 export const URL_PARAM_KEYS = {
   mapStyle: "m",
+  measurements3d: "mm",
 } as const;

@@ -14,6 +14,7 @@ type AnnotationInfoBoxContainerProps = AnnotationInfoBoxLayoutProps & {
 
 export const AnnotationInfoBoxContainer = ({
   pixelWidth,
+  fitContentWidth = true,
   useControlLayout = true,
   controlPosition = "bottomright",
   controlOrder = 11,
@@ -29,7 +30,7 @@ export const AnnotationInfoBoxContainer = ({
     <div data-test-id="annotation-info-box">
       <CarmaResponsiveInfoBox
         width={pixelWidth ?? resolvedVisualOptions.defaultPixelWidth}
-        fitContentWidth={true}
+        fitContentWidth={fitContentWidth}
         useControlLayout={useControlLayout}
         controlPosition={controlPosition}
         controlOrder={controlOrder}
@@ -40,10 +41,11 @@ export const AnnotationInfoBoxContainer = ({
         header={undefined}
         headingColor={slots.headingColor ?? resolvedVisualOptions.headingColor}
         footer={slots.footer}
-        hideSubtitleWhenCollapsed={true}
+        hideSubtitleWhenCollapsed={false}
+        hideFooterWhenCollapsed={true}
         heading={
           headingTitle ? (
-            <div className="flex w-full items-center gap-2 px-1">
+            <div className="flex w-full items-center gap-2">
               <span
                 className={`${resolvedVisualOptions.headerForegroundClassName} ${resolvedVisualOptions.headerTitleClassName}`}
                 title={headingTitle}

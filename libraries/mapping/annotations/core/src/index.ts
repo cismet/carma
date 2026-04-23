@@ -99,6 +99,11 @@ export {
 } from "./lib/utils/annotation-collection";
 export { buildAnnotationGeoJsonFeatureCollection } from "./lib/utils/annotation-geo-json-export";
 export {
+  addAnnotationLabelTextHistoryEntry,
+  MAX_ANNOTATION_LABEL_TEXT_HISTORY_ITEMS,
+  resolveNextAnnotationLabelText,
+} from "./lib/utils/annotation-label-text-history";
+export {
   ANNOTATION_COMMON_SHORTCUT_ACTIONS,
   ANNOTATION_NAVIGATION_SHORTCUT_ACTIONS,
   isManagedAnnotationKeyboardEvent,
@@ -142,7 +147,10 @@ export {
   resolveDistanceRelation,
 } from "./lib/utils/distance-visualization";
 export type { ResolvedDistanceRelation } from "./lib/utils/distance-visualization";
-export { isKeyboardTargetEditable } from "./lib/utils/dom";
+export {
+  ANNOTATION_KEYBOARD_SHORTCUTS_SUSPENDED_ATTRIBUTE,
+  isKeyboardTargetEditable,
+} from "./lib/utils/dom";
 export {
   buildGeometryEdgeTable,
   buildPolygonGroupVertexTable,

@@ -53,6 +53,7 @@ export type RuntimeEdgeRenderModel = {
   stroke: string;
   strokeWidth: number;
   dashed?: true;
+  overlayDashed?: true;
   showSegmentLengthLabels?: true;
   distanceTriangleOverlay?: RuntimeDistanceTriangleOverlayRenderModel;
 };
@@ -63,6 +64,7 @@ export type RuntimePolygonFillRenderModel = {
   nodeIds?: readonly string[];
   coordinates: readonly CesiumGeographicCoordinate[];
   fill: string;
+  overlayFill?: string;
   placement?: RuntimePolygonFillPlacement;
   selected?: boolean;
 };

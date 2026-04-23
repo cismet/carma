@@ -51,6 +51,7 @@ export type AnnotationInfoBoxSlots = {
 
 export type AnnotationInfoBoxLayoutProps = {
   pixelWidth?: number;
+  fitContentWidth?: boolean;
   useControlLayout?: boolean;
   controlPosition?:
     | "topleft"

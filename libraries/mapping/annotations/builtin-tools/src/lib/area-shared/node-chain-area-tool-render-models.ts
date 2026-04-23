@@ -1,4 +1,4 @@
-import { Cartesian3 } from "@carma-cesium";
+import { Cartesian3, Color } from "@carma-cesium";
 import {
   POINT_LABEL_ANCHOR_KIND,
   POINT_LABEL_STYLE,
@@ -59,6 +59,16 @@ export const createNodeChainAreaToolVisuals = ({
   fill: getAnnotationAreaFillCssColor(fillType, false),
   selectedFill: getAnnotationAreaFillCssColor(fillType, true),
 });
+
+const resolveOverlayFillColor = (fill: string) => {
+  const color = Color.fromCssColorString(fill);
+  if (!color) {
+    return fill;
+  }
+
+  color.alpha *= 0.5;
+  return color.toCssColorString();
+};
 
 const getPolygonLabelCoordinate = (
   coordinates: readonly {
@@ -146,6 +156,9 @@ export const buildNodeChainAreaToolRenderModels = ({
         measurementId: measurement.id,
         nodeIds: measurement.nodeIds,
         coordinates: [...coordinates, coordinates[0]!],
+        ...(fillPlacement === "coplanar"
+          ? { overlayDashed: true as const }
+          : {}),
         ...(selectedMeasurementIdSet.has(measurement.id)
           ? applySelectedEdgeVisualStyle(visuals.edge)
           : visuals.edge),
@@ -171,6 +184,15 @@ export const buildNodeChainAreaToolRenderModels = ({
         fill: selectedMeasurementIdSet.has(measurement.id)
           ? visuals.selectedFill
           : visuals.fill,
+        ...(fillPlacement === "coplanar"
+          ? {
+              overlayFill: resolveOverlayFillColor(
+                selectedMeasurementIdSet.has(measurement.id)
+                  ? visuals.selectedFill
+                  : visuals.fill
+              ),
+            }
+          : {}),
         placement: fillPlacement,
         selected: selectedMeasurementIdSet.has(measurement.id),
       },

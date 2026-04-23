@@ -36,6 +36,10 @@ import { apiUrl } from "../../constants/discover";
 import store from "../../store";
 import { createResourceLayerUpdater } from "./resource-layer-updater";
 import { useCarmaMapAPIActions } from "@carma-mapping/carma-map-api";
+import {
+  MEASUREMENT_ITEM_TYPES,
+  resolveMeasurementTypesFromItem,
+} from "../../helper/measurement-types";
 
 const ResourceModal = () => {
   const { setCurrentStyle } = useMapStyle();
@@ -87,6 +91,26 @@ const ResourceModal = () => {
     messageApi,
     addLayerById,
   });
+
+  const measurementLayers = measurements.map((measurement) => ({
+    ...measurement,
+    path: "Meine Messungen",
+  }));
+  const pointMeasurements = measurementLayers.filter((measurement) =>
+    resolveMeasurementTypesFromItem(measurement).includes(
+      MEASUREMENT_ITEM_TYPES.POINT
+    )
+  );
+  const distanceMeasurements = measurementLayers.filter((measurement) =>
+    resolveMeasurementTypesFromItem(measurement).includes(
+      MEASUREMENT_ITEM_TYPES.DISTANCE
+    )
+  );
+  const areaMeasurements = measurementLayers.filter((measurement) =>
+    resolveMeasurementTypesFromItem(measurement).includes(
+      MEASUREMENT_ITEM_TYPES.AREA
+    )
+  );
 
   return (
     <>
@@ -162,13 +186,29 @@ const ResourceModal = () => {
           },
           isLeaflet && {
             Title: "Meine Messungen",
-            layers: measurements.map((measurement) => {
-              return {
-                ...measurement,
-                path: "Meine Messungen",
-              };
-            }),
+            layers: measurementLayers,
             id: "measurements",
+            mainCategoryId: "objects",
+            hideWhenEmpty: true,
+          },
+          isLeaflet && {
+            Title: "Punktmessungen",
+            layers: pointMeasurements,
+            id: "pointMeasurements",
+            mainCategoryId: "objects",
+            hideWhenEmpty: true,
+          },
+          isLeaflet && {
+            Title: "Distanzmessungen",
+            layers: distanceMeasurements,
+            id: "distanceMeasurements",
+            mainCategoryId: "objects",
+            hideWhenEmpty: true,
+          },
+          isLeaflet && {
+            Title: "Flächenmessungen",
+            layers: areaMeasurements,
+            id: "areaMeasurements",
             mainCategoryId: "objects",
             hideWhenEmpty: true,
           },
