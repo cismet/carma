@@ -1214,7 +1214,8 @@ export const createPointQueryDebugRuntime = ({
         Math.abs(nextScaleFactor - latestDiscScaleFactor) /
         latestDiscScaleFactor;
       if (
-        relativeChange <= pointQueryDebugDefaults.discScaleChange.relativeThreshold
+        relativeChange <=
+        pointQueryDebugDefaults.discScaleChange.relativeThreshold
       ) {
         latestDiscScaleFactor = nextScaleFactor;
         return;

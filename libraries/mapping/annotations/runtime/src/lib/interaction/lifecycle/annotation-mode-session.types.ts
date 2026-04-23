@@ -1,4 +1,7 @@
-import type { CesiumGeographicCoordinate, AnnotationNodeLinkId } from "../../store";
+import type {
+  CesiumGeographicCoordinate,
+  AnnotationNodeLinkId,
+} from "../../store";
 import type { AnnotationToolId } from "../../registry/annotation-tool-id";
 export type AnnotationModeSession = {
   toolType: AnnotationToolId;

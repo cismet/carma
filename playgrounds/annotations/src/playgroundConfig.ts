@@ -59,8 +59,7 @@ export const PLAYGROUND_STABLE_RUNTIME_TOOL_PLUGINS = [
   pointToolPlugin,
   distanceToolPlugin,
 ] as const;
-export const PLAYGROUND_ALL_RUNTIME_TOOL_PLUGINS =
-  defaultAnnotationToolPlugins;
+export const PLAYGROUND_ALL_RUNTIME_TOOL_PLUGINS = defaultAnnotationToolPlugins;
 
 export const VALID_TOOL_TYPES = new Set<AnnotationToolId>(
   PLAYGROUND_ALL_RUNTIME_TOOL_PLUGINS.map((plugin) => plugin.id)
@@ -96,9 +95,7 @@ const isPlaygroundLocalhost = () => {
 
   const { hostname } = window.location;
   return (
-    hostname === "localhost" ||
-    hostname === "127.0.0.1" ||
-    hostname === "[::1]"
+    hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]"
   );
 };
 

@@ -2,9 +2,7 @@ import { Cartesian3 } from "@carma-cesium";
 import { cartesian3FromGeographicCoordinate } from "@carma-mapping/engines/cesium/core";
 import { CarmaTransforms } from "@carma-mapping/engines/cesium/core";
 import { formatLengthMeters } from "@carma-units";
-import {
-  buildAnnotationMeasurementInfoBoxSlots,
-} from "@carma-mapping/annotations/ui";
+import { buildAnnotationMeasurementInfoBoxSlots } from "@carma-mapping/annotations/ui";
 
 import type { RuntimeAnnotationInfoBoxContext } from "@carma-mapping/annotations/runtime";
 import { resolveRuntimeMeasurementNavigation } from "@carma-mapping/annotations/runtime";
@@ -13,8 +11,8 @@ import {
   resolveMeasurementCoordinates,
 } from "@carma-mapping/annotations/runtime";
 import {
-  formatGermanCardinalBearing,
-  resolveBearingDegFromFirstToLastCoordinate,
+  formatCardinalBearing,
+  resolveBearingRadFromFirstToLastCoordinate,
 } from "@carma-mapping/annotations/runtime";
 
 export const createDistanceToolInfoBoxSlots = (
@@ -84,7 +82,7 @@ export const createDistanceToolInfoBoxSlots = (
       enuOffset.north
     );
     const verticalDistanceMeters = Math.abs(enuOffset.up);
-    const bearingDeg = resolveBearingDegFromFirstToLastCoordinate(coordinates);
+    const bearingRad = resolveBearingRadFromFirstToLastCoordinate(coordinates);
     const shortLabelToken = formatMeasurementLabelToken(distanceOrder);
     const defaultDisplayName = headingTitle;
     const effectiveShortLabel =
@@ -153,12 +151,12 @@ export const createDistanceToolInfoBoxSlots = (
             Vertikal
           </span>
           <span>{formatDistance(verticalDistanceMeters)}</span>
-          {Number.isFinite(bearingDeg) ? (
+          {Number.isFinite(bearingRad) ? (
             <>
               <span className={infoBoxVisualOptions.mutedTextClassName}>
                 Ausrichtung
               </span>
-              <span>{formatGermanCardinalBearing(bearingDeg ?? 0)}</span>
+              <span>{formatCardinalBearing(bearingRad ?? 0)}</span>
             </>
           ) : null}
         </div>

@@ -1177,7 +1177,11 @@ export const useCesiumPointMoveGizmo = (
         if (
           nonActiveAxes.length >= 2 &&
           Cartesian3.magnitudeSquared(
-            Cartesian3.cross(nonActiveAxes[0], nonActiveAxes[1], new Cartesian3())
+            Cartesian3.cross(
+              nonActiveAxes[0],
+              nonActiveAxes[1],
+              new Cartesian3()
+            )
           ) > AXIS_NUMERIC_EPSILON
         ) {
           planeBasisX = nonActiveAxes[0];

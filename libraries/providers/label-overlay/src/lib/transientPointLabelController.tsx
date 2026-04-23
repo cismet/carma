@@ -100,7 +100,9 @@ const textOnlyPointLabelOverlayThemeDefaults = Object.freeze({
   }),
 });
 
-export type TextOnlyPointLabelOverlayTheme = "dark-on-bright" | "bright-on-dark";
+export type TextOnlyPointLabelOverlayTheme =
+  | "dark-on-bright"
+  | "bright-on-dark";
 
 export type TextOnlyPointLabelOverlayStateOptions = {
   text: ReactNode;
@@ -152,9 +154,8 @@ export const buildTextOnlyPointLabelOverlayState = ({
   };
 };
 
-const isInlineTextOverlayContent = (
-  value: unknown
-): value is string | number => typeof value === "string" || typeof value === "number";
+const isInlineTextOverlayContent = (value: unknown): value is string | number =>
+  typeof value === "string" || typeof value === "number";
 
 const getInlineTextOverlayContentSignature = (value: unknown) =>
   isInlineTextOverlayContent(value)
@@ -178,11 +179,17 @@ const syncInlineTextOverlayContent = (
 const resolvePointLabelScreenPosition = (
   state: PointLabelOverlayRenderState
 ): CssPixelPosition | null =>
-  state.getScreenPosition ? state.getScreenPosition() : state.screenPosition ?? null;
+  state.getScreenPosition
+    ? state.getScreenPosition()
+    : state.screenPosition ?? null;
 
 const resolveEffectiveBadgeContent = (
-  state: Pick<PointLabelOverlayRenderState, "badgeContent" | "content" | "hideMarker">
-) => (state.hideMarker ? state.badgeContent : state.badgeContent ?? state.content);
+  state: Pick<
+    PointLabelOverlayRenderState,
+    "badgeContent" | "content" | "hideMarker"
+  >
+) =>
+  state.hideMarker ? state.badgeContent : state.badgeContent ?? state.content;
 
 const getAttachTransform = (attach: PointLabelAttach): string => {
   if (attach === "left") {
@@ -384,7 +391,9 @@ export const applyPointLabelOverlayState = ({
   elementDiv.style.left = `${screenPosition.x}px`;
   elementDiv.style.top = `${screenPosition.y}px`;
   elementDiv.style.transform = "none";
-  elementDiv.style.zIndex = `${state.zIndex ?? transientPointLabelControllerDefaults.zIndex}`;
+  elementDiv.style.zIndex = `${
+    state.zIndex ?? transientPointLabelControllerDefaults.zIndex
+  }`;
 
   if (state.hideLabelAndStem) {
     domRefs.pointLabelRoot.style.opacity = state.isOccluded ? "0.75" : "1";
@@ -480,9 +489,7 @@ export const applyPointLabelOverlayState = ({
   domRefs.stemLine.style.width = `${lineLength}px`;
   domRefs.stemLine.style.borderBottom = `1px ${
     state.isOccluded ? "dashed" : "solid"
-  } ${
-    state.lineColor ?? transientPointLabelControllerDefaults.lineColor
-  }`;
+  } ${state.lineColor ?? transientPointLabelControllerDefaults.lineColor}`;
 
   domRefs.labelRoot.style.left = `${pillAnchorPoint.x}px`;
   domRefs.labelRoot.style.top = `${pillAnchorPoint.y}px`;

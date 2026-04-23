@@ -120,8 +120,7 @@ export const areaGroundToolPlugin = createMeasurementToolPlugin({
     onKeyDown: ({ event, activeToolSession, sessionContext }) => {
       const shortcutAction = resolveAnnotationCommonShortcutAction(event);
       if (
-        shortcutAction ===
-        ANNOTATION_COMMON_SHORTCUT_ACTIONS.CANCEL_ACTIVE_TOOL
+        shortcutAction === ANNOTATION_COMMON_SHORTCUT_ACTIONS.CANCEL_ACTIVE_TOOL
       ) {
         activeToolSession?.discardDraft();
         event.preventDefault();

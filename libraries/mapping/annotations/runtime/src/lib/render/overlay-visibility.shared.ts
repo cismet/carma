@@ -147,12 +147,9 @@ export const computeOverlayVisibilityState = ({
   coordinate,
   shouldTestVisibility = true,
   shouldTestOcclusion = true,
-  viewportPaddingHorizontal =
-    overlayVisibilityDefaults.viewportPaddingHorizontal,
-  viewportPaddingVertical =
-    overlayVisibilityDefaults.viewportPaddingVertical,
-  occlusionToleranceMeters =
-    overlayVisibilityDefaults.occlusionToleranceMeters,
+  viewportPaddingHorizontal = overlayVisibilityDefaults.viewportPaddingHorizontal,
+  viewportPaddingVertical = overlayVisibilityDefaults.viewportPaddingVertical,
+  occlusionToleranceMeters = overlayVisibilityDefaults.occlusionToleranceMeters,
 }: {
   scene: Scene | null;
   coordinate: CesiumGeographicCoordinate;

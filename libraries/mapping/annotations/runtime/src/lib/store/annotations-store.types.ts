@@ -53,13 +53,13 @@ export type StoredAnnotation = {
   distanceAnchorCoordinateSelection?: RuntimePointLabelCoordinateSelection;
   distanceTriangleAnchorCoordinateRole?: RuntimeDistanceTriangleAnchorCoordinateRole;
   closed?: boolean;
-  preferredNormalBearingDeg?: number;
+  preferredNormalBearingRad?: number;
 };
 
 export type AddAnnotationOptions = Pick<
   StoredAnnotation,
   | "closed"
-  | "preferredNormalBearingDeg"
+  | "preferredNormalBearingRad"
   | "displayName"
   | "shortLabel"
   | "hidden"

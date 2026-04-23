@@ -3,17 +3,9 @@
  * Values copied from Cesium.Color definitions
  */
 
-export type Rgb255 = readonly [
-  red: number,
-  green: number,
-  blue: number,
-];
+export type Rgb255 = readonly [red: number, green: number, blue: number];
 
-export type DisplayP3 = readonly [
-  red: number,
-  green: number,
-  blue: number,
-];
+export type DisplayP3 = readonly [red: number, green: number, blue: number];
 
 export type UnitRgba = [
   red: number,
@@ -22,15 +14,32 @@ export type UnitRgba = [
   alpha: number
 ];
 
-export const hexToRgb255 = (hex: string): Rgb255 => {
+const normalizeHexColor = (
+  hex: string,
+  { allowAlpha = false }: { allowAlpha?: boolean } = {}
+): string => {
   let normalized = hex.startsWith("#") ? hex.slice(1) : hex;
 
-  if (normalized.length === 3) {
+  if (normalized.length === 3 || (allowAlpha && normalized.length === 4)) {
     normalized = normalized
       .split("")
       .map((channel) => channel + channel)
       .join("");
   }
+
+  const isValidLength = allowAlpha
+    ? normalized.length === 6 || normalized.length === 8
+    : normalized.length === 6;
+
+  if (!isValidLength || !/^[0-9a-fA-F]+$/.test(normalized)) {
+    throw new Error(`Invalid hex color "${hex}"`);
+  }
+
+  return normalized;
+};
+
+export const hexToRgb255 = (hex: string): Rgb255 => {
+  const normalized = normalizeHexColor(hex, { allowAlpha: true });
 
   return [
     parseInt(normalized.slice(0, 2), 16),
@@ -98,15 +107,7 @@ export const UNIT_ALPHA = {
 };
 
 const hexToUnit = (hex: string): UnitRgba => {
-  let normalized = hex.startsWith("#") ? hex.slice(1) : hex;
-
-  // Expand shorthand (#ccc -> #cccccc)
-  if (normalized.length === 3) {
-    normalized = normalized
-      .split("")
-      .map((c) => c + c)
-      .join("");
-  }
+  const normalized = normalizeHexColor(hex, { allowAlpha: true });
 
   const r = parseInt(normalized.slice(0, 2), 16);
   const g = parseInt(normalized.slice(2, 4), 16);

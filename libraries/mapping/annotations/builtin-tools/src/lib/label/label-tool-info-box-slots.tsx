@@ -1,6 +1,4 @@
-import {
-  buildAnnotationMeasurementInfoBoxSlots,
-} from "@carma-mapping/annotations/ui";
+import { buildAnnotationMeasurementInfoBoxSlots } from "@carma-mapping/annotations/ui";
 
 import type { RuntimeAnnotationInfoBoxContext } from "@carma-mapping/annotations/runtime";
 import { LabelToolInfoBoxContent } from "./label-tool-info-box-content";

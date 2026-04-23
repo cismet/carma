@@ -9,16 +9,12 @@ import {
   AnnotationInfoBoxActions,
   type AnnotationInfoBoxActionsProps,
 } from "./AnnotationInfoBoxActions";
-import {
-  AnnotationInfoBoxMetaText,
-} from "./AnnotationInfoBoxMetaText";
+import { AnnotationInfoBoxMetaText } from "./AnnotationInfoBoxMetaText";
 import {
   AnnotationInfoBoxNavigation,
   type AnnotationInfoBoxNavigationProps,
 } from "./AnnotationInfoBoxNavigation";
-import {
-  AnnotationInfoBoxTextContent,
-} from "./AnnotationInfoBoxTextContent";
+import { AnnotationInfoBoxTextContent } from "./AnnotationInfoBoxTextContent";
 import {
   AnnotationInfoBoxTitleInput,
   type AnnotationInfoBoxTitleInputProps,

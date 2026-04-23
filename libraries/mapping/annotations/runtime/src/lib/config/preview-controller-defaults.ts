@@ -13,10 +13,8 @@ export const previewControllerDefaults = Object.freeze({
   labelReferenceInsideBlendFactor: 0.35,
   labelSideSwitchThresholdPx: 4,
   directLineColor: measurementVisualDefaults.colors.components.direct,
-  verticalLineColor:
-    measurementVisualDefaults.colors.components.vertical,
-  horizontalLineColor:
-    measurementVisualDefaults.colors.components.horizontal,
+  verticalLineColor: measurementVisualDefaults.colors.components.vertical,
+  horizontalLineColor: measurementVisualDefaults.colors.components.horizontal,
   draftChainColor: measurementVisualDefaults.colors.preview,
 });
 

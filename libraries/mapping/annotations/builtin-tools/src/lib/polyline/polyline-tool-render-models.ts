@@ -19,9 +19,7 @@ import {
   applySelectedEdgeVisualStyle,
   applySelectedPointMarkerVisualStyle,
 } from "@carma-mapping/annotations/runtime";
-import {
-  computePolylineTotalLengthMeters,
-} from "../utils/measurement-summaries";
+import { computePolylineTotalLengthMeters } from "../utils/measurement-summaries";
 
 type PolylineToolVisuals = {
   edge: EdgeVisualStyle;

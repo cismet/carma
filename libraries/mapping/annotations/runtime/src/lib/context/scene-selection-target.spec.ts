@@ -12,9 +12,7 @@ describe("resolveRuntimeSceneSelectionTarget", () => {
           },
         },
         edgeMeasurementIdsById: new Map(),
-        polygonFillMeasurementIdsById: new Map([
-          ["area-1-fill", "area-1"],
-        ]),
+        polygonFillMeasurementIdsById: new Map([["area-1-fill", "area-1"]]),
       })
     ).toEqual({
       isRuntimeTarget: true,
@@ -31,9 +29,7 @@ describe("resolveRuntimeSceneSelectionTarget", () => {
           },
         },
         edgeMeasurementIdsById: new Map(),
-        polygonFillMeasurementIdsById: new Map([
-          ["preview-area-fill", null],
-        ]),
+        polygonFillMeasurementIdsById: new Map([["preview-area-fill", null]]),
       })
     ).toEqual({
       isRuntimeTarget: true,
@@ -47,7 +43,9 @@ describe("resolveRuntimeSceneSelectionTarget", () => {
         pickedObject: {
           id: "distance-1-vertical-0",
         },
-        edgeMeasurementIdsById: new Map([["distance-1-vertical", "distance-1"]]),
+        edgeMeasurementIdsById: new Map([
+          ["distance-1-vertical", "distance-1"],
+        ]),
         polygonFillMeasurementIdsById: new Map(),
       })
     ).toEqual({

@@ -12,7 +12,8 @@ export const appendPolylinePreviewPoint = <T>(
   nextItem: T
 ) => [...previousItems, nextItem];
 
-export const clearPolylinePreview = (): readonly CesiumGeographicCoordinate[] => [];
+export const clearPolylinePreview =
+  (): readonly CesiumGeographicCoordinate[] => [];
 
 export const canFinishPolylinePreview = (
   coordinates: readonly CesiumGeographicCoordinate[]

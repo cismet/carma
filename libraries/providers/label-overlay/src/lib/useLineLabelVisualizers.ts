@@ -197,9 +197,7 @@ const buildLineLabelOverlayUpdatePosition = (line: LineVisualizerData) => {
     const hasPreviousAngle = Number.isFinite(previousAngleRad);
     const normalizedAngleDelta = hasPreviousAngle
       ? Math.abs(
-          negativePiToPi(
-            (placement.angleRad - previousAngleRad) as Radians
-          )
+          negativePiToPi((placement.angleRad - previousAngleRad) as Radians)
         )
       : Number.POSITIVE_INFINITY;
     const stableAngleRad =

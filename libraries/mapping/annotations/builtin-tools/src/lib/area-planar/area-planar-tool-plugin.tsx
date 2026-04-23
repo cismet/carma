@@ -25,7 +25,7 @@ import {
   createNodeChainAreaToolVisuals,
 } from "../area-shared/node-chain-area-tool-render-models";
 import { ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME } from "@carma-mapping/annotations/runtime";
-import { formatGermanCardinalBearing } from "@carma-mapping/annotations/runtime";
+import { formatCardinalBearing } from "@carma-mapping/annotations/runtime";
 const { AREA_PLANAR: ANNOTATION_TYPE_AREA_PLANAR } = ANNOTATION_TYPES;
 
 const toolType = ANNOTATION_TYPE_AREA_PLANAR;
@@ -40,7 +40,7 @@ const getAreaPlanarToolInfoBoxSlots = createNodeChainAreaToolInfoBoxSlots(
     headingColor: labelTheme.scheme.colorPrimary,
     formatMeasurementLabelToken: (counter) =>
       formatMeasurementShortLabelToken(toolType, counter),
-    formatBearing: (bearingDeg) => formatGermanCardinalBearing(bearingDeg),
+    formatBearing: (bearingRad) => formatCardinalBearing(bearingRad),
   }
 );
 
@@ -122,8 +122,7 @@ export const areaPlanarToolPlugin = createMeasurementToolPlugin({
     onKeyDown: ({ event, activeToolSession, sessionContext }) => {
       const shortcutAction = resolveAnnotationCommonShortcutAction(event);
       if (
-        shortcutAction ===
-        ANNOTATION_COMMON_SHORTCUT_ACTIONS.CANCEL_ACTIVE_TOOL
+        shortcutAction === ANNOTATION_COMMON_SHORTCUT_ACTIONS.CANCEL_ACTIVE_TOOL
       ) {
         activeToolSession?.discardDraft();
         event.preventDefault();

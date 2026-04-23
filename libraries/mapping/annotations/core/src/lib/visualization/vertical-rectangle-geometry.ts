@@ -1,6 +1,4 @@
-import {
-  Cartesian3,
-} from "@carma-cesium";
+import { Cartesian3 } from "@carma-cesium";
 import {
   getEllipsoidalUpDirectionAtAnchor,
   getNormalizedCartesian3TriangleNormal,
@@ -68,7 +66,8 @@ export const buildVerticalRectangleCornerFromDiagonal = (
   const verticalAbsoluteMeters = Math.abs(verticalMeters);
 
   if (
-    horizontalMeters < verticalRectangleGeometryDefaults.componentEpsilonMeters ||
+    horizontalMeters <
+      verticalRectangleGeometryDefaults.componentEpsilonMeters ||
     verticalAbsoluteMeters <
       verticalRectangleGeometryDefaults.componentEpsilonMeters
   ) {

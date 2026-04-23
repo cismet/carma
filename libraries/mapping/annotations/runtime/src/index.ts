@@ -152,6 +152,12 @@ export {
 } from "./lib/render/resolve-measurement-coordinates";
 export { areCoordinateListsEqual } from "./lib/utils/coordinate-equality";
 export {
-  formatGermanCardinalBearing,
-  resolveBearingDegFromFirstToLastCoordinate,
-} from "./lib/utils/german-cardinal-bearing";
+  CARDINAL_BEARING_FORM,
+  CARDINAL_BEARING_LOCALE,
+  formatCardinalBearing,
+} from "./lib/utils/format-cardinal-bearing";
+export type {
+  CardinalBearingForm,
+  CardinalBearingLocale,
+} from "./lib/utils/format-cardinal-bearing";
+export { resolveBearingRadFromFirstToLastCoordinate } from "./lib/utils/resolve-bearing-rad-from-first-to-last-coordinate";

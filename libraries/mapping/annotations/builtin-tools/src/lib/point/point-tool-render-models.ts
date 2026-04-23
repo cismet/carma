@@ -157,8 +157,7 @@ export const buildPointToolRenderModels = ({
         const elevationText = formatPointElevationLabelText({
           coordinate,
           referenceCoordinate,
-          elevationDisplayMode:
-            ANNOTATION_ELEVATION_DISPLAY_MODES.RELATIVE,
+          elevationDisplayMode: ANNOTATION_ELEVATION_DISPLAY_MODES.RELATIVE,
           formatOptions,
         });
         const labelColorScheme = labelTheme.scheme;

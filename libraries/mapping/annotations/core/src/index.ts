@@ -47,9 +47,7 @@ export type {
 } from "./lib/types/annotation-types";
 export type { DerivedPolylinePath } from "./lib/types/derived-polyline-path";
 export type { DistanceRelationRenderContext } from "./lib/types/distance-relation-render-context";
-export {
-  DEFAULT_LINEAR_SEGMENT_LINE_MODE,
-} from "./lib/types/linear-segment";
+export { DEFAULT_LINEAR_SEGMENT_LINE_MODE } from "./lib/types/linear-segment";
 export type { LinearSegmentLineMode } from "./lib/types/linear-segment";
 export { fromAlphabeticSequence } from "./lib/utils/alphabetic-sequence";
 export {
@@ -127,9 +125,7 @@ export {
   areDistanceRelationsEquivalent,
   arePolygonAnnotationsEquivalent,
 } from "./lib/utils/annotation-state-equality";
-export {
-  buildEdgeRelationRenderContext,
-} from "./lib/utils/build-edge-relation-render-context";
+export { buildEdgeRelationRenderContext } from "./lib/utils/build-edge-relation-render-context";
 export {
   hasPointCandidateOffsetStem,
   resolveCandidateCapabilities,

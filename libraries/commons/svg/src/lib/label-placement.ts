@@ -236,7 +236,9 @@ export const computePolygonScreenWindingOrder = (
   }
 
   const signedAreaTwice = getSignedPolygonArea2d(vertices) * 2;
-  if (Math.abs(signedAreaTwice) <= lineLabelPlacementDefaults.minSignedAreaTwice) {
+  if (
+    Math.abs(signedAreaTwice) <= lineLabelPlacementDefaults.minSignedAreaTwice
+  ) {
     return null;
   }
   return signedAreaTwice >= 0

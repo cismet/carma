@@ -396,7 +396,10 @@ export const createLineLabel = (
 ) => {
   const resolvedVisualOptions =
     resolvePreviewLineLabelVisualOptions(visualOptions);
-  const element = createHtmlElement("div", previewLineLabelDomDefaults.className);
+  const element = createHtmlElement(
+    "div",
+    previewLineLabelDomDefaults.className
+  );
   const frame = createHtmlElement(
     "div",
     previewLineLabelDomDefaults.frameClassName
@@ -496,9 +499,7 @@ export const ensurePointMarkerCount = ({
   }
 };
 
-export const hidePointMarkers = (
-  pointMarkers: readonly HTMLDivElement[]
-) => {
+export const hidePointMarkers = (pointMarkers: readonly HTMLDivElement[]) => {
   pointMarkers.forEach((pointMarker) => {
     pointMarker.style.display = "none";
   });

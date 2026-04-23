@@ -97,11 +97,9 @@ const resolveLineLabelAnchorRatios = ({
     clampUnitRangeRatio(maxDeltaRatio)
   ) as Ratio;
   const minAnchorRatio =
-    secondaryLineLabelPlacementDefaults.anchorRatio -
-    clampedMaxDeltaRatio;
+    secondaryLineLabelPlacementDefaults.anchorRatio - clampedMaxDeltaRatio;
   const maxAnchorRatio =
-    secondaryLineLabelPlacementDefaults.anchorRatio +
-    clampedMaxDeltaRatio;
+    secondaryLineLabelPlacementDefaults.anchorRatio + clampedMaxDeltaRatio;
   const lastResolvedAnchorRatio = Math.min(
     maxAnchorRatio,
     Math.max(minAnchorRatio, resolveStoredLineLabelAnchorRatio(element))

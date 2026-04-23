@@ -2,7 +2,7 @@ import { Cartesian3 } from "@carma-cesium";
 import { cartesian3FromGeographicCoordinate } from "@carma-mapping/engines/cesium/core";
 
 import type { CesiumGeographicCoordinate } from "../store/annotations-store.types";
-import { resolveBearingDegFromFirstToLastCoordinate } from "./german-cardinal-bearing";
+import { resolveBearingRadFromFirstToLastCoordinate } from "./resolve-bearing-rad-from-first-to-last-coordinate";
 
 export type PolylineMeasurementSummary = {
   totalLengthMeters: number;
@@ -12,7 +12,7 @@ export type PolylineMeasurementSummary = {
   startEndElevationDeltaMeters: number;
   ascentMeters: number;
   descentMeters: number;
-  bearingDeg: number | null;
+  bearingRad: number | null;
 };
 
 export const computePolylineSegmentLengthsMeters = (
@@ -110,6 +110,6 @@ export const resolvePolylineMeasurementSummary = (
     startEndElevationDeltaMeters: endAltitudeMeters - startAltitudeMeters,
     ascentMeters,
     descentMeters,
-    bearingDeg: resolveBearingDegFromFirstToLastCoordinate(coordinates),
+    bearingRad: resolveBearingRadFromFirstToLastCoordinate(coordinates),
   };
 };

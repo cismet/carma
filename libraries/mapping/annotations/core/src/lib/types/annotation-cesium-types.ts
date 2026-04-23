@@ -2,10 +2,7 @@ import { Cartesian3 } from "@carma-cesium";
 import type { Degrees, Meters, MetricVector3 } from "@carma-units";
 
 import type { BaseAnnotationEntry } from "./annotation-entry";
-import {
-  ANNOTATION_TYPES,
-  type AnnotationTypes,
-} from "./annotation-types";
+import { ANNOTATION_TYPES, type AnnotationTypes } from "./annotation-types";
 
 type AnnotationWgs84Coordinate = {
   longitude: Degrees;

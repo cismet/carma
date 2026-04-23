@@ -44,11 +44,13 @@ export const resolvePointLabelVisualDefaults = (
     label.textBackgroundColor ?? pointLabelVisualDefaults.textBackgroundColor,
   textColor: label.textColor ?? pointLabelVisualDefaults.textColor,
   markerBackgroundColor:
-    label.markerBackgroundColor ?? pointLabelVisualDefaults.markerBackgroundColor,
+    label.markerBackgroundColor ??
+    pointLabelVisualDefaults.markerBackgroundColor,
   markerTextColor:
     label.markerTextColor ?? pointLabelVisualDefaults.markerTextColor,
   selectedBackgroundColor:
-    label.selectedBackgroundColor ?? pointLabelVisualDefaults.selectedBackgroundColor,
+    label.selectedBackgroundColor ??
+    pointLabelVisualDefaults.selectedBackgroundColor,
   selectedTextColor:
     label.selectedTextColor ?? pointLabelVisualDefaults.selectedTextColor,
   selectedGlowColor:
@@ -56,7 +58,8 @@ export const resolvePointLabelVisualDefaults = (
   selectedGlowRadiusPx:
     label.selectedGlowRadiusPx ?? pointLabelVisualDefaults.selectedGlowRadiusPx,
   preserveFillOnSelection:
-    label.preserveFillOnSelection ?? pointLabelVisualDefaults.preserveFillOnSelection,
+    label.preserveFillOnSelection ??
+    pointLabelVisualDefaults.preserveFillOnSelection,
   hoverBackgroundColor:
     label.hoverBackgroundColor ?? pointLabelVisualDefaults.hoverBackgroundColor,
   markerPixelSize:

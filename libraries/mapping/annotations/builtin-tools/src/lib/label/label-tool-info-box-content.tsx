@@ -1,7 +1,4 @@
-import {
-  faMinus,
-  faPlus,
-} from "@fortawesome/free-solid-svg-icons";
+import { faMinus, faPlus } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   ANNOTATION_TYPES,
@@ -123,7 +120,8 @@ export const LabelToolInfoBoxContent = ({
   const isLocked = Boolean(annotation.locked);
 
   const fontSizePx = clampFontSizePx(
-    annotation.labelAppearance?.fontSizePx ?? labelToolDefaultAppearance.fontSizePx
+    annotation.labelAppearance?.fontSizePx ??
+      labelToolDefaultAppearance.fontSizePx
   );
   const backgroundColor =
     annotation.labelAppearance?.backgroundColor?.trim() ||
@@ -160,7 +158,9 @@ export const LabelToolInfoBoxContent = ({
             isLocked || fontSizePx <= labelToolInfoBoxDefaults.fontSizePx.min
           }
           onClick={() =>
-            applyFontSizePx(fontSizePx - labelToolInfoBoxDefaults.fontSizePx.step)
+            applyFontSizePx(
+              fontSizePx - labelToolInfoBoxDefaults.fontSizePx.step
+            )
           }
           aria-label="Schriftgröße verkleinern"
         >
@@ -176,7 +176,9 @@ export const LabelToolInfoBoxContent = ({
             isLocked || fontSizePx >= labelToolInfoBoxDefaults.fontSizePx.max
           }
           onClick={() =>
-            applyFontSizePx(fontSizePx + labelToolInfoBoxDefaults.fontSizePx.step)
+            applyFontSizePx(
+              fontSizePx + labelToolInfoBoxDefaults.fontSizePx.step
+            )
           }
           aria-label="Schriftgröße vergrößern"
         >

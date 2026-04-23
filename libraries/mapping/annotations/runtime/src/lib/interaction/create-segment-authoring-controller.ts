@@ -28,9 +28,7 @@ import {
   computePolylineSegmentLengthsMeters,
   computePolylineTotalLengthMeters,
 } from "../utils/measurement-summaries";
-import {
-  resolvePreviewLineLabelVisualOptions,
-} from "../config/preview-line-label-visual-defaults";
+import { resolvePreviewLineLabelVisualOptions } from "../config/preview-line-label-visual-defaults";
 import type { AnnotationToolId } from "../registry/annotation-tool-id";
 
 const DRAFT_CHAIN_OVERLAY_LAYER_ID =
@@ -176,7 +174,9 @@ export const createSegmentAuthoringController = ({
     }
 
     const endCoordinate =
-      hoverCoordinate ?? previewCoordinates[previewCoordinates.length - 1] ?? null;
+      hoverCoordinate ??
+      previewCoordinates[previewCoordinates.length - 1] ??
+      null;
     const endScreenPosition = endCoordinate
       ? toScreenPoint(scene, endCoordinate)
       : null;
@@ -203,7 +203,9 @@ export const createSegmentAuthoringController = ({
             pointQueryPickResult?.coordinate ??
             draftCoordinates[draftCoordinates.length - 1] ??
             null;
-          return nextEndCoordinate ? toScreenPoint(scene, nextEndCoordinate) : null;
+          return nextEndCoordinate
+            ? toScreenPoint(scene, nextEndCoordinate)
+            : null;
         },
       })
     );
@@ -242,9 +244,7 @@ export const createSegmentAuthoringController = ({
 
   const unsubscribe = drafts.subscribe(toolType, () => {
     const nextDraftCoordinates = drafts.get(toolType).coordinates;
-    if (
-      areCoordinateListsEqual(draftCoordinates, nextDraftCoordinates)
-    ) {
+    if (areCoordinateListsEqual(draftCoordinates, nextDraftCoordinates)) {
       return;
     }
 

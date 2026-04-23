@@ -17,9 +17,7 @@ export {
   type PointQueryCreatedContext,
   type PointQueryPickResult,
 } from "./annotation-tool-plugin.types";
-export {
-  type AnnotationToolId,
-} from "./annotation-tool-id";
+export { type AnnotationToolId } from "./annotation-tool-id";
 export {
   listAnnotationToolShortcuts,
   resolveAnnotationToolShortcutTarget,

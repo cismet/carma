@@ -18,4 +18,6 @@ export const areCoordinateListsEqual = (
   right: readonly CesiumGeographicCoordinate[]
 ) =>
   left.length === right.length &&
-  left.every((coordinate, index) => areCoordinatesEqual(coordinate, right[index]));
+  left.every((coordinate, index) =>
+    areCoordinatesEqual(coordinate, right[index])
+  );

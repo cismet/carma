@@ -12,23 +12,25 @@ import {
   type AnnotationTypes,
 } from "@carma-mapping/annotations/core";
 import { Cartesian3, SceneTransforms, defined } from "@carma-cesium";
-import { cartesian3FromGeographicCoordinate, isValidScene } from "@carma-mapping/engines/cesium/core";
-import { formatAreaSquareMetersAdaptive, type CssPixelPosition } from "@carma-units";
+import {
+  cartesian3FromGeographicCoordinate,
+  isValidScene,
+} from "@carma-mapping/engines/cesium/core";
+import {
+  formatAreaSquareMetersAdaptive,
+  type CssPixelPosition,
+} from "@carma-units";
 import {
   buildTextOnlyPointLabelOverlayState,
   createTransientPointLabelController,
 } from "@carma-providers/label-overlay";
 import type { CesiumGeographicCoordinate } from "../store";
 import { areCoordinateListsEqual } from "../utils/coordinate-equality";
-import {
-  previewControllerDefaults,
-} from "./authoring-visual-runtime";
+import { previewControllerDefaults } from "./authoring-visual-runtime";
 import { createPathAuthoringController } from "./create-path-authoring-controller";
 import { RUNTIME_POLYGON_FILL_PLACEMENT } from "../render/measurement-render-models";
 import { createMeasurementPolygonFillsController } from "../render/measurement-polygon-fills-controller.shared";
-import {
-  resolvePreviewLineLabelVisualOptions,
-} from "../config/preview-line-label-visual-defaults";
+import { resolvePreviewLineLabelVisualOptions } from "../config/preview-line-label-visual-defaults";
 
 const DRAFT_CHAIN_OVERLAY_LAYER_ID =
   "annotation-overlay-draft-chain-preview-layer";
@@ -104,10 +106,13 @@ const buildPolygonPreviewAreaLabelState = ({
     return null;
   }
 
-  const coordinateEntries = coordinates.map((coordinate, index) => [
-    `preview-area-node-${index}`,
-    cartesian3FromGeographicCoordinate(coordinate),
-  ] as const);
+  const coordinateEntries = coordinates.map(
+    (coordinate, index) =>
+      [
+        `preview-area-node-${index}`,
+        cartesian3FromGeographicCoordinate(coordinate),
+      ] as const
+  );
   const pointById = new Map(coordinateEntries);
   const derivedMeasurement = computePolygonGroupDerivedData(
     {
@@ -167,8 +172,7 @@ export const createPolygonAuthoringController = ({
     lineColor: previewControllerDefaults.draftChainColor,
     showPointMarkers: false,
   });
-  const previewFillController =
-    createMeasurementPolygonFillsController(scene);
+  const previewFillController = createMeasurementPolygonFillsController(scene);
   const areaLabelController = createTransientPointLabelController({
     labelOverlay,
     overlayId: `${toolType}-draft-area-label`,

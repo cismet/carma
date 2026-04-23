@@ -471,7 +471,8 @@ export const useAnnotationsAssembly = ({
         }
       }
 
-      const matchingPlugins = registry.getPluginsByAnnotationType(annotationType);
+      const matchingPlugins =
+        registry.getPluginsByAnnotationType(annotationType);
       return (
         matchingPlugins.find((plugin) => plugin.addAnnotation) ??
         matchingPlugins[0] ??

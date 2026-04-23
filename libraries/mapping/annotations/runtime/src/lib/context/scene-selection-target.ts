@@ -15,9 +15,7 @@ const resolvePickedIdCandidates = (pickedObject: unknown): unknown[] => {
         ).id
       : undefined;
 
-  return [directId, primitiveId].filter(
-    (candidate) => candidate !== undefined
-  );
+  return [directId, primitiveId].filter((candidate) => candidate !== undefined);
 };
 
 export const resolveSceneSelectionTarget = ({

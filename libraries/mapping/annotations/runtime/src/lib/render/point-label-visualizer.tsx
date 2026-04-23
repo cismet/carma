@@ -172,9 +172,9 @@ export const usePointLabelVisualizer = (
   } = useLabelOverlay();
   const labelsRef = useRef(labels);
   const previousLabelIdsRef = useRef<Set<string>>(new Set());
-  const overlayDomRefsByIdRef = useRef<
-    Map<string, PointLabelOverlayDomRefs>
-  >(new Map());
+  const overlayDomRefsByIdRef = useRef<Map<string, PointLabelOverlayDomRefs>>(
+    new Map()
+  );
   const stateCacheRef = useRef<{
     frameKey: number | null;
     sceneSnapshot: OverlayVisibilitySceneSnapshot | null;
@@ -396,13 +396,11 @@ export const usePointLabelVisualizer = (
     (labelId: string) => {
       const frameKey = getSceneFrameKey(scene);
       if (stateCacheRef.current.frameKey !== frameKey) {
-        const sceneSnapshot =
-          captureOverlayVisibilitySceneSnapshot(scene);
-        const shouldRecomputeStates =
-          !areOverlayVisibilitySceneSnapshotsEqual(
-            stateCacheRef.current.sceneSnapshot,
-            sceneSnapshot
-          );
+        const sceneSnapshot = captureOverlayVisibilitySceneSnapshot(scene);
+        const shouldRecomputeStates = !areOverlayVisibilitySceneSnapshotsEqual(
+          stateCacheRef.current.sceneSnapshot,
+          sceneSnapshot
+        );
 
         stateCacheRef.current = shouldRecomputeStates
           ? {
@@ -480,8 +478,7 @@ export const usePointLabelVisualizer = (
         hideLabelAndStem: label.hideLabelAndStem,
         hideMarker: label.hideMarker ?? false,
         markerSize:
-          label.markerPixelSize ??
-          pointLabelVisualizerDefaults.markerPixelSize,
+          label.markerPixelSize ?? pointLabelVisualizerDefaults.markerPixelSize,
         markerStrokeWidth:
           label.markerOutlineWidth ??
           pointLabelVisualizerDefaults.markerOutlineWidth,
@@ -497,8 +494,7 @@ export const usePointLabelVisualizer = (
                 2),
         markerBackgroundColor: label.markerBackgroundColor,
         markerTextColor: label.markerTextColor,
-        lineColor:
-          label.lineColor ?? pointLabelVisualizerDefaults.stemColor,
+        lineColor: label.lineColor ?? pointLabelVisualizerDefaults.stemColor,
         labelStyle: label.labelStyle,
         collapse: label.collapse,
         textBackgroundColor: label.textBackgroundColor,
@@ -513,8 +509,7 @@ export const usePointLabelVisualizer = (
         fontFamily: label.fontFamily,
         fontWeight: label.fontWeight,
         onClick: clickBlocked ? undefined : label.onClick,
-        onDoubleClick:
-          blockLabelInteractions ? undefined : label.onDoubleClick,
+        onDoubleClick: blockLabelInteractions ? undefined : label.onDoubleClick,
         onHoverChange: label.onHoverChange,
         onLongPress:
           blockLabelInteractions && !label.allowLongPressWhenBlocked
@@ -529,7 +524,8 @@ export const usePointLabelVisualizer = (
           overlayState.isHidden || overlayState.hiddenByLayout
             ? null
             : overlayState.screenPosition,
-        angleRad: overlayState.angleRad as PointLabelOverlayRenderState["angleRad"],
+        angleRad:
+          overlayState.angleRad as PointLabelOverlayRenderState["angleRad"],
         distance: overlayState.distance,
         attach: overlayState.attach,
         isOccluded: overlayState.isOccluded,

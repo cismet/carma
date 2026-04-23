@@ -1,15 +1,11 @@
 import { formatAreaSquareMetersAdaptive } from "@carma-units";
 import type { PolygonType } from "@carma-mapping/annotations/core";
-import {
-  buildAnnotationMeasurementInfoBoxSlots,
-} from "@carma-mapping/annotations/ui";
+import { buildAnnotationMeasurementInfoBoxSlots } from "@carma-mapping/annotations/ui";
 
 import type { RuntimeAnnotationInfoBoxContext } from "@carma-mapping/annotations/runtime";
 import { resolveRuntimeMeasurementNavigation } from "@carma-mapping/annotations/runtime";
-import {
-  resolveAreaMeasurementSummary,
-} from "../utils/measurement-summaries";
-import { formatGermanCardinalBearing } from "@carma-mapping/annotations/runtime";
+import { resolveAreaMeasurementSummary } from "../utils/measurement-summaries";
+import { formatCardinalBearing } from "@carma-mapping/annotations/runtime";
 import {
   buildRuntimeNodeCoordinateMap,
   resolveMeasurementCoordinates,
@@ -126,9 +122,9 @@ export const createVerticalAreaToolInfoBoxSlots = (
       metaText: areaText,
       content: (
         <>
-          {Number.isFinite(summary.bearingDeg) ? (
-            <div>{`Ausrichtung: ${formatGermanCardinalBearing(
-              summary.bearingDeg ?? 0
+          {Number.isFinite(summary.bearingRad) ? (
+            <div>{`Ausrichtung: ${formatCardinalBearing(
+              summary.bearingRad ?? 0
             )}`}</div>
           ) : null}
         </>

@@ -92,12 +92,10 @@ describe("runtimeAnnotationGeoJsonExport", () => {
   });
 
   it("sanitizes empty and special-character-heavy file name segments", () => {
-    expect(
-      sanitizeAnnotationExportFileSegment("  Messung Nord/Ost  ")
-    ).toBe("messung-nord-ost");
-    expect(sanitizeAnnotationExportFileSegment("___")).toBe(
-      "annotation"
+    expect(sanitizeAnnotationExportFileSegment("  Messung Nord/Ost  ")).toBe(
+      "messung-nord-ost"
     );
+    expect(sanitizeAnnotationExportFileSegment("___")).toBe("annotation");
     expect(sanitizeAnnotationExportFileSegment(null)).toBe("annotation");
   });
 

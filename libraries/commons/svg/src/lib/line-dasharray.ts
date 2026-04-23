@@ -304,8 +304,7 @@ export const resolveSvgLineDasharray = ({
     }
 
     if (
-      Math.abs(score - best.score) <=
-        svgLineDasharrayDefaults.mathEpsilonPx &&
+      Math.abs(score - best.score) <= svgLineDasharrayDefaults.mathEpsilonPx &&
       n > best.dashCount
     ) {
       best = { dashCount: n, rawGapPx: clampedRawGapPx, score };

@@ -1,6 +1,12 @@
+import { arePoint3Close } from "@carma-commons/math";
 import { isClose } from "@carma-commons/utils";
 
-import type { NodeChainAnnotation } from "../types/annotation-types";
+import type {
+  DerivedNodeChainAnnotationGeometry,
+  NodeChainAnnotation,
+  PlanarPolygonLocalFrame,
+  PlanarPolygonPlane,
+} from "../types/annotation-types";
 import type { PointDistanceRelation } from "../types/distance-relation";
 import type { ReferenceLineLabelKind } from "../visualization/distance/distance-relation-label.types";
 
@@ -53,9 +59,62 @@ const areOptionalNumbersEqual = (
   return isClose(left, right, epsilon);
 };
 
+const areOptionalPoint3Close = (
+  left:
+    | {
+        x: number;
+        y: number;
+        z: number;
+      }
+    | undefined,
+  right:
+    | {
+        x: number;
+        y: number;
+        z: number;
+      }
+    | undefined,
+  epsilon: number = annotationStateEqualityDefaults.numericEpsilon
+) => {
+  if (left === right) return true;
+  if (!left || !right) return false;
+  return arePoint3Close(left, right, epsilon);
+};
+
+const arePlanarPolygonPlanesEqual = (
+  left: PlanarPolygonPlane | undefined,
+  right: PlanarPolygonPlane | undefined,
+  epsilon: number = annotationStateEqualityDefaults.numericEpsilon
+) => {
+  if (left === right) return true;
+  if (!left || !right) return false;
+  return (
+    areOptionalPoint3Close(left.anchorECEF, right.anchorECEF, epsilon) &&
+    areOptionalPoint3Close(left.normalECEF, right.normalECEF, epsilon)
+  );
+};
+
+const arePlanarPolygonLocalFramesEqual = (
+  left: PlanarPolygonLocalFrame | undefined,
+  right: PlanarPolygonLocalFrame | undefined,
+  epsilon: number = annotationStateEqualityDefaults.numericEpsilon
+) => {
+  if (left === right) return true;
+  if (!left || !right) return false;
+  return (
+    areOptionalPoint3Close(left.originECEF, right.originECEF, epsilon) &&
+    areOptionalPoint3Close(left.eastECEF, right.eastECEF, epsilon) &&
+    areOptionalPoint3Close(left.northECEF, right.northECEF, epsilon) &&
+    areOptionalPoint3Close(left.upECEF, right.upECEF, epsilon)
+  );
+};
+
+type ComparablePolygonAnnotation = NodeChainAnnotation &
+  Partial<DerivedNodeChainAnnotationGeometry>;
+
 export const arePolygonAnnotationsEquivalent = (
-  left: NodeChainAnnotation,
-  right: NodeChainAnnotation,
+  left: ComparablePolygonAnnotation,
+  right: ComparablePolygonAnnotation,
   epsilon: number = annotationStateEqualityDefaults.numericEpsilon
 ) =>
   left === right ||
@@ -78,7 +137,29 @@ export const arePolygonAnnotationsEquivalent = (
     left.distanceMeasurementStartPointId ===
       right.distanceMeasurementStartPointId &&
     left.closed === right.closed &&
-    left.planeLocked === right.planeLocked);
+    left.planeLocked === right.planeLocked &&
+    arePlanarPolygonPlanesEqual(left.plane, right.plane, epsilon) &&
+    arePlanarPolygonLocalFramesEqual(
+      left.planarPolygonLocalFrame,
+      right.planarPolygonLocalFrame,
+      epsilon
+    ) &&
+    areOptionalNumbersEqual(
+      left.perimeterMeters,
+      right.perimeterMeters,
+      epsilon
+    ) &&
+    areOptionalNumbersEqual(
+      left.areaSquareMeters,
+      right.areaSquareMeters,
+      epsilon
+    ) &&
+    areOptionalNumbersEqual(
+      left.verticalityDeg,
+      right.verticalityDeg,
+      epsilon
+    ) &&
+    areOptionalNumbersEqual(left.bearingRad, right.bearingRad, epsilon));
 
 const areDistanceLabelVisibilityEquivalent = (
   left: PointDistanceRelation["labelVisibilityByKind"],

@@ -6,9 +6,7 @@ import type {
   CesiumGeographicCoordinate,
   StoredAnnotation,
 } from "@carma-mapping/annotations/runtime";
-import {
-  resolveBearingDegFromFirstToLastCoordinate,
-} from "@carma-mapping/annotations/runtime";
+import { resolveBearingRadFromFirstToLastCoordinate } from "@carma-mapping/annotations/runtime";
 import {
   resolveDerivedAreaMeasurement,
   type DerivedAreaMeasurement,
@@ -22,7 +20,7 @@ export type PolylineMeasurementSummary = {
   startEndElevationDeltaMeters: number;
   ascentMeters: number;
   descentMeters: number;
-  bearingDeg: number | null;
+  bearingRad: number | null;
 };
 
 export type AreaMeasurementSummary = DerivedAreaMeasurement & {
@@ -124,7 +122,7 @@ export const resolvePolylineMeasurementSummary = (
     startEndElevationDeltaMeters: endAltitudeMeters - startAltitudeMeters,
     ascentMeters,
     descentMeters,
-    bearingDeg: resolveBearingDegFromFirstToLastCoordinate(coordinates),
+    bearingRad: resolveBearingRadFromFirstToLastCoordinate(coordinates),
   };
 };
 

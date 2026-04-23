@@ -97,9 +97,15 @@ export const pointToolPlugin = createMeasurementToolPlugin({
         return;
       }
 
-      addPointMeasurement(toolType, coordinate, linkedNodeGroupId, {
-        addAnnotation: sessionContext.addAnnotation,
-      }, toolType);
+      addPointMeasurement(
+        toolType,
+        coordinate,
+        linkedNodeGroupId,
+        {
+          addAnnotation: sessionContext.addAnnotation,
+        },
+        toolType
+      );
     },
   },
   keyboard: {

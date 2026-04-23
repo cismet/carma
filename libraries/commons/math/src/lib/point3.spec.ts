@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  arePoint3Close,
   crossPoint3,
   getPointLength3d,
   getPolygonArea3d,
@@ -10,23 +11,32 @@ import {
 
 describe("point3", () => {
   it("provides basic point helpers", () => {
-    expect(
-      subtractPoint3({ x: 5, y: 4, z: 3 }, { x: 1, y: 2, z: 3 })
-    ).toEqual({
+    expect(subtractPoint3({ x: 5, y: 4, z: 3 }, { x: 1, y: 2, z: 3 })).toEqual({
       x: 4,
       y: 2,
       z: 0,
     });
 
-    expect(
-      crossPoint3({ x: 1, y: 0, z: 0 }, { x: 0, y: 1, z: 0 })
-    ).toEqual({
+    expect(crossPoint3({ x: 1, y: 0, z: 0 }, { x: 0, y: 1, z: 0 })).toEqual({
       x: 0,
       y: 0,
       z: 1,
     });
 
     expect(getPointLength3d({ x: 2, y: 3, z: 6 })).toBeCloseTo(7);
+  });
+
+  it("compares 3d points within an epsilon", () => {
+    expect(
+      arePoint3Close(
+        { x: 1, y: 2, z: 3 },
+        { x: 1 + 1e-10, y: 2 - 1e-10, z: 3 + 1e-10 }
+      )
+    ).toBe(true);
+
+    expect(
+      arePoint3Close({ x: 1, y: 2, z: 3 }, { x: 1.01, y: 2, z: 3 }, 1e-3)
+    ).toBe(false);
   });
 
   it("computes triangle and polygon areas in 3d", () => {

@@ -42,5 +42,4 @@ export const ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME = Object.freeze({
 
 export const resolveStoredAnnotationLabelTheme = (
   _toolType?: AnnotationType
-): StoredAnnotationLabelTheme =>
-  ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME;
+): StoredAnnotationLabelTheme => ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME;

@@ -161,21 +161,18 @@ export const useVisualInteraction = ({
     },
     [annotationsStore]
   );
-  const insertNodeTargetMeasurementIds = useMemo(
-    () => {
-      const selectedAnnotationIdSet = new Set(selectedAnnotationIds);
+  const insertNodeTargetMeasurementIds = useMemo(() => {
+    const selectedAnnotationIdSet = new Set(selectedAnnotationIds);
 
-      return annotationEntries
-        .filter(
-          (annotationEntry) =>
-            selectedAnnotationIdSet.has(annotationEntry.id) &&
-            !annotationEntry.locked &&
-            isInsertNodeTargetToolType(annotationEntry.toolType)
-        )
-        .map((annotationEntry) => annotationEntry.id);
-    },
-    [annotationEntries, selectedAnnotationIds]
-  );
+    return annotationEntries
+      .filter(
+        (annotationEntry) =>
+          selectedAnnotationIdSet.has(annotationEntry.id) &&
+          !annotationEntry.locked &&
+          isInsertNodeTargetToolType(annotationEntry.toolType)
+      )
+      .map((annotationEntry) => annotationEntry.id);
+  }, [annotationEntries, selectedAnnotationIds]);
   const handleInsertNodeTargetClick = useCallback(
     (measurementId: string, startNodeId: string, endNodeId: string) => {
       const runtimeState = annotationsStore.getState();
@@ -191,7 +188,9 @@ export const useVisualInteraction = ({
         return false;
       }
 
-      const startNode = runtimeState.nodes.find((node) => node.id === startNodeId);
+      const startNode = runtimeState.nodes.find(
+        (node) => node.id === startNodeId
+      );
       const endNode = runtimeState.nodes.find((node) => node.id === endNodeId);
       if (!startNode || !endNode) {
         return false;
@@ -233,8 +232,7 @@ export const useVisualInteraction = ({
     enabled: previewSnapTargetHoverEnabled,
   });
   useCursorOverlay(scene, null, {
-    enabled:
-      isInteractionToolActive && isSelectionAdditiveModifierPressed,
+    enabled: isInteractionToolActive && isSelectionAdditiveModifierPressed,
     variant: "selection-additive-indicator",
   });
 

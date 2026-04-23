@@ -17,16 +17,15 @@ const annotationTypographyRootFontSizePx =
 const formatRelativeRem = (fontSizePx: number): string =>
   `${fontSizePx / annotationTypographyRootFontSizePx}rem`;
 
-export const typographyDefaults: TypographyDefaults =
-  Object.freeze({
-    fontFamily: annotationTypographyTokens.fontFamily,
-    rootFontSizeRem: "1rem",
-    supportFontSizeRem: formatRelativeRem(
-      annotationTypographyTokens.fontSizePx.supportText
-    ),
-    headingFontSizeRem: "1rem",
-    lineLabelFontWeight: annotationTypographyTokens.fontWeight.medium,
-    badgeFontWeight: annotationTypographyTokens.fontWeight.medium,
-    headingFontWeight: annotationTypographyTokens.fontWeight.semibold,
-    sectionTitleFontWeight: annotationTypographyTokens.fontWeight.semibold,
-  });
+export const typographyDefaults: TypographyDefaults = Object.freeze({
+  fontFamily: annotationTypographyTokens.fontFamily,
+  rootFontSizeRem: "1rem",
+  supportFontSizeRem: formatRelativeRem(
+    annotationTypographyTokens.fontSizePx.supportText
+  ),
+  headingFontSizeRem: "1rem",
+  lineLabelFontWeight: annotationTypographyTokens.fontWeight.medium,
+  badgeFontWeight: annotationTypographyTokens.fontWeight.medium,
+  headingFontWeight: annotationTypographyTokens.fontWeight.semibold,
+  sectionTitleFontWeight: annotationTypographyTokens.fontWeight.semibold,
+});

@@ -279,8 +279,7 @@ const distancePointToSegment2D = (
   const segmentY = end.y - start.y;
   const segmentLengthSquared = segmentX * segmentX + segmentY * segmentY;
   if (
-    segmentLengthSquared <=
-    distanceScreenSpaceDefaults.geometryEpsilonPxSquared
+    segmentLengthSquared <= distanceScreenSpaceDefaults.geometryEpsilonPxSquared
   ) {
     return Math.hypot(point.x - start.x, point.y - start.y);
   }
@@ -303,8 +302,7 @@ const closestPointOnSegment2D = (
   const segmentY = end.y - start.y;
   const segmentLengthSquared = segmentX * segmentX + segmentY * segmentY;
   if (
-    segmentLengthSquared <=
-    distanceScreenSpaceDefaults.geometryEpsilonPxSquared
+    segmentLengthSquared <= distanceScreenSpaceDefaults.geometryEpsilonPxSquared
   ) {
     return { x: start.x, y: start.y } as CssPixelPosition;
   }
@@ -719,8 +717,7 @@ export const computePolygonLabelFitMetrics = (
 
   const requiredRadiusPx = Math.hypot(
     safeLabelWidthPx * 0.5 + distanceScreenSpaceDefaults.polygonLabelPaddingXPx,
-    safeLabelHeightPx * 0.5 +
-      distanceScreenSpaceDefaults.polygonLabelPaddingYPx
+    safeLabelHeightPx * 0.5 + distanceScreenSpaceDefaults.polygonLabelPaddingYPx
   );
 
   return {
@@ -731,7 +728,8 @@ export const computePolygonLabelFitMetrics = (
     requiredRadiusPx,
     fitsInsidePolygon:
       maxInscribedRadiusPx >= requiredRadiusPx &&
-      areaToLabelRatio >= distanceScreenSpaceDefaults.polygonLabelMinAreaToLabelRatio,
+      areaToLabelRatio >=
+        distanceScreenSpaceDefaults.polygonLabelMinAreaToLabelRatio,
     bestAnchor,
   };
 };

@@ -3,7 +3,6 @@ import { Cartesian3 } from "@carma-cesium";
 import {
   isPointAnnotationEntry,
   type AnnotationEntry,
-
   type AnnotationPointEntry,
 } from "../types/annotation-cesium-types";
 import type { NodeChainAnnotation } from "../types/annotation-types";

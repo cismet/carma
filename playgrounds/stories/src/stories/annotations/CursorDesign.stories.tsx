@@ -1045,8 +1045,7 @@ const CursorDesignSandbox = ({
                             }px)`,
                             transform: "translateX(-50%)",
                             fontFamily: typographyDefaults.fontFamily,
-                            fontSize:
-                              typographyDefaults.supportFontSizePx,
+                            fontSize: typographyDefaults.supportFontSizePx,
                             fontWeight:
                               typographyDefaults.sectionTitleFontWeight,
                             lineHeight: 1.35,

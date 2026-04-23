@@ -12,10 +12,8 @@ export const annotationAreaPalette = Object.freeze({
   } as const satisfies Record<PolygonType, Rgb255>,
 });
 
-const formatRgbaCss = (
-  [red, green, blue]: Rgb255,
-  alpha: number
-): string => `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+const formatRgbaCss = ([red, green, blue]: Rgb255, alpha: number): string =>
+  `rgba(${red}, ${green}, ${blue}, ${alpha})`;
 
 export const getAnnotationAreaRgb255 = (type: PolygonType): Rgb255 =>
   annotationAreaPalette.rgb255ByType[type];

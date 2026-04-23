@@ -12,7 +12,9 @@ import type {
 } from "../render/measurement-render-models";
 import type { RuntimeVisualModels } from "../render/visual-models";
 
-export type NodeCoordinateOverrides = Readonly<Record<string, CesiumGeographicCoordinate>>;
+export type NodeCoordinateOverrides = Readonly<
+  Record<string, CesiumGeographicCoordinate>
+>;
 
 export const EMPTY_NODE_COORDINATE_OVERRIDES = {} as NodeCoordinateOverrides;
 

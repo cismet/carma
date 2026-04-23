@@ -29,10 +29,13 @@ export const resolveAreaToolAddAnnotationOptions = ({
 
   const polygonType = annotationType as PolygonType;
   const pointById = new Map(
-    coordinates.map((coordinate, index) => [
-      `area-node-${index}`,
-      cartesianFromRuntimeCoordinate(coordinate),
-    ] as const)
+    coordinates.map(
+      (coordinate, index) =>
+        [
+          `area-node-${index}`,
+          cartesianFromRuntimeCoordinate(coordinate),
+        ] as const
+    )
   );
   const preferredFacingPositionECEF =
     !scene || scene.isDestroyed()
@@ -56,6 +59,6 @@ export const resolveAreaToolAddAnnotationOptions = ({
   return {
     ...options,
     closed: true,
-    preferredNormalBearingDeg: derivedMeasurement.bearingDeg,
+    preferredNormalBearingRad: derivedMeasurement.bearingRad,
   };
 };

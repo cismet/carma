@@ -1,10 +1,12 @@
 import { Cartesian3 } from "@carma-cesium";
+import { shortestAngleDelta } from "@carma-commons/math";
 import {
   ANNOTATION_TYPES,
   computePolygonGroupDerivedData,
   type NodeChainAnnotation,
   type PolygonType,
 } from "@carma-mapping/annotations/core";
+import { PI, zeroToTwoPi, type Radians } from "@carma-units";
 
 import type {
   CesiumGeographicCoordinate,
@@ -12,14 +14,13 @@ import type {
 } from "@carma-mapping/annotations/runtime";
 
 const derivedAreaMeasurementDefaults = Object.freeze({
-  bearingHalfTurnDeg: 180,
-  fullTurnDeg: 360,
+  halfTurnRad: PI,
 });
 
 export type DerivedAreaMeasurement = {
   areaSquareMeters: number;
   verticalityDeg?: number;
-  bearingDeg?: number;
+  bearingRad?: number;
 };
 
 const { AREA_GROUND: ANNOTATION_TYPE_AREA_GROUND } = ANNOTATION_TYPES;
@@ -31,52 +32,44 @@ const cartesianFromRuntimeCoordinate = ({
 }: CesiumGeographicCoordinate): Cartesian3 =>
   Cartesian3.fromDegrees(longitude, latitude, altitude);
 
-const normalizeBearingDeg = (bearingDeg: number): number =>
-  ((bearingDeg % derivedAreaMeasurementDefaults.fullTurnDeg) +
-    derivedAreaMeasurementDefaults.fullTurnDeg) %
-  derivedAreaMeasurementDefaults.fullTurnDeg;
+const getBearingDistanceRad = (
+  leftBearingRad: number,
+  rightBearingRad: number
+): number => Math.abs(shortestAngleDelta(leftBearingRad, rightBearingRad));
 
-const getBearingDistanceDeg = (
-  leftBearingDeg: number,
-  rightBearingDeg: number
-): number => {
-  const normalizedDifference = Math.abs(
-    normalizeBearingDeg(leftBearingDeg) - normalizeBearingDeg(rightBearingDeg)
-  );
-
-  return Math.min(
-    normalizedDifference,
-    derivedAreaMeasurementDefaults.fullTurnDeg - normalizedDifference
-  );
-};
-
-const resolveStableBearingDeg = ({
-  derivedBearingDeg,
-  preferredNormalBearingDeg,
+const resolveStableBearingRad = ({
+  derivedBearingRad,
+  preferredNormalBearingRad,
 }: {
-  derivedBearingDeg?: number;
-  preferredNormalBearingDeg?: number;
+  derivedBearingRad?: number;
+  preferredNormalBearingRad?: number;
 }): number | undefined => {
-  if (!Number.isFinite(derivedBearingDeg)) {
+  if (!Number.isFinite(derivedBearingRad)) {
     return undefined;
   }
 
-  const normalizedDerivedBearingDeg = normalizeBearingDeg(derivedBearingDeg ?? 0);
-  if (!Number.isFinite(preferredNormalBearingDeg)) {
-    return normalizedDerivedBearingDeg;
+  const normalizedDerivedBearingRad = zeroToTwoPi(derivedBearingRad as Radians);
+  if (!Number.isFinite(preferredNormalBearingRad)) {
+    return normalizedDerivedBearingRad;
   }
 
-  const flippedBearingDeg = normalizeBearingDeg(
-    normalizedDerivedBearingDeg + derivedAreaMeasurementDefaults.bearingHalfTurnDeg
+  const normalizedPreferredNormalBearingRad = zeroToTwoPi(
+    preferredNormalBearingRad as Radians
   );
+  if (
+    getBearingDistanceRad(
+      normalizedDerivedBearingRad,
+      normalizedPreferredNormalBearingRad
+    ) <=
+    derivedAreaMeasurementDefaults.halfTurnRad / 2
+  ) {
+    return normalizedDerivedBearingRad;
+  }
 
-  return getBearingDistanceDeg(
-    normalizedDerivedBearingDeg,
-    preferredNormalBearingDeg ?? 0
-  ) <=
-    getBearingDistanceDeg(flippedBearingDeg, preferredNormalBearingDeg ?? 0)
-    ? normalizedDerivedBearingDeg
-    : flippedBearingDeg;
+  return zeroToTwoPi(
+    (normalizedDerivedBearingRad +
+      derivedAreaMeasurementDefaults.halfTurnRad) as Radians
+  );
 };
 
 export const resolveDerivedAreaMeasurement = ({
@@ -98,10 +91,10 @@ export const resolveDerivedAreaMeasurement = ({
     (_, index) => `${measurement.id}-derived-area-node-${index}`
   );
   const pointById = new Map(
-    coordinates.map((coordinate, index) => [
-      nodeIds[index]!,
-      cartesianFromRuntimeCoordinate(coordinate),
-    ] as const)
+    coordinates.map(
+      (coordinate, index) =>
+        [nodeIds[index]!, cartesianFromRuntimeCoordinate(coordinate)] as const
+    )
   );
   const derivedMeasurement = computePolygonGroupDerivedData(
     {
@@ -120,9 +113,9 @@ export const resolveDerivedAreaMeasurement = ({
     verticalityDeg: Number.isFinite(derivedMeasurement.verticalityDeg)
       ? derivedMeasurement.verticalityDeg
       : undefined,
-    bearingDeg: resolveStableBearingDeg({
-      derivedBearingDeg: derivedMeasurement.bearingDeg,
-      preferredNormalBearingDeg: measurement.preferredNormalBearingDeg,
+    bearingRad: resolveStableBearingRad({
+      derivedBearingRad: derivedMeasurement.bearingRad,
+      preferredNormalBearingRad: measurement.preferredNormalBearingRad,
     }),
   };
 };

@@ -317,9 +317,7 @@ const buildLineSegments = (
     measurementEdgeDefaults.dash.minSegmentLengthMeters
   );
 
-  if (
-    safeCapLength <= measurementEdgeDefaults.dash.minSegmentLengthMeters
-  ) {
+  if (safeCapLength <= measurementEdgeDefaults.dash.minSegmentLengthMeters) {
     const segments: Array<[Cartesian3, Cartesian3]> = [];
     for (let distance = 0; distance < totalLength; distance += step) {
       const endDistance = Math.min(distance + safeDashLength, totalLength);
@@ -345,8 +343,7 @@ const buildLineSegments = (
 
   if (
     totalLength <=
-    safeCapLength * 2 +
-      measurementEdgeDefaults.dash.minSegmentLengthMeters
+    safeCapLength * 2 + measurementEdgeDefaults.dash.minSegmentLengthMeters
   ) {
     return [[start, end]];
   }
@@ -725,7 +722,10 @@ const createDistanceTriangleCornerHandle = (
     "path"
   );
   path.setAttribute("fill", "none");
-  path.setAttribute("stroke", distanceTriangleVisualDefaults.cornerOverlay.color);
+  path.setAttribute(
+    "stroke",
+    distanceTriangleVisualDefaults.cornerOverlay.color
+  );
   path.setAttribute(
     "stroke-width",
     `${distanceTriangleVisualDefaults.cornerOverlay.strokeWidthPx}`
@@ -803,11 +803,19 @@ const applyDistanceTriangleCornerHandleLayout = ({
   handle.svg.style.display = "block";
   handle.dot.setAttribute(
     "cx",
-    `${dotScreen.x - minX + distanceTriangleVisualDefaults.cornerOverlay.paddingPx}`
+    `${
+      dotScreen.x -
+      minX +
+      distanceTriangleVisualDefaults.cornerOverlay.paddingPx
+    }`
   );
   handle.dot.setAttribute(
     "cy",
-    `${dotScreen.y - minY + distanceTriangleVisualDefaults.cornerOverlay.paddingPx}`
+    `${
+      dotScreen.y -
+      minY +
+      distanceTriangleVisualDefaults.cornerOverlay.paddingPx
+    }`
   );
   handle.root.style.left = `${
     minX - distanceTriangleVisualDefaults.cornerOverlay.paddingPx
@@ -872,8 +880,7 @@ const createEdgeMidpointHandle = (
   tick.style.width = `${measurementEdgeDefaults.midpointMarker.tickLengthPx}px`;
   tick.style.height = `${measurementEdgeDefaults.midpointMarker.tickWidthPx}px`;
   tick.style.borderRadius = "999px";
-  tick.style.background =
-    measurementEdgeDefaults.midpointMarker.tickColor;
+  tick.style.background = measurementEdgeDefaults.midpointMarker.tickColor;
   tick.style.transform = "translate(-50%, -50%)";
   tick.style.pointerEvents = "none";
   tick.style.transition = buildOverlayHoverTransitionCss();
@@ -891,7 +898,9 @@ const destroyEdgeMidpointHandle = (handle: EdgeMidpointHandle) => {
   handle.root.remove();
 };
 
-const destroyEdgeMidpointHandles = (handles: Map<string, EdgeMidpointHandle>) => {
+const destroyEdgeMidpointHandles = (
+  handles: Map<string, EdgeMidpointHandle>
+) => {
   handles.forEach((handle) => {
     destroyEdgeMidpointHandle(handle);
   });
@@ -1301,8 +1310,9 @@ export const useMeasurementEdgesController = (
     }
 
     const overlayLayer = createPreviewOverlayLayers(scene, {
-      [PREVIEW_OVERLAY_GROUP.VISUALIZER]:
-        `${resolveDistanceTriangleLabelLayerId(surfaceKey)}-midpoint-targets`,
+      [PREVIEW_OVERLAY_GROUP.VISUALIZER]: `${resolveDistanceTriangleLabelLayerId(
+        surfaceKey
+      )}-midpoint-targets`,
     })[PREVIEW_OVERLAY_GROUP.VISUALIZER];
     if (!overlayLayer) {
       return;
@@ -1355,7 +1365,10 @@ export const useMeasurementEdgesController = (
           handle,
           center: toCssPixelPosition(midpointScreen.x, midpointScreen.y),
           angleRad:
-            Math.atan2(endScreen.y - startScreen.y, endScreen.x - startScreen.x) +
+            Math.atan2(
+              endScreen.y - startScreen.y,
+              endScreen.x - startScreen.x
+            ) +
             Math.PI / 2,
           zIndex: resolveOverlayZIndexBetweenWorldPositions(
             scene,
@@ -1430,8 +1443,9 @@ export const useMeasurementEdgesController = (
     } = createPreviewOverlayLayers(scene, {
       [PREVIEW_OVERLAY_GROUP.LABEL]:
         resolveDistanceTriangleLabelLayerId(surfaceKey),
-      [PREVIEW_OVERLAY_GROUP.VISUALIZER]:
-        `${resolveDistanceTriangleLabelLayerId(surfaceKey)}-visualizer`,
+      [PREVIEW_OVERLAY_GROUP.VISUALIZER]: `${resolveDistanceTriangleLabelLayerId(
+        surfaceKey
+      )}-visualizer`,
     });
     if (!labelOverlayLayer || !visualizerOverlayLayer) {
       return;
@@ -1498,16 +1512,14 @@ export const useMeasurementEdgesController = (
       });
     };
 
-    let previousSceneSnapshot: OverlayVisibilitySceneSnapshot | null =
-      null;
+    let previousSceneSnapshot: OverlayVisibilitySceneSnapshot | null = null;
 
     const updateEdgeLabels = ({
       force = false,
     }: {
       force?: boolean;
     } = {}) => {
-      const nextSceneSnapshot =
-        captureOverlayVisibilitySceneSnapshot(scene);
+      const nextSceneSnapshot = captureOverlayVisibilitySceneSnapshot(scene);
       if (
         !force &&
         areOverlayVisibilitySceneSnapshotsEqual(
@@ -1764,11 +1776,15 @@ export const useMeasurementEdgesController = (
         const maxY = Math.max(...arcPointsScreen.map((point) => point.y));
         const width = Math.max(
           distanceTriangleVisualDefaults.cornerOverlay.minBoxPx,
-          maxX - minX + distanceTriangleVisualDefaults.cornerOverlay.paddingPx * 2
+          maxX -
+            minX +
+            distanceTriangleVisualDefaults.cornerOverlay.paddingPx * 2
         );
         const height = Math.max(
           distanceTriangleVisualDefaults.cornerOverlay.minBoxPx,
-          maxY - minY + distanceTriangleVisualDefaults.cornerOverlay.paddingPx * 2
+          maxY -
+            minY +
+            distanceTriangleVisualDefaults.cornerOverlay.paddingPx * 2
         );
         const pathData = arcPointsScreen
           .map((point, index) => {
@@ -1857,7 +1873,10 @@ export const useMeasurementEdgesController = (
             segmentLengthMeters,
             formatOptions.lengthMeters
           ),
-          start: toCssPixelPosition(startScreenPosition.x, startScreenPosition.y),
+          start: toCssPixelPosition(
+            startScreenPosition.x,
+            startScreenPosition.y
+          ),
           end: toCssPixelPosition(endScreenPosition.x, endScreenPosition.y),
         });
       });

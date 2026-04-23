@@ -11,7 +11,11 @@ import {
   getVerticalRectanglePreviewAreaSquareMeters,
 } from "@carma-mapping/annotations/core";
 import { Cartesian3, SceneTransforms, defined } from "@carma-cesium";
-import { formatAreaSquareMetersAdaptive, formatLengthMeters, type CssPixelPosition } from "@carma-units";
+import {
+  formatAreaSquareMetersAdaptive,
+  formatLengthMeters,
+  type CssPixelPosition,
+} from "@carma-units";
 import {
   buildTextOnlyPointLabelOverlayState,
   createTransientPointLabelController,
@@ -31,9 +35,7 @@ import {
 import { createPathAuthoringController } from "./create-path-authoring-controller";
 import { RUNTIME_POLYGON_FILL_PLACEMENT } from "../render/measurement-render-models";
 import { createMeasurementPolygonFillsController } from "../render/measurement-polygon-fills-controller.shared";
-import {
-  resolvePreviewLineLabelVisualOptions,
-} from "../config/preview-line-label-visual-defaults";
+import { resolvePreviewLineLabelVisualOptions } from "../config/preview-line-label-visual-defaults";
 const { AREA_VERTICAL: ANNOTATION_TYPE_AREA_VERTICAL } = ANNOTATION_TYPES;
 
 const DRAFT_CHAIN_OVERLAY_LAYER_ID =
@@ -163,8 +165,7 @@ export const createVerticalAreaAuthoringController = (
     lineColor: previewControllerDefaults.draftChainColor,
     showPointMarkers: false,
   });
-  const previewFillController =
-    createMeasurementPolygonFillsController(scene);
+  const previewFillController = createMeasurementPolygonFillsController(scene);
   const labelOverlayLayer = createPreviewOverlayLayer(
     scene,
     VERTICAL_AREA_PREVIEW_LABEL_LAYER_ID
@@ -379,9 +380,7 @@ export const createVerticalAreaAuthoringController = (
     const nextDraftCoordinates = drafts.get(
       ANNOTATION_TYPE_AREA_VERTICAL
     ).coordinates;
-    if (
-      areCoordinateListsEqual(draftCoordinates, nextDraftCoordinates)
-    ) {
+    if (areCoordinateListsEqual(draftCoordinates, nextDraftCoordinates)) {
       return;
     }
 

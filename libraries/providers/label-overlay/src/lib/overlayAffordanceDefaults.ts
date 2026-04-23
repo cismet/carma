@@ -46,8 +46,7 @@ export const buildOverlayRingBoxShadowCss = ({
 }: {
   color?: string;
   spreadPx?: number;
-} = {}): string =>
-  spreadPx > 0 ? `0 0 0 ${spreadPx}px ${color}` : "none";
+} = {}): string => (spreadPx > 0 ? `0 0 0 ${spreadPx}px ${color}` : "none");
 
 export const buildOverlayGlowBoxShadowCss = ({
   color,
@@ -100,7 +99,8 @@ export const resolveOverlayMidpointTickMetrics = ({
     labelOverlayAffordanceDefaults.ratios.midpointTickLengthToMarkerDiameter;
   const tickWidthPx =
     markerStrokeWidthPx *
-    labelOverlayAffordanceDefaults.ratios.midpointTickThicknessToMarkerStrokeWidth;
+    labelOverlayAffordanceDefaults.ratios
+      .midpointTickThicknessToMarkerStrokeWidth;
 
   return Object.freeze({
     tickLengthPx,

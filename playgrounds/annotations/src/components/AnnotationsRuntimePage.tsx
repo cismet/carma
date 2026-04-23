@@ -109,7 +109,12 @@ const RuntimeToolbar = ({ scene }: { scene: Scene | null }) => {
     return () => {
       window.removeEventListener("keydown", handleToolShortcutKeyDown, true);
     };
-  }, [activeToolType, primaryInteractionToolId, requestModeChange, visibleDescriptors]);
+  }, [
+    activeToolType,
+    primaryInteractionToolId,
+    requestModeChange,
+    visibleDescriptors,
+  ]);
 
   return (
     <div
@@ -181,10 +186,7 @@ const PersistActiveRuntimeToolMode = () => {
     }
 
     try {
-      window.localStorage.setItem(
-        ACTIVE_TOOL_STORAGE_KEY,
-        activeToolType
-      );
+      window.localStorage.setItem(ACTIVE_TOOL_STORAGE_KEY, activeToolType);
     } catch {
       // ignore storage write errors
     }

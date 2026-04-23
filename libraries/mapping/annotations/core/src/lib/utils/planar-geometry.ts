@@ -37,7 +37,7 @@ const planarGeometryDefaults = Object.freeze({
   polygonTypeVerticalityThresholdDeg: 85,
 });
 
-const computeBearingDegFromPlaneNormal = (
+const computeBearingRadFromPlaneNormal = (
   plane: PlanarPolygonPlane
 ): number | undefined => {
   const normal = normalizeDirection(
@@ -58,13 +58,13 @@ const computeBearingDegFromPlaneNormal = (
   const north = normalEnu4.y;
   const horizontalMagnitude = Math.hypot(east, north);
   if (
-    horizontalMagnitude <= planarGeometryDefaults.bearingHorizontalMagnitudeEpsilon
+    horizontalMagnitude <=
+    planarGeometryDefaults.bearingHorizontalMagnitudeEpsilon
   ) {
     return undefined;
   }
 
-  const bearingRad = zeroToTwoPi(Math.atan2(east, north) as Radians);
-  return radToDegNumeric(bearingRad);
+  return zeroToTwoPi(Math.atan2(east, north) as Radians);
 };
 
 export const createPlaneFromThreePoints = (
@@ -349,7 +349,9 @@ const deriveVerticalPolygonLocalFrame = (
 
   const ellipsoidalUp = getEllipsoidalUpDirectionAtAnchor(origin);
   let upInPlane = ellipsoidalUp
-    ? normalizeDirection(removeCartesian3ComponentAlongAxis(ellipsoidalUp, north))
+    ? normalizeDirection(
+        removeCartesian3ComponentAlongAxis(ellipsoidalUp, north)
+      )
     : null;
 
   let east = upInPlane
@@ -462,7 +464,7 @@ export const computePolygonGroupDerivedData = (
     ? computePlanarPolygonArea(vertices, plane)
     : 0;
   const verticalityDeg = computeVerticalityDeg(plane);
-  const bearingDeg = computeBearingDegFromPlaneNormal(plane);
+  const bearingRad = computeBearingRadFromPlaneNormal(plane);
   const planarPolygonLocalFrame =
     group.type === ANNOTATION_TYPES.AREA_VERTICAL
       ? deriveVerticalPolygonLocalFrame(
@@ -479,6 +481,6 @@ export const computePolygonGroupDerivedData = (
     perimeterMeters,
     areaSquareMeters,
     verticalityDeg,
-    bearingDeg,
+    bearingRad,
   };
 };

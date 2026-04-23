@@ -1,8 +1,4 @@
-import {
-  buildNodeLinksFromLegacyNodes,
-  reconcileNodeLinks,
-  type LegacyAnnotationNodeWithLinkedGroupId,
-} from "../node-links.helpers";
+import { reconcileNodeLinks } from "../node-links.helpers";
 import type {
   AnnotationsStoreState,
   StoredAnnotation,
@@ -16,55 +12,12 @@ import {
   resolveNextShortLabelCounterByToolType,
 } from "../../utils/short-label-sequence";
 
-export type AnnotationsRuntimePersistenceEnvelopeLegacy = {
-  version: 1;
-  tables: {
-    annotationEntries: StoredAnnotation[];
-    nodes: LegacyAnnotationNodeWithLinkedGroupId[];
-    edges: AnnotationEdge[];
-  };
-};
+const currentPersistenceFormatId = "annotations-runtime-persistence" as const;
+const currentPersistenceVersion = 1 as const;
 
-export type AnnotationsRuntimePersistenceEnvelopeWithElevationReference = {
-  version: 2;
-  tables: {
-    annotationEntries: StoredAnnotation[];
-    nodes: LegacyAnnotationNodeWithLinkedGroupId[];
-    edges: AnnotationEdge[];
-  };
-  settings: {
-    elevationReferenceAnnotationId: string | null;
-  };
-};
-
-export type AnnotationsRuntimePersistenceEnvelopeV3 = {
-  version: 3;
-  tables: {
-    annotationEntries: StoredAnnotation[];
-    nodes: LegacyAnnotationNodeWithLinkedGroupId[];
-    edges: AnnotationEdge[];
-  };
-  settings: {
-    elevationReferenceAnnotationId: string | null;
-    nextShortLabelCounterByToolType: Record<string, number>;
-  };
-};
-
-export type AnnotationsRuntimePersistenceEnvelopeV4 = {
-  version: 4;
-  tables: {
-    annotationEntries: StoredAnnotation[];
-    nodes: LegacyAnnotationNodeWithLinkedGroupId[];
-    edges: AnnotationEdge[];
-  };
-  settings: {
-    elevationReferenceAnnotationId: string | null;
-    nextShortLabelCounterByToolType: Record<string, number>;
-  };
-};
-
-export type AnnotationsRuntimePersistenceEnvelopeV5 = {
-  version: 5;
+export type AnnotationsRuntimePersistenceEnvelope = {
+  formatId: typeof currentPersistenceFormatId;
+  version: typeof currentPersistenceVersion;
   tables: {
     annotationEntries: StoredAnnotation[];
     nodes: AnnotationNode[];
@@ -77,61 +30,25 @@ export type AnnotationsRuntimePersistenceEnvelopeV5 = {
   };
 };
 
-export type AnnotationsRuntimePersistenceEnvelope =
-  | AnnotationsRuntimePersistenceEnvelopeLegacy
-  | AnnotationsRuntimePersistenceEnvelopeWithElevationReference
-  | AnnotationsRuntimePersistenceEnvelopeV3
-  | AnnotationsRuntimePersistenceEnvelopeV4
-  | AnnotationsRuntimePersistenceEnvelopeV5;
-
 type ResolvePersistedAnnotationsStoreStateArgs = {
   initialToolType: AnnotationToolId;
   initialPointTemporaryMode: boolean;
   initialPersistenceState?: AnnotationsRuntimePersistenceEnvelope | null;
 };
 
-type LegacyStoredAnnotation = StoredAnnotation & {
-  areaSquareMeters?: number;
-  verticalityDeg?: number;
-  bearingDeg?: number;
-};
-
 const cloneAnnotationEntry = (
-  annotationEntry: LegacyStoredAnnotation
+  annotationEntry: StoredAnnotation
 ): StoredAnnotation => {
-  const {
-    areaSquareMeters: _legacyAreaSquareMeters,
-    verticalityDeg: _legacyVerticalityDeg,
-    bearingDeg: legacyBearingDeg,
-    preferredNormalBearingDeg,
-    nodeIds,
-    edgeIds,
-    ...rest
-  } = annotationEntry;
+  const { nodeIds, edgeIds, ...rest } = annotationEntry;
 
-  return Number.isFinite(preferredNormalBearingDeg ?? legacyBearingDeg)
-    ? {
-        ...rest,
-        preferredNormalBearingDeg:
-          preferredNormalBearingDeg ?? legacyBearingDeg,
-        nodeIds: [...nodeIds],
-        edgeIds: [...edgeIds],
-      }
-    : {
-        ...rest,
-        nodeIds: [...nodeIds],
-        edgeIds: [...edgeIds],
-      };
+  return {
+    ...rest,
+    nodeIds: [...nodeIds],
+    edgeIds: [...edgeIds],
+  };
 };
 
 const cloneNode = (node: AnnotationNode): AnnotationNode => ({
-  ...node,
-  coordinate: { ...node.coordinate },
-});
-
-const cloneLegacyNode = (
-  node: LegacyAnnotationNodeWithLinkedGroupId
-): LegacyAnnotationNodeWithLinkedGroupId => ({
   ...node,
   coordinate: { ...node.coordinate },
 });
@@ -147,7 +64,7 @@ const cloneNodeLink = (nodeLink: AnnotationNodeLink): AnnotationNodeLink => ({
 
 export const buildAnnotationsRuntimePersistenceState = (
   state: AnnotationsStoreState
-): AnnotationsRuntimePersistenceEnvelopeV5 => {
+): AnnotationsRuntimePersistenceEnvelope => {
   const annotationEntries = state.annotationEntries.map(cloneAnnotationEntry);
   const usedNodeIds = new Set(
     annotationEntries.flatMap((annotationEntry) => annotationEntry.nodeIds)
@@ -168,7 +85,8 @@ export const buildAnnotationsRuntimePersistenceState = (
   });
 
   return {
-    version: 5,
+    formatId: currentPersistenceFormatId,
+    version: currentPersistenceVersion,
     tables: {
       annotationEntries,
       nodes: filteredNodes,
@@ -191,27 +109,19 @@ export const resolvePersistedAnnotationsStoreState = ({
   initialPointTemporaryMode,
   initialPersistenceState,
 }: ResolvePersistedAnnotationsStoreStateArgs): AnnotationsStoreState => {
-  const persistedTables = initialPersistenceState?.tables;
+  const persistedState =
+    initialPersistenceState?.formatId === currentPersistenceFormatId &&
+    initialPersistenceState?.version === currentPersistenceVersion
+      ? initialPersistenceState
+      : null;
+  const persistedTables = persistedState?.tables;
   const normalizedAnnotationEntries = normalizeAnnotationShortLabels(
     persistedTables?.annotationEntries.map(cloneAnnotationEntry) ?? []
   );
-  const persistedLegacyNodes =
-    initialPersistenceState?.version === 5
-      ? []
-      : persistedTables?.nodes.map(cloneLegacyNode) ?? [];
-  const normalizedNodes =
-    initialPersistenceState?.version === 5
-      ? initialPersistenceState.tables.nodes.map(cloneNode)
-      : persistedLegacyNodes.map((node) => ({
-          id: node.id,
-          coordinate: { ...node.coordinate },
-        }));
+  const normalizedNodes = persistedState?.tables.nodes.map(cloneNode) ?? [];
   const normalizedNodeLinks = reconcileNodeLinks({
     nodes: normalizedNodes,
-    nodeLinks:
-      initialPersistenceState?.version === 5
-        ? initialPersistenceState.tables.linkedNodeGroups.map(cloneNodeLink)
-        : buildNodeLinksFromLegacyNodes(persistedLegacyNodes),
+    nodeLinks: persistedState?.tables.linkedNodeGroups.map(cloneNodeLink) ?? [],
   });
   const resolvedNextShortLabelCounterByToolType =
     resolveNextShortLabelCounterByToolType(normalizedAnnotationEntries);
@@ -232,12 +142,7 @@ export const resolvePersistedAnnotationsStoreState = ({
     settingsState: {
       pointTemporaryMode: initialPointTemporaryMode,
       elevationReferenceAnnotationId:
-        initialPersistenceState?.version === 2 ||
-        initialPersistenceState?.version === 3 ||
-        initialPersistenceState?.version === 4 ||
-        initialPersistenceState?.version === 5
-          ? initialPersistenceState.settings.elevationReferenceAnnotationId
-          : null,
+        persistedState?.settings.elevationReferenceAnnotationId ?? null,
       nextShortLabelCounterByToolType: resolvedNextShortLabelCounterByToolType,
     },
   };
@@ -266,114 +171,66 @@ export const loadAnnotationsRuntimePersistenceState = (
       return null;
     }
 
-    const parsed = JSON.parse(raw) as AnnotationsRuntimePersistenceEnvelope;
+    const parsed = JSON.parse(raw) as {
+      formatId?: unknown;
+      version?: unknown;
+      tables?: {
+        annotationEntries?: unknown;
+        nodes?: unknown;
+        linkedNodeGroups?: unknown;
+        edges?: unknown;
+      };
+      settings?: {
+        elevationReferenceAnnotationId?: unknown;
+        nextShortLabelCounterByToolType?: unknown;
+      };
+    };
     if (
-      parsed?.version !== 1 &&
-      parsed?.version !== 2 &&
-      parsed?.version !== 3 &&
-      parsed?.version !== 4 &&
-      parsed?.version !== 5
+      parsed?.formatId !== currentPersistenceFormatId ||
+      parsed?.version !== currentPersistenceVersion
     ) {
       return null;
     }
 
-    if (!parsed.tables) {
-      return null;
-    }
-
     if (
+      !parsed.tables ||
       !Array.isArray(parsed.tables.annotationEntries) ||
       !Array.isArray(parsed.tables.nodes) ||
+      !Array.isArray(parsed.tables.linkedNodeGroups) ||
       !Array.isArray(parsed.tables.edges)
     ) {
       return null;
     }
 
-    if (parsed.version === 5) {
-      if (!Array.isArray(parsed.tables.linkedNodeGroups)) {
-        return null;
-      }
-
-      return {
-        version: 5,
-        tables: {
-          annotationEntries:
-            parsed.tables.annotationEntries.map(cloneAnnotationEntry),
-          nodes: parsed.tables.nodes.map(cloneNode),
-          linkedNodeGroups: parsed.tables.linkedNodeGroups.map(cloneNodeLink),
-          edges: parsed.tables.edges.map(cloneEdge),
-        },
-        settings: {
-          elevationReferenceAnnotationId:
-            parsed.settings?.elevationReferenceAnnotationId ?? null,
-          nextShortLabelCounterByToolType: {
-            ...(parsed.settings?.nextShortLabelCounterByToolType ?? {}),
-          },
-        },
-      };
-    }
-
-    if (parsed.version === 4) {
-      return {
-        version: 4,
-        tables: {
-          annotationEntries:
-            parsed.tables.annotationEntries.map(cloneAnnotationEntry),
-          nodes: parsed.tables.nodes.map(cloneLegacyNode),
-          edges: parsed.tables.edges.map(cloneEdge),
-        },
-        settings: {
-          elevationReferenceAnnotationId:
-            parsed.settings?.elevationReferenceAnnotationId ?? null,
-          nextShortLabelCounterByToolType: {
-            ...(parsed.settings?.nextShortLabelCounterByToolType ?? {}),
-          },
-        },
-      };
-    }
-
-    if (parsed.version === 3) {
-      return {
-        version: 3,
-        tables: {
-          annotationEntries:
-            parsed.tables.annotationEntries.map(cloneAnnotationEntry),
-          nodes: parsed.tables.nodes.map(cloneLegacyNode),
-          edges: parsed.tables.edges.map(cloneEdge),
-        },
-        settings: {
-          elevationReferenceAnnotationId:
-            parsed.settings?.elevationReferenceAnnotationId ?? null,
-          nextShortLabelCounterByToolType: {
-            ...(parsed.settings?.nextShortLabelCounterByToolType ?? {}),
-          },
-        },
-      };
-    }
-
-    if (parsed.version === 2) {
-      return {
-        version: 2,
-        tables: {
-          annotationEntries:
-            parsed.tables.annotationEntries.map(cloneAnnotationEntry),
-          nodes: parsed.tables.nodes.map(cloneLegacyNode),
-          edges: parsed.tables.edges.map(cloneEdge),
-        },
-        settings: {
-          elevationReferenceAnnotationId:
-            parsed.settings?.elevationReferenceAnnotationId ?? null,
-        },
-      };
-    }
-
     return {
-      version: 1,
+      formatId: currentPersistenceFormatId,
+      version: currentPersistenceVersion,
       tables: {
-        annotationEntries:
-          parsed.tables.annotationEntries.map(cloneAnnotationEntry),
-        nodes: parsed.tables.nodes.map(cloneLegacyNode),
-        edges: parsed.tables.edges.map(cloneEdge),
+        annotationEntries: parsed.tables.annotationEntries.map((entry) =>
+          cloneAnnotationEntry(entry as StoredAnnotation)
+        ),
+        nodes: parsed.tables.nodes.map((node) =>
+          cloneNode(node as AnnotationNode)
+        ),
+        linkedNodeGroups: parsed.tables.linkedNodeGroups.map((nodeLink) =>
+          cloneNodeLink(nodeLink as AnnotationNodeLink)
+        ),
+        edges: parsed.tables.edges.map((edge) =>
+          cloneEdge(edge as AnnotationEdge)
+        ),
+      },
+      settings: {
+        elevationReferenceAnnotationId:
+          typeof parsed.settings?.elevationReferenceAnnotationId === "string"
+            ? parsed.settings.elevationReferenceAnnotationId
+            : null,
+        nextShortLabelCounterByToolType:
+          parsed.settings?.nextShortLabelCounterByToolType &&
+          typeof parsed.settings.nextShortLabelCounterByToolType === "object"
+            ? {
+                ...parsed.settings.nextShortLabelCounterByToolType,
+              }
+            : {},
       },
     };
   } catch (error) {

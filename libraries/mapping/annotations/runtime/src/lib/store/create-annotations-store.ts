@@ -120,10 +120,7 @@ const annotationsSlice = createSlice({
   reducers: {
     replaceState: (_, action: PayloadAction<AnnotationsStoreState>) =>
       action.payload,
-    setAnnotationToolType: (
-      state,
-      action: PayloadAction<AnnotationToolId>
-    ) => {
+    setAnnotationToolType: (state, action: PayloadAction<AnnotationToolId>) => {
       state.annotationToolType = action.payload;
     },
     setPointTemporaryMode: (state, action: PayloadAction<boolean>) => {

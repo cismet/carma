@@ -29,8 +29,10 @@ type PointQueryResolvedNodeSample = {
   linkedNodeGroupId: AnnotationNodeLinkId | null;
 };
 
-const findNodeById = (nodes: readonly AnnotationNode[], nodeId: string | null) =>
-  nodeId ? nodes.find((node) => node.id === nodeId) ?? null : null;
+const findNodeById = (
+  nodes: readonly AnnotationNode[],
+  nodeId: string | null
+) => (nodeId ? nodes.find((node) => node.id === nodeId) ?? null : null);
 
 export const usePointQueryToolRouting = ({
   scene,

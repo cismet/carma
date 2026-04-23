@@ -1,6 +1,4 @@
-import {
-  buildVerticalRectangleCornerFromDiagonal,
-} from "@carma-mapping/annotations/core";
+import { buildVerticalRectangleCornerFromDiagonal } from "@carma-mapping/annotations/core";
 import { Cartesian3 } from "@carma-cesium";
 import {
   getDegreesFromCartesian,
@@ -20,7 +18,8 @@ export const appendVerticalAreaPreviewPoint = <T>(
   nextItem: T
 ) => [...previousItems.slice(0, 1), nextItem];
 
-export const clearVerticalAreaPreview = (): readonly CesiumGeographicCoordinate[] => [];
+export const clearVerticalAreaPreview =
+  (): readonly CesiumGeographicCoordinate[] => [];
 
 export const undoVerticalAreaPreviewPoint = <T>(previousItems: readonly T[]) =>
   previousItems.slice(0, -1);

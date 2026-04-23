@@ -77,9 +77,7 @@ const PointMarkerOverlayShell = ({
           pointerEvents: interactive ? "auto" : "none",
           cursor: interactive ? "pointer" : "default",
           transition: buildOverlayHoverTransitionCss(),
-          boxShadow: hovered
-            ? buildOverlayRingBoxShadowCss()
-            : "none",
+          boxShadow: hovered ? buildOverlayRingBoxShadowCss() : "none",
           filter: hovered ? buildOverlayHoverFilterCss() : "none",
         }}
         onClick={interactive ? onClick : undefined}
@@ -188,13 +186,11 @@ export const usePointMarkerVisualizer = (
     (pointId: string) => {
       const frameKey = getSceneFrameKey(scene);
       if (stateCacheRef.current.frameKey !== frameKey) {
-        const sceneSnapshot =
-          captureOverlayVisibilitySceneSnapshot(scene);
-        const shouldRecomputeStates =
-          !areOverlayVisibilitySceneSnapshotsEqual(
-            stateCacheRef.current.sceneSnapshot,
-            sceneSnapshot
-          );
+        const sceneSnapshot = captureOverlayVisibilitySceneSnapshot(scene);
+        const shouldRecomputeStates = !areOverlayVisibilitySceneSnapshotsEqual(
+          stateCacheRef.current.sceneSnapshot,
+          sceneSnapshot
+        );
 
         stateCacheRef.current = shouldRecomputeStates
           ? {

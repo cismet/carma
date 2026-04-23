@@ -19,6 +19,15 @@ export const crossPoint3 = (left: Point3, right: Point3): Point3 => ({
 export const getPointLength3d = (point: Point3): number =>
   Math.hypot(point.x, point.y, point.z);
 
+export const arePoint3Close = (
+  left: Point3,
+  right: Point3,
+  epsilon: number = 1e-9
+): boolean =>
+  Math.abs(left.x - right.x) <= epsilon &&
+  Math.abs(left.y - right.y) <= epsilon &&
+  Math.abs(left.z - right.z) <= epsilon;
+
 export const getTriangleArea3d = ({
   a,
   b,
@@ -28,9 +37,8 @@ export const getTriangleArea3d = ({
   b: Point3;
   c: Point3;
 }): number =>
-  getPointLength3d(
-    crossPoint3(subtractPoint3(b, a), subtractPoint3(c, a))
-  ) * 0.5;
+  getPointLength3d(crossPoint3(subtractPoint3(b, a), subtractPoint3(c, a))) *
+  0.5;
 
 export const getPolygonArea3d = (points: readonly Point3[]): number => {
   if (points.length < 3) {

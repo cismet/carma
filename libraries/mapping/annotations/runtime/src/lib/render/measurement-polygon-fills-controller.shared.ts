@@ -21,7 +21,9 @@ import { RUNTIME_POLYGON_FILL_PLACEMENT } from "./measurement-render-models";
 import { areCoordinateListsEqual } from "../utils/coordinate-equality";
 
 export type MeasurementPolygonFillsController = {
-  setPolygonFills: (polygonFills: readonly RuntimePolygonFillRenderModel[]) => void;
+  setPolygonFills: (
+    polygonFills: readonly RuntimePolygonFillRenderModel[]
+  ) => void;
   clear: () => void;
   destroy: () => void;
 };
@@ -51,8 +53,7 @@ const normalizePolygonFills = (
 ) =>
   polygonFills.map((polygonFill) => ({
     ...polygonFill,
-    placement:
-      polygonFill.placement ?? RUNTIME_POLYGON_FILL_PLACEMENT.COPLANAR,
+    placement: polygonFill.placement ?? RUNTIME_POLYGON_FILL_PLACEMENT.COPLANAR,
   }));
 
 const arePolygonFillsEqual = (
@@ -92,7 +93,11 @@ export const createMeasurementPolygonFillsController = (
   let groundPrimitives: GroundPrimitive[] = [];
   let coplanarCollection: PrimitiveCollection | null = null;
 
-  const clearRenderedPolygonFills = ({ requestRender }: { requestRender: boolean }) => {
+  const clearRenderedPolygonFills = ({
+    requestRender,
+  }: {
+    requestRender: boolean;
+  }) => {
     removeGroundPrimitives(scene, groundPrimitives);
     groundPrimitives = [];
     removePrimitiveCollection(scene, coplanarCollection);

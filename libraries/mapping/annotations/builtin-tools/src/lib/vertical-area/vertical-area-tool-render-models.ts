@@ -205,17 +205,17 @@ export const buildVerticalAreaToolRenderModels = (
         {
           id: `${measurement.id}-area-label`,
           measurementId: measurement.id,
-        coordinate,
-        anchorKind: POINT_LABEL_ANCHOR_KIND.AREA_CENTROID,
-        content: formatAreaSquareMetersAdaptive(
-          resolveAreaMeasurementSummary({
-            measurement,
-            toolType: ANNOTATION_TYPE_AREA_VERTICAL,
-            coordinates,
-          }).areaSquareMeters,
-          formatOptions.areaSquareMeters
-        ),
-        selected: selectedMeasurementIdSet.has(measurement.id),
+          coordinate,
+          anchorKind: POINT_LABEL_ANCHOR_KIND.AREA_CENTROID,
+          content: formatAreaSquareMetersAdaptive(
+            resolveAreaMeasurementSummary({
+              measurement,
+              toolType: ANNOTATION_TYPE_AREA_VERTICAL,
+              coordinates,
+            }).areaSquareMeters,
+            formatOptions.areaSquareMeters
+          ),
+          selected: selectedMeasurementIdSet.has(measurement.id),
           hideMarker: true,
           collapse: false,
           labelStyle: POINT_LABEL_STYLE.AUTO,

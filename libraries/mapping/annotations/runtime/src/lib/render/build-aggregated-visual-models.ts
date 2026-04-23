@@ -4,10 +4,9 @@ import type {
 } from "../registry/annotation-tool-plugin.types";
 import type { RuntimeVisualModels } from "./visual-models";
 
-type BuildAggregatedVisualModelsArgs =
-  AnnotationToolVisualModelContext & {
-    plugins: readonly AnnotationToolPlugin[];
-  };
+type BuildAggregatedVisualModelsArgs = AnnotationToolVisualModelContext & {
+  plugins: readonly AnnotationToolPlugin[];
+};
 
 export const buildAggregatedVisualModels = ({
   plugins,

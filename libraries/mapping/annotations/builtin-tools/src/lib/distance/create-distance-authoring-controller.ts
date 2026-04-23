@@ -306,9 +306,7 @@ export const createDistanceAuthoringController = ({
 
   const unsubscribe = drafts.subscribe(toolType, () => {
     const nextDraftCoordinates = drafts.get(toolType).coordinates;
-    if (
-      areCoordinateListsEqual(draftCoordinates, nextDraftCoordinates)
-    ) {
+    if (areCoordinateListsEqual(draftCoordinates, nextDraftCoordinates)) {
       return;
     }
 

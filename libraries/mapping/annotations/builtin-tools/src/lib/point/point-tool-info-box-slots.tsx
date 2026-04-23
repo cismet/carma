@@ -1,8 +1,6 @@
 import { formatLatLonDegrees, formatLengthMeters } from "@carma-units";
 import type { Degrees } from "@carma-units";
-import {
-  buildAnnotationMeasurementInfoBoxSlots,
-} from "@carma-mapping/annotations/ui";
+import { buildAnnotationMeasurementInfoBoxSlots } from "@carma-mapping/annotations/ui";
 
 import type { RuntimeAnnotationInfoBoxContext } from "@carma-mapping/annotations/runtime";
 import { resolveRuntimeMeasurementNavigation } from "@carma-mapping/annotations/runtime";
@@ -123,13 +121,12 @@ export const createPointToolInfoBoxSlots = (
           event.stopPropagation();
           toggleAnnotationVisibility(annotation.id);
         },
-        onSetReference:
-          isReferenceMeasurement
-            ? undefined
-            : (event) => {
-                event.stopPropagation();
-                setElevationReferenceAnnotationId(annotation.id);
-              },
+        onSetReference: isReferenceMeasurement
+          ? undefined
+          : (event) => {
+              event.stopPropagation();
+              setElevationReferenceAnnotationId(annotation.id);
+            },
         onToggleLock: (event) => {
           event.stopPropagation();
           toggleAnnotationLocked(annotation.id);

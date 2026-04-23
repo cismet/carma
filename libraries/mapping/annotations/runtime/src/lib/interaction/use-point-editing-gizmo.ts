@@ -183,10 +183,10 @@ const resolvePlanarAreaEditPlane = ({
   }
 
   const pointById = new Map(
-    nodes.map((node) => [
-      node.id,
-      cartesian3FromGeographicCoordinate(node.coordinate),
-    ] as const)
+    nodes.map(
+      (node) =>
+        [node.id, cartesian3FromGeographicCoordinate(node.coordinate)] as const
+    )
   );
   const derivedPlanarAreaMeasurement = computePolygonGroupDerivedData(
     {
@@ -278,12 +278,15 @@ export const usePointEditingGizmo = (
   const [draftLinkToNodeId, setDraftLinkToNodeId] = useState<string | null>(
     null
   );
-  const draftNodeCoordinateOverridesRef =
-    useRef<NodeCoordinateOverrides>(EMPTY_NODE_COORDINATE_OVERRIDES);
+  const draftNodeCoordinateOverridesRef = useRef<NodeCoordinateOverrides>(
+    EMPTY_NODE_COORDINATE_OVERRIDES
+  );
   const draftLinkToNodeIdRef = useRef<string | null>(null);
   const draftPreviewAnimationFrameRef = useRef<number | null>(null);
   const snappedNodeIdRef = useRef<string | null>(null);
-  const draftBaseCoordinateRef = useRef<CesiumGeographicCoordinate | null>(null);
+  const draftBaseCoordinateRef = useRef<CesiumGeographicCoordinate | null>(
+    null
+  );
   const draftBaseScreenPositionRef = useRef<CesiumGizmoScreenPosition | null>(
     null
   );
@@ -391,8 +394,7 @@ export const usePointEditingGizmo = (
       draftPreviewAnimationFrameRef.current = null;
     }
 
-    draftNodeCoordinateOverridesRef.current =
-      EMPTY_NODE_COORDINATE_OVERRIDES;
+    draftNodeCoordinateOverridesRef.current = EMPTY_NODE_COORDINATE_OVERRIDES;
     draftLinkToNodeIdRef.current = null;
     snappedNodeIdRef.current = null;
     draftBaseCoordinateRef.current = null;
@@ -554,10 +556,7 @@ export const usePointEditingGizmo = (
 
   const effectiveNodes = useMemo(
     () =>
-      applyNodeCoordinateOverridesToNodes(
-        nodes,
-        draftNodeCoordinateOverrides
-      ),
+      applyNodeCoordinateOverridesToNodes(nodes, draftNodeCoordinateOverrides),
     [draftNodeCoordinateOverrides, nodes]
   );
   const effectiveLinkedNodeGroups = useMemo(() => {
@@ -610,7 +609,9 @@ export const usePointEditingGizmo = (
               runtimeState.selectionState.selectedAnnotationIds[index]
           ))
       ) {
-        annotationsStore.dispatch(setSelectedAnnotationIds(linkedMeasurementIds));
+        annotationsStore.dispatch(
+          setSelectedAnnotationIds(linkedMeasurementIds)
+        );
       }
 
       setAxisOverride(null);

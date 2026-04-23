@@ -102,19 +102,18 @@ export const measurementVisualDefaults: MeasurementVisualDefaults = {
   },
 };
 
-export const measurementVisualStyles: MeasurementVisualStyles =
-  Object.freeze({
-    edge: Object.freeze({
-      stroke: measurementVisualDefaults.colors.accent,
-      strokeWidth: measurementVisualDefaults.sizes.edgeStrokeWidth,
-    } satisfies EdgeVisualStyle),
-    point: Object.freeze({
-      pixelSize: measurementVisualDefaults.sizes.pointPixelSize,
-      fill: measurementVisualDefaults.colors.transparent,
-      outline: measurementVisualDefaults.colors.surface,
-      outlineWidth: measurementVisualDefaults.sizes.pointOutlineWidth,
-    } satisfies PointMarkerVisualStyle),
-  });
+export const measurementVisualStyles: MeasurementVisualStyles = Object.freeze({
+  edge: Object.freeze({
+    stroke: measurementVisualDefaults.colors.accent,
+    strokeWidth: measurementVisualDefaults.sizes.edgeStrokeWidth,
+  } satisfies EdgeVisualStyle),
+  point: Object.freeze({
+    pixelSize: measurementVisualDefaults.sizes.pointPixelSize,
+    fill: measurementVisualDefaults.colors.transparent,
+    outline: measurementVisualDefaults.colors.surface,
+    outlineWidth: measurementVisualDefaults.sizes.pointOutlineWidth,
+  } satisfies PointMarkerVisualStyle),
+});
 
 export const measurementVisualSelectionStyleOverrides: MeasurementVisualSelectionStyleOverrides =
   Object.freeze({

@@ -38,9 +38,7 @@ export type PlanarPolygonType =
   | AnnotationTypes["AREA_PLANAR"]
   | AnnotationTypes["AREA_VERTICAL"];
 
-export type PolygonType =
-  | AnnotationTypes["AREA_GROUND"]
-  | PlanarPolygonType;
+export type PolygonType = AnnotationTypes["AREA_GROUND"] | PlanarPolygonType;
 
 export type NodeChainAnnotationType =
   | AnnotationTypes["DISTANCE"]
@@ -87,7 +85,7 @@ export type DerivedNodeChainAnnotationGeometry = {
   perimeterMeters: number;
   areaSquareMeters: number;
   verticalityDeg?: number;
-  bearingDeg?: number;
+  bearingRad?: number;
 };
 
 export type DerivedNodeChainAnnotation = NodeChainAnnotation &

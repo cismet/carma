@@ -1,6 +1,4 @@
-import type {
-  AnnotationInfoBoxVisualOptions,
-} from "@carma-mapping/annotations/ui";
+import type { AnnotationInfoBoxVisualOptions } from "@carma-mapping/annotations/ui";
 import type { AnnotationInfoBoxSlots } from "@carma-mapping/annotations/ui";
 
 import type {

@@ -98,8 +98,7 @@ const toCssPixelPosition = (x: number, y: number): CssPixelPosition => ({
 
 const LABEL_MARKERS_FONT_FAMILY = typographyDefaults.fontFamily;
 const REPRESENTATIVE_CONTENT_FONT_WEIGHT = 400;
-const REPRESENTATIVE_BADGE_FONT_WEIGHT =
-  typographyDefaults.badgeFontWeight;
+const REPRESENTATIVE_BADGE_FONT_WEIGHT = typographyDefaults.badgeFontWeight;
 const REPRESENTATIVE_TEXT_COLOR = ANNOTATION_MEASUREMENT_TEXT_COLOR;
 
 const toRepresentativePillColorScheme = (

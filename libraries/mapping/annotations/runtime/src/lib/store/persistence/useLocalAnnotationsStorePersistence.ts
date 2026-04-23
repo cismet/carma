@@ -1,8 +1,6 @@
 import { useCallback, useMemo } from "react";
 
-import type {
-  AnnotationsRuntimePersistenceEnvelope,
-} from "./annotations-store-persistence";
+import type { AnnotationsRuntimePersistenceEnvelope } from "./annotations-store-persistence";
 import {
   loadAnnotationsRuntimePersistenceState,
   saveAnnotationsRuntimePersistenceState,
@@ -26,9 +24,7 @@ export const useLocalAnnotationsStorePersistence = ({
   }, [enabled, storageKey]);
 
   const onPersistenceStateChange = useCallback(
-    (
-      state: AnnotationsRuntimePersistenceEnvelope
-    ) => {
+    (state: AnnotationsRuntimePersistenceEnvelope) => {
       if (!enabled || typeof window === "undefined") {
         return;
       }

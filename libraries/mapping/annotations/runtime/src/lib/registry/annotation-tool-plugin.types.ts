@@ -3,9 +3,7 @@ import type { Cartesian3, Scene } from "@carma-cesium";
 import type { AnnotationInfoBoxSlots } from "@carma-mapping/annotations/ui";
 import type { LabelOverlayContextType } from "@carma-providers/label-overlay";
 
-import type {
-  RuntimeAnnotationInfoBoxContext,
-} from "../components/annotation-info-box/annotation-info-box.types";
+import type { RuntimeAnnotationInfoBoxContext } from "../components/annotation-info-box/annotation-info-box.types";
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import type { PreviewLineLabelVisualOptions } from "../config/preview-line-label-visual-defaults";
 import type {

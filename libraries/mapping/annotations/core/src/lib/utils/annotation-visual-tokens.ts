@@ -87,9 +87,8 @@ export const annotationVisualDefaults = Object.freeze({
   },
 });
 
-export const formatAnnotationRgbCss = (
-  [red, green, blue]: Rgb255
-): string => `rgb(${red}, ${green}, ${blue})`;
+export const formatAnnotationRgbCss = ([red, green, blue]: Rgb255): string =>
+  `rgb(${red}, ${green}, ${blue})`;
 
 export const formatAnnotationRgbaCss = (
   [red, green, blue]: Rgb255,
@@ -104,11 +103,13 @@ export const getAnnotationTextCssColor = (
 
 export const getAnnotationSurfaceStrokeCssColor = (
   alpha: number = annotationVisualDefaults.alpha.surfaceStroke
-): string => formatAnnotationRgbaCss(annotationVisualPalette.surfaceRgb255.stroke, alpha);
+): string =>
+  formatAnnotationRgbaCss(annotationVisualPalette.surfaceRgb255.stroke, alpha);
 
 export const getAnnotationSurfaceAccentCssColor = (
   alpha: number = annotationVisualDefaults.alpha.surfaceStroke
-): string => formatAnnotationRgbaCss(annotationVisualPalette.surfaceRgb255.accent, alpha);
+): string =>
+  formatAnnotationRgbaCss(annotationVisualPalette.surfaceRgb255.accent, alpha);
 
 export const getAnnotationLineComponentCssColor = (
   kind: AnnotationLineComponentKind,

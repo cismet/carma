@@ -157,16 +157,16 @@ const createAttachedLine = (
   const dashed = line.dashed === true;
   const metersPerPixel = estimateMetersPerPixel(scene, line.start, line.end);
   const dashLengthMeters = dashed
-    ? Math.max(DEFAULT_DASH_LENGTH_PX * metersPerPixel, MIN_SEGMENT_LENGTH_METERS)
+    ? Math.max(
+        DEFAULT_DASH_LENGTH_PX * metersPerPixel,
+        MIN_SEGMENT_LENGTH_METERS
+      )
     : DEFAULT_DASH_LENGTH_METERS;
   const gapLengthMeters = dashed
     ? Math.max(DEFAULT_GAP_LENGTH_PX * metersPerPixel, 0)
     : DEFAULT_GAP_LENGTH_METERS;
   const capLengthMeters = dashed
-    ? Math.max(
-        line.strokeWidth * metersPerPixel,
-        MIN_SEGMENT_LENGTH_METERS * 2
-      )
+    ? Math.max(line.strokeWidth * metersPerPixel, MIN_SEGMENT_LENGTH_METERS * 2)
     : 0;
 
   const segments = buildLineSegments(

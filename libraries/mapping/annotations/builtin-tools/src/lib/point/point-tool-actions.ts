@@ -42,9 +42,13 @@ export const commitPointMeasurementDraft = (
   sourceToolId?: AnnotationToolId
 ): readonly StoredAnnotation[] =>
   draft.coordinates.flatMap((coordinate, index) => [
-    addAnnotation(toolType, [coordinate], undefined, [
-      draft.linkedNodeGroupIds[index] ?? null,
-    ], sourceToolId),
+    addAnnotation(
+      toolType,
+      [coordinate],
+      undefined,
+      [draft.linkedNodeGroupIds[index] ?? null],
+      sourceToolId
+    ),
   ]);
 
 export const trimLatestPointMeasurementDraft = (

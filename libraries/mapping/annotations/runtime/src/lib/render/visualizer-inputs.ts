@@ -199,8 +199,7 @@ export const buildHostInteractionPointLabels = ({
         : onNodeLongPress
         ? () => onNodeLongPress(point.nodeId!, point.measurementId)
         : undefined,
-      longPressDurationMs:
-        visualizerInputDefaults.nodeLabelLongPressDurationMs,
+      longPressDurationMs: visualizerInputDefaults.nodeLabelLongPressDurationMs,
     };
 
     const existingInteractionPointLabel =

@@ -69,8 +69,10 @@ export const resolveAnnotationToolShortcutTarget = (
   const orderedToolIds = orderedDescriptors.map((descriptor) => descriptor.id);
   const letterMatch = orderedToolIds.find(
     (toolId) =>
-      getAnnotationToolLetterShortcut(toolId, orderedDescriptors)?.toLowerCase() ===
-      normalizedKey
+      getAnnotationToolLetterShortcut(
+        toolId,
+        orderedDescriptors
+      )?.toLowerCase() === normalizedKey
   );
   if (letterMatch) {
     return letterMatch;

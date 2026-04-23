@@ -16,7 +16,10 @@ export const useAnnotationToolDraftStates = ({
 }: UseAnnotationToolDraftStatesArgs): Readonly<
   Partial<Record<AnnotationToolId, AnnotationToolDraftState>>
 > => {
-  const [version, bumpVersion] = useReducer((current: number) => current + 1, 0);
+  const [version, bumpVersion] = useReducer(
+    (current: number) => current + 1,
+    0
+  );
 
   useEffect(() => {
     const unsubscribeCallbacks = toolTypes.map((toolType) =>

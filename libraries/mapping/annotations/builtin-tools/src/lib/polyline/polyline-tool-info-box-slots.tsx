@@ -1,13 +1,13 @@
-import { formatDegrees, formatLengthMeters } from "@carma-units";
 import {
-  buildAnnotationMeasurementInfoBoxSlots,
-} from "@carma-mapping/annotations/ui";
+  formatDegrees,
+  formatLengthMeters,
+  radToDegNumeric,
+} from "@carma-units";
+import { buildAnnotationMeasurementInfoBoxSlots } from "@carma-mapping/annotations/ui";
 
 import type { RuntimeAnnotationInfoBoxContext } from "@carma-mapping/annotations/runtime";
 import { resolveRuntimeMeasurementNavigation } from "@carma-mapping/annotations/runtime";
-import {
-  resolvePolylineMeasurementSummary,
-} from "../utils/measurement-summaries";
+import { resolvePolylineMeasurementSummary } from "../utils/measurement-summaries";
 import {
   buildRuntimeNodeCoordinateMap,
   resolveMeasurementCoordinates,
@@ -62,7 +62,7 @@ export const createPolylineToolInfoBoxSlots = (
       flyToAllAnnotations,
     });
     const summary = resolvePolylineMeasurementSummary(coordinates);
-    const bearingDeg = summary?.bearingDeg ?? null;
+    const bearingRad = summary?.bearingRad ?? null;
 
     if (!summary) {
       return null;
@@ -146,17 +146,24 @@ export const createPolylineToolInfoBoxSlots = (
           <span className={infoBoxVisualOptions.mutedTextClassName}>
             Summe H
           </span>
-          <span>{formatDistance(summary.totalAbsoluteElevationChangeMeters)}</span>
+          <span>
+            {formatDistance(summary.totalAbsoluteElevationChangeMeters)}
+          </span>
           <span className={infoBoxVisualOptions.mutedTextClassName}>
             Δ Start/Ende
           </span>
           <span>{formatDistance(summary.startEndElevationDeltaMeters)}</span>
-          {Number.isFinite(bearingDeg) ? (
+          {Number.isFinite(bearingRad) ? (
             <>
               <span className={infoBoxVisualOptions.mutedTextClassName}>
                 Ausrichtung
               </span>
-              <span>{formatDegrees(bearingDeg ?? 0, formatOptions.degrees)}</span>
+              <span>
+                {formatDegrees(
+                  radToDegNumeric(bearingRad ?? 0),
+                  formatOptions.degrees
+                )}
+              </span>
             </>
           ) : null}
         </div>

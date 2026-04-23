@@ -125,13 +125,10 @@ export const RuntimeAuthoringHost = ({
     () => setHoveredPointQueryNodeId(null),
     [setHoveredPointQueryNodeId]
   );
-  const resolveHoveredPointQueryNode = useCallback(
-    () => {
-      const hoveredNodeId = getHoveredPointQueryNodeId();
-      return hoveredNodeId ? nodeById.get(hoveredNodeId) ?? null : null;
-    },
-    [getHoveredPointQueryNodeId, nodeById]
-  );
+  const resolveHoveredPointQueryNode = useCallback(() => {
+    const hoveredNodeId = getHoveredPointQueryNodeId();
+    return hoveredNodeId ? nodeById.get(hoveredNodeId) ?? null : null;
+  }, [getHoveredPointQueryNodeId, nodeById]);
 
   const sessionContext = useMemo(
     () => ({
@@ -184,15 +181,8 @@ export const RuntimeAuthoringHost = ({
     previousPointTemporaryModeRef.current = currentPointTemporaryMode;
   }, [addAnnotation, annotationToolDraftStore, pointTemporaryMode]);
 
-  const {
-    requestModeChange,
-    requestActivateTool,
-    requestFinishMeasurement,
-  } = useModeLifecycle(
-    activeToolType,
-    toolSessions,
-    clearHoveredPointQueryNode
-  );
+  const { requestModeChange, requestActivateTool, requestFinishMeasurement } =
+    useModeLifecycle(activeToolType, toolSessions, clearHoveredPointQueryNode);
 
   const {
     handlePointQueryPointCreated,
@@ -266,10 +256,10 @@ export const RuntimeAuthoringHost = ({
         tangentDiscVisualizerSmoothingWindowMs:
           ANNOTATIONS_HOST_DEFAULTS.pointQuery.discSmoothingWindowMs,
         tangentDiscVisualizerWeightDecayGamma:
-          ANNOTATIONS_HOST_DEFAULTS.pointQuery
-            .discSmoothingWeightDecayGamma,
+          ANNOTATIONS_HOST_DEFAULTS.pointQuery.discSmoothingWeightDecayGamma,
       });
-    pointQueryIndicatorControllerRef.current = nextPointQueryIndicatorController;
+    pointQueryIndicatorControllerRef.current =
+      nextPointQueryIndicatorController;
     nextPointQueryIndicatorController?.setEnabled(pointQueryEnabled);
     if (pointQueryEnabled && latestPointQueryPickResultRef.current) {
       nextPointQueryIndicatorController?.setPreview({

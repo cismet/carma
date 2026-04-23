@@ -13,7 +13,8 @@ export const appendDistancePreviewPoint = <T>(
   nextItem: T
 ) => [...previousItems.slice(0, 1), nextItem];
 
-export const clearDistancePreview = (): readonly CesiumGeographicCoordinate[] => [];
+export const clearDistancePreview =
+  (): readonly CesiumGeographicCoordinate[] => [];
 
 export const undoDistancePreviewPoint = <T>(previousItems: readonly T[]) =>
   previousItems.slice(0, -1);

@@ -1189,7 +1189,10 @@ const SingleLineLabelDebugOverlay = ({
       `lineAngle ${formatStatusNumber(lineAngleDeg, 1)}°`,
       `labelAngle ${
         labelPlacement
-          ? `${formatStatusNumber(radToDegNumeric(labelPlacement.angleRad)!, 1)}°`
+          ? `${formatStatusNumber(
+              radToDegNumeric(labelPlacement.angleRad)!,
+              1
+            )}°`
           : "n/a"
       }`,
     ],

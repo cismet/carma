@@ -56,14 +56,18 @@ export const annotationInfoBoxVisualDefaults: AnnotationInfoBoxVisualOptions =
         annotationInfoBoxColorPalette.panelSurface,
         annotationInfoBoxAlpha.panelSurface
       ),
-      border: `${annotationInfoBoxUiDefaults.hairlineBorderWidthRem} solid ${formatHexRgbaCss(
+      border: `${
+        annotationInfoBoxUiDefaults.hairlineBorderWidthRem
+      } solid ${formatHexRgbaCss(
         annotationInfoBoxColorPalette.panelBorder,
         annotationInfoBoxAlpha.panelBorder
       )}`,
       boxShadow: `${formatHexRgbaCss(
         annotationInfoBoxColorPalette.shadowBase,
         annotationInfoBoxAlpha.panelInsetShadow
-      )} 0 ${annotationInfoBoxUiDefaults.panelInsetShadowYOffsetRem} ${annotationInfoBoxUiDefaults.panelInsetShadowBlurRem} inset`,
+      )} 0 ${annotationInfoBoxUiDefaults.panelInsetShadowYOffsetRem} ${
+        annotationInfoBoxUiDefaults.panelInsetShadowBlurRem
+      } inset`,
       backdropFilter: `blur(${annotationInfoBoxUiDefaults.panelBackdropBlurRem})`,
       WebkitBackdropFilter: `blur(${annotationInfoBoxUiDefaults.panelBackdropBlurRem})`,
     },
@@ -99,8 +103,7 @@ export const annotationInfoBoxVisualDefaults: AnnotationInfoBoxVisualOptions =
     fieldBorderClassName: `border-[${annotationInfoBoxUiDefaults.hairlineBorderWidthRem}] border-[${annotationInfoBoxColorPalette.fieldBorder}]`,
     fieldInputBorderClassName: `border-[${annotationInfoBoxUiDefaults.hairlineBorderWidthRem}] border-[${annotationInfoBoxColorPalette.fieldInputBorder}]`,
     fieldFocusBackgroundClassName: `focus:bg-[${annotationInfoBoxColorPalette.fieldFocusBackground}]`,
-    fieldFocusOutlineClassName:
-      `focus:outline focus:outline-2 focus:outline-[${annotationInfoBoxColorPalette.fieldFocusOutline}]`,
+    fieldFocusOutlineClassName: `focus:outline focus:outline-2 focus:outline-[${annotationInfoBoxColorPalette.fieldFocusOutline}]`,
     subtleFieldBackgroundClassName: "bg-white/85",
     titleTextStyle: {
       fontSize: annotationInfoBoxTypographyDefaults.headingFontSizeRem,

@@ -2,17 +2,14 @@ import {
   formatAreaSquareMetersAdaptive,
   formatDegrees,
   formatLengthMeters,
+  radToDegNumeric,
 } from "@carma-units";
 import type { PolygonType } from "@carma-mapping/annotations/core";
-import {
-  buildAnnotationMeasurementInfoBoxSlots,
-} from "@carma-mapping/annotations/ui";
+import { buildAnnotationMeasurementInfoBoxSlots } from "@carma-mapping/annotations/ui";
 
 import type { RuntimeAnnotationInfoBoxContext } from "@carma-mapping/annotations/runtime";
 import { resolveRuntimeMeasurementNavigation } from "@carma-mapping/annotations/runtime";
-import {
-  resolveAreaMeasurementSummary,
-} from "../utils/measurement-summaries";
+import { resolveAreaMeasurementSummary } from "../utils/measurement-summaries";
 import {
   buildRuntimeNodeCoordinateMap,
   resolveMeasurementCoordinates,
@@ -24,14 +21,14 @@ export const createNodeChainAreaToolInfoBoxSlots = (
     headingTitle,
     headingColor,
     formatMeasurementLabelToken,
-    formatBearing = (bearingDeg, formatOptions) =>
-      formatDegrees(bearingDeg, formatOptions.degrees),
+    formatBearing = (bearingRad, formatOptions) =>
+      formatDegrees(radToDegNumeric(bearingRad), formatOptions.degrees),
   }: {
     headingTitle: string;
     headingColor: string;
     formatMeasurementLabelToken: (counter: number) => string;
     formatBearing?: (
-      bearingDeg: number,
+      bearingRad: number,
       formatOptions: RuntimeAnnotationInfoBoxContext["formatOptions"]
     ) => string;
   }
@@ -143,9 +140,9 @@ export const createNodeChainAreaToolInfoBoxSlots = (
               formatOptions.degrees
             )}`}</div>
           ) : null}
-          {Number.isFinite(summary.bearingDeg) ? (
+          {Number.isFinite(summary.bearingRad) ? (
             <div>{`Ausrichtung: ${formatBearing(
-              summary.bearingDeg ?? 0,
+              summary.bearingRad ?? 0,
               formatOptions
             )}`}</div>
           ) : null}
