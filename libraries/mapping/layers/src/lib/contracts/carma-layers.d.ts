@@ -137,6 +137,7 @@ type BaseLayer = {
     thumbnail?: string;
     vectorStyle?: string;
     vectorLegend?: string;
+    metaDataText?: string;
     [key: string]: unknown;
   };
 };

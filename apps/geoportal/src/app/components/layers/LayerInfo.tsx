@@ -50,6 +50,10 @@ const LayerInfo = ({ description, legend, zoomLevels }: LayerInfoProps) => {
   };
 
   useEffect(() => {
+    const fallbackText =
+      currentLayer?.layerInfo?.metaDataText ??
+      "keine Verknüpfung zum Metadatenkatalog vorhanden";
+
     if (metadataUrl) {
       const urlWithoutWhitespace = metadataUrl.replaceAll(" ", "");
       fetch(urlWithoutWhitespace)
@@ -70,14 +74,14 @@ const LayerInfo = ({ description, legend, zoomLevels }: LayerInfoProps) => {
           );
         })
         .catch(() => {
-          setMetadataText("keine Verknüpfung zum Metadatenkatalog vorhanden");
+          setMetadataText(fallbackText);
           setPdfUrl("");
         });
     } else {
-      setMetadataText("keine Verknüpfung zum Metadatenkatalog vorhanden");
+      setMetadataText(fallbackText);
       setPdfUrl("");
     }
-  }, [metadataUrl]);
+  }, [metadataUrl, currentLayer?.layerInfo?.metaDataText]);
 
   const getFooterText = () => {
     const layerCurrentlyVisible =

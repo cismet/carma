@@ -126,6 +126,7 @@ export type ShapesToFeatureCollectionLayerInfo = {
   icon?: string;
   description?: string;
   keywords?: string[];
+  metaDataText?: string;
 };
 
 export function shapesToFeatureCollection(
