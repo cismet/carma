@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Form, Row, Col, Select, Input, DatePicker } from "antd";
 import { useSelector } from "react-redux";
 import { getKeyTablesData } from "../../../store/slices/keyTables";
+import SearchDistrictInput from "./SearchDistrictInput";
 
 interface LeuchteSearchProps {
   onValuesChange?: (values: SearchValues) => void;
@@ -16,6 +17,7 @@ interface SearchValues {
   schaltstelle?: { value?: string };
   dk1?: { value?: number };
   dk2?: { value?: number };
+  bezirk?: { value?: number };
 }
 
 interface LeuchttypItem {
@@ -92,6 +94,7 @@ const LeuchteSearch = ({ onValuesChange }: LeuchteSearchProps) => {
     schaltstelle: { value: "" },
     dk1: { value: undefined },
     dk2: { value: undefined },
+    bezirk: { value: undefined },
   });
 
   const updateField = (
@@ -184,7 +187,7 @@ const LeuchteSearch = ({ onValuesChange }: LeuchteSearchProps) => {
       </Form.Item>
 
       <Row gutter={12}>
-        <Col span={12}>
+        <Col span={8}>
           <Form.Item
             label={<FormLabel>Schaltstelle</FormLabel>}
             className="mb-3"
@@ -197,7 +200,7 @@ const LeuchteSearch = ({ onValuesChange }: LeuchteSearchProps) => {
             />
           </Form.Item>
         </Col>
-        <Col span={12}>
+        <Col span={8}>
           <Form.Item
             label={<FormLabel>Rundsteuerempf.</FormLabel>}
             className="mb-3"
@@ -219,6 +222,11 @@ const LeuchteSearch = ({ onValuesChange }: LeuchteSearchProps) => {
               ))}
             </Select>
           </Form.Item>
+        </Col>
+        <Col span={8}>
+          <SearchDistrictInput
+            onChange={(value) => updateField("bezirk", { value })}
+          />
         </Col>
       </Row>
 
