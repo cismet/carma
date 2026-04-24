@@ -33,11 +33,12 @@ const toSidebarFeature = (
   sourceLayer?: string
 ): SidebarFeature => {
   const feat = f as unknown as Record<string, unknown>;
-  return Object.assign(f, {
+  return {
+    ...f,
     original: f,
-    source: feat.source ?? source,
-    sourceLayer: feat.sourceLayer ?? sourceLayer,
-  }) as unknown as SidebarFeature;
+    source: (feat.source as string | undefined) ?? source,
+    sourceLayer: (feat.sourceLayer as string | undefined) ?? sourceLayer,
+  } as unknown as SidebarFeature;
 };
 
 const AuswahlBlock = ({
