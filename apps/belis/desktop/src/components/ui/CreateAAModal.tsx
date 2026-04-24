@@ -151,6 +151,32 @@ const CreateAAModal = ({ open, onClose, onCreated, highlights }: CreateAAModalPr
           </Col>
         </Row>
         <Row gutter={16}>
+          <Col span={24}>
+            <Form.Item
+              name="bezeichnung"
+              label={<FormLabel>Bezeichnung</FormLabel>}
+              className="mb-4"
+            >
+              <Input size="large" placeholder="Bezeichnung eingeben" />
+            </Form.Item>
+          </Col>
+        </Row>
+        <Row gutter={16}>
+          <Col span={24}>
+            <Form.Item
+              name="beschreibung"
+              label={<FormLabel>Beschreibung</FormLabel>}
+              className="mb-4"
+            >
+              <Input.TextArea
+                rows={3}
+                style={{ resize: "vertical" }}
+                placeholder="Beschreibung eingeben"
+              />
+            </Form.Item>
+          </Col>
+        </Row>
+        <Row gutter={16}>
           <Col span={12} className="cursor-not-allowed">
             <div className="pointer-events-none">
               <Form.Item
