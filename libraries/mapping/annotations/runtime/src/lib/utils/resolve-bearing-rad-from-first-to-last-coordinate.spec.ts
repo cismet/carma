@@ -1,5 +1,3 @@
-// @vitest-environment jsdom
-
 import { PI, PI_OVER_TWO } from "@carma-units";
 import { describe, expect, it } from "vitest";
 import type { CesiumGeographicCoordinate } from "../store/annotations-store.types";

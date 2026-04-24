@@ -586,10 +586,10 @@ export const useInitializeViewer = (
         : enableCollisionDetection;
       sscc.minimumZoomDistance = shouldSuspendCameraLimitersRef.current
         ? 1
-        : (minZoom ?? 1);
+        : minZoom ?? 1;
       sscc.maximumZoomDistance = shouldSuspendCameraLimitersRef.current
         ? Infinity
-        : (maxZoom ?? Infinity);
+        : maxZoom ?? Infinity;
     });
   }, [
     withScene,

@@ -1,39 +1,9 @@
-// @vitest-environment jsdom
-
 import type { PropsWithChildren } from "react";
 
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { configureStore } from "@reduxjs/toolkit";
 import { Provider } from "react-redux";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-vi.hoisted(() => {
-  const createObjectURL = vi.fn(() => "blob:maplibre-worker");
-  const revokeObjectURL = vi.fn();
-
-  if (typeof globalThis.URL === "function") {
-    Object.defineProperty(globalThis.URL, "createObjectURL", {
-      value: createObjectURL,
-      configurable: true,
-      writable: true,
-    });
-    Object.defineProperty(globalThis.URL, "revokeObjectURL", {
-      value: revokeObjectURL,
-      configurable: true,
-      writable: true,
-    });
-    return;
-  }
-
-  Object.defineProperty(globalThis, "URL", {
-    value: {
-      createObjectURL,
-      revokeObjectURL,
-    },
-    configurable: true,
-    writable: true,
-  });
-});
 
 const useMapFrameworkSwitcherContextMock = vi.hoisted(() => vi.fn());
 const useAnnotationsDispatchMock = vi.hoisted(() => vi.fn());

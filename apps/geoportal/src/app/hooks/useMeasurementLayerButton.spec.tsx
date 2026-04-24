@@ -1,39 +1,9 @@
-// @vitest-environment jsdom
-
 import type { PropsWithChildren } from "react";
 
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { configureStore } from "@reduxjs/toolkit";
 import { Provider } from "react-redux";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-vi.hoisted(() => {
-  const createObjectURL = vi.fn(() => "blob:maplibre-worker");
-  const revokeObjectURL = vi.fn();
-
-  if (typeof globalThis.URL === "function") {
-    Object.defineProperty(globalThis.URL, "createObjectURL", {
-      value: createObjectURL,
-      configurable: true,
-      writable: true,
-    });
-    Object.defineProperty(globalThis.URL, "revokeObjectURL", {
-      value: revokeObjectURL,
-      configurable: true,
-      writable: true,
-    });
-    return;
-  }
-
-  Object.defineProperty(globalThis, "URL", {
-    value: {
-      createObjectURL,
-      revokeObjectURL,
-    },
-    configurable: true,
-    writable: true,
-  });
-});
 
 const useMapMeasurementsContextMock = vi.hoisted(() => vi.fn());
 const useMapFrameworkSwitcherContextMock = vi.hoisted(() => vi.fn());
@@ -46,9 +16,7 @@ vi.mock("@carma-mapping/components", () => ({
   useMapFrameworkSwitcherContext: () => useMapFrameworkSwitcherContextMock(),
 }));
 
-import mappingReducer, {
-  removeLayer,
-} from "../store/slices/mapping";
+import mappingReducer, { removeLayer } from "../store/slices/mapping";
 import uiReducer, { setUIMode, UIMode } from "../store/slices/ui";
 import {
   MEASUREMENT_LAYER_ID,
@@ -67,12 +35,13 @@ const createTestStore = () =>
 
 const createWrapper =
   (store: TestStore) =>
-  ({ children }: PropsWithChildren) => (
-    <Provider store={store}>{children}</Provider>
-  );
+  ({ children }: PropsWithChildren) =>
+    <Provider store={store}>{children}</Provider>;
 
 const findMeasurementLayer = (store: TestStore) =>
-  store.getState().mapping.layers.find((layer) => layer.id === MEASUREMENT_LAYER_ID);
+  store
+    .getState()
+    .mapping.layers.find((layer) => layer.id === MEASUREMENT_LAYER_ID);
 
 const buildMeasurementLayer = () =>
   ({
@@ -85,7 +54,7 @@ const buildMeasurementLayer = () =>
     interactionButton: {
       id: "save-measurements",
     },
-  }) as const;
+  } as const);
 
 describe("useMeasurementLayerButton", () => {
   beforeEach(() => {

@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent,
+} from "react";
 
 import {
   buildOverlayHoverFilterCss,
@@ -28,6 +34,10 @@ const createEmptyPointVisibilityState = (): OverlayVisibilityState => ({
   isOccluded: false,
 });
 
+const pointMarkerVisualizerDefaults = Object.freeze({
+  longPressDurationMs: 320,
+});
+
 const getPointMarkerOverlayId = (overlayIdPrefix: string, pointId: string) =>
   `${overlayIdPrefix}-${pointId}`;
 
@@ -40,17 +50,76 @@ const getPointMarkerContentSignature = (
     point.fill,
     point.outline,
     point.outlineWidth,
+    `${point.longPressDurationMs ?? ""}`,
     getOverlayReferenceSignature(point.onClick),
+    getOverlayReferenceSignature(point.onLongPress),
   ].join(":");
 
-const PointMarkerOverlayShell = ({
+export const PointMarkerOverlayShell = ({
   interactive,
   onClick,
+  onLongPress,
+  longPressDurationMs = pointMarkerVisualizerDefaults.longPressDurationMs,
 }: {
   interactive: boolean;
   onClick?: () => void;
+  onLongPress?: () => void;
+  longPressDurationMs?: number;
 }) => {
   const [hovered, setHovered] = useState(false);
+  const longPressTimeoutRef = useRef<number | undefined>(undefined);
+  const longPressTriggeredRef = useRef(false);
+
+  const clearLongPressTimeout = useCallback(() => {
+    if (longPressTimeoutRef.current === undefined) {
+      return;
+    }
+
+    window.clearTimeout(longPressTimeoutRef.current);
+    longPressTimeoutRef.current = undefined;
+  }, []);
+
+  const handleMouseDown = useCallback(
+    (event: MouseEvent<HTMLDivElement>) => {
+      event.stopPropagation();
+      if (event.button !== 0 || !onLongPress) {
+        clearLongPressTimeout();
+        return;
+      }
+
+      longPressTriggeredRef.current = false;
+      clearLongPressTimeout();
+      longPressTimeoutRef.current = window.setTimeout(() => {
+        longPressTriggeredRef.current = true;
+        onLongPress();
+      }, longPressDurationMs);
+    },
+    [clearLongPressTimeout, longPressDurationMs, onLongPress]
+  );
+
+  const handleMouseUp = useCallback(() => {
+    clearLongPressTimeout();
+  }, [clearLongPressTimeout]);
+
+  const handleClick = useCallback(
+    (event: MouseEvent<HTMLDivElement>) => {
+      event.stopPropagation();
+      if (longPressTriggeredRef.current) {
+        longPressTriggeredRef.current = false;
+        return;
+      }
+
+      onClick?.();
+    },
+    [onClick]
+  );
+
+  const handleMouseLeave = useCallback(() => {
+    clearLongPressTimeout();
+    setHovered(false);
+  }, [clearLongPressTimeout]);
+
+  useEffect(() => clearLongPressTimeout, [clearLongPressTimeout]);
 
   return (
     <div
@@ -80,9 +149,11 @@ const PointMarkerOverlayShell = ({
           boxShadow: hovered ? buildOverlayRingBoxShadowCss() : "none",
           filter: hovered ? buildOverlayHoverFilterCss() : "none",
         }}
-        onClick={interactive ? onClick : undefined}
+        onClick={interactive ? handleClick : undefined}
+        onMouseDown={interactive ? handleMouseDown : undefined}
+        onMouseUp={interactive ? handleMouseUp : undefined}
         onMouseEnter={interactive ? () => setHovered(true) : undefined}
-        onMouseLeave={interactive ? () => setHovered(false) : undefined}
+        onMouseLeave={interactive ? handleMouseLeave : undefined}
       />
     </div>
   );
@@ -225,8 +296,10 @@ export const usePointMarkerVisualizer = (
         contentKey: getPointMarkerContentSignature(point),
         content: (
           <PointMarkerOverlayShell
-            interactive={Boolean(point.onClick)}
+            interactive={Boolean(point.onClick || point.onLongPress)}
             onClick={point.onClick}
+            onLongPress={point.onLongPress}
+            longPressDurationMs={point.longPressDurationMs}
           />
         ),
         updatePosition: (elementDiv) => {

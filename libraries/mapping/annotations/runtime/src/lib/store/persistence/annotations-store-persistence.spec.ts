@@ -1,5 +1,3 @@
-// @vitest-environment jsdom
-
 import { ANNOTATION_TYPES } from "@carma-mapping/annotations/core";
 import { PI_OVER_TWO } from "@carma-units";
 import { describe, expect, it } from "vitest";

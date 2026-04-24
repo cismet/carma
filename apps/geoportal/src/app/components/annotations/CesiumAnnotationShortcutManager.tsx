@@ -3,25 +3,30 @@ import { useSelector } from "react-redux";
 
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import {
-  ANNOTATION_TOOL_PLUGIN_KINDS,
+  resolvePrimaryAnnotationInteractionToolId,
   resolveAnnotationToolShortcutTarget,
   useAnnotationsRuntime,
 } from "@carma-mapping/annotations/runtime";
 import { isManagedAnnotationKeyboardEvent } from "@carma-mapping/annotations/core";
 
 import { getUIMode, UIMode } from "../../store/slices/ui";
+import { useGeoportalCesiumAnnotationToolPlugins } from "../../hooks/use-geoportal-cesium-annotation-tool-plugins";
 
 const CesiumAnnotationShortcutManager = () => {
   const { isCesium } = useMapFrameworkSwitcherContext();
   const uiMode = useSelector(getUIMode);
-  const { registry, activeToolType, requestModeChange } = useAnnotationsRuntime();
-  const visibleDescriptors = registry.orderedDescriptors;
+  const { registry, activeToolType, requestModeChange } =
+    useAnnotationsRuntime();
+  const visiblePlugins = useGeoportalCesiumAnnotationToolPlugins(
+    registry.plugins
+  );
+  const visibleDescriptors = useMemo(
+    () => visiblePlugins.map((plugin) => plugin.descriptor),
+    [visiblePlugins]
+  );
   const primaryInteractionToolId = useMemo(
-    () =>
-      registry.plugins.find(
-        (plugin) => plugin.kind === ANNOTATION_TOOL_PLUGIN_KINDS.INTERACTION
-      )?.id ?? null,
-    [registry.plugins]
+    () => resolvePrimaryAnnotationInteractionToolId(visiblePlugins),
+    [visiblePlugins]
   );
   const shortcutsEnabled = isCesium && uiMode === UIMode.MEASUREMENT;
 

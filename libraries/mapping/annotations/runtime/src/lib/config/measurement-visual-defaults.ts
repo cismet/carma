@@ -5,10 +5,12 @@ import {
   getAnnotationSurfaceStrokeCssColor,
 } from "@carma-mapping/annotations/core";
 import { resolveDisplayP3WhiteCssColor } from "@carma-commons/utils";
+import { MEASUREMENT_LINE_STYLE_DEFAULTS } from "./measurement-line-style-options";
 
 export type EdgeVisualStyle = {
   stroke: string;
   strokeWidth: number;
+  overlayDashPattern?: string;
   dashed?: true;
 };
 
@@ -42,6 +44,9 @@ export type MeasurementVisualDefaults = {
     pointPixelSize: number;
     previewPointPixelSize: number;
     pointOutlineWidth: number;
+  };
+  patterns: {
+    edgeDashPattern: string;
   };
 };
 
@@ -95,10 +100,13 @@ export const measurementVisualDefaults: MeasurementVisualDefaults = {
     },
   },
   sizes: {
-    edgeStrokeWidth: 1,
+    edgeStrokeWidth: MEASUREMENT_LINE_STYLE_DEFAULTS.strokeWidthPx,
     pointPixelSize: 10,
     previewPointPixelSize: 10,
     pointOutlineWidth: 1,
+  },
+  patterns: {
+    edgeDashPattern: MEASUREMENT_LINE_STYLE_DEFAULTS.overlayDashPattern,
   },
 };
 
@@ -106,6 +114,7 @@ export const measurementVisualStyles: MeasurementVisualStyles = Object.freeze({
   edge: Object.freeze({
     stroke: measurementVisualDefaults.colors.accent,
     strokeWidth: measurementVisualDefaults.sizes.edgeStrokeWidth,
+    overlayDashPattern: measurementVisualDefaults.patterns.edgeDashPattern,
   } satisfies EdgeVisualStyle),
   point: Object.freeze({
     pixelSize: measurementVisualDefaults.sizes.pointPixelSize,

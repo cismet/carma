@@ -35,6 +35,7 @@ type BuildHostInteractionPointMarkersArgs = {
   activeMoveGizmoNodeId: string | null;
   isMoveGizmoDragging: boolean;
   isInPreviewNodeLink: (nodeId?: string) => boolean;
+  onNodeLongPress?: (nodeId: string, measurementId?: string) => void;
   onReferenceNodeClick?: (nodeId: string) => boolean;
 };
 
@@ -45,6 +46,19 @@ const isMeasurementSelected = (
   selectedAnnotationIdSet: ReadonlySet<string>,
   measurementId?: string
 ) => measurementId !== undefined && selectedAnnotationIdSet.has(measurementId);
+
+const createNodeLongPressHandler = ({
+  nodeId,
+  measurementId,
+  onNodeLongPress,
+}: {
+  nodeId?: string;
+  measurementId?: string;
+  onNodeLongPress?: (nodeId: string, measurementId?: string) => void;
+}) =>
+  onNodeLongPress && nodeId
+    ? () => onNodeLongPress(nodeId, measurementId)
+    : undefined;
 
 const buildVisiblePointLabels = (
   pointLabels: readonly RuntimePointLabelRenderModel[]
@@ -121,16 +135,16 @@ export const buildHostInteractionPointLabels = ({
               : undefined,
           allowClickWhenBlocked:
             pointLabel.allowClickWhenBlocked || referenceNodeInteractionEnabled,
-          onLongPress: blockLabelInteractions
-            ? undefined
-            : pointLabel.onLongPress ??
-              (onNodeLongPress && pointLabel.nodeId && pointLabel.measurementId
-                ? () =>
-                    onNodeLongPress(
-                      pointLabel.nodeId!,
-                      pointLabel.measurementId!
-                    )
-                : undefined),
+          onLongPress:
+            blockLabelInteractions &&
+            pointLabel.allowLongPressWhenBlocked !== true
+              ? undefined
+              : pointLabel.onLongPress ??
+                createNodeLongPressHandler({
+                  nodeId: pointLabel.nodeId,
+                  measurementId: pointLabel.measurementId,
+                  onNodeLongPress,
+                }),
           longPressDurationMs:
             pointLabel.longPressDurationMs ??
             visualizerInputDefaults.nodeLabelLongPressDurationMs,
@@ -141,25 +155,33 @@ export const buildHostInteractionPointLabels = ({
     return normalizedPointLabels;
   }
 
-  const interactionLabelsByNodeLinkId = new Map<
+  const interactionLabelsByKey = new Map<
     string,
     RuntimePointLabelRenderModel
   >();
 
   points.forEach((point) => {
-    if (!point.nodeId) {
+    const nodeId = point.nodeId;
+    const measurementId = point.measurementId;
+
+    if (!nodeId) {
       return;
     }
 
-    const nodeLinkId = nodeLinkIdByNodeId.get(point.nodeId) ?? point.nodeId;
+    const nodeLinkId = nodeLinkIdByNodeId.get(nodeId) ?? nodeId;
     if (previewNodeLinkId !== null && nodeLinkId === previewNodeLinkId) {
       return;
     }
 
+    const nodeLongPressHandler = createNodeLongPressHandler({
+      nodeId,
+      measurementId,
+      onNodeLongPress,
+    });
     const interactionPointLabel: RuntimePointLabelRenderModel = {
       id: `${point.id}-node-interaction`,
-      measurementId: point.measurementId,
-      nodeId: point.nodeId,
+      measurementId,
+      nodeId,
       pointMarkerId: point.id,
       coordinate: point.coordinate,
       markerPixelSize: point.pixelSize,
@@ -174,38 +196,37 @@ export const buildHostInteractionPointLabels = ({
       allowLongPressWhenBlocked: true,
       onHoverChange: nodeInteractionHoverEnabled
         ? (hovered) => {
-            onReferenceNodeHover?.(point.nodeId!, hovered);
+            onReferenceNodeHover?.(nodeId, hovered);
           }
         : undefined,
       onClick:
-        activeMoveGizmoNodeId &&
-        !isMoveGizmoDragging &&
-        point.nodeId &&
-        onReferenceNodeClick
+        activeMoveGizmoNodeId && !isMoveGizmoDragging && onReferenceNodeClick
           ? () => {
-              onReferenceNodeClick?.(point.nodeId!);
+              onReferenceNodeClick?.(nodeId);
             }
-          : previewSnapTargetsEnabled && point.nodeId
+          : previewSnapTargetsEnabled
           ? () => {
-              onPreviewSnapTargetNodeClick?.(point.nodeId!);
+              onPreviewSnapTargetNodeClick?.(nodeId);
             }
-          : point.measurementId && onMeasurementSelect
+          : measurementId && onMeasurementSelect
           ? () => {
-              onMeasurementSelect(point.measurementId!);
+              onMeasurementSelect(measurementId);
             }
           : undefined,
-      onLongPress: blockLabelInteractions
-        ? undefined
-        : onNodeLongPress
-        ? () => onNodeLongPress(point.nodeId!, point.measurementId)
-        : undefined,
+      onLongPress: nodeLongPressHandler,
       longPressDurationMs: visualizerInputDefaults.nodeLabelLongPressDurationMs,
     };
+    const interactionPointLabelKey = nodeLongPressHandler
+      ? point.id
+      : nodeLinkId;
 
     const existingInteractionPointLabel =
-      interactionLabelsByNodeLinkId.get(nodeLinkId) ?? null;
+      interactionLabelsByKey.get(interactionPointLabelKey) ?? null;
     if (!existingInteractionPointLabel) {
-      interactionLabelsByNodeLinkId.set(nodeLinkId, interactionPointLabel);
+      interactionLabelsByKey.set(
+        interactionPointLabelKey,
+        interactionPointLabel
+      );
       return;
     }
 
@@ -219,11 +240,14 @@ export const buildHostInteractionPointLabels = ({
     );
 
     if (!existingIsSelected && nextIsSelected) {
-      interactionLabelsByNodeLinkId.set(nodeLinkId, interactionPointLabel);
+      interactionLabelsByKey.set(
+        interactionPointLabelKey,
+        interactionPointLabel
+      );
     }
   });
 
-  return [...normalizedPointLabels, ...interactionLabelsByNodeLinkId.values()];
+  return [...normalizedPointLabels, ...interactionLabelsByKey.values()];
 };
 
 export const buildHostInteractionPointMarkers = ({
@@ -232,12 +256,14 @@ export const buildHostInteractionPointMarkers = ({
   activeMoveGizmoNodeId,
   isMoveGizmoDragging,
   isInPreviewNodeLink,
+  onNodeLongPress,
   onReferenceNodeClick,
 }: BuildHostInteractionPointMarkersArgs): readonly RuntimePointMarkerRenderModel[] =>
   !enableHostInteractionTargets
     ? points.map((point) => ({
         ...point,
         onClick: undefined,
+        onLongPress: undefined,
       }))
     : points.map((point) => {
         const referenceNodeInteractionEnabled = Boolean(
@@ -247,6 +273,13 @@ export const buildHostInteractionPointMarkers = ({
             point.nodeId &&
             !isInPreviewNodeLink(point.nodeId)
         );
+        const nodeLongPressHandler = isInPreviewNodeLink(point.nodeId)
+          ? undefined
+          : createNodeLongPressHandler({
+              nodeId: point.nodeId,
+              measurementId: point.measurementId,
+              onNodeLongPress,
+            });
 
         return {
           ...point,
@@ -264,6 +297,10 @@ export const buildHostInteractionPointMarkers = ({
                   point.onClick?.();
                 }
               : undefined,
+          onLongPress: point.onLongPress ?? nodeLongPressHandler,
+          longPressDurationMs:
+            point.longPressDurationMs ??
+            visualizerInputDefaults.nodeLabelLongPressDurationMs,
         };
       });
 
@@ -281,6 +318,7 @@ export const buildVisualizerInputs = ({
     activeMoveGizmoNodeId: args.activeMoveGizmoNodeId,
     isMoveGizmoDragging: args.isMoveGizmoDragging,
     isInPreviewNodeLink: args.isInPreviewNodeLink,
+    onNodeLongPress: args.onNodeLongPress,
     onReferenceNodeClick: args.onReferenceNodeClick,
   });
   const pointMarkerIdsHandledByLabels = new Set(

@@ -1,5 +1,3 @@
-import { describe, expect, it } from "vitest";
-
 import {
   MEASUREMENT_ITEM_TYPES,
   getMeasurementTypeKeyword,
@@ -8,9 +6,9 @@ import {
   resolveMeasurementTypesFromFeatureStyle,
   resolveMeasurementTypesFromItem,
   resolveMeasurementTypesFromVectorStyle,
-} from "./measurement-types";
+} from "./measurement-layer-types";
 
-describe("measurement-types helper", () => {
+describe("measurement-layer-types helper", () => {
   it("resolves measurement types from geojson-backed vector styles", () => {
     expect(
       resolveMeasurementTypesFromFeatureStyle({
@@ -69,10 +67,7 @@ describe("measurement-types helper", () => {
           getMeasurementTypeKeyword(MEASUREMENT_ITEM_TYPES.AREA),
         ],
       })
-    ).toEqual([
-      MEASUREMENT_ITEM_TYPES.DISTANCE,
-      MEASUREMENT_ITEM_TYPES.AREA,
-    ]);
+    ).toEqual([MEASUREMENT_ITEM_TYPES.DISTANCE, MEASUREMENT_ITEM_TYPES.AREA]);
   });
 
   it("returns no measurement type for malformed vector style payloads", () => {

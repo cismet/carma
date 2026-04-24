@@ -18,14 +18,36 @@ export { typographyDefaults } from "./lib/config/annotation-typography-defaults"
 export type { TypographyDefaults } from "./lib/config/annotation-typography-defaults";
 export type { AnnotationsRuntimeFormatOptions } from "./lib/config/annotations-runtime-format-options";
 export {
+  AREA_OCCLUSION_STYLE_DEFAULTS,
+  isCoplanarPolygonFillPlacement,
+  resolveAreaOcclusionLineRenderOptions,
+  resolveAreaOcclusionStyleOptions,
+  resolveAreaOverlayFillColor,
+} from "./lib/config/area-occlusion-style-options";
+export type {
+  AreaOcclusionLineRenderOptions,
+  AreaOcclusionStyleOptions,
+  ResolvedAreaOcclusionStyleOptions,
+} from "./lib/config/area-occlusion-style-options";
+export {
+  MEASUREMENT_LINE_STYLE_DEFAULTS,
+  resolveMeasurementLineStyleOptions,
+} from "./lib/config/measurement-line-style-options";
+export type {
+  MeasurementLineStyleOptions,
+  ResolvedMeasurementLineStyleOptions,
+} from "./lib/config/measurement-line-style-options";
+export {
   applySelectedEdgeVisualStyle,
   applySelectedPointMarkerVisualStyle,
+  measurementVisualDefaults,
   measurementVisualStyles,
   withEdgeVisualStyle,
   withPointMarkerVisualStyle,
 } from "./lib/config/measurement-visual-defaults";
 export type {
   EdgeVisualStyle,
+  MeasurementVisualDefaults,
   PointMarkerVisualStyle,
 } from "./lib/config/measurement-visual-defaults";
 export { pointLabelVisualDefaults } from "./lib/config/runtime-point-label-visual-defaults";
@@ -45,6 +67,11 @@ export {
   AnnotationsProvider,
   useAnnotationsRuntime,
 } from "./lib/context/AnnotationsProvider";
+export {
+  flyToAnnotationIds,
+  flyToAnnotationPoints,
+  resolveAnnotationIdsCartesianPoints,
+} from "./lib/context/annotation-fly-to";
 export type { RuntimeAnnotationInfoBoxContext } from "./lib/components/annotation-info-box/annotation-info-box.types";
 export { resolveRuntimeMeasurementNavigation } from "./lib/components/annotation-info-box/runtime-measurement-navigation";
 export { createPointQueryController } from "./lib/interaction/create-point-query-controller";
@@ -65,6 +92,8 @@ export {
   destroyLineCollection,
   destroyPreviewOverlayLayer,
   hideLineLabels,
+  hidePointMarkers,
+  placePointMarkers,
   resolvePreviewDistanceTriangleComponentLabelVisibility,
 } from "./lib/interaction/authoring-visual-runtime";
 export { createPolygonAuthoringController } from "./lib/interaction/create-polygon-authoring-controller";
@@ -162,3 +191,13 @@ export type {
   CardinalBearingLocale,
 } from "./lib/utils/format-cardinal-bearing";
 export { resolveBearingRadFromFirstToLastCoordinate } from "./lib/utils/resolve-bearing-rad-from-first-to-last-coordinate";
+export {
+  areAnnotationEntriesHidden,
+  resolveAnnotationCountByToolType,
+  resolveAnnotationEntriesByToolType,
+  resolveAnnotationIdsByToolType,
+  resolveAnnotationToolFallbackPlugin,
+  resolvePrimaryAnnotationInteractionToolId,
+  resolveVisibleMeasurementAnnotationToolPlugins,
+} from "./lib/utils/annotation-tool-collections";
+export type { ResolveVisibleMeasurementAnnotationToolPluginsOptions } from "./lib/utils/annotation-tool-collections";

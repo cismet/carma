@@ -3,11 +3,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LabelToolTextRequester } from "@carma-mapping/annotations/builtin-tools";
 import {
   addAnnotationLabelTextHistoryEntry,
-  resolveNextAnnotationLabelText,
+  mergeAnnotationLabelTextSuggestions,
+  resolveAnnotationLabelTextRequest,
 } from "@carma-mapping/annotations/core";
 
 type PendingLabelTextRequest = {
   initialValue: string;
+  labelSuggestions: readonly string[];
 };
 
 export type GeoportalLabelTextModalState = {
@@ -56,16 +58,17 @@ export const useGeoportalLabelTextRequest = ({
   }, []);
 
   const requestLabelText = useCallback<LabelToolTextRequester>(
-    ({ defaultText }) =>
+    ({ defaultText, labelTextSuggestions }) =>
       new Promise((resolve) => {
         labelTextResolverRef.current?.(null);
         labelTextResolverRef.current = resolve;
-        setPendingLabelTextRequest({
-          initialValue: resolveNextAnnotationLabelText(
-            labelTextHistoryRef.current[0],
-            defaultText
-          ),
-        });
+        setPendingLabelTextRequest(
+          resolveAnnotationLabelTextRequest({
+            defaultText,
+            labelTextHistory: labelTextHistoryRef.current,
+            labelTextSuggestions,
+          })
+        );
       }),
     []
   );
@@ -84,16 +87,33 @@ export const useGeoportalLabelTextRequest = ({
     }
   }, [enabled, resolveLabelTextRequest]);
 
-  const labelTextModalState = useMemo<GeoportalLabelTextModalState>(
-    () => ({
-      open: pendingLabelTextRequest !== null,
-      initialValue: pendingLabelTextRequest?.initialValue ?? "",
-      labelSuggestions: labelTextHistory,
+  const labelTextModalState = useMemo<GeoportalLabelTextModalState>(() => {
+    if (!enabled || !pendingLabelTextRequest) {
+      return {
+        open: false,
+        initialValue: "",
+        labelSuggestions: [],
+        onAbort: () => undefined,
+        onFinish: () => undefined,
+      };
+    }
+
+    return {
+      open: true,
+      initialValue: pendingLabelTextRequest.initialValue,
+      labelSuggestions: mergeAnnotationLabelTextSuggestions(
+        labelTextHistory,
+        pendingLabelTextRequest.labelSuggestions
+      ),
       onAbort: () => resolveLabelTextRequest(null),
       onFinish: resolveLabelTextRequest,
-    }),
-    [labelTextHistory, pendingLabelTextRequest, resolveLabelTextRequest]
-  );
+    };
+  }, [
+    enabled,
+    labelTextHistory,
+    pendingLabelTextRequest,
+    resolveLabelTextRequest,
+  ]);
 
   return {
     labelTextModalState,

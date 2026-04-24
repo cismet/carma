@@ -22,6 +22,11 @@ import type {
 } from "@carma-mapping/annotations/runtime";
 import {
   RUNTIME_POLYGON_FILL_PLACEMENT,
+  isCoplanarPolygonFillPlacement,
+  resolveAreaOcclusionLineRenderOptions,
+  resolveAreaOcclusionStyleOptions,
+  resolveAreaOverlayFillColor,
+  type AreaOcclusionStyleOptions,
   type RuntimeEdgeRenderModel,
   type RuntimePointLabelRenderModel,
   type RuntimePointMarkerRenderModel,
@@ -48,6 +53,8 @@ type BuildVerticalAreaToolRenderModelsArgs = {
   formatOptions: AnnotationsRuntimeFormatOptions;
   selectedMeasurementIds: readonly string[];
   onMeasurementSelect?: (measurementId: string) => void;
+  onNodeLongPress?: (nodeId: string, measurementId: string) => void;
+  occlusionStyleOptions?: AreaOcclusionStyleOptions;
 };
 
 const { AREA_VERTICAL: ANNOTATION_TYPE_AREA_VERTICAL } = ANNOTATION_TYPES;
@@ -94,6 +101,8 @@ export const buildVerticalAreaToolRenderModels = (
     formatOptions,
     selectedMeasurementIds,
     onMeasurementSelect,
+    onNodeLongPress,
+    occlusionStyleOptions,
   }: BuildVerticalAreaToolRenderModelsArgs
 ): {
   points: readonly RuntimePointMarkerRenderModel[];
@@ -109,6 +118,14 @@ export const buildVerticalAreaToolRenderModels = (
     (measurement) => !measurement.hidden
   );
   const selectedMeasurementIdSet = new Set(selectedMeasurementIds);
+  const resolvedOcclusionStyleOptions = resolveAreaOcclusionStyleOptions(
+    occlusionStyleOptions
+  );
+  const fillPlacement = RUNTIME_POLYGON_FILL_PLACEMENT.COPLANAR;
+  const isCoplanarFill = isCoplanarPolygonFillPlacement(fillPlacement);
+  const lineRenderOptions = resolveAreaOcclusionLineRenderOptions(
+    resolvedOcclusionStyleOptions
+  );
 
   const committedEdges = visibleVerticalAreaMeasurements.flatMap(
     (measurement) => {
@@ -129,6 +146,7 @@ export const buildVerticalAreaToolRenderModels = (
           coordinates: measurement.closed
             ? [...coordinates, coordinates[0]!]
             : coordinates,
+          ...(lineRenderOptions ?? {}),
           ...(selectedMeasurementIdSet.has(measurement.id)
             ? applySelectedEdgeVisualStyle(visuals.edge)
             : visuals.edge),
@@ -146,6 +164,10 @@ export const buildVerticalAreaToolRenderModels = (
       if (coordinates.length < 3) {
         return [];
       }
+      const fill = getAnnotationAreaFillCssColor(
+        ANNOTATION_TYPE_AREA_VERTICAL,
+        selectedMeasurementIdSet.has(measurement.id)
+      );
 
       return [
         {
@@ -153,11 +175,16 @@ export const buildVerticalAreaToolRenderModels = (
           measurementId: measurement.id,
           nodeIds: measurement.nodeIds,
           coordinates,
-          fill: getAnnotationAreaFillCssColor(
-            ANNOTATION_TYPE_AREA_VERTICAL,
-            selectedMeasurementIdSet.has(measurement.id)
-          ),
-          placement: RUNTIME_POLYGON_FILL_PLACEMENT.COPLANAR,
+          fill,
+          ...(isCoplanarFill && resolvedOcclusionStyleOptions.fill.overlay
+            ? {
+                overlayFill: resolveAreaOverlayFillColor(
+                  fill,
+                  resolvedOcclusionStyleOptions
+                ),
+              }
+            : {}),
+          placement: fillPlacement,
           selected: selectedMeasurementIdSet.has(measurement.id),
         },
       ];
@@ -196,8 +223,11 @@ export const buildVerticalAreaToolRenderModels = (
         nodeCoordinatesById
       );
       const coordinate = getVerticalAreaLabelCoordinate(coordinates);
+      const lastNodeIndex = measurement.nodeIds.length - 1;
+      const lastNodeId =
+        lastNodeIndex >= 0 ? measurement.nodeIds[lastNodeIndex] : undefined;
 
-      if (!coordinate) {
+      if (!coordinate || !lastNodeId) {
         return [];
       }
 
@@ -205,6 +235,7 @@ export const buildVerticalAreaToolRenderModels = (
         {
           id: `${measurement.id}-area-label`,
           measurementId: measurement.id,
+          nodeId: lastNodeId,
           coordinate,
           anchorKind: POINT_LABEL_ANCHOR_KIND.AREA_CENTROID,
           content: formatAreaSquareMetersAdaptive(
@@ -222,6 +253,11 @@ export const buildVerticalAreaToolRenderModels = (
           onClick: onMeasurementSelect
             ? () => onMeasurementSelect(measurement.id)
             : undefined,
+          allowLongPressWhenBlocked: true,
+          onLongPress:
+            onNodeLongPress && !measurement.locked
+              ? () => onNodeLongPress(lastNodeId, measurement.id)
+              : undefined,
         },
       ];
     }

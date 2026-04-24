@@ -8,7 +8,11 @@ import {
   useAdhocFeatureDisplay,
   useMapStyle,
 } from "@carma-appframeworks/portals";
-import { LayerLib } from "@carma-mapping/layers";
+import {
+  LayerLib,
+  MEASUREMENT_ITEM_TYPES,
+  resolveMeasurementTypesFromItem,
+} from "@carma-mapping/layers";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import {
   addCustomFeatureFlags,
@@ -36,10 +40,6 @@ import { apiUrl } from "../../constants/discover";
 import store from "../../store";
 import { createResourceLayerUpdater } from "./resource-layer-updater";
 import { useCarmaMapAPIActions } from "@carma-mapping/carma-map-api";
-import {
-  MEASUREMENT_ITEM_TYPES,
-  resolveMeasurementTypesFromItem,
-} from "../../helper/measurement-types";
 
 const ResourceModal = () => {
   const { setCurrentStyle } = useMapStyle();
