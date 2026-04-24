@@ -33,13 +33,10 @@ const METROPOLE_RUHR_GRAUBLAU_RECTANGLE = Rectangle.fromDegrees(4, 48, 10, 52);
 type CesiumCameraLimiterReenableOptions = {
   pitch: {
     durationSeconds: number;
-    validRangeBufferRadians: number;
   };
   travelZoom: {
     durationMilliseconds: number;
     easing: EasingFunction;
-    minHeightBufferMeters: number;
-    minViewAxisVerticalRatio: number;
   };
 };
 
@@ -66,7 +63,8 @@ export type GeoportalCesiumAnnotationToolbarClassNames = {
   toolButtonInactive: string;
   toolGroup: string;
   toolButtonShell: string;
-  actionRow: string;
+  actionGroup: string;
+  toolButtonPrimaryAction: string;
   smallActionButton: string;
   toolButtonIcon: string;
   toolButtonBadge: string;
@@ -105,13 +103,10 @@ export const CESIUM_CONFIG: GeoportalCesiumConfig = {
     limiterReenable: {
       pitch: {
         durationSeconds: 0.8,
-        validRangeBufferRadians: Math.PI / 360,
       },
       travelZoom: {
         durationMilliseconds: 1500,
         easing: Easing.CUBIC_IN_OUT,
-        minHeightBufferMeters: 5,
-        minViewAxisVerticalRatio: 0.15,
       },
     },
   },
@@ -159,16 +154,17 @@ export const CESIUM_ANNOTATION_CONFIG = {
     stableToolIds: ["select", "point", "distance"],
     classNames: {
       wrapper:
-        "w-fit max-w-full flex items-start gap-2 overflow-visible px-1 pt-1 pb-10",
+        "w-fit max-w-full flex items-start gap-2 overflow-visible px-1 pt-1",
       toolButtonBase:
         "flex h-8 w-12 min-w-12 items-center justify-center rounded-[10px] bg-white px-2 text-gray-700 button-shadow transition-colors hover:text-gray-900",
       toolButtonActive: "text-[#1677ff]",
       toolButtonInactive: "",
-      toolGroup:
-        "relative flex w-12 min-w-12 flex-col items-center overflow-visible",
+      toolGroup: "relative flex min-w-12 items-center overflow-visible",
       toolButtonShell: "relative overflow-visible pt-1",
-      actionRow:
-        "absolute left-1/2 top-full z-10 mt-3 flex h-8 w-max -translate-x-1/2 items-center gap-1 rounded-[10px] bg-white px-1 button-shadow",
+      actionGroup:
+        "flex h-8 w-max min-w-12 items-center justify-center overflow-hidden rounded-[10px] bg-white text-gray-700 button-shadow",
+      toolButtonPrimaryAction:
+        "flex h-8 w-12 min-w-12 items-center justify-center px-2 transition-colors hover:text-gray-900",
       smallActionButton:
         "flex h-8 w-8 min-w-8 items-center justify-center rounded-[10px] text-gray-600 transition-colors hover:text-gray-900",
       toolButtonIcon:

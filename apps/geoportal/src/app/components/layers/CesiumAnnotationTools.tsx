@@ -78,176 +78,201 @@ const CesiumAnnotationTools = () => {
         const areAllAnnotationsHidden = areAnnotationEntriesHidden(
           annotationEntriesOfType
         );
+        const hasToolActions = isActive && annotationIds.length > 0;
 
         return (
           <div key={descriptor.id} className={TOOLBAR_CLASS_NAMES.toolGroup}>
-            <Tooltip title={descriptor.tooltip} placement="top">
-              <div className={TOOLBAR_CLASS_NAMES.toolButtonShell}>
-                {annotationCount > 0 ? (
-                  <span className={TOOLBAR_CLASS_NAMES.toolButtonBadge}>
-                    {annotationCount}
-                  </span>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={() => requestModeChange(descriptor.id)}
-                  aria-pressed={isActive}
-                  aria-label={descriptor.tooltip}
-                  className={[
-                    TOOLBAR_CLASS_NAMES.toolButtonBase,
-                    isActive
-                      ? TOOLBAR_CLASS_NAMES.toolButtonActive
-                      : TOOLBAR_CLASS_NAMES.toolButtonInactive,
-                  ].join(" ")}
+            <div className={TOOLBAR_CLASS_NAMES.toolButtonShell}>
+              {annotationCount > 0 ? (
+                <span className={TOOLBAR_CLASS_NAMES.toolButtonBadge}>
+                  {annotationCount}
+                </span>
+              ) : null}
+              {hasToolActions ? (
+                <div
+                  className={TOOLBAR_CLASS_NAMES.actionGroup}
+                  role="group"
+                  aria-label={`${descriptor.label} Aktionen`}
                 >
-                  <span className={TOOLBAR_CLASS_NAMES.toolButtonIcon}>
-                    {descriptor.icon}
-                  </span>
-                </button>
-              </div>
-            </Tooltip>
-            {isActive && annotationIds.length > 0 && (
-              <div className={TOOLBAR_CLASS_NAMES.actionRow}>
-                {isSelectionTool ? (
-                  <>
-                    <Tooltip
-                      title="Alle Messungen auswählen"
-                      placement="bottom"
+                  <Tooltip title={descriptor.tooltip} placement="top">
+                    <button
+                      type="button"
+                      onClick={() => requestModeChange(descriptor.id)}
+                      aria-pressed={isActive}
+                      aria-label={descriptor.tooltip}
+                      className={[
+                        TOOLBAR_CLASS_NAMES.toolButtonPrimaryAction,
+                        TOOLBAR_CLASS_NAMES.toolButtonActive,
+                      ].join(" ")}
                     >
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedAnnotationIds(annotationIds);
-                        }}
-                        aria-label="Alle Messungen auswählen"
-                        className={TOOLBAR_CLASS_NAMES.smallActionButton}
-                        disabled={annotationIds.length === 0}
+                      <span className={TOOLBAR_CLASS_NAMES.toolButtonIcon}>
+                        {descriptor.icon}
+                      </span>
+                    </button>
+                  </Tooltip>
+                  {isSelectionTool ? (
+                    <>
+                      <Tooltip
+                        title="Alle Messungen auswählen"
+                        placement="bottom"
                       >
-                        <FontAwesomeIcon
-                          icon={faObjectGroup}
-                          className={TOOLBAR_CLASS_NAMES.toolButtonIcon}
-                        />
-                      </button>
-                    </Tooltip>
-                    <Tooltip
-                      title="Alle Messungen fokussieren"
-                      placement="bottom"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => {
-                          flyToAllAnnotations();
-                        }}
-                        aria-label="Alle Messungen fokussieren"
-                        className={TOOLBAR_CLASS_NAMES.smallActionButton}
-                        disabled={annotationIds.length === 0}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedAnnotationIds(annotationIds);
+                          }}
+                          aria-label="Alle Messungen auswählen"
+                          className={TOOLBAR_CLASS_NAMES.smallActionButton}
+                          disabled={annotationIds.length === 0}
+                        >
+                          <FontAwesomeIcon
+                            icon={faObjectGroup}
+                            className={TOOLBAR_CLASS_NAMES.toolButtonIcon}
+                          />
+                        </button>
+                      </Tooltip>
+                      <Tooltip
+                        title="Alle Messungen fokussieren"
+                        placement="bottom"
                       >
-                        <FontAwesomeIcon
-                          icon={faSearchLocation}
-                          className={TOOLBAR_CLASS_NAMES.toolButtonIcon}
-                        />
-                      </button>
-                    </Tooltip>
-                    <Tooltip title="Alle Messungen löschen" placement="bottom">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          annotationIds.forEach((annotationId) => {
-                            removeAnnotationById(annotationId);
-                          });
-                        }}
-                        aria-label="Alle Messungen löschen"
-                        className={TOOLBAR_CLASS_NAMES.smallActionButton}
-                        disabled={annotationIds.length === 0}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            flyToAllAnnotations();
+                          }}
+                          aria-label="Alle Messungen fokussieren"
+                          className={TOOLBAR_CLASS_NAMES.smallActionButton}
+                          disabled={annotationIds.length === 0}
+                        >
+                          <FontAwesomeIcon
+                            icon={faSearchLocation}
+                            className={TOOLBAR_CLASS_NAMES.toolButtonIcon}
+                          />
+                        </button>
+                      </Tooltip>
+                      <Tooltip
+                        title="Alle Messungen löschen"
+                        placement="bottom"
                       >
-                        <FontAwesomeIcon
-                          icon={faTrashCan}
-                          className={TOOLBAR_CLASS_NAMES.toolButtonIcon}
-                        />
-                      </button>
-                    </Tooltip>
-                  </>
-                ) : (
-                  <>
-                    <Tooltip
-                      title={`${descriptor.label} fokussieren`}
-                      placement="bottom"
-                    >
-                      <button
-                        type="button"
-                        onClick={() =>
-                          flyToAnnotationIds({
-                            annotationIds,
-                            annotationEntries,
-                            nodes,
-                            scene,
-                          })
+                        <button
+                          type="button"
+                          onClick={() => {
+                            annotationIds.forEach((annotationId) => {
+                              removeAnnotationById(annotationId);
+                            });
+                          }}
+                          aria-label="Alle Messungen löschen"
+                          className={TOOLBAR_CLASS_NAMES.smallActionButton}
+                          disabled={annotationIds.length === 0}
+                        >
+                          <FontAwesomeIcon
+                            icon={faTrashCan}
+                            className={TOOLBAR_CLASS_NAMES.toolButtonIcon}
+                          />
+                        </button>
+                      </Tooltip>
+                    </>
+                  ) : (
+                    <>
+                      <Tooltip
+                        title={`${descriptor.label} fokussieren`}
+                        placement="bottom"
+                      >
+                        <button
+                          type="button"
+                          onClick={() =>
+                            flyToAnnotationIds({
+                              annotationIds,
+                              annotationEntries,
+                              nodes,
+                              scene,
+                            })
+                          }
+                          aria-label={`${descriptor.label} fokussieren`}
+                          className={TOOLBAR_CLASS_NAMES.smallActionButton}
+                          disabled={annotationIds.length === 0}
+                        >
+                          <FontAwesomeIcon
+                            icon={faSearchLocation}
+                            className={TOOLBAR_CLASS_NAMES.toolButtonIcon}
+                          />
+                        </button>
+                      </Tooltip>
+                      <Tooltip
+                        title={
+                          areAllAnnotationsHidden
+                            ? `${descriptor.label} einblenden`
+                            : `${descriptor.label} ausblenden`
                         }
-                        aria-label={`${descriptor.label} fokussieren`}
-                        className={TOOLBAR_CLASS_NAMES.smallActionButton}
-                        disabled={annotationIds.length === 0}
+                        placement="bottom"
                       >
-                        <FontAwesomeIcon
-                          icon={faSearchLocation}
-                          className={TOOLBAR_CLASS_NAMES.toolButtonIcon}
-                        />
-                      </button>
-                    </Tooltip>
-                    <Tooltip
-                      title={
-                        areAllAnnotationsHidden
-                          ? `${descriptor.label} einblenden`
-                          : `${descriptor.label} ausblenden`
-                      }
-                      placement="bottom"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => {
-                          annotationIds.forEach((annotationId) => {
-                            dispatch(
-                              updateAnnotationEntryById({
-                                annotationId,
-                                hidden: !areAllAnnotationsHidden,
-                              })
-                            );
-                          });
-                        }}
-                        aria-label={`${descriptor.label} Sichtbarkeit umschalten`}
-                        className={TOOLBAR_CLASS_NAMES.smallActionButton}
-                        disabled={annotationIds.length === 0}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            annotationIds.forEach((annotationId) => {
+                              dispatch(
+                                updateAnnotationEntryById({
+                                  annotationId,
+                                  hidden: !areAllAnnotationsHidden,
+                                })
+                              );
+                            });
+                          }}
+                          aria-label={`${descriptor.label} Sichtbarkeit umschalten`}
+                          className={TOOLBAR_CLASS_NAMES.smallActionButton}
+                          disabled={annotationIds.length === 0}
+                        >
+                          <FontAwesomeIcon
+                            icon={areAllAnnotationsHidden ? faEyeSlash : faEye}
+                            className={TOOLBAR_CLASS_NAMES.toolButtonIcon}
+                          />
+                        </button>
+                      </Tooltip>
+                      <Tooltip
+                        title={`${descriptor.label} löschen`}
+                        placement="bottom"
                       >
-                        <FontAwesomeIcon
-                          icon={areAllAnnotationsHidden ? faEyeSlash : faEye}
-                          className={TOOLBAR_CLASS_NAMES.toolButtonIcon}
-                        />
-                      </button>
-                    </Tooltip>
-                    <Tooltip
-                      title={`${descriptor.label} löschen`}
-                      placement="bottom"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => {
-                          annotationIds.forEach((annotationId) => {
-                            removeAnnotationById(annotationId);
-                          });
-                        }}
-                        aria-label={`${descriptor.label} löschen`}
-                        className={TOOLBAR_CLASS_NAMES.smallActionButton}
-                        disabled={annotationIds.length === 0}
-                      >
-                        <FontAwesomeIcon
-                          icon={faTrashCan}
-                          className={TOOLBAR_CLASS_NAMES.toolButtonIcon}
-                        />
-                      </button>
-                    </Tooltip>
-                  </>
-                )}
-              </div>
-            )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            annotationIds.forEach((annotationId) => {
+                              removeAnnotationById(annotationId);
+                            });
+                          }}
+                          aria-label={`${descriptor.label} löschen`}
+                          className={TOOLBAR_CLASS_NAMES.smallActionButton}
+                          disabled={annotationIds.length === 0}
+                        >
+                          <FontAwesomeIcon
+                            icon={faTrashCan}
+                            className={TOOLBAR_CLASS_NAMES.toolButtonIcon}
+                          />
+                        </button>
+                      </Tooltip>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <Tooltip title={descriptor.tooltip} placement="top">
+                  <button
+                    type="button"
+                    onClick={() => requestModeChange(descriptor.id)}
+                    aria-pressed={isActive}
+                    aria-label={descriptor.tooltip}
+                    className={[
+                      TOOLBAR_CLASS_NAMES.toolButtonBase,
+                      isActive
+                        ? TOOLBAR_CLASS_NAMES.toolButtonActive
+                        : TOOLBAR_CLASS_NAMES.toolButtonInactive,
+                    ].join(" ")}
+                  >
+                    <span className={TOOLBAR_CLASS_NAMES.toolButtonIcon}>
+                      {descriptor.icon}
+                    </span>
+                  </button>
+                </Tooltip>
+              )}
+            </div>
           </div>
         );
       })}
