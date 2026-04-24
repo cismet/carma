@@ -19,6 +19,7 @@ import {
   resolvePreviewLineLabelVisualOptions,
   type PreviewLineLabelVisualOptions,
 } from "../config/preview-line-label-visual-defaults";
+import { shouldShowNodeInteractionTargets } from "./node-interaction-targets";
 import { buildVisualizerInputs } from "./visualizer-inputs";
 
 type UseMeasurementVisualizersArgs = {
@@ -141,10 +142,14 @@ export const useMeasurementVisualizers = (
       onReferenceNodeHover ||
       onPreviewSnapTargetNodeClick
   );
-  const showNodeInteractionTargets =
-    enableHostInteractionTargets &&
-    hasNodeInteractionHandlers &&
-    (nodeInteractionHoverEnabled || !blockLabelInteractions);
+  const nodeLongPressInteractionEnabled = Boolean(onNodeLongPress);
+  const showNodeInteractionTargets = shouldShowNodeInteractionTargets({
+    enableHostInteractionTargets,
+    hasNodeInteractionHandlers,
+    nodeInteractionHoverEnabled,
+    nodeLongPressInteractionEnabled,
+    blockLabelInteractions,
+  });
   const visualizerInputs = useMemo(
     () =>
       buildVisualizerInputs({

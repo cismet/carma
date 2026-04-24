@@ -147,9 +147,7 @@ export const readHashLaunchMode = (
     return HASH_LAUNCH_MODE.THREE_D;
   }
 
-  if (
-    isTruthyHashValue(params[DEFAULT_HASH_LAUNCH_LEGACY_FLAG_3D_KEY])
-  ) {
+  if (isTruthyHashValue(params[DEFAULT_HASH_LAUNCH_LEGACY_FLAG_3D_KEY])) {
     return HASH_LAUNCH_MODE.THREE_D;
   }
 
@@ -157,9 +155,7 @@ export const readHashLaunchMode = (
     return HASH_LAUNCH_MODE.TWO_D;
   }
 
-  if (
-    isTruthyHashValue(params[DEFAULT_HASH_LAUNCH_LEGACY_FLAG_2D_KEY])
-  ) {
+  if (isTruthyHashValue(params[DEFAULT_HASH_LAUNCH_LEGACY_FLAG_2D_KEY])) {
     return HASH_LAUNCH_MODE.TWO_D;
   }
 

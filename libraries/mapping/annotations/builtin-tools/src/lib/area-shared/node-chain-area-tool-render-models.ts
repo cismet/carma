@@ -1,4 +1,4 @@
-import { Cartesian3, Color } from "@carma-cesium";
+import { Cartesian3 } from "@carma-cesium";
 import {
   POINT_LABEL_ANCHOR_KIND,
   POINT_LABEL_STYLE,
@@ -16,8 +16,15 @@ import {
   applySelectedEdgeVisualStyle,
   applySelectedPointMarkerVisualStyle,
   measurementVisualStyles,
+  isCoplanarPolygonFillPlacement,
+  resolveAreaOcclusionLineRenderOptions,
+  resolveAreaOcclusionStyleOptions,
+  resolveAreaOverlayFillColor,
+  resolveMeasurementLineStyleOptions,
   type EdgeVisualStyle,
+  type MeasurementLineStyleOptions,
   type PointMarkerVisualStyle,
+  type AreaOcclusionStyleOptions,
   withEdgeVisualStyle,
   withPointMarkerVisualStyle,
 } from "@carma-mapping/annotations/runtime";
@@ -51,23 +58,24 @@ const defaults = measurementVisualStyles;
 
 export const createNodeChainAreaToolVisuals = ({
   fillType,
+  measurementLineStyleOptions,
 }: {
   fillType: PolygonType;
-}): NodeChainAreaToolVisualSettings => ({
-  edge: withEdgeVisualStyle(defaults.edge),
-  point: withPointMarkerVisualStyle(defaults.point),
-  fill: getAnnotationAreaFillCssColor(fillType, false),
-  selectedFill: getAnnotationAreaFillCssColor(fillType, true),
-});
+  measurementLineStyleOptions?: MeasurementLineStyleOptions;
+}): NodeChainAreaToolVisualSettings => {
+  const resolvedLineStyleOptions = resolveMeasurementLineStyleOptions(
+    measurementLineStyleOptions
+  );
 
-const resolveOverlayFillColor = (fill: string) => {
-  const color = Color.fromCssColorString(fill);
-  if (!color) {
-    return fill;
-  }
-
-  color.alpha *= 0.5;
-  return color.toCssColorString();
+  return {
+    edge: withEdgeVisualStyle(defaults.edge, {
+      strokeWidth: resolvedLineStyleOptions.strokeWidthPx,
+      overlayDashPattern: resolvedLineStyleOptions.overlayDashPattern,
+    }),
+    point: withPointMarkerVisualStyle(defaults.point),
+    fill: getAnnotationAreaFillCssColor(fillType, false),
+    selectedFill: getAnnotationAreaFillCssColor(fillType, true),
+  };
 };
 
 const getPolygonLabelCoordinate = (
@@ -117,6 +125,8 @@ export const buildNodeChainAreaToolRenderModels = ({
   fillPlacement,
   formatOptions,
   onMeasurementSelect,
+  onNodeLongPress,
+  occlusionStyleOptions,
 }: {
   toolType: PolygonType;
   visuals: NodeChainAreaToolVisualSettings;
@@ -126,6 +136,8 @@ export const buildNodeChainAreaToolRenderModels = ({
   fillPlacement: RuntimePolygonFillPlacement;
   formatOptions: AnnotationsRuntimeFormatOptions;
   onMeasurementSelect?: (measurementId: string) => void;
+  onNodeLongPress?: (nodeId: string, measurementId: string) => void;
+  occlusionStyleOptions?: AreaOcclusionStyleOptions;
 }): {
   points: readonly RuntimePointMarkerRenderModel[];
   edges: readonly RuntimeEdgeRenderModel[];
@@ -140,6 +152,13 @@ export const buildNodeChainAreaToolRenderModels = ({
     (measurement) => !measurement.hidden
   );
   const selectedMeasurementIdSet = new Set(selectedMeasurementIds);
+  const resolvedOcclusionStyleOptions = resolveAreaOcclusionStyleOptions(
+    occlusionStyleOptions
+  );
+  const isCoplanarFill = isCoplanarPolygonFillPlacement(fillPlacement);
+  const lineRenderOptions = resolveAreaOcclusionLineRenderOptions(
+    resolvedOcclusionStyleOptions
+  );
 
   const committedEdges = visibleAreaMeasurements.flatMap((measurement) => {
     const coordinates = resolveMeasurementCoordinates(
@@ -156,9 +175,7 @@ export const buildNodeChainAreaToolRenderModels = ({
         measurementId: measurement.id,
         nodeIds: measurement.nodeIds,
         coordinates: [...coordinates, coordinates[0]!],
-        ...(fillPlacement === "coplanar"
-          ? { overlayDashed: true as const }
-          : {}),
+        ...(lineRenderOptions ?? {}),
         ...(selectedMeasurementIdSet.has(measurement.id)
           ? applySelectedEdgeVisualStyle(visuals.edge)
           : visuals.edge),
@@ -174,6 +191,9 @@ export const buildNodeChainAreaToolRenderModels = ({
     if (coordinates.length < 3) {
       return [];
     }
+    const fill = selectedMeasurementIdSet.has(measurement.id)
+      ? visuals.selectedFill
+      : visuals.fill;
 
     return [
       {
@@ -181,15 +201,12 @@ export const buildNodeChainAreaToolRenderModels = ({
         measurementId: measurement.id,
         nodeIds: measurement.nodeIds,
         coordinates,
-        fill: selectedMeasurementIdSet.has(measurement.id)
-          ? visuals.selectedFill
-          : visuals.fill,
-        ...(fillPlacement === "coplanar"
+        fill,
+        ...(isCoplanarFill && resolvedOcclusionStyleOptions.fill.overlay
           ? {
-              overlayFill: resolveOverlayFillColor(
-                selectedMeasurementIdSet.has(measurement.id)
-                  ? visuals.selectedFill
-                  : visuals.fill
+              overlayFill: resolveAreaOverlayFillColor(
+                fill,
+                resolvedOcclusionStyleOptions
               ),
             }
           : {}),
@@ -229,7 +246,10 @@ export const buildNodeChainAreaToolRenderModels = ({
       nodeCoordinatesById
     );
     const coordinate = getPolygonLabelCoordinate(coordinates);
-    if (!coordinate) {
+    const lastNodeIndex = measurement.nodeIds.length - 1;
+    const lastNodeId =
+      lastNodeIndex >= 0 ? measurement.nodeIds[lastNodeIndex] : undefined;
+    if (!coordinate || !lastNodeId) {
       return [];
     }
 
@@ -237,6 +257,7 @@ export const buildNodeChainAreaToolRenderModels = ({
       {
         id: `${measurement.id}-area-label`,
         measurementId: measurement.id,
+        nodeId: lastNodeId,
         coordinate,
         anchorKind: POINT_LABEL_ANCHOR_KIND.AREA_CENTROID,
         content: formatAreaSquareMetersAdaptive(
@@ -254,6 +275,11 @@ export const buildNodeChainAreaToolRenderModels = ({
         onClick: onMeasurementSelect
           ? () => onMeasurementSelect(measurement.id)
           : undefined,
+        allowLongPressWhenBlocked: true,
+        onLongPress:
+          onNodeLongPress && !measurement.locked
+            ? () => onNodeLongPress(lastNodeId, measurement.id)
+            : undefined,
       },
     ];
   });

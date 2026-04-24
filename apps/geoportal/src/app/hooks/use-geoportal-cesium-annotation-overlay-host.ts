@@ -36,9 +36,8 @@ export const useGeoportalCesiumAnnotationOverlayHost = (
       );
       setOverlayContainer(nextContainer);
 
-      const nextLabelOverlayRoot = nextContainer?.querySelector(
-        labelRootSelector
-      );
+      const nextLabelOverlayRoot =
+        nextContainer?.querySelector(labelRootSelector);
       labelOverlayRootRef.current =
         nextLabelOverlayRoot instanceof HTMLElement
           ? nextLabelOverlayRoot

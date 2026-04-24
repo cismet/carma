@@ -6,15 +6,15 @@ import {
   resolveAnnotationInfoBoxVisualOptions,
 } from "@carma-mapping/annotations/ui";
 import {
+  resolveAnnotationToolFallbackPlugin,
   RuntimeAnnotationInfoBox,
   useAnnotationsRuntime,
 } from "@carma-mapping/annotations/runtime";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { getLayers } from "../../store/slices/mapping";
-import { getUIMode, UIMode } from "../../store/slices/ui";
-import { CESIUM_ANNOTATION_LAYER_ID } from "./cesium-annotations.constants";
-
-const CESIUM_MEASUREMENT_INFO_BOX_WIDTH_PX = 430;
+import { getUIMode } from "../../store/slices/ui";
+import { shouldShowCesiumMeasurementInfoBox } from "../../helper/cesium-measurement-info-box";
+import { CESIUM_ANNOTATION_CONFIG } from "../../config/app.config";
 
 const CesiumMeasurementInfoBox = () => {
   const { isCesium } = useMapFrameworkSwitcherContext();
@@ -22,30 +22,21 @@ const CesiumMeasurementInfoBox = () => {
   const layers = useSelector(getLayers);
   const { registry, activeToolType, selectedAnnotationId } =
     useAnnotationsRuntime();
-  const annotationsVisible =
-    isCesium &&
-    uiMode === UIMode.MEASUREMENT &&
-    layers.some((layer) => layer.id === CESIUM_ANNOTATION_LAYER_ID);
+  const annotationsVisible = shouldShowCesiumMeasurementInfoBox({
+    isCesium,
+    layers,
+    uiMode,
+  });
   const resolvedVisualOptions = useMemo(
     () => resolveAnnotationInfoBoxVisualOptions(),
     []
   );
 
   const fallbackPlugin = useMemo(() => {
-    if (activeToolType) {
-      const activePlugin = registry.getPlugin(activeToolType);
-      if (activePlugin) {
-        return activePlugin;
-      }
-    }
-
-    return (
-      registry.getPlugin("select") ??
-      [...registry.plugins].sort(
-        (left, right) => left.descriptor.order - right.descriptor.order
-      )[0] ??
-      null
-    );
+    return resolveAnnotationToolFallbackPlugin({
+      activeToolType,
+      registry,
+    });
   }, [activeToolType, registry]);
 
   if (!annotationsVisible) {
@@ -55,11 +46,7 @@ const CesiumMeasurementInfoBox = () => {
   if (!selectedAnnotationId && fallbackPlugin?.helpText?.length) {
     return (
       <AnnotationInfoBoxContainer
-        pixelWidth={CESIUM_MEASUREMENT_INFO_BOX_WIDTH_PX}
-        fitContentWidth={false}
-        useControlLayout={true}
-        controlPosition="bottomright"
-        controlOrder={12}
+        {...CESIUM_ANNOTATION_CONFIG.infoBox}
         visualOptions={resolvedVisualOptions}
         slots={{
           headingTitle: fallbackPlugin.descriptor.label,
@@ -82,15 +69,7 @@ const CesiumMeasurementInfoBox = () => {
     return null;
   }
 
-  return (
-    <RuntimeAnnotationInfoBox
-      pixelWidth={CESIUM_MEASUREMENT_INFO_BOX_WIDTH_PX}
-      fitContentWidth={false}
-      useControlLayout={true}
-      controlPosition="bottomright"
-      controlOrder={12}
-    />
-  );
+  return <RuntimeAnnotationInfoBox {...CESIUM_ANNOTATION_CONFIG.infoBox} />;
 };
 
 export default CesiumMeasurementInfoBox;

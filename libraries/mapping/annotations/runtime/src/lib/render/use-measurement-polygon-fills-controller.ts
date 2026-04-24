@@ -13,15 +13,20 @@ export const useMeasurementPolygonFillsController = (
 ) => {
   const polygonFillControllerRef =
     useRef<MeasurementPolygonFillsController | null>(null);
+  const latestPolygonFillsRef = useRef(polygonFills);
+  latestPolygonFillsRef.current = polygonFills;
 
   useEffect(() => {
-    polygonFillControllerRef.current?.destroy();
-    polygonFillControllerRef.current =
+    const polygonFillController =
       createMeasurementPolygonFillsController(scene);
+    polygonFillControllerRef.current = polygonFillController;
+    polygonFillController.setPolygonFills(latestPolygonFillsRef.current);
 
     return () => {
-      polygonFillControllerRef.current?.destroy();
-      polygonFillControllerRef.current = null;
+      polygonFillController.destroy();
+      if (polygonFillControllerRef.current === polygonFillController) {
+        polygonFillControllerRef.current = null;
+      }
     };
   }, [scene]);
 

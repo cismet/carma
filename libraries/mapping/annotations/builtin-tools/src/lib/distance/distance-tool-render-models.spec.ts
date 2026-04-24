@@ -23,7 +23,7 @@ const visuals = {
   },
   previewEdge: {
     stroke: "rgba(255, 255, 255, 0.9)",
-    strokeWidth: 1,
+    strokeWidth: 1.5,
   },
   point: {
     pixelSize: 10,

@@ -15,7 +15,10 @@ import {
   isValidScene,
 } from "@carma-mapping/engines/cesium/core";
 import { areCoordinateListsEqual } from "../utils/coordinate-equality";
-import { createPathAuthoringController } from "./create-path-authoring-controller";
+import {
+  createPathAuthoringController,
+  type PathAuthoringLineOptions,
+} from "./create-path-authoring-controller";
 import { createSegmentGuideController } from "./create-segment-guide-controller";
 import {
   applyLineLabel,
@@ -58,10 +61,12 @@ export const createSegmentAuthoringController = ({
   toolType,
   context,
   showCommittedDraftChain,
+  lineOptions,
 }: {
   toolType: AnnotationToolId;
   context: AnnotationToolAuthoringContext;
   showCommittedDraftChain: boolean;
+  lineOptions?: PathAuthoringLineOptions;
 }): AnnotationToolAuthoringController | null => {
   const {
     scene,
@@ -78,7 +83,11 @@ export const createSegmentAuthoringController = ({
     overlayLayerId: DRAFT_CHAIN_OVERLAY_LAYER_ID,
     lineId: "draft-preview-chain",
     lineColor: previewControllerDefaults.draftChainColor,
-    showPointMarkers: false,
+    showPointMarkers: true,
+    lineOptions: {
+      ...lineOptions,
+      overlayDashed: true,
+    },
   });
   const segmentController = createSegmentGuideController(scene, {
     formatOptions,

@@ -32,9 +32,7 @@ export interface UseCesiumCameraLimiterToggleOptions {
 const DEFAULT_MAX_PITCH_DEGREES = 75;
 
 const getLimiterTargetPitch = (maxPitchDegrees: number) =>
-  fromCarmaViewPitchDegToCesiumPitchRad(
-    maxPitchDegrees
-  ) ?? (0 as number);
+  fromCarmaViewPitchDegToCesiumPitchRad(maxPitchDegrees) ?? (0 as number);
 
 export const useCesiumCameraLimiterToggle = ({
   maxPitchDegrees = DEFAULT_MAX_PITCH_DEGREES,

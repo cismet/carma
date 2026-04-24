@@ -15,8 +15,10 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import type { MouseEvent } from "react";
 
-import { Item } from "@carma-mapping/layers";
 import { useAuth } from "@carma-providers/auth";
+
+import type { Item } from "../lib/contracts/carma-layers.d";
+import { resolveInfoCardActionState } from "../helper/info-card-actions";
 
 interface InfoCardActionsProps {
   layer: Item;
@@ -53,12 +55,12 @@ const InfoCardActions = ({
   onCancelEdit,
 }: InfoCardActionsProps) => {
   const { jwt, userGroups } = useAuth();
-  const allowPublishing =
-    userGroups.includes("_Geoportal_Publizieren") && !!jwt;
-  const isDiscoverItem = layer.serviceName.includes("discover");
-  const canFavoriteItem =
-    layer.type !== "collection" ||
-    (layer.type === "collection" && layer.serviceName.includes("discover"));
+  const { allowPublishing, canFavoriteItem, isDiscoverItem } =
+    resolveInfoCardActionState({
+      jwt,
+      layer,
+      userGroups,
+    });
 
   return (
     <div className="flex flex-wrap items-center gap-4">

@@ -8,13 +8,9 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
 import {
-  faEye,
-  faEyeSlash,
   faFilter,
   faSearchLocation,
-  faTimes,
   faTrashCan,
-  faX,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import L from "leaflet";
@@ -33,17 +29,14 @@ import { CameraLimiterToggleButton } from "@carma-commons/ui/components";
 import {
   getSelectedFeature,
   setSelectedFeature as setSelectedFeatureAction,
-  updateInfoElementsAfterRemovingFeature,
 } from "../../store/slices/features";
 import {
-  changeVisibility,
   getClickFromInfoView,
   getLayers,
   getSelectedLayerIndex,
   getActiveInteractionLayerID,
   getActiveInteractionButtonID,
   getShowLeftScrollButton,
-  removeLayer,
   setClickFromInfoView,
   setSelectedLayerIndex,
   setSelectedLayerIndexNoSelection,
@@ -78,10 +71,9 @@ import {
 import { Badge, Spin, Tooltip } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import { useLayerLoading } from "@carma-mapping/utils";
-import { useAdhocFeatureDisplay } from "@carma-appframeworks/portals";
 import { useAnnotationsRuntime } from "@carma-mapping/annotations/runtime";
-import { isAdhocVectorLayer } from "../../helper/adhoc-feature-utils";
 import { useGeoportalCameraLimiterLayerControl } from "../../hooks/use-geoportal-camera-limiter-layer-control";
+import { useGeoportalLayerButtonActions } from "../../hooks/use-geoportal-layer-button-actions";
 import { CESIUM_ANNOTATION_LAYER_ID } from "../annotations/cesium-annotations.constants";
 
 interface LayerButtonProps {
@@ -146,15 +138,22 @@ const GeoportalLayerButton = ({
     });
   const buttonRef = useRef<HTMLDivElement>(null);
 
-  const { clearFeatureCollections } = useAdhocFeatureDisplay();
-  const { annotationEntries, flyToAllAnnotations, removeAnnotationById } =
-    useAnnotationsRuntime();
+  const { annotationEntries, flyToAllAnnotations } = useAnnotationsRuntime();
   const isCesiumAnnotationLayerButton = id === CESIUM_ANNOTATION_LAYER_ID;
+  const { areCameraLimitersDisabled, setCameraLimitersDisabled } =
+    useGeoportalCameraLimiterLayerControl({
+      enabled: isCesiumAnnotationLayerButton,
+    });
   const {
-    areCameraLimitersDisabled,
-    setCameraLimitersDisabled,
-  } = useGeoportalCameraLimiterLayerControl({
-    enabled: isCesiumAnnotationLayerButton,
+    closeIcon,
+    handleFlyToAllAnnotationsClick,
+    handleLayerRemoveButtonClick,
+  } = useGeoportalLayerButtonActions({
+    flyToAllAnnotations,
+    id,
+    isCesiumAnnotationLayerButton,
+    layer,
+    showLayerHideButtons,
   });
 
   const mergedRef = useCallback(
@@ -467,10 +466,7 @@ const GeoportalLayerButton = ({
                 <Tooltip title="Alle Messungen fokussieren" placement="top">
                   <button
                     className="h-8 w-8 min-w-8 flex items-center justify-center text-gray-600 hover:text-gray-500 disabled:text-gray-400"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      flyToAllAnnotations();
-                    }}
+                    onClick={handleFlyToAllAnnotationsClick}
                     disabled={!hasAnyCesiumAnnotations}
                     aria-label="Alle Messungen fokussieren"
                   >
@@ -576,41 +572,10 @@ const GeoportalLayerButton = ({
             <button
               id={`removeLayerButton-${id}`}
               className="h-8 w-8 min-w-8 flex items-center justify-center text-gray-600 hover:text-gray-500"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (isCesiumAnnotationLayerButton) {
-                  dispatch(removeLayer(id));
-                } else if (showLayerHideButtons) {
-                  if (layer.visible) {
-                    dispatch(changeVisibility({ id, visible: false }));
-                  } else {
-                    dispatch(changeVisibility({ id, visible: true }));
-                  }
-                } else {
-                  dispatch(removeLayer(id));
-                  if (isAdhocVectorLayer(layer)) {
-                    clearFeatureCollections([id]);
-                    console.debug(
-                      "[ADHOC|REMOVE] layer button clearFeatureCollections",
-                      {
-                        collectionId: id,
-                      }
-                    );
-                  }
-                  dispatch(updateInfoElementsAfterRemovingFeature(id));
-                }
-              }}
+              onClick={handleLayerRemoveButtonClick}
             >
               <FontAwesomeIcon
-                icon={
-                  isCesiumAnnotationLayerButton
-                    ? faTimes
-                    : showLayerHideButtons
-                    ? layer.visible
-                      ? faEye
-                      : faEyeSlash
-                    : faX
-                }
+                icon={closeIcon}
                 className="text-base leading-none"
               />
             </button>
