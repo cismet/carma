@@ -101,7 +101,14 @@ export { buildAnnotationGeoJsonFeatureCollection } from "./lib/utils/annotation-
 export {
   addAnnotationLabelTextHistoryEntry,
   MAX_ANNOTATION_LABEL_TEXT_HISTORY_ITEMS,
+  mergeAnnotationLabelTextSuggestions,
+  resolveAnnotationLabelTextRequest,
+  resolveAnnotationLabelTextSuggestions,
   resolveNextAnnotationLabelText,
+} from "./lib/utils/annotation-label-text-history";
+export type {
+  AnnotationLabelTextRequestOptions,
+  AnnotationLabelTextSuggestionSource,
 } from "./lib/utils/annotation-label-text-history";
 export {
   ANNOTATION_COMMON_SHORTCUT_ACTIONS,

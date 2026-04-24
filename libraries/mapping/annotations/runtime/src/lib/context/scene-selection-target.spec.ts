@@ -56,7 +56,7 @@ describe("resolveRuntimeSceneSelectionTarget", () => {
 
   it("matches scene edge picks from primitive ids back to the owning measurement", () => {
     expect(
-      resolveRuntimeSceneSelectionTarget({
+      resolveSceneSelectionTarget({
         pickedObject: {
           primitive: {
             id: "polyline-1-segment-0",

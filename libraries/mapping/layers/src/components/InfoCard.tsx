@@ -8,9 +8,8 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import isEqual from "lodash/isEqual";
 
-import { serviceOptions } from "@carma-commons/resources";
 import { FileUploader, uploadImage } from "@carma-commons/ui/components";
-import { BackgroundLayer, Item, Layer } from "@carma-mapping/layers";
+import { serviceOptions } from "@carma-commons/resources";
 import { extractCarmaConfig } from "@carma-commons/utils";
 
 import { parseDescription } from "../helper/layerHelper";
@@ -22,6 +21,11 @@ import { setTriggerRefetch } from "../slices/ui";
 import { LayerButton, LayerIcon } from "@carma-mapping/components";
 
 import { useAuth } from "@carma-providers/auth";
+import type {
+  BackgroundLayer,
+  Item,
+  Layer,
+} from "../lib/contracts/carma-layers";
 import type { ActiveLayers } from "./NewLibModal";
 import InfoCardActions from "./InfoCardActions";
 import LegendDisplay from "./LegendDisplay";

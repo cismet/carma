@@ -69,7 +69,10 @@ const areOverlayPolygonFillsEqual = (
   });
 
 const createOverlayPolygonElement = () => {
-  const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+  const polygon = document.createElementNS(
+    "http://www.w3.org/2000/svg",
+    "polygon"
+  );
   polygon.style.pointerEvents = "none";
   return polygon;
 };
@@ -166,7 +169,9 @@ export const createMeasurementOverlayPolygonFillsController = (
       }
 
       currentPolygonFills = normalizedPolygonFills;
-      const nextIds = new Set(currentPolygonFills.map((polygonFill) => polygonFill.id));
+      const nextIds = new Set(
+        currentPolygonFills.map((polygonFill) => polygonFill.id)
+      );
       polygonById.forEach((polygon, id) => {
         if (nextIds.has(id)) {
           return;

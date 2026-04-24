@@ -8,6 +8,12 @@ import {
 
 import type { CesiumConfig } from "@carma-mapping/engines/cesium/legacy";
 import type { LeafletConfig } from "@carma-mapping/engines/leaflet";
+import type {
+  AreaOcclusionStyleOptions,
+  AnnotationToolId,
+  MeasurementLineStyleOptions,
+} from "@carma-mapping/annotations/runtime";
+import type { AnnotationInfoBoxLayoutProps } from "@carma-mapping/annotations/ui";
 import { Easing, type Easing as EasingFunction } from "@carma-commons/math";
 import { Rectangle } from "cesium";
 
@@ -41,6 +47,49 @@ type GeoportalCesiumConfig = Omit<CesiumConfig, "camera"> & {
   camera: CesiumConfig["camera"] & {
     limiterReenable: CesiumCameraLimiterReenableOptions;
   };
+};
+
+export type GeoportalCesiumAnnotationInfoBoxConfig = Pick<
+  AnnotationInfoBoxLayoutProps,
+  | "collapsedHorizontalAnchor"
+  | "controlOrder"
+  | "controlPosition"
+  | "fitContentWidth"
+  | "pixelWidth"
+  | "useControlLayout"
+>;
+
+export type GeoportalCesiumAnnotationToolbarClassNames = {
+  wrapper: string;
+  toolButtonBase: string;
+  toolButtonActive: string;
+  toolButtonInactive: string;
+  toolGroup: string;
+  toolButtonShell: string;
+  actionRow: string;
+  smallActionButton: string;
+  toolButtonIcon: string;
+  toolButtonBadge: string;
+};
+
+export type GeoportalCesiumAnnotationLabelTextModalConfig = {
+  title: string;
+  okText: string;
+  cancelText: string;
+  inputAriaLabel: string;
+  inputPlaceholder: string;
+  suggestionButtonSize: "small" | "middle" | "large";
+};
+
+export type GeoportalCesiumAnnotationConfig = {
+  measurementLineStyle: MeasurementLineStyleOptions;
+  areaOcclusionStyle: AreaOcclusionStyleOptions;
+  infoBox: GeoportalCesiumAnnotationInfoBoxConfig;
+  toolbar: {
+    stableToolIds: readonly AnnotationToolId[];
+    classNames: GeoportalCesiumAnnotationToolbarClassNames;
+  };
+  labelTextModal: GeoportalCesiumAnnotationLabelTextModalConfig;
 };
 
 export const CESIUM_CONFIG: GeoportalCesiumConfig = {
@@ -83,6 +132,60 @@ export const CESIUM_CONFIG: GeoportalCesiumConfig = {
     secondary: WUPP_LOD2_TILESET,
   },
 };
+
+export const CESIUM_ANNOTATION_CONFIG = {
+  measurementLineStyle: {
+    strokeWidthPx: 1.5,
+    overlayDashPattern: "8 8",
+  },
+  areaOcclusionStyle: {
+    fill: {
+      overlay: true,
+      overlayAlphaMultiplier: 0.5,
+    },
+    line: {
+      overlayDashed: true,
+    },
+  },
+  infoBox: {
+    pixelWidth: 430,
+    fitContentWidth: false,
+    useControlLayout: true,
+    controlPosition: "bottomright",
+    controlOrder: 12,
+    collapsedHorizontalAnchor: "control-edge",
+  },
+  toolbar: {
+    stableToolIds: ["select", "point", "distance"],
+    classNames: {
+      wrapper:
+        "w-fit max-w-full flex items-start gap-2 overflow-visible px-1 pt-1 pb-10",
+      toolButtonBase:
+        "flex h-8 w-12 min-w-12 items-center justify-center rounded-[10px] bg-white px-2 text-gray-700 button-shadow transition-colors hover:text-gray-900",
+      toolButtonActive: "text-[#1677ff]",
+      toolButtonInactive: "",
+      toolGroup:
+        "relative flex w-12 min-w-12 flex-col items-center overflow-visible",
+      toolButtonShell: "relative overflow-visible pt-1",
+      actionRow:
+        "absolute left-1/2 top-full z-10 mt-3 flex h-8 w-max -translate-x-1/2 items-center gap-1 rounded-[10px] bg-white px-1 button-shadow",
+      smallActionButton:
+        "flex h-8 w-8 min-w-8 items-center justify-center rounded-[10px] text-gray-600 transition-colors hover:text-gray-900",
+      toolButtonIcon:
+        "inline-flex items-center justify-center text-base leading-none",
+      toolButtonBadge:
+        "absolute right-0 top-0 z-10 inline-flex h-5 min-w-5 translate-x-1/3 -translate-y-1/3 items-center justify-center rounded-full bg-[#4b5563] px-1 text-[12px] font-medium leading-none text-white shadow-sm",
+    },
+  },
+  labelTextModal: {
+    title: "Beschriftung hinzufügen",
+    okText: "Hinzufügen",
+    cancelText: "Abbrechen",
+    inputAriaLabel: "Text der Beschriftung",
+    inputPlaceholder: "Text der Beschriftung",
+    suggestionButtonSize: "small",
+  },
+} satisfies GeoportalCesiumAnnotationConfig;
 
 export const LEAFLET_CONFIG: LeafletConfig = {
   zoomSnap: 1.0,

@@ -15,6 +15,7 @@ type AnnotationInfoBoxContainerProps = AnnotationInfoBoxLayoutProps & {
 export const AnnotationInfoBoxContainer = ({
   pixelWidth,
   fitContentWidth = true,
+  collapsedHorizontalAnchor = "control-edge",
   useControlLayout = true,
   controlPosition = "bottomright",
   controlOrder = 11,
@@ -43,6 +44,7 @@ export const AnnotationInfoBoxContainer = ({
         footer={slots.footer}
         hideSubtitleWhenCollapsed={false}
         hideFooterWhenCollapsed={true}
+        collapsedHorizontalAnchor={collapsedHorizontalAnchor}
         heading={
           headingTitle ? (
             <div className="flex w-full items-center gap-2">

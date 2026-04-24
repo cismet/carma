@@ -93,6 +93,10 @@ export const annotationInfoBoxVisualDefaults: AnnotationInfoBoxVisualOptions =
       color: annotationInfoBoxColorPalette.bodyText,
     },
     bodyTextClassName: `text-[${annotationInfoBoxTypographyDefaults.rootFontSizeRem}] leading-[1.4] text-[${annotationInfoBoxColorPalette.bodyText}]`,
+    emptyContentLineStyle: {
+      minHeight: "1.4em",
+    },
+    emptyContentLineClassName: "w-full",
     mutedTextClassName: `text-[${annotationInfoBoxColorPalette.mutedText}]`,
     linkTextClassName: `text-[${annotationInfoBoxColorPalette.linkText}]`,
     actionIconClassName: "transition-colors",

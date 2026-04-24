@@ -14,15 +14,22 @@ export const useMeasurementOverlayPolygonFillsController = (
 ) => {
   const overlayPolygonFillControllerRef =
     useRef<MeasurementOverlayPolygonFillsController | null>(null);
+  const latestPolygonFillsRef = useRef(polygonFills);
+  latestPolygonFillsRef.current = polygonFills;
 
   useEffect(() => {
-    overlayPolygonFillControllerRef.current?.destroy();
-    overlayPolygonFillControllerRef.current =
+    const overlayPolygonFillController =
       createMeasurementOverlayPolygonFillsController(scene, surfaceKey);
+    overlayPolygonFillControllerRef.current = overlayPolygonFillController;
+    overlayPolygonFillController.setPolygonFills(latestPolygonFillsRef.current);
 
     return () => {
-      overlayPolygonFillControllerRef.current?.destroy();
-      overlayPolygonFillControllerRef.current = null;
+      overlayPolygonFillController.destroy();
+      if (
+        overlayPolygonFillControllerRef.current === overlayPolygonFillController
+      ) {
+        overlayPolygonFillControllerRef.current = null;
+      }
     };
   }, [scene, surfaceKey]);
 

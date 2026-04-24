@@ -1,156 +1,32 @@
-import { useState } from "react";
-import { useDispatch } from "react-redux";
 import { Button, Checkbox, Input, Popover } from "antd";
 import Picker from "@emoji-mart/react";
 import emojiData from "@emoji-mart/data/sets/15/twitter.json";
 import i18nDe from "@emoji-mart/data/i18n/de.json";
 
-import {
-  appendLayer,
-  setActiveInteractionLayerID,
-} from "../../store/slices/mapping";
-import { addMeasurement } from "../../store/slices/measurements";
-import { setUIMode, UIMode } from "../../store/slices/ui";
-import {
-  useMapMeasurementsContext,
-  shapesToFeatureCollection,
-} from "@carma-commons/measurements";
 import { ResponsiveInfoBox } from "@carma-appframeworks/portals";
 import type { Layer } from "@carma-mapping/layers";
-import { parseToMapLayer, twemojiUrl } from "@carma-mapping/utils";
-import {
-  getMeasurementTypeKeyword,
-  getMeasurementTypeTag,
-  resolveMeasurementTypesFromFeatureStyle,
-} from "../../helper/measurement-types";
+import { twemojiUrl } from "@carma-mapping/utils";
 
 import { APP_BASE_PATH } from "../../config/app.config";
+import { useSaveMeasurementsForm } from "../../hooks/use-save-measurements-form";
 
-const DEFAULT_EMOJI_UNIFIED = "1f4cf";
-
-type PickedEmoji = {
-  native: string;
-  unified: string;
-  id: string;
-};
-
-function SaveMeasurements({ layer }: { layer: Layer }) {
-  const dispatch = useDispatch();
-  const { shapes, clearAllShapes, config } = useMapMeasurementsContext();
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [selectedUnified, setSelectedUnified] = useState<string>(
-    DEFAULT_EMOJI_UNIFIED
-  );
-  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
-  const [clearAfterSave, setClearAfterSave] = useState(false);
-  const { infoBoxHeaderColor } = config;
-
-  const handleEmojiSelect = (emoji: PickedEmoji) => {
-    setSelectedUnified(emoji.unified);
-    setEmojiPickerOpen(false);
-  };
-
-  const buildFeatureData = () => {
-    const featureTitle = title.trim() || "Messung";
-    const trimmedDescription = description.trim();
-    const featureDescription = trimmedDescription
-      ? `Inhalt: ${trimmedDescription}`
-      : "";
-
-    const featureData = shapesToFeatureCollection(shapes, {
-      title: featureTitle,
-      icon: `emoji:${selectedUnified}`,
-      description: trimmedDescription,
-    });
-
-    return { featureData, featureTitle, featureDescription };
-  };
-
-  const resetForm = () => {
-    setTitle("");
-    setDescription("");
-    setSelectedUnified(DEFAULT_EMOJI_UNIFIED);
-    setClearAfterSave(false);
-  };
-
-  const handleSave = async () => {
-    if (shapes.length === 0) return;
-
-    const { featureData, featureTitle, featureDescription } =
-      buildFeatureData();
-
-    const featureId = `measurement-${Date.now()}`;
-    const layerInfo: Record<string, unknown> =
-      featureData.metadata?.carmaConf?.layerInfo ?? {};
-    const layerInfoTags = Array.isArray(layerInfo.tags) ? layerInfo.tags : [];
-    const layerInfoKeywords = Array.isArray(layerInfo.keywords)
-      ? layerInfo.keywords
-      : [];
-    const measurementTypes =
-      resolveMeasurementTypesFromFeatureStyle(featureData);
-    const measurementTypeTags = measurementTypes.map(getMeasurementTypeTag);
-    const measurementTypeKeywords = measurementTypes.map(
-      getMeasurementTypeKeyword
-    );
-
-    const item: any = {
-      ...layerInfo,
-      description: featureDescription,
-      id: featureId,
-      layerType: "vector",
-      title: featureTitle,
-      serviceName: "measurements",
-      type: "object",
-      thumbnail:
-        "https://wupp-digitaltwin-assets.cismet.de/v2/geoportal/thumbnails/measurements.png",
-      vectorStyle: JSON.stringify(featureData),
-      tags: ["Messung", ...measurementTypeTags, ...layerInfoTags],
-      keywords: [...measurementTypeKeywords, ...layerInfoKeywords],
-    };
-
-    const parsedLayer = await parseToMapLayer(item, false, true);
-
-    if (parsedLayer) {
-      dispatch(appendLayer(parsedLayer));
-    }
-
-    dispatch(addMeasurement(item));
-
-    if (clearAfterSave) {
-      clearAllShapes();
-    }
-
-    resetForm();
-    dispatch(setActiveInteractionLayerID(null));
-    dispatch(setUIMode(UIMode.DEFAULT));
-  };
-
-  const handleDownload = () => {
-    if (shapes.length === 0) return;
-
-    const { featureData, featureTitle } = buildFeatureData();
-
-    const blob = new Blob([JSON.stringify(featureData, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${featureTitle}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    if (clearAfterSave) {
-      clearAllShapes();
-    }
-
-    resetForm();
-    dispatch(setActiveInteractionLayerID(null));
-    dispatch(setUIMode(UIMode.DEFAULT));
-  };
+function SaveMeasurements({ layer: _layer }: { layer: Layer }) {
+  const {
+    clearAfterSave,
+    description,
+    emojiPickerOpen,
+    handleDownload,
+    handleEmojiSelect,
+    handleSave,
+    hasShapes,
+    infoBoxHeaderColor,
+    selectedUnified,
+    setClearAfterSave,
+    setDescription,
+    setEmojiPickerOpen,
+    setTitle,
+    title,
+  } = useSaveMeasurementsForm();
 
   const emojiPicker = (
     <Picker
@@ -172,14 +48,10 @@ function SaveMeasurements({ layer }: { layer: Layer }) {
     <ResponsiveInfoBox
       panelClick={(event) => event.stopPropagation()}
       pixelwidth={500}
-      useControlLayout={false}
       isCollapsible={false}
       fixedRow={false}
       header={
-        <div
-          className="w-full"
-          style={{ backgroundColor: infoBoxHeaderColor }}
-        >
+        <div className="w-full" style={{ backgroundColor: infoBoxHeaderColor }}>
           Messungen speichern
         </div>
       }
@@ -242,14 +114,14 @@ function SaveMeasurements({ layer }: { layer: Layer }) {
           </Checkbox>
           <div className="flex gap-2">
             <Button
-              disabled={shapes.length === 0}
+              disabled={!hasShapes}
               onClick={handleSave}
               className="flex-1"
             >
               Zum Geoportal hinzufügen
             </Button>
             <Button
-              disabled={shapes.length === 0}
+              disabled={!hasShapes}
               onClick={handleDownload}
               className="flex-1"
             >

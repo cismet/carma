@@ -35,7 +35,19 @@ import {
 import { createPathAuthoringController } from "./create-path-authoring-controller";
 import { RUNTIME_POLYGON_FILL_PLACEMENT } from "../render/measurement-render-models";
 import { createMeasurementPolygonFillsController } from "../render/measurement-polygon-fills-controller.shared";
+import { createMeasurementOverlayPolygonFillsController } from "../render/measurement-overlay-polygon-fills-controller.shared";
 import { resolvePreviewLineLabelVisualOptions } from "../config/preview-line-label-visual-defaults";
+import {
+  isCoplanarPolygonFillPlacement,
+  resolveAreaOcclusionLineRenderOptions,
+  resolveAreaOcclusionStyleOptions,
+  resolveAreaOverlayFillColor,
+  type AreaOcclusionStyleOptions,
+} from "../config/area-occlusion-style-options";
+import {
+  resolveMeasurementLineStyleOptions,
+  type MeasurementLineStyleOptions,
+} from "../config/measurement-line-style-options";
 const { AREA_VERTICAL: ANNOTATION_TYPE_AREA_VERTICAL } = ANNOTATION_TYPES;
 
 const DRAFT_CHAIN_OVERLAY_LAYER_ID =
@@ -139,9 +151,15 @@ const buildVerticalAreaPreviewEdgeLabelsState = ({
   };
 };
 
-export const createVerticalAreaAuthoringController = (
-  context: AnnotationToolAuthoringContext
-): AnnotationToolAuthoringController | null => {
+export const createVerticalAreaAuthoringController = ({
+  context,
+  occlusionStyleOptions,
+  measurementLineStyleOptions,
+}: {
+  context: AnnotationToolAuthoringContext;
+  occlusionStyleOptions?: AreaOcclusionStyleOptions;
+  measurementLineStyleOptions?: MeasurementLineStyleOptions;
+}): AnnotationToolAuthoringController | null => {
   const {
     scene,
     drafts,
@@ -152,20 +170,40 @@ export const createVerticalAreaAuthoringController = (
   if (!scene || scene.isDestroyed()) {
     return null;
   }
+  const resolvedOcclusionStyleOptions = resolveAreaOcclusionStyleOptions(
+    occlusionStyleOptions
+  );
+  const previewFillPlacement = RUNTIME_POLYGON_FILL_PLACEMENT.COPLANAR;
+  const resolvedLineStyleOptions = resolveMeasurementLineStyleOptions(
+    measurementLineStyleOptions
+  );
+  const previewLineOptions = {
+    ...(resolveAreaOcclusionLineRenderOptions(resolvedOcclusionStyleOptions) ??
+      {}),
+    strokeWidth: resolvedLineStyleOptions.strokeWidthPx,
+    overlayDashPattern: resolvedLineStyleOptions.overlayDashPattern,
+  };
 
   const draftChainController = createPathAuthoringController(scene, {
     overlayLayerId: DRAFT_CHAIN_OVERLAY_LAYER_ID,
     lineId: "draft-preview-chain",
     lineColor: previewControllerDefaults.draftChainColor,
-    showPointMarkers: false,
+    showPointMarkers: true,
+    lineOptions: previewLineOptions,
   });
   const polygonLoopController = createPathAuthoringController(scene, {
     overlayLayerId: POLYGON_LOOP_OVERLAY_LAYER_ID,
     lineId: "draft-preview-loop",
     lineColor: previewControllerDefaults.draftChainColor,
     showPointMarkers: false,
+    lineOptions: previewLineOptions,
   });
   const previewFillController = createMeasurementPolygonFillsController(scene);
+  const previewOverlayFillController =
+    createMeasurementOverlayPolygonFillsController(
+      scene,
+      `${ANNOTATION_TYPE_AREA_VERTICAL}-draft-preview`
+    );
   const labelOverlayLayer = createPreviewOverlayLayer(
     scene,
     VERTICAL_AREA_PREVIEW_LABEL_LAYER_ID
@@ -285,6 +323,7 @@ export const createVerticalAreaAuthoringController = (
       draftChainController.clear();
       polygonLoopController.clear();
       previewFillController.clear();
+      previewOverlayFillController.clear();
       currentAreaLabelState = null;
       currentEdgeLabelsState = null;
       areaLabelController.setState(null);
@@ -300,6 +339,7 @@ export const createVerticalAreaAuthoringController = (
       });
       polygonLoopController.clear();
       previewFillController.clear();
+      previewOverlayFillController.clear();
       currentAreaLabelState = null;
       currentEdgeLabelsState = null;
       areaLabelController.setState(null);
@@ -319,6 +359,7 @@ export const createVerticalAreaAuthoringController = (
       });
       polygonLoopController.clear();
       previewFillController.clear();
+      previewOverlayFillController.clear();
       currentAreaLabelState = null;
       currentEdgeLabelsState = null;
       renderOverlayLabels(requestRender);
@@ -335,19 +376,29 @@ export const createVerticalAreaAuthoringController = (
       lineCoordinates: loopCoordinates.map(runtimeCoordinateFromCartesian),
       markerCoordinates,
     });
-    previewFillController.setPolygonFills([
-      {
-        id: `${ANNOTATION_TYPE_AREA_VERTICAL}-draft-preview-fill`,
-        coordinates: loopCoordinates
-          .slice(0, 4)
-          .map(runtimeCoordinateFromCartesian),
-        fill: getAnnotationAreaFillCssColor(
-          ANNOTATION_TYPE_AREA_VERTICAL,
-          false
-        ),
-        placement: RUNTIME_POLYGON_FILL_PLACEMENT.COPLANAR,
-      },
-    ]);
+    const previewFill = getAnnotationAreaFillCssColor(
+      ANNOTATION_TYPE_AREA_VERTICAL,
+      false
+    );
+    const previewPolygonFill = {
+      id: `${ANNOTATION_TYPE_AREA_VERTICAL}-draft-preview-fill`,
+      coordinates: loopCoordinates
+        .slice(0, 4)
+        .map(runtimeCoordinateFromCartesian),
+      fill: previewFill,
+      ...(isCoplanarPolygonFillPlacement(previewFillPlacement) &&
+      resolvedOcclusionStyleOptions.fill.overlay
+        ? {
+            overlayFill: resolveAreaOverlayFillColor(
+              previewFill,
+              resolvedOcclusionStyleOptions
+            ),
+          }
+        : {}),
+      placement: previewFillPlacement,
+    };
+    previewFillController.setPolygonFills([previewPolygonFill]);
+    previewOverlayFillController.setPolygonFills([previewPolygonFill]);
     currentAreaLabelState = buildVerticalAreaPreviewAreaLabelState({
       loopCoordinates,
       formatOptions,
@@ -411,6 +462,7 @@ export const createVerticalAreaAuthoringController = (
       draftChainController.destroy();
       polygonLoopController.destroy();
       previewFillController.destroy();
+      previewOverlayFillController.destroy();
       areaLabelController.destroy();
       destroyPreviewOverlayLayer(labelOverlayLayer);
     },

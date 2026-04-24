@@ -15,7 +15,6 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Button, Modal, Spin } from "antd";
 
-import { Item, Layer, SavedLayerConfig } from "@carma-mapping/layers";
 import { cn, extractCarmaConfig, updateUrl } from "@carma-commons/utils";
 import {
   extServiceText,
@@ -28,6 +27,11 @@ import { useDispatch, useSelector } from "react-redux";
 import { getSelectedLayer, setSelectedLayer } from "../slices/mapLayers";
 import { setTriggerRefetch } from "../slices/ui";
 import ImageCollage from "./ImageCollage";
+import type {
+  Item,
+  Layer,
+  SavedLayerConfig,
+} from "../lib/contracts/carma-layers";
 import type { ActiveLayers } from "./NewLibModal";
 import ThumbnailDisplay from "./ThumbnailDisplay";
 

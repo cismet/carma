@@ -44,8 +44,8 @@ export const AnnotationInfoBoxTitleInput = ({
   const shortLabelInputRef = useRef<HTMLInputElement | null>(null);
   const shortLabelWidthCh = Math.min(
     Math.max(
-      normalizeTitle(draftShortLabelValue || shortLabelPlaceholder || "").length +
-        0.5,
+      normalizeTitle(draftShortLabelValue || shortLabelPlaceholder || "")
+        .length + 0.5,
       2.5
     ),
     4.5

@@ -1,4 +1,4 @@
-import type { Item } from "@carma-mapping/layers";
+import type { Item } from "../lib/contracts/carma-layers.d";
 
 export const MEASUREMENT_ITEM_TYPES = {
   POINT: "point",
@@ -83,7 +83,9 @@ export const resolveMeasurementTypesFromFeatureStyle = (
     if (!isRecord(source) || source.type !== "geojson") {
       return;
     }
-    const nestedTypes = collectMeasurementTypesFromFeatureCollection(source.data);
+    const nestedTypes = collectMeasurementTypesFromFeatureCollection(
+      source.data
+    );
     nestedTypes.forEach((measurementType) => {
       measurementTypes.add(measurementType);
     });

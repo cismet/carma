@@ -50,19 +50,22 @@ export const getSupportRadius2d = (points: Point2[]): number => {
   return maxProjectedRadius;
 };
 
+const normalizePointComponent2d = (value: number): number =>
+  Object.is(value, -0) ? 0 : value;
+
 export const addPoint2d = (left: Point2, right: Point2): Point2 => ({
-  x: left.x + right.x,
-  y: left.y + right.y,
+  x: normalizePointComponent2d(left.x + right.x),
+  y: normalizePointComponent2d(left.y + right.y),
 });
 
 export const subtractPoint2d = (left: Point2, right: Point2): Point2 => ({
-  x: left.x - right.x,
-  y: left.y - right.y,
+  x: normalizePointComponent2d(left.x - right.x),
+  y: normalizePointComponent2d(left.y - right.y),
 });
 
 export const scalePoint2d = (point: Point2, scalar: number): Point2 => ({
-  x: point.x * scalar,
-  y: point.y * scalar,
+  x: normalizePointComponent2d(point.x * scalar),
+  y: normalizePointComponent2d(point.y * scalar),
 });
 
 export const dotPoint2d = (left: Point2, right: Point2): number =>
@@ -75,8 +78,8 @@ export const getMidpoint2d = (left: Point2, right: Point2): Point2 =>
   scalePoint2d(addPoint2d(left, right), 0.5);
 
 export const getLeftPerpendicular2d = (point: Point2): Point2 => ({
-  x: -point.y,
-  y: point.x,
+  x: normalizePointComponent2d(-point.y),
+  y: normalizePointComponent2d(point.x),
 });
 
 export const getSegmentFrame2d = ({

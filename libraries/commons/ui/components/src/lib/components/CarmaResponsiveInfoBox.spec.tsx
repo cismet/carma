@@ -44,8 +44,27 @@ describe("CarmaResponsiveInfoBox", () => {
       '[data-test-id="info-box"]'
     ) as HTMLDivElement | null;
 
-    expect(infoBox?.style.width).toBe("fit-content");
     expect(infoBox?.style.minWidth).toBe("24rem");
     expect(infoBox?.style.maxWidth).toBe("350px");
+  });
+
+  it("can keep the expanded left edge as collapsed anchor", () => {
+    const { container } = render(
+      <CarmaResponsiveInfoBox
+        width={350}
+        useControlLayout={false}
+        defaultCollapsed={true}
+        collapsedHorizontalAnchor="expanded-left"
+        heading={<span>Titel</span>}
+        content={<span>Inhalt</span>}
+      />
+    );
+
+    const infoBox = container.querySelector(
+      '[data-test-id="info-box"]'
+    ) as HTMLDivElement | null;
+
+    expect(infoBox?.style.width).toBe("350px");
+    expect(infoBox?.style.pointerEvents).toBe("none");
   });
 });

@@ -43,6 +43,8 @@ export type RuntimePointMarkerRenderModel = {
   outline: string;
   outlineWidth: number;
   onClick?: () => void;
+  onLongPress?: () => void;
+  longPressDurationMs?: number;
 };
 
 export type RuntimeEdgeRenderModel = {
@@ -52,6 +54,7 @@ export type RuntimeEdgeRenderModel = {
   coordinates: readonly CesiumGeographicCoordinate[];
   stroke: string;
   strokeWidth: number;
+  overlayDashPattern?: string;
   dashed?: true;
   overlayDashed?: true;
   showSegmentLengthLabels?: true;

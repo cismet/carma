@@ -15,6 +15,8 @@ export type AnnotationInfoBoxVisualOptions = Readonly<{
   bodyContainerClassName: string;
   bodyTextStyle: CSSProperties;
   bodyTextClassName: string;
+  emptyContentLineStyle: CSSProperties;
+  emptyContentLineClassName: string;
   mutedTextClassName: string;
   linkTextClassName: string;
   actionIconClassName: string;
@@ -44,7 +46,7 @@ export type AnnotationInfoBoxSlots = {
   headingTitle: string;
   headingColor?: string;
   subtitle?: ReactNode;
-  content: ReactNode;
+  content?: ReactNode;
   footer?: ReactNode;
   collapsible?: boolean;
 };
@@ -52,6 +54,7 @@ export type AnnotationInfoBoxSlots = {
 export type AnnotationInfoBoxLayoutProps = {
   pixelWidth?: number;
   fitContentWidth?: boolean;
+  collapsedHorizontalAnchor?: "control-edge" | "expanded-left";
   useControlLayout?: boolean;
   controlPosition?:
     | "topleft"

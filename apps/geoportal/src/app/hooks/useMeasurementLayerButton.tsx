@@ -119,7 +119,12 @@ export function useMeasurementLayerButton() {
     ) {
       dispatch(setUIMode(UIMode.DEFAULT));
     }
-  }, [dispatch, hasMeasurementLayer, shouldShowMeasurementLayer, shapes.length]);
+  }, [
+    dispatch,
+    hasMeasurementLayer,
+    shouldShowMeasurementLayer,
+    shapes.length,
+  ]);
 
   useEffect(() => {
     if (!shouldShowMeasurementLayer || !hasMeasurementLayer) return;
@@ -129,5 +134,10 @@ export function useMeasurementLayerButton() {
         title: getMeasurementTitle(shapes.length),
       })
     );
-  }, [dispatch, hasMeasurementLayer, shapes.length, shouldShowMeasurementLayer]);
+  }, [
+    dispatch,
+    hasMeasurementLayer,
+    shapes.length,
+    shouldShowMeasurementLayer,
+  ]);
 }

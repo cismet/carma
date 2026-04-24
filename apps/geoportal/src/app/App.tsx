@@ -65,7 +65,11 @@ import { useGeoportalLabelTextRequest } from "./hooks/use-geoportal-label-text-r
 import { APP_KEY, layerMap } from "./config";
 import { geoportalMapStyleConfig } from "./config/mapStyleConfig";
 
-import { CESIUM_CONFIG, CONFIG_BASE_URL } from "./config/app.config";
+import {
+  CESIUM_ANNOTATION_CONFIG,
+  CESIUM_CONFIG,
+  CONFIG_BASE_URL,
+} from "./config/app.config";
 import store from "./store";
 import { featureFlagConfig } from "./config/featureFlags";
 
@@ -198,6 +202,8 @@ function CesiumAnnotationsWrapper({ children }: { children: ReactNode }) {
     () =>
       createDefaultAnnotationToolPlugins({
         label: { requestLabelText },
+        measurementLineStyle: CESIUM_ANNOTATION_CONFIG.measurementLineStyle,
+        areaOcclusionStyle: CESIUM_ANNOTATION_CONFIG.areaOcclusionStyle,
       }),
     [requestLabelText]
   );
@@ -217,7 +223,10 @@ function CesiumAnnotationsWrapper({ children }: { children: ReactNode }) {
         <CesiumAnnotationLayerSyncInner />
         {annotationsVisible ? <CesiumAnnotationShortcutManager /> : null}
         {children}
-        <GeoportalLabelTextModal {...labelTextModalState} />
+        <GeoportalLabelTextModal
+          {...labelTextModalState}
+          options={CESIUM_ANNOTATION_CONFIG.labelTextModal}
+        />
       </AnnotationsProvider>
     </LabelOverlayProvider>
   );

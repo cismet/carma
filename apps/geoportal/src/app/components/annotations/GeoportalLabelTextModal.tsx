@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Button, Input, Modal } from "antd";
 
-import { Button, Input, Modal, type InputRef } from "antd";
+import { ANNOTATION_KEYBOARD_SHORTCUTS_SUSPENDED_ATTRIBUTE } from "@carma-mapping/annotations/core";
 
 import {
-  ANNOTATION_KEYBOARD_SHORTCUTS_SUSPENDED_ATTRIBUTE,
-} from "@carma-mapping/annotations/core";
+  CESIUM_ANNOTATION_CONFIG,
+  type GeoportalCesiumAnnotationLabelTextModalConfig,
+} from "../../config/app.config";
+import { useGeoportalLabelTextModalInput } from "../../hooks/use-geoportal-label-text-modal-input";
 
 export type GeoportalLabelTextModalProps = {
   open: boolean;
@@ -12,6 +14,7 @@ export type GeoportalLabelTextModalProps = {
   labelSuggestions: readonly string[];
   onAbort: () => void;
   onFinish: (text: string) => void;
+  options?: GeoportalCesiumAnnotationLabelTextModalConfig;
 };
 
 export const GeoportalLabelTextModal = ({
@@ -20,39 +23,35 @@ export const GeoportalLabelTextModal = ({
   labelSuggestions,
   onAbort,
   onFinish,
+  options = CESIUM_ANNOTATION_CONFIG.labelTextModal,
 }: GeoportalLabelTextModalProps) => {
-  const inputRef = useRef<InputRef>(null);
-  const [value, setValue] = useState(initialValue);
-
-  const focusInput = useCallback(() => {
-    inputRef.current?.focus({ cursor: "all" });
-  }, []);
-
-  useEffect(() => {
-    if (!open) return;
-
-    setValue(initialValue);
-    const frameId = window.requestAnimationFrame(focusInput);
-
-    return () => window.cancelAnimationFrame(frameId);
-  }, [focusInput, initialValue, open]);
-
-  const finish = useCallback(() => {
-    onFinish(value.trim() || initialValue);
-  }, [initialValue, onFinish, value]);
-
-  const visibleSuggestions = labelSuggestions.filter(
-    (suggestion) => suggestion !== value.trim()
-  );
+  const {
+    finish,
+    focusInput,
+    handleKeyDown,
+    handlePressEnter,
+    handleSuggestionMouseDown,
+    inputRef,
+    selectSuggestion,
+    setValue,
+    value,
+    visibleSuggestions,
+  } = useGeoportalLabelTextModalInput({
+    initialValue,
+    labelSuggestions,
+    onAbort,
+    onFinish,
+    open,
+  });
 
   return (
     <Modal
-      title="Beschriftung hinzufügen"
+      title={options.title}
       open={open}
       onOk={finish}
       onCancel={onAbort}
-      okText="Hinzufügen"
-      cancelText="Abbrechen"
+      okText={options.okText}
+      cancelText={options.cancelText}
       maskClosable={false}
       destroyOnClose
       afterOpenChange={(nextOpen) => {
@@ -71,33 +70,20 @@ export const GeoportalLabelTextModal = ({
           ref={inputRef}
           autoFocus
           value={value}
-          aria-label="Text der Beschriftung"
-          placeholder="Text der Beschriftung"
+          aria-label={options.inputAriaLabel}
+          placeholder={options.inputPlaceholder}
           onChange={(event) => setValue(event.target.value)}
-          onPressEnter={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            finish();
-          }}
-          onKeyDown={(event) => {
-            event.stopPropagation();
-            if (event.key === "Escape") {
-              event.preventDefault();
-              onAbort();
-            }
-          }}
+          onPressEnter={handlePressEnter}
+          onKeyDown={handleKeyDown}
         />
         {visibleSuggestions.length > 0 ? (
           <div className="flex flex-wrap gap-1">
             {visibleSuggestions.map((suggestion) => (
               <Button
                 key={suggestion}
-                size="small"
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => {
-                  setValue(suggestion);
-                  window.requestAnimationFrame(focusInput);
-                }}
+                size={options.suggestionButtonSize}
+                onMouseDown={handleSuggestionMouseDown}
+                onClick={() => selectSuggestion(suggestion)}
               >
                 {suggestion}
               </Button>

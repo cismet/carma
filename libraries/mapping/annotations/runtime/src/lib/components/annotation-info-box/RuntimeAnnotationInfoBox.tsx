@@ -13,6 +13,7 @@ export const RuntimeAnnotationInfoBox = ({
   useControlLayout,
   controlPosition,
   controlOrder,
+  collapsedHorizontalAnchor,
   style,
   visualOptions,
 }: AnnotationInfoBoxLayoutProps) => {
@@ -110,6 +111,7 @@ export const RuntimeAnnotationInfoBox = ({
       useControlLayout={useControlLayout}
       controlPosition={controlPosition}
       controlOrder={controlOrder}
+      collapsedHorizontalAnchor={collapsedHorizontalAnchor}
       style={style}
       slots={slots}
       visualOptions={resolvedInfoBoxVisualOptions}
