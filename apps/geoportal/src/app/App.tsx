@@ -61,6 +61,7 @@ import { useCesiumAnnotationLayerButton } from "./hooks/useCesiumAnnotationLayer
 import { useMeasurementLayerButton } from "./hooks/useMeasurementLayerButton";
 import { useGeoportalCesiumAnnotationOverlayHost } from "./hooks/use-geoportal-cesium-annotation-overlay-host";
 import { useGeoportalLabelTextRequest } from "./hooks/use-geoportal-label-text-request";
+import { useGeoportalCesiumAnnotationModeLifecycle } from "./hooks/use-geoportal-cesium-annotation-mode-lifecycle";
 
 import { APP_KEY, layerMap } from "./config";
 import { geoportalMapStyleConfig } from "./config/mapStyleConfig";
@@ -183,10 +184,13 @@ function CesiumAnnotationsWrapper({ children }: { children: ReactNode }) {
   const scene = getScene();
   const uiMode = useSelector(getUIMode);
   const layers = useSelector(getLayers);
+  const isCesiumAnnotationMode = isCesium && uiMode === UIMode.MEASUREMENT;
   const annotationsVisible =
-    isCesium &&
-    uiMode === UIMode.MEASUREMENT &&
+    isCesiumAnnotationMode &&
     layers.some((layer) => layer.id === CESIUM_ANNOTATION_LAYER_ID);
+  useGeoportalCesiumAnnotationModeLifecycle({
+    active: isCesiumAnnotationMode,
+  });
   const { overlayContainer, overlayHost } =
     useGeoportalCesiumAnnotationOverlayHost(scene);
   const { labelTextModalState, requestLabelText } =

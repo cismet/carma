@@ -24,7 +24,6 @@ import type {
 } from "@carma-mapping/layers";
 import { getInteractionButtons } from "@carma-mapping/layers";
 import { cn, getHashParams } from "@carma-commons/utils";
-import { CameraLimiterToggleButton } from "@carma-commons/ui/components";
 
 import {
   getSelectedFeature,
@@ -72,7 +71,6 @@ import { Badge, Spin, Tooltip } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import { useLayerLoading } from "@carma-mapping/utils";
 import { useAnnotationsRuntime } from "@carma-mapping/annotations/runtime";
-import { useGeoportalCameraLimiterLayerControl } from "../../hooks/use-geoportal-camera-limiter-layer-control";
 import { useGeoportalLayerButtonActions } from "../../hooks/use-geoportal-layer-button-actions";
 import { CESIUM_ANNOTATION_LAYER_ID } from "../annotations/cesium-annotations.constants";
 
@@ -84,9 +82,6 @@ interface LayerButtonProps {
   background?: boolean;
   hide?: boolean;
 }
-
-const LIMITER_BUTTON_CLASSNAME =
-  "h-8 w-8 min-w-8 flex items-center justify-center text-gray-600 hover:text-gray-500";
 
 const GeoportalLayerButton = ({
   title,
@@ -140,10 +135,6 @@ const GeoportalLayerButton = ({
 
   const { annotationEntries, flyToAllAnnotations } = useAnnotationsRuntime();
   const isCesiumAnnotationLayerButton = id === CESIUM_ANNOTATION_LAYER_ID;
-  const { areCameraLimitersDisabled, setCameraLimitersDisabled } =
-    useGeoportalCameraLimiterLayerControl({
-      enabled: isCesiumAnnotationLayerButton,
-    });
   const {
     closeIcon,
     handleFlyToAllAnnotationsClick,
@@ -462,43 +453,19 @@ const GeoportalLayerButton = ({
               )}
 
             {isCesiumAnnotationLayerButton && (
-              <>
-                <Tooltip title="Alle Messungen fokussieren" placement="top">
-                  <button
-                    className="h-8 w-8 min-w-8 flex items-center justify-center text-gray-600 hover:text-gray-500 disabled:text-gray-400"
-                    onClick={handleFlyToAllAnnotationsClick}
-                    disabled={!hasAnyCesiumAnnotations}
-                    aria-label="Alle Messungen fokussieren"
-                  >
-                    <FontAwesomeIcon
-                      icon={faSearchLocation}
-                      className="text-base leading-none"
-                    />
-                  </button>
-                </Tooltip>
-
-                <Tooltip
-                  title={
-                    areCameraLimitersDisabled
-                      ? "Kameralimiter aktivieren"
-                      : "Kameralimiter deaktivieren"
-                  }
-                  placement="top"
+              <Tooltip title="Alle Messungen fokussieren" placement="top">
+                <button
+                  className="h-8 w-8 min-w-8 flex items-center justify-center text-gray-600 hover:text-gray-500 disabled:text-gray-400"
+                  onClick={handleFlyToAllAnnotationsClick}
+                  disabled={!hasAnyCesiumAnnotations}
+                  aria-label="Alle Messungen fokussieren"
                 >
-                  <CameraLimiterToggleButton
-                    className={LIMITER_BUTTON_CLASSNAME}
-                    areLimitersDisabled={areCameraLimitersDisabled}
-                    onToggle={setCameraLimitersDisabled}
-                    stopPropagation
-                    fontSize={16}
-                    ariaLabel={
-                      areCameraLimitersDisabled
-                        ? "Kameralimiter aktivieren"
-                        : "Kameralimiter deaktivieren"
-                    }
+                  <FontAwesomeIcon
+                    icon={faSearchLocation}
+                    className="text-base leading-none"
                   />
-                </Tooltip>
-              </>
+                </button>
+              </Tooltip>
             )}
             {getInteractionButtons(layer.interactionButtons).map((btn) => {
               const isActive =

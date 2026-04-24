@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { faRuler } from "@fortawesome/free-solid-svg-icons";
@@ -18,6 +18,7 @@ import {
   CESIUM_ANNOTATION_INTERACTION_ID,
   CESIUM_ANNOTATION_LAYER_ID,
 } from "../components/annotations/cesium-annotations.constants";
+import { useModeLifecycleActions } from "./use-mode-lifecycle-actions";
 
 const CESIUM_ANNOTATION_LAYER: Layer = {
   id: CESIUM_ANNOTATION_LAYER_ID,
@@ -48,11 +49,38 @@ export function useCesiumAnnotationLayerButton() {
   const hasCesiumAnnotationLayer = layers.some(
     (layer) => layer.id === CESIUM_ANNOTATION_LAYER_ID
   );
-  const prevRef = useRef({
-    shouldShowCesiumAnnotationLayer,
-    hasCesiumAnnotationLayer,
-  });
+  const previousHasCesiumAnnotationLayerRef = useRef(
+    hasCesiumAnnotationLayer
+  );
   const initialCleanupDone = useRef(false);
+
+  const handleEnterCesiumAnnotationMode = useCallback(() => {
+    if (hasCesiumAnnotationLayer) {
+      return;
+    }
+
+    dispatch(
+      appendLayer({
+        ...CESIUM_ANNOTATION_LAYER,
+        title: getCesiumAnnotationLayerTitle(annotationEntries.length),
+      })
+    );
+  }, [annotationEntries.length, dispatch, hasCesiumAnnotationLayer]);
+
+  const handleLeaveCesiumAnnotationMode = useCallback(() => {
+    if (!hasCesiumAnnotationLayer) {
+      return;
+    }
+
+    setSelectedAnnotationId(null);
+    dispatch(removeLayer(CESIUM_ANNOTATION_LAYER_ID));
+  }, [dispatch, hasCesiumAnnotationLayer, setSelectedAnnotationId]);
+
+  useModeLifecycleActions({
+    active: shouldShowCesiumAnnotationLayer,
+    onEnter: [handleEnterCesiumAnnotationMode],
+    onLeave: [handleLeaveCesiumAnnotationMode],
+  });
 
   useEffect(() => {
     if (initialCleanupDone.current) {
@@ -67,46 +95,18 @@ export function useCesiumAnnotationLayerButton() {
   }, [dispatch, hasCesiumAnnotationLayer, shouldShowCesiumAnnotationLayer]);
 
   useEffect(() => {
-    const prev = prevRef.current;
-    prevRef.current = {
-      shouldShowCesiumAnnotationLayer,
-      hasCesiumAnnotationLayer,
-    };
-
-    if (
-      shouldShowCesiumAnnotationLayer &&
-      !prev.shouldShowCesiumAnnotationLayer &&
-      !hasCesiumAnnotationLayer
-    ) {
-      dispatch(
-        appendLayer({
-          ...CESIUM_ANNOTATION_LAYER,
-          title: getCesiumAnnotationLayerTitle(annotationEntries.length),
-        })
-      );
-      return;
-    }
-
-    if (
-      !shouldShowCesiumAnnotationLayer &&
-      prev.shouldShowCesiumAnnotationLayer &&
-      hasCesiumAnnotationLayer
-    ) {
-      setSelectedAnnotationId(null);
-      dispatch(removeLayer(CESIUM_ANNOTATION_LAYER_ID));
-      return;
-    }
-
+    const previousHasCesiumAnnotationLayer =
+      previousHasCesiumAnnotationLayerRef.current;
+    previousHasCesiumAnnotationLayerRef.current = hasCesiumAnnotationLayer;
     if (
       shouldShowCesiumAnnotationLayer &&
       !hasCesiumAnnotationLayer &&
-      prev.hasCesiumAnnotationLayer
+      previousHasCesiumAnnotationLayer
     ) {
       setSelectedAnnotationId(null);
       dispatch(setUIMode(UIMode.DEFAULT));
     }
   }, [
-    annotationEntries,
     dispatch,
     hasCesiumAnnotationLayer,
     setSelectedAnnotationId,

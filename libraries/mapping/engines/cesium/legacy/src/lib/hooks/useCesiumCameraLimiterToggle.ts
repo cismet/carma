@@ -14,13 +14,11 @@ import { useCesiumContext } from "./useCesiumContext";
 export interface CesiumCameraLimiterReenableOptions {
   pitch: {
     durationSeconds: number;
-    validRangeBufferRadians: number;
   };
   travelZoom: {
     durationMilliseconds: number;
     easing: (progress: number) => number;
-    minHeightBufferMeters: number;
-    minViewAxisVerticalRatio: number;
+    minViewAxisVerticalRatio?: number;
   };
 }
 
@@ -30,6 +28,7 @@ export interface UseCesiumCameraLimiterToggleOptions {
 }
 
 const DEFAULT_MAX_PITCH_DEGREES = 75;
+const DEFAULT_CAMERA_LIMITER_REENABLE_MIN_VIEW_AXIS_VERTICAL_RATIO = 0.15;
 
 const getLimiterTargetPitch = (maxPitchDegrees: number) =>
   fromCarmaViewPitchDegToCesiumPitchRad(maxPitchDegrees) ?? (0 as number);
@@ -140,8 +139,7 @@ export const useCesiumCameraLimiterToggle = ({
         : 1;
       const readMinimumHeight = () =>
         (scene.globe?.getHeight(camera.positionCartographic) ?? 0) +
-        minimumZoomDistance +
-        travelZoom.minHeightBufferMeters;
+        minimumZoomDistance;
       const moveCameraToValidHeight = () => {
         const heightDeficit =
           readMinimumHeight() - camera.positionCartographic.height;
@@ -151,7 +149,8 @@ export const useCesiumCameraLimiterToggle = ({
 
         const currentVerticalRatio = Math.max(
           Math.sin(Math.abs(camera.pitch)),
-          travelZoom.minViewAxisVerticalRatio
+          travelZoom.minViewAxisVerticalRatio ??
+            DEFAULT_CAMERA_LIMITER_REENABLE_MIN_VIEW_AXIS_VERTICAL_RATIO
         );
         camera.moveBackward(heightDeficit / currentVerticalRatio);
       };
@@ -167,7 +166,8 @@ export const useCesiumCameraLimiterToggle = ({
       const startedAtMs = performance.now();
       const verticalRatio = Math.max(
         Math.sin(Math.abs(camera.pitch)),
-        travelZoom.minViewAxisVerticalRatio
+        travelZoom.minViewAxisVerticalRatio ??
+          DEFAULT_CAMERA_LIMITER_REENABLE_MIN_VIEW_AXIS_VERTICAL_RATIO
       );
       const targetTravelDistance = (heightDeficit / verticalRatio) * 1.25;
       let previousEased = 0;
@@ -257,9 +257,7 @@ export const useCesiumCameraLimiterToggle = ({
         const targetPitch = getLimiterTargetPitch(maxPitchDegrees);
         const currentPitch = camera.pitch;
         const constrainedPitch =
-          currentPitch > targetPitch
-            ? targetPitch - pitch.validRangeBufferRadians
-            : currentPitch;
+          currentPitch > targetPitch ? targetPitch : currentPitch;
 
         const needsPitchCorrection = constrainedPitch !== currentPitch;
         const cancelTransition = () => {
