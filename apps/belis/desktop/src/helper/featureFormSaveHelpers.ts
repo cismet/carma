@@ -82,11 +82,7 @@ const featureSaveConfigs: Record<string, FeatureSaveConfig> = {
   },
   standort: {
     className: "tdta_standort_mast",
-    removedFields: [
-      "strassenschluessel_pk",
-      "strassenschluessel_strasse",
-      "fk_bezirk",
-    ],
+    removedFields: ["strassenschluessel_pk", "strassenschluessel_strasse"],
     fieldRenames: {},
     transformDates: true,
   },
@@ -286,12 +282,6 @@ export const saveFeatureDraft = async (
     };
 
     // 5. Send to API
-    // console.log("xxx [SAVE DEBUG]", {
-    //   featureType,
-    //   featureDbId,
-    //   className: config.className,
-    //   payload: JSON.parse(JSON.stringify(dataToSave)),
-    // });
     await updateDataByClassName(jwt, config.className, dataToSave);
 
     return { ...base, success: true };

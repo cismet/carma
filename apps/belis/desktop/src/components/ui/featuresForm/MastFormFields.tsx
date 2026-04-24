@@ -155,7 +155,7 @@ const MastFormFields = ({
         // Standortangabe
         standortangabe: toTitleCase((mast.standortangabe as string) || ""),
         // Stadtbezirk - use id for Select value
-        fk_bezirk: bezirk?.id ?? null,
+        fk_stadtbezirk: bezirk?.id ?? null,
         // Mastart - use id for Select value
         fk_mastart: mastart?.id ?? null,
         // Masttyp - use id for Select value
@@ -291,7 +291,7 @@ const MastFormFields = ({
       <StadtbezirkField
         namePrefix={namePrefix}
         readOnly={readOnly}
-        locked={true}
+        locked={false}
       />
 
       {/* Mastart */}

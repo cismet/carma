@@ -39,7 +39,7 @@ const StadtbezirkField = ({
 
   const field = (
     <FormItem
-      name={fieldName("fk_bezirk")}
+      name={fieldName("fk_stadtbezirk")}
       label={<FormLabel>{label}</FormLabel>}
       className="mb-4"
     >
