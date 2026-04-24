@@ -12,6 +12,7 @@ import {
 import { useSelector } from "react-redux";
 import { getKeyTablesData } from "../../../store/slices/keyTables";
 import StrassenschluesselFields from "./StrassenschluesselFields";
+import StadtbezirkField from "./StadtbezirkField";
 import { getFormClassName, getPlaceholder } from "./readOnlyFormUtils";
 import { FormItem } from "./DraftFieldHighlight";
 import toTitleCase from "../../../helper/toTitleCase";
@@ -66,12 +67,6 @@ interface AnlagengruppeItem {
   bezeichnung?: string;
 }
 
-interface BezirkItem {
-  id: number;
-  pk?: string;
-  bezirk?: string;
-}
-
 // Helper type for nested objects with common properties
 interface NestedObject {
   id?: number;
@@ -121,9 +116,6 @@ const MastFormFields = ({
     []) as KennzifferItem[];
   const anlagengruppeOptions = (keyTablesData.anlagengruppe ||
     []) as AnlagengruppeItem[];
-  const bezirkOptions = [
-    ...((keyTablesData.bezirk || []) as BezirkItem[]),
-  ].sort((a, b) => (a.bezirk || "").localeCompare(b.bezirk || ""));
 
   // Helper to create field name with optional prefix
   const fieldName = (name: string) => (namePrefix ? [namePrefix, name] : name);
@@ -296,29 +288,11 @@ const MastFormFields = ({
       </FormItem>
 
       {/* Stadtbezirk - always non-editable (reference data) */}
-      <div className="cursor-not-allowed">
-        <div className="pointer-events-none">
-          <FormItem
-            name={fieldName("fk_bezirk")}
-            label={<FormLabel>Stadtbezirk</FormLabel>}
-            className="mb-4"
-          >
-            <Select
-              placeholder={getPlaceholder(readOnly, "Stadtbezirk auswählen")}
-              className="w-full"
-              size="large"
-              showSearch
-              optionFilterProp="children"
-            >
-              {bezirkOptions.map((item) => (
-                <Select.Option key={item.id} value={item.id}>
-                  {toTitleCase(item.bezirk || "")}
-                </Select.Option>
-              ))}
-            </Select>
-          </FormItem>
-        </div>
-      </div>
+      <StadtbezirkField
+        namePrefix={namePrefix}
+        readOnly={readOnly}
+        locked={true}
+      />
 
       {/* Mastart */}
       <FormItem
