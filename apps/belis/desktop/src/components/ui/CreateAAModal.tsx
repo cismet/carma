@@ -150,6 +150,7 @@ const CreateAAModal = ({ open, onClose, onCreated, highlights }: CreateAAModalPr
             </Form.Item>
           </Col>
         </Row>
+        {/*
         <Row gutter={16}>
           <Col span={24}>
             <Form.Item
@@ -176,6 +177,7 @@ const CreateAAModal = ({ open, onClose, onCreated, highlights }: CreateAAModalPr
             </Form.Item>
           </Col>
         </Row>
+        */}
         <Row gutter={16}>
           <Col span={12} className="cursor-not-allowed">
             <div className="pointer-events-none">
