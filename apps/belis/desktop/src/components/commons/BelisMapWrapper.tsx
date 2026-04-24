@@ -2160,6 +2160,16 @@ const BelisMapLibWrapper = ({
     }
   }, [activeAATab]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Clear stale AA info-box override when the AA selection is cleared
+  // externally (e.g. ArbeitsauftragSearchModal dispatches clearSelection()).
+  useEffect(() => {
+    if (sidebarVariant !== "arbeitsauftraege") return;
+    if (activeAATab !== "aa") return;
+    if (selectedAAId == null) {
+      setOverrideSelectedFeature(null);
+    }
+  }, [sidebarVariant, activeAATab, selectedAAId]);
+
   // --- Arbeitsauftraege: AP feature-state selection ---
   const prevAPIdRef = useRef<number | null>(null);
   useEffect(() => {
