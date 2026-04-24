@@ -163,12 +163,8 @@ const StandortForm = ({
       const formValues = mastFormRef.current.getFieldsValue();
 
       // Remove display-only fields that the backend doesn't expect
-      const {
-        strassenschluessel_pk,
-        strassenschluessel_strasse,
-        fk_bezirk,
-        ...rest
-      } = formValues;
+      const { strassenschluessel_pk, strassenschluessel_strasse, ...rest } =
+        formValues;
 
       // Upload pending draft files first
       let uploadedDocuments: DokumentItem[] = [];
@@ -196,7 +192,6 @@ const StandortForm = ({
           : {}),
       });
 
-      console.log("xxx saving standort:", JSON.stringify(dataToSave, null, 2));
       await updateDataByClassName(jwt, "tdta_standort_mast", dataToSave);
 
       // Update local documents so changes appear immediately
