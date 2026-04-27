@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { render } from "@testing-library/react";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { CarmaResponsiveInfoBox } from "./CarmaResponsiveInfoBox";
@@ -15,12 +15,14 @@ vi.mock("./CarmaCard", () => ({
     header,
     content,
     footer,
+    style,
   }: {
     header?: ReactNode;
     content?: ReactNode;
     footer?: ReactNode;
+    style?: CSSProperties;
   }) => (
-    <div>
+    <div data-test-id="carma-card" style={style}>
       {header}
       {content}
       {footer}
@@ -66,5 +68,24 @@ describe("CarmaResponsiveInfoBox", () => {
 
     expect(infoBox?.style.width).toBe("350px");
     expect(infoBox?.style.pointerEvents).toBe("none");
+  });
+
+  it("keeps collapsed right-anchored controls on the control edge", () => {
+    const { container } = render(
+      <CarmaResponsiveInfoBox
+        width={350}
+        useControlLayout={true}
+        controlPosition="bottomright"
+        defaultCollapsed={true}
+        heading={<span>Titel</span>}
+        content={<span>Inhalt</span>}
+      />
+    );
+
+    const card = container.querySelector(
+      '[data-test-id="carma-card"]'
+    ) as HTMLDivElement | null;
+
+    expect(card?.style.marginLeft).toBe("auto");
   });
 });

@@ -47,7 +47,6 @@ const buildMeasurementLayer = () =>
   ({
     id: MEASUREMENT_LAYER_ID,
     title: "Messung",
-    type: "object",
     icon: "measurement",
     visible: true,
     pinned: "last",
@@ -84,7 +83,7 @@ describe("useMeasurementLayerButton", () => {
     });
   });
 
-  it("appends the measurement layer with 3D-visible object metadata when measurement mode is enabled", async () => {
+  it("appends the measurement layer when Leaflet measurement mode is enabled", async () => {
     const store = createTestStore();
 
     renderHook(() => useMeasurementLayerButton(), {
@@ -100,7 +99,6 @@ describe("useMeasurementLayerButton", () => {
         expect.objectContaining({
           id: MEASUREMENT_LAYER_ID,
           title: "Messung",
-          type: "object",
           pinned: "last",
           interactionButton: expect.objectContaining({
             id: "save-measurements",

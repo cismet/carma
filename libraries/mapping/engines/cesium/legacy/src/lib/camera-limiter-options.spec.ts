@@ -15,21 +15,25 @@ describe("resolveCameraLimiterOptions", () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     const resolved = resolveCameraLimiterOptions({
-      pitchLimiter: null as never,
-      maxPitchDeg: null as never,
-      maxPitchCorrectionRangeDeg: NaN,
+      limiter: {
+        pitch: {
+          enabled: null as never,
+          max: null as never,
+          maxCorrectionRange: NaN,
+        },
+      },
     });
 
-    expect(resolved.pitchLimiter).toBe(
-      DEFAULT_CAMERA_LIMITER_OPTIONS.pitchLimiter
+    expect(resolved.limiter.pitch.enabled).toBe(
+      DEFAULT_CAMERA_LIMITER_OPTIONS.limiter.pitch.enabled
     );
-    expect(resolved.minCesiumPitch).toBeCloseTo(
-      degToRadNumeric(DEFAULT_CAMERA_LIMITER_OPTIONS.maxPitchDeg - 90)!,
+    expect(resolved.limiter.pitch.minCesiumPitch).toBeCloseTo(
+      degToRadNumeric(DEFAULT_CAMERA_LIMITER_OPTIONS.limiter.pitch.max - 90)!,
       12
     );
-    expect(resolved.pitchCorrectionRange).toBeCloseTo(
+    expect(resolved.limiter.pitch.correctionRange).toBeCloseTo(
       degToRadNumeric(
-        DEFAULT_CAMERA_LIMITER_OPTIONS.maxPitchCorrectionRangeDeg
+        DEFAULT_CAMERA_LIMITER_OPTIONS.limiter.pitch.maxCorrectionRange
       )!,
       12
     );
@@ -40,12 +44,22 @@ describe("resolveCameraLimiterOptions", () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     const resolved = resolveCameraLimiterOptions({
-      maxPitchDeg: 22,
-      maxPitchCorrectionRangeDeg: 50,
+      limiter: {
+        pitch: {
+          max: 22,
+          maxCorrectionRange: 50,
+        },
+      },
     });
 
-    expect(resolved.minCesiumPitch).toBeCloseTo(degToRadNumeric(-68)!, 12);
-    expect(resolved.pitchCorrectionRange).toBeCloseTo(degToRadNumeric(22)!, 12);
+    expect(resolved.limiter.pitch.minCesiumPitch).toBeCloseTo(
+      degToRadNumeric(-68)!,
+      12
+    );
+    expect(resolved.limiter.pitch.correctionRange).toBeCloseTo(
+      degToRadNumeric(22)!,
+      12
+    );
     expect(warnSpy).toHaveBeenCalled();
   });
 
@@ -53,14 +67,24 @@ describe("resolveCameraLimiterOptions", () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     const resolved = resolveCameraLimiterOptions({
-      pitchLimiter: false,
-      maxPitchDeg: 22,
-      maxPitchCorrectionRangeDeg: 8,
+      limiter: {
+        pitch: {
+          enabled: false,
+          max: 22,
+          maxCorrectionRange: 8,
+        },
+      },
     });
 
-    expect(resolved.pitchLimiter).toBe(false);
-    expect(resolved.minCesiumPitch).toBeCloseTo(degToRadNumeric(-68)!, 12);
-    expect(resolved.pitchCorrectionRange).toBeCloseTo(degToRadNumeric(8)!, 12);
+    expect(resolved.limiter.pitch.enabled).toBe(false);
+    expect(resolved.limiter.pitch.minCesiumPitch).toBeCloseTo(
+      degToRadNumeric(-68)!,
+      12
+    );
+    expect(resolved.limiter.pitch.correctionRange).toBeCloseTo(
+      degToRadNumeric(8)!,
+      12
+    );
     expect(warnSpy).not.toHaveBeenCalled();
   });
 });

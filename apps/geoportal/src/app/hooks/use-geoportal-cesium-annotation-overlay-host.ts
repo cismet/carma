@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 
 import {
-  PREVIEW_OVERLAY_GROUP,
-  resolvePreviewOverlayMountConfig,
+  ANNOTATION_OVERLAY_GROUP,
+  resolveAnnotationOverlayMountConfig,
 } from "@carma-mapping/annotations/runtime";
 import { useCesiumLabelOverlayHost } from "@carma-mapping/engines/cesium/react/interactions";
 import type { Scene } from "@carma-cesium";
@@ -28,7 +28,7 @@ export const useGeoportalCesiumAnnotationOverlayHost = (
   useEffect(() => {
     let frameId = 0;
     const { rootSelector: labelRootSelector } =
-      resolvePreviewOverlayMountConfig(PREVIEW_OVERLAY_GROUP.LABEL);
+      resolveAnnotationOverlayMountConfig(ANNOTATION_OVERLAY_GROUP.LABEL);
 
     const syncContainer = () => {
       const nextContainer = document.getElementById(

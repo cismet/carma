@@ -14,7 +14,6 @@ import type {
   MeasurementLineStyleOptions,
 } from "@carma-mapping/annotations/runtime";
 import type { AnnotationInfoBoxLayoutProps } from "@carma-mapping/annotations/ui";
-import { Easing, type Easing as EasingFunction } from "@carma-commons/math";
 import { Rectangle } from "cesium";
 
 export const APP_BASE_PATH = import.meta.env.BASE_URL;
@@ -30,30 +29,9 @@ export const DEFAULT_CAMERA_FOV_DEG = 60;
 const CESIUM_PATHNAME = "__cesium__";
 const METROPOLE_RUHR_GRAUBLAU_RECTANGLE = Rectangle.fromDegrees(4, 48, 10, 52);
 
-type CesiumCameraLimiterReenableOptions = {
-  pitch: {
-    durationSeconds: number;
-  };
-  travelZoom: {
-    durationMilliseconds: number;
-    easing: EasingFunction;
-  };
-};
-
-type GeoportalCesiumConfig = Omit<CesiumConfig, "camera"> & {
-  camera: CesiumConfig["camera"] & {
-    limiterReenable: CesiumCameraLimiterReenableOptions;
-  };
-};
-
 export type GeoportalCesiumAnnotationInfoBoxConfig = Pick<
   AnnotationInfoBoxLayoutProps,
-  | "collapsedHorizontalAnchor"
-  | "controlOrder"
-  | "controlPosition"
-  | "fitContentWidth"
-  | "pixelWidth"
-  | "useControlLayout"
+  "controlOrder" | "fitContentWidth" | "pixelWidth"
 >;
 
 export type GeoportalCesiumAnnotationToolbarClassNames = {
@@ -70,6 +48,13 @@ export type GeoportalCesiumAnnotationToolbarClassNames = {
   toolButtonBadge: string;
 };
 
+export type GeoportalCesiumAnnotationToolbarMetrics = {
+  toolButtonWidthPx: number;
+  smallActionButtonWidthPx: number;
+  selectionActionButtonCount: number;
+  actionGroupWidthTransitionMs: number;
+};
+
 export type GeoportalCesiumAnnotationLabelTextModalConfig = {
   title: string;
   okText: string;
@@ -83,33 +68,23 @@ export type GeoportalCesiumAnnotationConfig = {
   measurementLineStyle: MeasurementLineStyleOptions;
   areaOcclusionStyle: AreaOcclusionStyleOptions;
   infoBox: GeoportalCesiumAnnotationInfoBoxConfig;
-  toolbar: {
+  tools: {
     stableToolIds: readonly AnnotationToolId[];
+  };
+  toolbar: {
+    metrics: GeoportalCesiumAnnotationToolbarMetrics;
     classNames: GeoportalCesiumAnnotationToolbarClassNames;
   };
   labelTextModal: GeoportalCesiumAnnotationLabelTextModalConfig;
 };
 
-export const CESIUM_CONFIG: GeoportalCesiumConfig = {
+export const CESIUM_CONFIG: CesiumConfig = {
   transitions: {
     mapMode: {
       duration: 1000,
     },
   },
-  camera: {
-    pitchLimiter: true,
-    maxPitchDeg: 75,
-    maxPitchCorrectionRangeDeg: 10,
-    limiterReenable: {
-      pitch: {
-        durationSeconds: 0.8,
-      },
-      travelZoom: {
-        durationMilliseconds: 1500,
-        easing: Easing.CUBIC_IN_OUT,
-      },
-    },
-  },
+  camera: {},
   markerKey: "MarkerGlowLine",
   markerAnchorHeight: 10,
   baseUrl: `${APP_BASE_PATH}${CESIUM_PATHNAME}`,
@@ -145,24 +120,28 @@ export const CESIUM_ANNOTATION_CONFIG = {
   infoBox: {
     pixelWidth: 430,
     fitContentWidth: false,
-    useControlLayout: true,
-    controlPosition: "bottomright",
     controlOrder: 12,
-    collapsedHorizontalAnchor: "control-edge",
+  },
+  tools: {
+    stableToolIds: ["select", "point", "distance"],
   },
   toolbar: {
-    stableToolIds: ["select", "point", "distance"],
+    metrics: {
+      toolButtonWidthPx: 48,
+      smallActionButtonWidthPx: 32,
+      selectionActionButtonCount: 3,
+      actionGroupWidthTransitionMs: 180,
+    },
     classNames: {
-      wrapper:
-        "w-fit max-w-full flex items-start gap-2 overflow-visible px-1 pt-1",
+      wrapper: "w-fit max-w-full flex items-start gap-2 overflow-visible",
       toolButtonBase:
         "flex h-8 w-12 min-w-12 items-center justify-center rounded-[10px] bg-white px-2 text-gray-700 button-shadow transition-colors hover:text-gray-900",
       toolButtonActive: "text-[#1677ff]",
       toolButtonInactive: "",
       toolGroup: "relative flex min-w-12 items-center overflow-visible",
-      toolButtonShell: "relative overflow-visible pt-1",
+      toolButtonShell: "relative overflow-visible",
       actionGroup:
-        "flex h-8 w-max min-w-12 items-center justify-center overflow-hidden rounded-[10px] bg-white text-gray-700 button-shadow",
+        "flex h-8 min-w-12 items-center justify-start overflow-hidden rounded-[10px] bg-white text-gray-700 button-shadow transition-[width] ease-in-out",
       toolButtonPrimaryAction:
         "flex h-8 w-12 min-w-12 items-center justify-center px-2 transition-colors hover:text-gray-900",
       smallActionButton:

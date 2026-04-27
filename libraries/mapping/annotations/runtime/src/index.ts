@@ -1,6 +1,9 @@
 import "./lib/interaction/annotation-overlay-line-label.css";
 
-export { AnnotationPreviewOverlayRoots } from "./lib/components/AnnotationPreviewOverlayRoots";
+export {
+  AnnotationOverlayRoots,
+  AnnotationPreviewOverlayRoots,
+} from "./lib/components/AnnotationPreviewOverlayRoots";
 export { RuntimeAnnotationInfoBox } from "./lib/components/annotation-info-box/RuntimeAnnotationInfoBox";
 export {
   ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE,
@@ -84,12 +87,15 @@ export {
   applyLineRuntime,
   buildPreviewDistanceTriangleLabelReferences,
   clearLineRuntime,
+  createAnnotationOverlayLayer,
+  createAnnotationOverlayLayers,
   createLineCollection,
   createLineRuntime,
   createPreviewOverlayLayer,
   createPreviewSegmentScratch,
   createSegmentLineLabels,
   destroyLineCollection,
+  destroyAnnotationOverlayLayer,
   destroyPreviewOverlayLayer,
   hideLineLabels,
   hidePointMarkers,
@@ -102,15 +108,21 @@ export { createVerticalAreaAuthoringController } from "./lib/interaction/create-
 export { applySecondaryLineLabelPlacementStrategy } from "./lib/render/secondary-line-label-placement";
 export { resolveSegmentGuideFrame } from "./lib/interaction/resolve-segment-guide-frame";
 export {
+  ANNOTATION_OVERLAY_GROUP,
+  ANNOTATION_OVERLAY_GROUP_RENDER_ORDER,
   PREVIEW_OVERLAY_GROUP,
   PREVIEW_OVERLAY_GROUP_RENDER_ORDER,
+  resolveAnnotationOverlayMountConfig,
   resolvePreviewOverlayMountConfig,
 } from "./lib/interaction/preview-overlay-mount.shared";
 export type { CrosshairCursorStyle } from "./lib/interaction/crosshair-cursor-asset";
 export type { PointQueryController } from "./lib/interaction/point-query-controller.types";
 export { POINT_QUERY_DISC_PLACEMENT_MODES } from "./lib/interaction/point-query-disc-placement-mode";
 export type { PointQueryDiscPlacementMode } from "./lib/interaction/point-query-disc-placement-mode";
-export type { PreviewOverlayGroup } from "./lib/interaction/preview-overlay-mount.shared";
+export type {
+  AnnotationOverlayGroup,
+  PreviewOverlayGroup,
+} from "./lib/interaction/preview-overlay-mount.shared";
 export { useLocalAnnotationsRuntimePersistence } from "./lib/store/persistence/useLocalAnnotationsStorePersistence";
 export {
   ANNOTATION_ELEVATION_DISPLAY_MODES,

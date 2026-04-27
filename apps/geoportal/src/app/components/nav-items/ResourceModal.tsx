@@ -8,11 +8,7 @@ import {
   useAdhocFeatureDisplay,
   useMapStyle,
 } from "@carma-appframeworks/portals";
-import {
-  LayerLib,
-  MEASUREMENT_ITEM_TYPES,
-  resolveMeasurementTypesFromItem,
-} from "@carma-mapping/layers";
+import { LayerLib } from "@carma-mapping/layers";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import {
   addCustomFeatureFlags,
@@ -30,7 +26,6 @@ import {
   removeLastLayer,
   updateLayer,
 } from "../../store/slices/mapping";
-import { getMeasurements } from "../../store/slices/measurements";
 import {
   getUIShowResourceModal,
   setShowLoginModal,
@@ -49,7 +44,6 @@ const ResourceModal = () => {
   const activeLayers = useSelector(getLayers);
   const backgroundLayer = useSelector(getBackgroundLayer);
   const favorites = useSelector(getFavorites);
-  const measurements = useSelector(getMeasurements);
   const savedLayerConfigs = useSelector(getSavedLayerConfigs);
   const showResourceModal = useSelector(getUIShowResourceModal);
 
@@ -91,26 +85,6 @@ const ResourceModal = () => {
     messageApi,
     addLayerById,
   });
-
-  const measurementLayers = measurements.map((measurement) => ({
-    ...measurement,
-    path: "Meine Messungen",
-  }));
-  const pointMeasurements = measurementLayers.filter((measurement) =>
-    resolveMeasurementTypesFromItem(measurement).includes(
-      MEASUREMENT_ITEM_TYPES.POINT
-    )
-  );
-  const distanceMeasurements = measurementLayers.filter((measurement) =>
-    resolveMeasurementTypesFromItem(measurement).includes(
-      MEASUREMENT_ITEM_TYPES.DISTANCE
-    )
-  );
-  const areaMeasurements = measurementLayers.filter((measurement) =>
-    resolveMeasurementTypesFromItem(measurement).includes(
-      MEASUREMENT_ITEM_TYPES.AREA
-    )
-  );
 
   return (
     <>
@@ -183,34 +157,6 @@ const ResourceModal = () => {
                 };
               }),
             id: "favoriteLayers",
-          },
-          isLeaflet && {
-            Title: "Meine Messungen",
-            layers: measurementLayers,
-            id: "measurements",
-            mainCategoryId: "objects",
-            hideWhenEmpty: true,
-          },
-          isLeaflet && {
-            Title: "Punktmessungen",
-            layers: pointMeasurements,
-            id: "pointMeasurements",
-            mainCategoryId: "objects",
-            hideWhenEmpty: true,
-          },
-          isLeaflet && {
-            Title: "Distanzmessungen",
-            layers: distanceMeasurements,
-            id: "distanceMeasurements",
-            mainCategoryId: "objects",
-            hideWhenEmpty: true,
-          },
-          isLeaflet && {
-            Title: "Flächenmessungen",
-            layers: areaMeasurements,
-            id: "areaMeasurements",
-            mainCategoryId: "objects",
-            hideWhenEmpty: true,
           },
           {
             Title: "Meine Objekte",

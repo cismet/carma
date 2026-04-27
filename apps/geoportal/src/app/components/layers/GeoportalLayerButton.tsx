@@ -7,11 +7,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-import {
-  faFilter,
-  faSearchLocation,
-  faTrashCan,
-} from "@fortawesome/free-solid-svg-icons";
+import { faFilter, faSearchLocation } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import L from "leaflet";
 
@@ -304,7 +300,7 @@ const GeoportalLayerButton = ({
     <div
       ref={mergedRef}
       className={cn(
-        "py-2 overflow-visible",
+        isCesiumAnnotationLayerButton && "overflow-visible",
         // index === -1 && 'ml-auto',
         // index === layersLength - 1 && 'mr-auto',
         showLeftScrollButton && index === -1 && "pr-4",
@@ -325,11 +321,13 @@ const GeoportalLayerButton = ({
             dispatch(setActiveInteractionLayerID(null));
           }
           if (layer.interactionButton) {
-            dispatch(
-              setActiveInteractionLayerID(
-                activeInteractionLayerID === id ? null : id
-              )
-            );
+            if (isCesiumAnnotationLayerButton) {
+              dispatch(
+                setActiveInteractionLayerID(
+                  activeInteractionLayerID === id ? null : id
+                )
+              );
+            }
             return;
           }
           if (layer.skipSelection) {
@@ -538,12 +536,20 @@ const GeoportalLayerButton = ({
 
             <button
               id={`removeLayerButton-${id}`}
-              className="h-8 w-8 min-w-8 flex items-center justify-center text-gray-600 hover:text-gray-500"
+              className={cn(
+                isCesiumAnnotationLayerButton
+                  ? "h-8 w-8 min-w-8 flex items-center justify-center text-gray-600 hover:text-gray-500"
+                  : "hover:text-gray-500 text-gray-600 px-1.5 flex items-center justify-center"
+              )}
               onClick={handleLayerRemoveButtonClick}
             >
               <FontAwesomeIcon
                 icon={closeIcon}
-                className="text-base leading-none"
+                className={cn(
+                  isCesiumAnnotationLayerButton
+                    ? "text-base leading-none"
+                    : "text-xs"
+                )}
               />
             </button>
           </>

@@ -14,12 +14,12 @@ const visuals = {
   edge: {
     stroke: "rgba(255, 255, 255, 0.92)",
     strokeWidth: 1.5,
-    dashed: true,
+    overlayDashed: true,
   },
   selectedEdge: {
     stroke: "rgba(255, 214, 10, 0.98)",
     strokeWidth: 1.5,
-    dashed: true,
+    overlayDashed: true,
   },
   previewEdge: {
     stroke: "rgba(255, 255, 255, 0.9)",

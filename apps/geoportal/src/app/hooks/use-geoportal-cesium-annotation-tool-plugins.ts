@@ -19,7 +19,7 @@ export const useGeoportalCesiumAnnotationToolPlugins = (
       resolveVisibleMeasurementAnnotationToolPlugins(plugins, {
         toolIds: showAllTools
           ? undefined
-          : CESIUM_ANNOTATION_CONFIG.toolbar.stableToolIds,
+          : CESIUM_ANNOTATION_CONFIG.tools.stableToolIds,
       }),
     [plugins, showAllTools]
   );

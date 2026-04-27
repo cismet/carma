@@ -13,12 +13,16 @@ export const PREVIEW_OVERLAY_GROUP = {
 export type PreviewOverlayGroup =
   (typeof PREVIEW_OVERLAY_GROUP)[keyof typeof PREVIEW_OVERLAY_GROUP];
 
+export const ANNOTATION_OVERLAY_GROUP = PREVIEW_OVERLAY_GROUP;
+export type AnnotationOverlayGroup = PreviewOverlayGroup;
+
 export type PreviewOverlayMountConfig = {
   rootAttribute: string;
   containerAttribute: string;
   rootSelector: string;
   containerSelector: string;
 };
+export type AnnotationOverlayMountConfig = PreviewOverlayMountConfig;
 
 const createDataAttributeSelector = (attribute: string) =>
   `[${attribute}="true"]`;
@@ -36,6 +40,8 @@ export const PREVIEW_OVERLAY_GROUP_RENDER_ORDER = Object.freeze([
   PREVIEW_OVERLAY_GROUP.VISUALIZER,
   PREVIEW_OVERLAY_GROUP.LABEL,
 ] as const satisfies readonly PreviewOverlayGroup[]);
+export const ANNOTATION_OVERLAY_GROUP_RENDER_ORDER =
+  PREVIEW_OVERLAY_GROUP_RENDER_ORDER;
 
 export const PREVIEW_OVERLAY_MOUNT_CONFIG_BY_GROUP: Readonly<
   Record<PreviewOverlayGroup, PreviewOverlayMountConfig>
@@ -58,6 +64,8 @@ export const PREVIEW_OVERLAY_MOUNT_CONFIG_BY_GROUP: Readonly<
 
 export const resolvePreviewOverlayMountConfig = (group: PreviewOverlayGroup) =>
   PREVIEW_OVERLAY_MOUNT_CONFIG_BY_GROUP[group];
+export const resolveAnnotationOverlayMountConfig =
+  resolvePreviewOverlayMountConfig;
 
 export const resolvePreviewContainer = (
   scene: Scene,
@@ -94,3 +102,4 @@ export const resolvePreviewContainer = (
 
   return fallbackContainer;
 };
+export const resolveAnnotationOverlayContainer = resolvePreviewContainer;

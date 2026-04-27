@@ -15,6 +15,7 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Button, Modal, Spin } from "antd";
 
+import { Item, Layer, SavedLayerConfig } from "@carma-mapping/layers";
 import { cn, extractCarmaConfig, updateUrl } from "@carma-commons/utils";
 import {
   extServiceText,
@@ -27,11 +28,6 @@ import { useDispatch, useSelector } from "react-redux";
 import { getSelectedLayer, setSelectedLayer } from "../slices/mapLayers";
 import { setTriggerRefetch } from "../slices/ui";
 import ImageCollage from "./ImageCollage";
-import type {
-  Item,
-  Layer,
-  SavedLayerConfig,
-} from "../lib/contracts/carma-layers";
 import type { ActiveLayers } from "./NewLibModal";
 import ThumbnailDisplay from "./ThumbnailDisplay";
 
@@ -436,9 +432,7 @@ const LayerItem = ({
             className="flex flex-col gap-2 p-4"
           >
             <h3 className="text-lg">
-              {layer.type === "collection"
-                ? `Zusammenstellung ${title} wirklich löschen?`
-                : `${title} wirklich löschen?`}
+              Zusammenstellung {title} wirklich löschen?
             </h3>
             <p className="text-base line-clamp-3 h-[66px]">
               Diese Aktion kann nicht rückgängig gemacht werden.

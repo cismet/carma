@@ -12,8 +12,7 @@ export const useGeoportalCesiumAnnotationModeLifecycle = ({
 }) => {
   const { reenableCameraLimiters, setCameraLimitersDisabled } =
     useCesiumCameraLimiterToggle({
-      maxPitchDegrees: CESIUM_CONFIG.camera?.maxPitchDeg,
-      reenableOptions: CESIUM_CONFIG.camera.limiterReenable,
+      limiter: CESIUM_CONFIG.camera.limiter,
     });
 
   const disableCameraLimiters = useCallback(() => {
