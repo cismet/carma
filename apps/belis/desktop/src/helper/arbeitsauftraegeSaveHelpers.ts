@@ -58,12 +58,31 @@ const saveAADraft = async (
   draft: AADraft
 ): Promise<AASaveResult> => {
   try {
-    const dataToSave: Record<string, unknown> = {
-      id: Number(id),
-      ...prepareValuesForSave(draft.values ?? {}),
-    };
+    const prepared = prepareValuesForSave(draft.values ?? {});
 
-    await updateDataByClassName(jwt, "arbeitsauftrag", dataToSave);
+    const hasBezeichnung = "bezeichnung" in prepared;
+    const hasBeschreibung = "beschreibung" in prepared;
+    const bezeichnung = ((prepared.bezeichnung as string | undefined) ?? "").trim();
+    const beschreibung = ((prepared.beschreibung as string | undefined) ?? "").trim();
+    delete prepared.bezeichnung;
+    delete prepared.beschreibung;
+
+    if (Object.keys(prepared).length > 0) {
+      const dataToSave: Record<string, unknown> = {
+        id: Number(id),
+        ...prepared,
+      };
+      await updateDataByClassName(jwt, "arbeitsauftrag", dataToSave);
+    }
+
+    if (hasBezeichnung || hasBeschreibung) {
+      await executeAction(jwt, "editVeranlassungViaAA", {
+        bezeichnung,
+        beschreibung,
+        aaid: id,
+      });
+    }
+
     return { success: true, id };
   } catch (error) {
     return {
