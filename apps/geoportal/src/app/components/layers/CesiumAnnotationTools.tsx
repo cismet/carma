@@ -2,8 +2,6 @@ import { useMemo } from "react";
 
 import { Tooltip } from "antd";
 import {
-  faEye,
-  faEyeSlash,
   faObjectGroup,
   faSearchLocation,
   faTrashCan,
@@ -11,13 +9,8 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import {
-  areAnnotationEntriesHidden,
-  flyToAnnotationIds,
   resolveAnnotationCountByToolType,
-  resolveAnnotationEntriesByToolType,
   resolveAnnotationIdsByToolType,
-  updateAnnotationEntryById,
-  useAnnotationsDispatch,
   useAnnotationsRuntime,
 } from "@carma-mapping/annotations/runtime";
 
@@ -25,9 +18,15 @@ import { CESIUM_ANNOTATION_CONFIG } from "../../config/app.config";
 import { useGeoportalCesiumAnnotationToolPlugins } from "../../hooks/use-geoportal-cesium-annotation-tool-plugins";
 
 const TOOLBAR_CLASS_NAMES = CESIUM_ANNOTATION_CONFIG.toolbar.classNames;
+const TOOLBAR_METRICS = CESIUM_ANNOTATION_CONFIG.toolbar.metrics;
+const SELECTION_ACTION_GROUP_COLLAPSED_WIDTH_PX =
+  TOOLBAR_METRICS.toolButtonWidthPx;
+const SELECTION_ACTION_GROUP_EXPANDED_WIDTH_PX =
+  TOOLBAR_METRICS.toolButtonWidthPx +
+  TOOLBAR_METRICS.smallActionButtonWidthPx *
+    TOOLBAR_METRICS.selectionActionButtonCount;
 
 const CesiumAnnotationTools = () => {
-  const dispatch = useAnnotationsDispatch();
   const {
     registry,
     activeToolType,
@@ -35,8 +34,6 @@ const CesiumAnnotationTools = () => {
     annotationEntries,
     flyToAllAnnotations,
     setSelectedAnnotationIds,
-    nodes,
-    scene,
     removeAnnotationById,
   } = useAnnotationsRuntime();
   const toolPlugins = useGeoportalCesiumAnnotationToolPlugins(registry.plugins);
@@ -46,10 +43,6 @@ const CesiumAnnotationTools = () => {
   );
   const annotationIdsByToolType = useMemo(
     () => resolveAnnotationIdsByToolType(annotationEntries),
-    [annotationEntries]
-  );
-  const annotationEntriesByToolType = useMemo(
-    () => resolveAnnotationEntriesByToolType(annotationEntries),
     [annotationEntries]
   );
 
@@ -72,13 +65,12 @@ const CesiumAnnotationTools = () => {
           : plugin.annotationType
           ? annotationIdsByToolType.get(plugin.annotationType) ?? []
           : [];
-        const annotationEntriesOfType = plugin.annotationType
-          ? annotationEntriesByToolType.get(plugin.annotationType) ?? []
-          : [];
-        const areAllAnnotationsHidden = areAnnotationEntriesHidden(
-          annotationEntriesOfType
-        );
-        const hasToolActions = isActive && annotationIds.length > 0;
+        const hasToolActions =
+          isSelectionTool && isActive && annotationIds.length > 0;
+        const usesSelectionActionGroup = isSelectionTool && isActive;
+        const actionGroupWidthPx = hasToolActions
+          ? SELECTION_ACTION_GROUP_EXPANDED_WIDTH_PX
+          : SELECTION_ACTION_GROUP_COLLAPSED_WIDTH_PX;
 
         return (
           <div key={descriptor.id} className={TOOLBAR_CLASS_NAMES.toolGroup}>
@@ -88,11 +80,18 @@ const CesiumAnnotationTools = () => {
                   {annotationCount}
                 </span>
               ) : null}
-              {hasToolActions ? (
+              {usesSelectionActionGroup ? (
                 <div
                   className={TOOLBAR_CLASS_NAMES.actionGroup}
-                  role="group"
-                  aria-label={`${descriptor.label} Aktionen`}
+                  role={hasToolActions ? "group" : undefined}
+                  aria-label={
+                    hasToolActions ? `${descriptor.label} Aktionen` : undefined
+                  }
+                  style={{
+                    width: actionGroupWidthPx,
+                    transitionDuration: `${TOOLBAR_METRICS.actionGroupWidthTransitionMs}ms`,
+                    willChange: "width",
+                  }}
                 >
                   <Tooltip title={descriptor.tooltip} placement="top">
                     <button
@@ -110,7 +109,7 @@ const CesiumAnnotationTools = () => {
                       </span>
                     </button>
                   </Tooltip>
-                  {isSelectionTool ? (
+                  {hasToolActions ? (
                     <>
                       <Tooltip
                         title="Alle Messungen auswählen"
@@ -123,7 +122,6 @@ const CesiumAnnotationTools = () => {
                           }}
                           aria-label="Alle Messungen auswählen"
                           className={TOOLBAR_CLASS_NAMES.smallActionButton}
-                          disabled={annotationIds.length === 0}
                         >
                           <FontAwesomeIcon
                             icon={faObjectGroup}
@@ -142,7 +140,6 @@ const CesiumAnnotationTools = () => {
                           }}
                           aria-label="Alle Messungen fokussieren"
                           className={TOOLBAR_CLASS_NAMES.smallActionButton}
-                          disabled={annotationIds.length === 0}
                         >
                           <FontAwesomeIcon
                             icon={faSearchLocation}
@@ -163,7 +160,6 @@ const CesiumAnnotationTools = () => {
                           }}
                           aria-label="Alle Messungen löschen"
                           className={TOOLBAR_CLASS_NAMES.smallActionButton}
-                          disabled={annotationIds.length === 0}
                         >
                           <FontAwesomeIcon
                             icon={faTrashCan}
@@ -172,85 +168,7 @@ const CesiumAnnotationTools = () => {
                         </button>
                       </Tooltip>
                     </>
-                  ) : (
-                    <>
-                      <Tooltip
-                        title={`${descriptor.label} fokussieren`}
-                        placement="bottom"
-                      >
-                        <button
-                          type="button"
-                          onClick={() =>
-                            flyToAnnotationIds({
-                              annotationIds,
-                              annotationEntries,
-                              nodes,
-                              scene,
-                            })
-                          }
-                          aria-label={`${descriptor.label} fokussieren`}
-                          className={TOOLBAR_CLASS_NAMES.smallActionButton}
-                          disabled={annotationIds.length === 0}
-                        >
-                          <FontAwesomeIcon
-                            icon={faSearchLocation}
-                            className={TOOLBAR_CLASS_NAMES.toolButtonIcon}
-                          />
-                        </button>
-                      </Tooltip>
-                      <Tooltip
-                        title={
-                          areAllAnnotationsHidden
-                            ? `${descriptor.label} einblenden`
-                            : `${descriptor.label} ausblenden`
-                        }
-                        placement="bottom"
-                      >
-                        <button
-                          type="button"
-                          onClick={() => {
-                            annotationIds.forEach((annotationId) => {
-                              dispatch(
-                                updateAnnotationEntryById({
-                                  annotationId,
-                                  hidden: !areAllAnnotationsHidden,
-                                })
-                              );
-                            });
-                          }}
-                          aria-label={`${descriptor.label} Sichtbarkeit umschalten`}
-                          className={TOOLBAR_CLASS_NAMES.smallActionButton}
-                          disabled={annotationIds.length === 0}
-                        >
-                          <FontAwesomeIcon
-                            icon={areAllAnnotationsHidden ? faEyeSlash : faEye}
-                            className={TOOLBAR_CLASS_NAMES.toolButtonIcon}
-                          />
-                        </button>
-                      </Tooltip>
-                      <Tooltip
-                        title={`${descriptor.label} löschen`}
-                        placement="bottom"
-                      >
-                        <button
-                          type="button"
-                          onClick={() => {
-                            annotationIds.forEach((annotationId) => {
-                              removeAnnotationById(annotationId);
-                            });
-                          }}
-                          aria-label={`${descriptor.label} löschen`}
-                          className={TOOLBAR_CLASS_NAMES.smallActionButton}
-                          disabled={annotationIds.length === 0}
-                        >
-                          <FontAwesomeIcon
-                            icon={faTrashCan}
-                            className={TOOLBAR_CLASS_NAMES.toolButtonIcon}
-                          />
-                        </button>
-                      </Tooltip>
-                    </>
-                  )}
+                  ) : null}
                 </div>
               ) : (
                 <Tooltip title={descriptor.tooltip} placement="top">

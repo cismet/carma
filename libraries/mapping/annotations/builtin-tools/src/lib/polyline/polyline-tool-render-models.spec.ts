@@ -107,7 +107,7 @@ describe("buildPolylineToolRenderModels", () => {
       overlayDashed: true,
       showSegmentLengthLabels: true,
     });
-    expect(renderModels.edges[0]?.dashed).toBeUndefined();
+    expect(renderModels.edges[0]).not.toHaveProperty("dashed");
   });
 
   it("adds the total length to the extended end label while keeping the badge token", () => {

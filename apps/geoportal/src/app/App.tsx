@@ -25,7 +25,7 @@ import {
 } from "@carma-mapping/components";
 import { createDefaultAnnotationToolPlugins } from "@carma-mapping/annotations/builtin-tools";
 import {
-  AnnotationPreviewOverlayRoots,
+  AnnotationOverlayRoots,
   AnnotationsProvider,
   useLocalAnnotationsRuntimePersistence,
 } from "@carma-mapping/annotations/runtime";
@@ -60,6 +60,7 @@ import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useCesiumAnnotationLayerButton } from "./hooks/useCesiumAnnotationLayerButton";
 import { useMeasurementLayerButton } from "./hooks/useMeasurementLayerButton";
 import { useGeoportalCesiumAnnotationOverlayHost } from "./hooks/use-geoportal-cesium-annotation-overlay-host";
+import { useGeoportalCesiumAnnotationToolPlugins } from "./hooks/use-geoportal-cesium-annotation-tool-plugins";
 import { useGeoportalLabelTextRequest } from "./hooks/use-geoportal-label-text-request";
 import { useGeoportalCesiumAnnotationModeLifecycle } from "./hooks/use-geoportal-cesium-annotation-mode-lifecycle";
 
@@ -211,15 +212,17 @@ function CesiumAnnotationsWrapper({ children }: { children: ReactNode }) {
       }),
     [requestLabelText]
   );
+  const availableAnnotationToolPlugins =
+    useGeoportalCesiumAnnotationToolPlugins(annotationToolPlugins);
 
   return (
     <LabelOverlayProvider host={overlayHost}>
       {overlayContainer
-        ? createPortal(<AnnotationPreviewOverlayRoots />, overlayContainer)
+        ? createPortal(<AnnotationOverlayRoots />, overlayContainer)
         : null}
       <AnnotationsProvider
         scene={scene}
-        plugins={annotationToolPlugins}
+        plugins={availableAnnotationToolPlugins}
         renderEnabled={annotationsVisible}
         initialPersistenceState={initialPersistenceState}
         onPersistenceStateChange={onPersistenceStateChange}

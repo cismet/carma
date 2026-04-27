@@ -8,23 +8,35 @@ import {
 import { negativePiToPi } from "@carma-commons/math";
 import { degToRadNumeric, type Radians } from "@carma-units";
 
+import {
+  resolveCameraLimiterOptions,
+  type CameraLimiterOptions,
+} from "../camera-limiter-options";
 import { clearIsAnimating, setIsAnimating } from "../slices/cesium";
 import { useCesiumContext } from "./useCesiumContext";
 import { useCesiumViewer } from "./useCesiumViewer";
 const NADIR_THRESHOLD = 0.2;
 const DEFAULT_ROLL_THRESHOLD_RAD = degToRadNumeric(5)! as Radians;
 
-const useCameraRollSoftLimiter = ({
-  pitchLimiter = true,
-  debug = false,
-  nadirThreshold = NADIR_THRESHOLD as Radians,
-  rollThreshold = DEFAULT_ROLL_THRESHOLD_RAD,
-}: {
-  pitchLimiter?: boolean;
+type CameraRollSoftLimiterOptions = CameraLimiterOptions & {
   debug?: boolean;
   nadirThreshold?: Radians;
   rollThreshold?: Radians;
-} = {}) => {
+};
+
+const useCameraRollSoftLimiter = (
+  options: CameraRollSoftLimiterOptions = {}
+) => {
+  const {
+    debug = false,
+    nadirThreshold = NADIR_THRESHOLD as Radians,
+    rollThreshold = DEFAULT_ROLL_THRESHOLD_RAD,
+  } = options;
+  const {
+    limiter: {
+      pitch: { enabled: pitchLimiterEnabled },
+    },
+  } = resolveCameraLimiterOptions(options);
   const viewer = useCesiumViewer();
   const dispatch = useDispatch();
   const { shouldSuspendCameraLimitersRef, initialViewApplied } =
@@ -36,7 +48,7 @@ const useCameraRollSoftLimiter = ({
   );
 
   useEffect(() => {
-    if (viewer && pitchLimiter) {
+    if (viewer && pitchLimiterEnabled) {
       debug &&
         console.debug(
           "HOOK [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to reset rolled camera"
@@ -93,7 +105,7 @@ const useCameraRollSoftLimiter = ({
     }
   }, [
     viewer,
-    pitchLimiter,
+    pitchLimiterEnabled,
     onComplete,
     dispatch,
     debug,

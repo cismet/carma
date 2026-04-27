@@ -57,8 +57,12 @@ export type ShareableViewStateAdapterOptions = {
 export type ShareableViewStateHashCodecOptions =
   ShareableViewStateAdapterOptions & {
     cameraLimiterOptions?: {
-      pitchLimiter?: boolean;
-      maxPitchDeg?: number;
+      limiter?: {
+        pitch?: {
+          enabled?: boolean;
+          max?: number;
+        };
+      };
     };
   };
 
@@ -215,27 +219,24 @@ const resolveHashCodecOptions = (
   options: ShareableViewStateHashCodecOptions = {}
 ): ShareableViewStateAdapterOptions => {
   const { cameraLimiterOptions, ...adapterOptions } = options;
+  const pitchLimiterOptions = cameraLimiterOptions?.limiter?.pitch;
+  const maxPitch = pitchLimiterOptions?.max;
   if (adapterOptions.restorePitchLimitsRad) {
     return adapterOptions;
   }
 
-  if (
-    cameraLimiterOptions?.pitchLimiter === false ||
-    !isFiniteNumber(cameraLimiterOptions?.maxPitchDeg)
-  ) {
+  if (pitchLimiterOptions?.enabled === false || !isFiniteNumber(maxPitch)) {
     return adapterOptions;
   }
 
   // CARMA view pitch convention uses 0 at nadir and PI/2 at the horizon.
   // The shareable canonical pitch follows the same convention, so a Cesium
-  // legacy limiter configured via maxPitchDeg maps directly to a canonical
-  // maximum pitch of maxPitchDeg.
+  // legacy limiter configured via limiter.pitch.max maps directly to a
+  // canonical maximum pitch of limiter.pitch.max.
   return {
     ...adapterOptions,
     restorePitchLimitsRad: {
-      maxPitchRad: degToRadNumeric(
-        cameraLimiterOptions.maxPitchDeg
-      )! as Radians,
+      maxPitchRad: degToRadNumeric(maxPitch)! as Radians,
     },
   };
 };

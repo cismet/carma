@@ -1,32 +1,138 @@
+import { useState } from "react";
+import { useDispatch } from "react-redux";
 import { Button, Checkbox, Input, Popover } from "antd";
 import Picker from "@emoji-mart/react";
 import emojiData from "@emoji-mart/data/sets/15/twitter.json";
 import i18nDe from "@emoji-mart/data/i18n/de.json";
 
-import { ResponsiveInfoBox } from "@carma-appframeworks/portals";
+import {
+  appendLayer,
+  setActiveInteractionLayerID,
+} from "../../store/slices/mapping";
+import { setUIMode, UIMode } from "../../store/slices/ui";
+import {
+  useMapMeasurementsContext,
+  shapesToFeatureCollection,
+} from "@carma-commons/measurements";
 import type { Layer } from "@carma-mapping/layers";
-import { twemojiUrl } from "@carma-mapping/utils";
+import { parseToMapLayer, twemojiUrl } from "@carma-mapping/utils";
 
-import { APP_BASE_PATH } from "../../config/app.config";
-import { useSaveMeasurementsForm } from "../../hooks/use-save-measurements-form";
+const DEFAULT_EMOJI_UNIFIED = "1f4cf";
 
-function SaveMeasurements({ layer: _layer }: { layer: Layer }) {
-  const {
-    clearAfterSave,
-    description,
-    emojiPickerOpen,
-    handleDownload,
-    handleEmojiSelect,
-    handleSave,
-    hasShapes,
-    infoBoxHeaderColor,
-    selectedUnified,
-    setClearAfterSave,
-    setDescription,
-    setEmojiPickerOpen,
-    setTitle,
-    title,
-  } = useSaveMeasurementsForm();
+type PickedEmoji = {
+  native: string;
+  unified: string;
+  id: string;
+};
+
+function SaveMeasurements({ layer }: { layer: Layer }) {
+  const dispatch = useDispatch();
+  const { shapes, clearAllShapes } = useMapMeasurementsContext();
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [selectedUnified, setSelectedUnified] = useState<string>(
+    DEFAULT_EMOJI_UNIFIED
+  );
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+  const [clearAfterSave, setClearAfterSave] = useState(false);
+
+  const handleEmojiSelect = (emoji: PickedEmoji) => {
+    setSelectedUnified(emoji.unified);
+    setEmojiPickerOpen(false);
+  };
+
+  const buildFeatureData = () => {
+    const featureTitle = title.trim() || "Messung";
+    const trimmedDescription = description.trim();
+    const featureDescription = trimmedDescription
+      ? `Inhalt: ${trimmedDescription}`
+      : "";
+
+    const featureData = shapesToFeatureCollection(shapes, {
+      title: featureTitle,
+      icon: `emoji:${selectedUnified}`,
+      description: trimmedDescription,
+    });
+
+    return { featureData, featureTitle, featureDescription };
+  };
+
+  const resetForm = () => {
+    setTitle("");
+    setDescription("");
+    setSelectedUnified(DEFAULT_EMOJI_UNIFIED);
+    setClearAfterSave(false);
+  };
+
+  const handleSave = async () => {
+    if (shapes.length === 0) return;
+
+    const { featureData, featureTitle, featureDescription } =
+      buildFeatureData();
+
+    const featureId = `measurement-${Date.now()}`;
+    const carmaConf = featureData.metadata?.carmaConf;
+
+    let item: any = {
+      description: featureDescription,
+      id: featureId,
+      layerType: "vector",
+      title: featureTitle,
+      serviceName: "custom",
+      type: "layer",
+      keywords: [`carmaConf://vectorStyle:${JSON.stringify(featureData)}`],
+    };
+
+    if (carmaConf?.layerInfo) {
+      item = {
+        ...item,
+        ...carmaConf.layerInfo,
+        title: featureTitle,
+        description: featureDescription,
+        keywords: [...item.keywords, ...(carmaConf.layerInfo.keywords || [])],
+      };
+    }
+
+    const parsedLayer = await parseToMapLayer(item, false, true);
+
+    if (parsedLayer) {
+      dispatch(appendLayer(parsedLayer));
+    }
+
+    if (clearAfterSave) {
+      clearAllShapes();
+    }
+
+    resetForm();
+    dispatch(setActiveInteractionLayerID(null));
+    dispatch(setUIMode(UIMode.DEFAULT));
+  };
+
+  const handleDownload = () => {
+    if (shapes.length === 0) return;
+
+    const { featureData, featureTitle } = buildFeatureData();
+
+    const blob = new Blob([JSON.stringify(featureData, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${featureTitle}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    if (clearAfterSave) {
+      clearAllShapes();
+    }
+
+    resetForm();
+    dispatch(setActiveInteractionLayerID(null));
+    dispatch(setUIMode(UIMode.DEFAULT));
+  };
 
   const emojiPicker = (
     <Picker
@@ -45,93 +151,80 @@ function SaveMeasurements({ layer: _layer }: { layer: Layer }) {
   );
 
   return (
-    <ResponsiveInfoBox
-      panelClick={(event) => event.stopPropagation()}
-      pixelwidth={500}
-      isCollapsible={false}
-      fixedRow={false}
-      header={
-        <div className="w-full" style={{ backgroundColor: infoBoxHeaderColor }}>
-          Messungen speichern
-        </div>
-      }
-      alwaysVisibleDiv={
-        <div className="flex flex-col gap-3 p-3">
-          <label htmlFor="measurement-title" className="-mb-1 font-semibold">
-            Titel
-          </label>
-          <div className="flex items-center gap-2">
-            <Popover
-              open={emojiPickerOpen}
-              onOpenChange={setEmojiPickerOpen}
-              trigger="click"
-              placement="bottomLeft"
-              destroyTooltipOnHide
-              content={emojiPicker}
-              overlayInnerStyle={{ padding: 0, background: "transparent" }}
-            >
-              <button
-                type="button"
-                title="Emoji wählen"
-                className="flex items-center justify-center shrink-0 h-8 w-10 rounded-md border border-gray-300 bg-white hover:border-gray-400 cursor-pointer"
-              >
-                <img
-                  src={twemojiUrl(selectedUnified)}
-                  alt=""
-                  className="w-5 h-5"
-                  draggable={false}
-                />
-              </button>
-            </Popover>
-            <Input
-              id="measurement-title"
-              value={title}
-              className="bg-white flex-1"
-              placeholder="Bezeichnung der Messungen?"
-              onChange={(e) => setTitle(e.target.value)}
-              onPressEnter={handleSave}
+    <div className="bg-white button-shadow rounded-xl p-4 flex flex-col gap-3 w-[500px]">
+      <div className="flex items-center gap-2">
+        <h4 className="mb-0">Messung speichern</h4>
+      </div>
+      <hr className="my-0" />
+      <label htmlFor="measurement-title" className="-mb-1 font-semibold">
+        Titel
+      </label>
+      <div className="flex items-center gap-2">
+        <Popover
+          open={emojiPickerOpen}
+          onOpenChange={setEmojiPickerOpen}
+          trigger="click"
+          placement="bottomLeft"
+          destroyTooltipOnHide
+          content={emojiPicker}
+          overlayInnerStyle={{ padding: 0, background: "transparent" }}
+        >
+          <button
+            type="button"
+            title="Emoji wählen"
+            className="flex items-center justify-center shrink-0 h-8 w-10 rounded-md border border-gray-300 bg-white hover:border-gray-400 cursor-pointer"
+          >
+            <img
+              src={twemojiUrl(selectedUnified)}
+              alt=""
+              className="w-5 h-5"
+              draggable={false}
             />
-          </div>
-          <label
-            htmlFor="measurement-description"
-            className="-mb-1 font-semibold"
-          >
-            Inhalt
-          </label>
-          <Input.TextArea
-            id="measurement-description"
-            value={description}
-            className="bg-white"
-            placeholder="Was wurde gemessen?"
-            onChange={(e) => setDescription(e.target.value)}
-            autoSize={{ minRows: 2, maxRows: 4 }}
-          />
-          <Checkbox
-            checked={clearAfterSave}
-            onChange={(e) => setClearAfterSave(e.target.checked)}
-          >
-            Messungen nach dem Speichern löschen
-          </Checkbox>
-          <div className="flex gap-2">
-            <Button
-              disabled={!hasShapes}
-              onClick={handleSave}
-              className="flex-1"
-            >
-              Zum Geoportal hinzufügen
-            </Button>
-            <Button
-              disabled={!hasShapes}
-              onClick={handleDownload}
-              className="flex-1"
-            >
-              Speichern
-            </Button>
-          </div>
-        </div>
-      }
-      collapsibleDiv={<div />}
-    />
+          </button>
+        </Popover>
+        <Input
+          id="measurement-title"
+          value={title}
+          className="bg-white flex-1"
+          placeholder="Bezeichnung der Messungen?"
+          onChange={(e) => setTitle(e.target.value)}
+          onPressEnter={handleSave}
+        />
+      </div>
+      <label htmlFor="measurement-description" className="-mb-1 font-semibold">
+        Inhalt
+      </label>
+      <Input.TextArea
+        id="measurement-description"
+        value={description}
+        className="bg-white"
+        placeholder="Was wurde gemessen?"
+        onChange={(e) => setDescription(e.target.value)}
+        autoSize={{ minRows: 2, maxRows: 4 }}
+      />
+      <Checkbox
+        checked={clearAfterSave}
+        onChange={(e) => setClearAfterSave(e.target.checked)}
+      >
+        Messungen nach dem Speichern löschen
+      </Checkbox>
+      <div className="flex gap-2">
+        <Button
+          disabled={shapes.length === 0}
+          onClick={handleSave}
+          className="flex-1"
+        >
+          Zum Geoportal hinzufügen
+        </Button>
+        <Button
+          disabled={shapes.length === 0}
+          onClick={handleDownload}
+          className="flex-1"
+        >
+          Speichern
+        </Button>
+      </div>
+    </div>
   );
 }
 

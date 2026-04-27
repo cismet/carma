@@ -53,7 +53,6 @@ const areEdgesEqual = (
       edge.stroke === otherEdge.stroke &&
       edge.strokeWidth === otherEdge.strokeWidth &&
       edge.overlayDashPattern === otherEdge.overlayDashPattern &&
-      edge.dashed === otherEdge.dashed &&
       edge.overlayDashed === otherEdge.overlayDashed &&
       edge.showSegmentLengthLabels === otherEdge.showSegmentLengthLabels &&
       areCoordinateListsEqual(edge.coordinates, otherEdge.coordinates)

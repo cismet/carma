@@ -71,7 +71,7 @@ describe("buildVerticalAreaToolRenderModels", () => {
     expect(renderModels.edges[0]).toMatchObject({
       overlayDashed: true,
     });
-    expect(renderModels.edges[0]?.dashed).toBeUndefined();
+    expect(renderModels.edges[0]).not.toHaveProperty("dashed");
     expect(renderModels.polygonFills[0]?.overlayFill).toBeDefined();
   });
 

@@ -18,7 +18,6 @@ import {
   setSelectedLuftbildLayer,
   setSelectedMapLayer,
 } from "../../store/slices/mapping";
-import { removeMeasurement } from "../../store/slices/measurements";
 import { layerMap } from "../../config";
 import { createBackgroundLayerConfig } from "../../helper/layer";
 import { MapStyleKeys } from "../../constants/MapStyleKeys";
@@ -442,12 +441,6 @@ export const createResourceLayerUpdater = ({
         deleteItem,
         addLayerById,
       });
-      return;
-    }
-
-    if (deleteItem && layer.serviceName === "measurements") {
-      const rawId = layer.id.startsWith("fav_") ? layer.id.slice(4) : layer.id;
-      dispatch(removeMeasurement({ ...layer, id: rawId }));
       return;
     }
 

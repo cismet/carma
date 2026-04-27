@@ -1,40 +1,106 @@
 import { fromCarmaViewPitchDegToCesiumPitchRad } from "@carma-commons/camera/model";
-import { clamp, isFiniteNumber } from "@carma-commons/math";
+import {
+  clamp,
+  Easing,
+  isFiniteNumber,
+  type Easing as EasingFunction,
+} from "@carma-commons/math";
 import { degToRadNumeric, type Radians } from "@carma-units";
 
-export type CameraLimiterOptions = {
-  pitchLimiter?: boolean;
-  /** Maximum allowed CARMA-view pitch in degrees: 0 = nadir, 90 = horizon. */
-  maxPitchDeg?: number;
+export type CameraPitchLimiterOptions = {
+  enabled?: boolean;
   /**
-   * CARMA-view degree band below maxPitchDeg where limiter correction toward
-   * nadir starts.
+   * Maximum allowed CARMA-view pitch in degrees: 0 = nadir, 90 = horizon.
    */
-  maxPitchCorrectionRangeDeg?: number;
+  max?: number;
+  /**
+   * CARMA-view degree band below `max` where limiter correction toward nadir
+   * starts.
+   */
+  maxCorrectionRange?: number;
+};
+
+export type CameraLimiterReenableTransitionOptions = {
+  pitch: {
+    durationSeconds: number;
+  };
+  travelZoom: {
+    durationMilliseconds: number;
+    easing: EasingFunction;
+  };
+};
+
+export type CameraLimiterTransitionsOptions = {
+  reenable?: CameraLimiterReenableTransitionOptions;
+};
+
+export type CameraLimiterConfig = {
+  pitch?: CameraPitchLimiterOptions;
+  transitions?: CameraLimiterTransitionsOptions;
+};
+
+export type CameraLimiterOptions = {
+  limiter?: CameraLimiterConfig;
+};
+
+export type ResolvedCameraPitchLimiterOptions = {
+  enabled: boolean;
+  max: number;
+  maxCorrectionRange: number;
+  minCesiumPitch: Radians;
+  correctionRange: Radians;
 };
 
 export type ResolvedCameraLimiterOptions = {
-  pitchLimiter: boolean;
-  minCesiumPitch: Radians;
-  pitchCorrectionRange: Radians;
+  limiter: {
+    pitch: ResolvedCameraPitchLimiterOptions;
+  };
+};
+
+type RequiredCameraLimiterOptions = {
+  limiter: {
+    pitch: Required<CameraPitchLimiterOptions>;
+    transitions: {
+      reenable: CameraLimiterReenableTransitionOptions;
+    };
+  };
 };
 
 export const DEFAULT_CAMERA_LIMITER_OPTIONS = Object.freeze({
-  pitchLimiter: true,
-  maxPitchDeg: 75,
-  maxPitchCorrectionRangeDeg: 10,
-} satisfies Required<CameraLimiterOptions>);
+  limiter: {
+    pitch: {
+      enabled: true,
+      max: 75,
+      maxCorrectionRange: 10,
+    },
+    transitions: {
+      reenable: {
+        pitch: {
+          durationSeconds: 0.8,
+        },
+        travelZoom: {
+          durationMilliseconds: 1500,
+          easing: Easing.CUBIC_IN_OUT,
+        },
+      },
+    },
+  },
+} satisfies RequiredCameraLimiterOptions);
 
-const computeMaxSupportedPitchCorrectionRangeDeg = (
-  maxPitchDeg: number
-): number => maxPitchDeg;
+type CameraLimiterWarningKey =
+  | "limiter.pitch.enabled"
+  | "limiter.pitch.max"
+  | "limiter.pitch.maxCorrectionRange";
 
-const computeMinCesiumPitch = (maxPitchDeg: number): Radians =>
-  fromCarmaViewPitchDegToCesiumPitchRad(maxPitchDeg)!;
+const computeMaxSupportedPitchCorrectionRangeDeg = (maxPitch: number): number =>
+  maxPitch;
+
+const computeMinCesiumPitch = (maxPitch: number): Radians =>
+  fromCarmaViewPitchDegToCesiumPitchRad(maxPitch)!;
 
 const computePitchCorrectionRange = (
-  maxPitchCorrectionRangeDeg: number
-): Radians => degToRadNumeric(maxPitchCorrectionRangeDeg)! as Radians;
+  maxPitchCorrectionRange: number
+): Radians => degToRadNumeric(maxPitchCorrectionRange)! as Radians;
 
 const warnedCameraLimiterWarnings = new Set<string>();
 
@@ -44,7 +110,7 @@ const warnCameraLimiterOptionOnce = ({
   received,
   applied,
 }: {
-  key: keyof CameraLimiterOptions;
+  key: CameraLimiterWarningKey;
   issue: string;
   received: unknown;
   applied: boolean | number;
@@ -68,7 +134,7 @@ const readCameraLimiterBoolean = ({
   value,
   defaultValue,
 }: {
-  key: keyof CameraLimiterOptions;
+  key: CameraLimiterWarningKey;
   value: unknown;
   defaultValue: boolean;
 }): boolean => {
@@ -96,7 +162,7 @@ const readClampedCameraLimiterNumber = ({
   min,
   max,
 }: {
-  key: keyof CameraLimiterOptions;
+  key: CameraLimiterWarningKey;
   value: unknown;
   defaultValue: number;
   min: number;
@@ -139,35 +205,43 @@ const readClampedCameraLimiterNumber = ({
 export const resolveCameraLimiterOptions = (
   options: CameraLimiterOptions = {}
 ): ResolvedCameraLimiterOptions => {
-  const pitchLimiter = readCameraLimiterBoolean({
-    key: "pitchLimiter",
-    value: options.pitchLimiter,
-    defaultValue: DEFAULT_CAMERA_LIMITER_OPTIONS.pitchLimiter,
+  const pitchOptions = options.limiter?.pitch ?? {};
+  const defaultPitchOptions = DEFAULT_CAMERA_LIMITER_OPTIONS.limiter.pitch;
+  const enabled = readCameraLimiterBoolean({
+    key: "limiter.pitch.enabled",
+    value: pitchOptions.enabled,
+    defaultValue: defaultPitchOptions.enabled,
   });
-  const maxPitchDeg = readClampedCameraLimiterNumber({
-    key: "maxPitchDeg",
-    value: options.maxPitchDeg,
-    defaultValue: DEFAULT_CAMERA_LIMITER_OPTIONS.maxPitchDeg,
+  const maxPitch = readClampedCameraLimiterNumber({
+    key: "limiter.pitch.max",
+    value: pitchOptions.max,
+    defaultValue: defaultPitchOptions.max,
     min: 0,
     max: 90,
   });
   const maxSupportedPitchCorrectionRangeDeg =
-    computeMaxSupportedPitchCorrectionRangeDeg(maxPitchDeg);
-  const pitchCorrectionRangeDeg = readClampedCameraLimiterNumber({
-    key: "maxPitchCorrectionRangeDeg",
-    value: options.maxPitchCorrectionRangeDeg,
-    defaultValue: DEFAULT_CAMERA_LIMITER_OPTIONS.maxPitchCorrectionRangeDeg,
+    computeMaxSupportedPitchCorrectionRangeDeg(maxPitch);
+  const maxPitchCorrectionRange = readClampedCameraLimiterNumber({
+    key: "limiter.pitch.maxCorrectionRange",
+    value: pitchOptions.maxCorrectionRange,
+    defaultValue: defaultPitchOptions.maxCorrectionRange,
     min: 0,
     max: maxSupportedPitchCorrectionRangeDeg,
   });
-  const minCesiumPitch = computeMinCesiumPitch(maxPitchDeg);
+  const minCesiumPitch = computeMinCesiumPitch(maxPitch);
   const pitchCorrectionRange = computePitchCorrectionRange(
-    pitchCorrectionRangeDeg
+    maxPitchCorrectionRange
   );
 
   return {
-    pitchLimiter,
-    minCesiumPitch,
-    pitchCorrectionRange,
+    limiter: {
+      pitch: {
+        enabled,
+        max: maxPitch,
+        maxCorrectionRange: maxPitchCorrectionRange,
+        minCesiumPitch,
+        correctionRange: pitchCorrectionRange,
+      },
+    },
   };
 };

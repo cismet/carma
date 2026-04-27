@@ -34,17 +34,17 @@ import {
 
 import type { Scene } from "@carma-cesium";
 import {
-  PREVIEW_OVERLAY_GROUP,
+  ANNOTATION_OVERLAY_GROUP,
   buildAuxiliaryPoint,
   buildPreviewDistanceTriangleLabelReferences,
+  createAnnotationOverlayLayers,
   createLineLabel,
-  createPreviewOverlayLayers,
   createPreviewSegmentScratch,
   createSegmentLineLabels,
-  destroyPreviewOverlayLayer,
+  destroyAnnotationOverlayLayer,
   hideLineLabels,
   previewControllerDefaults,
-  resolvePreviewContainer,
+  resolveAnnotationOverlayContainer,
   resolvePreviewDistanceTriangleComponentLabelVisibility,
   type PreviewSegmentLineLabelElements,
   type PreviewSegmentScratch,
@@ -174,7 +174,7 @@ const toLayoutRect = (domRect: DOMRect): Rect => ({
 });
 
 const resolveVisiblePointLabelRects = (scene: Scene): Rect[] => {
-  const container = resolvePreviewContainer(scene);
+  const container = resolveAnnotationOverlayContainer(scene);
   if (!container) {
     return [];
   }
@@ -874,9 +874,7 @@ export const useMeasurementEdgesController = (
             stroke: edge.stroke,
             strokeWidth,
             overlayDashPattern,
-            ...(edge.overlayDashed || edge.dashed
-              ? { overlayDashed: true as const }
-              : {}),
+            ...(edge.overlayDashed ? { overlayDashed: true as const } : {}),
             ...(edge.showSegmentLengthLabels
               ? { showSegmentLengthLabels: true as const }
               : {}),
@@ -1137,11 +1135,11 @@ export const useMeasurementEdgesController = (
       return;
     }
 
-    const overlayLayer = createPreviewOverlayLayers(scene, {
-      [PREVIEW_OVERLAY_GROUP.VISUALIZER]: `${resolveDistanceTriangleLabelLayerId(
+    const overlayLayer = createAnnotationOverlayLayers(scene, {
+      [ANNOTATION_OVERLAY_GROUP.VISUALIZER]: `${resolveDistanceTriangleLabelLayerId(
         surfaceKey
       )}-midpoint-targets`,
-    })[PREVIEW_OVERLAY_GROUP.VISUALIZER];
+    })[ANNOTATION_OVERLAY_GROUP.VISUALIZER];
     if (!overlayLayer) {
       return;
     }
@@ -1225,7 +1223,7 @@ export const useMeasurementEdgesController = (
     return () => {
       removePostRenderListener?.();
       destroyEdgeMidpointHandles(edgeMidpointHandleByIdRef.current);
-      destroyPreviewOverlayLayer(overlayLayer);
+      destroyAnnotationOverlayLayer(overlayLayer);
       if (!scene.isDestroyed()) {
         scene.requestRender();
       }
@@ -1266,12 +1264,12 @@ export const useMeasurementEdgesController = (
     }
 
     const {
-      [PREVIEW_OVERLAY_GROUP.LABEL]: labelOverlayLayer,
-      [PREVIEW_OVERLAY_GROUP.VISUALIZER]: visualizerOverlayLayer,
-    } = createPreviewOverlayLayers(scene, {
-      [PREVIEW_OVERLAY_GROUP.LABEL]:
+      [ANNOTATION_OVERLAY_GROUP.LABEL]: labelOverlayLayer,
+      [ANNOTATION_OVERLAY_GROUP.VISUALIZER]: visualizerOverlayLayer,
+    } = createAnnotationOverlayLayers(scene, {
+      [ANNOTATION_OVERLAY_GROUP.LABEL]:
         resolveDistanceTriangleLabelLayerId(surfaceKey),
-      [PREVIEW_OVERLAY_GROUP.VISUALIZER]: `${resolveDistanceTriangleLabelLayerId(
+      [ANNOTATION_OVERLAY_GROUP.VISUALIZER]: `${resolveDistanceTriangleLabelLayerId(
         surfaceKey
       )}-visualizer`,
     });
@@ -1741,8 +1739,8 @@ export const useMeasurementEdgesController = (
       destroyDistanceTriangleCornerHandles(
         distanceTriangleCornerHandleByIdRef.current
       );
-      destroyPreviewOverlayLayer(labelOverlayLayer);
-      destroyPreviewOverlayLayer(visualizerOverlayLayer);
+      destroyAnnotationOverlayLayer(labelOverlayLayer);
+      destroyAnnotationOverlayLayer(visualizerOverlayLayer);
       if (!scene.isDestroyed()) {
         scene.requestRender();
       }

@@ -54,7 +54,7 @@ export const createDistanceToolPlugin = ({
     edge: withEdgeVisualStyle(measurementVisualStyles.edge, {
       strokeWidth: resolvedLineStyleOptions.strokeWidthPx,
       overlayDashPattern: resolvedLineStyleOptions.overlayDashPattern,
-      dashed: true,
+      overlayDashed: true,
     }),
     point: withPointMarkerVisualStyle(measurementVisualStyles.point),
   };

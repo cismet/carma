@@ -90,18 +90,22 @@ const resolvePitchSoftLimiterConfig = (
   options: CameraPitchSoftLimiterOptions = {}
 ): {
   debug: boolean;
-  pitchLimiter: boolean;
+  pitchLimiterEnabled: boolean;
   minCesiumPitch: Radians;
   resetPitch: Radians;
 } => {
-  const { pitchLimiter, minCesiumPitch, pitchCorrectionRange } =
-    resolveCameraLimiterOptions(options);
+  const { limiter } = resolveCameraLimiterOptions(options);
+  const {
+    enabled: pitchLimiterEnabled,
+    minCesiumPitch,
+    correctionRange: pitchCorrectionRange,
+  } = limiter.pitch;
   const debug = options.debug ?? false;
   const resetPitch = computeResetPitch(minCesiumPitch, pitchCorrectionRange);
 
   return {
     debug,
-    pitchLimiter,
+    pitchLimiterEnabled,
     minCesiumPitch,
     resetPitch,
   };
@@ -110,7 +114,7 @@ const resolvePitchSoftLimiterConfig = (
 const useCameraPitchSoftLimiter = (
   options: CameraPitchSoftLimiterOptions = {}
 ) => {
-  const { debug, pitchLimiter, minCesiumPitch, resetPitch } =
+  const { debug, pitchLimiterEnabled, minCesiumPitch, resetPitch } =
     resolvePitchSoftLimiterConfig(options);
 
   const viewer = useCesiumViewer();
@@ -129,7 +133,7 @@ const useCameraPitchSoftLimiter = (
 
   useEffect(() => {
     // Note: This hook always runs when viewer exists - Cesium is always active
-    if (viewer && collisions && pitchLimiter) {
+    if (viewer && collisions && pitchLimiterEnabled) {
       debug &&
         console.debug(
           "HOOK [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to correct camera pitch"
@@ -195,7 +199,7 @@ const useCameraPitchSoftLimiter = (
   }, [
     viewer,
     collisions,
-    pitchLimiter,
+    pitchLimiterEnabled,
     onComplete,
     dispatch,
     getScene,
