@@ -5,11 +5,9 @@ import { persistStore } from "redux-persist";
 import { PersistGate } from "redux-persist/integration/react";
 
 import { AdhocFeatureDisplayProvider } from "@carma-appframeworks/portals";
+import { carma } from "@carma-api";
 import { preventPinchZoom } from "@carma-commons/dom/window";
-import {
-  cjsGlobalShim,
-  suppressReactCismapErrors,
-} from "@carma-commons/utils";
+import { cjsGlobalShim, suppressReactCismapErrors } from "@carma-commons/utils";
 import { setupCesiumEnvironment } from "@carma-mapping/engines/cesium/core";
 import { ImageList, ServiceList } from "@carma-mapping/layers";
 
@@ -21,6 +19,10 @@ import { apiUrl } from "./app/constants/discover";
 cjsGlobalShim();
 // Set up Cesium environment (CESIUM_BASE_URL) via engine helper
 setupCesiumEnvironment(CESIUM_CONFIG);
+
+if (import.meta.env.DEV) {
+  window.carma = carma;
+}
 
 const persistor = persistStore(store);
 

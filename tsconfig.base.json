@@ -37,6 +37,7 @@
       "@nx/react/typings/styled-jsx.d.ts"
     ],
     "paths": {
+      "@carma-api": ["libraries/carma-api/src/index.ts"],
       "@carma-appframeworks/*": ["libraries/appframeworks/*/src/index.ts"],
       "@carma-commons/*": ["libraries/commons/*/src/index.ts"],
       "@carma-commons/resources/gcg2016": [
