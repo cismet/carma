@@ -140,11 +140,11 @@ export const useCesiumCameraLimiterToggle = ({
           return;
         }
 
-        const currentVerticalRatio = Math.max(
-          Math.sin(Math.abs(camera.pitch)),
-          travelZoom.minViewAxisVerticalRatio ??
-            DEFAULT_CAMERA_LIMITER_REENABLE_MIN_VIEW_AXIS_VERTICAL_RATIO
-        );
+        const currentVerticalRatio = Math.sin(Math.abs(camera.pitch));
+        if (currentVerticalRatio <= 0) {
+          return;
+        }
+
         camera.moveBackward(heightDeficit / currentVerticalRatio);
       };
 
