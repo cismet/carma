@@ -137,11 +137,19 @@ const ArbeitsauftragFormFields = ({
     onFormInstance?.(form);
   }, [form, onFormInstance]);
 
+  const veranlassung = useMemo(() => {
+    const protokolle = data?.ar_protokolleArray;
+    if (!Array.isArray(protokolle) || protokolle.length === 0) return null;
+    return protokolle[0]?.arbeitsprotokoll?.veranlassung ?? null;
+  }, [data]);
+
   useEffect(() => {
     form.resetFields();
     if (data) {
       const serverValues = {
         zugewiesen_an: data.team?.id ?? null,
+        bezeichnung: veranlassung?.bezeichnung ?? "",
+        beschreibung: veranlassung?.beschreibung ?? "",
       };
       form.setFieldsValue(serverValues);
       onOriginalValues?.(form.getFieldsValue());
@@ -409,6 +417,32 @@ const ArbeitsauftragFormFields = ({
                     .includes(input.toLowerCase())
                 }
                 allowClear
+              />
+            </FormItem>
+          </Col>
+        </Row>
+        <Row gutter={16}>
+          <Col span={24}>
+            <FormItem
+              name="bezeichnung"
+              label={<FormLabel>Bezeichnung</FormLabel>}
+              className="mb-4"
+            >
+              <Input size="large" placeholder="Bezeichnung eingeben" />
+            </FormItem>
+          </Col>
+        </Row>
+        <Row gutter={16}>
+          <Col span={24}>
+            <FormItem
+              name="beschreibung"
+              label={<FormLabel>Beschreibung</FormLabel>}
+              className="mb-4"
+            >
+              <Input.TextArea
+                rows={3}
+                style={{ resize: "vertical" }}
+                placeholder="Beschreibung eingeben"
               />
             </FormItem>
           </Col>
