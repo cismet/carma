@@ -1,7 +1,8 @@
 import { FC, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import type { Layer } from "@carma-mapping/layers";
+import type { FilterConfig, FilterType, Layer } from "@carma-mapping/layers";
+import { FILTER_TYPES } from "@carma-mapping/layers";
 
 import {
   getActiveInteractionLayerID,
@@ -32,6 +33,15 @@ const INTERACTION_COMPONENTS: Record<string, FC<{ layer: Layer }>> = {
   "save-measurements": SaveMeasurements,
 };
 
+const FILTER_FACTORIES: Partial<
+  Record<
+    FilterType,
+    (config: FilterConfig) => ReturnType<typeof createFilterButtons>
+  >
+> = {
+  [FILTER_TYPES.BUTTON]: createFilterButtons,
+};
+
 const InteractionView = ({ isDragging }: { isDragging?: boolean }) => {
   const dispatch = useDispatch();
   const activeInteractionLayerID = useSelector(getActiveInteractionLayerID);
@@ -51,22 +61,29 @@ const InteractionView = ({ isDragging }: { isDragging?: boolean }) => {
     isDragging
   );
 
-  const FilterComponent = useMemo(
-    () =>
-      layer?.filterConfig ? createFilterButtons(layer.filterConfig) : null,
-    [layer?.filterConfig]
-  );
+  const FilterComponent = useMemo(() => {
+    const filterConfig = layer?.filterConfig;
+    if (!filterConfig?.filterType) {
+      return null;
+    }
+    const factory = FILTER_FACTORIES[filterConfig.filterType];
+    return factory ? factory(filterConfig) : null;
+  }, [layer?.filterConfig]);
 
   if (!layer) {
     return null;
   }
 
   const interactionType = layer.interactionButton?.id;
+  const InteractionComponent = interactionType
+    ? INTERACTION_COMPONENTS[interactionType]
+    : undefined;
+
+  if (!InteractionComponent && !FilterComponent) {
+    return null;
+  }
 
   const renderContent = () => {
-    const InteractionComponent = interactionType
-      ? INTERACTION_COMPONENTS[interactionType]
-      : undefined;
     if (InteractionComponent) {
       return <InteractionComponent layer={layer} />;
     }

@@ -31,6 +31,11 @@ export const FILTER_MODES = {
 } as const;
 export type FilterMode = (typeof FILTER_MODES)[keyof typeof FILTER_MODES];
 
+export const FILTER_TYPES = {
+  BUTTON: "button",
+} as const;
+export type FilterType = (typeof FILTER_TYPES)[keyof typeof FILTER_TYPES];
+
 export const LAYER_ENTITY_TYPES = {
   LAYER: "layer",
   OBJECT: "object",
@@ -70,6 +75,7 @@ export type FilterConfig = {
   allLabel?: string;
   layerPattern: string;
   filterMode?: FilterMode;
+  filterType?: FilterType;
   filters: FilterOption[];
   styles?: {
     buttonBorderRadius?: string;
