@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getLayers } from "../../store/slices/mapping";
+import { useSelector } from "react-redux";
 
 export interface BgRect {
   x: number;
@@ -20,6 +22,8 @@ export function useFilterBackground(
   const [bgData, setBgData] = useState<BgData | null>(null);
   const filterRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+
+  const layers = useSelector(getLayers);
 
   const updateBg = useCallback(() => {
     if (!activeLayerId || !filterRef.current || !wrapperRef.current) {
@@ -76,7 +80,7 @@ export function useFilterBackground(
       window.removeEventListener("resize", updateBg);
       window.removeEventListener("scroll", updateBg, true);
     };
-  }, [activeLayerId, updateBg, isDragging]);
+  }, [activeLayerId, updateBg, isDragging, layers.length]);
 
   // Only use bgData if it was computed for the currently active layer.
   // This prevents stale positions from flashing when switching layers,
