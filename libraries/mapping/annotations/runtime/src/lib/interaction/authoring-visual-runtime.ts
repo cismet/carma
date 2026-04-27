@@ -42,7 +42,6 @@ import {
   type PointMarkerVisualStyle,
 } from "../config/measurement-visual-defaults";
 import {
-  PREVIEW_LINE_LABEL_THEME,
   previewLineLabelPlacementDefaults,
   previewLineLabelVisualDefaults,
   resolvePreviewLineLabelVisualOptions,
@@ -55,9 +54,9 @@ import {
 import type { CesiumGeographicCoordinate } from "../store";
 import type { Scene } from "@carma-cesium";
 import {
-  PREVIEW_OVERLAY_GROUP,
-  resolvePreviewContainer,
-  type PreviewOverlayGroup,
+  ANNOTATION_OVERLAY_GROUP,
+  resolveAnnotationOverlayContainer,
+  type AnnotationOverlayGroup,
 } from "./preview-overlay-mount.shared";
 
 import "./annotation-overlay-line-label.css";
@@ -67,8 +66,11 @@ export {
   type PreviewControllerOptions,
 } from "../config/preview-controller-defaults";
 export {
+  ANNOTATION_OVERLAY_GROUP,
   PREVIEW_OVERLAY_GROUP,
+  resolveAnnotationOverlayContainer,
   resolvePreviewContainer,
+  type AnnotationOverlayGroup,
   type PreviewOverlayGroup,
 } from "./preview-overlay-mount.shared";
 
@@ -262,12 +264,12 @@ const resolvePreviewLineLabelTransform = ({
       : "translate(-50%, -50%)"
   } rotate(${angleRad}rad)`;
 
-export const createPreviewOverlayLayer = (
+export const createAnnotationOverlayLayer = (
   scene: Scene,
   layerId: string,
-  group: PreviewOverlayGroup = PREVIEW_OVERLAY_GROUP.LABEL
+  group: AnnotationOverlayGroup = ANNOTATION_OVERLAY_GROUP.LABEL
 ) => {
-  const container = resolvePreviewContainer(scene, group);
+  const container = resolveAnnotationOverlayContainer(scene, group);
   if (!container) {
     return null;
   }
@@ -288,28 +290,34 @@ export const createPreviewOverlayLayer = (
   return overlayLayer;
 };
 
-export const createPreviewOverlayLayers = (
+export const createPreviewOverlayLayer = createAnnotationOverlayLayer;
+
+export const createAnnotationOverlayLayers = (
   scene: Scene,
-  layerIdByGroup: Partial<Record<PreviewOverlayGroup, string>>
-): Partial<Record<PreviewOverlayGroup, HTMLDivElement | null>> =>
+  layerIdByGroup: Partial<Record<AnnotationOverlayGroup, string>>
+): Partial<Record<AnnotationOverlayGroup, HTMLDivElement | null>> =>
   Object.fromEntries(
     Object.entries(layerIdByGroup).map(([group, layerId]) => [
       group,
       layerId
-        ? createPreviewOverlayLayer(
+        ? createAnnotationOverlayLayer(
             scene,
             layerId,
-            group as PreviewOverlayGroup
+            group as AnnotationOverlayGroup
           )
         : null,
     ])
-  ) as Partial<Record<PreviewOverlayGroup, HTMLDivElement | null>>;
+  ) as Partial<Record<AnnotationOverlayGroup, HTMLDivElement | null>>;
 
-export const destroyPreviewOverlayLayer = (
+export const createPreviewOverlayLayers = createAnnotationOverlayLayers;
+
+export const destroyAnnotationOverlayLayer = (
   overlayLayer: HTMLElement | null
 ) => {
   overlayLayer?.remove();
 };
+
+export const destroyPreviewOverlayLayer = destroyAnnotationOverlayLayer;
 
 export const createLineCollection = (scene: Scene) => {
   const collection = new PolylineCollection();

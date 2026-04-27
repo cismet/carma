@@ -55,7 +55,6 @@ export type RuntimeEdgeRenderModel = {
   stroke: string;
   strokeWidth: number;
   overlayDashPattern?: string;
-  dashed?: true;
   overlayDashed?: true;
   showSegmentLengthLabels?: true;
   distanceTriangleOverlay?: RuntimeDistanceTriangleOverlayRenderModel;

@@ -352,8 +352,12 @@ describe("createViewStateShareableHashCodec", () => {
   it("applies legacy Cesium restore max-pitch semantics inside codec creation", () => {
     const codec = createShareableHashCodec({
       cameraLimiterOptions: {
-        pitchLimiter: true,
-        maxPitchDeg: 15,
+        limiter: {
+          pitch: {
+            enabled: true,
+            max: 15,
+          },
+        },
       },
     });
 

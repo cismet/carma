@@ -108,6 +108,10 @@ export const CarmaResponsiveInfoBox = ({
     (controlPosition === "topright" || controlPosition === "bottomright");
   const shouldAnchorCollapsedToExpandedLeft =
     actualCollapsed && collapsedHorizontalAnchor === "expanded-left";
+  const shouldAnchorCollapsedCardToControlEdge =
+    actualCollapsed &&
+    collapsedHorizontalAnchor === "control-edge" &&
+    isRightAnchoredControl;
 
   const infoBoxStyle: CSSProperties = actualCollapsed
     ? shouldAnchorCollapsedToExpandedLeft
@@ -229,7 +233,12 @@ export const CarmaResponsiveInfoBox = ({
         hideFooterWhenCollapsed={hideFooterWhenCollapsed}
         collapsed={actualCollapsed}
         onCollapsedChange={actualSetCollapsed}
-        style={{ pointerEvents: "auto" }}
+        style={{
+          pointerEvents: "auto",
+          ...(shouldAnchorCollapsedCardToControlEdge
+            ? { marginLeft: "auto" }
+            : null),
+        }}
         collapseButtonAreaStyle={{ opacity: "0.9", width: 25 }}
         onClick={onPanelClick}
         collapsible={collapsible}

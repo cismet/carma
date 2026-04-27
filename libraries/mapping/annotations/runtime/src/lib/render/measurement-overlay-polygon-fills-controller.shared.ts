@@ -5,10 +5,10 @@ import type { RuntimePolygonFillRenderModel } from "./measurement-render-models"
 import { RUNTIME_POLYGON_FILL_PLACEMENT } from "./measurement-render-models";
 import { areCoordinateListsEqual } from "../utils/coordinate-equality";
 import {
-  createPreviewOverlayLayer,
-  destroyPreviewOverlayLayer,
+  createAnnotationOverlayLayer,
+  destroyAnnotationOverlayLayer,
 } from "../interaction/authoring-visual-runtime";
-import { PREVIEW_OVERLAY_GROUP } from "../interaction/preview-overlay-mount.shared";
+import { ANNOTATION_OVERLAY_GROUP } from "../interaction/preview-overlay-mount.shared";
 import { cartesian3FromGeographicCoordinate } from "@carma-mapping/engines/cesium/core";
 
 export type MeasurementOverlayPolygonFillsController = {
@@ -89,10 +89,10 @@ export const createMeasurementOverlayPolygonFillsController = (
     };
   }
 
-  const overlayLayer = createPreviewOverlayLayer(
+  const overlayLayer = createAnnotationOverlayLayer(
     scene,
     `annotation-overlay-runtime-polygon-fill-layer-${surfaceKey}`,
-    PREVIEW_OVERLAY_GROUP.VISUALIZER
+    ANNOTATION_OVERLAY_GROUP.VISUALIZER
   );
   if (!overlayLayer) {
     return {
@@ -196,7 +196,7 @@ export const createMeasurementOverlayPolygonFillsController = (
       currentPolygonFills = [];
       removePostRenderListener();
       clearPolygons();
-      destroyPreviewOverlayLayer(overlayLayer);
+      destroyAnnotationOverlayLayer(overlayLayer);
       if (!scene.isDestroyed()) {
         scene.requestRender();
       }

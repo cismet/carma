@@ -11,7 +11,7 @@ export type EdgeVisualStyle = {
   stroke: string;
   strokeWidth: number;
   overlayDashPattern?: string;
-  dashed?: true;
+  overlayDashed?: true;
 };
 
 export type PointMarkerVisualStyle = {
@@ -42,7 +42,6 @@ export type MeasurementVisualDefaults = {
   sizes: {
     edgeStrokeWidth: number;
     pointPixelSize: number;
-    previewPointPixelSize: number;
     pointOutlineWidth: number;
   };
   patterns: {
@@ -102,7 +101,6 @@ export const measurementVisualDefaults: MeasurementVisualDefaults = {
   sizes: {
     edgeStrokeWidth: MEASUREMENT_LINE_STYLE_DEFAULTS.strokeWidthPx,
     pointPixelSize: 10,
-    previewPointPixelSize: 10,
     pointOutlineWidth: 1,
   },
   patterns: {

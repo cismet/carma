@@ -1,9 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 
-import { fromCarmaViewPitchDegToCesiumPitchRad } from "@carma-commons/camera/model";
 import { Cartesian3, type Scene } from "@carma-cesium";
 
+import {
+  DEFAULT_CAMERA_LIMITER_OPTIONS,
+  resolveCameraLimiterOptions,
+  type CameraLimiterConfig,
+  type CameraLimiterReenableTransitionOptions,
+} from "../camera-limiter-options";
 import {
   selectScreenSpaceCameraControllerEnableCollisionDetection,
   selectScreenSpaceCameraControllerMaximumZoomDistance,
@@ -11,32 +16,20 @@ import {
 } from "../slices/cesium";
 import { useCesiumContext } from "./useCesiumContext";
 
-export interface CesiumCameraLimiterReenableOptions {
-  pitch: {
-    durationSeconds: number;
-  };
-  travelZoom: {
-    durationMilliseconds: number;
-    easing: (progress: number) => number;
-    minViewAxisVerticalRatio?: number;
-  };
-}
-
 export interface UseCesiumCameraLimiterToggleOptions {
-  maxPitchDegrees?: number;
-  reenableOptions: CesiumCameraLimiterReenableOptions;
+  limiter?: CameraLimiterConfig;
 }
-
-const DEFAULT_MAX_PITCH_DEGREES = 75;
-const DEFAULT_CAMERA_LIMITER_REENABLE_MIN_VIEW_AXIS_VERTICAL_RATIO = 0.15;
-
-const getLimiterTargetPitch = (maxPitchDegrees: number) =>
-  fromCarmaViewPitchDegToCesiumPitchRad(maxPitchDegrees) ?? (0 as number);
 
 export const useCesiumCameraLimiterToggle = ({
-  maxPitchDegrees = DEFAULT_MAX_PITCH_DEGREES,
-  reenableOptions,
+  limiter,
 }: UseCesiumCameraLimiterToggleOptions) => {
+  const resolvedLimiterOptions = useMemo(
+    () => resolveCameraLimiterOptions({ limiter }),
+    [limiter]
+  );
+  const reenableTransition: CameraLimiterReenableTransitionOptions =
+    limiter?.transitions?.reenable ??
+    DEFAULT_CAMERA_LIMITER_OPTIONS.limiter.transitions.reenable;
   const {
     shouldSuspendCameraLimitersRef,
     shouldSuspendPitchLimiterRef,
@@ -125,7 +118,7 @@ export const useCesiumCameraLimiterToggle = ({
         onComplete: () => void;
       }
     ): boolean => {
-      const { travelZoom } = reenableOptions;
+      const { travelZoom } = reenableTransition;
       const camera = scene.camera;
       const position = camera.positionCartographic;
       if (!position) {
@@ -164,12 +157,12 @@ export const useCesiumCameraLimiterToggle = ({
       cancelCameraLimiterTravelZoom();
 
       const startedAtMs = performance.now();
-      const verticalRatio = Math.max(
-        Math.sin(Math.abs(camera.pitch)),
-        travelZoom.minViewAxisVerticalRatio ??
-          DEFAULT_CAMERA_LIMITER_REENABLE_MIN_VIEW_AXIS_VERTICAL_RATIO
-      );
-      const targetTravelDistance = (heightDeficit / verticalRatio) * 1.25;
+      const verticalRatio = Math.sin(Math.abs(camera.pitch));
+      if (verticalRatio <= 0) {
+        return false;
+      }
+
+      const targetTravelDistance = heightDeficit / verticalRatio;
       let previousEased = 0;
 
       const cancelForUserInput = () => {
@@ -233,7 +226,7 @@ export const useCesiumCameraLimiterToggle = ({
       cameraLimiterTravelZoomFrameRef.current = requestAnimationFrame(step);
       return true;
     },
-    [cancelCameraLimiterTravelZoom, reenableOptions]
+    [cancelCameraLimiterTravelZoom, reenableTransition]
   );
 
   const transitionCameraIntoLimiterRange = useCallback(
@@ -247,14 +240,14 @@ export const useCesiumCameraLimiterToggle = ({
       let didStartTransition = false;
 
       withScene((scene) => {
-        const { pitch } = reenableOptions;
+        const { pitch } = reenableTransition;
         const camera = scene.camera;
         const position = camera.positionCartographic;
         if (!camera || !position) {
           return;
         }
 
-        const targetPitch = getLimiterTargetPitch(maxPitchDegrees);
+        const targetPitch = resolvedLimiterOptions.limiter.pitch.minCesiumPitch;
         const currentPitch = camera.pitch;
         const constrainedPitch =
           currentPitch > targetPitch ? targetPitch : currentPitch;
@@ -307,8 +300,8 @@ export const useCesiumCameraLimiterToggle = ({
     },
     [
       cancelCameraLimiterTravelZoom,
-      maxPitchDegrees,
-      reenableOptions,
+      reenableTransition,
+      resolvedLimiterOptions,
       startCameraLimiterTravelZoomToValidHeight,
       withScene,
     ]

@@ -3,6 +3,12 @@ export {
   type CarmaResponsiveInfoBoxProps,
 } from "./lib/components/CarmaResponsiveInfoBox";
 export {
+  ConnectorRibbon,
+  type ConnectorRibbonAnchor,
+  type ConnectorRibbonCurveMode,
+  type ConnectorRibbonProps,
+} from "./lib/components/ConnectorRibbon";
+export {
   default as CarmaCard,
   type CarmaCardProps,
 } from "./lib/components/CarmaCard";
