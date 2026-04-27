@@ -682,7 +682,7 @@ export const topicMapsConfig: Config = {
         "Öffentlichkeitsarbeit",
         "Stadterneuerung",
         "Planungsmaßnahme",
-        "Kommunalpoliti",
+        "Kommunalpolitik",
       ],
       type: "link",
       thumbnail:
