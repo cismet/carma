@@ -95,6 +95,14 @@ type ForwardedDiagnostics = Partial<
   carmaCesiumRuntime?: Record<string, unknown>;
 };
 
+const safeStringify = (value: unknown, indent = 2) => {
+  try {
+    return JSON.stringify(value, null, indent);
+  } catch (e) {
+    return `[unserializable: ${(e as Error)?.message ?? "unknown error"}]`;
+  }
+};
+
 const AppErrorFallback = ({ error, extra }: AppErrorFallbackProps) => {
   const br = "\n";
   const [errorStack, setErrorStack] = useState<{
@@ -180,7 +188,7 @@ const AppErrorFallback = ({ error, extra }: AppErrorFallbackProps) => {
     `?subject=${encodeURIComponent(mailCfg.subject)}` +
     `&body=${encodeURIComponent(mailBodyFull)}`;
 
-  const attachmentText =
+  const buildAttachmentText = () =>
     `----------------------${br}` +
     `${error?.message}${br}` +
     `----------------------${br}` +
@@ -204,20 +212,16 @@ const AppErrorFallback = ({ error, extra }: AppErrorFallbackProps) => {
     `----------------------${br}` +
     `STATE${br}` +
     `----------------------${br}` +
-    `${JSON.stringify(stateToLog, null, 2)}${br}` +
+    `${safeStringify(stateToLog)}${br}` +
     `----------------------${br}` +
     (diag.carmaCesiumContext
-      ? `CesiumContext:${br}${JSON.stringify(
-          diag.carmaCesiumContext,
-          null,
-          2
+      ? `CesiumContext:${br}${safeStringify(
+          diag.carmaCesiumContext
         )}${br}----------------------${br}`
       : "") +
     (diag.carmaCesiumRuntime
-      ? `CesiumRuntime:${br}${JSON.stringify(
-          diag.carmaCesiumRuntime,
-          null,
-          2
+      ? `CesiumRuntime:${br}${safeStringify(
+          diag.carmaCesiumRuntime
         )}${br}----------------------${br}`
       : "");
 
@@ -366,6 +370,18 @@ const AppErrorFallback = ({ error, extra }: AppErrorFallbackProps) => {
             className="!text-black"
             style={{ backgroundColor: branding.downloadButtonColor }}
             onClick={() => {
+              let attachmentText: string;
+              try {
+                attachmentText = buildAttachmentText();
+              } catch (e) {
+                attachmentText =
+                  `Failed to build problem report:${br}${
+                    (e as Error)?.message ?? String(e)
+                  }${br}` +
+                  `----------------------${br}` +
+                  `${error?.message ?? ""}${br}` +
+                  `${errorStack?.stringifiedStack ?? ""}${br}`;
+              }
               const dataStr =
                 "data:text/plain;charset=utf-8," +
                 encodeURIComponent(attachmentText);
