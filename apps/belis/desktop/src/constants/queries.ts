@@ -1182,10 +1182,6 @@ query ArbeitsauftragById($aaId: Int!) {
       id
       name
     }
-    veranlassung {
-      bezeichnung
-      beschreibung
-    }
     ar_protokolleArray {
       arbeitsprotokoll {
         id
