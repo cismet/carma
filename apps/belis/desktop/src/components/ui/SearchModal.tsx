@@ -277,8 +277,6 @@ const buildMastWhereClause = (values: MastSearchValues): string => {
     `_or: [{is_deleted: {_eq: false}}, {is_deleted: {_is_null: true}}]`
   );
 
-  // Only masts with leuchten (matching standorte tile source layer)
-  conditions.push(`leuchtenArray: {}`);
 
   // Date range conditions (combined into single objects)
   const inbetriebnahmeCondition = buildDateRangeCondition(
