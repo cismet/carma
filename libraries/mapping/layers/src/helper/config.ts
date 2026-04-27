@@ -666,6 +666,31 @@ export const topicMapsConfig: Config = {
       url: "https://digital-twin-wuppertal-live.github.io/generic-topicmap/#/wc_karte_wuppertal",
       serviceName: "wuppTopicMaps",
     },
+    {
+      id: "wuppTopicMaps_vorhaben",
+      path: "TopicMaps Wuppertal",
+      name: "wuppTopicMaps_vorhaben",
+      title: "Vorhabenkarte",
+      description: `Beschreibung: Die <a href="https://talbeteiligung.de/vorhabenkarte#/" target="_blank">Vorhabenkarte Wuppertal</a> ist eine im Auftrag der Stadt Wuppertal von der Firma cismet GmbH, Saarbrücken, betriebene interaktive Internet-Kartenanwendung, in der die wichtigsten stadtbildprägenden Vorhaben zur Unterstützung der Öffentlichkeitsarbeit detailliert beschrieben werden. Die Datengrundlage der Vorhabenkarte befindet seit 2026 im Aufbau, daher sind noch nicht alle relevanten Projekte der Stadt in der Anwendung verfügbar. Der kontinuierlich aktualisierte Datenbestand umfasst geplante, laufende und seit längstens einem halben Jahr abgeschlossene Projekte.`,
+      tags: [
+        "TopicMaps",
+        "Infrastruktur",
+        "Stadtentwicklung",
+        "Bürgerbeteiligung",
+        "Zugang zu Informationen",
+        "Stadtplanung",
+        "Öffentlichkeitsarbeit",
+        "Stadterneuerung",
+        "Planungsmaßnahme",
+        "Kommunalpoliti",
+      ],
+      type: "link",
+      thumbnail:
+        "https://wupp-digitaltwin-assets.cismet.de/v2/geoportal/thumbnails/vorhaben.png",
+      keywords: [],
+      url: "https://digital-twin-wuppertal-live.github.io/vorhabenkarte/",
+      serviceName: "wuppTopicMaps",
+    },
   ],
 };
 
