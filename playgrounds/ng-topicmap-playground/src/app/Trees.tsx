@@ -1,4 +1,4 @@
-import { useContext, useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   SelectionProvider,
   ProgressIndicator,
@@ -390,12 +390,15 @@ export function Trees() {
   };
 
   // Runtime params drive 3D layer behaviour via CarmaMap -> LibreMap -> ThreeLayerManager
-  const threeRuntimeParams: Record<string, number | string> = {
-    radiusMix,
-    useLoft: useLoft ? 1 : 0,
-    buildingOpacity: 1,
-    buildingColor: "#ffffff",
-  };
+  const threeRuntimeParams = useMemo<Record<string, number | string>>(
+    () => ({
+      radiusMix,
+      useLoft: useLoft ? 1 : 0,
+      buildingOpacity: 1,
+      buildingColor: "#ffffff",
+    }),
+    [radiusMix, useLoft]
+  );
 
   return (
     <TopicMapContextProvider

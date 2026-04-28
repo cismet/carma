@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 import { MercatorCoordinate } from "maplibre-gl";
 import type { Map as MaplibreMap } from "maplibre-gl";
@@ -146,9 +146,11 @@ export function ThreeLayerManager({
   const viewportPadding = typeof runtimeParams.viewportPadding === "number" ? runtimeParams.viewportPadding : undefined;
 
   // Merge runtime viewportPadding override into config
-  const effectiveConfig = viewportPadding != null
-    ? { ...config, viewportPadding }
-    : config;
+  const effectiveConfig = useMemo(
+    () =>
+      viewportPadding != null ? { ...config, viewportPadding } : config,
+    [config, viewportPadding]
+  );
 
   // Effect 1: Layer lifecycle (tear down on mode change or unmount)
   useEffect(() => {
