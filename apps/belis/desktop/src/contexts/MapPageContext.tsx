@@ -33,6 +33,15 @@ const DEFAULT_CONFIG: MapPageConfig = {
   onFilterChange: null,
 };
 
+export type CreateFeatureType =
+  | "leuchte"
+  | "standort"
+  | "leitung"
+  | "schaltstelle"
+  | "mauerlasche"
+  | "abzweigdose"
+  | null;
+
 interface MapPageContextValue {
   config: MapPageConfig;
   setConfig: (c: Partial<MapPageConfig>) => void;
@@ -40,6 +49,8 @@ interface MapPageContextValue {
   setActiveHighlights: (highlights: SidebarFeature[] | null) => void;
   aaModalOpen: boolean;
   setAaModalOpen: (open: boolean) => void;
+  createFeatureType: CreateFeatureType;
+  setCreateFeatureType: (type: CreateFeatureType) => void;
 }
 
 const MapPageContext = createContext<MapPageContextValue>({
@@ -49,6 +60,8 @@ const MapPageContext = createContext<MapPageContextValue>({
   setActiveHighlights: () => undefined,
   aaModalOpen: false,
   setAaModalOpen: () => undefined,
+  createFeatureType: null,
+  setCreateFeatureType: () => undefined,
 });
 
 export const MapPageProvider = ({ children }: { children: ReactNode }) => {
@@ -57,6 +70,8 @@ export const MapPageProvider = ({ children }: { children: ReactNode }) => {
     SidebarFeature[] | null
   >(null);
   const [aaModalOpen, setAaModalOpen] = useState(false);
+  const [createFeatureType, setCreateFeatureType] =
+    useState<CreateFeatureType>(null);
 
   const setConfig = useCallback((c: Partial<MapPageConfig>) => {
     setConfigState((prev) => ({ ...prev, ...c }));
@@ -71,6 +86,8 @@ export const MapPageProvider = ({ children }: { children: ReactNode }) => {
         setActiveHighlights,
         aaModalOpen,
         setAaModalOpen,
+        createFeatureType,
+        setCreateFeatureType,
       }}
     >
       {children}
