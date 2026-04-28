@@ -275,22 +275,30 @@ const CreateFeatureModal = ({
           <div className="flex gap-2">
             <Button
               onClick={async () => {
-                if (!jwt) return;
-                const data = await fetchFeatureById(jwt, 34348, "mast");
+                if (!jwt || !map) return;
+                const data = await fetchFeatureById(jwt, 34350, "mast");
                 console.log(
-                  "[TestFetch] Mast 34348:",
+                  "[TestFetch] Mast 34350:",
                   JSON.stringify(data, null, 2)
                 );
+                const mast = (data as Record<string, unknown[]>)?.tdta_standort_mast?.[0] as Record<string, unknown> | undefined;
+                const geom = mast?.geom as { geo_field?: { coordinates?: number[] } } | undefined;
+                const coords = geom?.geo_field?.coordinates;
+                if (coords) {
+                  const [lng, lat] = proj4(proj4crs25832def, proj4crs4326def, coords as [number, number]);
+                  map.flyTo({ center: [lng, lat], zoom: 18 });
+                  onClose();
+                }
               }}
             >
-              Mast 34348
+              Mast 34350 (fly)
             </Button>
             <Button
               onClick={async () => {
                 if (!jwt) return;
                 const data = await fetchFeatureById(jwt, 34776, "leuchten");
                 console.log(
-                  "[TestFetch] Leuchte 34775:",
+                  "[TestFetch] Leuchte 34776:",
                   JSON.stringify(data, null, 2)
                 );
               }}
