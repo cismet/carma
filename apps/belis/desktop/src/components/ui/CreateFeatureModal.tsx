@@ -14,7 +14,7 @@ import SchaltstelleFormFields from "./featuresForm/SchaltstelleFormFields";
 import MauerlascheFormFields from "./featuresForm/MauerlascheFormFields";
 import { getJWT } from "../../store/slices/auth";
 import { prepareSaveValues } from "../../helper/featureFormSaveHelpers";
-import { updateDataByClassName } from "../../helper/apiMethods";
+import { updateDataByClassName, fetchFeatureById } from "../../helper/apiMethods";
 
 const featureLabels: Record<string, string> = {
   leuchte: "Leuchte",
@@ -118,19 +118,59 @@ const CreateFeatureModal = ({
       JSON.stringify(prepared, null, 2)
     );
 
-    const payload: Record<string, unknown> = {
-      id: -1,
-      ...prepared,
-      geom: buildGeom(featureType),
-    };
-
-    console.log(
-      "[CreateFeature] payload:",
-      JSON.stringify(payload, null, 2)
-    );
-
     setSaving(true);
     try {
+      let payload: Record<string, unknown>;
+
+      if (featureType === "leuchte") {
+        // Step 1: create a Standort/Mast with geometry
+        const mastPayload = {
+          id: -1,
+          geom: buildGeom("standort"),
+        };
+        console.log(
+          "[CreateFeature] step 1 — creating Standort:",
+          JSON.stringify(mastPayload, null, 2)
+        );
+        const mastResult = await updateDataByClassName(
+          jwt,
+          classNames["standort"],
+          mastPayload
+        );
+        console.log("[CreateFeature] Standort response:", mastResult);
+
+        const mastRes = mastResult as { res?: string } | null;
+        const parsedMast = mastRes?.res
+          ? (JSON.parse(mastRes.res) as { id?: number })
+          : null;
+        const newMastId = parsedMast?.id;
+
+        if (!newMastId) {
+          throw new Error("Standort erstellt, aber keine ID erhalten");
+        }
+
+        // Step 2: create Leuchte referencing the new Standort
+        payload = {
+          id: -1,
+          ...prepared,
+          fk_standort: newMastId,
+        };
+        console.log(
+          "[CreateFeature] step 2 — creating Leuchte:",
+          JSON.stringify(payload, null, 2)
+        );
+      } else {
+        payload = {
+          id: -1,
+          ...prepared,
+          geom: buildGeom(featureType),
+        };
+        console.log(
+          "[CreateFeature] payload:",
+          JSON.stringify(payload, null, 2)
+        );
+      }
+
       const result = await updateDataByClassName(jwt, className, payload);
       console.log("[CreateFeature] server response:", result);
       void message.success(`${label} erstellt`);
@@ -216,9 +256,20 @@ const CreateFeatureModal = ({
       width={600}
       footer={
         <div className="flex justify-between pt-2 border-t border-gray-100">
-          <Button onClick={handleFlyToGeom}>
-            Zur Geometrie fliegen
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={handleFlyToGeom}>
+              Zur Geometrie fliegen
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!jwt) return;
+                const data = await fetchFeatureById(jwt, 34772, "leuchten");
+                console.log("[TestFetch] Leuchte 34772:", JSON.stringify(data, null, 2));
+              }}
+            >
+              Test Fetch 1727
+            </Button>
+          </div>
           <div className="flex gap-2">
             <Button onClick={handleCancel} disabled={saving}>
               Abbrechen
