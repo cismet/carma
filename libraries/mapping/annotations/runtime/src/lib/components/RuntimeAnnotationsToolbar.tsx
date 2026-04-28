@@ -4,6 +4,7 @@ import {
   AnnotationsToolbar as AnnotationsToolbarView,
   type AnnotationsToolbarClassNames,
   type AnnotationsToolbarMetrics,
+  type AnnotationsToolbarProps,
 } from "@carma-mapping/annotations/ui";
 
 import { useAnnotationsRuntime } from "../context/AnnotationsProvider";
@@ -15,6 +16,8 @@ export type RuntimeAnnotationsToolbarProps = {
   metrics?: Partial<AnnotationsToolbarMetrics>;
   plugins?: readonly AnnotationToolPlugin[];
   showToolTypeIndicators?: boolean;
+  tooltipPlacement?: AnnotationsToolbarProps["tooltipPlacement"];
+  getTooltipPopupContainer?: AnnotationsToolbarProps["getTooltipPopupContainer"];
 };
 
 export type { AnnotationsToolbarClassNames, AnnotationsToolbarMetrics };
@@ -24,6 +27,8 @@ export const RuntimeAnnotationsToolbar = ({
   metrics,
   plugins,
   showToolTypeIndicators = false,
+  tooltipPlacement,
+  getTooltipPopupContainer,
 }: RuntimeAnnotationsToolbarProps) => {
   const { registry, activeToolType, requestModeChange, annotationEntries } =
     useAnnotationsRuntime();
@@ -64,6 +69,8 @@ export const RuntimeAnnotationsToolbar = ({
       classNames={classNames}
       metrics={metrics}
       showToolTypeIndicators={showToolTypeIndicators}
+      tooltipPlacement={tooltipPlacement}
+      getTooltipPopupContainer={getTooltipPopupContainer}
     />
   );
 };
