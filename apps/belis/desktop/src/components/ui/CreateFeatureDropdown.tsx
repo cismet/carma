@@ -37,22 +37,32 @@ export const FeatureIcon = ({ type }: { type: string }) => {
   }
   if (type === "leitung") {
     return (
-      <svg
-        width={ICON_DISPLAY_SIZE}
-        height={ICON_DISPLAY_SIZE}
-        viewBox="0 0 20 20"
-        style={{ display: "inline-block", verticalAlign: "middle" }}
+      <span
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: ICON_DISPLAY_SIZE,
+          height: ICON_DISPLAY_SIZE,
+          verticalAlign: "middle",
+        }}
       >
-        <line
-          x1="2"
-          y1="16"
-          x2="18"
-          y2="4"
-          stroke="#D3976C"
-          strokeWidth="3"
-          strokeLinecap="round"
-        />
-      </svg>
+        <svg
+          width={ICON_DISPLAY_SIZE / 2}
+          height={ICON_DISPLAY_SIZE / 2}
+          viewBox="0 0 20 20"
+        >
+          <line
+            x1="2"
+            y1="16"
+            x2="18"
+            y2="4"
+            stroke="#D3976C"
+            strokeWidth="3"
+            strokeLinecap="round"
+          />
+        </svg>
+      </span>
     );
   }
   return null;
