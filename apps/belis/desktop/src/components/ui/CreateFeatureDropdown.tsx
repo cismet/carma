@@ -1,8 +1,8 @@
 import { Dropdown } from "antd";
 import { PlusOutlined, CaretDownFilled } from "@ant-design/icons";
-import { useNavigate } from "react-router-dom";
 import { useMapPage } from "../../contexts/MapPageContext";
 import type { CreateFeatureType } from "../../contexts/MapPageContext";
+import CreateFeatureModal from "./CreateFeatureModal";
 
 const SPRITE_URL = "https://tiles.cismet.de/belis/sprites.png";
 const SPRITE_SIZE = 66;
@@ -71,34 +71,36 @@ const createFeatureItems: {
 ];
 
 const CreateFeatureDropdown = () => {
-  const navigate = useNavigate();
-  const { setCreateFeatureType } = useMapPage();
+  const { createFeatureType, setCreateFeatureType } = useMapPage();
 
   return (
-    <Dropdown
-      menu={{
-        items: createFeatureItems.map((item) => ({
-          key: item.key,
-          icon: <FeatureIcon type={item.key} />,
-          label: item.label,
-          onClick: () => {
-            setCreateFeatureType(item.key);
-            navigate("/");
-          },
-        })),
-      }}
-      trigger={["click"]}
-    >
-      <div className="flex items-center gap-0.5 cursor-pointer">
-        <button className="flex items-center justify-center w-6 h-6 rounded border border-gray-300 bg-white text-gray-500 hover:bg-gray-50">
-          <PlusOutlined style={{ fontSize: 14 }} />
-        </button>
-        <CaretDownFilled
-          className="text-gray-500 hover:text-gray-700"
-          style={{ fontSize: 10 }}
-        />
-      </div>
-    </Dropdown>
+    <>
+      <Dropdown
+        menu={{
+          items: createFeatureItems.map((item) => ({
+            key: item.key,
+            icon: <FeatureIcon type={item.key} />,
+            label: item.label,
+            onClick: () => setCreateFeatureType(item.key),
+          })),
+        }}
+        trigger={["click"]}
+      >
+        <div className="flex items-center gap-0.5 cursor-pointer">
+          <button className="flex items-center justify-center w-6 h-6 rounded border border-gray-300 bg-white text-gray-500 hover:bg-gray-50">
+            <PlusOutlined style={{ fontSize: 14 }} />
+          </button>
+          <CaretDownFilled
+            className="text-gray-500 hover:text-gray-700"
+            style={{ fontSize: 10 }}
+          />
+        </div>
+      </Dropdown>
+      <CreateFeatureModal
+        featureType={createFeatureType}
+        onClose={() => setCreateFeatureType(null)}
+      />
+    </>
   );
 };
 
