@@ -108,3 +108,22 @@ export const setKeywordValue = (
 export const extractLayerInfo = (stylesheet: any): LayerInfo | null => {
   return stylesheet?.metadata?.carmaConf?.layerInfo ?? null;
 };
+
+const lastAppliedDynamicStyling: Map<string, Record<number, string>> = new Map();
+
+export const getLastAppliedSelection = (
+  layerId: string,
+  configIdx: number
+): string | undefined => {
+  return lastAppliedDynamicStyling.get(layerId)?.[configIdx];
+};
+
+export const setLastAppliedSelection = (
+  layerId: string,
+  configIdx: number,
+  selection: string
+): void => {
+  const existing = lastAppliedDynamicStyling.get(layerId) ?? {};
+  existing[configIdx] = selection;
+  lastAppliedDynamicStyling.set(layerId, existing);
+};

@@ -7,16 +7,13 @@ import {
 import { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { resolveIconSrc } from "./dynamicStyling.helpers";
-import { applyDynamicStyling } from "./applyDynamicStyling";
 import type { DynamicStylingControlProps } from "./DynamicStylingControl";
 
 export const DynamicStylingList = ({
   config: listConfig,
-  maplibreMap,
   carmaLayerId,
   currentSelection,
   onSelectionChange,
-  onLayerInfoChange,
   showIcon: showIconProp,
   children,
 }: DynamicStylingControlProps) => {
@@ -27,19 +24,12 @@ export const DynamicStylingList = ({
   const showIcon = showIconProp ?? listConfig.showIcon !== false;
 
   const handleOptionSelect = (key: string) => {
-    if (key === currentSelection) return;
+    if (key === currentSelection) {
+      return;
+    }
     const opt = listConfig.options.find((o) => o.id === key);
-    if (!opt) return;
-    if (maplibreMap) {
-      const layerInfo = applyDynamicStyling(
-        maplibreMap,
-        carmaLayerId,
-        listConfig,
-        opt.id
-      );
-      if (onLayerInfoChange && layerInfo) {
-        onLayerInfoChange(layerInfo);
-      }
+    if (!opt) {
+      return;
     }
     onSelectionChange(key);
   };

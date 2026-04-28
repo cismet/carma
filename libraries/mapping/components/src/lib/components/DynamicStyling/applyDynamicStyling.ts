@@ -23,11 +23,15 @@ export const applyDynamicStyling = (
   selectedOptionId: string
 ): LayerInfo | null => {
   const stylesheet = libreMap.style?.stylesheet;
-  if (!stylesheet) return null;
+  if (!stylesheet) {
+    return null;
+  }
 
   const defaultOption = config.options.find((o) => o.id === config.default);
   const selectedOption = config.options.find((o) => o.id === selectedOptionId);
-  if (!defaultOption || !selectedOption) return null;
+  if (!defaultOption || !selectedOption) {
+    return null;
+  }
 
   const defaults = captureDefaults(stylesheet, carmaLayerId, config);
   const updatedStylesheet = JSON.parse(JSON.stringify(stylesheet));

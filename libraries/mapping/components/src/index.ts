@@ -1,6 +1,8 @@
 export {
   DynamicStylingControl,
   applyDynamicStyling,
+  getLastAppliedSelection,
+  setLastAppliedSelection,
   type DynamicStylingControlProps,
   type MetadataChanges,
   type LayerInfo,

@@ -291,7 +291,9 @@ const slice = createSlice({
     ) {
       const { id, layerInfo } = action.payload;
       const layer = state.layers.find((l) => l.id === id);
-      if (!layer) return;
+      if (!layer) {
+        return;
+      }
 
       layer.layerInfo = { ...layer.layerInfo, ...layerInfo };
 
