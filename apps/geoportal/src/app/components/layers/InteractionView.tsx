@@ -141,7 +141,7 @@ const InteractionView = ({ isDragging }: { isDragging?: boolean }) => {
         <FilterBackdrop
           bgData={validBg}
           showContentBackdrop={
-            interactionType !== CESIUM_ANNOTATION_INTERACTION_ID
+            activeInteractionButtonID !== CESIUM_ANNOTATION_INTERACTION_ID
           }
         />
       )}

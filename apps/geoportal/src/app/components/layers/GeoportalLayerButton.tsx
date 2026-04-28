@@ -1,13 +1,20 @@
 /* eslint-disable jsx-a11y/no-static-element-interactions */
 /* eslint-disable jsx-a11y/click-events-have-key-events */
-import { useCallback, useContext, useEffect, useRef } from "react";
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  type ReactNode,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
 import { useInView } from "react-intersection-observer";
 import { useDispatch, useSelector } from "react-redux";
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-import { faFilter, faSearchLocation } from "@fortawesome/free-solid-svg-icons";
+import { faFilter } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import L from "leaflet";
 
@@ -20,6 +27,7 @@ import type {
 } from "@carma-mapping/layers";
 import { getInteractionButtons } from "@carma-mapping/layers";
 import { cn, getHashParams } from "@carma-commons/utils";
+import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 
 import {
   getSelectedFeature,
@@ -66,17 +74,23 @@ import {
 import { Badge, Spin, Tooltip } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import { useLayerLoading } from "@carma-mapping/utils";
-import { useAnnotationsRuntime } from "@carma-mapping/annotations/runtime";
 import { useGeoportalLayerButtonActions } from "../../hooks/use-geoportal-layer-button-actions";
-import { CESIUM_ANNOTATION_LAYER_ID } from "../annotations/cesium-annotations.constants";
 
-interface LayerButtonProps {
+export interface GeoportalLayerButtonProps {
   title: string;
   id: string;
   index: number;
   layer: Layer | BackgroundLayer;
   background?: boolean;
   hide?: boolean;
+  actionSlot?: ReactNode;
+  closeButton?: {
+    icon?: IconDefinition;
+    onClick?: (event: ReactMouseEvent<HTMLButtonElement>) => void;
+  };
+  closeButtonVariant?: "default" | "compact";
+  interactionActivationMode?: "action" | "button";
+  overflowVisible?: boolean;
 }
 
 const GeoportalLayerButton = ({
@@ -86,7 +100,12 @@ const GeoportalLayerButton = ({
   layer,
   background,
   hide = false,
-}: LayerButtonProps) => {
+  actionSlot,
+  closeButton,
+  closeButtonVariant = "default",
+  interactionActivationMode = "action",
+  overflowVisible = false,
+}: GeoportalLayerButtonProps) => {
   const { ref, inView } = useInView({
     threshold: 0.99,
     onChange: (inView) => {
@@ -129,19 +148,15 @@ const GeoportalLayerButton = ({
     });
   const buttonRef = useRef<HTMLDivElement>(null);
 
-  const { annotationEntries, flyToAllAnnotations } = useAnnotationsRuntime();
-  const isCesiumAnnotationLayerButton = id === CESIUM_ANNOTATION_LAYER_ID;
-  const {
-    closeIcon,
-    handleFlyToAllAnnotationsClick,
-    handleLayerRemoveButtonClick,
-  } = useGeoportalLayerButtonActions({
-    flyToAllAnnotations,
-    id,
-    isCesiumAnnotationLayerButton,
-    layer,
-    showLayerHideButtons,
-  });
+  const { closeIcon, handleLayerRemoveButtonClick } =
+    useGeoportalLayerButtonActions({
+      id,
+      layer,
+      showLayerHideButtons,
+    });
+  const resolvedCloseIcon = closeButton?.icon ?? closeIcon;
+  const handleCloseButtonClick =
+    closeButton?.onClick ?? handleLayerRemoveButtonClick;
 
   const mergedRef = useCallback(
     (el: HTMLDivElement | null) => {
@@ -160,7 +175,7 @@ const GeoportalLayerButton = ({
     zoom < (layer.props.maxZoom ? layer.props.maxZoom : Infinity) &&
     zoom > (layer.props.minZoom ? layer.props.minZoom : 0);
   const map = routedMapRef?.leafletMap?.leafletElement as L.Map;
-  const hasAnyCesiumAnnotations = annotationEntries.length > 0;
+  const interactionButtons = getInteractionButtons(layer.interactionButtons);
 
   useEffect(() => {
     if (hide && activeInteractionLayerID === id) {
@@ -300,7 +315,7 @@ const GeoportalLayerButton = ({
     <div
       ref={mergedRef}
       className={cn(
-        isCesiumAnnotationLayerButton && "overflow-visible",
+        overflowVisible && "overflow-visible",
         // index === -1 && 'ml-auto',
         // index === layersLength - 1 && 'mr-auto',
         showLeftScrollButton && index === -1 && "pr-4",
@@ -320,11 +335,16 @@ const GeoportalLayerButton = ({
           if (activeInteractionLayerID && activeInteractionLayerID !== id) {
             dispatch(setActiveInteractionLayerID(null));
           }
-          if (layer.interactionButton) {
-            if (isCesiumAnnotationLayerButton) {
+          if (interactionButtons.length > 0) {
+            if (interactionActivationMode === "button") {
+              const primaryInteractionButton = interactionButtons[0];
+              const isActive =
+                activeInteractionLayerID === id &&
+                activeInteractionButtonID === primaryInteractionButton.id;
+              dispatch(setActiveInteractionLayerID(isActive ? null : id));
               dispatch(
-                setActiveInteractionLayerID(
-                  activeInteractionLayerID === id ? null : id
+                setActiveInteractionButtonID(
+                  isActive ? null : primaryInteractionButton.id
                 )
               );
             }
@@ -413,96 +433,85 @@ const GeoportalLayerButton = ({
         {!background && (
           <>
             <span className="text-base ml-1">{title}</span>
-            {!isCesiumAnnotationLayerButton &&
-              (layer.filterConfig || layer.interactionButton) && (
-                <button
-                  id={`layerInteractionButton-${id}`}
-                  className="px-1.5 flex items-center justify-center"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    dispatch(
-                      setActiveInteractionLayerID(
-                        activeInteractionLayerID === id ? null : id
-                      )
-                    );
-                  }}
-                >
-                  <Badge
-                    count={
-                      layer.filterInfo && !layer.filterInfo.isShowingAll
-                        ? layer.filterInfo.activeCount
-                        : 0
-                    }
-                    size="small"
-                    color="#4b5563"
-                  >
-                    <FontAwesomeIcon
-                      icon={layer.interactionButton?.icon ?? faFilter}
-                      className={cn(
-                        "text-sm",
-                        activeInteractionLayerID === id
-                          ? "text-[#1677ff]"
-                          : "text-gray-600 hover:text-gray-500"
-                      )}
-                    />
-                  </Badge>
-                </button>
-              )}
-
-            {isCesiumAnnotationLayerButton && (
-              <Tooltip title="Alle Messungen fokussieren" placement="top">
-                <button
-                  className="h-8 w-8 min-w-8 flex items-center justify-center text-gray-600 hover:text-gray-500 disabled:text-gray-400"
-                  onClick={handleFlyToAllAnnotationsClick}
-                  disabled={!hasAnyCesiumAnnotations}
-                  aria-label="Alle Messungen fokussieren"
+            {interactionActivationMode === "action" && layer.filterConfig && (
+              <button
+                id={`layerInteractionButton-${id}`}
+                className="px-1.5 flex items-center justify-center"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  dispatch(
+                    setActiveInteractionLayerID(
+                      activeInteractionLayerID === id ? null : id
+                    )
+                  );
+                }}
+              >
+                <Badge
+                  count={
+                    layer.filterInfo && !layer.filterInfo.isShowingAll
+                      ? layer.filterInfo.activeCount
+                      : 0
+                  }
+                  size="small"
+                  color="#4b5563"
                 >
                   <FontAwesomeIcon
-                    icon={faSearchLocation}
-                    className="text-base leading-none"
+                    icon={faFilter}
+                    className={cn(
+                      "text-sm",
+                      activeInteractionLayerID === id
+                        ? "text-[#1677ff]"
+                        : "text-gray-600 hover:text-gray-500"
+                    )}
                   />
-                </button>
-              </Tooltip>
+                </Badge>
+              </button>
             )}
-            {getInteractionButtons(layer.interactionButtons).map((btn) => {
-              const isActive =
-                activeInteractionLayerID === id &&
-                activeInteractionButtonID === btn.id;
-              const button = (
-                <button
-                  key={btn.id}
-                  id={`layerInteractionButton-${id}-${btn.id}`}
-                  className={cn(
-                    "px-1.5 flex items-center justify-center text-sm",
-                    isActive
-                      ? "text-[#1677ff]"
-                      : "text-gray-600 hover:text-gray-500"
-                  )}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (btn.onClick) {
-                      btn.onClick();
-                      return;
-                    }
-                    dispatch(setActiveInteractionLayerID(isActive ? null : id));
-                    dispatch(
-                      setActiveInteractionButtonID(isActive ? null : btn.id)
-                    );
-                  }}
-                >
-                  {btn.icon}
-                </button>
-              );
-              return btn.tooltip ? (
-                <Tooltip key={btn.id} title={btn.tooltip}>
-                  {button}
-                </Tooltip>
-              ) : (
-                button
-              );
-            })}
+
+            {interactionActivationMode === "action" &&
+              interactionButtons.map((btn) => {
+                const isActive =
+                  activeInteractionLayerID === id &&
+                  activeInteractionButtonID === btn.id;
+                const button = (
+                  <button
+                    key={btn.id}
+                    id={`layerInteractionButton-${id}-${btn.id}`}
+                    className={cn(
+                      "px-1.5 flex items-center justify-center text-sm",
+                      isActive
+                        ? "text-[#1677ff]"
+                        : "text-gray-600 hover:text-gray-500"
+                    )}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (btn.onClick) {
+                        btn.onClick();
+                        return;
+                      }
+                      dispatch(
+                        setActiveInteractionLayerID(isActive ? null : id)
+                      );
+                      dispatch(
+                        setActiveInteractionButtonID(isActive ? null : btn.id)
+                      );
+                    }}
+                  >
+                    {btn.icon}
+                  </button>
+                );
+                return btn.tooltip ? (
+                  <Tooltip key={btn.id} title={btn.tooltip}>
+                    {button}
+                  </Tooltip>
+                ) : (
+                  button
+                );
+              })}
+
+            {actionSlot}
 
             {dynamicStylingConfigs.map((config, idx) => {
               if (idx === primaryListConfigIndex) return null;
@@ -537,16 +546,16 @@ const GeoportalLayerButton = ({
             <button
               id={`removeLayerButton-${id}`}
               className={cn(
-                isCesiumAnnotationLayerButton
+                closeButtonVariant === "compact"
                   ? "h-8 w-8 min-w-8 flex items-center justify-center text-gray-600 hover:text-gray-500"
                   : "hover:text-gray-500 text-gray-600 px-1.5 flex items-center justify-center"
               )}
-              onClick={handleLayerRemoveButtonClick}
+              onClick={handleCloseButtonClick}
             >
               <FontAwesomeIcon
-                icon={closeIcon}
+                icon={resolvedCloseIcon}
                 className={cn(
-                  isCesiumAnnotationLayerButton
+                  closeButtonVariant === "compact"
                     ? "text-base leading-none"
                     : "text-xs"
                 )}
