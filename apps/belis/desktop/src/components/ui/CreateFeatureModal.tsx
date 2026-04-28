@@ -263,11 +263,11 @@ const CreateFeatureModal = ({
             <Button
               onClick={async () => {
                 if (!jwt) return;
-                const data = await fetchFeatureById(jwt, 34772, "leuchten");
-                console.log("[TestFetch] Leuchte 34772:", JSON.stringify(data, null, 2));
+                const data = await fetchFeatureById(jwt, 90, "mast");
+                console.log("[TestFetch] Mast 90:", JSON.stringify(data, null, 2));
               }}
             >
-              Test Fetch 1727
+              Test Fetch Mast 90
             </Button>
           </div>
           <div className="flex gap-2">

@@ -104,7 +104,7 @@ const MauerlascheFormFields = ({
         label={<FormLabel>Laufende Nr.</FormLabel>}
         className="mb-4"
       >
-        <InputNumber className="w-full" size="large" />
+        <InputNumber className="w-full" size="large" placeholder={getPlaceholder(readOnly, "Nummer eingeben")} />
       </FormItem>
 
       {/* Montage (Erstellungsjahr) */}
@@ -163,7 +163,7 @@ const MauerlascheFormFields = ({
         label={<FormLabel>Bemerkung</FormLabel>}
         className="mb-4"
       >
-        <Input.TextArea rows={4} size="large" />
+        <Input.TextArea rows={4} size="large" placeholder={getPlaceholder(readOnly, "Bemerkung eingeben")} />
       </FormItem>
     </Form>
   );
