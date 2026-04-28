@@ -571,6 +571,7 @@ export function GenericTreesPlayground() {
 
   return (
     <TopicMapContextProvider
+      appKey="ng-topicmap-playground-trees-dev"
       infoBoxPixelWidth={350}
       backgroundModes={backgroundModes}
       backgroundConfigurations={backgroundConfigurations}
@@ -583,6 +584,7 @@ export function GenericTreesPlayground() {
               <PerfOverlay perfRef={perfRef} />
               <ProgressIndicator progress={progress} show={showProgress} />
               <CarmaMap
+                appKey="ng-topicmap-playground-trees-dev"
                 clickCrosshairDebugMode={crosshair}
                 mapEngine="maplibre"
                 exposeMapToWindow

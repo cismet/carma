@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import {
   SelectionProvider,
   ProgressIndicator,
@@ -12,37 +12,30 @@ import {
   useLibreContext,
 } from "@carma-mapping/engines/maplibre";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
+import { TopicMapStylingDispatchContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
+import {
+  backgroundModes,
+  backgroundConfigurations,
+} from "./backgroundConfig";
 import { defaultGazDataConfig } from "@carma-commons/resources";
 import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Switch } from "antd";
 import Menu from "./Menu";
-import {
-  buildCustomLayer,
-  syncTreesFromSource,
-} from "./tree-layer/ThreeTreeLayer";
-import {
-  buildLoftLayer,
-  syncLoftTreesFromSource,
-  EINZELBAUMX_SOURCE,
-} from "./tree-layer/LoftTreeLayer";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import "leaflet/dist/leaflet.css";
 
 // ─────────────────────────────────────────────────────────────
-//  Props
-// ─────────────────────────────────────────────────────────────
-
-// ─────────────────────────────────────────────────────────────
-//  LocalStorage helpers for tree options
+//  LocalStorage helpers
 // ─────────────────────────────────────────────────────────────
 
 const LS_PREFIX = "ng-topicmap-playground:";
 const TREES_LOFT_KEY = `${LS_PREFIX}trees-useLoft`;
 const TREES_RADIUS_MIX_KEY = `${LS_PREFIX}trees-radiusMix`;
 const TREES_VISIBILITY_KEY = `${LS_PREFIX}trees-layerVisibility`;
+const STORAGE_KEY = `${LS_PREFIX}trees-camera`;
 
 function loadUseLoft(): boolean {
   try {
@@ -72,10 +65,33 @@ function loadLayerVisibility(): LayerVisibility {
 }
 
 // ─────────────────────────────────────────────────────────────
-//  Camera persistence
+//  One-shot default background (only applied on first ever visit)
 // ─────────────────────────────────────────────────────────────
 
-const STORAGE_KEY = `${LS_PREFIX}trees-camera`;
+const BG_INIT_FLAG = `${LS_PREFIX}trees-bg-initialized`;
+
+function DefaultBackgroundOnFirstVisit() {
+  const dispatchCtx = useContext(
+    TopicMapStylingDispatchContext as unknown as React.Context<{
+      setSelectedBackground?: (key: string) => void;
+    }>
+  );
+  const ranRef = useRef(false);
+
+  useEffect(() => {
+    if (ranRef.current) return;
+    ranRef.current = true;
+    if (localStorage.getItem(BG_INIT_FLAG) === "true") return;
+    localStorage.setItem(BG_INIT_FLAG, "true");
+    dispatchCtx?.setSelectedBackground?.("our_basemap_grey");
+  }, [dispatchCtx]);
+
+  return null;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Camera persistence
+// ─────────────────────────────────────────────────────────────
 
 function CameraPersistence() {
   const { map } = useLibreContext();
@@ -126,224 +142,13 @@ function CameraPersistence() {
 }
 
 // ─────────────────────────────────────────────────────────────
-//  Perf data shared between TreeLayer and PerfOverlay
-// ─────────────────────────────────────────────────────────────
-
-interface TreePerfData {
-  mode: "kreis" | "umring";
-  treeCount: number;
-  triangles: number;
-  drawCalls: number;
-  syncMs: number;
-}
-
-const EMPTY_PERF: TreePerfData = {
-  mode: "kreis",
-  treeCount: 0,
-  triangles: 0,
-  drawCalls: 0,
-  syncMs: 0,
-};
-
-// ─────────────────────────────────────────────────────────────
-//  Performance overlay (FPS + tree layer stats)
-// ─────────────────────────────────────────────────────────────
-
-function formatCount(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
-  return String(n);
-}
-
-function PerfOverlay({ perfRef }: { perfRef: React.RefObject<TreePerfData> }) {
-  const { map } = useLibreContext();
-  const [fps, setFps] = useState(0);
-  const [perf, setPerf] = useState<TreePerfData>(EMPTY_PERF);
-  const frames = useRef(0);
-
-  const tick = useCallback(() => {
-    frames.current++;
-  }, []);
-
-  useEffect(() => {
-    if (!map) return;
-
-    map.on("render", tick);
-    const interval = setInterval(() => {
-      const count = frames.current;
-      frames.current = 0;
-      if (count > 0) {
-        setFps(count);
-      }
-      // Snapshot perf data from shared ref
-      if (perfRef.current) {
-        setPerf({ ...perfRef.current });
-      }
-    }, 1000);
-
-    return () => {
-      map.off("render", tick);
-      clearInterval(interval);
-    };
-  }, [map, tick, perfRef]);
-
-  const fpsColor = fps < 15 ? "#ff6b6b" : fps < 30 ? "#ffd93d" : "#6bff6b";
-  const modeLabel = perf.mode === "umring" ? "Umring" : "Kreis";
-
-  return (
-    <div
-      className="absolute bottom-2 right-2 z-[9999] px-2 py-1 rounded text-xs font-mono leading-snug"
-      style={{
-        background: "rgba(0,0,0,0.55)",
-        color: "#e0e0e0",
-      }}
-    >
-      <div>
-        <span style={{ color: "#8ecaff" }}>{modeLabel}</span>
-        {perf.treeCount > 0 && (
-          <span> | {perf.treeCount.toLocaleString()} trees</span>
-        )}
-      </div>
-      <div>
-        <span style={{ color: fpsColor }}>{fps} fps</span>
-        {perf.syncMs > 0 && <span> | sync {Math.round(perf.syncMs)}ms</span>}
-      </div>
-      {perf.treeCount > 0 && (
-        <div>
-          {formatCount(perf.triangles)} △ | {perf.drawCalls} draws
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────
-//  Tree layer component (handles both instanced and loft modes)
-// ─────────────────────────────────────────────────────────────
-
-function TreeLayer({
-  useLoft,
-  radiusMix,
-  perfRef,
-}: {
-  useLoft: boolean;
-  radiusMix: number;
-  perfRef: React.MutableRefObject<TreePerfData>;
-}) {
-  const { map } = useLibreContext();
-  const layerRef = useRef<ReturnType<
-    typeof buildCustomLayer | typeof buildLoftLayer
-  > | null>(null);
-
-  // Effect 1: Layer lifecycle — tear down only when mode changes or unmount
-  useEffect(() => {
-    if (!map) return;
-    return () => {
-      const layerId = layerRef.current?.id;
-      if (layerId && map.getLayer(layerId)) {
-        map.removeLayer(layerId);
-      }
-      layerRef.current = null;
-    };
-  }, [map, useLoft]);
-
-  // Effect 2: Data sync — re-runs on radius change without tearing down the layer
-  useEffect(() => {
-    if (!map) return;
-
-    const addLayerIfReady = () => {
-      if (layerRef.current) return;
-      if (!map.getSource(EINZELBAUMX_SOURCE)) return;
-
-      const customLayer = useLoft ? buildLoftLayer() : buildCustomLayer();
-      layerRef.current = customLayer;
-
-      // Insert before the first fill-extrusion layer for correct depth
-      const styleLayers = map.getStyle().layers ?? [];
-      const firstExtrusion = styleLayers.find(
-        (l) => l.type === "fill-extrusion"
-      );
-      map.addLayer(customLayer, firstExtrusion?.id);
-    };
-
-    const trySync = () => {
-      addLayerIfReady();
-      if (!layerRef.current || !map.getSource(EINZELBAUMX_SOURCE)) return;
-
-      const t0 = performance.now();
-      if (useLoft) {
-        syncLoftTreesFromSource(
-          map,
-          layerRef.current as ReturnType<typeof buildLoftLayer>,
-          radiusMix
-        );
-      } else {
-        syncTreesFromSource(
-          map,
-          layerRef.current as ReturnType<typeof buildCustomLayer>,
-          radiusMix
-        );
-      }
-      const syncMs = performance.now() - t0;
-
-      // Populate shared perf ref from layer stats
-      const layer = layerRef.current;
-      if (useLoft) {
-        const l = layer as ReturnType<typeof buildLoftLayer>;
-        perfRef.current = {
-          mode: "umring",
-          treeCount: l._lastTreeCount,
-          triangles: l._lastCrownTris + l._lastTrunkTris,
-          drawCalls: l._lastTreeCount > 0 ? 2 : 0,
-          syncMs,
-        };
-      } else {
-        const l = layer as ReturnType<typeof buildCustomLayer>;
-        perfRef.current = {
-          mode: "kreis",
-          treeCount: l._lastTreeCount,
-          triangles: l._lastTriangles,
-          drawCalls: l._lastDrawCalls,
-          syncMs,
-        };
-      }
-    };
-
-    map.on("moveend", trySync);
-
-    const handleSourceData = (e: {
-      sourceId: string;
-      isSourceLoaded: boolean;
-    }) => {
-      if (e.sourceId === EINZELBAUMX_SOURCE && e.isSourceLoaded) {
-        trySync();
-      }
-    };
-    map.on("sourcedata", handleSourceData);
-
-    // Sync immediately if the map is already idle (e.g. after mode switch
-    // without camera movement), otherwise wait for idle.
-    if (map.isStyleLoaded()) {
-      trySync();
-    } else {
-      map.once("idle", trySync);
-    }
-
-    return () => {
-      map.off("moveend", trySync);
-      map.off("sourcedata", handleSourceData);
-      perfRef.current = EMPTY_PERF;
-    };
-  }, [map, useLoft, radiusMix, perfRef]);
-
-  return null;
-}
-
-// ─────────────────────────────────────────────────────────────
 //  Layer visibility sync (drives map layout property)
 // ─────────────────────────────────────────────────────────────
 
-type LayerGroupName = "Einzelbaum 3D" | "Einzelbaum Umringe" | "Gebaeude";
+type LayerGroupName =
+  | "Einzelbaum 3D"
+  | "Einzelbaum Umringe"
+  | "Gebaeude";
 type LayerVisibility = Record<LayerGroupName, boolean>;
 
 const LAYER_GROUPS: {
@@ -358,15 +163,12 @@ const LAYER_GROUPS: {
 
 const DEFAULT_VISIBILITY: LayerVisibility = {
   "Einzelbaum 3D": true,
-  "Einzelbaum Umringe": true,
+  "Einzelbaum Umringe": false,
   Gebaeude: true,
 };
 
 function MapLayerVisibility({ visibility }: { visibility: LayerVisibility }) {
   const { map, setMapStyle } = useLibreContext();
-  // Remember which sub-layers were originally visible in the style JSON.
-  // When hiding a group, all sub-layers go to "none".
-  // When showing a group, only originally-visible sub-layers are restored.
   const originalVisibility = useRef<Map<string, string>>(new Map());
 
   useEffect(() => {
@@ -375,8 +177,6 @@ function MapLayerVisibility({ visibility }: { visibility: LayerVisibility }) {
     const capture = () => {
       const style = map.getStyle();
       if (!style?.layers) return;
-      // Record the original per-sub-layer visibility from the style JSON.
-      // Only capture layers with a "layer-id" metadata (user-provided layers).
       const next = new Map<string, string>();
       for (const layer of style.layers) {
         const lid = (layer as { metadata?: Record<string, unknown> })
@@ -402,8 +202,6 @@ function MapLayerVisibility({ visibility }: { visibility: LayerVisibility }) {
         const groupName = lid as LayerGroupName;
         if (groupName in visibility) {
           const groupVisible = visibility[groupName];
-          // When hiding: all sub-layers become "none".
-          // When showing: only restore sub-layers that were originally visible.
           const originalVis =
             originalVisibility.current.get(layer.id) ?? "visible";
           const desired = groupVisible ? originalVis : "none";
@@ -416,7 +214,6 @@ function MapLayerVisibility({ visibility }: { visibility: LayerVisibility }) {
       }
     };
 
-    // Capture original visibilities when the merged style is applied
     const onIdle = () => {
       if (originalVisibility.current.size === 0) {
         capture();
@@ -426,7 +223,6 @@ function MapLayerVisibility({ visibility }: { visibility: LayerVisibility }) {
     };
     map.once("idle", onIdle);
 
-    // If style is already loaded, capture (only once) + sync immediately
     if (map.isStyleLoaded()) {
       if (originalVisibility.current.size === 0) {
         capture();
@@ -438,7 +234,7 @@ function MapLayerVisibility({ visibility }: { visibility: LayerVisibility }) {
     return () => {
       map.off("idle", onIdle);
     };
-  }, [map, visibility]);
+  }, [map, visibility, setMapStyle]);
 
   return null;
 }
@@ -477,7 +273,7 @@ function LayerToggleBar({
               ${visible ? "bg-white" : "bg-neutral-200/70 opacity-70"}`}
             style={{ boxShadow: PILL_SHADOW }}
           >
-            <div className="flex items-center gap-2 pl-3 pr-1 h-8">
+            <div className="flex items-center gap-2 pl-3 pr-1 h-8 whitespace-nowrap">
               <span
                 className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
                 style={{ backgroundColor: color }}
@@ -543,14 +339,14 @@ function LayerToggleBar({
 }
 
 // ─────────────────────────────────────────────────────────────
-//  Libre layers config
+//  Libre layers (carma3d config attached to the tree layer)
 // ─────────────────────────────────────────────────────────────
 
 const LIBRE_LAYERS = [
   {
     type: "vector" as const,
     name: "Einzelbaum 3D",
-    style: "https://tiles.cismet.de/einzelbaumX/style.json",
+    style: "https://tiles.cismet.de/einzelbaumX/styleX.json",
   },
   {
     type: "vector" as const,
@@ -568,13 +364,12 @@ const LIBRE_LAYERS = [
 //  Main component
 // ─────────────────────────────────────────────────────────────
 
-export function TreesPlayground() {
+export function Trees() {
   const [useLoft, setUseLoft] = useState(loadUseLoft);
   const [radiusMix, setRadiusMix] = useState(loadRadiusMix);
   const [layerVisibility, setLayerVisibility] =
     useState<LayerVisibility>(loadLayerVisibility);
   const { progress, showProgress, handleProgressUpdate } = useProgress();
-  const perfRef = useRef<TreePerfData>(EMPTY_PERF);
 
   const handleLoftChange = (v: boolean) => {
     setUseLoft(v);
@@ -594,30 +389,41 @@ export function TreesPlayground() {
     });
   };
 
+  // Runtime params drive 3D layer behaviour via CarmaMap -> LibreMap -> ThreeLayerManager
+  const threeRuntimeParams: Record<string, number | string> = {
+    radiusMix,
+    useLoft: useLoft ? 1 : 0,
+    buildingOpacity: 1,
+    buildingColor: "#ffffff",
+  };
+
   return (
-    <TopicMapContextProvider infoBoxPixelWidth={350}>
+    <TopicMapContextProvider
+      appKey="ng-topicmap-playground-trees"
+      infoBoxPixelWidth={350}
+      backgroundModes={backgroundModes}
+      backgroundConfigurations={backgroundConfigurations}
+    >
+      <DefaultBackgroundOnFirstVisit />
       <SandboxedEvalProvider>
         <GazDataProvider config={defaultGazDataConfig}>
           <SelectionProvider>
             <LibreContextProvider>
               <CameraPersistence />
-              <PerfOverlay perfRef={perfRef} />
-              {layerVisibility["Einzelbaum 3D"] && (
-                <TreeLayer
-                  useLoft={useLoft}
-                  radiusMix={radiusMix}
-                  perfRef={perfRef}
-                />
-              )}
               <MapLayerVisibility visibility={layerVisibility} />
               <ProgressIndicator progress={progress} show={showProgress} />
               <CarmaMap
+                appKey="ng-topicmap-playground-trees"
                 mapEngine="maplibre"
                 exposeMapToWindow
                 overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
                 onProgressUpdate={handleProgressUpdate}
-                libreLayers={LIBRE_LAYERS}
+                libreLayers={LIBRE_LAYERS.filter(
+                  (l) =>
+                    layerVisibility[l.name as LayerGroupName] !== false
+                )}
                 modalMenu={<Menu />}
+                threeRuntimeParams={threeRuntimeParams}
               />
               <LayerToggleBar
                 visibility={layerVisibility}

@@ -74,7 +74,7 @@ export function Buildings() {
   const { progress, showProgress, handleProgressUpdate } = useProgress();
 
   return (
-    <TopicMapContextProvider infoBoxPixelWidth={350}>
+    <TopicMapContextProvider appKey="ng-topicmap-playground-buildings" infoBoxPixelWidth={350}>
       <SandboxedEvalProvider>
         <GazDataProvider config={defaultGazDataConfig}>
           <SelectionProvider>
@@ -82,6 +82,7 @@ export function Buildings() {
               <CameraPersistence />
               <ProgressIndicator progress={progress} show={showProgress} />
               <CarmaMap
+                appKey="ng-topicmap-playground-buildings"
                 mapEngine="maplibre"
                 exposeMapToWindow
                 overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"

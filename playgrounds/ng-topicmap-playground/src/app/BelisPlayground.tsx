@@ -537,6 +537,7 @@ const BelisPlaygroundContent = () => {
                 <DatasheetLayout
                   mainMap={
                     <CarmaMap
+                      appKey="ng-topicmap-playground-belis"
                       mapEngine="maplibre"
                       embedded
                       exposeMapToWindow

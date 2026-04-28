@@ -119,6 +119,7 @@ const Stadtplan2 = () => {
   return (
     <div className="w-full h-screen relative">
       <CarmaMap
+        appKey="ng-topicmap-playground-stadtplan2"
         mapEngine="maplibre"
         embedded
         exposeMapToWindow

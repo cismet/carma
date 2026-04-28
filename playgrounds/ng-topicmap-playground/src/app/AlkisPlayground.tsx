@@ -4,6 +4,7 @@ const AlkisPlayground = () => {
   return (
     <div className="w-full h-screen">
       <CarmaMap
+        appKey="ng-topicmap-playground-alkis"
         mapEngine="maplibre"
         embedded
         exposeMapToWindow

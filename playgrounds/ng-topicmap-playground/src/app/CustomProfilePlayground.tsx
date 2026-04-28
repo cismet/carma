@@ -23,12 +23,13 @@ const LIBRE_LAYERS = [
 
 export function CustomProfilePlayground() {
   return (
-    <TopicMapContextProvider infoBoxPixelWidth={350}>
+    <TopicMapContextProvider appKey="ng-topicmap-playground-custom-profile" infoBoxPixelWidth={350}>
       <SandboxedEvalProvider>
         <GazDataProvider config={defaultGazDataConfig}>
           <SelectionProvider>
             <LibreContextProvider>
               <CarmaMap
+                appKey="ng-topicmap-playground-custom-profile"
                 mapEngine="maplibre"
                 exposeMapToWindow
                 overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"

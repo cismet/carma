@@ -22,7 +22,7 @@ import BelisPlayground from "./app/BelisPlayground";
 import AlkisPlayground from "./app/AlkisPlayground";
 import Stadtplan2 from "./app/Stadtplan2";
 import { Buildings } from "./app/Buildings";
-import { TreesPlayground } from "./app/TreesPlayground";
+import { Trees } from "./app/Trees";
 import { GenericTreesPlayground } from "./app/GenericTreesPlayground";
 import { CustomProfilePlayground } from "./app/CustomProfilePlayground";
 import {
@@ -65,9 +65,9 @@ root.render(
                       <Route path="/alkis" element={<AlkisPlayground />} />
                       <Route path="/stadtplan2" element={<Stadtplan2 />} />
                       <Route path="/buildings" element={<Buildings />} />
-                      <Route path="/trees" element={<TreesPlayground />} />
+                      <Route path="/trees" element={<Trees />} />
                       <Route
-                        path="/generic-trees"
+                        path="/trees-dev"
                         element={<GenericTreesPlayground />}
                       />
                       <Route
