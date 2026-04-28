@@ -419,10 +419,7 @@ export function Trees() {
                 exposeMapToWindow
                 overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
                 onProgressUpdate={handleProgressUpdate}
-                libreLayers={LIBRE_LAYERS.filter(
-                  (l) =>
-                    layerVisibility[l.name as LayerGroupName] !== false
-                )}
+                libreLayers={LIBRE_LAYERS}
                 modalMenu={<Menu />}
                 threeRuntimeParams={threeRuntimeParams}
               />
