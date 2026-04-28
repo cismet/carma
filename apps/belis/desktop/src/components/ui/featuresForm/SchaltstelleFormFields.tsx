@@ -133,7 +133,7 @@ const SchaltstelleFormFields = ({
         label={<FormLabel>Hausnummer</FormLabel>}
         className="mb-4"
       >
-        <Input size="large" />
+        <Input size="large" placeholder={getPlaceholder(readOnly, "Hausnummer eingeben")} />
       </FormItem>
 
       {/* Standortbez. */}
@@ -142,7 +142,7 @@ const SchaltstelleFormFields = ({
         label={<FormLabel>Standortbez.</FormLabel>}
         className="mb-4"
       >
-        <Input size="large" />
+        <Input size="large" placeholder={getPlaceholder(readOnly, "Standortbezeichnung eingeben")} />
       </FormItem>
 
       {/* Laufende Nr. and Schaltstellen Nr. */}
@@ -153,7 +153,7 @@ const SchaltstelleFormFields = ({
             label={<FormLabel>Laufende Nr.</FormLabel>}
             className="mb-4"
           >
-            <InputNumber className="w-full" size="large" />
+            <InputNumber className="w-full" size="large" placeholder={getPlaceholder(readOnly, "Nummer eingeben")} />
           </FormItem>
         </Col>
         <Col span={12}>
@@ -162,7 +162,7 @@ const SchaltstelleFormFields = ({
             label={<FormLabel>Schaltstellen Nr.</FormLabel>}
             className="mb-4"
           >
-            <Input size="large" />
+            <Input size="large" placeholder={getPlaceholder(readOnly, "Nummer eingeben")} />
           </FormItem>
         </Col>
       </Row>
@@ -266,7 +266,7 @@ const SchaltstelleFormFields = ({
         label={<FormLabel>Bemerkung</FormLabel>}
         className="mb-4"
       >
-        <Input.TextArea rows={4} size="large" />
+        <Input.TextArea rows={4} size="large" placeholder={getPlaceholder(readOnly, "Bemerkung eingeben")} />
       </FormItem>
     </Form>
   );

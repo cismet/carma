@@ -321,7 +321,7 @@ const LeuchteFormFields = ({
             label={<FormLabel>Laufende Nr.</FormLabel>}
             className="mb-4"
           >
-            <InputNumber className="w-full" size="large" />
+            <InputNumber className="w-full" size="large" placeholder={getPlaceholder(readOnly, "Nummer eingeben")} />
           </FormItem>
         </Col>
         <Col span={12}>
@@ -330,7 +330,7 @@ const LeuchteFormFields = ({
             label={<FormLabel>Leuchtennummer</FormLabel>}
             className="mb-4"
           >
-            <InputNumber className="w-full" size="large" />
+            <InputNumber className="w-full" size="large" placeholder={getPlaceholder(readOnly, "Nummer eingeben")} />
           </FormItem>
         </Col>
       </Row>
@@ -390,7 +390,7 @@ const LeuchteFormFields = ({
         label={<FormLabel>Montagefirma</FormLabel>}
         className="mb-4"
       >
-        <Input size="large" />
+        <Input size="large" placeholder={getPlaceholder(readOnly, "Montagefirma eingeben")} />
       </FormItem>
 
       {/* Energielieferant */}
@@ -421,7 +421,7 @@ const LeuchteFormFields = ({
         label={<FormLabel>Schaltstelle</FormLabel>}
         className="mb-4"
       >
-        <Input size="large" />
+        <Input size="large" placeholder={getPlaceholder(readOnly, "Schaltstelle eingeben")} />
       </FormItem>
 
       {/* Rundsteuerempfänger */}
@@ -493,7 +493,7 @@ const LeuchteFormFields = ({
             label={<FormLabel>Anzahl</FormLabel>}
             className="mb-4"
           >
-            <InputNumber className="w-full" size="large" />
+            <InputNumber className="w-full" size="large" placeholder={getPlaceholder(readOnly, "Anzahl eingeben")} />
           </FormItem>
         </Col>
       </Row>
@@ -509,6 +509,7 @@ const LeuchteFormFields = ({
           size="large"
           precision={2}
           decimalSeparator=","
+          placeholder={getPlaceholder(readOnly, "Leistung eingeben")}
         />
       </FormItem>
 
@@ -542,7 +543,7 @@ const LeuchteFormFields = ({
             label={<FormLabel>Anzahl</FormLabel>}
             className="mb-4"
           >
-            <InputNumber className="w-full" size="large" />
+            <InputNumber className="w-full" size="large" placeholder={getPlaceholder(readOnly, "Anzahl eingeben")} />
           </FormItem>
         </Col>
       </Row>
@@ -558,6 +559,7 @@ const LeuchteFormFields = ({
           size="large"
           precision={2}
           decimalSeparator=","
+          placeholder={getPlaceholder(readOnly, "Leistung eingeben")}
         />
       </FormItem>
 
@@ -648,6 +650,7 @@ const LeuchteFormFields = ({
           size="large"
           precision={2}
           decimalSeparator=","
+          placeholder={getPlaceholder(readOnly, "Stunden eingeben")}
         />
       </FormItem>
 
@@ -671,7 +674,7 @@ const LeuchteFormFields = ({
         label={<FormLabel>Vorschaltgerät</FormLabel>}
         className="mb-4"
       >
-        <Input size="large" />
+        <Input size="large" placeholder={getPlaceholder(readOnly, "Vorschaltgerät eingeben")} />
       </FormItem>
 
       {/* Erneuerung VG */}
@@ -694,7 +697,7 @@ const LeuchteFormFields = ({
         label={<FormLabel>Bemerkung</FormLabel>}
         className="mb-4"
       >
-        <Input.TextArea rows={4} size="large" />
+        <Input.TextArea rows={4} size="large" placeholder={getPlaceholder(readOnly, "Bemerkung eingeben")} />
       </FormItem>
     </Form>
   );

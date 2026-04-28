@@ -264,7 +264,7 @@ const MastFormFields = ({
             label={<FormLabel>Laufende Nr.</FormLabel>}
             className="mb-4"
           >
-            <InputNumber className="w-full" size="large" />
+            <InputNumber className="w-full" size="large" placeholder={getPlaceholder(readOnly, "Nummer eingeben")} />
           </FormItem>
         </Col>
         <Col span={12}>
@@ -273,7 +273,7 @@ const MastFormFields = ({
             label={<FormLabel>Hausnummer</FormLabel>}
             className="mb-4"
           >
-            <Input size="large" />
+            <Input size="large" placeholder={getPlaceholder(readOnly, "Hausnummer eingeben")} />
           </FormItem>
         </Col>
       </Row>
@@ -284,7 +284,7 @@ const MastFormFields = ({
         label={<FormLabel>Standortangabe</FormLabel>}
         className="mb-4"
       >
-        <Input size="large" />
+        <Input size="large" placeholder={getPlaceholder(readOnly, "Standortangabe eingeben")} />
       </FormItem>
 
       {/* Stadtbezirk - always non-editable (reference data) */}
@@ -431,7 +431,7 @@ const MastFormFields = ({
             label={<FormLabel>Anstrichfarbe</FormLabel>}
             className="mb-4"
           >
-            <Input size="large" />
+            <Input size="large" placeholder={getPlaceholder(readOnly, "Farbe eingeben")} />
           </FormItem>
         </Col>
       </Row>
@@ -442,7 +442,7 @@ const MastFormFields = ({
         label={<FormLabel>Montagefirma</FormLabel>}
         className="mb-4"
       >
-        <Input size="large" />
+        <Input size="large" placeholder={getPlaceholder(readOnly, "Montagefirma eingeben")} />
       </FormItem>
 
       {/* Gruendung */}
@@ -451,7 +451,7 @@ const MastFormFields = ({
         label={<FormLabel>Gründung</FormLabel>}
         className="mb-4"
       >
-        <Input size="large" />
+        <Input size="large" placeholder={getPlaceholder(readOnly, "Gründung eingeben")} />
       </FormItem>
 
       {/* Standsicherheitspruefung and Naechstes Pruefdatum */}
@@ -492,7 +492,7 @@ const MastFormFields = ({
         label={<FormLabel>Verfahren</FormLabel>}
         className="mb-4"
       >
-        <Input size="large" />
+        <Input size="large" placeholder={getPlaceholder(readOnly, "Verfahren eingeben")} />
       </FormItem>
 
       {/* Elektrische Pruefung and Erdung */}
@@ -528,7 +528,7 @@ const MastFormFields = ({
         label={<FormLabel>Monteur</FormLabel>}
         className="mb-4"
       >
-        <Input size="large" />
+        <Input size="large" placeholder={getPlaceholder(readOnly, "Monteur eingeben")} />
       </FormItem>
 
       {/* Mastschutz and Revision */}
@@ -591,7 +591,7 @@ const MastFormFields = ({
         label={<FormLabel>Anbauten</FormLabel>}
         className="mb-4"
       >
-        <Input size="large" />
+        <Input size="large" placeholder={getPlaceholder(readOnly, "Anbauten eingeben")} />
       </FormItem>
 
       {/* Bemerkung */}
@@ -600,7 +600,7 @@ const MastFormFields = ({
         label={<FormLabel>Bemerkung</FormLabel>}
         className="mb-4"
       >
-        <Input.TextArea rows={4} size="large" />
+        <Input.TextArea rows={4} size="large" placeholder={getPlaceholder(readOnly, "Bemerkung eingeben")} />
       </FormItem>
 
       {/* Letzte Aenderung (readonly) */}
