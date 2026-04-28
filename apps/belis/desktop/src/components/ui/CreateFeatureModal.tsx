@@ -2,6 +2,9 @@ import { useCallback, useRef, useState } from "react";
 import { Modal, Button, message } from "antd";
 import type { FormInstance } from "antd";
 import { useSelector } from "react-redux";
+import proj4 from "proj4";
+import { useLibreContext } from "@carma-mapping/engines/maplibre";
+import { proj4crs4326def } from "@carma-mapping/utils";
 import type { CreateFeatureType } from "../../contexts/MapPageContext";
 import { FeatureIcon } from "./CreateFeatureDropdown";
 import LeuchteFormFields from "./featuresForm/LeuchteFormFields";
@@ -31,30 +34,42 @@ const classNames: Record<string, string> = {
   abzweigdose: "abzweigdose",
 };
 
+const proj4crs25832def =
+  "+proj=utm +zone=32 +ellps=GRS80 +units=m +no_defs";
+
 const CRS_25832 = {
   type: "name" as const,
   properties: { name: "urn:ogc:def:crs:EPSG::25832" },
 };
 
+// Temporary hardcoded geometries near Toelleturm, Wuppertal-Barmen (EPSG:25832)
+// Used as placeholder until real drawing/pick-from-map is implemented
 const HARDCODED_POINT = {
   type: "Point" as const,
   crs: CRS_25832,
-  coordinates: [370693.99, 5679839.69],
+  coordinates: [374503.93, 5679879.30],
+};
+
+const HARDCODED_POINT_TOELLETURM = {
+  type: "Point" as const,
+  crs: CRS_25832,
+  coordinates: [374503.93, 5679879.30],
 };
 
 const HARDCODED_LINE = {
   type: "LineString" as const,
   crs: CRS_25832,
   coordinates: [
-    [370693.99, 5679839.69],
-    [370713.99, 5679859.69],
-    [370733.99, 5679879.69],
+    [374503.93, 5679879.30],
+    [374523.93, 5679899.30],
+    [374543.93, 5679919.30],
   ],
 };
 
 const buildGeom = (featureType: string) => {
-  const geoField = featureType === "leitung" ? HARDCODED_LINE : HARDCODED_POINT;
-  return { id: -1, geo_field: geoField };
+  if (featureType === "leitung") return { id: -1, geo_field: HARDCODED_LINE };
+  if (featureType === "leuchte") return { id: -1, geo_field: HARDCODED_POINT_TOELLETURM };
+  return { id: -1, geo_field: HARDCODED_POINT };
 };
 
 interface CreateFeatureModalProps {
@@ -68,8 +83,18 @@ const CreateFeatureModal = ({
 }: CreateFeatureModalProps) => {
   const label = featureType ? featureLabels[featureType] : "";
   const jwt = useSelector(getJWT) as string | null;
+  const { map } = useLibreContext();
   const formRef = useRef<FormInstance | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const handleFlyToGeom = useCallback(() => {
+    if (!featureType || !map) return;
+    const geom = buildGeom(featureType).geo_field;
+    const coords =
+      geom.type === "Point" ? geom.coordinates : geom.coordinates[0];
+    const [lng, lat] = proj4(proj4crs25832def, proj4crs4326def, coords as [number, number]);
+    map.flyTo({ center: [lng, lat], zoom: 18 });
+  }, [featureType, map]);
 
   const handleFormInstance = useCallback((form: FormInstance) => {
     formRef.current = form;
@@ -190,13 +215,18 @@ const CreateFeatureModal = ({
       centered
       width={600}
       footer={
-        <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
-          <Button onClick={handleCancel} disabled={saving}>
-            Abbrechen
+        <div className="flex justify-between pt-2 border-t border-gray-100">
+          <Button onClick={handleFlyToGeom}>
+            Zur Geometrie fliegen
           </Button>
-          <Button type="primary" onClick={handleCreate} loading={saving}>
-            Erstellen
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={handleCancel} disabled={saving}>
+              Abbrechen
+            </Button>
+            <Button type="primary" onClick={handleCreate} loading={saving}>
+              Erstellen
+            </Button>
+          </div>
         </div>
       }
       styles={{
