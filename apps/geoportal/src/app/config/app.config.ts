@@ -34,27 +34,6 @@ export type GeoportalCesiumAnnotationInfoBoxConfig = Pick<
   "controlOrder" | "fitContentWidth" | "pixelWidth"
 >;
 
-export type GeoportalCesiumAnnotationToolbarClassNames = {
-  wrapper: string;
-  toolButtonBase: string;
-  toolButtonActive: string;
-  toolButtonInactive: string;
-  toolGroup: string;
-  toolButtonShell: string;
-  actionGroup: string;
-  toolButtonPrimaryAction: string;
-  smallActionButton: string;
-  toolButtonIcon: string;
-  toolButtonBadge: string;
-};
-
-export type GeoportalCesiumAnnotationToolbarMetrics = {
-  toolButtonWidthPx: number;
-  smallActionButtonWidthPx: number;
-  selectionActionButtonCount: number;
-  actionGroupWidthTransitionMs: number;
-};
-
 export type GeoportalCesiumAnnotationLabelTextModalConfig = {
   title: string;
   okText: string;
@@ -70,10 +49,6 @@ export type GeoportalCesiumAnnotationConfig = {
   infoBox: GeoportalCesiumAnnotationInfoBoxConfig;
   tools: {
     stableToolIds: readonly AnnotationToolId[];
-  };
-  toolbar: {
-    metrics: GeoportalCesiumAnnotationToolbarMetrics;
-    classNames: GeoportalCesiumAnnotationToolbarClassNames;
   };
   labelTextModal: GeoportalCesiumAnnotationLabelTextModalConfig;
 };
@@ -124,33 +99,6 @@ export const CESIUM_ANNOTATION_CONFIG = {
   },
   tools: {
     stableToolIds: ["select", "point", "distance"],
-  },
-  toolbar: {
-    metrics: {
-      toolButtonWidthPx: 48,
-      smallActionButtonWidthPx: 32,
-      selectionActionButtonCount: 3,
-      actionGroupWidthTransitionMs: 180,
-    },
-    classNames: {
-      wrapper: "w-fit max-w-full flex items-start gap-2 overflow-visible",
-      toolButtonBase:
-        "flex h-8 w-12 min-w-12 items-center justify-center rounded-[10px] bg-white px-2 text-gray-700 button-shadow transition-colors hover:text-gray-900",
-      toolButtonActive: "text-[#1677ff]",
-      toolButtonInactive: "",
-      toolGroup: "relative flex min-w-12 items-center overflow-visible",
-      toolButtonShell: "relative overflow-visible",
-      actionGroup:
-        "flex h-8 min-w-12 items-center justify-start overflow-hidden rounded-[10px] bg-white text-gray-700 button-shadow transition-[width] ease-in-out",
-      toolButtonPrimaryAction:
-        "flex h-8 w-12 min-w-12 items-center justify-center px-2 transition-colors hover:text-gray-900",
-      smallActionButton:
-        "flex h-8 w-8 min-w-8 items-center justify-center rounded-[10px] text-gray-600 transition-colors hover:text-gray-900",
-      toolButtonIcon:
-        "inline-flex items-center justify-center text-base leading-none",
-      toolButtonBadge:
-        "absolute right-0 top-0 z-10 inline-flex h-5 min-w-5 translate-x-1/3 -translate-y-1/3 items-center justify-center rounded-full bg-[#4b5563] px-1 text-[12px] font-medium leading-none text-white shadow-sm",
-    },
   },
   labelTextModal: {
     title: "Beschriftung hinzufügen",
