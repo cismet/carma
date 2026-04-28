@@ -238,13 +238,15 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
         >
           <button
             className="text-base rounded-full flex items-center justify-center p-2 hover:text-neutral-600 absolute top-2 left-1"
-            onClick={() => dispatch(setPreviousSelectedLayerIndex())}
+            onClick={() =>
+              dispatch(setPreviousSelectedLayerIndex({ isLeaflet }))
+            }
           >
             <FontAwesomeIcon icon={faChevronLeft} />
           </button>
           <button
             className="text-base rounded-full flex items-center justify-center p-2 hover:text-neutral-600 absolute top-2 right-1"
-            onClick={() => dispatch(setNextSelectedLayerIndex())}
+            onClick={() => dispatch(setNextSelectedLayerIndex({ isLeaflet }))}
           >
             <FontAwesomeIcon icon={faChevronRight} />
           </button>

@@ -25,6 +25,22 @@ type MapLibreMapEntry = {
 
 const defaultOpacity = 0.2;
 
+const shouldSkipLayerForSelection = (
+  layer: Layer | undefined,
+  isLeaflet: boolean
+): boolean => {
+  if (!layer) {
+    return false;
+  }
+  if (layer.skipSelection) {
+    return true;
+  }
+  if (!isLeaflet && layer.type !== "object") {
+    return true;
+  }
+  return false;
+};
+
 const initialState: MappingState = {
   layers: [],
   savedLayerConfigs: [],
@@ -321,11 +337,15 @@ const slice = createSlice({
     setSelectedLayerIndexNoSelection(state) {
       state.selectedLayerIndex = SELECTED_LAYER_INDEX.NO_SELECTION;
     },
-    setNextSelectedLayerIndex(state) {
+    setNextSelectedLayerIndex(
+      state,
+      action: PayloadAction<{ isLeaflet: boolean } | undefined>
+    ) {
+      const isLeaflet = action.payload?.isLeaflet ?? true;
       let newIndex = state.selectedLayerIndex + 1;
       while (
         newIndex < state.layers.length &&
-        state.layers[newIndex]?.skipSelection
+        shouldSkipLayerForSelection(state.layers[newIndex], isLeaflet)
       ) {
         newIndex += 1;
       }
@@ -335,14 +355,24 @@ const slice = createSlice({
         state.selectedLayerIndex = newIndex;
       }
     },
-    setPreviousSelectedLayerIndex(state) {
+    setPreviousSelectedLayerIndex(
+      state,
+      action: PayloadAction<{ isLeaflet: boolean } | undefined>
+    ) {
+      const isLeaflet = action.payload?.isLeaflet ?? true;
       let newIndex = state.selectedLayerIndex - 1;
-      while (newIndex >= 0 && state.layers[newIndex]?.skipSelection) {
+      while (
+        newIndex >= 0 &&
+        shouldSkipLayerForSelection(state.layers[newIndex], isLeaflet)
+      ) {
         newIndex -= 1;
       }
       if (newIndex < SELECTED_LAYER_INDEX.BACKGROUND_LAYER) {
         let wrapIndex = state.layers.length - 1;
-        while (wrapIndex >= 0 && state.layers[wrapIndex]?.skipSelection) {
+        while (
+          wrapIndex >= 0 &&
+          shouldSkipLayerForSelection(state.layers[wrapIndex], isLeaflet)
+        ) {
           wrapIndex -= 1;
         }
         state.selectedLayerIndex =
