@@ -1,5 +1,5 @@
-import { useCallback, useRef, useState } from "react";
-import { Modal, Button, message } from "antd";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Modal, Button, message, Tabs } from "antd";
 import type { FormInstance } from "antd";
 import { useSelector } from "react-redux";
 import proj4 from "proj4";
@@ -7,6 +7,8 @@ import { useLibreContext } from "@carma-mapping/engines/maplibre";
 import { proj4crs4326def } from "@carma-mapping/utils";
 import type { CreateFeatureType } from "../../contexts/MapPageContext";
 import { FeatureIcon } from "./CreateFeatureDropdown";
+import FilePreview from "./FilePreview";
+import type { PendingUpload } from "./FilePreview";
 import LeuchteFormFields from "./featuresForm/LeuchteFormFields";
 import MastFormFields from "./featuresForm/MastFormFields";
 import LeitungFormFields from "./featuresForm/LeitungFormFields";
@@ -17,7 +19,10 @@ import { prepareSaveValues } from "../../helper/featureFormSaveHelpers";
 import {
   updateDataByClassName,
   fetchFeatureById,
+  fileToBase64,
 } from "../../helper/apiMethods";
+import { uploadDraftFiles } from "../../helper/uploadDraftFiles";
+import type { DraftFile } from "../../store/slices/featuresForms";
 
 const featureLabels: Record<string, string> = {
   leuchte: "Leuchte",
@@ -75,6 +80,12 @@ const buildGeom = (featureType: string) => {
   return { id: -1, geo_field: HARDCODED_POINT };
 };
 
+interface PendingFile {
+  id: string;
+  file: File;
+  previewUrl: string;
+}
+
 interface CreateFeatureModalProps {
   featureType: CreateFeatureType;
   onClose: () => void;
@@ -90,6 +101,42 @@ const CreateFeatureModal = ({
   const formRef = useRef<FormInstance | null>(null);
   const [saving, setSaving] = useState(false);
   const [debugJson, setDebugJson] = useState<string>("{}");
+  const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
+
+  useEffect(() => {
+    return () => {
+      pendingFiles.forEach((pf) => URL.revokeObjectURL(pf.previewUrl));
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleAddFiles = useCallback((files: File[]) => {
+    const newPending = files.map((file) => ({
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      file,
+      previewUrl: URL.createObjectURL(file),
+    }));
+    setPendingFiles((prev) => [...prev, ...newPending]);
+  }, []);
+
+  const handleRemoveFile = useCallback((id: string) => {
+    setPendingFiles((prev) => {
+      const found = prev.find((f) => f.id === id);
+      if (found) URL.revokeObjectURL(found.previewUrl);
+      return prev.filter((f) => f.id !== id);
+    });
+  }, []);
+
+  const pendingUploads: PendingUpload[] = useMemo(
+    () =>
+      pendingFiles.map((pf) => ({
+        id: pf.id,
+        fileName: pf.file.name.replace(/\.[^.]+$/, ""),
+        previewUrl: pf.previewUrl,
+        originalFileName: pf.file.name,
+      })),
+    [pendingFiles]
+  );
 
   const handleFlyToGeom = useCallback(() => {
     if (!featureType || !map) return;
@@ -185,8 +232,49 @@ const CreateFeatureModal = ({
 
       const result = await updateDataByClassName(jwt, className, payload);
       console.log("[CreateFeature] server response:", result);
+
+      // Upload pending files if any
+      if (pendingFiles.length > 0) {
+        const res = result as { res?: string } | null;
+        const parsed = res?.res
+          ? (JSON.parse(res.res) as { id?: number })
+          : null;
+        const newId = parsed?.id;
+
+        if (newId) {
+          const draftFilesForUpload: DraftFile[] = await Promise.all(
+            pendingFiles.map(async (pf) => {
+              const dotIdx = pf.file.name.lastIndexOf(".");
+              const nameNoExt =
+                dotIdx > 0 ? pf.file.name.slice(0, dotIdx) : pf.file.name;
+              return {
+                id: pf.id,
+                fileName: nameNoExt,
+                originalFileName: pf.file.name,
+                base64Data: await fileToBase64(pf.file),
+                mimeType: pf.file.type,
+                size: pf.file.size,
+              };
+            })
+          );
+          const uploadedDocs = await uploadDraftFiles(jwt, draftFilesForUpload);
+          if (uploadedDocs.length > 0) {
+            await updateDataByClassName(jwt, className, {
+              id: newId,
+              dokumenteArray: uploadedDocs,
+            });
+            console.log(
+              "[CreateFeature] documents attached:",
+              uploadedDocs.length
+            );
+          }
+        }
+      }
+
       void message.success(`${label} erstellt`);
       formRef.current?.resetFields();
+      pendingFiles.forEach((pf) => URL.revokeObjectURL(pf.previewUrl));
+      setPendingFiles([]);
       onClose();
     } catch (err) {
       console.error("[CreateFeature] error:", err);
@@ -198,10 +286,12 @@ const CreateFeatureModal = ({
     } finally {
       setSaving(false);
     }
-  }, [featureType, jwt, label, onClose]);
+  }, [featureType, jwt, label, onClose, pendingFiles]);
 
   const handleCancel = () => {
     formRef.current?.resetFields();
+    pendingFiles.forEach((pf) => URL.revokeObjectURL(pf.previewUrl));
+    setPendingFiles([]);
     onClose();
   };
 
@@ -273,7 +363,7 @@ const CreateFeatureModal = ({
       footer={
         <div className="flex justify-between pt-2 border-t border-gray-100">
           <div className="flex gap-2">
-            <Button
+            {/* <Button
               onClick={async () => {
                 if (!jwt || !map) return;
                 const data = await fetchFeatureById(jwt, 34350, "mast");
@@ -304,7 +394,7 @@ const CreateFeatureModal = ({
               }}
             >
               Leuchte 34776
-            </Button>
+            </Button> */}
           </div>
           <div className="flex gap-2">
             <Button onClick={handleCancel} disabled={saving}>
@@ -317,11 +407,40 @@ const CreateFeatureModal = ({
         </div>
       }
       styles={{
-        body: { paddingTop: 16, maxHeight: "70vh", overflowY: "auto" },
+        body: { paddingTop: 16, height: "70vh", overflowY: "hidden" },
         header: { borderBottom: "1px solid #f3f4f6", paddingBottom: 16 },
       }}
     >
-      {renderFields()}
+      <Tabs
+        defaultActiveKey="allgemein"
+        className="h-full flex flex-col [&_.ant-tabs-content-holder]:flex-1 [&_.ant-tabs-content-holder]:overflow-hidden [&_.ant-tabs-content]:h-full [&_.ant-tabs-tabpane]:h-full [&_.ant-tabs-tabpane]:overflow-y-auto"
+        items={[
+          {
+            key: "allgemein",
+            label: "Allgemein",
+            children: renderFields(),
+          },
+          {
+            key: "dokumente",
+            label: `Dokumente${
+              pendingFiles.length > 0 ? ` (${pendingFiles.length})` : ""
+            }`,
+            children: (
+              <div className="pt-2">
+                <FilePreview
+                  documents={[]}
+                  readOnly={false}
+                  pendingUploads={pendingUploads}
+                  onAddFiles={handleAddFiles}
+                  onRemovePendingUpload={handleRemoveFile}
+                  onPendingUploadNameChange={() => {}}
+                  size="xl"
+                />
+              </div>
+            ),
+          },
+        ]}
+      />
     </Modal>
   );
 };
