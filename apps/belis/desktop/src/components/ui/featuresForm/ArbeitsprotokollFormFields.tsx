@@ -3,7 +3,7 @@ import { Form, Input, Row, Col, Table, Tag, DatePicker, Select } from "antd";
 import { useSelector, useDispatch } from "react-redux";
 import dayjs from "dayjs";
 import type { ColumnsType } from "antd/es/table";
-import { getFormClassName } from "./readOnlyFormUtils";
+import { getFormClassName, getPlaceholder } from "./readOnlyFormUtils";
 import { FormItem } from "./DraftFieldHighlight";
 import {
   AktionModal,
@@ -253,7 +253,7 @@ const ArbeitsprotokollFormFields = ({
               label={<FormLabel>Monteur</FormLabel>}
               className="mb-4"
             >
-              <Input size="large" />
+              <Input size="large" placeholder={getPlaceholder(readOnly, "Monteur eingeben")} />
             </FormItem>
           </Col>
           <Col span={12}>
@@ -296,7 +296,7 @@ const ArbeitsprotokollFormFields = ({
               label={<FormLabel>Material</FormLabel>}
               className="mb-4"
             >
-              <Input size="large" />
+              <Input size="large" placeholder={getPlaceholder(readOnly, "Material eingeben")} />
             </FormItem>
           </Col>
         </Row>
@@ -305,7 +305,7 @@ const ArbeitsprotokollFormFields = ({
           label={<FormLabel>Bemerkung</FormLabel>}
           className="mb-4"
         >
-          <Input.TextArea size="large" autoSize={{ minRows: 2, maxRows: 6 }} />
+          <Input.TextArea size="large" autoSize={{ minRows: 2, maxRows: 6 }} placeholder={getPlaceholder(readOnly, "Bemerkung eingeben")} />
         </FormItem>
       </Form>
 
