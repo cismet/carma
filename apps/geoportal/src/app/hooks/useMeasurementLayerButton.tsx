@@ -1,9 +1,15 @@
 import { useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import Icon from "react-cismap/commons/Icon";
 
-import { faFloppyDisk } from "@fortawesome/free-solid-svg-icons";
+import {
+  faFloppyDisk,
+  faMagnifyingGlassLocation,
+  faTrashCan,
+} from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
-import type { Layer } from "@carma-mapping/layers";
+import type { InteractionButton, Layer } from "@carma-mapping/layers";
 import { useMapMeasurementsContext } from "@carma-commons/measurements";
 
 import {
@@ -16,18 +22,6 @@ import { getUIMode, setUIMode, UIMode } from "../store/slices/ui";
 
 export const MEASUREMENT_LAYER_ID = "__measurement__";
 
-const MEASUREMENT_LAYER: Layer = {
-  id: MEASUREMENT_LAYER_ID,
-  title: "Messung",
-  icon: "measurement",
-  visible: true,
-  pinned: "last",
-  interactionButton: {
-    icon: faFloppyDisk,
-    id: "save-measurements",
-  },
-};
-
 function getMeasurementTitle(count: number) {
   return count > 0 ? `${count} Messung${count > 1 ? "en" : ""}` : "Messung";
 }
@@ -36,7 +30,37 @@ export function useMeasurementLayerButton() {
   const dispatch = useDispatch();
   const uiMode = useSelector(getUIMode);
   const layers = useSelector(getLayers);
-  const { shapes } = useMapMeasurementsContext();
+  const { shapes, clearAllShapes, setShowAll } = useMapMeasurementsContext();
+
+  const interactionButtons: InteractionButton[] = [
+    {
+      icon: <Icon name="search-location" />,
+      id: "zoom-measurements",
+      tooltip: "Auf alle Messungen zoomen",
+      onClick: () => setShowAll(true),
+    },
+    {
+      icon: <FontAwesomeIcon icon={faTrashCan} />,
+      id: "clear-measurements",
+      tooltip: "Alle Messungen löschen",
+      onClick: () => clearAllShapes(),
+    },
+    {
+      icon: <FontAwesomeIcon icon={faFloppyDisk} />,
+      id: "save-measurements",
+      tooltip: "Messungen speichern",
+    },
+  ];
+
+  const measurementLayer: Layer = {
+    id: MEASUREMENT_LAYER_ID,
+    title: "Messung",
+    icon: "measurement",
+    visible: true,
+    pinned: "last",
+    skipSelection: true,
+    interactionButtons,
+  };
 
   const isMeasurementMode = uiMode === UIMode.MEASUREMENT;
   const hasMeasurementLayer = layers.some((l) => l.id === MEASUREMENT_LAYER_ID);
@@ -63,7 +87,7 @@ export function useMeasurementLayerButton() {
     if (isMeasurementMode && !prev.isMeasurementMode && !hasMeasurementLayer) {
       dispatch(
         appendLayer({
-          ...MEASUREMENT_LAYER,
+          ...measurementLayer,
           title: getMeasurementTitle(shapes.length),
         })
       );
@@ -86,7 +110,7 @@ export function useMeasurementLayerButton() {
     if (!hasMeasurementLayer) return;
     dispatch(
       updateLayer({
-        ...MEASUREMENT_LAYER,
+        ...measurementLayer,
         title: getMeasurementTitle(shapes.length),
       })
     );

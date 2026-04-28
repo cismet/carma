@@ -227,7 +227,7 @@ const LayerWrapper = () => {
       {!isNoSelectionIndex &&
         !(
           selectedLayerIndex >= 0 &&
-          layers[selectedLayerIndex]?.interactionButton
+          layers[selectedLayerIndex]?.skipSelection
         ) && <SecondaryView />}
     </>
   );

@@ -19,6 +19,7 @@ import L from "leaflet";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import type { BackgroundLayer, Layer } from "@carma-mapping/layers";
+import { getInteractionButtons } from "@carma-mapping/layers";
 import { cn, getHashParams } from "@carma-commons/utils";
 
 import {
@@ -32,12 +33,14 @@ import {
   getLayers,
   getSelectedLayerIndex,
   getActiveInteractionLayerID,
+  getActiveInteractionButtonID,
   getShowLeftScrollButton,
   removeLayer,
   setClickFromInfoView,
   setSelectedLayerIndex,
   setSelectedLayerIndexNoSelection,
   setActiveInteractionLayerID,
+  setActiveInteractionButtonID,
   setShowLeftScrollButton,
   setShowRightScrollButton,
   toggleUseInFeatureInfo,
@@ -58,8 +61,7 @@ import {
   buildFilterExpression,
   captureOriginalFilters,
 } from "@carma-mapping/components";
-import { Badge, Spin } from "antd";
-import { LoadingOutlined } from "@ant-design/icons";
+import { Badge, Spin, Tooltip } from "antd";
 import { useLayerLoading } from "@carma-mapping/utils";
 import { useAdhocFeatureDisplay } from "@carma-appframeworks/portals";
 import { isAdhocVectorLayer } from "../../helper/adhoc-feature-utils";
@@ -108,6 +110,7 @@ const GeoportalLayerButton = ({
   const showLeftScrollButton = useSelector(getShowLeftScrollButton);
   const clickFromInfoView = useSelector(getClickFromInfoView);
   const activeInteractionLayerID = useSelector(getActiveInteractionLayerID);
+  const activeInteractionButtonID = useSelector(getActiveInteractionButtonID);
   const maplibreMaps = useSelector(getMaplibreMaps);
   const mode = useSelector(getUIMode);
   const showSettings = index === selectedLayerIndex;
@@ -239,7 +242,7 @@ const GeoportalLayerButton = ({
           if (activeInteractionLayerID && activeInteractionLayerID !== id) {
             dispatch(setActiveInteractionLayerID(null));
           }
-          if (layer.interactionButton) {
+          if (layer.skipSelection) {
             return;
           }
           if (!clickFromInfoView) {
@@ -292,18 +295,18 @@ const GeoportalLayerButton = ({
         {!background && (
           <>
             <span className="text-base ml-1">{title}</span>
-            {(layer.filterConfig || layer.interactionButton) && (
+            {layer.filterConfig && (
               <button
                 id={`layerInteractionButton-${id}`}
                 className="px-1.5 flex items-center justify-center"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  dispatch(
-                    setActiveInteractionLayerID(
-                      activeInteractionLayerID === id ? null : id
-                    )
-                  );
+                  const isOpen =
+                    activeInteractionLayerID === id &&
+                    activeInteractionButtonID === null;
+                  dispatch(setActiveInteractionLayerID(isOpen ? null : id));
+                  dispatch(setActiveInteractionButtonID(null));
                 }}
               >
                 <Badge
@@ -316,10 +319,11 @@ const GeoportalLayerButton = ({
                   color="#4b5563"
                 >
                   <FontAwesomeIcon
-                    icon={layer.interactionButton?.icon ?? faFilter}
+                    icon={faFilter}
                     className={cn(
                       "text-sm",
-                      activeInteractionLayerID === id
+                      activeInteractionLayerID === id &&
+                        activeInteractionButtonID === null
                         ? "text-[#1677ff]"
                         : "text-gray-600 hover:text-gray-500"
                     )}
@@ -327,6 +331,44 @@ const GeoportalLayerButton = ({
                 </Badge>
               </button>
             )}
+            {getInteractionButtons(layer.interactionButtons).map((btn) => {
+              const isActive =
+                activeInteractionLayerID === id &&
+                activeInteractionButtonID === btn.id;
+              const button = (
+                <button
+                  key={btn.id}
+                  id={`layerInteractionButton-${id}-${btn.id}`}
+                  className={cn(
+                    "px-1.5 flex items-center justify-center text-sm",
+                    isActive
+                      ? "text-[#1677ff]"
+                      : "text-gray-600 hover:text-gray-500"
+                  )}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (btn.onClick) {
+                      btn.onClick();
+                      return;
+                    }
+                    dispatch(setActiveInteractionLayerID(isActive ? null : id));
+                    dispatch(
+                      setActiveInteractionButtonID(isActive ? null : btn.id)
+                    );
+                  }}
+                >
+                  {btn.icon}
+                </button>
+              );
+              return btn.tooltip ? (
+                <Tooltip key={btn.id} title={btn.tooltip}>
+                  {button}
+                </Tooltip>
+              ) : (
+                button
+              );
+            })}
 
             <button
               id={`removeLayerButton-${id}`}

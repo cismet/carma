@@ -122,6 +122,7 @@ export interface MappingState extends LayerState {
   showLeftScrollButton: boolean;
   showRightScrollButton: boolean;
   activeInteractionLayerID: string | null;
+  activeInteractionButtonID: string | null;
   showFullscreenButton: boolean;
   showLocatorButton: boolean;
   showMeasurementButton: boolean;

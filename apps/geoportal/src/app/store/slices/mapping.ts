@@ -28,6 +28,7 @@ const initialState: MappingState = {
   savedLayerConfigs: [],
   selectedLayerIndex: SELECTED_LAYER_INDEX.NO_SELECTION,
   activeInteractionLayerID: null,
+  activeInteractionButtonID: null,
   paleOpacityValue: defaultOpacity,
   libreMapRef: null,
   maplibreMaps: [],
@@ -142,6 +143,7 @@ const slice = createSlice({
       );
       if (state.activeInteractionLayerID === action.payload) {
         state.activeInteractionLayerID = null;
+        state.activeInteractionButtonID = null;
       }
     },
     removeLastLayer(state) {
@@ -271,7 +273,7 @@ const slice = createSlice({
       let newIndex = state.selectedLayerIndex + 1;
       while (
         newIndex < state.layers.length &&
-        state.layers[newIndex]?.interactionButton
+        state.layers[newIndex]?.skipSelection
       ) {
         newIndex += 1;
       }
@@ -283,12 +285,12 @@ const slice = createSlice({
     },
     setPreviousSelectedLayerIndex(state) {
       let newIndex = state.selectedLayerIndex - 1;
-      while (newIndex >= 0 && state.layers[newIndex]?.interactionButton) {
+      while (newIndex >= 0 && state.layers[newIndex]?.skipSelection) {
         newIndex -= 1;
       }
       if (newIndex < SELECTED_LAYER_INDEX.BACKGROUND_LAYER) {
         let wrapIndex = state.layers.length - 1;
-        while (wrapIndex >= 0 && state.layers[wrapIndex]?.interactionButton) {
+        while (wrapIndex >= 0 && state.layers[wrapIndex]?.skipSelection) {
           wrapIndex -= 1;
         }
         state.selectedLayerIndex =
@@ -300,6 +302,12 @@ const slice = createSlice({
 
     setActiveInteractionLayerID(state, action) {
       state.activeInteractionLayerID = action.payload;
+      if (action.payload === null) {
+        state.activeInteractionButtonID = null;
+      }
+    },
+    setActiveInteractionButtonID(state, action: PayloadAction<string | null>) {
+      state.activeInteractionButtonID = action.payload;
     },
     setSelectedMapLayer(state, action: PayloadAction<BackgroundLayer>) {
       state.selectedMapLayer = action.payload;
@@ -385,6 +393,7 @@ export const {
   setNextSelectedLayerIndex,
   setPreviousSelectedLayerIndex,
   setActiveInteractionLayerID,
+  setActiveInteractionButtonID,
   setSelectedMapLayer,
   setBackgroundLayer,
   setSelectedLuftbildLayer,
@@ -448,6 +457,8 @@ export const getShowRightScrollButton = (state: RootState) =>
   state.mapping.showRightScrollButton;
 export const getActiveInteractionLayerID = (state: RootState) =>
   state.mapping.activeInteractionLayerID;
+export const getActiveInteractionButtonID = (state: RootState) =>
+  state.mapping.activeInteractionButtonID;
 export const getStartDrawing = (state: RootState) => state.mapping.startDrawing;
 export const getLibreMapRef = (state: RootState) => state.mapping.libreMapRef;
 export const getMaplibreMaps = (state: RootState) => state.mapping.maplibreMaps;

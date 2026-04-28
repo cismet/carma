@@ -5,6 +5,7 @@ import type { FilterConfig, FilterType, Layer } from "@carma-mapping/layers";
 import { FILTER_TYPES } from "@carma-mapping/layers";
 
 import {
+  getActiveInteractionButtonID,
   getActiveInteractionLayerID,
   getLayers,
   getMaplibreMaps,
@@ -45,6 +46,7 @@ const FILTER_FACTORIES: Partial<
 const InteractionView = ({ isDragging }: { isDragging?: boolean }) => {
   const dispatch = useDispatch();
   const activeInteractionLayerID = useSelector(getActiveInteractionLayerID);
+  const activeInteractionButtonID = useSelector(getActiveInteractionButtonID);
   const layers = useSelector(getLayers);
   const maplibreMaps = useSelector(getMaplibreMaps);
   const selectedFeature = useSelector(getSelectedFeature);
@@ -74,9 +76,8 @@ const InteractionView = ({ isDragging }: { isDragging?: boolean }) => {
     return null;
   }
 
-  const interactionType = layer.interactionButton?.id;
-  const InteractionComponent = interactionType
-    ? INTERACTION_COMPONENTS[interactionType]
+  const InteractionComponent = activeInteractionButtonID
+    ? INTERACTION_COMPONENTS[activeInteractionButtonID]
     : undefined;
 
   if (!InteractionComponent && !FilterComponent) {

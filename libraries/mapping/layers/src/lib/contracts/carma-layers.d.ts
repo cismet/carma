@@ -1,10 +1,17 @@
-import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
+import type { ReactNode } from "react";
 import type { CarmaConfig } from "./carma-config";
 
 export type LayerFilterInfo = {
   activeCount: number;
   totalCount: number;
   isShowingAll: boolean;
+};
+
+export type InteractionButton = {
+  icon: ReactNode;
+  id: string;
+  tooltip?: string;
+  onClick?: () => void;
 };
 
 export type BackgroundLayer = BaseLayer & {
@@ -126,10 +133,8 @@ type BaseLayer = {
   conf?: CarmaConfig;
   icon?: string;
   pinned?: "first" | "last";
-  interactionButton?: {
-    icon: IconDefinition;
-    id: string;
-  };
+  skipSelection?: boolean;
+  interactionButtons?: InteractionButton | InteractionButton[];
   other?: OtherLayerProps;
   filterConfig?: FilterConfig;
   filterInfo?: LayerFilterInfo;

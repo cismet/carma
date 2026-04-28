@@ -1,10 +1,22 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { WMSCapabilitiesJSON } from "wms-capabilities";
-import type { Item, XMLLayer, Layer } from "@carma-mapping/layers";
+import type {
+  InteractionButton,
+  Item,
+  XMLLayer,
+  Layer,
+} from "@carma-mapping/layers";
 
 import { serviceConfig } from "./config";
 import { ExtendedItem, getReplaceLayers } from "../slices/mapLayers";
 import type { Store } from "redux";
+
+export const getInteractionButtons = (
+  buttons?: InteractionButton | InteractionButton[]
+): InteractionButton[] => {
+  if (!buttons) return [];
+  return Array.isArray(buttons) ? buttons : [buttons];
+};
 
 export const parseDescription = (description: string) => {
   if (!description) {

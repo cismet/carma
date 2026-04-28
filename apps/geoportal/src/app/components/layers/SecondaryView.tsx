@@ -172,7 +172,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
         if (layerButton.contains(event.target as Node)) {
           const layerId = layerButton.id.replace("layer-", "");
           const clickedLayer = layers.find((l) => l.id === layerId);
-          if (clickedLayer?.interactionButton) {
+          if (clickedLayer?.skipSelection) {
             returnFunction = true;
             return;
           }
