@@ -14,7 +14,10 @@ import SchaltstelleFormFields from "./featuresForm/SchaltstelleFormFields";
 import MauerlascheFormFields from "./featuresForm/MauerlascheFormFields";
 import { getJWT } from "../../store/slices/auth";
 import { prepareSaveValues } from "../../helper/featureFormSaveHelpers";
-import { updateDataByClassName, fetchFeatureById } from "../../helper/apiMethods";
+import {
+  updateDataByClassName,
+  fetchFeatureById,
+} from "../../helper/apiMethods";
 
 const featureLabels: Record<string, string> = {
   leuchte: "Leuchte",
@@ -34,8 +37,7 @@ const classNames: Record<string, string> = {
   abzweigdose: "abzweigdose",
 };
 
-const proj4crs25832def =
-  "+proj=utm +zone=32 +ellps=GRS80 +units=m +no_defs";
+const proj4crs25832def = "+proj=utm +zone=32 +ellps=GRS80 +units=m +no_defs";
 
 const CRS_25832 = {
   type: "name" as const,
@@ -47,28 +49,29 @@ const CRS_25832 = {
 const HARDCODED_POINT = {
   type: "Point" as const,
   crs: CRS_25832,
-  coordinates: [374503.93, 5679879.30],
+  coordinates: [374503.93, 5679879.3],
 };
 
 const HARDCODED_POINT_TOELLETURM = {
   type: "Point" as const,
   crs: CRS_25832,
-  coordinates: [374503.93, 5679879.30],
+  coordinates: [374503.93, 5679879.3],
 };
 
 const HARDCODED_LINE = {
   type: "LineString" as const,
   crs: CRS_25832,
   coordinates: [
-    [374503.93, 5679879.30],
-    [374523.93, 5679899.30],
-    [374543.93, 5679919.30],
+    [374503.93, 5679879.3],
+    [374523.93, 5679899.3],
+    [374543.93, 5679919.3],
   ],
 };
 
 const buildGeom = (featureType: string) => {
   if (featureType === "leitung") return { id: -1, geo_field: HARDCODED_LINE };
-  if (featureType === "leuchte") return { id: -1, geo_field: HARDCODED_POINT_TOELLETURM };
+  if (featureType === "leuchte")
+    return { id: -1, geo_field: HARDCODED_POINT_TOELLETURM };
   return { id: -1, geo_field: HARDCODED_POINT };
 };
 
@@ -86,18 +89,28 @@ const CreateFeatureModal = ({
   const { map } = useLibreContext();
   const formRef = useRef<FormInstance | null>(null);
   const [saving, setSaving] = useState(false);
+  const [debugJson, setDebugJson] = useState<string>("{}");
 
   const handleFlyToGeom = useCallback(() => {
     if (!featureType || !map) return;
     const geom = buildGeom(featureType).geo_field;
     const coords =
       geom.type === "Point" ? geom.coordinates : geom.coordinates[0];
-    const [lng, lat] = proj4(proj4crs25832def, proj4crs4326def, coords as [number, number]);
+    const [lng, lat] = proj4(
+      proj4crs25832def,
+      proj4crs4326def,
+      coords as [number, number]
+    );
     map.flyTo({ center: [lng, lat], zoom: 18 });
   }, [featureType, map]);
 
   const handleFormInstance = useCallback((form: FormInstance) => {
     formRef.current = form;
+  }, []);
+
+  const updateDebugJson = useCallback(() => {
+    const vals = formRef.current?.getFieldsValue() ?? {};
+    setDebugJson(JSON.stringify(vals, null, 2));
   }, []);
 
   const handleCreate = useCallback(async () => {
@@ -112,11 +125,10 @@ const CreateFeatureModal = ({
       JSON.stringify(rawValues, null, 2)
     );
 
-    const prepared = prepareSaveValues(featureType, rawValues) ?? {};
-    console.log(
-      "[CreateFeature] prepared:",
-      JSON.stringify(prepared, null, 2)
-    );
+    const valuesForPrepare =
+      featureType === "leuchte" ? { leuchte: rawValues } : rawValues;
+    const prepared = prepareSaveValues(featureType, valuesForPrepare) ?? {};
+    console.log("[CreateFeature] prepared:", JSON.stringify(prepared, null, 2));
 
     setSaving(true);
     try {
@@ -153,7 +165,7 @@ const CreateFeatureModal = ({
         payload = {
           id: -1,
           ...prepared,
-          fk_standort: newMastId,
+          tdta_standort_mast: { id: Number(newMastId) },
         };
         console.log(
           "[CreateFeature] step 2 — creating Leuchte:",
@@ -178,7 +190,11 @@ const CreateFeatureModal = ({
       onClose();
     } catch (err) {
       console.error("[CreateFeature] error:", err);
-      void message.error(`Fehler beim Erstellen: ${err instanceof Error ? err.message : "Unbekannter Fehler"}`);
+      void message.error(
+        `Fehler beim Erstellen: ${
+          err instanceof Error ? err.message : "Unbekannter Fehler"
+        }`
+      );
     } finally {
       setSaving(false);
     }
@@ -257,17 +273,29 @@ const CreateFeatureModal = ({
       footer={
         <div className="flex justify-between pt-2 border-t border-gray-100">
           <div className="flex gap-2">
-            <Button onClick={handleFlyToGeom}>
-              Zur Geometrie fliegen
+            <Button
+              onClick={async () => {
+                if (!jwt) return;
+                const data = await fetchFeatureById(jwt, 34348, "mast");
+                console.log(
+                  "[TestFetch] Mast 34348:",
+                  JSON.stringify(data, null, 2)
+                );
+              }}
+            >
+              Mast 34348
             </Button>
             <Button
               onClick={async () => {
                 if (!jwt) return;
-                const data = await fetchFeatureById(jwt, 90, "mast");
-                console.log("[TestFetch] Mast 90:", JSON.stringify(data, null, 2));
+                const data = await fetchFeatureById(jwt, 34776, "leuchten");
+                console.log(
+                  "[TestFetch] Leuchte 34775:",
+                  JSON.stringify(data, null, 2)
+                );
               }}
             >
-              Test Fetch Mast 90
+              Leuchte 34776
             </Button>
           </div>
           <div className="flex gap-2">
