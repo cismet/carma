@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { faRuler } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import { useAnnotationsRuntime } from "@carma-mapping/annotations/runtime";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
@@ -27,8 +28,8 @@ const CESIUM_ANNOTATION_LAYER: Layer = {
   icon: "measurement",
   visible: true,
   pinned: "last",
-  interactionButton: {
-    icon: faRuler,
+  interactionButtons: {
+    icon: <FontAwesomeIcon icon={faRuler} />,
     id: CESIUM_ANNOTATION_INTERACTION_ID,
   },
 };
@@ -49,9 +50,7 @@ export function useCesiumAnnotationLayerButton() {
   const hasCesiumAnnotationLayer = layers.some(
     (layer) => layer.id === CESIUM_ANNOTATION_LAYER_ID
   );
-  const previousHasCesiumAnnotationLayerRef = useRef(
-    hasCesiumAnnotationLayer
-  );
+  const previousHasCesiumAnnotationLayerRef = useRef(hasCesiumAnnotationLayer);
   const initialCleanupDone = useRef(false);
 
   const handleEnterCesiumAnnotationMode = useCallback(() => {

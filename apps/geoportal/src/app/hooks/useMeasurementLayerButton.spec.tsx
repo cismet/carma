@@ -50,7 +50,7 @@ const buildMeasurementLayer = () =>
     icon: "measurement",
     visible: true,
     pinned: "last",
-    interactionButton: {
+    interactionButtons: {
       id: "save-measurements",
     },
   } as const);
@@ -100,7 +100,7 @@ describe("useMeasurementLayerButton", () => {
           id: MEASUREMENT_LAYER_ID,
           title: "Messung",
           pinned: "last",
-          interactionButton: expect.objectContaining({
+          interactionButtons: expect.objectContaining({
             id: "save-measurements",
           }),
         })

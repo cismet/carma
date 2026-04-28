@@ -51,7 +51,7 @@ const buildCesiumAnnotationLayer = () =>
     icon: "measurement",
     visible: true,
     pinned: "last",
-    interactionButton: {
+    interactionButtons: {
       id: "cesium-annotation-tools",
     },
   } as const);

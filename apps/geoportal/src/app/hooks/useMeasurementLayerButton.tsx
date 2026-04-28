@@ -1,14 +1,10 @@
 import { useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import Icon from "react-cismap/commons/Icon";
 
-import {
-  faFloppyDisk,
-  faTrashCan,
-} from "@fortawesome/free-solid-svg-icons";
+import { faFloppyDisk } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
-import type { InteractionButton, Layer } from "@carma-mapping/layers";
+import type { Layer } from "@carma-mapping/layers";
 import { useMapMeasurementsContext } from "@carma-commons/measurements";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
@@ -30,28 +26,8 @@ export function useMeasurementLayerButton() {
   const dispatch = useDispatch();
   const uiMode = useSelector(getUIMode);
   const layers = useSelector(getLayers);
-  const { shapes, clearAllShapes, setShowAll } = useMapMeasurementsContext();
+  const { shapes } = useMapMeasurementsContext();
   const { isLeaflet } = useMapFrameworkSwitcherContext();
-
-  const interactionButtons: InteractionButton[] = [
-    {
-      icon: <Icon name="search-location" />,
-      id: "zoom-measurements",
-      tooltip: "Auf alle Messungen zoomen",
-      onClick: () => setShowAll(true),
-    },
-    {
-      icon: <FontAwesomeIcon icon={faTrashCan} />,
-      id: "clear-measurements",
-      tooltip: "Alle Messungen löschen",
-      onClick: () => clearAllShapes(),
-    },
-    {
-      icon: <FontAwesomeIcon icon={faFloppyDisk} />,
-      id: "save-measurements",
-      tooltip: "Messungen speichern",
-    },
-  ];
 
   const measurementLayer: Layer = {
     id: MEASUREMENT_LAYER_ID,
@@ -61,7 +37,11 @@ export function useMeasurementLayerButton() {
     visible: true,
     pinned: "last",
     skipSelection: true,
-    interactionButtons,
+    interactionButtons: {
+      icon: <FontAwesomeIcon icon={faFloppyDisk} />,
+      id: "save-measurements",
+      tooltip: "Messungen speichern",
+    },
   };
 
   const isMeasurementMode = uiMode === UIMode.MEASUREMENT;
