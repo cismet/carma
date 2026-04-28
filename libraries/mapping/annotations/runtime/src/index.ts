@@ -4,6 +4,12 @@ export {
   AnnotationOverlayRoots,
   AnnotationPreviewOverlayRoots,
 } from "./lib/components/AnnotationPreviewOverlayRoots";
+export {
+  RuntimeAnnotationsToolbar,
+  type AnnotationsToolbarClassNames,
+  type AnnotationsToolbarMetrics,
+  type RuntimeAnnotationsToolbarProps,
+} from "./lib/components/RuntimeAnnotationsToolbar";
 export { RuntimeAnnotationInfoBox } from "./lib/components/annotation-info-box/RuntimeAnnotationInfoBox";
 export {
   ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE,

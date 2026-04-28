@@ -17,6 +17,14 @@ export { AnnotationInfoBoxNavigation } from "./lib/components/AnnotationInfoBoxN
 export { AnnotationInfoBoxSubtitleText } from "./lib/components/AnnotationInfoBoxSubtitleText";
 export { AnnotationInfoBoxTextContent } from "./lib/components/AnnotationInfoBoxTextContent";
 export { AnnotationInfoBoxTitleInput } from "./lib/components/AnnotationInfoBoxTitleInput";
+export {
+  AnnotationsToolbar,
+  type AnnotationToolbarTool,
+  type AnnotationsToolbarActionLabels,
+  type AnnotationsToolbarClassNames,
+  type AnnotationsToolbarMetrics,
+  type AnnotationsToolbarProps,
+} from "./lib/components/AnnotationsToolbar";
 export type { AnnotationInfoBoxActionsProps } from "./lib/components/AnnotationInfoBoxActions";
 export type { AnnotationInfoBoxMetricGridItem } from "./lib/components/AnnotationInfoBoxMetricGrid";
 export type { AnnotationMeasurementInfoBoxShellProps } from "./lib/components/AnnotationMeasurementInfoBoxShell";
