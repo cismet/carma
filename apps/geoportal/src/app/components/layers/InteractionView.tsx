@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 import {
   RuntimeAnnotationsToolbar,
+  type AnnotationsToolbarClassNames,
   useAnnotationsRuntime,
 } from "@carma-mapping/annotations/runtime";
 import type { FilterConfig, FilterType, Layer } from "@carma-mapping/layers";
@@ -36,11 +37,23 @@ import { useFilterBackground } from "./useFilterBackground";
 import FilterBackdrop from "./FilterBackdrop";
 import SaveMeasurements from "./SaveMeasurements";
 
+const GEOPORTAL_ANNOTATIONS_TOOLBAR_CLASS_NAMES = {
+  toolButtonBase:
+    "flex h-8 w-12 min-w-12 items-center justify-center rounded-[6px] border border-[#d9d9d9] bg-white px-2 text-gray-700 button-shadow transition-colors hover:border-[#1677ff] hover:text-[#1677ff] focus-visible:border-[#1677ff] focus-visible:text-[#1677ff]",
+  toolButtonActive: "!border-[#1677ff] !text-[#1677ff]",
+} satisfies Partial<AnnotationsToolbarClassNames>;
+
 const GeoportalAnnotationsToolbar: FC<{ layer: Layer }> = () => {
   const { registry } = useAnnotationsRuntime();
   const toolPlugins = useGeoportalCesiumAnnotationToolPlugins(registry.plugins);
 
-  return <RuntimeAnnotationsToolbar plugins={toolPlugins} />;
+  return (
+    <RuntimeAnnotationsToolbar
+      plugins={toolPlugins}
+      classNames={GEOPORTAL_ANNOTATIONS_TOOLBAR_CLASS_NAMES}
+      tooltipPlacement="bottom"
+    />
+  );
 };
 
 const INTERACTION_COMPONENTS: Record<string, FC<{ layer: Layer }>> = {
