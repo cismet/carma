@@ -1,11 +1,5 @@
 import type { ReactNode } from "react";
 
-import {
-  faObjectGroup,
-  faSearchLocation,
-  faTrashCan,
-} from "@fortawesome/free-solid-svg-icons";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Tooltip, type TooltipProps } from "antd";
 
 export type AnnotationToolbarTool = {
@@ -15,8 +9,6 @@ export type AnnotationToolbarTool = {
   tooltipContent?: ReactNode;
   icon?: ReactNode;
   annotationCount?: number;
-  annotationIds?: readonly string[];
-  isSelectionTool?: boolean;
   separatorAfter?: boolean;
   ariaLabel?: string;
 };
@@ -28,9 +20,6 @@ export type AnnotationsToolbarClassNames = {
   toolButtonInactive: string;
   toolGroup: string;
   toolButtonShell: string;
-  actionGroup: string;
-  toolButtonPrimaryAction: string;
-  smallActionButton: string;
   toolButtonIcon: string;
   toolButtonBadge: string;
   separator: string;
@@ -38,27 +27,14 @@ export type AnnotationsToolbarClassNames = {
 
 export type AnnotationsToolbarMetrics = {
   toolButtonWidthPx: number;
-  smallActionButtonWidthPx: number;
-  selectionActionButtonCount?: number;
-  actionGroupWidthTransitionMs: number;
-};
-
-export type AnnotationsToolbarActionLabels = {
-  selectAll: string;
-  focusAll: string;
-  removeAll: string;
 };
 
 export type AnnotationsToolbarProps = {
   activeToolId: string | null;
   tools: readonly AnnotationToolbarTool[];
   onToolSelect: (toolId: string) => void;
-  onSelectAnnotations?: (annotationIds: readonly string[]) => void;
-  onFocusAllAnnotations?: () => void;
-  onRemoveAnnotations?: (annotationIds: readonly string[]) => void;
   classNames?: Partial<AnnotationsToolbarClassNames>;
   metrics?: Partial<AnnotationsToolbarMetrics>;
-  actionLabels?: Partial<AnnotationsToolbarActionLabels>;
   tooltipPlacement?: TooltipProps["placement"];
   getTooltipPopupContainer?: TooltipProps["getPopupContainer"];
   showToolTypeIndicators?: boolean;
@@ -66,8 +42,6 @@ export type AnnotationsToolbarProps = {
 
 const DEFAULT_TOOLBAR_METRICS = {
   toolButtonWidthPx: 48,
-  smallActionButtonWidthPx: 32,
-  actionGroupWidthTransitionMs: 180,
 } satisfies AnnotationsToolbarMetrics;
 
 const DEFAULT_TOOLBAR_CLASS_NAMES = {
@@ -78,12 +52,6 @@ const DEFAULT_TOOLBAR_CLASS_NAMES = {
   toolButtonInactive: "",
   toolGroup: "relative flex min-w-12 items-center overflow-visible",
   toolButtonShell: "relative overflow-visible",
-  actionGroup:
-    "flex h-8 min-w-12 items-center justify-start overflow-hidden rounded-[10px] bg-white text-gray-700 button-shadow transition-[width] ease-in-out",
-  toolButtonPrimaryAction:
-    "flex h-8 w-12 min-w-12 items-center justify-center px-2 transition-colors hover:text-gray-900",
-  smallActionButton:
-    "flex h-8 w-8 min-w-8 items-center justify-center rounded-[10px] text-gray-600 transition-colors hover:text-gray-900",
   toolButtonIcon:
     "inline-flex items-center justify-center text-base leading-none",
   toolButtonBadge:
@@ -91,22 +59,12 @@ const DEFAULT_TOOLBAR_CLASS_NAMES = {
   separator: "inline-block h-[18px] w-px bg-gray-300",
 } satisfies AnnotationsToolbarClassNames;
 
-const DEFAULT_ACTION_LABELS = {
-  selectAll: "Alle Messungen auswählen",
-  focusAll: "Alle Messungen fokussieren",
-  removeAll: "Alle Messungen löschen",
-} satisfies AnnotationsToolbarActionLabels;
-
 export const AnnotationsToolbar = ({
   activeToolId,
   tools,
   onToolSelect,
-  onSelectAnnotations,
-  onFocusAllAnnotations,
-  onRemoveAnnotations,
   classNames,
   metrics,
-  actionLabels,
   tooltipPlacement = "top",
   getTooltipPopupContainer,
   showToolTypeIndicators = false,
@@ -119,11 +77,6 @@ export const AnnotationsToolbar = ({
     ...DEFAULT_TOOLBAR_METRICS,
     ...metrics,
   };
-  const labels = {
-    ...DEFAULT_ACTION_LABELS,
-    ...actionLabels,
-  };
-  const selectionActionGroupCollapsedWidthPx = toolbarMetrics.toolButtonWidthPx;
 
   return (
     <div
@@ -133,27 +86,6 @@ export const AnnotationsToolbar = ({
       {tools.map((tool) => {
         const isActive = tool.id === activeToolId;
         const annotationCount = tool.annotationCount ?? 0;
-        const annotationIds = tool.annotationIds ?? [];
-        const visibleSelectionActionCount = [
-          onSelectAnnotations,
-          onFocusAllAnnotations,
-          onRemoveAnnotations,
-        ].filter(Boolean).length;
-        const hasToolActions =
-          tool.isSelectionTool &&
-          isActive &&
-          annotationIds.length > 0 &&
-          visibleSelectionActionCount > 0;
-        const usesSelectionActionGroup = tool.isSelectionTool && isActive;
-        const selectionActionButtonCount =
-          toolbarMetrics.selectionActionButtonCount ??
-          visibleSelectionActionCount;
-        const selectionActionGroupExpandedWidthPx =
-          toolbarMetrics.toolButtonWidthPx +
-          toolbarMetrics.smallActionButtonWidthPx * selectionActionButtonCount;
-        const actionGroupWidthPx = hasToolActions
-          ? selectionActionGroupExpandedWidthPx
-          : selectionActionGroupCollapsedWidthPx;
         const tooltipTitle = tool.tooltipContent ?? tool.tooltip;
         const ariaLabel = tool.ariaLabel ?? tool.tooltip;
 
@@ -165,117 +97,31 @@ export const AnnotationsToolbar = ({
                   {annotationCount}
                 </span>
               ) : null}
-              {usesSelectionActionGroup ? (
-                <div
-                  className={toolbarClassNames.actionGroup}
-                  role={hasToolActions ? "group" : undefined}
-                  aria-label={
-                    hasToolActions ? `${tool.label} Aktionen` : undefined
-                  }
+              <Tooltip
+                title={tooltipTitle}
+                placement={tooltipPlacement}
+                getPopupContainer={getTooltipPopupContainer}
+              >
+                <button
+                  type="button"
+                  onClick={() => onToolSelect(tool.id)}
+                  aria-pressed={isActive}
+                  aria-label={ariaLabel}
+                  className={[
+                    toolbarClassNames.toolButtonBase,
+                    isActive
+                      ? toolbarClassNames.toolButtonActive
+                      : toolbarClassNames.toolButtonInactive,
+                  ].join(" ")}
                   style={{
-                    width: actionGroupWidthPx,
-                    transitionDuration: `${toolbarMetrics.actionGroupWidthTransitionMs}ms`,
-                    willChange: "width",
+                    width: toolbarMetrics.toolButtonWidthPx,
                   }}
                 >
-                  <Tooltip
-                    title={tooltipTitle}
-                    placement={tooltipPlacement}
-                    getPopupContainer={getTooltipPopupContainer}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => onToolSelect(tool.id)}
-                      aria-pressed={isActive}
-                      aria-label={ariaLabel}
-                      className={[
-                        toolbarClassNames.toolButtonPrimaryAction,
-                        toolbarClassNames.toolButtonActive,
-                      ].join(" ")}
-                    >
-                      <span className={toolbarClassNames.toolButtonIcon}>
-                        {tool.icon}
-                      </span>
-                    </button>
-                  </Tooltip>
-                  {hasToolActions ? (
-                    <>
-                      {onSelectAnnotations ? (
-                        <Tooltip title={labels.selectAll} placement="bottom">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              onSelectAnnotations(annotationIds);
-                            }}
-                            aria-label={labels.selectAll}
-                            className={toolbarClassNames.smallActionButton}
-                          >
-                            <FontAwesomeIcon
-                              icon={faObjectGroup}
-                              className={toolbarClassNames.toolButtonIcon}
-                            />
-                          </button>
-                        </Tooltip>
-                      ) : null}
-                      {onFocusAllAnnotations ? (
-                        <Tooltip title={labels.focusAll} placement="bottom">
-                          <button
-                            type="button"
-                            onClick={onFocusAllAnnotations}
-                            aria-label={labels.focusAll}
-                            className={toolbarClassNames.smallActionButton}
-                          >
-                            <FontAwesomeIcon
-                              icon={faSearchLocation}
-                              className={toolbarClassNames.toolButtonIcon}
-                            />
-                          </button>
-                        </Tooltip>
-                      ) : null}
-                      {onRemoveAnnotations ? (
-                        <Tooltip title={labels.removeAll} placement="bottom">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              onRemoveAnnotations(annotationIds);
-                            }}
-                            aria-label={labels.removeAll}
-                            className={toolbarClassNames.smallActionButton}
-                          >
-                            <FontAwesomeIcon
-                              icon={faTrashCan}
-                              className={toolbarClassNames.toolButtonIcon}
-                            />
-                          </button>
-                        </Tooltip>
-                      ) : null}
-                    </>
-                  ) : null}
-                </div>
-              ) : (
-                <Tooltip
-                  title={tooltipTitle}
-                  placement={tooltipPlacement}
-                  getPopupContainer={getTooltipPopupContainer}
-                >
-                  <button
-                    type="button"
-                    onClick={() => onToolSelect(tool.id)}
-                    aria-pressed={isActive}
-                    aria-label={ariaLabel}
-                    className={[
-                      toolbarClassNames.toolButtonBase,
-                      isActive
-                        ? toolbarClassNames.toolButtonActive
-                        : toolbarClassNames.toolButtonInactive,
-                    ].join(" ")}
-                  >
-                    <span className={toolbarClassNames.toolButtonIcon}>
-                      {tool.icon}
-                    </span>
-                  </button>
-                </Tooltip>
-              )}
+                  <span className={toolbarClassNames.toolButtonIcon}>
+                    {tool.icon}
+                  </span>
+                </button>
+              </Tooltip>
             </div>
             {tool.separatorAfter ? (
               <span

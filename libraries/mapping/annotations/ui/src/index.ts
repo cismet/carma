@@ -20,7 +20,6 @@ export { AnnotationInfoBoxTitleInput } from "./lib/components/AnnotationInfoBoxT
 export {
   AnnotationsToolbar,
   type AnnotationToolbarTool,
-  type AnnotationsToolbarActionLabels,
   type AnnotationsToolbarClassNames,
   type AnnotationsToolbarMetrics,
   type AnnotationsToolbarProps,

@@ -2,12 +2,7 @@ import { useCallback, type MouseEvent } from "react";
 import { useDispatch } from "react-redux";
 
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
-import {
-  faEye,
-  faEyeSlash,
-  faTimes,
-  faX,
-} from "@fortawesome/free-solid-svg-icons";
+import { faEye, faEyeSlash, faX } from "@fortawesome/free-solid-svg-icons";
 
 import { useAdhocFeatureDisplay } from "@carma-appframeworks/portals";
 import type { BackgroundLayer, Layer } from "@carma-mapping/layers";
@@ -18,20 +13,14 @@ import { updateInfoElementsAfterRemovingFeature } from "../store/slices/features
 import { changeVisibility, removeLayer } from "../store/slices/mapping";
 
 export type ResolveGeoportalLayerButtonCloseIconOptions = {
-  isCesiumAnnotationLayerButton: boolean;
   showLayerHideButtons: boolean;
   visible: boolean;
 };
 
 export const resolveGeoportalLayerButtonCloseIcon = ({
-  isCesiumAnnotationLayerButton,
   showLayerHideButtons,
   visible,
 }: ResolveGeoportalLayerButtonCloseIconOptions): IconDefinition => {
-  if (isCesiumAnnotationLayerButton) {
-    return faTimes;
-  }
-
   if (showLayerHideButtons) {
     return visible ? faEye : faEyeSlash;
   }
@@ -40,37 +29,20 @@ export const resolveGeoportalLayerButtonCloseIcon = ({
 };
 
 export const useGeoportalLayerButtonActions = ({
-  flyToAllAnnotations,
   id,
-  isCesiumAnnotationLayerButton,
   layer,
   showLayerHideButtons,
 }: {
-  flyToAllAnnotations: () => void;
   id: string;
-  isCesiumAnnotationLayerButton: boolean;
   layer: Layer | BackgroundLayer;
   showLayerHideButtons: boolean;
 }) => {
   const dispatch = useDispatch<AppDispatch>();
   const { clearFeatureCollections } = useAdhocFeatureDisplay();
 
-  const handleFlyToAllAnnotationsClick = useCallback(
-    (event: MouseEvent<HTMLButtonElement>) => {
-      event.stopPropagation();
-      flyToAllAnnotations();
-    },
-    [flyToAllAnnotations]
-  );
-
   const handleLayerRemoveButtonClick = useCallback(
     (event: MouseEvent<HTMLButtonElement>) => {
       event.stopPropagation();
-
-      if (isCesiumAnnotationLayerButton) {
-        dispatch(removeLayer(id));
-        return;
-      }
 
       if (showLayerHideButtons) {
         dispatch(changeVisibility({ id, visible: !layer.visible }));
@@ -83,23 +55,14 @@ export const useGeoportalLayerButtonActions = ({
       }
       dispatch(updateInfoElementsAfterRemovingFeature(id));
     },
-    [
-      clearFeatureCollections,
-      dispatch,
-      id,
-      isCesiumAnnotationLayerButton,
-      layer,
-      showLayerHideButtons,
-    ]
+    [clearFeatureCollections, dispatch, id, layer, showLayerHideButtons]
   );
 
   return {
     closeIcon: resolveGeoportalLayerButtonCloseIcon({
-      isCesiumAnnotationLayerButton,
       showLayerHideButtons,
       visible: layer.visible,
     }),
-    handleFlyToAllAnnotationsClick,
     handleLayerRemoveButtonClick,
   };
 };
