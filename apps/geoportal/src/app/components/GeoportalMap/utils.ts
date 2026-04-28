@@ -10,7 +10,9 @@ export const getUrlPrefix = () =>
 export const getQueryableLayers = (layers: Layer[], zoom: number) => {
   return layers.filter(
     (layer) =>
-      (layer.queryable || layer.other?.accentColor || layer.other?.header) &&
+      (layer.queryable ||
+        layer.layerInfo?.accentColor ||
+        layer.layerInfo?.header) &&
       layer.visible &&
       layer.useInFeatureInfo &&
       zoom < (layer.props.maxZoom ? layer.props.maxZoom : Infinity) &&

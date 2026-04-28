@@ -21,11 +21,11 @@ const LayerIcon = ({
   isBaseLayer,
   id,
 }: LayerIconProps) => {
-  const [imgError, setImgError] = useState(!layer.other?.icon);
+  const icon = (layer.layerInfo?.icon as string) || layer.other?.icon;
+  const [imgError, setImgError] = useState(!icon);
 
   const iconName =
-    layer.other?.icon ||
-    layer.other?.path?.toLowerCase() + "/" + layer.other?.name;
+    icon || layer.other?.path?.toLowerCase() + "/" + layer.other?.name;
 
   useEffect(() => {
     if (iconName) {

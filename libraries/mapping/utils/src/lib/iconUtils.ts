@@ -28,14 +28,14 @@ export const resolveLayerIconUrl = (
   layer: Layer,
   iconPrefix: string
 ): string | undefined => {
-  if (
-    typeof layer.other?.icon === "string" &&
-    layer.other.icon.startsWith("emoji:")
-  ) {
+  const icon =
+    (layer.layerInfo?.icon as string | undefined) || layer.other?.icon;
+  if (typeof icon === "string" && icon.startsWith("emoji:")) {
     return undefined;
   }
 
   const iconName =
+    icon ||
     layer.other?.icon ||
     layer.conf?.icon ||
     (layer.other?.path && layer.other?.name

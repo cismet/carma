@@ -14,6 +14,37 @@ export type InteractionButton = {
   onClick?: () => void;
 };
 
+export type DynamicStylingOption = {
+  id: string;
+  title: string;
+  icon?: string;
+  replacements?: Record<string, [string, string][]>;
+  [key: string]: unknown;
+};
+
+export type DynamicStylingListConfig = {
+  type: "list";
+  label: string;
+  default: string;
+  options: DynamicStylingOption[];
+  targets: Record<string, string[]>;
+  showIcon?: boolean;
+};
+
+export type DynamicStylingVisibilityConfig = {
+  type: "visibility";
+  label: string;
+  default: "visible" | "hidden";
+  layers: string[];
+  showIcon?: boolean;
+  iconVisible?: string;
+  iconHidden?: string;
+};
+
+export type DynamicStylingConfig =
+  | DynamicStylingListConfig
+  | DynamicStylingVisibilityConfig;
+
 export type BackgroundLayer = BaseLayer & {
   layers: string;
   layerType:
@@ -117,9 +148,6 @@ export type LayerProps = {
 type OtherLayerProps = Partial<LayerProps & Item> & {
   layerName?: string;
   capabilitiesUrl?: string;
-  header?: string;
-  accentColor?: string;
-  headerColor?: string;
 };
 
 type BaseLayer = {
@@ -139,8 +167,12 @@ type BaseLayer = {
   filterConfig?: FilterConfig;
   filterInfo?: LayerFilterInfo;
   filterState?: Record<string, boolean>;
+  dynamicStyling?: DynamicStylingConfig | DynamicStylingConfig[];
+  dynamicStylingSelection?: string | Record<number, string>;
   layerInfo?: {
     accentColor?: string;
+    header?: string;
+    headerColor?: string;
     title?: string;
     keywords?: string[];
     description?: string;
@@ -149,6 +181,7 @@ type BaseLayer = {
     vectorStyle?: string;
     vectorLegend?: string;
     metaDataText?: string;
+    vectorLegendTitle?: string;
     [key: string]: unknown;
   };
 };
@@ -270,6 +303,7 @@ export type Item = {
   isDraft?: boolean;
   vectorStyle?: string;
   vectorLegend?: string;
+  vectorLegendTitle?: string;
   ff?: string;
   replaceId?: string;
   mergeId?: string;

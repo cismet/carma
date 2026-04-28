@@ -69,9 +69,11 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
   const backgroundLayer = useSelector(getBackgroundLayer);
   const layer =
     selectedLayerIndex >= 0 ? layers[selectedLayerIndex] : backgroundLayer;
+  const vectorLegend =
+    (layer?.layerInfo?.vectorLegend as string) || layer?.other?.vectorLegend;
   const legend =
-    layer?.other?.vectorLegend && layer.layerType === "vector"
-      ? [{ OnlineResource: layer.other.vectorLegend }]
+    vectorLegend && layer.layerType === "vector"
+      ? [{ OnlineResource: vectorLegend }]
       : layer.props?.legend || [];
 
   const icon = layer.title.includes("Orthofoto")

@@ -13,6 +13,8 @@ import {
   type MappingState,
 } from "@carma-appframeworks/portals";
 
+import { extractCarmaConfig } from "@carma-commons/utils";
+
 import { RootState } from "..";
 import { layerMap } from "../../config";
 
@@ -260,6 +262,56 @@ const slice = createSlice({
       }
     },
 
+    setLayerDynamicStylingSelection(
+      state,
+      action: PayloadAction<{
+        id: string;
+        configIndex: number;
+        selection: string;
+      }>
+    ) {
+      const { id, configIndex, selection } = action.payload;
+      const layer = state.layers.find((l) => l.id === id);
+      if (layer) {
+        const prev =
+          typeof layer.dynamicStylingSelection === "object" &&
+          layer.dynamicStylingSelection !== null
+            ? layer.dynamicStylingSelection
+            : {};
+        layer.dynamicStylingSelection = { ...prev, [configIndex]: selection };
+      }
+    },
+
+    updateLayerFromLayerInfo(
+      state,
+      action: PayloadAction<{
+        id: string;
+        layerInfo: Record<string, unknown>;
+      }>
+    ) {
+      const { id, layerInfo } = action.payload;
+      const layer = state.layers.find((l) => l.id === id);
+      if (!layer) {
+        return;
+      }
+
+      layer.layerInfo = { ...layer.layerInfo, ...layerInfo };
+
+      const directKeys = ["title", "description"] as const;
+      for (const key of directKeys) {
+        if (typeof layerInfo[key] === "string") {
+          layer[key] = layerInfo[key] as string;
+        }
+      }
+
+      if (Array.isArray(layerInfo.keywords)) {
+        const conf = extractCarmaConfig(layerInfo.keywords as string[]);
+        if (conf) {
+          layer.conf = { ...layer.conf, ...conf };
+        }
+      }
+    },
+
     setSelectedLayerIndex(state, action) {
       state.selectedLayerIndex = action.payload;
     },
@@ -411,6 +463,8 @@ export const {
   toggleUseInFeatureInfo,
   setLayerFilterInfo,
   setLayerFilterState,
+  setLayerDynamicStylingSelection,
+  updateLayerFromLayerInfo,
   setLibreMapRef,
   setMaplibreMaps,
   setConfigSelection,

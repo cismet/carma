@@ -50,17 +50,17 @@ export const LayerIcon = ({
   displayUrl = false,
   onError,
 }: LayerIconProps) => {
-  const rawIcon = layer.other?.icon;
+  const icon = (layer.layerInfo?.icon as string) || layer.other?.icon;
   const emoji =
-    typeof rawIcon === "string" && rawIcon.startsWith(EMOJI_PREFIX)
-      ? rawIcon.slice(EMOJI_PREFIX.length)
+    typeof icon === "string" && icon.startsWith(EMOJI_PREFIX)
+      ? icon.slice(EMOJI_PREFIX.length)
       : null;
 
-  const [imgError, setImgError] = useState(!layer.other?.icon);
+  const [imgError, setImgError] = useState(!icon);
 
   const confIcon = layer.conf?.icon;
   const iconName =
-    layer.other?.icon ||
+    icon ||
     (typeof confIcon === "string" ? confIcon : undefined) ||
     (layer.other?.path && layer.other?.name
       ? mapIconPath(layer.other?.originalPath ?? layer.other.path) +

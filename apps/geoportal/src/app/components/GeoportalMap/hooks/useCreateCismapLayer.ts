@@ -7,6 +7,7 @@ import {
 } from "react";
 import type { Dispatch, Store } from "@reduxjs/toolkit";
 import L, { type LatLng, type Map as LeafletMap } from "leaflet";
+import type maplibregl from "maplibre-gl";
 import centroid from "@turf/centroid";
 
 import CismapLayer from "react-cismap/CismapLayer";
@@ -14,12 +15,21 @@ import CismapLayer from "react-cismap/CismapLayer";
 import type { Layer } from "@carma-mapping/layers";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 
+import type { RootState } from "../../../store";
+
 import {
   clearTriggerSelectionById,
   getTriggerSelectionById,
   setSelectedFeature,
 } from "../../../store/slices/features";
-import { setLayersIdle, updateLayer } from "../../../store/slices/mapping";
+import {
+  setLayersIdle,
+  updateLayerFromLayerInfo,
+} from "../../../store/slices/mapping";
+import {
+  applyDynamicStyling,
+  setLastAppliedSelection,
+} from "@carma-mapping/components";
 
 import { UIMode } from "../../../store/slices/ui";
 import {
@@ -63,6 +73,7 @@ interface VectorLayerProps {
   showTileBoundaries?: boolean;
   onSelectionChanged?: (e: { hits: any[]; hit: any; latlng: LatLng }) => void;
   onStyleIdle?: (e: any) => void;
+  onStyleData?: (map: maplibregl.Map) => void;
   onMapLibreCoreMapReady?: (map: any) => void;
 }
 
@@ -117,6 +128,8 @@ export const useCreateCismapLayers = (
   };
 
   const modeRef = useRef(mode);
+  const layersRef = useRef(layers);
+  layersRef.current = layers;
 
   const getLastDefinedObject = (o: Object) => {
     const keys = Object.keys(o);
@@ -327,8 +340,51 @@ export const useCreateCismapLayers = (
             selectionEnabled: true,
             manualSelectionManagement: true,
             maxSelectionCount: 10,
+            onStyleData: (() => {
+              const configs = Array.isArray(layer.dynamicStyling)
+                ? layer.dynamicStyling
+                : layer.dynamicStyling
+                ? [layer.dynamicStyling]
+                : [];
+              if (!configs.length) return undefined;
+              return (map: maplibregl.Map) => {
+                const latestState = store.getState() as RootState;
+                const latestLayer = latestState?.mapping?.layers?.find(
+                  (l: Layer) => l.id === layer.id
+                );
+                const latestSelections: Record<number, string> =
+                  latestLayer &&
+                  typeof latestLayer.dynamicStylingSelection === "object" &&
+                  latestLayer.dynamicStylingSelection !== null
+                    ? latestLayer.dynamicStylingSelection
+                    : {};
+                configs.forEach((config, idx) => {
+                  const sel = latestSelections[idx];
+                  const effectiveSel = sel ?? config.default;
+                  if (!sel || sel === config.default) {
+                    setLastAppliedSelection(layer.id, idx, effectiveSel);
+                    return;
+                  }
+                  if (config.type === "list") {
+                    const layerInfo = applyDynamicStyling(
+                      map,
+                      layer.id,
+                      config,
+                      sel
+                    );
+                    setLastAppliedSelection(layer.id, idx, sel);
+                    if (layerInfo) {
+                      dispatch(
+                        updateLayerFromLayerInfo({ id: layer.id, layerInfo })
+                      );
+                    }
+                  }
+                });
+              };
+            })(),
             onMapLibreCoreMapReady: (map) => {
               console.log("MapLibre map ready for layer:", layer.id, map);
+
               // Store map reference outside of Redux to avoid serialization issues
               if (maplibreMapsRef) {
                 maplibreMapsRef.current.set(layer.id, map);
@@ -411,6 +467,8 @@ export const useCreateCismapLayers = (
               });
             },
             onSelectionChanged: (e) => {
+              const currentLayer =
+                layersRef.current.find((l) => l.id === layer.id) || layer;
               const clickKey = e.latlng
                 ? `${e.latlng.lat},${e.latlng.lng}`
                 : null;
@@ -429,7 +487,7 @@ export const useCreateCismapLayers = (
               }
               if (modeRef.current === UIMode.DEFAULT) {
                 implicitVectorSelection(e, {
-                  layer,
+                  layer: currentLayer,
                   dispatch,
                   selectionHandler,
                   featureHandler,
@@ -438,7 +496,7 @@ export const useCreateCismapLayers = (
                 });
               } else if (modeRef.current === UIMode.FEATURE_INFO) {
                 onSelectionChangedVector(e, {
-                  layer,
+                  layer: currentLayer,
                   dispatch,
                   selectionHandler,
                   map: leafletMap,
