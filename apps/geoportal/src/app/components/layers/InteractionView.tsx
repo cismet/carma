@@ -1,6 +1,10 @@
 import { FC, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
+import {
+  RuntimeAnnotationsToolbar,
+  useAnnotationsRuntime,
+} from "@carma-mapping/annotations/runtime";
 import type { FilterConfig, FilterType, Layer } from "@carma-mapping/layers";
 import { FILTER_TYPES } from "@carma-mapping/layers";
 
@@ -26,14 +30,21 @@ import {
   triggerFeatureInfoUpdateAction,
   UIMode,
 } from "../../store/slices/ui";
+import { useGeoportalCesiumAnnotationToolPlugins } from "../../hooks/use-geoportal-cesium-annotation-tool-plugins";
 import { CESIUM_ANNOTATION_INTERACTION_ID } from "../annotations/cesium-annotations.constants";
 import { useFilterBackground } from "./useFilterBackground";
-import CesiumAnnotationTools from "./CesiumAnnotationTools";
 import FilterBackdrop from "./FilterBackdrop";
 import SaveMeasurements from "./SaveMeasurements";
 
+const GeoportalAnnotationsToolbar: FC<{ layer: Layer }> = () => {
+  const { registry } = useAnnotationsRuntime();
+  const toolPlugins = useGeoportalCesiumAnnotationToolPlugins(registry.plugins);
+
+  return <RuntimeAnnotationsToolbar plugins={toolPlugins} />;
+};
+
 const INTERACTION_COMPONENTS: Record<string, FC<{ layer: Layer }>> = {
-  [CESIUM_ANNOTATION_INTERACTION_ID]: CesiumAnnotationTools,
+  [CESIUM_ANNOTATION_INTERACTION_ID]: GeoportalAnnotationsToolbar,
   "save-measurements": SaveMeasurements,
 };
 

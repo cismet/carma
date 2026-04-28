@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState } from "react";
-import { Tooltip } from "antd";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   isManagedAnnotationKeyboardEvent,
   renderAnnotationShortcutGlyph,
@@ -8,6 +7,7 @@ import {
   AnnotationInfoBoxContainer,
   AnnotationInfoBoxSubtitleText,
   AnnotationInfoBoxTextContent,
+  AnnotationsToolbar,
   resolveAnnotationInfoBoxVisualOptions,
 } from "@carma-mapping/annotations/ui";
 import {
@@ -20,13 +20,6 @@ import {
   useLocalAnnotationsRuntimePersistence,
   useAnnotationsRuntime,
 } from "@carma-mapping/annotations/runtime";
-import {
-  AnnotationsToolbar,
-  AnnotationsToolbarButton,
-  AnnotationsToolbarIcon,
-  AnnotationsToolbarItem,
-  AnnotationsToolbarSeparator,
-} from "@carma-mapping/components";
 import { useCesiumLabelOverlayHost } from "@carma-mapping/engines/cesium/react/interactions";
 import { ControlLayout } from "@carma-mapping/map-controls-layout";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
@@ -78,6 +71,18 @@ const PLAYGROUND_INFO_BOX_VISUAL_OPTIONS = {
     resolvePlaygroundFloatingOverlayTooltipContainer,
 } as const;
 
+const PLAYGROUND_TOOLBAR_CLASS_NAMES = {
+  wrapper:
+    "inline-flex min-h-8 items-center gap-0 overflow-hidden rounded-full bg-neutral-100 px-2 shadow-md",
+  toolGroup: "relative flex min-w-0 items-center overflow-visible",
+  toolButtonBase:
+    "relative inline-flex h-8 w-11 min-w-11 items-center justify-center rounded-none border-0 bg-transparent px-0 text-gray-700 hover:text-gray-900",
+  toolButtonActive:
+    "bg-white/90 text-gray-900 shadow-[inset_0_0_0_1px_#cbd5e1]",
+  toolButtonIcon:
+    "inline-flex items-center justify-center text-[18px] leading-none",
+} as const;
+
 const RuntimeToolbar = ({ scene }: { scene: Scene | null }) => {
   const { registry, activeToolType, requestModeChange } =
     useAnnotationsRuntime();
@@ -86,6 +91,32 @@ const RuntimeToolbar = ({ scene }: { scene: Scene | null }) => {
     registry.plugins.find(
       (plugin) => plugin.kind === ANNOTATION_TOOL_PLUGIN_KINDS.INTERACTION
     )?.id ?? null;
+  const toolbarTools = useMemo(
+    () =>
+      visibleDescriptors.map((descriptor) => {
+        const shortcuts = listAnnotationToolShortcuts(
+          descriptor.id,
+          visibleDescriptors,
+          primaryInteractionToolId
+        );
+
+        return {
+          id: descriptor.id,
+          label: descriptor.label,
+          tooltip: descriptor.tooltip,
+          tooltipContent: (
+            <span className="inline-flex items-center gap-2 whitespace-nowrap">
+              <span>{descriptor.tooltip}</span>
+              {renderShortcutBadges(shortcuts)}
+            </span>
+          ),
+          ariaLabel: `${descriptor.tooltip} (${shortcuts.join(", ")})`,
+          icon: descriptor.icon,
+          separatorAfter: descriptor.id === primaryInteractionToolId,
+        };
+      }),
+    [primaryInteractionToolId, visibleDescriptors]
+  );
 
   useEffect(() => {
     const handleToolShortcutKeyDown = (event: KeyboardEvent) => {
@@ -128,50 +159,16 @@ const RuntimeToolbar = ({ scene }: { scene: Scene | null }) => {
           pointerEvents: "auto",
         }}
       >
-        <AnnotationsToolbar>
-          {visibleDescriptors.map((descriptor) => {
-            const isActive = descriptor.id === activeToolType;
-            const showSeparator = descriptor.id === primaryInteractionToolId;
-            const shortcuts = listAnnotationToolShortcuts(
-              descriptor.id,
-              visibleDescriptors,
-              primaryInteractionToolId
-            );
-
-            return (
-              <AnnotationsToolbarItem key={descriptor.id}>
-                <Tooltip
-                  title={
-                    <span className="inline-flex items-center gap-2 whitespace-nowrap">
-                      <span>{descriptor.tooltip}</span>
-                      {renderShortcutBadges(shortcuts)}
-                    </span>
-                  }
-                  placement="bottom"
-                  getPopupContainer={
-                    resolvePlaygroundFloatingOverlayTooltipContainer
-                  }
-                >
-                  <span className="inline-block">
-                    <AnnotationsToolbarButton
-                      active={isActive}
-                      onClick={() => requestModeChange(descriptor.id)}
-                      aria-pressed={isActive}
-                      aria-label={`${descriptor.tooltip} (${shortcuts.join(
-                        ", "
-                      )})`}
-                    >
-                      <AnnotationsToolbarIcon>
-                        {descriptor.icon}
-                      </AnnotationsToolbarIcon>
-                    </AnnotationsToolbarButton>
-                  </span>
-                </Tooltip>
-                {showSeparator ? <AnnotationsToolbarSeparator /> : null}
-              </AnnotationsToolbarItem>
-            );
-          })}
-        </AnnotationsToolbar>
+        <AnnotationsToolbar
+          activeToolId={activeToolType}
+          tools={toolbarTools}
+          onToolSelect={(toolId) => requestModeChange(toolId)}
+          classNames={PLAYGROUND_TOOLBAR_CLASS_NAMES}
+          tooltipPlacement="bottom"
+          getTooltipPopupContainer={
+            resolvePlaygroundFloatingOverlayTooltipContainer
+          }
+        />
       </div>
     </div>
   );
