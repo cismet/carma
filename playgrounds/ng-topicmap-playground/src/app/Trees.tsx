@@ -414,6 +414,7 @@ export function Trees() {
               <ProgressIndicator progress={progress} show={showProgress} />
               <CarmaMap
                 appKey="ng-topicmap-playground-trees"
+                maxPitch={55}
                 mapEngine="maplibre"
                 exposeMapToWindow
                 overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"

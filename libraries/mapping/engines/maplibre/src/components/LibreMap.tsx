@@ -165,6 +165,8 @@ export interface LibreMapProps {
   threePerfRef?: React.MutableRefObject<
     import("@carma-mapping/engines/threejs").ThreePerfData
   >;
+  /** Maximum tilt (pitch) in degrees. Defaults to 60 (MapLibre's stock cap). */
+  maxPitch?: number;
 }
 
 /**
@@ -255,6 +257,7 @@ export const LibreMap = ({
   backgroundRasterPaint,
   threeRuntimeParams,
   threePerfRef,
+  maxPitch = 60,
 }: LibreMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -645,7 +648,7 @@ export const LibreMap = ({
         center: [lng, lat],
         zoom: zoom,
         maxZoom: 21.9999,
-        maxPitch: 65,
+        maxPitch,
         attributionControl: false,
         interactive,
         canvasContextAttributes: preserveDrawingBuffer

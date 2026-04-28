@@ -79,6 +79,8 @@ interface CarmaMapProps extends LibreMapProps {
   threePerfRef?: React.MutableRefObject<
     import("@carma-mapping/engines/threejs").ThreePerfData
   >;
+  /** Maximum tilt (pitch) in degrees. Defaults to 60 (MapLibre's stock cap). */
+  maxPitch?: number;
 }
 
 const TERRAIN_STORAGE_KEY = "carma-map-terrain";
@@ -375,6 +377,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                 backgroundRasterPaint={effectiveRasterPaint}
                 threeRuntimeParams={props.threeRuntimeParams}
                 threePerfRef={props.threePerfRef}
+                maxPitch={props.maxPitch}
               />
             )}
             {modalMenu}
