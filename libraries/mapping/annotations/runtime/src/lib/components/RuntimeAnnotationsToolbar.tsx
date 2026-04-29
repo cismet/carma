@@ -15,6 +15,7 @@ export type RuntimeAnnotationsToolbarProps = {
   classNames?: Partial<AnnotationsToolbarClassNames>;
   metrics?: Partial<AnnotationsToolbarMetrics>;
   plugins?: readonly AnnotationToolPlugin[];
+  disableSelectWithoutAnnotations?: boolean;
   showToolTypeIndicators?: boolean;
   tooltipPlacement?: AnnotationsToolbarProps["tooltipPlacement"];
   getTooltipPopupContainer?: AnnotationsToolbarProps["getTooltipPopupContainer"];
@@ -26,6 +27,7 @@ export const RuntimeAnnotationsToolbar = ({
   classNames,
   metrics,
   plugins,
+  disableSelectWithoutAnnotations = false,
   showToolTypeIndicators = false,
   tooltipPlacement,
   getTooltipPopupContainer,
@@ -54,9 +56,18 @@ export const RuntimeAnnotationsToolbar = ({
           tooltip: descriptor.tooltip,
           icon: descriptor.icon,
           annotationCount,
+          disabled:
+            disableSelectWithoutAnnotations &&
+            isSelectionTool &&
+            annotationEntries.length === 0,
         };
       }),
-    [annotationCountByToolType, annotationEntries.length, toolPlugins]
+    [
+      annotationCountByToolType,
+      annotationEntries.length,
+      disableSelectWithoutAnnotations,
+      toolPlugins,
+    ]
   );
 
   return (

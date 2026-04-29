@@ -9,6 +9,7 @@ export type AnnotationToolbarTool = {
   tooltipContent?: ReactNode;
   icon?: ReactNode;
   annotationCount?: number;
+  disabled?: boolean;
   separatorAfter?: boolean;
   ariaLabel?: string;
 };
@@ -18,6 +19,7 @@ export type AnnotationsToolbarClassNames = {
   toolButtonBase: string;
   toolButtonActive: string;
   toolButtonInactive: string;
+  toolButtonDisabled: string;
   toolGroup: string;
   toolButtonShell: string;
   toolButtonIcon: string;
@@ -50,6 +52,7 @@ const DEFAULT_TOOLBAR_CLASS_NAMES = {
     "flex h-8 w-12 min-w-12 items-center justify-center rounded-[10px] bg-white px-2 text-gray-700 button-shadow transition-colors hover:text-gray-900",
   toolButtonActive: "text-[#1677ff]",
   toolButtonInactive: "",
+  toolButtonDisabled: "cursor-not-allowed opacity-45 hover:text-gray-700",
   toolGroup: "relative flex min-w-12 items-center overflow-visible",
   toolButtonShell: "relative overflow-visible",
   toolButtonIcon:
@@ -107,11 +110,13 @@ export const AnnotationsToolbar = ({
                   onClick={() => onToolSelect(tool.id)}
                   aria-pressed={isActive}
                   aria-label={ariaLabel}
+                  disabled={tool.disabled}
                   className={[
                     toolbarClassNames.toolButtonBase,
                     isActive
                       ? toolbarClassNames.toolButtonActive
                       : toolbarClassNames.toolButtonInactive,
+                    tool.disabled ? toolbarClassNames.toolButtonDisabled : "",
                   ].join(" ")}
                   style={{
                     width: toolbarMetrics.toolButtonWidthPx,

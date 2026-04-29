@@ -231,6 +231,7 @@ function CesiumAnnotationsWrapper({ children }: { children: ReactNode }) {
       <AnnotationsProvider
         scene={scene}
         plugins={availableAnnotationToolPlugins}
+        initialActiveToolType={CESIUM_ANNOTATION_CONFIG.tools.defaultToolId}
         renderEnabled={annotationsVisible}
         initialPersistenceState={initialPersistenceState}
         onPersistenceStateChange={onPersistenceStateChange}
