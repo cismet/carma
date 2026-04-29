@@ -598,7 +598,22 @@ function TerraDrawIntegration({
             e
           );
         }
-        oldDraw.stop();
+        // stop() throws after a style swap because the adapter's unregister()
+        // calls map.removeLayer("td-point") etc., but those layer ids no
+        // longer exist in the freshly-loaded style. The base adapter still
+        // unbinds canvas event listeners before that throw, so swallowing
+        // the error here doesn't leak handlers — and crucially lets us
+        // continue to createDraw + addFeatures + setupLabelLayer below
+        // (without the catch, the whole attach aborted and even the labels
+        // failed to re-render).
+        try {
+          oldDraw.stop();
+        } catch (e) {
+          console.warn(
+            "[measurements-playground] terra-draw stop() failed during style.load reattach (expected — adapter tried to removeLayer non-existent ids)",
+            e
+          );
+        }
         drawRef.current = createDraw();
         if (savedFeatures.length > 0) {
           try {
