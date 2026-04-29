@@ -151,12 +151,7 @@ const InteractionView = ({ isDragging }: { isDragging?: boolean }) => {
   return (
     <div ref={wrapperRef} className="relative z-[998] pointer-events-none">
       {validBg && !isDragging && (
-        <FilterBackdrop
-          bgData={validBg}
-          showContentBackdrop={
-            activeInteractionButtonID !== CESIUM_ANNOTATION_INTERACTION_ID
-          }
-        />
+        <FilterBackdrop bgData={validBg} />
       )}
       <div className="pt-3 w-full flex items-center justify-center">
         <div ref={filterRef} className="relative z-10 pointer-events-auto">
