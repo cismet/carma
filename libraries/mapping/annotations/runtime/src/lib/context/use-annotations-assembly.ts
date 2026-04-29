@@ -6,6 +6,7 @@ import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runt
 import type { PreviewLineLabelVisualOptions } from "../config/preview-line-label-visual-defaults";
 import {
   buildStoredAnnotationGeoJsonFeatureCollection,
+  buildStoredAnnotationsGeoJsonFeatureCollection,
   downloadAnnotationGeoJsonFile,
   resolveAnnotationExportDescriptor,
   sanitizeAnnotationExportFileSegment,
@@ -345,6 +346,22 @@ export const useAnnotationsAssembly = ({
     [annotationsStore]
   );
 
+  const exportAllAnnotationsGeoJson = useCallback(() => {
+    const runtimeState = annotationsStore.getState();
+    const featureCollection = buildStoredAnnotationsGeoJsonFeatureCollection({
+      annotations: runtimeState.annotationEntries.map((annotation) => ({
+        annotation,
+        coordinates: resolveAnnotationEntryCoordinates({
+          annotationEntries: runtimeState.annotationEntries,
+          nodes: runtimeState.nodes,
+          annotationId: annotation.id,
+        }),
+      })),
+    });
+
+    downloadAnnotationGeoJsonFile("annotations.geojson", featureCollection);
+  }, [annotationsStore]);
+
   const toggleAnnotationVisibility = useCallback(
     (annotationId: string) => {
       const targetEntry = findAnnotationEntryById(
@@ -594,6 +611,7 @@ export const useAnnotationsAssembly = ({
       flyToAllAnnotations,
       removeAnnotationById: removeAnnotationEntryById,
       exportAnnotationGeoJson,
+      exportAllAnnotationsGeoJson,
       toggleAnnotationVisibility,
       toggleAnnotationLocked,
       removeSelectedAnnotations: removeSelectedAnnotationEntries,
@@ -612,6 +630,7 @@ export const useAnnotationsAssembly = ({
       annotationsStore,
       focusAdjacentAnnotationEntry,
       focusAnnotationId,
+      exportAllAnnotationsGeoJson,
       exportAnnotationGeoJson,
       flyToAllAnnotations,
       flyToAnnotationById,
