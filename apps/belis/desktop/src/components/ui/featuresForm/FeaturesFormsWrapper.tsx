@@ -141,11 +141,9 @@ const FeaturesFormsWrapper = ({
 
   const featureDataVersion = useSelector(getFeatureDataVersion);
   const globalEditMode = useSelector(getGlobalEditMode);
-  const [isEditing, setIsEditing] = useState(isCreation);
+  const [isEditing, setIsEditing] = useState(false);
   const [resetKey, setResetKey] = useState(0);
-  const effectiveReadOnly = isCreation
-    ? false
-    : readOnlyProp && !isEditing && !globalEditMode;
+  const effectiveReadOnly = readOnlyProp && !isEditing && !globalEditMode;
 
   // Exit edit mode when feature data is refetched externally (e.g. Save All)
   useEffect(() => {
@@ -305,7 +303,7 @@ const FeaturesFormsWrapper = ({
             loading={loading}
             draftValues={deserializedDraftValues}
             draftFiles={draftFiles}
-            hasDraft={hasChanges}
+            hasDraft={isCreation || hasChanges}
             onDraftChange={handleDraftChange}
             onDraftFilesChange={handleDraftFilesChange}
             onOriginalValues={handleOriginalValues}
