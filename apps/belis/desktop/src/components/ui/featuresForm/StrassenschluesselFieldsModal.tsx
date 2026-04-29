@@ -41,7 +41,7 @@ const StrassenschluesselFieldsModal = ({
     );
     form.setFieldValue(
       fieldName("strassenschluessel_strasse"),
-      match ? toTitleCase(match.strasse) : undefined
+      match?.strasse ?? undefined
     );
   };
 
