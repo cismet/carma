@@ -127,7 +127,11 @@ export const HQ500 = () => {
             containerRef={container3dMapRef}
             homeValidationCenter={CESIUM_HOME_POSITION}
             cameraLimiterOptions={{
-              pitchLimiter: false,
+              limiter: {
+                pitch: {
+                  enabled: false,
+                },
+              },
             }}
             globeOptions={{
               showGroundAtmosphere: false,
