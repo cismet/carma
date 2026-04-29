@@ -283,7 +283,7 @@ const LeuchteFormFields = ({
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [leuchte, form]);
+  }, [leuchte, form, draftValues]);
 
   return (
     <Form

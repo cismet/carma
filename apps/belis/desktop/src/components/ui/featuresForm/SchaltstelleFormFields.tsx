@@ -115,7 +115,7 @@ const SchaltstelleFormFields = ({
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [schaltstelle, form]);
+  }, [schaltstelle, form, draftValues]);
 
   return (
     <Form

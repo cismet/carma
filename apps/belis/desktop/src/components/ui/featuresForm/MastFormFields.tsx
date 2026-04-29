@@ -226,7 +226,7 @@ const MastFormFields = ({
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mast, form]);
+  }, [mast, form, draftValues]);
 
   return (
     <Form
