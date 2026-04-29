@@ -44,7 +44,5 @@ export const resolveLayerIconUrl = (
 
   if (!iconName) return undefined;
 
-  return isUrl(layer.other?.icon)
-    ? layer.other?.icon
-    : iconPrefix + `${iconName}.png`;
+  return isUrl(icon) ? icon : iconPrefix + `${iconName}.png`;
 };
