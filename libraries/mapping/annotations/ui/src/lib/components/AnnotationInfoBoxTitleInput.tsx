@@ -125,7 +125,7 @@ export const AnnotationInfoBoxTitleInput = ({
 
   return (
     <div
-      className="inline-flex min-w-0 max-w-full items-center"
+      className="inline-flex min-w-0 max-w-full flex-1 items-center"
       style={{ columnGap: "0.35em" }}
       onMouseDown={stopPointerPropagation}
       onClick={stopPointerPropagation}

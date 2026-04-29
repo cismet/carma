@@ -148,12 +148,10 @@ export const buildAnnotationMeasurementInfoBoxSlots = ({
     subtitle: (
       <div className={resolvedVisualOptions.subtitleContainerClassName}>
         <div className="flex items-center justify-between gap-2">
-          <div className="min-w-0 flex-1">
-            <AnnotationInfoBoxTitleInput
-              {...titleInput}
-              visualOptions={resolvedVisualOptions}
-            />
-          </div>
+          <AnnotationInfoBoxTitleInput
+            {...titleInput}
+            visualOptions={resolvedVisualOptions}
+          />
           <div className="shrink-0">
             <AnnotationInfoBoxActions
               {...actions}

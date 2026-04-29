@@ -109,10 +109,13 @@ describe("CismapAnnotationInfoBox", () => {
     expect(screen.getByText("Instruction content")).toBeTruthy();
   });
 
-  it("keeps the Cismap title input plain while hiding non-2D measurement actions", () => {
+  it("keeps the Cismap title input visually aligned with 2D measurement headings while hiding non-2D measurement actions", () => {
+    expect(
+      CISMAP_MEASUREMENT_INFO_BOX_VISUAL_OPTIONS.titleTextClassName
+    ).toContain("font-bold");
     expect(
       CISMAP_MEASUREMENT_INFO_BOX_VISUAL_OPTIONS.titleInputClassName
-    ).toContain("font-normal");
+    ).toContain("font-bold");
     expect(
       CISMAP_MEASUREMENT_INFO_BOX_VISUAL_OPTIONS.titleInputClassName
     ).toContain("border-0");

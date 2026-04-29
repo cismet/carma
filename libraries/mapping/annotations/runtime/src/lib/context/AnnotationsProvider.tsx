@@ -50,6 +50,7 @@ type AnnotationsRuntimeServices = {
   flyToAllAnnotations: () => void;
   removeAnnotationById: (annotationId: string) => void;
   exportAnnotationGeoJson: (annotationId: string) => void;
+  exportAllAnnotationsGeoJson: () => void;
   toggleAnnotationVisibility: (annotationId: string) => void;
   toggleAnnotationLocked: (annotationId: string) => void;
   removeSelectedAnnotations: () => void;
@@ -183,6 +184,7 @@ export const useAnnotationsRuntime = () => {
     flyToAllAnnotations,
     removeAnnotationById,
     exportAnnotationGeoJson,
+    exportAllAnnotationsGeoJson,
     toggleAnnotationVisibility,
     toggleAnnotationLocked,
     removeSelectedAnnotations,
@@ -231,6 +233,7 @@ export const useAnnotationsRuntime = () => {
     flyToAllAnnotations,
     removeAnnotationById,
     exportAnnotationGeoJson,
+    exportAllAnnotationsGeoJson,
     toggleAnnotationVisibility,
     toggleAnnotationLocked,
     removeSelectedAnnotations,
