@@ -19,6 +19,7 @@ import {
   TerraDrawPolygonMode,
   TerraDrawSelectMode,
 } from "terra-draw";
+import type { GeoJSONStoreFeatures } from "terra-draw";
 import { TerraDrawMapLibreGLAdapter } from "terra-draw-maplibre-gl-adapter";
 import area from "@turf/area";
 import length from "@turf/length";
@@ -407,6 +408,10 @@ export function App() {
         exposeMapToWindow
         overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
         libreLayers={libreLayers}
+        // Suppress carma's vector-feature selection while a draw mode is
+        // active so it doesn't fight terra-draw for clicks (e.g. after
+        // dropping an ALKIS / POI layer that has its own click semantics).
+        selectionEnabled={drawMode === "none"}
         modalMenu={<Menu />}
         extraControls={
           <>
@@ -533,7 +538,7 @@ function TerraDrawIntegration({
       }
     };
 
-    const init = () => {
+    const createDraw = () => {
       const draw = new TerraDraw({
         adapter: new TerraDrawMapLibreGLAdapter({ map }),
         modes: [
@@ -572,31 +577,53 @@ function TerraDrawIntegration({
       });
       draw.start();
       draw.setMode(drawModeToTerraDraw(modeRef.current));
-      drawRef.current = draw;
       draw.on("change", () => refreshLabels());
-
-      setupLabelLayer();
-      refreshLabels();
+      return draw;
     };
 
-    // After a basemap style swap, our source/layer get stripped (terra-draw's
-    // own layer survival is tracked separately as pending item #6). Re-add
-    // and rebuild from the current snapshot.
-    const handleStyleLoad = () => {
+    // Single idempotent attach: handles initial setup AND recovery after a
+    // basemap style swap (which strips both our label layer and Terra Draw's
+    // own sources/layers — its adapter has no built-in style.load recovery).
+    // If a draw instance already exists, snapshot its features, tear it down,
+    // recreate it against the new style, and restore the features.
+    const attach = () => {
+      const oldDraw = drawRef.current;
+      if (oldDraw) {
+        let savedFeatures: GeoJSONStoreFeatures[] = [];
+        try {
+          savedFeatures = oldDraw.getSnapshot();
+        } catch (e) {
+          console.warn(
+            "[measurements-playground] could not snapshot before reattach",
+            e
+          );
+        }
+        oldDraw.stop();
+        drawRef.current = createDraw();
+        if (savedFeatures.length > 0) {
+          try {
+            drawRef.current.addFeatures(savedFeatures);
+          } catch (e) {
+            console.warn(
+              "[measurements-playground] could not restore drawn features",
+              e
+            );
+          }
+        }
+      } else {
+        drawRef.current = createDraw();
+      }
       setupLabelLayer();
       refreshLabels();
     };
 
     if (map.isStyleLoaded()) {
-      init();
-    } else {
-      map.once("style.load", init);
+      attach();
     }
-    map.on("style.load", handleStyleLoad);
+    map.on("style.load", attach);
 
     return () => {
-      map.off("style.load", init);
-      map.off("style.load", handleStyleLoad);
+      map.off("style.load", attach);
       if (drawRef.current) {
         drawRef.current.stop();
         drawRef.current = null;
