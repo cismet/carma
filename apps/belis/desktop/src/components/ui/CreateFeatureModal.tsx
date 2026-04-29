@@ -139,7 +139,7 @@ const CreateFeatureModal = ({
       draftFiles.map((df) => ({
         id: df.id,
         fileName: df.fileName,
-        previewUrl: `data:${df.mimeType};base64,${df.base64Data}`,
+        previewUrl: df.base64Data,
         originalFileName: df.originalFileName,
       })),
     [draftFiles]
