@@ -141,8 +141,13 @@ const CreateFeatureDropdown = () => {
         menu={{
           items: createFeatureItems.map((item) => ({
             key: item.key,
-            icon: <FeatureIcon type={item.key} />,
-            label: item.label,
+            label: (
+              <span className="flex items-center gap-1.5">
+                <FeatureIcon type={item.key} />
+                {item.label}
+              </span>
+            ),
+            style: { paddingLeft: 4 },
             onClick: () => handleItemClick(item.key),
           })),
         }}
