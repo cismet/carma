@@ -1,11 +1,18 @@
-import { Form, Row, Col, Input } from "antd";
+import { Form, Row, Col, Select } from "antd";
+import { useSelector } from "react-redux";
+import { getKeyTablesData } from "../../../store/slices/keyTables";
 import { FormItem } from "./DraftFieldHighlight";
+import toTitleCase from "../../../helper/toTitleCase";
 
 interface StrassenschluesselFieldsModalProps {
-  /** Optional prefix for field names (e.g., for nested forms) */
   namePrefix?: string;
-  /** Label text for the field group (default: "Strassenschlüssel") */
   label?: string;
+}
+
+interface StrassenschluesselItem {
+  id: number;
+  pk: string;
+  strasse: string;
 }
 
 const FormLabel = ({ children }: { children: React.ReactNode }) => (
@@ -16,7 +23,37 @@ const StrassenschluesselFieldsModal = ({
   namePrefix,
   label = "Strassenschlüssel",
 }: StrassenschluesselFieldsModalProps) => {
+  const form = Form.useFormInstance();
+  const keyTablesData = useSelector(getKeyTablesData);
+
+  const strassenschluesselOptions = [
+    ...((keyTablesData["straßenschlüssel"] ||
+      []) as StrassenschluesselItem[]),
+  ]
+    .filter((item) => item.pk && item.strasse)
+    .sort((a, b) => a.pk.localeCompare(b.pk));
+
   const fieldName = (name: string) => (namePrefix ? [namePrefix, name] : name);
+
+  const handlePkChange = (selectedPk: string) => {
+    const match = strassenschluesselOptions.find(
+      (item) => item.pk === selectedPk
+    );
+    form.setFieldValue(
+      fieldName("strassenschluessel_strasse"),
+      match ? toTitleCase(match.strasse) : undefined
+    );
+  };
+
+  const handleStrasseChange = (selectedStrasse: string) => {
+    const match = strassenschluesselOptions.find(
+      (item) => item.strasse === selectedStrasse
+    );
+    form.setFieldValue(
+      fieldName("strassenschluessel_pk"),
+      match?.pk ?? undefined
+    );
+  };
 
   return (
     <Row gutter={16}>
@@ -26,7 +63,20 @@ const StrassenschluesselFieldsModal = ({
           label={<FormLabel>{label}</FormLabel>}
           className="mb-4"
         >
-          <Input size="large" />
+          <Select
+            size="large"
+            showSearch
+            allowClear
+            optionFilterProp="children"
+            placeholder="PK"
+            onChange={handlePkChange}
+          >
+            {strassenschluesselOptions.map((item) => (
+              <Select.Option key={item.id} value={item.pk}>
+                {item.pk}
+              </Select.Option>
+            ))}
+          </Select>
         </FormItem>
       </Col>
       <Col span={18}>
@@ -35,7 +85,20 @@ const StrassenschluesselFieldsModal = ({
           label={<FormLabel>&nbsp;</FormLabel>}
           className="mb-4"
         >
-          <Input size="large" />
+          <Select
+            size="large"
+            showSearch
+            allowClear
+            optionFilterProp="children"
+            placeholder="Strasse auswählen"
+            onChange={handleStrasseChange}
+          >
+            {strassenschluesselOptions.map((item) => (
+              <Select.Option key={item.id} value={item.strasse}>
+                {toTitleCase(item.strasse)}
+              </Select.Option>
+            ))}
+          </Select>
         </FormItem>
       </Col>
     </Row>
