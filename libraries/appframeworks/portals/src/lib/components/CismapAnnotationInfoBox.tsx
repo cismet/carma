@@ -68,12 +68,12 @@ export const CISMAP_MEASUREMENT_INFO_BOX_VISUAL_OPTIONS = {
   renderActionIcon: renderCismapMeasurementActionIcon,
   titleTextStyle: {
     fontSize: "14px",
-    fontWeight: 400,
+    fontWeight: 700,
     lineHeight: 1.25,
   },
-  titleTextClassName: "text-[14px] font-normal leading-[1.25] text-[#212529]",
+  titleTextClassName: "text-[14px] font-bold leading-[1.25] text-[#212529]",
   titleInputClassName:
-    "min-w-0 w-auto max-w-full appearance-none [field-sizing:content] break-words border-0 bg-transparent px-0 py-0 text-[14px] font-normal leading-[1.25] text-[#212529] placeholder:text-[#212529] focus:outline-none focus:ring-0",
+    "min-w-0 w-auto max-w-full appearance-none [field-sizing:content] break-words border-0 bg-transparent px-0 py-0 text-[14px] font-bold leading-[1.25] text-[#212529] placeholder:text-[#212529] focus:outline-none focus:ring-0",
   navigationInstructionContainerClassName:
     "mt-1 flex w-full items-center justify-center text-[12px]",
   navigationAvailabilityContainerClassName:

@@ -5,7 +5,11 @@ import {
 } from "react";
 import { useDispatch } from "react-redux";
 
-import { faTimes, faTrashCan } from "@fortawesome/free-solid-svg-icons";
+import {
+  faDownload,
+  faTimes,
+  faTrashCan,
+} from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Tooltip } from "antd";
 import Icon from "react-cismap/commons/Icon";
@@ -52,6 +56,7 @@ const CesiumAnnotationLayerButton = (props: GeoportalLayerButtonProps) => {
   const dispatch = useDispatch();
   const {
     annotationEntries,
+    exportAllAnnotationsGeoJson,
     flyToAllAnnotations,
     removeAnnotationById,
     setElevationReferenceAnnotationId,
@@ -80,6 +85,17 @@ const CesiumAnnotationLayerButton = (props: GeoportalLayerButtonProps) => {
             }
             disabled={!hasAnnotations}
             onClick={flyToAllAnnotations}
+          />
+          <LayerButtonActionButton
+            title="Alle Messungen als GeoJSON herunterladen"
+            icon={
+              <FontAwesomeIcon
+                icon={faDownload}
+                className="text-[16px] leading-none"
+              />
+            }
+            disabled={!hasAnnotations}
+            onClick={exportAllAnnotationsGeoJson}
           />
           <LayerButtonActionButton
             title="Alle Messungen löschen"
