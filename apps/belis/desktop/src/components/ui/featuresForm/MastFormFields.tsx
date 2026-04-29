@@ -12,6 +12,7 @@ import {
 import { useSelector } from "react-redux";
 import { getKeyTablesData } from "../../../store/slices/keyTables";
 import StrassenschluesselFields from "./StrassenschluesselFields";
+import StrassenschluesselFieldsModal from "./StrassenschluesselFieldsModal";
 import StadtbezirkField from "./StadtbezirkField";
 import { getFormClassName, getPlaceholder } from "./readOnlyFormUtils";
 import { FormItem } from "./DraftFieldHighlight";
@@ -241,8 +242,11 @@ const MastFormFields = ({
       className={getFormClassName(readOnly, "pr-2")}
       onValuesChange={onValuesChange}
     >
-      {/* Strassenschluessel - always disabled */}
-      <StrassenschluesselFields namePrefix={namePrefix} />
+      {!mast && !readOnly ? (
+        <StrassenschluesselFieldsModal namePrefix={namePrefix} />
+      ) : (
+        <StrassenschluesselFields namePrefix={namePrefix} />
+      )}
 
       {/* Kennziffer */}
       <FormItem
