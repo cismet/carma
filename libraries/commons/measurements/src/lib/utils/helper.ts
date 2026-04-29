@@ -1,5 +1,8 @@
 import localforage from "localforage";
 import { COLORS_HEX } from "@carma-commons/utils";
+import { computeMeasurementLabels, MeasurementLabel } from "./measurement-math";
+
+export type { MeasurementLabel } from "./measurement-math";
 
 export const setFromLocalforage = async (
   lfKey: string,
@@ -103,6 +106,7 @@ export interface MeasurementShapeData {
   distance?: string;
   area?: string;
   customTitle?: string;
+  labels?: MeasurementLabel[];
 }
 
 function buildFeatureTitle(shape: MeasurementShapeData, order: number): string {
@@ -129,10 +133,32 @@ export type ShapesToFeatureCollectionLayerInfo = {
   metaDataText?: string;
 };
 
+type LabelFeature = {
+  type: "Feature";
+  id: number | string;
+  geometry: { type: "Point"; coordinates: [number, number] };
+  properties: { kind: "label"; label: string };
+};
+
+const buildLabelFeatures = (shape: MeasurementShapeData): LabelFeature[] => {
+  const labels =
+    shape.labels && shape.labels.length > 0
+      ? shape.labels
+      : computeMeasurementLabels(shape);
+  return labels.map((l) => ({
+    type: "Feature",
+    id: shape.shapeId,
+    geometry: { type: "Point", coordinates: l.position },
+    properties: { kind: "label", label: l.text },
+  }));
+};
+
 export function shapesToFeatureCollection(
   shapes: MeasurementShapeData[],
   layerInfoOverrides?: ShapesToFeatureCollectionLayerInfo
 ) {
+  const labelFeatures: LabelFeature[] = [];
+
   const features = shapes
     .map((shape, index) => ({ shape, order: index + 1 }))
     .filter(({ shape }) => shape.shapeId !== 5555)
@@ -142,6 +168,8 @@ export function shapesToFeatureCollection(
       );
 
       const isPolygon = shape.shapeType === "polygon";
+
+      labelFeatures.push(...buildLabelFeatures(shape));
 
       return {
         type: "Feature" as const,
@@ -168,6 +196,7 @@ export function shapesToFeatureCollection(
 
   return {
     version: 8,
+    glyphs: "https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf",
     metadata: {
       carmaConf: {
         instant: true,
@@ -185,7 +214,7 @@ export function shapesToFeatureCollection(
         type: "geojson",
         data: {
           type: "FeatureCollection" as const,
-          features,
+          features: [...features, ...labelFeatures],
         },
       },
     },
@@ -257,6 +286,30 @@ export function shapesToFeatureCollection(
           "line-color": "#3A7CEB",
           "line-width": 4,
           "line-opacity": [
+            "case",
+            ["boolean", ["feature-state", "selected"], false],
+            1,
+            0,
+          ],
+        },
+      },
+      {
+        id: "selection-measurement-labels",
+        type: "symbol",
+        source: "adhoc",
+        filter: ["==", ["get", "kind"], "label"],
+        layout: {
+          "text-field": ["get", "label"],
+          "text-font": ["Open Sans Semibold"],
+          "text-size": 12,
+          "text-allow-overlap": true,
+          "text-ignore-placement": true,
+        },
+        paint: {
+          "text-color": "#000000",
+          "text-halo-color": "#FFFFFF",
+          "text-halo-width": 2,
+          "text-opacity": [
             "case",
             ["boolean", ["feature-state", "selected"], false],
             1,

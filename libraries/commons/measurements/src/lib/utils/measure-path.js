@@ -186,6 +186,22 @@ L.Control.MeasurePolygon = L.Control.extend({
     this.options.startDrawing = true;
   },
 
+  _collectMeasurementLabels: function (layer) {
+    const measurementLayer = layer && layer._measurementLayer;
+    if (!measurementLayer || typeof measurementLayer.getLayers !== "function") {
+      return [];
+    }
+    return measurementLayer.getLayers().map((m) => {
+      // measure.js stores most marker positions as L.LatLng objects, but the
+      // polygon area-centroid marker is built from a [lat, lng] array. Normalize.
+      const ll = L.latLng(m._latlng);
+      return {
+        position: [ll.lng, ll.lat],
+        text: m._measurement,
+      };
+    });
+  },
+
   saveShapeHandler: function (layer, distance = null, area = null, map) {
     const latlngs = layer.getLatLngs();
     const latlngsJSON = layer.toGeoJSON();
@@ -222,6 +238,7 @@ L.Control.MeasurePolygon = L.Control.extend({
         number: this.options.measurementOrder,
         area,
         shapeType: this.options.shapeMode,
+        labels: this._collectMeasurementLabels(layer),
       };
       this.options.cbSaveShape(preparePolygon);
       this.getVisibleShapeIdsArr(map);
@@ -263,6 +280,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     const square = !isLine ? this.calculateArea(reversedCoordinates) : null;
     polyline.updateMeasurements();
     const newDistance = this._UpdateDistance(layer);
+    const newLabels = this._collectMeasurementLabels(polyline);
     const shapeId = polyline?.customID
       ? polyline?.customID
       : polyline._leaflet_id;
@@ -271,7 +289,8 @@ L.Control.MeasurePolygon = L.Control.extend({
       shapeId,
       reversedCoordinates,
       newDistance,
-      square
+      square,
+      newLabels
     );
     this.options.checkonedrawpoligon = false;
   },
@@ -959,6 +978,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     polygon.customShape = "polygon";
 
     polygon.addTo(this._measureLayers).showMeasurements().enableEdit();
+    preparePolygon.labels = this._collectMeasurementLabels(polygon);
     // polygon.on("dblclick", this._onPolygonClick.bind(this, map));
     polygon.on("click", () => {
       this.options.cbSetActiveShape(polygon.customID);

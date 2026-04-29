@@ -261,8 +261,14 @@ export function Measurements({
   const deleteVisibleShapeByIdHandler = (id) => {
     deleteVisibleShapeById(id);
   };
-  const updateShapeHandler = (id, newCoordinates, newDistance, newSquare) => {
-    updateShapeById(id, newCoordinates, newDistance, newSquare);
+  const updateShapeHandler = (
+    id,
+    newCoordinates,
+    newDistance,
+    newSquare,
+    newLabels
+  ) => {
+    updateShapeById(id, newCoordinates, newDistance, newSquare, newLabels);
   };
 
   const saveLastActiveShapeIdBeforeDrawingHandler = () => {
