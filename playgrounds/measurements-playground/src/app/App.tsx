@@ -48,6 +48,18 @@ const LS_LABELS_VISIBLE_KEY = `${APP_KEY}:labels-visible`;
 const LS_SNAPPING_ENABLED_KEY = `${APP_KEY}:snapping-enabled`;
 const LS_RADIUS_DEBUG_KEY = `${APP_KEY}:snap-radius-debug`;
 const LS_SNAP_RADIUS_PX_KEY = `${APP_KEY}:snap-radius-px`;
+const LS_SNAP_MODE_KEY = `${APP_KEY}:snap-mode`;
+
+// "opt-out": every style layer is a snap candidate unless flagged
+//   metadata.carmaConf.skipSnapping = true. Means basemap.de geometry
+//   participates too — surprising in a measurement context.
+// "derived-opt-in": only sources that ship at least one skipSnapping flag
+//   somewhere are treated as curated snap targets. Non-skipSnapping layers
+//   in those sources are snappable; everything else (including basemap.de
+//   layers, which never carry skipSnapping) is excluded. Mirrors the
+//   legacy "snappingLayers" curation pattern at the source level.
+type SnapMode = "opt-out" | "derived-opt-in";
+const SNAP_MODE_DEFAULT: SnapMode = "derived-opt-in";
 const SERVER_URL_TOKEN = "__SERVER_URL__";
 const SERVER_URL_REPLACEMENT = "https://tiles.cismet.de";
 
@@ -224,9 +236,26 @@ function persistSnapRadiusPx(value: number) {
   }
 }
 
-// Walk every coordinate in a GeoJSON geometry. Used for vertex-snapping —
-// we don't yet snap to projected points on edges, so each vertex is the
-// only candidate.
+function loadSnapMode(): SnapMode {
+  try {
+    const raw = localStorage.getItem(LS_SNAP_MODE_KEY);
+    if (raw === "opt-out" || raw === "derived-opt-in") return raw;
+    return SNAP_MODE_DEFAULT;
+  } catch {
+    return SNAP_MODE_DEFAULT;
+  }
+}
+
+function persistSnapMode(value: SnapMode) {
+  try {
+    localStorage.setItem(LS_SNAP_MODE_KEY, value);
+  } catch {
+    // ignore
+  }
+}
+
+// Walk every coordinate in a GeoJSON geometry. Used for vertex-snapping
+// (the primary snap level — see findSnapTarget).
 function iterateGeomCoords(
   geom: GeoJSON.Geometry,
   fn: (c: GeoJSON.Position) => void
@@ -253,6 +282,76 @@ function iterateGeomCoords(
   }
 }
 
+// Walk consecutive coordinate pairs (segments) of a GeoJSON geometry. Used
+// for the secondary snap level (closest point on edge). Yields nothing for
+// Point/MultiPoint; for closed polygon rings the closing pair is yielded
+// naturally because GeoJSON repeats first === last.
+function* iterateGeomSegments(
+  geom: GeoJSON.Geometry
+): Generator<[GeoJSON.Position, GeoJSON.Position]> {
+  switch (geom.type) {
+    case "Point":
+    case "MultiPoint":
+      return;
+    case "LineString": {
+      const cs = geom.coordinates;
+      for (let i = 0; i < cs.length - 1; i++) yield [cs[i], cs[i + 1]];
+      return;
+    }
+    case "MultiLineString":
+    case "Polygon": {
+      for (const ring of geom.coordinates) {
+        for (let i = 0; i < ring.length - 1; i++) yield [ring[i], ring[i + 1]];
+      }
+      return;
+    }
+    case "MultiPolygon": {
+      for (const poly of geom.coordinates) {
+        for (const ring of poly) {
+          for (let i = 0; i < ring.length - 1; i++) yield [ring[i], ring[i + 1]];
+        }
+      }
+      return;
+    }
+    case "GeometryCollection":
+      for (const g of geom.geometries) yield* iterateGeomSegments(g);
+      return;
+  }
+}
+
+// Project A and B to screen px, clamp the parametric position t to [0, 1],
+// and return the closest point on segment AB to the cursor — or null if
+// outside `radiusPx` or if AB is degenerate (A === B in screen px). The
+// returned lng/lat is a linear blend of A/B, which is approximate on a
+// curved surface but sub-pixel at the zoom levels this playground cares
+// about. Cheap enough that we don't pull in turf.
+function findClosestPointOnSegment(
+  map: maplibregl.Map,
+  cursor: { x: number; y: number },
+  a: GeoJSON.Position,
+  b: GeoJSON.Position,
+  radiusPx: number
+): { coord: GeoJSON.Position; distSq: number } | null {
+  const pa = map.project({ lng: a[0], lat: a[1] });
+  const pb = map.project({ lng: b[0], lat: b[1] });
+  const dx = pb.x - pa.x;
+  const dy = pb.y - pa.y;
+  const len2 = dx * dx + dy * dy;
+  if (len2 === 0) return null;
+  let t = ((cursor.x - pa.x) * dx + (cursor.y - pa.y) * dy) / len2;
+  if (t < 0) t = 0;
+  else if (t > 1) t = 1;
+  const px = pa.x + t * dx;
+  const py = pa.y + t * dy;
+  const ex = cursor.x - px;
+  const ey = cursor.y - py;
+  const distSq = ex * ex + ey * ey;
+  if (distSq > radiusPx * radiusPx) return null;
+  const lng = a[0] + t * (b[0] - a[0]);
+  const lat = a[1] + t * (b[1] - a[1]);
+  return { coord: [lng, lat], distSq };
+}
+
 // Local exclusions: terra-draw's own layers (`td-*`, handled separately by
 // TD's built-in toCoordinate / toLine snapping) plus our own overlay layers
 // (label / snap-dot / snap-radius — the cursor must not snap to itself).
@@ -264,32 +363,68 @@ function isLocallyExcludedSnapLayer(layerId: string): boolean {
   return false;
 }
 
-// Build the list of layer ids that should participate in snapping. We honour
-// the carma-wide `metadata.carmaConf.skipSnapping = true` convention used
-// across the codebase (e.g. ALKIS parcel-number labels are flagged so the
-// cursor doesn't snap to text glyphs). See the legacy
-// `libraries/commons/measurements/src/lib/components/MeasurementsSnapping.tsx`
-// for the same pattern. Returns null when the style isn't ready yet —
-// callers should treat that as "no snap candidates available".
-function getSnappableLayerIds(map: maplibregl.Map): string[] | null {
+// Read `metadata.carmaConf.skipSnapping` off a maplibre style layer (the
+// carma-wide convention used e.g. by ALKIS to opt label / fill / arrow
+// sublayers out of snap-target queries).
+function hasSkipSnapping(layer: maplibregl.LayerSpecification): boolean {
+  const meta = (layer as { metadata?: unknown }).metadata as
+    | { carmaConf?: { skipSnapping?: boolean } }
+    | undefined;
+  return meta?.carmaConf?.skipSnapping === true;
+}
+
+// Build the list of layer ids eligible for snap-target queryRenderedFeatures.
+// Two strategies, controlled by `mode`:
+//
+// - "opt-out": every layer in the merged style participates unless flagged
+//   skipSnapping or locally excluded (terra-draw / our own overlays). Means
+//   the cursor will snap to basemap.de geometry — sometimes useful, often
+//   surprising.
+// - "derived-opt-in": only layers belonging to a "curated" source. A source
+//   is curated iff at least one of its layers in the merged style ships
+//   skipSnapping = true — interpreted as "the style author thought about
+//   snapping for this source, so the non-skipSnapping layers in it are
+//   intentional snap targets". Sources without any skipSnapping flag (e.g.
+//   basemap.de, today's POI style) are excluded entirely.
+//
+// Returns null when the style isn't ready — caller treats that as "no snap
+// candidates available".
+function getSnappableLayerIds(
+  map: maplibregl.Map,
+  mode: SnapMode
+): string[] | null {
   const style = map.getStyle();
   if (!style || !style.layers) return null;
+  const layers = style.layers;
+  const layerSource = (layer: maplibregl.LayerSpecification): string =>
+    (layer as { source?: string }).source ?? "__no-source__";
+
+  let curatedSources: Set<string> | null = null;
+  if (mode === "derived-opt-in") {
+    curatedSources = new Set<string>();
+    for (const layer of layers) {
+      if (hasSkipSnapping(layer)) curatedSources.add(layerSource(layer));
+    }
+  }
+
   const ids: string[] = [];
-  for (const layer of style.layers) {
-    const meta = (layer as { metadata?: unknown }).metadata as
-      | { carmaConf?: { skipSnapping?: boolean } }
-      | undefined;
-    if (meta?.carmaConf?.skipSnapping === true) continue;
+  for (const layer of layers) {
+    if (curatedSources && !curatedSources.has(layerSource(layer))) continue;
+    if (hasSkipSnapping(layer)) continue;
     if (isLocallyExcludedSnapLayer(layer.id)) continue;
     ids.push(layer.id);
   }
   return ids;
 }
 
-// Find the nearest external vertex to the cursor within `radiusPx`.
-// Caller passes the pre-computed snappable layer-id list (cached across
-// mousemoves; see snappableLayerIdsRef in TerraDrawIntegration). Returns
-// the snap coord in lng/lat, or null if no candidate is in range.
+// Find the nearest snap target to the cursor within `radiusPx`. Two passes
+// over the same queryRenderedFeatures result: vertex first, then closest
+// point on edge as fallback. Priority is vertex > edge > none — if any
+// vertex is within the radius, the edge pass is skipped (a vertex on a
+// segment endpoint must not produce an "edge snap" result). Caller passes
+// the pre-computed snappable layer-id list (cached across mousemoves; see
+// snappableLayerIdsRef in TerraDrawIntegration). Returns the snap coord in
+// lng/lat, or null if no candidate is in range.
 function findSnapTarget(
   map: maplibregl.Map,
   cursor: { x: number; y: number },
@@ -305,21 +440,35 @@ function findSnapTarget(
     ],
     { layers: allowedLayerIds }
   );
-  let bestCoord: GeoJSON.Position | null = null;
-  let bestDistSq = r * r + 1;
+  // Pass 1: vertex.
+  let bestVertexCoord: GeoJSON.Position | null = null;
+  let bestVertexDistSq = r * r + 1;
   for (const f of features) {
     iterateGeomCoords(f.geometry, (coord) => {
       const proj = map.project({ lng: coord[0], lat: coord[1] });
       const dx = proj.x - cursor.x;
       const dy = proj.y - cursor.y;
       const distSq = dx * dx + dy * dy;
-      if (distSq <= r * r && distSq < bestDistSq) {
-        bestDistSq = distSq;
-        bestCoord = [coord[0], coord[1]];
+      if (distSq <= r * r && distSq < bestVertexDistSq) {
+        bestVertexDistSq = distSq;
+        bestVertexCoord = [coord[0], coord[1]];
       }
     });
   }
-  return bestCoord;
+  if (bestVertexCoord) return bestVertexCoord;
+  // Pass 2: closest point on edge. Only runs when no vertex was in range.
+  let bestSegmentCoord: GeoJSON.Position | null = null;
+  let bestSegmentDistSq = r * r + 1;
+  for (const f of features) {
+    for (const [a, b] of iterateGeomSegments(f.geometry)) {
+      const hit = findClosestPointOnSegment(map, cursor, a, b, r);
+      if (hit && hit.distSq < bestSegmentDistSq) {
+        bestSegmentDistSq = hit.distSq;
+        bestSegmentCoord = hit.coord;
+      }
+    }
+  }
+  return bestSegmentCoord;
 }
 
 const lengthFormatter0 = new Intl.NumberFormat("de-DE", {
@@ -418,6 +567,7 @@ export function App() {
     loadRadiusDebug
   );
   const [snapRadiusPx, setSnapRadiusPx] = useState<number>(loadSnapRadiusPx);
+  const [snapMode, setSnapMode] = useState<SnapMode>(loadSnapMode);
 
   const toggleLabelsVisible = () =>
     setLabelsVisible((prev) => {
@@ -446,6 +596,11 @@ export function App() {
     persistSnapRadiusPx(clamped);
   };
 
+  const updateSnapMode = (next: SnapMode) => {
+    setSnapMode(next);
+    persistSnapMode(next);
+  };
+
   // Wipe everything we persist for this playground (loaded layers +
   // four UX prefs) and put state back to its defaults. Drawn features live
   // in terra-draw's in-memory store, not localStorage, so they're untouched.
@@ -456,6 +611,7 @@ export function App() {
       localStorage.removeItem(LS_SNAPPING_ENABLED_KEY);
       localStorage.removeItem(LS_RADIUS_DEBUG_KEY);
       localStorage.removeItem(LS_SNAP_RADIUS_PX_KEY);
+      localStorage.removeItem(LS_SNAP_MODE_KEY);
     } catch (e) {
       console.warn(
         "[measurements-playground] failed to clear stored preferences",
@@ -467,6 +623,7 @@ export function App() {
     setSnappingEnabled(true);
     setRadiusDebugVisible(true);
     setSnapRadiusPx(SNAP_RADIUS_PX_DEFAULT);
+    setSnapMode(SNAP_MODE_DEFAULT);
   };
 
   // Resolve each stored entry to { name, styleUrl } and own the Blob URL lifecycle.
@@ -677,6 +834,7 @@ export function App() {
         snappingEnabled={snappingEnabled}
         radiusDebugVisible={radiusDebugVisible}
         snapRadiusPx={snapRadiusPx}
+        snapMode={snapMode}
       />
       <OverlayUI
         layers={resolvedStyles}
@@ -687,6 +845,8 @@ export function App() {
         onToggleRadiusDebug={toggleRadiusDebug}
         snapRadiusPx={snapRadiusPx}
         onSnapRadiusChange={updateSnapRadiusPx}
+        snapMode={snapMode}
+        onSnapModeChange={updateSnapMode}
         onResetAll={resetAll}
       />
     </>
@@ -717,12 +877,14 @@ function TerraDrawIntegration({
   snappingEnabled,
   radiusDebugVisible,
   snapRadiusPx,
+  snapMode,
 }: {
   mode: DrawMode;
   labelsVisible: boolean;
   snappingEnabled: boolean;
   radiusDebugVisible: boolean;
   snapRadiusPx: number;
+  snapMode: SnapMode;
 }) {
   const { map } = useLibreContext();
   const drawRef = useRef<TerraDraw | null>(null);
@@ -745,9 +907,15 @@ function TerraDrawIntegration({
   snapRadiusPxRef.current = snapRadiusPx;
   const radiusDebugVisibleRef = useRef(radiusDebugVisible);
   radiusDebugVisibleRef.current = radiusDebugVisible;
+  // Snap-mode (opt-out vs derived-opt-in) read live by attach() and the
+  // recompute effect below so changes flip the eligible-layer list without
+  // tearing down terra-draw.
+  const snapModeRef = useRef(snapMode);
+  snapModeRef.current = snapMode;
   // Cached list of layer ids eligible for snap querying. Recomputed on
-  // attach() (initial mount + after every style swap) so the hot mousemove
-  // path doesn't have to call map.getStyle() + walk + filter every frame.
+  // attach() (initial mount + after every style swap) AND when snapMode
+  // flips, so the hot mousemove path doesn't have to call map.getStyle()
+  // + walk + filter every frame.
   const snappableLayerIdsRef = useRef<string[]>([]);
 
   // (Re)create TerraDraw whenever the maplibre map instance becomes available.
@@ -1063,7 +1231,8 @@ function TerraDrawIntegration({
       // Refresh the cached snappable-layer-id list now that the new style
       // is fully loaded (terra-draw + label/snap layers were just added).
       // Without this the cache would point at stale ids from the old style.
-      snappableLayerIdsRef.current = getSnappableLayerIds(map) ?? [];
+      snappableLayerIdsRef.current =
+        getSnappableLayerIds(map, snapModeRef.current) ?? [];
       // Wipe any stale preview/radius from the previous style; mousemove
       // will fill them back in on the next pointer event.
       setPointSourceAt(SNAP_PREVIEW_SOURCE_ID, null);
@@ -1157,6 +1326,13 @@ function TerraDrawIntegration({
     if (!map.getLayer(SNAP_RADIUS_LAYER_ID)) return;
     map.setPaintProperty(SNAP_RADIUS_LAYER_ID, "circle-radius", snapRadiusPx);
   }, [map, snapRadiusPx]);
+
+  // React to snap-mode flip: rebuild the cached layer-id list. Skip if the
+  // style isn't ready yet — attach() will compute it on style.load.
+  useEffect(() => {
+    if (!map || !map.isStyleLoaded()) return;
+    snappableLayerIdsRef.current = getSnappableLayerIds(map, snapMode) ?? [];
+  }, [map, snapMode]);
 
   return null;
 }
@@ -1265,6 +1441,8 @@ function OverlayUI({
   onToggleRadiusDebug,
   snapRadiusPx,
   onSnapRadiusChange,
+  snapMode,
+  onSnapModeChange,
   onResetAll,
 }: {
   layers: ResolvedVectorStyle[];
@@ -1275,6 +1453,8 @@ function OverlayUI({
   onToggleRadiusDebug: () => void;
   snapRadiusPx: number;
   onSnapRadiusChange: (next: number) => void;
+  snapMode: SnapMode;
+  onSnapModeChange: (next: SnapMode) => void;
   onResetAll: () => void;
 }) {
   return (
@@ -1400,6 +1580,28 @@ function OverlayUI({
         }}
       >
         <strong style={{ fontSize: "13px" }}>Snap (debug)</strong>
+        <label
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "6px",
+            cursor: "pointer",
+          }}
+          title={
+            "Checked (derived opt-in): only sources that ship at least one skipSnapping flag are treated as curated snap targets — basemap.de excluded.\n" +
+            "Unchecked (opt-out): every layer participates unless flagged skipSnapping — basemap.de included."
+          }
+        >
+          <input
+            type="checkbox"
+            checked={snapMode === "derived-opt-in"}
+            onChange={(e) =>
+              onSnapModeChange(e.target.checked ? "derived-opt-in" : "opt-out")
+            }
+            data-testid="snap-mode-toggle"
+          />
+          derived opt-in
+        </label>
         <label
           style={{
             display: "inline-flex",
