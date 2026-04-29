@@ -13,6 +13,7 @@ import { useSelector } from "react-redux";
 import dayjs from "dayjs";
 import { getKeyTablesData } from "../../../store/slices/keyTables";
 import StrassenschluesselFields from "./StrassenschluesselFields";
+import StrassenschluesselFieldsModal from "./StrassenschluesselFieldsModal";
 import { getFormClassName, getPlaceholder } from "./readOnlyFormUtils";
 import { FormItem } from "./DraftFieldHighlight";
 import toTitleCase from "../../../helper/toTitleCase";
@@ -124,8 +125,11 @@ const SchaltstelleFormFields = ({
       className={getFormClassName(readOnly, "pr-2")}
       onValuesChange={onValuesChange}
     >
-      {/* Strassenschluessel - always disabled */}
-      <StrassenschluesselFields label="Strassenschlussel" />
+      {!schaltstelle && !readOnly ? (
+        <StrassenschluesselFieldsModal label="Strassenschlussel" />
+      ) : (
+        <StrassenschluesselFields label="Strassenschlussel" />
+      )}
 
       {/* Hausnummer */}
       <FormItem
