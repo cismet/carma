@@ -11,6 +11,7 @@ import {
   faSlash,
   faDrawPolygon,
   faTag,
+  faMagnet,
 } from "@fortawesome/free-solid-svg-icons";
 import {
   TerraDraw,
@@ -44,11 +45,23 @@ const DRAW_MODE_BUTTONS: {
 const APP_KEY = "measurements-playground-maplibre";
 const LS_VECTOR_STYLES_KEY = `${APP_KEY}:vector-styles`;
 const LS_LABELS_VISIBLE_KEY = `${APP_KEY}:labels-visible`;
+const LS_SNAPPING_ENABLED_KEY = `${APP_KEY}:snapping-enabled`;
+const LS_RADIUS_DEBUG_KEY = `${APP_KEY}:snap-radius-debug`;
+const LS_SNAP_RADIUS_PX_KEY = `${APP_KEY}:snap-radius-px`;
 const SERVER_URL_TOKEN = "__SERVER_URL__";
 const SERVER_URL_REPLACEMENT = "https://tiles.cismet.de";
 
 const LABEL_SOURCE_ID = "measurements-labels";
 const LABEL_LAYER_ID = "measurements-labels-symbols";
+const SNAP_PREVIEW_SOURCE_ID = "measurements-snap-preview";
+const SNAP_PREVIEW_LAYER_ID = "measurements-snap-preview-circle";
+const SNAP_RADIUS_SOURCE_ID = "measurements-snap-radius";
+const SNAP_RADIUS_LAYER_ID = "measurements-snap-radius-circle";
+// Default screen-px radius around the cursor we search for snap candidates.
+// Adjustable at runtime via the overlay slider.
+const SNAP_RADIUS_PX_DEFAULT = 20;
+const SNAP_RADIUS_PX_MIN = 5;
+const SNAP_RADIUS_PX_MAX = 80;
 
 const QUICK_LOAD_LINKS: { label: string; url: string }[] = [
   { label: "POIs", url: "https://tiles.cismet.de/poi/style.json" },
@@ -149,6 +162,164 @@ function persistLabelsVisible(value: boolean) {
   }
 }
 
+function loadSnappingEnabled(): boolean {
+  try {
+    const raw = localStorage.getItem(LS_SNAPPING_ENABLED_KEY);
+    if (raw === null) return true;
+    return raw === "1";
+  } catch {
+    return true;
+  }
+}
+
+function persistSnappingEnabled(value: boolean) {
+  try {
+    localStorage.setItem(LS_SNAPPING_ENABLED_KEY, value ? "1" : "0");
+  } catch (e) {
+    console.warn(
+      "[measurements-playground] failed to persist snapping flag",
+      e
+    );
+  }
+}
+
+function loadRadiusDebug(): boolean {
+  try {
+    const raw = localStorage.getItem(LS_RADIUS_DEBUG_KEY);
+    if (raw === null) return true;
+    return raw === "1";
+  } catch {
+    return true;
+  }
+}
+
+function persistRadiusDebug(value: boolean) {
+  try {
+    localStorage.setItem(LS_RADIUS_DEBUG_KEY, value ? "1" : "0");
+  } catch {
+    // ignore
+  }
+}
+
+function clampSnapRadius(px: number): number {
+  if (!Number.isFinite(px)) return SNAP_RADIUS_PX_DEFAULT;
+  return Math.max(SNAP_RADIUS_PX_MIN, Math.min(SNAP_RADIUS_PX_MAX, Math.round(px)));
+}
+
+function loadSnapRadiusPx(): number {
+  try {
+    const raw = localStorage.getItem(LS_SNAP_RADIUS_PX_KEY);
+    if (raw === null) return SNAP_RADIUS_PX_DEFAULT;
+    return clampSnapRadius(Number.parseInt(raw, 10));
+  } catch {
+    return SNAP_RADIUS_PX_DEFAULT;
+  }
+}
+
+function persistSnapRadiusPx(value: number) {
+  try {
+    localStorage.setItem(LS_SNAP_RADIUS_PX_KEY, String(clampSnapRadius(value)));
+  } catch {
+    // ignore
+  }
+}
+
+// Walk every coordinate in a GeoJSON geometry. Used for vertex-snapping —
+// we don't yet snap to projected points on edges, so each vertex is the
+// only candidate.
+function iterateGeomCoords(
+  geom: GeoJSON.Geometry,
+  fn: (c: GeoJSON.Position) => void
+): void {
+  switch (geom.type) {
+    case "Point":
+      fn(geom.coordinates);
+      return;
+    case "MultiPoint":
+    case "LineString":
+      for (const c of geom.coordinates) fn(c);
+      return;
+    case "MultiLineString":
+    case "Polygon":
+      for (const ring of geom.coordinates) for (const c of ring) fn(c);
+      return;
+    case "MultiPolygon":
+      for (const poly of geom.coordinates)
+        for (const ring of poly) for (const c of ring) fn(c);
+      return;
+    case "GeometryCollection":
+      for (const g of geom.geometries) iterateGeomCoords(g, fn);
+      return;
+  }
+}
+
+// Local exclusions: terra-draw's own layers (`td-*`, handled separately by
+// TD's built-in toCoordinate / toLine snapping) plus our own overlay layers
+// (label / snap-dot / snap-radius — the cursor must not snap to itself).
+function isLocallyExcludedSnapLayer(layerId: string): boolean {
+  if (layerId.startsWith("td-")) return true;
+  if (layerId === LABEL_LAYER_ID) return true;
+  if (layerId === SNAP_PREVIEW_LAYER_ID) return true;
+  if (layerId === SNAP_RADIUS_LAYER_ID) return true;
+  return false;
+}
+
+// Build the list of layer ids that should participate in snapping. We honour
+// the carma-wide `metadata.carmaConf.skipSnapping = true` convention used
+// across the codebase (e.g. ALKIS parcel-number labels are flagged so the
+// cursor doesn't snap to text glyphs). See the legacy
+// `libraries/commons/measurements/src/lib/components/MeasurementsSnapping.tsx`
+// for the same pattern. Returns null when the style isn't ready yet —
+// callers should treat that as "no snap candidates available".
+function getSnappableLayerIds(map: maplibregl.Map): string[] | null {
+  const style = map.getStyle();
+  if (!style || !style.layers) return null;
+  const ids: string[] = [];
+  for (const layer of style.layers) {
+    const meta = (layer as { metadata?: unknown }).metadata as
+      | { carmaConf?: { skipSnapping?: boolean } }
+      | undefined;
+    if (meta?.carmaConf?.skipSnapping === true) continue;
+    if (isLocallyExcludedSnapLayer(layer.id)) continue;
+    ids.push(layer.id);
+  }
+  return ids;
+}
+
+// Find the nearest external vertex to the cursor within `radiusPx`.
+// Returns the snap coord in lng/lat, or null if no candidate is in range.
+function findSnapTarget(
+  map: maplibregl.Map,
+  cursor: { x: number; y: number },
+  radiusPx: number
+): GeoJSON.Position | null {
+  const allowedLayerIds = getSnappableLayerIds(map);
+  if (!allowedLayerIds || allowedLayerIds.length === 0) return null;
+  const r = radiusPx;
+  const features = map.queryRenderedFeatures(
+    [
+      [cursor.x - r, cursor.y - r],
+      [cursor.x + r, cursor.y + r],
+    ],
+    { layers: allowedLayerIds }
+  );
+  let bestCoord: GeoJSON.Position | null = null;
+  let bestDistSq = r * r + 1;
+  for (const f of features) {
+    iterateGeomCoords(f.geometry, (coord) => {
+      const proj = map.project({ lng: coord[0], lat: coord[1] });
+      const dx = proj.x - cursor.x;
+      const dy = proj.y - cursor.y;
+      const distSq = dx * dx + dy * dy;
+      if (distSq <= r * r && distSq < bestDistSq) {
+        bestDistSq = distSq;
+        bestCoord = [coord[0], coord[1]];
+      }
+    });
+  }
+  return bestCoord;
+}
+
 const lengthFormatter0 = new Intl.NumberFormat("de-DE", {
   maximumFractionDigits: 0,
 });
@@ -238,6 +409,13 @@ export function App() {
   // already-active mode clears it. Not wired to any draw library yet.
   const [drawMode, setDrawMode] = useState<DrawMode>("none");
   const [labelsVisible, setLabelsVisible] = useState<boolean>(loadLabelsVisible);
+  const [snappingEnabled, setSnappingEnabled] = useState<boolean>(
+    loadSnappingEnabled
+  );
+  const [radiusDebugVisible, setRadiusDebugVisible] = useState<boolean>(
+    loadRadiusDebug
+  );
+  const [snapRadiusPx, setSnapRadiusPx] = useState<number>(loadSnapRadiusPx);
 
   const toggleLabelsVisible = () =>
     setLabelsVisible((prev) => {
@@ -245,6 +423,49 @@ export function App() {
       persistLabelsVisible(next);
       return next;
     });
+
+  const toggleSnappingEnabled = () =>
+    setSnappingEnabled((prev) => {
+      const next = !prev;
+      persistSnappingEnabled(next);
+      return next;
+    });
+
+  const toggleRadiusDebug = () =>
+    setRadiusDebugVisible((prev) => {
+      const next = !prev;
+      persistRadiusDebug(next);
+      return next;
+    });
+
+  const updateSnapRadiusPx = (next: number) => {
+    const clamped = clampSnapRadius(next);
+    setSnapRadiusPx(clamped);
+    persistSnapRadiusPx(clamped);
+  };
+
+  // Wipe everything we persist for this playground (loaded layers +
+  // four UX prefs) and put state back to its defaults. Drawn features live
+  // in terra-draw's in-memory store, not localStorage, so they're untouched.
+  const resetAll = () => {
+    try {
+      localStorage.removeItem(LS_VECTOR_STYLES_KEY);
+      localStorage.removeItem(LS_LABELS_VISIBLE_KEY);
+      localStorage.removeItem(LS_SNAPPING_ENABLED_KEY);
+      localStorage.removeItem(LS_RADIUS_DEBUG_KEY);
+      localStorage.removeItem(LS_SNAP_RADIUS_PX_KEY);
+    } catch (e) {
+      console.warn(
+        "[measurements-playground] failed to clear stored preferences",
+        e
+      );
+    }
+    setStoredStyles([]);
+    setLabelsVisible(true);
+    setSnappingEnabled(true);
+    setRadiusDebugVisible(true);
+    setSnapRadiusPx(SNAP_RADIUS_PX_DEFAULT);
+  };
 
   // Resolve each stored entry to { name, styleUrl } and own the Blob URL lifecycle.
   const blobUrlsRef = useRef<Set<string>>(new Set());
@@ -421,19 +642,50 @@ export function App() {
                 setDrawMode((prev) => (prev === mode ? "none" : mode))
               }
             />
-            <LabelToggleControl
-              active={labelsVisible}
-              onToggle={toggleLabelsVisible}
+            <ToggleStackControls
+              entries={[
+                {
+                  key: "labels",
+                  active: labelsVisible,
+                  onToggle: toggleLabelsVisible,
+                  tooltip: labelsVisible
+                    ? "Maße ausblenden"
+                    : "Maße einblenden",
+                  testId: "labels-toggle-control",
+                  icon: faTag,
+                },
+                {
+                  key: "snapping",
+                  active: snappingEnabled,
+                  onToggle: toggleSnappingEnabled,
+                  tooltip: snappingEnabled
+                    ? "Snapping aus"
+                    : "Snapping an",
+                  testId: "snapping-toggle-control",
+                  icon: faMagnet,
+                },
+              ]}
             />
           </>
         }
       />
-      <TerraDrawIntegration mode={drawMode} labelsVisible={labelsVisible} />
+      <TerraDrawIntegration
+        mode={drawMode}
+        labelsVisible={labelsVisible}
+        snappingEnabled={snappingEnabled}
+        radiusDebugVisible={radiusDebugVisible}
+        snapRadiusPx={snapRadiusPx}
+      />
       <OverlayUI
         layers={resolvedStyles}
         onClear={clearAllStyles}
         onRemove={removeStyleAt}
         onQuickLoad={(url) => void loadFromUrl(url)}
+        radiusDebugVisible={radiusDebugVisible}
+        onToggleRadiusDebug={toggleRadiusDebug}
+        snapRadiusPx={snapRadiusPx}
+        onSnapRadiusChange={updateSnapRadiusPx}
+        onResetAll={resetAll}
       />
     </>
   );
@@ -460,9 +712,15 @@ function drawModeToTerraDraw(
 function TerraDrawIntegration({
   mode,
   labelsVisible,
+  snappingEnabled,
+  radiusDebugVisible,
+  snapRadiusPx,
 }: {
   mode: DrawMode;
   labelsVisible: boolean;
+  snappingEnabled: boolean;
+  radiusDebugVisible: boolean;
+  snapRadiusPx: number;
 }) {
   const { map } = useLibreContext();
   const drawRef = useRef<TerraDraw | null>(null);
@@ -474,6 +732,17 @@ function TerraDrawIntegration({
   // and style.load paths) so we don't have to thread the state through.
   const labelsVisibleRef = useRef(labelsVisible);
   labelsVisibleRef.current = labelsVisible;
+  // Snapping flag: read live by both the mousemove preview handler and the
+  // snapping.toCustom callback baked into the line/polygon modes (which is
+  // captured at TerraDraw construction time).
+  const snappingEnabledRef = useRef(snappingEnabled);
+  snappingEnabledRef.current = snappingEnabled;
+  // Same for the radius (slider value): read live so handlers always use
+  // the current value without re-running the heavy init effect.
+  const snapRadiusPxRef = useRef(snapRadiusPx);
+  snapRadiusPxRef.current = snapRadiusPx;
+  const radiusDebugVisibleRef = useRef(radiusDebugVisible);
+  radiusDebugVisibleRef.current = radiusDebugVisible;
 
   // (Re)create TerraDraw whenever the maplibre map instance becomes available.
   useEffect(() => {
@@ -518,6 +787,123 @@ function TerraDrawIntegration({
       }
     };
 
+    const radiusLayerVisible = () =>
+      snappingEnabledRef.current && radiusDebugVisibleRef.current;
+
+    const setupSnapRadiusLayer = () => {
+      if (!map.getSource(SNAP_RADIUS_SOURCE_ID)) {
+        map.addSource(SNAP_RADIUS_SOURCE_ID, {
+          type: "geojson",
+          data: { type: "FeatureCollection", features: [] },
+        });
+      }
+      if (!map.getLayer(SNAP_RADIUS_LAYER_ID)) {
+        map.addLayer({
+          id: SNAP_RADIUS_LAYER_ID,
+          type: "circle",
+          source: SNAP_RADIUS_SOURCE_ID,
+          layout: {
+            visibility: radiusLayerVisible() ? "visible" : "none",
+          },
+          paint: {
+            "circle-color": "#fff",
+            "circle-opacity": 0.2,
+            "circle-radius": snapRadiusPxRef.current,
+            "circle-stroke-color": "#fff",
+            "circle-stroke-width": 1,
+            "circle-stroke-opacity": 0.6,
+          },
+        });
+      }
+    };
+
+    const setupSnapPreviewLayer = () => {
+      if (!map.getSource(SNAP_PREVIEW_SOURCE_ID)) {
+        map.addSource(SNAP_PREVIEW_SOURCE_ID, {
+          type: "geojson",
+          data: { type: "FeatureCollection", features: [] },
+        });
+      }
+      if (!map.getLayer(SNAP_PREVIEW_LAYER_ID)) {
+        map.addLayer({
+          id: SNAP_PREVIEW_LAYER_ID,
+          type: "circle",
+          source: SNAP_PREVIEW_SOURCE_ID,
+          layout: {
+            visibility: snappingEnabledRef.current ? "visible" : "none",
+          },
+          paint: {
+            "circle-color": "#000",
+            "circle-radius": 5,
+            "circle-stroke-color": "#fff",
+            "circle-stroke-width": 1.5,
+          },
+        });
+      }
+    };
+
+    // Single-feature setData helper: pass a coord to render a Point there,
+    // null to clear. Used by both the snap dot and the snap radius circle.
+    const setPointSourceAt = (
+      sourceId: string,
+      coord: GeoJSON.Position | null
+    ) => {
+      const src = map.getSource(sourceId) as GeoJSONSource | undefined;
+      if (!src) return;
+      if (coord) {
+        src.setData({
+          type: "FeatureCollection",
+          features: [
+            {
+              type: "Feature",
+              geometry: { type: "Point", coordinates: coord },
+              properties: {},
+            },
+          ],
+        });
+      } else {
+        src.setData({ type: "FeatureCollection", features: [] });
+      }
+    };
+
+    const pinSnapLayersOnTop = () => {
+      // Order matters: radius first, then dot, so the dot ends up above the
+      // radius circle in the layer stack. Terra Draw shuffles layers on
+      // internal renders so we re-pin on every update.
+      if (map.getLayer(SNAP_RADIUS_LAYER_ID)) {
+        map.moveLayer(SNAP_RADIUS_LAYER_ID);
+      }
+      if (map.getLayer(SNAP_PREVIEW_LAYER_ID)) {
+        map.moveLayer(SNAP_PREVIEW_LAYER_ID);
+      }
+    };
+
+    const handleMouseMove = (e: maplibregl.MapMouseEvent) => {
+      if (!snappingEnabledRef.current) {
+        setPointSourceAt(SNAP_PREVIEW_SOURCE_ID, null);
+        setPointSourceAt(SNAP_RADIUS_SOURCE_ID, null);
+        return;
+      }
+      // Radius follows the raw cursor (only when the debug toggle is on);
+      // the dot appears whenever there's a candidate within the live radius.
+      if (radiusDebugVisibleRef.current) {
+        setPointSourceAt(SNAP_RADIUS_SOURCE_ID, [e.lngLat.lng, e.lngLat.lat]);
+      } else {
+        setPointSourceAt(SNAP_RADIUS_SOURCE_ID, null);
+      }
+      const target = findSnapTarget(
+        map,
+        { x: e.point.x, y: e.point.y },
+        snapRadiusPxRef.current
+      );
+      setPointSourceAt(SNAP_PREVIEW_SOURCE_ID, target);
+      pinSnapLayersOnTop();
+    };
+    const handleMouseLeave = () => {
+      setPointSourceAt(SNAP_PREVIEW_SOURCE_ID, null);
+      setPointSourceAt(SNAP_RADIUS_SOURCE_ID, null);
+    };
+
     const refreshLabels = () => {
       const draw = drawRef.current;
       if (!draw) return;
@@ -538,13 +924,38 @@ function TerraDrawIntegration({
       }
     };
 
+    // Same shape used by both LineString + Polygon modes. Returns the snap
+    // target only when snapping is enabled — terra-draw treats `undefined`
+    // as "no snap, use raw cursor coord".
+    const snapToCustom = (event: { containerX: number; containerY: number }) => {
+      if (!snappingEnabledRef.current) return undefined;
+      const target = findSnapTarget(
+        map,
+        { x: event.containerX, y: event.containerY },
+        snapRadiusPxRef.current
+      );
+      return target ?? undefined;
+    };
+
     const createDraw = () => {
       const draw = new TerraDraw({
         adapter: new TerraDrawMapLibreGLAdapter({ map }),
         modes: [
           new TerraDrawPointMode(),
-          new TerraDrawLineStringMode(),
-          new TerraDrawPolygonMode(),
+          new TerraDrawLineStringMode({
+            snapping: {
+              toLine: true,
+              toCoordinate: true,
+              toCustom: snapToCustom,
+            },
+          }),
+          new TerraDrawPolygonMode({
+            snapping: {
+              toLine: true,
+              toCoordinate: true,
+              toCustom: snapToCustom,
+            },
+          }),
           new TerraDrawSelectMode({
             // Fully-editable defaults: drag the feature, drag/delete vertices,
             // add midpoints. Same shape Terra Draw's docs use as the canonical
@@ -629,16 +1040,26 @@ function TerraDrawIntegration({
         drawRef.current = createDraw();
       }
       setupLabelLayer();
+      setupSnapRadiusLayer();
+      setupSnapPreviewLayer();
       refreshLabels();
+      // Wipe any stale preview/radius from the previous style; mousemove
+      // will fill them back in on the next pointer event.
+      setPointSourceAt(SNAP_PREVIEW_SOURCE_ID, null);
+      setPointSourceAt(SNAP_RADIUS_SOURCE_ID, null);
     };
 
     if (map.isStyleLoaded()) {
       attach();
     }
     map.on("style.load", attach);
+    map.on("mousemove", handleMouseMove);
+    map.on("mouseout", handleMouseLeave);
 
     return () => {
       map.off("style.load", attach);
+      map.off("mousemove", handleMouseMove);
+      map.off("mouseout", handleMouseLeave);
       if (drawRef.current) {
         drawRef.current.stop();
         drawRef.current = null;
@@ -663,6 +1084,53 @@ function TerraDrawIntegration({
       labelsVisible ? "visible" : "none"
     );
   }, [map, labelsVisible]);
+
+  // React to snap-related toggles. The dot is bound to the magnet (snap on /
+  // off). The radius circle has its own debug toggle in the overlay AND is
+  // implicitly hidden when snapping is off (no radius without snapping).
+  // Wiped sources prevent stale dots after toggling off.
+  useEffect(() => {
+    if (!map) return;
+    const dotVisibility = snappingEnabled ? "visible" : "none";
+    const radiusVisibility =
+      snappingEnabled && radiusDebugVisible ? "visible" : "none";
+    if (map.getLayer(SNAP_PREVIEW_LAYER_ID)) {
+      map.setLayoutProperty(SNAP_PREVIEW_LAYER_ID, "visibility", dotVisibility);
+    }
+    if (map.getLayer(SNAP_RADIUS_LAYER_ID)) {
+      map.setLayoutProperty(
+        SNAP_RADIUS_LAYER_ID,
+        "visibility",
+        radiusVisibility
+      );
+    }
+    const empty: GeoJSON.FeatureCollection = {
+      type: "FeatureCollection",
+      features: [],
+    };
+    if (!snappingEnabled) {
+      const previewSrc = map.getSource(SNAP_PREVIEW_SOURCE_ID) as
+        | GeoJSONSource
+        | undefined;
+      if (previewSrc) previewSrc.setData(empty);
+    }
+    if (!snappingEnabled || !radiusDebugVisible) {
+      const radiusSrc = map.getSource(SNAP_RADIUS_SOURCE_ID) as
+        | GeoJSONSource
+        | undefined;
+      if (radiusSrc) radiusSrc.setData(empty);
+    }
+  }, [map, snappingEnabled, radiusDebugVisible]);
+
+  // React to snap-radius slider: update the rendered circle's pixel size.
+  // The actual snap-search radius is read from the ref by handleMouseMove
+  // and snapToCustom, so changes are picked up on the next pointer event /
+  // click without re-binding anything.
+  useEffect(() => {
+    if (!map) return;
+    if (!map.getLayer(SNAP_RADIUS_LAYER_ID)) return;
+    map.setPaintProperty(SNAP_RADIUS_LAYER_ID, "circle-radius", snapRadiusPx);
+  }, [map, snapRadiusPx]);
 
   return null;
 }
@@ -717,35 +1185,47 @@ function DrawModeControls({
   );
 }
 
-function LabelToggleControl({
-  active,
-  onToggle,
-}: {
+type ToggleEntry = {
+  key: string;
   active: boolean;
   onToggle: () => void;
-}) {
-  // Sibling to DrawModeControls (order=70) but its own visual group: full
-  // border + rounded edges, no fusion classes. order=80 puts it directly
-  // below the draw-mode strip in the topleft column.
+  tooltip: string;
+  testId: string;
+  icon: typeof faTag;
+};
+
+// Sibling to DrawModeControls (order=70). Renders one fused button stack
+// (same visual pattern as the draw-mode buttons) at order=80 so the whole
+// group sits directly below the draw-mode strip in the topleft column.
+function ToggleStackControls({ entries }: { entries: ToggleEntry[] }) {
+  const last = entries.length - 1;
   return (
     <Control position="topleft" order={80}>
-      <Tooltip
-        title={
-          active ? "Maße ausblenden" : "Maße einblenden"
-        }
-        placement="right"
-      >
-        <ControlButtonStyler
-          onClick={onToggle}
-          dataTestId="labels-toggle-control"
-          useDisabledStyle={false}
-        >
-          <FontAwesomeIcon
-            icon={faTag}
-            className={active ? "text-[#1677ff]" : ""}
-          />
-        </ControlButtonStyler>
-      </Tooltip>
+      <div className="flex flex-col">
+        {entries.map(({ key, active, onToggle, tooltip, testId, icon }, idx) => {
+          let groupClass = "";
+          if (entries.length > 1) {
+            if (idx === 0) groupClass = "!border-b-0 !rounded-b-none";
+            else if (idx === last) groupClass = "!rounded-t-none !border-t-[1px]";
+            else groupClass = "!rounded-none !border-t-[1px] !border-b-0";
+          }
+          return (
+            <Tooltip key={key} title={tooltip} placement="right">
+              <ControlButtonStyler
+                onClick={onToggle}
+                dataTestId={testId}
+                useDisabledStyle={false}
+                className={groupClass}
+              >
+                <FontAwesomeIcon
+                  icon={icon}
+                  className={active ? "text-[#1677ff]" : ""}
+                />
+              </ControlButtonStyler>
+            </Tooltip>
+          );
+        })}
+      </div>
     </Control>
   );
 }
@@ -755,11 +1235,21 @@ function OverlayUI({
   onClear,
   onRemove,
   onQuickLoad,
+  radiusDebugVisible,
+  onToggleRadiusDebug,
+  snapRadiusPx,
+  onSnapRadiusChange,
+  onResetAll,
 }: {
   layers: ResolvedVectorStyle[];
   onClear: () => void;
   onRemove: (index: number) => void;
   onQuickLoad: (url: string) => void;
+  radiusDebugVisible: boolean;
+  onToggleRadiusDebug: () => void;
+  snapRadiusPx: number;
+  onSnapRadiusChange: (next: number) => void;
+  onResetAll: () => void;
 }) {
   return (
     <div
@@ -809,6 +1299,24 @@ function OverlayUI({
             </button>
           </>
         )}
+        <div style={{ marginLeft: "auto" }}>
+          <button
+            onClick={onResetAll}
+            title="Reset everything stored for this playground (loaded layers + all toggles + radius)"
+            data-testid="reset-all-button"
+            style={{
+              background: "none",
+              border: "1px solid #d1d5db",
+              borderRadius: "3px",
+              cursor: "pointer",
+              padding: "2px 8px",
+              fontSize: "12px",
+              color: "#374151",
+            }}
+          >
+            Reset
+          </button>
+        </div>
       </div>
 
       <div
@@ -854,6 +1362,70 @@ function OverlayUI({
         <span style={{ color: "#888", fontSize: "12px" }}>
           (or drop a URL / style.json file anywhere)
         </span>
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "12px",
+          fontSize: "13px",
+          flexWrap: "wrap",
+        }}
+      >
+        <strong style={{ fontSize: "13px" }}>Snap (debug)</strong>
+        <label
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "6px",
+            cursor: "pointer",
+          }}
+          title="Show the white snap-radius circle around the cursor"
+        >
+          <input
+            type="checkbox"
+            checked={radiusDebugVisible}
+            onChange={onToggleRadiusDebug}
+            data-testid="snap-radius-debug-toggle"
+          />
+          show radius
+        </label>
+        <label
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "8px",
+            flex: "1 1 200px",
+            minWidth: "180px",
+          }}
+          title={`Snap search radius (${SNAP_RADIUS_PX_MIN}–${SNAP_RADIUS_PX_MAX} px)`}
+        >
+          <span style={{ color: "#555", whiteSpace: "nowrap" }}>radius</span>
+          <input
+            type="range"
+            min={SNAP_RADIUS_PX_MIN}
+            max={SNAP_RADIUS_PX_MAX}
+            step={1}
+            value={snapRadiusPx}
+            onChange={(e) =>
+              onSnapRadiusChange(Number.parseInt(e.target.value, 10))
+            }
+            data-testid="snap-radius-slider"
+            style={{ flex: 1 }}
+          />
+          <span
+            style={{
+              color: "#111",
+              fontVariantNumeric: "tabular-nums",
+              minWidth: "3ch",
+              textAlign: "right",
+            }}
+          >
+            {snapRadiusPx}
+          </span>
+          <span style={{ color: "#888" }}>px</span>
+        </label>
       </div>
 
       {layers.length > 0 && (
