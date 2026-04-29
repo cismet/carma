@@ -4,6 +4,7 @@ import { message } from "antd";
 import { useSelector } from "react-redux";
 import dayjs from "dayjs";
 import type { DraftFile } from "../../../store/slices/featuresForms";
+import { isCreationDraftKey } from "../../../store/slices/featuresForms";
 import { getJWT } from "../../../store/slices/auth";
 import { DokumentItem } from "../DocumentPreview";
 import { getDocumentKey } from "../FilePreview";
@@ -124,16 +125,23 @@ const SchaltstelleForm = ({
     "-ohne Bezeichnung-";
 
   // Compute sidebar main title to display in form header
+  const isCreation =
+    typeof rawProps?.id === "string" && isCreationDraftKey(rawProps.id);
+
   const sidebarMain = rawProps?.schaltstellen_nummer
     ? `S ${rawProps.schaltstellen_nummer}`
-    : rawProps?.id || ""
-    ? `ID: ${rawProps?.id || ""}`
+    : isCreation
+    ? "Neuer Entwurf"
+    : rawProps?.id
+    ? `ID: ${rawProps.id}`
     : "";
 
   const cancelBTn = rawProps?.schaltstellen_nummer
     ? `S ${rawProps.schaltstellen_nummer}`
-    : rawProps?.id || ""
-    ? `ID - ${rawProps?.id || ""}`
+    : isCreation
+    ? "Neuer Entwurf"
+    : rawProps?.id
+    ? `ID - ${rawProps.id}`
     : "";
 
   const handleSave = async () => {
