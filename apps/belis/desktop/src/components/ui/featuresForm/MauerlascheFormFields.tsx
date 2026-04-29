@@ -86,7 +86,7 @@ const MauerlascheFormFields = ({
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mauerlasche, form]);
+  }, [mauerlasche, form, draftValues]);
 
   return (
     <Form

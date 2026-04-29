@@ -70,7 +70,7 @@ const LeitungFormFields = ({
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [leitung, form]);
+  }, [leitung, form, draftValues]);
 
   return (
     <Form
