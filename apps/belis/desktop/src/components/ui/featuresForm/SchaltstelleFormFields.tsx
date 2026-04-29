@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import {
   Form,
   Row,
@@ -53,6 +53,7 @@ const SchaltstelleFormFields = ({
   onOriginalValues,
 }: SchaltstelleFormFieldsProps) => {
   const [form] = Form.useForm();
+  const draftApplied = useRef(false);
   useEffect(() => {
     onFormInstance?.(form);
   }, [form, onFormInstance]);
@@ -70,6 +71,7 @@ const SchaltstelleFormFields = ({
 
   useEffect(() => {
     form.resetFields();
+    draftApplied.current = false;
 
     if (schaltstelle) {
       const ss = schaltstelle;
@@ -112,10 +114,17 @@ const SchaltstelleFormFields = ({
 
       if (draftValues) {
         form.setFieldsValue(draftValues);
+        draftApplied.current = true;
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [schaltstelle, form, draftValues]);
+  }, [schaltstelle, form]);
+
+  useEffect(() => {
+    if (draftApplied.current || !draftValues) return;
+    form.setFieldsValue(draftValues);
+    draftApplied.current = true;
+  }, [draftValues, form]);
 
   return (
     <Form
