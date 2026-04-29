@@ -12,6 +12,7 @@ import {
 import { useSelector } from "react-redux";
 import { getKeyTablesData } from "../../../store/slices/keyTables";
 import StrassenschluesselFields from "./StrassenschluesselFields";
+import StrassenschluesselFieldsModal from "./StrassenschluesselFieldsModal";
 import { getFormClassName, getPlaceholder } from "./readOnlyFormUtils";
 import { FormItem } from "./DraftFieldHighlight";
 import toTitleCase from "../../../helper/toTitleCase";
@@ -297,8 +298,11 @@ const LeuchteFormFields = ({
       className={getFormClassName(readOnly, "pr-2")}
       onValuesChange={onValuesChange}
     >
-      {/* Straßenschlüssel - always disabled */}
-      <StrassenschluesselFields namePrefix={namePrefix} />
+      {!leuchte && !readOnly ? (
+        <StrassenschluesselFieldsModal namePrefix={namePrefix} />
+      ) : (
+        <StrassenschluesselFields namePrefix={namePrefix} />
+      )}
 
       {/* Kennziffer */}
       <FormItem
