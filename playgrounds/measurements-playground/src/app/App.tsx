@@ -10,6 +10,7 @@ import {
   faLocationDot,
   faSlash,
   faDrawPolygon,
+  faTag,
 } from "@fortawesome/free-solid-svg-icons";
 import {
   TerraDraw,
@@ -19,6 +20,11 @@ import {
   TerraDrawSelectMode,
 } from "terra-draw";
 import { TerraDrawMapLibreGLAdapter } from "terra-draw-maplibre-gl-adapter";
+import area from "@turf/area";
+import length from "@turf/length";
+import centroid from "@turf/centroid";
+import type { Feature, FeatureCollection, Point, Position } from "geojson";
+import type { GeoJSONSource } from "maplibre-gl";
 import Menu from "./Menu";
 
 type DrawMode = "none" | "select" | "point" | "line" | "polygon";
@@ -36,8 +42,12 @@ const DRAW_MODE_BUTTONS: {
 
 const APP_KEY = "measurements-playground-maplibre";
 const LS_VECTOR_STYLES_KEY = `${APP_KEY}:vector-styles`;
+const LS_LABELS_VISIBLE_KEY = `${APP_KEY}:labels-visible`;
 const SERVER_URL_TOKEN = "__SERVER_URL__";
 const SERVER_URL_REPLACEMENT = "https://tiles.cismet.de";
+
+const LABEL_SOURCE_ID = "measurements-labels";
+const LABEL_LAYER_ID = "measurements-labels-symbols";
 
 const QUICK_LOAD_LINKS: { label: string; url: string }[] = [
   { label: "POIs", url: "https://tiles.cismet.de/poi/style.json" },
@@ -120,6 +130,105 @@ function inlineDataToBlobUrl(data: unknown): string {
   return URL.createObjectURL(blob);
 }
 
+function loadLabelsVisible(): boolean {
+  try {
+    const raw = localStorage.getItem(LS_LABELS_VISIBLE_KEY);
+    if (raw === null) return true;
+    return raw === "1";
+  } catch {
+    return true;
+  }
+}
+
+function persistLabelsVisible(value: boolean) {
+  try {
+    localStorage.setItem(LS_LABELS_VISIBLE_KEY, value ? "1" : "0");
+  } catch (e) {
+    console.warn("[measurements-playground] failed to persist labels flag", e);
+  }
+}
+
+const lengthFormatter0 = new Intl.NumberFormat("de-DE", {
+  maximumFractionDigits: 0,
+});
+const lengthFormatter2 = new Intl.NumberFormat("de-DE", {
+  maximumFractionDigits: 2,
+});
+
+function formatLengthMeters(m: number): string {
+  if (m < 1000) return `${lengthFormatter0.format(Math.round(m))} m`;
+  return `${lengthFormatter2.format(m / 1000)} km`;
+}
+
+function formatAreaSquareMeters(m2: number): string {
+  if (m2 < 10000) return `${lengthFormatter0.format(Math.round(m2))} m²`;
+  return `${lengthFormatter2.format(m2 / 10000)} ha`;
+}
+
+function midpoint(a: Position, b: Position): Position {
+  return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+}
+
+function segmentLengthMeters(a: Position, b: Position): number {
+  const seg: Feature = {
+    type: "Feature",
+    geometry: { type: "LineString", coordinates: [a, b] },
+    properties: {},
+  };
+  return length(seg, { units: "meters" });
+}
+
+// Derive a FeatureCollection of label points (one per polygon centroid for
+// area, plus one per segment-midpoint for length) from the current TerraDraw
+// snapshot. Mirrors the original react-cismap measurement plugin's `showArea`
+// + `showLength` behaviour.
+function buildLabelFeatures(
+  features: ReadonlyArray<Feature>
+): FeatureCollection<Point> {
+  const labels: Feature<Point>[] = [];
+  for (const feature of features) {
+    const geom = feature.geometry;
+    if (geom.type === "Polygon") {
+      const ring = geom.coordinates[0];
+      if (ring && ring.length >= 2) {
+        for (let i = 0; i < ring.length - 1; i++) {
+          const meters = segmentLengthMeters(ring[i], ring[i + 1]);
+          if (meters <= 0) continue;
+          labels.push({
+            type: "Feature",
+            geometry: { type: "Point", coordinates: midpoint(ring[i], ring[i + 1]) },
+            properties: { kind: "segment", label: formatLengthMeters(meters) },
+          });
+        }
+      }
+      // Closed ring with at least 3 unique vertices ⇒ area is meaningful.
+      if (ring && ring.length >= 4) {
+        const polyArea = area(feature);
+        if (polyArea > 0) {
+          const c = centroid(feature);
+          labels.push({
+            type: "Feature",
+            geometry: c.geometry,
+            properties: { kind: "area", label: formatAreaSquareMeters(polyArea) },
+          });
+        }
+      }
+    } else if (geom.type === "LineString") {
+      const coords = geom.coordinates;
+      for (let i = 0; i < coords.length - 1; i++) {
+        const meters = segmentLengthMeters(coords[i], coords[i + 1]);
+        if (meters <= 0) continue;
+        labels.push({
+          type: "Feature",
+          geometry: { type: "Point", coordinates: midpoint(coords[i], coords[i + 1]) },
+          properties: { kind: "segment", label: formatLengthMeters(meters) },
+        });
+      }
+    }
+  }
+  return { type: "FeatureCollection", features: labels };
+}
+
 export function App() {
   const [storedStyles, setStoredStyles] = useState<StoredVectorStyle[]>(
     loadStoredVectorStyles
@@ -127,6 +236,14 @@ export function App() {
   // UI-only for now: clicking a button sets the active mode; clicking the
   // already-active mode clears it. Not wired to any draw library yet.
   const [drawMode, setDrawMode] = useState<DrawMode>("none");
+  const [labelsVisible, setLabelsVisible] = useState<boolean>(loadLabelsVisible);
+
+  const toggleLabelsVisible = () =>
+    setLabelsVisible((prev) => {
+      const next = !prev;
+      persistLabelsVisible(next);
+      return next;
+    });
 
   // Resolve each stored entry to { name, styleUrl } and own the Blob URL lifecycle.
   const blobUrlsRef = useRef<Set<string>>(new Set());
@@ -292,15 +409,21 @@ export function App() {
         libreLayers={libreLayers}
         modalMenu={<Menu />}
         extraControls={
-          <DrawModeControls
-            active={drawMode}
-            onSelect={(mode) =>
-              setDrawMode((prev) => (prev === mode ? "none" : mode))
-            }
-          />
+          <>
+            <DrawModeControls
+              active={drawMode}
+              onSelect={(mode) =>
+                setDrawMode((prev) => (prev === mode ? "none" : mode))
+              }
+            />
+            <LabelToggleControl
+              active={labelsVisible}
+              onToggle={toggleLabelsVisible}
+            />
+          </>
         }
       />
-      <TerraDrawIntegration mode={drawMode} />
+      <TerraDrawIntegration mode={drawMode} labelsVisible={labelsVisible} />
       <OverlayUI
         layers={resolvedStyles}
         onClear={clearAllStyles}
@@ -329,17 +452,86 @@ function drawModeToTerraDraw(
   }
 }
 
-function TerraDrawIntegration({ mode }: { mode: DrawMode }) {
+function TerraDrawIntegration({
+  mode,
+  labelsVisible,
+}: {
+  mode: DrawMode;
+  labelsVisible: boolean;
+}) {
   const { map } = useLibreContext();
   const drawRef = useRef<TerraDraw | null>(null);
   // Latest mode captured by ref so the init effect can apply it without
   // re-running on every mode change.
   const modeRef = useRef(mode);
   modeRef.current = mode;
+  // Same trick for the labels-visible flag — read by setupLabelLayer (init
+  // and style.load paths) so we don't have to thread the state through.
+  const labelsVisibleRef = useRef(labelsVisible);
+  labelsVisibleRef.current = labelsVisible;
 
   // (Re)create TerraDraw whenever the maplibre map instance becomes available.
   useEffect(() => {
     if (!map) return;
+
+    const setupLabelLayer = () => {
+      if (!map.getSource(LABEL_SOURCE_ID)) {
+        map.addSource(LABEL_SOURCE_ID, {
+          type: "geojson",
+          data: { type: "FeatureCollection", features: [] },
+        });
+      }
+      if (!map.getLayer(LABEL_LAYER_ID)) {
+        map.addLayer({
+          id: LABEL_LAYER_ID,
+          type: "symbol",
+          source: LABEL_SOURCE_ID,
+          layout: {
+            "text-field": ["get", "label"],
+            "text-font": ["Noto Sans Regular"],
+            "text-size": 12,
+            "text-anchor": "center",
+            // Lift segment labels above their midpoint so the polygon /
+            // line edge doesn't cut through the text. Area labels stay
+            // centred on the polygon centroid.
+            "text-offset": [
+              "case",
+              ["==", ["get", "kind"], "segment"],
+              ["literal", [0, -0.8]],
+              ["literal", [0, 0]],
+            ],
+            "text-allow-overlap": false,
+            "text-ignore-placement": false,
+            visibility: labelsVisibleRef.current ? "visible" : "none",
+          },
+          paint: {
+            "text-color": "#111",
+            "text-halo-color": "#fff",
+            "text-halo-width": 2,
+          },
+        });
+      }
+    };
+
+    const refreshLabels = () => {
+      const draw = drawRef.current;
+      if (!draw) return;
+      const src = map.getSource(LABEL_SOURCE_ID) as GeoJSONSource | undefined;
+      if (!src) return;
+      try {
+        const fc = buildLabelFeatures(draw.getSnapshot() as Feature[]);
+        src.setData(fc);
+        // Terra Draw's adapter re-adds its own layers on internal renders,
+        // which would otherwise stack on top of our labels and let the
+        // polygon / line strokes paint over the text. Re-pin the label
+        // layer to the top of the layer stack on every refresh.
+        if (map.getLayer(LABEL_LAYER_ID)) {
+          map.moveLayer(LABEL_LAYER_ID);
+        }
+      } catch (e) {
+        console.warn("[measurements-playground] label rebuild failed", e);
+      }
+    };
 
     const init = () => {
       const draw = new TerraDraw({
@@ -381,6 +573,18 @@ function TerraDrawIntegration({ mode }: { mode: DrawMode }) {
       draw.start();
       draw.setMode(drawModeToTerraDraw(modeRef.current));
       drawRef.current = draw;
+      draw.on("change", () => refreshLabels());
+
+      setupLabelLayer();
+      refreshLabels();
+    };
+
+    // After a basemap style swap, our source/layer get stripped (terra-draw's
+    // own layer survival is tracked separately as pending item #6). Re-add
+    // and rebuild from the current snapshot.
+    const handleStyleLoad = () => {
+      setupLabelLayer();
+      refreshLabels();
     };
 
     if (map.isStyleLoaded()) {
@@ -388,9 +592,11 @@ function TerraDrawIntegration({ mode }: { mode: DrawMode }) {
     } else {
       map.once("style.load", init);
     }
+    map.on("style.load", handleStyleLoad);
 
     return () => {
       map.off("style.load", init);
+      map.off("style.load", handleStyleLoad);
       if (drawRef.current) {
         drawRef.current.stop();
         drawRef.current = null;
@@ -404,6 +610,17 @@ function TerraDrawIntegration({ mode }: { mode: DrawMode }) {
     if (!draw) return;
     draw.setMode(drawModeToTerraDraw(mode));
   }, [mode]);
+
+  // React to label visibility toggle.
+  useEffect(() => {
+    if (!map) return;
+    if (!map.getLayer(LABEL_LAYER_ID)) return;
+    map.setLayoutProperty(
+      LABEL_LAYER_ID,
+      "visibility",
+      labelsVisible ? "visible" : "none"
+    );
+  }, [map, labelsVisible]);
 
   return null;
 }
@@ -454,6 +671,39 @@ function DrawModeControls({
           );
         })}
       </div>
+    </Control>
+  );
+}
+
+function LabelToggleControl({
+  active,
+  onToggle,
+}: {
+  active: boolean;
+  onToggle: () => void;
+}) {
+  // Sibling to DrawModeControls (order=70) but its own visual group: full
+  // border + rounded edges, no fusion classes. order=80 puts it directly
+  // below the draw-mode strip in the topleft column.
+  return (
+    <Control position="topleft" order={80}>
+      <Tooltip
+        title={
+          active ? "Maße ausblenden" : "Maße einblenden"
+        }
+        placement="right"
+      >
+        <ControlButtonStyler
+          onClick={onToggle}
+          dataTestId="labels-toggle-control"
+          useDisabledStyle={false}
+        >
+          <FontAwesomeIcon
+            icon={faTag}
+            className={active ? "text-[#1677ff]" : ""}
+          />
+        </ControlButtonStyler>
+      </Tooltip>
     </Control>
   );
 }
