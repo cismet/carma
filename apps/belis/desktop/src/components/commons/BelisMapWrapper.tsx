@@ -2649,11 +2649,7 @@ const BelisMapLibWrapper = ({
                     selectedFeatureId?.sourceLayer ||
                     lastFeatureType
                   }
-                  readOnly={
-                    rawFeature?.properties?._isCreation
-                      ? false
-                      : !globalEditMode
-                  }
+                  readOnly={!globalEditMode}
                   featureOnMap={featureOnMap}
                   onSelectNextDraft={handleSelectNextDraft}
                 />
