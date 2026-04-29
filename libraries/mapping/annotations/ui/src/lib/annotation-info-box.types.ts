@@ -65,6 +65,10 @@ export type AnnotationInfoBoxVisualOptions = Readonly<{
   navigationAvailabilityContainerClassName: string;
   navigationSummaryContainerClassName: string;
   navigationLinkFontSize: string;
+  navigationControlLabels?: Readonly<{
+    previous: ReactNode;
+    next: ReactNode;
+  }>;
   inlineFieldButtonClassName: string;
   colorInputClassName: string;
   inlineActionButtonClassName: string;
