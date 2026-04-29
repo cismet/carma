@@ -821,29 +821,36 @@ function OverlayUI({
         }}
       >
         <span style={{ color: "#555" }}>Quick load:</span>
-        {QUICK_LOAD_LINKS.map((link, i) => (
-          <span key={link.url} style={{ display: "inline-flex", gap: "10px" }}>
-            {i > 0 && (
-              <span style={{ color: "#ddd" }} aria-hidden>
-                |
-              </span>
-            )}
-            <button
-              onClick={() => onQuickLoad(link.url)}
-              style={{
-                background: "none",
-                border: "none",
-                padding: 0,
-                color: "#2563eb",
-                cursor: "pointer",
-                textDecoration: "none",
-              }}
-              title={link.url}
+        {QUICK_LOAD_LINKS.map((link, i) => {
+          const alreadyLoaded = layers.some((l) => l.styleUrl === link.url);
+          return (
+            <span
+              key={link.url}
+              style={{ display: "inline-flex", gap: "10px" }}
             >
-              {link.label}
-            </button>
-          </span>
-        ))}
+              {i > 0 && (
+                <span style={{ color: "#ddd" }} aria-hidden>
+                  |
+                </span>
+              )}
+              <button
+                onClick={() => onQuickLoad(link.url)}
+                disabled={alreadyLoaded}
+                style={{
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  color: alreadyLoaded ? "#9ca3af" : "#2563eb",
+                  cursor: alreadyLoaded ? "default" : "pointer",
+                  textDecoration: alreadyLoaded ? "line-through" : "none",
+                }}
+                title={alreadyLoaded ? "already loaded" : link.url}
+              >
+                {link.label}
+              </button>
+            </span>
+          );
+        })}
         <span style={{ color: "#888", fontSize: "12px" }}>
           (or drop a URL / style.json file anywhere)
         </span>
