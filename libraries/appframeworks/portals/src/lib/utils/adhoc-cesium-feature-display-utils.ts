@@ -146,6 +146,12 @@ export const extractSelectableGeoJsonFeatures = (
 
   return features.flatMap((geojsonFeature, featureIndex) => {
     if (!geojsonFeature?.geometry) return [];
+    if (
+      (geojsonFeature.properties as { kind?: unknown } | null | undefined)
+        ?.kind === "label"
+    ) {
+      return [];
+    }
     const geoJsonFeatureKey = getGeoJsonFeatureKey(
       geojsonFeature,
       featureIndex

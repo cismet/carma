@@ -234,16 +234,23 @@ const resolveAdhocFeatureId = ({
     );
   }
 
-  const firstFeature = geoJson.features.find(
-    (feature): feature is Feature => !!feature
+  const realFeatures = geoJson.features.filter(
+    (feature): feature is Feature =>
+      !!feature &&
+      (feature.properties as { kind?: unknown } | null | undefined)?.kind !==
+        "label"
   );
-  if (!firstFeature) {
+  // When the collection has multiple features, do NOT inherit any single
+  // feature's id. Otherwise AdhocSelectionSync would call setFeatureState
+  // on that id and visually select that feature whenever the AdhocFeature
+  // is selected, regardless of what the user actually clicked.
+  if (realFeatures.length !== 1) {
     return buildGeneratedFeatureId(geoJson, fallbackLayerId);
   }
 
   return (
-    getFeatureIdCandidate(firstFeature) ??
-    buildGeneratedFeatureId(firstFeature, fallbackLayerId)
+    getFeatureIdCandidate(realFeatures[0]) ??
+    buildGeneratedFeatureId(realFeatures[0], fallbackLayerId)
   );
 };
 

@@ -76,7 +76,8 @@ export const MapMeasurementsContext = createContext<MapMeasurementsContextType>(
       shapeId: string,
       newCoordinates?: any,
       newDistance?: number,
-      newSquare?: number | null
+      newSquare?: number | null,
+      newLabels?: { position: [number, number]; text: string }[]
     ) => {},
     setLastVisibleShapeActive: () => {},
     setDrawingWithLastActiveShape: () => {},
@@ -204,7 +205,8 @@ export const MapMeasurementsProvider = ({
     shapeId: string,
     newCoordinates?: any,
     newDistance?: number,
-    newSquare?: number | null
+    newSquare?: number | null,
+    newLabels?: { position: [number, number]; text: string }[]
   ) => {
     setUpdateShape(true);
     setShapes((prevShapes) => {
@@ -215,6 +217,7 @@ export const MapMeasurementsProvider = ({
             coordinates: newCoordinates,
             distance: newDistance,
             area: newSquare,
+            ...(newLabels !== undefined ? { labels: newLabels } : {}),
           };
         } else {
           return s;

@@ -48,7 +48,8 @@ export interface MapMeasurementsContextType {
     shapeId: string,
     newCoordinates?: any,
     newDistance?: number,
-    newSquare?: number | null
+    newSquare?: number | null,
+    newLabels?: { position: [number, number]; text: string }[]
   ) => void;
   setLastVisibleShapeActive: () => void;
   setDrawingWithLastActiveShape: () => void;

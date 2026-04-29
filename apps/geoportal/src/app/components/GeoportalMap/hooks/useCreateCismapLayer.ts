@@ -417,7 +417,10 @@ export const useCreateCismapLayers = (
                       if (featureCollection.features) {
                         featuresWithGeometry.push(
                           ...featureCollection.features.filter(
-                            (f: GeoJSON.Feature) => f.geometry
+                            (f: GeoJSON.Feature) =>
+                              f.geometry &&
+                              (f.properties as { kind?: unknown } | null)
+                                ?.kind !== "label"
                           )
                         );
                       }
