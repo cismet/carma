@@ -14,6 +14,7 @@ import {
 import { getJWT } from "../../../store/slices/auth";
 import { incrementFeatureDataVersion } from "../../../store/slices/featureCollection";
 import { handleSaveAllDrafts } from "../../../helper/featureFormSaveHelpers";
+import { useSingleSave } from "./FeaturesFormsWrapper";
 
 interface FormHeaderProps {
   title: string;
@@ -53,6 +54,7 @@ const FormHeader = ({
   const drafts = useSelector(getAllDrafts);
   const jwt = useSelector(getJWT);
   const [savingAll, setSavingAll] = useState(false);
+  const { onSaveSingle, savingSingle } = useSingleSave();
 
   const draftsCount = customDraftsCount ?? featureDraftsCount;
 
@@ -137,6 +139,33 @@ const FormHeader = ({
                     : "zurücksetzen"}
                 </Button>
               </span>
+              <span
+                style={
+                  !hasDraft || !onSaveSingle
+                    ? { cursor: "not-allowed" }
+                    : undefined
+                }
+              >
+                <Button
+                  type="primary"
+                  onClick={
+                    hasDraft && onSaveSingle ? onSaveSingle : undefined
+                  }
+                  loading={savingSingle}
+                  style={
+                    !hasDraft || !onSaveSingle
+                      ? {
+                          pointerEvents: "none",
+                          color: "#d9d9d9",
+                          borderColor: "#d9d9d9",
+                          backgroundColor: "#f5f5f5",
+                        }
+                      : undefined
+                  }
+                >
+                  Speichern
+                </Button>
+              </span>
               <Badge
                 count={draftsCount}
                 size="small"
@@ -164,7 +193,7 @@ const FormHeader = ({
                       draftsCount === 0 ? { pointerEvents: "none" } : undefined
                     }
                   >
-                    Speichern
+                    Alle speichern
                   </Button>
                 </span>
               </Badge>
