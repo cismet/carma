@@ -43,7 +43,7 @@ const createStoreState = (
   },
 });
 
-describe("annotationsStorePersistence bearing migration", () => {
+describe("annotationsStorePersistence", () => {
   it("loads persisted current-format preferred normal bearings in radians", () => {
     const persistedState = {
       formatId: "annotations-runtime-persistence",
@@ -78,6 +78,56 @@ describe("annotationsStorePersistence bearing migration", () => {
       PI_OVER_TWO,
       8
     );
+  });
+
+  it("restores the last active tool when it is available", () => {
+    const state = resolvePersistedAnnotationsStoreState({
+      initialToolType: ANNOTATION_TYPES.DISTANCE,
+      initialPointTemporaryMode: false,
+      initialPersistenceState: {
+        formatId: "annotations-runtime-persistence",
+        version: 1,
+        tables: {
+          annotationEntries: [],
+          nodes: [],
+          linkedNodeGroups: [],
+          edges: [],
+        },
+        settings: {
+          lastActiveToolType: ANNOTATION_TYPES.POINT,
+          elevationReferenceAnnotationId: null,
+          nextShortLabelCounterByToolType: {},
+        },
+      },
+      isToolTypeAvailable: (toolType) => toolType === ANNOTATION_TYPES.POINT,
+    });
+
+    expect(state.annotationToolType).toBe(ANNOTATION_TYPES.POINT);
+  });
+
+  it("uses the configured initial tool when the persisted active tool is unavailable", () => {
+    const state = resolvePersistedAnnotationsStoreState({
+      initialToolType: ANNOTATION_TYPES.DISTANCE,
+      initialPointTemporaryMode: false,
+      initialPersistenceState: {
+        formatId: "annotations-runtime-persistence",
+        version: 1,
+        tables: {
+          annotationEntries: [],
+          nodes: [],
+          linkedNodeGroups: [],
+          edges: [],
+        },
+        settings: {
+          lastActiveToolType: "label",
+          elevationReferenceAnnotationId: null,
+          nextShortLabelCounterByToolType: {},
+        },
+      },
+      isToolTypeAvailable: () => false,
+    });
+
+    expect(state.annotationToolType).toBe(ANNOTATION_TYPES.DISTANCE);
   });
 
   it("discards incompatible persisted formats", () => {
@@ -161,6 +211,9 @@ describe("annotationsStorePersistence bearing migration", () => {
 
     expect(persistenceState.formatId).toBe("annotations-runtime-persistence");
     expect(persistenceState.version).toBe(1);
+    expect(persistenceState.settings.lastActiveToolType).toBe(
+      ANNOTATION_TYPES.AREA_PLANAR
+    );
     expect(
       persistenceState.tables.annotationEntries[0]?.preferredNormalBearingRad
     ).toBe(PI_OVER_TWO);

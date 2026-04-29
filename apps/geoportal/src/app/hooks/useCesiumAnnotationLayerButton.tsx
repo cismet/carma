@@ -62,11 +62,6 @@ export function useCesiumAnnotationLayerButton() {
   const initialCleanupDone = useRef(false);
 
   const handleEnterCesiumAnnotationMode = useCallback(() => {
-    const defaultToolId = CESIUM_ANNOTATION_CONFIG.tools.defaultToolId;
-    if (registry.getPlugin(defaultToolId)) {
-      setActiveToolType(defaultToolId);
-    }
-
     if (!hasCesiumAnnotationLayer) {
       dispatch(
         appendLayer({
@@ -78,13 +73,7 @@ export function useCesiumAnnotationLayerButton() {
 
     dispatch(setActiveInteractionLayerID(CESIUM_ANNOTATION_LAYER_ID));
     dispatch(setActiveInteractionButtonID(CESIUM_ANNOTATION_INTERACTION_ID));
-  }, [
-    annotationEntries.length,
-    dispatch,
-    hasCesiumAnnotationLayer,
-    registry,
-    setActiveToolType,
-  ]);
+  }, [annotationEntries.length, dispatch, hasCesiumAnnotationLayer]);
 
   const handleLeaveCesiumAnnotationMode = useCallback(() => {
     if (!hasCesiumAnnotationLayer) {
