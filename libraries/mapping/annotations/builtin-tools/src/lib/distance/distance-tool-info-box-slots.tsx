@@ -13,10 +13,6 @@ import {
   buildRuntimeNodeCoordinateMap,
   resolveMeasurementCoordinates,
 } from "@carma-mapping/annotations/runtime";
-import {
-  formatCardinalBearing,
-  resolveBearingRadFromFirstToLastCoordinate,
-} from "@carma-mapping/annotations/runtime";
 
 export const createDistanceToolInfoBoxSlots = (
   toolType: RuntimeAnnotationInfoBoxContext["annotation"]["toolType"],
@@ -85,7 +81,6 @@ export const createDistanceToolInfoBoxSlots = (
       enuOffset.north
     );
     const verticalDistanceMeters = Math.abs(enuOffset.up);
-    const bearingRad = resolveBearingRadFromFirstToLastCoordinate(coordinates);
     const shortLabelToken = formatMeasurementLabelToken(distanceOrder);
     const defaultDisplayName = headingTitle;
     const effectiveShortLabel =
@@ -158,15 +153,6 @@ export const createDistanceToolInfoBoxSlots = (
               label: "Vertikal",
               value: formatDistance(verticalDistanceMeters),
             },
-            ...(Number.isFinite(bearingRad)
-              ? [
-                  {
-                    id: "bearing",
-                    label: "Ausrichtung",
-                    value: formatCardinalBearing(bearingRad ?? 0),
-                  },
-                ]
-              : []),
           ]}
           visualOptions={infoBoxVisualOptions}
         />

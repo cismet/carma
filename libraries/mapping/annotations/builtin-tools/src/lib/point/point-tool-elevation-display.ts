@@ -18,12 +18,6 @@ const pointElevationDisplayDefaults = Object.freeze({
   }),
 });
 
-export const resolvePointElevationDisplayMode = (
-  annotation: StoredAnnotation
-): AnnotationElevationDisplayMode =>
-  annotation.elevationDisplayMode ??
-  ANNOTATION_ELEVATION_DISPLAY_MODES.RELATIVE;
-
 export const resolvePointElevationReferenceAnnotationId = ({
   annotationEntries,
   configuredReferenceAnnotationId,
