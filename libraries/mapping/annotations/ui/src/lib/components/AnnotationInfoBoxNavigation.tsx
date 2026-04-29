@@ -35,7 +35,14 @@ export const AnnotationInfoBoxNavigation = ({
     border: "none",
     background: "transparent",
     padding: 0,
+    userSelect: "none",
   } as const;
+  const previousControlLabel =
+    resolvedVisualOptions.navigationControlLabels?.previous ?? (
+      <FontAwesomeIcon icon={faAnglesLeft} />
+    );
+  const nextControlLabel = resolvedVisualOptions.navigationControlLabels
+    ?.next ?? <FontAwesomeIcon icon={faAnglesRight} />;
 
   return (
     <>
@@ -84,26 +91,26 @@ export const AnnotationInfoBoxNavigation = ({
         >
           <button
             type="button"
-            className={`renderAsLink cursor-pointer ${resolvedVisualOptions.linkTextClassName}`}
+            className={`renderAsLink cursor-pointer select-none ${resolvedVisualOptions.linkTextClassName}`}
             onClick={onPreviousMeasurement}
             data-test-id="switch-measurement-left"
             style={navigationButtonStyle}
             aria-label="Vorherige Messung"
           >
-            <FontAwesomeIcon icon={faAnglesLeft} />
+            {previousControlLabel}
           </button>
           <span className="mx-4">
             {currentIndex + 1} von {totalEntries}
           </span>
           <button
             type="button"
-            className={`renderAsLink cursor-pointer ${resolvedVisualOptions.linkTextClassName}`}
+            className={`renderAsLink cursor-pointer select-none ${resolvedVisualOptions.linkTextClassName}`}
             onClick={onNextMeasurement}
             data-test-id="switch-measurement-right"
             style={navigationButtonStyle}
             aria-label="Nächste Messung"
           >
-            <FontAwesomeIcon icon={faAnglesRight} />
+            {nextControlLabel}
           </button>
         </div>
       ) : null}

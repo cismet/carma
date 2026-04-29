@@ -81,6 +81,10 @@ export const CISMAP_MEASUREMENT_INFO_BOX_VISUAL_OPTIONS = {
   navigationSummaryContainerClassName:
     "mb-2 mt-1 flex w-[96%] items-center justify-between text-[12px]",
   navigationLinkFontSize: "10.5px",
+  navigationControlLabels: {
+    previous: "<<",
+    next: ">>",
+  },
 } satisfies Partial<AnnotationInfoBoxVisualOptions>;
 
 export type CismapAnnotationInfoBoxProps = Pick<
