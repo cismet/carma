@@ -19,9 +19,13 @@ export const CESIUM_CONFIG: CesiumConfig = {
     },
   },
   camera: {
-    pitchLimiter: true,
-    maxPitchDeg: 75,
-    maxPitchCorrectionRangeDeg: 10,
+    limiter: {
+      pitch: {
+        enabled: true,
+        max: 75,
+        maxCorrectionRange: 10,
+      },
+    },
   },
   markerKey: "MarkerGlowLine",
   markerAnchorHeight: 10,
