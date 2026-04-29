@@ -18,6 +18,7 @@ import {
   getOriginalValues,
   hasDraftChanges,
   getGlobalEditMode,
+  isCreationDraftKey,
 } from "../../../store/slices/featuresForms";
 import type { DokumentItem } from "../DocumentPreview";
 import { ChangedFieldsProvider } from "./DraftFieldHighlight";
@@ -76,6 +77,13 @@ const FeaturesFormsWrapper = ({
 }: FeaturesFormsWrapperProps) => {
   const dispatch = useDispatch();
   const selectedFeature = useSelector(getSelectedFeature);
+
+  // Creation drafts use their draft key directly as featureId
+  const isCreation = rawFeature?.properties?._isCreation === true;
+  const creationDraftKey = isCreation
+    ? String(rawFeature.properties.id)
+    : undefined;
+
   // Build a composite draft key: "sourceLayer:databasePK".
   // Database PKs alone are not unique across source layers (e.g. Leuchte PK=1
   // vs Standort PK=1 are different features). Including the sourceLayer prevents
@@ -88,7 +96,7 @@ const FeaturesFormsWrapper = ({
       ? String(selectedFeature.id)
       : undefined;
   const sourceLayer = featureType ?? "";
-  const featureId = dbPK != null ? `${sourceLayer}:${dbPK}` : undefined;
+  const featureId = creationDraftKey ?? (dbPK != null ? `${sourceLayer}:${dbPK}` : undefined);
 
   // Store a serializable snapshot of the raw feature for the draft.
   // MapLibre's MapGeoJSONFeature contains non-serializable objects (layer, state)
@@ -133,15 +141,26 @@ const FeaturesFormsWrapper = ({
 
   const featureDataVersion = useSelector(getFeatureDataVersion);
   const globalEditMode = useSelector(getGlobalEditMode);
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(isCreation);
   const [resetKey, setResetKey] = useState(0);
-  const effectiveReadOnly = readOnlyProp && !isEditing && !globalEditMode;
+  const effectiveReadOnly = isCreation
+    ? false
+    : readOnlyProp && !isEditing && !globalEditMode;
 
   // Exit edit mode when feature data is refetched externally (e.g. Save All)
   useEffect(() => {
-    setIsEditing(false);
-    setResetKey((prev) => prev + 1);
-  }, [featureDataVersion]);
+    if (!isCreation) {
+      setIsEditing(false);
+      setResetKey((prev) => prev + 1);
+    }
+  }, [featureDataVersion, isCreation]);
+
+  // Set empty original values for creation drafts so all fields appear as "changed"
+  useEffect(() => {
+    if (isCreation && featureId) {
+      dispatch(setOriginalValues({ featureId, values: {} }));
+    }
+  }, [isCreation, featureId, dispatch]);
 
   const deserializedDraftValues = useMemo(
     () => (draft?.values ? deserializeValues(draft.values) : undefined),
@@ -153,7 +172,9 @@ const FeaturesFormsWrapper = ({
 
   // Keep draft's existingDocuments and featureDbId in sync with server data.
   // Only updates when a draft already exists (avoids creating ghost drafts).
+  // Skip for creation drafts — they have no server data.
   useEffect(() => {
+    if (isCreation) return;
     if (!featureId || !formKey || !draft || !data) return;
     const graphqlKey = formKeyToGraphqlKey[formKey];
     if (!graphqlKey) return;
@@ -174,7 +195,7 @@ const FeaturesFormsWrapper = ({
         })
       );
     }
-  }, [featureId, formKey, data, draft, dispatch]);
+  }, [featureId, formKey, data, draft, dispatch, isCreation]);
 
   const handleToggleReadOnly = useCallback(() => {
     setIsEditing((prev) => !prev);
@@ -271,6 +292,11 @@ const FeaturesFormsWrapper = ({
         draftValues={draft?.values}
       >
         <div className="h-full">
+          {isCreation && (
+            <div className="bg-green-50 border border-green-200 text-green-800 text-sm px-3 py-2 rounded mb-2">
+              Neuer Entwurf — noch nicht gespeichert
+            </div>
+          )}
           <FormComponent
             key={resetKey}
             data={data}
