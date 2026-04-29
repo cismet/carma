@@ -16,10 +16,7 @@ import SchaltstelleFormFields from "./featuresForm/SchaltstelleFormFields";
 import MauerlascheFormFields from "./featuresForm/MauerlascheFormFields";
 import { getJWT } from "../../store/slices/auth";
 import { prepareSaveValues } from "../../helper/featureFormSaveHelpers";
-import {
-  updateDataByClassName,
-  fileToBase64,
-} from "../../helper/apiMethods";
+import { updateDataByClassName, fileToBase64 } from "../../helper/apiMethods";
 import { uploadDraftFiles } from "../../helper/uploadDraftFiles";
 import {
   setDraft,
@@ -118,7 +115,9 @@ const CreateFeatureModal = ({
     if (featureType) {
       setDraftKey(
         resumeDraftKey ??
-          `create:${featureType}:${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+          `create:${featureType}:${Date.now()}-${Math.random()
+            .toString(36)
+            .slice(2, 9)}`
       );
     } else {
       setDraftKey(null);
@@ -179,8 +178,7 @@ const CreateFeatureModal = ({
       const newDraftFiles: DraftFile[] = await Promise.all(
         files.map(async (file) => {
           const dotIdx = file.name.lastIndexOf(".");
-          const nameNoExt =
-            dotIdx > 0 ? file.name.slice(0, dotIdx) : file.name;
+          const nameNoExt = dotIdx > 0 ? file.name.slice(0, dotIdx) : file.name;
           return {
             id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
             fileName: nameNoExt,
@@ -253,93 +251,100 @@ const CreateFeatureModal = ({
     formRef.current = form;
   }, []);
 
-  const handleCreate = useCallback(async () => {
-    if (!featureType || !jwt) return;
+  const handleCreate = useCallback(() => {
+    if (!featureType) return;
 
-    const className = classNames[featureType];
-    if (!className) return;
+    void message.success(`${label} als Entwurf gespeichert`);
+    formRef.current?.resetFields();
+    onClose();
 
-    const rawValues = formRef.current?.getFieldsValue() ?? {};
-
-    const valuesForPrepare =
-      featureType === "leuchte" ? { leuchte: rawValues } : rawValues;
-    const prepared = prepareSaveValues(featureType, valuesForPrepare) ?? {};
-
-    setSaving(true);
-    try {
-      let payload: Record<string, unknown>;
-
-      if (featureType === "leuchte") {
-        const mastPayload = {
-          id: -1,
-          geom: buildGeom("standort"),
-        };
-        const mastResult = await updateDataByClassName(
-          jwt,
-          classNames["standort"],
-          mastPayload
-        );
-
-        const mastRes = mastResult as { res?: string } | null;
-        const parsedMast = mastRes?.res
-          ? (JSON.parse(mastRes.res) as { id?: number })
-          : null;
-        const newMastId = parsedMast?.id;
-
-        if (!newMastId) {
-          throw new Error("Standort erstellt, aber keine ID erhalten");
-        }
-
-        payload = {
-          id: -1,
-          ...prepared,
-          tdta_standort_mast: { id: Number(newMastId) },
-        };
-      } else {
-        payload = {
-          id: -1,
-          ...prepared,
-          geom: buildGeom(featureType),
-        };
-      }
-
-      const result = await updateDataByClassName(jwt, className, payload);
-
-      if (draftFiles.length > 0) {
-        const res = result as { res?: string } | null;
-        const parsed = res?.res
-          ? (JSON.parse(res.res) as { id?: number })
-          : null;
-        const newId = parsed?.id;
-
-        if (newId) {
-          const uploadedDocs = await uploadDraftFiles(jwt, draftFiles);
-          if (uploadedDocs.length > 0) {
-            await updateDataByClassName(jwt, className, {
-              id: newId,
-              dokumenteArray: uploadedDocs,
-            });
-          }
-        }
-      }
-
-      void message.success(`${label} erstellt`);
-      if (draftKey) {
-        dispatch(removeDraft(draftKey));
-      }
-      formRef.current?.resetFields();
-      onClose();
-    } catch (err) {
-      console.error("[CreateFeature] error:", err);
-      void message.error(
-        `Fehler beim Erstellen: ${
-          err instanceof Error ? err.message : "Unbekannter Fehler"
-        }`
-      );
-    } finally {
-      setSaving(false);
-    }
-  }, [featureType, jwt, label, onClose, draftFiles, draftKey, dispatch]);
+    // --- server save logic (commented out for now) ---
+    // if (!jwt) return;
+    //
+    // const className = classNames[featureType];
+    // if (!className) return;
+    //
+    // const rawValues = formRef.current?.getFieldsValue() ?? {};
+    //
+    // const valuesForPrepare =
+    //   featureType === "leuchte" ? { leuchte: rawValues } : rawValues;
+    // const prepared = prepareSaveValues(featureType, valuesForPrepare) ?? {};
+    //
+    // setSaving(true);
+    // try {
+    //   let payload: Record<string, unknown>;
+    //
+    //   if (featureType === "leuchte") {
+    //     const mastPayload = {
+    //       id: -1,
+    //       geom: buildGeom("standort"),
+    //     };
+    //     const mastResult = await updateDataByClassName(
+    //       jwt,
+    //       classNames["standort"],
+    //       mastPayload
+    //     );
+    //
+    //     const mastRes = mastResult as { res?: string } | null;
+    //     const parsedMast = mastRes?.res
+    //       ? (JSON.parse(mastRes.res) as { id?: number })
+    //       : null;
+    //     const newMastId = parsedMast?.id;
+    //
+    //     if (!newMastId) {
+    //       throw new Error("Standort erstellt, aber keine ID erhalten");
+    //     }
+    //
+    //     payload = {
+    //       id: -1,
+    //       ...prepared,
+    //       tdta_standort_mast: { id: Number(newMastId) },
+    //     };
+    //   } else {
+    //     payload = {
+    //       id: -1,
+    //       ...prepared,
+    //       geom: buildGeom(featureType),
+    //     };
+    //   }
+    //
+    //   const result = await updateDataByClassName(jwt, className, payload);
+    //
+    //   if (draftFiles.length > 0) {
+    //     const res = result as { res?: string } | null;
+    //     const parsed = res?.res
+    //       ? (JSON.parse(res.res) as { id?: number })
+    //       : null;
+    //     const newId = parsed?.id;
+    //
+    //     if (newId) {
+    //       const uploadedDocs = await uploadDraftFiles(jwt, draftFiles);
+    //       if (uploadedDocs.length > 0) {
+    //         await updateDataByClassName(jwt, className, {
+    //           id: newId,
+    //           dokumenteArray: uploadedDocs,
+    //         });
+    //       }
+    //     }
+    //   }
+    //
+    //   void message.success(`${label} erstellt`);
+    //   if (draftKey) {
+    //     dispatch(removeDraft(draftKey));
+    //   }
+    //   formRef.current?.resetFields();
+    //   onClose();
+    // } catch (err) {
+    //   console.error("[CreateFeature] error:", err);
+    //   void message.error(
+    //     `Fehler beim Erstellen: ${
+    //       err instanceof Error ? err.message : "Unbekannter Fehler"
+    //     }`
+    //   );
+    // } finally {
+    //   setSaving(false);
+    // }
+  }, [featureType, label, onClose]);
 
   const handleClose = () => {
     onClose();
@@ -431,10 +436,7 @@ const CreateFeatureModal = ({
       footer={
         <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
           <Button onClick={handleCancel} disabled={saving}>
-            Verwerfen
-          </Button>
-          <Button onClick={handleClose} disabled={saving}>
-            Schließen
+            Abbrechen
           </Button>
           <Button type="primary" onClick={handleCreate} loading={saving}>
             Erstellen
