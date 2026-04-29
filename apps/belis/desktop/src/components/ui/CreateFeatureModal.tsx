@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Modal, Button, message, Tabs } from "antd";
+import { Modal, Button, message, Tabs, Select } from "antd";
 import type { FormInstance } from "antd";
 import { useSelector, useDispatch } from "react-redux";
 import proj4 from "proj4";
@@ -60,14 +60,6 @@ const CRS_25832 = {
   properties: { name: "urn:ogc:def:crs:EPSG::25832" },
 };
 
-// Temporary hardcoded geometries near Toelleturm, Wuppertal-Barmen (EPSG:25832)
-// Used as placeholder until real drawing/pick-from-map is implemented
-const HARDCODED_POINT = {
-  type: "Point" as const,
-  crs: CRS_25832,
-  coordinates: [374503.93, 5679879.3],
-};
-
 const HARDCODED_POINT_TOELLETURM = {
   type: "Point" as const,
   crs: CRS_25832,
@@ -84,12 +76,30 @@ const HARDCODED_LINE = {
   ],
 };
 
-const buildGeom = (featureType: string) => {
-  if (featureType === "leitung") return { id: -1, geo_field: HARDCODED_LINE };
-  if (featureType === "leuchte")
-    return { id: -1, geo_field: HARDCODED_POINT_TOELLETURM };
-  return { id: -1, geo_field: HARDCODED_POINT };
-};
+type GeometryKey = "point_toelleturm" | "line";
+
+const GEOMETRY_OPTIONS: {
+  key: GeometryKey;
+  label: string;
+  geometry: typeof HARDCODED_POINT_TOELLETURM | typeof HARDCODED_LINE;
+}[] = [
+  {
+    key: "point_toelleturm",
+    label: "Point - Toelleturm",
+    geometry: HARDCODED_POINT_TOELLETURM,
+  },
+  {
+    key: "line",
+    label: "Line - Toelleturm",
+    geometry: HARDCODED_LINE,
+  },
+];
+
+const getGeometryByKey = (key: GeometryKey) =>
+  GEOMETRY_OPTIONS.find((o) => o.key === key)!.geometry;
+
+const getDefaultGeometryKey = (featureType: string): GeometryKey =>
+  featureType === "leitung" ? "line" : "point_toelleturm";
 
 interface CreateFeatureModalProps {
   featureType: CreateFeatureType;
@@ -108,6 +118,9 @@ const CreateFeatureModal = ({
   const formRef = useRef<FormInstance | null>(null);
   const dispatch = useDispatch();
   const [saving, setSaving] = useState(false);
+  const [selectedGeomKey, setSelectedGeomKey] = useState<GeometryKey>(
+    getDefaultGeometryKey(featureType)
+  );
 
   const [draftKey, setDraftKey] = useState<string | null>(null);
 
@@ -119,6 +132,7 @@ const CreateFeatureModal = ({
             .toString(36)
             .slice(2, 9)}`
       );
+      setSelectedGeomKey(getDefaultGeometryKey(featureType));
     } else {
       setDraftKey(null);
     }
@@ -149,7 +163,7 @@ const CreateFeatureModal = ({
     (values: Record<string, unknown>) => {
       if (!draftKey || !featureType) return;
       const serialized = serializeValues(values);
-      const geom = buildGeom(featureType).geo_field;
+      const geom = getGeometryByKey(selectedGeomKey);
       dispatch(
         setDraft({
           featureId: draftKey,
@@ -162,7 +176,7 @@ const CreateFeatureModal = ({
         })
       );
     },
-    [draftKey, featureType, dispatch]
+    [draftKey, featureType, selectedGeomKey, dispatch]
   );
 
   const handleValuesChange = useCallback(
@@ -191,7 +205,7 @@ const CreateFeatureModal = ({
       );
       const updatedFiles = [...draftFiles, ...newDraftFiles];
       const currentValues = formRef.current?.getFieldsValue() ?? {};
-      const geom = buildGeom(featureType).geo_field;
+      const geom = getGeometryByKey(selectedGeomKey);
       dispatch(
         setDraftFilesAction({
           featureId: draftKey,
@@ -207,7 +221,7 @@ const CreateFeatureModal = ({
         })
       );
     },
-    [draftKey, featureType, draftFiles, dispatch]
+    [draftKey, featureType, draftFiles, selectedGeomKey, dispatch]
   );
 
   const handleRemoveFile = useCallback(
@@ -215,7 +229,7 @@ const CreateFeatureModal = ({
       if (!draftKey || !featureType) return;
       const updatedFiles = draftFiles.filter((f) => f.id !== id);
       const currentValues = formRef.current?.getFieldsValue() ?? {};
-      const geom = buildGeom(featureType).geo_field;
+      const geom = getGeometryByKey(selectedGeomKey);
       dispatch(
         setDraftFilesAction({
           featureId: draftKey,
@@ -231,12 +245,12 @@ const CreateFeatureModal = ({
         })
       );
     },
-    [draftKey, featureType, draftFiles, dispatch]
+    [draftKey, featureType, draftFiles, selectedGeomKey, dispatch]
   );
 
   const handleFlyToGeom = useCallback(() => {
     if (!featureType || !map) return;
-    const geom = buildGeom(featureType).geo_field;
+    const geom = getGeometryByKey(selectedGeomKey);
     const coords =
       geom.type === "Point" ? geom.coordinates : geom.coordinates[0];
     const [lng, lat] = proj4(
@@ -245,7 +259,7 @@ const CreateFeatureModal = ({
       coords as [number, number]
     );
     map.flyTo({ center: [lng, lat], zoom: 18 });
-  }, [featureType, map]);
+  }, [featureType, selectedGeomKey, map]);
 
   const handleFormInstance = useCallback((form: FormInstance) => {
     formRef.current = form;
@@ -448,6 +462,21 @@ const CreateFeatureModal = ({
         header: { borderBottom: "1px solid #f3f4f6", paddingBottom: 16 },
       }}
     >
+      <div className="mb-4">
+        <span className="text-sm font-medium text-gray-700">Geometrie</span>
+        <Select
+          value={selectedGeomKey}
+          onChange={setSelectedGeomKey}
+          className="w-full mt-1"
+          size="large"
+        >
+          {GEOMETRY_OPTIONS.map((opt) => (
+            <Select.Option key={opt.key} value={opt.key}>
+              {opt.label}
+            </Select.Option>
+          ))}
+        </Select>
+      </div>
       <Tabs
         defaultActiveKey="allgemein"
         className="h-full flex flex-col [&_.ant-tabs-content-holder]:flex-1 [&_.ant-tabs-content-holder]:overflow-hidden [&_.ant-tabs-content]:h-full [&_.ant-tabs-tabpane]:h-full [&_.ant-tabs-tabpane]:overflow-y-auto"
