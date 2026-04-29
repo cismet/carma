@@ -1,7 +1,11 @@
-import { Dropdown } from "antd";
+import { useState, useEffect } from "react";
+import { Dropdown, Modal, Button } from "antd";
 import { PlusOutlined, CaretDownFilled } from "@ant-design/icons";
+import { useSelector } from "react-redux";
 import { useMapPage } from "../../contexts/MapPageContext";
 import type { CreateFeatureType } from "../../contexts/MapPageContext";
+import { getCreationDraftsByType } from "../../store/slices/featuresForms";
+import type { RootState } from "../../store";
 import CreateFeatureModal from "./CreateFeatureModal";
 
 const SPRITE_URL = "https://tiles.cismet.de/belis/sprites.png";
@@ -15,6 +19,15 @@ const spritePositions: Record<string, { x: number; y: number }> = {
   schaltstelle: { x: 330, y: 0 },
   mauerlasche: { x: 264, y: 0 },
   abzweigdose: { x: 66, y: 0 },
+};
+
+const featureLabels: Record<string, string> = {
+  leuchte: "Leuchte",
+  standort: "Standort / Mast",
+  leitung: "Leitung",
+  schaltstelle: "Schaltstelle",
+  mauerlasche: "Mauerlasche",
+  abzweigdose: "Abzweigdose",
 };
 
 export const FeatureIcon = ({ type }: { type: string }) => {
@@ -82,6 +95,45 @@ const createFeatureItems: {
 
 const CreateFeatureDropdown = () => {
   const { createFeatureType, setCreateFeatureType } = useMapPage();
+  const [resumeDraftKey, setResumeDraftKey] = useState<string | undefined>();
+  const [promptType, setPromptType] = useState<string | null>(null);
+
+  const existingDrafts = useSelector((state: RootState) =>
+    getCreationDraftsByType(state, promptType ?? "")
+  );
+
+  const handleItemClick = (key: CreateFeatureType & string) => {
+    setPromptType(key);
+  };
+
+  const promptDraft = existingDrafts[0];
+  const showPrompt = promptType !== null && promptDraft != null;
+
+  const handleResume = () => {
+    if (promptDraft) {
+      setResumeDraftKey(promptDraft.featureId);
+    }
+    setCreateFeatureType(promptType as CreateFeatureType & string);
+    setPromptType(null);
+  };
+
+  const handleNewDraft = () => {
+    setResumeDraftKey(undefined);
+    setCreateFeatureType(promptType as CreateFeatureType & string);
+    setPromptType(null);
+  };
+
+  const handlePromptCancel = () => {
+    setPromptType(null);
+  };
+
+  useEffect(() => {
+    if (promptType !== null && existingDrafts.length === 0) {
+      setResumeDraftKey(undefined);
+      setCreateFeatureType(promptType as CreateFeatureType & string);
+      setPromptType(null);
+    }
+  }, [promptType, existingDrafts.length, setCreateFeatureType]);
 
   return (
     <>
@@ -91,7 +143,7 @@ const CreateFeatureDropdown = () => {
             key: item.key,
             icon: <FeatureIcon type={item.key} />,
             label: item.label,
-            onClick: () => setCreateFeatureType(item.key),
+            onClick: () => handleItemClick(item.key),
           })),
         }}
         trigger={["click"]}
@@ -106,9 +158,35 @@ const CreateFeatureDropdown = () => {
           />
         </div>
       </Dropdown>
+
+      <Modal
+        title="Unvollständiger Entwurf"
+        open={showPrompt}
+        onCancel={handlePromptCancel}
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button onClick={handlePromptCancel}>Abbrechen</Button>
+            <Button onClick={handleNewDraft}>Neu erstellen</Button>
+            <Button type="primary" onClick={handleResume}>
+              Fortsetzen
+            </Button>
+          </div>
+        }
+      >
+        <p>
+          Sie haben einen unvollständigen Entwurf für{" "}
+          <strong>{featureLabels[promptType ?? ""] ?? promptType}</strong>.
+          Möchten Sie diesen fortsetzen oder einen neuen erstellen?
+        </p>
+      </Modal>
+
       <CreateFeatureModal
         featureType={createFeatureType}
-        onClose={() => setCreateFeatureType(null)}
+        onClose={() => {
+          setCreateFeatureType(null);
+          setResumeDraftKey(undefined);
+        }}
+        resumeDraftKey={resumeDraftKey}
       />
     </>
   );
