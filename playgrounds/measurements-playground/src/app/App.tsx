@@ -1,7 +1,27 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CarmaMap } from "@carma-mapping/core";
 import type { LibreLayer } from "@carma-mapping/core";
+import { Control, ControlButtonStyler } from "@carma-mapping/map-controls-layout";
+import { Tooltip } from "antd";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faLocationDot,
+  faSlash,
+  faDrawPolygon,
+} from "@fortawesome/free-solid-svg-icons";
 import Menu from "./Menu";
+
+type DrawMode = "none" | "point" | "line" | "polygon";
+
+const DRAW_MODE_BUTTONS: {
+  mode: Exclude<DrawMode, "none">;
+  label: string;
+  icon: typeof faLocationDot;
+}[] = [
+  { mode: "point", label: "Punkt zeichnen", icon: faLocationDot },
+  { mode: "line", label: "Linie zeichnen", icon: faSlash },
+  { mode: "polygon", label: "Polygon zeichnen", icon: faDrawPolygon },
+];
 
 const APP_KEY = "measurements-playground-maplibre";
 const LS_VECTOR_STYLES_KEY = `${APP_KEY}:vector-styles`;
@@ -93,6 +113,9 @@ export function App() {
   const [storedStyles, setStoredStyles] = useState<StoredVectorStyle[]>(
     loadStoredVectorStyles
   );
+  // UI-only for now: clicking a button sets the active mode; clicking the
+  // already-active mode clears it. Not wired to any draw library yet.
+  const [drawMode, setDrawMode] = useState<DrawMode>("none");
 
   // Resolve each stored entry to { name, styleUrl } and own the Blob URL lifecycle.
   const blobUrlsRef = useRef<Set<string>>(new Set());
@@ -257,6 +280,14 @@ export function App() {
         overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
         libreLayers={libreLayers}
         modalMenu={<Menu />}
+        extraControls={
+          <DrawModeControls
+            active={drawMode}
+            onSelect={(mode) =>
+              setDrawMode((prev) => (prev === mode ? "none" : mode))
+            }
+          />
+        }
       />
       <OverlayUI
         layers={resolvedStyles}
@@ -264,6 +295,46 @@ export function App() {
         onRemove={removeStyleAt}
         onQuickLoad={(url) => void loadFromUrl(url)}
       />
+    </>
+  );
+}
+
+function DrawModeControls({
+  active,
+  onSelect,
+}: {
+  active: DrawMode;
+  onSelect: (mode: Exclude<DrawMode, "none">) => void;
+}) {
+  // Each button is its own <Control> so it auto-stacks in the topleft
+  // column alongside CarmaMap's built-in zoom / compass via order.
+  // Built-in topleft orders today: 10 zoom, 20 compass, 30 terrain,
+  // 50 fullscreen, 60 locator. We start at 70.
+  return (
+    <>
+      {DRAW_MODE_BUTTONS.map(({ mode, label, icon }, idx) => {
+        const isActive = active === mode;
+        return (
+          <Control
+            key={mode}
+            position="topleft"
+            order={70 + idx * 10}
+          >
+            <Tooltip title={label} placement="right">
+              <ControlButtonStyler
+                onClick={() => onSelect(mode)}
+                dataTestId={`draw-${mode}-control`}
+                useDisabledStyle={false}
+              >
+                <FontAwesomeIcon
+                  icon={icon}
+                  className={isActive ? "text-[#1677ff]" : ""}
+                />
+              </ControlButtonStyler>
+            </Tooltip>
+          </Control>
+        );
+      })}
     </>
   );
 }
