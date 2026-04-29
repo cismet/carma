@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Modal, Button, message, Tabs } from "antd";
 import type { FormInstance } from "antd";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import proj4 from "proj4";
 import { useLibreContext } from "@carma-mapping/engines/maplibre";
 import { proj4crs4326def } from "@carma-mapping/utils";
@@ -18,11 +18,25 @@ import { getJWT } from "../../store/slices/auth";
 import { prepareSaveValues } from "../../helper/featureFormSaveHelpers";
 import {
   updateDataByClassName,
-  fetchFeatureById,
   fileToBase64,
 } from "../../helper/apiMethods";
 import { uploadDraftFiles } from "../../helper/uploadDraftFiles";
+import {
+  setDraft,
+  removeDraft,
+  setDraftFiles as setDraftFilesAction,
+  getDraft,
+} from "../../store/slices/featuresForms";
 import type { DraftFile } from "../../store/slices/featuresForms";
+import type { RootState } from "../../store";
+import {
+  buildSyntheticFeature,
+  buildSyntheticFetchedData,
+} from "../../helper/buildSyntheticFeature";
+import {
+  serializeValues,
+  deserializeValues,
+} from "../../helper/draftSerialize";
 
 const featureLabels: Record<string, string> = {
   leuchte: "Leuchte",
@@ -80,62 +94,146 @@ const buildGeom = (featureType: string) => {
   return { id: -1, geo_field: HARDCODED_POINT };
 };
 
-interface PendingFile {
-  id: string;
-  file: File;
-  previewUrl: string;
-}
-
 interface CreateFeatureModalProps {
   featureType: CreateFeatureType;
   onClose: () => void;
+  resumeDraftKey?: string;
 }
 
 const CreateFeatureModal = ({
   featureType,
   onClose,
+  resumeDraftKey,
 }: CreateFeatureModalProps) => {
   const label = featureType ? featureLabels[featureType] : "";
   const jwt = useSelector(getJWT) as string | null;
   const { map } = useLibreContext();
   const formRef = useRef<FormInstance | null>(null);
+  const dispatch = useDispatch();
   const [saving, setSaving] = useState(false);
-  const [debugJson, setDebugJson] = useState<string>("{}");
-  const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
+
+  const [draftKey, setDraftKey] = useState<string | null>(null);
 
   useEffect(() => {
-    return () => {
-      pendingFiles.forEach((pf) => URL.revokeObjectURL(pf.previewUrl));
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (featureType) {
+      setDraftKey(
+        resumeDraftKey ??
+          `create:${featureType}:${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+      );
+    } else {
+      setDraftKey(null);
+    }
+  }, [featureType, resumeDraftKey]);
 
-  const handleAddFiles = useCallback((files: File[]) => {
-    const newPending = files.map((file) => ({
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-      file,
-      previewUrl: URL.createObjectURL(file),
-    }));
-    setPendingFiles((prev) => [...prev, ...newPending]);
-  }, []);
+  const draft = useSelector((state: RootState) =>
+    getDraft(state, draftKey ?? undefined)
+  );
+  const draftFiles = draft?.files ?? [];
 
-  const handleRemoveFile = useCallback((id: string) => {
-    setPendingFiles((prev) => {
-      const found = prev.find((f) => f.id === id);
-      if (found) URL.revokeObjectURL(found.previewUrl);
-      return prev.filter((f) => f.id !== id);
-    });
-  }, []);
+  const draftValues = useMemo(
+    () => (draft?.values ? deserializeValues(draft.values) : undefined),
+    [draft?.values]
+  );
 
   const pendingUploads: PendingUpload[] = useMemo(
     () =>
-      pendingFiles.map((pf) => ({
-        id: pf.id,
-        fileName: pf.file.name.replace(/\.[^.]+$/, ""),
-        previewUrl: pf.previewUrl,
-        originalFileName: pf.file.name,
+      draftFiles.map((df) => ({
+        id: df.id,
+        fileName: df.fileName,
+        previewUrl: `data:${df.mimeType};base64,${df.base64Data}`,
+        originalFileName: df.originalFileName,
       })),
-    [pendingFiles]
+    [draftFiles]
+  );
+
+  const dispatchDraft = useCallback(
+    (values: Record<string, unknown>) => {
+      if (!draftKey || !featureType) return;
+      const serialized = serializeValues(values);
+      const geom = buildGeom(featureType).geo_field;
+      dispatch(
+        setDraft({
+          featureId: draftKey,
+          featureType,
+          values: serialized,
+          feature: buildSyntheticFeature(featureType, draftKey, values, geom),
+          fetchedData: buildSyntheticFetchedData(featureType, values),
+          isCreation: true,
+          geometry: geom,
+        })
+      );
+    },
+    [draftKey, featureType, dispatch]
+  );
+
+  const handleValuesChange = useCallback(
+    (_changed: Record<string, unknown>, allValues: Record<string, unknown>) => {
+      dispatchDraft(allValues);
+    },
+    [dispatchDraft]
+  );
+
+  const handleAddFiles = useCallback(
+    async (files: File[]) => {
+      if (!draftKey || !featureType) return;
+      const newDraftFiles: DraftFile[] = await Promise.all(
+        files.map(async (file) => {
+          const dotIdx = file.name.lastIndexOf(".");
+          const nameNoExt =
+            dotIdx > 0 ? file.name.slice(0, dotIdx) : file.name;
+          return {
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+            fileName: nameNoExt,
+            originalFileName: file.name,
+            base64Data: await fileToBase64(file),
+            mimeType: file.type,
+            size: file.size,
+          };
+        })
+      );
+      const updatedFiles = [...draftFiles, ...newDraftFiles];
+      const currentValues = formRef.current?.getFieldsValue() ?? {};
+      const geom = buildGeom(featureType).geo_field;
+      dispatch(
+        setDraftFilesAction({
+          featureId: draftKey,
+          featureType,
+          files: updatedFiles,
+          feature: buildSyntheticFeature(
+            featureType,
+            draftKey,
+            currentValues,
+            geom
+          ),
+          fetchedData: buildSyntheticFetchedData(featureType, currentValues),
+        })
+      );
+    },
+    [draftKey, featureType, draftFiles, dispatch]
+  );
+
+  const handleRemoveFile = useCallback(
+    (id: string) => {
+      if (!draftKey || !featureType) return;
+      const updatedFiles = draftFiles.filter((f) => f.id !== id);
+      const currentValues = formRef.current?.getFieldsValue() ?? {};
+      const geom = buildGeom(featureType).geo_field;
+      dispatch(
+        setDraftFilesAction({
+          featureId: draftKey,
+          featureType,
+          files: updatedFiles,
+          feature: buildSyntheticFeature(
+            featureType,
+            draftKey,
+            currentValues,
+            geom
+          ),
+          fetchedData: buildSyntheticFetchedData(featureType, currentValues),
+        })
+      );
+    },
+    [draftKey, featureType, draftFiles, dispatch]
   );
 
   const handleFlyToGeom = useCallback(() => {
@@ -155,11 +253,6 @@ const CreateFeatureModal = ({
     formRef.current = form;
   }, []);
 
-  const updateDebugJson = useCallback(() => {
-    const vals = formRef.current?.getFieldsValue() ?? {};
-    setDebugJson(JSON.stringify(vals, null, 2));
-  }, []);
-
   const handleCreate = useCallback(async () => {
     if (!featureType || !jwt) return;
 
@@ -167,36 +260,25 @@ const CreateFeatureModal = ({
     if (!className) return;
 
     const rawValues = formRef.current?.getFieldsValue() ?? {};
-    console.log(
-      "[CreateFeature] rawValues:",
-      JSON.stringify(rawValues, null, 2)
-    );
 
     const valuesForPrepare =
       featureType === "leuchte" ? { leuchte: rawValues } : rawValues;
     const prepared = prepareSaveValues(featureType, valuesForPrepare) ?? {};
-    console.log("[CreateFeature] prepared:", JSON.stringify(prepared, null, 2));
 
     setSaving(true);
     try {
       let payload: Record<string, unknown>;
 
       if (featureType === "leuchte") {
-        // Step 1: create a Standort/Mast with geometry
         const mastPayload = {
           id: -1,
           geom: buildGeom("standort"),
         };
-        console.log(
-          "[CreateFeature] step 1 — creating Standort:",
-          JSON.stringify(mastPayload, null, 2)
-        );
         const mastResult = await updateDataByClassName(
           jwt,
           classNames["standort"],
           mastPayload
         );
-        console.log("[CreateFeature] Standort response:", mastResult);
 
         const mastRes = mastResult as { res?: string } | null;
         const parsedMast = mastRes?.res
@@ -208,33 +290,22 @@ const CreateFeatureModal = ({
           throw new Error("Standort erstellt, aber keine ID erhalten");
         }
 
-        // Step 2: create Leuchte referencing the new Standort
         payload = {
           id: -1,
           ...prepared,
           tdta_standort_mast: { id: Number(newMastId) },
         };
-        console.log(
-          "[CreateFeature] step 2 — creating Leuchte:",
-          JSON.stringify(payload, null, 2)
-        );
       } else {
         payload = {
           id: -1,
           ...prepared,
           geom: buildGeom(featureType),
         };
-        console.log(
-          "[CreateFeature] payload:",
-          JSON.stringify(payload, null, 2)
-        );
       }
 
       const result = await updateDataByClassName(jwt, className, payload);
-      console.log("[CreateFeature] server response:", result);
 
-      // Upload pending files if any
-      if (pendingFiles.length > 0) {
+      if (draftFiles.length > 0) {
         const res = result as { res?: string } | null;
         const parsed = res?.res
           ? (JSON.parse(res.res) as { id?: number })
@@ -242,39 +313,21 @@ const CreateFeatureModal = ({
         const newId = parsed?.id;
 
         if (newId) {
-          const draftFilesForUpload: DraftFile[] = await Promise.all(
-            pendingFiles.map(async (pf) => {
-              const dotIdx = pf.file.name.lastIndexOf(".");
-              const nameNoExt =
-                dotIdx > 0 ? pf.file.name.slice(0, dotIdx) : pf.file.name;
-              return {
-                id: pf.id,
-                fileName: nameNoExt,
-                originalFileName: pf.file.name,
-                base64Data: await fileToBase64(pf.file),
-                mimeType: pf.file.type,
-                size: pf.file.size,
-              };
-            })
-          );
-          const uploadedDocs = await uploadDraftFiles(jwt, draftFilesForUpload);
+          const uploadedDocs = await uploadDraftFiles(jwt, draftFiles);
           if (uploadedDocs.length > 0) {
             await updateDataByClassName(jwt, className, {
               id: newId,
               dokumenteArray: uploadedDocs,
             });
-            console.log(
-              "[CreateFeature] documents attached:",
-              uploadedDocs.length
-            );
           }
         }
       }
 
       void message.success(`${label} erstellt`);
+      if (draftKey) {
+        dispatch(removeDraft(draftKey));
+      }
       formRef.current?.resetFields();
-      pendingFiles.forEach((pf) => URL.revokeObjectURL(pf.previewUrl));
-      setPendingFiles([]);
       onClose();
     } catch (err) {
       console.error("[CreateFeature] error:", err);
@@ -286,12 +339,17 @@ const CreateFeatureModal = ({
     } finally {
       setSaving(false);
     }
-  }, [featureType, jwt, label, onClose, pendingFiles]);
+  }, [featureType, jwt, label, onClose, draftFiles, draftKey, dispatch]);
+
+  const handleClose = () => {
+    onClose();
+  };
 
   const handleCancel = () => {
+    if (draftKey) {
+      dispatch(removeDraft(draftKey));
+    }
     formRef.current?.resetFields();
-    pendingFiles.forEach((pf) => URL.revokeObjectURL(pf.previewUrl));
-    setPendingFiles([]);
     onClose();
   };
 
@@ -303,6 +361,8 @@ const CreateFeatureModal = ({
             leuchte={null}
             readOnly={false}
             onFormInstance={handleFormInstance}
+            draftValues={draftValues}
+            onValuesChange={handleValuesChange}
           />
         );
       case "standort":
@@ -311,6 +371,8 @@ const CreateFeatureModal = ({
             mast={null}
             readOnly={false}
             onFormInstance={handleFormInstance}
+            draftValues={draftValues}
+            onValuesChange={handleValuesChange}
           />
         );
       case "leitung":
@@ -319,6 +381,8 @@ const CreateFeatureModal = ({
             leitung={null}
             readOnly={false}
             onFormInstance={handleFormInstance}
+            draftValues={draftValues}
+            onValuesChange={handleValuesChange}
           />
         );
       case "schaltstelle":
@@ -327,6 +391,8 @@ const CreateFeatureModal = ({
             schaltstelle={null}
             readOnly={false}
             onFormInstance={handleFormInstance}
+            draftValues={draftValues}
+            onValuesChange={handleValuesChange}
           />
         );
       case "mauerlasche":
@@ -335,6 +401,8 @@ const CreateFeatureModal = ({
             mauerlasche={null}
             readOnly={false}
             onFormInstance={handleFormInstance}
+            draftValues={draftValues}
+            onValuesChange={handleValuesChange}
           />
         );
       case "abzweigdose":
@@ -357,53 +425,20 @@ const CreateFeatureModal = ({
         </div>
       }
       open={featureType !== null}
-      onCancel={handleCancel}
+      onCancel={handleClose}
       centered
       width={600}
       footer={
-        <div className="flex justify-between pt-2 border-t border-gray-100">
-          <div className="flex gap-2">
-            {/* <Button
-              onClick={async () => {
-                if (!jwt || !map) return;
-                const data = await fetchFeatureById(jwt, 34350, "mast");
-                console.log(
-                  "[TestFetch] Mast 34350:",
-                  JSON.stringify(data, null, 2)
-                );
-                const mast = (data as Record<string, unknown[]>)?.tdta_standort_mast?.[0] as Record<string, unknown> | undefined;
-                const geom = mast?.geom as { geo_field?: { coordinates?: number[] } } | undefined;
-                const coords = geom?.geo_field?.coordinates;
-                if (coords) {
-                  const [lng, lat] = proj4(proj4crs25832def, proj4crs4326def, coords as [number, number]);
-                  map.flyTo({ center: [lng, lat], zoom: 18 });
-                  onClose();
-                }
-              }}
-            >
-              Mast 34350 (fly)
-            </Button>
-            <Button
-              onClick={async () => {
-                if (!jwt) return;
-                const data = await fetchFeatureById(jwt, 34776, "leuchten");
-                console.log(
-                  "[TestFetch] Leuchte 34776:",
-                  JSON.stringify(data, null, 2)
-                );
-              }}
-            >
-              Leuchte 34776
-            </Button> */}
-          </div>
-          <div className="flex gap-2">
-            <Button onClick={handleCancel} disabled={saving}>
-              Abbrechen
-            </Button>
-            <Button type="primary" onClick={handleCreate} loading={saving}>
-              Erstellen
-            </Button>
-          </div>
+        <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
+          <Button onClick={handleCancel} disabled={saving}>
+            Verwerfen
+          </Button>
+          <Button onClick={handleClose} disabled={saving}>
+            Schließen
+          </Button>
+          <Button type="primary" onClick={handleCreate} loading={saving}>
+            Erstellen
+          </Button>
         </div>
       }
       styles={{
@@ -423,7 +458,7 @@ const CreateFeatureModal = ({
           {
             key: "dokumente",
             label: `Dokumente${
-              pendingFiles.length > 0 ? ` (${pendingFiles.length})` : ""
+              draftFiles.length > 0 ? ` (${draftFiles.length})` : ""
             }`,
             children: (
               <div className="pt-2">

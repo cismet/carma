@@ -278,14 +278,9 @@ const LeuchteFormFields = ({
         form.setFieldsValue(draftValues);
       }
     } else if (!readOnly) {
-      form.setFieldsValue({
-        lfd_nummer: 1,
-        leuchtennummer: 1,
-        montagefirma_leuchte: "Testfirma",
-        schaltstelle: "Test Schaltstelle",
-        inbetriebnahme_leuchte: dayjs(),
-        bemerkungen: "Testdaten für Neuanlage",
-      });
+      if (draftValues) {
+        form.setFieldsValue(draftValues);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leuchte, form]);
