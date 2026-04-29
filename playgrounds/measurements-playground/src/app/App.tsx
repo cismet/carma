@@ -2,22 +2,33 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { CarmaMap } from "@carma-mapping/core";
 import type { LibreLayer } from "@carma-mapping/core";
 import { Control, ControlButtonStyler } from "@carma-mapping/map-controls-layout";
+import { useLibreContext } from "@carma-mapping/engines/maplibre";
 import { Tooltip } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
+  faArrowPointer,
   faLocationDot,
   faSlash,
   faDrawPolygon,
 } from "@fortawesome/free-solid-svg-icons";
+import {
+  TerraDraw,
+  TerraDrawPointMode,
+  TerraDrawLineStringMode,
+  TerraDrawPolygonMode,
+  TerraDrawSelectMode,
+} from "terra-draw";
+import { TerraDrawMapLibreGLAdapter } from "terra-draw-maplibre-gl-adapter";
 import Menu from "./Menu";
 
-type DrawMode = "none" | "point" | "line" | "polygon";
+type DrawMode = "none" | "select" | "point" | "line" | "polygon";
 
 const DRAW_MODE_BUTTONS: {
   mode: Exclude<DrawMode, "none">;
   label: string;
   icon: typeof faLocationDot;
 }[] = [
+  { mode: "select", label: "Auswählen / bearbeiten", icon: faArrowPointer },
   { mode: "point", label: "Punkt zeichnen", icon: faLocationDot },
   { mode: "line", label: "Linie zeichnen", icon: faSlash },
   { mode: "polygon", label: "Polygon zeichnen", icon: faDrawPolygon },
@@ -289,6 +300,7 @@ export function App() {
           />
         }
       />
+      <TerraDrawIntegration mode={drawMode} />
       <OverlayUI
         layers={resolvedStyles}
         onClear={clearAllStyles}
@@ -299,6 +311,103 @@ export function App() {
   );
 }
 
+function drawModeToTerraDraw(
+  mode: DrawMode
+): "select" | "point" | "linestring" | "polygon" | "static" {
+  switch (mode) {
+    case "select":
+      return "select";
+    case "point":
+      return "point";
+    case "line":
+      return "linestring";
+    case "polygon":
+      return "polygon";
+    case "none":
+    default:
+      return "static";
+  }
+}
+
+function TerraDrawIntegration({ mode }: { mode: DrawMode }) {
+  const { map } = useLibreContext();
+  const drawRef = useRef<TerraDraw | null>(null);
+  // Latest mode captured by ref so the init effect can apply it without
+  // re-running on every mode change.
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
+
+  // (Re)create TerraDraw whenever the maplibre map instance becomes available.
+  useEffect(() => {
+    if (!map) return;
+
+    const init = () => {
+      const draw = new TerraDraw({
+        adapter: new TerraDrawMapLibreGLAdapter({ map }),
+        modes: [
+          new TerraDrawPointMode(),
+          new TerraDrawLineStringMode(),
+          new TerraDrawPolygonMode(),
+          new TerraDrawSelectMode({
+            // Fully-editable defaults: drag the feature, drag/delete vertices,
+            // add midpoints. Same shape Terra Draw's docs use as the canonical
+            // example.
+            flags: {
+              point: { feature: { draggable: true } },
+              linestring: {
+                feature: {
+                  draggable: true,
+                  coordinates: {
+                    midpoints: true,
+                    draggable: true,
+                    deletable: true,
+                  },
+                },
+              },
+              polygon: {
+                feature: {
+                  draggable: true,
+                  coordinates: {
+                    midpoints: true,
+                    draggable: true,
+                    deletable: true,
+                  },
+                },
+              },
+            },
+          }),
+        ],
+      });
+      draw.start();
+      draw.setMode(drawModeToTerraDraw(modeRef.current));
+      drawRef.current = draw;
+    };
+
+    if (map.isStyleLoaded()) {
+      init();
+    } else {
+      map.once("style.load", init);
+    }
+
+    return () => {
+      map.off("style.load", init);
+      if (drawRef.current) {
+        drawRef.current.stop();
+        drawRef.current = null;
+      }
+    };
+  }, [map]);
+
+  // React to mode changes after init.
+  useEffect(() => {
+    const draw = drawRef.current;
+    if (!draw) return;
+    draw.setMode(drawModeToTerraDraw(mode));
+  }, [mode]);
+
+  return null;
+}
+
 function DrawModeControls({
   active,
   onSelect,
@@ -306,25 +415,35 @@ function DrawModeControls({
   active: DrawMode;
   onSelect: (mode: Exclude<DrawMode, "none">) => void;
 }) {
-  // Each button is its own <Control> so it auto-stacks in the topleft
-  // column alongside CarmaMap's built-in zoom / compass via order.
+  // All draw-mode buttons live inside a single <Control> so they render as
+  // one fused button group (same pattern apps/geoportal MapWrapper uses for
+  // the compass + 3D-toggle pair, and for the +/- zoom pair).
   // Built-in topleft orders today: 10 zoom, 20 compass, 30 terrain,
-  // 50 fullscreen, 60 locator. We start at 70.
+  // 50 fullscreen, 60 locator. The whole draw group sits at order 70.
+  const last = DRAW_MODE_BUTTONS.length - 1;
   return (
-    <>
-      {DRAW_MODE_BUTTONS.map(({ mode, label, icon }, idx) => {
-        const isActive = active === mode;
-        return (
-          <Control
-            key={mode}
-            position="topleft"
-            order={70 + idx * 10}
-          >
-            <Tooltip title={label} placement="right">
+    <Control position="topleft" order={70}>
+      <div className="flex flex-col">
+        {DRAW_MODE_BUTTONS.map(({ mode, label, icon }, idx) => {
+          const isActive = active === mode;
+          // First: square bottom + drop bottom border (next button supplies it).
+          // Middle: square both ends + drop bottom border + thin top border.
+          // Last: square top + thin top border.
+          let groupClass: string;
+          if (idx === 0) {
+            groupClass = "!border-b-0 !rounded-b-none";
+          } else if (idx === last) {
+            groupClass = "!rounded-t-none !border-t-[1px]";
+          } else {
+            groupClass = "!rounded-none !border-t-[1px] !border-b-0";
+          }
+          return (
+            <Tooltip key={mode} title={label} placement="right">
               <ControlButtonStyler
                 onClick={() => onSelect(mode)}
                 dataTestId={`draw-${mode}-control`}
                 useDisabledStyle={false}
+                className={groupClass}
               >
                 <FontAwesomeIcon
                   icon={icon}
@@ -332,10 +451,10 @@ function DrawModeControls({
                 />
               </ControlButtonStyler>
             </Tooltip>
-          </Control>
-        );
-      })}
-    </>
+          );
+        })}
+      </div>
+    </Control>
   );
 }
 
