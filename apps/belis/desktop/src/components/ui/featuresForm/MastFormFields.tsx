@@ -221,15 +221,9 @@ const MastFormFields = ({
         form.setFieldsValue(draftValues);
       }
     } else if (!readOnly) {
-      form.setFieldsValue({
-        lfd_nummer: 1,
-        haus_nr: "001",
-        standortangabe: "Teststandort",
-        montagefirma: "Testfirma",
-        inbetriebnahme_mast: dayjs(),
-        verrechnungseinheit: true,
-        bemerkungen: "Testdaten für Neuanlage",
-      });
+      if (draftValues) {
+        form.setFieldsValue(draftValues);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mast, form]);
