@@ -710,6 +710,19 @@ const BelisMapLibWrapper = ({
       //   fallback: !selectedFeature,
       // });
 
+      // Creation drafts have synthetic fetchedData — skip API fetch
+      const featureIdStr = String(featureId ?? "");
+      if (featureIdStr.startsWith("create:")) {
+        const creationDraft =
+          store.getState().featuresForms?.drafts[featureIdStr];
+        if (creationDraft?.fetchedData) {
+          setFetchedFeatureData(creationDraft.fetchedData);
+        } else {
+          setFetchedFeatureData(null);
+        }
+        return;
+      }
+
       const apiFeatureType = SOURCE_LAYER_TO_FEATURE_TYPE[sourceLayer ?? ""];
       if (!apiFeatureType || !featureId) {
         // Not a known BeLIS layer (e.g. ALKIS background); clear stale data
@@ -2296,6 +2309,16 @@ const BelisMapLibWrapper = ({
       feature: SidebarFeature
     ) => {
       if (sidebarMode === "drafts") {
+        // Creation drafts have no MVT tile feature — select directly
+        if (feature.properties?._isCreation) {
+          dispatch(
+            setSelectedFeature({ ...feature, selected: true })
+          );
+          selectFeature(identifier, feature as any);
+          setFeatureOnMap(true);
+          return;
+        }
+
         const sl = identifier.sourceLayer ?? "";
         const dbPK = String(feature.properties?.id ?? identifier.id);
 
@@ -2341,6 +2364,9 @@ const BelisMapLibWrapper = ({
       // Filter it out to get the remaining drafts.
       const remaining = allDraftFeatures.filter(({ feature }) => {
         if (!feature) return false;
+        if (feature.properties?._isCreation) {
+          return String(feature.properties.id) !== removedFeatureId;
+        }
         const sl = feature.sourceLayer ?? "";
         const pk = String(feature.properties?.id ?? "");
         return `${sl}:${pk}` !== removedFeatureId;
@@ -2622,6 +2648,11 @@ const BelisMapLibWrapper = ({
                     selectedFeature?.carmaInfo?.sourceLayer ||
                     selectedFeatureId?.sourceLayer ||
                     lastFeatureType
+                  }
+                  readOnly={
+                    rawFeature?.properties?._isCreation
+                      ? false
+                      : !globalEditMode
                   }
                   featureOnMap={featureOnMap}
                   onSelectNextDraft={handleSelectNextDraft}
