@@ -66,9 +66,9 @@ export const tkeyUnterhaltLeuchteQuery = gql`
   ${queries.tkey_unterh_leuchte}
 `;
 
-// export const tkeyStrassenschluesselQuery = gql`
-//   ${queries.tkey_strassenschluessel}
-// `;
+export const tkeyStrassenschluesselQuery = gql`
+  ${queries.tkey_strassenschluessel}
+`;
 
 export const tkeyEnergielieferantQuery = gql`
   ${queries.tkey_energielieferant}
