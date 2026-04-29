@@ -1,9 +1,18 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
+import {
+  useState,
+  useCallback,
+  useMemo,
+  useEffect,
+  createContext,
+  useContext,
+} from "react";
 import { useSelector, useDispatch } from "react-redux";
+import { message } from "antd";
 import { featureFormRegistry } from "./index";
 import {
   getSelectedFeature,
   getFeatureDataVersion,
+  incrementFeatureDataVersion,
 } from "../../../store/slices/featureCollection";
 import {
   getDraft,
@@ -20,6 +29,7 @@ import {
   getGlobalEditMode,
   isCreationDraftKey,
 } from "../../../store/slices/featuresForms";
+import { getJWT } from "../../../store/slices/auth";
 import type { DokumentItem } from "../DocumentPreview";
 import { ChangedFieldsProvider } from "./DraftFieldHighlight";
 import type { DraftFile } from "../../../store/slices/featuresForms";
@@ -28,6 +38,16 @@ import {
   serializeValues,
   deserializeValues,
 } from "../../../helper/draftSerialize";
+import { saveFeatureDraft } from "../../../helper/featureFormSaveHelpers";
+
+interface SingleSaveContext {
+  onSaveSingle?: () => Promise<void>;
+  savingSingle: boolean;
+}
+
+const SingleSaveCtx = createContext<SingleSaveContext>({ savingSingle: false });
+
+export const useSingleSave = () => useContext(SingleSaveCtx);
 
 interface FeaturesFormsWrapperProps {
   featureType?: string;
@@ -139,9 +159,11 @@ const FeaturesFormsWrapper = ({
     [removedDocKeys]
   );
 
+  const jwt = useSelector(getJWT) as string | null;
   const featureDataVersion = useSelector(getFeatureDataVersion);
   const globalEditMode = useSelector(getGlobalEditMode);
   const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [resetKey, setResetKey] = useState(0);
   const effectiveReadOnly = readOnlyProp && !isEditing && !globalEditMode;
 
@@ -221,6 +243,42 @@ const FeaturesFormsWrapper = ({
     setIsEditing(false);
   }, [featureId, dispatch, draft?.values]);
 
+  const handleServerSave = useCallback(async () => {
+    if (!jwt) {
+      void message.error("Nicht authentifiziert");
+      return;
+    }
+    if (!featureId || !draft) return;
+
+    setSaving(true);
+    try {
+      const result = await saveFeatureDraft(jwt, featureId, draft);
+      if (result.success) {
+        dispatch(removeDraft(featureId));
+        dispatch(incrementFeatureDataVersion());
+        void message.success("Gespeichert");
+        if (isCreation) {
+          onSelectNextDraft?.(featureId);
+        } else {
+          setIsEditing(false);
+          setResetKey((prev) => prev + 1);
+        }
+      } else {
+        void message.error(
+          `Fehler beim Speichern: ${result.error ?? "Unbekannter Fehler"}`
+        );
+      }
+    } catch (err) {
+      void message.error(
+        `Fehler beim Speichern: ${
+          err instanceof Error ? err.message : "Unbekannter Fehler"
+        }`
+      );
+    } finally {
+      setSaving(false);
+    }
+  }, [jwt, featureId, draft, isCreation, dispatch, onSelectNextDraft]);
+
   const handleDraftChange = useCallback(
     (values: Record<string, unknown>) => {
       if (featureId && formKey) {
@@ -283,38 +341,48 @@ const FeaturesFormsWrapper = ({
     [featureId, formKey, dispatch, draftFeature, data]
   );
 
+  const singleSaveValue = useMemo(
+    () => ({
+      onSaveSingle: draft ? handleServerSave : undefined,
+      savingSingle: saving,
+    }),
+    [draft, handleServerSave, saving]
+  );
+
   if (FormComponent) {
     return (
-      <ChangedFieldsProvider
-        originalValues={originalValues}
-        draftValues={draft?.values}
-      >
-        <div className="h-full">
-          {isCreation && (
-            <div className="bg-green-50 border border-green-200 text-green-800 text-sm px-3 py-2 rounded mb-2">
-              Neuer Entwurf — noch nicht gespeichert
-            </div>
-          )}
-          <FormComponent
-            key={resetKey}
-            data={data}
-            rawFeature={rawFeature}
-            readOnly={effectiveReadOnly}
-            loading={loading}
-            draftValues={deserializedDraftValues}
-            draftFiles={draftFiles}
-            hasDraft={isCreation || hasChanges}
-            onDraftChange={handleDraftChange}
-            onDraftFilesChange={handleDraftFilesChange}
-            onOriginalValues={handleOriginalValues}
-            onToggleReadOnly={handleToggleReadOnly}
-            onCancel={handleCancel}
-            onSaveComplete={handleSaveComplete}
-            removedDocumentKeys={removedDocumentKeys}
-            onRemovedDocumentKeysChange={handleRemovedDocumentKeysChange}
-          />
-        </div>
-      </ChangedFieldsProvider>
+      <SingleSaveCtx.Provider value={singleSaveValue}>
+        <ChangedFieldsProvider
+          originalValues={originalValues}
+          draftValues={draft?.values}
+        >
+          <div className="h-full">
+            {isCreation && (
+              <div className="bg-green-50 border border-green-200 text-green-800 text-sm px-3 py-2 rounded mb-2">
+                Neuer Entwurf — noch nicht gespeichert
+              </div>
+            )}
+            <FormComponent
+              key={resetKey}
+              data={data}
+              rawFeature={rawFeature}
+              readOnly={effectiveReadOnly}
+              loading={loading}
+              draftValues={deserializedDraftValues}
+              draftFiles={draftFiles}
+              hasDraft={isCreation || hasChanges}
+              onDraftChange={handleDraftChange}
+              onDraftFilesChange={handleDraftFilesChange}
+              onOriginalValues={handleOriginalValues}
+              onToggleReadOnly={handleToggleReadOnly}
+              onCancel={handleCancel}
+              onSaveComplete={handleSaveComplete}
+              removedDocumentKeys={removedDocumentKeys}
+              onRemovedDocumentKeysChange={handleRemovedDocumentKeysChange}
+            />
+          </div>
+        </ChangedFieldsProvider>
+      </SingleSaveCtx.Provider>
     );
   }
 };
