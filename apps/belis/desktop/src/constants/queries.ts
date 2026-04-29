@@ -1422,14 +1422,14 @@ query MyQuery {
   }
 }`;
 
-// queries.tkey_strassenschluessel = `
-// query MyQuery {
-//   tkey_strassenschluessel {
-//     id
-//     pk
-//     strasse
-//   }
-// }`;
+queries.tkey_strassenschluessel = `
+query MyQuery {
+  tkey_strassenschluessel {
+    id
+    pk
+    strasse
+  }
+}`;
 
 queries.tkey_energielieferant = `
 query MyQuery {
