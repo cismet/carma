@@ -1,8 +1,11 @@
 export type {
+  AnnotationInfoBoxActionIconRenderProps,
+  AnnotationInfoBoxActionId,
   AnnotationInfoBoxLayoutProps,
   AnnotationInfoBoxSlots,
   AnnotationInfoBoxVisualOptions,
 } from "./lib/annotation-info-box.types";
+export { ANNOTATION_INFO_BOX_ACTION_IDS } from "./lib/annotation-info-box.types";
 export {
   annotationInfoBoxVisualDefaults,
   resolveAnnotationInfoBoxVisualOptions,

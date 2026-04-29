@@ -86,6 +86,7 @@ export const annotationInfoBoxVisualDefaults: AnnotationInfoBoxVisualOptions =
       color: COLORS_HEX.ACCENT_NEUTRALS,
     },
     subtitleMetaTextClassName: `mt-[0.08em] whitespace-nowrap text-[${annotationInfoBoxTypographyDefaults.supportFontSizeRem}] leading-[1.1] font-semibold`,
+    showSubtitleMetaText: true,
     bodyContainerClassName: "px-2 pb-2 pt-1",
     bodyTextStyle: {
       fontSize: annotationInfoBoxTypographyDefaults.rootFontSizeRem,
@@ -103,6 +104,7 @@ export const annotationInfoBoxVisualDefaults: AnnotationInfoBoxVisualOptions =
     actionIconColor: COLORS_HEX.ACCENT_NEUTRALS,
     actionIconHoverColor: COLORS_HEX.ACCENT_NEUTRALS_HOVER,
     actionIconFontSize: "1rem",
+    hiddenActionIds: [],
     fieldTextClassName: `text-[${annotationInfoBoxColorPalette.fieldText}]`,
     fieldBorderClassName: `border-[${annotationInfoBoxUiDefaults.hairlineBorderWidthRem}] border-[${annotationInfoBoxColorPalette.fieldBorder}]`,
     fieldInputBorderClassName: `border-[${annotationInfoBoxUiDefaults.hairlineBorderWidthRem}] border-[${annotationInfoBoxColorPalette.fieldInputBorder}]`,

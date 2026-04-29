@@ -16,6 +16,7 @@ import type {
   AnnotationsStoreState,
   AddAnnotationOptions,
   StoredAnnotation,
+  AnnotationElevationDisplayMode,
   CesiumGeographicCoordinate,
   AnnotationEdge,
   AnnotationNodeLink,
@@ -144,7 +145,10 @@ export type AnnotationToolVisualModelContext = {
   isSelectionAdditiveModifierPressed: boolean;
   setSelectedAnnotationId: (annotationId: string | null) => void;
   setElevationReferenceAnnotationId: (annotationId: string | null) => void;
-  toggleAnnotationElevationDisplayMode: (annotationId: string) => void;
+  toggleAnnotationElevationDisplayMode: (
+    annotationId: string,
+    currentElevationDisplayMode?: AnnotationElevationDisplayMode
+  ) => void;
   onNodeLongPress?: (nodeId: string, measurementId: string) => void;
   formatOptions: AnnotationsRuntimeFormatOptions;
 };

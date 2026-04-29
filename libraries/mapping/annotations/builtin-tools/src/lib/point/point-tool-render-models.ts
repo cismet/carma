@@ -2,6 +2,7 @@ import type { AnnotationsRuntimeFormatOptions } from "@carma-mapping/annotations
 import type {
   StoredAnnotation,
   AnnotationNode,
+  AnnotationElevationDisplayMode,
 } from "@carma-mapping/annotations/runtime";
 import type {
   PointMarkerVisualStyle,
@@ -15,7 +16,6 @@ import {
 } from "@carma-mapping/annotations/runtime";
 import {
   formatPointElevationLabelText,
-  resolvePointElevationDisplayMode,
   resolvePointElevationReferenceCoordinate,
 } from "./point-tool-elevation-display";
 import { typographyDefaults } from "@carma-mapping/annotations/runtime";
@@ -40,7 +40,10 @@ type BuildPointToolRenderModelsArgs = {
   selectedMeasurementIds: readonly string[];
   isSelectionAdditiveModifierPressed: boolean;
   onMeasurementSelect: (measurementId: string) => void;
-  onMeasurementLabelClick: (measurementId: string) => void;
+  onMeasurementLabelClick: (
+    measurementId: string,
+    elevationDisplayMode: AnnotationElevationDisplayMode
+  ) => void;
   onMeasurementLabelDoubleClick: (measurementId: string) => void;
   onNodeLongPress?: (nodeId: string, measurementId: string) => void;
 };
@@ -73,6 +76,12 @@ export const buildPointToolRenderModels = ({
     (measurement) => !measurement.hidden
   );
   const draftCoordinates = draft?.coordinates ?? [];
+  const totalPointMeasurementCount =
+    pointMeasurements.length + draftCoordinates.length;
+  const defaultElevationDisplayMode =
+    totalPointMeasurementCount > 1
+      ? ANNOTATION_ELEVATION_DISPLAY_MODES.RELATIVE
+      : ANNOTATION_ELEVATION_DISPLAY_MODES.ABSOLUTE;
   const selectedMeasurementIdSet = new Set(selectedMeasurementIds);
   const referenceCoordinate = resolvePointElevationReferenceCoordinate({
     annotationEntries: pointMeasurements,
@@ -100,10 +109,12 @@ export const buildPointToolRenderModels = ({
 
         const badgeText =
           measurement.shortLabel?.trim() || getMeasurementLabel(pointIndex + 1);
+        const elevationDisplayMode =
+          measurement.elevationDisplayMode ?? defaultElevationDisplayMode;
         const elevationText = formatPointElevationLabelText({
           coordinate,
           referenceCoordinate,
-          elevationDisplayMode: resolvePointElevationDisplayMode(measurement),
+          elevationDisplayMode,
           formatOptions,
         });
 
@@ -135,7 +146,7 @@ export const buildPointToolRenderModels = ({
             selected: isSelected,
             onClick: () => {
               if (isSelected && !isSelectionAdditiveModifierPressed) {
-                onMeasurementLabelClick(measurement.id);
+                onMeasurementLabelClick(measurement.id, elevationDisplayMode);
               }
               onMeasurementSelect(measurement.id);
             },
@@ -157,7 +168,7 @@ export const buildPointToolRenderModels = ({
         const elevationText = formatPointElevationLabelText({
           coordinate,
           referenceCoordinate,
-          elevationDisplayMode: ANNOTATION_ELEVATION_DISPLAY_MODES.RELATIVE,
+          elevationDisplayMode: defaultElevationDisplayMode,
           formatOptions,
         });
         const labelColorScheme = labelTheme.scheme;

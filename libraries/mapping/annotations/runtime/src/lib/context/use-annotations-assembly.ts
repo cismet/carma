@@ -425,7 +425,12 @@ export const useAnnotationsAssembly = ({
   );
 
   const toggleAnnotationElevationDisplayMode = useCallback(
-    (annotationId: string) => {
+    (
+      annotationId: string,
+      currentElevationDisplayMode?: NonNullable<
+        StoredAnnotation["elevationDisplayMode"]
+      >
+    ) => {
       const targetEntry = findAnnotationEntryById(
         annotationsStore.getState().annotationEntries,
         annotationId
@@ -438,7 +443,7 @@ export const useAnnotationsAssembly = ({
         updateAnnotationEntryById({
           annotationId,
           elevationDisplayMode: resolveNextElevationDisplayMode(
-            targetEntry.elevationDisplayMode
+            currentElevationDisplayMode ?? targetEntry.elevationDisplayMode
           ),
         })
       );

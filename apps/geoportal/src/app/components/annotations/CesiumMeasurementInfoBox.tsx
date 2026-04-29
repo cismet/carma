@@ -1,248 +1,69 @@
-import { useMemo } from "react";
 import { useSelector } from "react-redux";
-import { ResponsiveInfoBox } from "@carma-appframeworks/portals";
+
 import {
-  AnnotationInfoBoxContainer,
-  AnnotationInfoBoxTextContent,
-  type AnnotationInfoBoxLayoutProps,
-  type AnnotationInfoBoxSlots,
-  resolveAnnotationInfoBoxVisualOptions,
-} from "@carma-mapping/annotations/ui";
+  CISMAP_MEASUREMENT_INFO_BOX_VISUAL_OPTIONS,
+  CismapAnnotationInfoBox,
+  CismapAnnotationInstructionInfoBox,
+} from "@carma-appframeworks/portals";
+import { AnnotationInfoBoxContainer } from "@carma-mapping/annotations/ui";
 import {
+  RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS,
   type AnnotationToolId,
-  resolveAnnotationToolFallbackPlugin,
-  RuntimeAnnotationInfoBox,
-  type RuntimeAnnotationInfoBoxContext,
-  useAnnotationsRuntime,
+  type RuntimeAnnotationInfoBoxVisualOptionsContext,
+  type StoredAnnotation,
+  useRuntimeAnnotationInfoBoxSlots,
 } from "@carma-mapping/annotations/runtime";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
+
+import { CESIUM_ANNOTATION_CONFIG } from "../../config/app.config";
+import { shouldShowCesiumMeasurementInfoBox } from "../../helper/cesium-measurement-info-box";
 import { getLayers } from "../../store/slices/mapping";
 import { getUIMode } from "../../store/slices/ui";
-import { shouldShowCesiumMeasurementInfoBox } from "../../helper/cesium-measurement-info-box";
-import { CESIUM_ANNOTATION_CONFIG } from "../../config/app.config";
 
-const GEOPORTAL_LEGACY_INFO_BOX_HELP_TOOL_IDS = new Set<AnnotationToolId>([
+const CISMAP_INFO_BOX_INSTRUCTION_TOOL_IDS = new Set<AnnotationToolId>([
   "select",
   "point",
   "distance",
 ]);
 
-const GEOPORTAL_LEGACY_INFO_BOX_MEASUREMENT_TOOL_IDS = new Set<
-  RuntimeAnnotationInfoBoxContext["annotation"]["toolType"]
+const CISMAP_INFO_BOX_MEASUREMENT_TOOL_TYPES = new Set<
+  StoredAnnotation["toolType"]
 >(["point", "distance"]);
 
-const GeoportalLegacyAnnotationInfoBox = ({
-  pixelWidth,
-  slots,
-  visualOptions,
-}: Pick<AnnotationInfoBoxLayoutProps, "pixelWidth" | "visualOptions"> & {
-  slots: AnnotationInfoBoxSlots;
-}) => {
-  const resolvedVisualOptions =
-    resolveAnnotationInfoBoxVisualOptions(visualOptions);
-  const headingTitle = slots.headingTitle.trim();
-
-  return (
-    <div data-test-id="annotation-info-box">
-      <ResponsiveInfoBox
-        pixelwidth={pixelWidth ?? resolvedVisualOptions.defaultPixelWidth}
-        panelClick={(event) => event.stopPropagation()}
-        header={
-          <div
-            className="w-full"
-            style={{
-              backgroundColor:
-                slots.headingColor ?? resolvedVisualOptions.headingColor,
-            }}
-          >
-            Messungen
-          </div>
-        }
-        alwaysVisibleDiv={
-          <div className="mt-2 mb-2 w-[96%]">
-            {slots.subtitle ?? (
-              <span className="text-base font-semibold">{headingTitle}</span>
-            )}
-          </div>
-        }
-        collapsibleDiv={
-          <div>
-            {slots.content}
-            {slots.footer}
-          </div>
-        }
-        isCollapsible={slots.collapsible ?? true}
-        fixedRow={true}
-      />
-    </div>
-  );
-};
-
-const GeoportalLegacyAnnotationInstructionInfoBox = ({
-  helpText,
-}: {
-  helpText: readonly string[];
-}) => {
-  const instructionText = helpText.join(" ");
-
-  return (
-    <div data-test-id="annotation-info-box">
-      <ResponsiveInfoBox
-        pixelwidth={350}
-        panelClick={(event) => event.stopPropagation()}
-        header=""
-        isCollapsible={false}
-        alwaysVisibleDiv={
-          <div
-            className="mt-2 w-[90%] p-2"
-            data-test-id="empty-measurement-info"
-          >
-            <p className="text-[#212529] font-normal text-xs leading-normal">
-              {instructionText}
-            </p>
-          </div>
-        }
-        collapsibleDiv={<div />}
-        fixedRow={false}
-      />
-    </div>
-  );
-};
+const resolveGeoportalCismapInfoBoxVisualOptions = (
+  context: RuntimeAnnotationInfoBoxVisualOptionsContext
+) => ({
+  ...CISMAP_MEASUREMENT_INFO_BOX_VISUAL_OPTIONS,
+  showSubtitleMetaText:
+    context.kind !== RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS.ANNOTATION ||
+    context.annotation.toolType !== "distance",
+});
 
 const CesiumMeasurementInfoBox = () => {
   const { isCesium } = useMapFrameworkSwitcherContext();
   const uiMode = useSelector(getUIMode);
   const layers = useSelector(getLayers);
-  const {
-    registry,
-    activeToolType,
-    annotationEntries,
-    formatOptions,
-    nodes,
-    selectedAnnotationId,
-    setSelectedAnnotationId,
-    focusAnnotationId,
-    flyToAllAnnotations,
-    removeAnnotationById,
-    exportAnnotationGeoJson,
-    toggleAnnotationVisibility,
-    toggleAnnotationLocked,
-    elevationReferenceAnnotationId,
-    setElevationReferenceAnnotationId,
-    updateAnnotationDisplayName,
-    updateAnnotationShortLabel,
-  } = useAnnotationsRuntime();
+  const infoBoxState = useRuntimeAnnotationInfoBoxSlots({
+    includeFallback: true,
+    visualOptions: resolveGeoportalCismapInfoBoxVisualOptions,
+  });
   const annotationsVisible = shouldShowCesiumMeasurementInfoBox({
     isCesium,
     layers,
     uiMode,
   });
-  const resolvedVisualOptions = useMemo(
-    () => resolveAnnotationInfoBoxVisualOptions(),
-    []
-  );
 
-  const fallbackPlugin = useMemo(() => {
-    return resolveAnnotationToolFallbackPlugin({
-      activeToolType,
-      registry,
-    });
-  }, [activeToolType, registry]);
-
-  const selectedAnnotation = useMemo(() => {
-    if (!selectedAnnotationId) {
-      return null;
-    }
-
-    return (
-      annotationEntries.find(
-        (annotationEntry) => annotationEntry.id === selectedAnnotationId
-      ) ?? null
-    );
-  }, [annotationEntries, selectedAnnotationId]);
-
-  const selectedAnnotationSlots = useMemo(() => {
-    if (
-      !selectedAnnotation ||
-      !GEOPORTAL_LEGACY_INFO_BOX_MEASUREMENT_TOOL_IDS.has(
-        selectedAnnotation.toolType
-      )
-    ) {
-      return null;
-    }
-
-    const plugin = registry
-      .getPluginsByAnnotationType(selectedAnnotation.toolType)
-      .find((candidatePlugin) => candidatePlugin.infoBox?.getSlots);
-
-    if (!plugin?.infoBox?.getSlots) {
-      return null;
-    }
-
-    return plugin.infoBox.getSlots({
-      annotation: selectedAnnotation,
-      annotationEntries,
-      nodes,
-      selectedAnnotationId: selectedAnnotation.id,
-      setSelectedAnnotationId,
-      focusAnnotationId,
-      flyToAllAnnotations,
-      removeAnnotationById,
-      exportAnnotationGeoJson,
-      toggleAnnotationVisibility,
-      toggleAnnotationLocked,
-      elevationReferenceAnnotationId,
-      setElevationReferenceAnnotationId,
-      updateAnnotationDisplayName,
-      updateAnnotationShortLabel,
-      formatOptions,
-      infoBoxVisualOptions: resolvedVisualOptions,
-    });
-  }, [
-    annotationEntries,
-    elevationReferenceAnnotationId,
-    exportAnnotationGeoJson,
-    flyToAllAnnotations,
-    focusAnnotationId,
-    formatOptions,
-    nodes,
-    registry,
-    removeAnnotationById,
-    resolvedVisualOptions,
-    selectedAnnotation,
-    setElevationReferenceAnnotationId,
-    setSelectedAnnotationId,
-    toggleAnnotationLocked,
-    toggleAnnotationVisibility,
-    updateAnnotationDisplayName,
-    updateAnnotationShortLabel,
-  ]);
-
-  if (!annotationsVisible) {
+  if (!annotationsVisible || !infoBoxState) {
     return null;
   }
 
-  if (!selectedAnnotationId && fallbackPlugin?.helpText?.length) {
-    const fallbackSlots = {
-      headingTitle: fallbackPlugin.descriptor.label,
-      content: (
-        <AnnotationInfoBoxTextContent visualOptions={resolvedVisualOptions}>
-          <div className="space-y-2 pt-2">
-            {fallbackPlugin.helpText.map((line) => (
-              <p key={line}>{line}</p>
-            ))}
-          </div>
-        </AnnotationInfoBoxTextContent>
-      ),
-      collapsible: true,
-    } satisfies AnnotationInfoBoxSlots;
-
-    if (
-      GEOPORTAL_LEGACY_INFO_BOX_HELP_TOOL_IDS.has(fallbackPlugin.descriptor.id)
-    ) {
+  if (
+    infoBoxState.kind === RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS.FALLBACK
+  ) {
+    if (CISMAP_INFO_BOX_INSTRUCTION_TOOL_IDS.has(infoBoxState.plugin.id)) {
       return (
-        <GeoportalLegacyAnnotationInstructionInfoBox
-          helpText={fallbackPlugin.helpText}
+        <CismapAnnotationInstructionInfoBox
+          content={infoBoxState.slots.content}
         />
       );
     }
@@ -250,27 +71,31 @@ const CesiumMeasurementInfoBox = () => {
     return (
       <AnnotationInfoBoxContainer
         {...CESIUM_ANNOTATION_CONFIG.infoBox}
-        visualOptions={resolvedVisualOptions}
-        slots={fallbackSlots}
+        slots={infoBoxState.slots}
+        visualOptions={infoBoxState.visualOptions}
       />
     );
   }
 
-  if (!selectedAnnotationId) {
-    return null;
-  }
-
-  if (selectedAnnotationSlots) {
+  if (
+    CISMAP_INFO_BOX_MEASUREMENT_TOOL_TYPES.has(infoBoxState.annotation.toolType)
+  ) {
     return (
-      <GeoportalLegacyAnnotationInfoBox
-        {...CESIUM_ANNOTATION_CONFIG.infoBox}
-        visualOptions={resolvedVisualOptions}
-        slots={selectedAnnotationSlots}
+      <CismapAnnotationInfoBox
+        pixelWidth={CESIUM_ANNOTATION_CONFIG.infoBox.pixelWidth}
+        slots={infoBoxState.slots}
+        visualOptions={infoBoxState.visualOptions}
       />
     );
   }
 
-  return <RuntimeAnnotationInfoBox {...CESIUM_ANNOTATION_CONFIG.infoBox} />;
+  return (
+    <AnnotationInfoBoxContainer
+      {...CESIUM_ANNOTATION_CONFIG.infoBox}
+      slots={infoBoxState.slots}
+      visualOptions={infoBoxState.visualOptions}
+    />
+  );
 };
 
 export default CesiumMeasurementInfoBox;

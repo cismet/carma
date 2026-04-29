@@ -5,6 +5,7 @@ import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runt
 import type { PreviewLineLabelVisualOptions } from "../config/preview-line-label-visual-defaults";
 import { useAnnotationToolDraftStates } from "./use-annotation-tool-draft-states";
 import {
+  type AnnotationElevationDisplayMode,
   type AnnotationsStore,
   selectSelectedAnnotationId,
   useAnnotationsSelector,
@@ -29,7 +30,10 @@ type RuntimeVisualHostProps = {
   annotationsStore: AnnotationsStore;
   annotationToolDraftStore: AnnotationToolDraftStore;
   setElevationReferenceAnnotationId: (annotationId: string | null) => void;
-  toggleAnnotationElevationDisplayMode: (annotationId: string) => void;
+  toggleAnnotationElevationDisplayMode: (
+    annotationId: string,
+    currentElevationDisplayMode?: AnnotationElevationDisplayMode
+  ) => void;
   onActiveMoveGizmoNodeIdChange: (nodeId: string | null) => void;
   onHoveredPointQueryNodeIdChange: (nodeId: string | null) => void;
   onPreviewSnapTargetNodeClick: (nodeId: string) => boolean;

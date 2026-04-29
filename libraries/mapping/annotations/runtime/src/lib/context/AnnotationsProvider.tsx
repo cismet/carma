@@ -3,6 +3,7 @@ import { Provider as ReduxProvider } from "react-redux";
 
 import type {
   AddAnnotationOptions,
+  AnnotationElevationDisplayMode,
   CesiumGeographicCoordinate,
   StoredAnnotation,
   AnnotationNodeLinkId,
@@ -54,7 +55,10 @@ type AnnotationsRuntimeServices = {
   removeSelectedAnnotations: () => void;
   selectAllAnnotations: () => void;
   setElevationReferenceAnnotationId: (annotationId: string | null) => void;
-  toggleAnnotationElevationDisplayMode: (annotationId: string) => void;
+  toggleAnnotationElevationDisplayMode: (
+    annotationId: string,
+    currentElevationDisplayMode?: AnnotationElevationDisplayMode
+  ) => void;
   updateAnnotationDisplayName: (
     annotationId: string,
     displayName: string

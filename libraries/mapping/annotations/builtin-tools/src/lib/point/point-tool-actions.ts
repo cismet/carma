@@ -6,6 +6,7 @@ import type {
 import type { AnnotationToolId } from "@carma-mapping/annotations/runtime";
 import {
   removeAnnotationById,
+  setElevationReferenceAnnotationId,
   type AnnotationsStore,
   type AnnotationsStoreState,
 } from "@carma-mapping/annotations/runtime";
@@ -18,16 +19,41 @@ type AddPointMeasurementArgs = {
     linkedNodeGroupIds?: readonly (AnnotationNodeLinkId | null | undefined)[],
     sourceToolId?: AnnotationToolId
   ) => StoredAnnotation;
+  state: AnnotationsStoreState;
+  dispatch: AnnotationsStore["dispatch"];
+};
+
+const setFirstPointMeasurementAsElevationReference = ({
+  toolType,
+  state,
+  dispatch,
+  annotations,
+}: {
+  toolType: StoredAnnotation["toolType"];
+  state: AnnotationsStoreState;
+  dispatch: AnnotationsStore["dispatch"];
+  annotations: readonly StoredAnnotation[];
+}) => {
+  const hasExistingPointMeasurement = state.annotationEntries.some(
+    (annotationEntry) => annotationEntry.toolType === toolType
+  );
+  const firstAnnotation = annotations[0] ?? null;
+
+  if (hasExistingPointMeasurement || !firstAnnotation) {
+    return;
+  }
+
+  dispatch(setElevationReferenceAnnotationId(firstAnnotation.id));
 };
 
 export const addPointMeasurement = (
   toolType: StoredAnnotation["toolType"],
   coordinate: CesiumGeographicCoordinate,
   linkedNodeGroupId: AnnotationNodeLinkId | null | undefined,
-  { addAnnotation }: AddPointMeasurementArgs,
+  { addAnnotation, state, dispatch }: AddPointMeasurementArgs,
   sourceToolId?: AnnotationToolId
-) =>
-  addAnnotation(
+) => {
+  const annotation = addAnnotation(
     toolType,
     [coordinate],
     undefined,
@@ -35,13 +61,23 @@ export const addPointMeasurement = (
     sourceToolId
   );
 
+  setFirstPointMeasurementAsElevationReference({
+    toolType,
+    state,
+    dispatch,
+    annotations: [annotation],
+  });
+
+  return annotation;
+};
+
 export const commitPointMeasurementDraft = (
   toolType: StoredAnnotation["toolType"],
   draft: AnnotationToolDraftState,
-  { addAnnotation }: AddPointMeasurementArgs,
+  { addAnnotation, state, dispatch }: AddPointMeasurementArgs,
   sourceToolId?: AnnotationToolId
-): readonly StoredAnnotation[] =>
-  draft.coordinates.flatMap((coordinate, index) => [
+): readonly StoredAnnotation[] => {
+  const annotations = draft.coordinates.flatMap((coordinate, index) => [
     addAnnotation(
       toolType,
       [coordinate],
@@ -50,6 +86,16 @@ export const commitPointMeasurementDraft = (
       sourceToolId
     ),
   ]);
+
+  setFirstPointMeasurementAsElevationReference({
+    toolType,
+    state,
+    dispatch,
+    annotations,
+  });
+
+  return annotations;
+};
 
 export const trimLatestPointMeasurementDraft = (
   draft: AnnotationToolDraftState

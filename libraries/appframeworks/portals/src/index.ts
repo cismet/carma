@@ -46,6 +46,13 @@ export { CarmaIconLink } from "./lib/components/CarmaIconLink.tsx";
 export { CarmaMapProviderWrapper } from "./lib/components/CarmaMapProviderWrapper.tsx";
 export { InfoBox } from "./lib/components/InfoBox.tsx";
 export { ResponsiveInfoBox } from "./lib/components/ResponsiveInfoBox.tsx";
+export {
+  CISMAP_MEASUREMENT_INFO_BOX_VISUAL_OPTIONS,
+  CismapAnnotationInfoBox,
+  CismapAnnotationInstructionInfoBox,
+  type CismapAnnotationInfoBoxProps,
+  type CismapAnnotationInstructionInfoBoxProps,
+} from "./lib/components/CismapAnnotationInfoBox.tsx";
 export { GenericInfoBoxFromFeature } from "./lib/components/GenericInfoBoxFromFeature.tsx";
 export { PieChart } from "./lib/components/PieChart.tsx";
 export { ContactMailButton } from "./lib/components/ContactMailButton.tsx";

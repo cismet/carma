@@ -50,8 +50,12 @@ const LayerButtonActionButton = ({
 
 const CesiumAnnotationLayerButton = (props: GeoportalLayerButtonProps) => {
   const dispatch = useDispatch();
-  const { annotationEntries, flyToAllAnnotations, removeAnnotationById } =
-    useAnnotationsRuntime();
+  const {
+    annotationEntries,
+    flyToAllAnnotations,
+    removeAnnotationById,
+    setElevationReferenceAnnotationId,
+  } = useAnnotationsRuntime();
   const hasAnnotations = annotationEntries.length > 0;
   const handleClose = useCallback(
     (event: ReactMouseEvent<HTMLButtonElement>) => {
@@ -87,6 +91,7 @@ const CesiumAnnotationLayerButton = (props: GeoportalLayerButtonProps) => {
             }
             disabled={!hasAnnotations}
             onClick={() => {
+              setElevationReferenceAnnotationId(null);
               annotationEntries.forEach((annotationEntry) => {
                 removeAnnotationById(annotationEntry.id);
               });
