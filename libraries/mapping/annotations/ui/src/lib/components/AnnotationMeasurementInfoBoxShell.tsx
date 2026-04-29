@@ -161,7 +161,7 @@ export const buildAnnotationMeasurementInfoBoxSlots = ({
             />
           </div>
         </div>
-        {metaText ? (
+        {metaText && resolvedVisualOptions.showSubtitleMetaText ? (
           <AnnotationInfoBoxMetaText visualOptions={resolvedVisualOptions}>
             {metaText}
           </AnnotationInfoBoxMetaText>

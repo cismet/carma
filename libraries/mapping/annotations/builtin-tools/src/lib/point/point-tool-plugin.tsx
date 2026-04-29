@@ -56,7 +56,13 @@ export const pointToolPlugin = createMeasurementToolPlugin({
     ANNOTATION_TOOL_PLUGIN_CAPABILITIES.INFO_BOX,
   ],
   session: {
-    createSession: ({ setActiveToolType, drafts, addAnnotation }) => ({
+    createSession: ({
+      setActiveToolType,
+      drafts,
+      addAnnotation,
+      getState,
+      dispatch,
+    }) => ({
       toolType,
       requestStart: () => {
         setActiveToolType(toolType);
@@ -70,7 +76,7 @@ export const pointToolPlugin = createMeasurementToolPlugin({
         const committedMeasurements = commitPointMeasurementDraft(
           toolType,
           draft,
-          { addAnnotation },
+          { addAnnotation, state: getState(), dispatch },
           toolType
         );
         drafts.clear(toolType);
@@ -103,6 +109,8 @@ export const pointToolPlugin = createMeasurementToolPlugin({
         linkedNodeGroupId,
         {
           addAnnotation: sessionContext.addAnnotation,
+          state: sessionContext.getState(),
+          dispatch: sessionContext.dispatch,
         },
         toolType
       );

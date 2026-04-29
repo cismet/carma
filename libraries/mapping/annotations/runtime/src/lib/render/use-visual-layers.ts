@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import type {
   StoredAnnotation,
+  AnnotationElevationDisplayMode,
   AnnotationEdge,
   AnnotationNodeLink,
   AnnotationNode,
@@ -33,7 +34,10 @@ type BuildVisualModelsArgs = {
   isSelectionAdditiveModifierPressed: boolean;
   onMeasurementSelect: (annotationId: string | null) => void;
   setElevationReferenceAnnotationId: (annotationId: string | null) => void;
-  toggleAnnotationElevationDisplayMode: (annotationId: string) => void;
+  toggleAnnotationElevationDisplayMode: (
+    annotationId: string,
+    currentElevationDisplayMode?: AnnotationElevationDisplayMode
+  ) => void;
   onNodeLongPress: (nodeId: string, measurementId?: string) => void;
   formatOptions: AnnotationsRuntimeFormatOptions;
 };

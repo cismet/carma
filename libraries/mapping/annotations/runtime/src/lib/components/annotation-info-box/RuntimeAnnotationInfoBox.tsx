@@ -1,11 +1,12 @@
-import { useMemo } from "react";
 import {
   AnnotationInfoBoxContainer,
   type AnnotationInfoBoxLayoutProps,
-  resolveAnnotationInfoBoxVisualOptions,
 } from "@carma-mapping/annotations/ui";
 
-import { useAnnotationsRuntime } from "../../context/AnnotationsProvider";
+import {
+  RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS,
+  useRuntimeAnnotationInfoBoxSlots,
+} from "./use-runtime-annotation-info-box-slots";
 
 export const RuntimeAnnotationInfoBox = ({
   pixelWidth,
@@ -17,90 +18,13 @@ export const RuntimeAnnotationInfoBox = ({
   style,
   visualOptions,
 }: AnnotationInfoBoxLayoutProps) => {
-  const {
-    registry,
-    annotationEntries,
-    formatOptions,
-    nodes,
-    selectedAnnotationId,
-    setSelectedAnnotationId,
-    focusAnnotationId,
-    flyToAllAnnotations,
-    removeAnnotationById,
-    exportAnnotationGeoJson,
-    toggleAnnotationVisibility,
-    toggleAnnotationLocked,
-    elevationReferenceAnnotationId,
-    setElevationReferenceAnnotationId,
-    updateAnnotationDisplayName,
-    updateAnnotationShortLabel,
-  } = useAnnotationsRuntime();
-  const resolvedInfoBoxVisualOptions = useMemo(
-    () => resolveAnnotationInfoBoxVisualOptions(visualOptions),
-    [visualOptions]
-  );
+  const infoBoxState = useRuntimeAnnotationInfoBoxSlots({ visualOptions });
 
-  const slots = useMemo(() => {
-    if (!selectedAnnotationId) {
-      return null;
-    }
-
-    const selectedAnnotation =
-      annotationEntries.find(
-        (annotation) => annotation.id === selectedAnnotationId
-      ) ?? null;
-
-    if (!selectedAnnotation) {
-      return null;
-    }
-
-    const plugin = registry
-      .getPluginsByAnnotationType(selectedAnnotation.toolType)
-      .find((candidatePlugin) => candidatePlugin.infoBox?.getSlots);
-    if (!plugin?.infoBox?.getSlots) {
-      return null;
-    }
-
-    return plugin.infoBox.getSlots({
-      annotation: selectedAnnotation,
-      annotationEntries,
-      nodes,
-      selectedAnnotationId,
-      setSelectedAnnotationId,
-      focusAnnotationId,
-      flyToAllAnnotations,
-      removeAnnotationById,
-      exportAnnotationGeoJson,
-      toggleAnnotationVisibility,
-      toggleAnnotationLocked,
-      elevationReferenceAnnotationId,
-      setElevationReferenceAnnotationId,
-      updateAnnotationDisplayName,
-      updateAnnotationShortLabel,
-      formatOptions,
-      infoBoxVisualOptions: resolvedInfoBoxVisualOptions,
-    });
-  }, [
-    annotationEntries,
-    flyToAllAnnotations,
-    formatOptions,
-    focusAnnotationId,
-    exportAnnotationGeoJson,
-    resolvedInfoBoxVisualOptions,
-    nodes,
-    removeAnnotationById,
-    registry,
-    selectedAnnotationId,
-    setSelectedAnnotationId,
-    elevationReferenceAnnotationId,
-    setElevationReferenceAnnotationId,
-    toggleAnnotationLocked,
-    toggleAnnotationVisibility,
-    updateAnnotationDisplayName,
-    updateAnnotationShortLabel,
-  ]);
-
-  if (!slots) {
+  if (
+    !infoBoxState ||
+    infoBoxState.kind !==
+      RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS.ANNOTATION
+  ) {
     return null;
   }
 
@@ -113,8 +37,8 @@ export const RuntimeAnnotationInfoBox = ({
       controlOrder={controlOrder}
       collapsedHorizontalAnchor={collapsedHorizontalAnchor}
       style={style}
-      slots={slots}
-      visualOptions={resolvedInfoBoxVisualOptions}
+      slots={infoBoxState.slots}
+      visualOptions={infoBoxState.visualOptions}
     />
   );
 };
