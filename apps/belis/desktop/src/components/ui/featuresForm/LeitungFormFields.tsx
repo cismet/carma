@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Form, Row, Col, Select } from "antd";
 import type { FormInstance } from "antd";
 import { useSelector } from "react-redux";
@@ -37,6 +37,7 @@ const LeitungFormFields = ({
   onOriginalValues,
 }: LeitungFormFieldsProps) => {
   const [form] = Form.useForm();
+  const draftApplied = useRef(false);
   useEffect(() => {
     onFormInstance?.(form);
   }, [form, onFormInstance]);
@@ -55,6 +56,7 @@ const LeitungFormFields = ({
 
   useEffect(() => {
     form.resetFields();
+    draftApplied.current = false;
 
     if (leitung) {
       const serverValues = {
@@ -67,10 +69,17 @@ const LeitungFormFields = ({
 
       if (draftValues) {
         form.setFieldsValue(draftValues);
+        draftApplied.current = true;
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [leitung, form, draftValues]);
+  }, [leitung, form]);
+
+  useEffect(() => {
+    if (draftApplied.current || !draftValues) return;
+    form.setFieldsValue(draftValues);
+    draftApplied.current = true;
+  }, [draftValues, form]);
 
   return (
     <Form

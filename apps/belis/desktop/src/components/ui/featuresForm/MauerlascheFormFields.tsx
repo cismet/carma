@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Form, Select, Input, DatePicker, InputNumber } from "antd";
 import type { FormInstance } from "antd";
 import { useSelector } from "react-redux";
@@ -40,6 +40,7 @@ const MauerlascheFormFields = ({
   onOriginalValues,
 }: MauerlascheFormFieldsProps) => {
   const [form] = Form.useForm();
+  const draftApplied = useRef(false);
   useEffect(() => {
     onFormInstance?.(form);
   }, [form, onFormInstance]);
@@ -53,6 +54,7 @@ const MauerlascheFormFields = ({
 
   useEffect(() => {
     form.resetFields();
+    draftApplied.current = false;
 
     if (mauerlasche) {
       const ml = mauerlasche;
@@ -83,10 +85,17 @@ const MauerlascheFormFields = ({
 
       if (draftValues) {
         form.setFieldsValue(draftValues);
+        draftApplied.current = true;
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mauerlasche, form, draftValues]);
+  }, [mauerlasche, form]);
+
+  useEffect(() => {
+    if (draftApplied.current || !draftValues) return;
+    form.setFieldsValue(draftValues);
+    draftApplied.current = true;
+  }, [draftValues, form]);
 
   return (
     <Form
