@@ -287,14 +287,16 @@ function getSnappableLayerIds(map: maplibregl.Map): string[] | null {
 }
 
 // Find the nearest external vertex to the cursor within `radiusPx`.
-// Returns the snap coord in lng/lat, or null if no candidate is in range.
+// Caller passes the pre-computed snappable layer-id list (cached across
+// mousemoves; see snappableLayerIdsRef in TerraDrawIntegration). Returns
+// the snap coord in lng/lat, or null if no candidate is in range.
 function findSnapTarget(
   map: maplibregl.Map,
   cursor: { x: number; y: number },
-  radiusPx: number
+  radiusPx: number,
+  allowedLayerIds: string[]
 ): GeoJSON.Position | null {
-  const allowedLayerIds = getSnappableLayerIds(map);
-  if (!allowedLayerIds || allowedLayerIds.length === 0) return null;
+  if (allowedLayerIds.length === 0) return null;
   const r = radiusPx;
   const features = map.queryRenderedFeatures(
     [
@@ -743,6 +745,10 @@ function TerraDrawIntegration({
   snapRadiusPxRef.current = snapRadiusPx;
   const radiusDebugVisibleRef = useRef(radiusDebugVisible);
   radiusDebugVisibleRef.current = radiusDebugVisible;
+  // Cached list of layer ids eligible for snap querying. Recomputed on
+  // attach() (initial mount + after every style swap) so the hot mousemove
+  // path doesn't have to call map.getStyle() + walk + filter every frame.
+  const snappableLayerIdsRef = useRef<string[]>([]);
 
   // (Re)create TerraDraw whenever the maplibre map instance becomes available.
   useEffect(() => {
@@ -866,26 +872,21 @@ function TerraDrawIntegration({
       }
     };
 
-    const pinSnapLayersOnTop = () => {
-      // Order matters: radius first, then dot, so the dot ends up above the
-      // radius circle in the layer stack. Terra Draw shuffles layers on
-      // internal renders so we re-pin on every update.
-      if (map.getLayer(SNAP_RADIUS_LAYER_ID)) {
-        map.moveLayer(SNAP_RADIUS_LAYER_ID);
-      }
-      if (map.getLayer(SNAP_PREVIEW_LAYER_ID)) {
-        map.moveLayer(SNAP_PREVIEW_LAYER_ID);
-      }
-    };
+    // rAF throttle: high-refresh-rate mice fire mousemove at 120–200+ Hz,
+    // but the screen only repaints at 60–144 Hz. Coalesce all moves that
+    // arrive within one frame into a single update — process the most
+    // recent event, drop the rest. Cuts queryRenderedFeatures + setData
+    // calls roughly in half on a 144 Hz mouse over a 60 Hz monitor, more
+    // on faster input devices.
+    let pendingFrame: number | null = null;
+    let pendingEvent: maplibregl.MapMouseEvent | null = null;
 
-    const handleMouseMove = (e: maplibregl.MapMouseEvent) => {
+    const processMouseMove = (e: maplibregl.MapMouseEvent) => {
       if (!snappingEnabledRef.current) {
         setPointSourceAt(SNAP_PREVIEW_SOURCE_ID, null);
         setPointSourceAt(SNAP_RADIUS_SOURCE_ID, null);
         return;
       }
-      // Radius follows the raw cursor (only when the debug toggle is on);
-      // the dot appears whenever there's a candidate within the live radius.
       if (radiusDebugVisibleRef.current) {
         setPointSourceAt(SNAP_RADIUS_SOURCE_ID, [e.lngLat.lng, e.lngLat.lat]);
       } else {
@@ -894,12 +895,29 @@ function TerraDrawIntegration({
       const target = findSnapTarget(
         map,
         { x: e.point.x, y: e.point.y },
-        snapRadiusPxRef.current
+        snapRadiusPxRef.current,
+        snappableLayerIdsRef.current
       );
       setPointSourceAt(SNAP_PREVIEW_SOURCE_ID, target);
-      pinSnapLayersOnTop();
+    };
+
+    const handleMouseMove = (e: maplibregl.MapMouseEvent) => {
+      pendingEvent = e;
+      if (pendingFrame !== null) return;
+      pendingFrame = requestAnimationFrame(() => {
+        pendingFrame = null;
+        const ev = pendingEvent;
+        pendingEvent = null;
+        if (ev) processMouseMove(ev);
+      });
     };
     const handleMouseLeave = () => {
+      // Cancel any queued update and clear both layers immediately.
+      if (pendingFrame !== null) {
+        cancelAnimationFrame(pendingFrame);
+        pendingFrame = null;
+        pendingEvent = null;
+      }
       setPointSourceAt(SNAP_PREVIEW_SOURCE_ID, null);
       setPointSourceAt(SNAP_RADIUS_SOURCE_ID, null);
     };
@@ -912,13 +930,11 @@ function TerraDrawIntegration({
       try {
         const fc = buildLabelFeatures(draw.getSnapshot() as Feature[]);
         src.setData(fc);
-        // Terra Draw's adapter re-adds its own layers on internal renders,
-        // which would otherwise stack on top of our labels and let the
-        // polygon / line strokes paint over the text. Re-pin the label
-        // layer to the top of the layer stack on every refresh.
-        if (map.getLayer(LABEL_LAYER_ID)) {
-          map.moveLayer(LABEL_LAYER_ID);
-        }
+        // (Note: terra-draw's adapter does NOT re-add or re-order its
+        // layers on internal renders — verified in
+        // terra-draw-maplibre-gl-adapter.module.js. The adapter's render()
+        // only calls setData on existing sources. So we don't need
+        // moveLayer here — the layer order set by attach() stays valid.)
       } catch (e) {
         console.warn("[measurements-playground] label rebuild failed", e);
       }
@@ -932,7 +948,8 @@ function TerraDrawIntegration({
       const target = findSnapTarget(
         map,
         { x: event.containerX, y: event.containerY },
-        snapRadiusPxRef.current
+        snapRadiusPxRef.current,
+        snappableLayerIdsRef.current
       );
       return target ?? undefined;
     };
@@ -1043,6 +1060,10 @@ function TerraDrawIntegration({
       setupSnapRadiusLayer();
       setupSnapPreviewLayer();
       refreshLabels();
+      // Refresh the cached snappable-layer-id list now that the new style
+      // is fully loaded (terra-draw + label/snap layers were just added).
+      // Without this the cache would point at stale ids from the old style.
+      snappableLayerIdsRef.current = getSnappableLayerIds(map) ?? [];
       // Wipe any stale preview/radius from the previous style; mousemove
       // will fill them back in on the next pointer event.
       setPointSourceAt(SNAP_PREVIEW_SOURCE_ID, null);
@@ -1060,6 +1081,11 @@ function TerraDrawIntegration({
       map.off("style.load", attach);
       map.off("mousemove", handleMouseMove);
       map.off("mouseout", handleMouseLeave);
+      if (pendingFrame !== null) {
+        cancelAnimationFrame(pendingFrame);
+        pendingFrame = null;
+        pendingEvent = null;
+      }
       if (drawRef.current) {
         drawRef.current.stop();
         drawRef.current = null;
