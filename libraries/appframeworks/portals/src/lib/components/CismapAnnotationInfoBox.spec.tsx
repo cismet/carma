@@ -131,6 +131,12 @@ describe("CismapAnnotationInfoBox", () => {
       ANNOTATION_INFO_BOX_ACTION_IDS.REFERENCE,
       ANNOTATION_INFO_BOX_ACTION_IDS.LOCK,
     ]);
+    expect(
+      CISMAP_MEASUREMENT_INFO_BOX_VISUAL_OPTIONS.navigationControlLabels
+    ).toEqual({
+      previous: "<<",
+      next: ">>",
+    });
   });
 
   it("uses the same Cismap search-location icon for the fly-to action as the layerbar", () => {

@@ -104,6 +104,19 @@ describe("useGeoportalMeasurementModeHash", () => {
     });
   });
 
+  it("keeps mm active after the 3d launch flag has been consumed", async () => {
+    const store = createTestStore();
+    hashStateMock.hashParams = { m: "1", mm: "1" };
+
+    renderHook(() => useGeoportalMeasurementModeHash(), {
+      wrapper: createWrapper(store),
+    });
+
+    await waitFor(() => {
+      expect(store.getState().ui.mode).toBe(UIMode.MEASUREMENT);
+    });
+  });
+
   it("activates measurement mode when mm arrives through history navigation", async () => {
     const store = createTestStore();
     hashStateMock.hashParams = build3dHashParams();

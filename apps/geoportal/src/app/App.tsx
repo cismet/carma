@@ -71,6 +71,7 @@ import {
   CESIUM_ANNOTATION_CONFIG,
   CESIUM_CONFIG,
   CONFIG_BASE_URL,
+  URL_PARAM_KEYS,
 } from "./config/app.config";
 import store from "./store";
 import { featureFlagConfig } from "./config/featureFlags";
@@ -80,6 +81,7 @@ import {
   COLORS_HEX,
   getHashParams,
   HASH_LAUNCH_MODE,
+  isTruthyHashValue,
   resolveHashLaunchMode,
 } from "@carma-commons/utils";
 
@@ -118,7 +120,13 @@ const readInitialFrameworkFromHash = (): "leaflet" | "cesium" => {
     return "leaflet";
   }
 
-  const mode = resolveHashLaunchMode(getHashParams(), {
+  const hashParams = getHashParams();
+
+  if (isTruthyHashValue(hashParams[URL_PARAM_KEYS.measurements3d])) {
+    return "cesium";
+  }
+
+  const mode = resolveHashLaunchMode(hashParams, {
     defaultMode: HASH_LAUNCH_MODE.TWO_D,
   });
   return mode === HASH_LAUNCH_MODE.THREE_D ? "cesium" : "leaflet";

@@ -3,6 +3,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { annotationInfoBoxVisualDefaults } from "../config/annotation-info-box-visual-defaults";
 import { AnnotationInfoBoxNavigation } from "./AnnotationInfoBoxNavigation";
 
 describe("AnnotationInfoBoxNavigation", () => {
@@ -30,5 +31,35 @@ describe("AnnotationInfoBoxNavigation", () => {
     expect(onFlyToAllMeasurements).toHaveBeenCalledTimes(1);
     expect(onPreviousMeasurement).toHaveBeenCalledTimes(1);
     expect(onNextMeasurement).toHaveBeenCalledTimes(1);
+  });
+
+  it("can render plain paging labels without losing pointer behavior", () => {
+    render(
+      <AnnotationInfoBoxNavigation
+        totalEntries={3}
+        currentIndex={1}
+        onPreviousMeasurement={vi.fn()}
+        onNextMeasurement={vi.fn()}
+        visualOptions={{
+          ...annotationInfoBoxVisualDefaults,
+          navigationControlLabels: {
+            previous: "<<",
+            next: ">>",
+          },
+        }}
+      />
+    );
+
+    const previousButton = screen.getByRole("button", {
+      name: "Vorherige Messung",
+    });
+    const nextButton = screen.getByRole("button", {
+      name: "Nächste Messung",
+    });
+
+    expect(previousButton.textContent).toBe("<<");
+    expect(nextButton.textContent).toBe(">>");
+    expect(previousButton.getAttribute("class")).toContain("cursor-pointer");
+    expect(previousButton.style.userSelect).toBe("none");
   });
 });
