@@ -3,6 +3,7 @@ import type { FormInstance } from "antd";
 import { message } from "antd";
 import { useSelector } from "react-redux";
 import type { DraftFile } from "../../../store/slices/featuresForms";
+import { isCreationDraftKey } from "../../../store/slices/featuresForms";
 import { getJWT } from "../../../store/slices/auth";
 import { DokumentItem } from "../DocumentPreview";
 import { getDocumentKey } from "../FilePreview";
@@ -109,7 +110,13 @@ const LeitungForm = ({
     "-ohne Bezeichnung-";
 
   // Compute sidebar main title to display in form header
-  const sidebarMain = rawProps?.id ? `L - ${rawProps?.id}` : "";
+  const isCreation =
+    typeof rawProps?.id === "string" && isCreationDraftKey(rawProps.id);
+  const sidebarMain = isCreation
+    ? "Neuer Entwurf"
+    : rawProps?.id
+    ? `L - ${rawProps.id}`
+    : "";
 
   const handleSave = async () => {
     if (!jwt) {

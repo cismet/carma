@@ -4,6 +4,7 @@ import { message } from "antd";
 import { useSelector } from "react-redux";
 import dayjs from "dayjs";
 import type { DraftFile } from "../../../store/slices/featuresForms";
+import { isCreationDraftKey } from "../../../store/slices/featuresForms";
 import { getJWT } from "../../../store/slices/auth";
 import { DokumentItem } from "../DocumentPreview";
 import { getDocumentKey } from "../FilePreview";
@@ -129,11 +130,15 @@ const MauerlascheForm = ({
     toTitleCase((rawProps?.strasse as string) || "") ||
     "-ohne Straße-";
 
-  // Compute sidebar main title to display in form header
-  const sidebarMain =
-    rawProps?.laufende_nummer || rawProps?.id
-      ? `M - ${rawProps?.laufende_nummer || rawProps?.id}`
-      : "";
+  const isCreation =
+    typeof rawProps?.id === "string" && isCreationDraftKey(rawProps.id);
+  const sidebarMain = rawProps?.laufende_nummer
+    ? `M - ${rawProps.laufende_nummer}`
+    : isCreation
+    ? "Neuer Entwurf"
+    : rawProps?.id
+    ? `M - ${rawProps.id}`
+    : "";
 
   const handleSave = async () => {
     if (!jwt) {
