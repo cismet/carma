@@ -39,7 +39,8 @@ const LayerButtonActionButton = ({
 }: LayerButtonActionButtonProps) => (
   <Tooltip title={title} placement="top">
     <button
-      className="flex h-8 w-7 min-w-7 items-center justify-center text-gray-600 hover:text-gray-500 disabled:text-gray-400"
+      type="button"
+      className="px-1.5 flex items-center justify-center text-sm text-gray-600 hover:text-gray-500 disabled:text-gray-400"
       onClick={(event) => {
         event.stopPropagation();
         onClick();
@@ -74,37 +75,22 @@ const CesiumAnnotationLayerButton = (props: GeoportalLayerButtonProps) => {
     <GeoportalLayerButton
       {...props}
       actionSlot={
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center">
           <LayerButtonActionButton
             title="Alle Messungen fokussieren"
-            icon={
-              <Icon
-                name="search-location"
-                className="text-[16px] leading-none"
-              />
-            }
+            icon={<Icon name="search-location" className="leading-none" />}
             disabled={!hasAnnotations}
             onClick={flyToAllAnnotations}
           />
           <LayerButtonActionButton
             title="Alle Messungen als GeoJSON herunterladen"
-            icon={
-              <FontAwesomeIcon
-                icon={faDownload}
-                className="text-[16px] leading-none"
-              />
-            }
+            icon={<FontAwesomeIcon icon={faDownload} />}
             disabled={!hasAnnotations}
             onClick={exportAllAnnotationsGeoJson}
           />
           <LayerButtonActionButton
             title="Alle Messungen löschen"
-            icon={
-              <FontAwesomeIcon
-                icon={faTrashCan}
-                className="text-[16px] leading-none"
-              />
-            }
+            icon={<FontAwesomeIcon icon={faTrashCan} />}
             disabled={!hasAnnotations}
             onClick={() => {
               setElevationReferenceAnnotationId(null);
@@ -130,15 +116,10 @@ const MeasurementLayerButton = (props: GeoportalLayerButtonProps) => {
     <GeoportalLayerButton
       {...props}
       actionSlot={
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center">
           <LayerButtonActionButton
             title="Alle Messungen löschen"
-            icon={
-              <FontAwesomeIcon
-                icon={faTrashCan}
-                className="text-[16px] leading-none"
-              />
-            }
+            icon={<FontAwesomeIcon icon={faTrashCan} />}
             disabled={shapes.length === 0}
             onClick={clearAllShapes}
           />
