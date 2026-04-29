@@ -238,6 +238,11 @@ export const saveFeatureDraft = async (
     };
   }
 
+  // Creation drafts: create new feature with id: -1
+  if (draft.isCreation) {
+    return saveCreationDraft(jwt, featureId, draft, config);
+  }
+
   if (featureDbId == null) {
     return {
       ...base,
@@ -283,6 +288,89 @@ export const saveFeatureDraft = async (
 
     // 5. Send to API
     await updateDataByClassName(jwt, config.className, dataToSave);
+
+    return { ...base, success: true };
+  } catch (error) {
+    return {
+      ...base,
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+};
+
+const saveCreationDraft = async (
+  jwt: string,
+  featureId: string,
+  draft: Draft,
+  config: FeatureSaveConfig
+): Promise<SaveResult> => {
+  const { featureType } = draft;
+  const base = { featureId, featureType };
+  const geomPayload = draft.geometry
+    ? { id: -1, geo_field: draft.geometry }
+    : undefined;
+
+  try {
+    const formValues = prepareSaveValues(featureType, draft.values ?? {}) ?? {};
+    let payload: Record<string, unknown>;
+
+    if (featureType === "leuchte") {
+      // Two-step: create Standort first, then Leuchte
+      const mastPayload: Record<string, unknown> = {
+        id: -1,
+        ...(geomPayload ? { geom: geomPayload } : {}),
+      };
+      const mastResult = await updateDataByClassName(
+        jwt,
+        featureSaveConfigs["standort"].className,
+        mastPayload
+      );
+      const mastRes = mastResult as { res?: string } | null;
+      const parsedMast = mastRes?.res
+        ? (JSON.parse(mastRes.res) as { id?: number })
+        : null;
+      const newMastId = parsedMast?.id;
+      if (!newMastId) {
+        return {
+          ...base,
+          success: false,
+          error: "Standort erstellt, aber keine ID erhalten",
+        };
+      }
+      payload = {
+        id: -1,
+        ...formValues,
+        tdta_standort_mast: { id: Number(newMastId) },
+      };
+    } else {
+      payload = {
+        id: -1,
+        ...formValues,
+        ...(geomPayload ? { geom: geomPayload } : {}),
+      };
+    }
+
+    const result = await updateDataByClassName(jwt, config.className, payload);
+
+    // Upload files if any
+    const draftFiles: DraftFile[] = draft.files ?? [];
+    if (draftFiles.length > 0) {
+      const res = result as { res?: string } | null;
+      const parsed = res?.res
+        ? (JSON.parse(res.res) as { id?: number })
+        : null;
+      const newId = parsed?.id;
+      if (newId) {
+        const uploadedDocs = await uploadDraftFiles(jwt, draftFiles);
+        if (uploadedDocs.length > 0) {
+          await updateDataByClassName(jwt, config.className, {
+            id: newId,
+            dokumenteArray: uploadedDocs,
+          });
+        }
+      }
+    }
 
     return { ...base, success: true };
   } catch (error) {
@@ -355,12 +443,25 @@ export const handleSaveAllDrafts = (deps: HandleSaveAllDeps) => {
     incrementFeatureDataVersion,
   } = deps;
 
+  const creationCount = Object.values(drafts).filter(
+    (d) => d.isCreation
+  ).length;
+  const editCount = draftCount - creationCount;
+  const parts: string[] = [];
+  if (editCount > 0)
+    parts.push(editCount === 1 ? "1 Änderung" : `${editCount} Änderungen`);
+  if (creationCount > 0)
+    parts.push(
+      creationCount === 1
+        ? "1 neues Objekt"
+        : `${creationCount} neue Objekte`
+    );
+
   Modal.confirm({
     title: "Alle Entwürfe speichern?",
-    content:
-      draftCount === 1
-        ? "Entwurf wird gespeichert."
-        : "Entwürfe werden gespeichert.",
+    content: `${parts.join(" und ")} ${
+      draftCount === 1 ? "wird" : "werden"
+    } gespeichert.`,
     okText: "Alle speichern",
     cancelText: "Abbrechen",
     onOk: async () => {

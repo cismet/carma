@@ -22,6 +22,12 @@ export function prepareDraftFeatures(
   }
 
   return features.map((f) => {
+    if (f.properties?._isCreation) {
+      return {
+        ...f,
+        properties: { ...f.properties, _noIndent: true },
+      } as unknown as SidebarFeature;
+    }
     if (f.sourceLayer !== "leuchten") return f;
 
     // Normalize fk_standort: nested object → flat ID

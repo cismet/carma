@@ -544,6 +544,13 @@ const BelisSidebar = ({
   });
 
   const getListItem = (feature: SidebarFeature): ListItemData => {
+    if (feature.properties?._isCreation) {
+      return {
+        main: feature.properties._creationLabel || "Neu",
+        upperright: "Neu",
+        subtitle: "Entwurf",
+      };
+    }
     const layerKey = feature.sourceLayer || feature.source || "";
     const extractor =
       listItemExtractors?.[layerKey] ||
@@ -695,6 +702,11 @@ const BelisSidebar = ({
                           <div className="flex justify-between gap-2 overflow-hidden">
                             <span className="shrink-0 whitespace-nowrap text-sm">
                               <b>{listItem.main}</b>
+                              {feature.properties?._isCreation && (
+                                <span className="bg-green-500 text-white text-[10px] px-1 rounded ml-1 font-normal">
+                                  Neu
+                                </span>
+                              )}
                             </span>
                             <span className="grow text-right whitespace-nowrap text-ellipsis overflow-hidden text-sm text-gray-700">
                               {listItem.upperright}

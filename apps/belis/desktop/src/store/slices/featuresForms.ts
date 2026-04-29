@@ -21,8 +21,13 @@ export interface Draft {
   featureDbId?: number;
   feature?: any;
   fetchedData?: Record<string, unknown>;
+  isCreation?: boolean;
+  geometry?: GeoJSON.Geometry;
   updatedAt: number;
 }
+
+export const isCreationDraftKey = (featureId: string): boolean =>
+  featureId.startsWith("create:");
 
 interface FeaturesFormsState {
   drafts: Record<string, Draft>;
@@ -52,26 +57,45 @@ const featuresFormsSlice = createSlice({
         values: Record<string, unknown>;
         feature?: any;
         fetchedData?: Record<string, unknown>;
+        isCreation?: boolean;
+        geometry?: GeoJSON.Geometry;
       }>
     ) {
-      const { featureId, featureType, values, feature, fetchedData } =
-        action.payload;
+      const {
+        featureId,
+        featureType,
+        values,
+        feature,
+        fetchedData,
+        isCreation,
+        geometry,
+      } = action.payload;
       const existing = state.drafts[featureId];
       const hasFiles = existing?.files && existing.files.length > 0;
       const hasRemovedKeys =
         existing?.removedDocumentKeys &&
         existing.removedDocumentKeys.length > 0;
-      const original = state.originalValues[featureId];
+      const creationDraft = existing?.isCreation ?? isCreation;
 
-      // Clean up draft when values reverted to original and no files/removed keys
-      if (
-        original &&
-        !hasFiles &&
-        !hasRemovedKeys &&
-        !isFormDirty(original, values)
-      ) {
-        delete state.drafts[featureId];
-        return;
+      if (creationDraft) {
+        const allEmpty = Object.values(values).every(
+          (v) => v === null || v === undefined || v === ""
+        );
+        if (allEmpty && !hasFiles && !hasRemovedKeys) {
+          delete state.drafts[featureId];
+          return;
+        }
+      } else {
+        const original = state.originalValues[featureId];
+        if (
+          original &&
+          !hasFiles &&
+          !hasRemovedKeys &&
+          !isFormDirty(original, values)
+        ) {
+          delete state.drafts[featureId];
+          return;
+        }
       }
 
       state.drafts[featureId] = {
@@ -81,6 +105,8 @@ const featuresFormsSlice = createSlice({
         removedDocumentKeys: existing?.removedDocumentKeys,
         feature: feature ?? existing?.feature,
         fetchedData: fetchedData ?? existing?.fetchedData,
+        isCreation: creationDraft,
+        geometry: geometry ?? existing?.geometry,
         updatedAt: Date.now(),
       };
     },
@@ -142,7 +168,6 @@ const featuresFormsSlice = createSlice({
         existing.feature = feature ?? existing.feature;
         existing.fetchedData = fetchedData ?? existing.fetchedData;
         existing.updatedAt = Date.now();
-        // Clean up ghost draft when files emptied, no form values, and no removed keys
         if (
           files.length === 0 &&
           Object.keys(existing.values).length === 0 &&
@@ -158,6 +183,7 @@ const featuresFormsSlice = createSlice({
           files,
           feature,
           fetchedData,
+          isCreation: isCreationDraftKey(featureId) ? true : undefined,
           updatedAt: Date.now(),
         };
       }
@@ -216,6 +242,7 @@ const featuresFormsSlice = createSlice({
           removedDocumentKeys: keys,
           feature,
           fetchedData,
+          isCreation: isCreationDraftKey(featureId) ? true : undefined,
           updatedAt: Date.now(),
         };
       }
@@ -351,3 +378,23 @@ export const getChangedDraftIds = (state: RootState): string[] => {
     .filter(([id, draft]) => isFormDirty(originals[id], draft.values))
     .map(([id]) => id);
 };
+
+export const getCreationDrafts = (state: RootState): Draft[] =>
+  Object.values(state.featuresForms?.drafts ?? {}).filter(
+    (d) => d.isCreation === true
+  );
+
+export const getCreationDraftsByType = (
+  state: RootState,
+  featureType: string
+): { featureId: string; draft: Draft }[] => {
+  const drafts = state.featuresForms?.drafts ?? {};
+  return Object.entries(drafts)
+    .filter(([, d]) => d.isCreation === true && d.featureType === featureType)
+    .map(([featureId, draft]) => ({ featureId, draft }));
+};
+
+export const getCreationDraftsCount = (state: RootState): number =>
+  Object.values(state.featuresForms?.drafts ?? {}).filter(
+    (d) => d.isCreation === true
+  ).length;
