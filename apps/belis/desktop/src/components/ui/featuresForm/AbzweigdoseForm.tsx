@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { message } from "antd";
 import { useSelector } from "react-redux";
 import type { DraftFile } from "../../../store/slices/featuresForms";
+import { isCreationDraftKey } from "../../../store/slices/featuresForms";
 import { getJWT } from "../../../store/slices/auth";
 import { DokumentItem } from "../DocumentPreview";
 import { getDocumentKey } from "../FilePreview";
@@ -82,12 +83,15 @@ const AbzweigdoseForm = ({
   // Extract subtitle
   const subtitle = "Nur Dokumente verfügbar";
 
-  // Compute sidebar main title to display in form header
   const rawProps = rawFeature?.properties;
-  const sidebarMain =
-    rawFeature?.id || rawProps?.id
-      ? `ID-${rawFeature?.id || rawProps?.id}`
-      : "";
+  const idValue = rawFeature?.id || rawProps?.id;
+  const isCreation =
+    typeof idValue === "string" && isCreationDraftKey(idValue);
+  const sidebarMain = isCreation
+    ? "Neuer Entwurf"
+    : idValue
+    ? `ID-${idValue}`
+    : "";
 
   const handleSave = async () => {
     if (!jwt) {

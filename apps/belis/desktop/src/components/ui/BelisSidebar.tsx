@@ -5,7 +5,14 @@ export type { SidebarFeature };
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSpinner } from "@fortawesome/free-solid-svg-icons";
 import toTitleCase from "../../helper/toTitleCase";
+import { isCreationDraftKey } from "../../store/slices/featuresForms";
 import AuswahlBlock from "./AuswahlBlock";
+
+const displayId = (id: unknown): string => {
+  if (id == null) return "?";
+  const s = String(id);
+  return isCreationDraftKey(s) ? "Entwurf" : s;
+};
 
 export const SELECTED_ROW_STYLE =
   "bg-blue-50 hover:bg-blue-50 border-l-2 border-l-blue-500";
@@ -65,7 +72,7 @@ const defaultListItemExtractors: Record<
     const p = feature.properties || {};
     const title = p.schaltstellen_nummer
       ? `S ${p.schaltstellen_nummer}`
-      : `ID: ${p.id}`;
+      : `ID: ${displayId(p.id)}`;
     return {
       main: title,
       upperright: toTitleCase(p.strasse || "") || "-",
@@ -76,7 +83,7 @@ const defaultListItemExtractors: Record<
     const p = feature.properties || {};
     const title = p.schaltstellen_nummer
       ? `S ${p.schaltstellen_nummer}`
-      : `ID: ${p.id}`;
+      : `ID: ${displayId(p.id)}`;
     return {
       main: title,
       upperright: toTitleCase(p.strasse || "") || "-",
@@ -88,7 +95,7 @@ const defaultListItemExtractors: Record<
     const laenge = p.laenge || p.length || "";
     const laengeStr = laenge ? `${laenge}m` : "";
     return {
-      main: `L-${p.id || "?"}`,
+      main: `L-${displayId(p.id)}`,
       upperright: laengeStr,
       subtitle: p.bezeichnung || p.leitungstyp || "",
     };
@@ -99,7 +106,7 @@ const defaultListItemExtractors: Record<
       ? `, ${p.fk_querschnitt.groesse}mm`
       : "";
     return {
-      main: `L-${p.id}`,
+      main: `L-${displayId(p.id)}`,
       upperright: p.fk_leitungstyp?.bezeichnung || "Leitung",
       subtitle: aPart ? `Querschnitt${aPart}` : "",
     };
@@ -107,7 +114,7 @@ const defaultListItemExtractors: Record<
   mauerlaschen: (feature) => {
     const p = feature.properties || {};
     return {
-      main: `M-${p.laufende_nummer || p.id || "?"}`,
+      main: `M-${p.laufende_nummer || displayId(p.id)}`,
       upperright: toTitleCase(p.strasse || "") || "-",
       subtitle: p.bezeichnung || p.material || "Mauerlasche",
     };
@@ -115,7 +122,7 @@ const defaultListItemExtractors: Record<
   mauerlasche: (feature) => {
     const p = feature.properties || {};
     return {
-      main: `M-${p.laufende_nummer || p.id}`,
+      main: `M-${p.laufende_nummer || displayId(p.id)}`,
       upperright: toTitleCase(p.fk_strassenschluessel?.strasse || "") || "-",
       subtitle: p.fk_material?.bezeichnung || "Mauerlasche",
     };
@@ -123,7 +130,7 @@ const defaultListItemExtractors: Record<
   abzweigdose: (feature) => {
     const p = feature.properties || {};
     return {
-      main: `AZD-${p.id}`,
+      main: `AZD-${displayId(p.id)}`,
       upperright: "",
       subtitle: "Abzweigdose",
     };
@@ -138,7 +145,7 @@ const genericExtractor = (feature: SidebarFeature): ListItemData => {
     props.title ||
     props.label ||
     props.bezeichnung ||
-    `ID: ${feature.id || "?"}`;
+    `ID: ${displayId(feature.id)}`;
 
   const upperright = toTitleCase(
     props.strasse || props.street || props.typ || props.type || ""
