@@ -35,24 +35,25 @@ const StrassenschluesselFieldsModal = ({
 
   const fieldName = (name: string) => (namePrefix ? [namePrefix, name] : name);
 
-  const handlePkChange = (selectedPk: string) => {
+  const strasseName = fieldName("strassenschluessel_strasse");
+  const pkName = fieldName("strassenschluessel_pk");
+
+  const handlePkChange = (selectedPk: string | undefined) => {
     const match = strassenschluesselOptions.find(
       (item) => item.pk === selectedPk
     );
-    form.setFieldValue(
-      fieldName("strassenschluessel_strasse"),
-      match?.strasse ?? undefined
-    );
+    setTimeout(() => {
+      form.setFieldValue(strasseName, match?.strasse ?? undefined);
+    }, 0);
   };
 
-  const handleStrasseChange = (selectedStrasse: string) => {
+  const handleStrasseChange = (selectedStrasse: string | undefined) => {
     const match = strassenschluesselOptions.find(
       (item) => item.strasse === selectedStrasse
     );
-    form.setFieldValue(
-      fieldName("strassenschluessel_pk"),
-      match?.pk ?? undefined
-    );
+    setTimeout(() => {
+      form.setFieldValue(pkName, match?.pk ?? undefined);
+    }, 0);
   };
 
   return (
