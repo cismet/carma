@@ -20,7 +20,11 @@ vi.mock("@carma-mapping/annotations/runtime", () => ({
 
 import mappingReducer, { removeLayer } from "../store/slices/mapping";
 import uiReducer, { setUIMode, UIMode } from "../store/slices/ui";
-import { CESIUM_ANNOTATION_LAYER_ID } from "../components/annotations/cesium-annotations.constants";
+import {
+  CESIUM_ANNOTATION_INTERACTION_ID,
+  CESIUM_ANNOTATION_LAYER_ID,
+} from "../components/annotations/cesium-annotations.constants";
+import { CESIUM_ANNOTATION_CONFIG } from "../config/app.config";
 import { useCesiumAnnotationLayerButton } from "./useCesiumAnnotationLayerButton";
 
 type TestStore = ReturnType<typeof createTestStore>;
@@ -57,16 +61,29 @@ const buildCesiumAnnotationLayer = () =>
   } as const);
 
 describe("useCesiumAnnotationLayerButton", () => {
+  const setActiveToolType = vi.fn();
+  const setSelectedAnnotationId = vi.fn();
+
   beforeEach(() => {
     useMapFrameworkSwitcherContextMock.mockReset();
     useAnnotationsDispatchMock.mockReset();
+    setActiveToolType.mockReset();
+    setSelectedAnnotationId.mockReset();
     useAnnotationsRuntimeMock.mockReset();
     useMapFrameworkSwitcherContextMock.mockReturnValue({
       isCesium: true,
     });
     useAnnotationsRuntimeMock.mockReturnValue({
+      activeToolType: CESIUM_ANNOTATION_CONFIG.tools.defaultToolId,
       annotationEntries: [],
-      setSelectedAnnotationId: vi.fn(),
+      registry: {
+        getPlugin: (toolId: string) =>
+          toolId === CESIUM_ANNOTATION_CONFIG.tools.defaultToolId
+            ? { id: toolId }
+            : undefined,
+      },
+      setActiveToolType,
+      setSelectedAnnotationId,
     });
   });
 
@@ -107,6 +124,15 @@ describe("useCesiumAnnotationLayerButton", () => {
         })
       );
     });
+    expect(setActiveToolType).toHaveBeenCalledWith(
+      CESIUM_ANNOTATION_CONFIG.tools.defaultToolId
+    );
+    expect(store.getState().mapping.activeInteractionLayerID).toBe(
+      CESIUM_ANNOTATION_LAYER_ID
+    );
+    expect(store.getState().mapping.activeInteractionButtonID).toBe(
+      CESIUM_ANNOTATION_INTERACTION_ID
+    );
   });
 
   it("falls back to default mode when the temporary cesium annotation layer is removed manually", async () => {
@@ -139,12 +165,20 @@ describe("useCesiumAnnotationLayerButton", () => {
     const annotationsDispatch = vi.fn();
 
     useAnnotationsRuntimeMock.mockReturnValue({
+      activeToolType: CESIUM_ANNOTATION_CONFIG.tools.defaultToolId,
       annotationEntries: [
         {
           id: "annotation-1",
           hidden: false,
         },
       ],
+      registry: {
+        getPlugin: (toolId: string) =>
+          toolId === CESIUM_ANNOTATION_CONFIG.tools.defaultToolId
+            ? { id: toolId }
+            : undefined,
+      },
+      setActiveToolType,
       setSelectedAnnotationId,
     });
     useAnnotationsDispatchMock.mockReturnValue(annotationsDispatch);
@@ -171,5 +205,36 @@ describe("useCesiumAnnotationLayerButton", () => {
 
     expect(annotationsDispatch).not.toHaveBeenCalled();
     expect(setSelectedAnnotationId).toHaveBeenCalledWith(null);
+  });
+
+  it("returns from unavailable empty selection to the configured default tool", async () => {
+    const store = createTestStore();
+
+    useAnnotationsRuntimeMock.mockReturnValue({
+      activeToolType: "select",
+      annotationEntries: [],
+      registry: {
+        getPlugin: (toolId: string) =>
+          toolId === CESIUM_ANNOTATION_CONFIG.tools.defaultToolId
+            ? { id: toolId }
+            : undefined,
+      },
+      setActiveToolType,
+      setSelectedAnnotationId,
+    });
+
+    act(() => {
+      store.dispatch(setUIMode(UIMode.MEASUREMENT));
+    });
+
+    renderHook(() => useCesiumAnnotationLayerButton(), {
+      wrapper: createWrapper(store),
+    });
+
+    await waitFor(() => {
+      expect(setActiveToolType).toHaveBeenCalledWith(
+        CESIUM_ANNOTATION_CONFIG.tools.defaultToolId
+      );
+    });
   });
 });

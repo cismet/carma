@@ -48,6 +48,7 @@ export type GeoportalCesiumAnnotationConfig = {
   areaOcclusionStyle: AreaOcclusionStyleOptions;
   infoBox: GeoportalCesiumAnnotationInfoBoxConfig;
   tools: {
+    defaultToolId: AnnotationToolId;
     stableToolIds: readonly AnnotationToolId[];
   };
   labelTextModal: GeoportalCesiumAnnotationLabelTextModalConfig;
@@ -98,6 +99,7 @@ export const CESIUM_ANNOTATION_CONFIG = {
     controlOrder: 12,
   },
   tools: {
+    defaultToolId: "distance",
     stableToolIds: ["select", "point", "distance"],
   },
   labelTextModal: {
