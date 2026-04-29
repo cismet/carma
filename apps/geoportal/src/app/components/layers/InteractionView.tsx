@@ -41,6 +41,8 @@ const GEOPORTAL_ANNOTATIONS_TOOLBAR_CLASS_NAMES = {
   toolButtonBase:
     "flex h-8 w-12 min-w-12 items-center justify-center rounded-[6px] border border-[#d9d9d9] bg-white px-2 text-gray-700 button-shadow transition-colors hover:border-[#1677ff] hover:text-[#1677ff] focus-visible:border-[#1677ff] focus-visible:text-[#1677ff]",
   toolButtonActive: "!border-[#1677ff] !text-[#1677ff]",
+  toolButtonDisabled:
+    "!cursor-not-allowed !border-[#d9d9d9] !text-gray-400 opacity-60 hover:!border-[#d9d9d9] hover:!text-gray-400",
 } satisfies Partial<AnnotationsToolbarClassNames>;
 
 const GeoportalAnnotationsToolbar: FC<{ layer: Layer }> = () => {
@@ -51,6 +53,7 @@ const GeoportalAnnotationsToolbar: FC<{ layer: Layer }> = () => {
     <RuntimeAnnotationsToolbar
       plugins={toolPlugins}
       classNames={GEOPORTAL_ANNOTATIONS_TOOLBAR_CLASS_NAMES}
+      disableSelectWithoutAnnotations
       tooltipPlacement="bottom"
     />
   );

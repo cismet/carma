@@ -10,6 +10,8 @@ import type { Layer } from "@carma-mapping/layers";
 
 import {
   appendLayer,
+  setActiveInteractionButtonID,
+  setActiveInteractionLayerID,
   getLayers,
   removeLayer,
   updateLayer,
@@ -20,6 +22,7 @@ import {
   CESIUM_ANNOTATION_LAYER_ID,
 } from "../components/annotations/cesium-annotations.constants";
 import { useModeLifecycleActions } from "./use-mode-lifecycle-actions";
+import { CESIUM_ANNOTATION_CONFIG } from "../config/app.config";
 
 const CESIUM_ANNOTATION_LAYER: Layer = {
   id: CESIUM_ANNOTATION_LAYER_ID,
@@ -42,8 +45,13 @@ export function useCesiumAnnotationLayerButton() {
   const layers = useSelector(getLayers);
   const uiMode = useSelector(getUIMode);
   const { isCesium } = useMapFrameworkSwitcherContext();
-  const { annotationEntries, setSelectedAnnotationId } =
-    useAnnotationsRuntime();
+  const {
+    activeToolType,
+    annotationEntries,
+    registry,
+    setActiveToolType,
+    setSelectedAnnotationId,
+  } = useAnnotationsRuntime();
 
   const shouldShowCesiumAnnotationLayer =
     isCesium && uiMode === UIMode.MEASUREMENT;
@@ -54,17 +62,29 @@ export function useCesiumAnnotationLayerButton() {
   const initialCleanupDone = useRef(false);
 
   const handleEnterCesiumAnnotationMode = useCallback(() => {
-    if (hasCesiumAnnotationLayer) {
-      return;
+    const defaultToolId = CESIUM_ANNOTATION_CONFIG.tools.defaultToolId;
+    if (registry.getPlugin(defaultToolId)) {
+      setActiveToolType(defaultToolId);
     }
 
-    dispatch(
-      appendLayer({
-        ...CESIUM_ANNOTATION_LAYER,
-        title: getCesiumAnnotationLayerTitle(annotationEntries.length),
-      })
-    );
-  }, [annotationEntries.length, dispatch, hasCesiumAnnotationLayer]);
+    if (!hasCesiumAnnotationLayer) {
+      dispatch(
+        appendLayer({
+          ...CESIUM_ANNOTATION_LAYER,
+          title: getCesiumAnnotationLayerTitle(annotationEntries.length),
+        })
+      );
+    }
+
+    dispatch(setActiveInteractionLayerID(CESIUM_ANNOTATION_LAYER_ID));
+    dispatch(setActiveInteractionButtonID(CESIUM_ANNOTATION_INTERACTION_ID));
+  }, [
+    annotationEntries.length,
+    dispatch,
+    hasCesiumAnnotationLayer,
+    registry,
+    setActiveToolType,
+  ]);
 
   const handleLeaveCesiumAnnotationMode = useCallback(() => {
     if (!hasCesiumAnnotationLayer) {
@@ -127,6 +147,27 @@ export function useCesiumAnnotationLayerButton() {
     annotationEntries.length,
     dispatch,
     hasCesiumAnnotationLayer,
+    shouldShowCesiumAnnotationLayer,
+  ]);
+
+  useEffect(() => {
+    const defaultToolId = CESIUM_ANNOTATION_CONFIG.tools.defaultToolId;
+    if (
+      !shouldShowCesiumAnnotationLayer ||
+      annotationEntries.length > 0 ||
+      activeToolType !== "select" ||
+      activeToolType === defaultToolId ||
+      !registry.getPlugin(defaultToolId)
+    ) {
+      return;
+    }
+
+    setActiveToolType(defaultToolId);
+  }, [
+    activeToolType,
+    annotationEntries.length,
+    registry,
+    setActiveToolType,
     shouldShowCesiumAnnotationLayer,
   ]);
 }
