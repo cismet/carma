@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   Form,
   Row,
@@ -114,6 +114,7 @@ const LeuchteFormFields = ({
   onOriginalValues,
 }: LeuchteFormFieldsProps) => {
   const [form] = Form.useForm();
+  const draftApplied = useRef(false);
   useEffect(() => {
     onFormInstance?.(form);
   }, [form, onFormInstance]);
@@ -185,6 +186,7 @@ const LeuchteFormFields = ({
   useEffect(() => {
     // Reset form when data changes to clear old values
     form.resetFields();
+    draftApplied.current = false;
 
     if (leuchte) {
       const strassenschluessel = leuchte.tkey_strassenschluessel as
@@ -276,14 +278,17 @@ const LeuchteFormFields = ({
 
       if (draftValues) {
         form.setFieldsValue(draftValues);
-      }
-    } else if (!readOnly) {
-      if (draftValues) {
-        form.setFieldsValue(draftValues);
+        draftApplied.current = true;
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [leuchte, form, draftValues]);
+  }, [leuchte, form]);
+
+  useEffect(() => {
+    if (draftApplied.current || !draftValues) return;
+    form.setFieldsValue(draftValues);
+    draftApplied.current = true;
+  }, [draftValues, form]);
 
   return (
     <Form

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import {
   Form,
   Row,
@@ -89,6 +89,7 @@ const MastFormFields = ({
   onOriginalValues,
 }: MastFormFieldsProps) => {
   const [form] = Form.useForm();
+  const draftApplied = useRef(false);
   useEffect(() => {
     onFormInstance?.(form);
   }, [form, onFormInstance]);
@@ -124,6 +125,7 @@ const MastFormFields = ({
   useEffect(() => {
     // Reset form when data changes to clear old values
     form.resetFields();
+    draftApplied.current = false;
 
     if (mast) {
       const strassenschluessel = mast.tkey_strassenschluessel as
@@ -219,14 +221,17 @@ const MastFormFields = ({
 
       if (draftValues) {
         form.setFieldsValue(draftValues);
-      }
-    } else if (!readOnly) {
-      if (draftValues) {
-        form.setFieldsValue(draftValues);
+        draftApplied.current = true;
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mast, form, draftValues]);
+  }, [mast, form]);
+
+  useEffect(() => {
+    if (draftApplied.current || !draftValues) return;
+    form.setFieldsValue(draftValues);
+    draftApplied.current = true;
+  }, [draftValues, form]);
 
   return (
     <Form
