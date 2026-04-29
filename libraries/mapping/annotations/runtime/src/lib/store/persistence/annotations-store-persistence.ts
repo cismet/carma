@@ -25,6 +25,7 @@ export type AnnotationsRuntimePersistenceEnvelope = {
     edges: AnnotationEdge[];
   };
   settings: {
+    lastActiveToolType: AnnotationToolId | null;
     elevationReferenceAnnotationId: string | null;
     nextShortLabelCounterByToolType: Record<string, number>;
   };
@@ -34,6 +35,7 @@ type ResolvePersistedAnnotationsStoreStateArgs = {
   initialToolType: AnnotationToolId;
   initialPointTemporaryMode: boolean;
   initialPersistenceState?: AnnotationsRuntimePersistenceEnvelope | null;
+  isToolTypeAvailable?: (toolType: AnnotationToolId) => boolean;
 };
 
 const cloneAnnotationEntry = (
@@ -96,6 +98,7 @@ export const buildAnnotationsRuntimePersistenceState = (
         .map(cloneEdge),
     },
     settings: {
+      lastActiveToolType: state.annotationToolType,
       elevationReferenceAnnotationId:
         state.settingsState.elevationReferenceAnnotationId,
       nextShortLabelCounterByToolType:
@@ -108,6 +111,7 @@ export const resolvePersistedAnnotationsStoreState = ({
   initialToolType,
   initialPointTemporaryMode,
   initialPersistenceState,
+  isToolTypeAvailable,
 }: ResolvePersistedAnnotationsStoreStateArgs): AnnotationsStoreState => {
   const persistedState =
     initialPersistenceState?.formatId === currentPersistenceFormatId &&
@@ -125,9 +129,14 @@ export const resolvePersistedAnnotationsStoreState = ({
   });
   const resolvedNextShortLabelCounterByToolType =
     resolveNextShortLabelCounterByToolType(normalizedAnnotationEntries);
+  const persistedActiveToolType =
+    typeof persistedState?.settings.lastActiveToolType === "string" &&
+    (isToolTypeAvailable?.(persistedState.settings.lastActiveToolType) ?? true)
+      ? persistedState.settings.lastActiveToolType
+      : null;
 
   return {
-    annotationToolType: initialToolType,
+    annotationToolType: persistedActiveToolType ?? initialToolType,
     selectionState: {
       selectedAnnotationIds: [],
       previousSelectedAnnotationId: null,
@@ -181,6 +190,7 @@ export const loadAnnotationsRuntimePersistenceState = (
         edges?: unknown;
       };
       settings?: {
+        lastActiveToolType?: unknown;
         elevationReferenceAnnotationId?: unknown;
         nextShortLabelCounterByToolType?: unknown;
       };
@@ -220,6 +230,10 @@ export const loadAnnotationsRuntimePersistenceState = (
         ),
       },
       settings: {
+        lastActiveToolType:
+          typeof parsed.settings?.lastActiveToolType === "string"
+            ? parsed.settings.lastActiveToolType
+            : null,
         elevationReferenceAnnotationId:
           typeof parsed.settings?.elevationReferenceAnnotationId === "string"
             ? parsed.settings.elevationReferenceAnnotationId

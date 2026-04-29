@@ -132,6 +132,8 @@ export const useAnnotationsAssembly = ({
           initialToolType: resolvedInitialToolType,
           initialPointTemporaryMode,
           initialPersistenceState,
+          isToolTypeAvailable: (toolType) =>
+            Boolean(registry.getPlugin(toolType)),
         })
       : createInitialAnnotationsStoreState({
           initialToolType: resolvedInitialToolType,

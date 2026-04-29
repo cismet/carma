@@ -124,9 +124,7 @@ describe("useCesiumAnnotationLayerButton", () => {
         })
       );
     });
-    expect(setActiveToolType).toHaveBeenCalledWith(
-      CESIUM_ANNOTATION_CONFIG.tools.defaultToolId
-    );
+    expect(setActiveToolType).not.toHaveBeenCalled();
     expect(store.getState().mapping.activeInteractionLayerID).toBe(
       CESIUM_ANNOTATION_LAYER_ID
     );
