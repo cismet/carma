@@ -519,7 +519,9 @@ export const usePointLabelVisualizer = (
         longPressDurationMs: label.longPressDurationMs,
         longPressOnlyOnMarker:
           Boolean(label.onLongPress) && Boolean(label.hideLabelAndStem),
-        renderHiddenMarkerInteractionTarget: Boolean(label.onLongPress),
+        renderHiddenMarkerInteractionTarget: Boolean(
+          label.onLongPress && label.markerOnlyPointerEvents === true
+        ),
         screenPosition:
           overlayState.isHidden || overlayState.hiddenByLayout
             ? null

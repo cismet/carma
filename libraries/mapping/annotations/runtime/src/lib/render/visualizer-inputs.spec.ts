@@ -53,7 +53,85 @@ const buildInputs = (
 describe("measurement visualizer node interaction inputs", () => {
   it("keeps preview snap clicks available while dropping longpress in blocked authoring", () => {
     const onNodeLongPress = vi.fn();
+    const onPointClick = vi.fn();
+    const onPointLongPress = vi.fn();
     const onPreviewSnapTargetNodeClick = vi.fn();
+    const onReferenceNodeHover = vi.fn();
+    const inputs = buildInputs({
+      points: [
+        {
+          ...buildPoint({
+            id: "point-a",
+            measurementId: "measurement-a",
+            nodeId: "node-a",
+          }),
+          onClick: onPointClick,
+          onLongPress: onPointLongPress,
+        },
+      ],
+      previewSnapTargetsEnabled: true,
+      nodeInteractionHoverEnabled: true,
+      onNodeLongPress,
+      onPreviewSnapTargetNodeClick,
+      onReferenceNodeHover,
+    });
+
+    const point = inputs.visibleStandalonePoints[0];
+
+    expect(inputs.pointLabels).toHaveLength(0);
+    expect(point?.onClick).toEqual(expect.any(Function));
+    expect(point?.onHoverChange).toEqual(expect.any(Function));
+    expect(point?.onLongPress).toBeUndefined();
+
+    point?.onHoverChange?.(true);
+    point?.onClick?.();
+
+    expect(onReferenceNodeHover).toHaveBeenCalledWith("node-a", true);
+    expect(onPreviewSnapTargetNodeClick).toHaveBeenCalledWith("node-a");
+    expect(onPointClick).not.toHaveBeenCalled();
+    expect(onPointLongPress).not.toHaveBeenCalled();
+    expect(onNodeLongPress).not.toHaveBeenCalled();
+  });
+
+  it("does not route visible stem label hover and click to preview snap while authoring", () => {
+    const onLabelClick = vi.fn();
+    const onLabelLongPress = vi.fn();
+    const onPreviewSnapTargetNodeClick = vi.fn();
+    const onReferenceNodeHover = vi.fn();
+    const inputs = buildInputs({
+      points: [],
+      pointLabels: [
+        {
+          id: "distance-a-label",
+          measurementId: "measurement-a",
+          nodeId: "node-a",
+          coordinate,
+          content: "S",
+          hideMarker: true,
+          onClick: onLabelClick,
+          onLongPress: onLabelLongPress,
+        },
+      ],
+      previewSnapTargetsEnabled: true,
+      nodeInteractionHoverEnabled: true,
+      onPreviewSnapTargetNodeClick,
+      onReferenceNodeHover,
+    });
+
+    const label = inputs.pointLabels.find(
+      (pointLabel) => pointLabel.id === "distance-a-label"
+    );
+
+    expect(label?.allowClickWhenBlocked).toBeFalsy();
+    expect(label?.onHoverChange).toBeUndefined();
+    expect(label?.onLongPress).toBeUndefined();
+    expect(onReferenceNodeHover).not.toHaveBeenCalled();
+    expect(onPreviewSnapTargetNodeClick).not.toHaveBeenCalled();
+    expect(onLabelLongPress).not.toHaveBeenCalled();
+  });
+
+  it("selects all measurements sharing a node interaction target", () => {
+    const onNodeMeasurementsSelect = vi.fn();
     const inputs = buildInputs({
       points: [
         buildPoint({
@@ -61,26 +139,31 @@ describe("measurement visualizer node interaction inputs", () => {
           measurementId: "measurement-a",
           nodeId: "node-a",
         }),
+        buildPoint({
+          id: "point-b",
+          measurementId: "measurement-b",
+          nodeId: "node-b",
+        }),
       ],
-      previewSnapTargetsEnabled: true,
-      nodeInteractionHoverEnabled: true,
-      onNodeLongPress,
-      onPreviewSnapTargetNodeClick,
+      blockLabelInteractions: false,
+      nodeLinkIdByNodeId: new Map([
+        ["node-a", "link-1"],
+        ["node-b", "link-1"],
+      ]),
+      onNodeMeasurementsSelect,
     });
 
-    const interactionLabel = inputs.pointLabels.find(
-      (label) => label.id === "point-a-node-interaction"
-    );
+    const point = inputs.visibleStandalonePoints[0];
 
-    expect(interactionLabel?.allowClickWhenBlocked).toBe(true);
-    expect(interactionLabel?.onClick).toEqual(expect.any(Function));
-    expect(interactionLabel?.onLongPress).toBeUndefined();
-    expect(inputs.visibleStandalonePoints[0]?.onLongPress).toBeUndefined();
+    expect(inputs.pointLabels).toHaveLength(0);
+    expect(point?.onClick).toEqual(expect.any(Function));
 
-    interactionLabel?.onClick?.();
+    point?.onClick?.();
 
-    expect(onPreviewSnapTargetNodeClick).toHaveBeenCalledWith("node-a");
-    expect(onNodeLongPress).not.toHaveBeenCalled();
+    expect(onNodeMeasurementsSelect).toHaveBeenCalledWith([
+      "measurement-a",
+      "measurement-b",
+    ]);
   });
 
   it("adds node longpress handlers to visible standalone point markers", () => {
@@ -150,16 +233,15 @@ describe("measurement visualizer node interaction inputs", () => {
       onNodeLongPress,
     });
 
-    const interactionLabel = inputs.pointLabels.find(
-      (label) => label.pointMarkerId === "point-a"
+    const point = inputs.visibleStandalonePoints.find(
+      (visiblePoint) => visiblePoint.id === "point-a"
     );
 
-    expect(inputs.pointLabels.map((label) => label.pointMarkerId)).toEqual([
-      "point-a",
-      "point-b",
-    ]);
+    expect(
+      inputs.visibleStandalonePoints.map((visiblePoint) => visiblePoint.id)
+    ).toEqual(["point-a", "point-b"]);
 
-    interactionLabel?.onLongPress?.();
+    point?.onLongPress?.();
 
     expect(onNodeLongPress).toHaveBeenCalledWith("node-a", "measurement-a");
   });

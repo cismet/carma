@@ -390,7 +390,7 @@ export const usePointEditingGizmo = (
           coordinate,
           movedNodeIds: Object.keys(latestDraftNodeCoordinateOverrides),
           linkToNodeId: latestDraftLinkToNodeId,
-          selectedMeasurementIds: [],
+          selectedMeasurementIds: selectedAnnotationIds,
         })
       );
       clearDraftNodeCoordinateOverrides();
@@ -399,6 +399,7 @@ export const usePointEditingGizmo = (
       annotationsStore,
       clearDraftNodeCoordinateOverrides,
       draftNodeCoordinateOverrides,
+      selectedAnnotationIds,
     ]
   );
 
@@ -427,7 +428,7 @@ export const usePointEditingGizmo = (
         nodes,
         linkedNodeGroups,
         annotationEntries: runtimeState.annotationEntries,
-        selectedMeasurementIds: [],
+        selectedMeasurementIds: selectedAnnotationIds,
       });
 
       if (movedNodeIds.length === 0) {
@@ -496,6 +497,7 @@ export const usePointEditingGizmo = (
       linkedNodeGroups,
       nodes,
       scene,
+      selectedAnnotationIds,
       updateDraftPreviewState,
     ]
   );

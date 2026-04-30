@@ -36,4 +36,28 @@ describe("PointMarkerOverlayShell", () => {
     expect(onLongPress).toHaveBeenCalledOnce();
     expect(onClick).not.toHaveBeenCalled();
   });
+
+  it("keeps marker hover interactive without click or longpress handlers", () => {
+    const onHoverChange = vi.fn();
+
+    const { container } = render(
+      <PointMarkerOverlayShell
+        interactive
+        onHoverChange={onHoverChange}
+        longPressDurationMs={320}
+      />
+    );
+
+    const marker = container.querySelector(
+      '[data-runtime-point-marker-circle="true"]'
+    );
+
+    expect(marker).toBeInstanceOf(HTMLElement);
+
+    fireEvent.mouseEnter(marker!);
+    fireEvent.mouseLeave(marker!);
+
+    expect(onHoverChange).toHaveBeenNthCalledWith(1, true);
+    expect(onHoverChange).toHaveBeenNthCalledWith(2, false);
+  });
 });
