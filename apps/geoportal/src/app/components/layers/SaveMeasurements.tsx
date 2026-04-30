@@ -92,6 +92,8 @@ function SaveMeasurements({ layer }: { layer: Layer }) {
       thumbnail:
         "https://wupp-digitaltwin-assets.cismet.de/v2/geoportal/thumbnails/measurements.png",
       vectorStyle: JSON.stringify(featureData),
+      vectorLegend:
+        "https://wupp-digitaltwin-assets.cismet.de/v2/geoportal/legenden/measurements.png",
       tags: ["Messung", ...layerInfoTags],
       keywords: layerInfoKeywords,
     };
