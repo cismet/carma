@@ -306,6 +306,14 @@ const InfoCard = ({
                   )}
                 </>
               )}
+              {layer.serviceName === "measurements" && (
+                <Button
+                  onClick={deleteCollection}
+                  icon={<FontAwesomeIcon icon={faTrash} />}
+                >
+                  <span className="!hidden sm:!inline-block">Löschen</span>
+                </Button>
+              )}
               {layer.type === "link" && (
                 <Button
                   href={layer.url}
