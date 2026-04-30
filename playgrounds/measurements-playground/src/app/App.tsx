@@ -49,17 +49,24 @@ const LS_SNAPPING_ENABLED_KEY = `${APP_KEY}:snapping-enabled`;
 const LS_RADIUS_DEBUG_KEY = `${APP_KEY}:snap-radius-debug`;
 const LS_SNAP_RADIUS_PX_KEY = `${APP_KEY}:snap-radius-px`;
 const LS_SNAP_MODE_KEY = `${APP_KEY}:snap-mode`;
+const LS_BG_SNAPPING_KEY = `${APP_KEY}:bg-snapping`;
 
 // "opt-out": every style layer is a snap candidate unless flagged
 //   metadata.carmaConf.skipSnapping = true. Means basemap.de geometry
-//   participates too — surprising in a measurement context.
+//   participates too, often surprising in a measurement context.
 // "derived-opt-in": only sources that ship at least one skipSnapping flag
 //   somewhere are treated as curated snap targets. Non-skipSnapping layers
 //   in those sources are snappable; everything else (including basemap.de
 //   layers, which never carry skipSnapping) is excluded. Mirrors the
 //   legacy "snappingLayers" curation pattern at the source level.
-type SnapMode = "opt-out" | "derived-opt-in";
+// "explicit": user picks per loaded libreLayer (via a checkbox in the
+//   layer list) and decides separately whether basemap.de / built-in
+//   layers participate via a "background snapping" checkbox. Loaded
+//   libreLayer membership is read from `metadata["layer-id"]` which
+//   StyleComposer injects on every namespaced layer (slugifyUrl(styleUrl)).
+type SnapMode = "opt-out" | "derived-opt-in" | "explicit";
 const SNAP_MODE_DEFAULT: SnapMode = "derived-opt-in";
+const BG_SNAPPING_DEFAULT = false;
 const SERVER_URL_TOKEN = "__SERVER_URL__";
 const SERVER_URL_REPLACEMENT = "https://tiles.cismet.de";
 
@@ -84,8 +91,8 @@ const QUICK_LOAD_LINKS: { label: string; url: string }[] = [
 ];
 
 type StoredVectorStyle =
-  | { kind: "url"; name: string; url: string }
-  | { kind: "inline"; name: string; data: unknown };
+  | { kind: "url"; name: string; url: string; snapping?: boolean }
+  | { kind: "inline"; name: string; data: unknown; snapping?: boolean };
 
 interface ResolvedVectorStyle {
   name: string;
@@ -93,6 +100,17 @@ interface ResolvedVectorStyle {
   styleUrl: string;
   /** Set when styleUrl is a Blob URL we own and must revoke on cleanup. */
   blobUrl?: string;
+  /** Matches `metadata["layer-id"]` that styleBuilder writes onto every
+   *  layer added from this libreLayer's style.json. Empirically that is
+   *  just the libreLayer's `name` (see `libraries/mapping/engines/maplibre/
+   *  src/utils/styleBuilder.ts:492` for the merged-mode path: `layerId =
+   *  capabilitiesLayer || layer.name`). Vector backgrounds carry a `bg-`
+   *  prefixed name (see `LibreMap.tsx:491`) which we treat as "background"
+   *  in explicit-snap mode. */
+  layerId: string;
+  /** User opt-in flag for explicit snap mode. Default true; only matters
+   *  when SnapMode === "explicit". */
+  snapping: boolean;
 }
 
 function deriveStyleName(url: string, fallbackIndex: number): string {
@@ -254,6 +272,24 @@ function persistSnapMode(value: SnapMode) {
   }
 }
 
+function loadBackgroundSnapping(): boolean {
+  try {
+    const raw = localStorage.getItem(LS_BG_SNAPPING_KEY);
+    if (raw === null) return BG_SNAPPING_DEFAULT;
+    return raw === "1";
+  } catch {
+    return BG_SNAPPING_DEFAULT;
+  }
+}
+
+function persistBackgroundSnapping(value: boolean) {
+  try {
+    localStorage.setItem(LS_BG_SNAPPING_KEY, value ? "1" : "0");
+  } catch {
+    // ignore
+  }
+}
+
 // Walk every coordinate in a GeoJSON geometry. Used for vertex-snapping
 // (the primary snap level — see findSnapTarget).
 function iterateGeomCoords(
@@ -373,25 +409,52 @@ function hasSkipSnapping(layer: maplibregl.LayerSpecification): boolean {
   return meta?.carmaConf?.skipSnapping === true;
 }
 
+// Read the styleBuilder-injected "layer-id" metadata that identifies which
+// libreLayer a merged map layer came from. Empirically the value is the
+// libreLayer's `name` (data layers) or `bg-<layerName>` (vector backgrounds
+// loaded via `LibreMap.tsx:491`). Layers without the metadata are pure
+// built-ins (terra-draw / our overlay layers); they're already excluded by
+// `isLocallyExcludedSnapLayer` so callers don't need to special-case them.
+function getOwnerLayerId(
+  layer: maplibregl.LayerSpecification
+): string | undefined {
+  const meta = (layer as { metadata?: unknown }).metadata as
+    | { "layer-id"?: unknown }
+    | undefined;
+  const v = meta?.["layer-id"];
+  return typeof v === "string" ? v : undefined;
+}
+
+function isBackgroundOwner(owner: string | undefined): boolean {
+  return owner === undefined || owner.startsWith("bg-");
+}
+
 // Build the list of layer ids eligible for snap-target queryRenderedFeatures.
-// Two strategies, controlled by `mode`:
+// Three strategies, controlled by `mode`:
 //
 // - "opt-out": every layer in the merged style participates unless flagged
-//   skipSnapping or locally excluded (terra-draw / our own overlays). Means
-//   the cursor will snap to basemap.de geometry — sometimes useful, often
-//   surprising.
+//   skipSnapping or locally excluded (terra-draw / our own overlays). The
+//   cursor will snap to basemap.de geometry too.
 // - "derived-opt-in": only layers belonging to a "curated" source. A source
 //   is curated iff at least one of its layers in the merged style ships
-//   skipSnapping = true — interpreted as "the style author thought about
+//   skipSnapping = true (interpreted as: the style author thought about
 //   snapping for this source, so the non-skipSnapping layers in it are
-//   intentional snap targets". Sources without any skipSnapping flag (e.g.
+//   intentional snap targets). Sources without any skipSnapping flag (e.g.
 //   basemap.de, today's POI style) are excluded entirely.
+// - "explicit": user picks per libreLayer via the loaded-layers list.
+//   Membership read from metadata["layer-id"] which styleBuilder writes on
+//   every layer (= the libreLayer's `name`, or `bg-<layerName>` for the
+//   vector background). The `optedInLayerIds` set holds the names of every
+//   libreLayer the user ticked; `backgroundSnapping` controls whether
+//   layers whose owner-id starts with `bg-` (basemap.de) participate too.
 //
 // Returns null when the style isn't ready — caller treats that as "no snap
 // candidates available".
 function getSnappableLayerIds(
   map: maplibregl.Map,
-  mode: SnapMode
+  mode: SnapMode,
+  optedInLayerIds: Set<string>,
+  backgroundSnapping: boolean
 ): string[] | null {
   const style = map.getStyle();
   if (!style || !style.layers) return null;
@@ -409,9 +472,18 @@ function getSnappableLayerIds(
 
   const ids: string[] = [];
   for (const layer of layers) {
-    if (curatedSources && !curatedSources.has(layerSource(layer))) continue;
     if (hasSkipSnapping(layer)) continue;
     if (isLocallyExcludedSnapLayer(layer.id)) continue;
+    if (mode === "derived-opt-in") {
+      if (!curatedSources!.has(layerSource(layer))) continue;
+    } else if (mode === "explicit") {
+      const owner = getOwnerLayerId(layer);
+      if (isBackgroundOwner(owner)) {
+        if (!backgroundSnapping) continue;
+      } else if (!optedInLayerIds.has(owner!)) {
+        continue;
+      }
+    }
     ids.push(layer.id);
   }
   return ids;
@@ -568,6 +640,9 @@ export function App() {
   );
   const [snapRadiusPx, setSnapRadiusPx] = useState<number>(loadSnapRadiusPx);
   const [snapMode, setSnapMode] = useState<SnapMode>(loadSnapMode);
+  const [backgroundSnapping, setBackgroundSnapping] = useState<boolean>(
+    loadBackgroundSnapping
+  );
 
   const toggleLabelsVisible = () =>
     setLabelsVisible((prev) => {
@@ -601,6 +676,13 @@ export function App() {
     persistSnapMode(next);
   };
 
+  const toggleBackgroundSnapping = () =>
+    setBackgroundSnapping((prev) => {
+      const next = !prev;
+      persistBackgroundSnapping(next);
+      return next;
+    });
+
   // Wipe everything we persist for this playground (loaded layers +
   // four UX prefs) and put state back to its defaults. Drawn features live
   // in terra-draw's in-memory store, not localStorage, so they're untouched.
@@ -612,6 +694,7 @@ export function App() {
       localStorage.removeItem(LS_RADIUS_DEBUG_KEY);
       localStorage.removeItem(LS_SNAP_RADIUS_PX_KEY);
       localStorage.removeItem(LS_SNAP_MODE_KEY);
+      localStorage.removeItem(LS_BG_SNAPPING_KEY);
     } catch (e) {
       console.warn(
         "[measurements-playground] failed to clear stored preferences",
@@ -624,6 +707,7 @@ export function App() {
     setRadiusDebugVisible(true);
     setSnapRadiusPx(SNAP_RADIUS_PX_DEFAULT);
     setSnapMode(SNAP_MODE_DEFAULT);
+    setBackgroundSnapping(BG_SNAPPING_DEFAULT);
   };
 
   // Resolve each stored entry to { name, styleUrl } and own the Blob URL lifecycle.
@@ -633,18 +717,27 @@ export function App() {
     const used = new Set<string>();
 
     storedStyles.forEach((entry, idx) => {
+      // Default missing snapping flag to true (existing entries pre-date it).
+      const snapping = entry.snapping !== false;
       if (entry.kind === "url") {
+        const styleUrl = entry.url;
+        const name = entry.name || deriveStyleName(styleUrl, idx);
         next.push({
-          name: entry.name || deriveStyleName(entry.url, idx),
-          styleUrl: entry.url,
+          name,
+          styleUrl,
+          layerId: name,
+          snapping,
         });
       } else {
         const blobUrl = inlineDataToBlobUrl(entry.data);
         used.add(blobUrl);
+        const name = entry.name || `inline-layer-${idx + 1}`;
         next.push({
-          name: entry.name || `inline-layer-${idx + 1}`,
+          name,
           styleUrl: blobUrl,
           blobUrl,
+          layerId: name,
+          snapping,
         });
       }
     });
@@ -656,6 +749,14 @@ export function App() {
     blobUrlsRef.current = used;
     return next;
   }, [storedStyles]);
+
+  // Slug set for explicit-mode filtering. Stable identity tied to the
+  // serialised list so the cache-rebuild effect in TerraDrawIntegration
+  // fires only when the user actually flips a row.
+  const optedInLayerIds = useMemo(
+    () => resolvedStyles.filter((s) => s.snapping).map((s) => s.layerId),
+    [resolvedStyles]
+  );
 
   // Final cleanup on unmount.
   useEffect(() => {
@@ -686,6 +787,16 @@ export function App() {
   const removeStyleAt = (index: number) => {
     setStoredStyles((prev) => {
       const next = prev.filter((_, i) => i !== index);
+      persistVectorStyles(next);
+      return next;
+    });
+  };
+
+  const toggleStyleSnappingAt = (index: number) => {
+    setStoredStyles((prev) => {
+      const next = prev.map((entry, i) =>
+        i === index ? { ...entry, snapping: entry.snapping === false } : entry
+      );
       persistVectorStyles(next);
       return next;
     });
@@ -835,11 +946,14 @@ export function App() {
         radiusDebugVisible={radiusDebugVisible}
         snapRadiusPx={snapRadiusPx}
         snapMode={snapMode}
+        optedInLayerIds={optedInLayerIds}
+        backgroundSnapping={backgroundSnapping}
       />
       <OverlayUI
         layers={resolvedStyles}
         onClear={clearAllStyles}
         onRemove={removeStyleAt}
+        onToggleSnapping={toggleStyleSnappingAt}
         onQuickLoad={(url) => void loadFromUrl(url)}
         radiusDebugVisible={radiusDebugVisible}
         onToggleRadiusDebug={toggleRadiusDebug}
@@ -847,6 +961,8 @@ export function App() {
         onSnapRadiusChange={updateSnapRadiusPx}
         snapMode={snapMode}
         onSnapModeChange={updateSnapMode}
+        backgroundSnapping={backgroundSnapping}
+        onToggleBackgroundSnapping={toggleBackgroundSnapping}
         onResetAll={resetAll}
       />
     </>
@@ -878,6 +994,8 @@ function TerraDrawIntegration({
   radiusDebugVisible,
   snapRadiusPx,
   snapMode,
+  optedInLayerIds,
+  backgroundSnapping,
 }: {
   mode: DrawMode;
   labelsVisible: boolean;
@@ -885,6 +1003,8 @@ function TerraDrawIntegration({
   radiusDebugVisible: boolean;
   snapRadiusPx: number;
   snapMode: SnapMode;
+  optedInLayerIds: string[];
+  backgroundSnapping: boolean;
 }) {
   const { map } = useLibreContext();
   const drawRef = useRef<TerraDraw | null>(null);
@@ -907,11 +1027,16 @@ function TerraDrawIntegration({
   snapRadiusPxRef.current = snapRadiusPx;
   const radiusDebugVisibleRef = useRef(radiusDebugVisible);
   radiusDebugVisibleRef.current = radiusDebugVisible;
-  // Snap-mode (opt-out vs derived-opt-in) read live by attach() and the
-  // recompute effect below so changes flip the eligible-layer list without
-  // tearing down terra-draw.
+  // Snap-mode (opt-out / derived-opt-in / explicit) read live by attach()
+  // and the recompute effect below so changes flip the eligible-layer list
+  // without tearing down terra-draw. Same trick for the explicit-mode
+  // inputs (per-libreLayer opt-in set + background snapping flag).
   const snapModeRef = useRef(snapMode);
   snapModeRef.current = snapMode;
+  const optedInLayerIdsSetRef = useRef<Set<string>>(new Set(optedInLayerIds));
+  optedInLayerIdsSetRef.current = new Set(optedInLayerIds);
+  const backgroundSnappingRef = useRef(backgroundSnapping);
+  backgroundSnappingRef.current = backgroundSnapping;
   // Cached list of layer ids eligible for snap querying. Recomputed on
   // attach() (initial mount + after every style swap) AND when snapMode
   // flips, so the hot mousemove path doesn't have to call map.getStyle()
@@ -1232,7 +1357,12 @@ function TerraDrawIntegration({
       // is fully loaded (terra-draw + label/snap layers were just added).
       // Without this the cache would point at stale ids from the old style.
       snappableLayerIdsRef.current =
-        getSnappableLayerIds(map, snapModeRef.current) ?? [];
+        getSnappableLayerIds(
+          map,
+          snapModeRef.current,
+          optedInLayerIdsSetRef.current,
+          backgroundSnappingRef.current
+        ) ?? [];
       // Wipe any stale preview/radius from the previous style; mousemove
       // will fill them back in on the next pointer event.
       setPointSourceAt(SNAP_PREVIEW_SOURCE_ID, null);
@@ -1327,12 +1457,19 @@ function TerraDrawIntegration({
     map.setPaintProperty(SNAP_RADIUS_LAYER_ID, "circle-radius", snapRadiusPx);
   }, [map, snapRadiusPx]);
 
-  // React to snap-mode flip: rebuild the cached layer-id list. Skip if the
-  // style isn't ready yet — attach() will compute it on style.load.
+  // React to any snap-target input flip (mode, per-libreLayer opt-ins,
+  // background flag): rebuild the cached layer-id list. Skip if the style
+  // isn't ready yet — attach() will compute it on style.load.
   useEffect(() => {
     if (!map || !map.isStyleLoaded()) return;
-    snappableLayerIdsRef.current = getSnappableLayerIds(map, snapMode) ?? [];
-  }, [map, snapMode]);
+    snappableLayerIdsRef.current =
+      getSnappableLayerIds(
+        map,
+        snapMode,
+        new Set(optedInLayerIds),
+        backgroundSnapping
+      ) ?? [];
+  }, [map, snapMode, optedInLayerIds, backgroundSnapping]);
 
   return null;
 }
@@ -1436,6 +1573,7 @@ function OverlayUI({
   layers,
   onClear,
   onRemove,
+  onToggleSnapping,
   onQuickLoad,
   radiusDebugVisible,
   onToggleRadiusDebug,
@@ -1443,11 +1581,14 @@ function OverlayUI({
   onSnapRadiusChange,
   snapMode,
   onSnapModeChange,
+  backgroundSnapping,
+  onToggleBackgroundSnapping,
   onResetAll,
 }: {
   layers: ResolvedVectorStyle[];
   onClear: () => void;
   onRemove: (index: number) => void;
+  onToggleSnapping: (index: number) => void;
   onQuickLoad: (url: string) => void;
   radiusDebugVisible: boolean;
   onToggleRadiusDebug: () => void;
@@ -1455,8 +1596,11 @@ function OverlayUI({
   onSnapRadiusChange: (next: number) => void;
   snapMode: SnapMode;
   onSnapModeChange: (next: SnapMode) => void;
+  backgroundSnapping: boolean;
+  onToggleBackgroundSnapping: () => void;
   onResetAll: () => void;
 }) {
+  const isExplicit = snapMode === "explicit";
   return (
     <div
       className="absolute top-4 left-1/2 -translate-x-1/2 z-[9999]"
@@ -1580,27 +1724,81 @@ function OverlayUI({
         }}
       >
         <strong style={{ fontSize: "13px" }}>Snap (debug)</strong>
+        <span
+          role="radiogroup"
+          aria-label="snap mode"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "10px",
+          }}
+        >
+          {(
+            [
+              {
+                value: "opt-out" as SnapMode,
+                label: "opt-out",
+                title:
+                  "Every layer participates unless flagged skipSnapping. Basemap.de geometry included.",
+              },
+              {
+                value: "derived-opt-in" as SnapMode,
+                label: "derived opt-in",
+                title:
+                  "Only sources that ship at least one skipSnapping flag are treated as curated snap targets. Basemap.de excluded.",
+              },
+              {
+                value: "explicit" as SnapMode,
+                label: "explicit",
+                title:
+                  "User picks per loaded libreLayer (checkbox below). Background (basemap.de + built-ins) gated separately.",
+              },
+            ] as const
+          ).map((opt) => (
+            <label
+              key={opt.value}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+                cursor: "pointer",
+              }}
+              title={opt.title}
+            >
+              <input
+                type="radio"
+                name="snap-mode"
+                value={opt.value}
+                checked={snapMode === opt.value}
+                onChange={() => onSnapModeChange(opt.value)}
+                data-testid={`snap-mode-${opt.value}`}
+              />
+              {opt.label}
+            </label>
+          ))}
+        </span>
         <label
           style={{
             display: "inline-flex",
             alignItems: "center",
             gap: "6px",
-            cursor: "pointer",
+            cursor: isExplicit ? "pointer" : "not-allowed",
+            opacity: isExplicit ? 1 : 0.5,
           }}
           title={
-            "Checked (derived opt-in): only sources that ship at least one skipSnapping flag are treated as curated snap targets — basemap.de excluded.\n" +
-            "Unchecked (opt-out): every layer participates unless flagged skipSnapping — basemap.de included."
+            isExplicit
+              ? "Include layers that aren't part of any loaded libreLayer (basemap.de plus any built-ins)."
+              : "Only relevant in explicit mode."
           }
         >
           <input
             type="checkbox"
-            checked={snapMode === "derived-opt-in"}
-            onChange={(e) =>
-              onSnapModeChange(e.target.checked ? "derived-opt-in" : "opt-out")
-            }
-            data-testid="snap-mode-toggle"
+            checked={backgroundSnapping}
+            disabled={!isExplicit}
+            onChange={onToggleBackgroundSnapping}
+            data-testid="snap-background-toggle"
           />
-          derived opt-in
+          background
         </label>
         <label
           style={{
@@ -1689,6 +1887,7 @@ function OverlayUI({
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
+                  flex: 1,
                 }}
               >
                 <span
@@ -1705,6 +1904,31 @@ function OverlayUI({
                 />
                 {layer.name}
               </span>
+              <label
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  fontSize: "11px",
+                  color: isExplicit ? "#374151" : "#9ca3af",
+                  cursor: isExplicit ? "pointer" : "not-allowed",
+                  opacity: isExplicit ? 1 : 0.6,
+                }}
+                title={
+                  isExplicit
+                    ? "Include this libreLayer's features as snap targets."
+                    : "Only relevant in explicit mode."
+                }
+              >
+                <input
+                  type="checkbox"
+                  checked={layer.snapping}
+                  disabled={!isExplicit}
+                  onChange={() => onToggleSnapping(idx)}
+                  data-testid={`layer-snapping-toggle-${idx}`}
+                />
+                snap
+              </label>
               <button
                 onClick={() => onRemove(idx)}
                 style={{
