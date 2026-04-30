@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import type { FormInstance } from "antd";
 import { message } from "antd";
 import { useSelector } from "react-redux";
@@ -40,6 +40,7 @@ interface SchaltstelleFormProps {
   draftFiles?: DraftFile[];
   hasDraft?: boolean;
   isCreation?: boolean;
+  formHeaderContent?: ReactNode;
   onDraftChange?: (values: Record<string, unknown>) => void;
   onDraftFilesChange?: (files: DraftFile[]) => void;
   onOriginalValues?: (values: Record<string, unknown>) => void;
@@ -59,6 +60,7 @@ const SchaltstelleForm = ({
   draftValues,
   draftFiles,
   hasDraft,
+  formHeaderContent,
   onDraftChange,
   onDraftFilesChange,
   onOriginalValues,
@@ -234,6 +236,7 @@ const SchaltstelleForm = ({
       title={sidebarMain ? `Schaltstelle ${sidebarMain}` : "Schaltstelle"}
       cancelLabel={cancelBTn || ""}
       isCreation={isCreation}
+      formHeaderContent={formHeaderContent}
       subtitle={subtitle}
       documents={documents}
       jwt={jwt}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import type { FormInstance } from "antd";
 import { message } from "antd";
 import type { DraftFile } from "../../../store/slices/featuresForms";
@@ -41,6 +41,7 @@ interface LeuchteFormProps {
   draftFiles?: DraftFile[];
   hasDraft?: boolean;
   isCreation?: boolean;
+  formHeaderContent?: ReactNode;
   onDraftChange?: (values: Record<string, unknown>) => void;
   onDraftFilesChange?: (files: DraftFile[]) => void;
   onOriginalValues?: (values: Record<string, unknown>) => void;
@@ -61,6 +62,7 @@ const LeuchteForm = ({
   draftFiles,
   hasDraft,
   isCreation,
+  formHeaderContent,
   onDraftChange,
   onDraftFilesChange,
   onOriginalValues,
@@ -353,6 +355,7 @@ const LeuchteForm = ({
       title={sidebarMain ? `Leuchte ${sidebarMain}` : "Leuchte"}
       cancelLabel={sidebarMain || ""}
       isCreation={isCreation}
+      formHeaderContent={formHeaderContent}
       subtitle={subtitle}
       documents={documents}
       mainDocumentsTitle="Leuchte"

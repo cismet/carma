@@ -395,32 +395,6 @@ const FeaturesFormsWrapper = ({
           draftValues={draft?.values}
         >
           <div className="h-full">
-            {isCreation && (
-              <>
-                <div className="bg-green-50 border border-green-200 text-green-800 text-sm px-3 py-2 rounded mb-2">
-                  Neuer Entwurf — noch nicht gespeichert
-                </div>
-                <div className="mb-3 px-1">
-                  <span className="text-sm font-medium text-gray-700">
-                    Neue Geometrien
-                  </span>
-                  <Select
-                    value={
-                      (draft?.geometryKey as GeometryKey) ?? "point_toelleturm"
-                    }
-                    onChange={handleGeometryChange}
-                    className="w-full mt-1"
-                    size="large"
-                  >
-                    {GEOMETRY_OPTIONS.map((opt) => (
-                      <Select.Option key={opt.key} value={opt.key}>
-                        {opt.label}
-                      </Select.Option>
-                    ))}
-                  </Select>
-                </div>
-              </>
-            )}
             <FormComponent
               key={resetKey}
               data={data}
@@ -431,6 +405,30 @@ const FeaturesFormsWrapper = ({
               draftFiles={draftFiles}
               hasDraft={isCreation || hasChanges}
               isCreation={isCreation}
+              formHeaderContent={
+                isCreation ? (
+                  <div className="mb-3">
+                    <span className="text-sm font-medium text-gray-700">
+                      Neue Geometrien
+                    </span>
+                    <Select
+                      value={
+                        (draft?.geometryKey as GeometryKey) ??
+                        "point_toelleturm"
+                      }
+                      onChange={handleGeometryChange}
+                      className="w-full mt-1"
+                      size="large"
+                    >
+                      {GEOMETRY_OPTIONS.map((opt) => (
+                        <Select.Option key={opt.key} value={opt.key}>
+                          {opt.label}
+                        </Select.Option>
+                      ))}
+                    </Select>
+                  </div>
+                ) : undefined
+              }
               onDraftChange={handleDraftChange}
               onDraftFilesChange={handleDraftFilesChange}
               onOriginalValues={handleOriginalValues}
