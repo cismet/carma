@@ -69,7 +69,7 @@ const StrassenschluesselFieldsModal = ({
             showSearch
             allowClear
             optionFilterProp="children"
-            placeholder="PK"
+            placeholder=""
             onChange={handlePkChange}
           >
             {strassenschluesselOptions.map((item) => (

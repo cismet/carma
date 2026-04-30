@@ -256,6 +256,7 @@ const MauerlascheForm = ({
       <MauerlascheFormFields
         mauerlasche={ml}
         readOnly={readOnly}
+        isCreation={isCreation}
         onFormInstance={setFormInstance}
         draftValues={draftValues}
         onValuesChange={handleValuesChange}
