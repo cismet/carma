@@ -6,7 +6,9 @@ import {
   faChevronRight,
   faChevronUp,
   faMagnifyingGlass,
+  faStar,
 } from "@fortawesome/free-solid-svg-icons";
+import { faStar as regularFaStar } from "@fortawesome/free-regular-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { forwardRef, useContext, useEffect, useRef } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
@@ -38,6 +40,12 @@ import {
   setUIShowInfo,
   setUIShowInfoText,
 } from "../../store/slices/ui";
+import {
+  addFavorite,
+  getFavorites,
+  removeFavorite,
+} from "../../store/slices/layers";
+import type { Item } from "@carma-mapping/layers";
 import AerialLayerSelection from "./AerialLayerSelection";
 import BaseLayerInfo from "./BaseLayerInfo";
 import BaseLayerSelection from "./BaseLayerSelection";
@@ -67,6 +75,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
   const selectedLayerIndex = useSelector(getSelectedLayerIndex);
   const layers = useSelector(getLayers);
   const backgroundLayer = useSelector(getBackgroundLayer);
+  const favorites = useSelector(getFavorites);
   const layer =
     selectedLayerIndex >= 0 ? layers[selectedLayerIndex] : backgroundLayer;
   const vectorLegend =
@@ -84,6 +93,54 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
     ? "gärten"
     : undefined;
   const isBaseLayer = selectedLayerIndex === -1;
+
+  const canFavorite =
+    !isBaseLayer && (layer.type === "layer" || layer.type === "object");
+  const isFavorite =
+    canFavorite &&
+    favorites.some(
+      (favorite) =>
+        favorite.id === `fav_${layer.id}` || favorite.id === layer.id
+    );
+
+  const buildFavoriteItem = (): Item => {
+    const other = layer.other ?? {};
+    const layerInfo = layer.layerInfo ?? {};
+    return {
+      title: layer.title,
+      description: layer.description ?? "",
+      id: layer.id,
+      serviceName: other.serviceName ?? "wuppGenericTopicMaps",
+      type: layer.type,
+      tags: other.tags ?? layerInfo.tags,
+      thumbnail: other.thumbnail ?? layerInfo.thumbnail,
+      keywords: other.keywords ?? layerInfo.keywords,
+      icon: other.icon ?? layer.icon,
+      alternativeIcon: other.alternativeIcon,
+      service: other.service,
+      name: other.name,
+      path: other.path,
+      originalPath: other.originalPath,
+      vectorLegend: other.vectorLegend ?? (layerInfo.vectorLegend as string),
+      vectorStyle:
+        (layerInfo.vectorStyle as string) ?? (layer.props?.style as string),
+      props: {
+        Style: layer.props?.legend
+          ? [{ LegendURL: layer.props.legend }]
+          : undefined,
+        MetadataURL: layer.props?.metaData,
+      },
+    } as Item;
+  };
+
+  const toggleFavorite = () => {
+    const item = buildFavoriteItem();
+    if (isFavorite) {
+      dispatch(removeFavorite(item));
+    } else {
+      dispatch(addFavorite(item));
+    }
+  };
 
   const {
     featureCollections,
@@ -381,6 +438,26 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
                 }}
               >
                 <FontAwesomeIcon icon={faMagnifyingGlass} />
+              </button>
+            )}
+            {canFavorite && (
+              <button
+                className="hover:text-gray-500 text-gray-600 flex items-center justify-center"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleFavorite();
+                }}
+                title={isFavorite ? "Favorit entfernen" : "Favorisieren"}
+                data-test-id={
+                  isFavorite
+                    ? "remove-layer-favorite-secondary-view"
+                    : "add-layer-favorite-secondary-view"
+                }
+              >
+                <FontAwesomeIcon
+                  icon={isFavorite ? faStar : regularFaStar}
+                  className={isFavorite ? "text-yellow-400" : ""}
+                />
               </button>
             )}
             <VisibilityToggle
