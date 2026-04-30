@@ -44,6 +44,7 @@ interface LeuchteFormFieldsProps {
   leuchte: Record<string, unknown> | null;
   namePrefix?: string;
   readOnly?: boolean;
+  form?: import("antd").FormInstance;
   onFormInstance?: (form: import("antd").FormInstance) => void;
   draftValues?: Record<string, unknown>;
   onValuesChange?: (
@@ -108,16 +109,18 @@ const LeuchteFormFields = ({
   leuchte,
   namePrefix,
   readOnly = true,
+  form: externalForm,
   onFormInstance,
   draftValues,
   onValuesChange,
   onOriginalValues,
 }: LeuchteFormFieldsProps) => {
-  const [form] = Form.useForm();
+  const [localForm] = Form.useForm();
+  const form = externalForm ?? localForm;
   const draftApplied = useRef(false);
   useEffect(() => {
-    onFormInstance?.(form);
-  }, [form, onFormInstance]);
+    if (!externalForm) onFormInstance?.(form);
+  }, [form, onFormInstance, externalForm]);
   const keyTablesData = useSelector(getKeyTablesData);
 
   // Key table options (sorted to match KeyTablesPage display order)
@@ -184,7 +187,7 @@ const LeuchteFormFields = ({
   const fieldName = (name: string) => (namePrefix ? [namePrefix, name] : name);
 
   useEffect(() => {
-    // Reset form when data changes to clear old values
+    if (externalForm) return;
     form.resetFields();
     draftApplied.current = false;
 
@@ -285,10 +288,11 @@ const LeuchteFormFields = ({
   }, [leuchte, form]);
 
   useEffect(() => {
+    if (externalForm) return;
     if (draftApplied.current || !draftValues) return;
     form.setFieldsValue(draftValues);
     draftApplied.current = true;
-  }, [draftValues, form]);
+  }, [draftValues, form, externalForm]);
 
   return (
     <Form

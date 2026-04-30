@@ -23,6 +23,7 @@ export interface Draft {
   fetchedData?: Record<string, unknown>;
   isCreation?: boolean;
   geometry?: GeoJSON.Geometry;
+  geometryKey?: string;
   updatedAt: number;
 }
 
@@ -59,6 +60,7 @@ const featuresFormsSlice = createSlice({
         fetchedData?: Record<string, unknown>;
         isCreation?: boolean;
         geometry?: GeoJSON.Geometry;
+        geometryKey?: string;
       }>
     ) {
       const {
@@ -69,6 +71,7 @@ const featuresFormsSlice = createSlice({
         fetchedData,
         isCreation,
         geometry,
+        geometryKey,
       } = action.payload;
       const existing = state.drafts[featureId];
       const hasFiles = existing?.files && existing.files.length > 0;
@@ -107,6 +110,7 @@ const featuresFormsSlice = createSlice({
         fetchedData: fetchedData ?? existing?.fetchedData,
         isCreation: creationDraft,
         geometry: geometry ?? existing?.geometry,
+        geometryKey: geometryKey ?? existing?.geometryKey,
         updatedAt: Date.now(),
       };
     },

@@ -121,6 +121,7 @@ import type { SidebarFeature } from "../ui/BelisSidebar";
 import {
   getAllDraftFeatures,
   getDraftFeaturesCount,
+  getDraftFetchedData,
   getGlobalEditMode,
 } from "../../store/slices/featuresForms";
 import {
@@ -514,6 +515,15 @@ const BelisMapLibWrapper = ({
   // Draft features for "Entwürfe" sidebar tab
   const allDraftFeatures = useSelector(getAllDraftFeatures);
   const draftFeaturesCount = useSelector(getDraftFeaturesCount);
+
+  // Live fetchedData for creation drafts — avoids stale snapshot in fetchedFeatureData
+  const creationDraftKey =
+    rawFeature?.properties?._isCreation === true
+      ? String(rawFeature.properties.id)
+      : undefined;
+  const liveDraftFetchedData = useSelector((state: RootState) =>
+    getDraftFetchedData(state, creationDraftKey)
+  );
 
   // Draft features are stored as raw MapGeoJSON features (same structure as
   // sidebar features from the map). No reconstruction needed — just extract
@@ -2643,7 +2653,7 @@ const BelisMapLibWrapper = ({
                 <BelisDatasheetView
                   feature={selectedFeature}
                   rawFeature={rawFeature}
-                  fetchedData={fetchedFeatureData}
+                  fetchedData={liveDraftFetchedData ?? fetchedFeatureData}
                   featureType={
                     selectedFeature?.carmaInfo?.sourceLayer ||
                     selectedFeatureId?.sourceLayer ||

@@ -21,6 +21,7 @@ import toTitleCase from "../../../helper/toTitleCase";
 interface SchaltstelleFormFieldsProps {
   schaltstelle: Record<string, unknown> | null;
   readOnly?: boolean;
+  form?: FormInstance;
   onFormInstance?: (form: FormInstance) => void;
   draftValues?: Record<string, unknown>;
   onValuesChange?: (
@@ -47,16 +48,18 @@ const FormLabel = ({ children }: { children: React.ReactNode }) => (
 const SchaltstelleFormFields = ({
   schaltstelle,
   readOnly = true,
+  form: externalForm,
   onFormInstance,
   draftValues,
   onValuesChange,
   onOriginalValues,
 }: SchaltstelleFormFieldsProps) => {
-  const [form] = Form.useForm();
+  const [localForm] = Form.useForm();
+  const form = externalForm ?? localForm;
   const draftApplied = useRef(false);
   useEffect(() => {
-    onFormInstance?.(form);
-  }, [form, onFormInstance]);
+    if (!externalForm) onFormInstance?.(form);
+  }, [form, onFormInstance, externalForm]);
 
   const keyTablesData = useSelector(getKeyTablesData);
 
@@ -70,6 +73,7 @@ const SchaltstelleFormFields = ({
   ].sort((a, b) => (a.rs_typ || "").localeCompare(b.rs_typ || ""));
 
   useEffect(() => {
+    if (externalForm) return;
     form.resetFields();
     draftApplied.current = false;
 
@@ -121,10 +125,11 @@ const SchaltstelleFormFields = ({
   }, [schaltstelle, form]);
 
   useEffect(() => {
+    if (externalForm) return;
     if (draftApplied.current || !draftValues) return;
     form.setFieldsValue(draftValues);
     draftApplied.current = true;
-  }, [draftValues, form]);
+  }, [draftValues, form, externalForm]);
 
   return (
     <Form

@@ -9,6 +9,7 @@ import { FormItem } from "./DraftFieldHighlight";
 interface LeitungFormFieldsProps {
   leitung: Record<string, unknown> | null;
   readOnly?: boolean;
+  form?: FormInstance;
   onFormInstance?: (form: FormInstance) => void;
   draftValues?: Record<string, unknown>;
   onValuesChange?: (
@@ -31,16 +32,18 @@ const FormLabel = ({ children }: { children: React.ReactNode }) => (
 const LeitungFormFields = ({
   leitung,
   readOnly = true,
+  form: externalForm,
   onFormInstance,
   draftValues,
   onValuesChange,
   onOriginalValues,
 }: LeitungFormFieldsProps) => {
-  const [form] = Form.useForm();
+  const [localForm] = Form.useForm();
+  const form = externalForm ?? localForm;
   const draftApplied = useRef(false);
   useEffect(() => {
-    onFormInstance?.(form);
-  }, [form, onFormInstance]);
+    if (!externalForm) onFormInstance?.(form);
+  }, [form, onFormInstance, externalForm]);
 
   const keyTablesData = useSelector(getKeyTablesData);
 
@@ -55,6 +58,7 @@ const LeitungFormFields = ({
   ].sort((a, b) => Number(a.groesse || 0) - Number(b.groesse || 0));
 
   useEffect(() => {
+    if (externalForm) return;
     form.resetFields();
     draftApplied.current = false;
 
@@ -76,10 +80,11 @@ const LeitungFormFields = ({
   }, [leitung, form]);
 
   useEffect(() => {
+    if (externalForm) return;
     if (draftApplied.current || !draftValues) return;
     form.setFieldsValue(draftValues);
     draftApplied.current = true;
-  }, [draftValues, form]);
+  }, [draftValues, form, externalForm]);
 
   return (
     <Form

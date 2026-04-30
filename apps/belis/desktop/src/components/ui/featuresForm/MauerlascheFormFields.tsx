@@ -13,6 +13,7 @@ import toTitleCase from "../../../helper/toTitleCase";
 interface MauerlascheFormFieldsProps {
   mauerlasche: Record<string, unknown> | null;
   readOnly?: boolean;
+  form?: FormInstance;
   onFormInstance?: (form: FormInstance) => void;
   draftValues?: Record<string, unknown>;
   onValuesChange?: (
@@ -34,16 +35,18 @@ const FormLabel = ({ children }: { children: React.ReactNode }) => (
 const MauerlascheFormFields = ({
   mauerlasche,
   readOnly = true,
+  form: externalForm,
   onFormInstance,
   draftValues,
   onValuesChange,
   onOriginalValues,
 }: MauerlascheFormFieldsProps) => {
-  const [form] = Form.useForm();
+  const [localForm] = Form.useForm();
+  const form = externalForm ?? localForm;
   const draftApplied = useRef(false);
   useEffect(() => {
-    onFormInstance?.(form);
-  }, [form, onFormInstance]);
+    if (!externalForm) onFormInstance?.(form);
+  }, [form, onFormInstance, externalForm]);
 
   const keyTablesData = useSelector(getKeyTablesData);
 
@@ -53,6 +56,7 @@ const MauerlascheFormFields = ({
   ].sort((a, b) => (a.bezeichnung || "").localeCompare(b.bezeichnung || ""));
 
   useEffect(() => {
+    if (externalForm) return;
     form.resetFields();
     draftApplied.current = false;
 
@@ -92,10 +96,11 @@ const MauerlascheFormFields = ({
   }, [mauerlasche, form]);
 
   useEffect(() => {
+    if (externalForm) return;
     if (draftApplied.current || !draftValues) return;
     form.setFieldsValue(draftValues);
     draftApplied.current = true;
-  }, [draftValues, form]);
+  }, [draftValues, form, externalForm]);
 
   return (
     <Form
