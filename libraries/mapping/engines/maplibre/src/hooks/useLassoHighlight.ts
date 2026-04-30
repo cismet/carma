@@ -103,7 +103,20 @@ export const useLassoHighlight = ({
         if (!f.geometry) continue;
 
         const featureSource = f.source;
-        const featureSourceLayer = f.sourceLayer ?? "";
+        // Geojson features carry no native sourceLayer; the convention
+        // is to stamp it into properties._sourceLayer.
+        const isGeojson = map.getSource(featureSource)?.type === "geojson";
+        const featureSourceLayer = isGeojson
+          ? String(
+              (f.properties as Record<string, unknown>)?._sourceLayer ??
+                f.sourceLayer ??
+                ""
+            )
+          : f.sourceLayer ?? "";
+        if (isGeojson && !f.sourceLayer) {
+          (f as MapGeoJSONFeature & { sourceLayer?: string }).sourceLayer =
+            featureSourceLayer;
+        }
 
         // Source filter: only keep features from configured sources
         if (configuredSources) {

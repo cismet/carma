@@ -59,26 +59,24 @@ export interface UseMapHighlightingOptions {
   onHighlightsApplied?: (features: GeoJSONFeature[]) => void;
 }
 
-/** Discover all vector sources and their source layers from the map style. */
+/** Discover all sources and their source layers from the map style.
+ *  Geojson sources have no native source-layer; they end up with an empty
+ *  list and are iterated once in applyHighlights (effective layer comes
+ *  from properties._sourceLayer). */
 function discoverSources(
   map: MaplibreMap
 ): Array<{ source: string; sourceLayers: string[] }> {
   const style = map.getStyle();
   if (!style?.layers) return [];
 
-  // Collect source layers per source from layers
   const sourceMap = new Map<string, Set<string>>();
   for (const layer of style.layers) {
-    if (
-      "source" in layer &&
-      layer.source &&
-      "source-layer" in layer &&
-      layer["source-layer"]
-    ) {
+    if ("source" in layer && layer.source) {
       const src = layer.source as string;
-      const sl = layer["source-layer"] as string;
       if (!sourceMap.has(src)) sourceMap.set(src, new Set());
-      sourceMap.get(src)!.add(sl);
+      if ("source-layer" in layer && layer["source-layer"]) {
+        sourceMap.get(src)!.add(layer["source-layer"] as string);
+      }
     }
   }
 
@@ -186,6 +184,46 @@ export const useMapHighlighting = ({
       const seen = new Set<string>();
 
       for (const { source, sourceLayers } of srcs) {
+        // Geojson sources: querySourceFeatures ignores sourceLayer and
+        // setFeatureState silently no-ops if sourceLayer is supplied.
+        // The effective layer comes from properties._sourceLayer (a
+        // convention established for the brandnew FC).
+        const isGeojson = mapInst.getSource(source)?.type === "geojson";
+        if (isGeojson) {
+          const features = mapInst.querySourceFeatures(source);
+          for (const f of features) {
+            if (f.id == null) continue;
+            const props = (f.properties ?? {}) as Record<string, unknown>;
+            const effectiveSL = String(props._sourceLayer ?? "");
+            const shouldHighlight = matchesCriteria(
+              criteria,
+              queryIdLookup,
+              props,
+              f.id,
+              effectiveSL,
+              source
+            );
+            mapInst.setFeatureState(
+              { source, id: f.id },
+              { [stateKey]: shouldHighlight }
+            );
+            if (shouldHighlight) {
+              const key = `${effectiveSL}::${String(props.id ?? f.id)}`;
+              if (!seen.has(key)) {
+                seen.add(key);
+                const fAny = f as GeoJSONFeature & {
+                  source?: string;
+                  sourceLayer?: string;
+                };
+                fAny.source = source;
+                fAny.sourceLayer = effectiveSL;
+                matched.push(f);
+              }
+            }
+          }
+          continue;
+        }
+
         for (const sourceLayer of sourceLayers) {
           const features = mapInst.querySourceFeatures(source, {
             sourceLayer,
@@ -209,19 +247,12 @@ export const useMapHighlighting = ({
               const key = `${sourceLayer}::${String(props.id ?? f.id)}`;
               if (!seen.has(key)) {
                 seen.add(key);
-                // Attach source/sourceLayer so consumers can identify the feature
-                (
-                  f as GeoJSONFeature & {
-                    source?: string;
-                    sourceLayer?: string;
-                  }
-                ).source = source;
-                (
-                  f as GeoJSONFeature & {
-                    source?: string;
-                    sourceLayer?: string;
-                  }
-                ).sourceLayer = sourceLayer;
+                const fAny = f as GeoJSONFeature & {
+                  source?: string;
+                  sourceLayer?: string;
+                };
+                fAny.source = source;
+                fAny.sourceLayer = sourceLayer;
                 matched.push(f);
               }
             }
@@ -242,6 +273,18 @@ export const useMapHighlighting = ({
 
       const srcs = explicitSources ?? discoverSources(mapInst);
       for (const { source, sourceLayers } of srcs) {
+        const isGeojson = mapInst.getSource(source)?.type === "geojson";
+        if (isGeojson) {
+          const features = mapInst.querySourceFeatures(source);
+          for (const f of features) {
+            if (f.id == null) continue;
+            mapInst.setFeatureState(
+              { source, id: f.id },
+              { [stateKey]: false }
+            );
+          }
+          continue;
+        }
         for (const sourceLayer of sourceLayers) {
           const features = mapInst.querySourceFeatures(source, {
             sourceLayer,
@@ -322,15 +365,29 @@ export const useMapHighlighting = ({
       if (!modifierPressed) return;
 
       const hits = map.queryRenderedFeatures(e.point);
-      const feature = hits.find(
-        (f) =>
-          f.id != null &&
-          f.source &&
-          f.sourceLayer &&
-          !f.layer.id.includes("selection") &&
-          !f.layer.id.includes("background")
-      );
+      const feature = hits.find((f) => {
+        if (f.id == null || !f.source) return false;
+        if (
+          f.layer.id.includes("selection") ||
+          f.layer.id.includes("background")
+        )
+          return false;
+        // Vector tiles always carry sourceLayer; geojson features don't,
+        // and we accept them (effective layer comes from properties._sourceLayer).
+        if (f.sourceLayer) return true;
+        return map.getSource(f.source)?.type === "geojson";
+      });
       if (!feature) return;
+
+      const isGeojson = map.getSource(feature.source)?.type === "geojson";
+      const effectiveSourceLayer =
+        feature.sourceLayer ??
+        (isGeojson
+          ? String(
+              (feature.properties as Record<string, unknown> | undefined)
+                ?._sourceLayer ?? ""
+            )
+          : "");
 
       // Auto-enable highlighting when toggling via modifier+click
       if (!highlightingActive) {
@@ -339,9 +396,16 @@ export const useMapHighlighting = ({
 
       toggleFeatureHighlight({
         source: feature.source,
-        sourceLayer: feature.sourceLayer!,
+        sourceLayer: effectiveSourceLayer,
         id: feature.id!,
       });
+
+      // Stamp so onToggle consumers (which read feature.sourceLayer) work
+      // for geojson features the same way as for vector tiles.
+      if (isGeojson && !feature.sourceLayer) {
+        (feature as MapGeoJSONFeature & { sourceLayer?: string }).sourceLayer =
+          effectiveSourceLayer;
+      }
 
       onToggle?.(feature);
     };

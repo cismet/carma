@@ -417,14 +417,18 @@ export const useVisibleMapFeatures = ({
             seen.add(key);
 
             // When highlightedOnly is active, skip non-highlighted features early
-            // so the maxFeatures cap only counts features we actually care about
+            // so the maxFeatures cap only counts features we actually care about.
+            // For geojson sources, getFeatureState silently no-ops when
+            // sourceLayer is supplied (mirrors setFeatureState), so omit it.
             if (checkHighlight) {
               if (f.id == null || !f.source) continue;
-              const state = maplibreMap.getFeatureState({
-                source: f.source,
-                sourceLayer: f.sourceLayer,
-                id: f.id,
-              });
+              const isGeojson =
+                maplibreMap.getSource(f.source)?.type === "geojson";
+              const state = maplibreMap.getFeatureState(
+                isGeojson
+                  ? { source: f.source, id: f.id }
+                  : { source: f.source, sourceLayer: f.sourceLayer, id: f.id }
+              );
               if (!state?.highlighted) continue;
             }
 
