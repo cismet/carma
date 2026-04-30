@@ -22,6 +22,7 @@ import {
   leuchtenDataLayer,
   brandNewDataLayer,
   BELIS_STYLE_URL,
+  BELIS_BRAND_NEW_STYLE_URL,
   BELIS_ORIGINAL_SOURCE,
   BELIS_SOURCE_LAYERS,
   AA_LAYER_STYLES,
@@ -279,6 +280,11 @@ const BelisMapLibWrapper = ({
   const namespacedSource = `${slugifyUrl(
     BELIS_STYLE_URL
   )}::${BELIS_ORIGINAL_SOURCE}`;
+  // Brandnew geojson source uses the same inner source id ("belis-source")
+  // but is namespaced by its own style URL.
+  const brandnewSource = `${slugifyUrl(
+    BELIS_BRAND_NEW_STYLE_URL
+  )}::${BELIS_ORIGINAL_SOURCE}`;
 
   const selectedAAId = useSelector(getSelectedAAId);
   const selectedAAData = useSelector(getSelectedAAData);
@@ -309,12 +315,18 @@ const BelisMapLibWrapper = ({
     return ids;
   }, [draftMode, aaDrafts, apDrafts, apDeletions]);
 
-  const highlightSources = useMemo(
-    () => [
+  const highlightSources = useMemo(() => {
+    const list: Array<{ source: string; sourceLayers: string[] }> = [
       { source: namespacedSource, sourceLayers: [...BELIS_SOURCE_LAYERS] },
-    ],
-    [namespacedSource]
-  );
+    ];
+    if (brandnewLayerEnabled) {
+      list.push({
+        source: brandnewSource,
+        sourceLayers: [...BELIS_SOURCE_LAYERS],
+      });
+    }
+    return list;
+  }, [namespacedSource, brandnewSource, brandnewLayerEnabled]);
 
   // Highlight context: need ensureToggledFeatures + criteria before handleHighlightToggle
   const {
@@ -350,17 +362,33 @@ const BelisMapLibWrapper = ({
       const toSidebarFeature = (f: Record<string, any>): SidebarFeature =>
         Object.assign(f, { original: f }) as unknown as SidebarFeature;
 
+      // Use the feature's own source so brandnew (geojson) and regular
+      // (vector) features both resolve siblings against the right source.
+      const featureSource = feature.source ?? namespacedSource;
+      const isFeatureGeojson =
+        map?.getSource(featureSource)?.type === "geojson";
+
       // Determine if this is a standort with sibling leuchten to expand
       const isStandort = feature.sourceLayer === "standorte";
       let siblingLeuchten: maplibregl.GeoJSONFeature[] = [];
       if (isStandort && map) {
         const standortId = String(feature.properties?.id ?? "");
         if (standortId) {
+          // For geojson sources querySourceFeatures ignores sourceLayer;
+          // we filter by the stamped _sourceLayer property instead.
+          const queryOpts = isFeatureGeojson
+            ? undefined
+            : { sourceLayer: "leuchten" };
           siblingLeuchten = map
-            .querySourceFeatures(namespacedSource, { sourceLayer: "leuchten" })
-            .filter(
-              (f) => String(f.properties?.fk_standort ?? "") === standortId
-            );
+            .querySourceFeatures(featureSource, queryOpts)
+            .filter((f) => {
+              if (
+                isFeatureGeojson &&
+                String(f.properties?._sourceLayer ?? "") !== "leuchten"
+              )
+                return false;
+              return String(f.properties?.fk_standort ?? "") === standortId;
+            });
         }
       }
 
@@ -369,13 +397,13 @@ const BelisMapLibWrapper = ({
       // before onToggle fires), so criteria.toggledFeatures already reflects the standort's state.
       // Read direction from the ref: if standort is now toggled ON, we add siblings; if OFF, remove.
       if (isStandort && siblingLeuchten.length > 0) {
-        const standortKey = `${feature.source}::standorte::${feature.id}`;
+        const standortKey = `${featureSource}::standorte::${feature.id}`;
         const adding = criteria.toggledFeatures.has(standortKey);
         ensureToggledFeatures(
           siblingLeuchten.map((l) => ({
-            source: namespacedSource,
+            source: featureSource,
             sourceLayer: "leuchten",
-            id: l.id!, // MVT tile ID, matching what matchesCriteria uses
+            id: l.id!, // MVT tile ID (or geojson feature id), matching what matchesCriteria uses
           })),
           adding
         );
@@ -444,18 +472,30 @@ const BelisMapLibWrapper = ({
     (feature: SidebarFeature) => {
       const sl = feature.sourceLayer ?? "";
       const dbId = String(feature.properties?.id ?? feature.id ?? "");
+      // Use the source the sidebar feature was stamped with (set by
+      // useMapHighlighting / handleHighlightToggle) and fall back to the
+      // regular source if missing — that way both vector and brandnew
+      // (geojson) features get cleared from the right source.
+      const featureSource =
+        (feature as unknown as { source?: string }).source ?? namespacedSource;
+      const isFeatureGeojson =
+        map?.getSource(featureSource)?.type === "geojson";
 
       // Remove from map highlight state
       if (map) {
-        const sourceFeatures = map.querySourceFeatures(namespacedSource, {
-          sourceLayer: sl,
+        const queryOpts = isFeatureGeojson ? undefined : { sourceLayer: sl };
+        const sourceFeatures = map.querySourceFeatures(featureSource, queryOpts);
+        const match = sourceFeatures.find((f) => {
+          if (
+            isFeatureGeojson &&
+            String(f.properties?._sourceLayer ?? "") !== sl
+          )
+            return false;
+          return String(f.properties?.id ?? "") === dbId;
         });
-        const match = sourceFeatures.find(
-          (f) => String(f.properties?.id ?? "") === dbId
-        );
         if (match?.id != null) {
           ensureToggledFeatures(
-            [{ source: namespacedSource, sourceLayer: sl, id: match.id }],
+            [{ source: featureSource, sourceLayer: sl, id: match.id }],
             false
           );
         }
