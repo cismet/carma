@@ -36,6 +36,7 @@ interface StandortFormProps {
   draftValues?: Record<string, unknown>;
   draftFiles?: DraftFile[];
   hasDraft?: boolean;
+  isCreation?: boolean;
   onDraftChange?: (values: Record<string, unknown>) => void;
   onDraftFilesChange?: (files: DraftFile[]) => void;
   onOriginalValues?: (values: Record<string, unknown>) => void;
@@ -55,6 +56,7 @@ const StandortForm = ({
   draftValues,
   draftFiles,
   hasDraft,
+  isCreation,
   onDraftChange,
   onDraftFilesChange,
   onOriginalValues,
@@ -233,6 +235,7 @@ const StandortForm = ({
       cancelLabel={
         rawProps?.lfd_nummer ? `Standort ${sidebarMain}` : "Standort"
       }
+      isCreation={isCreation}
       subtitle={subtitle}
       documents={documents}
       mainDocumentsTitle="Standort"

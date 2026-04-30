@@ -402,7 +402,7 @@ const FeaturesFormsWrapper = ({
                 </div>
                 <div className="mb-3 px-1">
                   <span className="text-sm font-medium text-gray-700">
-                    Geometrie
+                    Neue Geometrien
                   </span>
                   <Select
                     value={
@@ -430,6 +430,7 @@ const FeaturesFormsWrapper = ({
               draftValues={deserializedDraftValues}
               draftFiles={draftFiles}
               hasDraft={isCreation || hasChanges}
+              isCreation={isCreation}
               onDraftChange={handleDraftChange}
               onDraftFilesChange={handleDraftFilesChange}
               onOriginalValues={handleOriginalValues}

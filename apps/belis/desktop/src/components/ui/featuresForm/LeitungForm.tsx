@@ -24,6 +24,7 @@ interface LeitungFormProps {
   draftValues?: Record<string, unknown>;
   draftFiles?: DraftFile[];
   hasDraft?: boolean;
+  isCreation?: boolean;
   onDraftChange?: (values: Record<string, unknown>) => void;
   onDraftFilesChange?: (files: DraftFile[]) => void;
   onOriginalValues?: (values: Record<string, unknown>) => void;
@@ -209,6 +210,7 @@ const LeitungForm = ({
     <FeatureFormLayout
       title={sidebarMain ? `Leitung ${sidebarMain}` : "Leitung"}
       cancelLabel={sidebarMain || ""}
+      isCreation={isCreation}
       subtitle={subtitle}
       documents={documents}
       jwt={jwt}

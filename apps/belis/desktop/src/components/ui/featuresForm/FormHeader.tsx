@@ -28,9 +28,8 @@ interface FormHeaderProps {
   hasDraft?: boolean;
   onToggleReadOnly?: () => void;
   onBack?: () => void;
-  /** When provided, overrides the default Fachobjekte drafts count for the badge */
+  isCreation?: boolean;
   customDraftsCount?: number;
-  /** When provided, overrides the default Fachobjekte save-all handler */
   onSaveAll?: () => void;
 }
 
@@ -46,6 +45,7 @@ const FormHeader = ({
   hasDraft,
   onToggleReadOnly,
   onBack,
+  isCreation,
   customDraftsCount,
   onSaveAll,
 }: FormHeaderProps) => {
@@ -134,7 +134,9 @@ const FormHeader = ({
                       : undefined
                   }
                 >
-                  {cancelLabel
+                  {isCreation
+                    ? "Verlassen ohne zu speichern"
+                    : cancelLabel
                     ? `${cancelLabel}: zurücksetzen`
                     : "zurücksetzen"}
                 </Button>

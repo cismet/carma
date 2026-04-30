@@ -28,12 +28,12 @@ export const GEOMETRY_OPTIONS: {
 }[] = [
   {
     key: "point_toelleturm",
-    label: "Point - Toelleturm",
+    label: "Punkt – Tölleturm",
     geometry: HARDCODED_POINT_TOELLETURM,
   },
   {
     key: "line",
-    label: "Line - Toelleturm",
+    label: "Linie – Tölleturm",
     geometry: HARDCODED_LINE,
   },
 ];
