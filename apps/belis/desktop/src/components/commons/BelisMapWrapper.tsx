@@ -562,6 +562,9 @@ const BelisMapLibWrapper = ({
         "Standorte.*-base",
         "Standorte.*-icon",
         "standorte.*",
+        // brandnew (GeoJSON-backed) layers — same suffixes, different prefix
+        "BrandNewFeatures.*-base",
+        "BrandNewFeatures.*-icon",
       ],
       highlightedOnly: highlightingActive,
       refreshTrigger: highlightVersion,
