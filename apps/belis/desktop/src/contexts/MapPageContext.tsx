@@ -55,6 +55,10 @@ interface MapPageContextValue {
   setOnSelectNextDraft: (
     fn: ((removedFeatureId: string) => void) | undefined
   ) => void;
+  onOpenCreationDraft?: (featureType: string, draftKey: string) => void;
+  setOnOpenCreationDraft: (
+    fn: ((featureType: string, draftKey: string) => void) | undefined
+  ) => void;
 }
 
 const MapPageContext = createContext<MapPageContextValue>({
@@ -68,6 +72,8 @@ const MapPageContext = createContext<MapPageContextValue>({
   setCreateFeatureType: () => undefined,
   onSelectNextDraft: undefined,
   setOnSelectNextDraft: () => undefined,
+  onOpenCreationDraft: undefined,
+  setOnOpenCreationDraft: () => undefined,
 });
 
 export const MapPageProvider = ({ children }: { children: ReactNode }) => {
@@ -80,6 +86,9 @@ export const MapPageProvider = ({ children }: { children: ReactNode }) => {
     useState<CreateFeatureType>(null);
   const [onSelectNextDraft, setOnSelectNextDraft] = useState<
     ((removedFeatureId: string) => void) | undefined
+  >(undefined);
+  const [onOpenCreationDraft, setOnOpenCreationDraft] = useState<
+    ((featureType: string, draftKey: string) => void) | undefined
   >(undefined);
 
   const setConfig = useCallback((c: Partial<MapPageConfig>) => {
@@ -99,6 +108,8 @@ export const MapPageProvider = ({ children }: { children: ReactNode }) => {
         setCreateFeatureType,
         onSelectNextDraft,
         setOnSelectNextDraft,
+        onOpenCreationDraft,
+        setOnOpenCreationDraft,
       }}
     >
       {children}
