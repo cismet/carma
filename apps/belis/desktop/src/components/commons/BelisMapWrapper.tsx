@@ -20,6 +20,7 @@ import {
   backgroundLayerConfigs,
   additionalLayerConfigs,
   leuchtenDataLayer,
+  brandNewDataLayer,
   BELIS_STYLE_URL,
   BELIS_ORIGINAL_SOURCE,
   BELIS_SOURCE_LAYERS,
@@ -174,6 +175,10 @@ interface BelisMapLibWrapperProps {
   onLassoDeactivate?: () => void;
   sidebarVariant: "fachobjekte" | "arbeitsauftraege";
   onHighlightsChange?: (highlights: SidebarFeature[] | null) => void;
+  /** Local-dev toggle: include the styleY-based Fachobjekte layer (default true). */
+  regularLayerEnabled?: boolean;
+  /** Local-dev toggle: include the brand.new.features GeoJSON-backed layer (default false). */
+  brandnewLayerEnabled?: boolean;
 }
 
 const BelisMapLibWrapper = ({
@@ -184,6 +189,8 @@ const BelisMapLibWrapper = ({
   onLassoDeactivate,
   sidebarVariant,
   onHighlightsChange,
+  regularLayerEnabled = true,
+  brandnewLayerEnabled = false,
 }: BelisMapLibWrapperProps) => {
   const dispatch: AppDispatch = useDispatch();
   const store = useStore<RootState>();
@@ -1026,7 +1033,12 @@ const BelisMapLibWrapper = ({
     }
 
     // Data layers (always loaded — visibility toggled per route)
-    layers.push(leuchtenDataLayer);
+    if (regularLayerEnabled) {
+      layers.push(leuchtenDataLayer);
+    }
+    if (brandnewLayerEnabled) {
+      layers.push(brandNewDataLayer);
+    }
 
     return layers;
   }, [
@@ -1035,6 +1047,8 @@ const BelisMapLibWrapper = ({
     activeAdditionalLayers,
     additionalLayerOpacities,
     inPaleMode,
+    regularLayerEnabled,
+    brandnewLayerEnabled,
   ]);
 
   // Hide Fachobjekte layers when entering Arbeitsaufträge mode.
