@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, type ReactNode } from "react";
 import { message } from "antd";
 import { useSelector } from "react-redux";
 import type { DraftFile } from "../../../store/slices/featuresForms";
@@ -22,6 +22,7 @@ interface AbzweigdoseFormProps {
   draftFiles?: DraftFile[];
   hasDraft?: boolean;
   isCreation?: boolean;
+  formHeaderContent?: ReactNode;
   onDraftFilesChange?: (files: DraftFile[]) => void;
   onToggleReadOnly?: () => void;
   onCancel?: () => void;
@@ -38,6 +39,7 @@ const AbzweigdoseForm = ({
   loading,
   draftFiles,
   hasDraft,
+  formHeaderContent,
   onDraftFilesChange,
   onToggleReadOnly,
   onCancel,
@@ -174,6 +176,7 @@ const AbzweigdoseForm = ({
       }
       cancelLabel={sidebarMain || ""}
       isCreation={isCreation}
+      formHeaderContent={formHeaderContent}
       subtitle={subtitle}
       documents={documents}
       jwt={jwt}
