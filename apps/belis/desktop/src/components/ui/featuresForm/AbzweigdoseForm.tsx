@@ -90,9 +90,7 @@ const AbzweigdoseForm = ({
   const idValue = rawFeature?.id || rawProps?.id;
   const isCreation =
     typeof idValue === "string" && isCreationDraftKey(idValue);
-  const sidebarMain = isCreation
-    ? "Neuer Entwurf"
-    : idValue
+  const sidebarMain = idValue && !isCreation
     ? `ID-${idValue}`
     : "";
 
@@ -170,7 +168,9 @@ const AbzweigdoseForm = ({
   return (
     <FeatureFormLayout
       title={
-        sidebarMain
+        isCreation
+          ? "Neue Abzweigdose / Zugkasten"
+          : sidebarMain
           ? `Abzweigdose / Zugkasten ${sidebarMain}`
           : "Abzweigdose / Zugkasten"
       }

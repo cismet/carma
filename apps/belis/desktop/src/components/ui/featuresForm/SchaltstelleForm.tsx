@@ -133,9 +133,7 @@ const SchaltstelleForm = ({
 
   const sidebarMain = rawProps?.schaltstellen_nummer
     ? `S ${rawProps.schaltstellen_nummer}`
-    : isCreation
-    ? "Neuer Entwurf"
-    : rawProps?.id
+    : rawProps?.id && !isCreation
     ? `ID: ${rawProps.id}`
     : "";
 
@@ -233,7 +231,7 @@ const SchaltstelleForm = ({
 
   return (
     <FeatureFormLayout
-      title={sidebarMain ? `Schaltstelle ${sidebarMain}` : "Schaltstelle"}
+      title={isCreation ? "Neue Schaltstelle" : sidebarMain ? `Schaltstelle ${sidebarMain}` : "Schaltstelle"}
       cancelLabel={cancelBTn || ""}
       isCreation={isCreation}
       formHeaderContent={formHeaderContent}

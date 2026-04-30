@@ -137,9 +137,7 @@ const MauerlascheForm = ({
     typeof rawProps?.id === "string" && isCreationDraftKey(rawProps.id);
   const sidebarMain = rawProps?.laufende_nummer
     ? `M - ${rawProps.laufende_nummer}`
-    : isCreation
-    ? "Neuer Entwurf"
-    : rawProps?.id
+    : rawProps?.id && !isCreation
     ? `M - ${rawProps.id}`
     : "";
 
@@ -233,7 +231,7 @@ const MauerlascheForm = ({
 
   return (
     <FeatureFormLayout
-      title={sidebarMain ? `Mauerlasche ${sidebarMain}` : "Mauerlasche"}
+      title={isCreation ? "Neue Mauerlasche" : sidebarMain ? `Mauerlasche ${sidebarMain}` : "Mauerlasche"}
       cancelLabel={sidebarMain || ""}
       isCreation={isCreation}
       formHeaderContent={formHeaderContent}
