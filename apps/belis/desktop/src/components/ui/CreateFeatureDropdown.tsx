@@ -94,7 +94,7 @@ const createFeatureItems: {
 ];
 
 const CreateFeatureDropdown = () => {
-  const { createFeatureType, setCreateFeatureType } = useMapPage();
+  const { createFeatureType, setCreateFeatureType, onSelectNextDraft } = useMapPage();
   const [resumeDraftKey, setResumeDraftKey] = useState<string | undefined>();
   const [promptType, setPromptType] = useState<string | null>(null);
 
@@ -192,6 +192,7 @@ const CreateFeatureDropdown = () => {
           setResumeDraftKey(undefined);
         }}
         resumeDraftKey={resumeDraftKey}
+        onSelectNextDraft={onSelectNextDraft}
       />
     </>
   );

@@ -51,6 +51,10 @@ interface MapPageContextValue {
   setAaModalOpen: (open: boolean) => void;
   createFeatureType: CreateFeatureType;
   setCreateFeatureType: (type: CreateFeatureType) => void;
+  onSelectNextDraft?: (removedFeatureId: string) => void;
+  setOnSelectNextDraft: (
+    fn: ((removedFeatureId: string) => void) | undefined
+  ) => void;
 }
 
 const MapPageContext = createContext<MapPageContextValue>({
@@ -62,6 +66,8 @@ const MapPageContext = createContext<MapPageContextValue>({
   setAaModalOpen: () => undefined,
   createFeatureType: null,
   setCreateFeatureType: () => undefined,
+  onSelectNextDraft: undefined,
+  setOnSelectNextDraft: () => undefined,
 });
 
 export const MapPageProvider = ({ children }: { children: ReactNode }) => {
@@ -72,6 +78,9 @@ export const MapPageProvider = ({ children }: { children: ReactNode }) => {
   const [aaModalOpen, setAaModalOpen] = useState(false);
   const [createFeatureType, setCreateFeatureType] =
     useState<CreateFeatureType>(null);
+  const [onSelectNextDraft, setOnSelectNextDraft] = useState<
+    ((removedFeatureId: string) => void) | undefined
+  >(undefined);
 
   const setConfig = useCallback((c: Partial<MapPageConfig>) => {
     setConfigState((prev) => ({ ...prev, ...c }));
@@ -88,6 +97,8 @@ export const MapPageProvider = ({ children }: { children: ReactNode }) => {
         setAaModalOpen,
         createFeatureType,
         setCreateFeatureType,
+        onSelectNextDraft,
+        setOnSelectNextDraft,
       }}
     >
       {children}
