@@ -24,7 +24,10 @@ import {
   setDraftMode,
 } from "../../store/slices/arbeitsauftraege";
 import { getTotalDraftCount } from "../../store/slices/arbeitsauftraegeDrafts";
-import { BELIS_FILTER_CATEGORIES } from "../../config/mapLayerConfigs";
+import {
+  BELIS_FILTER_CATEGORIES,
+  BELIS_BRAND_NEW_FC_URL,
+} from "../../config/mapLayerConfigs";
 import LeitungstypDropdown from "../ui/LeitungstypDropdown";
 import TeamSelect from "../ui/TeamSelect";
 import SearchModal from "../ui/SearchModal";
@@ -92,6 +95,34 @@ const BelisMapPageShell = () => {
     if (param !== null) return param === "true";
     return window.location.hostname === "localhost";
   }, []);
+
+  // Local-dev-only Fachobjekte source toggles (yellow border indicates dev UI)
+  const isLocalDev = useMemo(
+    () => window.location.hostname === "localhost",
+    []
+  );
+  const [regularLayerEnabled, setRegularLayerEnabled] = useState(true);
+  const [brandnewLayerEnabled, setBrandnewLayerEnabled] = useState(false);
+  const [brandnewCount, setBrandnewCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!isLocalDev) return;
+    let cancelled = false;
+    fetch(BELIS_BRAND_NEW_FC_URL)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((fc) => {
+        if (cancelled) return;
+        setBrandnewCount(
+          Array.isArray(fc?.features) ? fc.features.length : 0
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setBrandnewCount(0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isLocalDev]);
 
   // Auto-exit draft mode when all drafts have been cancelled/removed
   useEffect(() => {
@@ -292,6 +323,46 @@ const BelisMapPageShell = () => {
                       )}
                     </div>
                   ))}
+                  {isLocalDev && (
+                    <div
+                      className="flex items-center gap-2 ml-2 px-2 py-1 rounded"
+                      style={{
+                        border: "2px solid #facc15",
+                        background: "#fefce8",
+                      }}
+                      title="Local-dev only: choose which Fachobjekte source to render"
+                    >
+                      <Switch
+                        checkedChildren="regular"
+                        unCheckedChildren="regular"
+                        checked={regularLayerEnabled}
+                        onChange={setRegularLayerEnabled}
+                        style={
+                          regularLayerEnabled
+                            ? { backgroundColor: "#eab308" }
+                            : undefined
+                        }
+                      />
+                      <Badge
+                        count={brandnewCount ?? 0}
+                        showZero
+                        overflowCount={9999}
+                        style={{ backgroundColor: "#eab308" }}
+                      >
+                        <Switch
+                          checkedChildren="brandnew"
+                          unCheckedChildren="brandnew"
+                          checked={brandnewLayerEnabled}
+                          onChange={setBrandnewLayerEnabled}
+                          style={
+                            brandnewLayerEnabled
+                              ? { backgroundColor: "#eab308" }
+                              : undefined
+                          }
+                        />
+                      </Badge>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -319,6 +390,8 @@ const BelisMapPageShell = () => {
             onLassoDeactivate={() => setLassoActive(false)}
             sidebarVariant={sidebarVariant}
             onHighlightsChange={handleHighlightsChange}
+            regularLayerEnabled={regularLayerEnabled}
+            brandnewLayerEnabled={brandnewLayerEnabled}
           />
         </CustomCard>
       </div>
