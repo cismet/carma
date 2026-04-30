@@ -39,6 +39,7 @@ interface SchaltstelleFormProps {
   draftValues?: Record<string, unknown>;
   draftFiles?: DraftFile[];
   hasDraft?: boolean;
+  isCreation?: boolean;
   onDraftChange?: (values: Record<string, unknown>) => void;
   onDraftFilesChange?: (files: DraftFile[]) => void;
   onOriginalValues?: (values: Record<string, unknown>) => void;
@@ -232,6 +233,7 @@ const SchaltstelleForm = ({
     <FeatureFormLayout
       title={sidebarMain ? `Schaltstelle ${sidebarMain}` : "Schaltstelle"}
       cancelLabel={cancelBTn || ""}
+      isCreation={isCreation}
       subtitle={subtitle}
       documents={documents}
       jwt={jwt}

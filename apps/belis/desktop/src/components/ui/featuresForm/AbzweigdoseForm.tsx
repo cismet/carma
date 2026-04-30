@@ -21,6 +21,7 @@ interface AbzweigdoseFormProps {
   loading?: boolean;
   draftFiles?: DraftFile[];
   hasDraft?: boolean;
+  isCreation?: boolean;
   onDraftFilesChange?: (files: DraftFile[]) => void;
   onToggleReadOnly?: () => void;
   onCancel?: () => void;
@@ -172,6 +173,7 @@ const AbzweigdoseForm = ({
           : "Abzweigdose / Zugkasten"
       }
       cancelLabel={sidebarMain || ""}
+      isCreation={isCreation}
       subtitle={subtitle}
       documents={documents}
       jwt={jwt}

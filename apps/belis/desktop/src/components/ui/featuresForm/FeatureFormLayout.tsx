@@ -35,6 +35,7 @@ interface FeatureFormLayoutProps {
   title: string;
   subtitle: string;
   cancelLabel?: string;
+  isCreation?: boolean;
   children: ReactNode;
   documents?: DokumentItem[];
   mainDocumentsTitle?: string;
@@ -85,6 +86,7 @@ const FeatureFormLayout = ({
   singleColumn,
   onBack,
   sideContent,
+  isCreation,
   customDraftsCount,
   onSaveAll,
 }: FeatureFormLayoutProps) => {
@@ -387,6 +389,7 @@ const FeatureFormLayout = ({
           hasDraft={hasDraft}
           onToggleReadOnly={onToggleReadOnly}
           onBack={onBack}
+          isCreation={isCreation}
           customDraftsCount={customDraftsCount}
           onSaveAll={onSaveAll}
         />
@@ -437,6 +440,7 @@ const FeatureFormLayout = ({
         hasDraft={hasDraft}
         onToggleReadOnly={onToggleReadOnly}
         onBack={onBack}
+        isCreation={isCreation}
         customDraftsCount={customDraftsCount}
         onSaveAll={onSaveAll}
       />
