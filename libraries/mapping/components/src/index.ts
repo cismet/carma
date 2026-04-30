@@ -28,6 +28,13 @@ export { LayerButton } from "./lib/components/LayerButton";
 export { LayerIcon } from "./lib/components/LayerIcon";
 export { iconMap, iconColorMap } from "./lib/components/iconMapping";
 export { ToolButton } from "./lib/components/ToolButton";
+export {
+  AnnotationsToolbar,
+  AnnotationsToolbarButton,
+  AnnotationsToolbarIcon,
+  AnnotationsToolbarItem,
+  AnnotationsToolbarSeparator,
+} from "./lib/components/AnnotationsToolbar";
 export { LibrePitchingCompass } from "./lib/components/PitchingControl/LibrePitchingCompass";
 export { CompassNeedleSVG } from "./lib/components/PitchingControl/CompassNeedleSVG";
 export {
