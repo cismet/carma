@@ -53,6 +53,10 @@ export {
   type CismapAnnotationInfoBoxProps,
   type CismapAnnotationInstructionInfoBoxProps,
 } from "./lib/components/CismapAnnotationInfoBox.tsx";
+export {
+  CismapAnnotationToolbar,
+  type CismapAnnotationToolbarProps,
+} from "./lib/components/CismapAnnotationToolbar";
 export { GenericInfoBoxFromFeature } from "./lib/components/GenericInfoBoxFromFeature.tsx";
 export { PieChart } from "./lib/components/PieChart.tsx";
 export { ContactMailButton } from "./lib/components/ContactMailButton.tsx";

@@ -1,11 +1,13 @@
 import { FC, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
+import { CismapAnnotationToolbar } from "@carma-appframeworks/portals";
+import { useAnnotationsRuntime } from "@carma-mapping/annotations/runtime";
 import {
-  RuntimeAnnotationsToolbar,
-  type AnnotationsToolbarClassNames,
-  useAnnotationsRuntime,
-} from "@carma-mapping/annotations/runtime";
+  createFilterButtons,
+  FilterInfo,
+  FilterState,
+} from "@carma-mapping/components";
 import type { FilterConfig, FilterType, Layer } from "@carma-mapping/layers";
 import { FILTER_TYPES } from "@carma-mapping/layers";
 
@@ -17,11 +19,6 @@ import {
   setLayerFilterInfo,
   setLayerFilterState,
 } from "../../store/slices/mapping";
-import {
-  createFilterButtons,
-  FilterInfo,
-  FilterState,
-} from "@carma-mapping/components";
 import {
   getSelectedFeature,
   setSelectedFeature as setSelectedFeatureAction,
@@ -37,26 +34,11 @@ import { useFilterBackground } from "./useFilterBackground";
 import FilterBackdrop from "./FilterBackdrop";
 import SaveMeasurements from "./SaveMeasurements";
 
-const GEOPORTAL_ANNOTATIONS_TOOLBAR_CLASS_NAMES = {
-  toolButtonBase:
-    "flex h-8 w-12 min-w-12 items-center justify-center rounded-[6px] border border-[#d9d9d9] bg-white px-2 text-gray-700 button-shadow transition-colors hover:border-[#1677ff] hover:text-[#1677ff] focus-visible:border-[#1677ff] focus-visible:text-[#1677ff]",
-  toolButtonActive: "!border-[#1677ff] !text-[#1677ff]",
-  toolButtonDisabled:
-    "!cursor-not-allowed !border-[#d9d9d9] !text-gray-400 opacity-60 hover:!border-[#d9d9d9] hover:!text-gray-400",
-} satisfies Partial<AnnotationsToolbarClassNames>;
-
 const GeoportalAnnotationsToolbar: FC<{ layer: Layer }> = () => {
   const { registry } = useAnnotationsRuntime();
   const toolPlugins = useGeoportalCesiumAnnotationToolPlugins(registry.plugins);
 
-  return (
-    <RuntimeAnnotationsToolbar
-      plugins={toolPlugins}
-      classNames={GEOPORTAL_ANNOTATIONS_TOOLBAR_CLASS_NAMES}
-      disableSelectWithoutAnnotations
-      tooltipPlacement="bottom"
-    />
-  );
+  return <CismapAnnotationToolbar plugins={toolPlugins} />;
 };
 
 const INTERACTION_COMPONENTS: Record<string, FC<{ layer: Layer }>> = {
@@ -153,9 +135,7 @@ const InteractionView = ({ isDragging }: { isDragging?: boolean }) => {
 
   return (
     <div ref={wrapperRef} className="relative z-[998] pointer-events-none">
-      {validBg && !isDragging && (
-        <FilterBackdrop bgData={validBg} />
-      )}
+      {validBg && !isDragging && <FilterBackdrop bgData={validBg} />}
       <div className="pt-3 w-full flex items-center justify-center">
         <div ref={filterRef} className="relative z-10 pointer-events-auto">
           {renderContent()}

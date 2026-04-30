@@ -1,0 +1,42 @@
+.cismap-annotation-tool-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  min-width: 3rem;
+  height: 2rem;
+  padding: 0 0.5rem;
+  color: #374151;
+  background-color: #ffffff;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  box-shadow: 0 1px 2px rgba(60, 64, 67, 0.3),
+    0 1px 3px 1px rgba(60, 64, 67, 0.15);
+  transition: color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.cismap-annotation-tool-button:hover,
+.cismap-annotation-tool-button:focus-visible {
+  color: #1677ff;
+  border-color: #1677ff !important;
+}
+
+.cismap-annotation-tool-button.cismap-annotation-tool-button:active,
+.cismap-annotation-tool-button.cismap-annotation-tool-button-active {
+  color: #1677ff;
+  border-color: #1677ff !important;
+  box-shadow: none !important;
+}
+
+.cismap-annotation-tool-button.cismap-annotation-tool-button-disabled {
+  color: #9ca3af !important;
+  cursor: not-allowed !important;
+  border-color: #d9d9d9 !important;
+  opacity: 0.6;
+}
+
+.cismap-annotation-tool-button.cismap-annotation-tool-button-disabled:hover,
+.cismap-annotation-tool-button.cismap-annotation-tool-button-disabled:focus-visible {
+  color: #9ca3af !important;
+  border-color: #d9d9d9 !important;
+}
