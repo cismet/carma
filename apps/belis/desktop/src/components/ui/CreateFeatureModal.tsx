@@ -522,14 +522,18 @@ const CreateFeatureModal = ({
         </Select>
       </div>
       <Tabs
-        defaultActiveKey="allgemein"
+        defaultActiveKey={featureType === "abzweigdose" ? "dokumente" : "allgemein"}
         className="h-full flex flex-col [&_.ant-tabs-content-holder]:flex-1 [&_.ant-tabs-content-holder]:overflow-hidden [&_.ant-tabs-content]:h-full [&_.ant-tabs-tabpane]:h-full [&_.ant-tabs-tabpane]:overflow-y-auto"
         items={[
-          {
-            key: "allgemein",
-            label: "Allgemein",
-            children: renderFields(),
-          },
+          ...(featureType !== "abzweigdose"
+            ? [
+                {
+                  key: "allgemein",
+                  label: "Allgemein",
+                  children: renderFields(),
+                },
+              ]
+            : []),
           {
             key: "dokumente",
             label: `Dokumente${
