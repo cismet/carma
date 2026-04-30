@@ -7,7 +7,7 @@ import {
   useContext,
 } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { message } from "antd";
+import { message, Select } from "antd";
 import { featureFormRegistry } from "./index";
 import {
   getSelectedFeature,
@@ -39,6 +39,15 @@ import {
   deserializeValues,
 } from "../../../helper/draftSerialize";
 import { saveFeatureDraft } from "../../../helper/featureFormSaveHelpers";
+import {
+  GEOMETRY_OPTIONS,
+  getGeometryByKey,
+  type GeometryKey,
+} from "../../../helper/geometryOptions";
+import {
+  buildSyntheticFeature,
+  buildSyntheticFetchedData,
+} from "../../../helper/buildSyntheticFeature";
 
 interface SingleSaveContext {
   onSaveSingle?: () => Promise<void>;
@@ -296,6 +305,35 @@ const FeaturesFormsWrapper = ({
     [featureId, formKey, dispatch, draftFeature, data]
   );
 
+  const handleGeometryChange = useCallback(
+    (newKey: GeometryKey) => {
+      if (!featureId || !formKey) return;
+      const geom = getGeometryByKey(newKey);
+      const currentValues = draft?.values ?? {};
+      dispatch(
+        setDraft({
+          featureId,
+          featureType: formKey,
+          values: currentValues,
+          feature: buildSyntheticFeature(
+            formKey,
+            featureId,
+            deserializeValues(currentValues),
+            geom
+          ),
+          fetchedData: buildSyntheticFetchedData(
+            formKey,
+            deserializeValues(currentValues)
+          ),
+          isCreation: true,
+          geometry: geom,
+          geometryKey: newKey,
+        })
+      );
+    },
+    [featureId, formKey, draft?.values, dispatch]
+  );
+
   const handleOriginalValues = useCallback(
     (values: Record<string, unknown>) => {
       if (featureId) {
@@ -358,9 +396,30 @@ const FeaturesFormsWrapper = ({
         >
           <div className="h-full">
             {isCreation && (
-              <div className="bg-green-50 border border-green-200 text-green-800 text-sm px-3 py-2 rounded mb-2">
-                Neuer Entwurf — noch nicht gespeichert
-              </div>
+              <>
+                <div className="bg-green-50 border border-green-200 text-green-800 text-sm px-3 py-2 rounded mb-2">
+                  Neuer Entwurf — noch nicht gespeichert
+                </div>
+                <div className="mb-3 px-1">
+                  <span className="text-sm font-medium text-gray-700">
+                    Geometrie
+                  </span>
+                  <Select
+                    value={
+                      (draft?.geometryKey as GeometryKey) ?? "point_toelleturm"
+                    }
+                    onChange={handleGeometryChange}
+                    className="w-full mt-1"
+                    size="large"
+                  >
+                    {GEOMETRY_OPTIONS.map((opt) => (
+                      <Select.Option key={opt.key} value={opt.key}>
+                        {opt.label}
+                      </Select.Option>
+                    ))}
+                  </Select>
+                </div>
+              </>
             )}
             <FormComponent
               key={resetKey}

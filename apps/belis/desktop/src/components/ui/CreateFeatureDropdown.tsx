@@ -1,12 +1,17 @@
-import { useState, useEffect } from "react";
-import { Dropdown, Modal, Button } from "antd";
+import { Dropdown } from "antd";
 import { PlusOutlined, CaretDownFilled } from "@ant-design/icons";
-import { useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import { useMapPage } from "../../contexts/MapPageContext";
 import type { CreateFeatureType } from "../../contexts/MapPageContext";
-import { getCreationDraftsByType } from "../../store/slices/featuresForms";
-import type { RootState } from "../../store";
-import CreateFeatureModal from "./CreateFeatureModal";
+import { setDraft } from "../../store/slices/featuresForms";
+import {
+  buildSyntheticFeature,
+  buildSyntheticFetchedData,
+} from "../../helper/buildSyntheticFeature";
+import {
+  getDefaultGeometryKey,
+  getGeometryByKey,
+} from "../../helper/geometryOptions";
 
 const SPRITE_URL = "https://tiles.cismet.de/belis/sprites.png";
 const SPRITE_SIZE = 66;
@@ -21,7 +26,7 @@ const spritePositions: Record<string, { x: number; y: number }> = {
   abzweigdose: { x: 66, y: 0 },
 };
 
-const featureLabels: Record<string, string> = {
+export const featureLabels: Record<string, string> = {
   leuchte: "Leuchte",
   standort: "Standort / Mast",
   leitung: "Leitung",
@@ -94,107 +99,57 @@ const createFeatureItems: {
 ];
 
 const CreateFeatureDropdown = () => {
-  const { createFeatureType, setCreateFeatureType, onSelectNextDraft } = useMapPage();
-  const [resumeDraftKey, setResumeDraftKey] = useState<string | undefined>();
-  const [promptType, setPromptType] = useState<string | null>(null);
-
-  const existingDrafts = useSelector((state: RootState) =>
-    getCreationDraftsByType(state, promptType ?? "")
-  );
+  const { onOpenCreationDraft } = useMapPage();
+  const dispatch = useDispatch();
 
   const handleItemClick = (key: CreateFeatureType & string) => {
-    setPromptType(key);
+    const draftKey = `create:${key}:${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2, 9)}`;
+    const geomKey = getDefaultGeometryKey(key);
+    const geom = getGeometryByKey(geomKey);
+    dispatch(
+      setDraft({
+        featureId: draftKey,
+        featureType: key,
+        values: {},
+        feature: buildSyntheticFeature(key, draftKey, {}, geom),
+        fetchedData: buildSyntheticFetchedData(key, {}),
+        isCreation: true,
+        geometry: geom,
+        geometryKey: geomKey,
+      })
+    );
+    onOpenCreationDraft?.(key, draftKey);
   };
-
-  const promptDraft = existingDrafts[0];
-  const showPrompt = promptType !== null && promptDraft != null;
-
-  const handleResume = () => {
-    if (promptDraft) {
-      setResumeDraftKey(promptDraft.featureId);
-    }
-    setCreateFeatureType(promptType as CreateFeatureType & string);
-    setPromptType(null);
-  };
-
-  const handleNewDraft = () => {
-    setResumeDraftKey(undefined);
-    setCreateFeatureType(promptType as CreateFeatureType & string);
-    setPromptType(null);
-  };
-
-  const handlePromptCancel = () => {
-    setPromptType(null);
-  };
-
-  useEffect(() => {
-    if (promptType !== null && existingDrafts.length === 0) {
-      setResumeDraftKey(undefined);
-      setCreateFeatureType(promptType as CreateFeatureType & string);
-      setPromptType(null);
-    }
-  }, [promptType, existingDrafts.length, setCreateFeatureType]);
 
   return (
-    <>
-      <Dropdown
-        menu={{
-          items: createFeatureItems.map((item) => ({
-            key: item.key,
-            label: (
-              <span className="flex items-center gap-1.5">
-                <FeatureIcon type={item.key} />
-                {item.label}
-              </span>
-            ),
-            style: { paddingLeft: 4 },
-            onClick: () => handleItemClick(item.key),
-          })),
-        }}
-        trigger={["click"]}
-      >
-        <div className="flex items-center gap-0.5 cursor-pointer">
-          <button className="flex items-center justify-center w-6 h-6 rounded border border-gray-300 bg-white text-gray-500 hover:bg-gray-50">
-            <PlusOutlined style={{ fontSize: 14 }} />
-          </button>
-          <CaretDownFilled
-            className="text-gray-500 hover:text-gray-700"
-            style={{ fontSize: 10 }}
-          />
-        </div>
-      </Dropdown>
-
-      <Modal
-        title="Unvollständiger Entwurf"
-        open={showPrompt}
-        onCancel={handlePromptCancel}
-        footer={
-          <div className="flex justify-end gap-2">
-            <Button onClick={handlePromptCancel}>Schließen</Button>
-            <Button onClick={handleNewDraft}>Neu erstellen</Button>
-            <Button type="primary" onClick={handleResume}>
-              Fortsetzen
-            </Button>
-          </div>
-        }
-      >
-        <p>
-          Sie haben einen unvollständigen Entwurf für{" "}
-          <strong>{featureLabels[promptType ?? ""] ?? promptType}</strong>.
-          Möchten Sie diesen fortsetzen oder einen neuen erstellen?
-        </p>
-      </Modal>
-
-      <CreateFeatureModal
-        featureType={createFeatureType}
-        onClose={() => {
-          setCreateFeatureType(null);
-          setResumeDraftKey(undefined);
-        }}
-        resumeDraftKey={resumeDraftKey}
-        onSelectNextDraft={onSelectNextDraft}
-      />
-    </>
+    <Dropdown
+      menu={{
+        items: createFeatureItems.map((item) => ({
+          key: item.key,
+          label: (
+            <span className="flex items-center gap-1.5">
+              <FeatureIcon type={item.key} />
+              {item.label}
+            </span>
+          ),
+          style: { paddingLeft: 4 },
+          onClick: () => handleItemClick(item.key),
+        })),
+      }}
+      trigger={["click"]}
+    >
+      <div className="flex items-center gap-0.5 cursor-pointer">
+        <button className="flex items-center justify-center w-6 h-6 rounded border border-gray-300 bg-white text-gray-500 hover:bg-gray-50">
+          <PlusOutlined style={{ fontSize: 14 }} />
+        </button>
+        <CaretDownFilled
+          className="text-gray-500 hover:text-gray-700"
+          style={{ fontSize: 10 }}
+        />
+      </div>
+    </Dropdown>
   );
 };
 
