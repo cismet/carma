@@ -84,7 +84,7 @@ const featuresFormsSlice = createSlice({
         const allEmpty = Object.values(values).every(
           (v) => v === null || v === undefined || v === ""
         );
-        if (allEmpty && !hasFiles && !hasRemovedKeys) {
+        if (allEmpty && !hasFiles && !hasRemovedKeys && !geometry) {
           delete state.drafts[featureId];
           return;
         }
