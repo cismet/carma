@@ -104,12 +104,14 @@ interface CreateFeatureModalProps {
   featureType: CreateFeatureType;
   onClose: () => void;
   resumeDraftKey?: string;
+  onSelectNextDraft?: (removedFeatureId: string) => void;
 }
 
 const CreateFeatureModal = ({
   featureType,
   onClose,
   resumeDraftKey,
+  onSelectNextDraft,
 }: CreateFeatureModalProps) => {
   const label = featureType ? featureLabels[featureType] : "";
   const jwt = useSelector(getJWT) as string | null;
@@ -413,6 +415,7 @@ const CreateFeatureModal = ({
   const handleCancel = () => {
     if (draftKey) {
       dispatch(removeDraft(draftKey));
+      onSelectNextDraft?.(draftKey);
     }
     form.resetFields();
     onClose();

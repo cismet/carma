@@ -27,6 +27,7 @@ import {
 } from "../../config/mapLayerConfigs";
 import type { LibreLayer } from "@carma-mapping/engines/maplibre";
 import { AppDispatch, type RootState } from "../../store";
+import { useMapPage } from "../../contexts/MapPageContext";
 import BelisSidebar from "../ui/BelisSidebar";
 import ArbeitsauftraegeSidebar from "../ui/ArbeitsauftraegeSidebar";
 import { AA_SORT_BY_NUMMER_ASC, AA_SORT_BY_PROTOKOLLE_DESC } from "../../helper/aaSortHelpers";
@@ -182,6 +183,7 @@ const BelisMapLibWrapper = ({
 }: BelisMapLibWrapperProps) => {
   const dispatch: AppDispatch = useDispatch();
   const store = useStore<RootState>();
+  const { setOnSelectNextDraft } = useMapPage();
   const jwt = useSelector(getJWT);
   const featureDataVersion = useSelector(getFeatureDataVersion);
   const enabledLeitungstypen = useSelector(getEnabledLeitungstypen);
@@ -2366,9 +2368,14 @@ const BelisMapLibWrapper = ({
   );
 
   // After a draft is cancelled/removed, select the next remaining draft.
+  // If no drafts remain, clear the selection and close the datasheet.
   const handleSelectNextDraft = useCallback(
     (removedFeatureId: string) => {
-      if (sidebarMode !== "drafts") return;
+      if (sidebarMode !== "drafts") {
+        clearMapSelection();
+        closeDatasheet();
+        return;
+      }
       // allDraftFeatures still contains the removed draft at this point
       // because the selector reads from the store snapshot before the next render.
       // Filter it out to get the remaining drafts.
@@ -2381,7 +2388,11 @@ const BelisMapLibWrapper = ({
         const pk = String(feature.properties?.id ?? "");
         return `${sl}:${pk}` !== removedFeatureId;
       });
-      if (remaining.length === 0) return;
+      if (remaining.length === 0) {
+        clearMapSelection();
+        closeDatasheet();
+        return;
+      }
       const next = remaining[0];
       const f = next.feature;
       handleSidebarFeatureSelect(
@@ -2389,8 +2400,13 @@ const BelisMapLibWrapper = ({
         f
       );
     },
-    [sidebarMode, allDraftFeatures, handleSidebarFeatureSelect]
+    [sidebarMode, allDraftFeatures, handleSidebarFeatureSelect, clearMapSelection, closeDatasheet]
   );
+
+  useEffect(() => {
+    setOnSelectNextDraft(() => handleSelectNextDraft);
+    return () => setOnSelectNextDraft(undefined);
+  }, [handleSelectNextDraft, setOnSelectNextDraft]);
 
   return (
     <div
