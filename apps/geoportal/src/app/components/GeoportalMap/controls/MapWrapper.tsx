@@ -55,7 +55,6 @@ import { MeasurementControl } from "@carma-commons/measurements";
 import { GeoportalMap } from "../GeoportalMap.tsx";
 import LibreGeoportalMap from "../LibreGeoportalMap.tsx";
 import { ObliqueControls } from "../../../oblique/components/ObliqueControls.tsx";
-import CesiumMeasurementInfoBox from "../../annotations/CesiumMeasurementInfoBox.tsx";
 import LayerWrapper from "../../layers/LayerWrapper.tsx";
 
 import useLeafletZoomControls from "../../../hooks/leaflet/useLeafletZoomControls.ts";
@@ -483,7 +482,6 @@ const MapWrapper = () => {
               <LayerWrapper />
             </Control>
           )}
-          {!isObliquePreviewVisible && <CesiumMeasurementInfoBox />}
           <Control position="bottomleft" order={10}>
             <div
               ref={tourRefLabels.gazetteer}

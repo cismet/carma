@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type ReactNode,
 } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -31,6 +32,7 @@ import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 
 import {
+  InfoBoxHeader,
   SelectionItem,
   TopicMapSelectionContent,
   useAdhocCesiumFeatureDisplay,
@@ -49,6 +51,7 @@ import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from 
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import type { FeatureInfo } from "@carma-mapping/utils";
 import { Measurements, InfoBoxMeasurement } from "@carma-commons/measurements";
+import { useAnnotationsRuntime } from "@carma-mapping/annotations/runtime";
 
 import {
   useOverlayHelper,
@@ -85,6 +88,7 @@ import { getLayers as getBackgroundLayers } from "@carma-appframeworks/portals";
 
 import FeatureInfoBox from "../feature-info/FeatureInfoBox.tsx";
 import PrintPreview from "../map-print/PrintPreview.tsx";
+import AnnotationInfoBox from "../annotations/AnnotationInfoBox.tsx";
 
 import versionData from "../../../version.json";
 
@@ -149,6 +153,7 @@ const CLICK_DELAY_MS = 200;
 const GEOPORTAL_CESIUM_VIEW_ADAPTER_ID = "geoportal-cesium";
 const DEFAULT_MARKER_ANCHOR_HEIGHT = 10;
 const FLY_TO_BOUNDING_SPHERE_PADDING_FACTOR = 1.1;
+type AnnotationInfoBoxTop = "annotation" | "feature";
 
 const buildTerrainAwareBoundingSphereOptions = (
   terrainProvider: CesiumTerrainProvider | undefined
@@ -164,6 +169,7 @@ const buildFlyToBoundingSphereOptions = (minRange: number) => ({
 
 const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
   const dispatch = useDispatch();
+  const { activeToolType, setActiveToolType } = useAnnotationsRuntime();
 
   // Contexts
   const {
@@ -214,6 +220,8 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
   );
   const layers = useSelector(getLayers);
   const [maplibreMaps, setMaplibreMaps] = useState<MaplibreMap[]>([]);
+  const [annotationInfoBoxTop, setAnnotationInfoBoxTop] =
+    useState<AnnotationInfoBoxTop>("annotation");
   const uiMode = useSelector(getUIMode);
   const isModeMeasurement = uiMode === UIMode.MEASUREMENT;
   const isModeFeatureInfo = uiMode === UIMode.FEATURE_INFO;
@@ -737,7 +745,81 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
     };
   }, [getLeafletMap]);
 
+  const ensureAnnotationSelectTool = useCallback(() => {
+    if (activeToolType !== "select") {
+      setActiveToolType("select");
+    }
+  }, [activeToolType, setActiveToolType]);
+
   const renderInfoBox = useCallback(() => {
+    const selectedFeatureSecondaryInfoBoxElements: ReactNode[] = selectedFeature
+      ? [
+          <div
+            style={{
+              width: "340px",
+              paddingBottom: 3,
+              paddingLeft: 10,
+              cursor: "pointer",
+            }}
+            key={`selected-feature-header-${selectedFeature.id ?? "feature"}`}
+            onClick={() => {
+              ensureAnnotationSelectTool();
+              setAnnotationInfoBoxTop("feature");
+            }}
+          >
+            <InfoBoxHeader
+              content={
+                selectedFeature.properties.header ||
+                selectedFeature.properties._header ||
+                "Informationen"
+              }
+              headerColor="grey"
+              properties={selectedFeature.properties.sourceProps}
+            />
+          </div>,
+        ]
+      : [];
+    const annotationSecondaryInfoBoxElements: ReactNode[] = [
+      <div
+        style={{
+          width: "340px",
+          paddingBottom: 3,
+          paddingLeft: 10,
+          cursor: "pointer",
+        }}
+        key="annotation-header"
+        onClick={() => {
+          ensureAnnotationSelectTool();
+          setAnnotationInfoBoxTop("annotation");
+        }}
+      >
+        <InfoBoxHeader content="Messungen" headerColor="grey" />
+      </div>,
+    ];
+
+    if (isModeMeasurement && getIsCesium()) {
+      if (selectedFeature && annotationInfoBoxTop === "feature") {
+        return (
+          <FeatureInfoBox
+            onZoomToFeature={handleZoomToFeature}
+            displayOrbit={true}
+            isOrbiting={isOrbiting}
+            onOrbitToggle={toggleOrbit}
+            actionIconSizePx={16}
+            additionalSecondaryInfoBoxElements={
+              annotationSecondaryInfoBoxElements
+            }
+          />
+        );
+      }
+
+      return (
+        <AnnotationInfoBox
+          secondaryInfoBoxElements={selectedFeatureSecondaryInfoBoxElements}
+        />
+      );
+    }
+
     if (isModeMeasurement && getIsLeaflet()) {
       return <InfoBoxMeasurement key={uiMode} />;
     }
@@ -756,6 +838,7 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
           displayOrbit={true}
           isOrbiting={isOrbiting}
           onOrbitToggle={toggleOrbit}
+          actionIconSizePx={16}
         />
       );
     }
@@ -772,6 +855,8 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
     handleZoomToFeature,
     isOrbiting,
     toggleOrbit,
+    annotationInfoBoxTop,
+    ensureAnnotationSelectTool,
   ]);
 
   const showOverlayFromOutside = useCallback(

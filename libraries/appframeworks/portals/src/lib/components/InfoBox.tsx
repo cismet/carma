@@ -48,6 +48,7 @@ interface InfoBoxProps {
   mapWidth?: number | null;
   infoBoxBottomResMargin?: number;
   bigMobileIconsInsteadOfCollapsing?: boolean;
+  controlOrder?: number;
 }
 
 type LightboxDispatch = {
@@ -88,6 +89,7 @@ export const InfoBox = ({
   secondaryInfoBoxElements = [],
   mapWidth = null,
   infoBoxBottomResMargin = 0,
+  controlOrder,
   colorizer = (props) => ((props || {}).properties || {}).color, //
   defaultContextValues = {},
   bigMobileIconsInsteadOfCollapsing = false,
@@ -621,6 +623,7 @@ export const InfoBox = ({
       fixedRow={fixedRow}
       mapWidth={mapWidth}
       infoBoxBottomMargin={infoBoxBottomResMargin}
+      controlOrder={controlOrder}
       mode={
         bigMobileIconsInsteadOfCollapsing
           ? MODES.BIG_MOBILE_ICONS

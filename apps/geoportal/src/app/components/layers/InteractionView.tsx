@@ -1,8 +1,10 @@
 import { FC, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import { CismapAnnotationToolbar } from "@carma-appframeworks/portals";
-import { useAnnotationsRuntime } from "@carma-mapping/annotations/runtime";
+import {
+  RuntimeAnnotationsToolbar,
+  useAnnotationsRuntime,
+} from "@carma-mapping/annotations/runtime";
 import {
   createFilterButtons,
   FilterInfo,
@@ -32,13 +34,21 @@ import { useGeoportalCesiumAnnotationToolPlugins } from "../../hooks/use-geoport
 import { CESIUM_ANNOTATION_INTERACTION_ID } from "../annotations/cesium-annotations.constants";
 import { useFilterBackground } from "./useFilterBackground";
 import FilterBackdrop from "./FilterBackdrop";
+import { GEOPORTAL_LAYER_TOOL_ACTION_TOOLBAR_CLASS_NAMES } from "./layer-tool-action-button-style";
 import SaveMeasurements from "./SaveMeasurements";
 
 const GeoportalAnnotationsToolbar: FC<{ layer: Layer }> = () => {
   const { registry } = useAnnotationsRuntime();
   const toolPlugins = useGeoportalCesiumAnnotationToolPlugins(registry.plugins);
 
-  return <CismapAnnotationToolbar plugins={toolPlugins} />;
+  return (
+    <RuntimeAnnotationsToolbar
+      plugins={toolPlugins}
+      classNames={GEOPORTAL_LAYER_TOOL_ACTION_TOOLBAR_CLASS_NAMES}
+      disableSelectWithoutAnnotations
+      tooltipPlacement="bottom"
+    />
+  );
 };
 
 const INTERACTION_COMPONENTS: Record<string, FC<{ layer: Layer }>> = {

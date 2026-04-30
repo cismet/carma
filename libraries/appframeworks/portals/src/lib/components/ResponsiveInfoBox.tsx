@@ -31,6 +31,7 @@ interface ResponsiveInfoBoxProps {
   mode?: string;
   mapWidth?: number | null;
   infoBoxBottomMargin?: number;
+  controlOrder?: number;
 }
 
 export const ResponsiveInfoBox = ({
@@ -53,6 +54,7 @@ export const ResponsiveInfoBox = ({
   mode = MODES.DEFAULT,
   mapWidth,
   infoBoxBottomMargin = 0,
+  controlOrder = 11,
 }: ResponsiveInfoBoxProps) => {
   const [collapsed, setCollapsed] = useState(false);
   const mapAppWidth = mapWidth ? mapWidth : window.innerWidth;
@@ -95,7 +97,7 @@ export const ResponsiveInfoBox = ({
 
   return (
     <div>
-      <Control position="bottomright" order={11}>
+      <Control position="bottomright" order={controlOrder}>
         <div
           data-test-id="info-box"
           style={{
@@ -181,7 +183,7 @@ export const ResponsiveInfoBox = ({
       {secondaryInfoBoxElements.map((element, index) => (
         <Control
           position="bottomright"
-          order={10 - index}
+          order={controlOrder - 1 - index}
           key={"secondaryElement_" + index}
         >
           <div

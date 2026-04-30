@@ -1,6 +1,7 @@
-import IconLink from "react-cismap/commons/IconLink";
+import Icon from "react-cismap/commons/Icon";
 import { CarmaIconLink } from "./CarmaIconLink";
 import { faRotate } from "@fortawesome/free-solid-svg-icons";
+import type { ReactNode } from "react";
 
 interface ActionLinksConfig {
   entityClassName?: string;
@@ -15,7 +16,51 @@ interface ActionLinksConfig {
   displayOrbit?: boolean;
   isOrbiting?: boolean;
   onOrbitToggle?: () => void;
+  actionIconSizePx?: number;
 }
+
+type SizedIconLinkProps = {
+  tooltip?: string | null;
+  href?: string;
+  target?: string;
+  onClick?: () => void;
+  iconname?: string;
+  icon?: ReactNode;
+  iconSizePx?: number;
+};
+
+const SizedIconLink = ({
+  tooltip = null,
+  href,
+  target,
+  onClick,
+  iconname = "external-link-square",
+  icon,
+  iconSizePx,
+}: SizedIconLinkProps) => {
+  const iconSize = iconSizePx ? `${iconSizePx}px` : "26px";
+
+  return (
+    <a
+      title={tooltip ?? undefined}
+      href={href}
+      onClick={onClick}
+      target={target}
+    >
+      {icon || (
+        <Icon
+          style={{
+            color: "grey",
+            fontSize: iconSize,
+            width: iconSize,
+            textAlign: "center",
+          }}
+          name={iconname}
+        />
+      )}
+    </a>
+  );
+};
 
 export const getActionLinksForFeature = (
   feature: any,
@@ -37,6 +82,7 @@ export const getActionLinksForFeature = (
     displayOrbit = false,
     isOrbiting = false,
     onOrbitToggle,
+    actionIconSizePx,
   }: ActionLinksConfig = {}
 ): JSX.Element[] => {
   const infoxboxControlObject = feature.properties.info;
@@ -44,13 +90,14 @@ export const getActionLinksForFeature = (
   const links: JSX.Element[] = [];
   if (displayZoomToFeature === true) {
     links.push(
-      <IconLink
+      <SizedIconLink
         key={`zoom`}
         tooltip={"Auf " + entityClassName + " zoomen"}
         onClick={() => {
           zoomToFeature(feature);
         }}
         iconname={"search-location"}
+        iconSizePx={actionIconSizePx}
       />
     );
   }
@@ -64,29 +111,34 @@ export const getActionLinksForFeature = (
             onOrbitToggle?.();
           }}
           icon={faRotate}
+          style={
+            actionIconSizePx ? { fontSize: `${actionIconSizePx}px` } : undefined
+          }
         />
       </span>
     );
   }
   if (displaySecondaryInfoAction === true) {
     links.push(
-      <IconLink
+      <SizedIconLink
         key={`CarmaIconLink.secondaryInfo`}
         tooltip="Datenblatt anzeigen"
         onClick={() => {
           setVisibleStateOfSecondaryInfo(true);
         }}
         iconname="info"
+        iconSizePx={actionIconSizePx}
       />
     );
   }
   if (infoxboxControlObject?.tel || feature?.properties?.tel !== undefined) {
     links.push(
-      <IconLink
+      <SizedIconLink
         key={`CarmaIconLink.tel`}
         tooltip="Anrufen"
         href={"tel:" + (infoxboxControlObject?.tel || feature?.properties?.tel)}
         iconname="phone"
+        iconSizePx={actionIconSizePx}
       />
     );
   }
@@ -95,7 +147,7 @@ export const getActionLinksForFeature = (
     feature?.properties?.email !== undefined
   ) {
     links.push(
-      <IconLink
+      <SizedIconLink
         key={`CarmaIconLink.email`}
         tooltip="E-Mail schreiben"
         href={
@@ -103,17 +155,19 @@ export const getActionLinksForFeature = (
           (infoxboxControlObject?.email || feature?.properties?.email)
         }
         iconname="envelope-square"
+        iconSizePx={actionIconSizePx}
       />
     );
   }
   if (infoxboxControlObject?.url || feature?.properties?.url !== undefined) {
     links.push(
-      <IconLink
+      <SizedIconLink
         key={`CarmaIconLink.web`}
         tooltip="Zur Homepage"
         href={infoxboxControlObject?.url || feature?.properties?.url}
         target="_blank"
         iconname="external-link-square"
+        iconSizePx={actionIconSizePx}
       />
     );
   }
@@ -125,23 +179,25 @@ export const getActionLinksForFeature = (
       feature.properties.genericLinks) {
       if (genericLink.url) {
         links.push(
-          <IconLink
+          <SizedIconLink
             key={`CarmaIconLink.generic-${JSON.stringify(genericLink)}`}
             tooltip={genericLink.tooltip}
             href={genericLink.url}
             target={genericLink.target || "_blank"}
             iconname={genericLink.iconname || "globe"}
             icon={genericLink.icon || undefined}
+            iconSizePx={actionIconSizePx}
           />
         );
       } else if (genericLink.action) {
         links.push(
-          <IconLink
+          <SizedIconLink
             key={`CarmaIconLink.generic-${JSON.stringify(genericLink)}`}
             tooltip={genericLink.tooltip}
             onClick={genericLink.action}
             iconname={genericLink.iconname || "globe"}
             icon={genericLink.icon || undefined}
+            iconSizePx={actionIconSizePx}
           />
         );
       } else if (
@@ -150,7 +206,7 @@ export const getActionLinksForFeature = (
         onRouteAction
       ) {
         links.push(
-          <IconLink
+          <SizedIconLink
             key={`CarmaIconLink.route-${genericLink.iconname}`}
             tooltip={genericLink.tooltip || "Route berechnen"}
             onClick={() => {
@@ -161,6 +217,7 @@ export const getActionLinksForFeature = (
             }}
             iconname={genericLink.iconname || "car"}
             icon={genericLink.icon || undefined}
+            iconSizePx={actionIconSizePx}
           />
         );
       }

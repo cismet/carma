@@ -14,5 +14,5 @@ export const shouldShowNodeInteractionTargets = ({
   enableHostInteractionTargets &&
   hasNodeInteractionHandlers &&
   (nodeInteractionHoverEnabled ||
-    nodeLongPressInteractionEnabled ||
+    (!blockLabelInteractions && nodeLongPressInteractionEnabled) ||
     !blockLabelInteractions);

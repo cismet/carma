@@ -75,6 +75,7 @@ import { Badge, Spin, Tooltip } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import { useLayerLoading } from "@carma-mapping/utils";
 import { useGeoportalLayerButtonActions } from "../../hooks/use-geoportal-layer-button-actions";
+import { GEOPORTAL_LAYER_TOOL_ACTION_BUTTON_CLASS_NAMES } from "./layer-tool-action-button-style";
 
 export interface GeoportalLayerButtonProps {
   title: string;
@@ -282,10 +283,8 @@ const GeoportalLayerButton = ({
       if (config.type !== "list" && config.type !== "toggle") {
         return;
       }
-      const currentSelection =
-        dynamicStylingSelections[idx] ?? config.default;
-      const lastApplied =
-        getLastAppliedSelection(id, idx) ?? config.default;
+      const currentSelection = dynamicStylingSelections[idx] ?? config.default;
+      const lastApplied = getLastAppliedSelection(id, idx) ?? config.default;
       if (currentSelection === lastApplied) {
         return;
       }
@@ -436,7 +435,12 @@ const GeoportalLayerButton = ({
             {interactionActivationMode === "action" && layer.filterConfig && (
               <button
                 id={`layerInteractionButton-${id}`}
-                className="px-1.5 flex items-center justify-center"
+                className={cn(
+                  GEOPORTAL_LAYER_TOOL_ACTION_BUTTON_CLASS_NAMES.base,
+                  activeInteractionLayerID === id
+                    ? GEOPORTAL_LAYER_TOOL_ACTION_BUTTON_CLASS_NAMES.active
+                    : GEOPORTAL_LAYER_TOOL_ACTION_BUTTON_CLASS_NAMES.inactive
+                )}
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -456,15 +460,7 @@ const GeoportalLayerButton = ({
                   size="small"
                   color="#4b5563"
                 >
-                  <FontAwesomeIcon
-                    icon={faFilter}
-                    className={cn(
-                      "text-sm",
-                      activeInteractionLayerID === id
-                        ? "text-[#1677ff]"
-                        : "text-gray-600 hover:text-gray-500"
-                    )}
-                  />
+                  <FontAwesomeIcon icon={faFilter} className="text-sm" />
                 </Badge>
               </button>
             )}
@@ -479,10 +475,10 @@ const GeoportalLayerButton = ({
                     key={btn.id}
                     id={`layerInteractionButton-${id}-${btn.id}`}
                     className={cn(
-                      "px-1.5 flex items-center justify-center text-sm",
+                      GEOPORTAL_LAYER_TOOL_ACTION_BUTTON_CLASS_NAMES.base,
                       isActive
-                        ? "text-[#1677ff]"
-                        : "text-gray-600 hover:text-gray-500"
+                        ? GEOPORTAL_LAYER_TOOL_ACTION_BUTTON_CLASS_NAMES.active
+                        : GEOPORTAL_LAYER_TOOL_ACTION_BUTTON_CLASS_NAMES.inactive
                     )}
                     onClick={(e) => {
                       e.preventDefault();

@@ -3,7 +3,7 @@ import type { BackgroundLayer, Layer } from "@carma-mapping/layers";
 import { CESIUM_ANNOTATION_LAYER_ID } from "../components/annotations/cesium-annotations.constants";
 import { UIMode } from "../store/slices/ui";
 
-export const shouldShowCesiumMeasurementInfoBox = ({
+export const shouldShowAnnotationInfoBox = ({
   isCesium,
   layers,
   uiMode,

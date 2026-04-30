@@ -13,7 +13,7 @@ import {
 
 import { ResponsiveInfoBox } from "./ResponsiveInfoBox";
 
-const renderCismapMeasurementActionIcon = ({
+const renderCismapAnnotationActionIcon = ({
   actionId,
   className,
   style,
@@ -35,7 +35,7 @@ const renderCismapMeasurementActionIcon = ({
   );
 };
 
-export const CISMAP_MEASUREMENT_INFO_BOX_VISUAL_OPTIONS = {
+export const CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS = {
   subtitleContainerClassName: "mb-0 w-full pt-0",
   subtitleTextStyle: {
     color: "#212529",
@@ -65,7 +65,7 @@ export const CISMAP_MEASUREMENT_INFO_BOX_VISUAL_OPTIONS = {
     ANNOTATION_INFO_BOX_ACTION_IDS.REFERENCE,
     ANNOTATION_INFO_BOX_ACTION_IDS.LOCK,
   ],
-  renderActionIcon: renderCismapMeasurementActionIcon,
+  renderActionIcon: renderCismapAnnotationActionIcon,
   titleTextStyle: {
     fontSize: "14px",
     fontWeight: 700,
@@ -89,10 +89,11 @@ export const CISMAP_MEASUREMENT_INFO_BOX_VISUAL_OPTIONS = {
 
 export type CismapAnnotationInfoBoxProps = Pick<
   AnnotationInfoBoxLayoutProps,
-  "pixelWidth" | "visualOptions"
+  "controlOrder" | "pixelWidth" | "visualOptions"
 > & {
   slots: AnnotationInfoBoxSlots;
   headerTitle?: ReactNode;
+  secondaryInfoBoxElements?: ReactNode[];
 };
 
 export const CismapAnnotationInfoBox = ({
@@ -100,6 +101,8 @@ export const CismapAnnotationInfoBox = ({
   slots,
   visualOptions,
   headerTitle = "Messungen",
+  controlOrder,
+  secondaryInfoBoxElements = [],
 }: CismapAnnotationInfoBoxProps) => {
   const resolvedVisualOptions =
     resolveAnnotationInfoBoxVisualOptions(visualOptions);
@@ -136,6 +139,8 @@ export const CismapAnnotationInfoBox = ({
         }
         isCollapsible={slots.collapsible ?? true}
         fixedRow={true}
+        controlOrder={controlOrder}
+        secondaryInfoBoxElements={secondaryInfoBoxElements}
       />
     </div>
   );
@@ -144,11 +149,15 @@ export const CismapAnnotationInfoBox = ({
 export type CismapAnnotationInstructionInfoBoxProps = {
   content: ReactNode;
   pixelWidth?: number;
+  controlOrder?: number;
+  secondaryInfoBoxElements?: ReactNode[];
 };
 
 export const CismapAnnotationInstructionInfoBox = ({
   content,
   pixelWidth = 350,
+  controlOrder,
+  secondaryInfoBoxElements = [],
 }: CismapAnnotationInstructionInfoBoxProps) => (
   <div data-test-id="annotation-info-box">
     <ResponsiveInfoBox
@@ -159,13 +168,15 @@ export const CismapAnnotationInstructionInfoBox = ({
       alwaysVisibleDiv={
         <div
           className="mt-2 w-[90%] p-2 text-xs font-normal leading-normal text-[#212529] [&_*]:font-normal"
-          data-test-id="empty-measurement-info"
+          data-test-id="empty-annotation-info"
         >
           {content}
         </div>
       }
       collapsibleDiv={<div />}
       fixedRow={false}
+      controlOrder={controlOrder}
+      secondaryInfoBoxElements={secondaryInfoBoxElements}
     />
   </div>
 );
