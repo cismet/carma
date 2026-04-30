@@ -165,6 +165,20 @@ export const leuchtenDataLayer: LibreLayer = {
   opacity: 1,
 };
 
+/** Experimental "brand new features" data layer (GeoJSON-backed style).
+ * Toggleable in local dev only. */
+export const BELIS_BRAND_NEW_STYLE_URL =
+  "https://tiles.cismet.de/belis/brand.new.features.style.json";
+export const BELIS_BRAND_NEW_FC_URL =
+  "https://tiles.cismet.de/belis/brand.new.features.json";
+
+export const brandNewDataLayer: LibreLayer = {
+  type: "vector",
+  name: "BrandNewFeatures",
+  style: BELIS_BRAND_NEW_STYLE_URL,
+  opacity: 1,
+};
+
 /** Arbeitsaufträge GeoJSON layer styles (client-side rendering) */
 export const AA_LAYER_STYLES = {
   fill: {
