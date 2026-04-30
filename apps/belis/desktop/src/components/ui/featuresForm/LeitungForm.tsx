@@ -115,9 +115,7 @@ const LeitungForm = ({
   // Compute sidebar main title to display in form header
   const isCreation =
     typeof rawProps?.id === "string" && isCreationDraftKey(rawProps.id);
-  const sidebarMain = isCreation
-    ? "Neuer Entwurf"
-    : rawProps?.id
+  const sidebarMain = rawProps?.id && !isCreation
     ? `L - ${rawProps.id}`
     : "";
 
@@ -210,7 +208,7 @@ const LeitungForm = ({
 
   return (
     <FeatureFormLayout
-      title={sidebarMain ? `Leitung ${sidebarMain}` : "Leitung"}
+      title={isCreation ? "Neue Leitung" : sidebarMain ? `Leitung ${sidebarMain}` : "Leitung"}
       cancelLabel={sidebarMain || ""}
       isCreation={isCreation}
       formHeaderContent={formHeaderContent}

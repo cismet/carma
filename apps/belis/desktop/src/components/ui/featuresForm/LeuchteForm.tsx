@@ -352,7 +352,7 @@ const LeuchteForm = ({
 
   return (
     <FeatureFormLayout
-      title={sidebarMain ? `Leuchte ${sidebarMain}` : "Leuchte"}
+      title={isCreation ? "Neue Leuchte" : sidebarMain ? `Leuchte ${sidebarMain}` : "Leuchte"}
       cancelLabel={sidebarMain || ""}
       isCreation={isCreation}
       formHeaderContent={formHeaderContent}
