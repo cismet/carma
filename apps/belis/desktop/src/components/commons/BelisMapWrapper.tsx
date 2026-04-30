@@ -23,6 +23,7 @@ import {
   brandNewDataLayer,
   BELIS_STYLE_URL,
   BELIS_BRAND_NEW_STYLE_URL,
+  BELIS_BRAND_NEW_FC_URL,
   BELIS_ORIGINAL_SOURCE,
   BELIS_SOURCE_LAYERS,
   AA_LAYER_STYLES,
@@ -138,6 +139,7 @@ import {
   featureTypeToSourceLayer,
 } from "../../helper/buildSyntheticFeature";
 // import { useAaLassoSelection } from "../../hooks/useAaLassoSelection";
+import { useBrandnewFcSync } from "../../hooks/useBrandnewFcSync";
 
 function buildAAFeatureCollection(
   features: ArbeitsauftragTileFeature[]
@@ -544,6 +546,21 @@ const BelisMapLibWrapper = ({
     sources: highlightSources,
     onDeactivate: onLassoDeactivate,
     onToggle: handleHighlightToggle,
+  });
+
+  // Brandnew FC poll-and-reload: short cadence in localhost (yellow-border
+  // dev scenario), longer otherwise. Triggers setData only when the .md5
+  // sidecar changes.
+  const IS_LOCAL_DEV =
+    typeof window !== "undefined" &&
+    window.location.hostname === "localhost";
+  const BRAND_NEW_SYNC_INTERVAL_MS = IS_LOCAL_DEV ? 1000 : 15000;
+  useBrandnewFcSync({
+    map,
+    enabled: brandnewLayerEnabled,
+    source: brandnewSource,
+    dataUrl: BELIS_BRAND_NEW_FC_URL,
+    intervalMs: BRAND_NEW_SYNC_INTERVAL_MS,
   });
 
   // AA lasso selection (disabled – button now only logs "hallo world")
