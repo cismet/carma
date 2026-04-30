@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Modal, Button, message, Tabs, Select } from "antd";
-import type { FormInstance } from "antd";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { Modal, Button, message, Tabs, Select, Form } from "antd";
 import { useSelector, useDispatch } from "react-redux";
 import proj4 from "proj4";
 import { useLibreContext } from "@carma-mapping/engines/maplibre";
@@ -115,28 +114,31 @@ const CreateFeatureModal = ({
   const label = featureType ? featureLabels[featureType] : "";
   const jwt = useSelector(getJWT) as string | null;
   const { map } = useLibreContext();
-  const formRef = useRef<FormInstance | null>(null);
+  const [form] = Form.useForm();
   const dispatch = useDispatch();
   const [saving, setSaving] = useState(false);
-  const [selectedGeomKey, setSelectedGeomKey] = useState<GeometryKey>(
-    getDefaultGeometryKey(featureType)
-  );
 
-  const [draftKey, setDraftKey] = useState<string | null>(null);
+  const generatedKeyRef = useRef<string | null>(null);
+  const prevFeatureTypeRef = useRef(featureType);
 
-  useEffect(() => {
-    if (featureType) {
-      setDraftKey(
-        resumeDraftKey ??
-          `create:${featureType}:${Date.now()}-${Math.random()
-            .toString(36)
-            .slice(2, 9)}`
-      );
-      setSelectedGeomKey(getDefaultGeometryKey(featureType));
+  if (featureType !== prevFeatureTypeRef.current) {
+    prevFeatureTypeRef.current = featureType;
+    generatedKeyRef.current = null;
+  }
+
+  let draftKey: string | null = null;
+  if (featureType) {
+    if (resumeDraftKey) {
+      draftKey = resumeDraftKey;
     } else {
-      setDraftKey(null);
+      if (!generatedKeyRef.current) {
+        generatedKeyRef.current = `create:${featureType}:${Date.now()}-${Math.random()
+          .toString(36)
+          .slice(2, 9)}`;
+      }
+      draftKey = generatedKeyRef.current;
     }
-  }, [featureType, resumeDraftKey]);
+  }
 
   const draft = useSelector((state: RootState) =>
     getDraft(state, draftKey ?? undefined)
@@ -147,6 +149,25 @@ const CreateFeatureModal = ({
     () => (draft?.values ? deserializeValues(draft.values) : undefined),
     [draft?.values]
   );
+
+  const [selectedGeomKey, setSelectedGeomKey] = useState<GeometryKey>(
+    getDefaultGeometryKey(featureType)
+  );
+
+  const prevDraftKeyRef = useRef<string | null>(null);
+  if (draftKey !== prevDraftKeyRef.current) {
+    prevDraftKeyRef.current = draftKey;
+    const restored = draft?.geometryKey as GeometryKey | undefined;
+    const next = restored ?? getDefaultGeometryKey(featureType);
+    if (next !== selectedGeomKey) {
+      setSelectedGeomKey(next);
+    }
+    if (draftValues && Object.keys(draftValues).length > 0) {
+      form.setFieldsValue(draftValues);
+    } else {
+      form.resetFields();
+    }
+  }
 
   const pendingUploads: PendingUpload[] = useMemo(
     () =>
@@ -173,6 +194,7 @@ const CreateFeatureModal = ({
           fetchedData: buildSyntheticFetchedData(featureType, values),
           isCreation: true,
           geometry: geom,
+          geometryKey: selectedGeomKey,
         })
       );
     },
@@ -204,7 +226,7 @@ const CreateFeatureModal = ({
         })
       );
       const updatedFiles = [...draftFiles, ...newDraftFiles];
-      const currentValues = formRef.current?.getFieldsValue() ?? {};
+      const currentValues = form.getFieldsValue() ?? {};
       const geom = getGeometryByKey(selectedGeomKey);
       dispatch(
         setDraftFilesAction({
@@ -228,7 +250,7 @@ const CreateFeatureModal = ({
     (id: string) => {
       if (!draftKey || !featureType) return;
       const updatedFiles = draftFiles.filter((f) => f.id !== id);
-      const currentValues = formRef.current?.getFieldsValue() ?? {};
+      const currentValues = form.getFieldsValue() ?? {};
       const geom = getGeometryByKey(selectedGeomKey);
       dispatch(
         setDraftFilesAction({
@@ -248,6 +270,34 @@ const CreateFeatureModal = ({
     [draftKey, featureType, draftFiles, selectedGeomKey, dispatch]
   );
 
+  const handleGeomKeyChange = useCallback(
+    (newKey: GeometryKey) => {
+      setSelectedGeomKey(newKey);
+      if (!draftKey || !featureType) return;
+      const currentValues = form.getFieldsValue() ?? {};
+      const serialized = serializeValues(currentValues);
+      const geom = getGeometryByKey(newKey);
+      dispatch(
+        setDraft({
+          featureId: draftKey,
+          featureType,
+          values: serialized,
+          feature: buildSyntheticFeature(
+            featureType,
+            draftKey,
+            currentValues,
+            geom
+          ),
+          fetchedData: buildSyntheticFetchedData(featureType, currentValues),
+          isCreation: true,
+          geometry: geom,
+          geometryKey: newKey,
+        })
+      );
+    },
+    [draftKey, featureType, dispatch]
+  );
+
   const handleFlyToGeom = useCallback(() => {
     if (!featureType || !map) return;
     const geom = getGeometryByKey(selectedGeomKey);
@@ -261,15 +311,11 @@ const CreateFeatureModal = ({
     map.flyTo({ center: [lng, lat], zoom: 18 });
   }, [featureType, selectedGeomKey, map]);
 
-  const handleFormInstance = useCallback((form: FormInstance) => {
-    formRef.current = form;
-  }, []);
-
   const handleCreate = useCallback(() => {
     if (!featureType) return;
 
     void message.success(`${label} als Entwurf gespeichert`);
-    formRef.current?.resetFields();
+    form.resetFields();
     onClose();
 
     // --- server save logic (commented out for now) ---
@@ -278,7 +324,7 @@ const CreateFeatureModal = ({
     // const className = classNames[featureType];
     // if (!className) return;
     //
-    // const rawValues = formRef.current?.getFieldsValue() ?? {};
+    // const rawValues = form.getFieldsValue() ?? {};
     //
     // const valuesForPrepare =
     //   featureType === "leuchte" ? { leuchte: rawValues } : rawValues;
@@ -346,7 +392,7 @@ const CreateFeatureModal = ({
     //   if (draftKey) {
     //     dispatch(removeDraft(draftKey));
     //   }
-    //   formRef.current?.resetFields();
+    //   form.resetFields();
     //   onClose();
     // } catch (err) {
     //   console.error("[CreateFeature] error:", err);
@@ -368,7 +414,7 @@ const CreateFeatureModal = ({
     if (draftKey) {
       dispatch(removeDraft(draftKey));
     }
-    formRef.current?.resetFields();
+    form.resetFields();
     onClose();
   };
 
@@ -379,8 +425,7 @@ const CreateFeatureModal = ({
           <LeuchteFormFields
             leuchte={null}
             readOnly={false}
-            onFormInstance={handleFormInstance}
-            draftValues={draftValues}
+            form={form}
             onValuesChange={handleValuesChange}
           />
         );
@@ -389,8 +434,7 @@ const CreateFeatureModal = ({
           <MastFormFields
             mast={null}
             readOnly={false}
-            onFormInstance={handleFormInstance}
-            draftValues={draftValues}
+            form={form}
             onValuesChange={handleValuesChange}
           />
         );
@@ -399,8 +443,7 @@ const CreateFeatureModal = ({
           <LeitungFormFields
             leitung={null}
             readOnly={false}
-            onFormInstance={handleFormInstance}
-            draftValues={draftValues}
+            form={form}
             onValuesChange={handleValuesChange}
           />
         );
@@ -409,8 +452,7 @@ const CreateFeatureModal = ({
           <SchaltstelleFormFields
             schaltstelle={null}
             readOnly={false}
-            onFormInstance={handleFormInstance}
-            draftValues={draftValues}
+            form={form}
             onValuesChange={handleValuesChange}
           />
         );
@@ -419,8 +461,7 @@ const CreateFeatureModal = ({
           <MauerlascheFormFields
             mauerlasche={null}
             readOnly={false}
-            onFormInstance={handleFormInstance}
-            draftValues={draftValues}
+            form={form}
             onValuesChange={handleValuesChange}
           />
         );
@@ -466,7 +507,7 @@ const CreateFeatureModal = ({
         <span className="text-sm font-medium text-gray-700">Geometrie</span>
         <Select
           value={selectedGeomKey}
-          onChange={setSelectedGeomKey}
+          onChange={handleGeomKeyChange}
           className="w-full mt-1"
           size="large"
         >
