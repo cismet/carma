@@ -1,5 +1,6 @@
 import type { Map as MaplibreMap } from "maplibre-gl";
 
+import { buildFeatureStateTarget } from "../utils/featureStateTarget";
 import type { CarmaConf } from "./selectionTypes";
 interface LayerSourceInfo {
   source: string;
@@ -189,11 +190,11 @@ export class HidingForwardingManager {
 
         try {
           this.map.setFeatureState(
-            {
+            buildFeatureStateTarget(this.map, {
               source: layerInfo.source,
               sourceLayer: layerInfo.sourceLayer,
               id: featureId,
-            },
+            }),
             { hidden: isHidden }
           );
         } catch {

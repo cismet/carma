@@ -1,5 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import type { Map as MaplibreMap, MapGeoJSONFeature } from "maplibre-gl";
+import { buildFeatureStateTarget } from "../featureStateTarget";
+import { stampSourceLayerFromProperty } from "../sourceLayerStamp";
 
 const DEFAULT_MAX_FEATURES = 2000;
 const DEFAULT_DEBOUNCE_MS = 300;
@@ -398,36 +400,21 @@ export const useVisibleMapFeatures = ({
 
         for (const f of renderedFeatures) {
           if (filterRef.current && !filterRef.current(f)) continue;
-          // GeoJSON-sourced features have no native sourceLayer. If the feature
-          // carries `properties._sourceLayer` (a convention for FCs that mimic
-          // a vector-tile schema), stamp it onto the feature so downstream
-          // grouping/counts treat it like a tile feature.
-          if (
-            !f.sourceLayer &&
-            (f.properties as Record<string, unknown> | undefined)?.[
-              "_sourceLayer"
-            ]
-          ) {
-            (f as unknown as { sourceLayer: string }).sourceLayer = String(
-              (f.properties as Record<string, unknown>)["_sourceLayer"]
-            );
-          }
+          stampSourceLayerFromProperty(f);
           const key = `${f.source}-${f.sourceLayer}-${f.id}`;
           if (!seen.has(key) && isFeatureInGeoBounds(f, boundsToUse)) {
             seen.add(key);
 
             // When highlightedOnly is active, skip non-highlighted features early
             // so the maxFeatures cap only counts features we actually care about.
-            // For geojson sources, getFeatureState silently no-ops when
-            // sourceLayer is supplied (mirrors setFeatureState), so omit it.
             if (checkHighlight) {
               if (f.id == null || !f.source) continue;
-              const isGeojson =
-                maplibreMap.getSource(f.source)?.type === "geojson";
               const state = maplibreMap.getFeatureState(
-                isGeojson
-                  ? { source: f.source, id: f.id }
-                  : { source: f.source, sourceLayer: f.sourceLayer, id: f.id }
+                buildFeatureStateTarget(maplibreMap, {
+                  source: f.source,
+                  sourceLayer: f.sourceLayer,
+                  id: f.id,
+                })
               );
               if (!state?.highlighted) continue;
             }

@@ -19,6 +19,7 @@ import type {
 } from "maplibre-gl";
 import { useMapHighlight } from "../contexts/MapHighlightContext";
 import type { HighlightCriteria } from "../contexts/MapHighlightContext";
+import { buildFeatureStateTarget } from "../utils/featureStateTarget";
 
 /**
  * Pre-built index for O(1) queryId lookups.
@@ -184,17 +185,25 @@ export const useMapHighlighting = ({
       const seen = new Set<string>();
 
       for (const { source, sourceLayers } of srcs) {
-        // Geojson sources: querySourceFeatures ignores sourceLayer and
-        // setFeatureState silently no-ops if sourceLayer is supplied.
-        // The effective layer comes from properties._sourceLayer (a
-        // convention established for the brandnew FC).
+        // Geojson sources: querySourceFeatures ignores sourceLayer; iterate
+        // once and read the effective layer per-feature from the stamped
+        // properties._sourceLayer (a convention established for the
+        // brandnew FC). Vector sources iterate per configured sourceLayer.
         const isGeojson = mapInst.getSource(source)?.type === "geojson";
-        if (isGeojson) {
-          const features = mapInst.querySourceFeatures(source);
+        const iterLayers: (string | undefined)[] = isGeojson
+          ? [undefined]
+          : [...sourceLayers];
+        for (const iterSL of iterLayers) {
+          const features =
+            iterSL === undefined
+              ? mapInst.querySourceFeatures(source)
+              : mapInst.querySourceFeatures(source, { sourceLayer: iterSL });
           for (const f of features) {
             if (f.id == null) continue;
             const props = (f.properties ?? {}) as Record<string, unknown>;
-            const effectiveSL = String(props._sourceLayer ?? "");
+            const effectiveSL = isGeojson
+              ? String(props._sourceLayer ?? "")
+              : (iterSL as string);
             const shouldHighlight = matchesCriteria(
               criteria,
               queryIdLookup,
@@ -204,7 +213,11 @@ export const useMapHighlighting = ({
               source
             );
             mapInst.setFeatureState(
-              { source, id: f.id },
+              buildFeatureStateTarget(mapInst, {
+                source,
+                sourceLayer: effectiveSL,
+                id: f.id,
+              }),
               { [stateKey]: shouldHighlight }
             );
             if (shouldHighlight) {
@@ -217,42 +230,6 @@ export const useMapHighlighting = ({
                 };
                 fAny.source = source;
                 fAny.sourceLayer = effectiveSL;
-                matched.push(f);
-              }
-            }
-          }
-          continue;
-        }
-
-        for (const sourceLayer of sourceLayers) {
-          const features = mapInst.querySourceFeatures(source, {
-            sourceLayer,
-          });
-          for (const f of features) {
-            if (f.id == null) continue;
-            const props = (f.properties ?? {}) as Record<string, unknown>;
-            const shouldHighlight = matchesCriteria(
-              criteria,
-              queryIdLookup,
-              props,
-              f.id,
-              sourceLayer,
-              source
-            );
-            mapInst.setFeatureState(
-              { source, sourceLayer, id: f.id },
-              { [stateKey]: shouldHighlight }
-            );
-            if (shouldHighlight) {
-              const key = `${sourceLayer}::${String(props.id ?? f.id)}`;
-              if (!seen.has(key)) {
-                seen.add(key);
-                const fAny = f as GeoJSONFeature & {
-                  source?: string;
-                  sourceLayer?: string;
-                };
-                fAny.source = source;
-                fAny.sourceLayer = sourceLayer;
                 matched.push(f);
               }
             }
@@ -274,25 +251,22 @@ export const useMapHighlighting = ({
       const srcs = explicitSources ?? discoverSources(mapInst);
       for (const { source, sourceLayers } of srcs) {
         const isGeojson = mapInst.getSource(source)?.type === "geojson";
-        if (isGeojson) {
-          const features = mapInst.querySourceFeatures(source);
+        const iterLayers: (string | undefined)[] = isGeojson
+          ? [undefined]
+          : [...sourceLayers];
+        for (const iterSL of iterLayers) {
+          const features =
+            iterSL === undefined
+              ? mapInst.querySourceFeatures(source)
+              : mapInst.querySourceFeatures(source, { sourceLayer: iterSL });
           for (const f of features) {
             if (f.id == null) continue;
             mapInst.setFeatureState(
-              { source, id: f.id },
-              { [stateKey]: false }
-            );
-          }
-          continue;
-        }
-        for (const sourceLayer of sourceLayers) {
-          const features = mapInst.querySourceFeatures(source, {
-            sourceLayer,
-          });
-          for (const f of features) {
-            if (f.id == null) continue;
-            mapInst.setFeatureState(
-              { source, sourceLayer, id: f.id },
+              buildFeatureStateTarget(mapInst, {
+                source,
+                sourceLayer: iterSL,
+                id: f.id,
+              }),
               { [stateKey]: false }
             );
           }

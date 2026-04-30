@@ -27,3 +27,10 @@ export {
 } from "./lib/featureUtils";
 export { parseToMapLayer } from "./lib/layerUtils";
 export { resolveLayerIconUrl, twemojiUrl } from "./lib/iconUtils";
+
+// setFeatureState/getFeatureState target builder (geojson-aware)
+export { buildFeatureStateTarget } from "./lib/featureStateTarget";
+export type { FeatureStateRef } from "./lib/featureStateTarget";
+
+// Stamp feature.sourceLayer from properties._sourceLayer (geojson FCs)
+export { stampSourceLayerFromProperty } from "./lib/sourceLayerStamp";

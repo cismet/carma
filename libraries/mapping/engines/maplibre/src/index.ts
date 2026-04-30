@@ -130,6 +130,13 @@ export { zoom512as256, zoom256as512 } from "./utils/zoomUtils";
 // Cluster utilities
 export { createPieChart } from "./utils/clusterUtils";
 
+// setFeatureState/getFeatureState target builder (geojson-aware)
+export { buildFeatureStateTarget } from "./utils/featureStateTarget";
+export type { FeatureStateRef } from "./utils/featureStateTarget";
+
+// Stamp feature.sourceLayer from properties._sourceLayer (geojson FCs)
+export { stampSourceLayerFromProperty } from "@carma-mapping/utils";
+
 // Lasso drawing
 export { LassoDrawingManager } from "./lib/LassoDrawingManager";
 export type { LassoDrawingManagerOptions } from "./lib/LassoDrawingManager";
