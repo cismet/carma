@@ -3,7 +3,10 @@ import { useKeyboardListNavigation } from "../../hooks/useKeyboardListNavigation
 import type { MapGeoJSONFeatureWithOriginal as SidebarFeature } from "@carma-mapping/utils";
 export type { SidebarFeature };
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faSpinner } from "@fortawesome/free-solid-svg-icons";
+import { faSpinner, faStar } from "@fortawesome/free-solid-svg-icons";
+
+const IS_LOCAL_DEV =
+  typeof window !== "undefined" && window.location.hostname === "localhost";
 import toTitleCase from "../../helper/toTitleCase";
 import { isCreationDraftKey } from "../../store/slices/featuresForms";
 import AuswahlBlock from "./AuswahlBlock";
@@ -713,6 +716,13 @@ const BelisSidebar = ({
                                 <span className="bg-green-500 text-white text-[10px] px-1 rounded ml-1 font-normal">
                                   Neu
                                 </span>
+                              )}
+                              {IS_LOCAL_DEV && feature.properties?.brandnew && (
+                                <FontAwesomeIcon
+                                  icon={faStar}
+                                  className="ml-1 text-yellow-500"
+                                  title="brand new feature"
+                                />
                               )}
                             </span>
                             <span className="grow text-right whitespace-nowrap text-ellipsis overflow-hidden text-sm text-gray-700">
