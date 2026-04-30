@@ -323,53 +323,69 @@ export const LibreMap = ({
   const openDatasheetRef = useRef(datasheetEnabled ? openDatasheet : undefined);
   openDatasheetRef.current = datasheetEnabled ? openDatasheet : undefined;
 
-  // Helper: clear all visual selection state on the map
-  const clearVisualSelection = useCallback((mapInstance: maplibregl.Map) => {
-    selectedFeaturesRef.current.forEach((feature) => {
-      try {
-        if (
-          feature.selectionLayerId &&
-          mapInstance.getLayer(feature.selectionLayerId)
-        ) {
-          mapInstance.setFilter(feature.selectionLayerId, [
-            "==",
-            "__selected__",
-            "true",
-          ]);
-        } else if (feature.id != null) {
-          mapInstance.setFeatureState(
-            {
-              source: feature.source,
-              sourceLayer: feature.sourceLayer,
-              id: feature.id,
-            },
-            { selected: false }
-          );
-        }
+  // Build a setFeatureState target, omitting sourceLayer for geojson sources
+  // (MapLibre silently no-ops setFeatureState when sourceLayer is supplied for
+  // a geojson source, which breaks visual selection for those features).
+  const buildFeatureStateTarget = useCallback(
+    (
+      mapInstance: maplibregl.Map,
+      ref: { source: string; sourceLayer?: string; id?: string | number }
+    ) => {
+      const src = mapInstance.getSource(ref.source);
+      const includeSourceLayer = src?.type !== "geojson";
+      return {
+        source: ref.source,
+        ...(includeSourceLayer && ref.sourceLayer
+          ? { sourceLayer: ref.sourceLayer }
+          : {}),
+        id: ref.id as string | number,
+      };
+    },
+    []
+  );
 
-        // Also clear forwarded selections
-        if (feature.forwardedTo) {
-          for (const forwarded of feature.forwardedTo) {
-            try {
-              mapInstance.setFeatureState(
-                {
-                  source: forwarded.source,
-                  sourceLayer: forwarded.sourceLayer,
-                  id: forwarded.id,
-                },
-                { selected: false }
-              );
-            } catch {
-              // Forwarded feature may not exist
+  // Helper: clear all visual selection state on the map
+  const clearVisualSelection = useCallback(
+    (mapInstance: maplibregl.Map) => {
+      selectedFeaturesRef.current.forEach((feature) => {
+        try {
+          if (
+            feature.selectionLayerId &&
+            mapInstance.getLayer(feature.selectionLayerId)
+          ) {
+            mapInstance.setFilter(feature.selectionLayerId, [
+              "==",
+              "__selected__",
+              "true",
+            ]);
+          } else if (feature.id != null) {
+            mapInstance.setFeatureState(
+              buildFeatureStateTarget(mapInstance, feature),
+              { selected: false }
+            );
+          }
+
+          // Also clear forwarded selections
+          if (feature.forwardedTo) {
+            for (const forwarded of feature.forwardedTo) {
+              try {
+                mapInstance.setFeatureState(
+                  buildFeatureStateTarget(mapInstance, forwarded),
+                  { selected: false }
+                );
+              } catch {
+                // Forwarded feature may not exist
+              }
             }
           }
+        } catch (error) {
+          console.error("Error clearing feature selection:", error);
         }
-      } catch (error) {
-        console.error("Error clearing feature selection:", error);
-      }
-    });
-    selectedFeaturesRef.current.clear();
-  }, []);
+      });
+      selectedFeaturesRef.current.clear();
+    },
+    [buildFeatureStateTarget]
+  );
 
   // Helper: apply visual selection highlighting for a feature
   const applyVisualSelection = useCallback(
@@ -380,11 +396,7 @@ export const LibreMap = ({
       try {
         if (featureId.id != null) {
           mapInstance.setFeatureState(
-            {
-              source: featureId.source,
-              sourceLayer: featureId.sourceLayer,
-              id: featureId.id,
-            },
+            buildFeatureStateTarget(mapInstance, featureId),
             { selected: true }
           );
         }
@@ -397,7 +409,7 @@ export const LibreMap = ({
         console.error("Error applying feature selection:", error);
       }
     },
-    []
+    [buildFeatureStateTarget]
   );
 
   useClusterMarkers({
