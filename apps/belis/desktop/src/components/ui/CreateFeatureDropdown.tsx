@@ -170,7 +170,7 @@ const CreateFeatureDropdown = () => {
         onCancel={handlePromptCancel}
         footer={
           <div className="flex justify-end gap-2">
-            <Button onClick={handlePromptCancel}>Abbrechen</Button>
+            <Button onClick={handlePromptCancel}>Schließen</Button>
             <Button onClick={handleNewDraft}>Neu erstellen</Button>
             <Button type="primary" onClick={handleResume}>
               Fortsetzen
