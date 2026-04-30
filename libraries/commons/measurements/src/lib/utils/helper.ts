@@ -235,7 +235,7 @@ export function shapesToFeatureCollection(
         source: "adhoc",
         filter: ["==", ["geometry-type"], "Polygon"],
         paint: {
-          "line-color": "#267bdc",
+          "line-color": "gray",
           "line-width": 2,
         },
       },
@@ -245,7 +245,7 @@ export function shapesToFeatureCollection(
         source: "adhoc",
         filter: ["==", ["geometry-type"], "LineString"],
         paint: {
-          "line-color": "#267bdc",
+          "line-color": "gray",
           "line-width": 3,
         },
       },
@@ -261,7 +261,7 @@ export function shapesToFeatureCollection(
           "line-cap": "round",
         },
         paint: {
-          "line-color": "#3A7CEB",
+          "line-color": "rgba(38, 123, 220, 0.83)",
           "line-width": 4,
           "line-opacity": [
             "case",
@@ -283,7 +283,7 @@ export function shapesToFeatureCollection(
           "line-cap": "round",
         },
         paint: {
-          "line-color": "#3A7CEB",
+          "line-color": "rgba(38, 123, 220, 0.83)",
           "line-width": 4,
           "line-opacity": [
             "case",
