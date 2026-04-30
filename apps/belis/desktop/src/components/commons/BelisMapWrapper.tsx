@@ -131,6 +131,10 @@ import {
   getAPDeletions,
 } from "../../store/slices/arbeitsauftraegeDrafts";
 import { prepareDraftFeatures } from "../../helper/prepareDraftFeatures";
+import {
+  buildSyntheticFeature,
+  featureTypeToSourceLayer,
+} from "../../helper/buildSyntheticFeature";
 // import { useAaLassoSelection } from "../../hooks/useAaLassoSelection";
 
 function buildAAFeatureCollection(
@@ -183,7 +187,7 @@ const BelisMapLibWrapper = ({
 }: BelisMapLibWrapperProps) => {
   const dispatch: AppDispatch = useDispatch();
   const store = useStore<RootState>();
-  const { setOnSelectNextDraft } = useMapPage();
+  const { setOnSelectNextDraft, setOnOpenCreationDraft } = useMapPage();
   const jwt = useSelector(getJWT);
   const featureDataVersion = useSelector(getFeatureDataVersion);
   const enabledLeitungstypen = useSelector(getEnabledLeitungstypen);
@@ -801,6 +805,11 @@ const BelisMapLibWrapper = ({
       !selectedFeatureId ||
       !map
     ) {
+      setFeatureOnMap(true);
+      return;
+    }
+
+    if (rawFeature?.properties?._isCreation === true) {
       setFeatureOnMap(true);
       return;
     }
@@ -2407,6 +2416,30 @@ const BelisMapLibWrapper = ({
     setOnSelectNextDraft(() => handleSelectNextDraft);
     return () => setOnSelectNextDraft(undefined);
   }, [handleSelectNextDraft, setOnSelectNextDraft]);
+
+  const handleOpenCreationDraft = useCallback(
+    (featureType: string, draftKey: string) => {
+      const draft = store.getState().featuresForms?.drafts[draftKey];
+      const syntheticFeature =
+        draft?.feature ??
+        buildSyntheticFeature(featureType, draftKey, {}, draft?.geometry);
+      const sourceLayer =
+        featureTypeToSourceLayer[featureType] ?? featureType;
+      dispatch(setSelectedFeature({ ...syntheticFeature, selected: true }));
+      selectFeature(
+        { source: "", sourceLayer, id: draftKey },
+        syntheticFeature as any
+      );
+      setFeatureOnMap(true);
+      openDatasheet();
+    },
+    [store, dispatch, selectFeature, openDatasheet]
+  );
+
+  useEffect(() => {
+    setOnOpenCreationDraft(() => handleOpenCreationDraft);
+    return () => setOnOpenCreationDraft(undefined);
+  }, [handleOpenCreationDraft, setOnOpenCreationDraft]);
 
   return (
     <div

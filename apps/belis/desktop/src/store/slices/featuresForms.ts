@@ -80,7 +80,7 @@ const featuresFormsSlice = createSlice({
         existing.removedDocumentKeys.length > 0;
       const creationDraft = existing?.isCreation ?? isCreation;
 
-      if (creationDraft) {
+      if (creationDraft && existing) {
         const allEmpty = Object.values(values).every(
           (v) => v === null || v === undefined || v === ""
         );
