@@ -13,6 +13,7 @@ import toTitleCase from "../../../helper/toTitleCase";
 interface MauerlascheFormFieldsProps {
   mauerlasche: Record<string, unknown> | null;
   readOnly?: boolean;
+  isCreation?: boolean;
   form?: FormInstance;
   onFormInstance?: (form: FormInstance) => void;
   draftValues?: Record<string, unknown>;
@@ -35,6 +36,7 @@ const FormLabel = ({ children }: { children: React.ReactNode }) => (
 const MauerlascheFormFields = ({
   mauerlasche,
   readOnly = true,
+  isCreation,
   form: externalForm,
   onFormInstance,
   draftValues,
@@ -68,7 +70,9 @@ const MauerlascheFormFields = ({
       const serverValues = {
         // Strassenschluessel
         strassenschluessel_pk: tkey?.pk,
-        strassenschluessel_strasse: toTitleCase(tkey?.strasse || ""),
+        strassenschluessel_strasse: tkey?.strasse
+          ? toTitleCase(tkey.strasse)
+          : undefined,
         // Laufende Nr.
         laufende_nummer: ml.laufende_nummer,
         // Montage (Erstellungsjahr) - can be a date string or year number
@@ -110,7 +114,7 @@ const MauerlascheFormFields = ({
       className={getFormClassName(readOnly, "pr-2")}
       onValuesChange={onValuesChange}
     >
-      {!mauerlasche && !readOnly ? (
+      {(!mauerlasche || isCreation) && !readOnly ? (
         <StrassenschluesselFieldsModal label="Strassenschlüssel" />
       ) : (
         <StrassenschluesselFields label="Strassenschlüssel" />

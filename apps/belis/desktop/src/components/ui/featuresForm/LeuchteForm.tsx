@@ -379,6 +379,7 @@ const LeuchteForm = ({
         <LeuchteFormFields
           leuchte={leuchte}
           readOnly={readOnly}
+          isCreation={isCreation}
           onFormInstance={setLeuchteForm}
           draftValues={
             draftValues?.leuchte as Record<string, unknown> | undefined

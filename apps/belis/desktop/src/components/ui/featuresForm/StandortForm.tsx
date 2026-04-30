@@ -260,6 +260,7 @@ const StandortForm = ({
       <MastFormFields
         mast={mast}
         readOnly={readOnly}
+        isCreation={isCreation}
         onFormInstance={setMastForm}
         draftValues={draftValues}
         onValuesChange={handleMastValuesChange}

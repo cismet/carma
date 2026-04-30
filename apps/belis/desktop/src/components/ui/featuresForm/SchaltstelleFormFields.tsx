@@ -21,6 +21,7 @@ import toTitleCase from "../../../helper/toTitleCase";
 interface SchaltstelleFormFieldsProps {
   schaltstelle: Record<string, unknown> | null;
   readOnly?: boolean;
+  isCreation?: boolean;
   form?: FormInstance;
   onFormInstance?: (form: FormInstance) => void;
   draftValues?: Record<string, unknown>;
@@ -48,6 +49,7 @@ const FormLabel = ({ children }: { children: React.ReactNode }) => (
 const SchaltstelleFormFields = ({
   schaltstelle,
   readOnly = true,
+  isCreation,
   form: externalForm,
   onFormInstance,
   draftValues,
@@ -85,7 +87,9 @@ const SchaltstelleFormFields = ({
       const serverValues = {
         // Strassenschluessel
         strassenschluessel_pk: tkey?.pk,
-        strassenschluessel_strasse: toTitleCase(tkey?.strasse || ""),
+        strassenschluessel_strasse: tkey?.strasse
+          ? toTitleCase(tkey.strasse)
+          : undefined,
         // Hausnummer
         haus_nummer: ss.haus_nummer,
         // Standortbez.
@@ -139,7 +143,7 @@ const SchaltstelleFormFields = ({
       className={getFormClassName(readOnly, "pr-2")}
       onValuesChange={onValuesChange}
     >
-      {!schaltstelle && !readOnly ? (
+      {(!schaltstelle || isCreation) && !readOnly ? (
         <StrassenschluesselFieldsModal label="Strassenschlussel" />
       ) : (
         <StrassenschluesselFields label="Strassenschlussel" />
