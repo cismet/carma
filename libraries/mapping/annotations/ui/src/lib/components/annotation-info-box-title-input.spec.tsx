@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { AnnotationInfoBoxTitleInput } from "./AnnotationInfoBoxTitleInput";
@@ -48,5 +48,53 @@ describe("AnnotationInfoBoxTitleInput", () => {
     expect(input.hasAttribute("size")).toBe(false);
     expect(input.style.width).toBe("");
     expect(input.style.minWidth).toBe("1ch");
+  });
+
+  it("lets the short-label badge input grow up to 64 characters", () => {
+    const shortLabelValue = "LONG-BADGE-42";
+
+    render(
+      <AnnotationInfoBoxTitleInput
+        value="Distanzmessung"
+        placeholder="Distanzmessung"
+        shortLabelValue={shortLabelValue}
+        shortLabelPlaceholder="D1"
+        onCommit={vi.fn()}
+        onShortLabelCommit={vi.fn()}
+      />
+    );
+
+    const input = screen.getByDisplayValue(
+      shortLabelValue
+    ) as HTMLInputElement;
+
+    expect(input.maxLength).toBe(64);
+    expect(input.style.width).toBe(`${shortLabelValue.length + 0.5}ch`);
+    expect(input.style.minWidth).toBe("2.5ch");
+    expect(input.style.maxWidth).toBe("min(64.5ch, 100%)");
+  });
+
+  it("truncates committed short-label badge input to 64 characters", () => {
+    const onShortLabelCommit = vi.fn();
+    const longValue = "A".repeat(80);
+
+    render(
+      <AnnotationInfoBoxTitleInput
+        value="Distanzmessung"
+        placeholder="Distanzmessung"
+        shortLabelValue=""
+        shortLabelPlaceholder="D1"
+        onCommit={vi.fn()}
+        onShortLabelCommit={onShortLabelCommit}
+      />
+    );
+
+    const input = screen.getByPlaceholderText("D1") as HTMLInputElement;
+
+    fireEvent.change(input, { target: { value: longValue } });
+    fireEvent.blur(input);
+
+    expect(input.value).toBe("A".repeat(64));
+    expect(onShortLabelCommit).toHaveBeenCalledWith("A".repeat(64));
   });
 });

@@ -52,17 +52,20 @@ const getPointMarkerContentSignature = (
     point.outlineWidth,
     `${point.longPressDurationMs ?? ""}`,
     getOverlayReferenceSignature(point.onClick),
+    getOverlayReferenceSignature(point.onHoverChange),
     getOverlayReferenceSignature(point.onLongPress),
   ].join(":");
 
 export const PointMarkerOverlayShell = ({
   interactive,
   onClick,
+  onHoverChange,
   onLongPress,
   longPressDurationMs = pointMarkerVisualizerDefaults.longPressDurationMs,
 }: {
   interactive: boolean;
   onClick?: () => void;
+  onHoverChange?: (hovered: boolean) => void;
   onLongPress?: () => void;
   longPressDurationMs?: number;
 }) => {
@@ -114,10 +117,16 @@ export const PointMarkerOverlayShell = ({
     [onClick]
   );
 
+  const handleMouseEnter = useCallback(() => {
+    setHovered(true);
+    onHoverChange?.(true);
+  }, [onHoverChange]);
+
   const handleMouseLeave = useCallback(() => {
     clearLongPressTimeout();
     setHovered(false);
-  }, [clearLongPressTimeout]);
+    onHoverChange?.(false);
+  }, [clearLongPressTimeout, onHoverChange]);
 
   useEffect(() => clearLongPressTimeout, [clearLongPressTimeout]);
 
@@ -152,7 +161,7 @@ export const PointMarkerOverlayShell = ({
         onClick={interactive ? handleClick : undefined}
         onMouseDown={interactive ? handleMouseDown : undefined}
         onMouseUp={interactive ? handleMouseUp : undefined}
-        onMouseEnter={interactive ? () => setHovered(true) : undefined}
+        onMouseEnter={interactive ? handleMouseEnter : undefined}
         onMouseLeave={interactive ? handleMouseLeave : undefined}
       />
     </div>
@@ -296,8 +305,11 @@ export const usePointMarkerVisualizer = (
         contentKey: getPointMarkerContentSignature(point),
         content: (
           <PointMarkerOverlayShell
-            interactive={Boolean(point.onClick || point.onLongPress)}
+            interactive={Boolean(
+              point.onClick || point.onHoverChange || point.onLongPress
+            )}
             onClick={point.onClick}
+            onHoverChange={point.onHoverChange}
             onLongPress={point.onLongPress}
             longPressDurationMs={point.longPressDurationMs}
           />

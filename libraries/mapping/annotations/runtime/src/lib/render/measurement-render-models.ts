@@ -43,6 +43,7 @@ export type RuntimePointMarkerRenderModel = {
   outline: string;
   outlineWidth: number;
   onClick?: () => void;
+  onHoverChange?: (hovered: boolean) => void;
   onLongPress?: () => void;
   longPressDurationMs?: number;
 };

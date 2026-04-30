@@ -39,6 +39,7 @@ type UseMeasurementVisualizersArgs = {
   previewSnapTargetHoverEnabled?: boolean;
   onPreviewSnapTargetNodeClick?: (nodeId: string) => boolean;
   onMeasurementSelect?: (measurementId: string) => void;
+  onNodeMeasurementsSelect?: (measurementIds: readonly string[]) => void;
   onNodeLongPress?: (nodeId: string, measurementId?: string) => void;
   onReferenceNodeClick?: (nodeId: string) => boolean;
   onReferenceNodeHover?: (nodeId: string, hovered: boolean) => void;
@@ -71,6 +72,7 @@ export const useMeasurementVisualizers = (
     previewSnapTargetHoverEnabled = false,
     onPreviewSnapTargetNodeClick,
     onMeasurementSelect,
+    onNodeMeasurementsSelect,
     onNodeLongPress,
     onReferenceNodeClick,
     onReferenceNodeHover,
@@ -166,6 +168,7 @@ export const useMeasurementVisualizers = (
         previewNodeLinkId,
         isInPreviewNodeLink,
         onMeasurementSelect,
+        onNodeMeasurementsSelect,
         onNodeLongPress,
         onPreviewSnapTargetNodeClick,
         onReferenceNodeClick,
@@ -181,6 +184,7 @@ export const useMeasurementVisualizers = (
       nodeInteractionHoverEnabled,
       nodeLinkIdByNodeId,
       onMeasurementSelect,
+      onNodeMeasurementsSelect,
       onNodeLongPress,
       onPreviewSnapTargetNodeClick,
       onReferenceNodeClick,

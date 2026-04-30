@@ -21,6 +21,7 @@ type VisualSurfacesProps = {
   previewSnapTargetHoverEnabled: boolean;
   onPreviewSnapTargetNodeClick: (nodeId: string) => boolean;
   onMeasurementSelect: (annotationId: string | null) => void;
+  onNodeMeasurementsSelect: (annotationIds: readonly string[]) => void;
   onNodeLongPress: (nodeId: string, measurementId?: string) => void;
   onReferenceNodeClick: (nodeId: string) => boolean;
   onReferenceNodeHover: (nodeId: string, hovered: boolean) => void;
@@ -50,6 +51,7 @@ export const VisualSurfaces = ({
   previewSnapTargetHoverEnabled,
   onPreviewSnapTargetNodeClick,
   onMeasurementSelect,
+  onNodeMeasurementsSelect,
   onNodeLongPress,
   onReferenceNodeClick,
   onReferenceNodeHover,
@@ -77,6 +79,7 @@ export const VisualSurfaces = ({
     previewSnapTargetHoverEnabled,
     onPreviewSnapTargetNodeClick,
     onMeasurementSelect,
+    onNodeMeasurementsSelect,
     onNodeLongPress,
     onReferenceNodeClick,
     onReferenceNodeHover:

@@ -18,6 +18,7 @@ import {
   type PointQueryIndicatorController,
 } from "../interaction/create-point-query-indicator-controller";
 import { useSceneCoordinateHandler } from "../interaction/use-scene-coordinate-handler";
+import { areCoordinatesEqual } from "../utils/coordinate-equality";
 import { useAnnotationsSelector } from "../store";
 import type {
   AnnotationsStore,
@@ -350,16 +351,19 @@ export const RuntimeAuthoringHost = ({
       const resolvedHoverCoordinate =
         hoveredPointQueryNode?.coordinate ??
         resolvePointQueryCoordinate(coordinate, screenPosition);
+      const isHoverLockedToSnapPoint =
+        hoveredPointQueryNode !== null ||
+        !areCoordinatesEqual(resolvedHoverCoordinate, coordinate);
       const resolvedHoverPointECEF =
-        hoveredPointQueryNode !== null
+        isHoverLockedToSnapPoint
           ? cartesian3FromGeographicCoordinate(resolvedHoverCoordinate)
           : pointECEF;
       const resolvedHoverSurfaceNormalECEF =
-        hoveredPointQueryNode !== null && resolvedHoverPointECEF
+        isHoverLockedToSnapPoint && resolvedHoverPointECEF
           ? getLocalUpDirectionAtAnchor(resolvedHoverPointECEF)
           : surfaceNormalECEF;
       const resolvedHoverScreenPosition =
-        hoveredPointQueryNode !== null &&
+        isHoverLockedToSnapPoint &&
         scene &&
         !scene.isDestroyed() &&
         resolvedHoverPointECEF
@@ -372,7 +376,7 @@ export const RuntimeAuthoringHost = ({
       return {
         coordinate: resolvedHoverCoordinate,
         screenPosition:
-          hoveredPointQueryNode !== null && defined(resolvedHoverScreenPosition)
+          isHoverLockedToSnapPoint && defined(resolvedHoverScreenPosition)
             ? {
                 x: resolvedHoverScreenPosition.x,
                 y: resolvedHoverScreenPosition.y,
@@ -418,11 +422,17 @@ export const RuntimeAuthoringHost = ({
         surfaceNormalECEF,
       });
       const hoveredPointQueryNode = resolveHoveredPointQueryNode();
+      const isHoverLockedToSnapPoint =
+        hoveredPointQueryNode !== null ||
+        !areCoordinatesEqual(
+          latestPointQueryPickResultRef.current.coordinate,
+          coordinate
+        );
       pointQueryIndicatorControllerRef.current?.setPreview({
         pointECEF: latestPointQueryPickResultRef.current.pointECEF,
         surfaceNormalECEF:
           latestPointQueryPickResultRef.current.surfaceNormalECEF,
-        lockToPreviewPoint: hoveredPointQueryNode !== null,
+        lockToPreviewPoint: isHoverLockedToSnapPoint,
       });
       activeAuthoringControllerRef.current?.setPointQueryPickResult(
         latestPointQueryPickResultRef.current

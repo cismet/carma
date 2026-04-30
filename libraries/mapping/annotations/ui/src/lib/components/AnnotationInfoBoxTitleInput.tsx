@@ -23,7 +23,16 @@ const normalizeTitle = (value: string): string => value.trim();
 
 const annotationInfoBoxTitleInputDefaults = Object.freeze({
   borderRadiusRem: "0.2143rem", // 3 / 14
+  shortLabelMaxLength: 64,
+  shortLabelWidthPaddingCh: 0.5,
+  shortLabelMinWidthCh: 2.5,
 });
+
+const normalizeShortLabel = (value: string): string =>
+  normalizeTitle(value).slice(
+    0,
+    annotationInfoBoxTitleInputDefaults.shortLabelMaxLength
+  );
 
 export const AnnotationInfoBoxTitleInput = ({
   value,
@@ -38,17 +47,21 @@ export const AnnotationInfoBoxTitleInput = ({
     resolveAnnotationInfoBoxVisualOptions(visualOptions);
   const [draftValue, setDraftValue] = useState(() => normalizeTitle(value));
   const [draftShortLabelValue, setDraftShortLabelValue] = useState(() =>
-    normalizeTitle(shortLabelValue ?? "")
+    normalizeShortLabel(shortLabelValue ?? "")
   );
   const inputRef = useRef<HTMLInputElement | null>(null);
   const shortLabelInputRef = useRef<HTMLInputElement | null>(null);
+  const shortLabelMaxWidthCh =
+    annotationInfoBoxTitleInputDefaults.shortLabelMaxLength +
+    annotationInfoBoxTitleInputDefaults.shortLabelWidthPaddingCh;
   const shortLabelWidthCh = Math.min(
     Math.max(
       normalizeTitle(draftShortLabelValue || shortLabelPlaceholder || "")
-        .length + 0.5,
-      2.5
+        .length +
+        annotationInfoBoxTitleInputDefaults.shortLabelWidthPaddingCh,
+      annotationInfoBoxTitleInputDefaults.shortLabelMinWidthCh
     ),
-    4.5
+    shortLabelMaxWidthCh
   );
 
   useEffect(() => {
@@ -56,7 +69,7 @@ export const AnnotationInfoBoxTitleInput = ({
   }, [value]);
 
   useEffect(() => {
-    setDraftShortLabelValue(normalizeTitle(shortLabelValue ?? ""));
+    setDraftShortLabelValue(normalizeShortLabel(shortLabelValue ?? ""));
   }, [shortLabelValue]);
 
   const commitValue = (nextValue: string) => {
@@ -70,9 +83,9 @@ export const AnnotationInfoBoxTitleInput = ({
       return;
     }
 
-    const normalizedValue = normalizeTitle(nextValue);
+    const normalizedValue = normalizeShortLabel(nextValue);
     if (!normalizedValue) {
-      const fallbackValue = normalizeTitle(shortLabelValue ?? "");
+      const fallbackValue = normalizeShortLabel(shortLabelValue ?? "");
       setDraftShortLabelValue(fallbackValue);
       return;
     }
@@ -118,8 +131,8 @@ export const AnnotationInfoBoxTitleInput = ({
     borderRadius: annotationInfoBoxTitleInputDefaults.borderRadiusRem,
     flex: "0 1 auto",
     width: `${shortLabelWidthCh}ch`,
-    minWidth: "2.5ch",
-    maxWidth: "4.5ch",
+    minWidth: `${annotationInfoBoxTitleInputDefaults.shortLabelMinWidthCh}ch`,
+    maxWidth: `min(${shortLabelMaxWidthCh}ch, 100%)`,
     fieldSizing: "content",
   } as CSSProperties;
 
@@ -149,11 +162,14 @@ export const AnnotationInfoBoxTitleInput = ({
           type="text"
           value={draftShortLabelValue}
           placeholder={shortLabelPlaceholder}
+          maxLength={annotationInfoBoxTitleInputDefaults.shortLabelMaxLength}
           className={resolvedVisualOptions.shortLabelInputClassName}
           style={shortLabelInputStyle}
           onMouseDown={stopPointerPropagation}
           onClick={stopPointerPropagation}
-          onChange={(event) => setDraftShortLabelValue(event.target.value)}
+          onChange={(event) =>
+            setDraftShortLabelValue(normalizeShortLabel(event.target.value))
+          }
           onBlur={(event) => commitShortLabelValue(event.target.value)}
           onKeyDown={handleShortLabelKeyDown}
         />
