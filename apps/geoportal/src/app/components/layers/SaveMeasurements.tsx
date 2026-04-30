@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { Button, Checkbox, Input, Popover } from "antd";
 import Picker from "@emoji-mart/react";
 import emojiData from "@emoji-mart/data/sets/15/twitter.json";
@@ -9,7 +9,10 @@ import {
   appendLayer,
   setActiveInteractionLayerID,
 } from "../../store/slices/mapping";
-import { addMeasurement } from "../../store/slices/measurements";
+import {
+  addMeasurement,
+  getMeasurements,
+} from "../../store/slices/measurements";
 import { setUIMode, UIMode } from "../../store/slices/ui";
 import {
   useMapMeasurementsContext,
@@ -30,6 +33,17 @@ const hashString = (input: string) => {
   return (hash >>> 0).toString(36);
 };
 
+const getUniqueTitle = (baseTitle: string, existingTitles: Set<string>) => {
+  if (!existingTitles.has(baseTitle)) {
+    return baseTitle;
+  }
+  let counter = 1;
+  while (existingTitles.has(`${baseTitle} (${counter})`)) {
+    counter++;
+  }
+  return `${baseTitle} (${counter})`;
+};
+
 type PickedEmoji = {
   native: string;
   unified: string;
@@ -38,6 +52,7 @@ type PickedEmoji = {
 
 function SaveMeasurements({ layer }: { layer: Layer }) {
   const dispatch = useDispatch();
+  const measurements = useSelector(getMeasurements);
   const { shapes, clearAllShapes } = useMapMeasurementsContext();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -52,8 +67,7 @@ function SaveMeasurements({ layer }: { layer: Layer }) {
     setEmojiPickerOpen(false);
   };
 
-  const buildFeatureData = () => {
-    const featureTitle = title.trim() || "Messung";
+  const buildFeatureData = (featureTitle: string) => {
     const trimmedDescription = description.trim();
     const featureDescription = trimmedDescription
       ? `Inhalt: ${trimmedDescription}`
@@ -78,8 +92,14 @@ function SaveMeasurements({ layer }: { layer: Layer }) {
   const handleSave = async () => {
     if (shapes.length === 0) return;
 
+    const baseTitle = title.trim() || "Messung";
+    const existingTitles = new Set(
+      measurements.map((measurement) => measurement.title)
+    );
+    const uniqueTitle = getUniqueTitle(baseTitle, existingTitles);
+
     const { featureData, featureTitle, featureDescription } =
-      buildFeatureData();
+      buildFeatureData(uniqueTitle);
 
     const contentHash = hashString(
       `${featureTitle}|${featureDescription}|${selectedUnified}|${JSON.stringify(
@@ -131,7 +151,8 @@ function SaveMeasurements({ layer }: { layer: Layer }) {
   const handleDownload = () => {
     if (shapes.length === 0) return;
 
-    const { featureData, featureTitle } = buildFeatureData();
+    const baseTitle = title.trim() || "Messung";
+    const { featureData, featureTitle } = buildFeatureData(baseTitle);
 
     const blob = new Blob([JSON.stringify(featureData, null, 2)], {
       type: "application/json",
