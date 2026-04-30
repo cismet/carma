@@ -5,6 +5,7 @@ import maplibregl from "maplibre-gl";
 import { WUPPERTAL_PREVIEW_STYLE } from "../constants/wuppertalDefaultStyle";
 import { useLibreContext } from "../contexts/LibreContext";
 import { useClusterMarkers } from "../hooks/useClusterMarkers";
+import { buildFeatureStateTarget } from "../utils/featureStateTarget";
 
 import "maplibre-gl/dist/maplibre-gl.css";
 export interface SelectedFeatureIdentifier {
@@ -105,11 +106,7 @@ export const DatasheetMiniMap = ({
       if (prevSelectionRef.current) {
         try {
           m.setFeatureState(
-            {
-              source: prevSelectionRef.current.source,
-              sourceLayer: prevSelectionRef.current.sourceLayer,
-              id: prevSelectionRef.current.id,
-            },
+            buildFeatureStateTarget(m, prevSelectionRef.current),
             { selected: false }
           );
         } catch {
@@ -121,11 +118,7 @@ export const DatasheetMiniMap = ({
       if (selectedFeatureId) {
         try {
           m.setFeatureState(
-            {
-              source: selectedFeatureId.source,
-              sourceLayer: selectedFeatureId.sourceLayer,
-              id: selectedFeatureId.id,
-            },
+            buildFeatureStateTarget(m, selectedFeatureId),
             { selected: true }
           );
         } catch {

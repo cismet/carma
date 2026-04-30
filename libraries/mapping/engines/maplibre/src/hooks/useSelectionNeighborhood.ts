@@ -14,6 +14,7 @@
 import { useEffect, useRef, useCallback } from "react";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { useMapSelection } from "../contexts/MapSelectionContext";
+import { buildFeatureStateTarget } from "../utils/featureStateTarget";
 
 export type NeighborPredicate = (
   selectedProps: Record<string, unknown>,
@@ -55,21 +56,35 @@ export const useSelectionNeighborhood = ({
     ) => {
       if (!sources) return;
       for (const { source, sourceLayers } of sources) {
-        for (const sourceLayer of sourceLayers) {
-          const features = mapInst.querySourceFeatures(source, {
-            sourceLayer,
-          });
+        // Geojson: query once, derive effective layer per-feature from
+        // properties._sourceLayer. Vector: iterate per configured sourceLayer.
+        const isGeojson = mapInst.getSource(source)?.type === "geojson";
+        const iterLayers: (string | undefined)[] = isGeojson
+          ? [undefined]
+          : [...sourceLayers];
+        for (const iterSL of iterLayers) {
+          const features =
+            iterSL === undefined
+              ? mapInst.querySourceFeatures(source)
+              : mapInst.querySourceFeatures(source, { sourceLayer: iterSL });
           for (const f of features) {
             if (f.id == null) continue;
             const props = (f.properties ?? {}) as Record<string, unknown>;
+            const effectiveSL = isGeojson
+              ? String(props._sourceLayer ?? "")
+              : (iterSL as string);
             const neighbor = isNeighborRef.current!(
               selectedProps,
               props,
-              sourceLayer,
+              effectiveSL,
               selSourceLayer
             );
             mapInst.setFeatureState(
-              { source, sourceLayer, id: f.id },
+              buildFeatureStateTarget(mapInst, {
+                source,
+                sourceLayer: effectiveSL,
+                id: f.id,
+              }),
               { [stateKey]: neighbor }
             );
           }
@@ -83,14 +98,23 @@ export const useSelectionNeighborhood = ({
     (mapInst: MaplibreMap) => {
       if (!sources) return;
       for (const { source, sourceLayers } of sources) {
-        for (const sourceLayer of sourceLayers) {
-          const features = mapInst.querySourceFeatures(source, {
-            sourceLayer,
-          });
+        const isGeojson = mapInst.getSource(source)?.type === "geojson";
+        const iterLayers: (string | undefined)[] = isGeojson
+          ? [undefined]
+          : [...sourceLayers];
+        for (const iterSL of iterLayers) {
+          const features =
+            iterSL === undefined
+              ? mapInst.querySourceFeatures(source)
+              : mapInst.querySourceFeatures(source, { sourceLayer: iterSL });
           for (const f of features) {
             if (f.id == null) continue;
             mapInst.setFeatureState(
-              { source, sourceLayer, id: f.id },
+              buildFeatureStateTarget(mapInst, {
+                source,
+                sourceLayer: iterSL,
+                id: f.id,
+              }),
               { [stateKey]: false }
             );
           }
