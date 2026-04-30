@@ -110,7 +110,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
       title: layer.title,
       description: layer.description ?? "",
       id: layer.id,
-      serviceName: other.serviceName ?? "wuppGenericTopicMaps",
+      serviceName: other.serviceName ?? "custom",
       type: layer.type,
       tags: other.tags ?? layerInfo.tags,
       thumbnail: other.thumbnail ?? layerInfo.thumbnail,
