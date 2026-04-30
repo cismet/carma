@@ -51,6 +51,7 @@ import {
   useSelectionNeighborhood,
   useLassoHighlight,
   slugifyUrl,
+  buildFeatureStateTarget,
 } from "@carma-mapping/engines/maplibre";
 import type maplibregl from "maplibre-gl";
 import BelisDatasheetView from "../ui/BelisDatasheetView";
@@ -2223,11 +2224,13 @@ const BelisMapLibWrapper = ({
         const highlighted = hits.filter((h) => {
           if (h.id == null) return false;
           try {
-            const state = map.getFeatureState({
-              source: h.source,
-              sourceLayer: h.sourceLayer,
-              id: h.id,
-            });
+            const state = map.getFeatureState(
+              buildFeatureStateTarget(map, {
+                source: h.source,
+                sourceLayer: h.sourceLayer,
+                id: h.id,
+              })
+            );
             return state?.highlighted === true;
           } catch {
             return false;

@@ -10,6 +10,7 @@ import type maplibregl from "maplibre-gl";
 import { useDatasheet } from "../contexts/DatasheetContext";
 import { useMapSelection } from "../contexts/MapSelectionContext";
 import { getCoordinates } from "../utils/featureUtils";
+import { buildFeatureStateTarget } from "../utils/featureStateTarget";
 
 export interface UseDatasheetMiniMapOptions {
   /** Main map instance (from useLibreContext in the main map's provider) */
@@ -292,11 +293,7 @@ export function useDatasheetMiniMap(
       if (prevSelectionRef.current?.id != null) {
         try {
           miniMap.setFeatureState(
-            {
-              source: prevSelectionRef.current.source,
-              sourceLayer: prevSelectionRef.current.sourceLayer,
-              id: prevSelectionRef.current.id,
-            },
+            buildFeatureStateTarget(miniMap, prevSelectionRef.current),
             { selected: false }
           );
         } catch {
@@ -307,11 +304,7 @@ export function useDatasheetMiniMap(
       if (selectedFeatureId?.id != null) {
         try {
           miniMap.setFeatureState(
-            {
-              source: selectedFeatureId.source,
-              sourceLayer: selectedFeatureId.sourceLayer,
-              id: selectedFeatureId.id,
-            },
+            buildFeatureStateTarget(miniMap, selectedFeatureId),
             { selected: true }
           );
         } catch {

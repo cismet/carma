@@ -25,6 +25,7 @@ import {
 } from "../utils/styleBuilder";
 import { slugifyUrl } from "../utils/styleComposer";
 import { createFeature } from "../utils/featureUtils";
+import { buildFeatureStateTarget } from "../utils/featureStateTarget";
 import { HidingForwardingManager } from "../lib/HidingForwardingManager";
 import {
   applySelectionForwarding,
@@ -37,7 +38,11 @@ import { zoom256as512, zoom512as256 } from "../utils/zoomUtils";
 import { LibreMapSelectionContent } from "./LibreMapSelectionContent";
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import proj4 from "proj4";
-import { proj4crs3857def, proj4crs4326def } from "@carma-mapping/utils";
+import {
+  proj4crs3857def,
+  proj4crs4326def,
+  stampSourceLayerFromProperty,
+} from "@carma-mapping/utils";
 import { useSelectionLibreMap } from "../hooks/useSelectionLibreMap";
 import { useLibreContext } from "../contexts/LibreContext";
 import { useMapSelection } from "../contexts/MapSelectionContext";
@@ -323,26 +328,6 @@ export const LibreMap = ({
   const openDatasheetRef = useRef(datasheetEnabled ? openDatasheet : undefined);
   openDatasheetRef.current = datasheetEnabled ? openDatasheet : undefined;
 
-  // Build a setFeatureState target, omitting sourceLayer for geojson sources
-  // (MapLibre silently no-ops setFeatureState when sourceLayer is supplied for
-  // a geojson source, which breaks visual selection for those features).
-  const buildFeatureStateTarget = useCallback(
-    (
-      mapInstance: maplibregl.Map,
-      ref: { source: string; sourceLayer?: string; id?: string | number }
-    ) => {
-      const src = mapInstance.getSource(ref.source);
-      const includeSourceLayer = src?.type !== "geojson";
-      return {
-        source: ref.source,
-        ...(includeSourceLayer && ref.sourceLayer
-          ? { sourceLayer: ref.sourceLayer }
-          : {}),
-        id: ref.id as string | number,
-      };
-    },
-    []
-  );
 
   // Helper: clear all visual selection state on the map
   const clearVisualSelection = useCallback(
@@ -384,7 +369,7 @@ export const LibreMap = ({
       });
       selectedFeaturesRef.current.clear();
     },
-    [buildFeatureStateTarget]
+    []
   );
 
   // Helper: apply visual selection highlighting for a feature
@@ -409,7 +394,7 @@ export const LibreMap = ({
         console.error("Error applying feature selection:", error);
       }
     },
-    [buildFeatureStateTarget]
+    []
   );
 
   useClusterMarkers({
@@ -876,6 +861,13 @@ export const LibreMap = ({
             !hit.layer.id.includes("cluster")
           );
         });
+
+        // Stamp effective sourceLayer on geojson hits whose native
+        // sourceLayer is undefined; the convention for FCs that mirror a
+        // vector-tile schema is properties._sourceLayer. Downstream
+        // selection code, sidebar lookups, and forwarding all read
+        // feature.sourceLayer.
+        for (const hit of filteredHits) stampSourceLayerFromProperty(hit);
 
         console.log(
           "[TERRAIN CLICK]",
@@ -1588,6 +1580,10 @@ export const LibreMap = ({
             !hit.layer.id.includes("selection") &&
             !hit.layer.id.includes("cluster")
         );
+
+        // Stamp effective sourceLayer on geojson hits (same convention as
+        // the click handler above).
+        for (const hit of filteredHits) stampSourceLayerFromProperty(hit);
 
         // Clear previous visual selection
         clearVisualSelection(mapInstance);

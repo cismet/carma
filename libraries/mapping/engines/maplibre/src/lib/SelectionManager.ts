@@ -1,5 +1,6 @@
 import type { Map as MaplibreMap, MapGeoJSONFeature } from "maplibre-gl";
 
+import { buildFeatureStateTarget } from "../utils/featureStateTarget";
 import type {
   CarmaConf,
   EnrichedFeature,
@@ -327,11 +328,7 @@ export class SelectionManager {
   ): void {
     try {
       this.map.setFeatureState(
-        {
-          source: id.source,
-          sourceLayer: id.sourceLayer,
-          id: id.id,
-        },
+        buildFeatureStateTarget(this.map, id),
         state
       );
     } catch (e) {
@@ -434,11 +431,7 @@ export function applySelectionForwarding(
 
     try {
       map.setFeatureState(
-        {
-          source: forwardedId.source,
-          sourceLayer: forwardedId.sourceLayer,
-          id: forwardedId.id,
-        },
+        buildFeatureStateTarget(map, forwardedId),
         { selected }
       );
       forwardedFeatures.push(forwardedId);
