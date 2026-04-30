@@ -22,6 +22,14 @@ import { APP_BASE_PATH } from "../../config/app.config";
 
 const DEFAULT_EMOJI_UNIFIED = "1f4cf";
 
+const hashString = (input: string) => {
+  let hash = 5381;
+  for (let i = 0; i < input.length; i++) {
+    hash = (hash * 33) ^ input.charCodeAt(i);
+  }
+  return (hash >>> 0).toString(36);
+};
+
 type PickedEmoji = {
   native: string;
   unified: string;
@@ -73,7 +81,12 @@ function SaveMeasurements({ layer }: { layer: Layer }) {
     const { featureData, featureTitle, featureDescription } =
       buildFeatureData();
 
-    const featureId = `measurement-${Date.now()}`;
+    const contentHash = hashString(
+      `${featureTitle}|${featureDescription}|${selectedUnified}|${JSON.stringify(
+        featureData
+      )}`
+    );
+    const featureId = `measurement-${Date.now()}-${contentHash}`;
     const layerInfo: Record<string, unknown> =
       featureData.metadata?.carmaConf?.layerInfo ?? {};
     const layerInfoTags = Array.isArray(layerInfo.tags) ? layerInfo.tags : [];
