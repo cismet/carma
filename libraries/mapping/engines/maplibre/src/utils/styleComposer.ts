@@ -140,6 +140,9 @@ export class StyleComposer {
   private mergedToNamespaced: Map<string, string> = new Map();
   /** namespaced layer ID -> merged-mode-equivalent ID */
   private namespacedToMerged: Map<string, string> = new Map();
+  /** Refcount sprites by spriteId so multiple sub-styles sharing the same
+   * sprite URL don't tear it down for each other on removal. */
+  private spriteRefs: Map<string, number> = new Map();
   private debugLog: boolean;
 
   constructor(map: MaplibreMap, debugLog = false) {
@@ -229,6 +232,12 @@ export class StyleComposer {
         // Sprite may already exist from a previous add
         console.debug(`[StyleComposer] addSprite(${spriteId}) skipped:`, err);
       }
+      // Refcount so removeSubStyle keeps the sprite alive while another
+      // managed sub-style still references the same spriteId.
+      this.spriteRefs.set(
+        spriteId,
+        (this.spriteRefs.get(spriteId) ?? 0) + 1
+      );
     }
 
     // 3. Add sources (namespaced to prevent collisions)
@@ -791,12 +800,18 @@ export class StyleComposer {
       }
     }
 
-    // Remove sprite
+    // Remove sprite (only when no other sub-style still references it)
     if (entry.spriteId) {
-      try {
-        this.map.removeSprite(entry.spriteId);
-      } catch {
-        // Already gone or shared with another sub-style
+      const remaining = (this.spriteRefs.get(entry.spriteId) ?? 1) - 1;
+      if (remaining <= 0) {
+        this.spriteRefs.delete(entry.spriteId);
+        try {
+          this.map.removeSprite(entry.spriteId);
+        } catch {
+          // Already gone
+        }
+      } else {
+        this.spriteRefs.set(entry.spriteId, remaining);
       }
     }
 
