@@ -204,6 +204,7 @@ export function shapesToFeatureCollection(
           title: "Messungen",
           icon: "measurement",
           description: "",
+          metaDataText: `Messungs-Steuerelemente stellen eine oder mehrere Messungsgeometrien zur Verfügung, die eine Nutzerin bzw. ein Nutzer unter einer selbst gewählten Bezeichnung abgespeichert hat. Ihre eigenen Messungen werden für Sie bis zum Löschen des Cache-Speichers Ihres Browsers im Dialog "Karteninhalte hinzufügen" unter "Objekte / Meine Messungen" festgehalten. Eine andere Nutzerin / ein anderer Nutzer kann Ihnen gespeicherte und geladene Messungen über einen mit der Funktion "Teilen" erzeugten Link bereitstellen. Diese Messungen sind nur über das Messungs-Steuerelement für Sie verfügbar.`,
           keywords: ["carmaconf://lazyInfoBox"],
           ...layerInfoOverrides,
         },
