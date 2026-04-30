@@ -398,6 +398,20 @@ export const useVisibleMapFeatures = ({
 
         for (const f of renderedFeatures) {
           if (filterRef.current && !filterRef.current(f)) continue;
+          // GeoJSON-sourced features have no native sourceLayer. If the feature
+          // carries `properties._sourceLayer` (a convention for FCs that mimic
+          // a vector-tile schema), stamp it onto the feature so downstream
+          // grouping/counts treat it like a tile feature.
+          if (
+            !f.sourceLayer &&
+            (f.properties as Record<string, unknown> | undefined)?.[
+              "_sourceLayer"
+            ]
+          ) {
+            (f as unknown as { sourceLayer: string }).sourceLayer = String(
+              (f.properties as Record<string, unknown>)["_sourceLayer"]
+            );
+          }
           const key = `${f.source}-${f.sourceLayer}-${f.id}`;
           if (!seen.has(key) && isFeatureInGeoBounds(f, boundsToUse)) {
             seen.add(key);
