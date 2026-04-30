@@ -23,6 +23,7 @@ interface MastFormFieldsProps {
   mast: Record<string, unknown> | null;
   namePrefix?: string;
   readOnly?: boolean;
+  isCreation?: boolean;
   form?: import("antd").FormInstance;
   onFormInstance?: (form: import("antd").FormInstance) => void;
   draftValues?: Record<string, unknown>;
@@ -84,6 +85,7 @@ const MastFormFields = ({
   mast,
   namePrefix,
   readOnly = true,
+  isCreation,
   form: externalForm,
   onFormInstance,
   draftValues,
@@ -149,9 +151,9 @@ const MastFormFields = ({
       const serverValues = {
         // Strassenschluessel
         strassenschluessel_pk: strassenschluessel?.pk,
-        strassenschluessel_strasse: toTitleCase(
-          strassenschluessel?.strasse || ""
-        ),
+        strassenschluessel_strasse: strassenschluessel?.strasse
+          ? toTitleCase(strassenschluessel.strasse)
+          : undefined,
         // Kennziffer - use id for Select value
         fk_kennziffer: kennziffer?.id ?? null,
         // Laufende Nr.
@@ -245,7 +247,7 @@ const MastFormFields = ({
       className={getFormClassName(readOnly, "pr-2")}
       onValuesChange={onValuesChange}
     >
-      {!mast && !readOnly ? (
+      {(!mast || isCreation) && !readOnly ? (
         <StrassenschluesselFieldsModal namePrefix={namePrefix} />
       ) : (
         <StrassenschluesselFields namePrefix={namePrefix} />

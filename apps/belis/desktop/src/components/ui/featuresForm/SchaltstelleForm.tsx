@@ -256,6 +256,7 @@ const SchaltstelleForm = ({
       <SchaltstelleFormFields
         schaltstelle={ss}
         readOnly={readOnly}
+        isCreation={isCreation}
         onFormInstance={setFormInstance}
         draftValues={draftValues}
         onValuesChange={handleValuesChange}
