@@ -174,9 +174,17 @@ const ResourceModal = () => {
           },
           {
             Title: "Meine Objekte",
-            layers: favorites.filter((favorite) => {
-              return favorite.type === "object";
-            }),
+            layers: favorites
+              .filter((favorite) => {
+                return favorite.type === "object";
+              })
+              .map((favorite) => {
+                return {
+                  ...favorite,
+                  serviceName: "favoriteObjects",
+                  path: "Meine Objekte",
+                };
+              }),
 
             id: "favoriteObjects",
           },
