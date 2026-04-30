@@ -248,7 +248,7 @@ const MastFormFields = ({
       onValuesChange={onValuesChange}
     >
       {(!mast || isCreation) && !readOnly ? (
-        <StrassenschluesselFieldsModal namePrefix={namePrefix} />
+        <StrassenschluesselFieldsModal namePrefix={namePrefix} isCreation={isCreation} />
       ) : (
         <StrassenschluesselFields namePrefix={namePrefix} />
       )}

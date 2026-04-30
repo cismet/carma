@@ -7,6 +7,7 @@ import toTitleCase from "../../../helper/toTitleCase";
 interface StrassenschluesselFieldsModalProps {
   namePrefix?: string;
   label?: string;
+  isCreation?: boolean;
 }
 
 interface StrassenschluesselItem {
@@ -22,6 +23,7 @@ const FormLabel = ({ children }: { children: React.ReactNode }) => (
 const StrassenschluesselFieldsModal = ({
   namePrefix,
   label = "Strassenschlüssel",
+  isCreation,
 }: StrassenschluesselFieldsModalProps) => {
   const form = Form.useFormInstance();
   const keyTablesData = useSelector(getKeyTablesData);
@@ -62,7 +64,7 @@ const StrassenschluesselFieldsModal = ({
         <FormItem
           name={fieldName("strassenschluessel_pk")}
           label={<FormLabel>{label}</FormLabel>}
-          className="mb-4"
+          className={isCreation ? "mb-4 draft-changed-field" : "mb-4"}
         >
           <Select
             size="large"
@@ -84,7 +86,7 @@ const StrassenschluesselFieldsModal = ({
         <FormItem
           name={fieldName("strassenschluessel_strasse")}
           label={<FormLabel>&nbsp;</FormLabel>}
-          className="mb-4"
+          className={isCreation ? "mb-4 draft-changed-field" : "mb-4"}
         >
           <Select
             size="large"
