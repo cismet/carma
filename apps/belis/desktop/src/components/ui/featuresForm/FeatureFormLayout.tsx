@@ -36,6 +36,7 @@ interface FeatureFormLayoutProps {
   subtitle: string;
   cancelLabel?: string;
   isCreation?: boolean;
+  formHeaderContent?: ReactNode;
   children: ReactNode;
   documents?: DokumentItem[];
   mainDocumentsTitle?: string;
@@ -87,6 +88,7 @@ const FeatureFormLayout = ({
   onBack,
   sideContent,
   isCreation,
+  formHeaderContent,
   customDraftsCount,
   onSaveAll,
 }: FeatureFormLayoutProps) => {
@@ -357,7 +359,7 @@ const FeatureFormLayout = ({
       {
         key: "general",
         label: <span>Allgemein</span>,
-        children: children,
+        children: <>{formHeaderContent}{children}</>,
       },
       ...additionalTabs.map((tab) => ({
         key: tab.key,
@@ -462,7 +464,7 @@ const FeatureFormLayout = ({
                       {
                         key: "general",
                         label: <span>Allgemein</span>,
-                        children: children,
+                        children: <>{formHeaderContent}{children}</>,
                       },
                     ]),
                 ...additionalTabs.map((tab) => ({

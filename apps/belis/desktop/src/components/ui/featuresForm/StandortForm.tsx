@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import type { FormInstance } from "antd";
 import { message } from "antd";
 import { useSelector } from "react-redux";
@@ -37,6 +37,7 @@ interface StandortFormProps {
   draftFiles?: DraftFile[];
   hasDraft?: boolean;
   isCreation?: boolean;
+  formHeaderContent?: ReactNode;
   onDraftChange?: (values: Record<string, unknown>) => void;
   onDraftFilesChange?: (files: DraftFile[]) => void;
   onOriginalValues?: (values: Record<string, unknown>) => void;
@@ -57,6 +58,7 @@ const StandortForm = ({
   draftFiles,
   hasDraft,
   isCreation,
+  formHeaderContent,
   onDraftChange,
   onDraftFilesChange,
   onOriginalValues,
@@ -236,6 +238,7 @@ const StandortForm = ({
         rawProps?.lfd_nummer ? `Standort ${sidebarMain}` : "Standort"
       }
       isCreation={isCreation}
+      formHeaderContent={formHeaderContent}
       subtitle={subtitle}
       documents={documents}
       mainDocumentsTitle="Standort"
