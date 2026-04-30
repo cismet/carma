@@ -407,7 +407,7 @@ const FeaturesFormsWrapper = ({
               isCreation={isCreation}
               formHeaderContent={
                 isCreation ? (
-                  <div className="mb-3">
+                  <div className="mb-3 draft-changed-field">
                     <span className="text-sm font-medium text-gray-700">
                       Neue Geometrien
                     </span>

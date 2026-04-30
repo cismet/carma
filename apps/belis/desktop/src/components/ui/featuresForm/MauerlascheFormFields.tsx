@@ -115,7 +115,7 @@ const MauerlascheFormFields = ({
       onValuesChange={onValuesChange}
     >
       {(!mauerlasche || isCreation) && !readOnly ? (
-        <StrassenschluesselFieldsModal label="Strassenschlüssel" />
+        <StrassenschluesselFieldsModal label="Strassenschlüssel" isCreation={isCreation} />
       ) : (
         <StrassenschluesselFields label="Strassenschlüssel" />
       )}
