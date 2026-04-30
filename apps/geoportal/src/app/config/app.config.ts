@@ -29,7 +29,7 @@ export const DEFAULT_CAMERA_FOV_DEG = 60;
 const CESIUM_PATHNAME = "__cesium__";
 const METROPOLE_RUHR_GRAUBLAU_RECTANGLE = Rectangle.fromDegrees(4, 48, 10, 52);
 
-export type GeoportalCesiumAnnotationInfoBoxConfig = Pick<
+export type GeoportalAnnotationInfoBoxConfig = Pick<
   AnnotationInfoBoxLayoutProps,
   "controlOrder" | "fitContentWidth" | "pixelWidth"
 >;
@@ -46,7 +46,7 @@ export type GeoportalCesiumAnnotationLabelTextModalConfig = {
 export type GeoportalCesiumAnnotationConfig = {
   measurementLineStyle: MeasurementLineStyleOptions;
   areaOcclusionStyle: AreaOcclusionStyleOptions;
-  infoBox: GeoportalCesiumAnnotationInfoBoxConfig;
+  infoBox: GeoportalAnnotationInfoBoxConfig;
   tools: {
     defaultToolId: AnnotationToolId;
     stableToolIds: readonly AnnotationToolId[];
@@ -94,7 +94,7 @@ export const CESIUM_ANNOTATION_CONFIG = {
     },
   },
   infoBox: {
-    pixelWidth: 430,
+    pixelWidth: 350,
     fitContentWidth: false,
     controlOrder: 12,
   },

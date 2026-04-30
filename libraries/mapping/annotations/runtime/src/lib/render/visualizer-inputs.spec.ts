@@ -51,8 +51,9 @@ const buildInputs = (
   });
 
 describe("measurement visualizer node interaction inputs", () => {
-  it("keeps node longpress targets available when label interactions are blocked", () => {
+  it("keeps preview snap clicks available while dropping longpress in blocked authoring", () => {
     const onNodeLongPress = vi.fn();
+    const onPreviewSnapTargetNodeClick = vi.fn();
     const inputs = buildInputs({
       points: [
         buildPoint({
@@ -61,19 +62,25 @@ describe("measurement visualizer node interaction inputs", () => {
           nodeId: "node-a",
         }),
       ],
+      previewSnapTargetsEnabled: true,
+      nodeInteractionHoverEnabled: true,
       onNodeLongPress,
+      onPreviewSnapTargetNodeClick,
     });
 
     const interactionLabel = inputs.pointLabels.find(
       (label) => label.id === "point-a-node-interaction"
     );
 
-    expect(interactionLabel?.allowLongPressWhenBlocked).toBe(true);
-    expect(interactionLabel?.onLongPress).toEqual(expect.any(Function));
+    expect(interactionLabel?.allowClickWhenBlocked).toBe(true);
+    expect(interactionLabel?.onClick).toEqual(expect.any(Function));
+    expect(interactionLabel?.onLongPress).toBeUndefined();
+    expect(inputs.visibleStandalonePoints[0]?.onLongPress).toBeUndefined();
 
-    interactionLabel?.onLongPress?.();
+    interactionLabel?.onClick?.();
 
-    expect(onNodeLongPress).toHaveBeenCalledWith("node-a", "measurement-a");
+    expect(onPreviewSnapTargetNodeClick).toHaveBeenCalledWith("node-a");
+    expect(onNodeLongPress).not.toHaveBeenCalled();
   });
 
   it("adds node longpress handlers to visible standalone point markers", () => {
@@ -88,6 +95,7 @@ describe("measurement visualizer node interaction inputs", () => {
       ],
       pointLabels: [],
       showNodeInteractionTargets: false,
+      blockLabelInteractions: false,
       onNodeLongPress,
     });
 
@@ -134,6 +142,7 @@ describe("measurement visualizer node interaction inputs", () => {
         }),
       ],
       selectedAnnotationIdSet: new Set(["measurement-b"]),
+      blockLabelInteractions: false,
       nodeLinkIdByNodeId: new Map([
         ["node-a", "link-1"],
         ["node-b", "link-1"],
@@ -174,7 +183,7 @@ describe("measurement visualizer node interaction inputs", () => {
     expect(inputs.pointLabels[0]?.onLongPress).toBeUndefined();
   });
 
-  it("shows node interaction targets for longpress while authoring blocks normal label clicks", () => {
+  it("does not show longpress-only node interaction targets while authoring blocks normal label clicks", () => {
     expect(
       shouldShowNodeInteractionTargets({
         enableHostInteractionTargets: true,
@@ -183,7 +192,7 @@ describe("measurement visualizer node interaction inputs", () => {
         nodeLongPressInteractionEnabled: true,
         blockLabelInteractions: true,
       })
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("does not show blocked click-only node interaction targets while authoring", () => {

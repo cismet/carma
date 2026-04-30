@@ -44,7 +44,7 @@ vi.mock("react-cismap/commons/Icon", () => ({
 }));
 
 import {
-  CISMAP_MEASUREMENT_INFO_BOX_VISUAL_OPTIONS,
+  CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS,
   CismapAnnotationInfoBox,
   CismapAnnotationInstructionInfoBox,
 } from "./CismapAnnotationInfoBox";
@@ -57,7 +57,9 @@ describe("CismapAnnotationInfoBox", () => {
   it("maps annotation slots to the legacy ResponsiveInfoBox shell", () => {
     render(
       <CismapAnnotationInfoBox
+        controlOrder={12}
         pixelWidth={420}
+        secondaryInfoBoxElements={[<span key="secondary">Secondary box</span>]}
         slots={{
           collapsible: false,
           content: <span>Detail content</span>,
@@ -71,9 +73,11 @@ describe("CismapAnnotationInfoBox", () => {
 
     expect(responsiveInfoBoxMock.mock.calls[0]?.[0]).toEqual(
       expect.objectContaining({
+        controlOrder: 12,
         fixedRow: true,
         isCollapsible: false,
         pixelwidth: 420,
+        secondaryInfoBoxElements: expect.arrayContaining([expect.anything()]),
       })
     );
     expect(screen.getByText("Messungen")).toBeTruthy();
@@ -86,12 +90,14 @@ describe("CismapAnnotationInfoBox", () => {
     render(
       <CismapAnnotationInstructionInfoBox
         content={<span>Instruction content</span>}
+        controlOrder={12}
       />
     );
 
     expect(responsiveInfoBoxMock.mock.calls[0]?.[0]).toEqual(
       expect.objectContaining({
         collapsibleDiv: expect.anything(),
+        controlOrder: 12,
         fixedRow: false,
         header: "",
         isCollapsible: false,
@@ -99,7 +105,7 @@ describe("CismapAnnotationInfoBox", () => {
       })
     );
     const instructionContainer = document.querySelector(
-      '[data-test-id="empty-measurement-info"]'
+      '[data-test-id="empty-annotation-info"]'
     );
 
     expect(instructionContainer).toBeTruthy();
@@ -111,28 +117,28 @@ describe("CismapAnnotationInfoBox", () => {
 
   it("keeps the Cismap title input visually aligned with 2D measurement headings while hiding non-2D measurement actions", () => {
     expect(
-      CISMAP_MEASUREMENT_INFO_BOX_VISUAL_OPTIONS.titleTextClassName
+      CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS.titleTextClassName
     ).toContain("font-bold");
     expect(
-      CISMAP_MEASUREMENT_INFO_BOX_VISUAL_OPTIONS.titleInputClassName
+      CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS.titleInputClassName
     ).toContain("font-bold");
     expect(
-      CISMAP_MEASUREMENT_INFO_BOX_VISUAL_OPTIONS.titleInputClassName
+      CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS.titleInputClassName
     ).toContain("border-0");
     expect(
-      CISMAP_MEASUREMENT_INFO_BOX_VISUAL_OPTIONS.titleInputClassName
+      CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS.titleInputClassName
     ).not.toContain("border border-transparent");
     expect(
-      CISMAP_MEASUREMENT_INFO_BOX_VISUAL_OPTIONS.titleInputClassName
+      CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS.titleInputClassName
     ).toContain("focus:outline-none");
-    expect(CISMAP_MEASUREMENT_INFO_BOX_VISUAL_OPTIONS.hiddenActionIds).toEqual([
+    expect(CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS.hiddenActionIds).toEqual([
       ANNOTATION_INFO_BOX_ACTION_IDS.EXPORT,
       ANNOTATION_INFO_BOX_ACTION_IDS.VISIBILITY,
       ANNOTATION_INFO_BOX_ACTION_IDS.REFERENCE,
       ANNOTATION_INFO_BOX_ACTION_IDS.LOCK,
     ]);
     expect(
-      CISMAP_MEASUREMENT_INFO_BOX_VISUAL_OPTIONS.navigationControlLabels
+      CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS.navigationControlLabels
     ).toEqual({
       previous: "<<",
       next: ">>",
@@ -140,7 +146,7 @@ describe("CismapAnnotationInfoBox", () => {
   });
 
   it("uses the same Cismap search-location icon for the fly-to action as the layerbar", () => {
-    const icon = CISMAP_MEASUREMENT_INFO_BOX_VISUAL_OPTIONS.renderActionIcon?.({
+    const icon = CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS.renderActionIcon?.({
       actionId: ANNOTATION_INFO_BOX_ACTION_IDS.FLY_TO,
       ariaLabel: "Zur Messung fliegen",
       className: "icon-class",

@@ -68,8 +68,8 @@ import { APP_KEY, layerMap } from "./config";
 import { geoportalMapStyleConfig } from "./config/mapStyleConfig";
 
 import {
-  CESIUM_ANNOTATION_CONFIG,
   CESIUM_CONFIG,
+  CESIUM_ANNOTATION_CONFIG,
   CONFIG_BASE_URL,
   URL_PARAM_KEYS,
 } from "./config/app.config";
