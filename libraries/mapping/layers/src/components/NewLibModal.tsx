@@ -43,6 +43,7 @@ import { discoverConfig, fetchDiscoverItems } from "../helper/discover";
 import "./input.css";
 import "./modal.css";
 import ItemSkeleton from "./ItemSkeleton";
+import SystemMessageBanner from "./SystemMessageBanner";
 import {
   addReplaceLayers,
   setSelectedLayer,
@@ -96,6 +97,7 @@ export interface LibModalProps {
   setFeatureFlags?: (flags: FeatureFlagConfig) => void;
   store: Store;
   unauthorizedCallback?: () => void;
+  appKey?: string;
 }
 
 export const NewLibModal = ({
@@ -114,6 +116,7 @@ export const NewLibModal = ({
   setFeatureFlags,
   store,
   unauthorizedCallback,
+  appKey,
 }: LibModalProps) => {
   const { isCesium } = useMapFrameworkSwitcherContext();
   const [sidebarElements, setSidebarElements] = useState<
@@ -1082,6 +1085,11 @@ export const NewLibModal = ({
                 <FontAwesomeIcon icon={faX} />
               </Button>
             </div>
+            <SystemMessageBanner
+              appKey={appKey}
+              slot="karteninhalte"
+              className="-mx-6 mt-2"
+            />
             <div className="flex w-full gap-2">
               <LayerTabs
                 layers={categoriesToShownLayers(

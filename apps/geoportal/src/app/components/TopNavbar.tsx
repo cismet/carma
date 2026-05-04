@@ -28,6 +28,7 @@ import {
 } from "@carma-commons/ui/helper-overlay";
 import { cn } from "@carma-commons/utils";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
+import { SystemMessageBanner } from "@carma-mapping/layers";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 
 import {
@@ -127,6 +128,8 @@ const TopNavbar = () => {
     setAppMenuVisible(true);
   }, []); // setAppMenuVisible from context is stable
 
+  const [bannerVisible, setBannerVisible] = useState(false);
+
   const mainStyle = useMemo((): CSSProperties => {
     return {
       visibility: zenMode ? "hidden" : undefined,
@@ -135,16 +138,29 @@ const TopNavbar = () => {
     };
   }, [zenMode]);
 
+  const bannerStyle = useMemo((): CSSProperties => {
+    return {
+      visibility: zenMode || !bannerVisible ? "hidden" : undefined,
+      display: zenMode || !bannerVisible ? "none" : "block",
+      zIndex: 10000,
+    };
+  }, [zenMode, bannerVisible]);
+
   console.debug("RENDER: TopNavbar");
 
   return (
+    <>
+      <div className="fixed top-0 left-0 right-0" style={bannerStyle}>
+        <SystemMessageBanner
+          appKey="geoportal"
+          slot="main"
+          onVisibilityChange={setBannerVisible}
+        />
+      </div>
     <div
-      className={
-        "bg-white h-16 fixed top-0 left-0 right-0 \
-        items-center justify-between gap-2 xs:gap-3 sm:gap-6 \
-        py-2 pt-safe-top pb-safe-bottom \
-        pl-safe-left xs:pl-safe-left-xs pr-safe-right xs:pr-safe-right-xs"
-      }
+      className={`bg-white h-16 fixed ${
+        bannerVisible ? "top-9" : "top-0"
+      } left-0 right-0 items-center justify-between gap-2 xs:gap-3 sm:gap-6 py-2 pt-safe-top pb-safe-bottom pl-safe-left xs:pl-safe-left-xs pr-safe-right xs:pr-safe-right-xs`}
       style={mainStyle}
     >
       <ResourceModal />
@@ -276,6 +292,7 @@ const TopNavbar = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 
