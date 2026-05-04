@@ -34,6 +34,9 @@ const normalizeShortLabel = (value: string): string =>
     annotationInfoBoxTitleInputDefaults.shortLabelMaxLength
   );
 
+const limitShortLabelDraft = (value: string): string =>
+  value.slice(0, annotationInfoBoxTitleInputDefaults.shortLabelMaxLength);
+
 export const AnnotationInfoBoxTitleInput = ({
   value,
   placeholder,
@@ -168,7 +171,7 @@ export const AnnotationInfoBoxTitleInput = ({
           onMouseDown={stopPointerPropagation}
           onClick={stopPointerPropagation}
           onChange={(event) =>
-            setDraftShortLabelValue(normalizeShortLabel(event.target.value))
+            setDraftShortLabelValue(limitShortLabelDraft(event.target.value))
           }
           onBlur={(event) => commitShortLabelValue(event.target.value)}
           onKeyDown={handleShortLabelKeyDown}

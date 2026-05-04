@@ -100,7 +100,7 @@ export const CESIUM_ANNOTATION_CONFIG = {
   },
   tools: {
     defaultToolId: "distance",
-    stableToolIds: ["select", "point", "distance"],
+    stableToolIds: ["select", "point", "distance", "label"],
   },
   labelTextModal: {
     title: "Beschriftung hinzufügen",

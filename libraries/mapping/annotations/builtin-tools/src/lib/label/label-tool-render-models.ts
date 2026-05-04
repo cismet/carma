@@ -64,6 +64,11 @@ export const buildLabelToolRenderModels = ({
         measurement.displayName?.trim() ||
         getDefaultLabelDisplayName(labelIndex + 1);
       const pointNodeId = measurement.nodeIds[0] ?? null;
+      const labelAppearance = measurement.labelAppearance;
+      const customBackgroundColor =
+        labelAppearance?.backgroundColor ?? undefined;
+      const customTextColor = labelAppearance?.textColor ?? undefined;
+      const hasCustomBackgroundColor = Boolean(customBackgroundColor);
 
       return [
         {
@@ -74,11 +79,16 @@ export const buildLabelToolRenderModels = ({
           content: displayName,
           badgeContent: displayName,
           fontSize: resolveLabelAppearanceFontSize(
-            measurement.labelAppearance?.fontSizePx
+            labelAppearance?.fontSizePx
           ),
-          textBackgroundColor:
-            measurement.labelAppearance?.backgroundColor ?? undefined,
-          textColor: measurement.labelAppearance?.textColor ?? undefined,
+          textBackgroundColor: customBackgroundColor,
+          textColor: customTextColor,
+          markerBackgroundColor: customBackgroundColor,
+          markerTextColor: customTextColor,
+          selectedBackgroundColor: customBackgroundColor,
+          selectedTextColor: customTextColor,
+          preserveFillOnSelection: hasCustomBackgroundColor,
+          hoverBackgroundColor: customBackgroundColor,
           labelStyle: POINT_LABEL_STYLE.AUTO,
           hideMarker: true,
           collapse: false,

@@ -64,6 +64,30 @@ describe("annotationLabelTextHistory", () => {
     ).toEqual(["Bestand", "Session", "Archiv"]);
   });
 
+  it("collapses incremental label suggestions to the base preset when available", () => {
+    expect(
+      mergeAnnotationLabelTextSuggestions([
+        "Tür 4",
+        "Tür 3",
+        "Tür 2",
+        "Tür 1",
+        "Tür",
+        "Rosa Haus",
+      ])
+    ).toEqual(["Tür", "Rosa Haus"]);
+  });
+
+  it("keeps only the newest incremental label suggestion when no base preset exists", () => {
+    expect(
+      mergeAnnotationLabelTextSuggestions([
+        "Tor 4",
+        "Tor 3",
+        "Tor 2",
+        "Bestand",
+      ])
+    ).toEqual(["Tor 4", "Bestand"]);
+  });
+
   it("resolves label text requests from manual history before scene suggestions", () => {
     expect(
       resolveAnnotationLabelTextRequest({

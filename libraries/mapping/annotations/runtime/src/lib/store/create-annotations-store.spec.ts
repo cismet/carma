@@ -8,6 +8,7 @@ import {
   createAnnotationsStore,
   createInitialAnnotationsStoreState,
   insertNodeIntoMeasurementEdge,
+  updateAnnotationEntryById,
   updateNodeCoordinateById,
 } from "./create-annotations-store";
 import { buildNodeLinkIdByNodeId } from "./node-links.helpers";
@@ -53,6 +54,69 @@ const createNodeChainAnnotationEntry = ({
 });
 
 describe("createAnnotationsStore", () => {
+  it("scopes label appearance patches to one annotation and merges existing fields", () => {
+    const store = createAnnotationsStore({
+      ...createInitialAnnotationsStoreState(),
+      annotationEntries: [
+        {
+          id: "label-a",
+          toolType: "label",
+          nodeIds: ["node-a"],
+          edgeIds: [],
+          labelAppearance: {
+            backgroundColor: "#123456",
+          },
+        },
+        {
+          id: "label-b",
+          toolType: "label",
+          nodeIds: ["node-b"],
+          edgeIds: [],
+          labelAppearance: {
+            backgroundColor: "#654321",
+            textColor: "#fedcba",
+          },
+        },
+      ],
+      nodes: [
+        { id: "node-a", coordinate: createCoordinate(7.0, 51.0) },
+        { id: "node-b", coordinate: createCoordinate(7.1, 51.1) },
+      ],
+    });
+
+    store.dispatch(
+      updateAnnotationEntryById({
+        annotationId: "label-a",
+        labelAppearance: {
+          textColor: "#abcdef",
+        },
+      })
+    );
+
+    expect(store.getState().annotationEntries).toEqual([
+      {
+        id: "label-a",
+        toolType: "label",
+        nodeIds: ["node-a"],
+        edgeIds: [],
+        labelAppearance: {
+          backgroundColor: "#123456",
+          textColor: "#abcdef",
+        },
+      },
+      {
+        id: "label-b",
+        toolType: "label",
+        nodeIds: ["node-b"],
+        edgeIds: [],
+        labelAppearance: {
+          backgroundColor: "#654321",
+          textColor: "#fedcba",
+        },
+      },
+    ]);
+  });
+
   it("voids linked-node relationships when a selected subset is moved away", () => {
     const store = createAnnotationsStore({
       ...createInitialAnnotationsStoreState(),
