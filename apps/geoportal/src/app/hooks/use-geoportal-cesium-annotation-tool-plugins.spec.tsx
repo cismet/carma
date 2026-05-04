@@ -37,7 +37,7 @@ const createPlugin = ({
 });
 
 describe("useGeoportalCesiumAnnotationToolPlugins", () => {
-  it("includes the label tool in the stable Geoportal toolset", () => {
+  it("excludes the label tool from the stable Geoportal toolset", () => {
     useFeatureFlagsMock.mockReturnValue({
       featureFlagCesiumAnnotationAllTools: false,
     });
@@ -74,7 +74,6 @@ describe("useGeoportalCesiumAnnotationToolPlugins", () => {
       "select",
       "point",
       "distance",
-      "label",
     ]);
   });
 });
