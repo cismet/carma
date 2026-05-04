@@ -98,3 +98,12 @@ export const isCurrentlyFeatured = (
 
   return featured;
 };
+
+/**
+ * Generic date-range check using the same `YYYY.MM.DD` (with `*` wildcards)
+ * format as the layer-feature mechanism. Use this for any time-bounded
+ * configuration (e.g. system messages) where the wording "featured" doesn't
+ * fit semantically. Implementation-wise it's an alias of
+ * `isCurrentlyFeatured`.
+ */
+export const isWithinDateRange = isCurrentlyFeatured;
