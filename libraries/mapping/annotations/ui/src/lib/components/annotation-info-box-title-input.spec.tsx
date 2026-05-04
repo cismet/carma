@@ -97,4 +97,30 @@ describe("AnnotationInfoBoxTitleInput", () => {
     expect(input.value).toBe("A".repeat(64));
     expect(onShortLabelCommit).toHaveBeenCalledWith("A".repeat(64));
   });
+
+  it("keeps internal whitespace while editing and committing short labels", () => {
+    const onShortLabelCommit = vi.fn();
+
+    render(
+      <AnnotationInfoBoxTitleInput
+        value="Distanzmessung"
+        placeholder="Distanzmessung"
+        shortLabelValue=""
+        shortLabelPlaceholder="D1"
+        onCommit={vi.fn()}
+        onShortLabelCommit={onShortLabelCommit}
+      />
+    );
+
+    const input = screen.getByPlaceholderText("D1") as HTMLInputElement;
+
+    fireEvent.change(input, { target: { value: "A " } });
+    expect(input.value).toBe("A ");
+
+    fireEvent.change(input, { target: { value: "A B" } });
+    fireEvent.blur(input);
+
+    expect(input.value).toBe("A B");
+    expect(onShortLabelCommit).toHaveBeenCalledWith("A B");
+  });
 });

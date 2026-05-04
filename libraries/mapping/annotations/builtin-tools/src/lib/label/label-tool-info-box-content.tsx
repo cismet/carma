@@ -7,7 +7,13 @@ import {
   getAnnotationShortLabelBackgroundRgb255,
   type AnnotationLabelAppearance,
 } from "@carma-mapping/annotations/core";
-import type { Rgb255 } from "@carma-commons/utils";
+import {
+  type ChangeEvent,
+  type FocusEvent,
+  type FormEvent,
+  type MouseEvent,
+  type PointerEvent,
+} from "react";
 import {
   resolveAnnotationInfoBoxVisualOptions,
   type AnnotationInfoBoxVisualOptions,
@@ -19,6 +25,7 @@ import {
   pointLabelVisualDefaults,
 } from "@carma-mapping/annotations/runtime";
 import type { StoredAnnotation } from "@carma-mapping/annotations/runtime";
+import type { Rgb255 } from "@carma-commons/utils";
 
 const labelToolInfoBoxDefaults = Object.freeze({
   fontSizePx: Object.freeze({
@@ -135,10 +142,69 @@ export const LabelToolInfoBoxContent = ({
       updateAnnotationEntryById({
         annotationId: annotation.id,
         labelAppearance: {
-          ...(annotation.labelAppearance ?? {}),
           fontSizePx: clampFontSizePx(nextFontSizePx),
         },
       })
+    );
+  };
+
+  const applyLabelAppearance = (
+    nextLabelAppearance: Partial<AnnotationLabelAppearance>,
+    annotationId = annotation.id
+  ) => {
+    dispatch(
+      updateAnnotationEntryById({
+        annotationId,
+        labelAppearance: nextLabelAppearance,
+      })
+    );
+  };
+
+  const stopColorInputPropagation = (
+    event:
+      | ChangeEvent<HTMLInputElement>
+      | FocusEvent<HTMLInputElement>
+      | FormEvent<HTMLInputElement>
+      | MouseEvent<HTMLInputElement>
+      | PointerEvent<HTMLInputElement>
+  ) => {
+    event.stopPropagation();
+  };
+
+  const startColorInputInteraction = (
+    event:
+      | FocusEvent<HTMLInputElement>
+      | MouseEvent<HTMLInputElement>
+      | PointerEvent<HTMLInputElement>
+  ) => {
+    stopColorInputPropagation(event);
+  };
+
+  const resolveColorInputAnnotationId = (
+    event: ChangeEvent<HTMLInputElement> | FormEvent<HTMLInputElement>
+  ): string => event.currentTarget.dataset.annotationId ?? annotation.id;
+
+  const applyBackgroundColor = (
+    event: ChangeEvent<HTMLInputElement> | FormEvent<HTMLInputElement>
+  ) => {
+    stopColorInputPropagation(event);
+    applyLabelAppearance(
+      {
+        backgroundColor: event.currentTarget.value,
+      },
+      resolveColorInputAnnotationId(event)
+    );
+  };
+
+  const applyTextColor = (
+    event: ChangeEvent<HTMLInputElement> | FormEvent<HTMLInputElement>
+  ) => {
+    stopColorInputPropagation(event);
+    applyLabelAppearance(
+      {
+        textColor: event.currentTarget.value,
+      },
+      resolveColorInputAnnotationId(event)
     );
   };
 
@@ -191,6 +257,8 @@ export const LabelToolInfoBoxContent = ({
           Hintergrund:
         </span>
         <input
+          key={`${annotation.id}:background-color`}
+          data-annotation-id={annotation.id}
           type="color"
           className={resolvedVisualOptions.colorInputClassName}
           aria-label="Hintergrundfarbe"
@@ -199,36 +267,28 @@ export const LabelToolInfoBoxContent = ({
             labelToolDefaultBackgroundHex
           )}
           disabled={isLocked}
-          onChange={(event) =>
-            dispatch(
-              updateAnnotationEntryById({
-                annotationId: annotation.id,
-                labelAppearance: {
-                  ...(annotation.labelAppearance ?? {}),
-                  backgroundColor: event.target.value,
-                },
-              })
-            )
-          }
+          onFocus={startColorInputInteraction}
+          onPointerDown={startColorInputInteraction}
+          onMouseDown={startColorInputInteraction}
+          onClick={startColorInputInteraction}
+          onInput={applyBackgroundColor}
+          onChange={applyBackgroundColor}
         />
         <span className={resolvedVisualOptions.mutedTextClassName}>Text:</span>
         <input
+          key={`${annotation.id}:text-color`}
+          data-annotation-id={annotation.id}
           type="color"
           className={resolvedVisualOptions.colorInputClassName}
           aria-label="Textfarbe"
           value={normalizeColorToHex(textColor, labelToolDefaultTextHex)}
           disabled={isLocked}
-          onChange={(event) =>
-            dispatch(
-              updateAnnotationEntryById({
-                annotationId: annotation.id,
-                labelAppearance: {
-                  ...(annotation.labelAppearance ?? {}),
-                  textColor: event.target.value,
-                },
-              })
-            )
-          }
+          onFocus={startColorInputInteraction}
+          onPointerDown={startColorInputInteraction}
+          onMouseDown={startColorInputInteraction}
+          onClick={startColorInputInteraction}
+          onInput={applyTextColor}
+          onChange={applyTextColor}
         />
       </div>
     </div>

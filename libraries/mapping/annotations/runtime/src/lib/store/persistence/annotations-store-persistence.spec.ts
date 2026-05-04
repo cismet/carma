@@ -221,4 +221,39 @@ describe("annotationsStorePersistence", () => {
       Object.keys(persistenceState.tables.annotationEntries[0] ?? {})
     ).not.toContain(["preferredNormalBearing", "Deg"].join(""));
   });
+
+  it("persists per-annotation label appearance data", () => {
+    const persistenceState = buildAnnotationsRuntimePersistenceState(
+      createStoreState([
+        createStoredAnnotation({
+          labelAppearance: {
+            backgroundColor: "#123456",
+            fontSizePx: 22,
+            textColor: "#abcdef",
+          },
+          toolType: ANNOTATION_TYPES.LABEL,
+        }),
+      ])
+    );
+
+    expect(persistenceState.tables.annotationEntries[0]?.labelAppearance).toEqual(
+      {
+        backgroundColor: "#123456",
+        fontSizePx: 22,
+        textColor: "#abcdef",
+      }
+    );
+
+    const restoredState = resolvePersistedAnnotationsStoreState({
+      initialPointTemporaryMode: false,
+      initialToolType: ANNOTATION_TYPES.DISTANCE,
+      initialPersistenceState: persistenceState,
+    });
+
+    expect(restoredState.annotationEntries[0]?.labelAppearance).toEqual({
+      backgroundColor: "#123456",
+      fontSizePx: 22,
+      textColor: "#abcdef",
+    });
+  });
 });

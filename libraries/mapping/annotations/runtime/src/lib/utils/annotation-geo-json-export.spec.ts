@@ -169,4 +169,28 @@ describe("runtimeAnnotationGeoJsonExport", () => {
       },
     });
   });
+
+  it("exports per-annotation label appearance data", () => {
+    const collection = buildStoredAnnotationGeoJsonFeatureCollection({
+      annotation: createAnnotation({
+        labelAppearance: {
+          backgroundColor: "#123456",
+          fontSizePx: 22,
+          textColor: "#abcdef",
+        },
+        toolType: ANNOTATION_TYPE_LABEL,
+      }),
+      coordinates: [{ longitude: 7.0, latitude: 51.0, altitude: 100 }],
+    });
+
+    expect(
+      collection?.features[0]?.properties?.annotation
+    ).toMatchObject({
+      labelAppearance: {
+        backgroundColor: "#123456",
+        fontSizePx: 22,
+        textColor: "#abcdef",
+      },
+    });
+  });
 });

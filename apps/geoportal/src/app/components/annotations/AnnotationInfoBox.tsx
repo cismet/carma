@@ -28,11 +28,12 @@ const CISMAP_INFO_BOX_INSTRUCTION_TOOL_IDS = new Set<AnnotationToolId>([
   "select",
   "point",
   "distance",
+  "label",
 ]);
 
 const CISMAP_INFO_BOX_ANNOTATION_TOOL_TYPES = new Set<
   StoredAnnotation["toolType"]
->(["point", "distance"]);
+>(["point", "distance", "label"]);
 
 const resolveGeoportalCismapInfoBoxVisualOptions = (
   context: RuntimeAnnotationInfoBoxVisualOptionsContext
