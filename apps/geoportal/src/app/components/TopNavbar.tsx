@@ -2,6 +2,7 @@ import {
   type CSSProperties,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -130,11 +131,23 @@ const TopNavbar = () => {
 
   const [bannerVisible, setBannerVisible] = useState(false);
 
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty(
+      "--system-message-banner-height",
+      bannerVisible ? "36px" : "0px"
+    );
+    return () => {
+      root.style.setProperty("--system-message-banner-height", "0px");
+    };
+  }, [bannerVisible]);
+
   const mainStyle = useMemo((): CSSProperties => {
     return {
       visibility: zenMode ? "hidden" : undefined,
       display: zenMode ? "none" : "flex",
       zIndex: 10000,
+      top: "var(--system-message-banner-height, 0px)",
     };
   }, [zenMode]);
 
@@ -158,9 +171,7 @@ const TopNavbar = () => {
         />
       </div>
     <div
-      className={`bg-white h-16 fixed ${
-        bannerVisible ? "top-9" : "top-0"
-      } left-0 right-0 items-center justify-between gap-2 xs:gap-3 sm:gap-6 py-2 pt-safe-top pb-safe-bottom pl-safe-left xs:pl-safe-left-xs pr-safe-right xs:pr-safe-right-xs`}
+      className={`bg-white h-16 fixed left-0 right-0 items-center justify-between gap-2 xs:gap-3 sm:gap-6 py-2 pt-safe-top pb-safe-bottom pl-safe-left xs:pl-safe-left-xs pr-safe-right xs:pr-safe-right-xs`}
       style={mainStyle}
     >
       <ResourceModal />
