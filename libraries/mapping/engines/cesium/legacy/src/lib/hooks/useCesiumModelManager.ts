@@ -1,15 +1,23 @@
 import { useCallback, useEffect, useRef } from "react";
 
 import type { ModelConfig } from "@carma-mapping/engines/cesium/core";
+import { Easing, type Easing as EasingFunction } from "@carma-commons/math";
 import {
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
   CustomShader,
   Model,
+  type Cartesian2,
 } from "@carma-cesium";
 
 import { createModelPrimitiveFromConfig } from "../utils/createModelPrimitiveFromConfig";
-import { DEFAULT_MODEL_HIGHLIGHT_SHADER } from "../utils/modelHighlightShader";
+import {
+  clampModelHighlightOpacity,
+  createModelSelectionHighlightShader,
+  DEFAULT_MODEL_SELECTION_HIGHLIGHT_COLOR,
+  DEFAULT_MODEL_SELECTION_HIGHLIGHT_OPACITY,
+  setModelHighlightShaderUniforms,
+} from "../utils/modelHighlightShader";
 import {
   buildModelKey,
   extractPickedProperties,
@@ -27,13 +35,40 @@ export interface UseCesiumModelManagerOptions {
     onModelAdded?: (primitiveId: string, primitive: Model) => void;
     onModelFirstRendered?: (primitiveId: string, primitive: Model) => void;
     deselectOnEmptyClick?: boolean;
+    highlightFadeDurationMs?: number;
+    highlightFadeEasing?: EasingFunction;
     highlightShader?: CustomShader;
     selectedId?: string | null;
   };
 }
 
+const DEFAULT_MODEL_SELECTION_HIGHLIGHT_FADE_DURATION_MS = 500;
+const DEFAULT_MODEL_SELECTION_HIGHLIGHT_FADE_EASING = Easing.CUBIC_OUT;
+
+const normalizeModelSelectionHighlightFadeDuration = (
+  fadeDurationMs: number | undefined
+) =>
+  typeof fadeDurationMs === "number" &&
+  Number.isFinite(fadeDurationMs) &&
+  fadeDurationMs >= 0
+    ? fadeDurationMs
+    : DEFAULT_MODEL_SELECTION_HIGHLIGHT_FADE_DURATION_MS;
+
+const clampEasedProgress = (progress: number) =>
+  Number.isFinite(progress) ? Math.min(1, Math.max(0, progress)) : 1;
+
 type ModelWithReadyPromise = {
   readyPromise?: Promise<unknown>;
+};
+
+type ModelSelectionHighlightState = {
+  animationStartOpacity: number;
+  animationStartTimestampMs: number | null;
+  isAnimated: boolean;
+  originalShader: CustomShader | undefined;
+  opacity: number;
+  shader: CustomShader;
+  targetOpacity: number;
 };
 
 export const useCesiumModelManager = ({
@@ -48,7 +83,11 @@ export const useCesiumModelManager = ({
   const enabledRef = useRef<boolean>(enabled);
   const isUnmountedRef = useRef<boolean>(false);
   const selectedPrimitiveRef = useRef<Model | null>(null);
-  const originalShaderRef = useRef<CustomShader | undefined>(undefined);
+  const hoveredPrimitiveRef = useRef<Model | null>(null);
+  const selectionHighlightStateByPrimitiveRef = useRef<
+    Map<Model, ModelSelectionHighlightState>
+  >(new Map());
+  const selectionHighlightAnimationFrameRef = useRef<number | null>(null);
   const onSelectRef = useRef<((feature: unknown) => void) | undefined>(
     undefined
   );
@@ -63,8 +102,17 @@ export const useCesiumModelManager = ({
   const selectionEnabledRef = useRef<boolean>(
     Boolean(selection?.enabled && enabled)
   );
-  const highlightShaderRef = useRef<CustomShader>(
-    selection?.highlightShader ?? DEFAULT_MODEL_HIGHLIGHT_SHADER
+  const highlightFadeDurationMsRef = useRef<number>(
+    normalizeModelSelectionHighlightFadeDuration(
+      selection?.highlightFadeDurationMs
+    )
+  );
+  const highlightFadeEasingRef = useRef<EasingFunction>(
+    selection?.highlightFadeEasing ??
+      DEFAULT_MODEL_SELECTION_HIGHLIGHT_FADE_EASING
+  );
+  const highlightShaderRef = useRef<CustomShader | undefined>(
+    selection?.highlightShader
   );
 
   useEffect(() => {
@@ -92,9 +140,21 @@ export const useCesiumModelManager = ({
   }, [enabled, selection?.enabled]);
 
   useEffect(() => {
-    highlightShaderRef.current =
-      selection?.highlightShader ?? DEFAULT_MODEL_HIGHLIGHT_SHADER;
+    highlightShaderRef.current = selection?.highlightShader;
   }, [selection?.highlightShader]);
+
+  useEffect(() => {
+    highlightFadeDurationMsRef.current =
+      normalizeModelSelectionHighlightFadeDuration(
+        selection?.highlightFadeDurationMs
+      );
+  }, [selection?.highlightFadeDurationMs]);
+
+  useEffect(() => {
+    highlightFadeEasingRef.current =
+      selection?.highlightFadeEasing ??
+      DEFAULT_MODEL_SELECTION_HIGHLIGHT_FADE_EASING;
+  }, [selection?.highlightFadeEasing]);
 
   useEffect(() => {
     enabledRef.current = enabled;
@@ -127,23 +187,224 @@ export const useCesiumModelManager = ({
     [requestRender]
   );
 
+  const readOrCreateSelectionHighlightState = useCallback(
+    (primitive: Model): ModelSelectionHighlightState => {
+      const existing =
+        selectionHighlightStateByPrimitiveRef.current.get(primitive);
+      if (existing) {
+        return existing;
+      }
+
+      const customHighlightShader = highlightShaderRef.current;
+      const state = {
+        animationStartOpacity: customHighlightShader ? 1 : 0,
+        animationStartTimestampMs: null,
+        isAnimated: !customHighlightShader,
+        originalShader: primitive.customShader ?? undefined,
+        opacity: customHighlightShader ? 1 : 0,
+        shader:
+          customHighlightShader ??
+          createModelSelectionHighlightShader({
+            color: DEFAULT_MODEL_SELECTION_HIGHLIGHT_COLOR,
+            opacity: 0,
+          }),
+        targetOpacity: customHighlightShader ? 1 : 0,
+      };
+      selectionHighlightStateByPrimitiveRef.current.set(primitive, state);
+      return state;
+    },
+    []
+  );
+
+  const restoreSelectionHighlightShader = useCallback(
+    (primitive: Model, state: ModelSelectionHighlightState) => {
+      if (!primitive.isDestroyed() && primitive.customShader === state.shader) {
+        applyShader(primitive, state.originalShader);
+      }
+      selectionHighlightStateByPrimitiveRef.current.delete(primitive);
+      if (selectedPrimitiveRef.current === primitive) {
+        selectedPrimitiveRef.current = null;
+      }
+      if (hoveredPrimitiveRef.current === primitive) {
+        hoveredPrimitiveRef.current = null;
+      }
+    },
+    [applyShader]
+  );
+
+  const restoreSelectionHighlightShaders = useCallback(() => {
+    if (selectionHighlightAnimationFrameRef.current !== null) {
+      cancelAnimationFrame(selectionHighlightAnimationFrameRef.current);
+      selectionHighlightAnimationFrameRef.current = null;
+    }
+
+    selectedPrimitiveRef.current = null;
+    hoveredPrimitiveRef.current = null;
+    Array.from(selectionHighlightStateByPrimitiveRef.current.entries()).forEach(
+      ([primitive, state]) => restoreSelectionHighlightShader(primitive, state)
+    );
+  }, [restoreSelectionHighlightShader]);
+
+  const animateSelectionHighlights = useCallback(
+    (timestampMs: number) => {
+      selectionHighlightAnimationFrameRef.current = null;
+      const fadeDurationMs = highlightFadeDurationMsRef.current;
+      const easing = highlightFadeEasingRef.current;
+      let hasPendingAnimation = false;
+
+      selectionHighlightStateByPrimitiveRef.current.forEach(
+        (state, primitive) => {
+          if (primitive.isDestroyed()) {
+            selectionHighlightStateByPrimitiveRef.current.delete(primitive);
+            return;
+          }
+
+          if (!state.isAnimated) {
+            return;
+          }
+
+          if (state.animationStartTimestampMs === null) {
+            state.animationStartTimestampMs = timestampMs;
+          }
+
+          const linearProgress =
+            fadeDurationMs === 0
+              ? 1
+              : clampEasedProgress(
+                  (timestampMs - state.animationStartTimestampMs) /
+                    fadeDurationMs
+                );
+          const easedProgress = clampEasedProgress(easing(linearProgress));
+          const nextOpacity =
+            state.animationStartOpacity +
+            (state.targetOpacity - state.animationStartOpacity) * easedProgress;
+
+          state.opacity = nextOpacity;
+          setModelHighlightShaderUniforms({
+            color: DEFAULT_MODEL_SELECTION_HIGHLIGHT_COLOR,
+            opacity: nextOpacity,
+            shader: state.shader,
+          });
+          requestRender();
+
+          if (linearProgress < 1) {
+            hasPendingAnimation = true;
+            return;
+          }
+
+          state.opacity = state.targetOpacity;
+          state.animationStartOpacity = state.targetOpacity;
+          state.animationStartTimestampMs = null;
+
+          if (state.targetOpacity === 0) {
+            restoreSelectionHighlightShader(primitive, state);
+          }
+        }
+      );
+
+      if (hasPendingAnimation) {
+        selectionHighlightAnimationFrameRef.current = requestAnimationFrame(
+          animateSelectionHighlights
+        );
+      }
+    },
+    [requestRender, restoreSelectionHighlightShader]
+  );
+
+  const scheduleSelectionHighlightAnimation = useCallback(() => {
+    if (selectionHighlightAnimationFrameRef.current !== null) {
+      return;
+    }
+    selectionHighlightAnimationFrameRef.current = requestAnimationFrame(
+      animateSelectionHighlights
+    );
+  }, [animateSelectionHighlights]);
+
+  const setSelectionHighlightTarget = useCallback(
+    (primitive: Model, targetOpacity: number) => {
+      if (primitive.isDestroyed()) {
+        return;
+      }
+
+      const state = readOrCreateSelectionHighlightState(primitive);
+      const nextTargetOpacity = clampModelHighlightOpacity(
+        targetOpacity,
+        DEFAULT_MODEL_SELECTION_HIGHLIGHT_OPACITY
+      );
+
+      if (!state.isAnimated) {
+        if (nextTargetOpacity > 0) {
+          applyShader(primitive, state.shader);
+        } else {
+          restoreSelectionHighlightShader(primitive, state);
+        }
+        return;
+      }
+
+      if (primitive.customShader !== state.shader) {
+        applyShader(primitive, state.shader);
+      }
+
+      if (
+        state.targetOpacity === nextTargetOpacity &&
+        state.opacity === nextTargetOpacity
+      ) {
+        return;
+      }
+
+      state.animationStartOpacity = state.opacity;
+      state.animationStartTimestampMs = null;
+      state.targetOpacity = nextTargetOpacity;
+      scheduleSelectionHighlightAnimation();
+    },
+    [
+      applyShader,
+      readOrCreateSelectionHighlightState,
+      restoreSelectionHighlightShader,
+      scheduleSelectionHighlightAnimation,
+    ]
+  );
+
+  const refreshSelectionHighlightTarget = useCallback(
+    (primitive: Model | null) => {
+      if (!primitive || primitive.isDestroyed()) {
+        return;
+      }
+      const isHighlighted =
+        selectedPrimitiveRef.current === primitive ||
+        hoveredPrimitiveRef.current === primitive;
+      const state =
+        selectionHighlightStateByPrimitiveRef.current.get(primitive);
+
+      if (!isHighlighted && !state) {
+        return;
+      }
+
+      setSelectionHighlightTarget(
+        primitive,
+        isHighlighted ? DEFAULT_MODEL_SELECTION_HIGHLIGHT_OPACITY : 0
+      );
+    },
+    [setSelectionHighlightTarget]
+  );
+
   const clearPreviousHighlight = useCallback(() => {
     const current = selectedPrimitiveRef.current;
     if (!current || current.isDestroyed()) {
       selectedPrimitiveRef.current = null;
-      originalShaderRef.current = undefined;
       return;
     }
-    applyShader(current, originalShaderRef.current ?? undefined);
-  }, [applyShader]);
+    selectedPrimitiveRef.current = null;
+    refreshSelectionHighlightTarget(current);
+  }, [refreshSelectionHighlightTarget]);
 
   const applyHighlight = useCallback(
-    (primitive: Model, shader: CustomShader): void => {
+    (primitive: Model): void => {
       if (primitive.isDestroyed()) return;
-      originalShaderRef.current = primitive.customShader ?? undefined;
-      applyShader(primitive, shader);
+      selectedPrimitiveRef.current = primitive;
+      refreshSelectionHighlightTarget(primitive);
     },
-    [applyShader]
+    [refreshSelectionHighlightTarget]
   );
 
   useEffect(() => {
@@ -165,10 +426,17 @@ export const useCesiumModelManager = ({
       try {
         if (selectedPrimitiveRef.current === primitive) {
           selectedPrimitiveRef.current = null;
-          originalShaderRef.current = undefined;
           if (enabled) {
             onClearSelectionRef.current?.();
           }
+        }
+        if (hoveredPrimitiveRef.current === primitive) {
+          hoveredPrimitiveRef.current = null;
+        }
+        const highlightState =
+          selectionHighlightStateByPrimitiveRef.current.get(primitive);
+        if (highlightState) {
+          restoreSelectionHighlightShader(primitive, highlightState);
         }
         scene.primitives.remove(primitive);
         if (!primitive.isDestroyed()) {
@@ -291,8 +559,7 @@ export const useCesiumModelManager = ({
                 selectedId,
               });
               clearPreviousHighlight();
-              applyHighlight(modelPrimitive, highlightShaderRef.current);
-              selectedPrimitiveRef.current = modelPrimitive;
+              applyHighlight(modelPrimitive);
             }
           }
 
@@ -318,6 +585,7 @@ export const useCesiumModelManager = ({
     getScene,
     models,
     requestRender,
+    restoreSelectionHighlightShader,
   ]);
 
   useEffect(() => {
@@ -325,10 +593,14 @@ export const useCesiumModelManager = ({
     const pendingLoads = pendingModelLoadsRef.current;
     return () => {
       isUnmountedRef.current = true;
+      if (selectionHighlightAnimationFrameRef.current !== null) {
+        cancelAnimationFrame(selectionHighlightAnimationFrameRef.current);
+        selectionHighlightAnimationFrameRef.current = null;
+      }
       pendingLoads.clear();
       const scene = getScene();
       selectedPrimitiveRef.current = null;
-      originalShaderRef.current = undefined;
+      hoveredPrimitiveRef.current = null;
       if (!scene || scene.isDestroyed()) return;
       primitivesByKey.forEach((primitive) => {
         try {
@@ -344,6 +616,7 @@ export const useCesiumModelManager = ({
         }
       });
       primitivesByKey.clear();
+      selectionHighlightStateByPrimitiveRef.current.clear();
     };
   }, [getScene]);
 
@@ -369,44 +642,63 @@ export const useCesiumModelManager = ({
       const { canvas } = scene;
       handler = new ScreenSpaceEventHandler(canvas);
 
-      const highlightShader = highlightShaderRef.current;
-
-      const applyHighlightFromClick = (primitive: Model): void => {
-        applyHighlight(primitive, highlightShader);
-      };
-
       const deselect = () => {
         clearPreviousHighlight();
-        selectedPrimitiveRef.current = null;
-        originalShaderRef.current = undefined;
         onClearSelectionRef.current?.();
+      };
+
+      const applyHoverHighlight = (primitive: Model | null): void => {
+        const current = hoveredPrimitiveRef.current;
+        if (current === primitive) {
+          return;
+        }
+
+        hoveredPrimitiveRef.current = primitive;
+        refreshSelectionHighlightTarget(current);
+        refreshSelectionHighlightTarget(primitive);
+      };
+
+      const findPickedModel = (position: Cartesian2 | undefined) => {
+        if (!position) {
+          return null;
+        }
+        const picks = scene.drillPick(position, 5);
+        for (let i = 0; i < picks.length; i++) {
+          const picked = picks[i];
+          if (isModelPick(picked)) {
+            return picked;
+          }
+        }
+        return null;
       };
 
       const handleLeftClick = ({
         position,
       }: ScreenSpaceEventHandler.PositionedEvent) => {
-        if (!position) return;
-        const picks = scene.drillPick(position, 5);
-        for (let i = 0; i < picks.length; i++) {
-          const picked = picks[i];
-          if (isModelPick(picked)) {
-            clearPreviousHighlight();
-            applyHighlightFromClick(picked.primitive as Model);
-            const pickId = picked.id as { id?: string } | undefined;
-            const id = pickId?.id ?? undefined;
-            onSelectRef.current?.({
-              id,
-              properties: extractPickedProperties(picked),
-              is3dModel: true,
-            });
-            selectedPrimitiveRef.current = picked.primitive as Model;
-            return;
-          }
+        const picked = findPickedModel(position);
+        if (picked) {
+          clearPreviousHighlight();
+          applyHighlight(picked.primitive as Model);
+          const pickId = picked.id as { id?: string } | undefined;
+          const id = pickId?.id ?? undefined;
+          onSelectRef.current?.({
+            id,
+            properties: extractPickedProperties(picked),
+            is3dModel: true,
+          });
+          return;
         }
         if (selection?.deselectOnEmptyClick ?? true) deselect();
       };
 
+      const handleMouseMove = (event: { endPosition?: Cartesian2 }) => {
+        const position = event.endPosition;
+        const picked = position ? findPickedModel(position) : null;
+        applyHoverHighlight((picked?.primitive as Model | undefined) ?? null);
+      };
+
       handler.setInputAction(handleLeftClick, ScreenSpaceEventType.LEFT_CLICK);
+      handler.setInputAction(handleMouseMove, ScreenSpaceEventType.MOUSE_MOVE);
     };
 
     attachSelectionHandler();
@@ -417,10 +709,9 @@ export const useCesiumModelManager = ({
         clearTimeout(retryTimeout);
       }
       try {
-        clearPreviousHighlight();
-        selectedPrimitiveRef.current = null;
-        originalShaderRef.current = undefined;
+        restoreSelectionHighlightShaders();
         handler?.removeInputAction(ScreenSpaceEventType.LEFT_CLICK);
+        handler?.removeInputAction(ScreenSpaceEventType.MOUSE_MOVE);
         handler?.destroy();
       } catch (error) {
         console.warn("[Cesium|Models] Selection cleanup failed:", error);
@@ -431,20 +722,17 @@ export const useCesiumModelManager = ({
     clearPreviousHighlight,
     enabled,
     getScene,
+    refreshSelectionHighlightTarget,
     requestRender,
+    restoreSelectionHighlightShaders,
     selection?.enabled,
     selection?.deselectOnEmptyClick,
-    selection?.highlightShader,
   ]);
 
   useEffect(() => {
     const selectionEnabled = Boolean(selection?.enabled && enabled);
     if (!selectionEnabled) {
-      if (selectedPrimitiveRef.current) {
-        clearPreviousHighlight();
-        selectedPrimitiveRef.current = null;
-        originalShaderRef.current = undefined;
-      }
+      restoreSelectionHighlightShaders();
       return;
     }
 
@@ -452,8 +740,6 @@ export const useCesiumModelManager = ({
     if (!selectedId) {
       if (selectedPrimitiveRef.current) {
         clearPreviousHighlight();
-        selectedPrimitiveRef.current = null;
-        originalShaderRef.current = undefined;
       }
       return;
     }
@@ -469,8 +755,6 @@ export const useCesiumModelManager = ({
     if (!matchingPrimitive) {
       if (selectedPrimitiveRef.current) {
         clearPreviousHighlight();
-        selectedPrimitiveRef.current = null;
-        originalShaderRef.current = undefined;
       }
       return;
     }
@@ -478,17 +762,14 @@ export const useCesiumModelManager = ({
     if (selectedPrimitiveRef.current === matchingPrimitive) return;
 
     clearPreviousHighlight();
-    applyHighlight(
-      matchingPrimitive,
-      selection?.highlightShader ?? DEFAULT_MODEL_HIGHLIGHT_SHADER
-    );
-    selectedPrimitiveRef.current = matchingPrimitive;
+    applyHighlight(matchingPrimitive);
   }, [
     applyHighlight,
     clearPreviousHighlight,
     enabled,
+    refreshSelectionHighlightTarget,
+    restoreSelectionHighlightShaders,
     selection?.enabled,
-    selection?.highlightShader,
     selection?.selectedId,
   ]);
 };

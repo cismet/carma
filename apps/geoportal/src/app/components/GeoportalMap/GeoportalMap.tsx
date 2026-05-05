@@ -155,6 +155,8 @@ const DEFAULT_MARKER_ANCHOR_HEIGHT = 10;
 const FLY_TO_BOUNDING_SPHERE_PADDING_FACTOR = 1.1;
 type AnnotationInfoBoxTop = "annotation" | "feature";
 
+const ENABLE_3D_MODEL_SELECTION_IN_MEASUREMENT_MODE = false;
+
 const buildTerrainAwareBoundingSphereOptions = (
   terrainProvider: CesiumTerrainProvider | undefined
 ) => ({
@@ -224,6 +226,8 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
     useState<AnnotationInfoBoxTop>("annotation");
   const uiMode = useSelector(getUIMode);
   const isModeMeasurement = uiMode === UIMode.MEASUREMENT;
+  const is3dModelSelectionEnabled =
+    !isModeMeasurement || ENABLE_3D_MODEL_SELECTION_IN_MEASUREMENT_MODE;
   const isModeFeatureInfo = uiMode === UIMode.FEATURE_INFO;
   const showHamburgerMenu = useSelector(getShowHamburgerMenu);
   const selectedFeature = useSelector(getSelectedFeature);
@@ -365,6 +369,7 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
         selected: 0.4,
         default: 0.7,
       },
+      selectionEnabled: is3dModelSelectionEnabled,
       onFeatureInfoChange: modelSelectionDispatcher,
     });
 
@@ -752,33 +757,40 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
   }, [activeToolType, setActiveToolType]);
 
   const renderInfoBox = useCallback(() => {
-    const selectedFeatureSecondaryInfoBoxElements: ReactNode[] = selectedFeature
-      ? [
-          <div
-            style={{
-              width: "340px",
-              paddingBottom: 3,
-              paddingLeft: 10,
-              cursor: "pointer",
-            }}
-            key={`selected-feature-header-${selectedFeature.id ?? "feature"}`}
-            onClick={() => {
-              ensureAnnotationSelectTool();
-              setAnnotationInfoBoxTop("feature");
-            }}
-          >
-            <InfoBoxHeader
-              content={
-                selectedFeature.properties.header ||
-                selectedFeature.properties._header ||
-                "Informationen"
-              }
-              headerColor="grey"
-              properties={selectedFeature.properties.sourceProps}
-            />
-          </div>,
-        ]
-      : [];
+    const selectedFeatureInMeasurementMode =
+      ENABLE_3D_MODEL_SELECTION_IN_MEASUREMENT_MODE ? selectedFeature : null;
+    const selectedFeatureSecondaryInfoBoxElements: ReactNode[] =
+      selectedFeatureInMeasurementMode
+        ? [
+            <div
+              style={{
+                width: "340px",
+                paddingBottom: 3,
+                paddingLeft: 10,
+                cursor: "pointer",
+              }}
+              key={`selected-feature-header-${
+                selectedFeatureInMeasurementMode.id ?? "feature"
+              }`}
+              onClick={() => {
+                ensureAnnotationSelectTool();
+                setAnnotationInfoBoxTop("feature");
+              }}
+            >
+              <InfoBoxHeader
+                content={
+                  selectedFeatureInMeasurementMode.properties.header ||
+                  selectedFeatureInMeasurementMode.properties._header ||
+                  "Informationen"
+                }
+                headerColor="grey"
+                properties={
+                  selectedFeatureInMeasurementMode.properties.sourceProps
+                }
+              />
+            </div>,
+          ]
+        : [];
     const annotationSecondaryInfoBoxElements: ReactNode[] = [
       <div
         style={{
@@ -798,7 +810,10 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
     ];
 
     if (isModeMeasurement && getIsCesium()) {
-      if (selectedFeature && annotationInfoBoxTop === "feature") {
+      if (
+        selectedFeatureInMeasurementMode &&
+        annotationInfoBoxTop === "feature"
+      ) {
         return (
           <FeatureInfoBox
             onZoomToFeature={handleZoomToFeature}
