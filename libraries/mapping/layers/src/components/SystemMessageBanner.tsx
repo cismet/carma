@@ -58,7 +58,7 @@ export const SystemMessageBanner = ({
 
   return (
     <div
-      className={`relative ${colorClasses} text-sm font-medium text-center py-2 px-6 ${
+      className={`relative ${colorClasses} text-base font-medium text-center py-2 px-6 ${
         className ?? ""
       }`}
       style={inlineStyle}
