@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -130,15 +131,31 @@ const TopNavbar = () => {
   }, []); // setAppMenuVisible from context is stable
 
   const [bannerVisible, setBannerVisible] = useState(false);
+  const bannerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const root = document.documentElement;
-    root.style.setProperty(
-      "--system-message-banner-height",
-      bannerVisible ? "36px" : "0px"
-    );
+    const setHeight = (px: number) => {
+      root.style.setProperty("--system-message-banner-height", `${px}px`);
+    };
+
+    if (!bannerVisible || !bannerRef.current) {
+      setHeight(0);
+      return;
+    }
+
+    const el = bannerRef.current;
+    setHeight(el.getBoundingClientRect().height);
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) setHeight(entry.contentRect.height);
+    });
+    observer.observe(el);
+
     return () => {
-      root.style.setProperty("--system-message-banner-height", "0px");
+      observer.disconnect();
+      setHeight(0);
     };
   }, [bannerVisible]);
 
@@ -163,7 +180,11 @@ const TopNavbar = () => {
 
   return (
     <>
-      <div className="fixed top-0 left-0 right-0" style={bannerStyle}>
+      <div
+        ref={bannerRef}
+        className="fixed top-0 left-0 right-0"
+        style={bannerStyle}
+      >
         <SystemMessageBanner
           appKey="geoportal"
           slot="main"
