@@ -210,6 +210,7 @@ const ResourceModal = () => {
         unauthorizedCallback={() => {
           dispatch(setShowLoginModal(true));
         }}
+        appKey="geoportal"
       />
     </>
   );

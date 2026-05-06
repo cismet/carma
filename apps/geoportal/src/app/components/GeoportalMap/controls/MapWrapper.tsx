@@ -263,8 +263,13 @@ const MapWrapper = () => {
           </button>
         </Control>
       ) : (
-        <div className="pt-16">
-          {/* adds padding for topnavbar*/}
+        <div
+          style={{
+            paddingTop:
+              "calc(4rem + var(--system-message-banner-height, 0px))",
+          }}
+        >
+          {/* adds padding for topnavbar (+ banner if visible)*/}
           <Control position="topleft" order={10}>
             <div ref={tourRefLabels.zoom} className="flex flex-col">
               <Tooltip title="Maßstab vergrößern (Zoom in)" placement="right">

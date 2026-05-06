@@ -19,6 +19,7 @@ export function LayerLib({
   setFeatureFlags,
   store,
   unauthorizedCallback,
+  appKey,
 }: LibModalProps) {
   return (
     <NewLibModal
@@ -37,6 +38,7 @@ export function LayerLib({
       setFeatureFlags={setFeatureFlags}
       store={store}
       unauthorizedCallback={unauthorizedCallback}
+      appKey={appKey}
     />
   );
 }

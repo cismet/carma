@@ -2,7 +2,9 @@ import {
   type CSSProperties,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -28,6 +30,7 @@ import {
 } from "@carma-commons/ui/helper-overlay";
 import { cn } from "@carma-commons/utils";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
+import { SystemMessageBanner } from "@carma-mapping/layers";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 
 import {
@@ -127,24 +130,69 @@ const TopNavbar = () => {
     setAppMenuVisible(true);
   }, []); // setAppMenuVisible from context is stable
 
+  const [bannerVisible, setBannerVisible] = useState(false);
+  const bannerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const setHeight = (px: number) => {
+      root.style.setProperty("--system-message-banner-height", `${px}px`);
+    };
+
+    if (!bannerVisible || !bannerRef.current) {
+      setHeight(0);
+      return;
+    }
+
+    const el = bannerRef.current;
+    setHeight(el.getBoundingClientRect().height);
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) setHeight(entry.contentRect.height);
+    });
+    observer.observe(el);
+
+    return () => {
+      observer.disconnect();
+      setHeight(0);
+    };
+  }, [bannerVisible]);
+
   const mainStyle = useMemo((): CSSProperties => {
     return {
       visibility: zenMode ? "hidden" : undefined,
       display: zenMode ? "none" : "flex",
       zIndex: 10000,
+      top: "var(--system-message-banner-height, 0px)",
     };
   }, [zenMode]);
+
+  const bannerStyle = useMemo((): CSSProperties => {
+    return {
+      visibility: zenMode || !bannerVisible ? "hidden" : undefined,
+      display: zenMode || !bannerVisible ? "none" : "block",
+      zIndex: 10000,
+    };
+  }, [zenMode, bannerVisible]);
 
   console.debug("RENDER: TopNavbar");
 
   return (
+    <>
+      <div
+        ref={bannerRef}
+        className="fixed top-0 left-0 right-0"
+        style={bannerStyle}
+      >
+        <SystemMessageBanner
+          appKey="geoportal"
+          slot="main"
+          onVisibilityChange={setBannerVisible}
+        />
+      </div>
     <div
-      className={
-        "bg-white h-16 fixed top-0 left-0 right-0 \
-        items-center justify-between gap-2 xs:gap-3 sm:gap-6 \
-        py-2 pt-safe-top pb-safe-bottom \
-        pl-safe-left xs:pl-safe-left-xs pr-safe-right xs:pr-safe-right-xs"
-      }
+      className={`bg-white h-16 fixed left-0 right-0 items-center justify-between gap-2 xs:gap-3 sm:gap-6 py-2 pt-safe-top pb-safe-bottom pl-safe-left xs:pl-safe-left-xs pr-safe-right xs:pr-safe-right-xs`}
       style={mainStyle}
     >
       <ResourceModal />
@@ -276,6 +324,7 @@ const TopNavbar = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 

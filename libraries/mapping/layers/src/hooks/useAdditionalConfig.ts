@@ -7,6 +7,11 @@ import {
 import { addReplaceLayers, getCustomLayerConfig } from "../slices/mapLayers";
 import type { Config, SavedLayerConfig } from "@carma-mapping/layers";
 import { processCategoryConfig } from "../helper/processCategoryConfig";
+import {
+  ADDITIONAL_LAYER_CONFIG_URL,
+  ADDITIONAL_OBJECT_CONFIG_URL,
+  ADDITIONAL_SENSOR_CONFIG_URL,
+} from "../helper/assetUrls";
 
 interface UseAdditionalConfigProps {
   setFeatureFlags?: (flags: FeatureFlagConfig) => void;
@@ -27,12 +32,9 @@ interface UseAdditionalConfigProps {
   >;
 }
 
-const additionalConfigUrl =
-  "https://wupp-digitaltwin-assets.cismet.de/data/additionalLayerConfig.json";
-const sensorUrl =
-  "https://wupp-digitaltwin-assets.cismet.de/data/additionalSensorConfig.json";
-const objectUrl =
-  "https://wupp-digitaltwin-assets.cismet.de/data/additionalObjectConfig.json";
+const additionalConfigUrl = ADDITIONAL_LAYER_CONFIG_URL;
+const sensorUrl = ADDITIONAL_SENSOR_CONFIG_URL;
+const objectUrl = ADDITIONAL_OBJECT_CONFIG_URL;
 
 export const useAdditionalConfig = ({
   setFeatureFlags,
