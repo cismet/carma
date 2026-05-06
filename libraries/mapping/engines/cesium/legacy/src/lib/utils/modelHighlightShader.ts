@@ -4,7 +4,7 @@ import { UniformType } from "cesium";
 
 const toCesiumColor = (color: UnitRgba) => new Color(...color);
 
-const MODEL_SELECTION_HIGHLIGHT_COLOR_COMPONENT = 0.8;
+const MODEL_SELECTION_HIGHLIGHT_COLOR_COMPONENT = 1;
 
 export const DEFAULT_MODEL_SELECTION_HIGHLIGHT_COLOR = new Color(
   MODEL_SELECTION_HIGHLIGHT_COLOR_COMPONENT,
@@ -110,8 +110,12 @@ export const createModelSelectionHighlightShader = ({
     },
     fragmentShaderText: `
 void fragmentMain(FragmentInput fsInput, inout czm_modelMaterial material) {
-  material.diffuse = ${MODEL_SAMPLING_HIGHLIGHT_COLOR_UNIFORM};
-  material.alpha = material.alpha * ${MODEL_SAMPLING_HIGHLIGHT_OPACITY_UNIFORM};
+  float highlightOpacity = clamp(${MODEL_SAMPLING_HIGHLIGHT_OPACITY_UNIFORM}, 0.0, 1.0);
+  material.diffuse = mix(
+    material.diffuse,
+    ${MODEL_SAMPLING_HIGHLIGHT_COLOR_UNIFORM},
+    highlightOpacity
+  );
 }
 `,
   });
