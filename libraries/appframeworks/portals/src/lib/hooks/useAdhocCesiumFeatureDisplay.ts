@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BoundingSphere,
+  Cartesian3,
+  ClippingPolygon,
+  ClippingPolygonCollection,
   Color,
   CustomShader,
   Model,
@@ -30,6 +33,7 @@ import {
   DEFAULT_MODEL_SAMPLING_HIGHLIGHT_FADE_DURATION_MS,
   DEFAULT_MODEL_SAMPLING_HIGHLIGHT_COLOR,
   DEFAULT_MODEL_SAMPLING_HIGHLIGHT_OPACITY,
+  isValidTileset,
   setModelBaseTintShaderUniforms,
   setModelSamplingHighlightShaderUniforms,
   useCesiumModelManager,
@@ -65,6 +69,7 @@ import {
   buildAdhocFeatureInfoForSelection,
   extractSelectableGeoJsonFeatures,
   getFeatureMetadataBoundingSphere,
+  getCarmaConf3D,
   getGeojsonBoundingSphere,
   getModelConfig,
   getWallHeights,
@@ -134,6 +139,10 @@ type AdhocFeatureEntry = {
 
 type VisualizerType = "ground-polygon" | "ground-polyline" | "extruded-wall";
 type ElementType = "polygon" | "polyline" | "wall" | "model";
+type TilesetClippingPolygon = {
+  coordinates: [number, number][];
+  inverse: boolean;
+};
 
 const FEATURE_KEY_SEPARATOR = "::";
 
@@ -206,6 +215,62 @@ const withPrimitiveMetadata = (
         : {}),
       ...(context.elementType ? { elementType: context.elementType } : {}),
     } as FeatureInfo["properties"],
+  };
+};
+
+const toLonLatRing = (coordinates: unknown): [number, number][] | null => {
+  if (!Array.isArray(coordinates) || coordinates.length === 0) {
+    return null;
+  }
+
+  const outerRing = coordinates[0];
+  if (!Array.isArray(outerRing) || outerRing.length < 3) {
+    return null;
+  }
+
+  const ring = outerRing.flatMap((position) => {
+    if (
+      Array.isArray(position) &&
+      position.length >= 2 &&
+      Number.isFinite(position[0]) &&
+      Number.isFinite(position[1])
+    ) {
+      return [[position[0], position[1]] as [number, number]];
+    }
+    return [];
+  });
+
+  return ring.length >= 3 ? ring : null;
+};
+
+const getTilesetClippingPolygon = (
+  feature: AdhocFeature
+): TilesetClippingPolygon | null => {
+  const modelVisible = (
+    feature.metadata as { modelVisible?: unknown } | undefined
+  )?.modelVisible;
+  if (modelVisible === false) {
+    return null;
+  }
+
+  const carmaConf3D = getCarmaConf3D(feature);
+  const clippingPolygon = carmaConf3D?.clippingPolygon;
+  if (!clippingPolygon || clippingPolygon.type !== "Polygon") {
+    return null;
+  }
+
+  if (clippingPolygon.enabled === false) {
+    return null;
+  }
+
+  const ring = toLonLatRing(clippingPolygon.coordinates);
+  if (!ring) {
+    return null;
+  }
+
+  return {
+    coordinates: ring,
+    inverse: clippingPolygon.inverse ?? true,
   };
 };
 
@@ -341,6 +406,14 @@ export const useAdhocCesiumFeatureDisplay = (
           }))
       ),
     [featureCollections]
+  );
+  const tilesetClippingPolygons = useMemo<TilesetClippingPolygon[]>(
+    () =>
+      adhocFeatureEntries.flatMap((entry) => {
+        const clippingPolygon = getTilesetClippingPolygon(entry.feature);
+        return clippingPolygon ? [clippingPolygon] : [];
+      }),
+    [adhocFeatureEntries]
   );
 
   const adhocFeatureByKey = useMemo(
@@ -978,6 +1051,63 @@ export const useAdhocCesiumFeatureDisplay = (
   );
 
   const hasCesiumModels = cesiumModelConfigs.length > 0;
+  useEffect(() => {
+    if (!isCesiumRenderingEnabled) {
+      return;
+    }
+
+    const scene = getScene();
+    if (!scene || scene.isDestroyed?.()) {
+      return;
+    }
+
+    const clippedTilesets: Array<{
+      clipping: ClippingPolygonCollection;
+      tileset: unknown;
+    }> = [];
+    const primitiveCount = scene.primitives.length;
+    for (let i = 0; i < primitiveCount; i += 1) {
+      const primitive = scene.primitives.get(i);
+      if (!isValidTileset(primitive)) {
+        continue;
+      }
+
+      if (tilesetClippingPolygons.length === 0) {
+        if (primitive.clippingPolygons) {
+          primitive.clippingPolygons.enabled = false;
+          primitive.clippingPolygons.removeAll?.();
+        }
+        continue;
+      }
+
+      const clipping = new ClippingPolygonCollection({
+        enabled: true,
+        inverse: tilesetClippingPolygons[0]?.inverse ?? true,
+        polygons: tilesetClippingPolygons.map(
+          (clippingPolygon) =>
+            new ClippingPolygon({
+              positions: clippingPolygon.coordinates.map(([lon, lat]) =>
+                Cartesian3.fromDegrees(lon, lat)
+              ),
+            })
+        ),
+      });
+      primitive.clippingPolygons = clipping;
+      clippedTilesets.push({ clipping, tileset: primitive });
+    }
+
+    scene.requestRender();
+
+    return () => {
+      clippedTilesets.forEach(({ clipping, tileset }) => {
+        if (!isValidTileset(tileset)) {
+          return;
+        }
+        clipping.removeAll?.();
+      });
+    };
+  }, [getScene, isCesiumRenderingEnabled, tilesetClippingPolygons]);
+
   const isAdhocRenderStyleEditing = useMemo(
     () =>
       adhocFeatureEntries.some(

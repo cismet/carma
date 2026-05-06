@@ -26,6 +26,7 @@ export type {
   CismapLayerProps,
 } from "./lib/contracts/cismap-layer-props.d";
 export type {
+  CarmaConf3DClippingPolygon,
   CarmaConf3DModel,
   CarmaConf3D,
   CarmaMapLibreStyleMetadata,
