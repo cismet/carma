@@ -90,6 +90,9 @@ export {
   type RemoveAdhocFeatureOptions,
   type ClearAdhocFeaturesOptions,
   type ClearAdhocFeaturesTarget,
+  type AdhocFeatureCollectionMetadata,
+  type AdhocFeatureMetadata,
+  type AdhocFeatureMetadataUpdate,
   type AdhocMapLibreStyleFeature,
   type AdhocFeatureSelectionChange,
   type AdhocFeatureSelectionChangeListener,
@@ -105,6 +108,18 @@ export {
   type AdhocCollectionLike,
   type AdhocSelectionTarget,
 } from "./lib/utils/adhoc-selection-utils";
+export {
+  ADHOC_UNSELECTED_RENDER_STYLES,
+  DEFAULT_ADHOC_UNSELECTED_RENDER_STYLE,
+  DEFAULT_ADHOC_UNSELECTED_RENDER_TINT_COLOR,
+  DEFAULT_ADHOC_UNSELECTED_RENDER_TINT_MIX,
+  isAdhocUnselectedRenderStyle,
+  resolveAdhocUnselectedRenderStyle,
+  resolveAdhocUnselectedRenderTintColor,
+  resolveAdhocUnselectedRenderTintMix,
+  type AdhocUnselectedRenderStyle,
+  type AdhocUnselectedRenderStyleMetadata,
+} from "./lib/utils/adhoc-render-style";
 
 export { LibreMapSelectionContent } from "./lib/components/LibreMapSelectionContent";
 export { TopicMapSelectionContent } from "./lib/components/TopicMapSelectionContent";

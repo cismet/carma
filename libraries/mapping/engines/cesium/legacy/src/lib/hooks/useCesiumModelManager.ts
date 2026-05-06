@@ -58,11 +58,12 @@ export interface UseCesiumModelManagerOptions {
   };
 }
 
-const DEFAULT_MODEL_SELECTION_HIGHLIGHT_FADE_DURATION_MS = 500;
+const DEFAULT_MODEL_SELECTION_HIGHLIGHT_FADE_DURATION_MS = 220;
 const DEFAULT_MODEL_SELECTION_HIGHLIGHT_FADE_EASING = Easing.CUBIC_OUT;
 const DEFAULT_MODEL_SELECTION_HIGHLIGHT_FLASH_DURATION_MS = 160;
-const DEFAULT_MODEL_SELECTION_HOVER_CLEAR_DELAY_MS = 80;
+const DEFAULT_MODEL_SELECTION_HOVER_CLEAR_DELAY_MS = 40;
 const DEFAULT_MODEL_SELECTION_HIGHLIGHT_MINIMUM_PIXEL_SIZE = 1;
+const MODEL_SELECTION_SILHOUETTE_SIZE_FADE_EXPONENT = 1.5;
 const MODEL_SELECTION_FLASH_HIGHLIGHT_COLOR = new Color(1, 1, 1, 1);
 
 const normalizeModelSelectionHighlightFadeDuration = (
@@ -94,19 +95,30 @@ const interpolateColor = (from: Color, to: Color, progress: number) =>
     from.alpha + (to.alpha - from.alpha) * progress
   );
 
-const createNonAccumulatingShadowColor = (
-  shadowColor: Color,
-  shadowStrength: number
+const createNonAccumulatingSilhouetteColor = (
+  edgeColor: Color,
+  edgeOpacity: number
 ) => {
   const strength =
-    shadowColor.alpha * clampModelHighlightEdgeOpacity(shadowStrength);
+    edgeColor.alpha * clampModelHighlightEdgeOpacity(edgeOpacity);
+
   return new Color(
-    1 + (shadowColor.red - 1) * strength,
-    1 + (shadowColor.green - 1) * strength,
-    1 + (shadowColor.blue - 1) * strength,
+    1 + (edgeColor.red - 1) * strength,
+    1 + (edgeColor.green - 1) * strength,
+    1 + (edgeColor.blue - 1) * strength,
     1
   );
 };
+
+const calculateTaperedSilhouetteSize = (
+  edgeWidthPx: number,
+  highlightOpacity: number
+) =>
+  normalizeModelHighlightEdgeWidthPx(edgeWidthPx) *
+  Math.pow(
+    clampModelHighlightOpacity(highlightOpacity, 0),
+    MODEL_SELECTION_SILHOUETTE_SIZE_FADE_EXPONENT
+  );
 
 const readPrimitiveHighlightEdgeMode = (
   primitive: Model,
@@ -125,6 +137,20 @@ const readPrimitiveHighlightEdgeMode = (
 type ModelWithReadyPromise = {
   readyPromise?: Promise<unknown>;
 };
+
+const getModelConfigCustomShader = (
+  config: ModelConfig
+): CustomShader | undefined =>
+  config.model.customShader
+    ? (config.model.customShader as CustomShader)
+    : undefined;
+
+const getModelConfigCustomShaderSignature = (
+  config: ModelConfig
+): string | null =>
+  typeof config.model.renderStyleSignature === "string"
+    ? config.model.renderStyleSignature
+    : null;
 
 type ModelSelectionHighlightState = {
   animationStartOpacity: number;
@@ -151,6 +177,10 @@ export const useCesiumModelManager = ({
   const modelPrimitivesRef = useRef<Map<string, Model>>(new Map());
   const pendingModelLoadsRef = useRef<Map<string, Promise<Model>>>(new Map());
   const desiredModelKeysRef = useRef<Set<string>>(new Set());
+  const modelsByKeyRef = useRef<Map<string, ModelConfig>>(new Map());
+  const customShaderSignatureByPrimitiveRef = useRef<Map<Model, string | null>>(
+    new Map()
+  );
   const enabledRef = useRef<boolean>(enabled);
   const isUnmountedRef = useRef<boolean>(false);
   const selectedPrimitiveRef = useRef<Model | null>(null);
@@ -272,7 +302,11 @@ export const useCesiumModelManager = ({
 
   useEffect(() => {
     enabledRef.current = enabled;
-    desiredModelKeysRef.current = new Set(models.map(buildModelKey));
+    const nextModelsByKey = new Map(
+      models.map((modelConfig) => [buildModelKey(modelConfig), modelConfig])
+    );
+    modelsByKeyRef.current = nextModelsByKey;
+    desiredModelKeysRef.current = new Set(nextModelsByKey.keys());
   }, [enabled, models]);
 
   const readSelectionSilhouetteOptions = useCallback(
@@ -334,13 +368,13 @@ export const useCesiumModelManager = ({
       );
 
       if (edgeMode === "silhouette") {
-        primitive.silhouetteColor = createNonAccumulatingShadowColor(
+        primitive.silhouetteColor = createNonAccumulatingSilhouetteColor(
           edgeColor,
           edgeOpacity
         );
         primitive.silhouetteSize = Math.max(
           state.originalSilhouetteSize,
-          normalizeModelHighlightEdgeWidthPx(edgeWidthPx) * highlightOpacity
+          calculateTaperedSilhouetteSize(edgeWidthPx, highlightOpacity)
         );
       } else {
         primitive.silhouetteColor = Color.clone(
@@ -739,6 +773,7 @@ export const useCesiumModelManager = ({
         if (highlightState) {
           restoreSelectionHighlightShader(primitive, highlightState);
         }
+        customShaderSignatureByPrimitiveRef.current.delete(primitive);
         scene.primitives.remove(primitive);
         if (!primitive.isDestroyed()) {
           primitive.destroy();
@@ -810,6 +845,20 @@ export const useCesiumModelManager = ({
           }
 
           const modelPrimitiveId = getPrimitiveSelectionId(modelPrimitive);
+          const latestModelConfig = modelsByKeyRef.current.get(key);
+          const latestCustomShader = latestModelConfig
+            ? getModelConfigCustomShader(latestModelConfig)
+            : getModelConfigCustomShader(modelConfig);
+          const latestCustomShaderSignature = latestModelConfig
+            ? getModelConfigCustomShaderSignature(latestModelConfig)
+            : getModelConfigCustomShaderSignature(modelConfig);
+          if (modelPrimitive.customShader !== latestCustomShader) {
+            modelPrimitive.customShader = latestCustomShader;
+          }
+          customShaderSignatureByPrimitiveRef.current.set(
+            modelPrimitive,
+            latestCustomShaderSignature
+          );
           console.debug("[ADHOC|MODEL] primitive created", {
             key,
             primitiveId: modelPrimitiveId,
@@ -890,6 +939,47 @@ export const useCesiumModelManager = ({
   ]);
 
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+    for (const modelConfig of models) {
+      const primitive = modelPrimitivesRef.current.get(
+        buildModelKey(modelConfig)
+      );
+      if (!primitive || primitive.isDestroyed()) {
+        continue;
+      }
+
+      const customShader = getModelConfigCustomShader(modelConfig);
+      const customShaderSignature =
+        getModelConfigCustomShaderSignature(modelConfig);
+      const previousCustomShaderSignature =
+        customShaderSignatureByPrimitiveRef.current.get(primitive) ?? null;
+      if (previousCustomShaderSignature === customShaderSignature) {
+        continue;
+      }
+
+      const highlightState =
+        selectionHighlightStateByPrimitiveRef.current.get(primitive);
+      if (highlightState) {
+        highlightState.originalShader = customShader;
+        customShaderSignatureByPrimitiveRef.current.set(
+          primitive,
+          customShaderSignature
+        );
+        continue;
+      }
+      if (primitive.customShader !== customShader) {
+        applyShader(primitive, customShader);
+      }
+      customShaderSignatureByPrimitiveRef.current.set(
+        primitive,
+        customShaderSignature
+      );
+    }
+  }, [applyShader, enabled, models]);
+
+  useEffect(() => {
     const primitivesByKey = modelPrimitivesRef.current;
     const pendingLoads = pendingModelLoadsRef.current;
     return () => {
@@ -921,6 +1011,7 @@ export const useCesiumModelManager = ({
         }
       });
       primitivesByKey.clear();
+      customShaderSignatureByPrimitiveRef.current.clear();
       selectionHighlightStateByPrimitiveRef.current.clear();
     };
   }, [getScene]);
