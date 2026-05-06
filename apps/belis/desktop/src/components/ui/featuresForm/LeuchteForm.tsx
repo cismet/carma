@@ -366,6 +366,7 @@ const LeuchteForm = ({
       removedDocumentKeys={removedDocumentKeys}
       onToggleRemoveDocument={handleToggleRemoveDocument}
       debugData={data}
+      rawFeatureData={rawFeature}
       additionalTabs={additionalTabs}
       loading={loading}
       saving={saving}

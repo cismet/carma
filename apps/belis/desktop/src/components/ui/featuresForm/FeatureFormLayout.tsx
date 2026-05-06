@@ -50,6 +50,7 @@ interface FeatureFormLayoutProps {
   onSave?: () => void;
   saving?: boolean;
   debugData?: unknown;
+  rawFeatureData?: unknown;
   additionalTabs?: AdditionalTab[];
   loading?: boolean;
   readOnly?: boolean;
@@ -79,6 +80,7 @@ const FeatureFormLayout = ({
   onSave,
   saving,
   debugData,
+  rawFeatureData,
   additionalTabs = [],
   loading,
   readOnly,
@@ -347,14 +349,72 @@ const FeatureFormLayout = ({
     </div>
   );
 
-  // Debug content (only shown when ?showRaw=true)
-  const debugContent = debugData ? (
-    <RawDisplay>{JSON.stringify(debugData, null, 2)}</RawDisplay>
-  ) : null;
+  // Raw data tabs (only shown when ?showRaw=true / yellow mode).
+  // Two separate tabs: "Feature Rohdaten" is the lightweight feature loaded
+  // from the map / vector tile; "DB Rohdaten" is the full object loaded
+  // separately from the database.
+  const hasRawFeatureData = rawFeatureData !== undefined && rawFeatureData !== null;
+  const hasDbData = debugData !== undefined && debugData !== null;
+  // MapLibre's Feature class has a self-referential `geometry` getter that
+  // makes JSON.stringify recurse infinitely. Snapshot only the safe GeoJSON
+  // fields before stringifying.
+  const rawFeatureJson = useMemo(() => {
+    if (!hasRawFeatureData) return "";
+    const f = rawFeatureData as {
+      id?: unknown;
+      type?: unknown;
+      geometry?: unknown;
+      properties?: unknown;
+      sourceLayer?: unknown;
+      source?: unknown;
+      layer?: { id?: unknown };
+    };
+    const snapshot = {
+      id: f.id,
+      type: f.type,
+      sourceLayer: f.sourceLayer,
+      source: f.source,
+      layer: f.layer ? { id: f.layer.id } : undefined,
+      geometry: f.geometry,
+      properties: f.properties,
+    };
+    try {
+      return JSON.stringify(snapshot, null, 2);
+    } catch {
+      return JSON.stringify({ properties: f.properties, id: f.id }, null, 2);
+    }
+  }, [hasRawFeatureData, rawFeatureData]);
+  const rawTabs = showRaw
+    ? [
+        ...(hasRawFeatureData
+          ? [
+              {
+                key: "raw-feature",
+                label: <span>Feature Rohdaten</span>,
+                children: <RawDisplay>{rawFeatureJson}</RawDisplay>,
+              },
+            ]
+          : []),
+        ...(hasDbData
+          ? [
+              {
+                key: "raw-db",
+                label: <span>DB Rohdaten</span>,
+                children: (
+                  <RawDisplay>
+                    {JSON.stringify(debugData, null, 2)}
+                  </RawDisplay>
+                ),
+              },
+            ]
+          : []),
+      ]
+    : [];
 
   // Wide screen: two-column layout (form left, documents right)
   if (isWideScreen && !singleColumn) {
-    // Build tabs for the left column - Allgemein first, then additional tabs, then Rohdaten
+    // Build tabs for the left column - Allgemein first, then additional tabs,
+    // then raw-data tabs (Feature Rohdaten, DB Rohdaten)
     const leftColumnTabs = [
       {
         key: "general",
@@ -366,15 +426,7 @@ const FeatureFormLayout = ({
         label: <span>{tab.label}</span>,
         children: tab.children,
       })),
-      ...(showRaw
-        ? [
-            {
-              key: "debug",
-              label: <span>Rohdaten</span>,
-              children: debugContent,
-            },
-          ]
-        : []),
+      ...rawTabs,
     ];
 
     return (
@@ -478,15 +530,7 @@ const FeatureFormLayout = ({
                   label: <span>{sideContent ? "Änderungen" : "Dokumente"}</span>,
                   children: sideContent ?? documentsContent,
                 },
-                ...(showRaw
-                  ? [
-                      {
-                        key: "debug",
-                        label: <span>Rohdaten</span>,
-                        children: debugContent,
-                      },
-                    ]
-                  : []),
+                ...rawTabs,
               ]}
             />
           </div>
