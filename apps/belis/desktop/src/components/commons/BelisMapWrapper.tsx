@@ -1167,10 +1167,11 @@ const BelisMapLibWrapper = ({
       filter = ["in", ["get", "bezeichnung"], ["literal", allowedNames]];
     }
 
+    const sources = new Set([namespacedSource, brandnewSource]);
     for (const layer of map.getStyle()?.layers ?? []) {
       if (
         "source" in layer &&
-        layer.source === namespacedSource &&
+        sources.has(layer.source as string) &&
         layer.id.toLowerCase().includes("leitungen")
       ) {
         try {
@@ -1180,7 +1181,7 @@ const BelisMapLibWrapper = ({
         }
       }
     }
-  }, [map, enabledLeitungstypen, keyTablesData, namespacedSource]);
+  }, [map, enabledLeitungstypen, keyTablesData, namespacedSource, brandnewSource]);
 
   // --- Save/restore selection when switching between route variants ---
   useEffect(() => {
