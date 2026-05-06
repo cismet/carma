@@ -452,9 +452,10 @@ const FeatureFormLayout = ({
         }`}
       >
         {singleColumn && !showRaw ? (
-          <div className="pt-4">{documentsContent}</div>
+          <div className="pt-4">{formHeaderContent}{documentsContent}</div>
         ) : (
           <div className="[&_.ant-tabs-nav]:sticky [&_.ant-tabs-nav]:top-0 [&_.ant-tabs-nav]:bg-white [&_.ant-tabs-nav]:z-10">
+            {singleColumn && formHeaderContent}
             <Tabs
               defaultActiveKey={singleColumn ? "documents" : "general"}
               items={[
