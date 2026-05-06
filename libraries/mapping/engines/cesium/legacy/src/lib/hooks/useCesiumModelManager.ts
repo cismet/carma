@@ -36,7 +36,7 @@ import { useCesiumContext } from "./useCesiumContext";
 const MODEL_SELECTION_HIGHLIGHT_EDGE_MODE_PROPERTY =
   "modelSelectionHighlightEdgeMode";
 
-type ModelSelectionHighlightEdgeMode = "silhouette" | "none";
+export type ModelSelectionHighlightEdgeMode = "silhouette" | "none";
 
 export interface UseCesiumModelManagerOptions {
   models: ModelConfig[];
@@ -1103,14 +1103,8 @@ export const useCesiumModelManager = ({
         if (!position) {
           return null;
         }
-        const picks = scene.drillPick(position, 5);
-        for (let i = 0; i < picks.length; i++) {
-          const picked = picks[i];
-          if (isModelPick(picked)) {
-            return picked;
-          }
-        }
-        return null;
+        const picked = scene.pick(position, 1, 1);
+        return isModelPick(picked) ? picked : null;
       };
 
       const handleLeftClick = ({

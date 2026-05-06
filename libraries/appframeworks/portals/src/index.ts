@@ -113,6 +113,7 @@ export {
   DEFAULT_ADHOC_UNSELECTED_RENDER_STYLE,
   DEFAULT_ADHOC_UNSELECTED_RENDER_TINT_COLOR,
   DEFAULT_ADHOC_UNSELECTED_RENDER_TINT_MIX,
+  MIN_ADHOC_UNSELECTED_RENDER_TINT_MIX,
   isAdhocUnselectedRenderStyle,
   resolveAdhocUnselectedRenderStyle,
   resolveAdhocUnselectedRenderTintColor,

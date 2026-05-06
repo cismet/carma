@@ -10,6 +10,7 @@ export type AdhocUnselectedRenderStyleMetadata = {
 export const DEFAULT_ADHOC_UNSELECTED_RENDER_STYLE: AdhocUnselectedRenderStyle =
   "default";
 export const DEFAULT_ADHOC_UNSELECTED_RENDER_TINT_COLOR = "#facc15";
+export const MIN_ADHOC_UNSELECTED_RENDER_TINT_MIX = 0.2;
 export const DEFAULT_ADHOC_UNSELECTED_RENDER_TINT_MIX = 0.55;
 
 export const ADHOC_UNSELECTED_RENDER_STYLES: AdhocUnselectedRenderStyle[] = [
@@ -52,5 +53,5 @@ export const resolveAdhocUnselectedRenderTintMix = (value: unknown): number => {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return DEFAULT_ADHOC_UNSELECTED_RENDER_TINT_MIX;
   }
-  return Math.min(1, Math.max(0, value));
+  return Math.min(1, Math.max(MIN_ADHOC_UNSELECTED_RENDER_TINT_MIX, value));
 };

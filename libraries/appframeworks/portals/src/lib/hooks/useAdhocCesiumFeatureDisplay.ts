@@ -36,6 +36,7 @@ import {
   type ExtrudedWallVisualizer,
   type GroundPolygonVisualizer,
   type GroundPolylineVisualizer,
+  type ModelSelectionHighlightEdgeMode,
 } from "@carma-mapping/engines/cesium/legacy";
 import type { Feature, FeatureCollection } from "geojson";
 import { extractRingsFromGeoJson } from "@carma-geo/utils";
@@ -75,6 +76,16 @@ import {
   toSelectionIdSet,
 } from "../utils/adhoc-cesium-feature-display-utils";
 
+export type AdhocCesiumModelSelectionHighlightOptions = {
+  edgeColor?: Color;
+  edgeOpacity?: number;
+  edgeWidthPx?: number;
+  edgeMode?: ModelSelectionHighlightEdgeMode;
+  fadeDurationMs?: number;
+  fadeEasing?: EasingFunction;
+  minimumPixelSize?: number;
+};
+
 export type UseAdhocCesiumFeatureDisplayOptions = {
   isCesiumEnabled: boolean;
   getScene: () => Scene | null | undefined;
@@ -92,9 +103,11 @@ export type UseAdhocCesiumFeatureDisplayOptions = {
   };
   selectionLineWidthPixels?: number;
   selectionEnabled?: boolean;
+  modelSelectionHighlight?: AdhocCesiumModelSelectionHighlightOptions;
   modelSelectionHighlightEdgeColor?: Color;
   modelSelectionHighlightEdgeOpacity?: number;
   modelSelectionHighlightEdgeWidthPx?: number;
+  modelSelectionHighlightEdgeMode?: ModelSelectionHighlightEdgeMode;
   modelSelectionHighlightFadeDurationMs?: number;
   modelSelectionHighlightFadeEasing?: EasingFunction;
   modelSelectionHighlightMinimumPixelSize?: number;
@@ -204,20 +217,16 @@ type AdhocUnselectedRenderStyleConfig = {
 };
 
 const getAdhocUnselectedRenderStyleConfig = (
-  feature: AdhocFeature,
-  collectionMetadata?: AdhocFeatureCollectionMetadata
+  feature: AdhocFeature
 ): AdhocUnselectedRenderStyleConfig => {
   const style = resolveAdhocUnselectedRenderStyle(
-    collectionMetadata?.unselectedRenderStyle ??
-      feature.metadata?.unselectedRenderStyle
+    feature.metadata?.unselectedRenderStyle
   );
   const tintColorCss = resolveAdhocUnselectedRenderTintColor(
-    collectionMetadata?.unselectedRenderTintColor ??
-      feature.metadata?.unselectedRenderTintColor
+    feature.metadata?.unselectedRenderTintColor
   );
   const tintMix = resolveAdhocUnselectedRenderTintMix(
-    collectionMetadata?.unselectedRenderTintMix ??
-      feature.metadata?.unselectedRenderTintMix
+    feature.metadata?.unselectedRenderTintMix
   );
   return {
     style,
@@ -286,9 +295,11 @@ export const useAdhocCesiumFeatureDisplay = (
     wallOpacityAnimation,
     selectionLineWidthPixels,
     selectionEnabled = true,
+    modelSelectionHighlight,
     modelSelectionHighlightEdgeColor,
     modelSelectionHighlightEdgeOpacity,
     modelSelectionHighlightEdgeWidthPx,
+    modelSelectionHighlightEdgeMode,
     modelSelectionHighlightFadeDurationMs,
     modelSelectionHighlightFadeEasing,
     modelSelectionHighlightMinimumPixelSize,
@@ -856,8 +867,7 @@ export const useAdhocCesiumFeatureDisplay = (
       }
 
       const expectedRenderStyleSignature = getAdhocUnselectedRenderStyleConfig(
-        entry.feature,
-        entry.collectionMetadata
+        entry.feature
       ).signature;
       const hasRenderStyleMismatch = [...visualizersRef.current.values()].some(
         (candidate) =>
@@ -926,10 +936,7 @@ export const useAdhocCesiumFeatureDisplay = (
       const modelConfig = getModelConfig(entry.feature);
       if (!modelConfig) return [];
 
-      const renderStyle = getAdhocUnselectedRenderStyleConfig(
-        entry.feature,
-        entry.collectionMetadata
-      );
+      const renderStyle = getAdhocUnselectedRenderStyleConfig(entry.feature);
       const customShader = resolveAdhocModelShader(entry.key, renderStyle);
       const featureInfo = buildModelFeatureInfo(entry.feature);
       const baseProperties = featureInfo?.properties ?? {};
@@ -975,6 +982,7 @@ export const useAdhocCesiumFeatureDisplay = (
     () =>
       adhocFeatureEntries.some(
         (entry) =>
+          entry.feature.metadata?.unselectedRenderStyleEditing === true ||
           entry.collectionMetadata?.unselectedRenderStyleEditing === true
       ),
     [adhocFeatureEntries]
@@ -991,12 +999,26 @@ export const useAdhocCesiumFeatureDisplay = (
           selectionEnabled &&
           !isAdhocRenderStyleEditing,
         deselectOnEmptyClick: true,
-        highlightEdgeColor: modelSelectionHighlightEdgeColor,
-        highlightEdgeOpacity: modelSelectionHighlightEdgeOpacity,
-        highlightEdgeWidthPx: modelSelectionHighlightEdgeWidthPx,
-        highlightFadeDurationMs: modelSelectionHighlightFadeDurationMs,
-        highlightFadeEasing: modelSelectionHighlightFadeEasing,
-        highlightMinimumPixelSize: modelSelectionHighlightMinimumPixelSize,
+        highlightEdgeColor:
+          modelSelectionHighlight?.edgeColor ??
+          modelSelectionHighlightEdgeColor,
+        highlightEdgeOpacity:
+          modelSelectionHighlight?.edgeOpacity ??
+          modelSelectionHighlightEdgeOpacity,
+        highlightEdgeWidthPx:
+          modelSelectionHighlight?.edgeWidthPx ??
+          modelSelectionHighlightEdgeWidthPx,
+        highlightEdgeMode:
+          modelSelectionHighlight?.edgeMode ?? modelSelectionHighlightEdgeMode,
+        highlightFadeDurationMs:
+          modelSelectionHighlight?.fadeDurationMs ??
+          modelSelectionHighlightFadeDurationMs,
+        highlightFadeEasing:
+          modelSelectionHighlight?.fadeEasing ??
+          modelSelectionHighlightFadeEasing,
+        highlightMinimumPixelSize:
+          modelSelectionHighlight?.minimumPixelSize ??
+          modelSelectionHighlightMinimumPixelSize,
         selectedId: selectedFeatureKey,
         onModelAdded: onModelAddedToScene,
         onModelFirstRendered: (primitiveId: string, primitive: Model) => {
@@ -1062,7 +1084,15 @@ export const useAdhocCesiumFeatureDisplay = (
     isCesiumEnabled,
     isAdhocRenderStyleEditing,
     selectionEnabled,
+    modelSelectionHighlight?.edgeColor,
+    modelSelectionHighlight?.edgeMode,
+    modelSelectionHighlight?.edgeOpacity,
+    modelSelectionHighlight?.edgeWidthPx,
+    modelSelectionHighlight?.fadeDurationMs,
+    modelSelectionHighlight?.fadeEasing,
+    modelSelectionHighlight?.minimumPixelSize,
     modelSelectionHighlightEdgeColor,
+    modelSelectionHighlightEdgeMode,
     modelSelectionHighlightEdgeOpacity,
     modelSelectionHighlightEdgeWidthPx,
     modelSelectionHighlightFadeDurationMs,
@@ -1105,14 +1135,9 @@ export const useAdhocCesiumFeatureDisplay = (
           return;
         }
 
-        const picks = scene.drillPick(position, 5);
-        const modelPick = picks.find(
-          (picked) =>
-            (picked as { primitive?: unknown } | undefined)
-              ?.primitive instanceof Model
-        );
+        const modelPick = scene.pick(position, 1, 1);
         const primitive =
-          (modelPick as { primitive?: Model } | undefined)?.primitive ?? null;
+          modelPick?.primitive instanceof Model ? modelPick.primitive : null;
         applyModelSamplingHighlight(primitive);
         scene.requestRender();
       }, ScreenSpaceEventType.MOUSE_MOVE);
@@ -1314,8 +1339,7 @@ export const useAdhocCesiumFeatureDisplay = (
       }
 
       const expectedRenderStyleSignature = getAdhocUnselectedRenderStyleConfig(
-        entry.feature,
-        entry.collectionMetadata
+        entry.feature
       ).signature;
       const hasRenderStyleMismatch = [...visualizersRef.current.values()].some(
         (candidate) =>
@@ -1469,10 +1493,7 @@ export const useAdhocCesiumFeatureDisplay = (
         }> = [];
 
         const config = normalizeCarmaConf3D(feature);
-        const renderStyle = getAdhocUnselectedRenderStyleConfig(
-          feature,
-          entry.collectionMetadata
-        );
+        const renderStyle = getAdhocUnselectedRenderStyleConfig(feature);
 
         for (const geoJsonFeature of geoJsonFeatures) {
           const polygonRings = extractRingsFromGeoJson(geoJsonFeature.geojson, {

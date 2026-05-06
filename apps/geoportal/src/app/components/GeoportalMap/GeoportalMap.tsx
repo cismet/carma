@@ -16,7 +16,10 @@ import {
   Cartesian3,
   type CesiumTerrainProvider,
 } from "@carma-cesium";
-import { flyToBoundingSphereExtent } from "@carma-mapping/engines/cesium/core";
+import {
+  colorFromConstructorArgs,
+  flyToBoundingSphereExtent,
+} from "@carma-mapping/engines/cesium/core";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
 import { Button, Tooltip } from "antd";
@@ -156,6 +159,13 @@ const FLY_TO_BOUNDING_SPHERE_PADDING_FACTOR = 1.1;
 type AnnotationInfoBoxTop = "annotation" | "feature";
 
 const ENABLE_3D_MODEL_SELECTION_IN_MEASUREMENT_MODE = false;
+const MODEL_SELECTION_HIGHLIGHT_CONFIG = {
+  ...CESIUM_CONFIG.modelSelectionHighlight,
+  edgeColor: CESIUM_CONFIG.modelSelectionHighlight?.edgeColor
+    ? colorFromConstructorArgs(CESIUM_CONFIG.modelSelectionHighlight.edgeColor) ??
+      undefined
+    : undefined,
+};
 
 const buildTerrainAwareBoundingSphereOptions = (
   terrainProvider: CesiumTerrainProvider | undefined
@@ -369,6 +379,7 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
         selected: 0.4,
         default: 0.7,
       },
+      modelSelectionHighlight: MODEL_SELECTION_HIGHLIGHT_CONFIG,
       selectionEnabled: is3dModelSelectionEnabled,
       onFeatureInfoChange: modelSelectionDispatcher,
     });
