@@ -183,6 +183,9 @@ interface BelisMapLibWrapperProps {
   regularLayerEnabled?: boolean;
   /** Local-dev toggle: include the brand.new.features GeoJSON-backed layer (default false). */
   brandnewLayerEnabled?: boolean;
+  /** Notified with the live brandnew feature count whenever the FC reloads
+   * (incl. transitions to 0 when the source file disappears). */
+  onBrandnewCountChange?: (count: number) => void;
 }
 
 const BelisMapLibWrapper = ({
@@ -195,6 +198,7 @@ const BelisMapLibWrapper = ({
   onHighlightsChange,
   regularLayerEnabled = true,
   brandnewLayerEnabled = false,
+  onBrandnewCountChange,
 }: BelisMapLibWrapperProps) => {
   const dispatch: AppDispatch = useDispatch();
   const store = useStore<RootState>();
@@ -562,6 +566,7 @@ const BelisMapLibWrapper = ({
     source: brandnewSource,
     dataUrl: BELIS_BRAND_NEW_FC_URL,
     intervalMs: BRAND_NEW_SYNC_INTERVAL_MS,
+    onCountChange: onBrandnewCountChange,
   });
 
   // AA lasso selection (disabled – button now only logs "hallo world")

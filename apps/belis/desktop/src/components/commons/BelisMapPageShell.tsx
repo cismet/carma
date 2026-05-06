@@ -392,6 +392,7 @@ const BelisMapPageShell = () => {
             onHighlightsChange={handleHighlightsChange}
             regularLayerEnabled={regularLayerEnabled}
             brandnewLayerEnabled={brandnewLayerEnabled}
+            onBrandnewCountChange={setBrandnewCount}
           />
         </CustomCard>
       </div>
