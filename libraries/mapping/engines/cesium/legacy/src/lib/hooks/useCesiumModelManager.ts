@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef } from "react";
 import type { ModelConfig } from "@carma-mapping/engines/cesium/core";
 import { Easing, type Easing as EasingFunction } from "@carma-commons/math";
 import {
+  Color,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
   CustomShader,
@@ -37,13 +38,15 @@ export interface UseCesiumModelManagerOptions {
     deselectOnEmptyClick?: boolean;
     highlightFadeDurationMs?: number;
     highlightFadeEasing?: EasingFunction;
-    highlightShader?: CustomShader;
     selectedId?: string | null;
   };
 }
 
 const DEFAULT_MODEL_SELECTION_HIGHLIGHT_FADE_DURATION_MS = 500;
 const DEFAULT_MODEL_SELECTION_HIGHLIGHT_FADE_EASING = Easing.CUBIC_OUT;
+const DEFAULT_MODEL_SELECTION_HIGHLIGHT_FLASH_DURATION_MS = 160;
+const DEFAULT_MODEL_SELECTION_HOVER_CLEAR_DELAY_MS = 80;
+const MODEL_SELECTION_FLASH_HIGHLIGHT_COLOR = new Color(1, 1, 1, 1);
 
 const normalizeModelSelectionHighlightFadeDuration = (
   fadeDurationMs: number | undefined
@@ -57,6 +60,14 @@ const normalizeModelSelectionHighlightFadeDuration = (
 const clampEasedProgress = (progress: number) =>
   Number.isFinite(progress) ? Math.min(1, Math.max(0, progress)) : 1;
 
+const interpolateColor = (from: Color, to: Color, progress: number) =>
+  new Color(
+    from.red + (to.red - from.red) * progress,
+    from.green + (to.green - from.green) * progress,
+    from.blue + (to.blue - from.blue) * progress,
+    from.alpha + (to.alpha - from.alpha) * progress
+  );
+
 type ModelWithReadyPromise = {
   readyPromise?: Promise<unknown>;
 };
@@ -64,7 +75,8 @@ type ModelWithReadyPromise = {
 type ModelSelectionHighlightState = {
   animationStartOpacity: number;
   animationStartTimestampMs: number | null;
-  isAnimated: boolean;
+  flashStartTimestampMs: number | null;
+  isFlashActive: boolean;
   originalShader: CustomShader | undefined;
   opacity: number;
   shader: CustomShader;
@@ -88,6 +100,9 @@ export const useCesiumModelManager = ({
     Map<Model, ModelSelectionHighlightState>
   >(new Map());
   const selectionHighlightAnimationFrameRef = useRef<number | null>(null);
+  const hoverClearTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
   const onSelectRef = useRef<((feature: unknown) => void) | undefined>(
     undefined
   );
@@ -110,9 +125,6 @@ export const useCesiumModelManager = ({
   const highlightFadeEasingRef = useRef<EasingFunction>(
     selection?.highlightFadeEasing ??
       DEFAULT_MODEL_SELECTION_HIGHLIGHT_FADE_EASING
-  );
-  const highlightShaderRef = useRef<CustomShader | undefined>(
-    selection?.highlightShader
   );
 
   useEffect(() => {
@@ -138,10 +150,6 @@ export const useCesiumModelManager = ({
   useEffect(() => {
     selectionEnabledRef.current = Boolean(selection?.enabled && enabled);
   }, [enabled, selection?.enabled]);
-
-  useEffect(() => {
-    highlightShaderRef.current = selection?.highlightShader;
-  }, [selection?.highlightShader]);
 
   useEffect(() => {
     highlightFadeDurationMsRef.current =
@@ -195,20 +203,18 @@ export const useCesiumModelManager = ({
         return existing;
       }
 
-      const customHighlightShader = highlightShaderRef.current;
       const state = {
-        animationStartOpacity: customHighlightShader ? 1 : 0,
+        animationStartOpacity: 0,
         animationStartTimestampMs: null,
-        isAnimated: !customHighlightShader,
+        flashStartTimestampMs: null,
+        isFlashActive: false,
         originalShader: primitive.customShader ?? undefined,
-        opacity: customHighlightShader ? 1 : 0,
-        shader:
-          customHighlightShader ??
-          createModelSelectionHighlightShader({
-            color: DEFAULT_MODEL_SELECTION_HIGHLIGHT_COLOR,
-            opacity: 0,
-          }),
-        targetOpacity: customHighlightShader ? 1 : 0,
+        opacity: 0,
+        shader: createModelSelectionHighlightShader({
+          color: DEFAULT_MODEL_SELECTION_HIGHLIGHT_COLOR,
+          opacity: 0,
+        }),
+        targetOpacity: 0,
       };
       selectionHighlightStateByPrimitiveRef.current.set(primitive, state);
       return state;
@@ -233,6 +239,11 @@ export const useCesiumModelManager = ({
   );
 
   const restoreSelectionHighlightShaders = useCallback(() => {
+    if (hoverClearTimeoutRef.current !== null) {
+      clearTimeout(hoverClearTimeoutRef.current);
+      hoverClearTimeoutRef.current = null;
+    }
+
     if (selectionHighlightAnimationFrameRef.current !== null) {
       cancelAnimationFrame(selectionHighlightAnimationFrameRef.current);
       selectionHighlightAnimationFrameRef.current = null;
@@ -259,16 +270,13 @@ export const useCesiumModelManager = ({
             return;
           }
 
-          if (!state.isAnimated) {
-            return;
-          }
-
           if (state.animationStartTimestampMs === null) {
             state.animationStartTimestampMs = timestampMs;
           }
 
           const linearProgress =
-            fadeDurationMs === 0
+            fadeDurationMs === 0 ||
+            state.animationStartOpacity === state.targetOpacity
               ? 1
               : clampEasedProgress(
                   (timestampMs - state.animationStartTimestampMs) /
@@ -280,8 +288,35 @@ export const useCesiumModelManager = ({
             (state.targetOpacity - state.animationStartOpacity) * easedProgress;
 
           state.opacity = nextOpacity;
+
+          let highlightColor = DEFAULT_MODEL_SELECTION_HIGHLIGHT_COLOR;
+          if (state.isFlashActive) {
+            if (state.flashStartTimestampMs === null) {
+              state.flashStartTimestampMs = timestampMs;
+            }
+            const flashProgress = clampEasedProgress(
+              (timestampMs - state.flashStartTimestampMs) /
+                DEFAULT_MODEL_SELECTION_HIGHLIGHT_FLASH_DURATION_MS
+            );
+            const easedFlashProgress = clampEasedProgress(
+              DEFAULT_MODEL_SELECTION_HIGHLIGHT_FADE_EASING(flashProgress)
+            );
+            highlightColor = interpolateColor(
+              MODEL_SELECTION_FLASH_HIGHLIGHT_COLOR,
+              DEFAULT_MODEL_SELECTION_HIGHLIGHT_COLOR,
+              easedFlashProgress
+            );
+
+            if (flashProgress < 1) {
+              hasPendingAnimation = true;
+            } else {
+              state.isFlashActive = false;
+              state.flashStartTimestampMs = null;
+            }
+          }
+
           setModelHighlightShaderUniforms({
-            color: DEFAULT_MODEL_SELECTION_HIGHLIGHT_COLOR,
+            color: highlightColor,
             opacity: nextOpacity,
             shader: state.shader,
           });
@@ -321,7 +356,11 @@ export const useCesiumModelManager = ({
   }, [animateSelectionHighlights]);
 
   const setSelectionHighlightTarget = useCallback(
-    (primitive: Model, targetOpacity: number) => {
+    (
+      primitive: Model,
+      targetOpacity: number,
+      options: { flash?: boolean } = {}
+    ) => {
       if (primitive.isDestroyed()) {
         return;
       }
@@ -332,17 +371,25 @@ export const useCesiumModelManager = ({
         DEFAULT_MODEL_SELECTION_HIGHLIGHT_OPACITY
       );
 
-      if (!state.isAnimated) {
-        if (nextTargetOpacity > 0) {
-          applyShader(primitive, state.shader);
-        } else {
-          restoreSelectionHighlightShader(primitive, state);
-        }
-        return;
-      }
-
       if (primitive.customShader !== state.shader) {
         applyShader(primitive, state.shader);
+      }
+
+      if (options.flash && nextTargetOpacity > 0) {
+        state.opacity = nextTargetOpacity;
+        state.animationStartOpacity = nextTargetOpacity;
+        state.animationStartTimestampMs = null;
+        state.targetOpacity = nextTargetOpacity;
+        state.isFlashActive = true;
+        state.flashStartTimestampMs = null;
+        setModelHighlightShaderUniforms({
+          color: MODEL_SELECTION_FLASH_HIGHLIGHT_COLOR,
+          opacity: nextTargetOpacity,
+          shader: state.shader,
+        });
+        requestRender();
+        scheduleSelectionHighlightAnimation();
+        return;
       }
 
       if (
@@ -360,7 +407,7 @@ export const useCesiumModelManager = ({
     [
       applyShader,
       readOrCreateSelectionHighlightState,
-      restoreSelectionHighlightShader,
+      requestRender,
       scheduleSelectionHighlightAnimation,
     ]
   );
@@ -402,9 +449,13 @@ export const useCesiumModelManager = ({
     (primitive: Model): void => {
       if (primitive.isDestroyed()) return;
       selectedPrimitiveRef.current = primitive;
-      refreshSelectionHighlightTarget(primitive);
+      setSelectionHighlightTarget(
+        primitive,
+        DEFAULT_MODEL_SELECTION_HIGHLIGHT_OPACITY,
+        { flash: true }
+      );
     },
-    [refreshSelectionHighlightTarget]
+    [setSelectionHighlightTarget]
   );
 
   useEffect(() => {
@@ -593,6 +644,10 @@ export const useCesiumModelManager = ({
     const pendingLoads = pendingModelLoadsRef.current;
     return () => {
       isUnmountedRef.current = true;
+      if (hoverClearTimeoutRef.current !== null) {
+        clearTimeout(hoverClearTimeoutRef.current);
+        hoverClearTimeoutRef.current = null;
+      }
       if (selectionHighlightAnimationFrameRef.current !== null) {
         cancelAnimationFrame(selectionHighlightAnimationFrameRef.current);
         selectionHighlightAnimationFrameRef.current = null;
@@ -648,6 +703,26 @@ export const useCesiumModelManager = ({
       };
 
       const applyHoverHighlight = (primitive: Model | null): void => {
+        if (hoverClearTimeoutRef.current !== null) {
+          clearTimeout(hoverClearTimeoutRef.current);
+          hoverClearTimeoutRef.current = null;
+        }
+
+        if (!primitive) {
+          const current = hoveredPrimitiveRef.current;
+          if (!current) {
+            return;
+          }
+
+          hoverClearTimeoutRef.current = setTimeout(() => {
+            hoverClearTimeoutRef.current = null;
+            const hovered = hoveredPrimitiveRef.current;
+            hoveredPrimitiveRef.current = null;
+            refreshSelectionHighlightTarget(hovered);
+          }, DEFAULT_MODEL_SELECTION_HOVER_CLEAR_DELAY_MS);
+          return;
+        }
+
         const current = hoveredPrimitiveRef.current;
         if (current === primitive) {
           return;
@@ -707,6 +782,10 @@ export const useCesiumModelManager = ({
       disposed = true;
       if (retryTimeout) {
         clearTimeout(retryTimeout);
+      }
+      if (hoverClearTimeoutRef.current !== null) {
+        clearTimeout(hoverClearTimeoutRef.current);
+        hoverClearTimeoutRef.current = null;
       }
       try {
         restoreSelectionHighlightShaders();
