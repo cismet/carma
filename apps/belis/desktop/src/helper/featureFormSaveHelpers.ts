@@ -71,11 +71,7 @@ interface FeatureSaveConfig {
 const featureSaveConfigs: Record<string, FeatureSaveConfig> = {
   leuchte: {
     className: "tdta_leuchten",
-    removedFields: [
-      "strassenschluessel_pk",
-      "strassenschluessel_strasse",
-      "sonderturnus",
-    ],
+    removedFields: ["strassenschluessel_pk", "strassenschluessel_strasse", "sonderturnus"],
     fieldRenames: { sonderturnus: "wartungszyklus" },
     transformDates: true,
     valuesPath: "leuchte",
@@ -312,7 +308,9 @@ const saveCreationDraft = async (
     : undefined;
 
   try {
+    console.debug("[CREATE-FEATURE] raw draft.values:", JSON.stringify(draft.values, null, 2));
     const formValues = prepareSaveValues(featureType, draft.values ?? {}) ?? {};
+    console.debug("[CREATE-FEATURE] after prepareSaveValues:", JSON.stringify(formValues, null, 2));
     let payload: Record<string, unknown>;
 
     if (featureType === "leuchte") {

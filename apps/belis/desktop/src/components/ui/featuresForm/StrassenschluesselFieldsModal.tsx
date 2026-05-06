@@ -40,12 +40,15 @@ const StrassenschluesselFieldsModal = ({
   const strasseName = fieldName("strassenschluessel_strasse");
   const pkName = fieldName("strassenschluessel_pk");
 
+  const fkName = fieldName("fk_strassenschluessel");
+
   const handlePkChange = (selectedPk: string | undefined) => {
     const match = strassenschluesselOptions.find(
       (item) => item.pk === selectedPk
     );
     setTimeout(() => {
       form.setFieldValue(strasseName, match?.strasse ?? undefined);
+      form.setFieldValue(fkName, match?.id ?? undefined);
     }, 0);
   };
 
@@ -55,11 +58,15 @@ const StrassenschluesselFieldsModal = ({
     );
     setTimeout(() => {
       form.setFieldValue(pkName, match?.pk ?? undefined);
+      form.setFieldValue(fkName, match?.id ?? undefined);
     }, 0);
   };
 
   return (
     <Row gutter={16}>
+      <FormItem name={fieldName("fk_strassenschluessel")} hidden noStyle>
+        <input type="hidden" />
+      </FormItem>
       <Col span={6}>
         <FormItem
           name={fieldName("strassenschluessel_pk")}
