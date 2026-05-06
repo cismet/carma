@@ -21,6 +21,7 @@ import {
   DEFAULT_MODEL_SELECTION_HIGHLIGHT_EDGE_OPACITY,
   DEFAULT_MODEL_SELECTION_HIGHLIGHT_EDGE_WIDTH_PX,
   DEFAULT_MODEL_SELECTION_HIGHLIGHT_OPACITY,
+  isModelIntegratedHighlightShader,
   normalizeModelHighlightEdgeWidthPx,
   setModelHighlightShaderUniforms,
 } from "../utils/modelHighlightShader";
@@ -166,6 +167,7 @@ type ModelSelectionHighlightState = {
   opacity: number;
   shader: CustomShader;
   targetOpacity: number;
+  usesIntegratedShader: boolean;
 };
 
 export const useCesiumModelManager = ({
@@ -455,7 +457,11 @@ export const useCesiumModelManager = ({
         return existing;
       }
 
-      const state = {
+      const originalShader = primitive.customShader ?? undefined;
+      const usesIntegratedShader =
+        isModelIntegratedHighlightShader(originalShader);
+
+      const state: ModelSelectionHighlightState = {
         animationStartOpacity: 0,
         animationStartTimestampMs: null,
         flashStartTimestampMs: null,
@@ -463,18 +469,21 @@ export const useCesiumModelManager = ({
         originalMinimumPixelSize: primitive.minimumPixelSize,
         originalOutlineColor: Color.clone(primitive.outlineColor, new Color()),
         originalShowOutline: primitive.showOutline,
-        originalShader: primitive.customShader ?? undefined,
+        originalShader,
         originalSilhouetteColor: Color.clone(
           primitive.silhouetteColor,
           new Color()
         ),
         originalSilhouetteSize: primitive.silhouetteSize,
         opacity: 0,
-        shader: createModelSelectionHighlightShader({
-          color: DEFAULT_MODEL_SELECTION_HIGHLIGHT_COLOR,
-          opacity: 0,
-        }),
+        shader: usesIntegratedShader && originalShader
+          ? originalShader
+          : createModelSelectionHighlightShader({
+              color: DEFAULT_MODEL_SELECTION_HIGHLIGHT_COLOR,
+              opacity: 0,
+            }),
         targetOpacity: 0,
+        usesIntegratedShader,
       };
       selectionHighlightStateByPrimitiveRef.current.set(primitive, state);
       return state;
@@ -485,7 +494,19 @@ export const useCesiumModelManager = ({
   const restoreSelectionHighlightShader = useCallback(
     (primitive: Model, state: ModelSelectionHighlightState) => {
       if (!primitive.isDestroyed()) {
-        if (primitive.customShader === state.shader) {
+        if (state.usesIntegratedShader) {
+          setSelectionHighlightShaderUniforms(
+            state,
+            DEFAULT_MODEL_SELECTION_HIGHLIGHT_COLOR,
+            0
+          );
+          if (
+            state.originalShader !== state.shader &&
+            primitive.customShader === state.shader
+          ) {
+            applyShader(primitive, state.originalShader);
+          }
+        } else if (primitive.customShader === state.shader) {
           applyShader(primitive, state.originalShader);
         }
         primitive.silhouetteColor = Color.clone(
@@ -499,6 +520,7 @@ export const useCesiumModelManager = ({
           new Color()
         );
         primitive.showOutline = state.originalShowOutline;
+        requestRender();
       }
       selectionHighlightStateByPrimitiveRef.current.delete(primitive);
       if (selectedPrimitiveRef.current === primitive) {
@@ -508,7 +530,7 @@ export const useCesiumModelManager = ({
         hoveredPrimitiveRef.current = null;
       }
     },
-    [applyShader]
+    [applyShader, requestRender]
   );
 
   const restoreSelectionHighlightShaders = useCallback(() => {
@@ -967,17 +989,20 @@ export const useCesiumModelManager = ({
           primitive,
           customShaderSignature
         );
+        requestRender();
         continue;
       }
       if (primitive.customShader !== customShader) {
         applyShader(primitive, customShader);
+      } else {
+        requestRender();
       }
       customShaderSignatureByPrimitiveRef.current.set(
         primitive,
         customShaderSignature
       );
     }
-  }, [applyShader, enabled, models]);
+  }, [applyShader, enabled, models, requestRender]);
 
   useEffect(() => {
     const primitivesByKey = modelPrimitivesRef.current;

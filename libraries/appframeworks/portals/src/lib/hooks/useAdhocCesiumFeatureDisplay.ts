@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BoundingSphere,
-  Cartesian3,
   Color,
   CustomShader,
   Model,
@@ -11,7 +10,6 @@ import {
   type CesiumTerrainProvider,
   type Scene,
 } from "@carma-cesium";
-import { UniformType } from "cesium";
 import {
   addElevationsToGeoJson,
   flyToBoundingSphereExtent,
@@ -27,10 +25,12 @@ import {
   createExtrudedWallVisualizer,
   createGroundPolygonVisualizer,
   createGroundPolylineVisualizer,
+  createModelSelectionHighlightShader,
   createModelSamplingHighlightShader,
   DEFAULT_MODEL_SAMPLING_HIGHLIGHT_FADE_DURATION_MS,
   DEFAULT_MODEL_SAMPLING_HIGHLIGHT_COLOR,
   DEFAULT_MODEL_SAMPLING_HIGHLIGHT_OPACITY,
+  setModelBaseTintShaderUniforms,
   setModelSamplingHighlightShaderUniforms,
   useCesiumModelManager,
   type ExtrudedWallVisualizer,
@@ -201,46 +201,6 @@ type AdhocUnselectedRenderStyleConfig = {
   tintColor: Color;
   tintMix: number;
   signature: string;
-};
-
-const ADHOC_UNSELECTED_MODEL_TINT_COLOR_UNIFORM = "u_adhocUnselectedTintColor";
-const ADHOC_UNSELECTED_MODEL_TINT_MIX_UNIFORM = "u_adhocUnselectedTintMix";
-
-const toAdhocModelTintColorUniform = (color: Color) =>
-  new Cartesian3(color.red, color.green, color.blue);
-
-const createAdhocUnselectedModelShader = ({
-  style,
-  tintColor,
-  tintMix,
-}: AdhocUnselectedRenderStyleConfig): CustomShader | undefined => {
-  if (style === DEFAULT_ADHOC_UNSELECTED_RENDER_STYLE) {
-    return undefined;
-  }
-
-  const uniforms = {
-    [ADHOC_UNSELECTED_MODEL_TINT_COLOR_UNIFORM]: {
-      type: UniformType.VEC3,
-      value: toAdhocModelTintColorUniform(tintColor),
-    },
-    [ADHOC_UNSELECTED_MODEL_TINT_MIX_UNIFORM]: {
-      type: UniformType.FLOAT,
-      value: tintMix,
-    },
-  };
-
-  return new CustomShader({
-    uniforms,
-    fragmentShaderText: `
-void fragmentMain(FragmentInput fsInput, inout czm_modelMaterial material) {
-  material.diffuse = mix(
-    material.diffuse,
-    ${ADHOC_UNSELECTED_MODEL_TINT_COLOR_UNIFORM},
-    clamp(${ADHOC_UNSELECTED_MODEL_TINT_MIX_UNIFORM}, 0.0, 1.0)
-  );
-}
-`,
-  });
 };
 
 const getAdhocUnselectedRenderStyleConfig = (
@@ -554,6 +514,9 @@ export const useAdhocCesiumFeatureDisplay = (
   const sampledModelHighlightStateByPrimitiveRef = useRef<
     Map<Model, ModelSamplingHighlightState>
   >(new Map());
+  const adhocModelShaderByFeatureKeyRef = useRef<Map<string, CustomShader>>(
+    new Map()
+  );
   const sampledModelHighlightAnimationFrameRef = useRef<number | null>(null);
   const sampledModelHighlightLastAnimationMsRef = useRef<number | null>(null);
   const firstRenderedModelPrimitiveIdsRef = useRef<Set<string>>(new Set());
@@ -917,6 +880,47 @@ export const useAdhocCesiumFeatureDisplay = (
   const needsSyncRef = useRef<boolean>(needsSync);
   needsSyncRef.current = needsSync;
 
+  const resolveAdhocModelShader = useCallback(
+    (
+      featureKey: string,
+      renderStyle: AdhocUnselectedRenderStyleConfig
+    ): CustomShader | undefined => {
+      if (renderStyle.style === DEFAULT_ADHOC_UNSELECTED_RENDER_STYLE) {
+        return undefined;
+      }
+
+      const shaderByFeatureKey = adhocModelShaderByFeatureKeyRef.current;
+      let shader = shaderByFeatureKey.get(featureKey);
+      if (!shader) {
+        shader = createModelSelectionHighlightShader({
+          opacity: 0,
+          tintColor: renderStyle.tintColor,
+          tintMix: renderStyle.tintMix,
+        });
+        shaderByFeatureKey.set(featureKey, shader);
+      }
+
+      setModelBaseTintShaderUniforms({
+        shader,
+        tintColor: renderStyle.tintColor,
+        tintMix: renderStyle.tintMix,
+      });
+      return shader;
+    },
+    []
+  );
+
+  useEffect(() => {
+    const activeFeatureKeys = new Set(
+      adhocFeatureEntries.map((entry) => entry.key)
+    );
+    adhocModelShaderByFeatureKeyRef.current.forEach((_shader, featureKey) => {
+      if (!activeFeatureKeys.has(featureKey)) {
+        adhocModelShaderByFeatureKeyRef.current.delete(featureKey);
+      }
+    });
+  }, [adhocFeatureEntries]);
+
   const adhocModelConfigs = useMemo(() => {
     return adhocFeatureEntries.flatMap((entry) => {
       const modelConfig = getModelConfig(entry.feature);
@@ -926,7 +930,7 @@ export const useAdhocCesiumFeatureDisplay = (
         entry.feature,
         entry.collectionMetadata
       );
-      const customShader = createAdhocUnselectedModelShader(renderStyle);
+      const customShader = resolveAdhocModelShader(entry.key, renderStyle);
       const featureInfo = buildModelFeatureInfo(entry.feature);
       const baseProperties = featureInfo?.properties ?? {};
       const modelPropertiesWithoutId = {
@@ -959,7 +963,7 @@ export const useAdhocCesiumFeatureDisplay = (
         } satisfies ModelConfig,
       ];
     });
-  }, [adhocFeatureEntries]);
+  }, [adhocFeatureEntries, resolveAdhocModelShader]);
 
   const cesiumModelConfigs = useMemo(
     () => [...baseModels, ...adhocModelConfigs],
