@@ -185,6 +185,7 @@ const AbzweigdoseForm = ({
       removedDocumentKeys={removedDocumentKeys}
       onToggleRemoveDocument={handleToggleRemoveDocument}
       debugData={data}
+      rawFeatureData={rawFeature}
       loading={loading}
       saving={saving}
       readOnly={readOnly}
