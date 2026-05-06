@@ -82,8 +82,12 @@ export type UseAdhocCesiumFeatureDisplayOptions = {
   };
   selectionLineWidthPixels?: number;
   selectionEnabled?: boolean;
+  modelSelectionHighlightEdgeColor?: Color;
+  modelSelectionHighlightEdgeOpacity?: number;
+  modelSelectionHighlightEdgeWidthPx?: number;
   modelSelectionHighlightFadeDurationMs?: number;
   modelSelectionHighlightFadeEasing?: EasingFunction;
+  modelSelectionHighlightMinimumPixelSize?: number;
   modelSamplingHighlightEnabled?: boolean;
   modelSamplingHighlightColor?: Color;
   modelSamplingHighlightFadeDurationMs?: number;
@@ -195,8 +199,12 @@ export const useAdhocCesiumFeatureDisplay = (
     wallOpacityAnimation,
     selectionLineWidthPixels,
     selectionEnabled = true,
+    modelSelectionHighlightEdgeColor,
+    modelSelectionHighlightEdgeOpacity,
+    modelSelectionHighlightEdgeWidthPx,
     modelSelectionHighlightFadeDurationMs,
     modelSelectionHighlightFadeEasing,
+    modelSelectionHighlightMinimumPixelSize,
     modelSamplingHighlightEnabled = false,
     modelSamplingHighlightColor = DEFAULT_MODEL_SAMPLING_HIGHLIGHT_COLOR,
     modelSamplingHighlightFadeDurationMs = DEFAULT_MODEL_SAMPLING_HIGHLIGHT_FADE_DURATION_MS,
@@ -816,8 +824,12 @@ export const useAdhocCesiumFeatureDisplay = (
       selection: {
         enabled: isCesiumEnabled && hasCesiumModels && selectionEnabled,
         deselectOnEmptyClick: true,
+        highlightEdgeColor: modelSelectionHighlightEdgeColor,
+        highlightEdgeOpacity: modelSelectionHighlightEdgeOpacity,
+        highlightEdgeWidthPx: modelSelectionHighlightEdgeWidthPx,
         highlightFadeDurationMs: modelSelectionHighlightFadeDurationMs,
         highlightFadeEasing: modelSelectionHighlightFadeEasing,
+        highlightMinimumPixelSize: modelSelectionHighlightMinimumPixelSize,
         selectedId: selectedFeatureKey,
         onModelAdded: onModelAddedToScene,
         onModelFirstRendered: (primitiveId: string, primitive: Model) => {
@@ -882,8 +894,12 @@ export const useAdhocCesiumFeatureDisplay = (
     isCesiumRenderingEnabled,
     isCesiumEnabled,
     selectionEnabled,
+    modelSelectionHighlightEdgeColor,
+    modelSelectionHighlightEdgeOpacity,
+    modelSelectionHighlightEdgeWidthPx,
     modelSelectionHighlightFadeDurationMs,
     modelSelectionHighlightFadeEasing,
+    modelSelectionHighlightMinimumPixelSize,
     onFeatureInfoChange,
     selectedFeatureKey,
     clearSelectedFeature,
