@@ -321,6 +321,7 @@ const saveCreationDraft = async (
         id: -1,
         ...(geomPayload ? { geom: geomPayload } : {}),
       };
+      console.debug("[CREATE-FEATURE] Standort payload:", JSON.stringify(mastPayload, null, 2));
       const mastResult = await updateDataByClassName(
         jwt,
         featureSaveConfigs["standort"].className,
@@ -351,7 +352,9 @@ const saveCreationDraft = async (
       };
     }
 
+    console.debug(`[CREATE-FEATURE] ${featureType} → ${config.className} payload:`, JSON.stringify(payload, null, 2));
     const result = await updateDataByClassName(jwt, config.className, payload);
+    console.debug(`[CREATE-FEATURE] ${featureType} → ${config.className} result:`, JSON.stringify(result, null, 2));
 
     // Upload files if any
     const draftFiles: DraftFile[] = draft.files ?? [];
