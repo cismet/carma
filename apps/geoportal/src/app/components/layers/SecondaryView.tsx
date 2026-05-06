@@ -11,7 +11,15 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { faStar as regularFaStar } from "@fortawesome/free-regular-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { forwardRef, useContext, useEffect, useRef, useState } from "react";
+import { Slider, type SliderSingleProps } from "antd";
+import {
+  forwardRef,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { useDispatch, useSelector } from "react-redux";
 import centroid from "@turf/centroid";
@@ -72,11 +80,13 @@ type Ref = HTMLDivElement;
 
 interface SecondaryViewProps {}
 
+type SecondaryViewContentMode = "info" | "render-style";
+
 const ADHOC_UNSELECTED_RENDER_STYLE_LABELS: Record<
   AdhocUnselectedRenderStyle,
   string
 > = {
-  default: "Original",
+  default: "Normal",
   tint: "Getönt",
 };
 
@@ -85,18 +95,18 @@ const ADHOC_RENDER_TINT_SWATCHES = [
   { color: "#38bdf8", label: "Blau" },
   { color: "#22c55e", label: "Grün" },
   { color: "#f97316", label: "Orange" },
-  { color: "#a855f7", label: "Violett" },
 ] as const;
 
-const TRANSPARENT_SWATCH_BACKGROUND =
-  "repeating-conic-gradient(#e5e7eb 0% 25%, #ffffff 0% 50%) 50% / 8px 8px";
+const adhocRenderTintMixFormatter: NonNullable<
+  SliderSingleProps["tooltip"]
+>["formatter"] = (value) => `${Math.round((value ?? 0) * 100)}%`;
 
 const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
   void _ref;
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const infoRef = useRef<HTMLDivElement>(null);
-  const [showAdhocRenderStyleMenu, setShowAdhocRenderStyleMenu] =
-    useState(false);
+  const [secondaryViewContentMode, setSecondaryViewContentMode] =
+    useState<SecondaryViewContentMode>("info");
   const dispatch = useDispatch();
   const showInfo = useSelector(getUIShowInfo);
   const showInfoText = useSelector(getUIShowInfoText);
@@ -206,10 +216,16 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
     });
   };
 
+  const isAdhocRenderStylePanelActive =
+    showInfo &&
+    secondaryViewContentMode === "render-style" &&
+    isAdhocCesiumObjectLayer;
+  const isAdhocRenderStylePanelOpen =
+    isAdhocRenderStylePanelActive && showInfoText;
+
   useEffect(() => {
     const handleEscapeKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setShowAdhocRenderStyleMenu(false);
         dispatch(setSelectedLayerIndexNoSelection());
       }
     };
@@ -221,8 +237,41 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
   }, [dispatch]);
 
   useEffect(() => {
-    setShowAdhocRenderStyleMenu(false);
+    setSecondaryViewContentMode("info");
   }, [isCesium, layer.id]);
+
+  useEffect(() => {
+    if (!isAdhocCesiumObjectLayer) {
+      return;
+    }
+
+    addFeatureCollection({
+      id: layer.id,
+      title: layer.title,
+      metadata: {
+        unselectedRenderStyleEditing: isAdhocRenderStylePanelOpen,
+      },
+    });
+
+    return () => {
+      if (!isAdhocRenderStylePanelOpen) {
+        return;
+      }
+      addFeatureCollection({
+        id: layer.id,
+        title: layer.title,
+        metadata: {
+          unselectedRenderStyleEditing: false,
+        },
+      });
+    };
+  }, [
+    addFeatureCollection,
+    isAdhocCesiumObjectLayer,
+    isAdhocRenderStylePanelOpen,
+    layer.id,
+    layer.title,
+  ]);
 
   useEffect(() => {
     const findElementByIdRecursive = (element: Element, id: string) => {
@@ -329,6 +378,119 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
   }, [dispatch, selectedLayerIndex]);
 
   const iconId = `secview-icon-${layer.id}`;
+  const toggleAdhocRenderStylePanel = (event: ReactMouseEvent) => {
+    event.stopPropagation();
+    if (isAdhocRenderStylePanelOpen) {
+      dispatch(setUIShowInfo(false));
+      setTimeout(() => dispatch(setUIShowInfoText(false)), 0);
+      return;
+    }
+
+    setSecondaryViewContentMode("render-style");
+    if (!showInfo) {
+      dispatch(setUIShowInfo(true));
+    }
+    setTimeout(() => dispatch(setUIShowInfoText(true)), showInfoText ? 0 : 80);
+  };
+
+  const adhocRenderStylePanel = (
+    <div className="flex flex-col gap-3 px-4 pb-4">
+      <div className="grid grid-cols-2">
+        {ADHOC_UNSELECTED_RENDER_STYLES.map((style) => (
+          <button
+            key={style}
+            className={cn(
+              "flex h-10 items-center justify-center border border-gray-300 bg-white px-3 text-sm hover:bg-gray-50",
+              style === "default" ? "rounded-l-md" : "-ml-px rounded-r-md",
+              unselectedRenderStyle === style
+                ? "z-10 border-blue-500 text-blue-600"
+                : "text-gray-700"
+            )}
+            onClick={() =>
+              updateAdhocRenderMetadata({
+                unselectedRenderStyle: style,
+              })
+            }
+            type="button"
+          >
+            {ADHOC_UNSELECTED_RENDER_STYLE_LABELS[style]}
+          </button>
+        ))}
+      </div>
+      {unselectedRenderStyle === "tint" && (
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="grid grid-cols-5 gap-2">
+            {ADHOC_RENDER_TINT_SWATCHES.map((swatch) => {
+              const isActive =
+                unselectedRenderTintColor.toLowerCase() === swatch.color;
+              return (
+                <button
+                  key={`solid-${swatch.color}`}
+                  aria-label={swatch.label}
+                  aria-pressed={isActive}
+                  className={cn(
+                    "box-border h-9 w-9 rounded border border-gray-300 p-0 focus:outline-none",
+                    isActive ? "shadow-[inset_0_0_0_2px_#111827]" : ""
+                  )}
+                  onClick={() =>
+                    updateAdhocRenderMetadata({
+                      unselectedRenderStyle: "tint",
+                      unselectedRenderTintColor: swatch.color,
+                    })
+                  }
+                  style={{ backgroundColor: swatch.color }}
+                  title={swatch.label}
+                  type="button"
+                />
+              );
+            })}
+            <label
+              aria-label="Farbe wählen"
+              className={cn(
+                "relative box-border flex h-9 w-9 cursor-pointer items-center justify-center overflow-hidden rounded border border-gray-300 p-0",
+                ADHOC_RENDER_TINT_SWATCHES.some(
+                  (swatch) =>
+                    unselectedRenderTintColor.toLowerCase() === swatch.color
+                )
+                  ? ""
+                  : "shadow-[inset_0_0_0_2px_#111827]"
+              )}
+              style={{ backgroundColor: unselectedRenderTintColor }}
+              title="Farbe wählen"
+            >
+              <input
+                className="sr-only"
+                type="color"
+                value={unselectedRenderTintColor}
+                onChange={(event) =>
+                  updateAdhocRenderMetadata({
+                    unselectedRenderStyle: "tint",
+                    unselectedRenderTintColor: event.target.value,
+                  })
+                }
+              />
+            </label>
+          </div>
+          <div className="flex min-w-48 flex-1 items-center gap-3">
+            <span className="text-sm">Tönung</span>
+            <Slider
+              className="min-w-32 flex-1"
+              min={0}
+              max={1}
+              step={0.01}
+              tooltip={{ formatter: adhocRenderTintMixFormatter }}
+              value={unselectedRenderTintMix}
+              onChange={(mix) => {
+                updateAdhocRenderMetadata({
+                  unselectedRenderTintMix: mix,
+                });
+              }}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="pt-3 w-full pointer-events-none">
@@ -339,7 +501,9 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
             "pointer-events-auto",
             "min-w-[280px] sm:max-w-[560px] md:max-w-[720px] lg:w-full w-full sm:w-3/4 sm:mx-0",
             "h-fit bg-white button-shadow rounded-[10px] flex flex-col relative secondary-view gap-2 py-2 transition-all duration-300",
-            showInfo
+            isAdhocRenderStylePanelActive
+              ? "h-fit"
+              : showInfo
               ? "sm:max-h-[600px] sm:h-[70vh] h-[80vh]"
               : isBaseLayer
               ? "h-fit"
@@ -502,151 +666,21 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
               </button>
             )}
             {isAdhocCesiumObjectLayer && (
-              <div
-                className="relative flex items-center justify-center"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <button
-                  className={cn(
-                    "hover:text-gray-500 flex items-center justify-center",
-                    unselectedRenderStyle === "default"
-                      ? "text-gray-600"
-                      : "text-yellow-500"
-                  )}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowAdhocRenderStyleMenu((current) => !current);
-                  }}
-                  title="Darstellung"
-                  type="button"
-                >
-                  <FontAwesomeIcon icon={faPalette} />
-                </button>
-                {showAdhocRenderStyleMenu && (
-                  <div
-                    className="absolute right-0 top-7 z-[1000] flex w-52 flex-col gap-1 rounded border border-gray-200 bg-white p-2 text-sm shadow-lg"
-                    onMouseDown={(e) => e.stopPropagation()}
-                  >
-                    {ADHOC_UNSELECTED_RENDER_STYLES.map((style) => (
-                      <button
-                        key={style}
-                        className={cn(
-                          "flex h-8 w-full items-center rounded px-2 text-left hover:bg-gray-100",
-                          unselectedRenderStyle === style
-                            ? "bg-gray-100 font-semibold"
-                            : ""
-                        )}
-                        onClick={() =>
-                          updateAdhocRenderMetadata({
-                            unselectedRenderStyle: style,
-                          })
-                        }
-                        type="button"
-                      >
-                        {ADHOC_UNSELECTED_RENDER_STYLE_LABELS[style]}
-                      </button>
-                    ))}
-                    <div className="mt-1 grid grid-cols-5 gap-1 border-t border-gray-200 pt-2">
-                      {ADHOC_RENDER_TINT_SWATCHES.map((swatch) => {
-                        const isActive =
-                          unselectedRenderStyle === "tint" &&
-                          unselectedRenderTintColor.toLowerCase() ===
-                            swatch.color;
-                        return (
-                          <button
-                            key={`solid-${swatch.color}`}
-                            aria-label={`${swatch.label} 100%`}
-                            className={cn(
-                              "h-8 w-8 rounded border border-gray-300",
-                              isActive && unselectedRenderTintMix > 0.95
-                                ? "ring-2 ring-gray-800 ring-offset-1"
-                                : ""
-                            )}
-                            onClick={() =>
-                              updateAdhocRenderMetadata({
-                                unselectedRenderStyle: "tint",
-                                unselectedRenderTintColor: swatch.color,
-                                unselectedRenderTintMix: 1,
-                              })
-                            }
-                            style={{ backgroundColor: swatch.color }}
-                            title={`${swatch.label} 100%`}
-                            type="button"
-                          />
-                        );
-                      })}
-                      {ADHOC_RENDER_TINT_SWATCHES.map((swatch) => {
-                        const isActive =
-                          unselectedRenderStyle === "tint" &&
-                          unselectedRenderTintColor.toLowerCase() ===
-                            swatch.color;
-                        return (
-                          <button
-                            key={`mixed-${swatch.color}`}
-                            aria-label={`${swatch.label} 50%`}
-                            className={cn(
-                              "relative h-8 w-8 overflow-hidden rounded border border-gray-300 bg-white",
-                              isActive &&
-                                Math.abs(unselectedRenderTintMix - 0.5) < 0.01
-                                ? "ring-2 ring-gray-800 ring-offset-1"
-                                : ""
-                            )}
-                            onClick={() =>
-                              updateAdhocRenderMetadata({
-                                unselectedRenderStyle: "tint",
-                                unselectedRenderTintColor: swatch.color,
-                                unselectedRenderTintMix: 0.5,
-                              })
-                            }
-                            title={`${swatch.label} 50%`}
-                            type="button"
-                          >
-                            <span
-                              className="absolute inset-0"
-                              style={{
-                                background: TRANSPARENT_SWATCH_BACKGROUND,
-                              }}
-                            />
-                            <span
-                              className="absolute inset-0 opacity-50"
-                              style={{ backgroundColor: swatch.color }}
-                            />
-                            <span
-                              className="absolute bottom-0 right-0 h-0 w-0 border-b-[15px] border-l-[15px] border-l-transparent"
-                              style={{ borderBottomColor: swatch.color }}
-                            />
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center justify-between">
-                        <span>Mischung</span>
-                        <span>
-                          {Math.round(unselectedRenderTintMix * 100)}%
-                        </span>
-                      </div>
-                      <input
-                        className="w-full"
-                        type="range"
-                        min={0}
-                        max={100}
-                        step={1}
-                        value={Math.round(unselectedRenderTintMix * 100)}
-                        onChange={(event) => {
-                          const mix = Number(event.target.value) / 100;
-                          updateAdhocRenderMetadata({
-                            unselectedRenderTintMix: mix,
-                            ...(unselectedRenderStyle === "default" && mix > 0
-                              ? { unselectedRenderStyle: "tint" }
-                              : {}),
-                          });
-                        }}
-                      />
-                    </div>
-                  </div>
+              <button
+                className={cn(
+                  "hover:text-gray-500 flex items-center justify-center",
+                  isAdhocRenderStylePanelOpen
+                    ? "text-yellow-500"
+                    : unselectedRenderStyle === "default"
+                    ? "text-gray-600"
+                    : "text-yellow-500"
                 )}
-              </div>
+                onClick={toggleAdhocRenderStylePanel}
+                title="Darstellung"
+                type="button"
+              >
+                <FontAwesomeIcon icon={faPalette} />
+              </button>
             )}
             {canFavorite && (
               <button
@@ -676,6 +710,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
             />
             <button
               onClick={() => {
+                setSecondaryViewContentMode("info");
                 dispatch(setUIShowInfo(!showInfo));
                 setTimeout(
                   () => dispatch(setUIShowInfoText(!showInfoText)),
@@ -710,6 +745,9 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
           {showInfoText &&
             (isBaseLayer ? (
               <BaseLayerInfo />
+            ) : secondaryViewContentMode === "render-style" &&
+              isAdhocCesiumObjectLayer ? (
+              adhocRenderStylePanel
             ) : (
               <LayerInfo
                 description={layer.description}

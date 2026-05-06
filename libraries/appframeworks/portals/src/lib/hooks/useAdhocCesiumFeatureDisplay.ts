@@ -967,13 +967,25 @@ export const useAdhocCesiumFeatureDisplay = (
   );
 
   const hasCesiumModels = cesiumModelConfigs.length > 0;
+  const isAdhocRenderStyleEditing = useMemo(
+    () =>
+      adhocFeatureEntries.some(
+        (entry) =>
+          entry.collectionMetadata?.unselectedRenderStyleEditing === true
+      ),
+    [adhocFeatureEntries]
+  );
 
   const useCesiumModelOptions = useMemo(() => {
     return {
       models: cesiumModelConfigs,
       enabled: isCesiumRenderingEnabled && hasCesiumModels,
       selection: {
-        enabled: isCesiumEnabled && hasCesiumModels && selectionEnabled,
+        enabled:
+          isCesiumEnabled &&
+          hasCesiumModels &&
+          selectionEnabled &&
+          !isAdhocRenderStyleEditing,
         deselectOnEmptyClick: true,
         highlightEdgeColor: modelSelectionHighlightEdgeColor,
         highlightEdgeOpacity: modelSelectionHighlightEdgeOpacity,
@@ -1044,6 +1056,7 @@ export const useAdhocCesiumFeatureDisplay = (
     hasCesiumModels,
     isCesiumRenderingEnabled,
     isCesiumEnabled,
+    isAdhocRenderStyleEditing,
     selectionEnabled,
     modelSelectionHighlightEdgeColor,
     modelSelectionHighlightEdgeOpacity,

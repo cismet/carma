@@ -1,6 +1,7 @@
 export type AdhocUnselectedRenderStyle = "default" | "tint";
 
 export type AdhocUnselectedRenderStyleMetadata = {
+  unselectedRenderStyleEditing?: boolean;
   unselectedRenderStyle?: AdhocUnselectedRenderStyle;
   unselectedRenderTintColor?: string;
   unselectedRenderTintMix?: number;
