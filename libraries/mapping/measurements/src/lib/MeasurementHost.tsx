@@ -113,6 +113,15 @@ export function MeasurementHost({
   // adjust the click position before the point is committed, so we
   // mutate the geometry afterwards.
   const lastSnapTargetRef = useRef<[number, number] | null>(null);
+  // Monotonic counters used to mint per-feature titles (P1, P2, ... for
+  // points; L1, L2, ... for lines). Titles are assigned once at finish-
+  // time and stored in `feature.properties.title` (terra-draw reserves
+  // `mode`, `id`, etc., so we use `title`) — the symbol layer renders
+  // them and consumers can pick them up via getSnapshot. Counters are
+  // re-seeded from the snapshot whenever terra-draw is rebuilt (basemap
+  // swap) so numbering doesn't restart.
+  const pointCounterRef = useRef(0);
+  const lineCounterRef = useRef(0);
 
   useEffect(() => {
     if (!map) return;
@@ -184,27 +193,70 @@ export function MeasurementHost({
           source: LABEL_SOURCE_ID,
           layout: {
             "text-field": ["get", "label"],
-            // Works against the cismet glyphs server (overrideGlyphs is set
-            // by every CARMA app at the CarmaMap level).
-            "text-font": ["Noto Sans Regular"],
-            "text-size": 12,
-            "text-anchor": "center",
-            // Lift segment labels just above the line so the stroke doesn't
-            // bisect the text. Single offset works fine across orientations
-            // — per-segment normals would be over-engineering for now.
+            // Two visual styles in one layer driven by `kind`:
+            //   - "title"   → matches the belis fachobjekte label style
+            //                 (Open Sans Bold, zoom-interpolated size, left
+            //                 anchor with radial offset).
+            //   - "segment" → stays compact (Noto Sans Regular, 12px,
+            //                 centered above the segment).
+            // Both fonts must be served by the cismet glyph server, which
+            // every CARMA app sets via `overrideGlyphs` at the CarmaMap
+            // level.
+            "text-font": [
+              "case",
+              ["==", ["get", "kind"], "title"],
+              ["literal", ["Open Sans Bold"]],
+              ["literal", ["Noto Sans Regular"]],
+            ],
+            // Constant per kind. Zoom-interpolation can NOT be nested
+            // inside a case keyed on a feature property — MapLibre requires
+            // ["interpolate", ..., ["zoom"], ...] to be the outer expression
+            // and silently drops the whole layer when that rule is broken,
+            // so segment labels disappeared along with title labels in an
+            // earlier draft.
+            "text-size": [
+              "case",
+              ["==", ["get", "kind"], "title"],
+              16,
+              12,
+            ],
+            "text-anchor": [
+              "case",
+              ["==", ["get", "kind"], "title"],
+              "left",
+              "center",
+            ],
+            // No text-radial-offset for "title": maplibre ignores text-offset
+            // entirely when radial-offset is set, and a fixed pixel-style
+            // [x,y] offset gives us much cleaner control over how far the
+            // label clears the (tiny) terra-draw point marker than radial.
+            // The fachobjekte layer uses radial because its symbol icon is
+            // much larger and centered; ours doesn't need it.
             "text-offset": [
               "case",
               ["==", ["get", "kind"], "segment"],
               ["literal", [0, -0.8]],
+              ["==", ["get", "kind"], "title"],
+              ["literal", [1.2, -0.6]],
               ["literal", [0, 0]],
             ],
             "text-allow-overlap": false,
             "text-ignore-placement": false,
           },
           paint: {
-            "text-color": "#111",
-            "text-halo-color": "#fff",
-            "text-halo-width": 2,
+            "text-color": [
+              "case",
+              ["==", ["get", "kind"], "title"],
+              "#333333",
+              "#111",
+            ],
+            "text-halo-color": "#FFFFFF",
+            "text-halo-width": [
+              "case",
+              ["==", ["get", "kind"], "title"],
+              1.5,
+              2,
+            ],
           },
         });
       }
@@ -345,6 +397,44 @@ export function MeasurementHost({
       // app state. See the prop docstring for the trade-off (edits and
       // deletes don't currently propagate; will need extra listeners).
       draw.on("finish", (id) => {
+        // Assign a stable per-feature title (P1, L1, ...) on first finish.
+        // `finish` also fires for select-mode drag-end, so we must NOT
+        // re-number features that already have a title; the guard below
+        // covers that case.
+        //
+        // We pass ONLY the new key to updateFeatureProperties — terra-draw
+        // reserves `mode` (and other internal keys) and rejects the call
+        // outright if any reserved key is present in the patch object.
+        // Spreading the snapshot's properties would include `mode` and
+        // throw. terra-draw merges the patch with existing properties
+        // internally, so other custom keys are preserved.
+        try {
+          const snap = draw.getSnapshotFeature(id);
+          if (snap) {
+            const existingTitle =
+              typeof snap.properties?.title === "string"
+                ? snap.properties.title
+                : null;
+            if (!existingTitle) {
+              let nextTitle: string | null = null;
+              if (snap.geometry.type === "Point") {
+                pointCounterRef.current += 1;
+                nextTitle = `P${pointCounterRef.current}`;
+              } else if (snap.geometry.type === "LineString") {
+                lineCounterRef.current += 1;
+                nextTitle = `L${lineCounterRef.current}`;
+              }
+              if (nextTitle) {
+                draw.updateFeatureProperties(id, { title: nextTitle });
+              }
+            }
+          }
+        } catch (e) {
+          console.warn(
+            "[carma-measurements] could not assign feature title",
+            e
+          );
+        }
         // Post-hoc snap for points: TerraDrawPointMode has no snapping
         // config at construction (LineString / Polygon do, Point does
         // not), and TerraDrawSelectMode's coord-drag path is geometry-
@@ -461,6 +551,21 @@ export function MeasurementHost({
               "[carma-measurements] could not restore drawn features",
               e
             );
+          }
+          // Re-seed title counters so the next P/L number continues past
+          // any restored feature's title. Without this, the second run
+          // would emit duplicate "P1" / "L1" after a basemap swap.
+          for (const feature of snapshot) {
+            const title = feature.properties?.title;
+            if (typeof title !== "string") continue;
+            const match = /^([PL])(\d+)$/.exec(title);
+            if (!match) continue;
+            const n = Number(match[2]);
+            if (match[1] === "P") {
+              pointCounterRef.current = Math.max(pointCounterRef.current, n);
+            } else {
+              lineCounterRef.current = Math.max(lineCounterRef.current, n);
+            }
           }
         }
       } else {

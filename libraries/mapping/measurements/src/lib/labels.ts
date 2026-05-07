@@ -33,15 +33,36 @@ function segmentLengthMeters(a: Position, b: Position): number {
   );
 }
 
-// Derive segment-midpoint length labels for every drawn LineString. Polygons
-// are intentionally skipped — the lib's current consumers expose only point
-// + line modes; polygon area / perimeter labels are a future addition.
+// Derive segment-midpoint length labels for every drawn LineString and
+// per-feature title labels (P1, L1, ...) for points and lines. Polygons
+// are intentionally skipped — the lib's current consumers expose only
+// point + line modes; polygon area / perimeter labels are a future
+// addition.
 export function buildLabelFeatures(
   drawnFeatures: ReadonlyArray<Feature>
 ): FeatureCollection<Point> {
   const labelFeatures: Feature<Point>[] = [];
 
   for (const feature of drawnFeatures) {
+    const title =
+      typeof feature.properties?.title === "string"
+        ? feature.properties.title
+        : null;
+
+    if (feature.geometry.type === "Point") {
+      if (title) {
+        labelFeatures.push({
+          type: "Feature",
+          geometry: {
+            type: "Point",
+            coordinates: feature.geometry.coordinates,
+          },
+          properties: { kind: "title", label: title },
+        });
+      }
+      continue;
+    }
+
     if (feature.geometry.type !== "LineString") continue;
     const coords = feature.geometry.coordinates;
     for (let i = 0; i < coords.length - 1; i++) {
@@ -57,6 +78,19 @@ export function buildLabelFeatures(
           kind: "segment",
           label: formatMeters(meters),
         },
+      });
+    }
+    if (title && coords.length > 0) {
+      // Anchor the title at a "middle-ish" vertex: floor(N/2) - 1, clamped
+      // to >= 0. For 2 nodes this is index 0, for 4 nodes index 1, for 6
+      // nodes index 2 — i.e. just before the geometric middle. This keeps
+      // the title on a real vertex (so the label stays attached during
+      // edits) while putting it visually near the centre of the line.
+      const titleIndex = Math.max(0, Math.floor(coords.length / 2) - 1);
+      labelFeatures.push({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: coords[titleIndex] },
+        properties: { kind: "title", label: title },
       });
     }
   }
