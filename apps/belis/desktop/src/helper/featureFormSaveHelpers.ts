@@ -319,8 +319,10 @@ const saveCreationDraft = async (
       const leuchteValues = (draft.values?.leuchte ?? {}) as Record<string, unknown>;
       const mastPayload: Record<string, unknown> = {
         id: -1,
-        lfd_nummer: 1,
+        lfd_nummer: leuchteValues.lfd_nummer ?? 1,
         fk_strassenschluessel: leuchteValues.fk_strassenschluessel ?? null,
+        fk_mastart: leuchteValues.fk_mastart ?? 8,
+        fk_masttyp: leuchteValues.fk_masttyp ?? 42,
         ...(geomPayload ? { geom: geomPayload } : {}),
       };
       console.debug("[CREATE-FEATURE] Standort payload:", JSON.stringify(mastPayload, null, 2));
