@@ -126,6 +126,13 @@ export {
   type AdhocUnselectedRenderStyle,
   type AdhocUnselectedRenderStyleMetadata,
 } from "./lib/utils/adhoc-render-style";
+export {
+  isDevelopmentUiEnabled,
+  isLocalhostHostname,
+  useDevelopmentUiEnabled,
+  type DevelopmentUiEnabledOptions,
+  type DevelopmentUiFeatureFlags,
+} from "./lib/utils/development-ui";
 
 export { LibreMapSelectionContent } from "./lib/components/LibreMapSelectionContent";
 export { TopicMapSelectionContent } from "./lib/components/TopicMapSelectionContent";

@@ -24,6 +24,10 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import type { BackgroundLayer, Layer } from "@carma-mapping/layers";
 import {
+  DevelopmentOnlyPatternBackground,
+  type DevelopmentOnlyPatternStyleOptions,
+} from "@carma-commons/ui/components";
+import {
   DEFAULT_ADHOC_FEATURE_LAYER_ID,
   ADHOC_UNSELECTED_RENDER_STYLES,
   MIN_ADHOC_UNSELECTED_RENDER_TINT_MIX,
@@ -31,6 +35,7 @@ import {
   resolveAdhocUnselectedRenderStyle,
   resolveAdhocUnselectedRenderTintColor,
   resolveAdhocUnselectedRenderTintMix,
+  useDevelopmentUiEnabled,
   useAdhocFeatureDisplay,
   type AdhocFeature,
   type AdhocUnselectedRenderStyle,
@@ -108,6 +113,13 @@ const ADHOC_MODEL_POSITION_FIELDS: readonly {
   { key: "height", label: "Höhe", step: "0.1" },
   { key: "heading", label: "Drehung", min: 0, max: 360, step: "0.01" },
 ];
+
+const ADHOC_DEVELOPMENT_ONLY_PATTERN_OPTIONS = {
+  repeatXPx: 384,
+  stripeWidthPx: 16,
+  tileHeightPx: 160,
+  tileWidthPx: 1024,
+} satisfies DevelopmentOnlyPatternStyleOptions;
 
 const adhocRenderTintMixFormatter: NonNullable<
   SliderSingleProps["tooltip"]
@@ -406,7 +418,7 @@ type LayerbarActionButtonProps = {
   hidden?: boolean;
   icon: IconDefinition;
   onClick: () => void | Promise<void>;
-  onLongPress: () => void | Promise<void>;
+  onLongPress?: () => void | Promise<void>;
   title: string;
 };
 
@@ -437,11 +449,11 @@ const LayerbarActionButton = ({
   }
 
   const startLongPress = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    if (event.button !== 0) {
+    event.stopPropagation();
+    if (event.button !== 0 || !onLongPress) {
       return;
     }
 
-    event.stopPropagation();
     clearLongPressTimer();
     longPressTimerRef.current = window.setTimeout(() => {
       longPressTimerRef.current = null;
@@ -668,12 +680,17 @@ export const AdhocModelLayerbarActions = ({
     toggleAdhocRenderStyle,
     unselectedRenderStyle,
   } = useAdhocModelLayerbarControls(layer);
+  const isDevMode = useDevelopmentUiEnabled();
 
   if (!isAdhocLayer) {
     return null;
   }
 
   const openInteractionPanel = async (interactionId: string) => {
+    if (!isDevMode) {
+      return;
+    }
+
     const target = await ensureAdhocCesiumObjectFeature();
     if (!target) {
       return;
@@ -690,11 +707,19 @@ export const AdhocModelLayerbarActions = ({
   };
 
   const isRenderStylePanelOpen =
+    isDevMode &&
     activeInteractionLayerID === layer.id &&
     activeInteractionButtonID === ADHOC_RENDER_STYLE_INTERACTION_ID;
   const isModelControlPanelOpen =
+    isDevMode &&
     activeInteractionLayerID === layer.id &&
     activeInteractionButtonID === ADHOC_MODEL_CONTROL_INTERACTION_ID;
+  const handleRenderStyleLongPress = isDevMode
+    ? () => openInteractionPanel(ADHOC_RENDER_STYLE_INTERACTION_ID)
+    : undefined;
+  const handleModelControlLongPress = isDevMode
+    ? () => openInteractionPanel(ADHOC_MODEL_CONTROL_INTERACTION_ID)
+    : undefined;
 
   return (
     <div className="flex items-center">
@@ -702,9 +727,7 @@ export const AdhocModelLayerbarActions = ({
         active={isRenderStylePanelOpen || unselectedRenderStyle === "tint"}
         icon={faPalette}
         onClick={toggleAdhocRenderStyle}
-        onLongPress={() =>
-          openInteractionPanel(ADHOC_RENDER_STYLE_INTERACTION_ID)
-        }
+        onLongPress={handleRenderStyleLongPress}
         title="Darstellung umschalten"
       />
       <LayerbarActionButton
@@ -712,9 +735,7 @@ export const AdhocModelLayerbarActions = ({
         hidden={adhocFeatureClippingEnabled === null}
         icon={faCropSimple}
         onClick={toggleAdhocModelClipping}
-        onLongPress={() =>
-          openInteractionPanel(ADHOC_MODEL_CONTROL_INTERACTION_ID)
-        }
+        onLongPress={handleModelControlLongPress}
         title="Clipping umschalten"
       />
     </div>
@@ -734,22 +755,26 @@ export const AdhocRenderStyleInteractionPanel = ({
     setUnselectedRenderStyleEditing,
     updateAdhocRenderMetadata,
   } = useAdhocModelLayerbarControls(layer);
+  const isDevMode = useDevelopmentUiEnabled();
 
   useEffect(() => {
-    if (!isAdhocLayer) {
+    if (!isAdhocLayer || !isDevMode) {
       return;
     }
 
     setUnselectedRenderStyleEditing(true);
     return () => setUnselectedRenderStyleEditing(false);
-  }, [isAdhocLayer, setUnselectedRenderStyleEditing]);
+  }, [isAdhocLayer, isDevMode, setUnselectedRenderStyleEditing]);
 
-  if (!isAdhocLayer) {
+  if (!isAdhocLayer || !isDevMode) {
     return null;
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-4 rounded-[10px] bg-white px-4 py-2 button-shadow">
+    <DevelopmentOnlyPatternBackground
+      className="flex flex-wrap items-center gap-4 rounded-[10px] bg-white px-4 py-2 button-shadow"
+      patternOptions={ADHOC_DEVELOPMENT_ONLY_PATTERN_OPTIONS}
+    >
       <Radio.Group
         className="[&_.ant-radio-button-wrapper]:text-center"
         value={unselectedRenderStyle}
@@ -799,7 +824,7 @@ export const AdhocRenderStyleInteractionPanel = ({
         </>
       )}
       <AdhocInteractionPanelCloseButton />
-    </div>
+    </DevelopmentOnlyPatternBackground>
   );
 };
 
@@ -818,13 +843,17 @@ export const AdhocModelControlInteractionPanel = ({
     setActiveAdhocModelPositionField,
     updateAdhocFeature,
   } = useAdhocModelLayerbarControls(layer);
+  const isDevMode = useDevelopmentUiEnabled();
 
-  if (!isAdhocLayer) {
+  if (!isAdhocLayer || !isDevMode) {
     return null;
   }
 
   return (
-    <div className="flex flex-wrap items-end gap-3 rounded-[10px] bg-white px-4 py-2 button-shadow">
+    <DevelopmentOnlyPatternBackground
+      className="flex flex-wrap items-end gap-3 rounded-[10px] bg-white px-4 py-2 button-shadow"
+      patternOptions={ADHOC_DEVELOPMENT_ONLY_PATTERN_OPTIONS}
+    >
       {adhocFeatureClippingEnabled !== null && (
         <div className="flex items-center gap-3">
           <span className="text-sm">Clipping</span>
@@ -876,6 +905,6 @@ export const AdhocModelControlInteractionPanel = ({
           </label>
         ))}
       <AdhocInteractionPanelCloseButton />
-    </div>
+    </DevelopmentOnlyPatternBackground>
   );
 };
