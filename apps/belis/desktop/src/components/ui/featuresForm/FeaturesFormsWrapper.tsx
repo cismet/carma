@@ -40,7 +40,10 @@ import {
 } from "../../../helper/draftSerialize";
 import { saveFeatureDraft } from "../../../helper/featureFormSaveHelpers";
 import { buildMeasurementGeometryOptions } from "../../../helper/geometryOptions";
-import { getMeasurements } from "../../../store/slices/measurements";
+import {
+  getMeasurements,
+  setMeasurements,
+} from "../../../store/slices/measurements";
 import {
   buildSyntheticFeature,
   buildSyntheticFetchedData,
@@ -269,6 +272,17 @@ const FeaturesFormsWrapper = ({
         dispatch(incrementFeatureDataVersion());
         void message.success("Gespeichert");
         if (isCreation) {
+          // Drop the consumed measurement from the dropdown source so it
+          // can't be picked again for the next creation. The on-map
+          // terra-draw marker is intentionally left in place.
+          if (draft.geometryKey) {
+            const filtered = measurements.filter(
+              (f) => `measurement.${String(f.id)}` !== draft.geometryKey
+            );
+            if (filtered.length !== measurements.length) {
+              dispatch(setMeasurements(filtered));
+            }
+          }
           onSelectNextDraft?.(featureId);
         } else {
           setIsEditing(false);
@@ -288,7 +302,15 @@ const FeaturesFormsWrapper = ({
     } finally {
       setSaving(false);
     }
-  }, [jwt, featureId, draft, isCreation, dispatch, onSelectNextDraft]);
+  }, [
+    jwt,
+    featureId,
+    draft,
+    isCreation,
+    measurements,
+    dispatch,
+    onSelectNextDraft,
+  ]);
 
   const handleDraftChange = useCallback(
     (values: Record<string, unknown>) => {
