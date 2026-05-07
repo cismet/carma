@@ -110,6 +110,10 @@ export {
   type AdhocSelectionTarget,
 } from "./lib/utils/adhoc-selection-utils";
 export {
+  getCarmaConf3DClippingPolygonRing,
+  type CarmaConf3DClippingPolygonRing,
+} from "./lib/utils/carma-conf3d-clipping";
+export {
   ADHOC_UNSELECTED_RENDER_STYLES,
   DEFAULT_ADHOC_UNSELECTED_RENDER_STYLE,
   DEFAULT_ADHOC_UNSELECTED_RENDER_TINT_COLOR,
@@ -144,7 +148,10 @@ export {
   defaultBackgroundConfigurations,
   backgroundConfWithFastOrtho2024,
 } from "./lib/utils/topicmapConfigs";
-export { buildInfoBoxStylingProps } from "./lib/utils/adhoc-feature-utils";
+export {
+  buildInfoBoxStylingProps,
+  getCarmaConf3D,
+} from "./lib/utils/adhoc-feature-utils";
 // Feature functions moved to @carma-mapping/utils
 // createUrl, functionToFeature, objectToFeature, createVectorFeature, getInfoBoxControlObjectFromMappingAndVectorFeature
 

@@ -4,10 +4,11 @@ export type ExtractRingsFromGeoJsonOptions = {
   includeLineGeometries?: boolean;
 };
 
-const extractRingsFromGeometry = (
+export const extractRingsFromGeometry = (
   geometry: Geometry,
-  includeLineGeometries: boolean
+  options: ExtractRingsFromGeoJsonOptions = {}
 ): number[][][] => {
+  const includeLineGeometries = options.includeLineGeometries ?? true;
   switch (geometry.type) {
     case "Polygon":
       return geometry.coordinates;
@@ -48,8 +49,7 @@ export const extractRingsFromGeoJson = (
   geojson: Feature | FeatureCollection,
   options: ExtractRingsFromGeoJsonOptions = {}
 ): number[][][] => {
-  const includeLineGeometries = options.includeLineGeometries ?? true;
   return collectGeometriesFromGeoJson(geojson).flatMap((geometry) =>
-    extractRingsFromGeometry(geometry, includeLineGeometries)
+    extractRingsFromGeometry(geometry, options)
   );
 };

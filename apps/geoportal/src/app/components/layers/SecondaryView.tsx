@@ -5,42 +5,14 @@ import {
   faChevronLeft,
   faChevronRight,
   faChevronUp,
-  faCrosshairs,
-  faMagnifyingGlass,
-  faPalette,
   faStar,
 } from "@fortawesome/free-solid-svg-icons";
 import { faStar as regularFaStar } from "@fortawesome/free-regular-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Radio, Slider, type SliderSingleProps } from "antd";
-import {
-  forwardRef,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-  type MouseEvent as ReactMouseEvent,
-  type PointerEvent as ReactPointerEvent,
-} from "react";
+import { forwardRef, useContext, useEffect, useRef } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { useDispatch, useSelector } from "react-redux";
-import centroid from "@turf/centroid";
-import L from "leaflet";
-
-import {
-  ADHOC_UNSELECTED_RENDER_STYLES,
-  DEFAULT_ADHOC_FEATURE_LAYER_ID,
-  MIN_ADHOC_UNSELECTED_RENDER_TINT_MIX,
-  SELECTED_LAYER_INDEX,
-  resolveAdhocUnselectedRenderStyle,
-  resolveAdhocUnselectedRenderTintColor,
-  resolveAdhocUnselectedRenderTintMix,
-  resolveAdhocSelectionTargetByCollectionId,
-  useAdhocFeatureDisplay,
-  type AdhocFeature,
-  type AdhocUnselectedRenderStyle,
-  type AdhocUnselectedRenderStyleMetadata,
-} from "@carma-appframeworks/portals";
+import { SELECTED_LAYER_INDEX } from "@carma-appframeworks/portals";
 import { cn } from "@carma-commons/utils";
 
 import {
@@ -68,10 +40,6 @@ import type { Item } from "@carma-mapping/layers";
 import AerialLayerSelection from "./AerialLayerSelection";
 import BaseLayerInfo from "./BaseLayerInfo";
 import BaseLayerSelection from "./BaseLayerSelection";
-import {
-  ColorSwatchGroup,
-  type ColorSwatchGroupOption,
-} from "./ColorSwatchGroup";
 import LayerInfo from "./LayerInfo";
 import OpacitySlider from "./OpacitySlider";
 import VisibilityToggle from "./VisibilityToggle";
@@ -79,87 +47,15 @@ import {
   LayerIcon,
   useMapFrameworkSwitcherContext,
 } from "@carma-mapping/components";
-import { resolveAdhocStyleData } from "../../helper/adhoc-feature-utils";
-import { zoomToStyleFeatures } from "../../helper/gisHelper";
-import { setTriggerSelectionById } from "../../store/slices/features";
-import { addAdhocFeatureFromLayer } from "../../helper/adhoc-layer-feature";
-import {
-  EMPTY_ADHOC_MODEL_POSITION_INPUTS,
-  formatAdhocModelPositionInputs,
-  getAdhocFeatureClippingEnabled,
-  getAdhocFeatureModelPosition,
-  parseFiniteNumber,
-  toggleFeatureClipping,
-  updateMapLibreStyleFeatureModelPosition,
-  type AdhocModelPositionField,
-  type AdhocModelPositionInputs,
-} from "../../helper/adhoc-model-style-utils";
 
 type Ref = HTMLDivElement;
 
 interface SecondaryViewProps {}
 
-type SecondaryViewContentMode = "info" | "model-controls" | "render-style";
-type AdhocRenderStyleDraft = {
-  targetKey: string;
-  metadata: AdhocUnselectedRenderStyleMetadata;
-};
-type AdhocCesiumObjectControlTarget = AdhocFeature & {
-  collectionId: string;
-  layerId: string;
-};
-
-const ADHOC_UNSELECTED_RENDER_STYLE_LABELS: Record<
-  AdhocUnselectedRenderStyle,
-  string
-> = {
-  default: "Normal",
-  tint: "Getönt",
-};
-
-const ADHOC_RENDER_TINT_SWATCHES = [
-  { color: "#facc15", label: "Gelb" },
-  { color: "#38bdf8", label: "Blau" },
-  { color: "#22c55e", label: "Grün" },
-  { color: "#f97316", label: "Orange" },
-] as const satisfies readonly ColorSwatchGroupOption[];
-
-const ADHOC_MODEL_POSITION_FIELDS: readonly {
-  key: AdhocModelPositionField;
-  label: string;
-  min?: number;
-  max?: number;
-  step: string;
-}[] = [
-  { key: "lon", label: "Lon", step: "0.000001" },
-  { key: "lat", label: "Lat", step: "0.000001" },
-  { key: "height", label: "Höhe", step: "0.1" },
-  { key: "heading", label: "Drehung", min: 0, max: 360, step: "0.01" },
-];
-
-const adhocRenderTintMixFormatter: NonNullable<
-  SliderSingleProps["tooltip"]
->["formatter"] = (value) => `${Math.round((value ?? 0) * 100)}%`;
-const ADHOC_LAYERBAR_LONG_PRESS_DURATION_MS = 320;
-
 const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
   void _ref;
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const infoRef = useRef<HTMLDivElement>(null);
-  const [secondaryViewContentMode, setSecondaryViewContentMode] =
-    useState<SecondaryViewContentMode>("info");
-  const [adhocRenderStyleDraft, setAdhocRenderStyleDraft] =
-    useState<AdhocRenderStyleDraft | null>(null);
-  const [
-    adhocModelPositionInputTargetKey,
-    setAdhocModelPositionInputTargetKey,
-  ] = useState<string | null>(null);
-  const [adhocModelPositionInputs, setAdhocModelPositionInputs] =
-    useState<AdhocModelPositionInputs>(EMPTY_ADHOC_MODEL_POSITION_INPUTS);
-  const [activeAdhocModelPositionField, setActiveAdhocModelPositionField] =
-    useState<AdhocModelPositionField | null>(null);
-  const layerbarLongPressTimerRef = useRef<number | null>(null);
-  const suppressLayerbarIconClickRef = useRef(false);
   const dispatch = useDispatch();
   const showInfo = useSelector(getUIShowInfo);
   const showInfoText = useSelector(getUIShowInfoText);
@@ -233,262 +129,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
     }
   };
 
-  const {
-    featureCollections,
-    addFeature,
-    updateFeatureMetadata,
-    setSelectedFeatureById,
-    setShouldFocusSelected,
-  } = useAdhocFeatureDisplay();
   const { isLeaflet, isCesium } = useMapFrameworkSwitcherContext();
-  const isAdhocCesiumObjectLayer =
-    isCesium && layer.type === "object" && !!layer.props?.style;
-  const adhocRenderStyleTarget = resolveAdhocSelectionTargetByCollectionId(
-    featureCollections,
-    layer.id,
-    DEFAULT_ADHOC_FEATURE_LAYER_ID
-  );
-  const adhocRenderStyleTargetId = adhocRenderStyleTarget?.id;
-  const adhocRenderStyleTargetCollectionId =
-    adhocRenderStyleTarget?.collectionId;
-  const adhocRenderStyleTargetLayerId = adhocRenderStyleTarget?.layerId;
-  const adhocCesiumObjectControlTarget = adhocRenderStyleTarget as
-    | AdhocCesiumObjectControlTarget
-    | undefined;
-  const adhocRenderStyleTargetKey =
-    adhocRenderStyleTargetId &&
-    adhocRenderStyleTargetCollectionId &&
-    adhocRenderStyleTargetLayerId
-      ? `${adhocRenderStyleTargetCollectionId}:${adhocRenderStyleTargetLayerId}:${adhocRenderStyleTargetId}`
-      : null;
-  const adhocRenderStyleMetadata =
-    adhocRenderStyleDraft?.targetKey === adhocRenderStyleTargetKey
-      ? {
-          ...(adhocRenderStyleTarget?.metadata ?? {}),
-          ...adhocRenderStyleDraft.metadata,
-        }
-      : adhocRenderStyleTarget?.metadata;
-  const unselectedRenderStyle = resolveAdhocUnselectedRenderStyle(
-    adhocRenderStyleMetadata?.unselectedRenderStyle
-  );
-  const unselectedRenderTintColor = resolveAdhocUnselectedRenderTintColor(
-    adhocRenderStyleMetadata?.unselectedRenderTintColor
-  );
-  const unselectedRenderTintMix = resolveAdhocUnselectedRenderTintMix(
-    adhocRenderStyleMetadata?.unselectedRenderTintMix
-  );
-  const adhocModelPosition = getAdhocFeatureModelPosition(
-    adhocRenderStyleTarget
-  );
-  const adhocFeatureClippingEnabled = getAdhocFeatureClippingEnabled(
-    adhocRenderStyleTarget
-  );
-
-  const updateAdhocRenderMetadataForTarget = (
-    target: AdhocCesiumObjectControlTarget,
-    metadata: AdhocUnselectedRenderStyleMetadata
-  ) => {
-    if (!isAdhocCesiumObjectLayer) {
-      return;
-    }
-
-    const targetKey = `${target.collectionId}:${target.layerId}:${target.id}`;
-    if (targetKey) {
-      setAdhocRenderStyleDraft((draft) => ({
-        targetKey,
-        metadata: {
-          ...(draft?.targetKey === targetKey ? draft.metadata : {}),
-          ...metadata,
-        },
-      }));
-    }
-
-    updateFeatureMetadata({
-      id: target.id,
-      collectionId: target.collectionId,
-      layerId: target.layerId,
-      metadata,
-    });
-  };
-
-  const updateAdhocRenderMetadata = (
-    metadata: AdhocUnselectedRenderStyleMetadata
-  ) => {
-    if (!adhocCesiumObjectControlTarget) {
-      return;
-    }
-
-    updateAdhocRenderMetadataForTarget(
-      adhocCesiumObjectControlTarget,
-      metadata
-    );
-  };
-
-  const updateAdhocFeatureTarget = (
-    target: AdhocCesiumObjectControlTarget,
-    updater: (feature: AdhocFeature) => AdhocFeature
-  ) => {
-    if (!isAdhocCesiumObjectLayer) {
-      return;
-    }
-
-    const updatedFeature = updater(target);
-    if (updatedFeature === target) {
-      return;
-    }
-
-    addFeature(updatedFeature, {
-      collectionId: target.collectionId,
-      layerId: target.layerId,
-    });
-  };
-
-  const updateAdhocFeature = (
-    updater: (feature: AdhocFeature) => AdhocFeature
-  ) => {
-    if (!adhocCesiumObjectControlTarget) {
-      return;
-    }
-
-    updateAdhocFeatureTarget(adhocCesiumObjectControlTarget, updater);
-  };
-
-  const applyAdhocModelPositionInputs = (inputs: AdhocModelPositionInputs) => {
-    const lon = parseFiniteNumber(inputs.lon);
-    const lat = parseFiniteNumber(inputs.lat);
-    const height = parseFiniteNumber(inputs.height);
-    const heading = parseFiniteNumber(inputs.heading);
-    if (lon === null || lat === null || height === null || heading === null) {
-      return;
-    }
-
-    updateAdhocFeature((feature) =>
-      updateMapLibreStyleFeatureModelPosition(feature, {
-        lon,
-        lat,
-        height,
-        heading,
-      })
-    );
-  };
-
-  const handleAdhocModelPositionInputChange = (
-    field: AdhocModelPositionField,
-    value: string
-  ) => {
-    const nextInputs = {
-      ...adhocModelPositionInputs,
-      [field]: value,
-    };
-    setAdhocModelPositionInputTargetKey(adhocRenderStyleTargetKey);
-    setAdhocModelPositionInputs(nextInputs);
-    applyAdhocModelPositionInputs(nextInputs);
-  };
-
-  const handleAdhocModelHeadingBlur = () => {
-    setActiveAdhocModelPositionField(null);
-    const heading = parseFiniteNumber(adhocModelPositionInputs.heading);
-    if (heading === null) {
-      return;
-    }
-
-    setAdhocModelPositionInputs((inputs) => ({
-      ...inputs,
-      heading: heading.toFixed(2),
-    }));
-  };
-
-  const clearLayerbarLongPressTimer = () => {
-    if (layerbarLongPressTimerRef.current === null) {
-      return;
-    }
-
-    window.clearTimeout(layerbarLongPressTimerRef.current);
-    layerbarLongPressTimerRef.current = null;
-  };
-
-  const startLayerbarIconLongPress = (
-    event: ReactPointerEvent<HTMLButtonElement>,
-    onLongPress: () => void | Promise<void>
-  ) => {
-    if (event.button !== 0) {
-      return;
-    }
-
-    event.stopPropagation();
-    clearLayerbarLongPressTimer();
-    layerbarLongPressTimerRef.current = window.setTimeout(() => {
-      layerbarLongPressTimerRef.current = null;
-      suppressLayerbarIconClickRef.current = true;
-      window.setTimeout(() => {
-        suppressLayerbarIconClickRef.current = false;
-      }, 600);
-      void onLongPress();
-    }, ADHOC_LAYERBAR_LONG_PRESS_DURATION_MS);
-  };
-
-  const finishLayerbarIconLongPress = (
-    event: ReactPointerEvent<HTMLButtonElement>
-  ) => {
-    event.stopPropagation();
-    clearLayerbarLongPressTimer();
-  };
-
-  const handleLayerbarIconClick = (
-    event: ReactMouseEvent<HTMLButtonElement>,
-    onClick: () => void | Promise<void>
-  ) => {
-    event.stopPropagation();
-    if (suppressLayerbarIconClickRef.current) {
-      suppressLayerbarIconClickRef.current = false;
-      return;
-    }
-
-    void onClick();
-  };
-
-  const isAdhocRenderStylePanelActive =
-    showInfo &&
-    secondaryViewContentMode === "render-style" &&
-    isAdhocCesiumObjectLayer;
-  const isAdhocRenderStylePanelOpen =
-    isAdhocRenderStylePanelActive && showInfoText;
-  const isAdhocModelControlPanelActive =
-    showInfo &&
-    secondaryViewContentMode === "model-controls" &&
-    isAdhocCesiumObjectLayer;
-  const isAdhocModelControlPanelOpen =
-    isAdhocModelControlPanelActive && showInfoText;
-  const isAdhocInlinePanelActive =
-    isAdhocRenderStylePanelActive || isAdhocModelControlPanelActive;
-
-  useEffect(() => {
-    setAdhocRenderStyleDraft(null);
-  }, [adhocRenderStyleTargetKey]);
-
-  useEffect(() => {
-    const targetChanged =
-      adhocModelPositionInputTargetKey !== adhocRenderStyleTargetKey;
-    if (!targetChanged && activeAdhocModelPositionField !== null) {
-      return;
-    }
-
-    setAdhocModelPositionInputTargetKey(adhocRenderStyleTargetKey);
-    setAdhocModelPositionInputs(
-      formatAdhocModelPositionInputs(adhocModelPosition)
-    );
-    if (targetChanged) {
-      setActiveAdhocModelPositionField(null);
-    }
-  }, [
-    activeAdhocModelPositionField,
-    adhocModelPosition?.heading,
-    adhocModelPosition?.height,
-    adhocModelPosition?.lat,
-    adhocModelPosition?.lon,
-    adhocModelPositionInputTargetKey,
-    adhocRenderStyleTargetKey,
-  ]);
 
   useEffect(() => {
     const handleEscapeKey = (event: KeyboardEvent) => {
@@ -502,53 +143,6 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
       document.removeEventListener("keydown", handleEscapeKey);
     };
   }, [dispatch]);
-
-  useEffect(() => {
-    setSecondaryViewContentMode("info");
-  }, [isCesium, layer.id]);
-
-  useEffect(() => clearLayerbarLongPressTimer, []);
-
-  useEffect(() => {
-    if (
-      !isAdhocCesiumObjectLayer ||
-      !adhocRenderStyleTargetId ||
-      !adhocRenderStyleTargetCollectionId ||
-      !adhocRenderStyleTargetLayerId
-    ) {
-      return;
-    }
-
-    updateFeatureMetadata({
-      id: adhocRenderStyleTargetId,
-      collectionId: adhocRenderStyleTargetCollectionId,
-      layerId: adhocRenderStyleTargetLayerId,
-      metadata: {
-        unselectedRenderStyleEditing: isAdhocRenderStylePanelOpen,
-      },
-    });
-
-    return () => {
-      if (!isAdhocRenderStylePanelOpen) {
-        return;
-      }
-      updateFeatureMetadata({
-        id: adhocRenderStyleTargetId,
-        collectionId: adhocRenderStyleTargetCollectionId,
-        layerId: adhocRenderStyleTargetLayerId,
-        metadata: {
-          unselectedRenderStyleEditing: false,
-        },
-      });
-    };
-  }, [
-    adhocRenderStyleTargetCollectionId,
-    adhocRenderStyleTargetId,
-    adhocRenderStyleTargetLayerId,
-    isAdhocCesiumObjectLayer,
-    isAdhocRenderStylePanelOpen,
-    updateFeatureMetadata,
-  ]);
 
   useEffect(() => {
     const findElementByIdRecursive = (element: Element, id: string) => {
@@ -655,184 +249,6 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
   }, [dispatch, selectedLayerIndex]);
 
   const iconId = `secview-icon-${layer.id}`;
-  const ensureAdhocCesiumObjectFeature =
-    async (): Promise<AdhocCesiumObjectControlTarget | null> => {
-      if (!isAdhocCesiumObjectLayer || adhocRenderStyleTarget) {
-        return adhocCesiumObjectControlTarget ?? null;
-      }
-
-      const addedFeature = await addAdhocFeatureFromLayer<AdhocFeature>({
-        layer,
-        collectionId: layer.id,
-        layerId: DEFAULT_ADHOC_FEATURE_LAYER_ID,
-        addFeature,
-      });
-      if (!addedFeature) {
-        return null;
-      }
-
-      return {
-        ...addedFeature.feature,
-        collectionId: addedFeature.collectionId,
-        layerId: addedFeature.layerId,
-      };
-    };
-
-  const openAdhocRenderStylePanel = async () => {
-    await ensureAdhocCesiumObjectFeature();
-    setSecondaryViewContentMode("render-style");
-    if (!showInfo) {
-      dispatch(setUIShowInfo(true));
-    }
-    setTimeout(() => dispatch(setUIShowInfoText(true)), showInfoText ? 0 : 80);
-  };
-
-  const openAdhocModelControlPanel = async () => {
-    await ensureAdhocCesiumObjectFeature();
-    setSecondaryViewContentMode("model-controls");
-    if (!showInfo) {
-      dispatch(setUIShowInfo(true));
-    }
-    setTimeout(() => dispatch(setUIShowInfoText(true)), showInfoText ? 0 : 80);
-  };
-
-  const toggleAdhocRenderStyle = async () => {
-    const target = await ensureAdhocCesiumObjectFeature();
-    if (!target) {
-      return;
-    }
-
-    updateAdhocRenderMetadataForTarget(target, {
-      unselectedRenderStyle:
-        unselectedRenderStyle === "tint" ? "default" : "tint",
-    });
-  };
-
-  const toggleAdhocModelClipping = async () => {
-    const target = await ensureAdhocCesiumObjectFeature();
-    if (!target) {
-      return;
-    }
-
-    const clippingEnabled = getAdhocFeatureClippingEnabled(target);
-    if (clippingEnabled === null) {
-      return;
-    }
-
-    updateAdhocFeatureTarget(target, (feature) =>
-      toggleFeatureClipping(feature, !clippingEnabled)
-    );
-  };
-
-  const adhocRenderStylePanel = (
-    <div className="flex flex-col gap-3 px-4 pb-4">
-      <Radio.Group
-        className="flex w-full [&_.ant-radio-button-wrapper]:flex-1 [&_.ant-radio-button-wrapper]:text-center"
-        value={unselectedRenderStyle}
-        onChange={(event) =>
-          updateAdhocRenderMetadata({
-            unselectedRenderStyle: event.target
-              .value as AdhocUnselectedRenderStyle,
-          })
-        }
-      >
-        {ADHOC_UNSELECTED_RENDER_STYLES.map((style) => (
-          <Radio.Button key={style} className="select-none" value={style}>
-            {ADHOC_UNSELECTED_RENDER_STYLE_LABELS[style]}
-          </Radio.Button>
-        ))}
-      </Radio.Group>
-      {unselectedRenderStyle === "tint" && (
-        <div className="flex flex-wrap items-center gap-4">
-          <ColorSwatchGroup
-            swatches={ADHOC_RENDER_TINT_SWATCHES}
-            value={unselectedRenderTintColor}
-            showColorPicker
-            tintMix={unselectedRenderTintMix}
-            onChange={(color) =>
-              updateAdhocRenderMetadata({
-                unselectedRenderStyle: "tint",
-                unselectedRenderTintColor: color,
-              })
-            }
-          />
-          <div className="flex min-w-48 flex-1 items-center gap-3">
-            <span className="text-sm">Tönung</span>
-            <Slider
-              className="min-w-32 flex-1"
-              min={MIN_ADHOC_UNSELECTED_RENDER_TINT_MIX}
-              max={1}
-              step={0.01}
-              tooltip={{ formatter: adhocRenderTintMixFormatter }}
-              value={unselectedRenderTintMix}
-              onChange={(mix) => {
-                updateAdhocRenderMetadata({
-                  unselectedRenderTintMix: mix,
-                });
-              }}
-            />
-          </div>
-        </div>
-      )}
-    </div>
-  );
-  const adhocModelControlPanel = (
-    <div className="flex flex-col gap-3 px-4 pb-4">
-      {adhocFeatureClippingEnabled !== null && (
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="w-20 text-sm">Clipping</span>
-          <Radio.Group
-            className="[&_.ant-radio-button-wrapper]:text-center"
-            value={adhocFeatureClippingEnabled ? "on" : "off"}
-            onChange={(event) => {
-              updateAdhocFeature((feature) =>
-                toggleFeatureClipping(feature, event.target.value === "on")
-              );
-            }}
-          >
-            <Radio.Button className="select-none" value="off">
-              Aus
-            </Radio.Button>
-            <Radio.Button className="select-none" value="on">
-              An
-            </Radio.Button>
-          </Radio.Group>
-        </div>
-      )}
-      {adhocModelPosition && (
-        <div className="grid grid-cols-2 gap-2">
-          {ADHOC_MODEL_POSITION_FIELDS.map((field) => (
-            <label
-              key={field.key}
-              className="mb-0 flex flex-col gap-1 text-xs text-gray-600"
-            >
-              <span>{field.label}</span>
-              <input
-                className="h-8 rounded border border-gray-300 px-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
-                type="number"
-                min={field.min}
-                max={field.max}
-                step={field.step}
-                value={adhocModelPositionInputs[field.key]}
-                onFocus={() => setActiveAdhocModelPositionField(field.key)}
-                onBlur={
-                  field.key === "heading"
-                    ? handleAdhocModelHeadingBlur
-                    : () => setActiveAdhocModelPositionField(null)
-                }
-                onChange={(event) =>
-                  handleAdhocModelPositionInputChange(
-                    field.key,
-                    event.target.value
-                  )
-                }
-              />
-            </label>
-          ))}
-        </div>
-      )}
-    </div>
-  );
 
   return (
     <div className="pt-3 w-full pointer-events-none">
@@ -843,9 +259,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
             "pointer-events-auto",
             "min-w-[280px] sm:max-w-[560px] md:max-w-[720px] lg:w-full w-full sm:w-3/4 sm:mx-0",
             "h-fit bg-white button-shadow rounded-[10px] flex flex-col relative secondary-view gap-2 py-2 transition-all duration-300",
-            isAdhocInlinePanelActive
-              ? "h-fit"
-              : showInfo
+            showInfo
               ? "sm:max-h-[600px] sm:h-[70vh] h-[80vh]"
               : isBaseLayer
               ? "h-fit"
@@ -906,107 +320,6 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
                 />
               </div>
             </div>
-            {layer.type === "object" && (
-              <button
-                className="hover:text-gray-500 text-gray-600 flex items-center justify-center"
-                onClick={async (e) => {
-                  e.stopPropagation();
-                  if (isLeaflet) {
-                    const styleData = await resolveAdhocStyleData(
-                      layer.props.style
-                    );
-
-                    const leafletMap = routedMapRef?.leafletMap?.leafletElement;
-                    if (styleData && leafletMap) {
-                      let clickFeature: GeoJSON.Feature | undefined;
-                      for (const sourceKey in styleData.sources) {
-                        const source = styleData.sources[sourceKey] as any;
-                        if (
-                          source?.data?.type === "FeatureCollection" &&
-                          source.data.features
-                        ) {
-                          clickFeature = source.data.features.find(
-                            (f: GeoJSON.Feature) => f.geometry
-                          );
-                          if (clickFeature) break;
-                        }
-                      }
-
-                      if (clickFeature?.geometry) {
-                        const center = centroid(
-                          clickFeature as GeoJSON.Feature<GeoJSON.Geometry>
-                        );
-                        const [lng, lat] = center.geometry.coordinates;
-                        const latlngPoint = L.latLng(lat, lng);
-
-                        const fireClick = () => {
-                          leafletMap.fireEvent("click", {
-                            latlng: latlngPoint,
-                            layerPoint:
-                              leafletMap.latLngToLayerPoint(latlngPoint),
-                            containerPoint:
-                              leafletMap.latLngToContainerPoint(latlngPoint),
-                          });
-                        };
-
-                        let fired = false;
-                        const onMoveEnd = () => {
-                          if (fired) return;
-                          fired = true;
-                          leafletMap.off("moveend", onMoveEnd);
-                          setTimeout(fireClick, 300);
-                        };
-
-                        leafletMap.on("moveend", onMoveEnd);
-                        // Fallback: if fitBounds snaps without animation, moveend may already have fired
-                        setTimeout(onMoveEnd, 500);
-                      }
-
-                      await zoomToStyleFeatures(styleData, routedMapRef);
-                    } else {
-                      await zoomToStyleFeatures(styleData, routedMapRef);
-                      dispatch(setTriggerSelectionById(layer.id));
-                    }
-                  } else if (isCesium) {
-                    let didSelectFeature = false;
-                    const selectionTarget =
-                      resolveAdhocSelectionTargetByCollectionId(
-                        featureCollections,
-                        layer.id
-                      );
-
-                    if (selectionTarget) {
-                      setSelectedFeatureById(
-                        selectionTarget.id,
-                        selectionTarget.collectionId,
-                        selectionTarget.layerId
-                      );
-                      didSelectFeature = true;
-                    } else {
-                      const addedFeature = await addAdhocFeatureFromLayer({
-                        layer,
-                        collectionId: layer.id,
-                        layerId: DEFAULT_ADHOC_FEATURE_LAYER_ID,
-                        addFeature,
-                      });
-                      if (addedFeature) {
-                        setSelectedFeatureById(
-                          addedFeature.id,
-                          addedFeature.collectionId,
-                          addedFeature.layerId
-                        );
-                        didSelectFeature = true;
-                      }
-                    }
-                    if (didSelectFeature) {
-                      setShouldFocusSelected(true);
-                    }
-                  }
-                }}
-              >
-                <FontAwesomeIcon icon={faMagnifyingGlass} />
-              </button>
-            )}
             {canFavorite && (
               <button
                 className="hover:text-gray-500 text-gray-600 flex items-center justify-center"
@@ -1027,56 +340,6 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
                 />
               </button>
             )}
-            {isAdhocCesiumObjectLayer && (
-              <button
-                className={cn(
-                  "hover:text-gray-500 flex items-center justify-center",
-                  isAdhocRenderStylePanelOpen
-                    ? "text-yellow-500"
-                    : unselectedRenderStyle === "default"
-                    ? "text-gray-600"
-                    : "text-yellow-500"
-                )}
-                onClick={(event) =>
-                  handleLayerbarIconClick(event, toggleAdhocRenderStyle)
-                }
-                onContextMenu={(event) => event.preventDefault()}
-                onPointerCancel={finishLayerbarIconLongPress}
-                onPointerDown={(event) =>
-                  startLayerbarIconLongPress(event, openAdhocRenderStylePanel)
-                }
-                onPointerLeave={finishLayerbarIconLongPress}
-                onPointerUp={finishLayerbarIconLongPress}
-                title="Darstellung umschalten"
-                type="button"
-              >
-                <FontAwesomeIcon icon={faPalette} />
-              </button>
-            )}
-            {isAdhocCesiumObjectLayer && (
-              <button
-                className={cn(
-                  "hover:text-gray-500 flex items-center justify-center",
-                  isAdhocModelControlPanelOpen || adhocFeatureClippingEnabled
-                    ? "text-yellow-500"
-                    : "text-gray-600"
-                )}
-                onClick={(event) =>
-                  handleLayerbarIconClick(event, toggleAdhocModelClipping)
-                }
-                onContextMenu={(event) => event.preventDefault()}
-                onPointerCancel={finishLayerbarIconLongPress}
-                onPointerDown={(event) =>
-                  startLayerbarIconLongPress(event, openAdhocModelControlPanel)
-                }
-                onPointerLeave={finishLayerbarIconLongPress}
-                onPointerUp={finishLayerbarIconLongPress}
-                title="Clipping umschalten"
-                type="button"
-              >
-                <FontAwesomeIcon icon={faCrosshairs} />
-              </button>
-            )}
             <VisibilityToggle
               visible={layer.visible}
               id={layer.id}
@@ -1085,7 +348,6 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
             />
             <button
               onClick={() => {
-                setSecondaryViewContentMode("info");
                 dispatch(setUIShowInfo(!showInfo));
                 setTimeout(
                   () => dispatch(setUIShowInfoText(!showInfoText)),
@@ -1120,12 +382,6 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
           {showInfoText &&
             (isBaseLayer ? (
               <BaseLayerInfo />
-            ) : secondaryViewContentMode === "render-style" &&
-              isAdhocCesiumObjectLayer ? (
-              adhocRenderStylePanel
-            ) : secondaryViewContentMode === "model-controls" &&
-              isAdhocCesiumObjectLayer ? (
-              adhocModelControlPanel
             ) : (
               <LayerInfo
                 description={layer.description}

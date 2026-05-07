@@ -55,6 +55,7 @@ import { DEFAULT_ADHOC_FEATURE_LAYER_ID } from "../constants/adhoc";
 import {
   buildAdhocFeatureInfo,
   getAdhocAccentColor,
+  getCarmaConf3D,
   getGeoJsonFromFeature,
 } from "../utils/adhoc-feature-utils";
 import {
@@ -65,11 +66,14 @@ import {
   type AdhocUnselectedRenderStyle,
 } from "../utils/adhoc-render-style";
 import {
+  getCarmaConf3DClippingPolygonRing,
+  type CarmaConf3DClippingPolygonRing,
+} from "../utils/carma-conf3d-clipping";
+import {
   areEqualStringSets,
   buildAdhocFeatureInfoForSelection,
   extractSelectableGeoJsonFeatures,
   getFeatureMetadataBoundingSphere,
-  getCarmaConf3D,
   getGeojsonBoundingSphere,
   getModelConfig,
   getWallHeights,
@@ -140,7 +144,7 @@ type AdhocFeatureEntry = {
 type VisualizerType = "ground-polygon" | "ground-polyline" | "extruded-wall";
 type ElementType = "polygon" | "polyline" | "wall" | "model";
 type TilesetClippingPolygon = {
-  coordinates: [number, number][];
+  coordinates: CarmaConf3DClippingPolygonRing;
   inverse: boolean;
 };
 
@@ -218,31 +222,6 @@ const withPrimitiveMetadata = (
   };
 };
 
-const toLonLatRing = (coordinates: unknown): [number, number][] | null => {
-  if (!Array.isArray(coordinates) || coordinates.length === 0) {
-    return null;
-  }
-
-  const outerRing = coordinates[0];
-  if (!Array.isArray(outerRing) || outerRing.length < 3) {
-    return null;
-  }
-
-  const ring = outerRing.flatMap((position) => {
-    if (
-      Array.isArray(position) &&
-      position.length >= 2 &&
-      Number.isFinite(position[0]) &&
-      Number.isFinite(position[1])
-    ) {
-      return [[position[0], position[1]] as [number, number]];
-    }
-    return [];
-  });
-
-  return ring.length >= 3 ? ring : null;
-};
-
 const getTilesetClippingPolygon = (
   feature: AdhocFeature
 ): TilesetClippingPolygon | null => {
@@ -255,7 +234,7 @@ const getTilesetClippingPolygon = (
 
   const carmaConf3D = getCarmaConf3D(feature);
   const clippingPolygon = carmaConf3D?.clippingPolygon;
-  if (!clippingPolygon || clippingPolygon.type !== "Polygon") {
+  if (!clippingPolygon) {
     return null;
   }
 
@@ -263,7 +242,7 @@ const getTilesetClippingPolygon = (
     return null;
   }
 
-  const ring = toLonLatRing(clippingPolygon.coordinates);
+  const ring = getCarmaConf3DClippingPolygonRing(clippingPolygon);
   if (!ring) {
     return null;
   }

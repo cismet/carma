@@ -1,11 +1,13 @@
 import type { Feature, FeatureCollection } from "geojson";
 import type { GeoJSONSourceSpecification } from "maplibre-gl";
 
-import type {
-  AdhocFeature,
-  CarmaConf3D,
-  CarmaMapLibreFeatureProperties,
-  CarmaMapLibreStyleData,
+import {
+  getCarmaConf3D,
+  getCarmaConf3DClippingPolygonRing,
+  type AdhocFeature,
+  type CarmaConf3D,
+  type CarmaMapLibreFeatureProperties,
+  type CarmaMapLibreStyleData,
 } from "@carma-appframeworks/portals";
 
 export type AdhocModelPositionField = "lon" | "lat" | "height" | "heading";
@@ -35,50 +37,6 @@ const isGeoJsonFeatureData = (
   ((data as { type?: unknown }).type === "Feature" ||
     (data as { type?: unknown }).type === "FeatureCollection");
 
-const getFirstGeoJsonFeature = (
-  data: Feature | FeatureCollection
-): Feature | null =>
-  data.type === "FeatureCollection" ? data.features[0] ?? null : data;
-
-const getCarmaConf3DFromGeoJsonFeature = (
-  feature: Feature | null | undefined
-): CarmaConf3D | undefined => {
-  const properties = feature?.properties as
-    | CarmaMapLibreFeatureProperties
-    | undefined;
-  return properties?.carmaConf3D;
-};
-
-const getFirstGeoJsonCarmaConf3D = (
-  feature: AdhocFeature
-): CarmaConf3D | undefined => {
-  if (feature.kind !== "maplibre-style") {
-    return undefined;
-  }
-
-  const firstGeoJsonFeature = Object.values(feature.data.sources ?? {})
-    .filter((source): source is GeoJSONSourceSpecification =>
-      isGeoJsonSource(source)
-    )
-    .map((source) =>
-      source.data && isGeoJsonFeatureData(source.data)
-        ? getFirstGeoJsonFeature(source.data)
-        : null
-    )
-    .find((geojsonFeature) => !!geojsonFeature);
-
-  return getCarmaConf3DFromGeoJsonFeature(firstGeoJsonFeature);
-};
-
-const getFeatureCarmaConf3D = (
-  feature: AdhocFeature
-): CarmaConf3D | undefined => {
-  const properties = feature.properties as
-    | CarmaMapLibreFeatureProperties
-    | undefined;
-  return properties?.carmaConf3D ?? getFirstGeoJsonCarmaConf3D(feature);
-};
-
 export const getAdhocFeatureModelPosition = (
   feature: AdhocFeature | null | undefined
 ): AdhocModelPosition | null => {
@@ -86,7 +44,7 @@ export const getAdhocFeatureModelPosition = (
     return null;
   }
 
-  const model = getFeatureCarmaConf3D(feature)?.model;
+  const model = getCarmaConf3D(feature)?.model;
   if (!model) {
     return null;
   }
@@ -106,8 +64,10 @@ export const getAdhocFeatureClippingEnabled = (
     return null;
   }
 
-  const clippingPolygon = getFeatureCarmaConf3D(feature)?.clippingPolygon;
-  return clippingPolygon ? clippingPolygon.enabled !== false : null;
+  const clippingPolygon = getCarmaConf3D(feature)?.clippingPolygon;
+  return getCarmaConf3DClippingPolygonRing(clippingPolygon)
+    ? clippingPolygon?.enabled !== false
+    : null;
 };
 
 export const parseFiniteNumber = (value: string): number | null => {
