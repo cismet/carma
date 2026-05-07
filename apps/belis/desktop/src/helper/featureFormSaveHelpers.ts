@@ -315,8 +315,12 @@ const saveCreationDraft = async (
 
     if (featureType === "leuchte") {
       // Two-step: create Standort first, then Leuchte
+      // TODO: replace with real form values once the creation form includes Standort fields
+      const leuchteValues = (draft.values?.leuchte ?? {}) as Record<string, unknown>;
       const mastPayload: Record<string, unknown> = {
         id: -1,
+        lfd_nummer: 1,
+        fk_strassenschluessel: leuchteValues.fk_strassenschluessel ?? null,
         ...(geomPayload ? { geom: geomPayload } : {}),
       };
       console.debug("[CREATE-FEATURE] Standort payload:", JSON.stringify(mastPayload, null, 2));
