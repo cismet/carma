@@ -25,6 +25,12 @@ import {
 } from "../../store/slices/arbeitsauftraege";
 import { getTotalDraftCount } from "../../store/slices/arbeitsauftraegeDrafts";
 import {
+  isRegularLayerEnabled,
+  isBrandnewLayerEnabled,
+  setRegularLayerEnabled,
+  setBrandnewLayerEnabled,
+} from "../../store/slices/mapSettings";
+import {
   BELIS_FILTER_CATEGORIES,
   BELIS_BRAND_NEW_FC_URL,
 } from "../../config/mapLayerConfigs";
@@ -101,8 +107,8 @@ const BelisMapPageShell = () => {
     () => window.location.hostname === "localhost",
     []
   );
-  const [regularLayerEnabled, setRegularLayerEnabled] = useState(true);
-  const [brandnewLayerEnabled, setBrandnewLayerEnabled] = useState(false);
+  const regularLayerEnabled = useSelector(isRegularLayerEnabled);
+  const brandnewLayerEnabled = useSelector(isBrandnewLayerEnabled);
   const [brandnewCount, setBrandnewCount] = useState<number | null>(null);
 
   useEffect(() => {
@@ -336,7 +342,9 @@ const BelisMapPageShell = () => {
                         checkedChildren="regular"
                         unCheckedChildren="regular"
                         checked={regularLayerEnabled}
-                        onChange={setRegularLayerEnabled}
+                        onChange={(checked) =>
+                          dispatch(setRegularLayerEnabled(checked))
+                        }
                         style={
                           regularLayerEnabled
                             ? { backgroundColor: "#eab308" }
@@ -353,7 +361,9 @@ const BelisMapPageShell = () => {
                           checkedChildren="brandnew"
                           unCheckedChildren="brandnew"
                           checked={brandnewLayerEnabled}
-                          onChange={setBrandnewLayerEnabled}
+                          onChange={(checked) =>
+                            dispatch(setBrandnewLayerEnabled(checked))
+                          }
                           style={
                             brandnewLayerEnabled
                               ? { backgroundColor: "#eab308" }
