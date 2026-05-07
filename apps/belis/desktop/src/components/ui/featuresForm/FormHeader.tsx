@@ -192,7 +192,14 @@ const FormHeader = ({
                     onClick={draftsCount >= 1 ? handleSaveAll : undefined}
                     loading={draftsCount >= 1 ? savingAll : false}
                     style={
-                      draftsCount === 0 ? { pointerEvents: "none" } : undefined
+                      draftsCount === 0
+                        ? {
+                            pointerEvents: "none",
+                            color: "#d9d9d9",
+                            borderColor: "#d9d9d9",
+                            backgroundColor: "#f5f5f5",
+                          }
+                        : undefined
                     }
                   >
                     Alle speichern
