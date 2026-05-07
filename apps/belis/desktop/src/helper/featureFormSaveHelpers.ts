@@ -437,6 +437,10 @@ interface HandleSaveAllDeps {
   dispatch: (action: any) => void;
   removeDraft: (featureId: string) => unknown;
   incrementFeatureDataVersion: () => unknown;
+  /** Fires once the batch finishes if at least one draft saved successfully.
+   * The caller wires this to `closeDatasheet` so the right pane returns to
+   * the map view — the form was bound to drafts that no longer exist. */
+  onSuccess?: () => void;
 }
 
 export const handleSaveAllDrafts = (deps: HandleSaveAllDeps) => {
@@ -448,6 +452,7 @@ export const handleSaveAllDrafts = (deps: HandleSaveAllDeps) => {
     dispatch,
     removeDraft,
     incrementFeatureDataVersion,
+    onSuccess,
   } = deps;
 
   const creationCount = Object.values(drafts).filter(
@@ -487,6 +492,7 @@ export const handleSaveAllDrafts = (deps: HandleSaveAllDeps) => {
 
         if (result.succeeded.length > 0) {
           dispatch(incrementFeatureDataVersion());
+          onSuccess?.();
         }
 
         for (const fail of result.failed) {

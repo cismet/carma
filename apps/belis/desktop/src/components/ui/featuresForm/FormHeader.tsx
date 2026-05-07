@@ -15,6 +15,7 @@ import { getJWT } from "../../../store/slices/auth";
 import { incrementFeatureDataVersion } from "../../../store/slices/featureCollection";
 import { handleSaveAllDrafts } from "../../../helper/featureFormSaveHelpers";
 import { useSingleSave } from "./FeaturesFormsWrapper";
+import { useDatasheet } from "@carma-mapping/engines/maplibre";
 
 interface FormHeaderProps {
   title: string;
@@ -55,6 +56,7 @@ const FormHeader = ({
   const jwt = useSelector(getJWT);
   const [savingAll, setSavingAll] = useState(false);
   const { onSaveSingle, savingSingle } = useSingleSave();
+  const { closeDatasheet } = useDatasheet();
 
   const draftsCount = customDraftsCount ?? featureDraftsCount;
 
@@ -71,6 +73,9 @@ const FormHeader = ({
       dispatch,
       removeDraft,
       incrementFeatureDataVersion,
+      // After at least one draft saved, the form on the right pane is
+      // bound to a draft that no longer exists — return to the map.
+      onSuccess: closeDatasheet,
     });
   };
 
