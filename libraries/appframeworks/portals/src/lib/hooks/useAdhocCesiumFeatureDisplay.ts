@@ -5,7 +5,6 @@ import {
   ClippingPolygon,
   ClippingPolygonCollection,
   Color,
-  CustomShader,
   Model,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
@@ -24,24 +23,20 @@ import { type Easing as EasingFunction } from "@carma-commons/math";
 import type { ModelConfig } from "@carma-mapping/engines/cesium/core";
 import type { FeatureInfo } from "@carma-mapping/utils";
 import {
-  clampModelSamplingHighlightOpacity,
   createExtrudedWallVisualizer,
   createGroundPolygonVisualizer,
   createGroundPolylineVisualizer,
-  createModelSelectionHighlightShader,
-  createModelSamplingHighlightShader,
-  DEFAULT_MODEL_SAMPLING_HIGHLIGHT_FADE_DURATION_MS,
-  DEFAULT_MODEL_SAMPLING_HIGHLIGHT_COLOR,
-  DEFAULT_MODEL_SAMPLING_HIGHLIGHT_OPACITY,
   isValidTileset,
-  setModelBaseTintShaderUniforms,
-  setModelSamplingHighlightShaderUniforms,
-  useCesiumModelManager,
   type ExtrudedWallVisualizer,
   type GroundPolygonVisualizer,
   type GroundPolylineVisualizer,
-  type ModelSelectionHighlightEdgeMode,
 } from "@carma-mapping/engines/cesium/legacy";
+import {
+  useCesiumModelBaseTintShaderResolver,
+  useCesiumModelManager,
+  useCesiumModelSamplingHighlight,
+  type ModelSelectionHighlightEdgeMode,
+} from "@carma-mapping/engines/cesium/react/primitives";
 import type { Feature, FeatureCollection } from "geojson";
 import { extractRingsFromGeoJson } from "@carma-geo/utils";
 
@@ -92,6 +87,7 @@ export type AdhocCesiumModelSelectionHighlightOptions = {
   edgeMode?: ModelSelectionHighlightEdgeMode;
   fadeDurationMs?: number;
   fadeEasing?: EasingFunction;
+  hoverHighlightEnabled?: boolean;
   minimumPixelSize?: number;
 };
 
@@ -149,13 +145,6 @@ type TilesetClippingPolygon = {
 };
 
 const FEATURE_KEY_SEPARATOR = "::";
-
-type ModelSamplingHighlightState = {
-  originalShader: CustomShader | undefined;
-  opacity: number;
-  shader: CustomShader;
-  targetOpacity: number;
-};
 
 const toAdhocFeatureKey = (selection: SelectedAdhocFeature): string =>
   `${selection.collectionId}${FEATURE_KEY_SEPARATOR}${selection.layerId}${FEATURE_KEY_SEPARATOR}${selection.id}`;
@@ -348,9 +337,9 @@ export const useAdhocCesiumFeatureDisplay = (
     modelSelectionHighlightFadeEasing,
     modelSelectionHighlightMinimumPixelSize,
     modelSamplingHighlightEnabled = false,
-    modelSamplingHighlightColor = DEFAULT_MODEL_SAMPLING_HIGHLIGHT_COLOR,
-    modelSamplingHighlightFadeDurationMs = DEFAULT_MODEL_SAMPLING_HIGHLIGHT_FADE_DURATION_MS,
-    modelSamplingHighlightOpacity = DEFAULT_MODEL_SAMPLING_HIGHLIGHT_OPACITY,
+    modelSamplingHighlightColor,
+    modelSamplingHighlightFadeDurationMs,
+    modelSamplingHighlightOpacity,
     onFeatureInfoChange,
   } = options;
 
@@ -573,15 +562,6 @@ export const useAdhocCesiumFeatureDisplay = (
   const selectedPrimitiveIdByFeatureRef = useRef<Map<string, string>>(
     new Map()
   );
-  const sampledModelPrimitiveRef = useRef<Model | null>(null);
-  const sampledModelHighlightStateByPrimitiveRef = useRef<
-    Map<Model, ModelSamplingHighlightState>
-  >(new Map());
-  const adhocModelShaderByFeatureKeyRef = useRef<Map<string, CustomShader>>(
-    new Map()
-  );
-  const sampledModelHighlightAnimationFrameRef = useRef<number | null>(null);
-  const sampledModelHighlightLastAnimationMsRef = useRef<number | null>(null);
   const firstRenderedModelPrimitiveIdsRef = useRef<Set<string>>(new Set());
   const isStagingForTransitionRef = useRef<boolean>(false);
   const [modelAddedVersion, setModelAddedVersion] = useState(0);
@@ -612,203 +592,6 @@ export const useAdhocCesiumFeatureDisplay = (
     },
     []
   );
-
-  const normalizeModelSamplingHighlightFadeDuration = useCallback(
-    (fadeDurationMs: number) =>
-      Number.isFinite(fadeDurationMs) && fadeDurationMs >= 0
-        ? fadeDurationMs
-        : DEFAULT_MODEL_SAMPLING_HIGHLIGHT_FADE_DURATION_MS,
-    []
-  );
-
-  const readOrCreateModelSamplingHighlightState = useCallback(
-    (primitive: Model): ModelSamplingHighlightState => {
-      const existing =
-        sampledModelHighlightStateByPrimitiveRef.current.get(primitive);
-      if (existing) {
-        return existing;
-      }
-
-      const state = {
-        originalShader: primitive.customShader ?? undefined,
-        opacity: 0,
-        shader: createModelSamplingHighlightShader(),
-        targetOpacity: 0,
-      };
-      sampledModelHighlightStateByPrimitiveRef.current.set(primitive, state);
-      primitive.customShader = state.shader;
-      setModelSamplingHighlightShaderUniforms({
-        color: modelSamplingHighlightColor,
-        opacity: state.opacity,
-        shader: state.shader,
-      });
-      return state;
-    },
-    [modelSamplingHighlightColor]
-  );
-
-  const restoreModelSamplingHighlightShader = useCallback(
-    (primitive: Model, state: ModelSamplingHighlightState) => {
-      if (!primitive.isDestroyed() && primitive.customShader === state.shader) {
-        primitive.customShader = state.originalShader;
-      }
-      sampledModelHighlightStateByPrimitiveRef.current.delete(primitive);
-      if (sampledModelPrimitiveRef.current === primitive) {
-        sampledModelPrimitiveRef.current = null;
-      }
-    },
-    []
-  );
-
-  const cancelModelSamplingHighlightAnimation = useCallback(() => {
-    if (sampledModelHighlightAnimationFrameRef.current !== null) {
-      cancelAnimationFrame(sampledModelHighlightAnimationFrameRef.current);
-      sampledModelHighlightAnimationFrameRef.current = null;
-    }
-    sampledModelHighlightLastAnimationMsRef.current = null;
-  }, []);
-
-  const animateModelSamplingHighlights = useCallback(
-    (timestampMs: number) => {
-      sampledModelHighlightAnimationFrameRef.current = null;
-
-      const previousTimestampMs =
-        sampledModelHighlightLastAnimationMsRef.current;
-      sampledModelHighlightLastAnimationMsRef.current = timestampMs;
-
-      const elapsedMs =
-        previousTimestampMs === null
-          ? 0
-          : Math.max(0, timestampMs - previousTimestampMs);
-      const fadeDurationMs = normalizeModelSamplingHighlightFadeDuration(
-        modelSamplingHighlightFadeDurationMs
-      );
-      const opacityStep =
-        fadeDurationMs === 0
-          ? 1
-          : (elapsedMs / fadeDurationMs) *
-            clampModelSamplingHighlightOpacity(modelSamplingHighlightOpacity);
-      let hasPendingAnimation = false;
-
-      sampledModelHighlightStateByPrimitiveRef.current.forEach(
-        (state, primitive) => {
-          if (primitive.isDestroyed()) {
-            sampledModelHighlightStateByPrimitiveRef.current.delete(primitive);
-            return;
-          }
-
-          const opacityDistance = state.targetOpacity - state.opacity;
-          const nextOpacity =
-            fadeDurationMs === 0
-              ? state.targetOpacity
-              : state.opacity +
-                Math.sign(opacityDistance) *
-                  Math.min(Math.abs(opacityDistance), opacityStep);
-
-          state.opacity = nextOpacity;
-          setModelSamplingHighlightShaderUniforms({
-            color: modelSamplingHighlightColor,
-            opacity: nextOpacity,
-            shader: state.shader,
-          });
-
-          if (nextOpacity !== state.targetOpacity) {
-            hasPendingAnimation = true;
-            return;
-          }
-
-          if (nextOpacity === 0 && state.targetOpacity === 0) {
-            restoreModelSamplingHighlightShader(primitive, state);
-          }
-        }
-      );
-
-      const scene = getScene();
-      if (scene && !scene.isDestroyed()) {
-        scene.requestRender();
-      }
-
-      if (hasPendingAnimation) {
-        sampledModelHighlightAnimationFrameRef.current = requestAnimationFrame(
-          animateModelSamplingHighlights
-        );
-        return;
-      }
-
-      sampledModelHighlightLastAnimationMsRef.current = null;
-    },
-    [
-      getScene,
-      modelSamplingHighlightColor,
-      modelSamplingHighlightFadeDurationMs,
-      modelSamplingHighlightOpacity,
-      normalizeModelSamplingHighlightFadeDuration,
-      restoreModelSamplingHighlightShader,
-    ]
-  );
-
-  const scheduleModelSamplingHighlightAnimation = useCallback(() => {
-    if (sampledModelHighlightAnimationFrameRef.current !== null) {
-      return;
-    }
-    sampledModelHighlightLastAnimationMsRef.current = null;
-    sampledModelHighlightAnimationFrameRef.current = requestAnimationFrame(
-      animateModelSamplingHighlights
-    );
-  }, [animateModelSamplingHighlights]);
-
-  const applyModelSamplingHighlight = useCallback(
-    (primitive: Model | null) => {
-      const targetOpacity = clampModelSamplingHighlightOpacity(
-        modelSamplingHighlightOpacity
-      );
-      const current = sampledModelPrimitiveRef.current;
-      if (current && current !== primitive && !current.isDestroyed()) {
-        const currentState =
-          sampledModelHighlightStateByPrimitiveRef.current.get(current);
-        if (currentState) {
-          currentState.targetOpacity = 0;
-        }
-      }
-
-      sampledModelPrimitiveRef.current = primitive;
-
-      if (!primitive || primitive.isDestroyed()) {
-        scheduleModelSamplingHighlightAnimation();
-        return;
-      }
-
-      const state = readOrCreateModelSamplingHighlightState(primitive);
-      if (primitive.customShader !== state.shader) {
-        primitive.customShader = state.shader;
-      }
-      state.targetOpacity = targetOpacity;
-      scheduleModelSamplingHighlightAnimation();
-    },
-    [
-      modelSamplingHighlightOpacity,
-      readOrCreateModelSamplingHighlightState,
-      scheduleModelSamplingHighlightAnimation,
-    ]
-  );
-
-  const clearModelSamplingHighlight = useCallback(() => {
-    applyModelSamplingHighlight(null);
-  }, [applyModelSamplingHighlight]);
-
-  const restoreModelSamplingHighlightShaders = useCallback(() => {
-    cancelModelSamplingHighlightAnimation();
-    sampledModelHighlightStateByPrimitiveRef.current.forEach(
-      (state, primitive) => {
-        restoreModelSamplingHighlightShader(primitive, state);
-      }
-    );
-    sampledModelHighlightStateByPrimitiveRef.current.clear();
-    sampledModelPrimitiveRef.current = null;
-  }, [
-    cancelModelSamplingHighlightAnimation,
-    restoreModelSamplingHighlightShader,
-  ]);
 
   const onModelAddedToScene = useCallback(
     (primitiveId: string, primitive: Model) => {
@@ -942,46 +725,13 @@ export const useAdhocCesiumFeatureDisplay = (
   const needsSyncRef = useRef<boolean>(needsSync);
   needsSyncRef.current = needsSync;
 
-  const resolveAdhocModelShader = useCallback(
-    (
-      featureKey: string,
-      renderStyle: AdhocUnselectedRenderStyleConfig
-    ): CustomShader | undefined => {
-      if (renderStyle.style === DEFAULT_ADHOC_UNSELECTED_RENDER_STYLE) {
-        return undefined;
-      }
-
-      const shaderByFeatureKey = adhocModelShaderByFeatureKeyRef.current;
-      let shader = shaderByFeatureKey.get(featureKey);
-      if (!shader) {
-        shader = createModelSelectionHighlightShader({
-          opacity: 0,
-          tintColor: renderStyle.tintColor,
-          tintMix: renderStyle.tintMix,
-        });
-        shaderByFeatureKey.set(featureKey, shader);
-      }
-
-      setModelBaseTintShaderUniforms({
-        shader,
-        tintColor: renderStyle.tintColor,
-        tintMix: renderStyle.tintMix,
-      });
-      return shader;
-    },
-    []
+  const activeAdhocFeatureKeys = useMemo(
+    () => adhocFeatureEntries.map((entry) => entry.key),
+    [adhocFeatureEntries]
   );
-
-  useEffect(() => {
-    const activeFeatureKeys = new Set(
-      adhocFeatureEntries.map((entry) => entry.key)
-    );
-    adhocModelShaderByFeatureKeyRef.current.forEach((_shader, featureKey) => {
-      if (!activeFeatureKeys.has(featureKey)) {
-        adhocModelShaderByFeatureKeyRef.current.delete(featureKey);
-      }
-    });
-  }, [adhocFeatureEntries]);
+  const resolveModelBaseTintShader = useCesiumModelBaseTintShaderResolver({
+    activeKeys: activeAdhocFeatureKeys,
+  });
 
   const adhocModelConfigs = useMemo(() => {
     return adhocFeatureEntries.flatMap((entry) => {
@@ -989,7 +739,12 @@ export const useAdhocCesiumFeatureDisplay = (
       if (!modelConfig) return [];
 
       const renderStyle = getAdhocUnselectedRenderStyleConfig(entry.feature);
-      const customShader = resolveAdhocModelShader(entry.key, renderStyle);
+      const customShader = resolveModelBaseTintShader({
+        enabled: renderStyle.style !== DEFAULT_ADHOC_UNSELECTED_RENDER_STYLE,
+        key: entry.key,
+        tintColor: renderStyle.tintColor,
+        tintMix: renderStyle.tintMix,
+      });
       const featureInfo = buildModelFeatureInfo(entry.feature);
       const baseProperties = featureInfo?.properties ?? {};
       const modelPropertiesWithoutId = {
@@ -1022,7 +777,7 @@ export const useAdhocCesiumFeatureDisplay = (
         } satisfies ModelConfig,
       ];
     });
-  }, [adhocFeatureEntries, resolveAdhocModelShader]);
+  }, [adhocFeatureEntries, resolveModelBaseTintShader]);
 
   const cesiumModelConfigs = useMemo(
     () => [...baseModels, ...adhocModelConfigs],
@@ -1101,6 +856,7 @@ export const useAdhocCesiumFeatureDisplay = (
     return {
       models: cesiumModelConfigs,
       enabled: isCesiumRenderingEnabled && hasCesiumModels,
+      getScene,
       selection: {
         enabled:
           isCesiumEnabled &&
@@ -1128,6 +884,7 @@ export const useAdhocCesiumFeatureDisplay = (
         highlightMinimumPixelSize:
           modelSelectionHighlight?.minimumPixelSize ??
           modelSelectionHighlightMinimumPixelSize,
+        hoverHighlightEnabled: modelSelectionHighlight?.hoverHighlightEnabled,
         selectedId: selectedFeatureKey,
         onModelAdded: onModelAddedToScene,
         onModelFirstRendered: (primitiveId: string, primitive: Model) => {
@@ -1188,6 +945,7 @@ export const useAdhocCesiumFeatureDisplay = (
     };
   }, [
     cesiumModelConfigs,
+    getScene,
     hasCesiumModels,
     isCesiumRenderingEnabled,
     isCesiumEnabled,
@@ -1199,6 +957,7 @@ export const useAdhocCesiumFeatureDisplay = (
     modelSelectionHighlight?.edgeWidthPx,
     modelSelectionHighlight?.fadeDurationMs,
     modelSelectionHighlight?.fadeEasing,
+    modelSelectionHighlight?.hoverHighlightEnabled,
     modelSelectionHighlight?.minimumPixelSize,
     modelSelectionHighlightEdgeColor,
     modelSelectionHighlightEdgeMode,
@@ -1217,59 +976,13 @@ export const useAdhocCesiumFeatureDisplay = (
 
   useCesiumModelManager(useCesiumModelOptions);
 
-  useEffect(() => {
-    if (!isCesiumEnabled || !modelSamplingHighlightEnabled) {
-      restoreModelSamplingHighlightShaders();
-      return;
-    }
-
-    let disposed = false;
-    let retryTimeout: ReturnType<typeof setTimeout> | null = null;
-    let handler: ScreenSpaceEventHandler | null = null;
-
-    const attachSamplingHighlightHandler = () => {
-      if (disposed) return;
-
-      const scene = getScene();
-      if (!scene || scene.isDestroyed() || !scene.canvas) {
-        retryTimeout = setTimeout(attachSamplingHighlightHandler, 100);
-        return;
-      }
-
-      handler = new ScreenSpaceEventHandler(scene.canvas);
-      handler.setInputAction((event: { endPosition?: Cartesian2 }) => {
-        const position = event.endPosition;
-        if (!position) {
-          clearModelSamplingHighlight();
-          return;
-        }
-
-        const modelPick = scene.pick(position, 1, 1);
-        const primitive =
-          modelPick?.primitive instanceof Model ? modelPick.primitive : null;
-        applyModelSamplingHighlight(primitive);
-        scene.requestRender();
-      }, ScreenSpaceEventType.MOUSE_MOVE);
-    };
-
-    attachSamplingHighlightHandler();
-
-    return () => {
-      disposed = true;
-      if (retryTimeout) {
-        clearTimeout(retryTimeout);
-      }
-      handler?.destroy();
-      restoreModelSamplingHighlightShaders();
-    };
-  }, [
-    applyModelSamplingHighlight,
-    clearModelSamplingHighlight,
+  useCesiumModelSamplingHighlight({
+    color: modelSamplingHighlightColor,
+    enabled: isCesiumEnabled && modelSamplingHighlightEnabled,
+    fadeDurationMs: modelSamplingHighlightFadeDurationMs,
     getScene,
-    isCesiumEnabled,
-    modelSamplingHighlightEnabled,
-    restoreModelSamplingHighlightShaders,
-  ]);
+    opacity: modelSamplingHighlightOpacity,
+  });
 
   useEffect(() => {
     isStagingForTransitionRef.current = isStagingForTransition;

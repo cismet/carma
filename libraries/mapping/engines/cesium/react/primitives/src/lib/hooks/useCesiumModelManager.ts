@@ -1,0 +1,105 @@
+import { useCallback, useRef } from "react";
+
+import { type Easing as EasingFunction } from "@carma-commons/math";
+import { Color, Model, type Scene } from "@carma-cesium";
+import type { ModelConfig } from "@carma-mapping/engines/cesium/core";
+
+import { findModelPrimitiveBySelectionId } from "../utils/modelManager";
+import type { ModelSelectionHighlightEdgeMode } from "../utils/modelSelectionHighlight";
+import { useCesiumModelPrimitives } from "./useCesiumModelPrimitives";
+import { useCesiumModelSelectionHighlight } from "./useCesiumModelSelectionHighlight";
+import { useCesiumModelSelectionInteraction } from "./useCesiumModelSelectionInteraction";
+
+export type { ModelSelectionHighlightEdgeMode } from "../utils/modelSelectionHighlight";
+
+export interface UseCesiumModelManagerOptions {
+  models: ModelConfig[];
+  enabled: boolean;
+  getScene: () => Scene | null | undefined;
+  requestRender?: () => void;
+  selection?: {
+    enabled?: boolean;
+    onSelect?: (feature: unknown) => void;
+    onClearSelection?: () => void;
+    onModelAdded?: (primitiveId: string, primitive: Model) => void;
+    onModelFirstRendered?: (primitiveId: string, primitive: Model) => void;
+    deselectOnEmptyClick?: boolean;
+    highlightEdgeColor?: Color;
+    highlightEdgeOpacity?: number;
+    highlightEdgeWidthPx?: number;
+    highlightFadeDurationMs?: number;
+    highlightFadeEasing?: EasingFunction;
+    highlightEdgeMode?: ModelSelectionHighlightEdgeMode;
+    highlightMinimumPixelSize?: number;
+    hoverHighlightEnabled?: boolean;
+    selectedId?: string | null;
+  };
+}
+
+export const useCesiumModelManager = ({
+  models,
+  enabled,
+  getScene,
+  requestRender: requestRenderFromOptions,
+  selection,
+}: UseCesiumModelManagerOptions) => {
+  const modelPrimitivesRef = useRef<Map<string, Model>>(new Map());
+  const requestRender = useCallback(() => {
+    if (requestRenderFromOptions) {
+      requestRenderFromOptions();
+      return;
+    }
+    const scene = getScene();
+    if (scene && !scene.isDestroyed()) {
+      scene.requestRender();
+    }
+  }, [getScene, requestRenderFromOptions]);
+
+  const readPrimitiveBySelectionId = useCallback(
+    (primitiveId: string) =>
+      findModelPrimitiveBySelectionId(
+        modelPrimitivesRef.current.values(),
+        primitiveId
+      ),
+    []
+  );
+
+  const selectionEnabled = Boolean(selection?.enabled && enabled);
+  const selectionHighlight = useCesiumModelSelectionHighlight({
+    edgeColor: selection?.highlightEdgeColor,
+    edgeOpacity: selection?.highlightEdgeOpacity,
+    edgeWidthPx: selection?.highlightEdgeWidthPx,
+    enabled: selectionEnabled,
+    fadeDurationMs: selection?.highlightFadeDurationMs,
+    fadeEasing: selection?.highlightFadeEasing,
+    getPrimitiveBySelectionId: readPrimitiveBySelectionId,
+    highlightEdgeMode: selection?.highlightEdgeMode,
+    minimumPixelSize: selection?.highlightMinimumPixelSize,
+    requestRender,
+    selectedId: selection?.selectedId,
+  });
+
+  useCesiumModelPrimitives({
+    enabled,
+    getScene,
+    modelPrimitivesRef,
+    models,
+    onClearSelection: selection?.onClearSelection,
+    onModelAdded: selection?.onModelAdded,
+    onModelFirstRendered: selection?.onModelFirstRendered,
+    requestRender,
+    selectedId: selection?.selectedId,
+    selectionEnabled,
+    selectionHighlight,
+  });
+
+  useCesiumModelSelectionInteraction({
+    deselectOnEmptyClick: selection?.deselectOnEmptyClick,
+    enabled: selectionEnabled,
+    getScene,
+    hoverHighlightEnabled: selection?.hoverHighlightEnabled,
+    onClearSelection: selection?.onClearSelection,
+    onSelect: selection?.onSelect,
+    selectionHighlight,
+  });
+};

@@ -105,26 +105,6 @@ export {
   type RotationAxisVisualizer,
   type RotationAxisVisualizerOptions,
 } from "./createRotationAxisVisualizer";
-export { createModelPrimitiveFromConfig } from "./createModelPrimitiveFromConfig";
-export {
-  clampModelSamplingHighlightOpacity,
-  createModelSelectionHighlightShader,
-  createModelSamplingHighlightShader,
-  DEFAULT_MODEL_SAMPLING_HIGHLIGHT_FADE_DURATION_MS,
-  DEFAULT_MODEL_SAMPLING_HIGHLIGHT_COLOR,
-  DEFAULT_MODEL_SAMPLING_HIGHLIGHT_OPACITY,
-  isModelIntegratedHighlightShader,
-  setModelBaseTintShaderUniforms,
-  setModelSamplingHighlightShaderUniforms,
-  type ModelBaseTintShaderUniformOptions,
-  type ModelSamplingHighlightShaderUniformOptions,
-} from "./modelHighlightShader";
-export {
-  buildModelKey,
-  extractPickedProperties,
-  getPrimitiveSelectionId,
-  isModelPick,
-} from "./modelManager";
 
 // Tileset
 export { guardTileset } from "./guardTileset";

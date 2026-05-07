@@ -64,6 +64,7 @@ export type CesiumModelSelectionHighlightConfig = {
   edgeMode?: "silhouette" | "none";
   fadeDurationMs?: number;
   fadeEasing?: EasingFunction;
+  hoverHighlightEnabled?: boolean;
   minimumPixelSize?: number;
 };
 

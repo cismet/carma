@@ -58,11 +58,6 @@ export {
   useCesiumContext,
   useCesiumContextOptional,
 } from "./hooks/useCesiumContext";
-export {
-  useCesiumModelManager,
-  type ModelSelectionHighlightEdgeMode,
-  type UseCesiumModelManagerOptions,
-} from "./hooks/useCesiumModelManager";
 export { useGeometryInstanceOpacityAnimation } from "./hooks/useGeometryInstanceOpacityAnimation";
 export { useSceneStyles } from "./hooks/useSceneStyles";
 export { useZoomControls } from "./hooks/useZoomControls";

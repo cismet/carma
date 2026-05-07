@@ -82,6 +82,7 @@ export const CESIUM_CONFIG: CesiumConfig = {
     edgeOpacity: 0.5,
     edgeWidthPx: 2,
     edgeMode: "silhouette",
+    hoverHighlightEnabled: false,
     minimumPixelSize: 1,
   },
 };

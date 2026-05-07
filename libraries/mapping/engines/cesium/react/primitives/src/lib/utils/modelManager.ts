@@ -1,8 +1,28 @@
 import type { ModelConfig } from "@carma-mapping/engines/cesium/core";
-import { Model } from "@carma-cesium";
+import { Model, type CustomShader } from "@carma-cesium";
+
+type ModelWithReadyPromise = {
+  readyPromise?: Promise<unknown>;
+};
+
 export const getPrimitiveSelectionId = (primitive: Model): string | null => {
   const pickId = primitive.id as { id?: unknown } | undefined;
   return typeof pickId?.id === "string" ? pickId.id : null;
+};
+
+export const findModelPrimitiveBySelectionId = (
+  primitives: Iterable<Model>,
+  primitiveId: string
+): Model | null => {
+  for (const primitive of primitives) {
+    if (primitive.isDestroyed()) {
+      continue;
+    }
+    if (getPrimitiveSelectionId(primitive) === primitiveId) {
+      return primitive;
+    }
+  }
+  return null;
 };
 
 export const buildModelKey = (config: ModelConfig): string => {
@@ -53,4 +73,45 @@ export const extractPickedProperties = (
     },
     {}
   );
+};
+
+export const getModelConfigCustomShader = (
+  config: ModelConfig
+): CustomShader | undefined =>
+  config.model.customShader
+    ? (config.model.customShader as CustomShader)
+    : undefined;
+
+export const getModelConfigCustomShaderSignature = (
+  config: ModelConfig
+): string | null =>
+  typeof config.model.renderStyleSignature === "string"
+    ? config.model.renderStyleSignature
+    : null;
+
+export const applyModelCustomShader = (
+  primitive: Model,
+  shader: CustomShader | undefined,
+  requestRender: () => void
+) => {
+  if (primitive.isDestroyed()) return;
+  if (primitive.ready) {
+    primitive.customShader = shader;
+    requestRender();
+    return;
+  }
+  const readyPromise = (primitive as ModelWithReadyPromise).readyPromise;
+  if (!readyPromise) {
+    primitive.customShader = shader;
+    requestRender();
+    return;
+  }
+  readyPromise
+    .then(() => {
+      if (!primitive.isDestroyed()) {
+        primitive.customShader = shader;
+        requestRender();
+      }
+    })
+    .catch(() => undefined);
 };
