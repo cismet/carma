@@ -224,6 +224,7 @@ const BelisMapLibWrapper = ({
   // addSource / addLayer don't fire too early ("Style is not done loading").
   const [mapReady, setMapReady] = useState(false);
   const [drawMode, setDrawMode] = useState<DrawMode>("none");
+  const [snappingEnabled, setSnappingEnabled] = useState<boolean>(false);
   useEffect(() => {
     if (!map) {
       setMapReady(false);
@@ -365,6 +366,16 @@ const BelisMapLibWrapper = ({
       clearMapSelection();
     }
   }, [highlightingActive]);
+
+  // Drop any fachobjekt selection the moment the user enters a measurement
+  // draw mode. Otherwise a previously-selected leuchte stays highlighted
+  // (and its infobox visible) while the user is busy clicking points or
+  // line vertices, which is visually noisy and conceptually unrelated.
+  useEffect(() => {
+    if (drawMode !== "none") {
+      clearMapSelection();
+    }
+  }, [drawMode]);
 
   // Notify parent about highlight changes
   useEffect(() => {
@@ -2693,13 +2704,20 @@ const BelisMapLibWrapper = ({
                   <DrawModeControls
                     active={drawMode}
                     onSelect={(mode) =>
-                      setDrawMode((prev) => (prev === mode ? "none" : mode))
+                      setDrawMode((prev) =>
+                        prev === mode ? "none" : mode
+                      )
                     }
+                    snapping={{
+                      enabled: snappingEnabled,
+                      onToggle: () => setSnappingEnabled((s) => !s),
+                    }}
                   />
                 }
               />
               <MeasurementHost
                 mode={drawMode}
+                snapping={snappingEnabled}
                 onChange={(features) => {
                   // Prefix terra-draw's UUIDs to namespace measurement ids
                   // away from any other id space (fachobjekte, brandnew FC,

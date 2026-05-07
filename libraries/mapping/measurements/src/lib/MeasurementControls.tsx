@@ -4,7 +4,11 @@ import {
 } from "@carma-mapping/map-controls-layout";
 import { Tooltip } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faLocationDot, faSlash } from "@fortawesome/free-solid-svg-icons";
+import {
+  faLocationDot,
+  faMagnet,
+  faSlash,
+} from "@fortawesome/free-solid-svg-icons";
 
 // `"none"` is the resting state: terra-draw is internally in select mode so
 // existing measurements remain clickable / selectable, but no new geometry
@@ -46,34 +50,68 @@ export interface DrawModeControlsProps {
    * below the built-ins (10 zoom, 20 compass, 30 terrain, 50 fullscreen,
    * 60 locator). */
   order?: number;
+  /** Optional snap-toggle slot fused to the bottom of the same button
+   * stack. When provided, the magnet button reads as part of the
+   * measurement tool group rather than a separate Control. */
+  snapping?: {
+    enabled: boolean;
+    onToggle: () => void;
+  };
+}
+
+interface RenderedItem {
+  key: string;
+  tooltip: string;
+  testId: string;
+  icon: typeof faLocationDot;
+  isActive: boolean;
+  onClick: () => void;
 }
 
 export function DrawModeControls({
   active,
   onSelect,
   order = 70,
+  snapping,
 }: DrawModeControlsProps) {
+  const items: RenderedItem[] = BUTTONS.map((button) => ({
+    key: `mode-${button.mode}`,
+    tooltip: button.label,
+    testId: `carma-measurement-${button.mode}-control`,
+    icon: button.icon,
+    isActive: active === button.mode,
+    onClick: () => onSelect(button.mode),
+  }));
+
+  if (snapping) {
+    items.push({
+      key: "snapping",
+      tooltip: snapping.enabled ? "Snapping aus" : "Snapping an",
+      testId: "carma-measurement-snapping-control",
+      icon: faMagnet,
+      isActive: snapping.enabled,
+      onClick: snapping.onToggle,
+    });
+  }
+
   return (
     <Control position="topleft" order={order}>
       <div className="flex flex-col">
-        {BUTTONS.map((button, index) => {
-          const isActive = active === button.mode;
-          return (
-            <Tooltip key={button.mode} title={button.label} placement="right">
-              <ControlButtonStyler
-                onClick={() => onSelect(button.mode)}
-                dataTestId={`carma-measurement-${button.mode}-control`}
-                useDisabledStyle={false}
-                className={fuseClassFor(index, BUTTONS.length)}
-              >
-                <FontAwesomeIcon
-                  icon={button.icon}
-                  className={isActive ? ACTIVE_BUTTON_TEXT_COLOR : ""}
-                />
-              </ControlButtonStyler>
-            </Tooltip>
-          );
-        })}
+        {items.map((item, index) => (
+          <Tooltip key={item.key} title={item.tooltip} placement="right">
+            <ControlButtonStyler
+              onClick={item.onClick}
+              dataTestId={item.testId}
+              useDisabledStyle={false}
+              className={fuseClassFor(index, items.length)}
+            >
+              <FontAwesomeIcon
+                icon={item.icon}
+                className={item.isActive ? ACTIVE_BUTTON_TEXT_COLOR : ""}
+              />
+            </ControlButtonStyler>
+          </Tooltip>
+        ))}
       </div>
     </Control>
   );
