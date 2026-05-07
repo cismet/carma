@@ -10,6 +10,7 @@ import arbeitsauftraege from "./slices/arbeitsauftraege";
 import featureCollectionSlice from "./slices/featureCollection";
 import featuresFormsSlice from "./slices/featuresForms";
 import arbeitsauftraegeDraftsSlice from "./slices/arbeitsauftraegeDrafts";
+import measurementsSlice from "./slices/measurements";
 
 console.log("store initializing ....");
 
@@ -118,6 +119,9 @@ const store = configureStore({
       arbeitsauftraegeDraftsConfig,
       arbeitsauftraegeDraftsSlice.reducer
     ),
+    // Intentionally NOT persisted: refresh wipes measurements until a
+    // sidebar UI with explicit delete + a real persist story lands.
+    measurements: measurementsSlice.reducer,
   },
   devTools: devToolsEnabled === true && inProduction === false,
   middleware,
