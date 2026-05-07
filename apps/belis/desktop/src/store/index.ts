@@ -70,6 +70,8 @@ const mapSettingsConfig = {
     "inSearchMode",
     "enabledLeitungstypen",
     "enabledCategoryFilters",
+    "regularLayerEnabled",
+    "brandnewLayerEnabled",
   ],
 };
 
