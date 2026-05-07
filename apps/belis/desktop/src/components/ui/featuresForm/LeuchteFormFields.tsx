@@ -135,15 +135,19 @@ const LeuchteFormFields = ({
       ),
     [keyTablesData.leuchtentyp]
   );
-  const kennzifferOptions = useMemo(
-    () =>
-      sortOptions(
-        (keyTablesData.kennziffer || []) as KennzifferItem[],
-        (item) => `${item.kennziffer || ""} - ${item.beschreibung || ""}`,
-        "numeric"
-      ),
-    [keyTablesData.kennziffer]
-  );
+  const kennzifferOptions = useMemo(() => {
+    const sorted = sortOptions(
+      (keyTablesData.kennziffer || []) as KennzifferItem[],
+      (item) => `${item.kennziffer || ""} - ${item.beschreibung || ""}`,
+      "numeric"
+    );
+    // "1 - nur Mast" is meaningless when creating a Leuchte (a lamp is not
+    // just a mast). Existing Leuchten that legacy-carry kennziffer=1 still
+    // see the option in edit mode so their current value stays visible.
+    return isCreation
+      ? sorted.filter((item) => String(item.kennziffer) !== "1")
+      : sorted;
+  }, [keyTablesData.kennziffer, isCreation]);
   const energielieferantOptions = useMemo(
     () =>
       sortOptions(
