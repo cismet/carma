@@ -30,6 +30,24 @@ export default defineConfig({
   //  plugins: [ nxViteTsPaths() ],
   // },
 
+  optimizeDeps: {
+    include: ["maplibre-gl"],
+    esbuildOptions: {
+      target: "es2022",
+      supported: {
+        "class-field": true,
+        "class-static-field": true,
+      },
+    },
+  },
+
+  esbuild: {
+    supported: {
+      "class-field": true,
+      "class-static-field": true,
+    },
+  },
+
   build: {
     outDir: "../../dist/playgrounds/measurements-playground",
     reportCompressedSize: true,

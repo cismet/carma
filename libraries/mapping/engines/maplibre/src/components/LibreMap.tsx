@@ -320,6 +320,13 @@ export const LibreMap = ({
   mapSelectionCtxRef.current = mapSelectionCtx;
   const lastHandledVersionRef = useRef(0);
 
+  // Mirror selectionEnabled into a ref so the click handler (registered once
+  // inside a [] -deps useEffect below) can honor live prop changes — e.g. an
+  // app toggling selection off while a draw mode is active. Without this the
+  // handler would hold the value at mount and never react.
+  const selectionEnabledRef = useRef(selectionEnabled);
+  selectionEnabledRef.current = selectionEnabled;
+
   // DatasheetContext: when a DatasheetProvider is mounted, isEnabled is true
   // and openDatasheet is a real function. Otherwise createFeature gets undefined.
   const { isEnabled: datasheetEnabled, openDatasheet } = useDatasheet();
@@ -675,6 +682,13 @@ export const LibreMap = ({
       }
 
       mapInstance.on("click", async (e) => {
+        // Selection fully disabled (e.g. host app is in a custom interaction
+        // mode like terra-draw measurement). Skip everything: 3D raycast,
+        // visual selection, gazetteer info, context updates. Other click
+        // listeners (terra-draw etc.) still fire — maplibre fires events to
+        // all registered handlers regardless of order.
+        if (!selectionEnabledRef.current) return;
+
         // ── 3D raycast: check 3D layers before 2D ─────────────
         const threeLayers = get3dLayers(mapInstance);
         if (threeLayers.length > 0) {

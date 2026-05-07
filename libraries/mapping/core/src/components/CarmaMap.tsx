@@ -69,6 +69,10 @@ interface CarmaMapProps extends LibreMapProps {
   backgroundLayers?: string | null;
   libreLayers?: LibreLayer[];
   children?: React.ReactNode;
+  /** Extra <Control> siblings injected into the internal ControlLayout.
+   * Auto-stack with the built-in topleft/topright/bottom columns by `order`,
+   * same mechanism apps/geoportal uses in MapWrapper. */
+  extraControls?: React.ReactNode;
   onProgressUpdate?: (progress: { current: number; total: number }) => void;
   embedded?: boolean;
   /** Non-interactive map: disables all controls, compass, interaction */
@@ -101,6 +105,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
     backgroundLayers,
     libreLayers,
     children,
+    extraControls,
     embedded = false,
   } = props;
 
@@ -338,6 +343,8 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                 )}
               </Control>
             )}
+
+            {extraControls}
 
             {mapEngine === "leaflet" && (
               <TopicMapComponent
