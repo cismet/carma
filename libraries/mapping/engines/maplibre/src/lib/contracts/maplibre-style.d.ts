@@ -14,8 +14,16 @@ export type CarmaConf3DModel = {
   showFootprintIn3d?: boolean;
 };
 
+export type CarmaConf3DClippingPolygon = {
+  type: "Polygon";
+  coordinates: number[][][];
+  inverse?: boolean;
+  enabled?: boolean;
+};
+
 export type CarmaConf3D = {
   model?: CarmaConf3DModel;
+  clippingPolygon?: CarmaConf3DClippingPolygon;
   groundPolyline?:
     | boolean
     | {

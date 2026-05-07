@@ -36,6 +36,12 @@ import { useFilterBackground } from "./useFilterBackground";
 import FilterBackdrop from "./FilterBackdrop";
 import { GEOPORTAL_LAYER_TOOL_ACTION_TOOLBAR_CLASS_NAMES } from "./layer-tool-action-button-style";
 import SaveMeasurements from "./SaveMeasurements";
+import {
+  ADHOC_MODEL_CONTROL_INTERACTION_ID,
+  ADHOC_RENDER_STYLE_INTERACTION_ID,
+  AdhocModelControlInteractionPanel,
+  AdhocRenderStyleInteractionPanel,
+} from "./AdhocModelLayerbarControls";
 
 const GeoportalAnnotationsToolbar: FC<{ layer: Layer }> = () => {
   const { registry } = useAnnotationsRuntime();
@@ -52,6 +58,8 @@ const GeoportalAnnotationsToolbar: FC<{ layer: Layer }> = () => {
 };
 
 const INTERACTION_COMPONENTS: Record<string, FC<{ layer: Layer }>> = {
+  [ADHOC_RENDER_STYLE_INTERACTION_ID]: AdhocRenderStyleInteractionPanel,
+  [ADHOC_MODEL_CONTROL_INTERACTION_ID]: AdhocModelControlInteractionPanel,
   [CESIUM_ANNOTATION_INTERACTION_ID]: GeoportalAnnotationsToolbar,
   "save-measurements": SaveMeasurements,
 };

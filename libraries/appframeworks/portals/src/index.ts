@@ -26,6 +26,7 @@ export type {
   CismapLayerProps,
 } from "./lib/contracts/cismap-layer-props.d";
 export type {
+  CarmaConf3DClippingPolygon,
   CarmaConf3DModel,
   CarmaConf3D,
   CarmaMapLibreStyleMetadata,
@@ -90,6 +91,9 @@ export {
   type RemoveAdhocFeatureOptions,
   type ClearAdhocFeaturesOptions,
   type ClearAdhocFeaturesTarget,
+  type AdhocFeatureCollectionMetadata,
+  type AdhocFeatureMetadata,
+  type AdhocFeatureMetadataUpdate,
   type AdhocMapLibreStyleFeature,
   type AdhocFeatureSelectionChange,
   type AdhocFeatureSelectionChangeListener,
@@ -105,6 +109,30 @@ export {
   type AdhocCollectionLike,
   type AdhocSelectionTarget,
 } from "./lib/utils/adhoc-selection-utils";
+export {
+  getCarmaConf3DClippingPolygonRing,
+  type CarmaConf3DClippingPolygonRing,
+} from "./lib/utils/carma-conf3d-clipping";
+export {
+  ADHOC_UNSELECTED_RENDER_STYLES,
+  DEFAULT_ADHOC_UNSELECTED_RENDER_STYLE,
+  DEFAULT_ADHOC_UNSELECTED_RENDER_TINT_COLOR,
+  DEFAULT_ADHOC_UNSELECTED_RENDER_TINT_MIX,
+  MIN_ADHOC_UNSELECTED_RENDER_TINT_MIX,
+  isAdhocUnselectedRenderStyle,
+  resolveAdhocUnselectedRenderStyle,
+  resolveAdhocUnselectedRenderTintColor,
+  resolveAdhocUnselectedRenderTintMix,
+  type AdhocUnselectedRenderStyle,
+  type AdhocUnselectedRenderStyleMetadata,
+} from "./lib/utils/adhoc-render-style";
+export {
+  isDevelopmentUiEnabled,
+  isLocalhostHostname,
+  useDevelopmentUiEnabled,
+  type DevelopmentUiEnabledOptions,
+  type DevelopmentUiFeatureFlags,
+} from "./lib/utils/development-ui";
 
 export { LibreMapSelectionContent } from "./lib/components/LibreMapSelectionContent";
 export { TopicMapSelectionContent } from "./lib/components/TopicMapSelectionContent";
@@ -127,7 +155,10 @@ export {
   defaultBackgroundConfigurations,
   backgroundConfWithFastOrtho2024,
 } from "./lib/utils/topicmapConfigs";
-export { buildInfoBoxStylingProps } from "./lib/utils/adhoc-feature-utils";
+export {
+  buildInfoBoxStylingProps,
+  getCarmaConf3D,
+} from "./lib/utils/adhoc-feature-utils";
 // Feature functions moved to @carma-mapping/utils
 // createUrl, functionToFeature, objectToFeature, createVectorFeature, getInfoBoxControlObjectFromMappingAndVectorFeature
 

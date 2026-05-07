@@ -6,17 +6,23 @@ import {
   Color,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
-  CustomShader,
   Model,
   type Cartesian2,
+  type CustomShader,
 } from "@carma-cesium";
 
 import { createModelPrimitiveFromConfig } from "../utils/createModelPrimitiveFromConfig";
 import {
+  clampModelHighlightEdgeOpacity,
   clampModelHighlightOpacity,
   createModelSelectionHighlightShader,
   DEFAULT_MODEL_SELECTION_HIGHLIGHT_COLOR,
+  DEFAULT_MODEL_SELECTION_HIGHLIGHT_EDGE_COLOR,
+  DEFAULT_MODEL_SELECTION_HIGHLIGHT_EDGE_OPACITY,
+  DEFAULT_MODEL_SELECTION_HIGHLIGHT_EDGE_WIDTH_PX,
   DEFAULT_MODEL_SELECTION_HIGHLIGHT_OPACITY,
+  isModelIntegratedHighlightShader,
+  normalizeModelHighlightEdgeWidthPx,
   setModelHighlightShaderUniforms,
 } from "../utils/modelHighlightShader";
 import {
@@ -26,6 +32,12 @@ import {
   isModelPick,
 } from "../utils/modelManager";
 import { useCesiumContext } from "./useCesiumContext";
+
+const MODEL_SELECTION_HIGHLIGHT_EDGE_MODE_PROPERTY =
+  "modelSelectionHighlightEdgeMode";
+
+export type ModelSelectionHighlightEdgeMode = "silhouette" | "none";
+
 export interface UseCesiumModelManagerOptions {
   models: ModelConfig[];
   enabled: boolean;
@@ -36,16 +48,23 @@ export interface UseCesiumModelManagerOptions {
     onModelAdded?: (primitiveId: string, primitive: Model) => void;
     onModelFirstRendered?: (primitiveId: string, primitive: Model) => void;
     deselectOnEmptyClick?: boolean;
+    highlightEdgeColor?: Color;
+    highlightEdgeOpacity?: number;
+    highlightEdgeWidthPx?: number;
     highlightFadeDurationMs?: number;
     highlightFadeEasing?: EasingFunction;
+    highlightEdgeMode?: ModelSelectionHighlightEdgeMode;
+    highlightMinimumPixelSize?: number;
     selectedId?: string | null;
   };
 }
 
-const DEFAULT_MODEL_SELECTION_HIGHLIGHT_FADE_DURATION_MS = 500;
+const DEFAULT_MODEL_SELECTION_HIGHLIGHT_FADE_DURATION_MS = 220;
 const DEFAULT_MODEL_SELECTION_HIGHLIGHT_FADE_EASING = Easing.CUBIC_OUT;
 const DEFAULT_MODEL_SELECTION_HIGHLIGHT_FLASH_DURATION_MS = 160;
-const DEFAULT_MODEL_SELECTION_HOVER_CLEAR_DELAY_MS = 80;
+const DEFAULT_MODEL_SELECTION_HOVER_CLEAR_DELAY_MS = 40;
+const DEFAULT_MODEL_SELECTION_HIGHLIGHT_MINIMUM_PIXEL_SIZE = 1;
+const MODEL_SELECTION_SILHOUETTE_SIZE_FADE_EXPONENT = 1.5;
 const MODEL_SELECTION_FLASH_HIGHLIGHT_COLOR = new Color(1, 1, 1, 1);
 
 const normalizeModelSelectionHighlightFadeDuration = (
@@ -56,6 +75,15 @@ const normalizeModelSelectionHighlightFadeDuration = (
   fadeDurationMs >= 0
     ? fadeDurationMs
     : DEFAULT_MODEL_SELECTION_HIGHLIGHT_FADE_DURATION_MS;
+
+const normalizeModelSelectionHighlightMinimumPixelSize = (
+  minimumPixelSize: number | undefined
+) =>
+  typeof minimumPixelSize === "number" &&
+  Number.isFinite(minimumPixelSize) &&
+  minimumPixelSize >= 0
+    ? minimumPixelSize
+    : DEFAULT_MODEL_SELECTION_HIGHLIGHT_MINIMUM_PIXEL_SIZE;
 
 const clampEasedProgress = (progress: number) =>
   Number.isFinite(progress) ? Math.min(1, Math.max(0, progress)) : 1;
@@ -68,19 +96,78 @@ const interpolateColor = (from: Color, to: Color, progress: number) =>
     from.alpha + (to.alpha - from.alpha) * progress
   );
 
+const createNonAccumulatingSilhouetteColor = (
+  edgeColor: Color,
+  edgeOpacity: number
+) => {
+  const strength =
+    edgeColor.alpha * clampModelHighlightEdgeOpacity(edgeOpacity);
+
+  return new Color(
+    1 + (edgeColor.red - 1) * strength,
+    1 + (edgeColor.green - 1) * strength,
+    1 + (edgeColor.blue - 1) * strength,
+    1
+  );
+};
+
+const calculateTaperedSilhouetteSize = (
+  edgeWidthPx: number,
+  highlightOpacity: number
+) =>
+  normalizeModelHighlightEdgeWidthPx(edgeWidthPx) *
+  Math.pow(
+    clampModelHighlightOpacity(highlightOpacity, 0),
+    MODEL_SELECTION_SILHOUETTE_SIZE_FADE_EXPONENT
+  );
+
+const readPrimitiveHighlightEdgeMode = (
+  primitive: Model,
+  fallback: ModelSelectionHighlightEdgeMode
+): ModelSelectionHighlightEdgeMode => {
+  const pickId = primitive.id as
+    | { properties?: Record<string, unknown> }
+    | undefined;
+  const configuredMode =
+    pickId?.properties?.[MODEL_SELECTION_HIGHLIGHT_EDGE_MODE_PROPERTY];
+  return configuredMode === "silhouette" || configuredMode === "none"
+    ? configuredMode
+    : fallback;
+};
+
 type ModelWithReadyPromise = {
   readyPromise?: Promise<unknown>;
 };
+
+const getModelConfigCustomShader = (
+  config: ModelConfig
+): CustomShader | undefined =>
+  config.model.customShader
+    ? (config.model.customShader as CustomShader)
+    : undefined;
+
+const getModelConfigCustomShaderSignature = (
+  config: ModelConfig
+): string | null =>
+  typeof config.model.renderStyleSignature === "string"
+    ? config.model.renderStyleSignature
+    : null;
 
 type ModelSelectionHighlightState = {
   animationStartOpacity: number;
   animationStartTimestampMs: number | null;
   flashStartTimestampMs: number | null;
   isFlashActive: boolean;
+  originalOutlineColor: Color;
+  originalShowOutline: boolean;
   originalShader: CustomShader | undefined;
+  originalSilhouetteColor: Color;
+  originalSilhouetteSize: number;
+  originalMinimumPixelSize: number;
   opacity: number;
   shader: CustomShader;
   targetOpacity: number;
+  usesIntegratedShader: boolean;
 };
 
 export const useCesiumModelManager = ({
@@ -92,6 +179,10 @@ export const useCesiumModelManager = ({
   const modelPrimitivesRef = useRef<Map<string, Model>>(new Map());
   const pendingModelLoadsRef = useRef<Map<string, Promise<Model>>>(new Map());
   const desiredModelKeysRef = useRef<Set<string>>(new Set());
+  const modelsByKeyRef = useRef<Map<string, ModelConfig>>(new Map());
+  const customShaderSignatureByPrimitiveRef = useRef<Map<Model, string | null>>(
+    new Map()
+  );
   const enabledRef = useRef<boolean>(enabled);
   const isUnmountedRef = useRef<boolean>(false);
   const selectedPrimitiveRef = useRef<Model | null>(null);
@@ -125,6 +216,24 @@ export const useCesiumModelManager = ({
   const highlightFadeEasingRef = useRef<EasingFunction>(
     selection?.highlightFadeEasing ??
       DEFAULT_MODEL_SELECTION_HIGHLIGHT_FADE_EASING
+  );
+  const highlightEdgeColorRef = useRef<Color>(
+    selection?.highlightEdgeColor ??
+      DEFAULT_MODEL_SELECTION_HIGHLIGHT_EDGE_COLOR
+  );
+  const highlightEdgeOpacityRef = useRef<number>(
+    clampModelHighlightEdgeOpacity(selection?.highlightEdgeOpacity)
+  );
+  const highlightEdgeWidthPxRef = useRef<number>(
+    normalizeModelHighlightEdgeWidthPx(selection?.highlightEdgeWidthPx)
+  );
+  const highlightEdgeModeRef = useRef<ModelSelectionHighlightEdgeMode>(
+    selection?.highlightEdgeMode ?? "silhouette"
+  );
+  const highlightMinimumPixelSizeRef = useRef<number>(
+    normalizeModelSelectionHighlightMinimumPixelSize(
+      selection?.highlightMinimumPixelSize
+    )
   );
 
   useEffect(() => {
@@ -165,9 +274,154 @@ export const useCesiumModelManager = ({
   }, [selection?.highlightFadeEasing]);
 
   useEffect(() => {
+    highlightEdgeColorRef.current =
+      selection?.highlightEdgeColor ??
+      DEFAULT_MODEL_SELECTION_HIGHLIGHT_EDGE_COLOR;
+  }, [selection?.highlightEdgeColor]);
+
+  useEffect(() => {
+    highlightEdgeOpacityRef.current = clampModelHighlightEdgeOpacity(
+      selection?.highlightEdgeOpacity
+    );
+  }, [selection?.highlightEdgeOpacity]);
+
+  useEffect(() => {
+    highlightEdgeWidthPxRef.current = normalizeModelHighlightEdgeWidthPx(
+      selection?.highlightEdgeWidthPx
+    );
+  }, [selection?.highlightEdgeWidthPx]);
+
+  useEffect(() => {
+    highlightEdgeModeRef.current = selection?.highlightEdgeMode ?? "silhouette";
+  }, [selection?.highlightEdgeMode]);
+
+  useEffect(() => {
+    highlightMinimumPixelSizeRef.current =
+      normalizeModelSelectionHighlightMinimumPixelSize(
+        selection?.highlightMinimumPixelSize
+      );
+  }, [selection?.highlightMinimumPixelSize]);
+
+  useEffect(() => {
     enabledRef.current = enabled;
-    desiredModelKeysRef.current = new Set(models.map(buildModelKey));
+    const nextModelsByKey = new Map(
+      models.map((modelConfig) => [buildModelKey(modelConfig), modelConfig])
+    );
+    modelsByKeyRef.current = nextModelsByKey;
+    desiredModelKeysRef.current = new Set(nextModelsByKey.keys());
   }, [enabled, models]);
+
+  const readSelectionSilhouetteOptions = useCallback(
+    () => ({
+      edgeColor: highlightEdgeColorRef.current,
+      edgeOpacity: highlightEdgeOpacityRef.current,
+      edgeWidthPx: highlightEdgeWidthPxRef.current,
+      minimumPixelSize: highlightMinimumPixelSizeRef.current,
+    }),
+    []
+  );
+
+  const setSelectionHighlightShaderUniforms = useCallback(
+    (state: ModelSelectionHighlightState, color: Color, opacity: number) => {
+      setModelHighlightShaderUniforms({
+        color,
+        opacity,
+        shader: state.shader,
+      });
+    },
+    []
+  );
+
+  const applySelectionMinimumPixelSize = useCallback(
+    (
+      primitive: Model,
+      state: ModelSelectionHighlightState,
+      opacity: number
+    ) => {
+      if (primitive.isDestroyed()) {
+        return;
+      }
+
+      const { minimumPixelSize } = readSelectionSilhouetteOptions();
+      primitive.minimumPixelSize = Math.max(
+        state.originalMinimumPixelSize,
+        opacity > 0 ? minimumPixelSize : 0
+      );
+    },
+    [readSelectionSilhouetteOptions]
+  );
+
+  const applySelectionPresentation = useCallback(
+    (
+      primitive: Model,
+      state: ModelSelectionHighlightState,
+      opacity: number
+    ) => {
+      if (primitive.isDestroyed()) {
+        return;
+      }
+
+      const { edgeColor, edgeOpacity, edgeWidthPx } =
+        readSelectionSilhouetteOptions();
+      const highlightOpacity = clampModelHighlightOpacity(opacity, 0);
+      const edgeMode = readPrimitiveHighlightEdgeMode(
+        primitive,
+        highlightEdgeModeRef.current
+      );
+
+      if (edgeMode === "silhouette") {
+        primitive.silhouetteColor = createNonAccumulatingSilhouetteColor(
+          edgeColor,
+          edgeOpacity
+        );
+        primitive.silhouetteSize = Math.max(
+          state.originalSilhouetteSize,
+          calculateTaperedSilhouetteSize(edgeWidthPx, highlightOpacity)
+        );
+      } else {
+        primitive.silhouetteColor = Color.clone(
+          state.originalSilhouetteColor,
+          new Color()
+        );
+        primitive.silhouetteSize = state.originalSilhouetteSize;
+      }
+      primitive.outlineColor = Color.clone(
+        DEFAULT_MODEL_SELECTION_HIGHLIGHT_COLOR,
+        new Color()
+      );
+      primitive.showOutline = true;
+      applySelectionMinimumPixelSize(primitive, state, opacity);
+    },
+    [applySelectionMinimumPixelSize, readSelectionSilhouetteOptions]
+  );
+
+  useEffect(() => {
+    if (selectionHighlightStateByPrimitiveRef.current.size === 0) {
+      return;
+    }
+
+    selectionHighlightStateByPrimitiveRef.current.forEach(
+      (state, primitive) => {
+        setSelectionHighlightShaderUniforms(
+          state,
+          state.isFlashActive
+            ? MODEL_SELECTION_FLASH_HIGHLIGHT_COLOR
+            : DEFAULT_MODEL_SELECTION_HIGHLIGHT_COLOR,
+          state.opacity
+        );
+        applySelectionPresentation(primitive, state, state.opacity);
+      }
+    );
+    requestRender();
+  }, [
+    applySelectionPresentation,
+    requestRender,
+    selection?.highlightEdgeColor,
+    selection?.highlightEdgeOpacity,
+    selection?.highlightEdgeWidthPx,
+    selection?.highlightMinimumPixelSize,
+    setSelectionHighlightShaderUniforms,
+  ]);
 
   const applyShader = useCallback(
     (primitive: Model, shader?: CustomShader) => {
@@ -203,18 +457,33 @@ export const useCesiumModelManager = ({
         return existing;
       }
 
-      const state = {
+      const originalShader = primitive.customShader ?? undefined;
+      const usesIntegratedShader =
+        isModelIntegratedHighlightShader(originalShader);
+
+      const state: ModelSelectionHighlightState = {
         animationStartOpacity: 0,
         animationStartTimestampMs: null,
         flashStartTimestampMs: null,
         isFlashActive: false,
-        originalShader: primitive.customShader ?? undefined,
+        originalMinimumPixelSize: primitive.minimumPixelSize,
+        originalOutlineColor: Color.clone(primitive.outlineColor, new Color()),
+        originalShowOutline: primitive.showOutline,
+        originalShader,
+        originalSilhouetteColor: Color.clone(
+          primitive.silhouetteColor,
+          new Color()
+        ),
+        originalSilhouetteSize: primitive.silhouetteSize,
         opacity: 0,
-        shader: createModelSelectionHighlightShader({
-          color: DEFAULT_MODEL_SELECTION_HIGHLIGHT_COLOR,
-          opacity: 0,
-        }),
+        shader: usesIntegratedShader && originalShader
+          ? originalShader
+          : createModelSelectionHighlightShader({
+              color: DEFAULT_MODEL_SELECTION_HIGHLIGHT_COLOR,
+              opacity: 0,
+            }),
         targetOpacity: 0,
+        usesIntegratedShader,
       };
       selectionHighlightStateByPrimitiveRef.current.set(primitive, state);
       return state;
@@ -224,8 +493,34 @@ export const useCesiumModelManager = ({
 
   const restoreSelectionHighlightShader = useCallback(
     (primitive: Model, state: ModelSelectionHighlightState) => {
-      if (!primitive.isDestroyed() && primitive.customShader === state.shader) {
-        applyShader(primitive, state.originalShader);
+      if (!primitive.isDestroyed()) {
+        if (state.usesIntegratedShader) {
+          setSelectionHighlightShaderUniforms(
+            state,
+            DEFAULT_MODEL_SELECTION_HIGHLIGHT_COLOR,
+            0
+          );
+          if (
+            state.originalShader !== state.shader &&
+            primitive.customShader === state.shader
+          ) {
+            applyShader(primitive, state.originalShader);
+          }
+        } else if (primitive.customShader === state.shader) {
+          applyShader(primitive, state.originalShader);
+        }
+        primitive.silhouetteColor = Color.clone(
+          state.originalSilhouetteColor,
+          new Color()
+        );
+        primitive.silhouetteSize = state.originalSilhouetteSize;
+        primitive.minimumPixelSize = state.originalMinimumPixelSize;
+        primitive.outlineColor = Color.clone(
+          state.originalOutlineColor,
+          new Color()
+        );
+        primitive.showOutline = state.originalShowOutline;
+        requestRender();
       }
       selectionHighlightStateByPrimitiveRef.current.delete(primitive);
       if (selectedPrimitiveRef.current === primitive) {
@@ -235,7 +530,7 @@ export const useCesiumModelManager = ({
         hoveredPrimitiveRef.current = null;
       }
     },
-    [applyShader]
+    [applyShader, requestRender]
   );
 
   const restoreSelectionHighlightShaders = useCallback(() => {
@@ -315,11 +610,12 @@ export const useCesiumModelManager = ({
             }
           }
 
-          setModelHighlightShaderUniforms({
-            color: highlightColor,
-            opacity: nextOpacity,
-            shader: state.shader,
-          });
+          setSelectionHighlightShaderUniforms(
+            state,
+            highlightColor,
+            nextOpacity
+          );
+          applySelectionPresentation(primitive, state, nextOpacity);
           requestRender();
 
           if (linearProgress < 1) {
@@ -343,7 +639,12 @@ export const useCesiumModelManager = ({
         );
       }
     },
-    [requestRender, restoreSelectionHighlightShader]
+    [
+      requestRender,
+      applySelectionPresentation,
+      restoreSelectionHighlightShader,
+      setSelectionHighlightShaderUniforms,
+    ]
   );
 
   const scheduleSelectionHighlightAnimation = useCallback(() => {
@@ -382,17 +683,19 @@ export const useCesiumModelManager = ({
         state.targetOpacity = nextTargetOpacity;
         state.isFlashActive = true;
         state.flashStartTimestampMs = null;
-        setModelHighlightShaderUniforms({
-          color: MODEL_SELECTION_FLASH_HIGHLIGHT_COLOR,
-          opacity: nextTargetOpacity,
-          shader: state.shader,
-        });
+        setSelectionHighlightShaderUniforms(
+          state,
+          MODEL_SELECTION_FLASH_HIGHLIGHT_COLOR,
+          nextTargetOpacity
+        );
+        applySelectionPresentation(primitive, state, nextTargetOpacity);
         requestRender();
         scheduleSelectionHighlightAnimation();
         return;
       }
 
       if (
+        !options.flash &&
         state.targetOpacity === nextTargetOpacity &&
         state.opacity === nextTargetOpacity
       ) {
@@ -402,13 +705,16 @@ export const useCesiumModelManager = ({
       state.animationStartOpacity = state.opacity;
       state.animationStartTimestampMs = null;
       state.targetOpacity = nextTargetOpacity;
+      applySelectionPresentation(primitive, state, state.opacity);
       scheduleSelectionHighlightAnimation();
     },
     [
       applyShader,
+      applySelectionPresentation,
       readOrCreateSelectionHighlightState,
       requestRender,
       scheduleSelectionHighlightAnimation,
+      setSelectionHighlightShaderUniforms,
     ]
   );
 
@@ -489,6 +795,7 @@ export const useCesiumModelManager = ({
         if (highlightState) {
           restoreSelectionHighlightShader(primitive, highlightState);
         }
+        customShaderSignatureByPrimitiveRef.current.delete(primitive);
         scene.primitives.remove(primitive);
         if (!primitive.isDestroyed()) {
           primitive.destroy();
@@ -560,6 +867,20 @@ export const useCesiumModelManager = ({
           }
 
           const modelPrimitiveId = getPrimitiveSelectionId(modelPrimitive);
+          const latestModelConfig = modelsByKeyRef.current.get(key);
+          const latestCustomShader = latestModelConfig
+            ? getModelConfigCustomShader(latestModelConfig)
+            : getModelConfigCustomShader(modelConfig);
+          const latestCustomShaderSignature = latestModelConfig
+            ? getModelConfigCustomShaderSignature(latestModelConfig)
+            : getModelConfigCustomShaderSignature(modelConfig);
+          if (modelPrimitive.customShader !== latestCustomShader) {
+            modelPrimitive.customShader = latestCustomShader;
+          }
+          customShaderSignatureByPrimitiveRef.current.set(
+            modelPrimitive,
+            latestCustomShaderSignature
+          );
           console.debug("[ADHOC|MODEL] primitive created", {
             key,
             primitiveId: modelPrimitiveId,
@@ -640,6 +961,50 @@ export const useCesiumModelManager = ({
   ]);
 
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+    for (const modelConfig of models) {
+      const primitive = modelPrimitivesRef.current.get(
+        buildModelKey(modelConfig)
+      );
+      if (!primitive || primitive.isDestroyed()) {
+        continue;
+      }
+
+      const customShader = getModelConfigCustomShader(modelConfig);
+      const customShaderSignature =
+        getModelConfigCustomShaderSignature(modelConfig);
+      const previousCustomShaderSignature =
+        customShaderSignatureByPrimitiveRef.current.get(primitive) ?? null;
+      if (previousCustomShaderSignature === customShaderSignature) {
+        continue;
+      }
+
+      const highlightState =
+        selectionHighlightStateByPrimitiveRef.current.get(primitive);
+      if (highlightState) {
+        highlightState.originalShader = customShader;
+        customShaderSignatureByPrimitiveRef.current.set(
+          primitive,
+          customShaderSignature
+        );
+        requestRender();
+        continue;
+      }
+      if (primitive.customShader !== customShader) {
+        applyShader(primitive, customShader);
+      } else {
+        requestRender();
+      }
+      customShaderSignatureByPrimitiveRef.current.set(
+        primitive,
+        customShaderSignature
+      );
+    }
+  }, [applyShader, enabled, models, requestRender]);
+
+  useEffect(() => {
     const primitivesByKey = modelPrimitivesRef.current;
     const pendingLoads = pendingModelLoadsRef.current;
     return () => {
@@ -671,6 +1036,7 @@ export const useCesiumModelManager = ({
         }
       });
       primitivesByKey.clear();
+      customShaderSignatureByPrimitiveRef.current.clear();
       selectionHighlightStateByPrimitiveRef.current.clear();
     };
   }, [getScene]);
@@ -737,14 +1103,8 @@ export const useCesiumModelManager = ({
         if (!position) {
           return null;
         }
-        const picks = scene.drillPick(position, 5);
-        for (let i = 0; i < picks.length; i++) {
-          const picked = picks[i];
-          if (isModelPick(picked)) {
-            return picked;
-          }
-        }
-        return null;
+        const picked = scene.pick(position, 1, 1);
+        return isModelPick(picked) ? picked : null;
       };
 
       const handleLeftClick = ({

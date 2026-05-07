@@ -107,20 +107,16 @@ export {
 } from "./createRotationAxisVisualizer";
 export { createModelPrimitiveFromConfig } from "./createModelPrimitiveFromConfig";
 export {
-  clampModelHighlightOpacity,
   clampModelSamplingHighlightOpacity,
-  createModelHighlightShader,
   createModelSelectionHighlightShader,
   createModelSamplingHighlightShader,
-  DEFAULT_MODEL_HIGHLIGHT_SHADER,
-  DEFAULT_MODEL_SELECTION_HIGHLIGHT_COLOR,
-  DEFAULT_MODEL_SELECTION_HIGHLIGHT_OPACITY,
   DEFAULT_MODEL_SAMPLING_HIGHLIGHT_FADE_DURATION_MS,
   DEFAULT_MODEL_SAMPLING_HIGHLIGHT_COLOR,
   DEFAULT_MODEL_SAMPLING_HIGHLIGHT_OPACITY,
-  setModelHighlightShaderUniforms,
+  isModelIntegratedHighlightShader,
+  setModelBaseTintShaderUniforms,
   setModelSamplingHighlightShaderUniforms,
-  type ModelHighlightShaderUniformOptions,
+  type ModelBaseTintShaderUniformOptions,
   type ModelSamplingHighlightShaderUniformOptions,
 } from "./modelHighlightShader";
 export {

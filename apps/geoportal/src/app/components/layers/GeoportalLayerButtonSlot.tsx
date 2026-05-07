@@ -20,6 +20,10 @@ import { useAnnotationsRuntime } from "@carma-mapping/annotations/runtime";
 import { removeLayer } from "../../store/slices/mapping";
 import { CESIUM_ANNOTATION_LAYER_ID } from "../annotations/cesium-annotations.constants";
 import { MEASUREMENT_LAYER_ID } from "../../hooks/useMeasurementLayerButton";
+import {
+  AdhocModelFlyToLayerbarAction,
+  AdhocModelLayerbarActions,
+} from "./AdhocModelLayerbarControls";
 import GeoportalLayerButton, {
   type GeoportalLayerButtonProps,
 } from "./GeoportalLayerButton";
@@ -138,7 +142,25 @@ const GeoportalLayerButtonSlot = (props: GeoportalLayerButtonProps) => {
     return <MeasurementLayerButton {...props} />;
   }
 
-  return <GeoportalLayerButton {...props} />;
+  const isAdhocModelLayer =
+    props.layer.type === "object" && !!props.layer.props?.style;
+
+  return (
+    <GeoportalLayerButton
+      {...props}
+      actionSlot={
+        <>
+          {isAdhocModelLayer && (
+            <AdhocModelFlyToLayerbarAction layer={props.layer} />
+          )}
+          {props.actionSlot}
+          {isAdhocModelLayer && (
+            <AdhocModelLayerbarActions layer={props.layer} />
+          )}
+        </>
+      }
+    />
+  );
 };
 
 export default GeoportalLayerButtonSlot;

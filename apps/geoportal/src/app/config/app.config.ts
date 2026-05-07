@@ -77,6 +77,13 @@ export const CESIUM_CONFIG: CesiumConfig = {
     primary: WUPP_MESH_2024,
     secondary: WUPP_LOD2_TILESET,
   },
+  modelSelectionHighlight: {
+    edgeColor: [0, 0, 0, 1],
+    edgeOpacity: 0.5,
+    edgeWidthPx: 2,
+    edgeMode: "silhouette",
+    minimumPixelSize: 1,
+  },
 };
 
 export const CESIUM_ANNOTATION_CONFIG = {

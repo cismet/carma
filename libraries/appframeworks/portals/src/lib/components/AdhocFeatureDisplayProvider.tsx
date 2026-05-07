@@ -16,9 +16,10 @@ import {
   DEFAULT_ADHOC_FEATURE_COLLECTION_ID,
   DEFAULT_ADHOC_FEATURE_LAYER_ID,
 } from "../constants/adhoc";
+import type { AdhocUnselectedRenderStyleMetadata } from "../utils/adhoc-render-style";
 import { resolveAdhocFeatureLayerId } from "../utils/adhoc-selection-utils";
 
-export type AdhocFeatureMetadata = {
+export type AdhocFeatureMetadata = AdhocUnselectedRenderStyleMetadata & {
   accentColor?: string;
   elevatedGeoJson?: Feature | FeatureCollection;
   flyToGeoJson?: Feature | FeatureCollection;
@@ -51,9 +52,10 @@ export type AdhocFeatureMetadataUpdate = {
 
 export type AdhocFeature = AdhocMapLibreStyleFeature;
 
-export type AdhocFeatureCollectionMetadata = {
-  [key: string]: unknown;
-};
+export type AdhocFeatureCollectionMetadata =
+  AdhocUnselectedRenderStyleMetadata & {
+    [key: string]: unknown;
+  };
 
 export type AdhocFeatureCollection = {
   id: string;

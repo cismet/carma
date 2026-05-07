@@ -1,5 +1,6 @@
 import type { ModelConfig } from "@carma-mapping/engines/cesium/core";
 import { Cartesian3, HeadingPitchRoll, Model, Transforms } from "@carma-cesium";
+import type { CustomShader } from "@carma-cesium";
 import type { FeatureInfoProperties } from "@carma-mapping/utils";
 type ModelPickId = {
   id?: string;
@@ -49,6 +50,9 @@ export const createModelPrimitiveFromConfig = async (
     modelMatrix,
     scale,
   });
+  if (config.model.customShader) {
+    model.customShader = config.model.customShader as CustomShader;
+  }
 
   model.id = createModelPickId(config);
 

@@ -25,6 +25,10 @@ export {
   type DismissibleHelpBoxProps,
 } from "./lib/components/DismissibleHelpBox";
 export {
+  DevelopmentOnlyPatternBackground,
+  type DevelopmentOnlyPatternBackgroundProps,
+} from "./lib/components/DevBackground/DevelopmentOnlyPatternBackground";
+export {
   VisibilityToggleButton,
   type VisibilityToggleButtonProps,
 } from "./lib/components/VisibilityToggleButton";
@@ -93,6 +97,16 @@ export {
   readFrostedGlassShadow,
   readFrostedGlassShadowStyle,
 } from "./lib/utils/frostedGlass";
+export {
+  DEVELOPMENT_ONLY_LABEL,
+  DEVELOPMENT_ONLY_PATTERN_TEXT,
+  DEVELOPMENT_ONLY_PATTERN_TEXT_DE,
+  DEVELOPMENT_ONLY_PATTERN_TEXT_EN,
+  buildDevelopmentOnlyPatternDataUrl,
+  buildDevelopmentOnlyPatternSvgMarkup,
+  readDevelopmentOnlyPatternStyle,
+  type DevelopmentOnlyPatternStyleOptions,
+} from "./lib/components/DevBackground/developmentOnlyPattern";
 export {
   ANNOTATION_CURSOR_OVERLAY_CENTER_DOT_SIZE_PX,
   ANNOTATION_CURSOR_OVERLAY_CENTER_GAP_PX,

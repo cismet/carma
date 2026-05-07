@@ -2,7 +2,11 @@ import type { Feature, FeatureCollection } from "geojson";
 import type { GeoJSONSourceSpecification } from "maplibre-gl";
 
 import type { FeatureInfo } from "@carma-mapping/utils";
-import type { CarmaMapLibreStyleData } from "../contracts/maplibre-style.d";
+import type {
+  CarmaConf3D,
+  CarmaMapLibreFeatureProperties,
+  CarmaMapLibreStyleData,
+} from "../contracts/maplibre-style.d";
 
 import type { AdhocFeature } from "../components/AdhocFeatureDisplayProvider";
 
@@ -75,6 +79,25 @@ export const getGeoJsonFromFeature = (
     return source.data as Feature | FeatureCollection;
   }
   return null;
+};
+
+export const getCarmaConf3D = (
+  feature: AdhocFeature
+): CarmaConf3D | undefined => {
+  const properties = feature.properties as
+    | CarmaMapLibreFeatureProperties
+    | undefined;
+  if (properties?.carmaConf3D) {
+    return properties.carmaConf3D;
+  }
+
+  const geojson = getGeoJsonFromFeature(feature);
+  const geojsonFeature =
+    geojson?.type === "FeatureCollection" ? geojson.features[0] : geojson;
+  const geojsonProperties = geojsonFeature?.properties as
+    | CarmaMapLibreFeatureProperties
+    | undefined;
+  return geojsonProperties?.carmaConf3D;
 };
 
 const pickNonEmptyString = (...values: Array<unknown>) => {

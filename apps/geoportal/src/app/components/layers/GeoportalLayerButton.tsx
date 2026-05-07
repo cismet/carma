@@ -507,8 +507,6 @@ const GeoportalLayerButton = ({
                 );
               })}
 
-            {actionSlot}
-
             {dynamicStylingConfigs.map((config, idx) => {
               if (idx === primaryListConfigIndex) return null;
               return (
@@ -538,6 +536,8 @@ const GeoportalLayerButton = ({
                 />
               );
             })}
+
+            {actionSlot}
 
             <button
               id={`removeLayerButton-${id}`}
