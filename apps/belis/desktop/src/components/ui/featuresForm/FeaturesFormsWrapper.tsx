@@ -39,11 +39,8 @@ import {
   deserializeValues,
 } from "../../../helper/draftSerialize";
 import { saveFeatureDraft } from "../../../helper/featureFormSaveHelpers";
-import {
-  GEOMETRY_OPTIONS,
-  getGeometryByKey,
-  type GeometryKey,
-} from "../../../helper/geometryOptions";
+import { buildMeasurementGeometryOptions } from "../../../helper/geometryOptions";
+import { getMeasurements } from "../../../store/slices/measurements";
 import {
   buildSyntheticFeature,
   buildSyntheticFetchedData,
@@ -171,6 +168,11 @@ const FeaturesFormsWrapper = ({
   const jwt = useSelector(getJWT) as string | null;
   const featureDataVersion = useSelector(getFeatureDataVersion);
   const globalEditMode = useSelector(getGlobalEditMode);
+  const measurements = useSelector(getMeasurements);
+  const geometryOptions = useMemo(
+    () => buildMeasurementGeometryOptions(measurements),
+    [measurements]
+  );
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [resetKey, setResetKey] = useState(0);
@@ -306,9 +308,11 @@ const FeaturesFormsWrapper = ({
   );
 
   const handleGeometryChange = useCallback(
-    (newKey: GeometryKey) => {
+    (newKey: string) => {
       if (!featureId || !formKey) return;
-      const geom = getGeometryByKey(newKey);
+      const opt = geometryOptions.find((o) => o.key === newKey);
+      if (!opt) return;
+      const geom = opt.geometry;
       const currentValues = draft?.values ?? {};
       dispatch(
         setDraft({
@@ -331,7 +335,7 @@ const FeaturesFormsWrapper = ({
         })
       );
     },
-    [featureId, formKey, draft?.values, dispatch]
+    [featureId, formKey, draft?.values, geometryOptions, dispatch]
   );
 
   const handleOriginalValues = useCallback(
@@ -413,14 +417,18 @@ const FeaturesFormsWrapper = ({
                     </span>
                     <Select
                       value={
-                        (draft?.geometryKey as GeometryKey) ??
-                        "point_toelleturm"
+                        geometryOptions.some(
+                          (o) => o.key === draft?.geometryKey
+                        )
+                          ? draft?.geometryKey
+                          : undefined
                       }
                       onChange={handleGeometryChange}
                       className="w-full mt-1"
                       size="large"
+                      placeholder="Messung wählen"
                     >
-                      {GEOMETRY_OPTIONS.map((opt) => (
+                      {geometryOptions.map((opt) => (
                         <Select.Option key={opt.key} value={opt.key}>
                           {opt.label}
                         </Select.Option>
