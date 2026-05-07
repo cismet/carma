@@ -141,6 +141,12 @@ import {
 } from "../../helper/buildSyntheticFeature";
 // import { useAaLassoSelection } from "../../hooks/useAaLassoSelection";
 import { useBrandnewFcSync } from "../../hooks/useBrandnewFcSync";
+import {
+  DrawModeControls,
+  MeasurementHost,
+  type DrawMode,
+} from "@carma-mapping/measurements";
+import { setMeasurements } from "../../store/slices/measurements";
 
 function buildAAFeatureCollection(
   features: ArbeitsauftragTileFeature[]
@@ -217,6 +223,7 @@ const BelisMapLibWrapper = ({
   // Track whether the map style has finished loading so effects that call
   // addSource / addLayer don't fire too early ("Style is not done loading").
   const [mapReady, setMapReady] = useState(false);
+  const [drawMode, setDrawMode] = useState<DrawMode>("none");
   useEffect(() => {
     if (!map) {
       setMapReady(false);
@@ -2662,22 +2669,52 @@ const BelisMapLibWrapper = ({
         </div>
         <DatasheetLayout
           mainMap={
-            <CarmaMap
-              mapEngine="maplibre"
-              layerMode="imperative"
-              embedded
-              debugLog
-              logErrors={showRaw}
-              exposeMapToWindow
-              overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
-              backgroundLayers=""
-              terrainControl={false}
-              fullScreenControl={false}
-              libreLayers={libreLayers}
-              selectFromHits={handleSelectFromHits}
-              overrideSelectedFeature={overrideSelectedFeature}
-              gazetteerInfoOnClick={false}
-            />
+            <>
+              <CarmaMap
+                mapEngine="maplibre"
+                layerMode="imperative"
+                embedded
+                debugLog
+                logErrors={showRaw}
+                exposeMapToWindow
+                overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
+                backgroundLayers=""
+                terrainControl={false}
+                fullScreenControl={false}
+                libreLayers={libreLayers}
+                selectFromHits={handleSelectFromHits}
+                overrideSelectedFeature={overrideSelectedFeature}
+                gazetteerInfoOnClick={false}
+                // Suppress carma's vector-feature selection while a draw mode
+                // is active so clicks land in terra-draw, not in the
+                // fachobjekt selection logic.
+                selectionEnabled={drawMode === "none"}
+                extraControls={
+                  <DrawModeControls
+                    active={drawMode}
+                    onSelect={(mode) =>
+                      setDrawMode((prev) => (prev === mode ? "none" : mode))
+                    }
+                  />
+                }
+              />
+              <MeasurementHost
+                mode={drawMode}
+                onChange={(features) => {
+                  // Prefix terra-draw's UUIDs to namespace measurement ids
+                  // away from any other id space (fachobjekte, brandnew FC,
+                  // etc.). Persistence intentionally omitted — refresh wipes.
+                  dispatch(
+                    setMeasurements(
+                      features.map((f) => ({
+                        ...f,
+                        id: `measurement.${f.id}`,
+                      }))
+                    )
+                  );
+                }}
+              />
+            </>
           }
           datasheetContent={
             // Draft mode: render AP form directly from persisted draft snapshot
