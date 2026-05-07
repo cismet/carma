@@ -100,6 +100,19 @@ export function MeasurementHost({
   // dirty whenever the style changes, then rebuild lazily inside the snap
   // callback so we never walk on a frame that isn't actually snapping.
   const snappableLayerIdsRef = useRef<string[] | null>(null);
+  // Tracks whether terra-draw's select mode currently has a feature
+  // selected. Used to widen the snap preview's render gate to "mode === 'none'
+  // AND something selected" — vertex drags benefit from the dot just as
+  // much as new-line drawing does.
+  const hasSelectionRef = useRef(false);
+  // The most recently computed snap target (or null when nothing is in
+  // range). Mirrors what the preview dot shows; read at finish-time to
+  // post-hoc snap a freshly-created point. Necessary because
+  // TerraDrawPointMode does not accept a snapping config the way
+  // LineString and Polygon modes do — there's no mode-level hook to
+  // adjust the click position before the point is committed, so we
+  // mutate the geometry afterwards.
+  const lastSnapTargetRef = useRef<[number, number] | null>(null);
 
   useEffect(() => {
     if (!map) return;
@@ -127,6 +140,10 @@ export function MeasurementHost({
     };
 
     const setSnapPreview = (lngLat: [number, number] | null) => {
+      // Keep the "last snap target" mirror in sync with the visible dot
+      // so the point-finish handler can post-hoc snap a just-created
+      // point without needing its own mousemove tracking.
+      lastSnapTargetRef.current = lngLat;
       const source = map.getSource(SNAP_PREVIEW_SOURCE_ID) as
         | GeoJSONSource
         | undefined;
@@ -145,11 +162,12 @@ export function MeasurementHost({
           },
         ],
       });
-      // Same z-order trick as for labels: terra-draw's lazy `td-*` layers
-      // can otherwise paint over the dot.
-      if (map.getLayer(SNAP_PREVIEW_LAYER_ID)) {
-        map.moveLayer(SNAP_PREVIEW_LAYER_ID);
-      }
+      // Intentionally NOT moved to the top: a freshly-committed point
+      // shares the snap target's coord and should render OVER the dot,
+      // otherwise the blue point reads as obscured by a black halo at
+      // the click moment. terra-draw's `td-*` render layers are added
+      // after our snap preview layer, so the natural addLayer order
+      // already gives committed points the higher z-index.
     };
 
     const ensureLabelLayer = () => {
@@ -272,20 +290,47 @@ export function MeasurementHost({
           }),
           new TerraDrawSelectMode({
             // Fully editable: drag features, drag/delete vertices, insert
-            // midpoints. Polygon flag omitted — polygon mode isn't
-            // registered yet so terra-draw never sees a polygon to select.
+            // midpoints. `coordinates.snappable.toCustom` makes vertex
+            // drags actually snap to host-map features (not just visually
+            // — the released vertex lands on the snap target). Polygon
+            // flag omitted; polygon mode isn't registered yet so terra-
+            // draw never sees a polygon to select.
             flags: {
-              point: { feature: { draggable: true } },
+              point: {
+                feature: {
+                  draggable: true,
+                  coordinates: {
+                    // Routing the point's single coord through coord-drag
+                    // (instead of feature-drag) is what gives us a snap
+                    // hook — terra-draw's feature-drag has no snapping
+                    // config, but coord-drag does. The drag start logic
+                    // prefers coord-drag whenever coordinates.draggable is
+                    // truthy and a coord is in pointer range.
+                    snappable: { toCustom: snapToCustom },
+                    draggable: true,
+                  },
+                },
+              },
               linestring: {
                 feature: {
                   draggable: true,
                   coordinates: {
+                    snappable: { toCustom: snapToCustom },
                     midpoints: true,
                     draggable: true,
                     deletable: true,
                   },
                 },
               },
+            },
+            // Make the selected feature actually pop — defaults are too
+            // subtle to read at a glance. Only the SIZE is bumped (~2×
+            // terra-draw's defaults); colors are left at terra-draw's
+            // own defaults.
+            styles: {
+              selectedLineStringWidth: 8,
+              selectedPointWidth: 12,
+              selectionPointWidth: 12,
             },
           }),
         ],
@@ -299,9 +344,81 @@ export function MeasurementHost({
       // double-clicked, point dropped). Stable enough to push into redux /
       // app state. See the prop docstring for the trade-off (edits and
       // deletes don't currently propagate; will need extra listeners).
-      draw.on("finish", () => {
+      draw.on("finish", (id) => {
+        // Post-hoc snap for points: TerraDrawPointMode has no snapping
+        // config at construction (LineString / Polygon do, Point does
+        // not), and TerraDrawSelectMode's coord-drag path is geometry-
+        // gated to LineString / Polygon — its `getClosestCoordinate`
+        // bails out for Point. So neither click-to-create nor select-
+        // mode-drag of a point goes through terra-draw's own snap path.
+        //
+        // We fire a synchronous post-hoc check on every finish: if the
+        // just-finished feature is a Point and a snap target is within
+        // pointer range of its committed position, mutate. Covers both
+        // create (modeRef === "point") and drag-end in select mode
+        // (modeRef === "none"). Lines / polygons don't need this — their
+        // snap was already applied by terra-draw at commit time.
+        if (snappingEnabledRef.current) {
+          try {
+            const snapshot = draw.getSnapshotFeature(id);
+            if (snapshot && snapshot.geometry.type === "Point") {
+              const [lng, lat] = snapshot.geometry.coordinates as [
+                number,
+                number,
+              ];
+              const screen = map.project([lng, lat]);
+              const hit = findSnapTarget(
+                map,
+                { x: screen.x, y: screen.y },
+                DEFAULT_SNAP_RADIUS_PX,
+                getCachedSnappableLayerIds()
+              );
+              if (hit) {
+                // Terra-draw validates `coordinatePrecision` on every
+                // updateFeatureGeometry call; raw vector-tile coords can
+                // exceed it ("Feature has coordinates with excessive
+                // precision"). Rounding to 9 decimals = sub-mm globally
+                // and fits comfortably under any default.
+                const round9 = (n: number) => Math.round(n * 1e9) / 1e9;
+                draw.updateFeatureGeometry(id, {
+                  type: "Point",
+                  coordinates: [
+                    round9(hit.position[0]),
+                    round9(hit.position[1]),
+                  ],
+                });
+              }
+            }
+          } catch (e) {
+            console.warn(
+              "[carma-measurements] post-hoc point snap failed",
+              e
+            );
+          }
+        }
         refreshLabels();
         fireOnChange();
+        // Hide the snap preview dot at the moment of commit so it doesn't
+        // sit on top of the just-placed feature (the dot and the new point
+        // overlap by design — they share the same coord). The next
+        // mousemove will repaint the dot if the cursor is still in range
+        // of a snap target.
+        setSnapPreview(null);
+      });
+      // Track select-mode selection so the snap preview's render gate can
+      // include "select mode + something selected" — vertex drags benefit
+      // from the dot too, not just new-line drawing.
+      draw.on("select", () => {
+        hasSelectionRef.current = true;
+      });
+      draw.on("deselect", () => {
+        hasSelectionRef.current = false;
+        // No selection means no expected vertex drag in the immediate
+        // future; clear any stale preview so it doesn't hang at the last
+        // hovered position.
+        if (modeRef.current === "none") {
+          setSnapPreview(null);
+        }
       });
       return draw;
     };
@@ -362,13 +479,16 @@ export function MeasurementHost({
     // findSnapTarget per frame is both correct and cheaper.
     let pendingFrame: number | null = null;
     let pendingEvent: { containerX: number; containerY: number } | null = null;
-    // Preview dot is only meaningful while the user is actively drawing
-    // (point or line). In the resting "none" state the cursor is a
-    // selection cursor; a snap dot following it everywhere would be
-    // visually noisy and conceptually wrong.
+    // Preview dot is meaningful while drawing (point or line) AND while a
+    // measurement is selected in the resting "none" state — vertex drags
+    // benefit from snap feedback just as much as new-line drawing. We
+    // intentionally don't show it on bare hover in select mode (cursor
+    // cruising the map) because that's visually noisy.
     const previewActive = () =>
       snappingEnabledRef.current &&
-      (modeRef.current === "point" || modeRef.current === "line");
+      (modeRef.current === "point" ||
+        modeRef.current === "line" ||
+        (modeRef.current === "none" && hasSelectionRef.current));
 
     const handleMouseMove = (e: { point: { x: number; y: number } }) => {
       if (!previewActive()) return;
@@ -442,12 +562,17 @@ export function MeasurementHost({
   }, [mode]);
 
   // Clear the snap-preview dot the instant snapping is toggled off OR the
-  // user leaves a draw mode (back to "none"). Without this the dot would
-  // hang at its last position until the next mousemove / toggle event.
+  // user leaves a draw mode (back to "none") AND nothing is selected. The
+  // selection branch is also covered by the deselect listener inside
+  // createDraw, but this effect catches the snapping-off case immediately
+  // even without a mousemove.
   useEffect(() => {
     if (!map) return;
     const previewShouldRender =
-      snapping && (mode === "point" || mode === "line");
+      snapping &&
+      (mode === "point" ||
+        mode === "line" ||
+        (mode === "none" && hasSelectionRef.current));
     if (previewShouldRender) return;
     const source = map.getSource(SNAP_PREVIEW_SOURCE_ID) as
       | GeoJSONSource
