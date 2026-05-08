@@ -459,7 +459,7 @@ const FeatureFormLayout = ({
                 <Tabs defaultActiveKey="general" items={leftColumnTabs} />
               </div>
             ) : (
-              <div className="pt-4">{children}</div>
+              <div className="pt-4">{formHeaderContent}{children}</div>
             )}
           </div>
           {/* Documents / side column - 40% */}
