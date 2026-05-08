@@ -5,6 +5,7 @@ import { getDocumentKey } from "../components/ui/FilePreview";
 import type { Draft, DraftFile } from "../store/slices/featuresForms";
 import { updateDataByClassName } from "./apiMethods";
 import { uploadDraftFiles } from "./uploadDraftFiles";
+import { parseStandortIdFromKey } from "./geometryOptions";
 
 // ---------------------------------------------------------------------------
 // Dayjs serialization (independent copy — matches FeaturesFormsWrapper logic)
@@ -314,39 +315,67 @@ const saveCreationDraft = async (
     let payload: Record<string, unknown>;
 
     if (featureType === "leuchte") {
-      // Two-step: create Standort first, then Leuchte
-      // TODO: replace with real form values once the creation form includes Standort fields
-      const leuchteValues = (draft.values?.leuchte ?? {}) as Record<string, unknown>;
-      const mastPayload: Record<string, unknown> = {
-        id: -1,
-        lfd_nummer: leuchteValues.lfd_nummer ?? 1,
-        fk_strassenschluessel: leuchteValues.fk_strassenschluessel ?? null,
-        fk_mastart: leuchteValues.fk_mastart ?? 8,
-        fk_masttyp: leuchteValues.fk_masttyp ?? 42,
-        ...(geomPayload ? { geom: geomPayload } : {}),
-      };
-      console.debug("[CREATE-FEATURE] Standort payload:", JSON.stringify(mastPayload, null, 2));
-      const mastResult = await updateDataByClassName(
-        jwt,
-        featureSaveConfigs["standort"].className,
-        mastPayload
-      );
-      const mastRes = mastResult as { res?: string } | null;
-      const parsedMast = mastRes?.res
-        ? (JSON.parse(mastRes.res) as { id?: number })
-        : null;
-      const newMastId = parsedMast?.id;
-      if (!newMastId) {
-        return {
-          ...base,
-          success: false,
-          error: "Standort erstellt, aber keine ID erhalten",
+      const linkedMastId = parseStandortIdFromKey(draft.geometryKey);
+      const leuchteValues = (draft.values?.leuchte ?? {}) as Record<
+        string,
+        unknown
+      >;
+
+      let mastIdForLink: number;
+      if (linkedMastId != null) {
+        // Existing Standort was selected — reuse it, no new Mast created.
+        mastIdForLink = linkedMastId;
+      } else {
+        // Build the Mast payload from the form's Mast tab values, falling
+        // back to the same defaults that used to be hardcoded so a Mast can
+        // still be created if the user leaves required fields blank.
+        const rawMastValues = (draft.values?.mast ?? {}) as Record<
+          string,
+          unknown
+        >;
+        const cleanedMastValues =
+          prepareSaveValues("standort", rawMastValues) ?? {};
+        const mastPayload: Record<string, unknown> = {
+          id: -1,
+          ...cleanedMastValues,
+          // Defaults applied last so a missing or null form value still
+          // produces a saveable Mast. Leuchte's strassenschluessel always
+          // wins for the Mast since the field is hidden on the Mast tab.
+          lfd_nummer: cleanedMastValues.lfd_nummer ?? 1,
+          fk_strassenschluessel:
+            leuchteValues.fk_strassenschluessel ?? null,
+          fk_mastart: cleanedMastValues.fk_mastart ?? 8,
+          fk_masttyp: cleanedMastValues.fk_masttyp ?? 42,
+          ...(geomPayload ? { geom: geomPayload } : {}),
         };
+        console.debug(
+          "[CREATE-FEATURE] Standort payload:",
+          JSON.stringify(mastPayload, null, 2)
+        );
+        const mastResult = await updateDataByClassName(
+          jwt,
+          featureSaveConfigs["standort"].className,
+          mastPayload
+        );
+        const mastRes = mastResult as { res?: string } | null;
+        const parsedMast = mastRes?.res
+          ? (JSON.parse(mastRes.res) as { id?: number })
+          : null;
+        const newMastId = parsedMast?.id;
+        if (!newMastId) {
+          return {
+            ...base,
+            success: false,
+            error: "Standort erstellt, aber keine ID erhalten",
+          };
+        }
+        mastIdForLink = Number(newMastId);
       }
+
       payload = {
         id: -1,
         ...formValues,
-        tdta_standort_mast: { id: Number(newMastId) },
+        tdta_standort_mast: { id: mastIdForLink },
       };
     } else {
       payload = {
