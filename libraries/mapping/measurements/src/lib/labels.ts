@@ -1,5 +1,13 @@
+import area from "@turf/area";
+import centroid from "@turf/centroid";
 import length from "@turf/length";
-import type { Feature, FeatureCollection, Point, Position } from "geojson";
+import type {
+  Feature,
+  FeatureCollection,
+  Point,
+  Polygon,
+  Position,
+} from "geojson";
 
 export const LABEL_SOURCE_ID = "carma-measurements-labels";
 export const LABEL_LAYER_ID = "carma-measurements-labels-symbols";
@@ -18,6 +26,13 @@ export function formatMeters(meters: number): string {
   return `${numberFormatTwoDecimals.format(meters / 1000)} km`;
 }
 
+export function formatAreaSquareMeters(squareMeters: number): string {
+  if (squareMeters < 10000) {
+    return `${numberFormatInteger.format(Math.round(squareMeters))} m²`;
+  }
+  return `${numberFormatTwoDecimals.format(squareMeters / 10000)} ha`;
+}
+
 function midpoint([ax, ay]: Position, [bx, by]: Position): Position {
   return [(ax + bx) / 2, (ay + by) / 2];
 }
@@ -33,11 +48,17 @@ function segmentLengthMeters(a: Position, b: Position): number {
   );
 }
 
-// Derive segment-midpoint length labels for every drawn LineString and
-// per-feature title labels (P1, L1, ...) for points and lines. Polygons
-// are intentionally skipped — the lib's current consumers expose only
-// point + line modes; polygon area / perimeter labels are a future
-// addition.
+// Derive label points for every drawn feature. Three kinds emitted:
+//
+// - kind: "title"   — per-feature P1/L1 markers for points + lines (anchored
+//                     near the geometric middle of a line, on a real vertex).
+// - kind: "segment" — segment-midpoint length labels for line segments and
+//                     polygon outer-ring edges.
+// - kind: "area"    — centroid-anchored area label for each polygon.
+//
+// Polygons get segment + area labels but no title (matches the playground's
+// historical behaviour). MultiPolygon and polygon holes are out of scope —
+// no consumer draws them today.
 export function buildLabelFeatures(
   drawnFeatures: ReadonlyArray<Feature>
 ): FeatureCollection<Point> {
@@ -59,6 +80,43 @@ export function buildLabelFeatures(
           },
           properties: { kind: "title", label: title },
         });
+      }
+      continue;
+    }
+
+    if (feature.geometry.type === "Polygon") {
+      const polygonFeature = feature as Feature<Polygon>;
+      const ring = polygonFeature.geometry.coordinates[0];
+      if (ring && ring.length >= 2) {
+        for (let i = 0; i < ring.length - 1; i++) {
+          const meters = segmentLengthMeters(ring[i], ring[i + 1]);
+          if (meters <= 0) continue;
+          labelFeatures.push({
+            type: "Feature",
+            geometry: {
+              type: "Point",
+              coordinates: midpoint(ring[i], ring[i + 1]),
+            },
+            properties: { kind: "segment", label: formatMeters(meters) },
+          });
+        }
+      }
+      // A closed ring needs ≥ 4 positions (3 unique vertices + repeat) for
+      // the area to be meaningful; below that turf returns 0 anyway but
+      // skipping early avoids emitting a stray "0 m²" label.
+      if (ring && ring.length >= 4) {
+        const polyArea = area(polygonFeature);
+        if (polyArea > 0) {
+          const c = centroid(polygonFeature);
+          labelFeatures.push({
+            type: "Feature",
+            geometry: c.geometry,
+            properties: {
+              kind: "area",
+              label: formatAreaSquareMeters(polyArea),
+            },
+          });
+        }
       }
       continue;
     }

@@ -40,12 +40,67 @@ const SNAPPABLE_LAYER_TYPES = new Set([
   "symbol",
 ]);
 
-/** Return all rendered-layer ids on the current style that should be treated
- * as snap candidates under the "opt-out" policy: every geometry-bearing
- * layer is in unless it explicitly carries `metadata.carmaConf.skipSnapping
- * === true`. Symbol / raster / hillshade / sky / background layer types are
- * filtered out because their renderers carry no useful vertex data. */
-export function getOptOutSnappableLayerIds(map: MaplibreMap): string[] {
+// Snap-mode controls how candidate layers are selected. Hosts pick one based
+// on how much UI they want to expose:
+//
+// - "opt-out": every geometry-bearing layer participates unless it carries
+//   metadata.carmaConf.skipSnapping === true. The simplest mode and the one
+//   belis ships today.
+// - "derived-opt-in": only layers belonging to a "curated" source. A source
+//   is curated iff at least one of its layers ships skipSnapping === true
+//   (read as: the style author thought about snapping for this source, so the
+//   non-skipSnapping layers in it are intentional snap targets). Sources
+//   without any skipSnapping flag are excluded entirely.
+// - "explicit": the host picks per libreLayer via `optedInLayerIds`. Layer
+//   ownership is read from metadata["layer-id"] which styleBuilder writes on
+//   every merged layer (= the libreLayer's `name`, or `bg-<layerName>` for
+//   vector backgrounds). `backgroundSnapping` toggles whether `bg-*` owner
+//   layers participate.
+export type SnapMode = "opt-out" | "derived-opt-in" | "explicit";
+
+interface MaybeMetadata {
+  metadata?: unknown;
+}
+
+function hasSkipSnapping(layer: MaybeMetadata): boolean {
+  const meta = layer.metadata as
+    | { carmaConf?: { skipSnapping?: boolean } }
+    | undefined;
+  return meta?.carmaConf?.skipSnapping === true;
+}
+
+/** Read the styleBuilder-injected `metadata["layer-id"]` that identifies which
+ * libreLayer a merged map layer originated from. Empirically the value is
+ * the libreLayer's `name` for data layers, or `bg-<layerName>` for vector
+ * backgrounds. Layers without the metadata are pure built-ins (terra-draw /
+ * our overlay layers) and are already excluded by the prefix filter. */
+export function getOwnerLayerId(layer: MaybeMetadata): string | undefined {
+  const meta = layer.metadata as { "layer-id"?: unknown } | undefined;
+  const v = meta?.["layer-id"];
+  return typeof v === "string" ? v : undefined;
+}
+
+/** A layer with no owner-id, or whose owner-id starts with `bg-`, is treated
+ * as part of the basemap (controlled separately by `backgroundSnapping` in
+ * explicit mode). */
+export function isBackgroundOwner(owner: string | undefined): boolean {
+  return owner === undefined || owner.startsWith("bg-");
+}
+
+const EMPTY_OPTED_IN_LAYER_IDS: ReadonlySet<string> = new Set();
+
+/** Return rendered-layer ids on the current style that should be treated as
+ * snap candidates under the chosen policy. The base filter is shared across
+ * all modes (geometry-bearing layer type, not a built-in overlay/td-* layer,
+ * not flagged skipSnapping); modes layer additional restrictions on top.
+ * Returns `[]` when the style isn't ready — caller treats that as "no snap
+ * candidates this frame". */
+export function getSnappableLayerIds(
+  map: MaplibreMap,
+  mode: SnapMode,
+  optedInLayerIds: ReadonlySet<string>,
+  backgroundSnapping: boolean
+): string[] {
   let style: ReturnType<MaplibreMap["getStyle"]>;
   try {
     style = map.getStyle();
@@ -53,17 +108,43 @@ export function getOptOutSnappableLayerIds(map: MaplibreMap): string[] {
     return [];
   }
   const layers = style?.layers ?? [];
+
+  let curatedSources: Set<string> | null = null;
+  if (mode === "derived-opt-in") {
+    curatedSources = new Set<string>();
+    for (const layer of layers) {
+      if (!hasSkipSnapping(layer)) continue;
+      const source = (layer as { source?: string }).source ?? "__no-source__";
+      curatedSources.add(source);
+    }
+  }
+
   const ids: string[] = [];
   for (const layer of layers) {
     if (!SNAPPABLE_LAYER_TYPES.has(layer.type)) continue;
     if (ALWAYS_EXCLUDED_PREFIXES.some((p) => layer.id.startsWith(p))) continue;
-    const carmaConf = (
-      layer.metadata as { carmaConf?: { skipSnapping?: boolean } } | undefined
-    )?.carmaConf;
-    if (carmaConf?.skipSnapping === true) continue;
+    if (hasSkipSnapping(layer)) continue;
+    if (mode === "derived-opt-in") {
+      const source = (layer as { source?: string }).source ?? "__no-source__";
+      if (!curatedSources!.has(source)) continue;
+    } else if (mode === "explicit") {
+      const owner = getOwnerLayerId(layer);
+      if (isBackgroundOwner(owner)) {
+        if (!backgroundSnapping) continue;
+      } else if (!optedInLayerIds.has(owner!)) {
+        continue;
+      }
+    }
     ids.push(layer.id);
   }
   return ids;
+}
+
+/** Convenience alias for `getSnappableLayerIds(map, "opt-out", ∅, false)`.
+ * Kept as the call shape used by the lib's `MeasurementHost` so the existing
+ * belis-desktop output is unchanged by the introduction of snap modes. */
+export function getOptOutSnappableLayerIds(map: MaplibreMap): string[] {
+  return getSnappableLayerIds(map, "opt-out", EMPTY_OPTED_IN_LAYER_IDS, false);
 }
 
 function pixelDistance(a: ScreenPoint, b: ScreenPoint): number {
