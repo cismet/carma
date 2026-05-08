@@ -48,6 +48,7 @@ function toTerraDrawMode(mode: DrawMode): TerraDrawMode {
       return "linestring";
     case "polygon":
       return "polygon";
+    case "select":
     case "none":
       // Resting state — terra-draw stays in select so existing measurements
       // remain clickable / interactive without a dedicated select button in
@@ -628,8 +629,9 @@ export function MeasurementHost({
         hasSelectionRef.current = false;
         // No selection means no expected vertex drag in the immediate
         // future; clear any stale preview so it doesn't hang at the last
-        // hovered position.
-        if (modeRef.current === "none") {
+        // hovered position. ("select" and "none" share the same gate —
+        // both keep terra-draw in select mode internally.)
+        if (modeRef.current === "none" || modeRef.current === "select") {
           setSnapPreview(null);
         }
       });
@@ -734,7 +736,8 @@ export function MeasurementHost({
       (modeRef.current === "point" ||
         modeRef.current === "line" ||
         modeRef.current === "polygon" ||
-        (modeRef.current === "none" && hasSelectionRef.current));
+        ((modeRef.current === "none" || modeRef.current === "select") &&
+          hasSelectionRef.current));
 
     const handleMouseMove = (e: {
       point: { x: number; y: number };
@@ -872,7 +875,7 @@ export function MeasurementHost({
       (mode === "point" ||
         mode === "line" ||
         mode === "polygon" ||
-        (mode === "none" && hasSelectionRef.current));
+        ((mode === "none" || mode === "select") && hasSelectionRef.current));
     if (previewShouldRender) return;
     const source = map.getSource(SNAP_PREVIEW_SOURCE_ID) as
       | GeoJSONSource

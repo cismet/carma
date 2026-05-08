@@ -12,16 +12,18 @@ import {
 
 // `"none"` is the resting state: terra-draw is internally in select mode so
 // existing measurements remain clickable / selectable, but no new geometry
-// is being drawn. There's intentionally no dedicated "select" entry in the
-// public union — selection is implicit when neither point nor line nor
-// polygon is active, mirroring how the host app treats measurement features
-// the same way as fachobjekte for click purposes.
+// is being drawn (this is what belis ships).
+//
+// `"select"` is functionally equivalent to "none" inside terra-draw — both
+// map to terra-draw's select mode — but exists as a distinct public value
+// for hosts that want to surface "user explicitly chose select" as its own
+// UI state (e.g. the measurements-playground's four-button mode bar).
 //
 // `"polygon"` is registered on the terra-draw instance unconditionally, but
 // no built-in UI button drives it from this component yet (belis ships only
 // point + line); hosts that want the polygon button can wire their own
 // alongside DrawModeControls until/unless we add an opt-in flag here.
-export type DrawMode = "none" | "point" | "line" | "polygon";
+export type DrawMode = "none" | "select" | "point" | "line" | "polygon";
 
 const ACTIVE_BUTTON_TEXT_COLOR = "text-[#1677ff]";
 
