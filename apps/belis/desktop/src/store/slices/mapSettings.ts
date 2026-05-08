@@ -148,6 +148,6 @@ export const isRegularLayerEnabled = (state) => {
   return state.mapSettings.regularLayerEnabled;
 };
 
-export const isBrandnewLayerEnabled = (state) => {
-  return state.mapSettings.brandnewLayerEnabled;
+export const isBrandnewLayerEnabled = (_state) => {
+  return true;
 };
