@@ -105,6 +105,8 @@ export const useCesiumModelManager = ({
     selectedId: selection?.selectedId,
     selectionEnabled,
     selectionHighlight,
+    stylePresentationFadeDurationMs: selection?.highlightFadeDurationMs,
+    stylePresentationFadeEasing: selection?.highlightFadeEasing,
   });
 
   useCesiumModelSelectionInteraction({

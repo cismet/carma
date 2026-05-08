@@ -1,5 +1,6 @@
 import { type MutableRefObject, useEffect, useRef } from "react";
 
+import { type Easing as EasingFunction } from "@carma-commons/math";
 import type { ModelConfig } from "@carma-mapping/engines/cesium/core";
 import { Model, type Scene } from "@carma-cesium";
 
@@ -15,6 +16,7 @@ import {
   getPrimitiveSelectionId,
 } from "../utils/modelManager";
 import type { CesiumModelSelectionHighlightController } from "./useCesiumModelSelectionHighlight";
+import { useCesiumModelStylePresentationAnimator } from "./useCesiumModelStylePresentationAnimator";
 
 type UseCesiumModelPrimitivesOptions = {
   enabled: boolean;
@@ -27,6 +29,8 @@ type UseCesiumModelPrimitivesOptions = {
   requestRender: () => void;
   selectedId?: string | null;
   selectionEnabled: boolean;
+  stylePresentationFadeDurationMs?: number;
+  stylePresentationFadeEasing?: EasingFunction;
   selectionHighlight: Pick<
     CesiumModelSelectionHighlightController,
     | "applyHighlight"
@@ -50,6 +54,8 @@ export const useCesiumModelPrimitives = ({
   requestRender,
   selectedId,
   selectionEnabled,
+  stylePresentationFadeDurationMs,
+  stylePresentationFadeEasing,
   selectionHighlight,
 }: UseCesiumModelPrimitivesOptions) => {
   const pendingModelLoadsRef = useRef<Map<string, Promise<Model>>>(new Map());
@@ -113,6 +119,16 @@ export const useCesiumModelPrimitives = ({
     setPrimitiveOriginalPresentationIfHighlighted,
     setPrimitiveOriginalShaderIfHighlighted,
   } = selectionHighlight;
+  const {
+    animateStylePresentation,
+    cancelStylePresentationAnimation,
+    clearStylePresentationAnimations,
+  } = useCesiumModelStylePresentationAnimator({
+    fadeDurationMs: stylePresentationFadeDurationMs,
+    fadeEasing: stylePresentationFadeEasing,
+    isAnimationSuppressed: isSelectedPrimitive,
+    requestRender,
+  });
 
   useEffect(() => {
     const scene = getScene();
@@ -137,6 +153,7 @@ export const useCesiumModelPrimitives = ({
         restorePrimitiveHighlight(primitive);
         customShaderSignatureByPrimitiveRef.current.delete(primitive);
         presentationSignatureByPrimitiveRef.current.delete(primitive);
+        cancelStylePresentationAnimation(primitive);
         scene.primitives.remove(primitive);
         if (!primitive.isDestroyed()) {
           primitive.destroy();
@@ -304,6 +321,7 @@ export const useCesiumModelPrimitives = ({
     };
   }, [
     applyHighlight,
+    cancelStylePresentationAnimation,
     clearPreviousHighlight,
     enabled,
     getScene,
@@ -358,6 +376,7 @@ export const useCesiumModelPrimitives = ({
       const isHighlighted =
         hasHighlightedShaderState || hasHighlightedPresentationState;
       if (isHighlighted) {
+        cancelStylePresentationAnimation(primitive);
         customShaderSignatureByPrimitiveRef.current.set(
           primitive,
           customShaderSignature
@@ -370,7 +389,9 @@ export const useCesiumModelPrimitives = ({
         continue;
       }
       if (shouldUpdatePresentation) {
-        applyModelConfigRenderStylePresentation(primitive, modelConfig);
+        if (presentation) {
+          animateStylePresentation(primitive, presentation);
+        }
       }
       if (shouldUpdateShader) {
         applyModelCustomShader(primitive, customShader, requestRender);
@@ -391,6 +412,8 @@ export const useCesiumModelPrimitives = ({
     modelPrimitivesRef,
     models,
     requestRender,
+    animateStylePresentation,
+    cancelStylePresentationAnimation,
     setPrimitiveOriginalPresentationIfHighlighted,
     setPrimitiveOriginalShaderIfHighlighted,
   ]);
@@ -420,6 +443,12 @@ export const useCesiumModelPrimitives = ({
       primitivesByKey.clear();
       customShaderSignatureByPrimitiveRef.current.clear();
       presentationSignatureByPrimitiveRef.current.clear();
+      clearStylePresentationAnimations();
     };
-  }, [clearRuntimeState, getScene, modelPrimitivesRef]);
+  }, [
+    clearRuntimeState,
+    clearStylePresentationAnimations,
+    getScene,
+    modelPrimitivesRef,
+  ]);
 };
