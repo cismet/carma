@@ -179,7 +179,8 @@ const FeaturesFormsWrapper = ({
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [resetKey, setResetKey] = useState(0);
-  const effectiveReadOnly = readOnlyProp && !isEditing && !globalEditMode;
+  const effectiveReadOnly =
+    !isCreation && readOnlyProp && !isEditing && !globalEditMode;
 
   // Exit edit mode when feature data is refetched externally (e.g. Save All)
   useEffect(() => {

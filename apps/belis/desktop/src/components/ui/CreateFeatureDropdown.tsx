@@ -3,7 +3,7 @@ import { PlusOutlined, CaretDownFilled } from "@ant-design/icons";
 import { useDispatch } from "react-redux";
 import { useMapPage } from "../../contexts/MapPageContext";
 import type { CreateFeatureType } from "../../contexts/MapPageContext";
-import { setDraft } from "../../store/slices/featuresForms";
+import { setDraft, setGlobalEditMode } from "../../store/slices/featuresForms";
 import {
   buildSyntheticFeature,
   buildSyntheticFetchedData,
@@ -120,6 +120,7 @@ const CreateFeatureDropdown = () => {
         geometryKey: geomKey,
       })
     );
+    dispatch(setGlobalEditMode(true));
     onOpenCreationDraft?.(key, draftKey);
   };
 
