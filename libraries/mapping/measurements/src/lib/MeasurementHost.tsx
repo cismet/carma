@@ -630,17 +630,52 @@ export function MeasurementHost({
       snappableLayerIdsRef.current = null;
     };
 
-    if (map.isStyleLoaded()) {
+    // INITIAL ATTACH — robust against MapLibre's "Style is not done loading,
+    // rebuilding from scratch" path.
+    //
+    // When the host app fires `setStyle()` before the initial style finishes
+    // loading (which CARMA's LibreMap does in its `updateMapStyle` effect),
+    // MapLibre rebuilds the style from scratch and — in that rebuild path —
+    // `style.load` does not fire for our listener. Without the safety net
+    // below, terra-draw was never created and clicks landed on a bare
+    // canvas: "no measurements can be created" on a raster-only basemap
+    // (e.g. belis with rvrLight / Liegenschaftskarte / trueOrtho selected).
+    //
+    // We gate the *first* attach on `isStyleLoaded()` and listen on every
+    // event that can mark the style as ready (`style.load`, `load`, `idle`,
+    // `styledata`). Whichever fires first with a loaded style wins.
+    // Subsequent `style.load` events (basemap swap) still trigger a full
+    // re-attach via the same `attach()` path — that's why the gate is
+    // initial-only.
+    let initialAttachDone = false;
+    const tryInitialAttach = () => {
+      if (initialAttachDone) return;
+      if (!map.isStyleLoaded()) return;
+      initialAttachDone = true;
       attach();
-    }
-    map.on("style.load", attach);
-    map.on("styledata", invalidateSnappableCache);
+    };
+    const onStyleLoad = () => {
+      if (initialAttachDone) attach();
+      else tryInitialAttach();
+    };
+    const onStyleData = () => {
+      invalidateSnappableCache();
+      tryInitialAttach();
+    };
+
+    if (map.isStyleLoaded()) tryInitialAttach();
+    map.on("style.load", onStyleLoad);
+    map.on("load", tryInitialAttach);
+    map.on("idle", tryInitialAttach);
+    map.on("styledata", onStyleData);
     map.on("mousemove", handleMouseMove);
     map.on("mouseout", handleMouseLeave);
 
     return () => {
-      map.off("style.load", attach);
-      map.off("styledata", invalidateSnappableCache);
+      map.off("style.load", onStyleLoad);
+      map.off("load", tryInitialAttach);
+      map.off("idle", tryInitialAttach);
+      map.off("styledata", onStyleData);
       map.off("mousemove", handleMouseMove);
       map.off("mouseout", handleMouseLeave);
       if (pendingFrame !== null) {
