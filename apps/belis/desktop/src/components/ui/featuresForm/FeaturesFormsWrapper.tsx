@@ -39,7 +39,12 @@ import {
   deserializeValues,
 } from "../../../helper/draftSerialize";
 import { saveFeatureDraft } from "../../../helper/featureFormSaveHelpers";
-import { buildMeasurementGeometryOptions } from "../../../helper/geometryOptions";
+import {
+  buildMeasurementGeometryOptions,
+  parseStandortIdFromKey,
+  STANDORT_OPTION_PREFIX,
+  type MeasurementGeometryOption,
+} from "../../../helper/geometryOptions";
 import {
   getMeasurements,
   setMeasurements,
@@ -172,10 +177,36 @@ const FeaturesFormsWrapper = ({
   const featureDataVersion = useSelector(getFeatureDataVersion);
   const globalEditMode = useSelector(getGlobalEditMode);
   const measurements = useSelector(getMeasurements);
-  const geometryOptions = useMemo(
-    () => buildMeasurementGeometryOptions(measurements),
-    [measurements]
-  );
+
+  // When creating a new Leuchte that's linked to an existing Standort, expose
+  // that Standort as a geometry-source option in the dropdown. The link is
+  // captured at "+ Leuchte" click time (CreateFeatureDropdown) and persisted
+  // on the draft itself, since opening the creation draft replaces
+  // selectedFeature in Redux and the original Standort selection is lost.
+  const formKey = featureType ? featureTypeToFormKey[featureType] : undefined;
+  const standortOption = useMemo<MeasurementGeometryOption | null>(() => {
+    if (!isCreation || formKey !== "leuchte") return null;
+    const geometryKey = draft?.geometryKey;
+    const geometry = draft?.geometry;
+    if (!geometryKey || !geometry) return null;
+    if (!geometryKey.startsWith(STANDORT_OPTION_PREFIX)) return null;
+    const id = parseStandortIdFromKey(geometryKey);
+    if (id == null) return null;
+    const props = (draft?.feature?.properties ?? {}) as Record<string, unknown>;
+    const stashedLabel = props._linkedStandortLabel;
+    const label =
+      typeof stashedLabel === "string" ? stashedLabel : `Standort ${id}`;
+    return {
+      key: geometryKey,
+      label,
+      geometry: geometry as MeasurementGeometryOption["geometry"],
+    };
+  }, [isCreation, formKey, draft?.geometryKey, draft?.geometry, draft?.feature]);
+
+  const geometryOptions = useMemo(() => {
+    const measurementOpts = buildMeasurementGeometryOptions(measurements);
+    return standortOption ? [standortOption, ...measurementOpts] : measurementOpts;
+  }, [measurements, standortOption]);
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [resetKey, setResetKey] = useState(0);
@@ -202,7 +233,6 @@ const FeaturesFormsWrapper = ({
     [draft?.values]
   );
 
-  const formKey = featureType ? featureTypeToFormKey[featureType] : undefined;
   const FormComponent = formKey ? featureFormRegistry[formKey] : undefined;
 
   // Keep draft's existingDocuments and featureDbId in sync with server data.
@@ -432,6 +462,7 @@ const FeaturesFormsWrapper = ({
               draftFiles={draftFiles}
               hasDraft={isCreation || hasChanges}
               isCreation={isCreation}
+              linkedMastId={parseStandortIdFromKey(draft?.geometryKey)}
               formHeaderContent={
                 isCreation ? (
                   <div className="mb-3 draft-changed-field">

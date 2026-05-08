@@ -41,6 +41,9 @@ interface LeuchteFormProps {
   draftFiles?: DraftFile[];
   hasDraft?: boolean;
   isCreation?: boolean;
+  /** When set during creation, the new Leuchte links to this existing Mast.
+   * The Mast tab then displays its data read-only (no new Mast is created). */
+  linkedMastId?: number;
   formHeaderContent?: ReactNode;
   onDraftChange?: (values: Record<string, unknown>) => void;
   onDraftFilesChange?: (files: DraftFile[]) => void;
@@ -62,6 +65,7 @@ const LeuchteForm = ({
   draftFiles,
   hasDraft,
   isCreation,
+  linkedMastId,
   formHeaderContent,
   onDraftChange,
   onDraftFilesChange,
@@ -83,9 +87,34 @@ const LeuchteForm = ({
   const setLeuchteForm = useCallback((form: FormInstance) => {
     leuchteFormRef.current = form;
   }, []);
-  const setMastForm = useCallback((form: FormInstance) => {
-    mastFormRef.current = form;
-  }, []);
+  // Mirrors the Leuchte's strassenschluessel into the Mast form so the
+  // read-only field on the Mast tab reflects the value the new Mast will
+  // inherit on save. No-op when the Leuchte links to an existing Mast
+  // (Path A) — that Mast's own values are loaded by MastFormFields.
+  const syncStrassenschluesselToMast = useCallback(() => {
+    if (linkedMastId != null) return;
+    if (!mastFormRef.current) return;
+    const leuchteDraft = draftValues?.leuchte as
+      | Record<string, unknown>
+      | undefined;
+    const leuchteVals =
+      leuchteDraft ?? leuchteFormRef.current?.getFieldsValue();
+    if (!leuchteVals) return;
+    mastFormRef.current.setFieldsValue({
+      strassenschluessel_pk: leuchteVals.strassenschluessel_pk,
+      strassenschluessel_strasse: leuchteVals.strassenschluessel_strasse,
+    });
+  }, [linkedMastId, draftValues]);
+  const setMastForm = useCallback(
+    (form: FormInstance) => {
+      mastFormRef.current = form;
+      syncStrassenschluesselToMast();
+    },
+    [syncStrassenschluesselToMast]
+  );
+  useEffect(() => {
+    syncStrassenschluesselToMast();
+  }, [syncStrassenschluesselToMast]);
 
   const originalValuesRef = useRef<Record<string, unknown>>({});
 
@@ -112,7 +141,22 @@ const LeuchteForm = ({
   );
 
   const handleLeuchteValuesChange = useCallback(
-    (_: Record<string, unknown>, allValues: Record<string, unknown>) => {
+    (
+      changedValues: Record<string, unknown>,
+      allValues: Record<string, unknown>
+    ) => {
+      // Mirror the Leuchte's Strassenschluessel into the Mast form so the
+      // read-only Strassenschluessel field on the Mast tab shows the value
+      // the new Mast will inherit on save.
+      if (
+        "strassenschluessel_pk" in changedValues ||
+        "strassenschluessel_strasse" in changedValues
+      ) {
+        mastFormRef.current?.setFieldsValue({
+          strassenschluessel_pk: allValues.strassenschluessel_pk,
+          strassenschluessel_strasse: allValues.strassenschluessel_strasse,
+        });
+      }
       onDraftChange?.({
         ...draftValues,
         leuchte: allValues,
@@ -274,11 +318,14 @@ const LeuchteForm = ({
     // { title: "Mast", documents: standortMastDocuments },
   ];
 
-  // Fetch mast data if mastId exists
+  // Fetch mast data if either:
+  //   - viewing an existing Leuchte that links to a Mast (mastId), or
+  //   - creating a new Leuchte with a pre-selected Standort (linkedMastId).
+  const effectiveMastId = mastId ?? linkedMastId;
   useEffect(() => {
-    if (mastId && jwt) {
+    if (effectiveMastId && jwt) {
       setIsMastLoading(true);
-      fetchFeatureById(jwt, mastId, "mast")
+      fetchFeatureById(jwt, effectiveMastId, "mast")
         .then((result) => {
           const mastArray = result?.tdta_standort_mast as
             | Array<Record<string, unknown>>
@@ -295,7 +342,7 @@ const LeuchteForm = ({
     } else {
       setMastData(null);
     }
-  }, [mastId, jwt]);
+  }, [effectiveMastId, jwt]);
 
   // Extract fabrikat for subtitle - use rawFeature (vector tile) to match list display
   const rawProps = rawFeature?.properties;
@@ -319,36 +366,57 @@ const LeuchteForm = ({
     );
   }
 
-  // Build additional tabs - always keep MastFormFields mounted to preserve
-  // scroll position. Show loading state via opacity instead of swapping components,
-  // so the content height never collapses and the browser doesn't reset scroll.
-  // const additionalTabs = [
-  //   {
-  //     key: "mast",
-  //     label: "Mast",
-  //     children: (
-  //       <div
-  //         className={
-  //           isMastLoading
-  //             ? "opacity-50 pointer-events-none transition-opacity"
-  //             : "transition-opacity"
-  //         }
-  //       >
-  //         <MastFormFields
-  //           mast={mastData}
-  //           readOnly={readOnly}
-  //           onFormInstance={setMastForm}
-  //           draftValues={
-  //             draftValues?.mast as Record<string, unknown> | undefined
-  //           }
-  //           onValuesChange={handleMastValuesChange}
-  //           onOriginalValues={handleMastOriginalValues}
-  //         />
-  //       </div>
-  //     ),
-  //   },
-  // ];
-  const additionalTabs: never[] = [];
+  // Build additional tabs.
+  // For brand-new Leuchten the Mast tab always appears:
+  //   - if a Standort was selected (linkedMastId), show its data read-only,
+  //     prefilled from the server; the existing Mast is reused on save.
+  //   - otherwise show empty editable fields (without Strassenschluessel,
+  //     which the new Mast inherits from the Leuchte) and a fresh Mast is
+  //     created at save time from these values.
+  // For existing Leuchten the Mast tab stays out of scope here (handled
+  // separately by the Mast/Standort form).
+  const showCreationMastTab = isCreation === true;
+  const mastTabReadOnly = linkedMastId != null;
+  const additionalTabs = showCreationMastTab
+    ? [
+        {
+          key: "mast",
+          label: "Mast",
+          children: (
+            <div
+              className={
+                isMastLoading
+                  ? "opacity-50 pointer-events-none transition-opacity"
+                  : "transition-opacity"
+              }
+            >
+              <FieldPrefix name="mast">
+                <MastFormFields
+                  mast={mastTabReadOnly ? mastData : null}
+                  readOnly={mastTabReadOnly}
+                  isCreation={!mastTabReadOnly}
+                  readOnlyStrassenschluessel
+                  onFormInstance={setMastForm}
+                  draftValues={
+                    mastTabReadOnly
+                      ? undefined
+                      : (draftValues?.mast as
+                          | Record<string, unknown>
+                          | undefined)
+                  }
+                  onValuesChange={
+                    mastTabReadOnly ? undefined : handleMastValuesChange
+                  }
+                  onOriginalValues={
+                    mastTabReadOnly ? undefined : handleMastOriginalValues
+                  }
+                />
+              </FieldPrefix>
+            </div>
+          ),
+        },
+      ]
+    : [];
 
   return (
     <FeatureFormLayout

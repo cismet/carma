@@ -1,17 +1,59 @@
 import { Dropdown } from "antd";
 import { PlusOutlined, CaretDownFilled } from "@ant-design/icons";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { useMapPage } from "../../contexts/MapPageContext";
 import type { CreateFeatureType } from "../../contexts/MapPageContext";
 import { setDraft, setGlobalEditMode } from "../../store/slices/featuresForms";
+import { getSelectedFeature } from "../../store/slices/featureCollection";
 import {
   buildSyntheticFeature,
   buildSyntheticFetchedData,
 } from "../../helper/buildSyntheticFeature";
 import {
+  buildStandortGeometryOption,
   getDefaultGeometryKey,
   getGeometryByKey,
 } from "../../helper/geometryOptions";
+
+const STANDORT_SOURCE_LAYERS = new Set([
+  "tdta_standort_mast",
+  "standort_mast",
+  "masten",
+  "mast",
+  "standorte",
+]);
+
+// The Redux selectedFeature can come through two shapes:
+//   - raw MapLibre click: { sourceLayer, id, properties: <flat tile props>, geometry }
+//   - processed/override path (sidebar click, fetched record): { carmaInfo: { sourceLayer },
+//     properties: { ..., sourceProps: <DB record> }, geometry }
+// Normalize both into the input that buildStandortGeometryOption expects.
+const extractStandortFeatureInfo = (
+  sf: unknown
+):
+  | {
+      id: number | string;
+      geometry: GeoJSON.Geometry;
+      properties: Record<string, unknown> | null;
+    }
+  | null => {
+  if (!sf || typeof sf !== "object") return null;
+  const f = sf as Record<string, unknown>;
+  const carmaInfo = f.carmaInfo as { sourceLayer?: string } | undefined;
+  const layer = (carmaInfo?.sourceLayer ?? f.sourceLayer ?? "") as string;
+  if (!STANDORT_SOURCE_LAYERS.has(layer)) return null;
+  const props = (f.properties ?? null) as Record<string, unknown> | null;
+  const sourceProps = props?.sourceProps as
+    | Record<string, unknown>
+    | null
+    | undefined;
+  const standortProps =
+    sourceProps && typeof sourceProps === "object" ? sourceProps : props;
+  const id = (standortProps?.id ?? f.id) as number | string | undefined;
+  const geometry = f.geometry as GeoJSON.Geometry | undefined;
+  if (id == null || !geometry) return null;
+  return { id, geometry, properties: standortProps };
+};
 
 const SPRITE_URL = "https://tiles.cismet.de/belis/sprites.png";
 const SPRITE_SIZE = 66;
@@ -101,19 +143,44 @@ const createFeatureItems: {
 const CreateFeatureDropdown = () => {
   const { onOpenCreationDraft } = useMapPage();
   const dispatch = useDispatch();
+  const selectedFeature = useSelector(getSelectedFeature);
 
   const handleItemClick = (key: CreateFeatureType & string) => {
     const draftKey = `create:${key}:${Date.now()}-${Math.random()
       .toString(36)
       .slice(2, 9)}`;
-    const geomKey = getDefaultGeometryKey(key);
-    const geom = getGeometryByKey(geomKey);
+
+    // For new Leuchten: if a Standort is currently selected, link to it.
+    // Capture it now — opening the creation draft replaces selectedFeature
+    // in Redux, so the wrapper can no longer recover this association on its own.
+    let standortOption = null;
+    if (key === "leuchte") {
+      const info = extractStandortFeatureInfo(selectedFeature);
+      if (info) {
+        standortOption = buildStandortGeometryOption(info);
+      }
+    }
+
+    let geomKey: string;
+    let geom: GeoJSON.Geometry;
+    if (standortOption) {
+      geomKey = standortOption.key;
+      geom = standortOption.geometry as GeoJSON.Geometry;
+    } else {
+      const defaultKey = getDefaultGeometryKey(key);
+      geomKey = defaultKey;
+      geom = getGeometryByKey(defaultKey) as GeoJSON.Geometry;
+    }
+    const featureProps: Record<string, unknown> = standortOption
+      ? { _linkedStandortLabel: standortOption.label }
+      : {};
+
     dispatch(
       setDraft({
         featureId: draftKey,
         featureType: key,
         values: {},
-        feature: buildSyntheticFeature(key, draftKey, {}, geom),
+        feature: buildSyntheticFeature(key, draftKey, featureProps, geom),
         fetchedData: buildSyntheticFetchedData(key, {}),
         isCreation: true,
         geometry: geom,

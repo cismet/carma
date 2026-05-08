@@ -24,6 +24,10 @@ interface MastFormFieldsProps {
   namePrefix?: string;
   readOnly?: boolean;
   isCreation?: boolean;
+  /** When true, always render the read-only StrassenschluesselFields,
+   * even during creation. Used by the Mast tab on the new-Leuchte form
+   * where the Strassenschluessel is taken from the Leuchte. */
+  readOnlyStrassenschluessel?: boolean;
   form?: import("antd").FormInstance;
   onFormInstance?: (form: import("antd").FormInstance) => void;
   draftValues?: Record<string, unknown>;
@@ -86,6 +90,7 @@ const MastFormFields = ({
   namePrefix,
   readOnly = true,
   isCreation,
+  readOnlyStrassenschluessel = false,
   form: externalForm,
   onFormInstance,
   draftValues,
@@ -247,7 +252,9 @@ const MastFormFields = ({
       className={getFormClassName(readOnly, "pr-2")}
       onValuesChange={onValuesChange}
     >
-      {(!mast || isCreation) && !readOnly ? (
+      {readOnlyStrassenschluessel ? (
+        <StrassenschluesselFields namePrefix={namePrefix} />
+      ) : (!mast || isCreation) && !readOnly ? (
         <StrassenschluesselFieldsModal namePrefix={namePrefix} isCreation={isCreation} />
       ) : (
         <StrassenschluesselFields namePrefix={namePrefix} />
