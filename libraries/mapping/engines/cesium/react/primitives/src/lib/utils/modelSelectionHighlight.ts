@@ -1,4 +1,4 @@
-import { Easing } from "@carma-commons/math";
+import { Easing, type Easing as EasingFunction } from "@carma-commons/math";
 import { Color, Model, type CustomShader } from "@carma-cesium";
 
 import {
@@ -14,6 +14,8 @@ const MODEL_SELECTION_HIGHLIGHT_EDGE_MODE_PROPERTY =
 export type ModelSelectionHighlightEdgeMode = "silhouette" | "none";
 
 export type ModelSelectionHighlightState = {
+  animationDurationMs: number;
+  animationEasing: EasingFunction;
   animationStartOpacity: number;
   animationStartTimestampMs: number | null;
   flashStartTimestampMs: number | null;
@@ -23,7 +25,6 @@ export type ModelSelectionHighlightState = {
   originalShader: CustomShader | undefined;
   originalSilhouetteColor: Color;
   originalSilhouetteSize: number;
-  originalMinimumPixelSize: number;
   opacity: number;
   shader: CustomShader;
   targetOpacity: number;
@@ -33,8 +34,8 @@ export type ModelSelectionHighlightState = {
 export const DEFAULT_MODEL_SELECTION_HIGHLIGHT_FADE_DURATION_MS = 220;
 export const DEFAULT_MODEL_SELECTION_HIGHLIGHT_FADE_EASING = Easing.CUBIC_OUT;
 export const DEFAULT_MODEL_SELECTION_HIGHLIGHT_FLASH_DURATION_MS = 160;
+export const DEFAULT_MODEL_SELECTION_HIGHLIGHT_FLASH_OPACITY = 1;
 export const DEFAULT_MODEL_SELECTION_HOVER_CLEAR_DELAY_MS = 40;
-export const DEFAULT_MODEL_SELECTION_HIGHLIGHT_MINIMUM_PIXEL_SIZE = 1;
 export const MODEL_SELECTION_FLASH_HIGHLIGHT_COLOR = new Color(1, 1, 1, 1);
 
 const MODEL_SELECTION_SILHOUETTE_SIZE_FADE_EXPONENT = 1.5;
@@ -48,14 +49,26 @@ export const normalizeModelSelectionHighlightFadeDuration = (
     ? fadeDurationMs
     : DEFAULT_MODEL_SELECTION_HIGHLIGHT_FADE_DURATION_MS;
 
-export const normalizeModelSelectionHighlightMinimumPixelSize = (
-  minimumPixelSize: number | undefined
+export const normalizeModelSelectionFlashDuration = (
+  durationMs: number | undefined
 ) =>
-  typeof minimumPixelSize === "number" &&
-  Number.isFinite(minimumPixelSize) &&
-  minimumPixelSize >= 0
-    ? minimumPixelSize
-    : DEFAULT_MODEL_SELECTION_HIGHLIGHT_MINIMUM_PIXEL_SIZE;
+  typeof durationMs === "number" &&
+  Number.isFinite(durationMs) &&
+  durationMs >= 0
+    ? durationMs
+    : DEFAULT_MODEL_SELECTION_HIGHLIGHT_FLASH_DURATION_MS;
+
+export const normalizeModelSelectionHoverClearDelay = (
+  clearDelayMs: number | undefined
+) =>
+  typeof clearDelayMs === "number" &&
+  Number.isFinite(clearDelayMs) &&
+  clearDelayMs >= 0
+    ? clearDelayMs
+    : DEFAULT_MODEL_SELECTION_HOVER_CLEAR_DELAY_MS;
+
+export const interpolateNumber = (from: number, to: number, progress: number) =>
+  from + (to - from) * progress;
 
 export const clampEasedProgress = (progress: number) =>
   Number.isFinite(progress) ? Math.min(1, Math.max(0, progress)) : 1;

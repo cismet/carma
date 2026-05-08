@@ -30,6 +30,7 @@ import {
 import {
   DEFAULT_ADHOC_FEATURE_LAYER_ID,
   ADHOC_UNSELECTED_RENDER_STYLES,
+  DEFAULT_ADHOC_UNSELECTED_RENDER_TINT_MIX,
   MIN_ADHOC_UNSELECTED_RENDER_TINT_MIX,
   resolveAdhocSelectionTargetByCollectionId,
   resolveAdhocUnselectedRenderStyle,
@@ -65,6 +66,7 @@ import {
   type AdhocModelPositionInputs,
 } from "../../helper/adhoc-model-style-utils";
 import { zoomToStyleFeatures } from "../../helper/gisHelper";
+import { CESIUM_CONFIG } from "../../config/app.config";
 import {
   ColorSwatchGroup,
   type ColorSwatchGroupOption,
@@ -91,8 +93,18 @@ const ADHOC_UNSELECTED_RENDER_STYLE_LABELS: Record<
   string
 > = {
   default: "Normal",
-  tint: "Getönt",
+  highlight: "Highlight",
 };
+
+const ADHOC_MODEL_HIGHLIGHT_STYLE = CESIUM_CONFIG.model?.highlight?.style;
+const DEFAULT_ADHOC_MODEL_HIGHLIGHT_TINT_COLOR =
+  resolveAdhocUnselectedRenderTintColor(
+    ADHOC_MODEL_HIGHLIGHT_STYLE?.fill?.color
+  );
+const DEFAULT_ADHOC_MODEL_HIGHLIGHT_TINT_MIX = ADHOC_MODEL_HIGHLIGHT_STYLE?.fill
+  ?.color
+  ? 1
+  : DEFAULT_ADHOC_UNSELECTED_RENDER_TINT_MIX;
 
 const ADHOC_RENDER_TINT_SWATCHES = [
   { color: "#facc15", label: "Gelb" },
@@ -167,10 +179,12 @@ const useAdhocModelLayerbarControls = (layer: Layer | BackgroundLayer) => {
     adhocRenderStyleMetadata?.unselectedRenderStyle
   );
   const unselectedRenderTintColor = resolveAdhocUnselectedRenderTintColor(
-    adhocRenderStyleMetadata?.unselectedRenderTintColor
+    adhocRenderStyleMetadata?.unselectedRenderTintColor ??
+      DEFAULT_ADHOC_MODEL_HIGHLIGHT_TINT_COLOR
   );
   const unselectedRenderTintMix = resolveAdhocUnselectedRenderTintMix(
-    adhocRenderStyleMetadata?.unselectedRenderTintMix
+    adhocRenderStyleMetadata?.unselectedRenderTintMix ??
+      DEFAULT_ADHOC_MODEL_HIGHLIGHT_TINT_MIX
   );
   const adhocModelPosition = getAdhocFeatureModelPosition(
     adhocRenderStyleTarget
@@ -328,7 +342,7 @@ const useAdhocModelLayerbarControls = (layer: Layer | BackgroundLayer) => {
 
     updateAdhocRenderMetadataForTarget(target, {
       unselectedRenderStyle:
-        unselectedRenderStyle === "tint" ? "default" : "tint",
+        unselectedRenderStyle === "highlight" ? "default" : "highlight",
     });
   };
 
@@ -724,7 +738,7 @@ export const AdhocModelLayerbarActions = ({
   return (
     <div className="flex items-center">
       <LayerbarActionButton
-        active={isRenderStylePanelOpen || unselectedRenderStyle === "tint"}
+        active={isRenderStylePanelOpen || unselectedRenderStyle === "highlight"}
         icon={faPalette}
         onClick={toggleAdhocRenderStyle}
         onLongPress={handleRenderStyleLongPress}
@@ -791,7 +805,7 @@ export const AdhocRenderStyleInteractionPanel = ({
           </Radio.Button>
         ))}
       </Radio.Group>
-      {unselectedRenderStyle === "tint" && (
+      {unselectedRenderStyle === "highlight" && (
         <>
           <ColorSwatchGroup
             swatches={ADHOC_RENDER_TINT_SWATCHES}
@@ -800,7 +814,7 @@ export const AdhocRenderStyleInteractionPanel = ({
             tintMix={unselectedRenderTintMix}
             onChange={(color) =>
               updateAdhocRenderMetadata({
-                unselectedRenderStyle: "tint",
+                unselectedRenderStyle: "highlight",
                 unselectedRenderTintColor: color,
               })
             }

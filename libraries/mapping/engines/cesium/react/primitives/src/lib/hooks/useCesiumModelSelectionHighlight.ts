@@ -20,12 +20,13 @@ import {
   clampEasedProgress,
   createNonAccumulatingSilhouetteColor,
   DEFAULT_MODEL_SELECTION_HIGHLIGHT_FADE_EASING,
-  DEFAULT_MODEL_SELECTION_HIGHLIGHT_FLASH_DURATION_MS,
-  DEFAULT_MODEL_SELECTION_HOVER_CLEAR_DELAY_MS,
+  DEFAULT_MODEL_SELECTION_HIGHLIGHT_FLASH_OPACITY,
+  interpolateNumber,
   interpolateColor,
   MODEL_SELECTION_FLASH_HIGHLIGHT_COLOR,
+  normalizeModelSelectionFlashDuration,
   normalizeModelSelectionHighlightFadeDuration,
-  normalizeModelSelectionHighlightMinimumPixelSize,
+  normalizeModelSelectionHoverClearDelay,
   readPrimitiveHighlightEdgeMode,
   type ModelSelectionHighlightEdgeMode,
   type ModelSelectionHighlightState,
@@ -44,6 +45,13 @@ export type CesiumModelSelectionHighlightController = {
     primitive: Model,
     shader: CustomShader | undefined
   ) => boolean;
+  setPrimitiveOriginalPresentationIfHighlighted: (
+    primitive: Model,
+    presentation: {
+      silhouetteColor?: Color;
+      silhouetteSize: number;
+    }
+  ) => boolean;
 };
 
 type UseCesiumModelSelectionHighlightOptions = {
@@ -53,9 +61,15 @@ type UseCesiumModelSelectionHighlightOptions = {
   enabled: boolean;
   fadeDurationMs?: number;
   fadeEasing?: EasingFunction;
+  fillColor?: Color;
+  flashColor?: Color;
+  flashDurationMs?: number;
+  flashOpacity?: number;
   getPrimitiveBySelectionId: (selectedId: string) => Model | null;
   highlightEdgeMode?: ModelSelectionHighlightEdgeMode;
-  minimumPixelSize?: number;
+  hoverClearDelayMs?: number;
+  hoverFadeDurationMs?: number;
+  hoverFadeEasing?: EasingFunction;
   requestRender: () => void;
   selectedId?: string | null;
 };
@@ -67,9 +81,15 @@ export const useCesiumModelSelectionHighlight = ({
   enabled,
   fadeDurationMs,
   fadeEasing,
+  fillColor,
+  flashColor,
+  flashDurationMs,
+  flashOpacity,
   getPrimitiveBySelectionId,
   highlightEdgeMode,
-  minimumPixelSize,
+  hoverClearDelayMs,
+  hoverFadeDurationMs,
+  hoverFadeEasing,
   requestRender,
   selectedId,
 }: UseCesiumModelSelectionHighlightOptions): CesiumModelSelectionHighlightController => {
@@ -88,6 +108,34 @@ export const useCesiumModelSelectionHighlight = ({
   const fadeEasingRef = useRef<EasingFunction>(
     fadeEasing ?? DEFAULT_MODEL_SELECTION_HIGHLIGHT_FADE_EASING
   );
+  const hoverFadeDurationMsRef = useRef<number>(
+    normalizeModelSelectionHighlightFadeDuration(
+      hoverFadeDurationMs ?? fadeDurationMs
+    )
+  );
+  const hoverFadeEasingRef = useRef<EasingFunction>(
+    hoverFadeEasing ??
+      fadeEasing ??
+      DEFAULT_MODEL_SELECTION_HIGHLIGHT_FADE_EASING
+  );
+  const hoverClearDelayMsRef = useRef<number>(
+    normalizeModelSelectionHoverClearDelay(hoverClearDelayMs)
+  );
+  const fillColorRef = useRef<Color>(
+    fillColor ?? DEFAULT_MODEL_SELECTION_HIGHLIGHT_COLOR
+  );
+  const flashColorRef = useRef<Color>(
+    flashColor ?? MODEL_SELECTION_FLASH_HIGHLIGHT_COLOR
+  );
+  const flashDurationMsRef = useRef<number>(
+    normalizeModelSelectionFlashDuration(flashDurationMs)
+  );
+  const flashOpacityRef = useRef<number>(
+    clampModelHighlightOpacity(
+      flashOpacity,
+      DEFAULT_MODEL_SELECTION_HIGHLIGHT_FLASH_OPACITY
+    )
+  );
   const edgeColorRef = useRef<Color>(
     edgeColor ?? DEFAULT_MODEL_SELECTION_HIGHLIGHT_EDGE_COLOR
   );
@@ -100,9 +148,6 @@ export const useCesiumModelSelectionHighlight = ({
   const edgeModeRef = useRef<ModelSelectionHighlightEdgeMode>(
     highlightEdgeMode ?? "silhouette"
   );
-  const minimumPixelSizeRef = useRef<number>(
-    normalizeModelSelectionHighlightMinimumPixelSize(minimumPixelSize)
-  );
 
   useEffect(() => {
     fadeDurationMsRef.current =
@@ -113,6 +158,45 @@ export const useCesiumModelSelectionHighlight = ({
     fadeEasingRef.current =
       fadeEasing ?? DEFAULT_MODEL_SELECTION_HIGHLIGHT_FADE_EASING;
   }, [fadeEasing]);
+
+  useEffect(() => {
+    hoverFadeDurationMsRef.current =
+      normalizeModelSelectionHighlightFadeDuration(
+        hoverFadeDurationMs ?? fadeDurationMs
+      );
+  }, [fadeDurationMs, hoverFadeDurationMs]);
+
+  useEffect(() => {
+    hoverFadeEasingRef.current =
+      hoverFadeEasing ??
+      fadeEasing ??
+      DEFAULT_MODEL_SELECTION_HIGHLIGHT_FADE_EASING;
+  }, [fadeEasing, hoverFadeEasing]);
+
+  useEffect(() => {
+    hoverClearDelayMsRef.current =
+      normalizeModelSelectionHoverClearDelay(hoverClearDelayMs);
+  }, [hoverClearDelayMs]);
+
+  useEffect(() => {
+    fillColorRef.current = fillColor ?? DEFAULT_MODEL_SELECTION_HIGHLIGHT_COLOR;
+  }, [fillColor]);
+
+  useEffect(() => {
+    flashColorRef.current = flashColor ?? MODEL_SELECTION_FLASH_HIGHLIGHT_COLOR;
+  }, [flashColor]);
+
+  useEffect(() => {
+    flashDurationMsRef.current =
+      normalizeModelSelectionFlashDuration(flashDurationMs);
+  }, [flashDurationMs]);
+
+  useEffect(() => {
+    flashOpacityRef.current = clampModelHighlightOpacity(
+      flashOpacity,
+      DEFAULT_MODEL_SELECTION_HIGHLIGHT_FLASH_OPACITY
+    );
+  }, [flashOpacity]);
 
   useEffect(() => {
     edgeColorRef.current =
@@ -131,17 +215,11 @@ export const useCesiumModelSelectionHighlight = ({
     edgeModeRef.current = highlightEdgeMode ?? "silhouette";
   }, [highlightEdgeMode]);
 
-  useEffect(() => {
-    minimumPixelSizeRef.current =
-      normalizeModelSelectionHighlightMinimumPixelSize(minimumPixelSize);
-  }, [minimumPixelSize]);
-
-  const readSelectionSilhouetteOptions = useCallback(
+  const readSelectionOutlineOptions = useCallback(
     () => ({
       edgeColor: edgeColorRef.current,
       edgeOpacity: edgeOpacityRef.current,
       edgeWidthPx: edgeWidthPxRef.current,
-      minimumPixelSize: minimumPixelSizeRef.current,
     }),
     []
   );
@@ -157,25 +235,6 @@ export const useCesiumModelSelectionHighlight = ({
     []
   );
 
-  const applyMinimumPixelSize = useCallback(
-    (
-      primitive: Model,
-      state: ModelSelectionHighlightState,
-      opacity: number
-    ) => {
-      if (primitive.isDestroyed()) {
-        return;
-      }
-
-      const { minimumPixelSize } = readSelectionSilhouetteOptions();
-      primitive.minimumPixelSize = Math.max(
-        state.originalMinimumPixelSize,
-        opacity > 0 ? minimumPixelSize : 0
-      );
-    },
-    [readSelectionSilhouetteOptions]
-  );
-
   const applyPresentation = useCallback(
     (
       primitive: Model,
@@ -187,14 +246,14 @@ export const useCesiumModelSelectionHighlight = ({
       }
 
       const { edgeColor, edgeOpacity, edgeWidthPx } =
-        readSelectionSilhouetteOptions();
+        readSelectionOutlineOptions();
       const highlightOpacity = clampModelHighlightOpacity(opacity, 0);
       const edgeMode = readPrimitiveHighlightEdgeMode(
         primitive,
         edgeModeRef.current
       );
 
-      if (edgeMode === "silhouette") {
+      if (!state.isFlashActive && edgeMode === "silhouette") {
         primitive.silhouetteColor = createNonAccumulatingSilhouetteColor(
           edgeColor,
           edgeOpacity
@@ -211,13 +270,12 @@ export const useCesiumModelSelectionHighlight = ({
         primitive.silhouetteSize = state.originalSilhouetteSize;
       }
       primitive.outlineColor = Color.clone(
-        DEFAULT_MODEL_SELECTION_HIGHLIGHT_COLOR,
+        state.isFlashActive ? flashColorRef.current : fillColorRef.current,
         new Color()
       );
       primitive.showOutline = true;
-      applyMinimumPixelSize(primitive, state, opacity);
     },
-    [applyMinimumPixelSize, readSelectionSilhouetteOptions]
+    [readSelectionOutlineOptions]
   );
 
   useEffect(() => {
@@ -228,10 +286,8 @@ export const useCesiumModelSelectionHighlight = ({
     highlightStateByPrimitiveRef.current.forEach((state, primitive) => {
       setHighlightShaderUniforms(
         state,
-        state.isFlashActive
-          ? MODEL_SELECTION_FLASH_HIGHLIGHT_COLOR
-          : DEFAULT_MODEL_SELECTION_HIGHLIGHT_COLOR,
-        state.opacity
+        state.isFlashActive ? flashColorRef.current : fillColorRef.current,
+        state.isFlashActive ? flashOpacityRef.current : state.opacity
       );
       applyPresentation(primitive, state, state.opacity);
     });
@@ -241,8 +297,10 @@ export const useCesiumModelSelectionHighlight = ({
     edgeColor,
     edgeOpacity,
     edgeWidthPx,
+    fillColor,
+    flashColor,
+    flashOpacity,
     highlightEdgeMode,
-    minimumPixelSize,
     requestRender,
     setHighlightShaderUniforms,
   ]);
@@ -259,11 +317,12 @@ export const useCesiumModelSelectionHighlight = ({
         isModelIntegratedHighlightShader(originalShader);
 
       const state: ModelSelectionHighlightState = {
+        animationDurationMs: fadeDurationMsRef.current,
+        animationEasing: fadeEasingRef.current,
         animationStartOpacity: 0,
         animationStartTimestampMs: null,
         flashStartTimestampMs: null,
         isFlashActive: false,
-        originalMinimumPixelSize: primitive.minimumPixelSize,
         originalOutlineColor: Color.clone(primitive.outlineColor, new Color()),
         originalShowOutline: primitive.showOutline,
         originalShader,
@@ -277,7 +336,7 @@ export const useCesiumModelSelectionHighlight = ({
           usesIntegratedShader && originalShader
             ? originalShader
             : createModelSelectionHighlightShader({
-                color: DEFAULT_MODEL_SELECTION_HIGHLIGHT_COLOR,
+                color: fillColorRef.current,
                 opacity: 0,
               }),
         targetOpacity: 0,
@@ -294,11 +353,7 @@ export const useCesiumModelSelectionHighlight = ({
       const state = highlightStateByPrimitiveRef.current.get(primitive);
       if (state && !primitive.isDestroyed()) {
         if (state.usesIntegratedShader) {
-          setHighlightShaderUniforms(
-            state,
-            DEFAULT_MODEL_SELECTION_HIGHLIGHT_COLOR,
-            0
-          );
+          setHighlightShaderUniforms(state, fillColorRef.current, 0);
           if (
             state.originalShader !== state.shader &&
             primitive.customShader === state.shader
@@ -321,7 +376,6 @@ export const useCesiumModelSelectionHighlight = ({
           new Color()
         );
         primitive.silhouetteSize = state.originalSilhouetteSize;
-        primitive.minimumPixelSize = state.originalMinimumPixelSize;
         primitive.outlineColor = Color.clone(
           state.originalOutlineColor,
           new Color()
@@ -361,8 +415,6 @@ export const useCesiumModelSelectionHighlight = ({
   const animateHighlights = useCallback(
     (timestampMs: number) => {
       animationFrameRef.current = null;
-      const currentFadeDurationMs = fadeDurationMsRef.current;
-      const easing = fadeEasingRef.current;
       let hasPendingAnimation = false;
 
       highlightStateByPrimitiveRef.current.forEach((state, primitive) => {
@@ -375,6 +427,8 @@ export const useCesiumModelSelectionHighlight = ({
           state.animationStartTimestampMs = timestampMs;
         }
 
+        const currentFadeDurationMs = state.animationDurationMs;
+        const easing = state.animationEasing;
         const linearProgress =
           currentFadeDurationMs === 0 ||
           state.animationStartOpacity === state.targetOpacity
@@ -390,23 +444,29 @@ export const useCesiumModelSelectionHighlight = ({
 
         state.opacity = nextOpacity;
 
-        let highlightColor = DEFAULT_MODEL_SELECTION_HIGHLIGHT_COLOR;
+        let highlightColor = fillColorRef.current;
         if (state.isFlashActive) {
           if (state.flashStartTimestampMs === null) {
             state.flashStartTimestampMs = timestampMs;
           }
           const flashProgress = clampEasedProgress(
             (timestampMs - state.flashStartTimestampMs) /
-              DEFAULT_MODEL_SELECTION_HIGHLIGHT_FLASH_DURATION_MS
+              flashDurationMsRef.current
           );
           const easedFlashProgress = clampEasedProgress(
             DEFAULT_MODEL_SELECTION_HIGHLIGHT_FADE_EASING(flashProgress)
           );
           highlightColor = interpolateColor(
-            MODEL_SELECTION_FLASH_HIGHLIGHT_COLOR,
-            DEFAULT_MODEL_SELECTION_HIGHLIGHT_COLOR,
+            flashColorRef.current,
+            fillColorRef.current,
             easedFlashProgress
           );
+          const flashOpacity = interpolateNumber(
+            flashOpacityRef.current,
+            nextOpacity,
+            easedFlashProgress
+          );
+          setHighlightShaderUniforms(state, highlightColor, flashOpacity);
 
           if (flashProgress < 1) {
             hasPendingAnimation = true;
@@ -416,7 +476,9 @@ export const useCesiumModelSelectionHighlight = ({
           }
         }
 
-        setHighlightShaderUniforms(state, highlightColor, nextOpacity);
+        if (!state.isFlashActive) {
+          setHighlightShaderUniforms(state, highlightColor, nextOpacity);
+        }
         applyPresentation(primitive, state, nextOpacity);
         requestRender();
 
@@ -457,7 +519,11 @@ export const useCesiumModelSelectionHighlight = ({
     (
       primitive: Model,
       targetOpacity: number,
-      options: { flash?: boolean } = {}
+      options: {
+        durationMs?: number;
+        easing?: EasingFunction;
+        flash?: boolean;
+      } = {}
     ) => {
       if (primitive.isDestroyed()) {
         return;
@@ -482,8 +548,8 @@ export const useCesiumModelSelectionHighlight = ({
         state.flashStartTimestampMs = null;
         setHighlightShaderUniforms(
           state,
-          MODEL_SELECTION_FLASH_HIGHLIGHT_COLOR,
-          nextTargetOpacity
+          flashColorRef.current,
+          flashOpacityRef.current
         );
         applyPresentation(primitive, state, nextTargetOpacity);
         requestRender();
@@ -501,6 +567,9 @@ export const useCesiumModelSelectionHighlight = ({
 
       state.animationStartOpacity = state.opacity;
       state.animationStartTimestampMs = null;
+      state.animationDurationMs =
+        options.durationMs ?? fadeDurationMsRef.current;
+      state.animationEasing = options.easing ?? fadeEasingRef.current;
       state.targetOpacity = nextTargetOpacity;
       applyPresentation(primitive, state, state.opacity);
       scheduleHighlightAnimation();
@@ -515,7 +584,7 @@ export const useCesiumModelSelectionHighlight = ({
   );
 
   const refreshHighlightTarget = useCallback(
-    (primitive: Model | null) => {
+    (primitive: Model | null, timing: "selection" | "hover" = "selection") => {
       if (!primitive || primitive.isDestroyed()) {
         return;
       }
@@ -528,9 +597,18 @@ export const useCesiumModelSelectionHighlight = ({
         return;
       }
 
+      const timingOptions =
+        timing === "hover"
+          ? {
+              durationMs: hoverFadeDurationMsRef.current,
+              easing: hoverFadeEasingRef.current,
+            }
+          : undefined;
+
       setHighlightTarget(
         primitive,
-        isHighlighted ? DEFAULT_MODEL_SELECTION_HIGHLIGHT_OPACITY : 0
+        isHighlighted ? DEFAULT_MODEL_SELECTION_HIGHLIGHT_OPACITY : 0,
+        timingOptions
       );
     },
     [setHighlightTarget]
@@ -574,8 +652,8 @@ export const useCesiumModelSelectionHighlight = ({
           hoverClearTimeoutRef.current = null;
           const hovered = hoveredPrimitiveRef.current;
           hoveredPrimitiveRef.current = null;
-          refreshHighlightTarget(hovered);
-        }, DEFAULT_MODEL_SELECTION_HOVER_CLEAR_DELAY_MS);
+          refreshHighlightTarget(hovered, "hover");
+        }, hoverClearDelayMsRef.current);
         return;
       }
 
@@ -585,8 +663,8 @@ export const useCesiumModelSelectionHighlight = ({
       }
 
       hoveredPrimitiveRef.current = primitive;
-      refreshHighlightTarget(current);
-      refreshHighlightTarget(primitive);
+      refreshHighlightTarget(current, "hover");
+      refreshHighlightTarget(primitive, "hover");
     },
     [refreshHighlightTarget]
   );
@@ -608,6 +686,30 @@ export const useCesiumModelSelectionHighlight = ({
         return false;
       }
       state.originalShader = shader;
+      return true;
+    },
+    []
+  );
+
+  const setPrimitiveOriginalPresentationIfHighlighted = useCallback(
+    (
+      primitive: Model,
+      presentation: {
+        silhouetteColor?: Color;
+        silhouetteSize: number;
+      }
+    ) => {
+      const state = highlightStateByPrimitiveRef.current.get(primitive);
+      if (!state) {
+        return false;
+      }
+      if (presentation.silhouetteColor) {
+        state.originalSilhouetteColor = Color.clone(
+          presentation.silhouetteColor,
+          new Color()
+        );
+      }
+      state.originalSilhouetteSize = presentation.silhouetteSize;
       return true;
     },
     []
@@ -671,6 +773,7 @@ export const useCesiumModelSelectionHighlight = ({
     isSelectedPrimitive,
     restorePrimitiveHighlight,
     restoreHighlights,
+    setPrimitiveOriginalPresentationIfHighlighted,
     setPrimitiveOriginalShaderIfHighlighted,
   };
 };

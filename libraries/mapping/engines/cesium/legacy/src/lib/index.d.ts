@@ -1,6 +1,8 @@
-import type { ModelConfig } from "@carma-mapping/engines/cesium/core";
+import type {
+  CesiumModelConfig,
+  ModelConfig,
+} from "@carma-mapping/engines/cesium/core";
 import { type ColorConstructorArgs } from "@carma-mapping/engines/cesium/core";
-import { type Easing as EasingFunction } from "@carma-commons/math";
 
 import type { CameraLimiterOptions } from "./camera-limiter-options";
 import type { ProviderConfig } from "./utils/cesiumProviders";
@@ -57,17 +59,6 @@ export type SceneStyles = {
   secondary?: Partial<SceneStyle>;
 };
 
-export type CesiumModelSelectionHighlightConfig = {
-  edgeColor?: ColorConstructorArgs;
-  edgeOpacity?: number;
-  edgeWidthPx?: number;
-  edgeMode?: "silhouette" | "none";
-  fadeDurationMs?: number;
-  fadeEasing?: EasingFunction;
-  hoverHighlightEnabled?: boolean;
-  minimumPixelSize?: number;
-};
-
 export type CesiumConfig = {
   transitions: {
     mapMode: {
@@ -81,8 +72,8 @@ export type CesiumConfig = {
   pathName: string;
   tilesetConfigs: TilesetConfigs;
   providerConfig: ProviderConfig;
+  model?: CesiumModelConfig;
   models?: ModelConfig[];
-  modelSelectionHighlight?: CesiumModelSelectionHighlightConfig;
 };
 export interface CesiumState {
   isAnimating?: boolean;

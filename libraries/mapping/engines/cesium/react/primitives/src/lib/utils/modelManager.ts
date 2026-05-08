@@ -1,5 +1,5 @@
 import type { ModelConfig } from "@carma-mapping/engines/cesium/core";
-import { Model, type CustomShader } from "@carma-cesium";
+import { Color, Model, type CustomShader } from "@carma-cesium";
 
 type ModelWithReadyPromise = {
   readyPromise?: Promise<unknown>;
@@ -88,6 +88,68 @@ export const getModelConfigCustomShaderSignature = (
   typeof config.model.renderStyleSignature === "string"
     ? config.model.renderStyleSignature
     : null;
+
+const toModelConfigRenderStyleOutlineColor = (
+  value: unknown
+): Color | undefined => {
+  if (value instanceof Color) {
+    return value;
+  }
+  if (typeof value === "string") {
+    return Color.fromCssColorString(value);
+  }
+  return undefined;
+};
+
+export type ModelPrimitiveRenderStylePresentation = {
+  outlineColor?: Color;
+  outlineWidthPx: number;
+};
+
+export const getModelConfigRenderStylePresentation = (
+  config: ModelConfig
+): ModelPrimitiveRenderStylePresentation | null => {
+  if (typeof config.model.renderStyleSignature !== "string") {
+    return null;
+  }
+
+  const outlineColor = toModelConfigRenderStyleOutlineColor(
+    config.model.renderStyleOutlineColor
+  );
+  const outlineWidthPx =
+    typeof config.model.renderStyleOutlineWidthPx === "number" &&
+    Number.isFinite(config.model.renderStyleOutlineWidthPx) &&
+    config.model.renderStyleOutlineWidthPx > 0
+      ? config.model.renderStyleOutlineWidthPx
+      : 0;
+
+  return {
+    ...(outlineColor ? { outlineColor } : {}),
+    outlineWidthPx,
+  };
+};
+
+export const applyModelConfigRenderStylePresentation = (
+  primitive: Model,
+  config: ModelConfig
+) => {
+  if (primitive.isDestroyed()) {
+    return;
+  }
+
+  const presentation = getModelConfigRenderStylePresentation(config);
+  if (!presentation) {
+    return;
+  }
+
+  if (presentation.outlineColor) {
+    primitive.silhouetteColor = Color.clone(
+      presentation.outlineColor,
+      new Color()
+    );
+  }
+  primitive.silhouetteSize = presentation.outlineWidthPx;
+};
 
 export const applyModelCustomShader = (
   primitive: Model,

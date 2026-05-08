@@ -77,13 +77,43 @@ export const CESIUM_CONFIG: CesiumConfig = {
     primary: WUPP_MESH_2024,
     secondary: WUPP_LOD2_TILESET,
   },
-  modelSelectionHighlight: {
-    edgeColor: [0, 0, 0, 1],
-    edgeOpacity: 0.5,
-    edgeWidthPx: 2,
-    edgeMode: "silhouette",
-    hoverHighlightEnabled: false,
-    minimumPixelSize: 1,
+  model: {
+    hover: {
+      enabled: false,
+      fadeDurationMs: 220,
+      clearDelayMs: 40,
+    },
+    highlight: {
+      style: {
+        type: "silhouette",
+        fill: {
+          color: "#00e5ff",
+        },
+        outline: {
+          color: "#111827",
+          opacity: 0.7,
+          widthPx: 3,
+        },
+      },
+    },
+    selection: {
+      style: {
+        type: "silhouette",
+        fill: {
+          color: "#ffff00",
+        },
+        outline: {
+          color: "#000000",
+          opacity: 0.5,
+          widthPx: 2,
+        },
+      },
+      flash: {
+        color: "#ffffff",
+        opacity: 1,
+        durationMs: 160,
+      },
+    },
   },
 };
 

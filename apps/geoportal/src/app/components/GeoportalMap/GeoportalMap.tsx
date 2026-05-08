@@ -14,12 +14,10 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   BoundingSphere,
   Cartesian3,
+  Color,
   type CesiumTerrainProvider,
 } from "@carma-cesium";
-import {
-  colorFromConstructorArgs,
-  flyToBoundingSphereExtent,
-} from "@carma-mapping/engines/cesium/core";
+import { flyToBoundingSphereExtent } from "@carma-mapping/engines/cesium/core";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
 import { Button, Tooltip } from "antd";
@@ -159,13 +157,44 @@ const FLY_TO_BOUNDING_SPHERE_PADDING_FACTOR = 1.1;
 type AnnotationInfoBoxTop = "annotation" | "feature";
 
 const ENABLE_3D_MODEL_SELECTION_IN_MEASUREMENT_MODE = false;
-const MODEL_SELECTION_HIGHLIGHT_CONFIG = {
-  ...CESIUM_CONFIG.modelSelectionHighlight,
-  edgeColor: CESIUM_CONFIG.modelSelectionHighlight?.edgeColor
-    ? colorFromConstructorArgs(CESIUM_CONFIG.modelSelectionHighlight.edgeColor) ??
-      undefined
-    : undefined,
+const HEX_COLOR_WITHOUT_ALPHA_PATTERN = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+
+const colorFromHexWithoutAlpha = (
+  hexColor: string | undefined
+): Color | undefined => {
+  if (!hexColor || !HEX_COLOR_WITHOUT_ALPHA_PATTERN.test(hexColor)) {
+    return undefined;
+  }
+  const color = Color.fromCssColorString(hexColor);
+  return color ? new Color(color.red, color.green, color.blue, 1) : undefined;
 };
+
+const MODEL_CONFIG = CESIUM_CONFIG.model;
+const MODEL_HOVER_CONFIG = MODEL_CONFIG?.hover;
+const MODEL_SELECTION_CONFIG = MODEL_CONFIG?.selection;
+const MODEL_SELECTION_STYLE = MODEL_SELECTION_CONFIG?.style;
+const MODEL_SELECTION_OUTLINE_OPTIONS =
+  MODEL_SELECTION_STYLE?.type === "silhouette"
+    ? MODEL_SELECTION_STYLE.outline
+    : undefined;
+const MODEL_SELECTION_HIGHLIGHT_CONFIG = {
+  edgeColor: colorFromHexWithoutAlpha(MODEL_SELECTION_OUTLINE_OPTIONS?.color),
+  edgeMode: MODEL_SELECTION_STYLE?.type === "plain" ? "none" : "silhouette",
+  edgeOpacity: MODEL_SELECTION_OUTLINE_OPTIONS?.opacity,
+  edgeWidthPx: MODEL_SELECTION_OUTLINE_OPTIONS?.widthPx,
+  fadeDurationMs: MODEL_SELECTION_CONFIG?.fade?.durationMs,
+  fadeEasing: MODEL_SELECTION_CONFIG?.fade?.easing,
+  fillColor: colorFromHexWithoutAlpha(MODEL_SELECTION_STYLE?.fill?.color),
+  flashColor: colorFromHexWithoutAlpha(MODEL_SELECTION_CONFIG?.flash?.color),
+  flashDurationMs: MODEL_SELECTION_CONFIG?.flash?.durationMs,
+  flashOpacity: MODEL_SELECTION_CONFIG?.flash?.opacity,
+  hoverClearDelayMs: MODEL_HOVER_CONFIG?.clearDelayMs,
+  hoverFadeDurationMs: MODEL_HOVER_CONFIG?.fadeDurationMs,
+  hoverFadeEasing: MODEL_HOVER_CONFIG?.fadeEasing,
+  hoverHighlightEnabled: MODEL_HOVER_CONFIG?.enabled,
+} satisfies NonNullable<
+  Parameters<typeof useAdhocCesiumFeatureDisplay>[0]["modelSelectionHighlight"]
+>;
 
 const buildTerrainAwareBoundingSphereOptions = (
   terrainProvider: CesiumTerrainProvider | undefined
@@ -379,6 +408,7 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
         selected: 0.4,
         default: 0.7,
       },
+      modelHighlightStyle: MODEL_CONFIG?.highlight?.style,
       modelSelectionHighlight: MODEL_SELECTION_HIGHLIGHT_CONFIG,
       selectionEnabled: is3dModelSelectionEnabled,
       onFeatureInfoChange: modelSelectionDispatcher,

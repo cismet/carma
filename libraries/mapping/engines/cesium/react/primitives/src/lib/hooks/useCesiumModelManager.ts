@@ -30,7 +30,13 @@ export interface UseCesiumModelManagerOptions {
     highlightFadeDurationMs?: number;
     highlightFadeEasing?: EasingFunction;
     highlightEdgeMode?: ModelSelectionHighlightEdgeMode;
-    highlightMinimumPixelSize?: number;
+    highlightFillColor?: Color;
+    highlightFlashColor?: Color;
+    highlightFlashDurationMs?: number;
+    highlightFlashOpacity?: number;
+    highlightHoverClearDelayMs?: number;
+    highlightHoverFadeDurationMs?: number;
+    highlightHoverFadeEasing?: EasingFunction;
     hoverHighlightEnabled?: boolean;
     selectedId?: string | null;
   };
@@ -72,9 +78,15 @@ export const useCesiumModelManager = ({
     enabled: selectionEnabled,
     fadeDurationMs: selection?.highlightFadeDurationMs,
     fadeEasing: selection?.highlightFadeEasing,
+    fillColor: selection?.highlightFillColor,
+    flashColor: selection?.highlightFlashColor,
+    flashDurationMs: selection?.highlightFlashDurationMs,
+    flashOpacity: selection?.highlightFlashOpacity,
     getPrimitiveBySelectionId: readPrimitiveBySelectionId,
     highlightEdgeMode: selection?.highlightEdgeMode,
-    minimumPixelSize: selection?.highlightMinimumPixelSize,
+    hoverClearDelayMs: selection?.highlightHoverClearDelayMs,
+    hoverFadeDurationMs: selection?.highlightHoverFadeDurationMs,
+    hoverFadeEasing: selection?.highlightHoverFadeEasing,
     requestRender,
     selectedId: selection?.selectedId,
   });

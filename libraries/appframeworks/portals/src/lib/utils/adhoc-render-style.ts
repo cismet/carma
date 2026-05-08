@@ -1,4 +1,4 @@
-export type AdhocUnselectedRenderStyle = "default" | "tint";
+export type AdhocUnselectedRenderStyle = "default" | "highlight";
 
 export type AdhocUnselectedRenderStyleMetadata = {
   unselectedRenderStyleEditing?: boolean;
@@ -15,7 +15,7 @@ export const DEFAULT_ADHOC_UNSELECTED_RENDER_TINT_MIX = 0.55;
 
 export const ADHOC_UNSELECTED_RENDER_STYLES: AdhocUnselectedRenderStyle[] = [
   "default",
-  "tint",
+  "highlight",
 ];
 
 const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/i;
@@ -31,8 +31,12 @@ export const resolveAdhocUnselectedRenderStyle = (
   if (isAdhocUnselectedRenderStyle(value)) {
     return value;
   }
-  if (value === "flat-tint" || value === "monochrome-tint") {
-    return "tint";
+  if (
+    value === "tint" ||
+    value === "flat-tint" ||
+    value === "monochrome-tint"
+  ) {
+    return "highlight";
   }
   return DEFAULT_ADHOC_UNSELECTED_RENDER_STYLE;
 };
