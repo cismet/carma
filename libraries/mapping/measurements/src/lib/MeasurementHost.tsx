@@ -4,6 +4,7 @@ import {
   TerraDraw,
   TerraDrawPointMode,
   TerraDrawLineStringMode,
+  TerraDrawPolygonMode,
   TerraDrawSelectMode,
 } from "terra-draw";
 import type { GeoJSONStoreFeatures } from "terra-draw";
@@ -19,16 +20,25 @@ import {
 } from "./labels";
 import {
   findSnapTarget,
-  getOptOutSnappableLayerIds,
+  getSnappableLayerIds,
+  type SnapMode,
 } from "./snapping";
 
 const DEFAULT_SNAP_RADIUS_PX = 20;
 const SNAP_PREVIEW_SOURCE_ID = "carma-measurements-snap-preview";
 const SNAP_PREVIEW_LAYER_ID = "carma-measurements-snap-preview-circle";
+const SNAP_RADIUS_SOURCE_ID = "carma-measurements-snap-radius";
+const SNAP_RADIUS_LAYER_ID = "carma-measurements-snap-radius-circle";
 
 const EMPTY_FC = { type: "FeatureCollection" as const, features: [] };
+const EMPTY_OPTED_IN: ReadonlySet<string> = new Set();
 
-type TerraDrawMode = "select" | "point" | "linestring" | "static";
+type TerraDrawMode =
+  | "select"
+  | "point"
+  | "linestring"
+  | "polygon"
+  | "static";
 
 function toTerraDrawMode(mode: DrawMode): TerraDrawMode {
   switch (mode) {
@@ -36,6 +46,8 @@ function toTerraDrawMode(mode: DrawMode): TerraDrawMode {
       return "point";
     case "line":
       return "linestring";
+    case "polygon":
+      return "polygon";
     case "none":
       // Resting state — terra-draw stays in select so existing measurements
       // remain clickable / interactive without a dedicated select button in
@@ -58,14 +70,35 @@ export interface MeasurementHostProps {
    * Consumers typically dispatch the snapshot into app-level state for
    * sidebar listing, persistence, or hand-off into another form. */
   onChange?: (features: Feature[]) => void;
-  /** When true, line drawing snaps to nearby vertices (and falls back to
-   * the closest point on a segment) of the host map's rendered features.
-   * Snap-target layers are determined by the "opt-out" rule: every line /
-   * fill / circle layer is in unless it explicitly carries
-   * `metadata.carmaConf.skipSnapping = true`. Toggling this prop is cheap
-   * — terra-draw is not rebuilt; the snap callback reads the live value
-   * via a ref. */
+  /** When true, line / polygon drawing snaps to nearby vertices (and falls
+   * back to the closest point on a segment) of the host map's rendered
+   * features. Toggling this prop is cheap — terra-draw is not rebuilt; the
+   * snap callback reads the live value via a ref. */
   snapping?: boolean;
+  /** Pixel search radius for snap candidates. Defaults to 20. */
+  snapRadiusPx?: number;
+  /** Strategy for selecting snap-target layers. Default `"opt-out"` —
+   * every geometry-bearing layer is a candidate unless flagged with
+   * `metadata.carmaConf.skipSnapping`. See `SnapMode` for the other modes. */
+  snapMode?: SnapMode;
+  /** Owner-id set used by `snapMode === "explicit"` to enable per-libreLayer
+   * snap participation. Owner ids are read from
+   * `layer.metadata["layer-id"]` (set by styleBuilder; equals the libreLayer
+   * `name` for data layers and `bg-<layerName>` for vector backgrounds).
+   * Ignored in opt-out and derived-opt-in modes. */
+  optedInLayerIds?: ReadonlySet<string>;
+  /** When `snapMode === "explicit"`, controls whether layers whose
+   * owner-id starts with `bg-` (basemap) participate. Ignored in other
+   * modes. */
+  backgroundSnapping?: boolean;
+  /** Toggle visibility of the segment / area / title labels rendered into
+   * the host map. Default `true`. The label source is always populated;
+   * only the symbol layer's `visibility` is flipped. */
+  labelsVisible?: boolean;
+  /** When true, render a translucent circle at the cursor sized to the
+   * current `snapRadiusPx` — useful for tuning the radius during
+   * development. Default `false`. Implicitly hidden when `snapping` is off. */
+  radiusDebugVisible?: boolean;
 }
 
 // Side-effect-only component. Lives as a sibling of <CarmaMap> inside the
@@ -78,6 +111,12 @@ export function MeasurementHost({
   mode,
   onChange,
   snapping = false,
+  snapRadiusPx = DEFAULT_SNAP_RADIUS_PX,
+  snapMode = "opt-out",
+  optedInLayerIds = EMPTY_OPTED_IN,
+  backgroundSnapping = false,
+  labelsVisible = true,
+  radiusDebugVisible = false,
 }: MeasurementHostProps) {
   const { map } = useLibreContext();
   const drawRef = useRef<TerraDraw | null>(null);
@@ -89,9 +128,21 @@ export function MeasurementHost({
   onChangeRef.current = onChange;
   // Snapping state is mirrored into refs so the snap callback baked into
   // terra-draw at construction time always sees the current value without
-  // requiring a rebuild on toggle.
+  // requiring a rebuild on toggle. Same trick for the rest of the snap-
+  // tuning props (radius, mode, per-layer opt-ins, bg flag) and the
+  // debug-radius visibility.
   const snappingEnabledRef = useRef(snapping);
   snappingEnabledRef.current = snapping;
+  const snapRadiusPxRef = useRef(snapRadiusPx);
+  snapRadiusPxRef.current = snapRadiusPx;
+  const snapModeRef = useRef(snapMode);
+  snapModeRef.current = snapMode;
+  const optedInLayerIdsRef = useRef(optedInLayerIds);
+  optedInLayerIdsRef.current = optedInLayerIds;
+  const backgroundSnappingRef = useRef(backgroundSnapping);
+  backgroundSnappingRef.current = backgroundSnapping;
+  const radiusDebugVisibleRef = useRef(radiusDebugVisible);
+  radiusDebugVisibleRef.current = radiusDebugVisible;
   // Lazy cache for snap-target layer ids. `null` means "dirty — rebuild on
   // next read". Belis (and any consumer with libreLayers loaded from style
   // URLs via styleComposer) gets its layers added asynchronously *after*
@@ -146,6 +197,57 @@ export function MeasurementHost({
           },
         });
       }
+    };
+
+    const radiusLayerVisible = () =>
+      snappingEnabledRef.current && radiusDebugVisibleRef.current;
+
+    const ensureSnapRadiusLayer = () => {
+      if (!map.getSource(SNAP_RADIUS_SOURCE_ID)) {
+        map.addSource(SNAP_RADIUS_SOURCE_ID, {
+          type: "geojson",
+          data: EMPTY_FC,
+        });
+      }
+      if (!map.getLayer(SNAP_RADIUS_LAYER_ID)) {
+        map.addLayer({
+          id: SNAP_RADIUS_LAYER_ID,
+          type: "circle",
+          source: SNAP_RADIUS_SOURCE_ID,
+          layout: {
+            visibility: radiusLayerVisible() ? "visible" : "none",
+          },
+          paint: {
+            "circle-color": "#fff",
+            "circle-opacity": 0.2,
+            "circle-radius": snapRadiusPxRef.current,
+            "circle-stroke-color": "#fff",
+            "circle-stroke-width": 1,
+            "circle-stroke-opacity": 0.6,
+          },
+        });
+      }
+    };
+
+    const setRadiusCircle = (lngLat: [number, number] | null) => {
+      const source = map.getSource(SNAP_RADIUS_SOURCE_ID) as
+        | GeoJSONSource
+        | undefined;
+      if (!source) return;
+      if (lngLat === null) {
+        source.setData(EMPTY_FC);
+        return;
+      }
+      source.setData({
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            geometry: { type: "Point", coordinates: lngLat },
+            properties: {},
+          },
+        ],
+      });
     };
 
     const setSnapPreview = (lngLat: [number, number] | null) => {
@@ -299,18 +401,23 @@ export function MeasurementHost({
       }
     };
 
-    // Lazy cache reader: rebuild only when the styledata listener has
-    // marked the cache dirty. The walk itself is cheap (~50 layers) but
-    // we'd rather not do it 60+/sec while drawing.
+    // Lazy cache reader: rebuild only when the styledata listener (or a
+    // snap-config prop change) has marked the cache dirty. The walk itself
+    // is cheap (~50 layers) but we'd rather not do it 60+/sec while drawing.
     const getCachedSnappableLayerIds = (): string[] => {
       if (snappableLayerIdsRef.current === null) {
-        snappableLayerIdsRef.current = getOptOutSnappableLayerIds(map);
+        snappableLayerIdsRef.current = getSnappableLayerIds(
+          map,
+          snapModeRef.current,
+          optedInLayerIdsRef.current,
+          backgroundSnappingRef.current
+        );
       }
       return snappableLayerIdsRef.current;
     };
 
-    // Same callback shape used by both LineString and (future) Polygon
-    // modes. terra-draw treats `undefined` as "no snap, use raw cursor".
+    // Same callback shape used by LineString and Polygon modes. terra-draw
+    // treats `undefined` as "no snap, use raw cursor".
     const snapToCustom = (event: {
       containerX: number;
       containerY: number;
@@ -319,7 +426,7 @@ export function MeasurementHost({
       const hit = findSnapTarget(
         map,
         { x: event.containerX, y: event.containerY },
-        DEFAULT_SNAP_RADIUS_PX,
+        snapRadiusPxRef.current,
         getCachedSnappableLayerIds()
       );
       return hit?.position;
@@ -340,13 +447,18 @@ export function MeasurementHost({
               toCustom: snapToCustom,
             },
           }),
+          new TerraDrawPolygonMode({
+            snapping: {
+              toLine: true,
+              toCoordinate: true,
+              toCustom: snapToCustom,
+            },
+          }),
           new TerraDrawSelectMode({
             // Fully editable: drag features, drag/delete vertices, insert
             // midpoints. `coordinates.snappable.toCustom` makes vertex
             // drags actually snap to host-map features (not just visually
-            // — the released vertex lands on the snap target). Polygon
-            // flag omitted; polygon mode isn't registered yet so terra-
-            // draw never sees a polygon to select.
+            // — the released vertex lands on the snap target).
             flags: {
               point: {
                 feature: {
@@ -364,6 +476,17 @@ export function MeasurementHost({
                 },
               },
               linestring: {
+                feature: {
+                  draggable: true,
+                  coordinates: {
+                    snappable: { toCustom: snapToCustom },
+                    midpoints: true,
+                    draggable: true,
+                    deletable: true,
+                  },
+                },
+              },
+              polygon: {
                 feature: {
                   draggable: true,
                   coordinates: {
@@ -460,7 +583,7 @@ export function MeasurementHost({
               const hit = findSnapTarget(
                 map,
                 { x: screen.x, y: screen.y },
-                DEFAULT_SNAP_RADIUS_PX,
+                snapRadiusPxRef.current,
                 getCachedSnappableLayerIds()
               );
               if (hit) {
@@ -573,37 +696,72 @@ export function MeasurementHost({
       }
       ensureLabelLayer();
       ensureSnapPreviewLayer();
+      ensureSnapRadiusLayer();
       refreshLabels();
-      // Wipe any stale dot left over from the previous style; the next
-      // mousemove will paint it back if a snap target is in range.
+      // Apply current label visibility — the layer is created with maplibre's
+      // default ("visible"), so this only matters when the host has the
+      // labels-off prop set at attach time (initial mount or basemap swap).
+      if (map.getLayer(LABEL_LAYER_ID)) {
+        map.setLayoutProperty(
+          LABEL_LAYER_ID,
+          "visibility",
+          labelsVisible ? "visible" : "none"
+        );
+      }
+      // Wipe any stale dot / radius left over from the previous style; the
+      // next mousemove will paint them back if appropriate.
       setSnapPreview(null);
+      setRadiusCircle(null);
     };
 
     // rAF-throttled snap-preview mousemove handler. Even at 120-200 Hz the
     // pointer can't outpace the screen's repaint, so coalescing to one
     // findSnapTarget per frame is both correct and cheaper.
     let pendingFrame: number | null = null;
-    let pendingEvent: { containerX: number; containerY: number } | null = null;
-    // Preview dot is meaningful while drawing (point or line) AND while a
-    // measurement is selected in the resting "none" state — vertex drags
-    // benefit from snap feedback just as much as new-line drawing. We
-    // intentionally don't show it on bare hover in select mode (cursor
+    let pendingEvent: {
+      containerX: number;
+      containerY: number;
+      lng: number;
+      lat: number;
+    } | null = null;
+    // Preview dot is meaningful while drawing (point, line, polygon) AND
+    // while a measurement is selected in the resting "none" state — vertex
+    // drags benefit from snap feedback just as much as new-line drawing.
+    // We intentionally don't show it on bare hover in select mode (cursor
     // cruising the map) because that's visually noisy.
     const previewActive = () =>
       snappingEnabledRef.current &&
       (modeRef.current === "point" ||
         modeRef.current === "line" ||
+        modeRef.current === "polygon" ||
         (modeRef.current === "none" && hasSelectionRef.current));
 
-    const handleMouseMove = (e: { point: { x: number; y: number } }) => {
-      if (!previewActive()) return;
-      pendingEvent = { containerX: e.point.x, containerY: e.point.y };
+    const handleMouseMove = (e: {
+      point: { x: number; y: number };
+      lngLat: { lng: number; lat: number };
+    }) => {
+      // Cheap early exit when neither overlay wants this frame — keeps belis
+      // (and any host with radiusDebugVisible=false out of a draw mode) at
+      // its pre-Phase-2 cost: zero per-frame work in the resting state.
+      if (!previewActive() && !radiusLayerVisible()) return;
+      pendingEvent = {
+        containerX: e.point.x,
+        containerY: e.point.y,
+        lng: e.lngLat.lng,
+        lat: e.lngLat.lat,
+      };
       if (pendingFrame !== null) return;
       pendingFrame = requestAnimationFrame(() => {
         pendingFrame = null;
         const ev = pendingEvent;
         pendingEvent = null;
         if (!ev) return;
+        // Radius debug circle is independent of `previewActive` — it
+        // tracks the cursor whenever snapping is on AND the debug toggle
+        // is set, even outside a draw mode.
+        if (radiusLayerVisible()) {
+          setRadiusCircle([ev.lng, ev.lat]);
+        }
         if (!previewActive()) {
           setSnapPreview(null);
           return;
@@ -611,7 +769,7 @@ export function MeasurementHost({
         const hit = findSnapTarget(
           map,
           { x: ev.containerX, y: ev.containerY },
-          DEFAULT_SNAP_RADIUS_PX,
+          snapRadiusPxRef.current,
           getCachedSnappableLayerIds()
         );
         setSnapPreview(hit ? hit.position : null);
@@ -619,6 +777,7 @@ export function MeasurementHost({
     };
     const handleMouseLeave = () => {
       setSnapPreview(null);
+      setRadiusCircle(null);
     };
 
     // styledata fires whenever the map's style mutates — including the
@@ -712,6 +871,7 @@ export function MeasurementHost({
       snapping &&
       (mode === "point" ||
         mode === "line" ||
+        mode === "polygon" ||
         (mode === "none" && hasSelectionRef.current));
     if (previewShouldRender) return;
     const source = map.getSource(SNAP_PREVIEW_SOURCE_ID) as
@@ -719,6 +879,57 @@ export function MeasurementHost({
       | undefined;
     if (source) source.setData(EMPTY_FC);
   }, [map, snapping, mode]);
+
+  // React to label visibility toggle. The label source is always populated
+  // (refreshLabels still runs); only the symbol layer's visibility flips.
+  useEffect(() => {
+    if (!map) return;
+    if (!map.getLayer(LABEL_LAYER_ID)) return;
+    map.setLayoutProperty(
+      LABEL_LAYER_ID,
+      "visibility",
+      labelsVisible ? "visible" : "none"
+    );
+  }, [map, labelsVisible]);
+
+  // React to the snap-radius slider: update the rendered debug circle's
+  // pixel size. The actual snap-search radius is read live from
+  // snapRadiusPxRef by handleMouseMove and snapToCustom, so changes are
+  // picked up on the next pointer event without rebinding anything.
+  useEffect(() => {
+    if (!map) return;
+    if (!map.getLayer(SNAP_RADIUS_LAYER_ID)) return;
+    map.setPaintProperty(SNAP_RADIUS_LAYER_ID, "circle-radius", snapRadiusPx);
+  }, [map, snapRadiusPx]);
+
+  // React to snap toggle and radius-debug toggle: flip the radius layer's
+  // visibility and wipe its source if either is off, so a stale circle
+  // doesn't linger.
+  useEffect(() => {
+    if (!map) return;
+    const visible = snapping && radiusDebugVisible;
+    if (map.getLayer(SNAP_RADIUS_LAYER_ID)) {
+      map.setLayoutProperty(
+        SNAP_RADIUS_LAYER_ID,
+        "visibility",
+        visible ? "visible" : "none"
+      );
+    }
+    if (!visible) {
+      const src = map.getSource(SNAP_RADIUS_SOURCE_ID) as
+        | GeoJSONSource
+        | undefined;
+      if (src) src.setData(EMPTY_FC);
+    }
+  }, [map, snapping, radiusDebugVisible]);
+
+  // React to any snap-target input flip (mode, per-libreLayer opt-ins,
+  // background flag): mark the cached layer-id list dirty so the next
+  // snap query rebuilds it with the new policy. The walk itself happens
+  // lazily inside getCachedSnappableLayerIds.
+  useEffect(() => {
+    snappableLayerIdsRef.current = null;
+  }, [snapMode, optedInLayerIds, backgroundSnapping]);
 
   return null;
 }
