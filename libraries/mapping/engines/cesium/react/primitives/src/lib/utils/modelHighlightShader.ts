@@ -24,9 +24,17 @@ export const DEFAULT_MODEL_SAMPLING_HIGHLIGHT_FADE_DURATION_MS = 180;
 
 const MODEL_HIGHLIGHT_COLOR_UNIFORM = "u_highlightColor";
 const MODEL_HIGHLIGHT_OPACITY_UNIFORM = "u_highlightOpacity";
-const MODEL_BASE_TINT_COLOR_UNIFORM = "u_baseTintColor";
-const MODEL_BASE_TINT_MIX_UNIFORM = "u_baseTintMix";
+const MODEL_BASE_HIGHLIGHT_COLOR_UNIFORM = "u_baseHighlightColor";
+const MODEL_BASE_HIGHLIGHT_OPACITY_UNIFORM = "u_baseHighlightOpacity";
 const MODEL_INTEGRATED_HIGHLIGHT_SHADERS = new WeakSet<CustomShader>();
+const MODEL_HIGHLIGHT_SHADER_UNIFORMS = new WeakMap<
+  CustomShader,
+  ModelHighlightShaderUniformValues
+>();
+const MODEL_BASE_HIGHLIGHT_SHADER_UNIFORMS = new WeakMap<
+  CustomShader,
+  ModelHighlightShaderUniformValues
+>();
 
 export type ModelSamplingHighlightShaderUniformOptions = {
   color?: Color;
@@ -37,10 +45,12 @@ export type ModelSamplingHighlightShaderUniformOptions = {
 export type ModelHighlightShaderUniformOptions =
   ModelSamplingHighlightShaderUniformOptions;
 
-export type ModelBaseTintShaderUniformOptions = {
-  shader: CustomShader;
-  tintColor?: Color;
-  tintMix?: number;
+export type ModelBaseHighlightShaderUniformOptions =
+  ModelSamplingHighlightShaderUniformOptions;
+
+export type ModelHighlightShaderUniformValues = {
+  color: Color;
+  opacity: number;
 };
 
 export const clampModelHighlightOpacity = (
@@ -71,6 +81,8 @@ export const normalizeModelHighlightEdgeWidthPx = (
 const toModelHighlightColorUniform = (color: Color) =>
   new Cartesian3(color.red, color.green, color.blue);
 
+const cloneColor = (color: Color) => Color.clone(color, new Color());
+
 const markModelIntegratedHighlightShader = (shader: CustomShader) => {
   MODEL_INTEGRATED_HIGHLIGHT_SHADERS.add(shader);
   return shader;
@@ -79,6 +91,30 @@ const markModelIntegratedHighlightShader = (shader: CustomShader) => {
 export const isModelIntegratedHighlightShader = (
   shader: CustomShader | undefined
 ) => (shader ? MODEL_INTEGRATED_HIGHLIGHT_SHADERS.has(shader) : false);
+
+export const readModelHighlightShaderUniforms = (
+  shader: CustomShader | undefined
+): ModelHighlightShaderUniformValues | undefined => {
+  if (!shader) {
+    return undefined;
+  }
+  const values = MODEL_HIGHLIGHT_SHADER_UNIFORMS.get(shader);
+  return values
+    ? { color: cloneColor(values.color), opacity: values.opacity }
+    : undefined;
+};
+
+export const readModelBaseHighlightShaderUniforms = (
+  shader: CustomShader | undefined
+): ModelHighlightShaderUniformValues | undefined => {
+  if (!shader) {
+    return undefined;
+  }
+  const values = MODEL_BASE_HIGHLIGHT_SHADER_UNIFORMS.get(shader);
+  return values
+    ? { color: cloneColor(values.color), opacity: values.opacity }
+    : undefined;
+};
 
 const createModelSamplingColorMixShader = ({
   color = DEFAULT_MODEL_SAMPLING_HIGHLIGHT_COLOR,
@@ -112,49 +148,53 @@ void fragmentMain(FragmentInput fsInput, inout czm_modelMaterial material) {
 export const createModelSelectionHighlightShader = ({
   color = DEFAULT_MODEL_SELECTION_HIGHLIGHT_COLOR,
   opacity = 0,
-  tintColor = Color.WHITE,
-  tintMix = 0,
 }: {
   color?: Color;
   opacity?: number;
-  tintColor?: Color;
-  tintMix?: number;
-} = {}) =>
-  markModelIntegratedHighlightShader(
+} = {}) => {
+  const initialOpacity = clampModelHighlightOpacity(opacity, 0);
+  const shader = markModelIntegratedHighlightShader(
     new CustomShader({
       uniforms: {
+        [MODEL_BASE_HIGHLIGHT_COLOR_UNIFORM]: {
+          type: UniformType.VEC3,
+          value: toModelHighlightColorUniform(color),
+        },
+        [MODEL_BASE_HIGHLIGHT_OPACITY_UNIFORM]: {
+          type: UniformType.FLOAT,
+          value: 0,
+        },
         [MODEL_HIGHLIGHT_COLOR_UNIFORM]: {
           type: UniformType.VEC3,
           value: toModelHighlightColorUniform(color),
         },
         [MODEL_HIGHLIGHT_OPACITY_UNIFORM]: {
           type: UniformType.FLOAT,
-          value: clampModelHighlightOpacity(opacity),
-        },
-        [MODEL_BASE_TINT_COLOR_UNIFORM]: {
-          type: UniformType.VEC3,
-          value: toModelHighlightColorUniform(tintColor),
-        },
-        [MODEL_BASE_TINT_MIX_UNIFORM]: {
-          type: UniformType.FLOAT,
-          value: clampModelHighlightOpacity(tintMix, 0),
+          value: initialOpacity,
         },
       },
       fragmentShaderText: `
 void fragmentMain(FragmentInput fsInput, inout czm_modelMaterial material) {
-  vec3 baseDiffuse = mix(
+  float baseHighlightOpacity = clamp(${MODEL_BASE_HIGHLIGHT_OPACITY_UNIFORM}, 0.0, 1.0);
+  vec3 highlightedDiffuse = mix(
     material.diffuse,
-    ${MODEL_BASE_TINT_COLOR_UNIFORM},
-    clamp(${MODEL_BASE_TINT_MIX_UNIFORM}, 0.0, 1.0)
+    vec3(0.0),
+    baseHighlightOpacity
   );
+  vec3 highlightedEmissive = mix(
+    material.emissive,
+    ${MODEL_BASE_HIGHLIGHT_COLOR_UNIFORM},
+    baseHighlightOpacity
+  );
+
   float highlightOpacity = clamp(${MODEL_HIGHLIGHT_OPACITY_UNIFORM}, 0.0, 1.0);
   material.diffuse = mix(
-    baseDiffuse,
+    highlightedDiffuse,
     vec3(0.0),
     highlightOpacity
   );
   material.emissive = mix(
-    material.emissive,
+    highlightedEmissive,
     ${MODEL_HIGHLIGHT_COLOR_UNIFORM},
     highlightOpacity
   );
@@ -162,6 +202,16 @@ void fragmentMain(FragmentInput fsInput, inout czm_modelMaterial material) {
 `,
     })
   );
+  MODEL_HIGHLIGHT_SHADER_UNIFORMS.set(shader, {
+    color: cloneColor(color),
+    opacity: initialOpacity,
+  });
+  MODEL_BASE_HIGHLIGHT_SHADER_UNIFORMS.set(shader, {
+    color: cloneColor(color),
+    opacity: 0,
+  });
+  return shader;
+};
 
 export const createModelSamplingHighlightShader = () =>
   createModelSamplingColorMixShader({
@@ -182,22 +232,30 @@ export const setModelHighlightShaderUniforms = ({
     MODEL_HIGHLIGHT_OPACITY_UNIFORM,
     clampModelHighlightOpacity(opacity)
   );
+  MODEL_HIGHLIGHT_SHADER_UNIFORMS.set(shader, {
+    color: cloneColor(color),
+    opacity: clampModelHighlightOpacity(opacity),
+  });
 };
 
 export const setModelSamplingHighlightShaderUniforms =
   setModelHighlightShaderUniforms;
 
-export const setModelBaseTintShaderUniforms = ({
+export const setModelBaseHighlightShaderUniforms = ({
+  color = DEFAULT_MODEL_SAMPLING_HIGHLIGHT_COLOR,
+  opacity = 0,
   shader,
-  tintColor = Color.WHITE,
-  tintMix = 0,
-}: ModelBaseTintShaderUniformOptions) => {
+}: ModelBaseHighlightShaderUniformOptions) => {
   shader.setUniform(
-    MODEL_BASE_TINT_COLOR_UNIFORM,
-    toModelHighlightColorUniform(tintColor)
+    MODEL_BASE_HIGHLIGHT_COLOR_UNIFORM,
+    toModelHighlightColorUniform(color)
   );
   shader.setUniform(
-    MODEL_BASE_TINT_MIX_UNIFORM,
-    clampModelHighlightOpacity(tintMix, 0)
+    MODEL_BASE_HIGHLIGHT_OPACITY_UNIFORM,
+    clampModelHighlightOpacity(opacity, 0)
   );
+  MODEL_BASE_HIGHLIGHT_SHADER_UNIFORMS.set(shader, {
+    color: cloneColor(color),
+    opacity: clampModelHighlightOpacity(opacity, 0),
+  });
 };

@@ -35,7 +35,8 @@ import {
   type GroundPolylineVisualizer,
 } from "@carma-mapping/engines/cesium/legacy";
 import {
-  useCesiumModelBaseTintShaderResolver,
+  createNonAccumulatingSilhouetteColor,
+  useCesiumModelHighlightStyleShaderResolver,
   useCesiumModelManager,
   useCesiumModelSamplingHighlight,
   type ModelSelectionHighlightEdgeMode,
@@ -257,6 +258,8 @@ const getTilesetClippingPolygon = (
 };
 
 type AdhocUnselectedRenderStyleConfig = {
+  modelPresentationSignature: string;
+  modelShaderSignature: string;
   outlineColor?: Color;
   outlineWidthPx?: number;
   style: AdhocUnselectedRenderStyle;
@@ -292,9 +295,12 @@ const getAdhocUnselectedRenderStyleConfig = (
   feature: AdhocFeature,
   modelHighlightStyle: CesiumModelStyleConfig | undefined
 ): AdhocUnselectedRenderStyleConfig => {
-  const style = resolveAdhocUnselectedRenderStyle(
-    feature.metadata?.unselectedRenderStyle
-  );
+  const rawStyle = feature.metadata?.unselectedRenderStyle as unknown;
+  const style = resolveAdhocUnselectedRenderStyle(rawStyle);
+  const usesLegacyTintStyle =
+    rawStyle === "tint" ||
+    rawStyle === "flat-tint" ||
+    rawStyle === "monochrome-tint";
   const defaultTintColorCss = resolveAdhocUnselectedRenderTintColor(
     getModelStyleFillColor(modelHighlightStyle)
   );
@@ -305,15 +311,19 @@ const getAdhocUnselectedRenderStyleConfig = (
     feature.metadata?.unselectedRenderTintColor ?? defaultTintColorCss
   );
   const tintMix = resolveAdhocUnselectedRenderTintMix(
-    feature.metadata?.unselectedRenderTintMix ?? defaultTintMix
+    usesLegacyTintStyle
+      ? defaultTintMix
+      : feature.metadata?.unselectedRenderTintMix ?? defaultTintMix
   );
   const outlineColorCss = resolveAdhocUnselectedRenderTintColor(
     getModelStyleOutlineColor(modelHighlightStyle)
   );
   const outlineWidthPx = getModelStyleOutlineWidthPx(modelHighlightStyle);
   const outlineOpacity = getModelStyleOutlineOpacity(modelHighlightStyle);
-  const outlineColor = Color.fromCssColorString(outlineColorCss);
-  outlineColor.alpha = outlineOpacity;
+  const outlineColor = createNonAccumulatingSilhouetteColor(
+    Color.fromCssColorString(outlineColorCss),
+    outlineOpacity
+  );
   const hasOutline =
     style !== DEFAULT_ADHOC_UNSELECTED_RENDER_STYLE &&
     typeof outlineWidthPx === "number" &&
@@ -325,6 +335,11 @@ const getAdhocUnselectedRenderStyleConfig = (
       )}:${outlineWidthPx.toFixed(3)}`
     : "";
   return {
+    modelPresentationSignature:
+      style === DEFAULT_ADHOC_UNSELECTED_RENDER_STYLE
+        ? DEFAULT_ADHOC_UNSELECTED_RENDER_STYLE
+        : `${style}${outlineSignature}`,
+    modelShaderSignature: "integrated-highlight",
     ...(hasOutline
       ? {
           outlineColor,
@@ -668,6 +683,13 @@ export const useAdhocCesiumFeatureDisplay = (
     []
   );
 
+  const requestCesiumRender = useCallback(() => {
+    const scene = getScene();
+    if (scene && !scene.isDestroyed()) {
+      scene.requestRender();
+    }
+  }, [getScene]);
+
   const onModelAddedToScene = useCallback(
     (primitiveId: string, primitive: Model) => {
       console.debug("[ADHOC|MODEL] onModelAdded callback", {
@@ -806,9 +828,17 @@ export const useAdhocCesiumFeatureDisplay = (
     () => adhocFeatureEntries.map((entry) => entry.key),
     [adhocFeatureEntries]
   );
-  const resolveModelBaseTintShader = useCesiumModelBaseTintShaderResolver({
-    activeKeys: activeAdhocFeatureKeys,
-  });
+  const resolveModelHighlightStyleShader =
+    useCesiumModelHighlightStyleShaderResolver({
+      activeKeys: activeAdhocFeatureKeys,
+      fadeDurationMs:
+        modelSelectionHighlight?.fadeDurationMs ??
+        modelSelectionHighlightFadeDurationMs,
+      fadeEasing:
+        modelSelectionHighlight?.fadeEasing ??
+        modelSelectionHighlightFadeEasing,
+      requestRender: requestCesiumRender,
+    });
 
   const adhocModelConfigs = useMemo(() => {
     return adhocFeatureEntries.flatMap((entry) => {
@@ -819,11 +849,12 @@ export const useAdhocCesiumFeatureDisplay = (
         entry.feature,
         modelHighlightStyle
       );
-      const customShader = resolveModelBaseTintShader({
-        enabled: renderStyle.style !== DEFAULT_ADHOC_UNSELECTED_RENDER_STYLE,
+      const customShader = resolveModelHighlightStyleShader({
+        color: renderStyle.tintColor,
+        highlighted:
+          renderStyle.style !== DEFAULT_ADHOC_UNSELECTED_RENDER_STYLE,
         key: entry.key,
-        tintColor: renderStyle.tintColor,
-        tintMix: renderStyle.tintMix,
+        opacity: renderStyle.tintMix,
       });
       const featureInfo = buildModelFeatureInfo(entry.feature);
       const baseProperties = featureInfo?.properties ?? {};
@@ -849,8 +880,10 @@ export const useAdhocCesiumFeatureDisplay = (
             ...(modelConfig.scale !== undefined
               ? { scale: modelConfig.scale }
               : {}),
-            renderStyleSignature: renderStyle.signature,
-            ...(customShader ? { customShader } : {}),
+            renderStylePresentationSignature:
+              renderStyle.modelPresentationSignature,
+            renderStyleShaderSignature: renderStyle.modelShaderSignature,
+            customShader,
             ...(renderStyle.outlineColor
               ? { renderStyleOutlineColor: renderStyle.outlineColor }
               : {}),
@@ -863,7 +896,11 @@ export const useAdhocCesiumFeatureDisplay = (
         } satisfies ModelConfig,
       ];
     });
-  }, [adhocFeatureEntries, modelHighlightStyle, resolveModelBaseTintShader]);
+  }, [
+    adhocFeatureEntries,
+    modelHighlightStyle,
+    resolveModelHighlightStyleShader,
+  ]);
 
   const cesiumModelConfigs = useMemo(
     () => [...baseModels, ...adhocModelConfigs],
@@ -984,6 +1021,9 @@ export const useAdhocCesiumFeatureDisplay = (
           modelSelectionHighlight?.hoverFadeDurationMs,
         highlightHoverFadeEasing: modelSelectionHighlight?.hoverFadeEasing,
         hoverHighlightEnabled: modelSelectionHighlight?.hoverHighlightEnabled,
+        silhouettePickRadiusPx:
+          modelSelectionHighlight?.edgeWidthPx ??
+          modelSelectionHighlightEdgeWidthPx,
         selectedId: selectedFeatureKey,
         onModelAdded: onModelAddedToScene,
         onModelFirstRendered: (primitiveId: string, primitive: Model) => {

@@ -12,6 +12,7 @@ export {
   type ModelSelectionHighlightEdgeMode,
   type UseCesiumModelManagerOptions,
 } from "./hooks/useCesiumModelManager";
-export { useCesiumModelBaseTintShaderResolver } from "./hooks/useCesiumModelBaseTintShaderResolver";
+export { useCesiumModelHighlightStyleShaderResolver } from "./hooks/useCesiumModelHighlightStyleShaderResolver";
 export { useCesiumModelSamplingHighlight } from "./hooks/useCesiumModelSamplingHighlight";
 export { createModelPrimitiveFromConfig } from "./utils/createModelPrimitiveFromConfig";
+export { createNonAccumulatingSilhouetteColor } from "./utils/modelSelectionHighlight";

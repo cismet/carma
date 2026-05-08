@@ -22,17 +22,41 @@ type UseCesiumModelSelectionInputHandlerOptions = {
   enabled: boolean;
   getScene: () => Scene | null | undefined;
   hoverHighlightEnabled?: boolean;
+  silhouettePickRadiusPx?: number;
   deselectOnEmptyClick?: boolean;
   onModelClick: (picked: PickedCesiumModel) => void;
   onEmptyClick: () => void;
   onModelHover: (primitive: Model | null) => void;
 };
 
+const SILHOUETTE_PICK_LIMIT = 8;
+
+const normalizeSilhouettePickDiameter = (
+  silhouettePickRadiusPx: number | undefined
+) => {
+  if (
+    typeof silhouettePickRadiusPx !== "number" ||
+    !Number.isFinite(silhouettePickRadiusPx) ||
+    silhouettePickRadiusPx <= 0
+  ) {
+    return 1;
+  }
+  return Math.ceil(silhouettePickRadiusPx) * 2 + 1;
+};
+
+const isVisibleModelSilhouettePick = (
+  picked: unknown
+): picked is PickedCesiumModel =>
+  isModelPick(picked) &&
+  picked.primitive.silhouetteSize > 0 &&
+  picked.primitive.silhouetteColor.alpha > 0;
+
 export const useCesiumModelSelectionInputHandler = ({
   deselectOnEmptyClick = true,
   enabled,
   getScene,
   hoverHighlightEnabled = true,
+  silhouettePickRadiusPx,
   onEmptyClick,
   onModelClick,
   onModelHover,
@@ -75,18 +99,42 @@ export const useCesiumModelSelectionInputHandler = ({
 
       handler = new ScreenSpaceEventHandler(scene.canvas);
 
-      const findPickedModel = (position: Cartesian2 | undefined) => {
+      const silhouettePickDiameter = normalizeSilhouettePickDiameter(
+        silhouettePickRadiusPx
+      );
+
+      const findPickedModel = (
+        position: Cartesian2 | undefined,
+        includeSilhouetteFallback: boolean
+      ) => {
         if (!position) {
           return null;
         }
         const picked = scene.pick(position, 1, 1);
-        return isModelPick(picked) ? (picked as PickedCesiumModel) : null;
+        if (isModelPick(picked)) {
+          return picked as PickedCesiumModel;
+        }
+        if (!includeSilhouetteFallback || silhouettePickDiameter <= 1) {
+          return null;
+        }
+
+        const pickedObjects = scene.drillPick(
+          position,
+          SILHOUETTE_PICK_LIMIT,
+          silhouettePickDiameter,
+          silhouettePickDiameter
+        );
+        return (
+          (pickedObjects.find(isVisibleModelSilhouettePick) as
+            | PickedCesiumModel
+            | undefined) ?? null
+        );
       };
 
       const handleLeftClick = ({
         position,
       }: ScreenSpaceEventHandler.PositionedEvent) => {
-        const picked = findPickedModel(position);
+        const picked = findPickedModel(position, true);
         if (picked) {
           onModelClickRef.current(picked);
           return;
@@ -97,7 +145,7 @@ export const useCesiumModelSelectionInputHandler = ({
       };
 
       const handleMouseMove = (event: { endPosition?: Cartesian2 }) => {
-        const picked = findPickedModel(event.endPosition);
+        const picked = findPickedModel(event.endPosition, false);
         onModelHoverRef.current(picked?.primitive ?? null);
       };
 
@@ -125,5 +173,11 @@ export const useCesiumModelSelectionInputHandler = ({
         console.warn("[Cesium|Models] Selection cleanup failed:", error);
       }
     };
-  }, [deselectOnEmptyClick, enabled, getScene, hoverHighlightEnabled]);
+  }, [
+    deselectOnEmptyClick,
+    enabled,
+    getScene,
+    hoverHighlightEnabled,
+    silhouettePickRadiusPx,
+  ]);
 };

@@ -11,6 +11,7 @@ import {
   getModelConfigCustomShader,
   getModelConfigCustomShaderSignature,
   getModelConfigRenderStylePresentation,
+  getModelConfigRenderStylePresentationSignature,
   getPrimitiveSelectionId,
 } from "../utils/modelManager";
 import type { CesiumModelSelectionHighlightController } from "./useCesiumModelSelectionHighlight";
@@ -55,6 +56,9 @@ export const useCesiumModelPrimitives = ({
   const desiredModelKeysRef = useRef<Set<string>>(new Set());
   const modelsByKeyRef = useRef<Map<string, ModelConfig>>(new Map());
   const customShaderSignatureByPrimitiveRef = useRef<Map<Model, string | null>>(
+    new Map()
+  );
+  const presentationSignatureByPrimitiveRef = useRef<Map<Model, string | null>>(
     new Map()
   );
   const enabledRef = useRef<boolean>(enabled);
@@ -132,6 +136,7 @@ export const useCesiumModelPrimitives = ({
         }
         restorePrimitiveHighlight(primitive);
         customShaderSignatureByPrimitiveRef.current.delete(primitive);
+        presentationSignatureByPrimitiveRef.current.delete(primitive);
         scene.primitives.remove(primitive);
         if (!primitive.isDestroyed()) {
           primitive.destroy();
@@ -210,6 +215,9 @@ export const useCesiumModelPrimitives = ({
           const latestCustomShaderSignature = latestModelConfig
             ? getModelConfigCustomShaderSignature(latestModelConfig)
             : getModelConfigCustomShaderSignature(modelConfig);
+          const latestPresentationSignature = latestModelConfig
+            ? getModelConfigRenderStylePresentationSignature(latestModelConfig)
+            : getModelConfigRenderStylePresentationSignature(modelConfig);
           if (modelPrimitive.customShader !== latestCustomShader) {
             modelPrimitive.customShader = latestCustomShader;
           }
@@ -220,6 +228,10 @@ export const useCesiumModelPrimitives = ({
           customShaderSignatureByPrimitiveRef.current.set(
             modelPrimitive,
             latestCustomShaderSignature
+          );
+          presentationSignatureByPrimitiveRef.current.set(
+            modelPrimitive,
+            latestPresentationSignature
           );
           console.debug("[ADHOC|MODEL] primitive created", {
             key,
@@ -317,23 +329,32 @@ export const useCesiumModelPrimitives = ({
       const customShader = getModelConfigCustomShader(modelConfig);
       const customShaderSignature =
         getModelConfigCustomShaderSignature(modelConfig);
+      const presentationSignature =
+        getModelConfigRenderStylePresentationSignature(modelConfig);
       const presentation = getModelConfigRenderStylePresentation(modelConfig);
       const previousCustomShaderSignature =
         customShaderSignatureByPrimitiveRef.current.get(primitive) ?? null;
-      if (previousCustomShaderSignature === customShaderSignature) {
+      const previousPresentationSignature =
+        presentationSignatureByPrimitiveRef.current.get(primitive) ?? null;
+      const shouldUpdateShader =
+        previousCustomShaderSignature !== customShaderSignature ||
+        primitive.customShader !== customShader;
+      const shouldUpdatePresentation =
+        previousPresentationSignature !== presentationSignature;
+      if (!shouldUpdateShader && !shouldUpdatePresentation) {
         continue;
       }
 
-      const hasHighlightedShaderState = setPrimitiveOriginalShaderIfHighlighted(
-        primitive,
-        customShader
-      );
-      const hasHighlightedPresentationState = presentation
-        ? setPrimitiveOriginalPresentationIfHighlighted(primitive, {
-            silhouetteColor: presentation.outlineColor,
-            silhouetteSize: presentation.outlineWidthPx,
-          })
+      const hasHighlightedShaderState = shouldUpdateShader
+        ? setPrimitiveOriginalShaderIfHighlighted(primitive, customShader)
         : false;
+      const hasHighlightedPresentationState =
+        shouldUpdatePresentation && presentation
+          ? setPrimitiveOriginalPresentationIfHighlighted(primitive, {
+              silhouetteColor: presentation.outlineColor,
+              silhouetteSize: presentation.outlineWidthPx,
+            })
+          : false;
       const isHighlighted =
         hasHighlightedShaderState || hasHighlightedPresentationState;
       if (isHighlighted) {
@@ -341,11 +362,17 @@ export const useCesiumModelPrimitives = ({
           primitive,
           customShaderSignature
         );
+        presentationSignatureByPrimitiveRef.current.set(
+          primitive,
+          presentationSignature
+        );
         requestRender();
         continue;
       }
-      applyModelConfigRenderStylePresentation(primitive, modelConfig);
-      if (primitive.customShader !== customShader) {
+      if (shouldUpdatePresentation) {
+        applyModelConfigRenderStylePresentation(primitive, modelConfig);
+      }
+      if (shouldUpdateShader) {
         applyModelCustomShader(primitive, customShader, requestRender);
       } else {
         requestRender();
@@ -353,6 +380,10 @@ export const useCesiumModelPrimitives = ({
       customShaderSignatureByPrimitiveRef.current.set(
         primitive,
         customShaderSignature
+      );
+      presentationSignatureByPrimitiveRef.current.set(
+        primitive,
+        presentationSignature
       );
     }
   }, [
@@ -388,6 +419,7 @@ export const useCesiumModelPrimitives = ({
       });
       primitivesByKey.clear();
       customShaderSignatureByPrimitiveRef.current.clear();
+      presentationSignatureByPrimitiveRef.current.clear();
     };
   }, [clearRuntimeState, getScene, modelPrimitivesRef]);
 };

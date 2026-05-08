@@ -4,6 +4,7 @@ import { type Easing as EasingFunction } from "@carma-commons/math";
 import { Color, Model, type Scene } from "@carma-cesium";
 import type { ModelConfig } from "@carma-mapping/engines/cesium/core";
 
+import { DEFAULT_MODEL_SELECTION_HIGHLIGHT_EDGE_WIDTH_PX } from "../utils/modelHighlightShader";
 import { findModelPrimitiveBySelectionId } from "../utils/modelManager";
 import type { ModelSelectionHighlightEdgeMode } from "../utils/modelSelectionHighlight";
 import { useCesiumModelPrimitives } from "./useCesiumModelPrimitives";
@@ -38,6 +39,7 @@ export interface UseCesiumModelManagerOptions {
     highlightHoverFadeDurationMs?: number;
     highlightHoverFadeEasing?: EasingFunction;
     hoverHighlightEnabled?: boolean;
+    silhouettePickRadiusPx?: number;
     selectedId?: string | null;
   };
 }
@@ -110,6 +112,10 @@ export const useCesiumModelManager = ({
     enabled: selectionEnabled,
     getScene,
     hoverHighlightEnabled: selection?.hoverHighlightEnabled,
+    silhouettePickRadiusPx:
+      selection?.silhouettePickRadiusPx ??
+      selection?.highlightEdgeWidthPx ??
+      DEFAULT_MODEL_SELECTION_HIGHLIGHT_EDGE_WIDTH_PX,
     onClearSelection: selection?.onClearSelection,
     onSelect: selection?.onSelect,
     selectionHighlight,

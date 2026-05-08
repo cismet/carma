@@ -22,6 +22,8 @@ export type ModelSelectionHighlightState = {
   isFlashActive: boolean;
   originalOutlineColor: Color;
   originalShowOutline: boolean;
+  originalHighlightColor?: Color;
+  originalHighlightOpacity?: number;
   originalShader: CustomShader | undefined;
   originalSilhouetteColor: Color;
   originalSilhouetteSize: number;

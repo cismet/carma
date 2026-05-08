@@ -11,7 +11,10 @@ import {
 
 type ModelSelectionInteractionHighlightActions = Pick<
   CesiumModelSelectionHighlightController,
-  "applyHighlight" | "applyHoverHighlight" | "clearPreviousHighlight"
+  | "applyHighlight"
+  | "applyHoverHighlight"
+  | "clearPreviousHighlight"
+  | "isSelectedPrimitive"
 >;
 
 type UseCesiumModelSelectionInteractionOptions = {
@@ -19,6 +22,7 @@ type UseCesiumModelSelectionInteractionOptions = {
   enabled: boolean;
   getScene: () => Scene | null | undefined;
   hoverHighlightEnabled?: boolean;
+  silhouettePickRadiusPx?: number;
   onClearSelection?: () => void;
   onSelect?: (feature: unknown) => void;
   selectionHighlight: ModelSelectionInteractionHighlightActions;
@@ -29,24 +33,32 @@ export const useCesiumModelSelectionInteraction = ({
   enabled,
   getScene,
   hoverHighlightEnabled,
+  silhouettePickRadiusPx,
   onClearSelection,
   onSelect,
   selectionHighlight,
 }: UseCesiumModelSelectionInteractionOptions) => {
-  const { applyHighlight, applyHoverHighlight, clearPreviousHighlight } =
-    selectionHighlight;
+  const {
+    applyHighlight,
+    applyHoverHighlight,
+    clearPreviousHighlight,
+    isSelectedPrimitive,
+  } = selectionHighlight;
 
   const handleModelClick = useCallback(
     (picked: PickedCesiumModel) => {
-      clearPreviousHighlight();
-      applyHighlight(picked.primitive);
+      const wasSelected = isSelectedPrimitive(picked.primitive);
+      if (!wasSelected) {
+        clearPreviousHighlight();
+      }
+      applyHighlight(picked.primitive, { flash: wasSelected });
       onSelect?.({
         id: picked.id?.id,
         properties: extractPickedProperties(picked),
         is3dModel: true,
       });
     },
-    [applyHighlight, clearPreviousHighlight, onSelect]
+    [applyHighlight, clearPreviousHighlight, isSelectedPrimitive, onSelect]
   );
 
   const handleEmptyClick = useCallback(() => {
@@ -59,6 +71,7 @@ export const useCesiumModelSelectionInteraction = ({
     enabled,
     getScene,
     hoverHighlightEnabled,
+    silhouettePickRadiusPx,
     onEmptyClick: handleEmptyClick,
     onModelClick: handleModelClick,
     onModelHover: applyHoverHighlight,

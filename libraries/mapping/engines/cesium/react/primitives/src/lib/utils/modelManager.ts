@@ -85,7 +85,18 @@ export const getModelConfigCustomShader = (
 export const getModelConfigCustomShaderSignature = (
   config: ModelConfig
 ): string | null =>
-  typeof config.model.renderStyleSignature === "string"
+  typeof config.model.renderStyleShaderSignature === "string"
+    ? config.model.renderStyleShaderSignature
+    : typeof config.model.renderStyleSignature === "string"
+    ? config.model.renderStyleSignature
+    : null;
+
+export const getModelConfigRenderStylePresentationSignature = (
+  config: ModelConfig
+): string | null =>
+  typeof config.model.renderStylePresentationSignature === "string"
+    ? config.model.renderStylePresentationSignature
+    : typeof config.model.renderStyleSignature === "string"
     ? config.model.renderStyleSignature
     : null;
 
@@ -109,7 +120,7 @@ export type ModelPrimitiveRenderStylePresentation = {
 export const getModelConfigRenderStylePresentation = (
   config: ModelConfig
 ): ModelPrimitiveRenderStylePresentation | null => {
-  if (typeof config.model.renderStyleSignature !== "string") {
+  if (getModelConfigRenderStylePresentationSignature(config) === null) {
     return null;
   }
 

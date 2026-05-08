@@ -28,6 +28,11 @@ export const DEFAULT_CAMERA_FOV_DEG = 60;
 
 const CESIUM_PATHNAME = "__cesium__";
 const METROPOLE_RUHR_GRAUBLAU_RECTANGLE = Rectangle.fromDegrees(4, 48, 10, 52);
+const MODEL_SELECTION_OUTLINE_STYLE = {
+  color: "#000000",
+  opacity: 0.5,
+  widthPx: 2,
+} as const;
 
 export type GeoportalAnnotationInfoBoxConfig = Pick<
   AnnotationInfoBoxLayoutProps,
@@ -87,13 +92,9 @@ export const CESIUM_CONFIG: CesiumConfig = {
       style: {
         type: "silhouette",
         fill: {
-          color: "#00e5ff",
+          color: "#6666ff",
         },
-        outline: {
-          color: "#111827",
-          opacity: 0.7,
-          widthPx: 3,
-        },
+        outline: MODEL_SELECTION_OUTLINE_STYLE,
       },
     },
     selection: {
@@ -102,16 +103,12 @@ export const CESIUM_CONFIG: CesiumConfig = {
         fill: {
           color: "#ffff00",
         },
-        outline: {
-          color: "#000000",
-          opacity: 0.5,
-          widthPx: 2,
-        },
+        outline: MODEL_SELECTION_OUTLINE_STYLE,
       },
       flash: {
         color: "#ffffff",
         opacity: 1,
-        durationMs: 160,
+        durationMs: 50,
       },
     },
   },
