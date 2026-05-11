@@ -10,11 +10,7 @@ import {
   buildSyntheticFeature,
   buildSyntheticFetchedData,
 } from "../../helper/buildSyntheticFeature";
-import {
-  buildStandortGeometryOption,
-  getDefaultGeometryKey,
-  getGeometryByKey,
-} from "../../helper/geometryOptions";
+import { buildStandortGeometryOption } from "../../helper/geometryOptions";
 
 const STANDORT_SOURCE_LAYERS = new Set([
   "tdta_standort_mast",
@@ -163,16 +159,10 @@ const CreateFeatureDropdown = () => {
       }
     }
 
-    let geomKey: string;
-    let geom: GeoJSON.Geometry;
-    if (standortOption) {
-      geomKey = standortOption.key;
-      geom = standortOption.geometry as GeoJSON.Geometry;
-    } else {
-      const defaultKey = getDefaultGeometryKey(key);
-      geomKey = defaultKey;
-      geom = getGeometryByKey(defaultKey) as GeoJSON.Geometry;
-    }
+    const geomKey: string | undefined = standortOption?.key;
+    const geom: GeoJSON.Geometry | undefined = standortOption
+      ? (standortOption.geometry as GeoJSON.Geometry)
+      : undefined;
     const featureProps: Record<string, unknown> = standortOption
       ? { _linkedStandortLabel: standortOption.label }
       : {};

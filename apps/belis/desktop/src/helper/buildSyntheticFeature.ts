@@ -78,7 +78,7 @@ export function buildSyntheticFeature(
       _creationLabel: creationLabels[featureType] ?? `Neu: ${featureType}`,
       ...values,
     },
-    geometry: wgs84Geometry ?? { type: "Point" as const, coordinates: [0, 0] },
+    geometry: wgs84Geometry ?? null,
     sourceLayer,
     source: "",
     layer: { id: sourceLayer, source: "", type: "circle" as const },
