@@ -53,9 +53,11 @@ const LeitungFormFields = ({
   const materialOptions = [
     ...((keyTablesData.materialLeitung || []) as KeyTableItem[]),
   ].sort((a, b) => (a.bezeichnung || "").localeCompare(b.bezeichnung || ""));
-  const querschnittOptions = [
-    ...((keyTablesData.querschnitt || []) as KeyTableItem[]),
-  ].sort((a, b) => Number(a.groesse || 0) - Number(b.groesse || 0));
+  const querschnittOptions = (
+    (keyTablesData.querschnitt || []) as KeyTableItem[]
+  )
+    .filter((item) => item.groesse !== null && item.groesse !== undefined)
+    .sort((a, b) => Number(a.groesse) - Number(b.groesse));
 
   useEffect(() => {
     if (externalForm) return;
