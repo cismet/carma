@@ -76,6 +76,10 @@ export function buildSyntheticFeature(
       _isCreation: true,
       _featureType: featureType,
       _creationLabel: creationLabels[featureType] ?? `Neu: ${featureType}`,
+      // The brandnew style's per-type render layers filter on
+      // properties._sourceLayer; setting it here lets the draft preview
+      // piggy-back on the existing per-type styling.
+      _sourceLayer: sourceLayer,
       ...values,
     },
     geometry: wgs84Geometry ?? null,

@@ -1872,6 +1872,28 @@ const BelisMapLibWrapper = ({
     }
   }, [sidebarVariant, miniMap, miniMapReady, namespacedSource]);
 
+  // --- Mini-map: push the open creation draft into the brandnew GeoJSON
+  // source so it renders with the brandnew style's per-type layers. The main
+  // map's brandnew source is independent and untouched by this effect. ---
+  useEffect(() => {
+    if (!miniMap || !miniMapReady) return;
+    const src = miniMap.getSource(brandnewSource) as
+      | maplibregl.GeoJSONSource
+      | undefined;
+    if (!src || typeof src.setData !== "function") return;
+
+    const isCreationDraft = rawFeature?.properties?._isCreation === true;
+    const hasGeom = !!rawFeature?.geometry;
+    const fc: GeoJSON.FeatureCollection = {
+      type: "FeatureCollection",
+      features:
+        isCreationDraft && hasGeom
+          ? [rawFeature as unknown as GeoJSON.Feature]
+          : [],
+    };
+    src.setData(fc);
+  }, [miniMap, miniMapReady, brandnewSource, rawFeature]);
+
   // --- Mini-map: render AA convex hull polygons from client-side GeoJSON ---
   // AA convex-hull polygons are no longer shown on the mini map;
   // the AP overlay is displayed instead regardless of the active tab.
@@ -2638,7 +2660,7 @@ const BelisMapLibWrapper = ({
               overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
               backgroundLayers="basemap_grey@60"
               layerMode="imperative"
-              libreLayers={[leuchtenDataLayer]}
+              libreLayers={[leuchtenDataLayer, brandNewDataLayer]}
               setLibreMap={handleMiniMapReady}
             />
           </LibreContextProvider>
