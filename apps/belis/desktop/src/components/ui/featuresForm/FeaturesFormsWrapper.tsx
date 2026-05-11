@@ -391,6 +391,14 @@ const FeaturesFormsWrapper = ({
     [featureId, formKey, draft?.values, geometryOptions, dispatch]
   );
 
+  useEffect(() => {
+    if (!isCreation) return;
+    if (geometryOptions.length !== 1) return;
+    const only = geometryOptions[0];
+    if (draft?.geometryKey === only.key) return;
+    handleGeometryChange(only.key);
+  }, [isCreation, geometryOptions, draft?.geometryKey, handleGeometryChange]);
+
   const handleOriginalValues = useCallback(
     (values: Record<string, unknown>) => {
       if (featureId) {
