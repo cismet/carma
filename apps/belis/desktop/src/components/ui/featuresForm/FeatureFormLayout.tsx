@@ -52,6 +52,10 @@ interface FeatureFormLayoutProps {
   debugData?: unknown;
   rawFeatureData?: unknown;
   additionalTabs?: AdditionalTab[];
+  /** Label for the main/general tab. Defaults to "Allgemein". */
+  generalTabLabel?: string;
+  /** Whether additional tabs render before or after the general tab. Default "after". */
+  additionalTabsPosition?: "before" | "after";
   loading?: boolean;
   readOnly?: boolean;
   hasDraft?: boolean;
@@ -82,6 +86,8 @@ const FeatureFormLayout = ({
   debugData,
   rawFeatureData,
   additionalTabs = [],
+  generalTabLabel = "Allgemein",
+  additionalTabsPosition = "after",
   loading,
   readOnly,
   hasDraft,
@@ -413,21 +419,26 @@ const FeatureFormLayout = ({
 
   // Wide screen: two-column layout (form left, documents right)
   if (isWideScreen && !singleColumn) {
-    // Build tabs for the left column - Allgemein first, then additional tabs,
-    // then raw-data tabs (Feature Rohdaten, DB Rohdaten)
-    const leftColumnTabs = [
-      {
-        key: "general",
-        label: <span>Allgemein</span>,
-        children: <>{formHeaderContent}{children}</>,
-      },
-      ...additionalTabs.map((tab) => ({
-        key: tab.key,
-        label: <span>{tab.label}</span>,
-        children: tab.children,
-      })),
-      ...rawTabs,
-    ];
+    // Build tabs for the left column - general tab (default "Allgemein"),
+    // additional tabs (before or after the general tab), then raw-data tabs.
+    const generalTab = {
+      key: "general",
+      label: <span>{generalTabLabel}</span>,
+      children: <>{formHeaderContent}{children}</>,
+    };
+    const mappedAdditionalTabs = additionalTabs.map((tab) => ({
+      key: tab.key,
+      label: <span>{tab.label}</span>,
+      children: tab.children,
+    }));
+    const leftColumnTabs =
+      additionalTabsPosition === "before"
+        ? [...mappedAdditionalTabs, generalTab, ...rawTabs]
+        : [generalTab, ...mappedAdditionalTabs, ...rawTabs];
+    const defaultActiveTabKey =
+      additionalTabsPosition === "before" && mappedAdditionalTabs.length > 0
+        ? mappedAdditionalTabs[0].key
+        : "general";
 
     return (
       <div className="bg-white rounded-xl border border-gray-100 w-full h-full flex flex-col">
@@ -456,7 +467,7 @@ const FeatureFormLayout = ({
           >
             {showRaw || additionalTabs.length > 0 ? (
               <div className="[&_.ant-tabs-nav]:sticky [&_.ant-tabs-nav]:top-0 [&_.ant-tabs-nav]:bg-white [&_.ant-tabs-nav]:z-10">
-                <Tabs defaultActiveKey="general" items={leftColumnTabs} />
+                <Tabs defaultActiveKey={defaultActiveTabKey} items={leftColumnTabs} />
               </div>
             ) : (
               <div className="pt-4">{formHeaderContent}{children}</div>
@@ -508,31 +519,44 @@ const FeatureFormLayout = ({
         ) : (
           <div className="[&_.ant-tabs-nav]:sticky [&_.ant-tabs-nav]:top-0 [&_.ant-tabs-nav]:bg-white [&_.ant-tabs-nav]:z-10">
             {singleColumn && formHeaderContent}
-            <Tabs
-              defaultActiveKey={singleColumn ? "documents" : "general"}
-              items={[
-                ...(singleColumn
-                  ? []
-                  : [
-                      {
-                        key: "general",
-                        label: <span>Allgemein</span>,
-                        children: <>{formHeaderContent}{children}</>,
-                      },
-                    ]),
-                ...additionalTabs.map((tab) => ({
-                  key: tab.key,
-                  label: <span>{tab.label}</span>,
-                  children: tab.children,
-                })),
-                {
-                  key: "documents",
-                  label: <span>{sideContent ? "Änderungen" : "Dokumente"}</span>,
-                  children: sideContent ?? documentsContent,
-                },
-                ...rawTabs,
-              ]}
-            />
+            {(() => {
+              const narrowGeneralTab = {
+                key: "general",
+                label: <span>{generalTabLabel}</span>,
+                children: <>{formHeaderContent}{children}</>,
+              };
+              const narrowAdditionalTabs = additionalTabs.map((tab) => ({
+                key: tab.key,
+                label: <span>{tab.label}</span>,
+                children: tab.children,
+              }));
+              const orderedFormTabs = singleColumn
+                ? []
+                : additionalTabsPosition === "before"
+                ? [...narrowAdditionalTabs, narrowGeneralTab]
+                : [narrowGeneralTab, ...narrowAdditionalTabs];
+              const documentsTab = {
+                key: "documents",
+                label: <span>{sideContent ? "Änderungen" : "Dokumente"}</span>,
+                children: sideContent ?? documentsContent,
+              };
+              const narrowDefaultActiveKey = singleColumn
+                ? "documents"
+                : additionalTabsPosition === "before" &&
+                  narrowAdditionalTabs.length > 0
+                ? narrowAdditionalTabs[0].key
+                : "general";
+              return (
+                <Tabs
+                  defaultActiveKey={narrowDefaultActiveKey}
+                  items={[
+                    ...orderedFormTabs,
+                    documentsTab,
+                    ...rawTabs,
+                  ]}
+                />
+              );
+            })()}
           </div>
         )}
       </div>

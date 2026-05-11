@@ -87,34 +87,34 @@ const LeuchteForm = ({
   const setLeuchteForm = useCallback((form: FormInstance) => {
     leuchteFormRef.current = form;
   }, []);
-  // Mirrors the Leuchte's strassenschluessel into the Mast form so the
-  // read-only field on the Mast tab reflects the value the new Mast will
-  // inherit on save. No-op when the Leuchte links to an existing Mast
-  // (Path A) — that Mast's own values are loaded by MastFormFields.
-  const syncStrassenschluesselToMast = useCallback(() => {
+  // Mirrors the Mast/Standort form's strassenschluessel into the Leuchte
+  // form so the Leuchte's persisted fk_strassenschluessel matches what the
+  // user picked on the Standort tab. No-op when the Leuchte links to an
+  // existing Mast — the mastData-load effect below handles that case.
+  const syncStrassenschluesselToLeuchte = useCallback(() => {
     if (linkedMastId != null) return;
-    if (!mastFormRef.current) return;
-    const leuchteDraft = draftValues?.leuchte as
+    if (!leuchteFormRef.current) return;
+    const mastDraft = draftValues?.mast as
       | Record<string, unknown>
       | undefined;
-    const leuchteVals =
-      leuchteDraft ?? leuchteFormRef.current?.getFieldsValue();
-    if (!leuchteVals) return;
-    mastFormRef.current.setFieldsValue({
-      strassenschluessel_pk: leuchteVals.strassenschluessel_pk,
-      strassenschluessel_strasse: leuchteVals.strassenschluessel_strasse,
+    const mastVals = mastDraft ?? mastFormRef.current?.getFieldsValue();
+    if (!mastVals) return;
+    leuchteFormRef.current.setFieldsValue({
+      strassenschluessel_pk: mastVals.strassenschluessel_pk,
+      strassenschluessel_strasse: mastVals.strassenschluessel_strasse,
+      fk_strassenschluessel: mastVals.fk_strassenschluessel,
     });
   }, [linkedMastId, draftValues]);
   const setMastForm = useCallback(
     (form: FormInstance) => {
       mastFormRef.current = form;
-      syncStrassenschluesselToMast();
+      syncStrassenschluesselToLeuchte();
     },
-    [syncStrassenschluesselToMast]
+    [syncStrassenschluesselToLeuchte]
   );
   useEffect(() => {
-    syncStrassenschluesselToMast();
-  }, [syncStrassenschluesselToMast]);
+    syncStrassenschluesselToLeuchte();
+  }, [syncStrassenschluesselToLeuchte]);
 
   const originalValuesRef = useRef<Record<string, unknown>>({});
 
@@ -142,21 +142,9 @@ const LeuchteForm = ({
 
   const handleLeuchteValuesChange = useCallback(
     (
-      changedValues: Record<string, unknown>,
+      _changedValues: Record<string, unknown>,
       allValues: Record<string, unknown>
     ) => {
-      // Mirror the Leuchte's Strassenschluessel into the Mast form so the
-      // read-only Strassenschluessel field on the Mast tab shows the value
-      // the new Mast will inherit on save.
-      if (
-        "strassenschluessel_pk" in changedValues ||
-        "strassenschluessel_strasse" in changedValues
-      ) {
-        mastFormRef.current?.setFieldsValue({
-          strassenschluessel_pk: allValues.strassenschluessel_pk,
-          strassenschluessel_strasse: allValues.strassenschluessel_strasse,
-        });
-      }
       onDraftChange?.({
         ...draftValues,
         leuchte: allValues,
@@ -166,10 +154,37 @@ const LeuchteForm = ({
   );
 
   const handleMastValuesChange = useCallback(
-    (_: Record<string, unknown>, allValues: Record<string, unknown>) => {
+    (
+      changedValues: Record<string, unknown>,
+      allValues: Record<string, unknown>
+    ) => {
+      // Mirror Strassenschluessel from the Standort tab into the Leuchte form
+      // so the Leuchte's persisted fk_strassenschluessel stays consistent.
+      // Update both the form (if mounted — antd Tabs lazy-mount the inactive
+      // tab) AND the leuchte draft slice directly so the save sees the value
+      // even when the user has not yet visited the Leuchte tab.
+      let leuchteValues: Record<string, unknown> | undefined;
+      if (
+        "strassenschluessel_pk" in changedValues ||
+        "strassenschluessel_strasse" in changedValues ||
+        "fk_strassenschluessel" in changedValues
+      ) {
+        const mirroredFields = {
+          strassenschluessel_pk: allValues.strassenschluessel_pk,
+          strassenschluessel_strasse: allValues.strassenschluessel_strasse,
+          fk_strassenschluessel: allValues.fk_strassenschluessel,
+        };
+        leuchteFormRef.current?.setFieldsValue(mirroredFields);
+        const existingLeuchte = (draftValues?.leuchte ?? {}) as Record<
+          string,
+          unknown
+        >;
+        leuchteValues = { ...existingLeuchte, ...mirroredFields };
+      }
       onDraftChange?.({
         ...draftValues,
         mast: allValues,
+        ...(leuchteValues ? { leuchte: leuchteValues } : {}),
       });
     },
     [onDraftChange, draftValues]
@@ -395,52 +410,55 @@ const LeuchteForm = ({
   }
 
   // Build additional tabs.
-  // For brand-new Leuchten the Mast tab always appears:
+  // For brand-new Leuchten the Standort tab always appears and owns the
+  // Strassenschluessel input + the "Neue Geometrien" selector:
   //   - if a Standort was selected (linkedMastId), show its data read-only,
   //     prefilled from the server; the existing Mast is reused on save.
-  //   - otherwise show empty editable fields (without Strassenschluessel,
-  //     which the new Mast inherits from the Leuchte) and a fresh Mast is
-  //     created at save time from these values.
-  // For existing Leuchten the Mast tab stays out of scope here (handled
+  //   - otherwise show empty editable fields and a fresh Mast is created at
+  //     save time from these values. The Leuchte form mirrors the Mast's
+  //     Strassenschluessel so its own fk_strassenschluessel stays in sync.
+  // For existing Leuchten the Standort tab stays out of scope here (handled
   // separately by the Mast/Standort form).
-  const showCreationMastTab = isCreation === true;
+  const showCreationStandortTab = isCreation === true;
   const mastTabReadOnly = linkedMastId != null;
-  const additionalTabs = showCreationMastTab
+  const additionalTabs = showCreationStandortTab
     ? [
         {
-          key: "mast",
-          label: "Mast",
+          key: "standort",
+          label: "Standort",
           children: (
-            <div
-              className={
-                isMastLoading
-                  ? "opacity-50 pointer-events-none transition-opacity"
-                  : "transition-opacity"
-              }
-            >
-              <FieldPrefix name="mast">
-                <MastFormFields
-                  mast={mastTabReadOnly ? mastData : null}
-                  readOnly={mastTabReadOnly}
-                  isCreation={!mastTabReadOnly}
-                  readOnlyStrassenschluessel
-                  onFormInstance={setMastForm}
-                  draftValues={
-                    mastTabReadOnly
-                      ? undefined
-                      : (draftValues?.mast as
-                          | Record<string, unknown>
-                          | undefined)
-                  }
-                  onValuesChange={
-                    mastTabReadOnly ? undefined : handleMastValuesChange
-                  }
-                  onOriginalValues={
-                    mastTabReadOnly ? undefined : handleMastOriginalValues
-                  }
-                />
-              </FieldPrefix>
-            </div>
+            <>
+              {formHeaderContent}
+              <div
+                className={
+                  isMastLoading
+                    ? "opacity-50 pointer-events-none transition-opacity"
+                    : "transition-opacity"
+                }
+              >
+                <FieldPrefix name="mast">
+                  <MastFormFields
+                    mast={mastTabReadOnly ? mastData : null}
+                    readOnly={mastTabReadOnly}
+                    isCreation={!mastTabReadOnly}
+                    onFormInstance={setMastForm}
+                    draftValues={
+                      mastTabReadOnly
+                        ? undefined
+                        : (draftValues?.mast as
+                            | Record<string, unknown>
+                            | undefined)
+                    }
+                    onValuesChange={
+                      mastTabReadOnly ? undefined : handleMastValuesChange
+                    }
+                    onOriginalValues={
+                      mastTabReadOnly ? undefined : handleMastOriginalValues
+                    }
+                  />
+                </FieldPrefix>
+              </div>
+            </>
           ),
         },
       ]
@@ -451,7 +469,7 @@ const LeuchteForm = ({
       title={isCreation ? "Neue Leuchte" : sidebarMain ? `Leuchte ${sidebarMain}` : "Leuchte"}
       cancelLabel={sidebarMain || ""}
       isCreation={isCreation}
-      formHeaderContent={formHeaderContent}
+      formHeaderContent={isCreation ? undefined : formHeaderContent}
       subtitle={subtitle}
       documents={documents}
       mainDocumentsTitle="Leuchte"
@@ -464,6 +482,8 @@ const LeuchteForm = ({
       debugData={data}
       rawFeatureData={rawFeature}
       additionalTabs={additionalTabs}
+      generalTabLabel={isCreation ? "Leuchte" : undefined}
+      additionalTabsPosition={isCreation ? "before" : undefined}
       loading={loading}
       saving={saving}
       readOnly={readOnly}
@@ -477,6 +497,7 @@ const LeuchteForm = ({
           leuchte={leuchte}
           readOnly={readOnly}
           isCreation={isCreation}
+          hideStrassenschluessel={isCreation}
           onFormInstance={setLeuchteForm}
           draftValues={
             draftValues?.leuchte as Record<string, unknown> | undefined
