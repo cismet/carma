@@ -45,6 +45,11 @@ interface LeuchteFormFieldsProps {
   namePrefix?: string;
   readOnly?: boolean;
   isCreation?: boolean;
+  /** Identity of the underlying draft/feature. Used to re-run the form
+   * reset effect when the user switches between drafts that all share the
+   * same `leuchte` reference (e.g. multiple in-progress creation drafts
+   * where `leuchte` is always null). */
+  featureId?: string;
   /** When true, omit the Strassenschluessel field. Used in the new-Leuchte
    * creation flow where the field is rendered on the Standort tab instead. */
   hideStrassenschluessel?: boolean;
@@ -114,6 +119,7 @@ const LeuchteFormFields = ({
   namePrefix,
   readOnly = true,
   isCreation,
+  featureId,
   hideStrassenschluessel = false,
   form: externalForm,
   onFormInstance,
@@ -294,8 +300,11 @@ const LeuchteFormFields = ({
         draftApplied.current = true;
       }
     }
+    // featureId is included so this effect also re-fires on draft switch
+    // when `leuchte` stays null (creation flow: every in-progress draft has
+    // leuchte=null, so object identity alone cannot distinguish them).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [leuchte, form]);
+  }, [leuchte, featureId, form]);
 
   useEffect(() => {
     if (externalForm) return;
