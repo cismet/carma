@@ -441,6 +441,7 @@ const LeuchteForm = ({
                     mast={mastTabReadOnly ? mastData : null}
                     readOnly={mastTabReadOnly}
                     isCreation={!mastTabReadOnly}
+                    locked={mastTabReadOnly}
                     onFormInstance={setMastForm}
                     draftValues={
                       mastTabReadOnly
