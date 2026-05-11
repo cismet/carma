@@ -126,8 +126,7 @@ const TopNavbar = () => {
         >
           Fachobjekte
         </NavLink>
-        {/* temporarily hidden — re-enable when needed */}
-        {/* <CreateFeatureDropdown /> */}
+        <CreateFeatureDropdown />
         <NavLink
           to="/arbeitsauftraege"
           className={({ isActive }) => `text-base hover:text-gray-600`}
