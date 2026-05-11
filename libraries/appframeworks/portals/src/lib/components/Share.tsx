@@ -14,6 +14,8 @@ import { SelectionItem } from "./SelectionProvider";
 import { useShareUrl } from "../hooks/useShareUrl";
 import "./tabs.css";
 
+const SHARE_SAVE_TIMEOUT_MS = 30_000;
+
 export type ShareProps = {
   layerState: LayerState;
   selection?: SelectionItem;
@@ -84,29 +86,48 @@ export const Share = ({
         type: "application/json",
       })
     );
-    const response = await fetch(
-      apiUrl +
-        "/actions/WUNDA_BLAU.SaveObject/tasks?resultingInstanceType=result",
-      {
-        method: "POST",
-        // method: "GET",
-        headers: {
-          Authorization: "Bearer " + jwt, // "Content-Type": "application/json",
-          // Accept: "application/json",
-        },
-        body: fd,
-      }
+    const controller = new AbortController();
+    const timeoutId = setTimeout(
+      () => controller.abort(),
+      SHARE_SAVE_TIMEOUT_MS
     );
-    if (response.status === 200) {
+
+    try {
+      const response = await fetch(
+        apiUrl +
+          "/actions/WUNDA_BLAU.SaveObject/tasks?resultingInstanceType=result",
+        {
+          method: "POST",
+          headers: {
+            Authorization: "Bearer " + jwt,
+          },
+          body: fd,
+          signal: controller.signal,
+        }
+      );
+      if (response.status === 200) {
+        messageApi.open({
+          type: "success",
+          content: `Karte wurde ${isDraft ? "gespeichert" : "publiziert"}.`,
+          duration: 0.8,
+        });
+        closePopover?.();
+        clearStates();
+      }
+    } catch (e) {
+      const isTimeout = e instanceof DOMException && e.name === "AbortError";
+      console.error("[SHARE] Error saving share: ", e);
       messageApi.open({
-        type: "success",
-        content: `Karte wurde ${isDraft ? "gespeichert" : "publiziert"}.`,
-        duration: 0.8,
+        type: "error",
+        content: isTimeout
+          ? "Speichern abgebrochen: Anfrage hat zu lange gedauert."
+          : "Fehler beim Speichern der Karte.",
+        duration: 2,
       });
-      closePopover?.();
-      clearStates();
+    } finally {
+      clearTimeout(timeoutId);
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const createShare = async (e, isDraft: boolean) => {
