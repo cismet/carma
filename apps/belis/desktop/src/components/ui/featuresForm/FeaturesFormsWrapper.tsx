@@ -54,6 +54,7 @@ import {
   buildSyntheticFeature,
   buildSyntheticFetchedData,
 } from "../../../helper/buildSyntheticFeature";
+import { useMapSelection } from "@carma-mapping/engines/maplibre";
 
 interface SingleSaveContext {
   onSaveSingle?: () => Promise<void>;
@@ -112,6 +113,7 @@ const FeaturesFormsWrapper = ({
 }: FeaturesFormsWrapperProps) => {
   const dispatch = useDispatch();
   const selectedFeature = useSelector(getSelectedFeature);
+  const { selectedFeatureId, selectFeature } = useMapSelection();
 
   // Creation drafts use their draft key directly as featureId
   const isCreation = rawFeature?.properties?._isCreation === true;
@@ -385,17 +387,18 @@ const FeaturesFormsWrapper = ({
       if (!opt) return;
       const geom = opt.geometry;
       const currentValues = draft?.values ?? {};
+      const newFeature = buildSyntheticFeature(
+        formKey,
+        featureId,
+        deserializeValues(currentValues),
+        geom
+      );
       dispatch(
         setDraft({
           featureId,
           featureType: formKey,
           values: currentValues,
-          feature: buildSyntheticFeature(
-            formKey,
-            featureId,
-            deserializeValues(currentValues),
-            geom
-          ),
+          feature: newFeature,
           fetchedData: buildSyntheticFetchedData(
             formKey,
             deserializeValues(currentValues)
@@ -405,8 +408,21 @@ const FeaturesFormsWrapper = ({
           geometryKey: newKey,
         })
       );
+      // Push the new feature into MapSelectionContext so the datasheet
+      // mini-map (which reads rawFeature) re-centers on the new geometry.
+      if (selectedFeatureId) {
+        selectFeature(selectedFeatureId, newFeature as never);
+      }
     },
-    [featureId, formKey, draft?.values, geometryOptions, dispatch]
+    [
+      featureId,
+      formKey,
+      draft?.values,
+      geometryOptions,
+      dispatch,
+      selectedFeatureId,
+      selectFeature,
+    ]
   );
 
   useEffect(() => {
