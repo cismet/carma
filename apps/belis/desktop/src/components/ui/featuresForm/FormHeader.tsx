@@ -16,6 +16,7 @@ import { incrementFeatureDataVersion } from "../../../store/slices/featureCollec
 import { handleSaveAllDrafts } from "../../../helper/featureFormSaveHelpers";
 import { useSingleSave } from "./FeaturesFormsWrapper";
 import { useDatasheet } from "@carma-mapping/engines/maplibre";
+import SendOrDiscardAllDraftsButton from "../SendOrDiscardAllDraftsButton";
 
 interface FormHeaderProps {
   title: string;
@@ -124,6 +125,9 @@ const FormHeader = ({
         <div className="flex items-center gap-2">
           {!readOnly && (
             <>
+              {customDraftsCount === undefined && (
+                <SendOrDiscardAllDraftsButton />
+              )}
               <span style={!hasDraft ? { cursor: "not-allowed" } : undefined}>
                 <Button
                   onClick={hasDraft ? onCancel : undefined}
