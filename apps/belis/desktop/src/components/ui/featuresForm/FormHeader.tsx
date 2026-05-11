@@ -125,9 +125,10 @@ const FormHeader = ({
         <div className="flex items-center gap-2">
           {!readOnly && (
             <>
-              {customDraftsCount === undefined && (
+              {/* temporarily hidden — re-enable when needed */}
+              {/* {customDraftsCount === undefined && (
                 <SendOrDiscardAllDraftsButton />
-              )}
+              )} */}
               <span style={!hasDraft ? { cursor: "not-allowed" } : undefined}>
                 <Button
                   onClick={hasDraft ? onCancel : undefined}
