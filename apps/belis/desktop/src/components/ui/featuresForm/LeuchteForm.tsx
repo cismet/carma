@@ -344,6 +344,34 @@ const LeuchteForm = ({
     }
   }, [effectiveMastId, jwt]);
 
+  // When creating a Leuchte linked to an existing Mast, inherit that Mast's
+  // Strassenschlüssel into the Leuchte form. Reverse of the new-Mast path
+  // handled by syncStrassenschluesselToMast above.
+  useEffect(() => {
+    if (linkedMastId == null) return;
+    if (!mastData) return;
+    if (!leuchteFormRef.current) return;
+    const ssel = mastData.tkey_strassenschluessel as
+      | Record<string, unknown>
+      | undefined;
+    if (!ssel) return;
+    const current = leuchteFormRef.current.getFieldsValue() as Record<
+      string,
+      unknown
+    >;
+    if (
+      current.strassenschluessel_pk === ssel.pk &&
+      current.fk_strassenschluessel === ssel.id
+    ) {
+      return;
+    }
+    leuchteFormRef.current.setFieldsValue({
+      strassenschluessel_pk: ssel.pk,
+      strassenschluessel_strasse: ssel.strasse,
+      fk_strassenschluessel: ssel.id,
+    });
+  }, [linkedMastId, mastData]);
+
   // Extract fabrikat for subtitle - use rawFeature (vector tile) to match list display
   const rawProps = rawFeature?.properties;
   const subtitle =
