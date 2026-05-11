@@ -45,6 +45,9 @@ interface LeuchteFormFieldsProps {
   namePrefix?: string;
   readOnly?: boolean;
   isCreation?: boolean;
+  /** When true, omit the Strassenschluessel field. Used in the new-Leuchte
+   * creation flow where the field is rendered on the Standort tab instead. */
+  hideStrassenschluessel?: boolean;
   form?: import("antd").FormInstance;
   onFormInstance?: (form: import("antd").FormInstance) => void;
   draftValues?: Record<string, unknown>;
@@ -111,6 +114,7 @@ const LeuchteFormFields = ({
   namePrefix,
   readOnly = true,
   isCreation,
+  hideStrassenschluessel = false,
   form: externalForm,
   onFormInstance,
   draftValues,
@@ -308,7 +312,7 @@ const LeuchteFormFields = ({
       className={getFormClassName(readOnly, "pr-2")}
       onValuesChange={onValuesChange}
     >
-      {(!leuchte || isCreation) && !readOnly ? (
+      {hideStrassenschluessel ? null : (!leuchte || isCreation) && !readOnly ? (
         <StrassenschluesselFieldsModal namePrefix={namePrefix} isCreation={isCreation} />
       ) : (
         <StrassenschluesselFields namePrefix={namePrefix} />
