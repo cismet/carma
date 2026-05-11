@@ -6,7 +6,10 @@ import proj4 from "proj4";
 
 import { proj4crs3857def, proj4crs4326def } from "@carma-mapping/utils";
 // Import from portals - SelectionProvider is a shared concern
-import { useSelection } from "@carma-appframeworks/portals";
+import {
+  CARMA_ZOOM_DEFAULTS,
+  useSelection,
+} from "@carma-appframeworks/portals";
 
 interface SelectionContentProps {
   map: maplibregl.Map | null;
@@ -262,7 +265,10 @@ export const LibreMapSelectionContent = ({ map }: SelectionContentProps) => {
                     [minX, minY],
                     [maxX, maxY],
                   ],
-                  { padding: 50, maxZoom: 18 }
+                  {
+                    padding: 50,
+                    maxZoom: CARMA_ZOOM_DEFAULTS.selectionFitBoundsMaxZoom,
+                  }
                 );
               }
             }

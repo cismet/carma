@@ -74,7 +74,9 @@ import {
 import { Badge, Spin, Tooltip } from "antd";
 import { useLayerLoading } from "@carma-mapping/utils";
 import { useAdhocFeatureDisplay } from "@carma-appframeworks/portals";
+import { defaultLayerConfig } from "../../config";
 import { isAdhocVectorLayer } from "../../helper/adhoc-feature-utils";
+import { getLayerMaxZoom, getLayerMinZoom } from "../GeoportalMap/utils";
 
 interface LayerButtonProps {
   title: string;
@@ -113,6 +115,7 @@ const GeoportalLayerButton = ({
   const { loading, error } = useLayerLoading({
     map: routedMapRef?.leafletMap?.leafletElement as L.Map,
     layer,
+    namedLayers: defaultLayerConfig.namedLayers,
   });
 
   const selectedLayerIndex = useSelector(getSelectedLayerIndex);
@@ -151,8 +154,8 @@ const GeoportalLayerButton = ({
     (layer?.queryable ||
       layer?.layerInfo?.accentColor ||
       layer?.layerInfo?.header) &&
-    zoom < (layer.props.maxZoom ? layer.props.maxZoom : Infinity) &&
-    zoom > (layer.props.minZoom ? layer.props.minZoom : 0);
+    zoom < getLayerMaxZoom(layer) &&
+    zoom > getLayerMinZoom(layer);
   const map = routedMapRef?.leafletMap?.leafletElement as L.Map;
 
   useEffect(() => {
@@ -281,7 +284,7 @@ const GeoportalLayerButton = ({
   }, [layer.dynamicStyling, layer.dynamicStylingSelection, maplibreMaps, id]);
 
   const isCurrentlyVisible = () => {
-    if (zoom >= layer?.props?.maxZoom || zoom <= layer?.props?.minZoom) {
+    if (zoom >= getLayerMaxZoom(layer) || zoom <= getLayerMinZoom(layer)) {
       return false;
     } else {
       return true;

@@ -4,6 +4,11 @@ import type {
   NamedStyles,
 } from "@carma-appframeworks/portals";
 
+import {
+  GEOPORTAL_LEAFLET_MAP_OPTIONS,
+  GEOPORTAL_ZOOM_DEFAULTS,
+} from "./app.config";
+
 export const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 export const APP_KEY = "geoportal";
 export const STORAGE_PREFIX = "1";
@@ -43,7 +48,7 @@ export const defaultLayerConfig: DefaultLayerConfig = {
     wms: {
       format: "image/png",
       tiled: true,
-      maxZoom: 22,
+      maxZoom: GEOPORTAL_LEAFLET_MAP_OPTIONS.zoomMax,
       opacity: 0.6,
       version: "1.1.1",
       pane: "backgroundLayers",
@@ -88,7 +93,7 @@ export const defaultLayerConfig: DefaultLayerConfig = {
       type: "wms",
       url: "https://geo.udsp.wuppertal.de/geoserver-cloud/ows",
       layers: "GIS-102:trueortho2024",
-      maxNativeZoom: 22,
+      maxNativeZoom: GEOPORTAL_LEAFLET_MAP_OPTIONS.zoomMax,
       transparent: true,
     },
     trueOrtho2021: {
@@ -116,8 +121,8 @@ export const defaultLayerConfig: DefaultLayerConfig = {
     },
     amtlich: {
       type: "tiles",
-      maxNativeZoom: 20,
-      maxZoom: 22,
+      maxNativeZoom: GEOPORTAL_ZOOM_DEFAULTS.defaultMaxNativeZoom,
+      maxZoom: GEOPORTAL_LEAFLET_MAP_OPTIONS.zoomMax,
       url: "https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_light&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
     },
     basemap_relief: {
@@ -131,7 +136,7 @@ export const defaultLayerConfig: DefaultLayerConfig = {
       // layers: "abkf",
       url: "https://geo.udsp.wuppertal.de/geoserver-cloud/ows",
       layers: "GIS-102:abkf",
-      maxNativeZoom: 20,
+      maxNativeZoom: GEOPORTAL_ZOOM_DEFAULTS.defaultMaxNativeZoom,
       transparent: true,
     },
   },

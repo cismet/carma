@@ -9,6 +9,10 @@ import L from "leaflet";
 import { sandboxedEvalExternal } from "@carma-commons/sandbox-eval";
 import { LeafletMap } from "@carma-mapping/engines/leaflet";
 import localforage from "localforage";
+import {
+  getMaplibreZoomFromSourceZoom,
+  CARMA_ZOOM_DEFAULTS,
+} from "../config/zoom.config";
 
 export const getInternetExplorerVersion = () => {
   var rV = -1; // Return value assumes failure.
@@ -204,14 +208,16 @@ export const zoomToFeature = ({
       if (leafletMap) {
         leafletMap.setView(
           [coordinates[1], coordinates[0]],
-          selectedFeature.properties.zoom ? selectedFeature.properties.zoom : 20
+          selectedFeature.properties.zoom ??
+            CARMA_ZOOM_DEFAULTS.featureInfoZoomDefault
         );
       } else if (libreMap) {
         libreMap.flyTo({
           center: [coordinates[0], coordinates[1]],
-          zoom: selectedFeature.properties.zoom
-            ? selectedFeature.properties.zoom - 1
-            : 19,
+          zoom: getMaplibreZoomFromSourceZoom(
+            selectedFeature.properties.zoom ??
+              CARMA_ZOOM_DEFAULTS.featureInfoZoomDefault
+          ),
           animate: false,
         });
       }

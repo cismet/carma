@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 
 import maplibregl from "maplibre-gl";
 
-import { WUPPERTAL_PREVIEW_STYLE } from "../constants/wuppertalDefaultStyle";
+import { CARMA_MAPLIBRE_MAP_DEFAULTS } from "../constants/carma-maplibre-map-defaults";
+import { CARMA_PREVIEW_STYLE } from "../constants/defaultStyle";
 import { useLibreContext } from "../contexts/LibreContext";
 import { useClusterMarkers } from "../hooks/useClusterMarkers";
 
@@ -22,7 +23,7 @@ const defaultContainerStyle: React.CSSProperties = {
 export const PreviewLibreMap = ({
   lat = 51.2725699,
   lng = 7.199918,
-  zoom = 15,
+  zoom = CARMA_MAPLIBRE_MAP_DEFAULTS.zoomDefault,
   style = defaultContainerStyle,
 }: PreviewLibreMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -40,7 +41,7 @@ export const PreviewLibreMap = ({
     if (mapContainer.current && !map.current) {
       const instance = new maplibregl.Map({
         container: mapContainer.current,
-        style: mapStyle ?? WUPPERTAL_PREVIEW_STYLE,
+        style: mapStyle ?? CARMA_PREVIEW_STYLE,
         center: [lng, lat],
         zoom: zoom,
         attributionControl: false,

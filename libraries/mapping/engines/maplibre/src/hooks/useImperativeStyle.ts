@@ -17,6 +17,7 @@ import {
 } from "../utils/styleComposer";
 import type { LibreLayer } from "../components/LibreMap";
 import { getVectorMapping } from "../utils/styleBuilder";
+import type { CarmaGeoJsonLayerZoomOptions } from "../constants/carma-geojson-layer-zoom-options";
 
 export interface UseImperativeStyleOptions {
   /** When false the hook is inert (merged mode is active). */
@@ -26,6 +27,7 @@ export interface UseImperativeStyleOptions {
   backgroundStyle: StyleSpecification | null;
   vectorBackgroundLayers: LibreLayer[];
   clusteringEnabled: boolean;
+  carmaGeoJsonLayerZoomOptions?: CarmaGeoJsonLayerZoomOptions;
   markerSymbolSize: number;
   overrideGlyphs?: string;
   filterFunction?: (map: MaplibreMap, layers?: LibreLayer[]) => void;
@@ -83,6 +85,7 @@ export function useImperativeStyle({
   backgroundStyle,
   vectorBackgroundLayers,
   clusteringEnabled,
+  carmaGeoJsonLayerZoomOptions,
   markerSymbolSize,
   overrideGlyphs,
   filterFunction,
@@ -232,14 +235,17 @@ export function useImperativeStyle({
       composerRef.current = null;
       return;
     }
-    composerRef.current = new StyleComposer(map, debugLog);
+    composerRef.current = new StyleComposer(map, {
+      debugLog,
+      carmaGeoJsonLayerZoomOptions,
+    });
     return () => {
       composerRef.current?.destroy();
       composerRef.current = null;
       prevKeysRef.current = [];
       prevIdsRef.current = [];
     };
-  }, [enabled, map]);
+  }, [carmaGeoJsonLayerZoomOptions, debugLog, enabled, map]);
 
   // Effect 2: When background style changes, reset the map style and re-add all layers
   useEffect(() => {
@@ -267,7 +273,10 @@ export function useImperativeStyle({
         if (aborted) return;
         // Re-create composer with fresh map state
         composerRef.current?.destroy();
-        composerRef.current = new StyleComposer(map, debugLog);
+        composerRef.current = new StyleComposer(map, {
+          debugLog,
+          carmaGeoJsonLayerZoomOptions,
+        });
         prevKeysRef.current = [];
         prevIdsRef.current = [];
         void applyAllLayersRef.current(composerRef.current!, map);
@@ -284,7 +293,14 @@ export function useImperativeStyle({
     return () => {
       aborted = true;
     };
-  }, [enabled, map, backgroundStyle, overrideGlyphs]);
+  }, [
+    backgroundStyle,
+    carmaGeoJsonLayerZoomOptions,
+    debugLog,
+    enabled,
+    map,
+    overrideGlyphs,
+  ]);
 
   // Effect 3: Diff layer changes (when layers/clusteringEnabled/markerSymbolSize change
   // but background stays the same)

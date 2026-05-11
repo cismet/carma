@@ -1,0 +1,15 @@
+[36mvite v5.4.14 [32mbuilding for production...[36m[39m
+[33m
+[1m(!)[22m outDir [37m[2m/home/runner/work/carma/carma/dist/libraries/commons/dom/window[22m[33m is not inside project root and will not be emptied.
+Use --emptyOutDir to override.
+[39m
+transforming...
+[32m✓[39m 9 modules transformed.
+rendering chunks...
+[32m
+[36m[vite:dts][32m Start generate declaration files...[39m
+computing gzip size...
+[2m../../../../dist/libraries/commons/dom/window/[22m[36mindex.js  [39m[1m[2m5.38 kB[22m[1m[22m[2m │ gzip: 1.84 kB[22m[2m │ map: 14.31 kB[22m
+[32m[36m[vite:dts][32m Declaration files built in 1556ms.
+[39m
+[32m✓ built in 1.66s[39m

@@ -12,6 +12,7 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 
 import { additionalInfoFactory } from "@carma-collab/wuppertal/geoportal";
+import { getMaplibreZoomFromSourceZoom } from "@carma-appframeworks/portals";
 
 import {
   setPreferredLayerId,
@@ -28,6 +29,7 @@ import {
 } from "../../store/slices/features";
 import { getLayers } from "../../store/slices/mapping";
 import { getCoordinates } from "../GeoportalMap/topicmap.utils";
+import { GEOPORTAL_ZOOM_DEFAULTS } from "../../config/app.config";
 import { truncateString, updateUrlWithCoordinates } from "./featureInfoHelper";
 
 import "../infoBox.css";
@@ -124,16 +126,17 @@ const LibreFeatureInfoBox = ({ pos, libreMap }: InfoBoxProps) => {
             if (routedMapRef) {
               routedMapRef.leafletMap.leafletElement.setView(
                 [coordinates[1], coordinates[0]],
-                selectedFeature.properties.zoom
-                  ? selectedFeature.properties.zoom
-                  : 20
+                selectedFeature.properties.zoom ??
+                  GEOPORTAL_ZOOM_DEFAULTS.featureInfoZoomDefault
               );
             } else if (libreMap) {
               libreMap.flyTo({
                 center: [coordinates[0], coordinates[1]],
-                zoom: selectedFeature.properties.zoom
-                  ? selectedFeature.properties.zoom - 1
-                  : 19,
+                zoom: getMaplibreZoomFromSourceZoom(
+                  selectedFeature.properties.zoom ??
+                    GEOPORTAL_ZOOM_DEFAULTS.featureInfoZoomDefault,
+                  GEOPORTAL_ZOOM_DEFAULTS
+                ),
                 animate: false,
               });
             }

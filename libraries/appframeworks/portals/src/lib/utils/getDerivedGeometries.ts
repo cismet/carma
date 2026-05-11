@@ -5,9 +5,9 @@ import { PROJ4_CONVERTERS } from "@carma-commons/utils";
 
 import { DEFAULT_PROJ } from "@carma-commons/resources";
 import { SearchResultItem } from "@carma-mapping/fuzzy-search";
+import { CARMA_ZOOM_DEFAULTS } from "../config/zoom.config";
 
 const proj4ConverterLookup: Record<string, Converter> = {};
-const DEFAULT_ZOOM_LEVEL = 16;
 
 const HITOBJECT_POLYGON_TYPE = "Polygon";
 
@@ -59,7 +59,7 @@ export const getDerivedGeometries = (
   }
 
   const pos = getPosInWGS84(hitObject, refSystemConverter);
-  const zoom = hitObject.more.zl ?? DEFAULT_ZOOM_LEVEL;
+  const zoom = hitObject.more.zl ?? CARMA_ZOOM_DEFAULTS.zoomDefault;
 
   let polygon: number[][][] | undefined = undefined;
   if (

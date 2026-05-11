@@ -3,10 +3,40 @@ import type { Radians, Meters, Degrees } from "@carma-units";
 
 import {
   EARTH_CIRCUMFERENCE,
-  DEFAULT_LEAFLET_TILESIZE,
   DEFAULT_MERCATOR_LATITUDE_RAD,
+  WEB_MERCATOR_TILE_SIZE_256,
   WEB_MERCATOR_MAX_LATITUDE_RAD,
 } from "@carma-geo/data-structures";
+
+export { WEB_MERCATOR_TILE_SIZE_256 };
+
+export type ZoomConvention = {
+  tileSize?: number;
+};
+
+export type ZoomLevel = ZoomConvention & {
+  zoom: number;
+};
+
+export type ZoomRange = {
+  zoomMin: number;
+  zoomMax: number;
+} & ZoomConvention;
+
+export type TileSizeZoomConversionOptions = {
+  sourceTileSize?: number;
+  targetTileSize?: number;
+  latitude?: Radians;
+};
+
+export type ZoomConventionConversionOptions = {
+  latitude?: Radians;
+};
+
+export const getZoomConventionTileSize = (
+  convention: ZoomConvention = {}
+): number => convention.tileSize ?? WEB_MERCATOR_TILE_SIZE_256;
+
 export const clampLatitudeToWebMercatorExtent = (
   latitude: Radians
 ): Radians => {
@@ -43,7 +73,7 @@ export const getMercatorScaleFactorAtLatitudeDeg = (
 export const getZoomFromPixelResolutionAtLatitudeRad = (
   meterResolution: Meters,
   latitude: Radians = DEFAULT_MERCATOR_LATITUDE_RAD,
-  { tileSize = DEFAULT_LEAFLET_TILESIZE }: { tileSize?: number } = {}
+  { tileSize = WEB_MERCATOR_TILE_SIZE_256 }: { tileSize?: number } = {}
 ): number => {
   const scaleFactor = getMercatorScaleFactorAtLatitudeRad(latitude);
   const denominator = scaleFactor * meterResolution * tileSize;
@@ -54,10 +84,68 @@ export const getZoomFromPixelResolutionAtLatitudeRad = (
 export const getPixelResolutionFromZoomAtLatitudeRad = (
   zoom: number,
   latitude: Radians,
-  { tileSize = DEFAULT_LEAFLET_TILESIZE }: { tileSize?: number } = {}
+  { tileSize = WEB_MERCATOR_TILE_SIZE_256 }: { tileSize?: number } = {}
 ): Meters => {
   const scale = getMercatorScaleFactorAtLatitudeRad(latitude);
   const metersPerPixel: Meters = (EARTH_CIRCUMFERENCE /
     (scale * Math.pow(2, zoom) * tileSize)) as Meters;
   return metersPerPixel;
 };
+
+export const getEquivalentZoomForTileSize = (
+  zoom: number,
+  {
+    sourceTileSize = WEB_MERCATOR_TILE_SIZE_256,
+    targetTileSize = WEB_MERCATOR_TILE_SIZE_256,
+    latitude = DEFAULT_MERCATOR_LATITUDE_RAD,
+  }: TileSizeZoomConversionOptions = {}
+): number => {
+  const pixelResolution = getPixelResolutionFromZoomAtLatitudeRad(
+    zoom,
+    latitude,
+    { tileSize: sourceTileSize }
+  );
+
+  return getZoomFromPixelResolutionAtLatitudeRad(pixelResolution, latitude, {
+    tileSize: targetTileSize,
+  });
+};
+
+export const getEquivalentZoomForConvention = (
+  sourceZoom: ZoomLevel,
+  targetConvention: ZoomConvention = {},
+  {
+    latitude = DEFAULT_MERCATOR_LATITUDE_RAD,
+  }: ZoomConventionConversionOptions = {}
+): number =>
+  getEquivalentZoomForTileSize(sourceZoom.zoom, {
+    sourceTileSize: getZoomConventionTileSize(sourceZoom),
+    targetTileSize: getZoomConventionTileSize(targetConvention),
+    latitude,
+  });
+
+export const getEquivalentZoomRangeForTileSize = (
+  { zoomMin, zoomMax }: ZoomRange,
+  options: TileSizeZoomConversionOptions = {}
+): ZoomRange => ({
+  zoomMin: getEquivalentZoomForTileSize(zoomMin, options),
+  zoomMax: getEquivalentZoomForTileSize(zoomMax, options),
+});
+
+export const getEquivalentZoomRangeForConvention = (
+  sourceRange: ZoomRange,
+  targetConvention: ZoomConvention = {},
+  options: ZoomConventionConversionOptions = {}
+): ZoomRange => ({
+  tileSize: getZoomConventionTileSize(targetConvention),
+  zoomMin: getEquivalentZoomForConvention(
+    { zoom: sourceRange.zoomMin, tileSize: sourceRange.tileSize },
+    targetConvention,
+    options
+  ),
+  zoomMax: getEquivalentZoomForConvention(
+    { zoom: sourceRange.zoomMax, tileSize: sourceRange.tileSize },
+    targetConvention,
+    options
+  ),
+});

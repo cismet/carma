@@ -1,13 +1,17 @@
 import { useMemo } from "react";
 
 import { Cartesian3 } from "@carma-cesium";
+import { getMaplibreZoomFromSourceZoom } from "@carma-appframeworks/portals";
 
 import {
   readLeafletHomeViewState,
   useInitialCesiumCameraView,
 } from "@carma-mapping/engines-interop/view-state";
 
-import { DEFAULT_CAMERA_FOV_DEG } from "../config/app.config";
+import {
+  DEFAULT_CAMERA_FOV_DEG,
+  GEOPORTAL_ZOOM_DEFAULTS,
+} from "../config/app.config";
 import { DEFAULT_HOME_VIEW_REF } from "../config/view.config";
 
 const DEFAULT_HOME_VIEW_STATE = readLeafletHomeViewState(
@@ -38,8 +42,12 @@ export const useGeoportalHomeValues = () => {
     []
   );
 
-  const homeLeafletZoom = DEFAULT_HOME_VIEW_REF.zoom ?? 18;
-  const homeMaplibreZoom = homeLeafletZoom - 1;
+  const homeLeafletZoom =
+    DEFAULT_HOME_VIEW_REF.zoom ?? GEOPORTAL_ZOOM_DEFAULTS.zoomDefault;
+  const homeMaplibreZoom = getMaplibreZoomFromSourceZoom(
+    homeLeafletZoom,
+    GEOPORTAL_ZOOM_DEFAULTS
+  );
 
   const homeValidationCenter = useMemo(
     () =>

@@ -14,7 +14,13 @@ import type {
 import slugify from "slugify";
 import WMSCapabilities from "wms-capabilities";
 import { extractCarmaConfig, md5FetchJSON } from "@carma-commons/utils";
-import { WUPPERTAL_DEFAULT_STYLE } from "../constants/wuppertalDefaultStyle";
+import { CARMA_DEFAULT_STYLE } from "../constants/defaultStyle";
+import {
+  DEFAULT_CARMA_GEOJSON_LAYER_ZOOM_OPTIONS,
+  type CarmaGeoJsonLayerZoomOptions,
+} from "../constants/carma-geojson-layer-zoom-options";
+import { CARMA_MAPLIBRE_MAP_DEFAULTS } from "../constants/carma-maplibre-map-defaults";
+import { CARMA_MAPLIBRE_SOURCE_DEFAULTS } from "../constants/carma-maplibre-source-defaults";
 import { LibreLayer } from "../components/LibreMap";
 
 // Inlined from @carma-mapping/layers to avoid circular dependency through portals
@@ -421,6 +427,7 @@ export interface VectorStylesToMapLibreStyleOptions {
   layers?: LibreLayer[];
   backgroundStyle?: StyleSpecification;
   clusteringEnabled?: boolean;
+  carmaGeoJsonLayerZoomOptions?: CarmaGeoJsonLayerZoomOptions;
   /** Override glyphs (font) URL. undefined = use from first vector layer style, string = use this URL */
   overrideGlyphs?: string;
 }
@@ -437,15 +444,14 @@ export const vectorStylesToMapLibreStyle = async ({
   layers,
   backgroundStyle,
   clusteringEnabled = true,
+  carmaGeoJsonLayerZoomOptions = DEFAULT_CARMA_GEOJSON_LAYER_ZOOM_OPTIONS,
   overrideGlyphs,
 }: VectorStylesToMapLibreStyleOptions): Promise<VectorStylesToMapLibreStyleResult> => {
   const defaultSprite = "https://tiles.cismet.de/poi/sprites";
   const customSprites: SpriteSpecification = [];
   const geoJsonMetadata: GeoJsonStyleMetadata[] = [];
 
-  // Use provided backgroundStyle or Wuppertal default
-  const baseStyle: StyleSpecification =
-    backgroundStyle || WUPPERTAL_DEFAULT_STYLE;
+  const baseStyle: StyleSpecification = backgroundStyle || CARMA_DEFAULT_STYLE;
 
   const style: StyleSpecification = {
     ...baseStyle,
@@ -619,7 +625,8 @@ export const vectorStylesToMapLibreStyle = async ({
 
         if (clusteringEnabled) {
           sourceConfig.cluster = true;
-          sourceConfig.clusterMaxZoom = 16;
+          sourceConfig.clusterMaxZoom =
+            carmaGeoJsonLayerZoomOptions.clusterMaxZoom;
           sourceConfig.clusterRadius = 40;
           sourceConfig.clusterProperties = Object.fromEntries(
             uniqueColors.map((color) => [
@@ -655,15 +662,23 @@ export const vectorStylesToMapLibreStyle = async ({
           id: `${sourceId}-images-selection`,
           type: "symbol",
           source: sourceId,
-          minzoom: 9,
-          maxzoom: 24,
+          minzoom: carmaGeoJsonLayerZoomOptions.selectionSymbolLayerMinZoom,
+          maxzoom: CARMA_MAPLIBRE_MAP_DEFAULTS.zoomMax,
           layout: {
             visibility: "visible",
             "symbol-z-order": "source",
             "symbol-sort-key": ["get", "geographicidentifier"],
             "icon-allow-overlap": true,
             "icon-ignore-placement": true,
-            "icon-size": ["interpolate", ["linear"], ["zoom"], 9, 0.32, 24, 1],
+            "icon-size": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              carmaGeoJsonLayerZoomOptions.iconScaleMinZoom,
+              0.32,
+              CARMA_MAPLIBRE_MAP_DEFAULTS.zoomMax,
+              1,
+            ],
             "icon-padding": 0,
             "icon-image": "Icon_Full#4892F0",
           },
@@ -681,8 +696,8 @@ export const vectorStylesToMapLibreStyle = async ({
           id: `${sourceId}-poi-images`,
           type: "symbol",
           source: sourceId,
-          minzoom: 0,
-          maxzoom: 24,
+          minzoom: carmaGeoJsonLayerZoomOptions.iconSymbolLayerMinZoom,
+          maxzoom: CARMA_MAPLIBRE_MAP_DEFAULTS.zoomMax,
           filter: ["!", ["has", "point_count"]],
           layout: {
             visibility: "visible",
@@ -694,9 +709,9 @@ export const vectorStylesToMapLibreStyle = async ({
               "interpolate",
               ["linear"],
               ["zoom"],
-              9,
+              carmaGeoJsonLayerZoomOptions.iconScaleMinZoom,
               0.32,
-              24,
+              CARMA_MAPLIBRE_MAP_DEFAULTS.zoomMax,
               0.8,
             ],
             "icon-padding": 0,
@@ -712,8 +727,8 @@ export const vectorStylesToMapLibreStyle = async ({
           type: "symbol",
           source: sourceId,
           filter: ["!", ["has", "point_count"]],
-          minzoom: 16,
-          maxzoom: 24,
+          minzoom: carmaGeoJsonLayerZoomOptions.labelSymbolLayerMinZoom,
+          maxzoom: CARMA_MAPLIBRE_MAP_DEFAULTS.zoomMax,
           layout: {
             "text-field": ["get", "geographicidentifier"],
             "text-font": ["Open Sans Semibold"],
@@ -724,9 +739,9 @@ export const vectorStylesToMapLibreStyle = async ({
               "interpolate",
               ["linear"],
               ["zoom"],
-              17,
+              carmaGeoJsonLayerZoomOptions.labelOffsetScaleMinZoom,
               ["literal", [0, 1.3]],
-              24,
+              CARMA_MAPLIBRE_MAP_DEFAULTS.zoomMax,
               ["literal", [0, 2]],
             ],
             "text-anchor": "top",
@@ -761,11 +776,14 @@ export const vectorStylesToMapLibreStyle = async ({
               layer.format || "image/png"
             }&transparent=${layer.transparent ? "true" : "false"}${
               isWmts ? "&type=wmts" : ""
-            }&width=${layer.tileSize ?? 256}&height=${
-              layer.tileSize ?? 256
+            }&width=${
+              layer.tileSize ?? CARMA_MAPLIBRE_SOURCE_DEFAULTS.rasterTileSize
+            }&height=${
+              layer.tileSize ?? CARMA_MAPLIBRE_SOURCE_DEFAULTS.rasterTileSize
             }&${crsParam}=EPSG:3857&bbox={bbox-epsg-3857}`,
           ],
-          tileSize: layer.tileSize ?? 256,
+          tileSize:
+            layer.tileSize ?? CARMA_MAPLIBRE_SOURCE_DEFAULTS.rasterTileSize,
         };
 
         style.layers.push({

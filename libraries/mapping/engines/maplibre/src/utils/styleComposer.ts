@@ -21,6 +21,11 @@ import {
   transformedPois,
 } from "./styleBuilder";
 import type { LibreLayer, RasterPaintOverrides } from "../components/LibreMap";
+import {
+  DEFAULT_CARMA_GEOJSON_LAYER_ZOOM_OPTIONS,
+  type CarmaGeoJsonLayerZoomOptions,
+} from "../constants/carma-geojson-layer-zoom-options";
+import { CARMA_MAPLIBRE_SOURCE_DEFAULTS } from "../constants/carma-maplibre-source-defaults";
 
 /**
  * Slugify a URL into a compact ID: strips protocol and .json extension,
@@ -68,6 +73,11 @@ export interface AddGeoJsonSubStyleOptions {
 export interface AddRasterSubStyleOptions {
   zIndex: number;
   beforeId?: string;
+}
+
+export interface StyleComposerOptions {
+  debugLog?: boolean;
+  carmaGeoJsonLayerZoomOptions?: CarmaGeoJsonLayerZoomOptions;
 }
 
 /**
@@ -144,10 +154,14 @@ export class StyleComposer {
    * sprite URL don't tear it down for each other on removal. */
   private spriteRefs: Map<string, number> = new Map();
   private debugLog: boolean;
+  private carmaGeoJsonLayerZoomOptions: CarmaGeoJsonLayerZoomOptions;
 
-  constructor(map: MaplibreMap, debugLog = false) {
+  constructor(map: MaplibreMap, options: StyleComposerOptions = {}) {
     this.map = map;
-    this.debugLog = debugLog;
+    this.debugLog = options.debugLog ?? false;
+    this.carmaGeoJsonLayerZoomOptions =
+      options.carmaGeoJsonLayerZoomOptions ??
+      DEFAULT_CARMA_GEOJSON_LAYER_ZOOM_OPTIONS;
   }
 
   /** Sync the bidirectional map to the map instance so other hooks can read it. */
@@ -412,7 +426,8 @@ export class StyleComposer {
     const sourceDef: GeoJSONSourceSpecification = { type: "geojson", data };
     if (opts.clusteringEnabled) {
       sourceDef.cluster = true;
-      sourceDef.clusterMaxZoom = 16;
+      sourceDef.clusterMaxZoom =
+        this.carmaGeoJsonLayerZoomOptions.clusterMaxZoom;
       sourceDef.clusterRadius = 40;
       sourceDef.clusterProperties = Object.fromEntries(
         uniqueColors.map((color) => [
@@ -439,6 +454,8 @@ export class StyleComposer {
       layerIds.push(clusterId);
     }
 
+    const zoomMax = this.map.getMaxZoom();
+
     // Selection symbols
     const selId = `${id}-images-selection`;
     this.map.addLayer(
@@ -446,15 +463,23 @@ export class StyleComposer {
         id: selId,
         type: "symbol",
         source: sourceId,
-        minzoom: 9,
-        maxzoom: 24,
+        minzoom: this.carmaGeoJsonLayerZoomOptions.selectionSymbolLayerMinZoom,
+        maxzoom: zoomMax,
         layout: {
           visibility: "visible",
           "symbol-z-order": "source",
           "symbol-sort-key": ["get", "geographicidentifier"],
           "icon-allow-overlap": true,
           "icon-ignore-placement": true,
-          "icon-size": ["interpolate", ["linear"], ["zoom"], 9, 0.32, 24, 1],
+          "icon-size": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            this.carmaGeoJsonLayerZoomOptions.iconScaleMinZoom,
+            0.32,
+            zoomMax,
+            1,
+          ],
           "icon-padding": 0,
           "icon-image": "Icon_Full#4892F0",
         },
@@ -478,8 +503,8 @@ export class StyleComposer {
         id: imgId,
         type: "symbol",
         source: sourceId,
-        minzoom: 0,
-        maxzoom: 24,
+        minzoom: this.carmaGeoJsonLayerZoomOptions.iconSymbolLayerMinZoom,
+        maxzoom: zoomMax,
         filter: ["!", ["has", "point_count"]],
         layout: {
           visibility: "visible",
@@ -487,7 +512,15 @@ export class StyleComposer {
           "symbol-sort-key": ["get", "geographicidentifier"],
           "icon-allow-overlap": true,
           "icon-ignore-placement": true,
-          "icon-size": ["interpolate", ["linear"], ["zoom"], 9, 0.32, 24, 0.8],
+          "icon-size": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            this.carmaGeoJsonLayerZoomOptions.iconScaleMinZoom,
+            0.32,
+            zoomMax,
+            0.8,
+          ],
           "icon-padding": 0,
           "icon-image": ["concat", ["get", "signatur"], ["get", "schrift"]],
         },
@@ -505,8 +538,8 @@ export class StyleComposer {
         type: "symbol",
         source: sourceId,
         filter: ["!", ["has", "point_count"]],
-        minzoom: 16,
-        maxzoom: 24,
+        minzoom: this.carmaGeoJsonLayerZoomOptions.labelSymbolLayerMinZoom,
+        maxzoom: zoomMax,
         layout: {
           "text-field": ["get", "geographicidentifier"],
           "text-font": ["Open Sans Semibold"],
@@ -517,9 +550,9 @@ export class StyleComposer {
             "interpolate",
             ["linear"],
             ["zoom"],
-            17,
+            this.carmaGeoJsonLayerZoomOptions.labelOffsetScaleMinZoom,
             ["literal", [0, 1.3]],
-            24,
+            zoomMax,
             ["literal", [0, 2]],
           ],
           "text-anchor": "top",
@@ -594,13 +627,13 @@ export class StyleComposer {
     }&transparent=${layer.transparent ? "true" : "false"}${
       isWmts ? "&type=wmts" : ""
     }&width=${layer.tileSize ?? 256}&height=${
-      layer.tileSize ?? 256
+      layer.tileSize ?? CARMA_MAPLIBRE_SOURCE_DEFAULTS.rasterTileSize
     }&${crsParam}=EPSG:3857&bbox={bbox-epsg-3857}`;
 
     this.map.addSource(sourceId, {
       type: "raster",
       tiles: [tileUrl],
-      tileSize: layer.tileSize ?? 256,
+      tileSize: layer.tileSize ?? CARMA_MAPLIBRE_SOURCE_DEFAULTS.rasterTileSize,
     });
 
     const layerId = `${id}-raster`;
@@ -663,7 +696,7 @@ export class StyleComposer {
     this.map.addSource(sourceId, {
       type: "raster",
       url: `cog://${layer.url}`,
-      tileSize: 256,
+      tileSize: CARMA_MAPLIBRE_SOURCE_DEFAULTS.rasterTileSize,
     });
 
     const layerId = `${id}-cog`;

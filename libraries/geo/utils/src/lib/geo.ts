@@ -12,13 +12,13 @@ import {
 import type { Degrees, Meters, Radians } from "@carma-units";
 
 import {
-  DEFAULT_LEAFLET_TILESIZE,
   DEFAULT_MERCATOR_LATITUDE_RAD,
   DEFAULT_ZOOM_LEVEL,
   DEFAULT_PIXEL_TOLERANCE,
 } from "@carma-geo/data-structures";
 import {
   getPixelResolutionFromZoomAtLatitudeRad,
+  WEB_MERCATOR_TILE_SIZE_256,
   getZoomFromPixelResolutionAtLatitudeRad,
 } from "./mercator";
 const MIN_TAN_HALF_FOV = 1e-6;
@@ -66,7 +66,7 @@ export function metersPerPixel(
 export function metersPerPixelAtLatitudeRad(
   zoom: number,
   latitudeRad?: Radians,
-  { tileSize = DEFAULT_LEAFLET_TILESIZE }: { tileSize?: number } = {}
+  { tileSize = WEB_MERCATOR_TILE_SIZE_256 }: { tileSize?: number } = {}
 ): Meters {
   return getPixelResolutionFromZoomAtLatitudeRad(
     zoom,
@@ -110,7 +110,7 @@ export function mercatorZoomFromDistanceAtLatitudeDeg(
   latitudeDeg: Degrees,
   {
     fovVerticalRad,
-    tileSize = DEFAULT_LEAFLET_TILESIZE,
+    tileSize = WEB_MERCATOR_TILE_SIZE_256,
     viewportWidthPx,
     viewportHeightPx,
   }: {

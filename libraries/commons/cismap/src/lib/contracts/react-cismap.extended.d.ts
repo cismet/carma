@@ -14,6 +14,7 @@ export interface CismapLayerProps {
   opacity?: number;
   opacityFunction?: (opacity: number) => number;
   format?: string;
+  minZoom?: number;
   maxZoom?: number;
   version?: string;
   pane?: string;

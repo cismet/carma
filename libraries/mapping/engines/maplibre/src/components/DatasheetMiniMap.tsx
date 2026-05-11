@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 
 import maplibregl from "maplibre-gl";
 
-import { WUPPERTAL_PREVIEW_STYLE } from "../constants/wuppertalDefaultStyle";
+import { CARMA_PREVIEW_STYLE } from "../constants/defaultStyle";
+import { DATASHEET_MINI_MAP_ZOOM_DEFAULTS } from "../constants/datasheet-mini-map-defaults";
 import { useLibreContext } from "../contexts/LibreContext";
 import { useClusterMarkers } from "../hooks/useClusterMarkers";
 import { buildFeatureStateTarget } from "../utils/featureStateTarget";
@@ -30,7 +31,7 @@ const defaultContainerStyle: React.CSSProperties = {
 
 export const DatasheetMiniMap = ({
   center,
-  zoom = 18,
+  zoom = DATASHEET_MINI_MAP_ZOOM_DEFAULTS.defaultZoom,
   className,
   style = defaultContainerStyle,
   mapRef,
@@ -51,7 +52,7 @@ export const DatasheetMiniMap = ({
     if (mapContainer.current && !map.current) {
       const instance = new maplibregl.Map({
         container: mapContainer.current,
-        style: mapStyle ?? WUPPERTAL_PREVIEW_STYLE,
+        style: mapStyle ?? CARMA_PREVIEW_STYLE,
         center: center ?? [7.150764, 51.256],
         zoom,
         attributionControl: false,

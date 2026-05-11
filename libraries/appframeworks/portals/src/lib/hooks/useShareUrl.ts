@@ -5,6 +5,7 @@ import type { LayerState, SelectedObject } from "../types";
 import { SelectionItem } from "../components/SelectionProvider";
 import { getHashParams } from "@carma-commons/utils";
 import { normalizeShareHashParams } from "./shareHash";
+import { CARMA_ZOOM_DEFAULTS } from "../config/zoom.config";
 
 export const SHORTENER_URL =
   "https://ceepr.cismet.de/store/wuppertal/_dev_geoportal";
@@ -34,7 +35,7 @@ export const useShareUrl = () => {
       const currentParams = getHashParams();
       const lat = currentParams.lat || 51.27256992259917;
       const lng = currentParams.lng || 7.199920713901521;
-      const zoom = currentParams.zoom || 18;
+      const zoom = currentParams.zoom || CARMA_ZOOM_DEFAULTS.shareZoomDefault;
 
       const newSearchParams = new URLSearchParams(currentParams);
 

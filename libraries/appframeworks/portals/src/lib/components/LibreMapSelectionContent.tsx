@@ -4,6 +4,7 @@ import maplibregl from "maplibre-gl";
 import proj4 from "proj4";
 import { proj4crs3857def, proj4crs4326def } from "@carma-mapping/utils";
 import * as turf from "@turf/turf";
+import { CARMA_ZOOM_DEFAULTS } from "../config/zoom.config";
 
 interface SelectionContentProps {
   map: maplibregl.Map;
@@ -259,7 +260,10 @@ export const LibreMapSelectionContent = ({ map }: SelectionContentProps) => {
                     [minX, minY],
                     [maxX, maxY],
                   ],
-                  { padding: 50, maxZoom: 18 }
+                  {
+                    padding: 50,
+                    maxZoom: CARMA_ZOOM_DEFAULTS.selectionFitBoundsMaxZoom,
+                  }
                 );
               }
             }

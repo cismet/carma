@@ -120,6 +120,27 @@ export {
   defaultBackgroundConfigurations,
   backgroundConfWithFastOrtho2024,
 } from "./lib/utils/topicmapConfigs";
+export {
+  CARMA_ZOOM_DEFAULTS,
+  DEFAULT_MAPLIBRE_TILE_SIZE,
+  createMaplibreSelectionZoomControls,
+  createMaplibreZoomAdapter,
+  createMaplibreZoomControls,
+  getMaplibreZoomFromSourceZoom,
+  getMaplibreZoomRangeFromSourceZoomRange,
+  getSourceZoomFromMaplibreZoom,
+} from "./lib/config/zoom.config";
+export type {
+  CarmaZoomDefaults,
+  MaplibreZoomAdapter,
+  MaplibreZoomAdapterConfig,
+  MaplibreSelectionZoomControls,
+  MaplibreSelectionZoomControlsConfig,
+  MaplibreZoomControls,
+  ZoomSettableMap,
+} from "./lib/config/zoom.config";
+export { CARMA_LAYER_ZOOM_DEFAULTS } from "./lib/config/layer.config";
+export type { CarmaLayerZoomDefaults } from "./lib/config/layer.config";
 export { buildInfoBoxStylingProps } from "./lib/utils/adhoc-feature-utils";
 // Feature functions moved to @carma-mapping/utils
 // createUrl, functionToFeature, objectToFeature, createVectorFeature, getInfoBoxControlObjectFromMappingAndVectorFeature

@@ -3,6 +3,7 @@
  */
 
 import type maplibregl from "maplibre-gl";
+import { CARMA_ZOOM_DEFAULTS } from "@carma-appframeworks/portals";
 import { functionToFeature, objectToFeature } from "@carma-mapping/utils";
 
 /**
@@ -91,7 +92,7 @@ export const createFeature = async (
     },
   };
   let result = "";
-  const featureInfoZoom = 20;
+  const featureInfoZoom = CARMA_ZOOM_DEFAULTS.featureInfoZoomDefault;
 
   layerMapping.forEach((keyword) => {
     // Skip known control flags (not part of the infobox mapping template)

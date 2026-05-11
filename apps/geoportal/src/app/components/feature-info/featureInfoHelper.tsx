@@ -9,6 +9,7 @@ import {
   functionToFeature,
   objectToFeature,
 } from "@carma-mapping/utils";
+import { GEOPORTAL_ZOOM_DEFAULTS } from "../../config/app.config";
 
 export const getLeafNodes = (node, result: any = {}): any => {
   if (node.nodeType === Node.ELEMENT_NODE) {
@@ -146,7 +147,7 @@ export const getFeatureForLayer = async (
   let output = [];
 
   let result = "";
-  let featureInfoZoom = 20;
+  let featureInfoZoom: number = GEOPORTAL_ZOOM_DEFAULTS.featureInfoZoomDefault;
   layer.other.keywords?.forEach((keyword) => {
     const extracted = keyword.split("carmaconf://infoBoxMapping:")[1];
     const zoom = keyword.split("carmaConf://featureInfoZoom:")[1];

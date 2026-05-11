@@ -9,6 +9,9 @@ export type ZoomIncrements =
   | 0.015625; // fractions of 1/2^n to reduce resize artifacts.
 
 export interface LeafletConfig {
+  tileSize: number;
+  zoomMin: number;
+  zoomMax: number;
   zoomSnap: ZoomIncrements;
   zoomDelta: ZoomIncrements;
 }

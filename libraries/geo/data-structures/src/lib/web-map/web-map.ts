@@ -3,9 +3,14 @@ import type { Degrees, Radians } from "@carma-units";
 const DEG_TO_RAD = PI / 180;
 
 /**
- * Default tile size for Leaflet and most web map tile services
+ * Web Mercator tile size used by common 256px tile schemes.
  */
-export const DEFAULT_LEAFLET_TILESIZE = 256;
+export const WEB_MERCATOR_TILE_SIZE_256 = 256;
+
+/**
+ * @deprecated Use WEB_MERCATOR_TILE_SIZE_256 instead.
+ */
+export const DEFAULT_LEAFLET_TILESIZE = WEB_MERCATOR_TILE_SIZE_256;
 
 /**
  * Web Mercator maximum latitude in degrees (EPSG:3857 projection limit)

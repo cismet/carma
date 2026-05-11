@@ -3,9 +3,14 @@ import { type LayerSpecification, type StyleSpecification } from "maplibre-gl";
 import slugify from "slugify";
 
 import type { BackgroundLayer, Layer } from "@carma-mapping/layers";
+import { getSourceZoomFromMaplibreZoom } from "@carma-appframeworks/portals";
 
 import { functionToFeature, objectToFeature } from "@carma-mapping/utils";
 import { defaultLayerConfig } from "../../config";
+import {
+  GEOPORTAL_MAPLIBRE_SOURCE_OPTIONS,
+  GEOPORTAL_ZOOM_DEFAULTS,
+} from "../../config/app.config";
 import { LibreGeoportalMapOptions } from "./LibreGeoportalMap";
 
 const getPaintProperty = (layerStyle: LayerSpecification) => {
@@ -24,24 +29,15 @@ const getPaintProperty = (layerStyle: LayerSpecification) => {
   }
 };
 
-// proper relation would be log2 of tilesize / 256 but this is a fixed relation for maplibre and leaflet
-// const zoomDelta = Math.log2(tilesize / 256);
-
-export const zoom512as256 = (zoom512: number) => {
-  return zoom512 + 1;
-};
-
-export const zoom256as512 = (zoom256: number) => {
-  return zoom256 - 1;
-};
-
 export const getParamsMapLibre = (
   mapInstance: maplibregl.Map,
   defaultMapOptions: Required<LibreGeoportalMapOptions>
 ) => {
   const { lng, lat } = mapInstance.getCenter();
-  const zoom512 = mapInstance.getZoom();
-  const zoom = zoom512as256(zoom512);
+  const zoom = getSourceZoomFromMaplibreZoom(
+    mapInstance.getZoom(),
+    GEOPORTAL_ZOOM_DEFAULTS
+  );
   const pitch = mapInstance.getPitch();
   const bearing = mapInstance.getBearing();
   const params = {
@@ -98,8 +94,8 @@ export const layersToMapLibreStyle = async (
         tiles: [
           "https://wuppertal-terrain.cismet.de/services/wupp_dgm_01/tiles/{z}/{x}/{y}.png",
         ],
-        tileSize: 512,
-        maxzoom: 15,
+        tileSize: GEOPORTAL_MAPLIBRE_SOURCE_OPTIONS.terrain.tileSize,
+        maxzoom: GEOPORTAL_MAPLIBRE_SOURCE_OPTIONS.terrain.maxZoom,
       },
     },
     layers: [],
@@ -127,7 +123,7 @@ export const layersToMapLibreStyle = async (
         style.sources[sourceId] = {
           type: "raster",
           tiles: [url],
-          tileSize: 256,
+          tileSize: GEOPORTAL_MAPLIBRE_SOURCE_OPTIONS.raster.tileSize,
         };
 
         style.layers.push({
@@ -211,7 +207,7 @@ export const layersToMapLibreStyle = async (
             url.endsWith("?") ? "" : "?"
           }bbox={bbox-epsg-3857}&styles=&format=image/png&service=WMS&version=1.1.1&request=GetMap&srs=EPSG:3857&transparent=true&width=256&height=256&layers=${name}&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}`,
         ],
-        tileSize: 256,
+        tileSize: GEOPORTAL_MAPLIBRE_SOURCE_OPTIONS.raster.tileSize,
       };
 
       style.layers.push({
@@ -322,7 +318,7 @@ export const createFeature = async (selectedVectorFeature, layer) => {
     vectorId: selectedVectorFeature.id,
   };
   let result = "";
-  let featureInfoZoom = 20;
+  let featureInfoZoom: number = GEOPORTAL_ZOOM_DEFAULTS.featureInfoZoomDefault;
   let blockLegacyGetFeatureInfo = false;
   layer.other.keywords.forEach((keyword) => {
     const extracted = keyword.split("carmaconf://infoBoxMapping:")[1];

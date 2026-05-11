@@ -1,6 +1,8 @@
 import type { FeatureInfo, FeatureInfoProperties } from "@carma-mapping/utils";
 import { sandboxedEvalExternal } from "@carma-commons/sandbox-eval";
 
+import { CARMA_ZOOM_DEFAULTS } from "../config/zoom.config";
+
 /**
  * @deprecated Use `objectToInfo` instead.
  */
@@ -154,7 +156,7 @@ export const createVectorFeature = async (mapping, selectedVectorFeature) => {
     vectorId: selectedVectorFeature.id,
   };
   let result = "";
-  let featureInfoZoom = 20;
+  let featureInfoZoom: number = CARMA_ZOOM_DEFAULTS.featureInfoZoomDefault;
   mapping.forEach((keyword) => {
     result += keyword + "\n";
   });

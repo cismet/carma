@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import type {
@@ -17,6 +17,9 @@ import {
 } from "@carma-commons/resources";
 import { normalizeOptions } from "@carma-commons/utils";
 import {
+  createMaplibreSelectionZoomControls,
+  getMaplibreZoomFromSourceZoom,
+  getSourceZoomFromMaplibreZoom,
   LibreMapSelectionContent,
   SelectionItem,
   useMapHashRouting,
@@ -37,6 +40,11 @@ import {
   setLibreMapRef,
 } from "../../store/slices/mapping";
 import { getUIMode, UIMode } from "../../store/slices/ui";
+import {
+  GEOPORTAL_LAYER_SELECTION_DEFAULTS,
+  GEOPORTAL_MAPLIBRE_MAP_OPTIONS,
+  GEOPORTAL_ZOOM_DEFAULTS,
+} from "../../config/app.config";
 
 import LibreFeatureInfoBox from "../feature-info/LibreFeatureInfoBox";
 import {
@@ -44,8 +52,6 @@ import {
   changeWmsVisibility,
   createFeature,
   layersToMapLibreStyle,
-  zoom256as512,
-  zoom512as256,
 } from "./libremap.utils";
 import {
   cancelOngoingRequests,
@@ -77,7 +83,6 @@ const defaultBackgroundStyle: StyleSpecification = {
     "source-amtlich": {
       type: "raster",
       tiles: [METROPOLERUHR_WMTS_SPW2_WEBMERCATOR_HQ.layers.spw2_light.url],
-      //tileSize: 512,
     },
   },
   layers: [
@@ -93,9 +98,9 @@ const defaultBackgroundStyle: StyleSpecification = {
 const defaultMapOptions: Required<LibreGeoportalMapOptions> = {
   style: defaultBackgroundStyle,
   center: { lat: 51.256, lng: 7.150764 },
-  zoom: 15,
-  minZoom: 9,
-  maxZoom: 21,
+  zoom: GEOPORTAL_MAPLIBRE_MAP_OPTIONS.zoomDefault,
+  minZoom: GEOPORTAL_MAPLIBRE_MAP_OPTIONS.zoomMin,
+  maxZoom: GEOPORTAL_MAPLIBRE_MAP_OPTIONS.zoomMax,
   maxPitch: 85,
   bearing: 0,
   pitch: 0,
@@ -127,8 +132,6 @@ const LibreGeoportalMap = ({
   const uiMode = useSelector(getUIMode);
   const isModeFeatureInfo = uiMode === UIMode.FEATURE_INFO;
 
-  const maxSelectionCount = 10;
-
   const uiModeRef = useRef(uiMode);
   const positionRef = useRef<[number, number]>([0, 0]);
 
@@ -156,12 +159,19 @@ const LibreGeoportalMap = ({
       if (!m) return null;
       return {
         setView: (center: { lat: number; lng: number }, zoom?: number) => {
-          if (typeof zoom === "number") m.setZoom(zoom256as512(zoom));
+          if (typeof zoom === "number") {
+            m.setZoom(
+              getMaplibreZoomFromSourceZoom(zoom, GEOPORTAL_ZOOM_DEFAULTS)
+            );
+          }
           m.setCenter([center.lng, center.lat]);
         },
         panTo: (center: { lat: number; lng: number }) =>
           m.panTo([center.lng, center.lat]),
-        setZoom: (zoom: number) => m.setZoom(zoom256as512(zoom)),
+        setZoom: (zoom: number) =>
+          m.setZoom(
+            getMaplibreZoomFromSourceZoom(zoom, GEOPORTAL_ZOOM_DEFAULTS)
+          ),
         getCenter: () => m.getCenter(),
         once: (type: string, fn: (...args: unknown[]) => void) =>
           m.once(type, fn),
@@ -169,7 +179,9 @@ const LibreGeoportalMap = ({
     },
     getLeafletZoom: () => {
       const m = map.current;
-      return m ? zoom512as256(m.getZoom()) : normalizedMapOptions.zoom;
+      return m
+        ? getSourceZoomFromMaplibreZoom(m.getZoom(), GEOPORTAL_ZOOM_DEFAULTS)
+        : normalizedMapOptions.zoom;
     },
     labels: {
       clearCesium: "LGM:2D:clearCesium",
@@ -219,8 +231,22 @@ const LibreGeoportalMap = ({
     }
   };
 
+  const maplibreSelectionZoomControls = useMemo(
+    () =>
+      createMaplibreSelectionZoomControls<maplibregl.Map>({
+        getMap: () => map.current,
+        config: {
+          selectionSourceZoom: GEOPORTAL_ZOOM_DEFAULTS,
+          maplibreZoom: GEOPORTAL_ZOOM_DEFAULTS.maplibreZoom,
+        },
+      }),
+    []
+  );
+
   useSelectionLibreMap({
     map: map.current,
+    setZoomFromSelectionSourceZoom:
+      maplibreSelectionZoomControls.setZoomFromSelectionSourceZoom,
     onComplete,
   });
 
@@ -271,7 +297,10 @@ const LibreGeoportalMap = ({
           typeof lng === "number" && typeof lat === "number"
             ? { lng, lat }
             : undefined,
-        zoom: typeof zoom === "number" ? zoom256as512(zoom) : undefined,
+        zoom:
+          typeof zoom === "number"
+            ? getMaplibreZoomFromSourceZoom(zoom, GEOPORTAL_ZOOM_DEFAULTS)
+            : undefined,
         bearing: typeof bearing === "number" ? bearing : undefined,
         pitch: typeof pitch === "number" ? pitch : undefined,
       };
@@ -361,7 +390,10 @@ const LibreGeoportalMap = ({
             setSelectedVectorFeatures(new Set());
 
             if (filteredHits.length > 0) {
-              const limitedHits = filteredHits.slice(0, maxSelectionCount);
+              const limitedHits = filteredHits.slice(
+                0,
+                GEOPORTAL_LAYER_SELECTION_DEFAULTS.maxSelectionCount
+              );
 
               const normalizedLimitedHits = [];
 
@@ -425,7 +457,12 @@ const LibreGeoportalMap = ({
               dispatch,
               mode: uiModeRef.current,
               store,
-              zoom: map.current?.getZoom() + 1,
+              zoom: map.current
+                ? getSourceZoomFromMaplibreZoom(
+                    map.current.getZoom(),
+                    GEOPORTAL_ZOOM_DEFAULTS
+                  )
+                : undefined,
               map: map.current,
             }
           );
@@ -623,7 +660,10 @@ const LibreGeoportalMap = ({
     if (!mapInstance) return;
     const handleMoveEnd = () => {
       const center = mapInstance.getCenter();
-      const zoom = zoom512as256(mapInstance.getZoom());
+      const zoom = getSourceZoomFromMaplibreZoom(
+        mapInstance.getZoom(),
+        GEOPORTAL_ZOOM_DEFAULTS
+      );
       handleTopicMapLocationChange({ lat: center.lat, lng: center.lng, zoom });
     };
     mapInstance.on("moveend", handleMoveEnd);

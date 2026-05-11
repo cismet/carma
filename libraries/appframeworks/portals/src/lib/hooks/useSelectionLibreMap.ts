@@ -8,8 +8,11 @@ import * as turfHelpers from "@turf/helpers";
 
 const NEW_SELECTION_TIMEOUT = 200;
 
+type SetZoomFromSelectionSourceZoom = (selectionSourceZoom: number) => void;
+
 type SelectionTopicMapOptions = {
   map?: maplibregl.Map;
+  setZoomFromSelectionSourceZoom: SetZoomFromSelectionSourceZoom;
   onComplete?: (
     selection: SelectionItem,
     triggerVisibilityChange?: boolean
@@ -18,9 +21,10 @@ type SelectionTopicMapOptions = {
 
 export const useSelectionLibreMap = ({
   map,
+  setZoomFromSelectionSourceZoom,
   onComplete,
-}: SelectionTopicMapOptions = {}) => {
-  const { selection, setSelection, setOverlayFeature } = useSelection();
+}: SelectionTopicMapOptions) => {
+  const { selection, setOverlayFeature } = useSelection();
   const lastSelectionKey = useRef<number | null>(null);
   const lastSelectionTimestamp = useRef<number | null>(null);
 
@@ -61,8 +65,8 @@ export const useSelectionLibreMap = ({
             center: [pos[0], pos[1]],
           });
 
-          if (selection.more.zl) {
-            map.setZoom(selection.more.zl - 1);
+          if (typeof selection.more.zl === "number") {
+            setZoomFromSelectionSourceZoom(selection.more.zl);
           } else if (selection.more.g) {
             let feature = turfHelpers.feature(selection.more.g);
             setOverlayFeature(feature);
@@ -74,5 +78,11 @@ export const useSelectionLibreMap = ({
         }, 40);
       }
     }
-  }, [selection, setSelection, setOverlayFeature]);
+  }, [
+    selection,
+    setOverlayFeature,
+    map,
+    setZoomFromSelectionSourceZoom,
+    onComplete,
+  ]);
 };

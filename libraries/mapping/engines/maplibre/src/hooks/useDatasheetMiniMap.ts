@@ -11,6 +11,10 @@ import { useDatasheet } from "../contexts/DatasheetContext";
 import { useMapSelection } from "../contexts/MapSelectionContext";
 import { getCoordinates } from "../utils/featureUtils";
 import { buildFeatureStateTarget } from "../utils/featureStateTarget";
+import {
+  DATASHEET_MINI_MAP_DEFAULTS,
+  DATASHEET_MINI_MAP_ZOOM_DEFAULTS,
+} from "../constants/datasheet-mini-map-defaults";
 
 export interface UseDatasheetMiniMapOptions {
   /** Main map instance (from useLibreContext in the main map's provider) */
@@ -58,16 +62,18 @@ export function useDatasheetMiniMap(
     mainMap,
     miniMap,
     containerRef,
-    width: MINI_MAP_W = 350,
-    height: MINI_MAP_H = 220,
-    padding: MINI_MAP_PAD = 16,
-    transitionMs: rawTransitionMs = 200,
-    defaultZoomOffset = 2,
+    width: MINI_MAP_W = DATASHEET_MINI_MAP_DEFAULTS.width,
+    height: MINI_MAP_H = DATASHEET_MINI_MAP_DEFAULTS.height,
+    padding: MINI_MAP_PAD = DATASHEET_MINI_MAP_DEFAULTS.padding,
+    transitionMs: rawTransitionMs = DATASHEET_MINI_MAP_DEFAULTS.transitionMs,
+    defaultZoomOffset = DATASHEET_MINI_MAP_ZOOM_DEFAULTS.defaultZoomOffset,
     targetZoom,
     debug = false,
   } = options;
 
-  const MINI_MAP_TRANSITION_MS = debug ? 1500 : rawTransitionMs;
+  const MINI_MAP_TRANSITION_MS = debug
+    ? DATASHEET_MINI_MAP_DEFAULTS.debugTransitionMs
+    : rawTransitionMs;
 
   const { isDatasheetOpen } = useDatasheet();
   const { selectedFeatureId, rawFeature } = useMapSelection();
@@ -80,9 +86,8 @@ export function useDatasheetMiniMap(
   >();
   // Track the selected feature's geometry type so the zoom sync effect can
   // branch: lines → fitBounds (show full extent), points → easeTo targetZoom.
-  const [selectedGeometry, setSelectedGeometry] = useState<
-    GeoJSON.Geometry | null
-  >(null);
+  const [selectedGeometry, setSelectedGeometry] =
+    useState<GeoJSON.Geometry | null>(null);
 
   // Every click on the main map sets center to click location.
   // When a feature is selected, the rawFeature effect below overrides this.
@@ -178,7 +183,7 @@ export function useDatasheetMiniMap(
         const doFitBounds = () => {
           miniMap.resize();
           miniMap.fitBounds(bounds, {
-            padding: 40,
+            padding: DATASHEET_MINI_MAP_DEFAULTS.fitBoundsPadding,
             duration: MINI_MAP_TRANSITION_MS,
           });
         };
@@ -198,7 +203,9 @@ export function useDatasheetMiniMap(
     const zoom =
       targetZoom != null
         ? targetZoom
-        : (mainMap?.getZoom() ?? 15) + effectiveZoomOffset;
+        : (mainMap?.getZoom() ??
+            DATASHEET_MINI_MAP_ZOOM_DEFAULTS.defaultMainMapZoom) +
+          effectiveZoomOffset;
     if (isDatasheetOpen) {
       miniMap.easeTo({
         center: miniMapCenter,
@@ -227,9 +234,7 @@ export function useDatasheetMiniMap(
   useEffect(() => {
     if (!miniMap || !mainMap || !isTransitioning) return;
     const zoom =
-      targetZoom != null
-        ? targetZoom
-        : mainMap.getZoom() + effectiveZoomOffset;
+      targetZoom != null ? targetZoom : mainMap.getZoom() + effectiveZoomOffset;
     miniMap.easeTo({
       zoom,
       duration: MINI_MAP_TRANSITION_MS,
@@ -336,12 +341,28 @@ export function useDatasheetMiniMap(
         // Fixed-zoom mode: adjust mini-map zoom directly, no stored offset.
         // The next feature selection (easeTo) resets to targetZoom.
         const current = miniMap.getZoom();
-        miniMap.jumpTo({ zoom: Math.max(1, Math.min(22, current + delta)) });
+        miniMap.jumpTo({
+          zoom: Math.max(
+            DATASHEET_MINI_MAP_ZOOM_DEFAULTS.wheelZoomMin,
+            Math.min(
+              DATASHEET_MINI_MAP_ZOOM_DEFAULTS.wheelZoomMax,
+              current + delta
+            )
+          ),
+        });
       } else {
         // Relative-zoom mode: adjust stored offset against main map zoom.
         setMiniMapZoomOffset((prev) => {
-          const next = Math.max(-5, Math.min(10, prev + delta));
-          const mainZoom = mainMap?.getZoom() ?? 15;
+          const next = Math.max(
+            DATASHEET_MINI_MAP_ZOOM_DEFAULTS.zoomOffsetMin,
+            Math.min(
+              DATASHEET_MINI_MAP_ZOOM_DEFAULTS.zoomOffsetMax,
+              prev + delta
+            )
+          );
+          const mainZoom =
+            mainMap?.getZoom() ??
+            DATASHEET_MINI_MAP_ZOOM_DEFAULTS.defaultMainMapZoom;
           miniMap.jumpTo({ zoom: mainZoom + next });
           return next;
         });

@@ -8,6 +8,7 @@ import StyledWMSTileLayer from "react-cismap/StyledWMSTileLayer";
 import StyledTileLayer from "react-cismap/StyledTileLayer";
 import MapLibreLayer from "react-cismap/vector/MapLibreLayer";
 import NonTiledWMSLayer from "react-cismap/NonTiledWMSLayer";
+import { CARMA_LAYER_ZOOM_DEFAULTS } from "../../../config/layer.config";
 
 const namedStyles = {
   default: { opacity: 0.6 },
@@ -201,7 +202,7 @@ export const defaultLayerConf = {
     wms: {
       format: "image/png",
       tiled: "true",
-      maxZoom: 22,
+      maxZoom: CARMA_LAYER_ZOOM_DEFAULTS.leafletMaxZoom,
       opacity: 0.6,
       version: "1.1.1",
       pane: "backgroundLayers",
@@ -343,14 +344,14 @@ export const defaultLayerConf = {
     "wupp-plan-live-tiles-3857": {
       type: "tiles",
       url: "https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_light&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
-      maxNativeZoom: 20,
-      maxZoom: 22,
+      maxNativeZoom: CARMA_LAYER_ZOOM_DEFAULTS.tileMaxNativeZoom,
+      maxZoom: CARMA_LAYER_ZOOM_DEFAULTS.leafletMaxZoom,
     },
     "rvrGrau-tiles-3857": {
       type: "tiles",
       url: "https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_graublau&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
-      maxNativeZoom: 20,
-      maxZoom: 22,
+      maxNativeZoom: CARMA_LAYER_ZOOM_DEFAULTS.tileMaxNativeZoom,
+      maxZoom: CARMA_LAYER_ZOOM_DEFAULTS.leafletMaxZoom,
     },
     orthoIntra: {
       type: "wms",
@@ -411,16 +412,16 @@ export const defaultLayerConf = {
     ESRILayer: {
       type: "tiles",
       url: "http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-      maxZoom: 22,
-      maxNativeZoom: 18,
+      maxZoom: CARMA_LAYER_ZOOM_DEFAULTS.leafletMaxZoom,
+      maxNativeZoom: CARMA_LAYER_ZOOM_DEFAULTS.esriMaxNativeZoom,
     },
     CartoLayer: {
       type: "tiles",
       url: "http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
       attribution:
         "&copy; <a href=&quot;http://www.openstreetmap.org/copyright&quot;>OpenStreetMap</a> contributors, &copy; <a href=&quot;https://carto.com/attributions&quot;>CARTO</a>",
-      maxNativeZoom: 19,
-      maxZoom: 22,
+      maxNativeZoom: CARMA_LAYER_ZOOM_DEFAULTS.cartoMaxNativeZoom,
+      maxZoom: CARMA_LAYER_ZOOM_DEFAULTS.leafletMaxZoom,
     },
     LocalOMT_Klokantech_basic: {
       type: "vector",
@@ -455,23 +456,20 @@ export const defaultLayerConf = {
     },
     our_basemap_grey: {
       type: "vector",
-      style:
-        "https://tiles.cismet.de/basemap_de/basemap_grey.style.json",
+      style: "https://tiles.cismet.de/basemap_de/basemap_grey.style.json",
     },
     our_basemap_color: {
       type: "vector",
-      style:
-        "https://tiles.cismet.de/basemap_de/basemap_color.style.json",
+      style: "https://tiles.cismet.de/basemap_de/basemap_color.style.json",
     },
     our_basemap_relief: {
       type: "vector",
-      style:
-        "https://tiles.cismet.de/basemap_de/basemap_relief.style.json",
+      style: "https://tiles.cismet.de/basemap_de/basemap_relief.style.json",
     },
     amtlich: {
       type: "tiles",
-      maxNativeZoom: 20,
-      maxZoom: 22,
+      maxNativeZoom: CARMA_LAYER_ZOOM_DEFAULTS.tileMaxNativeZoom,
+      maxZoom: CARMA_LAYER_ZOOM_DEFAULTS.leafletMaxZoom,
       url: "https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_light&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
     },
     amtlichBasiskarte: {
@@ -480,14 +478,14 @@ export const defaultLayerConf = {
       // layers: "abkf",
       url: "https://geo.udsp.wuppertal.de/geoserver-cloud/ows",
       layers: "GIS-102:abkf",
-      maxNativeZoom: 20,
+      maxNativeZoom: CARMA_LAYER_ZOOM_DEFAULTS.tileMaxNativeZoom,
       transparent: true,
     },
     trueOrtho2024Alternative: {
       type: "wms",
       url: "https://geo.udsp.wuppertal.de/geoserver-cloud/ows",
       layers: "GIS-102:trueortho2024",
-      maxNativeZoom: 22,
+      maxNativeZoom: CARMA_LAYER_ZOOM_DEFAULTS.leafletMaxZoom,
       transparent: true,
     },
     trueOrtho2021: {

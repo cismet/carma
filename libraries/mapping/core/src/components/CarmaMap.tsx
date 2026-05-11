@@ -38,8 +38,6 @@ import {
   LibreMapProps,
   LibreLayer,
   VectorStyle,
-  slugifyUrl,
-  WUPPERTAL_CONFIG,
   RASTER_PAINT_PRESETS,
 } from "@carma-mapping/engines/maplibre";
 import type { RasterPaintOverrides } from "@carma-mapping/engines/maplibre";
@@ -118,7 +116,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
     if (!appKey && !miniMap) {
       console.warn(
         "[CarmaMap] appKey prop is not set. localStorage settings (e.g. terrain) " +
-        "will leak across all apps on this origin. Pass appKey to scope them."
+          "will leak across all apps on this origin. Pass appKey to scope them."
       );
     }
   });
@@ -139,7 +137,11 @@ const CarmaMapContent = (props: CarmaMapProps) => {
     useContext<typeof TopicMapStylingContext>(TopicMapStylingContext);
   const [libreMap, setLibreMap] = useState<maplibregl.Map | null>(null);
   const [showTerrain, setShowTerrain] = useState(() => {
-    try { return localStorage.getItem(terrainStorageKey) === "true"; } catch { return false; }
+    try {
+      return localStorage.getItem(terrainStorageKey) === "true";
+    } catch {
+      return false;
+    }
   });
   // Crosshair debug: store geographic position so the crosshair tracks
   // correctly when terrain is toggled or camera moves
@@ -185,9 +187,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
 
       // Restore terrain if it was persisted as enabled
       if (showTerrain && !map.terrain) {
-        const source = WUPPERTAL_CONFIG.terrain
-          ? slugifyUrl(WUPPERTAL_CONFIG.terrain.url)
-          : "terrainSource";
+        const source = "terrainSource";
         const apply = () => {
           if (map.getSource(source)) {
             map.setTerrain({ source, exaggeration: 1 });
@@ -259,9 +259,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                         localStorage.setItem(terrainStorageKey, "false");
                       } else if (libreMap) {
                         libreMap.setTerrain({
-                          source: WUPPERTAL_CONFIG.terrain
-                            ? slugifyUrl(WUPPERTAL_CONFIG.terrain.url)
-                            : "terrainSource",
+                          source: "terrainSource",
                           exaggeration: 1,
                         });
                         setShowTerrain(true);

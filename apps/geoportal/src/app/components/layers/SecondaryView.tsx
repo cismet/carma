@@ -60,6 +60,7 @@ import { resolveAdhocStyleData } from "../../helper/adhoc-feature-utils";
 import { zoomToStyleFeatures } from "../../helper/gisHelper";
 import { setTriggerSelectionById } from "../../store/slices/features";
 import { addAdhocFeatureFromLayer } from "../../helper/adhoc-layer-feature";
+import { getLayerMaxZoom, getLayerMinZoom } from "../GeoportalMap/utils";
 
 type Ref = HTMLDivElement;
 
@@ -507,8 +508,8 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
                 description={layer.description}
                 legend={legend}
                 zoomLevels={{
-                  maxZoom: layer.props.maxZoom,
-                  minZoom: layer.props.minZoom,
+                  maxZoom: getLayerMaxZoom(layer),
+                  minZoom: getLayerMinZoom(layer),
                 }}
               />
             ))}

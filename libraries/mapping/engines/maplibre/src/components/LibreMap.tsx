@@ -34,7 +34,6 @@ import {
   resolvePropertyTarget,
 } from "../lib/SelectionManager";
 import type { FeatureIdentifier } from "../lib/selectionTypes";
-import { zoom256as512, zoom512as256 } from "../utils/zoomUtils";
 import { LibreMapSelectionContent } from "./LibreMapSelectionContent";
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import proj4 from "proj4";
@@ -49,16 +48,25 @@ import { useMapSelection } from "../contexts/MapSelectionContext";
 import { useDatasheet } from "../contexts/DatasheetContext";
 import { useClusterMarkers } from "../hooks/useClusterMarkers";
 import { useImperativeStyle } from "../hooks/useImperativeStyle";
-import {
-  WUPPERTAL_DEFAULT_STYLE,
-  WUPPERTAL_CONFIG,
-} from "../constants/wuppertalDefaultStyle";
+import type {
+  Carma3dConfig,
+  ThreePerfData,
+} from "@carma-mapping/engines/threejs";
+import type { CarmaGeoJsonLayerZoomOptions } from "../constants/carma-geojson-layer-zoom-options";
+import { CARMA_DEFAULT_STYLE } from "../constants/defaultStyle";
+import { CARMA_MAPLIBRE_MAP_DEFAULTS } from "../constants/carma-maplibre-map-defaults";
+import { CARMA_MAPLIBRE_SOURCE_DEFAULTS } from "../constants/carma-maplibre-source-defaults";
 
 // Import from portals temporarily until these are migrated
 import { FeatureInfobox } from "@carma-appframeworks/portals";
 import { SelectionItem, useSelection } from "@carma-appframeworks/portals";
 import { defaultLayerConf } from "@carma-appframeworks/portals";
-import { useMapHashRouting } from "@carma-appframeworks/portals";
+import {
+  createMaplibreSelectionZoomControls,
+  getMaplibreZoomFromSourceZoom,
+  getSourceZoomFromMaplibreZoom,
+  useMapHashRouting,
+} from "@carma-appframeworks/portals";
 import { displayRouteOnMap } from "@carma-mapping/routing";
 import { ThreeLayerManager, get3dLayers } from "./ThreeLayerManager";
 
@@ -74,7 +82,7 @@ export interface VectorStyle {
   opacity?: number;
   infoboxMapping?: string[];
   /** Optional 3D layer config; when present, a Three.js layer is auto-created. */
-  carma3d?: import("@carma-mapping/engines/threejs").Carma3dConfig;
+  carma3d?: Carma3dConfig;
 }
 
 /**
@@ -164,12 +172,12 @@ export interface LibreMapProps {
   gazetteerInfoOnClick?: boolean;
   /** Raster paint overrides applied to all background raster layers (night mode, etc.) */
   backgroundRasterPaint?: RasterPaintOverrides;
+  /** Zoom options for the CARMA GeoJSON icon/label/cluster extension. */
+  carmaGeoJsonLayerZoomOptions?: CarmaGeoJsonLayerZoomOptions;
   /** Runtime parameters for 3D layers (e.g. radiusMix, useLoft) */
   threeRuntimeParams?: Record<string, number | string>;
   /** Ref for 3D layer performance data */
-  threePerfRef?: React.MutableRefObject<
-    import("@carma-mapping/engines/threejs").ThreePerfData
-  >;
+  threePerfRef?: React.MutableRefObject<ThreePerfData>;
   /** Maximum tilt (pitch) in degrees. Defaults to 60 (MapLibre's stock cap). */
   maxPitch?: number;
 }
@@ -260,6 +268,7 @@ export const LibreMap = ({
   overrideSelectedFeature,
   gazetteerInfoOnClick = true,
   backgroundRasterPaint,
+  carmaGeoJsonLayerZoomOptions,
   threeRuntimeParams,
   threePerfRef,
   maxPitch = 60,
@@ -289,7 +298,7 @@ export const LibreMap = ({
   const vectorSourcesReadyRef = useRef(false);
   const [selectedFeature, setSelectedFeature] = useState(null);
   const [detectedCarma3dConfigs, setDetectedCarma3dConfigs] = useState<
-    import("@carma-mapping/engines/threejs").Carma3dConfig[]
+    Carma3dConfig[]
   >([]);
   const geoJsonMetadataRef = useRef<
     Array<{ sourceId: string; uniqueColors: string[] }>
@@ -414,7 +423,8 @@ export const LibreMap = ({
 
   const defaultLng = 7.150764;
   const defaultLat = 51.256;
-  const defaultZoom = 15;
+  const defaultZoom = CARMA_MAPLIBRE_MAP_DEFAULTS.zoomDefault;
+  const defaultSourceTileZoom = getSourceZoomFromMaplibreZoom(defaultZoom);
 
   // Helper function to build WMS tile URL from layer config
   const buildWMSTileUrl = (layerConfig: any): string => {
@@ -443,8 +453,7 @@ export const LibreMap = ({
     vectorBackgroundLayers: LibreLayer[];
   } => {
     if (backgroundLayers === undefined) {
-      // Prop not provided: use default background for backwards compat
-      return { style: WUPPERTAL_DEFAULT_STYLE, vectorBackgroundLayers: [] };
+      return { style: CARMA_DEFAULT_STYLE, vectorBackgroundLayers: [] };
     }
     if (backgroundLayers === null || backgroundLayers === "") {
       // Explicitly null or empty: no background layer
@@ -458,16 +467,6 @@ export const LibreMap = ({
     const sources: Record<string, any> = {};
     const vectorBgLayers: LibreLayer[] = [];
 
-    // Add terrain source from config (slugified URL as ID)
-    if (WUPPERTAL_CONFIG.terrain) {
-      const terrainId = slugifyUrl(WUPPERTAL_CONFIG.terrain.url);
-      sources[terrainId] = {
-        type: "raster-dem",
-        tiles: [WUPPERTAL_CONFIG.terrain.url],
-        tileSize: WUPPERTAL_CONFIG.terrain.tileSize ?? 512,
-        maxzoom: WUPPERTAL_CONFIG.terrain.maxzoom ?? 15,
-      };
-    }
     const styleLayers: any[] = [];
 
     layerSpecs.forEach((spec, index) => {
@@ -499,7 +498,7 @@ export const LibreMap = ({
         sources[sourceId] = {
           type: "raster",
           tiles: [layerConfig.url],
-          tileSize: 256,
+          tileSize: CARMA_MAPLIBRE_SOURCE_DEFAULTS.rasterTileSize,
         };
       } else if (
         layerConfig.type === "wmts" ||
@@ -508,13 +507,13 @@ export const LibreMap = ({
         sources[sourceId] = {
           type: "raster",
           tiles: [buildWMTSTileUrl(layerConfig)],
-          tileSize: 256,
+          tileSize: CARMA_MAPLIBRE_SOURCE_DEFAULTS.rasterTileSize,
         };
       } else if (layerConfig.type === "wms" || layerConfig.type === "wms-nt") {
         sources[sourceId] = {
           type: "raster",
           tiles: [buildWMSTileUrl(layerConfig)],
-          tileSize: 256,
+          tileSize: CARMA_MAPLIBRE_SOURCE_DEFAULTS.rasterTileSize,
         };
       } else {
         console.warn(
@@ -543,7 +542,7 @@ export const LibreMap = ({
 
     // If no valid layers were parsed at all, return default style
     if (styleLayers.length === 0) {
-      return { style: WUPPERTAL_DEFAULT_STYLE, vectorBackgroundLayers: [] };
+      return { style: CARMA_DEFAULT_STYLE, vectorBackgroundLayers: [] };
     }
 
     return {
@@ -616,6 +615,7 @@ export const LibreMap = ({
     backgroundStyle,
     vectorBackgroundLayers,
     clusteringEnabled,
+    carmaGeoJsonLayerZoomOptions,
     markerSymbolSize,
     overrideGlyphs,
     filterFunction,
@@ -643,7 +643,7 @@ export const LibreMap = ({
 
       const zoom =
         hashParams["zoom"] !== undefined
-          ? zoom256as512(parseFloat(hashParams["zoom"])) // -1: hash stores 256px tile zoom, MapLibre uses 512px
+          ? getMaplibreZoomFromSourceZoom(parseFloat(hashParams["zoom"]))
           : defaultZoom;
 
       const mapInstance = new maplibregl.Map({
@@ -651,7 +651,7 @@ export const LibreMap = ({
         style: backgroundStyle,
         center: [lng, lat],
         zoom: zoom,
-        maxZoom: 21.9999,
+        maxZoom: CARMA_MAPLIBRE_MAP_DEFAULTS.zoomMax,
         maxPitch,
         attributionControl: false,
         interactive,
@@ -714,37 +714,45 @@ export const LibreMap = ({
             }
           }
 
-          if (bestHitLayer && bestResult && bestResult.resolvedSourceIndex != null) {
-              // Before accepting the 3D hit, check if there's a 2D symbol
-              // feature at the click point. Symbol layers (POI icons/text)
-              // render visually above 3D layers, so they should win clicks.
-              const hits2d = mapInstance.queryRenderedFeatures(e.point);
-              // queryRenderedFeatures returns hits in visual order (top first).
-              // If the topmost hit has a layerMapping, it's a selectable feature
-              // rendered above the 3D layer, so let the 2D path handle the click.
-              // If the topmost 2D hit is from a LIBRE_LAYERS sub-style (has
-              // layer-id metadata) but NOT from a source that has a 3D layer,
-              // it renders above the 3D objects, so let 2D selection win.
-              // Check if any 2D hit comes from a layer positioned after all
-              // 3D source layers in the style stack. Such layers render visually
-              // above the 3D objects and should win the click.
-              const styleLayers = mapInstance.getStyle()?.layers ?? [];
-              const threeSources = new Set(threeLayers.map((l) => l._config.sourceId));
-              let lastThreeSourceIdx = -1;
-              for (let i = 0; i < styleLayers.length; i++) {
-                const src = (styleLayers[i] as { source?: string }).source;
-                if (src && threeSources.has(src)) lastThreeSourceIdx = i;
-              }
-              const hitAbove3d = lastThreeSourceIdx >= 0 && hits2d.some((f) => {
+          if (
+            bestHitLayer &&
+            bestResult &&
+            bestResult.resolvedSourceIndex != null
+          ) {
+            // Before accepting the 3D hit, check if there's a 2D symbol
+            // feature at the click point. Symbol layers (POI icons/text)
+            // render visually above 3D layers, so they should win clicks.
+            const hits2d = mapInstance.queryRenderedFeatures(e.point);
+            // queryRenderedFeatures returns hits in visual order (top first).
+            // If the topmost hit has a layerMapping, it's a selectable feature
+            // rendered above the 3D layer, so let the 2D path handle the click.
+            // If the topmost 2D hit is from a LIBRE_LAYERS sub-style (has
+            // layer-id metadata) but NOT from a source that has a 3D layer,
+            // it renders above the 3D objects, so let 2D selection win.
+            // Check if any 2D hit comes from a layer positioned after all
+            // 3D source layers in the style stack. Such layers render visually
+            // above the 3D objects and should win the click.
+            const styleLayers = mapInstance.getStyle()?.layers ?? [];
+            const threeSources = new Set(
+              threeLayers.map((l) => l._config.sourceId)
+            );
+            let lastThreeSourceIdx = -1;
+            for (let i = 0; i < styleLayers.length; i++) {
+              const src = (styleLayers[i] as { source?: string }).source;
+              if (src && threeSources.has(src)) lastThreeSourceIdx = i;
+            }
+            const hitAbove3d =
+              lastThreeSourceIdx >= 0 &&
+              hits2d.some((f) => {
                 const idx = styleLayers.findIndex((sl) => sl.id === f.layer.id);
                 return idx > lastThreeSourceIdx;
               });
-              if (hitAbove3d) {
-                // Let the 2D selection path handle this click
-                threeLayers.forEach((l) => l.unhighlight());
-              }
+            if (hitAbove3d) {
+              // Let the 2D selection path handle this click
+              threeLayers.forEach((l) => l.unhighlight());
+            }
 
-              if (!hitAbove3d) {
+            if (!hitAbove3d) {
               const threeLayer = bestHitLayer;
               const result = bestResult;
               // [3D-SELECT] closest hit log suppressed
@@ -855,7 +863,7 @@ export const LibreMap = ({
                 );
               }
               return; // skip 2D selection
-              } // end if (!hitAbove3d)
+            } // end if (!hitAbove3d)
           }
         }
         // ── end 3D raycast ────────────────────────────────────
@@ -1176,6 +1184,7 @@ export const LibreMap = ({
               layers: effectiveLayers,
               backgroundStyle,
               clusteringEnabled,
+              carmaGeoJsonLayerZoomOptions,
               overrideGlyphs,
             });
 
@@ -1201,8 +1210,7 @@ export const LibreMap = ({
 
           // Detect carma3d configs from style metadata and explicit layer props
           {
-            const configs: import("@carma-mapping/engines/threejs").Carma3dConfig[] =
-              [];
+            const configs: Carma3dConfig[] = [];
             const sourceToIdx = new Map<string, number>();
 
             for (const layer of style.layers ?? []) {
@@ -1284,7 +1292,7 @@ export const LibreMap = ({
                 map.current.addSource(sourceId, {
                   type: "raster",
                   url: `cog://${layer.url}`,
-                  tileSize: 256,
+                  tileSize: CARMA_MAPLIBRE_SOURCE_DEFAULTS.rasterTileSize,
                 });
                 map.current.addLayer(
                   {
@@ -1310,9 +1318,7 @@ export const LibreMap = ({
           // Restore terrain after style is loaded if it was previously set
           if (currentTerrain && map.current) {
             const restoreTerrain = () => {
-              const terrainSrcId = WUPPERTAL_CONFIG.terrain
-                ? slugifyUrl(WUPPERTAL_CONFIG.terrain.url)
-                : "";
+              const terrainSrcId = currentTerrain.source;
               if (terrainSrcId && map.current?.getSource(terrainSrcId)) {
                 map.current.setTerrain(currentTerrain);
               }
@@ -1433,12 +1439,14 @@ export const LibreMap = ({
     if (!m) return null;
     return {
       setView: (center: { lat: number; lng: number }, zoom?: number) => {
-        if (typeof zoom === "number") m.setZoom(zoom256as512(zoom));
+        if (typeof zoom === "number") {
+          m.setZoom(getMaplibreZoomFromSourceZoom(zoom));
+        }
         m.setCenter([center.lng, center.lat]);
       },
       panTo: (center: { lat: number; lng: number }) =>
         m.panTo([center.lng, center.lat]),
-      setZoom: (zoom: number) => m.setZoom(zoom256as512(zoom)),
+      setZoom: (zoom: number) => m.setZoom(getMaplibreZoomFromSourceZoom(zoom)),
       getCenter: () => m.getCenter(),
       once: (type: string, fn: (...args: unknown[]) => void) =>
         m.once(type, fn),
@@ -1447,8 +1455,10 @@ export const LibreMap = ({
 
   const getLeafletZoom = useCallback(() => {
     const m = map.current;
-    return m ? zoom512as256(m.getZoom()) : 12;
-  }, []);
+    return m
+      ? getSourceZoomFromMaplibreZoom(m.getZoom())
+      : defaultSourceTileZoom;
+  }, [defaultSourceTileZoom]);
 
   const hashRoutingLabels = useMemo(
     () => ({
@@ -1470,7 +1480,7 @@ export const LibreMap = ({
     if (!mapInstance) return;
     const handleMoveEnd = () => {
       const center = mapInstance.getCenter();
-      const zoom = zoom512as256(mapInstance.getZoom());
+      const zoom = getSourceZoomFromMaplibreZoom(mapInstance.getZoom());
       handleTopicMapLocationChange({ lat: center.lat, lng: center.lng, zoom });
     };
     mapInstance.on("moveend", handleMoveEnd);
@@ -1654,8 +1664,18 @@ export const LibreMap = ({
     }
   };
 
+  const maplibreSelectionZoomControls = useMemo(
+    () =>
+      createMaplibreSelectionZoomControls<maplibregl.Map>({
+        getMap: () => map.current,
+      }),
+    []
+  );
+
   useSelectionLibreMap({
     map: map.current,
+    setZoomFromSelectionSourceZoom:
+      maplibreSelectionZoomControls.setZoomFromSelectionSourceZoom,
     onComplete,
   });
 

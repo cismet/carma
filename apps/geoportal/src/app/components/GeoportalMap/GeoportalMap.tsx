@@ -130,7 +130,7 @@ import { useModelSelectionDispatcher } from "../../hooks/useModelSelectionDispat
 import {
   CESIUM_CONFIG,
   DEFAULT_CAMERA_FOV_DEG,
-  LEAFLET_CONFIG,
+  GEOPORTAL_LEAFLET_MAP_OPTIONS,
 } from "../../config/app.config";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
@@ -923,7 +923,8 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
             overscrollBehavior: "none",
           }}
           leafletMapProps={{ editable: true }}
-          minZoom={10}
+          minZoom={GEOPORTAL_LEAFLET_MAP_OPTIONS.zoomMin}
+          maxZoom={GEOPORTAL_LEAFLET_MAP_OPTIONS.zoomMax}
           backgroundlayers="empty"
           mappingBoundsChanged={() => {
             // intentionally no-op
@@ -1048,8 +1049,8 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
           }}
           gazetteerSearchControl={true}
           infoBox={renderInfoBox()}
-          zoomSnap={LEAFLET_CONFIG.zoomSnap}
-          zoomDelta={LEAFLET_CONFIG.zoomDelta}
+          zoomSnap={GEOPORTAL_LEAFLET_MAP_OPTIONS.zoomSnap}
+          zoomDelta={GEOPORTAL_LEAFLET_MAP_OPTIONS.zoomDelta}
         >
           <TopicMapSelectionContent />
           {backgroundLayer &&

@@ -111,9 +111,23 @@ export type {
   AddVectorSubStyleOptions,
   AddGeoJsonSubStyleOptions,
   AddRasterSubStyleOptions,
+  StyleComposerOptions,
 } from "./utils/styleComposer";
 export { useImperativeStyle } from "./hooks/useImperativeStyle";
 export type { UseImperativeStyleOptions } from "./hooks/useImperativeStyle";
+
+export { DEFAULT_CARMA_GEOJSON_LAYER_ZOOM_OPTIONS } from "./constants/carma-geojson-layer-zoom-options";
+export type { CarmaGeoJsonLayerZoomOptions } from "./constants/carma-geojson-layer-zoom-options";
+export { CARMA_MAPLIBRE_MAP_DEFAULTS } from "./constants/carma-maplibre-map-defaults";
+export type { CarmaMaplibreMapDefaults } from "./constants/carma-maplibre-map-defaults";
+export {
+  DATASHEET_MINI_MAP_DEFAULTS,
+  DATASHEET_MINI_MAP_ZOOM_DEFAULTS,
+} from "./constants/datasheet-mini-map-defaults";
+export type {
+  DatasheetMiniMapDefaults,
+  DatasheetMiniMapZoomDefaults,
+} from "./constants/datasheet-mini-map-defaults";
 
 // Feature utilities
 export {
@@ -123,9 +137,6 @@ export {
   type FeatureInfo,
   type LayerMappingEntry,
 } from "./utils/featureUtils";
-
-// Zoom utilities
-export { zoom512as256, zoom256as512 } from "./utils/zoomUtils";
 
 // Cluster utilities
 export { createPieChart } from "./utils/clusterUtils";
@@ -161,13 +172,17 @@ export type {
 
 // Default styles and city configuration
 export {
+  CARMA_DEFAULT_STYLE,
+  CARMA_PREVIEW_STYLE,
+  EMPTY_MAPLIBRE_STYLE,
   createDefaultStyle,
   createPreviewStyle,
-  WUPPERTAL_CONFIG,
-  WUPPERTAL_DEFAULT_STYLE,
-  WUPPERTAL_PREVIEW_STYLE,
-  type CityMapConfig,
-} from "./constants/wuppertalDefaultStyle";
+  type MaplibreStyleConfig,
+} from "./constants/defaultStyle";
+export { CARMA_MAPLIBRE_SOURCE_DEFAULTS } from "./constants/carma-maplibre-source-defaults";
+export type { CarmaMaplibreSourceDefaults } from "./constants/carma-maplibre-source-defaults";
+export { THREE_LAYER_MANAGER_DEFAULTS } from "./constants/three-layer-manager-defaults";
+export type { ThreeLayerManagerDefaults } from "./constants/three-layer-manager-defaults";
 
 export {
   DEFAULT_MAPLIBRE_FOV_DEG,

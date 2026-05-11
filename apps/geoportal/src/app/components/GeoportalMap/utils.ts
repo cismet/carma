@@ -4,6 +4,22 @@ import type {
   Layer,
 } from "@carma-mapping/layers";
 
+import { GEOPORTAL_LEAFLET_MAP_OPTIONS } from "../../config/app.config";
+
+type LayerZoomSource = Pick<Layer, "props"> | undefined;
+
+export const getLayerMinZoom = (layer: LayerZoomSource) =>
+  Math.max(
+    layer?.props?.minZoom ?? GEOPORTAL_LEAFLET_MAP_OPTIONS.zoomMin,
+    GEOPORTAL_LEAFLET_MAP_OPTIONS.zoomMin
+  );
+
+export const getLayerMaxZoom = (layer: LayerZoomSource) =>
+  Math.min(
+    layer?.props?.maxZoom ?? GEOPORTAL_LEAFLET_MAP_OPTIONS.zoomMax,
+    GEOPORTAL_LEAFLET_MAP_OPTIONS.zoomMax
+  );
+
 export const getUrlPrefix = () =>
   window.location.origin + window.location.pathname;
 
@@ -15,8 +31,8 @@ export const getQueryableLayers = (layers: Layer[], zoom: number) => {
         layer.layerInfo?.header) &&
       layer.visible &&
       layer.useInFeatureInfo &&
-      zoom < (layer.props.maxZoom ? layer.props.maxZoom : Infinity) &&
-      zoom > (layer.props.minZoom ? layer.props.minZoom : 0)
+      zoom < getLayerMaxZoom(layer) &&
+      zoom > getLayerMinZoom(layer)
   );
 };
 
