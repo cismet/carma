@@ -28,6 +28,7 @@ import {
   hasDraftChanges,
   getGlobalEditMode,
   isCreationDraftKey,
+  getAllDrafts,
 } from "../../../store/slices/featuresForms";
 import { getJWT } from "../../../store/slices/auth";
 import type { DokumentItem } from "../DocumentPreview";
@@ -177,6 +178,7 @@ const FeaturesFormsWrapper = ({
   const featureDataVersion = useSelector(getFeatureDataVersion);
   const globalEditMode = useSelector(getGlobalEditMode);
   const measurements = useSelector(getMeasurements);
+  const allDrafts = useSelector(getAllDrafts);
 
   // When creating a new Leuchte that's linked to an existing Standort, expose
   // that Standort as a geometry-source option in the dropdown. The link is
@@ -203,10 +205,26 @@ const FeaturesFormsWrapper = ({
     };
   }, [isCreation, formKey, draft?.geometryKey, draft?.geometry, draft?.feature]);
 
+  // Measurement keys already claimed by other in-progress creation drafts —
+  // each measurement can back at most one new feature, so don't offer it
+  // again in any other draft's geometry selector.
+  const consumedByOtherDrafts = useMemo(() => {
+    const set = new Set<string>();
+    for (const [id, d] of Object.entries(allDrafts)) {
+      if (id === featureId) continue;
+      if (!d.isCreation) continue;
+      const key = d.geometryKey;
+      if (key && key.startsWith("measurement.")) set.add(key);
+    }
+    return set;
+  }, [allDrafts, featureId]);
+
   const geometryOptions = useMemo(() => {
-    const measurementOpts = buildMeasurementGeometryOptions(measurements);
+    const measurementOpts = buildMeasurementGeometryOptions(measurements).filter(
+      (o) => !consumedByOtherDrafts.has(o.key)
+    );
     return standortOption ? [standortOption, ...measurementOpts] : measurementOpts;
-  }, [measurements, standortOption]);
+  }, [measurements, standortOption, consumedByOtherDrafts]);
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [resetKey, setResetKey] = useState(0);
