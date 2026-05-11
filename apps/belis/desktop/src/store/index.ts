@@ -11,6 +11,7 @@ import featureCollectionSlice from "./slices/featureCollection";
 import featuresFormsSlice from "./slices/featuresForms";
 import arbeitsauftraegeDraftsSlice from "./slices/arbeitsauftraegeDrafts";
 import measurementsSlice from "./slices/measurements";
+import creationDefaultsSlice from "./slices/creationDefaults";
 
 console.log("store initializing ....");
 
@@ -99,6 +100,12 @@ const arbeitsauftraegeDraftsConfig = {
   whitelist: ["aaDrafts", "apDrafts", "apDeletions"],
 };
 
+const creationDefaultsConfig = {
+  key: "@belis-desktop.creationDefaults",
+  storage: localForage,
+  whitelist: ["defaults", "draftIdToType"],
+};
+
 const store = configureStore({
   reducer: {
     auth: persistReducer(authConfig, authSlice.reducer),
@@ -120,6 +127,10 @@ const store = configureStore({
     arbeitsauftraegeDrafts: persistReducer(
       arbeitsauftraegeDraftsConfig,
       arbeitsauftraegeDraftsSlice.reducer
+    ),
+    creationDefaults: persistReducer(
+      creationDefaultsConfig,
+      creationDefaultsSlice.reducer
     ),
     // Intentionally NOT persisted: refresh wipes measurements until a
     // sidebar UI with explicit delete + a real persist story lands.
