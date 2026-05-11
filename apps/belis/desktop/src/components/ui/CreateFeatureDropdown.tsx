@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useMapPage } from "../../contexts/MapPageContext";
 import type { CreateFeatureType } from "../../contexts/MapPageContext";
 import { setDraft, setGlobalEditMode } from "../../store/slices/featuresForms";
+import { getAllCreationDefaults } from "../../store/slices/creationDefaults";
 import { getSelectedFeature } from "../../store/slices/featureCollection";
 import {
   buildSyntheticFeature,
@@ -144,6 +145,7 @@ const CreateFeatureDropdown = () => {
   const { onOpenCreationDraft } = useMapPage();
   const dispatch = useDispatch();
   const selectedFeature = useSelector(getSelectedFeature);
+  const allDefaults = useSelector(getAllCreationDefaults);
 
   const handleItemClick = (key: CreateFeatureType & string) => {
     const draftKey = `create:${key}:${Date.now()}-${Math.random()
@@ -175,13 +177,17 @@ const CreateFeatureDropdown = () => {
       ? { _linkedStandortLabel: standortOption.label }
       : {};
 
+    const seededValues: Record<string, unknown> = {
+      ...(allDefaults[key] ?? {}),
+    };
+
     dispatch(
       setDraft({
         featureId: draftKey,
         featureType: key,
-        values: {},
+        values: seededValues,
         feature: buildSyntheticFeature(key, draftKey, featureProps, geom),
-        fetchedData: buildSyntheticFetchedData(key, {}),
+        fetchedData: buildSyntheticFetchedData(key, seededValues),
         isCreation: true,
         geometry: geom,
         geometryKey: geomKey,
