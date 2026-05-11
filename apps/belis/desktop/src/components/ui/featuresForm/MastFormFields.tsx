@@ -28,6 +28,11 @@ interface MastFormFieldsProps {
   namePrefix?: string;
   readOnly?: boolean;
   isCreation?: boolean;
+  /** Identity of the underlying draft/feature. Used to re-run the form
+   * reset effect when the user switches between drafts that all share the
+   * same `mast` reference (e.g. multiple in-progress creation drafts where
+   * `mast` is always null). */
+  featureId?: string;
   /** When true, always render the read-only StrassenschluesselFields,
    * even during creation. Used by the Mast tab on the new-Leuchte form
    * where the Strassenschluessel is taken from the Leuchte. */
@@ -98,6 +103,7 @@ const MastFormFields = ({
   namePrefix,
   readOnly = true,
   isCreation,
+  featureId,
   readOnlyStrassenschluessel = false,
   locked = false,
   form: externalForm,
@@ -243,8 +249,11 @@ const MastFormFields = ({
         draftApplied.current = true;
       }
     }
+    // featureId is included so this effect also re-fires on draft switch
+    // when `mast` stays null (creation flow: every in-progress draft has
+    // mast=null, so object identity alone cannot distinguish them).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mast, form]);
+  }, [mast, featureId, form]);
 
   useEffect(() => {
     if (externalForm) return;

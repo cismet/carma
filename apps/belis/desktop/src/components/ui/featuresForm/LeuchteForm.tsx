@@ -41,6 +41,11 @@ interface LeuchteFormProps {
   draftFiles?: DraftFile[];
   hasDraft?: boolean;
   isCreation?: boolean;
+  /** Stable identity of the current draft/feature. Threaded into the field
+   * components so their reset effects fire when the user switches between
+   * drafts (in creation mode, where mast/leuchte are always null, identity
+   * cannot be derived from those props). */
+  featureId?: string;
   /** When set during creation, the new Leuchte links to this existing Mast.
    * The Mast tab then displays its data read-only (no new Mast is created). */
   linkedMastId?: number;
@@ -65,6 +70,7 @@ const LeuchteForm = ({
   draftFiles,
   hasDraft,
   isCreation,
+  featureId,
   linkedMastId,
   formHeaderContent,
   onDraftChange,
@@ -441,6 +447,7 @@ const LeuchteForm = ({
                     mast={mastTabReadOnly ? mastData : null}
                     readOnly={mastTabReadOnly}
                     isCreation={!mastTabReadOnly}
+                    featureId={featureId}
                     locked={mastTabReadOnly}
                     onFormInstance={setMastForm}
                     draftValues={
@@ -498,6 +505,7 @@ const LeuchteForm = ({
           leuchte={leuchte}
           readOnly={readOnly}
           isCreation={isCreation}
+          featureId={featureId}
           hideStrassenschluessel={isCreation}
           onFormInstance={setLeuchteForm}
           draftValues={

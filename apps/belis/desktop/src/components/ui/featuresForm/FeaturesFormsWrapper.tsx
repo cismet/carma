@@ -488,6 +488,7 @@ const FeaturesFormsWrapper = ({
               draftFiles={draftFiles}
               hasDraft={isCreation || hasChanges}
               isCreation={isCreation}
+              featureId={featureId}
               linkedMastId={parseStandortIdFromKey(draft?.geometryKey)}
               formHeaderContent={
                 isCreation ? (
