@@ -17,6 +17,7 @@ interface ItemGridProps {
   removeFavorite: any;
   setPreview: any;
   isSearchCategory?: boolean;
+  isDiscoverCategory?: boolean;
   loadingData: boolean;
   currentCategoryIndex: number;
   discoverProps?: {
@@ -40,6 +41,7 @@ const ItemGrid = ({
   removeFavorite,
   setPreview,
   isSearchCategory,
+  isDiscoverCategory,
   loadingData,
   currentCategoryIndex,
   discoverProps,
@@ -56,10 +58,11 @@ const ItemGrid = ({
     return numberOfLayers;
   };
   const loadingCapabilities = useSelector(getLoadingCapabilities);
+  const numberOfLayers = getNumberOfLayers(categories);
   if (
-    loadingCapabilities &&
-    currentCategoryIndex === 3 &&
-    getNumberOfLayers(categories) === 0
+    numberOfLayers === 0 &&
+    ((loadingCapabilities && currentCategoryIndex === 3) ||
+      (loadingData && isDiscoverCategory))
   ) {
     return (
       <div>
@@ -145,7 +148,7 @@ const ItemGrid = ({
     );
   }
 
-  if (getNumberOfLayers(categories) === 0 && currentlySearching) {
+  if (numberOfLayers === 0 && currentlySearching) {
     return <NoItemFound />;
   }
 

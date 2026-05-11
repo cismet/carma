@@ -13,12 +13,14 @@ import {
   faMapPin,
   faSearch,
   faStar,
+  faTriangleExclamation,
   faX,
   IconDefinition,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { LoadingOutlined } from "@ant-design/icons";
 import { useDebounce } from "@uidotdev/usehooks";
-import { Button, Input, Modal } from "antd";
+import { Button, Input, Modal, Spin } from "antd";
 import Fuse from "fuse.js";
 import type {
   BackgroundLayer,
@@ -151,6 +153,8 @@ export const NewLibModal = ({
   );
   const [discoverItems, setDiscoverItems] = useState<any[]>([]);
   const [loadingData, setLoadingData] = useState(false);
+  const [delayedLoading, setDelayedLoading] = useState(false);
+  const [discoverError, setDiscoverError] = useState<string | null>(null);
   const debouncedSearchTerm = useDebounce(searchValue, 300);
 
   const triggerRefetch = useSelector(getTriggerRefetch);
@@ -163,6 +167,7 @@ export const NewLibModal = ({
   const handleFetchDiscoverItems = () => {
     if (discoverProps) {
       setLoadingData(true);
+      setDiscoverError(null);
       fetchDiscoverItems(discoverProps, jwt || undefined)
         .then((data) => {
           setDiscoverItems(data);
@@ -175,6 +180,8 @@ export const NewLibModal = ({
             setJWT("");
           }
           console.error("Error fetching gp_entdecken: ", e);
+          setDiscoverError("Fehler beim Laden der Inhalte");
+          setLoadingData(false);
         });
     }
   };
@@ -184,6 +191,15 @@ export const NewLibModal = ({
       handleFetchDiscoverItems();
     }
   }, [open, triggerRefetch, jwt]);
+
+  useEffect(() => {
+    if (!loadingData) {
+      setDelayedLoading(false);
+      return;
+    }
+    const timer = setTimeout(() => setDelayedLoading(true), 750);
+    return () => clearTimeout(timer);
+  }, [loadingData]);
 
   useEffect(() => {
     const updatedElements = elements.map((element) => {
@@ -1028,7 +1044,36 @@ export const NewLibModal = ({
           <div className="sticky top-0 px-6 pt-6">
             <div className="flex flex-col sm:flex-row justify-between md:gap-0 gap-1 items-center">
               <div className="flex w-full sm:w-fit items-center justify-between">
-                <h1 className="mb-0 text-3xl font-semibold">Karteninhalte</h1>
+                <div className="flex items-center gap-3">
+                  <h1 className="mb-0 text-3xl font-semibold">Karteninhalte</h1>
+                  {sidebarElements[selectedNavItemIndex].id === "discover" &&
+                    (discoverError || delayedLoading) &&
+                    (discoverError ? (
+                      <FontAwesomeIcon
+                        icon={faTriangleExclamation}
+                        className="text-red-500"
+                        title={discoverError || "Fehler beim Laden der Karten"}
+                        role="status"
+                        aria-label={
+                          discoverError || "Fehler beim Laden der Karten"
+                        }
+                      />
+                    ) : (
+                      filteredCategories
+                        .find((cat) => cat.id === "discover")
+                        ?.categories.some(
+                          (subCat) => subCat.layers?.length > 0
+                        ) && (
+                        <Spin
+                          indicator={
+                            <LoadingOutlined spin className="text-gray-600" />
+                          }
+                          size="small"
+                          aria-label="Anfrage dauert länger als erwartet"
+                        />
+                      )
+                    ))}
+                </div>
                 <Button
                   type="text"
                   className="sm:hidden block"
@@ -1132,6 +1177,9 @@ export const NewLibModal = ({
                   setPreview={setPreview}
                   isSearchCategory={
                     sidebarElements[selectedNavItemIndex].id === "searchResults"
+                  }
+                  isDiscoverCategory={
+                    sidebarElements[selectedNavItemIndex].id === "discover"
                   }
                   loadingData={loadingData}
                   currentCategoryIndex={selectedNavItemIndex}
