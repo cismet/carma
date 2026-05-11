@@ -14,7 +14,11 @@ import { getKeyTablesData } from "../../../store/slices/keyTables";
 import StrassenschluesselFields from "./StrassenschluesselFields";
 import StrassenschluesselFieldsModal from "./StrassenschluesselFieldsModal";
 import StadtbezirkField from "./StadtbezirkField";
-import { getFormClassName, getPlaceholder } from "./readOnlyFormUtils";
+import {
+  getFormClassName,
+  getPlaceholder,
+  LOCKED_FIELD_CLASSES,
+} from "./readOnlyFormUtils";
 import { FormItem } from "./DraftFieldHighlight";
 import toTitleCase from "../../../helper/toTitleCase";
 import dayjs from "dayjs";
@@ -28,6 +32,10 @@ interface MastFormFieldsProps {
    * even during creation. Used by the Mast tab on the new-Leuchte form
    * where the Strassenschluessel is taken from the Leuchte. */
   readOnlyStrassenschluessel?: boolean;
+  /** When true, paint all form fields with the locked-gray fill. Used on
+   * the Standort tab when creating a Leuchte against an existing Mast,
+   * to signal the data belongs to that Mast and is not editable here. */
+  locked?: boolean;
   form?: import("antd").FormInstance;
   onFormInstance?: (form: import("antd").FormInstance) => void;
   draftValues?: Record<string, unknown>;
@@ -91,6 +99,7 @@ const MastFormFields = ({
   readOnly = true,
   isCreation,
   readOnlyStrassenschluessel = false,
+  locked = false,
   form: externalForm,
   onFormInstance,
   draftValues,
@@ -249,7 +258,10 @@ const MastFormFields = ({
       form={form}
       layout="vertical"
       requiredMark={false}
-      className={getFormClassName(readOnly, "pr-2")}
+      className={getFormClassName(
+        readOnly,
+        locked ? `pr-2 ${LOCKED_FIELD_CLASSES}` : "pr-2"
+      )}
       onValuesChange={onValuesChange}
     >
       {readOnlyStrassenschluessel ? (
