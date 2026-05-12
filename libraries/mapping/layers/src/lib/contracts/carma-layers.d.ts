@@ -22,14 +22,25 @@ export type DynamicStylingOption = {
   [key: string]: unknown;
 };
 
-export type DynamicStylingListConfig = {
-  type: "list";
+type DynamicStylingOptionsConfigBase = {
   label: string;
   default: string;
   options: DynamicStylingOption[];
   targets: Record<string, string[]>;
   showIcon?: boolean;
 };
+
+export type DynamicStylingListConfig = DynamicStylingOptionsConfigBase & {
+  type: "list";
+};
+
+export type DynamicStylingToggleConfig = DynamicStylingOptionsConfigBase & {
+  type: "toggle";
+};
+
+export type DynamicStylingOptionsConfig =
+  | DynamicStylingListConfig
+  | DynamicStylingToggleConfig;
 
 export type DynamicStylingVisibilityConfig = {
   type: "visibility";
@@ -43,6 +54,7 @@ export type DynamicStylingVisibilityConfig = {
 
 export type DynamicStylingConfig =
   | DynamicStylingListConfig
+  | DynamicStylingToggleConfig
   | DynamicStylingVisibilityConfig;
 
 export type BackgroundLayer = BaseLayer & {

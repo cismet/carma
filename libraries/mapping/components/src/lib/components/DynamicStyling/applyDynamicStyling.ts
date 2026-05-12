@@ -1,4 +1,4 @@
-import type { DynamicStylingListConfig } from "@carma-mapping/layers";
+import type { DynamicStylingOptionsConfig } from "@carma-mapping/layers";
 import {
   captureDefaults,
   parseTarget,
@@ -19,7 +19,7 @@ function intermediateEmptyStyle(style: any) {
 export const applyDynamicStyling = (
   libreMap: maplibregl.Map,
   carmaLayerId: string,
-  config: DynamicStylingListConfig,
+  config: DynamicStylingOptionsConfig,
   selectedOptionId: string
 ): LayerInfo | null => {
   const stylesheet = libreMap.style?.stylesheet;

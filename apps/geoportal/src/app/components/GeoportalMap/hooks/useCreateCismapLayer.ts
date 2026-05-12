@@ -365,7 +365,7 @@ export const useCreateCismapLayers = (
                     setLastAppliedSelection(layer.id, idx, effectiveSel);
                     return;
                   }
-                  if (config.type === "list") {
+                  if (config.type === "list" || config.type === "toggle") {
                     const layerInfo = applyDynamicStyling(
                       map,
                       layer.id,

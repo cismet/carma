@@ -1,9 +1,10 @@
-import type { DynamicStylingListConfig } from "@carma-mapping/layers";
+import type { DynamicStylingOptionsConfig } from "@carma-mapping/layers";
 import type { LayerInfo } from "./dynamicStyling.helpers";
 import { DynamicStylingList } from "./DynamicStylingList";
+import { DynamicStylingToggle } from "./DynamicStylingToggle";
 
 export interface DynamicStylingControlProps {
-  config: DynamicStylingListConfig;
+  config: DynamicStylingOptionsConfig;
   maplibreMap: any;
   carmaLayerId: string;
   currentSelection: string;
@@ -14,5 +15,8 @@ export interface DynamicStylingControlProps {
 }
 
 export const DynamicStylingControl = (props: DynamicStylingControlProps) => {
+  if (props.config.type === "toggle") {
+    return <DynamicStylingToggle {...props} />;
+  }
   return <DynamicStylingList {...props} />;
 };

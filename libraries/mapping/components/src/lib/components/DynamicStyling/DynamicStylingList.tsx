@@ -3,6 +3,7 @@ import {
   faPalette,
   faChevronDown,
   faChevronUp,
+  faMap,
 } from "@fortawesome/free-solid-svg-icons";
 import { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -20,7 +21,6 @@ export const DynamicStylingList = ({
   const currentOption = listConfig.options.find(
     (o) => o.id === currentSelection
   );
-  const isBinaryToggle = listConfig.options.length === 2;
   const showIcon = showIconProp ?? listConfig.showIcon !== false;
 
   const handleOptionSelect = (key: string) => {
@@ -45,7 +45,7 @@ export const DynamicStylingList = ({
             className="w-4 h-4 object-contain"
           />
         ) : (
-          <FontAwesomeIcon icon={faPalette} className="text-sm text-gray-400" />
+          <FontAwesomeIcon icon={faMap} className="text-base text-black" />
         )}
         {opt.title}
       </div>
@@ -90,48 +90,6 @@ export const DynamicStylingList = ({
           />
         </div>
       </Dropdown>
-    );
-  }
-
-  const handleToggle = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const nextOption = listConfig.options.find(
-      (o) => o.id !== currentSelection
-    );
-    if (nextOption) handleOptionSelect(nextOption.id);
-  };
-
-  if (isBinaryToggle) {
-    return (
-      <div
-        onClick={(e) => e.stopPropagation()}
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        <button
-          id={`stylingLayerButton-${carmaLayerId}`}
-          className="px-1.5 flex items-center gap-1 justify-center"
-          onClick={handleToggle}
-        >
-          {showIcon && (
-            <FontAwesomeIcon
-              icon={faPalette}
-              className="text-sm text-gray-600 hover:text-gray-500"
-            />
-          )}
-          {resolveIconSrc(currentOption?.icon) ? (
-            <img
-              src={resolveIconSrc(currentOption?.icon)}
-              alt={currentOption?.title}
-              className="w-4 h-4 object-contain"
-            />
-          ) : (
-            <FontAwesomeIcon
-              icon={faPalette}
-              className="text-sm text-gray-400"
-            />
-          )}
-        </button>
-      </div>
     );
   }
 
