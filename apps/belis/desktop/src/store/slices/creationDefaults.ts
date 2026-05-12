@@ -10,6 +10,18 @@ import {
 // Add an entry here to opt a feature type into the "last values" memory.
 export const CREATION_DEFAULTS_ALLOWLIST: Record<string, readonly string[]> = {
   leitung: ["fk_leitungstyp", "fk_material", "fk_querschnitt"],
+  mauerlasche: [
+    "fk_material",
+    "strassenschluessel_pk",
+    "strassenschluessel_strasse",
+    "fk_strassenschluessel",
+  ],
+  schaltstelle: [
+    "fk_bauart",
+    "strassenschluessel_pk",
+    "strassenschluessel_strasse",
+    "fk_strassenschluessel",
+  ],
 };
 
 interface CreationDefaultsState {
