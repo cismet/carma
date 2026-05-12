@@ -8,7 +8,15 @@ import {
 
 // Per-feature-type allowlist of form fields to remember across new drafts.
 // Add an entry here to opt a feature type into the "last values" memory.
-export const CREATION_DEFAULTS_ALLOWLIST: Record<string, readonly string[]> = {
+//
+// Two shapes are supported:
+//   - flat:   readonly string[]                              — picks fields directly from `values`
+//   - nested: Record<subKey, readonly string[]>              — picks fields from `values[subKey]`
+// Use the nested form when the draft state has tab-grouped sub-objects (e.g. Leuchte
+// stores `{ leuchte: {...}, mast: {...} }` because Strassenschluessel lives on the Mast tab).
+type AllowlistEntry = readonly string[] | Record<string, readonly string[]>;
+
+export const CREATION_DEFAULTS_ALLOWLIST: Record<string, AllowlistEntry> = {
   leitung: ["fk_leitungstyp", "fk_material", "fk_querschnitt"],
   mauerlasche: [
     "fk_material",
@@ -21,6 +29,59 @@ export const CREATION_DEFAULTS_ALLOWLIST: Record<string, readonly string[]> = {
     "strassenschluessel_pk",
     "strassenschluessel_strasse",
     "fk_strassenschluessel",
+  ],
+  leuchte: {
+    leuchte: [
+      "fk_kennziffer",
+      "leuchtennummer",
+      "fk_leuchttyp",
+      "inbetriebnahme_leuchte",
+      "montagefirma_leuchte",
+      "fk_energielieferant",
+      "schaltstelle",
+      "fk_dk1",
+      "anzahl_1dk",
+      "anschlussleistung_1dk",
+      "fk_dk2",
+      "anzahl_2dk",
+      "fk_unterhaltspflicht_leuchte",
+      "leuchtmittel",
+      "lebensdauer",
+    ],
+    mast: [
+      "strassenschluessel_pk",
+      "strassenschluessel_strasse",
+      "fk_strassenschluessel",
+      "fk_kennziffer",
+      "fk_stadtbezirk",
+      "fk_mastart",
+      "fk_masttyp",
+      "fk_klassifizierung",
+      "fk_unterhaltspflicht_mast",
+      "inbetriebnahme_mast",
+      "montagefirma",
+      "standsicherheitspruefung",
+      "verfahren",
+      "anlagengruppe",
+      "letzte_aenderung",
+    ],
+  },
+  standort: [
+    "strassenschluessel_pk",
+    "strassenschluessel_strasse",
+    "fk_strassenschluessel",
+    "fk_kennziffer",
+    "fk_stadtbezirk",
+    "fk_mastart",
+    "fk_masttyp",
+    "fk_klassifizierung",
+    "fk_unterhaltspflicht_mast",
+    "inbetriebnahme_mast",
+    "montagefirma",
+    "standsicherheitspruefung",
+    "verfahren",
+    "anlagengruppe",
+    "letzte_aenderung",
   ],
 };
 
@@ -42,11 +103,30 @@ const pickAllowed = (
   featureType: string,
   values: Record<string, unknown>
 ): Record<string, unknown> | null => {
-  const fields = CREATION_DEFAULTS_ALLOWLIST[featureType];
-  if (!fields) return null;
-  const picked: Record<string, unknown> = {};
-  for (const f of fields) {
-    if (values[f] !== undefined) picked[f] = values[f];
+  const config = CREATION_DEFAULTS_ALLOWLIST[featureType];
+  if (!config) return null;
+
+  if (Array.isArray(config)) {
+    const picked: Record<string, unknown> = {};
+    for (const f of config) {
+      if (values[f] !== undefined) picked[f] = values[f];
+    }
+    return Object.keys(picked).length > 0 ? picked : null;
+  }
+
+  // Nested: values is shaped { [subKey]: { ...fields } }. Descend per subKey
+  // and only emit subKeys that had at least one matching field.
+  const picked: Record<string, Record<string, unknown>> = {};
+  for (const [subKey, fields] of Object.entries(config)) {
+    const subValues = values[subKey];
+    if (!subValues || typeof subValues !== "object" || Array.isArray(subValues))
+      continue;
+    const sub: Record<string, unknown> = {};
+    const src = subValues as Record<string, unknown>;
+    for (const f of fields) {
+      if (src[f] !== undefined) sub[f] = src[f];
+    }
+    if (Object.keys(sub).length > 0) picked[subKey] = sub;
   }
   return Object.keys(picked).length > 0 ? picked : null;
 };
