@@ -1,4 +1,11 @@
-import { useCallback, useContext, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { isMobile } from "react-device-detect";
 import { useDispatch, useSelector } from "react-redux";
 
@@ -28,6 +35,7 @@ import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import type { SearchResultItem } from "@carma-mapping/fuzzy-search";
 import { detectWebGLContext } from "@carma-commons/utils";
 import { ResponsiveStatusBar } from "@carma-commons/ui/components";
+import { CarmaMap } from "@carma-mapping/core";
 
 import {
   PitchingCompass,
@@ -55,6 +63,7 @@ import { MeasurementControl } from "@carma-commons/measurements";
 
 import { GeoportalMap } from "../GeoportalMap.tsx";
 import LibreGeoportalMap from "../LibreGeoportalMap.tsx";
+import { geoportalLayersToLibreLayers } from "../geoportalLayersToLibreLayers.ts";
 import { ObliqueControls } from "../../../oblique/components/ObliqueControls.tsx";
 import LayerWrapper from "../../layers/LayerWrapper.tsx";
 
@@ -79,6 +88,7 @@ import {
 } from "../../../store/slices/features.ts";
 import {
   getConfigSelection,
+  getLayers,
   getLibreMapRef,
   getShowFullscreenButton,
   getShowLocatorButton,
@@ -132,6 +142,11 @@ const MapWrapper = () => {
 
   // State and Selectors
   const libreMapRef = useSelector(getLibreMapRef);
+  const geoportalLayers = useSelector(getLayers);
+  const libreLayers = useMemo(
+    () => geoportalLayersToLibreLayers(geoportalLayers),
+    [geoportalLayers]
+  );
 
   // Get framework switcher state from context
   const {
@@ -383,7 +398,7 @@ const MapWrapper = () => {
                     }
                   >
                     {showLibreMap ? (
-                      <LibrePitchingCompass map={libreMapRef.current} />
+                      <LibrePitchingCompass map={libreMapRef?.current} />
                     ) : (
                       <PitchingCompass />
                     )}
@@ -566,7 +581,13 @@ const MapWrapper = () => {
           }}
         >
           {showLibreMap && isLeaflet ? (
-            <LibreGeoportalMap />
+            <CarmaMap
+              mapEngine="maplibre"
+              zoomControls={false}
+              fullScreenControl={false}
+              terrainControl={false}
+              libreLayers={libreLayers}
+            />
           ) : (
             <>
               <GeoportalMap height={height} width={width} allow3d={allow3d} />
