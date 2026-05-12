@@ -73,6 +73,7 @@ import { MeasurementControl } from "@carma-commons/measurements";
 import { GeoportalMap } from "../GeoportalMap.tsx";
 import LibreGeoportalMap from "../LibreGeoportalMap.tsx";
 import { geoportalLayersToLibreLayers } from "../geoportalLayersToLibreLayers.ts";
+import { geoportalBackgroundToLibreLayers } from "../geoportalBackgroundToLibreLayers.ts";
 import { ObliqueControls } from "../../../oblique/components/ObliqueControls.tsx";
 import LayerWrapper from "../../layers/LayerWrapper.tsx";
 
@@ -96,6 +97,7 @@ import {
   setSelectedFeature,
 } from "../../../store/slices/features.ts";
 import {
+  getBackgroundLayer,
   getConfigSelection,
   getLayers,
   getLibreMapRef,
@@ -154,9 +156,13 @@ const MapWrapper = () => {
   // State and Selectors
   const libreMapRef = useSelector(getLibreMapRef);
   const geoportalLayers = useSelector(getLayers);
+  const backgroundLayer = useSelector(getBackgroundLayer);
   const libreLayers = useMemo(
-    () => geoportalLayersToLibreLayers(geoportalLayers),
-    [geoportalLayers]
+    () => [
+      ...geoportalBackgroundToLibreLayers(backgroundLayer),
+      ...geoportalLayersToLibreLayers(geoportalLayers),
+    ],
+    [backgroundLayer, geoportalLayers]
   );
 
   // Get framework switcher state from context
@@ -610,6 +616,7 @@ const MapWrapper = () => {
           {showLibreMap && isLeaflet ? (
             <CarmaMap
               mapEngine="maplibre"
+              backgroundLayers={null}
               zoomControls={false}
               fullScreenControl={false}
               terrainControl={false}
