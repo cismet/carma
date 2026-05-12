@@ -1,11 +1,13 @@
 import dayjs from "dayjs";
 import { Modal, message } from "antd";
+import type { Feature } from "geojson";
 import type { DokumentItem } from "../components/ui/DocumentPreview";
 import { getDocumentKey } from "../components/ui/FilePreview";
 import type { Draft, DraftFile } from "../store/slices/featuresForms";
 import { updateDataByClassName } from "./apiMethods";
 import { uploadDraftFiles } from "./uploadDraftFiles";
 import { parseStandortIdFromKey } from "./geometryOptions";
+import { removeMeasurements } from "@carma-mapping/measurements";
 
 // ---------------------------------------------------------------------------
 // Dayjs serialization (independent copy — matches FeaturesFormsWrapper logic)
@@ -466,6 +468,11 @@ interface HandleSaveAllDeps {
   dispatch: (action: any) => void;
   removeDraft: (featureId: string) => unknown;
   incrementFeatureDataVersion: () => unknown;
+  /** Current measurement features (already namespaced as
+   * `measurement.<uuid>` in id) — used to find which ones to drop after
+   * successful creation saves and to derive their raw terra-draw ids. */
+  measurements: Feature[];
+  setMeasurements: (features: Feature[]) => unknown;
   /** Fires once the batch finishes if at least one draft saved successfully.
    * The caller wires this to `closeDatasheet` so the right pane returns to
    * the map view — the form was bound to drafts that no longer exist. */
@@ -481,6 +488,8 @@ export const handleSaveAllDrafts = (deps: HandleSaveAllDeps) => {
     dispatch,
     removeDraft,
     incrementFeatureDataVersion,
+    measurements,
+    setMeasurements,
     onSuccess,
   } = deps;
 
@@ -520,6 +529,36 @@ export const handleSaveAllDrafts = (deps: HandleSaveAllDeps) => {
         }
 
         if (result.succeeded.length > 0) {
+          // Drop measurements consumed by successful creation saves: from
+          // the dropdown source (Redux) and from the on-map terra-draw
+          // layer. Draft geometryKeys are double-prefixed
+          // (`measurement.measurement.<uuid>`) and Redux feature ids carry
+          // one `measurement.` prefix — match against the same
+          // single-prefix synthesis used in the dropdown builder, then
+          // strip one prefix to recover the raw terra-draw id.
+          const consumedKeys = new Set<string>();
+          for (const featureId of result.succeeded) {
+            const d = drafts[featureId];
+            if (d?.isCreation && d.geometryKey?.startsWith("measurement.")) {
+              consumedKeys.add(d.geometryKey);
+            }
+          }
+          if (consumedKeys.size > 0) {
+            const rawIds: string[] = [];
+            const filtered = measurements.filter((f) => {
+              const key = `measurement.${String(f.id)}`;
+              if (consumedKeys.has(key)) {
+                rawIds.push(String(f.id).replace(/^measurement\./, ""));
+                return false;
+              }
+              return true;
+            });
+            if (rawIds.length > 0) {
+              dispatch(setMeasurements(filtered));
+              removeMeasurements(rawIds);
+            }
+          }
+
           dispatch(incrementFeatureDataVersion());
           onSuccess?.();
         }

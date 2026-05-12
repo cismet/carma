@@ -52,6 +52,7 @@ import {
   getMeasurements,
   setMeasurements,
 } from "../../../store/slices/measurements";
+import { removeMeasurements } from "@carma-mapping/measurements";
 import {
   buildSyntheticFeature,
   buildSyntheticFetchedData,
@@ -328,15 +329,21 @@ const FeaturesFormsWrapper = ({
         dispatch(incrementFeatureDataVersion());
         void message.success("Gespeichert");
         if (isCreation) {
-          // Drop the consumed measurement from the dropdown source so it
-          // can't be picked again for the next creation. The on-map
-          // terra-draw marker is intentionally left in place.
+          // Drop the consumed measurement from the dropdown source AND from
+          // the terra-draw layer on the map. Redux ids are namespaced
+          // (`measurement.<uuid>`) and the draft's geometryKey is the
+          // double-prefixed dropdown key (`measurement.measurement.<uuid>`);
+          // strip one prefix off the Redux id to recover the raw terra-draw
+          // id that removeMeasurements expects.
           if (draft.geometryKey) {
-            const filtered = measurements.filter(
-              (f) => `measurement.${String(f.id)}` !== draft.geometryKey
+            const consumed = measurements.find(
+              (f) => `measurement.${String(f.id)}` === draft.geometryKey
             );
-            if (filtered.length !== measurements.length) {
+            if (consumed) {
+              const filtered = measurements.filter((f) => f !== consumed);
               dispatch(setMeasurements(filtered));
+              const rawId = String(consumed.id).replace(/^measurement\./, "");
+              removeMeasurements([rawId]);
             }
           }
           onSelectNextDraft?.(featureId);
