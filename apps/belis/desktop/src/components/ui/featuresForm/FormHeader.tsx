@@ -13,6 +13,10 @@ import {
 } from "../../../store/slices/featuresForms";
 import { getJWT } from "../../../store/slices/auth";
 import { incrementFeatureDataVersion } from "../../../store/slices/featureCollection";
+import {
+  getMeasurements,
+  setMeasurements,
+} from "../../../store/slices/measurements";
 import { handleSaveAllDrafts } from "../../../helper/featureFormSaveHelpers";
 import { useSingleSave } from "./FeaturesFormsWrapper";
 import { useDatasheet } from "@carma-mapping/engines/maplibre";
@@ -55,6 +59,7 @@ const FormHeader = ({
   const featureDraftsCount = useSelector(getDraftFeaturesCount);
   const drafts = useSelector(getAllDrafts);
   const jwt = useSelector(getJWT);
+  const measurements = useSelector(getMeasurements);
   const [savingAll, setSavingAll] = useState(false);
   const { onSaveSingle, savingSingle } = useSingleSave();
   const { closeDatasheet } = useDatasheet();
@@ -74,6 +79,8 @@ const FormHeader = ({
       dispatch,
       removeDraft,
       incrementFeatureDataVersion,
+      measurements,
+      setMeasurements,
       // After at least one draft saved, the form on the right pane is
       // bound to a draft that no longer exists — return to the map.
       onSuccess: closeDatasheet,

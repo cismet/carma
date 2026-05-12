@@ -23,6 +23,7 @@ import {
   getSnappableLayerIds,
   type SnapMode,
 } from "./snapping";
+import { setActiveRemoveFeatures } from "./measurementHostHandle";
 
 const DEFAULT_SNAP_RADIUS_PX = 20;
 const SNAP_PREVIEW_SOURCE_ID = "carma-measurements-snap-preview";
@@ -933,6 +934,26 @@ export function MeasurementHost({
   useEffect(() => {
     snappableLayerIdsRef.current = null;
   }, [snapMode, optedInLayerIds, backgroundSnapping]);
+
+  // Publish a remove-by-id handle to the module-level slot so external
+  // callers (save handlers, helpers) can drop markers. drawRef.current
+  // can swap on basemap-driven re-attach, so close over the ref, not the
+  // current draw.
+  useEffect(() => {
+    setActiveRemoveFeatures((ids) => {
+      const draw = drawRef.current;
+      if (!draw) return;
+      try {
+        draw.removeFeatures(ids);
+      } catch (e) {
+        // Unknown id or terra-draw not currently running — non-fatal.
+        console.warn("[carma-measurements] removeFeatures failed", e);
+      }
+    });
+    return () => {
+      setActiveRemoveFeatures(null);
+    };
+  }, []);
 
   return null;
 }
