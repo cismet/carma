@@ -53,7 +53,9 @@ import {
 import {
   buildSyntheticFeature,
   buildSyntheticFetchedData,
+  enrichSyntheticProps,
 } from "../../../helper/buildSyntheticFeature";
+import { getKeyTablesData } from "../../../store/slices/keyTables";
 import { useMapSelection } from "@carma-mapping/engines/maplibre";
 
 interface SingleSaveContext {
@@ -181,6 +183,7 @@ const FeaturesFormsWrapper = ({
   const globalEditMode = useSelector(getGlobalEditMode);
   const measurements = useSelector(getMeasurements);
   const allDrafts = useSelector(getAllDrafts);
+  const keyTablesData = useSelector(getKeyTablesData);
 
   // When creating a new Leuchte that's linked to an existing Standort, expose
   // that Standort as a geometry-source option in the dropdown. The link is
@@ -365,19 +368,64 @@ const FeaturesFormsWrapper = ({
 
   const handleDraftChange = useCallback(
     (values: Record<string, unknown>) => {
-      if (featureId && formKey) {
+      if (!featureId || !formKey) return;
+
+      if (isCreation) {
+        // Rebuild the synthetic feature so denormalized props (e.g.
+        // leitung.bezeichnung from fk_leitungstyp) flow into the mini-map
+        // render and trigger the right per-type style.
+        const enrichedValues = enrichSyntheticProps(
+          formKey,
+          values,
+          keyTablesData
+        );
+        const newFeature = buildSyntheticFeature(
+          formKey,
+          featureId,
+          enrichedValues,
+          draft?.geometry
+        );
         dispatch(
           setDraft({
             featureId,
             featureType: formKey,
             values: serializeValues(values),
-            feature: draftFeature,
-            fetchedData: data,
+            feature: newFeature,
+            fetchedData: buildSyntheticFetchedData(formKey, values),
+            isCreation: true,
+            geometry: draft?.geometry,
+            geometryKey: draft?.geometryKey,
           })
         );
+        if (selectedFeatureId) {
+          selectFeature(selectedFeatureId, newFeature as never);
+        }
+        return;
       }
+
+      dispatch(
+        setDraft({
+          featureId,
+          featureType: formKey,
+          values: serializeValues(values),
+          feature: draftFeature,
+          fetchedData: data,
+        })
+      );
     },
-    [featureId, formKey, dispatch, draftFeature, data]
+    [
+      featureId,
+      formKey,
+      isCreation,
+      keyTablesData,
+      draft?.geometry,
+      draft?.geometryKey,
+      dispatch,
+      draftFeature,
+      data,
+      selectedFeatureId,
+      selectFeature,
+    ]
   );
 
   const handleGeometryChange = useCallback(
@@ -387,10 +435,15 @@ const FeaturesFormsWrapper = ({
       if (!opt) return;
       const geom = opt.geometry;
       const currentValues = draft?.values ?? {};
+      const enrichedValues = enrichSyntheticProps(
+        formKey,
+        deserializeValues(currentValues),
+        keyTablesData
+      );
       const newFeature = buildSyntheticFeature(
         formKey,
         featureId,
-        deserializeValues(currentValues),
+        enrichedValues,
         geom
       );
       dispatch(
@@ -419,6 +472,7 @@ const FeaturesFormsWrapper = ({
       formKey,
       draft?.values,
       geometryOptions,
+      keyTablesData,
       dispatch,
       selectedFeatureId,
       selectFeature,

@@ -90,6 +90,34 @@ export function buildSyntheticFeature(
   };
 }
 
+// Mirror the denormalized properties the vector-tile style reads so a synthetic
+// draft renders with the same per-type styling as the real tile features. Today
+// only Leitung's `bezeichnung` is mirrored — the line-color expression keys on
+// it (see https://tiles.cismet.de/belis/style.json#leitungen-base). Extend here
+// when more layers need property-driven styling on drafts.
+export function enrichSyntheticProps(
+  featureType: string,
+  values: Record<string, unknown>,
+  keyTables: Record<string, unknown> = {}
+): Record<string, unknown> {
+  if (featureType === "leitung") {
+    const fk = values.fk_leitungstyp;
+    if (fk != null) {
+      const id = Number(fk);
+      if (Number.isFinite(id)) {
+        const rows = keyTables.leitungstyp as
+          | Array<{ id: number; bezeichnung?: string }>
+          | undefined;
+        const row = rows?.find((t) => t.id === id);
+        if (row?.bezeichnung) {
+          return { ...values, bezeichnung: row.bezeichnung };
+        }
+      }
+    }
+  }
+  return values;
+}
+
 export function buildSyntheticFetchedData(
   featureType: string,
   values: Record<string, unknown>
