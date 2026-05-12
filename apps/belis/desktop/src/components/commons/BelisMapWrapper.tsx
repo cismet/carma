@@ -1872,9 +1872,10 @@ const BelisMapLibWrapper = ({
     }
   }, [sidebarVariant, miniMap, miniMapReady, namespacedSource]);
 
-  // --- Mini-map: push the open creation draft into the brandnew GeoJSON
-  // source so it renders with the brandnew style's per-type layers. The main
-  // map's brandnew source is independent and untouched by this effect. ---
+  // --- Mini-map: push every open creation draft into the brandnew GeoJSON
+  // source so they render together with the brandnew style's per-type layers,
+  // matching the main map's brandnew group. The main map's brandnew source is
+  // independent and untouched by this effect. ---
   useEffect(() => {
     if (!miniMap || !miniMapReady) return;
     const src = miniMap.getSource(brandnewSource) as
@@ -1882,17 +1883,15 @@ const BelisMapLibWrapper = ({
       | undefined;
     if (!src || typeof src.setData !== "function") return;
 
-    const isCreationDraft = rawFeature?.properties?._isCreation === true;
-    const hasGeom = !!rawFeature?.geometry;
-    const fc: GeoJSON.FeatureCollection = {
-      type: "FeatureCollection",
-      features:
-        isCreationDraft && hasGeom
-          ? [rawFeature as unknown as GeoJSON.Feature]
-          : [],
-    };
-    src.setData(fc);
-  }, [miniMap, miniMapReady, brandnewSource, rawFeature]);
+    const features: GeoJSON.Feature[] = [];
+    for (const { feature } of allDraftFeatures) {
+      if (!feature) continue;
+      if (feature.properties?._isCreation !== true) continue;
+      if (!feature.geometry) continue;
+      features.push(feature as unknown as GeoJSON.Feature);
+    }
+    src.setData({ type: "FeatureCollection", features });
+  }, [miniMap, miniMapReady, brandnewSource, allDraftFeatures]);
 
   // --- Mini-map: render AA convex hull polygons from client-side GeoJSON ---
   // AA convex-hull polygons are no longer shown on the mini map;
