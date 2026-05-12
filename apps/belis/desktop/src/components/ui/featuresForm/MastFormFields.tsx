@@ -249,11 +249,13 @@ const MastFormFields = ({
         draftApplied.current = true;
       }
     }
-    // featureId is included so this effect also re-fires on draft switch
-    // when `mast` stays null (creation flow: every in-progress draft has
-    // mast=null, so object identity alone cannot distinguish them).
+    // Dep on `featureId` only (stable per draft); `mast` would churn every
+    // keystroke during creation because the synthetic record passed in via
+    // `data` gets a fresh reference per setDraft, causing form.resetFields()
+    // and stealing focus from the active input. Server-data refetches still
+    // re-run this effect via the resetKey-driven remount in FeaturesFormsWrapper.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mast, featureId, form]);
+  }, [featureId, form]);
 
   useEffect(() => {
     if (externalForm) return;

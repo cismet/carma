@@ -40,6 +40,7 @@ interface SchaltstelleFormProps {
   draftFiles?: DraftFile[];
   hasDraft?: boolean;
   isCreation?: boolean;
+  featureId?: string;
   formHeaderContent?: ReactNode;
   onDraftChange?: (values: Record<string, unknown>) => void;
   onDraftFilesChange?: (files: DraftFile[]) => void;
@@ -60,6 +61,7 @@ const SchaltstelleForm = ({
   draftValues,
   draftFiles,
   hasDraft,
+  featureId,
   formHeaderContent,
   onDraftChange,
   onDraftFilesChange,
@@ -256,6 +258,7 @@ const SchaltstelleForm = ({
         schaltstelle={ss}
         readOnly={readOnly}
         isCreation={isCreation}
+        featureId={featureId}
         onFormInstance={setFormInstance}
         draftValues={draftValues}
         onValuesChange={handleValuesChange}

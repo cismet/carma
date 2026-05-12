@@ -37,6 +37,7 @@ interface StandortFormProps {
   draftFiles?: DraftFile[];
   hasDraft?: boolean;
   isCreation?: boolean;
+  featureId?: string;
   formHeaderContent?: ReactNode;
   onDraftChange?: (values: Record<string, unknown>) => void;
   onDraftFilesChange?: (files: DraftFile[]) => void;
@@ -58,6 +59,7 @@ const StandortForm = ({
   draftFiles,
   hasDraft,
   isCreation,
+  featureId,
   formHeaderContent,
   onDraftChange,
   onDraftFilesChange,
@@ -262,6 +264,7 @@ const StandortForm = ({
         mast={mast}
         readOnly={readOnly}
         isCreation={isCreation}
+        featureId={featureId}
         onFormInstance={setMastForm}
         draftValues={draftValues}
         onValuesChange={handleMastValuesChange}
