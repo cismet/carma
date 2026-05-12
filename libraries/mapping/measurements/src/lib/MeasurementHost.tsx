@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { useLibreContext } from "@carma-mapping/engines/maplibre";
 import {
   TerraDraw,
@@ -101,6 +101,20 @@ export interface MeasurementHostProps {
    * current `snapRadiusPx` — useful for tuning the radius during
    * development. Default `false`. Implicitly hidden when `snapping` is off. */
   radiusDebugVisible?: boolean;
+  /** Fired when terra-draw's select mode picks up or drops a measurement.
+   * `id` is the terra-draw feature id (a UUID), or `null` on deselect. Hosts
+   * typically translate this into their own selection state so map and
+   * sidebar stay in sync. */
+  onSelectionChange?: (id: string | null) => void;
+}
+
+/** Imperative handle returned via ref. Lets the host invoke terra-draw
+ *  operations (e.g. delete from an InfoBox button) without owning the
+ *  TerraDraw instance directly. */
+export interface MeasurementHostHandle {
+  /** Remove a measurement by its terra-draw feature id (the raw UUID — do
+   *  not pass any namespacing prefix the host applies in its own store). */
+  deleteFeature: (id: string) => void;
 }
 
 // Side-effect-only component. Lives as a sibling of <CarmaMap> inside the
@@ -109,17 +123,24 @@ export interface MeasurementHostProps {
 // re-creates it after every basemap swap (terra-draw's adapter has no
 // auto-recovery), and renders an in-map label layer with German segment
 // lengths for any drawn LineString.
-export function MeasurementHost({
-  mode,
-  onChange,
-  snapping = false,
-  snapRadiusPx = DEFAULT_SNAP_RADIUS_PX,
-  snapMode = "opt-out",
-  optedInLayerIds = EMPTY_OPTED_IN,
-  backgroundSnapping = false,
-  labelsVisible = true,
-  radiusDebugVisible = false,
-}: MeasurementHostProps) {
+export const MeasurementHost = forwardRef<
+  MeasurementHostHandle,
+  MeasurementHostProps
+>(function MeasurementHost(
+  {
+    mode,
+    onChange,
+    snapping = false,
+    snapRadiusPx = DEFAULT_SNAP_RADIUS_PX,
+    snapMode = "opt-out",
+    optedInLayerIds = EMPTY_OPTED_IN,
+    backgroundSnapping = false,
+    labelsVisible = true,
+    radiusDebugVisible = false,
+    onSelectionChange,
+  },
+  ref
+) {
   const { map } = useLibreContext();
   const drawRef = useRef<TerraDraw | null>(null);
   const modeRef = useRef(mode);
@@ -145,6 +166,8 @@ export function MeasurementHost({
   backgroundSnappingRef.current = backgroundSnapping;
   const radiusDebugVisibleRef = useRef(radiusDebugVisible);
   radiusDebugVisibleRef.current = radiusDebugVisible;
+  const onSelectionChangeRef = useRef(onSelectionChange);
+  onSelectionChangeRef.current = onSelectionChange;
   // Lazy cache for snap-target layer ids. `null` means "dirty — rebuild on
   // next read". Belis (and any consumer with libreLayers loaded from style
   // URLs via styleComposer) gets its layers added asynchronously *after*
@@ -623,11 +646,13 @@ export function MeasurementHost({
       // Track select-mode selection so the snap preview's render gate can
       // include "select mode + something selected" — vertex drags benefit
       // from the dot too, not just new-line drawing.
-      draw.on("select", () => {
+      draw.on("select", (id) => {
         hasSelectionRef.current = true;
+        onSelectionChangeRef.current?.(id != null ? String(id) : null);
       });
       draw.on("deselect", () => {
         hasSelectionRef.current = false;
+        onSelectionChangeRef.current?.(null);
         // No selection means no expected vertex drag in the immediate
         // future; clear any stale preview so it doesn't hang at the last
         // hovered position. ("select" and "none" share the same gate —
@@ -955,5 +980,38 @@ export function MeasurementHost({
     };
   }, []);
 
+  useImperativeHandle(
+    ref,
+    () => ({
+      deleteFeature: (id: string) => {
+        const draw = drawRef.current;
+        if (!draw) return;
+        try {
+          draw.removeFeatures([id]);
+          // terra-draw's `removeFeatures` fires only the `change` event,
+          // and the `change` listener above is deliberately lightweight
+          // (no consumer dispatch — would fire 60×/s during drawing).
+          // Push the post-delete snapshot to the consumer here so redux /
+          // sidebar / any selection cleanup downstream sees the removal.
+          try {
+            onChangeRef.current?.(draw.getSnapshot() as Feature[]);
+          } catch (e) {
+            console.warn(
+              "[carma-measurements] onChange after delete failed",
+              e
+            );
+          }
+        } catch (e) {
+          console.warn(
+            "[carma-measurements] deleteFeature failed for id",
+            id,
+            e
+          );
+        }
+      },
+    }),
+    []
+  );
+
   return null;
-}
+});

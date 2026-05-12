@@ -1,19 +1,24 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import type { Feature } from "geojson";
-import type { RootState } from "../index";
+import type { AppDispatch, RootState } from "../index";
+import { setSelectedFeature } from "./featureCollection";
 
 // In-memory only for now: a refresh wipes the slice. Persistence (and a
 // sidebar UI to delete entries) is a deliberate follow-up — see the
 // MeasurementHost wiring in BelisMapWrapper for how features land here.
 
+// Marker used on the selectedFeature slot to discriminate measurement
+// selections from Fachobjekt selections. Lives on the feature itself so
+// downstream code (getVCard, sidebar highlight) can branch without an
+// extra slice lookup. Sibling field — does not overload `featuretype`.
+export const MEASUREMENT_FEATUREKIND = "measurement" as const;
+
 interface MeasurementsState {
   features: Feature[];
-  selectedId: string | null;
 }
 
 const initialState: MeasurementsState = {
   features: [],
-  selectedId: null,
 };
 
 const measurementsSlice = createSlice({
@@ -22,31 +27,57 @@ const measurementsSlice = createSlice({
   reducers: {
     setMeasurements(state, action: PayloadAction<Feature[]>) {
       state.features = action.payload;
-      // Drop a stale selection if the picked id no longer exists.
-      if (
-        state.selectedId !== null &&
-        !action.payload.some((f) => f.id === state.selectedId)
-      ) {
-        state.selectedId = null;
-      }
-    },
-    selectMeasurement(state, action: PayloadAction<string | null>) {
-      state.selectedId = action.payload;
     },
     clearMeasurements(state) {
       state.features = [];
-      state.selectedId = null;
     },
   },
 });
 
-export const { setMeasurements, selectMeasurement, clearMeasurements } =
-  measurementsSlice.actions;
+export const { setMeasurements, clearMeasurements } = measurementsSlice.actions;
 
 export default measurementsSlice;
 
 export const getMeasurements = (state: RootState): Feature[] =>
   state.measurements.features;
 
-export const getSelectedMeasurementId = (state: RootState): string | null =>
-  state.measurements.selectedId;
+/** Wrap a measurement feature for the shared selectedFeature slot. The
+ *  `featurekind` marker lets getVCard / sidebar highlight discriminate
+ *  it from Fachobjekt features without an extra redux lookup. */
+const wrapMeasurement = (feature: Feature) => ({
+  ...feature,
+  featurekind: MEASUREMENT_FEATUREKIND,
+  selected: true,
+});
+
+/** Select a measurement by id. Routes through the shared selectedFeature
+ *  slot so any prior Fachobjekt selection is implicitly cleared (mutually
+ *  exclusive selection — see featureCollection.setSelectedFeature). */
+export const selectMeasurement =
+  (id: string | null) =>
+  (dispatch: AppDispatch, getState: () => RootState) => {
+    if (id === null) {
+      dispatch(setSelectedFeature(null));
+      return;
+    }
+    const feature = getState().measurements.features.find((f) => f.id === id);
+    if (!feature) return;
+    dispatch(setSelectedFeature(wrapMeasurement(feature)));
+  };
+
+/** Replace the measurement set and drop a stale selection if the picked
+ *  measurement is no longer present. */
+export const replaceMeasurements =
+  (features: Feature[]) =>
+  (dispatch: AppDispatch, getState: () => RootState) => {
+    dispatch(setMeasurements(features));
+    const selected: { featurekind?: string; id?: string | number } | null =
+      getState().featureCollection.selectedFeature;
+    if (
+      selected &&
+      selected.featurekind === MEASUREMENT_FEATUREKIND &&
+      !features.some((f) => f.id === selected.id)
+    ) {
+      dispatch(setSelectedFeature(null));
+    }
+  };

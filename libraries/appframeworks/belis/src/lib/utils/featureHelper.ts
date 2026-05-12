@@ -44,6 +44,44 @@ export const calcLength = (geom) => {
 
 export const getVCard = (feature) => {
   const vcard = { list: {}, infobox: {} };
+
+  // Measurement features bypass the Fachobjekt-shaped switch — they have no
+  // relational properties, only a geometry. The `featurekind` marker is set
+  // by the measurements slice when the feature is routed into the shared
+  // selectedFeature slot.
+  if (feature?.featurekind === "measurement") {
+    const geomType = feature?.geometry?.type;
+    const id = feature?.id != null ? String(feature.id) : "?";
+    const shortId = id.startsWith("measurement.") ? id.slice(12, 20) : id;
+    let title = "Messung";
+    let subtitle = "";
+    if (geomType === "Point") {
+      title = "Punkt";
+      const [x, y] = feature.geometry.coordinates ?? [];
+      if (typeof x === "number" && typeof y === "number") {
+        subtitle = `${x.toFixed(2)} / ${y.toFixed(2)}`;
+      }
+    } else if (geomType === "LineString" || geomType === "MultiLineString") {
+      title = "Linie";
+      try {
+        const meters = calcLength(feature.geometry);
+        subtitle = `${(Math.round(meters * 100) / 100).toString()} m`;
+      } catch (_) {
+        subtitle = "";
+      }
+    } else if (geomType === "Polygon" || geomType === "MultiPolygon") {
+      title = "Fläche";
+    }
+    vcard.infobox.header = "Messung";
+    vcard.infobox.title = `${title} ${shortId}`;
+    vcard.infobox.subtitle = subtitle;
+    vcard.infobox.more = undefined;
+    vcard.list.main = `${title} ${shortId}`;
+    vcard.list.upperright = "";
+    vcard.list.subtitle = subtitle;
+    return vcard;
+  }
+
   const item = JSON.parse(JSON.stringify(feature.properties)); //this is needed because of the fachobject is recreated in the arbeitsprotokoll (opt pot)
 
   switch (feature.featuretype) {

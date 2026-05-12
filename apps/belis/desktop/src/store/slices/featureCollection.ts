@@ -22,7 +22,7 @@ const featureCollectionSlice = createSlice({
       state.features = action.payload;
     },
     setSelectedFeature: (state, action) => {
-      const pickedId = action.payload.id;
+      const pickedId = action.payload?.id ?? null;
       state.features = state.features.map((f) => ({
         ...f,
         selected: f.id === pickedId,
