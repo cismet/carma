@@ -11,8 +11,6 @@ const initialState = {
   zoom: -1,
   enabledLeitungstypen: {} as Record<number, boolean>,
   enabledCategoryFilters: {} as Record<string, boolean>,
-  regularLayerEnabled: true,
-  brandnewLayerEnabled: false,
 };
 export const searchMinimumZoomThreshhold = 18;
 
@@ -70,12 +68,6 @@ const slice = createSlice({
     ) {
       state.enabledCategoryFilters = action.payload;
     },
-    setRegularLayerEnabled(state, action: { payload: boolean }) {
-      state.regularLayerEnabled = action.payload;
-    },
-    setBrandnewLayerEnabled(state, action: { payload: boolean }) {
-      state.brandnewLayerEnabled = action.payload;
-    },
   },
 });
 
@@ -94,8 +86,6 @@ export const {
   setAllLeitungstypen,
   setCategoryFilterEnabled,
   setAllCategoryFilters,
-  setRegularLayerEnabled,
-  setBrandnewLayerEnabled,
 } = slice.actions;
 
 export const getActiveBackgroundLayer = (state) => {
@@ -142,12 +132,4 @@ export const getEnabledLeitungstypen = (state) => {
 
 export const getEnabledCategoryFilters = (state) => {
   return state.mapSettings.enabledCategoryFilters;
-};
-
-export const isRegularLayerEnabled = (state) => {
-  return state.mapSettings.regularLayerEnabled;
-};
-
-export const isBrandnewLayerEnabled = (_state) => {
-  return true;
 };

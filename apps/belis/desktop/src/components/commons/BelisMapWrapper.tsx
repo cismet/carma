@@ -187,7 +187,7 @@ interface BelisMapLibWrapperProps {
   onHighlightsChange?: (highlights: SidebarFeature[] | null) => void;
   /** Local-dev toggle: include the styleY-based Fachobjekte layer (default true). */
   regularLayerEnabled?: boolean;
-  /** Local-dev toggle: include the brand.new.features GeoJSON-backed layer (default false). */
+  /** Local-dev toggle: include the brand.new.features GeoJSON-backed layer (default true). */
   brandnewLayerEnabled?: boolean;
   /** Notified with the live brandnew feature count whenever the FC reloads
    * (incl. transitions to 0 when the source file disappears). */
@@ -203,7 +203,7 @@ const BelisMapLibWrapper = ({
   sidebarVariant,
   onHighlightsChange,
   regularLayerEnabled = true,
-  brandnewLayerEnabled = false,
+  brandnewLayerEnabled = true,
   onBrandnewCountChange,
 }: BelisMapLibWrapperProps) => {
   const dispatch: AppDispatch = useDispatch();
