@@ -8,13 +8,16 @@ import {
 } from "react";
 import { isMobile } from "react-device-detect";
 import { useDispatch, useSelector } from "react-redux";
+import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 
-import { Tooltip } from "antd";
+import { Button, Tooltip } from "antd";
 
 import {
+  faArrowRightFromBracket,
   faEyeSlash,
   faHouseChimney,
   faInfo,
+  faKey,
   faMinus,
   faMountainCity,
   faPlus,
@@ -23,6 +26,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
 import {
   SelectionMapMode,
@@ -33,10 +37,15 @@ import {
 
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import type { SearchResultItem } from "@carma-mapping/fuzzy-search";
-import { detectWebGLContext } from "@carma-commons/utils";
+import {
+  detectWebGLContext,
+  getApplicationVersion,
+} from "@carma-commons/utils";
 import { ResponsiveStatusBar } from "@carma-commons/ui/components";
+import { useOverlayTourContext } from "@carma-commons/ui/helper-overlay";
+import { useAuth } from "@carma-providers/auth";
 import { CarmaMap } from "@carma-mapping/core";
-
+import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/geoportal";
 import {
   PitchingCompass,
   useCesiumContext,
@@ -101,6 +110,8 @@ import {
   toggleUIMode,
   UIMode,
 } from "../../../store/slices/ui.ts";
+import versionData from "../../../../version.json";
+import LoginForm from "../../LoginForm.tsx";
 
 // detect GPU support, disables 3d mode if not supported
 let hasGPU = false;
@@ -169,6 +180,7 @@ const MapWrapper = () => {
   const zenMode = useSelector(getZenMode);
   const ctx = useCesiumContext();
   const configSelection = useSelector(getConfigSelection);
+  const version = getApplicationVersion(versionData);
 
   const {
     isObliqueMode,
@@ -229,7 +241,22 @@ const MapWrapper = () => {
   const { routedMapRef: routedMap } =
     useContext<typeof TopicMapContext>(TopicMapContext);
 
+  const { setAppMenuVisible } =
+    useContext<typeof UIDispatchContext>(UIDispatchContext);
+  const { setSecondaryWithKey, showOverlayHandler } = useOverlayTourContext();
+  const { jwt, setJWT } = useAuth();
+
+  const [isLoginFormVisible, setIsLoginFormVisible] = useState(false);
   const [showTerrain, setShowTerrain] = useState(false);
+
+  const showOverlayFromOutside = useCallback(
+    (key: string) => {
+      setAppMenuVisible(false);
+      setSecondaryWithKey(key);
+      showOverlayHandler();
+    },
+    [setAppMenuVisible, setSecondaryWithKey, showOverlayHandler]
+  );
 
   const [zenButtonHidden, setZenButtonHidden] = useState(false);
   const [isHoveringZenButton, setIsHoveringZenButton] = useState(false);
@@ -587,6 +614,46 @@ const MapWrapper = () => {
               fullScreenControl={false}
               terrainControl={false}
               libreLayers={libreLayers}
+              modalMenu={
+                <GenericModalApplicationMenu
+                  {...getCollabedHelpComponentConfig({
+                    versionString: version,
+                    showOverlayFromOutside,
+                    loginFormToggle: () =>
+                      setIsLoginFormVisible(!isLoginFormVisible),
+                    isLoginFormVisible,
+                    loginForm: (
+                      <LoginForm
+                        onSuccess={() => {
+                          setIsLoginFormVisible(false);
+                          setAppMenuVisible(false);
+                        }}
+                        closeLoginForm={() => setIsLoginFormVisible(false)}
+                      />
+                    ),
+                    loginFormTrigger: (
+                      <Tooltip
+                        title={jwt ? "Abmeldung" : "Anmeldung"}
+                        zIndex={99999999}
+                      >
+                        <Button
+                          type="text"
+                          onClick={() =>
+                            jwt
+                              ? setJWT(null)
+                              : setIsLoginFormVisible(!isLoginFormVisible)
+                          }
+                        >
+                          <FontAwesomeIcon
+                            icon={jwt ? faArrowRightFromBracket : faKey}
+                            size="lg"
+                          />
+                        </Button>
+                      </Tooltip>
+                    ),
+                  })}
+                />
+              }
             />
           ) : (
             <>
