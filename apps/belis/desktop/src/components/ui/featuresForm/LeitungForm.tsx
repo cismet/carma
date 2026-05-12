@@ -25,6 +25,7 @@ interface LeitungFormProps {
   draftFiles?: DraftFile[];
   hasDraft?: boolean;
   isCreation?: boolean;
+  featureId?: string;
   formHeaderContent?: ReactNode;
   onDraftChange?: (values: Record<string, unknown>) => void;
   onDraftFilesChange?: (files: DraftFile[]) => void;
@@ -45,6 +46,7 @@ const LeitungForm = ({
   draftValues,
   draftFiles,
   hasDraft,
+  featureId,
   formHeaderContent,
   onDraftChange,
   onDraftFilesChange,
@@ -232,6 +234,7 @@ const LeitungForm = ({
       <LeitungFormFields
         leitung={lt}
         readOnly={readOnly}
+        featureId={featureId}
         onFormInstance={setFormInstance}
         draftValues={draftValues}
         onValuesChange={handleValuesChange}

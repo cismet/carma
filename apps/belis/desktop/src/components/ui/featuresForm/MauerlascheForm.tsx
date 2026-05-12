@@ -41,6 +41,7 @@ interface MauerlascheFormProps {
   draftFiles?: DraftFile[];
   hasDraft?: boolean;
   isCreation?: boolean;
+  featureId?: string;
   formHeaderContent?: ReactNode;
   onDraftChange?: (values: Record<string, unknown>) => void;
   onDraftFilesChange?: (files: DraftFile[]) => void;
@@ -61,6 +62,7 @@ const MauerlascheForm = ({
   draftValues,
   draftFiles,
   hasDraft,
+  featureId,
   formHeaderContent,
   onDraftChange,
   onDraftFilesChange,
@@ -256,6 +258,7 @@ const MauerlascheForm = ({
         mauerlasche={ml}
         readOnly={readOnly}
         isCreation={isCreation}
+        featureId={featureId}
         onFormInstance={setFormInstance}
         draftValues={draftValues}
         onValuesChange={handleValuesChange}

@@ -14,6 +14,7 @@ interface MauerlascheFormFieldsProps {
   mauerlasche: Record<string, unknown> | null;
   readOnly?: boolean;
   isCreation?: boolean;
+  featureId?: string;
   form?: FormInstance;
   onFormInstance?: (form: FormInstance) => void;
   draftValues?: Record<string, unknown>;
@@ -37,6 +38,7 @@ const MauerlascheFormFields = ({
   mauerlasche,
   readOnly = true,
   isCreation,
+  featureId,
   form: externalForm,
   onFormInstance,
   draftValues,
@@ -96,8 +98,14 @@ const MauerlascheFormFields = ({
         draftApplied.current = true;
       }
     }
+    // Dep on `featureId` (stable per draft) instead of `mauerlasche` (the
+    // synthetic record gets a new reference on every keystroke during creation,
+    // which would re-run this effect, call form.resetFields(), and steal focus
+    // from the active input). Server-data refetches go through resetKey-driven
+    // remount of FormComponent in FeaturesFormsWrapper, so we still pick up
+    // fresh data without depending on the churning record ref.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mauerlasche, form]);
+  }, [featureId, form]);
 
   useEffect(() => {
     if (externalForm) return;

@@ -300,11 +300,13 @@ const LeuchteFormFields = ({
         draftApplied.current = true;
       }
     }
-    // featureId is included so this effect also re-fires on draft switch
-    // when `leuchte` stays null (creation flow: every in-progress draft has
-    // leuchte=null, so object identity alone cannot distinguish them).
+    // Dep on `featureId` only (stable per draft); `leuchte` would churn every
+    // keystroke during creation because the synthetic record passed in via
+    // `data` gets a fresh reference per setDraft, causing form.resetFields()
+    // and stealing focus from the active input. Server-data refetches still
+    // re-run this effect via the resetKey-driven remount in FeaturesFormsWrapper.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [leuchte, featureId, form]);
+  }, [featureId, form]);
 
   useEffect(() => {
     if (externalForm) return;

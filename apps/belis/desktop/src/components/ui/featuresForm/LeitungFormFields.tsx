@@ -9,6 +9,7 @@ import { FormItem } from "./DraftFieldHighlight";
 interface LeitungFormFieldsProps {
   leitung: Record<string, unknown> | null;
   readOnly?: boolean;
+  featureId?: string;
   form?: FormInstance;
   onFormInstance?: (form: FormInstance) => void;
   draftValues?: Record<string, unknown>;
@@ -32,6 +33,7 @@ const FormLabel = ({ children }: { children: React.ReactNode }) => (
 const LeitungFormFields = ({
   leitung,
   readOnly = true,
+  featureId,
   form: externalForm,
   onFormInstance,
   draftValues,
@@ -78,8 +80,13 @@ const LeitungFormFields = ({
         draftApplied.current = true;
       }
     }
+    // Dep on `featureId` (stable per draft) instead of `leitung` (the
+    // synthetic record gets a new reference on every keystroke during creation,
+    // which would re-run this effect, call form.resetFields(), and steal focus
+    // from the active input). Server-data refetches go through resetKey-driven
+    // remount of FormComponent in FeaturesFormsWrapper.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [leitung, form]);
+  }, [featureId, form]);
 
   useEffect(() => {
     if (externalForm) return;
