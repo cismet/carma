@@ -1008,10 +1008,8 @@ const BelisMapLibWrapper = ({
     let subtitle = "";
     if (geomType === "Point") {
       title = "Punkt";
-      const coords = feature.geometry?.coordinates;
-      if (Array.isArray(coords) && typeof coords[0] === "number") {
-        subtitle = `${coords[0].toFixed(2)} / ${coords[1].toFixed(2)}`;
-      }
+      const label = feature.properties?.title;
+      if (typeof label === "string") subtitle = label;
     } else if (geomType === "LineString" || geomType === "MultiLineString") {
       title = "Linie";
       const label = feature.properties?.title;

@@ -606,63 +606,35 @@ const BelisSidebar = ({
     }));
   };
 
-  // Group measurements by geometry type so each type renders as its own
-  // collapsible block (matches the Fachobjekt section pattern in Image #1).
-  const measurementGroups = useMemo(() => {
+  // Single "Messungen" group holding all measurement types. Indexing stays
+  // per-type so labels read "Punkt 1, Punkt 2, Linie 1, Fläche 1" even
+  // though they share one collapsible block.
+  const measurementListItems = useMemo(() => {
     const list = measurements ?? [];
-    const groups: Record<
-      string,
-      { label: string; items: Feature[] }
-    > = {};
-    for (const f of list) {
+    const counters = { Point: 0, LineString: 0, Polygon: 0 };
+    return list.map((f) => {
       const t = f.geometry?.type;
-      let key = "messungen_other";
-      let label = "Messungen";
+      const id = f.id != null ? String(f.id) : "";
+      const shortId = id.startsWith("measurement.") ? id.slice(12, 20) : id;
+      let main = "Messung";
+      let subtitle = "";
       if (t === "Point") {
-        key = "messungen_punkte";
-        label = "Messpunkte";
+        counters.Point += 1;
+        main = `Punkt ${counters.Point}`;
+        const label = (f.properties as any)?.title;
+        if (typeof label === "string") subtitle = label;
       } else if (t === "LineString" || t === "MultiLineString") {
-        key = "messungen_linien";
-        label = "Messlinien";
+        counters.LineString += 1;
+        main = `Linie ${counters.LineString}`;
+        const len = (f.properties as any)?.title;
+        if (typeof len === "string") subtitle = len;
       } else if (t === "Polygon" || t === "MultiPolygon") {
-        key = "messungen_flaechen";
-        label = "Messflächen";
+        counters.Polygon += 1;
+        main = `Fläche ${counters.Polygon}`;
       }
-      if (!groups[key]) groups[key] = { label, items: [] };
-      groups[key].items.push(f);
-    }
-    return groups;
+      return { feature: f, id, main, upperright: shortId, subtitle };
+    });
   }, [measurements]);
-
-  const measurementGroupEntries = useMemo(
-    () => Object.entries(measurementGroups),
-    [measurementGroups]
-  );
-
-  const getMeasurementListItem = (
-    feature: Feature,
-    indexInGroup: number
-  ): ListItemData => {
-    const t = feature.geometry?.type;
-    const id = feature.id != null ? String(feature.id) : "";
-    const shortId = id.startsWith("measurement.") ? id.slice(12, 20) : id;
-    let main = `Messung ${indexInGroup + 1}`;
-    let subtitle = "";
-    if (t === "Point") {
-      main = `Punkt ${indexInGroup + 1}`;
-      const coords = (feature.geometry as any)?.coordinates;
-      if (Array.isArray(coords) && typeof coords[0] === "number") {
-        subtitle = `${coords[0].toFixed(2)} / ${coords[1].toFixed(2)}`;
-      }
-    } else if (t === "LineString" || t === "MultiLineString") {
-      main = `Linie ${indexInGroup + 1}`;
-      const len = (feature.properties as any)?.title;
-      if (typeof len === "string") subtitle = len;
-    } else if (t === "Polygon" || t === "MultiPolygon") {
-      main = `Fläche ${indexInGroup + 1}`;
-    }
-    return { main, upperright: shortId, subtitle };
-  };
 
   return (
     <div
@@ -727,49 +699,46 @@ const BelisSidebar = ({
         />
       )}
       <div className="flex-1 overflow-y-auto overflow-x-hidden">
-        {sidebarMode === "fachobjekte" &&
-          measurementGroupEntries.map(([groupKey, group]) => (
-            <div key={groupKey}>
-              <div
-                onClick={() => toggleGroup(groupKey)}
-                className="text-left px-3 py-2 bg-gray-50 cursor-pointer flex justify-between items-center border-b border-gray-200 hover:bg-gray-100"
-              >
-                <b className="text-sm">{group.label}</b>
-                <span className="bg-gray-500 text-white rounded-full px-2 py-0.5 text-xs font-bold">
-                  {group.items.length}
-                </span>
-              </div>
-              {!collapsedGroups[groupKey] &&
-                group.items.map((feature, index) => {
-                  const listItem = getMeasurementListItem(feature, index);
-                  const fid = String(feature.id ?? "");
-                  const selected = selectedMeasurementId === fid;
-                  return (
-                    <div
-                      key={`${groupKey}-${fid}-${index}`}
-                      onClick={() => onMeasurementSelect?.(fid)}
-                      className={`group relative px-3 py-2 cursor-pointer border-b border-gray-100 pl-4 ${
-                        selected ? SELECTED_ROW_STYLE : "hover:bg-gray-50"
-                      }`}
-                    >
-                      <div className="flex justify-between gap-2 overflow-hidden">
-                        <span className="shrink-0 whitespace-nowrap text-sm">
-                          <b>{listItem.main}</b>
-                        </span>
-                        <span className="grow text-right whitespace-nowrap text-ellipsis overflow-hidden text-xs text-gray-500">
-                          {listItem.upperright}
-                        </span>
-                      </div>
-                      {listItem.subtitle && (
-                        <div className="text-left text-xs text-gray-500 whitespace-nowrap text-ellipsis overflow-hidden mt-0.5">
-                          {listItem.subtitle}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+        {sidebarMode === "fachobjekte" && measurementListItems.length > 0 && (
+          <div key="messungen">
+            <div
+              onClick={() => toggleGroup("messungen")}
+              className="text-left px-3 py-2 bg-gray-50 cursor-pointer flex justify-between items-center border-b border-gray-200 hover:bg-gray-100"
+            >
+              <b className="text-sm">Messungen</b>
+              <span className="bg-gray-500 text-white rounded-full px-2 py-0.5 text-xs font-bold">
+                {measurementListItems.length}
+              </span>
             </div>
-          ))}
+            {!collapsedGroups["messungen"] &&
+              measurementListItems.map((item, index) => {
+                const selected = selectedMeasurementId === item.id;
+                return (
+                  <div
+                    key={`messungen-${item.id}-${index}`}
+                    onClick={() => onMeasurementSelect?.(item.id)}
+                    className={`group relative px-3 py-2 cursor-pointer border-b border-gray-100 pl-4 ${
+                      selected ? SELECTED_ROW_STYLE : "hover:bg-gray-50"
+                    }`}
+                  >
+                    <div className="flex justify-between gap-2 overflow-hidden">
+                      <span className="shrink-0 whitespace-nowrap text-sm">
+                        <b>{item.main}</b>
+                      </span>
+                      <span className="grow text-right whitespace-nowrap text-ellipsis overflow-hidden text-xs text-gray-500">
+                        {item.upperright}
+                      </span>
+                    </div>
+                    {item.subtitle && (
+                      <div className="text-left text-xs text-gray-500 whitespace-nowrap text-ellipsis overflow-hidden mt-0.5">
+                        {item.subtitle}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+          </div>
+        )}
         {totalCount === 0 && !isLoading ? (
           <div className="p-4 text-gray-500 text-center text-sm">
             {emptyMessage}
