@@ -33,7 +33,10 @@ import { AppDispatch, type RootState } from "../../store";
 import { useMapPage } from "../../contexts/MapPageContext";
 import BelisSidebar from "../ui/BelisSidebar";
 import ArbeitsauftraegeSidebar from "../ui/ArbeitsauftraegeSidebar";
-import { AA_SORT_BY_NUMMER_ASC, AA_SORT_BY_PROTOKOLLE_DESC } from "../../helper/aaSortHelpers";
+import {
+  AA_SORT_BY_NUMMER_ASC,
+  AA_SORT_BY_PROTOKOLLE_DESC,
+} from "../../helper/aaSortHelpers";
 import {
   useVisibleMapFeatures,
   functionToInfo,
@@ -57,7 +60,7 @@ import type maplibregl from "maplibre-gl";
 import BelisDatasheetView from "../ui/BelisDatasheetView";
 import ArbeitsauftraegeFormsWrapper from "../ui/featuresForm/ArbeitsauftraegeFormsWrapper";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faMap } from "@fortawesome/free-solid-svg-icons";
+import { faMap, faTrashCan } from "@fortawesome/free-solid-svg-icons";
 import {
   FeatureType,
   fetchFeatureById,
@@ -121,6 +124,28 @@ const LIST_WIDTH = 300;
 /** Debug flag: translucent main map + red mini-map border, mini-map always visible */
 const MINI_MAP_DEBUGGING = false;
 
+// Trash icon for the measurement InfoBox's genericLinks. Created at module
+// scope so React.createElement runs with ReactCurrentOwner === null, leaving
+// `_owner` null on the element — JSON.stringify(genericLink) in
+// @carma-appframeworks/portals helper.tsx then serializes cleanly. Creating
+// the element inside a render would attach the rendering fiber as `_owner`,
+// whose stateNode → DOM → fiber chain is circular and crashes JSON.stringify.
+// Visual size match for the FA4 glyph-rendered loupe icon (rendered via
+// react-fa as `<i class="fa fa-search fa-2x">`). The FA5+ SVG `faTrashCan`
+// fills its em-box more tightly than the FA4 search glyph does, so a raw
+// 2em comes out visibly bigger — 1.5em lines up flush with the loupe.
+const MEASUREMENT_DELETE_ICON = (
+  <FontAwesomeIcon
+    icon={faTrashCan}
+    style={{
+      color: "grey",
+      fontSize: "1.7em",
+      width: "26px",
+      textAlign: "center",
+    }}
+  />
+);
+
 import type { SidebarFeature } from "../ui/BelisSidebar";
 
 import {
@@ -145,8 +170,14 @@ import {
   DrawModeControls,
   MeasurementHost,
   type DrawMode,
+  type MeasurementHostHandle,
 } from "@carma-mapping/measurements";
-import { setMeasurements } from "../../store/slices/measurements";
+import {
+  getMeasurements,
+  replaceMeasurements,
+  selectMeasurement,
+  MEASUREMENT_FEATUREKIND,
+} from "../../store/slices/measurements";
 
 function buildAAFeatureCollection(
   features: ArbeitsauftragTileFeature[]
@@ -214,6 +245,14 @@ const BelisMapLibWrapper = ({
   const enabledLeitungstypen = useSelector(getEnabledLeitungstypen);
   const keyTablesData = useSelector(getKeyTablesData);
   const reduxSelectedFeature = useSelector(getReduxSelectedFeature);
+  const measurements = useSelector(getMeasurements);
+  const selectedMeasurementId =
+    reduxSelectedFeature?.featurekind === MEASUREMENT_FEATUREKIND
+      ? String(reduxSelectedFeature.id)
+      : null;
+  // Imperative handle into MeasurementHost so the InfoBox trash button can
+  // ask terra-draw to remove a measurement.
+  const measurementHostRef = useRef<MeasurementHostHandle | null>(null);
   // Ref for geometry fallback in override effect — avoids adding
   // reduxSelectedFeature to deps (which would cause spurious re-fires).
   const reduxGeometryRef = useRef<any>(null);
@@ -509,7 +548,10 @@ const BelisMapLibWrapper = ({
       // Remove from map highlight state
       if (map) {
         const queryOpts = isFeatureGeojson ? undefined : { sourceLayer: sl };
-        const sourceFeatures = map.querySourceFeatures(featureSource, queryOpts);
+        const sourceFeatures = map.querySourceFeatures(
+          featureSource,
+          queryOpts
+        );
         const match = sourceFeatures.find((f) => {
           if (
             isFeatureGeojson &&
@@ -575,8 +617,7 @@ const BelisMapLibWrapper = ({
   // dev scenario), longer otherwise. Triggers setData only when the .md5
   // sidecar changes.
   const IS_LOCAL_DEV =
-    typeof window !== "undefined" &&
-    window.location.hostname === "localhost";
+    typeof window !== "undefined" && window.location.hostname === "localhost";
   const BRAND_NEW_SYNC_INTERVAL_MS = IS_LOCAL_DEV ? 1000 : 15000;
   useBrandnewFcSync({
     map,
@@ -948,6 +989,68 @@ const BelisMapLibWrapper = ({
   // createInfoBoxInfo.js (from the style) via sandboxed eval.
   const [overrideSelectedFeature, setOverrideSelectedFeature] =
     useState<any>(null);
+
+  // Measurement-selection override: when the shared selectedFeature slot
+  // carries a measurement (sidebar click or terra-draw map click), build an
+  // override the FeatureInfobox can render directly — no Fachobjekt mapping
+  // needed. Includes a Löschen genericLink wired to terra-draw via the
+  // MeasurementHost ref.
+  const measurementOverride = useMemo(() => {
+    if (reduxSelectedFeature?.featurekind !== MEASUREMENT_FEATUREKIND) {
+      return null;
+    }
+    const feature = reduxSelectedFeature;
+    const geomType = feature?.geometry?.type;
+    const id = feature?.id != null ? String(feature.id) : "?";
+    const rawId = id.startsWith("measurement.") ? id.slice(12) : id;
+    const shortId = rawId.slice(0, 8);
+    let title = "Messung";
+    let subtitle = "";
+    if (geomType === "Point") {
+      title = "Punkt";
+      const coords = feature.geometry?.coordinates;
+      if (Array.isArray(coords) && typeof coords[0] === "number") {
+        subtitle = `${coords[0].toFixed(2)} / ${coords[1].toFixed(2)}`;
+      }
+    } else if (geomType === "LineString" || geomType === "MultiLineString") {
+      title = "Linie";
+      const label = feature.properties?.title;
+      if (typeof label === "string") subtitle = label;
+    } else if (geomType === "Polygon" || geomType === "MultiPolygon") {
+      title = "Fläche";
+      const label = feature.properties?.title;
+      if (typeof label === "string") subtitle = label;
+    }
+    return {
+      properties: {
+        header: "Messung",
+        title: `${title} ${shortId}`,
+        subtitle,
+        headerColor: "#0078a8",
+        genericLinks: [
+          {
+            tooltip: "Messung löschen",
+            iconname: "trash",
+            icon: MEASUREMENT_DELETE_ICON,
+            action: () => {
+              measurementHostRef.current?.deleteFeature(rawId);
+              dispatch(selectMeasurement(null));
+            },
+          },
+        ],
+      },
+      geometry: feature.geometry,
+    };
+  }, [reduxSelectedFeature, dispatch]);
+
+  // When a measurement gets selected, drop any lingering Fachobjekt
+  // selection in the local useMapSelection state so LibreMap falls back to
+  // the override path (which renders our measurement InfoBox).
+  useEffect(() => {
+    if (reduxSelectedFeature?.featurekind === MEASUREMENT_FEATUREKIND) {
+      clearMapSelection();
+    }
+  }, [reduxSelectedFeature, clearMapSelection]);
   useEffect(() => {
     // Only run in Fachobjekte mode — AA/AP manage their own overrides
     if (sidebarVariant !== "fachobjekte") return;
@@ -1199,7 +1302,13 @@ const BelisMapLibWrapper = ({
         }
       }
     }
-  }, [map, enabledLeitungstypen, keyTablesData, namespacedSource, brandnewSource]);
+  }, [
+    map,
+    enabledLeitungstypen,
+    keyTablesData,
+    namespacedSource,
+    brandnewSource,
+  ]);
 
   // --- Save/restore selection when switching between route variants ---
   useEffect(() => {
@@ -2454,9 +2563,7 @@ const BelisMapLibWrapper = ({
       if (sidebarMode === "drafts") {
         // Creation drafts have no MVT tile feature — select directly
         if (feature.properties?._isCreation) {
-          dispatch(
-            setSelectedFeature({ ...feature, selected: true })
-          );
+          dispatch(setSelectedFeature({ ...feature, selected: true }));
           selectFeature(identifier, feature as any);
           setFeatureOnMap(true);
           return;
@@ -2531,7 +2638,13 @@ const BelisMapLibWrapper = ({
         f
       );
     },
-    [sidebarMode, allDraftFeatures, handleSidebarFeatureSelect, clearMapSelection, closeDatasheet]
+    [
+      sidebarMode,
+      allDraftFeatures,
+      handleSidebarFeatureSelect,
+      clearMapSelection,
+      closeDatasheet,
+    ]
   );
 
   useEffect(() => {
@@ -2545,8 +2658,7 @@ const BelisMapLibWrapper = ({
       const syntheticFeature =
         draft?.feature ??
         buildSyntheticFeature(featureType, draftKey, {}, draft?.geometry);
-      const sourceLayer =
-        featureTypeToSourceLayer[featureType] ?? featureType;
+      const sourceLayer = featureTypeToSourceLayer[featureType] ?? featureType;
       dispatch(setSelectedFeature({ ...syntheticFeature, selected: true }));
       selectFeature(
         { source: "", sourceLayer, id: draftKey },
@@ -2612,6 +2724,9 @@ const BelisMapLibWrapper = ({
           namespacedSource={namespacedSource}
           adjustedHighlights={adjustedHighlights}
           setAdjustedHighlights={setAdjustedHighlights}
+          measurements={measurements}
+          selectedMeasurementId={selectedMeasurementId}
+          onMeasurementSelect={(id) => dispatch(selectMeasurement(id))}
         />
       )}
       <div
@@ -2715,7 +2830,9 @@ const BelisMapLibWrapper = ({
                 fullScreenControl={false}
                 libreLayers={libreLayers}
                 selectFromHits={handleSelectFromHits}
-                overrideSelectedFeature={overrideSelectedFeature}
+                overrideSelectedFeature={
+                  measurementOverride ?? overrideSelectedFeature
+                }
                 gazetteerInfoOnClick={false}
                 // Suppress carma's vector-feature selection while a draw mode
                 // is active so clicks land in terra-draw, not in the
@@ -2725,9 +2842,7 @@ const BelisMapLibWrapper = ({
                   <DrawModeControls
                     active={drawMode}
                     onSelect={(mode) =>
-                      setDrawMode((prev) =>
-                        prev === mode ? "none" : mode
-                      )
+                      setDrawMode((prev) => (prev === mode ? "none" : mode))
                     }
                     snapping={{
                       enabled: snappingEnabled,
@@ -2737,6 +2852,7 @@ const BelisMapLibWrapper = ({
                 }
               />
               <MeasurementHost
+                ref={measurementHostRef}
                 mode={drawMode}
                 snapping={snappingEnabled}
                 onChange={(features) => {
@@ -2744,12 +2860,20 @@ const BelisMapLibWrapper = ({
                   // away from any other id space (fachobjekte, brandnew FC,
                   // etc.). Persistence intentionally omitted — refresh wipes.
                   dispatch(
-                    setMeasurements(
+                    replaceMeasurements(
                       features.map((f) => ({
                         ...f,
                         id: `measurement.${f.id}`,
                       }))
                     )
+                  );
+                }}
+                onSelectionChange={(id) => {
+                  // terra-draw fires with the raw UUID; redux stores the
+                  // prefixed form. Translate before dispatching so the
+                  // shared selectedFeature slot lands on the matching item.
+                  dispatch(
+                    selectMeasurement(id != null ? `measurement.${id}` : null)
                   );
                 }}
               />
