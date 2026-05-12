@@ -585,9 +585,12 @@ export class StyleComposer {
     const crsParam = version >= "1.3.0" ? "crs" : "srs";
     const isWmts = layer.type === "wmts";
 
-    const tileUrl = `${layer.url}${
-      layer.url.endsWith("?") ? "" : "?"
-    }service=WMS&version=${version}&request=GetMap&layers=${
+    const querySep = layer.url.endsWith("?")
+      ? ""
+      : layer.url.includes("?")
+      ? "&"
+      : "?";
+    const tileUrl = `${layer.url}${querySep}service=WMS&version=${version}&request=GetMap&layers=${
       layer.layers
     }&styles=${layer.styles || (isWmts ? "default" : "")}&format=${
       layer.format || "image/png"
@@ -601,6 +604,70 @@ export class StyleComposer {
       type: "raster",
       tiles: [tileUrl],
       tileSize: layer.tileSize ?? 256,
+    });
+
+    const layerId = `${id}-raster`;
+    this.map.addLayer(
+      {
+        id: layerId,
+        type: "raster",
+        source: sourceId,
+        paint: {
+          "raster-opacity": layer.opacity ?? 1,
+          ...("rasterPaint" in layer ? layer.rasterPaint : undefined),
+        },
+        metadata: { "z-index": opts.zIndex, "layer-id": id },
+      } as LayerSpecification,
+      lastId
+    );
+
+    this.managed.set(id, {
+      sourceIds: [sourceId],
+      layerIds: [layerId],
+      spriteId: null,
+      firstId,
+      lastId,
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // Pre-built raster tiles sub-style ({z}/{x}/{y} URL template)
+  // -------------------------------------------------------------------------
+
+  addTilesSubStyle(
+    id: string,
+    layer: Extract<LibreLayer, { type: "tiles" }>,
+    opts: AddRasterSubStyleOptions
+  ): void {
+    if (this.managed.has(id)) return;
+
+    const firstId = `---${id}:first---`;
+    const lastId = `---${id}:last---`;
+    const sanitized = layer.name.replace(/[^a-zA-Z0-9]/g, "-");
+    const sourceId = `${id}::${sanitized}`;
+
+    this.map.addLayer(
+      {
+        id: lastId,
+        type: "background",
+        paint: { "background-opacity": 0 },
+      } as LayerSpecification,
+      opts.beforeId
+    );
+    this.map.addLayer(
+      {
+        id: firstId,
+        type: "background",
+        paint: { "background-opacity": 0 },
+      } as LayerSpecification,
+      lastId
+    );
+
+    this.map.addSource(sourceId, {
+      type: "raster",
+      tiles: [layer.url],
+      tileSize: layer.tileSize ?? 256,
+      ...(layer.maxZoom !== undefined ? { maxzoom: layer.maxZoom } : {}),
     });
 
     const layerId = `${id}-raster`;

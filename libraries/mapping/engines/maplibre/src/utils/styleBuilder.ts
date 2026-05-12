@@ -470,6 +470,8 @@ export const vectorStylesToMapLibreStyle = async ({
           return { type: "geojson" as const, data: transformedPois(result) };
         } else if (layer.type === "wms" || layer.type === "wmts") {
           return { type: "wms" as const, data: layer };
+        } else if (layer.type === "tiles") {
+          return { type: "tiles" as const, data: layer };
         }
         return null;
       })
@@ -755,12 +757,15 @@ export const vectorStylesToMapLibreStyle = async ({
         const crsParam = version >= "1.3.0" ? "crs" : "srs";
         const isWmts = layer.type === "wmts";
 
+        const querySep = layer.url.endsWith("?")
+          ? ""
+          : layer.url.includes("?")
+          ? "&"
+          : "?";
         style.sources[sourceId] = {
           type: "raster",
           tiles: [
-            `${layer.url}${
-              layer.url.endsWith("?") ? "" : "?"
-            }service=WMS&version=${version}&request=GetMap&layers=${
+            `${layer.url}${querySep}service=WMS&version=${version}&request=GetMap&layers=${
               layer.layers
             }&styles=${layer.styles || (isWmts ? "default" : "")}&format=${
               layer.format || "image/png"
@@ -771,6 +776,31 @@ export const vectorStylesToMapLibreStyle = async ({
             }&${crsParam}=EPSG:3857&bbox={bbox-epsg-3857}`,
           ],
           tileSize: layer.tileSize ?? 256,
+        };
+
+        style.layers.push({
+          id: id,
+          type: "raster",
+          source: sourceId,
+          paint: {
+            "raster-opacity": layer.opacity ?? 1,
+            ...("rasterPaint" in layer ? layer.rasterPaint : undefined),
+          },
+          metadata: {
+            "z-index": index,
+            "layer-id": id,
+          },
+        });
+      } else if (layer.type === "tiles") {
+        const sanitized = layer.name.replace(/[^a-zA-Z0-9]/g, "-");
+        const sourceId = `source-${sanitized}-${index}`;
+        const id = `${sanitized}-${index}`;
+
+        style.sources[sourceId] = {
+          type: "raster",
+          tiles: [layer.url],
+          tileSize: layer.tileSize ?? 256,
+          ...(layer.maxZoom !== undefined ? { maxzoom: layer.maxZoom } : {}),
         };
 
         style.layers.push({

@@ -133,6 +133,15 @@ export type LibreLayer =
       rasterPaint?: RasterPaintOverrides;
     }
   | {
+      type: "tiles";
+      name: string;
+      url: string;
+      opacity?: number;
+      tileSize?: number;
+      maxZoom?: number;
+      rasterPaint?: RasterPaintOverrides;
+    }
+  | {
       type: "cog";
       name: string;
       url: string;
