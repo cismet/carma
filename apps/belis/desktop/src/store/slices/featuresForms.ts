@@ -117,6 +117,25 @@ const featuresFormsSlice = createSlice({
     removeDraft(state, action: PayloadAction<string>) {
       delete state.drafts[action.payload];
     },
+    // Explicitly clear the geometry of a creation draft (the only way to
+    // unset; setDraft uses `geometry ?? existing.geometry` and can't clear).
+    clearDraftGeometry(
+      state,
+      action: PayloadAction<{
+        featureId: string;
+        feature?: any;
+        fetchedData?: Record<string, unknown>;
+      }>
+    ) {
+      const { featureId, feature, fetchedData } = action.payload;
+      const d = state.drafts[featureId];
+      if (!d) return;
+      d.geometry = undefined;
+      d.geometryKey = undefined;
+      if (feature !== undefined) d.feature = feature;
+      if (fetchedData !== undefined) d.fetchedData = fetchedData;
+      d.updatedAt = Date.now();
+    },
     clearAllDrafts(state) {
       state.drafts = {};
       state.originalValues = {};
@@ -259,6 +278,7 @@ export default featuresFormsSlice;
 export const {
   setDraft,
   removeDraft,
+  clearDraftGeometry,
   clearAllDrafts,
   setFormLoading,
   setFormError,
