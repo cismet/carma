@@ -1,30 +1,15 @@
 import { Button, Input, Modal } from "antd";
 
 import { ANNOTATION_KEYBOARD_SHORTCUTS_SUSPENDED_ATTRIBUTE } from "@carma-mapping/annotations/core";
+import { useAnnotationLabelTextDialogState } from "@carma-mapping/annotations/runtime";
 
-import {
-  CESIUM_ANNOTATION_CONFIG,
-  type GeoportalCesiumAnnotationLabelTextModalConfig,
-} from "../../config/app.config";
+import { geoportalAnnotationModeText } from "../../config/geoportalTextConfig";
 import { useGeoportalLabelTextModalInput } from "../../hooks/use-geoportal-label-text-modal-input";
 
-export type GeoportalLabelTextModalProps = {
-  open: boolean;
-  initialValue: string;
-  labelSuggestions: readonly string[];
-  onAbort: () => void;
-  onFinish: (text: string) => void;
-  options?: GeoportalCesiumAnnotationLabelTextModalConfig;
-};
-
-export const GeoportalLabelTextModal = ({
-  open,
-  initialValue,
-  labelSuggestions,
-  onAbort,
-  onFinish,
-  options = CESIUM_ANNOTATION_CONFIG.labelTextModal,
-}: GeoportalLabelTextModalProps) => {
+export const GeoportalLabelTextModal = () => {
+  const { labelTextModal: options } = geoportalAnnotationModeText;
+  const { open, initialValue, labelSuggestions, onAbort, onFinish } =
+    useAnnotationLabelTextDialogState();
   const {
     finish,
     focusInput,

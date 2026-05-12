@@ -5,9 +5,11 @@ import { faRuler } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import { useAnnotationsRuntime } from "@carma-mapping/annotations/runtime";
+import type { AnnotationModeText } from "@carma-mapping/annotations/builtin-tools/annotation-mode-text";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import type { Layer } from "@carma-mapping/layers";
 
+import { geoportalAnnotationModeText } from "../config/geoportalTextConfig";
 import {
   appendLayer,
   setActiveInteractionButtonID,
@@ -24,9 +26,11 @@ import {
 import { useModeLifecycleActions } from "./use-mode-lifecycle-actions";
 import { CESIUM_ANNOTATION_CONFIG } from "../config/app.config";
 
-const CESIUM_ANNOTATION_LAYER: Layer = {
+const createCesiumAnnotationLayer = (
+  annotationModeText: AnnotationModeText
+): Layer => ({
   id: CESIUM_ANNOTATION_LAYER_ID,
-  title: "Messung",
+  title: annotationModeText.layerTitle.empty,
   type: "object",
   icon: "measurement",
   visible: true,
@@ -35,13 +39,23 @@ const CESIUM_ANNOTATION_LAYER: Layer = {
     icon: <FontAwesomeIcon icon={faRuler} />,
     id: CESIUM_ANNOTATION_INTERACTION_ID,
   },
-};
+});
 
-const getCesiumAnnotationLayerTitle = (count: number) =>
-  count > 0 ? `${count} Messung${count > 1 ? "en" : ""}` : "Messung";
+const getCesiumAnnotationLayerTitle = (
+  count: number,
+  annotationModeText: AnnotationModeText
+) =>
+  count > 0
+    ? `${count} ${
+        count > 1
+          ? annotationModeText.layerTitle.plural
+          : annotationModeText.layerTitle.singular
+      }`
+    : annotationModeText.layerTitle.empty;
 
 export function useCesiumAnnotationLayerButton() {
   const dispatch = useDispatch();
+  const annotationModeText = geoportalAnnotationModeText;
   const layers = useSelector(getLayers);
   const uiMode = useSelector(getUIMode);
   const { isCesium } = useMapFrameworkSwitcherContext();
@@ -65,15 +79,23 @@ export function useCesiumAnnotationLayerButton() {
     if (!hasCesiumAnnotationLayer) {
       dispatch(
         appendLayer({
-          ...CESIUM_ANNOTATION_LAYER,
-          title: getCesiumAnnotationLayerTitle(annotationEntries.length),
+          ...createCesiumAnnotationLayer(annotationModeText),
+          title: getCesiumAnnotationLayerTitle(
+            annotationEntries.length,
+            annotationModeText
+          ),
         })
       );
     }
 
     dispatch(setActiveInteractionLayerID(CESIUM_ANNOTATION_LAYER_ID));
     dispatch(setActiveInteractionButtonID(CESIUM_ANNOTATION_INTERACTION_ID));
-  }, [annotationEntries.length, dispatch, hasCesiumAnnotationLayer]);
+  }, [
+    annotationEntries.length,
+    annotationModeText,
+    dispatch,
+    hasCesiumAnnotationLayer,
+  ]);
 
   const handleLeaveCesiumAnnotationMode = useCallback(() => {
     if (!hasCesiumAnnotationLayer) {
@@ -128,12 +150,16 @@ export function useCesiumAnnotationLayerButton() {
 
     dispatch(
       updateLayer({
-        ...CESIUM_ANNOTATION_LAYER,
-        title: getCesiumAnnotationLayerTitle(annotationEntries.length),
+        ...createCesiumAnnotationLayer(annotationModeText),
+        title: getCesiumAnnotationLayerTitle(
+          annotationEntries.length,
+          annotationModeText
+        ),
       })
     );
   }, [
     annotationEntries.length,
+    annotationModeText,
     dispatch,
     hasCesiumAnnotationLayer,
     shouldShowCesiumAnnotationLayer,

@@ -2,6 +2,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type MouseEvent as ReactMouseEvent,
@@ -42,6 +43,8 @@ import {
   type AdhocUnselectedRenderStyle,
   type AdhocUnselectedRenderStyleMetadata,
 } from "@carma-appframeworks/portals";
+
+import { geoportalAnnotationModeText } from "../../config/geoportalTextConfig";
 import { cn } from "@carma-commons/utils";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
@@ -88,14 +91,6 @@ type AdhocRenderStyleDraft = {
 
 const ADHOC_LAYERBAR_LONG_PRESS_DURATION_MS = 320;
 
-const ADHOC_UNSELECTED_RENDER_STYLE_LABELS: Record<
-  AdhocUnselectedRenderStyle,
-  string
-> = {
-  default: "Normal",
-  highlight: "Highlight",
-};
-
 const ADHOC_MODEL_HIGHLIGHT_STYLE = CESIUM_CONFIG.model?.highlight?.style;
 const DEFAULT_ADHOC_MODEL_HIGHLIGHT_TINT_COLOR =
   resolveAdhocUnselectedRenderTintColor(
@@ -106,24 +101,49 @@ const DEFAULT_ADHOC_MODEL_HIGHLIGHT_TINT_MIX = ADHOC_MODEL_HIGHLIGHT_STYLE?.fill
   ? 1
   : DEFAULT_ADHOC_UNSELECTED_RENDER_TINT_MIX;
 
-const ADHOC_RENDER_TINT_SWATCHES = [
-  { color: "#facc15", label: "Gelb" },
-  { color: "#38bdf8", label: "Blau" },
-  { color: "#22c55e", label: "Grün" },
-  { color: "#f97316", label: "Orange" },
-] as const satisfies readonly ColorSwatchGroupOption[];
+const ADHOC_RENDER_TINT_SWATCH_DEFINITIONS = [
+  {
+    color: "#facc15",
+    key: "yellow",
+  },
+  {
+    color: "#38bdf8",
+    key: "blue",
+  },
+  {
+    color: "#22c55e",
+    key: "green",
+  },
+  {
+    color: "#f97316",
+    key: "orange",
+  },
+] as const;
 
-const ADHOC_MODEL_POSITION_FIELDS: readonly {
+const ADHOC_MODEL_POSITION_FIELD_DEFINITIONS: readonly {
   key: AdhocModelPositionField;
-  label: string;
   min?: number;
   max?: number;
   step: string;
 }[] = [
-  { key: "lon", label: "Lon", step: "0.000001" },
-  { key: "lat", label: "Lat", step: "0.000001" },
-  { key: "height", label: "Höhe", step: "0.1" },
-  { key: "heading", label: "Drehung", min: 0, max: 360, step: "0.01" },
+  {
+    key: "lon",
+    step: "0.000001",
+  },
+  {
+    key: "lat",
+    step: "0.000001",
+  },
+  {
+    key: "height",
+    step: "0.1",
+  },
+  {
+    key: "heading",
+    min: 0,
+    max: 360,
+    step: "0.01",
+  },
 ];
 
 const ADHOC_DEVELOPMENT_ONLY_PATTERN_OPTIONS = {
@@ -521,11 +541,15 @@ const LayerbarActionButton = ({
 
 const AdhocInteractionPanelCloseButton = () => {
   const dispatch = useDispatch();
+  const {
+    layerbar: { adhocModel },
+  } = geoportalAnnotationModeText;
+  const closeLabel = adhocModel.actions.close;
 
   return (
-    <Tooltip title="Schließen" placement="top">
+    <Tooltip title={closeLabel} placement="top">
       <button
-        aria-label="Schließen"
+        aria-label={closeLabel}
         className="ml-auto flex items-center justify-center px-1.5 text-gray-600 hover:text-gray-500"
         onClick={(event) => {
           event.preventDefault();
@@ -546,7 +570,11 @@ export const AdhocModelFlyToLayerbarAction = ({
   layer: Layer | BackgroundLayer;
 }) => {
   const dispatch = useDispatch();
+  const {
+    layerbar: { adhocModel },
+  } = geoportalAnnotationModeText;
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
+  const focusObjectLabel = adhocModel.actions.focusObject;
   const {
     featureCollections,
     addFeature,
@@ -658,9 +686,9 @@ export const AdhocModelFlyToLayerbarAction = ({
   };
 
   return (
-    <Tooltip title="Objekt fokussieren" placement="top">
+    <Tooltip title={focusObjectLabel} placement="top">
       <button
-        aria-label="Objekt fokussieren"
+        aria-label={focusObjectLabel}
         className={cn(
           GEOPORTAL_LAYER_TOOL_ACTION_BUTTON_CLASS_NAMES.base,
           GEOPORTAL_LAYER_TOOL_ACTION_BUTTON_CLASS_NAMES.inactive
@@ -684,6 +712,9 @@ export const AdhocModelLayerbarActions = ({
   layer: Layer | BackgroundLayer;
 }) => {
   const dispatch = useDispatch();
+  const {
+    layerbar: { adhocModel },
+  } = geoportalAnnotationModeText;
   const activeInteractionLayerID = useSelector(getActiveInteractionLayerID);
   const activeInteractionButtonID = useSelector(getActiveInteractionButtonID);
   const {
@@ -734,15 +765,19 @@ export const AdhocModelLayerbarActions = ({
   const handleModelControlLongPress = isDevMode
     ? () => openInteractionPanel(ADHOC_MODEL_CONTROL_INTERACTION_ID)
     : undefined;
+  const isHighlightActive = unselectedRenderStyle === "highlight";
+  const highlightTooltip = isHighlightActive
+    ? adhocModel.highlight.deactivate
+    : adhocModel.highlight.activate;
 
   return (
     <div className="flex items-center">
       <LayerbarActionButton
-        active={isRenderStylePanelOpen || unselectedRenderStyle === "highlight"}
+        active={isRenderStylePanelOpen || isHighlightActive}
         icon={faPalette}
         onClick={toggleAdhocRenderStyle}
         onLongPress={handleRenderStyleLongPress}
-        title="Darstellung umschalten"
+        title={highlightTooltip}
       />
       <LayerbarActionButton
         active={isModelControlPanelOpen || adhocFeatureClippingEnabled === true}
@@ -750,7 +785,7 @@ export const AdhocModelLayerbarActions = ({
         icon={faCropSimple}
         onClick={toggleAdhocModelClipping}
         onLongPress={handleModelControlLongPress}
-        title="Clipping umschalten"
+        title={adhocModel.actions.toggleClipping}
       />
     </div>
   );
@@ -762,6 +797,9 @@ export const AdhocRenderStyleInteractionPanel = ({
   layer: Layer;
 }) => {
   const {
+    layerbar: { adhocModel },
+  } = geoportalAnnotationModeText;
+  const {
     isAdhocLayer,
     unselectedRenderStyle,
     unselectedRenderTintColor,
@@ -770,6 +808,24 @@ export const AdhocRenderStyleInteractionPanel = ({
     updateAdhocRenderMetadata,
   } = useAdhocModelLayerbarControls(layer);
   const isDevMode = useDevelopmentUiEnabled();
+  const renderStyleLabels = useMemo<Record<AdhocUnselectedRenderStyle, string>>(
+    () => ({
+      default: adhocModel.renderStyleLabels.default,
+      highlight: adhocModel.renderStyleLabels.highlight,
+    }),
+    [
+      adhocModel.renderStyleLabels.default,
+      adhocModel.renderStyleLabels.highlight,
+    ]
+  );
+  const tintSwatches = useMemo<readonly ColorSwatchGroupOption[]>(
+    () =>
+      ADHOC_RENDER_TINT_SWATCH_DEFINITIONS.map(({ color, key }) => ({
+        color,
+        label: adhocModel.tintSwatches[key],
+      })),
+    [adhocModel.tintSwatches]
+  );
 
   useEffect(() => {
     if (!isAdhocLayer || !isDevMode) {
@@ -801,14 +857,14 @@ export const AdhocRenderStyleInteractionPanel = ({
       >
         {ADHOC_UNSELECTED_RENDER_STYLES.map((style) => (
           <Radio.Button key={style} className="select-none" value={style}>
-            {ADHOC_UNSELECTED_RENDER_STYLE_LABELS[style]}
+            {renderStyleLabels[style]}
           </Radio.Button>
         ))}
       </Radio.Group>
       {unselectedRenderStyle === "highlight" && (
         <>
           <ColorSwatchGroup
-            swatches={ADHOC_RENDER_TINT_SWATCHES}
+            swatches={tintSwatches}
             value={unselectedRenderTintColor}
             showColorPicker
             tintMix={unselectedRenderTintMix}
@@ -820,7 +876,7 @@ export const AdhocRenderStyleInteractionPanel = ({
             }
           />
           <div className="flex min-w-48 items-center gap-3">
-            <span className="text-sm">Tönung</span>
+            <span className="text-sm">{adhocModel.tintLabel}</span>
             <Slider
               className="min-w-32 flex-1"
               min={MIN_ADHOC_UNSELECTED_RENDER_TINT_MIX}
@@ -848,6 +904,9 @@ export const AdhocModelControlInteractionPanel = ({
   layer: Layer;
 }) => {
   const {
+    layerbar: { adhocModel },
+  } = geoportalAnnotationModeText;
+  const {
     adhocFeatureClippingEnabled,
     adhocModelPosition,
     adhocModelPositionInputs,
@@ -858,6 +917,14 @@ export const AdhocModelControlInteractionPanel = ({
     updateAdhocFeature,
   } = useAdhocModelLayerbarControls(layer);
   const isDevMode = useDevelopmentUiEnabled();
+  const modelPositionFields = useMemo(
+    () =>
+      ADHOC_MODEL_POSITION_FIELD_DEFINITIONS.map((field) => ({
+        ...field,
+        label: adhocModel.modelPositionFields[field.key],
+      })),
+    [adhocModel.modelPositionFields]
+  );
 
   if (!isAdhocLayer || !isDevMode) {
     return null;
@@ -870,7 +937,7 @@ export const AdhocModelControlInteractionPanel = ({
     >
       {adhocFeatureClippingEnabled !== null && (
         <div className="flex items-center gap-3">
-          <span className="text-sm">Clipping</span>
+          <span className="text-sm">{adhocModel.clipping.label}</span>
           <Radio.Group
             className="[&_.ant-radio-button-wrapper]:text-center"
             value={adhocFeatureClippingEnabled ? "on" : "off"}
@@ -881,16 +948,16 @@ export const AdhocModelControlInteractionPanel = ({
             }}
           >
             <Radio.Button className="select-none" value="off">
-              Aus
+              {adhocModel.clipping.off}
             </Radio.Button>
             <Radio.Button className="select-none" value="on">
-              An
+              {adhocModel.clipping.on}
             </Radio.Button>
           </Radio.Group>
         </div>
       )}
       {adhocModelPosition &&
-        ADHOC_MODEL_POSITION_FIELDS.map((field) => (
+        modelPositionFields.map((field) => (
           <label
             key={field.key}
             className="mb-0 flex flex-col gap-1 text-xs text-gray-600"

@@ -39,15 +39,6 @@ export type GeoportalAnnotationInfoBoxConfig = Pick<
   "controlOrder" | "fitContentWidth" | "pixelWidth"
 >;
 
-export type GeoportalCesiumAnnotationLabelTextModalConfig = {
-  title: string;
-  okText: string;
-  cancelText: string;
-  inputAriaLabel: string;
-  inputPlaceholder: string;
-  suggestionButtonSize: "small" | "middle" | "large";
-};
-
 export type GeoportalCesiumAnnotationConfig = {
   measurementLineStyle: MeasurementLineStyleOptions;
   areaOcclusionStyle: AreaOcclusionStyleOptions;
@@ -56,7 +47,6 @@ export type GeoportalCesiumAnnotationConfig = {
     defaultToolId: AnnotationToolId;
     stableToolIds: readonly AnnotationToolId[];
   };
-  labelTextModal: GeoportalCesiumAnnotationLabelTextModalConfig;
 };
 
 export const CESIUM_CONFIG: CesiumConfig = {
@@ -136,14 +126,6 @@ export const CESIUM_ANNOTATION_CONFIG = {
   tools: {
     defaultToolId: "distance",
     stableToolIds: ["select", "point", "distance"],
-  },
-  labelTextModal: {
-    title: "Beschriftung hinzufügen",
-    okText: "Hinzufügen",
-    cancelText: "Abbrechen",
-    inputAriaLabel: "Text der Beschriftung",
-    inputPlaceholder: "Text der Beschriftung",
-    suggestionButtonSize: "small",
   },
 } satisfies GeoportalCesiumAnnotationConfig;
 

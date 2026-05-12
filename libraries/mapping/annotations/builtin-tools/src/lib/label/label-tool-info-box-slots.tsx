@@ -1,11 +1,26 @@
 import { buildAnnotationMeasurementInfoBoxSlots } from "@carma-mapping/annotations/ui";
+import type { AnnotationInfoBoxActionLabels } from "@carma-mapping/annotations/ui";
 
 import type { RuntimeAnnotationInfoBoxContext } from "@carma-mapping/annotations/runtime";
-import { LabelToolInfoBoxContent } from "./label-tool-info-box-content";
+import {
+  LabelToolInfoBoxContent,
+  type LabelToolInfoBoxLabels,
+} from "./label-tool-info-box-content";
 import { getDefaultLabelDisplayName } from "./label-tool-actions";
 
 export const createLabelToolInfoBoxSlots = (
-  toolType: RuntimeAnnotationInfoBoxContext["annotation"]["toolType"]
+  toolType: RuntimeAnnotationInfoBoxContext["annotation"]["toolType"],
+  {
+    headingTitle,
+    defaultDisplayNamePrefix,
+    actionLabels,
+    infoBoxLabels,
+  }: {
+    headingTitle: string;
+    defaultDisplayNamePrefix: string;
+    actionLabels?: Partial<AnnotationInfoBoxActionLabels>;
+    infoBoxLabels?: LabelToolInfoBoxLabels;
+  }
 ) => {
   return ({
     annotation,
@@ -29,10 +44,13 @@ export const createLabelToolInfoBoxSlots = (
       labelMeasurements.findIndex(
         (measurementEntry) => measurementEntry.id === annotation.id
       ) + 1;
-    const defaultDisplayName = getDefaultLabelDisplayName(labelOrder);
+    const defaultDisplayName = getDefaultLabelDisplayName(
+      labelOrder,
+      defaultDisplayNamePrefix
+    );
 
     return buildAnnotationMeasurementInfoBoxSlots({
-      headingTitle: "Beschriftung",
+      headingTitle,
       titleInput: {
         value: annotation.displayName ?? "",
         placeholder: defaultDisplayName,
@@ -62,6 +80,7 @@ export const createLabelToolInfoBoxSlots = (
           event.stopPropagation();
           removeAnnotationById(annotation.id);
         },
+        labels: actionLabels,
         dataTestIdPrefix: "carma-annotation-label-measurement",
         dataTestIds: {
           flyTo: "carma-annotation-flyto-label-measurement-btn",
@@ -75,6 +94,7 @@ export const createLabelToolInfoBoxSlots = (
       content: (
         <LabelToolInfoBoxContent
           annotation={annotation}
+          labels={infoBoxLabels}
           visualOptions={infoBoxVisualOptions}
         />
       ),

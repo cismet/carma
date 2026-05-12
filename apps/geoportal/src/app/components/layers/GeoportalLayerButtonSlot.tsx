@@ -17,6 +17,8 @@ import Icon from "react-cismap/commons/Icon";
 import { useMapMeasurementsContext } from "@carma-commons/measurements";
 import { useAnnotationsRuntime } from "@carma-mapping/annotations/runtime";
 
+import { geoportalAnnotationModeText } from "../../config/geoportalTextConfig";
+
 import { removeLayer } from "../../store/slices/mapping";
 import { CESIUM_ANNOTATION_LAYER_ID } from "../annotations/cesium-annotations.constants";
 import { MEASUREMENT_LAYER_ID } from "../../hooks/useMeasurementLayerButton";
@@ -59,6 +61,7 @@ const LayerButtonActionButton = ({
 
 const CesiumAnnotationLayerButton = (props: GeoportalLayerButtonProps) => {
   const dispatch = useDispatch();
+  const { layerbar } = geoportalAnnotationModeText;
   const {
     annotationEntries,
     exportAllAnnotationsGeoJson,
@@ -81,19 +84,19 @@ const CesiumAnnotationLayerButton = (props: GeoportalLayerButtonProps) => {
       actionSlot={
         <div className="flex items-center">
           <LayerButtonActionButton
-            title="Alle Messungen fokussieren"
+            title={layerbar.cesiumAnnotations.focusAll}
             icon={<Icon name="search-location" className="leading-none" />}
             disabled={!hasAnnotations}
             onClick={flyToAllAnnotations}
           />
           <LayerButtonActionButton
-            title="Alle Messungen als GeoJSON herunterladen"
+            title={layerbar.cesiumAnnotations.exportAllGeoJson}
             icon={<FontAwesomeIcon icon={faDownload} />}
             disabled={!hasAnnotations}
             onClick={exportAllAnnotationsGeoJson}
           />
           <LayerButtonActionButton
-            title="Alle Messungen löschen"
+            title={layerbar.cesiumAnnotations.deleteAll}
             icon={<FontAwesomeIcon icon={faTrashCan} />}
             disabled={!hasAnnotations}
             onClick={() => {
@@ -114,6 +117,7 @@ const CesiumAnnotationLayerButton = (props: GeoportalLayerButtonProps) => {
 };
 
 const MeasurementLayerButton = (props: GeoportalLayerButtonProps) => {
+  const { layerbar } = geoportalAnnotationModeText;
   const { shapes, clearAllShapes } = useMapMeasurementsContext();
 
   return (
@@ -122,7 +126,7 @@ const MeasurementLayerButton = (props: GeoportalLayerButtonProps) => {
       actionSlot={
         <div className="flex items-center">
           <LayerButtonActionButton
-            title="Alle Messungen löschen"
+            title={layerbar.leafletMeasurements.deleteAll}
             icon={<FontAwesomeIcon icon={faTrashCan} />}
             disabled={shapes.length === 0}
             onClick={clearAllShapes}

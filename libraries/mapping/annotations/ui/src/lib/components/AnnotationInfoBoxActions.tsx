@@ -20,6 +20,7 @@ import {
 export type AnnotationInfoBoxActionsProps = {
   hidden?: boolean;
   locked?: boolean;
+  labels?: Partial<AnnotationInfoBoxActionLabels>;
   onFlyTo: AnnotationInfoBoxActionHandler;
   onExport: AnnotationInfoBoxActionHandler;
   onToggleVisibility: AnnotationInfoBoxActionHandler;
@@ -42,9 +43,35 @@ type AnnotationInfoBoxActionHandler = (
   event: ReactMouseEvent<HTMLElement, MouseEvent>
 ) => void;
 
+export type AnnotationInfoBoxActionLabels = Readonly<{
+  flyTo: string;
+  exportGeoJson: string;
+  show: string;
+  hide: string;
+  setReference: string;
+  lock: string;
+  unlock: string;
+  delete: string;
+  deleteLocked: string;
+}>;
+
+export const DEFAULT_ANNOTATION_INFO_BOX_ACTION_LABELS =
+  Object.freeze<AnnotationInfoBoxActionLabels>({
+    flyTo: "Zur Messung fliegen",
+    exportGeoJson: "Als GeoJSON exportieren",
+    show: "Einblenden",
+    hide: "Ausblenden",
+    setReference: "Als Referenzhöhe setzen",
+    lock: "Sperren",
+    unlock: "Entsperren",
+    delete: "Löschen",
+    deleteLocked: "Gesperrte Messung kann nicht gelöscht werden",
+  });
+
 export const AnnotationInfoBoxActions = ({
   hidden = false,
   locked = false,
+  labels,
   onFlyTo,
   onExport,
   onToggleVisibility,
@@ -55,6 +82,10 @@ export const AnnotationInfoBoxActions = ({
   dataTestIdPrefix,
   dataTestIds,
 }: AnnotationInfoBoxActionsProps) => {
+  const resolvedLabels = {
+    ...DEFAULT_ANNOTATION_INFO_BOX_ACTION_LABELS,
+    ...labels,
+  };
   const hiddenActionIds = new Set<AnnotationInfoBoxActionId>(
     visualOptions?.hiddenActionIds ?? []
   );
@@ -66,7 +97,7 @@ export const AnnotationInfoBoxActions = ({
       {isActionVisible(ANNOTATION_INFO_BOX_ACTION_IDS.FLY_TO) ? (
         <AnnotationInfoBoxActionIcon
           actionId={ANNOTATION_INFO_BOX_ACTION_IDS.FLY_TO}
-          title="Zur Messung fliegen"
+          title={resolvedLabels.flyTo}
           icon={faSearchLocation}
           onClick={onFlyTo}
           dataTestId={dataTestIds?.flyTo ?? `${dataTestIdPrefix}-flyto-btn`}
@@ -76,7 +107,7 @@ export const AnnotationInfoBoxActions = ({
       {isActionVisible(ANNOTATION_INFO_BOX_ACTION_IDS.EXPORT) ? (
         <AnnotationInfoBoxActionIcon
           actionId={ANNOTATION_INFO_BOX_ACTION_IDS.EXPORT}
-          title="Als GeoJSON exportieren"
+          title={resolvedLabels.exportGeoJson}
           icon={faDownload}
           onClick={onExport}
           dataTestId={
@@ -88,7 +119,7 @@ export const AnnotationInfoBoxActions = ({
       {isActionVisible(ANNOTATION_INFO_BOX_ACTION_IDS.VISIBILITY) ? (
         <AnnotationInfoBoxActionIcon
           actionId={ANNOTATION_INFO_BOX_ACTION_IDS.VISIBILITY}
-          title={hidden ? "Einblenden" : "Ausblenden"}
+          title={hidden ? resolvedLabels.show : resolvedLabels.hide}
           icon={hidden ? faEyeSlash : faEye}
           onClick={onToggleVisibility}
           dataTestId={
@@ -102,7 +133,7 @@ export const AnnotationInfoBoxActions = ({
       isActionVisible(ANNOTATION_INFO_BOX_ACTION_IDS.REFERENCE) ? (
         <AnnotationInfoBoxActionIcon
           actionId={ANNOTATION_INFO_BOX_ACTION_IDS.REFERENCE}
-          title="Als Referenzhöhe setzen"
+          title={resolvedLabels.setReference}
           icon={faArrowsDownToLine}
           onClick={onSetReference}
           dataTestId={
@@ -114,7 +145,7 @@ export const AnnotationInfoBoxActions = ({
       {isActionVisible(ANNOTATION_INFO_BOX_ACTION_IDS.LOCK) ? (
         <AnnotationInfoBoxActionIcon
           actionId={ANNOTATION_INFO_BOX_ACTION_IDS.LOCK}
-          title={locked ? "Entsperren" : "Sperren"}
+          title={locked ? resolvedLabels.unlock : resolvedLabels.lock}
           icon={locked ? faLock : faLockOpen}
           onClick={onToggleLock}
           dataTestId={
@@ -126,9 +157,7 @@ export const AnnotationInfoBoxActions = ({
       {isActionVisible(ANNOTATION_INFO_BOX_ACTION_IDS.DELETE) ? (
         <AnnotationInfoBoxActionIcon
           actionId={ANNOTATION_INFO_BOX_ACTION_IDS.DELETE}
-          title={
-            locked ? "Gesperrte Messung kann nicht gelöscht werden" : "Löschen"
-          }
+          title={locked ? resolvedLabels.deleteLocked : resolvedLabels.delete}
           icon={faTrashCan}
           onClick={onDelete}
           dataTestId={dataTestIds?.delete ?? `${dataTestIdPrefix}-delete-btn`}

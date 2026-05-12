@@ -7,7 +7,9 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import type { Layer } from "@carma-mapping/layers";
 import { useMapMeasurementsContext } from "@carma-commons/measurements";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
+import type { AnnotationModeText } from "@carma-mapping/annotations/builtin-tools/annotation-mode-text";
 
+import { geoportalAnnotationModeText } from "../config/geoportalTextConfig";
 import {
   appendLayer,
   getLayers,
@@ -18,12 +20,22 @@ import { getUIMode, setUIMode, UIMode } from "../store/slices/ui";
 
 export const MEASUREMENT_LAYER_ID = "__measurement__";
 
-function getMeasurementTitle(count: number) {
-  return count > 0 ? `${count} Messung${count > 1 ? "en" : ""}` : "Messung";
+function getMeasurementTitle(
+  count: number,
+  annotationModeText: AnnotationModeText
+) {
+  return count > 0
+    ? `${count} ${
+        count > 1
+          ? annotationModeText.layerTitle.plural
+          : annotationModeText.layerTitle.singular
+      }`
+    : annotationModeText.layerTitle.empty;
 }
 
 export function useMeasurementLayerButton() {
   const dispatch = useDispatch();
+  const annotationModeText = geoportalAnnotationModeText;
   const uiMode = useSelector(getUIMode);
   const layers = useSelector(getLayers);
   const { shapes } = useMapMeasurementsContext();
@@ -31,7 +43,7 @@ export function useMeasurementLayerButton() {
 
   const measurementLayer: Layer = {
     id: MEASUREMENT_LAYER_ID,
-    title: "Messung",
+    title: annotationModeText.layerTitle.empty,
     type: "object",
     icon: "measurement",
     visible: true,
@@ -40,7 +52,7 @@ export function useMeasurementLayerButton() {
     interactionButtons: {
       icon: <FontAwesomeIcon icon={faFloppyDisk} />,
       id: "save-measurements",
-      tooltip: "Messungen speichern",
+      tooltip: annotationModeText.layerbar.leafletMeasurements.save,
     },
   };
 
@@ -75,7 +87,7 @@ export function useMeasurementLayerButton() {
       dispatch(
         appendLayer({
           ...measurementLayer,
-          title: getMeasurementTitle(shapes.length),
+          title: getMeasurementTitle(shapes.length, annotationModeText),
         })
       );
       return;
@@ -100,6 +112,7 @@ export function useMeasurementLayerButton() {
       dispatch(setUIMode(UIMode.DEFAULT));
     }
   }, [
+    annotationModeText,
     dispatch,
     hasMeasurementLayer,
     shouldShowMeasurementLayer,
@@ -111,10 +124,11 @@ export function useMeasurementLayerButton() {
     dispatch(
       updateLayer({
         ...measurementLayer,
-        title: getMeasurementTitle(shapes.length),
+        title: getMeasurementTitle(shapes.length, annotationModeText),
       })
     );
   }, [
+    annotationModeText,
     dispatch,
     hasMeasurementLayer,
     shapes.length,

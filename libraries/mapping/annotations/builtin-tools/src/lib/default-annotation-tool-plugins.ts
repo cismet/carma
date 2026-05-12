@@ -18,63 +18,76 @@ import {
 import {
   createLabelToolPlugin,
   labelToolPlugin,
-  type LabelToolPluginOptions,
 } from "./label/label-tool-plugin";
-import { pointToolPlugin } from "./point/point-tool-plugin";
+import {
+  createPointToolPlugin,
+  pointToolPlugin,
+} from "./point/point-tool-plugin";
 import {
   createPolylineToolPlugin,
   polylineToolPlugin,
 } from "./polyline/polyline-tool-plugin";
-import { selectToolPlugin } from "./select/select-tool-plugin";
+import {
+  createSelectToolPlugin,
+  selectToolPlugin,
+} from "./select/select-tool-plugin";
 import {
   createVerticalAreaToolPlugin,
   verticalAreaToolPlugin,
 } from "./vertical-area/vertical-area-tool-plugin";
+import type { DefaultAnnotationToolTexts } from "./annotation-mode-text";
+
 export type DefaultAnnotationToolPluginsOptions = {
-  label?: LabelToolPluginOptions;
   areaOcclusionStyle?: AreaOcclusionStyleOptions;
   measurementLineStyle?: MeasurementLineStyleOptions;
+  texts?: DefaultAnnotationToolTexts;
 };
 
 export const createDefaultAnnotationToolPlugins = ({
-  label,
   areaOcclusionStyle,
   measurementLineStyle,
+  texts,
 }: DefaultAnnotationToolPluginsOptions = {}): readonly AnnotationToolPlugin[] => {
   const hasMeasurementLineStyle = measurementLineStyle !== undefined;
+  const hasCustomTexts = texts !== undefined;
 
   return [
-    selectToolPlugin,
-    pointToolPlugin,
-    hasMeasurementLineStyle
+    hasCustomTexts ? createSelectToolPlugin({ texts }) : selectToolPlugin,
+    hasCustomTexts ? createPointToolPlugin({ texts }) : pointToolPlugin,
+    hasMeasurementLineStyle || hasCustomTexts
       ? createDistanceToolPlugin({
           measurementLineStyleOptions: measurementLineStyle,
+          texts,
         })
       : distanceToolPlugin,
-    hasMeasurementLineStyle
+    hasMeasurementLineStyle || hasCustomTexts
       ? createPolylineToolPlugin({
           measurementLineStyleOptions: measurementLineStyle,
+          texts,
         })
       : polylineToolPlugin,
-    areaOcclusionStyle || hasMeasurementLineStyle
+    areaOcclusionStyle || hasMeasurementLineStyle || hasCustomTexts
       ? createAreaGroundToolPlugin({
           occlusionStyleOptions: areaOcclusionStyle,
           measurementLineStyleOptions: measurementLineStyle,
+          texts,
         })
       : areaGroundToolPlugin,
-    areaOcclusionStyle || hasMeasurementLineStyle
+    areaOcclusionStyle || hasMeasurementLineStyle || hasCustomTexts
       ? createAreaPlanarToolPlugin({
           occlusionStyleOptions: areaOcclusionStyle,
           measurementLineStyleOptions: measurementLineStyle,
+          texts,
         })
       : areaPlanarToolPlugin,
-    areaOcclusionStyle || hasMeasurementLineStyle
+    areaOcclusionStyle || hasMeasurementLineStyle || hasCustomTexts
       ? createVerticalAreaToolPlugin({
           occlusionStyleOptions: areaOcclusionStyle,
           measurementLineStyleOptions: measurementLineStyle,
+          texts,
         })
       : verticalAreaToolPlugin,
-    label ? createLabelToolPlugin(label) : labelToolPlugin,
+    hasCustomTexts ? createLabelToolPlugin({ texts }) : labelToolPlugin,
   ];
 };
 

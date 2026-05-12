@@ -61,6 +61,7 @@ import {
   NOOP_RUNTIME_LIFECYCLE_HOST_API,
   type RuntimeLifecycleHostApi,
 } from "./lifecycle-host-api";
+import type { AnnotationLabelTextRequester } from "./use-annotation-label-text-request";
 
 type UseAnnotationsRuntimeAssemblyOptions = {
   scene: Scene | null;
@@ -73,6 +74,7 @@ type UseAnnotationsRuntimeAssemblyOptions = {
   onPersistenceStateChange?: (
     state: AnnotationsRuntimePersistenceEnvelope
   ) => void;
+  requestLabelText?: AnnotationLabelTextRequester;
 };
 
 export const useAnnotationsAssembly = ({
@@ -84,6 +86,7 @@ export const useAnnotationsAssembly = ({
   previewLineLabelVisualOptions,
   initialPersistenceState,
   onPersistenceStateChange,
+  requestLabelText,
 }: UseAnnotationsRuntimeAssemblyOptions) => {
   const registry = useMemo(
     () => buildAnnotationToolRegistry(plugins),
@@ -675,6 +678,7 @@ export const useAnnotationsAssembly = ({
       formatOptions,
       previewLineLabelVisualOptions,
       bindApi: bindLifecycleHostApi,
+      requestLabelText,
     },
     runtimeVisualHost: {
       scene,

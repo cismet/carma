@@ -4,6 +4,15 @@ export {
   type DefaultAnnotationToolPluginsOptions,
 } from "./lib/default-annotation-tool-plugins";
 export {
+  defaultAnnotationModeText,
+  defaultAnnotationToolTexts,
+  resolveAnnotationModeText,
+  type DefaultAnnotationToolTexts,
+  type AnnotationModeLabelTextModalText,
+  type AnnotationModeText,
+  type AnnotationModeTextOverrides,
+} from "./lib/annotation-mode-text";
+export {
   areaGroundToolPlugin,
   createAreaGroundToolPlugin,
   type AreaGroundToolPluginOptions,
@@ -25,13 +34,21 @@ export {
   type LabelToolTextRequestContext,
   type LabelToolTextRequester,
 } from "./lib/label/label-tool-plugin";
-export { pointToolPlugin } from "./lib/point/point-tool-plugin";
+export {
+  createPointToolPlugin,
+  pointToolPlugin,
+  type PointToolPluginOptions,
+} from "./lib/point/point-tool-plugin";
 export {
   createPolylineToolPlugin,
   polylineToolPlugin,
   type PolylineToolPluginOptions,
 } from "./lib/polyline/polyline-tool-plugin";
-export { selectToolPlugin } from "./lib/select/select-tool-plugin";
+export {
+  createSelectToolPlugin,
+  selectToolPlugin,
+  type SelectToolPluginOptions,
+} from "./lib/select/select-tool-plugin";
 export {
   createVerticalAreaToolPlugin,
   verticalAreaToolPlugin,

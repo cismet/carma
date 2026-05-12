@@ -10,9 +10,14 @@ import {
 } from "@carma-mapping/annotations/runtime";
 import {
   formatPointRelativeHeightInfoText,
+  type PointElevationTextLabels,
   resolvePointElevationReferenceCoordinate,
   resolvePointElevationReferenceAnnotationId,
 } from "./point-tool-elevation-display";
+import type {
+  AnnotationInfoBoxActionLabels,
+  AnnotationInfoBoxNavigationLabels,
+} from "@carma-mapping/annotations/ui";
 
 export const createPointToolInfoBoxSlots = (
   toolType: RuntimeAnnotationInfoBoxContext["annotation"]["toolType"],
@@ -20,10 +25,16 @@ export const createPointToolInfoBoxSlots = (
     headingTitle,
     headingColor,
     formatMeasurementLabelToken,
+    actionLabels,
+    navigationLabels,
+    elevationLabels,
   }: {
     headingTitle: string;
     headingColor: string;
     formatMeasurementLabelToken: (counter: number) => string;
+    actionLabels?: Partial<AnnotationInfoBoxActionLabels>;
+    navigationLabels?: Partial<AnnotationInfoBoxNavigationLabels>;
+    elevationLabels?: PointElevationTextLabels;
   }
 ) => {
   return ({
@@ -135,6 +146,7 @@ export const createPointToolInfoBoxSlots = (
           event.stopPropagation();
           removeAnnotationById(annotation.id);
         },
+        labels: actionLabels,
         dataTestIdPrefix: "carma-annotation-point-measurement",
         dataTestIds: {
           flyTo: "carma-annotation-flyto-point-measurement-btn",
@@ -153,6 +165,7 @@ export const createPointToolInfoBoxSlots = (
             coordinate,
             referenceCoordinate,
             formatOptions,
+            labels: elevationLabels,
           })}
         </div>
       ),
@@ -162,6 +175,7 @@ export const createPointToolInfoBoxSlots = (
         onFlyToAllMeasurements: navigation?.flyToAllMeasurements,
         onPreviousMeasurement: () => navigation?.selectRelativeMeasurement(-1),
         onNextMeasurement: () => navigation?.selectRelativeMeasurement(1),
+        labels: navigationLabels,
       },
       visualOptions: infoBoxVisualOptions,
     });

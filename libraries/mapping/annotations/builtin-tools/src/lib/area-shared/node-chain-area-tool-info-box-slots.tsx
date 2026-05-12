@@ -8,6 +8,8 @@ import type { PolygonType } from "@carma-mapping/annotations/core";
 import {
   AnnotationInfoBoxMetricGrid,
   buildAnnotationMeasurementInfoBoxSlots,
+  type AnnotationInfoBoxActionLabels,
+  type AnnotationInfoBoxNavigationLabels,
 } from "@carma-mapping/annotations/ui";
 
 import type { RuntimeAnnotationInfoBoxContext } from "@carma-mapping/annotations/runtime";
@@ -24,12 +26,22 @@ export const createNodeChainAreaToolInfoBoxSlots = (
     headingTitle,
     headingColor,
     formatMeasurementLabelToken,
+    actionLabels,
+    navigationLabels,
+    metricLabels,
     formatBearing = (bearingRad, formatOptions) =>
       formatDegrees(radToDegNumeric(bearingRad), formatOptions.degrees),
   }: {
     headingTitle: string;
     headingColor: string;
     formatMeasurementLabelToken: (counter: number) => string;
+    actionLabels?: Partial<AnnotationInfoBoxActionLabels>;
+    navigationLabels?: Partial<AnnotationInfoBoxNavigationLabels>;
+    metricLabels: {
+      perimeter: string;
+      verticality: string;
+      bearing: string;
+    };
     formatBearing?: (
       bearingRad: number,
       formatOptions: RuntimeAnnotationInfoBoxContext["formatOptions"]
@@ -121,6 +133,7 @@ export const createNodeChainAreaToolInfoBoxSlots = (
           event.stopPropagation();
           removeAnnotationById(annotation.id);
         },
+        labels: actionLabels,
         dataTestIdPrefix: "carma-annotation-area-measurement",
         dataTestIds: {
           flyTo: "carma-annotation-flyto-area-measurement-btn",
@@ -136,7 +149,7 @@ export const createNodeChainAreaToolInfoBoxSlots = (
           items={[
             {
               id: "perimeter",
-              label: "Umfang",
+              label: metricLabels.perimeter,
               value: formatLengthMeters(
                 summary.perimeterMeters,
                 formatOptions.lengthMeters
@@ -146,7 +159,7 @@ export const createNodeChainAreaToolInfoBoxSlots = (
               ? [
                   {
                     id: "verticality",
-                    label: "Vertikalität",
+                    label: metricLabels.verticality,
                     value: formatDegrees(
                       summary.verticalityDeg ?? 0,
                       formatOptions.degrees
@@ -158,7 +171,7 @@ export const createNodeChainAreaToolInfoBoxSlots = (
               ? [
                   {
                     id: "bearing",
-                    label: "Ausrichtung",
+                    label: metricLabels.bearing,
                     value: formatBearing(
                       summary.bearingRad ?? 0,
                       formatOptions
@@ -176,6 +189,7 @@ export const createNodeChainAreaToolInfoBoxSlots = (
         onFlyToAllMeasurements: navigation?.flyToAllMeasurements,
         onPreviousMeasurement: () => navigation?.selectRelativeMeasurement(-1),
         onNextMeasurement: () => navigation?.selectRelativeMeasurement(1),
+        labels: navigationLabels,
       },
       visualOptions: infoBoxVisualOptions,
     });

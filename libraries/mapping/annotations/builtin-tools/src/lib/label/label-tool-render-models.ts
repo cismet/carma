@@ -30,6 +30,7 @@ export const buildLabelToolRenderModels = ({
   selectedMeasurementIds,
   onMeasurementSelect,
   onNodeLongPress,
+  defaultDisplayNamePrefix,
 }: {
   toolType: StoredAnnotation["toolType"];
   nodes: readonly AnnotationNode[];
@@ -37,6 +38,7 @@ export const buildLabelToolRenderModels = ({
   selectedMeasurementIds: readonly string[];
   onMeasurementSelect: (measurementId: string) => void;
   onNodeLongPress?: (nodeId: string, measurementId: string) => void;
+  defaultDisplayNamePrefix?: string;
 }): {
   points: readonly RuntimePointMarkerRenderModel[];
   pointLabels: readonly RuntimePointLabelRenderModel[];
@@ -62,7 +64,7 @@ export const buildLabelToolRenderModels = ({
 
       const displayName =
         measurement.displayName?.trim() ||
-        getDefaultLabelDisplayName(labelIndex + 1);
+        getDefaultLabelDisplayName(labelIndex + 1, defaultDisplayNamePrefix);
       const pointNodeId = measurement.nodeIds[0] ?? null;
       const labelAppearance = measurement.labelAppearance;
       const customBackgroundColor =
@@ -78,9 +80,7 @@ export const buildLabelToolRenderModels = ({
           coordinate,
           content: displayName,
           badgeContent: displayName,
-          fontSize: resolveLabelAppearanceFontSize(
-            labelAppearance?.fontSizePx
-          ),
+          fontSize: resolveLabelAppearanceFontSize(labelAppearance?.fontSizePx),
           textBackgroundColor: customBackgroundColor,
           textColor: customTextColor,
           markerBackgroundColor: customBackgroundColor,

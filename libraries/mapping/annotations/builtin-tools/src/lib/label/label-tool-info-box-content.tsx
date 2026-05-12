@@ -97,6 +97,26 @@ const labelToolDefaultTextHex = normalizeColorToHex(
   labelToolInfoBoxHexDefaults.text
 );
 
+export type LabelToolInfoBoxLabels = Readonly<{
+  fontSize: string;
+  decreaseFontSizeAriaLabel: string;
+  increaseFontSizeAriaLabel: string;
+  backgroundColor: string;
+  backgroundColorAriaLabel: string;
+  textColor: string;
+  textColorAriaLabel: string;
+}>;
+
+const defaultLabelToolInfoBoxLabels = Object.freeze<LabelToolInfoBoxLabels>({
+  fontSize: "Schriftgröße:",
+  decreaseFontSizeAriaLabel: "Schriftgröße verkleinern",
+  increaseFontSizeAriaLabel: "Schriftgröße vergrößern",
+  backgroundColor: "Hintergrund:",
+  backgroundColorAriaLabel: "Hintergrundfarbe",
+  textColor: "Text:",
+  textColorAriaLabel: "Textfarbe",
+});
+
 const clampFontSizePx = (value: number) =>
   Math.min(
     labelToolInfoBoxDefaults.fontSizePx.max,
@@ -116,9 +136,11 @@ const formatFontSizePercent = (fontSizePx: number): string => {
 
 export const LabelToolInfoBoxContent = ({
   annotation,
+  labels = defaultLabelToolInfoBoxLabels,
   visualOptions,
 }: {
   annotation: StoredAnnotation;
+  labels?: LabelToolInfoBoxLabels;
   visualOptions?: AnnotationInfoBoxVisualOptions;
 }) => {
   const resolvedVisualOptions =
@@ -215,7 +237,7 @@ export const LabelToolInfoBoxContent = ({
     >
       <div className="mb-2 flex items-center gap-2">
         <span className={resolvedVisualOptions.mutedTextClassName}>
-          Schriftgröße:
+          {labels.fontSize}
         </span>
         <button
           type="button"
@@ -228,7 +250,7 @@ export const LabelToolInfoBoxContent = ({
               fontSizePx - labelToolInfoBoxDefaults.fontSizePx.step
             )
           }
-          aria-label="Schriftgröße verkleinern"
+          aria-label={labels.decreaseFontSizeAriaLabel}
         >
           <FontAwesomeIcon icon={faMinus} />
         </button>
@@ -246,7 +268,7 @@ export const LabelToolInfoBoxContent = ({
               fontSizePx + labelToolInfoBoxDefaults.fontSizePx.step
             )
           }
-          aria-label="Schriftgröße vergrößern"
+          aria-label={labels.increaseFontSizeAriaLabel}
         >
           <FontAwesomeIcon icon={faPlus} />
         </button>
@@ -254,14 +276,14 @@ export const LabelToolInfoBoxContent = ({
 
       <div className="mb-2 flex items-center gap-2">
         <span className={resolvedVisualOptions.mutedTextClassName}>
-          Hintergrund:
+          {labels.backgroundColor}
         </span>
         <input
           key={`${annotation.id}:background-color`}
           data-annotation-id={annotation.id}
           type="color"
           className={resolvedVisualOptions.colorInputClassName}
-          aria-label="Hintergrundfarbe"
+          aria-label={labels.backgroundColorAriaLabel}
           value={normalizeColorToHex(
             backgroundColor,
             labelToolDefaultBackgroundHex
@@ -274,13 +296,15 @@ export const LabelToolInfoBoxContent = ({
           onInput={applyBackgroundColor}
           onChange={applyBackgroundColor}
         />
-        <span className={resolvedVisualOptions.mutedTextClassName}>Text:</span>
+        <span className={resolvedVisualOptions.mutedTextClassName}>
+          {labels.textColor}
+        </span>
         <input
           key={`${annotation.id}:text-color`}
           data-annotation-id={annotation.id}
           type="color"
           className={resolvedVisualOptions.colorInputClassName}
-          aria-label="Textfarbe"
+          aria-label={labels.textColorAriaLabel}
           value={normalizeColorToHex(textColor, labelToolDefaultTextHex)}
           disabled={isLocked}
           onFocus={startColorInputInteraction}

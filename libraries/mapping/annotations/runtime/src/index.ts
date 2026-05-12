@@ -83,8 +83,17 @@ export type {
 } from "./lib/config/preview-line-label-visual-defaults";
 export {
   AnnotationsProvider,
+  useAnnotationLabelTextDialogState,
   useAnnotationsRuntime,
 } from "./lib/context/AnnotationsProvider";
+export {
+  useAnnotationLabelTextRequest,
+  type AnnotationLabelTextDialogState,
+  type AnnotationLabelTextRequestContext,
+  type AnnotationLabelTextRequester,
+  type AnnotationLabelTextRequestState,
+  type UseAnnotationLabelTextRequestOptions,
+} from "./lib/context/use-annotation-label-text-request";
 export {
   flyToAnnotationIds,
   flyToAnnotationPoints,

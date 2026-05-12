@@ -1,18 +1,33 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { LabelToolTextRequester } from "@carma-mapping/annotations/builtin-tools";
 import {
   addAnnotationLabelTextHistoryEntry,
   mergeAnnotationLabelTextSuggestions,
   resolveAnnotationLabelTextRequest,
 } from "@carma-mapping/annotations/core";
 
-type PendingLabelTextRequest = {
+import type {
+  AnnotationNodeLinkId,
+  CesiumGeographicCoordinate,
+} from "../store";
+
+type PendingAnnotationLabelTextRequest = {
   initialValue: string;
   labelSuggestions: readonly string[];
 };
 
-export type GeoportalLabelTextModalState = {
+export type AnnotationLabelTextRequestContext = {
+  coordinate: CesiumGeographicCoordinate;
+  defaultText: string;
+  labelTextSuggestions: readonly string[];
+  linkedNodeGroupId?: AnnotationNodeLinkId | null;
+};
+
+export type AnnotationLabelTextRequester = (
+  context: AnnotationLabelTextRequestContext
+) => string | null | Promise<string | null>;
+
+export type AnnotationLabelTextDialogState = {
   open: boolean;
   initialValue: string;
   labelSuggestions: readonly string[];
@@ -20,22 +35,24 @@ export type GeoportalLabelTextModalState = {
   onFinish: (text: string) => void;
 };
 
-export type UseGeoportalLabelTextRequestOptions = {
+export type UseAnnotationLabelTextRequestOptions = {
   enabled?: boolean;
 };
 
-export const useGeoportalLabelTextRequest = ({
+export type AnnotationLabelTextRequestState = {
+  labelTextDialogState: AnnotationLabelTextDialogState;
+  requestLabelText: AnnotationLabelTextRequester;
+};
+
+export const useAnnotationLabelTextRequest = ({
   enabled = true,
-}: UseGeoportalLabelTextRequestOptions = {}): {
-  labelTextModalState: GeoportalLabelTextModalState;
-  requestLabelText: LabelToolTextRequester;
-} => {
+}: UseAnnotationLabelTextRequestOptions = {}): AnnotationLabelTextRequestState => {
   const labelTextResolverRef = useRef<((text: string | null) => void) | null>(
     null
   );
   const labelTextHistoryRef = useRef<readonly string[]>([]);
   const [pendingLabelTextRequest, setPendingLabelTextRequest] =
-    useState<PendingLabelTextRequest | null>(null);
+    useState<PendingAnnotationLabelTextRequest | null>(null);
   const [labelTextHistory, setLabelTextHistory] = useState<readonly string[]>(
     []
   );
@@ -57,9 +74,14 @@ export const useGeoportalLabelTextRequest = ({
     resolver?.(text);
   }, []);
 
-  const requestLabelText = useCallback<LabelToolTextRequester>(
+  const requestLabelText = useCallback<AnnotationLabelTextRequester>(
     ({ defaultText, labelTextSuggestions }) =>
       new Promise((resolve) => {
+        if (!enabled) {
+          resolve(null);
+          return;
+        }
+
         labelTextResolverRef.current?.(null);
         labelTextResolverRef.current = resolve;
         setPendingLabelTextRequest(
@@ -70,7 +92,7 @@ export const useGeoportalLabelTextRequest = ({
           })
         );
       }),
-    []
+    [enabled]
   );
 
   useEffect(
@@ -87,7 +109,7 @@ export const useGeoportalLabelTextRequest = ({
     }
   }, [enabled, resolveLabelTextRequest]);
 
-  const labelTextModalState = useMemo<GeoportalLabelTextModalState>(() => {
+  const labelTextDialogState = useMemo<AnnotationLabelTextDialogState>(() => {
     if (!enabled || !pendingLabelTextRequest) {
       return {
         open: false,
@@ -115,8 +137,11 @@ export const useGeoportalLabelTextRequest = ({
     resolveLabelTextRequest,
   ]);
 
-  return {
-    labelTextModalState,
-    requestLabelText,
-  };
+  return useMemo(
+    () => ({
+      labelTextDialogState,
+      requestLabelText,
+    }),
+    [labelTextDialogState, requestLabelText]
+  );
 };

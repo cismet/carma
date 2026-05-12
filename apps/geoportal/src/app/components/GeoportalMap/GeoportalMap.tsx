@@ -54,6 +54,8 @@ import type { FeatureInfo } from "@carma-mapping/utils";
 import { Measurements, InfoBoxMeasurement } from "@carma-commons/measurements";
 import { useAnnotationsRuntime } from "@carma-mapping/annotations/runtime";
 
+import { geoportalAnnotationModeText } from "../../config/geoportalTextConfig";
+
 import {
   useOverlayHelper,
   useOverlayTourContext,
@@ -211,6 +213,7 @@ const buildFlyToBoundingSphereOptions = (minRange: number) => ({
 const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
   const dispatch = useDispatch();
   const { activeToolType, setActiveToolType } = useAnnotationsRuntime();
+  const annotationModeText = geoportalAnnotationModeText;
 
   // Contexts
   const {
@@ -846,7 +849,10 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
           setAnnotationInfoBoxTop("annotation");
         }}
       >
-        <InfoBoxHeader content="Messungen" headerColor="grey" />
+        <InfoBoxHeader
+          content={annotationModeText.secondaryInfoBoxHeader}
+          headerColor="grey"
+        />
       </div>,
     ];
 

@@ -1,6 +1,10 @@
 import { formatAreaSquareMetersAdaptive } from "@carma-units";
 import type { PolygonType } from "@carma-mapping/annotations/core";
-import { buildAnnotationMeasurementInfoBoxSlots } from "@carma-mapping/annotations/ui";
+import {
+  buildAnnotationMeasurementInfoBoxSlots,
+  type AnnotationInfoBoxActionLabels,
+  type AnnotationInfoBoxNavigationLabels,
+} from "@carma-mapping/annotations/ui";
 
 import type { RuntimeAnnotationInfoBoxContext } from "@carma-mapping/annotations/runtime";
 import { resolveRuntimeMeasurementNavigation } from "@carma-mapping/annotations/runtime";
@@ -17,10 +21,18 @@ export const createVerticalAreaToolInfoBoxSlots = (
     headingTitle,
     headingColor,
     formatMeasurementLabelToken,
+    actionLabels,
+    navigationLabels,
+    contentLabels,
   }: {
     headingTitle: string;
     headingColor: string;
     formatMeasurementLabelToken: (counter: number) => string;
+    actionLabels?: Partial<AnnotationInfoBoxActionLabels>;
+    navigationLabels?: Partial<AnnotationInfoBoxNavigationLabels>;
+    contentLabels: {
+      bearingPrefix: string;
+    };
   }
 ) => {
   return ({
@@ -108,6 +120,7 @@ export const createVerticalAreaToolInfoBoxSlots = (
           event.stopPropagation();
           removeAnnotationById(annotation.id);
         },
+        labels: actionLabels,
         dataTestIdPrefix: "carma-annotation-vertical-area-measurement",
         dataTestIds: {
           flyTo: "carma-annotation-flyto-vertical-area-measurement-btn",
@@ -123,7 +136,7 @@ export const createVerticalAreaToolInfoBoxSlots = (
       content: (
         <>
           {Number.isFinite(summary.bearingRad) ? (
-            <div>{`Ausrichtung: ${formatCardinalBearing(
+            <div>{`${contentLabels.bearingPrefix}: ${formatCardinalBearing(
               summary.bearingRad ?? 0
             )}`}</div>
           ) : null}
@@ -135,6 +148,7 @@ export const createVerticalAreaToolInfoBoxSlots = (
         onFlyToAllMeasurements: navigation?.flyToAllMeasurements,
         onPreviousMeasurement: () => navigation?.selectRelativeMeasurement(-1),
         onNextMeasurement: () => navigation?.selectRelativeMeasurement(1),
+        labels: navigationLabels,
       },
       visualOptions: infoBoxVisualOptions,
     });

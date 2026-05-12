@@ -6,6 +6,8 @@ import {
 import {
   AnnotationInfoBoxMetricGrid,
   buildAnnotationMeasurementInfoBoxSlots,
+  type AnnotationInfoBoxActionLabels,
+  type AnnotationInfoBoxNavigationLabels,
 } from "@carma-mapping/annotations/ui";
 
 import type { RuntimeAnnotationInfoBoxContext } from "@carma-mapping/annotations/runtime";
@@ -22,10 +24,25 @@ export const createPolylineToolInfoBoxSlots = (
     headingTitle,
     headingColor,
     formatMeasurementLabelToken,
+    actionLabels,
+    navigationLabels,
+    metricLabels,
   }: {
     headingTitle: string;
     headingColor: string;
     formatMeasurementLabelToken: (counter: number) => string;
+    actionLabels?: Partial<AnnotationInfoBoxActionLabels>;
+    navigationLabels?: Partial<AnnotationInfoBoxNavigationLabels>;
+    metricLabels: {
+      totalLength: string;
+      segmentCount: string;
+      meanSegmentLength: string;
+      ascent: string;
+      descent: string;
+      absoluteElevationChange: string;
+      startEndElevationDelta: string;
+      bearing: string;
+    };
   }
 ) => {
   return ({
@@ -113,6 +130,7 @@ export const createPolylineToolInfoBoxSlots = (
           event.stopPropagation();
           removeAnnotationById(annotation.id);
         },
+        labels: actionLabels,
         dataTestIdPrefix: "carma-annotation-polyline-measurement",
         dataTestIds: {
           flyTo: "carma-annotation-flyto-polyline-measurement-btn",
@@ -129,44 +147,44 @@ export const createPolylineToolInfoBoxSlots = (
           items={[
             {
               id: "total-length",
-              label: "Gesamtlänge",
+              label: metricLabels.totalLength,
               value: formatDistance(summary.totalLengthMeters),
             },
             {
               id: "segment-count",
-              label: "Segmente",
+              label: metricLabels.segmentCount,
               value: summary.segmentCount,
             },
             {
               id: "mean-segment-length",
-              label: "Ø Segment",
+              label: metricLabels.meanSegmentLength,
               value: formatDistance(summary.meanSegmentLengthMeters),
             },
             {
               id: "ascent",
-              label: "Aufstieg",
+              label: metricLabels.ascent,
               value: formatDistance(summary.ascentMeters),
             },
             {
               id: "descent",
-              label: "Abstieg",
+              label: metricLabels.descent,
               value: formatDistance(summary.descentMeters),
             },
             {
               id: "absolute-elevation-change",
-              label: "Summe H",
+              label: metricLabels.absoluteElevationChange,
               value: formatDistance(summary.totalAbsoluteElevationChangeMeters),
             },
             {
               id: "start-end-elevation-delta",
-              label: "Δ Start/Ende",
+              label: metricLabels.startEndElevationDelta,
               value: formatDistance(summary.startEndElevationDeltaMeters),
             },
             ...(Number.isFinite(bearingRad)
               ? [
                   {
                     id: "bearing",
-                    label: "Ausrichtung",
+                    label: metricLabels.bearing,
                     value: formatDegrees(
                       radToDegNumeric(bearingRad ?? 0),
                       formatOptions.degrees
@@ -184,6 +202,7 @@ export const createPolylineToolInfoBoxSlots = (
         onFlyToAllMeasurements: navigation?.flyToAllMeasurements,
         onPreviousMeasurement: () => navigation?.selectRelativeMeasurement(-1),
         onNextMeasurement: () => navigation?.selectRelativeMeasurement(1),
+        labels: navigationLabels,
       },
       visualOptions: infoBoxVisualOptions,
     });

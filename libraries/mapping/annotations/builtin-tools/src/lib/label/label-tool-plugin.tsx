@@ -16,54 +16,58 @@ import {
 } from "./label-tool-actions";
 import { buildLabelToolRenderModels } from "./label-tool-render-models";
 import type {
-  AnnotationNodeLinkId,
+  AnnotationLabelTextRequestContext,
+  AnnotationLabelTextRequester,
   AnnotationToolPlugin,
-  CesiumGeographicCoordinate,
 } from "@carma-mapping/annotations/runtime";
+import type { DefaultAnnotationToolTexts } from "../annotation-mode-text";
+import { defaultAnnotationToolTexts } from "../annotation-mode-text";
 const { LABEL: ANNOTATION_TYPE_LABEL } = ANNOTATION_TYPES;
 
 const toolType = ANNOTATION_TYPE_LABEL;
-const getLabelToolInfoBoxSlots = createLabelToolInfoBoxSlots(toolType);
 
-export type LabelToolTextRequestContext = {
-  coordinate: CesiumGeographicCoordinate;
-  defaultText: string;
-  labelTextSuggestions: readonly string[];
-  linkedNodeGroupId?: AnnotationNodeLinkId | null;
-};
+export type LabelToolTextRequestContext = AnnotationLabelTextRequestContext;
 
-export type LabelToolTextRequester = (
-  context: LabelToolTextRequestContext
-) => string | null | Promise<string | null>;
+export type LabelToolTextRequester = AnnotationLabelTextRequester;
 
 export type LabelToolPluginOptions = {
-  requestLabelText?: LabelToolTextRequester;
+  texts?: DefaultAnnotationToolTexts;
 };
 
 export const createLabelToolPlugin = ({
-  requestLabelText,
-}: LabelToolPluginOptions = {}): AnnotationToolPlugin =>
-  createMeasurementToolPlugin({
+  texts = defaultAnnotationToolTexts,
+}: LabelToolPluginOptions = {}): AnnotationToolPlugin => {
+  const text = texts.label;
+  const getLabelToolInfoBoxSlots = createLabelToolInfoBoxSlots(toolType, {
+    headingTitle: text.headingTitle,
+    defaultDisplayNamePrefix: text.defaultDisplayNamePrefix,
+    actionLabels: texts.actions,
+    infoBoxLabels: text.infoBoxLabels,
+  });
+
+  return createMeasurementToolPlugin({
     id: toolType,
     annotationType: toolType,
     descriptor: {
       id: toolType,
       order: 80,
-      label: "Beschriftung",
-      tooltip: "Beschriftung platzieren",
+      label: text.label,
+      tooltip: text.tooltip,
       shortcutKey: "B",
       icon: <FontAwesomeIcon icon={faMessage} />,
     },
-    helpText: [
-      "Klicken, um eine Beschriftung zu platzieren.",
-      "Aussehen und Text koennen danach direkt im Info-Panel angepasst werden.",
-    ],
+    helpText: text.helpText,
     capabilities: [
       ...BASE_MEASUREMENT_PLUGIN_CAPABILITIES,
       ANNOTATION_TOOL_PLUGIN_CAPABILITIES.INFO_BOX,
     ],
     session: {
-      createSession: ({ getState, setActiveToolType, addAnnotation }) => ({
+      createSession: ({
+        getState,
+        setActiveToolType,
+        addAnnotation,
+        requestLabelText,
+      }) => ({
         toolType,
         requestStart: () => {
           setActiveToolType(toolType);
@@ -75,7 +79,10 @@ export const createLabelToolPlugin = ({
           const labelCount = annotationEntries.filter(
             (entry) => entry.toolType === toolType
           ).length;
-          const defaultText = getDefaultLabelDisplayName(labelCount + 1);
+          const defaultText = getDefaultLabelDisplayName(
+            labelCount + 1,
+            text.defaultDisplayNamePrefix
+          );
           const labelTextSuggestions = resolveAnnotationLabelTextSuggestions({
             annotationEntries,
           });
@@ -142,6 +149,7 @@ export const createLabelToolPlugin = ({
           selectedMeasurementIds: selectedAnnotationIds,
           onMeasurementSelect: setSelectedAnnotationId,
           onNodeLongPress,
+          defaultDisplayNamePrefix: text.defaultDisplayNamePrefix,
         });
 
         return {
@@ -155,5 +163,6 @@ export const createLabelToolPlugin = ({
       getSlots: getLabelToolInfoBoxSlots,
     },
   });
+};
 
 export const labelToolPlugin = createLabelToolPlugin();

@@ -29,29 +29,37 @@ import { resolveAreaToolAddAnnotationOptions } from "../area-shared/resolve-area
 import { createVerticalAreaToolInfoBoxSlots } from "./vertical-area-tool-info-box-slots";
 import { buildVerticalAreaToolRenderModels } from "./vertical-area-tool-render-models";
 import { ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME } from "@carma-mapping/annotations/runtime";
+import type { DefaultAnnotationToolTexts } from "../annotation-mode-text";
+import { defaultAnnotationToolTexts } from "../annotation-mode-text";
 const { AREA_VERTICAL: ANNOTATION_TYPE_AREA_VERTICAL } = ANNOTATION_TYPES;
 
 const toolType = ANNOTATION_TYPE_AREA_VERTICAL;
 const labelTheme = ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME;
-const getVerticalAreaToolInfoBoxSlots = createVerticalAreaToolInfoBoxSlots(
-  toolType,
-  {
-    headingTitle: "Vertikale Fläche",
-    headingColor: labelTheme.scheme.colorPrimary,
-    formatMeasurementLabelToken: (counter) =>
-      formatMeasurementShortLabelToken(toolType, counter),
-  }
-);
 
 export type VerticalAreaToolPluginOptions = {
   occlusionStyleOptions?: AreaOcclusionStyleOptions;
   measurementLineStyleOptions?: MeasurementLineStyleOptions;
+  texts?: DefaultAnnotationToolTexts;
 };
 
 export const createVerticalAreaToolPlugin = ({
   occlusionStyleOptions,
   measurementLineStyleOptions,
+  texts = defaultAnnotationToolTexts,
 }: VerticalAreaToolPluginOptions = {}) => {
+  const text = texts.verticalArea;
+  const getVerticalAreaToolInfoBoxSlots = createVerticalAreaToolInfoBoxSlots(
+    toolType,
+    {
+      headingTitle: text.headingTitle,
+      headingColor: labelTheme.scheme.colorPrimary,
+      formatMeasurementLabelToken: (counter) =>
+        formatMeasurementShortLabelToken(toolType, counter),
+      actionLabels: texts.actions,
+      navigationLabels: texts.navigation,
+      contentLabels: text.contentLabels,
+    }
+  );
   const resolvedOcclusionStyleOptions = resolveAreaOcclusionStyleOptions(
     occlusionStyleOptions
   );
@@ -72,15 +80,12 @@ export const createVerticalAreaToolPlugin = ({
     descriptor: {
       id: toolType,
       order: 50,
-      label: "Vertikal",
-      tooltip: "Vertikale Fläche messen",
+      label: text.label,
+      tooltip: text.tooltip,
       shortcutKey: "V",
       icon: <FontAwesomeIcon icon={faBuilding} />,
     },
-    helpText: [
-      "Ersten Eckpunkt klicken, dann den diagonal gegenüberliegenden Eckpunkt setzen.",
-      "Die Runtime erstellt daraus direkt ein echtes vertikales Rechteck.",
-    ],
+    helpText: text.helpText,
     capabilities: [
       ...AUTHORING_MEASUREMENT_PLUGIN_CAPABILITIES,
       ANNOTATION_TOOL_PLUGIN_CAPABILITIES.ADD_ANNOTATION,

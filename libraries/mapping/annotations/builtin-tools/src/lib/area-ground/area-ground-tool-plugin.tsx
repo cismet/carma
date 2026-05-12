@@ -28,29 +28,37 @@ import {
   createNodeChainAreaToolVisuals,
 } from "../area-shared/node-chain-area-tool-render-models";
 import { ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME } from "@carma-mapping/annotations/runtime";
+import type { DefaultAnnotationToolTexts } from "../annotation-mode-text";
+import { defaultAnnotationToolTexts } from "../annotation-mode-text";
 const { AREA_GROUND: ANNOTATION_TYPE_AREA_GROUND } = ANNOTATION_TYPES;
 
 const toolType = ANNOTATION_TYPE_AREA_GROUND;
 const labelTheme = ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME;
-const getAreaGroundToolInfoBoxSlots = createNodeChainAreaToolInfoBoxSlots(
-  toolType,
-  {
-    headingTitle: "Grundriss",
-    headingColor: labelTheme.scheme.colorPrimary,
-    formatMeasurementLabelToken: (counter) =>
-      formatMeasurementShortLabelToken(toolType, counter),
-  }
-);
 
 export type AreaGroundToolPluginOptions = {
   occlusionStyleOptions?: AreaOcclusionStyleOptions;
   measurementLineStyleOptions?: MeasurementLineStyleOptions;
+  texts?: DefaultAnnotationToolTexts;
 };
 
 export const createAreaGroundToolPlugin = ({
   occlusionStyleOptions,
   measurementLineStyleOptions,
+  texts = defaultAnnotationToolTexts,
 }: AreaGroundToolPluginOptions = {}) => {
+  const text = texts.areaGround;
+  const getAreaGroundToolInfoBoxSlots = createNodeChainAreaToolInfoBoxSlots(
+    toolType,
+    {
+      headingTitle: text.headingTitle,
+      headingColor: labelTheme.scheme.colorPrimary,
+      formatMeasurementLabelToken: (counter) =>
+        formatMeasurementShortLabelToken(toolType, counter),
+      actionLabels: texts.actions,
+      navigationLabels: texts.navigation,
+      metricLabels: text.metricLabels,
+    }
+  );
   const resolvedOcclusionStyleOptions = resolveAreaOcclusionStyleOptions(
     occlusionStyleOptions
   );
@@ -65,15 +73,12 @@ export const createAreaGroundToolPlugin = ({
     descriptor: {
       id: toolType,
       order: 45,
-      label: "Grundriss",
-      tooltip: "Grundriss messen",
+      label: text.label,
+      tooltip: text.tooltip,
       shortcutKey: "A",
       icon: <VectorSquareIcon fontSize="1.33em" />,
     },
-    helpText: [
-      "Punkte nacheinander setzen, um einen Grundriss zu erstellen.",
-      "Doppelklick schliesst die Fläche ab, Escape verwirft den Entwurf.",
-    ],
+    helpText: text.helpText,
     capabilities: [
       ...AUTHORING_MEASUREMENT_PLUGIN_CAPABILITIES,
       ANNOTATION_TOOL_PLUGIN_CAPABILITIES.ADD_ANNOTATION,

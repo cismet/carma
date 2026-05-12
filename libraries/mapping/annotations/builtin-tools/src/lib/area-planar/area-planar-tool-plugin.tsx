@@ -29,20 +29,12 @@ import {
 } from "../area-shared/node-chain-area-tool-render-models";
 import { ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME } from "@carma-mapping/annotations/runtime";
 import { formatCardinalBearing } from "@carma-mapping/annotations/runtime";
+import type { DefaultAnnotationToolTexts } from "../annotation-mode-text";
+import { defaultAnnotationToolTexts } from "../annotation-mode-text";
 const { AREA_PLANAR: ANNOTATION_TYPE_AREA_PLANAR } = ANNOTATION_TYPES;
 
 const toolType = ANNOTATION_TYPE_AREA_PLANAR;
 const labelTheme = ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME;
-const getAreaPlanarToolInfoBoxSlots = createNodeChainAreaToolInfoBoxSlots(
-  toolType,
-  {
-    headingTitle: "Plane Fläche (Dachfläche)",
-    headingColor: labelTheme.scheme.colorPrimary,
-    formatMeasurementLabelToken: (counter) =>
-      formatMeasurementShortLabelToken(toolType, counter),
-    formatBearing: (bearingRad) => formatCardinalBearing(bearingRad),
-  }
-);
 
 const AREA_PLANAR_OCCLUSION_STYLE_DEFAULTS = resolveAreaOcclusionStyleOptions({
   fill: {
@@ -56,12 +48,28 @@ const AREA_PLANAR_OCCLUSION_STYLE_DEFAULTS = resolveAreaOcclusionStyleOptions({
 export type AreaPlanarToolPluginOptions = {
   occlusionStyleOptions?: AreaOcclusionStyleOptions;
   measurementLineStyleOptions?: MeasurementLineStyleOptions;
+  texts?: DefaultAnnotationToolTexts;
 };
 
 export const createAreaPlanarToolPlugin = ({
   occlusionStyleOptions,
   measurementLineStyleOptions,
+  texts = defaultAnnotationToolTexts,
 }: AreaPlanarToolPluginOptions = {}) => {
+  const text = texts.areaPlanar;
+  const getAreaPlanarToolInfoBoxSlots = createNodeChainAreaToolInfoBoxSlots(
+    toolType,
+    {
+      headingTitle: text.headingTitle,
+      headingColor: labelTheme.scheme.colorPrimary,
+      formatMeasurementLabelToken: (counter) =>
+        formatMeasurementShortLabelToken(toolType, counter),
+      actionLabels: texts.actions,
+      navigationLabels: texts.navigation,
+      metricLabels: text.metricLabels,
+      formatBearing: (bearingRad) => formatCardinalBearing(bearingRad),
+    }
+  );
   const resolvedOcclusionStyleOptions = resolveAreaOcclusionStyleOptions(
     occlusionStyleOptions,
     AREA_PLANAR_OCCLUSION_STYLE_DEFAULTS
@@ -77,15 +85,12 @@ export const createAreaPlanarToolPlugin = ({
     descriptor: {
       id: toolType,
       order: 55,
-      label: "Dach",
-      tooltip: "Dachfläche messen",
+      label: text.label,
+      tooltip: text.tooltip,
       shortcutKey: "C",
       icon: <VectorTrapezoidIcon fontSize="1.33em" />,
     },
-    helpText: [
-      "Punkte nacheinander setzen, um eine Dachfläche zu erstellen.",
-      "Doppelklick schliesst die Fläche ab, Escape verwirft den Entwurf.",
-    ],
+    helpText: text.helpText,
     capabilities: [
       ...AUTHORING_MEASUREMENT_PLUGIN_CAPABILITIES,
       ANNOTATION_TOOL_PLUGIN_CAPABILITIES.ADD_ANNOTATION,

@@ -28,6 +28,8 @@ import {
 import { createPolylineToolInfoBoxSlots } from "./polyline-tool-info-box-slots";
 import { buildPolylineToolRenderModels } from "./polyline-tool-render-models";
 import { ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME } from "@carma-mapping/annotations/runtime";
+import type { DefaultAnnotationToolTexts } from "../annotation-mode-text";
+import { defaultAnnotationToolTexts } from "../annotation-mode-text";
 const { POLYLINE: ANNOTATION_TYPE_POLYLINE } = ANNOTATION_TYPES;
 
 const toolType = ANNOTATION_TYPE_POLYLINE;
@@ -37,20 +39,26 @@ const badgeStyle = {
   backgroundColor: labelTheme.scheme.colorPrimary,
   textColor: labelTheme.scheme.textColor,
 };
-const getPolylineToolInfoBoxSlots = createPolylineToolInfoBoxSlots(toolType, {
-  headingTitle: "Polygonzug",
-  headingColor: labelTheme.scheme.colorPrimary,
-  formatMeasurementLabelToken: (counter) =>
-    formatMeasurementShortLabelToken(toolType, counter),
-});
 
 export type PolylineToolPluginOptions = {
   measurementLineStyleOptions?: MeasurementLineStyleOptions;
+  texts?: DefaultAnnotationToolTexts;
 };
 
 export const createPolylineToolPlugin = ({
   measurementLineStyleOptions,
+  texts = defaultAnnotationToolTexts,
 }: PolylineToolPluginOptions = {}) => {
+  const text = texts.polyline;
+  const getPolylineToolInfoBoxSlots = createPolylineToolInfoBoxSlots(toolType, {
+    headingTitle: text.headingTitle,
+    headingColor: labelTheme.scheme.colorPrimary,
+    formatMeasurementLabelToken: (counter) =>
+      formatMeasurementShortLabelToken(toolType, counter),
+    actionLabels: texts.actions,
+    navigationLabels: texts.navigation,
+    metricLabels: text.metricLabels,
+  });
   const resolvedLineStyleOptions = resolveMeasurementLineStyleOptions(
     measurementLineStyleOptions
   );
@@ -68,15 +76,12 @@ export const createPolylineToolPlugin = ({
     descriptor: {
       id: toolType,
       order: 40,
-      label: "Polygonzug",
-      tooltip: "Polygonzug messen",
+      label: text.label,
+      tooltip: text.tooltip,
       shortcutKey: "P",
       icon: <VectorPolylineIcon fontSize="1.33em" />,
     },
-    helpText: [
-      "Punkte nacheinander setzen, um einen Polygonzug zu erstellen.",
-      "Doppelklick schliesst die Messung ab, Escape verwirft den Entwurf.",
-    ],
+    helpText: text.helpText,
     capabilities: [
       ...AUTHORING_MEASUREMENT_PLUGIN_CAPABILITIES,
       ANNOTATION_TOOL_PLUGIN_CAPABILITIES.INFO_BOX,

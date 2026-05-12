@@ -17,12 +17,10 @@ import {
   listAnnotationToolShortcuts,
   typographyDefaults,
   resolveAnnotationToolShortcutTarget,
-  useLocalAnnotationsRuntimePersistence,
   useAnnotationsRuntime,
 } from "@carma-mapping/annotations/runtime";
 import { useCesiumLabelOverlayHost } from "@carma-mapping/engines/cesium/react/interactions";
 import { ControlLayout } from "@carma-mapping/map-controls-layout";
-import { LabelOverlayProvider } from "@carma-providers/label-overlay";
 import { type Scene } from "@carma-cesium";
 import { formatLatLonDegrees, formatLengthMeters } from "@carma-units";
 import type { Degrees } from "@carma-units";
@@ -426,11 +424,6 @@ export const AnnotationsRuntimePage = ({
     toolset === PLAYGROUND_TOOLSETS.ALL
       ? PLAYGROUND_ALL_RUNTIME_TOOL_PLUGINS
       : PLAYGROUND_STABLE_RUNTIME_TOOL_PLUGINS;
-  const { initialPersistenceState, onPersistenceStateChange } =
-    useLocalAnnotationsRuntimePersistence({
-      enabled: true,
-      storageKey: ANNOTATIONS_RUNTIME_STORAGE_KEY,
-    });
 
   return (
     <CesiumWidgetContainer
@@ -438,29 +431,29 @@ export const AnnotationsRuntimePage = ({
       onSceneChange={setScene}
       initialCameraState={homeCameraState}
     >
-      <LabelOverlayProvider host={overlayHost}>
-        <ControlLayout>
-          <AnnotationsProvider
+      <ControlLayout>
+        <AnnotationsProvider
+          scene={scene}
+          initialActiveToolType={initialToolType}
+          labelOverlayHost={overlayHost}
+          localPersistence={{
+            storageKey: ANNOTATIONS_RUNTIME_STORAGE_KEY,
+          }}
+          plugins={toolPlugins}
+          formatOptions={PLAYGROUND_RUNTIME_FORMAT_OPTIONS}
+          previewLineLabelVisualOptions={
+            PLAYGROUND_PREVIEW_LINE_LABEL_VISUAL_OPTIONS
+          }
+        >
+          <PersistActiveRuntimeToolMode />
+          <CesiumNavigationOverlay
             scene={scene}
-            initialActiveToolType={initialToolType}
-            plugins={toolPlugins}
-            formatOptions={PLAYGROUND_RUNTIME_FORMAT_OPTIONS}
-            previewLineLabelVisualOptions={
-              PLAYGROUND_PREVIEW_LINE_LABEL_VISUAL_OPTIONS
-            }
-            initialPersistenceState={initialPersistenceState}
-            onPersistenceStateChange={onPersistenceStateChange}
-          >
-            <PersistActiveRuntimeToolMode />
-            <CesiumNavigationOverlay
-              scene={scene}
-              initialHomeCameraState={homeCameraState}
-            />
-            <RuntimeToolbar scene={scene} />
-            <RuntimeSelectionInfoBox scene={scene} />
-          </AnnotationsProvider>
-        </ControlLayout>
-      </LabelOverlayProvider>
+            initialHomeCameraState={homeCameraState}
+          />
+          <RuntimeToolbar scene={scene} />
+          <RuntimeSelectionInfoBox scene={scene} />
+        </AnnotationsProvider>
+      </ControlLayout>
     </CesiumWidgetContainer>
   );
 };

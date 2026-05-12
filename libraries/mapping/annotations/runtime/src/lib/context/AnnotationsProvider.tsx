@@ -1,5 +1,10 @@
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, useMemo, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { Provider as ReduxProvider } from "react-redux";
+import {
+  LabelOverlayProvider,
+  type LabelOverlayHostBinding,
+} from "@carma-providers/label-overlay";
 
 import type {
   AddAnnotationOptions,
@@ -27,6 +32,12 @@ import { RuntimeAuthoringHost } from "./RuntimeAuthoringHost";
 import { RuntimeToolAvailabilityGuard } from "./RuntimeToolAvailabilityGuard";
 import { RuntimeVisualHost } from "./RuntimeVisualHost";
 import { useAnnotationsAssembly } from "./use-annotations-assembly";
+import { AnnotationOverlayRoots } from "../components/AnnotationPreviewOverlayRoots";
+import { useLocalAnnotationsRuntimePersistence } from "../store/persistence/useLocalAnnotationsStorePersistence";
+import {
+  useAnnotationLabelTextRequest,
+  type AnnotationLabelTextDialogState,
+} from "./use-annotation-label-text-request";
 
 type AnnotationsRuntimeServices = {
   scene: Scene | null;
@@ -71,14 +82,21 @@ type AnnotationsRuntimeServices = {
   setPointTemporaryMode: (temporaryMode: boolean) => void;
   setSelectedAnnotationId: (annotationId: string | null) => void;
   setSelectedAnnotationIds: (annotationIds: readonly string[]) => void;
+  labelTextDialogState: AnnotationLabelTextDialogState;
 };
 
 type AnnotationsProviderProps = {
   scene: Scene | null;
   plugins: readonly AnnotationToolPlugin[];
   children?: ReactNode;
+  annotationOverlayContainer?: Element | DocumentFragment | null;
   initialActiveToolType?: AnnotationToolId;
   initialPointTemporaryMode?: boolean;
+  labelOverlayHost?: LabelOverlayHostBinding | null;
+  localPersistence?: {
+    enabled?: boolean;
+    storageKey: string;
+  };
   renderEnabled?: boolean;
   formatOptions?: AnnotationsRuntimeFormatOptions;
   previewLineLabelVisualOptions?: Partial<PreviewLineLabelVisualOptions>;
@@ -120,14 +138,34 @@ export const AnnotationsProvider = ({
   scene,
   plugins,
   children,
+  annotationOverlayContainer = null,
   initialActiveToolType,
   initialPointTemporaryMode = false,
+  labelOverlayHost = null,
+  localPersistence,
   renderEnabled = true,
   formatOptions = DEFAULT_RUNTIME_FORMAT_OPTIONS,
   previewLineLabelVisualOptions = DEFAULT_PREVIEW_LINE_LABEL_VISUAL_OPTIONS,
-  initialPersistenceState = null,
+  initialPersistenceState,
   onPersistenceStateChange,
 }: AnnotationsProviderProps) => {
+  const { labelTextDialogState, requestLabelText } =
+    useAnnotationLabelTextRequest({
+      enabled: renderEnabled,
+    });
+  const localPersistenceEnabled =
+    Boolean(localPersistence?.storageKey) &&
+    (localPersistence?.enabled ?? true);
+  const localPersistenceState = useLocalAnnotationsRuntimePersistence({
+    enabled: localPersistenceEnabled,
+    storageKey: localPersistence?.storageKey ?? "",
+  });
+  const resolvedInitialPersistenceState =
+    initialPersistenceState !== undefined
+      ? initialPersistenceState
+      : localPersistenceState.initialPersistenceState;
+  const resolvedOnPersistenceStateChange =
+    onPersistenceStateChange ?? localPersistenceState.onPersistenceStateChange;
   const {
     annotationsStore,
     services,
@@ -142,16 +180,28 @@ export const AnnotationsProvider = ({
     initialPointTemporaryMode,
     formatOptions,
     previewLineLabelVisualOptions,
-    initialPersistenceState,
-    onPersistenceStateChange,
+    initialPersistenceState: resolvedInitialPersistenceState,
+    onPersistenceStateChange: resolvedOnPersistenceStateChange,
+    requestLabelText: renderEnabled ? requestLabelText : undefined,
   });
 
-  return (
+  const runtimeServices = useMemo(
+    () => ({
+      ...services,
+      labelTextDialogState,
+    }),
+    [labelTextDialogState, services]
+  );
+
+  const providerContent = (
     <AnnotationsReduxProvider
       context={AnnotationsReduxContext}
       store={annotationsStore}
     >
-      <AnnotationsRuntimeContext.Provider value={services}>
+      <AnnotationsRuntimeContext.Provider value={runtimeServices}>
+        {annotationOverlayContainer
+          ? createPortal(<AnnotationOverlayRoots />, annotationOverlayContainer)
+          : null}
         <RuntimeToolAvailabilityGuard
           registry={registry}
           setActiveToolType={setActiveToolType}
@@ -165,6 +215,16 @@ export const AnnotationsProvider = ({
         {children}
       </AnnotationsRuntimeContext.Provider>
     </AnnotationsReduxProvider>
+  );
+
+  if (!labelOverlayHost) {
+    return providerContent;
+  }
+
+  return (
+    <LabelOverlayProvider host={labelOverlayHost}>
+      {providerContent}
+    </LabelOverlayProvider>
   );
 };
 
@@ -196,6 +256,7 @@ export const useAnnotationsRuntime = () => {
     setPointTemporaryMode,
     setSelectedAnnotationId,
     setSelectedAnnotationIds,
+    labelTextDialogState,
   } = useRequiredAnnotationsRuntimeServices();
   const activeToolType = useAnnotationsSelector(
     (state) => state.annotationToolType
@@ -253,5 +314,11 @@ export const useAnnotationsRuntime = () => {
     setSelectedAnnotationId,
     setSelectedAnnotationIds,
     addAnnotation,
+    labelTextDialogState,
   };
+};
+
+export const useAnnotationLabelTextDialogState = () => {
+  const { labelTextDialogState } = useRequiredAnnotationsRuntimeServices();
+  return labelTextDialogState;
 };

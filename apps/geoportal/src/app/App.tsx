@@ -5,7 +5,6 @@ import { useDispatch, useSelector } from "react-redux";
 // 3rd party Modules
 import { Modal } from "antd";
 import { ErrorBoundary } from "react-error-boundary";
-import { createPortal } from "react-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSpinner } from "@fortawesome/free-solid-svg-icons";
 // 1st party Modules
@@ -21,22 +20,13 @@ import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
 import {
   MapFrameworkSwitcherProvider,
   MobileWarningMessage,
-  useMapFrameworkSwitcherContext,
 } from "@carma-mapping/components";
-import { createDefaultAnnotationToolPlugins } from "@carma-mapping/annotations/builtin-tools";
-import {
-  AnnotationOverlayRoots,
-  AnnotationsProvider,
-  useLocalAnnotationsRuntimePersistence,
-} from "@carma-mapping/annotations/runtime";
 import { useCesiumDevConsoleTrigger } from "@carma-mapping/engines/cesium/react/interactions";
-import { useCesiumContext } from "@carma-mapping/engines/cesium/legacy";
 import {
   FeatureFlagProvider,
   useFeatureFlags,
 } from "@carma-providers/feature-flag";
 import { HashStateProvider } from "@carma-providers/hash-state";
-import { LabelOverlayProvider } from "@carma-providers/label-overlay";
 import {
   MapMeasurementsProvider,
   MEASUREMENT_MODE,
@@ -44,7 +34,7 @@ import {
 
 // Local Modules
 import AppErrorFallback from "./components/AppErrorFallback";
-import GeoportalLabelTextModal from "./components/annotations/GeoportalLabelTextModal";
+import { AnnotationProvider } from "./components/annotations/AnnotationProvider";
 import MapWrapper from "./components/GeoportalMap/controls/MapWrapper";
 import LoginForm from "./components/LoginForm";
 
@@ -57,21 +47,12 @@ import { useAppConfig } from "./hooks/useAppConfig";
 import { useManageLayers } from "./hooks/useManageLayers";
 import { useSyncToken } from "./hooks/useSyncToken";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
-import { useCesiumAnnotationLayerButton } from "./hooks/useCesiumAnnotationLayerButton";
 import { useMeasurementLayerButton } from "./hooks/useMeasurementLayerButton";
-import { useGeoportalCesiumAnnotationOverlayHost } from "./hooks/use-geoportal-cesium-annotation-overlay-host";
-import { useGeoportalCesiumAnnotationToolPlugins } from "./hooks/use-geoportal-cesium-annotation-tool-plugins";
-import { useGeoportalLabelTextRequest } from "./hooks/use-geoportal-label-text-request";
-import { useGeoportalCesiumAnnotationModeLifecycle } from "./hooks/use-geoportal-cesium-annotation-mode-lifecycle";
 
 import { APP_KEY, layerMap } from "./config";
 import { geoportalMapStyleConfig } from "./config/mapStyleConfig";
 
-import {
-  CESIUM_CONFIG,
-  CESIUM_ANNOTATION_CONFIG,
-  CONFIG_BASE_URL,
-} from "./config/app.config";
+import { CESIUM_CONFIG, CONFIG_BASE_URL } from "./config/app.config";
 import store from "./store";
 import { featureFlagConfig } from "./config/featureFlags";
 
@@ -95,7 +76,6 @@ const MEASUREMENTS_BASE_CONFIG = {
 import { useAdhocFeatureRehydrate } from "./hooks/use-adhoc-feature-rehydrate";
 
 import { getCustomFeatureFlags } from "./store/slices/layers";
-import { getLayers } from "./store/slices/mapping";
 import {
   getShowLoginModal,
   getUIMode,
@@ -103,8 +83,6 @@ import {
   setUIMode,
   UIMode,
 } from "./store/slices/ui";
-import { CESIUM_ANNOTATION_LAYER_ID } from "./components/annotations/cesium-annotations.constants";
-import CesiumAnnotationShortcutManager from "./components/annotations/CesiumAnnotationShortcutManager";
 
 // Side-Effect Imports
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -173,72 +151,6 @@ function MeasurementLayerSyncInner() {
   return null;
 }
 
-function CesiumAnnotationLayerSyncInner() {
-  useCesiumAnnotationLayerButton();
-  return null;
-}
-
-function CesiumAnnotationsWrapper({ children }: { children: ReactNode }) {
-  const { getScene } = useCesiumContext();
-  const { isCesium } = useMapFrameworkSwitcherContext();
-  const scene = getScene();
-  const uiMode = useSelector(getUIMode);
-  const layers = useSelector(getLayers);
-  const isCesiumAnnotationMode = isCesium && uiMode === UIMode.MEASUREMENT;
-  const annotationsVisible =
-    isCesiumAnnotationMode &&
-    layers.some((layer) => layer.id === CESIUM_ANNOTATION_LAYER_ID);
-  useGeoportalCesiumAnnotationModeLifecycle({
-    active: isCesiumAnnotationMode,
-  });
-  const { overlayContainer, overlayHost } =
-    useGeoportalCesiumAnnotationOverlayHost(scene);
-  const { labelTextModalState, requestLabelText } =
-    useGeoportalLabelTextRequest({
-      enabled: annotationsVisible,
-    });
-  const { initialPersistenceState, onPersistenceStateChange } =
-    useLocalAnnotationsRuntimePersistence({
-      enabled: true,
-      storageKey: "@" + APP_KEY + ".app.cesium-annotations",
-    });
-  const annotationToolPlugins = useMemo(
-    () =>
-      createDefaultAnnotationToolPlugins({
-        label: { requestLabelText },
-        measurementLineStyle: CESIUM_ANNOTATION_CONFIG.measurementLineStyle,
-        areaOcclusionStyle: CESIUM_ANNOTATION_CONFIG.areaOcclusionStyle,
-      }),
-    [requestLabelText]
-  );
-  const availableAnnotationToolPlugins =
-    useGeoportalCesiumAnnotationToolPlugins(annotationToolPlugins);
-
-  return (
-    <LabelOverlayProvider host={overlayHost}>
-      {overlayContainer
-        ? createPortal(<AnnotationOverlayRoots />, overlayContainer)
-        : null}
-      <AnnotationsProvider
-        scene={scene}
-        plugins={availableAnnotationToolPlugins}
-        initialActiveToolType={CESIUM_ANNOTATION_CONFIG.tools.defaultToolId}
-        renderEnabled={annotationsVisible}
-        initialPersistenceState={initialPersistenceState}
-        onPersistenceStateChange={onPersistenceStateChange}
-      >
-        <CesiumAnnotationLayerSyncInner />
-        {annotationsVisible ? <CesiumAnnotationShortcutManager /> : null}
-        {children}
-        <GeoportalLabelTextModal
-          {...labelTextModalState}
-          options={CESIUM_ANNOTATION_CONFIG.labelTextModal}
-        />
-      </AnnotationsProvider>
-    </LabelOverlayProvider>
-  );
-}
-
 function App({ published }: { published?: boolean }) {
   const dispatch = useDispatch();
   const showLoginModal = useSelector(getShowLoginModal);
@@ -299,7 +211,7 @@ function App({ published }: { published?: boolean }) {
                   setModeExternal={handleSetMode}
                   baseConfig={MEASUREMENTS_BASE_CONFIG}
                 >
-                  <CesiumAnnotationsWrapper>
+                  <AnnotationProvider>
                     <MeasurementLayerSyncInner />
                     <ErrorBoundary FallbackComponent={AppErrorFallback}>
                       <AdhocFeatureRehydration />
@@ -343,7 +255,7 @@ function App({ published }: { published?: boolean }) {
                         </Modal>
                       </div>
                     </ErrorBoundary>
-                  </CesiumAnnotationsWrapper>
+                  </AnnotationProvider>
                 </MeasurementsWrapper>
               </ObliqueProvider>
             </CarmaMapProviderWrapper>

@@ -29,24 +29,32 @@ import { createDistanceToolInfoBoxSlots } from "./distance-tool-info-box-slots";
 import { createDistanceAuthoringController } from "./create-distance-authoring-controller";
 import { buildDistanceToolRenderModels } from "./distance-tool-render-models";
 import { ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME } from "@carma-mapping/annotations/runtime";
+import type { DefaultAnnotationToolTexts } from "../annotation-mode-text";
+import { defaultAnnotationToolTexts } from "../annotation-mode-text";
 const { DISTANCE: ANNOTATION_TYPE_DISTANCE } = ANNOTATION_TYPES;
 
 const toolType = ANNOTATION_TYPE_DISTANCE;
 const labelTheme = ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME;
-const getDistanceToolInfoBoxSlots = createDistanceToolInfoBoxSlots(toolType, {
-  headingTitle: "Distanzmessung",
-  headingColor: labelTheme.scheme.colorPrimary,
-  formatMeasurementLabelToken: (counter) =>
-    formatMeasurementShortLabelToken(toolType, counter),
-});
 
 export type DistanceToolPluginOptions = {
   measurementLineStyleOptions?: MeasurementLineStyleOptions;
+  texts?: DefaultAnnotationToolTexts;
 };
 
 export const createDistanceToolPlugin = ({
   measurementLineStyleOptions,
+  texts = defaultAnnotationToolTexts,
 }: DistanceToolPluginOptions = {}) => {
+  const text = texts.distance;
+  const getDistanceToolInfoBoxSlots = createDistanceToolInfoBoxSlots(toolType, {
+    headingTitle: text.headingTitle,
+    headingColor: labelTheme.scheme.colorPrimary,
+    formatMeasurementLabelToken: (counter) =>
+      formatMeasurementShortLabelToken(toolType, counter),
+    actionLabels: texts.actions,
+    navigationLabels: texts.navigation,
+    metricLabels: text.metricLabels,
+  });
   const resolvedLineStyleOptions = resolveMeasurementLineStyleOptions(
     measurementLineStyleOptions
   );
@@ -65,15 +73,12 @@ export const createDistanceToolPlugin = ({
     descriptor: {
       id: toolType,
       order: 30,
-      label: "Distanzmessung",
-      tooltip: "Distanz messen",
+      label: text.label,
+      tooltip: text.tooltip,
       shortcutKey: "D",
       icon: <FontAwesomeIcon icon={faRuler} />,
     },
-    helpText: [
-      "Zwei Positionen in der Karte anklicken, um eine Distanzmessung zu erstellen.",
-      "Backspace entfernt den letzten Vorschaupunkt, Escape verwirft ihn.",
-    ],
+    helpText: text.helpText,
     capabilities: [
       ...AUTHORING_MEASUREMENT_PLUGIN_CAPABILITIES,
       ANNOTATION_TOOL_PLUGIN_CAPABILITIES.ADD_ANNOTATION,

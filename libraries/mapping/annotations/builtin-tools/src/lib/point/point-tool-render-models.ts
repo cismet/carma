@@ -16,6 +16,7 @@ import {
 } from "@carma-mapping/annotations/runtime";
 import {
   formatPointElevationLabelText,
+  type PointElevationTextLabels,
   resolvePointElevationReferenceCoordinate,
 } from "./point-tool-elevation-display";
 import { typographyDefaults } from "@carma-mapping/annotations/runtime";
@@ -46,6 +47,7 @@ type BuildPointToolRenderModelsArgs = {
   ) => void;
   onMeasurementLabelDoubleClick: (measurementId: string) => void;
   onNodeLongPress?: (nodeId: string, measurementId: string) => void;
+  elevationLabels?: PointElevationTextLabels;
 };
 
 export const buildPointToolRenderModels = ({
@@ -64,6 +66,7 @@ export const buildPointToolRenderModels = ({
   onMeasurementLabelClick,
   onMeasurementLabelDoubleClick,
   onNodeLongPress,
+  elevationLabels,
 }: BuildPointToolRenderModelsArgs): {
   points: readonly RuntimePointMarkerRenderModel[];
   pointLabels: readonly RuntimePointLabelRenderModel[];
@@ -116,6 +119,7 @@ export const buildPointToolRenderModels = ({
           referenceCoordinate,
           elevationDisplayMode,
           formatOptions,
+          labels: elevationLabels,
         });
 
         return [
@@ -170,6 +174,7 @@ export const buildPointToolRenderModels = ({
           referenceCoordinate,
           elevationDisplayMode: defaultElevationDisplayMode,
           formatOptions,
+          labels: elevationLabels,
         });
         const labelColorScheme = labelTheme.scheme;
         const selectedHighlight = labelTheme.selection;

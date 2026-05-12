@@ -31,6 +31,7 @@ import { ANNOTATION_TOOL_PLUGIN_KINDS } from "../registry";
 import type { AnnotationToolId } from "../registry/annotation-tool-id";
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import type { PreviewLineLabelVisualOptions } from "../config/preview-line-label-visual-defaults";
+import type { AnnotationLabelTextRequester } from "./use-annotation-label-text-request";
 import type {
   AnnotationToolAuthoringController,
   AnnotationToolDraftStore,
@@ -70,6 +71,7 @@ type RuntimeAuthoringHostProps = {
   setHoveredPointQueryNodeId: (nodeId: string | null) => void;
   formatOptions: AnnotationsRuntimeFormatOptions;
   previewLineLabelVisualOptions: Partial<PreviewLineLabelVisualOptions>;
+  requestLabelText?: AnnotationLabelTextRequester;
 };
 
 export const RuntimeAuthoringHost = ({
@@ -87,6 +89,7 @@ export const RuntimeAuthoringHost = ({
   setHoveredPointQueryNodeId,
   formatOptions,
   previewLineLabelVisualOptions,
+  requestLabelText,
 }: RuntimeAuthoringHostProps) => {
   const labelOverlay = useLabelOverlay();
   const activeToolType = useAnnotationsSelector(
@@ -137,6 +140,7 @@ export const RuntimeAuthoringHost = ({
       dispatch: annotationsStore.dispatch,
       setActiveToolType: setActiveToolTypeInStore,
       drafts: annotationToolDraftStore,
+      requestLabelText,
       addAnnotation,
     }),
     [
@@ -144,6 +148,7 @@ export const RuntimeAuthoringHost = ({
       annotationToolDraftStore,
       annotationsStore.dispatch,
       annotationsStore.getState,
+      requestLabelText,
       setActiveToolTypeInStore,
     ]
   );
