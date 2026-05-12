@@ -1,3 +1,5 @@
+import { parseFiniteNumber } from "@carma-commons/math";
+
 import { normalizeOptions } from "./normalizeOptions";
 const sortArrayByKeys = (
   arr: [string, unknown][],
@@ -111,22 +113,9 @@ export const isTruthyHashValue = (value: unknown): boolean => {
   return true;
 };
 
-const readFiniteHashNumber = (value: unknown): number | null => {
-  if (typeof value === "number") {
-    return Number.isFinite(value) ? value : null;
-  }
-
-  if (typeof value === "string") {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-
-  return null;
-};
-
 const hasValid2dViewParams = (params: Record<string, unknown>): boolean =>
   DEFAULT_HASH_LAUNCH_2D_VIEW_KEYS.every(
-    (key) => readFiniteHashNumber(params[key]) !== null
+    (key) => parseFiniteNumber(params[key]) !== undefined
   );
 
 export const readHashLaunchMode = (

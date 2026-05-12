@@ -5,17 +5,13 @@ import { configureStore } from "@reduxjs/toolkit";
 import { Provider } from "react-redux";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const useMapFrameworkSwitcherContextMock = vi.hoisted(() => vi.fn());
-const hashStateMock = vi.hoisted(() => ({
-  hashParams: {} as Record<string, string>,
-  updateHashState: vi.fn(),
-  popStateCallbacks: [] as Array<
-    (event: { hashParams: Record<string, string> }) => void
-  >,
-}));
+import type { AppSearchParamsCustomStateSnapshot } from "@carma-appframeworks/portals";
+import { HASH_LAUNCH_MODE } from "@carma-commons/utils";
 
-vi.mock("@carma-mapping/components", () => ({
-  useMapFrameworkSwitcherContext: () => useMapFrameworkSwitcherContextMock(),
+import type { GeoportalCustomHashState } from "../helper/geoportal-custom-hash-state";
+
+const hashStateMock = vi.hoisted(() => ({
+  updateHashState: vi.fn(),
 }));
 
 vi.mock("@carma-providers/hash-state", async (importOriginal) => {
@@ -25,25 +21,13 @@ vi.mock("@carma-providers/hash-state", async (importOriginal) => {
   return {
     ...actual,
     useHashState: () => ({
-      getHashParams: () => hashStateMock.hashParams,
-      registerOnPopState: (
-        callback: (event: { hashParams: Record<string, string> }) => void
-      ) => {
-        hashStateMock.popStateCallbacks.push(callback);
-        return () => {
-          hashStateMock.popStateCallbacks =
-            hashStateMock.popStateCallbacks.filter(
-              (registeredCallback) => registeredCallback !== callback
-            );
-        };
-      },
       updateHashState: hashStateMock.updateHashState,
     }),
   };
 });
 
 import mappingReducer from "../store/slices/mapping";
-import uiReducer, { setUIMode, UIMode } from "../store/slices/ui";
+import uiReducer, { UIMode } from "../store/slices/ui";
 import { useGeoportalMeasurementModeHash } from "./use-geoportal-measurement-mode-hash";
 
 type TestStore = ReturnType<typeof createTestStore>;
@@ -61,95 +45,145 @@ const createWrapper =
   ({ children }: PropsWithChildren) =>
     <Provider store={store}>{children}</Provider>;
 
-const build3dHashParams = (
-  params: Record<string, string> = {}
-): Record<string, string> => ({
-  lat: "51.2844431",
-  lng: "7.1574316",
-  zoom: "17.389",
-  h: "262.6",
-  ...params,
+const buildCustomHashState = ({
+  measurementModeRequested,
+  source = "initial",
+  version = 0,
+}: {
+  measurementModeRequested: boolean;
+  source?: AppSearchParamsCustomStateSnapshot<
+    GeoportalCustomHashState
+  >["source"];
+  version?: number;
+}): AppSearchParamsCustomStateSnapshot<GeoportalCustomHashState> => ({
+  launchMode: HASH_LAUNCH_MODE.THREE_D,
+  measurementModeRequested,
+  source,
+  version,
 });
-
-const emitPopState = (hashParams: Record<string, string>) => {
-  hashStateMock.hashParams = hashParams;
-  act(() => {
-    hashStateMock.popStateCallbacks.forEach((callback) => {
-      callback({ hashParams });
-    });
-  });
-};
 
 describe("useGeoportalMeasurementModeHash", () => {
   beforeEach(() => {
-    useMapFrameworkSwitcherContextMock.mockReset();
-    useMapFrameworkSwitcherContextMock.mockReturnValue({
-      isCesium: true,
-    });
-    hashStateMock.hashParams = {};
     hashStateMock.updateHashState.mockReset();
-    hashStateMock.popStateCallbacks = [];
   });
 
-  it("activates measurement mode from an initial 3d mm hash", async () => {
+  it("activates measurement mode from the initial custom hash state", async () => {
     const store = createTestStore();
-    hashStateMock.hashParams = build3dHashParams({ mm: "1" });
-
-    renderHook(() => useGeoportalMeasurementModeHash(), {
-      wrapper: createWrapper(store),
+    const customHashState = buildCustomHashState({
+      measurementModeRequested: true,
     });
+
+    renderHook(
+      () => useGeoportalMeasurementModeHash({ customHashState }),
+      {
+        wrapper: createWrapper(store),
+      }
+    );
 
     await waitFor(() => {
       expect(store.getState().ui.mode).toBe(UIMode.MEASUREMENT);
     });
   });
 
-  it("keeps mm active after the 3d launch flag has been consumed", async () => {
+  it("keeps the measurement request active after the 3d launch flag has been consumed", async () => {
     const store = createTestStore();
-    hashStateMock.hashParams = { m: "1", mm: "1" };
-
-    renderHook(() => useGeoportalMeasurementModeHash(), {
-      wrapper: createWrapper(store),
+    const customHashState = buildCustomHashState({
+      measurementModeRequested: true,
     });
+
+    renderHook(
+      () => useGeoportalMeasurementModeHash({ customHashState }),
+      {
+        wrapper: createWrapper(store),
+      }
+    );
 
     await waitFor(() => {
       expect(store.getState().ui.mode).toBe(UIMode.MEASUREMENT);
     });
   });
 
-  it("activates measurement mode when mm arrives through history navigation", async () => {
+  it("activates measurement mode when custom hash state changes through history navigation", async () => {
     const store = createTestStore();
-    hashStateMock.hashParams = build3dHashParams();
-
-    renderHook(() => useGeoportalMeasurementModeHash(), {
-      wrapper: createWrapper(store),
-    });
+    const { rerender } = renderHook(
+      ({ customHashState }) =>
+        useGeoportalMeasurementModeHash({ customHashState }),
+      {
+        initialProps: {
+          customHashState: buildCustomHashState({
+            measurementModeRequested: false,
+          }),
+        },
+        wrapper: createWrapper(store),
+      }
+    );
 
     expect(store.getState().ui.mode).toBe(UIMode.DEFAULT);
 
-    emitPopState(build3dHashParams({ mm: "1" }));
+    rerender({
+      customHashState: buildCustomHashState({
+        measurementModeRequested: true,
+        source: "popstate",
+        version: 1,
+      }),
+    });
 
     await waitFor(() => {
       expect(store.getState().ui.mode).toBe(UIMode.MEASUREMENT);
     });
   });
 
-  it("deactivates measurement mode when history navigation removes mm", async () => {
+  it("activates measurement mode without requiring the hash writer addon", async () => {
     const store = createTestStore();
-    hashStateMock.hashParams = build3dHashParams({ mm: "1" });
-
-    renderHook(() => useGeoportalMeasurementModeHash(), {
-      wrapper: createWrapper(store),
+    const customHashState = buildCustomHashState({
+      measurementModeRequested: true,
     });
+
+    renderHook(
+      () =>
+        useGeoportalMeasurementModeHash({
+          customHashState,
+          writeMeasurementModeHash: false,
+        }),
+      {
+        wrapper: createWrapper(store),
+      }
+    );
+
+    await waitFor(() => {
+      expect(store.getState().ui.mode).toBe(UIMode.MEASUREMENT);
+    });
+    expect(hashStateMock.updateHashState).not.toHaveBeenCalled();
+  });
+
+  it("deactivates measurement mode when history navigation removes the request", async () => {
+    const store = createTestStore();
+    const { rerender } = renderHook(
+      ({ customHashState }) =>
+        useGeoportalMeasurementModeHash({ customHashState }),
+      {
+        initialProps: {
+          customHashState: buildCustomHashState({
+            measurementModeRequested: true,
+          }),
+        },
+        wrapper: createWrapper(store),
+      }
+    );
 
     await waitFor(() => {
       expect(store.getState().ui.mode).toBe(UIMode.MEASUREMENT);
     });
 
     act(() => {
-      store.dispatch(setUIMode(UIMode.MEASUREMENT));
+      rerender({
+        customHashState: buildCustomHashState({
+          measurementModeRequested: false,
+          source: "popstate",
+          version: 1,
+        }),
+      });
     });
-    emitPopState(build3dHashParams());
 
     await waitFor(() => {
       expect(store.getState().ui.mode).toBe(UIMode.DEFAULT);

@@ -1,95 +1,106 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
-import { useHashState, type HashParams } from "@carma-providers/hash-state";
-import { isTruthyHashValue } from "@carma-commons/utils";
+import type { AppSearchParamsCustomStateSnapshot } from "@carma-appframeworks/portals";
+import { useHashState } from "@carma-providers/hash-state";
 
-import { URL_PARAM_KEYS } from "../config/app.config";
+import {
+  buildGeoportalMeasurementModeHashUpdate,
+  type GeoportalCustomHashState,
+} from "../helper/geoportal-custom-hash-state";
 import { getUIMode, setUIMode, UIMode } from "../store/slices/ui";
 
-const shouldEnable3dMeasurementModeFromHash = (hashParams: HashParams) => {
-  return isTruthyHashValue(hashParams[URL_PARAM_KEYS.measurements3d]);
+type UseGeoportalMeasurementModeHashOptions = {
+  customHashState:
+    | AppSearchParamsCustomStateSnapshot<GeoportalCustomHashState>
+    | null;
+  writeMeasurementModeHash?: boolean;
 };
 
-export const useGeoportalMeasurementModeHash = () => {
+export const useGeoportalMeasurementModeHash = ({
+  customHashState,
+  writeMeasurementModeHash = true,
+}: UseGeoportalMeasurementModeHashOptions) => {
   const dispatch = useDispatch();
   const uiMode = useSelector(getUIMode);
-  const { isCesium } = useMapFrameworkSwitcherContext();
-  const { getHashParams, registerOnPopState, updateHashState } =
-    useHashState();
+  const { updateHashState } = useHashState();
   const pendingMeasurementModeHashRef = useRef(false);
+  const handledHashStateVersionRef = useRef<number | null>(null);
   const uiModeRef = useRef(uiMode);
-  const [initialHashApplied, setInitialHashApplied] = useState(false);
+
+  const measurementModeRequested =
+    customHashState?.measurementModeRequested ?? false;
+  const hashStateSource = customHashState?.source;
+  const hashStateVersion = customHashState?.version;
 
   uiModeRef.current = uiMode;
 
-  const syncMeasurementModeFromHash = useCallback(
-    (
-      hashParams: HashParams,
-      { allowDisable }: { allowDisable: boolean }
-    ) => {
-      const shouldEnableMeasurements =
-        shouldEnable3dMeasurementModeFromHash(hashParams);
-
-      if (shouldEnableMeasurements) {
-        pendingMeasurementModeHashRef.current = true;
-
-        if (uiModeRef.current !== UIMode.MEASUREMENT) {
-          dispatch(setUIMode(UIMode.MEASUREMENT));
-        }
-        return;
-      }
-
-      pendingMeasurementModeHashRef.current = false;
-
-      if (allowDisable && uiModeRef.current === UIMode.MEASUREMENT) {
-        dispatch(setUIMode(UIMode.DEFAULT));
-      }
-    },
-    [dispatch]
-  );
-
   useEffect(() => {
-    if (initialHashApplied) {
+    if (hashStateVersion === undefined) {
       return;
     }
 
-    syncMeasurementModeFromHash(getHashParams(), { allowDisable: false });
+    if (handledHashStateVersionRef.current === hashStateVersion) {
+      return;
+    }
 
-    setInitialHashApplied(true);
-  }, [
-    getHashParams,
-    initialHashApplied,
-    syncMeasurementModeFromHash,
-  ]);
+    handledHashStateVersionRef.current = hashStateVersion;
 
-  useEffect(
-    () =>
-      registerOnPopState(({ hashParams }) => {
-        syncMeasurementModeFromHash(hashParams, { allowDisable: true });
-      }),
-    [registerOnPopState, syncMeasurementModeFromHash]
-  );
+    if (measurementModeRequested) {
+      pendingMeasurementModeHashRef.current = true;
+
+      if (uiModeRef.current !== UIMode.MEASUREMENT) {
+        dispatch(setUIMode(UIMode.MEASUREMENT));
+      }
+      return;
+    }
+
+    pendingMeasurementModeHashRef.current = false;
+
+    if (
+      hashStateSource === "popstate" &&
+      uiModeRef.current === UIMode.MEASUREMENT
+    ) {
+      dispatch(setUIMode(UIMode.DEFAULT));
+    }
+  }, [dispatch, hashStateSource, hashStateVersion, measurementModeRequested]);
 
   useEffect(() => {
-    if (!initialHashApplied) {
+    if (hashStateVersion === undefined) {
       return;
     }
 
     if (pendingMeasurementModeHashRef.current) {
-      if (!isCesium || uiMode !== UIMode.MEASUREMENT) {
+      if (uiMode !== UIMode.MEASUREMENT) {
         return;
       }
       pendingMeasurementModeHashRef.current = false;
+
+      if (!writeMeasurementModeHash) {
+        return;
+      }
+    }
+
+    if (
+      hashStateSource === "popstate" &&
+      !measurementModeRequested &&
+      uiMode === UIMode.MEASUREMENT
+    ) {
+      return;
     }
 
     updateHashState(
-      {
-        [URL_PARAM_KEYS.measurements3d]:
-          isCesium && uiMode === UIMode.MEASUREMENT ? "1" : undefined,
-      },
-      { label: "geoportal:sync-3d-measurement-mode", replace: true }
+      buildGeoportalMeasurementModeHashUpdate(
+        writeMeasurementModeHash && uiMode === UIMode.MEASUREMENT
+      ),
+      { label: "geoportal:sync-measurement-mode", replace: true }
     );
-  }, [initialHashApplied, isCesium, uiMode, updateHashState]);
+  }, [
+    hashStateSource,
+    hashStateVersion,
+    measurementModeRequested,
+    uiMode,
+    updateHashState,
+    writeMeasurementModeHash,
+  ]);
 };

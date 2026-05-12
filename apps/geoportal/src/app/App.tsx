@@ -71,7 +71,6 @@ import {
   CESIUM_CONFIG,
   CESIUM_ANNOTATION_CONFIG,
   CONFIG_BASE_URL,
-  URL_PARAM_KEYS,
 } from "./config/app.config";
 import store from "./store";
 import { featureFlagConfig } from "./config/featureFlags";
@@ -81,9 +80,8 @@ import {
   COLORS_HEX,
   getHashParams,
   HASH_LAUNCH_MODE,
-  isTruthyHashValue,
-  resolveHashLaunchMode,
 } from "@carma-commons/utils";
+import { resolveGeoportalAppLaunchMode } from "./config/app-search-params";
 
 // Stable config objects
 const MEASUREMENTS_BASE_CONFIG = {
@@ -121,15 +119,8 @@ const readInitialFrameworkFromHash = (): "leaflet" | "cesium" => {
   }
 
   const hashParams = getHashParams();
-
-  if (isTruthyHashValue(hashParams[URL_PARAM_KEYS.measurements3d])) {
-    return "cesium";
-  }
-
-  const mode = resolveHashLaunchMode(hashParams, {
-    defaultMode: HASH_LAUNCH_MODE.TWO_D,
-  });
-  return mode === HASH_LAUNCH_MODE.THREE_D ? "cesium" : "leaflet";
+  const launchMode = resolveGeoportalAppLaunchMode(hashParams);
+  return launchMode === HASH_LAUNCH_MODE.THREE_D ? "cesium" : "leaflet";
 };
 
 function CesiumDevConsoleIntegration() {

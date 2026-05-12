@@ -155,5 +155,5 @@ export const LEAFLET_CONFIG: LeafletConfig = {
 // URL hash parameter keys for viewer state
 export const URL_PARAM_KEYS = {
   mapStyle: "m",
-  measurements3d: "mm",
+  measurements: "mm",
 } as const;

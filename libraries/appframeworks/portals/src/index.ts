@@ -146,6 +146,14 @@ export { useProgress } from "./lib/hooks/useProgress";
 export { useAdhocCesiumFeatureDisplay } from "./lib/hooks/useAdhocCesiumFeatureDisplay";
 export { useUrlFeatureSelection } from "./lib/hooks/useUrlFeatureSelection";
 export { useHashLaunchMode } from "./lib/hooks/useHashLaunchMode";
+export {
+  useAppSearchParams,
+  type AppSearchParamsCustomStateSnapshot,
+  type AppSearchParamsDefaultHashOptions,
+  type AppSearchParamsStateSource,
+  type UseAppSearchParamsOptions,
+  type UseAppSearchParamsResult,
+} from "./lib/hooks/useAppSearchParams";
 export { useRegisterDefaultMapHashClearStateKeySets } from "./lib/hooks/useRegisterDefaultMapHashClearStateKeySets";
 export {
   useMapHashRouting,
