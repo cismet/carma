@@ -3,6 +3,7 @@ import {
   useCallback,
   useMemo,
   useEffect,
+  useRef,
   createContext,
   useContext,
 } from "react";
@@ -23,6 +24,7 @@ import {
   setDraftDocumentsInfo,
   setRemovedDocumentKeys,
   removeDraft,
+  clearDraftGeometry,
   setOriginalValues,
   getOriginalValues,
   hasDraftChanges,
@@ -429,17 +431,40 @@ const FeaturesFormsWrapper = ({
   );
 
   const handleGeometryChange = useCallback(
-    (newKey: string) => {
+    (newKey: string | undefined) => {
       if (!featureId || !formKey) return;
-      const opt = geometryOptions.find((o) => o.key === newKey);
-      if (!opt) return;
-      const geom = opt.geometry;
       const currentValues = draft?.values ?? {};
       const enrichedValues = enrichSyntheticProps(
         formKey,
         deserializeValues(currentValues),
         keyTablesData
       );
+      // Clear case: user hit the "x" in the allowClear select.
+      if (!newKey) {
+        const newFeature = buildSyntheticFeature(
+          formKey,
+          featureId,
+          enrichedValues,
+          undefined
+        );
+        dispatch(
+          clearDraftGeometry({
+            featureId,
+            feature: newFeature,
+            fetchedData: buildSyntheticFetchedData(
+              formKey,
+              deserializeValues(currentValues)
+            ),
+          })
+        );
+        if (selectedFeatureId) {
+          selectFeature(selectedFeatureId, newFeature as never);
+        }
+        return;
+      }
+      const opt = geometryOptions.find((o) => o.key === newKey);
+      if (!opt) return;
+      const geom = opt.geometry;
       const newFeature = buildSyntheticFeature(
         formKey,
         featureId,
@@ -479,13 +504,36 @@ const FeaturesFormsWrapper = ({
     ]
   );
 
+  // Tracks featureIds whose single-option geometry the user explicitly cleared,
+  // so the auto-apply effect below doesn't immediately re-apply it.
+  const userClearedGeometryRef = useRef<Set<string>>(new Set());
+  const prevGeometryKeyRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!featureId) return;
+    const prev = prevGeometryKeyRef.current;
+    const now = draft?.geometryKey;
+    if (prev && !now) {
+      userClearedGeometryRef.current.add(featureId);
+    } else if (now) {
+      userClearedGeometryRef.current.delete(featureId);
+    }
+    prevGeometryKeyRef.current = now;
+  }, [featureId, draft?.geometryKey]);
+
   useEffect(() => {
     if (!isCreation) return;
     if (geometryOptions.length !== 1) return;
+    if (featureId && userClearedGeometryRef.current.has(featureId)) return;
     const only = geometryOptions[0];
     if (draft?.geometryKey === only.key) return;
     handleGeometryChange(only.key);
-  }, [isCreation, geometryOptions, draft?.geometryKey, handleGeometryChange]);
+  }, [
+    isCreation,
+    featureId,
+    geometryOptions,
+    draft?.geometryKey,
+    handleGeometryChange,
+  ]);
 
   const handleOriginalValues = useCallback(
     (values: Record<string, unknown>) => {
@@ -578,6 +626,7 @@ const FeaturesFormsWrapper = ({
                       className="w-full mt-1"
                       size="large"
                       placeholder="Messung wählen"
+                      allowClear
                     >
                       {geometryOptions.map((opt) => (
                         <Select.Option key={opt.key} value={opt.key}>
