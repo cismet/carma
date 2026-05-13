@@ -139,8 +139,9 @@ const MEASUREMENT_DELETE_ICON = (
     icon={faTrashCan}
     style={{
       color: "grey",
-      fontSize: "1.7em",
-      width: "26px",
+      fontSize: "21px",
+      marginLeft: "2px",
+      width: "18px",
       textAlign: "center",
     }}
   />
@@ -1008,8 +1009,10 @@ const BelisMapLibWrapper = ({
     let subtitle = "";
     if (geomType === "Point") {
       title = "Punkt";
-      const label = feature.properties?.title;
-      if (typeof label === "string") subtitle = label;
+      const coords = feature.geometry?.coordinates;
+      if (Array.isArray(coords) && typeof coords[0] === "number") {
+        subtitle = `${coords[0].toFixed(2)} / ${coords[1].toFixed(2)}`;
+      }
     } else if (geomType === "LineString" || geomType === "MultiLineString") {
       title = "Linie";
       const label = feature.properties?.title;
@@ -1049,6 +1052,24 @@ const BelisMapLibWrapper = ({
       clearMapSelection();
     }
   }, [reduxSelectedFeature, clearMapSelection]);
+
+  // Mirror redux's measurement selection into terra-draw so the map halo +
+  // vertex handles paint regardless of where the click came from (sidebar,
+  // InfoBox-trigger, programmatic). Without this, only direct map clicks
+  // produced the halo, leaving sidebar clicks visually orphaned. The
+  // imperative calls are guarded against the redux→draw→redux echo inside
+  // MeasurementHost (suppressSelectionCallbackRef).
+  useEffect(() => {
+    const handle = measurementHostRef.current;
+    if (!handle) return;
+    if (reduxSelectedFeature?.featurekind === MEASUREMENT_FEATUREKIND) {
+      const id = String(reduxSelectedFeature.id);
+      const rawId = id.startsWith("measurement.") ? id.slice(12) : id;
+      handle.selectFeature(rawId);
+    } else {
+      handle.deselectAll();
+    }
+  }, [reduxSelectedFeature]);
   useEffect(() => {
     // Only run in Fachobjekte mode — AA/AP manage their own overrides
     if (sidebarVariant !== "fachobjekte") return;
