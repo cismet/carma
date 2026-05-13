@@ -180,6 +180,16 @@ export interface LibreMapProps {
       id?: string | number;
     }
   ) => void;
+  /** Fired once per click with the raw filtered hits and the click latlng.
+   * Mirrors the shape of CismapLayer's onSelectionChanged: hosts can drive
+   * their own selection / infobox flow without registering a second
+   * map.on("click", ...) handler. Fires even when there are no hits, so
+   * hosts can also clear state on empty-area clicks. */
+  onSelectionChanged?: (e: {
+    hits: maplibregl.MapGeoJSONFeature[];
+    hit: maplibregl.MapGeoJSONFeature | undefined;
+    latlng: maplibregl.LngLat;
+  }) => void;
   /** Pick which feature to select from all click hits.
    * Receives filtered hits (no selection/cluster layers).
    * Return the preferred feature, or undefined to clear selection.
@@ -289,6 +299,7 @@ export const LibreMap = ({
   selectionEnabled = true,
   layerMode = "merged",
   onFeatureSelect,
+  onSelectionChanged,
   selectFromHits,
   debugLog = false,
   logErrors = false,
@@ -315,6 +326,8 @@ export const LibreMap = ({
   const mappingRef = useRef({});
   const onFeatureSelectRef = useRef(onFeatureSelect);
   onFeatureSelectRef.current = onFeatureSelect;
+  const onSelectionChangedRef = useRef(onSelectionChanged);
+  onSelectionChangedRef.current = onSelectionChanged;
   const selectFromHitsRef = useRef(selectFromHits);
   selectFromHitsRef.current = selectFromHits;
   const useRoutingRef = useRef(useRouting);
@@ -925,6 +938,11 @@ export const LibreMap = ({
         // selection code, sidebar lookups, and forwarding all read
         // feature.sourceLayer.
         for (const hit of filteredHits) stampSourceLayerFromProperty(hit);
+        onSelectionChangedRef.current?.({
+          hits: filteredHits,
+          hit: filteredHits[0],
+          latlng: e.lngLat,
+        });
 
         console.log(
           "[TERRAIN CLICK]",
