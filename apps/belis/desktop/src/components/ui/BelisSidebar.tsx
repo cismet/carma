@@ -620,23 +620,35 @@ const BelisSidebar = ({
       const t = f.geometry?.type;
       const id = f.id != null ? String(f.id) : "";
       const shortId = id.startsWith("measurement.") ? id.slice(12, 20) : id;
+      const label =
+        typeof (f.properties as any)?.title === "string"
+          ? ((f.properties as any).title as string)
+          : null;
       let main = "Messung";
       let subtitle = "";
+      let upperright = shortId;
       if (t === "Point") {
         counters.Point += 1;
         main = `Punkt ${counters.Point}`;
-        const label = (f.properties as any)?.title;
-        if (typeof label === "string") subtitle = label;
+        // Show WGS84 coords as the subtitle. Use the on-map label
+        // (e.g. "P2") in place of the opaque short id.
+        const coords = (f.geometry as any)?.coordinates;
+        if (Array.isArray(coords) && typeof coords[0] === "number") {
+          subtitle = `${coords[0].toFixed(2)} / ${coords[1].toFixed(2)}`;
+        }
+        if (label) upperright = label;
       } else if (t === "LineString" || t === "MultiLineString") {
         counters.LineString += 1;
         main = `Linie ${counters.LineString}`;
         const meters = featureLengthMeters(f);
         if (meters != null) subtitle = formatMeters(meters);
+        // Use the on-map label (e.g. "L3") in place of the opaque short id.
+        if (label) upperright = label;
       } else if (t === "Polygon" || t === "MultiPolygon") {
         counters.Polygon += 1;
         main = `Fläche ${counters.Polygon}`;
       }
-      return { feature: f, id, main, upperright: shortId, subtitle };
+      return { feature: f, id, main, upperright, subtitle };
     });
   }, [measurements]);
 

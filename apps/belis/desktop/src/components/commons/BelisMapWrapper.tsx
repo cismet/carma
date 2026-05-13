@@ -1027,22 +1027,30 @@ const BelisMapLibWrapper = ({
     const id = feature?.id != null ? String(feature.id) : "?";
     const rawId = id.startsWith("measurement.") ? id.slice(12) : id;
     const shortId = rawId.slice(0, 8);
+    const label =
+      typeof feature?.properties?.title === "string"
+        ? (feature.properties.title as string)
+        : null;
     let title = "Messung";
     let subtitle = "";
+    // Trailing identifier next to the type in the InfoBox title. Default is
+    // the opaque shortId; lines prefer the on-map label (e.g. "L3").
+    let trailing = shortId;
     if (geomType === "Point") {
       title = "Punkt";
       const coords = feature.geometry?.coordinates;
       if (Array.isArray(coords) && typeof coords[0] === "number") {
         subtitle = `${coords[0].toFixed(2)} / ${coords[1].toFixed(2)}`;
       }
+      if (label) trailing = label;
     } else if (geomType === "LineString" || geomType === "MultiLineString") {
       title = "Linie";
       const meters = featureLengthMeters(feature);
       if (meters != null) subtitle = formatMeters(meters);
+      if (label) trailing = label;
     } else if (geomType === "Polygon" || geomType === "MultiPolygon") {
       title = "Fläche";
-      const label = feature.properties?.title;
-      if (typeof label === "string") subtitle = label;
+      if (label) subtitle = label;
     }
     // If a creation draft uses this measurement as its geometry source, expose
     // a second InfoBox link that opens the draft's Datenblatt directly.
@@ -1097,7 +1105,7 @@ const BelisMapLibWrapper = ({
     return {
       properties: {
         header: "Messung",
-        title: `${title} ${shortId}`,
+        title: `${title} ${trailing}`,
         subtitle,
         headerColor: "#0078a8",
         genericLinks,
