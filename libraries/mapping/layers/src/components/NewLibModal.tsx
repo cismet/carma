@@ -524,6 +524,9 @@ export const NewLibModal = ({
             ...JSON.parse(item.config),
             id: item.id.toString(),
             isDraft: item.draft ? true : false,
+            createdAt: item.created_at,
+            createdBy: item.created_by,
+            updatedAt: item.updated_at,
           };
         })
       );

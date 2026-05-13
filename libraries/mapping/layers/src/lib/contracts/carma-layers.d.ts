@@ -319,6 +319,9 @@ export type Item = {
   ff?: string;
   replaceId?: string;
   mergeId?: string;
+  createdAt?: string;
+  createdBy?: string;
+  updatedAt?: string;
 } & (TmpLayer | Link | Feature | Collection);
 
 export interface WMSLatLonBoundingBox {
