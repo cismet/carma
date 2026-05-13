@@ -65,19 +65,24 @@ export const selectMeasurement =
     dispatch(setSelectedFeature(wrapMeasurement(feature)));
   };
 
-/** Replace the measurement set and drop a stale selection if the picked
- *  measurement is no longer present. */
+/** Replace the measurement set and keep the selectedFeature slot consistent:
+ *  - drop the selection when the picked measurement is no longer present,
+ *  - otherwise re-wrap the FRESH feature so consumers reading the selected
+ *    slot (InfoBox subtitle, etc.) see post-edit geometry — the slot caches
+ *    a feature snapshot at click time; without this, dragging the line
+ *    updates the sidebar (which reads `measurements` live) but leaves the
+ *    InfoBox stuck on the pre-drag length. */
 export const replaceMeasurements =
   (features: Feature[]) =>
   (dispatch: AppDispatch, getState: () => RootState) => {
     dispatch(setMeasurements(features));
     const selected: { featurekind?: string; id?: string | number } | null =
       getState().featureCollection.selectedFeature;
-    if (
-      selected &&
-      selected.featurekind === MEASUREMENT_FEATUREKIND &&
-      !features.some((f) => f.id === selected.id)
-    ) {
+    if (!selected || selected.featurekind !== MEASUREMENT_FEATUREKIND) return;
+    const fresh = features.find((f) => f.id === selected.id);
+    if (!fresh) {
       dispatch(setSelectedFeature(null));
+      return;
     }
+    dispatch(setSelectedFeature(wrapMeasurement(fresh)));
   };

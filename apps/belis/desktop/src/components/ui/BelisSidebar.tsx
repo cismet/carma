@@ -10,6 +10,10 @@ const IS_LOCAL_DEV =
   typeof window !== "undefined" && window.location.hostname === "localhost";
 import toTitleCase from "../../helper/toTitleCase";
 import { isCreationDraftKey } from "../../store/slices/featuresForms";
+import {
+  featureLengthMeters,
+  formatMeters,
+} from "../../utils/measurementGeometry";
 import AuswahlBlock from "./AuswahlBlock";
 
 const displayId = (id: unknown): string => {
@@ -626,8 +630,8 @@ const BelisSidebar = ({
       } else if (t === "LineString" || t === "MultiLineString") {
         counters.LineString += 1;
         main = `Linie ${counters.LineString}`;
-        const len = (f.properties as any)?.title;
-        if (typeof len === "string") subtitle = len;
+        const meters = featureLengthMeters(f);
+        if (meters != null) subtitle = formatMeters(meters);
       } else if (t === "Polygon" || t === "MultiPolygon") {
         counters.Polygon += 1;
         main = `Fläche ${counters.Polygon}`;

@@ -179,6 +179,10 @@ import {
   selectMeasurement,
   MEASUREMENT_FEATUREKIND,
 } from "../../store/slices/measurements";
+import {
+  featureLengthMeters,
+  formatMeters,
+} from "../../utils/measurementGeometry";
 
 function buildAAFeatureCollection(
   features: ArbeitsauftragTileFeature[]
@@ -1015,8 +1019,8 @@ const BelisMapLibWrapper = ({
       }
     } else if (geomType === "LineString" || geomType === "MultiLineString") {
       title = "Linie";
-      const label = feature.properties?.title;
-      if (typeof label === "string") subtitle = label;
+      const meters = featureLengthMeters(feature);
+      if (meters != null) subtitle = formatMeters(meters);
     } else if (geomType === "Polygon" || geomType === "MultiPolygon") {
       title = "Fläche";
       const label = feature.properties?.title;
