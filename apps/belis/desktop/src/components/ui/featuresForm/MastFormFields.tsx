@@ -115,6 +115,7 @@ const MastFormFields = ({
   const [localForm] = Form.useForm();
   const form = externalForm ?? localForm;
   const draftApplied = useRef(false);
+  const appliedForFeatureRef = useRef<string | number | undefined>(undefined);
   useEffect(() => {
     if (!externalForm) onFormInstance?.(form);
   }, [form, onFormInstance, externalForm]);
@@ -149,10 +150,25 @@ const MastFormFields = ({
 
   useEffect(() => {
     if (externalForm) return;
-    form.resetFields();
-    draftApplied.current = false;
+    if (!mast) return;
 
-    if (mast) {
+    const featureChanged = appliedForFeatureRef.current !== featureId;
+    const isCreationFeature = String(featureId ?? "").startsWith("create:");
+
+    // During creation, the synthetic record gets a fresh reference per
+    // keystroke. Re-running with the same featureId would call resetFields()
+    // and steal focus. Bail unless this is the first arrival for this draft.
+    if (!featureChanged && isCreationFeature) return;
+
+    if (featureChanged) {
+      // First time we see this feature — clear any stale state. For post-save
+      // refresh on the same feature, skip resetFields so AntD keeps the DOM
+      // intact (preserves scroll position and focus).
+      form.resetFields();
+      draftApplied.current = false;
+    }
+
+    {
       const strassenschluessel = mast.tkey_strassenschluessel as
         | NestedObject
         | undefined;
@@ -249,15 +265,12 @@ const MastFormFields = ({
         draftApplied.current = true;
       }
     }
-    // Dep on `featureId` (stable per draft) and the *presence* of `mast`
-    // (a boolean, so it only flips false → true once) — not the reference
-    // itself. The synthetic record gets a fresh reference per setDraft during
-    // creation, which would call form.resetFields() and steal focus from the
-    // active input. For regular features, `mast` arrives asynchronously after
-    // the initial fetch; depending on its existence lets us re-run the effect
-    // exactly once when the data shows up.
+    appliedForFeatureRef.current = featureId;
+    // Depend on the `mast` reference so post-save refetches re-populate
+    // automatically; the featureChanged/isCreationFeature guards above filter
+    // out the synthetic-record churn during creation.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [featureId, Boolean(mast), form]);
+  }, [featureId, mast, form]);
 
   useEffect(() => {
     if (externalForm) return;

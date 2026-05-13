@@ -235,15 +235,16 @@ const FeaturesFormsWrapper = ({
   }, [measurements, standortOption, consumedByOtherDrafts]);
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [resetKey, setResetKey] = useState(0);
   const effectiveReadOnly =
     !isCreation && readOnlyProp && !isEditing && !globalEditMode;
 
-  // Exit edit mode when feature data is refetched externally (e.g. Save All)
+  // Exit edit mode when feature data is refetched externally (e.g. Save All).
+  // No FormComponent remount here: re-population happens inside *FormFields via
+  // a data-identity check, which preserves scroll position and avoids the
+  // brief stale-data flicker that a key-bumped remount caused.
   useEffect(() => {
     if (!isCreation) {
       setIsEditing(false);
-      setResetKey((prev) => prev + 1);
     }
   }, [featureDataVersion, isCreation]);
 
@@ -604,7 +605,6 @@ const FeaturesFormsWrapper = ({
         >
           <div className="h-full">
             <FormComponent
-              key={resetKey}
               data={data}
               rawFeature={rawFeature}
               readOnly={effectiveReadOnly}

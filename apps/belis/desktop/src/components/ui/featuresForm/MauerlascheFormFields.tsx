@@ -48,6 +48,7 @@ const MauerlascheFormFields = ({
   const [localForm] = Form.useForm();
   const form = externalForm ?? localForm;
   const draftApplied = useRef(false);
+  const appliedForFeatureRef = useRef<string | number | undefined>(undefined);
   useEffect(() => {
     if (!externalForm) onFormInstance?.(form);
   }, [form, onFormInstance, externalForm]);
@@ -61,52 +62,63 @@ const MauerlascheFormFields = ({
 
   useEffect(() => {
     if (externalForm) return;
-    form.resetFields();
-    draftApplied.current = false;
+    if (!mauerlasche) return;
 
-    if (mauerlasche) {
-      const ml = mauerlasche;
-      const tkey = ml.tkey_strassenschluessel as
-        | { pk?: string; strasse?: string }
-        | undefined;
-      const serverValues = {
-        // Strassenschluessel
-        strassenschluessel_pk: tkey?.pk,
-        strassenschluessel_strasse: tkey?.strasse
-          ? toTitleCase(tkey.strasse)
-          : undefined,
-        // Laufende Nr.
-        laufende_nummer: ml.laufende_nummer,
-        // Montage (Erstellungsjahr) - can be a date string or year number
-        erstellungsjahr: ml.erstellungsjahr
-          ? dayjs(ml.erstellungsjahr as string | number)
-          : null,
-        // Material - use id from material_mauerlasche object or fk_material
-        fk_material:
-          (ml.material_mauerlasche as { id?: number } | undefined)?.id ??
-          ml.fk_material,
-        // Pruefung
-        pruefdatum: ml.pruefdatum ? dayjs(ml.pruefdatum as string) : null,
-        // Bemerkung
-        bemerkung: ml.bemerkung,
-      };
-      form.setFieldsValue(serverValues);
-      onOriginalValues?.(form.getFieldsValue());
+    const featureChanged = appliedForFeatureRef.current !== featureId;
+    const isCreationFeature = String(featureId ?? "").startsWith("create:");
 
-      if (draftValues) {
-        form.setFieldsValue(draftValues);
-        draftApplied.current = true;
-      }
+    // During creation, the synthetic record gets a fresh reference per
+    // keystroke. Re-running with the same featureId would call resetFields()
+    // and steal focus. Bail unless this is the first arrival for this draft.
+    if (!featureChanged && isCreationFeature) return;
+
+    if (featureChanged) {
+      // First time we see this feature — clear any stale state. For post-save
+      // refresh on the same feature, skip resetFields so AntD keeps the DOM
+      // intact (preserves scroll position and focus).
+      form.resetFields();
+      draftApplied.current = false;
     }
-    // Dep on `featureId` (stable per draft) and the *presence* of `mauerlasche`
-    // (a boolean, so it only flips false → true once) — not the reference
-    // itself. The synthetic record gets a new reference on every keystroke
-    // during creation, which would call form.resetFields() and steal focus
-    // from the active input. For regular features, `mauerlasche` arrives
-    // asynchronously after the initial fetch; depending on its existence lets
-    // us re-run the effect exactly once when the data shows up.
+
+    const ml = mauerlasche;
+    const tkey = ml.tkey_strassenschluessel as
+      | { pk?: string; strasse?: string }
+      | undefined;
+    const serverValues = {
+      // Strassenschluessel
+      strassenschluessel_pk: tkey?.pk,
+      strassenschluessel_strasse: tkey?.strasse
+        ? toTitleCase(tkey.strasse)
+        : undefined,
+      // Laufende Nr.
+      laufende_nummer: ml.laufende_nummer,
+      // Montage (Erstellungsjahr) - can be a date string or year number
+      erstellungsjahr: ml.erstellungsjahr
+        ? dayjs(ml.erstellungsjahr as string | number)
+        : null,
+      // Material - use id from material_mauerlasche object or fk_material
+      fk_material:
+        (ml.material_mauerlasche as { id?: number } | undefined)?.id ??
+        ml.fk_material,
+      // Pruefung
+      pruefdatum: ml.pruefdatum ? dayjs(ml.pruefdatum as string) : null,
+      // Bemerkung
+      bemerkung: ml.bemerkung,
+    };
+    form.setFieldsValue(serverValues);
+    onOriginalValues?.(form.getFieldsValue());
+
+    if (draftValues) {
+      form.setFieldsValue(draftValues);
+      draftApplied.current = true;
+    }
+
+    appliedForFeatureRef.current = featureId;
+    // Depend on the `mauerlasche` reference so post-save refetches re-populate
+    // automatically; the featureChanged/isCreationFeature guards above filter
+    // out the synthetic-record churn during creation.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [featureId, Boolean(mauerlasche), form]);
+  }, [featureId, mauerlasche, form]);
 
   useEffect(() => {
     if (externalForm) return;

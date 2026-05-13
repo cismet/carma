@@ -61,6 +61,7 @@ const SchaltstelleFormFields = ({
   const [localForm] = Form.useForm();
   const form = externalForm ?? localForm;
   const draftApplied = useRef(false);
+  const appliedForFeatureRef = useRef<string | number | undefined>(undefined);
   useEffect(() => {
     if (!externalForm) onFormInstance?.(form);
   }, [form, onFormInstance, externalForm]);
@@ -78,64 +79,75 @@ const SchaltstelleFormFields = ({
 
   useEffect(() => {
     if (externalForm) return;
-    form.resetFields();
-    draftApplied.current = false;
+    if (!schaltstelle) return;
 
-    if (schaltstelle) {
-      const ss = schaltstelle;
-      const tkey = ss.tkey_strassenschluessel as
-        | { pk?: string; strasse?: string }
-        | undefined;
-      const serverValues = {
-        // Strassenschluessel
-        strassenschluessel_pk: tkey?.pk,
-        strassenschluessel_strasse: tkey?.strasse
-          ? toTitleCase(tkey.strasse)
-          : undefined,
-        // Hausnummer
-        haus_nummer: ss.haus_nummer,
-        // Standortbez.
-        zusaetzliche_standortbezeichnung: ss.zusaetzliche_standortbezeichnung,
-        // Laufende Nr.
-        laufende_nummer: ss.laufende_nummer,
-        // Schaltstellen Nr.
-        schaltstellen_nummer: ss.schaltstellen_nummer,
-        // Bauart - use id for Select value
-        fk_bauart: (ss.bauart as { id?: number } | undefined)?.id ?? null,
-        // Erstellungsjahr - parse as date string
-        erstellungsjahr: ss.erstellungsjahr
-          ? dayjs(ss.erstellungsjahr as string)
-          : null,
-        // Rundsteuerempfaenger - use id for Select value
-        rundsteuerempfaenger:
-          (ss.rundsteuerempfaengerObject as { id?: number } | undefined)?.id ??
-          null,
-        // Einbaudatum
-        einbaudatum_rs: ss.einbaudatum_rs
-          ? dayjs(ss.einbaudatum_rs as string)
-          : null,
-        // Pruefung
-        pruefdatum: ss.pruefdatum ? dayjs(ss.pruefdatum as string) : null,
-        // Bemerkung
-        bemerkung: ss.bemerkung,
-      };
-      form.setFieldsValue(serverValues);
-      onOriginalValues?.(form.getFieldsValue());
+    const featureChanged = appliedForFeatureRef.current !== featureId;
+    const isCreationFeature = String(featureId ?? "").startsWith("create:");
 
-      if (draftValues) {
-        form.setFieldsValue(draftValues);
-        draftApplied.current = true;
-      }
+    // During creation, the synthetic record gets a fresh reference per
+    // keystroke. Re-running with the same featureId would call resetFields()
+    // and steal focus. Bail unless this is the first arrival for this draft.
+    if (!featureChanged && isCreationFeature) return;
+
+    if (featureChanged) {
+      // First time we see this feature — clear any stale state. For post-save
+      // refresh on the same feature, skip resetFields so AntD keeps the DOM
+      // intact (preserves scroll position and focus).
+      form.resetFields();
+      draftApplied.current = false;
     }
-    // Dep on `featureId` (stable per draft) and the *presence* of `schaltstelle`
-    // (a boolean, so it only flips false → true once) — not the reference
-    // itself. The synthetic record gets a new reference on every keystroke
-    // during creation, which would call form.resetFields() and steal focus
-    // from the active input. For regular features, `schaltstelle` arrives
-    // asynchronously after the initial fetch; depending on its existence lets
-    // us re-run the effect exactly once when the data shows up.
+
+    const ss = schaltstelle;
+    const tkey = ss.tkey_strassenschluessel as
+      | { pk?: string; strasse?: string }
+      | undefined;
+    const serverValues = {
+      // Strassenschluessel
+      strassenschluessel_pk: tkey?.pk,
+      strassenschluessel_strasse: tkey?.strasse
+        ? toTitleCase(tkey.strasse)
+        : undefined,
+      // Hausnummer
+      haus_nummer: ss.haus_nummer,
+      // Standortbez.
+      zusaetzliche_standortbezeichnung: ss.zusaetzliche_standortbezeichnung,
+      // Laufende Nr.
+      laufende_nummer: ss.laufende_nummer,
+      // Schaltstellen Nr.
+      schaltstellen_nummer: ss.schaltstellen_nummer,
+      // Bauart - use id for Select value
+      fk_bauart: (ss.bauart as { id?: number } | undefined)?.id ?? null,
+      // Erstellungsjahr - parse as date string
+      erstellungsjahr: ss.erstellungsjahr
+        ? dayjs(ss.erstellungsjahr as string)
+        : null,
+      // Rundsteuerempfaenger - use id for Select value
+      rundsteuerempfaenger:
+        (ss.rundsteuerempfaengerObject as { id?: number } | undefined)?.id ??
+        null,
+      // Einbaudatum
+      einbaudatum_rs: ss.einbaudatum_rs
+        ? dayjs(ss.einbaudatum_rs as string)
+        : null,
+      // Pruefung
+      pruefdatum: ss.pruefdatum ? dayjs(ss.pruefdatum as string) : null,
+      // Bemerkung
+      bemerkung: ss.bemerkung,
+    };
+    form.setFieldsValue(serverValues);
+    onOriginalValues?.(form.getFieldsValue());
+
+    if (draftValues) {
+      form.setFieldsValue(draftValues);
+      draftApplied.current = true;
+    }
+
+    appliedForFeatureRef.current = featureId;
+    // Depend on the `schaltstelle` reference so post-save refetches re-populate
+    // automatically; the featureChanged/isCreationFeature guards above filter
+    // out the synthetic-record churn during creation.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [featureId, Boolean(schaltstelle), form]);
+  }, [featureId, schaltstelle, form]);
 
   useEffect(() => {
     if (externalForm) return;
