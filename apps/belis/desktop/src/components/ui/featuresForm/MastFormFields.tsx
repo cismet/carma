@@ -116,6 +116,11 @@ const MastFormFields = ({
   const form = externalForm ?? localForm;
   const draftApplied = useRef(false);
   const appliedForFeatureRef = useRef<string | number | undefined>(undefined);
+  // Tracks the id of the mast object last applied to the form so that
+  // switching the linked Standort (or clearing the link to a Punkt) during
+  // a single creation draft repopulates / resets the fields. featureId
+  // alone is not enough: it is stable across geometry changes.
+  const appliedForMastIdRef = useRef<unknown>(undefined);
   useEffect(() => {
     if (!externalForm) onFormInstance?.(form);
   }, [form, onFormInstance, externalForm]);
@@ -150,25 +155,34 @@ const MastFormFields = ({
 
   useEffect(() => {
     if (externalForm) return;
-    if (!mast) return;
 
     const featureChanged = appliedForFeatureRef.current !== featureId;
+    const currentMastId = mast
+      ? ((mast as { id?: unknown }).id ?? "no-id")
+      : null;
+    const mastIdChanged = appliedForMastIdRef.current !== currentMastId;
     const isCreationFeature = String(featureId ?? "").startsWith("create:");
 
-    // During creation, the synthetic record gets a fresh reference per
-    // keystroke. Re-running with the same featureId would call resetFields()
-    // and steal focus. Bail unless this is the first arrival for this draft.
-    if (!featureChanged && isCreationFeature) return;
+    // Edit mode: nothing to do until mast data has been fetched.
+    if (!mast && !isCreationFeature) return;
 
-    if (featureChanged) {
-      // First time we see this feature — clear any stale state. For post-save
-      // refresh on the same feature, skip resetFields so AntD keeps the DOM
-      // intact (preserves scroll position and focus).
+    // During creation, the synthetic record gets a fresh reference per
+    // keystroke. Re-running with the same featureId AND same Mast identity
+    // would call resetFields() and steal focus. Mast identity changes when
+    // the user picks a different Standort or clears the link to a Punkt —
+    // those transitions need to repopulate/reset.
+    if (!featureChanged && !mastIdChanged && isCreationFeature) return;
+
+    if (featureChanged || mastIdChanged) {
+      // First time we see this feature, or the linked Mast changed — clear
+      // any stale state. For post-save refresh on the same feature, skip
+      // resetFields so AntD keeps the DOM intact (preserves scroll position
+      // and focus).
       form.resetFields();
       draftApplied.current = false;
     }
 
-    {
+    if (mast) {
       const strassenschluessel = mast.tkey_strassenschluessel as
         | NestedObject
         | undefined;
@@ -259,15 +273,21 @@ const MastFormFields = ({
       };
       form.setFieldsValue(serverValues);
       onOriginalValues?.(form.getFieldsValue());
+    } else {
+      // Cleared the linked Mast (switched to a Punkt geometry). Tell the
+      // parent the form is now empty so change-tracking compares against
+      // an empty original rather than the previously linked Standort.
+      onOriginalValues?.(form.getFieldsValue());
+    }
 
-      if (draftValues) {
-        form.setFieldsValue(draftValues);
-        draftApplied.current = true;
-      }
+    if (draftValues) {
+      form.setFieldsValue(draftValues);
+      draftApplied.current = true;
     }
     appliedForFeatureRef.current = featureId;
+    appliedForMastIdRef.current = currentMastId;
     // Depend on the `mast` reference so post-save refetches re-populate
-    // automatically; the featureChanged/isCreationFeature guards above filter
+    // automatically; the featureChanged/mastIdChanged guards above filter
     // out the synthetic-record churn during creation.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [featureId, mast, form]);

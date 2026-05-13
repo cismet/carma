@@ -347,12 +347,7 @@ const saveCreationDraft = async (
         const mastPayload: Record<string, unknown> = {
           id: -1,
           ...cleanedMastValues,
-          // Defaults applied last so a missing or null form value still
-          // produces a saveable Mast.
-          lfd_nummer: cleanedMastValues.lfd_nummer ?? 1,
           fk_strassenschluessel: mastFkStrassenschluessel,
-          fk_mastart: cleanedMastValues.fk_mastart ?? 8,
-          fk_masttyp: cleanedMastValues.fk_masttyp ?? 42,
           ...(geomPayload ? { geom: geomPayload } : {}),
         };
         console.debug(
