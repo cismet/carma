@@ -12,7 +12,7 @@ export type CesiumModelStyleFillConfig = {
   color?: HexColorString;
 };
 
-export type CesiumModelSelectionFlashConfig = {
+export type CesiumModelFlashConfig = {
   color?: HexColorString;
   inDurationMs?: number;
   inEasing?: EasingFunction;
@@ -21,16 +21,29 @@ export type CesiumModelSelectionFlashConfig = {
   outEasing?: EasingFunction;
 };
 
-export type CesiumModelSelectionFadeConfig = {
+export type CesiumModelSelectionFlashConfig = {
+  highlight?: CesiumModelFlashConfig;
+  selection?: CesiumModelFlashConfig;
+};
+
+export type CesiumModelFadeConfig = {
   durationMs?: number;
   easing?: EasingFunction;
 };
 
+export type CesiumModelSelectionFadeConfig = CesiumModelFadeConfig;
+
 export type CesiumModelHoverConfig = {
   clearDelayMs?: number;
   enabled?: boolean;
-  fadeDurationMs?: number;
-  fadeEasing?: EasingFunction;
+  fade?: CesiumModelFadeConfig;
+};
+
+export type CesiumModelSamplingConfig = {
+  color?: HexColorString;
+  enabled?: boolean;
+  fade?: Pick<CesiumModelFadeConfig, "durationMs">;
+  opacity?: number;
 };
 
 export type CesiumModelStyleBaseConfig = {
@@ -63,5 +76,6 @@ export type CesiumModelSelectionConfig = {
 export type CesiumModelConfig = {
   highlight?: CesiumModelHighlightConfig;
   hover?: CesiumModelHoverConfig;
+  sampling?: CesiumModelSamplingConfig;
   selection?: CesiumModelSelectionConfig;
 };

@@ -3,18 +3,15 @@ import { useCallback } from "react";
 import type { Scene } from "@carma-cesium";
 
 import { extractPickedProperties } from "../utils/modelManager";
-import type { CesiumModelShaderController } from "./useCesiumModelSelectionHighlight";
+import type { CesiumModelShaderController } from "./useCesiumModelShader";
 import {
   useCesiumModelSelectionInputHandler,
   type PickedCesiumModel,
 } from "./useCesiumModelSelectionInputHandler";
 
-type ModelSelectionInteractionHighlightActions = Pick<
+type ModelSelectionInteractionShaderActions = Pick<
   CesiumModelShaderController,
-  | "applyHighlight"
-  | "applyHoverHighlight"
-  | "clearPreviousHighlight"
-  | "isSelectedPrimitive"
+  "applySelection" | "applyHover" | "clearSelection" | "isSelectedPrimitive"
 >;
 
 type UseCesiumModelSelectionInteractionOptions = {
@@ -25,7 +22,7 @@ type UseCesiumModelSelectionInteractionOptions = {
   silhouettePickRadiusPx?: number;
   onClearSelection?: () => void;
   onSelect?: (feature: unknown) => void;
-  selectionHighlight: ModelSelectionInteractionHighlightActions;
+  modelShader: ModelSelectionInteractionShaderActions;
 };
 
 export const useCesiumModelSelectionInteraction = ({
@@ -36,22 +33,18 @@ export const useCesiumModelSelectionInteraction = ({
   silhouettePickRadiusPx,
   onClearSelection,
   onSelect,
-  selectionHighlight,
+  modelShader,
 }: UseCesiumModelSelectionInteractionOptions) => {
-  const {
-    applyHighlight,
-    applyHoverHighlight,
-    clearPreviousHighlight,
-    isSelectedPrimitive,
-  } = selectionHighlight;
+  const { applySelection, applyHover, clearSelection, isSelectedPrimitive } =
+    modelShader;
 
   const handleModelClick = useCallback(
     (picked: PickedCesiumModel) => {
       const wasSelected = isSelectedPrimitive(picked.primitive);
       if (!wasSelected) {
-        clearPreviousHighlight();
+        clearSelection();
       }
-      applyHighlight(
+      applySelection(
         picked.primitive,
         wasSelected ? { flash: "selectionFlash" } : undefined
       );
@@ -61,13 +54,13 @@ export const useCesiumModelSelectionInteraction = ({
         is3dModel: true,
       });
     },
-    [applyHighlight, clearPreviousHighlight, isSelectedPrimitive, onSelect]
+    [applySelection, clearSelection, isSelectedPrimitive, onSelect]
   );
 
   const handleEmptyClick = useCallback(() => {
-    clearPreviousHighlight();
+    clearSelection();
     onClearSelection?.();
-  }, [clearPreviousHighlight, onClearSelection]);
+  }, [clearSelection, onClearSelection]);
 
   useCesiumModelSelectionInputHandler({
     deselectOnEmptyClick,
@@ -77,6 +70,6 @@ export const useCesiumModelSelectionInteraction = ({
     silhouettePickRadiusPx,
     onEmptyClick: handleEmptyClick,
     onModelClick: handleModelClick,
-    onModelHover: applyHoverHighlight,
+    onModelHover: applyHover,
   });
 };

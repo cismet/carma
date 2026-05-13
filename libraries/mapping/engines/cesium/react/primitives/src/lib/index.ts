@@ -12,11 +12,22 @@ export {
   type ModelShaderEdgeMode,
   type UseCesiumModelManagerOptions,
 } from "./hooks/useCesiumModelManager";
-export { useCesiumModelHighlightStyleShaderResolver } from "./hooks/useCesiumModelHighlightStyleShaderResolver";
-export { useCesiumModelSamplingHighlight } from "./hooks/useCesiumModelSamplingHighlight";
+export {
+  useCesiumModelShader,
+  type ModelShaderFadeOptions,
+  type ModelShaderFlashOptions,
+  type ModelShaderFlashOptionsByStyle,
+  type ModelShaderHoverOptions,
+  type ModelShaderSamplingOptions,
+  type ModelShaderSelectionActionOptions,
+  type ModelShaderSelectionOptions,
+  type ModelShaderSelectionStyleOptions,
+  type ModelShaderStyleOptions,
+  type ResolveModelShaderOptions,
+  type UseCesiumModelShaderOptions,
+} from "./hooks/useCesiumModelShader";
 export { createModelPrimitiveFromConfig } from "./utils/createModelPrimitiveFromConfig";
 export {
-  createNonAccumulatingSilhouetteColor,
   modelShader,
   type ModelShaderFlashStyle,
   type ModelShaderState,

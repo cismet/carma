@@ -7,6 +7,7 @@ import {
 } from "@carma-commons/resources";
 
 import type { CesiumConfig } from "@carma-mapping/engines/cesium/legacy";
+import type { CesiumModelConfig } from "@carma-mapping/engines/cesium/core";
 import type { LeafletConfig } from "@carma-mapping/engines/leaflet";
 import type {
   AreaOcclusionStyleOptions,
@@ -28,10 +29,40 @@ export const DEFAULT_CAMERA_FOV_DEG = 60;
 
 const CESIUM_PATHNAME = "__cesium__";
 const METROPOLE_RUHR_GRAUBLAU_RECTANGLE = Rectangle.fromDegrees(4, 48, 10, 52);
-const MODEL_SELECTION_OUTLINE_STYLE = {
-  color: "#000000",
-  opacity: 0.5,
-  widthPx: 2,
+const MODEL_SHADER_CONFIG_DEFAULTS = {
+  hover: {
+    clearDelayMs: 40,
+    enabled: false,
+    fade: {
+      durationMs: 220,
+    },
+  },
+  outline: {
+    color: "#000000",
+    opacity: 0.5,
+    widthPx: 2,
+  },
+  sampling: {
+    enabled: false,
+    fade: {
+      durationMs: 180,
+    },
+    opacity: 0.8,
+  },
+  flash: {
+    selection: {
+      color: "#ffffff",
+      inDurationMs: 50,
+      opacity: 1,
+      outDurationMs: 800,
+    },
+    highlight: {
+      color: "#6666ff",
+      inDurationMs: 50,
+      opacity: 1,
+      outDurationMs: 800,
+    },
+  },
 } as const;
 
 export type GeoportalAnnotationInfoBoxConfig = Pick<
@@ -73,36 +104,28 @@ export const CESIUM_CONFIG: CesiumConfig = {
     secondary: WUPP_LOD2_TILESET,
   },
   model: {
-    hover: {
-      enabled: false,
-      fadeDurationMs: 220,
-      clearDelayMs: 40,
-    },
+    hover: MODEL_SHADER_CONFIG_DEFAULTS.hover,
     highlight: {
       style: {
         type: "silhouette",
         fill: {
           color: "#6666ff",
         },
-        outline: MODEL_SELECTION_OUTLINE_STYLE,
+        outline: MODEL_SHADER_CONFIG_DEFAULTS.outline,
       },
     },
+    sampling: MODEL_SHADER_CONFIG_DEFAULTS.sampling,
     selection: {
       style: {
         type: "silhouette",
         fill: {
           color: "#ffff00",
         },
-        outline: MODEL_SELECTION_OUTLINE_STYLE,
+        outline: MODEL_SHADER_CONFIG_DEFAULTS.outline,
       },
-      flash: {
-        color: "#ffffff",
-        inDurationMs: 50,
-        opacity: 1,
-        outDurationMs: 800,
-      },
+      flash: MODEL_SHADER_CONFIG_DEFAULTS.flash,
     },
-  },
+  } satisfies CesiumModelConfig,
 };
 
 export const CESIUM_ANNOTATION_CONFIG = {

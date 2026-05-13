@@ -17,7 +17,12 @@ import {
   Color,
   type CesiumTerrainProvider,
 } from "@carma-cesium";
-import { flyToBoundingSphereExtent } from "@carma-mapping/engines/cesium/core";
+import {
+  flyToBoundingSphereExtent,
+  type CesiumModelFlashConfig,
+  type CesiumModelConfig,
+  type CesiumModelStyleConfig,
+} from "@carma-mapping/engines/cesium/core";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
 import { Button, Tooltip } from "antd";
@@ -36,6 +41,7 @@ import {
   InfoBoxHeader,
   SelectionItem,
   TopicMapSelectionContent,
+  type AdhocCesiumModelShaderOptions,
   useAdhocCesiumFeatureDisplay,
   useGazData,
   useMapHashRouting,
@@ -171,42 +177,62 @@ const colorFromHexWithoutAlpha = (
   return color ? new Color(color.red, color.green, color.blue, 1) : undefined;
 };
 
+const readModelStyleOutline = (style: CesiumModelStyleConfig | undefined) =>
+  style?.type === "silhouette" ? style.outline : undefined;
+
+const buildModelShaderFlashOptions = (
+  flash: CesiumModelFlashConfig | undefined
+) => ({
+  color: colorFromHexWithoutAlpha(flash?.color),
+  inDurationMs: flash?.inDurationMs,
+  inEasing: flash?.inEasing,
+  opacity: flash?.opacity,
+  outDurationMs: flash?.outDurationMs,
+  outEasing: flash?.outEasing,
+});
+
+const buildAdhocModelShaderOptions = (
+  config: CesiumModelConfig | undefined
+): AdhocCesiumModelShaderOptions => {
+  const hover = config?.hover;
+  const sampling = config?.sampling;
+  const selection = config?.selection;
+  const selectionStyle = selection?.style;
+  const selectionOutline = readModelStyleOutline(selectionStyle);
+
+  return {
+    sampling: {
+      color: colorFromHexWithoutAlpha(sampling?.color),
+      enabled: sampling?.enabled,
+      fade: sampling?.fade,
+      opacity: sampling?.opacity,
+    },
+    selection: {
+      fade: selection?.fade,
+      flash: {
+        selection: buildModelShaderFlashOptions(selection?.flash?.selection),
+        highlight: buildModelShaderFlashOptions(selection?.flash?.highlight),
+      },
+      hover: {
+        clearDelayMs: hover?.clearDelayMs,
+        enabled: hover?.enabled,
+        fade: hover?.fade,
+      },
+      style: {
+        edge: {
+          color: colorFromHexWithoutAlpha(selectionOutline?.color),
+          mode: selectionStyle?.type === "plain" ? "none" : "silhouette",
+          opacity: selectionOutline?.opacity,
+          widthPx: selectionOutline?.widthPx,
+        },
+        fillColor: colorFromHexWithoutAlpha(selectionStyle?.fill?.color),
+      },
+    },
+  };
+};
+
 const MODEL_CONFIG = CESIUM_CONFIG.model;
-const MODEL_HIGHLIGHT_CONFIG = MODEL_CONFIG?.highlight;
-const MODEL_HIGHLIGHT_STYLE = MODEL_HIGHLIGHT_CONFIG?.style;
-const MODEL_HOVER_CONFIG = MODEL_CONFIG?.hover;
-const MODEL_SELECTION_CONFIG = MODEL_CONFIG?.selection;
-const MODEL_SELECTION_STYLE = MODEL_SELECTION_CONFIG?.style;
-const MODEL_SELECTION_OUTLINE_OPTIONS =
-  MODEL_SELECTION_STYLE?.type === "silhouette"
-    ? MODEL_SELECTION_STYLE.outline
-    : undefined;
-const MODEL_SELECTION_HIGHLIGHT_CONFIG = {
-  edgeColor: colorFromHexWithoutAlpha(MODEL_SELECTION_OUTLINE_OPTIONS?.color),
-  edgeMode: MODEL_SELECTION_STYLE?.type === "plain" ? "none" : "silhouette",
-  edgeOpacity: MODEL_SELECTION_OUTLINE_OPTIONS?.opacity,
-  edgeWidthPx: MODEL_SELECTION_OUTLINE_OPTIONS?.widthPx,
-  fadeDurationMs: MODEL_SELECTION_CONFIG?.fade?.durationMs,
-  fadeEasing: MODEL_SELECTION_CONFIG?.fade?.easing,
-  fillColor: colorFromHexWithoutAlpha(MODEL_SELECTION_STYLE?.fill?.color),
-  flashInDurationMs: MODEL_SELECTION_CONFIG?.flash?.inDurationMs,
-  flashInEasing: MODEL_SELECTION_CONFIG?.flash?.inEasing,
-  flashOpacity: MODEL_SELECTION_CONFIG?.flash?.opacity,
-  flashOutDurationMs: MODEL_SELECTION_CONFIG?.flash?.outDurationMs,
-  flashOutEasing: MODEL_SELECTION_CONFIG?.flash?.outEasing,
-  highlightFlashColor: colorFromHexWithoutAlpha(
-    MODEL_HIGHLIGHT_STYLE?.fill?.color
-  ),
-  hoverClearDelayMs: MODEL_HOVER_CONFIG?.clearDelayMs,
-  hoverFadeDurationMs: MODEL_HOVER_CONFIG?.fadeDurationMs,
-  hoverFadeEasing: MODEL_HOVER_CONFIG?.fadeEasing,
-  hoverHighlightEnabled: MODEL_HOVER_CONFIG?.enabled,
-  selectionFlashColor: colorFromHexWithoutAlpha(
-    MODEL_SELECTION_CONFIG?.flash?.color
-  ),
-} satisfies NonNullable<
-  Parameters<typeof useAdhocCesiumFeatureDisplay>[0]["modelSelectionHighlight"]
->;
+const MODEL_SHADER_OPTIONS = buildAdhocModelShaderOptions(MODEL_CONFIG);
 
 const buildTerrainAwareBoundingSphereOptions = (
   terrainProvider: CesiumTerrainProvider | undefined
@@ -422,7 +448,7 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
         default: 0.7,
       },
       modelHighlightStyle: MODEL_CONFIG?.highlight?.style,
-      modelSelectionHighlight: MODEL_SELECTION_HIGHLIGHT_CONFIG,
+      modelShader: MODEL_SHADER_OPTIONS,
       selectionEnabled: is3dModelSelectionEnabled,
       onFeatureInfoChange: modelSelectionDispatcher,
     });

@@ -35,11 +35,11 @@ import {
   type GroundPolylineVisualizer,
 } from "@carma-mapping/engines/cesium/legacy";
 import {
-  createNonAccumulatingSilhouetteColor,
-  type ModelShaderEdgeMode,
-  useCesiumModelHighlightStyleShaderResolver,
+  modelShader,
+  type ModelShaderSamplingOptions,
+  type ModelShaderSelectionOptions,
+  useCesiumModelShader,
   useCesiumModelManager,
-  useCesiumModelSamplingHighlight,
 } from "@carma-mapping/engines/cesium/react/primitives";
 import type { Feature, FeatureCollection } from "geojson";
 import { extractRingsFromGeoJson } from "@carma-geo/utils";
@@ -85,25 +85,12 @@ import {
   toSelectionIdSet,
 } from "../utils/adhoc-cesium-feature-display-utils";
 
-export type AdhocCesiumModelSelectionHighlightOptions = {
-  edgeColor?: Color;
-  edgeOpacity?: number;
-  edgeWidthPx?: number;
-  edgeMode?: ModelShaderEdgeMode;
-  fadeDurationMs?: number;
-  fadeEasing?: EasingFunction;
-  fillColor?: Color;
-  flashInDurationMs?: number;
-  flashInEasing?: EasingFunction;
-  flashOutDurationMs?: number;
-  flashOutEasing?: EasingFunction;
-  flashOpacity?: number;
-  highlightFlashColor?: Color;
-  hoverClearDelayMs?: number;
-  hoverFadeDurationMs?: number;
-  hoverFadeEasing?: EasingFunction;
-  hoverHighlightEnabled?: boolean;
-  selectionFlashColor?: Color;
+export type AdhocCesiumModelShaderOptions = {
+  sampling?: Omit<ModelShaderSamplingOptions, "getScene">;
+  selection?: Omit<
+    ModelShaderSelectionOptions,
+    "enabled" | "getPrimitiveBySelectionId" | "selected"
+  >;
 };
 
 export type UseAdhocCesiumFeatureDisplayOptions = {
@@ -124,18 +111,7 @@ export type UseAdhocCesiumFeatureDisplayOptions = {
   selectionLineWidthPixels?: number;
   selectionEnabled?: boolean;
   modelHighlightStyle?: CesiumModelStyleConfig;
-  modelSelectionHighlight?: AdhocCesiumModelSelectionHighlightOptions;
-  modelSelectionHighlightEdgeColor?: Color;
-  modelSelectionHighlightEdgeOpacity?: number;
-  modelSelectionHighlightEdgeWidthPx?: number;
-  modelSelectionHighlightEdgeMode?: ModelShaderEdgeMode;
-  modelSelectionHighlightFadeDurationMs?: number;
-  modelSelectionHighlightFadeEasing?: EasingFunction;
-  modelSelectionHighlightFillColor?: Color;
-  modelSamplingHighlightEnabled?: boolean;
-  modelSamplingHighlightColor?: Color;
-  modelSamplingHighlightFadeDurationMs?: number;
-  modelSamplingHighlightOpacity?: number;
+  modelShader?: AdhocCesiumModelShaderOptions;
   onFeatureInfoChange?: (feature: FeatureInfo | null) => void;
 };
 
@@ -321,7 +297,7 @@ const getAdhocUnselectedRenderStyleConfig = (
   );
   const outlineWidthPx = getModelStyleOutlineWidthPx(modelHighlightStyle);
   const outlineOpacity = getModelStyleOutlineOpacity(modelHighlightStyle);
-  const outlineColor = createNonAccumulatingSilhouetteColor(
+  const outlineColor = modelShader.createNonAccumulatingSilhouetteColor(
     Color.fromCssColorString(outlineColorCss),
     outlineOpacity
   );
@@ -416,18 +392,7 @@ export const useAdhocCesiumFeatureDisplay = (
     selectionLineWidthPixels,
     selectionEnabled = true,
     modelHighlightStyle,
-    modelSelectionHighlight,
-    modelSelectionHighlightEdgeColor,
-    modelSelectionHighlightEdgeOpacity,
-    modelSelectionHighlightEdgeWidthPx,
-    modelSelectionHighlightEdgeMode,
-    modelSelectionHighlightFadeDurationMs,
-    modelSelectionHighlightFadeEasing,
-    modelSelectionHighlightFillColor,
-    modelSamplingHighlightEnabled = false,
-    modelSamplingHighlightColor,
-    modelSamplingHighlightFadeDurationMs,
-    modelSamplingHighlightOpacity,
+    modelShader: modelShaderOptions,
     onFeatureInfoChange,
   } = options;
 
@@ -838,17 +803,19 @@ export const useAdhocCesiumFeatureDisplay = (
     () => adhocFeatureEntries.map((entry) => entry.key),
     [adhocFeatureEntries]
   );
-  const resolveModelHighlightStyleShader =
-    useCesiumModelHighlightStyleShaderResolver({
+  const { resolveStyle: resolveModelShader } = useCesiumModelShader({
+    requestRender: requestCesiumRender,
+    sampling: {
+      ...modelShaderOptions?.sampling,
+      enabled:
+        isCesiumEnabled && Boolean(modelShaderOptions?.sampling?.enabled),
+      getScene,
+    },
+    style: {
       activeKeys: activeAdhocFeatureKeys,
-      fadeDurationMs:
-        modelSelectionHighlight?.fadeDurationMs ??
-        modelSelectionHighlightFadeDurationMs,
-      fadeEasing:
-        modelSelectionHighlight?.fadeEasing ??
-        modelSelectionHighlightFadeEasing,
-      requestRender: requestCesiumRender,
-    });
+      fade: modelShaderOptions?.selection?.fade,
+    },
+  });
 
   const adhocModelConfigs = useMemo(() => {
     return adhocFeatureEntries.flatMap((entry) => {
@@ -859,7 +826,7 @@ export const useAdhocCesiumFeatureDisplay = (
         entry.feature,
         modelHighlightStyle
       );
-      const customShader = resolveModelHighlightStyleShader({
+      const customShader = resolveModelShader({
         color: renderStyle.tintColor,
         highlighted:
           renderStyle.style !== DEFAULT_ADHOC_UNSELECTED_RENDER_STYLE,
@@ -906,11 +873,7 @@ export const useAdhocCesiumFeatureDisplay = (
         } satisfies ModelConfig,
       ];
     });
-  }, [
-    adhocFeatureEntries,
-    modelHighlightStyle,
-    resolveModelHighlightStyleShader,
-  ]);
+  }, [adhocFeatureEntries, modelHighlightStyle, resolveModelShader]);
 
   const cesiumModelConfigs = useMemo(
     () => [...baseModels, ...adhocModelConfigs],
@@ -997,41 +960,9 @@ export const useAdhocCesiumFeatureDisplay = (
           selectionEnabled &&
           !isAdhocRenderStyleEditing,
         deselectOnEmptyClick: true,
-        highlightEdgeColor:
-          modelSelectionHighlight?.edgeColor ??
-          modelSelectionHighlightEdgeColor,
-        highlightEdgeOpacity:
-          modelSelectionHighlight?.edgeOpacity ??
-          modelSelectionHighlightEdgeOpacity,
-        highlightEdgeWidthPx:
-          modelSelectionHighlight?.edgeWidthPx ??
-          modelSelectionHighlightEdgeWidthPx,
-        highlightEdgeMode:
-          modelSelectionHighlight?.edgeMode ?? modelSelectionHighlightEdgeMode,
-        highlightFadeDurationMs:
-          modelSelectionHighlight?.fadeDurationMs ??
-          modelSelectionHighlightFadeDurationMs,
-        highlightFadeEasing:
-          modelSelectionHighlight?.fadeEasing ??
-          modelSelectionHighlightFadeEasing,
-        highlightFillColor:
-          modelSelectionHighlight?.fillColor ??
-          modelSelectionHighlightFillColor,
-        flashInDurationMs: modelSelectionHighlight?.flashInDurationMs,
-        flashInEasing: modelSelectionHighlight?.flashInEasing,
-        flashOpacity: modelSelectionHighlight?.flashOpacity,
-        flashOutDurationMs: modelSelectionHighlight?.flashOutDurationMs,
-        flashOutEasing: modelSelectionHighlight?.flashOutEasing,
-        highlightFlashColor: modelSelectionHighlight?.highlightFlashColor,
-        highlightHoverClearDelayMs: modelSelectionHighlight?.hoverClearDelayMs,
-        highlightHoverFadeDurationMs:
-          modelSelectionHighlight?.hoverFadeDurationMs,
-        highlightHoverFadeEasing: modelSelectionHighlight?.hoverFadeEasing,
-        hoverHighlightEnabled: modelSelectionHighlight?.hoverHighlightEnabled,
-        selectionFlashColor: modelSelectionHighlight?.selectionFlashColor,
+        shader: modelShaderOptions?.selection,
         silhouettePickRadiusPx:
-          modelSelectionHighlight?.edgeWidthPx ??
-          modelSelectionHighlightEdgeWidthPx,
+          modelShaderOptions?.selection?.style?.edge?.widthPx,
         selectedFlashKey: selectedFeatureFlashKey,
         selectedFlashVersion: selectedFeatureFlashRequest?.version,
         selectedId: selectedFeatureKey,
@@ -1100,31 +1031,7 @@ export const useAdhocCesiumFeatureDisplay = (
     isCesiumEnabled,
     isAdhocRenderStyleEditing,
     selectionEnabled,
-    modelSelectionHighlight?.edgeColor,
-    modelSelectionHighlight?.edgeMode,
-    modelSelectionHighlight?.edgeOpacity,
-    modelSelectionHighlight?.edgeWidthPx,
-    modelSelectionHighlight?.fadeDurationMs,
-    modelSelectionHighlight?.fadeEasing,
-    modelSelectionHighlight?.fillColor,
-    modelSelectionHighlight?.flashInDurationMs,
-    modelSelectionHighlight?.flashInEasing,
-    modelSelectionHighlight?.flashOpacity,
-    modelSelectionHighlight?.flashOutDurationMs,
-    modelSelectionHighlight?.flashOutEasing,
-    modelSelectionHighlight?.highlightFlashColor,
-    modelSelectionHighlight?.hoverClearDelayMs,
-    modelSelectionHighlight?.hoverFadeDurationMs,
-    modelSelectionHighlight?.hoverFadeEasing,
-    modelSelectionHighlight?.hoverHighlightEnabled,
-    modelSelectionHighlight?.selectionFlashColor,
-    modelSelectionHighlightEdgeColor,
-    modelSelectionHighlightEdgeMode,
-    modelSelectionHighlightEdgeOpacity,
-    modelSelectionHighlightEdgeWidthPx,
-    modelSelectionHighlightFadeDurationMs,
-    modelSelectionHighlightFadeEasing,
-    modelSelectionHighlightFillColor,
+    modelShaderOptions?.selection,
     onFeatureInfoChange,
     selectedFeatureFlashKey,
     selectedFeatureFlashRequest?.version,
@@ -1136,14 +1043,6 @@ export const useAdhocCesiumFeatureDisplay = (
   ]);
 
   useCesiumModelManager(useCesiumModelOptions);
-
-  useCesiumModelSamplingHighlight({
-    color: modelSamplingHighlightColor,
-    enabled: isCesiumEnabled && modelSamplingHighlightEnabled,
-    fadeDurationMs: modelSamplingHighlightFadeDurationMs,
-    getScene,
-    opacity: modelSamplingHighlightOpacity,
-  });
 
   useEffect(() => {
     isStagingForTransitionRef.current = isStagingForTransition;

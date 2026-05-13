@@ -16,6 +16,7 @@ export type { ColorConstructorArgs, ColorJson } from "./Color";
 export {
   colorFromJson,
   colorFromConstructorArgs,
+  colorFromRgbaArray,
   colorToJson,
   colorToConstructorArgs,
   isColorJson,

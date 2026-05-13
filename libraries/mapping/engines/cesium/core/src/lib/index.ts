@@ -3,9 +3,12 @@ export * from "./contracts/cesium-shaders.d";
 export * from "./contracts/model-config.d";
 export type {
   CesiumModelConfig,
+  CesiumModelFadeConfig,
+  CesiumModelFlashConfig,
   CesiumModelHighlightConfig,
   CesiumModelHoverConfig,
   CesiumModelPlainStyleConfig,
+  CesiumModelSamplingConfig,
   CesiumModelSelectionConfig,
   CesiumModelSelectionFadeConfig,
   CesiumModelSelectionFlashConfig,

@@ -15,7 +15,7 @@ import {
   getModelConfigRenderStylePresentationSignature,
   getPrimitiveSelectionId,
 } from "../utils/modelManager";
-import type { CesiumModelShaderController } from "./useCesiumModelSelectionHighlight";
+import type { CesiumModelShaderController } from "./useCesiumModelShader";
 import { useCesiumModelStylePresentationAnimator } from "./useCesiumModelStylePresentationAnimator";
 
 type UseCesiumModelPrimitivesOptions = {
@@ -31,15 +31,15 @@ type UseCesiumModelPrimitivesOptions = {
   selectionEnabled: boolean;
   stylePresentationFadeDurationMs?: number;
   stylePresentationFadeEasing?: EasingFunction;
-  selectionHighlight: Pick<
+  modelShader: Pick<
     CesiumModelShaderController,
-    | "applyHighlight"
-    | "clearPreviousHighlight"
+    | "applySelection"
+    | "clearSelection"
     | "clearRuntimeState"
     | "isSelectedPrimitive"
-    | "restorePrimitiveHighlight"
-    | "setPrimitiveOriginalPresentationIfHighlighted"
-    | "setPrimitiveOriginalShaderIfHighlighted"
+    | "restorePrimitiveShader"
+    | "setPrimitiveOriginalPresentationIfManaged"
+    | "setPrimitiveOriginalShaderIfManaged"
   >;
 };
 
@@ -56,7 +56,7 @@ export const useCesiumModelPrimitives = ({
   selectionEnabled,
   stylePresentationFadeDurationMs,
   stylePresentationFadeEasing,
-  selectionHighlight,
+  modelShader,
 }: UseCesiumModelPrimitivesOptions) => {
   const pendingModelLoadsRef = useRef<Map<string, Promise<Model>>>(new Map());
   const desiredModelKeysRef = useRef<Set<string>>(new Set());
@@ -111,14 +111,14 @@ export const useCesiumModelPrimitives = ({
   }, [enabled, models]);
 
   const {
-    applyHighlight,
-    clearPreviousHighlight,
+    applySelection,
+    clearSelection,
     clearRuntimeState,
     isSelectedPrimitive,
-    restorePrimitiveHighlight,
-    setPrimitiveOriginalPresentationIfHighlighted,
-    setPrimitiveOriginalShaderIfHighlighted,
-  } = selectionHighlight;
+    restorePrimitiveShader,
+    setPrimitiveOriginalPresentationIfManaged,
+    setPrimitiveOriginalShaderIfManaged,
+  } = modelShader;
   const {
     animateStylePresentation,
     cancelStylePresentationAnimation,
@@ -150,7 +150,7 @@ export const useCesiumModelPrimitives = ({
         if (isSelectedPrimitive(primitive) && enabled) {
           onClearSelectionRef.current?.();
         }
-        restorePrimitiveHighlight(primitive);
+        restorePrimitiveShader(primitive);
         customShaderSignatureByPrimitiveRef.current.delete(primitive);
         presentationSignatureByPrimitiveRef.current.delete(primitive);
         cancelStylePresentationAnimation(primitive);
@@ -295,12 +295,12 @@ export const useCesiumModelPrimitives = ({
           const nextSelectedId = selectedIdRef.current;
           if (selectionEnabledRef.current && nextSelectedId) {
             if (modelPrimitiveId === nextSelectedId) {
-              console.debug("[ADHOC|MODEL] applying selected highlight", {
+              console.debug("[ADHOC|MODEL] applying selected shader", {
                 key,
                 selectedId: nextSelectedId,
               });
-              clearPreviousHighlight();
-              applyHighlight(modelPrimitive);
+              clearSelection();
+              applySelection(modelPrimitive);
             }
           }
 
@@ -320,16 +320,16 @@ export const useCesiumModelPrimitives = ({
       cancelled = true;
     };
   }, [
-    applyHighlight,
+    applySelection,
     cancelStylePresentationAnimation,
-    clearPreviousHighlight,
+    clearSelection,
     enabled,
     getScene,
     isSelectedPrimitive,
     modelPrimitivesRef,
     models,
     requestRender,
-    restorePrimitiveHighlight,
+    restorePrimitiveShader,
   ]);
 
   useEffect(() => {
@@ -363,19 +363,19 @@ export const useCesiumModelPrimitives = ({
         continue;
       }
 
-      const hasHighlightedShaderState = shouldUpdateShader
-        ? setPrimitiveOriginalShaderIfHighlighted(primitive, customShader)
+      const hasManagedShaderState = shouldUpdateShader
+        ? setPrimitiveOriginalShaderIfManaged(primitive, customShader)
         : false;
-      const hasHighlightedPresentationState =
+      const hasManagedPresentationState =
         shouldUpdatePresentation && presentation
-          ? setPrimitiveOriginalPresentationIfHighlighted(primitive, {
+          ? setPrimitiveOriginalPresentationIfManaged(primitive, {
               silhouetteColor: presentation.outlineColor,
               silhouetteSize: presentation.outlineWidthPx,
             })
           : false;
-      const isHighlighted =
-        hasHighlightedShaderState || hasHighlightedPresentationState;
-      if (isHighlighted) {
+      const isManagedByShader =
+        hasManagedShaderState || hasManagedPresentationState;
+      if (isManagedByShader) {
         cancelStylePresentationAnimation(primitive);
         customShaderSignatureByPrimitiveRef.current.set(
           primitive,
@@ -414,8 +414,8 @@ export const useCesiumModelPrimitives = ({
     requestRender,
     animateStylePresentation,
     cancelStylePresentationAnimation,
-    setPrimitiveOriginalPresentationIfHighlighted,
-    setPrimitiveOriginalShaderIfHighlighted,
+    setPrimitiveOriginalPresentationIfManaged,
+    setPrimitiveOriginalShaderIfManaged,
   ]);
 
   useEffect(() => {

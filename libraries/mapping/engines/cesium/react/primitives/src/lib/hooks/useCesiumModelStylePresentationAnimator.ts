@@ -4,14 +4,7 @@ import { type Easing as EasingFunction } from "@carma-commons/math";
 import { Color, Model } from "@carma-cesium";
 
 import type { ModelPrimitiveRenderStylePresentation } from "../utils/modelManager";
-import {
-  calculateTaperedSilhouetteSize,
-  clampEasedProgress,
-  interpolateColor,
-  interpolateNumber,
-  modelShader,
-  normalizeModelShaderFadeDuration,
-} from "../utils/modelShader";
+import { modelShader } from "../utils/modelShader";
 
 type UseCesiumModelStylePresentationAnimatorOptions = {
   fadeDurationMs?: number;
@@ -52,12 +45,18 @@ const calculateAnimatedSilhouetteSize = (
     return targetSize;
   }
   if (startSize <= 0 && targetSize > 0) {
-    return calculateTaperedSilhouetteSize(targetSize, easedProgress);
+    return modelShader.calculateTaperedSilhouetteSize(
+      targetSize,
+      easedProgress
+    );
   }
   if (targetSize <= 0 && startSize > 0) {
-    return calculateTaperedSilhouetteSize(startSize, 1 - easedProgress);
+    return modelShader.calculateTaperedSilhouetteSize(
+      startSize,
+      1 - easedProgress
+    );
   }
-  return interpolateNumber(startSize, targetSize, easedProgress);
+  return modelShader.interpolateNumber(startSize, targetSize, easedProgress);
 };
 
 const applyStylePresentation = (
@@ -83,7 +82,7 @@ export const useCesiumModelStylePresentationAnimator = ({
     Map<Model, ModelStylePresentationAnimationState>
   >(new Map());
   const fadeDurationMsRef = useRef<number>(
-    normalizeModelShaderFadeDuration(fadeDurationMs)
+    modelShader.normalizeFadeDuration(fadeDurationMs)
   );
   const fadeEasingRef = useRef<EasingFunction>(
     fadeEasing ?? modelShader.defaults.selection.fade.easing
@@ -92,7 +91,7 @@ export const useCesiumModelStylePresentationAnimator = ({
 
   useEffect(() => {
     fadeDurationMsRef.current =
-      normalizeModelShaderFadeDuration(fadeDurationMs);
+      modelShader.normalizeFadeDuration(fadeDurationMs);
   }, [fadeDurationMs]);
 
   useEffect(() => {
@@ -128,14 +127,14 @@ export const useCesiumModelStylePresentationAnimator = ({
           (state.startSize === state.targetSize &&
             colorsEqual(state.startColor, state.targetColor))
             ? 1
-            : clampEasedProgress(
+            : modelShader.clampEasedProgress(
                 (timestampMs - state.animationStartTimestampMs) /
                   state.animationDurationMs
               );
-        const easedProgress = clampEasedProgress(
+        const easedProgress = modelShader.clampEasedProgress(
           state.animationEasing(linearProgress)
         );
-        const nextColor = interpolateColor(
+        const nextColor = modelShader.interpolateColor(
           state.startColor,
           state.targetColor,
           easedProgress
