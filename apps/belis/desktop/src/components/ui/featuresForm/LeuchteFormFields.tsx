@@ -340,7 +340,11 @@ const LeuchteFormFields = ({
       onValuesChange={onValuesChange}
     >
       {hideStrassenschluessel ? null : (!leuchte || isCreation) && !readOnly ? (
-        <StrassenschluesselFieldsModal namePrefix={namePrefix} isCreation={isCreation} />
+        <StrassenschluesselFieldsModal
+          namePrefix={namePrefix}
+          isCreation={isCreation}
+          onSyncDerivedValues={onValuesChange}
+        />
       ) : (
         <StrassenschluesselFields namePrefix={namePrefix} />
       )}

@@ -8,6 +8,14 @@ interface StrassenschluesselFieldsModalProps {
   namePrefix?: string;
   label?: string;
   isCreation?: boolean;
+  // Called after the deferred setFieldValue calls populate the derived
+  // (strasse, fk) values. Antd's setFieldValue does not trigger Form's
+  // onValuesChange, so the parent must be notified manually to keep
+  // Redux/draft state in sync.
+  onSyncDerivedValues?: (
+    changedValues: Record<string, unknown>,
+    allValues: Record<string, unknown>
+  ) => void;
 }
 
 interface StrassenschluesselItem {
@@ -24,6 +32,7 @@ const StrassenschluesselFieldsModal = ({
   namePrefix,
   label = "Strassenschlüssel",
   isCreation,
+  onSyncDerivedValues,
 }: StrassenschluesselFieldsModalProps) => {
   const form = Form.useFormInstance();
   const keyTablesData = useSelector(getKeyTablesData);
@@ -42,13 +51,25 @@ const StrassenschluesselFieldsModal = ({
 
   const fkName = fieldName("fk_strassenschluessel");
 
+  const buildChanged = (changes: Record<string, unknown>) =>
+    namePrefix ? { [namePrefix]: changes } : changes;
+
   const handlePkChange = (selectedPk: string | undefined) => {
     const match = strassenschluesselOptions.find(
       (item) => item.pk === selectedPk
     );
     setTimeout(() => {
-      form.setFieldValue(strasseName, match?.strasse ?? undefined);
-      form.setFieldValue(fkName, match?.id ?? undefined);
+      const strasse = match?.strasse ?? undefined;
+      const fk = match?.id ?? undefined;
+      form.setFieldValue(strasseName, strasse);
+      form.setFieldValue(fkName, fk);
+      onSyncDerivedValues?.(
+        buildChanged({
+          strassenschluessel_strasse: strasse,
+          fk_strassenschluessel: fk,
+        }),
+        form.getFieldsValue()
+      );
     }, 0);
   };
 
@@ -57,8 +78,17 @@ const StrassenschluesselFieldsModal = ({
       (item) => item.strasse === selectedStrasse
     );
     setTimeout(() => {
-      form.setFieldValue(pkName, match?.pk ?? undefined);
-      form.setFieldValue(fkName, match?.id ?? undefined);
+      const pk = match?.pk ?? undefined;
+      const fk = match?.id ?? undefined;
+      form.setFieldValue(pkName, pk);
+      form.setFieldValue(fkName, fk);
+      onSyncDerivedValues?.(
+        buildChanged({
+          strassenschluessel_pk: pk,
+          fk_strassenschluessel: fk,
+        }),
+        form.getFieldsValue()
+      );
     }, 0);
   };
 

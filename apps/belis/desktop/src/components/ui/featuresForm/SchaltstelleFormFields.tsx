@@ -165,7 +165,11 @@ const SchaltstelleFormFields = ({
       onValuesChange={onValuesChange}
     >
       {(!schaltstelle || isCreation) && !readOnly ? (
-        <StrassenschluesselFieldsModal label="Strassenschlussel" isCreation={isCreation} />
+        <StrassenschluesselFieldsModal
+          label="Strassenschlussel"
+          isCreation={isCreation}
+          onSyncDerivedValues={onValuesChange}
+        />
       ) : (
         <StrassenschluesselFields label="Strassenschlussel" />
       )}
