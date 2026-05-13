@@ -3,9 +3,9 @@ import type { Feature } from "geojson";
 import type { AppDispatch, RootState } from "../index";
 import { setSelectedFeature } from "./featureCollection";
 
-// In-memory only for now: a refresh wipes the slice. Persistence (and a
-// sidebar UI to delete entries) is a deliberate follow-up — see the
-// MeasurementHost wiring in BelisMapWrapper for how features land here.
+// Persisted via redux-persist (localForage) — see measurementsConfig in
+// store/index.ts. Features survive page refresh; MeasurementHost in
+// BelisMapWrapper is the source that lands features here.
 
 // Marker used on the selectedFeature slot to discriminate measurement
 // selections from Fachobjekt selections. Lives on the feature itself so

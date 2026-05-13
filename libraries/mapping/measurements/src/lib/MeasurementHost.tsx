@@ -118,6 +118,15 @@ export interface MeasurementHostProps {
    * typically translate this into their own selection state so map and
    * sidebar stay in sync. */
   onSelectionChange?: (id: string | null) => void;
+  /** Features to seed terra-draw with on the FIRST attach — used by hosts
+   *  that persist measurements externally (e.g. redux-persist + localForage)
+   *  and need them re-rendered after a page refresh. Each feature must be a
+   *  terra-draw snapshot shape (UUID `id`, `properties.mode` set, `title`
+   *  preserved if present). Re-attaches after a basemap swap ignore this
+   *  prop — they reuse the previous terra-draw snapshot instead. The prop
+   *  is read via a ref, so a late-arriving value (redux rehydration tick)
+   *  is picked up as long as it lands before terra-draw's initial attach. */
+  initialFeatures?: Feature[];
 }
 
 /** Imperative handle returned via ref. Lets the host invoke terra-draw
@@ -158,6 +167,7 @@ export const MeasurementHost = forwardRef<
     labelsVisible = true,
     radiusDebugVisible = false,
     onSelectionChange,
+    initialFeatures,
   },
   ref
 ) {
@@ -188,6 +198,13 @@ export const MeasurementHost = forwardRef<
   radiusDebugVisibleRef.current = radiusDebugVisible;
   const onSelectionChangeRef = useRef(onSelectionChange);
   onSelectionChangeRef.current = onSelectionChange;
+  // Read live so a late redux-persist rehydrate that lands between mount
+  // and the first terra-draw attach (style.load) still seeds the draw.
+  const initialFeaturesRef = useRef(initialFeatures);
+  initialFeaturesRef.current = initialFeatures;
+  // Flips true after the first attach consumes initialFeatures so basemap
+  // swaps don't re-seed on top of the live terra-draw snapshot.
+  const initialFeaturesConsumedRef = useRef(false);
   // Lazy cache for snap-target layer ids. `null` means "dirty — rebuild on
   // next read". Belis (and any consumer with libreLayers loaded from style
   // URLs via styleComposer) gets its layers added asynchronously *after*
@@ -755,6 +772,44 @@ export const MeasurementHost = forwardRef<
         }
       } else {
         drawRef.current = createDraw();
+        // FIRST attach: seed from initialFeatures if the host passed any.
+        // This is the redux-persist rehydration path — features come back
+        // from localForage and need to land in terra-draw so they actually
+        // render. The consumed flag prevents a later basemap swap from
+        // re-seeding (that path already preserves via previousDraw's own
+        // snapshot, see the `if (previousDraw)` branch above).
+        if (!initialFeaturesConsumedRef.current) {
+          initialFeaturesConsumedRef.current = true;
+          const seed = initialFeaturesRef.current;
+          if (seed && seed.length > 0) {
+            try {
+              drawRef.current.addFeatures(seed as GeoJSONStoreFeatures[]);
+            } catch (e) {
+              console.warn(
+                "[carma-measurements] could not seed initialFeatures",
+                e
+              );
+            }
+            // Mirror the title-counter re-seed from the basemap-swap branch
+            // so the next finish-created P/L number continues past the
+            // restored set.
+            for (const feature of seed) {
+              const title = feature.properties?.title;
+              if (typeof title !== "string") continue;
+              const match = /^([PL])(\d+)$/.exec(title);
+              if (!match) continue;
+              const n = Number(match[2]);
+              if (match[1] === "P") {
+                pointCounterRef.current = Math.max(
+                  pointCounterRef.current,
+                  n
+                );
+              } else {
+                lineCounterRef.current = Math.max(lineCounterRef.current, n);
+              }
+            }
+          }
+        }
       }
       ensureLabelLayer();
       ensureSnapPreviewLayer();

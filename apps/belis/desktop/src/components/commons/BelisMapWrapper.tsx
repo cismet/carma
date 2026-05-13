@@ -122,6 +122,7 @@ const USE_DEBUG_LAYERS_FOR_PROTOCOLS_LAYERS = false;
 const protocolsLayers = !USE_DEBUG_LAYERS_FOR_PROTOCOLS_LAYERS
   ? protocolsLayersNew
   : debugLayers;
+import type { Feature } from "geojson";
 import type { ArbeitsauftragTileFeature } from "../../store/slices/arbeitsauftraege";
 import { transformGqlToTileFeatures } from "../../helper/transformArbeitsauftraege";
 import { fitAABounds } from "../../helper/fitAABounds";
@@ -259,6 +260,22 @@ const BelisMapLibWrapper = ({
   const keyTablesData = useSelector(getKeyTablesData);
   const reduxSelectedFeature = useSelector(getReduxSelectedFeature);
   const measurements = useSelector(getMeasurements);
+  // One-shot snapshot of the redux-persist–rehydrated measurements, with the
+  // `measurement.` id prefix stripped back to the raw terra-draw UUID. Passed
+  // to MeasurementHost so terra-draw re-renders persisted features after a
+  // page refresh (without this, sidebar shows them but the map is blank —
+  // terra-draw owns its own internal store). Lazy-initialised so subsequent
+  // measurement edits don't churn the prop reference; MeasurementHost only
+  // reads this on its first attach anyway.
+  const [initialMeasurementFeatures] = useState<Feature[]>(() =>
+    measurements.map((f) => ({
+      ...f,
+      id:
+        typeof f.id === "string"
+          ? f.id.replace(/^measurement\./, "")
+          : f.id,
+    }))
+  );
   // Drafts keyed by feature-id. Used by the measurement InfoBox to expose
   // an "Entwurf öffnen" action when a draft references the selected
   // measurement as its geometry source (geometryKey === "measurement.<id>").
@@ -2972,10 +2989,13 @@ const BelisMapLibWrapper = ({
                 ref={measurementHostRef}
                 mode={drawMode}
                 snapping={snappingEnabled}
+                initialFeatures={initialMeasurementFeatures}
                 onChange={(features) => {
                   // Prefix terra-draw's UUIDs to namespace measurement ids
                   // away from any other id space (fachobjekte, brandnew FC,
-                  // etc.). Persistence intentionally omitted — refresh wipes.
+                  // etc.). Redux state is persisted via redux-persist
+                  // (see measurementsConfig in store/index.ts) so the next
+                  // refresh re-seeds terra-draw via initialFeatures above.
                   dispatch(
                     replaceMeasurements(
                       features.map((f) => ({
