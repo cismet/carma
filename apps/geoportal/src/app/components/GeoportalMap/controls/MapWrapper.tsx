@@ -271,8 +271,11 @@ const MapWrapper = () => {
     [dispatch]
   );
 
-  const { pos, onSelectionChanged: handleLibreSelectionChanged } =
-    useLibreMapSelectionHandler(libreMapInstance);
+  const {
+    pos,
+    onSelectionChanged: handleLibreSelectionChanged,
+    selectFromHits: handleLibreSelectFromHits,
+  } = useLibreMapSelectionHandler(libreMapInstance);
 
   const showOverlayFromOutside = useCallback(
     (key: string) => {
@@ -310,7 +313,7 @@ const MapWrapper = () => {
     dispatch(toggleUIMode(UIMode.FEATURE_INFO));
   };
 
-  useFeatureInfoModeCursorStyle();
+  useFeatureInfoModeCursorStyle("routedMap", libreMapInstance);
 
   const { setSelection } = useSelection();
 
@@ -643,6 +646,7 @@ const MapWrapper = () => {
               libreLayers={libreLayers}
               setLibreMap={handleLibreMapReady}
               onSelectionChanged={handleLibreSelectionChanged}
+              selectFromHits={handleLibreSelectFromHits}
               modalMenu={
                 <GenericModalApplicationMenu
                   {...getCollabedHelpComponentConfig({
