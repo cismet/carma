@@ -642,6 +642,12 @@ const BelisMapLibWrapper = ({
   const IS_LOCAL_DEV =
     typeof window !== "undefined" && window.location.hostname === "localhost";
   const BRAND_NEW_SYNC_INTERVAL_MS = IS_LOCAL_DEV ? 1000 : 15000;
+  // Latest brandnew FC fetched from the server (kept in state so the mini-map
+  // effect below can mirror it into its own brandnew source).
+  const [brandnewFc, setBrandnewFc] = useState<GeoJSON.FeatureCollection>({
+    type: "FeatureCollection",
+    features: [],
+  });
   useBrandnewFcSync({
     map,
     enabled: brandnewLayerEnabled,
@@ -649,6 +655,7 @@ const BelisMapLibWrapper = ({
     dataUrl: BELIS_BRAND_NEW_FC_URL,
     intervalMs: BRAND_NEW_SYNC_INTERVAL_MS,
     onCountChange: onBrandnewCountChange,
+    onDataChange: setBrandnewFc,
   });
 
   // AA lasso selection (disabled – button now only logs "hallo world")
@@ -2070,10 +2077,13 @@ const BelisMapLibWrapper = ({
     }
   }, [sidebarVariant, miniMap, miniMapReady, namespacedSource]);
 
-  // --- Mini-map: push every open creation draft into the brandnew GeoJSON
-  // source so they render together with the brandnew style's per-type layers,
-  // matching the main map's brandnew group. The main map's brandnew source is
-  // independent and untouched by this effect. ---
+  // --- Mini-map: push every open creation draft AND the server-side brandnew
+  // FC into the brandnew GeoJSON source so they render together with the
+  // brandnew style's per-type layers, matching the main map's brandnew group.
+  // The main map's brandnew source is fed by useBrandnewFcSync directly and
+  // is untouched by this effect; we mirror its latest payload here via
+  // `brandnewFc` so saved brandnew features stay visible on the mini-map
+  // after the draft is removed from Redux. ---
   useEffect(() => {
     if (!miniMap || !miniMapReady) return;
     const src = miniMap.getSource(brandnewSource) as
@@ -2081,7 +2091,7 @@ const BelisMapLibWrapper = ({
       | undefined;
     if (!src || typeof src.setData !== "function") return;
 
-    const features: GeoJSON.Feature[] = [];
+    const features: GeoJSON.Feature[] = [...(brandnewFc.features ?? [])];
     for (const { feature } of allDraftFeatures) {
       if (!feature) continue;
       if (feature.properties?._isCreation !== true) continue;
@@ -2089,7 +2099,7 @@ const BelisMapLibWrapper = ({
       features.push(feature as unknown as GeoJSON.Feature);
     }
     src.setData({ type: "FeatureCollection", features });
-  }, [miniMap, miniMapReady, brandnewSource, allDraftFeatures]);
+  }, [miniMap, miniMapReady, brandnewSource, allDraftFeatures, brandnewFc]);
 
   // --- Mini-map: render AA convex hull polygons from client-side GeoJSON ---
   // AA convex-hull polygons are no longer shown on the mini map;

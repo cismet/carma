@@ -12,6 +12,9 @@ interface UseBrandnewFcSyncOptions {
   /** Notified with the new feature count on every transition (baseline,
    * md5 change, missing → 0, reappear). */
   onCountChange?: (count: number) => void;
+  /** Notified with the FC the hook just pushed to the map. Lets sibling
+   * surfaces (e.g. the mini-map) mirror the same data without polling again. */
+  onDataChange?: (fc: GeoJSON.FeatureCollection) => void;
 }
 
 const LOG_PREFIX = "[BRAND-NEW-SYNC]";
@@ -28,9 +31,12 @@ export const useBrandnewFcSync = ({
   dataUrl,
   intervalMs,
   onCountChange,
+  onDataChange,
 }: UseBrandnewFcSyncOptions): void => {
   const onCountChangeRef = useRef(onCountChange);
   onCountChangeRef.current = onCountChange;
+  const onDataChangeRef = useRef(onDataChange);
+  onDataChangeRef.current = onDataChange;
 
   useEffect(() => {
     if (!map || !enabled) return;
@@ -62,6 +68,7 @@ export const useBrandnewFcSync = ({
       fcMissing = true;
       lastMd5 = null;
       reportCount(0);
+      onDataChangeRef.current?.(EMPTY_FC);
     };
 
     const tick = async () => {
@@ -124,6 +131,7 @@ export const useBrandnewFcSync = ({
           console.log(LOG_PREFIX, "md5 changed, loaded FC", { md5, count });
         }
         reportCount(count);
+        onDataChangeRef.current?.(fc);
       } catch (err) {
         // Network error (offline, DNS, etc.) — keep current data; only an
         // explicit non-ok response clears the layer.
