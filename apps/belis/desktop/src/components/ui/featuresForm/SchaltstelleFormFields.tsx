@@ -127,13 +127,15 @@ const SchaltstelleFormFields = ({
         draftApplied.current = true;
       }
     }
-    // Dep on `featureId` (stable per draft) instead of `schaltstelle` (the
-    // synthetic record gets a new reference on every keystroke during creation,
-    // which would re-run this effect, call form.resetFields(), and steal focus
-    // from the active input). Server-data refetches go through resetKey-driven
-    // remount of FormComponent in FeaturesFormsWrapper.
+    // Dep on `featureId` (stable per draft) and the *presence* of `schaltstelle`
+    // (a boolean, so it only flips false → true once) — not the reference
+    // itself. The synthetic record gets a new reference on every keystroke
+    // during creation, which would call form.resetFields() and steal focus
+    // from the active input. For regular features, `schaltstelle` arrives
+    // asynchronously after the initial fetch; depending on its existence lets
+    // us re-run the effect exactly once when the data shows up.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [featureId, form]);
+  }, [featureId, Boolean(schaltstelle), form]);
 
   useEffect(() => {
     if (externalForm) return;
