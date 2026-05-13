@@ -8,6 +8,7 @@ import {
 } from "react";
 import { isMobile } from "react-device-detect";
 import { useDispatch, useSelector } from "react-redux";
+import type maplibregl from "maplibre-gl";
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 
 import { Button, Tooltip } from "antd";
@@ -78,6 +79,7 @@ import { ObliqueControls } from "../../../oblique/components/ObliqueControls.tsx
 import LayerWrapper from "../../layers/LayerWrapper.tsx";
 
 import useLeafletZoomControls from "../../../hooks/leaflet/useLeafletZoomControls.ts";
+import { useLibreMapSelectionHandler } from "../../../hooks/libre/useLibreMapClickHandler.ts";
 import { useDispatchSachdatenInfoText } from "../../../hooks/useDispatchSachdatenInfoText.ts";
 import { useFeatureInfoModeCursorStyle } from "../../../hooks/useFeatureInfoModeCursorStyle.ts";
 import { useMapStyleReduxSync } from "../../../hooks/useMapStyleReduxSync";
@@ -103,6 +105,7 @@ import {
   getLibreMapRef,
   getShowFullscreenButton,
   getShowLocatorButton,
+  setLibreMapRef,
 } from "../../../store/slices/mapping.ts";
 import {
   getUIMode,
@@ -114,6 +117,7 @@ import {
 } from "../../../store/slices/ui.ts";
 import versionData from "../../../../version.json";
 import LoginForm from "../../LoginForm.tsx";
+import FeatureInfoBox from "../../feature-info/FeatureInfoBox.tsx";
 
 // detect GPU support, disables 3d mode if not supported
 let hasGPU = false;
@@ -254,6 +258,21 @@ const MapWrapper = () => {
 
   const [isLoginFormVisible, setIsLoginFormVisible] = useState(false);
   const [showTerrain, setShowTerrain] = useState(false);
+  const [libreMapInstance, setLibreMapInstance] =
+    useState<maplibregl.Map | null>(null);
+  const libreMapReduxRef = useRef<maplibregl.Map | null>(null);
+
+  const handleLibreMapReady = useCallback(
+    (m: maplibregl.Map) => {
+      libreMapReduxRef.current = m;
+      dispatch(setLibreMapRef(libreMapReduxRef));
+      setLibreMapInstance(m);
+    },
+    [dispatch]
+  );
+
+  const { pos, onSelectionChanged: handleLibreSelectionChanged } =
+    useLibreMapSelectionHandler(libreMapInstance);
 
   const showOverlayFromOutside = useCallback(
     (key: string) => {
@@ -604,6 +623,7 @@ const MapWrapper = () => {
           )}
         </div>
       )}
+      {showLibreMap && isLeaflet && <FeatureInfoBox pos={pos ?? undefined} />}
       <ControlLayoutCanvas>
         <div
           id="mapContainer"
@@ -621,6 +641,8 @@ const MapWrapper = () => {
               fullScreenControl={false}
               terrainControl={false}
               libreLayers={libreLayers}
+              setLibreMap={handleLibreMapReady}
+              onSelectionChanged={handleLibreSelectionChanged}
               modalMenu={
                 <GenericModalApplicationMenu
                   {...getCollabedHelpComponentConfig({
