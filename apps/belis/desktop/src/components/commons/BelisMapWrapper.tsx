@@ -2818,6 +2818,7 @@ const BelisMapLibWrapper = ({
           onFeatureDismiss={handleSidebarDismiss}
           auswahlActiveSourceLayers={activeSourceLayers}
           namespacedSource={namespacedSource}
+          brandnewSource={brandnewSource}
           adjustedHighlights={adjustedHighlights}
           setAdjustedHighlights={setAdjustedHighlights}
           measurements={measurements}
