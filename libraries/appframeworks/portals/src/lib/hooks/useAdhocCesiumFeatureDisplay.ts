@@ -36,8 +36,8 @@ import {
 } from "@carma-mapping/engines/cesium/legacy";
 import {
   modelShader,
-  type ModelShaderSampling,
-  type ModelShaderSelection,
+  type ModelShaderSamplingOptions,
+  type ModelShaderSelectionOptions,
   useCesiumModelShader,
   useCesiumModelManager,
 } from "@carma-mapping/engines/cesium/react/primitives";
@@ -86,9 +86,9 @@ import {
 } from "../utils/adhoc-cesium-feature-display-utils";
 
 export type AdhocCesiumModelShaderOptions = {
-  sampling?: Omit<ModelShaderSampling, "getScene">;
+  sampling?: Omit<ModelShaderSamplingOptions, "getScene">;
   selection?: Omit<
-    ModelShaderSelection,
+    ModelShaderSelectionOptions,
     "enabled" | "getPrimitiveBySelectionId" | "selected"
   >;
 };

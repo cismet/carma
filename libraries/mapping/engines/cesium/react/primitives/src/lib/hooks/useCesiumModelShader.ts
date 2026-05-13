@@ -31,24 +31,24 @@ export type ModelShaderHighlightResolveOptions = {
   opacity?: number;
 };
 
-export type ModelShaderFade = {
+export type TransitionOptions = {
   durationMs?: number;
   easing?: EasingFunction;
 };
 
-export type ModelShaderEdge = {
+export type ModelShaderEdgeOptions = {
   color?: Color;
   mode?: ModelShaderEdgeMode;
   opacity?: number;
   widthPx?: number;
 };
 
-export type ModelShaderSelectionStyle = {
-  edge?: ModelShaderEdge;
+export type ModelShaderSelectionStyleOptions = {
+  edge?: ModelShaderEdgeOptions;
   fillColor?: Color;
 };
 
-export type ModelShaderFlash = {
+export type ModelShaderFlashOptions = {
   color?: Color;
   inDurationMs?: number;
   inEasing?: EasingFunction;
@@ -57,18 +57,18 @@ export type ModelShaderFlash = {
   outEasing?: EasingFunction;
 };
 
-export type ModelShaderFlashOptions = {
-  highlight?: ModelShaderFlash;
-  selection?: ModelShaderFlash;
+export type ModelShaderFlashByKindOptions = {
+  highlight?: ModelShaderFlashOptions;
+  selection?: ModelShaderFlashOptions;
 };
 
-export type ModelShaderHover = {
+export type ModelShaderHoverOptions = {
   clearDelayMs?: number;
   enabled?: boolean;
-  fade?: ModelShaderFade;
+  fade?: TransitionOptions;
 };
 
-export type ModelShaderSelectedFeature = {
+export type ModelShaderSelectedFeatureOptions = {
   flashKey?: string | null;
   flashVersion?: number;
   id?: string | null;
@@ -76,25 +76,25 @@ export type ModelShaderSelectedFeature = {
 
 export type ModelShaderHighlightOptions = {
   activeKeys: readonly string[];
-  fade?: ModelShaderFade;
+  fade?: TransitionOptions;
 };
 
-export type ModelShaderSampling = {
+export type ModelShaderSamplingOptions = {
   color?: Color;
   enabled?: boolean;
-  fade?: Pick<ModelShaderFade, "durationMs">;
+  fade?: Pick<TransitionOptions, "durationMs">;
   getScene: () => Scene | null | undefined;
   opacity?: number;
 };
 
-export type ModelShaderSelection = {
+export type ModelShaderSelectionOptions = {
   enabled?: boolean;
-  fade?: ModelShaderFade;
-  flash?: ModelShaderFlashOptions;
+  fade?: TransitionOptions;
+  flash?: ModelShaderFlashByKindOptions;
   getPrimitiveBySelectionId?: (selectedId: string) => Model | null;
-  hover?: ModelShaderHover;
-  selected?: ModelShaderSelectedFeature;
-  style?: ModelShaderSelectionStyle;
+  hover?: ModelShaderHoverOptions;
+  selected?: ModelShaderSelectedFeatureOptions;
+  style?: ModelShaderSelectionStyleOptions;
 };
 
 type ResolvedFlash = {
@@ -149,7 +149,7 @@ const normalizeSamplingFadeDuration = (
     : modelShader.defaults.sampling.fade.durationMs;
 
 const resolveFlash = (
-  options: ModelShaderFlash | undefined,
+  options: ModelShaderFlashOptions | undefined,
   defaults: DefaultFlash
 ): ResolvedFlash => ({
   color: options?.color ?? defaults.color,
@@ -225,8 +225,8 @@ export type CesiumModelShaderOptions = {
   enabled?: boolean;
   highlight?: ModelShaderHighlightOptions;
   requestRender?: () => void;
-  sampling?: ModelShaderSampling;
-  selection?: ModelShaderSelection;
+  sampling?: ModelShaderSamplingOptions;
+  selection?: ModelShaderSelectionOptions;
 };
 
 export const useCesiumModelShader = ({
