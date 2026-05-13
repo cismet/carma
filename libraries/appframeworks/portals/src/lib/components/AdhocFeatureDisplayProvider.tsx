@@ -97,6 +97,10 @@ export type SelectedAdhocFeature = {
   layerId: string;
 };
 
+export type SelectedAdhocFeatureFlashRequest = SelectedAdhocFeature & {
+  version: number;
+};
+
 export type AdhocFeatureSelectionChange = {
   feature: AdhocFeature;
   collectionId: string;
@@ -111,6 +115,7 @@ interface AdhocFeatureDisplayContextType {
   featureCollections: AdhocFeatureCollection[];
   features: AdhocFeature[];
   selectedFeature: SelectedAdhocFeature | null;
+  selectedFeatureFlashRequest: SelectedAdhocFeatureFlashRequest | null;
   shouldFocusSelected: boolean;
   addFeatureCollection: (collection: AdhocFeatureCollectionSeed) => void;
   removeFeatureCollection: (collectionId: string) => void;
@@ -120,6 +125,11 @@ interface AdhocFeatureDisplayContextType {
     updates: AdhocFeatureMetadataUpdate | AdhocFeatureMetadataUpdate[]
   ) => void;
   setSelectedFeatureById: (
+    id: string,
+    collectionId: string,
+    layerId?: string
+  ) => void;
+  flashSelectedFeatureById: (
     id: string,
     collectionId: string,
     layerId?: string
@@ -396,6 +406,8 @@ export function AdhocFeatureDisplayProvider({
   >([]);
   const [selectedFeatureSelection, setSelectedFeatureSelection] =
     useState<SelectedAdhocFeature | null>(null);
+  const [selectedFeatureFlashRequest, setSelectedFeatureFlashRequest] =
+    useState<SelectedAdhocFeatureFlashRequest | null>(null);
   const [shouldFocusSelected, setShouldFocusSelected] =
     useState<boolean>(false);
   const selectionChangeListenersRef = useRef<
@@ -426,6 +438,7 @@ export function AdhocFeatureDisplayProvider({
         return prev.filter((collection) => collection.id !== collectionId);
       });
       if (shouldClearSelected) {
+        setSelectedFeatureFlashRequest(null);
         setSelectedFeatureSelection(null);
       }
     },
@@ -434,11 +447,24 @@ export function AdhocFeatureDisplayProvider({
 
   const setSelectedFeatureById = useCallback(
     (id: string, collectionId: string, layerId?: string) => {
+      setSelectedFeatureFlashRequest(null);
       setSelectedFeatureSelection({
         id,
         collectionId,
         layerId: layerId ?? DEFAULT_ADHOC_FEATURE_LAYER_ID,
       });
+    },
+    []
+  );
+
+  const flashSelectedFeatureById = useCallback(
+    (id: string, collectionId: string, layerId?: string) => {
+      setSelectedFeatureFlashRequest((current) => ({
+        id,
+        collectionId,
+        layerId: layerId ?? DEFAULT_ADHOC_FEATURE_LAYER_ID,
+        version: (current?.version ?? 0) + 1,
+      }));
     },
     []
   );
@@ -489,29 +515,28 @@ export function AdhocFeatureDisplayProvider({
 
   const removeFeature = useCallback(
     (id: string, options?: RemoveAdhocFeatureOptions) => {
+      const shouldClearSelected =
+        !!selectedFeatureSelection &&
+        selectedFeatureSelection.id === id &&
+        (!options?.collectionId ||
+          selectedFeatureSelection.collectionId === options.collectionId) &&
+        (!options?.layerId ||
+          selectedFeatureSelection.layerId === options.layerId);
+
       setFeatureCollections((prev) =>
         removeAdhocFeatureFromCollections(prev, id, options)
       );
-      setSelectedFeatureSelection((current) => {
-        if (!current || current.id !== id) {
-          return current;
-        }
-        if (
-          options?.collectionId &&
-          current.collectionId !== options.collectionId
-        ) {
-          return current;
-        }
-        if (options?.layerId && current.layerId !== options.layerId) {
-          return current;
-        }
-        return null;
-      });
+
+      if (shouldClearSelected) {
+        setSelectedFeatureFlashRequest(null);
+        setSelectedFeatureSelection(null);
+      }
     },
-    []
+    [selectedFeatureSelection]
   );
 
   const clearSelectedFeature = useCallback(() => {
+    setSelectedFeatureFlashRequest(null);
     setSelectedFeatureSelection(null);
   }, []);
 
@@ -648,6 +673,7 @@ export function AdhocFeatureDisplayProvider({
         })
       );
       if (shouldClearSelected) {
+        setSelectedFeatureFlashRequest(null);
         setSelectedFeatureSelection(null);
       }
     },
@@ -785,6 +811,7 @@ export function AdhocFeatureDisplayProvider({
         collectionId: selectedCollection.id,
       }
     );
+    setSelectedFeatureFlashRequest(null);
     setSelectedFeatureSelection(null);
   }, [featureCollections, selectedFeatureSelection, selectedFeature]);
 
@@ -817,6 +844,7 @@ export function AdhocFeatureDisplayProvider({
       featureCollections,
       features,
       selectedFeature,
+      selectedFeatureFlashRequest,
       shouldFocusSelected,
       addFeatureCollection,
       removeFeatureCollection,
@@ -824,6 +852,7 @@ export function AdhocFeatureDisplayProvider({
       removeFeature,
       updateFeatureMetadata,
       setSelectedFeatureById,
+      flashSelectedFeatureById,
       clearSelectedFeature,
       setShouldFocusSelected,
       clearFeatures,
@@ -834,6 +863,7 @@ export function AdhocFeatureDisplayProvider({
       featureCollections,
       features,
       selectedFeature,
+      selectedFeatureFlashRequest,
       shouldFocusSelected,
       addFeatureCollection,
       removeFeatureCollection,
@@ -841,6 +871,7 @@ export function AdhocFeatureDisplayProvider({
       removeFeature,
       updateFeatureMetadata,
       setSelectedFeatureById,
+      flashSelectedFeatureById,
       clearSelectedFeature,
       setShouldFocusSelected,
       clearFeatures,

@@ -172,6 +172,8 @@ const colorFromHexWithoutAlpha = (
 };
 
 const MODEL_CONFIG = CESIUM_CONFIG.model;
+const MODEL_HIGHLIGHT_CONFIG = MODEL_CONFIG?.highlight;
+const MODEL_HIGHLIGHT_STYLE = MODEL_HIGHLIGHT_CONFIG?.style;
 const MODEL_HOVER_CONFIG = MODEL_CONFIG?.hover;
 const MODEL_SELECTION_CONFIG = MODEL_CONFIG?.selection;
 const MODEL_SELECTION_STYLE = MODEL_SELECTION_CONFIG?.style;
@@ -187,13 +189,21 @@ const MODEL_SELECTION_HIGHLIGHT_CONFIG = {
   fadeDurationMs: MODEL_SELECTION_CONFIG?.fade?.durationMs,
   fadeEasing: MODEL_SELECTION_CONFIG?.fade?.easing,
   fillColor: colorFromHexWithoutAlpha(MODEL_SELECTION_STYLE?.fill?.color),
-  flashColor: colorFromHexWithoutAlpha(MODEL_SELECTION_CONFIG?.flash?.color),
-  flashDurationMs: MODEL_SELECTION_CONFIG?.flash?.durationMs,
+  flashInDurationMs: MODEL_SELECTION_CONFIG?.flash?.inDurationMs,
+  flashInEasing: MODEL_SELECTION_CONFIG?.flash?.inEasing,
   flashOpacity: MODEL_SELECTION_CONFIG?.flash?.opacity,
+  flashOutDurationMs: MODEL_SELECTION_CONFIG?.flash?.outDurationMs,
+  flashOutEasing: MODEL_SELECTION_CONFIG?.flash?.outEasing,
+  highlightFlashColor: colorFromHexWithoutAlpha(
+    MODEL_HIGHLIGHT_STYLE?.fill?.color
+  ),
   hoverClearDelayMs: MODEL_HOVER_CONFIG?.clearDelayMs,
   hoverFadeDurationMs: MODEL_HOVER_CONFIG?.fadeDurationMs,
   hoverFadeEasing: MODEL_HOVER_CONFIG?.fadeEasing,
   hoverHighlightEnabled: MODEL_HOVER_CONFIG?.enabled,
+  selectionFlashColor: colorFromHexWithoutAlpha(
+    MODEL_SELECTION_CONFIG?.flash?.color
+  ),
 } satisfies NonNullable<
   Parameters<typeof useAdhocCesiumFeatureDisplay>[0]["modelSelectionHighlight"]
 >;

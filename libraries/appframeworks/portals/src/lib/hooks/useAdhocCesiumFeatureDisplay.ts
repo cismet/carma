@@ -36,10 +36,10 @@ import {
 } from "@carma-mapping/engines/cesium/legacy";
 import {
   createNonAccumulatingSilhouetteColor,
+  type ModelShaderEdgeMode,
   useCesiumModelHighlightStyleShaderResolver,
   useCesiumModelManager,
   useCesiumModelSamplingHighlight,
-  type ModelSelectionHighlightEdgeMode,
 } from "@carma-mapping/engines/cesium/react/primitives";
 import type { Feature, FeatureCollection } from "geojson";
 import { extractRingsFromGeoJson } from "@carma-geo/utils";
@@ -89,17 +89,21 @@ export type AdhocCesiumModelSelectionHighlightOptions = {
   edgeColor?: Color;
   edgeOpacity?: number;
   edgeWidthPx?: number;
-  edgeMode?: ModelSelectionHighlightEdgeMode;
+  edgeMode?: ModelShaderEdgeMode;
   fadeDurationMs?: number;
   fadeEasing?: EasingFunction;
   fillColor?: Color;
-  flashColor?: Color;
-  flashDurationMs?: number;
+  flashInDurationMs?: number;
+  flashInEasing?: EasingFunction;
+  flashOutDurationMs?: number;
+  flashOutEasing?: EasingFunction;
   flashOpacity?: number;
+  highlightFlashColor?: Color;
   hoverClearDelayMs?: number;
   hoverFadeDurationMs?: number;
   hoverFadeEasing?: EasingFunction;
   hoverHighlightEnabled?: boolean;
+  selectionFlashColor?: Color;
 };
 
 export type UseAdhocCesiumFeatureDisplayOptions = {
@@ -124,13 +128,10 @@ export type UseAdhocCesiumFeatureDisplayOptions = {
   modelSelectionHighlightEdgeColor?: Color;
   modelSelectionHighlightEdgeOpacity?: number;
   modelSelectionHighlightEdgeWidthPx?: number;
-  modelSelectionHighlightEdgeMode?: ModelSelectionHighlightEdgeMode;
+  modelSelectionHighlightEdgeMode?: ModelShaderEdgeMode;
   modelSelectionHighlightFadeDurationMs?: number;
   modelSelectionHighlightFadeEasing?: EasingFunction;
   modelSelectionHighlightFillColor?: Color;
-  modelSelectionHighlightFlashColor?: Color;
-  modelSelectionHighlightFlashDurationMs?: number;
-  modelSelectionHighlightFlashOpacity?: number;
   modelSamplingHighlightEnabled?: boolean;
   modelSamplingHighlightColor?: Color;
   modelSamplingHighlightFadeDurationMs?: number;
@@ -423,9 +424,6 @@ export const useAdhocCesiumFeatureDisplay = (
     modelSelectionHighlightFadeDurationMs,
     modelSelectionHighlightFadeEasing,
     modelSelectionHighlightFillColor,
-    modelSelectionHighlightFlashColor,
-    modelSelectionHighlightFlashDurationMs,
-    modelSelectionHighlightFlashOpacity,
     modelSamplingHighlightEnabled = false,
     modelSamplingHighlightColor,
     modelSamplingHighlightFadeDurationMs,
@@ -436,6 +434,7 @@ export const useAdhocCesiumFeatureDisplay = (
   const {
     featureCollections,
     selectedFeature: selectedAdhocFeature,
+    selectedFeatureFlashRequest,
     setSelectedFeatureById,
     clearSelectedFeature,
     shouldFocusSelected,
@@ -544,6 +543,17 @@ export const useAdhocCesiumFeatureDisplay = (
         ?.get(selectedAdhocFeature.id) ?? null
     );
   }, [geoJsonSelectionLookup, selectedAdhocFeature, selectedFeatureKey]);
+  const selectedFeatureFlashKey = useMemo(
+    () =>
+      selectedFeatureFlashRequest
+        ? toAdhocFeatureKey(selectedFeatureFlashRequest)
+        : null,
+    [
+      selectedFeatureFlashRequest?.collectionId,
+      selectedFeatureFlashRequest?.id,
+      selectedFeatureFlashRequest?.layerId,
+    ]
+  );
 
   const resolveAdhocFeatureEntryByFeatureId = useCallback(
     (featureId: string): AdhocFeatureEntry | null => {
@@ -1007,23 +1017,23 @@ export const useAdhocCesiumFeatureDisplay = (
         highlightFillColor:
           modelSelectionHighlight?.fillColor ??
           modelSelectionHighlightFillColor,
-        highlightFlashColor:
-          modelSelectionHighlight?.flashColor ??
-          modelSelectionHighlightFlashColor,
-        highlightFlashDurationMs:
-          modelSelectionHighlight?.flashDurationMs ??
-          modelSelectionHighlightFlashDurationMs,
-        highlightFlashOpacity:
-          modelSelectionHighlight?.flashOpacity ??
-          modelSelectionHighlightFlashOpacity,
+        flashInDurationMs: modelSelectionHighlight?.flashInDurationMs,
+        flashInEasing: modelSelectionHighlight?.flashInEasing,
+        flashOpacity: modelSelectionHighlight?.flashOpacity,
+        flashOutDurationMs: modelSelectionHighlight?.flashOutDurationMs,
+        flashOutEasing: modelSelectionHighlight?.flashOutEasing,
+        highlightFlashColor: modelSelectionHighlight?.highlightFlashColor,
         highlightHoverClearDelayMs: modelSelectionHighlight?.hoverClearDelayMs,
         highlightHoverFadeDurationMs:
           modelSelectionHighlight?.hoverFadeDurationMs,
         highlightHoverFadeEasing: modelSelectionHighlight?.hoverFadeEasing,
         hoverHighlightEnabled: modelSelectionHighlight?.hoverHighlightEnabled,
+        selectionFlashColor: modelSelectionHighlight?.selectionFlashColor,
         silhouettePickRadiusPx:
           modelSelectionHighlight?.edgeWidthPx ??
           modelSelectionHighlightEdgeWidthPx,
+        selectedFlashKey: selectedFeatureFlashKey,
+        selectedFlashVersion: selectedFeatureFlashRequest?.version,
         selectedId: selectedFeatureKey,
         onModelAdded: onModelAddedToScene,
         onModelFirstRendered: (primitiveId: string, primitive: Model) => {
@@ -1097,13 +1107,17 @@ export const useAdhocCesiumFeatureDisplay = (
     modelSelectionHighlight?.fadeDurationMs,
     modelSelectionHighlight?.fadeEasing,
     modelSelectionHighlight?.fillColor,
-    modelSelectionHighlight?.flashColor,
-    modelSelectionHighlight?.flashDurationMs,
+    modelSelectionHighlight?.flashInDurationMs,
+    modelSelectionHighlight?.flashInEasing,
     modelSelectionHighlight?.flashOpacity,
+    modelSelectionHighlight?.flashOutDurationMs,
+    modelSelectionHighlight?.flashOutEasing,
+    modelSelectionHighlight?.highlightFlashColor,
     modelSelectionHighlight?.hoverClearDelayMs,
     modelSelectionHighlight?.hoverFadeDurationMs,
     modelSelectionHighlight?.hoverFadeEasing,
     modelSelectionHighlight?.hoverHighlightEnabled,
+    modelSelectionHighlight?.selectionFlashColor,
     modelSelectionHighlightEdgeColor,
     modelSelectionHighlightEdgeMode,
     modelSelectionHighlightEdgeOpacity,
@@ -1111,10 +1125,9 @@ export const useAdhocCesiumFeatureDisplay = (
     modelSelectionHighlightFadeDurationMs,
     modelSelectionHighlightFadeEasing,
     modelSelectionHighlightFillColor,
-    modelSelectionHighlightFlashColor,
-    modelSelectionHighlightFlashDurationMs,
-    modelSelectionHighlightFlashOpacity,
     onFeatureInfoChange,
+    selectedFeatureFlashKey,
+    selectedFeatureFlashRequest?.version,
     selectedFeatureKey,
     clearSelectedFeature,
     onModelAddedToScene,

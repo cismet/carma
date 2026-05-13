@@ -168,8 +168,13 @@ const getAdhocTargetKey = (
 
 const useAdhocModelLayerbarControls = (layer: Layer | BackgroundLayer) => {
   const { isCesium } = useMapFrameworkSwitcherContext();
-  const { featureCollections, addFeature, updateFeatureMetadata } =
-    useAdhocFeatureDisplay();
+  const {
+    featureCollections,
+    selectedFeature,
+    addFeature,
+    updateFeatureMetadata,
+    flashSelectedFeatureById,
+  } = useAdhocFeatureDisplay();
   const [adhocRenderStyleDraft, setAdhocRenderStyleDraft] =
     useState<AdhocRenderStyleDraft | null>(null);
   const [
@@ -188,6 +193,13 @@ const useAdhocModelLayerbarControls = (layer: Layer | BackgroundLayer) => {
     DEFAULT_ADHOC_FEATURE_LAYER_ID
   ) as AdhocCesiumObjectControlTarget | undefined;
   const adhocRenderStyleTargetKey = getAdhocTargetKey(adhocRenderStyleTarget);
+  const isSelectedAdhocTarget = (
+    target: AdhocCesiumObjectControlTarget | null | undefined
+  ) =>
+    !!target &&
+    selectedFeature?.id === target.id &&
+    selectedFeature.collectionId === target.collectionId &&
+    selectedFeature.layerId === target.layerId;
   const adhocRenderStyleMetadata =
     adhocRenderStyleDraft?.targetKey === adhocRenderStyleTargetKey
       ? {
@@ -364,6 +376,10 @@ const useAdhocModelLayerbarControls = (layer: Layer | BackgroundLayer) => {
       unselectedRenderStyle:
         unselectedRenderStyle === "highlight" ? "default" : "highlight",
     });
+
+    if (isSelectedAdhocTarget(target)) {
+      flashSelectedFeatureById(target.id, target.collectionId, target.layerId);
+    }
   };
 
   const toggleAdhocModelClipping = async () => {

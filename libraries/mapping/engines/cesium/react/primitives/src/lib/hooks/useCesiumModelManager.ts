@@ -4,14 +4,13 @@ import { type Easing as EasingFunction } from "@carma-commons/math";
 import { Color, Model, type Scene } from "@carma-cesium";
 import type { ModelConfig } from "@carma-mapping/engines/cesium/core";
 
-import { DEFAULT_MODEL_SELECTION_HIGHLIGHT_EDGE_WIDTH_PX } from "../utils/modelHighlightShader";
 import { findModelPrimitiveBySelectionId } from "../utils/modelManager";
-import type { ModelSelectionHighlightEdgeMode } from "../utils/modelSelectionHighlight";
+import { modelShader, type ModelShaderEdgeMode } from "../utils/modelShader";
 import { useCesiumModelPrimitives } from "./useCesiumModelPrimitives";
 import { useCesiumModelSelectionHighlight } from "./useCesiumModelSelectionHighlight";
 import { useCesiumModelSelectionInteraction } from "./useCesiumModelSelectionInteraction";
 
-export type { ModelSelectionHighlightEdgeMode } from "../utils/modelSelectionHighlight";
+export type { ModelShaderEdgeMode } from "../utils/modelShader";
 
 export interface UseCesiumModelManagerOptions {
   models: ModelConfig[];
@@ -30,16 +29,22 @@ export interface UseCesiumModelManagerOptions {
     highlightEdgeWidthPx?: number;
     highlightFadeDurationMs?: number;
     highlightFadeEasing?: EasingFunction;
-    highlightEdgeMode?: ModelSelectionHighlightEdgeMode;
+    highlightEdgeMode?: ModelShaderEdgeMode;
+    flashInDurationMs?: number;
+    flashInEasing?: EasingFunction;
+    flashOutDurationMs?: number;
+    flashOutEasing?: EasingFunction;
+    flashOpacity?: number;
     highlightFillColor?: Color;
     highlightFlashColor?: Color;
-    highlightFlashDurationMs?: number;
-    highlightFlashOpacity?: number;
     highlightHoverClearDelayMs?: number;
     highlightHoverFadeDurationMs?: number;
     highlightHoverFadeEasing?: EasingFunction;
+    selectionFlashColor?: Color;
     hoverHighlightEnabled?: boolean;
     silhouettePickRadiusPx?: number;
+    selectedFlashKey?: string | null;
+    selectedFlashVersion?: number;
     selectedId?: string | null;
   };
 }
@@ -81,15 +86,21 @@ export const useCesiumModelManager = ({
     fadeDurationMs: selection?.highlightFadeDurationMs,
     fadeEasing: selection?.highlightFadeEasing,
     fillColor: selection?.highlightFillColor,
-    flashColor: selection?.highlightFlashColor,
-    flashDurationMs: selection?.highlightFlashDurationMs,
-    flashOpacity: selection?.highlightFlashOpacity,
+    flashInDurationMs: selection?.flashInDurationMs,
+    flashInEasing: selection?.flashInEasing,
+    flashOpacity: selection?.flashOpacity,
+    flashOutDurationMs: selection?.flashOutDurationMs,
+    flashOutEasing: selection?.flashOutEasing,
     getPrimitiveBySelectionId: readPrimitiveBySelectionId,
+    highlightFlashColor: selection?.highlightFlashColor,
     highlightEdgeMode: selection?.highlightEdgeMode,
     hoverClearDelayMs: selection?.highlightHoverClearDelayMs,
     hoverFadeDurationMs: selection?.highlightHoverFadeDurationMs,
     hoverFadeEasing: selection?.highlightHoverFadeEasing,
     requestRender,
+    selectionFlashColor: selection?.selectionFlashColor,
+    selectedFlashKey: selection?.selectedFlashKey,
+    selectedFlashVersion: selection?.selectedFlashVersion,
     selectedId: selection?.selectedId,
   });
 
@@ -117,7 +128,7 @@ export const useCesiumModelManager = ({
     silhouettePickRadiusPx:
       selection?.silhouettePickRadiusPx ??
       selection?.highlightEdgeWidthPx ??
-      DEFAULT_MODEL_SELECTION_HIGHLIGHT_EDGE_WIDTH_PX,
+      modelShader.defaults.selection.edge.widthPx,
     onClearSelection: selection?.onClearSelection,
     onSelect: selection?.onSelect,
     selectionHighlight,

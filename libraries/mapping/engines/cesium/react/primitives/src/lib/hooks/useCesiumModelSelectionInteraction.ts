@@ -3,14 +3,14 @@ import { useCallback } from "react";
 import type { Scene } from "@carma-cesium";
 
 import { extractPickedProperties } from "../utils/modelManager";
-import type { CesiumModelSelectionHighlightController } from "./useCesiumModelSelectionHighlight";
+import type { CesiumModelShaderController } from "./useCesiumModelSelectionHighlight";
 import {
   useCesiumModelSelectionInputHandler,
   type PickedCesiumModel,
 } from "./useCesiumModelSelectionInputHandler";
 
 type ModelSelectionInteractionHighlightActions = Pick<
-  CesiumModelSelectionHighlightController,
+  CesiumModelShaderController,
   | "applyHighlight"
   | "applyHoverHighlight"
   | "clearPreviousHighlight"
@@ -51,7 +51,10 @@ export const useCesiumModelSelectionInteraction = ({
       if (!wasSelected) {
         clearPreviousHighlight();
       }
-      applyHighlight(picked.primitive, { flash: wasSelected });
+      applyHighlight(
+        picked.primitive,
+        wasSelected ? { flash: "selectionFlash" } : undefined
+      );
       onSelect?.({
         id: picked.id?.id,
         properties: extractPickedProperties(picked),

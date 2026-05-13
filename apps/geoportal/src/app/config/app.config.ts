@@ -97,8 +97,9 @@ export const CESIUM_CONFIG: CesiumConfig = {
       },
       flash: {
         color: "#ffffff",
+        inDurationMs: 50,
         opacity: 1,
-        durationMs: 50,
+        outDurationMs: 800,
       },
     },
   },

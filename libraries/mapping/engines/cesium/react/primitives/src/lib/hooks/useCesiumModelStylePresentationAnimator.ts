@@ -7,11 +7,11 @@ import type { ModelPrimitiveRenderStylePresentation } from "../utils/modelManage
 import {
   calculateTaperedSilhouetteSize,
   clampEasedProgress,
-  DEFAULT_MODEL_SELECTION_HIGHLIGHT_FADE_EASING,
   interpolateColor,
   interpolateNumber,
-  normalizeModelSelectionHighlightFadeDuration,
-} from "../utils/modelSelectionHighlight";
+  modelShader,
+  normalizeModelShaderFadeDuration,
+} from "../utils/modelShader";
 
 type UseCesiumModelStylePresentationAnimatorOptions = {
   fadeDurationMs?: number;
@@ -83,21 +83,21 @@ export const useCesiumModelStylePresentationAnimator = ({
     Map<Model, ModelStylePresentationAnimationState>
   >(new Map());
   const fadeDurationMsRef = useRef<number>(
-    normalizeModelSelectionHighlightFadeDuration(fadeDurationMs)
+    normalizeModelShaderFadeDuration(fadeDurationMs)
   );
   const fadeEasingRef = useRef<EasingFunction>(
-    fadeEasing ?? DEFAULT_MODEL_SELECTION_HIGHLIGHT_FADE_EASING
+    fadeEasing ?? modelShader.defaults.selection.fade.easing
   );
   const isAnimationSuppressedRef = useRef(isAnimationSuppressed);
 
   useEffect(() => {
     fadeDurationMsRef.current =
-      normalizeModelSelectionHighlightFadeDuration(fadeDurationMs);
+      normalizeModelShaderFadeDuration(fadeDurationMs);
   }, [fadeDurationMs]);
 
   useEffect(() => {
     fadeEasingRef.current =
-      fadeEasing ?? DEFAULT_MODEL_SELECTION_HIGHLIGHT_FADE_EASING;
+      fadeEasing ?? modelShader.defaults.selection.fade.easing;
   }, [fadeEasing]);
 
   useEffect(() => {

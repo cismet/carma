@@ -4,17 +4,14 @@ import { type Easing as EasingFunction } from "@carma-commons/math";
 import { Color, type CustomShader } from "@carma-cesium";
 
 import {
-  clampModelHighlightOpacity,
-  createModelSelectionHighlightShader,
-  DEFAULT_MODEL_SELECTION_HIGHLIGHT_OPACITY,
-  setModelBaseHighlightShaderUniforms,
-} from "../utils/modelHighlightShader";
-import {
   clampEasedProgress,
-  DEFAULT_MODEL_SELECTION_HIGHLIGHT_FADE_EASING,
+  clampModelShaderOpacity,
+  createModelShader,
   interpolateColor,
-  normalizeModelSelectionHighlightFadeDuration,
-} from "../utils/modelSelectionHighlight";
+  modelShader,
+  normalizeModelShaderFadeDuration,
+  setModelShaderHighlightUniforms,
+} from "../utils/modelShader";
 
 type ResolveModelHighlightStyleShaderOptions = {
   color: Color;
@@ -58,7 +55,7 @@ const applyHighlightStyleShaderUniforms = (
 ) => {
   state.color = cloneColor(color);
   state.opacity = opacity;
-  setModelBaseHighlightShaderUniforms({
+  setModelShaderHighlightUniforms({
     color,
     opacity,
     shader: state.shader,
@@ -166,19 +163,19 @@ export const useCesiumModelHighlightStyleShaderResolver = ({
       color,
       highlighted,
       key,
-      opacity = DEFAULT_MODEL_SELECTION_HIGHLIGHT_OPACITY,
+      opacity = modelShader.defaults.selection.opacity,
     }: ResolveModelHighlightStyleShaderOptions): CustomShader => {
       const shaderStateByKey = shaderStateByKeyRef.current;
       let state = shaderStateByKey.get(key);
       if (!state) {
-        const shader = createModelSelectionHighlightShader({
+        const shader = createModelShader({
           color,
           opacity: 0,
         });
         state = {
           animationDurationMs: 0,
           animationEasing:
-            fadeEasing ?? DEFAULT_MODEL_SELECTION_HIGHLIGHT_FADE_EASING,
+            fadeEasing ?? modelShader.defaults.selection.fade.easing,
           animationStartTimestampMs: null,
           color: cloneColor(color),
           opacity: 0,
@@ -192,13 +189,13 @@ export const useCesiumModelHighlightStyleShaderResolver = ({
       }
 
       const targetOpacity = highlighted
-        ? clampModelHighlightOpacity(
+        ? clampModelShaderOpacity(
             opacity,
-            DEFAULT_MODEL_SELECTION_HIGHLIGHT_OPACITY
+            modelShader.defaults.selection.opacity
           )
         : 0;
       const normalizedDurationMs =
-        normalizeModelSelectionHighlightFadeDuration(fadeDurationMs);
+        normalizeModelShaderFadeDuration(fadeDurationMs);
       const targetColorChanged = !colorsEqual(state.targetColor, color);
       const targetOpacityChanged = state.targetOpacity !== targetOpacity;
 
@@ -209,7 +206,7 @@ export const useCesiumModelHighlightStyleShaderResolver = ({
         state.targetOpacity = targetOpacity;
         state.animationDurationMs = normalizedDurationMs;
         state.animationEasing =
-          fadeEasing ?? DEFAULT_MODEL_SELECTION_HIGHLIGHT_FADE_EASING;
+          fadeEasing ?? modelShader.defaults.selection.fade.easing;
         state.animationStartTimestampMs = null;
         scheduleAnimation();
       }

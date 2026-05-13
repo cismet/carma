@@ -11,13 +11,11 @@ import {
 } from "@carma-cesium";
 
 import {
-  clampModelSamplingHighlightOpacity,
+  clampModelShaderOpacity,
   createModelSamplingHighlightShader,
-  DEFAULT_MODEL_SAMPLING_HIGHLIGHT_FADE_DURATION_MS,
-  DEFAULT_MODEL_SAMPLING_HIGHLIGHT_COLOR,
-  DEFAULT_MODEL_SAMPLING_HIGHLIGHT_OPACITY,
+  modelShader,
   setModelSamplingHighlightShaderUniforms,
-} from "../utils/modelHighlightShader";
+} from "../utils/modelShader";
 import { isModelPick } from "../utils/modelManager";
 
 type ModelSamplingHighlightState = {
@@ -42,14 +40,14 @@ const normalizeModelSamplingHighlightFadeDuration = (
   Number.isFinite(fadeDurationMs) &&
   fadeDurationMs >= 0
     ? fadeDurationMs
-    : DEFAULT_MODEL_SAMPLING_HIGHLIGHT_FADE_DURATION_MS;
+    : modelShader.defaults.sampling.fadeDurationMs;
 
 export const useCesiumModelSamplingHighlight = ({
-  color = DEFAULT_MODEL_SAMPLING_HIGHLIGHT_COLOR,
+  color = modelShader.defaults.sampling.color,
   enabled,
   fadeDurationMs,
   getScene,
-  opacity = DEFAULT_MODEL_SAMPLING_HIGHLIGHT_OPACITY,
+  opacity = modelShader.defaults.sampling.opacity,
 }: UseCesiumModelSamplingHighlightOptions) => {
   const sampledPrimitiveRef = useRef<Model | null>(null);
   const highlightStateByPrimitiveRef = useRef<
@@ -130,7 +128,7 @@ export const useCesiumModelSamplingHighlight = ({
         normalizedFadeDurationMs === 0
           ? 1
           : (elapsedMs / normalizedFadeDurationMs) *
-            clampModelSamplingHighlightOpacity(opacity);
+            clampModelShaderOpacity(opacity);
       let hasPendingAnimation = false;
 
       highlightStateByPrimitiveRef.current.forEach((state, primitive) => {
@@ -189,7 +187,7 @@ export const useCesiumModelSamplingHighlight = ({
 
   const applyHighlight = useCallback(
     (primitive: Model | null) => {
-      const targetOpacity = clampModelSamplingHighlightOpacity(opacity);
+      const targetOpacity = clampModelShaderOpacity(opacity);
       const current = sampledPrimitiveRef.current;
       if (current && current !== primitive && !current.isDestroyed()) {
         const currentState = highlightStateByPrimitiveRef.current.get(current);

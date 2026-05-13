@@ -14,8 +14,11 @@ export type CesiumModelStyleFillConfig = {
 
 export type CesiumModelSelectionFlashConfig = {
   color?: HexColorString;
-  durationMs?: number;
+  inDurationMs?: number;
+  inEasing?: EasingFunction;
   opacity?: number;
+  outDurationMs?: number;
+  outEasing?: EasingFunction;
 };
 
 export type CesiumModelSelectionFadeConfig = {
