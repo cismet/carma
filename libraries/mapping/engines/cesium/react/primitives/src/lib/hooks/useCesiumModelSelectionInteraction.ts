@@ -3,14 +3,14 @@ import { useCallback } from "react";
 import type { Scene } from "@carma-cesium";
 
 import { extractPickedProperties } from "../utils/modelManager";
-import type { CesiumModelShaderController } from "./useCesiumModelShader";
+import type { ModelShaderController } from "./useCesiumModelShader";
 import {
   useCesiumModelSelectionInputHandler,
   type PickedCesiumModel,
 } from "./useCesiumModelSelectionInputHandler";
 
 type ModelSelectionInteractionShaderActions = Pick<
-  CesiumModelShaderController,
+  ModelShaderController,
   "applySelection" | "applyHover" | "clearSelection" | "isSelectedPrimitive"
 >;
 

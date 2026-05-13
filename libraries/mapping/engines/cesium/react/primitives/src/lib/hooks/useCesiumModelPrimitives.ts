@@ -15,7 +15,7 @@ import {
   getModelConfigRenderStylePresentationSignature,
   getPrimitiveSelectionId,
 } from "../utils/modelManager";
-import type { CesiumModelShaderController } from "./useCesiumModelShader";
+import type { ModelShaderController } from "./useCesiumModelShader";
 import { useCesiumModelStylePresentationAnimator } from "./useCesiumModelStylePresentationAnimator";
 
 type UseCesiumModelPrimitivesOptions = {
@@ -32,7 +32,7 @@ type UseCesiumModelPrimitivesOptions = {
   stylePresentationFadeDurationMs?: number;
   stylePresentationFadeEasing?: EasingFunction;
   modelShader: Pick<
-    CesiumModelShaderController,
+    ModelShaderController,
     | "applySelection"
     | "clearSelection"
     | "clearRuntimeState"

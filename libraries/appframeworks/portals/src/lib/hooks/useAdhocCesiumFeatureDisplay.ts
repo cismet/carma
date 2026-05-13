@@ -36,8 +36,8 @@ import {
 } from "@carma-mapping/engines/cesium/legacy";
 import {
   modelShader,
-  type ModelShaderSamplingOptions,
-  type ModelShaderSelectionOptions,
+  type ModelShaderSampling,
+  type ModelShaderSelection,
   useCesiumModelShader,
   useCesiumModelManager,
 } from "@carma-mapping/engines/cesium/react/primitives";
@@ -86,9 +86,9 @@ import {
 } from "../utils/adhoc-cesium-feature-display-utils";
 
 export type AdhocCesiumModelShaderOptions = {
-  sampling?: Omit<ModelShaderSamplingOptions, "getScene">;
+  sampling?: Omit<ModelShaderSampling, "getScene">;
   selection?: Omit<
-    ModelShaderSelectionOptions,
+    ModelShaderSelection,
     "enabled" | "getPrimitiveBySelectionId" | "selected"
   >;
 };
@@ -803,7 +803,7 @@ export const useAdhocCesiumFeatureDisplay = (
     () => adhocFeatureEntries.map((entry) => entry.key),
     [adhocFeatureEntries]
   );
-  const { resolveStyle: resolveModelShader } = useCesiumModelShader({
+  const { resolveHighlight: resolveModelHighlight } = useCesiumModelShader({
     requestRender: requestCesiumRender,
     sampling: {
       ...modelShaderOptions?.sampling,
@@ -811,7 +811,7 @@ export const useAdhocCesiumFeatureDisplay = (
         isCesiumEnabled && Boolean(modelShaderOptions?.sampling?.enabled),
       getScene,
     },
-    style: {
+    highlight: {
       activeKeys: activeAdhocFeatureKeys,
       fade: modelShaderOptions?.selection?.fade,
     },
@@ -826,7 +826,7 @@ export const useAdhocCesiumFeatureDisplay = (
         entry.feature,
         modelHighlightStyle
       );
-      const customShader = resolveModelShader({
+      const customShader = resolveModelHighlight({
         color: renderStyle.tintColor,
         highlighted:
           renderStyle.style !== DEFAULT_ADHOC_UNSELECTED_RENDER_STYLE,
@@ -873,7 +873,7 @@ export const useAdhocCesiumFeatureDisplay = (
         } satisfies ModelConfig,
       ];
     });
-  }, [adhocFeatureEntries, modelHighlightStyle, resolveModelShader]);
+  }, [adhocFeatureEntries, modelHighlightStyle, resolveModelHighlight]);
 
   const cesiumModelConfigs = useMemo(
     () => [...baseModels, ...adhocModelConfigs],

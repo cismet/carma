@@ -14,22 +14,22 @@ export {
 } from "./hooks/useCesiumModelManager";
 export {
   useCesiumModelShader,
-  type ModelShaderFadeOptions,
+  type ModelShaderFade,
+  type ModelShaderFlash,
   type ModelShaderFlashOptions,
-  type ModelShaderFlashOptionsByStyle,
-  type ModelShaderHoverOptions,
-  type ModelShaderSamplingOptions,
-  type ModelShaderSelectionActionOptions,
-  type ModelShaderSelectionOptions,
-  type ModelShaderSelectionStyleOptions,
-  type ModelShaderStyleOptions,
-  type ResolveModelShaderOptions,
-  type UseCesiumModelShaderOptions,
+  type ModelShaderHover,
+  type ModelShaderSampling,
+  type ModelShaderActionOptions,
+  type ModelShaderSelection,
+  type ModelShaderSelectionStyle,
+  type ModelShaderHighlightOptions,
+  type ModelShaderHighlightResolveOptions,
+  type CesiumModelShaderOptions,
 } from "./hooks/useCesiumModelShader";
 export { createModelPrimitiveFromConfig } from "./utils/createModelPrimitiveFromConfig";
 export {
   modelShader,
-  type ModelShaderFlashStyle,
+  type ModelShaderFlashKind,
   type ModelShaderState,
   type ModelShaderUniformOptions,
 } from "./utils/modelShader";

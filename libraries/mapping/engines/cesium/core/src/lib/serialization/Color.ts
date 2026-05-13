@@ -1,4 +1,4 @@
-import { Color } from "@carma-cesium";
+import { Cartesian3, Color } from "@carma-cesium";
 
 /**
  * Serializable object representation of Color.
@@ -50,6 +50,12 @@ export const colorToConstructorArgs = (color: Color): ColorConstructorArgs => {
 
 export const colorFromRgbaArray = (color: ColorConstructorArgs): Color =>
   new Color(...color);
+
+export const cloneColor = (color: Color): Color =>
+  Color.clone(color, new Color());
+
+export const colorToRgbCartesian3 = (color: Color): Cartesian3 =>
+  new Cartesian3(color.red, color.green, color.blue);
 
 /**
  * Convert constructor args array to Cesium Color.

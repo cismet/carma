@@ -1,7 +1,11 @@
 import { Easing, type Easing as EasingFunction } from "@carma-commons/math";
-import { Cartesian3, Color, CustomShader, type Model } from "@carma-cesium";
+import { Color, CustomShader, type Model } from "@carma-cesium";
 import { COLORS } from "@carma-commons/utils";
-import { colorFromRgbaArray } from "@carma-mapping/engines/cesium/core";
+import {
+  cloneColor,
+  colorFromRgbaArray,
+  colorToRgbCartesian3,
+} from "@carma-mapping/engines/cesium/core";
 import { UniformType } from "cesium";
 
 const MODEL_SHADER_DEFAULTS = {
@@ -60,15 +64,14 @@ const MODEL_SHADER_DEFAULTS = {
     fade: {
       durationMs: 180,
     },
-    fadeDurationMs: 180,
     opacity: 0.8,
   },
 } as const;
 
 export type ModelShaderEdgeMode = "silhouette" | "none";
-export type ModelShaderFlashStyle = "selectionFlash" | "highlightFlash";
+export type ModelShaderFlashKind = "selectionFlash" | "highlightFlash";
 
-const MODEL_SHADER_PRIMITIVE_PROPERTIES = {
+const MODEL_SHADER_PICK_PROPERTIES = {
   edgeMode: "modelShaderEdgeMode",
 } as const;
 const MODEL_SHADER_UNIFORMS = {
@@ -85,8 +88,9 @@ const MODEL_SHADER_UNIFORMS = {
     opacity: "u_modelShaderFlashOpacity",
   },
 } as const;
+const SAMPLING_UNIFORMS = MODEL_SHADER_UNIFORMS.selection;
 const MODEL_SHADER_INSTANCES = new WeakSet<CustomShader>();
-const MODEL_SHADER_UNIFORM_VALUES = {
+const MODEL_SHADER_UNIFORM_CACHE = {
   highlight: new WeakMap<CustomShader, ModelShaderUniformValues>(),
   selection: new WeakMap<CustomShader, ModelShaderUniformValues>(),
   flash: new WeakMap<CustomShader, ModelShaderUniformValues>(),
@@ -115,19 +119,18 @@ export type ModelShaderState = {
   flashOutDurationMs: number;
   flashOutEasing: EasingFunction;
   flashStartTimestampMs: number | null;
-  flashStyle: ModelShaderFlashStyle | null;
   isFlashActive: boolean;
   originalOutlineColor: Color;
   originalShowOutline: boolean;
-  originalHighlightColor?: Color;
-  originalHighlightOpacity?: number;
+  originalSelectionColor?: Color;
+  originalSelectionOpacity?: number;
   originalShader: CustomShader | undefined;
   originalSilhouetteColor: Color;
   originalSilhouetteSize: number;
   opacity: number;
   shader: CustomShader;
   targetOpacity: number;
-  usesIntegratedShader: boolean;
+  usesModelShader: boolean;
 };
 
 export const clampOpacity = (
@@ -153,11 +156,6 @@ export const normalizeEdgeWidthPx = (
     ? edgeWidthPx
     : fallback;
 
-const toModelHighlightColorUniform = (color: Color) =>
-  new Cartesian3(color.red, color.green, color.blue);
-
-const cloneColor = (color: Color) => Color.clone(color, new Color());
-
 export const isModelShader = (shader: CustomShader | undefined) =>
   shader ? MODEL_SHADER_INSTANCES.has(shader) : false;
 
@@ -167,7 +165,7 @@ export const readSelectionUniforms = (
   if (!shader) {
     return undefined;
   }
-  const values = MODEL_SHADER_UNIFORM_VALUES.selection.get(shader);
+  const values = MODEL_SHADER_UNIFORM_CACHE.selection.get(shader);
   return values
     ? { color: cloneColor(values.color), opacity: values.opacity }
     : undefined;
@@ -179,7 +177,7 @@ export const readHighlightUniforms = (
   if (!shader) {
     return undefined;
   }
-  const values = MODEL_SHADER_UNIFORM_VALUES.highlight.get(shader);
+  const values = MODEL_SHADER_UNIFORM_CACHE.highlight.get(shader);
   return values
     ? { color: cloneColor(values.color), opacity: values.opacity }
     : undefined;
@@ -191,13 +189,13 @@ export const readFlashUniforms = (
   if (!shader) {
     return undefined;
   }
-  const values = MODEL_SHADER_UNIFORM_VALUES.flash.get(shader);
+  const values = MODEL_SHADER_UNIFORM_CACHE.flash.get(shader);
   return values
     ? { color: cloneColor(values.color), opacity: values.opacity }
     : undefined;
 };
 
-const createModelSamplingColorMixShader = ({
+const createSamplingColorShader = ({
   color = MODEL_SHADER_DEFAULTS.sampling.color,
   opacity = 0,
 }: {
@@ -206,11 +204,11 @@ const createModelSamplingColorMixShader = ({
 } = {}) =>
   new CustomShader({
     uniforms: {
-      [MODEL_SHADER_UNIFORMS.selection.color]: {
+      [SAMPLING_UNIFORMS.color]: {
         type: UniformType.VEC3,
-        value: toModelHighlightColorUniform(color),
+        value: colorToRgbCartesian3(color),
       },
-      [MODEL_SHADER_UNIFORMS.selection.opacity]: {
+      [SAMPLING_UNIFORMS.opacity]: {
         type: UniformType.FLOAT,
         value: clampOpacity(opacity),
       },
@@ -219,8 +217,8 @@ const createModelSamplingColorMixShader = ({
 void fragmentMain(FragmentInput fsInput, inout czm_modelMaterial material) {
   material.diffuse = mix(
     material.diffuse,
-    ${MODEL_SHADER_UNIFORMS.selection.color},
-    ${MODEL_SHADER_UNIFORMS.selection.opacity}
+    ${SAMPLING_UNIFORMS.color},
+    ${SAMPLING_UNIFORMS.opacity}
   );
 }
 `,
@@ -238,7 +236,7 @@ export const createModelShader = ({
     uniforms: {
       [MODEL_SHADER_UNIFORMS.highlight.color]: {
         type: UniformType.VEC3,
-        value: toModelHighlightColorUniform(color),
+        value: colorToRgbCartesian3(color),
       },
       [MODEL_SHADER_UNIFORMS.highlight.opacity]: {
         type: UniformType.FLOAT,
@@ -246,7 +244,7 @@ export const createModelShader = ({
       },
       [MODEL_SHADER_UNIFORMS.selection.color]: {
         type: UniformType.VEC3,
-        value: toModelHighlightColorUniform(color),
+        value: colorToRgbCartesian3(color),
       },
       [MODEL_SHADER_UNIFORMS.selection.opacity]: {
         type: UniformType.FLOAT,
@@ -254,7 +252,7 @@ export const createModelShader = ({
       },
       [MODEL_SHADER_UNIFORMS.flash.color]: {
         type: UniformType.VEC3,
-        value: toModelHighlightColorUniform(color),
+        value: colorToRgbCartesian3(color),
       },
       [MODEL_SHADER_UNIFORMS.flash.opacity]: {
         type: UniformType.FLOAT,
@@ -302,15 +300,15 @@ void fragmentMain(FragmentInput fsInput, inout czm_modelMaterial material) {
 `,
   });
   MODEL_SHADER_INSTANCES.add(shader);
-  MODEL_SHADER_UNIFORM_VALUES.selection.set(shader, {
+  MODEL_SHADER_UNIFORM_CACHE.selection.set(shader, {
     color: cloneColor(color),
     opacity: initialOpacity,
   });
-  MODEL_SHADER_UNIFORM_VALUES.highlight.set(shader, {
+  MODEL_SHADER_UNIFORM_CACHE.highlight.set(shader, {
     color: cloneColor(color),
     opacity: 0,
   });
-  MODEL_SHADER_UNIFORM_VALUES.flash.set(shader, {
+  MODEL_SHADER_UNIFORM_CACHE.flash.set(shader, {
     color: cloneColor(color),
     opacity: 0,
   });
@@ -318,7 +316,7 @@ void fragmentMain(FragmentInput fsInput, inout czm_modelMaterial material) {
 };
 
 export const createSamplingShader = () =>
-  createModelSamplingColorMixShader({
+  createSamplingColorShader({
     color: MODEL_SHADER_DEFAULTS.sampling.color,
     opacity: 0,
   });
@@ -330,13 +328,13 @@ export const setSelectionUniforms = ({
 }: ModelShaderUniformOptions) => {
   shader.setUniform(
     MODEL_SHADER_UNIFORMS.selection.color,
-    toModelHighlightColorUniform(color)
+    colorToRgbCartesian3(color)
   );
   shader.setUniform(
     MODEL_SHADER_UNIFORMS.selection.opacity,
     clampOpacity(opacity)
   );
-  MODEL_SHADER_UNIFORM_VALUES.selection.set(shader, {
+  MODEL_SHADER_UNIFORM_CACHE.selection.set(shader, {
     color: cloneColor(color),
     opacity: clampOpacity(opacity),
   });
@@ -351,13 +349,13 @@ export const setHighlightUniforms = ({
 }: ModelShaderUniformOptions) => {
   shader.setUniform(
     MODEL_SHADER_UNIFORMS.highlight.color,
-    toModelHighlightColorUniform(color)
+    colorToRgbCartesian3(color)
   );
   shader.setUniform(
     MODEL_SHADER_UNIFORMS.highlight.opacity,
     clampOpacity(opacity, 0)
   );
-  MODEL_SHADER_UNIFORM_VALUES.highlight.set(shader, {
+  MODEL_SHADER_UNIFORM_CACHE.highlight.set(shader, {
     color: cloneColor(color),
     opacity: clampOpacity(opacity, 0),
   });
@@ -370,13 +368,13 @@ export const setFlashUniforms = ({
 }: ModelShaderUniformOptions) => {
   shader.setUniform(
     MODEL_SHADER_UNIFORMS.flash.color,
-    toModelHighlightColorUniform(color)
+    colorToRgbCartesian3(color)
   );
   shader.setUniform(
     MODEL_SHADER_UNIFORMS.flash.opacity,
     clampOpacity(opacity, 0)
   );
-  MODEL_SHADER_UNIFORM_VALUES.flash.set(shader, {
+  MODEL_SHADER_UNIFORM_CACHE.flash.set(shader, {
     color: cloneColor(color),
     opacity: clampOpacity(opacity, 0),
   });
@@ -465,7 +463,7 @@ export const readPrimitiveEdgeMode = (
     | { properties?: Record<string, unknown> }
     | undefined;
   const configuredMode =
-    pickId?.properties?.[MODEL_SHADER_PRIMITIVE_PROPERTIES.edgeMode];
+    pickId?.properties?.[MODEL_SHADER_PICK_PROPERTIES.edgeMode];
   return configuredMode === "silhouette" || configuredMode === "none"
     ? configuredMode
     : fallback;

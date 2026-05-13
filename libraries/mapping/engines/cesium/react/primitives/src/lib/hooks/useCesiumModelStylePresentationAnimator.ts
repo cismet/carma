@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 
 import { type Easing as EasingFunction } from "@carma-commons/math";
 import { Color, Model } from "@carma-cesium";
+import { cloneColor } from "@carma-mapping/engines/cesium/core";
 
 import type { ModelPrimitiveRenderStylePresentation } from "../utils/modelManager";
 import { modelShader } from "../utils/modelShader";
@@ -22,8 +23,6 @@ type ModelStylePresentationAnimationState = {
   targetColor: Color;
   targetSize: number;
 };
-
-const cloneColor = (color: Color) => Color.clone(color, new Color());
 
 const colorsEqual = (left: Color, right: Color) =>
   left.red === right.red &&

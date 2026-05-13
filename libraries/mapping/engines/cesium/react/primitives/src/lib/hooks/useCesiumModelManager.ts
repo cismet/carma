@@ -8,7 +8,7 @@ import { modelShader, type ModelShaderEdgeMode } from "../utils/modelShader";
 import { useCesiumModelPrimitives } from "./useCesiumModelPrimitives";
 import {
   useCesiumModelShader,
-  type ModelShaderSelectionOptions,
+  type ModelShaderSelection,
 } from "./useCesiumModelShader";
 import { useCesiumModelSelectionInteraction } from "./useCesiumModelSelectionInteraction";
 
@@ -27,7 +27,7 @@ export interface UseCesiumModelManagerOptions {
     onModelFirstRendered?: (primitiveId: string, primitive: Model) => void;
     deselectOnEmptyClick?: boolean;
     shader?: Omit<
-      ModelShaderSelectionOptions,
+      ModelShaderSelection,
       "enabled" | "getPrimitiveBySelectionId" | "selected"
     >;
     silhouettePickRadiusPx?: number;

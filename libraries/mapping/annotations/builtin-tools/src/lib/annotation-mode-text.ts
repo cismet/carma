@@ -333,8 +333,8 @@ export const defaultAnnotationModeText = {
         toggleClipping: "Clipping umschalten",
       },
       highlight: {
-        activate: "Highlight aktivieren",
-        deactivate: "Highlight deaktivieren",
+        activate: "Akzentuiert darstellen",
+        deactivate: "Realistisch darstellen",
       },
       clipping: {
         label: "Clipping",

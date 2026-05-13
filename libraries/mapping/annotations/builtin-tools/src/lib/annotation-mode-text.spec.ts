@@ -4,6 +4,15 @@ import {
 } from "./annotation-mode-text";
 
 describe("resolveAnnotationModeText", () => {
+  it("uses action-oriented labels for adhoc model highlight toggles", () => {
+    expect(
+      defaultAnnotationModeText.layerbar.adhocModel.highlight.activate
+    ).toBe("Akzentuiert darstellen");
+    expect(
+      defaultAnnotationModeText.layerbar.adhocModel.highlight.deactivate
+    ).toBe("Realistisch darstellen");
+  });
+
   it("deep-merges override text while preserving unspecified defaults", () => {
     const resolvedText = resolveAnnotationModeText({
       layerTitle: {

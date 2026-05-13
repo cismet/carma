@@ -10,44 +10,45 @@ import {
   type CustomShader,
   type Scene,
 } from "@carma-cesium";
+import { cloneColor } from "@carma-mapping/engines/cesium/core";
 
 import {
   modelShader,
   type ModelShaderEdgeMode,
-  type ModelShaderFlashStyle,
+  type ModelShaderFlashKind,
   type ModelShaderState,
 } from "../utils/modelShader";
 import { applyModelCustomShader, isModelPick } from "../utils/modelManager";
 
-export type ModelShaderSelectionActionOptions = {
-  flash?: ModelShaderFlashStyle;
+export type ModelShaderActionOptions = {
+  flash?: ModelShaderFlashKind;
 };
 
-export type ResolveModelShaderOptions = {
+export type ModelShaderHighlightResolveOptions = {
   color: Color;
   highlighted: boolean;
   key: string;
   opacity?: number;
 };
 
-export type ModelShaderFadeOptions = {
+export type ModelShaderFade = {
   durationMs?: number;
   easing?: EasingFunction;
 };
 
-export type ModelShaderEdgeOptions = {
+export type ModelShaderEdge = {
   color?: Color;
   mode?: ModelShaderEdgeMode;
   opacity?: number;
   widthPx?: number;
 };
 
-export type ModelShaderSelectionStyleOptions = {
-  edge?: ModelShaderEdgeOptions;
+export type ModelShaderSelectionStyle = {
+  edge?: ModelShaderEdge;
   fillColor?: Color;
 };
 
-export type ModelShaderFlashOptions = {
+export type ModelShaderFlash = {
   color?: Color;
   inDurationMs?: number;
   inEasing?: EasingFunction;
@@ -56,47 +57,47 @@ export type ModelShaderFlashOptions = {
   outEasing?: EasingFunction;
 };
 
-export type ModelShaderFlashOptionsByStyle = {
-  highlight?: ModelShaderFlashOptions;
-  selection?: ModelShaderFlashOptions;
+export type ModelShaderFlashOptions = {
+  highlight?: ModelShaderFlash;
+  selection?: ModelShaderFlash;
 };
 
-export type ModelShaderHoverOptions = {
+export type ModelShaderHover = {
   clearDelayMs?: number;
   enabled?: boolean;
-  fade?: ModelShaderFadeOptions;
+  fade?: ModelShaderFade;
 };
 
-export type ModelShaderSelectedFeatureOptions = {
+export type ModelShaderSelectedFeature = {
   flashKey?: string | null;
   flashVersion?: number;
   id?: string | null;
 };
 
-export type ModelShaderStyleOptions = {
+export type ModelShaderHighlightOptions = {
   activeKeys: readonly string[];
-  fade?: ModelShaderFadeOptions;
+  fade?: ModelShaderFade;
 };
 
-export type ModelShaderSamplingOptions = {
+export type ModelShaderSampling = {
   color?: Color;
   enabled?: boolean;
-  fade?: Pick<ModelShaderFadeOptions, "durationMs">;
+  fade?: Pick<ModelShaderFade, "durationMs">;
   getScene: () => Scene | null | undefined;
   opacity?: number;
 };
 
-export type ModelShaderSelectionOptions = {
+export type ModelShaderSelection = {
   enabled?: boolean;
-  fade?: ModelShaderFadeOptions;
-  flash?: ModelShaderFlashOptionsByStyle;
+  fade?: ModelShaderFade;
+  flash?: ModelShaderFlashOptions;
   getPrimitiveBySelectionId?: (selectedId: string) => Model | null;
-  hover?: ModelShaderHoverOptions;
-  selected?: ModelShaderSelectedFeatureOptions;
-  style?: ModelShaderSelectionStyleOptions;
+  hover?: ModelShaderHover;
+  selected?: ModelShaderSelectedFeature;
+  style?: ModelShaderSelectionStyle;
 };
 
-type ResolvedModelShaderFlashOptions = {
+type ResolvedFlash = {
   color: Color;
   inDurationMs: number;
   inEasing: EasingFunction;
@@ -105,10 +106,10 @@ type ResolvedModelShaderFlashOptions = {
   outEasing: EasingFunction;
 };
 
-type ModelShaderDefaultFlashOptions =
+type DefaultFlash =
   (typeof modelShader.defaults.selection.flash)[keyof typeof modelShader.defaults.selection.flash];
 
-type ModelShaderResolverState = {
+type HighlightState = {
   animationDurationMs: number;
   animationEasing: EasingFunction;
   animationStartTimestampMs: number | null;
@@ -121,7 +122,7 @@ type ModelShaderResolverState = {
   targetOpacity: number;
 };
 
-type ModelSamplingShaderState = {
+type SamplingState = {
   originalShader: CustomShader | undefined;
   opacity: number;
   shader: CustomShader;
@@ -130,9 +131,7 @@ type ModelSamplingShaderState = {
 
 const EMPTY_ACTIVE_KEYS: readonly string[] = [];
 const noop = () => undefined;
-const readNoPrimitive = () => null;
-
-const cloneColor = (color: Color) => Color.clone(color, new Color());
+const noPrimitive = () => null;
 
 const colorsEqual = (left: Color, right: Color) =>
   left.red === right.red &&
@@ -149,10 +148,10 @@ const normalizeSamplingFadeDuration = (
     ? fadeDurationMs
     : modelShader.defaults.sampling.fade.durationMs;
 
-const resolveFlashOptions = (
-  options: ModelShaderFlashOptions | undefined,
-  defaults: ModelShaderDefaultFlashOptions
-): ResolvedModelShaderFlashOptions => ({
+const resolveFlash = (
+  options: ModelShaderFlash | undefined,
+  defaults: DefaultFlash
+): ResolvedFlash => ({
   color: options?.color ?? defaults.color,
   inDurationMs: modelShader.normalizeFlashInDuration(
     options?.inDurationMs,
@@ -167,7 +166,7 @@ const resolveFlashOptions = (
   outEasing: options?.outEasing ?? defaults.outEasing,
 });
 
-const readFlashOpacity = (state: ModelShaderState, elapsedMs: number) => {
+const getFlashOpacity = (state: ModelShaderState, elapsedMs: number) => {
   const flashInDurationMs = state.flashInDurationMs;
   const flashOutDurationMs = state.flashOutDurationMs;
 
@@ -194,17 +193,19 @@ const readFlashOpacity = (state: ModelShaderState, elapsedMs: number) => {
   );
 };
 
-export type CesiumModelShaderController = {
+export type ModelShaderController = {
   applySelection: (
     primitive: Model,
-    options?: ModelShaderSelectionActionOptions
+    options?: ModelShaderActionOptions
   ) => void;
   applyHover: (primitive: Model | null) => void;
   clearSelection: () => void;
   clearRuntimeState: () => void;
   isHoveredPrimitive: (primitive: Model) => boolean;
   isSelectedPrimitive: (primitive: Model) => boolean;
-  resolveStyle: (options: ResolveModelShaderOptions) => CustomShader;
+  resolveHighlight: (
+    options: ModelShaderHighlightResolveOptions
+  ) => CustomShader;
   restorePrimitiveShader: (primitive: Model) => void;
   restoreShaders: () => void;
   setPrimitiveOriginalShaderIfManaged: (
@@ -220,21 +221,21 @@ export type CesiumModelShaderController = {
   ) => boolean;
 };
 
-export type UseCesiumModelShaderOptions = {
+export type CesiumModelShaderOptions = {
   enabled?: boolean;
+  highlight?: ModelShaderHighlightOptions;
   requestRender?: () => void;
-  sampling?: ModelShaderSamplingOptions;
-  selection?: ModelShaderSelectionOptions;
-  style?: ModelShaderStyleOptions;
+  sampling?: ModelShaderSampling;
+  selection?: ModelShaderSelection;
 };
 
 export const useCesiumModelShader = ({
   enabled = false,
+  highlight,
   requestRender = noop,
   sampling,
   selection,
-  style,
-}: UseCesiumModelShaderOptions): CesiumModelShaderController => {
+}: CesiumModelShaderOptions): ModelShaderController => {
   const selectionEnabled = Boolean(enabled || selection?.enabled);
   const selectionFade = selection?.fade;
   const flash = selection?.flash;
@@ -242,7 +243,7 @@ export const useCesiumModelShader = ({
   const selectionStyle = selection?.style;
   const selected = selection?.selected;
   const getPrimitiveBySelectionId =
-    selection?.getPrimitiveBySelectionId ?? readNoPrimitive;
+    selection?.getPrimitiveBySelectionId ?? noPrimitive;
   const fadeDurationMs = selectionFade?.durationMs;
   const fadeEasing = selectionFade?.easing;
   const fillColor = selectionStyle?.fillColor;
@@ -252,31 +253,17 @@ export const useCesiumModelShader = ({
   const edgeColor = selectionStyle?.edge?.color;
   const edgeOpacity = selectionStyle?.edge?.opacity;
   const edgeWidthPx = selectionStyle?.edge?.widthPx;
-  const highlightEdgeMode = selectionStyle?.edge?.mode;
-  const selectionFlashOptions = flash?.selection;
-  const highlightFlashOptions = flash?.highlight;
-  const selectionFlashColor = selectionFlashOptions?.color;
-  const selectionFlashInDurationMs = selectionFlashOptions?.inDurationMs;
-  const selectionFlashInEasing = selectionFlashOptions?.inEasing;
-  const selectionFlashOpacity = selectionFlashOptions?.opacity;
-  const selectionFlashOutDurationMs = selectionFlashOptions?.outDurationMs;
-  const selectionFlashOutEasing = selectionFlashOptions?.outEasing;
-  const highlightFlashColor = highlightFlashOptions?.color;
-  const highlightFlashInDurationMs = highlightFlashOptions?.inDurationMs;
-  const highlightFlashInEasing = highlightFlashOptions?.inEasing;
-  const highlightFlashOpacity = highlightFlashOptions?.opacity;
-  const highlightFlashOutDurationMs = highlightFlashOptions?.outDurationMs;
-  const highlightFlashOutEasing = highlightFlashOptions?.outEasing;
+  const edgeModeOption = selectionStyle?.edge?.mode;
+  const selectionFlash = flash?.selection;
+  const highlightFlash = flash?.highlight;
   const selectedFlashKey = selected?.flashKey;
   const selectedFlashVersion = selected?.flashVersion;
   const selectedId = selected?.id;
-  const selectedPrimitiveRef = useRef<Model | null>(null);
-  const hoveredPrimitiveRef = useRef<Model | null>(null);
+  const selectedModelRef = useRef<Model | null>(null);
+  const hoveredModelRef = useRef<Model | null>(null);
   const lastSelectedFlashSignatureRef = useRef<string | null>(null);
-  const shaderStateByPrimitiveRef = useRef<Map<Model, ModelShaderState>>(
-    new Map()
-  );
-  const animationFrameRef = useRef<number | null>(null);
+  const selectionStatesRef = useRef<Map<Model, ModelShaderState>>(new Map());
+  const selectionFrameRef = useRef<number | null>(null);
   const hoverClearTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
@@ -298,17 +285,11 @@ export const useCesiumModelShader = ({
   const fillColorRef = useRef<Color>(
     fillColor ?? modelShader.defaults.selection.color
   );
-  const selectionFlashOptionsRef = useRef<ResolvedModelShaderFlashOptions>(
-    resolveFlashOptions(
-      selectionFlashOptions,
-      modelShader.defaults.selection.flash.selection
-    )
+  const selectionFlashRef = useRef<ResolvedFlash>(
+    resolveFlash(selectionFlash, modelShader.defaults.selection.flash.selection)
   );
-  const highlightFlashOptionsRef = useRef<ResolvedModelShaderFlashOptions>(
-    resolveFlashOptions(
-      highlightFlashOptions,
-      modelShader.defaults.selection.flash.highlight
-    )
+  const highlightFlashRef = useRef<ResolvedFlash>(
+    resolveFlash(highlightFlash, modelShader.defaults.selection.flash.highlight)
   );
   const edgeColorRef = useRef<Color>(
     edgeColor ?? modelShader.defaults.selection.edge.color
@@ -320,21 +301,17 @@ export const useCesiumModelShader = ({
     modelShader.normalizeEdgeWidthPx(edgeWidthPx)
   );
   const edgeModeRef = useRef<ModelShaderEdgeMode>(
-    highlightEdgeMode ?? "silhouette"
+    edgeModeOption ?? "silhouette"
   );
-  const styleStateByKeyRef = useRef<Map<string, ModelShaderResolverState>>(
-    new Map()
-  );
-  const styleAnimationFrameRef = useRef<number | null>(null);
-  const sampledPrimitiveRef = useRef<Model | null>(null);
-  const samplingStateByPrimitiveRef = useRef<
-    Map<Model, ModelSamplingShaderState>
-  >(new Map());
-  const samplingAnimationFrameRef = useRef<number | null>(null);
-  const lastSamplingAnimationMsRef = useRef<number | null>(null);
-  const activeStyleKeys = style?.activeKeys ?? EMPTY_ACTIVE_KEYS;
-  const styleFadeDurationMs = style?.fade?.durationMs;
-  const styleFadeEasing = style?.fade?.easing;
+  const highlightStatesRef = useRef<Map<string, HighlightState>>(new Map());
+  const highlightFrameRef = useRef<number | null>(null);
+  const sampledModelRef = useRef<Model | null>(null);
+  const samplingStatesRef = useRef<Map<Model, SamplingState>>(new Map());
+  const samplingFrameRef = useRef<number | null>(null);
+  const lastSamplingFrameMsRef = useRef<number | null>(null);
+  const activeHighlightKeys = highlight?.activeKeys ?? EMPTY_ACTIVE_KEYS;
+  const highlightFadeDurationMs = highlight?.fade?.durationMs;
+  const highlightFadeEasing = highlight?.fade?.easing;
   const samplingColor = sampling?.color ?? modelShader.defaults.sampling.color;
   const samplingEnabled = Boolean(sampling?.enabled);
   const samplingFadeDurationMs = sampling?.fade?.durationMs;
@@ -375,34 +352,18 @@ export const useCesiumModelShader = ({
   }, [fillColor]);
 
   useEffect(() => {
-    selectionFlashOptionsRef.current = resolveFlashOptions(
-      selectionFlashOptions,
+    selectionFlashRef.current = resolveFlash(
+      selectionFlash,
       modelShader.defaults.selection.flash.selection
     );
-  }, [
-    selectionFlashColor,
-    selectionFlashInDurationMs,
-    selectionFlashInEasing,
-    selectionFlashOpacity,
-    selectionFlashOutDurationMs,
-    selectionFlashOutEasing,
-    selectionFlashOptions,
-  ]);
+  }, [selectionFlash]);
 
   useEffect(() => {
-    highlightFlashOptionsRef.current = resolveFlashOptions(
-      highlightFlashOptions,
+    highlightFlashRef.current = resolveFlash(
+      highlightFlash,
       modelShader.defaults.selection.flash.highlight
     );
-  }, [
-    highlightFlashColor,
-    highlightFlashInDurationMs,
-    highlightFlashInEasing,
-    highlightFlashOpacity,
-    highlightFlashOutDurationMs,
-    highlightFlashOutEasing,
-    highlightFlashOptions,
-  ]);
+  }, [highlightFlash]);
 
   useEffect(() => {
     edgeColorRef.current =
@@ -418,11 +379,11 @@ export const useCesiumModelShader = ({
   }, [edgeWidthPx]);
 
   useEffect(() => {
-    edgeModeRef.current = highlightEdgeMode ?? "silhouette";
-  }, [highlightEdgeMode]);
+    edgeModeRef.current = edgeModeOption ?? "silhouette";
+  }, [edgeModeOption]);
 
-  const setStyleUniforms = useCallback(
-    (state: ModelShaderResolverState, color: Color, opacity: number) => {
+  const setHighlightState = useCallback(
+    (state: HighlightState, color: Color, opacity: number) => {
       state.color = cloneColor(color);
       state.opacity = opacity;
       modelShader.setHighlightUniforms({
@@ -434,14 +395,14 @@ export const useCesiumModelShader = ({
     []
   );
 
-  const animateStyleShaders = useCallback(
+  const animateHighlightShaders = useCallback(
     (timestampMs: number) => {
-      styleAnimationFrameRef.current = null;
+      highlightFrameRef.current = null;
 
       let hasPendingAnimation = false;
       let hasUpdatedUniforms = false;
 
-      styleStateByKeyRef.current.forEach((state) => {
+      highlightStatesRef.current.forEach((state) => {
         if (state.animationStartTimestampMs === null) {
           state.animationStartTimestampMs = timestampMs;
         }
@@ -467,7 +428,7 @@ export const useCesiumModelShader = ({
           state.startOpacity +
           (state.targetOpacity - state.startOpacity) * easedProgress;
 
-        setStyleUniforms(state, nextColor, nextOpacity);
+        setHighlightState(state, nextColor, nextOpacity);
         hasUpdatedUniforms = true;
 
         if (linearProgress < 1) {
@@ -487,48 +448,49 @@ export const useCesiumModelShader = ({
       }
 
       if (hasPendingAnimation) {
-        styleAnimationFrameRef.current =
-          requestAnimationFrame(animateStyleShaders);
+        highlightFrameRef.current = requestAnimationFrame(
+          animateHighlightShaders
+        );
       }
     },
-    [requestRender, setStyleUniforms]
+    [requestRender, setHighlightState]
   );
 
-  const scheduleStyleAnimation = useCallback(() => {
-    if (styleAnimationFrameRef.current !== null) {
+  const scheduleHighlightAnimation = useCallback(() => {
+    if (highlightFrameRef.current !== null) {
       return;
     }
-    styleAnimationFrameRef.current = requestAnimationFrame(animateStyleShaders);
-  }, [animateStyleShaders]);
+    highlightFrameRef.current = requestAnimationFrame(animateHighlightShaders);
+  }, [animateHighlightShaders]);
 
   useEffect(() => {
-    const activeKeySet = new Set(activeStyleKeys);
-    styleStateByKeyRef.current.forEach((_state, key) => {
+    const activeKeySet = new Set(activeHighlightKeys);
+    highlightStatesRef.current.forEach((_state, key) => {
       if (!activeKeySet.has(key)) {
-        styleStateByKeyRef.current.delete(key);
+        highlightStatesRef.current.delete(key);
       }
     });
-  }, [activeStyleKeys]);
+  }, [activeHighlightKeys]);
 
   useEffect(
     () => () => {
-      if (styleAnimationFrameRef.current !== null) {
-        cancelAnimationFrame(styleAnimationFrameRef.current);
-        styleAnimationFrameRef.current = null;
+      if (highlightFrameRef.current !== null) {
+        cancelAnimationFrame(highlightFrameRef.current);
+        highlightFrameRef.current = null;
       }
     },
     []
   );
 
-  const resolveStyle = useCallback(
+  const resolveHighlight = useCallback(
     ({
       color,
       highlighted,
       key,
       opacity = modelShader.defaults.selection.opacity,
-    }: ResolveModelShaderOptions): CustomShader => {
-      const shaderStateByKey = styleStateByKeyRef.current;
-      let state = shaderStateByKey.get(key);
+    }: ModelShaderHighlightResolveOptions): CustomShader => {
+      const states = highlightStatesRef.current;
+      let state = states.get(key);
       if (!state) {
         const shader = modelShader.create({
           color,
@@ -537,7 +499,7 @@ export const useCesiumModelShader = ({
         state = {
           animationDurationMs: 0,
           animationEasing:
-            styleFadeEasing ?? modelShader.defaults.selection.fade.easing,
+            highlightFadeEasing ?? modelShader.defaults.selection.fade.easing,
           animationStartTimestampMs: null,
           color: cloneColor(color),
           opacity: 0,
@@ -547,7 +509,7 @@ export const useCesiumModelShader = ({
           targetColor: cloneColor(color),
           targetOpacity: 0,
         };
-        shaderStateByKey.set(key, state);
+        states.set(key, state);
       }
 
       const targetOpacity = highlighted
@@ -556,8 +518,9 @@ export const useCesiumModelShader = ({
             modelShader.defaults.selection.opacity
           )
         : 0;
-      const normalizedDurationMs =
-        modelShader.normalizeFadeDuration(styleFadeDurationMs);
+      const normalizedDurationMs = modelShader.normalizeFadeDuration(
+        highlightFadeDurationMs
+      );
       const targetColorChanged = !colorsEqual(state.targetColor, color);
       const targetOpacityChanged = state.targetOpacity !== targetOpacity;
 
@@ -568,14 +531,14 @@ export const useCesiumModelShader = ({
         state.targetOpacity = targetOpacity;
         state.animationDurationMs = normalizedDurationMs;
         state.animationEasing =
-          styleFadeEasing ?? modelShader.defaults.selection.fade.easing;
+          highlightFadeEasing ?? modelShader.defaults.selection.fade.easing;
         state.animationStartTimestampMs = null;
-        scheduleStyleAnimation();
+        scheduleHighlightAnimation();
       }
 
       return state.shader;
     },
-    [scheduleStyleAnimation, styleFadeDurationMs, styleFadeEasing]
+    [scheduleHighlightAnimation, highlightFadeDurationMs, highlightFadeEasing]
   );
 
   const readSelectionOutlineOptions = useCallback(
@@ -609,25 +572,24 @@ export const useCesiumModelShader = ({
     []
   );
 
-  const readFlashOptions = useCallback(
-    (style: ModelShaderFlashStyle) =>
-      style === "highlightFlash"
-        ? highlightFlashOptionsRef.current
-        : selectionFlashOptionsRef.current,
+  const readFlash = useCallback(
+    (flashKind: ModelShaderFlashKind) =>
+      flashKind === "highlightFlash"
+        ? highlightFlashRef.current
+        : selectionFlashRef.current,
     []
   );
 
   const startFlash = useCallback(
-    (state: ModelShaderState, style: ModelShaderFlashStyle) => {
-      const flashOptions = readFlashOptions(style);
-      state.flashColor = cloneColor(flashOptions.color);
-      state.flashInDurationMs = flashOptions.inDurationMs;
-      state.flashInEasing = flashOptions.inEasing;
-      state.flashOpacity = flashOptions.opacity;
-      state.flashOutDurationMs = flashOptions.outDurationMs;
-      state.flashOutEasing = flashOptions.outEasing;
+    (state: ModelShaderState, flashKind: ModelShaderFlashKind) => {
+      const flashConfig = readFlash(flashKind);
+      state.flashColor = cloneColor(flashConfig.color);
+      state.flashInDurationMs = flashConfig.inDurationMs;
+      state.flashInEasing = flashConfig.inEasing;
+      state.flashOpacity = flashConfig.opacity;
+      state.flashOutDurationMs = flashConfig.outDurationMs;
+      state.flashOutEasing = flashConfig.outEasing;
       state.flashStartTimestampMs = null;
-      state.flashStyle = style;
       state.isFlashActive = true;
       setFlashUniforms(
         state,
@@ -635,13 +597,12 @@ export const useCesiumModelShader = ({
         state.flashInDurationMs === 0 ? state.flashOpacity : 0
       );
     },
-    [readFlashOptions, setFlashUniforms]
+    [readFlash, setFlashUniforms]
   );
 
   const clearFlash = useCallback(
     (state: ModelShaderState) => {
       state.flashStartTimestampMs = null;
-      state.flashStyle = null;
       state.isFlashActive = false;
       setFlashUniforms(state, state.flashColor, 0);
     },
@@ -689,11 +650,11 @@ export const useCesiumModelShader = ({
   );
 
   useEffect(() => {
-    if (shaderStateByPrimitiveRef.current.size === 0) {
+    if (selectionStatesRef.current.size === 0) {
       return;
     }
 
-    shaderStateByPrimitiveRef.current.forEach((state, primitive) => {
+    selectionStatesRef.current.forEach((state, primitive) => {
       setSelectionUniforms(state, fillColorRef.current, state.opacity);
       if (!state.isFlashActive) {
         setFlashUniforms(state, state.flashColor, 0);
@@ -707,55 +668,44 @@ export const useCesiumModelShader = ({
     edgeOpacity,
     edgeWidthPx,
     fillColor,
-    highlightFlashColor,
-    highlightFlashInDurationMs,
-    highlightFlashInEasing,
-    highlightFlashOpacity,
-    highlightFlashOutDurationMs,
-    highlightFlashOutEasing,
-    highlightEdgeMode,
+    highlightFlash,
+    edgeModeOption,
     requestRender,
-    selectionFlashColor,
-    selectionFlashInDurationMs,
-    selectionFlashInEasing,
-    selectionFlashOpacity,
-    selectionFlashOutDurationMs,
-    selectionFlashOutEasing,
+    selectionFlash,
     setFlashUniforms,
     setSelectionUniforms,
   ]);
 
   const readOrCreateShaderState = useCallback(
     (primitive: Model): ModelShaderState => {
-      const existing = shaderStateByPrimitiveRef.current.get(primitive);
+      const existing = selectionStatesRef.current.get(primitive);
       if (existing) {
         return existing;
       }
 
       const originalShader = primitive.customShader ?? undefined;
-      const usesIntegratedShader = modelShader.is(originalShader);
-      const originalHighlightUniforms =
+      const usesModelShader = modelShader.is(originalShader);
+      const originalSelectionUniforms =
         modelShader.readSelectionUniforms(originalShader);
-      const flashOptions = selectionFlashOptionsRef.current;
+      const initialFlash = selectionFlashRef.current;
 
       const state: ModelShaderState = {
         animationDurationMs: fadeDurationMsRef.current,
         animationEasing: fadeEasingRef.current,
         animationStartOpacity: 0,
         animationStartTimestampMs: null,
-        flashColor: cloneColor(flashOptions.color),
-        flashInDurationMs: flashOptions.inDurationMs,
-        flashInEasing: flashOptions.inEasing,
-        flashOpacity: flashOptions.opacity,
-        flashOutDurationMs: flashOptions.outDurationMs,
-        flashOutEasing: flashOptions.outEasing,
+        flashColor: cloneColor(initialFlash.color),
+        flashInDurationMs: initialFlash.inDurationMs,
+        flashInEasing: initialFlash.inEasing,
+        flashOpacity: initialFlash.opacity,
+        flashOutDurationMs: initialFlash.outDurationMs,
+        flashOutEasing: initialFlash.outEasing,
         flashStartTimestampMs: null,
-        flashStyle: null,
         isFlashActive: false,
-        ...(originalHighlightUniforms
+        ...(originalSelectionUniforms
           ? {
-              originalHighlightColor: originalHighlightUniforms.color,
-              originalHighlightOpacity: originalHighlightUniforms.opacity,
+              originalSelectionColor: originalSelectionUniforms.color,
+              originalSelectionOpacity: originalSelectionUniforms.opacity,
             }
           : {}),
         originalOutlineColor: Color.clone(primitive.outlineColor, new Color()),
@@ -768,16 +718,16 @@ export const useCesiumModelShader = ({
         originalSilhouetteSize: primitive.silhouetteSize,
         opacity: 0,
         shader:
-          usesIntegratedShader && originalShader
+          usesModelShader && originalShader
             ? originalShader
             : modelShader.create({
                 color: fillColorRef.current,
                 opacity: 0,
               }),
         targetOpacity: 0,
-        usesIntegratedShader,
+        usesModelShader,
       };
-      shaderStateByPrimitiveRef.current.set(primitive, state);
+      selectionStatesRef.current.set(primitive, state);
       return state;
     },
     []
@@ -785,14 +735,14 @@ export const useCesiumModelShader = ({
 
   const restorePrimitiveShader = useCallback(
     (primitive: Model) => {
-      const state = shaderStateByPrimitiveRef.current.get(primitive);
+      const state = selectionStatesRef.current.get(primitive);
       if (state && !primitive.isDestroyed()) {
         clearFlash(state);
-        if (state.usesIntegratedShader) {
+        if (state.usesModelShader) {
           setSelectionUniforms(
             state,
-            state.originalHighlightColor ?? fillColorRef.current,
-            state.originalHighlightOpacity ?? 0
+            state.originalSelectionColor ?? fillColorRef.current,
+            state.originalSelectionOpacity ?? 0
           );
           if (
             state.originalShader !== state.shader &&
@@ -823,12 +773,12 @@ export const useCesiumModelShader = ({
         primitive.showOutline = state.originalShowOutline;
         requestRender();
       }
-      shaderStateByPrimitiveRef.current.delete(primitive);
-      if (selectedPrimitiveRef.current === primitive) {
-        selectedPrimitiveRef.current = null;
+      selectionStatesRef.current.delete(primitive);
+      if (selectedModelRef.current === primitive) {
+        selectedModelRef.current = null;
       }
-      if (hoveredPrimitiveRef.current === primitive) {
-        hoveredPrimitiveRef.current = null;
+      if (hoveredModelRef.current === primitive) {
+        hoveredModelRef.current = null;
       }
     },
     [clearFlash, requestRender, setSelectionUniforms]
@@ -840,26 +790,26 @@ export const useCesiumModelShader = ({
       hoverClearTimeoutRef.current = null;
     }
 
-    if (animationFrameRef.current !== null) {
-      cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = null;
+    if (selectionFrameRef.current !== null) {
+      cancelAnimationFrame(selectionFrameRef.current);
+      selectionFrameRef.current = null;
     }
 
-    selectedPrimitiveRef.current = null;
-    hoveredPrimitiveRef.current = null;
-    Array.from(shaderStateByPrimitiveRef.current.keys()).forEach(
+    selectedModelRef.current = null;
+    hoveredModelRef.current = null;
+    Array.from(selectionStatesRef.current.keys()).forEach(
       restorePrimitiveShader
     );
   }, [restorePrimitiveShader]);
 
   const animateShaders = useCallback(
     (timestampMs: number) => {
-      animationFrameRef.current = null;
+      selectionFrameRef.current = null;
       let hasPendingAnimation = false;
 
-      shaderStateByPrimitiveRef.current.forEach((state, primitive) => {
+      selectionStatesRef.current.forEach((state, primitive) => {
         if (primitive.isDestroyed()) {
-          shaderStateByPrimitiveRef.current.delete(primitive);
+          selectionStatesRef.current.delete(primitive);
           return;
         }
 
@@ -895,7 +845,7 @@ export const useCesiumModelShader = ({
             timestampMs - state.flashStartTimestampMs,
             0
           );
-          const flashOpacity = readFlashOpacity(state, elapsedMs);
+          const flashOpacity = getFlashOpacity(state, elapsedMs);
           setFlashUniforms(state, state.flashColor, flashOpacity);
 
           if (elapsedMs < state.flashInDurationMs + state.flashOutDurationMs) {
@@ -925,7 +875,7 @@ export const useCesiumModelShader = ({
       });
 
       if (hasPendingAnimation) {
-        animationFrameRef.current = requestAnimationFrame(animateShaders);
+        selectionFrameRef.current = requestAnimationFrame(animateShaders);
       }
     },
     [
@@ -939,10 +889,10 @@ export const useCesiumModelShader = ({
   );
 
   const scheduleShaderAnimation = useCallback(() => {
-    if (animationFrameRef.current !== null) {
+    if (selectionFrameRef.current !== null) {
       return;
     }
-    animationFrameRef.current = requestAnimationFrame(animateShaders);
+    selectionFrameRef.current = requestAnimationFrame(animateShaders);
   }, [animateShaders]);
 
   const setSelectionTarget = useCallback(
@@ -952,7 +902,7 @@ export const useCesiumModelShader = ({
       options: {
         durationMs?: number;
         easing?: EasingFunction;
-        flash?: ModelShaderFlashStyle;
+        flash?: ModelShaderFlashKind;
       } = {}
     ) => {
       if (primitive.isDestroyed()) {
@@ -1021,9 +971,9 @@ export const useCesiumModelShader = ({
         return;
       }
       const isActive =
-        selectedPrimitiveRef.current === primitive ||
-        hoveredPrimitiveRef.current === primitive;
-      const state = shaderStateByPrimitiveRef.current.get(primitive);
+        selectedModelRef.current === primitive ||
+        hoveredModelRef.current === primitive;
+      const state = selectionStatesRef.current.get(primitive);
 
       if (!isActive && !state) {
         return;
@@ -1047,22 +997,19 @@ export const useCesiumModelShader = ({
   );
 
   const clearSelection = useCallback(() => {
-    const current = selectedPrimitiveRef.current;
+    const current = selectedModelRef.current;
     if (!current || current.isDestroyed()) {
-      selectedPrimitiveRef.current = null;
+      selectedModelRef.current = null;
       return;
     }
-    selectedPrimitiveRef.current = null;
+    selectedModelRef.current = null;
     refreshSelectionTarget(current);
   }, [refreshSelectionTarget]);
 
   const applySelection = useCallback(
-    (
-      primitive: Model,
-      options: ModelShaderSelectionActionOptions = {}
-    ): void => {
+    (primitive: Model, options: ModelShaderActionOptions = {}): void => {
       if (primitive.isDestroyed()) return;
-      selectedPrimitiveRef.current = primitive;
+      selectedModelRef.current = primitive;
       setSelectionTarget(
         primitive,
         modelShader.defaults.selection.opacity,
@@ -1094,7 +1041,7 @@ export const useCesiumModelShader = ({
     }
 
     lastSelectedFlashSignatureRef.current = selectedFlashSignature;
-    if (selectedPrimitiveRef.current !== primitive) {
+    if (selectedModelRef.current !== primitive) {
       applySelection(primitive);
     }
     applySelection(primitive, { flash: "highlightFlash" });
@@ -1115,26 +1062,26 @@ export const useCesiumModelShader = ({
       }
 
       if (!primitive) {
-        const current = hoveredPrimitiveRef.current;
+        const current = hoveredModelRef.current;
         if (!current) {
           return;
         }
 
         hoverClearTimeoutRef.current = setTimeout(() => {
           hoverClearTimeoutRef.current = null;
-          const hovered = hoveredPrimitiveRef.current;
-          hoveredPrimitiveRef.current = null;
+          const hovered = hoveredModelRef.current;
+          hoveredModelRef.current = null;
           refreshSelectionTarget(hovered, "hover");
         }, hoverClearDelayMsRef.current);
         return;
       }
 
-      const current = hoveredPrimitiveRef.current;
+      const current = hoveredModelRef.current;
       if (current === primitive) {
         return;
       }
 
-      hoveredPrimitiveRef.current = primitive;
+      hoveredModelRef.current = primitive;
       refreshSelectionTarget(current, "hover");
       refreshSelectionTarget(primitive, "hover");
     },
@@ -1142,18 +1089,18 @@ export const useCesiumModelShader = ({
   );
 
   const isSelectedPrimitive = useCallback(
-    (primitive: Model) => selectedPrimitiveRef.current === primitive,
+    (primitive: Model) => selectedModelRef.current === primitive,
     []
   );
 
   const isHoveredPrimitive = useCallback(
-    (primitive: Model) => hoveredPrimitiveRef.current === primitive,
+    (primitive: Model) => hoveredModelRef.current === primitive,
     []
   );
 
   const setPrimitiveOriginalShaderIfManaged = useCallback(
     (primitive: Model, shader: CustomShader | undefined) => {
-      const state = shaderStateByPrimitiveRef.current.get(primitive);
+      const state = selectionStatesRef.current.get(primitive);
       if (!state) {
         return false;
       }
@@ -1171,7 +1118,7 @@ export const useCesiumModelShader = ({
         silhouetteSize: number;
       }
     ) => {
-      const state = shaderStateByPrimitiveRef.current.get(primitive);
+      const state = selectionStatesRef.current.get(primitive);
       if (!state) {
         return false;
       }
@@ -1192,48 +1139,48 @@ export const useCesiumModelShader = ({
       clearTimeout(hoverClearTimeoutRef.current);
       hoverClearTimeoutRef.current = null;
     }
-    if (animationFrameRef.current !== null) {
-      cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = null;
+    if (selectionFrameRef.current !== null) {
+      cancelAnimationFrame(selectionFrameRef.current);
+      selectionFrameRef.current = null;
     }
-    selectedPrimitiveRef.current = null;
-    hoveredPrimitiveRef.current = null;
-    shaderStateByPrimitiveRef.current.clear();
+    selectedModelRef.current = null;
+    hoveredModelRef.current = null;
+    selectionStatesRef.current.clear();
   }, []);
 
   const restoreSamplingShader = useCallback(
-    (primitive: Model, state: ModelSamplingShaderState) => {
+    (primitive: Model, state: SamplingState) => {
       if (!primitive.isDestroyed() && primitive.customShader === state.shader) {
         primitive.customShader = state.originalShader;
       }
-      samplingStateByPrimitiveRef.current.delete(primitive);
-      if (sampledPrimitiveRef.current === primitive) {
-        sampledPrimitiveRef.current = null;
+      samplingStatesRef.current.delete(primitive);
+      if (sampledModelRef.current === primitive) {
+        sampledModelRef.current = null;
       }
     },
     []
   );
 
   const cancelSamplingAnimation = useCallback(() => {
-    if (samplingAnimationFrameRef.current !== null) {
-      cancelAnimationFrame(samplingAnimationFrameRef.current);
-      samplingAnimationFrameRef.current = null;
+    if (samplingFrameRef.current !== null) {
+      cancelAnimationFrame(samplingFrameRef.current);
+      samplingFrameRef.current = null;
     }
-    lastSamplingAnimationMsRef.current = null;
+    lastSamplingFrameMsRef.current = null;
   }, []);
 
   const restoreSamplingShaders = useCallback(() => {
     cancelSamplingAnimation();
-    samplingStateByPrimitiveRef.current.forEach((state, primitive) => {
+    samplingStatesRef.current.forEach((state, primitive) => {
       restoreSamplingShader(primitive, state);
     });
-    samplingStateByPrimitiveRef.current.clear();
-    sampledPrimitiveRef.current = null;
+    samplingStatesRef.current.clear();
+    sampledModelRef.current = null;
   }, [cancelSamplingAnimation, restoreSamplingShader]);
 
   const readOrCreateSamplingState = useCallback(
-    (primitive: Model): ModelSamplingShaderState => {
-      const existing = samplingStateByPrimitiveRef.current.get(primitive);
+    (primitive: Model): SamplingState => {
+      const existing = samplingStatesRef.current.get(primitive);
       if (existing) {
         return existing;
       }
@@ -1244,7 +1191,7 @@ export const useCesiumModelShader = ({
         shader: modelShader.createSampling(),
         targetOpacity: 0,
       };
-      samplingStateByPrimitiveRef.current.set(primitive, state);
+      samplingStatesRef.current.set(primitive, state);
       primitive.customShader = state.shader;
       modelShader.setSamplingUniforms({
         color: samplingColor,
@@ -1258,10 +1205,10 @@ export const useCesiumModelShader = ({
 
   const animateSamplingShader = useCallback(
     (timestampMs: number) => {
-      samplingAnimationFrameRef.current = null;
+      samplingFrameRef.current = null;
 
-      const previousTimestampMs = lastSamplingAnimationMsRef.current;
-      lastSamplingAnimationMsRef.current = timestampMs;
+      const previousTimestampMs = lastSamplingFrameMsRef.current;
+      lastSamplingFrameMsRef.current = timestampMs;
 
       const elapsedMs =
         previousTimestampMs === null
@@ -1277,9 +1224,9 @@ export const useCesiumModelShader = ({
             modelShader.clampOpacity(samplingOpacity);
       let hasPendingAnimation = false;
 
-      samplingStateByPrimitiveRef.current.forEach((state, primitive) => {
+      samplingStatesRef.current.forEach((state, primitive) => {
         if (primitive.isDestroyed()) {
-          samplingStateByPrimitiveRef.current.delete(primitive);
+          samplingStatesRef.current.delete(primitive);
           return;
         }
 
@@ -1314,13 +1261,11 @@ export const useCesiumModelShader = ({
       }
 
       if (hasPendingAnimation) {
-        samplingAnimationFrameRef.current = requestAnimationFrame(
-          animateSamplingShader
-        );
+        samplingFrameRef.current = requestAnimationFrame(animateSamplingShader);
         return;
       }
 
-      lastSamplingAnimationMsRef.current = null;
+      lastSamplingFrameMsRef.current = null;
     },
     [
       restoreSamplingShader,
@@ -1332,27 +1277,25 @@ export const useCesiumModelShader = ({
   );
 
   const scheduleSamplingAnimation = useCallback(() => {
-    if (samplingAnimationFrameRef.current !== null) {
+    if (samplingFrameRef.current !== null) {
       return;
     }
-    lastSamplingAnimationMsRef.current = null;
-    samplingAnimationFrameRef.current = requestAnimationFrame(
-      animateSamplingShader
-    );
+    lastSamplingFrameMsRef.current = null;
+    samplingFrameRef.current = requestAnimationFrame(animateSamplingShader);
   }, [animateSamplingShader]);
 
   const applySamplingShader = useCallback(
     (primitive: Model | null) => {
       const targetOpacity = modelShader.clampOpacity(samplingOpacity);
-      const current = sampledPrimitiveRef.current;
+      const current = sampledModelRef.current;
       if (current && current !== primitive && !current.isDestroyed()) {
-        const currentState = samplingStateByPrimitiveRef.current.get(current);
+        const currentState = samplingStatesRef.current.get(current);
         if (currentState) {
           currentState.targetOpacity = 0;
         }
       }
 
-      sampledPrimitiveRef.current = primitive;
+      sampledModelRef.current = primitive;
 
       if (!primitive || primitive.isDestroyed()) {
         scheduleSamplingAnimation();
@@ -1434,7 +1377,7 @@ export const useCesiumModelShader = ({
 
     const nextSelectedId = selectedId ?? null;
     if (!nextSelectedId) {
-      if (selectedPrimitiveRef.current) {
+      if (selectedModelRef.current) {
         clearSelection();
       }
       return;
@@ -1442,13 +1385,13 @@ export const useCesiumModelShader = ({
 
     const matchingPrimitive = getPrimitiveBySelectionId(nextSelectedId);
     if (!matchingPrimitive) {
-      if (selectedPrimitiveRef.current) {
+      if (selectedModelRef.current) {
         clearSelection();
       }
       return;
     }
 
-    if (selectedPrimitiveRef.current === matchingPrimitive) return;
+    if (selectedModelRef.current === matchingPrimitive) return;
 
     clearSelection();
     applySelection(matchingPrimitive);
@@ -1468,7 +1411,7 @@ export const useCesiumModelShader = ({
     clearRuntimeState,
     isHoveredPrimitive,
     isSelectedPrimitive,
-    resolveStyle,
+    resolveHighlight,
     restorePrimitiveShader,
     restoreShaders,
     setPrimitiveOriginalPresentationIfManaged,
