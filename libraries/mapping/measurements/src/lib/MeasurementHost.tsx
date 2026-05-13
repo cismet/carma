@@ -34,6 +34,18 @@ const SNAP_RADIUS_LAYER_ID = "carma-measurements-snap-radius-circle";
 const EMPTY_FC = { type: "FeatureCollection" as const, features: [] };
 const EMPTY_OPTED_IN: ReadonlySet<string> = new Set();
 
+// terra-draw's select mode injects internal helper Point features into its
+// store so it can render draggable vertex/midpoint handles. They live in the
+// same snapshot as real user features and are flagged with
+// `properties.selectionPoint` (vertex grab) or `properties.midPoint`
+// (midpoint grab). Consumers that route the snapshot into app state (sidebar
+// listing, persistence, etc.) must not see them — otherwise a freshly
+// selected 2-vertex line spawns 3 phantom "Punkt" rows.
+const isUserFeature = (feature: Feature): boolean => {
+  const props = (feature.properties ?? {}) as Record<string, unknown>;
+  return !props.selectionPoint && !props.midPoint;
+};
+
 type TerraDrawMode =
   | "select"
   | "point"
@@ -115,6 +127,14 @@ export interface MeasurementHostHandle {
   /** Remove a measurement by its terra-draw feature id (the raw UUID — do
    *  not pass any namespacing prefix the host applies in its own store). */
   deleteFeature: (id: string) => void;
+  /** Programmatically put a measurement into terra-draw's select mode so its
+   *  halo + vertex handles paint on the map. Idempotent: no-op if the id is
+   *  already selected. Does NOT fire `onSelectionChange` (avoids redux →
+   *  draw → redux echo when the host mirrors selection in both directions). */
+  selectFeature: (id: string) => void;
+  /** Clear terra-draw's selection (drops the halo). Idempotent. Does NOT
+   *  fire `onSelectionChange` (same echo-avoidance as `selectFeature`). */
+  deselectAll: () => void;
 }
 
 // Side-effect-only component. Lives as a sibling of <CarmaMap> inside the
@@ -181,6 +201,14 @@ export const MeasurementHost = forwardRef<
   // AND something selected" — vertex drags benefit from the dot just as
   // much as new-line drawing does.
   const hasSelectionRef = useRef(false);
+  // Mirrors terra-draw's currently-selected feature id so the imperative
+  // `deselectAll` can call `deselectFeature(id)` (terra-draw has no
+  // deselectAll API). Updated from the `select`/`deselect` listeners.
+  const selectedIdRef = useRef<string | null>(null);
+  // When true, the `select` / `deselect` listeners skip the consumer
+  // callback. Set during imperative `selectFeature`/`deselectAll` so a
+  // redux → draw sync doesn't bounce back as draw → redux.
+  const suppressSelectionCallbackRef = useRef(false);
   // The most recently computed snap target (or null when nothing is in
   // range). Mirrors what the preview dot shows; read at finish-time to
   // post-hoc snap a freshly-created point. Necessary because
@@ -420,7 +448,7 @@ export const MeasurementHost = forwardRef<
       const cb = onChangeRef.current;
       if (!cb) return;
       try {
-        cb(draw.getSnapshot() as Feature[]);
+        cb((draw.getSnapshot() as Feature[]).filter(isUserFeature));
       } catch (e) {
         console.warn("[carma-measurements] onChange callback failed", e);
       }
@@ -648,11 +676,17 @@ export const MeasurementHost = forwardRef<
       // from the dot too, not just new-line drawing.
       draw.on("select", (id) => {
         hasSelectionRef.current = true;
-        onSelectionChangeRef.current?.(id != null ? String(id) : null);
+        selectedIdRef.current = id != null ? String(id) : null;
+        if (!suppressSelectionCallbackRef.current) {
+          onSelectionChangeRef.current?.(id != null ? String(id) : null);
+        }
       });
       draw.on("deselect", () => {
         hasSelectionRef.current = false;
-        onSelectionChangeRef.current?.(null);
+        selectedIdRef.current = null;
+        if (!suppressSelectionCallbackRef.current) {
+          onSelectionChangeRef.current?.(null);
+        }
         // No selection means no expected vertex drag in the immediate
         // future; clear any stale preview so it doesn't hang at the last
         // hovered position. ("select" and "none" share the same gate —
@@ -994,7 +1028,9 @@ export const MeasurementHost = forwardRef<
           // Push the post-delete snapshot to the consumer here so redux /
           // sidebar / any selection cleanup downstream sees the removal.
           try {
-            onChangeRef.current?.(draw.getSnapshot() as Feature[]);
+            onChangeRef.current?.(
+              (draw.getSnapshot() as Feature[]).filter(isUserFeature)
+            );
           } catch (e) {
             console.warn(
               "[carma-measurements] onChange after delete failed",
@@ -1007,6 +1043,50 @@ export const MeasurementHost = forwardRef<
             id,
             e
           );
+        }
+      },
+      selectFeature: (id: string) => {
+        const draw = drawRef.current;
+        if (!draw) return;
+        if (selectedIdRef.current === id) return; // idempotent
+        suppressSelectionCallbackRef.current = true;
+        try {
+          // If a different feature is currently selected, deselect it
+          // first — terra-draw's selectFeature does not auto-replace.
+          if (selectedIdRef.current && selectedIdRef.current !== id) {
+            try {
+              draw.deselectFeature(selectedIdRef.current);
+            } catch {
+              // ignore — stale id or already gone
+            }
+          }
+          draw.selectFeature(id);
+        } catch (e) {
+          console.warn(
+            "[carma-measurements] selectFeature failed for id",
+            id,
+            e
+          );
+        } finally {
+          suppressSelectionCallbackRef.current = false;
+        }
+      },
+      deselectAll: () => {
+        const draw = drawRef.current;
+        if (!draw) return;
+        const current = selectedIdRef.current;
+        if (!current) return; // idempotent
+        suppressSelectionCallbackRef.current = true;
+        try {
+          draw.deselectFeature(current);
+        } catch (e) {
+          console.warn(
+            "[carma-measurements] deselectAll failed for id",
+            current,
+            e
+          );
+        } finally {
+          suppressSelectionCallbackRef.current = false;
         }
       },
     }),
