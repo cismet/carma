@@ -190,7 +190,36 @@ const ResourceModal = () => {
           },
         ].filter(Boolean)}
         updateActiveLayer={(layer) => {
+          const prevStyle = activeLayers.find((l) => l.id === layer.id)?.props
+            ?.style;
           dispatch(updateLayer(layer));
+
+          if (
+            layer.layerType === "vector" &&
+            layer.props?.style &&
+            layer.props.style !== prevStyle
+          ) {
+            const entry = store
+              .getState()
+              .mapping.maplibreMaps.find((e) => e.id === layer.id);
+            if (entry?.map) {
+              const raw = layer.props.style;
+              let updatedStyle = raw;
+              if (typeof raw === "string" && raw.trim().startsWith("{")) {
+                try {
+                  updatedStyle = JSON.parse(raw);
+                } catch (err) {
+                  console.error("parse failed", err);
+                  return;
+                }
+              }
+              try {
+                entry.map.setStyle(updatedStyle);
+              } catch (err) {
+                console.error("setStyle failed", err);
+              }
+            }
+          }
         }}
         removeLastLayer={() => {
           dispatch(removeLastLayer());
