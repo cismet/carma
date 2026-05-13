@@ -207,6 +207,9 @@ export interface BelisSidebarProps {
   auswahlActiveSourceLayers?: Set<string>;
   /** Namespaced MVT source for querying features (needed by AuswahlBlock). */
   namespacedSource?: string;
+  /** Brandnew GeoJSON source — passed through to AuswahlBlock so newly-created
+   *  Standorte/Leuchten resolve their siblings. */
+  brandnewSource?: string;
   /** Current adjusted highlights list (needed by AuswahlBlock). */
   adjustedHighlights?: SidebarFeature[] | null;
   /** Setter for adjusted highlights (needed by AuswahlBlock). */
@@ -245,6 +248,7 @@ const BelisSidebar = ({
   listItemExtractors,
   auswahlActiveSourceLayers,
   namespacedSource,
+  brandnewSource,
   adjustedHighlights,
   setAdjustedHighlights,
   measurements,
@@ -704,9 +708,10 @@ const BelisSidebar = ({
           <FontAwesomeIcon icon={faSpinner} spin className="text-gray-400" />
         )}
       </div>
-      {namespacedSource && setAdjustedHighlights && (
+      {namespacedSource && setAdjustedHighlights && sidebarMode !== "drafts" && (
         <AuswahlBlock
           namespacedSource={namespacedSource}
+          brandnewSource={brandnewSource}
           adjustedHighlights={adjustedHighlights ?? null}
           setAdjustedHighlights={setAdjustedHighlights}
           getListItem={getListItem}

@@ -11,6 +11,9 @@ import { buildFeatureKey } from "../../helper/featureKeys";
 
 export interface AuswahlBlockProps {
   namespacedSource: string;
+  /** Optional brandnew GeoJSON source — queried alongside `namespacedSource`
+   *  so newly-created Standorte/Leuchten resolve their siblings. */
+  brandnewSource?: string;
   adjustedHighlights: SidebarFeature[] | null;
   setAdjustedHighlights: React.Dispatch<
     React.SetStateAction<SidebarFeature[] | null>
@@ -43,6 +46,7 @@ const toSidebarFeature = (
 
 const AuswahlBlock = ({
   namespacedSource,
+  brandnewSource,
   adjustedHighlights,
   setAdjustedHighlights,
   getListItem,
@@ -122,17 +126,27 @@ const AuswahlBlock = ({
       return;
     }
 
+    // Brandnew features live in a separate GeoJSON source; query both so
+    // newly-created Standorte/Leuchten resolve their siblings the same as
+    // regular MVT-backed features.
+    const sourcesToQuery =
+      brandnewSource && brandnewSource !== namespacedSource
+        ? [namespacedSource, brandnewSource]
+        : [namespacedSource];
+
     // Query all Leuchten for a given Standort DB id, deduplicated and sorted
     const queryLeuchtenByStandort = (standortDbId: string): SidebarFeature[] => {
-      const allLeuchten = map.querySourceFeatures(namespacedSource, {
-        sourceLayer: "leuchten",
-      });
       const seen = new Map<string, SidebarFeature>();
-      for (const l of allLeuchten) {
-        if (String(l.properties?.fk_standort ?? "") !== standortDbId) continue;
-        const lid = String(l.properties?.id ?? l.id ?? "");
-        if (!seen.has(lid)) {
-          seen.set(lid, toSidebarFeature(l, namespacedSource, "leuchten"));
+      for (const src of sourcesToQuery) {
+        const allLeuchten = map.querySourceFeatures(src, {
+          sourceLayer: "leuchten",
+        });
+        for (const l of allLeuchten) {
+          if (String(l.properties?.fk_standort ?? "") !== standortDbId) continue;
+          const lid = String(l.properties?.id ?? l.id ?? "");
+          if (!seen.has(lid)) {
+            seen.set(lid, toSidebarFeature(l, src, "leuchten"));
+          }
         }
       }
       return [...seen.values()].sort(
@@ -142,12 +156,14 @@ const AuswahlBlock = ({
       );
     };
 
+    const clickedSource = rawFeature.source ?? namespacedSource;
+
     if (sl === "standorte") {
       const standortDbId = String(
         rawFeature.properties?.id ?? selectedFeatureId.id ?? ""
       );
       setAuswahlFeatures({
-        standort: toSidebarFeature(rawFeature, namespacedSource, "standorte"),
+        standort: toSidebarFeature(rawFeature, clickedSource, "standorte"),
         leuchten: queryLeuchtenByStandort(standortDbId),
       });
     } else if (sl === "leuchten") {
@@ -155,21 +171,24 @@ const AuswahlBlock = ({
       // Query the related standort so AuswahlBlock can show it when the filter is toggled on
       let standort: SidebarFeature | null = null;
       if (fkStandort) {
-        const allStandorte = map.querySourceFeatures(namespacedSource, {
-          sourceLayer: "standorte",
-        });
-        const match = allStandorte.find(
-          (s) => String(s.properties?.id ?? "") === fkStandort
-        );
-        if (match) {
-          standort = toSidebarFeature(match, namespacedSource, "standorte");
+        for (const src of sourcesToQuery) {
+          const allStandorte = map.querySourceFeatures(src, {
+            sourceLayer: "standorte",
+          });
+          const match = allStandorte.find(
+            (s) => String(s.properties?.id ?? "") === fkStandort
+          );
+          if (match) {
+            standort = toSidebarFeature(match, src, "standorte");
+            break;
+          }
         }
       }
       setAuswahlFeatures({
         standort,
         leuchten: fkStandort
           ? queryLeuchtenByStandort(fkStandort)
-          : [toSidebarFeature(rawFeature, namespacedSource, "leuchten")],
+          : [toSidebarFeature(rawFeature, clickedSource, "leuchten")],
       });
     } else {
       setAuswahlFeatures(null);
@@ -180,6 +199,7 @@ const AuswahlBlock = ({
     map,
     highlightingActive,
     namespacedSource,
+    brandnewSource,
   ]);
 
   // Auto-clear when leaving highlights mode
@@ -219,9 +239,11 @@ const AuswahlBlock = ({
       for (const f of features) {
         const sl = f.sourceLayer ?? "";
         const dbId = String(f.properties?.id ?? f.id ?? "");
+        // Use the feature's own source (regular MVT or brandnew GeoJSON)
+        const featureSource = f.source ?? namespacedSource;
 
         // Re-query to get current MVT tile ID
-        const sourceFeatures = map.querySourceFeatures(namespacedSource, {
+        const sourceFeatures = map.querySourceFeatures(featureSource, {
           sourceLayer: sl,
         });
         const match = sourceFeatures.find(
@@ -230,11 +252,11 @@ const AuswahlBlock = ({
 
         if (match?.id != null) {
           toToggle.push({
-            source: namespacedSource,
+            source: featureSource,
             sourceLayer: sl,
             id: match.id as number,
           });
-          toAppend.push(toSidebarFeature(match, namespacedSource, sl));
+          toAppend.push(toSidebarFeature(match, featureSource, sl));
         } else {
           // Fallback: use the feature as-is
           toAppend.push(f);
