@@ -318,12 +318,13 @@ const saveCreationDraft = async (
 
     if (featureType === "leuchte") {
       const linkedMastId = parseStandortIdFromKey(draft.geometryKey);
-      const leuchteValues = (draft.values?.leuchte ?? {}) as Record<
-        string,
-        unknown
-      >;
 
       let mastIdForLink: number;
+      // Mirror the Mast's strassenschluessel onto the Leuchte so the joined
+      // Leuchte view (which reads leuchte.tkey_strassenschluessel) renders
+      // the street name. The Strassenschluessel field is hidden on the
+      // Leuchte tab during creation, so the only source is the Mast tab.
+      let leuchteStrassenschluesselId: number | null = null;
       if (linkedMastId != null) {
         // Existing Standort was selected — reuse it, no new Mast created.
         mastIdForLink = linkedMastId;
@@ -337,15 +338,19 @@ const saveCreationDraft = async (
         >;
         const cleanedMastValues =
           prepareSaveValues("standort", rawMastValues) ?? {};
+        const mastFkStrassenschluessel =
+          (cleanedMastValues.fk_strassenschluessel as
+            | number
+            | null
+            | undefined) ?? null;
+        leuchteStrassenschluesselId = mastFkStrassenschluessel;
         const mastPayload: Record<string, unknown> = {
           id: -1,
           ...cleanedMastValues,
           // Defaults applied last so a missing or null form value still
-          // produces a saveable Mast. Leuchte's strassenschluessel always
-          // wins for the Mast since the field is hidden on the Mast tab.
+          // produces a saveable Mast.
           lfd_nummer: cleanedMastValues.lfd_nummer ?? 1,
-          fk_strassenschluessel:
-            leuchteValues.fk_strassenschluessel ?? null,
+          fk_strassenschluessel: mastFkStrassenschluessel,
           fk_mastart: cleanedMastValues.fk_mastart ?? 8,
           fk_masttyp: cleanedMastValues.fk_masttyp ?? 42,
           ...(geomPayload ? { geom: geomPayload } : {}),
@@ -377,6 +382,9 @@ const saveCreationDraft = async (
       payload = {
         id: -1,
         ...formValues,
+        fk_strassenschluessel:
+          (formValues.fk_strassenschluessel as number | null | undefined) ??
+          leuchteStrassenschluesselId,
         tdta_standort_mast: { id: mastIdForLink },
       };
     } else {
