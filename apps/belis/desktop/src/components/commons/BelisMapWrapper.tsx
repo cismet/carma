@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useCallback,
+  type ReactNode,
+} from "react";
 import { CarmaMap, DatasheetLayout } from "@carma-mapping/core";
 import { useDispatch, useSelector, useStore } from "react-redux";
 import {
@@ -151,6 +158,7 @@ import type { SidebarFeature } from "../ui/BelisSidebar";
 
 import {
   getAllDraftFeatures,
+  getAllDrafts,
   getDraftFeaturesCount,
   getDraftFetchedData,
   getGlobalEditMode,
@@ -251,6 +259,10 @@ const BelisMapLibWrapper = ({
   const keyTablesData = useSelector(getKeyTablesData);
   const reduxSelectedFeature = useSelector(getReduxSelectedFeature);
   const measurements = useSelector(getMeasurements);
+  // Drafts keyed by feature-id. Used by the measurement InfoBox to expose
+  // an "Entwurf öffnen" action when a draft references the selected
+  // measurement as its geometry source (geometryKey === "measurement.<id>").
+  const allDraftsForMeasurementLink = useSelector(getAllDrafts);
   const selectedMeasurementId =
     reduxSelectedFeature?.featurekind === MEASUREMENT_FEATUREKIND
       ? String(reduxSelectedFeature.id)
@@ -258,6 +270,12 @@ const BelisMapLibWrapper = ({
   // Imperative handle into MeasurementHost so the InfoBox trash button can
   // ask terra-draw to remove a measurement.
   const measurementHostRef = useRef<MeasurementHostHandle | null>(null);
+  // Ref to handleOpenCreationDraft so the measurement InfoBox's
+  // "Entwurf öffnen" genericLink can invoke it. The callback is defined
+  // later in the file; the ref breaks the temporal-dead-zone problem.
+  const handleOpenCreationDraftRef = useRef<
+    ((featureType: string, draftKey: string) => void) | null
+  >(null);
   // Ref for geometry fallback in override effect — avoids adding
   // reduxSelectedFeature to deps (which would cause spurious re-fires).
   const reduxGeometryRef = useRef<any>(null);
@@ -1026,27 +1044,67 @@ const BelisMapLibWrapper = ({
       const label = feature.properties?.title;
       if (typeof label === "string") subtitle = label;
     }
+    // If a creation draft uses this measurement as its geometry source, expose
+    // a second InfoBox link that opens the draft's Datenblatt directly.
+    // Mirror geometryOptions.ts: the dropdown key is `measurement.${f.id}`,
+    // and f.id already carries the `measurement.` prefix → the persisted
+    // draft.geometryKey is double-prefixed (`measurement.measurement.<uuid>`).
+    const geometryKey = `measurement.${String(feature.id)}`;
+    let linkedDraft:
+      | { draftKey: string; featureType: string }
+      | null = null;
+    for (const [draftKey, draft] of Object.entries(
+      allDraftsForMeasurementLink
+    )) {
+      if (draft.geometryKey === geometryKey) {
+        linkedDraft = { draftKey, featureType: draft.featureType };
+        break;
+      }
+    }
+
+    // Order in the InfoBox: zoom (rendered by the InfoBox itself before
+    // genericLinks), then any links from this array. Keep trash last.
+    const genericLinks: {
+      tooltip: string;
+      iconname: string;
+      icon?: ReactNode;
+      action: () => void;
+    }[] = [];
+
+    if (linkedDraft) {
+      genericLinks.push({
+        tooltip: "Entwurf öffnen",
+        iconname: "info",
+        action: () => {
+          handleOpenCreationDraftRef.current?.(
+            linkedDraft!.featureType,
+            linkedDraft!.draftKey
+          );
+        },
+      });
+    }
+
+    genericLinks.push({
+      tooltip: "Messung löschen",
+      iconname: "trash",
+      icon: MEASUREMENT_DELETE_ICON,
+      action: () => {
+        measurementHostRef.current?.deleteFeature(rawId);
+        dispatch(selectMeasurement(null));
+      },
+    });
+
     return {
       properties: {
         header: "Messung",
         title: `${title} ${shortId}`,
         subtitle,
         headerColor: "#0078a8",
-        genericLinks: [
-          {
-            tooltip: "Messung löschen",
-            iconname: "trash",
-            icon: MEASUREMENT_DELETE_ICON,
-            action: () => {
-              measurementHostRef.current?.deleteFeature(rawId);
-              dispatch(selectMeasurement(null));
-            },
-          },
-        ],
+        genericLinks,
       },
       geometry: feature.geometry,
     };
-  }, [reduxSelectedFeature, dispatch]);
+  }, [reduxSelectedFeature, dispatch, allDraftsForMeasurementLink]);
 
   // When a measurement gets selected, drop any lingering Fachobjekt
   // selection in the local useMapSelection state so LibreMap falls back to
@@ -2697,6 +2755,13 @@ const BelisMapLibWrapper = ({
     setOnOpenCreationDraft(() => handleOpenCreationDraft);
     return () => setOnOpenCreationDraft(undefined);
   }, [handleOpenCreationDraft, setOnOpenCreationDraft]);
+
+  // Keep the ref in sync so the measurement InfoBox's "Entwurf öffnen"
+  // action — built earlier in the render via useMemo — can invoke the
+  // latest handler.
+  useEffect(() => {
+    handleOpenCreationDraftRef.current = handleOpenCreationDraft;
+  }, [handleOpenCreationDraft]);
 
   return (
     <div
