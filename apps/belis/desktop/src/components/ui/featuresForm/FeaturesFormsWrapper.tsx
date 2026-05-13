@@ -298,7 +298,6 @@ const FeaturesFormsWrapper = ({
       dispatch(removeDraft(featureId));
       onSelectNextDraft?.(featureId);
     }
-    setResetKey((prev) => prev + 1);
     setIsEditing(false);
   }, [featureId, dispatch, onSelectNextDraft]);
 
@@ -350,7 +349,6 @@ const FeaturesFormsWrapper = ({
           onSelectNextDraft?.(featureId);
         } else {
           setIsEditing(false);
-          setResetKey((prev) => prev + 1);
         }
       } else {
         void message.error(
