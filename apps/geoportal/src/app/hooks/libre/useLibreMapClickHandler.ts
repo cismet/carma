@@ -17,6 +17,7 @@ import {
   onSelectionChangedVector,
 } from "../../components/GeoportalMap/topicmap.utils";
 import { createFeature } from "../../components/GeoportalMap/libremap.utils";
+import { addFeatureInfoCrosshair } from "../../components/feature-info/featureInfoMarker";
 
 const MAX_SELECTION_COUNT = 10;
 
@@ -52,6 +53,22 @@ export const useLibreMapSelectionHandler = (
   }, [libreMap]);
 
   const [pos, setPos] = useState<ClickPos>(null);
+  const featureInfoMarkerRef = useRef<maplibregl.Marker | null>(null);
+
+  const removeFeatureInfoMarker = useCallback(() => {
+    if (featureInfoMarkerRef.current) {
+      featureInfoMarkerRef.current.remove();
+      featureInfoMarkerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (uiMode !== UIMode.FEATURE_INFO) {
+      removeFeatureInfoMarker();
+    }
+  }, [uiMode, removeFeatureInfoMarker]);
+
+  useEffect(() => removeFeatureInfoMarker, [removeFeatureInfoMarker]);
 
   const handleSelectionChanged = useCallback(
     async (e: SelectionEvent) => {
@@ -62,6 +79,20 @@ export const useLibreMapSelectionHandler = (
       const map = libreMapRef.current;
 
       if (currentIsModeFeatureInfo) {
+        if (map) {
+          if (featureInfoMarkerRef.current) {
+            featureInfoMarkerRef.current.setLngLat([
+              e.latlng.lng,
+              e.latlng.lat,
+            ]);
+          } else {
+            featureInfoMarkerRef.current = addFeatureInfoCrosshair(map, {
+              lat: e.latlng.lat,
+              lng: e.latlng.lng,
+            });
+          }
+        }
+
         const currentLayers = getLayers(store.getState());
         const hitsByLayer = currentLayers
           .map((layer) => ({
