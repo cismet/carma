@@ -734,6 +734,16 @@ const BelisMapLibWrapper = ({
     }
   }, [highlightingActive]);
 
+  // The Entwürfe tab disappears once all drafts are saved/discarded, but
+  // `sidebarMode` would otherwise stay "drafts" — gating out the Messungen
+  // group (and anything else fachobjekte-only) until the user toggles modes
+  // by some other route. Fall back to fachobjekte automatically.
+  useEffect(() => {
+    if (sidebarMode === "drafts" && draftSidebarFeatures.length === 0) {
+      setSidebarMode("fachobjekte");
+    }
+  }, [sidebarMode, draftSidebarFeatures.length]);
+
   const hasHighlights =
     highlightingActive ||
     (adjustedHighlights != null && adjustedHighlights.length > 0);
