@@ -43,6 +43,7 @@ const LeitungFormFields = ({
   const [localForm] = Form.useForm();
   const form = externalForm ?? localForm;
   const draftApplied = useRef(false);
+  const appliedForFeatureRef = useRef<string | number | undefined>(undefined);
   useEffect(() => {
     if (!externalForm) onFormInstance?.(form);
   }, [form, onFormInstance, externalForm]);
@@ -63,32 +64,43 @@ const LeitungFormFields = ({
 
   useEffect(() => {
     if (externalForm) return;
-    form.resetFields();
-    draftApplied.current = false;
+    if (!leitung) return;
 
-    if (leitung) {
-      const serverValues = {
-        fk_leitungstyp: leitung.fk_leitungstyp,
-        fk_material: leitung.fk_material,
-        fk_querschnitt: leitung.fk_querschnitt,
-      };
-      form.setFieldsValue(serverValues);
-      onOriginalValues?.(form.getFieldsValue());
+    const featureChanged = appliedForFeatureRef.current !== featureId;
+    const isCreationFeature = String(featureId ?? "").startsWith("create:");
 
-      if (draftValues) {
-        form.setFieldsValue(draftValues);
-        draftApplied.current = true;
-      }
+    // During creation, the synthetic record gets a fresh reference per
+    // keystroke. Re-running with the same featureId would call resetFields()
+    // and steal focus. Bail unless this is the first arrival for this draft.
+    if (!featureChanged && isCreationFeature) return;
+
+    if (featureChanged) {
+      // First time we see this feature — clear any stale state. For post-save
+      // refresh on the same feature, skip resetFields so AntD keeps the DOM
+      // intact (preserves scroll position and focus).
+      form.resetFields();
+      draftApplied.current = false;
     }
-    // Dep on `featureId` (stable per draft) and the *presence* of `leitung`
-    // (a boolean, so it only flips false → true once) — not the reference
-    // itself. The synthetic record gets a new reference on every keystroke
-    // during creation, which would call form.resetFields() and steal focus
-    // from the active input. For regular features, `leitung` arrives
-    // asynchronously after the initial fetch; depending on its existence lets
-    // us re-run the effect exactly once when the data shows up.
+
+    const serverValues = {
+      fk_leitungstyp: leitung.fk_leitungstyp,
+      fk_material: leitung.fk_material,
+      fk_querschnitt: leitung.fk_querschnitt,
+    };
+    form.setFieldsValue(serverValues);
+    onOriginalValues?.(form.getFieldsValue());
+
+    if (draftValues) {
+      form.setFieldsValue(draftValues);
+      draftApplied.current = true;
+    }
+
+    appliedForFeatureRef.current = featureId;
+    // Depend on the `leitung` reference so post-save refetches re-populate
+    // automatically; the featureChanged/isCreationFeature guards above filter
+    // out the synthetic-record churn during creation.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [featureId, Boolean(leitung), form]);
+  }, [featureId, leitung, form]);
 
   useEffect(() => {
     if (externalForm) return;
