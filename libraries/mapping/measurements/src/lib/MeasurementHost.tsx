@@ -144,6 +144,10 @@ export interface MeasurementHostHandle {
   /** Clear terra-draw's selection (drops the halo). Idempotent. Does NOT
    *  fire `onSelectionChange` (same echo-avoidance as `selectFeature`). */
   deselectAll: () => void;
+  /** Remove every measurement from terra-draw. Fires `onChange` once with an
+   *  empty list so the host can mirror the wipe into its own state (redux,
+   *  etc.). Idempotent: no `onChange` is fired when there were no features. */
+  clearAll: () => void;
 }
 
 // Side-effect-only component. Lives as a sibling of <CarmaMap> inside the
@@ -1142,6 +1146,41 @@ export const MeasurementHost = forwardRef<
           );
         } finally {
           suppressSelectionCallbackRef.current = false;
+        }
+      },
+      clearAll: () => {
+        const draw = drawRef.current;
+        if (!draw) return;
+        // Skip the empty-store case so we don't fire a spurious onChange
+        // that would round-trip an empty `replaceMeasurements` dispatch.
+        let hadFeatures = false;
+        try {
+          hadFeatures =
+            (draw.getSnapshot() as Feature[]).filter(isUserFeature).length > 0;
+        } catch (e) {
+          console.warn(
+            "[carma-measurements] clearAll snapshot check failed",
+            e
+          );
+        }
+        if (!hadFeatures) return;
+        try {
+          draw.clear();
+        } catch (e) {
+          console.warn("[carma-measurements] clearAll failed", e);
+          return;
+        }
+        // terra-draw's `clear()` fires only `change`, not `finish`, so the
+        // consumer-facing onChange (which is plumbed to `finish` for noise
+        // control) never sees the wipe. Push the post-clear snapshot here
+        // so the host can mirror it into its own state.
+        try {
+          onChangeRef.current?.([]);
+        } catch (e) {
+          console.warn(
+            "[carma-measurements] onChange after clearAll failed",
+            e
+          );
         }
       },
     }),

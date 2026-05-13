@@ -3,7 +3,11 @@ import { useKeyboardListNavigation } from "../../hooks/useKeyboardListNavigation
 import type { MapGeoJSONFeatureWithOriginal as SidebarFeature } from "@carma-mapping/utils";
 export type { SidebarFeature };
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faSpinner, faStar } from "@fortawesome/free-solid-svg-icons";
+import {
+  faSpinner,
+  faStar,
+  faTrashCan,
+} from "@fortawesome/free-solid-svg-icons";
 import type { Feature } from "geojson";
 
 const IS_LOCAL_DEV =
@@ -224,6 +228,10 @@ export interface BelisSidebarProps {
   selectedMeasurementId?: string | null;
   /** Fired when the user clicks a measurement row. Pass `null` to deselect. */
   onMeasurementSelect?: (id: string | null) => void;
+  /** Fired when the user clicks the trash icon on the Messungen header to
+   *  wipe every measurement. Host is responsible for clearing both
+   *  terra-draw (via MeasurementHostHandle.clearAll) and redux state. */
+  onMeasurementsDeleteAll?: () => void;
 }
 
 const BelisSidebar = ({
@@ -254,6 +262,7 @@ const BelisSidebar = ({
   measurements,
   selectedMeasurementId,
   onMeasurementSelect,
+  onMeasurementsDeleteAll,
 }: BelisSidebarProps) => {
   // Filter features by active source layers
   const filteredFeatures = useMemo(() => {
@@ -295,7 +304,6 @@ const BelisSidebar = ({
   } | null>(null);
 
   // Scroll selected item into view only when selection comes from map (not list)
-
 
   useEffect(() => {
     if (!selectedFeatureId) return;
@@ -715,17 +723,19 @@ const BelisSidebar = ({
           <FontAwesomeIcon icon={faSpinner} spin className="text-gray-400" />
         )}
       </div>
-      {namespacedSource && setAdjustedHighlights && sidebarMode !== "drafts" && (
-        <AuswahlBlock
-          namespacedSource={namespacedSource}
-          brandnewSource={brandnewSource}
-          adjustedHighlights={adjustedHighlights ?? null}
-          setAdjustedHighlights={setAdjustedHighlights}
-          getListItem={getListItem}
-          onFeatureSelect={onFeatureSelect}
-          activeSourceLayers={auswahlActiveSourceLayers ?? activeSourceLayers}
-        />
-      )}
+      {namespacedSource &&
+        setAdjustedHighlights &&
+        sidebarMode !== "drafts" && (
+          <AuswahlBlock
+            namespacedSource={namespacedSource}
+            brandnewSource={brandnewSource}
+            adjustedHighlights={adjustedHighlights ?? null}
+            setAdjustedHighlights={setAdjustedHighlights}
+            getListItem={getListItem}
+            onFeatureSelect={onFeatureSelect}
+            activeSourceLayers={auswahlActiveSourceLayers ?? activeSourceLayers}
+          />
+        )}
       <div className="flex-1 overflow-y-auto overflow-x-hidden">
         {sidebarMode === "fachobjekte" && measurementListItems.length > 0 && (
           <div key="messungen">
@@ -734,9 +744,27 @@ const BelisSidebar = ({
               className="text-left px-3 py-2 bg-gray-50 cursor-pointer flex justify-between items-center border-b border-gray-200 hover:bg-gray-100"
             >
               <b className="text-sm">Messungen</b>
-              <span className="bg-gray-500 text-white rounded-full px-2 py-0.5 text-xs font-bold">
-                {measurementListItems.length}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="bg-gray-500 text-white rounded-full px-2 py-0.5 text-xs font-bold">
+                  {measurementListItems.length}
+                </span>
+                {onMeasurementsDeleteAll && (
+                  <button
+                    type="button"
+                    title="Alle Messungen löschen"
+                    aria-label="Alle Messungen löschen"
+                    onClick={(e) => {
+                      // Stop propagation so we don't toggle the group
+                      // collapse alongside the destructive action.
+                      e.stopPropagation();
+                      onMeasurementsDeleteAll();
+                    }}
+                    className="text-gray-500 hover:text-gray-400"
+                  >
+                    <FontAwesomeIcon icon={faTrashCan} className="text-sm" />
+                  </button>
+                )}
+              </div>
             </div>
             {!collapsedGroups["messungen"] &&
               measurementListItems.map((item, index) => {
@@ -804,9 +832,7 @@ const BelisSidebar = ({
                             ? "pl-8"
                             : "pl-4"
                         } ${
-                          selected
-                            ? SELECTED_ROW_STYLE
-                            : "hover:bg-gray-50"
+                          selected ? SELECTED_ROW_STYLE : "hover:bg-gray-50"
                         }`}
                       >
                         <div

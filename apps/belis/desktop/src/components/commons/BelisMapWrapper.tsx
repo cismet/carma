@@ -2861,6 +2861,14 @@ const BelisMapLibWrapper = ({
           measurements={measurements}
           selectedMeasurementId={selectedMeasurementId}
           onMeasurementSelect={(id) => dispatch(selectMeasurement(id))}
+          onMeasurementsDeleteAll={() => {
+            // terra-draw owns its internal store; clearing it fires
+            // onChange → replaceMeasurements([]) which also wipes redux
+            // (and through redux-persist, localForage). Drop any current
+            // selection alongside since the selected feature is gone.
+            measurementHostRef.current?.clearAll();
+            dispatch(selectMeasurement(null));
+          }}
         />
       )}
       <div
