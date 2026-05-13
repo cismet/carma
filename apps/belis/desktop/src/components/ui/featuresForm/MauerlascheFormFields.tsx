@@ -98,14 +98,15 @@ const MauerlascheFormFields = ({
         draftApplied.current = true;
       }
     }
-    // Dep on `featureId` (stable per draft) instead of `mauerlasche` (the
-    // synthetic record gets a new reference on every keystroke during creation,
-    // which would re-run this effect, call form.resetFields(), and steal focus
-    // from the active input). Server-data refetches go through resetKey-driven
-    // remount of FormComponent in FeaturesFormsWrapper, so we still pick up
-    // fresh data without depending on the churning record ref.
+    // Dep on `featureId` (stable per draft) and the *presence* of `mauerlasche`
+    // (a boolean, so it only flips false → true once) — not the reference
+    // itself. The synthetic record gets a new reference on every keystroke
+    // during creation, which would call form.resetFields() and steal focus
+    // from the active input. For regular features, `mauerlasche` arrives
+    // asynchronously after the initial fetch; depending on its existence lets
+    // us re-run the effect exactly once when the data shows up.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [featureId, form]);
+  }, [featureId, Boolean(mauerlasche), form]);
 
   useEffect(() => {
     if (externalForm) return;

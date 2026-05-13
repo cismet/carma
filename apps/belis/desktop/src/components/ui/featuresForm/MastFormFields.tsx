@@ -249,13 +249,15 @@ const MastFormFields = ({
         draftApplied.current = true;
       }
     }
-    // Dep on `featureId` only (stable per draft); `mast` would churn every
-    // keystroke during creation because the synthetic record passed in via
-    // `data` gets a fresh reference per setDraft, causing form.resetFields()
-    // and stealing focus from the active input. Server-data refetches still
-    // re-run this effect via the resetKey-driven remount in FeaturesFormsWrapper.
+    // Dep on `featureId` (stable per draft) and the *presence* of `mast`
+    // (a boolean, so it only flips false → true once) — not the reference
+    // itself. The synthetic record gets a fresh reference per setDraft during
+    // creation, which would call form.resetFields() and steal focus from the
+    // active input. For regular features, `mast` arrives asynchronously after
+    // the initial fetch; depending on its existence lets us re-run the effect
+    // exactly once when the data shows up.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [featureId, form]);
+  }, [featureId, Boolean(mast), form]);
 
   useEffect(() => {
     if (externalForm) return;
