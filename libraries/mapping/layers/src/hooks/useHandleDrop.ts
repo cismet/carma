@@ -80,7 +80,29 @@ export const useHandleDrop = ({
       .replaceAll("__server_url__", "https://tiles.cismet.de");
   };
 
-  const handleAddToMap = (newItem: any, instant = false) => {
+  const handleAddToMap = async (newItem: any, instant = false) => {
+    const existingLayer = activeLayers.find(
+      (layer) => layer.id === newItem.id
+    );
+
+    if (existingLayer) {
+      try {
+        const updatedLayer = await parseToMapLayer(newItem, false, true);
+
+        updateActiveLayer(updatedLayer);
+        addItemToCategory(
+          "mapLayers",
+          { id: "custom", Title: "Externe Dienste" },
+          newItem as unknown as SavedLayerConfig // TODO: Fix type
+        );
+        message.success("Layer wurde aktualisiert");
+      } catch (error) {
+        message.error("Fehler beim Aktualisieren des Layers");
+        console.error("Error updating layer:", error);
+      }
+      return;
+    }
+
     if (instant) {
       setAdditionalLayers(newItem, false, false, false, true);
     } else {
@@ -97,7 +119,7 @@ export const useHandleDrop = ({
     let instant = false;
     if (file) {
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.onload = async (e) => {
         try {
           // Attempt to parse the file content as JSON
           const fileContent = e.target?.result;
@@ -106,9 +128,10 @@ export const useHandleDrop = ({
 
             const jsonData = JSON.parse(processedContent);
 
+            const importedId = `custom:${file.name}`;
             let newItem: any = {
               description: "",
-              id: `custom:${file.name}`,
+              id: importedId,
               layerType: "vector",
               title: file.name,
               serviceName: "custom",
@@ -130,7 +153,30 @@ export const useHandleDrop = ({
               instant = carmaConf?.instant ?? false;
             }
 
-            if (instant) {
+            const existingLayer = activeLayers.find(
+              (layer) => layer.id === newItem.id
+            );
+
+            if (existingLayer) {
+              try {
+                const updatedLayer = await parseToMapLayer(
+                  newItem,
+                  false,
+                  true
+                );
+
+                updateActiveLayer(updatedLayer);
+                addItemToCategory(
+                  "mapLayers",
+                  { id: "custom", Title: "Externe Dienste" },
+                  newItem as unknown as SavedLayerConfig // TODO: Fix type
+                );
+                message.success("Layer wurde aktualisiert");
+              } catch (error) {
+                message.error("Fehler beim Aktualisieren des Layers");
+                console.error("Error updating layer:", error);
+              }
+            } else if (instant) {
               setAdditionalLayers(newItem, false, false, false, true);
             } else {
               openModal();
@@ -186,7 +232,7 @@ export const useHandleDrop = ({
         });
 
       const existingLayer = activeLayers.find(
-        (layer) => layer.id === importedId
+        (layer) => layer.id === newItem.id
       );
 
       if (existingLayer) {
