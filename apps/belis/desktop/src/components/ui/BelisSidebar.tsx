@@ -542,8 +542,15 @@ const BelisSidebar = ({
       // Match by MVT feature ID (works for Karte mode)
       if (selectedFeatureId.id != null && String(selectedFeatureId.id) === fid)
         return true;
-      // Fallback: match by database primary key (works for Highlights mode)
-      if (selectedDatabaseId != null && String(selectedDatabaseId) === fid)
+      // Fallback: match by database primary key (works for Highlights mode).
+      // Compare DB-pk to DB-pk (properties.id), never to feature.id (MVT id) —
+      // consecutive records can have an MVT id that aliases another's DB pk.
+      const dbPk = feature.properties?.id;
+      if (
+        selectedDatabaseId != null &&
+        dbPk != null &&
+        String(selectedDatabaseId) === String(dbPk)
+      )
         return true;
       return false;
     },
