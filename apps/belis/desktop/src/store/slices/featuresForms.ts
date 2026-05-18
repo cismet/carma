@@ -24,6 +24,9 @@ export interface Draft {
   isCreation?: boolean;
   geometry?: GeoJSON.Geometry;
   geometryKey?: string;
+  // Geometry key seeded at creation (e.g. linked Standort for a new Leuchte).
+  // Frozen — used to highlight Neue Geometrien green while still in sync.
+  prefillGeometryKey?: string;
   updatedAt: number;
 }
 
@@ -61,6 +64,7 @@ const featuresFormsSlice = createSlice({
         isCreation?: boolean;
         geometry?: GeoJSON.Geometry;
         geometryKey?: string;
+        prefillGeometryKey?: string;
       }>
     ) {
       const {
@@ -72,6 +76,7 @@ const featuresFormsSlice = createSlice({
         isCreation,
         geometry,
         geometryKey,
+        prefillGeometryKey,
       } = action.payload;
       const existing = state.drafts[featureId];
       const hasFiles = existing?.files && existing.files.length > 0;
@@ -111,6 +116,8 @@ const featuresFormsSlice = createSlice({
         isCreation: creationDraft,
         geometry: geometry ?? existing?.geometry,
         geometryKey: geometryKey ?? existing?.geometryKey,
+        prefillGeometryKey:
+          existing?.prefillGeometryKey ?? prefillGeometryKey,
         updatedAt: Date.now(),
       };
     },

@@ -111,3 +111,49 @@ export const getChangedPaths = (
   collect(original, draft, "");
   return changed;
 };
+
+const isEmpty = (v: unknown) =>
+  v === null || v === undefined || v === "";
+
+const walkPath = (
+  obj: Record<string, unknown> | undefined,
+  path: string
+): unknown => {
+  if (!obj) return undefined;
+  const parts = path.split(".");
+  let cur: unknown = obj;
+  for (const p of parts) {
+    if (!isPlainObj(cur)) return undefined;
+    cur = (cur as Record<string, unknown>)[p];
+  }
+  return cur;
+};
+
+/**
+ * Get the set of allowlisted paths whose draft value matches the live
+ * remembered default. Used to mark fields green when they reflect the
+ * "actual" current default (vs. stale values from a sibling draft).
+ */
+export const getPrefilledPaths = (
+  draft: Record<string, unknown> | undefined,
+  allowlistedPaths?: Set<string>,
+  currentDefaults?: Record<string, unknown>
+): Set<string> => {
+  const matched = new Set<string>();
+  if (!draft || !allowlistedPaths || allowlistedPaths.size === 0) {
+    return matched;
+  }
+  for (const path of allowlistedPaths) {
+    const draftVal = walkPath(draft, path);
+    if (isEmpty(draftVal)) continue;
+    const defaultVal = walkPath(currentDefaults, path);
+    if (isEmpty(defaultVal)) {
+      // No default yet (e.g. very first edit before creationDefaults catches
+      // up) — treat the value as the implicit default.
+      matched.add(path);
+    } else if (isFormValueEqual(draftVal, defaultVal)) {
+      matched.add(path);
+    }
+  }
+  return matched;
+};
