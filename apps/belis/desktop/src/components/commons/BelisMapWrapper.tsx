@@ -305,6 +305,14 @@ const BelisMapLibWrapper = ({
   const [drawMode, setDrawMode] = useState<DrawMode>("none");
   const [snappingEnabled, setSnappingEnabled] = useState<boolean>(false);
   useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setDrawMode((prev) => (prev === "none" ? prev : "none"));
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+  useEffect(() => {
     if (!map) {
       setMapReady(false);
       return;
