@@ -507,6 +507,7 @@ const LeuchteForm = ({
 
   return (
     <FeatureFormLayout
+      tabsResetKey={featureId}
       title={isCreation ? "Neue Leuchte" : sidebarMain ? `Leuchte ${sidebarMain}` : "Leuchte"}
       cancelLabel={sidebarMain || ""}
       isCreation={isCreation}
