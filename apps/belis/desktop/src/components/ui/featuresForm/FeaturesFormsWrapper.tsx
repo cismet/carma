@@ -35,6 +35,10 @@ import {
 import { getJWT } from "../../../store/slices/auth";
 import type { DokumentItem } from "../DocumentPreview";
 import { ChangedFieldsProvider } from "./DraftFieldHighlight";
+import {
+  getAllowlistedPaths,
+  getCreationDefaults,
+} from "../../../store/slices/creationDefaults";
 import type { DraftFile } from "../../../store/slices/featuresForms";
 import type { RootState } from "../../../store";
 import {
@@ -261,6 +265,16 @@ const FeaturesFormsWrapper = ({
   );
 
   const FormComponent = formKey ? featureFormRegistry[formKey] : undefined;
+
+  const allowlistedPaths = useMemo(
+    () =>
+      isCreation && formKey ? getAllowlistedPaths(formKey) : undefined,
+    [isCreation, formKey]
+  );
+
+  const currentDefaults = useSelector((state: RootState) =>
+    isCreation && formKey ? getCreationDefaults(state, formKey) : undefined
+  );
 
   // Keep draft's existingDocuments and featureDbId in sync with server data.
   // Only updates when a draft already exists (avoids creating ghost drafts).
@@ -600,6 +614,8 @@ const FeaturesFormsWrapper = ({
         <ChangedFieldsProvider
           originalValues={originalValues}
           draftValues={draft?.values}
+          allowlistedPaths={allowlistedPaths}
+          currentDefaults={currentDefaults}
         >
           <div className="h-full">
             <FormComponent
@@ -617,7 +633,10 @@ const FeaturesFormsWrapper = ({
                 isCreation ? (
                   <div
                     className={
-                      draft?.geometryKey
+                      draft?.geometryKey &&
+                      draft.geometryKey === draft?.prefillGeometryKey
+                        ? "mb-3 draft-prefilled-field"
+                        : draft?.geometryKey
                         ? "mb-3 draft-changed-field"
                         : "mb-3"
                     }

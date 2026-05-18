@@ -212,3 +212,17 @@ export const getAllCreationDefaults = (
   state: RootState
 ): Record<string, Record<string, unknown>> =>
   state.creationDefaults?.defaults ?? {};
+
+// Leaf paths of fields that are remembered across creations for a given
+// feature type — flattened from CREATION_DEFAULTS_ALLOWLIST. Used by the
+// form to mark remembered-and-filled fields green.
+export const getAllowlistedPaths = (featureType: string): Set<string> => {
+  const config = CREATION_DEFAULTS_ALLOWLIST[featureType];
+  if (!config) return new Set();
+  if (Array.isArray(config)) return new Set(config);
+  const paths = new Set<string>();
+  for (const [subKey, fields] of Object.entries(config)) {
+    for (const f of fields) paths.add(`${subKey}.${f}`);
+  }
+  return paths;
+};

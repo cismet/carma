@@ -181,6 +181,7 @@ const CreateFeatureDropdown = () => {
         isCreation: true,
         geometry: geom,
         geometryKey: geomKey,
+        prefillGeometryKey: geomKey,
       })
     );
     dispatch(setGlobalEditMode(true));
