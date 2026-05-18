@@ -9,6 +9,14 @@ export {
   removeMeasurements,
   addMeasurements,
 } from "./lib/measurementHostHandle";
+export {
+  MeasurementsProvider,
+  useMeasurements,
+} from "./lib/MeasurementsContext";
+export type {
+  MeasurementId,
+  UseMeasurementsResult,
+} from "./lib/MeasurementsContext";
 export { SnappingToggleControl } from "./lib/SnappingToggleControl";
 export type { SnappingToggleControlProps } from "./lib/SnappingToggleControl";
 export {
