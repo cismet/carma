@@ -89,6 +89,13 @@ const LeuchteForm = ({
   );
   const leuchteFormRef = useRef<FormInstance | null>(null);
   const mastFormRef = useRef<FormInstance | null>(null);
+  // Holds the last Kennziffer we pushed into the Leuchten form via the
+  // Mast→Leuchten mirror. If the Leuchten field's current value still
+  // equals this (or is empty), the user hasn't overridden it and the
+  // mirror is free to keep updating. If it differs, the user changed it
+  // directly and the mirror backs off. This is value-based, not
+  // event-based, so it survives tab switches and form remounts.
+  const lastMirroredKennzifferRef = useRef<unknown>(undefined);
 
   const setLeuchteForm = useCallback((form: FormInstance) => {
     leuchteFormRef.current = form;
@@ -186,6 +193,32 @@ const LeuchteForm = ({
           unknown
         >;
         leuchteValues = { ...existingLeuchte, ...mirroredFields };
+      }
+      // Mirror Kennziffer from Standort into the Leuchten form. Decision is
+      // value-based: compare the current Leuchten value against what we
+      // last mirrored. If they match (or Leuchten is empty), the user has
+      // not overridden us — keep mirroring. If they differ, the user
+      // changed Kennziffer directly on the Leuchten tab — back off.
+      // Clearing the Leuchten field re-arms via the empty-check.
+      if ("fk_kennziffer" in changedValues) {
+        const draftLeuchte = (draftValues?.leuchte ?? {}) as Record<
+          string,
+          unknown
+        >;
+        const leuchteCurrent = leuchteFormRef.current
+          ? leuchteFormRef.current.getFieldValue("fk_kennziffer")
+          : draftLeuchte.fk_kennziffer;
+        const isEmpty = leuchteCurrent == null || leuchteCurrent === "";
+        const userOverrode =
+          !isEmpty && leuchteCurrent !== lastMirroredKennzifferRef.current;
+        if (!userOverrode) {
+          const newValue = allValues.fk_kennziffer;
+          lastMirroredKennzifferRef.current = newValue;
+          const mirroredKennziffer = { fk_kennziffer: newValue };
+          leuchteFormRef.current?.setFieldsValue(mirroredKennziffer);
+          const baseLeuchte = leuchteValues ?? draftLeuchte;
+          leuchteValues = { ...baseLeuchte, ...mirroredKennziffer };
+        }
       }
       onDraftChange?.({
         ...draftValues,
