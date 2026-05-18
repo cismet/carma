@@ -8,7 +8,7 @@ export { useMemoMergedDefaultOptions } from "./lib/react/hooks/useMemoMergedDefa
 
 export { isNumberArrayEqual } from "./lib/arrays";
 
-export { extractCarmaConfig } from "./lib/carmaConfig";
+export { extractCarmaConfig, resolveLayerTitle } from "./lib/carmaConfig";
 
 export { logOnce, warnOnce } from "./lib/console";
 

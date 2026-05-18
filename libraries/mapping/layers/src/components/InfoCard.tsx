@@ -11,7 +11,7 @@ import isEqual from "lodash/isEqual";
 import { serviceOptions } from "@carma-commons/resources";
 import { FileUploader, uploadImage } from "@carma-commons/ui/components";
 import { BackgroundLayer, Item, Layer } from "@carma-mapping/layers";
-import { extractCarmaConfig } from "@carma-commons/utils";
+import { extractCarmaConfig, resolveLayerTitle } from "@carma-commons/utils";
 
 import { parseDescription } from "../helper/layerHelper";
 import { Fragment, useState } from "react";
@@ -65,6 +65,7 @@ const InfoCard = ({
   const [messageApi, contextHolder] = message.useMessage();
   if (!layer) return null;
   const { title, description, tags } = layer;
+  const displayTitle = resolveLayerTitle(layer);
 
   const [editCollection, setEditCollection] = useState(false);
   const [updatedTitle, setUpdatedTitle] = useState(title);
@@ -254,7 +255,7 @@ const InfoCard = ({
               />
             ) : (
               <h3 className="mb-0 truncate leading-10 text-xl sm:text-2xl">
-                {title}
+                {displayTitle}
               </h3>
             )}
             <InfoCardActions

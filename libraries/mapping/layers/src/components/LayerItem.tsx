@@ -16,7 +16,12 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Button, Modal, Spin } from "antd";
 
 import { Item, Layer, SavedLayerConfig } from "@carma-mapping/layers";
-import { cn, extractCarmaConfig, updateUrl } from "@carma-commons/utils";
+import {
+  cn,
+  extractCarmaConfig,
+  resolveLayerTitle,
+  updateUrl,
+} from "@carma-commons/utils";
 import {
   extServiceText,
   extServiceBackgroundImage,
@@ -88,8 +93,8 @@ const LayerItem = ({
   const canFavoriteItem =
     layer.type !== "collection" ||
     (layer.type === "collection" && layer.serviceName.includes("discover"));
-  const title = layer.title;
   const carmaConf = extractCarmaConfig(layer.keywords);
+  const title = resolveLayerTitle(layer);
 
   const [isLoading, setIsLoading] = useState(layer.type !== "collection");
 

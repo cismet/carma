@@ -2,7 +2,7 @@ import { isNaN } from "lodash";
 
 import type { FeatureInfoProperties } from "./contracts/feature-info/feature-info";
 import type { Item, Layer } from "@carma-mapping/layers";
-import { extractCarmaConfig } from "@carma-commons/utils";
+import { extractCarmaConfig, resolveLayerTitle } from "@carma-commons/utils";
 import envelope from "@turf/envelope";
 import L from "leaflet";
 import { sandboxedEvalExternal } from "@carma-commons/sandbox-eval";
@@ -137,6 +137,7 @@ export const parseToMapLayer = async (
   const id = layer.id.startsWith("fav_") ? layer.id.slice(4) : layer.id;
 
   const carmaConf = extractCarmaConfig(layer.keywords);
+  const resolvedTitle = resolveLayerTitle(layer);
   if (layer.type === "layer" || layer.type === "object") {
     let capabilitiesUrl = layer?.props?.url
       ? layer?.props?.url + "service=WMS&request=GetCapabilities&version=1.1.1"
@@ -237,7 +238,7 @@ export const parseToMapLayer = async (
       const mergedConf = { ...vectorConf, ...metaDataCarmaConf, ...carmaConf };
 
       newLayer = {
-        title: layer.title,
+        title: resolvedTitle,
         id: id,
         layerType: "vector",
         opacity: opacity || 1.0,
@@ -284,7 +285,7 @@ export const parseToMapLayer = async (
         case "wmts-nt":
         case "wmts": {
           newLayer = {
-            title: layer.title,
+            title: resolvedTitle,
             id: id,
             layerType: layer.layerType,
             opacity: opacity || 1.0,
@@ -323,7 +324,7 @@ export const parseToMapLayer = async (
         }
         case "vector": {
           newLayer = {
-            title: layer.title,
+            title: resolvedTitle,
             id: id,
             layerType: "vector",
             opacity: 1.0,
