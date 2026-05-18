@@ -427,15 +427,22 @@ const FeatureFormLayout = ({
   if (isWideScreen && !singleColumn) {
     // Build tabs for the left column - general tab (default "Allgemein"),
     // additional tabs (before or after the general tab), then raw-data tabs.
+    // forceRender so the inner form components mount even when their tab is
+    // inactive. The Leuchten-creation flow keeps cross-tab form refs
+    // (leuchteFormRef ↔ mastFormRef) for Kennziffer/Strassenschluessel
+    // mirroring; lazy-mounted tabs leave those refs null and silently drop
+    // setFieldsValue calls.
     const generalTab = {
       key: "general",
       label: <span>{generalTabLabel}</span>,
       children: <>{formHeaderContent}{children}</>,
+      forceRender: true,
     };
     const mappedAdditionalTabs = additionalTabs.map((tab) => ({
       key: tab.key,
       label: <span>{tab.label}</span>,
       children: tab.children,
+      forceRender: true,
     }));
     const leftColumnTabs =
       additionalTabsPosition === "before"
@@ -530,11 +537,13 @@ const FeatureFormLayout = ({
                 key: "general",
                 label: <span>{generalTabLabel}</span>,
                 children: <>{formHeaderContent}{children}</>,
+                forceRender: true,
               };
               const narrowAdditionalTabs = additionalTabs.map((tab) => ({
                 key: tab.key,
                 label: <span>{tab.label}</span>,
                 children: tab.children,
+                forceRender: true,
               }));
               const orderedFormTabs = singleColumn
                 ? []

@@ -12,6 +12,22 @@ const PrefilledFieldsContext = createContext<Set<string>>(new Set());
 // Optional prefix prepended to field names (e.g. "leuchte" or "mast")
 const FieldPrefixContext = createContext<string>("");
 
+// Suppresses draft/prefill highlights within a locked section (e.g. the
+// Standort tab when creating a Leuchte against an existing Mast — those
+// fields should read as locked-gray, not green/prefilled).
+const LockedFieldsContext = createContext<boolean>(false);
+
+interface LockedFieldsProps {
+  locked: boolean;
+  children: ReactNode;
+}
+
+export const LockedFields = ({ locked, children }: LockedFieldsProps) => (
+  <LockedFieldsContext.Provider value={locked}>
+    {children}
+  </LockedFieldsContext.Provider>
+);
+
 // ---------- Provider ----------
 
 interface ChangedFieldsProviderProps {
@@ -103,15 +119,16 @@ export const FormItem = ({ name, className, ...rest }: FormItemProps) => {
   const changedFields = useContext(ChangedFieldsContext);
   const prefilledFields = useContext(PrefilledFieldsContext);
   const prefix = useContext(FieldPrefixContext);
+  const locked = useContext(LockedFieldsContext);
 
   // Resolve the field name — can be a string or an array like ["prefix","field"]
   const fieldName = Array.isArray(name)
     ? name[name.length - 1]?.toString() ?? ""
     : String(name ?? "");
   const fullPath = prefix && fieldName ? `${prefix}.${fieldName}` : fieldName;
-  const isPrefilled = fullPath !== "" && prefilledFields.has(fullPath);
+  const isPrefilled = !locked && fullPath !== "" && prefilledFields.has(fullPath);
   const isChanged =
-    !isPrefilled && fullPath !== "" && changedFields.has(fullPath);
+    !locked && !isPrefilled && fullPath !== "" && changedFields.has(fullPath);
 
   if (isPrefilled || isChanged) injectStyles();
 
