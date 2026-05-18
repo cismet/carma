@@ -9,17 +9,46 @@ export type AnnotationInfoBoxNavigationProps = {
   currentIndex: number;
   instructionText?: string | null;
   availabilityLabel?: ReactNode;
+  labels?: Partial<AnnotationInfoBoxNavigationLabels>;
   onFlyToAllMeasurements?: () => void;
   onPreviousMeasurement: () => void;
   onNextMeasurement: () => void;
   visualOptions?: AnnotationInfoBoxVisualOptions;
 };
 
+export type AnnotationInfoBoxNavigationLabels = Readonly<{
+  measurementSingular: string;
+  measurementPlural: string;
+  availableSuffix: string;
+  previousAriaLabel: string;
+  nextAriaLabel: string;
+  counterSeparator: string;
+}>;
+
+export const DEFAULT_ANNOTATION_INFO_BOX_NAVIGATION_LABELS =
+  Object.freeze<AnnotationInfoBoxNavigationLabels>({
+    measurementSingular: "Messung",
+    measurementPlural: "Messungen",
+    availableSuffix: "verfügbar",
+    previousAriaLabel: "Vorherige Messung",
+    nextAriaLabel: "Nächste Messung",
+    counterSeparator: "von",
+  });
+
+const formatAvailabilityLabel = (
+  totalEntries: number,
+  labels: AnnotationInfoBoxNavigationLabels
+) =>
+  `${totalEntries} ${
+    totalEntries === 1 ? labels.measurementSingular : labels.measurementPlural
+  } ${labels.availableSuffix}`.trim();
+
 export const AnnotationInfoBoxNavigation = ({
   totalEntries,
   currentIndex,
   instructionText,
   availabilityLabel,
+  labels,
   onFlyToAllMeasurements,
   onPreviousMeasurement,
   onNextMeasurement,
@@ -27,6 +56,10 @@ export const AnnotationInfoBoxNavigation = ({
 }: AnnotationInfoBoxNavigationProps) => {
   const resolvedVisualOptions =
     resolveAnnotationInfoBoxVisualOptions(visualOptions);
+  const resolvedLabels = {
+    ...DEFAULT_ANNOTATION_INFO_BOX_NAVIGATION_LABELS,
+    ...labels,
+  };
 
   if (totalEntries <= 0 && !instructionText) return null;
 
@@ -35,7 +68,12 @@ export const AnnotationInfoBoxNavigation = ({
     border: "none",
     background: "transparent",
     padding: 0,
+    userSelect: "none",
   } as const;
+  const previousControlLabel = resolvedVisualOptions.navigationControlLabels
+    ?.previous ?? <FontAwesomeIcon icon={faAnglesLeft} />;
+  const nextControlLabel = resolvedVisualOptions.navigationControlLabels
+    ?.next ?? <FontAwesomeIcon icon={faAnglesRight} />;
 
   return (
     <>
@@ -64,16 +102,12 @@ export const AnnotationInfoBoxNavigation = ({
               }}
             >
               {availabilityLabel ??
-                `${totalEntries} ${
-                  totalEntries === 1 ? "Messung" : "Messungen"
-                } verfügbar`}
+                formatAvailabilityLabel(totalEntries, resolvedLabels)}
             </button>
           ) : (
             <span className={resolvedVisualOptions.linkTextClassName}>
               {availabilityLabel ??
-                `${totalEntries} ${
-                  totalEntries === 1 ? "Messung" : "Messungen"
-                } verfügbar`}
+                formatAvailabilityLabel(totalEntries, resolvedLabels)}
             </span>
           )}
         </div>
@@ -84,26 +118,26 @@ export const AnnotationInfoBoxNavigation = ({
         >
           <button
             type="button"
-            className={`renderAsLink cursor-pointer ${resolvedVisualOptions.linkTextClassName}`}
+            className={`renderAsLink cursor-pointer select-none ${resolvedVisualOptions.linkTextClassName}`}
             onClick={onPreviousMeasurement}
             data-test-id="switch-measurement-left"
             style={navigationButtonStyle}
-            aria-label="Vorherige Messung"
+            aria-label={resolvedLabels.previousAriaLabel}
           >
-            <FontAwesomeIcon icon={faAnglesLeft} />
+            {previousControlLabel}
           </button>
           <span className="mx-4">
-            {currentIndex + 1} von {totalEntries}
+            {currentIndex + 1} {resolvedLabels.counterSeparator} {totalEntries}
           </span>
           <button
             type="button"
-            className={`renderAsLink cursor-pointer ${resolvedVisualOptions.linkTextClassName}`}
+            className={`renderAsLink cursor-pointer select-none ${resolvedVisualOptions.linkTextClassName}`}
             onClick={onNextMeasurement}
             data-test-id="switch-measurement-right"
             style={navigationButtonStyle}
-            aria-label="Nächste Messung"
+            aria-label={resolvedLabels.nextAriaLabel}
           >
-            <FontAwesomeIcon icon={faAnglesRight} />
+            {nextControlLabel}
           </button>
         </div>
       ) : null}

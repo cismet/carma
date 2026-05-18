@@ -17,6 +17,7 @@ import {
   getZoomFromPixelResolutionAtLatitudeRad,
   getPixelResolutionFromZoomAtLatitudeRad,
 } from "./mercator";
+
 describe("commons/utils mercator", () => {
   test("getMercatorScaleFactorAtLatitudeRad", () => {
     const maxScale = getMercatorScaleFactorAtLatitudeRad(

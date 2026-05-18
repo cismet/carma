@@ -1,8 +1,5 @@
 import { BoundingSphere } from "@carma-cesium";
-import type {
-  CarmaConf3D,
-  CarmaMapLibreFeatureProperties,
-} from "../contracts/maplibre-style.d";
+import type { CarmaConf3D } from "../contracts/maplibre-style.d";
 import type { FeatureInfo } from "@carma-mapping/utils";
 import { getBoundingSphereFromGeoJson } from "@carma-mapping/engines/cesium/core";
 import type { Feature, FeatureCollection } from "geojson";
@@ -10,31 +7,13 @@ import type { Feature, FeatureCollection } from "geojson";
 import type { AdhocFeature } from "../components/AdhocFeatureDisplayProvider";
 import {
   buildAdhocFeatureInfo,
+  getCarmaConf3D,
   getGeoJsonFromFeature,
 } from "./adhoc-feature-utils";
 
 export type SelectableGeoJsonFeature = {
   selectionId: string;
   geojson: Feature;
-};
-
-export const getCarmaConf3D = (
-  feature: AdhocFeature
-): CarmaConf3D | undefined => {
-  const properties = feature.properties as
-    | CarmaMapLibreFeatureProperties
-    | undefined;
-  if (properties?.carmaConf3D) {
-    return properties.carmaConf3D;
-  }
-
-  const geojson = getGeoJsonFromFeature(feature);
-  const geojsonFeature =
-    geojson?.type === "FeatureCollection" ? geojson.features[0] : geojson;
-  const geojsonProperties = geojsonFeature?.properties as
-    | CarmaMapLibreFeatureProperties
-    | undefined;
-  return geojsonProperties?.carmaConf3D;
 };
 
 export const getWallHeights = (feature: AdhocFeature): number[] | undefined => {

@@ -20,6 +20,7 @@ import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopic
 import {
   SelectionMapMode,
   type SelectionMetaData,
+  useAppSearchParams,
   useGazData,
   useSelection,
 } from "@carma-appframeworks/portals";
@@ -58,15 +59,16 @@ import { ObliqueControls } from "../../../oblique/components/ObliqueControls.tsx
 import LayerWrapper from "../../layers/LayerWrapper.tsx";
 
 import useLeafletZoomControls from "../../../hooks/leaflet/useLeafletZoomControls.ts";
-import { useAppSearchParams } from "../../../hooks/useAppSearchParams";
 import { useDispatchSachdatenInfoText } from "../../../hooks/useDispatchSachdatenInfoText.ts";
 import { useFeatureInfoModeCursorStyle } from "../../../hooks/useFeatureInfoModeCursorStyle.ts";
+import { useGeoportalMeasurementModeHash } from "../../../hooks/use-geoportal-measurement-mode-hash";
 import { useMapStyleReduxSync } from "../../../hooks/useMapStyleReduxSync";
 import { useTourRefCollabLabels } from "../../../hooks/useTourRefCollabLabels.ts";
 import { useWindowSize } from "../../../hooks/useWindowSize.ts";
 import { useGeoportalHomeValues } from "../../../hooks/useGeoportalInitialValues.ts";
 
 import { useOblique } from "../../../oblique/hooks/useOblique.ts";
+import { geoportalAppSearchParamsOptions } from "../../../config/app-search-params.ts";
 
 import { cancelOngoingRequests } from "../topicmap.utils";
 
@@ -188,7 +190,13 @@ const MapWrapper = () => {
 
   // custom hooks
 
-  useAppSearchParams();
+  const { customHashState } = useAppSearchParams(
+    geoportalAppSearchParamsOptions
+  );
+  useGeoportalMeasurementModeHash({
+    customHashState,
+    writeMeasurementModeHash: isCesium,
+  });
   useDispatchSachdatenInfoText();
   useMapStyleReduxSync();
 
@@ -404,12 +412,10 @@ const MapWrapper = () => {
             <MeasurementControl
               position="topleft"
               order={60}
-              disabled={!isLeaflet || (isLeaflet && showLibreMap)}
+              disabled={isLeaflet && showLibreMap}
               useDisabledStyle={isLeaflet && showLibreMap}
               tooltip={
-                isCesium
-                  ? "zum Messen zu 2D-Modus wechseln"
-                  : isModeMeasurement
+                isModeMeasurement
                   ? "Messungsmodus ausschalten"
                   : "Messungsmodus einschalten"
               }

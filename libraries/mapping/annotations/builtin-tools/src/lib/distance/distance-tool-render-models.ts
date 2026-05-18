@@ -212,7 +212,6 @@ export const buildDistanceToolRenderModels = ({
   measurements,
   selectedMeasurementIds,
   onMeasurementSelect,
-  onNodeLongPress,
 }: BuildDistanceToolRenderModelsArgs): {
   points: readonly RuntimePointMarkerRenderModel[];
   edges: readonly RuntimeEdgeRenderModel[];
@@ -368,14 +367,11 @@ export const buildDistanceToolRenderModels = ({
           preserveFillOnSelection: selectedHighlight.preserveFillOnSelection,
           hoverBackgroundColor: selectedHighlight.hoverBackgroundColor,
           selected: isSelected,
-          allowLongPressWhenBlocked: true,
+          allowLongPressWhenBlocked: false,
           onClick: onMeasurementSelect
             ? () => onMeasurementSelect(measurement.id)
             : undefined,
-          onLongPress:
-            onNodeLongPress && badgeNodeId && !measurement.locked
-              ? () => onNodeLongPress(badgeNodeId, measurement.id)
-              : undefined,
+          onLongPress: undefined,
         },
       ];
     }

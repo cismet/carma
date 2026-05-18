@@ -11,6 +11,9 @@ import { ANNOTATION_TOOL_PLUGIN_CAPABILITIES } from "@carma-mapping/annotations/
 import {
   AUTHORING_MEASUREMENT_PLUGIN_CAPABILITIES,
   createMeasurementToolPlugin,
+  resolveAreaOcclusionStyleOptions,
+  type AreaOcclusionStyleOptions,
+  type MeasurementLineStyleOptions,
 } from "@carma-mapping/annotations/runtime";
 import type { AnnotationToolDraftState } from "@carma-mapping/annotations/runtime";
 import {
@@ -26,146 +29,188 @@ import {
 } from "../area-shared/node-chain-area-tool-render-models";
 import { ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME } from "@carma-mapping/annotations/runtime";
 import { formatCardinalBearing } from "@carma-mapping/annotations/runtime";
+import type { DefaultAnnotationToolTexts } from "../annotation-mode-text";
+import { defaultAnnotationToolTexts } from "../annotation-mode-text";
 const { AREA_PLANAR: ANNOTATION_TYPE_AREA_PLANAR } = ANNOTATION_TYPES;
 
 const toolType = ANNOTATION_TYPE_AREA_PLANAR;
 const labelTheme = ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME;
-const areaPlanarToolVisuals = createNodeChainAreaToolVisuals({
-  fillType: toolType,
-});
-const getAreaPlanarToolInfoBoxSlots = createNodeChainAreaToolInfoBoxSlots(
-  toolType,
-  {
-    headingTitle: "Plane Fläche (Dachfläche)",
-    headingColor: labelTheme.scheme.colorPrimary,
-    formatMeasurementLabelToken: (counter) =>
-      formatMeasurementShortLabelToken(toolType, counter),
-    formatBearing: (bearingRad) => formatCardinalBearing(bearingRad),
-  }
-);
 
-export const areaPlanarToolPlugin = createMeasurementToolPlugin({
-  id: toolType,
-  annotationType: toolType,
-  descriptor: {
+const AREA_PLANAR_OCCLUSION_STYLE_DEFAULTS = resolveAreaOcclusionStyleOptions({
+  fill: {
+    overlay: true,
+  },
+  line: {
+    overlayDashed: true,
+  },
+});
+
+export type AreaPlanarToolPluginOptions = {
+  occlusionStyleOptions?: AreaOcclusionStyleOptions;
+  measurementLineStyleOptions?: MeasurementLineStyleOptions;
+  texts?: DefaultAnnotationToolTexts;
+};
+
+export const createAreaPlanarToolPlugin = ({
+  occlusionStyleOptions,
+  measurementLineStyleOptions,
+  texts = defaultAnnotationToolTexts,
+}: AreaPlanarToolPluginOptions = {}) => {
+  const text = texts.areaPlanar;
+  const getAreaPlanarToolInfoBoxSlots = createNodeChainAreaToolInfoBoxSlots(
+    toolType,
+    {
+      headingTitle: text.headingTitle,
+      headingColor: labelTheme.scheme.colorPrimary,
+      formatMeasurementLabelToken: (counter) =>
+        formatMeasurementShortLabelToken(toolType, counter),
+      actionLabels: texts.actions,
+      navigationLabels: texts.navigation,
+      metricLabels: text.metricLabels,
+      formatBearing: (bearingRad) => formatCardinalBearing(bearingRad),
+    }
+  );
+  const resolvedOcclusionStyleOptions = resolveAreaOcclusionStyleOptions(
+    occlusionStyleOptions,
+    AREA_PLANAR_OCCLUSION_STYLE_DEFAULTS
+  );
+  const areaPlanarToolVisuals = createNodeChainAreaToolVisuals({
+    fillType: toolType,
+    measurementLineStyleOptions,
+  });
+
+  return createMeasurementToolPlugin({
     id: toolType,
-    order: 55,
-    label: "Dach",
-    tooltip: "Dachfläche messen",
-    shortcutKey: "C",
-    icon: <VectorTrapezoidIcon fontSize="1.33em" />,
-  },
-  helpText: [
-    "Punkte nacheinander setzen, um eine Dachfläche zu erstellen.",
-    "Doppelklick schliesst die Fläche ab, Escape verwirft den Entwurf.",
-  ],
-  capabilities: [
-    ...AUTHORING_MEASUREMENT_PLUGIN_CAPABILITIES,
-    ANNOTATION_TOOL_PLUGIN_CAPABILITIES.ADD_ANNOTATION,
-    ANNOTATION_TOOL_PLUGIN_CAPABILITIES.INFO_BOX,
-  ],
-  session: {
-    createSession: ({ drafts, setActiveToolType, addAnnotation }) => ({
-      toolType,
-      requestStart: () => {
-        setActiveToolType(toolType);
+    annotationType: toolType,
+    descriptor: {
+      id: toolType,
+      order: 55,
+      label: text.label,
+      tooltip: text.tooltip,
+      shortcutKey: "C",
+      icon: <VectorTrapezoidIcon fontSize="1.33em" />,
+    },
+    helpText: text.helpText,
+    capabilities: [
+      ...AUTHORING_MEASUREMENT_PLUGIN_CAPABILITIES,
+      ANNOTATION_TOOL_PLUGIN_CAPABILITIES.ADD_ANNOTATION,
+      ANNOTATION_TOOL_PLUGIN_CAPABILITIES.INFO_BOX,
+    ],
+    session: {
+      createSession: ({ drafts, setActiveToolType, addAnnotation }) => ({
+        toolType,
+        requestStart: () => {
+          setActiveToolType(toolType);
+        },
+        requestFinish: () => {
+          const draft = drafts.get(toolType);
+          const nextMeasurement = commitAreaMeasurement({
+            toolType,
+            coordinates: draft.coordinates,
+            linkedNodeGroupIds: draft.linkedNodeGroupIds,
+            addAnnotation,
+            sourceToolId: toolType,
+          });
+
+          drafts.clear(toolType);
+          return Boolean(nextMeasurement);
+        },
+        discardDraft: () => {
+          drafts.clear(toolType);
+        },
+        onNodeCreated: (coordinate, linkedNodeGroupId) => {
+          const currentDraft = drafts.get(toolType);
+          const nextDraft: AnnotationToolDraftState = {
+            coordinates: appendAreaPreviewPoint(
+              currentDraft.coordinates,
+              coordinate
+            ),
+            linkedNodeGroupIds: appendAreaPreviewPoint(
+              currentDraft.linkedNodeGroupIds,
+              linkedNodeGroupId ?? null
+            ),
+          };
+          drafts.set(toolType, nextDraft);
+        },
+        finishesOnLoopClosure: true,
+      }),
+    },
+    pointQuery: {
+      onPointCreated: ({
+        coordinate,
+        linkedNodeGroupId,
+        activeToolSession,
+      }) => {
+        activeToolSession?.onNodeCreated?.(coordinate, linkedNodeGroupId);
       },
-      requestFinish: () => {
-        const draft = drafts.get(toolType);
-        const nextMeasurement = commitAreaMeasurement({
+    },
+    addAnnotation: {
+      resolveOptions: resolveAreaToolAddAnnotationOptions,
+    },
+    authoringVisuals: {
+      createController: (context) =>
+        createPolygonAuthoringController({
           toolType,
-          coordinates: draft.coordinates,
-          linkedNodeGroupIds: draft.linkedNodeGroupIds,
-          addAnnotation,
-          sourceToolId: toolType,
-        });
-
-        drafts.clear(toolType);
-        return Boolean(nextMeasurement);
-      },
-      discardDraft: () => {
-        drafts.clear(toolType);
-      },
-      onNodeCreated: (coordinate, linkedNodeGroupId) => {
-        const currentDraft = drafts.get(toolType);
-        const nextDraft: AnnotationToolDraftState = {
-          coordinates: appendAreaPreviewPoint(
-            currentDraft.coordinates,
-            coordinate
-          ),
-          linkedNodeGroupIds: appendAreaPreviewPoint(
-            currentDraft.linkedNodeGroupIds,
-            linkedNodeGroupId ?? null
-          ),
-        };
-        drafts.set(toolType, nextDraft);
-      },
-      finishesOnLoopClosure: true,
-    }),
-  },
-  pointQuery: {
-    onPointCreated: ({ coordinate, linkedNodeGroupId, activeToolSession }) => {
-      activeToolSession?.onNodeCreated?.(coordinate, linkedNodeGroupId);
+          context,
+          occlusionStyleOptions: resolvedOcclusionStyleOptions,
+          measurementLineStyleOptions,
+        }),
     },
-  },
-  addAnnotation: {
-    resolveOptions: resolveAreaToolAddAnnotationOptions,
-  },
-  authoringVisuals: {
-    createController: (context) =>
-      createPolygonAuthoringController({
-        toolType,
-        context,
-      }),
-  },
-  keyboard: {
-    onKeyDown: ({ event, activeToolSession, sessionContext }) => {
-      const shortcutAction = resolveAnnotationCommonShortcutAction(event);
-      if (
-        shortcutAction === ANNOTATION_COMMON_SHORTCUT_ACTIONS.CANCEL_ACTIVE_TOOL
-      ) {
-        activeToolSession?.discardDraft();
-        event.preventDefault();
-        return true;
-      }
+    keyboard: {
+      onKeyDown: ({ event, activeToolSession, sessionContext }) => {
+        const shortcutAction = resolveAnnotationCommonShortcutAction(event);
+        if (
+          shortcutAction ===
+          ANNOTATION_COMMON_SHORTCUT_ACTIONS.CANCEL_ACTIVE_TOOL
+        ) {
+          activeToolSession?.discardDraft();
+          event.preventDefault();
+          return true;
+        }
 
-      if (
-        shortcutAction === ANNOTATION_COMMON_SHORTCUT_ACTIONS.UNDO_LAST_POINT
-      ) {
-        const currentDraft = sessionContext.drafts.get(toolType);
-        sessionContext.drafts.set(toolType, {
-          coordinates: undoAreaPreviewPoint(currentDraft.coordinates),
-          linkedNodeGroupIds: undoAreaPreviewPoint(
-            currentDraft.linkedNodeGroupIds
-          ),
-        });
-        event.preventDefault();
-        return true;
-      }
+        if (
+          shortcutAction === ANNOTATION_COMMON_SHORTCUT_ACTIONS.UNDO_LAST_POINT
+        ) {
+          const currentDraft = sessionContext.drafts.get(toolType);
+          sessionContext.drafts.set(toolType, {
+            coordinates: undoAreaPreviewPoint(currentDraft.coordinates),
+            linkedNodeGroupIds: undoAreaPreviewPoint(
+              currentDraft.linkedNodeGroupIds
+            ),
+          });
+          event.preventDefault();
+          return true;
+        }
 
-      return false;
+        return false;
+      },
     },
-  },
-  visualModels: {
-    build: ({
-      nodes,
-      annotationEntries,
-      selectedAnnotationIds,
-      setSelectedAnnotationId,
-      formatOptions,
-    }) =>
-      buildNodeChainAreaToolRenderModels({
-        toolType,
-        visuals: areaPlanarToolVisuals,
+    visualModels: {
+      build: ({
         nodes,
-        measurements: annotationEntries,
-        selectedMeasurementIds: selectedAnnotationIds,
-        fillPlacement: RUNTIME_POLYGON_FILL_PLACEMENT.COPLANAR,
+        annotationEntries,
+        selectedAnnotationIds,
+        setSelectedAnnotationId,
         formatOptions,
-        onMeasurementSelect: setSelectedAnnotationId,
-      }),
-  },
-  infoBox: {
-    getSlots: getAreaPlanarToolInfoBoxSlots,
-  },
-});
+        onNodeLongPress,
+      }) =>
+        buildNodeChainAreaToolRenderModels({
+          toolType,
+          visuals: areaPlanarToolVisuals,
+          nodes,
+          measurements: annotationEntries,
+          selectedMeasurementIds: selectedAnnotationIds,
+          fillPlacement: RUNTIME_POLYGON_FILL_PLACEMENT.COPLANAR,
+          formatOptions,
+          onMeasurementSelect: setSelectedAnnotationId,
+          onNodeLongPress,
+          occlusionStyleOptions: resolvedOcclusionStyleOptions,
+        }),
+    },
+    infoBox: {
+      getSlots: getAreaPlanarToolInfoBoxSlots,
+    },
+  });
+};
+
+export const areaPlanarToolPlugin = createAreaPlanarToolPlugin();

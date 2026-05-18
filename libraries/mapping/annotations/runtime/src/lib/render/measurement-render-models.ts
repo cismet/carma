@@ -43,6 +43,9 @@ export type RuntimePointMarkerRenderModel = {
   outline: string;
   outlineWidth: number;
   onClick?: () => void;
+  onHoverChange?: (hovered: boolean) => void;
+  onLongPress?: () => void;
+  longPressDurationMs?: number;
 };
 
 export type RuntimeEdgeRenderModel = {
@@ -52,7 +55,8 @@ export type RuntimeEdgeRenderModel = {
   coordinates: readonly CesiumGeographicCoordinate[];
   stroke: string;
   strokeWidth: number;
-  dashed?: true;
+  overlayDashPattern?: string;
+  overlayDashed?: true;
   showSegmentLengthLabels?: true;
   distanceTriangleOverlay?: RuntimeDistanceTriangleOverlayRenderModel;
 };
@@ -63,6 +67,7 @@ export type RuntimePolygonFillRenderModel = {
   nodeIds?: readonly string[];
   coordinates: readonly CesiumGeographicCoordinate[];
   fill: string;
+  overlayFill?: string;
   placement?: RuntimePolygonFillPlacement;
   selected?: boolean;
 };

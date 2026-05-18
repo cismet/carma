@@ -1,6 +1,15 @@
 import { FC, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
+import {
+  RuntimeAnnotationsToolbar,
+  useAnnotationsRuntime,
+} from "@carma-mapping/annotations/runtime";
+import {
+  createFilterButtons,
+  FilterInfo,
+  FilterState,
+} from "@carma-mapping/components";
 import type { FilterConfig, FilterType, Layer } from "@carma-mapping/layers";
 import { FILTER_TYPES } from "@carma-mapping/layers";
 
@@ -13,11 +22,6 @@ import {
   setLayerFilterState,
 } from "../../store/slices/mapping";
 import {
-  createFilterButtons,
-  FilterInfo,
-  FilterState,
-} from "@carma-mapping/components";
-import {
   getSelectedFeature,
   setSelectedFeature as setSelectedFeatureAction,
 } from "../../store/slices/features";
@@ -26,11 +30,37 @@ import {
   triggerFeatureInfoUpdateAction,
   UIMode,
 } from "../../store/slices/ui";
+import { useGeoportalCesiumAnnotationToolPlugins } from "../../hooks/use-geoportal-cesium-annotation-tool-plugins";
+import { CESIUM_ANNOTATION_INTERACTION_ID } from "../annotations/cesium-annotations.constants";
 import { useFilterBackground } from "./useFilterBackground";
 import FilterBackdrop from "./FilterBackdrop";
+import { GEOPORTAL_LAYER_TOOL_ACTION_TOOLBAR_CLASS_NAMES } from "./layer-tool-action-button-style";
 import SaveMeasurements from "./SaveMeasurements";
+import {
+  ADHOC_MODEL_CONTROL_INTERACTION_ID,
+  ADHOC_RENDER_STYLE_INTERACTION_ID,
+  AdhocModelControlInteractionPanel,
+  AdhocRenderStyleInteractionPanel,
+} from "./AdhocModelLayerbarControls";
+
+const GeoportalAnnotationsToolbar: FC<{ layer: Layer }> = () => {
+  const { registry } = useAnnotationsRuntime();
+  const toolPlugins = useGeoportalCesiumAnnotationToolPlugins(registry.plugins);
+
+  return (
+    <RuntimeAnnotationsToolbar
+      plugins={toolPlugins}
+      classNames={GEOPORTAL_LAYER_TOOL_ACTION_TOOLBAR_CLASS_NAMES}
+      disableSelectWithoutAnnotations
+      tooltipPlacement="bottom"
+    />
+  );
+};
 
 const INTERACTION_COMPONENTS: Record<string, FC<{ layer: Layer }>> = {
+  [ADHOC_RENDER_STYLE_INTERACTION_ID]: AdhocRenderStyleInteractionPanel,
+  [ADHOC_MODEL_CONTROL_INTERACTION_ID]: AdhocModelControlInteractionPanel,
+  [CESIUM_ANNOTATION_INTERACTION_ID]: GeoportalAnnotationsToolbar,
   "save-measurements": SaveMeasurements,
 };
 
@@ -122,10 +152,10 @@ const InteractionView = ({ isDragging }: { isDragging?: boolean }) => {
   };
 
   return (
-    <div ref={wrapperRef} className="relative pointer-events-none">
+    <div ref={wrapperRef} className="relative z-[998] pointer-events-none">
       {validBg && !isDragging && <FilterBackdrop bgData={validBg} />}
       <div className="pt-3 w-full flex items-center justify-center">
-        <div ref={filterRef} className="pointer-events-auto">
+        <div ref={filterRef} className="relative z-10 pointer-events-auto">
           {renderContent()}
         </div>
       </div>

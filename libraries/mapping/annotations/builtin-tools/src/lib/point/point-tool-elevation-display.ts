@@ -18,11 +18,19 @@ const pointElevationDisplayDefaults = Object.freeze({
   }),
 });
 
-export const resolvePointElevationDisplayMode = (
-  annotation: StoredAnnotation
-): AnnotationElevationDisplayMode =>
-  annotation.elevationDisplayMode ??
-  ANNOTATION_ELEVATION_DISPLAY_MODES.RELATIVE;
+export type PointElevationTextLabels = Readonly<{
+  absolutePrefix: string;
+  relativeHeightSuffix: string;
+  missingReference: string;
+}>;
+
+const defaultPointElevationTextLabels = Object.freeze<PointElevationTextLabels>(
+  {
+    absolutePrefix: "NHN",
+    relativeHeightSuffix: "relative Höhe über Bezugspunkt",
+    missingReference: "Keine Referenzhöhe gesetzt.",
+  }
+);
 
 export const resolvePointElevationReferenceAnnotationId = ({
   annotationEntries,
@@ -90,17 +98,19 @@ export const formatPointElevationLabelText = ({
   referenceCoordinate,
   elevationDisplayMode,
   formatOptions,
+  labels = defaultPointElevationTextLabels,
 }: {
   coordinate: CesiumGeographicCoordinate;
   referenceCoordinate: CesiumGeographicCoordinate | null;
   elevationDisplayMode: AnnotationElevationDisplayMode;
   formatOptions: AnnotationsRuntimeFormatOptions;
+  labels?: PointElevationTextLabels;
 }): string => {
   if (
     elevationDisplayMode === ANNOTATION_ELEVATION_DISPLAY_MODES.ABSOLUTE ||
     !referenceCoordinate
   ) {
-    return `NHN ${formatLengthMeters(
+    return `${labels.absolutePrefix} ${formatLengthMeters(
       coordinate.altitude,
       formatOptions.lengthMeters
     )}`;
@@ -130,14 +140,16 @@ export const formatPointRelativeHeightInfoText = ({
   coordinate,
   referenceCoordinate,
   formatOptions,
+  labels = defaultPointElevationTextLabels,
 }: {
   coordinate: CesiumGeographicCoordinate;
   referenceCoordinate: CesiumGeographicCoordinate | null;
   formatOptions: AnnotationsRuntimeFormatOptions;
+  labels?: PointElevationTextLabels;
 }): string =>
   referenceCoordinate
     ? `${formatLengthMeters(
         coordinate.altitude - referenceCoordinate.altitude,
         formatOptions.lengthMeters
-      )} relative Höhe über Bezugspunkt`
-    : "Keine Referenzhöhe gesetzt.";
+      )} ${labels.relativeHeightSuffix}`
+    : labels.missingReference;

@@ -8,7 +8,6 @@ import type {
 } from "@carma-mapping/annotations/runtime";
 import type { AnnotationToolId } from "@carma-mapping/annotations/runtime";
 import { areCoordinateListsEqual } from "@carma-mapping/annotations/runtime";
-import { distanceToolVisualDefaults } from "./distance-tool-visual-defaults";
 import {
   applyLineLabel,
   applyLineRuntime,
@@ -20,10 +19,17 @@ import {
   destroyLineCollection,
   destroyPreviewOverlayLayer,
   hideLineLabels,
+  hidePointMarkers,
+  placePointMarkers,
   previewControllerDefaults,
   createPreviewOverlayLayer,
 } from "@carma-mapping/annotations/runtime";
 import { resolveSegmentGuideFrame } from "@carma-mapping/annotations/runtime";
+import {
+  resolveMeasurementLineStyleOptions,
+  type MeasurementLineStyleOptions,
+  type ResolvedMeasurementLineStyleOptions,
+} from "@carma-mapping/annotations/runtime";
 
 const DISTANCE_PREVIEW_LAYER_ID = "annotation-overlay-distance-preview-layer";
 const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
@@ -35,23 +41,22 @@ type PreviewOverlayLines = {
   horizontal: SVGLineElement;
 };
 
-const createPreviewOverlayLine = (stroke: string) => {
+const createPreviewOverlayLine = (
+  stroke: string,
+  lineStyleOptions: ResolvedMeasurementLineStyleOptions
+) => {
   const line = document.createElementNS(SVG_NAMESPACE, "line");
   line.setAttribute("stroke", stroke);
-  line.setAttribute(
-    "stroke-width",
-    `${distanceToolVisualDefaults.dashedLine.strokeWidthPx}`
-  );
-  line.setAttribute(
-    "stroke-dasharray",
-    distanceToolVisualDefaults.dashedLine.dashPattern
-  );
+  line.setAttribute("stroke-width", `${lineStyleOptions.strokeWidthPx}`);
+  line.setAttribute("stroke-dasharray", lineStyleOptions.overlayDashPattern);
   line.setAttribute("stroke-linecap", "round");
   line.style.display = "none";
   return line;
 };
 
-const createPreviewOverlayLines = (): PreviewOverlayLines => {
+const createPreviewOverlayLines = (
+  lineStyleOptions: ResolvedMeasurementLineStyleOptions
+): PreviewOverlayLines => {
   const root = document.createElementNS(SVG_NAMESPACE, "svg");
   root.setAttribute("width", "100%");
   root.setAttribute("height", "100%");
@@ -61,13 +66,16 @@ const createPreviewOverlayLines = (): PreviewOverlayLines => {
   root.style.pointerEvents = "none";
 
   const direct = createPreviewOverlayLine(
-    previewControllerDefaults.directLineColor
+    previewControllerDefaults.directLineColor,
+    lineStyleOptions
   );
   const vertical = createPreviewOverlayLine(
-    previewControllerDefaults.verticalLineColor
+    previewControllerDefaults.verticalLineColor,
+    lineStyleOptions
   );
   const horizontal = createPreviewOverlayLine(
-    previewControllerDefaults.horizontalLineColor
+    previewControllerDefaults.horizontalLineColor,
+    lineStyleOptions
   );
   root.append(direct, vertical, horizontal);
 
@@ -102,9 +110,11 @@ const applyPreviewOverlayLine = ({
 export const createDistanceAuthoringController = ({
   toolType,
   context,
+  measurementLineStyleOptions,
 }: {
   toolType: AnnotationToolId;
   context: AnnotationToolAuthoringContext;
+  measurementLineStyleOptions?: MeasurementLineStyleOptions;
 }): AnnotationToolAuthoringController | null => {
   const { scene, drafts, formatOptions, previewLineLabelVisualOptions } =
     context;
@@ -120,7 +130,10 @@ export const createDistanceAuthoringController = ({
     return null;
   }
 
-  const overlayLines = createPreviewOverlayLines();
+  const resolvedLineStyleOptions = resolveMeasurementLineStyleOptions(
+    measurementLineStyleOptions
+  );
+  const overlayLines = createPreviewOverlayLines(resolvedLineStyleOptions);
   overlayLayer.appendChild(overlayLines.root);
 
   const lineLabels = createSegmentLineLabels(previewLineLabelVisualOptions);
@@ -129,6 +142,7 @@ export const createDistanceAuthoringController = ({
     lineLabels.vertical,
     lineLabels.horizontal
   );
+  const pointMarkers: HTMLDivElement[] = [];
 
   const lineCollection = createLineCollection(scene);
   const lines = {
@@ -137,7 +151,7 @@ export const createDistanceAuthoringController = ({
       "distance-preview-direct",
       previewControllerDefaults.directLineColor,
       {
-        width: distanceToolVisualDefaults.dashedLine.strokeWidthPx,
+        width: resolvedLineStyleOptions.strokeWidthPx,
       }
     ),
     vertical: createLineRuntime(
@@ -145,7 +159,7 @@ export const createDistanceAuthoringController = ({
       "distance-preview-vertical",
       previewControllerDefaults.verticalLineColor,
       {
-        width: distanceToolVisualDefaults.dashedLine.strokeWidthPx,
+        width: resolvedLineStyleOptions.strokeWidthPx,
       }
     ),
     horizontal: createLineRuntime(
@@ -153,7 +167,7 @@ export const createDistanceAuthoringController = ({
       "distance-preview-horizontal",
       previewControllerDefaults.horizontalLineColor,
       {
-        width: distanceToolVisualDefaults.dashedLine.strokeWidthPx,
+        width: resolvedLineStyleOptions.strokeWidthPx,
       }
     ),
   };
@@ -172,6 +186,7 @@ export const createDistanceAuthoringController = ({
     hidePreviewOverlayLine(overlayLines.vertical);
     hidePreviewOverlayLine(overlayLines.horizontal);
     hideLineLabels(lineLabels);
+    hidePointMarkers(pointMarkers);
     if (resetVerticalOutsideSign) {
       previousVerticalLabelOutsideSign = undefined;
     }
@@ -196,6 +211,18 @@ export const createDistanceAuthoringController = ({
     hide(false);
     const currentPointQueryPickResult = pointQueryPickResult;
     const hoverCoordinate = currentPointQueryPickResult?.coordinate ?? null;
+    const markerCoordinates = hoverCoordinate
+      ? [...draftCoordinates, hoverCoordinate]
+      : [...draftCoordinates];
+    if (markerCoordinates.length > 0) {
+      placePointMarkers({
+        scene,
+        overlayLayer,
+        pointMarkers,
+        coordinates: markerCoordinates,
+      });
+    }
+
     const frame = resolveSegmentGuideFrame({
       scene,
       anchorCoordinate: resolveAnchorCoordinate(),

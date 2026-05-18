@@ -1,0 +1,104 @@
+import type {
+  AnnotationToolId,
+  AnnotationToolPlugin,
+  AnnotationToolRegistry,
+} from "../registry";
+import { ANNOTATION_TOOL_PLUGIN_KINDS } from "../registry";
+import type { StoredAnnotation } from "../store";
+
+export type ResolveVisibleMeasurementAnnotationToolPluginsOptions = {
+  toolIds?: readonly AnnotationToolId[];
+};
+
+export const resolveVisibleMeasurementAnnotationToolPlugins = (
+  plugins: readonly AnnotationToolPlugin[],
+  options: ResolveVisibleMeasurementAnnotationToolPluginsOptions = {}
+): readonly AnnotationToolPlugin[] => {
+  const visibleToolIds =
+    options.toolIds !== undefined ? new Set(options.toolIds) : null;
+
+  return plugins
+    .filter((plugin) => {
+      if (visibleToolIds && !visibleToolIds.has(plugin.id)) {
+        return false;
+      }
+
+      return (
+        plugin.id === "select" ||
+        (plugin.kind === ANNOTATION_TOOL_PLUGIN_KINDS.MEASUREMENT &&
+          plugin.annotationType)
+      );
+    })
+    .sort((left, right) => left.descriptor.order - right.descriptor.order);
+};
+
+export const resolvePrimaryAnnotationInteractionToolId = (
+  plugins: readonly AnnotationToolPlugin[]
+): AnnotationToolId | null =>
+  plugins.find(
+    (plugin) => plugin.kind === ANNOTATION_TOOL_PLUGIN_KINDS.INTERACTION
+  )?.id ?? null;
+
+export const resolveAnnotationCountByToolType = (
+  annotationEntries: readonly StoredAnnotation[]
+): ReadonlyMap<string, number> =>
+  annotationEntries.reduce((countByToolType, annotationEntry) => {
+    countByToolType.set(
+      annotationEntry.toolType,
+      (countByToolType.get(annotationEntry.toolType) ?? 0) + 1
+    );
+    return countByToolType;
+  }, new Map<string, number>());
+
+export const resolveAnnotationIdsByToolType = (
+  annotationEntries: readonly StoredAnnotation[]
+): ReadonlyMap<string, readonly string[]> =>
+  annotationEntries.reduce((idsByToolType, annotationEntry) => {
+    idsByToolType.set(annotationEntry.toolType, [
+      ...(idsByToolType.get(annotationEntry.toolType) ?? []),
+      annotationEntry.id,
+    ]);
+    return idsByToolType;
+  }, new Map<string, readonly string[]>());
+
+export const resolveAnnotationEntriesByToolType = (
+  annotationEntries: readonly StoredAnnotation[]
+): ReadonlyMap<string, readonly StoredAnnotation[]> =>
+  annotationEntries.reduce((entriesByToolType, annotationEntry) => {
+    entriesByToolType.set(annotationEntry.toolType, [
+      ...(entriesByToolType.get(annotationEntry.toolType) ?? []),
+      annotationEntry,
+    ]);
+    return entriesByToolType;
+  }, new Map<string, readonly StoredAnnotation[]>());
+
+export const areAnnotationEntriesHidden = (
+  annotationEntries: readonly StoredAnnotation[]
+): boolean =>
+  annotationEntries.length > 0 &&
+  annotationEntries.every((annotationEntry) => annotationEntry.hidden);
+
+export const resolveAnnotationToolFallbackPlugin = ({
+  activeToolType,
+  registry,
+  fallbackToolId = "select",
+}: {
+  activeToolType: AnnotationToolId | null;
+  registry: AnnotationToolRegistry;
+  fallbackToolId?: AnnotationToolId;
+}): AnnotationToolPlugin | null => {
+  if (activeToolType) {
+    const activePlugin = registry.getPlugin(activeToolType);
+    if (activePlugin) {
+      return activePlugin;
+    }
+  }
+
+  return (
+    registry.getPlugin(fallbackToolId) ??
+    [...registry.plugins].sort(
+      (left, right) => left.descriptor.order - right.descriptor.order
+    )[0] ??
+    null
+  );
+};

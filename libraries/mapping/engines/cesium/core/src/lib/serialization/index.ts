@@ -14,8 +14,11 @@ export {
 
 export type { ColorConstructorArgs, ColorJson } from "./Color";
 export {
+  cloneColor,
   colorFromJson,
   colorFromConstructorArgs,
+  colorFromRgbaArray,
+  colorToRgbCartesian3,
   colorToJson,
   colorToConstructorArgs,
   isColorJson,

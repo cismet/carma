@@ -30,7 +30,19 @@ import { previewControllerDefaults } from "./authoring-visual-runtime";
 import { createPathAuthoringController } from "./create-path-authoring-controller";
 import { RUNTIME_POLYGON_FILL_PLACEMENT } from "../render/measurement-render-models";
 import { createMeasurementPolygonFillsController } from "../render/measurement-polygon-fills-controller.shared";
+import { createMeasurementOverlayPolygonFillsController } from "../render/measurement-overlay-polygon-fills-controller.shared";
 import { resolvePreviewLineLabelVisualOptions } from "../config/preview-line-label-visual-defaults";
+import {
+  isCoplanarPolygonFillPlacement,
+  resolveAreaOcclusionLineRenderOptions,
+  resolveAreaOcclusionStyleOptions,
+  resolveAreaOverlayFillColor,
+  type AreaOcclusionStyleOptions,
+} from "../config/area-occlusion-style-options";
+import {
+  resolveMeasurementLineStyleOptions,
+  type MeasurementLineStyleOptions,
+} from "../config/measurement-line-style-options";
 
 const DRAFT_CHAIN_OVERLAY_LAYER_ID =
   "annotation-overlay-draft-chain-preview-layer";
@@ -145,9 +157,13 @@ const buildPolygonPreviewAreaLabelState = ({
 export const createPolygonAuthoringController = ({
   toolType,
   context,
+  occlusionStyleOptions,
+  measurementLineStyleOptions,
 }: {
   toolType: AnnotationTypes["AREA_GROUND"] | AnnotationTypes["AREA_PLANAR"];
   context: AnnotationToolAuthoringContext;
+  occlusionStyleOptions?: AreaOcclusionStyleOptions;
+  measurementLineStyleOptions?: MeasurementLineStyleOptions;
 }): AnnotationToolAuthoringController | null => {
   const {
     scene,
@@ -159,20 +175,43 @@ export const createPolygonAuthoringController = ({
   if (!scene || scene.isDestroyed()) {
     return null;
   }
+  const resolvedOcclusionStyleOptions = resolveAreaOcclusionStyleOptions(
+    occlusionStyleOptions
+  );
+  const previewFillPlacement =
+    toolType === ANNOTATION_TYPE_AREA_GROUND
+      ? RUNTIME_POLYGON_FILL_PLACEMENT.GROUND
+      : RUNTIME_POLYGON_FILL_PLACEMENT.COPLANAR;
+  const resolvedLineStyleOptions = resolveMeasurementLineStyleOptions(
+    measurementLineStyleOptions
+  );
+  const previewLineOptions = {
+    ...(resolveAreaOcclusionLineRenderOptions(resolvedOcclusionStyleOptions) ??
+      {}),
+    strokeWidth: resolvedLineStyleOptions.strokeWidthPx,
+    overlayDashPattern: resolvedLineStyleOptions.overlayDashPattern,
+  };
 
   const draftChainController = createPathAuthoringController(scene, {
     overlayLayerId: DRAFT_CHAIN_OVERLAY_LAYER_ID,
     lineId: "draft-preview-chain",
     lineColor: previewControllerDefaults.draftChainColor,
-    showPointMarkers: false,
+    showPointMarkers: true,
+    lineOptions: previewLineOptions,
   });
   const polygonLoopController = createPathAuthoringController(scene, {
     overlayLayerId: POLYGON_LOOP_OVERLAY_LAYER_ID,
     lineId: "draft-preview-loop",
     lineColor: previewControllerDefaults.draftChainColor,
     showPointMarkers: false,
+    lineOptions: previewLineOptions,
   });
   const previewFillController = createMeasurementPolygonFillsController(scene);
+  const previewOverlayFillController =
+    createMeasurementOverlayPolygonFillsController(
+      scene,
+      `${toolType}-draft-preview`
+    );
   const areaLabelController = createTransientPointLabelController({
     labelOverlay,
     overlayId: `${toolType}-draft-area-label`,
@@ -185,11 +224,6 @@ export const createPolygonAuthoringController = ({
   const resolvedPreviewLineLabelVisualOptions =
     resolvePreviewLineLabelVisualOptions(previewLineLabelVisualOptions);
 
-  const previewFillPlacement =
-    toolType === ANNOTATION_TYPE_AREA_GROUND
-      ? RUNTIME_POLYGON_FILL_PLACEMENT.GROUND
-      : RUNTIME_POLYGON_FILL_PLACEMENT.COPLANAR;
-
   const render = (requestRender = true) => {
     if (!isValidScene(scene)) {
       return;
@@ -199,6 +233,7 @@ export const createPolygonAuthoringController = ({
       draftChainController.clear();
       polygonLoopController.clear();
       previewFillController.clear();
+      previewOverlayFillController.clear();
       currentAreaLabelState = null;
       areaLabelController.setState(null);
       if (requestRender) {
@@ -223,6 +258,7 @@ export const createPolygonAuthoringController = ({
 
     if (previewCoordinates.length < 3) {
       previewFillController.clear();
+      previewOverlayFillController.clear();
       currentAreaLabelState = null;
       areaLabelController.setState(null);
       if (requestRender) {
@@ -231,14 +267,27 @@ export const createPolygonAuthoringController = ({
       return;
     }
 
-    previewFillController.setPolygonFills([
-      {
-        id: `${toolType}-draft-preview-fill`,
-        coordinates: previewCoordinates,
-        fill: getAnnotationAreaFillCssColor(toolType, false),
-        placement: previewFillPlacement,
-      },
-    ]);
+    const previewFill = getAnnotationAreaFillCssColor(toolType, false);
+    const previewPolygonFill = {
+      id: `${toolType}-draft-preview-fill`,
+      coordinates: previewCoordinates,
+      fill: previewFill,
+      ...(isCoplanarPolygonFillPlacement(previewFillPlacement) &&
+      resolvedOcclusionStyleOptions.fill.overlay
+        ? {
+            overlayFill: resolveAreaOverlayFillColor(
+              previewFill,
+              resolvedOcclusionStyleOptions
+            ),
+          }
+        : {}),
+      placement: previewFillPlacement,
+    };
+    const previewPolygonFills = [previewPolygonFill];
+    previewFillController.setPolygonFills(previewPolygonFills);
+    previewOverlayFillController.setPolygonFills(
+      previewPolygonFill.overlayFill ? previewPolygonFills : []
+    );
     currentAreaLabelState = buildPolygonPreviewAreaLabelState({
       toolType,
       coordinates: previewCoordinates,
@@ -292,6 +341,7 @@ export const createPolygonAuthoringController = ({
       draftChainController.destroy();
       polygonLoopController.destroy();
       previewFillController.destroy();
+      previewOverlayFillController.destroy();
       areaLabelController.destroy();
     },
   };

@@ -42,6 +42,9 @@
       "@carma-commons/ui/shadcn": ["libraries/commons/ui/shadcn/src/index.ts"],
       "@carma-units": ["libraries/units/src/index.ts"],
       "@carma-geo/*": ["libraries/geo/*/src/index.ts"],
+      "@carma-mapping/annotations/builtin-tools/annotation-mode-text": [
+        "libraries/mapping/annotations/builtin-tools/src/lib/annotation-mode-text.ts"
+      ],
       "@carma-mapping/*": ["libraries/mapping/*/src/index.ts"],
       "@carma-providers/*": ["libraries/providers/*/src/index.ts"],
       "@carma-collab/pecher/*": ["libraries/collaboration/carma-pecher-collab/src/*/index.jsx"],

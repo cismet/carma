@@ -1,12 +1,14 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import type { Scene } from "@carma-cesium";
 
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import type { PreviewLineLabelVisualOptions } from "../config/preview-line-label-visual-defaults";
 import { useAnnotationToolDraftStates } from "./use-annotation-tool-draft-states";
 import {
+  type AnnotationElevationDisplayMode,
   type AnnotationsStore,
   selectSelectedAnnotationId,
+  setSelectedAnnotationIds,
   useAnnotationsSelector,
 } from "../store";
 import { ANNOTATION_TOOL_PLUGIN_KINDS } from "../registry";
@@ -29,7 +31,10 @@ type RuntimeVisualHostProps = {
   annotationsStore: AnnotationsStore;
   annotationToolDraftStore: AnnotationToolDraftStore;
   setElevationReferenceAnnotationId: (annotationId: string | null) => void;
-  toggleAnnotationElevationDisplayMode: (annotationId: string) => void;
+  toggleAnnotationElevationDisplayMode: (
+    annotationId: string,
+    currentElevationDisplayMode?: AnnotationElevationDisplayMode
+  ) => void;
   onActiveMoveGizmoNodeIdChange: (nodeId: string | null) => void;
   onHoveredPointQueryNodeIdChange: (nodeId: string | null) => void;
   onPreviewSnapTargetNodeClick: (nodeId: string) => boolean;
@@ -100,6 +105,45 @@ export const RuntimeVisualHost = ({
     annotationsStore,
     isSelectionAdditiveModifierPressed,
   });
+  const handleNodeMeasurementsSelection = useCallback(
+    (annotationIds: readonly string[]) => {
+      const normalizedAnnotationIds = Array.from(
+        new Set(annotationIds.filter(Boolean))
+      );
+      if (normalizedAnnotationIds.length === 0) {
+        return;
+      }
+
+      if (!isSelectionAdditiveModifierPressed) {
+        annotationsStore.dispatch(
+          setSelectedAnnotationIds(normalizedAnnotationIds)
+        );
+        return;
+      }
+
+      const currentlySelectedAnnotationIds =
+        annotationsStore.getState().selectionState.selectedAnnotationIds;
+      const normalizedAnnotationIdSet = new Set(normalizedAnnotationIds);
+      const allNodeAnnotationsSelected = normalizedAnnotationIds.every(
+        (annotationId) => currentlySelectedAnnotationIds.includes(annotationId)
+      );
+      const nextSelectedAnnotationIds = allNodeAnnotationsSelected
+        ? currentlySelectedAnnotationIds.filter(
+            (annotationId) => !normalizedAnnotationIdSet.has(annotationId)
+          )
+        : Array.from(
+            new Set([
+              ...currentlySelectedAnnotationIds,
+              ...normalizedAnnotationIds,
+            ])
+          );
+
+      annotationsStore.dispatch(
+        setSelectedAnnotationIds(nextSelectedAnnotationIds)
+      );
+    },
+    [annotationsStore, isSelectionAdditiveModifierPressed]
+  );
   const {
     draftNodeCoordinateOverrides,
     effectiveLinkedNodeGroups,
@@ -175,6 +219,7 @@ export const RuntimeVisualHost = ({
         previewSnapTargetHoverEnabled={previewSnapTargetHoverEnabled}
         onPreviewSnapTargetNodeClick={onPreviewSnapTargetNodeClick}
         onMeasurementSelect={handleMeasurementSelection}
+        onNodeMeasurementsSelect={handleNodeMeasurementsSelection}
         onNodeLongPress={handleNodeLongPress}
         onReferenceNodeClick={handleReferenceNodeClick}
         onReferenceNodeHover={handleReferenceNodeHover}

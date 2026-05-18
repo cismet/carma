@@ -105,14 +105,6 @@ export {
   type RotationAxisVisualizer,
   type RotationAxisVisualizerOptions,
 } from "./createRotationAxisVisualizer";
-export { createModelPrimitiveFromConfig } from "./createModelPrimitiveFromConfig";
-export { DEFAULT_MODEL_HIGHLIGHT_SHADER } from "./modelHighlightShader";
-export {
-  buildModelKey,
-  extractPickedProperties,
-  getPrimitiveSelectionId,
-  isModelPick,
-} from "./modelManager";
 
 // Tileset
 export { guardTileset } from "./guardTileset";

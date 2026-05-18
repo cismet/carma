@@ -3,7 +3,12 @@ import {
   formatLengthMeters,
   radToDegNumeric,
 } from "@carma-units";
-import { buildAnnotationMeasurementInfoBoxSlots } from "@carma-mapping/annotations/ui";
+import {
+  AnnotationInfoBoxMetricGrid,
+  buildAnnotationMeasurementInfoBoxSlots,
+  type AnnotationInfoBoxActionLabels,
+  type AnnotationInfoBoxNavigationLabels,
+} from "@carma-mapping/annotations/ui";
 
 import type { RuntimeAnnotationInfoBoxContext } from "@carma-mapping/annotations/runtime";
 import { resolveRuntimeMeasurementNavigation } from "@carma-mapping/annotations/runtime";
@@ -19,10 +24,25 @@ export const createPolylineToolInfoBoxSlots = (
     headingTitle,
     headingColor,
     formatMeasurementLabelToken,
+    actionLabels,
+    navigationLabels,
+    metricLabels,
   }: {
     headingTitle: string;
     headingColor: string;
     formatMeasurementLabelToken: (counter: number) => string;
+    actionLabels?: Partial<AnnotationInfoBoxActionLabels>;
+    navigationLabels?: Partial<AnnotationInfoBoxNavigationLabels>;
+    metricLabels: {
+      totalLength: string;
+      segmentCount: string;
+      meanSegmentLength: string;
+      ascent: string;
+      descent: string;
+      absoluteElevationChange: string;
+      startEndElevationDelta: string;
+      bearing: string;
+    };
   }
 ) => {
   return ({
@@ -110,6 +130,7 @@ export const createPolylineToolInfoBoxSlots = (
           event.stopPropagation();
           removeAnnotationById(annotation.id);
         },
+        labels: actionLabels,
         dataTestIdPrefix: "carma-annotation-polyline-measurement",
         dataTestIds: {
           flyTo: "carma-annotation-flyto-polyline-measurement-btn",
@@ -122,51 +143,58 @@ export const createPolylineToolInfoBoxSlots = (
       },
       metaText: formatDistance(summary.totalLengthMeters),
       content: (
-        <div className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1 tabular-nums">
-          <span className={infoBoxVisualOptions.mutedTextClassName}>
-            Gesamtlänge
-          </span>
-          <span>{formatDistance(summary.totalLengthMeters)}</span>
-          <span className={infoBoxVisualOptions.mutedTextClassName}>
-            Segmente
-          </span>
-          <span>{summary.segmentCount}</span>
-          <span className={infoBoxVisualOptions.mutedTextClassName}>
-            Ø Segment
-          </span>
-          <span>{formatDistance(summary.meanSegmentLengthMeters)}</span>
-          <span className={infoBoxVisualOptions.mutedTextClassName}>
-            Aufstieg
-          </span>
-          <span>{formatDistance(summary.ascentMeters)}</span>
-          <span className={infoBoxVisualOptions.mutedTextClassName}>
-            Abstieg
-          </span>
-          <span>{formatDistance(summary.descentMeters)}</span>
-          <span className={infoBoxVisualOptions.mutedTextClassName}>
-            Summe H
-          </span>
-          <span>
-            {formatDistance(summary.totalAbsoluteElevationChangeMeters)}
-          </span>
-          <span className={infoBoxVisualOptions.mutedTextClassName}>
-            Δ Start/Ende
-          </span>
-          <span>{formatDistance(summary.startEndElevationDeltaMeters)}</span>
-          {Number.isFinite(bearingRad) ? (
-            <>
-              <span className={infoBoxVisualOptions.mutedTextClassName}>
-                Ausrichtung
-              </span>
-              <span>
-                {formatDegrees(
-                  radToDegNumeric(bearingRad ?? 0),
-                  formatOptions.degrees
-                )}
-              </span>
-            </>
-          ) : null}
-        </div>
+        <AnnotationInfoBoxMetricGrid
+          items={[
+            {
+              id: "total-length",
+              label: metricLabels.totalLength,
+              value: formatDistance(summary.totalLengthMeters),
+            },
+            {
+              id: "segment-count",
+              label: metricLabels.segmentCount,
+              value: summary.segmentCount,
+            },
+            {
+              id: "mean-segment-length",
+              label: metricLabels.meanSegmentLength,
+              value: formatDistance(summary.meanSegmentLengthMeters),
+            },
+            {
+              id: "ascent",
+              label: metricLabels.ascent,
+              value: formatDistance(summary.ascentMeters),
+            },
+            {
+              id: "descent",
+              label: metricLabels.descent,
+              value: formatDistance(summary.descentMeters),
+            },
+            {
+              id: "absolute-elevation-change",
+              label: metricLabels.absoluteElevationChange,
+              value: formatDistance(summary.totalAbsoluteElevationChangeMeters),
+            },
+            {
+              id: "start-end-elevation-delta",
+              label: metricLabels.startEndElevationDelta,
+              value: formatDistance(summary.startEndElevationDeltaMeters),
+            },
+            ...(Number.isFinite(bearingRad)
+              ? [
+                  {
+                    id: "bearing",
+                    label: metricLabels.bearing,
+                    value: formatDegrees(
+                      radToDegNumeric(bearingRad ?? 0),
+                      formatOptions.degrees
+                    ),
+                  },
+                ]
+              : []),
+          ]}
+          visualOptions={infoBoxVisualOptions}
+        />
       ),
       navigation: {
         totalEntries: navigation?.totalEntries ?? 0,
@@ -174,6 +202,7 @@ export const createPolylineToolInfoBoxSlots = (
         onFlyToAllMeasurements: navigation?.flyToAllMeasurements,
         onPreviousMeasurement: () => navigation?.selectRelativeMeasurement(-1),
         onNextMeasurement: () => navigation?.selectRelativeMeasurement(1),
+        labels: navigationLabels,
       },
       visualOptions: infoBoxVisualOptions,
     });

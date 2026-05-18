@@ -26,6 +26,7 @@ export {
   Cartographic,
   ClassificationType,
   ClippingPlaneCollection,
+  ClippingPolygon,
   ClippingPolygonCollection,
   Color,
   ColorGeometryInstanceAttribute,

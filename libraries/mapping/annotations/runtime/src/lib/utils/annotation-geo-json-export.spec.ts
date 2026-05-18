@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { StoredAnnotation } from "../store/annotations-store.types";
 import {
   buildStoredAnnotationGeoJsonFeatureCollection,
+  buildStoredAnnotationsGeoJsonFeatureCollection,
   sanitizeAnnotationExportFileSegment,
 } from "./annotation-geo-json-export";
 const {
@@ -99,6 +100,36 @@ describe("runtimeAnnotationGeoJsonExport", () => {
     expect(sanitizeAnnotationExportFileSegment(null)).toBe("annotation");
   });
 
+  it("exports multiple annotations as one GeoJSON feature collection", () => {
+    const collection = buildStoredAnnotationsGeoJsonFeatureCollection({
+      annotations: [
+        {
+          annotation: createAnnotation({
+            id: "point-1",
+            toolType: ANNOTATION_TYPE_POINT,
+          }),
+          coordinates: [{ longitude: 7.0, latitude: 51.0, altitude: 100 }],
+        },
+        {
+          annotation: createAnnotation({
+            id: "distance-1",
+            toolType: ANNOTATION_TYPE_DISTANCE,
+          }),
+          coordinates: [
+            { longitude: 7.0, latitude: 51.0, altitude: 100 },
+            { longitude: 7.1, latitude: 51.1, altitude: 101 },
+          ],
+        },
+      ],
+    });
+
+    expect(collection?.type).toBe("FeatureCollection");
+    expect(collection?.features.map((feature) => feature.id)).toEqual([
+      "point-1",
+      "distance-1",
+    ]);
+  });
+
   it("normalizes nested annotation properties and omits undefined entries", () => {
     const annotation = createAnnotation({
       displayName: "  Testexport  ",
@@ -135,6 +166,30 @@ describe("runtimeAnnotationGeoJsonExport", () => {
         nested: {
           keep: 3,
         },
+      },
+    });
+  });
+
+  it("exports per-annotation label appearance data", () => {
+    const collection = buildStoredAnnotationGeoJsonFeatureCollection({
+      annotation: createAnnotation({
+        labelAppearance: {
+          backgroundColor: "#123456",
+          fontSizePx: 22,
+          textColor: "#abcdef",
+        },
+        toolType: ANNOTATION_TYPE_LABEL,
+      }),
+      coordinates: [{ longitude: 7.0, latitude: 51.0, altitude: 100 }],
+    });
+
+    expect(
+      collection?.features[0]?.properties?.annotation
+    ).toMatchObject({
+      labelAppearance: {
+        backgroundColor: "#123456",
+        fontSizePx: 22,
+        textColor: "#abcdef",
       },
     });
   });

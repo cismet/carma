@@ -19,8 +19,7 @@
       "executor": "@nx/vite:test",
       "outputs": ["{workspaceRoot}/dist/.vite/svg"],
       "options": {
-        "config": "libraries/commons/svg/vite.config.ts",
-        "passWithNoTests": false
+        "config": "libraries/commons/svg/vite.config.ts"
       }
     }
   }

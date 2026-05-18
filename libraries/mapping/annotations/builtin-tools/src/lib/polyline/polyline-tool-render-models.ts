@@ -83,6 +83,7 @@ export const buildPolylineToolRenderModels = ({
         measurementId: measurement.id,
         nodeIds: measurement.nodeIds,
         coordinates,
+        overlayDashed: true as const,
         showSegmentLengthLabels: true as const,
         ...(selectedMeasurementIdSet.has(measurement.id)
           ? applySelectedEdgeVisualStyle(visuals.edge)

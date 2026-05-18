@@ -14,16 +14,16 @@ const visuals = {
   edge: {
     stroke: "rgba(255, 255, 255, 0.92)",
     strokeWidth: 1.5,
-    dashed: true,
+    overlayDashed: true,
   },
   selectedEdge: {
     stroke: "rgba(255, 214, 10, 0.98)",
     strokeWidth: 1.5,
-    dashed: true,
+    overlayDashed: true,
   },
   previewEdge: {
     stroke: "rgba(255, 255, 255, 0.9)",
-    strokeWidth: 1,
+    strokeWidth: 1.5,
   },
   point: {
     pixelSize: 10,
@@ -185,6 +185,8 @@ describe("buildDistanceToolRenderModels", () => {
     expect(badgeLabel?.nodeId).toBe("node-b");
     expect(badgeLabel?.preferredAttach).toBe("left");
     expect(badgeLabel?.coordinateCandidates).toHaveLength(2);
+    expect(badgeLabel?.allowLongPressWhenBlocked).toBe(false);
+    expect(badgeLabel?.onLongPress).toBeUndefined();
   });
 
   it("anchors the distance badge on the endpoint with fewer incident edges at the linked position", () => {
@@ -226,6 +228,8 @@ describe("buildDistanceToolRenderModels", () => {
         nodeId: "node-b",
       },
     ]);
+    expect(badgeLabel?.allowLongPressWhenBlocked).toBe(false);
+    expect(badgeLabel?.onLongPress).toBeUndefined();
   });
 
   it("uses linked group size as a secondary tiebreaker when incident edge counts match", () => {

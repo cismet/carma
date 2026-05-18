@@ -10,22 +10,25 @@ const secondaryEntryPoints = [
     {
       entryName: 'fetching',
       entryPath: 'src/lib/fetching/index.ts',
-      typesTarget: './lib/fetching/index',
+      typesShim:
+        'export { md5FetchJSON, md5FetchText, md5ActionFetchDAQ } from "./lib/fetching/index";\n',
     },
     {
       entryName: 'number-format',
       entryPath: 'src/lib/number-format/index.ts',
-      typesTarget: './lib/number-format/index',
+      typesShim:
+        'export { formatFixedNumber } from "./lib/number-format/index";\n',
     },
     {
       entryName: 'promise',
       entryPath: 'src/lib/promise/index.ts',
-      typesTarget: './lib/promise/index',
+      typesShim:
+        'export { promiseWithTimeout, waitFrames } from "./lib/promise/index";\n',
     },
     {
       entryName: 'window',
       entryPath: 'src/lib/window/index.ts',
-      typesTarget: './lib/window/index',
+      typesShim: 'export { carmaWindow, cjsGlobalShim } from "./lib/window/index";\n',
     },
 ] as const;
 
@@ -46,11 +49,8 @@ export default defineConfig({
         const outDir = path.resolve(__dirname, '../../../dist/libraries/commons/utils');
         mkdirSync(outDir, { recursive: true });
 
-        for (const { entryName, typesTarget } of secondaryEntryPoints) {
-          writeFileSync(
-            path.join(outDir, `${entryName}.d.ts`),
-            `export * from "${typesTarget}";\n`
-          );
+        for (const { entryName, typesShim } of secondaryEntryPoints) {
+          writeFileSync(path.join(outDir, `${entryName}.d.ts`), typesShim);
         }
       },
     },

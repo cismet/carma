@@ -101,6 +101,7 @@ type BaseLineVisualizerOptions = Omit<
 > & {
   id: string;
   dashed?: boolean;
+  dashPattern?: string;
   dashLengthRatio?: number;
   dashGapRatio?: number;
   collapseNegativeGaps?: boolean;
@@ -180,6 +181,7 @@ export const createSvgLineVisualizer = ({
   id,
   getSvgLine,
   dashed = false,
+  dashPattern,
   dashLengthRatio,
   dashGapRatio,
   collapseNegativeGaps,
@@ -187,6 +189,11 @@ export const createSvgLineVisualizer = ({
   capStyle,
   ...line
 }: CreateSvgLineVisualizerOptions): SvgLineVisualizerData => {
+  const fixedDashPattern =
+    dashed && typeof dashPattern === "string" && dashPattern.length > 0
+      ? dashPattern
+      : undefined;
+
   // Benchmark context:
   // our DOM update benchmarks favored SVG <line> primitives updated through
   // SVGAnimatedLength baseVal writes over both setAttribute updates and <path>
@@ -195,16 +202,18 @@ export const createSvgLineVisualizer = ({
     id,
     ...line,
     getSvgLine,
-    strokeDasharray: dashed ? "1 1" : "none",
+    strokeDasharray: dashed ? fixedDashPattern ?? "1 1" : "none",
     strokeDashoffset: 0,
     strokeLinecap: resolveStrokeLinecap(capStyle),
-    dynamicDashPattern: resolveDynamicDashPattern({
-      dashed,
-      dashLengthRatio,
-      dashGapRatio,
-      collapseNegativeGaps,
-      collapseCapThresholdEffectiveGapRatio,
-    }),
+    dynamicDashPattern: fixedDashPattern
+      ? undefined
+      : resolveDynamicDashPattern({
+          dashed,
+          dashLengthRatio,
+          dashGapRatio,
+          collapseNegativeGaps,
+          collapseCapThresholdEffectiveGapRatio,
+        }),
   };
 };
 

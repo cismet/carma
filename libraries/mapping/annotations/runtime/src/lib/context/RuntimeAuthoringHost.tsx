@@ -18,6 +18,7 @@ import {
   type PointQueryIndicatorController,
 } from "../interaction/create-point-query-indicator-controller";
 import { useSceneCoordinateHandler } from "../interaction/use-scene-coordinate-handler";
+import { areCoordinatesEqual } from "../utils/coordinate-equality";
 import { useAnnotationsSelector } from "../store";
 import type {
   AnnotationsStore,
@@ -30,6 +31,7 @@ import { ANNOTATION_TOOL_PLUGIN_KINDS } from "../registry";
 import type { AnnotationToolId } from "../registry/annotation-tool-id";
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import type { PreviewLineLabelVisualOptions } from "../config/preview-line-label-visual-defaults";
+import type { AnnotationLabelTextRequester } from "./use-annotation-label-text-request";
 import type {
   AnnotationToolAuthoringController,
   AnnotationToolDraftStore,
@@ -69,6 +71,7 @@ type RuntimeAuthoringHostProps = {
   setHoveredPointQueryNodeId: (nodeId: string | null) => void;
   formatOptions: AnnotationsRuntimeFormatOptions;
   previewLineLabelVisualOptions: Partial<PreviewLineLabelVisualOptions>;
+  requestLabelText?: AnnotationLabelTextRequester;
 };
 
 export const RuntimeAuthoringHost = ({
@@ -86,6 +89,7 @@ export const RuntimeAuthoringHost = ({
   setHoveredPointQueryNodeId,
   formatOptions,
   previewLineLabelVisualOptions,
+  requestLabelText,
 }: RuntimeAuthoringHostProps) => {
   const labelOverlay = useLabelOverlay();
   const activeToolType = useAnnotationsSelector(
@@ -136,6 +140,7 @@ export const RuntimeAuthoringHost = ({
       dispatch: annotationsStore.dispatch,
       setActiveToolType: setActiveToolTypeInStore,
       drafts: annotationToolDraftStore,
+      requestLabelText,
       addAnnotation,
     }),
     [
@@ -143,6 +148,7 @@ export const RuntimeAuthoringHost = ({
       annotationToolDraftStore,
       annotationsStore.dispatch,
       annotationsStore.getState,
+      requestLabelText,
       setActiveToolTypeInStore,
     ]
   );
@@ -350,16 +356,19 @@ export const RuntimeAuthoringHost = ({
       const resolvedHoverCoordinate =
         hoveredPointQueryNode?.coordinate ??
         resolvePointQueryCoordinate(coordinate, screenPosition);
+      const isHoverLockedToSnapPoint =
+        hoveredPointQueryNode !== null ||
+        !areCoordinatesEqual(resolvedHoverCoordinate, coordinate);
       const resolvedHoverPointECEF =
-        hoveredPointQueryNode !== null
+        isHoverLockedToSnapPoint
           ? cartesian3FromGeographicCoordinate(resolvedHoverCoordinate)
           : pointECEF;
       const resolvedHoverSurfaceNormalECEF =
-        hoveredPointQueryNode !== null && resolvedHoverPointECEF
+        isHoverLockedToSnapPoint && resolvedHoverPointECEF
           ? getLocalUpDirectionAtAnchor(resolvedHoverPointECEF)
           : surfaceNormalECEF;
       const resolvedHoverScreenPosition =
-        hoveredPointQueryNode !== null &&
+        isHoverLockedToSnapPoint &&
         scene &&
         !scene.isDestroyed() &&
         resolvedHoverPointECEF
@@ -372,7 +381,7 @@ export const RuntimeAuthoringHost = ({
       return {
         coordinate: resolvedHoverCoordinate,
         screenPosition:
-          hoveredPointQueryNode !== null && defined(resolvedHoverScreenPosition)
+          isHoverLockedToSnapPoint && defined(resolvedHoverScreenPosition)
             ? {
                 x: resolvedHoverScreenPosition.x,
                 y: resolvedHoverScreenPosition.y,
@@ -418,11 +427,17 @@ export const RuntimeAuthoringHost = ({
         surfaceNormalECEF,
       });
       const hoveredPointQueryNode = resolveHoveredPointQueryNode();
+      const isHoverLockedToSnapPoint =
+        hoveredPointQueryNode !== null ||
+        !areCoordinatesEqual(
+          latestPointQueryPickResultRef.current.coordinate,
+          coordinate
+        );
       pointQueryIndicatorControllerRef.current?.setPreview({
         pointECEF: latestPointQueryPickResultRef.current.pointECEF,
         surfaceNormalECEF:
           latestPointQueryPickResultRef.current.surfaceNormalECEF,
-        lockToPreviewPoint: hoveredPointQueryNode !== null,
+        lockToPreviewPoint: isHoverLockedToSnapPoint,
       });
       activeAuthoringControllerRef.current?.setPointQueryPickResult(
         latestPointQueryPickResultRef.current

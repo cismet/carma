@@ -9,6 +9,7 @@ import type {
   RuntimePolygonFillRenderModel,
 } from "./measurement-render-models";
 import { useMeasurementEdgesController } from "./use-measurement-edges-controller";
+import { useMeasurementOverlayPolygonFillsController } from "./use-measurement-overlay-polygon-fills-controller";
 import { useMeasurementPolygonFillsController } from "./use-measurement-polygon-fills-controller";
 import type { Scene } from "@carma-cesium";
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
@@ -18,6 +19,7 @@ import {
   resolvePreviewLineLabelVisualOptions,
   type PreviewLineLabelVisualOptions,
 } from "../config/preview-line-label-visual-defaults";
+import { shouldShowNodeInteractionTargets } from "./node-interaction-targets";
 import { buildVisualizerInputs } from "./visualizer-inputs";
 
 type UseMeasurementVisualizersArgs = {
@@ -37,6 +39,7 @@ type UseMeasurementVisualizersArgs = {
   previewSnapTargetHoverEnabled?: boolean;
   onPreviewSnapTargetNodeClick?: (nodeId: string) => boolean;
   onMeasurementSelect?: (measurementId: string) => void;
+  onNodeMeasurementsSelect?: (measurementIds: readonly string[]) => void;
   onNodeLongPress?: (nodeId: string, measurementId?: string) => void;
   onReferenceNodeClick?: (nodeId: string) => boolean;
   onReferenceNodeHover?: (nodeId: string, hovered: boolean) => void;
@@ -69,6 +72,7 @@ export const useMeasurementVisualizers = (
     previewSnapTargetHoverEnabled = false,
     onPreviewSnapTargetNodeClick,
     onMeasurementSelect,
+    onNodeMeasurementsSelect,
     onNodeLongPress,
     onReferenceNodeClick,
     onReferenceNodeHover,
@@ -104,6 +108,7 @@ export const useMeasurementVisualizers = (
     onDistanceTriangleCornerClick,
   });
   useMeasurementPolygonFillsController(scene, polygonFills);
+  useMeasurementOverlayPolygonFillsController(scene, polygonFills, surfaceKey);
 
   const selectedAnnotationIdSet = useMemo(
     () => new Set(selectedAnnotationIds),
@@ -139,10 +144,14 @@ export const useMeasurementVisualizers = (
       onReferenceNodeHover ||
       onPreviewSnapTargetNodeClick
   );
-  const showNodeInteractionTargets =
-    enableHostInteractionTargets &&
-    hasNodeInteractionHandlers &&
-    (nodeInteractionHoverEnabled || !blockLabelInteractions);
+  const nodeLongPressInteractionEnabled = Boolean(onNodeLongPress);
+  const showNodeInteractionTargets = shouldShowNodeInteractionTargets({
+    enableHostInteractionTargets,
+    hasNodeInteractionHandlers,
+    nodeInteractionHoverEnabled,
+    nodeLongPressInteractionEnabled,
+    blockLabelInteractions,
+  });
   const visualizerInputs = useMemo(
     () =>
       buildVisualizerInputs({
@@ -159,6 +168,7 @@ export const useMeasurementVisualizers = (
         previewNodeLinkId,
         isInPreviewNodeLink,
         onMeasurementSelect,
+        onNodeMeasurementsSelect,
         onNodeLongPress,
         onPreviewSnapTargetNodeClick,
         onReferenceNodeClick,
@@ -174,6 +184,7 @@ export const useMeasurementVisualizers = (
       nodeInteractionHoverEnabled,
       nodeLinkIdByNodeId,
       onMeasurementSelect,
+      onNodeMeasurementsSelect,
       onNodeLongPress,
       onPreviewSnapTargetNodeClick,
       onReferenceNodeClick,

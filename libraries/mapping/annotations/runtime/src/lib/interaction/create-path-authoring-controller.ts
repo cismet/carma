@@ -4,7 +4,17 @@ import {
 } from "@carma-mapping/engines/cesium/core";
 
 import type { CesiumGeographicCoordinate } from "../store";
-import type { Cartesian3, Scene } from "@carma-cesium";
+import {
+  SceneTransforms,
+  defined,
+  type Cartesian3,
+  type Scene,
+} from "@carma-cesium";
+import type { RuntimeEdgeRenderModel } from "../render/measurement-render-models";
+import {
+  measurementVisualDefaults,
+  type PointMarkerVisualStyle,
+} from "../config/measurement-visual-defaults";
 import {
   applyLineRuntime,
   clearLineRuntime,
@@ -15,6 +25,7 @@ import {
   destroyPreviewOverlayLayer,
   hidePointMarkers,
   placePointMarkers,
+  previewControllerDefaults,
 } from "./authoring-visual-runtime";
 import { areCoordinateListsEqual } from "../utils/coordinate-equality";
 
@@ -22,6 +33,13 @@ export type PathAuthoringControllerState = {
   lineCoordinates: readonly CesiumGeographicCoordinate[];
   markerCoordinates: readonly CesiumGeographicCoordinate[];
 };
+
+export type PathAuthoringLineOptions = Partial<
+  Pick<
+    RuntimeEdgeRenderModel,
+    "overlayDashed" | "overlayDashPattern" | "strokeWidth"
+  >
+>;
 
 export type PathAuthoringController = {
   setState: (state: PathAuthoringControllerState) => void;
@@ -33,6 +51,89 @@ const EMPTY_PATH_AUTHORING_STATE: PathAuthoringControllerState = {
   lineCoordinates: [],
   markerCoordinates: [],
 };
+const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
+
+type PreviewOverlayPathLine = {
+  root: SVGSVGElement;
+  polyline: SVGPolylineElement;
+};
+
+const createPreviewOverlayPathLine = (
+  lineColor: string,
+  lineOptions?: PathAuthoringLineOptions
+): PreviewOverlayPathLine => {
+  const root = document.createElementNS(SVG_NAMESPACE, "svg");
+  root.setAttribute("width", "100%");
+  root.setAttribute("height", "100%");
+  root.style.position = "absolute";
+  root.style.inset = "0";
+  root.style.overflow = "visible";
+  root.style.pointerEvents = "none";
+
+  const polyline = document.createElementNS(SVG_NAMESPACE, "polyline");
+  polyline.setAttribute("fill", "none");
+  polyline.setAttribute("stroke", lineColor);
+  polyline.setAttribute(
+    "stroke-width",
+    `${lineOptions?.strokeWidth ?? previewControllerDefaults.lineStrokeWidthPx}`
+  );
+  polyline.setAttribute("stroke-linecap", "round");
+  polyline.setAttribute("stroke-linejoin", "round");
+  polyline.setAttribute(
+    "stroke-dasharray",
+    lineOptions?.overlayDashPattern ??
+      measurementVisualDefaults.patterns.edgeDashPattern
+  );
+  polyline.style.display = "none";
+  root.appendChild(polyline);
+
+  return {
+    root,
+    polyline,
+  };
+};
+
+const hidePreviewOverlayPathLine = (
+  overlayPathLine: PreviewOverlayPathLine | null
+) => {
+  if (!overlayPathLine) {
+    return;
+  }
+
+  overlayPathLine.polyline.style.display = "none";
+};
+
+const applyPreviewOverlayPathLine = ({
+  scene,
+  overlayPathLine,
+  linePositions,
+}: {
+  scene: Scene;
+  overlayPathLine: PreviewOverlayPathLine | null;
+  linePositions: readonly Cartesian3[];
+}) => {
+  if (!overlayPathLine || linePositions.length < 2) {
+    hidePreviewOverlayPathLine(overlayPathLine);
+    return;
+  }
+
+  const points = linePositions
+    .map((position) =>
+      SceneTransforms.worldToWindowCoordinates(scene, position)
+    )
+    .filter((screenPosition) => defined(screenPosition));
+
+  if (points.length !== linePositions.length) {
+    hidePreviewOverlayPathLine(overlayPathLine);
+    return;
+  }
+
+  overlayPathLine.polyline.setAttribute(
+    "points",
+    points.map((point) => `${point.x},${point.y}`).join(" ")
+  );
+  overlayPathLine.polyline.style.display = "block";
+};
 
 export const createPathAuthoringController = (
   scene: Scene,
@@ -41,11 +142,15 @@ export const createPathAuthoringController = (
     lineId,
     lineColor,
     showPointMarkers = true,
+    lineOptions,
+    pointMarkerStyle,
   }: {
     overlayLayerId: string;
     lineId: string;
     lineColor: string;
     showPointMarkers?: boolean;
+    lineOptions?: PathAuthoringLineOptions;
+    pointMarkerStyle?: PointMarkerVisualStyle;
   }
 ): PathAuthoringController => {
   const overlayLayer = createPreviewOverlayLayer(scene, overlayLayerId);
@@ -58,13 +163,22 @@ export const createPathAuthoringController = (
   }
 
   const lineCollection = createLineCollection(scene);
-  const pathLine = createLineRuntime(lineCollection, lineId, lineColor);
+  const pathLine = createLineRuntime(lineCollection, lineId, lineColor, {
+    width: lineOptions?.strokeWidth,
+  });
+  const overlayPathLine = lineOptions?.overlayDashed
+    ? createPreviewOverlayPathLine(lineColor, lineOptions)
+    : null;
+  if (overlayPathLine) {
+    overlayLayer.appendChild(overlayPathLine.root);
+  }
   const pointMarkers: HTMLDivElement[] = [];
   let currentState = EMPTY_PATH_AUTHORING_STATE;
   let linePositions: readonly Cartesian3[] = [];
 
   const hide = () => {
     clearLineRuntime(pathLine);
+    hidePreviewOverlayPathLine(overlayPathLine);
     hidePointMarkers(pointMarkers);
   };
 
@@ -78,6 +192,11 @@ export const createPathAuthoringController = (
     } else {
       clearLineRuntime(pathLine);
     }
+    applyPreviewOverlayPathLine({
+      scene,
+      overlayPathLine,
+      linePositions,
+    });
 
     if (showPointMarkers && currentState.markerCoordinates.length > 0) {
       placePointMarkers({
@@ -85,6 +204,7 @@ export const createPathAuthoringController = (
         overlayLayer,
         pointMarkers,
         coordinates: currentState.markerCoordinates,
+        style: pointMarkerStyle,
       });
     } else {
       hidePointMarkers(pointMarkers);

@@ -6,6 +6,7 @@ import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runt
 import type { PreviewLineLabelVisualOptions } from "../config/preview-line-label-visual-defaults";
 import {
   buildStoredAnnotationGeoJsonFeatureCollection,
+  buildStoredAnnotationsGeoJsonFeatureCollection,
   downloadAnnotationGeoJsonFile,
   resolveAnnotationExportDescriptor,
   sanitizeAnnotationExportFileSegment,
@@ -60,6 +61,7 @@ import {
   NOOP_RUNTIME_LIFECYCLE_HOST_API,
   type RuntimeLifecycleHostApi,
 } from "./lifecycle-host-api";
+import type { AnnotationLabelTextRequester } from "./use-annotation-label-text-request";
 
 type UseAnnotationsRuntimeAssemblyOptions = {
   scene: Scene | null;
@@ -72,6 +74,7 @@ type UseAnnotationsRuntimeAssemblyOptions = {
   onPersistenceStateChange?: (
     state: AnnotationsRuntimePersistenceEnvelope
   ) => void;
+  requestLabelText?: AnnotationLabelTextRequester;
 };
 
 export const useAnnotationsAssembly = ({
@@ -83,6 +86,7 @@ export const useAnnotationsAssembly = ({
   previewLineLabelVisualOptions,
   initialPersistenceState,
   onPersistenceStateChange,
+  requestLabelText,
 }: UseAnnotationsRuntimeAssemblyOptions) => {
   const registry = useMemo(
     () => buildAnnotationToolRegistry(plugins),
@@ -131,6 +135,8 @@ export const useAnnotationsAssembly = ({
           initialToolType: resolvedInitialToolType,
           initialPointTemporaryMode,
           initialPersistenceState,
+          isToolTypeAvailable: (toolType) =>
+            Boolean(registry.getPlugin(toolType)),
         })
       : createInitialAnnotationsStoreState({
           initialToolType: resolvedInitialToolType,
@@ -345,6 +351,22 @@ export const useAnnotationsAssembly = ({
     [annotationsStore]
   );
 
+  const exportAllAnnotationsGeoJson = useCallback(() => {
+    const runtimeState = annotationsStore.getState();
+    const featureCollection = buildStoredAnnotationsGeoJsonFeatureCollection({
+      annotations: runtimeState.annotationEntries.map((annotation) => ({
+        annotation,
+        coordinates: resolveAnnotationEntryCoordinates({
+          annotationEntries: runtimeState.annotationEntries,
+          nodes: runtimeState.nodes,
+          annotationId: annotation.id,
+        }),
+      })),
+    });
+
+    downloadAnnotationGeoJsonFile("annotations.geojson", featureCollection);
+  }, [annotationsStore]);
+
   const toggleAnnotationVisibility = useCallback(
     (annotationId: string) => {
       const targetEntry = findAnnotationEntryById(
@@ -425,7 +447,12 @@ export const useAnnotationsAssembly = ({
   );
 
   const toggleAnnotationElevationDisplayMode = useCallback(
-    (annotationId: string) => {
+    (
+      annotationId: string,
+      currentElevationDisplayMode?: NonNullable<
+        StoredAnnotation["elevationDisplayMode"]
+      >
+    ) => {
       const targetEntry = findAnnotationEntryById(
         annotationsStore.getState().annotationEntries,
         annotationId
@@ -438,7 +465,7 @@ export const useAnnotationsAssembly = ({
         updateAnnotationEntryById({
           annotationId,
           elevationDisplayMode: resolveNextElevationDisplayMode(
-            targetEntry.elevationDisplayMode
+            currentElevationDisplayMode ?? targetEntry.elevationDisplayMode
           ),
         })
       );
@@ -589,6 +616,7 @@ export const useAnnotationsAssembly = ({
       flyToAllAnnotations,
       removeAnnotationById: removeAnnotationEntryById,
       exportAnnotationGeoJson,
+      exportAllAnnotationsGeoJson,
       toggleAnnotationVisibility,
       toggleAnnotationLocked,
       removeSelectedAnnotations: removeSelectedAnnotationEntries,
@@ -607,6 +635,7 @@ export const useAnnotationsAssembly = ({
       annotationsStore,
       focusAdjacentAnnotationEntry,
       focusAnnotationId,
+      exportAllAnnotationsGeoJson,
       exportAnnotationGeoJson,
       flyToAllAnnotations,
       flyToAnnotationById,
@@ -649,6 +678,7 @@ export const useAnnotationsAssembly = ({
       formatOptions,
       previewLineLabelVisualOptions,
       bindApi: bindLifecycleHostApi,
+      requestLabelText,
     },
     runtimeVisualHost: {
       scene,

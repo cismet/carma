@@ -30,6 +30,10 @@ export const featureFlagConfig: FeatureFlagConfig = {
     default: true,
     alias: "snapping",
   },
+  featureFlagCesiumAnnotationAllTools: {
+    default: false,
+    alias: "alltools",
+  },
   debugTileBoundaries: {
     default: false,
     alias: "debugTileBoundaries",
@@ -37,9 +41,5 @@ export const featureFlagConfig: FeatureFlagConfig = {
   featureFlagTracking: {
     default: true,
     alias: "tracking",
-  },
-  featureFlagMeasurementLayerButton: {
-    default: false,
-    alias: "measurementLayerBtn",
   },
 };

@@ -1,6 +1,24 @@
 export * from "./carma-guards";
 export * from "./contracts/cesium-shaders.d";
 export * from "./contracts/model-config.d";
+export type {
+  CesiumModelConfig,
+  CesiumModelFadeConfig,
+  CesiumModelFlashConfig,
+  CesiumModelHighlightConfig,
+  CesiumModelHoverConfig,
+  CesiumModelPlainStyleConfig,
+  CesiumModelSamplingConfig,
+  CesiumModelSelectionConfig,
+  CesiumModelSelectionFadeConfig,
+  CesiumModelSelectionFlashConfig,
+  CesiumModelSilhouetteStyleConfig,
+  CesiumModelStyleBaseConfig,
+  CesiumModelStyleConfig,
+  CesiumModelStyleFillConfig,
+  CesiumModelStyleOutlineConfig,
+  HexColorString,
+} from "./contracts/model-selection-config.d";
 export * from "./contracts/tileset-config";
 export * from "./serialization";
 export {

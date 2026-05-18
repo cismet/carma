@@ -6,6 +6,7 @@ import type { LabelOverlayContextType } from "@carma-providers/label-overlay";
 import type { RuntimeAnnotationInfoBoxContext } from "../components/annotation-info-box/annotation-info-box.types";
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import type { PreviewLineLabelVisualOptions } from "../config/preview-line-label-visual-defaults";
+import type { AnnotationLabelTextRequester } from "../context/use-annotation-label-text-request";
 import type {
   AnnotationModeSession,
   AnnotationModeSessionMap,
@@ -16,6 +17,7 @@ import type {
   AnnotationsStoreState,
   AddAnnotationOptions,
   StoredAnnotation,
+  AnnotationElevationDisplayMode,
   CesiumGeographicCoordinate,
   AnnotationEdge,
   AnnotationNodeLink,
@@ -70,6 +72,7 @@ export type AnnotationToolSessionContext = {
   dispatch: AnnotationsStore["dispatch"];
   setActiveToolType: (toolId: AnnotationToolId) => void;
   drafts: AnnotationToolDraftStore;
+  requestLabelText?: AnnotationLabelTextRequester;
   addAnnotation: (
     annotationType: StoredAnnotation["toolType"],
     coordinates: readonly CesiumGeographicCoordinate[],
@@ -144,7 +147,10 @@ export type AnnotationToolVisualModelContext = {
   isSelectionAdditiveModifierPressed: boolean;
   setSelectedAnnotationId: (annotationId: string | null) => void;
   setElevationReferenceAnnotationId: (annotationId: string | null) => void;
-  toggleAnnotationElevationDisplayMode: (annotationId: string) => void;
+  toggleAnnotationElevationDisplayMode: (
+    annotationId: string,
+    currentElevationDisplayMode?: AnnotationElevationDisplayMode
+  ) => void;
   onNodeLongPress?: (nodeId: string, measurementId: string) => void;
   formatOptions: AnnotationsRuntimeFormatOptions;
 };

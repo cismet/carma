@@ -26,6 +26,7 @@ export type {
   CismapLayerProps,
 } from "./lib/contracts/cismap-layer-props.d";
 export type {
+  CarmaConf3DClippingPolygon,
   CarmaConf3DModel,
   CarmaConf3D,
   CarmaMapLibreStyleMetadata,
@@ -46,6 +47,13 @@ export { CarmaIconLink } from "./lib/components/CarmaIconLink.tsx";
 export { CarmaMapProviderWrapper } from "./lib/components/CarmaMapProviderWrapper.tsx";
 export { InfoBox } from "./lib/components/InfoBox.tsx";
 export { ResponsiveInfoBox } from "./lib/components/ResponsiveInfoBox.tsx";
+export {
+  CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS,
+  CismapAnnotationInfoBox,
+  CismapAnnotationInstructionInfoBox,
+  type CismapAnnotationInfoBoxProps,
+  type CismapAnnotationInstructionInfoBoxProps,
+} from "./lib/components/CismapAnnotationInfoBox.tsx";
 export { GenericInfoBoxFromFeature } from "./lib/components/GenericInfoBoxFromFeature.tsx";
 export { PieChart } from "./lib/components/PieChart.tsx";
 export { ContactMailButton } from "./lib/components/ContactMailButton.tsx";
@@ -83,6 +91,9 @@ export {
   type RemoveAdhocFeatureOptions,
   type ClearAdhocFeaturesOptions,
   type ClearAdhocFeaturesTarget,
+  type AdhocFeatureCollectionMetadata,
+  type AdhocFeatureMetadata,
+  type AdhocFeatureMetadataUpdate,
   type AdhocMapLibreStyleFeature,
   type AdhocFeatureSelectionChange,
   type AdhocFeatureSelectionChangeListener,
@@ -98,6 +109,30 @@ export {
   type AdhocCollectionLike,
   type AdhocSelectionTarget,
 } from "./lib/utils/adhoc-selection-utils";
+export {
+  getCarmaConf3DClippingPolygonRing,
+  type CarmaConf3DClippingPolygonRing,
+} from "./lib/utils/carma-conf3d-clipping";
+export {
+  ADHOC_UNSELECTED_RENDER_STYLES,
+  DEFAULT_ADHOC_UNSELECTED_RENDER_STYLE,
+  DEFAULT_ADHOC_UNSELECTED_RENDER_TINT_COLOR,
+  DEFAULT_ADHOC_UNSELECTED_RENDER_TINT_MIX,
+  MIN_ADHOC_UNSELECTED_RENDER_TINT_MIX,
+  isAdhocUnselectedRenderStyle,
+  resolveAdhocUnselectedRenderStyle,
+  resolveAdhocUnselectedRenderTintColor,
+  resolveAdhocUnselectedRenderTintMix,
+  type AdhocUnselectedRenderStyle,
+  type AdhocUnselectedRenderStyleMetadata,
+} from "./lib/utils/adhoc-render-style";
+export {
+  isDevelopmentUiEnabled,
+  isLocalhostHostname,
+  useDevelopmentUiEnabled,
+  type DevelopmentUiEnabledOptions,
+  type DevelopmentUiFeatureFlags,
+} from "./lib/utils/development-ui";
 
 export { LibreMapSelectionContent } from "./lib/components/LibreMapSelectionContent";
 export { TopicMapSelectionContent } from "./lib/components/TopicMapSelectionContent";
@@ -108,9 +143,20 @@ export { useSelectionCesium } from "./lib/hooks/useSelectionCesium";
 export { useSelectionLibreMap } from "./lib/hooks/useSelectionLibreMap";
 export { useShareUrl, SHORTENER_URL } from "./lib/hooks/useShareUrl";
 export { useProgress } from "./lib/hooks/useProgress";
-export { useAdhocCesiumFeatureDisplay } from "./lib/hooks/useAdhocCesiumFeatureDisplay";
+export {
+  useAdhocCesiumFeatureDisplay,
+  type AdhocCesiumModelShaderOptions,
+} from "./lib/hooks/useAdhocCesiumFeatureDisplay";
 export { useUrlFeatureSelection } from "./lib/hooks/useUrlFeatureSelection";
 export { useHashLaunchMode } from "./lib/hooks/useHashLaunchMode";
+export {
+  useAppSearchParams,
+  type AppSearchParamsCustomStateSnapshot,
+  type AppSearchParamsDefaultHashOptions,
+  type AppSearchParamsStateSource,
+  type UseAppSearchParamsOptions,
+  type UseAppSearchParamsResult,
+} from "./lib/hooks/useAppSearchParams";
 export { useRegisterDefaultMapHashClearStateKeySets } from "./lib/hooks/useRegisterDefaultMapHashClearStateKeySets";
 export {
   useMapHashRouting,
@@ -120,7 +166,10 @@ export {
   defaultBackgroundConfigurations,
   backgroundConfWithFastOrtho2024,
 } from "./lib/utils/topicmapConfigs";
-export { buildInfoBoxStylingProps } from "./lib/utils/adhoc-feature-utils";
+export {
+  buildInfoBoxStylingProps,
+  getCarmaConf3D,
+} from "./lib/utils/adhoc-feature-utils";
 // Feature functions moved to @carma-mapping/utils
 // createUrl, functionToFeature, objectToFeature, createVectorFeature, getInfoBoxControlObjectFromMappingAndVectorFeature
 

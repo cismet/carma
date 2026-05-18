@@ -9,15 +9,15 @@ import { buildPolylineToolRenderModels } from "./polyline-tool-render-models";
 const visuals = {
   edge: {
     stroke: "rgba(255, 255, 255, 0.92)",
-    strokeWidth: 1,
+    strokeWidth: 1.5,
   },
   selectedEdge: {
     stroke: "rgba(255, 214, 10, 0.98)",
-    strokeWidth: 1,
+    strokeWidth: 1.5,
   },
   previewEdge: {
     stroke: "rgba(255, 255, 255, 0.9)",
-    strokeWidth: 1,
+    strokeWidth: 1.5,
   },
   point: {
     pixelSize: 10,
@@ -104,8 +104,10 @@ describe("buildPolylineToolRenderModels", () => {
     expect(renderModels.pointLabels[0]?.content).toMatch(/^P1\s+/);
     expect(renderModels.edges[0]).toMatchObject({
       id: "polyline-1",
+      overlayDashed: true,
       showSegmentLengthLabels: true,
     });
+    expect(renderModels.edges[0]).not.toHaveProperty("dashed");
   });
 
   it("adds the total length to the extended end label while keeping the badge token", () => {

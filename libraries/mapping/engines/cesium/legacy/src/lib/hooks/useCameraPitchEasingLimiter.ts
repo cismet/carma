@@ -164,14 +164,18 @@ const resolvePitchEasingLimiterConfig = (
   options: CameraPitchEasingLimiterOptions = {}
 ): {
   enabled: boolean;
-  pitchLimiter: boolean;
+  pitchLimiterEnabled: boolean;
   easing: EasingFunction;
   minCesiumPitch: Radians;
   range: Radians;
   correctionStartPitch: Radians;
 } => {
-  const { pitchLimiter, minCesiumPitch, pitchCorrectionRange } =
-    resolveCameraLimiterOptions(options);
+  const { limiter } = resolveCameraLimiterOptions(options);
+  const {
+    enabled: pitchLimiterEnabled,
+    minCesiumPitch,
+    correctionRange: pitchCorrectionRange,
+  } = limiter.pitch;
   const enabled = options.enabled ?? true;
   const resolvedEasing = options.easing ?? Easing.CIRCULAR_IN;
   const range = pitchCorrectionRange;
@@ -182,7 +186,7 @@ const resolvePitchEasingLimiterConfig = (
 
   return {
     enabled,
-    pitchLimiter,
+    pitchLimiterEnabled,
     easing: resolvedEasing,
     minCesiumPitch,
     range,
@@ -195,7 +199,7 @@ const useCameraPitchEasingLimiter = (
 ) => {
   const {
     enabled,
-    pitchLimiter,
+    pitchLimiterEnabled,
     easing,
     minCesiumPitch,
     range,
@@ -232,7 +236,7 @@ const useCameraPitchEasingLimiter = (
   }, [isTransitioning]);
 
   useEffect(() => {
-    if (viewer && enabled && collisions && pitchLimiter) {
+    if (viewer && enabled && collisions && pitchLimiterEnabled) {
       const { camera, scene } = viewer;
       console.debug("HOOK [CESIUM|CAMERA] EASING Pitch Limiter added");
       lastPitch.current = null;
@@ -295,7 +299,7 @@ const useCameraPitchEasingLimiter = (
     viewer,
     collisions,
     enabled,
-    pitchLimiter,
+    pitchLimiterEnabled,
     easing,
     range,
     minCesiumPitch,

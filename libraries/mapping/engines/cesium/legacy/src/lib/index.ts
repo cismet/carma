@@ -37,7 +37,13 @@ export {
 } from "./CesiumErrorHandler";
 
 export { CustomViewer, type InitialCameraView } from "./CustomViewer";
-export type { CameraLimiterOptions } from "./camera-limiter-options";
+export type {
+  CameraLimiterConfig,
+  CameraLimiterOptions,
+  CameraLimiterReenableTransitionOptions,
+  CameraLimiterTransitionsOptions,
+  CameraPitchLimiterOptions,
+} from "./camera-limiter-options";
 export { DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS } from "./viewerDefaults";
 
 export { ByGeojsonClassifier } from "./components/ByGeojsonClassifier";
@@ -52,13 +58,13 @@ export {
   useCesiumContext,
   useCesiumContextOptional,
 } from "./hooks/useCesiumContext";
-export {
-  useCesiumModelManager,
-  type UseCesiumModelManagerOptions,
-} from "./hooks/useCesiumModelManager";
 export { useGeometryInstanceOpacityAnimation } from "./hooks/useGeometryInstanceOpacityAnimation";
 export { useSceneStyles } from "./hooks/useSceneStyles";
 export { useZoomControls } from "./hooks/useZoomControls";
+export {
+  useCesiumCameraLimiterToggle,
+  type UseCesiumCameraLimiterToggleOptions,
+} from "./hooks/useCesiumCameraLimiterToggle";
 
 export { VIEWERSTATE_KEYS } from "./constants";
 export { CUSTOM_SHADERS_DEFINITIONS } from "./shaders";

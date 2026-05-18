@@ -1,4 +1,7 @@
-import type { ModelConfig } from "@carma-mapping/engines/cesium/core";
+import type {
+  CesiumModelConfig,
+  ModelConfig,
+} from "@carma-mapping/engines/cesium/core";
 import { type ColorConstructorArgs } from "@carma-mapping/engines/cesium/core";
 
 import type { CameraLimiterOptions } from "./camera-limiter-options";
@@ -69,6 +72,7 @@ export type CesiumConfig = {
   pathName: string;
   tilesetConfigs: TilesetConfigs;
   providerConfig: ProviderConfig;
+  model?: CesiumModelConfig;
   models?: ModelConfig[];
 };
 export interface CesiumState {

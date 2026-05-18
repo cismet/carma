@@ -41,7 +41,7 @@ import {
   setShowLeftScrollButton,
   setShowRightScrollButton,
 } from "../../store/slices/mapping";
-import GeoportalLayerButton from "./GeoportalLayerButton";
+import GeoportalLayerButtonSlot from "./GeoportalLayerButtonSlot";
 import SecondaryView from "./SecondaryView";
 
 import "./button.css";
@@ -163,7 +163,7 @@ const LayerWrapper = () => {
               </div>
             )}
             <div className="w-full flex justify-center items-center h-full gap-2 pointer-events-none [&>*]:pointer-events-auto">
-              <GeoportalLayerButton
+              <GeoportalLayerButtonSlot
                 layer={backgroundLayer}
                 index={-1}
                 id={backgroundLayer.id}
@@ -182,7 +182,7 @@ const LayerWrapper = () => {
                   }}
                 >
                   {pinnedFirstLayers.map((layer) => (
-                    <GeoportalLayerButton
+                    <GeoportalLayerButtonSlot
                       title={layer.title}
                       id={layer.id}
                       key={layer.id}
@@ -196,7 +196,7 @@ const LayerWrapper = () => {
                     strategy={horizontalListSortingStrategy}
                   >
                     {sortableLayers.map((layer) => (
-                      <GeoportalLayerButton
+                      <GeoportalLayerButtonSlot
                         title={layer.title}
                         id={layer.id}
                         key={layer.id}
@@ -207,7 +207,7 @@ const LayerWrapper = () => {
                     ))}
                   </SortableContext>
                   {pinnedLastLayers.map((layer) => (
-                    <GeoportalLayerButton
+                    <GeoportalLayerButtonSlot
                       title={layer.title}
                       id={layer.id}
                       key={layer.id}

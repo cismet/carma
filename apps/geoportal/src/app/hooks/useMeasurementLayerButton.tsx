@@ -1,17 +1,15 @@
 import { useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import Icon from "react-cismap/commons/Icon";
 
-import {
-  faFloppyDisk,
-  faMagnifyingGlassLocation,
-  faTrashCan,
-} from "@fortawesome/free-solid-svg-icons";
+import { faFloppyDisk } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
-import type { InteractionButton, Layer } from "@carma-mapping/layers";
+import type { Layer } from "@carma-mapping/layers";
 import { useMapMeasurementsContext } from "@carma-commons/measurements";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
+import type { AnnotationModeText } from "@carma-mapping/annotations/builtin-tools/annotation-mode-text";
 
+import { geoportalAnnotationModeText } from "../config/geoportalTextConfig";
 import {
   appendLayer,
   getLayers,
@@ -22,51 +20,48 @@ import { getUIMode, setUIMode, UIMode } from "../store/slices/ui";
 
 export const MEASUREMENT_LAYER_ID = "__measurement__";
 
-function getMeasurementTitle(count: number) {
-  return count > 0 ? `${count} Messung${count > 1 ? "en" : ""}` : "Messung";
+function getMeasurementTitle(
+  count: number,
+  annotationModeText: AnnotationModeText
+) {
+  return count > 0
+    ? `${count} ${
+        count > 1
+          ? annotationModeText.layerTitle.plural
+          : annotationModeText.layerTitle.singular
+      }`
+    : annotationModeText.layerTitle.empty;
 }
 
 export function useMeasurementLayerButton() {
   const dispatch = useDispatch();
+  const annotationModeText = geoportalAnnotationModeText;
   const uiMode = useSelector(getUIMode);
   const layers = useSelector(getLayers);
-  const { shapes, clearAllShapes, setShowAll } = useMapMeasurementsContext();
-
-  const interactionButtons: InteractionButton[] = [
-    {
-      icon: <Icon name="search-location" />,
-      id: "zoom-measurements",
-      tooltip: "Auf alle Messungen zoomen",
-      onClick: () => setShowAll(true),
-    },
-    {
-      icon: <FontAwesomeIcon icon={faTrashCan} />,
-      id: "clear-measurements",
-      tooltip: "Alle Messungen löschen",
-      onClick: () => clearAllShapes(),
-    },
-    {
-      icon: <FontAwesomeIcon icon={faFloppyDisk} />,
-      id: "save-measurements",
-      tooltip: "Messungen speichern",
-    },
-  ];
+  const { shapes } = useMapMeasurementsContext();
+  const { isLeaflet } = useMapFrameworkSwitcherContext();
 
   const measurementLayer: Layer = {
     id: MEASUREMENT_LAYER_ID,
-    title: "Messung",
+    title: annotationModeText.layerTitle.empty,
+    type: "object",
     icon: "measurement",
     visible: true,
     pinned: "last",
     skipSelection: true,
-    interactionButtons,
+    interactionButtons: {
+      icon: <FontAwesomeIcon icon={faFloppyDisk} />,
+      id: "save-measurements",
+      tooltip: annotationModeText.layerbar.leafletMeasurements.save,
+    },
   };
 
   const isMeasurementMode = uiMode === UIMode.MEASUREMENT;
+  const shouldShowMeasurementLayer = isLeaflet && isMeasurementMode;
   const hasMeasurementLayer = layers.some((l) => l.id === MEASUREMENT_LAYER_ID);
 
   // Track previous values to detect what changed
-  const prevRef = useRef({ isMeasurementMode, hasMeasurementLayer });
+  const prevRef = useRef({ shouldShowMeasurementLayer, hasMeasurementLayer });
   const initialCleanupDone = useRef(false);
 
   // Clean up stale measurement layers persisted from a previous session
@@ -74,45 +69,69 @@ export function useMeasurementLayerButton() {
     if (initialCleanupDone.current) return;
     initialCleanupDone.current = true;
 
-    if (!isMeasurementMode && hasMeasurementLayer) {
+    if (!shouldShowMeasurementLayer && hasMeasurementLayer) {
       dispatch(removeLayer(MEASUREMENT_LAYER_ID));
     }
   }, []);
 
   useEffect(() => {
     const prev = prevRef.current;
-    prevRef.current = { isMeasurementMode, hasMeasurementLayer };
+    prevRef.current = { shouldShowMeasurementLayer, hasMeasurementLayer };
 
     // Mode just turned ON and layer doesn't exist yet: add it
-    if (isMeasurementMode && !prev.isMeasurementMode && !hasMeasurementLayer) {
+    if (
+      shouldShowMeasurementLayer &&
+      !prev.shouldShowMeasurementLayer &&
+      !hasMeasurementLayer
+    ) {
       dispatch(
         appendLayer({
           ...measurementLayer,
-          title: getMeasurementTitle(shapes.length),
+          title: getMeasurementTitle(shapes.length, annotationModeText),
         })
       );
       return;
     }
 
     // Mode just turned OFF and layer still exists: remove it
-    if (!isMeasurementMode && prev.isMeasurementMode && hasMeasurementLayer) {
+    if (
+      !shouldShowMeasurementLayer &&
+      prev.shouldShowMeasurementLayer &&
+      hasMeasurementLayer
+    ) {
       dispatch(removeLayer(MEASUREMENT_LAYER_ID));
       return;
     }
 
     // Layer was removed (by the user via X button) while mode is still active: deactivate mode
-    if (isMeasurementMode && !hasMeasurementLayer && prev.hasMeasurementLayer) {
+    if (
+      shouldShowMeasurementLayer &&
+      !hasMeasurementLayer &&
+      prev.hasMeasurementLayer
+    ) {
       dispatch(setUIMode(UIMode.DEFAULT));
     }
-  }, [isMeasurementMode, hasMeasurementLayer, dispatch]);
+  }, [
+    annotationModeText,
+    dispatch,
+    hasMeasurementLayer,
+    shouldShowMeasurementLayer,
+    shapes.length,
+  ]);
 
   useEffect(() => {
-    if (!hasMeasurementLayer) return;
+    if (!shouldShowMeasurementLayer || !hasMeasurementLayer) return;
     dispatch(
       updateLayer({
         ...measurementLayer,
-        title: getMeasurementTitle(shapes.length),
+        title: getMeasurementTitle(shapes.length, annotationModeText),
       })
     );
-  }, [shapes.length, hasMeasurementLayer, dispatch]);
+  }, [
+    annotationModeText,
+    dispatch,
+    hasMeasurementLayer,
+    shapes.length,
+    shouldShowMeasurementLayer,
+  ]);
 }

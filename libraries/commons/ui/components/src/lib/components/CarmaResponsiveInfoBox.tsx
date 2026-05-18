@@ -30,10 +30,12 @@ export interface CarmaResponsiveInfoBoxProps {
   hideSubtitleWhenCollapsed?: boolean;
   content?: React.ReactNode;
   footer?: React.ReactNode;
+  hideFooterWhenCollapsed?: boolean;
   collapsed?: boolean;
   onCollapsedChange?: (value: boolean) => void;
   collapsible?: boolean;
   defaultCollapsed?: boolean;
+  collapsedHorizontalAnchor?: "control-edge" | "expanded-left";
   useControlLayout?: boolean;
   controlPosition?: ControlPosition;
   controlOrder?: number;
@@ -56,10 +58,12 @@ export const CarmaResponsiveInfoBox = ({
   hideSubtitleWhenCollapsed = false,
   content,
   footer,
+  hideFooterWhenCollapsed = false,
   collapsed,
   onCollapsedChange,
   collapsible = false,
   defaultCollapsed = false,
+  collapsedHorizontalAnchor = "control-edge",
   useControlLayout = true,
   controlPosition = "bottomright",
   controlOrder = 11,
@@ -70,6 +74,10 @@ export const CarmaResponsiveInfoBox = ({
   dragGripPlacement = "auto",
 }: CarmaResponsiveInfoBoxProps) => {
   const resolvedWidth = width ?? 350;
+  const infoBoxRef = useRef<HTMLDivElement | null>(null);
+  const [expandedAnchorWidth, setExpandedAnchorWidth] = useState<number | null>(
+    null
+  );
   const [dragOffset, setDragOffset] = useState<DragOffset>(initialDragOffset);
   const dragStateRef = useRef<{
     startClientX: number;
@@ -95,27 +103,77 @@ export const CarmaResponsiveInfoBox = ({
       0
       ? fallbackWindowWidth - CONTROL_LAYOUT_EDGE_MARGIN_PX
       : resolvedWidth;
+  const isRightAnchoredControl =
+    useControlLayout &&
+    (controlPosition === "topright" || controlPosition === "bottomright");
+  const shouldAnchorCollapsedToExpandedLeft =
+    actualCollapsed && collapsedHorizontalAnchor === "expanded-left";
+  const shouldAnchorCollapsedCardToControlEdge =
+    actualCollapsed &&
+    collapsedHorizontalAnchor === "control-edge" &&
+    isRightAnchoredControl;
 
   const infoBoxStyle: CSSProperties = actualCollapsed
-    ? {
-        width: "fit-content",
-        minWidth: INFO_BOX_MIN_WIDTH_REM,
-        maxWidth: useControlLayout
-          ? `max(${INFO_BOX_MIN_WIDTH_REM}, calc(100vw - ${CONTROL_LAYOUT_EDGE_MARGIN_PX}px))`
-          : resolvedExpandedWidth,
-        marginLeft: "auto",
-        display: "inline-block",
-      }
+    ? shouldAnchorCollapsedToExpandedLeft
+      ? {
+          width: expandedAnchorWidth ?? resolvedExpandedWidth,
+          maxWidth: useControlLayout
+            ? `calc(100vw - ${CONTROL_LAYOUT_EDGE_MARGIN_PX}px)`
+            : resolvedExpandedWidth,
+          display: "block",
+        }
+      : {
+          width: "fit-content",
+          minWidth: INFO_BOX_MIN_WIDTH_REM,
+          maxWidth: useControlLayout
+            ? `max(${INFO_BOX_MIN_WIDTH_REM}, calc(100vw - ${CONTROL_LAYOUT_EDGE_MARGIN_PX}px))`
+            : resolvedExpandedWidth,
+          display: "block",
+        }
     : fitContentWidth
     ? {
         width: "fit-content",
         minWidth: INFO_BOX_MIN_WIDTH_REM,
         maxWidth: resolvedExpandedWidth,
-        display: "inline-block",
+        display: "block",
       }
     : {
         width: resolvedExpandedWidth,
       };
+
+  useEffect(() => {
+    if (
+      collapsedHorizontalAnchor !== "expanded-left" ||
+      actualCollapsed ||
+      typeof window === "undefined"
+    ) {
+      return;
+    }
+
+    const element = infoBoxRef.current;
+    if (!element) {
+      return;
+    }
+
+    const updateExpandedAnchorWidth = () => {
+      const nextWidth = element.getBoundingClientRect().width;
+      if (Number.isFinite(nextWidth) && nextWidth > 0) {
+        setExpandedAnchorWidth(nextWidth);
+      }
+    };
+
+    updateExpandedAnchorWidth();
+
+    if (typeof ResizeObserver === "undefined") {
+      return;
+    }
+
+    const resizeObserver = new ResizeObserver(updateExpandedAnchorWidth);
+    resizeObserver.observe(element);
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [actualCollapsed, collapsedHorizontalAnchor, resolvedExpandedWidth]);
 
   useEffect(() => {
     if (!draggable) {
@@ -147,12 +205,14 @@ export const CarmaResponsiveInfoBox = ({
 
   const box = (
     <div
+      ref={infoBoxRef}
       data-test-id="info-box"
       style={{
         ...infoBoxStyle,
+        ...(isRightAnchoredControl ? { marginLeft: "auto" } : null),
         fontFamily: "Helvetica Neue, Arial, Helvetica, sans-serif",
         fontSize: "0.75rem",
-        pointerEvents: "auto",
+        pointerEvents: shouldAnchorCollapsedToExpandedLeft ? "none" : "auto",
         ...style,
         ...(draggable
           ? {
@@ -170,9 +230,15 @@ export const CarmaResponsiveInfoBox = ({
         hideSubtitleWhenCollapsed={hideSubtitleWhenCollapsed}
         content={content}
         footer={footer}
+        hideFooterWhenCollapsed={hideFooterWhenCollapsed}
         collapsed={actualCollapsed}
         onCollapsedChange={actualSetCollapsed}
-        style={{ pointerEvents: "auto" }}
+        style={{
+          pointerEvents: "auto",
+          ...(shouldAnchorCollapsedCardToControlEdge
+            ? { marginLeft: "auto" }
+            : null),
+        }}
         collapseButtonAreaStyle={{ opacity: "0.9", width: 25 }}
         onClick={onPanelClick}
         collapsible={collapsible}

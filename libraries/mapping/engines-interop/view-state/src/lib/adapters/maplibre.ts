@@ -9,8 +9,8 @@ import {
   isMapViewEqualToTarget,
   readMapLibrePerspectiveIntrinsics,
 } from "@carma-mapping/engines/maplibre-gl/utils";
-import { WEB_MERCATOR_MAX_LATITUDE_DEG } from "@carma-geo/data-structures";
 import {
+  WEB_MERCATOR_MAX_LATITUDE_DEG,
   getPixelResolutionFromZoomAtLatitudeRad,
   clampLatitudeToWebMercatorExtent,
 } from "@carma-geo/utils";

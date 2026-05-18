@@ -45,7 +45,10 @@ type AdhocFeatureRef = {
   layerId: string;
 };
 
-type AddedAdhocFeature = AdhocFeatureRef & {
+type AddedAdhocFeature<
+  TFeature extends AdhocMapLibreLikeFeature = AdhocMapLibreLikeFeature
+> = AdhocFeatureRef & {
+  feature: TFeature;
   styleData: CarmaMapLibreStyleData;
 };
 
@@ -394,7 +397,7 @@ export const addAdhocFeatureFromLayer = async <
   layerId = DEFAULT_ADHOC_FEATURE_LAYER_ID,
   addFeature,
   metadata,
-}: AddAdhocFeatureFromLayerOptions<TFeature>): Promise<AddedAdhocFeature | null> => {
+}: AddAdhocFeatureFromLayerOptions<TFeature>): Promise<AddedAdhocFeature<TFeature> | null> => {
   if (!isAdhocVectorLayer(layer)) {
     return null;
   }
@@ -426,6 +429,7 @@ export const addAdhocFeatureFromLayer = async <
   return {
     id,
     collectionId,
+    feature: adhocFeature as TFeature,
     layerId,
     styleData: normalizedStyleData,
   };

@@ -39,8 +39,9 @@ export default defineConfig({
     cache: {
       dir: "../../../../node_modules/.vitest",
     },
-    environment: "node",
-    include: ["src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
+    environment: "jsdom",
+    setupFiles: ["./vitest.setup.ts"],
+    include: ["src/**/*.spec.{ts,tsx}"],
     reporters: ["default"],
     coverage: {
       reportsDirectory:

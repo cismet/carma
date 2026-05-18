@@ -1,18 +1,20 @@
 /* eslint-disable jsx-a11y/no-static-element-interactions */
 /* eslint-disable jsx-a11y/click-events-have-key-events */
-import { useCallback, useContext, useEffect, useRef } from "react";
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  type ReactNode,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
 import { useInView } from "react-intersection-observer";
 import { useDispatch, useSelector } from "react-redux";
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-import {
-  faEye,
-  faEyeSlash,
-  faFilter,
-  faX,
-} from "@fortawesome/free-solid-svg-icons";
+import { faFilter } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import L from "leaflet";
 
@@ -25,21 +27,19 @@ import type {
 } from "@carma-mapping/layers";
 import { getInteractionButtons } from "@carma-mapping/layers";
 import { cn, getHashParams } from "@carma-commons/utils";
+import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 
 import {
   getSelectedFeature,
   setSelectedFeature as setSelectedFeatureAction,
-  updateInfoElementsAfterRemovingFeature,
 } from "../../store/slices/features";
 import {
-  changeVisibility,
   getClickFromInfoView,
   getLayers,
   getSelectedLayerIndex,
   getActiveInteractionLayerID,
   getActiveInteractionButtonID,
   getShowLeftScrollButton,
-  removeLayer,
   setClickFromInfoView,
   setSelectedLayerIndex,
   setSelectedLayerIndexNoSelection,
@@ -72,17 +72,26 @@ import {
   setLastAppliedSelection,
 } from "@carma-mapping/components";
 import { Badge, Spin, Tooltip } from "antd";
+import { LoadingOutlined } from "@ant-design/icons";
 import { useLayerLoading } from "@carma-mapping/utils";
-import { useAdhocFeatureDisplay } from "@carma-appframeworks/portals";
-import { isAdhocVectorLayer } from "../../helper/adhoc-feature-utils";
+import { useGeoportalLayerButtonActions } from "../../hooks/use-geoportal-layer-button-actions";
+import { GEOPORTAL_LAYER_TOOL_ACTION_BUTTON_CLASS_NAMES } from "./layer-tool-action-button-style";
 
-interface LayerButtonProps {
+export interface GeoportalLayerButtonProps {
   title: string;
   id: string;
   index: number;
   layer: Layer | BackgroundLayer;
   background?: boolean;
   hide?: boolean;
+  actionSlot?: ReactNode;
+  closeButton?: {
+    icon?: IconDefinition;
+    onClick?: (event: ReactMouseEvent<HTMLButtonElement>) => void;
+  };
+  closeButtonVariant?: "default" | "compact";
+  interactionActivationMode?: "action" | "button";
+  overflowVisible?: boolean;
 }
 
 const GeoportalLayerButton = ({
@@ -92,7 +101,12 @@ const GeoportalLayerButton = ({
   layer,
   background,
   hide = false,
-}: LayerButtonProps) => {
+  actionSlot,
+  closeButton,
+  closeButtonVariant = "default",
+  interactionActivationMode = "action",
+  overflowVisible = false,
+}: GeoportalLayerButtonProps) => {
   const { ref, inView } = useInView({
     threshold: 0.99,
     onChange: (inView) => {
@@ -135,7 +149,15 @@ const GeoportalLayerButton = ({
     });
   const buttonRef = useRef<HTMLDivElement>(null);
 
-  const { clearFeatureCollections } = useAdhocFeatureDisplay();
+  const { closeIcon, handleLayerRemoveButtonClick } =
+    useGeoportalLayerButtonActions({
+      id,
+      layer,
+      showLayerHideButtons,
+    });
+  const resolvedCloseIcon = closeButton?.icon ?? closeIcon;
+  const handleCloseButtonClick =
+    closeButton?.onClick ?? handleLayerRemoveButtonClick;
 
   const mergedRef = useCallback(
     (el: HTMLDivElement | null) => {
@@ -154,6 +176,7 @@ const GeoportalLayerButton = ({
     zoom < (layer.props.maxZoom ? layer.props.maxZoom : Infinity) &&
     zoom > (layer.props.minZoom ? layer.props.minZoom : 0);
   const map = routedMapRef?.leafletMap?.leafletElement as L.Map;
+  const interactionButtons = getInteractionButtons(layer.interactionButtons);
 
   useEffect(() => {
     if (hide && activeInteractionLayerID === id) {
@@ -260,10 +283,8 @@ const GeoportalLayerButton = ({
       if (config.type !== "list" && config.type !== "toggle") {
         return;
       }
-      const currentSelection =
-        dynamicStylingSelections[idx] ?? config.default;
-      const lastApplied =
-        getLastAppliedSelection(id, idx) ?? config.default;
+      const currentSelection = dynamicStylingSelections[idx] ?? config.default;
+      const lastApplied = getLastAppliedSelection(id, idx) ?? config.default;
       if (currentSelection === lastApplied) {
         return;
       }
@@ -293,7 +314,7 @@ const GeoportalLayerButton = ({
     <div
       ref={mergedRef}
       className={cn(
-        "",
+        overflowVisible && "overflow-visible",
         // index === -1 && 'ml-auto',
         // index === layersLength - 1 && 'mr-auto',
         showLeftScrollButton && index === -1 && "pr-4",
@@ -312,6 +333,21 @@ const GeoportalLayerButton = ({
           );
           if (activeInteractionLayerID && activeInteractionLayerID !== id) {
             dispatch(setActiveInteractionLayerID(null));
+          }
+          if (interactionButtons.length > 0) {
+            if (interactionActivationMode === "button") {
+              const primaryInteractionButton = interactionButtons[0];
+              const isActive =
+                activeInteractionLayerID === id &&
+                activeInteractionButtonID === primaryInteractionButton.id;
+              dispatch(setActiveInteractionLayerID(isActive ? null : id));
+              dispatch(
+                setActiveInteractionButtonID(
+                  isActive ? null : primaryInteractionButton.id
+                )
+              );
+            }
+            return;
           }
           if (layer.skipSelection) {
             return;
@@ -396,18 +432,23 @@ const GeoportalLayerButton = ({
         {!background && (
           <>
             <span className="text-base ml-1">{title}</span>
-            {layer.filterConfig && (
+            {interactionActivationMode === "action" && layer.filterConfig && (
               <button
                 id={`layerInteractionButton-${id}`}
-                className="px-1.5 flex items-center justify-center"
+                className={cn(
+                  GEOPORTAL_LAYER_TOOL_ACTION_BUTTON_CLASS_NAMES.base,
+                  activeInteractionLayerID === id
+                    ? GEOPORTAL_LAYER_TOOL_ACTION_BUTTON_CLASS_NAMES.active
+                    : GEOPORTAL_LAYER_TOOL_ACTION_BUTTON_CLASS_NAMES.inactive
+                )}
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  const isOpen =
-                    activeInteractionLayerID === id &&
-                    activeInteractionButtonID === null;
-                  dispatch(setActiveInteractionLayerID(isOpen ? null : id));
-                  dispatch(setActiveInteractionButtonID(null));
+                  dispatch(
+                    setActiveInteractionLayerID(
+                      activeInteractionLayerID === id ? null : id
+                    )
+                  );
                 }}
               >
                 <Badge
@@ -419,57 +460,52 @@ const GeoportalLayerButton = ({
                   size="small"
                   color="#4b5563"
                 >
-                  <FontAwesomeIcon
-                    icon={faFilter}
-                    className={cn(
-                      "text-sm",
-                      activeInteractionLayerID === id &&
-                        activeInteractionButtonID === null
-                        ? "text-[#1677ff]"
-                        : "text-gray-600 hover:text-gray-500"
-                    )}
-                  />
+                  <FontAwesomeIcon icon={faFilter} className="text-sm" />
                 </Badge>
               </button>
             )}
-            {getInteractionButtons(layer.interactionButtons).map((btn) => {
-              const isActive =
-                activeInteractionLayerID === id &&
-                activeInteractionButtonID === btn.id;
-              const button = (
-                <button
-                  key={btn.id}
-                  id={`layerInteractionButton-${id}-${btn.id}`}
-                  className={cn(
-                    "px-1.5 flex items-center justify-center text-sm",
-                    isActive
-                      ? "text-[#1677ff]"
-                      : "text-gray-600 hover:text-gray-500"
-                  )}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (btn.onClick) {
-                      btn.onClick();
-                      return;
-                    }
-                    dispatch(setActiveInteractionLayerID(isActive ? null : id));
-                    dispatch(
-                      setActiveInteractionButtonID(isActive ? null : btn.id)
-                    );
-                  }}
-                >
-                  {btn.icon}
-                </button>
-              );
-              return btn.tooltip ? (
-                <Tooltip key={btn.id} title={btn.tooltip}>
-                  {button}
-                </Tooltip>
-              ) : (
-                button
-              );
-            })}
+
+            {interactionActivationMode === "action" &&
+              interactionButtons.map((btn) => {
+                const isActive =
+                  activeInteractionLayerID === id &&
+                  activeInteractionButtonID === btn.id;
+                const button = (
+                  <button
+                    key={btn.id}
+                    id={`layerInteractionButton-${id}-${btn.id}`}
+                    className={cn(
+                      GEOPORTAL_LAYER_TOOL_ACTION_BUTTON_CLASS_NAMES.base,
+                      isActive
+                        ? GEOPORTAL_LAYER_TOOL_ACTION_BUTTON_CLASS_NAMES.active
+                        : GEOPORTAL_LAYER_TOOL_ACTION_BUTTON_CLASS_NAMES.inactive
+                    )}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (btn.onClick) {
+                        btn.onClick();
+                        return;
+                      }
+                      dispatch(
+                        setActiveInteractionLayerID(isActive ? null : id)
+                      );
+                      dispatch(
+                        setActiveInteractionButtonID(isActive ? null : btn.id)
+                      );
+                    }}
+                  >
+                    {btn.icon}
+                  </button>
+                );
+                return btn.tooltip ? (
+                  <Tooltip key={btn.id} title={btn.tooltip}>
+                    {button}
+                  </Tooltip>
+                ) : (
+                  button
+                );
+              })}
 
             {dynamicStylingConfigs.map((config, idx) => {
               if (idx === primaryListConfigIndex) return null;
@@ -501,41 +537,24 @@ const GeoportalLayerButton = ({
               );
             })}
 
+            {actionSlot}
+
             <button
               id={`removeLayerButton-${id}`}
-              className="hover:text-gray-500 text-gray-600 px-1.5 flex items-center justify-center"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (showLayerHideButtons) {
-                  if (layer.visible) {
-                    dispatch(changeVisibility({ id, visible: false }));
-                  } else {
-                    dispatch(changeVisibility({ id, visible: true }));
-                  }
-                } else {
-                  dispatch(removeLayer(id));
-                  if (isAdhocVectorLayer(layer)) {
-                    clearFeatureCollections([id]);
-                    console.debug(
-                      "[ADHOC|REMOVE] layer button clearFeatureCollections",
-                      {
-                        collectionId: id,
-                      }
-                    );
-                  }
-                  dispatch(updateInfoElementsAfterRemovingFeature(id));
-                }
-              }}
+              className={cn(
+                closeButtonVariant === "compact"
+                  ? "h-8 w-8 min-w-8 flex items-center justify-center text-gray-600 hover:text-gray-500"
+                  : "hover:text-gray-500 text-gray-600 px-1.5 flex items-center justify-center"
+              )}
+              onClick={handleCloseButtonClick}
             >
               <FontAwesomeIcon
-                icon={
-                  showLayerHideButtons
-                    ? layer.visible
-                      ? faEye
-                      : faEyeSlash
-                    : faX
-                }
-                className="text-xs"
+                icon={resolvedCloseIcon}
+                className={cn(
+                  closeButtonVariant === "compact"
+                    ? "text-base leading-none"
+                    : "text-xs"
+                )}
               />
             </button>
           </>

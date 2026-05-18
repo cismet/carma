@@ -1,5 +1,5 @@
 // Built-in Modules
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 // 3rd party Modules
@@ -34,6 +34,7 @@ import {
 
 // Local Modules
 import AppErrorFallback from "./components/AppErrorFallback";
+import { AnnotationProvider } from "./components/annotations/AnnotationProvider";
 import MapWrapper from "./components/GeoportalMap/controls/MapWrapper";
 import LoginForm from "./components/LoginForm";
 
@@ -60,8 +61,8 @@ import {
   COLORS_HEX,
   getHashParams,
   HASH_LAUNCH_MODE,
-  resolveHashLaunchMode,
 } from "@carma-commons/utils";
+import { resolveGeoportalAppLaunchMode } from "./config/app-search-params";
 
 // Stable config objects
 const MEASUREMENTS_BASE_CONFIG = {
@@ -95,10 +96,9 @@ const readInitialFrameworkFromHash = (): "leaflet" | "cesium" => {
     return "leaflet";
   }
 
-  const mode = resolveHashLaunchMode(getHashParams(), {
-    defaultMode: HASH_LAUNCH_MODE.TWO_D,
-  });
-  return mode === HASH_LAUNCH_MODE.THREE_D ? "cesium" : "leaflet";
+  const hashParams = getHashParams();
+  const launchMode = resolveGeoportalAppLaunchMode(hashParams);
+  return launchMode === HASH_LAUNCH_MODE.THREE_D ? "cesium" : "leaflet";
 };
 
 function CesiumDevConsoleIntegration() {
@@ -119,7 +119,7 @@ function MeasurementsWrapper({
   externalMode,
   setModeExternal,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   baseConfig: typeof MEASUREMENTS_BASE_CONFIG;
   externalMode: MEASUREMENT_MODE;
   setModeExternal: (mode: MEASUREMENT_MODE) => void;
@@ -149,14 +149,6 @@ function MeasurementsWrapper({
 function MeasurementLayerSyncInner() {
   useMeasurementLayerButton();
   return null;
-}
-
-function MeasurementLayerSync() {
-  const flags = useFeatureFlags();
-  if (!flags.featureFlagMeasurementLayerButton) {
-    return null;
-  }
-  return <MeasurementLayerSyncInner />;
 }
 
 function App({ published }: { published?: boolean }) {
@@ -219,49 +211,51 @@ function App({ published }: { published?: boolean }) {
                   setModeExternal={handleSetMode}
                   baseConfig={MEASUREMENTS_BASE_CONFIG}
                 >
-                  <MeasurementLayerSync />
-                  <ErrorBoundary FallbackComponent={AppErrorFallback}>
-                    <AdhocFeatureRehydration />
-                    <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
-                      {isLoadingConfig && (
-                        <div
-                          id="loading"
-                          className="absolute flex flex-col items-center text-white justify-center h-screen w-full bg-black/50 z-[9999999999999]"
-                        >
-                          <h2>Lade Konfiguration</h2>
-                          <FontAwesomeIcon size="2x" icon={faSpinner} spin />
-                        </div>
-                      )}
-                      {!published && <TopNavbar />}
-                      <MapWrapper />
-                      <MobileWarningMessage
-                        headerText={mobileInfo.headerText}
-                        bodyText={mobileInfo.bodyText}
-                        confirmButtonText={mobileInfo.confirmButtonText}
-                      />
-
-                      <Modal
-                        open={showLoginModal}
-                        closable={false}
-                        footer={null}
-                        styles={{
-                          content: {
-                            padding: "0px",
-                            width: window.innerWidth < 600 ? "100%" : "450px",
-                          },
-                        }}
-                      >
-                        <LoginForm
-                          onSuccess={() => dispatch(setShowLoginModal(false))}
-                          closeLoginForm={() =>
-                            dispatch(setShowLoginModal(false))
-                          }
-                          showHelpText={false}
-                          style={{ padding: "20px" }}
+                  <AnnotationProvider>
+                    <MeasurementLayerSyncInner />
+                    <ErrorBoundary FallbackComponent={AppErrorFallback}>
+                      <AdhocFeatureRehydration />
+                      <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
+                        {isLoadingConfig && (
+                          <div
+                            id="loading"
+                            className="absolute flex flex-col items-center text-white justify-center h-screen w-full bg-black/50 z-[9999999999999]"
+                          >
+                            <h2>Lade Konfiguration</h2>
+                            <FontAwesomeIcon size="2x" icon={faSpinner} spin />
+                          </div>
+                        )}
+                        {!published && <TopNavbar />}
+                        <MapWrapper />
+                        <MobileWarningMessage
+                          headerText={mobileInfo.headerText}
+                          bodyText={mobileInfo.bodyText}
+                          confirmButtonText={mobileInfo.confirmButtonText}
                         />
-                      </Modal>
-                    </div>
-                  </ErrorBoundary>
+
+                        <Modal
+                          open={showLoginModal}
+                          closable={false}
+                          footer={null}
+                          styles={{
+                            content: {
+                              padding: "0px",
+                              width: window.innerWidth < 600 ? "100%" : "450px",
+                            },
+                          }}
+                        >
+                          <LoginForm
+                            onSuccess={() => dispatch(setShowLoginModal(false))}
+                            closeLoginForm={() =>
+                              dispatch(setShowLoginModal(false))
+                            }
+                            showHelpText={false}
+                            style={{ padding: "20px" }}
+                          />
+                        </Modal>
+                      </div>
+                    </ErrorBoundary>
+                  </AnnotationProvider>
                 </MeasurementsWrapper>
               </ObliqueProvider>
             </CarmaMapProviderWrapper>

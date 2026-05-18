@@ -581,11 +581,24 @@ export const useInitializeViewer = (
         scene.globe.translucency.backFaceAlpha = isSecondaryStyle ? 1.0 : 0.0;
       }
 
-      sscc.enableCollisionDetection = enableCollisionDetection;
-      sscc.minimumZoomDistance = minZoom ?? 1;
-      sscc.maximumZoomDistance = maxZoom ?? Infinity;
+      sscc.enableCollisionDetection = shouldSuspendCameraLimitersRef.current
+        ? false
+        : enableCollisionDetection;
+      sscc.minimumZoomDistance = shouldSuspendCameraLimitersRef.current
+        ? 1
+        : minZoom ?? 1;
+      sscc.maximumZoomDistance = shouldSuspendCameraLimitersRef.current
+        ? Infinity
+        : maxZoom ?? Infinity;
     });
-  }, [withScene, isSecondaryStyle, maxZoom, minZoom, enableCollisionDetection]);
+  }, [
+    withScene,
+    isSecondaryStyle,
+    maxZoom,
+    minZoom,
+    enableCollisionDetection,
+    shouldSuspendCameraLimitersRef,
+  ]);
 
   useEffect(() => {
     if (!isViewerReady) return;

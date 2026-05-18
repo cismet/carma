@@ -1,7 +1,7 @@
 import { measurementVisualDefaults } from "./measurement-visual-defaults";
 
 export const previewControllerDefaults = Object.freeze({
-  lineStrokeWidthPx: 1,
+  lineStrokeWidthPx: measurementVisualDefaults.sizes.edgeStrokeWidth,
   layerZIndex: "1550",
   lineLabelOffsetPx: 8,
   lineLabelMinLengthPx: 44,

@@ -98,4 +98,22 @@ export {
   LABEL_COLLISION_PADDING,
   rectsIntersect,
 } from "./lib/core/pointLabelLayout/geometry";
-export * from "./lib/core/pointLabelLayout";
+export {
+  computePointLabelLayout,
+  createPlacement,
+  DEFAULT_DYNAMIC_LABEL_PLACEMENT_CONFIG,
+  DEFAULT_POINT_LABEL_LAYOUT_CONFIG,
+  getPerspectiveStemAngleMagnitude,
+  resolvePointLabelLayoutConfig,
+  type CandidateEvaluation,
+  type CssPixelPosition,
+  type DynamicLabelPlacementConfig,
+  type DynamicLabelPlacementMode,
+  type LabelPlacement,
+  type LayoutPointInput,
+  type PointLabelLayoutConfig,
+  type PointLabelLayoutConfigOverrides,
+  type PointLabelLayoutResult,
+  type Rect,
+  type StemSegment,
+} from "./lib/core/pointLabelLayout";

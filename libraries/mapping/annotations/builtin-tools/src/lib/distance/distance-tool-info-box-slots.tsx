@@ -2,17 +2,18 @@ import { Cartesian3 } from "@carma-cesium";
 import { cartesian3FromGeographicCoordinate } from "@carma-mapping/engines/cesium/core";
 import { CarmaTransforms } from "@carma-mapping/engines/cesium/core";
 import { formatLengthMeters } from "@carma-units";
-import { buildAnnotationMeasurementInfoBoxSlots } from "@carma-mapping/annotations/ui";
+import {
+  AnnotationInfoBoxMetricGrid,
+  buildAnnotationMeasurementInfoBoxSlots,
+  type AnnotationInfoBoxActionLabels,
+  type AnnotationInfoBoxNavigationLabels,
+} from "@carma-mapping/annotations/ui";
 
 import type { RuntimeAnnotationInfoBoxContext } from "@carma-mapping/annotations/runtime";
 import { resolveRuntimeMeasurementNavigation } from "@carma-mapping/annotations/runtime";
 import {
   buildRuntimeNodeCoordinateMap,
   resolveMeasurementCoordinates,
-} from "@carma-mapping/annotations/runtime";
-import {
-  formatCardinalBearing,
-  resolveBearingRadFromFirstToLastCoordinate,
 } from "@carma-mapping/annotations/runtime";
 
 export const createDistanceToolInfoBoxSlots = (
@@ -21,10 +22,20 @@ export const createDistanceToolInfoBoxSlots = (
     headingTitle,
     headingColor,
     formatMeasurementLabelToken,
+    actionLabels,
+    navigationLabels,
+    metricLabels,
   }: {
     headingTitle: string;
     headingColor: string;
     formatMeasurementLabelToken: (counter: number) => string;
+    actionLabels?: Partial<AnnotationInfoBoxActionLabels>;
+    navigationLabels?: Partial<AnnotationInfoBoxNavigationLabels>;
+    metricLabels: {
+      direct: string;
+      horizontal: string;
+      vertical: string;
+    };
   }
 ) => {
   return ({
@@ -82,7 +93,6 @@ export const createDistanceToolInfoBoxSlots = (
       enuOffset.north
     );
     const verticalDistanceMeters = Math.abs(enuOffset.up);
-    const bearingRad = resolveBearingRadFromFirstToLastCoordinate(coordinates);
     const shortLabelToken = formatMeasurementLabelToken(distanceOrder);
     const defaultDisplayName = headingTitle;
     const effectiveShortLabel =
@@ -126,6 +136,7 @@ export const createDistanceToolInfoBoxSlots = (
           event.stopPropagation();
           removeAnnotationById(annotation.id);
         },
+        labels: actionLabels,
         dataTestIdPrefix: "carma-annotation-distance-measurement",
         dataTestIds: {
           flyTo: "carma-annotation-flyto-distance-measurement-btn",
@@ -138,28 +149,26 @@ export const createDistanceToolInfoBoxSlots = (
       },
       metaText: directDistanceText,
       content: (
-        <div className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1 tabular-nums">
-          <span className={infoBoxVisualOptions.mutedTextClassName}>
-            Direkt
-          </span>
-          <span>{formatDistance(directDistanceMeters)}</span>
-          <span className={infoBoxVisualOptions.mutedTextClassName}>
-            Horizontal
-          </span>
-          <span>{formatDistance(horizontalDistanceMeters)}</span>
-          <span className={infoBoxVisualOptions.mutedTextClassName}>
-            Vertikal
-          </span>
-          <span>{formatDistance(verticalDistanceMeters)}</span>
-          {Number.isFinite(bearingRad) ? (
-            <>
-              <span className={infoBoxVisualOptions.mutedTextClassName}>
-                Ausrichtung
-              </span>
-              <span>{formatCardinalBearing(bearingRad ?? 0)}</span>
-            </>
-          ) : null}
-        </div>
+        <AnnotationInfoBoxMetricGrid
+          items={[
+            {
+              id: "direct",
+              label: metricLabels.direct,
+              value: formatDistance(directDistanceMeters),
+            },
+            {
+              id: "horizontal",
+              label: metricLabels.horizontal,
+              value: formatDistance(horizontalDistanceMeters),
+            },
+            {
+              id: "vertical",
+              label: metricLabels.vertical,
+              value: formatDistance(verticalDistanceMeters),
+            },
+          ]}
+          visualOptions={infoBoxVisualOptions}
+        />
       ),
       navigation: {
         totalEntries: navigation?.totalEntries ?? 0,
@@ -167,6 +176,7 @@ export const createDistanceToolInfoBoxSlots = (
         onFlyToAllMeasurements: navigation?.flyToAllMeasurements,
         onPreviousMeasurement: () => navigation?.selectRelativeMeasurement(-1),
         onNextMeasurement: () => navigation?.selectRelativeMeasurement(1),
+        labels: navigationLabels,
       },
       visualOptions: infoBoxVisualOptions,
     });

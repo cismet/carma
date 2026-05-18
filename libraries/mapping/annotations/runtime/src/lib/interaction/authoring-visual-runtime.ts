@@ -36,9 +36,12 @@ import {
   type Radians,
 } from "@carma-units";
 
-import { measurementVisualDefaults } from "../config/measurement-visual-defaults";
 import {
-  PREVIEW_LINE_LABEL_THEME,
+  measurementVisualDefaults,
+  measurementVisualStyles,
+  type PointMarkerVisualStyle,
+} from "../config/measurement-visual-defaults";
+import {
   previewLineLabelPlacementDefaults,
   previewLineLabelVisualDefaults,
   resolvePreviewLineLabelVisualOptions,
@@ -51,9 +54,9 @@ import {
 import type { CesiumGeographicCoordinate } from "../store";
 import type { Scene } from "@carma-cesium";
 import {
-  PREVIEW_OVERLAY_GROUP,
-  resolvePreviewContainer,
-  type PreviewOverlayGroup,
+  ANNOTATION_OVERLAY_GROUP,
+  resolveAnnotationOverlayContainer,
+  type AnnotationOverlayGroup,
 } from "./preview-overlay-mount.shared";
 
 import "./annotation-overlay-line-label.css";
@@ -63,8 +66,11 @@ export {
   type PreviewControllerOptions,
 } from "../config/preview-controller-defaults";
 export {
+  ANNOTATION_OVERLAY_GROUP,
   PREVIEW_OVERLAY_GROUP,
+  resolveAnnotationOverlayContainer,
   resolvePreviewContainer,
+  type AnnotationOverlayGroup,
   type PreviewOverlayGroup,
 } from "./preview-overlay-mount.shared";
 
@@ -258,12 +264,12 @@ const resolvePreviewLineLabelTransform = ({
       : "translate(-50%, -50%)"
   } rotate(${angleRad}rad)`;
 
-export const createPreviewOverlayLayer = (
+export const createAnnotationOverlayLayer = (
   scene: Scene,
   layerId: string,
-  group: PreviewOverlayGroup = PREVIEW_OVERLAY_GROUP.LABEL
+  group: AnnotationOverlayGroup = ANNOTATION_OVERLAY_GROUP.LABEL
 ) => {
-  const container = resolvePreviewContainer(scene, group);
+  const container = resolveAnnotationOverlayContainer(scene, group);
   if (!container) {
     return null;
   }
@@ -284,28 +290,34 @@ export const createPreviewOverlayLayer = (
   return overlayLayer;
 };
 
-export const createPreviewOverlayLayers = (
+export const createPreviewOverlayLayer = createAnnotationOverlayLayer;
+
+export const createAnnotationOverlayLayers = (
   scene: Scene,
-  layerIdByGroup: Partial<Record<PreviewOverlayGroup, string>>
-): Partial<Record<PreviewOverlayGroup, HTMLDivElement | null>> =>
+  layerIdByGroup: Partial<Record<AnnotationOverlayGroup, string>>
+): Partial<Record<AnnotationOverlayGroup, HTMLDivElement | null>> =>
   Object.fromEntries(
     Object.entries(layerIdByGroup).map(([group, layerId]) => [
       group,
       layerId
-        ? createPreviewOverlayLayer(
+        ? createAnnotationOverlayLayer(
             scene,
             layerId,
-            group as PreviewOverlayGroup
+            group as AnnotationOverlayGroup
           )
         : null,
     ])
-  ) as Partial<Record<PreviewOverlayGroup, HTMLDivElement | null>>;
+  ) as Partial<Record<AnnotationOverlayGroup, HTMLDivElement | null>>;
 
-export const destroyPreviewOverlayLayer = (
+export const createPreviewOverlayLayers = createAnnotationOverlayLayers;
+
+export const destroyAnnotationOverlayLayer = (
   overlayLayer: HTMLElement | null
 ) => {
   overlayLayer?.remove();
 };
+
+export const destroyPreviewOverlayLayer = destroyAnnotationOverlayLayer;
 
 export const createLineCollection = (scene: Scene) => {
   const collection = new PolylineCollection();
@@ -344,6 +356,11 @@ export const destroyLineCollection = (
   }
 };
 
+const createLineRuntimeMaterial = (colorCss: string) =>
+  Material.fromType("Color", {
+    color: Color.fromCssColorString(colorCss) ?? Color.WHITE,
+  });
+
 export const createLineRuntime = (
   collection: PolylineCollection,
   id: string,
@@ -356,9 +373,7 @@ export const createLineRuntime = (
     id,
     positions: [Cartesian3.ZERO, Cartesian3.ZERO],
     width: options?.width ?? previewControllerDefaults.lineStrokeWidthPx,
-    material: Material.fromType("Color", {
-      color: Color.fromCssColorString(colorCss) ?? Color.WHITE,
-    }),
+    material: createLineRuntimeMaterial(colorCss),
     show: false,
   }),
   colorCss,
@@ -372,9 +387,7 @@ export const setLineRuntimeColor = (
     return;
   }
 
-  lineRuntime.polyline.material = Material.fromType("Color", {
-    color: Color.fromCssColorString(colorCss) ?? Color.WHITE,
-  });
+  lineRuntime.polyline.material = createLineRuntimeMaterial(colorCss);
   lineRuntime.colorCss = colorCss;
 };
 
@@ -461,18 +474,28 @@ export const hideLineLabels = (lineLabels: PreviewSegmentLineLabelElements) => {
   lineLabels.horizontal.style.display = "none";
 };
 
-export const createPointMarker = () => {
+const applyPointMarkerVisualStyle = (
+  marker: HTMLDivElement,
+  style: PointMarkerVisualStyle
+) => {
+  applyStyles(marker, {
+    width: `${style.pixelSize}px`,
+    height: `${style.pixelSize}px`,
+    border: `${style.outlineWidth}px solid ${style.outline}`,
+    background: style.fill,
+  });
+};
+
+export const createPointMarker = (
+  style: PointMarkerVisualStyle = measurementVisualStyles.point
+) => {
   const marker = document.createElement("div");
   applyStyles(marker, {
     position: "absolute",
     left: "0",
     top: "0",
     display: "none",
-    width: `${measurementVisualDefaults.sizes.previewPointPixelSize}px`,
-    height: `${measurementVisualDefaults.sizes.previewPointPixelSize}px`,
     borderRadius: "999px",
-    border: `${measurementVisualDefaults.sizes.pointOutlineWidth}px solid ${measurementVisualDefaults.colors.surface}`,
-    background: measurementVisualDefaults.colors.preview,
     transform: "translate(-50%, -50%)",
     boxSizing: "border-box",
     pointerEvents: "none",
@@ -480,6 +503,7 @@ export const createPointMarker = () => {
     webkitUserSelect: "none",
     willChange: "transform",
   });
+  applyPointMarkerVisualStyle(marker, style);
   return marker;
 };
 
@@ -487,13 +511,15 @@ export const ensurePointMarkerCount = ({
   overlayLayer,
   pointMarkers,
   count,
+  style,
 }: {
   overlayLayer: HTMLElement;
   pointMarkers: HTMLDivElement[];
   count: number;
+  style: PointMarkerVisualStyle;
 }) => {
   while (pointMarkers.length < count) {
-    const marker = createPointMarker();
+    const marker = createPointMarker(style);
     pointMarkers.push(marker);
     overlayLayer.appendChild(marker);
   }
@@ -510,16 +536,19 @@ export const placePointMarkers = ({
   overlayLayer,
   pointMarkers,
   coordinates,
+  style = measurementVisualStyles.point,
 }: {
   scene: Scene;
   overlayLayer: HTMLElement;
   pointMarkers: HTMLDivElement[];
   coordinates: readonly CesiumGeographicCoordinate[];
+  style?: PointMarkerVisualStyle;
 }) => {
   ensurePointMarkerCount({
     overlayLayer,
     pointMarkers,
     count: coordinates.length,
+    style,
   });
 
   coordinates.forEach((coordinate, index) => {
@@ -528,6 +557,7 @@ export const placePointMarkers = ({
       return;
     }
 
+    applyPointMarkerVisualStyle(marker, style);
     const screenPosition = SceneTransforms.worldToWindowCoordinates(
       scene,
       cartesian3FromGeographicCoordinate(coordinate)

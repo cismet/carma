@@ -17,6 +17,11 @@ export type StoredAnnotationGeoJsonFeatureCollection = FeatureCollection<
   Record<string, unknown>
 >;
 
+type StoredAnnotationGeoJsonFeatureInput = {
+  annotation: StoredAnnotation;
+  coordinates: readonly CesiumGeographicCoordinate[];
+};
+
 const EXPORT_VERSION = 1 as const;
 
 const POLYGON_TOOL_TYPES = new Set<string>([
@@ -164,6 +169,30 @@ export const buildStoredAnnotationGeoJsonFeatureCollection = ({
   return {
     type: "FeatureCollection",
     features: [feature],
+  };
+};
+
+export const buildStoredAnnotationsGeoJsonFeatureCollection = ({
+  annotations,
+}: {
+  annotations: readonly StoredAnnotationGeoJsonFeatureInput[];
+}): StoredAnnotationGeoJsonFeatureCollection | null => {
+  const features = annotations.flatMap(({ annotation, coordinates }) => {
+    const featureCollection = buildStoredAnnotationGeoJsonFeatureCollection({
+      annotation,
+      coordinates,
+    });
+
+    return featureCollection?.features ?? [];
+  });
+
+  if (features.length === 0) {
+    return null;
+  }
+
+  return {
+    type: "FeatureCollection",
+    features,
   };
 };
 

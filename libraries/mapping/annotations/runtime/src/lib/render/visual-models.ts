@@ -52,7 +52,8 @@ const areEdgesEqual = (
       edge.id === otherEdge.id &&
       edge.stroke === otherEdge.stroke &&
       edge.strokeWidth === otherEdge.strokeWidth &&
-      edge.dashed === otherEdge.dashed &&
+      edge.overlayDashPattern === otherEdge.overlayDashPattern &&
+      edge.overlayDashed === otherEdge.overlayDashed &&
       edge.showSegmentLengthLabels === otherEdge.showSegmentLengthLabels &&
       areCoordinateListsEqual(edge.coordinates, otherEdge.coordinates)
     );
@@ -116,6 +117,7 @@ const arePolygonFillsEqual = (
       ) ??
         true) &&
       fill.fill === otherFill.fill &&
+      fill.overlayFill === otherFill.overlayFill &&
       fill.placement === otherFill.placement &&
       fill.selected === otherFill.selected &&
       areCoordinateListsEqual(fill.coordinates, otherFill.coordinates)

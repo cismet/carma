@@ -6,8 +6,10 @@ import type {
 } from "@carma-mapping/annotations/runtime";
 import type { AnnotationToolId } from "@carma-mapping/annotations/runtime";
 
-export const getDefaultLabelDisplayName = (order: number) =>
-  `Beschriftung ${order}`;
+export const getDefaultLabelDisplayName = (
+  order: number,
+  prefix = "Beschriftung"
+) => `${prefix} ${order}`;
 
 export const createLabelMeasurement = ({
   toolType,

@@ -24,7 +24,6 @@ import { Cartesian3 } from "@carma-cesium";
 import {
   resolveAnnotationNodeMoveScope,
   resolveNextNodeLinksForNodeMove,
-  setSelectedAnnotationIds,
   updateNodeCoordinateById,
   type AnnotationsStore,
   type AnnotationNodeLink,
@@ -201,49 +200,6 @@ const resolvePlanarAreaEditPlane = ({
   );
 
   return derivedPlanarAreaMeasurement.plane ?? null;
-};
-
-const resolveLinkedMeasurementIdsForNode = ({
-  nodeId,
-  nodes,
-  linkedNodeGroups,
-  annotationEntries,
-  preferredMeasurementId,
-}: {
-  nodeId: string;
-  nodes: readonly AnnotationNode[];
-  linkedNodeGroups: readonly AnnotationNodeLink[];
-  annotationEntries: readonly StoredAnnotation[];
-  preferredMeasurementId?: string;
-}) => {
-  const { targetLinkedNodeGroup } = resolveAnnotationNodeMoveScope({
-    nodeId,
-    nodes,
-    linkedNodeGroups,
-    annotationEntries,
-  });
-  const linkedNodeIdSet = new Set(targetLinkedNodeGroup?.nodeIds ?? [nodeId]);
-  const linkedMeasurementIds = annotationEntries.flatMap((annotationEntry) =>
-    annotationEntry.nodeIds.some((annotationNodeId) =>
-      linkedNodeIdSet.has(annotationNodeId)
-    )
-      ? [annotationEntry.id]
-      : []
-  );
-
-  if (
-    preferredMeasurementId &&
-    linkedMeasurementIds.includes(preferredMeasurementId)
-  ) {
-    return [
-      ...linkedMeasurementIds.filter(
-        (measurementId) => measurementId !== preferredMeasurementId
-      ),
-      preferredMeasurementId,
-    ];
-  }
-
-  return linkedMeasurementIds;
 };
 
 export const usePointEditingGizmo = (
@@ -434,8 +390,7 @@ export const usePointEditingGizmo = (
           coordinate,
           movedNodeIds: Object.keys(latestDraftNodeCoordinateOverrides),
           linkToNodeId: latestDraftLinkToNodeId,
-          selectedMeasurementIds:
-            annotationsStore.getState().selectionState.selectedAnnotationIds,
+          selectedMeasurementIds: selectedAnnotationIds,
         })
       );
       clearDraftNodeCoordinateOverrides();
@@ -444,6 +399,7 @@ export const usePointEditingGizmo = (
       annotationsStore,
       clearDraftNodeCoordinateOverrides,
       draftNodeCoordinateOverrides,
+      selectedAnnotationIds,
     ]
   );
 
@@ -472,8 +428,7 @@ export const usePointEditingGizmo = (
         nodes,
         linkedNodeGroups,
         annotationEntries: runtimeState.annotationEntries,
-        selectedMeasurementIds:
-          runtimeState.selectionState.selectedAnnotationIds,
+        selectedMeasurementIds: selectedAnnotationIds,
       });
 
       if (movedNodeIds.length === 0) {
@@ -542,6 +497,7 @@ export const usePointEditingGizmo = (
       linkedNodeGroups,
       nodes,
       scene,
+      selectedAnnotationIds,
       updateDraftPreviewState,
     ]
   );
@@ -582,7 +538,7 @@ export const usePointEditingGizmo = (
   ]);
 
   const handleNodeLongPress = useCallback(
-    (nodeId: string, measurementId?: string) => {
+    (nodeId: string) => {
       if (isNodeLocked(nodeId)) {
         return;
       }
@@ -591,40 +547,10 @@ export const usePointEditingGizmo = (
         commitDraftNodeCoordinateOverrides(activeMoveGizmoNodeId);
       }
 
-      const runtimeState = annotationsStore.getState();
-      const linkedMeasurementIds = resolveLinkedMeasurementIdsForNode({
-        nodeId,
-        nodes,
-        linkedNodeGroups,
-        annotationEntries: runtimeState.annotationEntries,
-        preferredMeasurementId: measurementId,
-      });
-      if (
-        linkedMeasurementIds.length > 0 &&
-        (linkedMeasurementIds.length !==
-          runtimeState.selectionState.selectedAnnotationIds.length ||
-          linkedMeasurementIds.some(
-            (linkedMeasurementId, index) =>
-              linkedMeasurementId !==
-              runtimeState.selectionState.selectedAnnotationIds[index]
-          ))
-      ) {
-        annotationsStore.dispatch(
-          setSelectedAnnotationIds(linkedMeasurementIds)
-        );
-      }
-
       setAxisOverride(null);
       setActiveMoveGizmoNodeId(nodeId);
     },
-    [
-      activeMoveGizmoNodeId,
-      annotationsStore,
-      commitDraftNodeCoordinateOverrides,
-      isNodeLocked,
-      linkedNodeGroups,
-      nodes,
-    ]
+    [activeMoveGizmoNodeId, commitDraftNodeCoordinateOverrides, isNodeLocked]
   );
 
   const nodesById = useMemo(

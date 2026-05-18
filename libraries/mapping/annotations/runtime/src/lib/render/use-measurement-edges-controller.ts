@@ -34,17 +34,17 @@ import {
 
 import type { Scene } from "@carma-cesium";
 import {
-  PREVIEW_OVERLAY_GROUP,
+  ANNOTATION_OVERLAY_GROUP,
   buildAuxiliaryPoint,
   buildPreviewDistanceTriangleLabelReferences,
+  createAnnotationOverlayLayers,
   createLineLabel,
-  createPreviewOverlayLayers,
   createPreviewSegmentScratch,
   createSegmentLineLabels,
-  destroyPreviewOverlayLayer,
+  destroyAnnotationOverlayLayer,
   hideLineLabels,
   previewControllerDefaults,
-  resolvePreviewContainer,
+  resolveAnnotationOverlayContainer,
   resolvePreviewDistanceTriangleComponentLabelVisibility,
   type PreviewSegmentLineLabelElements,
   type PreviewSegmentScratch,
@@ -96,7 +96,6 @@ type EdgeSceneLine = {
   end: Cartesian3;
   stroke: string;
   strokeWidth: number;
-  dashed?: true;
 };
 
 type EdgeSegment = {
@@ -108,7 +107,8 @@ type EdgeSegment = {
   endCoordinate: RuntimeEdgeRenderModel["coordinates"][number];
   stroke: string;
   strokeWidth: number;
-  dashed?: true;
+  overlayDashPattern: string;
+  overlayDashed?: true;
   showSegmentLengthLabels?: true;
   distanceTriangleOverlay?: RuntimeDistanceTriangleOverlayRenderModel;
 };
@@ -147,13 +147,6 @@ const measurementEdgeMidpointMarkerDefaults = Object.freeze({
 const measurementEdgeDefaults = Object.freeze({
   pointLabelCollisionSelector:
     '[data-pillbutton-root="true"], [data-point-label-content-root="true"]',
-  dash: Object.freeze({
-    lengthMeters: 1.5,
-    gapMeters: 1.5,
-    lengthPx: 6,
-    gapPx: 8,
-    minSegmentLengthMeters: 0.01,
-  }),
   svgNamespace: "http://www.w3.org/2000/svg",
   distanceTriangle: Object.freeze({
     cornerDotRadiusPx: 1.25 / 2,
@@ -162,9 +155,6 @@ const measurementEdgeDefaults = Object.freeze({
 });
 
 const distanceTriangleVisualDefaults = Object.freeze({
-  dashedLine: Object.freeze({
-    renderInScene: false,
-  }),
   cornerOverlay: Object.freeze({
     minBoxPx: 20,
     paddingPx: 6,
@@ -184,7 +174,7 @@ const toLayoutRect = (domRect: DOMRect): Rect => ({
 });
 
 const resolveVisiblePointLabelRects = (scene: Scene): Rect[] => {
-  const container = resolvePreviewContainer(scene);
+  const container = resolveAnnotationOverlayContainer(scene);
   if (!container) {
     return [];
   }
@@ -201,7 +191,6 @@ const resolveVisiblePointLabelRects = (scene: Scene): Rect[] => {
 type SceneLineHandle = {
   signature: string;
   collection: PolylineCollection;
-  dashed?: true;
   destroy: () => void;
 };
 
@@ -256,188 +245,24 @@ const buildSceneLineSignature = (line: EdgeSceneLine) =>
     line.end.z,
     line.stroke,
     line.strokeWidth,
-    line.dashed === true,
   ].join(":");
-
-const estimateMetersPerPixel = (
-  scene: Scene,
-  start: Cartesian3,
-  end: Cartesian3
-): number => {
-  const midpoint = Cartesian3.midpoint(start, end, new Cartesian3());
-  const radius = Math.max(Cartesian3.distance(start, end) * 0.5, 1);
-  const boundingSphere = new BoundingSphere(midpoint, radius);
-  const metersPerPixel = scene.camera.getPixelSize(
-    boundingSphere,
-    scene.drawingBufferWidth,
-    scene.drawingBufferHeight
-  );
-
-  if (Number.isFinite(metersPerPixel) && metersPerPixel > 0) {
-    return metersPerPixel;
-  }
-
-  const fallbackLength = Math.max(Cartesian3.distance(start, end), 1);
-  const fallbackPixels = Math.max(
-    Math.hypot(scene.drawingBufferWidth, scene.drawingBufferHeight),
-    1
-  );
-  return fallbackLength / fallbackPixels;
-};
-
-const buildLineSegments = (
-  start: Cartesian3,
-  end: Cartesian3,
-  dashed: boolean,
-  dashLength: number,
-  gapLength: number,
-  capLength: number
-): Array<[Cartesian3, Cartesian3]> => {
-  const totalLength = Cartesian3.distance(start, end);
-  if (totalLength <= measurementEdgeDefaults.dash.minSegmentLengthMeters) {
-    return [];
-  }
-
-  if (!dashed) {
-    return [[start, end]];
-  }
-
-  const safeDashLength = Math.max(
-    dashLength,
-    measurementEdgeDefaults.dash.minSegmentLengthMeters
-  );
-  const safeGapLength = Math.max(gapLength, 0);
-  const safeCapLength = Math.min(
-    Math.max(capLength, 0),
-    totalLength * 0.5 -
-      measurementEdgeDefaults.dash.minSegmentLengthMeters * 0.5
-  );
-  const step = Math.max(
-    safeDashLength + safeGapLength,
-    measurementEdgeDefaults.dash.minSegmentLengthMeters
-  );
-
-  if (safeCapLength <= measurementEdgeDefaults.dash.minSegmentLengthMeters) {
-    const segments: Array<[Cartesian3, Cartesian3]> = [];
-    for (let distance = 0; distance < totalLength; distance += step) {
-      const endDistance = Math.min(distance + safeDashLength, totalLength);
-      if (
-        endDistance - distance <=
-        measurementEdgeDefaults.dash.minSegmentLengthMeters * 0.5
-      ) {
-        continue;
-      }
-
-      segments.push([
-        Cartesian3.lerp(start, end, distance / totalLength, new Cartesian3()),
-        Cartesian3.lerp(
-          start,
-          end,
-          endDistance / totalLength,
-          new Cartesian3()
-        ),
-      ]);
-    }
-    return segments;
-  }
-
-  if (
-    totalLength <=
-    safeCapLength * 2 + measurementEdgeDefaults.dash.minSegmentLengthMeters
-  ) {
-    return [[start, end]];
-  }
-
-  const segments: Array<[Cartesian3, Cartesian3]> = [];
-  const pushSegment = (startDistance: number, endDistance: number) => {
-    if (
-      endDistance - startDistance <=
-      measurementEdgeDefaults.dash.minSegmentLengthMeters * 0.5
-    ) {
-      return;
-    }
-
-    segments.push([
-      Cartesian3.lerp(
-        start,
-        end,
-        startDistance / totalLength,
-        new Cartesian3()
-      ),
-      Cartesian3.lerp(start, end, endDistance / totalLength, new Cartesian3()),
-    ]);
-  };
-
-  pushSegment(0, safeCapLength);
-
-  const dashedStart = safeCapLength;
-  const dashedEnd = totalLength - safeCapLength;
-  for (let distance = dashedStart; distance < dashedEnd; distance += step) {
-    const endDistance = Math.min(distance + safeDashLength, dashedEnd);
-    if (
-      endDistance - distance <=
-      measurementEdgeDefaults.dash.minSegmentLengthMeters * 0.5
-    ) {
-      continue;
-    }
-
-    segments.push([
-      Cartesian3.lerp(start, end, distance / totalLength, new Cartesian3()),
-      Cartesian3.lerp(start, end, endDistance / totalLength, new Cartesian3()),
-    ]);
-  }
-
-  pushSegment(dashedEnd, totalLength);
-  return segments;
-};
 
 const createSceneLineHandle = (
   scene: Scene,
   line: EdgeSceneLine
 ): SceneLineHandle => {
-  const dashed = line.dashed === true;
-  const metersPerPixel = estimateMetersPerPixel(scene, line.start, line.end);
-  const dashLengthMeters = dashed
-    ? Math.max(
-        measurementEdgeDefaults.dash.lengthPx * metersPerPixel,
-        measurementEdgeDefaults.dash.minSegmentLengthMeters
-      )
-    : measurementEdgeDefaults.dash.lengthMeters;
-  const gapLengthMeters = dashed
-    ? Math.max(measurementEdgeDefaults.dash.gapPx * metersPerPixel, 0)
-    : measurementEdgeDefaults.dash.gapMeters;
-  const capLengthMeters = dashed
-    ? Math.max(
-        line.strokeWidth * metersPerPixel,
-        measurementEdgeDefaults.dash.minSegmentLengthMeters * 2
-      )
-    : 0;
-
-  const segments = buildLineSegments(
-    line.start,
-    line.end,
-    dashed,
-    dashLengthMeters,
-    gapLengthMeters,
-    capLengthMeters
-  );
   const collection = new PolylineCollection();
+  const material = Material.fromType("Color", {
+    color: Color.fromCssColorString(line.stroke),
+  });
 
-  if (segments.length > 0) {
-    const material = Material.fromType("Color", {
-      color: Color.fromCssColorString(line.stroke),
-    });
-
-    segments.forEach(([segmentStart, segmentEnd], index) => {
-      collection.add({
-        id: `${line.id}-${index}`,
-        positions: [segmentStart, segmentEnd],
-        width: line.strokeWidth,
-        material,
-        show: true,
-      });
-    });
-  }
+  collection.add({
+    id: line.id,
+    positions: [line.start, line.end],
+    width: line.strokeWidth,
+    material,
+    show: true,
+  });
 
   scene.primitives.add(collection);
 
@@ -465,7 +290,6 @@ const createSceneLineHandle = (
   return {
     signature: buildSceneLineSignature(line),
     collection,
-    dashed: line.dashed,
     destroy,
   };
 };
@@ -1016,6 +840,12 @@ export const useMeasurementEdgesController = (
     () =>
       edges.flatMap((edge) => {
         const segments: EdgeSegment[] = [];
+        const strokeWidth = Number.isFinite(edge.strokeWidth)
+          ? edge.strokeWidth
+          : measurementVisualDefaults.sizes.edgeStrokeWidth;
+        const overlayDashPattern =
+          edge.overlayDashPattern ??
+          measurementVisualDefaults.patterns.edgeDashPattern;
 
         for (let index = 0; index < edge.coordinates.length - 1; index += 1) {
           const startCoordinate = edge.coordinates[index];
@@ -1042,8 +872,9 @@ export const useMeasurementEdgesController = (
             startCoordinate,
             endCoordinate,
             stroke: edge.stroke,
-            strokeWidth: edge.strokeWidth,
-            ...(edge.dashed ? { dashed: true as const } : {}),
+            strokeWidth,
+            overlayDashPattern,
+            ...(edge.overlayDashed ? { overlayDashed: true as const } : {}),
             ...(edge.showSegmentLengthLabels
               ? { showSegmentLengthLabels: true as const }
               : {}),
@@ -1072,18 +903,12 @@ export const useMeasurementEdgesController = (
   const sceneLines = useMemo<readonly EdgeSceneLine[]>(
     () =>
       edgeSegments.flatMap((edge) => {
-        const renderDistanceDashesInScene =
-          !edge.distanceTriangleOverlay ||
-          distanceTriangleVisualDefaults.dashedLine.renderInScene;
         const directLine: EdgeSceneLine = {
           id: edge.id,
           start: cartesian3FromGeographicCoordinate(edge.startCoordinate),
           end: cartesian3FromGeographicCoordinate(edge.endCoordinate),
           stroke: edge.stroke,
           strokeWidth: edge.strokeWidth,
-          ...(renderDistanceDashesInScene && edge.dashed
-            ? { dashed: true as const }
-            : {}),
         };
 
         if (!scene || scene.isDestroyed() || !edge.distanceTriangleOverlay) {
@@ -1110,7 +935,6 @@ export const useMeasurementEdgesController = (
             end: screenData.auxiliaryPointECEF,
             stroke: previewControllerDefaults.verticalLineColor,
             strokeWidth: edge.strokeWidth,
-            ...(renderDistanceDashesInScene ? { dashed: true as const } : {}),
           });
         }
 
@@ -1121,7 +945,6 @@ export const useMeasurementEdgesController = (
             end: screenData.targetPointECEF,
             stroke: previewControllerDefaults.horizontalLineColor,
             strokeWidth: edge.strokeWidth,
-            ...(renderDistanceDashesInScene ? { dashed: true as const } : {}),
           });
         }
 
@@ -1177,7 +1000,8 @@ export const useMeasurementEdgesController = (
           },
           stroke: edge.stroke,
           strokeWidth: edge.strokeWidth,
-          dashed: edge.dashed,
+          dashed: edge.overlayDashed,
+          dashPattern: edge.overlayDashPattern,
           hitTargetStrokeWidth: 10,
           onLineClick: lineClickHandler,
         });
@@ -1213,6 +1037,7 @@ export const useMeasurementEdgesController = (
             stroke: previewControllerDefaults.verticalLineColor,
             strokeWidth: edge.strokeWidth,
             dashed: true,
+            dashPattern: edge.overlayDashPattern,
             hitTargetStrokeWidth: 8,
             onLineClick: lineClickHandler,
           }),
@@ -1232,6 +1057,7 @@ export const useMeasurementEdgesController = (
             stroke: previewControllerDefaults.horizontalLineColor,
             strokeWidth: edge.strokeWidth,
             dashed: true,
+            dashPattern: edge.overlayDashPattern,
             hitTargetStrokeWidth: 8,
             onLineClick: lineClickHandler,
           }),
@@ -1309,11 +1135,11 @@ export const useMeasurementEdgesController = (
       return;
     }
 
-    const overlayLayer = createPreviewOverlayLayers(scene, {
-      [PREVIEW_OVERLAY_GROUP.VISUALIZER]: `${resolveDistanceTriangleLabelLayerId(
+    const overlayLayer = createAnnotationOverlayLayers(scene, {
+      [ANNOTATION_OVERLAY_GROUP.VISUALIZER]: `${resolveDistanceTriangleLabelLayerId(
         surfaceKey
       )}-midpoint-targets`,
-    })[PREVIEW_OVERLAY_GROUP.VISUALIZER];
+    })[ANNOTATION_OVERLAY_GROUP.VISUALIZER];
     if (!overlayLayer) {
       return;
     }
@@ -1397,7 +1223,7 @@ export const useMeasurementEdgesController = (
     return () => {
       removePostRenderListener?.();
       destroyEdgeMidpointHandles(edgeMidpointHandleByIdRef.current);
-      destroyPreviewOverlayLayer(overlayLayer);
+      destroyAnnotationOverlayLayer(overlayLayer);
       if (!scene.isDestroyed()) {
         scene.requestRender();
       }
@@ -1438,12 +1264,12 @@ export const useMeasurementEdgesController = (
     }
 
     const {
-      [PREVIEW_OVERLAY_GROUP.LABEL]: labelOverlayLayer,
-      [PREVIEW_OVERLAY_GROUP.VISUALIZER]: visualizerOverlayLayer,
-    } = createPreviewOverlayLayers(scene, {
-      [PREVIEW_OVERLAY_GROUP.LABEL]:
+      [ANNOTATION_OVERLAY_GROUP.LABEL]: labelOverlayLayer,
+      [ANNOTATION_OVERLAY_GROUP.VISUALIZER]: visualizerOverlayLayer,
+    } = createAnnotationOverlayLayers(scene, {
+      [ANNOTATION_OVERLAY_GROUP.LABEL]:
         resolveDistanceTriangleLabelLayerId(surfaceKey),
-      [PREVIEW_OVERLAY_GROUP.VISUALIZER]: `${resolveDistanceTriangleLabelLayerId(
+      [ANNOTATION_OVERLAY_GROUP.VISUALIZER]: `${resolveDistanceTriangleLabelLayerId(
         surfaceKey
       )}-visualizer`,
     });
@@ -1913,8 +1739,8 @@ export const useMeasurementEdgesController = (
       destroyDistanceTriangleCornerHandles(
         distanceTriangleCornerHandleByIdRef.current
       );
-      destroyPreviewOverlayLayer(labelOverlayLayer);
-      destroyPreviewOverlayLayer(visualizerOverlayLayer);
+      destroyAnnotationOverlayLayer(labelOverlayLayer);
+      destroyAnnotationOverlayLayer(visualizerOverlayLayer);
       if (!scene.isDestroyed()) {
         scene.requestRender();
       }

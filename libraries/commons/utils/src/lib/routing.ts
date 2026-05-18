@@ -1,3 +1,5 @@
+import { parseFiniteNumber } from "@carma-commons/math";
+
 import { normalizeOptions } from "./normalizeOptions";
 const sortArrayByKeys = (
   arr: [string, unknown][],
@@ -85,7 +87,7 @@ const resolveLaunchModeConfig = (config: HashLaunchModeConfig = {}) => ({
   flag3dKey: config.flag3dKey ?? DEFAULT_HASH_LAUNCH_FLAG_3D_KEY,
 });
 
-const hasTruthyLegacyLaunchFlag = (value: unknown): boolean => {
+export const isTruthyHashValue = (value: unknown): boolean => {
   if (value === undefined || value === null) {
     return false;
   }
@@ -111,22 +113,9 @@ const hasTruthyLegacyLaunchFlag = (value: unknown): boolean => {
   return true;
 };
 
-const readFiniteHashNumber = (value: unknown): number | null => {
-  if (typeof value === "number") {
-    return Number.isFinite(value) ? value : null;
-  }
-
-  if (typeof value === "string") {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-
-  return null;
-};
-
 const hasValid2dViewParams = (params: Record<string, unknown>): boolean =>
   DEFAULT_HASH_LAUNCH_2D_VIEW_KEYS.every(
-    (key) => readFiniteHashNumber(params[key]) !== null
+    (key) => parseFiniteNumber(params[key]) !== undefined
   );
 
 export const readHashLaunchMode = (
@@ -147,9 +136,7 @@ export const readHashLaunchMode = (
     return HASH_LAUNCH_MODE.THREE_D;
   }
 
-  if (
-    hasTruthyLegacyLaunchFlag(params[DEFAULT_HASH_LAUNCH_LEGACY_FLAG_3D_KEY])
-  ) {
+  if (isTruthyHashValue(params[DEFAULT_HASH_LAUNCH_LEGACY_FLAG_3D_KEY])) {
     return HASH_LAUNCH_MODE.THREE_D;
   }
 
@@ -157,9 +144,7 @@ export const readHashLaunchMode = (
     return HASH_LAUNCH_MODE.TWO_D;
   }
 
-  if (
-    hasTruthyLegacyLaunchFlag(params[DEFAULT_HASH_LAUNCH_LEGACY_FLAG_2D_KEY])
-  ) {
+  if (isTruthyHashValue(params[DEFAULT_HASH_LAUNCH_LEGACY_FLAG_2D_KEY])) {
     return HASH_LAUNCH_MODE.TWO_D;
   }
 
