@@ -75,13 +75,28 @@ export const selectMeasurement =
 export const replaceMeasurements =
   (features: Feature[]) =>
   (dispatch: AppDispatch, getState: () => RootState) => {
+    const prevFeatures = getState().measurements.features;
     dispatch(setMeasurements(features));
     const selected: { featurekind?: string; id?: string | number } | null =
       getState().featureCollection.selectedFeature;
     if (!selected || selected.featurekind !== MEASUREMENT_FEATUREKIND) return;
     const fresh = features.find((f) => f.id === selected.id);
     if (!fresh) {
-      dispatch(setSelectedFeature(null));
+      // Selected measurement was removed — advance to the item that took
+      // its slot (i.e. the previous "next" neighbour). Falls back to the
+      // new last item when the deleted one was at the end.
+      if (features.length === 0) {
+        dispatch(setSelectedFeature(null));
+        return;
+      }
+      const oldIdx = prevFeatures.findIndex((f) => f.id === selected.id);
+      const nextIdx =
+        oldIdx < 0
+          ? 0
+          : oldIdx < features.length
+          ? oldIdx
+          : features.length - 1;
+      dispatch(setSelectedFeature(wrapMeasurement(features[nextIdx])));
       return;
     }
     dispatch(setSelectedFeature(wrapMeasurement(fresh)));

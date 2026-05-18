@@ -1079,6 +1079,12 @@ export const MeasurementHost = forwardRef<
       deleteFeature: (id: string) => {
         const draw = drawRef.current;
         if (!draw) return;
+        // Suppress the synchronous `deselect` callback terra-draw fires
+        // when removing its currently-selected feature — otherwise the
+        // consumer's selection is cleared *before* the onChange snapshot
+        // lands, denying any "advance to next item" logic the chance to
+        // run against an intact selection.
+        suppressSelectionCallbackRef.current = true;
         try {
           draw.removeFeatures([id]);
           // terra-draw's `removeFeatures` fires only the `change` event,
@@ -1102,6 +1108,8 @@ export const MeasurementHost = forwardRef<
             id,
             e
           );
+        } finally {
+          suppressSelectionCallbackRef.current = false;
         }
       },
       selectFeature: (id: string) => {
