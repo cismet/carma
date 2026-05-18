@@ -6,16 +6,21 @@ import {
 } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import pointOnFeature from "@turf/point-on-feature";
 import L from "leaflet";
-import { getFeatureStyler } from "../../helper/styler";
+import "leaflet.markercluster";
+import {
+  getFeatureStyler,
+  getProjektClusterIconCreatorFunction,
+  MAX_CLUSTER_RADIUS,
+} from "../../helper/styler";
 
 export const FeatureIconOverlay = ({
   zoomLevel = 12,
   markerSymbolSize = 36,
 }) => {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
-  const { shownFeatures = [] } = useContext<typeof FeatureCollectionContext>(
-    FeatureCollectionContext
-  );
+  const { shownFeatures = [], clusteringEnabled } = useContext<
+    typeof FeatureCollectionContext
+  >(FeatureCollectionContext);
   const { setSelectedFeatureByPredicate } = useContext<
     typeof FeatureCollectionContext
   >(FeatureCollectionDispatchContext);
@@ -25,15 +30,20 @@ export const FeatureIconOverlay = ({
   useEffect(() => {
     const map = routedMapRef?.leafletMap?.leafletElement;
     if (!map) return;
-    const updateOverlayVisibility = () => {
-      const zoom = map.getZoom();
-      map.getPane("overlayPane")!.style.display =
-        zoom < zoomLevel ? "none" : "";
-    };
-    map.on("zoomend", updateOverlayVisibility);
-    updateOverlayVisibility();
 
-    const markers: L.Marker[] = [];
+    const useCluster = clusteringEnabled !== false;
+    const group: L.LayerGroup = useCluster
+      ? (L as any).markerClusterGroup({
+          iconCreateFunction: getProjektClusterIconCreatorFunction({
+            svgSize: markerSymbolSize,
+          }),
+          maxClusterRadius: MAX_CLUSTER_RADIUS,
+          showCoverageOnHover: false,
+          zoomToBoundsOnClick: true,
+          spiderfyOnMaxZoom: false,
+        })
+      : L.layerGroup();
+
     const dropMarkerAt = (
       g: GeoJSON.Geometry | GeoJSON.MultiPolygon,
       feature
@@ -54,7 +64,8 @@ export const FeatureIconOverlay = ({
         icon,
         interactive: true,
         zIndexOffset: 497,
-      }).addTo(map);
+      });
+      (marker as any).feature = feature;
 
       marker.on("click", () => {
         setSelectedFeatureByPredicate(
@@ -62,7 +73,7 @@ export const FeatureIconOverlay = ({
         );
       });
 
-      markers.push(marker);
+      group.addLayer(marker);
     };
 
     shownFeatures.forEach((feature) => {
@@ -84,8 +95,12 @@ export const FeatureIconOverlay = ({
       }
     });
 
-    return () => markers.forEach((m) => map.removeLayer(m));
-  }, [routedMapRef, shownFeatures, markerSymbolSize]);
+    map.addLayer(group);
+
+    return () => {
+      if (map.hasLayer(group)) map.removeLayer(group);
+    };
+  }, [routedMapRef, shownFeatures, markerSymbolSize, clusteringEnabled]);
 
   return null;
 };

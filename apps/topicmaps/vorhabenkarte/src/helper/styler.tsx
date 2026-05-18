@@ -140,6 +140,8 @@ export function formatDatum(datumIso) {
   return `${day}.${month}.${year}`;
 }
 
+export const MAX_CLUSTER_RADIUS = 60;
+
 export const getProjektClusterIconCreatorFunction = ({
   svgSize = 35,
   colorizer = getColorForProperties,

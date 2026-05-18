@@ -11,6 +11,7 @@ import convertItemToFeature from "../helper/convertItemToFeature";
 import {
   getFeatureStyler,
   getProjektClusterIconCreatorFunction,
+  MAX_CLUSTER_RADIUS,
 } from "../helper/styler";
 import itemFilterFunction from "../helper/filter";
 import { addTitleFlag } from "../helper/urlHelper";
@@ -39,7 +40,7 @@ export function App() {
         iconCreateFunction: getProjektClusterIconCreatorFunction({
           svgSize: 35,
         }),
-        maxClusterRadius: 80,
+        maxClusterRadius: MAX_CLUSTER_RADIUS,
       }}
       featureTooltipFunction={(feature) => feature?.text}
       itemFilterFunction={itemFilterFunction}
