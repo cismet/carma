@@ -214,8 +214,16 @@ const FeaturesFormsWrapper = ({
       key: geometryKey,
       label,
       geometry: geometry as MeasurementGeometryOption["geometry"],
+      geometryWgs84: draft?.geometryWgs84,
     };
-  }, [isCreation, formKey, draft?.geometryKey, draft?.geometry, draft?.feature]);
+  }, [
+    isCreation,
+    formKey,
+    draft?.geometryKey,
+    draft?.geometry,
+    draft?.geometryWgs84,
+    draft?.feature,
+  ]);
 
   // Measurement keys already claimed by other in-progress creation drafts —
   // each measurement can back at most one new feature, so don't offer it
@@ -504,6 +512,7 @@ const FeaturesFormsWrapper = ({
           isCreation: true,
           geometry: geom,
           geometryKey: newKey,
+          geometryWgs84: opt.geometryWgs84,
         })
       );
       // Push the new feature into MapSelectionContext so the datasheet

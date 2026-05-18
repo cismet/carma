@@ -21,6 +21,11 @@ export interface MeasurementGeometryOption {
   key: string;
   label: string;
   geometry: MeasurementGeometry;
+  // Original WGS84 point preserved before reprojection. Only set for
+  // Standort-derived options today, because the Leuchte-for-existing-Standort
+  // save path sends this as a sibling `geometry` SaveObject parameter in
+  // EPSG:4326. Measurement-derived options leave this unset.
+  geometryWgs84?: { type: "Point"; coordinates: [number, number] };
 }
 
 const wgs84CoordTo25832 = (c: number[]): [number, number] =>
@@ -65,6 +70,7 @@ export const buildStandortGeometryOption = (
       crs: CRS_25832,
       coordinates: projected,
     },
+    geometryWgs84: { type: "Point", coordinates: [x, y] },
   };
 };
 

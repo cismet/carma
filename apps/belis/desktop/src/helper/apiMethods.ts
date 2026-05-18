@@ -84,13 +84,15 @@ export const saveTeam = async (
 export const updateDataByClassName = async <T extends Record<string, unknown>>(
   jwt: string,
   className: string,
-  dataToSave: T
+  dataToSave: T,
+  extraParams?: Record<string, string>
 ) => {
   const formData = new FormData();
   const taskparams = JSON.stringify({
     parameters: {
       className,
       data: JSON.stringify(dataToSave),
+      ...(extraParams ?? {}),
     },
   });
 

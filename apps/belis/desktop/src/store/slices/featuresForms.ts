@@ -24,6 +24,10 @@ export interface Draft {
   isCreation?: boolean;
   geometry?: GeoJSON.Geometry;
   geometryKey?: string;
+  // Original WGS84 point from the picked Standort, kept lossless for the
+  // sibling `geometry` SaveObject parameter sent when saving a new Leuchte
+  // bound to an existing Standort. Unset for measurement-derived geometries.
+  geometryWgs84?: { type: "Point"; coordinates: [number, number] };
   // Geometry key seeded at creation (e.g. linked Standort for a new Leuchte).
   // Frozen — used to highlight Neue Geometrien green while still in sync.
   prefillGeometryKey?: string;
@@ -64,6 +68,7 @@ const featuresFormsSlice = createSlice({
         isCreation?: boolean;
         geometry?: GeoJSON.Geometry;
         geometryKey?: string;
+        geometryWgs84?: { type: "Point"; coordinates: [number, number] };
         prefillGeometryKey?: string;
       }>
     ) {
@@ -76,6 +81,7 @@ const featuresFormsSlice = createSlice({
         isCreation,
         geometry,
         geometryKey,
+        geometryWgs84,
         prefillGeometryKey,
       } = action.payload;
       const existing = state.drafts[featureId];
@@ -116,6 +122,13 @@ const featuresFormsSlice = createSlice({
         isCreation: creationDraft,
         geometry: geometry ?? existing?.geometry,
         geometryKey: geometryKey ?? existing?.geometryKey,
+        // Use explicit-key semantics (not `??`) so a geometry switch that
+        // omits the new field can clear stale Standort coords on a draft
+        // that was switched to a measurement-derived geometry.
+        geometryWgs84:
+          "geometryWgs84" in action.payload
+            ? geometryWgs84
+            : existing?.geometryWgs84,
         prefillGeometryKey:
           existing?.prefillGeometryKey ?? prefillGeometryKey,
         updatedAt: Date.now(),
@@ -139,6 +152,7 @@ const featuresFormsSlice = createSlice({
       if (!d) return;
       d.geometry = undefined;
       d.geometryKey = undefined;
+      d.geometryWgs84 = undefined;
       if (feature !== undefined) d.feature = feature;
       if (fetchedData !== undefined) d.fetchedData = fetchedData;
       d.updatedAt = Date.now();

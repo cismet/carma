@@ -390,8 +390,35 @@ const saveCreationDraft = async (
       };
     }
 
+    // When creating a Leuchte bound to an existing Standort the payload has
+    // no `geom` (the Leuchte links to the Mast via tdta_standort_mast.id).
+    // The backend still wants the spatial location, so we send the picked
+    // Standort's 4326 point as a sibling `geometry` SaveObject parameter.
+    // Only fires for this specific branch — every other path keeps the
+    // historical two-parameter shape.
+    const extraSaveParams =
+      featureType === "leuchte" &&
+      parseStandortIdFromKey(draft.geometryKey) != null &&
+      draft.geometryWgs84
+        ? {
+            geometry: JSON.stringify({
+              type: "Point",
+              crs: {
+                type: "name",
+                properties: { name: "urn:ogc:def:crs:EPSG::4326" },
+              },
+              coordinates: draft.geometryWgs84.coordinates,
+            }),
+          }
+        : undefined;
+
     console.debug(`[CREATE-FEATURE] ${featureType} → ${config.className} payload:`, JSON.stringify(payload, null, 2));
-    const result = await updateDataByClassName(jwt, config.className, payload);
+    const result = await updateDataByClassName(
+      jwt,
+      config.className,
+      payload,
+      extraSaveParams
+    );
     console.debug(`[CREATE-FEATURE] ${featureType} → ${config.className} result:`, JSON.stringify(result, null, 2));
 
     // Upload files if any

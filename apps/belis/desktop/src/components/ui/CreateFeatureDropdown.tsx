@@ -181,6 +181,7 @@ const CreateFeatureDropdown = () => {
         isCreation: true,
         geometry: geom,
         geometryKey: geomKey,
+        geometryWgs84: standortOption?.geometryWgs84,
         prefillGeometryKey: geomKey,
       })
     );
