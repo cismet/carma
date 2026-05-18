@@ -8,7 +8,10 @@ import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import Map from "./components/Map";
 import convertItemToFeature from "../helper/convertItemToFeature";
-import { getFeatureStyler } from "../helper/styler";
+import {
+  getFeatureStyler,
+  getProjektClusterIconCreatorFunction,
+} from "../helper/styler";
 import itemFilterFunction from "../helper/filter";
 import { addTitleFlag } from "../helper/urlHelper";
 import titleFactory from "../helper/titleFactory";
@@ -32,6 +35,12 @@ export function App() {
       referenceSystem={MappingConstants.crs25832}
       titleFactory={titleFactory}
       getFeatureStyler={getFeatureStyler}
+      clusteringOptions={{
+        iconCreateFunction: getProjektClusterIconCreatorFunction({
+          svgSize: 35,
+        }),
+        maxClusterRadius: 80,
+      }}
       featureTooltipFunction={(feature) => feature?.text}
       itemFilterFunction={itemFilterFunction}
       filterState={{
