@@ -65,6 +65,11 @@ interface FeatureFormLayoutProps {
   sideContent?: ReactNode;
   customDraftsCount?: number;
   onSaveAll?: () => void;
+  /** Identity used to remount the inner Tabs when the underlying draft
+   * changes. Antd Tabs is uncontrolled, so its active-tab state survives
+   * prop changes — keying on this resets the active tab to the default
+   * (e.g. back to "Standort" each time a new Leuchten draft is opened). */
+  tabsResetKey?: string;
 }
 
 const FeatureFormLayout = ({
@@ -99,6 +104,7 @@ const FeatureFormLayout = ({
   formHeaderContent,
   customDraftsCount,
   onSaveAll,
+  tabsResetKey,
 }: FeatureFormLayoutProps) => {
   // Deduplicate documents to prevent stale data from appearing as extra items
   // when switching between features quickly.
@@ -467,7 +473,7 @@ const FeatureFormLayout = ({
           >
             {showRaw || additionalTabs.length > 0 ? (
               <div className="[&_.ant-tabs-nav]:sticky [&_.ant-tabs-nav]:top-0 [&_.ant-tabs-nav]:bg-white [&_.ant-tabs-nav]:z-10">
-                <Tabs defaultActiveKey={defaultActiveTabKey} items={leftColumnTabs} />
+                <Tabs key={tabsResetKey} defaultActiveKey={defaultActiveTabKey} items={leftColumnTabs} />
               </div>
             ) : (
               <div className="pt-4">{formHeaderContent}{children}</div>
@@ -548,6 +554,7 @@ const FeatureFormLayout = ({
                 : "general";
               return (
                 <Tabs
+                  key={tabsResetKey}
                   defaultActiveKey={narrowDefaultActiveKey}
                   items={[
                     ...orderedFormTabs,

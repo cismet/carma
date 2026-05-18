@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   Form,
   Row,
@@ -145,8 +145,24 @@ const MastFormFields = ({
   const unterhaltMastOptions = [
     ...((keyTablesData.unterhaltMast || []) as UnterhaltMastItem[]),
   ].sort((a, b) => Number(a.pk ?? 0) - Number(b.pk ?? 0));
-  const kennzifferOptions = (keyTablesData.kennziffer ||
-    []) as KennzifferItem[];
+  const kennzifferOptions = useMemo(() => {
+    const sorted = [
+      ...((keyTablesData.kennziffer || []) as KennzifferItem[]),
+    ].sort((a, b) =>
+      `${a.kennziffer || ""} - ${a.beschreibung || ""}`.localeCompare(
+        `${b.kennziffer || ""} - ${b.beschreibung || ""}`,
+        "de",
+        { numeric: true }
+      )
+    );
+    // Mirrors the Leuchten-side filter: "1 - nur Mast" is meaningless when
+    // the Mast is being created as part of a new Leuchte. Existing Masten
+    // carrying kennziffer=1 still see the option in edit mode so their
+    // current value remains visible.
+    return isCreation
+      ? sorted.filter((item) => String(item.kennziffer) !== "1")
+      : sorted;
+  }, [keyTablesData.kennziffer, isCreation]);
   const anlagengruppeOptions = (keyTablesData.anlagengruppe ||
     []) as AnlagengruppeItem[];
 
