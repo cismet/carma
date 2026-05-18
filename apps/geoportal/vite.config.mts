@@ -43,6 +43,28 @@ export default defineConfig({
     plugins: () => [nxViteTsPaths()],
   },
 
+  // Terra-draw (used by @carma-mapping/measurements) ships class field
+  // declarations. Without telling esbuild they're natively supported, esbuild
+  // rewrites them through a `__publicField` helper that isn't reliably bundled
+  // here — which surfaces at runtime as "__publicField is not defined". The
+  // measurements-playground sets the same supported flags for the same reason.
+  optimizeDeps: {
+    esbuildOptions: {
+      target: "es2022",
+      supported: {
+        "class-field": true,
+        "class-static-field": true,
+      },
+    },
+  },
+
+  esbuild: {
+    supported: {
+      "class-field": true,
+      "class-static-field": true,
+    },
+  },
+
   build: {
     outDir: "../../dist/apps/geoportal",
     reportCompressedSize: true,
