@@ -33,7 +33,6 @@ export const CREATION_DEFAULTS_ALLOWLIST: Record<string, AllowlistEntry> = {
   leuchte: {
     leuchte: [
       "fk_kennziffer",
-      "leuchtennummer",
       "fk_leuchttyp",
       "inbetriebnahme_leuchte",
       "montagefirma_leuchte",

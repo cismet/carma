@@ -152,10 +152,21 @@ const CreateFeatureDropdown = () => {
     // Capture it now — opening the creation draft replaces selectedFeature
     // in Redux, so the wrapper can no longer recover this association on its own.
     let standortOption = null;
+    let standortLeuchtenCount: number | undefined;
     if (key === "leuchte") {
       const info = extractStandortFeatureInfo(selectedFeature);
       if (info) {
         standortOption = buildStandortGeometryOption(info);
+        const raw = (info.properties as Record<string, unknown> | null)?.[
+          "leuchten_count"
+        ];
+        const parsed =
+          typeof raw === "number"
+            ? raw
+            : typeof raw === "string"
+            ? Number(raw)
+            : NaN;
+        if (Number.isFinite(parsed)) standortLeuchtenCount = parsed;
       }
     }
 
@@ -170,6 +181,20 @@ const CreateFeatureDropdown = () => {
     const seededValues: Record<string, unknown> = {
       ...(allDefaults[key] ?? {}),
     };
+
+    // Auto-assign Leuchtennummer: lights on a Mast are 0-indexed, so the next
+    // free number equals the parent Standort's existing Leuchten count. Without
+    // a linked Standort (a fresh Mast will be created at save), start at 0.
+    if (key === "leuchte") {
+      const existingLeuchte = (seededValues.leuchte ?? {}) as Record<
+        string,
+        unknown
+      >;
+      seededValues.leuchte = {
+        ...existingLeuchte,
+        leuchtennummer: standortLeuchtenCount ?? 0,
+      };
+    }
 
     dispatch(
       setDraft({
