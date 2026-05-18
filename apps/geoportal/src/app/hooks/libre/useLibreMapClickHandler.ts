@@ -76,22 +76,19 @@ export const useLibreMapSelectionHandler = (
 
   useEffect(() => removeFeatureInfoMarker, [removeFeatureInfoMarker]);
 
-  // Sync the redux `selectedFeature` (driven by clicks and by the infobox
-  // thumbnail switcher) to MapSelectionContext, so LibreMap re-applies its
-  // visual highlight to the currently-selected feature. Without this, the
-  // map keeps highlighting the first hit even after the user picks a
-  // different feature in the infobox. When the selection is a pseudo-feature
-  // with no `sourceFeature` (e.g. the "Position" entry, or no selection at
-  // all), clear the map highlight, since nothing on the map matches it.
   const { selectFeature: selectMapFeature, clearSelection: clearMapSelection } =
     useMapSelection();
   const selectedFeature = useSelector(getSelectedFeature);
   useEffect(() => {
-    const sourceFeature = (
-      selectedFeature as { sourceFeature?: maplibregl.MapGeoJSONFeature } | null
-    )?.sourceFeature;
+    const feature = selectedFeature as {
+      sourceFeature?: maplibregl.MapGeoJSONFeature;
+      geometry?: unknown;
+    } | null;
+    const sourceFeature = feature?.sourceFeature;
     if (!sourceFeature?.source) {
-      clearMapSelection();
+      if (!feature?.geometry) {
+        clearMapSelection();
+      }
       return;
     }
     selectMapFeature(
@@ -177,9 +174,7 @@ export const useLibreMapSelectionHandler = (
         // it processes; here we cover the layers it never sees.
         const layersWithHits = new Set(hitsByLayer.map((h) => h.layerId));
         currentLayers
-          .filter(
-            (l) => l.layerType === "vector" && !layersWithHits.has(l.id)
-          )
+          .filter((l) => l.layerType === "vector" && !layersWithHits.has(l.id))
           .forEach((l) => {
             dispatch(addCompletedVectorLayer(l.id));
           });
@@ -231,33 +226,30 @@ export const useLibreMapSelectionHandler = (
   // briefly highlights the topmost feature, then onClickTopicMap resolves
   // async and dispatches the preferred feature, which switches the highlight.
   // Reading directly from the store keeps the callback closure-free.
-  const selectFromHits = useCallback(
-    (hits: maplibregl.MapGeoJSONFeature[]) => {
-      if (uiModeRef.current !== UIMode.FEATURE_INFO) {
-        return hits[0];
-      }
-      const state = store.getState();
-      const preferredLayerId = getPreferredLayerId(state);
-      const preferredVectorLayerId = getPreferredVectorLayerId(state);
-
-      if (preferredLayerId) {
-        const match = hits.find(
-          (h) => h.layer?.metadata?.["layer-id"] === preferredLayerId
-        );
-        if (match) {
-          return match;
-        }
-      }
-      if (preferredVectorLayerId) {
-        const match = hits.find((h) => h.id === preferredVectorLayerId);
-        if (match) {
-          return match;
-        }
-      }
+  const selectFromHits = useCallback((hits: maplibregl.MapGeoJSONFeature[]) => {
+    if (uiModeRef.current !== UIMode.FEATURE_INFO) {
       return hits[0];
-    },
-    []
-  );
+    }
+    const state = store.getState();
+    const preferredLayerId = getPreferredLayerId(state);
+    const preferredVectorLayerId = getPreferredVectorLayerId(state);
+
+    if (preferredLayerId) {
+      const match = hits.find(
+        (h) => h.layer?.metadata?.["layer-id"] === preferredLayerId
+      );
+      if (match) {
+        return match;
+      }
+    }
+    if (preferredVectorLayerId) {
+      const match = hits.find((h) => h.id === preferredVectorLayerId);
+      if (match) {
+        return match;
+      }
+    }
+    return hits[0];
+  }, []);
 
   return {
     pos,
