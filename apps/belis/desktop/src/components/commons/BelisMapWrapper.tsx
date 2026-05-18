@@ -1139,8 +1139,9 @@ const BelisMapLibWrapper = ({
       iconname: "trash",
       icon: MEASUREMENT_DELETE_ICON,
       action: () => {
+        // Selection advancement is handled by replaceMeasurements once
+        // the onChange snapshot lands in Redux.
         measurementHostRef.current?.deleteFeature(rawId);
-        dispatch(selectMeasurement(null));
       },
     });
 
