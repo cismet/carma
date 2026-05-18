@@ -11,7 +11,11 @@ import isEqual from "lodash/isEqual";
 import { serviceOptions } from "@carma-commons/resources";
 import { FileUploader, uploadImage } from "@carma-commons/ui/components";
 import { BackgroundLayer, Item, Layer } from "@carma-mapping/layers";
-import { extractCarmaConfig, resolveLayerTitle } from "@carma-commons/utils";
+import {
+  extractCarmaConfig,
+  resolveLayerTitle,
+  resolveLayerDescription,
+} from "@carma-commons/utils";
 
 import { parseDescription } from "../helper/layerHelper";
 import { Fragment, useState } from "react";
@@ -119,7 +123,10 @@ const InfoCard = ({
     vectorStyle && vectorLegend
       ? [{ OnlineResource: vectorLegend }]
       : (layer as unknown as any).props?.Style?.[0]?.LegendURL; // TODO: fix type
-  const parsedDescriptions = parseDescription(description);
+  const displayDescription = resolveLayerDescription(layer);
+  const parsedDescriptions = parseDescription(
+    editCollection ? description : displayDescription ?? description
+  );
   const isVectorLayer = carmaConf?.vectorStyle;
   const isGenericTopicMap = layer?.name?.startsWith("wuppGenericTopicMaps_");
   const isTopicMap = layer?.name?.startsWith("wuppTopicMaps_");

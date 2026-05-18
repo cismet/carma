@@ -195,6 +195,7 @@ type BaseLayer = {
     metaDataText?: string;
     vectorLegendTitle?: string;
     vectorTitle?: string;
+    vectorDescription?: string;
     [key: string]: unknown;
   };
 };
@@ -318,6 +319,7 @@ export type Item = {
   vectorLegend?: string;
   vectorLegendTitle?: string;
   vectorTitle?: string;
+  vectorDescription?: string;
   ff?: string;
   replaceId?: string;
   mergeId?: string;

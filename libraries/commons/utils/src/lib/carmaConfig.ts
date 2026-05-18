@@ -48,3 +48,16 @@ export const resolveLayerTitle = (layer: {
   const carmaConf = extractCarmaConfig(layer.keywords);
   return layer.vectorTitle || (carmaConf?.vectorTitle as string) || layer.title;
 };
+
+export const resolveLayerDescription = (layer: {
+  description?: string;
+  vectorDescription?: string;
+  keywords?: string[];
+}): string | undefined => {
+  const carmaConf = extractCarmaConfig(layer.keywords);
+  return (
+    layer.vectorDescription ||
+    (carmaConf?.vectorDescription as string) ||
+    layer.description
+  );
+};

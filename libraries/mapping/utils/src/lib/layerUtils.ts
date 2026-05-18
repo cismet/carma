@@ -2,7 +2,11 @@ import { isNaN } from "lodash";
 
 import type { FeatureInfoProperties } from "./contracts/feature-info/feature-info";
 import type { Item, Layer } from "@carma-mapping/layers";
-import { extractCarmaConfig, resolveLayerTitle } from "@carma-commons/utils";
+import {
+  extractCarmaConfig,
+  resolveLayerTitle,
+  resolveLayerDescription,
+} from "@carma-commons/utils";
 import envelope from "@turf/envelope";
 import L from "leaflet";
 import { sandboxedEvalExternal } from "@carma-commons/sandbox-eval";
@@ -138,6 +142,7 @@ export const parseToMapLayer = async (
 
   const carmaConf = extractCarmaConfig(layer.keywords);
   const resolvedTitle = resolveLayerTitle(layer);
+  const resolvedDescription = resolveLayerDescription(layer);
   if (layer.type === "layer" || layer.type === "object") {
     let capabilitiesUrl = layer?.props?.url
       ? layer?.props?.url + "service=WMS&request=GetCapabilities&version=1.1.1"
@@ -242,7 +247,7 @@ export const parseToMapLayer = async (
         id: id,
         layerType: "vector",
         opacity: opacity || 1.0,
-        description: layer.description,
+        description: resolvedDescription,
         conf: Object.keys(mergedConf).length > 0 ? mergedConf : undefined,
         queryable: !layer.queryable
           ? "infoboxMapping" in mergedConf || "lazyInfoBox" in mergedConf
@@ -289,7 +294,7 @@ export const parseToMapLayer = async (
             id: id,
             layerType: layer.layerType,
             opacity: opacity || 1.0,
-            description: layer.description,
+            description: resolvedDescription,
             conf: carmaConf!,
             visible: visible,
             queryable: layer.queryable,
@@ -328,7 +333,7 @@ export const parseToMapLayer = async (
             id: id,
             layerType: "vector",
             opacity: 1.0,
-            description: layer.description,
+            description: resolvedDescription,
             conf: carmaConf!,
             queryable: isNaN(layer.queryable)
               ? layer?.keywords?.some((keyword) =>
