@@ -35,6 +35,7 @@ import {
 import { getJWT } from "../../../store/slices/auth";
 import type { DokumentItem } from "../DocumentPreview";
 import { ChangedFieldsProvider } from "./DraftFieldHighlight";
+import { LOCKED_FIELD_CLASSES } from "./readOnlyFormUtils";
 import {
   getAllowlistedPaths,
   getCreationDefaults,
@@ -642,8 +643,10 @@ const FeaturesFormsWrapper = ({
                 isCreation ? (
                   <div
                     className={
-                      draft?.geometryKey &&
-                      draft.geometryKey === draft?.prefillGeometryKey
+                      draft?.geometryKey?.startsWith(STANDORT_OPTION_PREFIX)
+                        ? `mb-3 ${LOCKED_FIELD_CLASSES}`
+                        : draft?.geometryKey &&
+                          draft.geometryKey === draft?.prefillGeometryKey
                         ? "mb-3 draft-prefilled-field"
                         : draft?.geometryKey
                         ? "mb-3 draft-changed-field"

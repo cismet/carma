@@ -14,7 +14,7 @@ import {
   updateDataByClassName,
 } from "../../../helper/apiMethods";
 import { uploadDraftFiles } from "../../../helper/uploadDraftFiles";
-import { FieldPrefix } from "./DraftFieldHighlight";
+import { FieldPrefix, LockedFields } from "./DraftFieldHighlight";
 import dayjs from "dayjs";
 
 const transformDatesForBackend = (
@@ -399,8 +399,13 @@ const LeuchteForm = ({
   }, [effectiveMastId, jwt]);
 
   // When creating a Leuchte linked to an existing Mast, inherit that Mast's
-  // Strassenschlüssel into the Leuchte form. Reverse of the new-Mast path
-  // handled by syncStrassenschluesselToMast above.
+  // Strassenschlüssel AND Kennziffer into the Leuchte form. Reverse of the
+  // new-Mast path handled by syncStrassenschluesselToMast and
+  // handleMastValuesChange above. setFieldsValue doesn't trigger
+  // onValuesChange so the draft slice isn't updated here, but the save path
+  // reads field values directly from the form via getFieldsValue. If the user
+  // edits any Leuchten field, handleLeuchteValuesChange picks up allValues
+  // (including our mirrored fields) and persists them to the draft then.
   useEffect(() => {
     if (linkedMastId == null) return;
     if (!mastData) return;
@@ -408,22 +413,39 @@ const LeuchteForm = ({
     const ssel = mastData.tkey_strassenschluessel as
       | Record<string, unknown>
       | undefined;
-    if (!ssel) return;
+    const kennziffer = mastData.tkey_kennziffer as
+      | Record<string, unknown>
+      | undefined;
     const current = leuchteFormRef.current.getFieldsValue() as Record<
       string,
       unknown
     >;
+    const updates: Record<string, unknown> = {};
+
     if (
-      current.strassenschluessel_pk === ssel.pk &&
-      current.fk_strassenschluessel === ssel.id
+      ssel &&
+      (current.strassenschluessel_pk !== ssel.pk ||
+        current.fk_strassenschluessel !== ssel.id)
     ) {
-      return;
+      updates.strassenschluessel_pk = ssel.pk;
+      updates.strassenschluessel_strasse = ssel.strasse;
+      updates.fk_strassenschluessel = ssel.id;
     }
-    leuchteFormRef.current.setFieldsValue({
-      strassenschluessel_pk: ssel.pk,
-      strassenschluessel_strasse: ssel.strasse,
-      fk_strassenschluessel: ssel.id,
-    });
+
+    if (kennziffer?.id != null) {
+      const leuchteCurrent = current.fk_kennziffer;
+      const isEmpty = leuchteCurrent == null || leuchteCurrent === "";
+      const userOverrode =
+        !isEmpty && leuchteCurrent !== lastMirroredKennzifferRef.current;
+      if (!userOverrode && leuchteCurrent !== kennziffer.id) {
+        updates.fk_kennziffer = kennziffer.id;
+        lastMirroredKennzifferRef.current = kennziffer.id;
+      }
+    }
+
+    if (Object.keys(updates).length === 0) return;
+
+    leuchteFormRef.current.setFieldsValue(updates);
   }, [linkedMastId, mastData]);
 
   // Extract fabrikat for subtitle - use rawFeature (vector tile) to match list display
@@ -476,27 +498,27 @@ const LeuchteForm = ({
                 }
               >
                 <FieldPrefix name="mast">
-                  <MastFormFields
-                    mast={mastTabReadOnly ? mastData : null}
-                    readOnly={mastTabReadOnly}
-                    isCreation={!mastTabReadOnly}
-                    featureId={featureId}
-                    locked={mastTabReadOnly}
-                    onFormInstance={setMastForm}
-                    draftValues={
-                      mastTabReadOnly
-                        ? undefined
-                        : (draftValues?.mast as
-                            | Record<string, unknown>
-                            | undefined)
-                    }
-                    onValuesChange={
-                      mastTabReadOnly ? undefined : handleMastValuesChange
-                    }
-                    onOriginalValues={
-                      mastTabReadOnly ? undefined : handleMastOriginalValues
-                    }
-                  />
+                  <LockedFields locked={mastTabReadOnly}>
+                    <MastFormFields
+                      mast={mastTabReadOnly ? mastData : null}
+                      readOnly={mastTabReadOnly}
+                      isCreation={!mastTabReadOnly}
+                      featureId={featureId}
+                      locked={mastTabReadOnly}
+                      onFormInstance={setMastForm}
+                      draftValues={
+                        mastTabReadOnly
+                          ? undefined
+                          : (draftValues?.mast as
+                              | Record<string, unknown>
+                              | undefined)
+                      }
+                      onValuesChange={handleMastValuesChange}
+                      onOriginalValues={
+                        mastTabReadOnly ? undefined : handleMastOriginalValues
+                      }
+                    />
+                  </LockedFields>
                 </FieldPrefix>
               </div>
             </>
