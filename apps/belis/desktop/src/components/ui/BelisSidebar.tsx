@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, useMemo, useRef } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useKeyboardListNavigation } from "../../hooks/useKeyboardListNavigation";
 import type { MapGeoJSONFeatureWithOriginal as SidebarFeature } from "@carma-mapping/utils";
 export type { SidebarFeature };
@@ -572,7 +573,14 @@ const BelisSidebar = ({
     [flatFeatures, isFeatureSelected]
   );
 
-  const { onKeyDown: handleKeyDown } = useKeyboardListNavigation({
+  // Arrows walk the measurement list when a measurement is the active
+  // selection — otherwise the fachobjekte handler keeps its current scope.
+  const measurementNavEnabled =
+    sidebarMode === "fachobjekte" &&
+    selectedMeasurementId != null &&
+    !collapsedGroups["messungen"];
+
+  const { onKeyDown: handleFachobjekteKeyDown } = useKeyboardListNavigation({
     items: flatFeatures,
     selectedIndex: selectedIdx,
     onSelect: (next) => {
@@ -586,6 +594,7 @@ const BelisSidebar = ({
         next
       );
     },
+    enabled: !measurementNavEnabled,
   });
 
   const getListItem = (feature: SidebarFeature): ListItemData => {
@@ -670,6 +679,31 @@ const BelisSidebar = ({
       return { feature: f, id, main, upperright, subtitle };
     });
   }, [measurements]);
+
+  const selectedMeasurementIdx = useMemo(
+    () =>
+      selectedMeasurementId == null
+        ? -1
+        : measurementListItems.findIndex(
+            (m) => m.id === selectedMeasurementId
+          ),
+    [measurementListItems, selectedMeasurementId]
+  );
+
+  const { onKeyDown: handleMeasurementKeyDown } = useKeyboardListNavigation({
+    items: measurementListItems,
+    selectedIndex: selectedMeasurementIdx,
+    onSelect: (next) => {
+      onMeasurementSelect?.(next.id);
+    },
+    enabled: measurementNavEnabled,
+  });
+
+  const handleKeyDown = (e: ReactKeyboardEvent) => {
+    handleMeasurementKeyDown(e);
+    if (e.defaultPrevented) return;
+    handleFachobjekteKeyDown(e);
+  };
 
   return (
     <div
