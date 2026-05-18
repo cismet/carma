@@ -70,6 +70,7 @@ import {
 } from "@carma-mapping/map-controls-layout";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 import { MeasurementControl } from "@carma-commons/measurements";
+import { MeasurementHost } from "@carma-mapping/measurements";
 
 import { GeoportalMap } from "../GeoportalMap.tsx";
 import LibreGeoportalMap from "../LibreGeoportalMap.tsx";
@@ -107,6 +108,10 @@ import {
   getShowLocatorButton,
   setLibreMapRef,
 } from "../../../store/slices/mapping.ts";
+import {
+  getLibreDrawMode,
+  setLibreDrawMode,
+} from "../../../store/slices/measurements.ts";
 import {
   getUIMode,
   getUIVisibleControls,
@@ -161,13 +166,24 @@ const MapWrapper = () => {
   const libreMapRef = useSelector(getLibreMapRef);
   const geoportalLayers = useSelector(getLayers);
   const backgroundLayer = useSelector(getBackgroundLayer);
-  const libreLayers = useMemo(
+  const computedLibreLayers = useMemo(
     () => [
       ...geoportalBackgroundToLibreLayers(backgroundLayer),
       ...geoportalLayersToLibreLayers(geoportalLayers),
     ],
     [backgroundLayer, geoportalLayers]
   );
+  const libreLayersRef = useRef(computedLibreLayers);
+  const libreLayers = useMemo(() => {
+    if (
+      JSON.stringify(libreLayersRef.current) ===
+      JSON.stringify(computedLibreLayers)
+    ) {
+      return libreLayersRef.current;
+    }
+    libreLayersRef.current = computedLibreLayers;
+    return computedLibreLayers;
+  }, [computedLibreLayers]);
 
   // Get framework switcher state from context
   const {
@@ -183,6 +199,7 @@ const MapWrapper = () => {
   const uiMode = useSelector(getUIMode);
   const isModeMeasurement = uiMode === UIMode.MEASUREMENT;
   const isModeFeatureInfo = uiMode === UIMode.FEATURE_INFO;
+  const libreDrawMode = useSelector(getLibreDrawMode);
   const showFullscreenButton = useSelector(getShowFullscreenButton);
   const showLocatorButton = useSelector(getShowLocatorButton);
   const visibleControls = useSelector(getUIVisibleControls);
@@ -298,6 +315,19 @@ const MapWrapper = () => {
       return () => clearTimeout(timer);
     }
   }, [zenMode, zenButtonHidden, isHoveringZenButton]);
+  const prevIsModeMeasurementRef = useRef(isModeMeasurement);
+  useEffect(() => {
+    const prev = prevIsModeMeasurementRef.current;
+    prevIsModeMeasurementRef.current = isModeMeasurement;
+
+    if (!prev && isModeMeasurement) {
+      dispatch(setLibreDrawMode("line"));
+      return;
+    }
+    if (prev && !isModeMeasurement && libreDrawMode !== "none") {
+      dispatch(setLibreDrawMode("none"));
+    }
+  }, [dispatch, isModeMeasurement, libreDrawMode]);
 
   // custom hooks
 
@@ -523,8 +553,6 @@ const MapWrapper = () => {
               <MeasurementControl
                 position="topleft"
                 order={60}
-                disabled={isLeaflet && showLibreMap}
-                useDisabledStyle={isLeaflet && showLibreMap}
                 tooltip={
                   isModeMeasurement
                     ? "Messungsmodus ausschalten"
@@ -637,57 +665,63 @@ const MapWrapper = () => {
           }}
         >
           {showLibreMap && isLeaflet ? (
-            <CarmaMap
-              mapEngine="maplibre"
-              backgroundLayers={null}
-              zoomControls={false}
-              fullScreenControl={false}
-              terrainControl={false}
-              libreLayers={libreLayers}
-              setLibreMap={handleLibreMapReady}
-              onSelectionChanged={handleLibreSelectionChanged}
-              selectFromHits={handleLibreSelectFromHits}
-              modalMenu={
-                <GenericModalApplicationMenu
-                  {...getCollabedHelpComponentConfig({
-                    versionString: version,
-                    showOverlayFromOutside,
-                    loginFormToggle: () =>
-                      setIsLoginFormVisible(!isLoginFormVisible),
-                    isLoginFormVisible,
-                    loginForm: (
-                      <LoginForm
-                        onSuccess={() => {
-                          setIsLoginFormVisible(false);
-                          setAppMenuVisible(false);
-                        }}
-                        closeLoginForm={() => setIsLoginFormVisible(false)}
-                      />
-                    ),
-                    loginFormTrigger: (
-                      <Tooltip
-                        title={jwt ? "Abmeldung" : "Anmeldung"}
-                        zIndex={99999999}
-                      >
-                        <Button
-                          type="text"
-                          onClick={() =>
-                            jwt
-                              ? setJWT(null)
-                              : setIsLoginFormVisible(!isLoginFormVisible)
-                          }
+            <>
+              <CarmaMap
+                mapEngine="maplibre"
+                backgroundLayers={null}
+                zoomControls={false}
+                fullScreenControl={false}
+                terrainControl={false}
+                libreLayers={libreLayers}
+                selectionEnabled={!isModeMeasurement}
+                setLibreMap={handleLibreMapReady}
+                onSelectionChanged={handleLibreSelectionChanged}
+                selectFromHits={handleLibreSelectFromHits}
+                modalMenu={
+                  <GenericModalApplicationMenu
+                    {...getCollabedHelpComponentConfig({
+                      versionString: version,
+                      showOverlayFromOutside,
+                      loginFormToggle: () =>
+                        setIsLoginFormVisible(!isLoginFormVisible),
+                      isLoginFormVisible,
+                      loginForm: (
+                        <LoginForm
+                          onSuccess={() => {
+                            setIsLoginFormVisible(false);
+                            setAppMenuVisible(false);
+                          }}
+                          closeLoginForm={() => setIsLoginFormVisible(false)}
+                        />
+                      ),
+                      loginFormTrigger: (
+                        <Tooltip
+                          title={jwt ? "Abmeldung" : "Anmeldung"}
+                          zIndex={99999999}
                         >
-                          <FontAwesomeIcon
-                            icon={jwt ? faArrowRightFromBracket : faKey}
-                            size="lg"
-                          />
-                        </Button>
-                      </Tooltip>
-                    ),
-                  })}
-                />
-              }
-            />
+                          <Button
+                            type="text"
+                            onClick={() =>
+                              jwt
+                                ? setJWT(null)
+                                : setIsLoginFormVisible(!isLoginFormVisible)
+                            }
+                          >
+                            <FontAwesomeIcon
+                              icon={jwt ? faArrowRightFromBracket : faKey}
+                              size="lg"
+                            />
+                          </Button>
+                        </Tooltip>
+                      ),
+                    })}
+                  />
+                }
+              />
+              {isModeMeasurement && (
+                <MeasurementHost mode={libreDrawMode} snapping />
+              )}
+            </>
           ) : (
             <>
               <GeoportalMap height={height} width={width} allow3d={allow3d} />
