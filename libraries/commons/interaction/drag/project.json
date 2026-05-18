@@ -19,8 +19,7 @@
       "executor": "@nx/vite:test",
       "outputs": ["{workspaceRoot}/dist/.vite/interaction-drag"],
       "options": {
-        "config": "libraries/commons/interaction/drag/vite.config.ts",
-        "passWithNoTests": false
+        "config": "libraries/commons/interaction/drag/vite.config.ts"
       }
     }
   }

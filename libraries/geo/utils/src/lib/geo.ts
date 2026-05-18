@@ -1,6 +1,6 @@
 import { distance } from "@turf/turf";
 
-import { LatLng } from "@carma-geo/data-structures";
+import type { LatLng } from "@carma-geo/data-structures";
 import {
   brandedRatio,
   brandedAbs,
@@ -16,7 +16,7 @@ import {
   DEFAULT_MERCATOR_LATITUDE_RAD,
   DEFAULT_ZOOM_LEVEL,
   DEFAULT_PIXEL_TOLERANCE,
-} from "@carma-geo/data-structures";
+} from "./constants/web-map";
 import {
   getPixelResolutionFromZoomAtLatitudeRad,
   getZoomFromPixelResolutionAtLatitudeRad,

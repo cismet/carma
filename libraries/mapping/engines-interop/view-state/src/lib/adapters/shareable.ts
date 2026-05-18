@@ -7,8 +7,8 @@ import {
   type CameraIntrinsics,
 } from "@carma-commons/camera/model";
 import { formatFixedNumber } from "@carma-commons/utils";
-import { WEB_MERCATOR_MAX_LATITUDE_DEG } from "@carma-geo/data-structures";
 import {
+  WEB_MERCATOR_MAX_LATITUDE_DEG,
   getPixelResolutionFromZoomAtLatitudeRad,
   getZoomFromPixelResolutionAtLatitudeRad,
 } from "@carma-geo/utils";

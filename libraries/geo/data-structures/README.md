@@ -1,10 +1,10 @@
 # @carma-geo/data-structures
 
-Geo domain package for geographic and cartographic data structures, branded types, and a small set of shared constants.
+Geo domain package for geographic and cartographic data structures and branded types.
 
 ## Purpose
 
-This library contains shared geo domain structures such as coordinates, extents, branded units, and a few stable exported constants that belong to the same domain language.
+This library contains shared geo domain structures such as coordinates, extents, and branded units.
 
 ## What belongs here
 
@@ -12,7 +12,6 @@ This library contains shared geo domain structures such as coordinates, extents,
 - ✅ Altitude types: `Altitude.EllipsoidalWGS84Meters`, `Altitude.DHHN2016Meters`
 - ✅ Cartographic types: `EastingNorthingMeters`, `Cartesian3D`
 - ✅ Bounding box types
-- ✅ Shared geo constants and token maps when they are part of the domain model
 
 ## What does NOT belong here
 
@@ -21,6 +20,7 @@ This library contains shared geo domain structures such as coordinates, extents,
 - ❌ General-purpose helper logic or conversion pipelines
 - ❌ Coordinate transformations
 - ❌ Format conversions
+- ❌ Web map, Web Mercator, or Earth model constants
 
 **For runtime utilities, use [`@carma-geo/helpers`](../helpers/README.md)** which provides:
 
@@ -46,6 +46,6 @@ nx lint geo-data-structures
 
 - **[`@carma-geo/helpers`](../helpers/README.md)** - Runtime utilities for coordinate conversions and validation
 - **[`@carma-geo/proj`](../proj/README.md)** - Projection transformations using proj4
-- **[`@carma-geo/utils`](../utils/README.md)** - Higher-level geographic utilities
+- **[`@carma-geo/utils`](../utils/README.md)** - Higher-level geographic utilities and shared Web Mercator constants
 - **[`@carma-units`](../../commons/units/types/README.md)** - Unit type definitions
 - **[`@carma-units`](../../commons/units/helpers/README.md)** - Unit conversion helpers
