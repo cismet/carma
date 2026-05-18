@@ -131,6 +131,10 @@ export const useLoadCapabilities = ({
                           (layer) => layer.id === activeLayer.id
                         );
                         if (foundLayer) {
+                          if (activeLayer.dynamicStyling) {
+                            return;
+                          }
+
                           const updatedLayer = await parseToMapLayer(
                             foundLayer,
                             false,
