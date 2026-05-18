@@ -138,7 +138,6 @@ const MauerlascheFormFields = ({
       {(!mauerlasche || isCreation) && !readOnly ? (
         <StrassenschluesselFieldsModal
           label="Strassenschlüssel"
-          isCreation={isCreation}
           onSyncDerivedValues={onValuesChange}
         />
       ) : (

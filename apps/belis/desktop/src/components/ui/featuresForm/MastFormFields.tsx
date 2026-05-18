@@ -315,7 +315,6 @@ const MastFormFields = ({
       ) : (!mast || isCreation) && !readOnly ? (
         <StrassenschluesselFieldsModal
           namePrefix={namePrefix}
-          isCreation={isCreation}
           onSyncDerivedValues={onValuesChange}
         />
       ) : (
