@@ -41,6 +41,7 @@ import {
   AdhocModelControlInteractionPanel,
   AdhocRenderStyleInteractionPanel,
 } from "./AdhocModelLayerbarControls";
+import MeasurementDrawTools from "./MeasurementDrawTools";
 
 const renderGeoportalAnnotationToolButtonBackdrop = (
   tool: AnnotationToolbarTool
@@ -72,6 +73,7 @@ const INTERACTION_COMPONENTS: Record<string, FC<{ layer: Layer }>> = {
   [CESIUM_ANNOTATION_INTERACTION_ID]: GeoportalAnnotationsToolbar,
   [CESIUM_ANNOTATION_SAVE_INTERACTION_ID]: SaveCesiumAnnotations,
   "save-measurements": SaveMeasurements,
+  "measurement-draw-tools": MeasurementDrawTools,
 };
 
 export const InteractionContent: FC<{
