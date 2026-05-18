@@ -615,7 +615,13 @@ const FeaturesFormsWrapper = ({
               linkedMastId={parseStandortIdFromKey(draft?.geometryKey)}
               formHeaderContent={
                 isCreation ? (
-                  <div className="mb-3 draft-changed-field">
+                  <div
+                    className={
+                      draft?.geometryKey
+                        ? "mb-3 draft-changed-field"
+                        : "mb-3"
+                    }
+                  >
                     <span className="text-sm font-medium text-gray-700">
                       Neue Geometrien
                     </span>
