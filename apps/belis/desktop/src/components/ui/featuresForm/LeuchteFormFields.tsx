@@ -339,6 +339,17 @@ const LeuchteFormFields = ({
     draftApplied.current = true;
   }, [draftValues, form, externalForm]);
 
+  // `setFieldsValue` doesn't trigger antd's `onValuesChange`, so the parent's
+  // Redux draft wouldn't learn about the mirrored Strassenschluessel/Kennziffer
+  // until the user touches some other field. That delay leaves green-highlight
+  // diffs reading stale `undefined` values on first render. The ref lets the
+  // subscription effects below propagate manually without adding the (often
+  // re-created) callback to their dep arrays.
+  const onValuesChangeRef = useRef(onValuesChange);
+  useEffect(() => {
+    onValuesChangeRef.current = onValuesChange;
+  });
+
   // Strassenschluessel subscription: in the creation flow the Strassenschluessel
   // input lives on the Standort tab, not on the Leuchte tab — hideStrassenschluessel
   // hides it locally, but the Leuchte payload still needs fk_strassenschluessel
@@ -351,11 +362,13 @@ const LeuchteFormFields = ({
   useEffect(() => {
     if (!hideStrassenschluessel) return;
     if (mastFkStrasse == null && mastStrassePk == null) return;
-    form.setFieldsValue({
+    const changed = {
       strassenschluessel_pk: mastStrassePk,
       strassenschluessel_strasse: mastStrasseName,
       fk_strassenschluessel: mastFkStrasse,
-    });
+    };
+    form.setFieldsValue(changed);
+    onValuesChangeRef.current?.(changed, form.getFieldsValue());
   }, [
     hideStrassenschluessel,
     mastFkStrasse,
@@ -382,6 +395,10 @@ const LeuchteFormFields = ({
     if (current === mastKennz) return;
     form.setFieldsValue({ fk_kennziffer: mastKennz });
     lastAppliedKennzRef.current = mastKennz;
+    onValuesChangeRef.current?.(
+      { fk_kennziffer: mastKennz },
+      form.getFieldsValue()
+    );
   }, [mastKennz, isCreation, form]);
 
   return (
