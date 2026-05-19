@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, ReactNode, useMemo } from "react";
 import { Tabs } from "antd";
+import { PlusOutlined } from "@ant-design/icons";
 import FormHeader from "./FormHeader";
 import { DokumentItem } from "../DocumentPreview";
 import FilePreview, {
@@ -25,6 +26,14 @@ interface AdditionalTab {
   label: string;
   children: ReactNode;
 }
+
+interface ExtraGeneralTab {
+  key: string;
+  label: ReactNode;
+  children: ReactNode;
+}
+
+const ADD_TAB_KEY = "addtabsentinel";
 
 export interface ExtraDocumentSection {
   title: string;
@@ -52,6 +61,14 @@ interface FeatureFormLayoutProps {
   debugData?: unknown;
   rawFeatureData?: unknown;
   additionalTabs?: AdditionalTab[];
+  /** Tabs rendered immediately after the general tab. Labels accept ReactNode
+   * so callers can embed a close icon. Used for runtime-added Leuchte tabs in
+   * the creation flow. */
+  extraGeneralTabs?: ExtraGeneralTab[];
+  /** When provided, a "+" sentinel tab is rendered anchored right after the
+   * additional tabs (i.e. directly after Standort in the Leuchten-creation
+   * flow). Clicking it invokes this callback and does NOT switch tabs. */
+  onAddTab?: () => void;
   /** Label for the main/general tab. Defaults to "Allgemein". */
   generalTabLabel?: string;
   /** Whether additional tabs render before or after the general tab. Default "after". */
@@ -91,6 +108,8 @@ const FeatureFormLayout = ({
   debugData,
   rawFeatureData,
   additionalTabs = [],
+  extraGeneralTabs = [],
+  onAddTab,
   generalTabLabel = "Allgemein",
   additionalTabsPosition = "after",
   loading,
@@ -129,6 +148,33 @@ const FeatureFormLayout = ({
   }, []);
   const [isWideScreen, setIsWideScreen] = useState(
     typeof window !== "undefined" ? window.innerWidth > 1200 : false
+  );
+
+  // Controlled active tab key so we can intercept clicks on the "+" sentinel
+  // (which must add a new Leuchte tab without navigating to a blank pane).
+  // The initial value matches the legacy uncontrolled defaultActiveKey: when
+  // additional tabs render before the general tab, start on the first
+  // additional tab (Standort); otherwise start on the general tab.
+  const defaultActiveTabKey = useMemo(() => {
+    return additionalTabsPosition === "before" && additionalTabs.length > 0
+      ? additionalTabs[0].key
+      : "general";
+  }, [additionalTabsPosition, additionalTabs]);
+  const [activeTabKey, setActiveTabKey] = useState(defaultActiveTabKey);
+  // Reset active tab back to the default when the underlying draft changes
+  // (same intent as the previous `key={tabsResetKey}` Tabs remount).
+  useEffect(() => {
+    setActiveTabKey(defaultActiveTabKey);
+  }, [tabsResetKey, defaultActiveTabKey]);
+  const handleTabChange = useCallback(
+    (key: string) => {
+      if (key === ADD_TAB_KEY) {
+        onAddTab?.();
+        return;
+      }
+      setActiveTabKey(key);
+    },
+    [onAddTab]
   );
 
   // Cache image URLs at this level to persist across layout changes (resize)
@@ -444,14 +490,44 @@ const FeatureFormLayout = ({
       children: tab.children,
       forceRender: true,
     }));
+    const mappedExtraGeneralTabs = extraGeneralTabs.map((tab) => ({
+      key: tab.key,
+      label: tab.label,
+      children: tab.children,
+      forceRender: true,
+    }));
+    // "+" sentinel: anchored after additionalTabs so it stays put as more
+    // extraGeneralTabs are added. Empty children — handleTabChange rejects
+    // activation so this pane is never shown.
+    const addTabSentinel = onAddTab
+      ? [
+          {
+            key: ADD_TAB_KEY,
+            label: (
+              <span aria-label="Neue Leuchte Tab hinzufügen">
+                <PlusOutlined />
+              </span>
+            ),
+            children: null,
+          },
+        ]
+      : [];
     const leftColumnTabs =
       additionalTabsPosition === "before"
-        ? [...mappedAdditionalTabs, generalTab, ...rawTabs]
-        : [generalTab, ...mappedAdditionalTabs, ...rawTabs];
-    const defaultActiveTabKey =
-      additionalTabsPosition === "before" && mappedAdditionalTabs.length > 0
-        ? mappedAdditionalTabs[0].key
-        : "general";
+        ? [
+            ...mappedAdditionalTabs,
+            ...addTabSentinel,
+            generalTab,
+            ...mappedExtraGeneralTabs,
+            ...rawTabs,
+          ]
+        : [
+            generalTab,
+            ...mappedExtraGeneralTabs,
+            ...mappedAdditionalTabs,
+            ...addTabSentinel,
+            ...rawTabs,
+          ];
 
     return (
       <div className="bg-white rounded-xl border border-gray-100 w-full h-full flex flex-col">
@@ -479,8 +555,15 @@ const FeatureFormLayout = ({
             }`}
           >
             {showRaw || additionalTabs.length > 0 ? (
-              <div className="[&_.ant-tabs-nav]:sticky [&_.ant-tabs-nav]:top-0 [&_.ant-tabs-nav]:bg-white [&_.ant-tabs-nav]:z-10">
-                <Tabs key={tabsResetKey} defaultActiveKey={defaultActiveTabKey} items={leftColumnTabs} />
+              <div
+                className="[&_.ant-tabs-nav]:sticky [&_.ant-tabs-nav]:top-0 [&_.ant-tabs-nav]:bg-white [&_.ant-tabs-nav]:z-10 [&_.ant-tabs-tab[data-node-key=addtabsentinel]]:!ml-4 [&_.ant-tabs-tab[data-node-key=addtabsentinel]+.ant-tabs-tab]:!ml-4 [&_.ant-tabs-tab[data-node-key^=extra-]]:!ml-4"
+              >
+                <Tabs
+                  key={tabsResetKey}
+                  activeKey={activeTabKey}
+                  onChange={handleTabChange}
+                  items={leftColumnTabs}
+                />
               </div>
             ) : (
               <div className="pt-4">{formHeaderContent}{children}</div>
@@ -530,7 +613,7 @@ const FeatureFormLayout = ({
         {singleColumn && !showRaw ? (
           <div className="pt-4">{formHeaderContent}{documentsContent}</div>
         ) : (
-          <div className="[&_.ant-tabs-nav]:sticky [&_.ant-tabs-nav]:top-0 [&_.ant-tabs-nav]:bg-white [&_.ant-tabs-nav]:z-10">
+          <div className="[&_.ant-tabs-nav]:sticky [&_.ant-tabs-nav]:top-0 [&_.ant-tabs-nav]:bg-white [&_.ant-tabs-nav]:z-10 [&_.ant-tabs-tab[data-node-key=addtabsentinel]]:!ml-4 [&_.ant-tabs-tab[data-node-key=addtabsentinel]+.ant-tabs-tab]:!ml-4 [&_.ant-tabs-tab[data-node-key^=extra-]]:!ml-4">
             {singleColumn && formHeaderContent}
             {(() => {
               const narrowGeneralTab = {
@@ -545,26 +628,50 @@ const FeatureFormLayout = ({
                 children: tab.children,
                 forceRender: true,
               }));
+              const narrowExtraGeneralTabs = extraGeneralTabs.map((tab) => ({
+                key: tab.key,
+                label: tab.label,
+                children: tab.children,
+                forceRender: true,
+              }));
+              const narrowAddTabSentinel = onAddTab && !singleColumn
+                ? [
+                    {
+                      key: ADD_TAB_KEY,
+                      label: (
+                        <span aria-label="Neue Leuchte Tab hinzufügen">
+                          <PlusOutlined />
+                        </span>
+                      ),
+                      children: null,
+                    },
+                  ]
+                : [];
               const orderedFormTabs = singleColumn
                 ? []
                 : additionalTabsPosition === "before"
-                ? [...narrowAdditionalTabs, narrowGeneralTab]
-                : [narrowGeneralTab, ...narrowAdditionalTabs];
+                ? [
+                    ...narrowAdditionalTabs,
+                    ...narrowAddTabSentinel,
+                    narrowGeneralTab,
+                    ...narrowExtraGeneralTabs,
+                  ]
+                : [
+                    narrowGeneralTab,
+                    ...narrowExtraGeneralTabs,
+                    ...narrowAdditionalTabs,
+                    ...narrowAddTabSentinel,
+                  ];
               const documentsTab = {
                 key: "documents",
                 label: <span>{sideContent ? "Änderungen" : "Dokumente"}</span>,
                 children: sideContent ?? documentsContent,
               };
-              const narrowDefaultActiveKey = singleColumn
-                ? "documents"
-                : additionalTabsPosition === "before" &&
-                  narrowAdditionalTabs.length > 0
-                ? narrowAdditionalTabs[0].key
-                : "general";
               return (
                 <Tabs
                   key={tabsResetKey}
-                  defaultActiveKey={narrowDefaultActiveKey}
+                  activeKey={singleColumn ? "documents" : activeTabKey}
+                  onChange={handleTabChange}
                   items={[
                     ...orderedFormTabs,
                     documentsTab,
