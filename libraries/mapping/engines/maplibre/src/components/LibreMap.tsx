@@ -91,7 +91,18 @@ export interface RasterPaintOverrides {
 
 export type LibreLayer =
   | ({ type: "vector" } & VectorStyle)
-  | { type: "geojson"; name: string; data: string; infoboxMapping?: string[] }
+  | {
+      type: "geojson";
+      name: string;
+      data: string;
+      infoboxMapping?: string[];
+      /** Feature property used to color cluster pie chart slices.
+       * Defaults to "schrift" (Stadtplan POI schema). */
+      colorProperty?: string;
+      /** Promote a feature property to feature id (MapLibre source option).
+       * Required for propertyTarget selection forwarding to match by id. */
+      promoteId?: string;
+    }
   | {
       type: "wms" | "wmts";
       url: string;

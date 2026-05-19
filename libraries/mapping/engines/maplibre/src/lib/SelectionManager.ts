@@ -254,12 +254,27 @@ export class SelectionManager {
     const targets = carmaConf?.selectionForwardingTo;
     if (!targets || targets.length === 0) return;
 
-    for (const targetSourceLayer of targets) {
+    for (const target of targets) {
+      // Parse "source.sourceLayer" or plain "sourceLayer" (same source).
+      // A trailing dot ("source.") means a geojson target (no sourceLayer).
+      let targetSource = id.source;
+      let targetSourceLayer: string | undefined = target;
+      const dotIdx = target.indexOf(".");
+      if (dotIdx >= 0) {
+        targetSource = target.slice(0, dotIdx);
+        const sl = target.slice(dotIdx + 1);
+        targetSourceLayer = sl.length > 0 ? sl : undefined;
+      }
+
       // Skip if target is the same as source
-      if (targetSourceLayer === id.sourceLayer) continue;
+      if (
+        targetSource === id.source &&
+        targetSourceLayer === id.sourceLayer
+      )
+        continue;
 
       const forwardedId: FeatureIdentifier = {
-        source: id.source,
+        source: targetSource,
         sourceLayer: targetSourceLayer,
         id: id.id,
       };
@@ -419,12 +434,26 @@ export function applySelectionForwarding(
   const targets = carmaConf?.selectionForwardingTo;
   if (!targets || targets.length === 0) return forwardedFeatures;
 
-  for (const targetSourceLayer of targets) {
-    // Skip if target is the same as source
-    if (targetSourceLayer === featureId.sourceLayer) continue;
+  for (const target of targets) {
+    // Parse "source.sourceLayer" or plain "sourceLayer" (same source).
+    // Trailing dot ("source.") means a geojson target (no sourceLayer).
+    let targetSource = featureId.source;
+    let targetSourceLayer: string | undefined = target;
+    const dotIdx = target.indexOf(".");
+    if (dotIdx >= 0) {
+      targetSource = target.slice(0, dotIdx);
+      const sl = target.slice(dotIdx + 1);
+      targetSourceLayer = sl.length > 0 ? sl : undefined;
+    }
+
+    if (
+      targetSource === featureId.source &&
+      targetSourceLayer === featureId.sourceLayer
+    )
+      continue;
 
     const forwardedId: FeatureIdentifier = {
-      source: featureId.source,
+      source: targetSource,
       sourceLayer: targetSourceLayer,
       id: featureId.id,
     };
