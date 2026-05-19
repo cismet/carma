@@ -436,6 +436,7 @@ const GeoportalLayerButton = ({
               <button
                 id={`layerInteractionButton-${id}`}
                 className={cn(
+                  "group",
                   GEOPORTAL_LAYER_TOOL_ACTION_BUTTON_CLASS_NAMES.base,
                   activeInteractionLayerID === id
                     ? GEOPORTAL_LAYER_TOOL_ACTION_BUTTON_CLASS_NAMES.active
@@ -460,7 +461,15 @@ const GeoportalLayerButton = ({
                   size="small"
                   color="#4b5563"
                 >
-                  <FontAwesomeIcon icon={faFilter} className="text-sm" />
+                  <FontAwesomeIcon
+                    icon={faFilter}
+                    className={cn(
+                      "text-sm",
+                      activeInteractionLayerID === id
+                        ? "!text-[#1677ff]"
+                        : "!text-gray-600 group-hover:!text-[#1677ff]"
+                    )}
+                  />
                 </Badge>
               </button>
             )}
