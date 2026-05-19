@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import * as ReactDOM from "react-dom/client";
 import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Stadtplan } from "./app/Stadtplan";
+import { Vorhabenkarte } from "./app/Vorhabenkarte";
 import { SimpleMap } from "./app/SimpleMap";
 import { SimpleMapWithoutControls } from "./app/SimpleMapWithoutControls";
 import "./styles.css";
@@ -56,6 +57,7 @@ root.render(
                         element={<Navigate to="/stadtplan" replace />}
                       />
                       <Route path="/stadtplan" element={<Stadtplan />} />
+                      <Route path="/vorhabenkarte" element={<Vorhabenkarte />} />
                       <Route path="/simple" element={<SimpleMap />} />
                       <Route
                         path="/simpleWithoutControls"

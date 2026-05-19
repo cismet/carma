@@ -598,12 +598,16 @@ export const vectorStylesToMapLibreStyle = async ({
       } else if (layer.type === "geojson") {
         const transformedData = fetched.data;
         const sourceId = `geojson-source-${index}`;
+        const colorProperty = layer.colorProperty ?? "schrift";
 
         // Get unique colors from the geojson features
         const uniqueColors: string[] = Array.from(
           new Set(
             (transformedData.features as GeoJSON.Feature[])
-              .map((f) => (f.properties as Record<string, unknown>)?.schrift)
+              .map(
+                (f) =>
+                  (f.properties as Record<string, unknown>)?.[colorProperty]
+              )
               .filter((color): color is string => typeof color === "string")
           )
         );
@@ -615,6 +619,7 @@ export const vectorStylesToMapLibreStyle = async ({
         const sourceConfig: GeoJSONSourceSpecification = {
           type: "geojson",
           data: transformedData,
+          ...(layer.promoteId ? { promoteId: layer.promoteId } : {}),
         };
 
         if (clusteringEnabled) {
@@ -624,7 +629,7 @@ export const vectorStylesToMapLibreStyle = async ({
           sourceConfig.clusterProperties = Object.fromEntries(
             uniqueColors.map((color) => [
               color,
-              ["+", ["case", ["==", ["get", "schrift"], color], 1, 0]],
+              ["+", ["case", ["==", ["get", colorProperty], color], 1, 0]],
             ])
           );
         }

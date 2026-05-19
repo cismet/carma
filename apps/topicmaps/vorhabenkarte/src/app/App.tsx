@@ -32,6 +32,7 @@ export function App() {
       referenceSystem={MappingConstants.crs25832}
       titleFactory={titleFactory}
       getFeatureStyler={getFeatureStyler}
+      clusteringEnabled={false}
       featureTooltipFunction={(feature) => feature?.text}
       itemFilterFunction={itemFilterFunction}
       filterState={{

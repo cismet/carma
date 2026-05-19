@@ -1,0 +1,178 @@
+{
+  "version": 8,
+  "metadata": {
+    "carmaConf": {
+      "layerInfo": {
+        "title": "Städtische Vorhaben",
+        "keywords": [
+          "carmaconf://infoBoxMapping:function createInfoBoxInfo(p) { const fotoUrlPrefix = 'https://wunda-geoportal-docs.cismet.de/vorhabenkarte/fotos/'; const item = p.targetProperties || p; let fotos = []; try { const raw = JSON.parse(item.fotos || '[]'); fotos = Array.isArray(raw) ? raw.map(f => ({ ...f, url: f?.url ? fotoUrlPrefix + f.url : undefined, })) : []; } catch (e) {} const info = { title: item.abgeschlossen ? item.titel + ' (abgeschlossen)' : item.titel, subtitle: ((d) => (d.length <= 100 ? d : d.slice(0, 100) + '…'))(item.beschreibung ?? '') + (item.buergerbeteiligung ? '\\n\\nDas Vorhaben wird mit Bürgerbeteiligung umgesetzt.' : ''), header: item.thema_name, headerColor: item.thema_farbe, email: item.mail, tel: item.telefon, foto: fotos[0]?.url, fotos: fotos?.map(f => f.url) || [], fotoCaptions: fotos?.map(f => f.anzeige) || [], modal:'vorhabenkarteSIM'}; return info; }"
+        ],
+        "thumbnail": "https://tiles.cismet.de/vorhabenkarte/assets/vorhaben.thumbnail.png",
+        "icon": "https://geo.wuppertal.de/geoportal/geoportal_icon_legends/infra/vorhaben.png"
+      }
+    }
+  },
+  "sources": {
+    "vorhabenkarte_source": {
+      "type": "vector",
+      "tiles": ["https://tiles.cismet.de/vorhabenkarte/{z}/{x}/{y}.pbf"],
+      "minzoom": 9,
+      "maxzoom": 14
+    }
+  },
+  "glyphs": "https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf",
+  "sprite": "https://tiles.cismet.de/vorhabenkarte/sprites",
+  "layers": [
+    {
+      "id": "vorhabenkarte-complex-geom-fill",
+      "type": "fill",
+      "source": "vorhabenkarte_source",
+      "source-layer": "vorhabenComplexGeoms",
+      "metadata": {
+        "carmaConf": {
+          "selectionForwardingTo": [
+            "vorhabenComplexGeoms",
+            "vorhabenPoints",
+            "geojson-source-1."
+          ],
+          "staticProps": {}
+        }
+      },
+      "minzoom": 14,
+      "maxzoom": 22,
+      "paint": {
+        "fill-color": ["get", "thema_farbe"],
+        "fill-opacity": [
+          "interpolate",
+          ["linear"],
+          ["coalesce", ["get", "thema_fuellung"], 100],
+          0,
+          0.3,
+          100,
+          1.0
+        ]
+      }
+    },
+    {
+      "id": "vorhabenkarte-complex-geom-line",
+      "type": "line",
+      "source": "vorhabenkarte_source",
+      "source-layer": "vorhabenComplexGeoms",
+      "metadata": {
+        "carmaConf": {
+          "selectionForwardingTo": [
+            "vorhabenComplexGeoms",
+            "vorhabenPoints",
+            "geojson-source-1."
+          ],
+          "staticProps": {}
+        }
+      },
+      "minzoom": 14,
+      "maxzoom": 22,
+      "paint": {
+        "line-color": ["get", "thema_farbe"],
+        "line-width": 2,
+        "line-opacity": 1.0
+      }
+    },
+    {
+      "id": "vorhabenkarte-selection-line",
+      "type": "line",
+      "source": "vorhabenkarte_source",
+      "source-layer": "vorhabenComplexGeoms",
+      "metadata": {
+        "carmaConf": {
+          "selectionForwardingTo": [
+            "vorhabenComplexGeoms",
+            "vorhabenPoints",
+            "geojson-source-1."
+          ],
+          "staticProps": {}
+        }
+      },
+      "minzoom": 14,
+      "maxzoom": 24,
+      "layout": { "line-join": "round", "line-cap": "round" },
+      "paint": {
+        "line-color": "#3A7CEB",
+        "line-width": 3,
+        "line-opacity": [
+          "case",
+          ["boolean", ["feature-state", "selected"], false],
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "id": "vorhabenkarte-points-selection",
+      "type": "symbol",
+      "source": "geojson-source-1",
+      "filter": ["!", ["has", "point_count"]],
+      "minzoom": 9,
+      "maxzoom": 24,
+      "layout": {
+        "icon-allow-overlap": true,
+        "icon-ignore-placement": true,
+        "icon-size": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          9, 0.22,
+          11, 0.44,
+          24, 0.98
+        ],
+        "icon-padding": 0,
+        "icon-image": "Icon_Full"
+      },
+      "paint": {
+        "icon-opacity": [
+          "case",
+          ["boolean", ["feature-state", "selected"], false],
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "id": "vorhabenkarte-points-image",
+      "type": "symbol",
+      "source": "geojson-source-1",
+      "filter": ["!", ["has", "point_count"]],
+      "metadata": {
+        "carmaConf": {
+          "selectionForwardingTo": [
+            "vorhabenkarte_source.vorhabenComplexGeoms",
+            "vorhabenkarte_source.vorhabenPoints"
+          ],
+          "staticProps": {},
+          "propertyTarget": "vorhabenkarte_source.vorhabenComplexGeoms"
+        }
+      },
+      "minzoom": 9,
+      "maxzoom": 24,
+      "layout": {
+        "icon-allow-overlap": true,
+        "icon-ignore-placement": true,
+        "icon-size": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          9, 0.22,
+          11, 0.44,
+          24, 0.98
+        ],
+        "icon-padding": 0,
+        "icon-image": [
+          "concat",
+          ["get", "thema_signatur"],
+          ["get", "thema_farbe"]
+        ]
+      },
+      "paint": {
+        "icon-opacity": 1
+      }
+    }
+  ]
+}
