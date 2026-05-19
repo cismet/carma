@@ -903,7 +903,6 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
             displayOrbit={true}
             isOrbiting={isOrbiting}
             onOrbitToggle={toggleOrbit}
-            actionIconSizePx={16}
             additionalSecondaryInfoBoxElements={
               annotationSecondaryInfoBoxElements
             }
@@ -936,7 +935,6 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
           displayOrbit={true}
           isOrbiting={isOrbiting}
           onOrbitToggle={toggleOrbit}
-          actionIconSizePx={16}
         />
       );
     }

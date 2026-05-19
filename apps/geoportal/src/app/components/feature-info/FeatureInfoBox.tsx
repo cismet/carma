@@ -53,7 +53,6 @@ interface InfoBoxProps {
   isOrbiting?: boolean;
   onOrbitToggle?: () => void;
   additionalSecondaryInfoBoxElements?: ReactNode[];
-  actionIconSizePx?: number;
 }
 
 const FeatureInfoBox = ({
@@ -63,7 +62,6 @@ const FeatureInfoBox = ({
   isOrbiting = false,
   onOrbitToggle,
   additionalSecondaryInfoBoxElements = [],
-  actionIconSizePx,
 }: InfoBoxProps) => {
   const [open, setOpen] = useState(false);
   const [shouldRenderLoadingInfobox, setShouldRenderLoadingInfobox] =
@@ -192,7 +190,6 @@ const FeatureInfoBox = ({
       displayOrbit,
       isOrbiting,
       onOrbitToggle,
-      actionIconSizePx,
     });
   }
 
