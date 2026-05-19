@@ -185,6 +185,15 @@ export interface BelisSidebarProps {
   /** Database primary key of the selected feature (from tile properties).
    *  Used as fallback match when MVT feature IDs differ from database PKs. */
   selectedDatabaseId?: string | number | null;
+  /** Parent Fachobjekt selection — highlighted in the Fachobjekte list when
+   *  the primary selection points at a creation draft (whose id lives in the
+   *  Entwürfe tab, not here). Lets the originating Standort stay marked while
+   *  a new attached Leuchte is being edited. */
+  parentFeatureId?: {
+    source: string;
+    sourceLayer?: string;
+    id?: string | number;
+  } | null;
   onFeatureSelect: (
     identifier: {
       source: string;
@@ -244,6 +253,7 @@ const BelisSidebar = ({
   activeSourceLayers,
   selectedFeatureId,
   selectedDatabaseId,
+  parentFeatureId,
   onFeatureSelect,
   emptyMessage = "Keine Objekte im aktuellen Kartenausschnitt",
   sidebarMode = "fachobjekte",
@@ -541,29 +551,51 @@ const BelisSidebar = ({
 
   const isFeatureSelected = useCallback(
     (feature: SidebarFeature): boolean => {
-      if (!selectedFeatureId || feature.id == null) return false;
+      if (feature.id == null) return false;
+
+      // Primary match against the active selection.
       if (
-        selectedFeatureId.source !== feature.source ||
-        selectedFeatureId.sourceLayer !== feature.sourceLayer
-      )
-        return false;
-      const fid = String(feature.id);
-      // Match by MVT feature ID (works for Karte mode)
-      if (selectedFeatureId.id != null && String(selectedFeatureId.id) === fid)
-        return true;
-      // Fallback: match by database primary key (works for Highlights mode).
-      // Compare DB-pk to DB-pk (properties.id), never to feature.id (MVT id) —
-      // consecutive records can have an MVT id that aliases another's DB pk.
-      const dbPk = feature.properties?.id;
+        selectedFeatureId &&
+        selectedFeatureId.source === feature.source &&
+        selectedFeatureId.sourceLayer === feature.sourceLayer
+      ) {
+        const fid = String(feature.id);
+        // Match by MVT feature ID (works for Karte mode)
+        if (
+          selectedFeatureId.id != null &&
+          String(selectedFeatureId.id) === fid
+        )
+          return true;
+        // Fallback: match by database primary key (works for Highlights mode).
+        // Compare DB-pk to DB-pk (properties.id), never to feature.id (MVT id) —
+        // consecutive records can have an MVT id that aliases another's DB pk.
+        const dbPk = feature.properties?.id;
+        if (
+          selectedDatabaseId != null &&
+          dbPk != null &&
+          String(selectedDatabaseId) === String(dbPk)
+        )
+          return true;
+      }
+
+      // Parent-context fallback: when the primary selection is a creation
+      // draft (lives in the Entwürfe tab), keep the originating Fachobjekt
+      // row highlighted here so the user can see what the draft is attached
+      // to. Scoped to the fachobjekte tab to avoid bleeding into highlights.
       if (
-        selectedDatabaseId != null &&
-        dbPk != null &&
-        String(selectedDatabaseId) === String(dbPk)
-      )
+        sidebarMode === "fachobjekte" &&
+        parentFeatureId &&
+        parentFeatureId.id != null &&
+        parentFeatureId.source === feature.source &&
+        parentFeatureId.sourceLayer === feature.sourceLayer &&
+        String(parentFeatureId.id) === String(feature.id)
+      ) {
         return true;
+      }
+
       return false;
     },
-    [selectedFeatureId, selectedDatabaseId]
+    [selectedFeatureId, selectedDatabaseId, parentFeatureId, sidebarMode]
   );
 
   const listRef = useRef<HTMLDivElement>(null);
