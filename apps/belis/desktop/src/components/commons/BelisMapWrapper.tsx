@@ -163,6 +163,7 @@ import {
   getDraftFeaturesCount,
   getDraftFetchedData,
   getGlobalEditMode,
+  isCreationDraftKey,
 } from "../../store/slices/featuresForms";
 import {
   getAllAADrafts,
@@ -751,6 +752,16 @@ const BelisMapLibWrapper = ({
   // Sidebar mode: "karte" shows viewport features, "highlights" shows highlighted features
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>("fachobjekte");
 
+  // Parent Fachobjekt selection captured when a creation draft is opened. Keeps
+  // the originating Standort highlighted in the Fachobjekte list while the user
+  // edits the new draft (which itself becomes the primary selectedFeature).
+  // Cleared automatically when the active selection is no longer a draft.
+  const [parentFachobjektSelection, setParentFachobjektSelection] = useState<{
+    source: string;
+    sourceLayer?: string;
+    id?: string | number;
+  } | null>(null);
+
   // When highlighting is killed, reset to Karte mode and clear highlight collection
   useEffect(() => {
     if (!highlightingActive) {
@@ -768,6 +779,20 @@ const BelisMapLibWrapper = ({
       setSidebarMode("fachobjekte");
     }
   }, [sidebarMode, draftSidebarFeatures.length]);
+
+  // Drop the captured parent selection once the active selection is no
+  // longer a creation draft — covers draft save (selection switches to the
+  // newly persisted feature), discard, and any direct feature reselection.
+  useEffect(() => {
+    if (parentFachobjektSelection == null) return;
+    if (
+      !selectedFeatureId ||
+      selectedFeatureId.id == null ||
+      !isCreationDraftKey(String(selectedFeatureId.id))
+    ) {
+      setParentFachobjektSelection(null);
+    }
+  }, [selectedFeatureId, parentFachobjektSelection]);
 
   const hasHighlights =
     highlightingActive ||
@@ -2789,6 +2814,23 @@ const BelisMapLibWrapper = ({
 
   const handleOpenCreationDraft = useCallback(
     (featureType: string, draftKey: string) => {
+      // Capture current Fachobjekt selection as parent context so the
+      // originating row (e.g. Standort 17) stays highlighted in the
+      // Fachobjekte list while the draft becomes the primary selection.
+      // Skip if there is no selection or the current selection is itself
+      // a draft — otherwise we'd "promote" a draft id to parent.
+      if (
+        selectedFeatureId &&
+        selectedFeatureId.id != null &&
+        !isCreationDraftKey(String(selectedFeatureId.id))
+      ) {
+        setParentFachobjektSelection({
+          source: selectedFeatureId.source,
+          sourceLayer: selectedFeatureId.sourceLayer,
+          id: selectedFeatureId.id,
+        });
+      }
+
       const draft = store.getState().featuresForms?.drafts[draftKey];
       const syntheticFeature =
         draft?.feature ??
@@ -2801,8 +2843,10 @@ const BelisMapLibWrapper = ({
       );
       setFeatureOnMap(true);
       openDatasheet();
+      // Show the new draft on the active sidebar tab.
+      setSidebarMode("drafts");
     },
-    [store, dispatch, selectFeature, openDatasheet]
+    [store, dispatch, selectFeature, openDatasheet, selectedFeatureId]
   );
 
   useEffect(() => {
@@ -2848,6 +2892,7 @@ const BelisMapLibWrapper = ({
           activeSourceLayers={effectiveSidebarData.activeSourceLayers}
           selectedFeatureId={selectedFeatureId}
           selectedDatabaseId={selectedDatabaseId}
+          parentFeatureId={parentFachobjektSelection}
           onFeatureSelect={handleSidebarFeatureSelect}
           emptyMessage={
             map
