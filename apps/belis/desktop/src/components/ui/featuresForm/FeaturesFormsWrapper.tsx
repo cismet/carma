@@ -207,8 +207,7 @@ const FeaturesFormsWrapper = ({
     if (!geometryKey.startsWith(STANDORT_OPTION_PREFIX)) return null;
     const id = parseStandortIdFromKey(geometryKey);
     if (id == null) return null;
-    const props = (draft?.feature?.properties ?? {}) as Record<string, unknown>;
-    const stashedLabel = props._linkedStandortLabel;
+    const stashedLabel = draft?.linkedStandortLabel;
     const label =
       typeof stashedLabel === "string" ? stashedLabel : `Standort ${id}`;
     return {
@@ -223,7 +222,7 @@ const FeaturesFormsWrapper = ({
     draft?.geometryKey,
     draft?.geometry,
     draft?.geometryWgs84,
-    draft?.feature,
+    draft?.linkedStandortLabel,
   ]);
 
   // Measurement keys already claimed by other in-progress creation drafts —
