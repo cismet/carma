@@ -174,9 +174,7 @@ const CreateFeatureDropdown = () => {
     const geom: GeoJSON.Geometry | undefined = standortOption
       ? (standortOption.geometry as GeoJSON.Geometry)
       : undefined;
-    const featureProps: Record<string, unknown> = standortOption
-      ? { _linkedStandortLabel: standortOption.label }
-      : {};
+    const featureProps: Record<string, unknown> = {};
 
     const seededValues: Record<string, unknown> = {
       ...(allDefaults[key] ?? {}),
@@ -208,6 +206,7 @@ const CreateFeatureDropdown = () => {
         geometryKey: geomKey,
         geometryWgs84: standortOption?.geometryWgs84,
         prefillGeometryKey: geomKey,
+        linkedStandortLabel: standortOption?.label,
       })
     );
     dispatch(setGlobalEditMode(true));

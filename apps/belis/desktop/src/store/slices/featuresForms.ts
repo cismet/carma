@@ -31,6 +31,11 @@ export interface Draft {
   // Geometry key seeded at creation (e.g. linked Standort for a new Leuchte).
   // Frozen — used to highlight Neue Geometrien green while still in sync.
   prefillGeometryKey?: string;
+  // Label captured at "+ Leuchte" click time for the linked Standort
+  // (e.g. "Standort 4"). Stored at the top level — not on `feature.properties` —
+  // so downstream writers that replace `feature.properties` wholesale can't
+  // wipe it.
+  linkedStandortLabel?: string;
   updatedAt: number;
 }
 
@@ -70,6 +75,7 @@ const featuresFormsSlice = createSlice({
         geometryKey?: string;
         geometryWgs84?: { type: "Point"; coordinates: [number, number] };
         prefillGeometryKey?: string;
+        linkedStandortLabel?: string;
       }>
     ) {
       const {
@@ -83,6 +89,7 @@ const featuresFormsSlice = createSlice({
         geometryKey,
         geometryWgs84,
         prefillGeometryKey,
+        linkedStandortLabel,
       } = action.payload;
       const existing = state.drafts[featureId];
       const hasFiles = existing?.files && existing.files.length > 0;
@@ -131,6 +138,8 @@ const featuresFormsSlice = createSlice({
             : existing?.geometryWgs84,
         prefillGeometryKey:
           existing?.prefillGeometryKey ?? prefillGeometryKey,
+        linkedStandortLabel:
+          linkedStandortLabel ?? existing?.linkedStandortLabel,
         updatedAt: Date.now(),
       };
     },
@@ -153,6 +162,7 @@ const featuresFormsSlice = createSlice({
       d.geometry = undefined;
       d.geometryKey = undefined;
       d.geometryWgs84 = undefined;
+      d.linkedStandortLabel = undefined;
       if (feature !== undefined) d.feature = feature;
       if (fetchedData !== undefined) d.fetchedData = fetchedData;
       d.updatedAt = Date.now();
