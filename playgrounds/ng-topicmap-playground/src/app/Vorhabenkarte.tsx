@@ -19,7 +19,7 @@ import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import "leaflet/dist/leaflet.css";
 
-const VORHABENKARTE_STYLE_URL = "/vorhabenkarte/style.json";
+const VORHABENKARTE_STYLE_URL = `${import.meta.env.BASE_URL}vorhabenkarte/style.json`;
 
 export function Vorhabenkarte() {
   const { progress, showProgress, handleProgressUpdate } = useProgress();
