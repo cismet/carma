@@ -5,6 +5,8 @@ import { CloseOutlined } from "@ant-design/icons";
 import type { DraftFile } from "../../../store/slices/featuresForms";
 import { useSelector } from "react-redux";
 import { getJWT } from "../../../store/slices/auth";
+import { getCreationDefaults } from "../../../store/slices/creationDefaults";
+import type { RootState } from "../../../store";
 import { DokumentItem } from "../DocumentPreview";
 import { getDocumentKey } from "../FilePreview";
 import FeatureFormLayout from "./FeatureFormLayout";
@@ -251,6 +253,15 @@ const LeuchteForm = ({
   const extraLeuchten = (draftValues?.leuchten ?? []) as Array<
     Record<string, unknown>
   >;
+  // creationDefaults memory for the "leuchte" type. Nested shape:
+  // `{ leuchte: {...allowlisted leuchte fields...}, mast: {...} }`. Used to
+  // seed new extra tabs with the same allowlisted defaults Leuchte 1 was
+  // seeded from in CreateFeatureDropdown — Leuchtentyp, Energielieferant,
+  // Schaltstelle, etc. The slice updates on every setDraft, so picking a value
+  // in Leuchte 1 makes it available to the next "+" click.
+  const leuchteCreationDefaults = useSelector((state: RootState) =>
+    getCreationDefaults(state, "leuchte")
+  );
   const handleAddLeuchteTab = useCallback(() => {
     const current = (draftValues?.leuchten ?? []) as Array<
       Record<string, unknown>
@@ -265,7 +276,28 @@ const LeuchteForm = ({
           baseSlice.leuchtennummer !== ""
         ? Number(baseSlice.leuchtennummer)
         : 0;
+    const allowlistedSeed = (leuchteCreationDefaults?.leuchte ?? {}) as Record<
+      string,
+      unknown
+    >;
+    // Antd DatePicker calls `.isValid()` on its value. Date fields stored in
+    // creationDefaults lose their dayjs prototype after redux-persist
+    // serialization (and immer can freeze class instances), so rewrap any
+    // known date field with `dayjs(...)` before handing it to the form.
+    const rehydratedSeed: Record<string, unknown> = { ...allowlistedSeed };
+    for (const dateKey of ["inbetriebnahme_leuchte"]) {
+      const raw = rehydratedSeed[dateKey];
+      if (raw == null || raw === "") {
+        delete rehydratedSeed[dateKey];
+        continue;
+      }
+      const d = dayjs.isDayjs(raw)
+        ? raw
+        : dayjs(raw as string | number | Date);
+      rehydratedSeed[dateKey] = d.isValid() ? d : null;
+    }
     const newEntry: Record<string, unknown> = {
+      ...rehydratedSeed,
       _tabId: `extra-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       leuchtennummer: baseNumber + current.length + 1,
     };
@@ -273,7 +305,7 @@ const LeuchteForm = ({
       ...draftValues,
       leuchten: [...current, newEntry],
     });
-  }, [draftValues, onDraftChange]);
+  }, [draftValues, onDraftChange, leuchteCreationDefaults]);
   const handleRemoveLeuchteTab = useCallback(
     (id: string) => {
       const current = (draftValues?.leuchten ?? []) as Array<
