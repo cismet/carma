@@ -56,6 +56,13 @@ interface LeuchteFormFieldsProps {
   form?: import("antd").FormInstance;
   onFormInstance?: (form: import("antd").FormInstance) => void;
   draftValues?: Record<string, unknown>;
+  /** Current Mast/Standort draft slice. When passed in the creation flow, the
+   * form subscribes to Strassenschluessel/Kennziffer changes and applies them
+   * locally — Strassenschluessel unconditionally, Kennziffer with a sticky
+   * per-form override (once the user edits this tab's Kennziffer, it stops
+   * accepting Standort updates). Pull-from-Redux replaces the older parent-
+   * pushed mirror so newly added Leuchten tabs catch up at mount. */
+  mastDraftValues?: Record<string, unknown>;
   onValuesChange?: (
     changedValues: Record<string, unknown>,
     allValues: Record<string, unknown>
@@ -124,6 +131,7 @@ const LeuchteFormFields = ({
   form: externalForm,
   onFormInstance,
   draftValues,
+  mastDraftValues,
   onValuesChange,
   onOriginalValues,
 }: LeuchteFormFieldsProps) => {
@@ -330,6 +338,51 @@ const LeuchteFormFields = ({
     form.setFieldsValue(draftValues);
     draftApplied.current = true;
   }, [draftValues, form, externalForm]);
+
+  // Strassenschluessel subscription: in the creation flow the Strassenschluessel
+  // input lives on the Standort tab, not on the Leuchte tab — hideStrassenschluessel
+  // hides it locally, but the Leuchte payload still needs fk_strassenschluessel
+  // on save. We mirror the current Mast slice into the local form whenever the
+  // Mast values change. No per-tab override semantics here: Strassenschluessel
+  // is a property of the Standort, every Leuchte at that Standort shares it.
+  const mastStrassePk = mastDraftValues?.strassenschluessel_pk;
+  const mastStrasseName = mastDraftValues?.strassenschluessel_strasse;
+  const mastFkStrasse = mastDraftValues?.fk_strassenschluessel;
+  useEffect(() => {
+    if (!hideStrassenschluessel) return;
+    if (mastFkStrasse == null && mastStrassePk == null) return;
+    form.setFieldsValue({
+      strassenschluessel_pk: mastStrassePk,
+      strassenschluessel_strasse: mastStrasseName,
+      fk_strassenschluessel: mastFkStrasse,
+    });
+  }, [
+    hideStrassenschluessel,
+    mastFkStrasse,
+    mastStrassePk,
+    mastStrasseName,
+    form,
+  ]);
+
+  // Kennziffer subscription with sticky per-form override. While the Leuchte's
+  // own fk_kennziffer is empty (or still equals what we last applied), Standort
+  // changes flow through. Once the user types a different Kennziffer here, this
+  // form opts out — `lastAppliedKennzRef` no longer matches `current`, and the
+  // condition gates further updates. Other Leuchten tabs (each with their own
+  // ref) are unaffected.
+  const lastAppliedKennzRef = useRef<unknown>(undefined);
+  const mastKennz = mastDraftValues?.fk_kennziffer;
+  useEffect(() => {
+    if (!isCreation) return;
+    if (mastKennz == null) return;
+    const current = form.getFieldValue("fk_kennziffer");
+    const isEmpty = current == null || current === "";
+    const userOverrode = !isEmpty && current !== lastAppliedKennzRef.current;
+    if (userOverrode) return;
+    if (current === mastKennz) return;
+    form.setFieldsValue({ fk_kennziffer: mastKennz });
+    lastAppliedKennzRef.current = mastKennz;
+  }, [mastKennz, isCreation, form]);
 
   return (
     <Form

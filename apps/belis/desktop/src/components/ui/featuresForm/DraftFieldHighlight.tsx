@@ -50,8 +50,7 @@ export const ChangedFieldsProvider = ({
     [originalValues, draftValues]
   );
   const prefilledFields = useMemo(
-    () =>
-      getPrefilledPaths(draftValues, allowlistedPaths, currentDefaults),
+    () => getPrefilledPaths(draftValues, allowlistedPaths, currentDefaults),
     [draftValues, allowlistedPaths, currentDefaults]
   );
   return (
@@ -82,7 +81,7 @@ const DRAFT_CLASS = "draft-changed-field";
 const PREFILL_CLASS = "draft-prefilled-field";
 
 const draftStyles = `
-.${DRAFT_CLASS} .ant-input,
+.${DRAFT_CLASS} .ant-input,creationDefaults.ts
 .${DRAFT_CLASS} .ant-input-number,
 .${DRAFT_CLASS} .ant-input-number-input,
 .${DRAFT_CLASS} .ant-select-selector,
@@ -126,7 +125,8 @@ export const FormItem = ({ name, className, ...rest }: FormItemProps) => {
     ? name[name.length - 1]?.toString() ?? ""
     : String(name ?? "");
   const fullPath = prefix && fieldName ? `${prefix}.${fieldName}` : fieldName;
-  const isPrefilled = !locked && fullPath !== "" && prefilledFields.has(fullPath);
+  const isPrefilled =
+    !locked && fullPath !== "" && prefilledFields.has(fullPath);
   const isChanged =
     !locked && !isPrefilled && fullPath !== "" && changedFields.has(fullPath);
 
@@ -137,9 +137,7 @@ export const FormItem = ({ name, className, ...rest }: FormItemProps) => {
   return (
     <Form.Item
       name={name}
-      className={
-        extra ? `${className ?? ""} ${extra}`.trim() : className
-      }
+      className={extra ? `${className ?? ""} ${extra}`.trim() : className}
       {...rest}
     />
   );
