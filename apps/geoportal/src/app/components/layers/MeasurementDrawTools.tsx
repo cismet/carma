@@ -5,7 +5,7 @@ import {
   faArrowPointer,
   faDrawPolygon,
   faLocationDot,
-  faSlash,
+  faRuler,
 } from "@fortawesome/free-solid-svg-icons";
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 
@@ -25,7 +25,7 @@ type DrawButton = {
 const DRAW_BUTTONS: DrawButton[] = [
   { mode: "select", label: "Auswählen / bearbeiten", icon: faArrowPointer },
   { mode: "point", label: "Punkt zeichnen", icon: faLocationDot },
-  { mode: "line", label: "Linie zeichnen", icon: faSlash },
+  { mode: "line", label: "Linie zeichnen", icon: faRuler },
   { mode: "polygon", label: "Polygon zeichnen", icon: faDrawPolygon },
 ];
 
@@ -35,7 +35,8 @@ const DRAW_BUTTONS: DrawButton[] = [
 const TOOL_BUTTON_BASE =
   "flex h-8 w-12 min-w-12 items-center justify-center rounded-[10px] bg-white px-2 transition-colors text-base [&_svg]:text-current";
 const TOOL_BUTTON_ACTIVE = "!text-[#1677ff] hover:!text-[#1677ff] !shadow-none";
-const TOOL_BUTTON_INACTIVE = "text-gray-600 hover:!text-[#1677ff] button-shadow";
+const TOOL_BUTTON_INACTIVE =
+  "text-gray-600 hover:!text-[#1677ff] button-shadow";
 
 function MeasurementDrawTools() {
   const dispatch = useDispatch();
