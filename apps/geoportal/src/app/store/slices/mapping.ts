@@ -383,10 +383,10 @@ const slice = createSlice({
     },
 
     setActiveInteractionLayerID(state, action) {
-      state.activeInteractionLayerID = action.payload;
-      if (action.payload === null) {
+      if (state.activeInteractionLayerID !== action.payload) {
         state.activeInteractionButtonID = null;
       }
+      state.activeInteractionLayerID = action.payload;
     },
     setActiveInteractionButtonID(state, action: PayloadAction<string | null>) {
       state.activeInteractionButtonID = action.payload;
