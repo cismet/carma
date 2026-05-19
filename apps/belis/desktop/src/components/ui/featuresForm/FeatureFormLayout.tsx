@@ -67,8 +67,9 @@ interface FeatureFormLayoutProps {
   extraGeneralTabs?: ExtraGeneralTab[];
   /** When provided, a "+" sentinel tab is rendered anchored right after the
    * additional tabs (i.e. directly after Standort in the Leuchten-creation
-   * flow). Clicking it invokes this callback and does NOT switch tabs. */
-  onAddTab?: () => void;
+   * flow). Clicking it invokes this callback. If the callback returns a tab
+   * key (string), that tab becomes active; otherwise the active tab stays put. */
+  onAddTab?: () => string | void;
   /** Label for the main/general tab. Defaults to "Allgemein". */
   generalTabLabel?: string;
   /** Whether additional tabs render before or after the general tab. Default "after". */
@@ -169,7 +170,10 @@ const FeatureFormLayout = ({
   const handleTabChange = useCallback(
     (key: string) => {
       if (key === ADD_TAB_KEY) {
-        onAddTab?.();
+        const newKey = onAddTab?.();
+        if (typeof newKey === "string") {
+          setActiveTabKey(newKey);
+        }
         return;
       }
       setActiveTabKey(key);
