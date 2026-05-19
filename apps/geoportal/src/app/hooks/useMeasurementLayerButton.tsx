@@ -1,10 +1,11 @@
 import { useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import Icon from "react-cismap/commons/Icon";
 
 import { faFloppyDisk } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
-import type { Layer } from "@carma-mapping/layers";
+import type { InteractionButton, Layer } from "@carma-mapping/layers";
 import { useMapMeasurementsContext } from "@carma-commons/measurements";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import type { AnnotationModeText } from "@carma-mapping/annotations/builtin-tools/annotation-mode-text";
@@ -38,8 +39,22 @@ export function useMeasurementLayerButton() {
   const annotationModeText = geoportalAnnotationModeText;
   const uiMode = useSelector(getUIMode);
   const layers = useSelector(getLayers);
-  const { shapes } = useMapMeasurementsContext();
+  const { shapes, setShowAll } = useMapMeasurementsContext();
   const { isLeaflet } = useMapFrameworkSwitcherContext();
+
+  const interactionButtons: InteractionButton[] = [
+    {
+      icon: <Icon name="search-location" />,
+      id: "zoom-measurements",
+      tooltip: annotationModeText.layerbar.leafletMeasurements.focusAll,
+      onClick: () => setShowAll(true),
+    },
+    {
+      icon: <FontAwesomeIcon icon={faFloppyDisk} />,
+      id: "save-measurements",
+      tooltip: annotationModeText.layerbar.leafletMeasurements.save,
+    },
+  ];
 
   const measurementLayer: Layer = {
     id: MEASUREMENT_LAYER_ID,
@@ -49,11 +64,7 @@ export function useMeasurementLayerButton() {
     visible: true,
     pinned: "last",
     skipSelection: true,
-    interactionButtons: {
-      icon: <FontAwesomeIcon icon={faFloppyDisk} />,
-      id: "save-measurements",
-      tooltip: annotationModeText.layerbar.leafletMeasurements.save,
-    },
+    interactionButtons,
   };
 
   const isMeasurementMode = uiMode === UIMode.MEASUREMENT;

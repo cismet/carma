@@ -115,6 +115,7 @@ export type AnnotationModeText = Readonly<{
       deleteAll: string;
     };
     leafletMeasurements: {
+      focusAll: string;
       save: string;
       deleteAll: string;
     };
@@ -323,6 +324,7 @@ export const defaultAnnotationModeText = {
       deleteAll: "Alle Messungen löschen",
     },
     leafletMeasurements: {
+      focusAll: "Auf alle Messungen zoomen",
       save: "Messungen speichern",
       deleteAll: "Alle Messungen löschen",
     },
