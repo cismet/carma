@@ -317,15 +317,19 @@ const LeuchteForm = ({
         : dayjs(raw as string | number | Date);
       rehydratedSeed[dateKey] = d.isValid() ? d : null;
     }
+    const newTabId = `extra-${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2, 7)}`;
     const newEntry: Record<string, unknown> = {
       ...rehydratedSeed,
-      _tabId: `extra-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      _tabId: newTabId,
       leuchtennummer: baseNumber + current.length + 1,
     };
     onDraftChange?.({
       ...draftValues,
       leuchten: [...current, newEntry],
     });
+    return newTabId;
   }, [draftValues, onDraftChange, leuchteCreationDefaults]);
   const handleRemoveLeuchteTab = useCallback(
     (id: string) => {
