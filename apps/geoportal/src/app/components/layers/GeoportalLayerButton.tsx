@@ -467,7 +467,7 @@ const GeoportalLayerButton = ({
                       "text-sm",
                       activeInteractionLayerID === id
                         ? "!text-[#1677ff]"
-                        : "!text-gray-600 group-hover:!text-[#1677ff]"
+                        : "!text-gray-600 group-hover:!text-gray-500"
                     )}
                   />
                 </Badge>

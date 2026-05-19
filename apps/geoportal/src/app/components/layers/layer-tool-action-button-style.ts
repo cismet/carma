@@ -3,7 +3,7 @@ import type { AnnotationsToolbarClassNames } from "@carma-mapping/annotations/ru
 export const GEOPORTAL_LAYER_TOOL_ACTION_BUTTON_CLASS_NAMES = {
   base: "px-1.5 flex items-center justify-center text-sm [&_svg]:text-current",
   active: "!text-[#1677ff] hover:!text-[#1677ff] !shadow-none",
-  inactive: "text-gray-600 hover:!text-[#1677ff]",
+  inactive: "text-gray-600 hover:!text-gray-500",
 } as const;
 
 export const GEOPORTAL_LAYER_TOOL_ACTION_TOOLBAR_CLASS_NAMES = {
