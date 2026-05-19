@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import type { FormInstance } from "antd";
 import { message } from "antd";
+import { CloseOutlined } from "@ant-design/icons";
 import type { DraftFile } from "../../../store/slices/featuresForms";
 import { useSelector } from "react-redux";
 import { getJWT } from "../../../store/slices/auth";
@@ -316,6 +317,20 @@ const LeuchteForm = ({
     null
   );
   const [isMastLoading, setIsMastLoading] = useState(false);
+  // Stable IDs for runtime-added Leuchte tabs (creation flow only). Each entry
+  // becomes a closable tab labeled "Leuchte N" rendered after the original
+  // "Leuchte" tab. Content is a placeholder for now — per-tab form wiring will
+  // come once the UX is locked in.
+  const [extraLeuchtenIds, setExtraLeuchtenIds] = useState<string[]>([]);
+  const handleAddLeuchteTab = useCallback(() => {
+    setExtraLeuchtenIds((prev) => [
+      ...prev,
+      `extra-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    ]);
+  }, []);
+  const handleRemoveLeuchteTab = useCallback((id: string) => {
+    setExtraLeuchtenIds((prev) => prev.filter((x) => x !== id));
+  }, []);
   const jwt = useSelector(getJWT);
 
   const handleToggleRemoveDocument = useCallback(
@@ -482,6 +497,34 @@ const LeuchteForm = ({
   // separately by the Mast/Standort form).
   const showCreationStandortTab = isCreation === true;
   const mastTabReadOnly = linkedMastId != null;
+  // Only the creation flow exposes the multi-Leuchte "+" affordance.
+  const extraGeneralTabs = showCreationStandortTab
+    ? extraLeuchtenIds.map((id, idx) => ({
+        key: id,
+        label: (
+          <span>
+            Leuchte {idx + 2}{" "}
+            <CloseOutlined
+              role="button"
+              aria-label={`Leuchte ${idx + 2} entfernen`}
+              style={{ fontSize: 10, marginLeft: 4, color: "#8c8c8c" }}
+              onClick={(e) => {
+                // Antd Tabs routes clicks anywhere in the label to onChange;
+                // stop propagation so the close icon doesn't also activate
+                // the tab on its way out.
+                e.stopPropagation();
+                handleRemoveLeuchteTab(id);
+              }}
+            />
+          </span>
+        ),
+        children: (
+          <div className="pt-4 text-gray-500">
+            Leuchte {idx + 2} — Formular folgt.
+          </div>
+        ),
+      }))
+    : [];
   const additionalTabs = showCreationStandortTab
     ? [
         {
@@ -546,7 +589,9 @@ const LeuchteForm = ({
       debugData={data}
       rawFeatureData={rawFeature}
       additionalTabs={additionalTabs}
-      generalTabLabel={isCreation ? "Leuchte" : undefined}
+      extraGeneralTabs={extraGeneralTabs}
+      onAddTab={showCreationStandortTab ? handleAddLeuchteTab : undefined}
+      generalTabLabel={isCreation ? "Leuchte 1" : undefined}
       additionalTabsPosition={isCreation ? "before" : undefined}
       loading={loading}
       saving={saving}
