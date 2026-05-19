@@ -88,47 +88,15 @@ const LeuchteForm = ({
   const [localDocuments, setLocalDocuments] = useState<DokumentItem[] | null>(
     null
   );
-  const leuchteFormRef = useRef<FormInstance | null>(null);
-  const mastFormRef = useRef<FormInstance | null>(null);
-  // Holds the last Kennziffer we pushed into the Leuchten form via the
-  // Mast→Leuchten mirror. If the Leuchten field's current value still
-  // equals this (or is empty), the user hasn't overridden it and the
-  // mirror is free to keep updating. If it differs, the user changed it
-  // directly and the mirror backs off. This is value-based, not
-  // event-based, so it survives tab switches and form remounts.
-  const lastMirroredKennzifferRef = useRef<unknown>(undefined);
-
-  const setLeuchteForm = useCallback((form: FormInstance) => {
-    leuchteFormRef.current = form;
-  }, []);
-  // Mirrors the Mast/Standort form's strassenschluessel into the Leuchte
-  // form so the Leuchte's persisted fk_strassenschluessel matches what the
-  // user picked on the Standort tab. No-op when the Leuchte links to an
-  // existing Mast — the mastData-load effect below handles that case.
-  const syncStrassenschluesselToLeuchte = useCallback(() => {
-    if (linkedMastId != null) return;
-    if (!leuchteFormRef.current) return;
-    const mastDraft = draftValues?.mast as
-      | Record<string, unknown>
-      | undefined;
-    const mastVals = mastDraft ?? mastFormRef.current?.getFieldsValue();
-    if (!mastVals) return;
-    leuchteFormRef.current.setFieldsValue({
-      strassenschluessel_pk: mastVals.strassenschluessel_pk,
-      strassenschluessel_strasse: mastVals.strassenschluessel_strasse,
-      fk_strassenschluessel: mastVals.fk_strassenschluessel,
-    });
-  }, [linkedMastId, draftValues]);
-  const setMastForm = useCallback(
-    (form: FormInstance) => {
-      mastFormRef.current = form;
-      syncStrassenschluesselToLeuchte();
-    },
-    [syncStrassenschluesselToLeuchte]
-  );
-  useEffect(() => {
-    syncStrassenschluesselToLeuchte();
-  }, [syncStrassenschluesselToLeuchte]);
+  // Each LeuchteFormFields owns its own Antd Form. We only need a handle on
+  // Leuchte 1 (the "primary" form) — `handleSave` reads its values to build
+  // the save payload. Extra Leuchten tabs are local-only until Scope B lands.
+  const primaryFormRef = useRef<FormInstance | null>(null);
+  // Strassenschluessel/Kennziffer mirroring from the Standort/Mast tab into
+  // each Leuchten tab now happens inside `LeuchteFormFields` itself, pulling
+  // from the Mast draft slice via the `mastDraftValues` prop. No registry,
+  // no broadcast, no per-form ref tracking in this parent: a newly mounted
+  // tab subscribes at mount and catches up to the current Mast state.
 
   const originalValuesRef = useRef<Record<string, unknown>>({});
 
@@ -169,62 +137,16 @@ const LeuchteForm = ({
 
   const handleMastValuesChange = useCallback(
     (
-      changedValues: Record<string, unknown>,
+      _changedValues: Record<string, unknown>,
       allValues: Record<string, unknown>
     ) => {
-      // Mirror Strassenschluessel from the Standort tab into the Leuchte form
-      // so the Leuchte's persisted fk_strassenschluessel stays consistent.
-      // Update both the form (if mounted — antd Tabs lazy-mount the inactive
-      // tab) AND the leuchte draft slice directly so the save sees the value
-      // even when the user has not yet visited the Leuchte tab.
-      let leuchteValues: Record<string, unknown> | undefined;
-      if (
-        "strassenschluessel_pk" in changedValues ||
-        "strassenschluessel_strasse" in changedValues ||
-        "fk_strassenschluessel" in changedValues
-      ) {
-        const mirroredFields = {
-          strassenschluessel_pk: allValues.strassenschluessel_pk,
-          strassenschluessel_strasse: allValues.strassenschluessel_strasse,
-          fk_strassenschluessel: allValues.fk_strassenschluessel,
-        };
-        leuchteFormRef.current?.setFieldsValue(mirroredFields);
-        const existingLeuchte = (draftValues?.leuchte ?? {}) as Record<
-          string,
-          unknown
-        >;
-        leuchteValues = { ...existingLeuchte, ...mirroredFields };
-      }
-      // Mirror Kennziffer from Standort into the Leuchten form. Decision is
-      // value-based: compare the current Leuchten value against what we
-      // last mirrored. If they match (or Leuchten is empty), the user has
-      // not overridden us — keep mirroring. If they differ, the user
-      // changed Kennziffer directly on the Leuchten tab — back off.
-      // Clearing the Leuchten field re-arms via the empty-check.
-      if ("fk_kennziffer" in changedValues) {
-        const draftLeuchte = (draftValues?.leuchte ?? {}) as Record<
-          string,
-          unknown
-        >;
-        const leuchteCurrent = leuchteFormRef.current
-          ? leuchteFormRef.current.getFieldValue("fk_kennziffer")
-          : draftLeuchte.fk_kennziffer;
-        const isEmpty = leuchteCurrent == null || leuchteCurrent === "";
-        const userOverrode =
-          !isEmpty && leuchteCurrent !== lastMirroredKennzifferRef.current;
-        if (!userOverrode) {
-          const newValue = allValues.fk_kennziffer;
-          lastMirroredKennzifferRef.current = newValue;
-          const mirroredKennziffer = { fk_kennziffer: newValue };
-          leuchteFormRef.current?.setFieldsValue(mirroredKennziffer);
-          const baseLeuchte = leuchteValues ?? draftLeuchte;
-          leuchteValues = { ...baseLeuchte, ...mirroredKennziffer };
-        }
-      }
+      // The Mast slice is the single source of truth for Strassenschluessel
+      // and Kennziffer. Each `LeuchteFormFields` subscribes to it via
+      // `mastDraftValues` and applies values into its own form — no parent-
+      // side broadcast or per-form override Map needed here anymore.
       onDraftChange?.({
         ...draftValues,
         mast: allValues,
-        ...(leuchteValues ? { leuchte: leuchteValues } : {}),
       });
     },
     [onDraftChange, draftValues]
@@ -242,13 +164,17 @@ const LeuchteForm = ({
       return;
     }
 
-    if (!leuchteFormRef.current) {
+    const primaryForm = primaryFormRef.current;
+    if (!primaryForm) {
       return;
     }
 
     setSaving(true);
     try {
-      const formValues = leuchteFormRef.current.getFieldsValue();
+      // Scope-A constraint: only Leuchte 1 (the primary form) is persisted to
+      // the backend. Extra "+"-added Leuchten tabs are local-only until the
+      // multi-save Scope B work lands.
+      const formValues = primaryForm.getFieldsValue();
 
       // Remove display-only fields that the backend doesn't expect
       const {
@@ -413,55 +339,38 @@ const LeuchteForm = ({
     }
   }, [effectiveMastId, jwt]);
 
-  // When creating a Leuchte linked to an existing Mast, inherit that Mast's
-  // Strassenschlüssel AND Kennziffer into the Leuchte form. Reverse of the
-  // new-Mast path handled by syncStrassenschluesselToMast and
-  // handleMastValuesChange above. setFieldsValue doesn't trigger
-  // onValuesChange so the draft slice isn't updated here, but the save path
-  // reads field values directly from the form via getFieldsValue. If the user
-  // edits any Leuchten field, handleLeuchteValuesChange picks up allValues
-  // (including our mirrored fields) and persists them to the draft then.
+  // When creating a Leuchte linked to an existing Mast, hydrate the Mast
+  // Redux slice from the server-fetched mastData. From there the standard
+  // subscription path inside LeuchteFormFields picks up Strassenschluessel
+  // and Kennziffer for every tab (including those added later). One-shot
+  // write keyed on the mastData identity so re-renders don't re-dispatch.
+  const linkedMastHydratedForRef = useRef<unknown>(undefined);
   useEffect(() => {
     if (linkedMastId == null) return;
     if (!mastData) return;
-    if (!leuchteFormRef.current) return;
+    if (linkedMastHydratedForRef.current === mastData) return;
     const ssel = mastData.tkey_strassenschluessel as
       | Record<string, unknown>
       | undefined;
     const kennziffer = mastData.tkey_kennziffer as
       | Record<string, unknown>
       | undefined;
-    const current = leuchteFormRef.current.getFieldsValue() as Record<
-      string,
-      unknown
-    >;
-    const updates: Record<string, unknown> = {};
-
-    if (
-      ssel &&
-      (current.strassenschluessel_pk !== ssel.pk ||
-        current.fk_strassenschluessel !== ssel.id)
-    ) {
-      updates.strassenschluessel_pk = ssel.pk;
-      updates.strassenschluessel_strasse = ssel.strasse;
-      updates.fk_strassenschluessel = ssel.id;
+    const existingMast = (draftValues?.mast ?? {}) as Record<string, unknown>;
+    const next: Record<string, unknown> = { ...existingMast };
+    if (ssel) {
+      next.strassenschluessel_pk = ssel.pk;
+      next.strassenschluessel_strasse = ssel.strasse;
+      next.fk_strassenschluessel = ssel.id;
     }
-
     if (kennziffer?.id != null) {
-      const leuchteCurrent = current.fk_kennziffer;
-      const isEmpty = leuchteCurrent == null || leuchteCurrent === "";
-      const userOverrode =
-        !isEmpty && leuchteCurrent !== lastMirroredKennzifferRef.current;
-      if (!userOverrode && leuchteCurrent !== kennziffer.id) {
-        updates.fk_kennziffer = kennziffer.id;
-        lastMirroredKennzifferRef.current = kennziffer.id;
-      }
+      next.fk_kennziffer = kennziffer.id;
     }
-
-    if (Object.keys(updates).length === 0) return;
-
-    leuchteFormRef.current.setFieldsValue(updates);
-  }, [linkedMastId, mastData]);
+    linkedMastHydratedForRef.current = mastData;
+    onDraftChange?.({
+      ...draftValues,
+      mast: next,
+    });
+  }, [linkedMastId, mastData, draftValues, onDraftChange]);
 
   // Extract fabrikat for subtitle - use rawFeature (vector tile) to match list display
   const rawProps = rawFeature?.properties;
@@ -519,9 +428,25 @@ const LeuchteForm = ({
           </span>
         ),
         children: (
-          <div className="pt-4 text-gray-500">
-            Leuchte {idx + 2} — Formular folgt.
-          </div>
+          // Each extra Leuchte tab renders the same form fields as "Leuchte 1"
+          // with its own Antd Form instance. Strassenschluessel + Kennziffer
+          // arrive via the standard `mastDraftValues` subscription path —
+          // the form picks them up at mount, with sticky per-tab Kennziffer
+          // override semantics living inside LeuchteFormFields itself.
+          // Values are still local-only (closing the tab discards them); only
+          // Leuchte 1 is persisted on save until Scope B (multi-save) lands.
+          <FieldPrefix name="leuchte">
+            <LeuchteFormFields
+              leuchte={null}
+              readOnly={readOnly}
+              isCreation={isCreation}
+              featureId={featureId}
+              hideStrassenschluessel={isCreation}
+              mastDraftValues={
+                draftValues?.mast as Record<string, unknown> | undefined
+              }
+            />
+          </FieldPrefix>
         ),
       }))
     : [];
@@ -548,7 +473,6 @@ const LeuchteForm = ({
                       isCreation={!mastTabReadOnly}
                       featureId={featureId}
                       locked={mastTabReadOnly}
-                      onFormInstance={setMastForm}
                       draftValues={
                         mastTabReadOnly
                           ? undefined
@@ -608,9 +532,14 @@ const LeuchteForm = ({
           isCreation={isCreation}
           featureId={featureId}
           hideStrassenschluessel={isCreation}
-          onFormInstance={setLeuchteForm}
+          onFormInstance={(form) => {
+            primaryFormRef.current = form;
+          }}
           draftValues={
             draftValues?.leuchte as Record<string, unknown> | undefined
+          }
+          mastDraftValues={
+            draftValues?.mast as Record<string, unknown> | undefined
           }
           onValuesChange={handleLeuchteValuesChange}
           onOriginalValues={handleLeuchteOriginalValues}
