@@ -243,20 +243,73 @@ const LeuchteForm = ({
     null
   );
   const [isMastLoading, setIsMastLoading] = useState(false);
-  // Stable IDs for runtime-added Leuchte tabs (creation flow only). Each entry
-  // becomes a closable tab labeled "Leuchte N" rendered after the original
-  // "Leuchte" tab. Content is a placeholder for now — per-tab form wiring will
-  // come once the UX is locked in.
-  const [extraLeuchtenIds, setExtraLeuchtenIds] = useState<string[]>([]);
+  // Extra Leuchten tabs (creation flow only) are persisted in the Redux draft
+  // under `values.leuchten` as an array of per-tab field bags. Each entry
+  // carries a stable `_tabId` so React keys survive edits, and the array order
+  // matches the visible tab order. Stripped from save payloads in
+  // saveCreationDraft.
+  const extraLeuchten = (draftValues?.leuchten ?? []) as Array<
+    Record<string, unknown>
+  >;
   const handleAddLeuchteTab = useCallback(() => {
-    setExtraLeuchtenIds((prev) => [
-      ...prev,
-      `extra-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    ]);
-  }, []);
-  const handleRemoveLeuchteTab = useCallback((id: string) => {
-    setExtraLeuchtenIds((prev) => prev.filter((x) => x !== id));
-  }, []);
+    const current = (draftValues?.leuchten ?? []) as Array<
+      Record<string, unknown>
+    >;
+    const baseSlice = draftValues?.leuchte as
+      | Record<string, unknown>
+      | undefined;
+    const baseNumber =
+      typeof baseSlice?.leuchtennummer === "number"
+        ? (baseSlice.leuchtennummer as number)
+        : typeof baseSlice?.leuchtennummer === "string" &&
+          baseSlice.leuchtennummer !== ""
+        ? Number(baseSlice.leuchtennummer)
+        : 0;
+    const newEntry: Record<string, unknown> = {
+      _tabId: `extra-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      leuchtennummer: baseNumber + current.length + 1,
+    };
+    onDraftChange?.({
+      ...draftValues,
+      leuchten: [...current, newEntry],
+    });
+  }, [draftValues, onDraftChange]);
+  const handleRemoveLeuchteTab = useCallback(
+    (id: string) => {
+      const current = (draftValues?.leuchten ?? []) as Array<
+        Record<string, unknown>
+      >;
+      const next = current.filter((entry) => entry._tabId !== id);
+      const nextDraft: Record<string, unknown> = { ...draftValues };
+      if (next.length > 0) {
+        nextDraft.leuchten = next;
+      } else {
+        delete nextDraft.leuchten;
+      }
+      onDraftChange?.(nextDraft);
+    },
+    [draftValues, onDraftChange]
+  );
+  const handleExtraValuesChange = useCallback(
+    (
+      tabId: string,
+      _changedValues: Record<string, unknown>,
+      allValues: Record<string, unknown>
+    ) => {
+      const current = (draftValues?.leuchten ?? []) as Array<
+        Record<string, unknown>
+      >;
+      const idx = current.findIndex((entry) => entry._tabId === tabId);
+      if (idx < 0) return;
+      const next = [...current];
+      next[idx] = { ...allValues, _tabId: tabId };
+      onDraftChange?.({
+        ...draftValues,
+        leuchten: next,
+      });
+    },
+    [draftValues, onDraftChange]
+  );
   const jwt = useSelector(getJWT);
 
   const handleToggleRemoveDocument = useCallback(
@@ -406,69 +459,61 @@ const LeuchteForm = ({
   // separately by the Mast/Standort form).
   const showCreationStandortTab = isCreation === true;
   const mastTabReadOnly = linkedMastId != null;
-  // Leuchtennummer is the 0-indexed lamp position at the Standort. Leuchte 1
-  // is auto-seeded at draft creation in CreateFeatureDropdown using the
-  // Standort's existing Leuchten count (or 0 for a fresh Mast). Each "+"-added
-  // Leuchte continues the sequence: extra i → base + i + 1. We read Leuchte 1's
-  // current value as the base so the chain stays consistent with whatever the
-  // user has typed into Leuchte 1.
-  const leuchte1Slice = draftValues?.leuchte as
-    | Record<string, unknown>
-    | undefined;
-  const leuchte1Number =
-    typeof leuchte1Slice?.leuchtennummer === "number"
-      ? (leuchte1Slice.leuchtennummer as number)
-      : typeof leuchte1Slice?.leuchtennummer === "string" &&
-        leuchte1Slice.leuchtennummer !== ""
-      ? Number(leuchte1Slice.leuchtennummer)
-      : 0;
-  // Only the creation flow exposes the multi-Leuchte "+" affordance.
+  // Only the creation flow exposes the multi-Leuchte "+" affordance. Extras
+  // live in the Redux draft under `values.leuchten[]`; each entry's `_tabId`
+  // is the React key. The seeded `leuchtennummer` is frozen at "+"-click time
+  // (LeuchteForm.handleAddLeuchteTab) so it doesn't drift if the user later
+  // edits Leuchte 1's number.
   const extraGeneralTabs = showCreationStandortTab
-    ? extraLeuchtenIds.map((id, idx) => ({
-        key: id,
-        label: (
-          <span>
-            Leuchte {idx + 2}{" "}
-            <CloseOutlined
-              role="button"
-              aria-label={`Leuchte ${idx + 2} entfernen`}
-              style={{ fontSize: 10, marginLeft: 4, color: "#8c8c8c" }}
-              onClick={(e) => {
-                // Antd Tabs routes clicks anywhere in the label to onChange;
-                // stop propagation so the close icon doesn't also activate
-                // the tab on its way out.
-                e.stopPropagation();
-                handleRemoveLeuchteTab(id);
-              }}
-            />
-          </span>
-        ),
-        children: (
-          // Each extra Leuchte tab renders the same form fields as "Leuchte 1"
-          // with its own Antd Form instance. Strassenschluessel + Kennziffer
-          // arrive via the standard `mastDraftValues` subscription path —
-          // the form picks them up at mount, with sticky per-tab Kennziffer
-          // override semantics living inside LeuchteFormFields itself.
-          // Leuchtennummer is one-shot prefilled via the existing draftValues
-          // path: idx is the 0-based position among extras, so the displayed
-          // tab labeled "Leuchte N" gets leuchtennummer = base + (N-1).
-          // Values are still local-only (closing the tab discards them); only
-          // Leuchte 1 is persisted on save until Scope B (multi-save) lands.
-          <FieldPrefix name="leuchte">
-            <LeuchteFormFields
-              leuchte={null}
-              readOnly={readOnly}
-              isCreation={isCreation}
-              featureId={featureId}
-              hideStrassenschluessel={isCreation}
-              draftValues={{ leuchtennummer: leuchte1Number + idx + 1 }}
-              mastDraftValues={
-                draftValues?.mast as Record<string, unknown> | undefined
-              }
-            />
-          </FieldPrefix>
-        ),
-      }))
+    ? extraLeuchten.map((entry, idx) => {
+        const tabId = entry._tabId as string;
+        const { _tabId: _unusedTabId, ...entryFields } = entry;
+        void _unusedTabId;
+        return {
+          key: tabId,
+          label: (
+            <span>
+              Leuchte {idx + 2}{" "}
+              <CloseOutlined
+                role="button"
+                aria-label={`Leuchte ${idx + 2} entfernen`}
+                style={{ fontSize: 10, marginLeft: 4, color: "#8c8c8c" }}
+                onClick={(e) => {
+                  // Antd Tabs routes clicks anywhere in the label to onChange;
+                  // stop propagation so the close icon doesn't also activate
+                  // the tab on its way out.
+                  e.stopPropagation();
+                  handleRemoveLeuchteTab(tabId);
+                }}
+              />
+            </span>
+          ),
+          children: (
+            // Each extra Leuchte tab renders the same form fields as "Leuchte 1"
+            // with its own Antd Form instance. Strassenschluessel + Kennziffer
+            // arrive via the standard `mastDraftValues` subscription path,
+            // with sticky per-tab Kennziffer override semantics inside
+            // LeuchteFormFields. Field edits write back to `values.leuchten[idx]`
+            // via handleExtraValuesChange so the save loop can persist them.
+            <FieldPrefix name="leuchte">
+              <LeuchteFormFields
+                leuchte={null}
+                readOnly={readOnly}
+                isCreation={isCreation}
+                featureId={`${featureId ?? ""}#${tabId}`}
+                hideStrassenschluessel={isCreation}
+                draftValues={entryFields}
+                mastDraftValues={
+                  draftValues?.mast as Record<string, unknown> | undefined
+                }
+                onValuesChange={(changed, all) =>
+                  handleExtraValuesChange(tabId, changed, all)
+                }
+              />
+            </FieldPrefix>
+          ),
+        };
+      })
     : [];
   const additionalTabs = showCreationStandortTab
     ? [
