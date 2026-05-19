@@ -406,6 +406,22 @@ const LeuchteForm = ({
   // separately by the Mast/Standort form).
   const showCreationStandortTab = isCreation === true;
   const mastTabReadOnly = linkedMastId != null;
+  // Leuchtennummer is the 0-indexed lamp position at the Standort. Leuchte 1
+  // is auto-seeded at draft creation in CreateFeatureDropdown using the
+  // Standort's existing Leuchten count (or 0 for a fresh Mast). Each "+"-added
+  // Leuchte continues the sequence: extra i → base + i + 1. We read Leuchte 1's
+  // current value as the base so the chain stays consistent with whatever the
+  // user has typed into Leuchte 1.
+  const leuchte1Slice = draftValues?.leuchte as
+    | Record<string, unknown>
+    | undefined;
+  const leuchte1Number =
+    typeof leuchte1Slice?.leuchtennummer === "number"
+      ? (leuchte1Slice.leuchtennummer as number)
+      : typeof leuchte1Slice?.leuchtennummer === "string" &&
+        leuchte1Slice.leuchtennummer !== ""
+      ? Number(leuchte1Slice.leuchtennummer)
+      : 0;
   // Only the creation flow exposes the multi-Leuchte "+" affordance.
   const extraGeneralTabs = showCreationStandortTab
     ? extraLeuchtenIds.map((id, idx) => ({
@@ -433,6 +449,9 @@ const LeuchteForm = ({
           // arrive via the standard `mastDraftValues` subscription path —
           // the form picks them up at mount, with sticky per-tab Kennziffer
           // override semantics living inside LeuchteFormFields itself.
+          // Leuchtennummer is one-shot prefilled via the existing draftValues
+          // path: idx is the 0-based position among extras, so the displayed
+          // tab labeled "Leuchte N" gets leuchtennummer = base + (N-1).
           // Values are still local-only (closing the tab discards them); only
           // Leuchte 1 is persisted on save until Scope B (multi-save) lands.
           <FieldPrefix name="leuchte">
@@ -442,6 +461,7 @@ const LeuchteForm = ({
               isCreation={isCreation}
               featureId={featureId}
               hideStrassenschluessel={isCreation}
+              draftValues={{ leuchtennummer: leuchte1Number + idx + 1 }}
               mastDraftValues={
                 draftValues?.mast as Record<string, unknown> | undefined
               }
