@@ -315,16 +315,19 @@ const saveCreationDraft = async (
     const formValues = prepareSaveValues(featureType, draft.values ?? {}) ?? {};
     console.debug("[CREATE-FEATURE] after prepareSaveValues:", JSON.stringify(formValues, null, 2));
     let payload: Record<string, unknown>;
+    // Hoisted out of the `featureType === "leuchte"` branch so the Scope-B
+    // extras loop below can reuse them when creating additional Leuchten that
+    // share Leuchte 1's Mast + Strassenschluessel.
+    let mastIdForLink: number | undefined;
+    let leuchteStrassenschluesselId: number | null = null;
 
     if (featureType === "leuchte") {
       const linkedMastId = parseStandortIdFromKey(draft.geometryKey);
 
-      let mastIdForLink: number;
       // Mirror the Mast's strassenschluessel onto the Leuchte so the joined
       // Leuchte view (which reads leuchte.tkey_strassenschluessel) renders
       // the street name. The Strassenschluessel field is hidden on the
       // Leuchte tab during creation, so the only source is the Mast tab.
-      let leuchteStrassenschluesselId: number | null = null;
       if (linkedMastId != null) {
         // Existing Standort was selected — reuse it, no new Mast created.
         mastIdForLink = linkedMastId;
@@ -437,6 +440,43 @@ const saveCreationDraft = async (
             dokumenteArray: uploadedDocs,
           });
         }
+      }
+    }
+
+    // Scope B: persist any extra "+"-added Leuchten tabs. They live in
+    // `draft.values.leuchten[]` and each entry shares the Mast with Leuchte 1
+    // (mastIdForLink). `_tabId` is a UI-only key — strip it before save.
+    // prepareSaveValues handles date deserialization, renames, and removing
+    // display-only fields just like Leuchte 1.
+    if (featureType === "leuchte" && mastIdForLink != null) {
+      const extras = (draft.values?.leuchten ?? []) as Array<
+        Record<string, unknown>
+      >;
+      for (const [extraIdx, extra] of extras.entries()) {
+        const { _tabId: _tabIdUnused, ...extraFields } = extra;
+        void _tabIdUnused;
+        const extraCleaned =
+          prepareSaveValues("leuchte", { leuchte: extraFields }) ?? {};
+        const extraPayload: Record<string, unknown> = {
+          id: -1,
+          ...extraCleaned,
+          fk_strassenschluessel:
+            (extraCleaned.fk_strassenschluessel as
+              | number
+              | null
+              | undefined) ?? leuchteStrassenschluesselId,
+          tdta_standort_mast: { id: mastIdForLink },
+        };
+        console.debug(
+          `[CREATE-FEATURE] extra leuchte ${extraIdx + 1} payload:`,
+          JSON.stringify(extraPayload, null, 2)
+        );
+        await updateDataByClassName(
+          jwt,
+          config.className,
+          extraPayload,
+          extraSaveParams
+        );
       }
     }
 
