@@ -30,7 +30,6 @@ export function Vorhabenkarte() {
       infoBoxPixelWidth={350}
       backgroundModes={backgroundModes}
       backgroundConfigurations={backgroundConfigurations}
-      clusteringEnabled={false}
     >
       <SandboxedEvalProvider>
         <GazDataProvider config={defaultGazDataConfig}>
@@ -48,6 +47,13 @@ export function Vorhabenkarte() {
                     type: "vector",
                     name: "Vorhaben",
                     style: VORHABENKARTE_STYLE_URL,
+                  },
+                  {
+                    type: "geojson",
+                    name: "Vorhaben Points",
+                    data: "https://tiles.cismet.de/vorhabenkarte/vorhabenPoints.json",
+                    colorProperty: "thema_farbe",
+                    promoteId: "fid",
                   },
                 ]}
                 modalMenu={<Menu />}
