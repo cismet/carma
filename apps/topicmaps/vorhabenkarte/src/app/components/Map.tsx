@@ -55,7 +55,6 @@ type LightboxDispatch = {
 };
 import { FeatureIconOverlay } from "./FeatureIconOverlay";
 import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";
-import { getProjektClusterIconCreatorFunction } from "../../helper/styler";
 import { isAreaType } from "@carma-commons/resources";
 import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 import { useGazData } from "@carma-appframeworks/portals";
@@ -131,9 +130,6 @@ const Map = () => {
     if (markerSymbolSize) {
       setClusteringOptions({
         ...clusteringOptions,
-        iconCreateFunction: getProjektClusterIconCreatorFunction({
-          svgSize: markerSymbolSize,
-        }),
       });
     }
   }, [markerSymbolSize]);
