@@ -138,11 +138,24 @@ const LeuchteForm = ({
     [onOriginalValues]
   );
 
+  // Tracks which Leuchte tab the user touched most recently. Its allowlisted
+  // values become the "reference" both providers below diff against, so a fresh
+  // edit on any tab turns that tab green and pushes the others (with stale
+  // values) gray — mirroring Schaltstelle's single-record behavior across tabs.
+  // "main" stands for Leuchte 1 (sourced from `draftValues.leuchte`); extra
+  // tabs use their `_tabId`. Reset to "main" on draft identity changes.
+  const [lastEditedLeuchteTabId, setLastEditedLeuchteTabId] =
+    useState<string>("main");
+  useEffect(() => {
+    setLastEditedLeuchteTabId("main");
+  }, [featureId]);
+
   const handleLeuchteValuesChange = useCallback(
     (
       _changedValues: Record<string, unknown>,
       allValues: Record<string, unknown>
     ) => {
+      setLastEditedLeuchteTabId("main");
       onDraftChange?.({
         ...draftValues,
         leuchte: allValues,
@@ -276,6 +289,23 @@ const LeuchteForm = ({
   const leuchteCreationDefaults = useSelector((state: RootState) =>
     getCreationDefaults(state, "leuchte")
   );
+  // Values from the most recently edited Leuchte tab, used as the "leuchte"
+  // currentDefaults for every tab's diff. This is what makes the edited tab
+  // stay green and pushes other tabs (with stale values) to gray — matching
+  // Schaltstelle's single-record behavior across multiple Leuchte tabs.
+  const referenceLeuchteValues = useMemo(() => {
+    if (lastEditedLeuchteTabId !== "main") {
+      const entry = extraLeuchten.find(
+        (e) => e._tabId === lastEditedLeuchteTabId
+      );
+      if (entry) {
+        const { _tabId: _unused, ...rest } = entry;
+        void _unused;
+        return rest as Record<string, unknown>;
+      }
+    }
+    return (draftValues?.leuchte ?? {}) as Record<string, unknown>;
+  }, [lastEditedLeuchteTabId, extraLeuchten, draftValues]);
   // Allowlisted paths shaped like "leuchte.fk_leuchttyp" — used by the
   // per-extra-tab ChangedFieldsProvider below to compute green highlights
   // against that tab's own slice (not Leuchte 1's).
@@ -360,6 +390,7 @@ const LeuchteForm = ({
       if (idx < 0) return;
       const next = [...current];
       next[idx] = { ...allValues, _tabId: tabId };
+      setLastEditedLeuchteTabId(tabId);
       onDraftChange?.({
         ...draftValues,
         leuchten: next,
@@ -560,12 +591,7 @@ const LeuchteForm = ({
               originalValues={{}}
               draftValues={{ leuchte: entryFields }}
               allowlistedPaths={leuchteAllowlistedPaths}
-              currentDefaults={{
-                leuchte: (leuchteCreationDefaults?.leuchte ?? {}) as Record<
-                  string,
-                  unknown
-                >,
-              }}
+              currentDefaults={{ leuchte: referenceLeuchteValues }}
             >
               <FieldPrefix name="leuchte">
                 <LeuchteFormFields
@@ -663,26 +689,41 @@ const LeuchteForm = ({
       onCancel={onCancel}
       onSave={handleSave}
     >
-      <FieldPrefix name="leuchte">
-        <LeuchteFormFields
-          leuchte={leuchte}
-          readOnly={readOnly}
-          isCreation={isCreation}
-          featureId={featureId}
-          hideStrassenschluessel={isCreation}
-          onFormInstance={(form) => {
-            primaryFormRef.current = form;
-          }}
-          draftValues={
-            draftValues?.leuchte as Record<string, unknown> | undefined
-          }
-          mastDraftValues={
-            draftValues?.mast as Record<string, unknown> | undefined
-          }
-          onValuesChange={handleLeuchteValuesChange}
-          onOriginalValues={handleLeuchteOriginalValues}
-        />
-      </FieldPrefix>
+      {/* Wrapping Leuchte 1's content in its own ChangedFieldsProvider lets it
+       * diff against `referenceLeuchteValues` — the same per-tab "last edited"
+       * reference the extras use — instead of the outer wrapper's
+       * `leuchteCreationDefaults`. Without this, editing Leuchte 2 would
+       * correctly turn it green but leave Leuchte 1 stuck on the old default's
+       * green even though its values now disagree with the live reference. */}
+      <ChangedFieldsProvider
+        originalValues={{}}
+        draftValues={{
+          leuchte: (draftValues?.leuchte ?? {}) as Record<string, unknown>,
+        }}
+        allowlistedPaths={leuchteAllowlistedPaths}
+        currentDefaults={{ leuchte: referenceLeuchteValues }}
+      >
+        <FieldPrefix name="leuchte">
+          <LeuchteFormFields
+            leuchte={leuchte}
+            readOnly={readOnly}
+            isCreation={isCreation}
+            featureId={featureId}
+            hideStrassenschluessel={isCreation}
+            onFormInstance={(form) => {
+              primaryFormRef.current = form;
+            }}
+            draftValues={
+              draftValues?.leuchte as Record<string, unknown> | undefined
+            }
+            mastDraftValues={
+              draftValues?.mast as Record<string, unknown> | undefined
+            }
+            onValuesChange={handleLeuchteValuesChange}
+            onOriginalValues={handleLeuchteOriginalValues}
+          />
+        </FieldPrefix>
+      </ChangedFieldsProvider>
     </FeatureFormLayout>
   );
 };
