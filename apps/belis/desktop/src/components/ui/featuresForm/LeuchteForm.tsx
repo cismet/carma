@@ -1,11 +1,21 @@
-import { useState, useEffect, useCallback, useRef, type ReactNode } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+  type ReactNode,
+} from "react";
 import type { FormInstance } from "antd";
 import { message } from "antd";
 import { CloseOutlined } from "@ant-design/icons";
 import type { DraftFile } from "../../../store/slices/featuresForms";
 import { useSelector } from "react-redux";
 import { getJWT } from "../../../store/slices/auth";
-import { getCreationDefaults } from "../../../store/slices/creationDefaults";
+import {
+  getAllowlistedPaths,
+  getCreationDefaults,
+} from "../../../store/slices/creationDefaults";
 import type { RootState } from "../../../store";
 import { DokumentItem } from "../DocumentPreview";
 import { getDocumentKey } from "../FilePreview";
@@ -17,7 +27,11 @@ import {
   updateDataByClassName,
 } from "../../../helper/apiMethods";
 import { uploadDraftFiles } from "../../../helper/uploadDraftFiles";
-import { FieldPrefix, LockedFields } from "./DraftFieldHighlight";
+import {
+  ChangedFieldsProvider,
+  FieldPrefix,
+  LockedFields,
+} from "./DraftFieldHighlight";
 import dayjs from "dayjs";
 
 const transformDatesForBackend = (
@@ -261,6 +275,13 @@ const LeuchteForm = ({
   // in Leuchte 1 makes it available to the next "+" click.
   const leuchteCreationDefaults = useSelector((state: RootState) =>
     getCreationDefaults(state, "leuchte")
+  );
+  // Allowlisted paths shaped like "leuchte.fk_leuchttyp" — used by the
+  // per-extra-tab ChangedFieldsProvider below to compute green highlights
+  // against that tab's own slice (not Leuchte 1's).
+  const leuchteAllowlistedPaths = useMemo(
+    () => getAllowlistedPaths("leuchte"),
+    []
   );
   const handleAddLeuchteTab = useCallback(() => {
     const current = (draftValues?.leuchten ?? []) as Array<
@@ -527,22 +548,38 @@ const LeuchteForm = ({
             // with sticky per-tab Kennziffer override semantics inside
             // LeuchteFormFields. Field edits write back to `values.leuchten[idx]`
             // via handleExtraValuesChange so the save loop can persist them.
-            <FieldPrefix name="leuchte">
-              <LeuchteFormFields
-                leuchte={null}
-                readOnly={readOnly}
-                isCreation={isCreation}
-                featureId={`${featureId ?? ""}#${tabId}`}
-                hideStrassenschluessel={isCreation}
-                draftValues={entryFields}
-                mastDraftValues={
-                  draftValues?.mast as Record<string, unknown> | undefined
-                }
-                onValuesChange={(changed, all) =>
-                  handleExtraValuesChange(tabId, changed, all)
-                }
-              />
-            </FieldPrefix>
+            //
+            // The nested ChangedFieldsProvider scopes green/gray highlights to
+            // *this* tab's slice — without it, the outer provider would paint
+            // every Leuchte tab using Leuchte 1's diff.
+            <ChangedFieldsProvider
+              originalValues={{}}
+              draftValues={{ leuchte: entryFields }}
+              allowlistedPaths={leuchteAllowlistedPaths}
+              currentDefaults={{
+                leuchte: (leuchteCreationDefaults?.leuchte ?? {}) as Record<
+                  string,
+                  unknown
+                >,
+              }}
+            >
+              <FieldPrefix name="leuchte">
+                <LeuchteFormFields
+                  leuchte={null}
+                  readOnly={readOnly}
+                  isCreation={isCreation}
+                  featureId={`${featureId ?? ""}#${tabId}`}
+                  hideStrassenschluessel={isCreation}
+                  draftValues={entryFields}
+                  mastDraftValues={
+                    draftValues?.mast as Record<string, unknown> | undefined
+                  }
+                  onValuesChange={(changed, all) =>
+                    handleExtraValuesChange(tabId, changed, all)
+                  }
+                />
+              </FieldPrefix>
+            </ChangedFieldsProvider>
           ),
         };
       })
