@@ -4,7 +4,7 @@ import Icon from "react-cismap/commons/Icon";
 import bbox from "@turf/bbox";
 import type { FeatureCollection } from "geojson";
 
-import { faFloppyDisk, faTrashCan } from "@fortawesome/free-solid-svg-icons";
+import { faFloppyDisk } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import type { InteractionButton, Layer } from "@carma-mapping/layers";
@@ -53,17 +53,12 @@ export function useMeasurementLayerButton() {
   const activeInteractionButtonID = useSelector(getActiveInteractionButtonID);
   const flags = useFeatureFlags();
   const isLibreMap = Boolean(flags.featureFlagLibreMap);
-  const { shapes, clearAllShapes, setShowAll } = useMapMeasurementsContext();
+  const { shapes, setShowAll } = useMapMeasurementsContext();
   const { isLeaflet } = useMapFrameworkSwitcherContext();
   // libreMap path: terra-draw measurements live in the new
-  // @carma-mapping/measurements context, not the leaflet one. clearAll()
-  // no-ops until a MeasurementHost mounts and registers its commands;
+  // @carma-mapping/measurements context, not the leaflet one.
   // `features`/`count` reflect the live terra-draw snapshot.
-  const {
-    clearAll: clearLibreMeasurements,
-    features: libreFeatures,
-    count: libreCount,
-  } = useMeasurements();
+  const { features: libreFeatures, count: libreCount } = useMeasurements();
   const libreMapRef = useSelector(getLibreMapRef);
 
   // Single source of truth for the layer-row count: terra-draw snapshot in
@@ -108,18 +103,6 @@ export function useMeasurementLayerButton() {
           showAllLibreMeasurements();
         } else {
           setShowAll(true);
-        }
-      },
-    },
-    {
-      icon: <FontAwesomeIcon icon={faTrashCan} />,
-      id: "clear-measurements",
-      tooltip: annotationModeText.layerbar.leafletMeasurements.deleteAll,
-      onClick: () => {
-        if (isLibreMap) {
-          clearLibreMeasurements();
-        } else {
-          clearAllShapes();
         }
       },
     },
