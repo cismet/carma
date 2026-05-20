@@ -303,8 +303,7 @@ export const getCoordinates = (geometry) => {
   }
 };
 
-const createVectorFeature = async (
-  coordinates,
+export const createVectorFeature = async (
   layer,
   selectedVectorFeature,
   map,
@@ -625,11 +624,8 @@ export const implicitVectorSelection = async (
     }
 
     selectionHandler(e, layer);
-    //make sure to get a point from any geometry type
-    const coordinates = getCoordinates(selectedVectorFeature.geometry);
 
     const feature = await createVectorFeature(
-      coordinates,
       layer,
       selectedVectorFeature,
       leafletMap,
@@ -671,9 +667,7 @@ export const onSelectionChangedVector = async (
     );
 
     for (const vector of uniqueHits) {
-      const coordinates = getCoordinates(vector.geometry);
       const feature = await createVectorFeature(
-        coordinates,
         layer,
         vector,
         map,

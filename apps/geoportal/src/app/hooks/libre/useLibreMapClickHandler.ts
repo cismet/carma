@@ -19,10 +19,10 @@ import { getUIMode, UIMode } from "../../store/slices/ui";
 
 import store from "../../store";
 import {
+  createVectorFeature,
   onClickTopicMap,
   onSelectionChangedVector,
 } from "../../components/GeoportalMap/topicmap.utils";
-import { createFeature } from "../../components/GeoportalMap/libremap.utils";
 import { addFeatureInfoCrosshair } from "../../components/feature-info/featureInfoMarker";
 
 const MAX_SELECTION_COUNT = 10;
@@ -209,7 +209,12 @@ export const useLibreMapSelectionHandler = (
           dispatch(setSelectedFeature(null));
           return;
         }
-        const feature = await createFeature(selectedVectorFeature, layer);
+        const feature = await createVectorFeature(
+          layer,
+          selectedVectorFeature,
+          map,
+          e.latlng
+        );
         if (feature) {
           dispatch(setSelectedFeature(feature));
         } else {
