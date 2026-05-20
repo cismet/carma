@@ -141,6 +141,27 @@ const creationDefaultsSlice = createSlice({
       state.defaults = {};
       state.draftIdToType = {};
     },
+    // Record a (possibly partial) defaults update, merged into any existing
+    // entry for the feature type. The `setDraft` listener below always reads
+    // the primary slices (`leuchte`/`mast`), so it cannot see values typed on
+    // an extra Leuchte tab — those live in `values.leuchten[]`. LeuchteForm
+    // dispatches this with the last-edited tab's values so the next new
+    // feature is seeded from the tab the user actually worked on.
+    recordDefaults(
+      state,
+      action: PayloadAction<{
+        featureType: string;
+        values: Record<string, unknown>;
+      }>
+    ) {
+      const { featureType, values } = action.payload;
+      const picked = pickAllowed(featureType, values);
+      if (!picked) return;
+      const existing = state.defaults[featureType];
+      state.defaults[featureType] = existing
+        ? { ...existing, ...picked }
+        : picked;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -196,7 +217,7 @@ const creationDefaultsSlice = createSlice({
   },
 });
 
-export const { clearDefaults, clearAllDefaults } =
+export const { clearDefaults, clearAllDefaults, recordDefaults } =
   creationDefaultsSlice.actions;
 
 export default creationDefaultsSlice;

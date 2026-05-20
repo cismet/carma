@@ -10,9 +10,13 @@ import type { FormInstance } from "antd";
 import { message } from "antd";
 import { CloseOutlined } from "@ant-design/icons";
 import type { DraftFile } from "../../../store/slices/featuresForms";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { getJWT } from "../../../store/slices/auth";
-import { getAllowlistedPaths } from "../../../store/slices/creationDefaults";
+import {
+  getAllowlistedPaths,
+  recordDefaults,
+} from "../../../store/slices/creationDefaults";
+import { serializeValues } from "../../../helper/draftSerialize";
 import { DokumentItem } from "../DocumentPreview";
 import { getDocumentKey } from "../FilePreview";
 import FeatureFormLayout from "./FeatureFormLayout";
@@ -96,6 +100,7 @@ const LeuchteForm = ({
   onRemovedDocumentKeysChange,
 }: LeuchteFormProps) => {
   const removedDocumentKeys = removedDocumentKeysProp ?? new Set<string>();
+  const dispatch = useDispatch();
   const [saving, setSaving] = useState(false);
   const [localDocuments, setLocalDocuments] = useState<DokumentItem[] | null>(
     null
@@ -293,6 +298,26 @@ const LeuchteForm = ({
     }
     return (draftValues?.leuchte ?? {}) as Record<string, unknown>;
   }, [lastEditedLeuchteTabId, extraLeuchten, draftValues]);
+  // Mirror the most-recently-edited Leuchte tab + the Mast slice into the
+  // creationDefaults memory. That slice's own `setDraft` listener only reads
+  // the primary `leuchte` slice (Leuchte 1) and is blind to extra-tab edits in
+  // `values.leuchten[]`; a later Mast edit would also re-assert that stale
+  // Leuchte 1 slice. Re-recording here on every reference/Mast change keeps
+  // the next new Leuchte feature seeded from the tab last worked on.
+  useEffect(() => {
+    if (!isCreation) return;
+    dispatch(
+      recordDefaults({
+        featureType: "leuchte",
+        values: {
+          leuchte: serializeValues(referenceLeuchteValues),
+          mast: serializeValues(
+            (draftValues?.mast ?? {}) as Record<string, unknown>
+          ),
+        },
+      })
+    );
+  }, [isCreation, referenceLeuchteValues, draftValues?.mast, dispatch]);
   // Allowlisted paths shaped like "leuchte.fk_leuchttyp" — used by the
   // per-extra-tab ChangedFieldsProvider below to compute green highlights
   // against that tab's own slice (not Leuchte 1's).
