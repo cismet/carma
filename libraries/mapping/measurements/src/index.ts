@@ -34,3 +34,4 @@ export {
   LABEL_LAYER_ID,
   LABEL_SOURCE_ID,
 } from "./lib/labels";
+export { featuresToFeatureCollection } from "./lib/feature-collection-export";

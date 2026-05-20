@@ -12,13 +12,19 @@ import { setUIMode, UIMode } from "../../store/slices/ui";
 import {
   useMapMeasurementsContext,
   shapesToFeatureCollection,
+  type MeasurementLayerInfoOverrides,
 } from "@carma-commons/measurements";
 import {
   ADHOC_LAYER_SOURCES,
   ADHOC_LAYER_MAP_MODES,
 } from "@carma-appframeworks/portals";
+import {
+  featuresToFeatureCollection,
+  useMeasurements,
+} from "@carma-mapping/measurements";
 import type { Layer } from "@carma-mapping/layers";
 import { parseToMapLayer } from "@carma-mapping/utils";
+import { useFeatureFlags } from "@carma-providers/feature-flag";
 
 import MeasurementSavePanel from "./MeasurementSavePanel";
 import {
@@ -33,7 +39,21 @@ import {
 function SaveMeasurements({ layer }: { layer: Layer }) {
   const dispatch = useDispatch();
   const measurements = useSelector(getMeasurements);
+  const flags = useFeatureFlags();
+  const isLibreMap = Boolean(flags.featureFlagLibreMap);
   const { shapes, clearAllShapes } = useMapMeasurementsContext();
+  const { features: libreFeatures, clearAll: clearAllLibreFeatures } =
+    useMeasurements();
+
+  const hasContent = isLibreMap ? libreFeatures.length > 0 : shapes.length > 0;
+
+  const clearActiveMeasurements = () => {
+    if (isLibreMap) {
+      clearAllLibreFeatures();
+    } else {
+      clearAllShapes();
+    }
+  };
 
   const buildFeatureData = (
     values: MeasurementSaveValues,
@@ -44,14 +64,18 @@ function SaveMeasurements({ layer }: { layer: Layer }) {
       ? `Inhalt: ${trimmedDescription}`
       : "";
 
-    const baseFeatureData = shapesToFeatureCollection(shapes, {
+    const layerInfoOverrides: MeasurementLayerInfoOverrides = {
       title: featureTitle,
       icon: `emoji:${values.selectedUnified}`,
       description: trimmedDescription,
       thumbnail: MEASUREMENT_THUMBNAIL_URL,
       source: ADHOC_LAYER_SOURCES.TWO_D_MEASUREMENTS,
       mapMode: ADHOC_LAYER_MAP_MODES.TWO_D,
-    });
+    };
+
+    const baseFeatureData = isLibreMap
+      ? featuresToFeatureCollection(libreFeatures, layerInfoOverrides)
+      : shapesToFeatureCollection(shapes, layerInfoOverrides);
 
     const featureData = {
       ...baseFeatureData,
@@ -68,7 +92,7 @@ function SaveMeasurements({ layer }: { layer: Layer }) {
   };
 
   const handleSave = async (values: MeasurementSaveValues) => {
-    if (shapes.length === 0) return;
+    if (!hasContent) return;
 
     const baseTitle = values.title.trim() || "Messung";
     const existingTitles = new Set(
@@ -116,7 +140,7 @@ function SaveMeasurements({ layer }: { layer: Layer }) {
     dispatch(addMeasurement(item));
 
     if (values.clearAfterSave) {
-      clearAllShapes();
+      clearActiveMeasurements();
     }
 
     dispatch(setActiveInteractionLayerID(null));
@@ -124,7 +148,7 @@ function SaveMeasurements({ layer }: { layer: Layer }) {
   };
 
   const handleDownload = (values: MeasurementSaveValues) => {
-    if (shapes.length === 0) return;
+    if (!hasContent) return;
 
     const baseTitle = values.title.trim() || "Messung";
     const { featureData, featureTitle } = buildFeatureData(values, baseTitle);
@@ -132,7 +156,7 @@ function SaveMeasurements({ layer }: { layer: Layer }) {
     downloadMeasurementJsonFile(`${featureTitle}.json`, featureData);
 
     if (values.clearAfterSave) {
-      clearAllShapes();
+      clearActiveMeasurements();
     }
 
     dispatch(setActiveInteractionLayerID(null));
@@ -140,7 +164,7 @@ function SaveMeasurements({ layer }: { layer: Layer }) {
 
   return (
     <MeasurementSavePanel
-      disabled={shapes.length === 0}
+      disabled={!hasContent}
       onPortalSave={handleSave}
       onFileSave={handleDownload}
     />

@@ -11,5 +11,6 @@ export { useMapLibreMap } from "./lib/hooks/useMapLibreMap";
 export {
   shapesToFeatureCollection,
   type MeasurementShapeData,
+  type MeasurementLayerInfoOverrides,
 } from "./lib/utils/helper";
 export * from "./index.d";

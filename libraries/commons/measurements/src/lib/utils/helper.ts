@@ -125,7 +125,10 @@ function buildFeatureSubtitle(shape: MeasurementShapeData): string {
   return parts.join(" | ");
 }
 
-export type ShapesToFeatureCollectionLayerInfo = {
+// Overrides for the layerInfo metadata embedded in saved measurement layers.
+// Shared by the leaflet (`shapesToFeatureCollection`) and maplibre
+// (`featuresToFeatureCollection` in @carma-mapping/measurements) export paths.
+export type MeasurementLayerInfoOverrides = {
   title?: string;
   icon?: string;
   description?: string;
@@ -158,7 +161,7 @@ const buildLabelFeatures = (shape: MeasurementShapeData): LabelFeature[] => {
 
 export function shapesToFeatureCollection(
   shapes: MeasurementShapeData[],
-  layerInfoOverrides?: ShapesToFeatureCollectionLayerInfo
+  layerInfoOverrides?: MeasurementLayerInfoOverrides
 ) {
   const labelFeatures: LabelFeature[] = [];
 
