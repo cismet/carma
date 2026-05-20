@@ -500,9 +500,9 @@ const FeatureFormLayout = ({
       children: tab.children,
       forceRender: true,
     }));
-    // "+" sentinel: anchored after additionalTabs so it stays put as more
-    // extraGeneralTabs are added. Empty children — handleTabChange rejects
-    // activation so this pane is never shown.
+    // "+" sentinel: anchored after the last Leuchte tab so it always trails
+    // the growing list of extraGeneralTabs. Empty children — handleTabChange
+    // rejects activation so this pane is never shown.
     const addTabSentinel = onAddTab
       ? [
           {
@@ -520,9 +520,9 @@ const FeatureFormLayout = ({
       additionalTabsPosition === "before"
         ? [
             ...mappedAdditionalTabs,
-            ...addTabSentinel,
             generalTab,
             ...mappedExtraGeneralTabs,
+            ...addTabSentinel,
             ...rawTabs,
           ]
         : [
@@ -560,7 +560,7 @@ const FeatureFormLayout = ({
           >
             {showRaw || additionalTabs.length > 0 ? (
               <div
-                className="[&_.ant-tabs-nav]:sticky [&_.ant-tabs-nav]:top-0 [&_.ant-tabs-nav]:bg-white [&_.ant-tabs-nav]:z-10 [&_.ant-tabs-tab[data-node-key=addtabsentinel]]:!ml-4 [&_.ant-tabs-tab[data-node-key=addtabsentinel]+.ant-tabs-tab]:!ml-4 [&_.ant-tabs-tab[data-node-key^=extra-]]:!ml-4"
+                className="[&_.ant-tabs-nav]:sticky [&_.ant-tabs-nav]:top-0 [&_.ant-tabs-nav]:bg-white [&_.ant-tabs-nav]:z-10 [&_.ant-tabs-tab[data-node-key=addtabsentinel]]:!ml-4 [&_.ant-tabs-tab[data-node-key=addtabsentinel]+.ant-tabs-tab]:!ml-4 [&_.ant-tabs-tab[data-node-key^=extra-]]:!ml-4 [&_.ant-tabs-tab+.ant-tabs-tab[data-node-key=general]]:!ml-4"
               >
                 <Tabs
                   key={tabsResetKey}
@@ -617,7 +617,7 @@ const FeatureFormLayout = ({
         {singleColumn && !showRaw ? (
           <div className="pt-4">{formHeaderContent}{documentsContent}</div>
         ) : (
-          <div className="[&_.ant-tabs-nav]:sticky [&_.ant-tabs-nav]:top-0 [&_.ant-tabs-nav]:bg-white [&_.ant-tabs-nav]:z-10 [&_.ant-tabs-tab[data-node-key=addtabsentinel]]:!ml-4 [&_.ant-tabs-tab[data-node-key=addtabsentinel]+.ant-tabs-tab]:!ml-4 [&_.ant-tabs-tab[data-node-key^=extra-]]:!ml-4">
+          <div className="[&_.ant-tabs-nav]:sticky [&_.ant-tabs-nav]:top-0 [&_.ant-tabs-nav]:bg-white [&_.ant-tabs-nav]:z-10 [&_.ant-tabs-tab[data-node-key=addtabsentinel]]:!ml-4 [&_.ant-tabs-tab[data-node-key=addtabsentinel]+.ant-tabs-tab]:!ml-4 [&_.ant-tabs-tab[data-node-key^=extra-]]:!ml-4 [&_.ant-tabs-tab+.ant-tabs-tab[data-node-key=general]]:!ml-4">
             {singleColumn && formHeaderContent}
             {(() => {
               const narrowGeneralTab = {
@@ -656,9 +656,9 @@ const FeatureFormLayout = ({
                 : additionalTabsPosition === "before"
                 ? [
                     ...narrowAdditionalTabs,
-                    ...narrowAddTabSentinel,
                     narrowGeneralTab,
                     ...narrowExtraGeneralTabs,
+                    ...narrowAddTabSentinel,
                   ]
                 : [
                     narrowGeneralTab,
