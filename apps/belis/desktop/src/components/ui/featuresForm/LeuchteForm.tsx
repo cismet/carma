@@ -12,11 +12,7 @@ import { CloseOutlined } from "@ant-design/icons";
 import type { DraftFile } from "../../../store/slices/featuresForms";
 import { useSelector } from "react-redux";
 import { getJWT } from "../../../store/slices/auth";
-import {
-  getAllowlistedPaths,
-  getCreationDefaults,
-} from "../../../store/slices/creationDefaults";
-import type { RootState } from "../../../store";
+import { getAllowlistedPaths } from "../../../store/slices/creationDefaults";
 import { DokumentItem } from "../DocumentPreview";
 import { getDocumentKey } from "../FilePreview";
 import FeatureFormLayout from "./FeatureFormLayout";
@@ -280,15 +276,6 @@ const LeuchteForm = ({
   const extraLeuchten = (draftValues?.leuchten ?? []) as Array<
     Record<string, unknown>
   >;
-  // creationDefaults memory for the "leuchte" type. Nested shape:
-  // `{ leuchte: {...allowlisted leuchte fields...}, mast: {...} }`. Used to
-  // seed new extra tabs with the same allowlisted defaults Leuchte 1 was
-  // seeded from in CreateFeatureDropdown — Leuchtentyp, Energielieferant,
-  // Schaltstelle, etc. The slice updates on every setDraft, so picking a value
-  // in Leuchte 1 makes it available to the next "+" click.
-  const leuchteCreationDefaults = useSelector((state: RootState) =>
-    getCreationDefaults(state, "leuchte")
-  );
   // Values from the most recently edited Leuchte tab, used as the "leuchte"
   // currentDefaults for every tab's diff. This is what makes the edited tab
   // stay green and pushes other tabs (with stale values) to gray — matching
@@ -313,6 +300,15 @@ const LeuchteForm = ({
     () => getAllowlistedPaths("leuchte"),
     []
   );
+  // Bare leuchte-subtree field names (no "leuchte." prefix) — used to seed a
+  // new "+" tab from the reference tab's allowlisted values.
+  const leuchteAllowlistedFields = useMemo(
+    () =>
+      [...leuchteAllowlistedPaths]
+        .filter((p) => p.startsWith("leuchte."))
+        .map((p) => p.slice("leuchte.".length)),
+    [leuchteAllowlistedPaths]
+  );
   const handleAddLeuchteTab = useCallback(() => {
     const current = (draftValues?.leuchten ?? []) as Array<
       Record<string, unknown>
@@ -327,15 +323,23 @@ const LeuchteForm = ({
           baseSlice.leuchtennummer !== ""
         ? Number(baseSlice.leuchtennummer)
         : 0;
-    const allowlistedSeed = (leuchteCreationDefaults?.leuchte ?? {}) as Record<
-      string,
-      unknown
-    >;
-    // Antd DatePicker calls `.isValid()` on its value. Date fields stored in
-    // creationDefaults lose their dayjs prototype after redux-persist
-    // serialization (and immer can freeze class instances), so rewrap any
+    // Seed the new tab from the most recently edited Leuchte tab's allowlisted
+    // fields (Leuchtentyp, Energielieferant, Doppelkommando, …). Sourcing from
+    // the live reference tab — rather than the creationDefaults snapshot —
+    // means values entered on an *extra* tab are carried over too: extra-tab
+    // edits live in `values.leuchten[]`, which never reaches creationDefaults,
+    // so that snapshot only ever reflected Leuchte 1 and dropped fields like
+    // Doppelkommando/Anzahl.
+    const rehydratedSeed: Record<string, unknown> = {};
+    for (const f of leuchteAllowlistedFields) {
+      const v = referenceLeuchteValues[f];
+      if (v !== undefined && v !== null && v !== "") {
+        rehydratedSeed[f] = v;
+      }
+    }
+    // Antd DatePicker calls `.isValid()` on its value. Date fields can lose
+    // their dayjs prototype across redux-persist serialization, so rewrap any
     // known date field with `dayjs(...)` before handing it to the form.
-    const rehydratedSeed: Record<string, unknown> = { ...allowlistedSeed };
     for (const dateKey of ["inbetriebnahme_leuchte"]) {
       const raw = rehydratedSeed[dateKey];
       if (raw == null || raw === "") {
@@ -360,7 +364,12 @@ const LeuchteForm = ({
       leuchten: [...current, newEntry],
     });
     return newTabId;
-  }, [draftValues, onDraftChange, leuchteCreationDefaults]);
+  }, [
+    draftValues,
+    onDraftChange,
+    referenceLeuchteValues,
+    leuchteAllowlistedFields,
+  ]);
   const handleRemoveLeuchteTab = useCallback(
     (id: string) => {
       const current = (draftValues?.leuchten ?? []) as Array<
