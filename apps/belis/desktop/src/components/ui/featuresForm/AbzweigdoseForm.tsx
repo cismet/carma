@@ -7,6 +7,7 @@ import { getJWT } from "../../../store/slices/auth";
 import { DokumentItem } from "../DocumentPreview";
 import { getDocumentKey } from "../FilePreview";
 import FeatureFormLayout from "./FeatureFormLayout";
+import { extractListItem } from "../BelisSidebar";
 import { uploadDraftFiles } from "../../../helper/uploadDraftFiles";
 import { updateDataByClassName } from "../../../helper/apiMethods";
 
@@ -90,9 +91,13 @@ const AbzweigdoseForm = ({
   const idValue = rawFeature?.id || rawProps?.id;
   const isCreation =
     typeof idValue === "string" && isCreationDraftKey(idValue);
-  const sidebarMain = idValue && !isCreation
-    ? `ID-${idValue}`
-    : "";
+  // Header identifier comes from the shared sidebar extractor, so the sticky
+  // header reads identically to the sidebar row — drafts included. The id is
+  // forced into properties since it may live only on the feature root.
+  const sidebarMain = extractListItem("abzweigdose", {
+    id: idValue,
+    properties: { ...(rawProps ?? {}), id: idValue },
+  }).main;
 
   const handleSave = async () => {
     if (!jwt) {
@@ -167,13 +172,7 @@ const AbzweigdoseForm = ({
 
   return (
     <FeatureFormLayout
-      title={
-        isCreation
-          ? "Neue Abzweigdose / Zugkasten"
-          : sidebarMain
-          ? `Abzweigdose / Zugkasten ${sidebarMain}`
-          : "Abzweigdose / Zugkasten"
-      }
+      title={`Abzweigdose / Zugkasten ${sidebarMain}`}
       cancelLabel={sidebarMain || ""}
       isCreation={isCreation}
       formHeaderContent={formHeaderContent}

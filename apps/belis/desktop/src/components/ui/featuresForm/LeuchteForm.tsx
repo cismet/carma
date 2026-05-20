@@ -20,6 +20,7 @@ import { serializeValues } from "../../../helper/draftSerialize";
 import { DokumentItem } from "../DocumentPreview";
 import { getDocumentKey } from "../FilePreview";
 import FeatureFormLayout from "./FeatureFormLayout";
+import { extractListItem } from "../BelisSidebar";
 import LeuchteFormFields from "./LeuchteFormFields";
 import MastFormFields from "./MastFormFields";
 import {
@@ -559,12 +560,9 @@ const LeuchteForm = ({
     (rawProps?.leuchttyp_fabrikat as string) ||
     "-ohne Fabrikat-";
 
-  // Compute sidebar main title to display in form header
-  const sidebarMain = rawProps
-    ? `${rawProps.leuchtentyp || rawProps.leuchttyp || "L"}-${
-        rawProps.leuchtennummer || "0"
-      }${rawProps.lfd_nummer ? `, ${rawProps.lfd_nummer}` : ""}`
-    : "";
+  // Header identifier comes from the shared sidebar extractor, so the sticky
+  // header reads identically to the sidebar row — drafts included.
+  const sidebarMain = extractListItem("leuchten", rawFeature).main;
 
   if (!data) {
     return (
@@ -729,7 +727,7 @@ const LeuchteForm = ({
   return (
     <FeatureFormLayout
       tabsResetKey={featureId}
-      title={isCreation ? "Neue Leuchte" : sidebarMain ? `Leuchte ${sidebarMain}` : "Leuchte"}
+      title={`Leuchte ${sidebarMain}`}
       cancelLabel={sidebarMain || ""}
       isCreation={isCreation}
       formHeaderContent={isCreation ? undefined : formHeaderContent}

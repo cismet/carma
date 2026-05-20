@@ -21,10 +21,16 @@ import {
 } from "../../utils/measurementGeometry";
 import AuswahlBlock from "./AuswahlBlock";
 
-const displayId = (id: unknown): string => {
+export const displayId = (id: unknown): string => {
   if (id == null) return "?";
   const s = String(id);
-  return isCreationDraftKey(s) ? "Entwurf" : s;
+  // Creation draft keys look like `create:<type>:<timestamp>-<random>`.
+  // Show just the short random suffix instead of the whole opaque key.
+  if (isCreationDraftKey(s)) {
+    const suffix = s.slice(s.lastIndexOf("-") + 1);
+    return suffix || s;
+  }
+  return s;
 };
 
 export const SELECTED_ROW_STYLE =
@@ -168,6 +174,26 @@ const genericExtractor = (feature: SidebarFeature): ListItemData => {
     props.beschreibung || props.description || props.info || props.status || "";
 
   return { main, upperright, subtitle };
+};
+
+// Shared entry point so a feature-form's sticky header renders the exact same
+// per-type text as that feature's sidebar row — one source of truth, no
+// duplicated label logic. `layerKey` is the BELIS source layer (e.g.
+// "mauerlaschen"); unknown keys fall through to genericExtractor, just like
+// the sidebar list does. Drafts work too: their ids resolve via displayId.
+export const extractListItem = (
+  layerKey: string,
+  feature:
+    | { id?: unknown; properties?: Record<string, unknown> | null }
+    | null
+    | undefined
+): ListItemData => {
+  if (!feature) return { main: "", upperright: "", subtitle: "" };
+  const extractor =
+    defaultListItemExtractors[layerKey] ||
+    defaultListItemExtractors[layerKey.toLowerCase()] ||
+    genericExtractor;
+  return extractor(feature as SidebarFeature);
 };
 
 export interface BelisSidebarProps {
@@ -630,13 +656,9 @@ const BelisSidebar = ({
   });
 
   const getListItem = (feature: SidebarFeature): ListItemData => {
-    if (feature.properties?._isCreation) {
-      return {
-        main: feature.properties._creationLabel || "Neu",
-        upperright: "Neu",
-        subtitle: "Entwurf",
-      };
-    }
+    // Drafts and real features share the same per-type extractors — no
+    // draft-specific text. The green "Neu" badge (rendered separately off
+    // `_isCreation`) is the only draft indicator in the list.
     const layerKey = feature.sourceLayer || feature.source || "";
     const extractor =
       listItemExtractors?.[layerKey] ||
