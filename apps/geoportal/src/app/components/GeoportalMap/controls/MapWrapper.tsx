@@ -73,7 +73,6 @@ import { MeasurementHost } from "@carma-mapping/measurements";
 import { useLibreContext } from "@carma-mapping/contexts";
 
 import { GeoportalMap } from "../GeoportalMap.tsx";
-import LibreGeoportalMap from "../LibreGeoportalMap.tsx";
 import { geoportalLayersToLibreLayers } from "../geoportalLayersToLibreLayers.ts";
 import { geoportalBackgroundToLibreLayers } from "../geoportalBackgroundToLibreLayers.ts";
 import { ObliqueControls } from "../../../oblique/components/ObliqueControls.tsx";
