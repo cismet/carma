@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useState, ReactNode, useMemo } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+  useRef,
+  ReactNode,
+  useMemo,
+} from "react";
 import { Tabs } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import FormHeader from "./FormHeader";
@@ -167,6 +174,30 @@ const FeatureFormLayout = ({
   useEffect(() => {
     setActiveTabKey(defaultActiveTabKey);
   }, [tabsResetKey, defaultActiveTabKey]);
+  // When the active tab is an extra Leuchte tab that the user just removed,
+  // its key no longer matches any rendered tab and antd would show a blank
+  // pane. Fall back to the neighbour tab — the previous Leuchte tab if there
+  // is one, else the next, else the general "Leuchte 1" tab — mirroring how
+  // antd's editable Tabs pick a new active tab after a close.
+  const extraGeneralTabKeys = useMemo(
+    () => extraGeneralTabs.map((t) => t.key),
+    [extraGeneralTabs]
+  );
+  const prevExtraGeneralTabKeysRef = useRef<string[]>(extraGeneralTabKeys);
+  useEffect(() => {
+    const prevKeys = prevExtraGeneralTabKeysRef.current;
+    prevExtraGeneralTabKeysRef.current = extraGeneralTabKeys;
+    if (extraGeneralTabKeys.includes(activeTabKey)) return;
+    const removedIdx = prevKeys.indexOf(activeTabKey);
+    // Only act when the active tab itself was an extra Leuchte tab that is
+    // now gone; other tab transitions are handled by handleTabChange.
+    if (removedIdx < 0) return;
+    setActiveTabKey(
+      extraGeneralTabKeys[removedIdx - 1] ??
+        extraGeneralTabKeys[removedIdx] ??
+        "general"
+    );
+  }, [extraGeneralTabKeys, activeTabKey]);
   const handleTabChange = useCallback(
     (key: string) => {
       if (key === ADD_TAB_KEY) {
