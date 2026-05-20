@@ -140,7 +140,7 @@ const MINI_MAP_DEBUGGING = false;
 // whose stateNode → DOM → fiber chain is circular and crashes JSON.stringify.
 // Visual size match for the FA4 glyph-rendered loupe icon (rendered via
 // react-fa as `<i class="fa fa-search fa-2x">`). The FA5+ SVG `faTrashCan`
-// fills its em-box more tightly than the FA4 search glyph does, so a raw
+// fills its em-box more tightly than the FA4 search glyph does, so a ra
 // 2em comes out visibly bigger — 1.5em lines up flush with the loupe.
 const MEASUREMENT_DELETE_ICON = (
   <FontAwesomeIcon
@@ -271,10 +271,7 @@ const BelisMapLibWrapper = ({
   const [initialMeasurementFeatures] = useState<Feature[]>(() =>
     measurements.map((f) => ({
       ...f,
-      id:
-        typeof f.id === "string"
-          ? f.id.replace(/^measurement\./, "")
-          : f.id,
+      id: typeof f.id === "string" ? f.id.replace(/^measurement\./, "") : f.id,
     }))
   );
   // Drafts keyed by feature-id. Used by the measurement InfoBox to expose
@@ -1125,9 +1122,7 @@ const BelisMapLibWrapper = ({
     // and f.id already carries the `measurement.` prefix → the persisted
     // draft.geometryKey is double-prefixed (`measurement.measurement.<uuid>`).
     const geometryKey = `measurement.${String(feature.id)}`;
-    let linkedDraft:
-      | { draftKey: string; featureType: string }
-      | null = null;
+    let linkedDraft: { draftKey: string; featureType: string } | null = null;
     for (const [draftKey, draft] of Object.entries(
       allDraftsForMeasurementLink
     )) {

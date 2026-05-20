@@ -27,15 +27,14 @@ const STANDORT_SOURCE_LAYERS = new Set([
 // Normalize both into the input that buildStandortGeometryOption expects.
 const extractStandortFeatureInfo = (
   sf: unknown
-):
-  | {
-      id: number | string;
-      geometry: GeoJSON.Geometry;
-      properties: Record<string, unknown> | null;
-    }
-  | null => {
+): {
+  id: number | string;
+  geometry: GeoJSON.Geometry;
+  properties: Record<string, unknown> | null;
+} | null => {
   if (!sf || typeof sf !== "object") return null;
   const f = sf as Record<string, unknown>;
+  console.log("xxx f", f);
   const carmaInfo = f.carmaInfo as { sourceLayer?: string } | undefined;
   const layer = (carmaInfo?.sourceLayer ?? f.sourceLayer ?? "") as string;
   if (!STANDORT_SOURCE_LAYERS.has(layer)) return null;

@@ -540,6 +540,11 @@ const LeuchteForm = ({
     if (kennziffer?.id != null) {
       next.fk_kennziffer = kennziffer.id;
     }
+    // Laufende Nr. is a Standort property; mirror it so the (hidden) Leuchte
+    // tab field still carries the linked Standort's value into the payload.
+    if (mastData.lfd_nummer != null) {
+      next.lfd_nummer = mastData.lfd_nummer;
+    }
     linkedMastHydratedForRef.current = mastData;
     onDraftChange?.({
       ...draftValues,

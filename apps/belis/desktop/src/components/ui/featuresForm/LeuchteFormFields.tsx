@@ -401,6 +401,25 @@ const LeuchteFormFields = ({
     );
   }, [mastKennz, isCreation, form]);
 
+  // Laufende Nr. mirror. In the creation flow `lfd_nummer` is a Standort
+  // property shared by every Leuchte at that Standort — it's set on the
+  // Standort tab and the Leuchte tab's own field is hidden (see below). We
+  // mirror the Mast slice unconditionally so the hidden field still carries a
+  // value into the save payload. No per-tab override semantics: the field is
+  // not editable here, so there is nothing to override.
+  const mastLfdNummer = mastDraftValues?.lfd_nummer;
+  useEffect(() => {
+    if (!isCreation) return;
+    if (mastLfdNummer == null) return;
+    const current = form.getFieldValue("lfd_nummer");
+    if (current === mastLfdNummer) return;
+    form.setFieldsValue({ lfd_nummer: mastLfdNummer });
+    onValuesChangeRef.current?.(
+      { lfd_nummer: mastLfdNummer },
+      form.getFieldsValue()
+    );
+  }, [mastLfdNummer, isCreation, form]);
+
   return (
     <Form
       form={form}
@@ -418,11 +437,14 @@ const LeuchteFormFields = ({
         <StrassenschluesselFields namePrefix={namePrefix} />
       )}
 
-      {/* Kennziffer */}
+      {/* Kennziffer — in the creation flow this is set on the Standort tab.
+          The field stays mounted (hidden) so the mirrored value is still
+          submitted to the server. */}
       <FormItem
         name={fieldName("fk_kennziffer")}
         label={<FormLabel>Kennziffer</FormLabel>}
         className="mb-4"
+        hidden={isCreation}
       >
         <Select
           placeholder={getPlaceholder(readOnly, "Kennziffer auswählen")}
@@ -440,27 +462,48 @@ const LeuchteFormFields = ({
         </Select>
       </FormItem>
 
-      {/* Laufende Nr. and Leuchtennummer */}
-      <Row gutter={16}>
-        <Col span={12}>
-          <FormItem
-            name={fieldName("lfd_nummer")}
-            label={<FormLabel>Laufende Nr.</FormLabel>}
-            className="mb-4"
-          >
-            <InputNumber className="w-full" size="large" placeholder={getPlaceholder(readOnly, "Nummer eingeben")} />
+      {/* Laufende Nr. and Leuchtennummer. In the creation flow Laufende Nr.
+          is set on the Standort tab — its field here is hidden (but still
+          submitted), and Leuchtennummer takes the full width. */}
+      {isCreation ? (
+        <>
+          <FormItem name={fieldName("lfd_nummer")} className="mb-4" hidden>
+            <InputNumber className="w-full" size="large" />
           </FormItem>
-        </Col>
-        <Col span={12}>
           <FormItem
             name={fieldName("leuchtennummer")}
             label={<FormLabel>Leuchtennummer</FormLabel>}
             className="mb-4"
           >
-            <InputNumber className="w-full" size="large" placeholder={getPlaceholder(readOnly, "Nummer eingeben")} />
+            <InputNumber
+              className="w-full"
+              size="large"
+              placeholder={getPlaceholder(readOnly, "Nummer eingeben")}
+            />
           </FormItem>
-        </Col>
-      </Row>
+        </>
+      ) : (
+        <Row gutter={16}>
+          <Col span={12}>
+            <FormItem
+              name={fieldName("lfd_nummer")}
+              label={<FormLabel>Laufende Nr.</FormLabel>}
+              className="mb-4"
+            >
+              <InputNumber className="w-full" size="large" placeholder={getPlaceholder(readOnly, "Nummer eingeben")} />
+            </FormItem>
+          </Col>
+          <Col span={12}>
+            <FormItem
+              name={fieldName("leuchtennummer")}
+              label={<FormLabel>Leuchtennummer</FormLabel>}
+              className="mb-4"
+            >
+              <InputNumber className="w-full" size="large" placeholder={getPlaceholder(readOnly, "Nummer eingeben")} />
+            </FormItem>
+          </Col>
+        </Row>
+      )}
 
       {/* Leuchtentyp */}
       <FormItem
