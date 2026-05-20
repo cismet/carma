@@ -85,7 +85,7 @@ export interface GeoJsonData {
 
 export interface VectorStyle {
   name: string;
-  style: string;
+  style: string | StyleSpecification;
   layer?: string;
   opacity?: number;
   infoboxMapping?: string[];

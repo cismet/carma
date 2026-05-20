@@ -1,3 +1,5 @@
+import type { StyleSpecification } from "maplibre-gl";
+
 import type { Layer } from "@carma-mapping/layers";
 import type { LibreLayer } from "@carma-mapping/core";
 
@@ -25,10 +27,10 @@ export const geoportalLayersToLibreLayers = (layers: Layer[]): LibreLayer[] => {
         opacity: layer.opacity ?? 1,
       });
     } else if (layer.layerType === "vector") {
-      const { style } = layer.props as { style?: string | object };
-      // LibreLayer.vector expects a style URL string; inline style objects
-      // are not supported by the engine path, so skip them here.
-      if (typeof style !== "string") {
+      const { style } = layer.props as {
+        style?: string | StyleSpecification;
+      };
+      if (!style) {
         continue;
       }
       result.push({
