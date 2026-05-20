@@ -115,6 +115,14 @@ export function enrichSyntheticProps(
       }
     }
   }
+  if (featureType === "leuchte") {
+    // The leuchten-icon layer picks `leuchten<N>` (or `leuchtenMax` for >12)
+    // from the `leuchten_count` property. For a creation draft, that count is
+    // Leuchte 1 plus each extra tab persisted under `values.leuchten`.
+    const extras = values.leuchten as Array<unknown> | undefined;
+    const leuchten_count = 1 + (Array.isArray(extras) ? extras.length : 0);
+    return { ...values, leuchten_count };
+  }
   return values;
 }
 
