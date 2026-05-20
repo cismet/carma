@@ -1,0 +1,13 @@
+{
+  "name": "tgl-config-updater",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Scrapes the geoportal services page and regenerates tileserver-gl config.json",
+  "main": "update-config.js",
+  "scripts": {
+    "start": "node update-config.js"
+  },
+  "dependencies": {
+    "playwright": "1.49.0"
+  }
+}
