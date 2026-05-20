@@ -629,8 +629,10 @@ const LeuchteForm = ({
             <ChangedFieldsProvider
               originalValues={{}}
               draftValues={{ leuchte: entryFields }}
-              allowlistedPaths={leuchteAllowlistedPaths}
-              currentDefaults={{ leuchte: referenceLeuchteValues }}
+              allowlistedPaths={isCreation ? leuchteAllowlistedPaths : undefined}
+              currentDefaults={
+                isCreation ? { leuchte: referenceLeuchteValues } : undefined
+              }
             >
               <FieldPrefix name="leuchte">
                 <LeuchteFormFields
@@ -697,6 +699,33 @@ const LeuchteForm = ({
       ]
     : [];
 
+  // Leuchte 1's field block. In creation mode it is wrapped in a dedicated
+  // ChangedFieldsProvider (below); on an existing feature it is rendered bare
+  // so the outer FeaturesFormsWrapper provider — which holds the real
+  // originalValues — supplies the changed/prefilled diff.
+  const leuchteOneContent = (
+    <FieldPrefix name="leuchte">
+      <LeuchteFormFields
+        leuchte={leuchte}
+        readOnly={readOnly}
+        isCreation={isCreation}
+        featureId={featureId}
+        hideStrassenschluessel={isCreation}
+        onFormInstance={(form) => {
+          primaryFormRef.current = form;
+        }}
+        draftValues={
+          draftValues?.leuchte as Record<string, unknown> | undefined
+        }
+        mastDraftValues={
+          draftValues?.mast as Record<string, unknown> | undefined
+        }
+        onValuesChange={handleLeuchteValuesChange}
+        onOriginalValues={handleLeuchteOriginalValues}
+      />
+    </FieldPrefix>
+  );
+
   return (
     <FeatureFormLayout
       tabsResetKey={featureId}
@@ -728,41 +757,28 @@ const LeuchteForm = ({
       onCancel={onCancel}
       onSave={handleSave}
     >
-      {/* Wrapping Leuchte 1's content in its own ChangedFieldsProvider lets it
-       * diff against `referenceLeuchteValues` — the same per-tab "last edited"
-       * reference the extras use — instead of the outer wrapper's
-       * `leuchteCreationDefaults`. Without this, editing Leuchte 2 would
+      {/* Creation only: wrap Leuchte 1 in its own ChangedFieldsProvider so it
+       * diffs against `referenceLeuchteValues` — the same per-tab "last edited"
+       * reference the extras use. Without this, editing Leuchte 2 would
        * correctly turn it green but leave Leuchte 1 stuck on the old default's
-       * green even though its values now disagree with the live reference. */}
-      <ChangedFieldsProvider
-        originalValues={{}}
-        draftValues={{
-          leuchte: (draftValues?.leuchte ?? {}) as Record<string, unknown>,
-        }}
-        allowlistedPaths={leuchteAllowlistedPaths}
-        currentDefaults={{ leuchte: referenceLeuchteValues }}
-      >
-        <FieldPrefix name="leuchte">
-          <LeuchteFormFields
-            leuchte={leuchte}
-            readOnly={readOnly}
-            isCreation={isCreation}
-            featureId={featureId}
-            hideStrassenschluessel={isCreation}
-            onFormInstance={(form) => {
-              primaryFormRef.current = form;
-            }}
-            draftValues={
-              draftValues?.leuchte as Record<string, unknown> | undefined
-            }
-            mastDraftValues={
-              draftValues?.mast as Record<string, unknown> | undefined
-            }
-            onValuesChange={handleLeuchteValuesChange}
-            onOriginalValues={handleLeuchteOriginalValues}
-          />
-        </FieldPrefix>
-      </ChangedFieldsProvider>
+       * green even though its values now disagree with the live reference.
+       * On an existing feature this provider is skipped: its hardcoded empty
+       * `originalValues` would mark every field as changed (gray), and the
+       * outer FeaturesFormsWrapper provider already supplies the right diff. */}
+      {isCreation ? (
+        <ChangedFieldsProvider
+          originalValues={{}}
+          draftValues={{
+            leuchte: (draftValues?.leuchte ?? {}) as Record<string, unknown>,
+          }}
+          allowlistedPaths={leuchteAllowlistedPaths}
+          currentDefaults={{ leuchte: referenceLeuchteValues }}
+        >
+          {leuchteOneContent}
+        </ChangedFieldsProvider>
+      ) : (
+        leuchteOneContent
+      )}
     </FeatureFormLayout>
   );
 };
