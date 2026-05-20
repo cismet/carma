@@ -71,3 +71,5 @@ vitest.config.*.timestamp*
 
 # Cage closed-source monorepo (added as submodule in feature branch)
 cage/
+
+.cup
