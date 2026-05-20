@@ -8,6 +8,7 @@ import { getJWT } from "../../../store/slices/auth";
 import { DokumentItem } from "../DocumentPreview";
 import { getDocumentKey } from "../FilePreview";
 import FeatureFormLayout from "./FeatureFormLayout";
+import { extractListItem } from "../BelisSidebar";
 import LeitungFormFields from "./LeitungFormFields";
 import { updateDataByClassName } from "../../../helper/apiMethods";
 import { uploadDraftFiles } from "../../../helper/uploadDraftFiles";
@@ -117,9 +118,9 @@ const LeitungForm = ({
   // Compute sidebar main title to display in form header
   const isCreation =
     typeof rawProps?.id === "string" && isCreationDraftKey(rawProps.id);
-  const sidebarMain = rawProps?.id && !isCreation
-    ? `L - ${rawProps.id}`
-    : "";
+  // Header identifier comes from the shared sidebar extractor, so the sticky
+  // header reads identically to the sidebar row — drafts included.
+  const sidebarMain = extractListItem("leitungen", rawFeature).main;
 
   const handleSave = async () => {
     if (!jwt) {
@@ -210,7 +211,7 @@ const LeitungForm = ({
 
   return (
     <FeatureFormLayout
-      title={isCreation ? "Neue Leitung" : sidebarMain ? `Leitung ${sidebarMain}` : "Leitung"}
+      title={`Leitung ${sidebarMain}`}
       cancelLabel={sidebarMain || ""}
       isCreation={isCreation}
       formHeaderContent={formHeaderContent}

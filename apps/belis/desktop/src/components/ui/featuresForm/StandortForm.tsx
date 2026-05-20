@@ -8,6 +8,7 @@ import { getJWT } from "../../../store/slices/auth";
 import { DokumentItem } from "../DocumentPreview";
 import { getDocumentKey } from "../FilePreview";
 import FeatureFormLayout from "./FeatureFormLayout";
+import { extractListItem } from "../BelisSidebar";
 import MastFormFields from "./MastFormFields";
 import { updateDataByClassName } from "../../../helper/apiMethods";
 import { uploadDraftFiles } from "../../../helper/uploadDraftFiles";
@@ -144,10 +145,10 @@ const StandortForm = ({
     toTitleCase((rawProps?.standortangabe as string) || "") ||
     "-ohne Straße-";
 
-  // Compute sidebar main title to display in form header
-  const sidebarMain = rawProps?.lfd_nummer
-    ? `${rawProps.lfd_nummer}`
-    : "Standort";
+  // Header title comes from the shared sidebar extractor, so the sticky header
+  // reads identically to the sidebar row — drafts included. The `standorte`
+  // extractor already yields "Standort <lfd>", so no prefix is added below.
+  const sidebarMain = extractListItem("standorte", rawFeature).main;
 
   const handleSave = async () => {
     if (!jwt) {
@@ -235,10 +236,8 @@ const StandortForm = ({
 
   return (
     <FeatureFormLayout
-      title={isCreation ? "Neuer Standort" : sidebarMain ? `Standort ${sidebarMain}` : "Standort"}
-      cancelLabel={
-        rawProps?.lfd_nummer ? `Standort ${sidebarMain}` : "Standort"
-      }
+      title={sidebarMain}
+      cancelLabel={sidebarMain}
       isCreation={isCreation}
       formHeaderContent={formHeaderContent}
       subtitle={subtitle}

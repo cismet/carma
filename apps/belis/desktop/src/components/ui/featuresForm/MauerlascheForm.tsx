@@ -9,6 +9,7 @@ import { getJWT } from "../../../store/slices/auth";
 import { DokumentItem } from "../DocumentPreview";
 import { getDocumentKey } from "../FilePreview";
 import FeatureFormLayout from "./FeatureFormLayout";
+import { extractListItem } from "../BelisSidebar";
 import MauerlascheFormFields from "./MauerlascheFormFields";
 import toTitleCase from "../../../helper/toTitleCase";
 import { updateDataByClassName } from "../../../helper/apiMethods";
@@ -137,11 +138,9 @@ const MauerlascheForm = ({
 
   const isCreation =
     typeof rawProps?.id === "string" && isCreationDraftKey(rawProps.id);
-  const sidebarMain = rawProps?.laufende_nummer
-    ? `M - ${rawProps.laufende_nummer}`
-    : rawProps?.id && !isCreation
-    ? `M - ${rawProps.id}`
-    : "";
+  // Header identifier comes from the shared sidebar extractor, so the sticky
+  // header reads identically to the sidebar row — drafts included.
+  const sidebarMain = extractListItem("mauerlaschen", rawFeature).main;
 
   const handleSave = async () => {
     if (!jwt) {
@@ -233,7 +232,7 @@ const MauerlascheForm = ({
 
   return (
     <FeatureFormLayout
-      title={isCreation ? "Neue Mauerlasche" : sidebarMain ? `Mauerlasche ${sidebarMain}` : "Mauerlasche"}
+      title={`Mauerlasche ${sidebarMain}`}
       cancelLabel={sidebarMain || ""}
       isCreation={isCreation}
       formHeaderContent={formHeaderContent}

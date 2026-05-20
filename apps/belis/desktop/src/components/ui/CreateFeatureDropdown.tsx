@@ -6,9 +6,11 @@ import type { CreateFeatureType } from "../../contexts/MapPageContext";
 import { setDraft, setGlobalEditMode } from "../../store/slices/featuresForms";
 import { getAllCreationDefaults } from "../../store/slices/creationDefaults";
 import { getSelectedFeature } from "../../store/slices/featureCollection";
+import { getKeyTablesData } from "../../store/slices/keyTables";
 import {
   buildSyntheticFeature,
   buildSyntheticFetchedData,
+  enrichSyntheticProps,
 } from "../../helper/buildSyntheticFeature";
 import { buildStandortGeometryOption } from "../../helper/geometryOptions";
 
@@ -141,6 +143,7 @@ const CreateFeatureDropdown = () => {
   const dispatch = useDispatch();
   const selectedFeature = useSelector(getSelectedFeature);
   const allDefaults = useSelector(getAllCreationDefaults);
+  const keyTablesData = useSelector(getKeyTablesData);
 
   const handleItemClick = (key: CreateFeatureType & string) => {
     const draftKey = `create:${key}:${Date.now()}-${Math.random()
@@ -173,7 +176,6 @@ const CreateFeatureDropdown = () => {
     const geom: GeoJSON.Geometry | undefined = standortOption
       ? (standortOption.geometry as GeoJSON.Geometry)
       : undefined;
-    const featureProps: Record<string, unknown> = {};
 
     const seededValues: Record<string, unknown> = {
       ...(allDefaults[key] ?? {}),
@@ -198,7 +200,15 @@ const CreateFeatureDropdown = () => {
         featureId: draftKey,
         featureType: key,
         values: seededValues,
-        feature: buildSyntheticFeature(key, draftKey, featureProps, geom),
+        // Build the initial feature from the seeded/preselected values (not an
+        // empty object) so any remembered defaults show in the sidebar right
+        // away — matching how handleDraftChange rebuilds it on form edits.
+        feature: buildSyntheticFeature(
+          key,
+          draftKey,
+          enrichSyntheticProps(key, seededValues, keyTablesData),
+          geom
+        ),
         fetchedData: buildSyntheticFetchedData(key, seededValues),
         isCreation: true,
         geometry: geom,

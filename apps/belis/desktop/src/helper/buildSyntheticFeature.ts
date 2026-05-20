@@ -90,40 +90,115 @@ export function buildSyntheticFeature(
   };
 }
 
-// Mirror the denormalized properties the vector-tile style reads so a synthetic
-// draft renders with the same per-type styling as the real tile features. Today
-// only Leitung's `bezeichnung` is mirrored — the line-color expression keys on
-// it (see https://tiles.cismet.de/belis/style.json#leitungen-base). Extend here
-// when more layers need property-driven styling on drafts.
+// Resolve a foreign-key id against a key table, returning the matched row.
+// Used to denormalize draft form values (which store FK ids) into the flat
+// props the vector-tile style and the sidebar extractors expect.
+function resolveRow(
+  fk: unknown,
+  keyTable: unknown
+): Record<string, unknown> | undefined {
+  if (fk == null) return undefined;
+  const id = Number(fk);
+  if (!Number.isFinite(id)) return undefined;
+  const rows = keyTable as Array<Record<string, unknown>> | undefined;
+  return rows?.find((t) => Number(t.id) === id);
+}
+
+// Convenience wrapper: resolve an FK and return just the row's `bezeichnung`.
+function resolveBezeichnung(
+  fk: unknown,
+  keyTable: unknown
+): string | undefined {
+  const bezeichnung = resolveRow(fk, keyTable)?.bezeichnung;
+  return typeof bezeichnung === "string" ? bezeichnung : undefined;
+}
+
+// Declarative connector between the draft-form data shape and the flat-prop
+// shape the vector-tile style + sidebar list-item extractors read. Each rule
+// resolves a foreign-key id (`fk`) against a key table (`table`) and writes
+// the matched row's `bezeichnung` into the flat prop (`target`).
+//
+// Supporting a new feature type is normally one row here — no new code. The
+// label-building logic stays solely in the extractors (BelisSidebar.tsx).
+interface FkDenormRule {
+  fk: string;
+  table: string;
+  target: string;
+}
+
+const draftDenormRules: Record<string, FkDenormRule[]> = {
+  leitung: [
+    { fk: "fk_leitungstyp", table: "leitungstyp", target: "bezeichnung" },
+  ],
+  schaltstelle: [{ fk: "fk_bauart", table: "bauart", target: "bauart" }],
+  mauerlasche: [
+    { fk: "fk_material", table: "materialMauerlasche", target: "material" },
+  ],
+};
+
+// Mirror the denormalized properties the vector-tile style and the sidebar
+// list-item extractors read, so a synthetic draft renders with the same
+// per-type styling and label text as the real tile features. The forms store
+// foreign keys as ids (`fk_*`); the style/extractors expect flat strings.
+// Extend `draftDenormRules` above for FK-backed props; add a special case
+// below only for non-FK derived props (e.g. a computed count).
 export function enrichSyntheticProps(
   featureType: string,
   values: Record<string, unknown>,
   keyTables: Record<string, unknown> = {}
 ): Record<string, unknown> {
-  if (featureType === "leitung") {
-    const fk = values.fk_leitungstyp;
-    if (fk != null) {
-      const id = Number(fk);
-      if (Number.isFinite(id)) {
-        const rows = keyTables.leitungstyp as
-          | Array<{ id: number; bezeichnung?: string }>
-          | undefined;
-        const row = rows?.find((t) => t.id === id);
-        if (row?.bezeichnung) {
-          return { ...values, bezeichnung: row.bezeichnung };
-        }
-      }
-    }
+  const out: Record<string, unknown> = { ...values };
+
+  // Generic: every form picking a Strassenschluessel stores the resolved
+  // street as `strassenschluessel_strasse`; extractors read `strasse`.
+  if (out.strasse == null && values.strassenschluessel_strasse) {
+    out.strasse = values.strassenschluessel_strasse;
   }
+
+  // Generic: resolve each FK id declared for this feature type.
+  for (const rule of draftDenormRules[featureType] ?? []) {
+    const bezeichnung = resolveBezeichnung(
+      values[rule.fk],
+      keyTables[rule.table]
+    );
+    if (bezeichnung) out[rule.target] = bezeichnung;
+  }
+
+  // Special case: Leuchte data is tab-grouped (`values.leuchte` / `values.mast`),
+  // so the flat denorm rules above can't reach it. Flatten the props the
+  // `leuchten` sidebar/header extractor reads (`leuchtentyp`, `leuchtennummer`,
+  // `lfd_nummer`, `fabrikat`, `strasse`), plus the icon-layer count.
   if (featureType === "leuchte") {
-    // The leuchten-icon layer picks `leuchten<N>` (or `leuchtenMax` for >12)
-    // from the `leuchten_count` property. For a creation draft, that count is
-    // Leuchte 1 plus each extra tab persisted under `values.leuchten`.
+    const leuchte = (values.leuchte ?? {}) as Record<string, unknown>;
+    const mast = (values.mast ?? {}) as Record<string, unknown>;
+
+    // Leuchtentyp + Fabrikat: the form stores an FK id; the extractor reads
+    // the flat `leuchtentyp` / `fabrikat` strings off the leuchtentyp table.
+    const leuchttypRow = resolveRow(leuchte.fk_leuchttyp, keyTables.leuchtentyp);
+    if (leuchttypRow?.leuchtentyp != null) {
+      out.leuchtentyp = leuchttypRow.leuchtentyp;
+    }
+    if (leuchttypRow?.fabrikat != null) out.fabrikat = leuchttypRow.fabrikat;
+
+    // Leuchtennummer and the parent Standort's running number — read flat by
+    // the extractor to build `${typ}-${nr}, ${lfd}`.
+    if (leuchte.leuchtennummer != null) {
+      out.leuchtennummer = leuchte.leuchtennummer;
+    }
+    if (mast.lfd_nummer != null) out.lfd_nummer = mast.lfd_nummer;
+
+    // The Strassenschluessel lives on the Mast tab for Leuchten.
+    if (out.strasse == null && mast.strassenschluessel_strasse != null) {
+      out.strasse = mast.strassenschluessel_strasse;
+    }
+
+    // Icon layer keys on a computed count: Leuchte 1 plus each extra tab
+    // persisted under `values.leuchten`.
     const extras = values.leuchten as Array<unknown> | undefined;
-    const leuchten_count = 1 + (Array.isArray(extras) ? extras.length : 0);
-    return { ...values, leuchten_count };
+    out.leuchten_count = 1 + (Array.isArray(extras) ? extras.length : 0);
   }
-  return values;
+
+  return out;
 }
 
 export function buildSyntheticFetchedData(
