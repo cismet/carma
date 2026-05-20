@@ -48,7 +48,8 @@ const getAllLeafLayers = (capabilities: unknown): WMSLayerLike[] => {
 
 export interface VectorStyle {
   name: string;
-  style?: string;
+  /** URL string (fetched) or inline maplibre style spec (used directly). */
+  style: string | StyleSpecification;
   layer?: string;
   infoboxMapping?: string[];
 }
@@ -199,11 +200,15 @@ export const getVectorMapping = async (
       vectorStyle.infoboxMapping || [];
     let fetchedStyleJson: Record<string, unknown> | undefined;
 
-    // First, try to get mapping from the vector style's metadata
+    // First, try to get mapping from the vector style's metadata. When the
+    // style is an inline spec, read it directly; when it is a URL string,
+    // fetch and parse it.
     if (!vectorStyle.infoboxMapping && vectorStyle.style) {
       try {
-        const styleResponse = await fetch(vectorStyle.style);
-        const styleJson = await styleResponse.json();
+        const styleJson: any =
+          typeof vectorStyle.style === "string"
+            ? await (await fetch(vectorStyle.style)).json()
+            : vectorStyle.style;
         fetchedStyleJson = styleJson;
 
         const styleKeywords =
@@ -463,8 +468,24 @@ export const vectorStylesToMapLibreStyle = async ({
     const prefetched = await Promise.all(
       layers.map(async (layer) => {
         if (layer.type === "vector") {
-          const response = await fetch(layer.style!);
-          return { type: "vector" as const, data: await response.json() };
+          if (!layer.style) {
+            console.warn(
+              "[styleBuilder] vector layer has no style — skipping",
+              { name: layer.name }
+            );
+            return null;
+          }
+          if (typeof layer.style === "string") {
+            const response = await fetch(layer.style);
+            return { type: "vector" as const, data: await response.json() };
+          }
+          // Deep-clone the inline spec so the per-render prefixing below
+          // doesn't mutate the caller's object (which would compound IDs
+          // on every rerender).
+          return {
+            type: "vector" as const,
+            data: JSON.parse(JSON.stringify(layer.style)),
+          };
         } else if (layer.type === "geojson") {
           const result = await extractGeoJson(layer.data!);
           return { type: "geojson" as const, data: transformedPois(result) };
@@ -492,6 +513,22 @@ export const vectorStylesToMapLibreStyle = async ({
         }
 
         const layerId = capabilitiesLayer || layer.name;
+
+        // Namespace source IDs to avoid collisions between vector layers that
+        // happen to use the same internal source name (e.g. multiple saved
+        // measurements both naming their source "adhoc"). Build a rename map,
+        // emit a namespaced sources object, and rewrite each layer's `source`
+        // reference below.
+        const sourceRename: Record<string, string> = {};
+        const namespacedSources: Record<string, SourceSpecification> = {};
+        for (const [srcId, srcDef] of Object.entries(
+          (additionalStyle.sources as Record<string, SourceSpecification>) || {}
+        )) {
+          const namespacedId = `${layerId}::${srcId}`;
+          sourceRename[srcId] = namespacedId;
+          namespacedSources[namespacedId] = srcDef;
+        }
+
         let spriteId = layerId.replace(":", "_");
         if (additionalStyle.sprite) {
           spriteId = slugify(additionalStyle.sprite, {
@@ -510,9 +547,12 @@ export const vectorStylesToMapLibreStyle = async ({
           }
         }
         additionalStyle.layers = additionalStyle.layers.map(
-          (styleLayer: LayerSpecification) => ({
+          (styleLayer: LayerSpecification) => {
+            const src = (styleLayer as { source?: string }).source;
+            return {
             ...styleLayer,
             id: `${layerId}-${styleLayer.id}`,
+            ...(src && sourceRename[src] ? { source: sourceRename[src] } : {}),
             metadata: {
               ...(
                 styleLayer as LayerSpecification & {
@@ -586,10 +626,11 @@ export const vectorStylesToMapLibreStyle = async ({
                   }
                 : {}),
             },
-          })
+          };
+          }
         );
 
-        style.sources = { ...style.sources, ...additionalStyle.sources };
+        style.sources = { ...style.sources, ...namespacedSources };
         style.layers = [...style.layers!, ...additionalStyle.layers];
 
         // Adopt glyphs from the first vector style that provides them
@@ -767,7 +808,7 @@ export const vectorStylesToMapLibreStyle = async ({
           tiles: [
             `${layer.url}${querySep}service=WMS&version=${version}&request=GetMap&layers=${
               layer.layers
-            }&styles=${layer.styles || (isWmts ? "default" : "")}&format=${
+            }&styles=${layer.styles || ""}&format=${
               layer.format || "image/png"
             }&transparent=${layer.transparent ? "true" : "false"}${
               isWmts ? "&type=wmts" : ""

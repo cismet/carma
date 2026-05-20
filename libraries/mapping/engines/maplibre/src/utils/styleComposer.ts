@@ -178,8 +178,12 @@ export class StyleComposer {
     vectorLayer: Extract<LibreLayer, { type: "vector" }>,
     opts: AddVectorSubStyleOptions
   ): Promise<void> {
-    // Compute layerId from the style URL (slugified)
-    const layerId = slugifyUrl(vectorLayer.style!);
+    // Compute layerId: slugified URL when style is a URL string, layer name
+    // when style is an inline spec (no URL to slugify).
+    const layerId =
+      typeof vectorLayer.style === "string"
+        ? slugifyUrl(vectorLayer.style)
+        : vectorLayer.name;
 
     // Compute the merged-mode-equivalent prefix (same logic as styleBuilder)
     let mergedPrefix = vectorLayer.name;
@@ -191,8 +195,10 @@ export class StyleComposer {
     // Idempotency: skip if already managed
     if (this.managed.has(layerId)) return;
 
-    const response = await fetch(vectorLayer.style!);
-    const styleJson = await response.json();
+    const styleJson =
+      typeof vectorLayer.style === "string"
+        ? await (await fetch(vectorLayer.style)).json()
+        : JSON.parse(JSON.stringify(vectorLayer.style));
     let spriteId = layerId;
     if (styleJson.sprite) {
       spriteId = slugify(styleJson.sprite, {
@@ -761,8 +767,7 @@ export class StyleComposer {
   // In-place opacity updates (no layer rebuild)
   // -------------------------------------------------------------------------
 
-  updateVectorOpacity(styleUrl: string, opacity: number): void {
-    const id = slugifyUrl(styleUrl);
+  updateVectorOpacity(id: string, opacity: number): void {
     const entry = this.managed.get(id);
     if (!entry) return;
     const bases = entry.baseOpacities;
