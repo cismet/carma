@@ -57,6 +57,22 @@ function convertGeometryToWgs84(
   return undefined;
 }
 
+// Coerce feature properties to plain JSON values. The draft form stores date
+// fields as live dayjs objects; MapLibre's web-worker serializer rejects
+// non-plain objects (class instances), so pushing a feature whose properties
+// contain a dayjs into a GeoJSON source silently breaks the source and freezes
+// the map. Round-tripping through JSON drops that risk: dayjs.toJSON() yields
+// an ISO string, and functions/undefined are stripped.
+function toJsonSafeProps(
+  props: Record<string, unknown>
+): Record<string, unknown> {
+  try {
+    return JSON.parse(JSON.stringify(props)) as Record<string, unknown>;
+  } catch {
+    return props;
+  }
+}
+
 export function buildSyntheticFeature(
   featureType: string,
   draftKey: string,
@@ -71,7 +87,7 @@ export function buildSyntheticFeature(
   return {
     type: "Feature" as const,
     id: draftKey,
-    properties: {
+    properties: toJsonSafeProps({
       id: draftKey,
       _isCreation: true,
       _featureType: featureType,
@@ -81,7 +97,7 @@ export function buildSyntheticFeature(
       // piggy-back on the existing per-type styling.
       _sourceLayer: sourceLayer,
       ...values,
-    },
+    }),
     geometry: wgs84Geometry ?? null,
     sourceLayer,
     source: "",
