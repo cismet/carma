@@ -28,11 +28,14 @@ type MeasurementsRegistry = {
   publishFeatures: (features: Feature[]) => void;
   publishMode: (mode: DrawMode) => void;
   setCommands: (commands: MeasurementsCommands | null) => void;
-  /** Resolves with the features previously written under `storageKey`. When
-   * no key is configured (or no stored data), resolves with `[]`. The
-   * promise is cached so concurrent hosts (or basemap-swap reattach paths)
-   * share the same hydrate; the host awaits this inside attach() before
-   * seeding terra-draw. */
+  /** Resolves with the features that should seed terra-draw at host mount.
+   * Returns the provider's LIVE `features` state (via ref), not a one-time
+   * localforage snapshot — this matters when the host mounts and unmounts
+   * with mode toggling but the provider stays alive: on a re-mount we
+   * must seed from the latest drawings, not from whatever was on disk at
+   * provider-mount time. The returned promise only resolves after the
+   * provider's initial localforage read has completed, so first-mount
+   * callers don't read featuresRef before persisted state is loaded. */
   requestInitialFeatures: () => Promise<Feature[]>;
 };
 
@@ -79,13 +82,30 @@ export function MeasurementsProvider({
   // the load resolves. When no storageKey is set there's nothing to wait
   // for, so we start hydrated.
   const [isHydrated, setIsHydrated] = useState<boolean>(!storageKey);
-  // Cached load promise so multiple `requestInitialFeatures` callers (e.g.
-  // an initial mount + a basemap-swap reattach) share one localforage read.
-  const hydratePromiseRef = useRef<Promise<Feature[]> | null>(null);
-  // Live storageKey for use inside the cached hydrate promise's closure —
-  // the promise is created once but should always read the latest key.
-  const storageKeyRef = useRef(storageKey);
-  storageKeyRef.current = storageKey;
+  // Live ref to the latest features state. `requestInitialFeatures` reads
+  // through this so re-mounting hosts (mode-toggle re-enter) seed terra-draw
+  // from the current state, not from a stale one-time localforage snapshot.
+  // The ref is also written synchronously inside the hydrate effect (before
+  // the hydration promise resolves) so the very first host mount sees the
+  // loaded data immediately on await, without waiting for a React render.
+  const featuresRef = useRef<Feature[]>(features);
+  featuresRef.current = features;
+  // One-shot promise resolved when the initial localforage read finishes
+  // (or immediately, when no storageKey is set). Consumers await this before
+  // reading featuresRef so they don't get [] before persisted state has
+  // loaded. The promise is created lazily on first render and never reset —
+  // subsequent host mounts get the already-resolved promise.
+  const hydrationResolveRef = useRef<(() => void) | null>(null);
+  const hydrationPromiseRef = useRef<Promise<void> | null>(null);
+  if (hydrationPromiseRef.current === null) {
+    if (!storageKey) {
+      hydrationPromiseRef.current = Promise.resolve();
+    } else {
+      hydrationPromiseRef.current = new Promise<void>((resolve) => {
+        hydrationResolveRef.current = resolve;
+      });
+    }
+  }
 
   const registry = useMemo<MeasurementsRegistry>(
     () => ({
@@ -94,51 +114,48 @@ export function MeasurementsProvider({
       setCommands: (cmds) => {
         commandsRef.current = cmds;
       },
-      requestInitialFeatures: () => {
-        if (hydratePromiseRef.current) return hydratePromiseRef.current;
-        const key = storageKeyRef.current;
-        if (!key) {
-          hydratePromiseRef.current = Promise.resolve([]);
-          return hydratePromiseRef.current;
-        }
-        hydratePromiseRef.current = (async () => {
-          try {
-            const stored = await localforage.getItem(key);
-            if (Array.isArray(stored)) {
-              return stored as Feature[];
-            }
-            return [];
-          } catch (e) {
-            console.warn("[carma-measurements] hydrate getItem failed", e);
-            return [];
-          }
-        })();
-        return hydratePromiseRef.current;
+      requestInitialFeatures: async () => {
+        // Wait for the provider's hydrate effect to finish reading
+        // localforage so featuresRef reflects any persisted state, then
+        // return the LIVE features. On host re-mount this returns the
+        // user's most recent drawings (held in the provider's `features`
+        // state, which survives host unmount), fixing the bug where
+        // re-entering measurement mode reset the map to a stale snapshot.
+        await hydrationPromiseRef.current!;
+        return featuresRef.current;
       },
     }),
     []
   );
 
-  // Drive hydration eagerly so the persistence effect's `isHydrated` gate
-  // can open even when no host is mounted (e.g. a consumer wanting to
-  // read `features` before terra-draw is set up). When storageKey is set
-  // we wait for the load and seed `features` from the result; without a
-  // key we'd already have started in the hydrated state.
+  // Initial hydration from localforage. Runs once per provider mount, seeds
+  // `features` and resolves the hydration promise so any waiting host can
+  // start reading featuresRef. featuresRef is updated synchronously so a
+  // host that awaits and reads it immediately doesn't have to wait for
+  // React's next render.
   useEffect(() => {
     if (!storageKey) return;
     let cancelled = false;
-    registry.requestInitialFeatures().then((loaded) => {
-      if (cancelled) return;
-      // Only seed if nothing has been published in the meantime — the host
-      // may have raced ahead with addFeatures + publishSnapshot, in which
-      // case its state is authoritative.
-      setFeatures((current) => (current.length === 0 ? loaded : current));
-      setIsHydrated(true);
-    });
+    (async () => {
+      try {
+        const stored = await localforage.getItem(storageKey);
+        if (cancelled) return;
+        const loaded = Array.isArray(stored) ? (stored as Feature[]) : [];
+        featuresRef.current = loaded;
+        setFeatures(loaded);
+      } catch (e) {
+        console.warn("[carma-measurements] hydrate getItem failed", e);
+      } finally {
+        if (!cancelled) {
+          setIsHydrated(true);
+          hydrationResolveRef.current?.();
+        }
+      }
+    })();
     return () => {
       cancelled = true;
     };
-  }, [storageKey, registry]);
+  }, [storageKey]);
 
   // Persist on every `features` change after hydration completes. Cadence
   // is bounded by how often the host publishes (stable moments only), so
