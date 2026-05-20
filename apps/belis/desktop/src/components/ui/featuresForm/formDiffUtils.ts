@@ -130,9 +130,14 @@ const walkPath = (
 };
 
 /**
- * Get the set of allowlisted paths whose draft value matches the live
- * remembered default. Used to mark fields green when they reflect the
- * "actual" current default (vs. stale values from a sibling draft).
+ * Get the set of allowlisted ("tracked") paths that should render with the
+ * green highlight.
+ *
+ * Tracked fields are green *by default* — including while they are still
+ * empty and before any value has been remembered (e.g. the very first draft
+ * of a feature type). A field only loses the green highlight once it holds a
+ * non-empty value that diverges from a non-empty remembered default; it then
+ * renders gray via the changed-fields path.
  */
 export const getPrefilledPaths = (
   draft: Record<string, unknown> | undefined,
@@ -140,18 +145,21 @@ export const getPrefilledPaths = (
   currentDefaults?: Record<string, unknown>
 ): Set<string> => {
   const matched = new Set<string>();
-  if (!draft || !allowlistedPaths || allowlistedPaths.size === 0) {
+  if (!allowlistedPaths || allowlistedPaths.size === 0) {
     return matched;
   }
   for (const path of allowlistedPaths) {
     const draftVal = walkPath(draft, path);
-    if (isEmpty(draftVal)) continue;
     const defaultVal = walkPath(currentDefaults, path);
-    if (isEmpty(defaultVal)) {
-      // No default yet (e.g. very first edit before creationDefaults catches
-      // up) — treat the value as the implicit default.
+    // Empty tracked field stays green (empty wins over an existing default),
+    // and so does any field for which no default has been remembered yet.
+    if (isEmpty(draftVal) || isEmpty(defaultVal)) {
       matched.add(path);
-    } else if (isFormValueEqual(draftVal, defaultVal)) {
+      continue;
+    }
+    // A remembered default exists: green while the value still matches it;
+    // a diverged value falls through to the gray "changed" highlight.
+    if (isFormValueEqual(draftVal, defaultVal)) {
       matched.add(path);
     }
   }
