@@ -31,11 +31,7 @@ import {
   getSelectedFeature,
   setSelectedFeature,
 } from "../../store/slices/features";
-import {
-  getBackgroundLayer,
-  getLayers,
-  setLibreMapRef,
-} from "../../store/slices/mapping";
+import { getBackgroundLayer, getLayers } from "../../store/slices/mapping";
 import { getUIMode, UIMode } from "../../store/slices/ui";
 
 import LibreFeatureInfoBox from "../feature-info/LibreFeatureInfoBox";
@@ -284,8 +280,6 @@ const LibreGeoportalMap = ({
         container: mapContainerRef.current,
         ...appliedMapOptions,
       });
-
-      dispatch(setLibreMapRef(map));
 
       map.current.on("idle", () => {
         isIdleRef.current = true;
@@ -604,9 +598,6 @@ const LibreGeoportalMap = ({
         }
       });
 
-      map.current.on("remove", () => {
-        dispatch(setLibreMapRef(null));
-      });
     }
 
     return () => {

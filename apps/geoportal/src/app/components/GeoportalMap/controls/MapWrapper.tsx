@@ -8,7 +8,6 @@ import {
 } from "react";
 import { isMobile } from "react-device-detect";
 import { useDispatch, useSelector } from "react-redux";
-import type maplibregl from "maplibre-gl";
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 
 import { Button, Tooltip } from "antd";
@@ -71,6 +70,7 @@ import {
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 import { MeasurementControl } from "@carma-commons/measurements";
 import { MeasurementHost } from "@carma-mapping/measurements";
+import { useLibreContext } from "@carma-mapping/contexts";
 
 import { GeoportalMap } from "../GeoportalMap.tsx";
 import LibreGeoportalMap from "../LibreGeoportalMap.tsx";
@@ -103,10 +103,8 @@ import {
   getBackgroundLayer,
   getConfigSelection,
   getLayers,
-  getLibreMapRef,
   getShowFullscreenButton,
   getShowLocatorButton,
-  setLibreMapRef,
 } from "../../../store/slices/mapping.ts";
 import {
   getLibreDrawMode,
@@ -163,7 +161,7 @@ const MapWrapper = () => {
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   // State and Selectors
-  const libreMapRef = useSelector(getLibreMapRef);
+  const { map: libreMap } = useLibreContext();
   const geoportalLayers = useSelector(getLayers);
   const backgroundLayer = useSelector(getBackgroundLayer);
   const computedLibreLayers = useMemo(
@@ -275,24 +273,12 @@ const MapWrapper = () => {
 
   const [isLoginFormVisible, setIsLoginFormVisible] = useState(false);
   const [showTerrain, setShowTerrain] = useState(false);
-  const [libreMapInstance, setLibreMapInstance] =
-    useState<maplibregl.Map | null>(null);
-  const libreMapReduxRef = useRef<maplibregl.Map | null>(null);
-
-  const handleLibreMapReady = useCallback(
-    (m: maplibregl.Map) => {
-      libreMapReduxRef.current = m;
-      dispatch(setLibreMapRef(libreMapReduxRef));
-      setLibreMapInstance(m);
-    },
-    [dispatch]
-  );
 
   const {
     pos,
     onSelectionChanged: handleLibreSelectionChanged,
     selectFromHits: handleLibreSelectFromHits,
-  } = useLibreMapSelectionHandler(libreMapInstance);
+  } = useLibreMapSelectionHandler(libreMap);
 
   const showOverlayFromOutside = useCallback(
     (key: string) => {
@@ -343,7 +329,7 @@ const MapWrapper = () => {
     dispatch(toggleUIMode(UIMode.FEATURE_INFO));
   };
 
-  useFeatureInfoModeCursorStyle("routedMap", libreMapInstance);
+  useFeatureInfoModeCursorStyle("routedMap", libreMap);
 
   const { setSelection } = useSelection();
 
@@ -421,9 +407,7 @@ const MapWrapper = () => {
                     onClick={(event) => {
                       if (isLeaflet) {
                         if (showLibreMap) {
-                          if (libreMapRef.current) {
-                            libreMapRef.current.zoomIn();
-                          }
+                          libreMap?.zoomIn();
                         } else {
                           zoomInLeaflet();
                         }
@@ -445,9 +429,7 @@ const MapWrapper = () => {
                     onClick={(event) => {
                       if (isLeaflet) {
                         if (showLibreMap) {
-                          if (libreMapRef.current) {
-                            libreMapRef.current.zoomOut();
-                          }
+                          libreMap?.zoomOut();
                         } else {
                           zoomOutLeaflet();
                         }
@@ -483,7 +465,7 @@ const MapWrapper = () => {
                     }
                   >
                     {showLibreMap ? (
-                      <LibrePitchingCompass map={libreMapRef?.current} />
+                      <LibrePitchingCompass map={libreMap} />
                     ) : (
                       <PitchingCompass />
                     )}
@@ -525,13 +507,11 @@ const MapWrapper = () => {
                   ref={tourRefLabels.home}
                   onClick={() => {
                     if (showLibreMap) {
-                      if (libreMapRef.current) {
-                        libreMapRef.current.flyTo({
-                          center: [homeCenter[1], homeCenter[0]],
-                          zoom: homeMaplibreZoom,
-                          essential: true,
-                        });
-                      }
+                      libreMap?.flyTo({
+                        center: [homeCenter[1], homeCenter[0]],
+                        zoom: homeMaplibreZoom,
+                        essential: true,
+                      });
                     } else {
                       routedMap.leafletMap.leafletElement.flyTo(
                         homeCenter,
@@ -601,11 +581,12 @@ const MapWrapper = () => {
               <Tooltip title={"Terrain"} placement="right">
                 <ControlButtonStyler
                   onClick={() => {
-                    if (libreMapRef.current.terrain) {
-                      libreMapRef.current?.setTerrain(null);
+                    if (!libreMap) return;
+                    if (libreMap.terrain) {
+                      libreMap.setTerrain(null);
                       setShowTerrain(false);
                     } else {
-                      libreMapRef.current?.setTerrain({
+                      libreMap.setTerrain({
                         source: "terrainSource",
                         exaggeration: 1,
                       });
@@ -674,7 +655,6 @@ const MapWrapper = () => {
                 terrainControl={false}
                 libreLayers={libreLayers}
                 selectionEnabled={!isModeMeasurement}
-                setLibreMap={handleLibreMapReady}
                 onSelectionChanged={handleLibreSelectionChanged}
                 selectFromHits={handleLibreSelectFromHits}
                 modalMenu={

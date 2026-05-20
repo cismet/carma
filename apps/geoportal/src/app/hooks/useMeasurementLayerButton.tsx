@@ -13,6 +13,7 @@ import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import type { AnnotationModeText } from "@carma-mapping/annotations/builtin-tools/annotation-mode-text";
 import { useMeasurements } from "@carma-mapping/measurements";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
+import { useLibreContext } from "@carma-mapping/contexts";
 
 import { geoportalAnnotationModeText } from "../config/geoportalTextConfig";
 import {
@@ -20,7 +21,6 @@ import {
   getActiveInteractionButtonID,
   getActiveInteractionLayerID,
   getLayers,
-  getLibreMapRef,
   removeLayer,
   setActiveInteractionButtonID,
   setActiveInteractionLayerID,
@@ -59,7 +59,7 @@ export function useMeasurementLayerButton() {
   // @carma-mapping/measurements context, not the leaflet one.
   // `features`/`count` reflect the live terra-draw snapshot.
   const { features: libreFeatures, count: libreCount } = useMeasurements();
-  const libreMapRef = useSelector(getLibreMapRef);
+  const { map: libreMap } = useLibreContext();
 
   // Single source of truth for the layer-row count: terra-draw snapshot in
   // the libreMap path, leaflet shapes otherwise.
@@ -69,8 +69,7 @@ export function useMeasurementLayerButton() {
   // setShowAll equivalent (the leaflet provider owns its own map), so we
   // fit the base maplibre map to the terra-draw features' bbox ourselves.
   const showAllLibreMeasurements = () => {
-    const map = libreMapRef?.current;
-    if (!map || libreFeatures.length === 0) {
+    if (!libreMap || libreFeatures.length === 0) {
       return;
     }
     try {
@@ -78,7 +77,7 @@ export function useMeasurementLayerButton() {
         type: "FeatureCollection",
         features: libreFeatures,
       } as FeatureCollection);
-      map.fitBounds(
+      libreMap.fitBounds(
         [
           [minX, minY],
           [maxX, maxY],
