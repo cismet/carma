@@ -6,13 +6,16 @@ import {
 } from "@carma-appframeworks/portals";
 import App from "./app/App";
 import { gazDataConfig } from "./config/gazData";
-import { cjsGlobalShim } from "@carma-commons/dom/window";
+import { cjsGlobalShim, preventPinchZoom } from "@carma-commons/dom/window";
 
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement
 );
 
 cjsGlobalShim();
+preventPinchZoom();
+
+document.getElementById("splash-loading")?.remove();
 
 root.render(
   <StrictMode>

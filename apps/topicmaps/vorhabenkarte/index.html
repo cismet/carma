@@ -1,19 +1,435 @@
 <!DOCTYPE html>
 <html lang="de">
   <head>
+    <script>
+      if (
+        navigator.standalone ||
+        window.matchMedia("(display-mode: standalone)").matches
+      ) {
+        document.documentElement.classList.add("pwa-standalone");
+      }
+    </script>
     <meta charset="utf-8" />
-    <title>Vorhabenkarte</title>
+    <title>Vorhabenkarte Wuppertal</title>
     <base href="/" />
-
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1, maximum-scale=1,viewport-fit=cover, user-scalable=no"
+      content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no, interactive-widget=resizes-content"
     />
+    <meta name="mobile-web-app-capable" content="yes" />
+
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="manifest" href="/manifest.json" />
+
+    <meta name="theme-color" content="#0093BC" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Vorhabenkarte" />
+
+    <link
+      rel="apple-touch-icon"
+      sizes="180x180"
+      href="/apple-touch-icon-180.png"
+    />
+    <link
+      rel="apple-touch-icon"
+      sizes="167x167"
+      href="/apple-touch-icon-167.png"
+    />
+    <link
+      rel="apple-touch-icon"
+      sizes="152x152"
+      href="/apple-touch-icon-152.png"
+    />
+    <link
+      rel="apple-touch-icon"
+      sizes="120x120"
+      href="/apple-touch-icon-120.png"
+    />
+
+    <!-- iPhone Portrait -->
+
+    <link
+      rel="apple-touch-startup-image"
+      href="/splashscreens/iphone-320x568@2-portrait.png"
+      media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="/splashscreens/iphone-375x667@2-portrait.png"
+      media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="/splashscreens/iphone-375x812@3-portrait.png"
+      media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="/splashscreens/iphone-360x780@3-portrait.png"
+      media="(device-width: 360px) and (device-height: 780px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="/splashscreens/iphone-390x844@3-portrait.png"
+      media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="/splashscreens/iphone-414x736@3-portrait.png"
+      media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="/splashscreens/iphone-414x896@2-portrait.png"
+      media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="/splashscreens/iphone-414x896@3-portrait.png"
+      media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="/splashscreens/iphone-428x926@3-portrait.png"
+      media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="/splashscreens/iphone-430x932@3-portrait.png"
+      media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="/splashscreens/iphone-393x852@3-portrait.png"
+      media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="/splashscreens/iphone-402x874@3-portrait.png"
+      media="(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="/splashscreens/iphone-440x956@3-portrait.png"
+      media="(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+    />
+
+    <!-- iPad Portrait -->
+
+    <link
+      rel="apple-touch-startup-image"
+      href="/splashscreens/ipad-768x1024@2-portrait.png"
+      media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="/splashscreens/ipad-834x1112@2-portrait.png"
+      media="(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="/splashscreens/ipad-834x1194@2-portrait.png"
+      media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="/splashscreens/ipad-1024x1366@2-portrait.png"
+      media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+    />
+
+    <!-- iPhone Landscape -->
+
+    <link
+      rel="apple-touch-startup-image"
+      href="/splashscreens/iphone-320x568@2-landscape.png"
+      media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="/splashscreens/iphone-375x667@2-landscape.png"
+      media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="/splashscreens/iphone-375x812@3-landscape.png"
+      media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="/splashscreens/iphone-360x780@3-landscape.png"
+      media="(device-width: 360px) and (device-height: 780px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="/splashscreens/iphone-390x844@3-landscape.png"
+      media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="/splashscreens/iphone-414x736@3-landscape.png"
+      media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="/splashscreens/iphone-414x896@2-landscape.png"
+      media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="/splashscreens/iphone-414x896@3-landscape.png"
+      media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="/splashscreens/iphone-428x926@3-landscape.png"
+      media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="/splashscreens/iphone-430x932@3-landscape.png"
+      media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="/splashscreens/iphone-393x852@3-landscape.png"
+      media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="/splashscreens/iphone-402x874@3-landscape.png"
+      media="(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="/splashscreens/iphone-440x956@3-landscape.png"
+      media="(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)"
+    />
+
+    <!-- iPad Landscape -->
+
+    <link
+      rel="apple-touch-startup-image"
+      href="/splashscreens/ipad-768x1024@2-landscape.png"
+      media="(device-width: 1024px) and (device-height: 768px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="/splashscreens/ipad-834x1112@2-landscape.png"
+      media="(device-width: 1112px) and (device-height: 834px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="/splashscreens/ipad-834x1194@2-landscape.png"
+      media="(device-width: 1194px) and (device-height: 834px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="/splashscreens/ipad-1024x1366@2-landscape.png"
+      media="(device-width: 1366px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)"
+    />
+
     <link rel="stylesheet" href="/src/styles.css" />
+    <style>
+      #splash-loading {
+        display: none;
+        position: fixed;
+        inset: 0;
+        width: 100vw;
+        height: 100dvh;
+        background-color: #0093bc;
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-image: url("/splashscreens/base_blurred.jpg");
+        z-index: 0;
+      }
+
+      html.pwa-standalone #splash-loading {
+        display: block;
+      }
+
+      /* iPhone Portrait */
+      @media (device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait) {
+        #splash-loading {
+          background-image: url("/splashscreens/iphone-320x568@2-portrait.jpg");
+        }
+      }
+      @media (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait) {
+        #splash-loading {
+          background-image: url("/splashscreens/iphone-375x667@2-portrait.jpg");
+        }
+      }
+      @media (device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) {
+        #splash-loading {
+          background-image: url("/splashscreens/iphone-375x812@3-portrait.jpg");
+        }
+      }
+      @media (device-width: 360px) and (device-height: 780px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) {
+        #splash-loading {
+          background-image: url("/splashscreens/iphone-360x780@3-portrait.jpg");
+        }
+      }
+      @media (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) {
+        #splash-loading {
+          background-image: url("/splashscreens/iphone-390x844@3-portrait.jpg");
+        }
+      }
+      @media (device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) {
+        #splash-loading {
+          background-image: url("/splashscreens/iphone-414x736@3-portrait.jpg");
+        }
+      }
+      @media (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait) {
+        #splash-loading {
+          background-image: url("/splashscreens/iphone-414x896@2-portrait.jpg");
+        }
+      }
+      @media (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) {
+        #splash-loading {
+          background-image: url("/splashscreens/iphone-414x896@3-portrait.jpg");
+        }
+      }
+      @media (device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) {
+        #splash-loading {
+          background-image: url("/splashscreens/iphone-428x926@3-portrait.jpg");
+        }
+      }
+      @media (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) {
+        #splash-loading {
+          background-image: url("/splashscreens/iphone-430x932@3-portrait.jpg");
+        }
+      }
+      @media (device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) {
+        #splash-loading {
+          background-image: url("/splashscreens/iphone-393x852@3-portrait.jpg");
+        }
+      }
+      @media (device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) {
+        #splash-loading {
+          background-image: url("/splashscreens/iphone-402x874@3-portrait.jpg");
+        }
+      }
+      @media (device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) {
+        #splash-loading {
+          background-image: url("/splashscreens/iphone-440x956@3-portrait.jpg");
+        }
+      }
+
+      /* iPad Portrait */
+      @media (device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait) {
+        #splash-loading {
+          background-image: url("/splashscreens/ipad-768x1024@2-portrait.jpg");
+        }
+      }
+      @media (device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait) {
+        #splash-loading {
+          background-image: url("/splashscreens/ipad-834x1112@2-portrait.jpg");
+        }
+      }
+      @media (device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait) {
+        #splash-loading {
+          background-image: url("/splashscreens/ipad-834x1194@2-portrait.jpg");
+        }
+      }
+      @media (device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait) {
+        #splash-loading {
+          background-image: url("/splashscreens/ipad-1024x1366@2-portrait.jpg");
+        }
+      }
+
+      /* iPhone Landscape */
+      @media (device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape) {
+        #splash-loading {
+          background-image: url("/splashscreens/iphone-320x568@2-landscape.jpg");
+        }
+      }
+      @media (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape) {
+        #splash-loading {
+          background-image: url("/splashscreens/iphone-375x667@2-landscape.jpg");
+        }
+      }
+      @media (device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape) {
+        #splash-loading {
+          background-image: url("/splashscreens/iphone-375x812@3-landscape.jpg");
+        }
+      }
+      @media (device-width: 360px) and (device-height: 780px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape) {
+        #splash-loading {
+          background-image: url("/splashscreens/iphone-360x780@3-landscape.jpg");
+        }
+      }
+      @media (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape) {
+        #splash-loading {
+          background-image: url("/splashscreens/iphone-390x844@3-landscape.jpg");
+        }
+      }
+      @media (device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape) {
+        #splash-loading {
+          background-image: url("/splashscreens/iphone-414x736@3-landscape.jpg");
+        }
+      }
+      @media (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape) {
+        #splash-loading {
+          background-image: url("/splashscreens/iphone-414x896@2-landscape.jpg");
+        }
+      }
+      @media (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape) {
+        #splash-loading {
+          background-image: url("/splashscreens/iphone-414x896@3-landscape.jpg");
+        }
+      }
+      @media (device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape) {
+        #splash-loading {
+          background-image: url("/splashscreens/iphone-428x926@3-landscape.jpg");
+        }
+      }
+      @media (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape) {
+        #splash-loading {
+          background-image: url("/splashscreens/iphone-430x932@3-landscape.jpg");
+        }
+      }
+      @media (device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape) {
+        #splash-loading {
+          background-image: url("/splashscreens/iphone-393x852@3-landscape.jpg");
+        }
+      }
+      @media (device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape) {
+        #splash-loading {
+          background-image: url("/splashscreens/iphone-402x874@3-landscape.jpg");
+        }
+      }
+      @media (device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape) {
+        #splash-loading {
+          background-image: url("/splashscreens/iphone-440x956@3-landscape.jpg");
+        }
+      }
+
+      /* iPad Landscape */
+      @media (device-width: 1024px) and (device-height: 768px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape) {
+        #splash-loading {
+          background-image: url("/splashscreens/ipad-768x1024@2-landscape.jpg");
+        }
+      }
+      @media (device-width: 1112px) and (device-height: 834px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape) {
+        #splash-loading {
+          background-image: url("/splashscreens/ipad-834x1112@2-landscape.jpg");
+        }
+      }
+      @media (device-width: 1194px) and (device-height: 834px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape) {
+        #splash-loading {
+          background-image: url("/splashscreens/ipad-834x1194@2-landscape.jpg");
+        }
+      }
+      @media (device-width: 1366px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape) {
+        #splash-loading {
+          background-image: url("/splashscreens/ipad-1024x1366@2-landscape.jpg");
+        }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><div id="splash-loading"></div></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

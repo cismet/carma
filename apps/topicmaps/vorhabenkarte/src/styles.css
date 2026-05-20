@@ -5,6 +5,11 @@
 html,
 body {
   overscroll-behavior: contain;
+  background-color: #ffffff;
+}
+
+.leaflet-container {
+  background: #ffffff !important;
 }
 
 .leaflet-control * img {
