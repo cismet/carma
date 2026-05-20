@@ -341,6 +341,45 @@ export const createFeature = async (selectedVectorFeature, layer) => {
     }
   });
 
+  let featureProperties: { properties: Record<string, unknown> } | null = null;
+
+  if (layer.conf && "lazyInfoBox" in layer.conf) {
+    let parsedInfo: Record<string, unknown> = {};
+    const rawInfo = properties.info;
+    if (rawInfo && typeof rawInfo === "string") {
+      try {
+        parsedInfo = JSON.parse(rawInfo);
+      } catch (e) {
+        console.error("Failed to parse info property:", e);
+      }
+    } else if (rawInfo && typeof rawInfo === "object") {
+      parsedInfo = rawInfo as Record<string, unknown>;
+    }
+
+    const parsedProperties: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(properties)) {
+      if (key === "info") continue;
+      if (
+        typeof value === "string" &&
+        (value.startsWith("[") || value.startsWith("{"))
+      ) {
+        try {
+          parsedProperties[key] = JSON.parse(value);
+        } catch {
+          // keep original value
+        }
+      }
+    }
+
+    featureProperties = {
+      properties: {
+        ...properties,
+        ...parsedInfo,
+        ...parsedProperties,
+      },
+    };
+  }
+
   if (result) {
     if (result.includes("function")) {
       // remove every line that is not a function
@@ -350,12 +389,15 @@ export const createFeature = async (selectedVectorFeature, layer) => {
         .join("\n");
     }
 
-    const featureProperties = result.includes("function")
+    featureProperties = result.includes("function")
       ? await functionToFeature(properties, result)
       : await objectToFeature(properties, result);
     if (!featureProperties) {
       return undefined;
     }
+  }
+
+  if (featureProperties) {
     const props = featureProperties.properties as unknown;
     const genericLinks =
       props &&
@@ -373,6 +415,8 @@ export const createFeature = async (selectedVectorFeature, layer) => {
       },
       geometry: selectedVectorFeature.geometry,
       id: layer.id,
+      vectorId: selectedVectorFeature.id,
+      sourceFeature: selectedVectorFeature,
       showMarker:
         selectedVectorFeature.geometry.type === "Polygon" ||
         selectedVectorFeature.geometry.type === "MultiPolygon",
