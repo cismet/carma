@@ -164,6 +164,21 @@ export function enrichSyntheticProps(
     if (bezeichnung) out[rule.target] = bezeichnung;
   }
 
+  // Special case: Standort. The Mast key tables expose their label under
+  // `mastart` / `masttyp` (not `bezeichnung`), so the generic FK rules can't
+  // reach them — these are exactly the props the info-box mapping reads for
+  // the Standort branch (`header` = mastart). That branch also requires
+  // `lfd_nummer` to be defined; a fresh draft has none (assigned on save), so
+  // default it to "" — the branch is then entered and the title renders as
+  // "Mast - ?", consistent with how other draft types show an unknown id.
+  if (featureType === "standort") {
+    const mastartRow = resolveRow(values.fk_mastart, keyTables.mastart);
+    if (mastartRow?.mastart != null) out.mastart = mastartRow.mastart;
+    const masttypRow = resolveRow(values.fk_masttyp, keyTables.masttyp);
+    if (masttypRow?.masttyp != null) out.masttyp = masttypRow.masttyp;
+    if (out.lfd_nummer == null) out.lfd_nummer = "";
+  }
+
   // Special case: Leuchte data is tab-grouped (`values.leuchte` / `values.mast`),
   // so the flat denorm rules above can't reach it. Flatten the props the
   // `leuchten` sidebar/header extractor reads (`leuchtentyp`, `leuchtennummer`,
@@ -179,6 +194,13 @@ export function enrichSyntheticProps(
       out.leuchtentyp = leuchttypRow.leuchtentyp;
     }
     if (leuchttypRow?.fabrikat != null) out.fabrikat = leuchttypRow.fabrikat;
+
+    // Masttyp / Mastart feed the info box's additional-info line
+    // ("Masttyp / Mastart"); the form stores them as FK ids on the Mast tab.
+    const mastartRow = resolveRow(mast.fk_mastart, keyTables.mastart);
+    if (mastartRow?.mastart != null) out.mastart = mastartRow.mastart;
+    const masttypRow = resolveRow(mast.fk_masttyp, keyTables.masttyp);
+    if (masttypRow?.masttyp != null) out.masttyp = masttypRow.masttyp;
 
     // Leuchtennummer and the parent Standort's running number — read flat by
     // the extractor to build `${typ}-${nr}, ${lfd}`.

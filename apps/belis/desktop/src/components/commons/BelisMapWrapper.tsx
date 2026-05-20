@@ -1231,8 +1231,22 @@ const BelisMapLibWrapper = ({
           return;
         }
 
-        // Flatten to vector-tile-like props so createInfoBoxInfo.js can process them
-        const flatProps = flattenGqlRecord(record, sourceLayer);
+        // Flatten to vector-tile-like props so createInfoBoxInfo.js can
+        // process them. Creation drafts have no GraphQL by-id record:
+        // flattenGqlRecord reads the nested GraphQL shape and can't resolve a
+        // draft's flat fk_* form values. The synthetic draft feature already
+        // carries enriched, vector-tile-shaped props (via enrichSyntheticProps),
+        // so feed those straight in — the info box then renders through the
+        // exact same createInfoBoxInfo mapping as a real on-map click, instead
+        // of a draft-only layout. The draft-key `id` is dropped so the mapping
+        // falls back to "?" rather than printing the opaque "create:…" key.
+        let flatProps: Record<string, unknown>;
+        if (rawFeature?.properties?._isCreation === true) {
+          flatProps = { ...rawFeature.properties };
+          delete flatProps.id;
+        } else {
+          flatProps = flattenGqlRecord(record, sourceLayer);
+        }
 
         // Run the same mapping function that LibreMap uses for on-map clicks
         const info = await functionToInfo(
