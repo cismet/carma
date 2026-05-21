@@ -139,6 +139,14 @@ const initialState: CreationDefaultsState = {
   draftIdToType: {},
 };
 
+// A field the user left blank contributes nothing to the "last values"
+// memory. Picking a blank value would clobber a non-empty value remembered
+// from a *different* draft once `mergeDefaults` folds it in — and an empty
+// DatePicker, unlike an untouched text input, reports `null` rather than
+// `undefined`, so a plain `!== undefined` check is not enough.
+const isEmptyValue = (v: unknown): boolean =>
+  v === null || v === undefined || v === "";
+
 const pickAllowed = (
   featureType: string,
   values: Record<string, unknown>
@@ -149,7 +157,7 @@ const pickAllowed = (
   if (Array.isArray(config)) {
     const picked: Record<string, unknown> = {};
     for (const f of config) {
-      if (values[f] !== undefined) picked[f] = values[f];
+      if (!isEmptyValue(values[f])) picked[f] = values[f];
     }
     return Object.keys(picked).length > 0 ? picked : null;
   }
@@ -164,11 +172,34 @@ const pickAllowed = (
     const sub: Record<string, unknown> = {};
     const src = subValues as Record<string, unknown>;
     for (const f of fields) {
-      if (src[f] !== undefined) sub[f] = src[f];
+      if (!isEmptyValue(src[f])) sub[f] = src[f];
     }
     if (Object.keys(sub).length > 0) picked[subKey] = sub;
   }
   return Object.keys(picked).length > 0 ? picked : null;
+};
+
+const isMergeableObj = (v: unknown): v is Record<string, unknown> =>
+  v != null && typeof v === "object" && !Array.isArray(v);
+
+// Merge freshly recorded defaults into the existing ones at the field level.
+// `pickAllowed` already drops fields the edited draft left untouched (they
+// arrive as `undefined`), so merging — rather than replacing — means editing
+// one field in a draft never wipes the last value remembered for a field the
+// user filled in a *different* draft. Nested sub-objects (the leuchte
+// `{ leuchte, mast }` shape) are merged one level deeper; a plain top-level
+// spread would replace a whole sub-object wholesale.
+const mergeDefaults = (
+  existing: Record<string, unknown>,
+  picked: Record<string, unknown>
+): Record<string, unknown> => {
+  const merged: Record<string, unknown> = { ...existing };
+  for (const [key, val] of Object.entries(picked)) {
+    const prev = merged[key];
+    merged[key] =
+      isMergeableObj(prev) && isMergeableObj(val) ? { ...prev, ...val } : val;
+  }
+  return merged;
 };
 
 const creationDefaultsSlice = createSlice({
@@ -200,7 +231,7 @@ const creationDefaultsSlice = createSlice({
       if (!picked) return;
       const existing = state.defaults[featureType];
       state.defaults[featureType] = existing
-        ? { ...existing, ...picked }
+        ? mergeDefaults(existing, picked)
         : picked;
     },
   },
@@ -234,6 +265,14 @@ const creationDefaultsSlice = createSlice({
           state.draftIdToType[featureId] = featureType;
         }
         if (CREATION_DEFAULTS_ALLOWLIST[featureType] == null) return;
+        // Leuchte's defaults are owned exclusively by LeuchteForm's
+        // `recordDefaults` dispatch. That path can see extra-tab edits
+        // (values.leuchten[]) and — unlike this listener — tells a genuine
+        // user edit apart from the programmatic Strassenschluessel/Kennziffer/
+        // Laufende-Nr. syncs that also dispatch setDraft. Recording here too
+        // would let such a sync, fired on a draft the user merely switched to,
+        // clobber the shared memory with that draft's stale values.
+        if (featureType === "leuchte") return;
         const picked = pickAllowed(featureType, values);
         if (picked) {
           state.defaults[featureType] = picked;

@@ -1,6 +1,7 @@
 import {
   useState,
   useEffect,
+  useLayoutEffect,
   useCallback,
   useMemo,
   useRef,
@@ -14,9 +15,11 @@ import { useSelector, useDispatch } from "react-redux";
 import { getJWT } from "../../../store/slices/auth";
 import {
   getAllowlistedPaths,
+  getCreationDefaults,
   recordDefaults,
 } from "../../../store/slices/creationDefaults";
-import { serializeValues } from "../../../helper/draftSerialize";
+import type { RootState } from "../../../store";
+import { serializeValues, deserializeValues } from "../../../helper/draftSerialize";
 import { DokumentItem } from "../DocumentPreview";
 import { getDocumentKey } from "../FilePreview";
 import FeatureFormLayout from "./FeatureFormLayout";
@@ -47,6 +50,26 @@ const transformDatesForBackend = (
     }
   }
   return result;
+};
+
+// Fields on a Leuchte tab that are never user-editable during creation:
+// Strassenschluessel/Kennziffer/Laufende Nr. are set on the Standort tab and
+// only mirrored into the Leuchte form by LeuchteFormFields' subscription
+// effects. A values-change touching *only* these is therefore a programmatic
+// sync (it also fires when the user merely switches to a draft), not a genuine
+// edit, and must not mark the draft as the one to remember.
+const SYNTHETIC_SYNC_FIELDS = new Set([
+  "strassenschluessel_pk",
+  "strassenschluessel_strasse",
+  "fk_strassenschluessel",
+  "fk_kennziffer",
+  "lfd_nummer",
+]);
+const isSyntheticLeuchteChange = (
+  changedValues: Record<string, unknown>
+): boolean => {
+  const keys = Object.keys(changedValues);
+  return keys.length > 0 && keys.every((k) => SYNTHETIC_SYNC_FIELDS.has(k));
 };
 
 interface LeuchteFormProps {
@@ -118,6 +141,13 @@ const LeuchteForm = ({
 
   const originalValuesRef = useRef<Record<string, unknown>>({});
 
+  // featureId of the draft the user has actually typed into. The recordDefaults
+  // dispatch below only writes the shared cross-draft "last values" memory when
+  // this matches the draft currently on screen — so merely opening or switching
+  // back to another draft never re-asserts its (possibly stale) values over a
+  // newer edit made in a different draft.
+  const editedDraftIdRef = useRef<string | undefined>(undefined);
+
   const handleLeuchteOriginalValues = useCallback(
     (values: Record<string, unknown>) => {
       originalValuesRef.current = {
@@ -154,16 +184,22 @@ const LeuchteForm = ({
 
   const handleLeuchteValuesChange = useCallback(
     (
-      _changedValues: Record<string, unknown>,
+      changedValues: Record<string, unknown>,
       allValues: Record<string, unknown>
     ) => {
-      setLastEditedLeuchteTabId("main");
+      // Ignore the programmatic Strassenschluessel/Kennziffer/Laufende-Nr.
+      // syncs — they also fire on a draft the user only switched to. Only a
+      // genuine field edit marks this draft as the one to remember.
+      if (!isSyntheticLeuchteChange(changedValues)) {
+        setLastEditedLeuchteTabId("main");
+        editedDraftIdRef.current = featureId;
+      }
       onDraftChange?.({
         ...draftValues,
         leuchte: allValues,
       });
     },
-    [onDraftChange, draftValues]
+    [onDraftChange, draftValues, featureId]
   );
 
   const handleMastValuesChange = useCallback(
@@ -175,12 +211,13 @@ const LeuchteForm = ({
       // and Kennziffer. Each `LeuchteFormFields` subscribes to it via
       // `mastDraftValues` and applies values into its own form — no parent-
       // side broadcast or per-form override Map needed here anymore.
+      editedDraftIdRef.current = featureId;
       onDraftChange?.({
         ...draftValues,
         mast: allValues,
       });
     },
-    [onDraftChange, draftValues]
+    [onDraftChange, draftValues, featureId]
   );
 
   const handleSave = async () => {
@@ -282,10 +319,10 @@ const LeuchteForm = ({
   const extraLeuchten = (draftValues?.leuchten ?? []) as Array<
     Record<string, unknown>
   >;
-  // Values from the most recently edited Leuchte tab, used as the "leuchte"
-  // currentDefaults for every tab's diff. This is what makes the edited tab
-  // stay green and pushes other tabs (with stale values) to gray — matching
-  // Schaltstelle's single-record behavior across multiple Leuchte tabs.
+  // Values from the most recently edited Leuchte tab. These get mirrored into
+  // the cross-draft `creationDefaults` memory below; that shared memory — not
+  // this local value — is what every tab diffs against for the green/gray
+  // highlight, so the "last value" is consistent across all Leuchten drafts.
   const referenceLeuchteValues = useMemo(() => {
     if (lastEditedLeuchteTabId !== "main") {
       const entry = extraLeuchten.find(
@@ -305,8 +342,23 @@ const LeuchteForm = ({
   // `values.leuchten[]`; a later Mast edit would also re-assert that stale
   // Leuchte 1 slice. Re-recording here on every reference/Mast change keeps
   // the next new Leuchte feature seeded from the tab last worked on.
-  useEffect(() => {
+  //
+  // useLayoutEffect (not useEffect): the highlight below diffs against this
+  // recorded memory, so the write must land before the browser paints —
+  // otherwise an extra-tab keystroke flashes gray for one frame until the
+  // memory catches up.
+  useLayoutEffect(() => {
     if (!isCreation) return;
+    // Only the draft the user actually edited may update the shared memory.
+    // On mount — or when switching back to an untouched draft — this guard is
+    // false, so the form never re-records its own (potentially stale) values
+    // over a newer edit made in a different draft.
+    if (editedDraftIdRef.current == null) return;
+    if (editedDraftIdRef.current !== featureId) return;
+    // Consume the signal: record exactly once per genuine edit. A later
+    // re-render of this same draft (e.g. on switching back to it) then finds
+    // the ref cleared and won't re-assert its now-stale values.
+    editedDraftIdRef.current = undefined;
     dispatch(
       recordDefaults({
         featureType: "leuchte",
@@ -318,7 +370,36 @@ const LeuchteForm = ({
         },
       })
     );
-  }, [isCreation, referenceLeuchteValues, draftValues?.mast, dispatch]);
+  }, [
+    isCreation,
+    referenceLeuchteValues,
+    draftValues?.mast,
+    dispatch,
+    featureId,
+  ]);
+
+  // The single cross-draft "last values" record for Leuchten, kept in sync by
+  // the recordDefaults dispatch above. Every Leuchte tab — Leuchte 1 and every
+  // extra "+"-tab, in every draft — diffs its fields against this, so a field
+  // that no longer holds the most recent value renders gray and only the
+  // current value stays green.
+  const leuchteCreationDefaults = useSelector((state: RootState) =>
+    getCreationDefaults(state, "leuchte")
+  );
+  // The creationDefaults slice stores *serialized* values — dayjs dates live
+  // there as `__dayjs:` strings. The highlight diff below runs against
+  // `draftValues`, which is already deserialized (real dayjs objects), so the
+  // defaults must be deserialized too. Without this every date field compares
+  // a dayjs object against a string, `isFormValueEqual` always returns false,
+  // and the field wrongly renders gray instead of green.
+  const leuchteDefaultsForDiff = useMemo(
+    () => ({
+      leuchte: deserializeValues(
+        (leuchteCreationDefaults?.leuchte as Record<string, unknown>) ?? {}
+      ),
+    }),
+    [leuchteCreationDefaults]
+  );
   // Allowlisted paths shaped like "leuchte.fk_leuchttyp" — used by the
   // per-extra-tab ChangedFieldsProvider below to compute green highlights
   // against that tab's own slice (not Leuchte 1's).
@@ -349,16 +430,16 @@ const LeuchteForm = ({
           baseSlice.leuchtennummer !== ""
         ? Number(baseSlice.leuchtennummer)
         : 0;
-    // Seed the new tab from the most recently edited Leuchte tab's allowlisted
-    // fields (Leuchtentyp, Energielieferant, Doppelkommando, …). Sourcing from
-    // the live reference tab — rather than the creationDefaults snapshot —
-    // means values entered on an *extra* tab are carried over too: extra-tab
-    // edits live in `values.leuchten[]`, which never reaches creationDefaults,
-    // so that snapshot only ever reflected Leuchte 1 and dropped fields like
-    // Doppelkommando/Anzahl.
+    // Seed the new tab purely from the remembered ("last value") fields — the
+    // shared creationDefaults memory — so a "+" tab starts like a fresh draft.
+    // A field with no remembered value is left empty, not copied from the
+    // reference tab; that stops a new tab from inheriting another tab's
+    // diverged (gray) values. The memory already reflects extra-tab edits:
+    // the recordDefaults effect above mirrors the last-edited tab into it.
+    const remembered = leuchteDefaultsForDiff.leuchte;
     const rehydratedSeed: Record<string, unknown> = {};
     for (const f of leuchteAllowlistedFields) {
-      const v = referenceLeuchteValues[f];
+      const v = remembered[f];
       if (v !== undefined && v !== null && v !== "") {
         rehydratedSeed[f] = v;
       }
@@ -393,7 +474,7 @@ const LeuchteForm = ({
   }, [
     draftValues,
     onDraftChange,
-    referenceLeuchteValues,
+    leuchteDefaultsForDiff,
     leuchteAllowlistedFields,
   ]);
   const handleRemoveLeuchteTab = useCallback(
@@ -415,7 +496,7 @@ const LeuchteForm = ({
   const handleExtraValuesChange = useCallback(
     (
       tabId: string,
-      _changedValues: Record<string, unknown>,
+      changedValues: Record<string, unknown>,
       allValues: Record<string, unknown>
     ) => {
       const current = (draftValues?.leuchten ?? []) as Array<
@@ -425,13 +506,17 @@ const LeuchteForm = ({
       if (idx < 0) return;
       const next = [...current];
       next[idx] = { ...allValues, _tabId: tabId };
-      setLastEditedLeuchteTabId(tabId);
+      // See handleLeuchteValuesChange: skip the programmatic mirror syncs.
+      if (!isSyntheticLeuchteChange(changedValues)) {
+        setLastEditedLeuchteTabId(tabId);
+        editedDraftIdRef.current = featureId;
+      }
       onDraftChange?.({
         ...draftValues,
         leuchten: next,
       });
     },
-    [draftValues, onDraftChange]
+    [draftValues, onDraftChange, featureId]
   );
   const jwt = useSelector(getJWT);
 
@@ -628,9 +713,7 @@ const LeuchteForm = ({
               originalValues={{}}
               draftValues={{ leuchte: entryFields }}
               allowlistedPaths={isCreation ? leuchteAllowlistedPaths : undefined}
-              currentDefaults={
-                isCreation ? { leuchte: referenceLeuchteValues } : undefined
-              }
+              currentDefaults={isCreation ? leuchteDefaultsForDiff : undefined}
             >
               <FieldPrefix name="leuchte">
                 <LeuchteFormFields
@@ -756,10 +839,10 @@ const LeuchteForm = ({
       onSave={handleSave}
     >
       {/* Creation only: wrap Leuchte 1 in its own ChangedFieldsProvider so it
-       * diffs against `referenceLeuchteValues` — the same per-tab "last edited"
-       * reference the extras use. Without this, editing Leuchte 2 would
-       * correctly turn it green but leave Leuchte 1 stuck on the old default's
-       * green even though its values now disagree with the live reference.
+       * diffs against the shared `leuchteDefaultsForDiff` memory — the same
+       * cross-draft "last values" record every extra tab uses. Without this,
+       * Leuchte 1 would fall back to the outer FeaturesFormsWrapper provider
+       * and could stay green even when its values no longer match that record.
        * On an existing feature this provider is skipped: its hardcoded empty
        * `originalValues` would mark every field as changed (gray), and the
        * outer FeaturesFormsWrapper provider already supplies the right diff. */}
@@ -770,7 +853,7 @@ const LeuchteForm = ({
             leuchte: (draftValues?.leuchte ?? {}) as Record<string, unknown>,
           }}
           allowlistedPaths={leuchteAllowlistedPaths}
-          currentDefaults={{ leuchte: referenceLeuchteValues }}
+          currentDefaults={leuchteDefaultsForDiff}
         >
           {leuchteOneContent}
         </ChangedFieldsProvider>

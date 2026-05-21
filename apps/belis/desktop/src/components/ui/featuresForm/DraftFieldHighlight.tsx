@@ -45,14 +45,24 @@ export const ChangedFieldsProvider = ({
   currentDefaults,
   children,
 }: ChangedFieldsProviderProps) => {
-  const changedFields = useMemo(
-    () => getChangedPaths(originalValues, draftValues),
-    [originalValues, draftValues]
-  );
   const prefilledFields = useMemo(
     () => getPrefilledPaths(draftValues, allowlistedPaths, currentDefaults),
     [draftValues, allowlistedPaths, currentDefaults]
   );
+  const changedFields = useMemo(() => {
+    const paths = getChangedPaths(originalValues, draftValues);
+    // An allowlisted field that diverges from its remembered default counts
+    // as changed (gray) — even when left empty. getChangedPaths only diffs
+    // against the original values, so it never flags an empty field; the
+    // divergence from the *default* is detected here: a tracked path that
+    // did not earn the green highlight is, by definition, a diverged one.
+    if (allowlistedPaths) {
+      for (const path of allowlistedPaths) {
+        if (!prefilledFields.has(path)) paths.add(path);
+      }
+    }
+    return paths;
+  }, [originalValues, draftValues, allowlistedPaths, prefilledFields]);
   return (
     <ChangedFieldsContext.Provider value={changedFields}>
       <PrefilledFieldsContext.Provider value={prefilledFields}>
@@ -81,7 +91,7 @@ const DRAFT_CLASS = "draft-changed-field";
 const PREFILL_CLASS = "draft-prefilled-field";
 
 const draftStyles = `
-.${DRAFT_CLASS} .ant-input,creationDefaults.ts
+.${DRAFT_CLASS} .ant-input,
 .${DRAFT_CLASS} .ant-input-number,
 .${DRAFT_CLASS} .ant-input-number-input,
 .${DRAFT_CLASS} .ant-select-selector,
