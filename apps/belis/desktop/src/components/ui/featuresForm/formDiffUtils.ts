@@ -67,8 +67,15 @@ export const isFormDirty = (
   return !isFormValueEqual(originalValues, draftValues);
 };
 
+// A dayjs instance is technically a non-array object, but it must be treated
+// as a leaf value — never recursed into. Without the dayjs guard, getChangedPaths
+// would descend into a date's internals ($D/$M/$y/…) and record those instead
+// of the field path itself, so the field never gets the changed/gray highlight.
 const isPlainObj = (v: unknown): v is Record<string, unknown> =>
-  v !== null && typeof v === "object" && !Array.isArray(v);
+  v !== null &&
+  typeof v === "object" &&
+  !Array.isArray(v) &&
+  !dayjs.isDayjs(v);
 
 /**
  * Get a set of changed field paths between original and draft values.
@@ -133,11 +140,11 @@ const walkPath = (
  * Get the set of allowlisted ("tracked") paths that should render with the
  * green highlight.
  *
- * Tracked fields are green *by default* — including while they are still
- * empty and before any value has been remembered (e.g. the very first draft
- * of a feature type). A field only loses the green highlight once it holds a
- * non-empty value that diverges from a non-empty remembered default; it then
- * renders gray via the changed-fields path.
+ * A tracked field is green when no default has been remembered yet (e.g. the
+ * very first draft of a feature type) or when its value still equals the
+ * remembered default. Once a non-empty default exists, any draft whose value
+ * diverges from it — including one that left the field empty — loses the
+ * green highlight and renders gray via the changed-fields path.
  */
 export const getPrefilledPaths = (
   draft: Record<string, unknown> | undefined,
@@ -151,14 +158,15 @@ export const getPrefilledPaths = (
   for (const path of allowlistedPaths) {
     const draftVal = walkPath(draft, path);
     const defaultVal = walkPath(currentDefaults, path);
-    // Empty tracked field stays green (empty wins over an existing default),
-    // and so does any field for which no default has been remembered yet.
-    if (isEmpty(draftVal) || isEmpty(defaultVal)) {
+    // No default remembered yet → the field is green by default (the very
+    // first draft of a feature type, before any value has been recorded).
+    if (isEmpty(defaultVal)) {
       matched.add(path);
       continue;
     }
-    // A remembered default exists: green while the value still matches it;
-    // a diverged value falls through to the gray "changed" highlight.
+    // A non-empty default exists: green only while this draft's value still
+    // matches it. Anything else — a diverged value *or an empty field* —
+    // falls through to the gray "changed" highlight.
     if (isFormValueEqual(draftVal, defaultVal)) {
       matched.add(path);
     }
