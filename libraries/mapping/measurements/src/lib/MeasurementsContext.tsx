@@ -20,6 +20,8 @@ export type MeasurementId = string | number;
 type MeasurementsCommands = {
   clearAll: () => void;
   deleteById: (id: MeasurementId) => void;
+  selectFeature: (id: string) => void;
+  deselectAll: () => void;
 };
 
 // Internal bridge between MeasurementHost (publisher) and consumer hooks.
@@ -27,6 +29,13 @@ type MeasurementsCommands = {
 type MeasurementsRegistry = {
   publishFeatures: (features: Feature[]) => void;
   publishMode: (mode: DrawMode) => void;
+  /** Called from MeasurementHost's terra-draw select/deselect listeners so the
+   *  context's `selectedId` mirrors what's selected in the map. Null on
+   *  deselect. The host suppresses this call when it triggered the selection
+   *  programmatically via `commands.selectFeature` / `commands.deselectAll`
+   *  (the consumer already updated `selectedId` locally — see
+   *  `selectFeature` / `deselectFeature` below). */
+  publishSelection: (id: string | null) => void;
   setCommands: (commands: MeasurementsCommands | null) => void;
   /** Resolves with the features that should seed terra-draw at host mount.
    * Returns the provider's LIVE `features` state (via ref), not a one-time
@@ -44,8 +53,12 @@ type MeasurementsContextValue = {
   count: number;
   isEmpty: boolean;
   mode: DrawMode;
+  selectedId: string | null;
+  selectedFeature: Feature | null;
   clearAll: () => void;
   deleteById: (id: MeasurementId) => void;
+  selectFeature: (id: string) => void;
+  deselectFeature: () => void;
   __registry: MeasurementsRegistry;
 };
 
@@ -73,6 +86,11 @@ export function MeasurementsProvider({
   // threading the prop through their own state. Defaults to "none" before
   // the host mounts and publishes.
   const [mode, setMode] = useState<DrawMode>("none");
+  // Selection state mirrors terra-draw's currently selected feature id.
+  // Updated by `publishSelection` (map clicks via the host) and by the
+  // public `selectFeature` / `deselectFeature` (consumer-driven). Cleared
+  // automatically when the host unmounts via `setCommands(null)`.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   // commandsRef instead of state so the host's setCommands call inside its
   // mount effect doesn't trigger a re-render of every consumer; the
   // public clearAll/deleteById close over the ref and read it lazily.
@@ -111,8 +129,15 @@ export function MeasurementsProvider({
     () => ({
       publishFeatures: (next) => setFeatures(next),
       publishMode: (next) => setMode(next),
+      publishSelection: (id) => setSelectedId(id),
       setCommands: (cmds) => {
         commandsRef.current = cmds;
+        // Host unmount drops any selection it was tracking — keep context in
+        // sync so a lingering selectedId doesn't leave a stale infobox on
+        // screen after exiting measurement mode.
+        if (cmds === null) {
+          setSelectedId(null);
+        }
       },
       requestInitialFeatures: async () => {
         // Wait for the provider's hydrate effect to finish reading
@@ -177,17 +202,49 @@ export function MeasurementsProvider({
     commandsRef.current?.deleteById(id);
   }, []);
 
+  // Consumer-driven selection. The host's command suppresses its own
+  // publishSelection callback (echo-avoidance), so we set the state here
+  // explicitly. No-ops gracefully when the host isn't mounted.
+  const selectFeature = useCallback((id: string) => {
+    commandsRef.current?.selectFeature(id);
+    setSelectedId(id);
+  }, []);
+
+  const deselectFeature = useCallback(() => {
+    commandsRef.current?.deselectAll();
+    setSelectedId(null);
+  }, []);
+
+  const selectedFeature = useMemo<Feature | null>(() => {
+    if (selectedId === null) return null;
+    return features.find((f) => String(f.id) === selectedId) ?? null;
+  }, [selectedId, features]);
+
   const value = useMemo<MeasurementsContextValue>(
     () => ({
       features,
       count: features.length,
       isEmpty: features.length === 0,
       mode,
+      selectedId,
+      selectedFeature,
       clearAll,
       deleteById,
+      selectFeature,
+      deselectFeature,
       __registry: registry,
     }),
-    [features, mode, clearAll, deleteById, registry]
+    [
+      features,
+      mode,
+      selectedId,
+      selectedFeature,
+      clearAll,
+      deleteById,
+      selectFeature,
+      deselectFeature,
+      registry,
+    ]
   );
 
   return (
@@ -202,8 +259,12 @@ export type UseMeasurementsResult = {
   count: number;
   isEmpty: boolean;
   mode: DrawMode;
+  selectedId: string | null;
+  selectedFeature: Feature | null;
   clearAll: () => void;
   deleteById: (id: MeasurementId) => void;
+  selectFeature: (id: string) => void;
+  deselectFeature: () => void;
 };
 
 export function useMeasurements(): UseMeasurementsResult {
@@ -218,8 +279,12 @@ export function useMeasurements(): UseMeasurementsResult {
     count: ctx.count,
     isEmpty: ctx.isEmpty,
     mode: ctx.mode,
+    selectedId: ctx.selectedId,
+    selectedFeature: ctx.selectedFeature,
     clearAll: ctx.clearAll,
     deleteById: ctx.deleteById,
+    selectFeature: ctx.selectFeature,
+    deselectFeature: ctx.deselectFeature,
   };
 }
 

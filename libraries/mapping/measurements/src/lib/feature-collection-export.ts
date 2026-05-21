@@ -53,11 +53,11 @@ function polygonRingLengthMeters(ring: Position[]): number {
   return meters;
 }
 
-function buildFeatureTitle(order: number, isPolygon: boolean): string {
+export function buildFeatureTitle(order: number, isPolygon: boolean): string {
   return `${isPolygon ? "Fläche" : "Linienzug"} #${order}`;
 }
 
-function buildLineSubtitle(coords: Position[]): string {
+export function buildLineSubtitle(coords: Position[]): string {
   const meters = lineLengthMeters(coords);
   if (meters <= 0) {
     return "";
@@ -65,7 +65,7 @@ function buildLineSubtitle(coords: Position[]): string {
   return `Strecke: ${formatMeters(meters)}`;
 }
 
-function buildPolygonSubtitle(polygon: Feature<Polygon>): string {
+export function buildPolygonSubtitle(polygon: Feature<Polygon>): string {
   const ring = polygon.geometry.coordinates[0] ?? [];
   const perimeterMeters = polygonRingLengthMeters(ring);
   const areaSquareMeters = area(polygon);

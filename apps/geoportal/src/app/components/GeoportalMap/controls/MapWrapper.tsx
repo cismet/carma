@@ -69,7 +69,7 @@ import {
 } from "@carma-mapping/map-controls-layout";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 import { MeasurementControl } from "@carma-commons/measurements";
-import { MeasurementHost } from "@carma-mapping/measurements";
+import { MeasurementHost, useMeasurements } from "@carma-mapping/measurements";
 import { useLibreContext } from "@carma-mapping/contexts";
 
 import { GeoportalMap } from "../GeoportalMap.tsx";
@@ -120,6 +120,8 @@ import {
 import versionData from "../../../../version.json";
 import LoginForm from "../../LoginForm.tsx";
 import FeatureInfoBox from "../../feature-info/FeatureInfoBox.tsx";
+import { MeasurementInfoBox } from "@carma-mapping/measurements";
+import { selectionPadding } from "../../../constants/selection.ts";
 
 // detect GPU support, disables 3d mode if not supported
 let hasGPU = false;
@@ -197,6 +199,7 @@ const MapWrapper = () => {
   const isModeMeasurement = uiMode === UIMode.MEASUREMENT;
   const isModeFeatureInfo = uiMode === UIMode.FEATURE_INFO;
   const libreDrawMode = useSelector(getLibreDrawMode);
+  const { selectedFeature: selectedMeasurement } = useMeasurements();
   const showFullscreenButton = useSelector(getShowFullscreenButton);
   const showLocatorButton = useSelector(getShowLocatorButton);
   const visibleControls = useSelector(getUIVisibleControls);
@@ -634,7 +637,13 @@ const MapWrapper = () => {
           )}
         </div>
       )}
-      {showLibreMap && isLeaflet && <FeatureInfoBox pos={pos ?? undefined} />}
+      {showLibreMap &&
+        isLeaflet &&
+        (selectedMeasurement ? (
+          <MeasurementInfoBox selectionPadding={selectionPadding} />
+        ) : (
+          <FeatureInfoBox pos={pos ?? undefined} />
+        ))}
       <ControlLayoutCanvas>
         <div
           id="mapContainer"

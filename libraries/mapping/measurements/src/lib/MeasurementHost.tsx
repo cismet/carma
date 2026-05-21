@@ -867,9 +867,11 @@ export const MeasurementHost = forwardRef<
       // from the dot too, not just new-line drawing.
       draw.on("select", (id) => {
         hasSelectionRef.current = true;
-        selectedIdRef.current = id != null ? String(id) : null;
+        const next = id != null ? String(id) : null;
+        selectedIdRef.current = next;
         if (!suppressSelectionCallbackRef.current) {
-          onSelectionChangeRef.current?.(id != null ? String(id) : null);
+          onSelectionChangeRef.current?.(next);
+          registryRef.current.publishSelection(next);
         }
       });
       draw.on("deselect", () => {
@@ -877,6 +879,7 @@ export const MeasurementHost = forwardRef<
         selectedIdRef.current = null;
         if (!suppressSelectionCallbackRef.current) {
           onSelectionChangeRef.current?.(null);
+          registryRef.current.publishSelection(null);
         }
         // No selection means no expected vertex drag in the immediate
         // future; clear any stale preview so it doesn't hang at the last
@@ -1046,6 +1049,56 @@ export const MeasurementHost = forwardRef<
             return;
           }
           publishSnapshot();
+        },
+        selectFeature: (id) => {
+          const draw = drawRef.current;
+          if (!draw) return;
+          if (selectedIdRef.current === id) return; // idempotent
+          // The provider already set its selectedId state; suppress the
+          // terra-draw select callback so we don't echo back through
+          // publishSelection / onSelectionChange.
+          suppressSelectionCallbackRef.current = true;
+          try {
+            if (selectedIdRef.current && selectedIdRef.current !== id) {
+              try {
+                draw.deselectFeature(selectedIdRef.current);
+              } catch {
+                // stale id or already gone — ignore
+              }
+            }
+            draw.selectFeature(id);
+            selectedIdRef.current = id;
+            hasSelectionRef.current = true;
+          } catch (e) {
+            console.warn(
+              "[carma-measurements] commands.selectFeature failed for id",
+              id,
+              e
+            );
+          } finally {
+            suppressSelectionCallbackRef.current = false;
+          }
+        },
+        deselectAll: () => {
+          const draw = drawRef.current;
+          if (!draw) return;
+          const current = selectedIdRef.current;
+          if (!current) return; // idempotent
+          // See selectFeature above — provider state already updated.
+          suppressSelectionCallbackRef.current = true;
+          try {
+            draw.deselectFeature(current);
+            selectedIdRef.current = null;
+            hasSelectionRef.current = false;
+          } catch (e) {
+            console.warn(
+              "[carma-measurements] commands.deselectAll failed for id",
+              current,
+              e
+            );
+          } finally {
+            suppressSelectionCallbackRef.current = false;
+          }
         },
       });
     };
