@@ -36,6 +36,11 @@ export interface Draft {
   // so downstream writers that replace `feature.properties` wholesale can't
   // wipe it.
   linkedStandortLabel?: string;
+  // Label of the measurement a creation draft was built from (e.g. "P4").
+  // The measurement is deleted from the store the moment it's assigned, so
+  // its dropdown option is gone — this stashed label lets the Neue Geometrien
+  // selector still show a human label. Mirrors `linkedStandortLabel`.
+  measurementLabel?: string;
   updatedAt: number;
 }
 
@@ -76,6 +81,7 @@ const featuresFormsSlice = createSlice({
         geometryWgs84?: { type: "Point"; coordinates: [number, number] };
         prefillGeometryKey?: string;
         linkedStandortLabel?: string;
+        measurementLabel?: string;
       }>
     ) {
       const {
@@ -90,6 +96,7 @@ const featuresFormsSlice = createSlice({
         geometryWgs84,
         prefillGeometryKey,
         linkedStandortLabel,
+        measurementLabel,
       } = action.payload;
       const existing = state.drafts[featureId];
       const hasFiles = existing?.files && existing.files.length > 0;
@@ -140,6 +147,8 @@ const featuresFormsSlice = createSlice({
           existing?.prefillGeometryKey ?? prefillGeometryKey,
         linkedStandortLabel:
           linkedStandortLabel ?? existing?.linkedStandortLabel,
+        measurementLabel:
+          measurementLabel ?? existing?.measurementLabel,
         updatedAt: Date.now(),
       };
     },
@@ -163,6 +172,7 @@ const featuresFormsSlice = createSlice({
       d.geometryKey = undefined;
       d.geometryWgs84 = undefined;
       d.linkedStandortLabel = undefined;
+      d.measurementLabel = undefined;
       if (feature !== undefined) d.feature = feature;
       if (fetchedData !== undefined) d.fetchedData = fetchedData;
       d.updatedAt = Date.now();

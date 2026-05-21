@@ -2147,6 +2147,37 @@ const BelisMapLibWrapper = ({
     }
   }, [sidebarVariant, miniMap, miniMapReady, namespacedSource]);
 
+  // --- Main map: render every open creation draft alongside the server-side
+  // brandnew FC in the brandnew GeoJSON source, so in-progress drafts show on
+  // the map styled by the brandnew per-type layers (which filter on
+  // properties._sourceLayer — stamped by buildSyntheticFeature). Mirrors the
+  // mini-map effect below. useBrandnewFcSync feeds `brandnewSource` with the
+  // server FC only; this effect re-merges the open drafts on top whenever
+  // either side changes. ---
+  useEffect(() => {
+    if (!map || !mapReady || !brandnewLayerEnabled) return;
+    const src = map.getSource(brandnewSource) as
+      | maplibregl.GeoJSONSource
+      | undefined;
+    if (!src || typeof src.setData !== "function") return;
+
+    const features: GeoJSON.Feature[] = [...(brandnewFc.features ?? [])];
+    for (const { feature } of allDraftFeatures) {
+      if (!feature) continue;
+      if (feature.properties?._isCreation !== true) continue;
+      if (!feature.geometry) continue;
+      features.push(feature as unknown as GeoJSON.Feature);
+    }
+    src.setData({ type: "FeatureCollection", features });
+  }, [
+    map,
+    mapReady,
+    brandnewLayerEnabled,
+    brandnewSource,
+    allDraftFeatures,
+    brandnewFc,
+  ]);
+
   // --- Mini-map: push every open creation draft AND the server-side brandnew
   // FC into the brandnew GeoJSON source so they render together with the
   // brandnew style's per-type layers, matching the main map's brandnew group.

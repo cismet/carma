@@ -225,6 +225,36 @@ const FeaturesFormsWrapper = ({
     draft?.linkedStandortLabel,
   ]);
 
+  // A measurement is deleted from the store the moment it's assigned to a
+  // draft (see handleGeometryChange), so buildMeasurementGeometryOptions can
+  // no longer surface it. Reconstruct the option for *this* draft's assigned
+  // measurement from the draft itself, so the Neue Geometrien selector keeps
+  // showing it with a human label. Mirrors `standortOption` above.
+  const measurementOption = useMemo<MeasurementGeometryOption | null>(() => {
+    if (!isCreation) return null;
+    const geometryKey = draft?.geometryKey;
+    const geometry = draft?.geometry;
+    if (!geometryKey || !geometry) return null;
+    if (!geometryKey.startsWith("measurement.")) return null;
+    // Still live in the measurements slice? Then buildMeasurementGeometryOptions
+    // already covers it — only reconstruct for an assigned-and-deleted one.
+    const stillLive = measurements.some(
+      (f) => `measurement.${String(f.id)}` === geometryKey
+    );
+    if (stillLive) return null;
+    return {
+      key: geometryKey,
+      label: draft?.measurementLabel ?? "Messung",
+      geometry: geometry as MeasurementGeometryOption["geometry"],
+    };
+  }, [
+    isCreation,
+    draft?.geometryKey,
+    draft?.geometry,
+    draft?.measurementLabel,
+    measurements,
+  ]);
+
   // Measurement keys already claimed by other in-progress creation drafts —
   // each measurement can back at most one new feature, so don't offer it
   // again in any other draft's geometry selector.
@@ -243,8 +273,13 @@ const FeaturesFormsWrapper = ({
     const measurementOpts = buildMeasurementGeometryOptions(measurements).filter(
       (o) => !consumedByOtherDrafts.has(o.key)
     );
-    return standortOption ? [standortOption, ...measurementOpts] : measurementOpts;
-  }, [measurements, standortOption, consumedByOtherDrafts]);
+    const base = standortOption
+      ? [standortOption, ...measurementOpts]
+      : measurementOpts;
+    // This draft's own assigned-and-deleted measurement, prepended so the
+    // Select can render its label and the value-match logic resolves it.
+    return measurementOption ? [measurementOption, ...base] : base;
+  }, [measurements, standortOption, measurementOption, consumedByOtherDrafts]);
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const effectiveReadOnly =
@@ -493,6 +528,7 @@ const FeaturesFormsWrapper = ({
       const opt = geometryOptions.find((o) => o.key === newKey);
       if (!opt) return;
       const geom = opt.geometry;
+      const isMeasurement = newKey.startsWith("measurement.");
       const newFeature = buildSyntheticFeature(
         formKey,
         featureId,
@@ -513,8 +549,25 @@ const FeaturesFormsWrapper = ({
           geometry: geom,
           geometryKey: newKey,
           geometryWgs84: opt.geometryWgs84,
+          // Stash the label so the selector can still show it after the
+          // measurement is deleted just below.
+          measurementLabel: isMeasurement ? opt.label : undefined,
         })
       );
+      // The draft now carries the geometry (and renders on the map as a
+      // styled feature). Drop the measurement scaffold so it isn't shown
+      // twice — remove it from the store and the terra-draw layer. The draft
+      // keeps its own WGS84-geometry feature, so nothing is lost.
+      if (isMeasurement) {
+        const consumed = measurements.find(
+          (f) => `measurement.${String(f.id)}` === newKey
+        );
+        if (consumed) {
+          dispatch(setMeasurements(measurements.filter((f) => f !== consumed)));
+          const rawId = String(consumed.id).replace(/^measurement\./, "");
+          removeMeasurements([rawId]);
+        }
+      }
       // Push the new feature into MapSelectionContext so the datasheet
       // mini-map (which reads rawFeature) re-centers on the new geometry.
       if (selectedFeatureId) {
@@ -527,6 +580,7 @@ const FeaturesFormsWrapper = ({
       draft?.values,
       geometryOptions,
       keyTablesData,
+      measurements,
       dispatch,
       selectedFeatureId,
       selectFeature,
