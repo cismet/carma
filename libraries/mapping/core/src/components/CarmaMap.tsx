@@ -384,6 +384,9 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                 gazetteerInfoOnClick={
                   miniMap ? false : props.gazetteerInfoOnClick
                 }
+                disableInternalSelection={
+                  miniMap ? false : props.disableInternalSelection
+                }
                 backgroundRasterPaint={effectiveRasterPaint}
                 threeRuntimeParams={props.threeRuntimeParams}
                 threePerfRef={props.threePerfRef}

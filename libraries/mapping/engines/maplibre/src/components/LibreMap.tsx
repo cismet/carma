@@ -29,6 +29,7 @@ import { buildFeatureStateTarget } from "../utils/featureStateTarget";
 import { HidingForwardingManager } from "../lib/HidingForwardingManager";
 import {
   applySelectionForwarding,
+  enrichHitsWithCarmaInfo,
   getCarmaConf,
   getCarmaConfFromStyle,
   resolvePropertyTarget,
@@ -208,6 +209,12 @@ export interface LibreMapProps {
   overrideSelectedFeature?: Record<string, unknown> | null;
   /** Show gazetteer selection info when clicking on empty map area (default: true) */
   gazetteerInfoOnClick?: boolean;
+  /** Skip the engine's built-in feature creation and context push on click.
+   * Visual selection (setFeatureState) and onSelectionChanged still fire, so
+   * a host can drive its own infobox flow without LibreMap also running
+   * createFeature against a registered infoboxMapping and competing for the
+   * MapSelectionContext. Default: false (engine handles selection). */
+  disableInternalSelection?: boolean;
   /** Raster paint overrides applied to all background raster layers (night mode, etc.) */
   backgroundRasterPaint?: RasterPaintOverrides;
   /** Runtime parameters for 3D layers (e.g. radiusMix, useLoft) */
@@ -306,6 +313,7 @@ export const LibreMap = ({
   exposeMapToWindow = false,
   overrideSelectedFeature,
   gazetteerInfoOnClick = true,
+  disableInternalSelection = false,
   backgroundRasterPaint,
   threeRuntimeParams,
   threePerfRef,
@@ -380,6 +388,9 @@ export const LibreMap = ({
   // handler would hold the value at mount and never react.
   const selectionEnabledRef = useRef(selectionEnabled);
   selectionEnabledRef.current = selectionEnabled;
+
+  const disableInternalSelectionRef = useRef(disableInternalSelection);
+  disableInternalSelectionRef.current = disableInternalSelection;
 
   // DatasheetContext: when a DatasheetProvider is mounted, isEnabled is true
   // and openDatasheet is a real function. Otherwise createFeature gets undefined.
@@ -878,7 +889,11 @@ export const LibreMap = ({
                   mappingRef.current[sf.source] ||
                   mappingRef.current[sf.sourceLayer ?? ""];
 
-                if (layerMapping3d) {
+                if (disableInternalSelectionRef.current) {
+                  // Host owns selection; skip engine-side feature creation
+                  // and context push. Visual highlight via setFeatureState
+                  // already happened upstream.
+                } else if (layerMapping3d) {
                   const feature = await createFeature(
                     syntheticFeature,
                     layerMapping3d,
@@ -938,6 +953,7 @@ export const LibreMap = ({
         // selection code, sidebar lookups, and forwarding all read
         // feature.sourceLayer.
         for (const hit of filteredHits) stampSourceLayerFromProperty(hit);
+        enrichHitsWithCarmaInfo(mapInstance, filteredHits);
         onSelectionChangedRef.current?.({
           hits: filteredHits,
           hit: filteredHits[0],
@@ -1055,7 +1071,7 @@ export const LibreMap = ({
           }
 
           let feature = null;
-          if (layerMapping) {
+          if (!disableInternalSelectionRef.current && layerMapping) {
             feature = await createFeature(
               selectedVectorFeature,
               layerMapping,
@@ -1096,7 +1112,7 @@ export const LibreMap = ({
             lastHandledVersionRef.current =
               mapSelectionCtxRef.current.selectionVersion + 1;
             onFeatureSelect?.(feature, featureId);
-          } else if (selectionEnabled) {
+          } else if (selectionEnabled && !disableInternalSelectionRef.current) {
             // No feature/mapping but selection enabled: still update context
             mapSelectionCtxRef.current.selectFeature(
               featureId,
@@ -1582,7 +1598,7 @@ export const LibreMap = ({
         sourceLayer: ctxSelectedFeatureId?.sourceLayer,
         hasOpenDatasheet: !!openDatasheetRef.current,
       });
-      if (layerMapping) {
+      if (layerMapping && !disableInternalSelectionRef.current) {
         void createFeature(
           ctxRawFeature,
           layerMapping,
@@ -1664,6 +1680,7 @@ export const LibreMap = ({
       // Stamp effective sourceLayer on geojson hits (same convention as
       // the click handler above).
       for (const hit of filteredHits) stampSourceLayerFromProperty(hit);
+      enrichHitsWithCarmaInfo(mapInstance, filteredHits);
 
       if (filteredHits.length > 0) {
         const selectedVectorFeature = selectFromHitsRef.current
@@ -1681,7 +1698,7 @@ export const LibreMap = ({
           mappingRef.current[selectedVectorFeature.source];
 
         let feature = null;
-        if (layerMapping) {
+        if (!disableInternalSelectionRef.current && layerMapping) {
           feature = await createFeature(
             selectedVectorFeature,
             layerMapping,

@@ -653,6 +653,7 @@ const MapWrapper = () => {
                 fullScreenControl={false}
                 terrainControl={false}
                 libreLayers={libreLayers}
+                disableInternalSelection={true}
                 selectionEnabled={!isModeMeasurement}
                 onSelectionChanged={handleLibreSelectionChanged}
                 selectFromHits={handleLibreSelectFromHits}

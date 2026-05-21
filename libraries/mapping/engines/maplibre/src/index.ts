@@ -149,6 +149,7 @@ export {
   getCarmaConfFromStyle,
   applySelectionForwarding,
   resolvePropertyTarget,
+  enrichHitsWithCarmaInfo,
 } from "./lib/SelectionManager";
 export type {
   CarmaConf,
