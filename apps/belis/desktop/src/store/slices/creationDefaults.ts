@@ -24,28 +24,47 @@ export const CREATION_DEFAULTS_ALLOWLIST: Record<string, AllowlistEntry> = {
     "strassenschluessel_strasse",
     "fk_strassenschluessel",
   ],
-  schaltstelle: [
-    "fk_bauart",
-    "strassenschluessel_pk",
-    "strassenschluessel_strasse",
-    "fk_strassenschluessel",
-  ],
+  // Schaltstelle is temporarily opted out of the "last values" memory:
+  // no fields are remembered, preselected, or green-highlighted for it.
+  // Restore by un-commenting the entry below.
+  // schaltstelle: [
+  //   "fk_bauart",
+  //   "strassenschluessel_pk",
+  //   "strassenschluessel_strasse",
+  //   "fk_strassenschluessel",
+  // ],
   leuchte: {
+    // Remember every field on the Leuchte tab across new drafts.
     leuchte: [
+      "strassenschluessel_pk",
+      "strassenschluessel_strasse",
+      "fk_strassenschluessel",
       "fk_kennziffer",
+      "lfd_nummer",
+      "leuchtennummer",
       "fk_leuchttyp",
       "inbetriebnahme_leuchte",
+      "zaehler",
       "montagefirma_leuchte",
       "fk_energielieferant",
       "schaltstelle",
+      "rundsteuerempfaenger",
+      "einbaudatum",
       "fk_dk1",
       "anzahl_1dk",
       "anschlussleistung_1dk",
       "fk_dk2",
       "anzahl_2dk",
+      "anschlussleistung_2dk",
       "fk_unterhaltspflicht_leuchte",
+      "wechseldatum",
+      "naechster_wechsel",
       "leuchtmittel",
       "lebensdauer",
+      "sonderturnus",
+      "vorschaltgeraet",
+      "wechselvorschaltgeraet",
+      "bemerkungen",
     ],
     mast: [
       "strassenschluessel_pk",
@@ -66,6 +85,9 @@ export const CREATION_DEFAULTS_ALLOWLIST: Record<string, AllowlistEntry> = {
       "letzte_aenderung",
     ],
   },
+  // Standort remembers every form field across new drafts EXCEPT
+  // `standortangabe` (Standortangabe) and `haus_nr` (Hausnummer), which are
+  // location-specific and should not carry over.
   standort: [
     "strassenschluessel_pk",
     "strassenschluessel_strasse",
@@ -78,10 +100,22 @@ export const CREATION_DEFAULTS_ALLOWLIST: Record<string, AllowlistEntry> = {
     "fk_klassifizierung",
     "fk_unterhaltspflicht_mast",
     "inbetriebnahme_mast",
+    "verrechnungseinheit",
+    "mastanstrich",
+    "anstrichfarbe",
     "montagefirma",
+    "gruendung",
     "standsicherheitspruefung",
+    "naechstes_pruefdatum",
     "verfahren",
+    "elek_pruefung",
+    "erdung",
+    "monteur",
+    "mastschutz",
+    "revision",
     "anlagengruppe",
+    "anbauten",
+    "bemerkungen",
     "letzte_aenderung",
   ],
 };
