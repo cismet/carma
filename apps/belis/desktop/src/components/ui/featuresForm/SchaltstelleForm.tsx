@@ -9,6 +9,7 @@ import { getJWT } from "../../../store/slices/auth";
 import { DokumentItem } from "../DocumentPreview";
 import { getDocumentKey } from "../FilePreview";
 import FeatureFormLayout from "./FeatureFormLayout";
+import { useCreateFeatureDraft } from "../useCreateFeatureDraft";
 import { extractListItem } from "../BelisSidebar";
 import SchaltstelleFormFields from "./SchaltstelleFormFields";
 import { updateDataByClassName } from "../../../helper/apiMethods";
@@ -80,6 +81,7 @@ const SchaltstelleForm = ({
     null
   );
   const jwt = useSelector(getJWT);
+  const createFeatureDraft = useCreateFeatureDraft();
 
   const setFormInstance = useCallback((form: FormInstance) => {
     formRef.current = form;
@@ -256,6 +258,7 @@ const SchaltstelleForm = ({
       onToggleReadOnly={onToggleReadOnly}
       onCancel={onCancel}
       onSave={handleSave}
+      onCreateRelatedDraft={() => createFeatureDraft("schaltstelle")}
     >
       <SchaltstelleFormFields
         schaltstelle={ss}

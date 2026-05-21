@@ -8,6 +8,7 @@ import { getJWT } from "../../../store/slices/auth";
 import { DokumentItem } from "../DocumentPreview";
 import { getDocumentKey } from "../FilePreview";
 import FeatureFormLayout from "./FeatureFormLayout";
+import { useCreateFeatureDraft } from "../useCreateFeatureDraft";
 import { extractListItem } from "../BelisSidebar";
 import MastFormFields from "./MastFormFields";
 import { updateDataByClassName } from "../../../helper/apiMethods";
@@ -78,6 +79,7 @@ const StandortForm = ({
   );
   const mastFormRef = useRef<FormInstance | null>(null);
   const jwt = useSelector(getJWT);
+  const createFeatureDraft = useCreateFeatureDraft();
 
   const setMastForm = useCallback((form: FormInstance) => {
     mastFormRef.current = form;
@@ -258,6 +260,7 @@ const StandortForm = ({
       onToggleReadOnly={onToggleReadOnly}
       onCancel={onCancel}
       onSave={handleSave}
+      onCreateRelatedDraft={() => createFeatureDraft("standort")}
     >
       <MastFormFields
         mast={mast}

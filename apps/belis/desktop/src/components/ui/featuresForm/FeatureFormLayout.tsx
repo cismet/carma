@@ -41,6 +41,7 @@ interface ExtraGeneralTab {
 }
 
 const ADD_TAB_KEY = "addtabsentinel";
+const CREATE_DRAFT_KEY = "createdraftsentinel";
 
 export interface ExtraDocumentSection {
   title: string;
@@ -77,6 +78,11 @@ interface FeatureFormLayoutProps {
    * flow). Clicking it invokes this callback. If the callback returns a tab
    * key (string), that tab becomes active; otherwise the active tab stays put. */
   onAddTab?: () => string | void;
+  /** When provided, a trailing "+" tab is rendered at the very end of the
+   * tab bar (after every other tab). Clicking it invokes this callback —
+   * e.g. to spawn a new creation draft of the same feature type — without
+   * changing the active tab. */
+  onCreateRelatedDraft?: () => void;
   /** Label for the main/general tab. Defaults to "Allgemein". */
   generalTabLabel?: string;
   /** Whether additional tabs render before or after the general tab. Default "after". */
@@ -118,6 +124,7 @@ const FeatureFormLayout = ({
   additionalTabs = [],
   extraGeneralTabs = [],
   onAddTab,
+  onCreateRelatedDraft,
   generalTabLabel = "Allgemein",
   additionalTabsPosition = "after",
   loading,
@@ -213,6 +220,12 @@ const FeatureFormLayout = ({
   }, [extraGeneralTabKeys, activeTabKey, tabsResetKey]);
   const handleTabChange = useCallback(
     (key: string) => {
+      // The "create related draft" sentinel spawns a new draft and never
+      // becomes the active tab — the click just triggers the callback.
+      if (key === CREATE_DRAFT_KEY) {
+        onCreateRelatedDraft?.();
+        return;
+      }
       let nextKey = key;
       if (key === ADD_TAB_KEY) {
         const newKey = onAddTab?.();
@@ -224,8 +237,41 @@ const FeatureFormLayout = ({
         tabMemoryRef.current.set(tabsResetKey, nextKey);
       }
     },
-    [onAddTab, tabsResetKey]
+    [onAddTab, onCreateRelatedDraft, tabsResetKey]
   );
+
+  // Trailing "+" tab — rendered last in every tab list. Empty children:
+  // handleTabChange short-circuits before activation so this pane never shows.
+  const createDraftSentinel = onCreateRelatedDraft
+    ? [
+        {
+          key: CREATE_DRAFT_KEY,
+          label: (
+            <span
+              aria-label="Neuen Datensatz anlegen"
+              title="Neuen Datensatz anlegen"
+              style={{ display: "inline-flex", alignItems: "center" }}
+            >
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 22,
+                  height: 22,
+                  border: "1px solid #d9d9d9",
+                  borderRadius: 4,
+                  color: "#8c8c8c",
+                }}
+              >
+                <PlusOutlined style={{ fontSize: 12 }} />
+              </span>
+            </span>
+          ),
+          children: null,
+        },
+      ]
+    : [];
 
   // Cache image URLs at this level to persist across layout changes (resize)
   const [savedImageUrls, setSavedImageUrls] = useState<SavedImageUrls>({});
@@ -570,6 +616,7 @@ const FeatureFormLayout = ({
             ...mappedExtraGeneralTabs,
             ...addTabSentinel,
             ...rawTabs,
+            ...createDraftSentinel,
           ]
         : [
             generalTab,
@@ -577,6 +624,7 @@ const FeatureFormLayout = ({
             ...mappedAdditionalTabs,
             ...addTabSentinel,
             ...rawTabs,
+            ...createDraftSentinel,
           ];
 
     return (
@@ -604,9 +652,9 @@ const FeatureFormLayout = ({
               saving ? "opacity-50 pointer-events-none" : ""
             }`}
           >
-            {showRaw || additionalTabs.length > 0 ? (
+            {showRaw || additionalTabs.length > 0 || onCreateRelatedDraft ? (
               <div
-                className="[&_.ant-tabs-nav]:sticky [&_.ant-tabs-nav]:top-0 [&_.ant-tabs-nav]:bg-white [&_.ant-tabs-nav]:z-10 [&_.ant-tabs-tab[data-node-key=addtabsentinel]]:!ml-4 [&_.ant-tabs-tab[data-node-key=addtabsentinel]+.ant-tabs-tab]:!ml-4 [&_.ant-tabs-tab[data-node-key^=extra-]]:!ml-4 [&_.ant-tabs-tab+.ant-tabs-tab[data-node-key=general]]:!ml-4"
+                className="[&_.ant-tabs-nav]:sticky [&_.ant-tabs-nav]:top-0 [&_.ant-tabs-nav]:bg-white [&_.ant-tabs-nav]:z-10 [&_.ant-tabs-tab[data-node-key=addtabsentinel]]:!ml-4 [&_.ant-tabs-tab[data-node-key=addtabsentinel]+.ant-tabs-tab]:!ml-4 [&_.ant-tabs-tab[data-node-key=createdraftsentinel]]:!ml-3 [&_.ant-tabs-tab[data-node-key^=extra-]]:!ml-4 [&_.ant-tabs-tab+.ant-tabs-tab[data-node-key=general]]:!ml-4"
               >
                 <Tabs
                   key={tabsResetKey}
@@ -660,10 +708,10 @@ const FeatureFormLayout = ({
           saving ? "opacity-50 pointer-events-none" : ""
         }`}
       >
-        {singleColumn && !showRaw ? (
+        {singleColumn && !showRaw && !onCreateRelatedDraft ? (
           <div className="pt-4">{formHeaderContent}{documentsContent}</div>
         ) : (
-          <div className="[&_.ant-tabs-nav]:sticky [&_.ant-tabs-nav]:top-0 [&_.ant-tabs-nav]:bg-white [&_.ant-tabs-nav]:z-10 [&_.ant-tabs-tab[data-node-key=addtabsentinel]]:!ml-4 [&_.ant-tabs-tab[data-node-key=addtabsentinel]+.ant-tabs-tab]:!ml-4 [&_.ant-tabs-tab[data-node-key^=extra-]]:!ml-4 [&_.ant-tabs-tab+.ant-tabs-tab[data-node-key=general]]:!ml-4">
+          <div className="[&_.ant-tabs-nav]:sticky [&_.ant-tabs-nav]:top-0 [&_.ant-tabs-nav]:bg-white [&_.ant-tabs-nav]:z-10 [&_.ant-tabs-tab[data-node-key=addtabsentinel]]:!ml-4 [&_.ant-tabs-tab[data-node-key=addtabsentinel]+.ant-tabs-tab]:!ml-4 [&_.ant-tabs-tab[data-node-key=createdraftsentinel]]:!ml-3 [&_.ant-tabs-tab[data-node-key^=extra-]]:!ml-4 [&_.ant-tabs-tab+.ant-tabs-tab[data-node-key=general]]:!ml-4">
             {singleColumn && formHeaderContent}
             {(() => {
               const narrowGeneralTab = {
@@ -726,6 +774,7 @@ const FeatureFormLayout = ({
                     ...orderedFormTabs,
                     documentsTab,
                     ...rawTabs,
+                    ...createDraftSentinel,
                   ]}
                 />
               );

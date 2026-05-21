@@ -23,6 +23,10 @@ import { serializeValues, deserializeValues } from "../../../helper/draftSeriali
 import { DokumentItem } from "../DocumentPreview";
 import { getDocumentKey } from "../FilePreview";
 import FeatureFormLayout from "./FeatureFormLayout";
+// Trailing "+" create-draft button is intentionally disabled on the Leuchten
+// form for now (the Leuchte sub-tab "+" already lives here). Kept commented
+// rather than deleted — it may be removed entirely in the future.
+// import { useCreateFeatureDraft } from "../useCreateFeatureDraft";
 import { extractListItem } from "../BelisSidebar";
 import LeuchteFormFields from "./LeuchteFormFields";
 import MastFormFields from "./MastFormFields";
@@ -519,6 +523,8 @@ const LeuchteForm = ({
     [draftValues, onDraftChange, featureId]
   );
   const jwt = useSelector(getJWT);
+  // Disabled on the Leuchten form — see import note above. May be deleted later.
+  // const createFeatureDraft = useCreateFeatureDraft();
 
   const handleToggleRemoveDocument = useCallback(
     (key: string) => {
@@ -828,6 +834,10 @@ const LeuchteForm = ({
       additionalTabs={additionalTabs}
       extraGeneralTabs={extraGeneralTabs}
       onAddTab={showCreationStandortTab ? handleAddLeuchteTab : undefined}
+      // Trailing "+" create-draft button disabled on the Leuchten form for now
+      // — may be deleted later. Re-enable by uncommenting this prop plus the
+      // createFeatureDraft hook/import above.
+      // onCreateRelatedDraft={() => createFeatureDraft("leuchte")}
       generalTabLabel={isCreation ? "Leuchte 1" : undefined}
       additionalTabsPosition={isCreation ? "before" : undefined}
       loading={loading}
