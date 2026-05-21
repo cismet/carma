@@ -18,11 +18,16 @@ type AllowlistEntry = readonly string[] | Record<string, readonly string[]>;
 
 export const CREATION_DEFAULTS_ALLOWLIST: Record<string, AllowlistEntry> = {
   leitung: ["fk_leitungstyp", "fk_material", "fk_querschnitt"],
+  // Mauerlasche remembers every form field across new drafts.
   mauerlasche: [
     "fk_material",
     "strassenschluessel_pk",
     "strassenschluessel_strasse",
     "fk_strassenschluessel",
+    "laufende_nummer",
+    "erstellungsjahr",
+    "pruefdatum",
+    "bemerkung",
   ],
   // Schaltstelle is temporarily opted out of the "last values" memory:
   // no fields are remembered, preselected, or green-highlighted for it.
