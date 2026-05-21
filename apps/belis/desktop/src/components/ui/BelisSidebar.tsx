@@ -25,10 +25,11 @@ export const displayId = (id: unknown): string => {
   if (id == null) return "?";
   const s = String(id);
   // Creation draft keys look like `create:<type>:<timestamp>-<random>`.
-  // Show just the short random suffix instead of the whole opaque key.
+  // The real key is kept internally (Redux state, feature properties); for a
+  // not-yet-saved draft there is no meaningful id to show, so render "???"
+  // instead of leaking the opaque generated key into the UI.
   if (isCreationDraftKey(s)) {
-    const suffix = s.slice(s.lastIndexOf("-") + 1);
-    return suffix || s;
+    return "???";
   }
   return s;
 };
