@@ -223,6 +223,20 @@ function buildAAFeatureCollection(
 
 type SidebarMode = "fachobjekte" | "highlights" | "drafts";
 
+// Creation-draft keys are strings (`create:...`), but MapLibre geojson
+// sources can only attach `feature-state` to integer feature ids. This
+// stable djb2 hash maps a draft key to a non-negative 32-bit integer so
+// drafts pushed into the brandnew source can carry selection state.
+// Hashes land in the billions and never collide with the small integer
+// DB ids of real (server) brandnew features.
+const draftFeatureStateId = (key: string): number => {
+  let h = 5381;
+  for (let i = 0; i < key.length; i++) {
+    h = ((h << 5) + h + key.charCodeAt(i)) | 0;
+  }
+  return h >>> 0;
+};
+
 interface BelisMapLibWrapperProps {
   mapSizes: { width: number; height: number };
   activeSourceLayers: Set<string>;
@@ -2166,7 +2180,12 @@ const BelisMapLibWrapper = ({
       if (!feature) continue;
       if (feature.properties?._isCreation !== true) continue;
       if (!feature.geometry) continue;
-      features.push(feature as unknown as GeoJSON.Feature);
+      // Numeric feature id so MapLibre can attach selection feature-state
+      // (geojson sources reject string ids). properties.id stays the key.
+      features.push({
+        ...feature,
+        id: draftFeatureStateId(String(feature.properties.id)),
+      } as unknown as GeoJSON.Feature);
     }
     src.setData({ type: "FeatureCollection", features });
   }, [
@@ -2197,7 +2216,12 @@ const BelisMapLibWrapper = ({
       if (!feature) continue;
       if (feature.properties?._isCreation !== true) continue;
       if (!feature.geometry) continue;
-      features.push(feature as unknown as GeoJSON.Feature);
+      // Numeric feature id so MapLibre can attach selection feature-state
+      // (geojson sources reject string ids). properties.id stays the key.
+      features.push({
+        ...feature,
+        id: draftFeatureStateId(String(feature.properties.id)),
+      } as unknown as GeoJSON.Feature);
     }
     src.setData({ type: "FeatureCollection", features });
   }, [miniMap, miniMapReady, brandnewSource, allDraftFeatures, brandnewFc]);
@@ -2572,6 +2596,32 @@ const BelisMapLibWrapper = ({
         return undefined;
       }
 
+      // Creation drafts (features made via the Fachobjekte "+" menu) are
+      // rendered into the brandnew GeoJSON source. Clicking such an icon
+      // should select the draft in the Entwürfe sidebar tab — the same
+      // outcome as clicking its row there. No Datenblatt is opened.
+      // Server brandnew features lack `_isCreation`, so they are unaffected.
+      const creationHit = hits.find((h) => h.properties?._isCreation === true);
+      if (creationHit) {
+        const draftKey = String(creationHit.properties?.id ?? creationHit.id);
+        const draftFeature = allDraftFeatures.find(
+          ({ feature }) =>
+            feature?.properties?._isCreation === true &&
+            String(feature.properties.id) === draftKey
+        )?.feature;
+        if (draftFeature) {
+          // Mirror handleSidebarFeatureSelect's creation-draft branch:
+          // open the Entwürfe tab and set the Redux selection. Returning
+          // the synthetic draft feature lets LibreMap's generic flow run
+          // the map-selection context with the draft's own identifier
+          // (source ""), identical to a sidebar-row click.
+          setSidebarMode("drafts");
+          dispatch(setSelectedFeature({ ...draftFeature, selected: true }));
+          setFeatureOnMap(true);
+          return draftFeature as unknown as maplibregl.MapGeoJSONFeature;
+        }
+      }
+
       // When highlighting is active, prefer highlighted features over non-highlighted ones
       let candidates = hits;
       if (map) {
@@ -2601,7 +2651,7 @@ const BelisMapLibWrapper = ({
       }
       return candidates[0];
     },
-    [map, sidebarVariant, dispatch, handleAAFeatureSelect]
+    [map, sidebarVariant, dispatch, handleAAFeatureSelect, allDraftFeatures]
   );
 
   // --- Arbeitsauftraege: clear/restore map selection when switching tabs ---
@@ -2634,6 +2684,49 @@ const BelisMapLibWrapper = ({
       setOverrideSelectedFeature(null);
     }
   }, [sidebarVariant, activeAATab, selectedAAId]);
+
+  // --- Main map: reflect the selected creation draft in the brandnew
+  // GeoJSON source's `selected` feature-state, so the brandnew style's
+  // *-selection layers render the same highlight a regular feature gets.
+  // Creation drafts live only in the brandnew source and their
+  // map-selection identifier carries source "" — LibreMap's own
+  // applyVisualSelection can't reach them. This effect fully owns the
+  // draft's feature-state (clearVisualSelection only clears what it
+  // tracked itself). Mirrors the AP feature-state effect below. ---
+  const prevDraftSelectionRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!map) return;
+
+    const prev = prevDraftSelectionRef.current;
+    if (prev && prev !== creationDraftKey) {
+      try {
+        map.setFeatureState(
+          buildFeatureStateTarget(map, {
+            source: brandnewSource,
+            id: draftFeatureStateId(prev),
+          }),
+          { selected: false }
+        );
+      } catch {
+        // source may not exist yet
+      }
+    }
+    prevDraftSelectionRef.current = creationDraftKey;
+
+    if (!creationDraftKey) return;
+
+    try {
+      map.setFeatureState(
+        buildFeatureStateTarget(map, {
+          source: brandnewSource,
+          id: draftFeatureStateId(creationDraftKey),
+        }),
+        { selected: true }
+      );
+    } catch {
+      // source may not exist yet
+    }
+  }, [map, brandnewSource, creationDraftKey]);
 
   // --- Arbeitsauftraege: AP feature-state selection ---
   const prevAPIdRef = useRef<number | null>(null);
