@@ -8,6 +8,7 @@ import { getJWT } from "../../../store/slices/auth";
 import { DokumentItem } from "../DocumentPreview";
 import { getDocumentKey } from "../FilePreview";
 import FeatureFormLayout from "./FeatureFormLayout";
+import { useCreateFeatureDraft } from "../useCreateFeatureDraft";
 import { extractListItem } from "../BelisSidebar";
 import LeitungFormFields from "./LeitungFormFields";
 import { updateDataByClassName } from "../../../helper/apiMethods";
@@ -65,6 +66,7 @@ const LeitungForm = ({
     null
   );
   const jwt = useSelector(getJWT);
+  const createFeatureDraft = useCreateFeatureDraft();
 
   const setFormInstance = useCallback((form: FormInstance) => {
     formRef.current = form;
@@ -231,6 +233,7 @@ const LeitungForm = ({
       onToggleReadOnly={onToggleReadOnly}
       onCancel={onCancel}
       onSave={handleSave}
+      onCreateRelatedDraft={() => createFeatureDraft("leitung")}
     >
       <LeitungFormFields
         leitung={lt}
