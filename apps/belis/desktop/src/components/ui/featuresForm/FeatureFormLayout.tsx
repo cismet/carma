@@ -169,10 +169,14 @@ const FeatureFormLayout = ({
       : "general";
   }, [additionalTabsPosition, additionalTabs]);
   const [activeTabKey, setActiveTabKey] = useState(defaultActiveTabKey);
-  // Reset active tab back to the default when the underlying draft changes
-  // (same intent as the previous `key={tabsResetKey}` Tabs remount).
+  // Per-draft memory of the active tab, keyed by `tabsResetKey`. A draft seen
+  // for the first time has no entry and opens on the default ("Standort" for
+  // a new Leuchte); revisiting a draft restores the tab it last had open.
+  const tabMemoryRef = useRef<Map<string, string>>(new Map());
   useEffect(() => {
-    setActiveTabKey(defaultActiveTabKey);
+    const remembered =
+      tabsResetKey != null ? tabMemoryRef.current.get(tabsResetKey) : undefined;
+    setActiveTabKey(remembered ?? defaultActiveTabKey);
   }, [tabsResetKey, defaultActiveTabKey]);
   // When the active tab is an extra Leuchte tab that the user just removed,
   // its key no longer matches any rendered tab and antd would show a blank
@@ -184,32 +188,43 @@ const FeatureFormLayout = ({
     [extraGeneralTabs]
   );
   const prevExtraGeneralTabKeysRef = useRef<string[]>(extraGeneralTabKeys);
+  const prevTabsResetKeyRef = useRef(tabsResetKey);
   useEffect(() => {
+    const draftChanged = prevTabsResetKeyRef.current !== tabsResetKey;
+    prevTabsResetKeyRef.current = tabsResetKey;
     const prevKeys = prevExtraGeneralTabKeysRef.current;
     prevExtraGeneralTabKeysRef.current = extraGeneralTabKeys;
+    // On a draft switch the restore effect above already picks the tab; the
+    // outgoing draft's extra tabs must not be mistaken for "removed" ones here.
+    if (draftChanged) return;
     if (extraGeneralTabKeys.includes(activeTabKey)) return;
     const removedIdx = prevKeys.indexOf(activeTabKey);
     // Only act when the active tab itself was an extra Leuchte tab that is
     // now gone; other tab transitions are handled by handleTabChange.
     if (removedIdx < 0) return;
-    setActiveTabKey(
+    const fallback =
       extraGeneralTabKeys[removedIdx - 1] ??
-        extraGeneralTabKeys[removedIdx] ??
-        "general"
-    );
-  }, [extraGeneralTabKeys, activeTabKey]);
+      extraGeneralTabKeys[removedIdx] ??
+      "general";
+    setActiveTabKey(fallback);
+    if (tabsResetKey != null) {
+      tabMemoryRef.current.set(tabsResetKey, fallback);
+    }
+  }, [extraGeneralTabKeys, activeTabKey, tabsResetKey]);
   const handleTabChange = useCallback(
     (key: string) => {
+      let nextKey = key;
       if (key === ADD_TAB_KEY) {
         const newKey = onAddTab?.();
-        if (typeof newKey === "string") {
-          setActiveTabKey(newKey);
-        }
-        return;
+        if (typeof newKey !== "string") return;
+        nextKey = newKey;
       }
-      setActiveTabKey(key);
+      setActiveTabKey(nextKey);
+      if (tabsResetKey != null) {
+        tabMemoryRef.current.set(tabsResetKey, nextKey);
+      }
     },
-    [onAddTab]
+    [onAddTab, tabsResetKey]
   );
 
   // Cache image URLs at this level to persist across layout changes (resize)
