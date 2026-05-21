@@ -22,7 +22,7 @@ import {
 import {
   featureLengthMeters,
   formatMeters,
-} from "../../utils/measurementGeometry";
+} from "@carma-mapping/measurements";
 import AuswahlBlock from "./AuswahlBlock";
 
 export const displayId = (id: unknown): string => {

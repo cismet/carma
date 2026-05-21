@@ -199,6 +199,9 @@ import {
   DrawModeControls,
   MeasurementHost,
   MeasurementsProvider,
+  MEASUREMENT_FEATUREKIND,
+  featureLengthMeters,
+  formatMeters,
   type DrawMode,
   type MeasurementHostHandle,
 } from "@carma-mapping/measurements";
@@ -206,12 +209,7 @@ import {
   getMeasurements,
   replaceMeasurements,
   selectMeasurement,
-  MEASUREMENT_FEATUREKIND,
 } from "../../store/slices/measurements";
-import {
-  featureLengthMeters,
-  formatMeters,
-} from "../../utils/measurementGeometry";
 
 function buildAAFeatureCollection(
   features: ArbeitsauftragTileFeature[]

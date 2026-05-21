@@ -1,5 +1,8 @@
 export { DrawModeControls } from "./lib/MeasurementControls";
-export type { DrawMode, DrawModeControlsProps } from "./lib/MeasurementControls";
+export type {
+  DrawMode,
+  DrawModeControlsProps,
+} from "./lib/MeasurementControls";
 export { MeasurementHost } from "./lib/MeasurementHost";
 export type {
   MeasurementHostProps,
@@ -35,3 +38,14 @@ export {
   LABEL_SOURCE_ID,
 } from "./lib/labels";
 export { featuresToFeatureCollection } from "./lib/feature-collection-export";
+export {
+  MEASUREMENT_FEATUREKIND,
+  wrapMeasurement,
+  featureLengthMeters,
+  buildMeasurementInfo,
+  getMeasurementOrder,
+} from "./lib/measurementInfo";
+export type {
+  MeasurementInfo,
+  MeasurementSelected,
+} from "./lib/measurementInfo";
