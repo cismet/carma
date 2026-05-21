@@ -16,6 +16,42 @@ import {
 // stores `{ leuchte: {...}, mast: {...} }` because Strassenschluessel lives on the Mast tab).
 type AllowlistEntry = readonly string[] | Record<string, readonly string[]>;
 
+// Every Standort/Mast form field that carries over across new drafts. Shared
+// by the standalone `standort` feature and the `mast` tab of a new `leuchte`
+// (the Standort tab in LeuchteForm renders the same MastFormFields), so both
+// flows remember and green-highlight the exact same set. Excludes
+// `standortangabe` and `haus_nr`, which are location-specific.
+const STANDORT_MAST_FIELDS = [
+  "strassenschluessel_pk",
+  "strassenschluessel_strasse",
+  "fk_strassenschluessel",
+  "fk_kennziffer",
+  "lfd_nummer",
+  "fk_stadtbezirk",
+  "fk_mastart",
+  "fk_masttyp",
+  "fk_klassifizierung",
+  "fk_unterhaltspflicht_mast",
+  "inbetriebnahme_mast",
+  "verrechnungseinheit",
+  "mastanstrich",
+  "anstrichfarbe",
+  "montagefirma",
+  "gruendung",
+  "standsicherheitspruefung",
+  "naechstes_pruefdatum",
+  "verfahren",
+  "elek_pruefung",
+  "erdung",
+  "monteur",
+  "mastschutz",
+  "revision",
+  "anlagengruppe",
+  "anbauten",
+  "bemerkungen",
+  "letzte_aenderung",
+] as const;
+
 export const CREATION_DEFAULTS_ALLOWLIST: Record<string, AllowlistEntry> = {
   leitung: ["fk_leitungstyp", "fk_material", "fk_querschnitt"],
   // Mauerlasche remembers every form field across new drafts.
@@ -71,58 +107,15 @@ export const CREATION_DEFAULTS_ALLOWLIST: Record<string, AllowlistEntry> = {
       "wechselvorschaltgeraet",
       "bemerkungen",
     ],
-    mast: [
-      "strassenschluessel_pk",
-      "strassenschluessel_strasse",
-      "fk_strassenschluessel",
-      "fk_kennziffer",
-      "lfd_nummer",
-      "fk_stadtbezirk",
-      "fk_mastart",
-      "fk_masttyp",
-      "fk_klassifizierung",
-      "fk_unterhaltspflicht_mast",
-      "inbetriebnahme_mast",
-      "montagefirma",
-      "standsicherheitspruefung",
-      "verfahren",
-      "anlagengruppe",
-      "letzte_aenderung",
-    ],
+    // The Standort tab of a new Leuchte renders the same MastFormFields as the
+    // standalone Standort feature — remember the identical field set so both
+    // flows highlight and carry over consistently.
+    mast: STANDORT_MAST_FIELDS,
   },
   // Standort remembers every form field across new drafts EXCEPT
   // `standortangabe` (Standortangabe) and `haus_nr` (Hausnummer), which are
   // location-specific and should not carry over.
-  standort: [
-    "strassenschluessel_pk",
-    "strassenschluessel_strasse",
-    "fk_strassenschluessel",
-    "fk_kennziffer",
-    "lfd_nummer",
-    "fk_stadtbezirk",
-    "fk_mastart",
-    "fk_masttyp",
-    "fk_klassifizierung",
-    "fk_unterhaltspflicht_mast",
-    "inbetriebnahme_mast",
-    "verrechnungseinheit",
-    "mastanstrich",
-    "anstrichfarbe",
-    "montagefirma",
-    "gruendung",
-    "standsicherheitspruefung",
-    "naechstes_pruefdatum",
-    "verfahren",
-    "elek_pruefung",
-    "erdung",
-    "monteur",
-    "mastschutz",
-    "revision",
-    "anlagengruppe",
-    "anbauten",
-    "bemerkungen",
-    "letzte_aenderung",
-  ],
+  standort: STANDORT_MAST_FIELDS,
 };
 
 interface CreationDefaultsState {
