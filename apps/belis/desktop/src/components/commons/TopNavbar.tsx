@@ -23,7 +23,8 @@ import {
 import { incrementFeatureDataVersion } from "../../store/slices/featureCollection";
 import { buildAddFeaturesToAAPayload } from "../../helper/buildNewAAFromFeatures";
 import { updateDataByClassName } from "../../helper/apiMethods";
-import CreateFeatureDropdown from "../ui/CreateFeatureDropdown";
+// Temporarily hidden for merge — restore alongside the JSX usage below.
+// import CreateFeatureDropdown from "../ui/CreateFeatureDropdown";
 
 const TopNavbar = () => {
   const dispatch = useDispatch();
@@ -126,7 +127,8 @@ const TopNavbar = () => {
         >
           Fachobjekte
         </NavLink>
-        <CreateFeatureDropdown />
+        {/* Temporarily hidden for merge — restore by un-commenting. */}
+        {/* <CreateFeatureDropdown /> */}
         <NavLink
           to="/arbeitsauftraege"
           className={({ isActive }) => `text-base hover:text-gray-600`}
