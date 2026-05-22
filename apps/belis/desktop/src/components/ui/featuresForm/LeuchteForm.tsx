@@ -11,6 +11,7 @@ import type { FormInstance } from "antd";
 import { message } from "antd";
 import { CloseOutlined } from "@ant-design/icons";
 import type { DraftFile } from "../../../store/slices/featuresForms";
+import { getTabFocusRequest } from "../../../store/slices/featuresForms";
 import { useSelector, useDispatch } from "react-redux";
 import { getJWT } from "../../../store/slices/auth";
 import {
@@ -526,6 +527,18 @@ const LeuchteForm = ({
   // Disabled on the Leuchten form — see import note above. May be deleted later.
   // const createFeatureDraft = useCreateFeatureDraft();
 
+  // Sidebar-driven tab focus: clicking a nested row in the "Entwürfe" list
+  // (Standort parent / a Leuchte child) raises a focus request. Forward it to
+  // FeatureFormLayout only when it targets this very draft.
+  const tabFocusRequest = useSelector(getTabFocusRequest);
+  const layoutTabFocus = useMemo(
+    () =>
+      tabFocusRequest && tabFocusRequest.draftKey === featureId
+        ? { tabKey: tabFocusRequest.tabKey, nonce: tabFocusRequest.nonce }
+        : undefined,
+    [tabFocusRequest, featureId]
+  );
+
   const handleToggleRemoveDocument = useCallback(
     (key: string) => {
       const next = new Set(removedDocumentKeys);
@@ -816,6 +829,7 @@ const LeuchteForm = ({
   return (
     <FeatureFormLayout
       tabsResetKey={featureId}
+      tabFocusRequest={layoutTabFocus}
       title={`Leuchte ${sidebarMain}`}
       cancelLabel={sidebarMain || ""}
       isCreation={isCreation}
