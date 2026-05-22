@@ -279,9 +279,10 @@ const FeatureFormLayout = ({
                   justifyContent: "center",
                   width: 22,
                   height: 22,
-                  border: "1px solid #d9d9d9",
+                  border: "1px solid #b7eb8f",
                   borderRadius: 4,
-                  color: "#8c8c8c",
+                  backgroundColor: "#f6ffed",
+                  color: "#52c41a",
                 }}
               >
                 <PlusOutlined style={{ fontSize: 12 }} />
