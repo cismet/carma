@@ -1,6 +1,7 @@
 import proj4 from "proj4";
 import { proj4crs4326def } from "@carma-mapping/utils";
 import type { Feature } from "geojson";
+import toTitleCase from "./toTitleCase";
 
 const proj4crs25832def = "+proj=utm +zone=32 +ellps=GRS80 +units=m +no_defs";
 
@@ -40,6 +41,33 @@ export const parseStandortIdFromKey = (
     return undefined;
   const id = Number(geometryKey.slice(STANDORT_OPTION_PREFIX.length));
   return Number.isFinite(id) ? id : undefined;
+};
+
+// Human label for a Standort, e.g. "Standort 19 (Neviandstr.)" — the number
+// from `lfd_nummer` (matches the sidebar) and the street address title-cased.
+// Raw map-tile features carry a flat `strasse`; DB-record features (sidebar
+// selection) nest it under `fk_strassenschluessel`. Falls back to the
+// number-only form when no street is available.
+export const formatStandortLabel = (
+  props: Record<string, unknown> | null | undefined
+): string => {
+  const p = props ?? {};
+  const lfd = p.lfd_nummer;
+  const numberPart = lfd != null ? String(lfd) : "?";
+  const nested = p.fk_strassenschluessel;
+  const strasseRaw =
+    p.strasse ??
+    p.strassenschluessel ??
+    (nested && typeof nested === "object"
+      ? (nested as Record<string, unknown>).strasse
+      : undefined);
+  const strasse =
+    typeof strasseRaw === "string" && strasseRaw.trim() !== ""
+      ? toTitleCase(strasseRaw.trim())
+      : null;
+  return strasse
+    ? `Standort ${numberPart} (${strasse})`
+    : `Standort ${numberPart}`;
 };
 
 export const buildStandortGeometryOption = (
