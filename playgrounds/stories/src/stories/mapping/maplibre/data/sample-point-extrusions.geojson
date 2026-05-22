@@ -1,0 +1,49 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "heizkraftwerk-elberfeld-native-like-extrusion",
+        "name": "Heizkraftwerk Elberfeld chimney terrain-relative extrusion",
+        "renderPath": "maplibre-native-fill-extrusion",
+        "offsetEastMeters": -20,
+        "radiusMeters": 6.615092753129013,
+        "topRadiusMeters": 3.3075463765645066,
+        "radiusTransitionFraction": 0.5,
+        "referenceAnnotationIds": ["point-6", "point-7", "distance-13"],
+        "fill-extrusion-base": 0,
+        "fill-extrusion-height": 198.23351544727268,
+        "fill-extrusion-color": "#ef4444",
+        "fill-extrusion-opacity": 0.72,
+        "fill-extrusion-vertical-gradient": true
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [7.1187535929060015, 51.2484226583406, 338.0485597810839]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "heizkraftwerk-elberfeld-custom-layer-fixed-floor",
+        "name": "Heizkraftwerk Elberfeld fixed 200m floor extrusion",
+        "renderPath": "maplibre-custom-layer",
+        "offsetEastMeters": 20,
+        "radiusMeters": 6.615092753129013,
+        "topRadiusMeters": 3.3075463765645066,
+        "radiusTransitionFraction": 0.5,
+        "referenceAnnotationIds": ["point-6", "point-7", "distance-13"],
+        "fill-extrusion-base": 200,
+        "fill-extrusion-height": 398.2335154472727,
+        "fill-extrusion-color": "#8b5cf6",
+        "fill-extrusion-opacity": 0.78,
+        "fill-extrusion-vertical-gradient": true
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [7.1187535929060015, 51.2484226583406, 338.0485597810839]
+      }
+    }
+  ]
+}

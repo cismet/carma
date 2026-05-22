@@ -10,6 +10,12 @@ const preview: Preview = {
       panelPosition: "right",
       storySort: {
         order: [
+          "MapLibre Playground",
+          [
+            "Straight 3D Line Primitives",
+            "Distance Tool Overlay (MapLibre + Three)",
+            "Distance Tool Terrain Authoring (MapLibre + Three)",
+          ],
           "Geo",
           [
             "Zoom by Latitude Overview",

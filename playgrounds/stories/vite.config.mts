@@ -5,6 +5,7 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { viteStaticCopy } from "vite-plugin-static-copy";
 const CESIUM_PATHNAME = "__cesium__";
+const THREE_DRACO_PATHNAME = "__three_draco__";
 
 export default defineConfig({
   root: __dirname,
@@ -39,6 +40,10 @@ export default defineConfig({
         {
           src: "../../node_modules/cesium/Build/Cesium/*",
           dest: CESIUM_PATHNAME,
+        },
+        {
+          src: "../../node_modules/three/examples/jsm/libs/draco/*",
+          dest: THREE_DRACO_PATHNAME,
         },
       ],
       silent: false,

@@ -136,6 +136,7 @@ export { createPolygonAuthoringController } from "./lib/interaction/create-polyg
 export { createSegmentAuthoringController } from "./lib/interaction/create-segment-authoring-controller";
 export { createVerticalAreaAuthoringController } from "./lib/interaction/create-vertical-area-authoring-controller";
 export { applySecondaryLineLabelPlacementStrategy } from "./lib/render/secondary-line-label-placement";
+export { PointMarkerOverlayShell } from "./lib/render/point-marker-visualizer";
 export { resolveSegmentGuideFrame } from "./lib/interaction/resolve-segment-guide-frame";
 export {
   ANNOTATION_OVERLAY_GROUP,
