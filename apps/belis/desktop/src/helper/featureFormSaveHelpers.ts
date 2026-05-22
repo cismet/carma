@@ -631,6 +631,17 @@ export const handleSaveAllDrafts = (deps: HandleSaveAllDeps) => {
 
           dispatch(incrementFeatureDataVersion());
           onSuccess?.();
+
+          // TEMPORARY: when the batch created at least one brand-new feature,
+          // force a full page reload so the freshly mounted brandnew-layer
+          // poll refetches brand.new.features.json immediately instead of
+          // waiting out the slow (15s) background cadence on deployed builds.
+          // The delay must outlast the server-side regeneration of that tiles
+          // file — tune RELOAD_DELAY_MS if new features still appear stale.
+          if (creationCount > 0) {
+            const RELOAD_DELAY_MS = 2000;
+            setTimeout(() => window.location.reload(), RELOAD_DELAY_MS);
+          }
         }
 
         for (const fail of result.failed) {
