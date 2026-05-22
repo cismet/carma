@@ -85,6 +85,9 @@ interface FeatureFormLayoutProps {
   onCreateRelatedDraft?: () => void;
   /** Color of the header "+" create-related-draft button. Defaults to "green". */
   createDraftButtonVariant?: "green" | "white";
+  /** Feature type of this form — enables the header "clear remembered data"
+   * button, which resets the "last values" memory for this type. */
+  featureType?: string;
   /** Label for the main/general tab. Defaults to "Allgemein". */
   generalTabLabel?: string;
   /** Whether additional tabs render before or after the general tab. Default "after". */
@@ -133,6 +136,7 @@ const FeatureFormLayout = ({
   onAddTab,
   onCreateRelatedDraft,
   createDraftButtonVariant,
+  featureType,
   generalTabLabel = "Allgemein",
   additionalTabsPosition = "after",
   loading,
@@ -634,6 +638,7 @@ const FeatureFormLayout = ({
           onSaveAll={onSaveAll}
           onCreateRelatedDraft={onCreateRelatedDraft}
           createDraftButtonVariant={createDraftButtonVariant}
+          featureType={featureType}
         />
         <div className="flex flex-1 overflow-hidden">
           {/* Form column - 60% */}
@@ -692,6 +697,7 @@ const FeatureFormLayout = ({
         isCreation={isCreation}
         customDraftsCount={customDraftsCount}
         onSaveAll={onSaveAll}
+        featureType={featureType}
       />
       <div
         className={`px-6 pb-60 overflow-y-auto flex-1 transition-opacity ${

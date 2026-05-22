@@ -255,6 +255,7 @@ const MauerlascheForm = ({
       onCancel={onCancel}
       onSave={handleSave}
       onCreateRelatedDraft={() => createFeatureDraft("mauerlasche")}
+      featureType="mauerlasche"
     >
       <MauerlascheFormFields
         mauerlasche={ml}

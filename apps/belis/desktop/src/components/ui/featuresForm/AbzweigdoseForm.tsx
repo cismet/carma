@@ -195,6 +195,7 @@ const AbzweigdoseForm = ({
       onCancel={onCancel}
       onSave={handleSave}
       onCreateRelatedDraft={() => createFeatureDraft("abzweigdose")}
+      featureType="abzweigdose"
       singleColumn
     >
       {null}

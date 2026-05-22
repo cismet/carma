@@ -261,6 +261,7 @@ const StandortForm = ({
       onCancel={onCancel}
       onSave={handleSave}
       onCreateRelatedDraft={() => createFeatureDraft("standort")}
+      featureType="standort"
     >
       <MastFormFields
         mast={mast}
