@@ -119,9 +119,6 @@ export const getChangedPaths = (
   return changed;
 };
 
-const isEmpty = (v: unknown) =>
-  v === null || v === undefined || v === "";
-
 const walkPath = (
   obj: Record<string, unknown> | undefined,
   path: string
@@ -136,15 +133,34 @@ const walkPath = (
   return cur;
 };
 
+// Whether `obj` has a value recorded at `path` — including an explicit `null`
+// marker left when a draft cleared a previously-remembered field. Distinct
+// from `walkPath(...) == null`, which cannot tell a recorded-but-empty field
+// from one that was never recorded at all.
+const hasPath = (
+  obj: Record<string, unknown> | undefined,
+  path: string
+): boolean => {
+  if (!obj) return false;
+  const parts = path.split(".");
+  let cur: unknown = obj;
+  for (let i = 0; i < parts.length - 1; i++) {
+    if (!isPlainObj(cur)) return false;
+    cur = (cur as Record<string, unknown>)[parts[i]];
+  }
+  return isPlainObj(cur) && parts[parts.length - 1] in cur;
+};
+
 /**
  * Get the set of allowlisted ("tracked") paths that should render with the
  * green highlight.
  *
- * A tracked field is green when no default has been remembered yet (e.g. the
- * very first draft of a feature type) or when its value still equals the
- * remembered default. Once a non-empty default exists, any draft whose value
- * diverges from it — including one that left the field empty — loses the
- * green highlight and renders gray via the changed-fields path.
+ * A tracked field is green when it has never been recorded into the memory
+ * (the very first draft of a feature type) or when its value still equals the
+ * remembered default. Once the field has been recorded — even as an explicit
+ * empty marker, written when a draft cleared it — any draft whose value
+ * diverges from that default, including one holding a value where the memory
+ * was cleared, loses the green highlight and renders gray.
  */
 export const getPrefilledPaths = (
   draft: Record<string, unknown> | undefined,
@@ -157,17 +173,16 @@ export const getPrefilledPaths = (
   }
   for (const path of allowlistedPaths) {
     const draftVal = walkPath(draft, path);
-    const defaultVal = walkPath(currentDefaults, path);
-    // No default remembered yet → the field is green by default (the very
-    // first draft of a feature type, before any value has been recorded).
-    if (isEmpty(defaultVal)) {
+    // Never recorded yet → green (the first draft of a feature type, before
+    // any value — empty or not — has been written to the memory).
+    if (!hasPath(currentDefaults, path)) {
       matched.add(path);
       continue;
     }
-    // A non-empty default exists: green only while this draft's value still
-    // matches it. Anything else — a diverged value *or an empty field* —
-    // falls through to the gray "changed" highlight.
-    if (isFormValueEqual(draftVal, defaultVal)) {
+    // Recorded: green only while this draft's value still matches the
+    // remembered one. A diverged value — or a value where the memory holds an
+    // empty marker — falls through to the gray "changed" highlight.
+    if (isFormValueEqual(draftVal, walkPath(currentDefaults, path))) {
       matched.add(path);
     }
   }
