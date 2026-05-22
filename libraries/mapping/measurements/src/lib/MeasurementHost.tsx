@@ -1100,6 +1100,17 @@ export const MeasurementHost = forwardRef<
             suppressSelectionCallbackRef.current = false;
           }
         },
+        updateTitle: (id, customTitle) => {
+          const draw = drawRef.current;
+          if (!draw) return;
+          try {
+            draw.updateFeatureProperties(String(id), { customTitle });
+          } catch (e) {
+            console.warn("[carma-measurements] updateTitle failed", e);
+            return;
+          }
+          publishSnapshot();
+        },
       });
     };
 

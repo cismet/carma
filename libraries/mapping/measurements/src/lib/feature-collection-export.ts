@@ -53,8 +53,19 @@ function polygonRingLengthMeters(ring: Position[]): number {
   return meters;
 }
 
-export function buildFeatureTitle(order: number, isPolygon: boolean): string {
-  return `${isPolygon ? "Fläche" : "Linienzug"} #${order}`;
+export function buildFeatureTitle(
+  order: number,
+  isPolygon: boolean,
+  customTitle?: string
+): string {
+  const trimmed = customTitle?.trim();
+  const base =
+    trimmed && trimmed.length > 0
+      ? trimmed
+      : isPolygon
+      ? "Fläche"
+      : "Linienzug";
+  return `${base} #${order}`;
 }
 
 export function buildLineSubtitle(coords: Position[]): string {
@@ -165,9 +176,14 @@ export function featuresToFeatureCollection(
     .map((feature, index) => {
       const order = index + 1;
       const id = order;
+      const customTitle =
+        typeof feature.properties?.customTitle === "string"
+          ? feature.properties.customTitle.trim()
+          : "";
 
       if (feature.geometry.type === "Point") {
         const pt = feature as Feature<Point>;
+        const base = customTitle.length > 0 ? customTitle : "Punkt";
         return {
           type: "Feature" as const,
           id,
@@ -175,7 +191,7 @@ export function featuresToFeatureCollection(
           properties: {
             info: {
               headerColor: COLORS_HEX.ACCENT_MEASUREMENTS,
-              title: `Punkt #${order}`,
+              title: `${base} #${order}`,
               subtitle: "",
               actions: [{ name: "zoomToFeature" }, {}],
             },
@@ -193,7 +209,7 @@ export function featuresToFeatureCollection(
           properties: {
             info: {
               headerColor: COLORS_HEX.ACCENT_MEASUREMENTS,
-              title: buildFeatureTitle(order, true),
+              title: buildFeatureTitle(order, true, customTitle),
               subtitle: buildPolygonSubtitle(poly),
               actions: [{ name: "zoomToFeature" }, {}],
             },
@@ -210,7 +226,7 @@ export function featuresToFeatureCollection(
         properties: {
           info: {
             headerColor: COLORS_HEX.ACCENT_MEASUREMENTS,
-            title: buildFeatureTitle(order, false),
+            title: buildFeatureTitle(order, false, customTitle),
             subtitle: buildLineSubtitle(line.geometry.coordinates),
             actions: [{ name: "zoomToFeature" }, {}],
           },

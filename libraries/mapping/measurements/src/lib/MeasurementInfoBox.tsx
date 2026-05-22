@@ -33,6 +33,7 @@ export const MeasurementInfoBox = ({
     deleteById,
     deselectFeature,
     selectFeature,
+    updateTitle,
   } = useMeasurements();
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const { map: libreMap } = useLibreContext();
@@ -93,6 +94,39 @@ export const MeasurementInfoBox = ({
 
   const order = getMeasurementOrder(features, selectedFeature);
   const info = buildMeasurementInfo(selectedFeature, order);
+
+  const customTitle =
+    typeof selectedFeature.properties?.customTitle === "string"
+      ? selectedFeature.properties.customTitle.trim()
+      : "";
+  const geometryType = selectedFeature.geometry?.type;
+  let defaultBaseTitle: string;
+  if (geometryType === "Point") {
+    defaultBaseTitle = "Punkt";
+  } else if (geometryType === "LineString") {
+    defaultBaseTitle = "Linienzug";
+  } else if (geometryType === "Polygon") {
+    defaultBaseTitle = "Fläche";
+  } else {
+    defaultBaseTitle = "Messung";
+  }
+  const baseTitle = customTitle || defaultBaseTitle;
+
+  const handleTitleBlur = (e: React.FocusEvent<HTMLSpanElement>) => {
+    if (selectedId === null) {
+      return;
+    }
+    const trimmed = e.currentTarget.textContent?.trim() ?? "";
+    if (trimmed.length === 0) {
+      // Reset DOM text to the previous value so the user sees the revert.
+      e.currentTarget.textContent = capitalizeFirstLetter(baseTitle);
+      return;
+    }
+    if (trimmed === baseTitle) {
+      return;
+    }
+    updateTitle(selectedId, trimmed);
+  };
 
   const handleZoom = () => {
     utils.zoomToFeature({
@@ -169,8 +203,19 @@ export const MeasurementInfoBox = ({
       }
       alwaysVisibleDiv={
         <div className="mt-2 mb-2 w-[96%] flex justify-between items-start gap-4">
-          <span style={{ width: "100%" }}>
-            <span className="text-[14px] mr-1">{info.title}</span>
+          <span style={{ cursor: "text", width: "100%" }}>
+            <span
+              key={selectedId ?? ""}
+              contentEditable
+              suppressContentEditableWarning
+              spellCheck={false}
+              onBlur={handleTitleBlur}
+              className="text-[14px] min-h-[20px] min-w-[10px] mr-1 outline-none"
+              data-test-id="measurement-title-editable"
+            >
+              {capitalizeFirstLetter(baseTitle)}
+            </span>
+            {order > 0 && <span className="text-[14px] mr-2">#{order}</span>}
           </span>
           <div className="flex justify-between items-center w-[12%] mt-1 gap-2">
             <Icon
@@ -230,3 +275,10 @@ export const MeasurementInfoBox = ({
 };
 
 export default MeasurementInfoBox;
+
+function capitalizeFirstLetter(text: string): string {
+  if (!text) {
+    return "";
+  }
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}

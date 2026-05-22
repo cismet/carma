@@ -22,6 +22,7 @@ type MeasurementsCommands = {
   deleteById: (id: MeasurementId) => void;
   selectFeature: (id: string) => void;
   deselectAll: () => void;
+  updateTitle: (id: MeasurementId, customTitle: string) => void;
 };
 
 // Internal bridge between MeasurementHost (publisher) and consumer hooks.
@@ -59,6 +60,7 @@ type MeasurementsContextValue = {
   deleteById: (id: MeasurementId) => void;
   selectFeature: (id: string) => void;
   deselectFeature: () => void;
+  updateTitle: (id: MeasurementId, customTitle: string) => void;
   __registry: MeasurementsRegistry;
 };
 
@@ -215,6 +217,13 @@ export function MeasurementsProvider({
     setSelectedId(null);
   }, []);
 
+  const updateTitle = useCallback(
+    (id: MeasurementId, customTitle: string) => {
+      commandsRef.current?.updateTitle(id, customTitle);
+    },
+    []
+  );
+
   const selectedFeature = useMemo<Feature | null>(() => {
     if (selectedId === null) return null;
     return features.find((f) => String(f.id) === selectedId) ?? null;
@@ -232,6 +241,7 @@ export function MeasurementsProvider({
       deleteById,
       selectFeature,
       deselectFeature,
+      updateTitle,
       __registry: registry,
     }),
     [
@@ -243,6 +253,7 @@ export function MeasurementsProvider({
       deleteById,
       selectFeature,
       deselectFeature,
+      updateTitle,
       registry,
     ]
   );
@@ -265,6 +276,7 @@ export type UseMeasurementsResult = {
   deleteById: (id: MeasurementId) => void;
   selectFeature: (id: string) => void;
   deselectFeature: () => void;
+  updateTitle: (id: MeasurementId, customTitle: string) => void;
 };
 
 export function useMeasurements(): UseMeasurementsResult {
@@ -285,6 +297,7 @@ export function useMeasurements(): UseMeasurementsResult {
     deleteById: ctx.deleteById,
     selectFeature: ctx.selectFeature,
     deselectFeature: ctx.deselectFeature,
+    updateTitle: ctx.updateTitle,
   };
 }
 
