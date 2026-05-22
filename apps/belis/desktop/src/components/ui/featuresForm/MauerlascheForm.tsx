@@ -255,7 +255,12 @@ const MauerlascheForm = ({
       onCancel={onCancel}
       onSave={handleSave}
       onCreateRelatedDraft={() =>
-        createFeatureDraft("mauerlasche", { seedFromSelection: true })
+        createFeatureDraft(
+          "mauerlasche",
+          isCreation && draftValues
+            ? { seedValues: draftValues }
+            : { seedFromSelection: true }
+        )
       }
       featureType="mauerlasche"
     >

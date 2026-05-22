@@ -180,6 +180,12 @@ const pickAllowed = (
   return Object.keys(picked).length > 0 ? picked : null;
 };
 
+// Same allowlist filter the reducers apply, exposed for the per-form "+"
+// button: when pressed inside an in-progress draft it seeds the new draft
+// straight from that draft's on-screen values and must keep only the
+// remembered fields (#645).
+export const pickRememberedValues = pickAllowed;
+
 const isMergeableObj = (v: unknown): v is Record<string, unknown> =>
   v != null && typeof v === "object" && !Array.isArray(v);
 

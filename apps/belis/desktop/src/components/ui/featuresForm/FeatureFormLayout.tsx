@@ -697,6 +697,8 @@ const FeatureFormLayout = ({
         isCreation={isCreation}
         customDraftsCount={customDraftsCount}
         onSaveAll={onSaveAll}
+        onCreateRelatedDraft={onCreateRelatedDraft}
+        createDraftButtonVariant={createDraftButtonVariant}
         featureType={featureType}
       />
       <div

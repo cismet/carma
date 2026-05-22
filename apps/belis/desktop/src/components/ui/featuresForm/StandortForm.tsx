@@ -261,7 +261,12 @@ const StandortForm = ({
       onCancel={onCancel}
       onSave={handleSave}
       onCreateRelatedDraft={() =>
-        createFeatureDraft("standort", { seedFromSelection: true })
+        createFeatureDraft(
+          "standort",
+          isCreation && draftValues
+            ? { seedValues: draftValues }
+            : { seedFromSelection: true }
+        )
       }
       featureType="standort"
     >
