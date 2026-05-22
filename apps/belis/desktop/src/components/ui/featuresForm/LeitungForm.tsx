@@ -234,6 +234,7 @@ const LeitungForm = ({
       onCancel={onCancel}
       onSave={handleSave}
       onCreateRelatedDraft={() => createFeatureDraft("leitung")}
+      featureType="leitung"
     >
       <LeitungFormFields
         leitung={lt}

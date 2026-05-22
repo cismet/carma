@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   ArrowLeftOutlined,
+  DeleteOutlined,
   EditOutlined,
   ExclamationCircleOutlined,
   PlusOutlined,
@@ -12,6 +13,11 @@ import {
   getAllDrafts,
   removeDraft,
 } from "../../../store/slices/featuresForms";
+import {
+  getCreationDefaults,
+  clearDefaults,
+} from "../../../store/slices/creationDefaults";
+import type { RootState } from "../../../store";
 import { getJWT } from "../../../store/slices/auth";
 import { incrementFeatureDataVersion } from "../../../store/slices/featureCollection";
 import {
@@ -40,6 +46,8 @@ interface FormHeaderProps {
   onSaveAll?: () => void;
   onCreateRelatedDraft?: () => void;
   createDraftButtonVariant?: "green" | "white";
+  /** Feature type whose remembered "last values" the clear button resets. */
+  featureType?: string;
 }
 
 const FormHeader = ({
@@ -59,6 +67,7 @@ const FormHeader = ({
   onSaveAll,
   onCreateRelatedDraft,
   createDraftButtonVariant = "green",
+  featureType,
 }: FormHeaderProps) => {
   const dispatch = useDispatch();
   const featureDraftsCount = useSelector(getDraftFeaturesCount);
@@ -70,6 +79,14 @@ const FormHeader = ({
   const { closeDatasheet } = useDatasheet();
 
   const draftsCount = customDraftsCount ?? featureDraftsCount;
+
+  // Remembered "last values" for this feature type — what new drafts are
+  // pre-filled with. The clear button below wipes it for this type only.
+  const rememberedData = useSelector((state: RootState) =>
+    featureType ? getCreationDefaults(state, featureType) : undefined
+  );
+  const hasRememberedData =
+    !!rememberedData && Object.keys(rememberedData).length > 0;
 
   const handleSaveAll = () => {
     if (onSaveAll) {
@@ -162,6 +179,33 @@ const FormHeader = ({
                   <PlusOutlined style={{ fontSize: 12 }} />
                 </button>
               )}
+              {onCreateRelatedDraft &&
+                isCreation &&
+                featureType &&
+                hasRememberedData && (
+                  <Tooltip title="Gemerkte Daten löschen">
+                    <button
+                      type="button"
+                      aria-label="Gemerkte Daten löschen"
+                      onClick={() => dispatch(clearDefaults(featureType))}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: 24,
+                        height: 24,
+                        padding: 0,
+                        border: "1px solid #ffccc7",
+                        borderRadius: 4,
+                        backgroundColor: "#fff1f0",
+                        color: "#ff4d4f",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <DeleteOutlined style={{ fontSize: 12 }} />
+                    </button>
+                  </Tooltip>
+                )}
             </div>
             <p className="text-sm text-gray-500">{subtitle}</p>
           </div>
