@@ -258,13 +258,16 @@ const SchaltstelleForm = ({
       onToggleReadOnly={onToggleReadOnly}
       onCancel={onCancel}
       onSave={handleSave}
-      onCreateRelatedDraft={() =>
-        createFeatureDraft(
-          "schaltstelle",
-          isCreation && draftValues
-            ? { seedValues: draftValues }
-            : { seedFromSelection: true }
-        )
+      onCreateRelatedDraft={
+        isCreation
+          ? () =>
+              createFeatureDraft(
+                "schaltstelle",
+                draftValues
+                  ? { seedValues: draftValues }
+                  : { seedFromSelection: true }
+              )
+          : undefined
       }
       featureType="schaltstelle"
       createDraftButtonVariant="white"

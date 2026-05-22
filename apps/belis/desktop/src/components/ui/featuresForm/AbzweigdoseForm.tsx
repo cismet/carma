@@ -7,7 +7,6 @@ import { getJWT } from "../../../store/slices/auth";
 import { DokumentItem } from "../DocumentPreview";
 import { getDocumentKey } from "../FilePreview";
 import FeatureFormLayout from "./FeatureFormLayout";
-import { useCreateFeatureDraft } from "../useCreateFeatureDraft";
 import { extractListItem } from "../BelisSidebar";
 import { uploadDraftFiles } from "../../../helper/uploadDraftFiles";
 import { updateDataByClassName } from "../../../helper/apiMethods";
@@ -55,7 +54,6 @@ const AbzweigdoseForm = ({
     null
   );
   const jwt = useSelector(getJWT);
-  const createFeatureDraft = useCreateFeatureDraft();
 
   const handleToggleRemoveDocument = useCallback(
     (key: string) => {
@@ -194,10 +192,6 @@ const AbzweigdoseForm = ({
       onToggleReadOnly={onToggleReadOnly}
       onCancel={onCancel}
       onSave={handleSave}
-      onCreateRelatedDraft={() =>
-        createFeatureDraft("abzweigdose", { seedFromSelection: true })
-      }
-      featureType="abzweigdose"
       singleColumn
     >
       {null}
