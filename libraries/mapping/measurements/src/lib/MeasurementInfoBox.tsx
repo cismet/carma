@@ -12,10 +12,30 @@ import { ResponsiveInfoBox, utils } from "@carma-appframeworks/portals";
 import { COLORS_HEX } from "@carma-commons/utils";
 import { useLibreContext } from "@carma-mapping/contexts";
 
+import type { DrawMode } from "./MeasurementControls";
 import { buildMeasurementInfo, getMeasurementOrder } from "./measurementInfo";
 import { useMeasurements } from "./MeasurementsContext";
 
 const MEASUREMENT_HEADER_COLOR = COLORS_HEX.ACCENT_MEASUREMENTS;
+
+const MEASUREMENT_HELP_TEXT: Record<Exclude<DrawMode, "none">, string[]> = {
+  select: [
+    "Eine vorhandene Messung anklicken, um sie auszuwählen und zu bearbeiten.",
+    "Stützpunkte können per Drag-and-Drop verschoben werden.",
+  ],
+  point: [
+    "Klick auf eine Position in der Karte setzt dort eine Punktmessung.",
+    "Jeder weitere Klick erstellt sofort eine neue Punktmessung.",
+  ],
+  line: [
+    "Punkte nacheinander setzen, um eine Linienmessung zu erstellen.",
+    "Doppelklick schließt die Messung ab.",
+  ],
+  polygon: [
+    "Punkte nacheinander setzen, um eine Flächenmessung zu erstellen.",
+    "Doppelklick schließt die Fläche ab.",
+  ],
+};
 
 export interface MeasurementInfoBoxProps {
   /** Padding (in pixels) used when zooming to a single measurement via the
@@ -28,6 +48,7 @@ export const MeasurementInfoBox = ({
 }: MeasurementInfoBoxProps = {}) => {
   const {
     features,
+    mode,
     selectedFeature,
     selectedId,
     deleteById,
@@ -89,7 +110,43 @@ export const MeasurementInfoBox = ({
   }, [features, libreMap, viewportTick]);
 
   if (!selectedFeature) {
-    return null;
+    if (mode === "none") {
+      return null;
+    }
+    const helpLines = MEASUREMENT_HELP_TEXT[mode];
+    if (!helpLines) {
+      return null;
+    }
+    return (
+      <ResponsiveInfoBox
+        pixelwidth={350}
+        panelClick={(event) => event.stopPropagation()}
+        header=""
+        isCollapsible={false}
+        alwaysVisibleDiv={
+          <div
+            className="mt-2 w-[90%] p-2 text-xs font-normal leading-normal text-[#212529] [&_*]:font-normal"
+            data-test-id="measurement-info-help"
+          >
+            <div
+              className="pb-0 pt-0 text-[12px] font-normal leading-normal text-[#212529]"
+              style={{
+                color: "#212529",
+                fontSize: "12px",
+                fontWeight: 400,
+                lineHeight: "normal",
+              }}
+            >
+              {helpLines.map((line) => (
+                <p key={line}>{line}</p>
+              ))}
+            </div>
+          </div>
+        }
+        collapsibleDiv={<div />}
+        fixedRow={false}
+      />
+    );
   }
 
   const order = getMeasurementOrder(features, selectedFeature);
