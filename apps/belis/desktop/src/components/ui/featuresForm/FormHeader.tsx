@@ -3,6 +3,7 @@ import {
   ArrowLeftOutlined,
   EditOutlined,
   ExclamationCircleOutlined,
+  PlusOutlined,
 } from "@ant-design/icons";
 import { Badge, Button, Spin, Tooltip } from "antd";
 import { useSelector, useDispatch } from "react-redux";
@@ -37,6 +38,8 @@ interface FormHeaderProps {
   isCreation?: boolean;
   customDraftsCount?: number;
   onSaveAll?: () => void;
+  onCreateRelatedDraft?: () => void;
+  createDraftButtonVariant?: "green" | "white";
 }
 
 const FormHeader = ({
@@ -54,6 +57,8 @@ const FormHeader = ({
   isCreation,
   customDraftsCount,
   onSaveAll,
+  onCreateRelatedDraft,
+  createDraftButtonVariant = "green",
 }: FormHeaderProps) => {
   const dispatch = useDispatch();
   const featureDraftsCount = useSelector(getDraftFeaturesCount);
@@ -124,6 +129,38 @@ const FormHeader = ({
                   <ExclamationCircleOutlined className="text-[11px]" />
                   nicht gespeicherte Änderungen
                 </span>
+              )}
+              {onCreateRelatedDraft && (
+                <button
+                  type="button"
+                  aria-label="Neuen Datensatz anlegen"
+                  title="Neuen Datensatz anlegen"
+                  onClick={onCreateRelatedDraft}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 24,
+                    height: 24,
+                    padding: 0,
+                    border:
+                      createDraftButtonVariant === "white"
+                        ? "1px solid #d9d9d9"
+                        : "1px solid #b7eb8f",
+                    borderRadius: 4,
+                    backgroundColor:
+                      createDraftButtonVariant === "white"
+                        ? "#ffffff"
+                        : "#f6ffed",
+                    color:
+                      createDraftButtonVariant === "white"
+                        ? "#8c8c8c"
+                        : "#52c41a",
+                    cursor: "pointer",
+                  }}
+                >
+                  <PlusOutlined style={{ fontSize: 12 }} />
+                </button>
               )}
             </div>
             <p className="text-sm text-gray-500">{subtitle}</p>
