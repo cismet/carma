@@ -39,6 +39,8 @@ import { LOCKED_FIELD_CLASSES } from "./readOnlyFormUtils";
 import {
   getAllowlistedPaths,
   getCreationDefaults,
+  recordDefaults,
+  CREATION_DEFAULTS_ALLOWLIST,
 } from "../../../store/slices/creationDefaults";
 import type { DraftFile } from "../../../store/slices/featuresForms";
 import type { RootState } from "../../../store";
@@ -621,12 +623,29 @@ const FeaturesFormsWrapper = ({
   const handleOriginalValues = useCallback(
     (values: Record<string, unknown>) => {
       if (featureId) {
-        dispatch(
-          setOriginalValues({ featureId, values: serializeValues(values) })
-        );
+        const serialized = serializeValues(values);
+        dispatch(setOriginalValues({ featureId, values: serialized }));
+        // Selecting an existing feature in Fachobjekte seeds the "last values"
+        // memory for that type, so the per-form "+" button (only shown on new
+        // drafts) creates the next draft pre-filled with this feature's
+        // allowlisted fields. Skip creation drafts — their memory is owned by
+        // the draft-edit path in creationDefaults (#645).
+        if (
+          !isCreation &&
+          formKey &&
+          CREATION_DEFAULTS_ALLOWLIST[formKey] != null
+        ) {
+          dispatch(
+            recordDefaults({
+              featureType: formKey,
+              values: serialized,
+              replace: true,
+            })
+          );
+        }
       }
     },
-    [featureId, dispatch]
+    [featureId, formKey, isCreation, dispatch]
   );
 
   const handleDraftFilesChange = useCallback(
