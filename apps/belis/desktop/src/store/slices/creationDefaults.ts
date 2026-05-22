@@ -217,10 +217,20 @@ const creationDefaultsSlice = createSlice({
       action: PayloadAction<{
         featureType: string;
         values: Record<string, unknown>;
+        // When set, overwrite the remembered values wholesale instead of
+        // field-merging. Used when seeding from an existing feature selected
+        // in Fachobjekte: the next new draft must mirror that feature exactly,
+        // so a field the feature left blank stays blank — a merge would let a
+        // stale value from an earlier draft/feature leak through (#645).
+        replace?: boolean;
       }>
     ) {
-      const { featureType, values } = action.payload;
+      const { featureType, values, replace } = action.payload;
       const picked = pickAllowed(featureType, values);
+      if (replace) {
+        state.defaults[featureType] = picked ?? {};
+        return;
+      }
       if (!picked) return;
       const existing = state.defaults[featureType];
       state.defaults[featureType] = existing
