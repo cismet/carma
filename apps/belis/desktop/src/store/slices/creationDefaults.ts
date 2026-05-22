@@ -120,8 +120,15 @@ export const CREATION_DEFAULTS_ALLOWLIST: Record<string, AllowlistEntry> = {
 
 interface CreationDefaultsState {
   // featureType -> last allowlisted values, sourced from the most recently
-  // updated in-progress creation draft of that type.
+  // updated in-progress creation draft of that type. This is the draft-to-draft
+  // "chain" memory: editing one new draft seeds the next. Read by BOTH the
+  // toolbar dropdown and the per-form "+" button.
   defaults: Record<string, Record<string, unknown>>;
+  // featureType -> allowlisted values copied from an existing feature the user
+  // selected in Fachobjekte. Kept separate from `defaults` so the toolbar
+  // dropdown never inherits a Fachobjekt selection — only the per-form "+"
+  // button reads this (#645).
+  selectionDefaults: Record<string, Record<string, unknown>>;
   // featureId -> featureType for in-progress creation drafts. Used to clear
   // `defaults[type]` once the last draft of that type is removed.
   draftIdToType: Record<string, string>;
@@ -129,6 +136,7 @@ interface CreationDefaultsState {
 
 const initialState: CreationDefaultsState = {
   defaults: {},
+  selectionDefaults: {},
   draftIdToType: {},
 };
 
@@ -200,10 +208,15 @@ const creationDefaultsSlice = createSlice({
   initialState,
   reducers: {
     clearDefaults(state, action: PayloadAction<string>) {
+      // Wipe both memories for the type: the per-form "+" button seeds from
+      // selectionDefaults (falling back to defaults), so the clear button next
+      // to it must reset whichever store would feed the next new draft (#645).
       delete state.defaults[action.payload];
+      delete state.selectionDefaults[action.payload];
     },
     clearAllDefaults(state) {
       state.defaults = {};
+      state.selectionDefaults = {};
       state.draftIdToType = {};
     },
     // Record a (possibly partial) defaults update, merged into any existing
@@ -217,25 +230,32 @@ const creationDefaultsSlice = createSlice({
       action: PayloadAction<{
         featureType: string;
         values: Record<string, unknown>;
-        // When set, overwrite the remembered values wholesale instead of
-        // field-merging. Used when seeding from an existing feature selected
-        // in Fachobjekte: the next new draft must mirror that feature exactly,
-        // so a field the feature left blank stays blank — a merge would let a
-        // stale value from an earlier draft/feature leak through (#645).
-        replace?: boolean;
       }>
     ) {
-      const { featureType, values, replace } = action.payload;
+      const { featureType, values } = action.payload;
       const picked = pickAllowed(featureType, values);
-      if (replace) {
-        state.defaults[featureType] = picked ?? {};
-        return;
-      }
       if (!picked) return;
       const existing = state.defaults[featureType];
       state.defaults[featureType] = existing
         ? mergeDefaults(existing, picked)
         : picked;
+    },
+    // Seed the "+" button's memory from an existing feature selected in
+    // Fachobjekte. Written into `selectionDefaults` — kept apart from the
+    // draft-chain `defaults` so the toolbar dropdown never inherits it.
+    // Replaces wholesale (no merge): the next new draft must mirror the
+    // selected feature exactly, so a field it left blank stays blank — a
+    // merge would let a stale value from an earlier selection leak through.
+    recordSelectionDefaults(
+      state,
+      action: PayloadAction<{
+        featureType: string;
+        values: Record<string, unknown>;
+      }>
+    ) {
+      const { featureType, values } = action.payload;
+      state.selectionDefaults[featureType] =
+        pickAllowed(featureType, values) ?? {};
     },
   },
   extraReducers: (builder) => {
@@ -299,13 +319,18 @@ const creationDefaultsSlice = createSlice({
       })
       .addCase(clearAllDrafts, (state) => {
         state.defaults = {};
+        state.selectionDefaults = {};
         state.draftIdToType = {};
       });
   },
 });
 
-export const { clearDefaults, clearAllDefaults, recordDefaults } =
-  creationDefaultsSlice.actions;
+export const {
+  clearDefaults,
+  clearAllDefaults,
+  recordDefaults,
+  recordSelectionDefaults,
+} = creationDefaultsSlice.actions;
 
 export default creationDefaultsSlice;
 
@@ -319,6 +344,19 @@ export const getAllCreationDefaults = (
   state: RootState
 ): Record<string, Record<string, unknown>> =>
   state.creationDefaults?.defaults ?? {};
+
+// Per-type values copied from a feature selected in Fachobjekte. Only the
+// per-form "+" button reads this; the toolbar dropdown deliberately does not.
+export const getSelectionDefaults = (
+  state: RootState,
+  featureType: string
+): Record<string, unknown> | undefined =>
+  state.creationDefaults?.selectionDefaults[featureType];
+
+export const getAllSelectionDefaults = (
+  state: RootState
+): Record<string, Record<string, unknown>> =>
+  state.creationDefaults?.selectionDefaults ?? {};
 
 // Leaf paths of fields that are remembered across creations for a given
 // feature type — flattened from CREATION_DEFAULTS_ALLOWLIST. Used by the
