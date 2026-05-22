@@ -164,6 +164,7 @@ import {
   getDraftFetchedData,
   getGlobalEditMode,
   isCreationDraftKey,
+  requestDraftTabFocus,
 } from "../../store/slices/featuresForms";
 import {
   getAllAADrafts,
@@ -171,6 +172,7 @@ import {
   getAPDeletions,
 } from "../../store/slices/arbeitsauftraegeDrafts";
 import { prepareDraftFeatures } from "../../helper/prepareDraftFeatures";
+import { expandDraftSidebarFeatures } from "../../helper/expandDraftSidebarFeatures";
 import {
   buildSyntheticFeature,
   featureTypeToSourceLayer,
@@ -727,15 +729,16 @@ const BelisMapLibWrapper = ({
     getDraftFetchedData(state, creationDraftKey)
   );
 
-  // Draft features are stored as raw MapGeoJSON features (same structure as
-  // sidebar features from the map). No reconstruction needed — just extract
-  // and pass through prepareDraftFeatures for fk_standort normalization.
+  // Draft features for the "Entwürfe" list. A Leuchten creation draft is
+  // expanded into a Standort parent row + one nested Leuchte row per form tab
+  // (expandDraftSidebarFeatures); every other draft contributes its single
+  // stored feature. prepareDraftFeatures then normalizes fk_standort so
+  // BelisSidebar's Standort/Leuchten clustering nests them.
   const draftSidebarFeatures = useMemo(() => {
-    const raw = allDraftFeatures
-      .filter(({ feature }) => feature != null)
-      .map(({ feature }) => feature as SidebarFeature);
-    return prepareDraftFeatures(raw);
-  }, [allDraftFeatures]);
+    return prepareDraftFeatures(
+      expandDraftSidebarFeatures(allDraftsForMeasurementLink, keyTablesData)
+    );
+  }, [allDraftsForMeasurementLink, keyTablesData]);
 
   const mapWidth = mapSizes.width - LIST_WIDTH;
 
@@ -773,6 +776,15 @@ const BelisMapLibWrapper = ({
     id?: string | number;
   } | null>(null);
 
+  // The expanded "Entwürfe" row to highlight while a Leuchten creation draft is
+  // open. That draft renders as several rows (Standort parent + Leuchten
+  // children); the primary `selectedFeatureId` only carries the draft key, so
+  // this points at the specific row matching the form's current tab.
+  const [activeDraftRow, setActiveDraftRow] = useState<{
+    sourceLayer?: string;
+    id?: string | number;
+  } | null>(null);
+
   // When highlighting is killed, reset to Karte mode and clear highlight collection
   useEffect(() => {
     if (!highlightingActive) {
@@ -791,19 +803,24 @@ const BelisMapLibWrapper = ({
     }
   }, [sidebarMode, draftSidebarFeatures.length]);
 
-  // Drop the captured parent selection once the active selection is no
-  // longer a creation draft — covers draft save (selection switches to the
-  // newly persisted feature), discard, and any direct feature reselection.
+  // Drop the captured parent selection (and the highlighted Entwürfe row) once
+  // the active selection is no longer a creation draft — covers draft save
+  // (selection switches to the newly persisted feature), discard, and any
+  // direct feature reselection.
   useEffect(() => {
-    if (parentFachobjektSelection == null) return;
-    if (
-      !selectedFeatureId ||
-      selectedFeatureId.id == null ||
-      !isCreationDraftKey(String(selectedFeatureId.id))
-    ) {
-      setParentFachobjektSelection(null);
+    const draftSelected =
+      selectedFeatureId != null &&
+      selectedFeatureId.id != null &&
+      isCreationDraftKey(String(selectedFeatureId.id));
+    if (!draftSelected) {
+      if (parentFachobjektSelection != null) {
+        setParentFachobjektSelection(null);
+      }
+      if (activeDraftRow != null) {
+        setActiveDraftRow(null);
+      }
     }
-  }, [selectedFeatureId, parentFachobjektSelection]);
+  }, [selectedFeatureId, parentFachobjektSelection, activeDraftRow]);
 
   const hasHighlights =
     highlightingActive ||
@@ -2830,6 +2847,21 @@ const BelisMapLibWrapper = ({
     map?.resize();
   }, [map]);
 
+  // In the Entwürfe tab a Leuchten creation draft spans several rows (Standort
+  // parent + nested Leuchten). The primary `selectedFeatureId` only holds the
+  // draft key, so steer the sidebar highlight at the specific expanded row
+  // tracked in `activeDraftRow`; everywhere else use the primary selection.
+  const sidebarSelectedFeatureId = useMemo(() => {
+    if (sidebarMode === "drafts" && activeDraftRow) {
+      return {
+        source: "",
+        sourceLayer: activeDraftRow.sourceLayer,
+        id: activeDraftRow.id,
+      };
+    }
+    return selectedFeatureId;
+  }, [sidebarMode, activeDraftRow, selectedFeatureId]);
+
   // Database primary key of the selected feature (from tile properties).
   // MVT feature IDs differ from database PKs; Highlights mode uses database PKs.
   const selectedDatabaseId = useMemo(() => {
@@ -2854,14 +2886,62 @@ const BelisMapLibWrapper = ({
       feature: SidebarFeature
     ) => {
       if (sidebarMode === "drafts") {
-        // Creation drafts have no MVT tile feature — select directly
+        // Expanded Leuchten-draft row (Standort parent / Leuchte child): the
+        // row is synthetic, so select the draft's real stored feature and ask
+        // the form to focus the tab this row stands for.
+        const expandedDraftKey = feature.properties?._draftKey;
+        if (typeof expandedDraftKey === "string") {
+          const draftState =
+            store.getState().featuresForms?.drafts[expandedDraftKey];
+          const realFeature = draftState?.feature;
+          if (realFeature) {
+            const expandedTabKey = feature.properties?._draftTabKey;
+            dispatch(setSelectedFeature({ ...realFeature, selected: true }));
+            selectFeature(
+              {
+                source: realFeature.source ?? "",
+                sourceLayer: realFeature.sourceLayer ?? "",
+                id: expandedDraftKey,
+              },
+              realFeature as any
+            );
+            setFeatureOnMap(true);
+            if (typeof expandedTabKey === "string" && expandedTabKey) {
+              dispatch(
+                requestDraftTabFocus({
+                  draftKey: expandedDraftKey,
+                  tabKey: expandedTabKey,
+                })
+              );
+            }
+            setActiveDraftRow({
+              sourceLayer: feature.sourceLayer,
+              id: feature.id,
+            });
+            return;
+          }
+        }
+
+        // Creation drafts have no MVT tile feature — select directly. A
+        // Leuchten creation draft expands into a Standort parent + nested
+        // Leuchten; when it's selected as a whole (e.g. by handleSelectNextDraft
+        // after a delete) highlight its Standort row, the tab it opens on.
         if (feature.properties?._isCreation) {
+          const isLeuchteCreation =
+            feature.properties?._featureType === "leuchte" ||
+            feature.sourceLayer === "leuchten";
+          setActiveDraftRow(
+            isLeuchteCreation
+              ? { sourceLayer: "standorte", id: `${feature.id}::standort` }
+              : null
+          );
           dispatch(setSelectedFeature({ ...feature, selected: true }));
           selectFeature(identifier, feature as any);
           setFeatureOnMap(true);
           return;
         }
 
+        setActiveDraftRow(null);
         const sl = identifier.sourceLayer ?? "";
         const dbPK = String(feature.properties?.id ?? identifier.id);
 
@@ -2893,9 +2973,10 @@ const BelisMapLibWrapper = ({
       }
 
       // Normal flow for fachobjekte/highlights
+      setActiveDraftRow(null);
       selectFeature(identifier, feature as any);
     },
-    [selectFeature, sidebarMode, dispatch, map, namespacedSource]
+    [selectFeature, sidebarMode, dispatch, map, namespacedSource, store]
   );
 
   // After a draft is cancelled/removed, select the next remaining draft.
@@ -2978,6 +3059,14 @@ const BelisMapLibWrapper = ({
       openDatasheet();
       // Show the new draft on the active sidebar tab.
       setSidebarMode("drafts");
+      // A new Leuchten draft renders in the Entwürfe list as a Standort parent
+      // with nested Leuchten; it opens on the Standort tab, so highlight that
+      // row. Other feature types render as a single self-standing row.
+      setActiveDraftRow(
+        featureType === "leuchte"
+          ? { sourceLayer: "standorte", id: `${draftKey}::standort` }
+          : null
+      );
     },
     [store, dispatch, selectFeature, openDatasheet, selectedFeatureId]
   );
@@ -3023,7 +3112,7 @@ const BelisMapLibWrapper = ({
           isLoading={effectiveSidebarData.isLoading}
           isOverviewMode={effectiveSidebarData.isOverviewMode}
           activeSourceLayers={effectiveSidebarData.activeSourceLayers}
-          selectedFeatureId={selectedFeatureId}
+          selectedFeatureId={sidebarSelectedFeatureId}
           selectedDatabaseId={selectedDatabaseId}
           parentFeatureId={parentFachobjektSelection}
           onFeatureSelect={handleSidebarFeatureSelect}

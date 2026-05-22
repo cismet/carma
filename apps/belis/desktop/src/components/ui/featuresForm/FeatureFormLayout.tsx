@@ -101,6 +101,11 @@ interface FeatureFormLayoutProps {
    * prop changes — keying on this resets the active tab to the default
    * (e.g. back to "Standort" each time a new Leuchten draft is opened). */
   tabsResetKey?: string;
+  /** A request from the sidebar to focus a specific tab — raised when the
+   * user clicks a nested row in the "Entwürfe" list (the Standort parent or
+   * one of its Leuchten children). The bumped `nonce` makes each request
+   * distinct so the same tab can be re-focused. */
+  tabFocusRequest?: { tabKey: string; nonce: number };
 }
 
 const FeatureFormLayout = ({
@@ -139,6 +144,7 @@ const FeatureFormLayout = ({
   customDraftsCount,
   onSaveAll,
   tabsResetKey,
+  tabFocusRequest,
 }: FeatureFormLayoutProps) => {
   // Deduplicate documents to prevent stale data from appearing as extra items
   // when switching between features quickly.
@@ -185,6 +191,20 @@ const FeatureFormLayout = ({
       tabsResetKey != null ? tabMemoryRef.current.get(tabsResetKey) : undefined;
     setActiveTabKey(remembered ?? defaultActiveTabKey);
   }, [tabsResetKey, defaultActiveTabKey]);
+  // Sidebar-driven tab focus: clicking a nested Leuchten-draft row asks the
+  // form to open that row's tab. Keyed on `nonce` so a repeat request for the
+  // same tab still fires; declared after the restore effect above so that on a
+  // draft switch (both effects run) the requested tab wins over the default.
+  const lastFocusNonceRef = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (!tabFocusRequest) return;
+    if (lastFocusNonceRef.current === tabFocusRequest.nonce) return;
+    lastFocusNonceRef.current = tabFocusRequest.nonce;
+    setActiveTabKey(tabFocusRequest.tabKey);
+    if (tabsResetKey != null) {
+      tabMemoryRef.current.set(tabsResetKey, tabFocusRequest.tabKey);
+    }
+  }, [tabFocusRequest, tabsResetKey]);
   // When the active tab is an extra Leuchte tab that the user just removed,
   // its key no longer matches any rendered tab and antd would show a blank
   // pane. Fall back to the neighbour tab — the previous Leuchte tab if there

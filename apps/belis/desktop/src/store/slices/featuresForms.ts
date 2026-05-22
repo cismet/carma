@@ -47,12 +47,23 @@ export interface Draft {
 export const isCreationDraftKey = (featureId: string): boolean =>
   featureId.startsWith("create:");
 
+// A request to focus a specific form tab of an open draft, raised when the
+// user clicks a nested row in the "Entwürfe" sidebar (the Standort parent or
+// one of its Leuchten children). `nonce` makes each request distinct so the
+// form re-applies it even when the same tab is requested twice in a row.
+export interface TabFocusRequest {
+  draftKey: string;
+  tabKey: string;
+  nonce: number;
+}
+
 interface FeaturesFormsState {
   drafts: Record<string, Draft>;
   originalValues: Record<string, Record<string, unknown>>;
   loading: Record<string, boolean>;
   errors: Record<string, string | null>;
   globalEditMode: boolean;
+  tabFocusRequest: TabFocusRequest | null;
 }
 
 const initialState: FeaturesFormsState = {
@@ -61,6 +72,7 @@ const initialState: FeaturesFormsState = {
   loading: {},
   errors: {},
   globalEditMode: false,
+  tabFocusRequest: null,
 };
 
 const featuresFormsSlice = createSlice({
@@ -270,6 +282,18 @@ const featuresFormsSlice = createSlice({
     setGlobalEditMode(state, action: PayloadAction<boolean>) {
       state.globalEditMode = action.payload;
     },
+    // Ask the open draft's form to switch to `tabKey`. The bumped `nonce` lets
+    // FeatureFormLayout treat every dispatch as a fresh request.
+    requestDraftTabFocus(
+      state,
+      action: PayloadAction<{ draftKey: string; tabKey: string }>
+    ) {
+      state.tabFocusRequest = {
+        draftKey: action.payload.draftKey,
+        tabKey: action.payload.tabKey,
+        nonce: (state.tabFocusRequest?.nonce ?? 0) + 1,
+      };
+    },
     toggleGlobalEditMode(state) {
       state.globalEditMode = !state.globalEditMode;
     },
@@ -330,6 +354,7 @@ export const {
   setRemovedDocumentKeys,
   setGlobalEditMode,
   toggleGlobalEditMode,
+  requestDraftTabFocus,
 } = featuresFormsSlice.actions;
 
 // Selectors
@@ -458,6 +483,10 @@ export const getCreationDraftsByType = (
     .filter(([, d]) => d.isCreation === true && d.featureType === featureType)
     .map(([featureId, draft]) => ({ featureId, draft }));
 };
+
+export const getTabFocusRequest = (
+  state: RootState
+): TabFocusRequest | null => state.featuresForms?.tabFocusRequest ?? null;
 
 export const getCreationDraftsCount = (state: RootState): number =>
   Object.values(state.featuresForms?.drafts ?? {}).filter(
