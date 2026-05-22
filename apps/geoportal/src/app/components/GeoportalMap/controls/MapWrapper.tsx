@@ -639,7 +639,7 @@ const MapWrapper = () => {
       )}
       {showLibreMap &&
         isLeaflet &&
-        (selectedMeasurement ? (
+        (isModeMeasurement || selectedMeasurement ? (
           <MeasurementInfoBox selectionPadding={selectionPadding} />
         ) : (
           <FeatureInfoBox pos={pos ?? undefined} />
