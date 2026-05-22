@@ -677,7 +677,9 @@ const BelisMapLibWrapper = ({
 
   // Brandnew FC poll-and-reload: short cadence in localhost (yellow-border
   // dev scenario), longer otherwise. Triggers setData only when the .md5
-  // sidecar changes.
+  // sidecar changes. `featureDataVersion` is passed as `syncVersion` so a
+  // successful save kicks off an immediate 1s-burst — the user's own brandnew
+  // feature then appears quickly before the loop returns to the 15s cadence.
   const IS_LOCAL_DEV =
     typeof window !== "undefined" && window.location.hostname === "localhost";
   const BRAND_NEW_SYNC_INTERVAL_MS = IS_LOCAL_DEV ? 1000 : 15000;
@@ -693,6 +695,7 @@ const BelisMapLibWrapper = ({
     source: brandnewSource,
     dataUrl: BELIS_BRAND_NEW_FC_URL,
     intervalMs: BRAND_NEW_SYNC_INTERVAL_MS,
+    syncVersion: featureDataVersion,
     onCountChange: onBrandnewCountChange,
     onDataChange: setBrandnewFc,
   });

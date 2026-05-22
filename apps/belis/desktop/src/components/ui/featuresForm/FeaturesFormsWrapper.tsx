@@ -404,14 +404,6 @@ const FeaturesFormsWrapper = ({
             }
           }
           onSelectNextDraft?.(featureId);
-          // TEMPORARY: after creating a brand-new feature, force a full page
-          // reload so the freshly mounted brandnew-layer poll refetches
-          // brand.new.features.json immediately instead of waiting out the
-          // slow (15s) background cadence on deployed builds. The delay must
-          // outlast the server-side regeneration of that tiles file — tune
-          // RELOAD_DELAY_MS if the new feature still appears stale.
-          const RELOAD_DELAY_MS = 2000;
-          setTimeout(() => window.location.reload(), RELOAD_DELAY_MS);
         } else {
           setIsEditing(false);
         }

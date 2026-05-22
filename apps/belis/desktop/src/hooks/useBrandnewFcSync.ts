@@ -9,6 +9,11 @@ interface UseBrandnewFcSyncOptions {
   /** Base data URL; the hook polls `${dataUrl}.md5` and reloads the FC when the digest changes. */
   dataUrl: string;
   intervalMs: number;
+  /** Monotonic counter bumped by the host on every successful save (the app's
+   * `featureDataVersion`). Each change triggers an immediate poll plus a short
+   * burst of fast (1s) polls, so the user's own freshly-saved brandnew feature
+   * shows up quickly; afterwards the loop returns to the normal `intervalMs`. */
+  syncVersion?: number;
   /** Notified with the new feature count on every transition (baseline,
    * md5 change, missing → 0, reappear). */
   onCountChange?: (count: number) => void;
@@ -24,12 +29,22 @@ const EMPTY_FC: GeoJSON.FeatureCollection = {
   features: [],
 };
 
+// While a save-triggered burst is active the loop polls every second instead
+// of `intervalMs` (capped at `intervalMs` so localhost's cadence is never
+// slowed down).
+const BURST_INTERVAL_MS = 1000;
+// How long the fast burst lasts after a save before falling back to the
+// normal cadence — long enough to outlast the server-side regeneration of
+// brand.new.features.json.
+const BURST_DURATION_MS = 15000;
+
 export const useBrandnewFcSync = ({
   map,
   enabled,
   source,
   dataUrl,
   intervalMs,
+  syncVersion,
   onCountChange,
   onDataChange,
 }: UseBrandnewFcSyncOptions): void => {
@@ -37,9 +52,20 @@ export const useBrandnewFcSync = ({
   onCountChangeRef.current = onCountChange;
   const onDataChangeRef = useRef(onDataChange);
   onDataChangeRef.current = onDataChange;
+  // Tracks the syncVersion the running poll loop was started for, so the
+  // effect can tell a save-triggered restart from an unrelated one.
+  const prevSyncVersionRef = useRef(syncVersion);
 
   useEffect(() => {
     if (!map || !enabled) return;
+
+    // A change in syncVersion (bumped by the host on every successful save)
+    // means the user just saved something. Run a short burst of fast (1s)
+    // polls so their own brandnew feature appears quickly; unrelated restarts
+    // keep the normal interval.
+    const isSaveTrigger = syncVersion !== prevSyncVersionRef.current;
+    prevSyncVersionRef.current = syncVersion;
+    const burstUntil = isSaveTrigger ? Date.now() + BURST_DURATION_MS : 0;
 
     let stopped = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
@@ -137,7 +163,13 @@ export const useBrandnewFcSync = ({
         // explicit non-ok response clears the layer.
         console.warn(LOG_PREFIX, "tick failed:", (err as Error).message);
       } finally {
-        if (!stopped) timer = setTimeout(tick, intervalMs);
+        if (!stopped) {
+          const nextDelay =
+            Date.now() < burstUntil
+              ? Math.min(BURST_INTERVAL_MS, intervalMs)
+              : intervalMs;
+          timer = setTimeout(tick, nextDelay);
+        }
       }
     };
 
@@ -147,5 +179,5 @@ export const useBrandnewFcSync = ({
       stopped = true;
       if (timer !== null) clearTimeout(timer);
     };
-  }, [map, enabled, source, dataUrl, intervalMs]);
+  }, [map, enabled, source, dataUrl, intervalMs, syncVersion]);
 };
