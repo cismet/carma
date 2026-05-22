@@ -156,36 +156,47 @@ const FormHeader = ({
                 </span>
               )}
               {onCreateRelatedDraft && (
-                <button
-                  type="button"
-                  aria-label="Neuen Datensatz anlegen"
-                  title="Neuen Datensatz anlegen"
-                  onClick={onCreateRelatedDraft}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: 24,
-                    height: 24,
-                    padding: 0,
-                    border:
-                      createDraftButtonVariant === "white"
-                        ? "1px solid #d9d9d9"
-                        : "1px solid #b7eb8f",
-                    borderRadius: 4,
-                    backgroundColor:
-                      createDraftButtonVariant === "white"
-                        ? "#ffffff"
-                        : "#f6ffed",
-                    color:
-                      createDraftButtonVariant === "white"
-                        ? "#8c8c8c"
-                        : "#52c41a",
-                    cursor: "pointer",
-                  }}
+                <Tooltip
+                  title={
+                    createDraftButtonVariant === "white"
+                      ? "Neuen Datensatz anlegen"
+                      : "Neuen Datensatz mit diesen Werten anlegen"
+                  }
                 >
-                  <PlusOutlined style={{ fontSize: 12 }} />
-                </button>
+                  <button
+                    type="button"
+                    aria-label={
+                      createDraftButtonVariant === "white"
+                        ? "Neuen Datensatz anlegen"
+                        : "Neuen Datensatz mit diesen Werten anlegen"
+                    }
+                    onClick={onCreateRelatedDraft}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: 24,
+                      height: 24,
+                      padding: 0,
+                      border:
+                        createDraftButtonVariant === "white"
+                          ? "1px solid #d9d9d9"
+                          : "1px solid #b7eb8f",
+                      borderRadius: 4,
+                      backgroundColor:
+                        createDraftButtonVariant === "white"
+                          ? "#ffffff"
+                          : "#f6ffed",
+                      color:
+                        createDraftButtonVariant === "white"
+                          ? "#8c8c8c"
+                          : "#52c41a",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <PlusOutlined style={{ fontSize: 12 }} />
+                  </button>
+                </Tooltip>
               )}
               {onCreateRelatedDraft &&
                 isCreation &&
