@@ -83,6 +83,8 @@ interface FeatureFormLayoutProps {
    * e.g. to spawn a new creation draft of the same feature type — without
    * changing the active tab. */
   onCreateRelatedDraft?: () => void;
+  /** Color of the header "+" create-related-draft button. Defaults to "green". */
+  createDraftButtonVariant?: "green" | "white";
   /** Label for the main/general tab. Defaults to "Allgemein". */
   generalTabLabel?: string;
   /** Whether additional tabs render before or after the general tab. Default "after". */
@@ -130,6 +132,7 @@ const FeatureFormLayout = ({
   extraGeneralTabs = [],
   onAddTab,
   onCreateRelatedDraft,
+  createDraftButtonVariant,
   generalTabLabel = "Allgemein",
   additionalTabsPosition = "after",
   loading,
@@ -259,40 +262,6 @@ const FeatureFormLayout = ({
     },
     [onAddTab, onCreateRelatedDraft, tabsResetKey]
   );
-
-  // Trailing "+" tab — rendered last in every tab list. Empty children:
-  // handleTabChange short-circuits before activation so this pane never shows.
-  const createDraftSentinel = onCreateRelatedDraft
-    ? [
-        {
-          key: CREATE_DRAFT_KEY,
-          label: (
-            <span
-              aria-label="Neuen Datensatz anlegen"
-              title="Neuen Datensatz anlegen"
-              style={{ display: "inline-flex", alignItems: "center" }}
-            >
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: 22,
-                  height: 22,
-                  border: "1px solid #b7eb8f",
-                  borderRadius: 4,
-                  backgroundColor: "#f6ffed",
-                  color: "#52c41a",
-                }}
-              >
-                <PlusOutlined style={{ fontSize: 12 }} />
-              </span>
-            </span>
-          ),
-          children: null,
-        },
-      ]
-    : [];
 
   // Cache image URLs at this level to persist across layout changes (resize)
   const [savedImageUrls, setSavedImageUrls] = useState<SavedImageUrls>({});
@@ -637,7 +606,6 @@ const FeatureFormLayout = ({
             ...mappedExtraGeneralTabs,
             ...addTabSentinel,
             ...rawTabs,
-            ...createDraftSentinel,
           ]
         : [
             generalTab,
@@ -645,7 +613,6 @@ const FeatureFormLayout = ({
             ...mappedAdditionalTabs,
             ...addTabSentinel,
             ...rawTabs,
-            ...createDraftSentinel,
           ];
 
     return (
@@ -665,6 +632,8 @@ const FeatureFormLayout = ({
           isCreation={isCreation}
           customDraftsCount={customDraftsCount}
           onSaveAll={onSaveAll}
+          onCreateRelatedDraft={onCreateRelatedDraft}
+          createDraftButtonVariant={createDraftButtonVariant}
         />
         <div className="flex flex-1 overflow-hidden">
           {/* Form column - 60% */}
@@ -795,7 +764,6 @@ const FeatureFormLayout = ({
                     ...orderedFormTabs,
                     documentsTab,
                     ...rawTabs,
-                    ...createDraftSentinel,
                   ]}
                 />
               );

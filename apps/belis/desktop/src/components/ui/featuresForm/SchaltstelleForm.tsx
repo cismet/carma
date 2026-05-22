@@ -259,6 +259,7 @@ const SchaltstelleForm = ({
       onCancel={onCancel}
       onSave={handleSave}
       onCreateRelatedDraft={() => createFeatureDraft("schaltstelle")}
+      createDraftButtonVariant="white"
     >
       <SchaltstelleFormFields
         schaltstelle={ss}
