@@ -6,9 +6,12 @@ import { setDraft, setGlobalEditMode } from "../../store/slices/featuresForms";
 import {
   getAllCreationDefaults,
   getAllSelectionDefaults,
+  pickRememberedValues,
+  recordSelectionDefaults,
 } from "../../store/slices/creationDefaults";
 import { getSelectedFeature } from "../../store/slices/featureCollection";
 import { getKeyTablesData } from "../../store/slices/keyTables";
+import { serializeValues } from "../../helper/draftSerialize";
 import {
   buildSyntheticFeature,
   buildSyntheticFetchedData,
@@ -84,6 +87,10 @@ export const useCreateFeatureDraft = () => {
       options?: {
         linkToSelectedStandort?: boolean;
         seedFromSelection?: boolean;
+        /** Current values of the in-progress draft the "+" button was pressed
+         * in. Seeds the new draft from these and overwrites the remembered
+         * "last values" so the memory mirrors what's on screen (#645). */
+        seedValues?: Record<string, unknown>;
       }
     ) => {
       const draftKey = `create:${key}:${Date.now()}-${Math.random()
@@ -118,12 +125,27 @@ export const useCreateFeatureDraft = () => {
         ? (standortOption.geometry as GeoJSON.Geometry)
         : undefined;
 
-      // The "+" button seeds from the last Fachobjekt selection; with no
-      // selection on record it falls back to the draft-chain memory. The
-      // dropdown only ever uses the draft-chain memory.
-      const seedSource = options?.seedFromSelection
-        ? allSelectionDefaults[key] ?? allDefaults[key]
-        : allDefaults[key];
+      // Pick the seed source for the new draft:
+      //   - seedValues: the "+" button was pressed inside an in-progress
+      //     draft. Seed straight from that draft's current values and
+      //     overwrite the remembered "last values" so the next new draft —
+      //     and the clear button — mirror what was just on screen.
+      //   - seedFromSelection: the per-form "+" button on an existing
+      //     Fachobjekt — use the Fachobjekt selection memory, falling back to
+      //     the draft-chain memory.
+      //   - default (toolbar dropdown): the draft-chain memory only.
+      let seedSource: Record<string, unknown> | undefined;
+      if (options?.seedValues) {
+        const serialized = serializeValues(options.seedValues);
+        seedSource = pickRememberedValues(key, serialized) ?? {};
+        dispatch(
+          recordSelectionDefaults({ featureType: key, values: serialized })
+        );
+      } else if (options?.seedFromSelection) {
+        seedSource = allSelectionDefaults[key] ?? allDefaults[key];
+      } else {
+        seedSource = allDefaults[key];
+      }
       const seededValues: Record<string, unknown> = {
         ...(seedSource ?? {}),
       };

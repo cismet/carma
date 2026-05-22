@@ -234,7 +234,12 @@ const LeitungForm = ({
       onCancel={onCancel}
       onSave={handleSave}
       onCreateRelatedDraft={() =>
-        createFeatureDraft("leitung", { seedFromSelection: true })
+        createFeatureDraft(
+          "leitung",
+          isCreation && draftValues
+            ? { seedValues: draftValues }
+            : { seedFromSelection: true }
+        )
       }
       featureType="leitung"
     >

@@ -155,7 +155,7 @@ const FormHeader = ({
                   nicht gespeicherte Änderungen
                 </span>
               )}
-              {onCreateRelatedDraft && isCreation && (
+              {onCreateRelatedDraft && (
                 <button
                   type="button"
                   aria-label="Neuen Datensatz anlegen"
