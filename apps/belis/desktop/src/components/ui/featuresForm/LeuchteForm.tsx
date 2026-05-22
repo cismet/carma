@@ -852,6 +852,7 @@ const LeuchteForm = ({
             : { seedFromSelection: true }
         )
       }
+      featureType="leuchte"
       generalTabLabel={isCreation ? "Leuchte 1" : undefined}
       additionalTabsPosition={isCreation ? "before" : undefined}
       loading={loading}
