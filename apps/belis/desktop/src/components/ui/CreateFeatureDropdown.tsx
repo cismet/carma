@@ -1,7 +1,14 @@
 import { Dropdown } from "antd";
+import type { MenuProps } from "antd";
 import { PlusOutlined, CaretDownFilled } from "@ant-design/icons";
+import { useSelector } from "react-redux";
 import type { CreateFeatureType } from "../../contexts/MapPageContext";
-import { useCreateFeatureDraft } from "./useCreateFeatureDraft";
+import {
+  useCreateFeatureDraft,
+  extractStandortFeatureInfo,
+} from "./useCreateFeatureDraft";
+import { getSelectedFeature } from "../../store/slices/featureCollection";
+import { formatStandortLabel } from "../../helper/geometryOptions";
 
 const SPRITE_URL = "https://tiles.cismet.de/belis/sprites.png";
 const SPRITE_SIZE = 66;
@@ -90,24 +97,47 @@ const createFeatureItems: {
 
 const CreateFeatureDropdown = () => {
   const handleItemClick = useCreateFeatureDraft();
+  const selectedFeature = useSelector(getSelectedFeature);
+  const standortInfo = extractStandortFeatureInfo(selectedFeature);
+
+  const items: MenuProps["items"] = [];
+
+  // When a Standort is selected, offer an explicit entry to create a new
+  // Leuchte linked to it — e.g. "Leuchte zu Standort 19 (Neviandstr.)
+  // hinzufügen". This is the only entry that links; the plain "Leuchte" item
+  // below always creates an empty, unlinked draft.
+  if (standortInfo) {
+    items.push({
+      key: "leuchte-linked-standort",
+      label: (
+        <span className="flex items-center gap-1.5">
+          <FeatureIcon type="leuchte" />
+          {`Leuchte zu ${formatStandortLabel(
+            standortInfo.properties
+          )} hinzufügen`}
+        </span>
+      ),
+      style: { paddingLeft: 4 },
+      onClick: () => handleItemClick("leuchte", { linkToSelectedStandort: true }),
+    });
+  }
+
+  for (const item of createFeatureItems) {
+    items.push({
+      key: item.key,
+      label: (
+        <span className="flex items-center gap-1.5">
+          <FeatureIcon type={item.key} />
+          {item.label}
+        </span>
+      ),
+      style: { paddingLeft: 4 },
+      onClick: () => handleItemClick(item.key),
+    });
+  }
 
   return (
-    <Dropdown
-      menu={{
-        items: createFeatureItems.map((item) => ({
-          key: item.key,
-          label: (
-            <span className="flex items-center gap-1.5">
-              <FeatureIcon type={item.key} />
-              {item.label}
-            </span>
-          ),
-          style: { paddingLeft: 4 },
-          onClick: () => handleItemClick(item.key),
-        })),
-      }}
-      trigger={["click"]}
-    >
+    <Dropdown menu={{ items }} trigger={["click"]}>
       <div className="flex items-center gap-0.5 cursor-pointer">
         <button className="flex items-center justify-center w-6 h-6 rounded border border-gray-300 bg-white text-gray-500 hover:bg-gray-50">
           <PlusOutlined style={{ fontSize: 14 }} />

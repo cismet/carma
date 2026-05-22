@@ -26,7 +26,7 @@ const STANDORT_SOURCE_LAYERS = new Set([
 //   - processed/override path (sidebar click, fetched record): { carmaInfo: { sourceLayer },
 //     properties: { ..., sourceProps: <DB record> }, geometry }
 // Normalize both into the input that buildStandortGeometryOption expects.
-const extractStandortFeatureInfo = (
+export const extractStandortFeatureInfo = (
   sf: unknown
 ): {
   id: number | string;
@@ -55,8 +55,10 @@ const extractStandortFeatureInfo = (
  * Creates a new BelIS feature creation draft and opens it.
  *
  * Shared by the toolbar "+" dropdown (CreateFeatureDropdown) and the per-form
- * trailing "+" tab (FeatureFormLayout). For new Leuchten it reuses the existing
- * linking logic: if a Standort is currently selected, the draft links to it.
+ * trailing "+" tab (FeatureFormLayout). A new Leuchte links to the currently
+ * selected Standort only when `options.linkToSelectedStandort` is set — that
+ * is the dedicated "Leuchte zu Standort … hinzufügen" menu entry. The plain
+ * "Leuchte" entry always creates an empty, unlinked draft.
  */
 export const useCreateFeatureDraft = () => {
   const { onOpenCreationDraft } = useMapPage();
@@ -66,17 +68,21 @@ export const useCreateFeatureDraft = () => {
   const keyTablesData = useSelector(getKeyTablesData);
 
   return useCallback(
-    (key: CreateFeatureType & string) => {
+    (
+      key: CreateFeatureType & string,
+      options?: { linkToSelectedStandort?: boolean }
+    ) => {
       const draftKey = `create:${key}:${Date.now()}-${Math.random()
         .toString(36)
         .slice(2, 9)}`;
 
-      // For new Leuchten: if a Standort is currently selected, link to it.
-      // Capture it now — opening the creation draft replaces selectedFeature
-      // in Redux, so the wrapper can no longer recover this association on its own.
+      // For new Leuchten linked via the dedicated menu entry: if a Standort is
+      // currently selected, link to it. Capture it now — opening the creation
+      // draft replaces selectedFeature in Redux, so the wrapper can no longer
+      // recover this association on its own.
       let standortOption = null;
       let standortLeuchtenCount: number | undefined;
-      if (key === "leuchte") {
+      if (key === "leuchte" && options?.linkToSelectedStandort) {
         const info = extractStandortFeatureInfo(selectedFeature);
         if (info) {
           standortOption = buildStandortGeometryOption(info);
