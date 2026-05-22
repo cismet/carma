@@ -140,14 +140,19 @@ const initialState: CreationDefaultsState = {
   draftIdToType: {},
 };
 
-// A field the user left blank contributes nothing to the "last values"
-// memory. Picking a blank value would clobber a non-empty value remembered
-// from a *different* draft once `mergeDefaults` folds it in — and an empty
-// DatePicker, unlike an untouched text input, reports `null` rather than
-// `undefined`, so a plain `!== undefined` check is not enough.
+// An empty DatePicker, unlike an untouched text input, reports `null` rather
+// than `undefined`, so a plain `!== undefined` check is not enough.
 const isEmptyValue = (v: unknown): boolean =>
   v === null || v === undefined || v === "";
 
+// Build the remembered-values record for a draft. Every allowlisted field is
+// emitted, but an empty one is written as an explicit `null` marker rather
+// than omitted: that lets the green/gray diff tell a field a draft
+// *intentionally cleared* apart from one *never recorded at all* — without it,
+// clearing a remembered field would drop its key and any other draft still
+// holding that value would wrongly read as green/prefilled (#645).
+// A draft (or sub-object) with no non-empty field at all still contributes
+// nothing — a wholly blank draft must not overwrite the memory.
 const pickAllowed = (
   featureType: string,
   values: Record<string, unknown>
@@ -157,14 +162,20 @@ const pickAllowed = (
 
   if (Array.isArray(config)) {
     const picked: Record<string, unknown> = {};
+    let hasValue = false;
     for (const f of config) {
-      if (!isEmptyValue(values[f])) picked[f] = values[f];
+      if (isEmptyValue(values[f])) {
+        picked[f] = null;
+      } else {
+        picked[f] = values[f];
+        hasValue = true;
+      }
     }
-    return Object.keys(picked).length > 0 ? picked : null;
+    return hasValue ? picked : null;
   }
 
   // Nested: values is shaped { [subKey]: { ...fields } }. Descend per subKey
-  // and only emit subKeys that had at least one matching field.
+  // and only emit subKeys that had at least one non-empty field.
   const picked: Record<string, Record<string, unknown>> = {};
   for (const [subKey, fields] of Object.entries(config)) {
     const subValues = values[subKey];
@@ -172,10 +183,16 @@ const pickAllowed = (
       continue;
     const sub: Record<string, unknown> = {};
     const src = subValues as Record<string, unknown>;
+    let subHasValue = false;
     for (const f of fields) {
-      if (!isEmptyValue(src[f])) sub[f] = src[f];
+      if (isEmptyValue(src[f])) {
+        sub[f] = null;
+      } else {
+        sub[f] = src[f];
+        subHasValue = true;
+      }
     }
-    if (Object.keys(sub).length > 0) picked[subKey] = sub;
+    if (subHasValue) picked[subKey] = sub;
   }
   return Object.keys(picked).length > 0 ? picked : null;
 };
@@ -189,13 +206,13 @@ export const pickRememberedValues = pickAllowed;
 const isMergeableObj = (v: unknown): v is Record<string, unknown> =>
   v != null && typeof v === "object" && !Array.isArray(v);
 
-// Merge freshly recorded defaults into the existing ones at the field level.
-// `pickAllowed` already drops fields the edited draft left untouched (they
-// arrive as `undefined`), so merging — rather than replacing — means editing
-// one field in a draft never wipes the last value remembered for a field the
-// user filled in a *different* draft. Nested sub-objects (the leuchte
-// `{ leuchte, mast }` shape) are merged one level deeper; a plain top-level
-// spread would replace a whole sub-object wholesale.
+// Merge freshly recorded defaults into the existing ones. Nested sub-objects
+// (the leuchte `{ leuchte, mast }` shape) are merged one level deep, so a
+// recordDefaults call carrying only a non-empty `leuchte` slice leaves a
+// previously remembered `mast` slice intact. Within a sub-object the new
+// values fully replace the old: `pickAllowed` emits the complete field set
+// (empty fields as explicit `null`), so the merge refreshes every field,
+// including ones the draft just cleared.
 const mergeDefaults = (
   existing: Record<string, unknown>,
   picked: Record<string, unknown>
