@@ -2,6 +2,8 @@ import area from "@turf/area";
 import length from "@turf/length";
 import { COLORS_HEX } from "@carma-commons/utils";
 import type { MeasurementLayerInfoOverrides } from "@carma-commons/measurements";
+import { formatLatLonDegrees, GEOGRAPHIC_DIRECTION_STYLE } from "@carma-units";
+import type { Degrees } from "@carma-units";
 import type { Feature, Polygon, LineString, Point, Position } from "geojson";
 
 import { formatAreaSquareMeters, formatMeters } from "./labels";
@@ -66,6 +68,23 @@ export function buildFeatureTitle(
       ? "Fläche"
       : "Linienzug";
   return `${base} #${order}`;
+}
+
+export function buildPointSubtitle(point: Feature<Point>): string {
+  const coords = point.geometry?.coordinates;
+  if (!coords || coords.length < 2) {
+    return "";
+  }
+  const [lon, lat] = coords;
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+    return "";
+  }
+  const [latStr, lonStr] = formatLatLonDegrees(lat as Degrees, lon as Degrees, {
+    directionStyle: GEOGRAPHIC_DIRECTION_STYLE.SIGNED,
+    unitSymbol: false,
+    locale: "en-US",
+  });
+  return `${latStr}, ${lonStr}`;
 }
 
 export function buildLineSubtitle(coords: Position[]): string {
@@ -192,7 +211,7 @@ export function featuresToFeatureCollection(
             info: {
               headerColor: COLORS_HEX.ACCENT_MEASUREMENTS,
               title: `${base} #${order}`,
-              subtitle: "",
+              subtitle: buildPointSubtitle(pt),
               actions: [{ name: "zoomToFeature" }, {}],
             },
           },

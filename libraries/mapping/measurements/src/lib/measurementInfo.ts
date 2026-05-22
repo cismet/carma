@@ -1,9 +1,10 @@
 import length from "@turf/length";
-import type { Feature, LineString, Polygon } from "geojson";
+import type { Feature, LineString, Point, Polygon } from "geojson";
 
 import {
   buildFeatureTitle,
   buildLineSubtitle,
+  buildPointSubtitle,
   buildPolygonSubtitle,
 } from "./feature-collection-export";
 
@@ -89,7 +90,7 @@ export const buildMeasurementInfo = (
     return {
       header: "Messung",
       title: `Punkt #${order}`,
-      subtitle: "",
+      subtitle: buildPointSubtitle(feature as Feature<Point>),
     };
   }
 
