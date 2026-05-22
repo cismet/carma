@@ -276,12 +276,16 @@ const creationDefaultsSlice = createSlice({
         const featureType = state.draftIdToType[featureId];
         if (!featureType) return;
         delete state.draftIdToType[featureId];
-        const stillActive = Object.values(state.draftIdToType).includes(
-          featureType
-        );
-        if (!stillActive) {
-          delete state.defaults[featureType];
-        }
+        // Keep the remembered "last values" alive after the last draft of a
+        // type is removed — removeDraft fires both on discard and on a
+        // successful save, and a save should not wipe the memory that seeds
+        // the next new feature (#645).
+        // const stillActive = Object.values(state.draftIdToType).includes(
+        //   featureType
+        // );
+        // if (!stillActive) {
+        //   delete state.defaults[featureType];
+        // }
       })
       .addCase(clearAllDrafts, (state) => {
         state.defaults = {};
