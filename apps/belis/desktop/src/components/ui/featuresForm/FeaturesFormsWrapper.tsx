@@ -39,7 +39,7 @@ import { LOCKED_FIELD_CLASSES } from "./readOnlyFormUtils";
 import {
   getAllowlistedPaths,
   getCreationDefaults,
-  recordDefaults,
+  recordSelectionDefaults,
   CREATION_DEFAULTS_ALLOWLIST,
 } from "../../../store/slices/creationDefaults";
 import type { DraftFile } from "../../../store/slices/featuresForms";
@@ -625,21 +625,20 @@ const FeaturesFormsWrapper = ({
       if (featureId) {
         const serialized = serializeValues(values);
         dispatch(setOriginalValues({ featureId, values: serialized }));
-        // Selecting an existing feature in Fachobjekte seeds the "last values"
-        // memory for that type, so the per-form "+" button (only shown on new
-        // drafts) creates the next draft pre-filled with this feature's
-        // allowlisted fields. Skip creation drafts — their memory is owned by
-        // the draft-edit path in creationDefaults (#645).
+        // Selecting an existing feature in Fachobjekte seeds the per-form "+"
+        // button's memory (selectionDefaults) for that type, so it creates the
+        // next draft pre-filled with this feature's allowlisted fields. The
+        // toolbar dropdown reads a separate memory and is unaffected. Skip
+        // creation drafts — their memory is owned by the draft-edit path (#645).
         if (
           !isCreation &&
           formKey &&
           CREATION_DEFAULTS_ALLOWLIST[formKey] != null
         ) {
           dispatch(
-            recordDefaults({
+            recordSelectionDefaults({
               featureType: formKey,
               values: serialized,
-              replace: true,
             })
           );
         }

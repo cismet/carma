@@ -233,7 +233,9 @@ const LeitungForm = ({
       onToggleReadOnly={onToggleReadOnly}
       onCancel={onCancel}
       onSave={handleSave}
-      onCreateRelatedDraft={() => createFeatureDraft("leitung")}
+      onCreateRelatedDraft={() =>
+        createFeatureDraft("leitung", { seedFromSelection: true })
+      }
       featureType="leitung"
     >
       <LeitungFormFields

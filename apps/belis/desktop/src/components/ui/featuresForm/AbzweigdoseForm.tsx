@@ -194,7 +194,9 @@ const AbzweigdoseForm = ({
       onToggleReadOnly={onToggleReadOnly}
       onCancel={onCancel}
       onSave={handleSave}
-      onCreateRelatedDraft={() => createFeatureDraft("abzweigdose")}
+      onCreateRelatedDraft={() =>
+        createFeatureDraft("abzweigdose", { seedFromSelection: true })
+      }
       featureType="abzweigdose"
       singleColumn
     >

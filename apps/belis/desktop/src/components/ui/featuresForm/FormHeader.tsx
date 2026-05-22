@@ -15,6 +15,7 @@ import {
 } from "../../../store/slices/featuresForms";
 import {
   getCreationDefaults,
+  getSelectionDefaults,
   clearDefaults,
 } from "../../../store/slices/creationDefaults";
 import type { RootState } from "../../../store";
@@ -81,12 +82,19 @@ const FormHeader = ({
   const draftsCount = customDraftsCount ?? featureDraftsCount;
 
   // Remembered "last values" for this feature type — what new drafts are
-  // pre-filled with. The clear button below wipes it for this type only.
-  const rememberedData = useSelector((state: RootState) =>
+  // pre-filled with. The per-form "+" button seeds from the Fachobjekt
+  // selection (selectionDefaults) and falls back to the draft-chain memory
+  // (defaults), so the clear button shows when either store holds data and
+  // wipes both for this type only.
+  const chainDefaults = useSelector((state: RootState) =>
     featureType ? getCreationDefaults(state, featureType) : undefined
   );
+  const selectionDefaults = useSelector((state: RootState) =>
+    featureType ? getSelectionDefaults(state, featureType) : undefined
+  );
   const hasRememberedData =
-    !!rememberedData && Object.keys(rememberedData).length > 0;
+    (!!chainDefaults && Object.keys(chainDefaults).length > 0) ||
+    (!!selectionDefaults && Object.keys(selectionDefaults).length > 0);
 
   const handleSaveAll = () => {
     if (onSaveAll) {

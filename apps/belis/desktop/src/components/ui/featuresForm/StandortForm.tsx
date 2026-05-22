@@ -260,7 +260,9 @@ const StandortForm = ({
       onToggleReadOnly={onToggleReadOnly}
       onCancel={onCancel}
       onSave={handleSave}
-      onCreateRelatedDraft={() => createFeatureDraft("standort")}
+      onCreateRelatedDraft={() =>
+        createFeatureDraft("standort", { seedFromSelection: true })
+      }
       featureType="standort"
     >
       <MastFormFields

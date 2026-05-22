@@ -3,7 +3,10 @@ import { useDispatch, useSelector } from "react-redux";
 import { useMapPage } from "../../contexts/MapPageContext";
 import type { CreateFeatureType } from "../../contexts/MapPageContext";
 import { setDraft, setGlobalEditMode } from "../../store/slices/featuresForms";
-import { getAllCreationDefaults } from "../../store/slices/creationDefaults";
+import {
+  getAllCreationDefaults,
+  getAllSelectionDefaults,
+} from "../../store/slices/creationDefaults";
 import { getSelectedFeature } from "../../store/slices/featureCollection";
 import { getKeyTablesData } from "../../store/slices/keyTables";
 import {
@@ -55,22 +58,33 @@ export const extractStandortFeatureInfo = (
  * Creates a new BelIS feature creation draft and opens it.
  *
  * Shared by the toolbar "+" dropdown (CreateFeatureDropdown) and the per-form
- * trailing "+" tab (FeatureFormLayout). A new Leuchte links to the currently
+ * trailing "+" button (FeatureFormLayout). A new Leuchte links to the currently
  * selected Standort only when `options.linkToSelectedStandort` is set — that
  * is the dedicated "Leuchte zu Standort … hinzufügen" menu entry. The plain
  * "Leuchte" entry always creates an empty, unlinked draft.
+ *
+ * Seeding source depends on the caller (#645):
+ *   - default (toolbar dropdown): the draft-to-draft chain memory only
+ *     (`creationDefaults.defaults`) — never a Fachobjekt selection.
+ *   - `options.seedFromSelection` (per-form "+" button): the feature last
+ *     selected in Fachobjekte (`creationDefaults.selectionDefaults`), falling
+ *     back to the draft-chain memory when nothing has been selected.
  */
 export const useCreateFeatureDraft = () => {
   const { onOpenCreationDraft } = useMapPage();
   const dispatch = useDispatch();
   const selectedFeature = useSelector(getSelectedFeature);
   const allDefaults = useSelector(getAllCreationDefaults);
+  const allSelectionDefaults = useSelector(getAllSelectionDefaults);
   const keyTablesData = useSelector(getKeyTablesData);
 
   return useCallback(
     (
       key: CreateFeatureType & string,
-      options?: { linkToSelectedStandort?: boolean }
+      options?: {
+        linkToSelectedStandort?: boolean;
+        seedFromSelection?: boolean;
+      }
     ) => {
       const draftKey = `create:${key}:${Date.now()}-${Math.random()
         .toString(36)
@@ -104,8 +118,14 @@ export const useCreateFeatureDraft = () => {
         ? (standortOption.geometry as GeoJSON.Geometry)
         : undefined;
 
+      // The "+" button seeds from the last Fachobjekt selection; with no
+      // selection on record it falls back to the draft-chain memory. The
+      // dropdown only ever uses the draft-chain memory.
+      const seedSource = options?.seedFromSelection
+        ? allSelectionDefaults[key] ?? allDefaults[key]
+        : allDefaults[key];
       const seededValues: Record<string, unknown> = {
-        ...(allDefaults[key] ?? {}),
+        ...(seedSource ?? {}),
       };
 
       // Auto-assign Leuchtennummer: lights on a Mast are 0-indexed, so the next
@@ -148,6 +168,13 @@ export const useCreateFeatureDraft = () => {
       dispatch(setGlobalEditMode(true));
       onOpenCreationDraft?.(key, draftKey);
     },
-    [dispatch, selectedFeature, allDefaults, keyTablesData, onOpenCreationDraft]
+    [
+      dispatch,
+      selectedFeature,
+      allDefaults,
+      allSelectionDefaults,
+      keyTablesData,
+      onOpenCreationDraft,
+    ]
   );
 };
