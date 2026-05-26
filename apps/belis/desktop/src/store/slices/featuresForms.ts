@@ -12,6 +12,11 @@ export interface DraftFile {
   size: number;
 }
 
+// Numeric DB ids of original (vector-tile) features that should be hidden
+// from the regular Fachobjekte layers while a creation draft is open — keyed
+// by MapLibre source-layer (e.g. "standorte", "leuchten").
+export type HiddenOriginalIds = Partial<Record<string, number[]>>;
+
 export interface Draft {
   featureType: string;
   values: Record<string, unknown>;
@@ -41,6 +46,13 @@ export interface Draft {
   // its dropdown option is gone — this stashed label lets the Neue Geometrien
   // selector still show a human label. Mirrors `linkedStandortLabel`.
   measurementLabel?: string;
+  // Original Fachobjekt ids (by source-layer) to suppress on the regular
+  // vector-tile layers while this draft exists — e.g. the parent Standort id
+  // captured at "+ Leuchte zu Standort N" time. On discard the ids vanish
+  // with the draft; on save they are promoted to
+  // `permanentlyHiddenOriginalIds` so the saved feature in the brandnew layer
+  // takes over without flicker.
+  hiddenOriginalIds?: HiddenOriginalIds;
   updatedAt: number;
 }
 
@@ -64,6 +76,11 @@ interface FeaturesFormsState {
   errors: Record<string, string | null>;
   globalEditMode: boolean;
   tabFocusRequest: TabFocusRequest | null;
+  // Source-layer keyed Set-like list of original Fachobjekt ids that must
+  // stay hidden from the regular vector tiles even after the draft that
+  // referenced them is gone (i.e. the draft was saved, not discarded). Cleared
+  // explicitly via clearPermanentlyHiddenOriginalIds.
+  permanentlyHiddenOriginalIds: HiddenOriginalIds;
 }
 
 const initialState: FeaturesFormsState = {
@@ -73,6 +90,7 @@ const initialState: FeaturesFormsState = {
   errors: {},
   globalEditMode: false,
   tabFocusRequest: null,
+  permanentlyHiddenOriginalIds: {},
 };
 
 const featuresFormsSlice = createSlice({
@@ -94,6 +112,7 @@ const featuresFormsSlice = createSlice({
         prefillGeometryKey?: string;
         linkedStandortLabel?: string;
         measurementLabel?: string;
+        hiddenOriginalIds?: HiddenOriginalIds;
       }>
     ) {
       const {
@@ -109,6 +128,7 @@ const featuresFormsSlice = createSlice({
         prefillGeometryKey,
         linkedStandortLabel,
         measurementLabel,
+        hiddenOriginalIds,
       } = action.payload;
       const existing = state.drafts[featureId];
       const hasFiles = existing?.files && existing.files.length > 0;
@@ -161,6 +181,10 @@ const featuresFormsSlice = createSlice({
           linkedStandortLabel ?? existing?.linkedStandortLabel,
         measurementLabel:
           measurementLabel ?? existing?.measurementLabel,
+        // Captured at draft-open time and frozen — later setDraft calls
+        // (e.g. form edits) must not overwrite or clear this.
+        hiddenOriginalIds:
+          existing?.hiddenOriginalIds ?? hiddenOriginalIds,
         updatedAt: Date.now(),
       };
     },
@@ -192,6 +216,39 @@ const featuresFormsSlice = createSlice({
     clearAllDrafts(state) {
       state.drafts = {};
       state.originalValues = {};
+    },
+    // Move a draft's `hiddenOriginalIds` into the persistent
+    // `permanentlyHiddenOriginalIds` set. Dispatched right before removeDraft
+    // in save flows so the saved feature stays hidden in the regular layers
+    // until the brandnew tile (or the user explicitly unhides) replaces it.
+    promoteDraftHiddenToPermanent(state, action: PayloadAction<string>) {
+      const draft = state.drafts[action.payload];
+      const ids = draft?.hiddenOriginalIds;
+      if (!ids) return;
+      for (const [sourceLayer, idList] of Object.entries(ids)) {
+        if (!idList || idList.length === 0) continue;
+        const existing = state.permanentlyHiddenOriginalIds[sourceLayer] ?? [];
+        const merged = new Set<number>(existing);
+        for (const id of idList) merged.add(id);
+        state.permanentlyHiddenOriginalIds[sourceLayer] = [...merged];
+      }
+    },
+    // Drop specific ids from the persistent hidden set (e.g. "show this
+    // Standort again"). No-op when the source-layer has no entry.
+    unhidePermanentOriginalIds(
+      state,
+      action: PayloadAction<{ sourceLayer: string; ids: number[] }>
+    ) {
+      const { sourceLayer, ids } = action.payload;
+      const existing = state.permanentlyHiddenOriginalIds[sourceLayer];
+      if (!existing || existing.length === 0) return;
+      const drop = new Set(ids);
+      const next = existing.filter((id) => !drop.has(id));
+      if (next.length === 0) delete state.permanentlyHiddenOriginalIds[sourceLayer];
+      else state.permanentlyHiddenOriginalIds[sourceLayer] = next;
+    },
+    clearPermanentlyHiddenOriginalIds(state) {
+      state.permanentlyHiddenOriginalIds = {};
     },
     setFormLoading(
       state,
@@ -355,6 +412,9 @@ export const {
   setGlobalEditMode,
   toggleGlobalEditMode,
   requestDraftTabFocus,
+  promoteDraftHiddenToPermanent,
+  unhidePermanentOriginalIds,
+  clearPermanentlyHiddenOriginalIds,
 } = featuresFormsSlice.actions;
 
 // Selectors
@@ -487,6 +547,41 @@ export const getCreationDraftsByType = (
 export const getTabFocusRequest = (
   state: RootState
 ): TabFocusRequest | null => state.featuresForms?.tabFocusRequest ?? null;
+
+export const getPermanentlyHiddenOriginalIds = (
+  state: RootState
+): HiddenOriginalIds =>
+  state.featuresForms?.permanentlyHiddenOriginalIds ?? {};
+
+// Union of every draft's hiddenOriginalIds plus the permanent set — keyed
+// by source-layer. The map filter effect consumes this to exclude vector
+// tile features whose `id` matches.
+export const getEffectiveHiddenOriginalIds = (
+  state: RootState
+): HiddenOriginalIds => {
+  const drafts = state.featuresForms?.drafts ?? {};
+  const permanent = state.featuresForms?.permanentlyHiddenOriginalIds ?? {};
+  const merged: Record<string, Set<number>> = {};
+  const add = (sourceLayer: string, ids: number[]) => {
+    const bucket = merged[sourceLayer] ?? (merged[sourceLayer] = new Set());
+    for (const id of ids) bucket.add(id);
+  };
+  for (const [sourceLayer, ids] of Object.entries(permanent)) {
+    if (ids && ids.length) add(sourceLayer, ids);
+  }
+  for (const draft of Object.values(drafts)) {
+    const ids = draft.hiddenOriginalIds;
+    if (!ids) continue;
+    for (const [sourceLayer, list] of Object.entries(ids)) {
+      if (list && list.length) add(sourceLayer, list);
+    }
+  }
+  const out: HiddenOriginalIds = {};
+  for (const [sourceLayer, set] of Object.entries(merged)) {
+    if (set.size > 0) out[sourceLayer] = [...set];
+  }
+  return out;
+};
 
 export const getCreationDraftsCount = (state: RootState): number =>
   Object.values(state.featuresForms?.drafts ?? {}).filter(

@@ -162,6 +162,7 @@ import {
   getAllDrafts,
   getDraftFeaturesCount,
   getDraftFetchedData,
+  getEffectiveHiddenOriginalIds,
   getGlobalEditMode,
   isCreationDraftKey,
   requestDraftTabFocus,
@@ -722,6 +723,12 @@ const BelisMapLibWrapper = ({
   // Draft features for "Entwürfe" sidebar tab
   const allDraftFeatures = useSelector(getAllDraftFeatures);
   const draftFeaturesCount = useSelector(getDraftFeaturesCount);
+
+  // Source-layer keyed ids to suppress on the regular Fachobjekte vector
+  // tiles — currently the parent Standort of every "+ Leuchte zu Standort N"
+  // draft (so its tile icon doesn't sit underneath the brandnew draft icon).
+  // Merges live draft entries + the persistent post-save set.
+  const hiddenOriginalIds = useSelector(getEffectiveHiddenOriginalIds);
 
   // Live fetchedData for creation drafts — avoids stale snapshot in fetchedFeatureData
   const creationDraftKey =
@@ -1510,6 +1517,91 @@ const BelisMapLibWrapper = ({
     brandnewSource,
   ]);
 
+  // Hide specific original Fachobjekt features from the regular vector-tile
+  // layers (NOT the brandnew source — drafts live there). Driven by
+  // hiddenOriginalIds: union of every open draft's hiddenOriginalIds plus the
+  // persistent post-save set. The map filter excludes vector tile features
+  // whose id matches — either via feature `id` (vector-tile primary) or
+  // `properties.id` (fallback when the tile encoding stashes it there).
+  // We track which source-layers we've previously touched so we can clear
+  // the filter when its bucket empties, without ever poking source-layers we
+  // don't manage (e.g. the leitungstyp-filtered leitungen). Two refs because
+  // the main map and the mini map carry independent layer style instances.
+  const hiddenIdsTouchedMainRef = useRef<Set<string>>(new Set());
+  const hiddenIdsTouchedMiniRef = useRef<Set<string>>(new Set());
+  const applyHiddenIdsFilter = useCallback(
+    (mapInstance: maplibregl.Map, touched: Set<string>) => {
+      const stillTouched = new Set<string>();
+      const hiddenStandortIds = hiddenOriginalIds.standorte ?? [];
+      for (const layer of mapInstance.getStyle()?.layers ?? []) {
+        if (!("source" in layer)) continue;
+        if (layer.source !== namespacedSource) continue;
+        const sourceLayer = (layer as { "source-layer"?: string })[
+          "source-layer"
+        ];
+        if (!sourceLayer) continue;
+        // standorte: hide the Standort row itself by feature id.
+        // leuchten:  hide every Leuchte whose fk_standort points at one of
+        //            the hidden Standorte (their icons are stacked on top
+        //            of the new draft at the same coordinates).
+        let filter: maplibregl.FilterSpecification | null = null;
+        if (sourceLayer === "standorte") {
+          const ids = hiddenOriginalIds[sourceLayer];
+          if (ids && ids.length > 0) {
+            filter = [
+              "!",
+              [
+                "any",
+                ["in", ["id"], ["literal", ids]],
+                ["in", ["get", "id"], ["literal", ids]],
+              ],
+            ];
+          }
+        } else if (sourceLayer === "leuchten") {
+          if (hiddenStandortIds.length > 0) {
+            filter = [
+              "!",
+              ["in", ["get", "fk_standort"], ["literal", hiddenStandortIds]],
+            ];
+          }
+        } else {
+          const ids = hiddenOriginalIds[sourceLayer];
+          if (ids && ids.length > 0) {
+            filter = [
+              "!",
+              [
+                "any",
+                ["in", ["id"], ["literal", ids]],
+                ["in", ["get", "id"], ["literal", ids]],
+              ],
+            ];
+          }
+        }
+        if (filter) {
+          try {
+            mapInstance.setFilter(layer.id, filter);
+            stillTouched.add(sourceLayer);
+          } catch {
+            /* layer may not be ready */
+          }
+        } else if (touched.has(sourceLayer)) {
+          try {
+            mapInstance.setFilter(layer.id, null);
+          } catch {
+            /* layer may not be ready */
+          }
+        }
+      }
+      touched.clear();
+      for (const k of stillTouched) touched.add(k);
+    },
+    [namespacedSource, hiddenOriginalIds]
+  );
+  useEffect(() => {
+    if (!map || !mapReady) return;
+    applyHiddenIdsFilter(map, hiddenIdsTouchedMainRef.current);
+  }, [map, mapReady, applyHiddenIdsFilter]);
+
   // --- Save/restore selection when switching between route variants ---
   useEffect(() => {
     const prev = prevVariantRef.current;
@@ -2245,6 +2337,13 @@ const BelisMapLibWrapper = ({
     }
     src.setData({ type: "FeatureCollection", features });
   }, [miniMap, miniMapReady, brandnewSource, allDraftFeatures, brandnewFc]);
+
+  // Mini-map counterpart of the main-map hidden-IDs filter effect — keeps the
+  // mini map's regular vector-tile layers in sync with hiddenOriginalIds.
+  useEffect(() => {
+    if (!miniMap || !miniMapReady) return;
+    applyHiddenIdsFilter(miniMap, hiddenIdsTouchedMiniRef.current);
+  }, [miniMap, miniMapReady, applyHiddenIdsFilter]);
 
   // --- Mini-map: render AA convex hull polygons from client-side GeoJSON ---
   // AA convex-hull polygons are no longer shown on the mini map;

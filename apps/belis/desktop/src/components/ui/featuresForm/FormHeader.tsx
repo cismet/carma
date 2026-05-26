@@ -12,6 +12,7 @@ import {
   getDraftFeaturesCount,
   getAllDrafts,
   removeDraft,
+  promoteDraftHiddenToPermanent,
 } from "../../../store/slices/featuresForms";
 import {
   getCreationDefaults,
@@ -108,6 +109,7 @@ const FormHeader = ({
       setSaving: setSavingAll,
       dispatch,
       removeDraft,
+      promoteDraftHiddenToPermanent,
       incrementFeatureDataVersion,
       measurements,
       setMeasurements,
