@@ -52,6 +52,9 @@ export interface VectorStyle {
   style: string | StyleSpecification;
   layer?: string;
   infoboxMapping?: string[];
+  /** Optional filter expression to AND into every style layer in this vector style
+   *  during construction. Original filter is preserved at metadata.originalFilter. */
+  userFilter?: unknown[] | null;
 }
 
 export interface GeoJsonStyleMetadata {
@@ -546,13 +549,26 @@ export const vectorStylesToMapLibreStyle = async ({
             });
           }
         }
+        const userFilter = (layer as { userFilter?: unknown[] | null })
+          .userFilter;
         additionalStyle.layers = additionalStyle.layers.map(
           (styleLayer: LayerSpecification) => {
             const src = (styleLayer as { source?: string }).source;
+            const origFilter =
+              (styleLayer as { filter?: unknown[] }).filter ?? null;
+            let bakedFilter: unknown[] | null = origFilter;
+            if (userFilter) {
+              bakedFilter = origFilter
+                ? (["all", origFilter, userFilter] as unknown[])
+                : (userFilter as unknown[]);
+            }
             return {
             ...styleLayer,
             id: `${layerId}-${styleLayer.id}`,
             ...(src && sourceRename[src] ? { source: sourceRename[src] } : {}),
+            ...(userFilter
+              ? { filter: bakedFilter as never }
+              : {}),
             metadata: {
               ...(
                 styleLayer as LayerSpecification & {
@@ -561,6 +577,7 @@ export const vectorStylesToMapLibreStyle = async ({
               ).metadata,
               "z-index": index,
               "layer-id": layerId,
+              ...(userFilter ? { originalFilter: origFilter } : {}),
             },
             paint: {
               ...styleLayer.paint,

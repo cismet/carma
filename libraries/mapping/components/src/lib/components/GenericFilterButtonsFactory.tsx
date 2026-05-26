@@ -46,6 +46,14 @@ const originalFiltersCache = new Map<string, Record<string, any[] | null>>();
  * holds the true originals. GenericFilterButtons will then skip its own
  * capture when it sees the cache is already populated.
  */
+const readOriginalFilter = (layer: any): any[] | null => {
+  const metaOriginal = layer?.metadata?.originalFilter;
+  if (metaOriginal !== undefined) {
+    return metaOriginal;
+  }
+  return layer?.filter || null;
+};
+
 export const captureOriginalFilters = (
   layerPattern: string,
   maplibreMap: any
@@ -61,7 +69,7 @@ export const captureOriginalFilters = (
 
   const captured: Record<string, any[] | null> = {};
   targetLayers.forEach((layer: any) => {
-    captured[layer.id] = layer.filter || null;
+    captured[layer.id] = readOriginalFilter(layer);
   });
 
   originalFiltersCache.set(layerPattern, captured);
@@ -236,7 +244,7 @@ export const createFilterButtons = (config: FilterConfig) => {
 
       const captured: Record<string, any[] | null> = {};
       targetLayers.forEach((layer: any) => {
-        captured[layer.id] = layer.filter || null;
+        captured[layer.id] = readOriginalFilter(layer);
       });
 
       originalFiltersCache.set(config.layerPattern, captured);

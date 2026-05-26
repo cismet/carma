@@ -2,6 +2,7 @@ import type { StyleSpecification } from "maplibre-gl";
 
 import type { Layer } from "@carma-mapping/layers";
 import type { LibreLayer } from "@carma-mapping/core";
+import { buildFilterExpression } from "@carma-mapping/components";
 
 export const geoportalLayersToLibreLayers = (layers: Layer[]): LibreLayer[] => {
   const result: LibreLayer[] = [];
@@ -33,11 +34,16 @@ export const geoportalLayersToLibreLayers = (layers: Layer[]): LibreLayer[] => {
       if (!style) {
         continue;
       }
+      const userFilter =
+        layer.filterConfig && layer.filterState
+          ? buildFilterExpression(layer.filterConfig, layer.filterState)
+          : null;
       result.push({
         type: "vector",
         name: layer.id,
         style,
         opacity: layer.opacity ?? 1,
+        ...(userFilter ? { userFilter } : {}),
       });
     }
   }

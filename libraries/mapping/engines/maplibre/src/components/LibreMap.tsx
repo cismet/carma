@@ -92,6 +92,10 @@ export interface VectorStyle {
   infoboxMapping?: string[];
   /** Optional 3D layer config; when present, a Three.js layer is auto-created. */
   carma3d?: import("@carma-mapping/engines/threejs").Carma3dConfig;
+  /** Optional filter expression to AND into every style layer in this vector style
+   *  during style construction. The original filter is preserved at
+   *  metadata.originalFilter so consumers can still recover it. */
+  userFilter?: unknown[] | null;
 }
 
 /**

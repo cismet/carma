@@ -6,6 +6,7 @@ import {
   FilterInfo,
   FilterState,
 } from "@carma-mapping/components";
+import { useLibreContext } from "@carma-mapping/contexts";
 import type { FilterConfig, FilterType, Layer } from "@carma-mapping/layers";
 import { FILTER_TYPES } from "@carma-mapping/layers";
 
@@ -43,6 +44,7 @@ export const hasLayerFilterControl = (layer?: Layer) => {
 const LayerFilterControl: FC<{ layer: Layer }> = ({ layer }) => {
   const dispatch = useDispatch();
   const maplibreMaps = useSelector(getMaplibreMaps);
+  const { map: libreContextMap } = useLibreContext();
   const selectedFeature = useSelector(getSelectedFeature);
   const mode = useSelector(getUIMode);
   const isModeFeatureInfo = mode === UIMode.FEATURE_INFO;
@@ -60,9 +62,11 @@ const LayerFilterControl: FC<{ layer: Layer }> = ({ layer }) => {
     return null;
   }
 
-  const maplibreMap = maplibreMaps
-    ? maplibreMaps.find((entry) => entry.id === layer.id)?.map ?? null
-    : null;
+  const maplibreMap =
+    libreContextMap ??
+    (maplibreMaps
+      ? maplibreMaps.find((entry) => entry.id === layer.id)?.map ?? null
+      : null);
 
   return (
     <FilterComponent
