@@ -303,9 +303,10 @@ const slice = createSlice({
       action: PayloadAction<{
         id: string;
         layerInfo: Record<string, unknown>;
+        carmaConf?: Record<string, unknown>;
       }>
     ) {
-      const { id, layerInfo } = action.payload;
+      const { id, layerInfo, carmaConf } = action.payload;
       const layer = state.layers.find((l) => l.id === id);
       if (!layer) {
         return;
@@ -325,6 +326,16 @@ const slice = createSlice({
         if (conf) {
           layer.conf = { ...layer.conf, ...conf };
         }
+      }
+
+      if (carmaConf && typeof carmaConf === "object") {
+        layer.conf = {
+          ...layer.conf,
+          ...(carmaConf as Record<
+            string,
+            string | string[] | boolean | Record<string, { layers: string[] }>
+          >),
+        };
       }
     },
 

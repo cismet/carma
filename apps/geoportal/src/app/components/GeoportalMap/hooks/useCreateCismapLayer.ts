@@ -28,6 +28,7 @@ import {
 } from "../../../store/slices/mapping";
 import {
   applyDynamicStyling,
+  extractCarmaConf,
   setLastAppliedSelection,
 } from "@carma-mapping/components";
 
@@ -358,6 +359,18 @@ export const useCreateCismapLayers = (
                   latestLayer.dynamicStylingSelection !== null
                     ? latestLayer.dynamicStylingSelection
                     : {};
+                const initialCarmaConf = extractCarmaConf(
+                  map.style?.stylesheet
+                );
+                if (initialCarmaConf) {
+                  dispatch(
+                    updateLayerFromLayerInfo({
+                      id: layer.id,
+                      layerInfo: {},
+                      carmaConf: initialCarmaConf,
+                    })
+                  );
+                }
                 configs.forEach((config, idx) => {
                   const sel = latestSelections[idx];
                   const effectiveSel = sel ?? config.default;
@@ -366,16 +379,20 @@ export const useCreateCismapLayers = (
                     return;
                   }
                   if (config.type === "list" || config.type === "toggle") {
-                    const layerInfo = applyDynamicStyling(
+                    const result = applyDynamicStyling(
                       map,
                       layer.id,
                       config,
                       sel
                     );
                     setLastAppliedSelection(layer.id, idx, sel);
-                    if (layerInfo) {
+                    if (result?.layerInfo || result?.carmaConf) {
                       dispatch(
-                        updateLayerFromLayerInfo({ id: layer.id, layerInfo })
+                        updateLayerFromLayerInfo({
+                          id: layer.id,
+                          layerInfo: result.layerInfo ?? {},
+                          carmaConf: result.carmaConf ?? undefined,
+                        })
                       );
                     }
                   }

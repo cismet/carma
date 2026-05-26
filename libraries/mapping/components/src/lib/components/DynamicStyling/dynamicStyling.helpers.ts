@@ -109,6 +109,17 @@ export const extractLayerInfo = (stylesheet: any): LayerInfo | null => {
   return stylesheet?.metadata?.carmaConf?.layerInfo ?? null;
 };
 
+export const extractCarmaConf = (
+  stylesheet: any
+): Record<string, unknown> | null => {
+  const carmaConf = stylesheet?.metadata?.carmaConf;
+  if (!carmaConf || typeof carmaConf !== "object") {
+    return null;
+  }
+  const { layerInfo, ...rest } = carmaConf;
+  return rest;
+};
+
 const lastAppliedDynamicStyling: Map<string, Record<number, string>> = new Map();
 
 export const getLastAppliedSelection = (

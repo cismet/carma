@@ -1,9 +1,12 @@
 export {
   DynamicStylingControl,
   applyDynamicStyling,
+  extractCarmaConf,
+  extractLayerInfo,
   getLastAppliedSelection,
   setLastAppliedSelection,
   type DynamicStylingControlProps,
+  type DynamicStylingResult,
   type MetadataChanges,
   type LayerInfo,
 } from "./lib/components/DynamicStyling";

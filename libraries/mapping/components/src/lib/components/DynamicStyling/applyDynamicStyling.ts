@@ -6,8 +6,14 @@ import {
   isKeywordTarget,
   setKeywordValue,
   extractLayerInfo,
+  extractCarmaConf,
   type LayerInfo,
 } from "./dynamicStyling.helpers";
+
+export type DynamicStylingResult = {
+  layerInfo: LayerInfo | null;
+  carmaConf: Record<string, unknown> | null;
+};
 
 function intermediateEmptyStyle(style: any) {
   return {
@@ -21,7 +27,7 @@ export const applyDynamicStyling = (
   carmaLayerId: string,
   config: DynamicStylingOptionsConfig,
   selectedOptionId: string
-): LayerInfo | null => {
+): DynamicStylingResult | null => {
   const stylesheet = libreMap.style?.stylesheet;
   if (!stylesheet) {
     return null;
@@ -92,5 +98,8 @@ export const applyDynamicStyling = (
   // Stop flickering after style changes with multiple fill-patterns. Just and temporary fix. Should not be used when switching to native maplibre map
   libreMap.setStyle(intermediateEmptyStyle(libreMap.getStyle()));
   libreMap.setStyle(updatedStylesheet);
-  return extractLayerInfo(updatedStylesheet);
+  return {
+    layerInfo: extractLayerInfo(updatedStylesheet),
+    carmaConf: extractCarmaConf(updatedStylesheet),
+  };
 };

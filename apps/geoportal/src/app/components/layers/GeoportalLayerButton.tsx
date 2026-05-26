@@ -289,15 +289,21 @@ const GeoportalLayerButton = ({
         return;
       }
 
-      const layerInfo = applyDynamicStyling(
+      const result = applyDynamicStyling(
         mapEntry.map,
         id,
         config,
         currentSelection
       );
       setLastAppliedSelection(id, idx, currentSelection);
-      if (layerInfo) {
-        dispatch(updateLayerFromLayerInfo({ id, layerInfo }));
+      if (result?.layerInfo || result?.carmaConf) {
+        dispatch(
+          updateLayerFromLayerInfo({
+            id,
+            layerInfo: result.layerInfo ?? {},
+            carmaConf: result.carmaConf ?? undefined,
+          })
+        );
       }
     });
   }, [layer.dynamicStyling, layer.dynamicStylingSelection, maplibreMaps, id]);
