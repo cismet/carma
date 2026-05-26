@@ -7,7 +7,6 @@ import {
 import {
   Button,
   Form,
-  Input,
   Modal,
   Radio,
   Typography,
@@ -77,7 +76,7 @@ const SetStatusDialog = ({
   const [isSaving, setIsSaving] = useState(false);
 
   const { status: syncStatus, syncedAction } = useSync();
-  const { allowedCampaignIds, campaigns } = useKampagne();
+  const { allowedCampaignIds, campaigns, showAll } = useKampagne();
 
   // Intersect this tree's embedded kampagnen with the user's allowed kampagne ids.
   // Result: the kampagnen the user can plausibly stamp on a new action for this tree.
@@ -97,8 +96,13 @@ const SetStatusDialog = ({
     campaigns.find((c) => c.id === id) ??
     editableKampagnen.find((k) => k.id === id);
 
+  // Default the action's kampagne to the first (and typically only) match.
+  // The picker only shows for admin users when the tree has more than one match,
+  // so for everyone else this default is what gets stamped on the action.
   const defaultKampagneId =
-    editableKampagnen.length === 1 ? editableKampagnen[0].id : undefined;
+    editableKampagnen.length >= 1 ? editableKampagnen[0].id : undefined;
+
+  const needsKampagnePicker = showAll && editableKampagnen.length > 1;
 
   // Check for devMode URL parameter (supports hash-based routing)
   const isDevMode = (() => {
@@ -160,7 +164,7 @@ const SetStatusDialog = ({
         status: values.status,
         payload: {
           pic: imagePreview || undefined,
-          user: values.user,
+          user: username ?? "",
         },
         created_at: isoNow,
         action_time: isoNow,
@@ -289,7 +293,6 @@ const SetStatusDialog = ({
         layout="vertical"
         name="status_form"
         initialValues={{
-          user: username || "",
           status: getDefaultStatus(),
           fk_kampagne: defaultKampagneId,
         }}
@@ -332,11 +335,7 @@ const SetStatusDialog = ({
           </Radio.Group>
         </Form.Item>
 
-        <Form.Item name="user" label="Benutzer">
-          <Input disabled />
-        </Form.Item>
-
-        {editableKampagnen.length > 0 && (
+        {needsKampagnePicker && (
           <Form.Item
             name="fk_kampagne"
             label="Kampagne"
@@ -347,10 +346,7 @@ const SetStatusDialog = ({
               },
             ]}
           >
-            <Radio.Group
-              style={{ width: "100%" }}
-              disabled={editableKampagnen.length === 1}
-            >
+            <Radio.Group style={{ width: "100%" }}>
               {editableKampagnen.map((k) => (
                 <Radio key={k.id} value={k.id} style={{ display: "block" }}>
                   {formatKampagne(campaignFor(k.id))}
