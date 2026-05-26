@@ -17,6 +17,22 @@ export interface DraftFile {
 // by MapLibre source-layer (e.g. "standorte", "leuchten").
 export type HiddenOriginalIds = Partial<Record<string, number[]>>;
 
+// Slim projection of an existing Leuchte on the parent Standort of a "+ Leuchte
+// zu Standort N" creation draft. Captured from the server-side mast fetch
+// (`tdta_standort_mast_by_id`) so the Entwürfe sidebar can render one row per
+// bestand Leuchte under the draft cluster, and clicking a row focuses the
+// matching read-only tab in LeuchteForm. `tabKey` is the single source of
+// truth shared with the form to keep the two views aligned.
+export interface BestandLeuchteEntry {
+  id: number;
+  tabKey: string;
+  leuchtennummer?: number | string;
+  leuchtentyp?: string;
+  fabrikat?: string;
+  lfd_nummer?: number | string;
+  strasse?: string;
+}
+
 export interface Draft {
   featureType: string;
   values: Record<string, unknown>;
@@ -53,6 +69,9 @@ export interface Draft {
   // `permanentlyHiddenOriginalIds` so the saved feature in the brandnew layer
   // takes over without flicker.
   hiddenOriginalIds?: HiddenOriginalIds;
+  // Existing siblings on the parent Standort, mirrored here from the LeuchteForm
+  // mast fetch so the Entwürfe sidebar can list them under this draft.
+  bestandLeuchten?: BestandLeuchteEntry[];
   updatedAt: number;
 }
 
@@ -185,6 +204,9 @@ const featuresFormsSlice = createSlice({
         // (e.g. form edits) must not overwrite or clear this.
         hiddenOriginalIds:
           existing?.hiddenOriginalIds ?? hiddenOriginalIds,
+        // Preserved across setDraft replacements; updated only via
+        // setDraftBestandLeuchten when the parent mast fetch resolves.
+        bestandLeuchten: existing?.bestandLeuchten,
         updatedAt: Date.now(),
       };
     },
@@ -339,6 +361,28 @@ const featuresFormsSlice = createSlice({
     setGlobalEditMode(state, action: PayloadAction<boolean>) {
       state.globalEditMode = action.payload;
     },
+    // Mirror the parent Standort's existing Leuchten onto the draft so the
+    // Entwürfe sidebar can render them as read-only rows under this draft's
+    // cluster. Written by LeuchteForm when its mast fetch resolves; cleared
+    // when the array is empty so a re-open with a different Standort doesn't
+    // leak stale entries. No-op when the draft is gone (e.g. already
+    // discarded between the fetch start and resolve).
+    setDraftBestandLeuchten(
+      state,
+      action: PayloadAction<{
+        featureId: string;
+        bestandLeuchten: BestandLeuchteEntry[];
+      }>
+    ) {
+      const { featureId, bestandLeuchten } = action.payload;
+      const draft = state.drafts[featureId];
+      if (!draft) return;
+      if (bestandLeuchten.length === 0) {
+        if (draft.bestandLeuchten) delete draft.bestandLeuchten;
+      } else {
+        draft.bestandLeuchten = bestandLeuchten;
+      }
+    },
     // Ask the open draft's form to switch to `tabKey`. The bumped `nonce` lets
     // FeatureFormLayout treat every dispatch as a fresh request.
     requestDraftTabFocus(
@@ -410,6 +454,7 @@ export const {
   setDraftDocumentsInfo,
   setRemovedDocumentKeys,
   setGlobalEditMode,
+  setDraftBestandLeuchten,
   toggleGlobalEditMode,
   requestDraftTabFocus,
   promoteDraftHiddenToPermanent,

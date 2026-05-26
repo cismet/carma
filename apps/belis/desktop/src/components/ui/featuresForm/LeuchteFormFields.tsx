@@ -334,9 +334,31 @@ const LeuchteFormFields = ({
 
   useEffect(() => {
     if (externalForm) return;
-    if (draftApplied.current || !draftValues) return;
-    form.setFieldsValue(draftValues);
-    draftApplied.current = true;
+    if (!draftValues) return;
+    if (!draftApplied.current) {
+      // First arrival of a draft slice — populate the form wholesale and
+      // latch. Subsequent draftValues identity changes go through the
+      // empty-field-only branch below so a re-render can't reset user typing
+      // to a stale earlier value.
+      form.setFieldsValue(draftValues);
+      draftApplied.current = true;
+      return;
+    }
+    // Late draftValues update (e.g. the parent seeded `bestand[0]` onto a
+    // "+ Leuchte zu Standort N" draft once the Mast fetch resolved, well
+    // after this form's first apply). Walk the incoming slice and copy in
+    // only the keys whose form field is still empty — never clobber a value
+    // the user is mid-typing.
+    const toApply: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(draftValues)) {
+      if (v == null || v === "") continue;
+      const current = form.getFieldValue(k);
+      if (current != null && current !== "") continue;
+      toApply[k] = v;
+    }
+    if (Object.keys(toApply).length > 0) {
+      form.setFieldsValue(toApply);
+    }
   }, [draftValues, form, externalForm]);
 
   // `setFieldsValue` doesn't trigger antd's `onValuesChange`, so the parent's

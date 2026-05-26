@@ -1,5 +1,8 @@
 import type { MapGeoJSONFeatureWithOriginal as SidebarFeature } from "@carma-mapping/utils";
-import type { Draft } from "../store/slices/featuresForms";
+import type {
+  BestandLeuchteEntry,
+  Draft,
+} from "../store/slices/featuresForms";
 import {
   buildSyntheticFeature,
   enrichSyntheticProps,
@@ -67,8 +70,23 @@ function expandLeuchteCreationDraft(
       },
       draft.geometry
     ) as unknown as SidebarFeature,
-    buildLeuchteChild("main", LEUCHTE_ONE_TAB_KEY, leuchteOne),
   ];
+
+  // Read-only rows for each existing Leuchte on the parent Standort. Mirrored
+  // from LeuchteForm's mast fetch via `setDraftBestandLeuchten`. They cluster
+  // under the same synthetic `standortId` as the draft's own Leuchten rows so
+  // BelisSidebar groups them together, and they sit before the editable rows
+  // because they're appended first. `_draftTabKey` matches the Bestand tab key
+  // that LeuchteForm builds — clicking the row dispatches
+  // `requestDraftTabFocus(bestand-...)`, which the form's tab focus listener
+  // already routes via FeatureFormLayout. No `_isCreation` flag so the sidebar
+  // omits the "[Neu]" badge for these rows.
+  const bestand = draft.bestandLeuchten ?? [];
+  for (const entry of bestand) {
+    features.push(buildBestandRow(draftKey, standortId, entry));
+  }
+
+  features.push(buildLeuchteChild("main", LEUCHTE_ONE_TAB_KEY, leuchteOne));
 
   for (const entry of extras) {
     const tabId = typeof entry._tabId === "string" ? entry._tabId : undefined;
@@ -79,6 +97,40 @@ function expandLeuchteCreationDraft(
   }
 
   return features;
+}
+
+// Build a sidebar row for a bestand (existing) Leuchte. Manual construction
+// (vs. `buildSyntheticFeature`) keeps `_isCreation` off — bestand entries
+// aren't drafts, so the "[Neu]" badge must not appear.
+function buildBestandRow(
+  draftKey: string,
+  standortId: string,
+  entry: BestandLeuchteEntry
+): SidebarFeature {
+  const rowId = `${draftKey}::bestand::${entry.id}`;
+  return {
+    type: "Feature",
+    id: rowId,
+    properties: {
+      id: rowId,
+      _featureType: "leuchte",
+      _sourceLayer: "leuchten",
+      _draftKey: draftKey,
+      _draftTabKey: entry.tabKey,
+      // Cluster under the same synthetic Standort as the draft's other rows.
+      fk_standort: standortId,
+      leuchtennummer: entry.leuchtennummer,
+      lfd_nummer: entry.lfd_nummer,
+      leuchtentyp: entry.leuchtentyp,
+      fabrikat: entry.fabrikat,
+      strasse: entry.strasse,
+    },
+    geometry: null,
+    sourceLayer: "leuchten",
+    source: "",
+    layer: { id: "leuchten", source: "", type: "circle" as const },
+    state: {},
+  } as unknown as SidebarFeature;
 }
 
 /**
