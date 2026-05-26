@@ -17,6 +17,43 @@ import {
 const STANDORT_TAB_KEY = "standort";
 const LEUCHTE_ONE_TAB_KEY = "general";
 
+// Synthetic id for the Standort parent of a Leuchten creation draft. The same
+// id is used as `fk_standort` on each child Leuchte row so BelisSidebar's
+// cluster grouping pairs them, and as the feature id for the brandnew map
+// source so feature-state can be attached.
+const leuchteDraftStandortId = (draftKey: string) => `${draftKey}::standort`;
+
+// Build the Standort synthetic feature for a Leuchten creation draft. Same
+// shape on the sidebar and the map: the brandnew `standorte` style reads
+// `lfd_nummer` (icon label) and `leuchten_count` (icon variant + dot count),
+// so we set both — `leuchten_count = bestand + 1 + extras` mirrors the formula
+// used in `enrichSyntheticProps`' leuchte branch and matches what the icon
+// will look like after save.
+export function buildLeuchteDraftStandortFeature(
+  draftKey: string,
+  draft: Draft,
+  keyTables: Record<string, unknown>
+): SidebarFeature {
+  const values = (draft.values ?? {}) as Record<string, unknown>;
+  const mast = (values.mast ?? {}) as Record<string, unknown>;
+  const extras = Array.isArray(values.leuchten)
+    ? (values.leuchten as Array<Record<string, unknown>>)
+    : [];
+  const leuchtenCount = (draft.bestandLeuchtenCount ?? 0) + 1 + extras.length;
+
+  return buildSyntheticFeature(
+    "standort",
+    leuchteDraftStandortId(draftKey),
+    {
+      ...enrichSyntheticProps("standort", mast, keyTables),
+      leuchten_count: leuchtenCount,
+      _draftKey: draftKey,
+      _draftTabKey: STANDORT_TAB_KEY,
+    },
+    draft.geometry
+  ) as unknown as SidebarFeature;
+}
+
 // A Leuchten creation draft holds one Standort (`values.mast`), "Leuchte 1"
 // (`values.leuchte`) and every "+"-added tab (`values.leuchten[]`) in a single
 // Redux draft. Expand it into the per-row synthetic features the sidebar's
@@ -34,9 +71,7 @@ function expandLeuchteCreationDraft(
     ? (values.leuchten as Array<Record<string, unknown>>)
     : [];
 
-  // Synthetic id for the Standort parent — also the `fk_standort` every child
-  // Leuchte points at, so BelisSidebar's cluster grouping pairs them.
-  const standortId = `${draftKey}::standort`;
+  const standortId = leuchteDraftStandortId(draftKey);
 
   const buildLeuchteChild = (
     idSuffix: string,
@@ -60,16 +95,7 @@ function expandLeuchteCreationDraft(
     ) as unknown as SidebarFeature;
 
   const features: SidebarFeature[] = [
-    buildSyntheticFeature(
-      "standort",
-      standortId,
-      {
-        ...enrichSyntheticProps("standort", mast, keyTables),
-        _draftKey: draftKey,
-        _draftTabKey: STANDORT_TAB_KEY,
-      },
-      draft.geometry
-    ) as unknown as SidebarFeature,
+    buildLeuchteDraftStandortFeature(draftKey, draft, keyTables),
   ];
 
   // Read-only rows for each existing Leuchte on the parent Standort. Mirrored
