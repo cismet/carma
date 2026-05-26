@@ -161,7 +161,11 @@ const draftDenormRules: Record<string, FkDenormRule[]> = {
 export function enrichSyntheticProps(
   featureType: string,
   values: Record<string, unknown>,
-  keyTables: Record<string, unknown> = {}
+  keyTables: Record<string, unknown> = {},
+  // Existing Bestand Leuchten on the parent Standort, for the icon dot count.
+  // Stored on the draft (seeded from the tile property, refreshed once the
+  // mast fetch resolves); 0 when there is no linked Standort.
+  bestandLeuchtenCount = 0
 ): Record<string, unknown> {
   const out: Record<string, unknown> = { ...values };
 
@@ -230,10 +234,14 @@ export function enrichSyntheticProps(
       out.strasse = mast.strassenschluessel_strasse;
     }
 
-    // Icon layer keys on a computed count: Leuchte 1 plus each extra tab
-    // persisted under `values.leuchten`.
+    // Icon layer keys on a computed count: the parent Standort's existing
+    // Bestand Leuchten + the editable "Leuchte 1" slice + each extra tab
+    // persisted under `values.leuchten`. Without the bestand term the icon
+    // would shrink from N dots (real Standort) to 1 dot the moment a draft
+    // opens on top of it.
     const extras = values.leuchten as Array<unknown> | undefined;
-    out.leuchten_count = 1 + (Array.isArray(extras) ? extras.length : 0);
+    out.leuchten_count =
+      bestandLeuchtenCount + 1 + (Array.isArray(extras) ? extras.length : 0);
   }
 
   return out;
