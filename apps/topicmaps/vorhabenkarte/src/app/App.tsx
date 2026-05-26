@@ -21,7 +21,7 @@ export function App() {
   }, []);
   return (
     <TopicMapContextProvider
-      appKey="VorhabenkarteWuppertal2025"
+      appKey="VorhabenkarteWuppertal2026"
       featureItemsURL={
         import.meta.env.VITE_WUPP_ASSET_BASEURL +
         "/data/vorhabenkarte.data.json"
