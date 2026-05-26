@@ -160,7 +160,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
       return null;
     };
 
-    const handleOutsideClick = (event: MouseEvent) => {
+    const handleOutsideClick = (event: PointerEvent) => {
       let newLayerIndex = -2;
       let removedOtherLayer = false;
       let returnFunction = false;
@@ -242,9 +242,9 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
       }
     };
 
-    document.addEventListener("mousedown", handleOutsideClick);
+    document.addEventListener("pointerdown", handleOutsideClick);
     return () => {
-      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("pointerdown", handleOutsideClick);
     };
   }, [dispatch, selectedLayerIndex]);
 
