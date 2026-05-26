@@ -330,7 +330,20 @@ const saveCreationDraft = async (
       // Leuchte tab during creation, so the only source is the Mast tab.
       if (linkedMastId != null) {
         // Existing Standort was selected — reuse it, no new Mast created.
+        // LeuchteForm hydrates `draft.values.mast.fk_strassenschluessel`
+        // from the linked Mast's tkey_strassenschluessel; pick it up so
+        // the same FK lands on each saved Leuchte (otherwise the new
+        // Leuchten persist with `fk_strassenschluessel = null` and the
+        // sidebar/tile view shows them with a blank street).
         mastIdForLink = linkedMastId;
+        const mastSlice = (draft.values?.mast ?? {}) as Record<
+          string,
+          unknown
+        >;
+        const linkedFk = mastSlice.fk_strassenschluessel;
+        if (typeof linkedFk === "number" && Number.isFinite(linkedFk)) {
+          leuchteStrassenschluesselId = linkedFk;
+        }
       } else {
         // Build the Mast payload from the form's Mast tab values, falling
         // back to the same defaults that used to be hardcoded so a Mast can
