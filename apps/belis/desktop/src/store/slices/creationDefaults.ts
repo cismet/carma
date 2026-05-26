@@ -230,18 +230,6 @@ const creationDefaultsSlice = createSlice({
   name: "creationDefaults",
   initialState,
   reducers: {
-    clearDefaults(state, action: PayloadAction<string>) {
-      // Wipe both memories for the type: the per-form "+" button seeds from
-      // selectionDefaults (falling back to defaults), so the clear button next
-      // to it must reset whichever store would feed the next new draft (#645).
-      delete state.defaults[action.payload];
-      delete state.selectionDefaults[action.payload];
-    },
-    clearAllDefaults(state) {
-      state.defaults = {};
-      state.selectionDefaults = {};
-      state.draftIdToType = {};
-    },
     // Record a (possibly partial) defaults update, merged into any existing
     // entry for the feature type. The `setDraft` listener below always reads
     // the primary slices (`leuchte`/`mast`), so it cannot see values typed on
@@ -348,12 +336,8 @@ const creationDefaultsSlice = createSlice({
   },
 });
 
-export const {
-  clearDefaults,
-  clearAllDefaults,
-  recordDefaults,
-  recordSelectionDefaults,
-} = creationDefaultsSlice.actions;
+export const { recordDefaults, recordSelectionDefaults } =
+  creationDefaultsSlice.actions;
 
 export default creationDefaultsSlice;
 
@@ -370,12 +354,6 @@ export const getAllCreationDefaults = (
 
 // Per-type values copied from a feature selected in Fachobjekte. Only the
 // per-form "+" button reads this; the toolbar dropdown deliberately does not.
-export const getSelectionDefaults = (
-  state: RootState,
-  featureType: string
-): Record<string, unknown> | undefined =>
-  state.creationDefaults?.selectionDefaults[featureType];
-
 export const getAllSelectionDefaults = (
   state: RootState
 ): Record<string, Record<string, unknown>> =>

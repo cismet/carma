@@ -1139,7 +1139,6 @@ const LeuchteForm = ({
             : { seedFromSelection: true }
         )
       }
-      featureType="leuchte"
       generalTabLabel={
         isCreation ? `Leuchte ${bestandOffset + 1}` : undefined
       }

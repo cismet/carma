@@ -1,7 +1,6 @@
 import { useState } from "react";
 import {
   ArrowLeftOutlined,
-  DeleteOutlined,
   EditOutlined,
   ExclamationCircleOutlined,
   PlusOutlined,
@@ -14,12 +13,6 @@ import {
   removeDraft,
   promoteDraftHiddenToPermanent,
 } from "../../../store/slices/featuresForms";
-import {
-  getCreationDefaults,
-  getSelectionDefaults,
-  clearDefaults,
-} from "../../../store/slices/creationDefaults";
-import type { RootState } from "../../../store";
 import { getJWT } from "../../../store/slices/auth";
 import { incrementFeatureDataVersion } from "../../../store/slices/featureCollection";
 import {
@@ -48,8 +41,6 @@ interface FormHeaderProps {
   onSaveAll?: () => void;
   onCreateRelatedDraft?: () => void;
   createDraftButtonVariant?: "green" | "white";
-  /** Feature type whose remembered "last values" the clear button resets. */
-  featureType?: string;
 }
 
 const FormHeader = ({
@@ -69,7 +60,6 @@ const FormHeader = ({
   onSaveAll,
   onCreateRelatedDraft,
   createDraftButtonVariant = "green",
-  featureType,
 }: FormHeaderProps) => {
   const dispatch = useDispatch();
   const featureDraftsCount = useSelector(getDraftFeaturesCount);
@@ -81,21 +71,6 @@ const FormHeader = ({
   const { closeDatasheet } = useDatasheet();
 
   const draftsCount = customDraftsCount ?? featureDraftsCount;
-
-  // Remembered "last values" for this feature type — what new drafts are
-  // pre-filled with. The per-form "+" button seeds from the Fachobjekt
-  // selection (selectionDefaults) and falls back to the draft-chain memory
-  // (defaults), so the clear button shows when either store holds data and
-  // wipes both for this type only.
-  const chainDefaults = useSelector((state: RootState) =>
-    featureType ? getCreationDefaults(state, featureType) : undefined
-  );
-  const selectionDefaults = useSelector((state: RootState) =>
-    featureType ? getSelectionDefaults(state, featureType) : undefined
-  );
-  const hasRememberedData =
-    (!!chainDefaults && Object.keys(chainDefaults).length > 0) ||
-    (!!selectionDefaults && Object.keys(selectionDefaults).length > 0);
 
   const handleSaveAll = () => {
     if (onSaveAll) {
@@ -200,33 +175,6 @@ const FormHeader = ({
                   </button>
                 </Tooltip>
               )}
-              {onCreateRelatedDraft &&
-                isCreation &&
-                featureType &&
-                hasRememberedData && (
-                  <Tooltip title="Gemerkte Daten löschen">
-                    <button
-                      type="button"
-                      aria-label="Gemerkte Daten löschen"
-                      onClick={() => dispatch(clearDefaults(featureType))}
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        width: 24,
-                        height: 24,
-                        padding: 0,
-                        border: "1px solid #ffccc7",
-                        borderRadius: 4,
-                        backgroundColor: "#fff1f0",
-                        color: "#ff4d4f",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <DeleteOutlined style={{ fontSize: 12 }} />
-                    </button>
-                  </Tooltip>
-                )}
             </div>
             <p className="text-sm text-gray-500">{subtitle}</p>
           </div>
