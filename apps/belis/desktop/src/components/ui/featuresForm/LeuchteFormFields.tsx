@@ -13,7 +13,11 @@ import { useSelector } from "react-redux";
 import { getKeyTablesData } from "../../../store/slices/keyTables";
 import StrassenschluesselFields from "./StrassenschluesselFields";
 import StrassenschluesselFieldsModal from "./StrassenschluesselFieldsModal";
-import { getFormClassName, getPlaceholder } from "./readOnlyFormUtils";
+import {
+  LOCKED_FIELD_CLASSES,
+  getFormClassName,
+  getPlaceholder,
+} from "./readOnlyFormUtils";
 import { FormItem } from "./DraftFieldHighlight";
 import toTitleCase from "../../../helper/toTitleCase";
 import dayjs from "dayjs";
@@ -53,6 +57,10 @@ interface LeuchteFormFieldsProps {
   /** When true, omit the Strassenschluessel field. Used in the new-Leuchte
    * creation flow where the field is rendered on the Standort tab instead. */
   hideStrassenschluessel?: boolean;
+  /** When true, paint all form fields with the locked-gray fill (same look
+   * as the linked-Mast Standort tab). Used on the read-only Bestand Leuchten
+   * tabs so they read as locked, not as freshly typed values. */
+  locked?: boolean;
   form?: import("antd").FormInstance;
   onFormInstance?: (form: import("antd").FormInstance) => void;
   draftValues?: Record<string, unknown>;
@@ -128,6 +136,7 @@ const LeuchteFormFields = ({
   isCreation,
   featureId,
   hideStrassenschluessel = false,
+  locked = false,
   form: externalForm,
   onFormInstance,
   draftValues,
@@ -447,7 +456,10 @@ const LeuchteFormFields = ({
       form={form}
       layout="vertical"
       requiredMark={false}
-      className={getFormClassName(readOnly, "pr-2")}
+      className={getFormClassName(
+        readOnly,
+        locked ? `pr-2 ${LOCKED_FIELD_CLASSES}` : "pr-2"
+      )}
       onValuesChange={onValuesChange}
     >
       {hideStrassenschluessel ? null : (!leuchte || isCreation) && !readOnly ? (

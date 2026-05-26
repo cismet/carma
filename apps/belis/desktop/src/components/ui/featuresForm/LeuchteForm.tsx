@@ -730,21 +730,31 @@ const LeuchteForm = ({
       nextMast.lfd_nummer = mastData.lfd_nummer;
     }
 
-    // (b) Bestand[0] seeding for the editable Leuchte slice
-    const sortedBestand = (
-      (mastData.leuchtenArray ?? []) as Array<Record<string, unknown>>
-    )
-      .slice()
-      .sort((a, b) => {
-        const an = Number(a.leuchtennummer);
-        const bn = Number(b.leuchtennummer);
-        const aFinite = Number.isFinite(an);
-        const bFinite = Number.isFinite(bn);
-        if (aFinite && bFinite) return an - bn;
-        if (aFinite) return -1;
-        if (bFinite) return 1;
-        return 0;
-      });
+    // (b) Bestand[0] seeding for the editable Leuchte slice. Same dedup-by-id
+    // pass as the bestandLeuchten declaration below — the join in
+    // `tdta_standort_mast_by_id` can return the same Leuchte several times.
+    const rawBestand = (mastData.leuchtenArray ?? []) as Array<
+      Record<string, unknown>
+    >;
+    const seenBestandIds = new Set<number | string>();
+    const dedupedBestand: Array<Record<string, unknown>> = [];
+    for (const entry of rawBestand) {
+      const id = entry.id as number | string | undefined;
+      if (id == null) continue;
+      if (seenBestandIds.has(id)) continue;
+      seenBestandIds.add(id);
+      dedupedBestand.push(entry);
+    }
+    const sortedBestand = dedupedBestand.sort((a, b) => {
+      const an = Number(a.leuchtennummer);
+      const bn = Number(b.leuchtennummer);
+      const aFinite = Number.isFinite(an);
+      const bFinite = Number.isFinite(bn);
+      if (aFinite && bFinite) return an - bn;
+      if (aFinite) return -1;
+      if (bFinite) return 1;
+      return 0;
+    });
     const existingLeuchte = (draftValues?.leuchte ?? {}) as Record<
       string,
       unknown
@@ -824,11 +834,25 @@ const LeuchteForm = ({
   // living in `additionalTabs` (no close affordance) rather than
   // `extraGeneralTabs`. Declared up here because the extra-tab labels and
   // `generalTabLabel` below all need `bestandLeuchten.length` as their offset.
-  const bestandLeuchten = ((mastData?.leuchtenArray ?? []) as Array<
-    Record<string, unknown>
-  >)
-    .slice()
-    .sort((a, b) => {
+  // Dedup by Leuchte `id` first: `tdta_standort_mast_by_id` joins with related
+  // tables (dokumente, key tables) and can return the same Leuchte several
+  // times when those relations are multi-cardinality. Without this filter a
+  // Mast with 6 Leuchten ends up with N×6 read-only tabs (and matching sidebar
+  // rows) — confused users count them as duplicates of the data.
+  const bestandLeuchten = (() => {
+    const raw = (mastData?.leuchtenArray ?? []) as Array<
+      Record<string, unknown>
+    >;
+    const seen = new Set<number | string>();
+    const unique: Array<Record<string, unknown>> = [];
+    for (const entry of raw) {
+      const id = entry.id as number | string | undefined;
+      if (id == null) continue;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      unique.push(entry);
+    }
+    return unique.sort((a, b) => {
       const an = Number(a.leuchtennummer);
       const bn = Number(b.leuchtennummer);
       const aFinite = Number.isFinite(an);
@@ -838,6 +862,7 @@ const LeuchteForm = ({
       if (bFinite) return 1;
       return 0;
     });
+  })();
   const bestandOffset = bestandLeuchten.length;
   // `tabKey` is the contract between this form's read-only Bestand tabs and
   // the Entwürfe sidebar rows produced by `expandDraftSidebarFeatures` — both
@@ -993,13 +1018,20 @@ const LeuchteForm = ({
             key: tabKey,
             label: `Leuchte ${idx + 1}`,
             children: (
+              // `LockedFields` swallows the green/prefilled highlight inside
+              // its subtree so existing-Leuchte tabs render in the same gray
+              // "locked" style as the linked-Mast Standort tab. The editable
+              // tabs below stay green because they live outside this provider.
               <FieldPrefix name="leuchte">
-                <LeuchteFormFields
-                  leuchte={sibling}
-                  readOnly={true}
-                  isCreation={false}
-                  featureId={`${featureId ?? ""}#${tabKey}`}
-                />
+                <LockedFields locked={true}>
+                  <LeuchteFormFields
+                    leuchte={sibling}
+                    readOnly={true}
+                    isCreation={false}
+                    featureId={`${featureId ?? ""}#${tabKey}`}
+                    locked={true}
+                  />
+                </LockedFields>
               </FieldPrefix>
             ),
           };
