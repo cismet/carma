@@ -26,6 +26,7 @@ import { Buildings } from "./app/Buildings";
 import { Trees } from "./app/Trees";
 import { GenericTreesPlayground } from "./app/GenericTreesPlayground";
 import { CustomProfilePlayground } from "./app/CustomProfilePlayground";
+import { FilterMap } from "./app/FilterMap";
 import {
   backgroundModes,
   backgroundConfigurations,
@@ -57,7 +58,10 @@ root.render(
                         element={<Navigate to="/stadtplan" replace />}
                       />
                       <Route path="/stadtplan" element={<Stadtplan />} />
-                      <Route path="/vorhabenkarte" element={<Vorhabenkarte />} />
+                      <Route
+                        path="/vorhabenkarte"
+                        element={<Vorhabenkarte />}
+                      />
                       <Route path="/simple" element={<SimpleMap />} />
                       <Route
                         path="/simpleWithoutControls"
@@ -76,6 +80,7 @@ root.render(
                         path="/custom-profile"
                         element={<CustomProfilePlayground />}
                       />
+                      <Route path="/filter" element={<FilterMap />} />
                     </Routes>
                   </MapHighlightProvider>
                 </MapSelectionProvider>
