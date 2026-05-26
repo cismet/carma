@@ -2737,6 +2737,25 @@ const BelisMapLibWrapper = ({
           setSidebarMode("drafts");
           dispatch(setSelectedFeature({ ...draftFeature, selected: true }));
           setFeatureOnMap(true);
+          // Steer the Entwürfe sidebar's row highlight. A Leuchte creation
+          // draft is one map icon but several sidebar rows (Standort parent
+          // + Leuchte children, see expandDraftSidebarFeatures); the raw
+          // `selectedFeatureId` carries the bare draft key and matches none
+          // of them. Point at the editable "Leuchte 1" row — its title is
+          // what the info-box shows for the click. Other creation types
+          // expand to a single row whose id already equals the draft key,
+          // so clear any stale value.
+          const isLeuchteCreation =
+            draftFeature.properties?._featureType === "leuchte" ||
+            draftFeature.sourceLayer === "leuchten";
+          setActiveDraftRow(
+            isLeuchteCreation
+              ? {
+                  sourceLayer: "leuchten",
+                  id: `${draftKey}::leuchte::main`,
+                }
+              : null
+          );
           return draftFeature as unknown as maplibregl.MapGeoJSONFeature;
         }
       }
