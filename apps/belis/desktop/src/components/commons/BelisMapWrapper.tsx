@@ -167,6 +167,7 @@ import {
   isCreationDraftKey,
   requestDraftTabFocus,
 } from "../../store/slices/featuresForms";
+import type { HiddenOriginalIds } from "../../store/slices/featuresForms";
 import {
   getAllAADrafts,
   getAllAPDrafts,
@@ -761,7 +762,46 @@ const BelisMapLibWrapper = ({
   // tiles — currently the parent Standort of every "+ Leuchte zu Standort N"
   // draft (so its tile icon doesn't sit underneath the brandnew draft icon).
   // Merges live draft entries + the persistent post-save set.
-  const hiddenOriginalIds = useSelector(getEffectiveHiddenOriginalIds);
+  const draftHiddenOriginalIds = useSelector(getEffectiveHiddenOriginalIds);
+
+  // Hidden ids derived from the server brandnew FC. Saved brandnew features
+  // outlive their drafts (and survive a clean browser), so the vector-tile
+  // parent Standort of every brandnew Leuchte (and any brandnew Standort) must
+  // also be suppressed — otherwise the old tile icon stacks underneath the
+  // brandnew icon on reload.
+  const brandnewHiddenOriginalIds = useMemo<HiddenOriginalIds>(() => {
+    const standorteIds = new Set<number>();
+    for (const f of brandnewFc.features ?? []) {
+      const sourceLayer = String(f.properties?._sourceLayer ?? "");
+      if (sourceLayer === "leuchten") {
+        const fk = Number(f.properties?.fk_standort);
+        if (Number.isFinite(fk)) standorteIds.add(fk);
+      } else if (sourceLayer === "standorte") {
+        const id = Number(f.properties?.id ?? f.id);
+        if (Number.isFinite(id)) standorteIds.add(id);
+      }
+    }
+    return standorteIds.size > 0 ? { standorte: [...standorteIds] } : {};
+  }, [brandnewFc]);
+
+  // Final hidden-ids map fed to the vector-tile filter — union of draft-driven
+  // + brandnew-FC-derived ids, keyed by source-layer.
+  const hiddenOriginalIds = useMemo<HiddenOriginalIds>(() => {
+    const merged: Record<string, Set<number>> = {};
+    const add = (sourceLayer: string, ids?: number[]) => {
+      if (!ids || ids.length === 0) return;
+      const bucket = merged[sourceLayer] ?? (merged[sourceLayer] = new Set());
+      for (const id of ids) bucket.add(id);
+    };
+    for (const [sl, ids] of Object.entries(draftHiddenOriginalIds)) add(sl, ids);
+    for (const [sl, ids] of Object.entries(brandnewHiddenOriginalIds))
+      add(sl, ids);
+    const out: HiddenOriginalIds = {};
+    for (const [sl, set] of Object.entries(merged)) {
+      if (set.size > 0) out[sl] = [...set];
+    }
+    return out;
+  }, [draftHiddenOriginalIds, brandnewHiddenOriginalIds]);
 
   // Live fetchedData for creation drafts — avoids stale snapshot in fetchedFeatureData
   const creationDraftKey =
