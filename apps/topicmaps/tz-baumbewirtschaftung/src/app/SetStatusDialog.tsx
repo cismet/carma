@@ -16,8 +16,12 @@ import {
   Tooltip,
 } from "antd";
 import TextArea from "antd/lib/input/TextArea";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useSync } from "@carma-providers/syncing";
+import {
+  useKampagne,
+  type EmbeddedKampagne,
+} from "./context/KampagneContext";
 
 const { Text } = Typography;
 
@@ -35,6 +39,7 @@ interface TreeActionPayload {
   description: string;
   status_reason: string;
   fk_tree: number;
+  fk_kampagne: number;
 }
 
 interface SetStatusDialogProps {
@@ -52,6 +57,13 @@ const dummyRequest = ({ file, onSuccess }: any) => {
   }, 0);
 };
 
+const formatKampagne = (
+  k?: { name: string; firma?: string } | undefined
+): string => {
+  if (!k) return "—";
+  return k.firma ? `${k.name} (${k.firma})` : k.name;
+};
+
 const SetStatusDialog = ({
   close = () => {},
   onCancel = () => {},
@@ -65,6 +77,28 @@ const SetStatusDialog = ({
   const [isSaving, setIsSaving] = useState(false);
 
   const { status: syncStatus, syncedAction } = useSync();
+  const { allowedCampaignIds, campaigns } = useKampagne();
+
+  // Intersect this tree's embedded kampagnen with the user's allowed kampagne ids.
+  // Result: the kampagnen the user can plausibly stamp on a new action for this tree.
+  const editableKampagnen = useMemo<EmbeddedKampagne[]>(() => {
+    const allowed = new Set(allowedCampaignIds);
+    const raw = feature?.properties?.kampagnen;
+    // MapLibre may hand back kampagnen as a JSON-encoded string; tolerate that.
+    const onTree: EmbeddedKampagne[] = Array.isArray(raw)
+      ? (raw as EmbeddedKampagne[])
+      : typeof raw === "string"
+      ? (JSON.parse(raw) as EmbeddedKampagne[])
+      : [];
+    return onTree.filter((k) => allowed.has(k.id));
+  }, [feature, allowedCampaignIds]);
+
+  const campaignFor = (id: number) =>
+    campaigns.find((c) => c.id === id) ??
+    editableKampagnen.find((k) => k.id === id);
+
+  const defaultKampagneId =
+    editableKampagnen.length === 1 ? editableKampagnen[0].id : undefined;
 
   // Check for devMode URL parameter (supports hash-based routing)
   const isDevMode = (() => {
@@ -133,6 +167,7 @@ const SetStatusDialog = ({
         description: getStatusDescription(values.status),
         status_reason: values.remarks || getStatusName(values.status),
         fk_tree: feature.properties?.id || feature.id,
+        fk_kampagne: values.fk_kampagne,
       };
 
       // Notify parent for optimistic update before syncing
@@ -256,6 +291,7 @@ const SetStatusDialog = ({
         initialValues={{
           user: username || "",
           status: getDefaultStatus(),
+          fk_kampagne: defaultKampagneId,
         }}
       >
         <Form.Item
@@ -299,6 +335,30 @@ const SetStatusDialog = ({
         <Form.Item name="user" label="Benutzer">
           <Input disabled />
         </Form.Item>
+
+        {editableKampagnen.length > 0 && (
+          <Form.Item
+            name="fk_kampagne"
+            label="Kampagne"
+            rules={[
+              {
+                required: true,
+                message: "Bitte eine Kampagne auswählen.",
+              },
+            ]}
+          >
+            <Radio.Group
+              style={{ width: "100%" }}
+              disabled={editableKampagnen.length === 1}
+            >
+              {editableKampagnen.map((k) => (
+                <Radio key={k.id} value={k.id} style={{ display: "block" }}>
+                  {formatKampagne(campaignFor(k.id))}
+                </Radio>
+              ))}
+            </Radio.Group>
+          </Form.Item>
+        )}
 
         <Form.Item
           name="picture"

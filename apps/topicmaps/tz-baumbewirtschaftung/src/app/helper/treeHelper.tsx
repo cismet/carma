@@ -222,25 +222,40 @@ export const updateFeatureCollectionWithNewActions = (
 };
 
 /**
- * Legacy function - kept for backward compatibility
- * @deprecated Use enrichFeatureCollectionWithActions instead
+ * Enriches a feature collection that already carries `actions` embedded per tree
+ * (the shape returned by the legacy `tzbBaumbewirtschaftung` DAQ).
+ * Adds the computed styling properties; does not touch the actions array.
  */
 export const enrichFeatureCollection = (fc: FeatureCollection) => {
   return {
     ...fc,
     features: fc.features.map((f) => {
+      const actions = f.properties.actions;
       return {
         ...f,
         properties: {
           ...f.properties,
-          // Add computed properties
-          latestActionStatus: computeLatestStatus(f.properties.actions),
-          hasOpenActions: hasStatus(f.properties.actions, "open"),
-          actionCount: f.properties.actions?.length || 0,
+          latestActionStatus: computeLatestStatus(actions),
+          hasOpenActions: hasStatus(actions, "open"),
+          actionCount: actions?.length || 0,
         },
       };
     }),
   };
+};
+
+/** Max `id` across every action embedded in any tree feature; 0 if there are none. */
+export const maxActionIdInLegacyFC = (fc: FeatureCollection): number => {
+  let max = 0;
+  for (const f of fc.features) {
+    const actions = f.properties.actions;
+    if (!Array.isArray(actions)) continue;
+    for (const a of actions) {
+      const id = (a as { id?: number })?.id;
+      if (typeof id === "number" && id > max) max = id;
+    }
+  }
+  return max;
 };
 
 export const createInfoBoxControlObject = (

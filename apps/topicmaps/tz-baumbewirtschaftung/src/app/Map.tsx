@@ -45,10 +45,12 @@ import { APP_CONFIG } from "../config/appConfig";
 import { useTreeStyle } from "./hooks/useTreeStyle";
 import {
   createInfoBoxControlObject,
-  enrichFeatureCollectionWithActions,
+  enrichFeatureCollection,
+  maxActionIdInLegacyFC,
   updateFeatureCollectionWithNewActions,
 } from "./helper/treeHelper";
 import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
+import { treeMatches, useKampagne } from "./context/KampagneContext";
 
 type LightboxDispatch = {
   setPhotoUrls: (urls: string[]) => void;
@@ -104,6 +106,9 @@ const TZBaumbewirtschaftung = ({
   const [maplibreMap, setMaplibreMap] = useState<any>(null);
   const [upcomingActions, setUpcomingActions] = useState<any[]>([]);
   const [username, setUsername] = useState<string | null>(null);
+  const [unfilteredFeatureCollection, setUnfilteredFeatureCollection] =
+    useState<any>();
+  const { ready: kampagneReady, effectiveCampaignIds } = useKampagne();
 
   // Poll for new tree actions (id > maxTreeActionId)
   useEffect(() => {
@@ -330,6 +335,11 @@ const TZBaumbewirtschaftung = ({
             affectedFeature.properties.actions
           );
         }
+        if (typeof affectedFeature.properties.kampagnen === "string") {
+          affectedFeature.properties.kampagnen = JSON.parse(
+            affectedFeature.properties.kampagnen
+          );
+        }
         affectedFeature.properties.info = createInfoBoxControlObject(
           affectedFeature,
           setShowStatusDialog,
@@ -388,45 +398,36 @@ const TZBaumbewirtschaftung = ({
 
     (async () => {
       try {
-        // Load all three data sources using DAQ API
-        const [treesResult, treeActionsResult, actionsResult] =
-          await Promise.all([
-            md5ActionFetchDAQ(
-              appKey,
-              APP_CONFIG.restService,
-              jwt,
-              APP_CONFIG.daqKeys.trees
-            ),
-            md5ActionFetchDAQ(
-              appKey,
-              APP_CONFIG.restService,
-              jwt,
-              APP_CONFIG.daqKeys.treeActions
-            ),
-            md5ActionFetchDAQ(
-              appKey,
-              APP_CONFIG.restService,
-              jwt,
-              APP_CONFIG.daqKeys.actions
-            ),
-          ]);
+        // Trees + their embedded actions and kampagnen come from the legacy all-in-one DAQ.
+        // Action definitions are kept separate so the polling path can still enrich
+        // newly inserted tree actions with their key/description.
+        const [legacyResult, actionsResult] = await Promise.all([
+          md5ActionFetchDAQ(
+            appKey,
+            APP_CONFIG.restService,
+            jwt,
+            APP_CONFIG.daqKeys.legacy
+          ),
+          md5ActionFetchDAQ(
+            appKey,
+            APP_CONFIG.restService,
+            jwt,
+            APP_CONFIG.daqKeys.actions
+          ),
+        ]);
 
-        const treesFC = treesResult.data as any;
-        const treeActions = (treeActionsResult.data as any[]) || [];
-        const actions = actionsResult.data as any[];
-        // console.log("xxx", { treesFC, treeActions, actions });
-        // Store action definitions for later use (enriching intermediate actions)
+        const legacyFC = legacyResult.data as any;
+        const actions = (actionsResult.data as any[]) || [];
         setActionDefinitions(actions);
 
-        // Enrich feature collection with actions
-        const { featureCollection: enriched, maxTreeActionId: maxId } =
-          enrichFeatureCollectionWithActions(treesFC, treeActions, actions);
+        const enriched = enrichFeatureCollection(legacyFC);
+        const maxId = maxActionIdInLegacyFC(legacyFC);
 
-        setFeatureCollection(enriched);
+        setUnfilteredFeatureCollection(enriched);
         setMaxTreeActionId(maxId);
 
         console.log(
-          `[Data] Loaded ${treesFC.features.length} trees, ${treeActions.length} actions`
+          `[Data] Loaded ${legacyFC.features.length} trees (legacy DAQ, actions embedded)`
         );
       } catch (error) {
         console.error("[Data] Error loading:", error);
@@ -441,6 +442,49 @@ const TZBaumbewirtschaftung = ({
       }
     })();
   }, [jwt]);
+
+  // Re-filter the FC whenever the user's effective kampagne set changes.
+  useEffect(() => {
+    if (!unfilteredFeatureCollection || !kampagneReady) return;
+
+    const filteredFeatures =
+      effectiveCampaignIds.length === 0
+        ? []
+        : unfilteredFeatureCollection.features.filter((f: any) =>
+            treeMatches(f, effectiveCampaignIds)
+          );
+    const next = {
+      ...unfilteredFeatureCollection,
+      features: filteredFeatures,
+    };
+
+    setFeatureCollection(next);
+
+    // CismapLayer doesn't reactively pick up data changes — push to maplibre
+    // imperatively, same pattern as the polling / upcoming-action paths.
+    if (maplibreMap) {
+      const source = maplibreMap.getSource("trees");
+      if (source) {
+        source.setData(next);
+      }
+    }
+
+    // Clear selection if the previously selected feature got filtered out.
+    if (
+      selectedFeature &&
+      !filteredFeatures.some((f: any) => f.id === selectedFeature.id)
+    ) {
+      setSelectedFeature(undefined);
+    }
+    // selectedFeature intentionally omitted from deps — we only want to react
+    // to filter changes, not to selection changes themselves.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    unfilteredFeatureCollection,
+    effectiveCampaignIds,
+    kampagneReady,
+    maplibreMap,
+  ]);
 
   // Crosshair visualization for selected feature
   useEffect(() => {
@@ -733,10 +777,19 @@ const TZBaumbewirtschaftung = ({
                   (async () => {
                     const feature = e.hit;
                     if (feature) {
-                      // Parse actions first before creating info object
-                      feature.properties.actions = JSON.parse(
-                        feature.properties.actions
-                      );
+                      // MapLibre serializes feature properties to strings when
+                      // they come out of the vector pipeline; deserialize the
+                      // ones the UI/edit flow expects as arrays.
+                      if (typeof feature.properties.actions === "string") {
+                        feature.properties.actions = JSON.parse(
+                          feature.properties.actions
+                        );
+                      }
+                      if (typeof feature.properties.kampagnen === "string") {
+                        feature.properties.kampagnen = JSON.parse(
+                          feature.properties.kampagnen
+                        );
+                      }
 
                       // add infoBoxControlObject
                       feature.properties.info = createInfoBoxControlObject(
