@@ -173,7 +173,10 @@ import {
   getAPDeletions,
 } from "../../store/slices/arbeitsauftraegeDrafts";
 import { prepareDraftFeatures } from "../../helper/prepareDraftFeatures";
-import { expandDraftSidebarFeatures } from "../../helper/expandDraftSidebarFeatures";
+import {
+  buildLeuchteDraftStandortFeature,
+  expandDraftSidebarFeatures,
+} from "../../helper/expandDraftSidebarFeatures";
 import {
   buildSyntheticFeature,
   featureTypeToSourceLayer,
@@ -724,6 +727,36 @@ const BelisMapLibWrapper = ({
   const allDraftFeatures = useSelector(getAllDraftFeatures);
   const draftFeaturesCount = useSelector(getDraftFeaturesCount);
 
+  // Map-ready draft features for the brandnew GeoJSON source. A Leuchten
+  // creation draft stores a single `_sourceLayer: "leuchten"` synthetic, but
+  // the visible saved icon is the Standort cross + Laufende Nr (a Leuchten
+  // save implicitly creates a Mast). Mirror that on the map by pushing the
+  // Standort synthetic (built the same way the sidebar expansion builds it)
+  // for Leuchten drafts; every other creation draft contributes its own
+  // single feature.
+  const draftBrandnewFeatures = useMemo(() => {
+    const out: GeoJSON.Feature[] = [];
+    for (const [draftKey, draft] of Object.entries(
+      allDraftsForMeasurementLink
+    )) {
+      if (draft.isCreation !== true) continue;
+      if (!draft.feature) continue;
+      if (!draft.geometry) continue;
+      if (draft.featureType === "leuchte") {
+        out.push(
+          buildLeuchteDraftStandortFeature(
+            draftKey,
+            draft,
+            keyTablesData
+          ) as unknown as GeoJSON.Feature
+        );
+      } else {
+        out.push(draft.feature as unknown as GeoJSON.Feature);
+      }
+    }
+    return out;
+  }, [allDraftsForMeasurementLink, keyTablesData]);
+
   // Source-layer keyed ids to suppress on the regular Fachobjekte vector
   // tiles — currently the parent Standort of every "+ Leuchte zu Standort N"
   // draft (so its tile icon doesn't sit underneath the brandnew draft icon).
@@ -738,6 +771,16 @@ const BelisMapLibWrapper = ({
   const liveDraftFetchedData = useSelector((state: RootState) =>
     getDraftFetchedData(state, creationDraftKey)
   );
+
+  // The id under which this draft sits in the brandnew GeoJSON source — used
+  // to compute the numeric feature-state id below. Matches what the main-map
+  // / mini-map effects push: a Leuchten draft becomes a Standort synthetic
+  // with id `${draftKey}::standort` (so the cross + Laufende Nr icon renders
+  // at the chosen position); every other draft uses the bare key.
+  const creationDraftMapId =
+    creationDraftKey && rawFeature?.properties?._featureType === "leuchte"
+      ? `${creationDraftKey}::standort`
+      : creationDraftKey;
 
   // Draft features for the "Entwürfe" list. A Leuchten creation draft is
   // expanded into a Standort parent row + one nested Leuchte row per form tab
@@ -2288,15 +2331,13 @@ const BelisMapLibWrapper = ({
     if (!src || typeof src.setData !== "function") return;
 
     const features: GeoJSON.Feature[] = [...(brandnewFc.features ?? [])];
-    for (const { feature } of allDraftFeatures) {
-      if (!feature) continue;
-      if (feature.properties?._isCreation !== true) continue;
+    for (const feature of draftBrandnewFeatures) {
       if (!feature.geometry) continue;
       // Numeric feature id so MapLibre can attach selection feature-state
       // (geojson sources reject string ids). properties.id stays the key.
       features.push({
         ...feature,
-        id: draftFeatureStateId(String(feature.properties.id)),
+        id: draftFeatureStateId(String(feature.properties?.id)),
       } as unknown as GeoJSON.Feature);
     }
     src.setData({ type: "FeatureCollection", features });
@@ -2305,7 +2346,7 @@ const BelisMapLibWrapper = ({
     mapReady,
     brandnewLayerEnabled,
     brandnewSource,
-    allDraftFeatures,
+    draftBrandnewFeatures,
     brandnewFc,
   ]);
 
@@ -2324,19 +2365,17 @@ const BelisMapLibWrapper = ({
     if (!src || typeof src.setData !== "function") return;
 
     const features: GeoJSON.Feature[] = [...(brandnewFc.features ?? [])];
-    for (const { feature } of allDraftFeatures) {
-      if (!feature) continue;
-      if (feature.properties?._isCreation !== true) continue;
+    for (const feature of draftBrandnewFeatures) {
       if (!feature.geometry) continue;
       // Numeric feature id so MapLibre can attach selection feature-state
       // (geojson sources reject string ids). properties.id stays the key.
       features.push({
         ...feature,
-        id: draftFeatureStateId(String(feature.properties.id)),
+        id: draftFeatureStateId(String(feature.properties?.id)),
       } as unknown as GeoJSON.Feature);
     }
     src.setData({ type: "FeatureCollection", features });
-  }, [miniMap, miniMapReady, brandnewSource, allDraftFeatures, brandnewFc]);
+  }, [miniMap, miniMapReady, brandnewSource, draftBrandnewFeatures, brandnewFc]);
 
   // Mini-map counterpart of the main-map hidden-IDs filter effect — keeps the
   // mini map's regular vector-tile layers in sync with hiddenOriginalIds.
@@ -2722,7 +2761,15 @@ const BelisMapLibWrapper = ({
       // Server brandnew features lack `_isCreation`, so they are unaffected.
       const creationHit = hits.find((h) => h.properties?._isCreation === true);
       if (creationHit) {
-        const draftKey = String(creationHit.properties?.id ?? creationHit.id);
+        // Leuchten drafts render on the map as a synthetic Standort whose own
+        // `properties.id` is `${draftKey}::standort`. The original draft key
+        // is stamped on `_draftKey` (see buildLeuchteDraftStandortFeature),
+        // so prefer it; for other creation types both fields agree.
+        const draftKey = String(
+          creationHit.properties?._draftKey ??
+            creationHit.properties?.id ??
+            creationHit.id
+        );
         const draftFeature = allDraftFeatures.find(
           ({ feature }) =>
             feature?.properties?._isCreation === true &&
@@ -2836,7 +2883,7 @@ const BelisMapLibWrapper = ({
     if (!map) return;
 
     const prev = prevDraftSelectionRef.current;
-    if (prev && prev !== creationDraftKey) {
+    if (prev && prev !== creationDraftMapId) {
       try {
         map.setFeatureState(
           buildFeatureStateTarget(map, {
@@ -2849,22 +2896,22 @@ const BelisMapLibWrapper = ({
         // source may not exist yet
       }
     }
-    prevDraftSelectionRef.current = creationDraftKey;
+    prevDraftSelectionRef.current = creationDraftMapId;
 
-    if (!creationDraftKey) return;
+    if (!creationDraftMapId) return;
 
     try {
       map.setFeatureState(
         buildFeatureStateTarget(map, {
           source: brandnewSource,
-          id: draftFeatureStateId(creationDraftKey),
+          id: draftFeatureStateId(creationDraftMapId),
         }),
         { selected: true }
       );
     } catch {
       // source may not exist yet
     }
-  }, [map, brandnewSource, creationDraftKey]);
+  }, [map, brandnewSource, creationDraftMapId]);
 
   // --- Arbeitsauftraege: AP feature-state selection ---
   const prevAPIdRef = useRef<number | null>(null);
