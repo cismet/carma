@@ -803,6 +803,68 @@ const BelisMapLibWrapper = ({
     return out;
   }, [draftHiddenOriginalIds, brandnewHiddenOriginalIds]);
 
+  // Active-draft-only hidden ids (excludes `permanentlyHiddenOriginalIds`).
+  // The permanent set is meant to keep vector tiles hidden during the post-save
+  // gap before the brandnew FC refresh delivers the new feature; it must NOT
+  // suppress the brandnew layer itself, or the just-saved feature would
+  // disappear when its parent Standort sits in the permanent set.
+  const activeDraftHiddenOriginalIds = useMemo<HiddenOriginalIds>(() => {
+    const merged: Record<string, Set<number>> = {};
+    for (const draft of Object.values(allDraftsForMeasurementLink)) {
+      const ids = draft.hiddenOriginalIds;
+      if (!ids) continue;
+      for (const [sourceLayer, list] of Object.entries(ids)) {
+        if (!list || list.length === 0) continue;
+        const bucket =
+          merged[sourceLayer] ?? (merged[sourceLayer] = new Set());
+        for (const id of list) bucket.add(id);
+      }
+    }
+    const out: HiddenOriginalIds = {};
+    for (const [sl, set] of Object.entries(merged)) {
+      if (set.size > 0) out[sl] = [...set];
+    }
+    return out;
+  }, [allDraftsForMeasurementLink]);
+
+  // Brandnew FC features, minus any that an OPEN draft has flagged as hidden.
+  // When a "+ Leuchte zu Standort N" draft is open, the draft layer renders
+  // its own synthetic Standort N (with the higher Leuchten count) — so the
+  // already-saved brandnew Standort N (and its brandnew Leuchten) must be
+  // suppressed to avoid a stacked duplicate icon. Mirrors the source-layer
+  // cascade used by applyHiddenIdsFilter for the regular vector tiles.
+  // Keyed on `activeDraftHiddenOriginalIds`, NOT the effective set, so the
+  // post-save permanent ids never hide the brandnew layer's own features.
+  const visibleBrandnewFeatures = useMemo<GeoJSON.Feature[]>(() => {
+    const all = brandnewFc.features ?? [];
+    const hiddenStandorteIds = new Set(
+      activeDraftHiddenOriginalIds.standorte ?? []
+    );
+    const hasAnyHidden =
+      hiddenStandorteIds.size > 0 ||
+      Object.values(activeDraftHiddenOriginalIds).some(
+        (list) => list && list.length > 0
+      );
+    if (!hasAnyHidden) return all;
+    return all.filter((f) => {
+      const sl = String(f.properties?._sourceLayer ?? "");
+      if (sl === "standorte") {
+        const id = Number(f.properties?.id ?? f.id);
+        return !hiddenStandorteIds.has(id);
+      }
+      if (sl === "leuchten") {
+        const fk = Number(f.properties?.fk_standort);
+        return !hiddenStandorteIds.has(fk);
+      }
+      const idsForLayer = activeDraftHiddenOriginalIds[sl];
+      if (idsForLayer && idsForLayer.length > 0) {
+        const id = Number(f.properties?.id ?? f.id);
+        return !idsForLayer.includes(id);
+      }
+      return true;
+    });
+  }, [brandnewFc, activeDraftHiddenOriginalIds]);
+
   // Live fetchedData for creation drafts — avoids stale snapshot in fetchedFeatureData
   const creationDraftKey =
     rawFeature?.properties?._isCreation === true
@@ -2370,7 +2432,7 @@ const BelisMapLibWrapper = ({
       | undefined;
     if (!src || typeof src.setData !== "function") return;
 
-    const features: GeoJSON.Feature[] = [...(brandnewFc.features ?? [])];
+    const features: GeoJSON.Feature[] = [...visibleBrandnewFeatures];
     for (const feature of draftBrandnewFeatures) {
       if (!feature.geometry) continue;
       // Numeric feature id so MapLibre can attach selection feature-state
@@ -2387,7 +2449,7 @@ const BelisMapLibWrapper = ({
     brandnewLayerEnabled,
     brandnewSource,
     draftBrandnewFeatures,
-    brandnewFc,
+    visibleBrandnewFeatures,
   ]);
 
   // --- Mini-map: push every open creation draft AND the server-side brandnew
@@ -2404,7 +2466,7 @@ const BelisMapLibWrapper = ({
       | undefined;
     if (!src || typeof src.setData !== "function") return;
 
-    const features: GeoJSON.Feature[] = [...(brandnewFc.features ?? [])];
+    const features: GeoJSON.Feature[] = [...visibleBrandnewFeatures];
     for (const feature of draftBrandnewFeatures) {
       if (!feature.geometry) continue;
       // Numeric feature id so MapLibre can attach selection feature-state
@@ -2415,7 +2477,13 @@ const BelisMapLibWrapper = ({
       } as unknown as GeoJSON.Feature);
     }
     src.setData({ type: "FeatureCollection", features });
-  }, [miniMap, miniMapReady, brandnewSource, draftBrandnewFeatures, brandnewFc]);
+  }, [
+    miniMap,
+    miniMapReady,
+    brandnewSource,
+    draftBrandnewFeatures,
+    visibleBrandnewFeatures,
+  ]);
 
   // Mini-map counterpart of the main-map hidden-IDs filter effect — keeps the
   // mini map's regular vector-tile layers in sync with hiddenOriginalIds.
