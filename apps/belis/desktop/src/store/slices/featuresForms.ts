@@ -72,6 +72,12 @@ export interface Draft {
   // Existing siblings on the parent Standort, mirrored here from the LeuchteForm
   // mast fetch so the Entwürfe sidebar can list them under this draft.
   bestandLeuchten?: BestandLeuchteEntry[];
+  // Count of Bestand Leuchten on the parent Standort. Seeded at draft-open time
+  // from the Standort tile's `leuchten_count` (authoritative server-side count)
+  // and refreshed by setDraftBestandLeuchten once the mast fetch's deduped
+  // array is in. Drives the brandnew icon's dot count so a "+ Leuchte zu
+  // Standort N" draft renders with `bestand + 1 + extras` dots.
+  bestandLeuchtenCount?: number;
   updatedAt: number;
 }
 
@@ -132,6 +138,7 @@ const featuresFormsSlice = createSlice({
         linkedStandortLabel?: string;
         measurementLabel?: string;
         hiddenOriginalIds?: HiddenOriginalIds;
+        bestandLeuchtenCount?: number;
       }>
     ) {
       const {
@@ -148,6 +155,7 @@ const featuresFormsSlice = createSlice({
         linkedStandortLabel,
         measurementLabel,
         hiddenOriginalIds,
+        bestandLeuchtenCount,
       } = action.payload;
       const existing = state.drafts[featureId];
       const hasFiles = existing?.files && existing.files.length > 0;
@@ -207,6 +215,12 @@ const featuresFormsSlice = createSlice({
         // Preserved across setDraft replacements; updated only via
         // setDraftBestandLeuchten when the parent mast fetch resolves.
         bestandLeuchten: existing?.bestandLeuchten,
+        // Seeded by useCreateFeatureDraft from the linked Standort tile's
+        // `leuchten_count`; refreshed by setDraftBestandLeuchten once the
+        // mast fetch resolves. Preserved across later setDraft calls (form
+        // edits) so the icon stays correct.
+        bestandLeuchtenCount:
+          existing?.bestandLeuchtenCount ?? bestandLeuchtenCount,
         updatedAt: Date.now(),
       };
     },
@@ -381,6 +395,26 @@ const featuresFormsSlice = createSlice({
         if (draft.bestandLeuchten) delete draft.bestandLeuchten;
       } else {
         draft.bestandLeuchten = bestandLeuchten;
+      }
+      // Keep the icon-driving count in sync with the deduped array. Always
+      // overwrite — the fetch is authoritative once it resolves, replacing
+      // the optimistic seed pulled from the tile property.
+      draft.bestandLeuchtenCount = bestandLeuchten.length;
+      // Patch the count on the live synthetic feature so the brandnew icon
+      // layer redraws without waiting for the next form edit. Mirrors the
+      // formula in enrichSyntheticProps' leuchte branch: bestand + 1 (the
+      // editable "Leuchte 1" slice) + each extra "+" tab.
+      const feature = draft.feature as
+        | { properties?: Record<string, unknown> }
+        | undefined;
+      if (
+        feature?.properties &&
+        (feature.properties as Record<string, unknown>)._featureType ===
+          "leuchte"
+      ) {
+        const extras = (draft.values?.leuchten ?? []) as Array<unknown>;
+        feature.properties.leuchten_count =
+          bestandLeuchten.length + 1 + extras.length;
       }
     },
     // Ask the open draft's form to switch to `tabKey`. The bumped `nonce` lets

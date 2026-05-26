@@ -190,7 +190,12 @@ export const useCreateFeatureDraft = () => {
           feature: buildSyntheticFeature(
             key,
             draftKey,
-            enrichSyntheticProps(key, seededValues, keyTablesData),
+            enrichSyntheticProps(
+              key,
+              seededValues,
+              keyTablesData,
+              standortLeuchtenCount ?? 0
+            ),
             geom
           ),
           fetchedData: buildSyntheticFetchedData(key, seededValues),
@@ -201,6 +206,10 @@ export const useCreateFeatureDraft = () => {
           prefillGeometryKey: geomKey,
           linkedStandortLabel: standortOption?.label,
           hiddenOriginalIds,
+          // Optimistic seed of the linked Standort's existing Leuchten count
+          // so the brandnew icon renders the right number of dots before the
+          // mast fetch (and setDraftBestandLeuchten) resolves.
+          bestandLeuchtenCount: standortLeuchtenCount,
         })
       );
       dispatch(setGlobalEditMode(true));

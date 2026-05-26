@@ -446,11 +446,15 @@ const FeaturesFormsWrapper = ({
       if (isCreation) {
         // Rebuild the synthetic feature so denormalized props (e.g.
         // leitung.bezeichnung from fk_leitungstyp) flow into the mini-map
-        // render and trigger the right per-type style.
+        // render and trigger the right per-type style. The Bestand-Leuchten
+        // count (set at draft open from the linked Standort tile; refreshed
+        // by setDraftBestandLeuchten when the mast fetch resolves) feeds the
+        // leuchten icon's dot count formula.
         const enrichedValues = enrichSyntheticProps(
           formKey,
           values,
-          keyTablesData
+          keyTablesData,
+          draft?.bestandLeuchtenCount ?? 0
         );
         const newFeature = buildSyntheticFeature(
           formKey,
@@ -493,6 +497,7 @@ const FeaturesFormsWrapper = ({
       keyTablesData,
       draft?.geometry,
       draft?.geometryKey,
+      draft?.bestandLeuchtenCount,
       dispatch,
       draftFeature,
       data,
@@ -508,7 +513,8 @@ const FeaturesFormsWrapper = ({
       const enrichedValues = enrichSyntheticProps(
         formKey,
         deserializeValues(currentValues),
-        keyTablesData
+        keyTablesData,
+        draft?.bestandLeuchtenCount ?? 0
       );
       // Clear case: user hit the "x" in the allowClear select.
       if (!newKey) {
@@ -586,6 +592,7 @@ const FeaturesFormsWrapper = ({
       featureId,
       formKey,
       draft?.values,
+      draft?.bestandLeuchtenCount,
       geometryOptions,
       keyTablesData,
       measurements,
