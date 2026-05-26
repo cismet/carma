@@ -190,7 +190,12 @@ export const getPrintLayers = (bgLayer, layers) => {
           // take the vector style and create a proper style name for the tgl4üromt service
           // use the folder name and add the style name like for /poi/style.json use poi-style
           // and for /poi/bildungseinrichtungen.style.json use poi-bildungseinrichtungen-style
-          const vectorStyle = layer.style || layer.props.style;
+          // Prefer the active printingStyle from layer.conf (kept in sync with
+          // the current dynamic-styling option) over the plain vector style URL.
+          const vectorStyle =
+            (layer.conf?.printingStyle as string | undefined) ||
+            layer.style ||
+            layer.props.style;
           const styleName = getStyleName(vectorStyle);
 
           layerPrint.unshift(
