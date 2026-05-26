@@ -268,7 +268,6 @@ const StandortForm = ({
             : { seedFromSelection: true }
         )
       }
-      featureType="standort"
     >
       <MastFormFields
         mast={mast}

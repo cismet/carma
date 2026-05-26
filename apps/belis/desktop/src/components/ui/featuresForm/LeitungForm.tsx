@@ -241,7 +241,6 @@ const LeitungForm = ({
             : { seedFromSelection: true }
         )
       }
-      featureType="leitung"
     >
       <LeitungFormFields
         leitung={lt}

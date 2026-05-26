@@ -269,7 +269,6 @@ const SchaltstelleForm = ({
               )
           : undefined
       }
-      featureType="schaltstelle"
       createDraftButtonVariant="white"
     >
       <SchaltstelleFormFields

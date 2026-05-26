@@ -262,7 +262,6 @@ const MauerlascheForm = ({
             : { seedFromSelection: true }
         )
       }
-      featureType="mauerlasche"
     >
       <MauerlascheFormFields
         mauerlasche={ml}
