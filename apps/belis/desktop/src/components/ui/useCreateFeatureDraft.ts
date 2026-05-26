@@ -103,10 +103,16 @@ export const useCreateFeatureDraft = () => {
       // recover this association on its own.
       let standortOption = null;
       let standortLeuchtenCount: number | undefined;
+      let linkedStandortId: number | undefined;
       if (key === "leuchte" && options?.linkToSelectedStandort) {
         const info = extractStandortFeatureInfo(selectedFeature);
         if (info) {
           standortOption = buildStandortGeometryOption(info);
+          if (typeof info.id === "number") linkedStandortId = info.id;
+          else if (typeof info.id === "string") {
+            const parsedId = Number(info.id);
+            if (Number.isFinite(parsedId)) linkedStandortId = parsedId;
+          }
           const raw = (info.properties as Record<string, unknown> | null)?.[
             "leuchten_count"
           ];
@@ -164,6 +170,15 @@ export const useCreateFeatureDraft = () => {
         };
       }
 
+      // Hide the parent Standort's vector-tile icon while a "+ Leuchte zu
+      // Standort N" draft is open — the draft renders at the same coords on
+      // the brandnew layer, so leaving the original visible stacks two icons
+      // at one point and produces an unreadable blob.
+      const hiddenOriginalIds =
+        linkedStandortId !== undefined
+          ? { standorte: [linkedStandortId] }
+          : undefined;
+
       dispatch(
         setDraft({
           featureId: draftKey,
@@ -185,6 +200,7 @@ export const useCreateFeatureDraft = () => {
           geometryWgs84: standortOption?.geometryWgs84,
           prefillGeometryKey: geomKey,
           linkedStandortLabel: standortOption?.label,
+          hiddenOriginalIds,
         })
       );
       dispatch(setGlobalEditMode(true));

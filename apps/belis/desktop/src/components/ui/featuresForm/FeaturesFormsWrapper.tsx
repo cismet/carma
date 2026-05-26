@@ -31,6 +31,7 @@ import {
   getGlobalEditMode,
   isCreationDraftKey,
   getAllDrafts,
+  promoteDraftHiddenToPermanent,
 } from "../../../store/slices/featuresForms";
 import { getJWT } from "../../../store/slices/auth";
 import type { DokumentItem } from "../DocumentPreview";
@@ -368,6 +369,10 @@ const FeaturesFormsWrapper = ({
       if (draft?.values && Object.keys(draft.values).length > 0) {
         dispatch(setOriginalValues({ featureId, values: draft.values }));
       }
+      // Promote hiddenOriginalIds before removing the draft so the parent
+      // Standort (etc.) stays suppressed on the regular vector layers until
+      // the brandnew tile contains the new record.
+      dispatch(promoteDraftHiddenToPermanent(featureId));
       dispatch(removeDraft(featureId));
     }
     setIsEditing(false);
@@ -384,6 +389,7 @@ const FeaturesFormsWrapper = ({
     try {
       const result = await saveFeatureDraft(jwt, featureId, draft);
       if (result.success) {
+        dispatch(promoteDraftHiddenToPermanent(featureId));
         dispatch(removeDraft(featureId));
         dispatch(incrementFeatureDataVersion());
         void message.success("Gespeichert");

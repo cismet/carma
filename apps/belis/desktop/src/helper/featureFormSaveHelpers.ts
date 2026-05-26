@@ -537,6 +537,10 @@ interface HandleSaveAllDeps {
   setSaving: (saving: boolean) => void;
   dispatch: (action: any) => void;
   removeDraft: (featureId: string) => unknown;
+  /** Action creator for `promoteDraftHiddenToPermanent` from the
+   * featuresForms slice. Dispatched per successfully-saved draft *before*
+   * removeDraft so hiddenOriginalIds survive the draft's deletion. */
+  promoteDraftHiddenToPermanent: (featureId: string) => unknown;
   incrementFeatureDataVersion: () => unknown;
   /** Current measurement features (already namespaced as
    * `measurement.<uuid>` in id) — used to find which ones to drop after
@@ -557,6 +561,7 @@ export const handleSaveAllDrafts = (deps: HandleSaveAllDeps) => {
     setSaving,
     dispatch,
     removeDraft,
+    promoteDraftHiddenToPermanent,
     incrementFeatureDataVersion,
     measurements,
     setMeasurements,
@@ -595,6 +600,7 @@ export const handleSaveAllDrafts = (deps: HandleSaveAllDeps) => {
         const result = await saveAllFeatureDrafts(jwt, drafts);
 
         for (const featureId of result.succeeded) {
+          dispatch(promoteDraftHiddenToPermanent(featureId));
           dispatch(removeDraft(featureId));
         }
 

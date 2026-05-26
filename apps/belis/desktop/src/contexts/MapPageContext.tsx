@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from "react";
 import type { MapGeoJSONFeatureWithOriginal } from "@carma-mapping/utils";
+import type maplibregl from "maplibre-gl";
 
 export type SidebarFeature = MapGeoJSONFeatureWithOriginal;
 
@@ -59,6 +60,18 @@ interface MapPageContextValue {
   setOnOpenCreationDraft: (
     fn: ((featureType: string, draftKey: string) => void) | undefined
   ) => void;
+  // Live MapLibre instance for the main map. Published by BelisMapWrapper when
+  // the map becomes ready, consumed by form components that need to query the
+  // vector-tile sources (e.g. the Leuchte creation form lists the parent
+  // Standort's existing Leuchten as read-only tabs).
+  mainMap: maplibregl.Map | null;
+  setMainMap: (m: maplibregl.Map | null) => void;
+  // Bumped whenever the regular vector-tile source emits a `sourcedata` event,
+  // i.e. new tiles loaded. Consumers can use this as a useEffect dep to re-run
+  // `map.querySourceFeatures(...)` after panning/zooming brings new features
+  // into the source.
+  mainMapSourceTick: number;
+  bumpMainMapSourceTick: () => void;
 }
 
 const MapPageContext = createContext<MapPageContextValue>({
@@ -74,6 +87,10 @@ const MapPageContext = createContext<MapPageContextValue>({
   setOnSelectNextDraft: () => undefined,
   onOpenCreationDraft: undefined,
   setOnOpenCreationDraft: () => undefined,
+  mainMap: null,
+  setMainMap: () => undefined,
+  mainMapSourceTick: 0,
+  bumpMainMapSourceTick: () => undefined,
 });
 
 export const MapPageProvider = ({ children }: { children: ReactNode }) => {
@@ -90,6 +107,12 @@ export const MapPageProvider = ({ children }: { children: ReactNode }) => {
   const [onOpenCreationDraft, setOnOpenCreationDraft] = useState<
     ((featureType: string, draftKey: string) => void) | undefined
   >(undefined);
+  const [mainMap, setMainMap] = useState<maplibregl.Map | null>(null);
+  const [mainMapSourceTick, setMainMapSourceTick] = useState(0);
+  const bumpMainMapSourceTick = useCallback(
+    () => setMainMapSourceTick((t) => t + 1),
+    []
+  );
 
   const setConfig = useCallback((c: Partial<MapPageConfig>) => {
     setConfigState((prev) => ({ ...prev, ...c }));
@@ -110,6 +133,10 @@ export const MapPageProvider = ({ children }: { children: ReactNode }) => {
         setOnSelectNextDraft,
         onOpenCreationDraft,
         setOnOpenCreationDraft,
+        mainMap,
+        setMainMap,
+        mainMapSourceTick,
+        bumpMainMapSourceTick,
       }}
     >
       {children}
