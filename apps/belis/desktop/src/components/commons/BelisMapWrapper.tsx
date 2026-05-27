@@ -2896,18 +2896,19 @@ const BelisMapLibWrapper = ({
           // draft is one map icon but several sidebar rows (Standort parent
           // + Leuchte children, see expandDraftSidebarFeatures); the raw
           // `selectedFeatureId` carries the bare draft key and matches none
-          // of them. Point at the editable "Leuchte 1" row — its title is
-          // what the info-box shows for the click. Other creation types
-          // expand to a single row whose id already equals the draft key,
-          // so clear any stale value.
+          // of them. Point at the Standort parent row — a Leuchte draft
+          // always has exactly one Standort and ≥1 Leuchte, and the user
+          // wants the parent (not a specific child) selected on map click.
+          // Other creation types expand to a single row whose id already
+          // equals the draft key, so clear any stale value.
           const isLeuchteCreation =
             draftFeature.properties?._featureType === "leuchte" ||
             draftFeature.sourceLayer === "leuchten";
           setActiveDraftRow(
             isLeuchteCreation
               ? {
-                  sourceLayer: "leuchten",
-                  id: `${draftKey}::leuchte::main`,
+                  sourceLayer: "standorte",
+                  id: `${draftKey}::standort`,
                 }
               : null
           );
