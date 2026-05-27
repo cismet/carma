@@ -983,44 +983,55 @@ const BelisMapLibWrapper = ({
 
   // Compute effective sidebar data based on mode
   const effectiveSidebarData = useMemo(() => {
+    // Shared derivation: counts per sourceLayer + merged activeSourceLayers.
+    // Used by every branch that doesn't get pre-computed counts straight from
+    // `useVisibleMapFeatures` (i.e. anything that builds a synthetic list).
+    const buildFromFeatures = (
+      list: typeof features,
+      overrides?: { isLoading?: boolean; isOverviewMode?: boolean }
+    ) => {
+      const counts: Record<string, number> = {};
+      for (const f of list) {
+        const sl = f.sourceLayer || "";
+        counts[sl] = (counts[sl] || 0) + 1;
+      }
+      return {
+        features: list,
+        countsByLayer: counts,
+        totalCount: list.length,
+        isLoading: overrides?.isLoading ?? false,
+        isOverviewMode: overrides?.isOverviewMode ?? false,
+        activeSourceLayers: new Set([
+          ...activeSourceLayers,
+          ...Object.keys(counts),
+        ]),
+      };
+    };
+
     if (
       sidebarMode === "highlights" &&
       adjustedHighlights &&
       adjustedHighlights.length > 0
     ) {
-      // Derive countsByLayer from search results
-      const counts: Record<string, number> = {};
-      for (const f of adjustedHighlights) {
-        const sl = f.sourceLayer || "";
-        counts[sl] = (counts[sl] || 0) + 1;
-      }
-      const total = adjustedHighlights.length;
-      // Include all layers present in results
-      const layers = new Set([...activeSourceLayers, ...Object.keys(counts)]);
-      return {
-        features: adjustedHighlights,
-        countsByLayer: counts,
-        totalCount: total,
-        isLoading: false,
-        isOverviewMode: false,
-        activeSourceLayers: layers,
-      };
+      return buildFromFeatures(adjustedHighlights);
     }
     if (sidebarMode === "drafts" && draftSidebarFeatures.length > 0) {
-      const counts: Record<string, number> = {};
-      for (const f of draftSidebarFeatures) {
-        const sl = f.sourceLayer || "";
-        counts[sl] = (counts[sl] || 0) + 1;
-      }
-      const layers = new Set([...activeSourceLayers, ...Object.keys(counts)]);
-      return {
-        features: draftSidebarFeatures,
-        countsByLayer: counts,
-        totalCount: draftSidebarFeatures.length,
-        isLoading: false,
-        isOverviewMode: false,
-        activeSourceLayers: layers,
-      };
+      return buildFromFeatures(draftSidebarFeatures);
+    }
+    // Fachobjekte mode with drafts present: splice the expanded draft rows
+    // (Standort parent + Leuchten children, same shape used by the Entwürfe
+    // tab) in next to the regular viewport features. The viewport list
+    // already carries the synthetic draft Standort from the brandnew GeoJSON
+    // layer; drop it so the expanded version from `draftSidebarFeatures`
+    // wins (otherwise the Standort row would appear twice).
+    if (draftSidebarFeatures.length > 0) {
+      const nonDraftViewportFeatures = features.filter(
+        (f) => f.properties?._isCreation !== true
+      );
+      return buildFromFeatures(
+        [...nonDraftViewportFeatures, ...draftSidebarFeatures],
+        { isLoading, isOverviewMode }
+      );
     }
     return {
       features,
@@ -3167,7 +3178,18 @@ const BelisMapLibWrapper = ({
       },
       feature: SidebarFeature
     ) => {
-      if (sidebarMode === "drafts") {
+      // Draft rows now appear in the Fachobjekte tab too (the expanded
+      // `draftSidebarFeatures` are spliced into the viewport list). Detect
+      // them by the same markers `expandDraftSidebarFeatures` stamps, flip
+      // the sidebar into Entwürfe mode so the selected row stays visible in
+      // its native context, and route through the existing drafts branch.
+      const isDraftRow =
+        feature.properties?._isCreation === true ||
+        typeof feature.properties?._draftKey === "string";
+      if (isDraftRow && sidebarMode !== "drafts") {
+        setSidebarMode("drafts");
+      }
+      if (sidebarMode === "drafts" || isDraftRow) {
         // Expanded Leuchten-draft row (Standort parent / Leuchte child): the
         // row is synthetic, so select the draft's real stored feature and ask
         // the form to focus the tab this row stands for.
