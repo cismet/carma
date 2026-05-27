@@ -109,6 +109,10 @@ interface FeatureFormLayoutProps {
    * one of its Leuchten children). The bumped `nonce` makes each request
    * distinct so the same tab can be re-focused. */
   tabFocusRequest?: { tabKey: string; nonce: number };
+  /** Fires whenever the active tab key changes, so a parent form (e.g.
+   * LeuchteForm) can seed an action — like the green header "+" — from the
+   * tab the user is actually looking at, not always the general slice. */
+  onActiveTabChange?: (key: string) => void;
 }
 
 const FeatureFormLayout = ({
@@ -149,6 +153,7 @@ const FeatureFormLayout = ({
   onSaveAll,
   tabsResetKey,
   tabFocusRequest,
+  onActiveTabChange,
 }: FeatureFormLayoutProps) => {
   // Deduplicate documents to prevent stale data from appearing as extra items
   // when switching between features quickly.
@@ -186,6 +191,14 @@ const FeatureFormLayout = ({
       : "general";
   }, [additionalTabsPosition, additionalTabs]);
   const [activeTabKey, setActiveTabKey] = useState(defaultActiveTabKey);
+  // Broadcast the active tab to the parent form so it can target an action at
+  // the tab the user is looking at (e.g. the green header "+" seeding from
+  // Leuchte 2 rather than Leuchte 1). Fires on every change — covers the
+  // tabsResetKey restore, sidebar focus, removed-tab fallback, and direct
+  // clicks — without having to dispatch from each setActiveTabKey site.
+  useEffect(() => {
+    onActiveTabChange?.(activeTabKey);
+  }, [activeTabKey, onActiveTabChange]);
   // Per-draft memory of the active tab, keyed by `tabsResetKey`. A draft seen
   // for the first time has no entry and opens on the default ("Standort" for
   // a new Leuchte); revisiting a draft restores the tab it last had open.
