@@ -60,7 +60,10 @@ import {
   getMeasurements,
   setMeasurements,
 } from "../../../store/slices/measurements";
-import { removeMeasurements } from "@carma-mapping/measurements";
+import {
+  removeMeasurements,
+  addMeasurements,
+} from "@carma-mapping/measurements";
 import {
   buildSyntheticFeature,
   buildSyntheticFetchedData,
@@ -228,19 +231,23 @@ const FeaturesFormsWrapper = ({
     draft?.linkedStandortLabel,
   ]);
 
-  // A measurement is deleted from the store the moment it's assigned to a
-  // draft (see handleGeometryChange), so buildMeasurementGeometryOptions can
-  // no longer surface it. Reconstruct the option for *this* draft's assigned
-  // measurement from the draft itself, so the Neue Geometrien selector keeps
-  // showing it with a human label. Mirrors `standortOption` above.
+  // Fallback for the edge case where the user deletes the underlying
+  // measurement via terra-draw while it's attached to this draft. The
+  // attachment normally keeps the measurement in the Redux slice (just
+  // hidden from terra-draw) so buildMeasurementGeometryOptions surfaces
+  // it; if the user explicitly deletes it, we still want the draft to
+  // remain saveable and the dropdown to show a recognizable label, so
+  // reconstruct the option from the snapshot stashed on the draft.
   const measurementOption = useMemo<MeasurementGeometryOption | null>(() => {
     if (!isCreation) return null;
     const geometryKey = draft?.geometryKey;
     const geometry = draft?.geometry;
     if (!geometryKey || !geometry) return null;
     if (!geometryKey.startsWith("measurement.")) return null;
-    // Still live in the measurements slice? Then buildMeasurementGeometryOptions
-    // already covers it — only reconstruct for an assigned-and-deleted one.
+    // Still in the measurements slice (normal attached state)? Then
+    // buildMeasurementGeometryOptions already covers it — only reconstruct
+    // for the rare case where the measurement was deleted out from under
+    // the draft.
     const stillLive = measurements.some(
       (f) => `measurement.${String(f.id)}` === geometryKey
     );
@@ -353,13 +360,41 @@ const FeaturesFormsWrapper = ({
     setIsEditing((prev) => !prev);
   }, []);
 
+  // Bring a previously-attached measurement back into terra-draw. The
+  // measurement stays in Redux while attached (so the dropdown can render
+  // it) but is hidden from terra-draw; releasing the attachment makes it
+  // visible and editable again. No-op when there was no prior measurement
+  // attachment or its Redux record is gone.
+  const restoreAttachedMeasurement = useCallback(
+    (geometryKey: string | undefined) => {
+      if (!geometryKey || !geometryKey.startsWith("measurement.")) return;
+      const feature = measurements.find(
+        (f) => `measurement.${String(f.id)}` === geometryKey
+      );
+      if (!feature) return;
+      const rawId = String(feature.id).replace(/^measurement\./, "");
+      addMeasurements([{ ...feature, id: rawId }]);
+    },
+    [measurements]
+  );
+
   const handleCancel = useCallback(() => {
     if (featureId) {
+      // Bring any attached measurement back into terra-draw before the
+      // draft goes away — discarding the draft must not silently destroy
+      // the user's measurement work.
+      restoreAttachedMeasurement(draft?.geometryKey);
       dispatch(removeDraft(featureId));
       onSelectNextDraft?.(featureId);
     }
     setIsEditing(false);
-  }, [featureId, dispatch, onSelectNextDraft]);
+  }, [
+    featureId,
+    dispatch,
+    onSelectNextDraft,
+    draft?.geometryKey,
+    restoreAttachedMeasurement,
+  ]);
 
   const handleSaveComplete = useCallback(() => {
     if (featureId) {
@@ -530,6 +565,7 @@ const FeaturesFormsWrapper = ({
         keyTablesData,
         draft?.bestandLeuchtenCount ?? 0
       );
+      const previousGeometryKey = draft?.geometryKey;
       // Clear case: user hit the "x" in the allowClear select.
       if (!newKey) {
         const newFeature = buildSyntheticFeature(
@@ -548,6 +584,9 @@ const FeaturesFormsWrapper = ({
             ),
           })
         );
+        // Releasing the attachment — bring the measurement back into
+        // terra-draw so the user sees it again on the map.
+        restoreAttachedMeasurement(previousGeometryKey);
         if (selectedFeatureId) {
           selectFeature(selectedFeatureId, newFeature as never);
         }
@@ -563,6 +602,13 @@ const FeaturesFormsWrapper = ({
         enrichedValues,
         geom
       );
+      // Switching to a different geometry — restore the previous
+      // measurement attachment (if any) before consuming the new one.
+      // Same-key re-pick is a no-op for restore (the feature isn't in
+      // terra-draw to begin with).
+      if (previousGeometryKey && previousGeometryKey !== newKey) {
+        restoreAttachedMeasurement(previousGeometryKey);
+      }
       dispatch(
         setDraft({
           featureId,
@@ -577,21 +623,21 @@ const FeaturesFormsWrapper = ({
           geometry: geom,
           geometryKey: newKey,
           geometryWgs84: opt.geometryWgs84,
-          // Stash the label so the selector can still show it after the
-          // measurement is deleted just below.
+          // Stash the label as a fallback for the case where the user
+          // deletes the underlying measurement from terra-draw while it's
+          // attached — the dropdown then falls back to this label.
           measurementLabel: isMeasurement ? opt.label : undefined,
         })
       );
-      // The draft now carries the geometry (and renders on the map as a
-      // styled feature). Drop the measurement scaffold so it isn't shown
-      // twice — remove it from the store and the terra-draw layer. The draft
-      // keeps its own WGS84-geometry feature, so nothing is lost.
+      // Hide the measurement from terra-draw while it backs the draft —
+      // the draft renders its own styled feature in its place. The
+      // measurement stays in Redux so the dropdown can still show it and
+      // a later detach can restore it without data loss.
       if (isMeasurement) {
         const consumed = measurements.find(
           (f) => `measurement.${String(f.id)}` === newKey
         );
         if (consumed) {
-          dispatch(setMeasurements(measurements.filter((f) => f !== consumed)));
           const rawId = String(consumed.id).replace(/^measurement\./, "");
           removeMeasurements([rawId]);
         }
@@ -607,12 +653,14 @@ const FeaturesFormsWrapper = ({
       formKey,
       draft?.values,
       draft?.bestandLeuchtenCount,
+      draft?.geometryKey,
       geometryOptions,
       keyTablesData,
       measurements,
       dispatch,
       selectedFeatureId,
       selectFeature,
+      restoreAttachedMeasurement,
     ]
   );
 

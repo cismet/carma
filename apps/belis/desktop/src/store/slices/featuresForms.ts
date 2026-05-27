@@ -58,9 +58,11 @@ export interface Draft {
   // wipe it.
   linkedStandortLabel?: string;
   // Label of the measurement a creation draft was built from (e.g. "P4").
-  // The measurement is deleted from the store the moment it's assigned, so
-  // its dropdown option is gone — this stashed label lets the Neue Geometrien
-  // selector still show a human label. Mirrors `linkedStandortLabel`.
+  // Stashed as a fallback for the edge case where the user deletes the
+  // underlying measurement via terra-draw while it's attached — the
+  // measurement is normally kept in the measurements slice while attached
+  // (just hidden from terra-draw), so the dropdown sources its label from
+  // there. Mirrors `linkedStandortLabel`.
   measurementLabel?: string;
   // Original Fachobjekt ids (by source-layer) to suppress on the regular
   // vector-tile layers while this draft exists — e.g. the parent Standort id
