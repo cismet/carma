@@ -7,6 +7,7 @@ import {
   getAllCreationDefaults,
   getAllSelectionDefaults,
   pickRememberedValues,
+  recordDefaults,
   recordSelectionDefaults,
 } from "../../store/slices/creationDefaults";
 import { getSelectedFeature } from "../../store/slices/featureCollection";
@@ -153,6 +154,16 @@ export const useCreateFeatureDraft = () => {
         );
       } else {
         seedSource = allSelectionDefaults[key] ?? allDefaults[key];
+      }
+      // Sync the draft-chain memory (`defaults`) to whatever values we just
+      // seeded the new draft with. The per-field green/gray highlight diffs
+      // against `defaults`; without this sync, a draft seeded purely from
+      // `selectionDefaults` (e.g. after opening an existing Fachobjekt that
+      // wrote selectionDefaults but never touched defaults) would render
+      // every prefilled field gray on first paint, even though those values
+      // are exactly the remembered template the user intended.
+      if (seedSource && Object.keys(seedSource).length > 0) {
+        dispatch(recordDefaults({ featureType: key, values: seedSource }));
       }
       const seededValues: Record<string, unknown> = {
         ...(seedSource ?? {}),
