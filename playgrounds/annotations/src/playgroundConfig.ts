@@ -1,4 +1,5 @@
 import type { AnnotationInfoBoxVisualOptions } from "@carma-mapping/annotations/ui";
+import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 import {
   defaultAnnotationToolPlugins,
   distanceToolPlugin,
@@ -6,7 +7,6 @@ import {
   selectToolPlugin,
 } from "@carma-mapping/annotations/builtin-tools";
 import {
-  type AnnotationToolId,
   type AnnotationsRuntimeFormatOptions,
   type PartialAnnotationLineLabelOptions,
 } from "@carma-mapping/annotations/runtime";

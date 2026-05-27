@@ -37,6 +37,7 @@ export {
   isAreaAnnotationType,
 } from "./lib/types/annotation-types";
 export type {
+  AnnotationToolId,
   AnnotationType,
   AnnotationTypes,
   DerivedNodeChainAnnotation,

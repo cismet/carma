@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { faRuler } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
+import { ANNOTATION_TYPES } from "@carma-mapping/annotations/core";
 import { useAnnotationsRuntime } from "@carma-mapping/annotations/runtime";
 import type { AnnotationModeText } from "@carma-mapping/annotations/builtin-tools/annotation-mode-text";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
@@ -170,8 +171,7 @@ export function useCesiumAnnotationLayerButton() {
     if (
       !shouldShowCesiumAnnotationLayer ||
       annotationEntries.length > 0 ||
-      activeToolType !== "select" ||
-      activeToolType === defaultToolId ||
+      activeToolType !== ANNOTATION_TYPES.SELECT ||
       !registry.getPlugin(defaultToolId)
     ) {
       return;

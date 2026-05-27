@@ -1,11 +1,13 @@
-import type { AnnotationTypes } from "@carma-mapping/annotations/core";
+import type {
+  AnnotationToolId,
+  AnnotationTypes,
+} from "@carma-mapping/annotations/core";
 import type {
   AddAnnotationOptions,
   CesiumGeographicCoordinate,
   AnnotationNodeLinkId,
   StoredAnnotation,
 } from "@carma-mapping/annotations/runtime";
-import type { AnnotationToolId } from "@carma-mapping/annotations/runtime";
 export type NodeChainAreaToolAction = "undoLastPoint" | "cancelPreview";
 
 export const appendAreaPreviewPoint = <T>(

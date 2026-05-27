@@ -5,8 +5,8 @@ import type {
 import type {
   AnnotationToolDraftState,
   AnnotationToolDraftStore,
-} from "../../registry/annotation-tool-plugin.types";
-import type { AnnotationToolId } from "../../registry/annotation-tool-id";
+} from "../../registry";
+import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 import { areCoordinateListsEqual } from "../../utils/coordinate-equality";
 
 const EMPTY_DRAFT_COORDINATES: readonly CesiumGeographicCoordinate[] = [];

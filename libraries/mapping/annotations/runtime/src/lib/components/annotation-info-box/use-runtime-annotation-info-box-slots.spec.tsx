@@ -1,5 +1,6 @@
 import { render, renderHook, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ANNOTATION_TYPES } from "@carma-mapping/annotations/core";
 
 import type {
   AnnotationToolPlugin,
@@ -29,9 +30,9 @@ const createPlugin = ({
   id,
   getSlots,
 }: {
-  annotationType?: string | null;
+  annotationType?: AnnotationToolPlugin["annotationType"];
   helpText?: readonly string[];
-  id: string;
+  id: AnnotationToolPlugin["id"];
   getSlots?: AnnotationInfoBoxGetSlots;
 }): AnnotationToolPlugin => ({
   annotationType,
@@ -63,7 +64,7 @@ const createAnnotation = ({
   toolType,
 }: {
   id: string;
-  toolType: string;
+  toolType: StoredAnnotation["toolType"];
 }): StoredAnnotation =>
   ({
     edgeIds: [],
@@ -75,7 +76,7 @@ const createAnnotation = ({
 const createRuntime = (
   overrides: Record<string, unknown> = {}
 ): Record<string, unknown> => ({
-  activeToolType: "select",
+  activeToolType: ANNOTATION_TYPES.SELECT,
   annotationEntries: [],
   elevationReferenceAnnotationId: null,
   exportAnnotationGeoJson: vi.fn(),
@@ -103,7 +104,7 @@ describe("useRuntimeAnnotationInfoBoxSlots", () => {
   it("resolves selected annotation slots through the owning plugin", () => {
     const annotation = createAnnotation({
       id: "distance-1",
-      toolType: "distance",
+      toolType: ANNOTATION_TYPES.DISTANCE,
     });
     const slots = {
       headingTitle: "Distance",
@@ -115,9 +116,9 @@ describe("useRuntimeAnnotationInfoBoxSlots", () => {
       showSubtitleMetaText: false,
     }));
     const plugin = createPlugin({
-      annotationType: "distance",
+      annotationType: ANNOTATION_TYPES.DISTANCE,
       getSlots,
-      id: "distance",
+      id: ANNOTATION_TYPES.DISTANCE,
     });
 
     useAnnotationsRuntimeMock.mockReturnValue(
@@ -162,7 +163,7 @@ describe("useRuntimeAnnotationInfoBoxSlots", () => {
   it("resolves active tool help text as fallback slots when requested", () => {
     const plugin = createPlugin({
       helpText: ["Klick auf die Karte.", "Jeder weitere Klick misst neu."],
-      id: "point",
+      id: ANNOTATION_TYPES.POINT,
     });
 
     useAnnotationsRuntimeMock.mockReturnValue(
@@ -198,7 +199,7 @@ describe("useRuntimeAnnotationInfoBoxSlots", () => {
   it("does not return fallback slots unless fallback rendering is enabled", () => {
     const plugin = createPlugin({
       helpText: ["Klick auf die Karte."],
-      id: "point",
+      id: ANNOTATION_TYPES.POINT,
     });
 
     useAnnotationsRuntimeMock.mockReturnValue(

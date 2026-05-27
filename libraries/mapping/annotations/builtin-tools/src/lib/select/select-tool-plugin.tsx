@@ -1,13 +1,12 @@
 import { faArrowPointer } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { ANNOTATION_TYPES } from "@carma-mapping/annotations/core";
 import {
   createInteractionToolPlugin,
   INTERACTION_PLUGIN_CAPABILITIES,
 } from "@carma-mapping/annotations/runtime";
 import type { DefaultAnnotationToolTexts } from "../annotation-mode-text";
 import { defaultAnnotationToolTexts } from "../annotation-mode-text";
-
-const toolId = "select";
 
 export type SelectToolPluginOptions = {
   texts?: DefaultAnnotationToolTexts;
@@ -19,10 +18,10 @@ export const createSelectToolPlugin = ({
   const text = texts.select;
 
   return createInteractionToolPlugin({
-    id: toolId,
+    id: ANNOTATION_TYPES.SELECT,
     annotationType: null,
     descriptor: {
-      id: toolId,
+      id: ANNOTATION_TYPES.SELECT,
       order: 10,
       label: text.label,
       tooltip: text.tooltip,
@@ -33,9 +32,9 @@ export const createSelectToolPlugin = ({
     capabilities: INTERACTION_PLUGIN_CAPABILITIES,
     session: {
       createSession: ({ setActiveToolType }) => ({
-        toolType: toolId,
+        toolType: ANNOTATION_TYPES.SELECT,
         requestStart: () => {
-          setActiveToolType(toolId);
+          setActiveToolType(ANNOTATION_TYPES.SELECT);
         },
         requestFinish: () => false,
         discardDraft: () => undefined,

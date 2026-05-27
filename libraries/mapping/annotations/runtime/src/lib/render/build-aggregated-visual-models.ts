@@ -1,7 +1,7 @@
 import type {
   AnnotationToolPlugin,
   AnnotationToolVisualModelContext,
-} from "../registry/annotation-tool-plugin.types";
+} from "../registry";
 import type { RuntimeVisualModels } from "./visual-models";
 
 type BuildAggregatedVisualModelsArgs = AnnotationToolVisualModelContext & {

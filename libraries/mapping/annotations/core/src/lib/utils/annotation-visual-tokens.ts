@@ -2,8 +2,8 @@ import type { Rgb255 } from "@carma-commons/utils";
 
 import {
   ANNOTATION_TYPES,
+  isAreaAnnotationType,
   type AnnotationType,
-  type AnnotationTypes,
 } from "../types/annotation-types";
 import {
   getAnnotationAreaCssColor,
@@ -21,12 +21,6 @@ export type AnnotationLineComponentKind =
 
 export type AnnotationTextTone = "dark" | "light";
 
-type AnnotationSolidBadgeType =
-  | AnnotationTypes["POINT"]
-  | AnnotationTypes["DISTANCE"]
-  | AnnotationTypes["POLYLINE"]
-  | AnnotationTypes["LABEL"];
-
 export const annotationVisualPalette = Object.freeze({
   textRgb255: {
     dark: [17, 24, 39],
@@ -38,7 +32,7 @@ export const annotationVisualPalette = Object.freeze({
     [ANNOTATION_TYPES.DISTANCE]: [102, 126, 234],
     [ANNOTATION_TYPES.POLYLINE]: [226, 178, 60],
     [ANNOTATION_TYPES.LABEL]: [88, 152, 255],
-  } as const satisfies Record<AnnotationSolidBadgeType, Rgb255>,
+  } as const,
   surfaceRgb255: {
     stroke: [255, 255, 255],
     accent: [246, 248, 255],
@@ -130,16 +124,6 @@ export const getAnnotationLineComponentLabelAccentCssColor = (
     annotationVisualPalette.lineComponentRgb255ByKind[kind],
     alpha
   );
-
-const isAreaAnnotationType = (
-  type: AnnotationType
-): type is
-  | AnnotationTypes["AREA_GROUND"]
-  | AnnotationTypes["AREA_PLANAR"]
-  | AnnotationTypes["AREA_VERTICAL"] =>
-  type === ANNOTATION_TYPES.AREA_GROUND ||
-  type === ANNOTATION_TYPES.AREA_PLANAR ||
-  type === ANNOTATION_TYPES.AREA_VERTICAL;
 
 export const getAnnotationShortLabelBackgroundCssColor = (
   type: AnnotationType

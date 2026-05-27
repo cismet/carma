@@ -4,7 +4,7 @@ import type {
   AnnotationToolPluginCapability,
   AnnotationToolRegistry,
 } from "./annotation-tool-plugin.types";
-import type { AnnotationToolId } from "./annotation-tool-id";
+import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 const warnedFallbackKeys = new Set<string>();
 const EMPTY_ANNOTATION_TOOL_PLUGINS: readonly AnnotationToolPlugin[] = [];
 

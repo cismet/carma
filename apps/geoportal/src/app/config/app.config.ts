@@ -9,10 +9,11 @@ import {
 import type { CesiumConfig } from "@carma-mapping/engines/cesium/legacy";
 import type { CesiumModelConfig } from "@carma-mapping/engines/cesium/core";
 import type { LeafletConfig } from "@carma-mapping/engines/leaflet";
-import type {
-  AreaOcclusionStyleOptions,
-  AnnotationToolId,
-  MeasurementLineStyleOptions,
+import { ANNOTATION_TYPES } from "@carma-mapping/annotations/core";
+import type { AnnotationToolId } from "@carma-mapping/annotations/core";
+import {
+  type AreaOcclusionStyleOptions,
+  type MeasurementLineStyleOptions,
 } from "@carma-mapping/annotations/runtime";
 import type { AnnotationInfoBoxLayoutProps } from "@carma-mapping/annotations/ui";
 import { Rectangle } from "cesium";
@@ -148,8 +149,12 @@ export const CESIUM_ANNOTATION_CONFIG = {
     controlOrder: 12,
   },
   tools: {
-    defaultToolId: "distance",
-    stableToolIds: ["select", "point", "distance"],
+    defaultToolId: ANNOTATION_TYPES.DISTANCE,
+    stableToolIds: [
+      ANNOTATION_TYPES.SELECT,
+      ANNOTATION_TYPES.POINT,
+      ANNOTATION_TYPES.DISTANCE,
+    ],
   },
 } satisfies GeoportalCesiumAnnotationConfig;
 

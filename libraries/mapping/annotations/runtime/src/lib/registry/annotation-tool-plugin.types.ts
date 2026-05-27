@@ -24,7 +24,7 @@ import type {
   AnnotationNodeLinkId,
   AnnotationNode,
 } from "../store";
-import type { AnnotationToolId } from "./annotation-tool-id";
+import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 export const ANNOTATION_TOOL_PLUGIN_KINDS = {
   INTERACTION: "interaction",
   MEASUREMENT: "measurement",

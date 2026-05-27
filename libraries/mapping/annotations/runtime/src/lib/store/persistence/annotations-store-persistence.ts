@@ -6,7 +6,7 @@ import type {
   AnnotationNodeLink,
   AnnotationNode,
 } from "../annotations-store.types";
-import type { AnnotationToolId } from "../../registry/annotation-tool-id";
+import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 import {
   normalizeAnnotationShortLabels,
   resolveNextShortLabelCounterByToolType,
@@ -232,7 +232,7 @@ export const loadAnnotationsRuntimePersistenceState = (
       settings: {
         lastActiveToolType:
           typeof parsed.settings?.lastActiveToolType === "string"
-            ? parsed.settings.lastActiveToolType
+            ? (parsed.settings.lastActiveToolType as AnnotationToolId)
             : null,
         elevationReferenceAnnotationId:
           typeof parsed.settings?.elevationReferenceAnnotationId === "string"

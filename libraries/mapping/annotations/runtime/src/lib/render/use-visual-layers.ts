@@ -8,9 +8,11 @@ import type {
   AnnotationNodeLink,
   AnnotationNode,
 } from "../store";
-import type { AnnotationToolPlugin } from "../registry/annotation-tool-plugin.types";
-import type { AnnotationToolDraftState } from "../registry/annotation-tool-plugin.types";
-import type { AnnotationToolId } from "../registry/annotation-tool-id";
+import type {
+  AnnotationToolDraftState,
+  AnnotationToolPlugin,
+} from "../registry";
+import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 import {
   hasNodeCoordinateOverrides,
   splitRuntimeVisualModelsForCoordinateOverlay,

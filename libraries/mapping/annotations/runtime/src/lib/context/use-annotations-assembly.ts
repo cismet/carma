@@ -41,11 +41,11 @@ import {
   type StoredAnnotation,
 } from "../store";
 import { buildAnnotationToolRegistry } from "../registry";
-import type { AnnotationToolId } from "../registry/annotation-tool-id";
+import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 import type {
   AnnotationToolDraftStore,
   AnnotationToolPlugin,
-} from "../registry/annotation-tool-plugin.types";
+} from "../registry";
 import type { Scene } from "@carma-cesium";
 import {
   isShortLabelKind,

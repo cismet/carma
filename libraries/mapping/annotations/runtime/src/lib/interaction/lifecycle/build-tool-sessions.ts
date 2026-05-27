@@ -1,7 +1,7 @@
 import type {
   AnnotationToolRegistry,
   AnnotationToolSessionContext,
-} from "../../registry/annotation-tool-plugin.types";
+} from "../../registry";
 import type { AnnotationModeSessionMap } from "./annotation-mode-session.types";
 export const buildToolSessions = (
   registry: AnnotationToolRegistry,

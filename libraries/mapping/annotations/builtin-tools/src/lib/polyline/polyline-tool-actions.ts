@@ -1,9 +1,9 @@
+import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 import type {
   CesiumGeographicCoordinate,
   AnnotationNodeLinkId,
   StoredAnnotation,
 } from "@carma-mapping/annotations/runtime";
-import type { AnnotationToolId } from "@carma-mapping/annotations/runtime";
 
 export type PolylineToolAction = "appendPoint" | "cancelPreview";
 

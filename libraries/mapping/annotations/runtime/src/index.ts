@@ -192,7 +192,6 @@ export {
   type AnnotationToolDescriptor,
   type AnnotationToolDraftState,
   type AnnotationToolDraftStore,
-  type AnnotationToolId,
   type AnnotationToolKeyboardContext,
   type AnnotationToolPlugin,
   type AnnotationToolPluginCapability,

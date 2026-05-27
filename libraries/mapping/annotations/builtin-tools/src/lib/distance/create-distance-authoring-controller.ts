@@ -1,3 +1,4 @@
+import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 import { isValidScene } from "@carma-mapping/engines/cesium/core";
 
 import { type CesiumGeographicCoordinate } from "@carma-mapping/annotations/runtime";
@@ -6,7 +7,6 @@ import type {
   AnnotationToolAuthoringContext,
   PointQueryPickResult,
 } from "@carma-mapping/annotations/runtime";
-import type { AnnotationToolId } from "@carma-mapping/annotations/runtime";
 import { areCoordinateListsEqual } from "@carma-mapping/annotations/runtime";
 import {
   applyLineLabel,

@@ -9,9 +9,9 @@ import type {
 import type {
   AnnotationToolPlugin,
   AnnotationToolSessionContext,
-} from "../../registry/annotation-tool-plugin.types";
+} from "../../registry";
 import type { Scene } from "@carma-cesium";
-import type { AnnotationToolId } from "../../registry/annotation-tool-id";
+import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 import type { AnnotationModeSessionMap } from "./annotation-mode-session.types";
 import { resolveNodeSnapSample } from "./node-snap.helpers";
 type UsePointQueryToolRoutingParams = {

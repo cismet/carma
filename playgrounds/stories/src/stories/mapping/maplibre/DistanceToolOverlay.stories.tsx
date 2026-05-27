@@ -14,6 +14,7 @@ import {
   ANNOTATION_LINE_COMPONENT_KINDS,
   formatMeasurementShortLabelToken,
   getAnnotationLineComponentCssColor,
+  type AnnotationToolId,
 } from "@carma-mapping/annotations/core";
 import {
   createDistanceToolPlugin,
@@ -27,7 +28,6 @@ import type {
   AnnotationNodeLinkId,
   AnnotationToolDraftState,
   AnnotationToolDraftStore,
-  AnnotationToolId,
   AnnotationToolSessionContext,
   AnnotationToolVisualModelContext,
   AnnotationsStoreState,
