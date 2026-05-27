@@ -55,6 +55,11 @@ export interface VectorStyle {
   /** Optional filter expression to AND into every style layer in this vector style
    *  during construction. Original filter is preserved at metadata.originalFilter. */
   userFilter?: unknown[] | null;
+  /** Optional pure transform applied to the freshly fetched/cloned stylesheet
+   *  before it is merged. See LibreMap.VectorStyle.userStyleTransform. */
+  userStyleTransform?: (style: any) => any;
+  /** Serializable fingerprint of `userStyleTransform`. See LibreMap. */
+  userStyleTransformKey?: string;
 }
 
 export interface GeoJsonStyleMetadata {
@@ -480,14 +485,22 @@ export const vectorStylesToMapLibreStyle = async ({
           }
           if (typeof layer.style === "string") {
             const response = await fetch(layer.style);
-            return { type: "vector" as const, data: await response.json() };
+            const fetched = await response.json();
+            const transformed = layer.userStyleTransform
+              ? layer.userStyleTransform(fetched) ?? fetched
+              : fetched;
+            return { type: "vector" as const, data: transformed };
           }
           // Deep-clone the inline spec so the per-render prefixing below
           // doesn't mutate the caller's object (which would compound IDs
           // on every rerender).
+          const cloned = JSON.parse(JSON.stringify(layer.style));
+          const transformed = layer.userStyleTransform
+            ? layer.userStyleTransform(cloned) ?? cloned
+            : cloned;
           return {
             type: "vector" as const,
-            data: JSON.parse(JSON.stringify(layer.style)),
+            data: transformed,
           };
         } else if (layer.type === "geojson") {
           const result = await extractGeoJson(layer.data!);

@@ -1,8 +1,66 @@
 import type { StyleSpecification } from "maplibre-gl";
 
-import type { Layer } from "@carma-mapping/layers";
+import type { DynamicStylingOptionsConfig, Layer } from "@carma-mapping/layers";
 import type { LibreLayer } from "@carma-mapping/core";
-import { buildFilterExpression } from "@carma-mapping/components";
+import {
+  applyDynamicStylingToStylesheet,
+  buildFilterExpression,
+} from "@carma-mapping/components";
+
+const collectDynamicStylingConfigs = (
+  layer: Layer
+): DynamicStylingOptionsConfig[] => {
+  const raw = Array.isArray(layer.dynamicStyling)
+    ? layer.dynamicStyling
+    : layer.dynamicStyling
+    ? [layer.dynamicStyling]
+    : [];
+  return raw.filter(
+    (c): c is DynamicStylingOptionsConfig =>
+      c.type === "list" || c.type === "toggle"
+  );
+};
+
+const buildDynamicStylingTransform = (
+  layer: Layer
+): { transform: (style: any) => any; key: string } | null => {
+  const configs = collectDynamicStylingConfigs(layer);
+  if (!configs.length) {
+    return null;
+  }
+  const selections =
+    typeof layer.dynamicStylingSelection === "object" &&
+    layer.dynamicStylingSelection !== null
+      ? (layer.dynamicStylingSelection as Record<number, string>)
+      : {};
+  const effective = configs.map((config, idx) => ({
+    config,
+    selection: selections[idx] ?? config.default,
+  }));
+  if (effective.every(({ config, selection }) => selection === config.default)) {
+    return null;
+  }
+  const transform = (style: any) => {
+    let current = style;
+    for (const { config, selection } of effective) {
+      if (selection === config.default) {
+        continue;
+      }
+      const next = applyDynamicStylingToStylesheet(
+        current,
+        layer.id,
+        config,
+        selection
+      );
+      if (next) {
+        current = next;
+      }
+    }
+    return current;
+  };
+  const key = effective.map(({ selection }) => selection).join("|");
+  return { transform, key };
+};
 
 export const geoportalLayersToLibreLayers = (layers: Layer[]): LibreLayer[] => {
   const result: LibreLayer[] = [];
@@ -38,12 +96,19 @@ export const geoportalLayersToLibreLayers = (layers: Layer[]): LibreLayer[] => {
         layer.filterConfig && layer.filterState
           ? buildFilterExpression(layer.filterConfig, layer.filterState)
           : null;
+      const dynamicTransform = buildDynamicStylingTransform(layer);
       result.push({
         type: "vector",
         name: layer.id,
         style,
         opacity: layer.opacity ?? 1,
         ...(userFilter ? { userFilter } : {}),
+        ...(dynamicTransform
+          ? {
+              userStyleTransform: dynamicTransform.transform,
+              userStyleTransformKey: dynamicTransform.key,
+            }
+          : {}),
       });
     }
   }

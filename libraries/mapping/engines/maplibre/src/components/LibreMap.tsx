@@ -96,6 +96,16 @@ export interface VectorStyle {
    *  during style construction. The original filter is preserved at
    *  metadata.originalFilter so consumers can still recover it. */
   userFilter?: unknown[] | null;
+  /** Optional pure transform applied to the freshly fetched/cloned stylesheet
+   *  before it is merged into the composite style. Used to bake in features
+   *  like dynamic styling selections so the merged map reflects them on the
+   *  first render. Must return a stylesheet (modified or original); returning
+   *  a falsy value keeps the input unchanged. */
+  userStyleTransform?: (style: any) => any;
+  /** Serializable fingerprint of `userStyleTransform`'s effective output.
+   *  Hosts that memoize LibreLayer arrays via JSON.stringify need this to
+   *  detect transform changes (functions are stripped by JSON.stringify). */
+  userStyleTransformKey?: string;
 }
 
 /**
