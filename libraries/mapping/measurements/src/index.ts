@@ -5,7 +5,10 @@ export type {
   MeasurementHostProps,
   MeasurementHostHandle,
 } from "./lib/MeasurementHost";
-export { removeMeasurements } from "./lib/measurementHostHandle";
+export {
+  removeMeasurements,
+  addMeasurements,
+} from "./lib/measurementHostHandle";
 export { SnappingToggleControl } from "./lib/SnappingToggleControl";
 export type { SnappingToggleControlProps } from "./lib/SnappingToggleControl";
 export {

@@ -23,7 +23,10 @@ import {
   getSnappableLayerIds,
   type SnapMode,
 } from "./snapping";
-import { setActiveRemoveFeatures } from "./measurementHostHandle";
+import {
+  setActiveRemoveFeatures,
+  setActiveAddFeatures,
+} from "./measurementHostHandle";
 
 const DEFAULT_SNAP_RADIUS_PX = 20;
 const SNAP_PREVIEW_SOURCE_ID = "carma-measurements-snap-preview";
@@ -1068,8 +1071,19 @@ export const MeasurementHost = forwardRef<
         console.warn("[carma-measurements] removeFeatures failed", e);
       }
     });
+    setActiveAddFeatures((features) => {
+      const draw = drawRef.current;
+      if (!draw) return;
+      try {
+        draw.addFeatures(features as GeoJSONStoreFeatures[]);
+      } catch (e) {
+        // Duplicate id or terra-draw not currently running — non-fatal.
+        console.warn("[carma-measurements] addFeatures failed", e);
+      }
+    });
     return () => {
       setActiveRemoveFeatures(null);
+      setActiveAddFeatures(null);
     };
   }, []);
 
