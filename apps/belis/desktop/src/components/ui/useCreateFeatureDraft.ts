@@ -3,7 +3,11 @@ import { useDispatch, useSelector } from "react-redux";
 import { removeMeasurements } from "@carma-mapping/measurements";
 import { useMapPage } from "../../contexts/MapPageContext";
 import type { CreateFeatureType } from "../../contexts/MapPageContext";
-import { setDraft, setGlobalEditMode } from "../../store/slices/featuresForms";
+import {
+  getAllDrafts,
+  setDraft,
+  setGlobalEditMode,
+} from "../../store/slices/featuresForms";
 import {
   getAllCreationDefaults,
   getAllSelectionDefaults,
@@ -36,6 +40,16 @@ const STANDORT_SOURCE_LAYERS = new Set([
   "mast",
   "standorte",
 ]);
+
+// Geometry-type compatibility for auto-attaching a measurement to a new
+// draft. Leitungen are linestrings; every other Fachobjekt is a point.
+const measurementMatchesFeatureType = (
+  featureType: string,
+  geometryType: string
+): boolean =>
+  featureType === "leitung"
+    ? geometryType === "LineString"
+    : geometryType === "Point";
 
 // The Redux selectedFeature can come through two shapes:
 //   - raw MapLibre click: { sourceLayer, id, properties: <flat tile props>, geometry }
@@ -93,6 +107,7 @@ export const useCreateFeatureDraft = () => {
   const allSelectionDefaults = useSelector(getAllSelectionDefaults);
   const keyTablesData = useSelector(getKeyTablesData);
   const measurementsFeatures = useSelector(getMeasurements);
+  const allDrafts = useSelector(getAllDrafts);
 
   return useCallback(
     (
@@ -139,12 +154,18 @@ export const useCreateFeatureDraft = () => {
         }
       }
 
-      // Auto-attach a currently-selected measurement to the new draft.
-      // Selection is mutually exclusive (the Fachobjekt and the measurement
-      // share one selectedFeature slot), so we only run this branch when
-      // the standort-link branch above did NOT claim the selection. The
-      // measurement is hidden from terra-draw below — its record stays in
-      // Redux so the dropdown shows it and a later detach can restore it.
+      // Auto-attach a measurement to the new draft when one is in play.
+      // Two paths, in priority order:
+      //   1. The user has a measurement currently selected — use it.
+      //      Selection is mutually exclusive (Fachobjekt and measurement
+      //      share one selectedFeature slot), so this branch only fires
+      //      when the standort-link branch above did NOT claim selection.
+      //   2. Nothing selected, but exactly one *unclaimed* measurement on
+      //      the map matches the geometry type the feature type expects
+      //      (Leitung → LineString, everything else → Point). Use it.
+      // Either way the measurement is hidden from terra-draw below — its
+      // Redux record stays so the dropdown shows it and a later detach
+      // can restore it.
       let measurementOption: MeasurementGeometryOption | null = null;
       let measurementSourceFeature: GeoJSON.Feature | null = null;
       if (!standortOption && !options?.linkToSelectedStandort) {
@@ -157,11 +178,36 @@ export const useCreateFeatureDraft = () => {
           const found = measurementsFeatures.find(
             (f) => String(f.id) === measurementId
           );
-          if (found) {
+          if (
+            found &&
+            measurementMatchesFeatureType(key, found.geometry.type)
+          ) {
             const opts = buildMeasurementGeometryOptions([found]);
             if (opts.length > 0) {
               measurementOption = opts[0];
               measurementSourceFeature = found;
+            }
+          }
+        }
+        if (!measurementOption) {
+          // Skip measurements already attached to another draft — those are
+          // hidden from terra-draw and "claimed"; auto-attaching here would
+          // steal them and break the owning draft.
+          const claimedKeys = new Set<string>();
+          for (const d of Object.values(allDrafts)) {
+            const gk = d.geometryKey;
+            if (gk && gk.startsWith("measurement.")) claimedKeys.add(gk);
+          }
+          const compatible = measurementsFeatures.filter(
+            (f) =>
+              measurementMatchesFeatureType(key, f.geometry.type) &&
+              !claimedKeys.has(`measurement.${String(f.id)}`)
+          );
+          if (compatible.length === 1) {
+            const opts = buildMeasurementGeometryOptions([compatible[0]]);
+            if (opts.length > 0) {
+              measurementOption = opts[0];
+              measurementSourceFeature = compatible[0];
             }
           }
         }
@@ -285,6 +331,7 @@ export const useCreateFeatureDraft = () => {
       allSelectionDefaults,
       keyTablesData,
       measurementsFeatures,
+      allDrafts,
       onOpenCreationDraft,
     ]
   );
