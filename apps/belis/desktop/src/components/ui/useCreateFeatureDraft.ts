@@ -67,11 +67,13 @@ export const extractStandortFeatureInfo = (
  * "Leuchte" entry always creates an empty, unlinked draft.
  *
  * Seeding source depends on the caller (#645):
- *   - default (toolbar dropdown): the draft-to-draft chain memory only
- *     (`creationDefaults.defaults`) — never a Fachobjekt selection.
- *   - `options.seedFromSelection` (per-form "+" button): the feature last
- *     selected in Fachobjekte (`creationDefaults.selectionDefaults`), falling
- *     back to the draft-chain memory when nothing has been selected.
+ *   - default (toolbar dropdown) and `options.seedFromSelection` (per-form
+ *     "+" button) share the same source: the feature last selected in
+ *     Fachobjekte / last captured by a green "+" press
+ *     (`creationDefaults.selectionDefaults`), falling back to the draft-chain
+ *     memory (`creationDefaults.defaults`) when nothing has been captured.
+ *     A remembered template wins regardless of which creation path the user
+ *     takes.
  */
 export const useCreateFeatureDraft = () => {
   const { onOpenCreationDraft } = useMapPage();
@@ -136,10 +138,12 @@ export const useCreateFeatureDraft = () => {
       //     draft. Seed straight from that draft's current values and
       //     overwrite the remembered "last values" so the next new draft —
       //     and the clear button — mirror what was just on screen.
-      //   - seedFromSelection: the per-form "+" button on an existing
-      //     Fachobjekt — use the Fachobjekt selection memory, falling back to
-      //     the draft-chain memory.
-      //   - default (toolbar dropdown): the draft-chain memory only.
+      //   - seedFromSelection (per-form "+" button on an existing Fachobjekt)
+      //     and the toolbar dropdown share the same fallback chain: the
+      //     selection memory first, draft-chain second. A user-captured
+      //     template (green "+" press, or opening an existing Fachobjekt)
+      //     should pre-fill the next new feature regardless of which path
+      //     creates it.
       let seedSource: Record<string, unknown> | undefined;
       if (options?.seedValues) {
         const serialized = serializeValues(options.seedValues);
@@ -147,10 +151,8 @@ export const useCreateFeatureDraft = () => {
         dispatch(
           recordSelectionDefaults({ featureType: key, values: serialized })
         );
-      } else if (options?.seedFromSelection) {
-        seedSource = allSelectionDefaults[key] ?? allDefaults[key];
       } else {
-        seedSource = allDefaults[key];
+        seedSource = allSelectionDefaults[key] ?? allDefaults[key];
       }
       const seededValues: Record<string, unknown> = {
         ...(seedSource ?? {}),

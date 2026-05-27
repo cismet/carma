@@ -24,6 +24,7 @@ import {
   getAllowlistedPaths,
   getCreationDefaults,
   recordDefaults,
+  recordSelectionDefaults,
 } from "../../../store/slices/creationDefaults";
 import type { RootState } from "../../../store";
 import { serializeValues, deserializeValues } from "../../../helper/draftSerialize";
@@ -257,6 +258,14 @@ const LeuchteForm = ({
     setLastEditedLeuchteTabId("main");
   }, [featureId]);
 
+  // Mirrors the tab currently displayed in FeatureFormLayout. Drives the
+  // header green "+" so it seeds the new draft from the tab the user is
+  // looking at (Leuchte 2 → Leuchte 2's values), not always Leuchte 1.
+  // "general" is Leuchte 1; extra Leuchten tabs use their `_tabId`; the
+  // Standort/Mast additional tab uses its own key — when the user is on a
+  // non-Leuchten tab we leave the Leuchte 1 slice in place as today.
+  const [activeFormTabKey, setActiveFormTabKey] = useState<string>("general");
+
   const handleLeuchteValuesChange = useCallback(
     (
       changedValues: Record<string, unknown>,
@@ -434,17 +443,22 @@ const LeuchteForm = ({
     // re-render of this same draft (e.g. on switching back to it) then finds
     // the ref cleared and won't re-assert its now-stale values.
     editedDraftIdRef.current = undefined;
-    dispatch(
-      recordDefaults({
-        featureType: "leuchte",
-        values: {
-          leuchte: serializeValues(referenceLeuchteValues),
-          mast: serializeValues(
-            (draftValues?.mast ?? {}) as Record<string, unknown>
-          ),
-        },
-      })
-    );
+    const recordPayload = {
+      featureType: "leuchte",
+      values: {
+        leuchte: serializeValues(referenceLeuchteValues),
+        mast: serializeValues(
+          (draftValues?.mast ?? {}) as Record<string, unknown>
+        ),
+      },
+    };
+    dispatch(recordDefaults(recordPayload));
+    // Mirror into the selection memory so the next dropdown- or "+"-driven
+    // creation reflects what the user just did — including a full clear.
+    // Without this, an earlier open-existing or green-"+" event leaves a
+    // stale template in selectionDefaults that the dropdown would still
+    // prefer over the now-empty defaults memory.
+    dispatch(recordSelectionDefaults(recordPayload));
   }, [
     isCreation,
     referenceLeuchteValues,
@@ -1161,14 +1175,25 @@ const LeuchteForm = ({
       additionalTabs={additionalTabs}
       extraGeneralTabs={extraGeneralTabs}
       onAddTab={showCreationStandortTab ? handleAddLeuchteTab : undefined}
-      onCreateRelatedDraft={() =>
-        createFeatureDraft(
-          "leuchte",
-          isCreation && draftValues
-            ? { seedValues: draftValues }
-            : { seedFromSelection: true }
-        )
-      }
+      onActiveTabChange={setActiveFormTabKey}
+      onCreateRelatedDraft={() => {
+        // Header green "+": seed the new draft from the Leuchten tab the user
+        // is looking at. The default `draftValues.leuchte` is Leuchte 1; when
+        // an extra Leuchten tab is active we swap that slice for the tab's
+        // own field bag so the new draft mirrors the visible tab. `_tabId`
+        // is not in the allowlist, so `pickRememberedValues` drops it.
+        if (isCreation && draftValues) {
+          const activeExtra = activeFormTabKey?.startsWith("extra-")
+            ? extraLeuchten.find((e) => e._tabId === activeFormTabKey)
+            : undefined;
+          const seedValues = activeExtra
+            ? { ...draftValues, leuchte: activeExtra }
+            : draftValues;
+          createFeatureDraft("leuchte", { seedValues });
+          return;
+        }
+        createFeatureDraft("leuchte", { seedFromSelection: true });
+      }}
       generalTabLabel={
         isCreation ? (
           <span>

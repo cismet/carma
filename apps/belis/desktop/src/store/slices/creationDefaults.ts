@@ -251,12 +251,14 @@ const creationDefaultsSlice = createSlice({
         ? mergeDefaults(existing, picked)
         : picked;
     },
-    // Seed the "+" button's memory from an existing feature selected in
-    // Fachobjekte. Written into `selectionDefaults` — kept apart from the
-    // draft-chain `defaults` so the toolbar dropdown never inherits it.
-    // Replaces wholesale (no merge): the next new draft must mirror the
-    // selected feature exactly, so a field it left blank stays blank — a
-    // merge would let a stale value from an earlier selection leak through.
+    // Seed the in-form "+" and toolbar dropdown's memory from an existing
+    // feature selected in Fachobjekte (or captured by a green "+" press).
+    // Written into `selectionDefaults`; both creation paths now read this
+    // before falling back to the draft-chain `defaults`, so a user-captured
+    // template pre-fills the next new feature regardless of which "+" they
+    // click. Replaces wholesale (no merge): the next new draft must mirror
+    // the selected feature exactly, so a field it left blank stays blank —
+    // a merge would let a stale value from an earlier selection leak through.
     recordSelectionDefaults(
       state,
       action: PayloadAction<{
@@ -289,7 +291,12 @@ const creationDefaultsSlice = createSlice({
           const stillActive = Object.values(state.draftIdToType).includes(
             featureType
           );
-          if (!stillActive) delete state.defaults[featureType];
+          if (!stillActive) {
+            delete state.defaults[featureType];
+            // Clear the selection memory too so the next dropdown or "+"
+            // creation doesn't resurrect the discarded draft's template.
+            delete state.selectionDefaults[featureType];
+          }
           return;
         }
 
@@ -310,6 +317,11 @@ const creationDefaultsSlice = createSlice({
         const picked = pickAllowed(featureType, values);
         if (picked) {
           state.defaults[featureType] = picked;
+          // Mirror into the selection memory so the dropdown — which now
+          // reads `selectionDefaults ?? defaults` — reflects the latest
+          // edits even after an earlier open-existing or green-"+" event
+          // left a stale template behind.
+          state.selectionDefaults[featureType] = picked;
         }
       })
       .addCase(removeDraft, (state, action) => {
@@ -352,8 +364,10 @@ export const getAllCreationDefaults = (
 ): Record<string, Record<string, unknown>> =>
   state.creationDefaults?.defaults ?? {};
 
-// Per-type values copied from a feature selected in Fachobjekte. Only the
-// per-form "+" button reads this; the toolbar dropdown deliberately does not.
+// Per-type values copied from a feature selected in Fachobjekte, or captured
+// when the user presses a green "+" inside an in-progress draft. Both the
+// in-form "+" button and the toolbar dropdown read this before falling back
+// to the draft-chain `defaults` memory.
 export const getAllSelectionDefaults = (
   state: RootState
 ): Record<string, Record<string, unknown>> =>
