@@ -2940,10 +2940,15 @@ const BelisMapLibWrapper = ({
       }
 
       const standorte = candidates.filter((h) => h.sourceLayer === "standorte");
-      if (standorte.length > 0) {
-        return standorte[0];
+      const chosen = standorte.length > 0 ? standorte[0] : candidates[0];
+      // Clicking an existing (non-draft) Fachobjekt while the Entwürfe tab is
+      // active means the user wants to inspect that Fachobjekt — the row lives
+      // in the Fachobjekte tab. Flip back so the selected row becomes visible.
+      // Functional setState keeps `sidebarMode` out of the callback deps.
+      if (chosen) {
+        setSidebarMode((prev) => (prev === "drafts" ? "fachobjekte" : prev));
       }
-      return candidates[0];
+      return chosen;
     },
     [map, sidebarVariant, dispatch, handleAAFeatureSelect, allDraftFeatures]
   );
