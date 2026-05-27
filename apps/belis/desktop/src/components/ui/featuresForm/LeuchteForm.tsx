@@ -203,6 +203,11 @@ const LeuchteForm = ({
   // Leuchte 1 (the "primary" form) — `handleSave` reads its values to build
   // the save payload. Extra Leuchten tabs are local-only until Scope B lands.
   const primaryFormRef = useRef<FormInstance | null>(null);
+  // Bumped when Leuchte 1 is deleted and `leuchten[0]` is promoted into the
+  // primary slot. Drives a remount of the Leuchte 1 form so the latched
+  // `draftApplied` flag inside LeuchteFormFields is reset and the promoted
+  // values render wholesale instead of being filtered to "empty fields only".
+  const [primaryFormResetKey, setPrimaryFormResetKey] = useState(0);
   // Strassenschluessel/Kennziffer mirroring from the Standort/Mast tab into
   // each Leuchten tab now happens inside `LeuchteFormFields` itself, pulling
   // from the Mast draft slice via the `mastDraftValues` prop. No registry,
@@ -563,6 +568,31 @@ const LeuchteForm = ({
     },
     [draftValues, onDraftChange]
   );
+  // Delete Leuchte 1 by promoting `leuchten[0]` into the primary `leuchte`
+  // slot. Bumps `primaryFormResetKey` so the Leuchte 1 form remounts and
+  // applies the promoted values wholesale (see comment on the ref).
+  const handleRemoveFirstLeuchte = useCallback(() => {
+    const current = (draftValues?.leuchten ?? []) as Array<
+      Record<string, unknown>
+    >;
+    if (current.length === 0) return;
+    const [promoted, ...rest] = current;
+    const { _tabId: promotedTabId, ...promotedFields } = promoted;
+    void promotedTabId;
+    const nextDraft: Record<string, unknown> = {
+      ...draftValues,
+      leuchte: promotedFields,
+    };
+    if (rest.length > 0) {
+      nextDraft.leuchten = rest;
+    } else {
+      delete nextDraft.leuchten;
+    }
+    setLastEditedLeuchteTabId("main");
+    editedDraftIdRef.current = featureId;
+    setPrimaryFormResetKey((n) => n + 1);
+    onDraftChange?.(nextDraft);
+  }, [draftValues, onDraftChange, featureId]);
   const handleExtraValuesChange = useCallback(
     (
       tabId: string,
@@ -1140,7 +1170,24 @@ const LeuchteForm = ({
         )
       }
       generalTabLabel={
-        isCreation ? `Leuchte ${bestandOffset + 1}` : undefined
+        isCreation ? (
+          <span>
+            Leuchte {bestandOffset + 1}
+            {extraLeuchten.length > 0 && (
+              <CloseOutlined
+                role="button"
+                aria-label={`Leuchte ${bestandOffset + 1} entfernen`}
+                style={{ fontSize: 10, marginLeft: 4, color: "#8c8c8c" }}
+                onClick={(e) => {
+                  // Antd Tabs routes label clicks to onChange; stop propagation
+                  // so removing this tab doesn't also re-activate it.
+                  e.stopPropagation();
+                  handleRemoveFirstLeuchte();
+                }}
+              />
+            )}
+          </span>
+        ) : undefined
       }
       additionalTabsPosition={isCreation ? "before" : undefined}
       loading={loading}
@@ -1161,6 +1208,7 @@ const LeuchteForm = ({
        * outer FeaturesFormsWrapper provider already supplies the right diff. */}
       {isCreation ? (
         <ChangedFieldsProvider
+          key={primaryFormResetKey}
           originalValues={{}}
           draftValues={{
             leuchte: (draftValues?.leuchte ?? {}) as Record<string, unknown>,

@@ -85,8 +85,9 @@ interface FeatureFormLayoutProps {
   onCreateRelatedDraft?: () => void;
   /** Color of the header "+" create-related-draft button. Defaults to "green". */
   createDraftButtonVariant?: "green" | "white";
-  /** Label for the main/general tab. Defaults to "Allgemein". */
-  generalTabLabel?: string;
+  /** Label for the main/general tab. Defaults to "Allgemein". Accepts a
+   * ReactNode so callers (e.g. LeuchteForm) can embed an inline close icon. */
+  generalTabLabel?: ReactNode;
   /** Whether additional tabs render before or after the general tab. Default "after". */
   additionalTabsPosition?: "before" | "after";
   loading?: boolean;
