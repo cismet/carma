@@ -99,6 +99,7 @@ export const useBrandnewFcSync = ({
 
     const tick = async () => {
       if (stopped) return;
+      let sourceNotReady = false;
       try {
         const md5Res = await fetch(`${dataUrl}.md5`, { cache: "no-store" });
         if (!md5Res.ok) {
@@ -137,6 +138,7 @@ export const useBrandnewFcSync = ({
         const count = fc.features?.length ?? 0;
         const src = getSource();
         if (!src || typeof src.setData !== "function") {
+          sourceNotReady = true;
           console.warn(
             LOG_PREFIX,
             "source not yet registered on map; will retry:",
@@ -165,7 +167,7 @@ export const useBrandnewFcSync = ({
       } finally {
         if (!stopped) {
           const nextDelay =
-            Date.now() < burstUntil
+            sourceNotReady || Date.now() < burstUntil
               ? Math.min(BURST_INTERVAL_MS, intervalMs)
               : intervalMs;
           timer = setTimeout(tick, nextDelay);
