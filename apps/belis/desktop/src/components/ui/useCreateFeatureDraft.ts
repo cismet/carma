@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { removeMeasurements } from "@carma-mapping/measurements";
 import { useMapPage } from "../../contexts/MapPageContext";
 import type { CreateFeatureType } from "../../contexts/MapPageContext";
 import { setDraft, setGlobalEditMode } from "../../store/slices/featuresForms";
@@ -11,6 +12,10 @@ import {
   recordSelectionDefaults,
 } from "../../store/slices/creationDefaults";
 import { getSelectedFeature } from "../../store/slices/featureCollection";
+import {
+  getMeasurements,
+  MEASUREMENT_FEATUREKIND,
+} from "../../store/slices/measurements";
 import { getKeyTablesData } from "../../store/slices/keyTables";
 import { serializeValues } from "../../helper/draftSerialize";
 import {
@@ -18,7 +23,11 @@ import {
   buildSyntheticFetchedData,
   enrichSyntheticProps,
 } from "../../helper/buildSyntheticFeature";
-import { buildStandortGeometryOption } from "../../helper/geometryOptions";
+import {
+  buildMeasurementGeometryOptions,
+  buildStandortGeometryOption,
+  type MeasurementGeometryOption,
+} from "../../helper/geometryOptions";
 
 const STANDORT_SOURCE_LAYERS = new Set([
   "tdta_standort_mast",
@@ -83,6 +92,7 @@ export const useCreateFeatureDraft = () => {
   const allDefaults = useSelector(getAllCreationDefaults);
   const allSelectionDefaults = useSelector(getAllSelectionDefaults);
   const keyTablesData = useSelector(getKeyTablesData);
+  const measurementsFeatures = useSelector(getMeasurements);
 
   return useCallback(
     (
@@ -129,9 +139,38 @@ export const useCreateFeatureDraft = () => {
         }
       }
 
-      const geomKey: string | undefined = standortOption?.key;
-      const geom: GeoJSON.Geometry | undefined = standortOption
-        ? (standortOption.geometry as GeoJSON.Geometry)
+      // Auto-attach a currently-selected measurement to the new draft.
+      // Selection is mutually exclusive (the Fachobjekt and the measurement
+      // share one selectedFeature slot), so we only run this branch when
+      // the standort-link branch above did NOT claim the selection. The
+      // measurement is hidden from terra-draw below — its record stays in
+      // Redux so the dropdown shows it and a later detach can restore it.
+      let measurementOption: MeasurementGeometryOption | null = null;
+      let measurementSourceFeature: GeoJSON.Feature | null = null;
+      if (!standortOption && !options?.linkToSelectedStandort) {
+        const sf = selectedFeature as
+          | { featurekind?: string; id?: string | number }
+          | null
+          | undefined;
+        if (sf?.featurekind === MEASUREMENT_FEATUREKIND && sf.id != null) {
+          const measurementId = String(sf.id);
+          const found = measurementsFeatures.find(
+            (f) => String(f.id) === measurementId
+          );
+          if (found) {
+            const opts = buildMeasurementGeometryOptions([found]);
+            if (opts.length > 0) {
+              measurementOption = opts[0];
+              measurementSourceFeature = found;
+            }
+          }
+        }
+      }
+
+      const sourceOption = standortOption ?? measurementOption;
+      const geomKey: string | undefined = sourceOption?.key;
+      const geom: GeoJSON.Geometry | undefined = sourceOption
+        ? (sourceOption.geometry as GeoJSON.Geometry)
         : undefined;
 
       // Pick the seed source for the new draft:
@@ -218,6 +257,7 @@ export const useCreateFeatureDraft = () => {
           geometryWgs84: standortOption?.geometryWgs84,
           prefillGeometryKey: geomKey,
           linkedStandortLabel: standortOption?.label,
+          measurementLabel: measurementOption?.label,
           hiddenOriginalIds,
           // Optimistic seed of the linked Standort's existing Leuchten count
           // so the brandnew icon renders the right number of dots before the
@@ -225,6 +265,16 @@ export const useCreateFeatureDraft = () => {
           bestandLeuchtenCount: standortLeuchtenCount,
         })
       );
+      // Hide the auto-attached measurement from terra-draw — the draft now
+      // renders its own styled feature in its place. The Redux record stays
+      // so the dropdown still shows it and a later detach can restore it.
+      if (measurementSourceFeature) {
+        const rawId = String(measurementSourceFeature.id).replace(
+          /^measurement\./,
+          ""
+        );
+        removeMeasurements([rawId]);
+      }
       dispatch(setGlobalEditMode(true));
       onOpenCreationDraft?.(key, draftKey);
     },
@@ -234,6 +284,7 @@ export const useCreateFeatureDraft = () => {
       allDefaults,
       allSelectionDefaults,
       keyTablesData,
+      measurementsFeatures,
       onOpenCreationDraft,
     ]
   );
