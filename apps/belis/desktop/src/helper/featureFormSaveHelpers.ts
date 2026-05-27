@@ -581,10 +581,38 @@ export const handleSaveAllDrafts = (deps: HandleSaveAllDeps) => {
     onSuccess,
   } = deps;
 
-  const creationCount = Object.values(drafts).filter(
+  // Brandnew creation drafts without a geometry would be POSTed with no geom
+  // field, producing NULL-geometry rows server-side that surface the next day
+  // as malformed features in brand.new.features.json. Filter them out of the
+  // save batch entirely and keep them in Redux as drafts — the user has to
+  // assign a geometry before they can be sent.
+  const skippedEmptyDraftIds: string[] = [];
+  const draftsToSave: Record<string, Draft> = {};
+  for (const [featureId, draft] of Object.entries(drafts)) {
+    if (draft.isCreation && !draft.geometry) {
+      skippedEmptyDraftIds.push(featureId);
+    } else {
+      draftsToSave[featureId] = draft;
+    }
+  }
+
+  const draftsToSaveCount = Object.keys(draftsToSave).length;
+  const skippedCount = skippedEmptyDraftIds.length;
+
+  if (draftsToSaveCount === 0) {
+    Modal.warning({
+      title: "Keine speicherbaren Entwürfe",
+      content:
+        "Keine Entwürfe mit Geometrie zum Speichern vorhanden. Bitte zuerst eine Geometrie zuweisen.",
+      okText: "OK",
+    });
+    return;
+  }
+
+  const creationCount = Object.values(draftsToSave).filter(
     (d) => d.isCreation
   ).length;
-  const editCount = draftCount - creationCount;
+  const editCount = draftsToSaveCount - creationCount;
   const parts: string[] = [];
   if (editCount > 0)
     parts.push(editCount === 1 ? "1 Änderung" : `${editCount} Änderungen`);
@@ -595,11 +623,25 @@ export const handleSaveAllDrafts = (deps: HandleSaveAllDeps) => {
         : `${creationCount} neue Objekte`
     );
 
+  const skipNote =
+    skippedCount > 0
+      ? `\n\n${
+          skippedCount === 1
+            ? "1 Entwurf ohne Geometrie wird übersprungen"
+            : `${skippedCount} Entwürfe ohne Geometrie werden übersprungen`
+        } und bleibt als Entwurf erhalten.`
+      : "";
+
+  // Silence unused-var when draftCount was the headline number before the
+  // partition. Kept as a dep field for backwards compatibility with callers
+  // that pass the redux count.
+  void draftCount;
+
   Modal.confirm({
     title: "Alle Entwürfe speichern?",
     content: `${parts.join(" und ")} ${
-      draftCount === 1 ? "wird" : "werden"
-    } gespeichert.`,
+      draftsToSaveCount === 1 ? "wird" : "werden"
+    } gespeichert.${skipNote}`,
     okText: "Alle speichern",
     cancelText: "Abbrechen",
     onOk: async () => {
@@ -610,7 +652,7 @@ export const handleSaveAllDrafts = (deps: HandleSaveAllDeps) => {
 
       setSaving(true);
       try {
-        const result = await saveAllFeatureDrafts(jwt, drafts);
+        const result = await saveAllFeatureDrafts(jwt, draftsToSave);
 
         for (const featureId of result.succeeded) {
           dispatch(promoteDraftHiddenToPermanent(featureId));
@@ -668,6 +710,13 @@ export const handleSaveAllDrafts = (deps: HandleSaveAllDeps) => {
         } else {
           message.warning(
             `${result.succeeded.length} von ${total} gespeichert, ${result.failed.length} fehlgeschlagen`
+          );
+        }
+        if (skippedCount > 0) {
+          message.info(
+            skippedCount === 1
+              ? "1 Entwurf ohne Geometrie wurde übersprungen."
+              : `${skippedCount} Entwürfe ohne Geometrie wurden übersprungen.`
           );
         }
       } finally {

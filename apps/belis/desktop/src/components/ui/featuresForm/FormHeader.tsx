@@ -216,9 +216,7 @@ const FormHeader = ({
               >
                 <Button
                   type="primary"
-                  onClick={
-                    hasDraft && onSaveSingle ? onSaveSingle : undefined
-                  }
+                  onClick={hasDraft && onSaveSingle ? onSaveSingle : undefined}
                   loading={savingSingle}
                   style={
                     !hasDraft || !onSaveSingle

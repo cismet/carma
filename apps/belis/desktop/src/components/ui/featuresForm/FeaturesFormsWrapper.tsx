@@ -8,7 +8,7 @@ import {
   useContext,
 } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { message, Select } from "antd";
+import { Modal, message, Select } from "antd";
 import { featureFormRegistry } from "./index";
 import {
   getSelectedFeature,
@@ -384,6 +384,20 @@ const FeaturesFormsWrapper = ({
       return;
     }
     if (!featureId || !draft) return;
+
+    // Brandnew (creation) drafts without a geometry would be POSTed with no
+    // geom field, producing a NULL-geometry row server-side that surfaces
+    // the next day as a malformed feature in brand.new.features.json and
+    // breaks the symbol layer's rendering pass. Stop here and explain.
+    if (draft.isCreation && !draft.geometry) {
+      Modal.warning({
+        title: "Geometrie fehlt",
+        content:
+          "Bitte weisen Sie diesem Entwurf zuerst eine Geometrie zu, bevor Sie ihn speichern.",
+        okText: "OK",
+      });
+      return;
+    }
 
     setSaving(true);
     try {
