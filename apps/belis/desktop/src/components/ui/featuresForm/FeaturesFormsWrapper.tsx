@@ -69,7 +69,7 @@ import {
   buildSyntheticFetchedData,
   enrichSyntheticProps,
 } from "../../../helper/buildSyntheticFeature";
-import { mergeLineStringsClosestEndpoints } from "../../../helper/mergeLineStrings";
+// import { mergeLineStringsClosestEndpoints } from "../../../helper/mergeLineStrings";
 import { getKeyTablesData } from "../../../store/slices/keyTables";
 import { useMapSelection } from "@carma-mapping/engines/maplibre";
 
@@ -281,16 +281,16 @@ const FeaturesFormsWrapper = ({
   }, [allDrafts, featureId]);
 
   const geometryOptions = useMemo(() => {
-    let measurementOpts = buildMeasurementGeometryOptions(measurements).filter(
+    const measurementOpts = buildMeasurementGeometryOptions(measurements).filter(
       (o) => !consumedByOtherDrafts.has(o.key)
     );
     // Extension drafts only accept LineString measurements — a point
     // measurement can't be auto-connected to a Leitung.
-    if (draft?.isExtension) {
-      measurementOpts = measurementOpts.filter(
-        (o) => o.geometry.type === "LineString"
-      );
-    }
+    // if (draft?.isExtension) {
+    //   measurementOpts = measurementOpts.filter(
+    //     (o) => o.geometry.type === "LineString"
+    //   );
+    // }
     const base = standortOption
       ? [standortOption, ...measurementOpts]
       : measurementOpts;
@@ -302,7 +302,7 @@ const FeaturesFormsWrapper = ({
     standortOption,
     measurementOption,
     consumedByOtherDrafts,
-    draft?.isExtension,
+    // draft?.isExtension,
   ]);
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -506,12 +506,15 @@ const FeaturesFormsWrapper = ({
   // the synthetic feature so sidebar/sticky header/InfoBox render "L-13564"
   // instead of the "???" placeholder. Re-apply on every rebuild — form-change
   // values come from getFieldsValue() and wouldn't carry it otherwise.
+  // const withExtensionId = (
+  //   props: Record<string, unknown>
+  // ): Record<string, unknown> =>
+  //   draft?.isExtension && draft.extendingLeitungId != null
+  //     ? { ...props, _originalId: draft.extendingLeitungId }
+  //     : props;
   const withExtensionId = (
     props: Record<string, unknown>
-  ): Record<string, unknown> =>
-    draft?.isExtension && draft.extendingLeitungId != null
-      ? { ...props, _originalId: draft.extendingLeitungId }
-      : props;
+  ): Record<string, unknown> => props;
 
   const handleDraftChange = useCallback(
     (values: Record<string, unknown>) => {
@@ -597,35 +600,35 @@ const FeaturesFormsWrapper = ({
         // original Leitung line so the brandnew layer keeps rendering, and
         // dispatch via setDraft (clearDraftGeometry would also wipe the
         // geometry, which we don't want here).
-        if (draft?.isExtension && draft.originalGeometryEpsg25832) {
-          const newFeature = buildSyntheticFeature(
-            formKey,
-            featureId,
-            withExtensionId(enrichedValues),
-            draft.originalGeometryEpsg25832
-          );
-          dispatch(
-            setDraft({
-              featureId,
-              featureType: formKey,
-              values: currentValues,
-              feature: newFeature,
-              fetchedData: buildSyntheticFetchedData(
-                formKey,
-                deserializeValues(currentValues)
-              ),
-              isCreation: true,
-              geometry: draft.originalGeometryEpsg25832,
-              geometryKey: undefined,
-              measurementLabel: undefined,
-            })
-          );
-          restoreAttachedMeasurement(previousGeometryKey);
-          if (selectedFeatureId) {
-            selectFeature(selectedFeatureId, newFeature as never);
-          }
-          return;
-        }
+        // if (draft?.isExtension && draft.originalGeometryEpsg25832) {
+        //   const newFeature = buildSyntheticFeature(
+        //     formKey,
+        //     featureId,
+        //     withExtensionId(enrichedValues),
+        //     draft.originalGeometryEpsg25832
+        //   );
+        //   dispatch(
+        //     setDraft({
+        //       featureId,
+        //       featureType: formKey,
+        //       values: currentValues,
+        //       feature: newFeature,
+        //       fetchedData: buildSyntheticFetchedData(
+        //         formKey,
+        //         deserializeValues(currentValues)
+        //       ),
+        //       isCreation: true,
+        //       geometry: draft.originalGeometryEpsg25832,
+        //       geometryKey: undefined,
+        //       measurementLabel: undefined,
+        //     })
+        //   );
+        //   restoreAttachedMeasurement(previousGeometryKey);
+        //   if (selectedFeatureId) {
+        //     selectFeature(selectedFeatureId, newFeature as never);
+        //   }
+        //   return;
+        // }
         const newFeature = buildSyntheticFeature(
           formKey,
           featureId,
@@ -655,15 +658,16 @@ const FeaturesFormsWrapper = ({
       // Extension flow: the dispatched geometry is the original line + picked
       // line, auto-joined at the closest endpoints. The picked option stays
       // as the geometryKey so the dropdown still shows the user's choice.
-      const geom =
-        draft?.isExtension &&
-        draft.originalGeometryEpsg25832?.type === "LineString" &&
-        opt.geometry.type === "LineString"
-          ? mergeLineStringsClosestEndpoints(
-              draft.originalGeometryEpsg25832,
-              opt.geometry
-            )
-          : opt.geometry;
+      // const geom =
+      //   draft?.isExtension &&
+      //   draft.originalGeometryEpsg25832?.type === "LineString" &&
+      //   opt.geometry.type === "LineString"
+      //     ? mergeLineStringsClosestEndpoints(
+      //         draft.originalGeometryEpsg25832,
+      //         opt.geometry
+      //       )
+      //     : opt.geometry;
+      const geom = opt.geometry;
       const isMeasurement = newKey.startsWith("measurement.");
       const newFeature = buildSyntheticFeature(
         formKey,
@@ -869,9 +873,10 @@ const FeaturesFormsWrapper = ({
                     }
                   >
                     <span className="text-sm font-medium text-gray-700">
-                      {draft?.isExtension && draft.extendingLeitungId != null
+                      {/* draft?.isExtension && draft.extendingLeitungId != null
                         ? `Leitung L-${draft.extendingLeitungId} verlängern`
-                        : "Neue Geometrien"}
+                        : "Neue Geometrien" */}
+                      Neue Geometrien
                     </span>
                     <Select
                       value={

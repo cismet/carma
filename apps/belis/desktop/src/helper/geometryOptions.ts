@@ -75,49 +75,49 @@ export const formatStandortLabel = (
 // extractStandortFeatureInfo (useCreateFeatureDraft.ts) — selected features
 // come through two shapes (raw MapLibre click vs sidebar/fetched override),
 // so normalize both into the same input shape.
-const LEITUNG_SOURCE_LAYERS = new Set(["leitungen", "leitung"]);
-
-export const extractLeitungFeatureInfo = (
-  sf: unknown
-): {
-  id: number;
-  geometryWgs84: GeoJSON.LineString;
-  properties: Record<string, unknown> | null;
-} | null => {
-  if (!sf || typeof sf !== "object") return null;
-  const f = sf as Record<string, unknown>;
-  const carmaInfo = f.carmaInfo as { sourceLayer?: string } | undefined;
-  const layer = (carmaInfo?.sourceLayer ?? f.sourceLayer ?? "") as string;
-  if (!LEITUNG_SOURCE_LAYERS.has(layer)) return null;
-  const geometry = f.geometry as GeoJSON.Geometry | undefined;
-  if (!geometry || geometry.type !== "LineString") return null;
-  const props = (f.properties ?? null) as Record<string, unknown> | null;
-  const sourceProps = props?.sourceProps as
-    | Record<string, unknown>
-    | null
-    | undefined;
-  const leitungProps =
-    sourceProps && typeof sourceProps === "object" ? sourceProps : props;
-  const rawId = leitungProps?.id ?? f.id;
-  const id =
-    typeof rawId === "number"
-      ? rawId
-      : typeof rawId === "string"
-      ? Number(rawId)
-      : NaN;
-  if (!Number.isFinite(id)) return null;
-  return { id, geometryWgs84: geometry, properties: leitungProps };
-};
-
-// Reproject a WGS84 LineString to EPSG:25832 — used by the extension flow to
-// seed the draft's `originalGeometryEpsg25832` once at open time.
-export const leitungLineStringToEpsg25832 = (
-  line: GeoJSON.LineString
-): { type: "LineString"; crs: typeof CRS_25832; coordinates: [number, number][] } => ({
-  type: "LineString",
-  crs: CRS_25832,
-  coordinates: line.coordinates.map((c) => wgs84CoordTo25832(c as number[])),
-});
+// const LEITUNG_SOURCE_LAYERS = new Set(["leitungen", "leitung"]);
+//
+// export const extractLeitungFeatureInfo = (
+//   sf: unknown
+// ): {
+//   id: number;
+//   geometryWgs84: GeoJSON.LineString;
+//   properties: Record<string, unknown> | null;
+// } | null => {
+//   if (!sf || typeof sf !== "object") return null;
+//   const f = sf as Record<string, unknown>;
+//   const carmaInfo = f.carmaInfo as { sourceLayer?: string } | undefined;
+//   const layer = (carmaInfo?.sourceLayer ?? f.sourceLayer ?? "") as string;
+//   if (!LEITUNG_SOURCE_LAYERS.has(layer)) return null;
+//   const geometry = f.geometry as GeoJSON.Geometry | undefined;
+//   if (!geometry || geometry.type !== "LineString") return null;
+//   const props = (f.properties ?? null) as Record<string, unknown> | null;
+//   const sourceProps = props?.sourceProps as
+//     | Record<string, unknown>
+//     | null
+//     | undefined;
+//   const leitungProps =
+//     sourceProps && typeof sourceProps === "object" ? sourceProps : props;
+//   const rawId = leitungProps?.id ?? f.id;
+//   const id =
+//     typeof rawId === "number"
+//       ? rawId
+//       : typeof rawId === "string"
+//       ? Number(rawId)
+//       : NaN;
+//   if (!Number.isFinite(id)) return null;
+//   return { id, geometryWgs84: geometry, properties: leitungProps };
+// };
+//
+// // Reproject a WGS84 LineString to EPSG:25832 — used by the extension flow to
+// // seed the draft's `originalGeometryEpsg25832` once at open time.
+// export const leitungLineStringToEpsg25832 = (
+//   line: GeoJSON.LineString
+// ): { type: "LineString"; crs: typeof CRS_25832; coordinates: [number, number][] } => ({
+//   type: "LineString",
+//   crs: CRS_25832,
+//   coordinates: line.coordinates.map((c) => wgs84CoordTo25832(c as number[])),
+// });
 
 export const buildStandortGeometryOption = (
   feature: { id?: number | string; geometry?: GeoJSON.Geometry; properties?: Record<string, unknown> | null }
