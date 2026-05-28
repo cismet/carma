@@ -1526,11 +1526,7 @@ const BelisMapLibWrapper = ({
               sourceProps: fetchedFeatureData,
               genericLinks,
             },
-            geometry: rawFeature?.geometry ??
-              reduxGeometryRef.current ?? {
-                type: "Point",
-                coordinates: [0, 0],
-              },
+            geometry: rawFeature?.geometry ?? reduxGeometryRef.current,
             carmaInfo: { sourceLayer },
           });
         } else {
@@ -3457,9 +3453,16 @@ const BelisMapLibWrapper = ({
     handleOpenCreationDraftRef.current = handleOpenCreationDraft;
   }, [handleOpenCreationDraft]);
 
+  const effectiveOverride = measurementOverride ?? overrideSelectedFeature;
+  const hideInfoboxZoom =
+    (!!effectiveOverride && !effectiveOverride.geometry) ||
+    (!!rawFeature && !rawFeature.geometry);
+
   return (
     <div
-      className="relative flex"
+      className={
+        "relative flex" + (hideInfoboxZoom ? " belis-hide-infobox-zoom" : "")
+      }
       style={{ width: mapSizes.width, height: mapSizes.height }}
     >
       {sidebarVariant === "arbeitsauftraege" ? (
