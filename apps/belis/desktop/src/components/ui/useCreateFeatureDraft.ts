@@ -21,6 +21,8 @@ import {
   MEASUREMENT_FEATUREKIND,
 } from "../../store/slices/measurements";
 import { getKeyTablesData } from "../../store/slices/keyTables";
+import { getJWT } from "../../store/slices/auth";
+import { fetchFeatureById } from "../../helper/apiMethods";
 import { serializeValues } from "../../helper/draftSerialize";
 import {
   buildSyntheticFeature,
@@ -339,6 +341,17 @@ export const useCreateFeatureDraft = () => {
   );
 };
 
+// Fields the Leitung form edits. Carried from the source Leitung onto the
+// extension draft so the user starts with the same attributes — the common
+// "verlängern" case keeps them and just adds geometry. Mirror the form's
+// own getFieldsValue list (LeitungForm.handleSave) and the explicitFields
+// declared in featureFormSaveHelpers so the save payload stays in sync.
+const LEITUNG_PREFILL_FIELDS = [
+  "fk_leitungstyp",
+  "fk_material",
+  "fk_querschnitt",
+] as const;
+
 /**
  * Opens a "Leitung verlängern" extension draft for the currently selected
  * Leitung. Behaves like a creation draft (re-uses the form panel and the
@@ -354,8 +367,9 @@ export const useExtendLeitungDraft = () => {
   const dispatch = useDispatch();
   const selectedFeature = useSelector(getSelectedFeature);
   const keyTablesData = useSelector(getKeyTablesData);
+  const jwt = useSelector(getJWT) as string | null;
 
-  return useCallback(() => {
+  return useCallback(async () => {
     const info = extractLeitungFeatureInfo(selectedFeature);
     if (!info) return;
 
@@ -364,18 +378,39 @@ export const useExtendLeitungDraft = () => {
       .toString(36)
       .slice(2, 9)}`;
 
+    // Pull the source Leitung's editable fields so the form opens with them
+    // pre-selected. The by-id query returns fk_* as plain FK ids, matching the
+    // shape the form's Selects expect; on failure we open with empty fields.
+    let seedValues: Record<string, unknown> = {};
+    if (jwt) {
+      try {
+        const data = await fetchFeatureById(jwt, info.id, "leitungen");
+        const leitungRow = (
+          data?.leitung as Array<Record<string, unknown>> | undefined
+        )?.[0];
+        if (leitungRow) {
+          for (const field of LEITUNG_PREFILL_FIELDS) {
+            const value = leitungRow[field];
+            if (value != null) seedValues[field] = value;
+          }
+        }
+      } catch (e) {
+        console.warn("[extend-leitung] could not prefetch source leitung", e);
+      }
+    }
+
     dispatch(
       setDraft({
         featureId: draftKey,
         featureType: "leitung",
-        values: {},
+        values: seedValues,
         feature: buildSyntheticFeature(
           "leitung",
           draftKey,
-          enrichSyntheticProps("leitung", {}, keyTablesData, 0),
+          enrichSyntheticProps("leitung", seedValues, keyTablesData, 0),
           original25832
         ),
-        fetchedData: buildSyntheticFetchedData("leitung", {}),
+        fetchedData: buildSyntheticFetchedData("leitung", seedValues),
         isCreation: true,
         geometry: original25832,
         // Hide the source Leitung from the regular vector-tile layer while the
@@ -389,5 +424,5 @@ export const useExtendLeitungDraft = () => {
     );
     dispatch(setGlobalEditMode(true));
     onOpenCreationDraft?.("leitung", draftKey);
-  }, [dispatch, selectedFeature, keyTablesData, onOpenCreationDraft]);
+  }, [dispatch, selectedFeature, keyTablesData, onOpenCreationDraft, jwt]);
 };
