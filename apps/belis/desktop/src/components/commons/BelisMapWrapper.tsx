@@ -1142,9 +1142,14 @@ const BelisMapLibWrapper = ({
       //   fallback: !selectedFeature,
       // });
 
-      // Creation drafts have synthetic fetchedData — skip API fetch
+      // Creation drafts have synthetic fetchedData — skip API fetch.
+      // Extension drafts (`extend:leitung:…`) follow the same path: there is
+      // no DB record to fetch by their synthetic key, and the draft already
+      // carries the fetchedData built by useExtendLeitungDraft. Without this,
+      // the override useEffect short-circuits on `!fetchedFeatureData` and the
+      // bottom-right InfoBox stays hidden while an extension draft is open.
       const featureIdStr = String(featureId ?? "");
-      if (featureIdStr.startsWith("create:")) {
+      if (isCreationDraftKey(featureIdStr)) {
         const creationDraft =
           store.getState().featuresForms?.drafts[featureIdStr];
         if (creationDraft?.fetchedData) {
