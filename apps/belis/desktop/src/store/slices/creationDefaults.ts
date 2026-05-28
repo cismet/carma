@@ -341,8 +341,9 @@ const creationDefaultsSlice = createSlice({
         // }
       })
       .addCase(clearAllDrafts, (state) => {
-        state.defaults = {};
-        state.selectionDefaults = {};
+        // Keep `defaults` and `selectionDefaults` intact so the remembered
+        // "last values" survive a global Discard-all — only the per-draft
+        // tracking needs to go, since the drafts themselves are gone.
         state.draftIdToType = {};
       });
   },
