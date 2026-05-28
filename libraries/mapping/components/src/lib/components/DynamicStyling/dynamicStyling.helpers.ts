@@ -25,17 +25,6 @@ export const getDynamicStylingSelections = (
     : {};
 };
 
-export const ICON_PREFIX =
-  "https://geo.wuppertal.de/geoportal/geoportal_icon_legends/";
-
-export const resolveIconSrc = (
-  icon: string | undefined
-): string | undefined => {
-  if (!icon) return undefined;
-  if (icon.startsWith("http://") || icon.startsWith("https://")) return icon;
-  return `${ICON_PREFIX}${icon}.png`;
-};
-
 export const parseTarget = (target: string) => {
   const parts = target.split(".");
   return {
