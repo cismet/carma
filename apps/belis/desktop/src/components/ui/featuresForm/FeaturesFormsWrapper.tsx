@@ -69,6 +69,7 @@ import {
   buildSyntheticFetchedData,
   enrichSyntheticProps,
 } from "../../../helper/buildSyntheticFeature";
+import { mergeLineStringsClosestEndpoints } from "../../../helper/mergeLineStrings";
 import { getKeyTablesData } from "../../../store/slices/keyTables";
 import { useMapSelection } from "@carma-mapping/engines/maplibre";
 
@@ -280,16 +281,29 @@ const FeaturesFormsWrapper = ({
   }, [allDrafts, featureId]);
 
   const geometryOptions = useMemo(() => {
-    const measurementOpts = buildMeasurementGeometryOptions(measurements).filter(
+    let measurementOpts = buildMeasurementGeometryOptions(measurements).filter(
       (o) => !consumedByOtherDrafts.has(o.key)
     );
+    // Extension drafts only accept LineString measurements — a point
+    // measurement can't be auto-connected to a Leitung.
+    if (draft?.isExtension) {
+      measurementOpts = measurementOpts.filter(
+        (o) => o.geometry.type === "LineString"
+      );
+    }
     const base = standortOption
       ? [standortOption, ...measurementOpts]
       : measurementOpts;
     // This draft's own assigned-and-deleted measurement, prepended so the
     // Select can render its label and the value-match logic resolves it.
     return measurementOption ? [measurementOption, ...base] : base;
-  }, [measurements, standortOption, measurementOption, consumedByOtherDrafts]);
+  }, [
+    measurements,
+    standortOption,
+    measurementOption,
+    consumedByOtherDrafts,
+    draft?.isExtension,
+  ]);
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const effectiveReadOnly =
@@ -568,6 +582,39 @@ const FeaturesFormsWrapper = ({
       const previousGeometryKey = draft?.geometryKey;
       // Clear case: user hit the "x" in the allowClear select.
       if (!newKey) {
+        // Extension drafts always have something to show — fall back to the
+        // original Leitung line so the brandnew layer keeps rendering, and
+        // dispatch via setDraft (clearDraftGeometry would also wipe the
+        // geometry, which we don't want here).
+        if (draft?.isExtension && draft.originalGeometryEpsg25832) {
+          const newFeature = buildSyntheticFeature(
+            formKey,
+            featureId,
+            enrichedValues,
+            draft.originalGeometryEpsg25832
+          );
+          dispatch(
+            setDraft({
+              featureId,
+              featureType: formKey,
+              values: currentValues,
+              feature: newFeature,
+              fetchedData: buildSyntheticFetchedData(
+                formKey,
+                deserializeValues(currentValues)
+              ),
+              isCreation: true,
+              geometry: draft.originalGeometryEpsg25832,
+              geometryKey: undefined,
+              measurementLabel: undefined,
+            })
+          );
+          restoreAttachedMeasurement(previousGeometryKey);
+          if (selectedFeatureId) {
+            selectFeature(selectedFeatureId, newFeature as never);
+          }
+          return;
+        }
         const newFeature = buildSyntheticFeature(
           formKey,
           featureId,
@@ -594,7 +641,18 @@ const FeaturesFormsWrapper = ({
       }
       const opt = geometryOptions.find((o) => o.key === newKey);
       if (!opt) return;
-      const geom = opt.geometry;
+      // Extension flow: the dispatched geometry is the original line + picked
+      // line, auto-joined at the closest endpoints. The picked option stays
+      // as the geometryKey so the dropdown still shows the user's choice.
+      const geom =
+        draft?.isExtension &&
+        draft.originalGeometryEpsg25832?.type === "LineString" &&
+        opt.geometry.type === "LineString"
+          ? mergeLineStringsClosestEndpoints(
+              draft.originalGeometryEpsg25832,
+              opt.geometry
+            )
+          : opt.geometry;
       const isMeasurement = newKey.startsWith("measurement.");
       const newFeature = buildSyntheticFeature(
         formKey,
@@ -800,7 +858,9 @@ const FeaturesFormsWrapper = ({
                     }
                   >
                     <span className="text-sm font-medium text-gray-700">
-                      Neue Geometrien
+                      {draft?.isExtension && draft.extendingLeitungId != null
+                        ? `Leitung ${draft.extendingLeitungId} verlängern`
+                        : "Neue Geometrien"}
                     </span>
                     <Select
                       value={
