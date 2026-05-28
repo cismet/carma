@@ -502,6 +502,17 @@ const FeaturesFormsWrapper = ({
     onSelectNextDraft,
   ]);
 
+  // Extension drafts ("Leitung verlängern") carry the source Leitung's id on
+  // the synthetic feature so sidebar/sticky header/InfoBox render "L-13564"
+  // instead of the "???" placeholder. Re-apply on every rebuild — form-change
+  // values come from getFieldsValue() and wouldn't carry it otherwise.
+  const withExtensionId = (
+    props: Record<string, unknown>
+  ): Record<string, unknown> =>
+    draft?.isExtension && draft.extendingLeitungId != null
+      ? { ...props, _originalId: draft.extendingLeitungId }
+      : props;
+
   const handleDraftChange = useCallback(
     (values: Record<string, unknown>) => {
       if (!featureId || !formKey) return;
@@ -522,7 +533,7 @@ const FeaturesFormsWrapper = ({
         const newFeature = buildSyntheticFeature(
           formKey,
           featureId,
-          enrichedValues,
+          withExtensionId(enrichedValues),
           draft?.geometry
         );
         dispatch(
@@ -590,7 +601,7 @@ const FeaturesFormsWrapper = ({
           const newFeature = buildSyntheticFeature(
             formKey,
             featureId,
-            enrichedValues,
+            withExtensionId(enrichedValues),
             draft.originalGeometryEpsg25832
           );
           dispatch(
@@ -618,7 +629,7 @@ const FeaturesFormsWrapper = ({
         const newFeature = buildSyntheticFeature(
           formKey,
           featureId,
-          enrichedValues,
+          withExtensionId(enrichedValues),
           undefined
         );
         dispatch(
@@ -657,7 +668,7 @@ const FeaturesFormsWrapper = ({
       const newFeature = buildSyntheticFeature(
         formKey,
         featureId,
-        enrichedValues,
+        withExtensionId(enrichedValues),
         geom
       );
       // Switching to a different geometry — restore the previous
@@ -859,7 +870,7 @@ const FeaturesFormsWrapper = ({
                   >
                     <span className="text-sm font-medium text-gray-700">
                       {draft?.isExtension && draft.extendingLeitungId != null
-                        ? `Leitung ${draft.extendingLeitungId} verlängern`
+                        ? `Leitung L-${draft.extendingLeitungId} verlängern`
                         : "Neue Geometrien"}
                     </span>
                     <Select

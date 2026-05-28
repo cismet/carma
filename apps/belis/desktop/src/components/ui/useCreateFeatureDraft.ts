@@ -407,7 +407,16 @@ export const useExtendLeitungDraft = () => {
         feature: buildSyntheticFeature(
           "leitung",
           draftKey,
-          enrichSyntheticProps("leitung", seedValues, keyTablesData, 0),
+          {
+            ...enrichSyntheticProps("leitung", seedValues, keyTablesData, 0),
+            // Original Leitung id, carried on the synthetic feature so the
+            // sidebar / sticky header / InfoBox can show the source's id
+            // (e.g. "L-13564") in place of the "???" placeholder used for
+            // brand-new drafts. Sidebar extractors and the InfoBox override
+            // path read this prop directly; the form never sees it as a
+            // field, so the save payload stays unchanged.
+            _originalId: info.id,
+          },
           original25832
         ),
         fetchedData: buildSyntheticFetchedData("leitung", seedValues),

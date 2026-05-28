@@ -138,7 +138,7 @@ const CreateFeatureDropdown = () => {
       label: (
         <span className="flex items-center gap-1.5">
           <FeatureIcon type="leitung" />
-          {`Leitung ${leitungInfo.id} verlängern`}
+          {`Leitung L-${leitungInfo.id} verlängern`}
         </span>
       ),
       style: { paddingLeft: 4 },
