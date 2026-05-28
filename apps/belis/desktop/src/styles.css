@@ -212,6 +212,10 @@ iframe {
   pointer-events: none !important;
 }
 
+.belis-hide-infobox-zoom [data-test-id="info-box"] a[title*="zoomen"] {
+  display: none;
+}
+
 /* Prevent Tailwind from breaking Leaflet */
 .leaflet-pane,
 .leaflet-tile,
