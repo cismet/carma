@@ -114,8 +114,11 @@ const defaultListItemExtractors: Record<
     const p = feature.properties || {};
     const laenge = p.laenge || p.length || "";
     const laengeStr = laenge ? `${laenge}m` : "";
+    // _originalId is set on "Leitung verlängern" extension drafts so the row
+    // shows the source Leitung's id (e.g. "L-13564") instead of the "???"
+    // placeholder used for plain creation drafts.
     return {
-      main: `L-${displayId(p.id)}`,
+      main: `L-${p._originalId ?? displayId(p.id)}`,
       upperright: laengeStr,
       subtitle: p.bezeichnung || p.leitungstyp || "",
     };
@@ -126,7 +129,7 @@ const defaultListItemExtractors: Record<
       ? `, ${p.fk_querschnitt.groesse}mm`
       : "";
     return {
-      main: `L-${displayId(p.id)}`,
+      main: `L-${p._originalId ?? displayId(p.id)}`,
       upperright: p.fk_leitungstyp?.bezeichnung || "Leitung",
       subtitle: aPart ? `Querschnitt${aPart}` : "",
     };
