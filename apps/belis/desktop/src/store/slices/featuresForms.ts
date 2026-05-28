@@ -90,8 +90,13 @@ export interface Draft {
   updatedAt: number;
 }
 
+// Synthetic-draft key check. Matches both plain creation drafts (`create:…`)
+// and "Leitung verlängern" extension drafts (`extend:leitung:…`) — both are
+// synthetic, have no real DB record to fetch, and should follow the
+// creation-draft code paths (synthetic fetchedData, parent-selection capture,
+// info-box override). Real Fachobjekt selections use numeric ids.
 export const isCreationDraftKey = (featureId: string): boolean =>
-  featureId.startsWith("create:");
+  featureId.startsWith("create:") || featureId.startsWith("extend:");
 
 // A request to focus a specific form tab of an open draft, raised when the
 // user clicks a nested row in the "Entwürfe" sidebar (the Standort parent or
