@@ -244,6 +244,48 @@ const draftFeatureStateId = (key: string): number => {
   return h >>> 0;
 };
 
+// Move every brandnew sub-style layer to before `leuchten-selection` (the
+// first Leuchten symbol layer in styleY.json) so drafts — and same-day saved
+// features that live in the brandnew layer until the overnight tile build —
+// render under Leuchten/Standorte/etc. instead of covering them.
+// Returns a cleanup that detaches the styledata listener.
+const attachBrandnewBelowLeuchten = (
+  map: maplibregl.Map,
+  brandnewSource: string
+): (() => void) => {
+  const beforeId = `${slugifyUrl(BELIS_STYLE_URL)}::leuchten-selection`;
+  const reorder = () => {
+    if (!map.getLayer(beforeId)) return;
+    const allLayers = map.getStyle()?.layers ?? [];
+    const beforeIdx = allLayers.findIndex((l) => l.id === beforeId);
+    if (beforeIdx < 0) return;
+    // moveLayer fires styledata; without this guard the handler would loop.
+    let needsMove = false;
+    for (let i = beforeIdx; i < allLayers.length; i++) {
+      const l = allLayers[i];
+      if ("source" in l && l.source === brandnewSource) {
+        needsMove = true;
+        break;
+      }
+    }
+    if (!needsMove) return;
+    for (const layer of allLayers) {
+      if ("source" in layer && layer.source === brandnewSource) {
+        try {
+          map.moveLayer(layer.id, beforeId);
+        } catch {
+          /* layer may have been removed mid-reorder */
+        }
+      }
+    }
+  };
+  reorder();
+  map.on("styledata", reorder);
+  return () => {
+    map.off("styledata", reorder);
+  };
+};
+
 interface BelisMapLibWrapperProps {
   mapSizes: { width: number; height: number };
   activeSourceLayers: Set<string>;
@@ -2477,47 +2519,19 @@ const BelisMapLibWrapper = ({
     visibleBrandnewFeatures,
   ]);
 
-  // --- Z-order fix: the brandnew sub-style is added after the styleY (regular)
-  // sub-style, so by default every brandnew layer stacks above every regular
-  // layer — a draft Leitung ends up covering real Leuchten markers. Move the
-  // brandnew content layers to just before `leuchten-selection` (the first
-  // Leuchten symbol layer in styleY.json) so drafts sit under all Leuchten/
-  // Standorte/etc. but still above regular Leitungen. ---
+  // --- Z-order fix: the brandnew sub-style is appended after styleY, so by
+  // default every brandnew layer stacks above every regular layer — a draft
+  // Leitung ends up covering real Leuchten markers. Both main and mini map
+  // are corrected the same way via attachBrandnewBelowLeuchten. ---
   useEffect(() => {
     if (!map || !mapReady) return;
-    const beforeId = `${slugifyUrl(BELIS_STYLE_URL)}::leuchten-selection`;
-    const reorder = () => {
-      if (!map.getLayer(beforeId)) return;
-      const allLayers = map.getStyle()?.layers ?? [];
-      const beforeIdx = allLayers.findIndex((l) => l.id === beforeId);
-      if (beforeIdx < 0) return;
-      // Skip when nothing is out of place — moveLayer triggers styledata,
-      // so without this guard the handler would re-fire forever.
-      let needsMove = false;
-      for (let i = beforeIdx; i < allLayers.length; i++) {
-        const l = allLayers[i];
-        if ("source" in l && l.source === brandnewSource) {
-          needsMove = true;
-          break;
-        }
-      }
-      if (!needsMove) return;
-      for (const layer of allLayers) {
-        if ("source" in layer && layer.source === brandnewSource) {
-          try {
-            map.moveLayer(layer.id, beforeId);
-          } catch {
-            /* layer may have been removed mid-reorder */
-          }
-        }
-      }
-    };
-    reorder();
-    map.on("styledata", reorder);
-    return () => {
-      map.off("styledata", reorder);
-    };
+    return attachBrandnewBelowLeuchten(map, brandnewSource);
   }, [map, mapReady, brandnewSource]);
+
+  useEffect(() => {
+    if (!miniMap || !miniMapReady) return;
+    return attachBrandnewBelowLeuchten(miniMap, brandnewSource);
+  }, [miniMap, miniMapReady, brandnewSource]);
 
   // --- Mini-map: push every open creation draft AND the server-side brandnew
   // FC into the brandnew GeoJSON source so they render together with the
