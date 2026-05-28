@@ -5,12 +5,12 @@ import { useSelector } from "react-redux";
 import type { CreateFeatureType } from "../../contexts/MapPageContext";
 import {
   useCreateFeatureDraft,
-  useExtendLeitungDraft,
+  // useExtendLeitungDraft,
   extractStandortFeatureInfo,
 } from "./useCreateFeatureDraft";
 import { getSelectedFeature } from "../../store/slices/featureCollection";
 import {
-  extractLeitungFeatureInfo,
+  // extractLeitungFeatureInfo,
   formatStandortLabel,
 } from "../../helper/geometryOptions";
 
@@ -101,10 +101,10 @@ const createFeatureItems: {
 
 const CreateFeatureDropdown = () => {
   const handleItemClick = useCreateFeatureDraft();
-  const handleExtendLeitung = useExtendLeitungDraft();
+  // const handleExtendLeitung = useExtendLeitungDraft();
   const selectedFeature = useSelector(getSelectedFeature);
   const standortInfo = extractStandortFeatureInfo(selectedFeature);
-  const leitungInfo = extractLeitungFeatureInfo(selectedFeature);
+  // const leitungInfo = extractLeitungFeatureInfo(selectedFeature);
 
   const items: MenuProps["items"] = [];
 
@@ -132,19 +132,19 @@ const CreateFeatureDropdown = () => {
   // extension draft that lets the user pick a LineString measurement to
   // auto-connect to the existing line. Selection is exclusive, so this branch
   // and the Standort one above never fire together.
-  if (leitungInfo) {
-    items.push({
-      key: "leitung-verlaengern",
-      label: (
-        <span className="flex items-center gap-1.5">
-          <FeatureIcon type="leitung" />
-          {`Leitung L-${leitungInfo.id} verlängern`}
-        </span>
-      ),
-      style: { paddingLeft: 4 },
-      onClick: () => handleExtendLeitung(),
-    });
-  }
+  // if (leitungInfo) {
+  //   items.push({
+  //     key: "leitung-verlaengern",
+  //     label: (
+  //       <span className="flex items-center gap-1.5">
+  //         <FeatureIcon type="leitung" />
+  //         {`Leitung L-${leitungInfo.id} verlängern`}
+  //       </span>
+  //     ),
+  //     style: { paddingLeft: 4 },
+  //     onClick: () => handleExtendLeitung(),
+  //   });
+  // }
 
   for (const item of createFeatureItems) {
     items.push({

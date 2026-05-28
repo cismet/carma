@@ -118,7 +118,7 @@ const defaultListItemExtractors: Record<
     // shows the source Leitung's id (e.g. "L-13564") instead of the "???"
     // placeholder used for plain creation drafts.
     return {
-      main: `L-${p._originalId ?? displayId(p.id)}`,
+      main: `L-${displayId(p.id)}`, // mixed-cable: was `L-${p._originalId ?? displayId(p.id)}`
       upperright: laengeStr,
       subtitle: p.bezeichnung || p.leitungstyp || "",
     };
@@ -129,7 +129,7 @@ const defaultListItemExtractors: Record<
       ? `, ${p.fk_querschnitt.groesse}mm`
       : "";
     return {
-      main: `L-${p._originalId ?? displayId(p.id)}`,
+      main: `L-${displayId(p.id)}`, // mixed-cable: was `L-${p._originalId ?? displayId(p.id)}`
       upperright: p.fk_leitungstyp?.bezeichnung || "Leitung",
       subtitle: aPart ? `Querschnitt${aPart}` : "",
     };

@@ -1522,12 +1522,13 @@ const BelisMapLibWrapper = ({
           // id under _originalId. Feed it to the mapping as `id` so the
           // InfoBox title reads as the source's id (e.g. "L-13564") rather
           // than the opaque draft key or the "?" fallback.
-          if (flatProps._originalId != null) {
-            flatProps.id = flatProps._originalId;
-          } else {
-            delete flatProps.id;
-          }
-          delete flatProps._originalId;
+          // if (flatProps._originalId != null) {
+          //   flatProps.id = flatProps._originalId;
+          // } else {
+          //   delete flatProps.id;
+          // }
+          // delete flatProps._originalId;
+          delete flatProps.id;
         } else {
           flatProps = flattenGqlRecord(record, sourceLayer);
         }
