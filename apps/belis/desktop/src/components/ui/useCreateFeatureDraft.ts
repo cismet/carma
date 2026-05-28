@@ -30,6 +30,8 @@ import {
 import {
   buildMeasurementGeometryOptions,
   buildStandortGeometryOption,
+  extractLeitungFeatureInfo,
+  leitungLineStringToEpsg25832,
   type MeasurementGeometryOption,
 } from "../../helper/geometryOptions";
 
@@ -335,4 +337,57 @@ export const useCreateFeatureDraft = () => {
       onOpenCreationDraft,
     ]
   );
+};
+
+/**
+ * Opens a "Leitung verlängern" extension draft for the currently selected
+ * Leitung. Behaves like a creation draft (re-uses the form panel and the
+ * brandnew layer) but carries extension-only metadata so the geometry selector
+ * can merge the original line with a freshly picked LineString measurement.
+ *
+ * Returns a no-op when the selected feature is not a Leitung — callers gate on
+ * the same `extractLeitungFeatureInfo` check before showing the menu item, so
+ * this branch only fires defensively.
+ */
+export const useExtendLeitungDraft = () => {
+  const { onOpenCreationDraft } = useMapPage();
+  const dispatch = useDispatch();
+  const selectedFeature = useSelector(getSelectedFeature);
+  const keyTablesData = useSelector(getKeyTablesData);
+
+  return useCallback(() => {
+    const info = extractLeitungFeatureInfo(selectedFeature);
+    if (!info) return;
+
+    const original25832 = leitungLineStringToEpsg25832(info.geometryWgs84);
+    const draftKey = `extend:leitung:${info.id}:${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2, 9)}`;
+
+    dispatch(
+      setDraft({
+        featureId: draftKey,
+        featureType: "leitung",
+        values: {},
+        feature: buildSyntheticFeature(
+          "leitung",
+          draftKey,
+          enrichSyntheticProps("leitung", {}, keyTablesData, 0),
+          original25832
+        ),
+        fetchedData: buildSyntheticFetchedData("leitung", {}),
+        isCreation: true,
+        geometry: original25832,
+        // Hide the source Leitung from the regular vector-tile layer while the
+        // extension draft is open — the brandnew layer renders the (original
+        // or merged) line in its place.
+        hiddenOriginalIds: { leitungen: [info.id] },
+        isExtension: true,
+        extendingLeitungId: info.id,
+        originalGeometryEpsg25832: original25832,
+      })
+    );
+    dispatch(setGlobalEditMode(true));
+    onOpenCreationDraft?.("leitung", draftKey);
+  }, [dispatch, selectedFeature, keyTablesData, onOpenCreationDraft]);
 };

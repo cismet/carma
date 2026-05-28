@@ -80,6 +80,13 @@ export interface Draft {
   // array is in. Drives the brandnew icon's dot count so a "+ Leuchte zu
   // Standort N" draft renders with `bestand + 1 + extras` dots.
   bestandLeuchtenCount?: number;
+  // "Leitung verlängern" flow: marks an extension draft (still rendered through
+  // the creation-draft path, so `isCreation` is also true). Carries the source
+  // Leitung's id and its original LineString in EPSG:25832 so the geometry
+  // selector can recompute the merged line on every pick / clear.
+  isExtension?: boolean;
+  extendingLeitungId?: number;
+  originalGeometryEpsg25832?: GeoJSON.Geometry;
   updatedAt: number;
 }
 
@@ -141,6 +148,9 @@ const featuresFormsSlice = createSlice({
         measurementLabel?: string;
         hiddenOriginalIds?: HiddenOriginalIds;
         bestandLeuchtenCount?: number;
+        isExtension?: boolean;
+        extendingLeitungId?: number;
+        originalGeometryEpsg25832?: GeoJSON.Geometry;
       }>
     ) {
       const {
@@ -158,6 +168,9 @@ const featuresFormsSlice = createSlice({
         measurementLabel,
         hiddenOriginalIds,
         bestandLeuchtenCount,
+        isExtension,
+        extendingLeitungId,
+        originalGeometryEpsg25832,
       } = action.payload;
       const existing = state.drafts[featureId];
       const hasFiles = existing?.files && existing.files.length > 0;
@@ -223,6 +236,13 @@ const featuresFormsSlice = createSlice({
         // edits) so the icon stays correct.
         bestandLeuchtenCount:
           existing?.bestandLeuchtenCount ?? bestandLeuchtenCount,
+        // Frozen at extension-draft creation; later setDraft calls (geometry
+        // change, form edits) must not overwrite or clear these.
+        isExtension: existing?.isExtension ?? isExtension,
+        extendingLeitungId:
+          existing?.extendingLeitungId ?? extendingLeitungId,
+        originalGeometryEpsg25832:
+          existing?.originalGeometryEpsg25832 ?? originalGeometryEpsg25832,
         updatedAt: Date.now(),
       };
     },
