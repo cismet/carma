@@ -381,7 +381,10 @@ export const useExtendLeitungDraft = () => {
     // Pull the source Leitung's editable fields so the form opens with them
     // pre-selected. The by-id query returns fk_* as plain FK ids, matching the
     // shape the form's Selects expect; on failure we open with empty fields.
+    // Also capture `fk_geom` so the save flow can update the same geom row in
+    // place (keeps the Leitung's id stable across "verlängern").
     let seedValues: Record<string, unknown> = {};
+    let extendingGeomId: number | undefined;
     if (jwt) {
       try {
         const data = await fetchFeatureById(jwt, info.id, "leitungen");
@@ -392,6 +395,10 @@ export const useExtendLeitungDraft = () => {
           for (const field of LEITUNG_PREFILL_FIELDS) {
             const value = leitungRow[field];
             if (value != null) seedValues[field] = value;
+          }
+          const fkGeom = leitungRow.fk_geom;
+          if (typeof fkGeom === "number" && Number.isFinite(fkGeom)) {
+            extendingGeomId = fkGeom;
           }
         }
       } catch (e) {
@@ -424,10 +431,13 @@ export const useExtendLeitungDraft = () => {
         geometry: original25832,
         // Hide the source Leitung from the regular vector-tile layer while the
         // extension draft is open — the brandnew layer renders the (original
-        // or merged) line in its place.
+        // or merged) line in its place. Discarded on save: an extension save
+        // updates the existing row in place, so once the brandnew layer picks
+        // the updated geometry up the regular tile can show it again.
         hiddenOriginalIds: { leitungen: [info.id] },
         isExtension: true,
         extendingLeitungId: info.id,
+        extendingGeomId,
         originalGeometryEpsg25832: original25832,
       })
     );
