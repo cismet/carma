@@ -10,15 +10,10 @@ import {
 const collectDynamicStylingConfigs = (
   layer: Layer
 ): DynamicStylingOptionsConfig[] => {
-  const raw = Array.isArray(layer.dynamicStyling)
-    ? layer.dynamicStyling
-    : layer.dynamicStyling
-    ? [layer.dynamicStyling]
-    : [];
-  return raw.filter(
-    (c): c is DynamicStylingOptionsConfig =>
-      c.type === "list" || c.type === "toggle"
-  );
+  if (Array.isArray(layer.dynamicStyling)) {
+    return layer.dynamicStyling;
+  }
+  return layer.dynamicStyling ? [layer.dynamicStyling] : [];
 };
 
 const buildDynamicStylingTransform = (

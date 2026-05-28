@@ -1,10 +1,10 @@
-import type {
-  DynamicStylingConfig,
-  DynamicStylingOptionsConfig,
-} from "@carma-mapping/layers";
+import type { DynamicStylingOptionsConfig } from "@carma-mapping/layers";
 
 export const getDynamicStylingOptionsConfigs = (
-  dynamicStyling: DynamicStylingConfig | DynamicStylingConfig[] | undefined
+  dynamicStyling:
+    | DynamicStylingOptionsConfig
+    | DynamicStylingOptionsConfig[]
+    | undefined
 ): DynamicStylingOptionsConfig[] => {
   const configs = Array.isArray(dynamicStyling)
     ? dynamicStyling
