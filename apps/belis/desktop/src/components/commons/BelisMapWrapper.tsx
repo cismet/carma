@@ -324,23 +324,54 @@ const BelisMapLibWrapper = ({
   const keyTablesData = useSelector(getKeyTablesData);
   const reduxSelectedFeature = useSelector(getReduxSelectedFeature);
   const measurements = useSelector(getMeasurements);
+  // Drafts keyed by feature-id. Used by the measurement InfoBox to expose
+  // an "Entwurf öffnen" action when a draft references the selected
+  // measurement as its geometry source (geometryKey === "measurement.<id>").
+  const allDraftsForMeasurementLink = useSelector(getAllDrafts);
+  // Redux measurement ids (single-prefixed `measurement.<uuid>`) currently
+  // backing an open creation draft. Drives both the terra-draw re-seed and
+  // the sidebar Messungen list so an attached measurement stays hidden
+  // exactly where it was before the refresh.
+  const attachedMeasurementReduxIds = useMemo(() => {
+    const set = new Set<string>();
+    for (const d of Object.values(allDraftsForMeasurementLink)) {
+      const k = d.geometryKey;
+      // draft.geometryKey is double-prefixed (`measurement.measurement.<uuid>`);
+      // strip one prefix to match redux feature.id.
+      if (k?.startsWith("measurement.measurement.")) {
+        set.add(k.slice("measurement.".length));
+      }
+    }
+    return set;
+  }, [allDraftsForMeasurementLink]);
   // One-shot snapshot of the redux-persist–rehydrated measurements, with the
   // `measurement.` id prefix stripped back to the raw terra-draw UUID. Passed
   // to MeasurementHost so terra-draw re-renders persisted features after a
   // page refresh (without this, sidebar shows them but the map is blank —
   // terra-draw owns its own internal store). Lazy-initialised so subsequent
   // measurement edits don't churn the prop reference; MeasurementHost only
-  // reads this on its first attach anyway.
+  // reads this on its first attach anyway. Attached measurements are filtered
+  // out so they don't resurrect on top of the draft icons that consumed them.
   const [initialMeasurementFeatures] = useState<Feature[]>(() =>
-    measurements.map((f) => ({
-      ...f,
-      id: typeof f.id === "string" ? f.id.replace(/^measurement\./, "") : f.id,
-    }))
+    measurements
+      .filter(
+        (f) => !attachedMeasurementReduxIds.has(String(f.id))
+      )
+      .map((f) => ({
+        ...f,
+        id:
+          typeof f.id === "string" ? f.id.replace(/^measurement\./, "") : f.id,
+      }))
   );
-  // Drafts keyed by feature-id. Used by the measurement InfoBox to expose
-  // an "Entwurf öffnen" action when a draft references the selected
-  // measurement as its geometry source (geometryKey === "measurement.<id>").
-  const allDraftsForMeasurementLink = useSelector(getAllDrafts);
+  // Sidebar Messungen list excludes attached measurements — the Fachobjekte >
+  // Messungen group should mirror what's actually visible on the map.
+  const measurementsForSidebar = useMemo(
+    () =>
+      measurements.filter(
+        (f) => !attachedMeasurementReduxIds.has(String(f.id))
+      ),
+    [measurements, attachedMeasurementReduxIds]
+  );
   const selectedMeasurementId =
     reduxSelectedFeature?.featurekind === MEASUREMENT_FEATUREKIND
       ? String(reduxSelectedFeature.id)
@@ -3511,7 +3542,7 @@ const BelisMapLibWrapper = ({
           brandnewSource={brandnewSource}
           adjustedHighlights={adjustedHighlights}
           setAdjustedHighlights={setAdjustedHighlights}
-          measurements={measurements}
+          measurements={measurementsForSidebar}
           selectedMeasurementId={selectedMeasurementId}
           onMeasurementSelect={(id) => dispatch(selectMeasurement(id))}
           onMeasurementsDeleteAll={() => {
