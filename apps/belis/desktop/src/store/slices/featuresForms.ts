@@ -86,6 +86,10 @@ export interface Draft {
   // selector can recompute the merged line on every pick / clear.
   isExtension?: boolean;
   extendingLeitungId?: number;
+  // Id of the existing Leitung's `geom` record. Carried on the draft so the
+  // save flow can update the same geom row (preserving the Leitung's id)
+  // instead of POSTing a brand-new feature with id: -1.
+  extendingGeomId?: number;
   originalGeometryEpsg25832?: GeoJSON.Geometry;
   updatedAt: number;
 }
@@ -155,6 +159,7 @@ const featuresFormsSlice = createSlice({
         bestandLeuchtenCount?: number;
         isExtension?: boolean;
         extendingLeitungId?: number;
+        extendingGeomId?: number;
         originalGeometryEpsg25832?: GeoJSON.Geometry;
       }>
     ) {
@@ -175,6 +180,7 @@ const featuresFormsSlice = createSlice({
         bestandLeuchtenCount,
         isExtension,
         extendingLeitungId,
+        extendingGeomId,
         originalGeometryEpsg25832,
       } = action.payload;
       const existing = state.drafts[featureId];
@@ -246,6 +252,7 @@ const featuresFormsSlice = createSlice({
         isExtension: existing?.isExtension ?? isExtension,
         extendingLeitungId:
           existing?.extendingLeitungId ?? extendingLeitungId,
+        extendingGeomId: existing?.extendingGeomId ?? extendingGeomId,
         originalGeometryEpsg25832:
           existing?.originalGeometryEpsg25832 ?? originalGeometryEpsg25832,
         updatedAt: Date.now(),
