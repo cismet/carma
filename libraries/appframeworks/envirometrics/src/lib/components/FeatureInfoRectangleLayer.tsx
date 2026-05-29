@@ -20,7 +20,7 @@ export interface FeatureInfoRectangleLayerProps {
 const defaultStyle = () => ({
   color: "black",
   fillColor: "black",
-  weight: "0.75",
+  weight: 3,
   opacity: 1,
   fillOpacity: 0.3,
 });
