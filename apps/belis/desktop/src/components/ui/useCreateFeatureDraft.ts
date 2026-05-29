@@ -244,6 +244,24 @@ export const useCreateFeatureDraft = () => {
       } else {
         seedSource = allSelectionDefaults[key] ?? allDefaults[key];
       }
+      // "Leuchte zu Standort … hinzufügen": the new lamp must inherit the
+      // selected Standort's first existing Leuchte (bestand[0]), seeded by the
+      // linkedMast hydration effect in LeuchteForm once the Mast fetch lands.
+      // Drop the remembered `leuchte` slice here — otherwise it pre-fills the
+      // draft and, because that effect treats values already on the draft as
+      // user input, the stale global template wins over this Standort's own
+      // first Leuchte (#645). The Mast slice is left untouched: a linked draft
+      // reuses the existing Mast and never persists draftValues.mast.
+      if (
+        key === "leuchte" &&
+        options?.linkToSelectedStandort &&
+        seedSource &&
+        "leuchte" in seedSource
+      ) {
+        const withoutLeuchte = { ...seedSource };
+        delete withoutLeuchte.leuchte;
+        seedSource = withoutLeuchte;
+      }
       // Sync the draft-chain memory (`defaults`) to whatever values we just
       // seeded the new draft with. The per-field green/gray highlight diffs
       // against `defaults`; without this sync, a draft seeded purely from
