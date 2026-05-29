@@ -3025,10 +3025,29 @@ const BelisMapLibWrapper = ({
         }
       }
 
+      // Background/basemap layers are queryable vector features too: the
+      // Stadtplan (grau/bunt) and Liegenschaftskarte styles plus the optional
+      // "Städtische Flurstücke" / "Straßen" layers all render clickable
+      // polygons, lines and labels. A click on such a feature (e.g. a
+      // settlement polygon or a street name) lands in `hits` even though no
+      // BelIS Fachobjekt was clicked. Restrict selection to genuine BelIS
+      // source layers; without this, an empty-looking spot that happens to sit
+      // on a basemap polygon would "select" that feature and open an empty
+      // Datenblatt ("Kein Objekt selektiert"). Returning undefined makes
+      // LibreMap clear the selection (per its selectFromHits contract).
+      const belisHits = hits.filter(
+        (h) =>
+          h.sourceLayer != null &&
+          (BELIS_SOURCE_LAYERS as readonly string[]).includes(h.sourceLayer)
+      );
+      if (belisHits.length === 0) {
+        return undefined;
+      }
+
       // When highlighting is active, prefer highlighted features over non-highlighted ones
-      let candidates = hits;
+      let candidates = belisHits;
       if (map) {
-        const highlighted = hits.filter((h) => {
+        const highlighted = belisHits.filter((h) => {
           if (h.id == null) return false;
           try {
             const state = map.getFeatureState(
