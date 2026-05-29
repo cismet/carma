@@ -126,6 +126,7 @@ import type { Feature } from "geojson";
 import type { ArbeitsauftragTileFeature } from "../../store/slices/arbeitsauftraege";
 import { transformGqlToTileFeatures } from "../../helper/transformArbeitsauftraege";
 import { fitAABounds } from "../../helper/fitAABounds";
+import { attachMeasurementsOnTop } from "../../helper/measurementLayerHelper";
 
 const LIST_WIDTH = 300;
 
@@ -2560,6 +2561,21 @@ const BelisMapLibWrapper = ({
     if (!miniMap || !miniMapReady) return;
     return attachBrandnewBelowLeuchten(miniMap, brandnewSource);
   }, [miniMap, miniMapReady, brandnewSource]);
+
+  // --- Z-order fix: measurement layers (terra-draw `td-*` geometry +
+  // `carma-measurements-*` labels/snap) are appended before the basemap is
+  // (re)composed by the imperative style, so an opaque background hides the
+  // measurement dots — they only show once "Blass" fades the basemap. Keep the
+  // whole measurement group on top of both maps via attachMeasurementsOnTop. ---
+  useEffect(() => {
+    if (!map || !mapReady) return;
+    return attachMeasurementsOnTop(map);
+  }, [map, mapReady]);
+
+  useEffect(() => {
+    if (!miniMap || !miniMapReady) return;
+    return attachMeasurementsOnTop(miniMap);
+  }, [miniMap, miniMapReady]);
 
   // --- Mini-map: push every open creation draft AND the server-side brandnew
   // FC into the brandnew GeoJSON source so they render together with the
