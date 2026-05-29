@@ -242,7 +242,12 @@ export const useCreateFeatureDraft = () => {
           recordSelectionDefaults({ featureType: key, values: serialized })
         );
       } else {
-        seedSource = allSelectionDefaults[key] ?? allDefaults[key];
+        // Prefer the selection memory, but treat an empty object as absent so
+        // a stale `{}` can't mask the draft-chain defaults and open the new
+        // draft blank (#645).
+        const sel = allSelectionDefaults[key];
+        seedSource =
+          sel && Object.keys(sel).length > 0 ? sel : allDefaults[key];
       }
       // "Leuchte zu Standort … hinzufügen": the new lamp must inherit the
       // selected Standort's first existing Leuchte (bestand[0]), seeded by the

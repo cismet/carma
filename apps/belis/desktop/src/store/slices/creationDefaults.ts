@@ -267,8 +267,14 @@ const creationDefaultsSlice = createSlice({
       }>
     ) {
       const { featureType, values } = action.payload;
-      state.selectionDefaults[featureType] =
-        pickAllowed(featureType, values) ?? {};
+      const picked = pickAllowed(featureType, values);
+      // When the recorded draft has no non-empty allowlisted field,
+      // `pickAllowed` returns null. Delete the entry rather than writing an
+      // empty `{}`: the creation seed reads `selectionDefaults ?? defaults`,
+      // and an empty object is NOT nullish — it would mask the good
+      // draft-chain `defaults` and open the next new feature blank (#645).
+      if (picked) state.selectionDefaults[featureType] = picked;
+      else delete state.selectionDefaults[featureType];
     },
     // Wipe every remembered "last values" template — draft-chain `defaults`
     // and the selection memory alike. Exposed through a button in Settings so
