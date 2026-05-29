@@ -1,5 +1,6 @@
 import { useDispatch, useSelector } from "react-redux";
-import { Checkbox, Radio, Slider, Switch } from "antd";
+import { Button, Checkbox, Radio, Slider, Switch } from "antd";
+import { clearAllDefaults } from "../../store/slices/creationDefaults";
 import {
   getActiveBackgroundLayer,
   getBackgroundLayerOpacities,
@@ -175,6 +176,12 @@ const Settings = () => {
             </div>
           </Radio.Group>
         </div>
+      </div>
+      <div className="flex flex-col gap-2">
+        <h4 className="text-lg font-medium">Gemerkte Vorbelegung</h4>
+        <Button block onClick={() => dispatch(clearAllDefaults())}>
+          Gemerkte Felder zurücksetzen
+        </Button>
       </div>
       <VersionInfo version={getApplicationVersion(versionData)} />
     </div>
