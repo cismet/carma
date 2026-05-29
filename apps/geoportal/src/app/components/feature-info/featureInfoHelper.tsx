@@ -147,9 +147,15 @@ export const getFeatureForLayer = async (
 
   let result = "";
   let featureInfoZoom = 20;
+  let blockLegacyGetFeatureInfo =
+    (layer.conf && "blockLegacyGetFeatureInfo" in layer.conf) || false;
   layer.other.keywords?.forEach((keyword) => {
     const extracted = keyword.split("carmaconf://infoBoxMapping:")[1];
     const zoom = keyword.split("carmaConf://featureInfoZoom:")[1];
+
+    if (keyword.includes("blockLegacyGetFeatureInfo")) {
+      blockLegacyGetFeatureInfo = true;
+    }
 
     if (extracted) {
       result += extracted + "\n";
@@ -212,14 +218,16 @@ export const getFeatureForLayer = async (
         return {
           properties: {
             ...feature.properties,
-            genericLinks: genericLinks.concat([
-              {
-                url: legacyFeatureInfoUrl,
-                tooltip: "Vollständige Sachdatenabfrage",
-                icon: <FeatureInfoIcon />,
-                target: "_legacyGetFeatureInfoHtml",
-              },
-            ]),
+            genericLinks: blockLegacyGetFeatureInfo
+              ? genericLinks
+              : genericLinks.concat([
+                  {
+                    url: legacyFeatureInfoUrl,
+                    tooltip: "Vollständige Sachdatenabfrage",
+                    icon: <FeatureInfoIcon />,
+                    target: "_legacyGetFeatureInfoHtml",
+                  },
+                ]),
             zoom: featureInfoZoom,
           },
           geometry: {
