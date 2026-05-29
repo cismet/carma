@@ -927,9 +927,19 @@ export const LibreMap = ({
         mapSelectionCtxRef.current.clearSelection();
 
         if (filteredHits.length > 0) {
+          // Honor the selectFromHits contract: when a handler is supplied it
+          // decides what (if anything) to select. Returning undefined means
+          // "clear selection" — do NOT fall back to filteredHits[0], or a
+          // click that the app deliberately rejected (e.g. a basemap-only hit)
+          // would still select the topmost background feature. The default
+          // (first hit) only applies when no handler is provided.
           const selectedVectorFeature = selectFromHitsRef.current
-            ? selectFromHitsRef.current(filteredHits) ?? filteredHits[0]
+            ? selectFromHitsRef.current(filteredHits)
             : filteredHits[0];
+          if (!selectedVectorFeature) {
+            // Selection was already cleared above; nothing to select.
+            return;
+          }
           const featureId = {
             source: selectedVectorFeature.source,
             sourceLayer: selectedVectorFeature.sourceLayer,
