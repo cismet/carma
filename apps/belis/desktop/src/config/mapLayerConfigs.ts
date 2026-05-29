@@ -35,7 +35,7 @@ export const backgroundLayerConfigs: Record<string, LayerEntry> = {
     title: "Liegenschaftskarte (grau)",
     layer: {
       type: "wmts",
-      url: "https://s10222-wuppertal-intra.map-hosting.de/forwardingTo/s10221/7098/alkis/services",
+      url: "https://sl0548-wuppertal-intra.map-hosting.de/forwardingTo/s10221/7098/alkis/services",
       layers: "alkomgw",
       styles: "default",
       version: "1.1.1",
@@ -49,7 +49,7 @@ export const backgroundLayerConfigs: Record<string, LayerEntry> = {
     title: "Liegenschaftskarte (bunt)",
     layer: {
       type: "wmts",
-      url: "https://s10222-wuppertal-intra.map-hosting.de/forwardingTo/s10221/7098/alkis/services",
+      url: "https://sl0548-wuppertal-intra.map-hosting.de/forwardingTo/s10221/7098/alkis/services",
       layers: "alkomf",
       styles: "default",
       version: "1.1.1",
@@ -127,7 +127,7 @@ export const additionalLayerConfigs: Record<string, LayerEntry> = {
     title: "Städtische Flurstücke",
     layer: {
       type: "wmts",
-      url: "https://s10222-wuppertal-intra.map-hosting.de/forwardingTo/s10221/7098/stadt-flurstuecke/services",
+      url: "https://sl0548-wuppertal-intra.map-hosting.de/forwardingTo/s10221/7098/stadt-flurstuecke/services",
       layers: "stadt_flurst",
       version: "1.1.1",
       tileSize: 256,

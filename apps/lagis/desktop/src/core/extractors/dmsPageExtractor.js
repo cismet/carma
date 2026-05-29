@@ -27,7 +27,7 @@ export function dmsPageExtractor(dataIn) {
             fileType: "d3",
           };
         } else {
-          const server = "http://dokumente.s10222.wuppertal-intra.de";
+          const server = "http://dokumente.sl0548.wuppertal-intra.de";
           const fileName = d.url.object_name;
           const fileType = fileName.split(".");
           const urlBase = d.url.url_base.path;
