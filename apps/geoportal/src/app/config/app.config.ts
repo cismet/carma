@@ -158,6 +158,15 @@ export const LEAFLET_CONFIG: LeafletConfig = {
   zoomDelta: 1.0,
 };
 
+// Raster grid for the implicit-feature-info rectangle on the 2D Leaflet map.
+// Values are taken from the Wuppertal rain hazard map depth raster (gdalinfo on
+// the depth3857.tif: upper-left corner and pixel size in EPSG:3857).
+export const FEATURE_INFO_RECTANGLE_CONFIG = {
+  upperleftX: 780160.203,
+  upperleftY: 6678245.042,
+  pixelsize: 1.595781324768881,
+};
+
 // URL hash parameter keys for viewer state
 export const URL_PARAM_KEYS = {
   mapStyle: "m",

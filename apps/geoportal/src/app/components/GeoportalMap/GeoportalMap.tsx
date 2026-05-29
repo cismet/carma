@@ -1,5 +1,7 @@
 import L from "leaflet";
+import proj4 from "proj4";
 import { getFromWebMercatorToWGS84 } from "@carma-geo/proj";
+import { FeatureInfoRectangleLayer } from "@carma-appframeworks/envirometrics";
 import {
   useCallback,
   useContext,
@@ -143,6 +145,7 @@ import { useModelSelectionDispatcher } from "../../hooks/useModelSelectionDispat
 import {
   CESIUM_CONFIG,
   DEFAULT_CAMERA_FOV_DEG,
+  FEATURE_INFO_RECTANGLE_CONFIG,
   LEAFLET_CONFIG,
 } from "../../config/app.config";
 
@@ -368,6 +371,9 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
   const markerRef = useRef(undefined);
   const markerAccentRef = useRef(undefined);
   const [pos, setPos] = useState<[number, number] | null>(null);
+  const [featureInfoRectanglePos, setFeatureInfoRectanglePos] = useState<
+    [number, number] | null
+  >(null);
   // TODO: move all these to a custom hook and collect all calls to updateFeatureInfo there
   const [shouldUpdateFeatureInfo, setShouldUpdateFeatureInfo] =
     useState<boolean>(false);
@@ -816,6 +822,21 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
   }, [maplibreMaps]);
 
   useEffect(() => {
+    if (uiMode !== UIMode.DEFAULT) {
+      setFeatureInfoRectanglePos(null);
+    }
+  }, [uiMode]);
+
+  const hasPointInfoLayer = useMemo(
+    () =>
+      layers.some(
+        (layer) =>
+          layer.visible && layer.conf !== undefined && "pointInfo" in layer.conf
+      ),
+    [layers]
+  );
+
+  useEffect(() => {
     const leaflet = getLeafletMap();
 
     const handleZoomEnd = () => {
@@ -1227,6 +1248,7 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
               zoom: getLeafletZoom(),
               map: map,
               maplibreMapsRef,
+              setFeatureInfoRectanglePos,
             });
           }}
           gazetteerSearchControl={true}
@@ -1243,6 +1265,16 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
             )}
 
           {useCreateCismapLayers(layers, createLayerOptions)}
+          {hasPointInfoLayer &&
+            uiMode === UIMode.DEFAULT &&
+            featureInfoRectanglePos && (
+              <FeatureInfoRectangleLayer
+                position={featureInfoRectanglePos}
+                upperleftX={FEATURE_INFO_RECTANGLE_CONFIG.upperleftX}
+                upperleftY={FEATURE_INFO_RECTANGLE_CONFIG.upperleftY}
+                pixelsize={FEATURE_INFO_RECTANGLE_CONFIG.pixelsize}
+              />
+            )}
           <PrintPreview />
           <Measurements snappingLayers={maplibreMaps} />
         </TopicMapComponent>
