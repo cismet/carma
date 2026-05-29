@@ -270,6 +270,15 @@ const creationDefaultsSlice = createSlice({
       state.selectionDefaults[featureType] =
         pickAllowed(featureType, values) ?? {};
     },
+    // Wipe every remembered "last values" template — draft-chain `defaults`
+    // and the selection memory alike. Exposed through a button in Settings so
+    // the next new feature of any type starts from a clean slate. Leaves
+    // `draftIdToType` untouched: open drafts keep being tracked so their
+    // lifecycle cleanup still works.
+    clearAllDefaults(state) {
+      state.defaults = {};
+      state.selectionDefaults = {};
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -349,7 +358,7 @@ const creationDefaultsSlice = createSlice({
   },
 });
 
-export const { recordDefaults, recordSelectionDefaults } =
+export const { recordDefaults, recordSelectionDefaults, clearAllDefaults } =
   creationDefaultsSlice.actions;
 
 export default creationDefaultsSlice;
