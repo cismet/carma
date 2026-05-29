@@ -34,7 +34,7 @@ import FeatureFormLayout from "./FeatureFormLayout";
 import { useCreateFeatureDraft } from "../useCreateFeatureDraft";
 import { extractListItem } from "../BelisSidebar";
 import LeuchteFormFields from "./LeuchteFormFields";
-import MastFormFields from "./MastFormFields";
+import MastFormFields, { projectMastToFormValues } from "./MastFormFields";
 import {
   fetchFeatureById,
   updateDataByClassName,
@@ -726,6 +726,22 @@ const LeuchteForm = ({
       setMastData(null);
     }
   }, [effectiveMastId, jwt]);
+
+  // View mode (existing Leuchte): the Standort/Mast tab is not rendered here
+  // (it only appears during creation), so MastFormFields never reports the
+  // parent Mast's values up via `handleMastOriginalValues`. Without that the
+  // "remember" memory captures only the Leuchte slice — and pressing the green
+  // "+" then seeds the next draft with an empty Standort tab. The Mast data is
+  // already fetched above; project it into the same form-field shape
+  // MastFormFields would emit and feed it through the same callback, so
+  // `recordSelectionDefaults` stores both `{ leuchte, mast }` and the new draft
+  // inherits the Mast too. Creation mode is excluded — there the Mast tab is
+  // live and owns this callback.
+  useEffect(() => {
+    if (isCreation) return;
+    if (!mastData) return;
+    handleMastOriginalValues(projectMastToFormValues(mastData));
+  }, [isCreation, mastData, handleMastOriginalValues]);
 
   // One-shot hydration when the parent Standort's data arrives. Keyed on the
   // `mastData` identity (one fetch = one ref bump) so re-renders don't dispatch

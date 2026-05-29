@@ -94,6 +94,102 @@ interface NestedObject {
   strasse?: string;
 }
 
+// Project a server-side Mast record (with resolved `tkey_*` / `*Object` nested
+// references) into the flat form-field shape that `draftValues.mast` carries —
+// the same blob applied via `setFieldsValue` in the effect below. Exported so
+// the Leuchte *view* (which never renders the Mast tab) can capture a selected
+// Leuchte's parent Mast into the "remember" memory, mirroring how the Leuchte
+// slice is captured. Date fields become dayjs objects, matching the live form.
+export const projectMastToFormValues = (
+  mast: Record<string, unknown>
+): Record<string, unknown> => {
+  const strassenschluessel = mast.tkey_strassenschluessel as
+    | NestedObject
+    | undefined;
+  const kennziffer = mast.tkey_kennziffer as NestedObject | undefined;
+  const bezirk = mast.tkey_bezirk as NestedObject | undefined;
+  const mastart = mast.tkey_mastart as NestedObject | undefined;
+  const masttyp = mast.tkey_masttyp as NestedObject | undefined;
+  const klassifizierung = mast.tkey_klassifizierung as NestedObject | undefined;
+  const unterhMast = mast.tkey_unterh_mast as NestedObject | undefined;
+  const anlagengruppeObj = mast.anlagengruppeObject as NestedObject | undefined;
+  return {
+    // Strassenschluessel - display fields plus the FK id. The id is what the
+    // backend persists (the pk/strasse pair is display-only); without it a
+    // remembered/seeded street shows in the form but saves as null, dropping
+    // the street on the new Mast and on every Leuchte that inherits its FK.
+    strassenschluessel_pk: strassenschluessel?.pk,
+    strassenschluessel_strasse: strassenschluessel?.strasse
+      ? toTitleCase(strassenschluessel.strasse)
+      : undefined,
+    fk_strassenschluessel: strassenschluessel?.id ?? null,
+    // Kennziffer - use id for Select value
+    fk_kennziffer: kennziffer?.id ?? null,
+    // Laufende Nr.
+    lfd_nummer: mast.lfd_nummer,
+    // Hausnummer
+    haus_nr: mast.haus_nr,
+    // Standortangabe
+    standortangabe: toTitleCase((mast.standortangabe as string) || ""),
+    // Stadtbezirk - use id for Select value
+    fk_stadtbezirk: bezirk?.id ?? null,
+    // Mastart - use id for Select value
+    fk_mastart: mastart?.id ?? null,
+    // Masttyp - use id for Select value
+    fk_masttyp: masttyp?.id ?? null,
+    // Klassifizierung - use id for Select value
+    fk_klassifizierung: klassifizierung?.id ?? null,
+    // Unterhalt - use id for Select value
+    fk_unterhaltspflicht_mast: unterhMast?.id ?? null,
+    // Inbetriebnahme
+    inbetriebnahme_mast: mast.inbetriebnahme_mast
+      ? dayjs(mast.inbetriebnahme_mast as string)
+      : null,
+    // V-Einheit
+    verrechnungseinheit: mast.verrechnungseinheit,
+    // Mastanstrich
+    mastanstrich: mast.mastanstrich ? dayjs(mast.mastanstrich as string) : null,
+    // Anstrichfarbe
+    anstrichfarbe: mast.anstrichfarbe,
+    // Montagefirma
+    montagefirma: mast.montagefirma,
+    // Gruendung
+    gruendung: mast.gruendung,
+    // Standsicherheitspruefung
+    standsicherheitspruefung: mast.standsicherheitspruefung
+      ? dayjs(mast.standsicherheitspruefung as string)
+      : null,
+    // Naechstes Pruefdatum
+    naechstes_pruefdatum: mast.naechstes_pruefdatum
+      ? dayjs(mast.naechstes_pruefdatum as string)
+      : null,
+    // Verfahren
+    verfahren: mast.verfahren,
+    // Elektrische Pruefung
+    elek_pruefung: mast.elek_pruefung
+      ? dayjs(mast.elek_pruefung as string)
+      : null,
+    // Erdung
+    erdung: mast.erdung,
+    // Monteur
+    monteur: mast.monteur,
+    // Mastschutz
+    mastschutz: mast.mastschutz ? dayjs(mast.mastschutz as string) : null,
+    // Revision
+    revision: mast.revision ? dayjs(mast.revision as string) : null,
+    // Anlagengruppe - use id for Select value
+    anlagengruppe: anlagengruppeObj?.id ?? mast.anlagengruppe,
+    // Anbauten
+    anbauten: mast.anbauten,
+    // Bemerkungen
+    bemerkungen: mast.bemerkungen,
+    // Letzte Aenderung
+    letzte_aenderung: mast.letzte_aenderung
+      ? dayjs(mast.letzte_aenderung as string)
+      : null,
+  };
+};
+
 const FormLabel = ({ children }: { children: React.ReactNode }) => (
   <span className="text-sm font-medium text-gray-700">{children}</span>
 );
@@ -199,94 +295,7 @@ const MastFormFields = ({
     }
 
     if (mast) {
-      const strassenschluessel = mast.tkey_strassenschluessel as
-        | NestedObject
-        | undefined;
-      const kennziffer = mast.tkey_kennziffer as NestedObject | undefined;
-      const bezirk = mast.tkey_bezirk as NestedObject | undefined;
-      const mastart = mast.tkey_mastart as NestedObject | undefined;
-      const masttyp = mast.tkey_masttyp as NestedObject | undefined;
-      const klassifizierung = mast.tkey_klassifizierung as
-        | NestedObject
-        | undefined;
-      const unterhMast = mast.tkey_unterh_mast as NestedObject | undefined;
-      const anlagengruppeObj = mast.anlagengruppeObject as
-        | NestedObject
-        | undefined;
-
-      const serverValues = {
-        // Strassenschluessel
-        strassenschluessel_pk: strassenschluessel?.pk,
-        strassenschluessel_strasse: strassenschluessel?.strasse
-          ? toTitleCase(strassenschluessel.strasse)
-          : undefined,
-        // Kennziffer - use id for Select value
-        fk_kennziffer: kennziffer?.id ?? null,
-        // Laufende Nr.
-        lfd_nummer: mast.lfd_nummer,
-        // Hausnummer
-        haus_nr: mast.haus_nr,
-        // Standortangabe
-        standortangabe: toTitleCase((mast.standortangabe as string) || ""),
-        // Stadtbezirk - use id for Select value
-        fk_stadtbezirk: bezirk?.id ?? null,
-        // Mastart - use id for Select value
-        fk_mastart: mastart?.id ?? null,
-        // Masttyp - use id for Select value
-        fk_masttyp: masttyp?.id ?? null,
-        // Klassifizierung - use id for Select value
-        fk_klassifizierung: klassifizierung?.id ?? null,
-        // Unterhalt - use id for Select value
-        fk_unterhaltspflicht_mast: unterhMast?.id ?? null,
-        // Inbetriebnahme
-        inbetriebnahme_mast: mast.inbetriebnahme_mast
-          ? dayjs(mast.inbetriebnahme_mast as string)
-          : null,
-        // V-Einheit
-        verrechnungseinheit: mast.verrechnungseinheit,
-        // Mastanstrich
-        mastanstrich: mast.mastanstrich
-          ? dayjs(mast.mastanstrich as string)
-          : null,
-        // Anstrichfarbe
-        anstrichfarbe: mast.anstrichfarbe,
-        // Montagefirma
-        montagefirma: mast.montagefirma,
-        // Gruendung
-        gruendung: mast.gruendung,
-        // Standsicherheitspruefung
-        standsicherheitspruefung: mast.standsicherheitspruefung
-          ? dayjs(mast.standsicherheitspruefung as string)
-          : null,
-        // Naechstes Pruefdatum
-        naechstes_pruefdatum: mast.naechstes_pruefdatum
-          ? dayjs(mast.naechstes_pruefdatum as string)
-          : null,
-        // Verfahren
-        verfahren: mast.verfahren,
-        // Elektrische Pruefung
-        elek_pruefung: mast.elek_pruefung
-          ? dayjs(mast.elek_pruefung as string)
-          : null,
-        // Erdung
-        erdung: mast.erdung,
-        // Monteur
-        monteur: mast.monteur,
-        // Mastschutz
-        mastschutz: mast.mastschutz ? dayjs(mast.mastschutz as string) : null,
-        // Revision
-        revision: mast.revision ? dayjs(mast.revision as string) : null,
-        // Anlagengruppe - use id for Select value
-        anlagengruppe: anlagengruppeObj?.id ?? mast.anlagengruppe,
-        // Anbauten
-        anbauten: mast.anbauten,
-        // Bemerkungen
-        bemerkungen: mast.bemerkungen,
-        // Letzte Aenderung
-        letzte_aenderung: mast.letzte_aenderung
-          ? dayjs(mast.letzte_aenderung as string)
-          : null,
-      };
+      const serverValues = projectMastToFormValues(mast);
       form.setFieldsValue(serverValues);
       onOriginalValues?.(form.getFieldsValue());
     } else {
