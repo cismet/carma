@@ -1,3 +1,8 @@
+import {
+  CSS_MIX_BLEND_MODE,
+  type CssMixBlendMode,
+} from "@carma-commons/dom/document";
+
 export const ANNOTATION_CURSOR_OVERLAY_STROKE_COLOR =
   "rgba(255, 255, 255, 0.96)";
 export const ANNOTATION_CURSOR_OVERLAY_SHADOW_COLOR = "rgba(56, 56, 56, 1)";
@@ -5,7 +10,8 @@ export const ANNOTATION_CURSOR_OVERLAY_SHADOW_OPACITY = 0.3;
 export const ANNOTATION_CURSOR_OVERLAY_OUTLINE_PX = 0.5;
 export const ANNOTATION_CURSOR_OVERLAY_SHADOW_BLUR_RADIUS_PX = 1;
 export const ANNOTATION_CURSOR_OVERLAY_SHADOW_DROP_SHADOW_RADIUS_PX = 1;
-export const ANNOTATION_CURSOR_OVERLAY_SHADOW_BLEND_MODE = "normal";
+export const ANNOTATION_CURSOR_OVERLAY_SHADOW_BLEND_MODE: CssMixBlendMode =
+  CSS_MIX_BLEND_MODE.NORMAL;
 export const ANNOTATION_CURSOR_OVERLAY_SHADOW_FILTER = `drop-shadow(0 0 ${ANNOTATION_CURSOR_OVERLAY_SHADOW_DROP_SHADOW_RADIUS_PX}px ${ANNOTATION_CURSOR_OVERLAY_SHADOW_COLOR})`;
 export const ANNOTATION_CURSOR_OVERLAY_THICKNESS_PX = 3;
 export const ANNOTATION_CURSOR_OVERLAY_CENTER_DOT_SIZE_PX = 1;
@@ -43,7 +49,7 @@ export const annotationCursorOverlayForegroundLayerStyle = Object.freeze({
   position: "absolute",
   inset: "0",
   pointerEvents: "none",
-  mixBlendMode: "normal",
+  mixBlendMode: CSS_MIX_BLEND_MODE.NORMAL,
 });
 
 export const annotationCursorOverlayShadowLayerStyle = Object.freeze({

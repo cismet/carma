@@ -11,6 +11,7 @@ import {
   ANNOTATION_CURSOR_OVERLAY_STROKE_COLOR,
   createAnnotationCursorLayeredDomElement,
 } from "@carma-commons/ui/components";
+import { CSS_MIX_BLEND_MODE } from "@carma-commons/dom/document";
 import {
   getCesiumScenePointerClientPosition,
   registerCesiumScenePointerTracker,
@@ -95,7 +96,7 @@ const applyStyles = (
 const createCrosshairCursorElement = () => {
   const element = createAnnotationCursorLayeredDomElement({
     canvasSizePx: cursorOverlayDefaults.crosshair.canvasSizePx,
-    foregroundBlendMode: "normal",
+    foregroundBlendMode: CSS_MIX_BLEND_MODE.NORMAL,
     foregroundFill: ANNOTATION_CURSOR_OVERLAY_STROKE_COLOR,
     pathDefinitions: ANNOTATION_CURSOR_DEFAULT_PATH_DEFINITIONS,
     shadowBlendMode: ANNOTATION_CURSOR_OVERLAY_SHADOW_BLEND_MODE,
