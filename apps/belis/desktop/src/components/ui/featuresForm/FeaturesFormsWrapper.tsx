@@ -49,7 +49,10 @@ import {
   serializeValues,
   deserializeValues,
 } from "../../../helper/draftSerialize";
-import { saveFeatureDraft } from "../../../helper/featureFormSaveHelpers";
+import {
+  saveFeatureDraft,
+  buildStrassenschluesselByPk,
+} from "../../../helper/featureFormSaveHelpers";
 import {
   buildMeasurementGeometryOptions,
   parseStandortIdFromKey,
@@ -199,6 +202,17 @@ const FeaturesFormsWrapper = ({
   const measurements = useSelector(getMeasurements);
   const allDrafts = useSelector(getAllDrafts);
   const keyTablesData = useSelector(getKeyTablesData);
+  // pk → id map used at save time to backfill a missing fk_strassenschluessel
+  // from the visible Strassenschluessel pk (see prepareSaveValues).
+  const strassenschluesselByPk = useMemo(
+    () =>
+      buildStrassenschluesselByPk(
+        keyTablesData["straßenschlüssel"] as
+          | ReadonlyArray<{ id?: unknown; pk?: unknown }>
+          | undefined
+      ),
+    [keyTablesData]
+  );
 
   // When creating a new Leuchte that's linked to an existing Standort, expose
   // that Standort as a geometry-source option in the dropdown. The link is
@@ -450,7 +464,12 @@ const FeaturesFormsWrapper = ({
 
     setSaving(true);
     try {
-      const result = await saveFeatureDraft(jwt, featureId, draft);
+      const result = await saveFeatureDraft(
+        jwt,
+        featureId,
+        draft,
+        strassenschluesselByPk
+      );
       if (result.success) {
         dispatch(promoteDraftHiddenToPermanent(featureId));
         dispatch(removeDraft(featureId));
@@ -500,6 +519,7 @@ const FeaturesFormsWrapper = ({
     measurements,
     dispatch,
     onSelectNextDraft,
+    strassenschluesselByPk,
   ]);
 
   // Extension drafts ("Leitung verlängern") carry the source Leitung's id on

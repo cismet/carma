@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ArrowLeftOutlined,
   EditOutlined,
@@ -19,7 +19,11 @@ import {
   getMeasurements,
   setMeasurements,
 } from "../../../store/slices/measurements";
-import { handleSaveAllDrafts } from "../../../helper/featureFormSaveHelpers";
+import {
+  handleSaveAllDrafts,
+  buildStrassenschluesselByPk,
+} from "../../../helper/featureFormSaveHelpers";
+import { getKeyTablesData } from "../../../store/slices/keyTables";
 import { useSingleSave } from "./FeaturesFormsWrapper";
 import { useDatasheet } from "@carma-mapping/engines/maplibre";
 import SendOrDiscardAllDraftsButton from "../SendOrDiscardAllDraftsButton";
@@ -66,6 +70,16 @@ const FormHeader = ({
   const drafts = useSelector(getAllDrafts);
   const jwt = useSelector(getJWT);
   const measurements = useSelector(getMeasurements);
+  const keyTablesData = useSelector(getKeyTablesData);
+  const strassenschluesselByPk = useMemo(
+    () =>
+      buildStrassenschluesselByPk(
+        keyTablesData["straßenschlüssel"] as
+          | ReadonlyArray<{ id?: unknown; pk?: unknown }>
+          | undefined
+      ),
+    [keyTablesData]
+  );
   const [savingAll, setSavingAll] = useState(false);
   const { onSaveSingle, savingSingle } = useSingleSave();
   const { closeDatasheet } = useDatasheet();
@@ -91,6 +105,7 @@ const FormHeader = ({
       // After at least one draft saved, the form on the right pane is
       // bound to a draft that no longer exists — return to the map.
       onSuccess: closeDatasheet,
+      strassenschluesselByPk,
     });
   };
 
