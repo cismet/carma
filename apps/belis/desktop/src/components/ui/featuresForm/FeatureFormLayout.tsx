@@ -85,6 +85,8 @@ interface FeatureFormLayoutProps {
   onCreateRelatedDraft?: () => void;
   /** Color of the header "+" create-related-draft button. Defaults to "green". */
   createDraftButtonVariant?: "green" | "white";
+  /** Optional Alt-gated header "copy values" button handler. */
+  onCopyValues?: () => void;
   /** Label for the main/general tab. Defaults to "Allgemein". Accepts a
    * ReactNode so callers (e.g. LeuchteForm) can embed an inline close icon. */
   generalTabLabel?: ReactNode;
@@ -138,6 +140,7 @@ const FeatureFormLayout = ({
   onAddTab,
   onCreateRelatedDraft,
   createDraftButtonVariant,
+  onCopyValues,
   generalTabLabel = "Allgemein",
   additionalTabsPosition = "after",
   loading,
@@ -648,6 +651,7 @@ const FeatureFormLayout = ({
           onSaveAll={onSaveAll}
           onCreateRelatedDraft={onCreateRelatedDraft}
           createDraftButtonVariant={createDraftButtonVariant}
+          onCopyValues={onCopyValues}
         />
         <div className="flex flex-1 overflow-hidden">
           {/* Form column - 60% */}
@@ -708,6 +712,7 @@ const FeatureFormLayout = ({
         onSaveAll={onSaveAll}
         onCreateRelatedDraft={onCreateRelatedDraft}
         createDraftButtonVariant={createDraftButtonVariant}
+        onCopyValues={onCopyValues}
       />
       <div
         className={`px-6 pb-60 overflow-y-auto flex-1 transition-opacity ${

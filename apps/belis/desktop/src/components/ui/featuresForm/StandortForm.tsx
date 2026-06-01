@@ -268,6 +268,9 @@ const StandortForm = ({
             : { seedFromSelection: true }
         )
       }
+      onCopyValues={() => {
+        // TODO: copy behavior to be defined.
+      }}
     >
       <MastFormFields
         mast={mast}
