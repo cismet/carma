@@ -1,5 +1,5 @@
 import { useDispatch, useSelector } from "react-redux";
-import { Button, Checkbox, Radio, Slider, Switch } from "antd";
+import { Button, Checkbox, Popconfirm, Radio, Slider, Switch, message } from "antd";
 import { clearAllDefaults } from "../../store/slices/creationDefaults";
 import {
   getActiveBackgroundLayer,
@@ -179,9 +179,18 @@ const Settings = () => {
       </div>
       <div className="flex flex-col gap-2">
         <h4 className="text-lg font-medium">Gemerkte Vorbelegung</h4>
-        <Button block onClick={() => dispatch(clearAllDefaults())}>
-          Gemerkte Felder zurücksetzen
-        </Button>
+        <Popconfirm
+          title="Gemerkte Felder zurücksetzen"
+          description="Alle gemerkten Vorbelegungen werden gelöscht. Fortfahren?"
+          okText="Zurücksetzen"
+          cancelText="Abbrechen"
+          onConfirm={() => {
+            dispatch(clearAllDefaults());
+            message.success("Gemerkte Felder zurückgesetzt");
+          }}
+        >
+          <Button block>Gemerkte Felder zurücksetzen</Button>
+        </Popconfirm>
       </div>
       <VersionInfo version={getApplicationVersion(versionData)} />
     </div>
