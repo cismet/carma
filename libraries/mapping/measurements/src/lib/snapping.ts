@@ -1,5 +1,13 @@
-import type { Map as MaplibreMap, MapGeoJSONFeature } from "maplibre-gl";
-import type { Position } from "geojson";
+import type { Map as MaplibreMap } from "maplibre-gl";
+import type { Feature, Geometry, Position } from "geojson";
+
+// Anything with a `.geometry` — covers maplibre's MapGeoJSONFeature (rendered
+// host-map features) and plain GeoJSON Features (our own committed
+// measurements fed in via `extraFeatures`). Both get the same vertex/edge
+// snap treatment.
+interface GeometryBearing {
+  geometry: Geometry;
+}
 
 // Geographic coordinate, lng-then-lat (GeoJSON convention).
 type LngLat = [number, number];
@@ -153,9 +161,7 @@ function pixelDistance(a: ScreenPoint, b: ScreenPoint): number {
   return Math.sqrt(dx * dx + dy * dy);
 }
 
-function* iterateCoords(
-  geom: MapGeoJSONFeature["geometry"]
-): Generator<LngLat> {
+function* iterateCoords(geom: Geometry): Generator<LngLat> {
   switch (geom.type) {
     case "Point":
       yield geom.coordinates as LngLat;
@@ -182,9 +188,7 @@ function* iterateCoords(
   }
 }
 
-function* iterateSegments(
-  geom: MapGeoJSONFeature["geometry"]
-): Generator<[LngLat, LngLat]> {
+function* iterateSegments(geom: Geometry): Generator<[LngLat, LngLat]> {
   const yieldRing = function* (
     ring: Position[]
   ): Generator<[LngLat, LngLat]> {
@@ -246,26 +250,43 @@ function closestPointOnSegment(
 /** Two-pass snap: find the closest vertex within `radiusPx`; if none, fall
  * back to the closest point on any edge. Returns null when nothing is in
  * range. `layerIds` is the curated candidate set built once per attach() /
- * style.load via getOptOutSnappableLayerIds. */
+ * style.load via getOptOutSnappableLayerIds.
+ *
+ * `extraFeatures` are geometry-bearing features outside the host map's
+ * rendered layers that should also act as snap targets — the measurement
+ * library passes terra-draw's committed measurements here so a new point or
+ * line snaps to existing measurement vertices/edges (terra-draw's own `td-*`
+ * render layers are excluded from `layerIds`, so without this they'd never be
+ * candidates). The caller is responsible for filtering out the feature being
+ * drawn/edited so it doesn't snap to itself. */
 export function findSnapTarget(
   map: MaplibreMap,
   pointerScreen: ScreenPoint,
   radiusPx: number,
-  layerIds: string[]
+  layerIds: string[],
+  extraFeatures: ReadonlyArray<Feature> = []
 ): SnapHit | null {
-  if (layerIds.length === 0) return null;
-
   const bbox: [[number, number], [number, number]] = [
     [pointerScreen.x - radiusPx, pointerScreen.y - radiusPx],
     [pointerScreen.x + radiusPx, pointerScreen.y + radiusPx],
   ];
 
-  let candidates: MapGeoJSONFeature[];
-  try {
-    candidates = map.queryRenderedFeatures(bbox, { layers: layerIds });
-  } catch {
-    // Style mid-swap or layer ids stale — recover next frame.
-    return null;
+  const candidates: GeometryBearing[] = [];
+  if (layerIds.length > 0) {
+    try {
+      // Spread into our own array so host-map features and the extra
+      // measurement features share a single two-pass comparison — the
+      // globally closest vertex wins regardless of which set it came from.
+      for (const f of map.queryRenderedFeatures(bbox, { layers: layerIds })) {
+        candidates.push(f);
+      }
+    } catch {
+      // Style mid-swap or layer ids stale — the extra features below may
+      // still yield a hit; recover the rendered set next frame.
+    }
+  }
+  for (const f of extraFeatures) {
+    if (f.geometry) candidates.push({ geometry: f.geometry });
   }
   if (candidates.length === 0) return null;
 
