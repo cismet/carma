@@ -37,7 +37,6 @@ const FormLabel = ({ children }: { children: React.ReactNode }) => (
 const MauerlascheFormFields = ({
   mauerlasche,
   readOnly = true,
-  isCreation,
   featureId,
   form: externalForm,
   onFormInstance,
@@ -135,7 +134,7 @@ const MauerlascheFormFields = ({
       className={getFormClassName(readOnly, "pr-2")}
       onValuesChange={onValuesChange}
     >
-      {(!mauerlasche || isCreation) && !readOnly ? (
+      {!readOnly ? (
         <StrassenschluesselFieldsModal
           label="Strassenschlüssel"
           onSyncDerivedValues={onValuesChange}
