@@ -55,6 +55,27 @@ const transformDatesForBackend = (
 };
 
 // ---------------------------------------------------------------------------
+// Strassenschluessel pk → id lookup
+// ---------------------------------------------------------------------------
+
+/**
+ * Builds a `pk → id` map from the Strassenschluessel key table so the save
+ * layer can backfill `fk_strassenschluessel` from the visible `pk` when the
+ * hidden FK never made it into the draft (see `prepareSaveValues`).
+ */
+export const buildStrassenschluesselByPk = (
+  items: ReadonlyArray<{ id?: unknown; pk?: unknown }> | undefined
+): Record<string, number> => {
+  const map: Record<string, number> = {};
+  for (const item of items ?? []) {
+    if (item && typeof item.pk === "string" && typeof item.id === "number") {
+      map[item.pk] = item.id;
+    }
+  }
+  return map;
+};
+
+// ---------------------------------------------------------------------------
 // Per-feature-type save configuration
 // ---------------------------------------------------------------------------
 
@@ -123,7 +144,8 @@ const featureSaveConfigs: Record<string, FeatureSaveConfig> = {
  */
 export const prepareSaveValues = (
   featureType: string,
-  serializedDraftValues: Record<string, unknown>
+  serializedDraftValues: Record<string, unknown>,
+  strassenschluesselByPk?: Record<string, number>
 ): Record<string, unknown> | null => {
   const config = featureSaveConfigs[featureType];
   if (!config) return null;
@@ -140,6 +162,28 @@ export const prepareSaveValues = (
 
   // 2. Deserialize dayjs strings
   const deserialized = deserializeValues(raw);
+
+  // 2b. Backfill fk_strassenschluessel from the visible pk.
+  // The street is persisted ONLY via fk_strassenschluessel — strassenschluessel_pk
+  // and strassenschluessel_strasse are display-only and stripped below. The FK is
+  // a hidden field that only reaches the draft through the picker's manual sync
+  // (AntD setFieldValue doesn't fire onValuesChange); a draft hydrated from server
+  // data or copied via the green "+" can therefore carry the visible pk/strasse
+  // while the FK is null, which would save the feature with no street. Resolve the
+  // FK from the pk against the key table so the display and the FK can't desync.
+  const currentFk = deserialized.fk_strassenschluessel;
+  const pk = deserialized.strassenschluessel_pk;
+  if (
+    strassenschluesselByPk &&
+    (currentFk == null || currentFk === "") &&
+    typeof pk === "string" &&
+    pk !== ""
+  ) {
+    const resolved = strassenschluesselByPk[pk];
+    if (typeof resolved === "number") {
+      deserialized.fk_strassenschluessel = resolved;
+    }
+  }
 
   // 3. Handle explicitFields mode (leitung)
   if (config.explicitFields) {
@@ -223,7 +267,8 @@ export interface SaveResult {
 export const saveFeatureDraft = async (
   jwt: string,
   featureId: string,
-  draft: Draft
+  draft: Draft,
+  strassenschluesselByPk?: Record<string, number>
 ): Promise<SaveResult> => {
   const { featureType, featureDbId } = draft;
   const config = featureSaveConfigs[featureType];
@@ -247,7 +292,7 @@ export const saveFeatureDraft = async (
 
   // Creation drafts: create new feature with id: -1
   if (draft.isCreation) {
-    return saveCreationDraft(jwt, featureId, draft, config);
+    return saveCreationDraft(jwt, featureId, draft, config, strassenschluesselByPk);
   }
 
   if (featureDbId == null) {
@@ -282,7 +327,11 @@ export const saveFeatureDraft = async (
     }
 
     // 3. Prepare form values
-    const formValues = prepareSaveValues(featureType, draft.values ?? {});
+    const formValues = prepareSaveValues(
+      featureType,
+      draft.values ?? {},
+      strassenschluesselByPk
+    );
 
     // 4. Build final payload
     const dataToSave: Record<string, unknown> = {
@@ -366,7 +415,8 @@ const saveCreationDraft = async (
   jwt: string,
   featureId: string,
   draft: Draft,
-  config: FeatureSaveConfig
+  config: FeatureSaveConfig,
+  strassenschluesselByPk?: Record<string, number>
 ): Promise<SaveResult> => {
   const { featureType } = draft;
   const base = { featureId, featureType };
@@ -376,7 +426,9 @@ const saveCreationDraft = async (
 
   try {
     console.debug("[CREATE-FEATURE] raw draft.values:", JSON.stringify(draft.values, null, 2));
-    const formValues = prepareSaveValues(featureType, draft.values ?? {}) ?? {};
+    const formValues =
+      prepareSaveValues(featureType, draft.values ?? {}, strassenschluesselByPk) ??
+      {};
     console.debug("[CREATE-FEATURE] after prepareSaveValues:", JSON.stringify(formValues, null, 2));
     let payload: Record<string, unknown>;
     // Hoisted out of the `featureType === "leuchte"` branch so the Scope-B
@@ -417,7 +469,8 @@ const saveCreationDraft = async (
           unknown
         >;
         const cleanedMastValues =
-          prepareSaveValues("standort", rawMastValues) ?? {};
+          prepareSaveValues("standort", rawMastValues, strassenschluesselByPk) ??
+          {};
         const mastFkStrassenschluessel =
           (cleanedMastValues.fk_strassenschluessel as
             | number
@@ -582,13 +635,19 @@ export interface SaveAllResult {
  */
 export const saveAllFeatureDrafts = async (
   jwt: string,
-  drafts: Record<string, Draft>
+  drafts: Record<string, Draft>,
+  strassenschluesselByPk?: Record<string, number>
 ): Promise<SaveAllResult> => {
   const succeeded: string[] = [];
   const failed: SaveAllResult["failed"] = [];
 
   for (const [featureId, draft] of Object.entries(drafts)) {
-    const result = await saveFeatureDraft(jwt, featureId, draft);
+    const result = await saveFeatureDraft(
+      jwt,
+      featureId,
+      draft,
+      strassenschluesselByPk
+    );
     if (result.success) {
       succeeded.push(featureId);
     } else {
@@ -628,6 +687,9 @@ interface HandleSaveAllDeps {
    * The caller wires this to `closeDatasheet` so the right pane returns to
    * the map view — the form was bound to drafts that no longer exist. */
   onSuccess?: () => void;
+  /** Strassenschluessel pk → id map, used to backfill a missing
+   * `fk_strassenschluessel` from the visible pk at save time. */
+  strassenschluesselByPk?: Record<string, number>;
 }
 
 export const handleSaveAllDrafts = (deps: HandleSaveAllDeps) => {
@@ -643,6 +705,7 @@ export const handleSaveAllDrafts = (deps: HandleSaveAllDeps) => {
     measurements,
     setMeasurements,
     onSuccess,
+    strassenschluesselByPk,
   } = deps;
 
   // Brandnew creation drafts without a geometry would be POSTed with no geom
@@ -716,7 +779,11 @@ export const handleSaveAllDrafts = (deps: HandleSaveAllDeps) => {
 
       setSaving(true);
       try {
-        const result = await saveAllFeatureDrafts(jwt, draftsToSave);
+        const result = await saveAllFeatureDrafts(
+          jwt,
+          draftsToSave,
+          strassenschluesselByPk
+        );
 
         for (const featureId of result.succeeded) {
           dispatch(promoteDraftHiddenToPermanent(featureId));
