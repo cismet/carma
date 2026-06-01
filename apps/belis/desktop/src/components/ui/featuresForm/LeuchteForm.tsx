@@ -519,16 +519,47 @@ const LeuchteForm = ({
           baseSlice.leuchtennummer !== ""
         ? Number(baseSlice.leuchtennummer)
         : 0;
-    // Seed the new tab purely from the remembered ("last value") fields — the
-    // shared creationDefaults memory — so a "+" tab starts like a fresh draft.
-    // A field with no remembered value is left empty, not copied from the
-    // reference tab; that stops a new tab from inheriting another tab's
-    // diverged (gray) values. The memory already reflects extra-tab edits:
-    // the recordDefaults effect above mirrors the last-edited tab into it.
-    const remembered = leuchteDefaultsForDiff.leuchte;
+    // Seed the new tab from the Leuchte tab the user is currently looking at —
+    // "remember the open tab". When the open tab is the Standort/Mast tab (or
+    // any other non-Leuchte tab), fall back to the most recently edited Leuchte
+    // tab (`referenceLeuchteValues`) — "remember the last tab". Only allowlisted
+    // fields carry over (matching the header green-"+" seeding); leuchtennummer
+    // is always auto-assigned below regardless of the source.
+    let sourceSlice: Record<string, unknown>;
+    if (activeFormTabKey === "general") {
+      sourceSlice = baseSlice ?? {};
+    } else if (activeFormTabKey?.startsWith("extra-")) {
+      const entry = current.find((e) => e._tabId === activeFormTabKey);
+      if (entry) {
+        const { _tabId: _unused, ...rest } = entry;
+        void _unused;
+        sourceSlice = rest as Record<string, unknown>;
+      } else {
+        sourceSlice = referenceLeuchteValues;
+      }
+    } else {
+      sourceSlice = referenceLeuchteValues;
+    }
+    // Mirror the header green-"+" behavior: besides seeding the new tab, push
+    // the source tab's values into the cross-draft memory so the next new
+    // feature — and the "Gemerkte Felder" reset — reflect what is on screen.
+    // Both slices are recorded so the highlight diff (`defaults`) and the
+    // dropdown/"+" seed (`selectionDefaults`) stay in sync, exactly as the
+    // recordDefaults effect above does on a genuine edit.
+    const recordPayload = {
+      featureType: "leuchte",
+      values: {
+        leuchte: serializeValues(sourceSlice),
+        mast: serializeValues(
+          (draftValues?.mast ?? {}) as Record<string, unknown>
+        ),
+      },
+    };
+    dispatch(recordDefaults(recordPayload));
+    dispatch(recordSelectionDefaults(recordPayload));
     const rehydratedSeed: Record<string, unknown> = {};
     for (const f of leuchteAllowlistedFields) {
-      const v = remembered[f];
+      const v = sourceSlice[f];
       if (v !== undefined && v !== null && v !== "") {
         rehydratedSeed[f] = v;
       }
@@ -563,8 +594,10 @@ const LeuchteForm = ({
   }, [
     draftValues,
     onDraftChange,
-    leuchteDefaultsForDiff,
     leuchteAllowlistedFields,
+    activeFormTabKey,
+    referenceLeuchteValues,
+    dispatch,
   ]);
   const handleRemoveLeuchteTab = useCallback(
     (id: string) => {
