@@ -50,7 +50,6 @@ const FormLabel = ({ children }: { children: React.ReactNode }) => (
 const SchaltstelleFormFields = ({
   schaltstelle,
   readOnly = true,
-  isCreation,
   featureId,
   form: externalForm,
   onFormInstance,
@@ -164,7 +163,7 @@ const SchaltstelleFormFields = ({
       className={getFormClassName(readOnly, "pr-2")}
       onValuesChange={onValuesChange}
     >
-      {(!schaltstelle || isCreation) && !readOnly ? (
+      {!readOnly ? (
         <StrassenschluesselFieldsModal
           label="Strassenschlussel"
           onSyncDerivedValues={onValuesChange}

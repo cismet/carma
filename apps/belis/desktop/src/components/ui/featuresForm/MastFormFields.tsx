@@ -337,7 +337,7 @@ const MastFormFields = ({
     >
       {readOnlyStrassenschluessel ? (
         <StrassenschluesselFields namePrefix={namePrefix} />
-      ) : (!mast || isCreation) && !readOnly ? (
+      ) : !readOnly ? (
         <StrassenschluesselFieldsModal
           namePrefix={namePrefix}
           onSyncDerivedValues={onValuesChange}
