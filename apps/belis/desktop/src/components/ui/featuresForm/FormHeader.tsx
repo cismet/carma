@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeftOutlined,
+  CopyOutlined,
   EditOutlined,
   ExclamationCircleOutlined,
   PlusOutlined,
@@ -45,6 +46,7 @@ interface FormHeaderProps {
   onSaveAll?: () => void;
   onCreateRelatedDraft?: () => void;
   createDraftButtonVariant?: "green" | "white";
+  onCopyValues?: () => void;
 }
 
 const FormHeader = ({
@@ -64,6 +66,7 @@ const FormHeader = ({
   onSaveAll,
   onCreateRelatedDraft,
   createDraftButtonVariant = "green",
+  onCopyValues,
 }: FormHeaderProps) => {
   const dispatch = useDispatch();
   const featureDraftsCount = useSelector(getDraftFeaturesCount);
@@ -83,6 +86,29 @@ const FormHeader = ({
   const [savingAll, setSavingAll] = useState(false);
   const { onSaveSingle, savingSingle } = useSingleSave();
   const { closeDatasheet } = useDatasheet();
+
+  // The copy button is "hidden" until the user holds Alt — keeps the header
+  // uncluttered while exposing the power-user copy action on demand.
+  const [isAltPressed, setIsAltPressed] = useState(false);
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.altKey) setIsAltPressed(true);
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (!e.altKey) setIsAltPressed(false);
+    };
+    // Reset when the window loses focus so the button does not stay stuck
+    // visible after an Alt+Tab away.
+    const handleBlur = () => setIsAltPressed(false);
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", handleBlur);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", handleBlur);
+    };
+  }, []);
 
   const draftsCount = customDraftsCount ?? featureDraftsCount;
 
@@ -187,6 +213,30 @@ const FormHeader = ({
                     }}
                   >
                     <PlusOutlined style={{ fontSize: 12 }} />
+                  </button>
+                </Tooltip>
+              )}
+              {onCopyValues && isAltPressed && (
+                <Tooltip title="Werte kopieren">
+                  <button
+                    type="button"
+                    aria-label="Werte kopieren"
+                    onClick={onCopyValues}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: 24,
+                      height: 24,
+                      padding: 0,
+                      border: "1px solid #b7eb8f",
+                      borderRadius: 4,
+                      backgroundColor: "#f6ffed",
+                      color: "#52c41a",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <CopyOutlined style={{ fontSize: 12 }} />
                   </button>
                 </Tooltip>
               )}

@@ -1243,6 +1243,9 @@ const LeuchteForm = ({
         }
         createFeatureDraft("leuchte", { seedFromSelection: true });
       }}
+      onCopyValues={() => {
+        // TODO: copy behavior to be defined.
+      }}
       generalTabLabel={
         isCreation ? (
           <span>
