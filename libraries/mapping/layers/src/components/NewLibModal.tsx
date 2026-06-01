@@ -34,7 +34,11 @@ import {
   type FeatureFlagConfig,
 } from "@carma-providers/feature-flag";
 
-import { flattenLayer, wmsLayerToGenericItem } from "../helper/layerHelper";
+import {
+  flattenLayer,
+  reorderLayersByInsertRules,
+  wmsLayerToGenericItem,
+} from "../helper/layerHelper";
 import { isCurrentlyFeatured } from "../helper/dateHelper";
 import LayerTabs from "./LayerTabs";
 import { SidebarItem } from "./SidebarItems";
@@ -416,31 +420,10 @@ export const NewLibModal = ({
                     index
                 );
 
-                // Rearrange layers based on insertAfterId property
-                const layersWithInsertAfterId = newSubCat.layers.filter(
-                  (layer) => (layer as any).insertAfterId
+                // Position layers via insertAfterId / insertPosition hints
+                newSubCat.layers = reorderLayersByInsertRules(
+                  newSubCat.layers
                 );
-
-                if (layersWithInsertAfterId.length > 0) {
-                  // Remove layers with insertAfterId from their current positions
-                  newSubCat.layers = newSubCat.layers.filter(
-                    (layer) => !(layer as any).insertAfterId
-                  );
-
-                  layersWithInsertAfterId.forEach((layer) => {
-                    const insertAfterId = (layer as any).insertAfterId;
-                    const targetIndex = newSubCat!.layers.findIndex(
-                      (l) => l.id === insertAfterId
-                    );
-
-                    if (targetIndex !== -1) {
-                      newSubCat.layers.splice(targetIndex + 1, 0, layer);
-                    } else {
-                      // If id doesnt exist append to the end
-                      newSubCat.layers.push(layer);
-                    }
-                  });
-                }
               }
             }
           });
@@ -754,30 +737,10 @@ export const NewLibModal = ({
               }
             });
 
-            const layersWithInsertAfterId = mergedCategory.layers.filter(
-              (layer) => layer.insertAfterId
+            // Position layers via insertAfterId / insertPosition hints
+            mergedCategory.layers = reorderLayersByInsertRules(
+              mergedCategory.layers
             );
-
-            if (layersWithInsertAfterId.length > 0) {
-              // Remove layers with insertAfterId from their current positions
-              mergedCategory.layers = mergedCategory.layers.filter(
-                (layer) => !layer.insertAfterId
-              );
-
-              layersWithInsertAfterId.forEach((layer) => {
-                const insertAfterId = layer.insertAfterId;
-                const targetIndex = mergedCategory.layers.findIndex(
-                  (l) => l.id === insertAfterId
-                );
-
-                if (targetIndex !== -1) {
-                  mergedCategory.layers.splice(targetIndex + 1, 0, layer);
-                } else {
-                  // If id doesn't exist append to the end
-                  mergedCategory.layers.push(layer);
-                }
-              });
-            }
           } else {
             // Category doesn't exist in allLayers, add the entire category
             if (currentCategory.id === "featured") {

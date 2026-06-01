@@ -18,6 +18,61 @@ export const getInteractionButtons = (
   return Array.isArray(buttons) ? buttons : [buttons];
 };
 
+export const reorderLayersByInsertRules = <T extends { id: string }>(
+  layers: T[]
+): T[] => {
+  let result = [...layers];
+
+  const layersWithInsertAfterId = result.filter(
+    (layer) =>
+      (layer as any).insertAfterId &&
+      typeof (layer as any).insertPosition !== "number"
+  );
+
+  if (layersWithInsertAfterId.length > 0) {
+    // Remove layers with insertAfterId from their current positions
+    result = result.filter(
+      (layer) =>
+        !(layer as any).insertAfterId ||
+        typeof (layer as any).insertPosition === "number"
+    );
+
+    layersWithInsertAfterId.forEach((layer) => {
+      const insertAfterId = (layer as any).insertAfterId;
+      const targetIndex = result.findIndex((l) => l.id === insertAfterId);
+      if (targetIndex !== -1) {
+        result.splice(targetIndex + 1, 0, layer);
+      } else {
+        // If id doesn't exist append to the end
+        result.push(layer);
+      }
+    });
+  }
+
+  const layersWithInsertPosition = result.filter(
+    (layer) => typeof (layer as any).insertPosition === "number"
+  );
+
+  if (layersWithInsertPosition.length > 0) {
+    result = result.filter(
+      (layer) => typeof (layer as any).insertPosition !== "number"
+    );
+
+    // Settle lower indices first so higher ones land after them
+    layersWithInsertPosition
+      .sort((a, b) => (a as any).insertPosition - (b as any).insertPosition)
+      .forEach((layer) => {
+        const targetIndex = Math.max(
+          0,
+          Math.min((layer as any).insertPosition, result.length)
+        );
+        result.splice(targetIndex, 0, layer);
+      });
+  }
+
+  return result;
+};
+
 export const parseDescription = (description: string) => {
   if (!description) {
     return [];
