@@ -42,10 +42,21 @@ const BelisDataProvider = ({ jwt, children }: BelisDataProviderProps) => {
         const { data, errors } = await fetchAllKeyTables(jwt);
         dispatch(setKeyTablesData(data));
         dispatch(setKeyTablesErrors(errors));
-        if (Object.keys(errors).length > 0) {
-          message.error(
-            "Einige Schlüsseltabellen konnten nicht geladen werden"
+        const errorEntries = Object.entries(errors);
+        if (errorEntries.length > 0) {
+          // Always log the real underlying messages so they can be inspected.
+          console.error("Key table fetch errors:", errors);
+          // An expired/invalid session makes every request return 401. In that
+          // case checkJWTValidation clears the JWT and redirects to /login, so
+          // the toast is just noise on the login page — suppress it here.
+          const isAuthError = errorEntries.every(([, msg]) =>
+            /\b401\b|JWT|jwt|verify/.test(msg)
           );
+          if (!isAuthError) {
+            message.error(
+              "Einige Schlüsseltabellen konnten nicht geladen werden"
+            );
+          }
         }
       } catch (error) {
         console.error("Failed to fetch key tables:", error);
