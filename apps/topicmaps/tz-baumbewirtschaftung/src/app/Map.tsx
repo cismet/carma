@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
 import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
@@ -45,10 +45,12 @@ import { APP_CONFIG } from "../config/appConfig";
 import { useTreeStyle } from "./hooks/useTreeStyle";
 import {
   createInfoBoxControlObject,
-  enrichFeatureCollectionWithActions,
+  enrichFeatureCollection,
+  maxActionIdInLegacyFC,
   updateFeatureCollectionWithNewActions,
 } from "./helper/treeHelper";
 import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
+import { treeMatches, useKampagne } from "./context/KampagneContext";
 
 type LightboxDispatch = {
   setPhotoUrls: (urls: string[]) => void;
@@ -87,7 +89,6 @@ const TZBaumbewirtschaftung = ({
   const { markerSymbolSize } = useContext(TopicMapStylingContext) as any;
   const { clusteringOptions } = useContext(FeatureCollectionContext) as any;
   const [selectedFeature, setSelectedFeature] = useState<any>();
-  const [featureCollection, setFeatureCollection] = useState<any>();
   const [showStatusDialog, setShowStatusDialog] = useState(false);
   const { responsiveState, gap, windowSize } = useContext(
     ResponsiveTopicMapContext
@@ -104,6 +105,23 @@ const TZBaumbewirtschaftung = ({
   const [maplibreMap, setMaplibreMap] = useState<any>(null);
   const [upcomingActions, setUpcomingActions] = useState<any[]>([]);
   const [username, setUsername] = useState<string | null>(null);
+  // Single source of truth: the full enriched FC. Live updates (polling,
+  // optimistic) and the initial load all write here. The map shows a derived,
+  // kampagne-filtered view (`featureCollection`) computed from it.
+  const [unfilteredFeatureCollection, setUnfilteredFeatureCollection] =
+    useState<any>();
+  const { ready: kampagneReady, effectiveCampaignIds } = useKampagne();
+
+  const featureCollection = useMemo(() => {
+    if (!unfilteredFeatureCollection || !kampagneReady) return undefined;
+    const features =
+      effectiveCampaignIds.length === 0
+        ? []
+        : unfilteredFeatureCollection.features.filter((f: any) =>
+            treeMatches(f, effectiveCampaignIds)
+          );
+    return { ...unfilteredFeatureCollection, features };
+  }, [unfilteredFeatureCollection, effectiveCampaignIds, kampagneReady]);
 
   // Poll for new tree actions (id > maxTreeActionId)
   useEffect(() => {
@@ -194,47 +212,45 @@ const TZBaumbewirtschaftung = ({
     setUpcomingActions((prev) => [...prev, upcomingAction]);
   };
 
-  // Merge upcoming actions into display for optimistic updates
+  // Merge upcoming actions into the source FC for optimistic updates
   useEffect(() => {
-    if (upcomingActions.length === 0 || !featureCollection) {
+    if (upcomingActions.length === 0 || !unfilteredFeatureCollection) {
       return;
     }
 
-    // Create a temporary merged featureCollection for display
-    const updatedFeatures = featureCollection.features.map((f: any) => {
-      const upcomingForTree = upcomingActions.filter((a) => a.fk_tree === f.id);
+    const updatedFeatures = unfilteredFeatureCollection.features.map(
+      (f: any) => {
+        const upcomingForTree = upcomingActions.filter(
+          (a) => a.fk_tree === f.id
+        );
 
-      if (upcomingForTree.length === 0) {
-        return f;
+        if (upcomingForTree.length === 0) {
+          return f;
+        }
+
+        // Merge upcoming actions with existing ones
+        const existingActions = f.properties.actions || [];
+        const mergedActions = [...existingActions, ...upcomingForTree];
+
+        return {
+          ...f,
+          properties: {
+            ...f.properties,
+            actions: mergedActions,
+            latestActionStatus:
+              upcomingForTree[upcomingForTree.length - 1].status,
+            hasUpcomingActions: true,
+            actionCount: mergedActions.length,
+          },
+        };
       }
+    );
 
-      // Merge upcoming actions with existing ones
-      const existingActions = f.properties.actions || [];
-      const mergedActions = [...existingActions, ...upcomingForTree];
-
-      return {
-        ...f,
-        properties: {
-          ...f.properties,
-          actions: mergedActions,
-          latestActionStatus:
-            upcomingForTree[upcomingForTree.length - 1].status,
-          hasUpcomingActions: true,
-          actionCount: mergedActions.length,
-        },
-      };
-    });
-
-    const updated = { ...featureCollection, features: updatedFeatures };
-    setFeatureCollection(updated);
-
-    // Update MapLibre source
-    if (maplibreMap) {
-      const source = maplibreMap.getSource("trees");
-      if (source) {
-        source.setData(updated);
-      }
-    }
+    const updated = {
+      ...unfilteredFeatureCollection,
+      features: updatedFeatures,
+    };
+    setUnfilteredFeatureCollection(updated);
 
     // Update selected feature if affected
     if (selectedFeature) {
@@ -252,13 +268,14 @@ const TZBaumbewirtschaftung = ({
         setSelectedFeature({ ...updatedSelectedFeature });
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [upcomingActions]);
 
-  // Merge intermediate actions into feature collection
+  // Merge intermediate actions into the source feature collection
   useEffect(() => {
     if (
       intermediateActions.length === 0 ||
-      !featureCollection ||
+      !unfilteredFeatureCollection ||
       actionDefinitions.length === 0
     ) {
       return;
@@ -266,20 +283,12 @@ const TZBaumbewirtschaftung = ({
 
     const { featureCollection: updated } =
       updateFeatureCollectionWithNewActions(
-        featureCollection,
+        unfilteredFeatureCollection,
         intermediateActions,
         actionDefinitions
       );
 
-    setFeatureCollection(updated);
-
-    // Update MapLibre source directly to avoid flickering
-    if (maplibreMap) {
-      const source = maplibreMap.getSource("trees");
-      if (source) {
-        source.setData(updated);
-      }
-    }
+    setUnfilteredFeatureCollection(updated);
 
     // Update selectedFeature if it was affected by the merge
     if (selectedFeature) {
@@ -316,18 +325,24 @@ const TZBaumbewirtschaftung = ({
       }
     }
 
-    // Follow mode: select the affected feature to show the infobox
+    // Follow mode: select the affected feature to show the infobox.
+    // Only jump to trees the user can actually see under the current filter.
     if (isFollowMode && intermediateActions.length > 0) {
       const affectedTreeId = intermediateActions[0].fk_tree;
       const affectedFeature = updated.features?.find(
         (f: any) => f.id === affectedTreeId
       ) as any;
 
-      if (affectedFeature) {
+      if (affectedFeature && treeMatches(affectedFeature, effectiveCampaignIds)) {
         // Parse actions and create info object for selection
         if (typeof affectedFeature.properties.actions === "string") {
           affectedFeature.properties.actions = JSON.parse(
             affectedFeature.properties.actions
+          );
+        }
+        if (typeof affectedFeature.properties.kampagnen === "string") {
+          affectedFeature.properties.kampagnen = JSON.parse(
+            affectedFeature.properties.kampagnen
           );
         }
         affectedFeature.properties.info = createInfoBoxControlObject(
@@ -363,12 +378,13 @@ const TZBaumbewirtschaftung = ({
   }, [
     intermediateActions,
     actionDefinitions,
-    maplibreMap,
+    unfilteredFeatureCollection,
     selectedFeature,
     jwt,
     upcomingActions,
     isFollowMode,
     routedMapRef,
+    effectiveCampaignIds,
   ]);
 
   useEffect(() => {
@@ -388,45 +404,36 @@ const TZBaumbewirtschaftung = ({
 
     (async () => {
       try {
-        // Load all three data sources using DAQ API
-        const [treesResult, treeActionsResult, actionsResult] =
-          await Promise.all([
-            md5ActionFetchDAQ(
-              appKey,
-              APP_CONFIG.restService,
-              jwt,
-              APP_CONFIG.daqKeys.trees
-            ),
-            md5ActionFetchDAQ(
-              appKey,
-              APP_CONFIG.restService,
-              jwt,
-              APP_CONFIG.daqKeys.treeActions
-            ),
-            md5ActionFetchDAQ(
-              appKey,
-              APP_CONFIG.restService,
-              jwt,
-              APP_CONFIG.daqKeys.actions
-            ),
-          ]);
+        // Trees + their embedded actions and kampagnen come from the legacy all-in-one DAQ.
+        // Action definitions are kept separate so the polling path can still enrich
+        // newly inserted tree actions with their key/description.
+        const [legacyResult, actionsResult] = await Promise.all([
+          md5ActionFetchDAQ(
+            appKey,
+            APP_CONFIG.restService,
+            jwt,
+            APP_CONFIG.daqKeys.legacy
+          ),
+          md5ActionFetchDAQ(
+            appKey,
+            APP_CONFIG.restService,
+            jwt,
+            APP_CONFIG.daqKeys.actions
+          ),
+        ]);
 
-        const treesFC = treesResult.data as any;
-        const treeActions = (treeActionsResult.data as any[]) || [];
-        const actions = actionsResult.data as any[];
-        // console.log("xxx", { treesFC, treeActions, actions });
-        // Store action definitions for later use (enriching intermediate actions)
+        const legacyFC = legacyResult.data as any;
+        const actions = (actionsResult.data as any[]) || [];
         setActionDefinitions(actions);
 
-        // Enrich feature collection with actions
-        const { featureCollection: enriched, maxTreeActionId: maxId } =
-          enrichFeatureCollectionWithActions(treesFC, treeActions, actions);
+        const enriched = enrichFeatureCollection(legacyFC);
+        const maxId = maxActionIdInLegacyFC(legacyFC);
 
-        setFeatureCollection(enriched);
+        setUnfilteredFeatureCollection(enriched);
         setMaxTreeActionId(maxId);
 
         console.log(
-          `[Data] Loaded ${treesFC.features.length} trees, ${treeActions.length} actions`
+          `[Data] Loaded ${legacyFC.features.length} trees (legacy DAQ, actions embedded)`
         );
       } catch (error) {
         console.error("[Data] Error loading:", error);
@@ -441,6 +448,28 @@ const TZBaumbewirtschaftung = ({
       }
     })();
   }, [jwt]);
+
+  // Push the derived (filtered) FC into MapLibre. CismapLayer doesn't reactively
+  // pick up data changes, so every update — initial load, polling, optimistic,
+  // and filter switches — flows to the map through this single imperative path.
+  useEffect(() => {
+    if (!maplibreMap || !featureCollection) return;
+    const source = maplibreMap.getSource("trees");
+    if (source) {
+      source.setData(featureCollection);
+    }
+  }, [maplibreMap, featureCollection]);
+
+  // Drop the selection if the selected tree is no longer in the filtered view.
+  useEffect(() => {
+    if (!featureCollection || !selectedFeature) return;
+    const stillVisible = featureCollection.features.some(
+      (f: any) => f.id === selectedFeature.id
+    );
+    if (!stillVisible) {
+      setSelectedFeature(undefined);
+    }
+  }, [featureCollection, selectedFeature]);
 
   // Crosshair visualization for selected feature
   useEffect(() => {
@@ -733,10 +762,19 @@ const TZBaumbewirtschaftung = ({
                   (async () => {
                     const feature = e.hit;
                     if (feature) {
-                      // Parse actions first before creating info object
-                      feature.properties.actions = JSON.parse(
-                        feature.properties.actions
-                      );
+                      // MapLibre serializes feature properties to strings when
+                      // they come out of the vector pipeline; deserialize the
+                      // ones the UI/edit flow expects as arrays.
+                      if (typeof feature.properties.actions === "string") {
+                        feature.properties.actions = JSON.parse(
+                          feature.properties.actions
+                        );
+                      }
+                      if (typeof feature.properties.kampagnen === "string") {
+                        feature.properties.kampagnen = JSON.parse(
+                          feature.properties.kampagnen
+                        );
+                      }
 
                       // add infoBoxControlObject
                       feature.properties.info = createInfoBoxControlObject(

@@ -43,8 +43,12 @@ export const APP_CONFIG = {
     trees: "tzbBaumbewirtschaftungTrees",
     treeActions: "tzbBaumbewirtschaftungTreeActions",
     actions: "tzbBaumbewirtschaftungActions",
-    legacy: "tzbBaumbewirtschaftung", // Full dataset (all-in-one)
+    campaigns: "tzbBaumbewirtschaftungCampaigns",
+    legacy: "tzbBaumbewirtschaftung", // Full dataset (all-in-one, with embedded kampagnen + actions)
   },
+
+  // Authorization config attribute (value: "*" or comma-separated kampagne names)
+  configAttributeKey: "tzb_Baumbewirtschaftung",
 
   // RxDB Sync Configuration
   // Live URLs (for production):

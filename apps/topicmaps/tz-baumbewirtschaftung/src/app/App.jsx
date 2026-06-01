@@ -18,6 +18,8 @@ import {
   backgroundConfWithFastOrtho2024,
   useProgress,
 } from "@carma-appframeworks/portals";
+import { KampagneProvider } from "./context/KampagneContext";
+import KampagneBanner from "./components/KampagneBanner";
 
 // Context for display modes
 export const DisplayModesContext = createContext();
@@ -257,6 +259,7 @@ function App() {
         config={APP_CONFIG.sync}
         taskFormatter={taskFormatter}
       >
+        <KampagneProvider jwt={auth.jwt}>
         <TopicMapContextProvider
           appKey="tz.baumbewirtschaftung"
           backgroundConfigurations={bgConf}
@@ -278,6 +281,7 @@ function App() {
             }}
             connectionError={connectionError}
           />
+          {auth.jwt && <KampagneBanner />}
           <Map
             jwt={auth.jwt}
             login={login}
@@ -294,6 +298,7 @@ function App() {
             onConnectionError={(hasError) => setConnectionError(hasError)}
           />
         </TopicMapContextProvider>
+        </KampagneProvider>
       </SyncProvider>
     </DisplayModesContext.Provider>
   );
