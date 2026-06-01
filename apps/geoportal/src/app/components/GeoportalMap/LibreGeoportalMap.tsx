@@ -427,7 +427,7 @@ const LibreGeoportalMap = ({
               store,
               zoom: map.current?.getZoom() + 1,
               map: map.current,
-              setFeatureInfoRectanglePos: () => undefined,
+              setFeatureInfoRectangle: () => undefined,
             }
           );
         } else {

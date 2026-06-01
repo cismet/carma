@@ -38,6 +38,12 @@ import { getAtLeastOneLayerIsQueryable, getQueryableLayers } from "./utils";
 import { UIMode } from "../../store/slices/ui";
 import { FeatureInfoIcon } from "../feature-info/FeatureInfoIcon";
 import { proj4crs3857def } from "../../helper/gisHelper";
+import { type FeatureInfoRectangleConfig } from "../../config/app.config";
+import { resolveFeatureInfoRectangleConfig } from "../../helper/feature-info-rectangle";
+
+export type FeatureInfoRectangle = {
+  position: [number, number];
+} & FeatureInfoRectangleConfig;
 
 type Options = {
   dispatch: Dispatch;
@@ -46,7 +52,7 @@ type Options = {
   zoom: number;
   map: LeafletMap | maplibregl.Map;
   maplibreMapsRef?: React.MutableRefObject<Map<string, maplibregl.Map>>;
-  setFeatureInfoRectanglePos: (pos: [number, number] | null) => void;
+  setFeatureInfoRectangle: (rectangle: FeatureInfoRectangle | null) => void;
 };
 
 // TODO: move to portal lib?
@@ -77,7 +83,7 @@ export const onClickTopicMap = async (
     zoom,
     map,
     maplibreMapsRef,
-    setFeatureInfoRectanglePos,
+    setFeatureInfoRectangle,
   }: Options
 ) => {
   const layers = getLayers(store.getState());
@@ -227,7 +233,7 @@ export const onClickTopicMap = async (
         dispatch(setInfoTextToNothingFound());
         dispatch(clearVectorInfos());
         if (mode === UIMode.DEFAULT) {
-          setFeatureInfoRectanglePos(null);
+          setFeatureInfoRectangle(null);
         } else {
           dispatch(
             setSelectedFeature({
@@ -248,9 +254,16 @@ export const onClickTopicMap = async (
         dispatch(setFeatures([topMost]));
         dispatch(clearVectorInfos());
         if (topMost?.vectorId) {
-          setFeatureInfoRectanglePos(null);
+          setFeatureInfoRectangle(null);
         } else {
-          setFeatureInfoRectanglePos([pos[0], pos[1]]);
+          const winningLayer = layers.find((layer) => layer.id === topMost?.id);
+          const rectangleConfig = resolveFeatureInfoRectangleConfig(
+            winningLayer?.conf?.pointInfo
+          );
+          setFeatureInfoRectangle({
+            position: [pos[0], pos[1]],
+            ...rectangleConfig,
+          });
         }
       } else {
         filteredResult.push({
@@ -316,7 +329,11 @@ export const onClickTopicMap = async (
       })
     );
   } else if (mode === UIMode.DEFAULT) {
-    setFeatureInfoRectanglePos(null);
+    dispatch(clearSelectedFeature());
+    dispatch(clearSecondaryInfoBoxElements());
+    dispatch(clearFeatures());
+    dispatch(clearVectorInfos());
+    setFeatureInfoRectangle(null);
   }
 };
 

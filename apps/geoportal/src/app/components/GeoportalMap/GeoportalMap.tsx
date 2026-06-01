@@ -112,7 +112,10 @@ import { useObliqueInitializer } from "../../oblique/hooks/useObliqueInitializer
 import { useCameraOrbit } from "../../hooks/useCameraOrbit.ts";
 import { useGeoportalInitialValues } from "../../hooks/useGeoportalInitialValues.ts";
 
-import { onClickTopicMap } from "./topicmap.utils.ts";
+import {
+  onClickTopicMap,
+  type FeatureInfoRectangle,
+} from "./topicmap.utils.ts";
 import { useGeoportalCesiumNavigationRestore } from "./hooks/useGeoportalCesiumNavigationRestore.ts";
 import { useCreateCismapLayers } from "./hooks/useCreateCismapLayer.ts";
 
@@ -145,7 +148,6 @@ import { useModelSelectionDispatcher } from "../../hooks/useModelSelectionDispat
 import {
   CESIUM_CONFIG,
   DEFAULT_CAMERA_FOV_DEG,
-  FEATURE_INFO_RECTANGLE_CONFIG,
   LEAFLET_CONFIG,
 } from "../../config/app.config";
 
@@ -371,9 +373,8 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
   const markerRef = useRef(undefined);
   const markerAccentRef = useRef(undefined);
   const [pos, setPos] = useState<[number, number] | null>(null);
-  const [featureInfoRectanglePos, setFeatureInfoRectanglePos] = useState<
-    [number, number] | null
-  >(null);
+  const [featureInfoRectangle, setFeatureInfoRectangle] =
+    useState<FeatureInfoRectangle | null>(null);
   // TODO: move all these to a custom hook and collect all calls to updateFeatureInfo there
   const [shouldUpdateFeatureInfo, setShouldUpdateFeatureInfo] =
     useState<boolean>(false);
@@ -823,7 +824,7 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
 
   useEffect(() => {
     if (uiMode !== UIMode.DEFAULT) {
-      setFeatureInfoRectanglePos(null);
+      setFeatureInfoRectangle(null);
     }
   }, [uiMode]);
 
@@ -1248,7 +1249,7 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
               zoom: getLeafletZoom(),
               map: map,
               maplibreMapsRef,
-              setFeatureInfoRectanglePos,
+              setFeatureInfoRectangle,
             });
           }}
           gazetteerSearchControl={true}
@@ -1267,12 +1268,12 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
           {useCreateCismapLayers(layers, createLayerOptions)}
           {hasPointInfoLayer &&
             uiMode === UIMode.DEFAULT &&
-            featureInfoRectanglePos && (
+            featureInfoRectangle && (
               <FeatureInfoRectangleLayer
-                position={featureInfoRectanglePos}
-                upperleftX={FEATURE_INFO_RECTANGLE_CONFIG.upperleftX}
-                upperleftY={FEATURE_INFO_RECTANGLE_CONFIG.upperleftY}
-                pixelsize={FEATURE_INFO_RECTANGLE_CONFIG.pixelsize}
+                position={featureInfoRectangle.position}
+                upperleftX={featureInfoRectangle.upperleftX}
+                upperleftY={featureInfoRectangle.upperleftY}
+                pixelsize={featureInfoRectangle.pixelsize}
               />
             )}
           <PrintPreview />
