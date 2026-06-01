@@ -49,6 +49,25 @@ const isUserFeature = (feature: Feature): boolean => {
   return !props.selectionPoint && !props.midPoint;
 };
 
+// Which snapshot features may act as snap targets for a NEW measurement.
+// We want only committed user geometries: skip terra-draw's render helpers
+// (selectionPoint / midPoint vertex handles, closingPoint / snappingPoint /
+// coordinatePoint draw aids) AND the feature currently being drawn
+// (`currentlyDrawing` is set while a line/polygon is mid-draw and cleared on
+// finish) — otherwise an in-progress vertex would snap to itself and pin the
+// dot to the cursor, defeating snapping to other features.
+const isSnapCandidateFeature = (feature: Feature): boolean => {
+  const props = (feature.properties ?? {}) as Record<string, unknown>;
+  return (
+    !props.selectionPoint &&
+    !props.midPoint &&
+    !props.closingPoint &&
+    !props.snappingPoint &&
+    !props.coordinatePoint &&
+    props.currentlyDrawing !== true
+  );
+};
+
 type TerraDrawMode =
   | "select"
   | "point"
@@ -493,6 +512,38 @@ export const MeasurementHost = forwardRef<
       return snappableLayerIdsRef.current;
     };
 
+    // Committed measurements that should act as snap targets right now.
+    // Terra-draw renders existing measurements in its own `td-*` layers, which
+    // snapping.ts deliberately excludes from `queryRenderedFeatures` (so a
+    // drawing vertex can't snap to itself). To let a new measurement snap to
+    // EXISTING ones we feed the snapshot in as `extraFeatures` instead, after
+    // dropping render helpers / the in-progress feature (isSnapCandidateFeature)
+    // and — while editing in select mode — the selected feature itself, so
+    // dragging one of its vertices doesn't snap to its own neighbours.
+    // `excludeId` additionally drops a feature by id (used at point-finish to
+    // stop the just-placed point snapping onto itself).
+    const getMeasurementSnapFeatures = (excludeId?: string): Feature[] => {
+      const draw = drawRef.current;
+      if (!draw) return [];
+      let snapshot: Feature[];
+      try {
+        snapshot = draw.getSnapshot() as Feature[];
+      } catch {
+        return [];
+      }
+      const selectedId =
+        modeRef.current === "none" || modeRef.current === "select"
+          ? selectedIdRef.current
+          : null;
+      return snapshot.filter((f) => {
+        if (!isSnapCandidateFeature(f)) return false;
+        const id = f.id != null ? String(f.id) : undefined;
+        if (excludeId !== undefined && id === excludeId) return false;
+        if (selectedId !== null && id === selectedId) return false;
+        return true;
+      });
+    };
+
     // Same callback shape used by LineString and Polygon modes. terra-draw
     // treats `undefined` as "no snap, use raw cursor".
     const snapToCustom = (event: {
@@ -504,7 +555,8 @@ export const MeasurementHost = forwardRef<
         map,
         { x: event.containerX, y: event.containerY },
         snapRadiusPxRef.current,
-        getCachedSnappableLayerIds()
+        getCachedSnappableLayerIds(),
+        getMeasurementSnapFeatures()
       );
       return hit?.position;
     };
@@ -661,7 +713,11 @@ export const MeasurementHost = forwardRef<
                 map,
                 { x: screen.x, y: screen.y },
                 snapRadiusPxRef.current,
-                getCachedSnappableLayerIds()
+                getCachedSnappableLayerIds(),
+                // Exclude the point we just dropped — its own coord sits at
+                // distance 0 and would always "win", blocking a snap onto a
+                // nearby existing measurement point.
+                getMeasurementSnapFeatures(String(id))
               );
               if (hit) {
                 // Terra-draw validates `coordinatePrecision` on every
@@ -895,7 +951,8 @@ export const MeasurementHost = forwardRef<
           map,
           { x: ev.containerX, y: ev.containerY },
           snapRadiusPxRef.current,
-          getCachedSnappableLayerIds()
+          getCachedSnappableLayerIds(),
+          getMeasurementSnapFeatures()
         );
         setSnapPreview(hit ? hit.position : null);
       });
