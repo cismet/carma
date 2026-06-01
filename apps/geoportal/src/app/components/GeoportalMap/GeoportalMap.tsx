@@ -828,6 +828,21 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
     }
   }, [uiMode]);
 
+  useEffect(() => {
+    if (uiMode !== UIMode.DEFAULT || !selectedFeature) {
+      return;
+    }
+    const layerWithSelectedFeature = layers.find(
+      (l) => l.id === selectedFeature.id
+    );
+    if (layerWithSelectedFeature && !layerWithSelectedFeature.visible) {
+      dispatch(setSelectedFeature(null));
+      dispatch(setSecondaryInfoBoxElements([]));
+      dispatch(setFeatures([]));
+      setFeatureInfoRectangle(null);
+    }
+  }, [layers, selectedFeature, uiMode, dispatch]);
+
   const hasPointInfoLayer = useMemo(
     () =>
       layers.some(
