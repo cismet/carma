@@ -13,6 +13,7 @@ export type {
   MapMode,
   Position2D,
   CameraPosition3D,
+  BackgroundLayerInfo,
 } from "./lib/mapping";
 
 export { registerUi } from "./lib/ui";

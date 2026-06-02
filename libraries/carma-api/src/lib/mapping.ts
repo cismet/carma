@@ -16,6 +16,17 @@ export type CameraPosition3D = {
 };
 
 /**
+ * A switchable base map, as returned by `getBackgroundLayers`. `id` is what you
+ * pass to `setBackgroundLayer`; `group` is the base-map group it belongs to
+ * ("karte" | "luftbild").
+ */
+export type BackgroundLayerInfo = {
+  id: string;
+  title: string;
+  group: string;
+};
+
+/**
  * Raw injection point. The bridge (in the app layer) provides these closures.
  * Primitive-only on purpose — carma-api never imports leaflet, cesium, redux,
  * or any @carma-* package. Optional methods may be left unimplemented; the
@@ -36,6 +47,7 @@ export interface MapAdapter {
   removeLayer?: (id: string) => boolean;
   getLayerIDs?: () => string[];
   setBackgroundLayer?: (id: string) => boolean;
+  getBackgroundLayers?: () => BackgroundLayerInfo[];
 
   // 3d (cesium) ------------------------------------------------------------
   getCameraPosition3D: () => CameraPosition3D | null;
@@ -61,6 +73,11 @@ export interface Mapping2DFacade {
   removeLayer: (id: string) => boolean;
   getLayerIDs: () => string[];
   setBackgroundLayer: (id: string) => boolean;
+  /**
+   * List the switchable base maps. Use the returned `id`s with
+   * `setBackgroundLayer`. Returns `[]` when no catalog is registered.
+   */
+  getBackgroundLayers: () => BackgroundLayerInfo[];
 }
 
 /** Public shape seen by callers of `carma.mapping3D`. */
@@ -97,6 +114,7 @@ export const mapping2D: Mapping2DFacade = {
   removeLayer: (id) => getAdapter()?.removeLayer?.(id) ?? false,
   getLayerIDs: () => getAdapter()?.getLayerIDs?.() ?? [],
   setBackgroundLayer: (id) => getAdapter()?.setBackgroundLayer?.(id) ?? false,
+  getBackgroundLayers: () => getAdapter()?.getBackgroundLayers?.() ?? [],
 };
 
 export const mapping3D: Mapping3DFacade = {

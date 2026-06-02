@@ -160,6 +160,10 @@ export const useMappingAdapter = (store?: Store<MappingPortalState>): void => {
           store.dispatch({ type: "mapping/appendLayer", payload: mapLayer });
           return true;
         },
+        getBackgroundLayers: () =>
+          (store.getState().mapping?.backgroundLayers ?? []).map(
+            ({ id, title, group }) => ({ id, title, group })
+          ),
         setBackgroundLayer: (id: string): boolean => {
           const entry = (store.getState().mapping?.backgroundLayers ?? []).find(
             (candidate) => candidate.id === id
