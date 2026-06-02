@@ -102,7 +102,14 @@ const featureSaveConfigs: Record<string, FeatureSaveConfig> = {
   },
   standort: {
     className: "tdta_standort_mast",
-    removedFields: ["strassenschluessel_pk", "strassenschluessel_strasse"],
+    // `leuchten` holds the "+ Leuchte" creation tabs (see saveCreationDraft);
+    // strip it here so it never reaches the Mast payload as a bogus field —
+    // the array is consumed separately to create the linked tdta_leuchten rows.
+    removedFields: [
+      "strassenschluessel_pk",
+      "strassenschluessel_strasse",
+      "leuchten",
+    ],
     fieldRenames: {},
     transformDates: true,
   },
@@ -554,22 +561,60 @@ const saveCreationDraft = async (
     );
     console.debug(`[CREATE-FEATURE] ${featureType} → ${config.className} result:`, JSON.stringify(result, null, 2));
 
+    // Id of the row just created — needed both for late document upload and
+    // (for a Standort) for linking its "+ Leuchte" tabs to the new Mast.
+    const createdRes = result as { res?: string } | null;
+    const createdId = createdRes?.res
+      ? (JSON.parse(createdRes.res) as { id?: number }).id
+      : undefined;
+
     // Upload files if any
     const draftFiles: DraftFile[] = draft.files ?? [];
-    if (draftFiles.length > 0) {
-      const res = result as { res?: string } | null;
-      const parsed = res?.res
-        ? (JSON.parse(res.res) as { id?: number })
-        : null;
-      const newId = parsed?.id;
-      if (newId) {
-        const uploadedDocs = await uploadDraftFiles(jwt, draftFiles);
-        if (uploadedDocs.length > 0) {
-          await updateDataByClassName(jwt, config.className, {
-            id: newId,
-            dokumenteArray: uploadedDocs,
-          });
-        }
+    if (draftFiles.length > 0 && createdId) {
+      const uploadedDocs = await uploadDraftFiles(jwt, draftFiles);
+      if (uploadedDocs.length > 0) {
+        await updateDataByClassName(jwt, config.className, {
+          id: createdId,
+          dokumenteArray: uploadedDocs,
+        });
+      }
+    }
+
+    // Standort creation with "+ Leuchte" tabs: persist each lamp as a
+    // tdta_leuchten row linked to the freshly created Mast. Mirrors the
+    // new-Mast extras loop in the leuchte branch below — the Leuchten share
+    // the Mast's Strassenschluessel and locate via the tdta_standort_mast
+    // link (no own geom). `_tabId` is a UI-only key; strip it before save.
+    if (featureType === "standort" && createdId != null) {
+      const extras = (draft.values?.leuchten ?? []) as Array<
+        Record<string, unknown>
+      >;
+      const mastFk =
+        (formValues.fk_strassenschluessel as number | null | undefined) ?? null;
+      for (const [extraIdx, extra] of extras.entries()) {
+        const { _tabId: _tabIdUnused, ...extraFields } = extra;
+        void _tabIdUnused;
+        const extraCleaned =
+          prepareSaveValues("leuchte", { leuchte: extraFields }) ?? {};
+        const extraPayload: Record<string, unknown> = {
+          id: -1,
+          ...extraCleaned,
+          fk_strassenschluessel:
+            (extraCleaned.fk_strassenschluessel as
+              | number
+              | null
+              | undefined) ?? mastFk,
+          tdta_standort_mast: { id: createdId },
+        };
+        console.debug(
+          `[CREATE-FEATURE] standort leuchte ${extraIdx + 1} payload:`,
+          JSON.stringify(extraPayload, null, 2)
+        );
+        await updateDataByClassName(
+          jwt,
+          featureSaveConfigs["leuchte"].className,
+          extraPayload
+        );
       }
     }
 

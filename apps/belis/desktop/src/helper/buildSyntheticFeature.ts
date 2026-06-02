@@ -197,6 +197,16 @@ export function enrichSyntheticProps(
     const masttypRow = resolveRow(values.fk_masttyp, keyTables.masttyp);
     if (masttypRow?.masttyp != null) out.masttyp = masttypRow.masttyp;
     if (out.lfd_nummer == null) out.lfd_nummer = "";
+    // A Standort creation draft can carry in-progress Leuchten under
+    // `values.leuchten[]` (the "+ Leuchte" tabs). Surface their count so the
+    // brandnew `standorte` icon renders the right number of dots, and drop the
+    // array itself from the flat props — it's not a styling/label input and
+    // would only bloat the JSON-serialized feature.
+    const extras = values.leuchten as Array<unknown> | undefined;
+    if (Array.isArray(extras) && extras.length > 0) {
+      out.leuchten_count = extras.length;
+    }
+    delete out.leuchten;
   }
 
   // Special case: Leuchte data is tab-grouped (`values.leuchte` / `values.mast`),
