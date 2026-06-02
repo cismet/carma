@@ -194,10 +194,10 @@ const FormHeader = ({
                 </Tooltip>
               )}
               {onCopyValues && (
-                <Tooltip title="Werte kopieren">
+                <Tooltip title="Werte merken">
                   <button
                     type="button"
-                    aria-label="Werte kopieren"
+                    aria-label="Werte merken"
                     onClick={onCopyValues}
                     style={{
                       display: "inline-flex",
