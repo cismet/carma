@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatMeasurementShortLabelToken } from "@carma-mapping/annotations/core";
 
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
-import type { PreviewLineLabelVisualOptions } from "../config/preview-line-label-visual-defaults";
+import type { PartialAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
 import {
   buildStoredAnnotationGeoJsonFeatureCollection,
   buildStoredAnnotationsGeoJsonFeatureCollection,
@@ -69,7 +69,7 @@ type UseAnnotationsRuntimeAssemblyOptions = {
   initialActiveToolType?: AnnotationToolId;
   initialPointTemporaryMode: boolean;
   formatOptions: AnnotationsRuntimeFormatOptions;
-  previewLineLabelVisualOptions: Partial<PreviewLineLabelVisualOptions>;
+  lineLabelOptions: PartialAnnotationLineLabelOptions;
   initialPersistenceState: AnnotationsRuntimePersistenceEnvelope | null;
   onPersistenceStateChange?: (
     state: AnnotationsRuntimePersistenceEnvelope
@@ -83,7 +83,7 @@ export const useAnnotationsAssembly = ({
   initialActiveToolType,
   initialPointTemporaryMode,
   formatOptions,
-  previewLineLabelVisualOptions,
+  lineLabelOptions,
   initialPersistenceState,
   onPersistenceStateChange,
   requestLabelText,
@@ -676,7 +676,7 @@ export const useAnnotationsAssembly = ({
       getHoveredPointQueryNodeId,
       setHoveredPointQueryNodeId,
       formatOptions,
-      previewLineLabelVisualOptions,
+      lineLabelOptions,
       bindApi: bindLifecycleHostApi,
       requestLabelText,
     },
@@ -693,7 +693,7 @@ export const useAnnotationsAssembly = ({
       onPreviewSnapTargetNodeClick: handlePreviewSnapTargetNodeClick,
       activeMoveGizmoNodeId,
       formatOptions,
-      previewLineLabelVisualOptions,
+      lineLabelOptions,
     },
   };
 };

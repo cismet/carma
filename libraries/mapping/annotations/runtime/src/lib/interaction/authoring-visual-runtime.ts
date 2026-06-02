@@ -42,12 +42,16 @@ import {
   type PointMarkerVisualStyle,
 } from "../config/measurement-visual-defaults";
 import {
-  PREVIEW_LINE_LABEL_THEME,
-  previewLineLabelPlacementDefaults,
-  previewLineLabelVisualDefaults,
-  resolvePreviewLineLabelVisualOptions,
-  type PreviewLineLabelVisualOptions,
-} from "../config/preview-line-label-visual-defaults";
+  annotationLineLabelPlacementDefaults,
+  annotationLineLabelDefaults,
+  resolveAnnotationLineLabelOptions,
+  type PartialAnnotationLineLabelOptions,
+  type AnnotationLineLabelOptions,
+} from "../config/annotation-line-label-options";
+import {
+  ANNOTATION_THEME_STYLE,
+  type AnnotationThemeStyle,
+} from "../config/annotation-theme-style";
 import {
   previewControllerDefaults,
   type PreviewControllerOptions,
@@ -110,14 +114,14 @@ type ScreenPointLike = {
   y: number;
 };
 
-type PreviewLineLabelAnchor = "center" | "left" | "right";
-type PreviewLineLabelKind = "direct" | "vertical" | "horizontal";
+type AnnotationLineLabelAnchor = "center" | "left" | "right";
+type AnnotationLineLabelKind = "direct" | "vertical" | "horizontal";
 
-type PreviewLineLabelPlacement = {
+type AnnotationLineLabelPlacement = {
   x: CssPixels;
   y: CssPixels;
   angleRad: Radians;
-  anchor: PreviewLineLabelAnchor;
+  anchor: AnnotationLineLabelAnchor;
   anchorRatio: Ratio;
   isShortEdge: boolean;
   shouldFlip: boolean;
@@ -139,7 +143,7 @@ export const applyStyles = (
   Object.assign(element.style, styles);
 };
 
-const previewLineLabelDomDefaults = Object.freeze({
+const lineLabelDomDefaults = Object.freeze({
   className: "carma-annotation-overlay-line-label",
   frameClassName: "carma-annotation-overlay-line-label__frame",
   contentClassName: "carma-annotation-overlay-line-label__content",
@@ -148,25 +152,27 @@ const previewLineLabelDomDefaults = Object.freeze({
   textEchoClassName: "carma-annotation-overlay-line-label__text-echo",
   textClassName: "carma-annotation-overlay-line-label__text",
 });
-const PREVIEW_LINE_LABEL_SHARED_STYLE_DEFAULTS = Object.freeze({
+const ANNOTATION_LINE_LABEL_SHARED_STYLE_DEFAULTS = Object.freeze({
   framePaddingBlockEx: 0.25,
   framePaddingInlineEx: 0.65,
   backdropInsetBlockEx: -0.35,
   backdropInsetInlineEx: -0.75,
 });
-const PREVIEW_LINE_LABEL_THEME_BACKDROP_RGB = Object.freeze({
-  [PREVIEW_LINE_LABEL_THEME.BRIGHT_ON_DARK]: "15, 23, 42",
-  [PREVIEW_LINE_LABEL_THEME.DARK_ON_BRIGHT]: "255, 255, 255",
+const ANNOTATION_THEME_STYLE_BACKDROP_RGB: Readonly<
+  Record<AnnotationThemeStyle, string>
+> = Object.freeze({
+  [ANNOTATION_THEME_STYLE.BRIGHT_ON_DARK]: "15, 23, 42",
+  [ANNOTATION_THEME_STYLE.DARK_ON_BRIGHT]: "255, 255, 255",
 });
-const PREVIEW_LINE_LABEL_PLACEMENT_OPTIONS_BY_KIND: Record<
-  PreviewLineLabelKind,
+const ANNOTATION_LINE_LABEL_PLACEMENT_OPTIONS_BY_KIND: Record<
+  AnnotationLineLabelKind,
   LineLabelPlacementOptions
 > = Object.freeze({
   direct: {},
   vertical: {
     labelOffsetPx: previewControllerDefaults.lineLabelOffsetPx,
     labelFlippedBaselineOffsetPx:
-      previewLineLabelPlacementDefaults.verticalFlippedBaselineOffsetPx,
+      annotationLineLabelPlacementDefaults.verticalFlippedBaselineOffsetPx,
     labelRotationMode: SVG_LINE_LABEL_ROTATION_MODE.CLOCKWISE,
   },
   horizontal: {},
@@ -181,7 +187,7 @@ const createHtmlElement = <T extends keyof HTMLElementTagNameMap>(
   return element;
 };
 
-const applyPreviewLineLabelVisualOptions = ({
+const applyAnnotationLineLabelOptions = ({
   element,
   backdrop,
   surface,
@@ -192,47 +198,48 @@ const applyPreviewLineLabelVisualOptions = ({
   backdrop: HTMLDivElement;
   surface: HTMLDivElement;
   accentColor: string;
-  visualOptions: PreviewLineLabelVisualOptions;
+  visualOptions: AnnotationLineLabelOptions;
 }) => {
   element.style.setProperty(
     "--carma-annotation-overlay-line-label-font-family",
-    visualOptions.fontFamily
+    visualOptions.text.fontFamily
   );
   element.style.setProperty(
     "--carma-annotation-overlay-line-label-font-weight",
-    String(visualOptions.fontWeight)
+    String(visualOptions.text.fontWeight)
   );
   element.style.setProperty(
     "--carma-annotation-overlay-line-label-glow-color",
     accentColor
   );
   element.dataset.annotationOverlayLineLabelShortEdgeOffsetPx = String(
-    visualOptions.shortEdgeOffsetPx
+    visualOptions.layout.shortEdgeOffsetPx
   );
-  element.dataset.annotationOverlayLineLabelTheme = visualOptions.theme;
+  element.dataset.annotationThemeStyle =
+    visualOptions.appearance.themeStyle;
   element.dataset.annotationOverlayLineLabelBackgroundStyle =
-    visualOptions.backgroundStyle;
+    visualOptions.background.style;
   backdrop.dataset.annotationOverlayLineLabelBackgroundStyle =
-    visualOptions.backgroundStyle;
+    visualOptions.background.style;
 
   if (
-    typeof visualOptions.backdropSurfaceAlpha === "number" &&
-    Number.isFinite(visualOptions.backdropSurfaceAlpha) &&
+    typeof visualOptions.background.surfaceAlpha === "number" &&
+    Number.isFinite(visualOptions.background.surfaceAlpha) &&
     !(
-      typeof visualOptions.backdropBackgroundColor === "string" &&
-      visualOptions.backdropBackgroundColor.trim().length > 0
+      typeof visualOptions.background.color === "string" &&
+      visualOptions.background.color.trim().length > 0
     )
   ) {
     element.style.setProperty(
       "--carma-annotation-overlay-line-label-backdrop-background",
-      `rgba(${PREVIEW_LINE_LABEL_THEME_BACKDROP_RGB[visualOptions.theme]}, ${Math.min(
-        Math.max(visualOptions.backdropSurfaceAlpha, 0),
+      `rgba(${ANNOTATION_THEME_STYLE_BACKDROP_RGB[visualOptions.appearance.themeStyle]}, ${Math.min(
+        Math.max(visualOptions.background.surfaceAlpha, 0),
         1
       )})`
     );
   }
 
-  if (visualOptions.showBackdrop === false) {
+  if (visualOptions.background.showBackdrop === false) {
     backdrop.style.display = "none";
     surface.style.display = "none";
   } else {
@@ -241,206 +248,206 @@ const applyPreviewLineLabelVisualOptions = ({
   }
 
   if (
-    typeof visualOptions.textColor === "string" &&
-    visualOptions.textColor.trim().length > 0
+    typeof visualOptions.text.color === "string" &&
+    visualOptions.text.color.trim().length > 0
   ) {
     element.style.setProperty(
       "--carma-annotation-overlay-line-label-text-color",
-      visualOptions.textColor
+      visualOptions.text.color
     );
   }
 
   if (
-    typeof visualOptions.textBlendMode === "string" &&
-    visualOptions.textBlendMode.trim().length > 0
+    typeof visualOptions.text.blendMode === "string" &&
+    visualOptions.text.blendMode.trim().length > 0
   ) {
     element.style.setProperty(
       "--carma-annotation-overlay-line-label-text-blend-mode",
-      visualOptions.textBlendMode
+      visualOptions.text.blendMode
     );
   }
 
   if (
-    typeof visualOptions.backdropBackgroundColor === "string" &&
-    visualOptions.backdropBackgroundColor.trim().length > 0
+    typeof visualOptions.background.color === "string" &&
+    visualOptions.background.color.trim().length > 0
   ) {
     element.style.setProperty(
       "--carma-annotation-overlay-line-label-backdrop-background",
-      visualOptions.backdropBackgroundColor
+      visualOptions.background.color
     );
   }
 
   if (
-    typeof visualOptions.backdropBlendMode === "string" &&
-    visualOptions.backdropBlendMode.trim().length > 0
+    typeof visualOptions.background.blendMode === "string" &&
+    visualOptions.background.blendMode.trim().length > 0
   ) {
     element.style.setProperty(
       "--carma-annotation-overlay-line-label-backdrop-blend-mode",
-      visualOptions.backdropBlendMode
+      visualOptions.background.blendMode
     );
   }
 
   if (
-    typeof visualOptions.surfaceBlendMode === "string" &&
-    visualOptions.surfaceBlendMode.trim().length > 0
+    typeof visualOptions.surface.blendMode === "string" &&
+    visualOptions.surface.blendMode.trim().length > 0
   ) {
     element.style.setProperty(
       "--carma-annotation-overlay-line-label-surface-blend-mode",
-      visualOptions.surfaceBlendMode
+      visualOptions.surface.blendMode
     );
   }
 
   if (
-    typeof visualOptions.textEchoColor === "string" &&
-    visualOptions.textEchoColor.trim().length > 0
+    typeof visualOptions.text.echo?.color === "string" &&
+    visualOptions.text.echo.color.trim().length > 0
   ) {
     element.style.setProperty(
       "--carma-annotation-overlay-line-label-text-echo-color",
-      visualOptions.textEchoColor
+      visualOptions.text.echo.color
     );
   }
 
   if (
-    typeof visualOptions.textEchoBlendMode === "string" &&
-    visualOptions.textEchoBlendMode.trim().length > 0
+    typeof visualOptions.text.echo?.blendMode === "string" &&
+    visualOptions.text.echo.blendMode.trim().length > 0
   ) {
     element.style.setProperty(
       "--carma-annotation-overlay-line-label-text-echo-blend-mode",
-      visualOptions.textEchoBlendMode
+      visualOptions.text.echo.blendMode
     );
   }
 
   if (
-    typeof visualOptions.textEchoBlurPx === "number" &&
-    Number.isFinite(visualOptions.textEchoBlurPx)
+    typeof visualOptions.text.echo?.blurPx === "number" &&
+    Number.isFinite(visualOptions.text.echo.blurPx)
   ) {
     element.style.setProperty(
       "--carma-annotation-overlay-line-label-text-echo-blur-px",
-      `${Math.max(visualOptions.textEchoBlurPx, 0)}px`
+      `${Math.max(visualOptions.text.echo.blurPx, 0)}px`
     );
   }
 
   if (
-    typeof visualOptions.textEchoOpacity === "number" &&
-    Number.isFinite(visualOptions.textEchoOpacity)
+    typeof visualOptions.text.echo?.opacity === "number" &&
+    Number.isFinite(visualOptions.text.echo.opacity)
   ) {
     element.style.setProperty(
       "--carma-annotation-overlay-line-label-text-echo-opacity",
-      `${Math.min(Math.max(visualOptions.textEchoOpacity, 0), 1)}`
+      `${Math.min(Math.max(visualOptions.text.echo.opacity, 0), 1)}`
     );
   }
 
   if (
-    typeof visualOptions.backdropBlurPx === "number" &&
-    Number.isFinite(visualOptions.backdropBlurPx)
+    typeof visualOptions.background.blurPx === "number" &&
+    Number.isFinite(visualOptions.background.blurPx)
   ) {
     element.style.setProperty(
       "--carma-annotation-overlay-line-label-surface-blur-px",
-      `${Math.max(visualOptions.backdropBlurPx, 0)}px`
+      `${Math.max(visualOptions.background.blurPx, 0)}px`
     );
   }
 
   if (
-    typeof visualOptions.backdropBrightnessPct === "number" &&
-    Number.isFinite(visualOptions.backdropBrightnessPct)
+    typeof visualOptions.background.brightnessPct === "number" &&
+    Number.isFinite(visualOptions.background.brightnessPct)
   ) {
     element.style.setProperty(
       "--carma-annotation-overlay-line-label-surface-brightness-pct",
-      `${Math.max(visualOptions.backdropBrightnessPct, 0)}%`
+      `${Math.max(visualOptions.background.brightnessPct, 0)}%`
     );
   }
 
   if (
-    typeof visualOptions.backdropSaturatePct === "number" &&
-    Number.isFinite(visualOptions.backdropSaturatePct)
+    typeof visualOptions.background.saturatePct === "number" &&
+    Number.isFinite(visualOptions.background.saturatePct)
   ) {
     element.style.setProperty(
       "--carma-annotation-overlay-line-label-surface-saturate-pct",
-      `${Math.max(visualOptions.backdropSaturatePct, 0)}%`
+      `${Math.max(visualOptions.background.saturatePct, 0)}%`
     );
   }
 
   if (
-    typeof visualOptions.backdropRadiusEx === "number" &&
-    Number.isFinite(visualOptions.backdropRadiusEx)
+    typeof visualOptions.background.radiusEx === "number" &&
+    Number.isFinite(visualOptions.background.radiusEx)
   ) {
     element.style.setProperty(
       "--carma-annotation-overlay-line-label-backdrop-radius",
-      `${Math.max(visualOptions.backdropRadiusEx, 0)}ex`
+      `${Math.max(visualOptions.background.radiusEx, 0)}ex`
     );
   }
 
   if (
-    typeof visualOptions.backdropEdgeBlurPx === "number" &&
-    Number.isFinite(visualOptions.backdropEdgeBlurPx)
+    typeof visualOptions.background.edgeBlurPx === "number" &&
+    Number.isFinite(visualOptions.background.edgeBlurPx)
   ) {
     element.style.setProperty(
       "--carma-annotation-overlay-line-label-surface-edge-blur-px",
-      `${Math.max(visualOptions.backdropEdgeBlurPx, 0)}px`
+      `${Math.max(visualOptions.background.edgeBlurPx, 0)}px`
     );
   }
 
   if (
-    typeof visualOptions.framePaddingBlockEx === "number" ||
-    typeof visualOptions.framePaddingInlineEx === "number"
+    typeof visualOptions.surface.paddingBlockEx === "number" ||
+    typeof visualOptions.surface.paddingInlineEx === "number"
   ) {
     element.style.setProperty(
       "--carma-annotation-overlay-line-label-frame-padding-block",
       `${
-        typeof visualOptions.framePaddingBlockEx === "number" &&
-        Number.isFinite(visualOptions.framePaddingBlockEx)
-          ? Math.max(visualOptions.framePaddingBlockEx, 0)
-          : PREVIEW_LINE_LABEL_SHARED_STYLE_DEFAULTS.framePaddingBlockEx
+        typeof visualOptions.surface.paddingBlockEx === "number" &&
+        Number.isFinite(visualOptions.surface.paddingBlockEx)
+          ? Math.max(visualOptions.surface.paddingBlockEx, 0)
+          : ANNOTATION_LINE_LABEL_SHARED_STYLE_DEFAULTS.framePaddingBlockEx
       }ex`
     );
     element.style.setProperty(
       "--carma-annotation-overlay-line-label-frame-padding-inline",
       `${
-        typeof visualOptions.framePaddingInlineEx === "number" &&
-        Number.isFinite(visualOptions.framePaddingInlineEx)
-          ? Math.max(visualOptions.framePaddingInlineEx, 0)
-          : PREVIEW_LINE_LABEL_SHARED_STYLE_DEFAULTS.framePaddingInlineEx
+        typeof visualOptions.surface.paddingInlineEx === "number" &&
+        Number.isFinite(visualOptions.surface.paddingInlineEx)
+          ? Math.max(visualOptions.surface.paddingInlineEx, 0)
+          : ANNOTATION_LINE_LABEL_SHARED_STYLE_DEFAULTS.framePaddingInlineEx
       }ex`
     );
   }
 
   if (
-    typeof visualOptions.backdropInsetBlockEx === "number" ||
-    typeof visualOptions.backdropInsetInlineEx === "number"
+    typeof visualOptions.background.insetBlockEx === "number" ||
+    typeof visualOptions.background.insetInlineEx === "number"
   ) {
     element.style.setProperty(
       "--carma-annotation-overlay-line-label-backdrop-inset",
       `${
-        typeof visualOptions.backdropInsetBlockEx === "number" &&
-        Number.isFinite(visualOptions.backdropInsetBlockEx)
-          ? visualOptions.backdropInsetBlockEx
-          : PREVIEW_LINE_LABEL_SHARED_STYLE_DEFAULTS.backdropInsetBlockEx
+        typeof visualOptions.background.insetBlockEx === "number" &&
+        Number.isFinite(visualOptions.background.insetBlockEx)
+          ? visualOptions.background.insetBlockEx
+          : ANNOTATION_LINE_LABEL_SHARED_STYLE_DEFAULTS.backdropInsetBlockEx
       }ex ${
-        typeof visualOptions.backdropInsetInlineEx === "number" &&
-        Number.isFinite(visualOptions.backdropInsetInlineEx)
-          ? visualOptions.backdropInsetInlineEx
-          : PREVIEW_LINE_LABEL_SHARED_STYLE_DEFAULTS.backdropInsetInlineEx
+        typeof visualOptions.background.insetInlineEx === "number" &&
+        Number.isFinite(visualOptions.background.insetInlineEx)
+          ? visualOptions.background.insetInlineEx
+          : ANNOTATION_LINE_LABEL_SHARED_STYLE_DEFAULTS.backdropInsetInlineEx
       }ex`
     );
   }
 };
 
-const resolvePreviewLineLabelTextElement = (element: HTMLDivElement) =>
+const resolveAnnotationLineLabelTextElement = (element: HTMLDivElement) =>
   element.querySelector(
     '[data-annotation-overlay-line-label-text="foreground"]'
   ) as HTMLElement | null;
 
-const resolvePreviewLineLabelTextEchoElement = (element: HTMLDivElement) =>
+const resolveAnnotationLineLabelTextEchoElement = (element: HTMLDivElement) =>
   element.querySelector(
     '[data-annotation-overlay-line-label-text-echo="true"]'
   ) as HTMLElement | null;
 
-const resolvePreviewLineLabelFrameElement = (element: HTMLDivElement) =>
+const resolveAnnotationLineLabelFrameElement = (element: HTMLDivElement) =>
   element.querySelector(
-    `.${previewLineLabelDomDefaults.frameClassName}`
+    `.${lineLabelDomDefaults.frameClassName}`
   ) as HTMLDivElement | null;
 
-const resolvePreviewLineLabelShortEdgeOffsetPx = (
+const resolveAnnotationLineLabelShortEdgeOffsetPx = (
   element: HTMLDivElement
 ): number => {
   const rawValue = element.dataset.annotationOverlayLineLabelShortEdgeOffsetPx;
@@ -448,30 +455,30 @@ const resolvePreviewLineLabelShortEdgeOffsetPx = (
 
   return Number.isFinite(parsedValue)
     ? parsedValue
-    : previewLineLabelVisualDefaults.shortEdgeOffsetPx;
+    : annotationLineLabelDefaults.layout.shortEdgeOffsetPx;
 };
 
-const resolvePreviewLineLabelKind = (
+const resolveAnnotationLineLabelKind = (
   element: HTMLDivElement
-): PreviewLineLabelKind =>
+): AnnotationLineLabelKind =>
   element.dataset.annotationOverlayLineLabelKind === "vertical" ||
   element.dataset.annotationOverlayLineLabelKind === "horizontal"
     ? element.dataset.annotationOverlayLineLabelKind
     : "direct";
 
-const resolvePreviewLineLabelUsesShortEdgeRules = (element: HTMLDivElement) =>
-  resolvePreviewLineLabelKind(element) === "vertical";
+const resolveAnnotationLineLabelUsesShortEdgeRules = (element: HTMLDivElement) =>
+  resolveAnnotationLineLabelKind(element) === "vertical";
 
-const resolvePreviewLineLabelPlacementOptions = ({
+const resolveAnnotationLineLabelPlacementOptions = ({
   kind,
   outsideReferencePoint,
   anchorRatio,
 }: {
-  kind: PreviewLineLabelKind;
+  kind: AnnotationLineLabelKind;
   outsideReferencePoint?: ScreenPointLike | null;
   anchorRatio?: number;
 }): LineLabelPlacementOptions => ({
-  ...PREVIEW_LINE_LABEL_PLACEMENT_OPTIONS_BY_KIND[kind],
+  ...ANNOTATION_LINE_LABEL_PLACEMENT_OPTIONS_BY_KIND[kind],
   anchorRatio:
     anchorRatio === undefined ? undefined : clampUnitRangeRatio(anchorRatio),
   getLabelOutsideReferencePoint: outsideReferencePoint
@@ -482,12 +489,12 @@ const resolvePreviewLineLabelPlacementOptions = ({
     : undefined,
 });
 
-const resolvePreviewLineLabelTransform = ({
+const resolveAnnotationLineLabelTransform = ({
   x,
   y,
   angleRad,
   anchor,
-}: PreviewLineLabelPlacement) =>
+}: AnnotationLineLabelPlacement) =>
   `translate(${Math.round(x)}px, ${Math.round(y)}px) ${
     anchor === "left"
       ? "translate(0%, -50%)"
@@ -637,41 +644,41 @@ export const applyLineRuntime = (
 
 export const createLineLabel = (
   accentColor: string,
-  visualOptions?: Partial<PreviewLineLabelVisualOptions>
+  visualOptions?: PartialAnnotationLineLabelOptions
 ) => {
   const resolvedVisualOptions =
-    resolvePreviewLineLabelVisualOptions(visualOptions);
+    resolveAnnotationLineLabelOptions(visualOptions);
   const element = createHtmlElement(
     "div",
-    previewLineLabelDomDefaults.className
+    lineLabelDomDefaults.className
   );
   const frame = createHtmlElement(
     "div",
-    previewLineLabelDomDefaults.frameClassName
+    lineLabelDomDefaults.frameClassName
   );
   const content = createHtmlElement(
     "div",
-    previewLineLabelDomDefaults.contentClassName
+    lineLabelDomDefaults.contentClassName
   );
   const blurBackdrop = createHtmlElement(
     "div",
-    previewLineLabelDomDefaults.backdropClassName
+    lineLabelDomDefaults.backdropClassName
   );
   const surface = createHtmlElement(
     "div",
-    previewLineLabelDomDefaults.surfaceClassName
+    lineLabelDomDefaults.surfaceClassName
   );
   const textEcho = createHtmlElement(
     "div",
-    previewLineLabelDomDefaults.textEchoClassName
+    lineLabelDomDefaults.textEchoClassName
   );
   const text = createHtmlElement(
     "div",
-    previewLineLabelDomDefaults.textClassName
+    lineLabelDomDefaults.textClassName
   );
   textEcho.dataset.annotationOverlayLineLabelTextEcho = "true";
   text.dataset.annotationOverlayLineLabelText = "foreground";
-  applyPreviewLineLabelVisualOptions({
+  applyAnnotationLineLabelOptions({
     element,
     backdrop: blurBackdrop,
     surface,
@@ -685,10 +692,10 @@ export const createLineLabel = (
 };
 
 export const createSegmentLineLabels = (
-  visualOptions?: Partial<PreviewLineLabelVisualOptions>
+  visualOptions?: PartialAnnotationLineLabelOptions
 ): PreviewSegmentLineLabelElements => {
   const resolvedVisualOptions =
-    resolvePreviewLineLabelVisualOptions(visualOptions);
+    resolveAnnotationLineLabelOptions(visualOptions);
 
   const direct = createLineLabel(
     measurementVisualDefaults.colors.componentLabelAccents.direct,
@@ -847,7 +854,7 @@ const normalizeLabelAngleRad = (angleRad: Radians): Radians =>
       : angleRad) as Radians
   );
 
-const normalizeReadablePreviewLineLabelAngleRad = (
+const normalizeReadableAnnotationLineLabelAngleRad = (
   angleRad: Radians
 ): Radians => {
   let normalizedAngleRad = negativePiToPi(angleRad);
@@ -861,7 +868,7 @@ const normalizeReadablePreviewLineLabelAngleRad = (
   return normalizedAngleRad;
 };
 
-const resolvePreviewLineLabelVerticalBaselineAngleRad = ({
+const resolveAnnotationLineLabelVerticalBaselineAngleRad = ({
   angleRad,
   lineSide,
 }: {
@@ -870,7 +877,7 @@ const resolvePreviewLineLabelVerticalBaselineAngleRad = ({
 }): Radians => {
   if (
     Math.abs(Math.abs(angleRad) - PI_OVER_TWO) >
-    previewLineLabelPlacementDefaults.verticalBaselineAngleEpsilonRad
+    annotationLineLabelPlacementDefaults.verticalBaselineAngleEpsilonRad
   ) {
     return angleRad;
   }
@@ -878,7 +885,7 @@ const resolvePreviewLineLabelVerticalBaselineAngleRad = ({
   return (lineSide === "left" ? PI_OVER_TWO : -PI_OVER_TWO) as Radians;
 };
 
-const resolvePreviewLineLabelAngleRad = ({
+const resolveAnnotationLineLabelAngleRad = ({
   deltaX,
   deltaY,
   lineSide,
@@ -902,8 +909,8 @@ const resolvePreviewLineLabelAngleRad = ({
     ? ((baseAngleRad >= 0 ? baseAngleRad - PI : baseAngleRad + PI) as Radians)
     : baseAngleRad;
 
-  return resolvePreviewLineLabelVerticalBaselineAngleRad({
-    angleRad: normalizeReadablePreviewLineLabelAngleRad(preferredAngleRad),
+  return resolveAnnotationLineLabelVerticalBaselineAngleRad({
+    angleRad: normalizeReadableAnnotationLineLabelAngleRad(preferredAngleRad),
     lineSide,
   });
 };
@@ -913,7 +920,7 @@ const resolveLabelOffsetPosition = ({
   end,
   kind,
   outsideReferencePoint,
-  shortEdgeOffsetPx = previewLineLabelVisualDefaults.shortEdgeOffsetPx,
+  shortEdgeOffsetPx = annotationLineLabelDefaults.layout.shortEdgeOffsetPx,
   useShortEdgeRules = true,
   flipReadingDirection = false,
   previousShouldFlip = false,
@@ -921,14 +928,14 @@ const resolveLabelOffsetPosition = ({
 }: {
   start: ScreenPointLike;
   end: ScreenPointLike;
-  kind: PreviewLineLabelKind;
+  kind: AnnotationLineLabelKind;
   outsideReferencePoint?: ScreenPointLike | null;
   shortEdgeOffsetPx?: number;
   useShortEdgeRules?: boolean;
   flipReadingDirection?: boolean;
   previousShouldFlip?: boolean;
   anchorRatio?: number;
-}): PreviewLineLabelPlacement | null => {
+}): AnnotationLineLabelPlacement | null => {
   const sharedPlacement = resolveOverlayLineLabelPlacement({
     svgLine: {
       start: {
@@ -940,13 +947,13 @@ const resolveLabelOffsetPosition = ({
         y: end.y as CssPixelPosition["y"],
       },
     },
-    options: resolvePreviewLineLabelPlacementOptions({
+    options: resolveAnnotationLineLabelPlacementOptions({
       kind,
       outsideReferencePoint,
       anchorRatio,
     }),
     previousShouldFlip,
-    sideSwitchThresholdPx: previewLineLabelPlacementDefaults.sideHysteresisPx,
+    sideSwitchThresholdPx: annotationLineLabelPlacementDefaults.sideHysteresisPx,
   });
   if (!sharedPlacement) {
     return null;
@@ -968,7 +975,7 @@ const resolveLabelOffsetPosition = ({
         sharedPlacement.normalX * shortEdgeOffsetPx) as CssPixels,
       y: (sharedPlacement.midY +
         sharedPlacement.normalY * shortEdgeOffsetPx) as CssPixels,
-      angleRad: resolvePreviewLineLabelAngleRad({
+      angleRad: resolveAnnotationLineLabelAngleRad({
         deltaX,
         deltaY,
         lineSide,
@@ -1017,10 +1024,10 @@ export const applyLineLabel = ({
   const labelPosition = resolveLabelOffsetPosition({
     start,
     end,
-    kind: resolvePreviewLineLabelKind(element),
+    kind: resolveAnnotationLineLabelKind(element),
     outsideReferencePoint,
-    shortEdgeOffsetPx: resolvePreviewLineLabelShortEdgeOffsetPx(element),
-    useShortEdgeRules: resolvePreviewLineLabelUsesShortEdgeRules(element),
+    shortEdgeOffsetPx: resolveAnnotationLineLabelShortEdgeOffsetPx(element),
+    useShortEdgeRules: resolveAnnotationLineLabelUsesShortEdgeRules(element),
     flipReadingDirection,
     anchorRatio,
     previousShouldFlip:
@@ -1031,25 +1038,25 @@ export const applyLineLabel = ({
     return;
   }
 
-  const textElement = resolvePreviewLineLabelTextElement(element);
+  const textElement = resolveAnnotationLineLabelTextElement(element);
   if (textElement instanceof HTMLElement) {
     textElement.textContent = text;
   } else {
     element.textContent = text;
   }
-  const textEchoElement = resolvePreviewLineLabelTextEchoElement(element);
+  const textEchoElement = resolveAnnotationLineLabelTextEchoElement(element);
   if (textEchoElement instanceof HTMLElement) {
     textEchoElement.textContent = text;
   }
 
-  const frameElement = resolvePreviewLineLabelFrameElement(element);
+  const frameElement = resolveAnnotationLineLabelFrameElement(element);
   const upperSideGapBoostPx =
     !labelPosition.isShortEdge &&
     labelPosition.normalY <
-      -previewLineLabelPlacementDefaults.upperSideGapNormalYEpsilon &&
+      -annotationLineLabelPlacementDefaults.upperSideGapNormalYEpsilon &&
     frameElement
       ? frameElement.getBoundingClientRect().height *
-        previewLineLabelPlacementDefaults.upperSideGapFactor
+        annotationLineLabelPlacementDefaults.upperSideGapFactor
       : 0;
 
   const adjustedX = (labelPosition.x +
@@ -1063,7 +1070,7 @@ export const applyLineLabel = ({
   element.dataset.annotationOverlayLineLabelNormalFlip =
     labelPosition.shouldFlip ? "1" : "0";
   element.style.display = "block";
-  element.style.transform = resolvePreviewLineLabelTransform({
+  element.style.transform = resolveAnnotationLineLabelTransform({
     ...labelPosition,
     x: adjustedX,
     y: adjustedY,

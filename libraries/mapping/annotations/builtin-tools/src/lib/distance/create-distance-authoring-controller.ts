@@ -116,7 +116,7 @@ export const createDistanceAuthoringController = ({
   context: AnnotationToolAuthoringContext;
   measurementLineStyleOptions?: MeasurementLineStyleOptions;
 }): AnnotationToolAuthoringController | null => {
-  const { scene, drafts, formatOptions, previewLineLabelVisualOptions } =
+  const { scene, drafts, formatOptions, lineLabelOptions } =
     context;
   if (!scene || scene.isDestroyed()) {
     return null;
@@ -136,7 +136,7 @@ export const createDistanceAuthoringController = ({
   const overlayLines = createPreviewOverlayLines(resolvedLineStyleOptions);
   overlayLayer.appendChild(overlayLines.root);
 
-  const lineLabels = createSegmentLineLabels(previewLineLabelVisualOptions);
+  const lineLabels = createSegmentLineLabels(lineLabelOptions);
   overlayLayer.append(
     lineLabels.direct,
     lineLabels.vertical,

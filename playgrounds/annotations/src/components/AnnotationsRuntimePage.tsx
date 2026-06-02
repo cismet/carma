@@ -30,7 +30,7 @@ import {
   ANNOTATIONS_RUNTIME_STORAGE_KEY,
   INFOBOX_WIDTH_PX,
   PLAYGROUND_ALL_RUNTIME_TOOL_PLUGINS,
-  PLAYGROUND_PREVIEW_LINE_LABEL_VISUAL_OPTIONS,
+  PLAYGROUND_ANNOTATION_LINE_LABEL_OPTIONS,
   PLAYGROUND_RUNTIME_INFO_BOX_VISUAL_OPTIONS,
   PLAYGROUND_RUNTIME_FORMAT_OPTIONS,
   PLAYGROUND_STABLE_RUNTIME_TOOL_PLUGINS,
@@ -441,9 +441,7 @@ export const AnnotationsRuntimePage = ({
           }}
           plugins={toolPlugins}
           formatOptions={PLAYGROUND_RUNTIME_FORMAT_OPTIONS}
-          previewLineLabelVisualOptions={
-            PLAYGROUND_PREVIEW_LINE_LABEL_VISUAL_OPTIONS
-          }
+          lineLabelOptions={PLAYGROUND_ANNOTATION_LINE_LABEL_OPTIONS}
         >
           <PersistActiveRuntimeToolMode />
           <CesiumNavigationOverlay

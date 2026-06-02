@@ -21,7 +21,7 @@ import {
   type AnnotationsStore,
 } from "../store";
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
-import type { PreviewLineLabelVisualOptions } from "../config/preview-line-label-visual-defaults";
+import type { PartialAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
 import type {
   AnnotationToolPlugin,
   AnnotationToolRegistry,
@@ -99,7 +99,7 @@ type AnnotationsProviderProps = {
   };
   renderEnabled?: boolean;
   formatOptions?: AnnotationsRuntimeFormatOptions;
-  previewLineLabelVisualOptions?: Partial<PreviewLineLabelVisualOptions>;
+  lineLabelOptions?: PartialAnnotationLineLabelOptions;
   initialPersistenceState?: AnnotationsRuntimePersistenceEnvelope | null;
   onPersistenceStateChange?: (
     state: AnnotationsRuntimePersistenceEnvelope
@@ -119,7 +119,7 @@ const AnnotationsReduxProvider = ReduxProvider as unknown as (
 const AnnotationsRuntimeContext =
   createContext<AnnotationsRuntimeServices | null>(null);
 const DEFAULT_RUNTIME_FORMAT_OPTIONS: AnnotationsRuntimeFormatOptions = {};
-const DEFAULT_PREVIEW_LINE_LABEL_VISUAL_OPTIONS: Partial<PreviewLineLabelVisualOptions> =
+const DEFAULT_ANNOTATION_LINE_LABEL_OPTIONS: PartialAnnotationLineLabelOptions =
   {};
 
 const useRequiredAnnotationsRuntimeServices = () => {
@@ -145,7 +145,7 @@ export const AnnotationsProvider = ({
   localPersistence,
   renderEnabled = true,
   formatOptions = DEFAULT_RUNTIME_FORMAT_OPTIONS,
-  previewLineLabelVisualOptions = DEFAULT_PREVIEW_LINE_LABEL_VISUAL_OPTIONS,
+  lineLabelOptions = DEFAULT_ANNOTATION_LINE_LABEL_OPTIONS,
   initialPersistenceState,
   onPersistenceStateChange,
 }: AnnotationsProviderProps) => {
@@ -179,7 +179,7 @@ export const AnnotationsProvider = ({
     initialActiveToolType,
     initialPointTemporaryMode,
     formatOptions,
-    previewLineLabelVisualOptions,
+    lineLabelOptions,
     initialPersistenceState: resolvedInitialPersistenceState,
     onPersistenceStateChange: resolvedOnPersistenceStateChange,
     requestLabelText: renderEnabled ? requestLabelText : undefined,

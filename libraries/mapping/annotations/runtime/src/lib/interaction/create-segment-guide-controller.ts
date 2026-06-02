@@ -3,7 +3,7 @@ import { isValidScene } from "@carma-mapping/engines/cesium/core";
 import type { CesiumGeographicCoordinate } from "../store";
 import type { Scene } from "@carma-cesium";
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
-import type { PreviewLineLabelVisualOptions } from "../config/preview-line-label-visual-defaults";
+import type { PartialAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
 import {
   applyLineLabel,
   applyLineRuntime,
@@ -35,10 +35,10 @@ export const createSegmentGuideController = (
   scene: Scene,
   {
     formatOptions,
-    previewLineLabelVisualOptions,
+    lineLabelOptions,
   }: {
     formatOptions: AnnotationsRuntimeFormatOptions;
-    previewLineLabelVisualOptions?: Partial<PreviewLineLabelVisualOptions>;
+    lineLabelOptions?: PartialAnnotationLineLabelOptions;
   }
 ): SegmentGuideController => {
   const overlayLayer = createPreviewOverlayLayer(scene, SEGMENT_GUIDE_LAYER_ID);
@@ -50,7 +50,7 @@ export const createSegmentGuideController = (
     };
   }
 
-  const lineLabels = createSegmentLineLabels(previewLineLabelVisualOptions);
+  const lineLabels = createSegmentLineLabels(lineLabelOptions);
   overlayLayer.append(
     lineLabels.direct,
     lineLabels.vertical,

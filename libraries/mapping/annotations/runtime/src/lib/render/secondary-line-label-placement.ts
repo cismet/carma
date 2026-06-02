@@ -10,9 +10,9 @@ import {
 } from "@carma-units";
 
 import {
-  PREVIEW_LINE_LABEL_COLLISION_RESOLUTION_STRATEGY,
-  type PreviewLineLabelCollisionResolutionStrategy,
-} from "../config/preview-line-label-visual-defaults";
+  ANNOTATION_LINE_LABEL_COLLISION_RESOLUTION_STRATEGY,
+  type AnnotationLineLabelCollisionResolutionStrategy,
+} from "../config/annotation-line-label-options";
 import { applyLineLabel } from "../interaction/authoring-visual-runtime";
 
 export type SecondaryLineLabelPlacementCandidate = {
@@ -48,7 +48,7 @@ const secondaryLineLabelPlacementDefaults = Object.freeze({
 const clampLineLabelAnchorRatio = (value: number): Ratio =>
   clampUnitRangeRatio(value);
 
-const resolvePreviewLineLabelCollisionRect = (
+const resolveAnnotationLineLabelCollisionRect = (
   element: HTMLDivElement
 ): Rect | null => {
   if (element.style.display === "none") {
@@ -88,7 +88,7 @@ const resolveLineLabelAnchorRatios = ({
   maxDeltaRatio,
 }: {
   element: HTMLDivElement;
-  collisionResolutionStrategy: PreviewLineLabelCollisionResolutionStrategy;
+  collisionResolutionStrategy: AnnotationLineLabelCollisionResolutionStrategy;
   stepRatio: number;
   maxDeltaRatio: number;
 }) => {
@@ -111,7 +111,7 @@ const resolveLineLabelAnchorRatios = ({
 
   if (
     collisionResolutionStrategy !==
-    PREVIEW_LINE_LABEL_COLLISION_RESOLUTION_STRATEGY.MOVE_ON_LINE
+    ANNOTATION_LINE_LABEL_COLLISION_RESOLUTION_STRATEGY.MOVE_ON_LINE
   ) {
     return {
       lastResolvedAnchorRatio,
@@ -182,7 +182,7 @@ const applySecondaryLineLabelCandidatePlacement = ({
     anchorRatio,
   });
 
-  const collisionRect = resolvePreviewLineLabelCollisionRect(candidate.element);
+  const collisionRect = resolveAnnotationLineLabelCollisionRect(candidate.element);
   if (!collisionRect) {
     return null;
   }
@@ -215,7 +215,7 @@ export const applySecondaryLineLabelPlacementStrategy = ({
   candidate: SecondaryLineLabelPlacementCandidate;
   occupiedLabelRects: Rect[];
   allowEarlyRemoval: boolean;
-  collisionResolutionStrategy: PreviewLineLabelCollisionResolutionStrategy;
+  collisionResolutionStrategy: AnnotationLineLabelCollisionResolutionStrategy;
   anchorSlideStepRatio: number;
   maxAnchorSlideDeltaRatio: number;
 }): SecondaryLineLabelPlacementResult => {

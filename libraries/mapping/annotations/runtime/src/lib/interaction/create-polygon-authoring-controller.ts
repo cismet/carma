@@ -31,7 +31,7 @@ import { createPathAuthoringController } from "./create-path-authoring-controlle
 import { RUNTIME_POLYGON_FILL_PLACEMENT } from "../render/measurement-render-models";
 import { createMeasurementPolygonFillsController } from "../render/measurement-polygon-fills-controller.shared";
 import { createMeasurementOverlayPolygonFillsController } from "../render/measurement-overlay-polygon-fills-controller.shared";
-import { resolvePreviewLineLabelVisualOptions } from "../config/preview-line-label-visual-defaults";
+import { resolveAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
 import {
   isCoplanarPolygonFillPlacement,
   resolveAreaOcclusionLineRenderOptions,
@@ -170,7 +170,7 @@ export const createPolygonAuthoringController = ({
     drafts,
     labelOverlay,
     formatOptions,
-    previewLineLabelVisualOptions,
+    lineLabelOptions,
   } = context;
   if (!scene || scene.isDestroyed()) {
     return null;
@@ -221,8 +221,8 @@ export const createPolygonAuthoringController = ({
   let pointQueryPickResult: PointQueryPickResult | null = null;
   let draftCoordinates = [...drafts.get(toolType).coordinates];
   let currentAreaLabelState: PreviewAreaLabelState | null = null;
-  const resolvedPreviewLineLabelVisualOptions =
-    resolvePreviewLineLabelVisualOptions(previewLineLabelVisualOptions);
+  const resolvedAnnotationLineLabelOptions =
+    resolveAnnotationLineLabelOptions(lineLabelOptions);
 
   const render = (requestRender = true) => {
     if (!isValidScene(scene)) {
@@ -299,9 +299,9 @@ export const createPolygonAuthoringController = ({
         ? buildTextOnlyPointLabelOverlayState({
             text: nextAreaLabelState.text,
             lineColor: getAnnotationAreaCssColor(toolType, 1),
-            theme: resolvedPreviewLineLabelVisualOptions.theme,
-            fontFamily: resolvedPreviewLineLabelVisualOptions.fontFamily,
-            fontWeight: resolvedPreviewLineLabelVisualOptions.fontWeight,
+            theme: resolvedAnnotationLineLabelOptions.appearance.themeStyle,
+            fontFamily: resolvedAnnotationLineLabelOptions.text.fontFamily,
+            fontWeight: resolvedAnnotationLineLabelOptions.text.fontWeight,
             getScreenPosition: () =>
               toScreenPoint(scene, nextAreaLabelState.anchorECEF),
           })

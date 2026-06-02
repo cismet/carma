@@ -30,7 +30,7 @@ import type {
 import { ANNOTATION_TOOL_PLUGIN_KINDS } from "../registry";
 import type { AnnotationToolId } from "../registry/annotation-tool-id";
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
-import type { PreviewLineLabelVisualOptions } from "../config/preview-line-label-visual-defaults";
+import type { PartialAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
 import type { AnnotationLabelTextRequester } from "./use-annotation-label-text-request";
 import type {
   AnnotationToolAuthoringController,
@@ -70,7 +70,7 @@ type RuntimeAuthoringHostProps = {
   getHoveredPointQueryNodeId: () => string | null;
   setHoveredPointQueryNodeId: (nodeId: string | null) => void;
   formatOptions: AnnotationsRuntimeFormatOptions;
-  previewLineLabelVisualOptions: Partial<PreviewLineLabelVisualOptions>;
+  lineLabelOptions: PartialAnnotationLineLabelOptions;
   requestLabelText?: AnnotationLabelTextRequester;
 };
 
@@ -88,7 +88,7 @@ export const RuntimeAuthoringHost = ({
   getHoveredPointQueryNodeId,
   setHoveredPointQueryNodeId,
   formatOptions,
-  previewLineLabelVisualOptions,
+  lineLabelOptions,
   requestLabelText,
 }: RuntimeAuthoringHostProps) => {
   const labelOverlay = useLabelOverlay();
@@ -302,7 +302,7 @@ export const RuntimeAuthoringHost = ({
           }
         },
         formatOptions,
-        previewLineLabelVisualOptions,
+        lineLabelOptions,
       } satisfies AnnotationToolAuthoringContext) ?? null;
     activeAuthoringControllerRef.current = nextAuthoringController;
     nextAuthoringController?.setEnabled(pointQueryEnabled);
@@ -321,7 +321,7 @@ export const RuntimeAuthoringHost = ({
     formatOptions,
     labelOverlay,
     pointQueryEnabled,
-    previewLineLabelVisualOptions,
+    lineLabelOptions,
     scene,
   ]);
 

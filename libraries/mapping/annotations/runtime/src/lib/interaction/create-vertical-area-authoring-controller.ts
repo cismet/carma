@@ -36,7 +36,7 @@ import { createPathAuthoringController } from "./create-path-authoring-controlle
 import { RUNTIME_POLYGON_FILL_PLACEMENT } from "../render/measurement-render-models";
 import { createMeasurementPolygonFillsController } from "../render/measurement-polygon-fills-controller.shared";
 import { createMeasurementOverlayPolygonFillsController } from "../render/measurement-overlay-polygon-fills-controller.shared";
-import { resolvePreviewLineLabelVisualOptions } from "../config/preview-line-label-visual-defaults";
+import { resolveAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
 import {
   isCoplanarPolygonFillPlacement,
   resolveAreaOcclusionLineRenderOptions,
@@ -165,7 +165,7 @@ export const createVerticalAreaAuthoringController = ({
     drafts,
     labelOverlay,
     formatOptions,
-    previewLineLabelVisualOptions,
+    lineLabelOptions,
   } = context;
   if (!scene || scene.isDestroyed()) {
     return null;
@@ -213,7 +213,7 @@ export const createVerticalAreaAuthoringController = ({
     overlayId: `${ANNOTATION_TYPE_AREA_VERTICAL}-draft-area-label`,
     requestRender: () => scene.requestRender(),
   });
-  const lineLabels = createSegmentLineLabels(previewLineLabelVisualOptions);
+  const lineLabels = createSegmentLineLabels(lineLabelOptions);
   if (labelOverlayLayer) {
     labelOverlayLayer.append(
       lineLabels.direct,
@@ -228,8 +228,8 @@ export const createVerticalAreaAuthoringController = ({
   ];
   let currentAreaLabelState: PreviewAreaLabelState | null = null;
   let currentEdgeLabelsState: PreviewVerticalAreaEdgeLabelsState | null = null;
-  const resolvedPreviewLineLabelVisualOptions =
-    resolvePreviewLineLabelVisualOptions(previewLineLabelVisualOptions);
+  const resolvedAnnotationLineLabelOptions =
+    resolveAnnotationLineLabelOptions(lineLabelOptions);
 
   const renderOverlayLabels = (requestRender = true) => {
     if (!isValidScene(scene)) {
@@ -412,9 +412,9 @@ export const createVerticalAreaAuthoringController = ({
               ANNOTATION_TYPE_AREA_VERTICAL,
               1
             ),
-            theme: resolvedPreviewLineLabelVisualOptions.theme,
-            fontFamily: resolvedPreviewLineLabelVisualOptions.fontFamily,
-            fontWeight: resolvedPreviewLineLabelVisualOptions.fontWeight,
+            theme: resolvedAnnotationLineLabelOptions.appearance.themeStyle,
+            fontFamily: resolvedAnnotationLineLabelOptions.text.fontFamily,
+            fontWeight: resolvedAnnotationLineLabelOptions.text.fontWeight,
             getScreenPosition: () =>
               toScreenPoint(scene, nextAreaLabelState.anchorECEF),
           })
