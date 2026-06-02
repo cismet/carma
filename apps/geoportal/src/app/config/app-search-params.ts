@@ -24,21 +24,13 @@ const buildDefaultLeafletViewHashParams = (): Record<string, string> => ({
   zoom: String(DEFAULT_INITIAL_2D_VIEW_REF.zoomLeaflet256),
 });
 
-export const resolveGeoportalAppLaunchMode = (
-  hashParams: Record<string, unknown>
-) => resolveGeoportalCustomHashState(hashParams).launchMode;
-
-export const geoportalAppSearchParamsOptions: UseAppSearchParamsOptions<GeoportalCustomHashState> =
-  {
-    defaultHashParams: {
-      buildParams: buildDefaultLeafletViewHashParams,
-      label: "geoportal:init:default-2d-view",
-      shouldApply: ({ hashParams, launchMode }) =>
-        !hasCompleteLeafletViewHash(hashParams) &&
-        launchMode !== HASH_LAUNCH_MODE.THREE_D,
-    },
-    customHashState: {
-      resolve: resolveGeoportalCustomHashState,
-    },
-    resolveLaunchMode: resolveGeoportalAppLaunchMode,
-  };
+export const geoportalAppSearchParamsOptions = {
+  defaultHashParams: {
+    buildParams: buildDefaultLeafletViewHashParams,
+    label: "geoportal:init:default-2d-view",
+    shouldApply: ({ hashParams, launchMode }) =>
+      !hasCompleteLeafletViewHash(hashParams) &&
+      launchMode !== HASH_LAUNCH_MODE.THREE_D,
+  },
+  resolveCustomHashState: resolveGeoportalCustomHashState,
+} satisfies UseAppSearchParamsOptions<GeoportalCustomHashState>;

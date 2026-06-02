@@ -37,9 +37,7 @@ export type UseAppSearchParamsOptions<
 > = {
   defaultHashParams?: AppSearchParamsDefaultHashOptions;
   resolveLaunchMode?: (hashParams: HashParams) => ResolvedHashLaunchMode;
-  customHashState?: {
-    resolve: (hashParams: HashParams) => TCustomHashState;
-  };
+  resolveCustomHashState?: (hashParams: HashParams) => TCustomHashState;
 };
 
 export type UseAppSearchParamsResult<TCustomHashState extends object> = {
@@ -49,17 +47,30 @@ export type UseAppSearchParamsResult<TCustomHashState extends object> = {
 const defaultResolveLaunchMode = (): ResolvedHashLaunchMode =>
   HASH_LAUNCH_MODE.TWO_D;
 
+const isResolvedHashLaunchMode = (
+  value: unknown
+): value is ResolvedHashLaunchMode =>
+  value === HASH_LAUNCH_MODE.TWO_D || value === HASH_LAUNCH_MODE.THREE_D;
+
+const getCustomHashStateLaunchMode = <TCustomHashState extends object>(
+  customHashState: TCustomHashState | null
+): ResolvedHashLaunchMode | null => {
+  const launchMode = (customHashState as { launchMode?: unknown } | null)
+    ?.launchMode;
+  return isResolvedHashLaunchMode(launchMode) ? launchMode : null;
+};
+
 export const useAppSearchParams = <
   TCustomHashState extends object = Record<string, never>,
 >({
   defaultHashParams,
   resolveLaunchMode = defaultResolveLaunchMode,
-  customHashState,
+  resolveCustomHashState,
 }: UseAppSearchParamsOptions<TCustomHashState> = {}) => {
   const { pathname } = useLocation();
   const { getHashParams, registerOnPopState } = useHashState();
-  const hashStateOptionsRef = useRef(customHashState);
-  hashStateOptionsRef.current = customHashState;
+  const resolveCustomHashStateRef = useRef(resolveCustomHashState);
+  resolveCustomHashStateRef.current = resolveCustomHashState;
 
   const initialHashParamsRef = useRef<HashParams | null>(null);
   if (initialHashParamsRef.current === null) {
@@ -73,7 +84,7 @@ export const useAppSearchParams = <
       source: AppSearchParamsStateSource,
       version: number
     ): AppSearchParamsCustomStateSnapshot<TCustomHashState> | null => {
-      const resolver = hashStateOptionsRef.current?.resolve;
+      const resolver = resolveCustomHashStateRef.current;
       return resolver
         ? {
             ...resolver(hashParams),
@@ -90,11 +101,23 @@ export const useAppSearchParams = <
       buildCustomHashStateSnapshot(initialHashParams, "initial", 0)
     );
 
+  const resolveEffectiveLaunchMode = useCallback(
+    (
+      hashParams: HashParams,
+      customState: TCustomHashState | null
+    ): ResolvedHashLaunchMode =>
+      getCustomHashStateLaunchMode(customState) ?? resolveLaunchMode(hashParams),
+    [resolveLaunchMode]
+  );
+
   const customHashStateVersionRef = useRef(0);
-  const hasCustomHashState = customHashState !== undefined;
+  const hasCustomHashState = resolveCustomHashState !== undefined;
 
   useHashLaunchMode({
-    defaultMode: resolveLaunchMode(initialHashParams),
+    defaultMode: resolveEffectiveLaunchMode(
+      initialHashParams,
+      customHashStateSnapshot
+    ),
   });
 
   useEffect(() => {
@@ -120,7 +143,10 @@ export const useAppSearchParams = <
     }
 
     const hashParams = getHashParams();
-    const launchMode = resolveLaunchMode(hashParams);
+    const launchMode = resolveEffectiveLaunchMode(
+      hashParams,
+      resolveCustomHashStateRef.current?.(hashParams) ?? null
+    );
 
     if (defaultHashParams.shouldApply({ hashParams, launchMode })) {
       updateHashHistoryState(defaultHashParams.buildParams(), pathname, {

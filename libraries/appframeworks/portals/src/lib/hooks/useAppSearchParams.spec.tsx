@@ -82,6 +82,22 @@ describe("useAppSearchParams", () => {
     });
   });
 
+  it("uses launchMode from the custom hash state when available", () => {
+    routingMock.getHashParams.mockReturnValue({ mm: "1" });
+
+    renderHook(() =>
+      useAppSearchParams({
+        resolveCustomHashState: () => ({
+          launchMode: HASH_LAUNCH_MODE.THREE_D,
+        }),
+      })
+    );
+
+    expect(useHashLaunchModeMock).toHaveBeenCalledWith({
+      defaultMode: HASH_LAUNCH_MODE.THREE_D,
+    });
+  });
+
   it("writes configured default hash params when the supplied predicate applies", async () => {
     routingMock.getHashParams.mockReturnValue({});
 
@@ -130,11 +146,9 @@ describe("useAppSearchParams", () => {
 
     const { result } = renderHook(() =>
       useAppSearchParams({
-        customHashState: {
-          resolve: (hashParams) => ({
-            measurementModeRequested: hashParams.mm === "1",
-          }),
-        },
+        resolveCustomHashState: (hashParams) => ({
+          measurementModeRequested: hashParams.mm === "1",
+        }),
       })
     );
 

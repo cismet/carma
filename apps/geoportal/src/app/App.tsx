@@ -57,12 +57,8 @@ import store from "./store";
 import { featureFlagConfig } from "./config/featureFlags";
 
 import { OBLIQUE_CONFIG, CAMERA_ID_TO_DIRECTION } from "./oblique/config";
-import {
-  COLORS_HEX,
-  getHashParams,
-  HASH_LAUNCH_MODE,
-} from "@carma-commons/utils";
-import { resolveGeoportalAppLaunchMode } from "./config/app-search-params";
+import { COLORS_HEX } from "@carma-commons/utils";
+import { resolveGeoportalCustomHashState } from "./helper/geoportal-custom-hash-state";
 
 // Stable config objects
 const MEASUREMENTS_BASE_CONFIG = {
@@ -90,16 +86,6 @@ import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import "./index.css";
 // import { setDrawingShape } from "./store/slices/measurements";
-
-const readInitialFrameworkFromHash = (): "leaflet" | "cesium" => {
-  if (typeof window === "undefined") {
-    return "leaflet";
-  }
-
-  const hashParams = getHashParams();
-  const launchMode = resolveGeoportalAppLaunchMode(hashParams);
-  return launchMode === HASH_LAUNCH_MODE.THREE_D ? "cesium" : "leaflet";
-};
 
 function CesiumDevConsoleIntegration() {
   const flags = useFeatureFlags();
@@ -182,7 +168,7 @@ function App({ published }: { published?: boolean }) {
     () => ({ background: backgroundSettings }),
     []
   );
-  const initialFramework = readInitialFrameworkFromHash();
+  const { initialMapFramework } = resolveGeoportalCustomHashState();
 
   if (isLoadingConfig === null) {
     // wait for the loading state to be determined to prevent re-rendering
@@ -195,7 +181,7 @@ function App({ published }: { published?: boolean }) {
       <FeatureFlagProvider config={featureFlagsMergedConfig}>
         <MatomoTracker>
           <CesiumDevConsoleIntegration />
-          <MapFrameworkSwitcherProvider initialFramework={initialFramework}>
+          <MapFrameworkSwitcherProvider initialFramework={initialMapFramework}>
             <CarmaMapProviderWrapper
               cesiumOptions={CESIUM_CONFIG}
               overlayOptions={overlayOptions}
