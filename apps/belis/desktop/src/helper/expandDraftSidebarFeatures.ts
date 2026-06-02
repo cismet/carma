@@ -159,12 +159,66 @@ function buildBestandRow(
   } as unknown as SidebarFeature;
 }
 
+// A Standort creation draft holds the Mast flat in `values` plus every
+// "+ Leuchte" tab under `values.leuchten[]`. Expand it into its Standort parent
+// row (the draft's own stored `feature`, id = `draftKey`) plus one `leuchten`
+// child per lamp, clustered under the Standort via `fk_standort = draftKey`
+// (BelisSidebar pairs leuchten to their Standort by matching `fk_standort`
+// against the Standort row's `properties.id`). Each child carries `_draftKey`
+// and `_draftTabKey` so a row click focuses the matching form tab. With no
+// lamps the draft contributes its single feature unchanged.
+function expandStandortCreationDraft(
+  draftKey: string,
+  draft: Draft,
+  keyTables: Record<string, unknown>
+): SidebarFeature[] {
+  const parent = draft.feature as SidebarFeature;
+  const values = (draft.values ?? {}) as Record<string, unknown>;
+  const extras = Array.isArray(values.leuchten)
+    ? (values.leuchten as Array<Record<string, unknown>>)
+    : [];
+  if (extras.length === 0) return [parent];
+
+  // Flat Mast slice = everything on the draft except the leuchten array.
+  const { leuchten: _leuchten, ...mast } = values;
+  void _leuchten;
+
+  const features: SidebarFeature[] = [parent];
+  for (const entry of extras) {
+    const tabId = typeof entry._tabId === "string" ? entry._tabId : undefined;
+    if (!tabId) continue;
+    const { _tabId, ...fields } = entry;
+    void _tabId;
+    features.push(
+      buildSyntheticFeature(
+        "leuchte",
+        `${draftKey}::leuchte::${tabId}`,
+        {
+          ...enrichSyntheticProps(
+            "leuchte",
+            { leuchte: fields, mast },
+            keyTables
+          ),
+          fk_standort: draftKey,
+          _draftKey: draftKey,
+          _draftTabKey: tabId,
+        },
+        draft.geometry
+      ) as unknown as SidebarFeature
+    );
+  }
+  return features;
+}
+
 /**
  * Builds the feature list rendered in the "Entwürfe" sidebar tab.
  *
  * A Leuchten creation draft is expanded into a Standort parent row plus one
- * nested Leuchte row per form tab (see `expandLeuchteCreationDraft`). Every
- * other draft contributes its single stored `feature` unchanged.
+ * nested Leuchte row per form tab (see `expandLeuchteCreationDraft`). A Standort
+ * creation draft with "+ Leuchte" tabs is likewise expanded into its Standort
+ * parent plus one nested Leuchte row per lamp (see
+ * `expandStandortCreationDraft`). Every other draft contributes its single
+ * stored `feature` unchanged.
  *
  * `keyTables` denormalizes the form's FK ids into the flat label strings the
  * sidebar extractors read (leuchtentyp, fabrikat, mastart, …) — the same data
@@ -183,6 +237,12 @@ export function expandDraftSidebarFeatures(
       draft.feature != null
     ) {
       out.push(...expandLeuchteCreationDraft(draftKey, draft, keyTables));
+    } else if (
+      draft.featureType === "standort" &&
+      draft.isCreation === true &&
+      draft.feature != null
+    ) {
+      out.push(...expandStandortCreationDraft(draftKey, draft, keyTables));
     } else if (draft.feature != null) {
       out.push(draft.feature as SidebarFeature);
     }
