@@ -96,6 +96,7 @@ export type PartialAnnotationLineLabelOptions = Readonly<{
 }>;
 
 export type AnnotationLineLabelPlacementDefaults = Readonly<{
+  horizontalLabelOffsetPx: number;
   verticalFlippedBaselineOffsetPx: number;
   verticalBaselineAngleEpsilonRad: Radians;
   sideHysteresisPx: number;
@@ -130,6 +131,7 @@ export const annotationLineLabelDefaults: AnnotationLineLabelOptions =
 
 export const annotationLineLabelPlacementDefaults: AnnotationLineLabelPlacementDefaults =
   Object.freeze({
+    horizontalLabelOffsetPx: 7,
     verticalFlippedBaselineOffsetPx: 6,
     verticalBaselineAngleEpsilonRad: 1e-9 as Radians,
     sideHysteresisPx: 1.5,

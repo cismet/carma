@@ -175,7 +175,9 @@ const ANNOTATION_LINE_LABEL_PLACEMENT_OPTIONS_BY_KIND: Record<
       annotationLineLabelPlacementDefaults.verticalFlippedBaselineOffsetPx,
     labelRotationMode: SVG_LINE_LABEL_ROTATION_MODE.CLOCKWISE,
   },
-  horizontal: {},
+  horizontal: {
+    labelOffsetPx: annotationLineLabelPlacementDefaults.horizontalLabelOffsetPx,
+  },
 });
 
 const createHtmlElement = <T extends keyof HTMLElementTagNameMap>(
@@ -1049,6 +1051,8 @@ export const applyLineLabel = ({
     textEchoElement.textContent = text;
   }
 
+  element.style.display = "block";
+
   const frameElement = resolveAnnotationLineLabelFrameElement(element);
   const upperSideGapBoostPx =
     !labelPosition.isShortEdge &&
@@ -1069,7 +1073,6 @@ export const applyLineLabel = ({
   element.dataset.annotationOverlayLineLabelAnchorRatio = `${labelPosition.anchorRatio}`;
   element.dataset.annotationOverlayLineLabelNormalFlip =
     labelPosition.shouldFlip ? "1" : "0";
-  element.style.display = "block";
   element.style.transform = resolveAnnotationLineLabelTransform({
     ...labelPosition,
     x: adjustedX,

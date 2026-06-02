@@ -5,6 +5,7 @@ import {
   LabelOverlayProvider,
   type LabelOverlayHostBinding,
 } from "@carma-providers/label-overlay";
+import { FORMAT_LOCALE, LENGTH_UNIT_MODE } from "@carma-units";
 
 import type {
   AddAnnotationOptions,
@@ -118,7 +119,28 @@ const AnnotationsReduxProvider = ReduxProvider as unknown as (
 
 const AnnotationsRuntimeContext =
   createContext<AnnotationsRuntimeServices | null>(null);
-const DEFAULT_RUNTIME_FORMAT_OPTIONS: AnnotationsRuntimeFormatOptions = {};
+const DEFAULT_RUNTIME_FORMAT_OPTIONS: AnnotationsRuntimeFormatOptions = {
+  lengthMeters: {
+    locale: FORMAT_LOCALE.DE_DE,
+    unitMode: LENGTH_UNIT_MODE.METERS,
+    maximumFractionDigitsMeters: 2,
+  },
+  areaSquareMeters: {
+    locale: FORMAT_LOCALE.DE_DE,
+  },
+  degrees: {
+    locale: FORMAT_LOCALE.DE_DE,
+  },
+  geographicCoordinate: {
+    locale: FORMAT_LOCALE.DE_DE,
+    fractionDigits: 6,
+  },
+  decimalNumber: {
+    locale: FORMAT_LOCALE.DE_DE,
+    fractionDigits: 2,
+    useGrouping: false,
+  },
+};
 const DEFAULT_ANNOTATION_LINE_LABEL_OPTIONS: PartialAnnotationLineLabelOptions =
   {};
 

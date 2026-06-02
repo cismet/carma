@@ -56,7 +56,7 @@ const resolveAnnotationLineLabelCollisionRect = (
   }
 
   const textElement = element.querySelector(
-    '[data-annotation-overlay-line-label-text="true"]'
+    '[data-annotation-overlay-line-label-text="foreground"]'
   ) as HTMLElement | null;
   const targetElement = textElement ?? element;
   const rect = targetElement.getBoundingClientRect();
@@ -204,6 +204,50 @@ const applySecondaryLineLabelCandidatePlacement = ({
   };
 };
 
+const isBetterSecondaryLineLabelPlacementAttempt = (
+  placementAttempt: SecondaryLineLabelPlacementAttempt,
+  bestAttempt: SecondaryLineLabelPlacementAttempt | null
+) => {
+  if (!bestAttempt) {
+    return true;
+  }
+
+  if (placementAttempt.collisionCount !== bestAttempt.collisionCount) {
+    return placementAttempt.collisionCount < bestAttempt.collisionCount;
+  }
+
+  if (placementAttempt.collisionCount === 0) {
+    if (
+      placementAttempt.originalOffsetPenalty !==
+      bestAttempt.originalOffsetPenalty
+    ) {
+      return (
+        placementAttempt.originalOffsetPenalty <
+        bestAttempt.originalOffsetPenalty
+      );
+    }
+
+    return (
+      placementAttempt.lastSolutionJumpPenalty <
+      bestAttempt.lastSolutionJumpPenalty
+    );
+  }
+
+  if (
+    placementAttempt.lastSolutionJumpPenalty !==
+    bestAttempt.lastSolutionJumpPenalty
+  ) {
+    return (
+      placementAttempt.lastSolutionJumpPenalty <
+      bestAttempt.lastSolutionJumpPenalty
+    );
+  }
+
+  return (
+    placementAttempt.originalOffsetPenalty < bestAttempt.originalOffsetPenalty
+  );
+};
+
 export const applySecondaryLineLabelPlacementStrategy = ({
   candidate,
   occupiedLabelRects,
@@ -239,32 +283,17 @@ export const applySecondaryLineLabelPlacementStrategy = ({
       continue;
     }
 
-    if (placementAttempt.collisionCount === 0) {
-      return {
-        visible: true,
-        anchorRatio: placementAttempt.anchorRatio,
-        collisionCount: 0,
-        collisionRect: placementAttempt.collisionRect,
-      };
-    }
-
     if (
-      !bestAttempt ||
-      placementAttempt.collisionCount < bestAttempt.collisionCount ||
-      (placementAttempt.collisionCount === bestAttempt.collisionCount &&
-        placementAttempt.lastSolutionJumpPenalty <
-          bestAttempt.lastSolutionJumpPenalty) ||
-      (placementAttempt.collisionCount === bestAttempt.collisionCount &&
-        placementAttempt.lastSolutionJumpPenalty ===
-          bestAttempt.lastSolutionJumpPenalty &&
-        placementAttempt.originalOffsetPenalty <
-          bestAttempt.originalOffsetPenalty)
+      isBetterSecondaryLineLabelPlacementAttempt(
+        placementAttempt,
+        bestAttempt
+      )
     ) {
       bestAttempt = placementAttempt;
     }
   }
 
-  if (!allowEarlyRemoval && bestAttempt) {
+  if (bestAttempt && (bestAttempt.collisionCount === 0 || !allowEarlyRemoval)) {
     applyLineLabel({
       element: candidate.element,
       text: candidate.text,
