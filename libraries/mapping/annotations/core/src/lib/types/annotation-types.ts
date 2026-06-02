@@ -3,7 +3,6 @@ import type { MetricVector3 } from "@carma-units";
 import type { LinearSegmentLineMode } from "./linear-segment";
 // Semantic annotation identifiers
 export const ANNOTATION_TYPES = {
-  SELECT: "select",
   POINT: "point",
   DISTANCE: "distance",
   POLYLINE: "polyline",
@@ -12,6 +11,8 @@ export const ANNOTATION_TYPES = {
   AREA_VERTICAL: "vertical",
   LABEL: "label",
 } as const;
+
+export const ANNOTATION_SELECT_TOOL_ID = "select";
 
 export const ANNOTATION_TYPE_POINT = ANNOTATION_TYPES.POINT;
 export const ANNOTATION_TYPE_DISTANCE = ANNOTATION_TYPES.DISTANCE;
@@ -23,12 +24,9 @@ export const ANNOTATION_TYPE_LABEL = ANNOTATION_TYPES.LABEL;
 
 export type AnnotationTypes = typeof ANNOTATION_TYPES;
 
-export type AnnotationToolId = AnnotationTypes[keyof AnnotationTypes];
+export type AnnotationType = AnnotationTypes[keyof AnnotationTypes];
 
-export type AnnotationType = Exclude<
-  AnnotationToolId,
-  AnnotationTypes["SELECT"]
->;
+export type AnnotationToolId = AnnotationType | typeof ANNOTATION_SELECT_TOOL_ID;
 
 export const isAreaAnnotationType = (
   annotationType: AnnotationToolId

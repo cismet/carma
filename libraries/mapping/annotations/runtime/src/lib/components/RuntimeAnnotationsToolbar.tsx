@@ -6,7 +6,7 @@ import {
   type AnnotationsToolbarMetrics,
   type AnnotationsToolbarProps,
 } from "@carma-mapping/annotations/ui";
-import { ANNOTATION_TYPES } from "@carma-mapping/annotations/core";
+import { ANNOTATION_SELECT_TOOL_ID } from "@carma-mapping/annotations/core";
 
 import { useAnnotationsRuntime } from "../context/AnnotationsProvider";
 import type { AnnotationToolPlugin } from "../registry";
@@ -44,7 +44,7 @@ export const RuntimeAnnotationsToolbar = ({
     () =>
       toolPlugins.map((plugin) => {
         const descriptor = plugin.descriptor;
-        const isSelectionTool = descriptor.id === ANNOTATION_TYPES.SELECT;
+        const isSelectionTool = descriptor.id === ANNOTATION_SELECT_TOOL_ID;
         const annotationCount = isSelectionTool
           ? annotationEntries.length
           : plugin.annotationType

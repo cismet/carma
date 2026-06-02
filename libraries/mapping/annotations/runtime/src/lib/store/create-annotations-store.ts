@@ -4,7 +4,7 @@ import {
   type PayloadAction,
 } from "@reduxjs/toolkit";
 import {
-  ANNOTATION_TYPES,
+  ANNOTATION_SELECT_TOOL_ID,
   type AnnotationToolId,
 } from "@carma-mapping/annotations/core";
 
@@ -91,7 +91,7 @@ export const createInitialAnnotationsStoreState = (
   options: CreateInitialAnnotationsStoreStateOptions = {}
 ): AnnotationsStoreState => {
   const {
-    initialToolType = ANNOTATION_TYPES.SELECT,
+    initialToolType = ANNOTATION_SELECT_TOOL_ID,
     initialPointTemporaryMode = false,
   } = options;
 

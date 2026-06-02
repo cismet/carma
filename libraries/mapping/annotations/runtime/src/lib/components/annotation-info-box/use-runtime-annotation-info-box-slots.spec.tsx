@@ -1,6 +1,9 @@
 import { render, renderHook, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ANNOTATION_TYPES } from "@carma-mapping/annotations/core";
+import {
+  ANNOTATION_SELECT_TOOL_ID,
+  ANNOTATION_TYPES,
+} from "@carma-mapping/annotations/core";
 
 import type {
   AnnotationToolPlugin,
@@ -76,7 +79,7 @@ const createAnnotation = ({
 const createRuntime = (
   overrides: Record<string, unknown> = {}
 ): Record<string, unknown> => ({
-  activeToolType: ANNOTATION_TYPES.SELECT,
+  activeToolType: ANNOTATION_SELECT_TOOL_ID,
   annotationEntries: [],
   elevationReferenceAnnotationId: null,
   exportAnnotationGeoJson: vi.fn(),

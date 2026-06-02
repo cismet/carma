@@ -10,7 +10,10 @@ import {
   ANNOTATION_INFO_BOX_ACTION_IDS,
   AnnotationInfoBoxContainer,
 } from "@carma-mapping/annotations/ui";
-import { ANNOTATION_TYPES } from "@carma-mapping/annotations/core";
+import {
+  ANNOTATION_SELECT_TOOL_ID,
+  ANNOTATION_TYPES,
+} from "@carma-mapping/annotations/core";
 import {
   RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS,
   type RuntimeAnnotationInfoBoxVisualOptionsContext,
@@ -24,7 +27,7 @@ import { getLayers } from "../../store/slices/mapping";
 import { getUIMode } from "../../store/slices/ui";
 
 const CISMAP_INFO_BOX_TOOL_IDS = new Set<string>([
-  ANNOTATION_TYPES.SELECT,
+  ANNOTATION_SELECT_TOOL_ID,
   ANNOTATION_TYPES.POINT,
   ANNOTATION_TYPES.DISTANCE,
   ANNOTATION_TYPES.POLYLINE,

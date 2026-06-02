@@ -9,7 +9,10 @@ import {
 import type { CesiumConfig } from "@carma-mapping/engines/cesium/legacy";
 import type { CesiumModelConfig } from "@carma-mapping/engines/cesium/core";
 import type { LeafletConfig } from "@carma-mapping/engines/leaflet";
-import { ANNOTATION_TYPES } from "@carma-mapping/annotations/core";
+import {
+  ANNOTATION_SELECT_TOOL_ID,
+  ANNOTATION_TYPES,
+} from "@carma-mapping/annotations/core";
 import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 import {
   type AreaOcclusionStyleOptions,
@@ -151,7 +154,7 @@ export const CESIUM_ANNOTATION_CONFIG = {
   tools: {
     defaultToolId: ANNOTATION_TYPES.DISTANCE,
     stableToolIds: [
-      ANNOTATION_TYPES.SELECT,
+      ANNOTATION_SELECT_TOOL_ID,
       ANNOTATION_TYPES.POINT,
       ANNOTATION_TYPES.DISTANCE,
     ],

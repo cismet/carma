@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { ANNOTATION_TYPES } from "@carma-mapping/annotations/core";
+import {
+  ANNOTATION_SELECT_TOOL_ID,
+  ANNOTATION_TYPES,
+} from "@carma-mapping/annotations/core";
 
 import type { AnnotationToolPlugin, AnnotationToolRegistry } from "../registry";
 import { ANNOTATION_TOOL_PLUGIN_KINDS } from "../registry";
@@ -65,7 +68,7 @@ describe("annotation-tool-collections", () => {
         kind: ANNOTATION_TOOL_PLUGIN_KINDS.INTERACTION,
         order: 1,
       }),
-      createPlugin({ id: ANNOTATION_TYPES.SELECT, order: 0 }),
+      createPlugin({ id: ANNOTATION_SELECT_TOOL_ID, order: 0 }),
       createPlugin({ id: ANNOTATION_TYPES.LABEL, order: 3 }),
     ];
 
@@ -73,12 +76,12 @@ describe("annotation-tool-collections", () => {
       resolveVisibleMeasurementAnnotationToolPlugins(plugins).map(
         (plugin) => plugin.id
       )
-    ).toEqual([ANNOTATION_TYPES.SELECT, ANNOTATION_TYPES.DISTANCE]);
+    ).toEqual([ANNOTATION_SELECT_TOOL_ID, ANNOTATION_TYPES.DISTANCE]);
   });
 
   it("limits visible measurement tools to an explicit tool id allow-list", () => {
     const plugins = [
-      createPlugin({ id: ANNOTATION_TYPES.SELECT, order: 0 }),
+      createPlugin({ id: ANNOTATION_SELECT_TOOL_ID, order: 0 }),
       createPlugin({
         annotationType: ANNOTATION_TYPES.DISTANCE,
         id: ANNOTATION_TYPES.DISTANCE,
@@ -93,9 +96,9 @@ describe("annotation-tool-collections", () => {
 
     expect(
       resolveVisibleMeasurementAnnotationToolPlugins(plugins, {
-        toolIds: [ANNOTATION_TYPES.SELECT, ANNOTATION_TYPES.DISTANCE],
+        toolIds: [ANNOTATION_SELECT_TOOL_ID, ANNOTATION_TYPES.DISTANCE],
       }).map((plugin) => plugin.id)
-    ).toEqual([ANNOTATION_TYPES.SELECT, ANNOTATION_TYPES.DISTANCE]);
+    ).toEqual([ANNOTATION_SELECT_TOOL_ID, ANNOTATION_TYPES.DISTANCE]);
   });
 
   it("groups annotation entries by tool type", () => {
@@ -120,7 +123,7 @@ describe("annotation-tool-collections", () => {
 
   it("resolves interaction and fallback plugins", () => {
     const selectPlugin = createPlugin({
-      id: ANNOTATION_TYPES.SELECT,
+      id: ANNOTATION_SELECT_TOOL_ID,
       order: 0,
     });
     const interactionPlugin = createPlugin({

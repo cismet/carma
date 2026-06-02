@@ -4,7 +4,9 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { configureStore } from "@reduxjs/toolkit";
 import { Provider } from "react-redux";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ANNOTATION_TYPES } from "@carma-mapping/annotations/core";
+import {
+  ANNOTATION_SELECT_TOOL_ID,
+} from "@carma-mapping/annotations/core";
 
 const useMapFrameworkSwitcherContextMock = vi.hoisted(() => vi.fn());
 const useAnnotationsDispatchMock = vi.hoisted(() => vi.fn());
@@ -210,7 +212,7 @@ describe("useCesiumAnnotationLayerButton", () => {
     const store = createTestStore();
 
     useAnnotationsRuntimeMock.mockReturnValue({
-      activeToolType: ANNOTATION_TYPES.SELECT,
+      activeToolType: ANNOTATION_SELECT_TOOL_ID,
       annotationEntries: [],
       registry: {
         getPlugin: (toolId: string) =>

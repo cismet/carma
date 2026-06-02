@@ -1,5 +1,5 @@
 import {
-  ANNOTATION_TYPES,
+  ANNOTATION_SELECT_TOOL_ID,
   type AnnotationToolId,
 } from "@carma-mapping/annotations/core";
 import {
@@ -27,7 +27,7 @@ export const resolveVisibleMeasurementAnnotationToolPlugins = (
       }
 
       return (
-        plugin.id === ANNOTATION_TYPES.SELECT ||
+        plugin.id === ANNOTATION_SELECT_TOOL_ID ||
         (plugin.kind === ANNOTATION_TOOL_PLUGIN_KINDS.MEASUREMENT &&
           plugin.annotationType)
       );
@@ -84,7 +84,7 @@ export const areAnnotationEntriesHidden = (
 export const resolveAnnotationToolFallbackPlugin = ({
   activeToolType,
   registry,
-  fallbackToolId = ANNOTATION_TYPES.SELECT,
+  fallbackToolId = ANNOTATION_SELECT_TOOL_ID,
 }: {
   activeToolType: AnnotationToolId | null;
   registry: AnnotationToolRegistry;

@@ -1,7 +1,10 @@
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { ANNOTATION_TYPES } from "@carma-mapping/annotations/core";
+import {
+  ANNOTATION_SELECT_TOOL_ID,
+  ANNOTATION_TYPES,
+} from "@carma-mapping/annotations/core";
 import {
   ANNOTATION_TOOL_PLUGIN_KINDS,
   type AnnotationToolPlugin,
@@ -44,7 +47,7 @@ describe("useGeoportalCesiumAnnotationToolPlugins", () => {
     });
 
     const plugins = [
-      createPlugin({ id: ANNOTATION_TYPES.SELECT, order: 0 }),
+      createPlugin({ id: ANNOTATION_SELECT_TOOL_ID, order: 0 }),
       createPlugin({
         annotationType: ANNOTATION_TYPES.POINT,
         id: ANNOTATION_TYPES.POINT,
@@ -72,7 +75,7 @@ describe("useGeoportalCesiumAnnotationToolPlugins", () => {
     );
 
     expect(result.current.map((plugin) => plugin.id)).toEqual([
-      ANNOTATION_TYPES.SELECT,
+      ANNOTATION_SELECT_TOOL_ID,
       ANNOTATION_TYPES.POINT,
       ANNOTATION_TYPES.DISTANCE,
     ]);

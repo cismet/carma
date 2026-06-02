@@ -4,7 +4,10 @@ import { configureStore } from "@reduxjs/toolkit";
 import { render, screen } from "@testing-library/react";
 import { Provider } from "react-redux";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ANNOTATION_TYPES } from "@carma-mapping/annotations/core";
+import {
+  ANNOTATION_SELECT_TOOL_ID,
+  ANNOTATION_TYPES,
+} from "@carma-mapping/annotations/core";
 
 const useMapFrameworkSwitcherContextMock = vi.hoisted(() => vi.fn());
 const useRuntimeAnnotationInfoBoxSlotsMock = vi.hoisted(() => vi.fn());
@@ -121,7 +124,7 @@ const cismapAnnotationToolTypes = [
 ] as const;
 
 const cismapInstructionToolIds = [
-  ANNOTATION_TYPES.SELECT,
+  ANNOTATION_SELECT_TOOL_ID,
   ...cismapAnnotationToolTypes,
 ];
 
