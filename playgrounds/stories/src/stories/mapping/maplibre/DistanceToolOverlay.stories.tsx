@@ -39,10 +39,10 @@ import type {
 } from "@carma-mapping/annotations/runtime";
 import {
   applyLineLabel,
+  annotationLineLabelDefaults,
   buildPreviewDistanceTriangleLabelReferences,
   measurementVisualDefaults,
   PointMarkerOverlayShell,
-  previewLineLabelVisualDefaults,
   RUNTIME_POINT_LABEL_COORDINATE_SELECTION,
 } from "@carma-mapping/annotations/runtime";
 import {
@@ -1358,8 +1358,8 @@ const syncTerrain = (
 const lineLabelStyle = (kind: "direct" | "vertical" | "horizontal") =>
   ({
     "--carma-annotation-overlay-line-label-font-family":
-      previewLineLabelVisualDefaults.fontFamily,
-    "--carma-annotation-overlay-line-label-font-weight": `${previewLineLabelVisualDefaults.fontWeight}`,
+      annotationLineLabelDefaults.text.fontFamily,
+    "--carma-annotation-overlay-line-label-font-weight": `${annotationLineLabelDefaults.text.fontWeight}`,
     "--carma-annotation-overlay-line-label-glow-color":
       measurementVisualDefaults.colors.componentLabelAccents[kind],
   } as CssVariableProperties);
@@ -1411,10 +1411,10 @@ const RuntimeLineLabel = ({
       className="carma-annotation-overlay-line-label"
       data-annotation-overlay-line-label-kind={kind}
       data-annotation-overlay-line-label-short-edge-offset-px={
-        previewLineLabelVisualDefaults.shortEdgeOffsetPx
+        annotationLineLabelDefaults.layout.shortEdgeOffsetPx
       }
       data-annotation-overlay-line-label-theme={
-        previewLineLabelVisualDefaults.theme
+        annotationLineLabelDefaults.appearance.themeStyle
       }
       style={lineLabelStyle(kind)}
     >
@@ -1423,7 +1423,7 @@ const RuntimeLineLabel = ({
           aria-hidden="true"
           className="carma-annotation-overlay-line-label__backdrop"
           data-annotation-overlay-line-label-background-style={
-            previewLineLabelVisualDefaults.backgroundStyle
+            annotationLineLabelDefaults.background.style
           }
         />
         <span

@@ -22,10 +22,10 @@ import {
 } from "@carma-providers/label-overlay";
 import { MINUS_PI_OVER_FOUR } from "@carma-commons/math";
 import {
+  ANNOTATION_LINE_LABEL_BACKGROUND_STYLE,
   ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE,
   ANNOTATION_MEASUREMENT_TEXT_COLOR,
-  PREVIEW_LINE_LABEL_BACKGROUND_STYLE,
-  PREVIEW_LINE_LABEL_THEME,
+  ANNOTATION_THEME_STYLE,
   resolveStoredAnnotationLabelTheme,
   typographyDefaults,
   type StoredAnnotationQualitativeColorScheme,
@@ -198,7 +198,7 @@ export const REPRESENTATIVE_CASES_STORY_ARGS: Partial<LabelMarkersStoryArgs> = {
 const STORY_SECTION_COLUMN_WIDTH = 352;
 const STORY_SECTION_GAP = 24;
 const MAX_STORY_SECTION_COLUMNS = 4;
-const STORY_ROW_PREVIEW_WIDTH = 240;
+const STORY_ROW_SAMPLE_WIDTH = 240;
 
 const pageStyle: CSSProperties = {
   userSelect: "text",
@@ -374,7 +374,7 @@ const rowGraphicStyle: CSSProperties = {
 };
 
 const FIXED_ROW_GRAPHIC_STYLE: CSSProperties = {
-  width: STORY_ROW_PREVIEW_WIDTH,
+  width: STORY_ROW_SAMPLE_WIDTH,
   maxWidth: "100%",
 };
 
@@ -700,8 +700,8 @@ const DraggablePillbuttonLabelDemo = ({
   labelAttach = POINT_LABEL_ATTACH.CENTER,
   initialLabelPosition = DEFAULT_PILLBOX_LABEL_POSITION,
   viewportStyle,
-  alignPreviewRight = false,
-  previewRightInsetPx = 0,
+  alignSampleRight = false,
+  sampleRightInsetPx = 0,
 }: {
   pointId: string;
   content: ReactNode;
@@ -715,8 +715,8 @@ const DraggablePillbuttonLabelDemo = ({
   labelAttach?: PointLabelAttach;
   initialLabelPosition?: AnchorPoint;
   viewportStyle?: CSSProperties;
-  alignPreviewRight?: boolean;
-  previewRightInsetPx?: number;
+  alignSampleRight?: boolean;
+  sampleRightInsetPx?: number;
 }) => {
   const stageRef = useRef<HTMLDivElement | null>(null);
   const [labelPosition, setLabelPosition] = useState(initialLabelPosition);
@@ -766,12 +766,12 @@ const DraggablePillbuttonLabelDemo = ({
       const pillRect = pillElement.getBoundingClientRect();
 
       if (
-        alignPreviewRight &&
+        alignSampleRight &&
         dragSessionRef.current === null &&
         labelDragSessionRef.current === null
       ) {
         const currentRightPx = pillRect.right - stageRect.left;
-        const targetRightPx = stageRect.width - previewRightInsetPx;
+        const targetRightPx = stageRect.width - sampleRightInsetPx;
         const deltaPx = targetRightPx - currentRightPx;
 
         if (Math.abs(deltaPx) > 0.5) {
@@ -843,10 +843,10 @@ const DraggablePillbuttonLabelDemo = ({
     badgeContent,
     badgePosition,
     content,
-    alignPreviewRight,
+    alignSampleRight,
     labelAttach,
     pointId,
-    previewRightInsetPx,
+    sampleRightInsetPx,
     sharedStyleProps,
   ]);
 
@@ -1171,7 +1171,7 @@ const InlinePillbuttonLabelDemo = ({
   );
 };
 
-const StaticPointLabelPreview = ({
+const StaticPointLabelSample = ({
   pointId,
   content,
   badgeContent,
@@ -1241,7 +1241,7 @@ const RepresentativeLineLabelDemo = ({
     <div
       className="carma-annotation-overlay-line-label"
       data-annotation-overlay-line-label-theme={
-        PREVIEW_LINE_LABEL_THEME.BRIGHT_ON_DARK
+        ANNOTATION_THEME_STYLE.BRIGHT_ON_DARK
       }
       style={
         {
@@ -1262,7 +1262,7 @@ const RepresentativeLineLabelDemo = ({
           <span
             className="carma-annotation-overlay-line-label__backdrop"
             data-annotation-overlay-line-label-background-style={
-              PREVIEW_LINE_LABEL_BACKGROUND_STYLE.SOFT_RECT_FADE
+              ANNOTATION_LINE_LABEL_BACKGROUND_STYLE.SOFT_RECT_FADE
             }
           />
         ) : null}
@@ -1314,7 +1314,7 @@ export const LabelStatesAndThemesStory = (args: LabelMarkersStoryArgs) => {
               labelStyle={REPRESENTATIVE_STORY_ROW_LABEL_STYLE}
               graphicStyle={REPRESENTATIVE_ROW_GRAPHIC_STYLE}
             >
-              <StaticPointLabelPreview
+              <StaticPointLabelSample
                 pointId={`selection-${REPRESENTATIVE_SELECTION_VARIANT.id}`}
                 content="NHN 179,27 m"
                 badgeContent="8"
@@ -1460,7 +1460,7 @@ export const LabelStatesAndThemesStory = (args: LabelMarkersStoryArgs) => {
                 labelStyle={REPRESENTATIVE_STORY_ROW_LABEL_STYLE}
                 graphicStyle={REPRESENTATIVE_ROW_GRAPHIC_STYLE}
               >
-                <StaticPointLabelPreview
+                <StaticPointLabelSample
                   pointId={entry.id}
                   content={args.content}
                   badgeContent={args.badgeContent}
@@ -2067,7 +2067,7 @@ export const LabelBackgroundsStory = (args: LabelMarkersStoryArgs) => {
         <div
           className="carma-annotation-overlay-line-label"
           data-annotation-overlay-line-label-theme={
-            PREVIEW_LINE_LABEL_THEME.BRIGHT_ON_DARK
+            ANNOTATION_THEME_STYLE.BRIGHT_ON_DARK
           }
           style={
             {
@@ -2087,7 +2087,7 @@ export const LabelBackgroundsStory = (args: LabelMarkersStoryArgs) => {
             <span
               className="carma-annotation-overlay-line-label__backdrop"
               data-annotation-overlay-line-label-background-style={
-                PREVIEW_LINE_LABEL_BACKGROUND_STYLE.SOFT_RECT_FADE
+                ANNOTATION_LINE_LABEL_BACKGROUND_STYLE.SOFT_RECT_FADE
               }
             />
             <span
