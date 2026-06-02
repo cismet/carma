@@ -1244,7 +1244,36 @@ const LeuchteForm = ({
         createFeatureDraft("leuchte", { seedFromSelection: true });
       }}
       onCopyValues={() => {
-        // TODO: copy behavior to be defined.
+        // Green copy button: capture the currently visible Leuchte (+ its Mast)
+        // as the remembered "last values" template, so the next new Leuchte
+        // creation is seeded from it.
+        //   - Creation: read the live draft. When an extra Leuchten tab is
+        //     active, record that tab's slice instead of Leuchte 1.
+        //   - View (existing feature): `draftValues` is undefined; read the
+        //     existing feature's values that LeuchteFormFields/MastFormFields
+        //     reported up into `originalValuesRef`.
+        const activeExtra = activeFormTabKey?.startsWith("extra-")
+          ? extraLeuchten.find((e) => e._tabId === activeFormTabKey)
+          : undefined;
+        const source = draftValues ?? originalValuesRef.current;
+        const leuchteSlice = (activeExtra ??
+          source.leuchte ??
+          {}) as Record<string, unknown>;
+        const mastSlice = (source.mast ?? {}) as Record<string, unknown>;
+        const recordPayload = {
+          featureType: "leuchte",
+          values: {
+            leuchte: serializeValues(leuchteSlice),
+            mast: serializeValues(mastSlice),
+          },
+        };
+        // eslint-disable-next-line no-console
+        console.log(
+          "xxx [LeuchteForm] copy → set Leuchten defaults:",
+          JSON.parse(JSON.stringify(recordPayload.values))
+        );
+        dispatch(recordDefaults(recordPayload));
+        dispatch(recordSelectionDefaults(recordPayload));
       }}
       generalTabLabel={
         isCreation ? (
