@@ -35,6 +35,7 @@ export interface MapAdapter {
   addLayer?: (id: string) => Promise<boolean>;
   removeLayer?: (id: string) => boolean;
   getLayerIDs?: () => string[];
+  setBackgroundLayer?: (id: string) => boolean;
 
   // 3d (cesium) ------------------------------------------------------------
   getCameraPosition3D: () => CameraPosition3D | null;
@@ -59,6 +60,7 @@ export interface Mapping2DFacade {
   addLayer: (id: string) => Promise<boolean>;
   removeLayer: (id: string) => boolean;
   getLayerIDs: () => string[];
+  setBackgroundLayer: (id: string) => boolean;
 }
 
 /** Public shape seen by callers of `carma.mapping3D`. */
@@ -94,6 +96,7 @@ export const mapping2D: Mapping2DFacade = {
   addLayer: (id) => getAdapter()?.addLayer?.(id) ?? Promise.resolve(false),
   removeLayer: (id) => getAdapter()?.removeLayer?.(id) ?? false,
   getLayerIDs: () => getAdapter()?.getLayerIDs?.() ?? [],
+  setBackgroundLayer: (id) => getAdapter()?.setBackgroundLayer?.(id) ?? false,
 };
 
 export const mapping3D: Mapping3DFacade = {

@@ -116,6 +116,14 @@ export interface LayerState {
   backgroundLayer: BackgroundLayer;
 }
 
+export interface BackgroundLayerCatalogEntry {
+  id: string;
+  title: string;
+  group: string;
+  style: string;
+  config: BackgroundLayer;
+}
+
 export interface MappingState extends LayerState {
   savedLayerConfigs: SavedLayerConfig[];
   paleOpacityValue: number;
@@ -134,6 +142,7 @@ export interface MappingState extends LayerState {
   maplibreMaps?: any;
   configSelection?: SelectionItem;
   layersIdle: boolean;
+  backgroundLayers?: BackgroundLayerCatalogEntry[];
 }
 
 export interface FeatureInfoState {

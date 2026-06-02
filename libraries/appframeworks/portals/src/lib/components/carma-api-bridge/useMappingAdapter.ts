@@ -6,6 +6,9 @@ import { Cartesian3 } from "@carma-cesium";
 import { parseToMapLayer } from "@carma-mapping/utils";
 import { registerMapping, type MapAdapter } from "@carma-api";
 
+import { useMapStyle } from "../../contexts/MapStyleProvider";
+import type { BackgroundLayerCatalogEntry } from "../../types";
+
 import type { Store } from "redux";
 
 const RAD_TO_DEG = 180 / Math.PI;
@@ -20,6 +23,7 @@ export interface MappingPortalState {
   /** The layers currently on the map. */
   mapping?: {
     layers?: Array<{ id: string }>;
+    backgroundLayers?: BackgroundLayerCatalogEntry[];
   };
   [key: string]: unknown;
 }
@@ -55,6 +59,7 @@ export const selectCatalogLayerById = (
 export const useMappingAdapter = (store?: Store<MappingPortalState>): void => {
   const topicMap = useContext<typeof TopicMapContext>(TopicMapContext);
   const { viewerRef } = useCesiumContext();
+  const { setCurrentStyle } = useMapStyle();
   const {
     activeFramework,
     requestTransitionToCesium,
@@ -155,6 +160,30 @@ export const useMappingAdapter = (store?: Store<MappingPortalState>): void => {
           store.dispatch({ type: "mapping/appendLayer", payload: mapLayer });
           return true;
         },
+        setBackgroundLayer: (id: string): boolean => {
+          const entry = (store.getState().mapping?.backgroundLayers ?? []).find(
+            (candidate) => candidate.id === id
+          );
+          if (!entry) {
+            return false;
+          }
+          // Mirror BaseLayerSelection/AerialLayerSelection: remember the chosen
+          // variant for its group, set it as the active background (id is the
+          // group key), then flip the map style.
+          store.dispatch({
+            type:
+              entry.group === "luftbild"
+                ? "mapping/setSelectedLuftbildLayer"
+                : "mapping/setSelectedMapLayer",
+            payload: entry.config,
+          });
+          store.dispatch({
+            type: "mapping/setBackgroundLayer",
+            payload: { ...entry.config, id: entry.group },
+          });
+          setCurrentStyle(entry.style);
+          return true;
+        },
       }),
     };
     registerMapping(adapter);
@@ -165,6 +194,7 @@ export const useMappingAdapter = (store?: Store<MappingPortalState>): void => {
     activeFramework,
     requestTransitionToCesium,
     requestTransitionToLeaflet,
+    setCurrentStyle,
     store,
   ]);
 };
