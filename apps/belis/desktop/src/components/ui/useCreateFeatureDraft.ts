@@ -73,6 +73,10 @@ export const extractStandortFeatureInfo = (
   const layer = (carmaInfo?.sourceLayer ?? f.sourceLayer ?? "") as string;
   if (!STANDORT_SOURCE_LAYERS.has(layer)) return null;
   const props = (f.properties ?? null) as Record<string, unknown> | null;
+  // A selected creation draft (new, unsaved Standort/Leuchte) carries
+  // `_isCreation`/`_draftKey` on its synthetic properties. Drafts have no DB id
+  // yet, so we never offer "Leuchte zu Standort … hinzufügen" against them.
+  if (props?._isCreation === true || props?._draftKey != null) return null;
   const sourceProps = props?.sourceProps as
     | Record<string, unknown>
     | null
