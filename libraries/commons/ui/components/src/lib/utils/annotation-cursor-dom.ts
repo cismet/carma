@@ -1,4 +1,8 @@
 import type { AnnotationCursorSvgPathDefinition } from "./annotation-cursor-layered-svg-data-url";
+import {
+  CSS_MIX_BLEND_MODE,
+  type CssMixBlendMode,
+} from "@carma-commons/dom/document";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 const CURSOR_SHADOW_FILTER_REGION_INSET_PERCENT = 100;
@@ -7,13 +11,13 @@ const CURSOR_SHADOW_FILTER_REGION_SIZE_PERCENT = 300;
 let annotationCursorSvgFilterIdCounter = 0;
 
 type AnnotationCursorSvgRootOptions = {
-  blendMode?: string;
+  blendMode?: CssMixBlendMode;
   sizePx: number;
   viewBox: string;
 };
 
 export type AnnotationCursorShadowSvgElementOptions = {
-  blendMode?: string;
+  blendMode?: CssMixBlendMode;
   pathDefinitions: readonly AnnotationCursorSvgPathDefinition[];
   shadowBlurPx: number;
   shadowStrokeColor: string;
@@ -24,7 +28,7 @@ export type AnnotationCursorShadowSvgElementOptions = {
 };
 
 export type AnnotationCursorForegroundSvgElementOptions = {
-  blendMode?: string;
+  blendMode?: CssMixBlendMode;
   foregroundFill: string;
   pathDefinitions: readonly AnnotationCursorSvgPathDefinition[];
   sizePx: number;
@@ -32,16 +36,16 @@ export type AnnotationCursorForegroundSvgElementOptions = {
 };
 
 export type AnnotationCursorLayerHostElementOptions = {
-  blendMode?: string;
+  blendMode?: CssMixBlendMode;
   svgElement: SVGSVGElement;
 };
 
 export type AnnotationCursorLayeredDomElementOptions = {
   canvasSizePx: number;
-  foregroundBlendMode?: string;
+  foregroundBlendMode?: CssMixBlendMode;
   foregroundFill: string;
   pathDefinitions: readonly AnnotationCursorSvgPathDefinition[];
-  shadowBlendMode?: string;
+  shadowBlendMode?: CssMixBlendMode;
   shadowBlurPx: number;
   shadowStrokeColor: string;
   shadowStrokeLinejoin: "miter" | "round";
@@ -56,7 +60,11 @@ const createSvgElementNode = <ElementName extends keyof SVGElementTagNameMap>(
 
 const applySvgRootAttributes = (
   svgElement: SVGSVGElement,
-  { blendMode = "normal", sizePx, viewBox }: AnnotationCursorSvgRootOptions
+  {
+    blendMode = CSS_MIX_BLEND_MODE.NORMAL,
+    sizePx,
+    viewBox,
+  }: AnnotationCursorSvgRootOptions
 ) => {
   svgElement.setAttribute("xmlns", SVG_NS);
   svgElement.setAttribute("width", `${sizePx}`);

@@ -67,15 +67,16 @@ import {
 } from "./secondary-line-label-conflict-resolution";
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import {
-  resolvePreviewLineLabelVisualOptions,
-  type PreviewLineLabelVisualOptions,
-} from "../config/preview-line-label-visual-defaults";
+  resolveAnnotationLineLabelOptions,
+  type PartialAnnotationLineLabelOptions,
+  type AnnotationLineLabelOptions,
+} from "../config/annotation-line-label-options";
 import { measurementVisualDefaults } from "../config/measurement-visual-defaults";
 
 type UseRuntimeMeasurementEdgesControllerArgs = {
   edges: readonly RuntimeEdgeRenderModel[];
   formatOptions: AnnotationsRuntimeFormatOptions;
-  previewLineLabelVisualOptions?: Partial<PreviewLineLabelVisualOptions>;
+  lineLabelOptions?: PartialAnnotationLineLabelOptions;
   surfaceKey?: string;
   activeMoveGizmoNodeId: string | null;
   blockEdgeInteractions: boolean;
@@ -458,9 +459,9 @@ const resolveDistanceTriangleOverlayScreenData = ({
 
 const createDistanceTriangleLabelHandle = (
   overlayLayer: HTMLElement,
-  previewLineLabelVisualOptions?: Partial<PreviewLineLabelVisualOptions>
+  lineLabelOptions?: PartialAnnotationLineLabelOptions
 ): DistanceTriangleLabelHandle => {
-  const lineLabels = createSegmentLineLabels(previewLineLabelVisualOptions);
+  const lineLabels = createSegmentLineLabels(lineLabelOptions);
   overlayLayer.append(
     lineLabels.direct,
     lineLabels.vertical,
@@ -475,11 +476,11 @@ const createDistanceTriangleLabelHandle = (
 
 const createEdgeSegmentLabelHandle = (
   overlayLayer: HTMLElement,
-  previewLineLabelVisualOptions?: Partial<PreviewLineLabelVisualOptions>
+  lineLabelOptions?: PartialAnnotationLineLabelOptions
 ): EdgeSegmentLabelHandle => {
   const element = createLineLabel(
     measurementVisualDefaults.colors.componentLabelAccents.direct,
-    previewLineLabelVisualOptions
+    lineLabelOptions
   );
   overlayLayer.appendChild(element);
 
@@ -801,7 +802,7 @@ export const useMeasurementEdgesController = (
   {
     edges,
     formatOptions,
-    previewLineLabelVisualOptions,
+    lineLabelOptions,
     surfaceKey = "committed",
     activeMoveGizmoNodeId,
     blockEdgeInteractions,
@@ -827,9 +828,9 @@ export const useMeasurementEdgesController = (
   const edgeMidpointHandleByIdRef = useRef<Map<string, EdgeMidpointHandle>>(
     new Map()
   );
-  const resolvedPreviewLineLabelVisualOptions = useMemo(
-    () => resolvePreviewLineLabelVisualOptions(previewLineLabelVisualOptions),
-    [previewLineLabelVisualOptions]
+  const resolvedAnnotationLineLabelOptions = useMemo(
+    () => resolveAnnotationLineLabelOptions(lineLabelOptions),
+    [lineLabelOptions]
   );
   const insertNodeTargetMeasurementIdSet = useMemo(
     () => new Set(insertNodeTargetMeasurementIds),
@@ -1307,7 +1308,7 @@ export const useMeasurementEdgesController = (
           edge.id,
           createDistanceTriangleLabelHandle(
             labelOverlayLayer,
-            resolvedPreviewLineLabelVisualOptions
+            resolvedAnnotationLineLabelOptions
           )
         );
         distanceTriangleCornerHandleByIdRef.current.set(
@@ -1332,7 +1333,7 @@ export const useMeasurementEdgesController = (
           edge.id,
           createEdgeSegmentLabelHandle(
             labelOverlayLayer,
-            resolvedPreviewLineLabelVisualOptions
+            resolvedAnnotationLineLabelOptions
           )
         );
       });
@@ -1711,13 +1712,13 @@ export const useMeasurementEdgesController = (
         candidates: secondaryLineLabelCandidates,
         occupiedLabelRects: occupiedPointLabelRects,
         allowEarlyRemoval:
-          resolvedPreviewLineLabelVisualOptions.allowEarlyRemoval,
+          resolvedAnnotationLineLabelOptions.collision.allowEarlyRemoval,
         collisionResolutionStrategy:
-          resolvedPreviewLineLabelVisualOptions.collisionResolutionStrategy,
+          resolvedAnnotationLineLabelOptions.collision.resolutionStrategy,
         anchorSlideStepRatio:
-          resolvedPreviewLineLabelVisualOptions.anchorSlideStepRatio,
+          resolvedAnnotationLineLabelOptions.collision.anchorSlideStepRatio,
         maxAnchorSlideDeltaRatio:
-          resolvedPreviewLineLabelVisualOptions.maxAnchorSlideDeltaRatio,
+          resolvedAnnotationLineLabelOptions.collision.maxAnchorSlideDeltaRatio,
       });
     };
 
@@ -1752,7 +1753,7 @@ export const useMeasurementEdgesController = (
     edgeSegmentLabelHandleByIdRef,
     formatOptions,
     onDistanceTriangleCornerClick,
-    resolvedPreviewLineLabelVisualOptions,
+    resolvedAnnotationLineLabelOptions,
     scene,
     surfaceKey,
   ]);

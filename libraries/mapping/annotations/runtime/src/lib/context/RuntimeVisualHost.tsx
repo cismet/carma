@@ -2,7 +2,7 @@ import { useCallback, useMemo } from "react";
 import type { Scene } from "@carma-cesium";
 
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
-import type { PreviewLineLabelVisualOptions } from "../config/preview-line-label-visual-defaults";
+import type { PartialAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
 import { useAnnotationToolDraftStates } from "./use-annotation-tool-draft-states";
 import {
   type AnnotationElevationDisplayMode,
@@ -40,7 +40,7 @@ type RuntimeVisualHostProps = {
   onPreviewSnapTargetNodeClick: (nodeId: string) => boolean;
   activeMoveGizmoNodeId: string | null;
   formatOptions: AnnotationsRuntimeFormatOptions;
-  previewLineLabelVisualOptions: Partial<PreviewLineLabelVisualOptions>;
+  lineLabelOptions: PartialAnnotationLineLabelOptions;
 };
 
 export const RuntimeVisualHost = ({
@@ -55,7 +55,7 @@ export const RuntimeVisualHost = ({
   onPreviewSnapTargetNodeClick,
   activeMoveGizmoNodeId,
   formatOptions,
-  previewLineLabelVisualOptions,
+  lineLabelOptions,
 }: RuntimeVisualHostProps) => {
   const activeToolType = useAnnotationsSelector(
     (annotationsState) => annotationsState.annotationToolType
@@ -212,7 +212,7 @@ export const RuntimeVisualHost = ({
         effectiveLinkedNodeGroups={effectiveLinkedNodeGroups}
         selectedAnnotationIds={selectedAnnotationIds}
         formatOptions={formatOptions}
-        previewLineLabelVisualOptions={previewLineLabelVisualOptions}
+        lineLabelOptions={lineLabelOptions}
         activeMoveGizmoNodeId={activeMoveGizmoNodeId}
         isMoveGizmoDragging={isMoveGizmoDragging}
         isMeasurementToolActive={isMeasurementToolActive}

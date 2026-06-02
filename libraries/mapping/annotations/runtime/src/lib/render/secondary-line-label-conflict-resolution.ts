@@ -1,6 +1,6 @@
 import type { Rect } from "@carma-providers/label-overlay";
 
-import type { PreviewLineLabelVisualOptions } from "../config/preview-line-label-visual-defaults";
+import type { AnnotationLineLabelOptions } from "../config/annotation-line-label-options";
 import {
   applySecondaryLineLabelPlacementStrategy,
   type SecondaryLineLabelPlacementCandidate,
@@ -56,7 +56,7 @@ const resolveVisibleSecondaryLineLabelCandidatesWithinMeasurement = ({
 }: {
   candidates: readonly SecondaryLineLabelConflictCandidate[];
   occupiedLabelRects: Rect[];
-  collisionResolutionStrategy: PreviewLineLabelVisualOptions["collisionResolutionStrategy"];
+  collisionResolutionStrategy: AnnotationLineLabelOptions["collision"]["resolutionStrategy"];
   anchorSlideStepRatio: number;
   maxAnchorSlideDeltaRatio: number;
 }) => {
@@ -97,7 +97,7 @@ export const reconcileSecondaryLineLabelVisibility = ({
   candidates: readonly SecondaryLineLabelConflictCandidate[];
   occupiedLabelRects: Rect[];
   allowEarlyRemoval: boolean;
-  collisionResolutionStrategy: PreviewLineLabelVisualOptions["collisionResolutionStrategy"];
+  collisionResolutionStrategy: AnnotationLineLabelOptions["collision"]["resolutionStrategy"];
   anchorSlideStepRatio: number;
   maxAnchorSlideDeltaRatio: number;
 }) => {

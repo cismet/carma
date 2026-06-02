@@ -31,7 +31,7 @@ import {
   computePolylineSegmentLengthsMeters,
   computePolylineTotalLengthMeters,
 } from "../utils/measurement-summaries";
-import { resolvePreviewLineLabelVisualOptions } from "../config/preview-line-label-visual-defaults";
+import { resolveAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
 import type { AnnotationToolId } from "../registry/annotation-tool-id";
 
 const DRAFT_CHAIN_OVERLAY_LAYER_ID =
@@ -73,7 +73,7 @@ export const createSegmentAuthoringController = ({
     drafts,
     labelOverlay,
     formatOptions,
-    previewLineLabelVisualOptions,
+    lineLabelOptions,
   } = context;
   if (!scene || scene.isDestroyed()) {
     return null;
@@ -91,7 +91,7 @@ export const createSegmentAuthoringController = ({
   });
   const segmentController = createSegmentGuideController(scene, {
     formatOptions,
-    previewLineLabelVisualOptions,
+    lineLabelOptions,
   });
   const labelOverlayLayer = createPreviewOverlayLayer(
     scene,
@@ -106,8 +106,8 @@ export const createSegmentAuthoringController = ({
   let enabled = false;
   let pointQueryPickResult: PointQueryPickResult | null = null;
   let draftCoordinates = [...drafts.get(toolType).coordinates];
-  const resolvedPreviewLineLabelVisualOptions =
-    resolvePreviewLineLabelVisualOptions(previewLineLabelVisualOptions);
+  const resolvedAnnotationLineLabelOptions =
+    resolveAnnotationLineLabelOptions(lineLabelOptions);
 
   const ensureCommittedSegmentLabelCount = (count: number) => {
     if (!labelOverlayLayer) {
@@ -117,7 +117,7 @@ export const createSegmentAuthoringController = ({
     while (committedSegmentLabels.length < count) {
       const label = createLineLabel(
         previewControllerDefaults.directLineColor,
-        previewLineLabelVisualOptions
+        lineLabelOptions
       );
       committedSegmentLabels.push(label);
       labelOverlayLayer.appendChild(label);
@@ -204,9 +204,9 @@ export const createSegmentAuthoringController = ({
           formatOptions.lengthMeters
         ),
         lineColor: previewControllerDefaults.directLineColor,
-        theme: resolvedPreviewLineLabelVisualOptions.theme,
-        fontFamily: resolvedPreviewLineLabelVisualOptions.fontFamily,
-        fontWeight: resolvedPreviewLineLabelVisualOptions.fontWeight,
+        theme: resolvedAnnotationLineLabelOptions.appearance.themeStyle,
+        fontFamily: resolvedAnnotationLineLabelOptions.text.fontFamily,
+        fontWeight: resolvedAnnotationLineLabelOptions.text.fontWeight,
         getScreenPosition: () => {
           const nextEndCoordinate =
             pointQueryPickResult?.coordinate ??

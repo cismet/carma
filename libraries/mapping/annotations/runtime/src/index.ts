@@ -70,17 +70,23 @@ export type {
 } from "./lib/config/measurement-visual-defaults";
 export { pointLabelVisualDefaults } from "./lib/config/runtime-point-label-visual-defaults";
 export { previewControllerDefaults } from "./lib/config/preview-controller-defaults";
+export { ANNOTATION_THEME_STYLE } from "./lib/config/annotation-theme-style";
+export type { AnnotationThemeStyle } from "./lib/config/annotation-theme-style";
 export {
-  PREVIEW_LINE_LABEL_BACKGROUND_STYLE,
-  PREVIEW_LINE_LABEL_COLLISION_RESOLUTION_STRATEGY,
-  PREVIEW_LINE_LABEL_THEME,
-  previewLineLabelVisualDefaults,
-} from "./lib/config/preview-line-label-visual-defaults";
+  ANNOTATION_LINE_LABEL_BACKGROUND_STYLE,
+  ANNOTATION_LINE_LABEL_COLLISION_RESOLUTION_STRATEGY,
+  annotationLineLabelDefaults,
+} from "./lib/config/annotation-line-label-options";
 export type {
-  PreviewLineLabelCollisionResolutionStrategy,
-  PreviewLineLabelTheme,
-  PreviewLineLabelVisualOptions,
-} from "./lib/config/preview-line-label-visual-defaults";
+  PartialAnnotationLineLabelOptions,
+  AnnotationLineLabelAppearanceOptions,
+  AnnotationLineLabelBackgroundOptions,
+  AnnotationLineLabelCollisionOptions,
+  AnnotationLineLabelCollisionResolutionStrategy,
+  AnnotationLineLabelLayoutOptions,
+  AnnotationLineLabelTextOptions,
+  AnnotationLineLabelOptions,
+} from "./lib/config/annotation-line-label-options";
 export {
   AnnotationsProvider,
   useAnnotationLabelTextDialogState,

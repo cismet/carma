@@ -5,7 +5,7 @@ import type { LabelOverlayContextType } from "@carma-providers/label-overlay";
 
 import type { RuntimeAnnotationInfoBoxContext } from "../components/annotation-info-box/annotation-info-box.types";
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
-import type { PreviewLineLabelVisualOptions } from "../config/preview-line-label-visual-defaults";
+import type { PartialAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
 import type { AnnotationLabelTextRequester } from "../context/use-annotation-label-text-request";
 import type {
   AnnotationModeSession,
@@ -120,7 +120,7 @@ export type AnnotationToolAuthoringContext = {
   labelOverlay: LabelOverlayContextType;
   requestRender: () => void;
   formatOptions: AnnotationsRuntimeFormatOptions;
-  previewLineLabelVisualOptions: Partial<PreviewLineLabelVisualOptions>;
+  lineLabelOptions: PartialAnnotationLineLabelOptions;
 };
 
 export type AnnotationToolKeyboardContext = {

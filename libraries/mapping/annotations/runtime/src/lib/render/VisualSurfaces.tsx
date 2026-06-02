@@ -1,7 +1,7 @@
 import type { Scene } from "@carma-cesium";
 
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
-import type { PreviewLineLabelVisualOptions } from "../config/preview-line-label-visual-defaults";
+import type { PartialAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
 import type { AnnotationNodeLink } from "../store";
 import { useMeasurementVisualizers } from "./use-measurement-visualizers";
 import type { RuntimeVisualModels } from "./visual-models";
@@ -14,7 +14,7 @@ type VisualSurfacesProps = {
   effectiveLinkedNodeGroups: readonly AnnotationNodeLink[];
   selectedAnnotationIds: readonly string[];
   formatOptions: AnnotationsRuntimeFormatOptions;
-  previewLineLabelVisualOptions: Partial<PreviewLineLabelVisualOptions>;
+  lineLabelOptions: PartialAnnotationLineLabelOptions;
   activeMoveGizmoNodeId: string | null;
   isMoveGizmoDragging: boolean;
   isMeasurementToolActive: boolean;
@@ -44,7 +44,7 @@ export const VisualSurfaces = ({
   effectiveLinkedNodeGroups,
   selectedAnnotationIds,
   formatOptions,
-  previewLineLabelVisualOptions,
+  lineLabelOptions,
   activeMoveGizmoNodeId,
   isMoveGizmoDragging,
   isMeasurementToolActive,
@@ -71,7 +71,7 @@ export const VisualSurfaces = ({
     pointLabels: baseVisualModels.pointLabels ?? [],
     selectedAnnotationIds,
     formatOptions,
-    previewLineLabelVisualOptions,
+    lineLabelOptions,
     activeMoveGizmoNodeId,
     isMoveGizmoDragging,
     blockLabelInteractions:
@@ -102,7 +102,7 @@ export const VisualSurfaces = ({
     pointLabels: overlayVisualModels?.pointLabels ?? [],
     selectedAnnotationIds,
     formatOptions,
-    previewLineLabelVisualOptions,
+    lineLabelOptions,
     activeMoveGizmoNodeId,
     isMoveGizmoDragging,
     blockLabelInteractions: true,

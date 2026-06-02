@@ -13,6 +13,40 @@
   --carma-annotation-overlay-line-label-font-size: 14px;
   --carma-annotation-overlay-line-label-font-weight: 400;
   --carma-annotation-overlay-line-label-text-color: rgba(0, 0, 0, 0.98);
+  --carma-annotation-overlay-line-label-frame-padding-block: 0.25ex;
+  --carma-annotation-overlay-line-label-frame-padding-inline: 0.65ex;
+  --carma-annotation-overlay-line-label-backdrop-inset: -0.35ex -0.75ex;
+  --carma-annotation-overlay-line-label-backdrop-radius: 999px;
+  --carma-annotation-overlay-line-label-backdrop-background: rgba(
+    15,
+    23,
+    42,
+    0.28
+  );
+  --carma-annotation-overlay-line-label-backdrop-opacity: 0.96;
+  --carma-annotation-overlay-line-label-backdrop-blend-mode: darken;
+  --carma-annotation-overlay-line-label-surface-blur-px: 8px;
+  --carma-annotation-overlay-line-label-surface-saturate-pct: 55%;
+  --carma-annotation-overlay-line-label-surface-brightness-pct: 78%;
+  --carma-annotation-overlay-line-label-surface-edge-blur-px: 4px;
+  --carma-annotation-overlay-line-label-surface-opacity: 1;
+  --carma-annotation-overlay-line-label-surface-blend-mode: darken;
+  --carma-annotation-overlay-line-label-text-echo-display: none;
+  --carma-annotation-overlay-line-label-text-echo-color: rgba(15, 23, 42, 0.92);
+  --carma-annotation-overlay-line-label-text-echo-blur-px: 4px;
+  --carma-annotation-overlay-line-label-text-echo-opacity: 0.82;
+  --carma-annotation-overlay-line-label-text-echo-blend-mode: darken;
+  --carma-annotation-overlay-line-label-text-echo-stroke-width: 0;
+  --carma-annotation-overlay-line-label-text-echo-stroke-color: transparent;
+  --carma-annotation-overlay-line-label-text-echo-shadow: none;
+  --carma-annotation-overlay-line-label-text-blend-mode: normal;
+  --carma-annotation-overlay-line-label-debug-content-outline: 0 solid
+    transparent;
+  --carma-annotation-overlay-line-label-debug-backdrop-outline: 0 solid
+    transparent;
+  --carma-annotation-overlay-line-label-debug-text-outline: 0 solid transparent;
+  --carma-annotation-overlay-line-label-debug-text-echo-outline: 0 solid
+    transparent;
 }
 
 .carma-default-annotation-typography {
@@ -29,39 +63,162 @@
 .carma-annotation-overlay-line-label__frame {
   position: relative;
   display: inline-block;
-  padding: 3px 0.4em;
+}
+
+.carma-annotation-overlay-line-label__content {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  min-width: max-content;
   white-space: nowrap;
-  isolation: isolate;
+  outline: var(--carma-annotation-overlay-line-label-debug-content-outline);
 }
 
 .carma-annotation-overlay-line-label__backdrop {
   position: absolute;
-  inset: 0;
-  border-radius: 3px;
-  background: rgba(128, 128, 128, 0.45);
-  mix-blend-mode: darken;
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  inset: var(--carma-annotation-overlay-line-label-backdrop-inset);
+  z-index: 0;
+  border-radius: var(--carma-annotation-overlay-line-label-backdrop-radius);
+  background: var(--carma-annotation-overlay-line-label-backdrop-background);
+  mix-blend-mode: var(
+    --carma-annotation-overlay-line-label-backdrop-blend-mode
+  );
+  opacity: var(--carma-annotation-overlay-line-label-backdrop-opacity);
+  -webkit-mask-image: radial-gradient(
+    ellipse at center,
+    rgba(0, 0, 0, 1) 0%,
+    rgba(0, 0, 0, 1) 72%,
+    rgba(0, 0, 0, 0.92) 86%,
+    rgba(0, 0, 0, 0.72) 94%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  mask-image: radial-gradient(
+    ellipse at center,
+    rgba(0, 0, 0, 1) 0%,
+    rgba(0, 0, 0, 1) 72%,
+    rgba(0, 0, 0, 0.92) 86%,
+    rgba(0, 0, 0, 0.72) 94%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  pointer-events: none;
+  outline: var(--carma-annotation-overlay-line-label-debug-backdrop-outline);
+}
+
+.carma-annotation-overlay-line-label__surface {
+  position: absolute;
+  inset: var(--carma-annotation-overlay-line-label-backdrop-inset);
+  z-index: 1;
+  border-radius: var(--carma-annotation-overlay-line-label-backdrop-radius);
+  backdrop-filter: blur(var(--carma-annotation-overlay-line-label-surface-blur-px))
+    saturate(var(--carma-annotation-overlay-line-label-surface-saturate-pct))
+    brightness(
+      var(--carma-annotation-overlay-line-label-surface-brightness-pct)
+    );
+  -webkit-backdrop-filter: blur(
+      var(--carma-annotation-overlay-line-label-surface-blur-px)
+    ) saturate(var(--carma-annotation-overlay-line-label-surface-saturate-pct))
+    brightness(
+      var(--carma-annotation-overlay-line-label-surface-brightness-pct)
+    );
+  filter: blur(var(--carma-annotation-overlay-line-label-surface-edge-blur-px));
+  mix-blend-mode: var(--carma-annotation-overlay-line-label-surface-blend-mode);
+  opacity: var(--carma-annotation-overlay-line-label-surface-opacity);
   pointer-events: none;
 }
 
-.carma-annotation-overlay-line-label[data-annotation-overlay-line-label-theme="dark-on-bright"] {
+.carma-annotation-overlay-line-label[data-annotation-theme-style="dark-on-bright"] {
   --carma-annotation-overlay-line-label-text-color: rgba(0, 0, 0, 0.98);
+  --carma-annotation-overlay-line-label-backdrop-background: rgba(
+    255,
+    255,
+    255,
+    0.32
+  );
+  --carma-annotation-overlay-line-label-surface-saturate-pct: 45%;
+  --carma-annotation-overlay-line-label-surface-brightness-pct: 118%;
+  --carma-annotation-overlay-line-label-backdrop-blend-mode: lighten;
+  --carma-annotation-overlay-line-label-surface-blend-mode: lighten;
+  --carma-annotation-overlay-line-label-text-echo-color: rgba(
+    255,
+    255,
+    255,
+    0.92
+  );
+  --carma-annotation-overlay-line-label-text-echo-blend-mode: lighten;
 }
 
-.carma-annotation-overlay-line-label[data-annotation-overlay-line-label-theme="bright-on-dark"] {
+.carma-annotation-overlay-line-label[data-annotation-theme-style="bright-on-dark"] {
   --carma-annotation-overlay-line-label-text-color: rgba(255, 255, 255, 0.98);
 }
 
-.carma-annotation-overlay-line-label__text {
+.carma-annotation-overlay-line-label[data-annotation-overlay-line-label-background-style="text-echo-darken"] {
+  --carma-annotation-overlay-line-label-backdrop-background: transparent;
+  --carma-annotation-overlay-line-label-backdrop-opacity: 0;
+  --carma-annotation-overlay-line-label-surface-blur-px: 12px;
+  --carma-annotation-overlay-line-label-surface-saturate-pct: 32%;
+  --carma-annotation-overlay-line-label-surface-brightness-pct: 38%;
+  --carma-annotation-overlay-line-label-surface-edge-blur-px: 8px;
+  --carma-annotation-overlay-line-label-text-echo-color: rgba(2, 6, 23, 0.8);
+  --carma-annotation-overlay-line-label-text-echo-blur-px: 6px;
+  --carma-annotation-overlay-line-label-text-echo-opacity: 1;
+  --carma-annotation-overlay-line-label-text-echo-stroke-width: 0.1em;
+  --carma-annotation-overlay-line-label-text-echo-stroke-color: rgba(
+    2,
+    6,
+    23,
+    0.77
+  );
+  --carma-annotation-overlay-line-label-text-echo-shadow: 0 0 2px
+      rgba(2, 6, 23, 0.8),
+    0 0 6px rgba(2, 6, 23, 0.77), 0 0 12px rgba(2, 6, 23, 0.64);
+  --carma-annotation-overlay-line-label-text-echo-display: block;
+}
+
+.carma-annotation-overlay-line-label__text-echo {
+  grid-area: 1 / 1;
   position: relative;
-  mix-blend-mode: normal;
+  z-index: 1;
+  display: var(--carma-annotation-overlay-line-label-text-echo-display);
+  mix-blend-mode: var(
+    --carma-annotation-overlay-line-label-text-echo-blend-mode
+  );
+  color: var(--carma-annotation-overlay-line-label-text-echo-color);
+  font-family: var(--carma-annotation-overlay-line-label-font-family);
+  font-size: var(--carma-annotation-overlay-line-label-font-size);
+  font-weight: var(--carma-annotation-overlay-line-label-font-weight);
+  line-height: 1;
+  -webkit-text-stroke: var(
+      --carma-annotation-overlay-line-label-text-echo-stroke-width
+    )
+    var(--carma-annotation-overlay-line-label-text-echo-stroke-color);
+  paint-order: stroke fill;
+  text-shadow: var(--carma-annotation-overlay-line-label-text-echo-shadow);
+  padding: var(--carma-annotation-overlay-line-label-frame-padding-block)
+    var(--carma-annotation-overlay-line-label-frame-padding-inline);
+  white-space: nowrap;
+  filter: blur(var(--carma-annotation-overlay-line-label-text-echo-blur-px));
+  opacity: var(--carma-annotation-overlay-line-label-text-echo-opacity);
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  outline: var(--carma-annotation-overlay-line-label-debug-text-echo-outline);
+}
+
+.carma-annotation-overlay-line-label__text {
+  grid-area: 1 / 1;
+  position: relative;
+  z-index: 3;
+  display: block;
+  mix-blend-mode: var(--carma-annotation-overlay-line-label-text-blend-mode);
   color: var(--carma-annotation-overlay-line-label-text-color);
   font-family: var(--carma-annotation-overlay-line-label-font-family);
   font-size: var(--carma-annotation-overlay-line-label-font-size);
   font-weight: var(--carma-annotation-overlay-line-label-font-weight);
   line-height: 1;
+  padding: var(--carma-annotation-overlay-line-label-frame-padding-block)
+    var(--carma-annotation-overlay-line-label-frame-padding-inline);
   white-space: nowrap;
+  outline: var(--carma-annotation-overlay-line-label-debug-text-outline);
 }
 
 .carma-annotation-overlay-line-label[data-annotation-overlay-line-label-kind="vertical"][data-annotation-overlay-line-label-short-edge="true"]

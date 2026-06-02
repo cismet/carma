@@ -16,9 +16,10 @@ import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runt
 import type { AnnotationNodeLink } from "../store";
 import { buildNodeLinkIdByNodeId } from "../store";
 import {
-  resolvePreviewLineLabelVisualOptions,
-  type PreviewLineLabelVisualOptions,
-} from "../config/preview-line-label-visual-defaults";
+  resolveAnnotationLineLabelOptions,
+  type PartialAnnotationLineLabelOptions,
+  type AnnotationLineLabelOptions,
+} from "../config/annotation-line-label-options";
 import { shouldShowNodeInteractionTargets } from "./node-interaction-targets";
 import { buildVisualizerInputs } from "./visualizer-inputs";
 
@@ -32,7 +33,7 @@ type UseMeasurementVisualizersArgs = {
   pointLabels: readonly RuntimePointLabelRenderModel[];
   selectedAnnotationIds: readonly string[];
   formatOptions: AnnotationsRuntimeFormatOptions;
-  previewLineLabelVisualOptions?: Partial<PreviewLineLabelVisualOptions>;
+  lineLabelOptions?: PartialAnnotationLineLabelOptions;
   activeMoveGizmoNodeId: string | null;
   isMoveGizmoDragging: boolean;
   blockLabelInteractions: boolean;
@@ -65,7 +66,7 @@ export const useMeasurementVisualizers = (
     pointLabels,
     selectedAnnotationIds,
     formatOptions,
-    previewLineLabelVisualOptions,
+    lineLabelOptions,
     activeMoveGizmoNodeId,
     isMoveGizmoDragging,
     blockLabelInteractions,
@@ -82,9 +83,9 @@ export const useMeasurementVisualizers = (
     onDistanceTriangleCornerClick,
   }: UseMeasurementVisualizersArgs
 ) => {
-  const resolvedPreviewLineLabelVisualOptions = useMemo(
-    () => resolvePreviewLineLabelVisualOptions(previewLineLabelVisualOptions),
-    [previewLineLabelVisualOptions]
+  const resolvedAnnotationLineLabelOptions = useMemo(
+    () => resolveAnnotationLineLabelOptions(lineLabelOptions),
+    [lineLabelOptions]
   );
   const previewSnapTargetsEnabled = Boolean(
     previewSnapTargetHoverEnabled && onPreviewSnapTargetNodeClick
@@ -95,7 +96,7 @@ export const useMeasurementVisualizers = (
   useMeasurementEdgesController(scene, {
     edges,
     formatOptions,
-    previewLineLabelVisualOptions: resolvedPreviewLineLabelVisualOptions,
+    lineLabelOptions: resolvedAnnotationLineLabelOptions,
     surfaceKey,
     activeMoveGizmoNodeId: enableHostInteractionTargets
       ? activeMoveGizmoNodeId

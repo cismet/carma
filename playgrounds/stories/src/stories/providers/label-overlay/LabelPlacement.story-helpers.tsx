@@ -28,18 +28,18 @@ import {
   type Radians,
 } from "@carma-units";
 import {
-  PREVIEW_LINE_LABEL_COLLISION_RESOLUTION_STRATEGY,
-  PREVIEW_LINE_LABEL_THEME,
+  ANNOTATION_LINE_LABEL_COLLISION_RESOLUTION_STRATEGY,
+  ANNOTATION_THEME_STYLE,
   applyLineLabel,
   applySecondaryLineLabelPlacementStrategy,
   buildPreviewDistanceTriangleLabelReferences,
   createSegmentLineLabels,
   hideLineLabels,
   previewControllerDefaults,
-  previewLineLabelVisualDefaults,
+  annotationLineLabelDefaults,
   resolvePreviewDistanceTriangleComponentLabelVisibility,
-  type PreviewLineLabelCollisionResolutionStrategy,
-  type PreviewLineLabelTheme,
+  type AnnotationLineLabelCollisionResolutionStrategy,
+  type AnnotationThemeStyle,
 } from "@carma-mapping/annotations/runtime";
 import barmenBackgroundUrl from "./assets/barmen-background.png";
 
@@ -387,7 +387,7 @@ type SingleLineStoryArgs = {
 export type SingleLineCollisionStrategyStoryArgs = {
   labelText: string;
   allowEarlyRemoval: boolean;
-  collisionResolutionStrategy: PreviewLineLabelCollisionResolutionStrategy;
+  collisionResolutionStrategy: AnnotationLineLabelCollisionResolutionStrategy;
   anchorSlideStepRatio: number;
   maxAnchorSlideDeltaRatio: number;
 };
@@ -410,7 +410,7 @@ export type DistanceTriangleOverlayBackgroundMode =
 export type DistanceTriangleOverlayStoryArgs = {
   backgroundMode?: DistanceTriangleOverlayBackgroundMode;
   dashed?: boolean;
-  labelTheme?: PreviewLineLabelTheme;
+  themeStyle?: AnnotationThemeStyle;
   showDefaultsPanel?: boolean;
   customBackgroundLayer1?: string;
   customBackgroundLayer2?: string;
@@ -421,7 +421,7 @@ export type DistanceTriangleOverlayStoryArgs = {
 
 export type LineLabelComponentStoryArgs = {
   backgroundMode?: DistanceTriangleOverlayBackgroundMode;
-  labelTheme?: PreviewLineLabelTheme;
+  themeStyle?: AnnotationThemeStyle;
   fontFamily?: string;
   fontWeight?: string | number;
   showBackdrop?: boolean;
@@ -441,7 +441,7 @@ type LineLabelComponentRow = {
   label: string;
   text: string;
   fontSizePx: number;
-  theme?: PreviewLineLabelTheme;
+  themeStyle?: AnnotationThemeStyle;
   showBackdrop?: boolean;
 };
 
@@ -520,7 +520,7 @@ const lineLabelComponentRows: readonly LineLabelComponentRow[] = [
     label: "dark on bright",
     text: "platform edge",
     fontSizePx: 14,
-    theme: PREVIEW_LINE_LABEL_THEME.DARK_ON_BRIGHT,
+    themeStyle: ANNOTATION_THEME_STYLE.DARK_ON_BRIGHT,
   },
   {
     id: "line-label-no-backdrop",
@@ -559,7 +559,7 @@ const resolveDistanceTriangleLengthLabel = (
   end: CssPixelPosition
 ) => `${Math.hypot(end.x - start.x, end.y - start.y).toFixed(2)}`;
 
-const resolvePreviewLineLabelTextElement = (element: HTMLDivElement) =>
+const resolveAnnotationLineLabelTextElement = (element: HTMLDivElement) =>
   element.querySelector(
     '[data-annotation-overlay-line-label-text="true"]'
   ) as HTMLSpanElement | null;
@@ -577,7 +577,7 @@ const applyStoryLineLabel = ({
   fontSizePx: number;
   visible: boolean;
 }) => {
-  const textElement = resolvePreviewLineLabelTextElement(element);
+  const textElement = resolveAnnotationLineLabelTextElement(element);
   if (textElement) {
     textElement.textContent = text;
     textElement.style.fontSize = `${fontSizePx}px`;
@@ -689,7 +689,7 @@ const LineLabelComponentPreview = ({
   args: LineLabelComponentStoryArgs;
 }) => {
   const resolvedTheme =
-    row.theme ?? args.labelTheme ?? PREVIEW_LINE_LABEL_THEME.BRIGHT_ON_DARK;
+    row.themeStyle ?? args.themeStyle ?? ANNOTATION_THEME_STYLE.BRIGHT_ON_DARK;
   const showBackdrop = row.showBackdrop ?? args.showBackdrop ?? true;
 
   return (
@@ -717,7 +717,7 @@ const LineLabelComponentPreview = ({
       />
       <div
         className="carma-annotation-overlay-line-label"
-        data-annotation-overlay-line-label-theme={resolvedTheme}
+        data-annotation-theme-style={resolvedTheme}
         style={
           {
             position: "absolute",
@@ -726,10 +726,10 @@ const LineLabelComponentPreview = ({
             display: "block",
             transform: "translate(-50%, -50%)",
             "--carma-annotation-overlay-line-label-font-family":
-              args.fontFamily ?? previewLineLabelVisualDefaults.fontFamily,
+              args.fontFamily ?? annotationLineLabelDefaults.text.fontFamily,
             "--carma-annotation-overlay-line-label-font-size": `${row.fontSizePx}px`,
             "--carma-annotation-overlay-line-label-font-weight": `${
-              args.fontWeight ?? previewLineLabelVisualDefaults.fontWeight
+              args.fontWeight ?? annotationLineLabelDefaults.text.fontWeight
             }`,
           } as CSSProperties
         }
@@ -739,7 +739,7 @@ const LineLabelComponentPreview = ({
             <span
               className="carma-annotation-overlay-line-label__backdrop"
               data-annotation-overlay-line-label-background-style={
-                previewLineLabelVisualDefaults.backgroundStyle
+                annotationLineLabelDefaults.background.style
               }
             />
           ) : null}
@@ -792,29 +792,32 @@ const DistanceTriangleDefaultsPanel = ({
   ] as const;
 
   const lineLabelDefaults = [
-    ["fontFamily", previewLineLabelVisualDefaults.fontFamily],
-    ["fontWeight", String(previewLineLabelVisualDefaults.fontWeight)],
-    ["backgroundStyle", previewLineLabelVisualDefaults.backgroundStyle],
-    ["theme", previewLineLabelVisualDefaults.theme],
+    ["text.fontFamily", annotationLineLabelDefaults.text.fontFamily],
+    ["text.fontWeight", String(annotationLineLabelDefaults.text.fontWeight)],
+    ["background.style", annotationLineLabelDefaults.background.style],
     [
-      "allowEarlyRemoval",
-      String(previewLineLabelVisualDefaults.allowEarlyRemoval),
+      "appearance.themeStyle",
+      annotationLineLabelDefaults.appearance.themeStyle,
     ],
     [
-      "collisionResolutionStrategy",
-      previewLineLabelVisualDefaults.collisionResolutionStrategy,
+      "collision.allowEarlyRemoval",
+      String(annotationLineLabelDefaults.collision.allowEarlyRemoval),
     ],
     [
-      "anchorSlideStepRatio",
-      String(previewLineLabelVisualDefaults.anchorSlideStepRatio),
+      "collision.resolutionStrategy",
+      annotationLineLabelDefaults.collision.resolutionStrategy,
     ],
     [
-      "maxAnchorSlideDeltaRatio",
-      String(previewLineLabelVisualDefaults.maxAnchorSlideDeltaRatio),
+      "collision.anchorSlideStepRatio",
+      String(annotationLineLabelDefaults.collision.anchorSlideStepRatio),
     ],
     [
-      "shortEdgeOffsetPx",
-      String(previewLineLabelVisualDefaults.shortEdgeOffsetPx),
+      "collision.maxAnchorSlideDeltaRatio",
+      String(annotationLineLabelDefaults.collision.maxAnchorSlideDeltaRatio),
+    ],
+    [
+      "position.shortEdgeOffsetPx",
+      String(annotationLineLabelDefaults.layout.shortEdgeOffsetPx),
     ],
   ] as const;
 
@@ -827,8 +830,8 @@ const DistanceTriangleDefaultsPanel = ({
     ],
     ["dashed", String(args.dashed ?? DISTANCE_TRIANGLE_OVERLAY_ARGS.dashed)],
     [
-      "labelTheme",
-      String(args.labelTheme ?? DISTANCE_TRIANGLE_OVERLAY_ARGS.labelTheme),
+      "themeStyle",
+      String(args.themeStyle ?? DISTANCE_TRIANGLE_OVERLAY_ARGS.themeStyle),
     ],
   ] as const;
 
@@ -853,7 +856,7 @@ const DistanceTriangleDefaultsPanel = ({
         </div>
         <div style={distanceTriangleDefaultsSectionStyle}>
           <div style={distanceTriangleDefaultsSectionTitleStyle}>
-            previewLineLabelVisualDefaults
+            annotationLineLabelDefaults
           </div>
           {lineLabelDefaults.map(([key, value]) => (
             <div key={key} style={distanceTriangleDefaultsRowStyle}>
@@ -886,7 +889,7 @@ const DistanceTriangleOverlayPanel = ({
   args: DistanceTriangleOverlayStoryArgs;
 }) => {
   const dashed = args.dashed ?? true;
-  const labelTheme = args.labelTheme ?? PREVIEW_LINE_LABEL_THEME.BRIGHT_ON_DARK;
+  const themeStyle = args.themeStyle ?? ANNOTATION_THEME_STYLE.BRIGHT_ON_DARK;
   const panelRef = useRef<HTMLDivElement | null>(null);
   const labelsRef = useRef<ReturnType<typeof createSegmentLineLabels> | null>(
     null
@@ -944,7 +947,9 @@ const DistanceTriangleOverlayPanel = ({
     }
 
     const labels = createSegmentLineLabels({
-      theme: labelTheme,
+      appearance: {
+        themeStyle,
+      },
     });
     labelsRef.current = labels;
     panel.append(labels.direct, labels.vertical, labels.horizontal);
@@ -956,7 +961,7 @@ const DistanceTriangleOverlayPanel = ({
       labels.horizontal.remove();
       labelsRef.current = null;
     };
-  }, [labelTheme]);
+  }, [themeStyle]);
 
   useEffect(() => {
     const labels = labelsRef.current;
@@ -1236,9 +1241,13 @@ const SingleLineLabelDebugOverlay = ({
     }
 
     const labels = createSegmentLineLabels({
-      fontFamily: args.labelFontFamily,
-      fontWeight: args.labelFontWeight,
-      theme: PREVIEW_LINE_LABEL_THEME.BRIGHT_ON_DARK,
+      appearance: {
+        themeStyle: ANNOTATION_THEME_STYLE.BRIGHT_ON_DARK,
+      },
+      text: {
+        fontFamily: args.labelFontFamily,
+        fontWeight: args.labelFontWeight,
+      },
     });
     labelRef.current = labels;
     container.append(labels.direct);
@@ -1429,7 +1438,9 @@ const PolygonSegmentLabelDebugOverlay = ({
     }
 
     const labels = createSegmentLineLabels({
-      theme: PREVIEW_LINE_LABEL_THEME.BRIGHT_ON_DARK,
+      appearance: {
+        themeStyle: ANNOTATION_THEME_STYLE.BRIGHT_ON_DARK,
+      },
     });
     labelRef.current = labels;
     container.append(labels.direct);
@@ -1589,7 +1600,9 @@ const SingleLineCollisionStrategyDebugOverlay = ({
     }
 
     const labels = createSegmentLineLabels({
-      theme: PREVIEW_LINE_LABEL_THEME.BRIGHT_ON_DARK,
+      appearance: {
+        themeStyle: ANNOTATION_THEME_STYLE.BRIGHT_ON_DARK,
+      },
     });
     labelRef.current = labels;
     container.append(labels.direct);
@@ -1795,7 +1808,7 @@ export const PolygonSegmentLabelDebugStory = ({
 export const DistanceTriangleOverlayDebugStory = ({
   backgroundMode = DISTANCE_TRIANGLE_OVERLAY_BACKGROUND_MODES.BARMEN,
   dashed = true,
-  labelTheme = PREVIEW_LINE_LABEL_THEME.BRIGHT_ON_DARK,
+  themeStyle = ANNOTATION_THEME_STYLE.BRIGHT_ON_DARK,
   showDefaultsPanel = true,
   customBackgroundLayer1 = `radial-gradient(circle at 18% 22%, rgba(184, 142, 104, 0.24) 0%, rgba(184, 142, 104, 0) 34%)`,
   customBackgroundLayer2 = `radial-gradient(circle at 76% 28%, rgba(120, 104, 89, 0.16) 0%, rgba(120, 104, 89, 0) 38%)`,
@@ -1810,7 +1823,7 @@ export const DistanceTriangleOverlayDebugStory = ({
       dashed ? "dashed triangle segments" : "solid triangle segments",
       "drag all three nodes",
       `bg ${backgroundMode}`,
-      `labels ${labelTheme}`,
+      `labels ${themeStyle}`,
       `defaults ${showDefaultsPanel ? "shown" : "hidden"}`,
     ]}
     contentStyle={distanceTriangleGridStyle}
@@ -1824,7 +1837,7 @@ export const DistanceTriangleOverlayDebugStory = ({
         args={{
           backgroundMode,
           dashed,
-          labelTheme,
+          themeStyle,
           showDefaultsPanel,
           customBackgroundLayer1,
           customBackgroundLayer2,
@@ -1839,7 +1852,7 @@ export const DistanceTriangleOverlayDebugStory = ({
         args={{
           backgroundMode,
           dashed,
-          labelTheme,
+          themeStyle,
           showDefaultsPanel,
           customBackgroundLayer1,
           customBackgroundLayer2,
@@ -1854,9 +1867,9 @@ export const DistanceTriangleOverlayDebugStory = ({
 
 export const LineLabelComponentStory = ({
   backgroundMode = DISTANCE_TRIANGLE_OVERLAY_BACKGROUND_MODES.BARMEN,
-  labelTheme = PREVIEW_LINE_LABEL_THEME.BRIGHT_ON_DARK,
-  fontFamily = previewLineLabelVisualDefaults.fontFamily,
-  fontWeight = previewLineLabelVisualDefaults.fontWeight,
+  themeStyle = ANNOTATION_THEME_STYLE.BRIGHT_ON_DARK,
+  fontFamily = annotationLineLabelDefaults.text.fontFamily,
+  fontWeight = annotationLineLabelDefaults.text.fontWeight,
   showBackdrop = true,
 }: LineLabelComponentStoryArgs) => (
   <CenteredStoryFrame
@@ -1864,7 +1877,7 @@ export const LineLabelComponentStory = ({
     values={[
       "runtime line label shell",
       `bg ${backgroundMode}`,
-      `theme ${labelTheme}`,
+      `theme ${themeStyle}`,
       `backdrop ${showBackdrop ? "on" : "off"}`,
     ]}
   >
@@ -1884,7 +1897,7 @@ export const LineLabelComponentStory = ({
                   row={row}
                   args={{
                     backgroundMode,
-                    labelTheme,
+                    themeStyle,
                     fontFamily,
                     fontWeight,
                     showBackdrop,
@@ -1939,11 +1952,11 @@ export const DISTANCE_TRIANGLE_OVERLAY_ARG_TYPES = {
     control: { type: "boolean" },
     table: { category: "Line" },
   },
-  labelTheme: {
+  themeStyle: {
     control: { type: "inline-radio" },
     options: [
-      PREVIEW_LINE_LABEL_THEME.DARK_ON_BRIGHT,
-      PREVIEW_LINE_LABEL_THEME.BRIGHT_ON_DARK,
+      ANNOTATION_THEME_STYLE.DARK_ON_BRIGHT,
+      ANNOTATION_THEME_STYLE.BRIGHT_ON_DARK,
     ],
     table: { category: "Line Label" },
   },
@@ -1960,11 +1973,11 @@ export const LINE_LABEL_COMPONENT_ARG_TYPES = {
     ],
     table: { category: "Canvas" },
   },
-  labelTheme: {
+  themeStyle: {
     control: { type: "inline-radio" },
     options: [
-      PREVIEW_LINE_LABEL_THEME.DARK_ON_BRIGHT,
-      PREVIEW_LINE_LABEL_THEME.BRIGHT_ON_DARK,
+      ANNOTATION_THEME_STYLE.DARK_ON_BRIGHT,
+      ANNOTATION_THEME_STYLE.BRIGHT_ON_DARK,
     ],
     table: { category: "Label" },
   },
@@ -1986,7 +1999,7 @@ export const DISTANCE_TRIANGLE_OVERLAY_ARGS: DistanceTriangleOverlayStoryArgs =
   {
     backgroundMode: DISTANCE_TRIANGLE_OVERLAY_BACKGROUND_MODES.BARMEN,
     dashed: true,
-    labelTheme: PREVIEW_LINE_LABEL_THEME.BRIGHT_ON_DARK,
+    themeStyle: ANNOTATION_THEME_STYLE.BRIGHT_ON_DARK,
     showDefaultsPanel: true,
     customBackgroundLayer1:
       "radial-gradient(circle at 18% 22%, rgba(184, 142, 104, 0.24) 0%, rgba(184, 142, 104, 0) 34%)",
@@ -2001,9 +2014,9 @@ export const DISTANCE_TRIANGLE_OVERLAY_ARGS: DistanceTriangleOverlayStoryArgs =
 
 export const LINE_LABEL_COMPONENT_ARGS: LineLabelComponentStoryArgs = {
   backgroundMode: DISTANCE_TRIANGLE_OVERLAY_BACKGROUND_MODES.BARMEN,
-  labelTheme: PREVIEW_LINE_LABEL_THEME.BRIGHT_ON_DARK,
-  fontFamily: previewLineLabelVisualDefaults.fontFamily,
-  fontWeight: previewLineLabelVisualDefaults.fontWeight,
+  themeStyle: ANNOTATION_THEME_STYLE.BRIGHT_ON_DARK,
+  fontFamily: annotationLineLabelDefaults.text.fontFamily,
+  fontWeight: annotationLineLabelDefaults.text.fontWeight,
   showBackdrop: true,
 };
 
@@ -2154,7 +2167,7 @@ export const LABEL_PLACEMENT_SINGLE_LINE_COLLISION_ARG_TYPES = {
   },
   collisionResolutionStrategy: {
     control: { type: "inline-radio" },
-    options: Object.values(PREVIEW_LINE_LABEL_COLLISION_RESOLUTION_STRATEGY),
+    options: Object.values(ANNOTATION_LINE_LABEL_COLLISION_RESOLUTION_STRATEGY),
     table: { category: "Collision" },
   },
   anchorSlideStepRatio: {
@@ -2172,10 +2185,11 @@ export const LABEL_PLACEMENT_SINGLE_LINE_COLLISION_ARGS: SingleLineCollisionStra
     labelText: "30,38 m",
     allowEarlyRemoval: true,
     collisionResolutionStrategy:
-      PREVIEW_LINE_LABEL_COLLISION_RESOLUTION_STRATEGY.MOVE_ON_LINE,
-    anchorSlideStepRatio: previewLineLabelVisualDefaults.anchorSlideStepRatio,
+      ANNOTATION_LINE_LABEL_COLLISION_RESOLUTION_STRATEGY.MOVE_ON_LINE,
+    anchorSlideStepRatio:
+      annotationLineLabelDefaults.collision.anchorSlideStepRatio,
     maxAnchorSlideDeltaRatio:
-      previewLineLabelVisualDefaults.maxAnchorSlideDeltaRatio,
+      annotationLineLabelDefaults.collision.maxAnchorSlideDeltaRatio,
   };
 
 export const LABEL_PLACEMENT_POLYGON_ARG_TYPES = {

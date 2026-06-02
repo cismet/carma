@@ -8,7 +8,7 @@ import {
 import {
   type AnnotationToolId,
   type AnnotationsRuntimeFormatOptions,
-  type PreviewLineLabelVisualOptions,
+  type PartialAnnotationLineLabelOptions,
 } from "@carma-mapping/annotations/runtime";
 import { LENGTH_UNIT_MODE } from "@carma-units";
 
@@ -50,7 +50,7 @@ export const PLAYGROUND_RUNTIME_FORMAT_OPTIONS: AnnotationsRuntimeFormatOptions 
       useGrouping: false,
     },
   };
-export const PLAYGROUND_PREVIEW_LINE_LABEL_VISUAL_OPTIONS: Partial<PreviewLineLabelVisualOptions> =
+export const PLAYGROUND_ANNOTATION_LINE_LABEL_OPTIONS: PartialAnnotationLineLabelOptions =
   {};
 export const PLAYGROUND_RUNTIME_INFO_BOX_VISUAL_OPTIONS: Partial<AnnotationInfoBoxVisualOptions> =
   {};

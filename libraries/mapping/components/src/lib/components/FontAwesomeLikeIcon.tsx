@@ -1,12 +1,19 @@
 import React from "react";
 
+import { CSS_MIX_BLEND_MODE } from "@carma-commons/dom/document";
+
+type FontAwesomeLikeIconBlendMode =
+  | typeof CSS_MIX_BLEND_MODE.DARKEN
+  | typeof CSS_MIX_BLEND_MODE.MULTIPLY
+  | typeof CSS_MIX_BLEND_MODE.NORMAL;
+
 interface FontAwesomeLikeIconProps {
   src: string;
   id?: string;
   alt?: string;
   className?: string;
   style?: React.CSSProperties;
-  blendMode?: "darken" | "multiply" | "normal";
+  blendMode?: FontAwesomeLikeIconBlendMode;
 }
 
 /**
@@ -18,7 +25,7 @@ export const FontAwesomeLikeIcon: React.FC<FontAwesomeLikeIconProps> = ({
   id,
   alt = "Icon",
   className = "",
-  blendMode = "multiply",
+  blendMode = CSS_MIX_BLEND_MODE.MULTIPLY,
   style = {},
 }) => {
   return (
