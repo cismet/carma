@@ -2,7 +2,7 @@ import type {
   AnnotationToolAuthoringController,
   AnnotationToolAuthoringContext,
   PointQueryPickResult,
-} from "../registry/annotation-tool-plugin.types";
+} from "../registry";
 import {
   ANNOTATION_TYPES,
   computePolygonGroupDerivedData,

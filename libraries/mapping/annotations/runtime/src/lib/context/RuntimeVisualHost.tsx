@@ -11,12 +11,12 @@ import {
   setSelectedAnnotationIds,
   useAnnotationsSelector,
 } from "../store";
-import { ANNOTATION_TOOL_PLUGIN_KINDS } from "../registry";
-import type { AnnotationToolId } from "../registry/annotation-tool-id";
-import type {
-  AnnotationToolDraftStore,
-  AnnotationToolRegistry,
-} from "../registry/annotation-tool-plugin.types";
+import type { AnnotationToolId } from "@carma-mapping/annotations/core";
+import {
+  ANNOTATION_TOOL_PLUGIN_KINDS,
+  type AnnotationToolDraftStore,
+  type AnnotationToolRegistry,
+} from "../registry";
 import { VisualSurfaces } from "../render/VisualSurfaces";
 import { useVisualLayers } from "../render/use-visual-layers";
 import { useSelectionAdditiveModifierState } from "./use-selection-additive-modifier-state";

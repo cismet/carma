@@ -173,7 +173,7 @@ const lineLabelTableLabelCellStyle: CSSProperties = {
   padding: 0,
 };
 
-const lineLabelTablePreviewCellStyle: CSSProperties = {
+const lineLabelTableSampleCellStyle: CSSProperties = {
   position: "relative",
   display: "flex",
   justifyContent: "flex-end",
@@ -681,7 +681,7 @@ const readDistanceTriangleStoryBackgroundStyle = (
   mode: DistanceTriangleOverlayBackgroundMode | undefined
 ): CSSProperties | undefined => undefined;
 
-const LineLabelComponentPreview = ({
+const LineLabelComponentSample = ({
   row,
   args,
 }: {
@@ -1892,8 +1892,8 @@ export const LineLabelComponentStory = ({
           <div key={row.id} style={lineLabelTableRowStyle}>
             <div style={lineLabelTableRowCellStyle}>
               <div style={lineLabelTableLabelCellStyle}>{row.label}</div>
-              <div style={lineLabelTablePreviewCellStyle}>
-                <LineLabelComponentPreview
+              <div style={lineLabelTableSampleCellStyle}>
+                <LineLabelComponentSample
                   row={row}
                   args={{
                     backgroundMode,

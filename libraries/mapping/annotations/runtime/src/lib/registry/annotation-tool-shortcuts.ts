@@ -1,4 +1,4 @@
-import type { AnnotationToolId } from "./annotation-tool-id";
+import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 import type { AnnotationToolDescriptor } from "./annotation-tool-plugin.types";
 
 const getToolDescriptor = (

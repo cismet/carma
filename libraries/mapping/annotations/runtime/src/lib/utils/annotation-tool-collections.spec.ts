@@ -1,4 +1,8 @@
 import { describe, expect, it } from "vitest";
+import {
+  ANNOTATION_SELECT_TOOL_ID,
+  ANNOTATION_TYPES,
+} from "@carma-mapping/annotations/core";
 
 import type { AnnotationToolPlugin, AnnotationToolRegistry } from "../registry";
 import { ANNOTATION_TOOL_PLUGIN_KINDS } from "../registry";
@@ -19,8 +23,8 @@ const createPlugin = ({
   kind = ANNOTATION_TOOL_PLUGIN_KINDS.MEASUREMENT,
   order,
 }: {
-  annotationType?: string | null;
-  id: string;
+  annotationType?: AnnotationToolPlugin["annotationType"];
+  id: AnnotationToolPlugin["id"];
   kind?: AnnotationToolPlugin["kind"];
   order: number;
 }): AnnotationToolPlugin => ({
@@ -42,7 +46,7 @@ const createAnnotation = ({
 }: {
   hidden?: boolean;
   id: string;
-  toolType: string;
+  toolType: StoredAnnotation["toolType"];
 }): StoredAnnotation =>
   ({
     hidden,
@@ -55,71 +59,75 @@ describe("annotation-tool-collections", () => {
   it("lists visible select and measurement tools in descriptor order", () => {
     const plugins = [
       createPlugin({
-        annotationType: "distance",
-        id: "distance",
+        annotationType: ANNOTATION_TYPES.DISTANCE,
+        id: ANNOTATION_TYPES.DISTANCE,
         order: 2,
       }),
       createPlugin({
-        id: "interaction",
+        id: ANNOTATION_TYPES.POLYLINE,
         kind: ANNOTATION_TOOL_PLUGIN_KINDS.INTERACTION,
         order: 1,
       }),
-      createPlugin({ id: "select", order: 0 }),
-      createPlugin({ id: "draft", order: 3 }),
+      createPlugin({ id: ANNOTATION_SELECT_TOOL_ID, order: 0 }),
+      createPlugin({ id: ANNOTATION_TYPES.LABEL, order: 3 }),
     ];
 
     expect(
       resolveVisibleMeasurementAnnotationToolPlugins(plugins).map(
         (plugin) => plugin.id
       )
-    ).toEqual(["select", "distance"]);
+    ).toEqual([ANNOTATION_SELECT_TOOL_ID, ANNOTATION_TYPES.DISTANCE]);
   });
 
   it("limits visible measurement tools to an explicit tool id allow-list", () => {
     const plugins = [
-      createPlugin({ id: "select", order: 0 }),
+      createPlugin({ id: ANNOTATION_SELECT_TOOL_ID, order: 0 }),
       createPlugin({
-        annotationType: "distance",
-        id: "distance",
+        annotationType: ANNOTATION_TYPES.DISTANCE,
+        id: ANNOTATION_TYPES.DISTANCE,
         order: 2,
       }),
       createPlugin({
-        annotationType: "area",
-        id: "area",
+        annotationType: ANNOTATION_TYPES.AREA_GROUND,
+        id: ANNOTATION_TYPES.AREA_GROUND,
         order: 3,
       }),
     ];
 
     expect(
       resolveVisibleMeasurementAnnotationToolPlugins(plugins, {
-        toolIds: ["select", "distance"],
+        toolIds: [ANNOTATION_SELECT_TOOL_ID, ANNOTATION_TYPES.DISTANCE],
       }).map((plugin) => plugin.id)
-    ).toEqual(["select", "distance"]);
+    ).toEqual([ANNOTATION_SELECT_TOOL_ID, ANNOTATION_TYPES.DISTANCE]);
   });
 
   it("groups annotation entries by tool type", () => {
     const entries = [
-      createAnnotation({ id: "a", toolType: "distance" }),
-      createAnnotation({ id: "b", toolType: "area" }),
-      createAnnotation({ id: "c", toolType: "distance" }),
+      createAnnotation({ id: "a", toolType: ANNOTATION_TYPES.DISTANCE }),
+      createAnnotation({ id: "b", toolType: ANNOTATION_TYPES.AREA_GROUND }),
+      createAnnotation({ id: "c", toolType: ANNOTATION_TYPES.DISTANCE }),
     ];
 
-    expect(resolveAnnotationCountByToolType(entries).get("distance")).toBe(2);
-    expect(resolveAnnotationIdsByToolType(entries).get("distance")).toEqual([
-      "a",
-      "c",
-    ]);
+    expect(
+      resolveAnnotationCountByToolType(entries).get(ANNOTATION_TYPES.DISTANCE)
+    ).toBe(2);
+    expect(
+      resolveAnnotationIdsByToolType(entries).get(ANNOTATION_TYPES.DISTANCE)
+    ).toEqual(["a", "c"]);
     expect(
       resolveAnnotationEntriesByToolType(entries)
-        .get("distance")
+        .get(ANNOTATION_TYPES.DISTANCE)
         ?.map((entry) => entry.id)
     ).toEqual(["a", "c"]);
   });
 
   it("resolves interaction and fallback plugins", () => {
-    const selectPlugin = createPlugin({ id: "select", order: 0 });
+    const selectPlugin = createPlugin({
+      id: ANNOTATION_SELECT_TOOL_ID,
+      order: 0,
+    });
     const interactionPlugin = createPlugin({
-      id: "interaction",
+      id: ANNOTATION_TYPES.POLYLINE,
       kind: ANNOTATION_TOOL_PLUGIN_KINDS.INTERACTION,
       order: 1,
     });
@@ -130,11 +138,11 @@ describe("annotation-tool-collections", () => {
     } as unknown as AnnotationToolRegistry;
 
     expect(resolvePrimaryAnnotationInteractionToolId(registry.plugins)).toEqual(
-      "interaction"
+      ANNOTATION_TYPES.POLYLINE
     );
     expect(
       resolveAnnotationToolFallbackPlugin({
-        activeToolType: "missing",
+        activeToolType: ANNOTATION_TYPES.POINT,
         registry,
       })
     ).toBe(selectPlugin);
@@ -143,8 +151,16 @@ describe("annotation-tool-collections", () => {
   it("detects all-hidden entry groups", () => {
     expect(
       areAnnotationEntriesHidden([
-        createAnnotation({ hidden: true, id: "a", toolType: "distance" }),
-        createAnnotation({ hidden: true, id: "b", toolType: "distance" }),
+        createAnnotation({
+          hidden: true,
+          id: "a",
+          toolType: ANNOTATION_TYPES.DISTANCE,
+        }),
+        createAnnotation({
+          hidden: true,
+          id: "b",
+          toolType: ANNOTATION_TYPES.DISTANCE,
+        }),
       ])
     ).toBe(true);
     expect(areAnnotationEntriesHidden([])).toBe(false);

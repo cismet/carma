@@ -1,4 +1,4 @@
-import type { AnnotationToolId } from "../registry/annotation-tool-id";
+import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 
 export type RuntimeLifecycleHostApi = {
   requestModeChange: (toolId: AnnotationToolId) => void;

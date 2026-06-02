@@ -6,11 +6,11 @@ import {
   POINT_LABEL_THEME_DEFAULTS,
 } from "@carma-providers/label-overlay";
 import {
-  PREVIEW_LINE_LABEL_BACKGROUND_STYLE,
-  PREVIEW_LINE_LABEL_THEME,
+  ANNOTATION_LINE_LABEL_BACKGROUND_STYLE,
+  ANNOTATION_THEME_STYLE,
   typographyDefaults,
+  type AnnotationThemeStyle,
   type TypographyDefaults,
-  type PreviewLineLabelTheme,
 } from "@carma-mapping/annotations/runtime";
 import { formatLengthMeters, LENGTH_UNIT_MODE } from "@carma-units";
 
@@ -130,7 +130,7 @@ type TypographyClassSample = {
 
 export type AnnotationTypographyStoryArgs = {
   typography: TypographyDefaults;
-  lineLabelTheme: PreviewLineLabelTheme;
+  lineLabelTheme: AnnotationThemeStyle;
 };
 
 const buildTypographyStyle = ({
@@ -236,7 +236,7 @@ const buildTypographyClassSamples = (
   },
 ];
 
-const PreviewLineLabelSpecimen = ({
+const LineLabelSpecimen = ({
   text,
   fontFamily,
   fontWeight,
@@ -247,7 +247,7 @@ const PreviewLineLabelSpecimen = ({
   fontFamily: string;
   fontWeight: number;
   fontSizePx: number;
-  theme: PreviewLineLabelTheme;
+  theme: AnnotationThemeStyle;
 }) => (
   <div
     className="carma-annotation-overlay-line-label"
@@ -269,7 +269,7 @@ const PreviewLineLabelSpecimen = ({
       <span
         className="carma-annotation-overlay-line-label__backdrop"
         data-annotation-overlay-line-label-background-style={
-          PREVIEW_LINE_LABEL_BACKGROUND_STYLE.SOFT_RECT_FADE
+          ANNOTATION_LINE_LABEL_BACKGROUND_STYLE.SOFT_RECT_FADE
         }
       />
       <span
@@ -353,7 +353,7 @@ const OverlayTypographyPanel = ({
     <div style={PANEL_TITLE_STYLE}>Overlay Labels</div>
     <div style={OVERLAY_CANVAS_STYLE}>
       <div style={OVERLAY_LINE_STYLE} />
-      <PreviewLineLabelSpecimen
+      <LineLabelSpecimen
         text={FORMATTED_LINE_LENGTH}
         fontFamily={args.typography.fontFamily}
         fontWeight={args.typography.lineLabelFontWeight}
@@ -482,14 +482,14 @@ const InfoboxTypographyPanel = ({
 
 export const ANNOTATION_TYPOGRAPHY_ARGS: AnnotationTypographyStoryArgs = {
   typography: { ...typographyDefaults },
-  lineLabelTheme: PREVIEW_LINE_LABEL_THEME.BRIGHT_ON_DARK,
+  lineLabelTheme: ANNOTATION_THEME_STYLE.BRIGHT_ON_DARK,
 };
 
 export const ANNOTATION_TYPOGRAPHY_ARG_TYPES = {
   typography: { control: "object" },
   lineLabelTheme: {
     control: "inline-radio",
-    options: Object.values(PREVIEW_LINE_LABEL_THEME),
+    options: Object.values(ANNOTATION_THEME_STYLE),
   },
 } as const;
 

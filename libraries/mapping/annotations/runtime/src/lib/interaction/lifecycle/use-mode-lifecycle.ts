@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 
-import type { AnnotationToolId } from "../../registry/annotation-tool-id";
+import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 import type {
   AnnotationModeSession,
   AnnotationModeSessionMap,

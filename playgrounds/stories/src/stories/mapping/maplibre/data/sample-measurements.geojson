@@ -1,0 +1,256 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "point-6",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [7.1187535929060015, 51.2484226583406, 338.0485597810839]
+      },
+      "properties": {
+        "exportVersion": 1,
+        "annotationId": "point-6",
+        "annotationKind": "point",
+        "annotation": {
+          "id": "point-6",
+          "toolType": "point",
+          "shortLabel": "1",
+          "nodeIds": ["node-11"],
+          "edgeIds": [],
+          "displayName": "Schornstein mitte oben"
+        },
+        "nodes": [
+          {
+            "order": 0,
+            "coordinate": {
+              "longitude": 7.1187535929060015,
+              "latitude": 51.2484226583406,
+              "altitude": 338.0485597810839
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "point-7",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [7.11869664699761, 51.24837502855188, 139.81504433381122]
+      },
+      "properties": {
+        "exportVersion": 1,
+        "annotationId": "point-7",
+        "annotationKind": "point",
+        "annotation": {
+          "id": "point-7",
+          "toolType": "point",
+          "shortLabel": "2",
+          "nodeIds": ["node-12"],
+          "edgeIds": [],
+          "displayName": "Schornstein Fusspunkt Mauer"
+        },
+        "nodes": [
+          {
+            "order": 0,
+            "coordinate": {
+              "longitude": 7.11869664699761,
+              "latitude": 51.24837502855188,
+              "altitude": 139.81504433381122
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "distance-9",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [7.12075242607796, 51.24890963210126, 139.40799831920324],
+          [7.120728233613245, 51.248874177384984, 259.2861471107866]
+        ]
+      },
+      "properties": {
+        "exportVersion": 1,
+        "annotationId": "distance-9",
+        "annotationKind": "distance",
+        "annotation": {
+          "id": "distance-9",
+          "toolType": "distance",
+          "distanceAnchorCoordinateSelection": "leftmost-screen-space",
+          "shortLabel": "A",
+          "nodeIds": ["node-14", "node-15"],
+          "edgeIds": ["edge-6"]
+        },
+        "nodes": [
+          {
+            "order": 0,
+            "coordinate": {
+              "latitude": 51.24890963210126,
+              "longitude": 7.12075242607796,
+              "altitude": 139.40799831920324
+            }
+          },
+          {
+            "order": 1,
+            "coordinate": {
+              "longitude": 7.120728233613245,
+              "latitude": 51.248874177384984,
+              "altitude": 259.2861471107866
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "distance-12",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [7.12075242607796, 51.24890963210126, 139.40799831920324],
+          [7.1187535929060015, 51.2484226583406, 338.0485597810839]
+        ]
+      },
+      "properties": {
+        "exportVersion": 1,
+        "annotationId": "distance-12",
+        "annotationKind": "distance",
+        "annotation": {
+          "id": "distance-12",
+          "toolType": "distance",
+          "distanceAnchorCoordinateSelection": "leftmost-screen-space",
+          "shortLabel": "D",
+          "nodeIds": ["node-20", "node-21"],
+          "edgeIds": ["edge-9"]
+        },
+        "nodes": [
+          {
+            "order": 0,
+            "coordinate": {
+              "latitude": 51.24890963210126,
+              "longitude": 7.12075242607796,
+              "altitude": 139.40799831920324
+            }
+          },
+          {
+            "order": 1,
+            "coordinate": {
+              "longitude": 7.1187535929060015,
+              "latitude": 51.2484226583406,
+              "altitude": 338.0485597810839
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "distance-13",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [7.1187535929060015, 51.2484226583406, 338.0485597810839],
+          [7.11869664699761, 51.24837502855188, 139.81504433381122]
+        ]
+      },
+      "properties": {
+        "exportVersion": 1,
+        "annotationId": "distance-13",
+        "annotationKind": "distance",
+        "annotation": {
+          "id": "distance-13",
+          "toolType": "distance",
+          "distanceAnchorCoordinateSelection": "rightmost-screen-space",
+          "shortLabel": "E",
+          "nodeIds": ["node-22", "node-23"],
+          "edgeIds": ["edge-10"],
+          "displayName": "Schornstein"
+        },
+        "nodes": [
+          {
+            "order": 0,
+            "coordinate": {
+              "longitude": 7.1187535929060015,
+              "latitude": 51.2484226583406,
+              "altitude": 338.0485597810839
+            }
+          },
+          {
+            "order": 1,
+            "coordinate": {
+              "longitude": 7.11869664699761,
+              "latitude": 51.24837502855188,
+              "altitude": 139.81504433381122
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "point-15",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [7.12075242607796, 51.24890963210126, 139.40799831920324]
+      },
+      "properties": {
+        "exportVersion": 1,
+        "annotationId": "point-15",
+        "annotationKind": "point",
+        "annotation": {
+          "id": "point-15",
+          "toolType": "point",
+          "shortLabel": "4",
+          "nodeIds": ["node-25"],
+          "edgeIds": [],
+          "displayName": "Friedrich Ebert Strasse"
+        },
+        "nodes": [
+          {
+            "order": 0,
+            "coordinate": {
+              "latitude": 51.24890963210126,
+              "longitude": 7.12075242607796,
+              "altitude": 139.40799831920324
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "point-16",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [7.120728233613245, 51.248874177384984, 259.2861471107866]
+      },
+      "properties": {
+        "exportVersion": 1,
+        "annotationId": "point-16",
+        "annotationKind": "point",
+        "annotation": {
+          "id": "point-16",
+          "toolType": "point",
+          "shortLabel": "5",
+          "nodeIds": ["node-26"],
+          "edgeIds": [],
+          "displayName": "BrückeWeg"
+        },
+        "nodes": [
+          {
+            "order": 0,
+            "coordinate": {
+              "longitude": 7.120728233613245,
+              "latitude": 51.248874177384984,
+              "altitude": 259.2861471107866
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -3,6 +3,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type CSSProperties,
   type MouseEvent,
 } from "react";
 
@@ -62,12 +63,14 @@ export const PointMarkerOverlayShell = ({
   onHoverChange,
   onLongPress,
   longPressDurationMs = pointMarkerVisualizerDefaults.longPressDurationMs,
+  markerStyle,
 }: {
   interactive: boolean;
   onClick?: () => void;
   onHoverChange?: (hovered: boolean) => void;
   onLongPress?: () => void;
   longPressDurationMs?: number;
+  markerStyle?: CSSProperties;
 }) => {
   const [hovered, setHovered] = useState(false);
   const longPressTimeoutRef = useRef<number | undefined>(undefined);
@@ -157,6 +160,7 @@ export const PointMarkerOverlayShell = ({
           transition: buildOverlayHoverTransitionCss(),
           boxShadow: hovered ? buildOverlayRingBoxShadowCss() : "none",
           filter: hovered ? buildOverlayHoverFilterCss() : "none",
+          ...markerStyle,
         }}
         onClick={interactive ? handleClick : undefined}
         onMouseDown={interactive ? handleMouseDown : undefined}

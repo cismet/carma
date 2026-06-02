@@ -26,8 +26,8 @@ import type { PartialAnnotationLineLabelOptions } from "../config/annotation-lin
 import type {
   AnnotationToolPlugin,
   AnnotationToolRegistry,
-} from "../registry/annotation-tool-plugin.types";
-import type { AnnotationToolId } from "../registry/annotation-tool-id";
+} from "../registry";
+import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 import type { Scene } from "@carma-cesium";
 import { RuntimeAuthoringHost } from "./RuntimeAuthoringHost";
 import { RuntimeToolAvailabilityGuard } from "./RuntimeToolAvailabilityGuard";

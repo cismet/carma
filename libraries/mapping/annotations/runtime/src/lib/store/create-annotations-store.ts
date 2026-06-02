@@ -3,6 +3,10 @@ import {
   createSlice,
   type PayloadAction,
 } from "@reduxjs/toolkit";
+import {
+  ANNOTATION_SELECT_TOOL_ID,
+  type AnnotationToolId,
+} from "@carma-mapping/annotations/core";
 
 import type {
   AnnotationsStoreState,
@@ -15,7 +19,6 @@ import type {
   AnnotationNodeId,
   AnnotationNode,
 } from "./annotations-store.types";
-import type { AnnotationToolId } from "../registry/annotation-tool-id";
 import {
   reconcileNodeLinks,
   resolveNextNodeLinksForNodeMove,
@@ -84,12 +87,11 @@ export type SetNextShortLabelCounterByToolTypePayload = {
   nextCounter: number;
 };
 
-const UNSET_TOOL_TYPE = "__unset__" as AnnotationToolId;
 export const createInitialAnnotationsStoreState = (
   options: CreateInitialAnnotationsStoreStateOptions = {}
 ): AnnotationsStoreState => {
   const {
-    initialToolType = UNSET_TOOL_TYPE,
+    initialToolType = ANNOTATION_SELECT_TOOL_ID,
     initialPointTemporaryMode = false,
   } = options;
 

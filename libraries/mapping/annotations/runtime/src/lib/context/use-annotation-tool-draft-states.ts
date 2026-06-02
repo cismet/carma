@@ -2,8 +2,8 @@ import { useEffect, useMemo, useReducer } from "react";
 import type {
   AnnotationToolDraftState,
   AnnotationToolDraftStore,
-} from "../registry/annotation-tool-plugin.types";
-import type { AnnotationToolId } from "../registry/annotation-tool-id";
+} from "../registry";
+import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 
 type UseAnnotationToolDraftStatesArgs = {
   draftStore: AnnotationToolDraftStore;

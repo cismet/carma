@@ -2,6 +2,10 @@ import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  ANNOTATION_SELECT_TOOL_ID,
+  ANNOTATION_TYPES,
+} from "@carma-mapping/annotations/core";
+import {
   ANNOTATION_TOOL_PLUGIN_KINDS,
   type AnnotationToolPlugin,
 } from "@carma-mapping/annotations/runtime";
@@ -20,8 +24,8 @@ const createPlugin = ({
   kind = ANNOTATION_TOOL_PLUGIN_KINDS.MEASUREMENT,
   order,
 }: {
-  annotationType?: string;
-  id: string;
+  annotationType?: AnnotationToolPlugin["annotationType"];
+  id: AnnotationToolPlugin["id"];
   kind?: AnnotationToolPlugin["kind"];
   order: number;
 }): AnnotationToolPlugin => ({
@@ -43,25 +47,25 @@ describe("useGeoportalCesiumAnnotationToolPlugins", () => {
     });
 
     const plugins = [
-      createPlugin({ id: "select", order: 0 }),
+      createPlugin({ id: ANNOTATION_SELECT_TOOL_ID, order: 0 }),
       createPlugin({
-        annotationType: "point",
-        id: "point",
+        annotationType: ANNOTATION_TYPES.POINT,
+        id: ANNOTATION_TYPES.POINT,
         order: 10,
       }),
       createPlugin({
-        annotationType: "distance",
-        id: "distance",
+        annotationType: ANNOTATION_TYPES.DISTANCE,
+        id: ANNOTATION_TYPES.DISTANCE,
         order: 20,
       }),
       createPlugin({
-        annotationType: "label",
-        id: "label",
+        annotationType: ANNOTATION_TYPES.LABEL,
+        id: ANNOTATION_TYPES.LABEL,
         order: 80,
       }),
       createPlugin({
-        annotationType: "area-ground",
-        id: "area-ground",
+        annotationType: ANNOTATION_TYPES.AREA_GROUND,
+        id: ANNOTATION_TYPES.AREA_GROUND,
         order: 40,
       }),
     ];
@@ -71,9 +75,9 @@ describe("useGeoportalCesiumAnnotationToolPlugins", () => {
     );
 
     expect(result.current.map((plugin) => plugin.id)).toEqual([
-      "select",
-      "point",
-      "distance",
+      ANNOTATION_SELECT_TOOL_ID,
+      ANNOTATION_TYPES.POINT,
+      ANNOTATION_TYPES.DISTANCE,
     ]);
   });
 });

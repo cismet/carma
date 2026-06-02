@@ -12,6 +12,8 @@ export const ANNOTATION_TYPES = {
   LABEL: "label",
 } as const;
 
+export const ANNOTATION_SELECT_TOOL_ID = "select";
+
 export const ANNOTATION_TYPE_POINT = ANNOTATION_TYPES.POINT;
 export const ANNOTATION_TYPE_DISTANCE = ANNOTATION_TYPES.DISTANCE;
 export const ANNOTATION_TYPE_POLYLINE = ANNOTATION_TYPES.POLYLINE;
@@ -24,8 +26,10 @@ export type AnnotationTypes = typeof ANNOTATION_TYPES;
 
 export type AnnotationType = AnnotationTypes[keyof AnnotationTypes];
 
+export type AnnotationToolId = AnnotationType | typeof ANNOTATION_SELECT_TOOL_ID;
+
 export const isAreaAnnotationType = (
-  annotationType: AnnotationType
+  annotationType: AnnotationToolId
 ): annotationType is
   | AnnotationTypes["AREA_GROUND"]
   | AnnotationTypes["AREA_VERTICAL"]

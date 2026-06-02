@@ -16,8 +16,8 @@ import {
 import type {
   AnnotationToolPlugin,
   AnnotationToolSessionContext,
-} from "../../registry/annotation-tool-plugin.types";
-import type { AnnotationToolId } from "../../registry/annotation-tool-id";
+} from "../../registry";
+import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 import type { AnnotationModeSession } from "./annotation-mode-session.types";
 
 type UseManagedAnnotationKeyboardShortcutsOptions = {

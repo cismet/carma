@@ -27,18 +27,18 @@ import type {
   AnnotationNodeLinkId,
   StoredAnnotation,
 } from "../store";
-import { ANNOTATION_TOOL_PLUGIN_KINDS } from "../registry";
-import type { AnnotationToolId } from "../registry/annotation-tool-id";
+import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import type { PartialAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
 import type { AnnotationLabelTextRequester } from "./use-annotation-label-text-request";
-import type {
-  AnnotationToolAuthoringController,
-  AnnotationToolDraftStore,
-  AnnotationToolRegistry,
-  AnnotationToolAuthoringContext,
-  PointQueryPickResult,
-} from "../registry/annotation-tool-plugin.types";
+import {
+  ANNOTATION_TOOL_PLUGIN_KINDS,
+  type AnnotationToolAuthoringController,
+  type AnnotationToolAuthoringContext,
+  type AnnotationToolDraftStore,
+  type AnnotationToolRegistry,
+  type PointQueryPickResult,
+} from "../registry";
 import type { Scene } from "@carma-cesium";
 import { ANNOTATIONS_HOST_DEFAULTS } from "./annotations-host-defaults";
 import {

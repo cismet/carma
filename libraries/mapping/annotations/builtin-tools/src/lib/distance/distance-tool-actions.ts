@@ -1,10 +1,10 @@
+import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 import type {
   AddAnnotationOptions,
   CesiumGeographicCoordinate,
   AnnotationNodeLinkId,
   StoredAnnotation,
 } from "@carma-mapping/annotations/runtime";
-import type { AnnotationToolId } from "@carma-mapping/annotations/runtime";
 
 export type DistanceToolAction = "undoLastPoint" | "cancelPreview";
 

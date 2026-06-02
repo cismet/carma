@@ -7,7 +7,7 @@ import type {
   RuntimeDistanceTriangleAnchorCoordinateRole,
   RuntimePointLabelCoordinateSelection,
 } from "../render/measurement-render-models";
-import type { AnnotationToolId } from "../registry/annotation-tool-id";
+import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 export type { CesiumGeographicCoordinate } from "@carma-mapping/engines/cesium/core";
 export type { AnnotationLabelAppearance } from "@carma-mapping/annotations/core";
 

@@ -11,10 +11,12 @@ import {
   AnnotationInfoBoxContainer,
 } from "@carma-mapping/annotations/ui";
 import {
+  ANNOTATION_SELECT_TOOL_ID,
+  ANNOTATION_TYPES,
+} from "@carma-mapping/annotations/core";
+import {
   RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS,
-  type AnnotationToolId,
   type RuntimeAnnotationInfoBoxVisualOptionsContext,
-  type StoredAnnotation,
   useRuntimeAnnotationInfoBoxSlots,
 } from "@carma-mapping/annotations/runtime";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
@@ -24,23 +26,23 @@ import { shouldShowAnnotationInfoBox } from "../../helper/annotation-info-box";
 import { getLayers } from "../../store/slices/mapping";
 import { getUIMode } from "../../store/slices/ui";
 
-const CISMAP_INFO_BOX_INSTRUCTION_TOOL_IDS = new Set<AnnotationToolId>([
-  "select",
-  "point",
-  "distance",
-  "label",
+const CISMAP_INFO_BOX_TOOL_IDS = new Set<string>([
+  ANNOTATION_SELECT_TOOL_ID,
+  ANNOTATION_TYPES.POINT,
+  ANNOTATION_TYPES.DISTANCE,
+  ANNOTATION_TYPES.POLYLINE,
+  ANNOTATION_TYPES.AREA_GROUND,
+  ANNOTATION_TYPES.AREA_PLANAR,
+  ANNOTATION_TYPES.AREA_VERTICAL,
+  ANNOTATION_TYPES.LABEL,
 ]);
-
-const CISMAP_INFO_BOX_ANNOTATION_TOOL_TYPES = new Set<
-  StoredAnnotation["toolType"]
->(["point", "distance", "label"]);
 
 const resolveGeoportalCismapInfoBoxVisualOptions = (
   context: RuntimeAnnotationInfoBoxVisualOptionsContext
 ) => {
   const hiddenActionIds =
     context.kind === RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS.ANNOTATION &&
-    context.annotation.toolType === "point"
+    context.annotation.toolType === ANNOTATION_TYPES.POINT
       ? CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS.hiddenActionIds.filter(
           (actionId) => actionId !== ANNOTATION_INFO_BOX_ACTION_IDS.REFERENCE
         )
@@ -52,7 +54,7 @@ const resolveGeoportalCismapInfoBoxVisualOptions = (
     showSubtitleMetaText:
       context.kind !==
         RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS.ANNOTATION ||
-      context.annotation.toolType !== "distance",
+      context.annotation.toolType !== ANNOTATION_TYPES.DISTANCE,
   };
 };
 
@@ -83,7 +85,7 @@ const AnnotationInfoBox = ({
   if (
     infoBoxState.kind === RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS.FALLBACK
   ) {
-    if (CISMAP_INFO_BOX_INSTRUCTION_TOOL_IDS.has(infoBoxState.plugin.id)) {
+    if (CISMAP_INFO_BOX_TOOL_IDS.has(infoBoxState.plugin.id)) {
       return (
         <CismapAnnotationInstructionInfoBox
           content={infoBoxState.slots.content}
@@ -102,9 +104,7 @@ const AnnotationInfoBox = ({
     );
   }
 
-  if (
-    CISMAP_INFO_BOX_ANNOTATION_TOOL_TYPES.has(infoBoxState.annotation.toolType)
-  ) {
+  if (CISMAP_INFO_BOX_TOOL_IDS.has(infoBoxState.annotation.toolType)) {
     return (
       <CismapAnnotationInfoBox
         pixelWidth={CESIUM_ANNOTATION_CONFIG.infoBox.pixelWidth}

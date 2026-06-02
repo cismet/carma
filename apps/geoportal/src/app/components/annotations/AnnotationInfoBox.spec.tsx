@@ -4,6 +4,10 @@ import { configureStore } from "@reduxjs/toolkit";
 import { render, screen } from "@testing-library/react";
 import { Provider } from "react-redux";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  ANNOTATION_SELECT_TOOL_ID,
+  ANNOTATION_TYPES,
+} from "@carma-mapping/annotations/core";
 
 const useMapFrameworkSwitcherContextMock = vi.hoisted(() => vi.fn());
 const useRuntimeAnnotationInfoBoxSlotsMock = vi.hoisted(() => vi.fn());
@@ -41,14 +45,21 @@ vi.mock("@carma-appframeworks/portals", async () => {
   };
 });
 
-vi.mock("@carma-mapping/annotations/runtime", () => ({
-  RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS: {
-    ANNOTATION: "annotation",
-    FALLBACK: "fallback",
-  },
-  useRuntimeAnnotationInfoBoxSlots: () =>
-    useRuntimeAnnotationInfoBoxSlotsMock(),
-}));
+vi.mock("@carma-mapping/annotations/runtime", async (importOriginal) => {
+  const actual = await importOriginal<
+    typeof import("@carma-mapping/annotations/runtime")
+  >();
+
+  return {
+    ...actual,
+    RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS: {
+      ANNOTATION: "annotation",
+      FALLBACK: "fallback",
+    },
+    useRuntimeAnnotationInfoBoxSlots: () =>
+      useRuntimeAnnotationInfoBoxSlotsMock(),
+  };
+});
 
 vi.mock("@carma-mapping/annotations/ui", async () => {
   const React = await vi.importActual<typeof import("react")>("react");
@@ -102,6 +113,21 @@ const enableCesiumAnnotationInfoBox = (store: TestStore) => {
   store.dispatch(appendLayer(buildCesiumAnnotationLayer()));
 };
 
+const cismapAnnotationToolTypes = [
+  ANNOTATION_TYPES.POINT,
+  ANNOTATION_TYPES.DISTANCE,
+  ANNOTATION_TYPES.LABEL,
+  ANNOTATION_TYPES.POLYLINE,
+  ANNOTATION_TYPES.AREA_GROUND,
+  ANNOTATION_TYPES.AREA_PLANAR,
+  ANNOTATION_TYPES.AREA_VERTICAL,
+] as const;
+
+const cismapInstructionToolIds = [
+  ANNOTATION_SELECT_TOOL_ID,
+  ...cismapAnnotationToolTypes,
+];
+
 describe("AnnotationInfoBox", () => {
   beforeEach(() => {
     useMapFrameworkSwitcherContextMock.mockReset();
@@ -111,49 +137,55 @@ describe("AnnotationInfoBox", () => {
     });
   });
 
-  it("renders selected label annotations through the Cismap info box", () => {
-    useRuntimeAnnotationInfoBoxSlotsMock.mockReturnValue({
-      kind: "annotation",
-      annotation: {
-        toolType: "label",
-      },
-      slots: {
-        headingTitle: "Beschriftung",
-      },
-      visualOptions: {},
-    });
-    const store = createTestStore();
-    enableCesiumAnnotationInfoBox(store);
+  it.each(cismapAnnotationToolTypes)(
+    "renders selected %s annotations through the Cismap info box",
+    (toolType) => {
+      useRuntimeAnnotationInfoBoxSlotsMock.mockReturnValue({
+        kind: "annotation",
+        annotation: {
+          toolType,
+        },
+        slots: {
+          headingTitle: "Messung",
+        },
+        visualOptions: {},
+      });
+      const store = createTestStore();
+      enableCesiumAnnotationInfoBox(store);
 
-    render(<AnnotationInfoBox />, {
-      wrapper: createWrapper(store),
-    });
+      render(<AnnotationInfoBox />, {
+        wrapper: createWrapper(store),
+      });
 
-    expect(screen.getByTestId("cismap-annotation-info-box")).toBeTruthy();
-    expect(screen.queryByTestId("generic-annotation-info-box")).toBeNull();
-  });
+      expect(screen.getByTestId("cismap-annotation-info-box")).toBeTruthy();
+      expect(screen.queryByTestId("generic-annotation-info-box")).toBeNull();
+    }
+  );
 
-  it("renders label tool instructions through the Cismap instruction info box", () => {
-    useRuntimeAnnotationInfoBoxSlotsMock.mockReturnValue({
-      kind: "fallback",
-      plugin: {
-        id: "label",
-      },
-      slots: {
-        content: "Beschriftung setzen",
-      },
-      visualOptions: {},
-    });
-    const store = createTestStore();
-    enableCesiumAnnotationInfoBox(store);
+  it.each(cismapInstructionToolIds)(
+    "renders %s tool instructions through the Cismap instruction info box",
+    (toolId) => {
+      useRuntimeAnnotationInfoBoxSlotsMock.mockReturnValue({
+        kind: "fallback",
+        plugin: {
+          id: toolId,
+        },
+        slots: {
+          content: "Werkzeughinweis",
+        },
+        visualOptions: {},
+      });
+      const store = createTestStore();
+      enableCesiumAnnotationInfoBox(store);
 
-    render(<AnnotationInfoBox />, {
-      wrapper: createWrapper(store),
-    });
+      render(<AnnotationInfoBox />, {
+        wrapper: createWrapper(store),
+      });
 
-    expect(
-      screen.getByTestId("cismap-annotation-instruction-info-box")
-    ).toBeTruthy();
-    expect(screen.queryByTestId("generic-annotation-info-box")).toBeNull();
-  });
+      expect(
+        screen.getByTestId("cismap-annotation-instruction-info-box")
+      ).toBeTruthy();
+      expect(screen.queryByTestId("generic-annotation-info-box")).toBeNull();
+    }
+  );
 });

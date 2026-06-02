@@ -2,7 +2,7 @@ import type {
   AnnotationToolAuthoringController,
   AnnotationToolAuthoringContext,
   PointQueryPickResult,
-} from "../registry/annotation-tool-plugin.types";
+} from "../registry";
 import type { CesiumGeographicCoordinate } from "../store";
 import { formatLengthMeters, type CssPixelPosition } from "@carma-units";
 import { SceneTransforms, defined } from "@carma-cesium";
@@ -32,7 +32,7 @@ import {
   computePolylineTotalLengthMeters,
 } from "../utils/measurement-summaries";
 import { resolveAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
-import type { AnnotationToolId } from "../registry/annotation-tool-id";
+import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 
 const DRAFT_CHAIN_OVERLAY_LAYER_ID =
   "annotation-overlay-draft-chain-preview-layer";

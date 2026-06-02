@@ -58,6 +58,9 @@ import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from 
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import type { FeatureInfo } from "@carma-mapping/utils";
 import { Measurements, InfoBoxMeasurement } from "@carma-commons/measurements";
+import {
+  ANNOTATION_SELECT_TOOL_ID,
+} from "@carma-mapping/annotations/core";
 import { useAnnotationsRuntime } from "@carma-mapping/annotations/runtime";
 
 import { geoportalAnnotationModeText } from "../../config/geoportalTextConfig";
@@ -831,8 +834,8 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
   }, [getLeafletMap]);
 
   const ensureAnnotationSelectTool = useCallback(() => {
-    if (activeToolType !== "select") {
-      setActiveToolType("select");
+    if (activeToolType !== ANNOTATION_SELECT_TOOL_ID) {
+      setActiveToolType(ANNOTATION_SELECT_TOOL_ID);
     }
   }, [activeToolType, setActiveToolType]);
 

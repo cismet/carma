@@ -33,10 +33,12 @@ export type {
 } from "./lib/types/annotation-label";
 export type { AnnotationPersistenceEnvelopeBase } from "./lib/types/annotation-persistence-types";
 export {
+  ANNOTATION_SELECT_TOOL_ID,
   ANNOTATION_TYPES,
   isAreaAnnotationType,
 } from "./lib/types/annotation-types";
 export type {
+  AnnotationToolId,
   AnnotationType,
   AnnotationTypes,
   DerivedNodeChainAnnotation,

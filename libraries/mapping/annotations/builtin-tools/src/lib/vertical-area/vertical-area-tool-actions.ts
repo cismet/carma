@@ -1,4 +1,7 @@
-import { buildVerticalRectangleCornerFromDiagonal } from "@carma-mapping/annotations/core";
+import {
+  buildVerticalRectangleCornerFromDiagonal,
+  type AnnotationToolId,
+} from "@carma-mapping/annotations/core";
 import { Cartesian3 } from "@carma-cesium";
 import {
   getDegreesFromCartesian,
@@ -10,7 +13,6 @@ import type {
   AnnotationNodeLinkId,
   StoredAnnotation,
 } from "@carma-mapping/annotations/runtime";
-import type { AnnotationToolId } from "@carma-mapping/annotations/runtime";
 export type VerticalAreaToolAction = "undoLastPoint" | "cancelPreview";
 
 export const appendVerticalAreaPreviewPoint = <T>(
