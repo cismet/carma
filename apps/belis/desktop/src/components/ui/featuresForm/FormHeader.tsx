@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeftOutlined,
   CopyOutlined,
@@ -86,6 +86,29 @@ const FormHeader = ({
   const [savingAll, setSavingAll] = useState(false);
   const { onSaveSingle, savingSingle } = useSingleSave();
   const { closeDatasheet } = useDatasheet();
+
+  // The copy button is "hidden" until the user holds Alt — keeps the header
+  // uncluttered while exposing the power-user copy action on demand.
+  const [isAltPressed, setIsAltPressed] = useState(false);
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.altKey) setIsAltPressed(true);
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (!e.altKey) setIsAltPressed(false);
+    };
+    // Reset when the window loses focus so the button does not stay stuck
+    // visible after an Alt+Tab away.
+    const handleBlur = () => setIsAltPressed(false);
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", handleBlur);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", handleBlur);
+    };
+  }, []);
 
   const draftsCount = customDraftsCount ?? featureDraftsCount;
 
@@ -193,7 +216,7 @@ const FormHeader = ({
                   </button>
                 </Tooltip>
               )}
-              {onCopyValues && (
+              {onCopyValues && isAltPressed && (
                 <Tooltip title="Werte merken">
                   <button
                     type="button"
