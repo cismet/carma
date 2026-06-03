@@ -30,6 +30,7 @@ import SearchInput from "../components/SearchInput";
 import FilterBadge from "../components/FilterBadge";
 import CategoryCard from "../components/CategoryCard";
 import Badge from "../components/Badge";
+import { CopyOutlined, CheckOutlined, RightOutlined } from "@ant-design/icons";
 
 interface VectorStyleMeta {
   status: "loading" | "loaded" | "error";
@@ -207,6 +208,126 @@ const sourceColors: Record<
   },
   both: { bg: "#fefcbf", color: "#975a16", label: "WMS + Style Mapping" },
   none: { bg: "#fed7d7", color: "#9b2c2c", label: "No Mapping" },
+};
+
+const buildLayerInfo = (layer: Item): Record<string, unknown> => {
+  const carmaConf = extractCarmaConfig(layer.keywords);
+  const vectorStyle = layer.vectorStyle || carmaConf?.vectorStyle;
+  const vectorLegend =
+    layer.vectorLegend ||
+    carmaConf?.vectorLegend ||
+    (layer as any).props?.Style?.[0]?.LegendURL?.[0]?.OnlineResource;
+  const props = (layer as any).props;
+
+  const info: Record<string, unknown> = {};
+  if (layer.title) info.title = layer.title;
+  if (layer.description) info.description = layer.description;
+  if (layer.tags?.length) info.tags = layer.tags;
+  const keywords = layer.keywords?.filter((k) => k !== ":vec:");
+  if (keywords?.length) info.keywords = keywords;
+  if (layer.id) info.id = layer.id;
+  if (layer.name) info.name = layer.name;
+  if (layer.type) info.type = layer.type;
+  if (layer.queryable !== undefined) info.queryable = layer.queryable;
+  if (layer.maxZoom !== undefined) info.maxZoom = layer.maxZoom;
+  if (layer.minZoom !== undefined) info.minZoom = layer.minZoom;
+  if (layer.path) info.path = layer.path;
+  if (layer.icon) info.icon = layer.icon;
+  if (layer.thumbnail) info.thumbnail = layer.thumbnail;
+  if (vectorStyle) info.vectorStyle = vectorStyle;
+  if (vectorLegend) info.vectorLegend = vectorLegend;
+  if (layer.vectorLegendTitle) info.vectorLegendTitle = layer.vectorLegendTitle;
+  if (props?.MetadataURL) info.props = { MetadataURL: props.MetadataURL };
+  return info;
+};
+
+const CopyButton = ({ text }: { text: string }) => {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      navigator.clipboard.writeText(text).then(
+        () => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        },
+        (err) => console.error("Failed to copy layerInfo:", err)
+      );
+    },
+    [text]
+  );
+  return (
+    <button
+      onClick={handleCopy}
+      title="layerInfo kopieren"
+      aria-label="layerInfo kopieren"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 14,
+        padding: "2px 6px",
+        borderRadius: 6,
+        border: "1px solid #cbd5e0",
+        backgroundColor: copied ? "#c6f6d5" : "#fff",
+        color: copied ? "#276749" : "#4a5568",
+        cursor: "pointer",
+      }}
+    >
+      {copied ? <CheckOutlined /> : <CopyOutlined />}
+    </button>
+  );
+};
+
+const LayerInfoDetails = ({ json }: { json: string }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <details
+      style={{ marginTop: 10 }}
+      open={open}
+      onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}
+    >
+      <summary
+        style={{
+          cursor: "pointer",
+          fontSize: 13,
+          fontWeight: 600,
+          color: "#4a5568",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          // flex display removes the native disclosure marker, so we render
+          // our own rotating chevron instead.
+          listStyle: "none",
+        }}
+      >
+        <RightOutlined
+          style={{
+            fontSize: 11,
+            transition: "transform 0.15s",
+            transform: open ? "rotate(90deg)" : "none",
+          }}
+        />
+        <span>layerInfo</span>
+        <CopyButton text={json} />
+      </summary>
+      <div style={{ marginTop: 8 }}>
+        <pre
+          style={{
+            ...monoValueStyle,
+            margin: 0,
+            padding: "10px 14px",
+            whiteSpace: "pre-wrap",
+            maxHeight: 320,
+            overflow: "auto",
+          }}
+        >
+          {json}
+        </pre>
+      </div>
+    </details>
+  );
 };
 
 const ItemEntry = ({
@@ -506,6 +627,12 @@ const ItemEntry = ({
               );
             })()}
         </div>
+      )}
+
+      {(layer.type === "layer" || layer.type === "object") && (
+        <LayerInfoDetails
+          json={JSON.stringify(buildLayerInfo(layer), null, 2)}
+        />
       )}
     </div>
   );
@@ -1073,6 +1200,15 @@ const ServiceList = ({ discoverProps, markdown = false }: ServiceListProps) => {
       if (meta.layerInfoboxMapping?.length) {
         lines.push(`  - Style Layer: ${meta.layerInfoboxMapping.join("; ")}`);
       }
+    }
+
+    if (layer.type === "layer" || layer.type === "object") {
+      lines.push("");
+      lines.push("**layerInfo:**");
+      lines.push("");
+      lines.push("```json");
+      lines.push(JSON.stringify(buildLayerInfo(layer), null, 2));
+      lines.push("```");
     }
 
     lines.push("");
