@@ -1054,7 +1054,7 @@ const FeaturesFormsWrapper = ({
     isGeometryEditFeature && !effectiveReadOnly && editGeometryOptions.length > 0 ? (
       <div className={geometryEdited ? "mb-4 draft-changed-field" : "mb-4"}>
         <span className="text-sm font-medium text-gray-700">
-          Neue Geometrien
+          Geometrie
         </span>
         <Select
           value={draft?.geometryKey ?? currentGeometryOption?.key}
@@ -1111,8 +1111,8 @@ const FeaturesFormsWrapper = ({
                     <span className="text-sm font-medium text-gray-700">
                       {/* draft?.isExtension && draft.extendingLeitungId != null
                         ? `Leitung L-${draft.extendingLeitungId} verlängern`
-                        : "Neue Geometrien" */}
-                      Neue Geometrien
+                        : "Geometrie" */}
+                      Geometrie
                     </span>
                     <Select
                       value={
