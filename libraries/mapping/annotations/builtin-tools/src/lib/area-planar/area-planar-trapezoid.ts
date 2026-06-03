@@ -63,6 +63,20 @@ const createAutomaticSymmetricParallelCorner = (
   return geographicCoordinateFromCartesian3(automaticCornerECEF);
 };
 
+const shouldConnectOppositeCornerToBaseStart = (
+  baseStart: CesiumGeographicCoordinate,
+  baseEnd: CesiumGeographicCoordinate,
+  oppositeCorner: CesiumGeographicCoordinate
+): boolean => {
+  const baseStartECEF = cartesian3FromGeographicCoordinate(baseStart);
+  const baseEndECEF = cartesian3FromGeographicCoordinate(baseEnd);
+  const oppositeCornerECEF = cartesian3FromGeographicCoordinate(oppositeCorner);
+  return (
+    Cartesian3.distanceSquared(oppositeCornerECEF, baseStartECEF) <
+    Cartesian3.distanceSquared(oppositeCornerECEF, baseEndECEF)
+  );
+};
+
 const constrainToParallelLine = (
   baseStart: CesiumGeographicCoordinate,
   baseEnd: CesiumGeographicCoordinate,
@@ -142,14 +156,20 @@ export const resolveAreaPlanarTrapezoidMeasurementCoordinates = (
   }
 
   const [baseStart, baseEnd, oppositeCorner] = draftCoordinates;
+  const automaticCorner = createAutomaticSymmetricParallelCorner(
+    baseStart!,
+    baseEnd!,
+    oppositeCorner!
+  );
+  if (
+    shouldConnectOppositeCornerToBaseStart(baseStart!, baseEnd!, oppositeCorner!)
+  ) {
+    return [baseStart!, baseEnd!, automaticCorner, oppositeCorner!];
+  }
   return [
     baseStart!,
     baseEnd!,
     oppositeCorner!,
-    createAutomaticSymmetricParallelCorner(
-      baseStart!,
-      baseEnd!,
-      oppositeCorner!
-    ),
+    automaticCorner,
   ];
 };

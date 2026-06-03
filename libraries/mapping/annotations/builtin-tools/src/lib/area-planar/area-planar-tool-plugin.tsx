@@ -224,12 +224,8 @@ const createAreaPlanarToolVariantPlugin = ({
       ...(exposeInfoBox ? [ANNOTATION_TOOL_PLUGIN_CAPABILITIES.INFO_BOX] : []),
     ],
     session: {
-      createSession: ({ drafts, setActiveToolType, addAnnotation }) => ({
-        toolType: toolId,
-        requestStart: () => {
-          setActiveToolType(toolId);
-        },
-        requestFinish: () => {
+      createSession: ({ drafts, setActiveToolType, addAnnotation }) => {
+        const requestFinish = () => {
           const draft = drafts.get(toolId);
           const measurementInputCoordinates = resolveMeasurementInputCoordinates(
             draft.coordinates
@@ -247,62 +243,75 @@ const createAreaPlanarToolVariantPlugin = ({
 
           drafts.clear(toolId);
           return Boolean(nextMeasurement);
-        },
-        discardDraft: () => {
-          drafts.clear(toolId);
-        },
-        onNodeCreated: (coordinate, linkedNodeGroupId) => {
-          const currentDraft = drafts.get(toolId);
-          const nextCoordinates = isTrapezoidInputMode
-            ? resolveNextAreaPlanarTrapezoidDraftCoordinates({
-                coordinate,
-                previousCoordinates: currentDraft.coordinates,
-              })
-            : appendAreaPreviewPoint(currentDraft.coordinates, coordinate);
-          if (!nextCoordinates) {
-            drafts.set(toolId, {
-              ...currentDraft,
-              feedback: {
-                kind: "warning",
-                message: AREA_PLANAR_REJECTED_POINT_FEEDBACK,
-              },
-            });
-            return;
-          }
-          const nextMeasurementInputCoordinates =
-            resolveMeasurementInputCoordinates(nextCoordinates);
-          const previousMeasurementInputCoordinates =
-            resolveMeasurementInputCoordinates(currentDraft.coordinates);
-          if (
-            !canResolveAreaPlanarProjectedPolygon({
-              coordinates: nextMeasurementInputCoordinates,
-              mode: projectionMode,
-              previousCoordinates: previousMeasurementInputCoordinates,
-              maxPlaneNormalChangeDeg,
-            })
-          ) {
-            drafts.set(toolId, {
-              ...currentDraft,
-              feedback: {
-                kind: "warning",
-                message: AREA_PLANAR_REJECTED_POINT_FEEDBACK,
-              },
-            });
-            return;
-          }
+        };
 
-          const nextDraft: AnnotationToolDraftState = {
-            coordinates: nextCoordinates,
-            linkedNodeGroupIds: appendAreaPreviewPoint(
-              currentDraft.linkedNodeGroupIds,
-              linkedNodeGroupId ?? null
-            ),
-            feedback: null,
-          };
-          drafts.set(toolId, nextDraft);
-        },
-        finishesOnLoopClosure: true,
-      }),
+        return {
+          toolType: toolId,
+          requestStart: () => {
+            setActiveToolType(toolId);
+          },
+          requestFinish,
+          discardDraft: () => {
+            drafts.clear(toolId);
+          },
+          onNodeCreated: (coordinate, linkedNodeGroupId) => {
+            const currentDraft = drafts.get(toolId);
+            const isFourthTrapezoidPoint =
+              isTrapezoidInputMode && currentDraft.coordinates.length === 3;
+            const nextCoordinates = isTrapezoidInputMode
+              ? resolveNextAreaPlanarTrapezoidDraftCoordinates({
+                  coordinate,
+                  previousCoordinates: currentDraft.coordinates,
+                })
+              : appendAreaPreviewPoint(currentDraft.coordinates, coordinate);
+            if (!nextCoordinates) {
+              drafts.set(toolId, {
+                ...currentDraft,
+                feedback: {
+                  kind: "warning",
+                  message: AREA_PLANAR_REJECTED_POINT_FEEDBACK,
+                },
+              });
+              return;
+            }
+            const nextMeasurementInputCoordinates =
+              resolveMeasurementInputCoordinates(nextCoordinates);
+            const previousMeasurementInputCoordinates =
+              resolveMeasurementInputCoordinates(currentDraft.coordinates);
+            if (
+              !canResolveAreaPlanarProjectedPolygon({
+                coordinates: nextMeasurementInputCoordinates,
+                mode: projectionMode,
+                previousCoordinates: previousMeasurementInputCoordinates,
+                maxPlaneNormalChangeDeg,
+              })
+            ) {
+              drafts.set(toolId, {
+                ...currentDraft,
+                feedback: {
+                  kind: "warning",
+                  message: AREA_PLANAR_REJECTED_POINT_FEEDBACK,
+                },
+              });
+              return;
+            }
+
+            const nextDraft: AnnotationToolDraftState = {
+              coordinates: nextCoordinates,
+              linkedNodeGroupIds: appendAreaPreviewPoint(
+                currentDraft.linkedNodeGroupIds,
+                linkedNodeGroupId ?? null
+              ),
+              feedback: null,
+            };
+            drafts.set(toolId, nextDraft);
+            if (isFourthTrapezoidPoint) {
+              requestFinish();
+            }
+          },
+          finishesOnLoopClosure: true,
+        };
+      },
     },
     pointQuery: {
       onPointCreated: ({

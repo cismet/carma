@@ -112,6 +112,46 @@ describe("area planar trapezoid construction", () => {
     expect(automaticPointRatio).toBeCloseTo(1 - thirdPointRatio, 6);
   });
 
+  it("connects the third point to the closer baseline endpoint", () => {
+    const draftCoordinates = [
+      geographicCoordinate(7, 51),
+      geographicCoordinate(7.0001, 51),
+      geographicCoordinate(7.00002, 51.00008, 103),
+    ];
+
+    const measurementCoordinates =
+      resolveAreaPlanarTrapezoidMeasurementCoordinates(draftCoordinates);
+    const positions = measurementCoordinates.map(
+      cartesian3FromGeographicCoordinate
+    );
+    const baseVector = Cartesian3.subtract(
+      positions[1]!,
+      positions[0]!,
+      new Cartesian3()
+    );
+    const oppositeVector = Cartesian3.subtract(
+      positions[2]!,
+      positions[3]!,
+      new Cartesian3()
+    );
+
+    expect(measurementCoordinates).toHaveLength(4);
+    expectParallel(baseVector, oppositeVector);
+    const automaticPointRatio = resolveBaseRatio(
+      positions[0]!,
+      positions[1]!,
+      positions[2]!
+    );
+    const thirdPointRatio = resolveBaseRatio(
+      positions[0]!,
+      positions[1]!,
+      positions[3]!
+    );
+    expect(thirdPointRatio).toBeGreaterThan(0.15);
+    expect(thirdPointRatio).toBeLessThan(0.25);
+    expect(automaticPointRatio).toBeCloseTo(1 - thirdPointRatio, 6);
+  });
+
   it("constrains the fourth point to the parallel guide line", () => {
     const anchor = Cartesian3.fromDegrees(7, 51, 100);
     const draftCoordinates = [
