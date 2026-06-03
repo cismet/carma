@@ -303,14 +303,17 @@ const FeaturesFormsWrapper = ({
     measurements,
   ]);
 
-  // Measurement keys already claimed by other in-progress creation drafts —
-  // each measurement can back at most one new feature, so don't offer it
-  // again in any other draft's geometry selector.
+  // Measurement keys already claimed by other in-progress drafts — each
+  // measurement can back at most one feature, so don't offer it again in any
+  // other draft's geometry selector. Covers both creation drafts (measurement
+  // used as a new feature's geometry) AND geometry-edit drafts (an existing
+  // feature reshaped to a measurement); both stash the picked measurement under
+  // `geometryKey`, so a measurement consumed by either must disappear from every
+  // other selector.
   const consumedByOtherDrafts = useMemo(() => {
     const set = new Set<string>();
     for (const [id, d] of Object.entries(allDrafts)) {
       if (id === featureId) continue;
-      if (!d.isCreation) continue;
       const key = d.geometryKey;
       if (key && key.startsWith("measurement.")) set.add(key);
     }
@@ -470,6 +473,28 @@ const FeaturesFormsWrapper = ({
       );
     }
   }, [featureId, formKey, data, draft, dispatch, isCreation]);
+
+  // Diagnostic: an edit draft that has NO baseline (originalValues). In this
+  // state getChangedPaths() returns nothing (so no field highlights gray) and
+  // hasDraftChanges() falls back to "always changed" (so the draft shows
+  // "nicht gespeicherte Änderungen" and never auto-discards even when its
+  // values match the server and the geometry is "Current"). The baseline is
+  // seeded by the *FormFields onOriginalValues effect and can be dropped by the
+  // orphan-cleanup in setOriginalValues — this logs when that race bites.
+  useEffect(() => {
+    if (isCreation) return;
+    if (draft && !originalValues) {
+      console.warn(
+        `xxx [NO-ORIGINAL] feature "${featureId}" (${formKey}) has a draft but NO originalValues baseline — it will never show gray highlights and never auto-discard (hasDraftChanges defaults to true).`,
+        {
+          featureId,
+          formKey,
+          geometryKey: draft.geometryKey,
+          draftValueKeys: Object.keys(draft.values ?? {}),
+        }
+      );
+    }
+  }, [draft, originalValues, isCreation, featureId, formKey]);
 
   const handleToggleReadOnly = useCallback(() => {
     setIsEditing((prev) => !prev);
