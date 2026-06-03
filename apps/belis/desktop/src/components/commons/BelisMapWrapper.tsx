@@ -3204,9 +3204,13 @@ const BelisMapLibWrapper = ({
             .querySourceFeatures(namespacedSource, { sourceLayer: sl })
             .find((f) => f.properties && String(f.properties.id) === dbPK);
           if (match) {
-            setSidebarMode((prev) =>
-              prev === "drafts" ? "fachobjekte" : prev
-            );
+            // A geometry-edit preview always belongs to an open draft, so show
+            // it in its native Entwürfe context (the row also lives in the
+            // Fachobjekte tab, but the user is mid-edit and expects the drafts
+            // tab). activeDraftRow stays null — an edit draft is a single row,
+            // not an expanded Standort/Leuchten cluster.
+            setSidebarMode("drafts");
+            setActiveDraftRow(null);
             selectFeature(
               { source: namespacedSource, sourceLayer: sl, id: match.id },
               (previewWgs84
@@ -3265,12 +3269,21 @@ const BelisMapLibWrapper = ({
 
       const standorte = candidates.filter((h) => h.sourceLayer === "standorte");
       const chosen = standorte.length > 0 ? standorte[0] : candidates[0];
-      // Clicking an existing (non-draft) Fachobjekt while the Entwürfe tab is
-      // active means the user wants to inspect that Fachobjekt — the row lives
-      // in the Fachobjekte tab. Flip back so the selected row becomes visible.
-      // Functional setState keeps `sidebarMode` out of the callback deps.
+      // If the clicked Fachobjekt has an open (non-creation) draft, show it in
+      // the Entwürfe tab — the user is editing it and expects the drafts
+      // context. Otherwise clicking an existing Fachobjekt while the Entwürfe
+      // tab is active means the user wants to inspect it (its row lives in the
+      // Fachobjekte tab), so flip back. Functional setState keeps `sidebarMode`
+      // out of the callback deps.
       if (chosen) {
-        setSidebarMode((prev) => (prev === "drafts" ? "fachobjekte" : prev));
+        const chosenKey = `${chosen.sourceLayer ?? ""}:${Number(
+          chosen.properties?.id ?? chosen.id
+        )}`;
+        if (openDraftDbKeys.has(chosenKey)) {
+          setSidebarMode("drafts");
+        } else {
+          setSidebarMode((prev) => (prev === "drafts" ? "fachobjekte" : prev));
+        }
       }
       return chosen;
     },
@@ -3283,6 +3296,7 @@ const BelisMapLibWrapper = ({
       store,
       namespacedSource,
       selectFeature,
+      openDraftDbKeys,
     ]
   );
 
@@ -3654,12 +3668,20 @@ const BelisMapLibWrapper = ({
     ) => {
       // Draft rows now appear in the Fachobjekte tab too (the expanded
       // `draftSidebarFeatures` are spliced into the viewport list). Detect
-      // them by the same markers `expandDraftSidebarFeatures` stamps, flip
-      // the sidebar into Entwürfe mode so the selected row stays visible in
-      // its native context, and route through the existing drafts branch.
+      // them by the same markers `expandDraftSidebarFeatures` stamps — plus a
+      // geometry-edit draft, whose Fachobjekte row carries no draft markers but
+      // matches an open non-creation draft by "<sourceLayer>:<dbId>". Flip the
+      // sidebar into Entwürfe mode so the selected row stays visible in its
+      // native context, and route through the existing drafts branch.
+      const hasOpenDraft = openDraftDbKeys.has(
+        `${feature.sourceLayer ?? ""}:${Number(
+          feature.properties?.id ?? feature.id
+        )}`
+      );
       const isDraftRow =
         feature.properties?._isCreation === true ||
-        typeof feature.properties?._draftKey === "string";
+        typeof feature.properties?._draftKey === "string" ||
+        hasOpenDraft;
       if (isDraftRow && sidebarMode !== "drafts") {
         setSidebarMode("drafts");
       }
@@ -3775,7 +3797,15 @@ const BelisMapLibWrapper = ({
       setActiveDraftRow(null);
       selectFeature(identifier, feature as any);
     },
-    [selectFeature, sidebarMode, dispatch, map, namespacedSource, store]
+    [
+      selectFeature,
+      sidebarMode,
+      dispatch,
+      map,
+      namespacedSource,
+      store,
+      openDraftDbKeys,
+    ]
   );
 
   // After a draft is cancelled/removed, select the next remaining draft.
