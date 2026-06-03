@@ -152,9 +152,10 @@ const TitleControl = ({
         );
       }
     } else if (allowedCampaigns.length > 0) {
+      const kampagneText = allowedCampaigns.map(formatLabel).join(", ");
       kampagneElement = (
         <span style={{ marginLeft: isNarrow ? 0 : 8, color: "#555" }}>
-          Kampagne: {allowedCampaigns.map(formatLabel).join(", ")}
+          {isNarrow ? kampagneText : `Kampagne: ${kampagneText}`}
         </span>
       );
     }
@@ -187,29 +188,34 @@ const TitleControl = ({
   ) : null;
 
   const titleContent = isNarrow ? (
-    // Mobile layout: centered title block, sign-out pinned to upper-right corner.
-    <div style={{ position: "relative" }}>
-      <span>
+    // Mobile layout: row 1 centered title+username, row 2 a toolbar with the
+    // kampagne element on the left and the logout icon on the right. The icon
+    // can no longer overlap a long username because it lives in its own row.
+    <div>
+      <div>
         <b>{title}</b> (<FontAwesomeIcon icon={faUser} /> {username})
-        {kampagneElement && <br />}
-        {kampagneElement}
-        {connectionErrorIndicator}
-      </span>
-      {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
-      <a
+      </div>
+      <div
         style={{
-          position: "absolute",
-          right: 0,
-          top: 0,
-          color: "#337ab7",
-          cursor: "pointer",
-        }}
-        onClick={() => {
-          logout?.();
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
         }}
       >
-        <FontAwesomeIcon icon={faSignOut} />
-      </a>
+        <span>
+          {kampagneElement}
+          {connectionErrorIndicator}
+        </span>
+        {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
+        <a
+          style={{ color: "#337ab7", cursor: "pointer" }}
+          onClick={() => {
+            logout?.();
+          }}
+        >
+          <FontAwesomeIcon icon={faSignOut} />
+        </a>
+      </div>
     </div>
   ) : (
     // Desktop layout: Everything on one row
