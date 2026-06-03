@@ -454,6 +454,10 @@ const TZBaumbewirtschaftung = ({
   // and filter switches — flows to the map through this single imperative path.
   useEffect(() => {
     if (!maplibreMap || !featureCollection) return;
+    // After a user switch the previous map instance is torn down but the
+    // React state still holds the stale reference; MapLibre's destructor
+    // sets `style = undefined`, so any `.getSource()` call throws.
+    if (!maplibreMap.style) return;
     const source = maplibreMap.getSource("trees");
     if (source) {
       source.setData(featureCollection);
@@ -478,7 +482,7 @@ const TZBaumbewirtschaftung = ({
 
     // Helper to remove crosshair
     const removeCrosshair = () => {
-      if (!maplibreMap) return;
+      if (!maplibreMap || !maplibreMap.style) return;
       if (maplibreMap.getLayer(CROSSHAIR_LAYER)) {
         maplibreMap.removeLayer(CROSSHAIR_LAYER);
       }
@@ -486,6 +490,9 @@ const TZBaumbewirtschaftung = ({
         maplibreMap.removeSource(CROSSHAIR_SOURCE);
       }
     };
+
+    // Stale map reference after a user switch — see note on the FC effect above.
+    if (maplibreMap && !maplibreMap.style) return;
 
     // If disabled or no map, remove crosshair and return
     if (!maplibreMap || !isCrossHairEnabled) {
