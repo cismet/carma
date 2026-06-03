@@ -55,6 +55,7 @@ import {
 } from "../../../helper/featureFormSaveHelpers";
 import {
   buildMeasurementGeometryOptions,
+  buildCurrentGeometryOption,
   parseStandortIdFromKey,
   STANDORT_OPTION_PREFIX,
   type MeasurementGeometryOption,
@@ -71,6 +72,7 @@ import {
   buildSyntheticFeature,
   buildSyntheticFetchedData,
   enrichSyntheticProps,
+  convertGeometryToWgs84,
 } from "../../../helper/buildSyntheticFeature";
 // import { mergeLineStringsClosestEndpoints } from "../../../helper/mergeLineStrings";
 import { getKeyTablesData } from "../../../store/slices/keyTables";
@@ -318,6 +320,53 @@ const FeaturesFormsWrapper = ({
     consumedByOtherDrafts,
     // draft?.isExtension,
   ]);
+
+  // --- Geometry edit ("change an existing feature's shape to a measurement").
+  // v1: Mauerlasche, Point-only. The feature's own geom row id + geometry are
+  // pulled from the fetched DB record; the selector offers "Momentane
+  // Geometrie" (the current shape) plus the visible point measurements.
+  const isGeometryEditFeature = !isCreation && formKey === "mauerlasche";
+
+  const editFeatureRecord = useMemo(() => {
+    if (!isGeometryEditFeature || !formKey || !data) return undefined;
+    const gqlKey = formKeyToGraphqlKey[formKey];
+    const arr = (data as Record<string, unknown>)[gqlKey] as
+      | Array<Record<string, unknown>>
+      | undefined;
+    return arr?.[0];
+  }, [isGeometryEditFeature, formKey, data]);
+
+  const featureGeomId = useMemo(() => {
+    const geom = editFeatureRecord?.geom as { id?: number } | undefined;
+    return typeof geom?.id === "number" ? geom.id : undefined;
+  }, [editFeatureRecord]);
+
+  const currentGeometryOption = useMemo<MeasurementGeometryOption | null>(() => {
+    if (!isGeometryEditFeature) return null;
+    const geom = editFeatureRecord?.geom as
+      | { geo_field?: GeoJSON.Geometry }
+      | undefined;
+    const dbId = (editFeatureRecord?.id as number | undefined) ?? undefined;
+    return buildCurrentGeometryOption(geom?.geo_field, dbId);
+  }, [isGeometryEditFeature, editFeatureRecord]);
+
+  // Selector options: current shape first, then visible Point measurements
+  // (lines are deliberately excluded in v1).
+  const editGeometryOptions = useMemo<MeasurementGeometryOption[]>(() => {
+    if (!isGeometryEditFeature) return [];
+    const measurementOpts = buildMeasurementGeometryOptions(measurements)
+      .filter((o) => o.geometry.type === "Point")
+      .filter((o) => !consumedByOtherDrafts.has(o.key));
+    return currentGeometryOption
+      ? [currentGeometryOption, ...measurementOpts]
+      : measurementOpts;
+  }, [
+    isGeometryEditFeature,
+    measurements,
+    consumedByOtherDrafts,
+    currentGeometryOption,
+  ]);
+
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const effectiveReadOnly =
@@ -475,24 +524,23 @@ const FeaturesFormsWrapper = ({
         dispatch(removeDraft(featureId));
         dispatch(incrementFeatureDataVersion());
         void message.success("Gespeichert");
-        if (isCreation) {
-          // Drop the consumed measurement from the dropdown source AND from
-          // the terra-draw layer on the map. Redux ids are namespaced
-          // (`measurement.<uuid>`) and the draft's geometryKey is the
-          // double-prefixed dropdown key (`measurement.measurement.<uuid>`);
-          // strip one prefix off the Redux id to recover the raw terra-draw
-          // id that removeMeasurements expects.
-          if (draft.geometryKey) {
-            const consumed = measurements.find(
-              (f) => `measurement.${String(f.id)}` === draft.geometryKey
-            );
-            if (consumed) {
-              const filtered = measurements.filter((f) => f !== consumed);
-              dispatch(setMeasurements(filtered));
-              const rawId = String(consumed.id).replace(/^measurement\./, "");
-              removeMeasurements([rawId]);
-            }
+        // Drop the consumed measurement from the dropdown source AND from the
+        // terra-draw layer on the map. Applies to creation drafts (measurement
+        // used as the new feature's geometry) and geometry-edit drafts (an
+        // existing feature reshaped to a measurement) alike — once saved, that
+        // measurement is spent and must not reappear as a selectable option.
+        if (draft.geometryKey && draft.geometryKey.startsWith("measurement.")) {
+          const consumed = measurements.find(
+            (f) => `measurement.${String(f.id)}` === draft.geometryKey
+          );
+          if (consumed) {
+            const filtered = measurements.filter((f) => f !== consumed);
+            dispatch(setMeasurements(filtered));
+            const rawId = String(consumed.id).replace(/^measurement\./, "");
+            removeMeasurements([rawId]);
           }
+        }
+        if (isCreation) {
           onSelectNextDraft?.(featureId);
         } else {
           setIsEditing(false);
@@ -757,6 +805,101 @@ const FeaturesFormsWrapper = ({
     ]
   );
 
+  // Geometry-edit handler for an *existing* feature. Unlike
+  // handleGeometryChange this never builds a synthetic creation feature or
+  // sets isCreation — it attaches the picked geometry to the normal edit
+  // draft. Picking "Momentane Geometrie" reverts (clears) the geometry.
+  const handleEditGeometryChange = useCallback(
+    (newKey: string | undefined) => {
+      if (!featureId || !formKey) return;
+      const previousGeometryKey = draft?.geometryKey;
+      const currentKey = currentGeometryOption?.key;
+      const currentValues = draft?.values ?? originalValues ?? {};
+
+      // Revert to the feature's own geometry: drop the draft geometry and
+      // bring any attached measurement back into terra-draw. The mini-map is
+      // re-centered on the original tile feature.
+      if (!newKey || newKey === currentKey) {
+        // No-op in the reducer when no draft exists yet.
+        dispatch(
+          clearDraftGeometry({
+            featureId,
+            feature: draftFeature,
+            fetchedData: data,
+          })
+        );
+        restoreAttachedMeasurement(previousGeometryKey);
+        if (selectedFeatureId && draftFeature) {
+          selectFeature(selectedFeatureId, draftFeature as never);
+        }
+        return;
+      }
+
+      const opt = editGeometryOptions.find((o) => o.key === newKey);
+      if (!opt) return;
+
+      if (previousGeometryKey && previousGeometryKey !== newKey) {
+        restoreAttachedMeasurement(previousGeometryKey);
+      }
+
+      dispatch(
+        setDraft({
+          featureId,
+          featureType: formKey,
+          values: currentValues,
+          feature: draftFeature,
+          fetchedData: data,
+          featureGeomId,
+          geometry: opt.geometry,
+          geometryKey: newKey,
+        })
+      );
+
+      // Hide the picked measurement from terra-draw while it backs the draft —
+      // the draft preview renders in its place. It stays in Redux so the
+      // dropdown can still show it and a later revert can restore it.
+      if (newKey.startsWith("measurement.")) {
+        const consumed = measurements.find(
+          (f) => `measurement.${String(f.id)}` === newKey
+        );
+        if (consumed) {
+          const rawId = String(consumed.id).replace(/^measurement\./, "");
+          removeMeasurements([rawId]);
+        }
+      }
+
+      // Re-center the datasheet mini-map on the new position by handing
+      // MapSelectionContext a clone of the original feature with the new
+      // (WGS84) geometry — keeping the real id/properties so the datasheet
+      // does not flip into creation mode.
+      if (selectedFeatureId && draftFeature) {
+        const movedFeature = {
+          ...draftFeature,
+          geometry:
+            convertGeometryToWgs84(opt.geometry) ?? draftFeature.geometry,
+        };
+        selectFeature(selectedFeatureId, movedFeature as never);
+      }
+    },
+    [
+      featureId,
+      formKey,
+      draft?.geometryKey,
+      draft?.values,
+      currentGeometryOption,
+      originalValues,
+      editGeometryOptions,
+      featureGeomId,
+      measurements,
+      dispatch,
+      draftFeature,
+      data,
+      selectedFeatureId,
+      selectFeature,
+      restoreAttachedMeasurement,
+    ]
+  );
+
   // Tracks featureIds whose single-option geometry the user explicitly cleared,
   // so the auto-apply effect below doesn't immediately re-apply it.
   const userClearedGeometryRef = useRef<Set<string>>(new Set());
@@ -857,6 +1000,32 @@ const FeaturesFormsWrapper = ({
     [draft, handleServerSave, saving]
   );
 
+  // "Neue Geometrien" selector for editing an existing feature's shape.
+  // Rendered inside the form (above Strassenschlüssel), only in edit mode.
+  const geometryEdited =
+    !!draft?.geometryKey && !draft.geometryKey.startsWith("current.");
+  const editGeometrySelector =
+    isGeometryEditFeature && !effectiveReadOnly && editGeometryOptions.length > 0 ? (
+      <div className={geometryEdited ? "mb-4 draft-changed-field" : "mb-4"}>
+        <span className="text-sm font-medium text-gray-700">
+          Neue Geometrien
+        </span>
+        <Select
+          value={draft?.geometryKey ?? currentGeometryOption?.key}
+          onChange={handleEditGeometryChange}
+          className="w-full mt-1"
+          size="large"
+          placeholder="Messung wählen"
+        >
+          {editGeometryOptions.map((opt) => (
+            <Select.Option key={opt.key} value={opt.key}>
+              {opt.label}
+            </Select.Option>
+          ))}
+        </Select>
+      </div>
+    ) : undefined;
+
   if (FormComponent) {
     return (
       <SingleSaveCtx.Provider value={singleSaveValue}>
@@ -878,6 +1047,7 @@ const FeaturesFormsWrapper = ({
               isCreation={isCreation}
               featureId={featureId}
               linkedMastId={parseStandortIdFromKey(draft?.geometryKey)}
+              geometrySelector={editGeometrySelector}
               formHeaderContent={
                 isCreation ? (
                   <div

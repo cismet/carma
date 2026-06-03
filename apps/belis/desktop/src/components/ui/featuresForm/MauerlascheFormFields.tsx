@@ -15,6 +15,7 @@ interface MauerlascheFormFieldsProps {
   readOnly?: boolean;
   isCreation?: boolean;
   featureId?: string;
+  geometrySelector?: React.ReactNode;
   form?: FormInstance;
   onFormInstance?: (form: FormInstance) => void;
   draftValues?: Record<string, unknown>;
@@ -38,6 +39,7 @@ const MauerlascheFormFields = ({
   mauerlasche,
   readOnly = true,
   featureId,
+  geometrySelector,
   form: externalForm,
   onFormInstance,
   draftValues,
@@ -134,6 +136,8 @@ const MauerlascheFormFields = ({
       className={getFormClassName(readOnly, "pr-2")}
       onValuesChange={onValuesChange}
     >
+      {geometrySelector}
+
       {!readOnly ? (
         <StrassenschluesselFieldsModal
           label="Strassenschlüssel"

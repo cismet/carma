@@ -40,6 +40,10 @@ export interface Draft {
   removedDocumentKeys?: string[];
   existingDocuments?: DokumentItem[];
   featureDbId?: number;
+  // Id of the existing feature's `geom` record, captured at draft-open time.
+  // The geometry-edit save updates this same geom row in place (preserving the
+  // feature's identity) instead of POSTing a new feature — see saveFeatureDraft.
+  featureGeomId?: number;
   feature?: any;
   fetchedData?: Record<string, unknown>;
   isCreation?: boolean;
@@ -150,6 +154,7 @@ const featuresFormsSlice = createSlice({
         feature?: any;
         fetchedData?: Record<string, unknown>;
         isCreation?: boolean;
+        featureGeomId?: number;
         geometry?: GeoJSON.Geometry;
         geometryKey?: string;
         geometryWgs84?: { type: "Point"; coordinates: [number, number] };
@@ -171,6 +176,7 @@ const featuresFormsSlice = createSlice({
         feature,
         fetchedData,
         isCreation,
+        featureGeomId,
         geometry,
         geometryKey,
         geometryWgs84,
@@ -201,10 +207,19 @@ const featuresFormsSlice = createSlice({
         }
       } else {
         const original = state.originalValues[featureId];
+        // A geometry-only edit (picked a measurement, no field changes) must
+        // keep the draft alive — otherwise the form-dirty check below would
+        // delete the draft we just created to hold the new geometry. The
+        // selected key differs from the feature's own ("current.") geometry.
+        const effectiveGeometryKey = geometryKey ?? existing?.geometryKey;
+        const hasGeometryChange =
+          !!effectiveGeometryKey &&
+          !effectiveGeometryKey.startsWith("current.");
         if (
           original &&
           !hasFiles &&
           !hasRemovedKeys &&
+          !hasGeometryChange &&
           !isFormDirty(original, values)
         ) {
           delete state.drafts[featureId];
@@ -220,6 +235,9 @@ const featuresFormsSlice = createSlice({
         feature: feature ?? existing?.feature,
         fetchedData: fetchedData ?? existing?.fetchedData,
         isCreation: creationDraft,
+        // Captured once at draft-open and frozen — later setDraft calls (form
+        // edits) must not clear the geom-row id the in-place save needs.
+        featureGeomId: existing?.featureGeomId ?? featureGeomId,
         geometry: geometry ?? existing?.geometry,
         geometryKey: geometryKey ?? existing?.geometryKey,
         // Use explicit-key semantics (not `??`) so a geometry switch that
@@ -581,6 +599,15 @@ export const getAllDrafts = (state: RootState): Record<string, Draft> =>
   state.featuresForms?.drafts ?? {};
 
 // Check if a specific draft has actual changes compared to its original values
+// An existing feature whose geometry was switched to a measurement is "dirty"
+// even when no form field changed. The feature's own geometry option is keyed
+// "current.<id>"; anything else means the user picked a different geometry.
+const draftGeometryEdited = (draft: Draft | undefined): boolean =>
+  !!draft &&
+  !draft.isCreation &&
+  !!draft.geometryKey &&
+  !draft.geometryKey.startsWith("current.");
+
 export const hasDraftChanges = (
   state: RootState,
   featureId: string | undefined
@@ -591,6 +618,7 @@ export const hasDraftChanges = (
   if (draft.files && draft.files.length > 0) return true;
   if (draft.removedDocumentKeys && draft.removedDocumentKeys.length > 0)
     return true;
+  if (draftGeometryEdited(draft)) return true;
   const original = state.featuresForms?.originalValues[featureId];
   if (!original) return true;
   return isFormDirty(original, draft.values);
@@ -600,8 +628,9 @@ export const hasDraftChanges = (
 export const hasAnyDraftChanges = (state: RootState): boolean => {
   const drafts = state.featuresForms?.drafts ?? {};
   const originals = state.featuresForms?.originalValues ?? {};
-  return Object.entries(drafts).some(([id, draft]) =>
-    isFormDirty(originals[id], draft.values)
+  return Object.entries(drafts).some(
+    ([id, draft]) =>
+      isFormDirty(originals[id], draft.values) || draftGeometryEdited(draft)
   );
 };
 
@@ -639,7 +668,10 @@ export const getChangedDraftIds = (state: RootState): string[] => {
   const drafts = state.featuresForms?.drafts ?? {};
   const originals = state.featuresForms?.originalValues ?? {};
   return Object.entries(drafts)
-    .filter(([id, draft]) => isFormDirty(originals[id], draft.values))
+    .filter(
+      ([id, draft]) =>
+        isFormDirty(originals[id], draft.values) || draftGeometryEdited(draft)
+    )
     .map(([id]) => id);
 };
 
