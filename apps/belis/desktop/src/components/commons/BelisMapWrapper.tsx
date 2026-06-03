@@ -876,14 +876,19 @@ const BelisMapLibWrapper = ({
   // also be suppressed — otherwise the old tile icon stacks underneath the
   // brandnew icon on reload.
   //
-  // Mauerlaschen: a geometry-edited Mauerlasche lands in the brandnew FC at its
-  // new position. Its old vector-tile copy must be hidden by id too — and this
-  // is the only suppression that survives a private/clean browser, where the
-  // draft-driven and persisted hidden sets are empty. Hiding by id is a no-op
-  // for freshly created Mauerlaschen (their new ids aren't in the tiles).
+  // Self-positioned point layers (Mauerlasche, Schaltstelle, Abzweigdose): a
+  // geometry-edited feature lands in the brandnew FC at its new position. Its
+  // old vector-tile copy must be hidden by id too — and this is the only
+  // suppression that survives a private/clean browser, where the draft-driven
+  // and persisted hidden sets are empty. Hiding by id is a no-op for freshly
+  // created features (their new ids aren't in the tiles).
+  const SELF_POSITIONED_EDIT_LAYERS = useMemo(
+    () => new Set(["mauerlaschen", "schaltstelle", "abzweigdosen"]),
+    []
+  );
   const brandnewHiddenOriginalIds = useMemo<HiddenOriginalIds>(() => {
     const standorteIds = new Set<number>();
-    const mauerlaschenIds = new Set<number>();
+    const selfPositioned: Record<string, Set<number>> = {};
     for (const f of brandnewFc.features ?? []) {
       const sourceLayer = String(f.properties?._sourceLayer ?? "");
       if (sourceLayer === "leuchten") {
@@ -892,16 +897,23 @@ const BelisMapLibWrapper = ({
       } else if (sourceLayer === "standorte") {
         const id = Number(f.properties?.id ?? f.id);
         if (Number.isFinite(id)) standorteIds.add(id);
-      } else if (sourceLayer === "mauerlaschen") {
+      } else if (SELF_POSITIONED_EDIT_LAYERS.has(sourceLayer)) {
         const id = Number(f.properties?.id ?? f.id);
-        if (Number.isFinite(id)) mauerlaschenIds.add(id);
+        if (Number.isFinite(id)) {
+          const bucket =
+            selfPositioned[sourceLayer] ??
+            (selfPositioned[sourceLayer] = new Set());
+          bucket.add(id);
+        }
       }
     }
     const out: HiddenOriginalIds = {};
     if (standorteIds.size > 0) out.standorte = [...standorteIds];
-    if (mauerlaschenIds.size > 0) out.mauerlaschen = [...mauerlaschenIds];
+    for (const [sl, set] of Object.entries(selfPositioned)) {
+      if (set.size > 0) out[sl] = [...set];
+    }
     return out;
-  }, [brandnewFc]);
+  }, [brandnewFc, SELF_POSITIONED_EDIT_LAYERS]);
 
   // Geometry-edit drafts move an existing feature to a new position that the
   // brandnew preview renders. Hide the feature's original copy — both its

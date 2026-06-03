@@ -41,6 +41,9 @@ interface MastFormFieldsProps {
    * the Standort tab when creating a Leuchte against an existing Mast,
    * to signal the data belongs to that Mast and is not editable here. */
   locked?: boolean;
+  /** Edit-geometry selector, rendered above Strassenschlüssel. Only supplied
+   * for the Standort's own Allgemein tab (not the Leuchte-creation Mast tab). */
+  geometrySelector?: React.ReactNode;
   form?: import("antd").FormInstance;
   onFormInstance?: (form: import("antd").FormInstance) => void;
   draftValues?: Record<string, unknown>;
@@ -202,6 +205,7 @@ const MastFormFields = ({
   featureId,
   readOnlyStrassenschluessel = false,
   locked = false,
+  geometrySelector,
   form: externalForm,
   onFormInstance,
   draftValues,
@@ -335,6 +339,8 @@ const MastFormFields = ({
       )}
       onValuesChange={onValuesChange}
     >
+      {geometrySelector}
+
       {readOnlyStrassenschluessel ? (
         <StrassenschluesselFields namePrefix={namePrefix} />
       ) : !readOnly ? (
