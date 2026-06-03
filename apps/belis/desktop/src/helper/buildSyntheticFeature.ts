@@ -30,7 +30,7 @@ const creationLabels: Record<string, string> = {
   abzweigdose: "Neue Abzweigdose",
 };
 
-function convertGeometryToWgs84(
+export function convertGeometryToWgs84(
   geom: GeoJSON.Geometry
 ): GeoJSON.Geometry | undefined {
   if (geom.type === "Point") {

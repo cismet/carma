@@ -34,6 +34,29 @@ const wgs84CoordTo25832 = (c: number[]): [number, number] =>
 
 export const STANDORT_OPTION_PREFIX = "standort.";
 
+// Geometry-edit flow ("change an existing feature's shape to a measurement").
+// The first option in the selector reproduces the feature's *current*
+// geometry so the user can always revert to it before saving.
+export const CURRENT_OPTION_PREFIX = "current.";
+
+// Build the "Momentane Geometrie" option from an existing feature's own
+// `geom.geo_field`. Unlike measurement/Standort options this geometry is
+// already EPSG:25832 (it comes straight from the DB record), so it is passed
+// through unprojected — re-selecting it must yield the exact original
+// coordinates with no reprojection round-trip drift. Point-only for v1.
+export const buildCurrentGeometryOption = (
+  geoField: GeoJSON.Geometry | null | undefined,
+  featureDbId: number | string | undefined
+): MeasurementGeometryOption | null => {
+  if (!geoField || featureDbId == null) return null;
+  if (geoField.type !== "Point") return null;
+  return {
+    key: `${CURRENT_OPTION_PREFIX}${String(featureDbId)}`,
+    label: "Momentane Geometrie",
+    geometry: geoField as MeasurementGeometryOption["geometry"],
+  };
+};
+
 export const parseStandortIdFromKey = (
   geometryKey: string | undefined
 ): number | undefined => {

@@ -340,6 +340,20 @@ export const saveFeatureDraft = async (
       strassenschluesselByPk
     );
 
+    // 4a. Geometry edit: the user switched this existing feature's shape to a
+    // measurement. Update the same `geom` row in place (same geom id) so the
+    // feature keeps its identity — mirrors the "Leitung verlängern" pattern.
+    // A "current.*" key means the geometry was left untouched (or reverted),
+    // so no geom is sent. Falls back to id: -1 when the geom id wasn't
+    // captured at draft-open (backend then creates a fresh geom and re-links).
+    const geometryEdited =
+      !!draft.geometry &&
+      !!draft.geometryKey &&
+      !draft.geometryKey.startsWith("current.");
+    const geomPayload = geometryEdited
+      ? { id: draft.featureGeomId ?? -1, geo_field: draft.geometry }
+      : undefined;
+
     // 4. Build final payload
     const dataToSave: Record<string, unknown> = {
       id: featureDbId,
@@ -347,6 +361,7 @@ export const saveFeatureDraft = async (
       ...(finalDokumenteArray !== undefined
         ? { dokumenteArray: finalDokumenteArray }
         : {}),
+      ...(geomPayload ? { geom: geomPayload } : {}),
     };
 
     // 5. Send to API

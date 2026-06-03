@@ -182,6 +182,7 @@ import {
 import {
   buildSyntheticFeature,
   featureTypeToSourceLayer,
+  convertGeometryToWgs84,
 } from "../../helper/buildSyntheticFeature";
 // import { useAaLassoSelection } from "../../hooks/useAaLassoSelection";
 import { useBrandnewFcSync } from "../../hooks/useBrandnewFcSync";
@@ -814,20 +815,46 @@ const BelisMapLibWrapper = ({
     for (const [draftKey, draft] of Object.entries(
       allDraftsForMeasurementLink
     )) {
-      if (draft.isCreation !== true) continue;
-      if (!draft.feature) continue;
       if (!draft.geometry) continue;
-      if (draft.featureType === "leuchte") {
-        out.push(
-          buildLeuchteDraftStandortFeature(
-            draftKey,
-            draft,
-            keyTablesData
-          ) as unknown as GeoJSON.Feature
-        );
-      } else {
-        out.push(draft.feature as unknown as GeoJSON.Feature);
+
+      if (draft.isCreation === true) {
+        if (!draft.feature) continue;
+        if (draft.featureType === "leuchte") {
+          out.push(
+            buildLeuchteDraftStandortFeature(
+              draftKey,
+              draft,
+              keyTablesData
+            ) as unknown as GeoJSON.Feature
+          );
+        } else {
+          out.push(draft.feature as unknown as GeoJSON.Feature);
+        }
+        continue;
       }
+
+      // Geometry-edit preview: an existing feature whose shape was switched
+      // to a measurement. Render the pending position via the brandnew
+      // styling (piggy-backs on `_sourceLayer`) while the original tile
+      // feature stays visible underneath (it is not hidden). A distinct
+      // `edit:` id + `_isGeometryEditPreview` flag keep it apart from real
+      // creation drafts.
+      const geometryEdited =
+        !!draft.geometryKey && !draft.geometryKey.startsWith("current.");
+      if (!geometryEdited) continue;
+      const wgs84 = convertGeometryToWgs84(draft.geometry);
+      if (!wgs84) continue;
+      out.push({
+        type: "Feature",
+        id: `edit:${draftKey}`,
+        properties: {
+          ...((draft.feature?.properties as Record<string, unknown>) ?? {}),
+          _sourceLayer:
+            featureTypeToSourceLayer[draft.featureType] ?? draft.featureType,
+          _isGeometryEditPreview: true,
+        },
+        geometry: wgs84,
+      } as unknown as GeoJSON.Feature);
     }
     return out;
   }, [allDraftsForMeasurementLink, keyTablesData]);
