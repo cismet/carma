@@ -875,8 +875,15 @@ const BelisMapLibWrapper = ({
   // parent Standort of every brandnew Leuchte (and any brandnew Standort) must
   // also be suppressed — otherwise the old tile icon stacks underneath the
   // brandnew icon on reload.
+  //
+  // Mauerlaschen: a geometry-edited Mauerlasche lands in the brandnew FC at its
+  // new position. Its old vector-tile copy must be hidden by id too — and this
+  // is the only suppression that survives a private/clean browser, where the
+  // draft-driven and persisted hidden sets are empty. Hiding by id is a no-op
+  // for freshly created Mauerlaschen (their new ids aren't in the tiles).
   const brandnewHiddenOriginalIds = useMemo<HiddenOriginalIds>(() => {
     const standorteIds = new Set<number>();
+    const mauerlaschenIds = new Set<number>();
     for (const f of brandnewFc.features ?? []) {
       const sourceLayer = String(f.properties?._sourceLayer ?? "");
       if (sourceLayer === "leuchten") {
@@ -885,9 +892,15 @@ const BelisMapLibWrapper = ({
       } else if (sourceLayer === "standorte") {
         const id = Number(f.properties?.id ?? f.id);
         if (Number.isFinite(id)) standorteIds.add(id);
+      } else if (sourceLayer === "mauerlaschen") {
+        const id = Number(f.properties?.id ?? f.id);
+        if (Number.isFinite(id)) mauerlaschenIds.add(id);
       }
     }
-    return standorteIds.size > 0 ? { standorte: [...standorteIds] } : {};
+    const out: HiddenOriginalIds = {};
+    if (standorteIds.size > 0) out.standorte = [...standorteIds];
+    if (mauerlaschenIds.size > 0) out.mauerlaschen = [...mauerlaschenIds];
+    return out;
   }, [brandnewFc]);
 
   // Geometry-edit drafts move an existing feature to a new position that the
