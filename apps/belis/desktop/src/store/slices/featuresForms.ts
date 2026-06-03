@@ -1,6 +1,6 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import type { RootState } from "../index";
-import { isFormDirty } from "../../components/ui/featuresForm/formDiffUtils";
+import { isFormDirtyManaged } from "../../components/ui/featuresForm/formDiffUtils";
 import type { DokumentItem } from "../../components/ui/DocumentPreview";
 
 export interface DraftFile {
@@ -228,7 +228,7 @@ const featuresFormsSlice = createSlice({
           !hasFiles &&
           !hasRemovedKeys &&
           !hasGeometryChange &&
-          !isFormDirty(original, values)
+          !isFormDirtyManaged(original, values)
         ) {
           delete state.drafts[featureId];
           return;
@@ -673,7 +673,7 @@ export const hasDraftChanges = (
   if (draftGeometryEdited(draft)) return true;
   const original = state.featuresForms?.originalValues[featureId];
   if (!original) return true;
-  return isFormDirty(original, draft.values);
+  return isFormDirtyManaged(original, draft.values);
 };
 
 // Check if any draft across all features has actual changes
@@ -682,7 +682,10 @@ export const hasAnyDraftChanges = (state: RootState): boolean => {
   const originals = state.featuresForms?.originalValues ?? {};
   return Object.entries(drafts).some(
     ([id, draft]) =>
-      isFormDirty(originals[id], draft.values) || draftGeometryEdited(draft)
+      (draft.files?.length ?? 0) > 0 ||
+      (draft.removedDocumentKeys?.length ?? 0) > 0 ||
+      isFormDirtyManaged(originals[id], draft.values) ||
+      draftGeometryEdited(draft)
   );
 };
 
@@ -722,7 +725,10 @@ export const getChangedDraftIds = (state: RootState): string[] => {
   return Object.entries(drafts)
     .filter(
       ([id, draft]) =>
-        isFormDirty(originals[id], draft.values) || draftGeometryEdited(draft)
+        (draft.files?.length ?? 0) > 0 ||
+        (draft.removedDocumentKeys?.length ?? 0) > 0 ||
+        isFormDirtyManaged(originals[id], draft.values) ||
+        draftGeometryEdited(draft)
     )
     .map(([id]) => id);
 };
