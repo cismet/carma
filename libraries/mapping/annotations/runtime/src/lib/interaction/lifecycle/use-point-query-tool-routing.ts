@@ -89,7 +89,10 @@ export const usePointQueryToolRouting = ({
     (
       coordinate: CesiumGeographicCoordinate,
       screenPosition?: { x: number; y: number },
-      options?: { forcedSnappedNodeId?: string | null }
+      options?: {
+        forcedSnappedNodeId?: string | null;
+        forceAccepted?: boolean;
+      }
     ) => {
       const resolvedPointQuerySample = resolvePointQuerySample(
         coordinate,
@@ -100,7 +103,8 @@ export const usePointQueryToolRouting = ({
       if (nodeCreatedHandler) {
         nodeCreatedHandler(
           resolvedPointQuerySample.coordinate,
-          resolvedPointQuerySample.linkedNodeGroupId
+          resolvedPointQuerySample.linkedNodeGroupId,
+          { forceAccepted: options?.forceAccepted }
         );
         return;
       }
@@ -108,6 +112,7 @@ export const usePointQueryToolRouting = ({
       activePlugin?.pointQuery?.onPointCreated({
         coordinate: resolvedPointQuerySample.coordinate,
         linkedNodeGroupId: resolvedPointQuerySample.linkedNodeGroupId,
+        forceAccepted: options?.forceAccepted,
         activeToolType,
         activeToolSession,
         toolSessions,

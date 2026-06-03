@@ -7,6 +7,10 @@ import {
 } from "@carma-mapping/engines/cesium/core";
 
 import {
+  canPlaceAreaPlanarTrapezoidSecondPointOnHorizontalPlane,
+  canPlaceAreaPlanarTrapezoidSecondPointWithinHorizontalLineMaxLength,
+  getAreaPlanarTrapezoidSecondPointHorizontalLineLengthMeters,
+  getAreaPlanarTrapezoidSecondPointHorizontalPlaneDistanceMeters,
   resolveAreaPlanarTrapezoidDraftCoordinates,
   resolveAreaPlanarTrapezoidMeasurementCoordinates,
   resolveNextAreaPlanarTrapezoidDraftCoordinates,
@@ -54,6 +58,79 @@ const resolveBaseRatio = (
 };
 
 describe("area planar trapezoid construction", () => {
+  it("checks whether the second point can be placed on the horizontal plane", () => {
+    const anchor = Cartesian3.fromDegrees(7, 51, 100);
+    const first = geographicCoordinateFromCartesian3(anchor);
+    const nearSecond = geographicCoordinate(7.0001, 51, 100.05);
+    const farSecond = geographicCoordinate(7.0001, 51, 100.25);
+
+    expect(
+      getAreaPlanarTrapezoidSecondPointHorizontalPlaneDistanceMeters({
+        coordinate: nearSecond,
+        previousCoordinates: [first],
+      })
+    ).toBeLessThan(0.1);
+    expect(
+      canPlaceAreaPlanarTrapezoidSecondPointOnHorizontalPlane({
+        coordinate: nearSecond,
+        previousCoordinates: [first],
+        toleranceMeters: 0.1,
+      })
+    ).toBe(true);
+    expect(
+      canPlaceAreaPlanarTrapezoidSecondPointOnHorizontalPlane({
+        coordinate: farSecond,
+        previousCoordinates: [first],
+        toleranceMeters: 0.1,
+      })
+    ).toBe(false);
+  });
+
+  it("checks whether the second point stays within the local horizontal line length", () => {
+    const anchor = Cartesian3.fromDegrees(7, 51, 100);
+    const first = geographicCoordinateFromCartesian3(anchor);
+    const localUp = Cartesian3.normalize(anchor, new Cartesian3());
+    const localEast = Cartesian3.normalize(
+      Cartesian3.cross(Cartesian3.UNIT_Z, localUp, new Cartesian3()),
+      new Cartesian3()
+    );
+    const createSecondPoint = (horizontalOffsetMeters: number) =>
+      geographicCoordinateFromCartesian3(
+        Cartesian3.add(
+          anchor,
+          Cartesian3.multiplyByScalar(
+            localEast,
+            horizontalOffsetMeters,
+            new Cartesian3()
+          ),
+          new Cartesian3()
+        )
+      );
+    const nearSecond = createSecondPoint(10);
+    const farSecond = createSecondPoint(30);
+
+    expect(
+      getAreaPlanarTrapezoidSecondPointHorizontalLineLengthMeters({
+        coordinate: nearSecond,
+        previousCoordinates: [first],
+      })
+    ).toBeCloseTo(10, 6);
+    expect(
+      canPlaceAreaPlanarTrapezoidSecondPointWithinHorizontalLineMaxLength({
+        coordinate: nearSecond,
+        previousCoordinates: [first],
+        maxLengthMeters: 20,
+      })
+    ).toBe(true);
+    expect(
+      canPlaceAreaPlanarTrapezoidSecondPointWithinHorizontalLineMaxLength({
+        coordinate: farSecond,
+        previousCoordinates: [first],
+        maxLengthMeters: 20,
+      })
+    ).toBe(false);
+  });
+
   it("constrains the second point to the first point altitude", () => {
     const anchor = Cartesian3.fromDegrees(7, 51, 100);
     const first = geographicCoordinateFromCartesian3(

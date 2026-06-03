@@ -10,7 +10,8 @@ export type AnnotationModeSession = {
   discardDraft: () => void;
   onNodeCreated?: (
     coordinate: CesiumGeographicCoordinate,
-    linkedNodeGroupId?: AnnotationNodeLinkId | null
+    linkedNodeGroupId?: AnnotationNodeLinkId | null,
+    options?: { forceAccepted?: boolean }
   ) => void;
   finishesOnLoopClosure?: boolean;
 };

@@ -55,6 +55,7 @@ import {
   resolveMeasurementLineStyleOptions,
   type MeasurementLineStyleOptions,
 } from "../config/measurement-line-style-options";
+import { createHorizontalLinePreviewController } from "./create-horizontal-line-preview-controller";
 
 const DRAFT_CHAIN_OVERLAY_LAYER_ID =
   "annotation-overlay-draft-chain-preview-layer";
@@ -243,6 +244,11 @@ export const createPolygonAuthoringController = ({
   occlusionStyleOptions,
   measurementLineStyleOptions,
   resolveMeasurementCoordinates,
+  showInitialHorizontalLinePreview,
+  initialHorizontalLinePreviewDiskColorCss,
+  initialHorizontalLinePreviewDiskOpacity,
+  initialHorizontalLinePreviewPlaneToleranceMeters,
+  initialHorizontalLinePreviewMaxLengthMeters,
 }: {
   toolType: AnnotationTypes["AREA_GROUND"] | AnnotationTypes["AREA_PLANAR"];
   draftToolId?: AnnotationToolId;
@@ -250,6 +256,11 @@ export const createPolygonAuthoringController = ({
   occlusionStyleOptions?: AreaOcclusionStyleOptions;
   measurementLineStyleOptions?: MeasurementLineStyleOptions;
   resolveMeasurementCoordinates?: PolygonAuthoringMeasurementCoordinatesResolver;
+  showInitialHorizontalLinePreview?: boolean;
+  initialHorizontalLinePreviewDiskColorCss?: string;
+  initialHorizontalLinePreviewDiskOpacity?: number | null;
+  initialHorizontalLinePreviewPlaneToleranceMeters?: number | null;
+  initialHorizontalLinePreviewMaxLengthMeters?: number | null;
 }): AnnotationToolAuthoringController | null => {
   const {
     scene,
@@ -299,6 +310,22 @@ export const createPolygonAuthoringController = ({
     colorCss: getAnnotationAreaCssColor(toolType, 0.9),
     strokeWidth: resolvedLineStyleOptions.strokeWidthPx,
   });
+  const initialHorizontalLinePreviewController =
+    showInitialHorizontalLinePreview
+      ? createHorizontalLinePreviewController(scene, {
+          id: `${previewId}-initial-horizontal-line-preview-disc`,
+          colorCss:
+            initialHorizontalLinePreviewDiskColorCss ??
+            getAnnotationAreaCssColor(toolType, 1),
+          opacity:
+            typeof initialHorizontalLinePreviewDiskOpacity === "number"
+              ? initialHorizontalLinePreviewDiskOpacity
+              : 0.45,
+          planePlacementToleranceMeters:
+            initialHorizontalLinePreviewPlaneToleranceMeters,
+          maxLengthMeters: initialHorizontalLinePreviewMaxLengthMeters,
+        })
+      : null;
   const previewFillController = createMeasurementPolygonFillsController(scene, {
     allowPicking: false,
   });
@@ -316,6 +343,7 @@ export const createPolygonAuthoringController = ({
   let pointQueryPickResult: PointQueryPickResult | null = null;
   let draftCoordinates = [...drafts.get(previewId).coordinates];
   let currentAreaLabelState: PreviewAreaLabelState | null = null;
+  let currentPointQueryPickAcceptable = true;
   const resolvedAnnotationLineLabelOptions =
     resolveAnnotationLineLabelOptions(lineLabelOptions);
 
@@ -328,6 +356,7 @@ export const createPolygonAuthoringController = ({
       draftChainController.clear();
       polygonLoopController.clear();
       projectionNormalController.clear();
+      initialHorizontalLinePreviewController?.clear();
       previewFillController.clear();
       previewOverlayFillController.clear();
       currentAreaLabelState = null;
@@ -368,15 +397,32 @@ export const createPolygonAuthoringController = ({
         ? sampleCoordinates
         : draftCoordinates);
     const markerCoordinates =
-      isSamplingInitialSegment && resolvedSampleCoordinates
-        ? resolvedSampleCoordinates
-        : resolvedSampleCoordinates || isSamplingInitialSegment || !hoverCoordinate
+      isSamplingInitialSegment
+        ? (resolvedSampleCoordinates ?? previewCoordinates)
+        : resolvedSampleCoordinates || !hoverCoordinate
           ? sampleCoordinates
           : draftCoordinates;
     const hasResolvedMeasurementCoordinates =
       !resolveMeasurementCoordinates ||
       isSamplingInitialSegment ||
       resolvedMeasurementCoordinates !== null;
+    currentPointQueryPickAcceptable =
+      !hoverCoordinate || resolvedSampleCoordinates !== null;
+
+    if (initialHorizontalLinePreviewController) {
+      if (
+        draftCoordinates.length === 1 &&
+        hoverCoordinate &&
+        draftCoordinates[0]
+      ) {
+        initialHorizontalLinePreviewController.setState({
+          anchorECEF: cartesian3FromGeographicCoordinate(draftCoordinates[0]),
+          targetECEF: cartesian3FromGeographicCoordinate(hoverCoordinate),
+        });
+      } else {
+        initialHorizontalLinePreviewController.clear();
+      }
+    }
 
     draftChainController.setState({
       lineCoordinates: previewCoordinates,
@@ -487,11 +533,13 @@ export const createPolygonAuthoringController = ({
       pointQueryPickResult = pickResult;
       render();
     },
+    isPointQueryPickResultAcceptable: () => currentPointQueryPickAcceptable,
     destroy: () => {
       unsubscribe();
       draftChainController.destroy();
       polygonLoopController.destroy();
       projectionNormalController.destroy();
+      initialHorizontalLinePreviewController?.destroy();
       previewFillController.destroy();
       previewOverlayFillController.destroy();
       areaLabelController.destroy();

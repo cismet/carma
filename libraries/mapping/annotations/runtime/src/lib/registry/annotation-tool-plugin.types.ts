@@ -98,6 +98,7 @@ export type AnnotationToolAddAnnotationContext = {
 export type PointQueryCreatedContext = {
   coordinate: CesiumGeographicCoordinate;
   linkedNodeGroupId: AnnotationNodeLinkId | null;
+  forceAccepted?: boolean;
   activeToolType: AnnotationToolId;
   activeToolSession: AnnotationModeSession | null;
   toolSessions: AnnotationModeSessionMap;
@@ -114,6 +115,7 @@ export type PointQueryPickResult = {
 export type AnnotationToolAuthoringController = {
   setEnabled: (enabled: boolean) => void;
   setPointQueryPickResult: (pickResult: PointQueryPickResult | null) => void;
+  isPointQueryPickResultAcceptable?: () => boolean;
   destroy: () => void;
 };
 

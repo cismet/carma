@@ -46,7 +46,13 @@ import {
   type AreaPlanarProjectionMode,
 } from "./area-planar-projection";
 import {
+  AREA_PLANAR_TRAPEZOID_DEFAULT_HORIZONTAL_LINE_MAX_LENGTH_METERS,
+  AREA_PLANAR_TRAPEZOID_DEFAULT_HORIZONTAL_PLANE_TOLERANCE_METERS,
+  canPlaceAreaPlanarTrapezoidSecondPointOnHorizontalPlane,
+  canPlaceAreaPlanarTrapezoidSecondPointWithinHorizontalLineMaxLength,
   resolveAreaPlanarTrapezoidDraftCoordinates,
+  resolveAreaPlanarTrapezoidHorizontalLineMaxLengthMeters,
+  resolveAreaPlanarTrapezoidHorizontalPlaneToleranceMeters,
   resolveAreaPlanarTrapezoidMeasurementCoordinates,
   resolveNextAreaPlanarTrapezoidDraftCoordinates,
 } from "./area-planar-trapezoid";
@@ -65,6 +71,12 @@ const AREA_PLANAR_OCCLUSION_STYLE_DEFAULTS = resolveAreaOcclusionStyleOptions({
 });
 const AREA_PLANAR_REJECTED_POINT_FEEDBACK =
   "Der letzte Punkt wurde nicht übernommen: Die projizierte Kontur würde sich selbst schneiden oder die Ebene zu stark kippen.";
+const AREA_PLANAR_TRAPEZOID_HORIZONTAL_PLANE_REJECTED_POINT_FEEDBACK =
+  "Der letzte Punkt wurde nicht übernommen: Der zweite Punkt liegt zu weit von der horizontalen Hilfsebene entfernt.";
+const AREA_PLANAR_TRAPEZOID_HORIZONTAL_LINE_TOO_LONG_FEEDBACK =
+  "Der letzte Punkt wurde nicht übernommen: Die horizontale Hilfslinie ist zu lang für die lokale Tangentenebene. Für längere Strecken bitte eine geodätische Linienmessung verwenden.";
+const AREA_PLANAR_TRAPEZOID_HORIZONTAL_LINE_PREVIEW_DISK_COLOR_CSS =
+  "#00d9ff";
 const AREA_PLANAR_INPUT_MODES = {
   PROJECTED_POLYGON: "projected-polygon",
   TRAPEZOID: "trapezoid",
@@ -94,6 +106,10 @@ export type AreaPlanarToolPluginOptions = {
   occlusionStyleOptions?: AreaOcclusionStyleOptions;
   measurementLineStyleOptions?: MeasurementLineStyleOptions;
   maxPlaneNormalChangeDeg?: number | null;
+  trapezoidHorizontalPlaneToleranceMeters?: number | null;
+  trapezoidHorizontalLineMaxLengthMeters?: number | null;
+  trapezoidHorizontalLinePreviewDiskColorCss?: string;
+  trapezoidHorizontalLinePreviewDiskOpacity?: number | null;
   texts?: DefaultAnnotationToolTexts;
 };
 
@@ -170,10 +186,22 @@ const createAreaPlanarToolVariantPlugin = ({
   occlusionStyleOptions,
   measurementLineStyleOptions,
   maxPlaneNormalChangeDeg = AREA_PLANAR_DEFAULT_MAX_PLANE_NORMAL_CHANGE_DEG,
+  trapezoidHorizontalPlaneToleranceMeters = AREA_PLANAR_TRAPEZOID_DEFAULT_HORIZONTAL_PLANE_TOLERANCE_METERS,
+  trapezoidHorizontalLineMaxLengthMeters = AREA_PLANAR_TRAPEZOID_DEFAULT_HORIZONTAL_LINE_MAX_LENGTH_METERS,
+  trapezoidHorizontalLinePreviewDiskColorCss = AREA_PLANAR_TRAPEZOID_HORIZONTAL_LINE_PREVIEW_DISK_COLOR_CSS,
+  trapezoidHorizontalLinePreviewDiskOpacity = 0.45,
   texts = defaultAnnotationToolTexts,
 }: AreaPlanarToolPluginOptions & AreaPlanarToolVariantConfig) => {
   const text = texts.areaPlanar;
   const isTrapezoidInputMode = inputMode === AREA_PLANAR_INPUT_MODES.TRAPEZOID;
+  const resolvedTrapezoidHorizontalPlaneToleranceMeters =
+    resolveAreaPlanarTrapezoidHorizontalPlaneToleranceMeters(
+      trapezoidHorizontalPlaneToleranceMeters
+    );
+  const resolvedTrapezoidHorizontalLineMaxLengthMeters =
+    resolveAreaPlanarTrapezoidHorizontalLineMaxLengthMeters(
+      trapezoidHorizontalLineMaxLengthMeters
+    );
   const resolveDraftInputCoordinates = (
     coordinates: readonly CesiumGeographicCoordinate[]
   ) =>
@@ -254,10 +282,51 @@ const createAreaPlanarToolVariantPlugin = ({
           discardDraft: () => {
             drafts.clear(toolId);
           },
-          onNodeCreated: (coordinate, linkedNodeGroupId) => {
+          onNodeCreated: (coordinate, linkedNodeGroupId, options) => {
             const currentDraft = drafts.get(toolId);
             const isFourthTrapezoidPoint =
               isTrapezoidInputMode && currentDraft.coordinates.length === 3;
+            if (
+              isTrapezoidInputMode &&
+              !options?.forceAccepted &&
+              !canPlaceAreaPlanarTrapezoidSecondPointWithinHorizontalLineMaxLength(
+                {
+                  coordinate,
+                  previousCoordinates: currentDraft.coordinates,
+                  maxLengthMeters:
+                    resolvedTrapezoidHorizontalLineMaxLengthMeters,
+                }
+              )
+            ) {
+              drafts.set(toolId, {
+                ...currentDraft,
+                feedback: {
+                  kind: "warning",
+                  message:
+                    AREA_PLANAR_TRAPEZOID_HORIZONTAL_LINE_TOO_LONG_FEEDBACK,
+                },
+              });
+              return;
+            }
+            if (
+              isTrapezoidInputMode &&
+              !options?.forceAccepted &&
+              !canPlaceAreaPlanarTrapezoidSecondPointOnHorizontalPlane({
+                coordinate,
+                previousCoordinates: currentDraft.coordinates,
+                toleranceMeters: resolvedTrapezoidHorizontalPlaneToleranceMeters,
+              })
+            ) {
+              drafts.set(toolId, {
+                ...currentDraft,
+                feedback: {
+                  kind: "warning",
+                  message:
+                    AREA_PLANAR_TRAPEZOID_HORIZONTAL_PLANE_REJECTED_POINT_FEEDBACK,
+                },
+              });
+              return;
+            }
             const nextCoordinates = isTrapezoidInputMode
               ? resolveNextAreaPlanarTrapezoidDraftCoordinates({
                   coordinate,
@@ -318,8 +387,11 @@ const createAreaPlanarToolVariantPlugin = ({
         coordinate,
         linkedNodeGroupId,
         activeToolSession,
+        forceAccepted,
       }) => {
-        activeToolSession?.onNodeCreated?.(coordinate, linkedNodeGroupId);
+        activeToolSession?.onNodeCreated?.(coordinate, linkedNodeGroupId, {
+          forceAccepted,
+        });
       },
     },
     addAnnotation: {
@@ -333,11 +405,47 @@ const createAreaPlanarToolVariantPlugin = ({
           context,
           occlusionStyleOptions: resolvedOcclusionStyleOptions,
           measurementLineStyleOptions,
+          showInitialHorizontalLinePreview: isTrapezoidInputMode,
+          initialHorizontalLinePreviewDiskColorCss:
+            trapezoidHorizontalLinePreviewDiskColorCss,
+          initialHorizontalLinePreviewDiskOpacity:
+            trapezoidHorizontalLinePreviewDiskOpacity,
+          initialHorizontalLinePreviewPlaneToleranceMeters:
+            resolvedTrapezoidHorizontalPlaneToleranceMeters,
+          initialHorizontalLinePreviewMaxLengthMeters:
+            resolvedTrapezoidHorizontalLineMaxLengthMeters,
           resolveMeasurementCoordinates: ({
             coordinates,
             previousCoordinates,
             preferredFacingPositionECEF,
           }) => {
+            if (
+              isTrapezoidInputMode &&
+              coordinates.length === 2 &&
+              previousCoordinates?.length === 1 &&
+              !canPlaceAreaPlanarTrapezoidSecondPointWithinHorizontalLineMaxLength(
+                {
+                  coordinate: coordinates[1]!,
+                  previousCoordinates,
+                  maxLengthMeters:
+                    resolvedTrapezoidHorizontalLineMaxLengthMeters,
+                }
+              )
+            ) {
+              return null;
+            }
+            if (
+              isTrapezoidInputMode &&
+              coordinates.length === 2 &&
+              previousCoordinates?.length === 1 &&
+              !canPlaceAreaPlanarTrapezoidSecondPointOnHorizontalPlane({
+                coordinate: coordinates[1]!,
+                previousCoordinates,
+                toleranceMeters: resolvedTrapezoidHorizontalPlaneToleranceMeters,
+              })
+            ) {
+              return null;
+            }
             const measurementInputCoordinates =
               resolveMeasurementInputCoordinates(
                 resolveDraftInputCoordinates(coordinates)
@@ -495,9 +603,10 @@ export const createAreaPlanarTrapezoidToolPlugin = (
     tooltip: "Dachfläche mit Trapez-Konstruktion messen",
     iconLabel: "TR",
     helpText: [
-      "Ersten Punkt frei setzen, zweiten Punkt auf der langen horizontalen Kante setzen.",
-      "Der zweite Punkt wird auf die Höhe des ersten Punkts gezwungen. Ab dem dritten Punkt wird die parallele Trapezkante als Hilfskontur konstruiert.",
-      "Ein vierter Punkt kann die parallele Gegenkante für unsymmetrische Trapeze festlegen.",
+      "Bevorzugt die längste horizontale Dachkante suchen und dort auf eine Ecke mit rechtem Winkel klicken.",
+      "Den zweiten Punkt auf derselben Dachkante setzen. Er wird auf die Höhe des ersten Punkts gezwungen und definiert die horizontale Basiskante.",
+      "Den dritten Punkt auf die parallele Gegenkante setzen. Bei einfachen Trapezen reicht das bereits als Hilfskonstruktion.",
+      "Optional einen vierten Punkt setzen, wenn die Gegenkante unsymmetrisch ist oder die automatische Trapezform nicht passt.",
     ],
     projectionMode: AREA_PLANAR_PROJECTION_MODES.FIRST_NON_COLLINEAR_TRIANGLE,
     inputMode: AREA_PLANAR_INPUT_MODES.TRAPEZOID,

@@ -49,6 +49,11 @@ export type PointQueryIndicatorSample = {
   lockToPreviewPoint?: boolean;
 };
 
+export type PointQueryIndicatorVisualStyle = {
+  color?: string;
+  opacity?: number;
+} | null;
+
 export type PointQueryIndicatorControllerOptions = {
   radius: number;
   placementMode?: PointQueryDiscPlacementMode;
@@ -66,6 +71,7 @@ export type PointQueryIndicatorControllerOptions = {
 
 export type PointQueryIndicatorController = {
   setEnabled: (enabled: boolean) => void;
+  setVisualStyle: (style: PointQueryIndicatorVisualStyle) => void;
   setPreview: (preview: PointQueryIndicatorSample | null) => void;
   clearPreview: () => void;
   destroy: () => void;
@@ -91,6 +97,7 @@ export const createPointQueryIndicatorController = (
   if (!scene || !isValidScene(scene)) {
     return {
       setEnabled: () => undefined,
+      setVisualStyle: () => undefined,
       setPreview: () => undefined,
       clearPreview: () => undefined,
       destroy: () => undefined,
@@ -104,12 +111,21 @@ export const createPointQueryIndicatorController = (
     typeof opacity === "number" && Number.isFinite(opacity)
       ? opacity
       : pointPreviewRingVisualDefaults.alpha;
-  const previewRingColor = color
-    ? Color.fromCssColorString(color)?.withAlpha(resolvedOpacity) ??
-      Color.WHITE.withAlpha(resolvedOpacity)
-    : Color.WHITE.withAlpha(resolvedOpacity);
+  const resolvePreviewRingColor = (style?: PointQueryIndicatorVisualStyle) => {
+    const styleOpacity =
+      typeof style?.opacity === "number" && Number.isFinite(style.opacity)
+        ? style.opacity
+        : resolvedOpacity;
+    const styleColor = style?.color ?? color;
+    return styleColor
+      ? Color.fromCssColorString(styleColor)?.withAlpha(styleOpacity) ??
+          Color.WHITE.withAlpha(styleOpacity)
+      : Color.WHITE.withAlpha(styleOpacity);
+  };
 
   let enabled = false;
+  let previewRingColor = resolvePreviewRingColor();
+  let previewRingStyleKey = previewRingColor.toCssColorString();
   let previewRing: Primitive | null = null;
   let previewRingNormalLineCollection: ReturnType<
     typeof createLineCollection
@@ -368,6 +384,19 @@ export const createPointQueryIndicatorController = (
       } else {
         updatePreviewRing();
       }
+      activeScene.requestRender();
+    },
+    setVisualStyle: (style) => {
+      const nextPreviewRingColor = resolvePreviewRingColor(style);
+      const nextPreviewRingStyleKey = nextPreviewRingColor.toCssColorString();
+      if (previewRingStyleKey === nextPreviewRingStyleKey) {
+        return;
+      }
+
+      previewRingColor = nextPreviewRingColor;
+      previewRingStyleKey = nextPreviewRingStyleKey;
+      clearPreviewRing();
+      updatePreviewRing();
       activeScene.requestRender();
     },
     setPreview: (preview) => {

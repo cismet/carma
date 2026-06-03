@@ -13,7 +13,8 @@ type UseSceneCoordinateHandlerOptions = {
   enabled: boolean;
   onCoordinate?: (
     coordinate: CesiumGeographicCoordinate,
-    screenPosition?: { x: number; y: number }
+    screenPosition?: { x: number; y: number },
+    options?: { forceAccepted?: boolean }
   ) => void;
   onLineFinish?: () => void;
   onHoverCoordinateChange?: (
@@ -69,7 +70,8 @@ export const useSceneCoordinateHandler = (
         {
           x: payload.screenPosition.x,
           y: payload.screenPosition.y,
-        }
+        },
+        { forceAccepted: payload.forceAccepted }
       );
     },
     onLineFinish,

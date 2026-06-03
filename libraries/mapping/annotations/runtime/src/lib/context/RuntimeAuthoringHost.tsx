@@ -47,6 +47,7 @@ import {
 } from "./lifecycle-host-api";
 
 const { POINT: ANNOTATION_TYPE_POINT } = ANNOTATION_TYPES;
+const POINT_QUERY_REJECTED_SAMPLE_COLOR_CSS = "#ef4444";
 
 type RuntimeAuthoringHostProps = {
   scene: Scene | null;
@@ -414,6 +415,7 @@ export const RuntimeAuthoringHost = ({
           hoverClearTimeoutRef.current = null;
           latestPointQueryPickResultRef.current = null;
           activeAuthoringControllerRef.current?.setPointQueryPickResult(null);
+          pointQueryIndicatorControllerRef.current?.setVisualStyle(null);
           pointQueryIndicatorControllerRef.current?.clearPreview();
         }, ANNOTATIONS_HOST_DEFAULTS.hoverClearDelayMs);
         return;
@@ -442,6 +444,14 @@ export const RuntimeAuthoringHost = ({
       activeAuthoringControllerRef.current?.setPointQueryPickResult(
         latestPointQueryPickResultRef.current
       );
+      const isPointQueryPickResultAcceptable =
+        activeAuthoringControllerRef.current?.isPointQueryPickResultAcceptable?.() ??
+        true;
+      pointQueryIndicatorControllerRef.current?.setVisualStyle(
+        isPointQueryPickResultAcceptable
+          ? null
+          : { color: POINT_QUERY_REJECTED_SAMPLE_COLOR_CSS }
+      );
     },
   });
 
@@ -454,6 +464,7 @@ export const RuntimeAuthoringHost = ({
     latestPointQueryPickResultRef.current = null;
     activeAuthoringControllerRef.current?.setPointQueryPickResult(null);
     activeAuthoringControllerRef.current?.setEnabled(false);
+    pointQueryIndicatorControllerRef.current?.setVisualStyle(null);
     pointQueryIndicatorControllerRef.current?.clearPreview();
   }, [clearScheduledHoverReset, pointQueryEnabled]);
 

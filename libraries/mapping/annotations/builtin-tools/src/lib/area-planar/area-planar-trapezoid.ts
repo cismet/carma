@@ -2,8 +2,39 @@ import { Cartesian3 } from "@carma-cesium";
 import type { CesiumGeographicCoordinate } from "@carma-mapping/annotations/runtime";
 import {
   cartesian3FromGeographicCoordinate,
+  getEllipsoidalUpDirectionAtAnchor,
+  getSignedCartesian3DistanceToPlane,
   geographicCoordinateFromCartesian3,
+  projectCartesian3PointOntoPlane,
 } from "@carma-mapping/engines/cesium/core";
+
+export const AREA_PLANAR_TRAPEZOID_DEFAULT_HORIZONTAL_PLANE_TOLERANCE_METERS =
+  0.2;
+// The constructed "horizontal" line is horizontal in the first point's local
+// tangent space. Keep the default local; use geodetic line measures for longer
+// distances instead of treating one tangent plane as globally horizontal.
+export const AREA_PLANAR_TRAPEZOID_DEFAULT_HORIZONTAL_LINE_MAX_LENGTH_METERS =
+  200;
+
+export const resolveAreaPlanarTrapezoidHorizontalPlaneToleranceMeters = (
+  toleranceMeters: number | null | undefined
+): number =>
+  Math.max(
+    0,
+    typeof toleranceMeters === "number" && Number.isFinite(toleranceMeters)
+      ? toleranceMeters
+      : AREA_PLANAR_TRAPEZOID_DEFAULT_HORIZONTAL_PLANE_TOLERANCE_METERS
+  );
+
+export const resolveAreaPlanarTrapezoidHorizontalLineMaxLengthMeters = (
+  maxLengthMeters: number | null | undefined
+): number =>
+  Math.max(
+    0,
+    typeof maxLengthMeters === "number" && Number.isFinite(maxLengthMeters)
+      ? maxLengthMeters
+      : AREA_PLANAR_TRAPEZOID_DEFAULT_HORIZONTAL_LINE_MAX_LENGTH_METERS
+  );
 
 const constrainToAltitude = (
   coordinate: CesiumGeographicCoordinate,
@@ -106,6 +137,103 @@ const constrainToParallelLine = (
       Cartesian3.multiplyByScalar(baseVector, t, new Cartesian3()),
       new Cartesian3()
     )
+  );
+};
+
+export const getAreaPlanarTrapezoidSecondPointHorizontalLineLengthMeters = ({
+  coordinate,
+  previousCoordinates,
+}: {
+  coordinate: CesiumGeographicCoordinate;
+  previousCoordinates: readonly CesiumGeographicCoordinate[];
+}): number | null => {
+  if (previousCoordinates.length !== 1) {
+    return null;
+  }
+
+  const baseStartECEF = cartesian3FromGeographicCoordinate(
+    previousCoordinates[0]!
+  );
+  const horizontalNormal = getEllipsoidalUpDirectionAtAnchor(baseStartECEF);
+  const coordinateOnHorizontalPlane = projectCartesian3PointOntoPlane(
+    cartesian3FromGeographicCoordinate(coordinate),
+    baseStartECEF,
+    horizontalNormal
+  );
+
+  return Cartesian3.distance(baseStartECEF, coordinateOnHorizontalPlane);
+};
+
+export const getAreaPlanarTrapezoidSecondPointHorizontalPlaneDistanceMeters = ({
+  coordinate,
+  previousCoordinates,
+}: {
+  coordinate: CesiumGeographicCoordinate;
+  previousCoordinates: readonly CesiumGeographicCoordinate[];
+}): number | null => {
+  if (previousCoordinates.length !== 1) {
+    return null;
+  }
+
+  const baseStartECEF = cartesian3FromGeographicCoordinate(
+    previousCoordinates[0]!
+  );
+  const coordinateECEF = cartesian3FromGeographicCoordinate(coordinate);
+  return Math.abs(
+    getSignedCartesian3DistanceToPlane(
+      coordinateECEF,
+      baseStartECEF,
+      getEllipsoidalUpDirectionAtAnchor(baseStartECEF)
+    )
+  );
+};
+
+export const canPlaceAreaPlanarTrapezoidSecondPointWithinHorizontalLineMaxLength =
+  ({
+    coordinate,
+    previousCoordinates,
+    maxLengthMeters,
+  }: {
+    coordinate: CesiumGeographicCoordinate;
+    previousCoordinates: readonly CesiumGeographicCoordinate[];
+    maxLengthMeters?: number | null;
+  }): boolean => {
+    const lineLengthMeters =
+      getAreaPlanarTrapezoidSecondPointHorizontalLineLengthMeters({
+        coordinate,
+        previousCoordinates,
+      });
+    if (lineLengthMeters === null) {
+      return true;
+    }
+
+    return (
+      lineLengthMeters <=
+      resolveAreaPlanarTrapezoidHorizontalLineMaxLengthMeters(maxLengthMeters)
+    );
+  };
+
+export const canPlaceAreaPlanarTrapezoidSecondPointOnHorizontalPlane = ({
+  coordinate,
+  previousCoordinates,
+  toleranceMeters,
+}: {
+  coordinate: CesiumGeographicCoordinate;
+  previousCoordinates: readonly CesiumGeographicCoordinate[];
+  toleranceMeters?: number | null;
+}): boolean => {
+  const distanceMeters =
+    getAreaPlanarTrapezoidSecondPointHorizontalPlaneDistanceMeters({
+      coordinate,
+      previousCoordinates,
+    });
+  if (distanceMeters === null) {
+    return true;
+  }
+
+  return (
+    distanceMeters <=
+    resolveAreaPlanarTrapezoidHorizontalPlaneToleranceMeters(toleranceMeters)
   );
 };
 
