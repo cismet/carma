@@ -84,6 +84,7 @@ interface StandortFormProps {
   isCreation?: boolean;
   featureId?: string;
   formHeaderContent?: ReactNode;
+  geometrySelector?: ReactNode;
   onDraftChange?: (values: Record<string, unknown>) => void;
   onDraftFilesChange?: (files: DraftFile[]) => void;
   onOriginalValues?: (values: Record<string, unknown>) => void;
@@ -106,6 +107,7 @@ const StandortForm = ({
   isCreation,
   featureId,
   formHeaderContent,
+  geometrySelector,
   onDraftChange,
   onDraftFilesChange,
   onOriginalValues,
@@ -635,6 +637,7 @@ const StandortForm = ({
         readOnly={readOnly}
         isCreation={isCreation}
         featureId={featureId}
+        geometrySelector={geometrySelector}
         onFormInstance={setMastForm}
         draftValues={mastSlice}
         onValuesChange={handleMastValuesChange}

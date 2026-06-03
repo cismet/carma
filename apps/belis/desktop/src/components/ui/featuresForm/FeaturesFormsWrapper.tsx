@@ -343,10 +343,20 @@ const FeaturesFormsWrapper = ({
   ]);
 
   // --- Geometry edit ("change an existing feature's shape to a measurement").
-  // v1: Mauerlasche, Point-only. The feature's own geom row id + geometry are
-  // pulled from the fetched DB record; the selector offers "Momentane
-  // Geometrie" (the current shape) plus the visible point measurements.
-  const isGeometryEditFeature = !isCreation && formKey === "mauerlasche";
+  // Point-only. The feature's own geom row id + geometry are pulled from the
+  // fetched DB record; the selector offers "Momentane Geometrie" (the current
+  // shape) plus the visible point measurements. Enabled for every point feature
+  // except Leitungen (lines). Leuchten are deliberately excluded: a Leuchte has
+  // no own geometry — it is positioned at its parent Standort's point — so it is
+  // moved only via that Standort (which carries the whole mast group with it).
+  const GEOMETRY_EDIT_FORM_KEYS = new Set([
+    "mauerlasche",
+    "schaltstelle",
+    "abzweigdose",
+    "standort",
+  ]);
+  const isGeometryEditFeature =
+    !isCreation && !!formKey && GEOMETRY_EDIT_FORM_KEYS.has(formKey);
 
   const editFeatureRecord = useMemo(() => {
     if (!isGeometryEditFeature || !formKey || !data) return undefined;
@@ -1135,6 +1145,11 @@ const FeaturesFormsWrapper = ({
                       ))}
                     </Select>
                   </div>
+                ) : formKey === "abzweigdose" ? (
+                  // Abzweigdose has no editable form fields, so its edit-geometry
+                  // selector rides the formHeaderContent slot at the top of the
+                  // form — the same spot a new Abzweigdose's selector occupies.
+                  editGeometrySelector
                 ) : undefined
               }
               onDraftChange={handleDraftChange}

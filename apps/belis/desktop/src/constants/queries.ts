@@ -563,6 +563,10 @@ query MyQuery($id: Int!) {
       }
     }
     fk_geom
+    geom {
+      geo_field
+      id
+    }
     id
     is_deleted
   }

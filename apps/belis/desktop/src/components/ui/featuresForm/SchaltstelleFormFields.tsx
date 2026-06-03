@@ -23,6 +23,7 @@ interface SchaltstelleFormFieldsProps {
   readOnly?: boolean;
   isCreation?: boolean;
   featureId?: string;
+  geometrySelector?: React.ReactNode;
   form?: FormInstance;
   onFormInstance?: (form: FormInstance) => void;
   draftValues?: Record<string, unknown>;
@@ -51,6 +52,7 @@ const SchaltstelleFormFields = ({
   schaltstelle,
   readOnly = true,
   featureId,
+  geometrySelector,
   form: externalForm,
   onFormInstance,
   draftValues,
@@ -163,6 +165,8 @@ const SchaltstelleFormFields = ({
       className={getFormClassName(readOnly, "pr-2")}
       onValuesChange={onValuesChange}
     >
+      {geometrySelector}
+
       {!readOnly ? (
         <StrassenschluesselFieldsModal
           label="Strassenschlussel"
