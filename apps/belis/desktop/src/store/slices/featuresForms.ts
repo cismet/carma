@@ -129,6 +129,13 @@ interface FeaturesFormsState {
   // referenced them is gone (i.e. the draft was saved, not discarded). Cleared
   // explicitly via clearPermanentlyHiddenOriginalIds.
   permanentlyHiddenOriginalIds: HiddenOriginalIds;
+  // Source-layer keyed ids of geometry-edited features whose *brandnew FC*
+  // copy must stay hidden in the gap between a save and the next brandnew poll
+  // refresh. Unlike `permanentlyHiddenOriginalIds` (which hides only vector
+  // tiles), this hides the brandnew layer copy at the now-stale OLD position
+  // until the refetched FC carries the new geometry — then it is cleared. Not
+  // persisted (see store persist whitelist) since it only bridges a brief gap.
+  brandnewSuppressedEditIds: HiddenOriginalIds;
 }
 
 const initialState: FeaturesFormsState = {
@@ -139,6 +146,7 @@ const initialState: FeaturesFormsState = {
   globalEditMode: false,
   tabFocusRequest: null,
   permanentlyHiddenOriginalIds: {},
+  brandnewSuppressedEditIds: {},
 };
 
 const featuresFormsSlice = createSlice({
@@ -311,15 +319,58 @@ const featuresFormsSlice = createSlice({
     // in save flows so the saved feature stays hidden in the regular layers
     // until the brandnew tile (or the user explicitly unhides) replaces it.
     promoteDraftHiddenToPermanent(state, action: PayloadAction<string>) {
-      const draft = state.drafts[action.payload];
-      const ids = draft?.hiddenOriginalIds;
-      if (!ids) return;
-      for (const [sourceLayer, idList] of Object.entries(ids)) {
-        if (!idList || idList.length === 0) continue;
+      const featureId = action.payload;
+      const draft = state.drafts[featureId];
+      const addPermanent = (sourceLayer: string, idList: number[]) => {
+        if (!sourceLayer || idList.length === 0) return;
         const existing = state.permanentlyHiddenOriginalIds[sourceLayer] ?? [];
         const merged = new Set<number>(existing);
         for (const id of idList) merged.add(id);
         state.permanentlyHiddenOriginalIds[sourceLayer] = [...merged];
+      };
+      const ids = draft?.hiddenOriginalIds;
+      if (ids) {
+        for (const [sourceLayer, idList] of Object.entries(ids)) {
+          if (idList && idList.length > 0) addPermanent(sourceLayer, idList);
+        }
+      }
+      // Geometry-edit drafts (an existing feature reshaped to a measurement)
+      // hide their original tile via a *computed* set (geometryEditHiddenOriginalIds
+      // in BelisMapWrapper, derived from the open draft's geometryKey) rather
+      // than the stored `hiddenOriginalIds` above. That computed set vanishes the
+      // moment the draft is removed on save, so the original tile would pop back at
+      // the old position until the next brandnew refresh. Promote the draft's own
+      // id here — same as the Standort/Leuchte creation path — so the vector tile
+      // stays hidden; the permanent set never suppresses the brandnew layer, so the
+      // saved feature still renders at its new position.
+      if (
+        draft &&
+        !draft.isCreation &&
+        draft.geometryKey &&
+        draft.geometryKey.startsWith("measurement.")
+      ) {
+        // Draft key is "<sourceLayer>:<dbPK>" (e.g. "mauerlaschen:6691"); the
+        // prefix is the tile source layer the filter keys on.
+        const sourceLayer = featureId.split(":")[0];
+        const dbId = draft.featureDbId ?? Number(featureId.split(":")[1]);
+        if (sourceLayer && Number.isFinite(dbId)) {
+          addPermanent(sourceLayer, [Number(dbId)]);
+          // Also suppress the feature's stale brandnew-FC copy (old position)
+          // until the next poll delivers the new geometry. Cleared by
+          // clearBrandnewSuppressedEditIds when the refreshed FC lands.
+          const existing = state.brandnewSuppressedEditIds[sourceLayer] ?? [];
+          const merged = new Set<number>(existing);
+          merged.add(Number(dbId));
+          state.brandnewSuppressedEditIds[sourceLayer] = [...merged];
+        }
+      }
+    },
+    // Clear the brandnew-FC suppression set. Dispatched once a refreshed
+    // brandnew FeatureCollection arrives so the just-moved feature shows at its
+    // new position instead of staying hidden.
+    clearBrandnewSuppressedEditIds(state) {
+      if (Object.keys(state.brandnewSuppressedEditIds).length > 0) {
+        state.brandnewSuppressedEditIds = {};
       }
     },
     // Drop specific ids from the persistent hidden set (e.g. "show this
@@ -547,6 +598,7 @@ export const {
   promoteDraftHiddenToPermanent,
   unhidePermanentOriginalIds,
   clearPermanentlyHiddenOriginalIds,
+  clearBrandnewSuppressedEditIds,
 } = featuresFormsSlice.actions;
 
 // Selectors
@@ -698,6 +750,10 @@ export const getPermanentlyHiddenOriginalIds = (
   state: RootState
 ): HiddenOriginalIds =>
   state.featuresForms?.permanentlyHiddenOriginalIds ?? {};
+
+export const getBrandnewSuppressedEditIds = (
+  state: RootState
+): HiddenOriginalIds => state.featuresForms?.brandnewSuppressedEditIds ?? {};
 
 // Union of every draft's hiddenOriginalIds plus the permanent set — keyed
 // by source-layer. The map filter effect consumes this to exclude vector
