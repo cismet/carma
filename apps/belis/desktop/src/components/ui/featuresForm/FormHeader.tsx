@@ -141,7 +141,7 @@ const FormHeader = ({
           only shown while the form is editable */}
       {!readOnly && (
         <span className="absolute top-0 left-0 inline-flex items-center px-2.5 py-0.5 bg-[#f9fafb] opacity-90 text-[10px] font-medium text-gray-500 whitespace-nowrap">
-          bearbeitungsmodus
+          Bearbeitungsmodus
         </span>
       )}
       <div className="flex items-center justify-between flex-wrap p-6 gap-4">
