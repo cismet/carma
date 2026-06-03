@@ -161,11 +161,13 @@ import type { SidebarFeature } from "../ui/BelisSidebar";
 import {
   getAllDraftFeatures,
   getAllDrafts,
+  getBrandnewSuppressedEditIds,
   getDraftFeaturesCount,
   getDraftFetchedData,
   getEffectiveHiddenOriginalIds,
   getGlobalEditMode,
   isCreationDraftKey,
+  clearBrandnewSuppressedEditIds,
   requestDraftTabFocus,
 } from "../../store/slices/featuresForms";
 import type { HiddenOriginalIds } from "../../store/slices/featuresForms";
@@ -802,6 +804,9 @@ const BelisMapLibWrapper = ({
   // Draft features for "Entwürfe" sidebar tab
   const allDraftFeatures = useSelector(getAllDraftFeatures);
   const draftFeaturesCount = useSelector(getDraftFeaturesCount);
+  // Ids whose stale brandnew-FC copy must stay hidden after a geometry-edit
+  // save, until the next poll delivers the new geometry (then cleared).
+  const brandnewSuppressedEditIds = useSelector(getBrandnewSuppressedEditIds);
 
   // Map-ready draft features for the brandnew GeoJSON source. A Leuchten
   // creation draft stores a single `_sourceLayer: "leuchten"` synthetic, but
@@ -980,14 +985,22 @@ const BelisMapLibWrapper = ({
   // post-save permanent ids never hide the brandnew layer's own features.
   const visibleBrandnewFeatures = useMemo<GeoJSON.Feature[]>(() => {
     const all = brandnewFc.features ?? [];
-    const hiddenStandorteIds = new Set(
-      activeDraftHiddenOriginalIds.standorte ?? []
-    );
-    const hasAnyHidden =
-      hiddenStandorteIds.size > 0 ||
-      Object.values(activeDraftHiddenOriginalIds).some(
-        (list) => list && list.length > 0
-      );
+    // Merge the open-draft hidden set with the post-save geometry-edit
+    // suppression set: both must hide a brandnew copy. The suppression set
+    // bridges the gap between save and the next poll (after which it clears),
+    // keeping the moved feature from flashing back at its old position.
+    const hidden: Record<string, Set<number>> = {};
+    const addHidden = (sl: string, ids?: number[]) => {
+      if (!ids || ids.length === 0) return;
+      const bucket = hidden[sl] ?? (hidden[sl] = new Set());
+      for (const id of ids) bucket.add(id);
+    };
+    for (const [sl, ids] of Object.entries(activeDraftHiddenOriginalIds))
+      addHidden(sl, ids);
+    for (const [sl, ids] of Object.entries(brandnewSuppressedEditIds))
+      addHidden(sl, ids);
+    const hiddenStandorteIds = hidden.standorte ?? new Set<number>();
+    const hasAnyHidden = Object.values(hidden).some((set) => set.size > 0);
     if (!hasAnyHidden) return all;
     return all.filter((f) => {
       const sl = String(f.properties?._sourceLayer ?? "");
@@ -999,14 +1012,22 @@ const BelisMapLibWrapper = ({
         const fk = Number(f.properties?.fk_standort);
         return !hiddenStandorteIds.has(fk);
       }
-      const idsForLayer = activeDraftHiddenOriginalIds[sl];
-      if (idsForLayer && idsForLayer.length > 0) {
+      const idsForLayer = hidden[sl];
+      if (idsForLayer && idsForLayer.size > 0) {
         const id = Number(f.properties?.id ?? f.id);
-        return !idsForLayer.includes(id);
+        return !idsForLayer.has(id);
       }
       return true;
     });
-  }, [brandnewFc, activeDraftHiddenOriginalIds]);
+  }, [brandnewFc, activeDraftHiddenOriginalIds, brandnewSuppressedEditIds]);
+
+  // A fresh brandnew FC has landed (md5 changed — `useBrandnewFcSync` only
+  // fires onDataChange on an actual change, never on steady-state polls). It
+  // now carries the just-saved geometry, so the post-save suppression that hid
+  // the stale OLD-position copy can be lifted. No-op when nothing is suppressed.
+  useEffect(() => {
+    dispatch(clearBrandnewSuppressedEditIds());
+  }, [brandnewFc, dispatch]);
 
   // Live fetchedData for creation drafts — avoids stale snapshot in fetchedFeatureData
   const creationDraftKey =

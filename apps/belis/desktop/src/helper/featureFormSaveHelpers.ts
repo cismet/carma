@@ -851,17 +851,20 @@ export const handleSaveAllDrafts = (deps: HandleSaveAllDeps) => {
         }
 
         if (result.succeeded.length > 0) {
-          // Drop measurements consumed by successful creation saves: from
-          // the dropdown source (Redux) and from the on-map terra-draw
-          // layer. Draft geometryKeys are double-prefixed
-          // (`measurement.measurement.<uuid>`) and Redux feature ids carry
-          // one `measurement.` prefix — match against the same
-          // single-prefix synthesis used in the dropdown builder, then
-          // strip one prefix to recover the raw terra-draw id.
+          // Drop measurements consumed by successful saves: from the dropdown
+          // source (Redux) and from the on-map terra-draw layer. Applies to
+          // creation drafts (measurement used as the new feature's geometry)
+          // AND geometry-edit drafts (an existing feature reshaped to a
+          // measurement) alike — once saved, that measurement is spent and
+          // must not linger on the map. (`handleServerSave` for the single-
+          // save button already treats both cases; this mirrors it.) Draft
+          // geometryKeys are built as `measurement.${f.id}` from the same
+          // Redux feature ids, so matching against that synthesis and then
+          // stripping one prefix recovers the raw terra-draw id.
           const consumedKeys = new Set<string>();
           for (const featureId of result.succeeded) {
             const d = drafts[featureId];
-            if (d?.isCreation && d.geometryKey?.startsWith("measurement.")) {
+            if (d?.geometryKey?.startsWith("measurement.")) {
               consumedKeys.add(d.geometryKey);
             }
           }
