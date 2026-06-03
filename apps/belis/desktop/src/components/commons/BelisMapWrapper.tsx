@@ -885,6 +885,34 @@ const BelisMapLibWrapper = ({
     return standorteIds.size > 0 ? { standorte: [...standorteIds] } : {};
   }, [brandnewFc]);
 
+  // Geometry-edit drafts move an existing feature to a new position that the
+  // brandnew preview renders. Hide the feature's original copy — both its
+  // vector tile and, if it was saved same-day, its brandnew FC entry — so only
+  // one position shows on the map. Keyed by source-layer (e.g. "mauerlaschen").
+  const geometryEditHiddenOriginalIds = useMemo<HiddenOriginalIds>(() => {
+    const merged: Record<string, Set<number>> = {};
+    for (const [draftKey, draft] of Object.entries(
+      allDraftsForMeasurementLink
+    )) {
+      if (draft.isCreation) continue;
+      if (!draft.geometryKey || draft.geometryKey.startsWith("current."))
+        continue;
+      const sl =
+        featureTypeToSourceLayer[draft.featureType] ?? draft.featureType;
+      // Draft keys are "<sourceLayer>:<dbPK>"; fall back to that suffix when the
+      // featureDbId sync (documents effect) has not landed yet.
+      const dbId = draft.featureDbId ?? Number(draftKey.split(":")[1]);
+      if (!Number.isFinite(dbId)) continue;
+      const bucket = merged[sl] ?? (merged[sl] = new Set());
+      bucket.add(Number(dbId));
+    }
+    const out: HiddenOriginalIds = {};
+    for (const [sl, set] of Object.entries(merged)) {
+      if (set.size > 0) out[sl] = [...set];
+    }
+    return out;
+  }, [allDraftsForMeasurementLink]);
+
   // Final hidden-ids map fed to the vector-tile filter — union of draft-driven
   // + brandnew-FC-derived ids, keyed by source-layer.
   const hiddenOriginalIds = useMemo<HiddenOriginalIds>(() => {
@@ -897,12 +925,18 @@ const BelisMapLibWrapper = ({
     for (const [sl, ids] of Object.entries(draftHiddenOriginalIds)) add(sl, ids);
     for (const [sl, ids] of Object.entries(brandnewHiddenOriginalIds))
       add(sl, ids);
+    for (const [sl, ids] of Object.entries(geometryEditHiddenOriginalIds))
+      add(sl, ids);
     const out: HiddenOriginalIds = {};
     for (const [sl, set] of Object.entries(merged)) {
       if (set.size > 0) out[sl] = [...set];
     }
     return out;
-  }, [draftHiddenOriginalIds, brandnewHiddenOriginalIds]);
+  }, [
+    draftHiddenOriginalIds,
+    brandnewHiddenOriginalIds,
+    geometryEditHiddenOriginalIds,
+  ]);
 
   // Active-draft-only hidden ids (excludes `permanentlyHiddenOriginalIds`).
   // The permanent set is meant to keep vector tiles hidden during the post-save
@@ -921,12 +955,20 @@ const BelisMapLibWrapper = ({
         for (const id of list) bucket.add(id);
       }
     }
+    // A geometry-edit draft of a same-day saved feature must also suppress that
+    // feature's own brandnew FC entry, or the original icon stays put while the
+    // preview renders the moved copy.
+    for (const [sl, ids] of Object.entries(geometryEditHiddenOriginalIds)) {
+      if (!ids || ids.length === 0) continue;
+      const bucket = merged[sl] ?? (merged[sl] = new Set());
+      for (const id of ids) bucket.add(id);
+    }
     const out: HiddenOriginalIds = {};
     for (const [sl, set] of Object.entries(merged)) {
       if (set.size > 0) out[sl] = [...set];
     }
     return out;
-  }, [allDraftsForMeasurementLink]);
+  }, [allDraftsForMeasurementLink, geometryEditHiddenOriginalIds]);
 
   // Brandnew FC features, minus any that an OPEN draft has flagged as hidden.
   // When a "+ Leuchte zu Standort N" draft is open, the draft layer renders
@@ -3068,6 +3110,51 @@ const BelisMapLibWrapper = ({
         }
       }
 
+      // Geometry-edit preview: an existing feature whose shape was switched to
+      // a measurement renders its pending position as a brandnew GeoJSON
+      // feature, and the original vector tile at the old position is hidden —
+      // so the moved point is the only thing the user can click. Selecting the
+      // GeoJSON feature directly would carry the brandnew source as its
+      // sourceLayer, and the datasheet derives `featureType` from that — which
+      // makes FeaturesFormsWrapper build the wrong "<sourceLayer>:<dbPK>" draft
+      // key and the "Neue Geometrien" selector fall back to "Momentane
+      // Geometrie". Instead resolve the real underlying feature (its tile
+      // source layer + DB id) and select it centered on the preview position,
+      // mirroring handleSidebarFeatureSelect's edit-draft branch.
+      const editPreviewHit = hits.find(
+        (h) => h.properties?._isGeometryEditPreview === true
+      );
+      if (editPreviewHit) {
+        const sl = String(editPreviewHit.properties?._sourceLayer ?? "");
+        const dbPK = String(editPreviewHit.properties?.id ?? "");
+        const editDraft =
+          store.getState().featuresForms?.drafts[`${sl}:${dbPK}`];
+        const previewWgs84 =
+          editDraft && editDraft.geometry
+            ? convertGeometryToWgs84(editDraft.geometry)
+            : undefined;
+        if (map && sl && dbPK) {
+          const match = map
+            .querySourceFeatures(namespacedSource, { sourceLayer: sl })
+            .find((f) => f.properties && String(f.properties.id) === dbPK);
+          if (match) {
+            setSidebarMode((prev) =>
+              prev === "drafts" ? "fachobjekte" : prev
+            );
+            selectFeature(
+              { source: namespacedSource, sourceLayer: sl, id: match.id },
+              (previewWgs84
+                ? { ...match, geometry: previewWgs84 }
+                : match) as any
+            );
+            setFeatureOnMap(true);
+          }
+        }
+        // Selection handled imperatively above (or no match found); either way
+        // do not fall through to the basemap/Fachobjekt selection below.
+        return undefined;
+      }
+
       // Background/basemap layers are queryable vector features too: the
       // Stadtplan (grau/bunt) and Liegenschaftskarte styles plus the optional
       // "Städtische Flurstücke" / "Straßen" layers all render clickable
@@ -3121,7 +3208,16 @@ const BelisMapLibWrapper = ({
       }
       return chosen;
     },
-    [map, sidebarVariant, dispatch, handleAAFeatureSelect, allDraftFeatures]
+    [
+      map,
+      sidebarVariant,
+      dispatch,
+      handleAAFeatureSelect,
+      allDraftFeatures,
+      store,
+      namespacedSource,
+      selectFeature,
+    ]
   );
 
   // --- Arbeitsauftraege: clear/restore map selection when switching tabs ---
@@ -3197,6 +3293,158 @@ const BelisMapLibWrapper = ({
       // source may not exist yet
     }
   }, [map, brandnewSource, creationDraftMapId]);
+
+  // --- Geometry-edit selection highlight: the active style follows the current
+  // selection between the feature's two on-map representations — the moved
+  // brandnew preview (while a measurement is attached) and the original
+  // vector-tile feature (for "Momentane Geometrie"). Only the selected feature's
+  // preview is highlighted, so navigating to another feature drops the
+  // highlight. When the selected edit draft shows its own geometry, the
+  // original's MVT highlight is re-asserted here — a prior re-centering
+  // selectFeature(clone) clears LibreMap's own selection (it re-applies with the
+  // DB id, which is not the MVT feature id for these tiles). Runs on both maps.
+  const geometryEditPreviewStateIds = useMemo<number[]>(
+    () =>
+      draftBrandnewFeatures
+        .filter((f) => f.properties?._isGeometryEditPreview === true)
+        .map((f) => draftFeatureStateId(String(f.properties?.id))),
+    [draftBrandnewFeatures]
+  );
+
+  // The DB primary key of the current selection. selectFeature carries the MVT
+  // tile feature id in `selectedFeatureId.id` (≠ DB id for these tiles), while
+  // drafts, the brandnew preview feature-state, and the draft store are all
+  // keyed by the DB id, which lives on `rawFeature.properties.id`. Use that.
+  const selectedDbId = useMemo<string | number | undefined>(() => {
+    const propId = (
+      rawFeature?.properties as Record<string, unknown> | undefined
+    )?.id as string | number | undefined;
+    return propId ?? selectedFeatureId?.id;
+  }, [rawFeature, selectedFeatureId?.id]);
+
+  // The selected feature's open geometry-edit draft (non-creation), if any.
+  // Match by DB id rather than the exact `<sourceLayer>:<id>` key: the
+  // selection's sourceLayer differs depending on how the feature was selected
+  // (the namespaced tile when picked from the sidebar, the brandnew source when
+  // its preview point is clicked on the map), but the DB id is stable.
+  const selectedEditDraft = useMemo(() => {
+    if (selectedDbId == null) return undefined;
+    const target = String(selectedDbId);
+    for (const [draftKey, draft] of Object.entries(
+      allDraftsForMeasurementLink
+    )) {
+      if (draft.isCreation) continue;
+      const draftDbId = draft.featureDbId ?? draftKey.split(":")[1];
+      if (String(draftDbId) === target) return draft;
+    }
+    return undefined;
+  }, [selectedDbId, allDraftsForMeasurementLink]);
+  const selectedEditHasPreview =
+    !!selectedEditDraft &&
+    !!selectedEditDraft.geometry &&
+    !!selectedEditDraft.geometryKey &&
+    !selectedEditDraft.geometryKey.startsWith("current.");
+  const selectedEditPreviewStateId =
+    selectedEditHasPreview && selectedDbId != null
+      ? draftFeatureStateId(String(selectedDbId))
+      : undefined;
+  // Selected edit draft that is showing its own ("Momentane") geometry.
+  const selectedEditAtCurrent = !!selectedEditDraft && !selectedEditHasPreview;
+
+  const applyEditSelection = useCallback(
+    (mapInstance: maplibregl.Map | null): (() => void) | undefined => {
+      if (!mapInstance) return undefined;
+
+      // Brandnew previews: keep only the selected feature's preview active.
+      for (const id of geometryEditPreviewStateIds) {
+        try {
+          mapInstance.setFeatureState(
+            buildFeatureStateTarget(mapInstance, { source: brandnewSource, id }),
+            { selected: id === selectedEditPreviewStateId }
+          );
+        } catch {
+          // source may not exist yet
+        }
+      }
+
+      // Original vector-tile feature: re-assert the highlight while the edit
+      // draft shows its own geometry. querySourceFeatures resolves the MVT id
+      // (≠ DB id); retry on sourcedata until the tile is loaded.
+      let matchId: string | number | undefined;
+      const sourceLayer = selectedFeatureId?.sourceLayer ?? "";
+      let detach: (() => void) | undefined;
+      if (selectedEditAtCurrent && selectedDbId != null) {
+        const dbId = selectedDbId;
+        const trySelect = () => {
+          try {
+            const match = mapInstance
+              .querySourceFeatures(namespacedSource, { sourceLayer })
+              .find(
+                (f) =>
+                  f.properties && String(f.properties.id) === String(dbId)
+              );
+            if (match?.id != null) {
+              matchId = match.id;
+              mapInstance.setFeatureState(
+                { source: namespacedSource, sourceLayer, id: match.id },
+                { selected: true }
+              );
+            }
+          } catch {
+            // source/layer may not exist yet
+          }
+        };
+        trySelect();
+        mapInstance.on("sourcedata", trySelect);
+        detach = () => mapInstance.off("sourcedata", trySelect);
+      }
+
+      return () => {
+        detach?.();
+        if (selectedEditPreviewStateId != null) {
+          try {
+            mapInstance.setFeatureState(
+              buildFeatureStateTarget(mapInstance, {
+                source: brandnewSource,
+                id: selectedEditPreviewStateId,
+              }),
+              { selected: false }
+            );
+          } catch {
+            // source may not exist yet
+          }
+        }
+        if (matchId != null) {
+          try {
+            mapInstance.setFeatureState(
+              { source: namespacedSource, sourceLayer, id: matchId },
+              { selected: false }
+            );
+          } catch {
+            // source may not exist yet
+          }
+        }
+      };
+    },
+    [
+      brandnewSource,
+      namespacedSource,
+      geometryEditPreviewStateIds,
+      selectedEditPreviewStateId,
+      selectedEditAtCurrent,
+      selectedDbId,
+      selectedFeatureId?.sourceLayer,
+    ]
+  );
+
+  useEffect(() => {
+    if (!map || !mapReady) return;
+    return applyEditSelection(map);
+  }, [map, mapReady, applyEditSelection]);
+  useEffect(() => {
+    if (!miniMap || !miniMapReady) return;
+    return applyEditSelection(miniMap);
+  }, [miniMap, miniMapReady, applyEditSelection]);
 
   // --- Arbeitsauftraege: AP feature-state selection ---
   const prevAPIdRef = useRef<number | null>(null);
@@ -3409,6 +3657,22 @@ const BelisMapLibWrapper = ({
         const sl = identifier.sourceLayer ?? "";
         const dbPK = String(feature.properties?.id ?? identifier.id);
 
+        // If this feature has an open geometry-edit draft with a moved preview,
+        // center the selection on the preview position rather than the original
+        // tile geometry. rawFeature drives the mini-map center, so without this
+        // re-selecting the draft (e.g. after visiting another feature) would
+        // snap the mini-map back to the now-empty original spot.
+        const editDraft =
+          store.getState().featuresForms?.drafts[`${sl}:${dbPK}`];
+        const previewWgs84 =
+          editDraft &&
+          !editDraft.isCreation &&
+          editDraft.geometry &&
+          editDraft.geometryKey &&
+          !editDraft.geometryKey.startsWith("current.")
+            ? convertGeometryToWgs84(editDraft.geometry)
+            : undefined;
+
         // Try to find the real MVT feature in loaded tiles.
         // This gives us: correct tile ID for visual selection,
         // flat properties for identical titles/subtitles, and geometry.
@@ -3422,7 +3686,9 @@ const BelisMapLibWrapper = ({
           if (match) {
             selectFeature(
               { source: identifier.source, sourceLayer: sl, id: match.id },
-              match as any
+              (previewWgs84
+                ? { ...match, geometry: previewWgs84 }
+                : match) as any
             );
             return;
           }
@@ -3431,8 +3697,11 @@ const BelisMapLibWrapper = ({
         // Feature not in viewport — dispatch stored raw feature to Redux
         // and pass it as rawFeature for the selection context.
         // The draft feature already has the correct MapGeoJSON structure.
-        dispatch(setSelectedFeature({ ...feature, id: dbPK, selected: true }));
-        selectFeature(identifier, feature as any);
+        const fallbackFeature = previewWgs84
+          ? { ...feature, id: dbPK, geometry: previewWgs84 }
+          : { ...feature, id: dbPK };
+        dispatch(setSelectedFeature({ ...fallbackFeature, selected: true }));
+        selectFeature(identifier, fallbackFeature as any);
         return;
       }
 

@@ -155,7 +155,31 @@ const FeaturesFormsWrapper = ({
       ? String(selectedFeature.id)
       : undefined;
   const sourceLayer = featureType ?? "";
-  const featureId = creationDraftKey ?? (dbPK != null ? `${sourceLayer}:${dbPK}` : undefined);
+  const allDrafts = useSelector(getAllDrafts);
+  const strictFeatureId =
+    creationDraftKey ?? (dbPK != null ? `${sourceLayer}:${dbPK}` : undefined);
+  // The datasheet's `featureType` (hence `sourceLayer`) is not stable across
+  // selection paths: picking the feature from the sidebar yields its tile
+  // source layer (e.g. "mauerlaschen"), but clicking the moved preview point
+  // of an open geometry-edit draft on the map yields the brandnew GeoJSON
+  // source name instead. The strict "<sourceLayer>:<dbPK>" key built from the
+  // latter misses the draft stored under the former, so the geometry selector
+  // would fall back to "Momentane Geometrie" even though a measurement is
+  // attached. Recover by matching an open non-creation draft on the stable DB
+  // id — the same DB-id reconciliation BelisMapWrapper uses for the
+  // edit-selection highlight — and adopt its key so reads AND later writes
+  // stay on one canonical featureId.
+  const featureId = useMemo(() => {
+    if (!strictFeatureId || creationDraftKey) return strictFeatureId;
+    if (allDrafts[strictFeatureId]) return strictFeatureId;
+    if (dbPK == null) return strictFeatureId;
+    for (const [key, d] of Object.entries(allDrafts)) {
+      if (d.isCreation) continue;
+      const draftDbId = d.featureDbId ?? key.split(":")[1];
+      if (String(draftDbId) === dbPK) return key;
+    }
+    return strictFeatureId;
+  }, [strictFeatureId, creationDraftKey, allDrafts, dbPK]);
 
   // Store a serializable snapshot of the raw feature for the draft.
   // MapLibre's MapGeoJSONFeature contains non-serializable objects (layer, state)
@@ -202,7 +226,6 @@ const FeaturesFormsWrapper = ({
   const featureDataVersion = useSelector(getFeatureDataVersion);
   const globalEditMode = useSelector(getGlobalEditMode);
   const measurements = useSelector(getMeasurements);
-  const allDrafts = useSelector(getAllDrafts);
   const keyTablesData = useSelector(getKeyTablesData);
   // pk → id map used at save time to backfill a missing fk_strassenschluessel
   // from the visible Strassenschluessel pk (see prepareSaveValues).
@@ -256,7 +279,6 @@ const FeaturesFormsWrapper = ({
   // remain saveable and the dropdown to show a recognizable label, so
   // reconstruct the option from the snapshot stashed on the draft.
   const measurementOption = useMemo<MeasurementGeometryOption | null>(() => {
-    if (!isCreation) return null;
     const geometryKey = draft?.geometryKey;
     const geometry = draft?.geometry;
     if (!geometryKey || !geometry) return null;
@@ -275,7 +297,6 @@ const FeaturesFormsWrapper = ({
       geometry: geometry as MeasurementGeometryOption["geometry"],
     };
   }, [
-    isCreation,
     draft?.geometryKey,
     draft?.geometry,
     draft?.measurementLabel,
@@ -357,14 +378,21 @@ const FeaturesFormsWrapper = ({
     const measurementOpts = buildMeasurementGeometryOptions(measurements)
       .filter((o) => o.geometry.type === "Point")
       .filter((o) => !consumedByOtherDrafts.has(o.key));
-    return currentGeometryOption
-      ? [currentGeometryOption, ...measurementOpts]
-      : measurementOpts;
+    const opts: MeasurementGeometryOption[] = [];
+    if (currentGeometryOption) opts.push(currentGeometryOption);
+    // The currently-attached measurement is removed from terra-draw (and the
+    // measurements slice) while it backs the draft, so it is absent from
+    // measurementOpts. Re-add it from the draft snapshot so the selector can
+    // still render its label (e.g. "P9") after re-opening the draft.
+    if (measurementOption) opts.push(measurementOption);
+    opts.push(...measurementOpts);
+    return opts;
   }, [
     isGeometryEditFeature,
     measurements,
     consumedByOtherDrafts,
     currentGeometryOption,
+    measurementOption,
   ]);
 
   const [isEditing, setIsEditing] = useState(false);
@@ -818,19 +846,29 @@ const FeaturesFormsWrapper = ({
 
       // Revert to the feature's own geometry: drop the draft geometry and
       // bring any attached measurement back into terra-draw. The mini-map is
-      // re-centered on the original tile feature.
+      // re-centered on the original position. A prior measurement pick replaced
+      // the shared rawFeature (and thus draftFeature) with the moved geometry,
+      // so re-derive the original position from the DB geom (EPSG:25832 → WGS84)
+      // rather than trusting draftFeature's now-stale coordinates.
       if (!newKey || newKey === currentKey) {
+        const originalWgs84 = currentGeometryOption
+          ? convertGeometryToWgs84(currentGeometryOption.geometry)
+          : undefined;
+        const restoredFeature =
+          draftFeature && originalWgs84
+            ? { ...draftFeature, geometry: originalWgs84 }
+            : draftFeature;
         // No-op in the reducer when no draft exists yet.
         dispatch(
           clearDraftGeometry({
             featureId,
-            feature: draftFeature,
+            feature: restoredFeature,
             fetchedData: data,
           })
         );
         restoreAttachedMeasurement(previousGeometryKey);
-        if (selectedFeatureId && draftFeature) {
-          selectFeature(selectedFeatureId, draftFeature as never);
+        if (selectedFeatureId && restoredFeature) {
+          selectFeature(selectedFeatureId, restoredFeature as never);
         }
         return;
       }
@@ -852,6 +890,14 @@ const FeaturesFormsWrapper = ({
           featureGeomId,
           geometry: opt.geometry,
           geometryKey: newKey,
+          // Stash the label so the dropdown can still render the picked
+          // measurement after it is consumed (removed from terra-draw and the
+          // measurements slice) — mirrors the creation path. Without it,
+          // re-opening the draft drops the option and the selector falls back
+          // to "Momentane Geometrie".
+          measurementLabel: newKey.startsWith("measurement.")
+            ? opt.label
+            : undefined,
         })
       );
 
