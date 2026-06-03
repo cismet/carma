@@ -11,6 +11,7 @@
     Helvetica, sans-serif;
   --carma-annotation-text-overlay-font-size: 14px;
   --carma-annotation-text-overlay-font-weight: 400;
+  --carma-annotation-text-overlay-letter-spacing: 0;
   --carma-annotation-text-overlay-text-color: rgba(0, 0, 0, 0.98);
   --carma-annotation-text-overlay-padding-block: 0.25ex;
   --carma-annotation-text-overlay-padding-inline: 0.65ex;
@@ -130,8 +131,7 @@
   --carma-annotation-text-overlay-text-echo-opacity: 1;
   --carma-annotation-text-overlay-text-echo-stroke-width: 0.1em;
   --carma-annotation-text-overlay-text-echo-stroke-color: rgba(2, 6, 23, 0.77);
-  --carma-annotation-text-overlay-text-echo-shadow: 0 0 2px
-      rgba(2, 6, 23, 0.8),
+  --carma-annotation-text-overlay-text-echo-shadow: 0 0 2px rgba(2, 6, 23, 0.8),
     0 0 6px rgba(2, 6, 23, 0.77), 0 0 12px rgba(2, 6, 23, 0.64);
   --carma-annotation-text-overlay-text-echo-display: block;
 }
@@ -146,6 +146,7 @@
   font-family: var(--carma-annotation-text-overlay-font-family);
   font-size: var(--carma-annotation-text-overlay-font-size);
   font-weight: var(--carma-annotation-text-overlay-font-weight);
+  letter-spacing: var(--carma-annotation-text-overlay-letter-spacing);
   line-height: 1;
   -webkit-text-stroke: var(
       --carma-annotation-text-overlay-text-echo-stroke-width
@@ -174,6 +175,7 @@
   font-family: var(--carma-annotation-text-overlay-font-family);
   font-size: var(--carma-annotation-text-overlay-font-size);
   font-weight: var(--carma-annotation-text-overlay-font-weight);
+  letter-spacing: var(--carma-annotation-text-overlay-letter-spacing);
   line-height: 1;
   padding: var(--carma-annotation-text-overlay-padding-block)
     var(--carma-annotation-text-overlay-padding-inline);

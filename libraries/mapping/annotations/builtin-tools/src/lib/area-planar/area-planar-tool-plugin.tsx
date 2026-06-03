@@ -57,6 +57,7 @@ import {
   resolveAreaPlanarTrapezoidThirdPointRightAngleToleranceDeg,
   resolveAreaPlanarTrapezoidMeasurementCoordinates,
   resolveNextAreaPlanarTrapezoidDraftCoordinates,
+  shouldApplyAreaPlanarTrapezoidRightAngleLimiter,
 } from "./area-planar-trapezoid";
 const { AREA_PLANAR: ANNOTATION_TYPE_AREA_PLANAR } = ANNOTATION_TYPES;
 
@@ -77,8 +78,7 @@ const AREA_PLANAR_TRAPEZOID_HORIZONTAL_PLANE_REJECTED_POINT_FEEDBACK =
   "Der letzte Punkt wurde nicht übernommen: Der zweite Punkt liegt zu weit von der horizontalen Hilfsebene entfernt.";
 const AREA_PLANAR_TRAPEZOID_HORIZONTAL_LINE_TOO_LONG_FEEDBACK =
   "Der letzte Punkt wurde nicht übernommen: Die horizontale Hilfslinie ist zu lang für die lokale Tangentenebene. Für längere Strecken bitte eine geodätische Linienmessung verwenden.";
-const AREA_PLANAR_TRAPEZOID_HORIZONTAL_LINE_PREVIEW_DISK_COLOR_CSS =
-  "#00d9ff";
+const AREA_PLANAR_TRAPEZOID_HORIZONTAL_LINE_PREVIEW_DISK_COLOR_CSS = "#00d9ff";
 const AREA_PLANAR_INPUT_MODES = {
   PROJECTED_POLYGON: "projected-polygon",
   TRAPEZOID: "trapezoid",
@@ -213,7 +213,7 @@ const createAreaPlanarToolVariantPlugin = ({
   const resolveDraftInputCoordinates = (
     coordinates: readonly CesiumGeographicCoordinate[],
     options: {
-      applyThirdPointRightAngleLimiter?: boolean;
+      applyRightAngleLimiter?: boolean;
       forceAccepted?: boolean;
     } = {}
   ) =>
@@ -221,15 +221,14 @@ const createAreaPlanarToolVariantPlugin = ({
       ? resolveAreaPlanarTrapezoidDraftCoordinates(coordinates, {
           thirdPointRightAngleToleranceDeg:
             resolvedTrapezoidThirdPointRightAngleToleranceDeg,
-          applyThirdPointRightAngleLimiter:
-            options.applyThirdPointRightAngleLimiter,
+          applyRightAngleLimiter: options.applyRightAngleLimiter,
           forceAccepted: options.forceAccepted,
         })
       : coordinates;
   const resolveMeasurementInputCoordinates = (
     coordinates: readonly CesiumGeographicCoordinate[],
     options: {
-      applyThirdPointRightAngleLimiter?: boolean;
+      applyRightAngleLimiter?: boolean;
       forceAccepted?: boolean;
     } = {}
   ) =>
@@ -237,8 +236,7 @@ const createAreaPlanarToolVariantPlugin = ({
       ? resolveAreaPlanarTrapezoidMeasurementCoordinates(coordinates, {
           thirdPointRightAngleToleranceDeg:
             resolvedTrapezoidThirdPointRightAngleToleranceDeg,
-          applyThirdPointRightAngleLimiter:
-            options.applyThirdPointRightAngleLimiter,
+          applyRightAngleLimiter: options.applyRightAngleLimiter,
           forceAccepted: options.forceAccepted,
         })
       : coordinates;
@@ -255,8 +253,9 @@ const createAreaPlanarToolVariantPlugin = ({
       formatBearing: (bearingRad) => formatCardinalBearing(bearingRad),
     }
   );
-  const resolvedOcclusionStyleOptions =
-    resolveAreaPlanarOcclusionStyleOptions(occlusionStyleOptions);
+  const resolvedOcclusionStyleOptions = resolveAreaPlanarOcclusionStyleOptions(
+    occlusionStyleOptions
+  );
   const areaPlanarToolVisuals = createNodeChainAreaToolVisuals({
     fillType: toolType,
     measurementLineStyleOptions,
@@ -283,9 +282,8 @@ const createAreaPlanarToolVariantPlugin = ({
       createSession: ({ drafts, setActiveToolType, addAnnotation }) => {
         const requestFinish = () => {
           const draft = drafts.get(toolId);
-          const measurementInputCoordinates = resolveMeasurementInputCoordinates(
-            draft.coordinates
-          );
+          const measurementInputCoordinates =
+            resolveMeasurementInputCoordinates(draft.coordinates);
           const projectedCoordinates = resolveAreaPlanarProjectedCoordinates({
             coordinates: measurementInputCoordinates,
             mode: projectionMode,
@@ -342,7 +340,8 @@ const createAreaPlanarToolVariantPlugin = ({
               !canPlaceAreaPlanarTrapezoidSecondPointOnHorizontalPlane({
                 coordinate,
                 previousCoordinates: currentDraft.coordinates,
-                toleranceMeters: resolvedTrapezoidHorizontalPlaneToleranceMeters,
+                toleranceMeters:
+                  resolvedTrapezoidHorizontalPlaneToleranceMeters,
               })
             ) {
               drafts.set(toolId, {
@@ -479,22 +478,24 @@ const createAreaPlanarToolVariantPlugin = ({
               !canPlaceAreaPlanarTrapezoidSecondPointOnHorizontalPlane({
                 coordinate: coordinates[1]!,
                 previousCoordinates,
-                toleranceMeters: resolvedTrapezoidHorizontalPlaneToleranceMeters,
+                toleranceMeters:
+                  resolvedTrapezoidHorizontalPlaneToleranceMeters,
               })
             ) {
               return null;
             }
-            const applyThirdPointRightAngleLimiter =
+            const applyRightAngleLimiter =
               isTrapezoidInputMode &&
-              coordinates.length === 3 &&
-              previousCoordinates?.length === 2;
+              shouldApplyAreaPlanarTrapezoidRightAngleLimiter(
+                previousCoordinates?.length ?? 0
+              );
             const measurementInputCoordinates =
               resolveMeasurementInputCoordinates(
                 resolveDraftInputCoordinates(coordinates, {
-                  applyThirdPointRightAngleLimiter,
+                  applyRightAngleLimiter,
                   forceAccepted,
                 }),
-                { applyThirdPointRightAngleLimiter, forceAccepted }
+                { applyRightAngleLimiter, forceAccepted }
               );
             const previousMeasurementInputCoordinates = previousCoordinates
               ? resolveMeasurementInputCoordinates(previousCoordinates)
@@ -593,7 +594,8 @@ const createAreaPlanarToolVariantPlugin = ({
 export const createAreaPlanarToolPlugin = (
   options: AreaPlanarToolPluginOptions = {}
 ) => {
-  const text = options.texts?.areaPlanar ?? defaultAnnotationToolTexts.areaPlanar;
+  const text =
+    options.texts?.areaPlanar ?? defaultAnnotationToolTexts.areaPlanar;
   return createAreaPlanarToolVariantPlugin({
     ...options,
     toolId: toolType,

@@ -36,6 +36,7 @@ const TEXT_OVERLAY_STYLE_DEFAULTS = Object.freeze({
 
 export type TextOverlayStyleOptions = {
   fontSize?: string;
+  letterSpacing?: string;
   fontWeight?: string | number;
   textEchoBlurPx?: number;
   textEchoShadow?: string;
@@ -43,8 +44,9 @@ export type TextOverlayStyleOptions = {
 
 export const TEXT_OVERLAY_AREA_LABEL_STYLE: TextOverlayStyleOptions =
   Object.freeze({
-    fontSize: "28px",
-    fontWeight: 600,
+    fontSize: "20px",
+    letterSpacing: "5%",
+    fontWeight: 800,
     textEchoBlurPx: 12,
     textEchoShadow:
       "0 0 4px rgba(2, 6, 23, 0.8), 0 0 12px rgba(2, 6, 23, 0.77), 0 0 24px rgba(2, 6, 23, 0.64)",
@@ -316,6 +318,12 @@ const applyTextOverlayStyleOptions = (
       String(styleOptions.fontWeight)
     );
   }
+  if (styleOptions.letterSpacing) {
+    element.style.setProperty(
+      "--carma-annotation-text-overlay-letter-spacing",
+      styleOptions.letterSpacing
+    );
+  }
   if (typeof styleOptions.textEchoBlurPx === "number") {
     element.style.setProperty(
       "--carma-annotation-text-overlay-text-echo-blur-px",
@@ -416,6 +424,12 @@ const buildTextOverlayStyle = ({
       ? {
           "--carma-annotation-text-overlay-font-size":
             styleOptions?.fontSize ?? fontSize,
+        }
+      : {}),
+    ...(styleOptions?.letterSpacing
+      ? {
+          "--carma-annotation-text-overlay-letter-spacing":
+            styleOptions.letterSpacing,
         }
       : {}),
     ...(typeof styleOptions?.textEchoBlurPx === "number"

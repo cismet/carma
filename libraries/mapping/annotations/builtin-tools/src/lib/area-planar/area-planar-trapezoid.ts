@@ -1,22 +1,23 @@
 import { Cartesian3 } from "@carma-cesium";
+import {
+  isPointWithinPlaneOrthogonalToLineAngleTolerance3d,
+  projectPointOntoPlane3d,
+  projectPointOntoPlaneOrthogonalToLine3d,
+} from "@carma-commons/math";
 import type { CesiumGeographicCoordinate } from "@carma-mapping/annotations/runtime";
 import {
   cartesian3FromGeographicCoordinate,
   getEllipsoidalUpDirectionAtAnchor,
   getSignedCartesian3DistanceToPlane,
   geographicCoordinateFromCartesian3,
-  projectCartesian3PointOntoPlane,
 } from "@carma-mapping/engines/cesium/core";
 
-export const AREA_PLANAR_TRAPEZOID_DEFAULT_HORIZONTAL_PLANE_TOLERANCE_METERS =
-  0.2;
+export const AREA_PLANAR_TRAPEZOID_DEFAULT_HORIZONTAL_PLANE_TOLERANCE_METERS = 0.2;
 // The constructed "horizontal" line is horizontal in the first point's local
 // tangent space. Keep the default local; use geodetic line measures for longer
 // distances instead of treating one tangent plane as globally horizontal.
-export const AREA_PLANAR_TRAPEZOID_DEFAULT_HORIZONTAL_LINE_MAX_LENGTH_METERS =
-  200;
-export const AREA_PLANAR_TRAPEZOID_DEFAULT_THIRD_POINT_RIGHT_ANGLE_TOLERANCE_DEG =
-  6.5;
+export const AREA_PLANAR_TRAPEZOID_DEFAULT_HORIZONTAL_LINE_MAX_LENGTH_METERS = 200;
+export const AREA_PLANAR_TRAPEZOID_DEFAULT_THIRD_POINT_RIGHT_ANGLE_TOLERANCE_DEG = 6.5;
 
 export const resolveAreaPlanarTrapezoidHorizontalPlaneToleranceMeters = (
   toleranceMeters: number | null | undefined
@@ -47,6 +48,10 @@ export const resolveAreaPlanarTrapezoidThirdPointRightAngleToleranceDeg = (
       ? toleranceDeg
       : AREA_PLANAR_TRAPEZOID_DEFAULT_THIRD_POINT_RIGHT_ANGLE_TOLERANCE_DEG
   );
+
+export const shouldApplyAreaPlanarTrapezoidRightAngleLimiter = (
+  previousCoordinateCount: number
+): boolean => previousCoordinateCount === 2 || previousCoordinateCount === 3;
 
 const constrainToAltitude = (
   coordinate: CesiumGeographicCoordinate,
@@ -82,11 +87,7 @@ const createAutomaticSymmetricParallelCorner = (
     Cartesian3.dot(oppositeDelta, baseVector) / baseMagnitudeSquared;
   const oppositeOffset = Cartesian3.subtract(
     oppositeDelta,
-    Cartesian3.multiplyByScalar(
-      baseVector,
-      oppositeRatio,
-      new Cartesian3()
-    ),
+    Cartesian3.multiplyByScalar(baseVector, oppositeRatio, new Cartesian3()),
     new Cartesian3()
   );
   const automaticCornerECEF = Cartesian3.add(
@@ -117,6 +118,64 @@ const shouldConnectOppositeCornerToBaseStart = (
   return (
     Cartesian3.distanceSquared(oppositeCornerECEF, baseStartECEF) <
     Cartesian3.distanceSquared(oppositeCornerECEF, baseEndECEF)
+  );
+};
+
+const resolveAreaPlanarTrapezoidRightAngleCoordinate = ({
+  coordinate,
+  baseStart,
+  baseEnd,
+  normalPlaneAnchor,
+  toleranceDeg,
+  forceAccepted,
+}: {
+  coordinate: CesiumGeographicCoordinate;
+  baseStart: CesiumGeographicCoordinate;
+  baseEnd: CesiumGeographicCoordinate;
+  normalPlaneAnchor: CesiumGeographicCoordinate;
+  toleranceDeg?: number | null;
+  forceAccepted?: boolean;
+}): CesiumGeographicCoordinate => {
+  if (forceAccepted) {
+    return coordinate;
+  }
+
+  const baseStartECEF = cartesian3FromGeographicCoordinate(baseStart);
+  const baseEndECEF = cartesian3FromGeographicCoordinate(baseEnd);
+  const baseVector = Cartesian3.subtract(
+    baseEndECEF,
+    baseStartECEF,
+    new Cartesian3()
+  );
+  const coordinateECEF = cartesian3FromGeographicCoordinate(coordinate);
+  const normalPlaneAnchorECEF =
+    cartesian3FromGeographicCoordinate(normalPlaneAnchor);
+  const tolerance =
+    resolveAreaPlanarTrapezoidThirdPointRightAngleToleranceDeg(toleranceDeg);
+  const isWithinRightAngleTolerance =
+    isPointWithinPlaneOrthogonalToLineAngleTolerance3d({
+      point: coordinateECEF,
+      linePoint: normalPlaneAnchorECEF,
+      lineDirection: baseVector,
+      toleranceDeg: tolerance,
+      epsilon: 1e-8,
+    });
+  if (!isWithinRightAngleTolerance) {
+    return coordinate;
+  }
+
+  const rightAnglePoint = projectPointOntoPlaneOrthogonalToLine3d({
+    point: coordinateECEF,
+    linePoint: normalPlaneAnchorECEF,
+    lineDirection: baseVector,
+    epsilon: 1e-8,
+  });
+  if (!rightAnglePoint) {
+    return coordinate;
+  }
+
+  return geographicCoordinateFromCartesian3(
+    new Cartesian3(rightAnglePoint.x, rightAnglePoint.y, rightAnglePoint.z)
   );
 };
 
@@ -172,67 +231,53 @@ export const resolveAreaPlanarTrapezoidThirdPointRightAngleCoordinate = ({
     previousCoordinates[1]!,
     baseStart.altitude
   );
-  const baseStartECEF = cartesian3FromGeographicCoordinate(baseStart);
-  const baseEndECEF = cartesian3FromGeographicCoordinate(baseEnd);
-  const baseVector = Cartesian3.subtract(
-    baseEndECEF,
-    baseStartECEF,
-    new Cartesian3()
-  );
-  const baseMagnitude = Cartesian3.magnitude(baseVector);
-  if (baseMagnitude <= 1e-8) {
-    return coordinate;
-  }
-
-  const coordinateECEF = cartesian3FromGeographicCoordinate(coordinate);
-  const normalPlaneAnchorECEF = shouldConnectOppositeCornerToBaseStart(
+  const normalPlaneAnchor = shouldConnectOppositeCornerToBaseStart(
     baseStart,
     baseEnd,
     coordinate
   )
-    ? baseStartECEF
-    : baseEndECEF;
-  const candidateVector = Cartesian3.subtract(
-    coordinateECEF,
-    normalPlaneAnchorECEF,
-    new Cartesian3()
-  );
-  const candidateMagnitude = Cartesian3.magnitude(candidateVector);
-  if (candidateMagnitude <= 1e-8) {
-    return coordinate;
-  }
+    ? baseStart
+    : baseEnd;
+  return resolveAreaPlanarTrapezoidRightAngleCoordinate({
+    coordinate,
+    baseStart,
+    baseEnd,
+    normalPlaneAnchor,
+    toleranceDeg,
+    forceAccepted,
+  });
+};
 
-  const baseDirection = Cartesian3.divideByScalar(
-    baseVector,
-    baseMagnitude,
-    new Cartesian3()
-  );
-  const candidateDirection = Cartesian3.divideByScalar(
-    candidateVector,
-    candidateMagnitude,
-    new Cartesian3()
-  );
-  const rightAngleErrorDeg =
-    (Math.asin(
-      Math.min(1, Math.abs(Cartesian3.dot(baseDirection, candidateDirection)))
-    ) *
-      180) /
-    Math.PI;
-
-  if (
-    rightAngleErrorDeg >
-    resolveAreaPlanarTrapezoidThirdPointRightAngleToleranceDeg(toleranceDeg)
-  ) {
-    return coordinate;
-  }
-
-  return geographicCoordinateFromCartesian3(
-    projectCartesian3PointOntoPlane(
-      coordinateECEF,
-      normalPlaneAnchorECEF,
-      baseDirection
-    )
-  );
+const resolveAreaPlanarTrapezoidFourthPointRightAngleCoordinate = ({
+  coordinate,
+  baseStart,
+  baseEnd,
+  oppositeCorner,
+  toleranceDeg,
+  forceAccepted,
+}: {
+  coordinate: CesiumGeographicCoordinate;
+  baseStart: CesiumGeographicCoordinate;
+  baseEnd: CesiumGeographicCoordinate;
+  oppositeCorner: CesiumGeographicCoordinate;
+  toleranceDeg?: number | null;
+  forceAccepted?: boolean;
+}): CesiumGeographicCoordinate => {
+  const normalPlaneAnchor = shouldConnectOppositeCornerToBaseStart(
+    baseStart,
+    baseEnd,
+    oppositeCorner
+  )
+    ? baseEnd
+    : baseStart;
+  return resolveAreaPlanarTrapezoidRightAngleCoordinate({
+    coordinate,
+    baseStart,
+    baseEnd,
+    normalPlaneAnchor,
+    toleranceDeg,
+    forceAccepted,
+  });
 };
 
 export const getAreaPlanarTrapezoidSecondPointHorizontalLineLengthMeters = ({
@@ -250,10 +295,19 @@ export const getAreaPlanarTrapezoidSecondPointHorizontalLineLengthMeters = ({
     previousCoordinates[0]!
   );
   const horizontalNormal = getEllipsoidalUpDirectionAtAnchor(baseStartECEF);
-  const coordinateOnHorizontalPlane = projectCartesian3PointOntoPlane(
-    cartesian3FromGeographicCoordinate(coordinate),
-    baseStartECEF,
-    horizontalNormal
+  const coordinateOnHorizontalPlanePoint = projectPointOntoPlane3d({
+    point: cartesian3FromGeographicCoordinate(coordinate),
+    planeAnchor: baseStartECEF,
+    planeNormal: horizontalNormal,
+    epsilon: 1e-8,
+  });
+  if (!coordinateOnHorizontalPlanePoint) {
+    return null;
+  }
+  const coordinateOnHorizontalPlane = new Cartesian3(
+    coordinateOnHorizontalPlanePoint.x,
+    coordinateOnHorizontalPlanePoint.y,
+    coordinateOnHorizontalPlanePoint.z
   );
 
   return Cartesian3.distance(baseStartECEF, coordinateOnHorizontalPlane);
@@ -336,7 +390,7 @@ export const resolveAreaPlanarTrapezoidDraftCoordinates = (
   coordinates: readonly CesiumGeographicCoordinate[],
   options: {
     thirdPointRightAngleToleranceDeg?: number | null;
-    applyThirdPointRightAngleLimiter?: boolean;
+    applyRightAngleLimiter?: boolean;
     forceAccepted?: boolean;
   } = {}
 ): readonly CesiumGeographicCoordinate[] => {
@@ -347,7 +401,7 @@ export const resolveAreaPlanarTrapezoidDraftCoordinates = (
   const baseStart = coordinates[0]!;
   const baseEnd = constrainToAltitude(coordinates[1]!, baseStart.altitude);
   const oppositeCorner = coordinates[2]
-    ? options.applyThirdPointRightAngleLimiter
+    ? options.applyRightAngleLimiter
       ? resolveAreaPlanarTrapezoidThirdPointRightAngleCoordinate({
           coordinate: coordinates[2],
           previousCoordinates: [baseStart, baseEnd],
@@ -362,11 +416,22 @@ export const resolveAreaPlanarTrapezoidDraftCoordinates = (
       : [baseStart, baseEnd];
   }
 
+  const fourthPoint = options.applyRightAngleLimiter
+    ? resolveAreaPlanarTrapezoidFourthPointRightAngleCoordinate({
+        coordinate: coordinates[3]!,
+        baseStart,
+        baseEnd,
+        oppositeCorner,
+        toleranceDeg: options.thirdPointRightAngleToleranceDeg,
+        forceAccepted: options.forceAccepted,
+      })
+    : coordinates[3]!;
+
   return [
     baseStart,
     baseEnd,
     oppositeCorner,
-    constrainToParallelLine(baseStart, baseEnd, oppositeCorner, coordinates[3]!),
+    constrainToParallelLine(baseStart, baseEnd, oppositeCorner, fourthPoint),
   ];
 };
 
@@ -387,7 +452,10 @@ export const resolveNextAreaPlanarTrapezoidDraftCoordinates = ({
         [...previousCoordinates, coordinate],
         {
           thirdPointRightAngleToleranceDeg,
-          applyThirdPointRightAngleLimiter: previousCoordinates.length === 2,
+          applyRightAngleLimiter:
+            shouldApplyAreaPlanarTrapezoidRightAngleLimiter(
+              previousCoordinates.length
+            ),
           forceAccepted,
         }
       );
@@ -396,7 +464,7 @@ export const resolveAreaPlanarTrapezoidMeasurementCoordinates = (
   coordinates: readonly CesiumGeographicCoordinate[],
   options: {
     thirdPointRightAngleToleranceDeg?: number | null;
-    applyThirdPointRightAngleLimiter?: boolean;
+    applyRightAngleLimiter?: boolean;
     forceAccepted?: boolean;
   } = {}
 ): readonly CesiumGeographicCoordinate[] => {
@@ -415,14 +483,13 @@ export const resolveAreaPlanarTrapezoidMeasurementCoordinates = (
     oppositeCorner!
   );
   if (
-    shouldConnectOppositeCornerToBaseStart(baseStart!, baseEnd!, oppositeCorner!)
+    shouldConnectOppositeCornerToBaseStart(
+      baseStart!,
+      baseEnd!,
+      oppositeCorner!
+    )
   ) {
     return [baseStart!, baseEnd!, automaticCorner, oppositeCorner!];
   }
-  return [
-    baseStart!,
-    baseEnd!,
-    oppositeCorner!,
-    automaticCorner,
-  ];
+  return [baseStart!, baseEnd!, oppositeCorner!, automaticCorner];
 };

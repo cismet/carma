@@ -15,14 +15,11 @@ import {
   resolveAreaPlanarTrapezoidMeasurementCoordinates,
   resolveNextAreaPlanarTrapezoidDraftCoordinates,
   resolveAreaPlanarTrapezoidThirdPointRightAngleCoordinate,
+  shouldApplyAreaPlanarTrapezoidRightAngleLimiter,
 } from "./area-planar-trapezoid";
 
-const offsetPosition = (
-  anchor: Cartesian3,
-  x: number,
-  y: number,
-  z: number
-) => Cartesian3.add(anchor, new Cartesian3(x, y, z), new Cartesian3());
+const offsetPosition = (anchor: Cartesian3, x: number, y: number, z: number) =>
+  Cartesian3.add(anchor, new Cartesian3(x, y, z), new Cartesian3());
 
 const geographicCoordinate = (
   longitude: number,
@@ -59,6 +56,14 @@ const resolveBaseRatio = (
 };
 
 describe("area planar trapezoid construction", () => {
+  it("applies the right-angle limiter while adding third and fourth points", () => {
+    expect(shouldApplyAreaPlanarTrapezoidRightAngleLimiter(0)).toBe(false);
+    expect(shouldApplyAreaPlanarTrapezoidRightAngleLimiter(1)).toBe(false);
+    expect(shouldApplyAreaPlanarTrapezoidRightAngleLimiter(2)).toBe(true);
+    expect(shouldApplyAreaPlanarTrapezoidRightAngleLimiter(3)).toBe(true);
+    expect(shouldApplyAreaPlanarTrapezoidRightAngleLimiter(4)).toBe(false);
+  });
+
   it("checks whether the second point can be placed on the horizontal plane", () => {
     const anchor = Cartesian3.fromDegrees(7, 51, 100);
     const first = geographicCoordinateFromCartesian3(anchor);
@@ -150,7 +155,7 @@ describe("area planar trapezoid construction", () => {
     expect(nextCoordinates?.[1]?.altitude).toBeCloseTo(first.altitude, 6);
   });
 
-  it("constrains near-right-angle third points into the baseline normal plane", () => {
+  it("constrains near-right-angle third points into the plane orthogonal to the baseline", () => {
     const anchor = Cartesian3.fromDegrees(7, 51, 100);
     const localUp = Cartesian3.normalize(anchor, new Cartesian3());
     const localEast = Cartesian3.normalize(
@@ -200,9 +205,9 @@ describe("area planar trapezoid construction", () => {
       new Cartesian3()
     );
 
-    expect(
-      Math.abs(Cartesian3.dot(baseVector, connectingVector))
-    ).toBeLessThan(1e-2);
+    expect(Math.abs(Cartesian3.dot(baseVector, connectingVector))).toBeLessThan(
+      1e-2
+    );
   });
 
   it("keeps force accepted third points outside the right-angle limiter", () => {
@@ -356,5 +361,40 @@ describe("area planar trapezoid construction", () => {
 
     expect(constrainedDraft).toHaveLength(4);
     expectParallel(baseVector, oppositeVector);
+  });
+
+  it("constrains near-right-angle fourth points against the other baseline endpoint", () => {
+    const anchor = Cartesian3.fromDegrees(7, 51, 100);
+    const previousCoordinates = [
+      offsetPosition(anchor, 0, 0, 0),
+      offsetPosition(anchor, 10, 0, 0),
+      offsetPosition(anchor, 10, 8, 3),
+    ].map(geographicCoordinateFromCartesian3);
+    const rawFourth = geographicCoordinateFromCartesian3(
+      offsetPosition(anchor, 1, 8.5, 9)
+    );
+
+    const nextCoordinates = resolveNextAreaPlanarTrapezoidDraftCoordinates({
+      coordinate: rawFourth,
+      previousCoordinates,
+      thirdPointRightAngleToleranceDeg: 6.5,
+    });
+    const positions = nextCoordinates?.map(cartesian3FromGeographicCoordinate);
+    expect(positions).toHaveLength(4);
+    const baseVector = Cartesian3.subtract(
+      positions![1]!,
+      positions![0]!,
+      new Cartesian3()
+    );
+    const oppositeVector = Cartesian3.subtract(
+      positions![3]!,
+      positions![2]!,
+      new Cartesian3()
+    );
+
+    expectParallel(baseVector, oppositeVector);
+    expect(
+      resolveBaseRatio(positions![0]!, positions![1]!, positions![3]!)
+    ).toBeCloseTo(0, 6);
   });
 });
