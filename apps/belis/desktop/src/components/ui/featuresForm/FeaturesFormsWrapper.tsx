@@ -581,6 +581,24 @@ const FeaturesFormsWrapper = ({
         if (isCreation) {
           onSelectNextDraft?.(featureId);
         } else {
+          // After a geometry edit the saved feature is hidden on both map
+          // layers (vector tile permanently hidden + brandnew copy suppressed)
+          // until the next brandnew poll delivers it at its new position. The
+          // datasheet mini-map follows the selection's geometry, so without
+          // this it stays parked on the pre-edit position and the moved feature
+          // looks like an empty map. Push the new geometry onto the selection —
+          // the same selectFeature(sameId, updatedFeature) channel creation
+          // drafts use on every form change — so the mini-map recenters on the
+          // new position; the marker fills in once the burst poll lands it.
+          const newWgs84 = draft.geometry
+            ? convertGeometryToWgs84(draft.geometry)
+            : undefined;
+          if (newWgs84 && selectedFeatureId && rawFeature) {
+            selectFeature(selectedFeatureId, {
+              ...(rawFeature as object),
+              geometry: newWgs84,
+            } as never);
+          }
           setIsEditing(false);
         }
       } else {
@@ -606,6 +624,9 @@ const FeaturesFormsWrapper = ({
     dispatch,
     onSelectNextDraft,
     strassenschluesselByPk,
+    selectedFeatureId,
+    rawFeature,
+    selectFeature,
   ]);
 
   // Extension drafts ("Leitung verlängern") carry the source Leitung's id on
