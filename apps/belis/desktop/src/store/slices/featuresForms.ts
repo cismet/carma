@@ -309,6 +309,27 @@ const featuresFormsSlice = createSlice({
       if (feature !== undefined) d.feature = feature;
       if (fetchedData !== undefined) d.fetchedData = fetchedData;
       d.updatedAt = Date.now();
+
+      // Reverting a geometry-edit draft to the feature's own geometry
+      // ("Momentane Geometrie") can leave nothing changed. setDraft auto-discards
+      // a clean draft, but reverts come through here instead, so mirror that
+      // check — otherwise the now-clean draft lingers as a phantom "unsaved"
+      // entry in the Entwürfe list. Creation drafts are exempt: a brand-new
+      // feature legitimately exists before it has a geometry.
+      if (!d.isCreation) {
+        const original = state.originalValues[featureId];
+        const hasFiles = d.files && d.files.length > 0;
+        const hasRemovedKeys =
+          d.removedDocumentKeys && d.removedDocumentKeys.length > 0;
+        if (
+          original &&
+          !hasFiles &&
+          !hasRemovedKeys &&
+          !isFormDirtyManaged(original, d.values)
+        ) {
+          delete state.drafts[featureId];
+        }
+      }
     },
     clearAllDrafts(state) {
       state.drafts = {};
