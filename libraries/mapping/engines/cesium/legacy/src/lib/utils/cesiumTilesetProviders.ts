@@ -10,7 +10,17 @@ export type TilesetConfigs = {
 
 const MESH_SHADER = CUSTOM_SHADERS_DEFINITIONS.UNLIT_ENHANCED_2024;
 
+const BYTES_PER_MIB = 1024 * 1024;
+const FOUR_GB_DEVICE_TILESET_CACHE_OPTIONS: Pick<
+  Cesium3DTileset.ConstructorOptions,
+  "cacheBytes" | "maximumCacheOverflowBytes"
+> = {
+  cacheBytes: 4096 * BYTES_PER_MIB,
+  maximumCacheOverflowBytes: 2048 * BYTES_PER_MIB,
+};
+
 const DEFAULT_MESH_OPTIONS: Cesium3DTileset.ConstructorOptions = {
+  ...FOUR_GB_DEVICE_TILESET_CACHE_OPTIONS,
   preloadWhenHidden: false,
   shadows: ShadowMode.DISABLED,
   enableCollision: false,
@@ -35,6 +45,7 @@ const DEFAULT_MESH_OPTIONS: Cesium3DTileset.ConstructorOptions = {
 };
 
 const DEFAULT_LOD2_OPTIONS: Cesium3DTileset.ConstructorOptions = {
+  ...FOUR_GB_DEVICE_TILESET_CACHE_OPTIONS,
   maximumScreenSpaceError: 4,
   dynamicScreenSpaceError: false,
   foveatedScreenSpaceError: true,
@@ -44,8 +55,8 @@ const DEFAULT_LOD2_OPTIONS: Cesium3DTileset.ConstructorOptions = {
 
 const loadLOD2Tileset = async (tileset: TilesetConfig) => {
   const lod2Options = {
-    ...tileset.constructorOptions,
     ...DEFAULT_LOD2_OPTIONS,
+    ...tileset.constructorOptions,
   };
   const lod2 = await Cesium3DTileset.fromUrl(tileset.url, lod2Options);
   return lod2;
@@ -55,8 +66,8 @@ const loadMeshTileset = async (tileset: TilesetConfig) => {
   // TODO get shader from tileset config
   const shader = new CustomShader(MESH_SHADER);
   const meshOptions = {
-    ...tileset.constructorOptions,
     ...DEFAULT_MESH_OPTIONS,
+    ...tileset.constructorOptions,
   };
   const mesh = await Cesium3DTileset.fromUrl(tileset.url, meshOptions);
   mesh.customShader = shader;

@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { useSelector } from "react-redux";
 
+import type { Cesium3DTileset, Scene } from "@carma-cesium";
+
 import {
   selectShowPrimaryTileset,
   selectShowSecondaryTileset,
@@ -9,16 +11,82 @@ import { guardScene } from "../utils/guardScene";
 import { guardTileset } from "../utils/guardTileset";
 import { useCesiumContext } from "./useCesiumContext";
 import { useSecondaryStyleTilesetClickHandler } from "./useSecondaryStyleTilesetClickHandler";
+
+const waitForVisibleTilesetViewTiles = (
+  scene: Scene,
+  tileset: Cesium3DTileset,
+  setReady: (ready: boolean) => void,
+  label: string
+): (() => void) => {
+  setReady(false);
+
+  let disposed = false;
+  let removeAllTilesLoadedListener: (() => void) | undefined;
+  let removePostRenderListener: (() => void) | undefined;
+
+  const cleanup = () => {
+    removeAllTilesLoadedListener?.();
+    removePostRenderListener?.();
+    removeAllTilesLoadedListener = undefined;
+    removePostRenderListener = undefined;
+  };
+
+  const markReady = () => {
+    if (disposed) return;
+    setReady(true);
+    cleanup();
+  };
+  const checkRenderedView = () => {
+    if (disposed || tileset.isDestroyed()) return;
+    if (tileset.tilesLoaded) {
+      markReady();
+    }
+  };
+
+  tileset.allTilesLoaded.addEventListener(markReady);
+  removeAllTilesLoadedListener = () =>
+    tileset.allTilesLoaded.removeEventListener(markReady);
+  scene.postRender.addEventListener(checkRenderedView);
+  removePostRenderListener = () =>
+    scene.postRender.removeEventListener(checkRenderedView);
+  scene.requestRender();
+
+  return () => {
+    disposed = true;
+    cleanup();
+    console.debug(`[CESIUM|DEBUG] Cancelled ${label} tileset ready wait`);
+  };
+};
+
 export const useTilesets = () => {
   const showPrimary = useSelector(selectShowPrimaryTileset);
-  const ctx = useCesiumContext();
   const showSecondary = useSelector(selectShowSecondaryTileset);
+  const {
+    withPrimaryTileset,
+    withSecondaryTileset,
+    requestRender,
+    setPrimaryTilesetReady,
+    setSecondaryTilesetReady,
+    initialViewApplied,
+    primaryTilesetConfigured,
+    secondaryTilesetConfigured,
+  } = useCesiumContext();
 
   useEffect(() => {
-    let added = false;
+    let cancelled = false;
+    let removeReadyListener: (() => void) | null = null;
+    const waitForCurrentView = showPrimary && initialViewApplied;
+
+    if (!primaryTilesetConfigured) {
+      setPrimaryTilesetReady(true);
+      return;
+    }
+    setPrimaryTilesetReady(!showPrimary);
+
     const repeatUntilAdded = () => {
-      if (added) return;
-      const has = ctx.withPrimaryTileset((tileset, viewer) => {
+      if (cancelled) return;
+      const has = withPrimaryTileset((tileset, viewer) => {
+        if (cancelled) return;
         const contains = guardScene(
           viewer.scene,
           "useTilesets-primary"
@@ -29,7 +97,19 @@ export const useTilesets = () => {
           );
         }
         guardTileset(tileset, "useTilesets-primary").show(showPrimary);
-        added = true;
+
+        removeReadyListener?.();
+        removeReadyListener = waitForCurrentView
+          ? waitForVisibleTilesetViewTiles(
+              viewer.scene,
+              tileset,
+              setPrimaryTilesetReady,
+              "primary"
+            )
+          : null;
+        if (!waitForCurrentView) {
+          setPrimaryTilesetReady(!showPrimary);
+        }
       });
       if (!has) {
         // not yet available -> retry next frame
@@ -37,14 +117,36 @@ export const useTilesets = () => {
       }
     };
     repeatUntilAdded();
-    ctx.requestRender();
-  }, [ctx, showPrimary]);
+    requestRender();
+
+    return () => {
+      cancelled = true;
+      removeReadyListener?.();
+    };
+  }, [
+    initialViewApplied,
+    primaryTilesetConfigured,
+    requestRender,
+    setPrimaryTilesetReady,
+    showPrimary,
+    withPrimaryTileset,
+  ]);
 
   useEffect(() => {
-    let added = false;
+    let cancelled = false;
+    let removeReadyListener: (() => void) | null = null;
+    const waitForCurrentView = showSecondary && initialViewApplied;
+
+    if (!secondaryTilesetConfigured) {
+      setSecondaryTilesetReady(true);
+      return;
+    }
+    setSecondaryTilesetReady(!showSecondary);
+
     const repeatUntilAdded = () => {
-      if (added) return;
-      const has = ctx.withSecondaryTileset((tileset, viewer) => {
+      if (cancelled) return;
+      const has = withSecondaryTileset((tileset, viewer) => {
+        if (cancelled) return;
         const contains = guardScene(
           viewer.scene,
           "useTilesets-secondary"
@@ -55,42 +157,66 @@ export const useTilesets = () => {
           );
         }
         guardTileset(tileset, "useTilesets-secondary").show(showSecondary);
-        added = true;
+
+        removeReadyListener?.();
+        removeReadyListener = waitForCurrentView
+          ? waitForVisibleTilesetViewTiles(
+              viewer.scene,
+              tileset,
+              setSecondaryTilesetReady,
+              "secondary"
+            )
+          : null;
+        if (!waitForCurrentView) {
+          setSecondaryTilesetReady(!showSecondary);
+        }
       });
       if (!has) {
         requestAnimationFrame(repeatUntilAdded);
       }
     };
     repeatUntilAdded();
-    ctx.requestRender();
-  }, [ctx, showSecondary]);
+    requestRender();
+
+    return () => {
+      cancelled = true;
+      removeReadyListener?.();
+    };
+  }, [
+    initialViewApplied,
+    requestRender,
+    secondaryTilesetConfigured,
+    setSecondaryTilesetReady,
+    showSecondary,
+    withSecondaryTileset,
+  ]);
 
   useEffect(() => {
     console.debug("HOOK BaseTilesets: showSecondary", showSecondary);
-    ctx.withSecondaryTileset((tileset) => {
+    withSecondaryTileset((tileset) => {
       guardTileset(tileset, "useTilesets-secondary").show(showSecondary);
-      ctx.requestRender();
+      requestRender();
     });
-  }, [ctx, showSecondary]);
+  }, [requestRender, showSecondary, withSecondaryTileset]);
 
   useEffect(() => {
     console.debug("HOOK BaseTilesets: showPrimary", showPrimary);
-    ctx.withPrimaryTileset((tileset) => {
+    withPrimaryTileset((tileset) => {
       guardTileset(tileset, "useTilesets-primary").show(showPrimary);
-      ctx.requestRender();
+      requestRender();
     });
-  }, [ctx, showPrimary]);
+  }, [requestRender, showPrimary, withPrimaryTileset]);
 
   useSecondaryStyleTilesetClickHandler();
 
   useEffect(() => {
     // Show/hide tilesets based on style selection
     // Parent controls when Cesium is visible, not this hook
-    ctx.withPrimaryTileset((tileset) =>
+    withPrimaryTileset((tileset) =>
       guardTileset(tileset, "useTilesets-primary").show(showPrimary)
     );
-    ctx.withSecondaryTileset((tileset) =>
+    withSecondaryTileset((tileset) =>
       guardTileset(tileset, "useTilesets-secondary").show(showSecondary)
     );
-  }, [ctx, showPrimary, showSecondary]);
+  }, [showPrimary, showSecondary, withPrimaryTileset, withSecondaryTileset]);
 };

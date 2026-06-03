@@ -21,6 +21,7 @@ export function useObliqueInitializer(debug = false) {
     getScene,
     sceneAnimationMapRef,
     initialViewApplied,
+    tilesetsReady,
   } = useCesiumContext();
   const { isTransitioning } = useMapFrameworkSwitcherContext();
   const {
@@ -37,6 +38,7 @@ export function useObliqueInitializer(debug = false) {
 
   // Derived scene ref for useCesiumCameraForceOblique
   const sceneRef = useRef<Scene | null>(null);
+  const lastAppliedObliqueModeRef = useRef<boolean | null>(null);
   const scene = getScene();
   sceneRef.current = scene;
 
@@ -88,12 +90,21 @@ export function useObliqueInitializer(debug = false) {
     // Always set the zoom handler state based on oblique mode; the hook will defer attaching until a viewer exists
     setWheelZoomEnabled(isObliqueMode);
 
-    if (!initialViewApplied) {
+    if (!initialViewApplied || !tilesetsReady) {
       return;
     }
 
     const scene = getScene();
     if (scene) {
+      const previousObliqueMode = lastAppliedObliqueModeRef.current;
+      lastAppliedObliqueModeRef.current = isObliqueMode;
+
+      if (!isObliqueMode && previousObliqueMode !== true) {
+        disableCameraForceOblique();
+        setSuspendSelectionSearch(false);
+        return;
+      }
+
       const requestRender = (opts?: { delay?: number; repeat?: number }) =>
         handleDelayedRender(() => scene.requestRender(), opts);
 
@@ -161,6 +172,7 @@ export function useObliqueInitializer(debug = false) {
     debug,
     isObliqueMode,
     initialViewApplied,
+    tilesetsReady,
     // ctx, // intentionally omitted to prevent re-triggering on context changes
     getScene,
     fixedPitch,

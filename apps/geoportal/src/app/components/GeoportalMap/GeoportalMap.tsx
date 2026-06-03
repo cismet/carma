@@ -263,6 +263,7 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
     getScene,
     isValidViewer: isValidViewerCtx,
     isViewerReady,
+    tilesetsReady,
     initialViewApplied,
   } = useCesiumContext();
 
@@ -555,8 +556,9 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
     useCesiumNavigationBridge({
       id: GEOPORTAL_CESIUM_VIEW_ADAPTER_ID,
       scene: cesiumScene,
-      isSyncEnabled: Boolean(cesiumScene),
-      isCommitEnabled: isCesium && !getIsTransitioning() && initialViewApplied,
+      isSyncEnabled: Boolean(cesiumScene && initialViewApplied && tilesetsReady),
+      isCommitEnabled:
+        isCesium && !getIsTransitioning() && initialViewApplied && tilesetsReady,
     });
   useGeoportalCesiumNavigationRestore({
     scene: cesiumScene,

@@ -37,6 +37,9 @@ export const CesiumContextProvider = ({
   providerConfig: ProviderConfig;
   tilesetConfigs: TilesetConfigs;
 }) => {
+  const primaryTilesetConfigured = Boolean(tilesetConfigs.primary);
+  const secondaryTilesetConfigured = Boolean(tilesetConfigs.secondary);
+
   // Use refs for Cesium instances to prevent re-renders
   const viewerRef = useRef<Viewer | null>(null);
   const sceneAnimationMapRef = useRef<SceneAnimationMap | null>(
@@ -56,6 +59,13 @@ export const CesiumContextProvider = ({
   const [isViewerReady, setIsViewerReady] = useState<boolean>(false);
   // Track when initial camera view from URL has been applied
   const [initialViewApplied, setInitialViewApplied] = useState<boolean>(false);
+  const [primaryTilesetReady, setPrimaryTilesetReady] = useState<boolean>(
+    !primaryTilesetConfigured
+  );
+  const [secondaryTilesetReady, setSecondaryTilesetReady] = useState<boolean>(
+    !secondaryTilesetConfigured
+  );
+  const tilesetsReady = primaryTilesetReady && secondaryTilesetReady;
 
   const getScene = useCallback((): Scene | null => {
     if (viewerRef.current) {
@@ -118,30 +128,40 @@ export const CesiumContextProvider = ({
 
   // Load Primary Tileset
   useEffect(() => {
-    let cancelled = false;
-    if (tilesetConfigs.primary && isViewerReady) {
-      const fetchPrimary = async () => {
-        console.debug(
-          "[CESIUM|DEBUG] Loading primary tileset",
-          tilesetConfigs.primary
-        );
-        const tileset = await loadTileset(tilesetConfigs.primary);
-        if (cancelled) {
-          if (!tileset.isDestroyed()) {
-            tileset.destroy();
-          }
-          return;
-        }
-        primaryTilesetRef.current = tileset;
-        console.debug(
-          "[CESIUM|DEBUG] Loaded primary tileset",
-          primaryTilesetRef.current
-        );
-      };
-      fetchPrimary().catch(console.error);
-    } else {
+    if (!tilesetConfigs.primary) {
+      setPrimaryTilesetReady(true);
       console.debug("[CESIUM|DEBUG] No primary tileset configured");
+      return;
     }
+    if (!isViewerReady) {
+      setPrimaryTilesetReady(false);
+      return;
+    }
+
+    let cancelled = false;
+    const tilesetConfig = tilesetConfigs.primary;
+    setPrimaryTilesetReady(false);
+    const fetchPrimary = async () => {
+      console.debug("[CESIUM|DEBUG] Loading primary tileset", tilesetConfig);
+      const tileset = await loadTileset(tilesetConfig);
+      if (cancelled) {
+        if (!tileset.isDestroyed()) {
+          tileset.destroy();
+        }
+        return;
+      }
+      primaryTilesetRef.current = tileset;
+      console.debug(
+        "[CESIUM|DEBUG] Loaded primary tileset",
+        primaryTilesetRef.current
+      );
+    };
+    fetchPrimary().catch((error) => {
+      console.error(error);
+      if (!cancelled) {
+        setPrimaryTilesetReady(false);
+      }
+    });
 
     return () => {
       cancelled = true;
@@ -157,30 +177,40 @@ export const CesiumContextProvider = ({
 
   // Load Secondary Tileset
   useEffect(() => {
-    let cancelled = false;
-    if (tilesetConfigs.secondary && isViewerReady && isValidViewer()) {
-      const fetchSecondary = async () => {
-        console.debug(
-          "[CESIUM|DEBUG] Loading secondary tileset",
-          tilesetConfigs.secondary
-        );
-        const tileset = await loadTileset(tilesetConfigs.secondary!);
-        if (cancelled) {
-          if (!tileset.isDestroyed()) {
-            tileset.destroy();
-          }
-          return;
-        }
-        secondaryTilesetRef.current = tileset;
-        console.debug(
-          "[CESIUM|DEBUG] Loaded secondary tileset",
-          secondaryTilesetRef.current
-        );
-      };
-      fetchSecondary().catch(console.error);
-    } else {
+    if (!tilesetConfigs.secondary) {
+      setSecondaryTilesetReady(true);
       console.debug("[CESIUM|DEBUG] No secondary tileset configured");
+      return;
     }
+    if (!isViewerReady || !isValidViewer()) {
+      setSecondaryTilesetReady(false);
+      return;
+    }
+
+    let cancelled = false;
+    const tilesetConfig = tilesetConfigs.secondary;
+    setSecondaryTilesetReady(false);
+    const fetchSecondary = async () => {
+      console.debug("[CESIUM|DEBUG] Loading secondary tileset", tilesetConfig);
+      const tileset = await loadTileset(tilesetConfig);
+      if (cancelled) {
+        if (!tileset.isDestroyed()) {
+          tileset.destroy();
+        }
+        return;
+      }
+      secondaryTilesetRef.current = tileset;
+      console.debug(
+        "[CESIUM|DEBUG] Loaded secondary tileset",
+        secondaryTilesetRef.current
+      );
+    };
+    fetchSecondary().catch((error) => {
+      console.error(error);
+      if (!cancelled) {
+        setSecondaryTilesetReady(false);
+      }
+    });
 
     return () => {
       cancelled = true;
@@ -219,6 +249,11 @@ export const CesiumContextProvider = ({
       setIsViewerReady,
       setInitialViewApplied,
       providersReady,
+      primaryTilesetConfigured,
+      secondaryTilesetConfigured,
+      tilesetsReady,
+      setPrimaryTilesetReady,
+      setSecondaryTilesetReady,
       initialViewApplied,
       isViewerReady,
       // NOTE: Workaround for CesiumGS/cesium#12543 — delay/repeat options exist
@@ -235,6 +270,9 @@ export const CesiumContextProvider = ({
       isViewerReady,
       initialViewApplied,
       providersReady,
+      primaryTilesetConfigured,
+      secondaryTilesetConfigured,
+      tilesetsReady,
       requestRender,
       instanceCallbacks,
     ]

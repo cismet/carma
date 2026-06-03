@@ -21,6 +21,11 @@ export interface CesiumContextType {
   isViewerReady: boolean;
   setIsViewerReady: (flag: boolean) => void;
   providersReady: boolean;
+  primaryTilesetConfigured: boolean;
+  secondaryTilesetConfigured: boolean;
+  tilesetsReady: boolean;
+  setPrimaryTilesetReady: (flag: boolean) => void;
+  setSecondaryTilesetReady: (flag: boolean) => void;
   // Track when initial camera view from URL has been applied
   initialViewApplied: boolean;
   setInitialViewApplied: (flag: boolean) => void;
