@@ -1,12 +1,10 @@
-import type { PropsWithChildren } from "react";
+import { useEffect, type PropsWithChildren } from "react";
 
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { configureStore } from "@reduxjs/toolkit";
 import { Provider } from "react-redux";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  ANNOTATION_SELECT_TOOL_ID,
-} from "@carma-mapping/annotations/core";
+import { ANNOTATION_SELECT_TOOL_ID } from "@carma-mapping/annotations/core";
 
 const useMapFrameworkSwitcherContextMock = vi.hoisted(() => vi.fn());
 const useAnnotationsDispatchMock = vi.hoisted(() => vi.fn());
@@ -28,7 +26,7 @@ import {
   CESIUM_ANNOTATION_LAYER_ID,
 } from "../components/annotations/cesium-annotations.constants";
 import { CESIUM_ANNOTATION_CONFIG } from "../config/app.config";
-import { useCesiumAnnotationLayerButton } from "./useCesiumAnnotationLayerButton";
+import { useGeoportalCesiumAnnotationLayerbar } from "./use-geoportal-cesium-annotation-layerbar";
 
 type TestStore = ReturnType<typeof createTestStore>;
 
@@ -63,7 +61,7 @@ const buildCesiumAnnotationLayer = () =>
     },
   } as const);
 
-describe("useCesiumAnnotationLayerButton", () => {
+describe("useGeoportalCesiumAnnotationLayerbar", () => {
   const setActiveToolType = vi.fn();
   const setSelectedAnnotationId = vi.fn();
 
@@ -97,7 +95,7 @@ describe("useCesiumAnnotationLayerButton", () => {
       payload: buildCesiumAnnotationLayer(),
     });
 
-    renderHook(() => useCesiumAnnotationLayerButton(), {
+    renderHook(() => useGeoportalCesiumAnnotationLayerbar(), {
       wrapper: createWrapper(store),
     });
 
@@ -109,7 +107,7 @@ describe("useCesiumAnnotationLayerButton", () => {
   it("appends the cesium annotation layer when measurement mode is enabled in cesium", async () => {
     const store = createTestStore();
 
-    renderHook(() => useCesiumAnnotationLayerButton(), {
+    renderHook(() => useGeoportalCesiumAnnotationLayerbar(), {
       wrapper: createWrapper(store),
     });
 
@@ -136,10 +134,36 @@ describe("useCesiumAnnotationLayerButton", () => {
     );
   });
 
+  it("keeps hash-activated measurement mode when mount cleanup removes a stale cesium annotation layer", async () => {
+    const store = createTestStore();
+    store.dispatch({
+      type: "mapping/appendLayer",
+      payload: buildCesiumAnnotationLayer(),
+    });
+
+    renderHook(
+      () => {
+        useGeoportalCesiumAnnotationLayerbar();
+
+        useEffect(() => {
+          store.dispatch(setUIMode(UIMode.MEASUREMENT));
+        }, [store]);
+      },
+      {
+        wrapper: createWrapper(store),
+      }
+    );
+
+    await waitFor(() => {
+      expect(store.getState().ui.mode).toBe(UIMode.MEASUREMENT);
+      expect(findCesiumAnnotationLayer(store)).toBeDefined();
+    });
+  });
+
   it("falls back to default mode when the temporary cesium annotation layer is removed manually", async () => {
     const store = createTestStore();
 
-    renderHook(() => useCesiumAnnotationLayerButton(), {
+    renderHook(() => useGeoportalCesiumAnnotationLayerbar(), {
       wrapper: createWrapper(store),
     });
 
@@ -184,7 +208,7 @@ describe("useCesiumAnnotationLayerButton", () => {
     });
     useAnnotationsDispatchMock.mockReturnValue(annotationsDispatch);
 
-    renderHook(() => useCesiumAnnotationLayerButton(), {
+    renderHook(() => useGeoportalCesiumAnnotationLayerbar(), {
       wrapper: createWrapper(store),
     });
 
@@ -228,7 +252,7 @@ describe("useCesiumAnnotationLayerButton", () => {
       store.dispatch(setUIMode(UIMode.MEASUREMENT));
     });
 
-    renderHook(() => useCesiumAnnotationLayerButton(), {
+    renderHook(() => useGeoportalCesiumAnnotationLayerbar(), {
       wrapper: createWrapper(store),
     });
 

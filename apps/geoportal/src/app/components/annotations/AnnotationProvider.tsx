@@ -9,7 +9,7 @@ import { useCesiumContext } from "@carma-mapping/engines/cesium/legacy";
 import { APP_KEY } from "../../config";
 import { CESIUM_ANNOTATION_CONFIG } from "../../config/app.config";
 import { geoportalAnnotationModeText } from "../../config/geoportalTextConfig";
-import { useCesiumAnnotationLayerButton } from "../../hooks/useCesiumAnnotationLayerButton";
+import { useGeoportalCesiumAnnotationLayerbar } from "../../hooks/use-geoportal-cesium-annotation-layerbar";
 import { useGeoportalCesiumAnnotationModeLifecycle } from "../../hooks/use-geoportal-cesium-annotation-mode-lifecycle";
 import { useGeoportalCesiumAnnotationOverlayHost } from "../../hooks/use-geoportal-cesium-annotation-overlay-host";
 import { useGeoportalCesiumAnnotationToolPlugins } from "../../hooks/use-geoportal-cesium-annotation-tool-plugins";
@@ -24,7 +24,7 @@ type AnnotationProviderProps = {
 };
 
 function GeoportalCesiumAnnotationLayerbarRegistration() {
-  useCesiumAnnotationLayerButton();
+  useGeoportalCesiumAnnotationLayerbar();
   return null;
 }
 

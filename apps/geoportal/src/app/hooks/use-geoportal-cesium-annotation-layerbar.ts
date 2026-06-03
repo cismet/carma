@@ -1,12 +1,10 @@
-import { useCallback, useEffect, useRef } from "react";
+import { createElement, useCallback, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { faRuler } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
-import {
-  ANNOTATION_SELECT_TOOL_ID,
-} from "@carma-mapping/annotations/core";
+import { ANNOTATION_SELECT_TOOL_ID } from "@carma-mapping/annotations/core";
 import { useAnnotationsRuntime } from "@carma-mapping/annotations/runtime";
 import type { AnnotationModeText } from "@carma-mapping/annotations/builtin-tools/annotation-mode-text";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
@@ -39,7 +37,7 @@ const createCesiumAnnotationLayer = (
   visible: true,
   pinned: "last",
   interactionButtons: {
-    icon: <FontAwesomeIcon icon={faRuler} />,
+    icon: createElement(FontAwesomeIcon, { icon: faRuler }),
     id: CESIUM_ANNOTATION_INTERACTION_ID,
   },
 });
@@ -56,7 +54,7 @@ const getCesiumAnnotationLayerTitle = (
       }`
     : annotationModeText.layerTitle.empty;
 
-export function useCesiumAnnotationLayerButton() {
+export function useGeoportalCesiumAnnotationLayerbar() {
   const dispatch = useDispatch();
   const annotationModeText = geoportalAnnotationModeText;
   const layers = useSelector(getLayers);
@@ -75,7 +73,9 @@ export function useCesiumAnnotationLayerButton() {
   const hasCesiumAnnotationLayer = layers.some(
     (layer) => layer.id === CESIUM_ANNOTATION_LAYER_ID
   );
-  const previousHasCesiumAnnotationLayerRef = useRef(hasCesiumAnnotationLayer);
+  const hadActiveCesiumAnnotationLayerRef = useRef(
+    shouldShowCesiumAnnotationLayer && hasCesiumAnnotationLayer
+  );
   const initialCleanupDone = useRef(false);
 
   const handleEnterCesiumAnnotationMode = useCallback(() => {
@@ -116,25 +116,25 @@ export function useCesiumAnnotationLayerButton() {
   });
 
   useEffect(() => {
-    if (initialCleanupDone.current) {
-      return;
+    if (!initialCleanupDone.current) {
+      initialCleanupDone.current = true;
+
+      if (!shouldShowCesiumAnnotationLayer && hasCesiumAnnotationLayer) {
+        hadActiveCesiumAnnotationLayerRef.current = false;
+        dispatch(removeLayer(CESIUM_ANNOTATION_LAYER_ID));
+        return;
+      }
     }
 
-    initialCleanupDone.current = true;
+    const hadActiveCesiumAnnotationLayer =
+      hadActiveCesiumAnnotationLayerRef.current;
+    hadActiveCesiumAnnotationLayerRef.current =
+      shouldShowCesiumAnnotationLayer && hasCesiumAnnotationLayer;
 
-    if (!shouldShowCesiumAnnotationLayer && hasCesiumAnnotationLayer) {
-      dispatch(removeLayer(CESIUM_ANNOTATION_LAYER_ID));
-    }
-  }, [dispatch, hasCesiumAnnotationLayer, shouldShowCesiumAnnotationLayer]);
-
-  useEffect(() => {
-    const previousHasCesiumAnnotationLayer =
-      previousHasCesiumAnnotationLayerRef.current;
-    previousHasCesiumAnnotationLayerRef.current = hasCesiumAnnotationLayer;
     if (
       shouldShowCesiumAnnotationLayer &&
       !hasCesiumAnnotationLayer &&
-      previousHasCesiumAnnotationLayer
+      hadActiveCesiumAnnotationLayer
     ) {
       setSelectedAnnotationId(null);
       dispatch(setUIMode(UIMode.DEFAULT));

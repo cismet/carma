@@ -20,7 +20,6 @@ import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopic
 import {
   SelectionMapMode,
   type SelectionMetaData,
-  useAppSearchParams,
   useGazData,
   useSelection,
 } from "@carma-appframeworks/portals";
@@ -68,7 +67,6 @@ import { useWindowSize } from "../../../hooks/useWindowSize.ts";
 import { useGeoportalHomeValues } from "../../../hooks/useGeoportalInitialValues.ts";
 
 import { useOblique } from "../../../oblique/hooks/useOblique.ts";
-import { geoportalAppSearchParamsOptions } from "../../../config/app-search-params.ts";
 
 import { cancelOngoingRequests } from "../topicmap.utils";
 
@@ -190,13 +188,7 @@ const MapWrapper = () => {
 
   // custom hooks
 
-  const { customHashState } = useAppSearchParams(
-    geoportalAppSearchParamsOptions
-  );
-  useGeoportalMeasurementModeHash({
-    customHashState,
-    writeMeasurementModeHash: isCesium,
-  });
+  useGeoportalMeasurementModeHash();
   useDispatchSachdatenInfoText();
   useMapStyleReduxSync();
 

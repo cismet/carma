@@ -18,6 +18,13 @@ export type UseHashLaunchModeOptions = Pick<
   "defaultMode"
 >;
 
+const HASH_LAUNCH_FLAG_KEYS = [
+  DEFAULT_HASH_LAUNCH_FLAG_2D_KEY,
+  DEFAULT_HASH_LAUNCH_FLAG_3D_KEY,
+  DEFAULT_HASH_LAUNCH_LEGACY_FLAG_2D_KEY,
+  DEFAULT_HASH_LAUNCH_LEGACY_FLAG_3D_KEY,
+] as const;
+
 /**
  * Reads the launch-mode hint (`2d` / `3d`) from the URL hash on mount,
  * activates the corresponding map framework, then strips the consumed
@@ -44,19 +51,20 @@ export const useHashLaunchMode = (
       setActiveFrameworkLeaflet();
     }
 
-    // Remove consumed launch-mode flags from the hash
-    updateHashState(
-      {
-        [DEFAULT_HASH_LAUNCH_FLAG_2D_KEY]: undefined,
-        [DEFAULT_HASH_LAUNCH_FLAG_3D_KEY]: undefined,
-        [DEFAULT_HASH_LAUNCH_LEGACY_FLAG_2D_KEY]: undefined,
-        [DEFAULT_HASH_LAUNCH_LEGACY_FLAG_3D_KEY]: undefined,
-      },
-      {
-        label: "hash-launch-mode:clear",
-        replace: true,
-      }
-    );
+    if (HASH_LAUNCH_FLAG_KEYS.some((key) => hashParams[key] !== undefined)) {
+      updateHashState(
+        {
+          [DEFAULT_HASH_LAUNCH_FLAG_2D_KEY]: undefined,
+          [DEFAULT_HASH_LAUNCH_FLAG_3D_KEY]: undefined,
+          [DEFAULT_HASH_LAUNCH_LEGACY_FLAG_2D_KEY]: undefined,
+          [DEFAULT_HASH_LAUNCH_LEGACY_FLAG_3D_KEY]: undefined,
+        },
+        {
+          label: "hash-launch-mode:clear",
+          replace: true,
+        }
+      );
+    }
     // run only once on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

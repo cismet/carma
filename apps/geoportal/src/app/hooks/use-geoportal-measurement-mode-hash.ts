@@ -1,84 +1,52 @@
 import { useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import type { AppSearchParamsCustomStateSnapshot } from "@carma-appframeworks/portals";
+import { useAppSearchParams } from "@carma-appframeworks/portals";
+import { HASH_LAUNCH_MODE } from "@carma-commons/utils";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
+import { useCesiumContext } from "@carma-mapping/engines/cesium/legacy";
 import { useHashState } from "@carma-providers/hash-state";
 
 import {
   buildGeoportalMeasurementModeHashUpdate,
-  type GeoportalCustomHashState,
 } from "../helper/geoportal-custom-hash-state";
+import { geoportalAppSearchParamsOptions } from "../config/app-search-params";
 import { getUIMode, setUIMode, UIMode } from "../store/slices/ui";
 
-type UseGeoportalMeasurementModeHashOptions = {
-  customHashState:
-    | AppSearchParamsCustomStateSnapshot<GeoportalCustomHashState>
-    | null;
-  writeMeasurementModeHash?: boolean;
-};
-
-export const useGeoportalMeasurementModeHash = ({
-  customHashState,
-  writeMeasurementModeHash = true,
-}: UseGeoportalMeasurementModeHashOptions) => {
+export const useGeoportalMeasurementModeHash = () => {
   const dispatch = useDispatch();
   const uiMode = useSelector(getUIMode);
   const { updateHashState } = useHashState();
-  const pendingMeasurementModeHashRef = useRef(false);
-  const handledHashStateVersionRef = useRef<number | null>(null);
-  const uiModeRef = useRef(uiMode);
+  const { customHashState } = useAppSearchParams(geoportalAppSearchParamsOptions);
+  const { isCesium } = useMapFrameworkSwitcherContext();
+  const { initialViewApplied } = useCesiumContext();
+  const appliedMeasurementRequestVersionRef = useRef<number | null>(null);
+  const enabled = isCesium && initialViewApplied;
 
-  const measurementModeRequested =
-    customHashState?.measurementModeRequested ?? false;
+  const measurementModeRequested = Boolean(
+    customHashState?.measurementModeRequested &&
+      customHashState.launchMode === HASH_LAUNCH_MODE.THREE_D
+  );
   const hashStateSource = customHashState?.source;
   const hashStateVersion = customHashState?.version;
 
-  uiModeRef.current = uiMode;
-
   useEffect(() => {
-    if (hashStateVersion === undefined) {
+    if (hashStateVersion === undefined || !enabled) {
       return;
     }
-
-    if (handledHashStateVersionRef.current === hashStateVersion) {
-      return;
-    }
-
-    handledHashStateVersionRef.current = hashStateVersion;
-
-    if (measurementModeRequested) {
-      pendingMeasurementModeHashRef.current = true;
-
-      if (uiModeRef.current !== UIMode.MEASUREMENT) {
-        dispatch(setUIMode(UIMode.MEASUREMENT));
-      }
-      return;
-    }
-
-    pendingMeasurementModeHashRef.current = false;
 
     if (
-      hashStateSource === "popstate" &&
-      uiModeRef.current === UIMode.MEASUREMENT
+      measurementModeRequested &&
+      appliedMeasurementRequestVersionRef.current !== hashStateVersion
     ) {
-      dispatch(setUIMode(UIMode.DEFAULT));
-    }
-  }, [dispatch, hashStateSource, hashStateVersion, measurementModeRequested]);
-
-  useEffect(() => {
-    if (hashStateVersion === undefined) {
-      return;
-    }
-
-    if (pendingMeasurementModeHashRef.current) {
       if (uiMode !== UIMode.MEASUREMENT) {
+        dispatch(setUIMode(UIMode.MEASUREMENT));
         return;
       }
-      pendingMeasurementModeHashRef.current = false;
 
-      if (!writeMeasurementModeHash) {
-        return;
-      }
+      appliedMeasurementRequestVersionRef.current = hashStateVersion;
+    } else if (!measurementModeRequested) {
+      appliedMeasurementRequestVersionRef.current = null;
     }
 
     if (
@@ -86,21 +54,26 @@ export const useGeoportalMeasurementModeHash = ({
       !measurementModeRequested &&
       uiMode === UIMode.MEASUREMENT
     ) {
+      dispatch(setUIMode(UIMode.DEFAULT));
+      return;
+    }
+
+    const measurementModeActive = uiMode === UIMode.MEASUREMENT;
+    if (measurementModeActive === measurementModeRequested) {
       return;
     }
 
     updateHashState(
-      buildGeoportalMeasurementModeHashUpdate(
-        writeMeasurementModeHash && uiMode === UIMode.MEASUREMENT
-      ),
+      buildGeoportalMeasurementModeHashUpdate(measurementModeActive),
       { label: "geoportal:sync-measurement-mode", replace: true }
     );
   }, [
+    dispatch,
+    enabled,
     hashStateSource,
     hashStateVersion,
     measurementModeRequested,
     uiMode,
     updateHashState,
-    writeMeasurementModeHash,
   ]);
 };
