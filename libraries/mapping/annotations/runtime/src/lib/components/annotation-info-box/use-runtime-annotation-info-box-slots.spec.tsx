@@ -6,6 +6,7 @@ import {
 } from "@carma-mapping/annotations/core";
 
 import type {
+  AnnotationToolDraftStore,
   AnnotationToolPlugin,
   AnnotationToolRegistry,
 } from "../../registry";
@@ -76,10 +77,24 @@ const createAnnotation = ({
     toolType,
   } as StoredAnnotation);
 
+const createDraftStore = (
+  draft: ReturnType<AnnotationToolDraftStore["get"]> = {
+    coordinates: [],
+    linkedNodeGroupIds: [],
+    feedback: null,
+  }
+): AnnotationToolDraftStore => ({
+  clear: vi.fn(),
+  get: vi.fn(() => draft),
+  set: vi.fn(),
+  subscribe: vi.fn(() => () => undefined),
+});
+
 const createRuntime = (
   overrides: Record<string, unknown> = {}
 ): Record<string, unknown> => ({
   activeToolType: ANNOTATION_SELECT_TOOL_ID,
+  annotationToolDraftStore: createDraftStore(),
   annotationEntries: [],
   elevationReferenceAnnotationId: null,
   exportAnnotationGeoJson: vi.fn(),
@@ -197,6 +212,40 @@ describe("useRuntimeAnnotationInfoBoxSlots", () => {
 
     expect(screen.getByText("Klick auf die Karte.")).toBeTruthy();
     expect(screen.getByText("Jeder weitere Klick misst neu.")).toBeTruthy();
+  });
+
+  it("renders active tool draft feedback above fallback help text", () => {
+    const plugin = createPlugin({
+      helpText: ["Klick auf die Karte."],
+      id: ANNOTATION_TYPES.POINT,
+    });
+    const feedbackMessage = "Der letzte Punkt wurde nicht übernommen.";
+
+    useAnnotationsRuntimeMock.mockReturnValue(
+      createRuntime({
+        activeToolType: plugin.id,
+        annotationToolDraftStore: createDraftStore({
+          coordinates: [],
+          linkedNodeGroupIds: [],
+          feedback: {
+            kind: "warning",
+            message: feedbackMessage,
+          },
+        }),
+        registry: createRegistry([plugin]),
+      })
+    );
+
+    const { result } = renderHook(() =>
+      useRuntimeAnnotationInfoBoxSlots({
+        includeFallback: true,
+      })
+    );
+
+    render(<>{result.current?.slots.content}</>);
+
+    expect(screen.getByText(feedbackMessage)).toBeTruthy();
+    expect(screen.getByText("Klick auf die Karte.")).toBeTruthy();
   });
 
   it("does not return fallback slots unless fallback rendering is enabled", () => {

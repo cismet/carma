@@ -58,6 +58,10 @@ export type AnnotationToolDescriptor = {
 export type AnnotationToolDraftState = {
   coordinates: readonly CesiumGeographicCoordinate[];
   linkedNodeGroupIds: readonly (AnnotationNodeLinkId | null)[];
+  feedback?: {
+    kind: "warning";
+    message: string;
+  } | null;
 };
 
 export type AnnotationToolDraftStore = {

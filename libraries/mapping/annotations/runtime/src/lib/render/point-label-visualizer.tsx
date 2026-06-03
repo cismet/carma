@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  type CSSProperties,
+} from "react";
 import type { CssPixelPosition } from "@carma-units";
 import { Cartesian3, SceneTransforms, defined } from "@carma-cesium";
 
@@ -6,6 +12,7 @@ import {
   applyPointLabelOverlayState,
   computePointLabelLayout,
   getPointLabelOverlayContentSignature,
+  POINT_LABEL_ANCHOR_KIND,
   readPointLabelOverlayDomRefs,
   resolvePointLabelLayoutConfig,
   renderPointLabelOverlayContent,
@@ -162,7 +169,8 @@ export const usePointLabelVisualizer = (
   labels: readonly RuntimePointLabelRenderModel[],
   blockLabelInteractions: boolean = false,
   isInPreviewNodeLink?: (nodeId?: string) => boolean,
-  overlayIdPrefix: string = "runtime-point-label"
+  overlayIdPrefix: string = "runtime-point-label",
+  areaLabelMixBlendMode?: CSSProperties["mixBlendMode"]
 ) => {
   const {
     addLabelOverlayElement,
@@ -508,6 +516,11 @@ export const usePointLabelVisualizer = (
         fontSize: label.fontSize,
         fontFamily: label.fontFamily,
         fontWeight: label.fontWeight,
+        mixBlendMode:
+          label.mixBlendMode ??
+          (label.anchorKind === POINT_LABEL_ANCHOR_KIND.AREA_CENTROID
+            ? areaLabelMixBlendMode
+            : undefined),
         onClick: clickBlocked ? undefined : label.onClick,
         onDoubleClick: blockLabelInteractions ? undefined : label.onDoubleClick,
         onHoverChange: label.onHoverChange,
@@ -609,6 +622,7 @@ export const usePointLabelVisualizer = (
     blockLabelInteractions,
     normalizedLabels,
     overlayIdPrefix,
+    areaLabelMixBlendMode,
     removeLabelOverlayElement,
     resolveLabelOverlayState,
     resolveOverlayDomRefs,

@@ -132,7 +132,10 @@ export {
   placePointMarkers,
   resolvePreviewDistanceTriangleComponentLabelVisibility,
 } from "./lib/interaction/authoring-visual-runtime";
-export { createPolygonAuthoringController } from "./lib/interaction/create-polygon-authoring-controller";
+export {
+  createPolygonAuthoringController,
+  type PolygonAuthoringMeasurementCoordinatesResolver,
+} from "./lib/interaction/create-polygon-authoring-controller";
 export { createSegmentAuthoringController } from "./lib/interaction/create-segment-authoring-controller";
 export { createVerticalAreaAuthoringController } from "./lib/interaction/create-vertical-area-authoring-controller";
 export { applySecondaryLineLabelPlacementStrategy } from "./lib/render/secondary-line-label-placement";

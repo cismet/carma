@@ -14,6 +14,7 @@ const EMPTY_DRAFT_NODE_LINK_IDS: readonly (AnnotationNodeLinkId | null)[] = [];
 const EMPTY_ANNOTATION_TOOL_DRAFT_STATE: AnnotationToolDraftState = {
   coordinates: EMPTY_DRAFT_COORDINATES,
   linkedNodeGroupIds: EMPTY_DRAFT_NODE_LINK_IDS,
+  feedback: null,
 };
 
 const areNodeLinkIdsEqual = (
@@ -28,7 +29,9 @@ const areAnnotationToolDraftStatesEqual = (
   right: AnnotationToolDraftState
 ) =>
   areCoordinateListsEqual(left.coordinates, right.coordinates) &&
-  areNodeLinkIdsEqual(left.linkedNodeGroupIds, right.linkedNodeGroupIds);
+  areNodeLinkIdsEqual(left.linkedNodeGroupIds, right.linkedNodeGroupIds) &&
+  left.feedback?.kind === right.feedback?.kind &&
+  left.feedback?.message === right.feedback?.message;
 
 export const createAnnotationToolDraftStore = (): AnnotationToolDraftStore => {
   const draftByToolType = new Map<AnnotationToolId, AnnotationToolDraftState>();
@@ -47,6 +50,7 @@ export const createAnnotationToolDraftStore = (): AnnotationToolDraftStore => {
       const nextDraft: AnnotationToolDraftState = {
         coordinates: [...draft.coordinates],
         linkedNodeGroupIds: [...draft.linkedNodeGroupIds],
+        feedback: draft.feedback ?? null,
       };
       const previousDraft = getDraft(toolType);
 
@@ -56,7 +60,8 @@ export const createAnnotationToolDraftStore = (): AnnotationToolDraftStore => {
 
       const hasContent =
         nextDraft.coordinates.length > 0 ||
-        nextDraft.linkedNodeGroupIds.length > 0;
+        nextDraft.linkedNodeGroupIds.length > 0 ||
+        Boolean(nextDraft.feedback);
 
       if (!hasContent) {
         draftByToolType.delete(toolType);

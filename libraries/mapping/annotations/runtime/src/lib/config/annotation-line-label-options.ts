@@ -175,3 +175,11 @@ export const resolveAnnotationLineLabelOptions = (
     ...options?.collision,
   },
 });
+
+export const resolveAnnotationLineLabelSurfaceBlendMode = (
+  options: AnnotationLineLabelOptions
+): CssMixBlendMode =>
+  options.surface.blendMode ??
+  (options.appearance.themeStyle === ANNOTATION_THEME_STYLE.DARK_ON_BRIGHT
+    ? "lighten"
+    : "darken");

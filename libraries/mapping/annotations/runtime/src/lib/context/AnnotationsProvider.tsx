@@ -24,6 +24,7 @@ import {
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import type { PartialAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
 import type {
+  AnnotationToolDraftStore,
   AnnotationToolPlugin,
   AnnotationToolRegistry,
 } from "../registry";
@@ -43,6 +44,7 @@ import {
 type AnnotationsRuntimeServices = {
   scene: Scene | null;
   registry: AnnotationToolRegistry;
+  annotationToolDraftStore: AnnotationToolDraftStore;
   annotationsStore: AnnotationsStore;
   formatOptions: AnnotationsRuntimeFormatOptions;
   addAnnotation: (
@@ -254,6 +256,7 @@ export const useAnnotationsRuntime = () => {
   const {
     scene,
     registry,
+    annotationToolDraftStore,
     formatOptions,
     addAnnotation,
     setActiveToolType,
@@ -304,6 +307,7 @@ export const useAnnotationsRuntime = () => {
   return {
     scene,
     registry,
+    annotationToolDraftStore,
     formatOptions,
     activeToolType,
     setActiveToolType,

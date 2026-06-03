@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import type { CssPixelPosition } from "@carma-units";
 import type {
   PointLabelAnchorKind,
@@ -135,6 +135,7 @@ export type RuntimePointLabelRenderModel = {
   fontSize?: string;
   fontFamily?: string;
   fontWeight?: string | number;
+  mixBlendMode?: CSSProperties["mixBlendMode"];
   labelStyle?: PointLabelStyle;
   hideMarker?: boolean;
   collapse?: boolean;

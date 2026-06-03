@@ -9,6 +9,7 @@ import {
   getAnnotationAreaCssColor,
   getAnnotationAreaFillCssColor,
   type NodeChainAnnotation,
+  type AnnotationToolId,
   type AnnotationTypes,
 } from "@carma-mapping/annotations/core";
 import { Cartesian3, SceneTransforms, defined } from "@carma-cesium";
@@ -26,12 +27,23 @@ import {
 } from "@carma-providers/label-overlay";
 import type { CesiumGeographicCoordinate } from "../store";
 import { areCoordinateListsEqual } from "../utils/coordinate-equality";
-import { previewControllerDefaults } from "./authoring-visual-runtime";
+import {
+  applyLineRuntime,
+  clearLineRuntime,
+  createLineCollection,
+  createLineRuntime,
+  destroyLineCollection,
+  previewControllerDefaults,
+  type PreviewLineRuntime,
+} from "./authoring-visual-runtime";
 import { createPathAuthoringController } from "./create-path-authoring-controller";
 import { RUNTIME_POLYGON_FILL_PLACEMENT } from "../render/measurement-render-models";
 import { createMeasurementPolygonFillsController } from "../render/measurement-polygon-fills-controller.shared";
 import { createMeasurementOverlayPolygonFillsController } from "../render/measurement-overlay-polygon-fills-controller.shared";
-import { resolveAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
+import {
+  resolveAnnotationLineLabelOptions,
+  resolveAnnotationLineLabelSurfaceBlendMode,
+} from "../config/annotation-line-label-options";
 import {
   isCoplanarPolygonFillPlacement,
   resolveAreaOcclusionLineRenderOptions,
@@ -57,6 +69,23 @@ type PreviewAreaLabelState = {
   text: string;
   anchorECEF: Cartesian3;
 };
+
+type ProjectionNormalSegment = {
+  fromPlaneCoordinate: CesiumGeographicCoordinate;
+  toSampleCoordinate: CesiumGeographicCoordinate;
+};
+
+type ProjectionNormalController = {
+  setSegments: (segments: readonly ProjectionNormalSegment[]) => void;
+  clear: () => void;
+  destroy: () => void;
+};
+
+export type PolygonAuthoringMeasurementCoordinatesResolver = (args: {
+  coordinates: readonly CesiumGeographicCoordinate[];
+  previousCoordinates?: readonly CesiumGeographicCoordinate[];
+  preferredFacingPositionECEF?: Cartesian3 | null;
+}) => readonly CesiumGeographicCoordinate[] | null;
 
 const buildClosedLoopCoordinates = (
   coordinates: readonly CesiumGeographicCoordinate[]
@@ -103,6 +132,59 @@ const averageCartesian3 = (
     1 / positions.length,
     accumulated
   );
+};
+
+const createProjectionNormalController = ({
+  scene,
+  idPrefix,
+  colorCss,
+  strokeWidth,
+}: {
+  scene: NonNullable<AnnotationToolAuthoringContext["scene"]>;
+  idPrefix: string;
+  colorCss: string;
+  strokeWidth: number;
+}): ProjectionNormalController => {
+  const lineCollection = createLineCollection(scene);
+  const lines: PreviewLineRuntime[] = [];
+
+  const ensureLineCount = (count: number) => {
+    while (lines.length < count) {
+      lines.push(
+        createLineRuntime(
+          lineCollection,
+          `${idPrefix}-projection-normal-${lines.length}`,
+          colorCss,
+          {
+            width: strokeWidth,
+          }
+        )
+      );
+    }
+  };
+
+  return {
+    setSegments: (segments) => {
+      ensureLineCount(segments.length);
+      segments.forEach((segment, index) => {
+        const line = lines[index];
+        if (!line) return;
+        applyLineRuntime(line, [
+          cartesian3FromGeographicCoordinate(segment.fromPlaneCoordinate),
+          cartesian3FromGeographicCoordinate(segment.toSampleCoordinate),
+        ]);
+      });
+      lines.slice(segments.length).forEach(clearLineRuntime);
+      scene.requestRender();
+    },
+    clear: () => {
+      lines.forEach(clearLineRuntime);
+      scene.requestRender();
+    },
+    destroy: () => {
+      destroyLineCollection(scene, lineCollection);
+    },
+  };
 };
 
 const buildPolygonPreviewAreaLabelState = ({
@@ -156,14 +238,18 @@ const buildPolygonPreviewAreaLabelState = ({
 
 export const createPolygonAuthoringController = ({
   toolType,
+  draftToolId,
   context,
   occlusionStyleOptions,
   measurementLineStyleOptions,
+  resolveMeasurementCoordinates,
 }: {
   toolType: AnnotationTypes["AREA_GROUND"] | AnnotationTypes["AREA_PLANAR"];
+  draftToolId?: AnnotationToolId;
   context: AnnotationToolAuthoringContext;
   occlusionStyleOptions?: AreaOcclusionStyleOptions;
   measurementLineStyleOptions?: MeasurementLineStyleOptions;
+  resolveMeasurementCoordinates?: PolygonAuthoringMeasurementCoordinatesResolver;
 }): AnnotationToolAuthoringController | null => {
   const {
     scene,
@@ -175,6 +261,7 @@ export const createPolygonAuthoringController = ({
   if (!scene || scene.isDestroyed()) {
     return null;
   }
+  const previewId = draftToolId ?? toolType;
   const resolvedOcclusionStyleOptions = resolveAreaOcclusionStyleOptions(
     occlusionStyleOptions
   );
@@ -194,32 +281,40 @@ export const createPolygonAuthoringController = ({
 
   const draftChainController = createPathAuthoringController(scene, {
     overlayLayerId: DRAFT_CHAIN_OVERLAY_LAYER_ID,
-    lineId: "draft-preview-chain",
+    lineId: `${previewId}-draft-preview-chain`,
     lineColor: previewControllerDefaults.draftChainColor,
     showPointMarkers: true,
     lineOptions: previewLineOptions,
   });
   const polygonLoopController = createPathAuthoringController(scene, {
     overlayLayerId: POLYGON_LOOP_OVERLAY_LAYER_ID,
-    lineId: "draft-preview-loop",
+    lineId: `${previewId}-draft-preview-loop`,
     lineColor: previewControllerDefaults.draftChainColor,
     showPointMarkers: false,
     lineOptions: previewLineOptions,
   });
-  const previewFillController = createMeasurementPolygonFillsController(scene);
+  const projectionNormalController = createProjectionNormalController({
+    scene,
+    idPrefix: `${previewId}-draft`,
+    colorCss: getAnnotationAreaCssColor(toolType, 0.9),
+    strokeWidth: resolvedLineStyleOptions.strokeWidthPx,
+  });
+  const previewFillController = createMeasurementPolygonFillsController(scene, {
+    allowPicking: false,
+  });
   const previewOverlayFillController =
     createMeasurementOverlayPolygonFillsController(
       scene,
-      `${toolType}-draft-preview`
+      `${previewId}-draft-preview`
     );
   const areaLabelController = createTransientPointLabelController({
     labelOverlay,
-    overlayId: `${toolType}-draft-area-label`,
+    overlayId: `${previewId}-draft-area-label`,
     requestRender: () => scene.requestRender(),
   });
   let enabled = false;
   let pointQueryPickResult: PointQueryPickResult | null = null;
-  let draftCoordinates = [...drafts.get(toolType).coordinates];
+  let draftCoordinates = [...drafts.get(previewId).coordinates];
   let currentAreaLabelState: PreviewAreaLabelState | null = null;
   const resolvedAnnotationLineLabelOptions =
     resolveAnnotationLineLabelOptions(lineLabelOptions);
@@ -232,6 +327,7 @@ export const createPolygonAuthoringController = ({
     if (!enabled || draftCoordinates.length === 0) {
       draftChainController.clear();
       polygonLoopController.clear();
+      projectionNormalController.clear();
       previewFillController.clear();
       previewOverlayFillController.clear();
       currentAreaLabelState = null;
@@ -243,20 +339,58 @@ export const createPolygonAuthoringController = ({
     }
 
     const hoverCoordinate = pointQueryPickResult?.coordinate ?? null;
-    const previewCoordinates = hoverCoordinate
+    const sampleCoordinates = hoverCoordinate
       ? [...draftCoordinates, hoverCoordinate]
       : [...draftCoordinates];
+    const resolveCoordinates = (
+      coordinates: readonly CesiumGeographicCoordinate[]
+    ) =>
+      resolveMeasurementCoordinates
+        ? resolveMeasurementCoordinates({
+            coordinates,
+            previousCoordinates: draftCoordinates,
+            preferredFacingPositionECEF: scene.camera.positionWC,
+          })
+        : coordinates;
+    const resolvedSampleCoordinates = resolveCoordinates(sampleCoordinates);
+    const resolvedDraftCoordinates =
+      resolveMeasurementCoordinates && hoverCoordinate
+        ? resolveCoordinates(draftCoordinates)
+        : null;
+    const resolvedMeasurementCoordinates =
+      resolvedSampleCoordinates ?? resolvedDraftCoordinates;
+    const isSamplingInitialSegment =
+      resolveMeasurementCoordinates !== undefined &&
+      sampleCoordinates.length < 3;
+    const previewCoordinates =
+      resolvedMeasurementCoordinates ??
+      (isSamplingInitialSegment || !resolveMeasurementCoordinates
+        ? sampleCoordinates
+        : draftCoordinates);
+    const markerCoordinates =
+      isSamplingInitialSegment && resolvedSampleCoordinates
+        ? resolvedSampleCoordinates
+        : resolvedSampleCoordinates || isSamplingInitialSegment || !hoverCoordinate
+          ? sampleCoordinates
+          : draftCoordinates;
+    const hasResolvedMeasurementCoordinates =
+      !resolveMeasurementCoordinates ||
+      isSamplingInitialSegment ||
+      resolvedMeasurementCoordinates !== null;
 
     draftChainController.setState({
       lineCoordinates: previewCoordinates,
-      markerCoordinates: previewCoordinates,
+      markerCoordinates,
     });
     polygonLoopController.setState({
-      lineCoordinates: buildClosedLoopCoordinates(previewCoordinates),
+      lineCoordinates: hasResolvedMeasurementCoordinates
+        ? buildClosedLoopCoordinates(previewCoordinates)
+        : [],
       markerCoordinates: [],
     });
 
-    if (previewCoordinates.length < 3) {
+    if (!hasResolvedMeasurementCoordinates || previewCoordinates.length < 3) {
+      projectionNormalController.clear();
       previewFillController.clear();
       previewOverlayFillController.clear();
       currentAreaLabelState = null;
@@ -267,9 +401,23 @@ export const createPolygonAuthoringController = ({
       return;
     }
 
+    projectionNormalController.setSegments(
+      previewCoordinates.flatMap((fromPlaneCoordinate, index) => {
+        const toSampleCoordinate = markerCoordinates[index];
+        return toSampleCoordinate
+          ? [
+              {
+                fromPlaneCoordinate,
+                toSampleCoordinate,
+              },
+            ]
+          : [];
+      })
+    );
+
     const previewFill = getAnnotationAreaFillCssColor(toolType, false);
     const previewPolygonFill = {
-      id: `${toolType}-draft-preview-fill`,
+      id: `${previewId}-draft-preview-fill`,
       coordinates: previewCoordinates,
       fill: previewFill,
       ...(isCoplanarPolygonFillPlacement(previewFillPlacement) &&
@@ -302,6 +450,9 @@ export const createPolygonAuthoringController = ({
             theme: resolvedAnnotationLineLabelOptions.appearance.themeStyle,
             fontFamily: resolvedAnnotationLineLabelOptions.text.fontFamily,
             fontWeight: resolvedAnnotationLineLabelOptions.text.fontWeight,
+            mixBlendMode: resolveAnnotationLineLabelSurfaceBlendMode(
+              resolvedAnnotationLineLabelOptions
+            ),
             getScreenPosition: () =>
               toScreenPoint(scene, nextAreaLabelState.anchorECEF),
           })
@@ -312,8 +463,8 @@ export const createPolygonAuthoringController = ({
     }
   };
 
-  const unsubscribe = drafts.subscribe(toolType, () => {
-    const nextDraftCoordinates = drafts.get(toolType).coordinates;
+  const unsubscribe = drafts.subscribe(previewId, () => {
+    const nextDraftCoordinates = drafts.get(previewId).coordinates;
     if (areCoordinateListsEqual(draftCoordinates, nextDraftCoordinates)) {
       return;
     }
@@ -340,6 +491,7 @@ export const createPolygonAuthoringController = ({
       unsubscribe();
       draftChainController.destroy();
       polygonLoopController.destroy();
+      projectionNormalController.destroy();
       previewFillController.destroy();
       previewOverlayFillController.destroy();
       areaLabelController.destroy();

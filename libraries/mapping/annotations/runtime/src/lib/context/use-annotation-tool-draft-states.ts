@@ -37,7 +37,9 @@ export const useAnnotationToolDraftStates = ({
         toolTypes.flatMap((toolType) => {
           const draft = draftStore.get(toolType);
           const hasDraftContent =
-            draft.coordinates.length > 0 || draft.linkedNodeGroupIds.length > 0;
+            draft.coordinates.length > 0 ||
+            draft.linkedNodeGroupIds.length > 0 ||
+            Boolean(draft.feedback);
 
           return hasDraftContent ? ([[toolType, draft]] as const) : [];
         })

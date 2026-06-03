@@ -37,6 +37,200 @@ const planarGeometryDefaults = Object.freeze({
   polygonTypeVerticalityThresholdDeg: 85,
 });
 
+type Matrix3 = [
+  [number, number, number],
+  [number, number, number],
+  [number, number, number],
+];
+
+type TriangleVertexSet = readonly [Cartesian3, Cartesian3, Cartesian3];
+
+const createIdentityMatrix3 = (): Matrix3 => [
+  [1, 0, 0],
+  [0, 1, 0],
+  [0, 0, 1],
+];
+
+const getMatrix3Value = (
+  matrix: Matrix3,
+  rowIndex: number,
+  columnIndex: number
+): number => matrix[rowIndex]?.[columnIndex] ?? 0;
+
+const setMatrix3Value = (
+  matrix: Matrix3,
+  rowIndex: number,
+  columnIndex: number,
+  value: number
+) => {
+  const row = matrix[rowIndex];
+  if (row) {
+    row[columnIndex] = value;
+  }
+};
+
+const getTriangleNormalMagnitudeSquared = (
+  a: Cartesian3,
+  b: Cartesian3,
+  c: Cartesian3
+): number => {
+  const ab = Cartesian3.subtract(b, a, new Cartesian3());
+  const ac = Cartesian3.subtract(c, a, new Cartesian3());
+  return Cartesian3.magnitudeSquared(
+    Cartesian3.cross(ab, ac, new Cartesian3())
+  );
+};
+
+const findLargestTriangleVertices = (
+  vertices: readonly Cartesian3[]
+): TriangleVertexSet | null => {
+  if (vertices.length < 3) return null;
+
+  let bestTriangle: TriangleVertexSet | null = null;
+  let bestMagnitudeSquared: number =
+    planarGeometryDefaults.cartesianMagnitudeSquaredEpsilon;
+
+  for (let i = 0; i < vertices.length - 2; i += 1) {
+    for (let j = i + 1; j < vertices.length - 1; j += 1) {
+      for (let k = j + 1; k < vertices.length; k += 1) {
+        const a = vertices[i];
+        const b = vertices[j];
+        const c = vertices[k];
+        if (!a || !b || !c) continue;
+
+        const magnitudeSquared = getTriangleNormalMagnitudeSquared(a, b, c);
+        if (magnitudeSquared > bestMagnitudeSquared) {
+          bestMagnitudeSquared = magnitudeSquared;
+          bestTriangle = [a, b, c];
+        }
+      }
+    }
+  }
+
+  return bestTriangle;
+};
+
+const findFirstNonCollinearTriangleVertices = (
+  vertices: readonly Cartesian3[]
+): TriangleVertexSet | null => {
+  if (vertices.length < 3) return null;
+
+  for (let i = 0; i < vertices.length - 2; i += 1) {
+    for (let j = i + 1; j < vertices.length - 1; j += 1) {
+      for (let k = j + 1; k < vertices.length; k += 1) {
+        const a = vertices[i];
+        const b = vertices[j];
+        const c = vertices[k];
+        if (!a || !b || !c) continue;
+
+        if (
+          getTriangleNormalMagnitudeSquared(a, b, c) >
+          planarGeometryDefaults.cartesianMagnitudeSquaredEpsilon
+        ) {
+          return [a, b, c];
+        }
+      }
+    }
+  }
+
+  return null;
+};
+
+const findLargestOffDiagonalMatrix3Entry = (matrix: Matrix3) => {
+  const entries = [
+    { rowIndex: 0, columnIndex: 1, value: Math.abs(getMatrix3Value(matrix, 0, 1)) },
+    { rowIndex: 0, columnIndex: 2, value: Math.abs(getMatrix3Value(matrix, 0, 2)) },
+    { rowIndex: 1, columnIndex: 2, value: Math.abs(getMatrix3Value(matrix, 1, 2)) },
+  ];
+
+  return entries.reduce((best, entry) =>
+    entry.value > best.value ? entry : best
+  );
+};
+
+const resolveSmallestEigenVectorSymmetricMatrix3 = (
+  sourceMatrix: Matrix3
+): Cartesian3 | null => {
+  const matrix: Matrix3 = sourceMatrix.map((row) => [...row]) as Matrix3;
+  const eigenvectors = createIdentityMatrix3();
+
+  for (let iteration = 0; iteration < 32; iteration += 1) {
+    const { rowIndex, columnIndex, value } =
+      findLargestOffDiagonalMatrix3Entry(matrix);
+    if (value <= 1e-10) break;
+
+    const pp = getMatrix3Value(matrix, rowIndex, rowIndex);
+    const qq = getMatrix3Value(matrix, columnIndex, columnIndex);
+    const pq = getMatrix3Value(matrix, rowIndex, columnIndex);
+    const angle = 0.5 * Math.atan2(2 * pq, qq - pp);
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+
+    for (let index = 0; index < 3; index += 1) {
+      if (index === rowIndex || index === columnIndex) continue;
+
+      const ip = getMatrix3Value(matrix, index, rowIndex);
+      const iq = getMatrix3Value(matrix, index, columnIndex);
+      const nextIp = cos * ip - sin * iq;
+      const nextIq = sin * ip + cos * iq;
+      setMatrix3Value(matrix, index, rowIndex, nextIp);
+      setMatrix3Value(matrix, rowIndex, index, nextIp);
+      setMatrix3Value(matrix, index, columnIndex, nextIq);
+      setMatrix3Value(matrix, columnIndex, index, nextIq);
+    }
+
+    setMatrix3Value(
+      matrix,
+      rowIndex,
+      rowIndex,
+      cos * cos * pp - 2 * sin * cos * pq + sin * sin * qq
+    );
+    setMatrix3Value(
+      matrix,
+      columnIndex,
+      columnIndex,
+      sin * sin * pp + 2 * sin * cos * pq + cos * cos * qq
+    );
+    setMatrix3Value(matrix, rowIndex, columnIndex, 0);
+    setMatrix3Value(matrix, columnIndex, rowIndex, 0);
+
+    for (let index = 0; index < 3; index += 1) {
+      const vectorIp = getMatrix3Value(eigenvectors, index, rowIndex);
+      const vectorIq = getMatrix3Value(eigenvectors, index, columnIndex);
+      setMatrix3Value(
+        eigenvectors,
+        index,
+        rowIndex,
+        cos * vectorIp - sin * vectorIq
+      );
+      setMatrix3Value(
+        eigenvectors,
+        index,
+        columnIndex,
+        sin * vectorIp + cos * vectorIq
+      );
+    }
+  }
+
+  let smallestEigenValueIndex = 0;
+  for (let index = 1; index < 3; index += 1) {
+    if (
+      getMatrix3Value(matrix, index, index) <
+      getMatrix3Value(matrix, smallestEigenValueIndex, smallestEigenValueIndex)
+    ) {
+      smallestEigenValueIndex = index;
+    }
+  }
+
+  return normalizeDirection(
+    new Cartesian3(
+      getMatrix3Value(eigenvectors, 0, smallestEigenValueIndex),
+      getMatrix3Value(eigenvectors, 1, smallestEigenValueIndex),
+      getMatrix3Value(eigenvectors, 2, smallestEigenValueIndex)
+    )
+  );
+};
+
 const computeBearingRadFromPlaneNormal = (
   plane: PlanarPolygonPlane
 ): number | undefined => {
@@ -83,6 +277,36 @@ export const createPlaneFromThreePoints = (
   return orientPlaneNormalTowardPosition(plane, preferredFacingPositionECEF);
 };
 
+export const createPlaneFromFirstNonCollinearPoints = (
+  vertices: readonly Cartesian3[],
+  preferredFacingPositionECEF?: Cartesian3 | null
+): PlanarPolygonPlane | null => {
+  const triangle = findFirstNonCollinearTriangleVertices(vertices);
+  return triangle
+    ? createPlaneFromThreePoints(
+        triangle[0],
+        triangle[1],
+        triangle[2],
+        preferredFacingPositionECEF
+      )
+    : null;
+};
+
+export const createPlaneFromLargestTriangle = (
+  vertices: readonly Cartesian3[],
+  preferredFacingPositionECEF?: Cartesian3 | null
+): PlanarPolygonPlane | null => {
+  const triangle = findLargestTriangleVertices(vertices);
+  return triangle
+    ? createPlaneFromThreePoints(
+        triangle[0],
+        triangle[1],
+        triangle[2],
+        preferredFacingPositionECEF
+      )
+    : null;
+};
+
 export const orientPlaneNormalTowardPosition = (
   plane: PlanarPolygonPlane,
   referencePositionECEF?: Cartesian3 | null
@@ -117,6 +341,54 @@ export const orientPlaneNormalTowardPosition = (
     ...plane,
     normalECEF: cartesian3ToMetricVector3(flippedNormal),
   };
+};
+
+export const createBestFitPlanePca = (
+  vertices: readonly Cartesian3[],
+  preferredFacingPositionECEF?: Cartesian3 | null
+): PlanarPolygonPlane | null => {
+  if (vertices.length < 3 || !findLargestTriangleVertices(vertices)) {
+    return null;
+  }
+
+  const anchor = vertices.reduce(
+    (result, vertex) => Cartesian3.add(result, vertex, result),
+    new Cartesian3()
+  );
+  Cartesian3.multiplyByScalar(anchor, 1 / vertices.length, anchor);
+
+  const covariance: Matrix3 = [
+    [0, 0, 0],
+    [0, 0, 0],
+    [0, 0, 0],
+  ];
+
+  vertices.forEach((vertex) => {
+    const delta = Cartesian3.subtract(vertex, anchor, new Cartesian3());
+    const values = [delta.x, delta.y, delta.z] as const;
+    for (let rowIndex = 0; rowIndex < 3; rowIndex += 1) {
+      for (let columnIndex = rowIndex; columnIndex < 3; columnIndex += 1) {
+        const nextValue =
+          getMatrix3Value(covariance, rowIndex, columnIndex) +
+          (values[rowIndex] ?? 0) * (values[columnIndex] ?? 0);
+        setMatrix3Value(covariance, rowIndex, columnIndex, nextValue);
+        setMatrix3Value(covariance, columnIndex, rowIndex, nextValue);
+      }
+    }
+  });
+
+  const normal = resolveSmallestEigenVectorSymmetricMatrix3(covariance);
+  if (!normal) {
+    return null;
+  }
+
+  return orientPlaneNormalTowardPosition(
+    {
+      anchorECEF: cartesian3ToMetricVector3(anchor),
+      normalECEF: cartesian3ToMetricVector3(normal),
+    },
+    preferredFacingPositionECEF
+  );
 };
 
 export const projectPointOntoPlane = (
@@ -303,29 +575,11 @@ export const buildEdgeRelationIdsForPolygon = (
 const derivePlaneFromVertices = (
   vertices: Cartesian3[],
   preferredFacingPositionECEF?: Cartesian3 | null
-): PlanarPolygonPlane | null => {
-  if (vertices.length < 3) return null;
-
-  for (let i = 0; i < vertices.length - 2; i += 1) {
-    for (let j = i + 1; j < vertices.length - 1; j += 1) {
-      for (let k = j + 1; k < vertices.length; k += 1) {
-        const a = vertices[i];
-        const b = vertices[j];
-        const c = vertices[k];
-        if (!a || !b || !c) continue;
-        const plane = createPlaneFromThreePoints(
-          a,
-          b,
-          c,
-          preferredFacingPositionECEF
-        );
-        if (plane) return plane;
-      }
-    }
-  }
-
-  return null;
-};
+): PlanarPolygonPlane | null =>
+  createPlaneFromFirstNonCollinearPoints(
+    vertices,
+    preferredFacingPositionECEF
+  );
 
 const deriveVerticalPolygonLocalFrame = (
   vertices: Cartesian3[],

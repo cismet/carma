@@ -36,7 +36,10 @@ import { createPathAuthoringController } from "./create-path-authoring-controlle
 import { RUNTIME_POLYGON_FILL_PLACEMENT } from "../render/measurement-render-models";
 import { createMeasurementPolygonFillsController } from "../render/measurement-polygon-fills-controller.shared";
 import { createMeasurementOverlayPolygonFillsController } from "../render/measurement-overlay-polygon-fills-controller.shared";
-import { resolveAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
+import {
+  resolveAnnotationLineLabelOptions,
+  resolveAnnotationLineLabelSurfaceBlendMode,
+} from "../config/annotation-line-label-options";
 import {
   isCoplanarPolygonFillPlacement,
   resolveAreaOcclusionLineRenderOptions,
@@ -415,6 +418,9 @@ export const createVerticalAreaAuthoringController = ({
             theme: resolvedAnnotationLineLabelOptions.appearance.themeStyle,
             fontFamily: resolvedAnnotationLineLabelOptions.text.fontFamily,
             fontWeight: resolvedAnnotationLineLabelOptions.text.fontWeight,
+            mixBlendMode: resolveAnnotationLineLabelSurfaceBlendMode(
+              resolvedAnnotationLineLabelOptions
+            ),
             getScreenPosition: () =>
               toScreenPoint(scene, nextAreaLabelState.anchorECEF),
           })

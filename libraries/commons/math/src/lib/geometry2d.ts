@@ -167,6 +167,113 @@ const normalizeConvexPolygonWinding = (
 const cross2d = (left: Point2, right: Point2): number =>
   left.x * right.y - left.y * right.x;
 
+const getOrientation2d = (a: Point2, b: Point2, c: Point2): number =>
+  cross2d(subtractPoint2d(b, a), subtractPoint2d(c, a));
+
+const getRangeOverlapLength = (
+  firstStart: number,
+  firstEnd: number,
+  secondStart: number,
+  secondEnd: number
+): number =>
+  Math.min(Math.max(firstStart, firstEnd), Math.max(secondStart, secondEnd)) -
+  Math.max(Math.min(firstStart, firstEnd), Math.min(secondStart, secondEnd));
+
+const doCollinearSegmentsOverlap2d = (
+  a: Point2,
+  b: Point2,
+  c: Point2,
+  d: Point2,
+  abC: number,
+  abD: number,
+  epsilon: number
+): boolean =>
+  Math.abs(abC) <= epsilon &&
+  Math.abs(abD) <= epsilon &&
+  Math.max(
+    getRangeOverlapLength(a.x, b.x, c.x, d.x),
+    getRangeOverlapLength(a.y, b.y, c.y, d.y)
+  ) > epsilon;
+
+const doSegmentsIntersect2d = (
+  a: Point2,
+  b: Point2,
+  c: Point2,
+  d: Point2,
+  epsilon: number
+): boolean => {
+  const abC = getOrientation2d(a, b, c);
+  const abD = getOrientation2d(a, b, d);
+  const cdA = getOrientation2d(c, d, a);
+  const cdB = getOrientation2d(c, d, b);
+
+  if (
+    ((abC > epsilon && abD < -epsilon) ||
+      (abC < -epsilon && abD > epsilon)) &&
+    ((cdA > epsilon && cdB < -epsilon) ||
+      (cdA < -epsilon && cdB > epsilon))
+  ) {
+    return true;
+  }
+
+  return doCollinearSegmentsOverlap2d(a, b, c, d, abC, abD, epsilon);
+};
+
+const arePolygonEdgesAdjacent = (
+  firstEdgeIndex: number,
+  secondEdgeIndex: number,
+  vertexCount: number
+): boolean =>
+  Math.abs(firstEdgeIndex - secondEdgeIndex) === 1 ||
+  (firstEdgeIndex === 0 && secondEdgeIndex === vertexCount - 1);
+
+export const hasPolygonSelfIntersection2d = ({
+  points,
+  epsilon = 1e-7,
+}: {
+  points: readonly Point2[];
+  epsilon?: number;
+}): boolean => {
+  if (points.length < 4) {
+    return false;
+  }
+
+  for (
+    let firstEdgeIndex = 0;
+    firstEdgeIndex < points.length;
+    firstEdgeIndex += 1
+  ) {
+    const firstStart = points[firstEdgeIndex]!;
+    const firstEnd = points[(firstEdgeIndex + 1) % points.length]!;
+
+    for (
+      let secondEdgeIndex = firstEdgeIndex + 1;
+      secondEdgeIndex < points.length;
+      secondEdgeIndex += 1
+    ) {
+      if (
+        arePolygonEdgesAdjacent(firstEdgeIndex, secondEdgeIndex, points.length)
+      ) {
+        continue;
+      }
+
+      if (
+        doSegmentsIntersect2d(
+          firstStart,
+          firstEnd,
+          points[secondEdgeIndex]!,
+          points[(secondEdgeIndex + 1) % points.length]!,
+          epsilon
+        )
+      ) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+};
+
 const isPointInsideDirectedEdge = (
   point: Point2,
   edgeStart: Point2,

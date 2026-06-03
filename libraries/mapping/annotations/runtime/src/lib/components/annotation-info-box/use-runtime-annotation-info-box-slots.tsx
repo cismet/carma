@@ -8,6 +8,7 @@ import {
 } from "@carma-mapping/annotations/ui";
 
 import { useAnnotationsRuntime } from "../../context/AnnotationsProvider";
+import { useAnnotationToolDraftStates } from "../../context/use-annotation-tool-draft-states";
 import type { StoredAnnotation } from "../../store";
 import type { AnnotationToolPlugin } from "../../registry";
 import { resolveAnnotationToolFallbackPlugin } from "../../utils/annotation-tool-collections";
@@ -70,6 +71,7 @@ export const useRuntimeAnnotationInfoBoxSlots = ({
   const {
     registry,
     activeToolType,
+    annotationToolDraftStore,
     annotationEntries,
     formatOptions,
     nodes,
@@ -86,6 +88,17 @@ export const useRuntimeAnnotationInfoBoxSlots = ({
     updateAnnotationDisplayName,
     updateAnnotationShortLabel,
   } = useAnnotationsRuntime();
+  const activeDraftToolTypes = useMemo(
+    () => (activeToolType ? [activeToolType] : []),
+    [activeToolType]
+  );
+  const activeDraftStates = useAnnotationToolDraftStates({
+    draftStore: annotationToolDraftStore,
+    toolTypes: activeDraftToolTypes,
+  });
+  const activeToolDraftFeedback = activeToolType
+    ? activeDraftStates[activeToolType]?.feedback
+    : null;
 
   return useMemo(() => {
     if (!selectedAnnotationId) {
@@ -115,6 +128,20 @@ export const useRuntimeAnnotationInfoBoxSlots = ({
           headingTitle: fallbackPlugin.descriptor.label,
           content: (
             <AnnotationInfoBoxTextContent visualOptions={resolvedVisualOptions}>
+              {activeToolDraftFeedback ? (
+                <p
+                  key="active-tool-draft-feedback"
+                  style={{
+                    color:
+                      activeToolDraftFeedback.kind === "warning"
+                        ? "#b45309"
+                        : undefined,
+                    fontWeight: 600,
+                  }}
+                >
+                  {activeToolDraftFeedback.message}
+                </p>
+              ) : null}
               {fallbackPlugin.helpText.map((line) => (
                 <p key={line}>{line}</p>
               ))}
@@ -182,6 +209,7 @@ export const useRuntimeAnnotationInfoBoxSlots = ({
       visualOptions: resolvedVisualOptions,
     };
   }, [
+    activeToolDraftFeedback,
     activeToolType,
     annotationEntries,
     elevationReferenceAnnotationId,

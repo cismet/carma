@@ -13,6 +13,11 @@ export const ANNOTATION_TYPES = {
 } as const;
 
 export const ANNOTATION_SELECT_TOOL_ID = "select";
+export const ANNOTATION_AREA_PLANAR_BIGGEST_TRIANGLE_TOOL_ID =
+  "planar-biggest-triangle";
+export const ANNOTATION_AREA_PLANAR_PCA_TOOL_ID = "planar-pca";
+export const ANNOTATION_AREA_PLANAR_TRAPEZOID_TOOL_ID =
+  "planar-trapezoid";
 
 export const ANNOTATION_TYPE_POINT = ANNOTATION_TYPES.POINT;
 export const ANNOTATION_TYPE_DISTANCE = ANNOTATION_TYPES.DISTANCE;
@@ -26,7 +31,12 @@ export type AnnotationTypes = typeof ANNOTATION_TYPES;
 
 export type AnnotationType = AnnotationTypes[keyof AnnotationTypes];
 
-export type AnnotationToolId = AnnotationType | typeof ANNOTATION_SELECT_TOOL_ID;
+export type AnnotationToolId =
+  | AnnotationType
+  | typeof ANNOTATION_SELECT_TOOL_ID
+  | typeof ANNOTATION_AREA_PLANAR_BIGGEST_TRIANGLE_TOOL_ID
+  | typeof ANNOTATION_AREA_PLANAR_PCA_TOOL_ID
+  | typeof ANNOTATION_AREA_PLANAR_TRAPEZOID_TOOL_ID;
 
 export const isAreaAnnotationType = (
   annotationType: AnnotationToolId

@@ -56,6 +56,7 @@ const DEFAULT_ANNOTATION_TYPOGRAPHY_CLASSNAME =
   "carma-default-annotation-typography";
 
 export interface PointLabelStyleProps {
+  mixBlendMode?: CSSProperties["mixBlendMode"];
   fontSize?: string;
   fontFamily?: string;
   fontWeight?: string | number;
@@ -247,6 +248,7 @@ export const PointLabel = React.memo(
     selectedGlowRadiusPx = POINT_LABEL_COMPONENT_DEFAULTS.selectedGlowRadiusPx,
     preserveFillOnSelection = POINT_LABEL_COMPONENT_DEFAULTS.preserveFillOnSelection,
     hoverBackgroundColor = POINT_LABEL_THEME_DEFAULTS.hoverBackgroundColor,
+    mixBlendMode,
     isOccluded = false,
     pitch = POINT_LABEL_COMPONENT_DEFAULTS.pitch,
     labelAngleRad,
@@ -695,7 +697,7 @@ export const PointLabel = React.memo(
         data-point-label-root="true"
         style={{
           position: "relative",
-          mixBlendMode: "normal",
+          mixBlendMode: mixBlendMode ?? "normal",
           opacity: isOccluded ? 0.75 : 1,
         }}
       >

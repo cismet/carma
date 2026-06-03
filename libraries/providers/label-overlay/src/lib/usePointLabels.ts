@@ -100,6 +100,7 @@ const getPointStyleSignature = (
     styleProps?.selectedGlowRadiusPx ?? "",
     String(styleProps?.preserveFillOnSelection ?? false),
     styleProps?.hoverBackgroundColor ?? "",
+    styleProps?.mixBlendMode ?? "",
     styleProps?.lineWidth ?? "",
     styleProps?.lineColor ?? "",
     styleProps?.markerSize ?? "",

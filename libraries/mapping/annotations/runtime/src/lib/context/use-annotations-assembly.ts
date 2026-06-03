@@ -600,6 +600,7 @@ export const useAnnotationsAssembly = ({
     () => ({
       scene,
       registry,
+      annotationToolDraftStore,
       annotationsStore,
       formatOptions,
       addAnnotation,
@@ -632,6 +633,7 @@ export const useAnnotationsAssembly = ({
     }),
     [
       addAnnotation,
+      annotationToolDraftStore,
       annotationsStore,
       focusAdjacentAnnotationEntry,
       focusAnnotationId,
