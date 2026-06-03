@@ -354,6 +354,18 @@ export const saveFeatureDraft = async (
       ? { id: draft.featureGeomId ?? -1, geo_field: draft.geometry }
       : undefined;
 
+    // Diagnostic: a geometry change was selected (key is not "current.*") but no
+    // geom is going out — the draft lost its geometry before save. Logs only;
+    // the save still proceeds.
+    const geometryChangeIntended =
+      !!draft.geometryKey && !draft.geometryKey.startsWith("current.");
+    if (geometryChangeIntended && !geomPayload) {
+      console.error(
+        `[SAVE-NO-GEOM] edit feature "${featureId}" (${featureType}) had a geometry change selected (geometryKey=${draft.geometryKey}) but is being sent WITHOUT geom — draft.geometry is empty/undefined.`,
+        { featureId, featureType, geometryKey: draft.geometryKey, featureGeomId: draft.featureGeomId }
+      );
+    }
+
     // 4. Build final payload
     const dataToSave: Record<string, unknown> = {
       id: featureDbId,
@@ -566,6 +578,21 @@ const saveCreationDraft = async (
             }),
           }
         : undefined;
+
+    // Diagnostic: the new feature is going out with neither a `geom` field nor a
+    // sibling `geometry` param — it will persist without a location. A Leuchte
+    // bound to an existing Standort legitimately uses neither (it locates via
+    // tdta_standort_mast), so it is exempt. Logs only; the save still proceeds.
+    const payloadHasGeom = "geom" in payload || !!extraSaveParams;
+    const leuchteBoundToStandort =
+      featureType === "leuchte" &&
+      parseStandortIdFromKey(draft.geometryKey) != null;
+    if (!payloadHasGeom && !leuchteBoundToStandort) {
+      console.error(
+        `[SAVE-NO-GEOM] creation feature "${featureId}" (${featureType} → ${config.className}) is being sent WITHOUT geometry — draft.geometry is empty/undefined.`,
+        { featureId, featureType, geometryKey: draft.geometryKey, geometry: draft.geometry }
+      );
+    }
 
     console.debug(`[CREATE-FEATURE] ${featureType} → ${config.className} payload:`, JSON.stringify(payload, null, 2));
     const result = await updateDataByClassName(
