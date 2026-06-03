@@ -1072,6 +1072,27 @@ const BelisMapLibWrapper = ({
     );
   }, [allDraftsForMeasurementLink, keyTablesData]);
 
+  // DB-identity keys ("<sourceLayer>:<dbId>") of every open non-creation draft
+  // (e.g. a Mauerlasche being geometry-edited). A feature that was already saved
+  // once lives in the brandnew FC and therefore shows up in the viewport list;
+  // when it is reopened as a draft, its own row is also spliced in from
+  // `draftSidebarFeatures`, so the saved viewport copy must be dropped or the
+  // feature appears twice. Keyed the same way as the viewport features below.
+  const openDraftDbKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const [draftKey, draft] of Object.entries(
+      allDraftsForMeasurementLink
+    )) {
+      if (draft.isCreation) continue;
+      const sl =
+        featureTypeToSourceLayer[draft.featureType] ?? draft.featureType;
+      const dbId = draft.featureDbId ?? Number(draftKey.split(":")[1]);
+      if (!Number.isFinite(dbId)) continue;
+      keys.add(`${sl}:${Number(dbId)}`);
+    }
+    return keys;
+  }, [allDraftsForMeasurementLink]);
+
   const mapWidth = mapSizes.width - LIST_WIDTH;
 
   const { features, totalCount, countsByLayer, isLoading, isOverviewMode } =
@@ -1202,9 +1223,19 @@ const BelisMapLibWrapper = ({
     // layer; drop it so the expanded version from `draftSidebarFeatures`
     // wins (otherwise the Standort row would appear twice).
     if (draftSidebarFeatures.length > 0) {
-      const nonDraftViewportFeatures = features.filter(
-        (f) => f.properties?._isCreation !== true
-      );
+      const nonDraftViewportFeatures = features.filter((f) => {
+        if (f.properties?._isCreation === true) return false;
+        // Drop the saved (brandnew-FC) copy of a feature that is currently open
+        // as a non-creation draft — its row comes from `draftSidebarFeatures`.
+        if (openDraftDbKeys.size > 0) {
+          const sl = f.sourceLayer || String(f.properties?._sourceLayer ?? "");
+          const dbId = Number(f.properties?.id ?? f.id);
+          if (Number.isFinite(dbId) && openDraftDbKeys.has(`${sl}:${dbId}`)) {
+            return false;
+          }
+        }
+        return true;
+      });
       return buildFromFeatures(
         [...nonDraftViewportFeatures, ...draftSidebarFeatures],
         { isLoading, isOverviewMode }
@@ -1222,6 +1253,7 @@ const BelisMapLibWrapper = ({
     sidebarMode,
     adjustedHighlights,
     draftSidebarFeatures,
+    openDraftDbKeys,
     features,
     countsByLayer,
     totalCount,
