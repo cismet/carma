@@ -30,12 +30,19 @@ import { cartesian3FromGeographicCoordinate } from "@carma-mapping/engines/cesiu
 import { measurementVisualDefaults } from "../config/measurement-visual-defaults";
 import type { Scene } from "@carma-cesium";
 import {
+  RUNTIME_POINT_LABEL_RENDER_STYLE,
   RUNTIME_POINT_LABEL_COORDINATE_SELECTION,
   RUNTIME_OVERLAY_DISTANCE_Z_INDEX,
   resolveRuntimeOverlayDistanceZIndex,
   type RuntimePointLabelCoordinateCandidate,
   type RuntimePointLabelRenderModel,
 } from "./measurement-render-models";
+import {
+  annotationLineLabelDefaults,
+  resolveAnnotationLineLabelSurfaceBlendMode,
+  type AnnotationLineLabelOptions,
+} from "../config/annotation-line-label-options";
+import { TEXT_OVERLAY_AREA_LABEL_STYLE, TextOverlay } from "./text-overlay";
 import {
   areOverlayVisibilitySceneSnapshotsEqual,
   captureOverlayVisibilitySceneSnapshot,
@@ -91,6 +98,44 @@ const createEmptyLabelOverlayState = (): PointLabelOverlayState => ({
   attach: "center",
   zIndex: 0,
 });
+
+const getLineBlendPointLabelContentSignature = ({
+  state,
+  lineLabelOptions,
+  surfaceBlendMode,
+}: {
+  state: PointLabelOverlayRenderState;
+  lineLabelOptions: AnnotationLineLabelOptions;
+  surfaceBlendMode?: CSSProperties["mixBlendMode"];
+}) =>
+  [
+    RUNTIME_POINT_LABEL_RENDER_STYLE.LINE_BLEND,
+    getPointLabelOverlayContentSignature(state),
+    lineLabelOptions.appearance.themeStyle,
+    lineLabelOptions.background.style,
+    lineLabelOptions.text.fontFamily,
+    lineLabelOptions.text.fontWeight,
+    surfaceBlendMode ?? "",
+  ].join(":");
+
+const applyLineBlendPointLabelOverlayState = ({
+  elementDiv,
+  state,
+}: {
+  elementDiv: HTMLElement;
+  state: PointLabelOverlayRenderState;
+}) => {
+  if (!state.screenPosition || state.visible === false) {
+    return false;
+  }
+
+  elementDiv.style.left = `${state.screenPosition.x}px`;
+  elementDiv.style.top = `${state.screenPosition.y}px`;
+  elementDiv.style.transform = "translate(-50%, -50%)";
+  elementDiv.style.zIndex = `${state.zIndex ?? 0}`;
+  elementDiv.style.opacity = state.isOccluded ? "0.75" : "1";
+  return true;
+};
 
 const resolvePointLabelCoordinateCandidates = (
   label: RuntimePointLabelRenderModel
@@ -170,7 +215,7 @@ export const usePointLabelVisualizer = (
   blockLabelInteractions: boolean = false,
   isInPreviewNodeLink?: (nodeId?: string) => boolean,
   overlayIdPrefix: string = "runtime-point-label",
-  areaLabelMixBlendMode?: CSSProperties["mixBlendMode"]
+  areaLabelLineOptions: AnnotationLineLabelOptions = annotationLineLabelDefaults
 ) => {
   const {
     addLabelOverlayElement,
@@ -475,6 +520,11 @@ export const usePointLabelVisualizer = (
     normalizedLabels.forEach((label) => {
       const clickBlocked =
         blockLabelInteractions && label.allowClickWhenBlocked !== true;
+      const isLineBlendLabel =
+        label.renderStyle === RUNTIME_POINT_LABEL_RENDER_STYLE.LINE_BLEND;
+      const areaLabelSurfaceBlendMode =
+        label.mixBlendMode ??
+        resolveAnnotationLineLabelSurfaceBlendMode(areaLabelLineOptions);
       const overlayId = getPointLabelOverlayId(overlayIdPrefix, label.id);
       const buildOverlayRenderState = (
         overlayState: PointLabelOverlayState
@@ -519,7 +569,7 @@ export const usePointLabelVisualizer = (
         mixBlendMode:
           label.mixBlendMode ??
           (label.anchorKind === POINT_LABEL_ANCHOR_KIND.AREA_CENTROID
-            ? areaLabelMixBlendMode
+            ? areaLabelSurfaceBlendMode
             : undefined),
         onClick: clickBlocked ? undefined : label.onClick,
         onDoubleClick: blockLabelInteractions ? undefined : label.onDoubleClick,
@@ -547,36 +597,60 @@ export const usePointLabelVisualizer = (
         visible: !overlayState.isHidden && !overlayState.hiddenByLayout,
         zIndex: overlayState.zIndex,
       });
-      const nextContentSignature = getPointLabelOverlayContentSignature(
-        buildOverlayRenderState(
-          stateCacheRef.current.statesById.get(label.id) ??
-            createEmptyLabelOverlayState()
-        )
+      const currentOverlayRenderState = buildOverlayRenderState(
+        stateCacheRef.current.statesById.get(label.id) ??
+          createEmptyLabelOverlayState()
       );
+      const nextContentSignature = isLineBlendLabel
+        ? getLineBlendPointLabelContentSignature({
+            state: currentOverlayRenderState,
+            lineLabelOptions: areaLabelLineOptions,
+            surfaceBlendMode: areaLabelSurfaceBlendMode,
+          })
+        : getPointLabelOverlayContentSignature(currentOverlayRenderState);
       nextLabelIds.add(label.id);
 
       const overlayElementUpdate: Partial<LabelOverlayElement> = {
         zIndex: stateCacheRef.current.statesById.get(label.id)?.zIndex ?? 0,
         updatePosition: (elementDiv: HTMLElement) => {
           const overlayState = resolveLabelOverlayState(label.id);
+          const renderState = buildOverlayRenderState(overlayState);
+
+          if (isLineBlendLabel) {
+            return applyLineBlendPointLabelOverlayState({
+              elementDiv,
+              state: renderState,
+            });
+          }
+
           const domRefs = resolveOverlayDomRefs(label.id, elementDiv);
           if (!domRefs) {
             return false;
           }
-
           return applyPointLabelOverlayState({
             elementDiv,
             domRefs,
-            state: buildOverlayRenderState(overlayState),
+            state: renderState,
           });
         },
       };
 
-      const overlayElementContent = renderPointLabelOverlayContent(
-        buildOverlayRenderState(
-          stateCacheRef.current.statesById.get(label.id) ??
-            createEmptyLabelOverlayState()
-        )
+      const overlayElementContent = isLineBlendLabel ? (
+        <TextOverlay
+          content={currentOverlayRenderState.content}
+          selected={currentOverlayRenderState.selected}
+          textColor={currentOverlayRenderState.textColor}
+          fontSize={currentOverlayRenderState.fontSize}
+          styleOptions={TEXT_OVERLAY_AREA_LABEL_STYLE}
+          visualOptions={areaLabelLineOptions}
+          surfaceBlendMode={areaLabelSurfaceBlendMode}
+          onClick={currentOverlayRenderState.onClick}
+          onDoubleClick={currentOverlayRenderState.onDoubleClick}
+          onLongPress={currentOverlayRenderState.onLongPress}
+          longPressDurationMs={currentOverlayRenderState.longPressDurationMs}
+        />
+      ) : (
+        renderPointLabelOverlayContent(currentOverlayRenderState)
       );
 
       if (previousLabelIdsRef.current.has(label.id)) {
@@ -622,7 +696,7 @@ export const usePointLabelVisualizer = (
     blockLabelInteractions,
     normalizedLabels,
     overlayIdPrefix,
-    areaLabelMixBlendMode,
+    areaLabelLineOptions,
     removeLabelOverlayElement,
     resolveLabelOverlayState,
     resolveOverlayDomRefs,

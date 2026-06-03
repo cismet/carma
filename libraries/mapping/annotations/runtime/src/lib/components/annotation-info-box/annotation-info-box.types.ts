@@ -6,6 +6,7 @@ import type {
   AnnotationNode,
 } from "../../store/annotations-store.types";
 import type { AnnotationsRuntimeFormatOptions } from "../../config/annotations-runtime-format-options";
+import type { AnnotationDeleteRequestOptions } from "../../context/annotation-delete-confirmation";
 
 export type RuntimeAnnotationInfoBoxContext = {
   annotation: StoredAnnotation;
@@ -15,7 +16,10 @@ export type RuntimeAnnotationInfoBoxContext = {
   setSelectedAnnotationId: (annotationId: string | null) => void;
   focusAnnotationId: (annotationId: string | null) => void;
   flyToAllAnnotations: () => void;
-  removeAnnotationById: (annotationId: string) => void;
+  removeAnnotationById: (
+    annotationId: string,
+    options?: AnnotationDeleteRequestOptions
+  ) => void;
   exportAnnotationGeoJson: (annotationId: string) => void;
   toggleAnnotationVisibility: (annotationId: string) => void;
   toggleAnnotationLocked: (annotationId: string) => void;

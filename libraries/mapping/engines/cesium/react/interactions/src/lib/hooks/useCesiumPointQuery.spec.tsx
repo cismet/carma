@@ -287,6 +287,60 @@ describe("useCesiumPointQuery", () => {
     });
   });
 
+  it("marks hover samples as force accepted while shift is pressed", () => {
+    const hoverPick = new Cartesian3(1, 2, 3);
+    pointQueryPickingMocks.resolvePreferredSurfacePick.mockReturnValue({
+      surfacePositionECEF: hoverPick,
+      globePositionECEF: null,
+    });
+
+    const onPointerMove = vi.fn();
+    const { scene, flushPreRender } = createFakeScene();
+    const pointerPosition = new Cartesian2(10, 20);
+    cesiumInteractionMocks.currentPointerPosition = pointerPosition;
+
+    renderHook(() =>
+      useCesiumPointQuery(scene, {
+        enabled: true,
+        onPointerMove,
+      })
+    );
+
+    act(() => {
+      cesiumInteractionMocks.pointerSubscriber?.();
+      flushPreRender();
+    });
+
+    expect(onPointerMove).toHaveBeenLastCalledWith(
+      hoverPick,
+      pointerPosition,
+      null
+    );
+
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Shift" }));
+      flushPreRender();
+    });
+
+    expect(onPointerMove).toHaveBeenLastCalledWith(
+      hoverPick,
+      pointerPosition,
+      null,
+      { forceAccepted: true }
+    );
+
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keyup", { key: "Shift" }));
+      flushPreRender();
+    });
+
+    expect(onPointerMove).toHaveBeenLastCalledWith(
+      hoverPick,
+      pointerPosition,
+      null
+    );
+  });
+
   it("captures shift state at click time for delayed point creation", () => {
     vi.useFakeTimers();
     const clickPick = new Cartesian3(4, 5, 6);

@@ -110,6 +110,7 @@ export type PointQueryPickResult = {
   screenPosition: { x: number; y: number } | null;
   pointECEF: Cartesian3 | null;
   surfaceNormalECEF: Cartesian3 | null;
+  forceAccepted?: boolean;
 };
 
 export type AnnotationToolAuthoringController = {

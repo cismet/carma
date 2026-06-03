@@ -104,7 +104,7 @@ export const usePointQueryToolRouting = ({
         nodeCreatedHandler(
           resolvedPointQuerySample.coordinate,
           resolvedPointQuerySample.linkedNodeGroupId,
-          { forceAccepted: options?.forceAccepted }
+          options?.forceAccepted
         );
         return;
       }

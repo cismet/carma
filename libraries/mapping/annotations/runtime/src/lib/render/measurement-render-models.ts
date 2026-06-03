@@ -28,6 +28,13 @@ export type RuntimePointLabelCoordinateCandidate = {
   nodeId?: string;
 };
 
+export const RUNTIME_POINT_LABEL_RENDER_STYLE = {
+  POINT_LABEL: "point-label",
+  LINE_BLEND: "line-blend",
+} as const;
+export type RuntimePointLabelRenderStyle =
+  (typeof RUNTIME_POINT_LABEL_RENDER_STYLE)[keyof typeof RUNTIME_POINT_LABEL_RENDER_STYLE];
+
 export type RuntimeDistanceTriangleOverlayRenderModel = {
   measurementId?: string;
   anchorCoordinateRole?: RuntimeDistanceTriangleAnchorCoordinateRole;
@@ -136,6 +143,7 @@ export type RuntimePointLabelRenderModel = {
   fontFamily?: string;
   fontWeight?: string | number;
   mixBlendMode?: CSSProperties["mixBlendMode"];
+  renderStyle?: RuntimePointLabelRenderStyle;
   labelStyle?: PointLabelStyle;
   hideMarker?: boolean;
   collapse?: boolean;

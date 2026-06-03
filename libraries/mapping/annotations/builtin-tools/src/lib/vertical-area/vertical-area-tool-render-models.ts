@@ -34,6 +34,7 @@ import {
 } from "@carma-mapping/annotations/runtime";
 import {
   buildRuntimeNodeCoordinateMap,
+  RUNTIME_POINT_LABEL_RENDER_STYLE,
   resolveMeasurementCoordinates,
 } from "@carma-mapping/annotations/runtime";
 import type { AnnotationsRuntimeFormatOptions } from "@carma-mapping/annotations/runtime";
@@ -249,6 +250,7 @@ export const buildVerticalAreaToolRenderModels = (
           selected: selectedMeasurementIdSet.has(measurement.id),
           hideMarker: true,
           collapse: false,
+          renderStyle: RUNTIME_POINT_LABEL_RENDER_STYLE.LINE_BLEND,
           labelStyle: POINT_LABEL_STYLE.AUTO,
           onClick: onMeasurementSelect
             ? () => onMeasurementSelect(measurement.id)

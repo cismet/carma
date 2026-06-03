@@ -101,6 +101,14 @@ export {
   type UseAnnotationLabelTextRequestOptions,
 } from "./lib/context/use-annotation-label-text-request";
 export {
+  ANNOTATION_DELETE_CONFIRMATION_SOURCES,
+  requestDefaultAnnotationDeleteConfirmation,
+  type AnnotationDeleteConfirmationContext,
+  type AnnotationDeleteConfirmationRequester,
+  type AnnotationDeleteConfirmationSource,
+  type AnnotationDeleteRequestOptions,
+} from "./lib/context/annotation-delete-confirmation";
+export {
   flyToAnnotationIds,
   flyToAnnotationPoints,
   resolveAnnotationIdsCartesianPoints,
@@ -212,12 +220,14 @@ export {
 } from "./lib/render/distance-triangle-overlay";
 export {
   RUNTIME_POINT_LABEL_COORDINATE_SELECTION,
+  RUNTIME_POINT_LABEL_RENDER_STYLE,
   RUNTIME_POLYGON_FILL_PLACEMENT,
 } from "./lib/render/measurement-render-models";
 export type {
   RuntimeEdgeRenderModel,
   RuntimePointLabelCoordinateCandidate,
   RuntimePointLabelRenderModel,
+  RuntimePointLabelRenderStyle,
   RuntimePointMarkerRenderModel,
   RuntimePolygonFillPlacement,
   RuntimePolygonFillRenderModel,

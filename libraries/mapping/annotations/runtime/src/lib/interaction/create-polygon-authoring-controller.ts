@@ -21,18 +21,17 @@ import {
   formatAreaSquareMetersAdaptive,
   type CssPixelPosition,
 } from "@carma-units";
-import {
-  buildTextOnlyPointLabelOverlayState,
-  createTransientPointLabelController,
-} from "@carma-providers/label-overlay";
 import type { CesiumGeographicCoordinate } from "../store";
 import { areCoordinateListsEqual } from "../utils/coordinate-equality";
 import {
   applyLineRuntime,
   clearLineRuntime,
+  createAreaLabelController,
   createLineCollection,
   createLineRuntime,
+  createPreviewOverlayLayer,
   destroyLineCollection,
+  destroyPreviewOverlayLayer,
   previewControllerDefaults,
   type PreviewLineRuntime,
 } from "./authoring-visual-runtime";
@@ -40,10 +39,6 @@ import { createPathAuthoringController } from "./create-path-authoring-controlle
 import { RUNTIME_POLYGON_FILL_PLACEMENT } from "../render/measurement-render-models";
 import { createMeasurementPolygonFillsController } from "../render/measurement-polygon-fills-controller.shared";
 import { createMeasurementOverlayPolygonFillsController } from "../render/measurement-overlay-polygon-fills-controller.shared";
-import {
-  resolveAnnotationLineLabelOptions,
-  resolveAnnotationLineLabelSurfaceBlendMode,
-} from "../config/annotation-line-label-options";
 import {
   isCoplanarPolygonFillPlacement,
   resolveAreaOcclusionLineRenderOptions,
@@ -61,6 +56,8 @@ const DRAFT_CHAIN_OVERLAY_LAYER_ID =
   "annotation-overlay-draft-chain-preview-layer";
 const POLYGON_LOOP_OVERLAY_LAYER_ID =
   "annotation-overlay-polygon-loop-preview-layer";
+const AREA_LABEL_OVERLAY_LAYER_ID =
+  "annotation-overlay-area-preview-label-layer";
 const {
   AREA_GROUND: ANNOTATION_TYPE_AREA_GROUND,
   AREA_PLANAR: ANNOTATION_TYPE_AREA_PLANAR,
@@ -86,6 +83,7 @@ export type PolygonAuthoringMeasurementCoordinatesResolver = (args: {
   coordinates: readonly CesiumGeographicCoordinate[];
   previousCoordinates?: readonly CesiumGeographicCoordinate[];
   preferredFacingPositionECEF?: Cartesian3 | null;
+  forceAccepted?: boolean;
 }) => readonly CesiumGeographicCoordinate[] | null;
 
 const buildClosedLoopCoordinates = (
@@ -265,7 +263,6 @@ export const createPolygonAuthoringController = ({
   const {
     scene,
     drafts,
-    labelOverlay,
     formatOptions,
     lineLabelOptions,
   } = context;
@@ -334,18 +331,20 @@ export const createPolygonAuthoringController = ({
       scene,
       `${previewId}-draft-preview`
     );
-  const areaLabelController = createTransientPointLabelController({
-    labelOverlay,
-    overlayId: `${previewId}-draft-area-label`,
-    requestRender: () => scene.requestRender(),
+  const areaLabelOverlayLayer = createPreviewOverlayLayer(
+    scene,
+    `${AREA_LABEL_OVERLAY_LAYER_ID}-${previewId}`
+  );
+  const areaLabelController = createAreaLabelController({
+    overlayLayer: areaLabelOverlayLayer,
+    accentColor: getAnnotationAreaCssColor(toolType, 1),
+    visualOptions: lineLabelOptions,
   });
   let enabled = false;
   let pointQueryPickResult: PointQueryPickResult | null = null;
   let draftCoordinates = [...drafts.get(previewId).coordinates];
   let currentAreaLabelState: PreviewAreaLabelState | null = null;
   let currentPointQueryPickAcceptable = true;
-  const resolvedAnnotationLineLabelOptions =
-    resolveAnnotationLineLabelOptions(lineLabelOptions);
 
   const render = (requestRender = true) => {
     if (!isValidScene(scene)) {
@@ -379,6 +378,7 @@ export const createPolygonAuthoringController = ({
             coordinates,
             previousCoordinates: draftCoordinates,
             preferredFacingPositionECEF: scene.camera.positionWC,
+            forceAccepted: pointQueryPickResult?.forceAccepted,
           })
         : coordinates;
     const resolvedSampleCoordinates = resolveCoordinates(sampleCoordinates);
@@ -490,18 +490,11 @@ export const createPolygonAuthoringController = ({
     const nextAreaLabelState = currentAreaLabelState;
     areaLabelController.setState(
       nextAreaLabelState
-        ? buildTextOnlyPointLabelOverlayState({
+        ? {
             text: nextAreaLabelState.text,
-            lineColor: getAnnotationAreaCssColor(toolType, 1),
-            theme: resolvedAnnotationLineLabelOptions.appearance.themeStyle,
-            fontFamily: resolvedAnnotationLineLabelOptions.text.fontFamily,
-            fontWeight: resolvedAnnotationLineLabelOptions.text.fontWeight,
-            mixBlendMode: resolveAnnotationLineLabelSurfaceBlendMode(
-              resolvedAnnotationLineLabelOptions
-            ),
-            getScreenPosition: () =>
+            screenPosition:
               toScreenPoint(scene, nextAreaLabelState.anchorECEF),
-          })
+          }
         : null
     );
     if (requestRender) {
@@ -543,6 +536,7 @@ export const createPolygonAuthoringController = ({
       previewFillController.destroy();
       previewOverlayFillController.destroy();
       areaLabelController.destroy();
+      destroyPreviewOverlayLayer(areaLabelOverlayLayer);
     },
   };
 };

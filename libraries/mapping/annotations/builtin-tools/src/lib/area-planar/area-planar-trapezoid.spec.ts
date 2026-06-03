@@ -14,6 +14,7 @@ import {
   resolveAreaPlanarTrapezoidDraftCoordinates,
   resolveAreaPlanarTrapezoidMeasurementCoordinates,
   resolveNextAreaPlanarTrapezoidDraftCoordinates,
+  resolveAreaPlanarTrapezoidThirdPointRightAngleCoordinate,
 } from "./area-planar-trapezoid";
 
 const offsetPosition = (
@@ -147,6 +148,107 @@ describe("area planar trapezoid construction", () => {
 
     expect(nextCoordinates).toHaveLength(2);
     expect(nextCoordinates?.[1]?.altitude).toBeCloseTo(first.altitude, 6);
+  });
+
+  it("constrains near-right-angle third points into the baseline normal plane", () => {
+    const anchor = Cartesian3.fromDegrees(7, 51, 100);
+    const localUp = Cartesian3.normalize(anchor, new Cartesian3());
+    const localEast = Cartesian3.normalize(
+      Cartesian3.cross(Cartesian3.UNIT_Z, localUp, new Cartesian3()),
+      new Cartesian3()
+    );
+    const localNorth = Cartesian3.normalize(
+      Cartesian3.cross(localUp, localEast, new Cartesian3()),
+      new Cartesian3()
+    );
+    const baseStart = geographicCoordinateFromCartesian3(anchor);
+    const baseEnd = geographicCoordinateFromCartesian3(
+      Cartesian3.add(
+        anchor,
+        Cartesian3.multiplyByScalar(localEast, 10, new Cartesian3()),
+        new Cartesian3()
+      )
+    );
+    const rawThird = geographicCoordinateFromCartesian3(
+      Cartesian3.add(
+        anchor,
+        Cartesian3.add(
+          Cartesian3.multiplyByScalar(localEast, 10.5, new Cartesian3()),
+          Cartesian3.multiplyByScalar(localNorth, 10, new Cartesian3()),
+          new Cartesian3()
+        ),
+        new Cartesian3()
+      )
+    );
+
+    const constrainedThird =
+      resolveAreaPlanarTrapezoidThirdPointRightAngleCoordinate({
+        coordinate: rawThird,
+        previousCoordinates: [baseStart, baseEnd],
+        toleranceDeg: 5,
+      });
+    const constrainedPosition =
+      cartesian3FromGeographicCoordinate(constrainedThird);
+    const baseVector = Cartesian3.subtract(
+      cartesian3FromGeographicCoordinate(baseEnd),
+      cartesian3FromGeographicCoordinate(baseStart),
+      new Cartesian3()
+    );
+    const connectingVector = Cartesian3.subtract(
+      constrainedPosition,
+      cartesian3FromGeographicCoordinate(baseEnd),
+      new Cartesian3()
+    );
+
+    expect(
+      Math.abs(Cartesian3.dot(baseVector, connectingVector))
+    ).toBeLessThan(1e-2);
+  });
+
+  it("keeps force accepted third points outside the right-angle limiter", () => {
+    const anchor = Cartesian3.fromDegrees(7, 51, 100);
+    const localUp = Cartesian3.normalize(anchor, new Cartesian3());
+    const localEast = Cartesian3.normalize(
+      Cartesian3.cross(Cartesian3.UNIT_Z, localUp, new Cartesian3()),
+      new Cartesian3()
+    );
+    const localNorth = Cartesian3.normalize(
+      Cartesian3.cross(localUp, localEast, new Cartesian3()),
+      new Cartesian3()
+    );
+    const baseStart = geographicCoordinateFromCartesian3(anchor);
+    const baseEnd = geographicCoordinateFromCartesian3(
+      Cartesian3.add(
+        anchor,
+        Cartesian3.multiplyByScalar(localEast, 10, new Cartesian3()),
+        new Cartesian3()
+      )
+    );
+    const rawThirdPosition = Cartesian3.add(
+      anchor,
+      Cartesian3.add(
+        Cartesian3.multiplyByScalar(localEast, 10.5, new Cartesian3()),
+        Cartesian3.multiplyByScalar(localNorth, 10, new Cartesian3()),
+        new Cartesian3()
+      ),
+      new Cartesian3()
+    );
+    const rawThird = geographicCoordinateFromCartesian3(rawThirdPosition);
+
+    const constrainedThird =
+      resolveAreaPlanarTrapezoidThirdPointRightAngleCoordinate({
+        coordinate: rawThird,
+        previousCoordinates: [baseStart, baseEnd],
+        toleranceDeg: 5,
+        forceAccepted: true,
+      });
+
+    expect(
+      Cartesian3.distance(
+        cartesian3FromGeographicCoordinate(constrainedThird),
+        rawThirdPosition
+      )
+    ).toBeLessThan(1e-6);
   });
 
   it("symmetrically shortens the parallel edge after the third point", () => {

@@ -7,7 +7,10 @@ import {
 } from "@carma-mapping/annotations/ui";
 
 import type { RuntimeAnnotationInfoBoxContext } from "@carma-mapping/annotations/runtime";
-import { resolveRuntimeMeasurementNavigation } from "@carma-mapping/annotations/runtime";
+import {
+  ANNOTATION_DELETE_CONFIRMATION_SOURCES,
+  resolveRuntimeMeasurementNavigation,
+} from "@carma-mapping/annotations/runtime";
 import { resolveAreaMeasurementSummary } from "../utils/measurement-summaries";
 import { formatCardinalBearing } from "@carma-mapping/annotations/runtime";
 import {
@@ -118,7 +121,10 @@ export const createVerticalAreaToolInfoBoxSlots = (
         },
         onDelete: (event) => {
           event.stopPropagation();
-          removeAnnotationById(annotation.id);
+          removeAnnotationById(annotation.id, {
+            skipConfirmation: event.shiftKey,
+            source: ANNOTATION_DELETE_CONFIRMATION_SOURCES.UI,
+          });
         },
         labels: actionLabels,
         dataTestIdPrefix: "carma-annotation-vertical-area-measurement",

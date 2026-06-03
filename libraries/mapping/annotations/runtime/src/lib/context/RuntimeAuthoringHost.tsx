@@ -31,6 +31,7 @@ import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import type { PartialAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
 import type { AnnotationLabelTextRequester } from "./use-annotation-label-text-request";
+import type { AnnotationDeleteRequestOptions } from "./annotation-delete-confirmation";
 import {
   ANNOTATION_TOOL_PLUGIN_KINDS,
   type AnnotationToolAuthoringController,
@@ -56,6 +57,7 @@ type RuntimeAuthoringHostProps = {
   annotationToolDraftStore: AnnotationToolDraftStore;
   setActiveToolTypeInStore: (toolType: AnnotationToolId) => void;
   focusAdjacentAnnotationEntry: (offset: -1 | 1) => void;
+  removeSelectedAnnotations: (options?: AnnotationDeleteRequestOptions) => void;
   addAnnotation: (
     toolType: StoredAnnotation["toolType"],
     coordinates: readonly CesiumGeographicCoordinate[],
@@ -82,6 +84,7 @@ export const RuntimeAuthoringHost = ({
   annotationToolDraftStore,
   setActiveToolTypeInStore,
   focusAdjacentAnnotationEntry,
+  removeSelectedAnnotations,
   addAnnotation,
   bindApi,
   bindPreviewSnapTargetNodeClick,
@@ -130,6 +133,14 @@ export const RuntimeAuthoringHost = ({
     () => setHoveredPointQueryNodeId(null),
     [setHoveredPointQueryNodeId]
   );
+  const resetPointQuerySampleState = useCallback(() => {
+    clearScheduledHoverReset();
+    latestPointQueryPickResultRef.current = null;
+    activeAuthoringControllerRef.current?.setPointQueryPickResult(null);
+    pointQueryIndicatorControllerRef.current?.setVisualStyle(null);
+    pointQueryIndicatorControllerRef.current?.clearPreview();
+    clearHoveredPointQueryNode();
+  }, [clearHoveredPointQueryNode, clearScheduledHoverReset]);
   const resolveHoveredPointQueryNode = useCallback(() => {
     const hoveredNodeId = getHoveredPointQueryNodeId();
     return hoveredNodeId ? nodeById.get(hoveredNodeId) ?? null : null;
@@ -188,8 +199,15 @@ export const RuntimeAuthoringHost = ({
     previousPointTemporaryModeRef.current = currentPointTemporaryMode;
   }, [addAnnotation, annotationToolDraftStore, pointTemporaryMode]);
 
-  const { requestModeChange, requestActivateTool, requestFinishMeasurement } =
-    useModeLifecycle(activeToolType, toolSessions, clearHoveredPointQueryNode);
+  const {
+    requestModeChange,
+    requestActivateTool,
+    requestFinishMeasurement: requestRawFinishMeasurement,
+  } = useModeLifecycle(activeToolType, toolSessions, resetPointQuerySampleState);
+  const requestFinishMeasurement = useCallback(() => {
+    resetPointQuerySampleState();
+    return requestRawFinishMeasurement();
+  }, [requestRawFinishMeasurement, resetPointQuerySampleState]);
 
   const {
     handlePointQueryPointCreated,
@@ -204,6 +222,19 @@ export const RuntimeAuthoringHost = ({
     getToolPlugin: (toolType) => registry.getPlugin(toolType) ?? null,
     sessionContext,
   });
+  const handlePointQueryCoordinateCreated = useCallback(
+    (
+      coordinate: CesiumGeographicCoordinate,
+      screenPosition?: { x: number; y: number },
+      forceAccepted?: boolean
+    ) => {
+      handlePointQueryPointCreated(coordinate, screenPosition, {
+        forceAccepted,
+      });
+      resetPointQuerySampleState();
+    },
+    [handlePointQueryPointCreated, resetPointQuerySampleState]
+  );
 
   useEffect(() => {
     bindApi({
@@ -241,9 +272,15 @@ export const RuntimeAuthoringHost = ({
       handlePointQueryPointCreated(targetNode.coordinate, undefined, {
         forcedSnappedNodeId: nodeId,
       });
+      resetPointQuerySampleState();
       return true;
     },
-    [handlePointQueryPointCreated, nodes, pointQueryEnabled]
+    [
+      handlePointQueryPointCreated,
+      nodes,
+      pointQueryEnabled,
+      resetPointQuerySampleState,
+    ]
   );
   useEffect(() => {
     const cleanup =
@@ -347,11 +384,13 @@ export const RuntimeAuthoringHost = ({
       screenPosition,
       pointECEF,
       surfaceNormalECEF,
+      forceAccepted,
     }: {
       coordinate: CesiumGeographicCoordinate;
       screenPosition: { x: number; y: number };
       pointECEF: PointQueryPickResult["pointECEF"];
       surfaceNormalECEF: PointQueryPickResult["surfaceNormalECEF"];
+      forceAccepted?: boolean;
     }): PointQueryPickResult => {
       const hoveredPointQueryNode = resolveHoveredPointQueryNode();
       const resolvedHoverCoordinate =
@@ -390,6 +429,7 @@ export const RuntimeAuthoringHost = ({
             : screenPosition,
         pointECEF: resolvedHoverPointECEF ?? pointECEF,
         surfaceNormalECEF: resolvedHoverSurfaceNormalECEF,
+        forceAccepted,
       };
     },
     [resolveHoveredPointQueryNode, resolvePointQueryCoordinate, scene]
@@ -397,7 +437,7 @@ export const RuntimeAuthoringHost = ({
 
   useSceneCoordinateHandler(scene, {
     enabled: pointQueryEnabled,
-    onCoordinate: handlePointQueryPointCreated,
+    onCoordinate: handlePointQueryCoordinateCreated,
     onLineFinish: activeToolSession?.finishesOnLoopClosure
       ? () => {
           requestFinishMeasurement();
@@ -408,6 +448,7 @@ export const RuntimeAuthoringHost = ({
       screenPosition,
       pointECEF,
       surfaceNormalECEF,
+      forceAccepted,
     }) => {
       if (!pointQueryEnabled || !pointECEF || !coordinate) {
         clearScheduledHoverReset();
@@ -427,6 +468,7 @@ export const RuntimeAuthoringHost = ({
         screenPosition,
         pointECEF,
         surfaceNormalECEF,
+        forceAccepted,
       });
       const hoveredPointQueryNode = resolveHoveredPointQueryNode();
       const isHoverLockedToSnapPoint =
@@ -479,7 +521,9 @@ export const RuntimeAuthoringHost = ({
     activePlugin,
     activeToolSession,
     activeToolType,
+    clearInteractionState: resetPointQuerySampleState,
     focusAdjacentAnnotationEntry,
+    removeSelectedAnnotations,
     primaryInteractionToolId,
     requestFinishMeasurement,
     requestModeChange,

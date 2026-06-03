@@ -16,15 +16,12 @@ import {
   formatLengthMeters,
   type CssPixelPosition,
 } from "@carma-units";
-import {
-  buildTextOnlyPointLabelOverlayState,
-  createTransientPointLabelController,
-} from "@carma-providers/label-overlay";
 import { isValidScene } from "@carma-mapping/engines/cesium/core";
 import { areCoordinateListsEqual } from "../utils/coordinate-equality";
 import {
   applyLineLabel,
   buildVerticalAreaLoopCoordinates,
+  createAreaLabelController,
   createPreviewOverlayLayer,
   createSegmentLineLabels,
   destroyPreviewOverlayLayer,
@@ -36,10 +33,6 @@ import { createPathAuthoringController } from "./create-path-authoring-controlle
 import { RUNTIME_POLYGON_FILL_PLACEMENT } from "../render/measurement-render-models";
 import { createMeasurementPolygonFillsController } from "../render/measurement-polygon-fills-controller.shared";
 import { createMeasurementOverlayPolygonFillsController } from "../render/measurement-overlay-polygon-fills-controller.shared";
-import {
-  resolveAnnotationLineLabelOptions,
-  resolveAnnotationLineLabelSurfaceBlendMode,
-} from "../config/annotation-line-label-options";
 import {
   isCoplanarPolygonFillPlacement,
   resolveAreaOcclusionLineRenderOptions,
@@ -166,7 +159,6 @@ export const createVerticalAreaAuthoringController = ({
   const {
     scene,
     drafts,
-    labelOverlay,
     formatOptions,
     lineLabelOptions,
   } = context;
@@ -211,10 +203,10 @@ export const createVerticalAreaAuthoringController = ({
     scene,
     VERTICAL_AREA_PREVIEW_LABEL_LAYER_ID
   );
-  const areaLabelController = createTransientPointLabelController({
-    labelOverlay,
-    overlayId: `${ANNOTATION_TYPE_AREA_VERTICAL}-draft-area-label`,
-    requestRender: () => scene.requestRender(),
+  const areaLabelController = createAreaLabelController({
+    overlayLayer: labelOverlayLayer,
+    accentColor: getAnnotationAreaCssColor(ANNOTATION_TYPE_AREA_VERTICAL, 1),
+    visualOptions: lineLabelOptions,
   });
   const lineLabels = createSegmentLineLabels(lineLabelOptions);
   if (labelOverlayLayer) {
@@ -231,8 +223,6 @@ export const createVerticalAreaAuthoringController = ({
   ];
   let currentAreaLabelState: PreviewAreaLabelState | null = null;
   let currentEdgeLabelsState: PreviewVerticalAreaEdgeLabelsState | null = null;
-  const resolvedAnnotationLineLabelOptions =
-    resolveAnnotationLineLabelOptions(lineLabelOptions);
 
   const renderOverlayLabels = (requestRender = true) => {
     if (!isValidScene(scene)) {
@@ -409,21 +399,11 @@ export const createVerticalAreaAuthoringController = ({
     const nextAreaLabelState = currentAreaLabelState;
     areaLabelController.setState(
       nextAreaLabelState
-        ? buildTextOnlyPointLabelOverlayState({
+        ? {
             text: nextAreaLabelState.text,
-            lineColor: getAnnotationAreaCssColor(
-              ANNOTATION_TYPE_AREA_VERTICAL,
-              1
-            ),
-            theme: resolvedAnnotationLineLabelOptions.appearance.themeStyle,
-            fontFamily: resolvedAnnotationLineLabelOptions.text.fontFamily,
-            fontWeight: resolvedAnnotationLineLabelOptions.text.fontWeight,
-            mixBlendMode: resolveAnnotationLineLabelSurfaceBlendMode(
-              resolvedAnnotationLineLabelOptions
-            ),
-            getScreenPosition: () =>
+            screenPosition:
               toScreenPoint(scene, nextAreaLabelState.anchorECEF),
-          })
+          }
         : null
     );
     currentEdgeLabelsState = buildVerticalAreaPreviewEdgeLabelsState({

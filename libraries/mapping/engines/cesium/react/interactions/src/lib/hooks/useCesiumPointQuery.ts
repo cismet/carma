@@ -71,7 +71,8 @@ export type CesiumPointQueryCreatePayload = {
 export type CesiumPointQueryPointerMoveHandler = (
   positionECEF: Cartesian3 | null,
   screenPosition: Cartesian2,
-  surfaceNormalECEF?: Cartesian3 | null
+  surfaceNormalECEF?: Cartesian3 | null,
+  options?: { forceAccepted?: boolean }
 ) => void;
 
 export type CesiumPointQueryScreenPositionHandler = (
@@ -175,6 +176,28 @@ export const useCesiumPointQuery = (
       scene.requestRender();
     };
 
+    const notifyPointerMove = (
+      positionECEF: Cartesian3 | null,
+      screenPosition: Cartesian2,
+      surfaceNormalECEF: Cartesian3 | null
+    ) => {
+      if (shiftPressed) {
+        callbacksRef.current.onPointerMove?.(
+          positionECEF,
+          screenPosition,
+          surfaceNormalECEF,
+          { forceAccepted: true }
+        );
+        return;
+      }
+
+      callbacksRef.current.onPointerMove?.(
+        positionECEF,
+        screenPosition,
+        surfaceNormalECEF
+      );
+    };
+
     const handleCameraMoveStart = () => {
       isCameraMoving = true;
       lastHoverPickTimeMs = Number.NEGATIVE_INFINITY;
@@ -215,11 +238,7 @@ export const useCesiumPointQuery = (
         lastHoverNormalSampleTimeMs = Number.NEGATIVE_INFINITY;
         lastHoverNormalSampleScreenPosition = null;
         callbacksRef.current.onScreenPositionChange?.(null);
-        callbacksRef.current.onPointerMove?.(
-          null,
-          CLEARED_POINTER_POSITION,
-          null
-        );
+        notifyPointerMove(null, CLEARED_POINTER_POSITION, null);
         return;
       }
 
@@ -307,7 +326,7 @@ export const useCesiumPointQuery = (
             : null,
           missedFrameCount: 0,
         };
-        callbacksRef.current.onPointerMove?.(
+        notifyPointerMove(
           hoverPositionECEF,
           currentPointerPosition,
           resolvedSurfaceNormal
@@ -323,7 +342,7 @@ export const useCesiumPointQuery = (
           ...retainedHoverSample,
           missedFrameCount: retainedHoverSample.missedFrameCount + 1,
         };
-        callbacksRef.current.onPointerMove?.(
+        notifyPointerMove(
           retainedHoverSample.positionECEF,
           currentPointerPosition,
           retainedHoverSample.surfaceNormalECEF
@@ -332,7 +351,7 @@ export const useCesiumPointQuery = (
       }
 
       retainedHoverSample = null;
-      callbacksRef.current.onPointerMove?.(null, currentPointerPosition, null);
+      notifyPointerMove(null, currentPointerPosition, null);
     };
 
     const removePreRenderListener =
@@ -397,14 +416,16 @@ export const useCesiumPointQuery = (
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Shift") {
+      if (event.key === "Shift" && !shiftPressed) {
         shiftPressed = true;
+        requestForcedHoverRefresh();
       }
     };
 
     const handleKeyUp = (event: KeyboardEvent) => {
-      if (event.key === "Shift") {
+      if (event.key === "Shift" && shiftPressed) {
         shiftPressed = false;
+        requestForcedHoverRefresh();
       }
     };
 

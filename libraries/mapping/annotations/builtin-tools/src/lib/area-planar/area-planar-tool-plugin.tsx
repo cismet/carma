@@ -48,11 +48,13 @@ import {
 import {
   AREA_PLANAR_TRAPEZOID_DEFAULT_HORIZONTAL_LINE_MAX_LENGTH_METERS,
   AREA_PLANAR_TRAPEZOID_DEFAULT_HORIZONTAL_PLANE_TOLERANCE_METERS,
+  AREA_PLANAR_TRAPEZOID_DEFAULT_THIRD_POINT_RIGHT_ANGLE_TOLERANCE_DEG,
   canPlaceAreaPlanarTrapezoidSecondPointOnHorizontalPlane,
   canPlaceAreaPlanarTrapezoidSecondPointWithinHorizontalLineMaxLength,
   resolveAreaPlanarTrapezoidDraftCoordinates,
   resolveAreaPlanarTrapezoidHorizontalLineMaxLengthMeters,
   resolveAreaPlanarTrapezoidHorizontalPlaneToleranceMeters,
+  resolveAreaPlanarTrapezoidThirdPointRightAngleToleranceDeg,
   resolveAreaPlanarTrapezoidMeasurementCoordinates,
   resolveNextAreaPlanarTrapezoidDraftCoordinates,
 } from "./area-planar-trapezoid";
@@ -108,6 +110,7 @@ export type AreaPlanarToolPluginOptions = {
   maxPlaneNormalChangeDeg?: number | null;
   trapezoidHorizontalPlaneToleranceMeters?: number | null;
   trapezoidHorizontalLineMaxLengthMeters?: number | null;
+  trapezoidThirdPointRightAngleToleranceDeg?: number | null;
   trapezoidHorizontalLinePreviewDiskColorCss?: string;
   trapezoidHorizontalLinePreviewDiskOpacity?: number | null;
   texts?: DefaultAnnotationToolTexts;
@@ -188,6 +191,7 @@ const createAreaPlanarToolVariantPlugin = ({
   maxPlaneNormalChangeDeg = AREA_PLANAR_DEFAULT_MAX_PLANE_NORMAL_CHANGE_DEG,
   trapezoidHorizontalPlaneToleranceMeters = AREA_PLANAR_TRAPEZOID_DEFAULT_HORIZONTAL_PLANE_TOLERANCE_METERS,
   trapezoidHorizontalLineMaxLengthMeters = AREA_PLANAR_TRAPEZOID_DEFAULT_HORIZONTAL_LINE_MAX_LENGTH_METERS,
+  trapezoidThirdPointRightAngleToleranceDeg = AREA_PLANAR_TRAPEZOID_DEFAULT_THIRD_POINT_RIGHT_ANGLE_TOLERANCE_DEG,
   trapezoidHorizontalLinePreviewDiskColorCss = AREA_PLANAR_TRAPEZOID_HORIZONTAL_LINE_PREVIEW_DISK_COLOR_CSS,
   trapezoidHorizontalLinePreviewDiskOpacity = 0.45,
   texts = defaultAnnotationToolTexts,
@@ -202,17 +206,41 @@ const createAreaPlanarToolVariantPlugin = ({
     resolveAreaPlanarTrapezoidHorizontalLineMaxLengthMeters(
       trapezoidHorizontalLineMaxLengthMeters
     );
+  const resolvedTrapezoidThirdPointRightAngleToleranceDeg =
+    resolveAreaPlanarTrapezoidThirdPointRightAngleToleranceDeg(
+      trapezoidThirdPointRightAngleToleranceDeg
+    );
   const resolveDraftInputCoordinates = (
-    coordinates: readonly CesiumGeographicCoordinate[]
+    coordinates: readonly CesiumGeographicCoordinate[],
+    options: {
+      applyThirdPointRightAngleLimiter?: boolean;
+      forceAccepted?: boolean;
+    } = {}
   ) =>
     isTrapezoidInputMode
-      ? resolveAreaPlanarTrapezoidDraftCoordinates(coordinates)
+      ? resolveAreaPlanarTrapezoidDraftCoordinates(coordinates, {
+          thirdPointRightAngleToleranceDeg:
+            resolvedTrapezoidThirdPointRightAngleToleranceDeg,
+          applyThirdPointRightAngleLimiter:
+            options.applyThirdPointRightAngleLimiter,
+          forceAccepted: options.forceAccepted,
+        })
       : coordinates;
   const resolveMeasurementInputCoordinates = (
-    coordinates: readonly CesiumGeographicCoordinate[]
+    coordinates: readonly CesiumGeographicCoordinate[],
+    options: {
+      applyThirdPointRightAngleLimiter?: boolean;
+      forceAccepted?: boolean;
+    } = {}
   ) =>
     isTrapezoidInputMode
-      ? resolveAreaPlanarTrapezoidMeasurementCoordinates(coordinates)
+      ? resolveAreaPlanarTrapezoidMeasurementCoordinates(coordinates, {
+          thirdPointRightAngleToleranceDeg:
+            resolvedTrapezoidThirdPointRightAngleToleranceDeg,
+          applyThirdPointRightAngleLimiter:
+            options.applyThirdPointRightAngleLimiter,
+          forceAccepted: options.forceAccepted,
+        })
       : coordinates;
   const getAreaPlanarToolInfoBoxSlots = createNodeChainAreaToolInfoBoxSlots(
     toolType,
@@ -282,13 +310,13 @@ const createAreaPlanarToolVariantPlugin = ({
           discardDraft: () => {
             drafts.clear(toolId);
           },
-          onNodeCreated: (coordinate, linkedNodeGroupId, options) => {
+          onNodeCreated: (coordinate, linkedNodeGroupId, forceAccepted) => {
             const currentDraft = drafts.get(toolId);
             const isFourthTrapezoidPoint =
               isTrapezoidInputMode && currentDraft.coordinates.length === 3;
             if (
               isTrapezoidInputMode &&
-              !options?.forceAccepted &&
+              !forceAccepted &&
               !canPlaceAreaPlanarTrapezoidSecondPointWithinHorizontalLineMaxLength(
                 {
                   coordinate,
@@ -310,7 +338,7 @@ const createAreaPlanarToolVariantPlugin = ({
             }
             if (
               isTrapezoidInputMode &&
-              !options?.forceAccepted &&
+              !forceAccepted &&
               !canPlaceAreaPlanarTrapezoidSecondPointOnHorizontalPlane({
                 coordinate,
                 previousCoordinates: currentDraft.coordinates,
@@ -331,6 +359,9 @@ const createAreaPlanarToolVariantPlugin = ({
               ? resolveNextAreaPlanarTrapezoidDraftCoordinates({
                   coordinate,
                   previousCoordinates: currentDraft.coordinates,
+                  thirdPointRightAngleToleranceDeg:
+                    resolvedTrapezoidThirdPointRightAngleToleranceDeg,
+                  forceAccepted,
                 })
               : appendAreaPreviewPoint(currentDraft.coordinates, coordinate);
             if (!nextCoordinates) {
@@ -344,7 +375,9 @@ const createAreaPlanarToolVariantPlugin = ({
               return;
             }
             const nextMeasurementInputCoordinates =
-              resolveMeasurementInputCoordinates(nextCoordinates);
+              resolveMeasurementInputCoordinates(nextCoordinates, {
+                forceAccepted,
+              });
             const previousMeasurementInputCoordinates =
               resolveMeasurementInputCoordinates(currentDraft.coordinates);
             if (
@@ -389,9 +422,11 @@ const createAreaPlanarToolVariantPlugin = ({
         activeToolSession,
         forceAccepted,
       }) => {
-        activeToolSession?.onNodeCreated?.(coordinate, linkedNodeGroupId, {
-          forceAccepted,
-        });
+        activeToolSession?.onNodeCreated?.(
+          coordinate,
+          linkedNodeGroupId,
+          forceAccepted
+        );
       },
     },
     addAnnotation: {
@@ -418,9 +453,11 @@ const createAreaPlanarToolVariantPlugin = ({
             coordinates,
             previousCoordinates,
             preferredFacingPositionECEF,
+            forceAccepted,
           }) => {
             if (
               isTrapezoidInputMode &&
+              !forceAccepted &&
               coordinates.length === 2 &&
               previousCoordinates?.length === 1 &&
               !canPlaceAreaPlanarTrapezoidSecondPointWithinHorizontalLineMaxLength(
@@ -436,6 +473,7 @@ const createAreaPlanarToolVariantPlugin = ({
             }
             if (
               isTrapezoidInputMode &&
+              !forceAccepted &&
               coordinates.length === 2 &&
               previousCoordinates?.length === 1 &&
               !canPlaceAreaPlanarTrapezoidSecondPointOnHorizontalPlane({
@@ -446,9 +484,17 @@ const createAreaPlanarToolVariantPlugin = ({
             ) {
               return null;
             }
+            const applyThirdPointRightAngleLimiter =
+              isTrapezoidInputMode &&
+              coordinates.length === 3 &&
+              previousCoordinates?.length === 2;
             const measurementInputCoordinates =
               resolveMeasurementInputCoordinates(
-                resolveDraftInputCoordinates(coordinates)
+                resolveDraftInputCoordinates(coordinates, {
+                  applyThirdPointRightAngleLimiter,
+                  forceAccepted,
+                }),
+                { applyThirdPointRightAngleLimiter, forceAccepted }
               );
             const previousMeasurementInputCoordinates = previousCoordinates
               ? resolveMeasurementInputCoordinates(previousCoordinates)
@@ -489,6 +535,10 @@ const createAreaPlanarToolVariantPlugin = ({
           shortcutAction === ANNOTATION_COMMON_SHORTCUT_ACTIONS.UNDO_LAST_POINT
         ) {
           const currentDraft = sessionContext.drafts.get(toolId);
+          if (currentDraft.coordinates.length === 0) {
+            return false;
+          }
+
           sessionContext.drafts.set(toolId, {
             coordinates: undoAreaPreviewPoint(currentDraft.coordinates),
             linkedNodeGroupIds: undoAreaPreviewPoint(

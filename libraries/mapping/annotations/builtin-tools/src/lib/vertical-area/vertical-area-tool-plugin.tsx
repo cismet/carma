@@ -184,6 +184,10 @@ export const createVerticalAreaToolPlugin = ({
           shortcutAction === ANNOTATION_COMMON_SHORTCUT_ACTIONS.UNDO_LAST_POINT
         ) {
           const currentDraft = sessionContext.drafts.get(toolType);
+          if (currentDraft.coordinates.length === 0) {
+            return false;
+          }
+
           sessionContext.drafts.set(toolType, {
             coordinates: undoVerticalAreaPreviewPoint(currentDraft.coordinates),
             linkedNodeGroupIds: undoVerticalAreaPreviewPoint(

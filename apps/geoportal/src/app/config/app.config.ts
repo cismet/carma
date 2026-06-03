@@ -10,9 +10,6 @@ import type { CesiumConfig } from "@carma-mapping/engines/cesium/legacy";
 import type { CesiumModelConfig } from "@carma-mapping/engines/cesium/core";
 import type { LeafletConfig } from "@carma-mapping/engines/leaflet";
 import {
-  ANNOTATION_AREA_PLANAR_BIGGEST_TRIANGLE_TOOL_ID,
-  ANNOTATION_AREA_PLANAR_PCA_TOOL_ID,
-  ANNOTATION_AREA_PLANAR_TRAPEZOID_TOOL_ID,
   ANNOTATION_SELECT_TOOL_ID,
   ANNOTATION_TYPES,
 } from "@carma-mapping/annotations/core";
@@ -160,10 +157,6 @@ export const CESIUM_ANNOTATION_CONFIG = {
       ANNOTATION_SELECT_TOOL_ID,
       ANNOTATION_TYPES.POINT,
       ANNOTATION_TYPES.DISTANCE,
-      ANNOTATION_TYPES.AREA_PLANAR,
-      ANNOTATION_AREA_PLANAR_BIGGEST_TRIANGLE_TOOL_ID,
-      ANNOTATION_AREA_PLANAR_PCA_TOOL_ID,
-      ANNOTATION_AREA_PLANAR_TRAPEZOID_TOOL_ID,
     ],
   },
 } satisfies GeoportalCesiumAnnotationConfig;

@@ -90,6 +90,7 @@ const arePointLabelsEqual = (
       label.selectedGlowRadiusPx === otherLabel.selectedGlowRadiusPx &&
       label.preserveFillOnSelection === otherLabel.preserveFillOnSelection &&
       label.hoverBackgroundColor === otherLabel.hoverBackgroundColor &&
+      label.renderStyle === otherLabel.renderStyle &&
       label.labelStyle === otherLabel.labelStyle &&
       label.hideMarker === otherLabel.hideMarker &&
       label.collapse === otherLabel.collapse &&

@@ -40,6 +40,10 @@ import {
   useAnnotationLabelTextRequest,
   type AnnotationLabelTextDialogState,
 } from "./use-annotation-label-text-request";
+import type {
+  AnnotationDeleteConfirmationRequester,
+  AnnotationDeleteRequestOptions,
+} from "./annotation-delete-confirmation";
 
 type AnnotationsRuntimeServices = {
   scene: Scene | null;
@@ -62,12 +66,19 @@ type AnnotationsRuntimeServices = {
   focusAnnotationId: (annotationId: string | null) => void;
   flyToAnnotationById: (annotationId: string | null) => void;
   flyToAllAnnotations: () => void;
-  removeAnnotationById: (annotationId: string) => void;
+  removeAnnotationById: (
+    annotationId: string,
+    options?: AnnotationDeleteRequestOptions
+  ) => void;
+  removeAnnotationsByIds: (
+    annotationIds: readonly string[],
+    options?: AnnotationDeleteRequestOptions
+  ) => void;
   exportAnnotationGeoJson: (annotationId: string) => void;
   exportAllAnnotationsGeoJson: () => void;
   toggleAnnotationVisibility: (annotationId: string) => void;
   toggleAnnotationLocked: (annotationId: string) => void;
-  removeSelectedAnnotations: () => void;
+  removeSelectedAnnotations: (options?: AnnotationDeleteRequestOptions) => void;
   selectAllAnnotations: () => void;
   setElevationReferenceAnnotationId: (annotationId: string | null) => void;
   toggleAnnotationElevationDisplayMode: (
@@ -107,6 +118,7 @@ type AnnotationsProviderProps = {
   onPersistenceStateChange?: (
     state: AnnotationsRuntimePersistenceEnvelope
   ) => void;
+  confirmAnnotationDelete?: AnnotationDeleteConfirmationRequester;
 };
 
 type AnnotationsReduxProviderProps = {
@@ -172,6 +184,7 @@ export const AnnotationsProvider = ({
   lineLabelOptions = DEFAULT_ANNOTATION_LINE_LABEL_OPTIONS,
   initialPersistenceState,
   onPersistenceStateChange,
+  confirmAnnotationDelete,
 }: AnnotationsProviderProps) => {
   const { labelTextDialogState, requestLabelText } =
     useAnnotationLabelTextRequest({
@@ -207,6 +220,7 @@ export const AnnotationsProvider = ({
     initialPersistenceState: resolvedInitialPersistenceState,
     onPersistenceStateChange: resolvedOnPersistenceStateChange,
     requestLabelText: renderEnabled ? requestLabelText : undefined,
+    confirmAnnotationDelete,
   });
 
   const runtimeServices = useMemo(
@@ -268,6 +282,7 @@ export const useAnnotationsRuntime = () => {
     flyToAnnotationById,
     flyToAllAnnotations,
     removeAnnotationById,
+    removeAnnotationsByIds,
     exportAnnotationGeoJson,
     exportAllAnnotationsGeoJson,
     toggleAnnotationVisibility,
@@ -319,6 +334,7 @@ export const useAnnotationsRuntime = () => {
     flyToAnnotationById,
     flyToAllAnnotations,
     removeAnnotationById,
+    removeAnnotationsByIds,
     exportAnnotationGeoJson,
     exportAllAnnotationsGeoJson,
     toggleAnnotationVisibility,

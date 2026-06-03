@@ -17,7 +17,6 @@ import type { AnnotationNodeLink } from "../store";
 import { buildNodeLinkIdByNodeId } from "../store";
 import {
   resolveAnnotationLineLabelOptions,
-  resolveAnnotationLineLabelSurfaceBlendMode,
   type PartialAnnotationLineLabelOptions,
   type AnnotationLineLabelOptions,
 } from "../config/annotation-line-label-options";
@@ -212,8 +211,6 @@ export const useMeasurementVisualizers = (
     interactionBlocked,
     isInPreviewNodeLink,
     `${surfaceKey}-runtime-point-label`,
-    resolveAnnotationLineLabelSurfaceBlendMode(
-      resolvedAnnotationLineLabelOptions
-    )
+    resolvedAnnotationLineLabelOptions
   );
 };

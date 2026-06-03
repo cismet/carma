@@ -15,6 +15,8 @@ export const AREA_PLANAR_TRAPEZOID_DEFAULT_HORIZONTAL_PLANE_TOLERANCE_METERS =
 // distances instead of treating one tangent plane as globally horizontal.
 export const AREA_PLANAR_TRAPEZOID_DEFAULT_HORIZONTAL_LINE_MAX_LENGTH_METERS =
   200;
+export const AREA_PLANAR_TRAPEZOID_DEFAULT_THIRD_POINT_RIGHT_ANGLE_TOLERANCE_DEG =
+  6.5;
 
 export const resolveAreaPlanarTrapezoidHorizontalPlaneToleranceMeters = (
   toleranceMeters: number | null | undefined
@@ -34,6 +36,16 @@ export const resolveAreaPlanarTrapezoidHorizontalLineMaxLengthMeters = (
     typeof maxLengthMeters === "number" && Number.isFinite(maxLengthMeters)
       ? maxLengthMeters
       : AREA_PLANAR_TRAPEZOID_DEFAULT_HORIZONTAL_LINE_MAX_LENGTH_METERS
+  );
+
+export const resolveAreaPlanarTrapezoidThirdPointRightAngleToleranceDeg = (
+  toleranceDeg: number | null | undefined
+): number =>
+  Math.max(
+    0,
+    typeof toleranceDeg === "number" && Number.isFinite(toleranceDeg)
+      ? toleranceDeg
+      : AREA_PLANAR_TRAPEZOID_DEFAULT_THIRD_POINT_RIGHT_ANGLE_TOLERANCE_DEG
   );
 
 const constrainToAltitude = (
@@ -140,6 +152,89 @@ const constrainToParallelLine = (
   );
 };
 
+export const resolveAreaPlanarTrapezoidThirdPointRightAngleCoordinate = ({
+  coordinate,
+  previousCoordinates,
+  toleranceDeg,
+  forceAccepted,
+}: {
+  coordinate: CesiumGeographicCoordinate;
+  previousCoordinates: readonly CesiumGeographicCoordinate[];
+  toleranceDeg?: number | null;
+  forceAccepted?: boolean;
+}): CesiumGeographicCoordinate => {
+  if (forceAccepted || previousCoordinates.length !== 2) {
+    return coordinate;
+  }
+
+  const baseStart = previousCoordinates[0]!;
+  const baseEnd = constrainToAltitude(
+    previousCoordinates[1]!,
+    baseStart.altitude
+  );
+  const baseStartECEF = cartesian3FromGeographicCoordinate(baseStart);
+  const baseEndECEF = cartesian3FromGeographicCoordinate(baseEnd);
+  const baseVector = Cartesian3.subtract(
+    baseEndECEF,
+    baseStartECEF,
+    new Cartesian3()
+  );
+  const baseMagnitude = Cartesian3.magnitude(baseVector);
+  if (baseMagnitude <= 1e-8) {
+    return coordinate;
+  }
+
+  const coordinateECEF = cartesian3FromGeographicCoordinate(coordinate);
+  const normalPlaneAnchorECEF = shouldConnectOppositeCornerToBaseStart(
+    baseStart,
+    baseEnd,
+    coordinate
+  )
+    ? baseStartECEF
+    : baseEndECEF;
+  const candidateVector = Cartesian3.subtract(
+    coordinateECEF,
+    normalPlaneAnchorECEF,
+    new Cartesian3()
+  );
+  const candidateMagnitude = Cartesian3.magnitude(candidateVector);
+  if (candidateMagnitude <= 1e-8) {
+    return coordinate;
+  }
+
+  const baseDirection = Cartesian3.divideByScalar(
+    baseVector,
+    baseMagnitude,
+    new Cartesian3()
+  );
+  const candidateDirection = Cartesian3.divideByScalar(
+    candidateVector,
+    candidateMagnitude,
+    new Cartesian3()
+  );
+  const rightAngleErrorDeg =
+    (Math.asin(
+      Math.min(1, Math.abs(Cartesian3.dot(baseDirection, candidateDirection)))
+    ) *
+      180) /
+    Math.PI;
+
+  if (
+    rightAngleErrorDeg >
+    resolveAreaPlanarTrapezoidThirdPointRightAngleToleranceDeg(toleranceDeg)
+  ) {
+    return coordinate;
+  }
+
+  return geographicCoordinateFromCartesian3(
+    projectCartesian3PointOntoPlane(
+      coordinateECEF,
+      normalPlaneAnchorECEF,
+      baseDirection
+    )
+  );
+};
+
 export const getAreaPlanarTrapezoidSecondPointHorizontalLineLengthMeters = ({
   coordinate,
   previousCoordinates,
@@ -238,7 +333,12 @@ export const canPlaceAreaPlanarTrapezoidSecondPointOnHorizontalPlane = ({
 };
 
 export const resolveAreaPlanarTrapezoidDraftCoordinates = (
-  coordinates: readonly CesiumGeographicCoordinate[]
+  coordinates: readonly CesiumGeographicCoordinate[],
+  options: {
+    thirdPointRightAngleToleranceDeg?: number | null;
+    applyThirdPointRightAngleLimiter?: boolean;
+    forceAccepted?: boolean;
+  } = {}
 ): readonly CesiumGeographicCoordinate[] => {
   if (coordinates.length < 2) {
     return coordinates;
@@ -246,11 +346,22 @@ export const resolveAreaPlanarTrapezoidDraftCoordinates = (
 
   const baseStart = coordinates[0]!;
   const baseEnd = constrainToAltitude(coordinates[1]!, baseStart.altitude);
-  if (coordinates.length < 4) {
-    return [baseStart, baseEnd, ...coordinates.slice(2, 3)];
+  const oppositeCorner = coordinates[2]
+    ? options.applyThirdPointRightAngleLimiter
+      ? resolveAreaPlanarTrapezoidThirdPointRightAngleCoordinate({
+          coordinate: coordinates[2],
+          previousCoordinates: [baseStart, baseEnd],
+          toleranceDeg: options.thirdPointRightAngleToleranceDeg,
+          forceAccepted: options.forceAccepted,
+        })
+      : coordinates[2]
+    : undefined;
+  if (!oppositeCorner || coordinates.length < 4) {
+    return oppositeCorner
+      ? [baseStart, baseEnd, oppositeCorner]
+      : [baseStart, baseEnd];
   }
 
-  const oppositeCorner = coordinates[2]!;
   return [
     baseStart,
     baseEnd,
@@ -262,22 +373,36 @@ export const resolveAreaPlanarTrapezoidDraftCoordinates = (
 export const resolveNextAreaPlanarTrapezoidDraftCoordinates = ({
   coordinate,
   previousCoordinates,
+  thirdPointRightAngleToleranceDeg,
+  forceAccepted,
 }: {
   coordinate: CesiumGeographicCoordinate;
   previousCoordinates: readonly CesiumGeographicCoordinate[];
+  thirdPointRightAngleToleranceDeg?: number | null;
+  forceAccepted?: boolean;
 }): readonly CesiumGeographicCoordinate[] | null =>
   previousCoordinates.length >= 4
     ? null
-    : resolveAreaPlanarTrapezoidDraftCoordinates([
-        ...previousCoordinates,
-        coordinate,
-      ]);
+    : resolveAreaPlanarTrapezoidDraftCoordinates(
+        [...previousCoordinates, coordinate],
+        {
+          thirdPointRightAngleToleranceDeg,
+          applyThirdPointRightAngleLimiter: previousCoordinates.length === 2,
+          forceAccepted,
+        }
+      );
 
 export const resolveAreaPlanarTrapezoidMeasurementCoordinates = (
-  coordinates: readonly CesiumGeographicCoordinate[]
+  coordinates: readonly CesiumGeographicCoordinate[],
+  options: {
+    thirdPointRightAngleToleranceDeg?: number | null;
+    applyThirdPointRightAngleLimiter?: boolean;
+    forceAccepted?: boolean;
+  } = {}
 ): readonly CesiumGeographicCoordinate[] => {
   const draftCoordinates = resolveAreaPlanarTrapezoidDraftCoordinates(
-    coordinates
+    coordinates,
+    options
   );
   if (draftCoordinates.length !== 3) {
     return draftCoordinates.slice(0, 4);

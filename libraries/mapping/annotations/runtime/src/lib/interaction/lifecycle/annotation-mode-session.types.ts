@@ -11,7 +11,7 @@ export type AnnotationModeSession = {
   onNodeCreated?: (
     coordinate: CesiumGeographicCoordinate,
     linkedNodeGroupId?: AnnotationNodeLinkId | null,
-    options?: { forceAccepted?: boolean }
+    forceAccepted?: boolean
   ) => void;
   finishesOnLoopClosure?: boolean;
 };
