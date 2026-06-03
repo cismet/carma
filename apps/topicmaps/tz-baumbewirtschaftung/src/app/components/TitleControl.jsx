@@ -1,8 +1,14 @@
-import { useContext } from "react";
+import { useContext, useState } from "react";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faSignOut, faUser, faCloud } from "@fortawesome/free-solid-svg-icons";
+import {
+  faSignOut,
+  faUser,
+  faCloud,
+  faFilter,
+} from "@fortawesome/free-solid-svg-icons";
+import { Modal, Radio } from "antd";
 import { useKampagne } from "../context/KampagneContext";
 // Simple TitleControl modeled after potenzialflächen
 // Expects: props.logout() and props.jwt
@@ -14,6 +20,7 @@ const TitleControl = ({
 }) => {
   const { windowSize } = useContext(ResponsiveTopicMapContext);
   const { metaInformation } = useContext(FeatureCollectionContext) || {};
+  const [kampagneModalOpen, setKampagneModalOpen] = useState(false);
   const {
     ready: kampagneReady,
     showAll,
@@ -54,6 +61,9 @@ const TitleControl = ({
   );
 
   let kampagneElement = null;
+  let viewOptions = null;
+  let viewSelectValue = null;
+  let setViewSelectionFromValue = null;
   if (kampagneReady && jwt) {
     if (showAll) {
       // Build options in a stable order:
@@ -66,51 +76,84 @@ const TitleControl = ({
           ? campaigns.find((c) => c.id === keineCampaignId)
           : null;
 
-      const selectValue =
+      viewOptions = [
+        { value: "active", label: "Aktive Kampagnen" },
+        ...realCampaigns.map((c) => ({
+          value: `id:${c.id}`,
+          label: formatLabel(c),
+        })),
+        ...(keineCampaign
+          ? [{ value: `id:${keineCampaign.id}`, label: "Ohne Kampagne" }]
+          : []),
+        { value: "all", label: "Alle Bäume" },
+      ];
+
+      viewSelectValue =
         typeof viewSelection === "number"
           ? `id:${viewSelection}`
           : viewSelection;
 
-      const handleChange = (e) => {
-        const v = e.target.value;
+      setViewSelectionFromValue = (v) => {
         if (v === "active" || v === "all") {
           setViewSelection(v);
-        } else if (v.startsWith("id:")) {
+        } else if (typeof v === "string" && v.startsWith("id:")) {
           setViewSelection(Number(v.slice(3)));
         }
       };
 
-      kampagneElement = (
-        <>
-          <span style={{ marginLeft: 12, color: "#555" }}>Ansicht:</span>
-          <select
-            value={selectValue}
-            onChange={handleChange}
+      if (isNarrow) {
+        const currentLabel =
+          viewOptions.find((o) => o.value === viewSelectValue)?.label ?? "";
+        kampagneElement = (
+          <button
+            type="button"
+            onClick={() => setKampagneModalOpen(true)}
             style={{
-              marginLeft: 6,
-              fontSize: 13,
-              padding: "1px 4px",
+              marginTop: 2,
+              marginBottom: 2,
+              fontSize: 14,
+              padding: "2px 10px",
               border: "1px solid #ccc",
               borderRadius: 3,
               background: "#fff",
+              cursor: "pointer",
             }}
           >
-            <option value="active">Aktive Kampagnen</option>
-            {realCampaigns.map((c) => (
-              <option key={c.id} value={`id:${c.id}`}>
-                {formatLabel(c)}
-              </option>
-            ))}
-            {keineCampaign && (
-              <option value={`id:${keineCampaign.id}`}>Ohne Kampagne</option>
-            )}
-            <option value="all">Alle Bäume</option>
-          </select>
-        </>
-      );
+            <FontAwesomeIcon
+              icon={faFilter}
+              style={{ marginRight: 6, color: "#555" }}
+            />
+            {currentLabel}
+          </button>
+        );
+      } else {
+        kampagneElement = (
+          <>
+            <span style={{ marginLeft: 12, color: "#555" }}>Ansicht:</span>
+            <select
+              value={viewSelectValue}
+              onChange={(e) => setViewSelectionFromValue(e.target.value)}
+              style={{
+                marginLeft: 6,
+                fontSize: 13,
+                padding: "1px 4px",
+                border: "1px solid #ccc",
+                borderRadius: 3,
+                background: "#fff",
+              }}
+            >
+              {viewOptions.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </>
+        );
+      }
     } else if (allowedCampaigns.length > 0) {
       kampagneElement = (
-        <span style={{ marginLeft: 8, color: "#555" }}>
+        <span style={{ marginLeft: isNarrow ? 0 : 8, color: "#555" }}>
           Kampagne: {allowedCampaigns.map(formatLabel).join(", ")}
         </span>
       );
@@ -144,22 +187,23 @@ const TitleControl = ({
   ) : null;
 
   const titleContent = isNarrow ? (
-    // Mobile layout: Single row with title, user icon, and logout icon
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-      }}
-    >
+    // Mobile layout: centered title block, sign-out pinned to upper-right corner.
+    <div style={{ position: "relative" }}>
       <span>
         <b>{title}</b> (<FontAwesomeIcon icon={faUser} /> {username})
+        {kampagneElement && <br />}
         {kampagneElement}
         {connectionErrorIndicator}
       </span>
       {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
       <a
-        style={{ color: "#337ab7", cursor: "pointer" }}
+        style={{
+          position: "absolute",
+          right: 0,
+          top: 0,
+          color: "#337ab7",
+          cursor: "pointer",
+        }}
         onClick={() => {
           logout?.();
         }}
@@ -188,34 +232,60 @@ const TitleControl = ({
   );
 
   return (
-    <table
-      className="mode-container-switcher"
-      style={{
-        width: (windowSize?.width || 300) - 54 - 12 - 38 - 12 + "px",
-        height: "30px",
-        position: "absolute",
-        left: 54,
-        top: 12,
-        zIndex: 555,
-      }}
-    >
-      <tbody>
-        <tr>
-          <td
-            style={{
-              textAlign: isNarrow ? "left" : "center",
-              verticalAlign: "middle",
-              background: "#ffffff",
-              color: "black",
-              opacity: "0.9",
-              padding: "0 10px",
+    <>
+      <table
+        className="mode-container-switcher"
+        style={{
+          width: (windowSize?.width || 300) - 54 - 12 - 38 - 12 + "px",
+          height: "30px",
+          position: "absolute",
+          left: 54,
+          top: 12,
+          zIndex: 555,
+        }}
+      >
+        <tbody>
+          <tr>
+            <td
+              style={{
+                textAlign: "center",
+                verticalAlign: "middle",
+                background: "#ffffff",
+                color: "black",
+                opacity: "0.9",
+                padding: "0 10px",
+              }}
+            >
+              {titleContent}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      {viewOptions && (
+        <Modal
+          title="Ansicht wählen"
+          open={kampagneModalOpen}
+          onCancel={() => setKampagneModalOpen(false)}
+          footer={null}
+          destroyOnClose
+        >
+          <Radio.Group
+            value={viewSelectValue}
+            onChange={(e) => {
+              setViewSelectionFromValue(e.target.value);
+              setKampagneModalOpen(false);
             }}
+            style={{ display: "flex", flexDirection: "column", gap: 12 }}
           >
-            {titleContent}
-          </td>
-        </tr>
-      </tbody>
-    </table>
+            {viewOptions.map((o) => (
+              <Radio key={o.value} value={o.value}>
+                {o.label}
+              </Radio>
+            ))}
+          </Radio.Group>
+        </Modal>
+      )}
+    </>
   );
 };
 
