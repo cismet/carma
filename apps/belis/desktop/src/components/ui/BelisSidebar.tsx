@@ -583,29 +583,35 @@ const BelisSidebar = ({
     (feature: SidebarFeature): boolean => {
       if (feature.id == null) return false;
 
-      // Primary match against the active selection.
+      // MVT feature-ID match (Karte mode). MVT ids are only unique within a
+      // tile, so require the full source + sourceLayer + id triple.
       if (
         selectedFeatureId &&
         selectedFeatureId.source === feature.source &&
-        selectedFeatureId.sourceLayer === feature.sourceLayer
+        selectedFeatureId.sourceLayer === feature.sourceLayer &&
+        selectedFeatureId.id != null &&
+        String(selectedFeatureId.id) === String(feature.id)
       ) {
-        const fid = String(feature.id);
-        // Match by MVT feature ID (works for Karte mode)
-        if (
-          selectedFeatureId.id != null &&
-          String(selectedFeatureId.id) === fid
-        )
-          return true;
-        // Fallback: match by database primary key (works for Highlights mode).
-        // Compare DB-pk to DB-pk (properties.id), never to feature.id (MVT id) —
-        // consecutive records can have an MVT id that aliases another's DB pk.
+        return true;
+      }
+
+      // Database-PK match (Highlights mode; also geometry-edit drafts whose
+      // sidebar row carries a different `source` than the canonical tile
+      // selection a map click resolves to). Compare DB-pk to DB-pk
+      // (properties.id), never to feature.id (MVT id) — consecutive records can
+      // have an MVT id that aliases another's DB pk. DB pks are unique per
+      // sourceLayer, so match on sourceLayer + pk WITHOUT requiring the source
+      // to agree: a feature's tile copy and its brandnew/draft copy share
+      // neither source nor MVT id but are the same entity.
+      if (
+        selectedFeatureId &&
+        selectedFeatureId.sourceLayer === feature.sourceLayer &&
+        selectedDatabaseId != null
+      ) {
         const dbPk = feature.properties?.id;
-        if (
-          selectedDatabaseId != null &&
-          dbPk != null &&
-          String(selectedDatabaseId) === String(dbPk)
-        )
+        if (dbPk != null && String(selectedDatabaseId) === String(dbPk)) {
           return true;
+        }
       }
 
       // Parent-context fallback: when the primary selection is a creation
