@@ -67,6 +67,30 @@ export const isFormDirty = (
   return !isFormValueEqual(originalValues, draftValues);
 };
 
+/**
+ * Like {@link isFormDirty}, but only compares the top-level slices the draft
+ * actually carries. A draft holds exactly the slices its form manages; the
+ * baseline (`originalValues`) may carry extra context slices the form cannot
+ * edit — e.g. a view-mode Leuchte's parent `mast`, seeded into the baseline so
+ * the "remember" memory can capture it (#645). Those baseline-only slices must
+ * never count as unsaved changes, otherwise a draft can never revert to clean
+ * (the cleanup branch in `setDraft` would keep deleting-then-keeping it).
+ *
+ * Within-slice differences are still detected — a field present in the original
+ * slice but missing from the draft slice recurses to "not equal" as before.
+ */
+export const isFormDirtyManaged = (
+  originalValues: Record<string, unknown> | undefined,
+  draftValues: Record<string, unknown> | undefined
+): boolean => {
+  if (!draftValues) return false;
+  if (!originalValues) return Object.keys(draftValues).length > 0;
+  for (const key of Object.keys(draftValues)) {
+    if (!isFormValueEqual(originalValues[key], draftValues[key])) return true;
+  }
+  return false;
+};
+
 // A dayjs instance is technically a non-array object, but it must be treated
 // as a leaf value — never recursed into. Without the dayjs guard, getChangedPaths
 // would descend into a date's internals ($D/$M/$y/…) and record those instead
