@@ -25,7 +25,7 @@ export const AnnotationInfoBoxContainer = ({
 }: AnnotationInfoBoxContainerProps) => {
   const resolvedVisualOptions =
     resolveAnnotationInfoBoxVisualOptions(visualOptions);
-  const headingTitle = slots.headingTitle.trim();
+  const headingTitle = slots.headingTitle?.trim() ?? "";
 
   return (
     <div data-test-id="annotation-info-box">

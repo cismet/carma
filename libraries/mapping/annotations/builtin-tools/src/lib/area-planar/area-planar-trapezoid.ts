@@ -24,7 +24,7 @@ export const resolveAreaPlanarTrapezoidHorizontalPlaneToleranceMeters = (
 ): number =>
   Math.max(
     0,
-    typeof toleranceMeters === "number" && Number.isFinite(toleranceMeters)
+    typeof toleranceMeters === "number" && !Number.isNaN(toleranceMeters)
       ? toleranceMeters
       : AREA_PLANAR_TRAPEZOID_DEFAULT_HORIZONTAL_PLANE_TOLERANCE_METERS
   );
@@ -34,7 +34,7 @@ export const resolveAreaPlanarTrapezoidHorizontalLineMaxLengthMeters = (
 ): number =>
   Math.max(
     0,
-    typeof maxLengthMeters === "number" && Number.isFinite(maxLengthMeters)
+    typeof maxLengthMeters === "number" && !Number.isNaN(maxLengthMeters)
       ? maxLengthMeters
       : AREA_PLANAR_TRAPEZOID_DEFAULT_HORIZONTAL_LINE_MAX_LENGTH_METERS
   );
@@ -60,6 +60,42 @@ const constrainToAltitude = (
   ...coordinate,
   altitude,
 });
+
+export const resolveAreaPlanarTrapezoidSecondPointHorizontalPlaneCoordinate = ({
+  coordinate,
+  previousCoordinates,
+}: {
+  coordinate: CesiumGeographicCoordinate;
+  previousCoordinates: readonly CesiumGeographicCoordinate[];
+}): CesiumGeographicCoordinate => {
+  if (previousCoordinates.length !== 1) {
+    return coordinate;
+  }
+
+  const baseStartECEF = cartesian3FromGeographicCoordinate(
+    previousCoordinates[0]!
+  );
+  const coordinateOnHorizontalPlanePoint = projectPointOntoPlane3d({
+    point: cartesian3FromGeographicCoordinate(coordinate),
+    planeAnchor: baseStartECEF,
+    planeNormal: getEllipsoidalUpDirectionAtAnchor(baseStartECEF),
+    epsilon: 1e-8,
+  });
+  if (!coordinateOnHorizontalPlanePoint) {
+    return constrainToAltitude(
+      coordinate,
+      previousCoordinates[0]?.altitude ?? coordinate.altitude
+    );
+  }
+
+  return geographicCoordinateFromCartesian3(
+    new Cartesian3(
+      coordinateOnHorizontalPlanePoint.x,
+      coordinateOnHorizontalPlanePoint.y,
+      coordinateOnHorizontalPlanePoint.z
+    )
+  );
+};
 
 const createAutomaticSymmetricParallelCorner = (
   baseStart: CesiumGeographicCoordinate,
@@ -227,10 +263,11 @@ export const resolveAreaPlanarTrapezoidThirdPointRightAngleCoordinate = ({
   }
 
   const baseStart = previousCoordinates[0]!;
-  const baseEnd = constrainToAltitude(
-    previousCoordinates[1]!,
-    baseStart.altitude
-  );
+  const baseEnd =
+    resolveAreaPlanarTrapezoidSecondPointHorizontalPlaneCoordinate({
+      coordinate: previousCoordinates[1]!,
+      previousCoordinates: [baseStart],
+    });
   const normalPlaneAnchor = shouldConnectOppositeCornerToBaseStart(
     baseStart,
     baseEnd,
@@ -399,7 +436,11 @@ export const resolveAreaPlanarTrapezoidDraftCoordinates = (
   }
 
   const baseStart = coordinates[0]!;
-  const baseEnd = constrainToAltitude(coordinates[1]!, baseStart.altitude);
+  const baseEnd =
+    resolveAreaPlanarTrapezoidSecondPointHorizontalPlaneCoordinate({
+      coordinate: coordinates[1]!,
+      previousCoordinates: [baseStart],
+    });
   const oppositeCorner = coordinates[2]
     ? options.applyRightAngleLimiter
       ? resolveAreaPlanarTrapezoidThirdPointRightAngleCoordinate({
@@ -459,6 +500,73 @@ export const resolveNextAreaPlanarTrapezoidDraftCoordinates = ({
           forceAccepted,
         }
       );
+
+const areCoordinatesWithinDistanceMeters = (
+  left: CesiumGeographicCoordinate,
+  right: CesiumGeographicCoordinate,
+  epsilonMeters = 1e-4
+): boolean =>
+  Cartesian3.distance(
+    cartesian3FromGeographicCoordinate(left),
+    cartesian3FromGeographicCoordinate(right)
+  ) <= epsilonMeters;
+
+export const doesAreaPlanarTrapezoidSampleRequireLimiterOverride = ({
+  coordinate,
+  previousCoordinates,
+  horizontalPlaneToleranceMeters,
+  horizontalLineMaxLengthMeters,
+  thirdPointRightAngleToleranceDeg,
+}: {
+  coordinate: CesiumGeographicCoordinate;
+  previousCoordinates: readonly CesiumGeographicCoordinate[];
+  horizontalPlaneToleranceMeters?: number | null;
+  horizontalLineMaxLengthMeters?: number | null;
+  thirdPointRightAngleToleranceDeg?: number | null;
+}): boolean => {
+  if (previousCoordinates.length === 1) {
+    return (
+      !canPlaceAreaPlanarTrapezoidSecondPointOnHorizontalPlane({
+        coordinate,
+        previousCoordinates,
+        toleranceMeters: horizontalPlaneToleranceMeters,
+      }) ||
+      !canPlaceAreaPlanarTrapezoidSecondPointWithinHorizontalLineMaxLength({
+        coordinate,
+        previousCoordinates,
+        maxLengthMeters: horizontalLineMaxLengthMeters,
+      })
+    );
+  }
+
+  if (
+    !shouldApplyAreaPlanarTrapezoidRightAngleLimiter(previousCoordinates.length)
+  ) {
+    return false;
+  }
+
+  const limitedCoordinates = resolveNextAreaPlanarTrapezoidDraftCoordinates({
+    coordinate,
+    previousCoordinates,
+    thirdPointRightAngleToleranceDeg,
+    forceAccepted: false,
+  });
+  const forcedCoordinates = resolveNextAreaPlanarTrapezoidDraftCoordinates({
+    coordinate,
+    previousCoordinates,
+    thirdPointRightAngleToleranceDeg,
+    forceAccepted: true,
+  });
+  const nextCoordinateIndex = previousCoordinates.length;
+  const limitedCoordinate = limitedCoordinates?.[nextCoordinateIndex];
+  const forcedCoordinate = forcedCoordinates?.[nextCoordinateIndex];
+
+  return Boolean(
+    limitedCoordinate &&
+      forcedCoordinate &&
+      !areCoordinatesWithinDistanceMeters(limitedCoordinate, forcedCoordinate)
+  );
+};
 
 export const resolveAreaPlanarTrapezoidMeasurementCoordinates = (
   coordinates: readonly CesiumGeographicCoordinate[],

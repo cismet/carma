@@ -12,6 +12,7 @@ import {
   type AnnotationToolPlugin,
   type AnnotationToolSessionContext,
 } from "../../registry";
+import type { StoredAnnotation } from "../../store";
 import { ANNOTATION_DELETE_CONFIRMATION_SOURCES } from "../../context/annotation-delete-confirmation";
 import { useManagedAnnotationKeyboardShortcuts } from "./use-managed-annotation-keyboard-shortcuts";
 
@@ -30,7 +31,16 @@ const createDraftStore = (
 
 const createSessionContext = (
   draftStore: AnnotationToolDraftStore,
-  selectedAnnotationIds: readonly string[] = ["measurement-1"]
+  selectedAnnotationIds: readonly string[] = ["measurement-1"],
+  annotationEntries: readonly StoredAnnotation[] = selectedAnnotationIds.map(
+    (id) =>
+      ({
+        edgeIds: [],
+        id,
+        nodeIds: [],
+        toolType: ANNOTATION_TYPES.AREA_PLANAR,
+      } as StoredAnnotation)
+  )
 ): AnnotationToolSessionContext => {
   const state = createInitialAnnotationsStoreState({
     initialToolType: ANNOTATION_TYPES.AREA_PLANAR,
@@ -43,6 +53,7 @@ const createSessionContext = (
         ...state.selectionState,
         selectedAnnotationIds,
       },
+      annotationEntries,
     }),
     dispatch: vi.fn(),
     setActiveToolType: vi.fn(),
@@ -71,9 +82,9 @@ const renderShortcuts = (options: RenderOptions = {}) => {
       activePlugin: null,
       activeToolSession: null,
       activeToolType: ANNOTATION_TYPES.AREA_PLANAR,
+      cancelToolId: ANNOTATION_SELECT_TOOL_ID,
       clearInteractionState: vi.fn(),
       focusAdjacentAnnotationEntry: vi.fn(),
-      primaryInteractionToolId: ANNOTATION_SELECT_TOOL_ID,
       removeSelectedAnnotations: vi.fn(),
       requestActivateTool: vi.fn(),
       requestFinishMeasurement: vi.fn(),
@@ -86,6 +97,65 @@ const renderShortcuts = (options: RenderOptions = {}) => {
 };
 
 describe("useManagedAnnotationKeyboardShortcuts", () => {
+  it("cancels active measurement tools into the configured cancel tool", () => {
+    const activeToolSession = {
+      discardDraft: vi.fn(),
+      requestFinish: vi.fn(),
+      requestStart: vi.fn(),
+      toolType: ANNOTATION_TYPES.AREA_PLANAR,
+    };
+    const clearInteractionState = vi.fn();
+    const setActiveToolTypeInStore = vi.fn();
+    const { unmount } = renderShortcuts({
+      activeToolSession,
+      cancelToolId: ANNOTATION_SELECT_TOOL_ID,
+      clearInteractionState,
+      setActiveToolTypeInStore,
+    });
+    const event = createKeyboardEvent("Escape");
+
+    act(() => {
+      window.dispatchEvent(event);
+    });
+
+    expect(activeToolSession.discardDraft).toHaveBeenCalled();
+    expect(setActiveToolTypeInStore).toHaveBeenCalledWith(
+      ANNOTATION_SELECT_TOOL_ID
+    );
+    expect(clearInteractionState).toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(true);
+    unmount();
+  });
+
+  it("keeps active measurement tools active on Escape when no annotations can be selected", () => {
+    const activeToolSession = {
+      discardDraft: vi.fn(),
+      requestFinish: vi.fn(),
+      requestStart: vi.fn(),
+      toolType: ANNOTATION_TYPES.AREA_PLANAR,
+    };
+    const clearInteractionState = vi.fn();
+    const setActiveToolTypeInStore = vi.fn();
+    const { unmount } = renderShortcuts({
+      activeToolSession,
+      cancelToolId: ANNOTATION_SELECT_TOOL_ID,
+      clearInteractionState,
+      sessionContext: createSessionContext(createDraftStore(), [], []),
+      setActiveToolTypeInStore,
+    });
+    const event = createKeyboardEvent("Escape");
+
+    act(() => {
+      window.dispatchEvent(event);
+    });
+
+    expect(activeToolSession.discardDraft).toHaveBeenCalled();
+    expect(setActiveToolTypeInStore).not.toHaveBeenCalled();
+    expect(clearInteractionState).toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(true);
+    unmount();
+  });
+
   it("routes Backspace on selected complete measurements through confirmed delete", () => {
     const removeSelectedAnnotations = vi.fn();
     const { unmount } = renderShortcuts({ removeSelectedAnnotations });

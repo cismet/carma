@@ -90,6 +90,13 @@ describe("area planar trapezoid construction", () => {
         toleranceMeters: 0.1,
       })
     ).toBe(false);
+    expect(
+      canPlaceAreaPlanarTrapezoidSecondPointOnHorizontalPlane({
+        coordinate: farSecond,
+        previousCoordinates: [first],
+        toleranceMeters: Number.POSITIVE_INFINITY,
+      })
+    ).toBe(true);
   });
 
   it("checks whether the second point stays within the local horizontal line length", () => {
@@ -135,9 +142,16 @@ describe("area planar trapezoid construction", () => {
         maxLengthMeters: 20,
       })
     ).toBe(false);
+    expect(
+      canPlaceAreaPlanarTrapezoidSecondPointWithinHorizontalLineMaxLength({
+        coordinate: farSecond,
+        previousCoordinates: [first],
+        maxLengthMeters: Number.POSITIVE_INFINITY,
+      })
+    ).toBe(true);
   });
 
-  it("constrains the second point to the first point altitude", () => {
+  it("projects the second point onto the local horizontal helper plane", () => {
     const anchor = Cartesian3.fromDegrees(7, 51, 100);
     const first = geographicCoordinateFromCartesian3(
       offsetPosition(anchor, 0, 0, 0)
@@ -152,7 +166,12 @@ describe("area planar trapezoid construction", () => {
     });
 
     expect(nextCoordinates).toHaveLength(2);
-    expect(nextCoordinates?.[1]?.altitude).toBeCloseTo(first.altitude, 6);
+    expect(
+      getAreaPlanarTrapezoidSecondPointHorizontalPlaneDistanceMeters({
+        coordinate: nextCoordinates![1]!,
+        previousCoordinates: [first],
+      })
+    ).toBeLessThan(1e-6);
   });
 
   it("constrains near-right-angle third points into the plane orthogonal to the baseline", () => {
@@ -365,13 +384,36 @@ describe("area planar trapezoid construction", () => {
 
   it("constrains near-right-angle fourth points against the other baseline endpoint", () => {
     const anchor = Cartesian3.fromDegrees(7, 51, 100);
+    const localUp = Cartesian3.normalize(anchor, new Cartesian3());
+    const localEast = Cartesian3.normalize(
+      Cartesian3.cross(Cartesian3.UNIT_Z, localUp, new Cartesian3()),
+      new Cartesian3()
+    );
+    const localNorth = Cartesian3.normalize(
+      Cartesian3.cross(localUp, localEast, new Cartesian3()),
+      new Cartesian3()
+    );
+    const offsetLocal = (east: number, north: number, up: number) =>
+      Cartesian3.add(
+        anchor,
+        Cartesian3.add(
+          Cartesian3.add(
+            Cartesian3.multiplyByScalar(localEast, east, new Cartesian3()),
+            Cartesian3.multiplyByScalar(localNorth, north, new Cartesian3()),
+            new Cartesian3()
+          ),
+          Cartesian3.multiplyByScalar(localUp, up, new Cartesian3()),
+          new Cartesian3()
+        ),
+        new Cartesian3()
+      );
     const previousCoordinates = [
-      offsetPosition(anchor, 0, 0, 0),
-      offsetPosition(anchor, 10, 0, 0),
-      offsetPosition(anchor, 10, 8, 3),
+      offsetLocal(0, 0, 0),
+      offsetLocal(10, 0, 0),
+      offsetLocal(10, 8, 3),
     ].map(geographicCoordinateFromCartesian3);
     const rawFourth = geographicCoordinateFromCartesian3(
-      offsetPosition(anchor, 1, 8.5, 9)
+      offsetLocal(0.8, 8.5, 9)
     );
 
     const nextCoordinates = resolveNextAreaPlanarTrapezoidDraftCoordinates({

@@ -1,22 +1,50 @@
 // @vitest-environment jsdom
-import type { CSSProperties } from "react";
-import { render, screen } from "@testing-library/react";
+import type { CSSProperties, ReactNode } from "react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ANNOTATION_INFO_BOX_ACTION_IDS } from "@carma-mapping/annotations/ui";
 
 const responsiveInfoBoxMock = vi.hoisted(() =>
-  vi.fn(({ alwaysVisibleDiv, collapsibleDiv, header }) => (
-    <div data-test-id="mock-responsive-info-box">
-      <div data-test-id="mock-header">{header}</div>
-      <div data-test-id="mock-always-visible">{alwaysVisibleDiv}</div>
-      <div data-test-id="mock-collapsible">{collapsibleDiv}</div>
-    </div>
-  ))
+  vi.fn(
+    ({
+      alwaysVisibleDiv,
+      collapsibleDiv,
+      header,
+      secondaryInfoBoxElements = [],
+    }) => (
+      <div data-test-id="mock-responsive-info-box">
+        <div data-test-id="mock-header">{header}</div>
+        <div data-test-id="mock-secondary">
+          {secondaryInfoBoxElements.map((element: ReactNode, index: number) => (
+            <div key={index}>{element}</div>
+          ))}
+        </div>
+        <div data-test-id="mock-always-visible">{alwaysVisibleDiv}</div>
+        <div data-test-id="mock-collapsible">{collapsibleDiv}</div>
+      </div>
+    )
+  )
 );
 
 vi.mock("./ResponsiveInfoBox", () => ({
   ResponsiveInfoBox: responsiveInfoBoxMock,
+}));
+
+vi.mock("@carma-mapping/map-controls-layout", () => ({
+  Control: ({
+    children,
+    order,
+    position,
+  }: {
+    children: ReactNode;
+    order?: number;
+    position?: string;
+  }) => (
+    <div data-test-id="mock-control" data-order={order} data-position={position}>
+      {children}
+    </div>
+  ),
 }));
 
 vi.mock("react-cismap/commons/Icon", () => ({
@@ -52,10 +80,11 @@ import {
 describe("CismapAnnotationInfoBox", () => {
   beforeEach(() => {
     responsiveInfoBoxMock.mockClear();
+    window.localStorage.clear();
   });
 
   it("maps annotation slots to the legacy ResponsiveInfoBox shell", () => {
-    render(
+    const { unmount } = render(
       <CismapAnnotationInfoBox
         controlOrder={12}
         pixelWidth={420}
@@ -86,6 +115,111 @@ describe("CismapAnnotationInfoBox", () => {
     expect(screen.getByText("Footer content")).toBeTruthy();
   });
 
+  it("can render closable instruction content above selected annotation info", () => {
+    render(
+      <CismapAnnotationInfoBox
+        controlOrder={12}
+        instructionContent={<span>Instruction content</span>}
+        instructionSlotClosable
+        pixelWidth={420}
+        slots={{
+          content: <span>Detail content</span>,
+          headingTitle: "Distance",
+        }}
+      />
+    );
+
+    expect(responsiveInfoBoxMock.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        secondaryInfoBoxElements: expect.arrayContaining([expect.anything()]),
+      })
+    );
+    expect(
+      document.querySelector('[data-test-id="annotation-instruction-slot"]')
+    ).toBeTruthy();
+    expect(
+      document
+        .querySelector('[data-test-id="annotation-instruction-slot"]')
+        ?.getAttribute("class")
+    ).not.toContain("bg-white/90");
+    expect(screen.getByText("Instruction content")).toBeTruthy();
+
+    const closeButton = document.querySelector(
+      '[data-test-id="annotation-instruction-slot-close"]'
+    );
+    expect(closeButton).toBeTruthy();
+    fireEvent.click(closeButton!);
+
+    expect(screen.queryByText("Instruction content")).toBeNull();
+    expect(
+      document.querySelector(
+        '[data-test-id="annotation-instruction-slot-open"]'
+      )
+    ).toBeTruthy();
+    expect(
+      document
+        .querySelector('[data-test-id="annotation-instruction-slot-open"]')
+        ?.getAttribute("class")
+    ).toContain("rounded-full");
+    expect(
+      document
+        .querySelector('[data-test-id="annotation-instruction-slot-open"]')
+        ?.getAttribute("class")
+    ).toContain("bg-white");
+    expect(document.querySelector(".fa-circle-question")).toBeTruthy();
+    expect(
+      document
+        .querySelector(".fa-circle-question")
+        ?.getAttribute("class")
+    ).not.toContain("animate");
+  });
+
+  it("keeps closable instruction slots collapsed through local storage", () => {
+    const { unmount } = render(
+      <CismapAnnotationInfoBox
+        controlOrder={12}
+        instructionContent={<span>Instruction content</span>}
+        instructionSlotClosable
+        instructionSlotStorageKey="annotation-help:test-tool"
+        pixelWidth={420}
+        slots={{
+          content: <span>Detail content</span>,
+          headingTitle: "Distance",
+        }}
+      />
+    );
+
+    const closeButton = document.querySelector(
+      '[data-test-id="annotation-instruction-slot-close"]'
+    );
+    fireEvent.click(closeButton!);
+
+    expect(window.localStorage.getItem("annotation-help:test-tool")).toBe(
+      "collapsed"
+    );
+    unmount();
+
+    render(
+      <CismapAnnotationInfoBox
+        controlOrder={12}
+        instructionContent={<span>Instruction content</span>}
+        instructionSlotClosable
+        instructionSlotStorageKey="annotation-help:test-tool"
+        pixelWidth={420}
+        slots={{
+          content: <span>Detail content</span>,
+          headingTitle: "Distance",
+        }}
+      />
+    );
+
+    expect(
+      document.querySelector(
+        '[data-test-id="annotation-instruction-slot-open"]'
+      )
+    ).toBeTruthy();
+  });
+
   it("renders instruction content in the compact Cismap shell", () => {
     render(
       <CismapAnnotationInstructionInfoBox
@@ -104,6 +238,9 @@ describe("CismapAnnotationInfoBox", () => {
         pixelwidth: 350,
       })
     );
+    expect(
+      responsiveInfoBoxMock.mock.calls[0]?.[0].collapsibleStyle
+    ).toBeUndefined();
     const instructionContainer = document.querySelector(
       '[data-test-id="empty-annotation-info"]'
     );
@@ -112,7 +249,83 @@ describe("CismapAnnotationInfoBox", () => {
     expect(instructionContainer?.getAttribute("class")).toContain(
       "font-normal"
     );
+    expect(instructionContainer?.getAttribute("class")).toContain("w-[90%]");
     expect(screen.getByText("Instruction content")).toBeTruthy();
+  });
+
+  it("keeps the legacy instruction shell when shrinkToContent is requested", () => {
+    render(
+      <CismapAnnotationInstructionInfoBox
+        content={<span>Instruction content</span>}
+        shrinkToContent
+      />
+    );
+
+    const responsiveInfoBoxProps = responsiveInfoBoxMock.mock.calls[0]?.[0];
+
+    expect(responsiveInfoBoxProps).toEqual(
+      expect.objectContaining({
+        pixelwidth: 350,
+      })
+    );
+    expect(responsiveInfoBoxProps).not.toHaveProperty("infoStyle");
+    expect(responsiveInfoBoxProps).not.toHaveProperty("collapsibleStyle");
+    const instructionContainer = document.querySelector(
+      '[data-test-id="empty-annotation-info"]'
+    );
+
+    expect(instructionContainer?.getAttribute("class")).toContain("w-[90%]");
+    expect(instructionContainer?.getAttribute("class")).toContain("p-2");
+  });
+
+  it("keeps the compact instruction content padding when the slot is closable", () => {
+    render(
+      <CismapAnnotationInstructionInfoBox
+        content={<span>Instruction content</span>}
+        instructionSlotClosable
+        shrinkToContent
+      />
+    );
+
+    const instructionSlot = document.querySelector(
+      '[data-test-id="annotation-instruction-slot"]'
+    );
+    const instructionContainer = document.querySelector(
+      '[data-test-id="empty-annotation-info"]'
+    );
+
+    expect(instructionSlot?.contains(instructionContainer)).toBe(true);
+    expect(instructionContainer?.getAttribute("class")).toContain("p-2");
+    expect(instructionContainer?.getAttribute("class")).toContain("w-[90%]");
+  });
+
+  it("renders only the round icon control when compact instruction content is collapsed", () => {
+    render(
+      <CismapAnnotationInstructionInfoBox
+        content={<span>Instruction content</span>}
+        instructionSlotClosable
+        instructionSlotInitiallyCollapsed
+        controlOrder={12}
+      />
+    );
+
+    const openButton = document.querySelector(
+      '[data-test-id="annotation-instruction-slot-open"]'
+    );
+
+    expect(responsiveInfoBoxMock).not.toHaveBeenCalled();
+    expect(openButton).toBeTruthy();
+    expect(openButton?.getAttribute("class")).toContain("rounded-full");
+    expect(openButton?.getAttribute("class")).toContain("bg-white");
+    expect(document.querySelector(".fa-circle-question")).toBeTruthy();
+    expect(document.querySelectorAll('[data-test-id="mock-control"]')).toHaveLength(
+      1
+    );
+    expect(
+      document
+        .querySelector('[data-test-id="mock-control"]')
+        ?.getAttribute("data-order")
+    ).toBe("12");
   });
 
   it("keeps the Cismap title input visually aligned with 2D measurement headings while hiding non-2D measurement actions", () => {

@@ -44,7 +44,7 @@ const createPlugin = ({
 });
 
 describe("useGeoportalCesiumAnnotationToolPlugins", () => {
-  it("excludes the label tool from the stable Geoportal toolset", () => {
+  it("excludes experimental and label tools from the stable Geoportal toolset", () => {
     useFeatureFlagsMock.mockReturnValue({
       featureFlagCesiumAnnotationAllTools: false,
     });
@@ -101,10 +101,6 @@ describe("useGeoportalCesiumAnnotationToolPlugins", () => {
       ANNOTATION_SELECT_TOOL_ID,
       ANNOTATION_TYPES.POINT,
       ANNOTATION_TYPES.DISTANCE,
-      ANNOTATION_TYPES.AREA_PLANAR,
-      ANNOTATION_AREA_PLANAR_BIGGEST_TRIANGLE_TOOL_ID,
-      ANNOTATION_AREA_PLANAR_PCA_TOOL_ID,
-      ANNOTATION_AREA_PLANAR_TRAPEZOID_TOOL_ID,
     ]);
   });
 });

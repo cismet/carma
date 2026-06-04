@@ -9,6 +9,7 @@ import { ANNOTATION_TOOL_PLUGIN_KINDS } from "../registry";
 import type { StoredAnnotation } from "../store";
 import {
   areAnnotationEntriesHidden,
+  resolveAnnotationCancelToolId,
   resolveAnnotationCountByToolType,
   resolveAnnotationEntriesByToolType,
   resolveAnnotationIdsByToolType,
@@ -124,6 +125,7 @@ describe("annotation-tool-collections", () => {
   it("resolves interaction and fallback plugins", () => {
     const selectPlugin = createPlugin({
       id: ANNOTATION_SELECT_TOOL_ID,
+      kind: ANNOTATION_TOOL_PLUGIN_KINDS.INTERACTION,
       order: 0,
     });
     const interactionPlugin = createPlugin({
@@ -138,7 +140,10 @@ describe("annotation-tool-collections", () => {
     } as unknown as AnnotationToolRegistry;
 
     expect(resolvePrimaryAnnotationInteractionToolId(registry.plugins)).toEqual(
-      ANNOTATION_TYPES.POLYLINE
+      ANNOTATION_SELECT_TOOL_ID
+    );
+    expect(resolveAnnotationCancelToolId(registry)).toEqual(
+      ANNOTATION_SELECT_TOOL_ID
     );
     expect(
       resolveAnnotationToolFallbackPlugin({
@@ -146,6 +151,24 @@ describe("annotation-tool-collections", () => {
         registry,
       })
     ).toBe(selectPlugin);
+  });
+
+  it("falls back to the first interaction tool when select is unavailable", () => {
+    const interactionPlugin = createPlugin({
+      id: ANNOTATION_TYPES.POLYLINE,
+      kind: ANNOTATION_TOOL_PLUGIN_KINDS.INTERACTION,
+      order: 1,
+    });
+
+    expect(resolvePrimaryAnnotationInteractionToolId([interactionPlugin])).toBe(
+      ANNOTATION_TYPES.POLYLINE
+    );
+    expect(
+      resolveAnnotationCancelToolId({
+        getPlugin: () => null,
+        plugins: [interactionPlugin],
+      })
+    ).toBe(ANNOTATION_TYPES.POLYLINE);
   });
 
   it("detects all-hidden entry groups", () => {

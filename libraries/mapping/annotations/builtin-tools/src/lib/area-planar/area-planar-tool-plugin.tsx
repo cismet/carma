@@ -1,5 +1,13 @@
 import { VectorTrapezoidIcon } from "@carma-commons/ui/components";
 import {
+  ANNOTATION_INFO_BOX_HELP_ALERT_SEVERITIES,
+  ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS,
+  ANNOTATION_INFO_BOX_HELP_ITEM_KINDS,
+  type AnnotationInfoBoxHelpActionItem,
+  type AnnotationInfoBoxHelpActionInputCombination,
+  type AnnotationInfoBoxHelpItem,
+} from "@carma-mapping/annotations/ui";
+import {
   ANNOTATION_COMMON_SHORTCUT_ACTIONS,
   formatMeasurementShortLabelToken,
   resolveAnnotationCommonShortcutAction,
@@ -15,12 +23,14 @@ import { ANNOTATION_TOOL_PLUGIN_CAPABILITIES } from "@carma-mapping/annotations/
 import {
   AUTHORING_MEASUREMENT_PLUGIN_CAPABILITIES,
   createMeasurementToolPlugin,
+  RUNTIME_AUTHORING_SAMPLE_GUIDE_COLOR_CSS,
   resolveAreaOcclusionStyleOptions,
   type AreaOcclusionStyleOptions,
   type MeasurementLineStyleOptions,
 } from "@carma-mapping/annotations/runtime";
 import type {
   AnnotationToolDraftState,
+  AnnotationToolHelpTextContext,
   CesiumGeographicCoordinate,
 } from "@carma-mapping/annotations/runtime";
 import {
@@ -51,6 +61,7 @@ import {
   AREA_PLANAR_TRAPEZOID_DEFAULT_THIRD_POINT_RIGHT_ANGLE_TOLERANCE_DEG,
   canPlaceAreaPlanarTrapezoidSecondPointOnHorizontalPlane,
   canPlaceAreaPlanarTrapezoidSecondPointWithinHorizontalLineMaxLength,
+  doesAreaPlanarTrapezoidSampleRequireLimiterOverride,
   resolveAreaPlanarTrapezoidDraftCoordinates,
   resolveAreaPlanarTrapezoidHorizontalLineMaxLengthMeters,
   resolveAreaPlanarTrapezoidHorizontalPlaneToleranceMeters,
@@ -75,10 +86,296 @@ const AREA_PLANAR_OCCLUSION_STYLE_DEFAULTS = resolveAreaOcclusionStyleOptions({
 const AREA_PLANAR_REJECTED_POINT_FEEDBACK =
   "Der letzte Punkt wurde nicht übernommen: Die projizierte Kontur würde sich selbst schneiden oder die Ebene zu stark kippen.";
 const AREA_PLANAR_TRAPEZOID_HORIZONTAL_PLANE_REJECTED_POINT_FEEDBACK =
-  "Der letzte Punkt wurde nicht übernommen: Der zweite Punkt liegt zu weit von der horizontalen Hilfsebene entfernt.";
+  "Der zweite Punkt wurde nicht übernommen: Auf die Schnittlinie von Hilfsscheibe und Dach klicken. Shift projiziert auf die Hilfsscheibe.";
 const AREA_PLANAR_TRAPEZOID_HORIZONTAL_LINE_TOO_LONG_FEEDBACK =
   "Der letzte Punkt wurde nicht übernommen: Die horizontale Hilfslinie ist zu lang für die lokale Tangentenebene. Für längere Strecken bitte eine geodätische Linienmessung verwenden.";
-const AREA_PLANAR_TRAPEZOID_HORIZONTAL_LINE_PREVIEW_DISK_COLOR_CSS = "#00d9ff";
+const AREA_PLANAR_TRAPEZOID_HORIZONTAL_LINE_PREVIEW_DISK_COLOR_CSS =
+  RUNTIME_AUTHORING_SAMPLE_GUIDE_COLOR_CSS;
+const AREA_PLANAR_TRAPEZOID_INPUT_STAGES = {
+  FIRST_CORNER: "first-corner",
+  SECOND_BASE_CORNER: "second-base-corner",
+  THIRD_OPPOSITE_CORNER: "third-opposite-corner",
+  AUTOMATIC_TRAPEZOID: "automatic-trapezoid",
+} as const;
+type AreaPlanarTrapezoidInputStage =
+  (typeof AREA_PLANAR_TRAPEZOID_INPUT_STAGES)[keyof typeof AREA_PLANAR_TRAPEZOID_INPUT_STAGES];
+type AreaPlanarTrapezoidStageConfig = Readonly<{
+  stage: AreaPlanarTrapezoidInputStage;
+  primaryInstruction: string;
+  availableActions: readonly Readonly<{
+    inputAlternatives: readonly AnnotationInfoBoxHelpActionInputCombination[];
+    description: string;
+  }>[];
+}>;
+const AREA_PLANAR_TRAPEZOID_SHIFT_OVERRIDE_ACTION: AnnotationInfoBoxHelpActionItem =
+  {
+    kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ACTION,
+    inputAlternatives: [[ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.SHIFT]],
+    description:
+      "Gedrückt halten: deaktiviert die Limiter und erlaubt den aktuellen Punkt.",
+  };
+const AREA_PLANAR_TRAPEZOID_SHIFT_PROJECTED_SECOND_POINT_ACTION: AnnotationInfoBoxHelpActionItem =
+  {
+    kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ACTION,
+    inputAlternatives: [[ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.SHIFT]],
+    description:
+      "Gedrückt halten: setzt den auf die Hilfsscheibe projizierten Punkt.",
+  };
+const AREA_PLANAR_TRAPEZOID_SHIFT_OVERRIDE_ACTIVE_HELP =
+  "Shift ist aktiv: Die Limiter werden für den aktuellen Punkt deaktiviert.";
+const AREA_PLANAR_TRAPEZOID_SHIFT_PROJECTED_SECOND_POINT_ACTIVE_HELP =
+  "Shift ist aktiv: Der aktuelle Punkt wird auf die horizontale Hilfsscheibe projiziert.";
+const AREA_PLANAR_TRAPEZOID_CURRENT_POINT_HORIZONTAL_PLANE_REJECTED_HELP =
+  "Punkt nicht übernommen: Auf die Schnittlinie von Hilfsscheibe und Dach klicken. Shift projiziert auf die Hilfsscheibe.";
+const AREA_PLANAR_TRAPEZOID_CURRENT_POINT_HORIZONTAL_LINE_TOO_LONG_HELP =
+  "Der aktuelle Punkt wird nicht übernommen: Die horizontale Hilfslinie wäre zu lang. Für längere Strecken bitte eine geodätische Linienmessung verwenden.";
+const AREA_PLANAR_TRAPEZOID_CURRENT_POINT_HORIZONTAL_PLANE_AND_LINE_REJECTED_HELP =
+  "Punkt nicht übernommen: Hilfslinie zu lang und Punkt nicht auf der Hilfsscheibe. Näher an der Schnittlinie klicken oder Shift halten.";
+const AREA_PLANAR_TRAPEZOID_RIGHT_ANGLE_SNAPPING_HELP =
+  "Der aktuelle Punkt wird auf die rechtwinklige Ecke gesetzt, weil er innerhalb des Rechtwinkel-Toleranzbereichs liegt.";
+const AREA_PLANAR_TRAPEZOID_STAGE_CONFIG_BY_STAGE = {
+  [AREA_PLANAR_TRAPEZOID_INPUT_STAGES.FIRST_CORNER]: {
+    stage: AREA_PLANAR_TRAPEZOID_INPUT_STAGES.FIRST_CORNER,
+    primaryInstruction: "Eine Dachecke an horizontaler Dachkante anklicken.",
+    availableActions: [
+      {
+        inputAlternatives: [[ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.CLICK]],
+        description: "Setzt den ersten Punkt.",
+      },
+      {
+        inputAlternatives: [[ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.ESCAPE]],
+        description: "Beendet das Werkzeug.",
+      },
+    ],
+  },
+  [AREA_PLANAR_TRAPEZOID_INPUT_STAGES.SECOND_BASE_CORNER]: {
+    stage: AREA_PLANAR_TRAPEZOID_INPUT_STAGES.SECOND_BASE_CORNER,
+    primaryInstruction:
+      "Zweiten Punkt auf derselben horizontalen Dachkante anklicken.",
+    availableActions: [
+      {
+        inputAlternatives: [[ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.CLICK]],
+        description: "Setzt die Basiskante auf der horizontalen Hilfsscheibe.",
+      },
+      {
+        inputAlternatives: [[ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.BACKSPACE]],
+        description: "Löscht den letzten Punkt.",
+      },
+      {
+        inputAlternatives: [[ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.ESCAPE]],
+        description: "Beendet das Werkzeug.",
+      },
+    ],
+  },
+  [AREA_PLANAR_TRAPEZOID_INPUT_STAGES.THIRD_OPPOSITE_CORNER]: {
+    stage: AREA_PLANAR_TRAPEZOID_INPUT_STAGES.THIRD_OPPOSITE_CORNER,
+    primaryInstruction:
+      "Dritten Punkt auf der parallelen Gegenkante anklicken.",
+    availableActions: [
+      {
+        inputAlternatives: [[ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.CLICK]],
+        description: "Setzt den dritten Punkt.",
+      },
+      {
+        inputAlternatives: [[ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.BACKSPACE]],
+        description: "Löscht den letzten Punkt.",
+      },
+      {
+        inputAlternatives: [[ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.ESCAPE]],
+        description: "Beendet das Werkzeug.",
+      },
+    ],
+  },
+  [AREA_PLANAR_TRAPEZOID_INPUT_STAGES.AUTOMATIC_TRAPEZOID]: {
+    stage: AREA_PLANAR_TRAPEZOID_INPUT_STAGES.AUTOMATIC_TRAPEZOID,
+    primaryInstruction:
+      "Das automatische Trapez ist bereit. Optional die asymmetrische vierte Ecke auf der Gegenkante anklicken, wenn die Form nicht passt.",
+    availableActions: [
+      {
+        inputAlternatives: [[ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.CLICK]],
+        description:
+          "Setzt optional die asymmetrische vierte Ecke und schliesst die Messung.",
+      },
+      {
+        inputAlternatives: [
+          [ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.DOUBLE_CLICK],
+          [ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.ENTER],
+        ],
+        description: "Schliesst die Trapezfläche mit symmetrischer Form.",
+      },
+      {
+        inputAlternatives: [[ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.BACKSPACE]],
+        description: "Löscht den letzten Punkt.",
+      },
+      {
+        inputAlternatives: [[ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.ESCAPE]],
+        description: "Beendet das Werkzeug.",
+      },
+    ],
+  },
+} as const satisfies Record<
+  AreaPlanarTrapezoidInputStage,
+  AreaPlanarTrapezoidStageConfig
+>;
+
+const formatAreaPlanarTrapezoidStageHelpText = (
+  stageConfig: AreaPlanarTrapezoidStageConfig,
+  {
+    clickDisabledReason = null,
+    rightAngleLimiterActive = false,
+    showLimiterOverrideAction = false,
+  }: {
+    clickDisabledReason?: string | null;
+    rightAngleLimiterActive?: boolean;
+    showLimiterOverrideAction?: boolean;
+  } = {}
+): readonly AnnotationInfoBoxHelpItem[] => {
+  const availableActions = clickDisabledReason
+    ? stageConfig.availableActions.filter(
+        ({ inputAlternatives }) =>
+          !inputAlternatives.some((inputCombination) =>
+            inputCombination.includes(
+              ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.CLICK
+            )
+          )
+      )
+    : stageConfig.availableActions;
+  const isSecondBaseCorner =
+    stageConfig.stage === AREA_PLANAR_TRAPEZOID_INPUT_STAGES.SECOND_BASE_CORNER;
+  const limiterOverrideAction =
+    clickDisabledReason || isSecondBaseCorner
+      ? AREA_PLANAR_TRAPEZOID_SHIFT_PROJECTED_SECOND_POINT_ACTION
+      : AREA_PLANAR_TRAPEZOID_SHIFT_OVERRIDE_ACTION;
+  const limiterOverrideActions = showLimiterOverrideAction
+    ? [limiterOverrideAction]
+    : [];
+  const activeHelpItems: AnnotationInfoBoxHelpItem[] = [];
+
+  if (clickDisabledReason) {
+    activeHelpItems.push({
+      kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ALERT,
+      severity: ANNOTATION_INFO_BOX_HELP_ALERT_SEVERITIES.WARNING,
+      text: clickDisabledReason,
+      actions: limiterOverrideActions,
+    });
+  } else if (rightAngleLimiterActive) {
+    activeHelpItems.push({
+      kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ALERT,
+      severity: ANNOTATION_INFO_BOX_HELP_ALERT_SEVERITIES.INFO,
+      text: AREA_PLANAR_TRAPEZOID_RIGHT_ANGLE_SNAPPING_HELP,
+      actions: limiterOverrideActions,
+    });
+  } else if (showLimiterOverrideAction) {
+    activeHelpItems.push({
+      kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ALERT,
+      severity: ANNOTATION_INFO_BOX_HELP_ALERT_SEVERITIES.INFO,
+      text: isSecondBaseCorner
+        ? AREA_PLANAR_TRAPEZOID_SHIFT_PROJECTED_SECOND_POINT_ACTIVE_HELP
+        : AREA_PLANAR_TRAPEZOID_SHIFT_OVERRIDE_ACTIVE_HELP,
+      actions: limiterOverrideActions,
+    });
+  }
+
+  return [
+    ...activeHelpItems,
+    {
+      kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.TEXT,
+      text: stageConfig.primaryInstruction,
+    },
+    ...availableActions.map(({ inputAlternatives, description }) => {
+      const isClickAction = inputAlternatives.some((inputCombination) =>
+        inputCombination.includes(ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.CLICK)
+      );
+      const resolvedDescription =
+        rightAngleLimiterActive &&
+        stageConfig.stage ===
+          AREA_PLANAR_TRAPEZOID_INPUT_STAGES.THIRD_OPPOSITE_CORNER &&
+        isClickAction
+          ? "Setzt den dritten Punkt mit Rechtwinkel-Limiter."
+          : description;
+
+      return {
+        kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ACTION,
+        inputAlternatives,
+        description: resolvedDescription,
+      };
+    }),
+  ];
+};
+
+const resolveAreaPlanarTrapezoidCurrentPointRejectionReason = ({
+  coordinate,
+  previousCoordinates,
+  horizontalPlaneToleranceMeters,
+  horizontalLineMaxLengthMeters,
+}: {
+  coordinate: CesiumGeographicCoordinate;
+  previousCoordinates: readonly CesiumGeographicCoordinate[];
+  horizontalPlaneToleranceMeters?: number | null;
+  horizontalLineMaxLengthMeters?: number | null;
+}): string | null => {
+  if (previousCoordinates.length !== 1) {
+    return null;
+  }
+
+  const isOffHorizontalPlane =
+    !canPlaceAreaPlanarTrapezoidSecondPointOnHorizontalPlane({
+      coordinate,
+      previousCoordinates,
+      toleranceMeters: horizontalPlaneToleranceMeters,
+    });
+  const isTooLong =
+    !canPlaceAreaPlanarTrapezoidSecondPointWithinHorizontalLineMaxLength({
+      coordinate,
+      previousCoordinates,
+      maxLengthMeters: horizontalLineMaxLengthMeters,
+    });
+
+  if (isOffHorizontalPlane && isTooLong) {
+    return AREA_PLANAR_TRAPEZOID_CURRENT_POINT_HORIZONTAL_PLANE_AND_LINE_REJECTED_HELP;
+  }
+
+  if (isOffHorizontalPlane) {
+    return AREA_PLANAR_TRAPEZOID_CURRENT_POINT_HORIZONTAL_PLANE_REJECTED_HELP;
+  }
+
+  if (isTooLong) {
+    return AREA_PLANAR_TRAPEZOID_CURRENT_POINT_HORIZONTAL_LINE_TOO_LONG_HELP;
+  }
+
+  return null;
+};
+
+const resolveAreaPlanarTrapezoidStageConfig = (
+  draftCoordinateCount: number
+): AreaPlanarTrapezoidStageConfig => {
+  if (draftCoordinateCount <= 0) {
+    return AREA_PLANAR_TRAPEZOID_STAGE_CONFIG_BY_STAGE[
+      AREA_PLANAR_TRAPEZOID_INPUT_STAGES.FIRST_CORNER
+    ];
+  }
+
+  if (draftCoordinateCount === 1) {
+    return AREA_PLANAR_TRAPEZOID_STAGE_CONFIG_BY_STAGE[
+      AREA_PLANAR_TRAPEZOID_INPUT_STAGES.SECOND_BASE_CORNER
+    ];
+  }
+
+  if (draftCoordinateCount === 2) {
+    return AREA_PLANAR_TRAPEZOID_STAGE_CONFIG_BY_STAGE[
+      AREA_PLANAR_TRAPEZOID_INPUT_STAGES.THIRD_OPPOSITE_CORNER
+    ];
+  }
+
+  return AREA_PLANAR_TRAPEZOID_STAGE_CONFIG_BY_STAGE[
+    AREA_PLANAR_TRAPEZOID_INPUT_STAGES.AUTOMATIC_TRAPEZOID
+  ];
+};
+
+const AREA_PLANAR_TRAPEZOID_INITIAL_HELP_TEXT =
+  formatAreaPlanarTrapezoidStageHelpText(
+    resolveAreaPlanarTrapezoidStageConfig(0)
+  );
 const AREA_PLANAR_INPUT_MODES = {
   PROJECTED_POLYGON: "projected-polygon",
   TRAPEZOID: "trapezoid",
@@ -121,7 +418,11 @@ type AreaPlanarToolVariantConfig = {
   order: number;
   label: string;
   tooltip: string;
-  helpText: readonly string[];
+  helpText: readonly AnnotationInfoBoxHelpItem[];
+  resolveHelpText?: (
+    context: AnnotationToolHelpTextContext
+  ) => readonly AnnotationInfoBoxHelpItem[];
+  alwaysShowHelpTextWhileActive?: boolean;
   projectionMode: AreaPlanarProjectionMode;
   inputMode?: AreaPlanarInputMode;
   iconLabel?: string;
@@ -174,6 +475,60 @@ const createAreaPlanarToolIcon = (iconLabel?: string) => (
   </span>
 );
 
+const createAreaPlanarTrapezoidHelpTextResolver =
+  ({
+    horizontalPlaneToleranceMeters,
+    horizontalLineMaxLengthMeters,
+    thirdPointRightAngleToleranceDeg,
+  }: {
+    horizontalPlaneToleranceMeters: number | null | undefined;
+    horizontalLineMaxLengthMeters: number | null | undefined;
+    thirdPointRightAngleToleranceDeg: number | null | undefined;
+  }) =>
+  ({
+    draftState,
+    pointQueryPickResult,
+  }: AnnotationToolHelpTextContext): readonly AnnotationInfoBoxHelpItem[] => {
+    const coordinate = pointQueryPickResult?.coordinate ?? null;
+    const clickDisabledReason =
+      coordinate !== null && !pointQueryPickResult?.forceAccepted
+        ? resolveAreaPlanarTrapezoidCurrentPointRejectionReason({
+            coordinate,
+            previousCoordinates: draftState.coordinates,
+            horizontalPlaneToleranceMeters,
+            horizontalLineMaxLengthMeters,
+          })
+        : null;
+    const sampleRequiresLimiterOverride =
+      coordinate !== null &&
+      !pointQueryPickResult?.forceAccepted &&
+      doesAreaPlanarTrapezoidSampleRequireLimiterOverride({
+        coordinate,
+        previousCoordinates: draftState.coordinates,
+        horizontalPlaneToleranceMeters,
+        horizontalLineMaxLengthMeters,
+        thirdPointRightAngleToleranceDeg,
+      });
+    const rightAngleLimiterActive =
+      sampleRequiresLimiterOverride &&
+      shouldApplyAreaPlanarTrapezoidRightAngleLimiter(
+        draftState.coordinates.length
+      );
+    const showLimiterOverrideAction =
+      pointQueryPickResult?.forceAccepted === true ||
+      clickDisabledReason !== null ||
+      sampleRequiresLimiterOverride;
+
+    return formatAreaPlanarTrapezoidStageHelpText(
+      resolveAreaPlanarTrapezoidStageConfig(draftState.coordinates.length),
+      {
+        clickDisabledReason,
+        rightAngleLimiterActive,
+        showLimiterOverrideAction,
+      }
+    );
+  };
+
 const createAreaPlanarToolVariantPlugin = ({
   toolId,
   order,
@@ -181,6 +536,8 @@ const createAreaPlanarToolVariantPlugin = ({
   tooltip,
   shortcutKey,
   helpText,
+  resolveHelpText,
+  alwaysShowHelpTextWhileActive,
   projectionMode,
   inputMode = AREA_PLANAR_INPUT_MODES.PROJECTED_POLYGON,
   iconLabel,
@@ -273,6 +630,8 @@ const createAreaPlanarToolVariantPlugin = ({
       icon: createAreaPlanarToolIcon(iconLabel),
     },
     helpText,
+    resolveHelpText,
+    alwaysShowHelpTextWhileActive,
     capabilities: [
       ...AUTHORING_MEASUREMENT_PLUGIN_CAPABILITIES,
       ANNOTATION_TOOL_PLUGIN_CAPABILITIES.ADD_ANNOTATION,
@@ -282,6 +641,10 @@ const createAreaPlanarToolVariantPlugin = ({
       createSession: ({ drafts, setActiveToolType, addAnnotation }) => {
         const requestFinish = () => {
           const draft = drafts.get(toolId);
+          if (isTrapezoidInputMode && draft.coordinates.length < 3) {
+            return false;
+          }
+
           const measurementInputCoordinates =
             resolveMeasurementInputCoordinates(draft.coordinates);
           const projectedCoordinates = resolveAreaPlanarProjectedCoordinates({
@@ -295,8 +658,12 @@ const createAreaPlanarToolVariantPlugin = ({
             sourceToolId: toolId,
           });
 
+          if (!nextMeasurement) {
+            return false;
+          }
+
           drafts.clear(toolId);
-          return Boolean(nextMeasurement);
+          return true;
         };
 
         return {
@@ -312,15 +679,19 @@ const createAreaPlanarToolVariantPlugin = ({
             const currentDraft = drafts.get(toolId);
             const isFourthTrapezoidPoint =
               isTrapezoidInputMode && currentDraft.coordinates.length === 3;
+            const horizontalLineMaxLengthMeters = forceAccepted
+              ? Number.POSITIVE_INFINITY
+              : resolvedTrapezoidHorizontalLineMaxLengthMeters;
+            const horizontalPlaneToleranceMeters = forceAccepted
+              ? Number.POSITIVE_INFINITY
+              : resolvedTrapezoidHorizontalPlaneToleranceMeters;
             if (
               isTrapezoidInputMode &&
-              !forceAccepted &&
               !canPlaceAreaPlanarTrapezoidSecondPointWithinHorizontalLineMaxLength(
                 {
                   coordinate,
                   previousCoordinates: currentDraft.coordinates,
-                  maxLengthMeters:
-                    resolvedTrapezoidHorizontalLineMaxLengthMeters,
+                  maxLengthMeters: horizontalLineMaxLengthMeters,
                 }
               )
             ) {
@@ -336,12 +707,10 @@ const createAreaPlanarToolVariantPlugin = ({
             }
             if (
               isTrapezoidInputMode &&
-              !forceAccepted &&
               !canPlaceAreaPlanarTrapezoidSecondPointOnHorizontalPlane({
                 coordinate,
                 previousCoordinates: currentDraft.coordinates,
-                toleranceMeters:
-                  resolvedTrapezoidHorizontalPlaneToleranceMeters,
+                toleranceMeters: horizontalPlaneToleranceMeters,
               })
             ) {
               drafts.set(toolId, {
@@ -448,23 +817,63 @@ const createAreaPlanarToolVariantPlugin = ({
             resolvedTrapezoidHorizontalPlaneToleranceMeters,
           initialHorizontalLinePreviewMaxLengthMeters:
             resolvedTrapezoidHorizontalLineMaxLengthMeters,
+          resolvePointQueryVisualStyle: ({
+            pickResult,
+            previousCoordinates,
+            currentPointQueryPickAcceptable,
+          }) => {
+            const coordinate = pickResult?.coordinate ?? null;
+            if (
+              !isTrapezoidInputMode ||
+              !coordinate ||
+              !currentPointQueryPickAcceptable ||
+              pickResult?.forceAccepted
+            ) {
+              return undefined;
+            }
+
+            const sampleRequiresLimiterOverride =
+              doesAreaPlanarTrapezoidSampleRequireLimiterOverride({
+                coordinate,
+                previousCoordinates,
+                horizontalPlaneToleranceMeters:
+                  resolvedTrapezoidHorizontalPlaneToleranceMeters,
+                horizontalLineMaxLengthMeters:
+                  resolvedTrapezoidHorizontalLineMaxLengthMeters,
+                thirdPointRightAngleToleranceDeg:
+                  resolvedTrapezoidThirdPointRightAngleToleranceDeg,
+              });
+            const rightAngleLimiterActive =
+              sampleRequiresLimiterOverride &&
+              shouldApplyAreaPlanarTrapezoidRightAngleLimiter(
+                previousCoordinates.length
+              );
+
+            return rightAngleLimiterActive
+              ? { color: RUNTIME_AUTHORING_SAMPLE_GUIDE_COLOR_CSS }
+              : undefined;
+          },
           resolveMeasurementCoordinates: ({
             coordinates,
             previousCoordinates,
             preferredFacingPositionECEF,
             forceAccepted,
           }) => {
+            const horizontalLineMaxLengthMeters = forceAccepted
+              ? Number.POSITIVE_INFINITY
+              : resolvedTrapezoidHorizontalLineMaxLengthMeters;
+            const horizontalPlaneToleranceMeters = forceAccepted
+              ? Number.POSITIVE_INFINITY
+              : resolvedTrapezoidHorizontalPlaneToleranceMeters;
             if (
               isTrapezoidInputMode &&
-              !forceAccepted &&
               coordinates.length === 2 &&
               previousCoordinates?.length === 1 &&
               !canPlaceAreaPlanarTrapezoidSecondPointWithinHorizontalLineMaxLength(
                 {
                   coordinate: coordinates[1]!,
                   previousCoordinates,
-                  maxLengthMeters:
-                    resolvedTrapezoidHorizontalLineMaxLengthMeters,
+                  maxLengthMeters: horizontalLineMaxLengthMeters,
                 }
               )
             ) {
@@ -472,14 +881,12 @@ const createAreaPlanarToolVariantPlugin = ({
             }
             if (
               isTrapezoidInputMode &&
-              !forceAccepted &&
               coordinates.length === 2 &&
               previousCoordinates?.length === 1 &&
               !canPlaceAreaPlanarTrapezoidSecondPointOnHorizontalPlane({
                 coordinate: coordinates[1]!,
                 previousCoordinates,
-                toleranceMeters:
-                  resolvedTrapezoidHorizontalPlaneToleranceMeters,
+                toleranceMeters: horizontalPlaneToleranceMeters,
               })
             ) {
               return null;
@@ -654,12 +1061,16 @@ export const createAreaPlanarTrapezoidToolPlugin = (
     label: "Dach TR",
     tooltip: "Dachfläche mit Trapez-Konstruktion messen",
     iconLabel: "TR",
-    helpText: [
-      "Bevorzugt die längste horizontale Dachkante suchen und dort auf eine Ecke mit rechtem Winkel klicken.",
-      "Den zweiten Punkt auf derselben Dachkante setzen. Er wird auf die Höhe des ersten Punkts gezwungen und definiert die horizontale Basiskante.",
-      "Den dritten Punkt auf die parallele Gegenkante setzen. Bei einfachen Trapezen reicht das bereits als Hilfskonstruktion.",
-      "Optional einen vierten Punkt setzen, wenn die Gegenkante unsymmetrisch ist oder die automatische Trapezform nicht passt.",
-    ],
+    helpText: [...AREA_PLANAR_TRAPEZOID_INITIAL_HELP_TEXT],
+    resolveHelpText: createAreaPlanarTrapezoidHelpTextResolver({
+      horizontalPlaneToleranceMeters:
+        options.trapezoidHorizontalPlaneToleranceMeters,
+      horizontalLineMaxLengthMeters:
+        options.trapezoidHorizontalLineMaxLengthMeters,
+      thirdPointRightAngleToleranceDeg:
+        options.trapezoidThirdPointRightAngleToleranceDeg,
+    }),
+    alwaysShowHelpTextWhileActive: true,
     projectionMode: AREA_PLANAR_PROJECTION_MODES.FIRST_NON_COLLINEAR_TRIANGLE,
     inputMode: AREA_PLANAR_INPUT_MODES.TRAPEZOID,
   });

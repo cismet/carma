@@ -44,6 +44,7 @@ import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 import type {
   AnnotationToolDraftStore,
   AnnotationToolPlugin,
+  PointQueryPickResult,
 } from "../registry";
 import type { Scene } from "@carma-cesium";
 import {
@@ -127,6 +128,8 @@ export const useAnnotationsAssembly = ({
   const [activeMoveGizmoNodeId, setActiveMoveGizmoNodeId] = useState<
     string | null
   >(null);
+  const [activePointQueryPickResult, setActivePointQueryPickResult] =
+    useState<PointQueryPickResult | null>(null);
   const hoveredPointQueryNodeIdRef = useRef<string | null>(null);
   const setHoveredPointQueryNodeId = useCallback((nodeId: string | null) => {
     hoveredPointQueryNodeIdRef.current = nodeId;
@@ -346,38 +349,37 @@ export const useAnnotationsAssembly = ({
         return;
       }
 
-      void requestAnnotationDeleteConfirmation(
-        targetAnnotations,
-        options
-      ).then((confirmed) => {
-        if (!confirmed) {
-          return;
-        }
+      void requestAnnotationDeleteConfirmation(targetAnnotations, options).then(
+        (confirmed) => {
+          if (!confirmed) {
+            return;
+          }
 
-        const currentState = annotationsStore.getState();
-        const removableAnnotationIds = targetAnnotations
-          .map((annotation) =>
-            findAnnotationEntryById(
-              currentState.annotationEntries,
-              annotation.id
+          const currentState = annotationsStore.getState();
+          const removableAnnotationIds = targetAnnotations
+            .map((annotation) =>
+              findAnnotationEntryById(
+                currentState.annotationEntries,
+                annotation.id
+              )
             )
-          )
-          .filter(
-            (annotation): annotation is StoredAnnotation =>
-              annotation !== null && !annotation.locked
-          )
-          .map((annotation) => annotation.id);
+            .filter(
+              (annotation): annotation is StoredAnnotation =>
+                annotation !== null && !annotation.locked
+            )
+            .map((annotation) => annotation.id);
 
-        if (removableAnnotationIds.length === 0) {
-          return;
+          if (removableAnnotationIds.length === 0) {
+            return;
+          }
+
+          annotationsStore.dispatch(
+            removeAnnotationsByIds({
+              annotationIds: removableAnnotationIds,
+            })
+          );
         }
-
-        annotationsStore.dispatch(
-          removeAnnotationsByIds({
-            annotationIds: removableAnnotationIds,
-          })
-        );
-      });
+      );
     },
     [
       annotationsStore,
@@ -707,6 +709,7 @@ export const useAnnotationsAssembly = ({
       annotationToolDraftStore,
       annotationsStore,
       formatOptions,
+      activePointQueryPickResult,
       addAnnotation,
       setActiveToolType,
       requestModeChange: (toolType: AnnotationToolId) =>
@@ -738,6 +741,7 @@ export const useAnnotationsAssembly = ({
     }),
     [
       addAnnotation,
+      activePointQueryPickResult,
       annotationToolDraftStore,
       annotationsStore,
       focusAdjacentAnnotationEntry,
@@ -784,6 +788,7 @@ export const useAnnotationsAssembly = ({
       activeMoveGizmoNodeId,
       getHoveredPointQueryNodeId,
       setHoveredPointQueryNodeId,
+      onPointQueryPickResultChange: setActivePointQueryPickResult,
       formatOptions,
       lineLabelOptions,
       bindApi: bindLifecycleHostApi,

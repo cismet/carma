@@ -27,6 +27,7 @@ import type {
   AnnotationToolDraftStore,
   AnnotationToolPlugin,
   AnnotationToolRegistry,
+  PointQueryPickResult,
 } from "../registry";
 import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 import type { Scene } from "@carma-cesium";
@@ -51,6 +52,7 @@ type AnnotationsRuntimeServices = {
   annotationToolDraftStore: AnnotationToolDraftStore;
   annotationsStore: AnnotationsStore;
   formatOptions: AnnotationsRuntimeFormatOptions;
+  activePointQueryPickResult: PointQueryPickResult | null;
   addAnnotation: (
     toolType: StoredAnnotation["toolType"],
     coordinates: readonly CesiumGeographicCoordinate[],
@@ -293,6 +295,7 @@ export const useAnnotationsRuntime = () => {
     toggleAnnotationElevationDisplayMode,
     updateAnnotationDisplayName,
     updateAnnotationShortLabel,
+    activePointQueryPickResult,
     setPointTemporaryMode,
     setSelectedAnnotationId,
     setSelectedAnnotationIds,
@@ -346,6 +349,7 @@ export const useAnnotationsRuntime = () => {
     toggleAnnotationElevationDisplayMode,
     updateAnnotationDisplayName,
     updateAnnotationShortLabel,
+    activePointQueryPickResult,
     pointTemporaryMode,
     setPointTemporaryMode,
     nodes,

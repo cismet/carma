@@ -37,10 +37,28 @@ export const resolveVisibleMeasurementAnnotationToolPlugins = (
 
 export const resolvePrimaryAnnotationInteractionToolId = (
   plugins: readonly AnnotationToolPlugin[]
+): AnnotationToolId | null => {
+  const selectPlugin = plugins.find(
+    (plugin) =>
+      plugin.id === ANNOTATION_SELECT_TOOL_ID &&
+      plugin.kind === ANNOTATION_TOOL_PLUGIN_KINDS.INTERACTION
+  );
+  if (selectPlugin) {
+    return selectPlugin.id;
+  }
+
+  return (
+    plugins.find(
+      (plugin) => plugin.kind === ANNOTATION_TOOL_PLUGIN_KINDS.INTERACTION
+    )?.id ?? null
+  );
+};
+
+export const resolveAnnotationCancelToolId = (
+  registry: Pick<AnnotationToolRegistry, "getPlugin" | "plugins">
 ): AnnotationToolId | null =>
-  plugins.find(
-    (plugin) => plugin.kind === ANNOTATION_TOOL_PLUGIN_KINDS.INTERACTION
-  )?.id ?? null;
+  registry.getPlugin(ANNOTATION_SELECT_TOOL_ID)?.id ??
+  resolvePrimaryAnnotationInteractionToolId(registry.plugins);
 
 export const resolveAnnotationCountByToolType = (
   annotationEntries: readonly StoredAnnotation[]

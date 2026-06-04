@@ -1,6 +1,9 @@
 import type { ReactNode } from "react";
 import type { Cartesian3, Scene } from "@carma-cesium";
-import type { AnnotationInfoBoxSlots } from "@carma-mapping/annotations/ui";
+import type {
+  AnnotationInfoBoxHelpItem,
+  AnnotationInfoBoxSlots,
+} from "@carma-mapping/annotations/ui";
 import type { LabelOverlayContextType } from "@carma-providers/label-overlay";
 
 import type { RuntimeAnnotationInfoBoxContext } from "../components/annotation-info-box/annotation-info-box.types";
@@ -71,6 +74,11 @@ export type AnnotationToolDraftStore = {
   subscribe: (toolId: AnnotationToolId, listener: () => void) => () => void;
 };
 
+export type AnnotationToolHelpTextContext = {
+  draftState: AnnotationToolDraftState;
+  pointQueryPickResult?: PointQueryPickResult | null;
+};
+
 export type AnnotationToolSessionContext = {
   getState: () => AnnotationsStoreState;
   dispatch: AnnotationsStore["dispatch"];
@@ -113,10 +121,16 @@ export type PointQueryPickResult = {
   forceAccepted?: boolean;
 };
 
+export type AnnotationPointQueryVisualStyle = Readonly<{
+  color?: string;
+  opacity?: number;
+}> | null;
+
 export type AnnotationToolAuthoringController = {
   setEnabled: (enabled: boolean) => void;
   setPointQueryPickResult: (pickResult: PointQueryPickResult | null) => void;
   isPointQueryPickResultAcceptable?: () => boolean;
+  getPointQueryVisualStyle?: () => AnnotationPointQueryVisualStyle | undefined;
   destroy: () => void;
 };
 
@@ -167,7 +181,11 @@ export type AnnotationToolPlugin = {
   kind: AnnotationToolPluginKind;
   annotationType?: StoredAnnotation["toolType"] | null;
   descriptor: AnnotationToolDescriptor;
-  helpText?: readonly string[];
+  helpText?: readonly AnnotationInfoBoxHelpItem[];
+  resolveHelpText?: (
+    context: AnnotationToolHelpTextContext
+  ) => readonly AnnotationInfoBoxHelpItem[];
+  alwaysShowHelpTextWhileActive?: boolean;
   capabilities?: readonly AnnotationToolPluginCapability[];
   session?: {
     createSession: (

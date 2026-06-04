@@ -100,9 +100,11 @@ describe("useMeasurementLayerButton", () => {
           id: MEASUREMENT_LAYER_ID,
           title: "Messung",
           pinned: "last",
-          interactionButtons: expect.objectContaining({
-            id: "save-measurements",
-          }),
+          interactionButtons: expect.arrayContaining([
+            expect.objectContaining({
+              id: "save-measurements",
+            }),
+          ]),
         })
       );
     });

@@ -5,7 +5,8 @@ const cesiumInteractionMocks = vi.hoisted(() => ({
   handlers: [] as Array<{
     setInputAction: (
       callback: (event: { position: unknown }) => void,
-      type: unknown
+      type: unknown,
+      modifier?: unknown
     ) => void;
     destroy: () => void;
     inputActions: Map<unknown, (event: { position: unknown }) => void>;
@@ -28,9 +29,13 @@ vi.mock("@carma-cesium", async () => {
 
     setInputAction(
       callback: (event: { position: unknown }) => void,
-      type: unknown
+      type: unknown,
+      modifier?: unknown
     ) {
-      this.inputActions.set(type, callback);
+      this.inputActions.set(
+        modifier === undefined ? type : `${String(type)}:${String(modifier)}`,
+        callback
+      );
     }
 
     destroy() {
@@ -46,6 +51,9 @@ vi.mock("@carma-cesium", async () => {
       LEFT_DOUBLE_CLICK: "LEFT_DOUBLE_CLICK",
       LEFT_DOWN: "LEFT_DOWN",
       LEFT_UP: "LEFT_UP",
+    },
+    KeyboardEventModifier: {
+      SHIFT: "SHIFT",
     },
   };
 });
@@ -93,6 +101,7 @@ vi.mock("./scenePointerTracker", () => ({
 import {
   Cartesian2,
   Cartesian3,
+  KeyboardEventModifier,
   ScreenSpaceEventType,
   type Scene,
 } from "@carma-cesium";
@@ -282,6 +291,94 @@ describe("useCesiumPointQuery", () => {
     expect(onPointCreate).toHaveBeenLastCalledWith({
       screenPosition: pointerPosition,
       pickedPositionECEF: clickPick,
+      globePositionECEF: null,
+      forceAccepted: true,
+    });
+  });
+
+  it("registers Cesium shift-click modifier events as force accepted clicks", () => {
+    const clickPick = new Cartesian3(4, 5, 6);
+    pointQueryPickingMocks.resolvePreferredSurfacePick.mockReturnValue({
+      surfacePositionECEF: clickPick,
+      globePositionECEF: null,
+    });
+
+    const onPointCreate = vi.fn();
+    const { scene } = createFakeScene();
+    const pointerPosition = new Cartesian2(10, 20);
+
+    renderHook(() =>
+      useCesiumPointQuery(scene, {
+        enabled: true,
+        onPointCreate,
+      })
+    );
+
+    const activeHandler = cesiumInteractionMocks.handlers[0];
+    expect(activeHandler).toBeDefined();
+
+    act(() => {
+      activeHandler?.inputActions
+        .get(
+          `${String(ScreenSpaceEventType.LEFT_CLICK)}:${String(
+            KeyboardEventModifier.SHIFT
+          )}`
+        )
+        ?.({
+          position: pointerPosition,
+        });
+    });
+
+    expect(onPointCreate).toHaveBeenCalledTimes(1);
+    expect(onPointCreate).toHaveBeenLastCalledWith({
+      screenPosition: pointerPosition,
+      pickedPositionECEF: clickPick,
+      globePositionECEF: null,
+      forceAccepted: true,
+    });
+  });
+
+  it("uses the retained hover sample for force accepted clicks without a new surface pick", () => {
+    const hoverPick = new Cartesian3(1, 2, 3);
+    pointQueryPickingMocks.resolvePreferredSurfacePick
+      .mockReturnValueOnce({
+        surfacePositionECEF: hoverPick,
+        globePositionECEF: null,
+      })
+      .mockReturnValueOnce({
+        surfacePositionECEF: null,
+        globePositionECEF: null,
+      });
+
+    const onPointCreate = vi.fn();
+    const { scene, flushPreRender } = createFakeScene();
+    const pointerPosition = new Cartesian2(10, 20);
+    cesiumInteractionMocks.currentPointerPosition = pointerPosition;
+
+    renderHook(() =>
+      useCesiumPointQuery(scene, {
+        enabled: true,
+        onPointCreate,
+      })
+    );
+
+    const activeHandler = cesiumInteractionMocks.handlers[0];
+    expect(activeHandler).toBeDefined();
+
+    act(() => {
+      cesiumInteractionMocks.pointerSubscriber?.();
+      flushPreRender();
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Shift" }));
+      activeHandler?.inputActions.get(ScreenSpaceEventType.LEFT_CLICK)?.({
+        position: pointerPosition,
+      });
+      window.dispatchEvent(new KeyboardEvent("keyup", { key: "Shift" }));
+    });
+
+    expect(onPointCreate).toHaveBeenCalledTimes(1);
+    expect(onPointCreate).toHaveBeenLastCalledWith({
+      screenPosition: pointerPosition,
+      pickedPositionECEF: hoverPick,
       globePositionECEF: null,
       forceAccepted: true,
     });

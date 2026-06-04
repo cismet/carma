@@ -7,10 +7,7 @@ import {
   resolveAnnotationCommonShortcutAction,
 } from "@carma-mapping/annotations/core";
 
-import {
-  selectAllAnnotationIds,
-  setSelectedAnnotationIds,
-} from "../../store";
+import { selectAllAnnotationIds, setSelectedAnnotationIds } from "../../store";
 import {
   ANNOTATION_DELETE_CONFIRMATION_SOURCES,
   type AnnotationDeleteRequestOptions,
@@ -26,7 +23,7 @@ type UseManagedAnnotationKeyboardShortcutsOptions = {
   activePlugin: AnnotationToolPlugin | null;
   activeToolType: AnnotationToolId;
   activeToolSession: AnnotationModeSession | null;
-  primaryInteractionToolId: AnnotationToolId | null;
+  cancelToolId: AnnotationToolId | null;
   focusAdjacentAnnotationEntry: (offset: -1 | 1) => void;
   removeSelectedAnnotations: (options?: AnnotationDeleteRequestOptions) => void;
   clearInteractionState: () => void;
@@ -41,7 +38,7 @@ export const useManagedAnnotationKeyboardShortcuts = ({
   activePlugin,
   activeToolType,
   activeToolSession,
-  primaryInteractionToolId,
+  cancelToolId,
   focusAdjacentAnnotationEntry,
   removeSelectedAnnotations,
   clearInteractionState,
@@ -75,11 +72,14 @@ export const useManagedAnnotationKeyboardShortcuts = ({
       if (
         commonAction ===
           ANNOTATION_COMMON_SHORTCUT_ACTIONS.CANCEL_ACTIVE_TOOL &&
-        primaryInteractionToolId !== null &&
-        activeToolType !== primaryInteractionToolId
+        cancelToolId !== null &&
+        activeToolType !== cancelToolId
       ) {
+        const runtimeState = sessionContext.getState();
         activeToolSession?.discardDraft();
-        setActiveToolTypeInStore(primaryInteractionToolId);
+        if (runtimeState.annotationEntries.length > 0) {
+          setActiveToolTypeInStore(cancelToolId);
+        }
         clearInteractionState();
         event.preventDefault();
         return;
@@ -120,7 +120,8 @@ export const useManagedAnnotationKeyboardShortcuts = ({
 
       if (
         (commonAction === ANNOTATION_COMMON_SHORTCUT_ACTIONS.DELETE_SELECTION ||
-          commonAction === ANNOTATION_COMMON_SHORTCUT_ACTIONS.UNDO_LAST_POINT) &&
+          commonAction ===
+            ANNOTATION_COMMON_SHORTCUT_ACTIONS.UNDO_LAST_POINT) &&
         sessionContext.drafts.get(activeToolType).coordinates.length > 0
       ) {
         clearInteractionState();
@@ -166,10 +167,10 @@ export const useManagedAnnotationKeyboardShortcuts = ({
     activePlugin,
     activeToolSession,
     activeToolType,
+    cancelToolId,
     clearInteractionState,
     focusAdjacentAnnotationEntry,
     removeSelectedAnnotations,
-    primaryInteractionToolId,
     requestFinishMeasurement,
     requestModeChange,
     requestActivateTool,

@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import {
   Cartesian2,
   Cartesian3,
+  KeyboardEventModifier,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
   type Scene,
@@ -36,6 +37,7 @@ export type CesiumPointQueryClickStrategy =
 
 type RetainedHoverSample = {
   positionECEF: Cartesian3;
+  screenPosition: Cartesian2;
   surfaceNormalECEF: Cartesian3 | null;
   missedFrameCount: number;
 };
@@ -321,6 +323,10 @@ export const useCesiumPointQuery = (
           null;
         retainedHoverSample = {
           positionECEF: Cartesian3.clone(hoverPositionECEF, new Cartesian3()),
+          screenPosition: Cartesian2.clone(
+            currentPointerPosition,
+            new Cartesian2()
+          ),
           surfaceNormalECEF: resolvedSurfaceNormal
             ? Cartesian3.clone(resolvedSurfaceNormal, new Cartesian3())
             : null,
@@ -340,6 +346,10 @@ export const useCesiumPointQuery = (
       ) {
         retainedHoverSample = {
           ...retainedHoverSample,
+          screenPosition: Cartesian2.clone(
+            currentPointerPosition,
+            retainedHoverSample.screenPosition
+          ),
           missedFrameCount: retainedHoverSample.missedFrameCount + 1,
         };
         notifyPointerMove(
@@ -380,7 +390,19 @@ export const useCesiumPointQuery = (
       options: { forceAccepted?: boolean } = {}
     ) => {
       const resolvedPick = resolvePreferredSurfacePick(scene, screenPosition);
-      const pickedPosition = resolvedPick.surfacePositionECEF;
+      const forceAcceptedRetainedHoverSample =
+        options.forceAccepted &&
+        retainedHoverSample &&
+        Cartesian2.distance(
+          retainedHoverSample.screenPosition,
+          screenPosition
+        ) <= DOUBLE_CLICK_POSITION_THRESHOLD_PX
+          ? retainedHoverSample
+          : null;
+      const pickedPosition =
+        resolvedPick.surfacePositionECEF ??
+        forceAcceptedRetainedHoverSample?.positionECEF ??
+        null;
 
       if (
         callbacksRef.current.onBeforePointCreate &&
@@ -432,7 +454,7 @@ export const useCesiumPointQuery = (
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
 
-    handler.setInputAction((event: { position: Cartesian2 }) => {
+    const handleLeftDown = (event: { position: Cartesian2 }) => {
       clearForceLongPressTimeout();
       forceLongPressTriggered = false;
       forceLongPressTimeoutId = window.setTimeout(() => {
@@ -440,14 +462,17 @@ export const useCesiumPointQuery = (
         createPointAt(event.position, { forceAccepted: true });
         forceLongPressTimeoutId = undefined;
       }, POINT_FORCE_LONG_PRESS_MS);
-    }, ScreenSpaceEventType.LEFT_DOWN);
+    };
 
-    handler.setInputAction(() => {
+    const handleLeftUp = () => {
       clearForceLongPressTimeout();
-    }, ScreenSpaceEventType.LEFT_UP);
+    };
 
-    handler.setInputAction((event: { position: Cartesian2 }) => {
-      const forceAccepted = shiftPressed;
+    const handleLeftClick = (
+      event: { position: Cartesian2 },
+      forceAcceptedByModifier = false
+    ) => {
+      const forceAccepted = forceAcceptedByModifier || shiftPressed;
 
       if (forceLongPressTriggered) {
         forceLongPressTriggered = false;
@@ -470,9 +495,9 @@ export const useCesiumPointQuery = (
         createPointAt(event.position, { forceAccepted });
         clickTimeoutId = undefined;
       }, pointClickDelayMs);
-    }, ScreenSpaceEventType.LEFT_CLICK);
+    };
 
-    handler.setInputAction((event: { position: Cartesian2 }) => {
+    const handleLeftDoubleClick = (event: { position: Cartesian2 }) => {
       if (!useDelayedLineFinishClicks) {
         return;
       }
@@ -488,7 +513,41 @@ export const useCesiumPointQuery = (
       clearForceLongPressTimeout();
       callbacksRef.current.onLineFinish?.();
       requestForcedHoverRefresh();
-    }, ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
+    };
+
+    handler.setInputAction(handleLeftDown, ScreenSpaceEventType.LEFT_DOWN);
+    handler.setInputAction(
+      handleLeftDown,
+      ScreenSpaceEventType.LEFT_DOWN,
+      KeyboardEventModifier.SHIFT
+    );
+
+    handler.setInputAction(handleLeftUp, ScreenSpaceEventType.LEFT_UP);
+    handler.setInputAction(
+      handleLeftUp,
+      ScreenSpaceEventType.LEFT_UP,
+      KeyboardEventModifier.SHIFT
+    );
+
+    handler.setInputAction(
+      (event: { position: Cartesian2 }) => handleLeftClick(event),
+      ScreenSpaceEventType.LEFT_CLICK
+    );
+    handler.setInputAction(
+      (event: { position: Cartesian2 }) => handleLeftClick(event, true),
+      ScreenSpaceEventType.LEFT_CLICK,
+      KeyboardEventModifier.SHIFT
+    );
+
+    handler.setInputAction(
+      handleLeftDoubleClick,
+      ScreenSpaceEventType.LEFT_DOUBLE_CLICK
+    );
+    handler.setInputAction(
+      handleLeftDoubleClick,
+      ScreenSpaceEventType.LEFT_DOUBLE_CLICK,
+      KeyboardEventModifier.SHIFT
+    );
 
     return () => {
       if (clickTimeoutId !== undefined) {

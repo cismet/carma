@@ -34,6 +34,10 @@ export type {
 } from "./lib/config/annotation-measurement-label-themes";
 export { typographyDefaults } from "./lib/config/annotation-typography-defaults";
 export type { TypographyDefaults } from "./lib/config/annotation-typography-defaults";
+export {
+  RUNTIME_AUTHORING_REJECTED_SAMPLE_COLOR_CSS,
+  RUNTIME_AUTHORING_SAMPLE_GUIDE_COLOR_CSS,
+} from "./lib/config/runtime-authoring-colors";
 export type { AnnotationsRuntimeFormatOptions } from "./lib/config/annotations-runtime-format-options";
 export {
   AREA_OCCLUSION_STYLE_DEFAULTS,
@@ -203,6 +207,7 @@ export {
   type AnnotationToolDescriptor,
   type AnnotationToolDraftState,
   type AnnotationToolDraftStore,
+  type AnnotationToolHelpTextContext,
   type AnnotationToolKeyboardContext,
   type AnnotationToolPlugin,
   type AnnotationToolPluginCapability,
@@ -249,6 +254,7 @@ export type {
 export { resolveBearingRadFromFirstToLastCoordinate } from "./lib/utils/resolve-bearing-rad-from-first-to-last-coordinate";
 export {
   areAnnotationEntriesHidden,
+  resolveAnnotationCancelToolId,
   resolveAnnotationCountByToolType,
   resolveAnnotationEntriesByToolType,
   resolveAnnotationIdsByToolType,

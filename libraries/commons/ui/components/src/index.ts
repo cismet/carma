@@ -81,6 +81,13 @@ export { FileUploader } from "./lib/components/FileUploader";
 export { MODES } from "./lib/components/responsiveInfoBoxModes";
 export { uploadImage } from "./lib/utils/uploadImage";
 export {
+  resolveBackspaceDisplayLabel,
+  resolveKeyboardDisplayLabels,
+  resolveKeyboardDisplayPlatform,
+  type KeyboardDisplayLabels,
+  type KeyboardDisplayPlatform,
+} from "./lib/utils/keyboardDisplay";
+export {
   createToolManager,
   type ToolDescriptor,
   type ToolDescriptorI18n,

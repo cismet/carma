@@ -75,7 +75,7 @@ export type AnnotationInfoBoxVisualOptions = Readonly<{
 }>;
 
 export type AnnotationInfoBoxSlots = {
-  headingTitle: string;
+  headingTitle?: string;
   headingColor?: string;
   subtitle?: ReactNode;
   content?: ReactNode;

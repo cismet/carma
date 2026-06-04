@@ -1,4 +1,5 @@
 import type {
+  AnnotationPointQueryVisualStyle,
   AnnotationToolAuthoringController,
   AnnotationToolAuthoringContext,
   PointQueryPickResult,
@@ -85,6 +86,12 @@ export type PolygonAuthoringMeasurementCoordinatesResolver = (args: {
   preferredFacingPositionECEF?: Cartesian3 | null;
   forceAccepted?: boolean;
 }) => readonly CesiumGeographicCoordinate[] | null;
+
+export type PolygonAuthoringPointQueryVisualStyleResolver = (args: {
+  pickResult: PointQueryPickResult | null;
+  previousCoordinates: readonly CesiumGeographicCoordinate[];
+  currentPointQueryPickAcceptable: boolean;
+}) => AnnotationPointQueryVisualStyle | undefined;
 
 const buildClosedLoopCoordinates = (
   coordinates: readonly CesiumGeographicCoordinate[]
@@ -247,6 +254,7 @@ export const createPolygonAuthoringController = ({
   initialHorizontalLinePreviewDiskOpacity,
   initialHorizontalLinePreviewPlaneToleranceMeters,
   initialHorizontalLinePreviewMaxLengthMeters,
+  resolvePointQueryVisualStyle,
 }: {
   toolType: AnnotationTypes["AREA_GROUND"] | AnnotationTypes["AREA_PLANAR"];
   draftToolId?: AnnotationToolId;
@@ -259,13 +267,9 @@ export const createPolygonAuthoringController = ({
   initialHorizontalLinePreviewDiskOpacity?: number | null;
   initialHorizontalLinePreviewPlaneToleranceMeters?: number | null;
   initialHorizontalLinePreviewMaxLengthMeters?: number | null;
+  resolvePointQueryVisualStyle?: PolygonAuthoringPointQueryVisualStyleResolver;
 }): AnnotationToolAuthoringController | null => {
-  const {
-    scene,
-    drafts,
-    formatOptions,
-    lineLabelOptions,
-  } = context;
+  const { scene, drafts, formatOptions, lineLabelOptions } = context;
   if (!scene || scene.isDestroyed()) {
     return null;
   }
@@ -352,6 +356,7 @@ export const createPolygonAuthoringController = ({
     }
 
     if (!enabled || draftCoordinates.length === 0) {
+      currentPointQueryPickAcceptable = true;
       draftChainController.clear();
       polygonLoopController.clear();
       projectionNormalController.clear();
@@ -396,12 +401,11 @@ export const createPolygonAuthoringController = ({
       (isSamplingInitialSegment || !resolveMeasurementCoordinates
         ? sampleCoordinates
         : draftCoordinates);
-    const markerCoordinates =
-      isSamplingInitialSegment
-        ? (resolvedSampleCoordinates ?? previewCoordinates)
-        : resolvedSampleCoordinates || !hoverCoordinate
-          ? sampleCoordinates
-          : draftCoordinates;
+    const markerCoordinates = isSamplingInitialSegment
+      ? resolvedSampleCoordinates ?? previewCoordinates
+      : resolvedSampleCoordinates || !hoverCoordinate
+      ? sampleCoordinates
+      : draftCoordinates;
     const hasResolvedMeasurementCoordinates =
       !resolveMeasurementCoordinates ||
       isSamplingInitialSegment ||
@@ -492,8 +496,7 @@ export const createPolygonAuthoringController = ({
       nextAreaLabelState
         ? {
             text: nextAreaLabelState.text,
-            screenPosition:
-              toScreenPoint(scene, nextAreaLabelState.anchorECEF),
+            screenPosition: toScreenPoint(scene, nextAreaLabelState.anchorECEF),
           }
         : null
     );
@@ -527,6 +530,16 @@ export const createPolygonAuthoringController = ({
       render();
     },
     isPointQueryPickResultAcceptable: () => currentPointQueryPickAcceptable,
+    ...(resolvePointQueryVisualStyle
+      ? {
+          getPointQueryVisualStyle: () =>
+            resolvePointQueryVisualStyle({
+              pickResult: pointQueryPickResult,
+              previousCoordinates: draftCoordinates,
+              currentPointQueryPickAcceptable,
+            }),
+        }
+      : {}),
     destroy: () => {
       unsubscribe();
       draftChainController.destroy();

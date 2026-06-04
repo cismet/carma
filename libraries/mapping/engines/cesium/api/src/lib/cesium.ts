@@ -47,6 +47,7 @@ export {
   ImageryLayer,
   ImageryProvider,
   JulianDate,
+  KeyboardEventModifier,
   LightingModel,
   Material,
   Math as CesiumMath,

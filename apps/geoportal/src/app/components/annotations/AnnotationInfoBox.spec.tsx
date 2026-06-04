@@ -11,6 +11,8 @@ import {
 
 const useMapFrameworkSwitcherContextMock = vi.hoisted(() => vi.fn());
 const useRuntimeAnnotationInfoBoxSlotsMock = vi.hoisted(() => vi.fn());
+const cismapAnnotationInfoBoxMock = vi.hoisted(() => vi.fn());
+const cismapAnnotationInstructionInfoBoxMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@carma-mapping/components", () => ({
   useMapFrameworkSwitcherContext: () => useMapFrameworkSwitcherContextMock(),
@@ -28,20 +30,30 @@ vi.mock("@carma-appframeworks/portals", async () => {
       NO_SELECTION: -1,
       BACKGROUND_LAYER: -2,
     },
-    CismapAnnotationInfoBox: ({
-      secondaryInfoBoxElements = [],
-    }: {
+    CismapAnnotationInfoBox: (props: {
+      instructionContent?: ReactNode;
+      instructionSlotClosable?: boolean;
+      instructionSlotStorageKey?: string;
       secondaryInfoBoxElements?: ReactNode[];
-    }) =>
-      React.createElement(
+    }) => {
+      const { secondaryInfoBoxElements = [] } = props;
+      cismapAnnotationInfoBoxMock(props);
+      return React.createElement(
         "div",
         { "data-testid": "cismap-annotation-info-box" },
+        props.instructionContent,
         secondaryInfoBoxElements
-      ),
-    CismapAnnotationInstructionInfoBox: () =>
-      React.createElement("div", {
+      );
+    },
+    CismapAnnotationInstructionInfoBox: (props: {
+      instructionSlotClosable?: boolean;
+      instructionSlotStorageKey?: string;
+    }) => {
+      cismapAnnotationInstructionInfoBoxMock(props);
+      return React.createElement("div", {
         "data-testid": "cismap-annotation-instruction-info-box",
-      }),
+      });
+    },
   };
 });
 
@@ -56,8 +68,8 @@ vi.mock("@carma-mapping/annotations/runtime", async (importOriginal) => {
       ANNOTATION: "annotation",
       FALLBACK: "fallback",
     },
-    useRuntimeAnnotationInfoBoxSlots: () =>
-      useRuntimeAnnotationInfoBoxSlotsMock(),
+    useRuntimeAnnotationInfoBoxSlots: (options: unknown) =>
+      useRuntimeAnnotationInfoBoxSlotsMock(options),
   };
 });
 
@@ -67,6 +79,10 @@ vi.mock("@carma-mapping/annotations/ui", async () => {
   return {
     ANNOTATION_INFO_BOX_ACTION_IDS: {
       REFERENCE: "reference",
+    },
+    ANNOTATION_INFO_BOX_HELP_LAYOUTS: {
+      COMPACT: "compact",
+      STANDARD: "standard",
     },
     AnnotationInfoBoxContainer: () =>
       React.createElement("div", {
@@ -123,13 +139,16 @@ const cismapAnnotationToolTypes = [
   ANNOTATION_TYPES.AREA_VERTICAL,
 ] as const;
 
-const cismapInstructionToolIds = [
+const instructionToolIds = [
   ANNOTATION_SELECT_TOOL_ID,
   ...cismapAnnotationToolTypes,
+  "experimental-roof-tool",
 ];
 
 describe("AnnotationInfoBox", () => {
   beforeEach(() => {
+    cismapAnnotationInfoBoxMock.mockClear();
+    cismapAnnotationInstructionInfoBoxMock.mockClear();
     useMapFrameworkSwitcherContextMock.mockReset();
     useRuntimeAnnotationInfoBoxSlotsMock.mockReset();
     useMapFrameworkSwitcherContextMock.mockReturnValue({
@@ -162,7 +181,37 @@ describe("AnnotationInfoBox", () => {
     }
   );
 
-  it.each(cismapInstructionToolIds)(
+  it("passes selected Cesium annotation instructions into the Cismap instruction slot", () => {
+    useRuntimeAnnotationInfoBoxSlotsMock.mockReturnValue({
+      kind: "annotation",
+      annotation: {
+        toolType: ANNOTATION_TYPES.AREA_PLANAR,
+      },
+      instructionContent: "Werkzeughinweis",
+      instructionToolId: ANNOTATION_TYPES.AREA_PLANAR,
+      slots: {
+        headingTitle: "Messung",
+      },
+      visualOptions: {},
+    });
+    const store = createTestStore();
+    enableCesiumAnnotationInfoBox(store);
+
+    render(<AnnotationInfoBox />, {
+      wrapper: createWrapper(store),
+    });
+
+    expect(cismapAnnotationInfoBoxMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        instructionContent: "Werkzeughinweis",
+        instructionSlotClosable: true,
+        instructionSlotStorageKey: `geoportal:annotation-help-collapsed:${ANNOTATION_TYPES.AREA_PLANAR}`,
+      })
+    );
+    expect(screen.getByText("Werkzeughinweis")).toBeTruthy();
+  });
+
+  it.each(instructionToolIds)(
     "renders %s tool instructions through the Cismap instruction info box",
     (toolId) => {
       useRuntimeAnnotationInfoBoxSlotsMock.mockReturnValue({
@@ -185,7 +234,51 @@ describe("AnnotationInfoBox", () => {
       expect(
         screen.getByTestId("cismap-annotation-instruction-info-box")
       ).toBeTruthy();
+      expect(useRuntimeAnnotationInfoBoxSlotsMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          fallbackHelpLayout: "compact",
+          helpLocale: "de-DE",
+        })
+      );
+      expect(cismapAnnotationInstructionInfoBoxMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          instructionSlotClosable: true,
+          instructionSlotStorageKey: `geoportal:annotation-help-collapsed:${toolId}`,
+        })
+      );
       expect(screen.queryByTestId("generic-annotation-info-box")).toBeNull();
     }
   );
+
+  it("does not request compact fallback help layout outside Cesium", () => {
+    useMapFrameworkSwitcherContextMock.mockReturnValue({
+      isCesium: false,
+    });
+    useRuntimeAnnotationInfoBoxSlotsMock.mockReturnValue({
+      kind: "fallback",
+      plugin: {
+        id: ANNOTATION_SELECT_TOOL_ID,
+      },
+      slots: {
+        content: "Werkzeughinweis",
+      },
+      visualOptions: {},
+    });
+    const store = createTestStore();
+    enableCesiumAnnotationInfoBox(store);
+
+    render(<AnnotationInfoBox />, {
+      wrapper: createWrapper(store),
+    });
+
+    expect(useRuntimeAnnotationInfoBoxSlotsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fallbackHelpLayout: undefined,
+        helpLocale: "de-DE",
+      })
+    );
+    expect(
+      screen.queryByTestId("cismap-annotation-instruction-info-box")
+    ).toBeNull();
+  });
 });

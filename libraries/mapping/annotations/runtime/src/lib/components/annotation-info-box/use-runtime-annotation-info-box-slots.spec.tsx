@@ -4,6 +4,11 @@ import {
   ANNOTATION_SELECT_TOOL_ID,
   ANNOTATION_TYPES,
 } from "@carma-mapping/annotations/core";
+import {
+  ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS,
+  ANNOTATION_INFO_BOX_HELP_ITEM_KINDS,
+  type AnnotationInfoBoxHelpItem,
+} from "@carma-mapping/annotations/ui";
 
 import type {
   AnnotationToolDraftStore,
@@ -33,11 +38,15 @@ const createPlugin = ({
   helpText,
   id,
   getSlots,
+  alwaysShowHelpTextWhileActive,
+  resolveHelpText,
 }: {
   annotationType?: AnnotationToolPlugin["annotationType"];
-  helpText?: readonly string[];
+  helpText?: readonly AnnotationInfoBoxHelpItem[];
   id: AnnotationToolPlugin["id"];
   getSlots?: AnnotationInfoBoxGetSlots;
+  alwaysShowHelpTextWhileActive?: boolean;
+  resolveHelpText?: AnnotationToolPlugin["resolveHelpText"];
 }): AnnotationToolPlugin => ({
   annotationType,
   descriptor: {
@@ -47,6 +56,8 @@ const createPlugin = ({
     tooltip: `${id} tooltip`,
   },
   helpText,
+  alwaysShowHelpTextWhileActive,
+  resolveHelpText,
   id,
   infoBox: getSlots ? { getSlots } : undefined,
   kind: ANNOTATION_TOOL_PLUGIN_KINDS.MEASUREMENT,
@@ -202,16 +213,163 @@ describe("useRuntimeAnnotationInfoBoxSlots", () => {
         kind: RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS.FALLBACK,
         plugin,
         slots: expect.objectContaining({
-          collapsible: true,
-          headingTitle: plugin.descriptor.label,
+          collapsible: false,
         }),
       })
     );
+    expect(result.current?.slots.headingTitle).toBeUndefined();
 
     render(<>{result.current?.slots.content}</>);
 
     expect(screen.getByText("Klick auf die Karte.")).toBeTruthy();
     expect(screen.getByText("Jeder weitere Klick misst neu.")).toBeTruthy();
+  });
+
+  it("passes the configured locale into fallback help content", () => {
+    const plugin = createPlugin({
+      helpText: [
+        {
+          kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ACTION,
+          inputAlternatives: [
+            [ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.CLICK],
+            [ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.SHIFT],
+          ],
+          description: "Setzt den Punkt.",
+        },
+      ],
+      id: ANNOTATION_TYPES.POINT,
+    });
+
+    useAnnotationsRuntimeMock.mockReturnValue(
+      createRuntime({
+        activeToolType: plugin.id,
+        registry: createRegistry([plugin]),
+      })
+    );
+
+    const { result } = renderHook(() =>
+      useRuntimeAnnotationInfoBoxSlots({
+        helpLocale: "de-DE",
+        includeFallback: true,
+      })
+    );
+
+    render(<>{result.current?.slots.content}</>);
+
+    expect(screen.getByText("Klick")).toBeTruthy();
+    expect(screen.getByText("Umschalt")).toBeTruthy();
+    expect(screen.queryByText("Click")).toBeNull();
+    expect(screen.queryByText("Shift")).toBeNull();
+  });
+
+  it("keeps persistent active tool help visible over selected annotation slots", () => {
+    const annotation = createAnnotation({
+      id: "distance-1",
+      toolType: ANNOTATION_TYPES.DISTANCE,
+    });
+    const selectedPlugin = createPlugin({
+      annotationType: ANNOTATION_TYPES.DISTANCE,
+      getSlots: vi.fn(() => ({
+        content: <span>Selected annotation content</span>,
+      })),
+      id: ANNOTATION_TYPES.DISTANCE,
+    });
+    const activePlugin = createPlugin({
+      alwaysShowHelpTextWhileActive: true,
+      helpText: ["Aktiver Werkzeug-Guide."],
+      id: ANNOTATION_TYPES.POINT,
+    });
+
+    useAnnotationsRuntimeMock.mockReturnValue(
+      createRuntime({
+        activeToolType: activePlugin.id,
+        annotationToolDraftStore: createDraftStore({
+          coordinates: [{ longitude: 7, latitude: 51, altitude: 0 }],
+          linkedNodeGroupIds: [null],
+          feedback: null,
+        }),
+        annotationEntries: [annotation],
+        registry: createRegistry([selectedPlugin, activePlugin]),
+        selectedAnnotationId: annotation.id,
+      })
+    );
+
+    const { result } = renderHook(() =>
+      useRuntimeAnnotationInfoBoxSlots({
+        includeFallback: true,
+      })
+    );
+
+    expect(result.current).toEqual(
+      expect.objectContaining({
+        annotation,
+        instructionToolId: activePlugin.id,
+        kind: RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS.ANNOTATION,
+        slots: expect.objectContaining({
+          content: expect.anything(),
+        }),
+      })
+    );
+
+    render(
+      <>
+        {result.current?.kind ===
+        RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS.ANNOTATION
+          ? result.current.instructionContent
+          : null}
+        {result.current?.slots.content}
+      </>
+    );
+
+    expect(screen.getByText("Aktiver Werkzeug-Guide.")).toBeTruthy();
+    expect(screen.getByText("Selected annotation content")).toBeTruthy();
+  });
+
+  it("hides persistent active tool help over selected annotation slots after the draft is finished", () => {
+    const annotation = createAnnotation({
+      id: "distance-1",
+      toolType: ANNOTATION_TYPES.DISTANCE,
+    });
+    const selectedPlugin = createPlugin({
+      annotationType: ANNOTATION_TYPES.DISTANCE,
+      getSlots: vi.fn(() => ({
+        content: <span>Selected annotation content</span>,
+      })),
+      id: ANNOTATION_TYPES.DISTANCE,
+    });
+    const activePlugin = createPlugin({
+      alwaysShowHelpTextWhileActive: true,
+      helpText: ["Aktiver Werkzeug-Guide."],
+      id: ANNOTATION_TYPES.POINT,
+    });
+
+    useAnnotationsRuntimeMock.mockReturnValue(
+      createRuntime({
+        activeToolType: activePlugin.id,
+        annotationEntries: [annotation],
+        registry: createRegistry([selectedPlugin, activePlugin]),
+        selectedAnnotationId: annotation.id,
+      })
+    );
+
+    const { result } = renderHook(() =>
+      useRuntimeAnnotationInfoBoxSlots({
+        includeFallback: true,
+      })
+    );
+
+    render(
+      <>
+        {result.current?.kind ===
+        RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS.ANNOTATION
+          ? result.current.instructionContent
+          : null}
+        {result.current?.slots.content}
+      </>
+    );
+
+    expect(screen.queryByText("Aktiver Werkzeug-Guide.")).toBeNull();
+    expect(screen.getByText("Selected annotation content")).toBeTruthy();
   });
 
   it("renders active tool draft feedback above fallback help text", () => {
@@ -242,10 +400,65 @@ describe("useRuntimeAnnotationInfoBoxSlots", () => {
       })
     );
 
-    render(<>{result.current?.slots.content}</>);
+    const { container } = render(<>{result.current?.slots.content}</>);
 
     expect(screen.getByText(feedbackMessage)).toBeTruthy();
+    expect(container.querySelector(".fa-circle-exclamation")).toBeTruthy();
+    expect(
+      container
+        .querySelector('[data-testid="annotation-help-alert"]')
+        ?.getAttribute("data-severity")
+    ).toBe("warning");
     expect(screen.getByText("Klick auf die Karte.")).toBeTruthy();
+  });
+
+  it("resolves fallback help text from the active draft state when supported", () => {
+    const resolveHelpText = vi.fn(({ draftState }) => [
+      `${draftState.coordinates.length} gesetzter Punkt`,
+    ]);
+    const plugin = createPlugin({
+      helpText: ["Statischer Hinweis"],
+      id: ANNOTATION_TYPES.POINT,
+      resolveHelpText,
+    });
+
+    useAnnotationsRuntimeMock.mockReturnValue(
+      createRuntime({
+        activeToolType: plugin.id,
+        annotationToolDraftStore: createDraftStore({
+          coordinates: [
+            {
+              altitude: 100,
+              latitude: 51,
+              longitude: 7,
+            },
+          ],
+          linkedNodeGroupIds: [null],
+          feedback: null,
+        }),
+        registry: createRegistry([plugin]),
+      })
+    );
+
+    const { result } = renderHook(() =>
+      useRuntimeAnnotationInfoBoxSlots({
+        includeFallback: true,
+      })
+    );
+
+    render(<>{result.current?.slots.content}</>);
+
+    expect(resolveHelpText).toHaveBeenCalledWith(
+      expect.objectContaining({
+        draftState: expect.objectContaining({
+          coordinates: expect.arrayContaining([
+            expect.objectContaining({ longitude: 7 }),
+          ]),
+        }),
+      })
+    );
+    expect(screen.getByText("1 gesetzter Punkt")).toBeTruthy();
+    expect(screen.queryByText("Statischer Hinweis")).toBeNull();
   });
 
   it("does not return fallback slots unless fallback rendering is enabled", () => {
