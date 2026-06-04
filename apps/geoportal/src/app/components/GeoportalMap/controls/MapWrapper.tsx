@@ -60,7 +60,6 @@ import LayerWrapper from "../../layers/LayerWrapper.tsx";
 import useLeafletZoomControls from "../../../hooks/leaflet/useLeafletZoomControls.ts";
 import { useDispatchSachdatenInfoText } from "../../../hooks/useDispatchSachdatenInfoText.ts";
 import { useFeatureInfoModeCursorStyle } from "../../../hooks/useFeatureInfoModeCursorStyle.ts";
-import { useGeoportalMeasurementModeHash } from "../../../hooks/use-geoportal-measurement-mode-hash";
 import { useMapStyleReduxSync } from "../../../hooks/useMapStyleReduxSync";
 import { useTourRefCollabLabels } from "../../../hooks/useTourRefCollabLabels.ts";
 import { useWindowSize } from "../../../hooks/useWindowSize.ts";
@@ -188,7 +187,6 @@ const MapWrapper = () => {
 
   // custom hooks
 
-  useGeoportalMeasurementModeHash();
   useDispatchSachdatenInfoText();
   useMapStyleReduxSync();
 

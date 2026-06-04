@@ -16,7 +16,10 @@ import {
   backgroundSettings,
   mobileInfo,
 } from "@carma-collab/wuppertal/geoportal";
-import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
+import {
+  COLORS_HEX,
+  TAILWIND_CLASSNAMES_FULLSCREEN_FIXED,
+} from "@carma-commons/utils";
 import {
   MapFrameworkSwitcherProvider,
   MobileWarningMessage,
@@ -48,17 +51,16 @@ import { useManageLayers } from "./hooks/useManageLayers";
 import { useSyncToken } from "./hooks/useSyncToken";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useMeasurementLayerButton } from "./hooks/useMeasurementLayerButton";
+import { useGeoportalAppSearchParams } from "./hooks/use-geoportal-app-search-params";
 
 import { APP_KEY, layerMap } from "./config";
 import { geoportalMapStyleConfig } from "./config/mapStyleConfig";
 
 import { CESIUM_CONFIG, CONFIG_BASE_URL } from "./config/app.config";
-import store from "./store";
+import store, { geoportalInitialHashState } from "./store";
 import { featureFlagConfig } from "./config/featureFlags";
 
 import { OBLIQUE_CONFIG, CAMERA_ID_TO_DIRECTION } from "./oblique/config";
-import { COLORS_HEX } from "@carma-commons/utils";
-import { resolveGeoportalCustomHashState } from "./helper/geoportal-custom-hash-state";
 
 // Stable config objects
 const MEASUREMENTS_BASE_CONFIG = {
@@ -137,6 +139,11 @@ function MeasurementLayerSyncInner() {
   return null;
 }
 
+function GeoportalAppSearchParamsIntegration() {
+  useGeoportalAppSearchParams();
+  return null;
+}
+
 function App({ published }: { published?: boolean }) {
   const dispatch = useDispatch();
   const showLoginModal = useSelector(getShowLoginModal);
@@ -168,7 +175,7 @@ function App({ published }: { published?: boolean }) {
     () => ({ background: backgroundSettings }),
     []
   );
-  const { initialMapFramework } = resolveGeoportalCustomHashState();
+  const { initialMapFramework } = geoportalInitialHashState;
 
   if (isLoadingConfig === null) {
     // wait for the loading state to be determined to prevent re-rendering
@@ -192,6 +199,7 @@ function App({ published }: { published?: boolean }) {
                 config={OBLIQUE_CONFIG}
                 fallbackDirectionConfig={CAMERA_ID_TO_DIRECTION}
               >
+                <GeoportalAppSearchParamsIntegration />
                 <MeasurementsWrapper
                   externalMode={mode}
                   setModeExternal={handleSetMode}

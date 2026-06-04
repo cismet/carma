@@ -26,7 +26,7 @@ export interface UIState {
   triggerFeatureInfoUpdate: number;
 }
 
-const initialState: UIState = {
+export const initialUIState: UIState = {
   mode: UIMode.DEFAULT,
   activeTabKey: "1",
   allow3d: true,
@@ -43,7 +43,7 @@ const initialState: UIState = {
 
 const slice = createSlice({
   name: "ui",
-  initialState,
+  initialState: initialUIState,
   reducers: {
     setUIMode(state, action) {
       state.mode = action.payload;

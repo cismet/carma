@@ -8,15 +8,17 @@ import {
   getCesiumConfig,
   cesiumReducer,
 } from "@carma-mapping/engines/cesium/legacy";
+import { HASH_LAUNCH_MODE } from "@carma-commons/utils";
 
 import { APP_KEY, STORAGE_PREFIX } from "../config";
 import { defaultCesiumState } from "../config/cesium/store.config";
 import mappingReducer from "./slices/mapping";
 import layersReducer from "./slices/layers";
 import measurementsReducer from "./slices/measurements";
-import uiReducer from "./slices/ui";
+import uiReducer, { initialUIState, UIMode } from "./slices/ui";
 import featuresReducer from "./slices/features";
 import printReducer from "./slices/print";
+import { resolveGeoportalCustomHashState } from "../helper/geoportal-custom-hash-state";
 import {
   getMapLayersConfig,
   mapLayersReducer,
@@ -24,6 +26,13 @@ import {
 } from "@carma-mapping/layers";
 
 console.info("store initializing ....");
+
+export const geoportalInitialHashState = resolveGeoportalCustomHashState();
+const initialUIMode =
+  geoportalInitialHashState.measurementModeRequested &&
+  geoportalInitialHashState.launchMode === HASH_LAUNCH_MODE.THREE_D
+    ? UIMode.MEASUREMENT
+    : initialUIState.mode;
 
 const customAppKey = new URLSearchParams(window.location.hash).get("appKey");
 
@@ -144,6 +153,10 @@ const store = configureStore({
   },
   preloadedState: {
     cesium: defaultCesiumState,
+    ui: {
+      ...initialUIState,
+      mode: initialUIMode,
+    },
   },
   devTools: devToolsEnabled === true && inProduction === false,
   middleware,
