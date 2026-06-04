@@ -3773,6 +3773,19 @@ const BelisMapLibWrapper = ({
             ? convertGeometryToWgs84(editDraft.geometry)
             : undefined;
 
+        // The regular MVT tiles are server-cached and keep serving a
+        // geometry-edited feature at its pre-edit position until the tiles are
+        // regenerated. The brandnew source already carries the saved (new)
+        // geometry, so prefer it for the mini-map center when re-opening the
+        // feature from the Entwürfe tab. An unsaved in-draft move
+        // (previewWgs84) still wins over the saved brandnew geometry.
+        const brandnewGeom = brandnewFc.features.find(
+          (f) =>
+            String(f.properties?.id ?? "") === dbPK &&
+            String(f.properties?._sourceLayer ?? "") === sl
+        )?.geometry;
+        const effectiveGeometry = previewWgs84 ?? brandnewGeom;
+
         // Try to find the real MVT feature in loaded tiles.
         // This gives us: correct tile ID for visual selection,
         // flat properties for identical titles/subtitles, and geometry.
@@ -3786,8 +3799,8 @@ const BelisMapLibWrapper = ({
           if (match) {
             selectFeature(
               { source: identifier.source, sourceLayer: sl, id: match.id },
-              (previewWgs84
-                ? { ...match, geometry: previewWgs84 }
+              (effectiveGeometry
+                ? { ...match, geometry: effectiveGeometry }
                 : match) as any
             );
             return;
@@ -3797,8 +3810,8 @@ const BelisMapLibWrapper = ({
         // Feature not in viewport — dispatch stored raw feature to Redux
         // and pass it as rawFeature for the selection context.
         // The draft feature already has the correct MapGeoJSON structure.
-        const fallbackFeature = previewWgs84
-          ? { ...feature, id: dbPK, geometry: previewWgs84 }
+        const fallbackFeature = effectiveGeometry
+          ? { ...feature, id: dbPK, geometry: effectiveGeometry }
           : { ...feature, id: dbPK };
         dispatch(setSelectedFeature({ ...fallbackFeature, selected: true }));
         selectFeature(identifier, fallbackFeature as any);
@@ -3817,6 +3830,7 @@ const BelisMapLibWrapper = ({
       namespacedSource,
       store,
       openDraftDbKeys,
+      brandnewFc,
     ]
   );
 
