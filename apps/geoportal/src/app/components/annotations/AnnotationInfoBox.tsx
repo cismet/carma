@@ -38,16 +38,7 @@ const CISMAP_INFO_BOX_TOOL_IDS = new Set<string>([
   ANNOTATION_TYPES.LABEL,
 ]);
 
-const GEOPORTAL_ANNOTATION_HELP_COLLAPSED_STORAGE_KEY_PREFIX =
-  "geoportal:annotation-help-collapsed:";
 const GEOPORTAL_ANNOTATION_HELP_LOCALE = "de-DE";
-
-const buildGeoportalAnnotationHelpCollapsedStorageKey = (
-  toolId: string | undefined
-): string | undefined =>
-  toolId
-    ? `${GEOPORTAL_ANNOTATION_HELP_COLLAPSED_STORAGE_KEY_PREFIX}${toolId}`
-    : undefined;
 
 const resolveGeoportalCismapInfoBoxVisualOptions = (
   context: RuntimeAnnotationInfoBoxVisualOptionsContext
@@ -105,14 +96,6 @@ const AnnotationInfoBox = ({
       <CismapAnnotationInstructionInfoBox
         content={infoBoxState.slots.content}
         shrinkToContent={isCesium}
-        instructionSlotClosable={isCesium}
-        instructionSlotStorageKey={
-          isCesium
-            ? buildGeoportalAnnotationHelpCollapsedStorageKey(
-                infoBoxState.plugin.id
-              )
-            : undefined
-        }
         controlOrder={CESIUM_ANNOTATION_CONFIG.infoBox.controlOrder}
         secondaryInfoBoxElements={secondaryInfoBoxElements}
       />
@@ -125,14 +108,6 @@ const AnnotationInfoBox = ({
         pixelWidth={CESIUM_ANNOTATION_CONFIG.infoBox.pixelWidth}
         instructionContent={
           isCesium ? infoBoxState.instructionContent : undefined
-        }
-        instructionSlotClosable={isCesium}
-        instructionSlotStorageKey={
-          isCesium
-            ? buildGeoportalAnnotationHelpCollapsedStorageKey(
-                infoBoxState.instructionToolId
-              )
-            : undefined
         }
         slots={infoBoxState.slots}
         visualOptions={infoBoxState.visualOptions}

@@ -1,7 +1,8 @@
-import { useEffect, useState, type ReactNode } from "react";
+import type {
+  CSSProperties,
+  ReactNode,
+} from "react";
 
-import { faCircleQuestion } from "@fortawesome/free-regular-svg-icons";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import Icon from "react-cismap/commons/Icon";
 
 import { Control } from "@carma-mapping/map-controls-layout";
@@ -15,6 +16,12 @@ import {
 } from "@carma-mapping/annotations/ui";
 
 import { ResponsiveInfoBox } from "./ResponsiveInfoBox";
+
+const ANNOTATION_POINTER_QUERY_PRESERVE_ATTRIBUTE =
+  "data-carma-pointer-query-preserve";
+const ANNOTATION_POINTER_QUERY_PRESERVE_ATTRIBUTES = {
+  [ANNOTATION_POINTER_QUERY_PRESERVE_ATTRIBUTE]: "true",
+};
 
 const renderCismapAnnotationActionIcon = ({
   actionId,
@@ -97,146 +104,25 @@ export type CismapAnnotationInfoBoxProps = Pick<
   slots: AnnotationInfoBoxSlots;
   headerTitle?: ReactNode;
   instructionContent?: ReactNode;
-  instructionSlotClosable?: boolean;
-  instructionSlotInitiallyCollapsed?: boolean;
-  instructionSlotStorageKey?: string;
   secondaryInfoBoxElements?: ReactNode[];
 };
 
-const readStoredInstructionSlotCollapsed = (
-  storageKey: string | undefined,
-  fallback: boolean
-): boolean => {
-  if (!storageKey || typeof window === "undefined") {
-    return fallback;
-  }
-
-  const storedValue = window.localStorage.getItem(storageKey);
-  if (storedValue === "collapsed") {
-    return true;
-  }
-  if (storedValue === "expanded") {
-    return false;
-  }
-
-  return fallback;
-};
-
-const writeStoredInstructionSlotCollapsed = (
-  storageKey: string | undefined,
-  collapsed: boolean
-) => {
-  if (!storageKey || typeof window === "undefined") {
-    return;
-  }
-
-  window.localStorage.setItem(storageKey, collapsed ? "collapsed" : "expanded");
-};
-
-const useStoredInstructionSlotCollapsed = (
-  storageKey: string | undefined,
-  initiallyCollapsed: boolean
-) => {
-  const [collapsed, setCollapsed] = useState(() =>
-    readStoredInstructionSlotCollapsed(storageKey, initiallyCollapsed)
-  );
-
-  useEffect(() => {
-    setCollapsed(
-      readStoredInstructionSlotCollapsed(storageKey, initiallyCollapsed)
-    );
-  }, [initiallyCollapsed, storageKey]);
-
-  const updateCollapsed = (nextCollapsed: boolean) => {
-    setCollapsed(nextCollapsed);
-    writeStoredInstructionSlotCollapsed(storageKey, nextCollapsed);
-  };
-
-  return { collapsed, updateCollapsed };
-};
-
-const CismapAnnotationInstructionOpenButton = ({
-  onClick,
-}: {
-  onClick: (event: React.MouseEvent<HTMLButtonElement>) => void;
-}) => (
-  <button
-    type="button"
-    className="flex h-[32px] w-[32px] items-center justify-center rounded-full border-0 bg-white p-0 text-xl text-[#212529] shadow-sm transition-none hover:bg-white focus:bg-white"
-    aria-label="Hinweise anzeigen"
-    title="Hinweise anzeigen"
-    onClick={onClick}
-    data-test-id="annotation-instruction-slot-open"
-  >
-    <FontAwesomeIcon icon={faCircleQuestion} className="h-[24px] w-[24px]" />
-  </button>
-);
-
 const CismapAnnotationInstructionSlot = ({
-  collapsed: controlledCollapsed,
-  closable = false,
   content,
-  initiallyCollapsed = false,
-  onCollapsedChange,
-  storageKey,
+  style,
 }: {
-  collapsed?: boolean;
-  closable?: boolean;
   content: ReactNode;
-  initiallyCollapsed?: boolean;
-  onCollapsedChange?: (collapsed: boolean) => void;
-  storageKey?: string;
-}) => {
-  const { collapsed: storedCollapsed, updateCollapsed: updateStoredCollapsed } =
-    useStoredInstructionSlotCollapsed(storageKey, initiallyCollapsed);
-  const collapsed = controlledCollapsed ?? storedCollapsed;
-
-  const updateCollapsed = (nextCollapsed: boolean) => {
-    if (onCollapsedChange) {
-      onCollapsedChange(nextCollapsed);
-      return;
-    }
-    updateStoredCollapsed(nextCollapsed);
-  };
-
-  if (collapsed) {
-    return (
-      <div className="mb-1 flex justify-end">
-        <CismapAnnotationInstructionOpenButton
-          onClick={(event) => {
-            event.stopPropagation();
-            updateCollapsed(false);
-          }}
-        />
-      </div>
-    );
-  }
-
-  return (
-    <div
-      className="relative"
-      data-test-id="annotation-instruction-slot"
-      onClick={(event) => event.stopPropagation()}
-    >
-      <div className="min-w-0">{content}</div>
-      {closable ? (
-        <button
-          type="button"
-          className="absolute right-0 top-0 border-0 bg-transparent px-1 py-0 text-base leading-none text-[#212529]"
-          aria-label="Hinweise ausblenden"
-          title="Hinweise ausblenden"
-          onClick={(event) => {
-            event.stopPropagation();
-            updateCollapsed(true);
-          }}
-          data-test-id="annotation-instruction-slot-close"
-        >
-          x
-        </button>
-      ) : null}
-    </div>
-  );
-};
+  style?: CSSProperties;
+}) => (
+  <div
+    className="relative w-full rounded bg-white px-3 py-2 text-[#212529] shadow-sm"
+    data-test-id="annotation-instruction-slot"
+    style={style}
+    {...ANNOTATION_POINTER_QUERY_PRESERVE_ATTRIBUTES}
+  >
+    <div className="min-w-0">{content}</div>
+  </div>
+);
 
 const renderSecondaryInfoBoxElements = (
   secondaryInfoBoxElements: ReactNode[],
@@ -265,23 +151,30 @@ export const CismapAnnotationInfoBox = ({
   visualOptions,
   headerTitle = "Messungen",
   instructionContent,
-  instructionSlotClosable = false,
-  instructionSlotInitiallyCollapsed = false,
-  instructionSlotStorageKey,
   controlOrder,
   secondaryInfoBoxElements = [],
 }: CismapAnnotationInfoBoxProps) => {
   const resolvedVisualOptions =
     resolveAnnotationInfoBoxVisualOptions(visualOptions);
+  const resolvedInfoBoxPixelWidth =
+    pixelWidth ?? resolvedVisualOptions.defaultPixelWidth;
+  const stackedInstructionMaxWidth =
+    typeof window !== "undefined" &&
+    window.innerWidth - 25 - resolvedInfoBoxPixelWidth - 300 <= 0
+      ? window.innerWidth - 25
+      : resolvedInfoBoxPixelWidth;
   const headingTitle = slots.headingTitle?.trim() ?? "";
   const resolvedSecondaryInfoBoxElements = instructionContent
     ? [
         <CismapAnnotationInstructionSlot
           key="annotation-instruction-slot"
-          closable={instructionSlotClosable}
           content={instructionContent}
-          initiallyCollapsed={instructionSlotInitiallyCollapsed}
-          storageKey={instructionSlotStorageKey}
+          style={{
+            marginBottom: 12,
+            maxWidth: stackedInstructionMaxWidth,
+            minWidth: stackedInstructionMaxWidth,
+            width: stackedInstructionMaxWidth,
+          }}
         />,
         ...secondaryInfoBoxElements,
       ]
@@ -290,7 +183,7 @@ export const CismapAnnotationInfoBox = ({
   return (
     <div data-test-id="annotation-info-box">
       <ResponsiveInfoBox
-        pixelwidth={pixelWidth ?? resolvedVisualOptions.defaultPixelWidth}
+        pixelwidth={resolvedInfoBoxPixelWidth}
         panelClick={(event) => event.stopPropagation()}
         header={
           <div
@@ -329,9 +222,6 @@ export type CismapAnnotationInstructionInfoBoxProps = {
   content: ReactNode;
   pixelWidth?: number;
   shrinkToContent?: boolean;
-  instructionSlotClosable?: boolean;
-  instructionSlotInitiallyCollapsed?: boolean;
-  instructionSlotStorageKey?: string;
   controlOrder?: number;
   secondaryInfoBoxElements?: ReactNode[];
 };
@@ -339,17 +229,9 @@ export type CismapAnnotationInstructionInfoBoxProps = {
 export const CismapAnnotationInstructionInfoBox = ({
   content,
   pixelWidth = 350,
-  instructionSlotClosable = false,
-  instructionSlotInitiallyCollapsed = false,
-  instructionSlotStorageKey,
   controlOrder,
   secondaryInfoBoxElements = [],
 }: CismapAnnotationInstructionInfoBoxProps) => {
-  const instructionControlOrder = controlOrder ?? 11;
-  const { collapsed, updateCollapsed } = useStoredInstructionSlotCollapsed(
-    instructionSlotStorageKey,
-    instructionSlotInitiallyCollapsed
-  );
   const contentClassName =
     "mt-2 w-[90%] p-2 text-xs font-normal leading-normal text-[#212529] [&_*]:font-normal";
   const instructionContentElement = (
@@ -358,53 +240,15 @@ export const CismapAnnotationInstructionInfoBox = ({
     </div>
   );
 
-  if (instructionSlotClosable && collapsed) {
-    return (
-      <div data-test-id="annotation-info-box">
-        <Control position="bottomright" order={instructionControlOrder}>
-          <div
-            style={{
-              opacity: 0.9,
-              pointerEvents: "auto",
-            }}
-          >
-            <CismapAnnotationInstructionOpenButton
-              onClick={(event) => {
-                event.stopPropagation();
-                updateCollapsed(false);
-              }}
-            />
-          </div>
-        </Control>
-        {renderSecondaryInfoBoxElements(
-          secondaryInfoBoxElements,
-          instructionControlOrder
-        )}
-      </div>
-    );
-  }
-
   return (
     <div data-test-id="annotation-info-box">
       <ResponsiveInfoBox
         pixelwidth={pixelWidth}
+        infoBoxDataAttributes={ANNOTATION_POINTER_QUERY_PRESERVE_ATTRIBUTES}
         panelClick={(event) => event.stopPropagation()}
         header=""
         isCollapsible={false}
-        alwaysVisibleDiv={
-          instructionSlotClosable ? (
-            <CismapAnnotationInstructionSlot
-              closable
-              collapsed={collapsed}
-              content={instructionContentElement}
-              initiallyCollapsed={instructionSlotInitiallyCollapsed}
-              onCollapsedChange={updateCollapsed}
-              storageKey={instructionSlotStorageKey}
-            />
-          ) : (
-            instructionContentElement
-          )
-        }
+        alwaysVisibleDiv={instructionContentElement}
         collapsibleDiv={<div />}
         fixedRow={false}
         controlOrder={controlOrder}

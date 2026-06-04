@@ -32,8 +32,6 @@ vi.mock("@carma-appframeworks/portals", async () => {
     },
     CismapAnnotationInfoBox: (props: {
       instructionContent?: ReactNode;
-      instructionSlotClosable?: boolean;
-      instructionSlotStorageKey?: string;
       secondaryInfoBoxElements?: ReactNode[];
     }) => {
       const { secondaryInfoBoxElements = [] } = props;
@@ -45,10 +43,7 @@ vi.mock("@carma-appframeworks/portals", async () => {
         secondaryInfoBoxElements
       );
     },
-    CismapAnnotationInstructionInfoBox: (props: {
-      instructionSlotClosable?: boolean;
-      instructionSlotStorageKey?: string;
-    }) => {
+    CismapAnnotationInstructionInfoBox: (props: object) => {
       cismapAnnotationInstructionInfoBoxMock(props);
       return React.createElement("div", {
         "data-testid": "cismap-annotation-instruction-info-box",
@@ -204,8 +199,6 @@ describe("AnnotationInfoBox", () => {
     expect(cismapAnnotationInfoBoxMock).toHaveBeenCalledWith(
       expect.objectContaining({
         instructionContent: "Werkzeughinweis",
-        instructionSlotClosable: true,
-        instructionSlotStorageKey: `geoportal:annotation-help-collapsed:${ANNOTATION_TYPES.AREA_PLANAR}`,
       })
     );
     expect(screen.getByText("Werkzeughinweis")).toBeTruthy();
@@ -242,8 +235,7 @@ describe("AnnotationInfoBox", () => {
       );
       expect(cismapAnnotationInstructionInfoBoxMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          instructionSlotClosable: true,
-          instructionSlotStorageKey: `geoportal:annotation-help-collapsed:${toolId}`,
+          content: "Werkzeughinweis",
         })
       );
       expect(screen.queryByTestId("generic-annotation-info-box")).toBeNull();

@@ -32,6 +32,7 @@ interface ResponsiveInfoBoxProps {
   mapWidth?: number | null;
   infoBoxBottomMargin?: number;
   controlOrder?: number;
+  infoBoxDataAttributes?: Record<string, string>;
 }
 
 export const ResponsiveInfoBox = ({
@@ -55,6 +56,7 @@ export const ResponsiveInfoBox = ({
   mapWidth,
   infoBoxBottomMargin = 0,
   controlOrder = 11,
+  infoBoxDataAttributes,
 }: ResponsiveInfoBoxProps) => {
   const [collapsed, setCollapsed] = useState(false);
   const mapAppWidth = mapWidth ? mapWidth : window.innerWidth;
@@ -99,6 +101,7 @@ export const ResponsiveInfoBox = ({
     <div>
       <Control position="bottomright" order={controlOrder}>
         <div
+          {...infoBoxDataAttributes}
           data-test-id="info-box"
           style={{
             ...infoBoxStyle,
