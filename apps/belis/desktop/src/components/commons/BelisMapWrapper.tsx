@@ -21,6 +21,8 @@ import {
   getAdditionalLayerOpacities,
   isInPaleMode,
   getEnabledLeitungstypen,
+  isSnappingEnabled,
+  setSnappingEnabled,
 } from "../../store/slices/mapSettings";
 import { getKeyTablesData } from "../../store/slices/keyTables";
 import {
@@ -399,7 +401,7 @@ const BelisMapLibWrapper = ({
   // addSource / addLayer don't fire too early ("Style is not done loading").
   const [mapReady, setMapReady] = useState(false);
   const [drawMode, setDrawMode] = useState<DrawMode>("none");
-  const [snappingEnabled, setSnappingEnabled] = useState<boolean>(false);
+  const snappingEnabled = useSelector(isSnappingEnabled);
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
@@ -4166,7 +4168,8 @@ const BelisMapLibWrapper = ({
                     }
                     snapping={{
                       enabled: snappingEnabled,
-                      onToggle: () => setSnappingEnabled((s) => !s),
+                      onToggle: () =>
+                        dispatch(setSnappingEnabled(!snappingEnabled)),
                     }}
                   />
                 }
