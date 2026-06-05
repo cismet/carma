@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import type maplibregl from "maplibre-gl";
+import maplibregl from "maplibre-gl";
 
 import { useMapSelection } from "@carma-mapping/contexts";
 
@@ -15,7 +15,11 @@ import {
   setPreferredLayerId,
 } from "../../store/slices/features";
 import { getLayers } from "../../store/slices/mapping";
-import { getUIMode, UIMode } from "../../store/slices/ui";
+import {
+  getTriggerFeatureInfoUpdate,
+  getUIMode,
+  UIMode,
+} from "../../store/slices/ui";
 
 import store from "../../store";
 import {
@@ -27,6 +31,8 @@ import {
 import { addFeatureInfoCrosshair } from "../../components/feature-info/featureInfoMarker";
 
 const MAX_SELECTION_COUNT = 10;
+
+const RECLICK_DELAY_MS = 250;
 
 type ClickPos = [number, number] | null;
 
@@ -60,6 +66,10 @@ export const useLibreMapSelectionHandler = (
   }, [libreMap]);
 
   const [pos, setPos] = useState<ClickPos>(null);
+  const posRef = useRef<ClickPos>(pos);
+  useEffect(() => {
+    posRef.current = pos;
+  }, [pos]);
   const featureInfoMarkerRef = useRef<maplibregl.Marker | null>(null);
 
   const removeFeatureInfoMarker = useCallback(() => {
@@ -72,6 +82,7 @@ export const useLibreMapSelectionHandler = (
   useEffect(() => {
     if (uiMode !== UIMode.FEATURE_INFO) {
       removeFeatureInfoMarker();
+      setPos(null);
     }
   }, [uiMode, removeFeatureInfoMarker]);
 
@@ -98,6 +109,44 @@ export const useLibreMapSelectionHandler = (
       sourceFeature
     );
   }, [selectedFeature, selectMapFeature, clearMapSelection]);
+
+  const layers = useSelector(getLayers);
+  const triggerFeatureInfoUpdate = useSelector(getTriggerFeatureInfoUpdate);
+  const layerStackSignature = useMemo(
+    () => layers.map((l) => `${l.id}:${l.visible ? 1 : 0}`).join("|"),
+    [layers]
+  );
+
+  const replayFeatureInfoClick = useCallback(() => {
+    const map = libreMapRef.current;
+    const clickPos = posRef.current;
+    if (!map || !clickPos || uiModeRef.current !== UIMode.FEATURE_INFO) {
+      return;
+    }
+    const fireClick = () => {
+      const lngLat = new maplibregl.LngLat(clickPos[1], clickPos[0]);
+      const point = map.project(lngLat);
+      map.fire("click", { lngLat, point });
+    };
+    if (map.isStyleLoaded()) {
+      fireClick();
+    } else {
+      map.once("idle", fireClick);
+    }
+  }, []);
+
+  const didMountLayerSyncRef = useRef(false);
+  useEffect(() => {
+    if (!didMountLayerSyncRef.current) {
+      didMountLayerSyncRef.current = true;
+      return;
+    }
+    if (uiModeRef.current !== UIMode.FEATURE_INFO || !posRef.current) {
+      return;
+    }
+    const timeout = setTimeout(replayFeatureInfoClick, RECLICK_DELAY_MS);
+    return () => clearTimeout(timeout);
+  }, [layerStackSignature, triggerFeatureInfoUpdate, replayFeatureInfoClick]);
 
   const handleSelectionChanged = useCallback(
     async (e: SelectionEvent) => {
