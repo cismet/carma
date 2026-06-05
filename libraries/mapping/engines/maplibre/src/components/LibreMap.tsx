@@ -1422,9 +1422,14 @@ export const LibreMap = ({
           if (aborted) return;
 
           // Add mapping for geojson layers
-          geoJsonLayers.forEach((layer, index) => {
+          geoJsonLayers.forEach((layer) => {
             if (layer.infoboxMapping && layer.infoboxMapping.length > 0) {
-              const sourceId = `geojson-source-${index}`;
+              // Mirror the name-based source id produced by styleBuilder so the
+              // by-source-id mapping key stays in sync (position-independent).
+              const sourceId = `geojson-source-${layer.name.replace(
+                /[^a-zA-Z0-9]/g,
+                "-"
+              )}`;
               mapping[layer.name] = layer.infoboxMapping;
               // Also map by source ID for easier lookup
               mapping[sourceId] = layer.infoboxMapping;

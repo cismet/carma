@@ -456,6 +456,25 @@ export const vectorStylesToMapLibreStyle = async ({
   const customSprites: SpriteSpecification = [];
   const geoJsonMetadata: GeoJsonStyleMetadata[] = [];
 
+  // Build stable, position-independent source/layer ids. Deriving ids from the
+  // layer's content (WMS layers / name) instead of its array index means a
+  // reorder produces ids identical to the previous render, so MapLibre's
+  // setStyle diff keeps the existing sources (and their cached tiles) and only
+  // reorders layers — no GetMap refetch. A numeric suffix is appended only when
+  // two layers would otherwise collide on the same base id (rare: duplicate WMS
+  // layers / names).
+  const usedIds = new Set<string>();
+  const makeUniqueId = (base: string): string => {
+    let candidate = base;
+    let suffix = 2;
+    while (usedIds.has(candidate)) {
+      candidate = `${base}-${suffix}`;
+      suffix += 1;
+    }
+    usedIds.add(candidate);
+    return candidate;
+  };
+
   // Use provided backgroundStyle or Wuppertal default
   const baseStyle: StyleSpecification =
     backgroundStyle || WUPPERTAL_DEFAULT_STYLE;
@@ -670,7 +689,9 @@ export const vectorStylesToMapLibreStyle = async ({
         }
       } else if (layer.type === "geojson") {
         const transformedData = fetched.data;
-        const sourceId = `geojson-source-${index}`;
+        const sourceId = makeUniqueId(
+          `geojson-source-${layer.name.replace(/[^a-zA-Z0-9]/g, "-")}`
+        );
         const colorProperty = layer.colorProperty ?? "schrift";
 
         // Get unique colors from the geojson features
@@ -822,8 +843,8 @@ export const vectorStylesToMapLibreStyle = async ({
         style.layers = [...style.layers!, ...geoJsonLayers];
       } else if (layer.type === "wms" || layer.type === "wmts") {
         const sanitized = layer.layers.replace(/[^a-zA-Z0-9]/g, "-");
-        const sourceId = `source-${sanitized}-${index}`;
-        const id = `${sanitized}-${index}`;
+        const id = makeUniqueId(sanitized);
+        const sourceId = `source-${id}`;
         const version = layer.version || "1.1.1";
         const crsParam = version >= "1.3.0" ? "crs" : "srs";
         const isWmts = layer.type === "wmts";
@@ -864,8 +885,8 @@ export const vectorStylesToMapLibreStyle = async ({
         });
       } else if (layer.type === "tiles") {
         const sanitized = layer.name.replace(/[^a-zA-Z0-9]/g, "-");
-        const sourceId = `source-${sanitized}-${index}`;
-        const id = `${sanitized}-${index}`;
+        const id = makeUniqueId(sanitized);
+        const sourceId = `source-${id}`;
 
         style.sources[sourceId] = {
           type: "raster",
