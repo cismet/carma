@@ -1,4 +1,11 @@
-import { useContext, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
@@ -110,7 +117,11 @@ const TZBaumbewirtschaftung = ({
   // kampagne-filtered view (`featureCollection`) computed from it.
   const [unfilteredFeatureCollection, setUnfilteredFeatureCollection] =
     useState<any>();
-  const { ready: kampagneReady, effectiveCampaignIds } = useKampagne();
+  const {
+    ready: kampagneReady,
+    showAll,
+    effectiveCampaignIds,
+  } = useKampagne();
 
   const featureCollection = useMemo(() => {
     if (!unfilteredFeatureCollection || !kampagneReady) return undefined;
@@ -464,6 +475,75 @@ const TZBaumbewirtschaftung = ({
     }
   }, [maplibreMap, featureCollection]);
 
+  // Fit the leaflet map to the bbox of the current featureCollection.
+  // Shared by the home button and the contractor auto-fit effect below.
+  const fitToFeatures = useCallback(() => {
+    try {
+      if (!routedMapRef?.leafletMap?.leafletElement) return;
+      if (!featureCollection?.features?.length) return;
+
+      let minLng = Infinity,
+        minLat = Infinity;
+      let maxLng = -Infinity,
+        maxLat = -Infinity;
+
+      featureCollection.features.forEach((feature: any) => {
+        const coords = feature.geometry?.coordinates;
+        if (!coords || coords.length < 2) return;
+        const [lng, lat] = coords;
+        if (typeof lng !== "number" || typeof lat !== "number") return;
+        if (lat < 50 || lat > 52 || lng < 6 || lng > 8) return;
+
+        if (lng < minLng) minLng = lng;
+        if (lng > maxLng) maxLng = lng;
+        if (lat < minLat) minLat = lat;
+        if (lat > maxLat) maxLat = lat;
+      });
+
+      if (minLng === Infinity || minLat === Infinity) return;
+
+      const padding = 0.01;
+      const bounds: [[number, number], [number, number]] = [
+        [minLat - padding, minLng - padding],
+        [maxLat + padding, maxLng + padding],
+      ];
+
+      const leafletMap = routedMapRef.leafletMap.leafletElement;
+      leafletMap.options.zoomSnap = 0.1;
+      leafletMap.fitBounds(bounds);
+    } catch (error) {
+      console.error("Error fitting bounds:", error);
+    }
+  }, [routedMapRef, featureCollection]);
+
+  // #4031: Auto-fit a contractor's view to their kampagne bbox on initial
+  // login. Skipped when the URL already positions the map (shared link, PR
+  // deployment, etc.). Fires once per jwt — reset on user switch.
+  const hasAutoFittedRef = useRef(false);
+
+  useEffect(() => {
+    hasAutoFittedRef.current = false;
+  }, [jwt]);
+
+  useEffect(() => {
+    if (hasAutoFittedRef.current) return;
+    if (!jwt) return;
+    if (!kampagneReady || showAll) return;
+    if (!featureCollection || featureCollection.features.length === 0) return;
+    if (getUrlParam("lat") || getUrlParam("lng")) return;
+    if (!routedMapRef?.leafletMap?.leafletElement) return;
+
+    fitToFeatures();
+    hasAutoFittedRef.current = true;
+  }, [
+    jwt,
+    kampagneReady,
+    showAll,
+    featureCollection,
+    routedMapRef,
+    fitToFeatures,
+  ]);
+
   // Drop the selection if the selected tree is no longer in the filtered view.
   useEffect(() => {
     if (!featureCollection || !selectedFeature) return;
@@ -642,59 +722,7 @@ const TZBaumbewirtschaftung = ({
           {isFollowMode && (
             <Control position="topleft" order={55}>
               <ControlButtonStyler
-                onClick={() => {
-                  try {
-                    console.log("Home button clicked");
-                    if (
-                      routedMapRef?.leafletMap?.leafletElement &&
-                      featureCollection?.features?.length > 0
-                    ) {
-                      // Calculate bounds from all features
-                      let minLng = Infinity,
-                        minLat = Infinity;
-                      let maxLng = -Infinity,
-                        maxLat = -Infinity;
-
-                      featureCollection.features.forEach((feature: any) => {
-                        const coords = feature.geometry?.coordinates;
-                        if (!coords || coords.length < 2) return;
-
-                        const [lng, lat] = coords;
-                        // Validate coordinates are in reasonable range for Wuppertal area
-                        if (typeof lng !== "number" || typeof lat !== "number")
-                          return;
-                        if (lat < 50 || lat > 52 || lng < 6 || lng > 8) return; // Filter to Wuppertal region
-
-                        if (lng < minLng) minLng = lng;
-                        if (lng > maxLng) maxLng = lng;
-                        if (lat < minLat) minLat = lat;
-                        if (lat > maxLat) maxLat = lat;
-                      });
-
-                      // Check if we found valid bounds
-                      if (minLng === Infinity || minLat === Infinity) {
-                        console.warn("No valid coordinates found in features");
-                        return;
-                      }
-
-                      // Leaflet uses [lat, lng] format: [[lat_sw, lng_sw], [lat_ne, lng_ne]]
-                      // Add 0.01 degree padding for better fitting
-                      const padding = 0.01;
-                      const bounds: [[number, number], [number, number]] = [
-                        [minLat - padding, minLng - padding],
-                        [maxLat + padding, maxLng + padding],
-                      ];
-                      console.log("Fitting bounds:", bounds);
-
-                      // Set zoomSnap to 0.1 for smoother fitting in follow mode
-                      const leafletMap = routedMapRef.leafletMap.leafletElement;
-                      leafletMap.options.zoomSnap = 0.1;
-                      leafletMap.fitBounds(bounds);
-                    }
-                  } catch (error) {
-                    console.error("Error fitting bounds:", error);
-                  }
-                }}
+                onClick={fitToFeatures}
                 title="Zur Übersicht"
               >
                 <FontAwesomeIcon icon={faHouseChimney} className="text-lg" />
