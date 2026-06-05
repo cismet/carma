@@ -8,6 +8,7 @@ import {
 } from "@carma-mapping/engines/cesium/core";
 
 import {
+  type AnnotationPointQueryInputModifier,
   buildToolSessions,
   useManagedAnnotationKeyboardShortcuts,
   useModeLifecycle,
@@ -52,77 +53,6 @@ import {
 import { RUNTIME_AUTHORING_REJECTED_SAMPLE_COLOR_CSS } from "../config/runtime-authoring-colors";
 
 const { POINT: ANNOTATION_TYPE_POINT } = ANNOTATION_TYPES;
-
-const POINT_QUERY_FORCE_ACCEPTED_SAMPLE_SCREEN_TOLERANCE_PX = 12;
-
-const isNearbyPointQueryScreenPosition = (
-  left: { x: number; y: number } | null | undefined,
-  right: { x: number; y: number } | null | undefined
-) =>
-  Boolean(
-    left &&
-      right &&
-      Math.hypot(left.x - right.x, left.y - right.y) <=
-        POINT_QUERY_FORCE_ACCEPTED_SAMPLE_SCREEN_TOLERANCE_PX
-  );
-
-export const resolvePointQueryCoordinateCreationForceAccepted = ({
-  explicitForceAccepted,
-  latestPickResult,
-  screenPosition,
-}: {
-  explicitForceAccepted?: boolean;
-  latestPickResult: PointQueryPickResult | null;
-  screenPosition?: { x: number; y: number };
-}): boolean | undefined => {
-  if (explicitForceAccepted) {
-    return true;
-  }
-
-  return latestPickResult?.forceAccepted === true &&
-    isNearbyPointQueryScreenPosition(
-      screenPosition,
-      latestPickResult.screenPosition
-    )
-    ? true
-    : undefined;
-};
-
-export const resolvePointQueryCoordinateCreationSample = ({
-  coordinate,
-  explicitForceAccepted,
-  latestPickResult,
-  screenPosition,
-}: {
-  coordinate: CesiumGeographicCoordinate;
-  explicitForceAccepted?: boolean;
-  latestPickResult: PointQueryPickResult | null;
-  screenPosition?: { x: number; y: number };
-}): {
-  coordinate: CesiumGeographicCoordinate;
-  forceAccepted?: boolean;
-} => {
-  const forceAccepted = resolvePointQueryCoordinateCreationForceAccepted({
-    explicitForceAccepted,
-    latestPickResult,
-    screenPosition,
-  });
-  const latestForcedSampleCoordinate =
-    forceAccepted === true &&
-    latestPickResult?.forceAccepted === true &&
-    latestPickResult.coordinate !== null &&
-    isNearbyPointQueryScreenPosition(
-      screenPosition,
-      latestPickResult.screenPosition
-    )
-      ? latestPickResult.coordinate
-      : null;
-
-  return {
-    coordinate: latestForcedSampleCoordinate ?? coordinate,
-    forceAccepted,
-  };
-};
 
 type RuntimeAuthoringHostProps = {
   scene: Scene | null;
@@ -320,16 +250,10 @@ export const RuntimeAuthoringHost = ({
     (
       coordinate: CesiumGeographicCoordinate,
       screenPosition?: { x: number; y: number },
-      forceAccepted?: boolean
+      options?: { inputModifier?: AnnotationPointQueryInputModifier }
     ) => {
-      const resolvedSample = resolvePointQueryCoordinateCreationSample({
-        coordinate,
-        explicitForceAccepted: forceAccepted,
-        latestPickResult: latestPointQueryPickResultRef.current,
-        screenPosition,
-      });
-      handlePointQueryPointCreated(resolvedSample.coordinate, screenPosition, {
-        forceAccepted: resolvedSample.forceAccepted,
+      handlePointQueryPointCreated(coordinate, screenPosition, {
+        inputModifier: options?.inputModifier,
       });
       resetPointQuerySampleState();
     },
@@ -484,13 +408,11 @@ export const RuntimeAuthoringHost = ({
       screenPosition,
       pointECEF,
       surfaceNormalECEF,
-      forceAccepted,
     }: {
       coordinate: CesiumGeographicCoordinate;
       screenPosition: { x: number; y: number };
       pointECEF: PointQueryPickResult["pointECEF"];
       surfaceNormalECEF: PointQueryPickResult["surfaceNormalECEF"];
-      forceAccepted?: boolean;
     }): PointQueryPickResult => {
       const hoveredPointQueryNode = resolveHoveredPointQueryNode();
       const resolvedHoverCoordinate =
@@ -528,7 +450,6 @@ export const RuntimeAuthoringHost = ({
             : screenPosition,
         pointECEF: resolvedHoverPointECEF ?? pointECEF,
         surfaceNormalECEF: resolvedHoverSurfaceNormalECEF,
-        forceAccepted,
       };
     },
     [resolveHoveredPointQueryNode, resolvePointQueryCoordinate, scene]
@@ -536,6 +457,7 @@ export const RuntimeAuthoringHost = ({
 
   useSceneCoordinateHandler(scene, {
     enabled: pointQueryEnabled,
+    inputModifiers: activePlugin?.pointQuery?.inputModifiers,
     onCoordinate: handlePointQueryCoordinateCreated,
     onLineFinish: activeToolSession?.finishesOnLoopClosure
       ? () => {
@@ -547,7 +469,6 @@ export const RuntimeAuthoringHost = ({
       screenPosition,
       pointECEF,
       surfaceNormalECEF,
-      forceAccepted,
     }) => {
       if (!pointQueryEnabled || !pointECEF || !coordinate) {
         clearScheduledHoverReset();
@@ -566,7 +487,6 @@ export const RuntimeAuthoringHost = ({
         screenPosition,
         pointECEF,
         surfaceNormalECEF,
-        forceAccepted,
       });
       setLatestPointQueryPickResult(nextPointQueryPickResult);
       const hoveredPointQueryNode = resolveHoveredPointQueryNode();

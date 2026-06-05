@@ -84,7 +84,6 @@ export type PolygonAuthoringMeasurementCoordinatesResolver = (args: {
   coordinates: readonly CesiumGeographicCoordinate[];
   previousCoordinates?: readonly CesiumGeographicCoordinate[];
   preferredFacingPositionECEF?: Cartesian3 | null;
-  forceAccepted?: boolean;
 }) => readonly CesiumGeographicCoordinate[] | null;
 
 export type PolygonAuthoringPointQueryVisualStyleResolver = (args: {
@@ -383,7 +382,6 @@ export const createPolygonAuthoringController = ({
             coordinates,
             previousCoordinates: draftCoordinates,
             preferredFacingPositionECEF: scene.camera.positionWC,
-            forceAccepted: pointQueryPickResult?.forceAccepted,
           })
         : coordinates;
     const resolvedSampleCoordinates = resolveCoordinates(sampleCoordinates);

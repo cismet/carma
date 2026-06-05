@@ -219,6 +219,10 @@ export {
   type PointQueryPickResult,
 } from "./lib/registry";
 export {
+  ANNOTATION_POINT_QUERY_INPUT_MODIFIERS,
+  type AnnotationPointQueryInputModifier,
+} from "./lib/interaction/lifecycle";
+export {
   resolveDistanceTriangleAnchorCoordinateRole,
   resolveDistanceTriangleAnchorCoordinateSelection,
   resolveOppositePointLabelCoordinateSelection,

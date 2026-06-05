@@ -101,12 +101,12 @@ vi.mock("./scenePointerTracker", () => ({
 import {
   Cartesian2,
   Cartesian3,
-  KeyboardEventModifier,
   ScreenSpaceEventType,
   type Scene,
 } from "@carma-cesium";
 
 import {
+  CESIUM_POINT_QUERY_INPUT_MODIFIERS,
   CESIUM_POINT_QUERY_CLICK_STRATEGY,
   useCesiumPointQuery,
 } from "./useCesiumPointQuery";
@@ -258,7 +258,7 @@ describe("useCesiumPointQuery", () => {
     );
   });
 
-  it("marks shift-clicked points as force accepted", () => {
+  it("does not treat shift state as a global force-accept override", () => {
     const clickPick = new Cartesian3(4, 5, 6);
     pointQueryPickingMocks.resolvePreferredSurfacePick.mockReturnValue({
       surfacePositionECEF: clickPick,
@@ -292,11 +292,39 @@ describe("useCesiumPointQuery", () => {
       screenPosition: pointerPosition,
       pickedPositionECEF: clickPick,
       globePositionECEF: null,
-      forceAccepted: true,
     });
   });
 
-  it("registers Cesium shift-click modifier events as force accepted clicks", () => {
+  it("does not register long-press or shift-modifier point actions", () => {
+    const { scene } = createFakeScene();
+
+    renderHook(() =>
+      useCesiumPointQuery(scene, {
+        enabled: true,
+      })
+    );
+
+    const activeHandler = cesiumInteractionMocks.handlers[0];
+    expect(activeHandler).toBeDefined();
+    expect(activeHandler?.inputActions.has(ScreenSpaceEventType.LEFT_DOWN)).toBe(
+      false
+    );
+    expect(activeHandler?.inputActions.has(ScreenSpaceEventType.LEFT_UP)).toBe(
+      false
+    );
+    expect(
+      activeHandler?.inputActions.has(
+        `${String(ScreenSpaceEventType.LEFT_CLICK)}:SHIFT`
+      )
+    ).toBe(false);
+    expect(
+      activeHandler?.inputActions.has(
+        `${String(ScreenSpaceEventType.LEFT_DOUBLE_CLICK)}:SHIFT`
+      )
+    ).toBe(false);
+  });
+
+  it("reports opt-in shift-clicks as input metadata", () => {
     const clickPick = new Cartesian3(4, 5, 6);
     pointQueryPickingMocks.resolvePreferredSurfacePick.mockReturnValue({
       surfacePositionECEF: clickPick,
@@ -310,6 +338,7 @@ describe("useCesiumPointQuery", () => {
     renderHook(() =>
       useCesiumPointQuery(scene, {
         enabled: true,
+        inputModifiers: [CESIUM_POINT_QUERY_INPUT_MODIFIERS.SHIFT],
         onPointCreate,
       })
     );
@@ -319,11 +348,7 @@ describe("useCesiumPointQuery", () => {
 
     act(() => {
       activeHandler?.inputActions
-        .get(
-          `${String(ScreenSpaceEventType.LEFT_CLICK)}:${String(
-            KeyboardEventModifier.SHIFT
-          )}`
-        )
+        .get(`${String(ScreenSpaceEventType.LEFT_CLICK)}:SHIFT`)
         ?.({
           position: pointerPosition,
         });
@@ -334,57 +359,11 @@ describe("useCesiumPointQuery", () => {
       screenPosition: pointerPosition,
       pickedPositionECEF: clickPick,
       globePositionECEF: null,
-      forceAccepted: true,
+      inputModifier: CESIUM_POINT_QUERY_INPUT_MODIFIERS.SHIFT,
     });
   });
 
-  it("uses the retained hover sample for force accepted clicks without a new surface pick", () => {
-    const hoverPick = new Cartesian3(1, 2, 3);
-    pointQueryPickingMocks.resolvePreferredSurfacePick
-      .mockReturnValueOnce({
-        surfacePositionECEF: hoverPick,
-        globePositionECEF: null,
-      })
-      .mockReturnValueOnce({
-        surfacePositionECEF: null,
-        globePositionECEF: null,
-      });
-
-    const onPointCreate = vi.fn();
-    const { scene, flushPreRender } = createFakeScene();
-    const pointerPosition = new Cartesian2(10, 20);
-    cesiumInteractionMocks.currentPointerPosition = pointerPosition;
-
-    renderHook(() =>
-      useCesiumPointQuery(scene, {
-        enabled: true,
-        onPointCreate,
-      })
-    );
-
-    const activeHandler = cesiumInteractionMocks.handlers[0];
-    expect(activeHandler).toBeDefined();
-
-    act(() => {
-      cesiumInteractionMocks.pointerSubscriber?.();
-      flushPreRender();
-      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Shift" }));
-      activeHandler?.inputActions.get(ScreenSpaceEventType.LEFT_CLICK)?.({
-        position: pointerPosition,
-      });
-      window.dispatchEvent(new KeyboardEvent("keyup", { key: "Shift" }));
-    });
-
-    expect(onPointCreate).toHaveBeenCalledTimes(1);
-    expect(onPointCreate).toHaveBeenLastCalledWith({
-      screenPosition: pointerPosition,
-      pickedPositionECEF: hoverPick,
-      globePositionECEF: null,
-      forceAccepted: true,
-    });
-  });
-
-  it("marks hover samples as force accepted while shift is pressed", () => {
+  it("does not mark hover samples while shift is pressed", () => {
     const hoverPick = new Cartesian3(1, 2, 3);
     pointQueryPickingMocks.resolvePreferredSurfacePick.mockReturnValue({
       surfacePositionECEF: hoverPick,
@@ -419,12 +398,7 @@ describe("useCesiumPointQuery", () => {
       flushPreRender();
     });
 
-    expect(onPointerMove).toHaveBeenLastCalledWith(
-      hoverPick,
-      pointerPosition,
-      null,
-      { forceAccepted: true }
-    );
+    expect(onPointerMove).toHaveBeenCalledTimes(1);
 
     act(() => {
       window.dispatchEvent(new KeyboardEvent("keyup", { key: "Shift" }));
@@ -438,7 +412,7 @@ describe("useCesiumPointQuery", () => {
     );
   });
 
-  it("captures shift state at click time for delayed point creation", () => {
+  it("ignores a same-position click after delayed line finish", () => {
     vi.useFakeTimers();
     const clickPick = new Cartesian3(4, 5, 6);
     pointQueryPickingMocks.resolvePreferredSurfacePick.mockReturnValue({
@@ -447,6 +421,7 @@ describe("useCesiumPointQuery", () => {
     });
 
     const onPointCreate = vi.fn();
+    const onLineFinish = vi.fn();
     const { scene } = createFakeScene();
     const pointerPosition = new Cartesian2(10, 20);
 
@@ -455,7 +430,7 @@ describe("useCesiumPointQuery", () => {
         enabled: true,
         clickStrategy: CESIUM_POINT_QUERY_CLICK_STRATEGY.DELAYED_LINE_FINISH,
         pointClickDelayMs: 20,
-        onLineFinish: vi.fn(),
+        onLineFinish,
         onPointCreate,
       })
     );
@@ -465,75 +440,29 @@ describe("useCesiumPointQuery", () => {
       expect(activeHandler).toBeDefined();
 
       act(() => {
-        window.dispatchEvent(new KeyboardEvent("keydown", { key: "Shift" }));
         activeHandler?.inputActions.get(ScreenSpaceEventType.LEFT_CLICK)?.({
           position: pointerPosition,
         });
-        window.dispatchEvent(new KeyboardEvent("keyup", { key: "Shift" }));
+        activeHandler?.inputActions.get(ScreenSpaceEventType.LEFT_CLICK)?.({
+          position: pointerPosition,
+        });
+        activeHandler?.inputActions.get(ScreenSpaceEventType.LEFT_DOUBLE_CLICK)?.(
+          {
+            position: pointerPosition,
+          }
+        );
+      });
+
+      expect(onLineFinish).toHaveBeenCalledTimes(1);
+
+      act(() => {
+        activeHandler?.inputActions.get(ScreenSpaceEventType.LEFT_CLICK)?.({
+          position: pointerPosition,
+        });
         vi.advanceTimersByTime(20);
       });
 
-      expect(onPointCreate).toHaveBeenCalledTimes(1);
-      expect(onPointCreate).toHaveBeenLastCalledWith({
-        screenPosition: pointerPosition,
-        pickedPositionECEF: clickPick,
-        globePositionECEF: null,
-        forceAccepted: true,
-      });
-    } finally {
-      unmount();
-      vi.useRealTimers();
-    }
-  });
-
-  it("forces point creation after long press and suppresses the following click", () => {
-    vi.useFakeTimers();
-    const clickPick = new Cartesian3(4, 5, 6);
-    pointQueryPickingMocks.resolvePreferredSurfacePick.mockReturnValue({
-      surfacePositionECEF: clickPick,
-      globePositionECEF: null,
-    });
-
-    const onPointCreate = vi.fn();
-    const { scene } = createFakeScene();
-    const pointerPosition = new Cartesian2(10, 20);
-
-    const { unmount } = renderHook(() =>
-      useCesiumPointQuery(scene, {
-        enabled: true,
-        onPointCreate,
-      })
-    );
-
-    try {
-      const activeHandler = cesiumInteractionMocks.handlers[0];
-      expect(activeHandler).toBeDefined();
-
-      act(() => {
-        activeHandler?.inputActions.get(ScreenSpaceEventType.LEFT_DOWN)?.({
-          position: pointerPosition,
-        });
-        vi.advanceTimersByTime(480);
-      });
-
-      expect(onPointCreate).toHaveBeenCalledTimes(1);
-      expect(onPointCreate).toHaveBeenLastCalledWith({
-        screenPosition: pointerPosition,
-        pickedPositionECEF: clickPick,
-        globePositionECEF: null,
-        forceAccepted: true,
-      });
-
-      act(() => {
-        activeHandler?.inputActions.get(ScreenSpaceEventType.LEFT_UP)?.({
-          position: pointerPosition,
-        });
-        activeHandler?.inputActions.get(ScreenSpaceEventType.LEFT_CLICK)?.({
-          position: pointerPosition,
-        });
-      });
-
-      expect(onPointCreate).toHaveBeenCalledTimes(1);
+      expect(onPointCreate).not.toHaveBeenCalled();
     } finally {
       unmount();
       vi.useRealTimers();

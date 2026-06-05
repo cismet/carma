@@ -163,16 +163,16 @@ const resolveAreaPlanarTrapezoidRightAngleCoordinate = ({
   baseEnd,
   normalPlaneAnchor,
   toleranceDeg,
-  forceAccepted,
+  limitersSuspended,
 }: {
   coordinate: CesiumGeographicCoordinate;
   baseStart: CesiumGeographicCoordinate;
   baseEnd: CesiumGeographicCoordinate;
   normalPlaneAnchor: CesiumGeographicCoordinate;
   toleranceDeg?: number | null;
-  forceAccepted?: boolean;
+  limitersSuspended?: boolean;
 }): CesiumGeographicCoordinate => {
-  if (forceAccepted) {
+  if (limitersSuspended) {
     return coordinate;
   }
 
@@ -251,14 +251,14 @@ export const resolveAreaPlanarTrapezoidThirdPointRightAngleCoordinate = ({
   coordinate,
   previousCoordinates,
   toleranceDeg,
-  forceAccepted,
+  limitersSuspended,
 }: {
   coordinate: CesiumGeographicCoordinate;
   previousCoordinates: readonly CesiumGeographicCoordinate[];
   toleranceDeg?: number | null;
-  forceAccepted?: boolean;
+  limitersSuspended?: boolean;
 }): CesiumGeographicCoordinate => {
-  if (forceAccepted || previousCoordinates.length !== 2) {
+  if (limitersSuspended || previousCoordinates.length !== 2) {
     return coordinate;
   }
 
@@ -281,7 +281,7 @@ export const resolveAreaPlanarTrapezoidThirdPointRightAngleCoordinate = ({
     baseEnd,
     normalPlaneAnchor,
     toleranceDeg,
-    forceAccepted,
+    limitersSuspended,
   });
 };
 
@@ -291,14 +291,14 @@ const resolveAreaPlanarTrapezoidFourthPointRightAngleCoordinate = ({
   baseEnd,
   oppositeCorner,
   toleranceDeg,
-  forceAccepted,
+  limitersSuspended,
 }: {
   coordinate: CesiumGeographicCoordinate;
   baseStart: CesiumGeographicCoordinate;
   baseEnd: CesiumGeographicCoordinate;
   oppositeCorner: CesiumGeographicCoordinate;
   toleranceDeg?: number | null;
-  forceAccepted?: boolean;
+  limitersSuspended?: boolean;
 }): CesiumGeographicCoordinate => {
   const normalPlaneAnchor = shouldConnectOppositeCornerToBaseStart(
     baseStart,
@@ -313,7 +313,7 @@ const resolveAreaPlanarTrapezoidFourthPointRightAngleCoordinate = ({
     baseEnd,
     normalPlaneAnchor,
     toleranceDeg,
-    forceAccepted,
+    limitersSuspended,
   });
 };
 
@@ -428,7 +428,7 @@ export const resolveAreaPlanarTrapezoidDraftCoordinates = (
   options: {
     thirdPointRightAngleToleranceDeg?: number | null;
     applyRightAngleLimiter?: boolean;
-    forceAccepted?: boolean;
+    limitersSuspended?: boolean;
   } = {}
 ): readonly CesiumGeographicCoordinate[] => {
   if (coordinates.length < 2) {
@@ -447,7 +447,7 @@ export const resolveAreaPlanarTrapezoidDraftCoordinates = (
           coordinate: coordinates[2],
           previousCoordinates: [baseStart, baseEnd],
           toleranceDeg: options.thirdPointRightAngleToleranceDeg,
-          forceAccepted: options.forceAccepted,
+          limitersSuspended: options.limitersSuspended,
         })
       : coordinates[2]
     : undefined;
@@ -464,7 +464,7 @@ export const resolveAreaPlanarTrapezoidDraftCoordinates = (
         baseEnd,
         oppositeCorner,
         toleranceDeg: options.thirdPointRightAngleToleranceDeg,
-        forceAccepted: options.forceAccepted,
+        limitersSuspended: options.limitersSuspended,
       })
     : coordinates[3]!;
 
@@ -480,12 +480,12 @@ export const resolveNextAreaPlanarTrapezoidDraftCoordinates = ({
   coordinate,
   previousCoordinates,
   thirdPointRightAngleToleranceDeg,
-  forceAccepted,
+  limitersSuspended,
 }: {
   coordinate: CesiumGeographicCoordinate;
   previousCoordinates: readonly CesiumGeographicCoordinate[];
   thirdPointRightAngleToleranceDeg?: number | null;
-  forceAccepted?: boolean;
+  limitersSuspended?: boolean;
 }): readonly CesiumGeographicCoordinate[] | null =>
   previousCoordinates.length >= 4
     ? null
@@ -497,7 +497,7 @@ export const resolveNextAreaPlanarTrapezoidDraftCoordinates = ({
             shouldApplyAreaPlanarTrapezoidRightAngleLimiter(
               previousCoordinates.length
             ),
-          forceAccepted,
+          limitersSuspended,
         }
       );
 
@@ -549,22 +549,27 @@ export const doesAreaPlanarTrapezoidSampleRequireLimiterOverride = ({
     coordinate,
     previousCoordinates,
     thirdPointRightAngleToleranceDeg,
-    forceAccepted: false,
+    limitersSuspended: false,
   });
-  const forcedCoordinates = resolveNextAreaPlanarTrapezoidDraftCoordinates({
+  const suspendedLimiterCoordinates =
+    resolveNextAreaPlanarTrapezoidDraftCoordinates({
     coordinate,
     previousCoordinates,
     thirdPointRightAngleToleranceDeg,
-    forceAccepted: true,
+    limitersSuspended: true,
   });
   const nextCoordinateIndex = previousCoordinates.length;
   const limitedCoordinate = limitedCoordinates?.[nextCoordinateIndex];
-  const forcedCoordinate = forcedCoordinates?.[nextCoordinateIndex];
+  const suspendedLimiterCoordinate =
+    suspendedLimiterCoordinates?.[nextCoordinateIndex];
 
   return Boolean(
     limitedCoordinate &&
-      forcedCoordinate &&
-      !areCoordinatesWithinDistanceMeters(limitedCoordinate, forcedCoordinate)
+      suspendedLimiterCoordinate &&
+      !areCoordinatesWithinDistanceMeters(
+        limitedCoordinate,
+        suspendedLimiterCoordinate
+      )
   );
 };
 
@@ -573,7 +578,7 @@ export const resolveAreaPlanarTrapezoidMeasurementCoordinates = (
   options: {
     thirdPointRightAngleToleranceDeg?: number | null;
     applyRightAngleLimiter?: boolean;
-    forceAccepted?: boolean;
+    limitersSuspended?: boolean;
   } = {}
 ): readonly CesiumGeographicCoordinate[] => {
   const draftCoordinates = resolveAreaPlanarTrapezoidDraftCoordinates(

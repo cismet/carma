@@ -9,12 +9,13 @@ import {
 } from "@carma-mapping/engines/cesium/core";
 
 import type { CesiumGeographicCoordinate } from "../store";
+import type { AnnotationPointQueryInputModifier } from "./lifecycle";
 type UseSceneCoordinateHandlerOptions = {
   enabled: boolean;
   onCoordinate?: (
     coordinate: CesiumGeographicCoordinate,
     screenPosition?: { x: number; y: number },
-    forceAccepted?: boolean
+    options?: { inputModifier?: AnnotationPointQueryInputModifier }
   ) => void;
   onLineFinish?: () => void;
   onHoverCoordinateChange?: (
@@ -26,12 +27,12 @@ type UseSceneCoordinateHandlerOptions = {
     screenPosition: { x: number; y: number };
     pointECEF: Cartesian3 | null;
     surfaceNormalECEF: Cartesian3 | null;
-    forceAccepted?: boolean;
   }) => void;
   onScreenPositionChange?: (
     screenPosition: { x: number; y: number } | null
   ) => void;
   singleClickDelayMs?: number;
+  inputModifiers?: readonly AnnotationPointQueryInputModifier[];
 };
 
 const runtimeCoordinateFromCartesian = (
@@ -56,6 +57,7 @@ export const useSceneCoordinateHandler = (
     onHoverSampleChange,
     onScreenPositionChange,
     singleClickDelayMs = 220,
+    inputModifiers,
   }: UseSceneCoordinateHandlerOptions
 ) => {
   useCesiumPointQuery(scene, {
@@ -65,6 +67,7 @@ export const useSceneCoordinateHandler = (
       ? CESIUM_POINT_QUERY_CLICK_STRATEGY.DELAYED_LINE_FINISH
       : CESIUM_POINT_QUERY_CLICK_STRATEGY.IMMEDIATE,
     pointClickDelayMs: singleClickDelayMs,
+    inputModifiers,
     onPointCreate: (payload) => {
       onCoordinate?.(
         runtimeCoordinateFromCartesian(payload.pickedPositionECEF),
@@ -72,16 +75,11 @@ export const useSceneCoordinateHandler = (
           x: payload.screenPosition.x,
           y: payload.screenPosition.y,
         },
-        payload.forceAccepted
+        { inputModifier: payload.inputModifier }
       );
     },
     onLineFinish,
-    onPointerMove: (
-      positionECEF,
-      screenPosition,
-      surfaceNormalECEF,
-      options
-    ) => {
+    onPointerMove: (positionECEF, screenPosition, surfaceNormalECEF) => {
       const runtimeCoordinate = positionECEF
         ? runtimeCoordinateFromCartesian(positionECEF)
         : null;
@@ -96,7 +94,6 @@ export const useSceneCoordinateHandler = (
         screenPosition: runtimeScreenPosition,
         pointECEF: positionECEF ?? null,
         surfaceNormalECEF: surfaceNormalECEF ?? null,
-        forceAccepted: options?.forceAccepted,
       });
     },
     onScreenPositionChange,

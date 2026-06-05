@@ -229,7 +229,7 @@ describe("area planar trapezoid construction", () => {
     );
   });
 
-  it("keeps force accepted third points outside the right-angle limiter", () => {
+  it("keeps limiter-suspended third points outside the right-angle limiter", () => {
     const anchor = Cartesian3.fromDegrees(7, 51, 100);
     const localUp = Cartesian3.normalize(anchor, new Cartesian3());
     const localEast = Cartesian3.normalize(
@@ -264,7 +264,7 @@ describe("area planar trapezoid construction", () => {
         coordinate: rawThird,
         previousCoordinates: [baseStart, baseEnd],
         toleranceDeg: 5,
-        forceAccepted: true,
+        limitersSuspended: true,
       });
 
     expect(

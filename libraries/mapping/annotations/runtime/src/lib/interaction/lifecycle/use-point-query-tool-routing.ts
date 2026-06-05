@@ -13,6 +13,7 @@ import type {
 import type { Scene } from "@carma-cesium";
 import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 import type { AnnotationModeSessionMap } from "./annotation-mode-session.types";
+import type { AnnotationPointQueryInputModifier } from "./point-query-input-modifier";
 import { resolveNodeSnapSample } from "./node-snap.helpers";
 type UsePointQueryToolRoutingParams = {
   scene: Scene | null;
@@ -91,7 +92,7 @@ export const usePointQueryToolRouting = ({
       screenPosition?: { x: number; y: number },
       options?: {
         forcedSnappedNodeId?: string | null;
-        forceAccepted?: boolean;
+        inputModifier?: AnnotationPointQueryInputModifier;
       }
     ) => {
       const resolvedPointQuerySample = resolvePointQuerySample(
@@ -104,7 +105,7 @@ export const usePointQueryToolRouting = ({
         nodeCreatedHandler(
           resolvedPointQuerySample.coordinate,
           resolvedPointQuerySample.linkedNodeGroupId,
-          options?.forceAccepted
+          { inputModifier: options?.inputModifier }
         );
         return;
       }
@@ -112,7 +113,7 @@ export const usePointQueryToolRouting = ({
       activePlugin?.pointQuery?.onPointCreated({
         coordinate: resolvedPointQuerySample.coordinate,
         linkedNodeGroupId: resolvedPointQuerySample.linkedNodeGroupId,
-        forceAccepted: options?.forceAccepted,
+        inputModifier: options?.inputModifier,
         activeToolType,
         activeToolSession,
         toolSessions,

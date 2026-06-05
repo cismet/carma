@@ -14,6 +14,7 @@ import type {
   AnnotationModeSession,
   AnnotationModeSessionMap,
 } from "../interaction/lifecycle/annotation-mode-session.types";
+import type { AnnotationPointQueryInputModifier } from "../interaction/lifecycle/point-query-input-modifier";
 import type { RuntimeVisualModels } from "../render/visual-models";
 import type {
   AnnotationsStore,
@@ -106,7 +107,7 @@ export type AnnotationToolAddAnnotationContext = {
 export type PointQueryCreatedContext = {
   coordinate: CesiumGeographicCoordinate;
   linkedNodeGroupId: AnnotationNodeLinkId | null;
-  forceAccepted?: boolean;
+  inputModifier?: AnnotationPointQueryInputModifier;
   activeToolType: AnnotationToolId;
   activeToolSession: AnnotationModeSession | null;
   toolSessions: AnnotationModeSessionMap;
@@ -118,7 +119,6 @@ export type PointQueryPickResult = {
   screenPosition: { x: number; y: number } | null;
   pointECEF: Cartesian3 | null;
   surfaceNormalECEF: Cartesian3 | null;
-  forceAccepted?: boolean;
 };
 
 export type AnnotationPointQueryVisualStyle = Readonly<{
@@ -193,6 +193,7 @@ export type AnnotationToolPlugin = {
     ) => AnnotationModeSession;
   };
   pointQuery?: {
+    inputModifiers?: readonly AnnotationPointQueryInputModifier[];
     onPointCreated: (context: PointQueryCreatedContext) => void;
   };
   addAnnotation?: {

@@ -6,6 +6,7 @@ import type {
   AnnotationToolDraftStore,
   CesiumGeographicCoordinate,
 } from "@carma-mapping/annotations/runtime";
+import { ANNOTATION_POINT_QUERY_INPUT_MODIFIERS } from "@carma-mapping/annotations/runtime";
 import {
   ANNOTATION_INFO_BOX_HELP_ALERT_SEVERITIES,
   ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS,
@@ -168,7 +169,6 @@ describe("area planar tool plugin", () => {
     expect(
       resolveHelpRows([geographicCoordinate(7, 51)], {
         coordinate: geographicCoordinate(7.0001, 51, 101),
-        forceAccepted: false,
         pointECEF: null,
         screenPosition: null,
         surfaceNormalECEF: null,
@@ -177,62 +177,24 @@ describe("area planar tool plugin", () => {
       {
         kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ALERT,
         severity: ANNOTATION_INFO_BOX_HELP_ALERT_SEVERITIES.WARNING,
-        text: "Punkt nicht übernommen: Auf die Schnittlinie von Hilfsscheibe und Dach klicken. Shift projiziert auf die Hilfsscheibe.",
+        text: "Punkt nicht übernommen: Auf die Schnittlinie von Hilfsscheibe und Dach klicken. Umschalttaste+Klick projiziert auf die Hilfsscheibe.",
         actions: [
           {
             kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ACTION,
-            inputAlternatives: [[ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.SHIFT]],
+            inputAlternatives: [
+              [
+                ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.SHIFT,
+                ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.CLICK,
+              ],
+            ],
             description:
-              "Gedrückt halten: setzt den auf die Hilfsscheibe projizierten Punkt.",
+              "Umschalttaste+Klick setzt den auf die Hilfsscheibe projizierten Punkt.",
           },
         ],
       },
       {
         kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.TEXT,
         text: "Zweiten Punkt auf derselben horizontalen Dachkante anklicken.",
-      },
-      {
-        kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ACTION,
-        inputAlternatives: [[ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.BACKSPACE]],
-        description: "Löscht den letzten Punkt.",
-      },
-      {
-        kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ACTION,
-        inputAlternatives: [[ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.ESCAPE]],
-        description: "Beendet das Werkzeug.",
-      },
-    ]);
-
-    expect(
-      resolveHelpRows([geographicCoordinate(7, 51)], {
-        coordinate: geographicCoordinate(7.0001, 51, 101),
-        forceAccepted: true,
-        pointECEF: null,
-        screenPosition: null,
-        surfaceNormalECEF: null,
-      })
-    ).toEqual([
-      {
-        kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ALERT,
-        severity: ANNOTATION_INFO_BOX_HELP_ALERT_SEVERITIES.INFO,
-        text: "Shift ist aktiv: Der aktuelle Punkt wird auf die horizontale Hilfsscheibe projiziert.",
-        actions: [
-          {
-            kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ACTION,
-            inputAlternatives: [[ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.SHIFT]],
-            description:
-              "Gedrückt halten: setzt den auf die Hilfsscheibe projizierten Punkt.",
-          },
-        ],
-      },
-      {
-        kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.TEXT,
-        text: "Zweiten Punkt auf derselben horizontalen Dachkante anklicken.",
-      },
-      {
-        kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ACTION,
-        inputAlternatives: [[ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.CLICK]],
-        description: "Setzt die Basiskante auf der horizontalen Hilfsscheibe.",
       },
       {
         kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ACTION,
@@ -278,7 +240,6 @@ describe("area planar tool plugin", () => {
     expect(
       resolveHelpRows([baseStart, baseEnd], {
         coordinate: nearRightAngleThirdPoint,
-        forceAccepted: false,
         pointECEF: null,
         screenPosition: null,
         surfaceNormalECEF: null,
@@ -291,9 +252,14 @@ describe("area planar tool plugin", () => {
         actions: [
           {
             kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ACTION,
-            inputAlternatives: [[ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.SHIFT]],
+            inputAlternatives: [
+              [
+                ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.SHIFT,
+                ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.CLICK,
+              ],
+            ],
             description:
-              "Gedrückt halten: deaktiviert die Limiter und erlaubt den aktuellen Punkt.",
+              "Umschalttaste+Klick deaktiviert die Limiter und erlaubt den aktuellen Punkt.",
           },
         ],
       },
@@ -453,7 +419,7 @@ describe("area planar tool plugin", () => {
     expect(draft.feedback?.kind).toBe("warning");
   });
 
-  it("allows force accepted trapezoid second points outside the horizontal plane tolerance", () => {
+  it("suspends trapezoid second point plane limiters for shift clicks", () => {
     const plugin = createAreaPlanarTrapezoidToolPlugin({
       trapezoidHorizontalPlaneToleranceMeters: 0.1,
     });
@@ -468,7 +434,9 @@ describe("area planar tool plugin", () => {
     } as never);
 
     session?.onNodeCreated?.(geographicCoordinate(7, 51));
-    session?.onNodeCreated?.(geographicCoordinate(7.0001, 51, 101), null, true);
+    session?.onNodeCreated?.(geographicCoordinate(7.0001, 51, 101), null, {
+      inputModifier: ANNOTATION_POINT_QUERY_INPUT_MODIFIERS.SHIFT,
+    });
 
     const draft = drafts.get(plugin.id);
     expect(addAnnotation).not.toHaveBeenCalled();
@@ -482,7 +450,7 @@ describe("area planar tool plugin", () => {
     expect(draft.feedback).toBeNull();
   });
 
-  it("allows force accepted trapezoid second points beyond the local horizontal line max length", () => {
+  it("suspends trapezoid second point line length limiters for shift clicks", () => {
     const createSession = () => {
       const plugin = createAreaPlanarTrapezoidToolPlugin({
         trapezoidHorizontalLineMaxLengthMeters: 5,
@@ -509,17 +477,21 @@ describe("area planar tool plugin", () => {
     expect(normalDraft.coordinates).toHaveLength(1);
     expect(normalDraft.feedback?.message).toContain("geodätische");
 
-    const forcedClick = createSession();
-    forcedClick.session?.onNodeCreated?.(geographicCoordinate(7, 51));
-    forcedClick.session?.onNodeCreated?.(
+    const suspendedLimiterClick = createSession();
+    suspendedLimiterClick.session?.onNodeCreated?.(geographicCoordinate(7, 51));
+    suspendedLimiterClick.session?.onNodeCreated?.(
       geographicCoordinate(7.0001, 51),
       null,
-      true
+      {
+        inputModifier: ANNOTATION_POINT_QUERY_INPUT_MODIFIERS.SHIFT,
+      }
     );
 
-    const forcedDraft = forcedClick.drafts.get(forcedClick.plugin.id);
-    expect(forcedClick.addAnnotation).not.toHaveBeenCalled();
-    expect(forcedDraft.coordinates).toHaveLength(2);
-    expect(forcedDraft.feedback).toBeNull();
+    const suspendedLimiterDraft = suspendedLimiterClick.drafts.get(
+      suspendedLimiterClick.plugin.id
+    );
+    expect(suspendedLimiterClick.addAnnotation).not.toHaveBeenCalled();
+    expect(suspendedLimiterDraft.coordinates).toHaveLength(2);
+    expect(suspendedLimiterDraft.feedback).toBeNull();
   });
 });
