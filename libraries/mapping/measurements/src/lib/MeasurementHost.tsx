@@ -113,6 +113,14 @@ export interface MeasurementHostProps {
   snapping?: boolean;
   /** Pixel search radius for snap candidates. Defaults to 20. */
   snapRadiusPx?: number;
+  /** Click-to-finish tolerance (px): drawing auto-finishes when a click lands
+   * within this distance of the last committed vertex. When unset, terra-draw's
+   * native default (40) is used — leave it unset to preserve existing behavior.
+   * Hosts that draw short segments near snapped corners (e.g. BelIS) can lower
+   * it (keep it <= `snapRadiusPx`) so the line doesn't terminate prematurely.
+   * Read once at terra-draw construction time (unlike `snapRadiusPx`), so a
+   * change applies on the next attach, not live. */
+  closePointerDistancePx?: number;
   /** Strategy for selecting snap-target layers. Default `"opt-out"` —
    * every geometry-bearing layer is a candidate unless flagged with
    * `metadata.carmaConf.skipSnapping`. See `SnapMode` for the other modes. */
@@ -187,6 +195,7 @@ export const MeasurementHost = forwardRef<
     onChange,
     snapping = false,
     snapRadiusPx = DEFAULT_SNAP_RADIUS_PX,
+    closePointerDistancePx,
     snapMode = "opt-out",
     optedInLayerIds = EMPTY_OPTED_IN,
     backgroundSnapping = false,
@@ -214,6 +223,11 @@ export const MeasurementHost = forwardRef<
   snappingEnabledRef.current = snapping;
   const snapRadiusPxRef = useRef(snapRadiusPx);
   snapRadiusPxRef.current = snapRadiusPx;
+  // Read at terra-draw construction time only — terra-draw bakes
+  // `pointerDistance` into the mode and never re-reads it. The ref still tracks
+  // the latest prop so a rebuild (basemap swap / remount) picks up changes.
+  const closePointerDistancePxRef = useRef(closePointerDistancePx);
+  closePointerDistancePxRef.current = closePointerDistancePx;
   const snapModeRef = useRef(snapMode);
   snapModeRef.current = snapMode;
   const optedInLayerIdsRef = useRef(optedInLayerIds);
@@ -567,6 +581,13 @@ export const MeasurementHost = forwardRef<
         modes: [
           new TerraDrawPointMode(),
           new TerraDrawLineStringMode({
+            // Host-tunable click-to-finish tolerance. Omitted entirely when the
+            // host doesn't set it, so terra-draw keeps its native default (40);
+            // hosts that draw short segments near snapped corners pass a smaller
+            // value to stop the line closing prematurely.
+            ...(closePointerDistancePxRef.current !== undefined && {
+              pointerDistance: closePointerDistancePxRef.current,
+            }),
             // toLine + toCoordinate snap to terra-draw's OWN draft features
             // (e.g. the in-progress line itself); toCustom snaps to layers
             // outside terra-draw's store via `snapToCustom`.
@@ -577,6 +598,9 @@ export const MeasurementHost = forwardRef<
             },
           }),
           new TerraDrawPolygonMode({
+            ...(closePointerDistancePxRef.current !== undefined && {
+              pointerDistance: closePointerDistancePxRef.current,
+            }),
             snapping: {
               toLine: true,
               toCoordinate: true,
