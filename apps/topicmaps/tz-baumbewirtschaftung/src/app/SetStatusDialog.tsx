@@ -132,6 +132,14 @@ const SetStatusDialog = ({
     return "open";
   };
 
+  // #4032: "Abgeschlossen" must only be selectable when there is something to
+  // finish, i.e. the action has been started (open) or hit an exception.
+  // Disabled when the workflow has not started yet (none) or has already been
+  // completed (done) — the user must start a new cycle first.
+  const latestActionStatus = feature?.properties?.latestActionStatus;
+  const canComplete =
+    latestActionStatus === "open" || latestActionStatus === "exception";
+
   const handleUploadChange = (info: any) => {
     if (info.file.status === "done") {
       const reader = new FileReader();
@@ -321,6 +329,7 @@ const SetStatusDialog = ({
             <Radio.Button
               style={{ width: "33%", textAlign: "center", fontSize: 12 }}
               value="done"
+              disabled={!canComplete}
             >
               <span className="status-emoji">✅</span>
               <span className="status-text">Abgeschlossen</span>
