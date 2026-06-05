@@ -21,8 +21,6 @@ import {
   MEASUREMENT_FEATUREKIND,
 } from "../../store/slices/measurements";
 import { getKeyTablesData } from "../../store/slices/keyTables";
-// import { getJWT } from "../../store/slices/auth";
-// import { fetchFeatureById } from "../../helper/apiMethods";
 import { serializeValues } from "../../helper/draftSerialize";
 import {
   buildSyntheticFeature,
@@ -32,8 +30,6 @@ import {
 import {
   buildMeasurementGeometryOptions,
   buildStandortGeometryOption,
-  // extractLeitungFeatureInfo,
-  // leitungLineStringToEpsg25832,
   type MeasurementGeometryOption,
 } from "../../helper/geometryOptions";
 
@@ -367,108 +363,3 @@ export const useCreateFeatureDraft = () => {
     ]
   );
 };
-
-// Fields the Leitung form edits. Carried from the source Leitung onto the
-// extension draft so the user starts with the same attributes — the common
-// "verlängern" case keeps them and just adds geometry. Mirror the form's
-// own getFieldsValue list (LeitungForm.handleSave) and the explicitFields
-// declared in featureFormSaveHelpers so the save payload stays in sync.
-// const LEITUNG_PREFILL_FIELDS = [
-//   "fk_leitungstyp",
-//   "fk_material",
-//   "fk_querschnitt",
-// ] as const;
-
-/**
- * Opens a "Leitung verlängern" extension draft for the currently selected
- * Leitung. Behaves like a creation draft (re-uses the form panel and the
- * brandnew layer) but carries extension-only metadata so the geometry selector
- * can merge the original line with a freshly picked LineString measurement.
- *
- * Returns a no-op when the selected feature is not a Leitung — callers gate on
- * the same `extractLeitungFeatureInfo` check before showing the menu item, so
- * this branch only fires defensively.
- */
-// export const useExtendLeitungDraft = () => {
-//   const { onOpenCreationDraft } = useMapPage();
-//   const dispatch = useDispatch();
-//   const selectedFeature = useSelector(getSelectedFeature);
-//   const keyTablesData = useSelector(getKeyTablesData);
-//   const jwt = useSelector(getJWT) as string | null;
-//
-//   return useCallback(async () => {
-//     const info = extractLeitungFeatureInfo(selectedFeature);
-//     if (!info) return;
-//
-//     const original25832 = leitungLineStringToEpsg25832(info.geometryWgs84);
-//     const draftKey = `extend:leitung:${info.id}:${Date.now()}-${Math.random()
-//       .toString(36)
-//       .slice(2, 9)}`;
-//
-//     // Pull the source Leitung's editable fields so the form opens with them
-//     // pre-selected. The by-id query returns fk_* as plain FK ids, matching the
-//     // shape the form's Selects expect; on failure we open with empty fields.
-//     // Also capture `fk_geom` so the save flow can update the same geom row in
-//     // place (keeps the Leitung's id stable across "verlängern").
-//     let seedValues: Record<string, unknown> = {};
-//     let extendingGeomId: number | undefined;
-//     if (jwt) {
-//       try {
-//         const data = await fetchFeatureById(jwt, info.id, "leitungen");
-//         const leitungRow = (
-//           data?.leitung as Array<Record<string, unknown>> | undefined
-//         )?.[0];
-//         if (leitungRow) {
-//           for (const field of LEITUNG_PREFILL_FIELDS) {
-//             const value = leitungRow[field];
-//             if (value != null) seedValues[field] = value;
-//           }
-//           const fkGeom = leitungRow.fk_geom;
-//           if (typeof fkGeom === "number" && Number.isFinite(fkGeom)) {
-//             extendingGeomId = fkGeom;
-//           }
-//         }
-//       } catch (e) {
-//         console.warn("[extend-leitung] could not prefetch source leitung", e);
-//       }
-//     }
-//
-//     dispatch(
-//       setDraft({
-//         featureId: draftKey,
-//         featureType: "leitung",
-//         values: seedValues,
-//         feature: buildSyntheticFeature(
-//           "leitung",
-//           draftKey,
-//           {
-//             ...enrichSyntheticProps("leitung", seedValues, keyTablesData, 0),
-//             // Original Leitung id, carried on the synthetic feature so the
-//             // sidebar / sticky header / InfoBox can show the source's id
-//             // (e.g. "L-13564") in place of the "???" placeholder used for
-//             // brand-new drafts. Sidebar extractors and the InfoBox override
-//             // path read this prop directly; the form never sees it as a
-//             // field, so the save payload stays unchanged.
-//             _originalId: info.id,
-//           },
-//           original25832
-//         ),
-//         fetchedData: buildSyntheticFetchedData("leitung", seedValues),
-//         isCreation: true,
-//         geometry: original25832,
-//         // Hide the source Leitung from the regular vector-tile layer while the
-//         // extension draft is open — the brandnew layer renders the (original
-//         // or merged) line in its place. Discarded on save: an extension save
-//         // updates the existing row in place, so once the brandnew layer picks
-//         // the updated geometry up the regular tile can show it again.
-//         hiddenOriginalIds: { leitungen: [info.id] },
-//         isExtension: true,
-//         extendingLeitungId: info.id,
-//         extendingGeomId,
-//         originalGeometryEpsg25832: original25832,
-//       })
-//     );
-//     dispatch(setGlobalEditMode(true));
-//     onOpenCreationDraft?.("leitung", draftKey);
-//   }, [dispatch, selectedFeature, keyTablesData, onOpenCreationDraft, jwt]);
-// };

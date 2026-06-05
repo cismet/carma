@@ -10,6 +10,7 @@ interface LeitungFormFieldsProps {
   leitung: Record<string, unknown> | null;
   readOnly?: boolean;
   featureId?: string;
+  geometrySelector?: React.ReactNode;
   form?: FormInstance;
   onFormInstance?: (form: FormInstance) => void;
   draftValues?: Record<string, unknown>;
@@ -34,6 +35,7 @@ const LeitungFormFields = ({
   leitung,
   readOnly = true,
   featureId,
+  geometrySelector,
   form: externalForm,
   onFormInstance,
   draftValues,
@@ -117,6 +119,8 @@ const LeitungFormFields = ({
       className={getFormClassName(readOnly, "pr-2")}
       onValuesChange={onValuesChange}
     >
+      {geometrySelector}
+
       {/* Leitungstyp - Full Width */}
       <FormItem
         name="fk_leitungstyp"

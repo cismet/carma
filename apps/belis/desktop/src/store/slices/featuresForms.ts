@@ -84,28 +84,15 @@ export interface Draft {
   // array is in. Drives the brandnew icon's dot count so a "+ Leuchte zu
   // Standort N" draft renders with `bestand + 1 + extras` dots.
   bestandLeuchtenCount?: number;
-  // "Leitung verlängern" flow: marks an extension draft (still rendered through
-  // the creation-draft path, so `isCreation` is also true). Carries the source
-  // Leitung's id and its original LineString in EPSG:25832 so the geometry
-  // selector can recompute the merged line on every pick / clear.
-  // isExtension?: boolean;
-  // extendingLeitungId?: number;
-  // // Id of the existing Leitung's `geom` record. Carried on the draft so the
-  // // save flow can update the same geom row (preserving the Leitung's id)
-  // // instead of POSTing a brand-new feature with id: -1.
-  // extendingGeomId?: number;
-  // originalGeometryEpsg25832?: GeoJSON.Geometry;
   updatedAt: number;
 }
 
-// Synthetic-draft key check. Matches both plain creation drafts (`create:…`)
-// and "Leitung verlängern" extension drafts (`extend:leitung:…`) — both are
-// synthetic, have no real DB record to fetch, and should follow the
-// creation-draft code paths (synthetic fetchedData, parent-selection capture,
-// info-box override). Real Fachobjekt selections use numeric ids.
+// Synthetic-draft key check. Plain creation drafts (`create:…`) are synthetic,
+// have no real DB record to fetch, and follow the creation-draft code paths
+// (synthetic fetchedData, parent-selection capture, info-box override). Real
+// Fachobjekt selections use numeric ids.
 export const isCreationDraftKey = (featureId: string): boolean =>
   featureId.startsWith("create:");
-// featureId.startsWith("create:") || featureId.startsWith("extend:");
 
 // A request to focus a specific form tab of an open draft, raised when the
 // user clicks a nested row in the "Entwürfe" sidebar (the Standort parent or
@@ -171,10 +158,6 @@ const featuresFormsSlice = createSlice({
         measurementLabel?: string;
         hiddenOriginalIds?: HiddenOriginalIds;
         bestandLeuchtenCount?: number;
-        // isExtension?: boolean;
-        // extendingLeitungId?: number;
-        // extendingGeomId?: number;
-        // originalGeometryEpsg25832?: GeoJSON.Geometry;
       }>
     ) {
       const {
@@ -193,10 +176,6 @@ const featuresFormsSlice = createSlice({
         measurementLabel,
         hiddenOriginalIds,
         bestandLeuchtenCount,
-        // isExtension,
-        // extendingLeitungId,
-        // extendingGeomId,
-        // originalGeometryEpsg25832,
       } = action.payload;
       const existing = state.drafts[featureId];
       const hasFiles = existing?.files && existing.files.length > 0;
@@ -274,14 +253,6 @@ const featuresFormsSlice = createSlice({
         // edits) so the icon stays correct.
         bestandLeuchtenCount:
           existing?.bestandLeuchtenCount ?? bestandLeuchtenCount,
-        // Frozen at extension-draft creation; later setDraft calls (geometry
-        // change, form edits) must not overwrite or clear these.
-        // isExtension: existing?.isExtension ?? isExtension,
-        // extendingLeitungId:
-        //   existing?.extendingLeitungId ?? extendingLeitungId,
-        // extendingGeomId: existing?.extendingGeomId ?? extendingGeomId,
-        // originalGeometryEpsg25832:
-        //   existing?.originalGeometryEpsg25832 ?? originalGeometryEpsg25832,
         updatedAt: Date.now(),
       };
     },

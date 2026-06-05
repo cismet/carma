@@ -289,14 +289,6 @@ export const saveFeatureDraft = async (
     };
   }
 
-  // "Leitung verlängern": the user keeps the existing Leitung and only edits
-  // its geometry (plus the editable fk_* fields). Update the existing row in
-  // place — same id, same geom record — instead of falling through to the
-  // creation path that would POST a new feature with id: -1.
-  // if (draft.isExtension && draft.extendingLeitungId != null) {
-  //   return saveExtensionDraft(jwt, featureId, draft, config);
-  // }
-
   // Creation drafts: create new feature with id: -1
   if (draft.isCreation) {
     return saveCreationDraft(jwt, featureId, draft, config, strassenschluesselByPk);
@@ -342,7 +334,7 @@ export const saveFeatureDraft = async (
 
     // 4a. Geometry edit: the user switched this existing feature's shape to a
     // measurement. Update the same `geom` row in place (same geom id) so the
-    // feature keeps its identity — mirrors the "Leitung verlängern" pattern.
+    // feature keeps its identity. Applies to both point features and Leitungen.
     // A "current.*" key means the geometry was left untouched (or reverted),
     // so no geom is sent. Falls back to id: -1 when the geom id wasn't
     // captured at draft-open (backend then creates a fresh geom and re-links).
@@ -388,62 +380,6 @@ export const saveFeatureDraft = async (
     };
   }
 };
-
-// "Leitung verlängern": update the existing Leitung in place. The merged
-// LineString (original + picked extension) is already in draft.geometry
-// (EPSG:25832, written by FeaturesFormsWrapper.handleGeometryChange via
-// mergeLineStringsClosestEndpoints). Sending it back under the same Leitung
-// id and same geom id preserves the Leitung's identity — the user expects
-// "verlängern" to extend a known L-13564, not replace it with a new id.
-// const saveExtensionDraft = async (
-//   jwt: string,
-//   featureId: string,
-//   draft: Draft,
-//   config: FeatureSaveConfig
-// ): Promise<SaveResult> => {
-//   const { featureType, extendingLeitungId, extendingGeomId } = draft;
-//   const base = { featureId, featureType };
-//
-//   if (extendingLeitungId == null) {
-//     return {
-//       ...base,
-//       success: false,
-//       error: "Missing extendingLeitungId",
-//     };
-//   }
-//   if (!draft.geometry) {
-//     return {
-//       ...base,
-//       success: false,
-//       error: "Missing geometry on extension draft",
-//     };
-//   }
-//
-//   try {
-//     const formValues = prepareSaveValues(featureType, draft.values ?? {}) ?? {};
-//     // Update the same `geom` row so the Leitung's foreign key stays intact.
-//     // Falling back to id: -1 when the geom id wasn't captured (e.g. JWT was
-//     // missing at draft-open time) — the backend then creates a fresh geom
-//     // and re-links it; still preferable to losing the Leitung's id.
-//     const geomPayload = {
-//       id: extendingGeomId ?? -1,
-//       geo_field: draft.geometry,
-//     };
-//     const dataToSave: Record<string, unknown> = {
-//       id: extendingLeitungId,
-//       ...formValues,
-//       geom: geomPayload,
-//     };
-//     await updateDataByClassName(jwt, config.className, dataToSave);
-//     return { ...base, success: true };
-//   } catch (error) {
-//     return {
-//       ...base,
-//       success: false,
-//       error: error instanceof Error ? error.message : "Unknown error",
-//     };
-//   }
-// };
 
 const saveCreationDraft = async (
   jwt: string,

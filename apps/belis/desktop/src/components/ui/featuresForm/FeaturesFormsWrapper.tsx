@@ -74,7 +74,6 @@ import {
   enrichSyntheticProps,
   convertGeometryToWgs84,
 } from "../../../helper/buildSyntheticFeature";
-// import { mergeLineStringsClosestEndpoints } from "../../../helper/mergeLineStrings";
 import { getKeyTablesData } from "../../../store/slices/keyTables";
 import { useMapSelection } from "@carma-mapping/engines/maplibre";
 
@@ -324,42 +323,37 @@ const FeaturesFormsWrapper = ({
     const measurementOpts = buildMeasurementGeometryOptions(measurements).filter(
       (o) => !consumedByOtherDrafts.has(o.key)
     );
-    // Extension drafts only accept LineString measurements — a point
-    // measurement can't be auto-connected to a Leitung.
-    // if (draft?.isExtension) {
-    //   measurementOpts = measurementOpts.filter(
-    //     (o) => o.geometry.type === "LineString"
-    //   );
-    // }
     const base = standortOption
       ? [standortOption, ...measurementOpts]
       : measurementOpts;
     // This draft's own assigned-and-deleted measurement, prepended so the
     // Select can render its label and the value-match logic resolves it.
     return measurementOption ? [measurementOption, ...base] : base;
-  }, [
-    measurements,
-    standortOption,
-    measurementOption,
-    consumedByOtherDrafts,
-    // draft?.isExtension,
-  ]);
+  }, [measurements, standortOption, measurementOption, consumedByOtherDrafts]);
 
   // --- Geometry edit ("change an existing feature's shape to a measurement").
-  // Point-only. The feature's own geom row id + geometry are pulled from the
-  // fetched DB record; the selector offers "Momentane Geometrie" (the current
-  // shape) plus the visible point measurements. Enabled for every point feature
-  // except Leitungen (lines). Leuchten are deliberately excluded: a Leuchte has
-  // no own geometry — it is positioned at its parent Standort's point — so it is
-  // moved only via that Standort (which carries the whole mast group with it).
+  // The feature's own geom row id + geometry are pulled from the fetched DB
+  // record; the selector offers "Momentane Geometrie" (the current shape) plus
+  // the visible measurements of the matching geometry type — Point measurements
+  // for the point features, LineString measurements for Leitungen. Leuchten are
+  // deliberately excluded: a Leuchte has no own geometry — it is positioned at
+  // its parent Standort's point — so it is moved only via that Standort (which
+  // carries the whole mast group with it).
   const GEOMETRY_EDIT_FORM_KEYS = new Set([
     "mauerlasche",
     "schaltstelle",
     "abzweigdose",
     "standort",
+    "leitung",
   ]);
   const isGeometryEditFeature =
     !isCreation && !!formKey && GEOMETRY_EDIT_FORM_KEYS.has(formKey);
+
+  // Leitungen are LineString features; every other geometry-edit feature is a
+  // Point. This drives which measurement geometries the selector offers and
+  // which "Momentane Geometrie" shape is built.
+  const editGeometryType: "Point" | "LineString" =
+    formKey === "leitung" ? "LineString" : "Point";
 
   const editFeatureRecord = useMemo(() => {
     if (!isGeometryEditFeature || !formKey || !data) return undefined;
@@ -384,12 +378,13 @@ const FeaturesFormsWrapper = ({
     return buildCurrentGeometryOption(geom?.geo_field, dbId);
   }, [isGeometryEditFeature, editFeatureRecord]);
 
-  // Selector options: current shape first, then visible Point measurements
-  // (lines are deliberately excluded in v1).
+  // Selector options: current shape first, then visible measurements of the
+  // feature's own geometry type (Point for the point features, LineString for
+  // Leitungen — a point can't reshape a line and vice versa).
   const editGeometryOptions = useMemo<MeasurementGeometryOption[]>(() => {
     if (!isGeometryEditFeature) return [];
     const measurementOpts = buildMeasurementGeometryOptions(measurements)
-      .filter((o) => o.geometry.type === "Point")
+      .filter((o) => o.geometry.type === editGeometryType)
       .filter((o) => !consumedByOtherDrafts.has(o.key));
     const opts: MeasurementGeometryOption[] = [];
     if (currentGeometryOption) opts.push(currentGeometryOption);
@@ -402,6 +397,7 @@ const FeaturesFormsWrapper = ({
     return opts;
   }, [
     isGeometryEditFeature,
+    editGeometryType,
     measurements,
     consumedByOtherDrafts,
     currentGeometryOption,
@@ -654,20 +650,6 @@ const FeaturesFormsWrapper = ({
     selectFeature,
   ]);
 
-  // Extension drafts ("Leitung verlängern") carry the source Leitung's id on
-  // the synthetic feature so sidebar/sticky header/InfoBox render "L-13564"
-  // instead of the "???" placeholder. Re-apply on every rebuild — form-change
-  // values come from getFieldsValue() and wouldn't carry it otherwise.
-  // const withExtensionId = (
-  //   props: Record<string, unknown>
-  // ): Record<string, unknown> =>
-  //   draft?.isExtension && draft.extendingLeitungId != null
-  //     ? { ...props, _originalId: draft.extendingLeitungId }
-  //     : props;
-  const withExtensionId = (
-    props: Record<string, unknown>
-  ): Record<string, unknown> => props;
-
   const handleDraftChange = useCallback(
     (values: Record<string, unknown>) => {
       if (!featureId || !formKey) return;
@@ -688,7 +670,7 @@ const FeaturesFormsWrapper = ({
         const newFeature = buildSyntheticFeature(
           formKey,
           featureId,
-          withExtensionId(enrichedValues),
+          enrichedValues,
           draft?.geometry
         );
         dispatch(
@@ -748,43 +730,10 @@ const FeaturesFormsWrapper = ({
       const previousGeometryKey = draft?.geometryKey;
       // Clear case: user hit the "x" in the allowClear select.
       if (!newKey) {
-        // Extension drafts always have something to show — fall back to the
-        // original Leitung line so the brandnew layer keeps rendering, and
-        // dispatch via setDraft (clearDraftGeometry would also wipe the
-        // geometry, which we don't want here).
-        // if (draft?.isExtension && draft.originalGeometryEpsg25832) {
-        //   const newFeature = buildSyntheticFeature(
-        //     formKey,
-        //     featureId,
-        //     withExtensionId(enrichedValues),
-        //     draft.originalGeometryEpsg25832
-        //   );
-        //   dispatch(
-        //     setDraft({
-        //       featureId,
-        //       featureType: formKey,
-        //       values: currentValues,
-        //       feature: newFeature,
-        //       fetchedData: buildSyntheticFetchedData(
-        //         formKey,
-        //         deserializeValues(currentValues)
-        //       ),
-        //       isCreation: true,
-        //       geometry: draft.originalGeometryEpsg25832,
-        //       geometryKey: undefined,
-        //       measurementLabel: undefined,
-        //     })
-        //   );
-        //   restoreAttachedMeasurement(previousGeometryKey);
-        //   if (selectedFeatureId) {
-        //     selectFeature(selectedFeatureId, newFeature as never);
-        //   }
-        //   return;
-        // }
         const newFeature = buildSyntheticFeature(
           formKey,
           featureId,
-          withExtensionId(enrichedValues),
+          enrichedValues,
           undefined
         );
         dispatch(
@@ -807,24 +756,12 @@ const FeaturesFormsWrapper = ({
       }
       const opt = geometryOptions.find((o) => o.key === newKey);
       if (!opt) return;
-      // Extension flow: the dispatched geometry is the original line + picked
-      // line, auto-joined at the closest endpoints. The picked option stays
-      // as the geometryKey so the dropdown still shows the user's choice.
-      // const geom =
-      //   draft?.isExtension &&
-      //   draft.originalGeometryEpsg25832?.type === "LineString" &&
-      //   opt.geometry.type === "LineString"
-      //     ? mergeLineStringsClosestEndpoints(
-      //         draft.originalGeometryEpsg25832,
-      //         opt.geometry
-      //       )
-      //     : opt.geometry;
       const geom = opt.geometry;
       const isMeasurement = newKey.startsWith("measurement.");
       const newFeature = buildSyntheticFeature(
         formKey,
         featureId,
-        withExtensionId(enrichedValues),
+        enrichedValues,
         geom
       );
       // Switching to a different geometry — restore the previous
@@ -1165,9 +1102,6 @@ const FeaturesFormsWrapper = ({
                     }
                   >
                     <span className="text-sm font-medium text-gray-700">
-                      {/* draft?.isExtension && draft.extendingLeitungId != null
-                        ? `Leitung L-${draft.extendingLeitungId} verlängern`
-                        : "Geometrie" */}
                       Geometrie
                     </span>
                     <Select
