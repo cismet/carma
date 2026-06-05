@@ -3,6 +3,7 @@ import type { Dispatch, Store } from "@reduxjs/toolkit";
 import type { LatLng, Map as LeafletMap, Point } from "leaflet";
 import type maplibregl from "maplibre-gl";
 import proj4 from "proj4";
+import envelope from "@turf/envelope";
 
 import { functionToFeature, objectToFeature } from "@carma-mapping/utils";
 import type { Layer } from "@carma-mapping/layers";
@@ -300,6 +301,35 @@ export const getCoordinates = (geometry) => {
       return geometry.coordinates[1];
     default:
       return geometry.coordinates;
+  }
+};
+
+export const zoomToFeatureMaplibre = (
+  map: maplibregl.Map,
+  feature: { geometry?: any; properties?: { zoom?: number } }
+) => {
+  if (!feature?.geometry) {
+    return;
+  }
+  const { geometry } = feature;
+  if (geometry.type === "Point") {
+    const coordinates = getCoordinates(geometry);
+    map.flyTo({
+      center: [coordinates[0], coordinates[1]],
+      zoom: feature.properties?.zoom ? feature.properties.zoom - 1 : 19,
+      animate: false,
+    });
+  } else {
+    const bbox = envelope(geometry).bbox;
+    map.fitBounds(
+      [
+        [bbox[0], bbox[1]],
+        [bbox[2], bbox[3]],
+      ],
+      {
+        padding: 60,
+      }
+    );
   }
 };
 
@@ -667,12 +697,7 @@ export const onSelectionChangedVector = async (
     );
 
     for (const vector of uniqueHits) {
-      const feature = await createVectorFeature(
-        layer,
-        vector,
-        map,
-        e.latlng
-      );
+      const feature = await createVectorFeature(layer, vector, map, e.latlng);
       if (feature) {
         dispatch(addVectorInfo(feature));
         dispatch(removeNothingFoundID(layer.id));

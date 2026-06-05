@@ -22,6 +22,7 @@ import {
   createVectorFeature,
   onClickTopicMap,
   onSelectionChangedVector,
+  zoomToFeatureMaplibre,
 } from "../../components/GeoportalMap/topicmap.utils";
 import { addFeatureInfoCrosshair } from "../../components/feature-info/featureInfoMarker";
 
@@ -82,13 +83,10 @@ export const useLibreMapSelectionHandler = (
   useEffect(() => {
     const feature = selectedFeature as {
       sourceFeature?: maplibregl.MapGeoJSONFeature;
-      geometry?: unknown;
     } | null;
     const sourceFeature = feature?.sourceFeature;
     if (!sourceFeature?.source) {
-      if (!feature?.geometry) {
-        clearMapSelection();
-      }
+      clearMapSelection();
       return;
     }
     selectMapFeature(
@@ -209,6 +207,16 @@ export const useLibreMapSelectionHandler = (
           dispatch(setSelectedFeature(null));
           return;
         }
+
+        const currentSelected = getSelectedFeature(store.getState()) as {
+          id?: string | number;
+          vectorId?: string | number;
+        } | null;
+        const isReclick =
+          selectedVectorFeature.id != null &&
+          currentSelected?.id === layer.id &&
+          currentSelected?.vectorId === selectedVectorFeature.id;
+
         const feature = await createVectorFeature(
           layer,
           selectedVectorFeature,
@@ -217,6 +225,9 @@ export const useLibreMapSelectionHandler = (
         );
         if (feature) {
           dispatch(setSelectedFeature(feature));
+          if (isReclick && map) {
+            zoomToFeatureMaplibre(map, feature);
+          }
         } else {
           dispatch(setSelectedFeature(null));
         }
