@@ -14,7 +14,10 @@ import {
   type AnnotationInfoBoxHelpItem,
 } from "@carma-mapping/annotations/ui";
 import { ANNOTATION_TYPES } from "@carma-mapping/annotations/core";
-import { geographicCoordinateFromCartesian3 } from "@carma-mapping/engines/cesium/core";
+import {
+  cartesian3FromGeographicCoordinate,
+  geographicCoordinateFromCartesian3,
+} from "@carma-mapping/engines/cesium/core";
 
 import { createAreaPlanarTrapezoidToolPlugin } from "./area-planar-tool-plugin";
 import { getAreaPlanarTrapezoidSecondPointHorizontalPlaneDistanceMeters } from "./area-planar-trapezoid";
@@ -87,6 +90,7 @@ const createRightAngleLimiterTestCoordinates = () => {
     baseStart: coordinateAtOffset(0, 0),
     baseEnd: coordinateAtOffset(10, 0),
     nearRightAngleThirdPoint: coordinateAtOffset(10.5, 10),
+    freeFourthPoint: coordinateAtOffset(0.5, 10.2),
   };
 };
 
@@ -195,6 +199,54 @@ describe("area planar tool plugin", () => {
       {
         kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.TEXT,
         text: "Zweiten Punkt auf derselben horizontalen Dachkante anklicken.",
+      },
+      {
+        kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ACTION,
+        inputAlternatives: [[ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.BACKSPACE]],
+        description: "Löscht den letzten Punkt.",
+      },
+      {
+        kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ACTION,
+        inputAlternatives: [[ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.ESCAPE]],
+        description: "Beendet das Werkzeug.",
+      },
+    ]);
+
+    expect(
+      resolveHelpRows([geographicCoordinate(7, 51)], {
+        coordinate: geographicCoordinate(7.0001, 51, 101),
+        pointECEF: null,
+        screenPosition: null,
+        surfaceNormalECEF: null,
+        inputModifier: ANNOTATION_POINT_QUERY_INPUT_MODIFIERS.SHIFT,
+      })
+    ).toEqual([
+      {
+        kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ALERT,
+        severity: ANNOTATION_INFO_BOX_HELP_ALERT_SEVERITIES.INFO,
+        text: "Umschalttaste+Klick projiziert den aktuellen Punkt auf die horizontale Hilfsscheibe.",
+        actions: [
+          {
+            kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ACTION,
+            inputAlternatives: [
+              [
+                ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.SHIFT,
+                ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.CLICK,
+              ],
+            ],
+            description:
+              "Umschalttaste+Klick setzt den auf die Hilfsscheibe projizierten Punkt.",
+          },
+        ],
+      },
+      {
+        kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.TEXT,
+        text: "Zweiten Punkt auf derselben horizontalen Dachkante anklicken.",
+      },
+      {
+        kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ACTION,
+        inputAlternatives: [[ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.CLICK]],
+        description: "Setzt die Basiskante auf der horizontalen Hilfsscheibe.",
       },
       {
         kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ACTION,
@@ -367,6 +419,94 @@ describe("area planar tool plugin", () => {
     expect(addAnnotation.mock.calls[0]?.[0]).toBe(ANNOTATION_TYPES.AREA_PLANAR);
     expect(addAnnotation.mock.calls[0]?.[1]).toHaveLength(4);
     expect(drafts.get(plugin.id).coordinates).toHaveLength(0);
+  });
+
+  it("keeps shift-accepted right-angle samples as regular finalized geometry points", () => {
+    const plugin = createAreaPlanarTrapezoidToolPlugin();
+    const drafts = createDraftStore();
+    const addAnnotation = vi.fn((annotationType, coordinates) => ({
+      id: "annotation-1",
+      toolType: annotationType,
+      coordinates,
+    }));
+    const session = plugin.session?.createSession({
+      addAnnotation,
+      dispatch: vi.fn(),
+      drafts,
+      getState: vi.fn(),
+      setActiveToolType: vi.fn(),
+    } as never);
+    const { baseStart, baseEnd, nearRightAngleThirdPoint } =
+      createRightAngleLimiterTestCoordinates();
+
+    session?.onNodeCreated?.(baseStart);
+    session?.onNodeCreated?.(baseEnd);
+    session?.onNodeCreated?.(nearRightAngleThirdPoint, null, {
+      inputModifier: ANNOTATION_POINT_QUERY_INPUT_MODIFIERS.SHIFT,
+    });
+
+    expect(session?.requestFinish()).toBe(true);
+    const committedCoordinates = addAnnotation.mock.calls[0]?.[1] as
+      | readonly CesiumGeographicCoordinate[]
+      | undefined;
+    expect(committedCoordinates).toBeDefined();
+    expect(
+      committedCoordinates?.some(
+        (coordinate) =>
+          Cartesian3.distance(
+            cartesian3FromGeographicCoordinate(coordinate),
+            cartesian3FromGeographicCoordinate(nearRightAngleThirdPoint)
+          ) < 1e-4
+      )
+    ).toBe(true);
+  });
+
+  it("submits accepted four-node trapezoid draft geometry without re-snapping nodes", () => {
+    const plugin = createAreaPlanarTrapezoidToolPlugin();
+    const drafts = createDraftStore();
+    const addAnnotation = vi.fn((annotationType, coordinates) => ({
+      id: "annotation-1",
+      toolType: annotationType,
+      coordinates,
+    }));
+    const session = plugin.session?.createSession({
+      addAnnotation,
+      dispatch: vi.fn(),
+      drafts,
+      getState: vi.fn(),
+      setActiveToolType: vi.fn(),
+    } as never);
+    const { baseStart, baseEnd, nearRightAngleThirdPoint, freeFourthPoint } =
+      createRightAngleLimiterTestCoordinates();
+    const acceptedCoordinates = [
+      baseStart,
+      baseEnd,
+      nearRightAngleThirdPoint,
+      freeFourthPoint,
+    ];
+    drafts.set(plugin.id, {
+      coordinates: acceptedCoordinates,
+      linkedNodeGroupIds: acceptedCoordinates.map(() => null),
+      feedback: null,
+    });
+
+    expect(session?.requestFinish()).toBe(true);
+    const committedCoordinates = addAnnotation.mock.calls[0]?.[1] as
+      | readonly CesiumGeographicCoordinate[]
+      | undefined;
+    expect(committedCoordinates).toBeDefined();
+    expect(committedCoordinates).toHaveLength(4);
+    for (const acceptedCoordinate of acceptedCoordinates) {
+      expect(
+        committedCoordinates?.some(
+          (coordinate) =>
+            Cartesian3.distance(
+              cartesian3FromGeographicCoordinate(coordinate),
+              cartesian3FromGeographicCoordinate(acceptedCoordinate)
+            ) < 1e-4
+        )
+      ).toBe(true);
+    }
   });
 
   it("finishes trapezoid measurements after the fourth click", () => {

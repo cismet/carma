@@ -84,6 +84,7 @@ export type PolygonAuthoringMeasurementCoordinatesResolver = (args: {
   coordinates: readonly CesiumGeographicCoordinate[];
   previousCoordinates?: readonly CesiumGeographicCoordinate[];
   preferredFacingPositionECEF?: Cartesian3 | null;
+  inputModifier?: PointQueryPickResult["inputModifier"];
 }) => readonly CesiumGeographicCoordinate[] | null;
 
 export type PolygonAuthoringPointQueryVisualStyleResolver = (args: {
@@ -375,16 +376,22 @@ export const createPolygonAuthoringController = ({
       ? [...draftCoordinates, hoverCoordinate]
       : [...draftCoordinates];
     const resolveCoordinates = (
-      coordinates: readonly CesiumGeographicCoordinate[]
+      coordinates: readonly CesiumGeographicCoordinate[],
+      options: { inputModifier?: PointQueryPickResult["inputModifier"] } = {}
     ) =>
       resolveMeasurementCoordinates
         ? resolveMeasurementCoordinates({
             coordinates,
             previousCoordinates: draftCoordinates,
             preferredFacingPositionECEF: scene.camera.positionWC,
+            ...(options.inputModifier
+              ? { inputModifier: options.inputModifier }
+              : {}),
           })
         : coordinates;
-    const resolvedSampleCoordinates = resolveCoordinates(sampleCoordinates);
+    const resolvedSampleCoordinates = resolveCoordinates(sampleCoordinates, {
+      inputModifier: pointQueryPickResult?.inputModifier,
+    });
     const resolvedDraftCoordinates =
       resolveMeasurementCoordinates && hoverCoordinate
         ? resolveCoordinates(draftCoordinates)

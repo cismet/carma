@@ -439,4 +439,53 @@ describe("area planar trapezoid construction", () => {
       resolveBaseRatio(positions![0]!, positions![1]!, positions![3]!)
     ).toBeCloseTo(0, 6);
   });
+
+  it("keeps accepted previous points unchanged while resolving the next point", () => {
+    const anchor = Cartesian3.fromDegrees(7, 51, 100);
+    const localUp = Cartesian3.normalize(anchor, new Cartesian3());
+    const localEast = Cartesian3.normalize(
+      Cartesian3.cross(Cartesian3.UNIT_Z, localUp, new Cartesian3()),
+      new Cartesian3()
+    );
+    const localNorth = Cartesian3.normalize(
+      Cartesian3.cross(localUp, localEast, new Cartesian3()),
+      new Cartesian3()
+    );
+    const offsetLocal = (east: number, north: number, up: number) =>
+      Cartesian3.add(
+        anchor,
+        Cartesian3.add(
+          Cartesian3.add(
+            Cartesian3.multiplyByScalar(localEast, east, new Cartesian3()),
+            Cartesian3.multiplyByScalar(localNorth, north, new Cartesian3()),
+            new Cartesian3()
+          ),
+          Cartesian3.multiplyByScalar(localUp, up, new Cartesian3()),
+          new Cartesian3()
+        ),
+        new Cartesian3()
+      );
+    const previousCoordinates = [
+      offsetLocal(0, 0, 0),
+      offsetLocal(10, 0, 0),
+      offsetLocal(10.5, 8, 0),
+    ].map(geographicCoordinateFromCartesian3);
+    const rawFourth = geographicCoordinateFromCartesian3(
+      offsetLocal(0.8, 8.5, 0)
+    );
+
+    const nextCoordinates = resolveNextAreaPlanarTrapezoidDraftCoordinates({
+      coordinate: rawFourth,
+      previousCoordinates,
+      thirdPointRightAngleToleranceDeg: 6.5,
+    });
+
+    expect(nextCoordinates).toHaveLength(4);
+    expect(
+      Cartesian3.distance(
+        cartesian3FromGeographicCoordinate(nextCoordinates![2]!),
+        cartesian3FromGeographicCoordinate(previousCoordinates[2]!)
+      )
+    ).toBeLessThan(1e-6);
+  });
 });

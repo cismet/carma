@@ -63,7 +63,6 @@ import {
   canPlaceAreaPlanarTrapezoidSecondPointOnHorizontalPlane,
   canPlaceAreaPlanarTrapezoidSecondPointWithinHorizontalLineMaxLength,
   doesAreaPlanarTrapezoidSampleRequireLimiterOverride,
-  resolveAreaPlanarTrapezoidDraftCoordinates,
   resolveAreaPlanarTrapezoidHorizontalLineMaxLengthMeters,
   resolveAreaPlanarTrapezoidHorizontalPlaneToleranceMeters,
   resolveAreaPlanarTrapezoidThirdPointRightAngleToleranceDeg,
@@ -75,6 +74,9 @@ const { AREA_PLANAR: ANNOTATION_TYPE_AREA_PLANAR } = ANNOTATION_TYPES;
 
 const toolType = ANNOTATION_TYPE_AREA_PLANAR;
 const labelTheme = ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME;
+
+const isShiftInputModifier = (inputModifier: unknown) =>
+  inputModifier === ANNOTATION_POINT_QUERY_INPUT_MODIFIERS.SHIFT;
 
 const AREA_PLANAR_OCCLUSION_STYLE_DEFAULTS = resolveAreaOcclusionStyleOptions({
   fill: {
@@ -501,8 +503,11 @@ const createAreaPlanarTrapezoidHelpTextResolver =
     pointQueryPickResult,
   }: AnnotationToolHelpTextContext): readonly AnnotationInfoBoxHelpItem[] => {
     const coordinate = pointQueryPickResult?.coordinate ?? null;
+    const limitersSuspended = isShiftInputModifier(
+      pointQueryPickResult?.inputModifier
+    );
     const clickDisabledReason =
-      coordinate !== null
+      coordinate !== null && !limitersSuspended
         ? resolveAreaPlanarTrapezoidCurrentPointRejectionReason({
             coordinate,
             previousCoordinates: draftState.coordinates,
@@ -512,6 +517,7 @@ const createAreaPlanarTrapezoidHelpTextResolver =
         : null;
     const sampleRequiresLimiterOverride =
       coordinate !== null &&
+      !limitersSuspended &&
       doesAreaPlanarTrapezoidSampleRequireLimiterOverride({
         coordinate,
         previousCoordinates: draftState.coordinates,
@@ -525,6 +531,7 @@ const createAreaPlanarTrapezoidHelpTextResolver =
         draftState.coordinates.length
       );
     const showLimiterOverrideAction =
+      limitersSuspended ||
       clickDisabledReason !== null ||
       sampleRequiresLimiterOverride;
 
@@ -576,35 +583,11 @@ const createAreaPlanarToolVariantPlugin = ({
     resolveAreaPlanarTrapezoidThirdPointRightAngleToleranceDeg(
       trapezoidThirdPointRightAngleToleranceDeg
     );
-  const resolveDraftInputCoordinates = (
-    coordinates: readonly CesiumGeographicCoordinate[],
-    options: {
-      applyRightAngleLimiter?: boolean;
-      limitersSuspended?: boolean;
-    } = {}
-  ) =>
-    isTrapezoidInputMode
-      ? resolveAreaPlanarTrapezoidDraftCoordinates(coordinates, {
-          thirdPointRightAngleToleranceDeg:
-            resolvedTrapezoidThirdPointRightAngleToleranceDeg,
-          applyRightAngleLimiter: options.applyRightAngleLimiter,
-          limitersSuspended: options.limitersSuspended,
-        })
-      : coordinates;
   const resolveMeasurementInputCoordinates = (
-    coordinates: readonly CesiumGeographicCoordinate[],
-    options: {
-      applyRightAngleLimiter?: boolean;
-      limitersSuspended?: boolean;
-    } = {}
+    coordinates: readonly CesiumGeographicCoordinate[]
   ) =>
     isTrapezoidInputMode
-      ? resolveAreaPlanarTrapezoidMeasurementCoordinates(coordinates, {
-          thirdPointRightAngleToleranceDeg:
-            resolvedTrapezoidThirdPointRightAngleToleranceDeg,
-          applyRightAngleLimiter: options.applyRightAngleLimiter,
-          limitersSuspended: options.limitersSuspended,
-        })
+      ? resolveAreaPlanarTrapezoidMeasurementCoordinates(coordinates)
       : coordinates;
   const getAreaPlanarToolInfoBoxSlots = createNodeChainAreaToolInfoBoxSlots(
     toolType,
@@ -688,8 +671,7 @@ const createAreaPlanarToolVariantPlugin = ({
             const currentDraft = drafts.get(toolId);
             const limitersSuspended =
               isTrapezoidInputMode &&
-              options?.inputModifier ===
-                ANNOTATION_POINT_QUERY_INPUT_MODIFIERS.SHIFT;
+              isShiftInputModifier(options?.inputModifier);
             const isFourthTrapezoidPoint =
               isTrapezoidInputMode && currentDraft.coordinates.length === 3;
             const horizontalLineMaxLengthMeters = limitersSuspended
@@ -756,9 +738,7 @@ const createAreaPlanarToolVariantPlugin = ({
               return;
             }
             const nextMeasurementInputCoordinates =
-              resolveMeasurementInputCoordinates(nextCoordinates, {
-                limitersSuspended,
-              });
+              resolveMeasurementInputCoordinates(nextCoordinates);
             const previousMeasurementInputCoordinates =
               resolveMeasurementInputCoordinates(currentDraft.coordinates);
             if (
@@ -808,11 +788,9 @@ const createAreaPlanarToolVariantPlugin = ({
         activeToolSession,
         inputModifier,
       }) => {
-        activeToolSession?.onNodeCreated?.(
-          coordinate,
-          linkedNodeGroupId,
-          { inputModifier }
-        );
+        activeToolSession?.onNodeCreated?.(coordinate, linkedNodeGroupId, {
+          inputModifier,
+        });
       },
     },
     addAnnotation: {
@@ -841,8 +819,12 @@ const createAreaPlanarToolVariantPlugin = ({
             currentPointQueryPickAcceptable,
           }) => {
             const coordinate = pickResult?.coordinate ?? null;
+            const limitersSuspended =
+              isTrapezoidInputMode &&
+              isShiftInputModifier(pickResult?.inputModifier);
             if (
               !isTrapezoidInputMode ||
+              limitersSuspended ||
               !coordinate ||
               !currentPointQueryPickAcceptable
             ) {
@@ -874,16 +856,21 @@ const createAreaPlanarToolVariantPlugin = ({
             coordinates,
             previousCoordinates,
             preferredFacingPositionECEF,
+            inputModifier,
           }) => {
+            const limitersSuspended =
+              isTrapezoidInputMode && isShiftInputModifier(inputModifier);
             if (
               isTrapezoidInputMode &&
+              !limitersSuspended &&
               coordinates.length === 2 &&
               previousCoordinates?.length === 1 &&
               !canPlaceAreaPlanarTrapezoidSecondPointWithinHorizontalLineMaxLength(
                 {
                   coordinate: coordinates[1]!,
                   previousCoordinates,
-                  maxLengthMeters: resolvedTrapezoidHorizontalLineMaxLengthMeters,
+                  maxLengthMeters:
+                    resolvedTrapezoidHorizontalLineMaxLengthMeters,
                 }
               )
             ) {
@@ -891,27 +878,36 @@ const createAreaPlanarToolVariantPlugin = ({
             }
             if (
               isTrapezoidInputMode &&
+              !limitersSuspended &&
               coordinates.length === 2 &&
               previousCoordinates?.length === 1 &&
               !canPlaceAreaPlanarTrapezoidSecondPointOnHorizontalPlane({
                 coordinate: coordinates[1]!,
                 previousCoordinates,
-                toleranceMeters: resolvedTrapezoidHorizontalPlaneToleranceMeters,
+                toleranceMeters:
+                  resolvedTrapezoidHorizontalPlaneToleranceMeters,
               })
             ) {
               return null;
             }
-            const applyRightAngleLimiter =
+            const nextTrapezoidCandidateCoordinates =
               isTrapezoidInputMode &&
-              shouldApplyAreaPlanarTrapezoidRightAngleLimiter(
-                previousCoordinates?.length ?? 0
-              );
+              previousCoordinates &&
+              coordinates.length === previousCoordinates.length + 1
+                ? resolveNextAreaPlanarTrapezoidDraftCoordinates({
+                    coordinate: coordinates[coordinates.length - 1]!,
+                    previousCoordinates,
+                    thirdPointRightAngleToleranceDeg:
+                      resolvedTrapezoidThirdPointRightAngleToleranceDeg,
+                    limitersSuspended,
+                  })
+                : coordinates;
+            if (!nextTrapezoidCandidateCoordinates) {
+              return null;
+            }
             const measurementInputCoordinates =
               resolveMeasurementInputCoordinates(
-                resolveDraftInputCoordinates(coordinates, {
-                  applyRightAngleLimiter,
-                }),
-                { applyRightAngleLimiter }
+                nextTrapezoidCandidateCoordinates
               );
             const previousMeasurementInputCoordinates = previousCoordinates
               ? resolveMeasurementInputCoordinates(previousCoordinates)

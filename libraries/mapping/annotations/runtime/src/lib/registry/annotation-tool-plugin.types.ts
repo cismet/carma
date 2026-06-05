@@ -119,6 +119,7 @@ export type PointQueryPickResult = {
   screenPosition: { x: number; y: number } | null;
   pointECEF: Cartesian3 | null;
   surfaceNormalECEF: Cartesian3 | null;
+  inputModifier?: AnnotationPointQueryInputModifier;
 };
 
 export type AnnotationPointQueryVisualStyle = Readonly<{

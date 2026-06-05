@@ -27,6 +27,7 @@ type UseSceneCoordinateHandlerOptions = {
     screenPosition: { x: number; y: number };
     pointECEF: Cartesian3 | null;
     surfaceNormalECEF: Cartesian3 | null;
+    inputModifier?: AnnotationPointQueryInputModifier;
   }) => void;
   onScreenPositionChange?: (
     screenPosition: { x: number; y: number } | null
@@ -79,7 +80,12 @@ export const useSceneCoordinateHandler = (
       );
     },
     onLineFinish,
-    onPointerMove: (positionECEF, screenPosition, surfaceNormalECEF) => {
+    onPointerMove: (
+      positionECEF,
+      screenPosition,
+      surfaceNormalECEF,
+      options
+    ) => {
       const runtimeCoordinate = positionECEF
         ? runtimeCoordinateFromCartesian(positionECEF)
         : null;
@@ -94,6 +100,9 @@ export const useSceneCoordinateHandler = (
         screenPosition: runtimeScreenPosition,
         pointECEF: positionECEF ?? null,
         surfaceNormalECEF: surfaceNormalECEF ?? null,
+        ...(options?.inputModifier
+          ? { inputModifier: options.inputModifier }
+          : {}),
       });
     },
     onScreenPositionChange,

@@ -229,8 +229,11 @@ export const RuntimeAuthoringHost = ({
     resetPointQuerySampleState
   );
   const requestFinishMeasurement = useCallback(() => {
-    resetPointQuerySampleState();
-    return requestRawFinishMeasurement();
+    const didFinish = requestRawFinishMeasurement();
+    if (didFinish) {
+      resetPointQuerySampleState();
+    }
+    return didFinish;
   }, [requestRawFinishMeasurement, resetPointQuerySampleState]);
 
   const {
@@ -408,11 +411,13 @@ export const RuntimeAuthoringHost = ({
       screenPosition,
       pointECEF,
       surfaceNormalECEF,
+      inputModifier,
     }: {
       coordinate: CesiumGeographicCoordinate;
       screenPosition: { x: number; y: number };
       pointECEF: PointQueryPickResult["pointECEF"];
       surfaceNormalECEF: PointQueryPickResult["surfaceNormalECEF"];
+      inputModifier?: AnnotationPointQueryInputModifier;
     }): PointQueryPickResult => {
       const hoveredPointQueryNode = resolveHoveredPointQueryNode();
       const resolvedHoverCoordinate =
@@ -450,6 +455,7 @@ export const RuntimeAuthoringHost = ({
             : screenPosition,
         pointECEF: resolvedHoverPointECEF ?? pointECEF,
         surfaceNormalECEF: resolvedHoverSurfaceNormalECEF,
+        ...(inputModifier ? { inputModifier } : {}),
       };
     },
     [resolveHoveredPointQueryNode, resolvePointQueryCoordinate, scene]
@@ -469,6 +475,7 @@ export const RuntimeAuthoringHost = ({
       screenPosition,
       pointECEF,
       surfaceNormalECEF,
+      inputModifier,
     }) => {
       if (!pointQueryEnabled || !pointECEF || !coordinate) {
         clearScheduledHoverReset();
@@ -487,6 +494,7 @@ export const RuntimeAuthoringHost = ({
         screenPosition,
         pointECEF,
         surfaceNormalECEF,
+        inputModifier,
       });
       setLatestPointQueryPickResult(nextPointQueryPickResult);
       const hoveredPointQueryNode = resolveHoveredPointQueryNode();
@@ -507,8 +515,8 @@ export const RuntimeAuthoringHost = ({
         pointQueryVisualStyle !== undefined
           ? pointQueryVisualStyle
           : isPointQueryPickResultAcceptable
-            ? null
-            : { color: RUNTIME_AUTHORING_REJECTED_SAMPLE_COLOR_CSS }
+          ? null
+          : { color: RUNTIME_AUTHORING_REJECTED_SAMPLE_COLOR_CSS }
       );
     },
   });
