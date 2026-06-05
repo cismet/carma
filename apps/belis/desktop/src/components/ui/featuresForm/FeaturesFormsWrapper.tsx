@@ -1102,7 +1102,7 @@ const FeaturesFormsWrapper = ({
                     }
                   >
                     <span className="text-sm font-medium text-gray-700">
-                      Geometrie
+                      Neue Geometrien
                     </span>
                     <Select
                       value={
