@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useWindowSize } from "@react-hook/window-size";
 import { useDispatch, useSelector } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
-import { storeJWT, storeLogin } from "../../store/slices/auth";
+import { storeJWT, storeLogin, storePermissions } from "../../store/slices/auth";
 import { resetKeyTablesFetched } from "../../store/slices/keyTables";
 import { DOMAIN, REST_SERVICE } from "../../constants/belis";
 
@@ -49,11 +49,15 @@ const Login = () => {
         if (response.status >= 200 && response.status < 300) {
           response.json().then(function (responseWithJWT) {
             const jwt = responseWithJWT.jwt;
+            // Server returns the user's groups as `userGroups`; we map it into
+            // app-side `permissions` (used to derive read-only mode).
+            const permissions = responseWithJWT.userGroups;
             setTimeout(() => {
               dispatch(resetKeyTablesFetched());
               navigate("/" + browserlocation.search);
               dispatch(storeJWT(jwt));
               dispatch(storeLogin(user));
+              dispatch(storePermissions(permissions));
             }, 500);
           });
         } else {

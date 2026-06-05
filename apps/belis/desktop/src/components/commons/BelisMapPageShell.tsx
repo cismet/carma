@@ -15,6 +15,7 @@ import {
   getGlobalEditMode,
   toggleGlobalEditMode,
 } from "../../store/slices/featuresForms";
+import { getIsReadOnly } from "../../store/slices/auth";
 import { getKeyTablesLoading } from "../../store/slices/keyTables";
 import {
   getSelectedTeamId,
@@ -54,6 +55,7 @@ const BelisMapPageShell = () => {
   const dispatch: AppDispatch = useDispatch();
   const keyTablesLoading = useSelector(getKeyTablesLoading);
   const globalEditMode = useSelector(getGlobalEditMode);
+  const isReadOnly = useSelector(getIsReadOnly);
 
   const selectedTeamId = useSelector(getSelectedTeamId);
   const draftMode = useSelector(getDraftMode);
@@ -169,7 +171,8 @@ const BelisMapPageShell = () => {
     clear: "both",
   };
 
-  const editModeButton = (
+  // Read-only ("Gast") users cannot enter edit mode, so the toggle is hidden.
+  const editModeButton = isReadOnly ? null : (
     <Tooltip title={globalEditMode ? "Bearbeitung sperren" : "Alle bearbeiten"}>
       <Button
         icon={globalEditMode ? <LockOutlined /> : <EditOutlined />}

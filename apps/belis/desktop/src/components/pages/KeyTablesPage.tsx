@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { fetchAllKeyTables, keyTableFetchers } from "../../helper/apiMethods";
 import { AppDispatch } from "../../store";
 import { useDispatch, useSelector } from "react-redux";
-import { getJWT } from "../../store/slices/auth";
+import { getJWT, getIsReadOnly } from "../../store/slices/auth";
 import { useSyncOptional } from "@carma-providers/syncing";
 import {
   setKeyTablesData,
@@ -32,6 +32,7 @@ interface SelectedItem {
 const KeyTablesPage = () => {
   const dispatch: AppDispatch = useDispatch();
   const storedJWT = useSelector(getJWT);
+  const isReadOnly = useSelector(getIsReadOnly);
   const data = useSelector(getKeyTablesData);
   const errors = useSelector(getKeyTablesErrors);
   const loading = useSelector(getKeyTablesLoading);
@@ -532,6 +533,7 @@ const KeyTablesPage = () => {
                 onItemSelect={handleItemClick}
                 onAddItem={handleAddItem}
                 onRemoveItem={handleRemoveItem}
+                readOnly={isReadOnly}
                 sortMode={keyTableDisplayConfig[selectedTable]?.sortMode}
                 isFirstColumnCollapsed={isFirstColumnCollapsed}
                 onExpandFirstColumn={() => setIsFirstColumnCollapsed(false)}
@@ -555,6 +557,7 @@ const KeyTablesPage = () => {
                 onSave={handleItemSaved}
                 onIdUpdated={handleIdUpdated}
                 readOnly={
+                  isReadOnly ||
                   keyTableDisplayConfig[selectedItem.tableName]?.readOnly
                 }
                 onFormHasChangesChange={setFormHasChanges}

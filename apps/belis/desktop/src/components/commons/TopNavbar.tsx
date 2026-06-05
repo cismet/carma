@@ -6,8 +6,8 @@ import {
   CaretDownFilled,
 } from "@ant-design/icons";
 import type { MenuProps } from "antd";
-import { storeJWT, storeLogin } from "../../store/slices/auth";
-import { getJWT } from "../../store/slices/auth";
+import { storeJWT, storeLogin, storePermissions } from "../../store/slices/auth";
+import { getJWT, getIsReadOnly } from "../../store/slices/auth";
 import { useDispatch, useSelector } from "react-redux";
 import { NavLink, useNavigate } from "react-router-dom";
 import SettingsUi from "../ui/SettingsUi";
@@ -40,6 +40,7 @@ const TopNavbar = () => {
   const highlightCount = activeHighlights?.length ?? 0;
 
   const jwt = useSelector(getJWT) as string | null;
+  const isReadOnly = useSelector(getIsReadOnly) as boolean;
   const selectedAAId = useSelector(getSelectedAAId) as number | null;
   const selectedAAData = useSelector(getSelectedAAData) as Record<
     string,
@@ -126,7 +127,7 @@ const TopNavbar = () => {
         >
           Fachobjekte
         </NavLink>
-        <CreateFeatureDropdown />
+        {!isReadOnly && <CreateFeatureDropdown />}
         <NavLink
           to="/arbeitsauftraege"
           className={({ isActive }) => `text-base hover:text-gray-600`}
@@ -136,7 +137,8 @@ const TopNavbar = () => {
         >
           Arbeitsaufträge
         </NavLink>
-        {hasHighlights &&
+        {!isReadOnly &&
+          hasHighlights &&
           (isOnAAPage && selectedAAId != null && selectedAAData != null ? (
             <Dropdown menu={{ items: dropdownItems }} trigger={["click"]}>
               <div className="flex items-center gap-0.5">
@@ -205,6 +207,7 @@ const TopNavbar = () => {
             onClick={() => {
               dispatch(storeJWT(null));
               dispatch(storeLogin(null));
+              dispatch(storePermissions(undefined));
               navigate("/login");
             }}
           />
