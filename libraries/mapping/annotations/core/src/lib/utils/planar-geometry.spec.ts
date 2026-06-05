@@ -14,12 +14,30 @@ const normalizedAbsDot = (left: Cartesian3, right: Cartesian3) => {
 };
 
 describe("planar geometry plane fitting", () => {
-  it("uses the largest non-collinear triangle to derive a plane", () => {
+  it("uses the largest consecutive non-collinear triangle to derive a plane", () => {
     const plane = createPlaneFromLargestTriangle([
       new Cartesian3(0, 0, 0),
       new Cartesian3(1, 0, 0),
       new Cartesian3(0, 1, 0),
       new Cartesian3(10, 0, 0),
+      new Cartesian3(0, 10, 10),
+    ]);
+
+    expect(plane).not.toBeNull();
+    expect(
+      normalizedAbsDot(
+        cartesian3FromMetricVector3(plane!.normalECEF),
+        new Cartesian3(0, -1, 1)
+      )
+    ).toBeGreaterThan(0.999);
+  });
+
+  it("keeps largest triangle selection linear by only comparing polygon-neighbor triples", () => {
+    const plane = createPlaneFromLargestTriangle([
+      new Cartesian3(0, 0, 0),
+      new Cartesian3(1, 0, 0),
+      new Cartesian3(2, 0, 0),
+      new Cartesian3(3, 0, 0),
       new Cartesian3(0, 10, 10),
     ]);
 

@@ -32,22 +32,6 @@ vi.mock("./ResponsiveInfoBox", () => ({
   ResponsiveInfoBox: responsiveInfoBoxMock,
 }));
 
-vi.mock("@carma-mapping/map-controls-layout", () => ({
-  Control: ({
-    children,
-    order,
-    position,
-  }: {
-    children: ReactNode;
-    order?: number;
-    position?: string;
-  }) => (
-    <div data-test-id="mock-control" data-order={order} data-position={position}>
-      {children}
-    </div>
-  ),
-}));
-
 vi.mock("react-cismap/commons/Icon", () => ({
   default: ({
     name,
@@ -194,31 +178,6 @@ describe("CismapAnnotationInfoBox", () => {
     );
     expect(instructionContainer?.getAttribute("class")).toContain("w-[90%]");
     expect(screen.getByText("Instruction content")).toBeTruthy();
-  });
-
-  it("keeps the legacy instruction shell when shrinkToContent is requested", () => {
-    render(
-      <CismapAnnotationInstructionInfoBox
-        content={<span>Instruction content</span>}
-        shrinkToContent
-      />
-    );
-
-    const responsiveInfoBoxProps = responsiveInfoBoxMock.mock.calls[0]?.[0];
-
-    expect(responsiveInfoBoxProps).toEqual(
-      expect.objectContaining({
-        pixelwidth: 350,
-      })
-    );
-    expect(responsiveInfoBoxProps).not.toHaveProperty("infoStyle");
-    expect(responsiveInfoBoxProps).not.toHaveProperty("collapsibleStyle");
-    const instructionContainer = document.querySelector(
-      '[data-test-id="empty-annotation-info"]'
-    );
-
-    expect(instructionContainer?.getAttribute("class")).toContain("w-[90%]");
-    expect(instructionContainer?.getAttribute("class")).toContain("p-2");
   });
 
   it("keeps the Cismap title input visually aligned with 2D measurement headings while hiding non-2D measurement actions", () => {

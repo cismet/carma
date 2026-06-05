@@ -95,7 +95,6 @@ const AnnotationInfoBox = ({
     return (
       <CismapAnnotationInstructionInfoBox
         content={infoBoxState.slots.content}
-        shrinkToContent={isCesium}
         controlOrder={CESIUM_ANNOTATION_CONFIG.infoBox.controlOrder}
         secondaryInfoBoxElements={secondaryInfoBoxElements}
       />

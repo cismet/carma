@@ -5,7 +5,6 @@ import type {
 
 import Icon from "react-cismap/commons/Icon";
 
-import { Control } from "@carma-mapping/map-controls-layout";
 import {
   ANNOTATION_INFO_BOX_ACTION_IDS,
   type AnnotationInfoBoxActionIconRenderProps,
@@ -124,27 +123,6 @@ const CismapAnnotationInstructionSlot = ({
   </div>
 );
 
-const renderSecondaryInfoBoxElements = (
-  secondaryInfoBoxElements: ReactNode[],
-  controlOrder: number
-) =>
-  secondaryInfoBoxElements.map((element, index) => (
-    <Control
-      position="bottomright"
-      order={controlOrder - 1 - index}
-      key={"secondaryElement_" + index}
-    >
-      <div
-        style={{
-          opacity: 0.9,
-          pointerEvents: "auto",
-        }}
-      >
-        {element}
-      </div>
-    </Control>
-  ));
-
 export const CismapAnnotationInfoBox = ({
   pixelWidth,
   slots,
@@ -221,7 +199,6 @@ export const CismapAnnotationInfoBox = ({
 export type CismapAnnotationInstructionInfoBoxProps = {
   content: ReactNode;
   pixelWidth?: number;
-  shrinkToContent?: boolean;
   controlOrder?: number;
   secondaryInfoBoxElements?: ReactNode[];
 };

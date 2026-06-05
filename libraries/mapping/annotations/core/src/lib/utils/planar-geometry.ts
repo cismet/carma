@@ -81,7 +81,17 @@ const getTriangleNormalMagnitudeSquared = (
   );
 };
 
-const findLargestTriangleVertices = (
+const getConsecutiveTriangleVertices = (
+  vertices: readonly Cartesian3[],
+  startIndex: number
+): TriangleVertexSet | null => {
+  const first = vertices[startIndex];
+  const second = vertices[(startIndex + 1) % vertices.length];
+  const third = vertices[(startIndex + 2) % vertices.length];
+  return first && second && third ? [first, second, third] : null;
+};
+
+const findLargestConsecutiveTriangleVertices = (
   vertices: readonly Cartesian3[]
 ): TriangleVertexSet | null => {
   if (vertices.length < 3) return null;
@@ -90,20 +100,18 @@ const findLargestTriangleVertices = (
   let bestMagnitudeSquared: number =
     planarGeometryDefaults.cartesianMagnitudeSquaredEpsilon;
 
-  for (let i = 0; i < vertices.length - 2; i += 1) {
-    for (let j = i + 1; j < vertices.length - 1; j += 1) {
-      for (let k = j + 1; k < vertices.length; k += 1) {
-        const a = vertices[i];
-        const b = vertices[j];
-        const c = vertices[k];
-        if (!a || !b || !c) continue;
+  for (let i = 0; i < vertices.length; i += 1) {
+    const triangle = getConsecutiveTriangleVertices(vertices, i);
+    if (!triangle) continue;
 
-        const magnitudeSquared = getTriangleNormalMagnitudeSquared(a, b, c);
-        if (magnitudeSquared > bestMagnitudeSquared) {
-          bestMagnitudeSquared = magnitudeSquared;
-          bestTriangle = [a, b, c];
-        }
-      }
+    const magnitudeSquared = getTriangleNormalMagnitudeSquared(
+      triangle[0],
+      triangle[1],
+      triangle[2]
+    );
+    if (magnitudeSquared > bestMagnitudeSquared) {
+      bestMagnitudeSquared = magnitudeSquared;
+      bestTriangle = triangle;
     }
   }
 
@@ -296,7 +304,7 @@ export const createPlaneFromLargestTriangle = (
   vertices: readonly Cartesian3[],
   preferredFacingPositionECEF?: Cartesian3 | null
 ): PlanarPolygonPlane | null => {
-  const triangle = findLargestTriangleVertices(vertices);
+  const triangle = findLargestConsecutiveTriangleVertices(vertices);
   return triangle
     ? createPlaneFromThreePoints(
         triangle[0],
@@ -347,7 +355,10 @@ export const createBestFitPlanePca = (
   vertices: readonly Cartesian3[],
   preferredFacingPositionECEF?: Cartesian3 | null
 ): PlanarPolygonPlane | null => {
-  if (vertices.length < 3 || !findLargestTriangleVertices(vertices)) {
+  if (
+    vertices.length < 3 ||
+    !findLargestConsecutiveTriangleVertices(vertices)
+  ) {
     return null;
   }
 
