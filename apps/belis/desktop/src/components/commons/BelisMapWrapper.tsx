@@ -883,7 +883,7 @@ const BelisMapLibWrapper = ({
   // and persisted hidden sets are empty. Hiding by id is a no-op for freshly
   // created features (their new ids aren't in the tiles).
   const SELF_POSITIONED_EDIT_LAYERS = useMemo(
-    () => new Set(["mauerlaschen", "schaltstelle", "abzweigdosen"]),
+    () => new Set(["mauerlaschen", "schaltstelle", "abzweigdosen", "leitungen"]),
     []
   );
   const brandnewHiddenOriginalIds = useMemo<HiddenOriginalIds>(() => {
@@ -1363,12 +1363,11 @@ const BelisMapLibWrapper = ({
       //   fallback: !selectedFeature,
       // });
 
-      // Creation drafts have synthetic fetchedData — skip API fetch.
-      // Extension drafts (`extend:leitung:…`) follow the same path: there is
+      // Creation drafts have synthetic fetchedData — skip API fetch. There is
       // no DB record to fetch by their synthetic key, and the draft already
-      // carries the fetchedData built by useExtendLeitungDraft. Without this,
-      // the override useEffect short-circuits on `!fetchedFeatureData` and the
-      // bottom-right InfoBox stays hidden while an extension draft is open.
+      // carries its synthetic fetchedData. Without this, the override useEffect
+      // short-circuits on `!fetchedFeatureData` and the bottom-right InfoBox
+      // stays hidden while a creation draft is open.
       const featureIdStr = String(featureId ?? "");
       if (isCreationDraftKey(featureIdStr)) {
         const creationDraft =
@@ -1666,16 +1665,6 @@ const BelisMapLibWrapper = ({
         let flatProps: Record<string, unknown>;
         if (rawFeature?.properties?._isCreation === true) {
           flatProps = { ...rawFeature.properties };
-          // Extension drafts ("Leitung verlängern") stash the source Leitung's
-          // id under _originalId. Feed it to the mapping as `id` so the
-          // InfoBox title reads as the source's id (e.g. "L-13564") rather
-          // than the opaque draft key or the "?" fallback.
-          // if (flatProps._originalId != null) {
-          //   flatProps.id = flatProps._originalId;
-          // } else {
-          //   delete flatProps.id;
-          // }
-          // delete flatProps._originalId;
           delete flatProps.id;
         } else {
           flatProps = flattenGqlRecord(record, sourceLayer);
@@ -1856,54 +1845,90 @@ const BelisMapLibWrapper = ({
     };
   }, [sidebarVariant, map, namespacedSource]);
 
-  // Filter leitungen layers by sub-type (Freileitung, Erdkabel, etc.)
-  useEffect(() => {
-    if (!map) return;
+  // Filter leitungen layers by sub-type (Freileitung, Erdkabel, etc.).
+  // Extracted as a callback so the main map AND the datasheet mini-map can both
+  // apply it — the mini map carries its own independent layer style instance.
+  const applyLeitungenFilter = useCallback(
+    (mapInstance: maplibregl.Map) => {
+      const leitungstypen = (keyTablesData.leitungstyp || []) as {
+        id: number;
+        bezeichnung?: string;
+      }[];
 
-    const leitungstypen = (keyTablesData.leitungstyp || []) as {
-      id: number;
-      bezeichnung?: string;
-    }[];
+      // Nothing to filter if key tables haven't loaded yet
+      if (leitungstypen.length === 0) return;
 
-    // Nothing to filter if key tables haven't loaded yet
-    if (leitungstypen.length === 0) return;
+      const allEnabled = leitungstypen.every(
+        (t) => enabledLeitungstypen[t.id] !== false
+      );
+      const noneExplicitlySet = Object.keys(enabledLeitungstypen).length === 0;
 
-    const allEnabled = leitungstypen.every(
-      (t) => enabledLeitungstypen[t.id] !== false
-    );
-    const noneExplicitlySet = Object.keys(enabledLeitungstypen).length === 0;
+      // Build the filter or clear it
+      let filter: maplibregl.FilterSpecification | null = null;
+      if (!allEnabled && !noneExplicitlySet) {
+        const allowedNames = leitungstypen
+          .filter((t) => enabledLeitungstypen[t.id] !== false)
+          .map((t) => t.bezeichnung)
+          .filter(Boolean);
+        filter = ["in", ["get", "bezeichnung"], ["literal", allowedNames]];
+      }
 
-    // Build the filter or clear it
-    let filter: maplibregl.FilterSpecification | null = null;
-    if (!allEnabled && !noneExplicitlySet) {
-      const allowedNames = leitungstypen
-        .filter((t) => enabledLeitungstypen[t.id] !== false)
-        .map((t) => t.bezeichnung)
-        .filter(Boolean);
-      filter = ["in", ["get", "bezeichnung"], ["literal", allowedNames]];
-    }
+      // A geometry-edited Leitung's original vector-tile copy must be hidden by
+      // id (its new shape renders via the brandnew preview/FC). This is the only
+      // place that filters the leitungen layers — applyHiddenIdsFilter skips
+      // them — so fold the id-exclusion in here, composed with the leitungstyp
+      // filter via `["all", …]` rather than clobbering it. Only on the regular
+      // vector tiles: the brandnew source holds the draft/preview and must stay
+      // visible.
+      const hiddenLeitungIds = hiddenOriginalIds.leitungen ?? [];
+      const idExclusion: maplibregl.FilterSpecification | null =
+        hiddenLeitungIds.length > 0
+          ? [
+              "!",
+              [
+                "any",
+                ["in", ["id"], ["literal", hiddenLeitungIds]],
+                ["in", ["get", "id"], ["literal", hiddenLeitungIds]],
+              ],
+            ]
+          : null;
+      const combine = (
+        a: maplibregl.FilterSpecification | null,
+        b: maplibregl.FilterSpecification | null
+      ): maplibregl.FilterSpecification | null =>
+        a && b ? (["all", a, b] as maplibregl.FilterSpecification) : a ?? b;
 
-    const sources = new Set([namespacedSource, brandnewSource]);
-    for (const layer of map.getStyle()?.layers ?? []) {
-      if (
-        "source" in layer &&
-        sources.has(layer.source as string) &&
-        layer.id.toLowerCase().includes("leitungen")
-      ) {
-        try {
-          map.setFilter(layer.id, filter);
-        } catch {
-          /* layer may not be ready */
+      const sources = new Set([namespacedSource, brandnewSource]);
+      for (const layer of mapInstance.getStyle()?.layers ?? []) {
+        if (
+          "source" in layer &&
+          sources.has(layer.source as string) &&
+          layer.id.toLowerCase().includes("leitungen")
+        ) {
+          const layerFilter =
+            layer.source === namespacedSource
+              ? combine(filter, idExclusion)
+              : filter;
+          try {
+            mapInstance.setFilter(layer.id, layerFilter);
+          } catch {
+            /* layer may not be ready */
+          }
         }
       }
-    }
-  }, [
-    map,
-    enabledLeitungstypen,
-    keyTablesData,
-    namespacedSource,
-    brandnewSource,
-  ]);
+    },
+    [
+      enabledLeitungstypen,
+      keyTablesData,
+      namespacedSource,
+      brandnewSource,
+      hiddenOriginalIds,
+    ]
+  );
+  useEffect(() => {
+    if (!map) return;
+    applyLeitungenFilter(map);
+  }, [map, applyLeitungenFilter]);
 
   // Hide specific original Fachobjekt features from the regular vector-tile
   // layers (NOT the brandnew source — drafts live there). Driven by
@@ -1928,6 +1953,12 @@ const BelisMapLibWrapper = ({
           "source-layer"
         ];
         if (!sourceLayer) continue;
+        // leitungen carry their own leitungstyp sub-type filter (set in the
+        // effect above). setFilter is last-writer-wins, so this generic hide-by-
+        // id pass would clobber it. The leitungstyp effect is the single owner
+        // of the leitungen layer filter and folds the hide-by-id exclusion in
+        // itself — skip leitungen here.
+        if (sourceLayer === "leitungen") continue;
         // standorte: hide the Standort row itself by feature id.
         // leuchten:  hide every Leuchte whose fk_standort points at one of
         //            the hidden Standorte (their icons are stacked on top
@@ -2763,6 +2794,15 @@ const BelisMapLibWrapper = ({
     if (!miniMap || !miniMapReady) return;
     applyHiddenIdsFilter(miniMap, hiddenIdsTouchedMiniRef.current);
   }, [miniMap, miniMapReady, applyHiddenIdsFilter]);
+
+  // Mini-map counterpart of the leitungstyp/leitungen-hide filter effect.
+  // applyHiddenIdsFilter skips the leitungen source-layer (the leitungstyp
+  // effect owns it), so without this the mini map would never hide a
+  // geometry-edited Leitung's original vector-tile copy.
+  useEffect(() => {
+    if (!miniMap || !miniMapReady) return;
+    applyLeitungenFilter(miniMap);
+  }, [miniMap, miniMapReady, applyLeitungenFilter]);
 
   // --- Mini-map: render AA convex hull polygons from client-side GeoJSON ---
   // AA convex-hull polygons are no longer shown on the mini map;

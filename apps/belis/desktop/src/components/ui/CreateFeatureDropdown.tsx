@@ -5,14 +5,10 @@ import { useSelector } from "react-redux";
 import type { CreateFeatureType } from "../../contexts/MapPageContext";
 import {
   useCreateFeatureDraft,
-  // useExtendLeitungDraft,
   extractStandortFeatureInfo,
 } from "./useCreateFeatureDraft";
 import { getSelectedFeature } from "../../store/slices/featureCollection";
-import {
-  // extractLeitungFeatureInfo,
-  formatStandortLabel,
-} from "../../helper/geometryOptions";
+import { formatStandortLabel } from "../../helper/geometryOptions";
 
 const SPRITE_URL = "https://tiles.cismet.de/belis/sprites.png";
 const SPRITE_SIZE = 66;
@@ -101,10 +97,8 @@ const createFeatureItems: {
 
 const CreateFeatureDropdown = () => {
   const handleItemClick = useCreateFeatureDraft();
-  // const handleExtendLeitung = useExtendLeitungDraft();
   const selectedFeature = useSelector(getSelectedFeature);
   const standortInfo = extractStandortFeatureInfo(selectedFeature);
-  // const leitungInfo = extractLeitungFeatureInfo(selectedFeature);
 
   const items: MenuProps["items"] = [];
 
@@ -127,24 +121,6 @@ const CreateFeatureDropdown = () => {
       onClick: () => handleItemClick("leuchte", { linkToSelectedStandort: true }),
     });
   }
-
-  // When a Leitung is selected, offer "Leitung <id> verlängern" — opens an
-  // extension draft that lets the user pick a LineString measurement to
-  // auto-connect to the existing line. Selection is exclusive, so this branch
-  // and the Standort one above never fire together.
-  // if (leitungInfo) {
-  //   items.push({
-  //     key: "leitung-verlaengern",
-  //     label: (
-  //       <span className="flex items-center gap-1.5">
-  //         <FeatureIcon type="leitung" />
-  //         {`Leitung L-${leitungInfo.id} verlängern`}
-  //       </span>
-  //     ),
-  //     style: { paddingLeft: 4 },
-  //     onClick: () => handleExtendLeitung(),
-  //   });
-  // }
 
   for (const item of createFeatureItems) {
     items.push({
