@@ -107,19 +107,19 @@ export const resolvePointQueryCoordinateCreationSample = ({
     latestPickResult,
     screenPosition,
   });
-  const shouldReuseLatestForcedSample =
+  const latestForcedSampleCoordinate =
     forceAccepted === true &&
     latestPickResult?.forceAccepted === true &&
     latestPickResult.coordinate !== null &&
     isNearbyPointQueryScreenPosition(
       screenPosition,
       latestPickResult.screenPosition
-    );
+    )
+      ? latestPickResult.coordinate
+      : null;
 
   return {
-    coordinate: shouldReuseLatestForcedSample
-      ? latestPickResult.coordinate
-      : coordinate,
+    coordinate: latestForcedSampleCoordinate ?? coordinate,
     forceAccepted,
   };
 };
