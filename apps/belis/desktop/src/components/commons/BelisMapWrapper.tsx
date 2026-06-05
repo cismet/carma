@@ -77,7 +77,7 @@ import {
   fetchArbeitsauftraegeByTeam,
   fetchArbeitsauftraegeByIds,
 } from "../../helper/apiMethods";
-import { getJWT } from "../../store/slices/auth";
+import { getJWT, getIsReadOnly } from "../../store/slices/auth";
 import { flattenGqlRecord } from "../../helper/flattenGqlRecord";
 import {
   setFeatures as setAAFeatures,
@@ -494,6 +494,7 @@ const BelisMapLibWrapper = ({
   const aaLoading = useSelector(getAALoading);
   const aaGraphqlLoading = useSelector(getGraphqlLoading);
   const globalEditMode = useSelector(getGlobalEditMode);
+  const isReadOnly = useSelector(getIsReadOnly);
 
   const selectedTeamId = useSelector(getSelectedTeamId);
   const aaFeatures = useSelector(getAAFeatures);
@@ -4041,14 +4042,18 @@ const BelisMapLibWrapper = ({
           measurements={measurementsForSidebar}
           selectedMeasurementId={selectedMeasurementId}
           onMeasurementSelect={(id) => dispatch(selectMeasurement(id))}
-          onMeasurementsDeleteAll={() => {
-            // terra-draw owns its internal store; clearing it fires
-            // onChange → replaceMeasurements([]) which also wipes redux
-            // (and through redux-persist, localForage). Drop any current
-            // selection alongside since the selected feature is gone.
-            measurementHostRef.current?.clearAll();
-            dispatch(selectMeasurement(null));
-          }}
+          onMeasurementsDeleteAll={
+            isReadOnly
+              ? undefined
+              : () => {
+                  // terra-draw owns its internal store; clearing it fires
+                  // onChange → replaceMeasurements([]) which also wipes redux
+                  // (and through redux-persist, localForage). Drop any current
+                  // selection alongside since the selected feature is gone.
+                  measurementHostRef.current?.clearAll();
+                  dispatch(selectMeasurement(null));
+                }
+          }
         />
       )}
       <div
@@ -4161,17 +4166,19 @@ const BelisMapLibWrapper = ({
                 // fachobjekt selection logic.
                 selectionEnabled={drawMode === "none"}
                 extraControls={
-                  <DrawModeControls
-                    active={drawMode}
-                    onSelect={(mode) =>
-                      setDrawMode((prev) => (prev === mode ? "none" : mode))
-                    }
-                    snapping={{
-                      enabled: snappingEnabled,
-                      onToggle: () =>
-                        dispatch(setSnappingEnabled(!snappingEnabled)),
-                    }}
-                  />
+                  isReadOnly ? undefined : (
+                    <DrawModeControls
+                      active={drawMode}
+                      onSelect={(mode) =>
+                        setDrawMode((prev) => (prev === mode ? "none" : mode))
+                      }
+                      snapping={{
+                        enabled: snappingEnabled,
+                        onToggle: () =>
+                          dispatch(setSnappingEnabled(!snappingEnabled)),
+                      }}
+                    />
+                  )
                 }
               />
               <MeasurementHost

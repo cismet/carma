@@ -27,6 +27,7 @@ interface KeyTableDataGroupsListProps {
   onItemSelect: (item: unknown, tableName: string) => void;
   onAddItem: () => void;
   onRemoveItem: () => void;
+  readOnly?: boolean;
   sortMode?: SortMode;
   isFirstColumnCollapsed?: boolean;
   onExpandFirstColumn?: () => void;
@@ -57,6 +58,7 @@ const KeyTableDataGroupsList = ({
   onItemSelect,
   onAddItem,
   onRemoveItem,
+  readOnly = false,
   sortMode = "none",
   isFirstColumnCollapsed = false,
   onExpandFirstColumn,
@@ -182,14 +184,18 @@ const KeyTableDataGroupsList = ({
       extra={
         <div className="flex items-center gap-2">
           <SearchInput value={searchText} onChange={setSearchText} />
-          <PlusOutlined
-            className="cursor-pointer hover:text-blue-500"
-            onClick={onAddItem}
-          />
-          <DeleteOutlined
-            className="cursor-pointer hover:text-red-500"
-            onClick={onRemoveItem}
-          />
+          {!readOnly && (
+            <>
+              <PlusOutlined
+                className="cursor-pointer hover:text-blue-500"
+                onClick={onAddItem}
+              />
+              <DeleteOutlined
+                className="cursor-pointer hover:text-red-500"
+                onClick={onRemoveItem}
+              />
+            </>
+          )}
         </div>
       }
     >
