@@ -11,6 +11,7 @@ const initialState = {
   zoom: -1,
   enabledLeitungstypen: {} as Record<number, boolean>,
   enabledCategoryFilters: {} as Record<string, boolean>,
+  snappingEnabled: false,
 };
 export const searchMinimumZoomThreshhold = 18;
 
@@ -68,6 +69,9 @@ const slice = createSlice({
     ) {
       state.enabledCategoryFilters = action.payload;
     },
+    setSnappingEnabled(state, action: { payload: boolean }) {
+      state.snappingEnabled = action.payload;
+    },
   },
 });
 
@@ -86,6 +90,7 @@ export const {
   setAllLeitungstypen,
   setCategoryFilterEnabled,
   setAllCategoryFilters,
+  setSnappingEnabled,
 } = slice.actions;
 
 export const getActiveBackgroundLayer = (state) => {
@@ -132,4 +137,8 @@ export const getEnabledLeitungstypen = (state) => {
 
 export const getEnabledCategoryFilters = (state) => {
   return state.mapSettings.enabledCategoryFilters;
+};
+
+export const isSnappingEnabled = (state) => {
+  return state.mapSettings.snappingEnabled;
 };

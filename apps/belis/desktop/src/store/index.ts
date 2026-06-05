@@ -71,6 +71,7 @@ const mapSettingsConfig = {
     "inSearchMode",
     "enabledLeitungstypen",
     "enabledCategoryFilters",
+    "snappingEnabled",
   ],
 };
 
