@@ -246,6 +246,7 @@ function App({
                 mapStyleConfig={geoportalMapStyleConfig}
                 store={store}
                 defaultRuntimeState={defaultCesiumState}
+                topicMapConfig={{ appKey: APP_KEY }}
               >
                 <ObliqueProvider
                   config={OBLIQUE_CONFIG}
