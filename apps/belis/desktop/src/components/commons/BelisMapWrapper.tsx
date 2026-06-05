@@ -4178,6 +4178,11 @@ const BelisMapLibWrapper = ({
                 ref={measurementHostRef}
                 mode={drawMode}
                 snapping={snappingEnabled}
+                // Tighten terra-draw's click-to-finish tolerance (native
+                // default 40px) so short segments drawn along a building edge
+                // near a snapped corner don't terminate the line prematurely
+                // (#691). Kept <= the snap radius (20px).
+                closePointerDistancePx={10}
                 initialFeatures={initialMeasurementFeatures}
                 onChange={(features) => {
                   // Prefix terra-draw's UUIDs to namespace measurement ids
