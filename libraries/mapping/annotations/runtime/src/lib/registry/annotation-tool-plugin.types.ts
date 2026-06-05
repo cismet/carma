@@ -1,6 +1,9 @@
 import type { ReactNode } from "react";
 import type { Cartesian3, Scene } from "@carma-cesium";
-import type { AnnotationInfoBoxSlots } from "@carma-mapping/annotations/ui";
+import type {
+  AnnotationInfoBoxHelpItem,
+  AnnotationInfoBoxSlots,
+} from "@carma-mapping/annotations/ui";
 import type { LabelOverlayContextType } from "@carma-providers/label-overlay";
 
 import type { RuntimeAnnotationInfoBoxContext } from "../components/annotation-info-box/annotation-info-box.types";
@@ -58,6 +61,10 @@ export type AnnotationToolDescriptor = {
 export type AnnotationToolDraftState = {
   coordinates: readonly CesiumGeographicCoordinate[];
   linkedNodeGroupIds: readonly (AnnotationNodeLinkId | null)[];
+  feedback?: {
+    kind: "warning";
+    message: string;
+  } | null;
 };
 
 export type AnnotationToolDraftStore = {
@@ -65,6 +72,11 @@ export type AnnotationToolDraftStore = {
   set: (toolId: AnnotationToolId, draft: AnnotationToolDraftState) => void;
   clear: (toolId: AnnotationToolId) => void;
   subscribe: (toolId: AnnotationToolId, listener: () => void) => () => void;
+};
+
+export type AnnotationToolHelpTextContext = {
+  draftState: AnnotationToolDraftState;
+  pointQueryPickResult?: PointQueryPickResult | null;
 };
 
 export type AnnotationToolSessionContext = {
@@ -94,6 +106,7 @@ export type AnnotationToolAddAnnotationContext = {
 export type PointQueryCreatedContext = {
   coordinate: CesiumGeographicCoordinate;
   linkedNodeGroupId: AnnotationNodeLinkId | null;
+  forceAccepted?: boolean;
   activeToolType: AnnotationToolId;
   activeToolSession: AnnotationModeSession | null;
   toolSessions: AnnotationModeSessionMap;
@@ -105,11 +118,19 @@ export type PointQueryPickResult = {
   screenPosition: { x: number; y: number } | null;
   pointECEF: Cartesian3 | null;
   surfaceNormalECEF: Cartesian3 | null;
+  forceAccepted?: boolean;
 };
+
+export type AnnotationPointQueryVisualStyle = Readonly<{
+  color?: string;
+  opacity?: number;
+}> | null;
 
 export type AnnotationToolAuthoringController = {
   setEnabled: (enabled: boolean) => void;
   setPointQueryPickResult: (pickResult: PointQueryPickResult | null) => void;
+  isPointQueryPickResultAcceptable?: () => boolean;
+  getPointQueryVisualStyle?: () => AnnotationPointQueryVisualStyle | undefined;
   destroy: () => void;
 };
 
@@ -160,7 +181,11 @@ export type AnnotationToolPlugin = {
   kind: AnnotationToolPluginKind;
   annotationType?: StoredAnnotation["toolType"] | null;
   descriptor: AnnotationToolDescriptor;
-  helpText?: readonly string[];
+  helpText?: readonly AnnotationInfoBoxHelpItem[];
+  resolveHelpText?: (
+    context: AnnotationToolHelpTextContext
+  ) => readonly AnnotationInfoBoxHelpItem[];
+  alwaysShowHelpTextWhileActive?: boolean;
   capabilities?: readonly AnnotationToolPluginCapability[];
   session?: {
     createSession: (

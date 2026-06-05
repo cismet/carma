@@ -34,6 +34,10 @@ export type {
 } from "./lib/config/annotation-measurement-label-themes";
 export { typographyDefaults } from "./lib/config/annotation-typography-defaults";
 export type { TypographyDefaults } from "./lib/config/annotation-typography-defaults";
+export {
+  RUNTIME_AUTHORING_REJECTED_SAMPLE_COLOR_CSS,
+  RUNTIME_AUTHORING_SAMPLE_GUIDE_COLOR_CSS,
+} from "./lib/config/runtime-authoring-colors";
 export type { AnnotationsRuntimeFormatOptions } from "./lib/config/annotations-runtime-format-options";
 export {
   AREA_OCCLUSION_STYLE_DEFAULTS,
@@ -101,6 +105,14 @@ export {
   type UseAnnotationLabelTextRequestOptions,
 } from "./lib/context/use-annotation-label-text-request";
 export {
+  ANNOTATION_DELETE_CONFIRMATION_SOURCES,
+  requestDefaultAnnotationDeleteConfirmation,
+  type AnnotationDeleteConfirmationContext,
+  type AnnotationDeleteConfirmationRequester,
+  type AnnotationDeleteConfirmationSource,
+  type AnnotationDeleteRequestOptions,
+} from "./lib/context/annotation-delete-confirmation";
+export {
   flyToAnnotationIds,
   flyToAnnotationPoints,
   resolveAnnotationIdsCartesianPoints,
@@ -132,7 +144,10 @@ export {
   placePointMarkers,
   resolvePreviewDistanceTriangleComponentLabelVisibility,
 } from "./lib/interaction/authoring-visual-runtime";
-export { createPolygonAuthoringController } from "./lib/interaction/create-polygon-authoring-controller";
+export {
+  createPolygonAuthoringController,
+  type PolygonAuthoringMeasurementCoordinatesResolver,
+} from "./lib/interaction/create-polygon-authoring-controller";
 export { createSegmentAuthoringController } from "./lib/interaction/create-segment-authoring-controller";
 export { createVerticalAreaAuthoringController } from "./lib/interaction/create-vertical-area-authoring-controller";
 export { applySecondaryLineLabelPlacementStrategy } from "./lib/render/secondary-line-label-placement";
@@ -192,6 +207,7 @@ export {
   type AnnotationToolDescriptor,
   type AnnotationToolDraftState,
   type AnnotationToolDraftStore,
+  type AnnotationToolHelpTextContext,
   type AnnotationToolKeyboardContext,
   type AnnotationToolPlugin,
   type AnnotationToolPluginCapability,
@@ -209,12 +225,14 @@ export {
 } from "./lib/render/distance-triangle-overlay";
 export {
   RUNTIME_POINT_LABEL_COORDINATE_SELECTION,
+  RUNTIME_POINT_LABEL_RENDER_STYLE,
   RUNTIME_POLYGON_FILL_PLACEMENT,
 } from "./lib/render/measurement-render-models";
 export type {
   RuntimeEdgeRenderModel,
   RuntimePointLabelCoordinateCandidate,
   RuntimePointLabelRenderModel,
+  RuntimePointLabelRenderStyle,
   RuntimePointMarkerRenderModel,
   RuntimePolygonFillPlacement,
   RuntimePolygonFillRenderModel,
@@ -236,6 +254,7 @@ export type {
 export { resolveBearingRadFromFirstToLastCoordinate } from "./lib/utils/resolve-bearing-rad-from-first-to-last-coordinate";
 export {
   areAnnotationEntriesHidden,
+  resolveAnnotationCancelToolId,
   resolveAnnotationCountByToolType,
   resolveAnnotationEntriesByToolType,
   resolveAnnotationIdsByToolType,

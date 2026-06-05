@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import {
   Cartesian2,
   Cartesian3,
+  KeyboardEventModifier,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
   type Scene,
@@ -18,6 +19,7 @@ import {
 } from "./scenePointerTracker";
 
 const POINT_CLICK_DELAY_MS = 220;
+const POINT_FORCE_LONG_PRESS_MS = 480;
 const DOUBLE_CLICK_POSITION_THRESHOLD_PX = 12;
 const HOVER_PICK_CONTINUITY_FRAME_COUNT = 2;
 const CAMERA_MOVING_HOVER_PICK_INTERVAL_MS = 75;
@@ -35,6 +37,7 @@ export type CesiumPointQueryClickStrategy =
 
 type RetainedHoverSample = {
   positionECEF: Cartesian3;
+  screenPosition: Cartesian2;
   surfaceNormalECEF: Cartesian3 | null;
   missedFrameCount: number;
 };
@@ -64,12 +67,14 @@ export type CesiumPointQueryCreatePayload = {
   screenPosition: Cartesian2;
   pickedPositionECEF: Cartesian3;
   globePositionECEF: Cartesian3 | null;
+  forceAccepted?: boolean;
 };
 
 export type CesiumPointQueryPointerMoveHandler = (
   positionECEF: Cartesian3 | null,
   screenPosition: Cartesian2,
-  surfaceNormalECEF?: Cartesian3 | null
+  surfaceNormalECEF?: Cartesian3 | null,
+  options?: { forceAccepted?: boolean }
 ) => void;
 
 export type CesiumPointQueryScreenPositionHandler = (
@@ -150,6 +155,9 @@ export const useCesiumPointQuery = (
       registerCesiumScenePointerTracker(scene);
     let pointerRenderQueued = false;
     let clickTimeoutId: number | undefined;
+    let forceLongPressTimeoutId: number | undefined;
+    let forceLongPressTriggered = false;
+    let shiftPressed = false;
     let previousClickPosition: Cartesian2 | null = null;
     let latestClickPosition: Cartesian2 | null = null;
     let lastProcessedPointerPosition: Cartesian2 | null = null;
@@ -168,6 +176,28 @@ export const useCesiumPointQuery = (
       forceHoverRefresh = true;
       pointerRenderQueued = true;
       scene.requestRender();
+    };
+
+    const notifyPointerMove = (
+      positionECEF: Cartesian3 | null,
+      screenPosition: Cartesian2,
+      surfaceNormalECEF: Cartesian3 | null
+    ) => {
+      if (shiftPressed) {
+        callbacksRef.current.onPointerMove?.(
+          positionECEF,
+          screenPosition,
+          surfaceNormalECEF,
+          { forceAccepted: true }
+        );
+        return;
+      }
+
+      callbacksRef.current.onPointerMove?.(
+        positionECEF,
+        screenPosition,
+        surfaceNormalECEF
+      );
     };
 
     const handleCameraMoveStart = () => {
@@ -210,11 +240,7 @@ export const useCesiumPointQuery = (
         lastHoverNormalSampleTimeMs = Number.NEGATIVE_INFINITY;
         lastHoverNormalSampleScreenPosition = null;
         callbacksRef.current.onScreenPositionChange?.(null);
-        callbacksRef.current.onPointerMove?.(
-          null,
-          CLEARED_POINTER_POSITION,
-          null
-        );
+        notifyPointerMove(null, CLEARED_POINTER_POSITION, null);
         return;
       }
 
@@ -297,12 +323,16 @@ export const useCesiumPointQuery = (
           null;
         retainedHoverSample = {
           positionECEF: Cartesian3.clone(hoverPositionECEF, new Cartesian3()),
+          screenPosition: Cartesian2.clone(
+            currentPointerPosition,
+            new Cartesian2()
+          ),
           surfaceNormalECEF: resolvedSurfaceNormal
             ? Cartesian3.clone(resolvedSurfaceNormal, new Cartesian3())
             : null,
           missedFrameCount: 0,
         };
-        callbacksRef.current.onPointerMove?.(
+        notifyPointerMove(
           hoverPositionECEF,
           currentPointerPosition,
           resolvedSurfaceNormal
@@ -316,9 +346,13 @@ export const useCesiumPointQuery = (
       ) {
         retainedHoverSample = {
           ...retainedHoverSample,
+          screenPosition: Cartesian2.clone(
+            currentPointerPosition,
+            retainedHoverSample.screenPosition
+          ),
           missedFrameCount: retainedHoverSample.missedFrameCount + 1,
         };
-        callbacksRef.current.onPointerMove?.(
+        notifyPointerMove(
           retainedHoverSample.positionECEF,
           currentPointerPosition,
           retainedHoverSample.surfaceNormalECEF
@@ -327,7 +361,7 @@ export const useCesiumPointQuery = (
       }
 
       retainedHoverSample = null;
-      callbacksRef.current.onPointerMove?.(null, currentPointerPosition, null);
+      notifyPointerMove(null, currentPointerPosition, null);
     };
 
     const removePreRenderListener =
@@ -351,9 +385,24 @@ export const useCesiumPointQuery = (
       clickStrategy === CESIUM_POINT_QUERY_CLICK_STRATEGY.DELAYED_LINE_FINISH &&
       Boolean(callbacksRef.current.onLineFinish);
 
-    const createPointAt = (screenPosition: Cartesian2) => {
+    const createPointAt = (
+      screenPosition: Cartesian2,
+      options: { forceAccepted?: boolean } = {}
+    ) => {
       const resolvedPick = resolvePreferredSurfacePick(scene, screenPosition);
-      const pickedPosition = resolvedPick.surfacePositionECEF;
+      const forceAcceptedRetainedHoverSample =
+        options.forceAccepted &&
+        retainedHoverSample &&
+        Cartesian2.distance(
+          retainedHoverSample.screenPosition,
+          screenPosition
+        ) <= DOUBLE_CLICK_POSITION_THRESHOLD_PX
+          ? retainedHoverSample
+          : null;
+      const pickedPosition =
+        resolvedPick.surfacePositionECEF ??
+        forceAcceptedRetainedHoverSample?.positionECEF ??
+        null;
 
       if (
         callbacksRef.current.onBeforePointCreate &&
@@ -375,14 +424,63 @@ export const useCesiumPointQuery = (
         screenPosition,
         pickedPositionECEF: pickedPosition,
         globePositionECEF: resolvedPick.globePositionECEF,
+        ...(options.forceAccepted ? { forceAccepted: true } : {}),
       });
 
       requestForcedHoverRefresh();
     };
 
-    handler.setInputAction((event: { position: Cartesian2 }) => {
+    const clearForceLongPressTimeout = () => {
+      if (forceLongPressTimeoutId !== undefined) {
+        window.clearTimeout(forceLongPressTimeoutId);
+        forceLongPressTimeoutId = undefined;
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Shift" && !shiftPressed) {
+        shiftPressed = true;
+        requestForcedHoverRefresh();
+      }
+    };
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.key === "Shift" && shiftPressed) {
+        shiftPressed = false;
+        requestForcedHoverRefresh();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+
+    const handleLeftDown = (event: { position: Cartesian2 }) => {
+      clearForceLongPressTimeout();
+      forceLongPressTriggered = false;
+      forceLongPressTimeoutId = window.setTimeout(() => {
+        forceLongPressTriggered = true;
+        createPointAt(event.position, { forceAccepted: true });
+        forceLongPressTimeoutId = undefined;
+      }, POINT_FORCE_LONG_PRESS_MS);
+    };
+
+    const handleLeftUp = () => {
+      clearForceLongPressTimeout();
+    };
+
+    const handleLeftClick = (
+      event: { position: Cartesian2 },
+      forceAcceptedByModifier = false
+    ) => {
+      const forceAccepted = forceAcceptedByModifier || shiftPressed;
+
+      if (forceLongPressTriggered) {
+        forceLongPressTriggered = false;
+        return;
+      }
+
       if (!useDelayedLineFinishClicks) {
-        createPointAt(event.position);
+        createPointAt(event.position, { forceAccepted });
         return;
       }
 
@@ -394,12 +492,12 @@ export const useCesiumPointQuery = (
         window.clearTimeout(clickTimeoutId);
       }
       clickTimeoutId = window.setTimeout(() => {
-        createPointAt(event.position);
+        createPointAt(event.position, { forceAccepted });
         clickTimeoutId = undefined;
       }, pointClickDelayMs);
-    }, ScreenSpaceEventType.LEFT_CLICK);
+    };
 
-    handler.setInputAction((event: { position: Cartesian2 }) => {
+    const handleLeftDoubleClick = (event: { position: Cartesian2 }) => {
       if (!useDelayedLineFinishClicks) {
         return;
       }
@@ -412,15 +510,53 @@ export const useCesiumPointQuery = (
         window.clearTimeout(clickTimeoutId);
         clickTimeoutId = undefined;
       }
+      clearForceLongPressTimeout();
       callbacksRef.current.onLineFinish?.();
       requestForcedHoverRefresh();
-    }, ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
+    };
+
+    handler.setInputAction(handleLeftDown, ScreenSpaceEventType.LEFT_DOWN);
+    handler.setInputAction(
+      handleLeftDown,
+      ScreenSpaceEventType.LEFT_DOWN,
+      KeyboardEventModifier.SHIFT
+    );
+
+    handler.setInputAction(handleLeftUp, ScreenSpaceEventType.LEFT_UP);
+    handler.setInputAction(
+      handleLeftUp,
+      ScreenSpaceEventType.LEFT_UP,
+      KeyboardEventModifier.SHIFT
+    );
+
+    handler.setInputAction(
+      (event: { position: Cartesian2 }) => handleLeftClick(event),
+      ScreenSpaceEventType.LEFT_CLICK
+    );
+    handler.setInputAction(
+      (event: { position: Cartesian2 }) => handleLeftClick(event, true),
+      ScreenSpaceEventType.LEFT_CLICK,
+      KeyboardEventModifier.SHIFT
+    );
+
+    handler.setInputAction(
+      handleLeftDoubleClick,
+      ScreenSpaceEventType.LEFT_DOUBLE_CLICK
+    );
+    handler.setInputAction(
+      handleLeftDoubleClick,
+      ScreenSpaceEventType.LEFT_DOUBLE_CLICK,
+      KeyboardEventModifier.SHIFT
+    );
 
     return () => {
       if (clickTimeoutId !== undefined) {
         window.clearTimeout(clickTimeoutId);
         clickTimeoutId = undefined;
       }
+      clearForceLongPressTimeout();
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
       retainedHoverSample = null;
       unsubscribeClientPosition();
       removeCameraMoveStartListener?.();

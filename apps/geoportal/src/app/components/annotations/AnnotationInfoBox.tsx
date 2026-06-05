@@ -8,6 +8,7 @@ import {
 } from "@carma-appframeworks/portals";
 import {
   ANNOTATION_INFO_BOX_ACTION_IDS,
+  ANNOTATION_INFO_BOX_HELP_LAYOUTS,
   AnnotationInfoBoxContainer,
 } from "@carma-mapping/annotations/ui";
 import {
@@ -36,6 +37,8 @@ const CISMAP_INFO_BOX_TOOL_IDS = new Set<string>([
   ANNOTATION_TYPES.AREA_VERTICAL,
   ANNOTATION_TYPES.LABEL,
 ]);
+
+const GEOPORTAL_ANNOTATION_HELP_LOCALE = "de-DE";
 
 const resolveGeoportalCismapInfoBoxVisualOptions = (
   context: RuntimeAnnotationInfoBoxVisualOptionsContext
@@ -69,6 +72,10 @@ const AnnotationInfoBox = ({
   const uiMode = useSelector(getUIMode);
   const layers = useSelector(getLayers);
   const infoBoxState = useRuntimeAnnotationInfoBoxSlots({
+    fallbackHelpLayout: isCesium
+      ? ANNOTATION_INFO_BOX_HELP_LAYOUTS.COMPACT
+      : undefined,
+    helpLocale: GEOPORTAL_ANNOTATION_HELP_LOCALE,
     includeFallback: true,
     visualOptions: resolveGeoportalCismapInfoBoxVisualOptions,
   });
@@ -85,21 +92,11 @@ const AnnotationInfoBox = ({
   if (
     infoBoxState.kind === RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS.FALLBACK
   ) {
-    if (CISMAP_INFO_BOX_TOOL_IDS.has(infoBoxState.plugin.id)) {
-      return (
-        <CismapAnnotationInstructionInfoBox
-          content={infoBoxState.slots.content}
-          controlOrder={CESIUM_ANNOTATION_CONFIG.infoBox.controlOrder}
-          secondaryInfoBoxElements={secondaryInfoBoxElements}
-        />
-      );
-    }
-
     return (
-      <AnnotationInfoBoxContainer
-        {...CESIUM_ANNOTATION_CONFIG.infoBox}
-        slots={infoBoxState.slots}
-        visualOptions={infoBoxState.visualOptions}
+      <CismapAnnotationInstructionInfoBox
+        content={infoBoxState.slots.content}
+        controlOrder={CESIUM_ANNOTATION_CONFIG.infoBox.controlOrder}
+        secondaryInfoBoxElements={secondaryInfoBoxElements}
       />
     );
   }
@@ -108,6 +105,9 @@ const AnnotationInfoBox = ({
     return (
       <CismapAnnotationInfoBox
         pixelWidth={CESIUM_ANNOTATION_CONFIG.infoBox.pixelWidth}
+        instructionContent={
+          isCesium ? infoBoxState.instructionContent : undefined
+        }
         slots={infoBoxState.slots}
         visualOptions={infoBoxState.visualOptions}
         controlOrder={CESIUM_ANNOTATION_CONFIG.infoBox.controlOrder}

@@ -15,7 +15,10 @@ import { Tooltip } from "antd";
 import Icon from "react-cismap/commons/Icon";
 
 import { useMapMeasurementsContext } from "@carma-commons/measurements";
-import { useAnnotationsRuntime } from "@carma-mapping/annotations/runtime";
+import {
+  ANNOTATION_DELETE_CONFIRMATION_SOURCES,
+  useAnnotationsRuntime,
+} from "@carma-mapping/annotations/runtime";
 
 import { geoportalAnnotationModeText } from "../../config/geoportalTextConfig";
 
@@ -34,7 +37,7 @@ type LayerButtonActionButtonProps = {
   title: string;
   icon: ReactNode;
   disabled?: boolean;
-  onClick: () => void;
+  onClick: (event: ReactMouseEvent<HTMLButtonElement>) => void;
 };
 
 const LayerButtonActionButton = ({
@@ -49,7 +52,7 @@ const LayerButtonActionButton = ({
       className="px-1.5 flex items-center justify-center text-sm text-gray-600 hover:text-gray-500 disabled:text-gray-400"
       onClick={(event) => {
         event.stopPropagation();
-        onClick();
+        onClick(event);
       }}
       disabled={disabled}
       aria-label={title}
@@ -66,8 +69,7 @@ const CesiumAnnotationLayerButton = (props: GeoportalLayerButtonProps) => {
     annotationEntries,
     exportAllAnnotationsGeoJson,
     flyToAllAnnotations,
-    removeAnnotationById,
-    setElevationReferenceAnnotationId,
+    removeAnnotationsByIds,
   } = useAnnotationsRuntime();
   const hasAnnotations = annotationEntries.length > 0;
   const handleClose = useCallback(
@@ -99,11 +101,14 @@ const CesiumAnnotationLayerButton = (props: GeoportalLayerButtonProps) => {
             title={layerbar.cesiumAnnotations.deleteAll}
             icon={<FontAwesomeIcon icon={faTrashCan} />}
             disabled={!hasAnnotations}
-            onClick={() => {
-              setElevationReferenceAnnotationId(null);
-              annotationEntries.forEach((annotationEntry) => {
-                removeAnnotationById(annotationEntry.id);
-              });
+            onClick={(event) => {
+              removeAnnotationsByIds(
+                annotationEntries.map((annotationEntry) => annotationEntry.id),
+                {
+                  skipConfirmation: event.shiftKey,
+                  source: ANNOTATION_DELETE_CONFIRMATION_SOURCES.UI,
+                }
+              );
             }}
           />
         </div>

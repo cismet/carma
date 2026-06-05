@@ -53,4 +53,21 @@ describe("AnnotationInfoBoxContainer", () => {
       })
     );
   });
+
+  it("renders headerless slots without a heading node", () => {
+    render(
+      <AnnotationInfoBoxContainer
+        slots={{
+          content: <span>Content</span>,
+          collapsible: false,
+        }}
+      />
+    );
+
+    expect(carmaResponsiveInfoBoxMock.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        heading: undefined,
+      })
+    );
+  });
 });

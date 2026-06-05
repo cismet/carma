@@ -2,6 +2,9 @@ import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  ANNOTATION_AREA_PLANAR_BIGGEST_TRIANGLE_TOOL_ID,
+  ANNOTATION_AREA_PLANAR_PCA_TOOL_ID,
+  ANNOTATION_AREA_PLANAR_TRAPEZOID_TOOL_ID,
   ANNOTATION_SELECT_TOOL_ID,
   ANNOTATION_TYPES,
 } from "@carma-mapping/annotations/core";
@@ -41,7 +44,7 @@ const createPlugin = ({
 });
 
 describe("useGeoportalCesiumAnnotationToolPlugins", () => {
-  it("excludes the label tool from the stable Geoportal toolset", () => {
+  it("excludes experimental and label tools from the stable Geoportal toolset", () => {
     useFeatureFlagsMock.mockReturnValue({
       featureFlagCesiumAnnotationAllTools: false,
     });
@@ -57,6 +60,26 @@ describe("useGeoportalCesiumAnnotationToolPlugins", () => {
         annotationType: ANNOTATION_TYPES.DISTANCE,
         id: ANNOTATION_TYPES.DISTANCE,
         order: 20,
+      }),
+      createPlugin({
+        annotationType: ANNOTATION_TYPES.AREA_PLANAR,
+        id: ANNOTATION_TYPES.AREA_PLANAR,
+        order: 55,
+      }),
+      createPlugin({
+        annotationType: ANNOTATION_TYPES.AREA_PLANAR,
+        id: ANNOTATION_AREA_PLANAR_BIGGEST_TRIANGLE_TOOL_ID,
+        order: 56,
+      }),
+      createPlugin({
+        annotationType: ANNOTATION_TYPES.AREA_PLANAR,
+        id: ANNOTATION_AREA_PLANAR_PCA_TOOL_ID,
+        order: 57,
+      }),
+      createPlugin({
+        annotationType: ANNOTATION_TYPES.AREA_PLANAR,
+        id: ANNOTATION_AREA_PLANAR_TRAPEZOID_TOOL_ID,
+        order: 58,
       }),
       createPlugin({
         annotationType: ANNOTATION_TYPES.LABEL,

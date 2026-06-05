@@ -18,10 +18,21 @@ export {
   type AreaGroundToolPluginOptions,
 } from "./lib/area-ground/area-ground-tool-plugin";
 export {
+  areaPlanarBiggestTriangleToolPlugin,
+  areaPlanarPcaToolPlugin,
   areaPlanarToolPlugin,
+  areaPlanarTrapezoidToolPlugin,
+  createAreaPlanarBiggestTriangleToolPlugin,
+  createAreaPlanarPcaToolPlugin,
   createAreaPlanarToolPlugin,
+  createAreaPlanarTrapezoidToolPlugin,
   type AreaPlanarToolPluginOptions,
 } from "./lib/area-planar/area-planar-tool-plugin";
+export {
+  AREA_PLANAR_PROJECTION_MODES,
+  resolveAreaPlanarProjectedCoordinates,
+  type AreaPlanarProjectionMode,
+} from "./lib/area-planar/area-planar-projection";
 export {
   createDistanceToolPlugin,
   distanceToolPlugin,

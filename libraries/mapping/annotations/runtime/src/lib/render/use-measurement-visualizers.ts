@@ -210,6 +210,7 @@ export const useMeasurementVisualizers = (
     visualizerInputs.pointLabels,
     interactionBlocked,
     isInPreviewNodeLink,
-    `${surfaceKey}-runtime-point-label`
+    `${surfaceKey}-runtime-point-label`,
+    resolvedAnnotationLineLabelOptions
   );
 };

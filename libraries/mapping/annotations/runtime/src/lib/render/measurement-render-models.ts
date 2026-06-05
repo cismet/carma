@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import type { CssPixelPosition } from "@carma-units";
 import type {
   PointLabelAnchorKind,
@@ -27,6 +27,13 @@ export type RuntimePointLabelCoordinateCandidate = {
   coordinate: CesiumGeographicCoordinate;
   nodeId?: string;
 };
+
+export const RUNTIME_POINT_LABEL_RENDER_STYLE = {
+  POINT_LABEL: "point-label",
+  LINE_BLEND: "line-blend",
+} as const;
+export type RuntimePointLabelRenderStyle =
+  (typeof RUNTIME_POINT_LABEL_RENDER_STYLE)[keyof typeof RUNTIME_POINT_LABEL_RENDER_STYLE];
 
 export type RuntimeDistanceTriangleOverlayRenderModel = {
   measurementId?: string;
@@ -135,6 +142,8 @@ export type RuntimePointLabelRenderModel = {
   fontSize?: string;
   fontFamily?: string;
   fontWeight?: string | number;
+  mixBlendMode?: CSSProperties["mixBlendMode"];
+  renderStyle?: RuntimePointLabelRenderStyle;
   labelStyle?: PointLabelStyle;
   hideMarker?: boolean;
   collapse?: boolean;

@@ -13,6 +13,14 @@ export {
 export { AnnotationInfoBoxActionIcon } from "./lib/components/AnnotationInfoBoxActionIcon";
 export { AnnotationInfoBoxActions } from "./lib/components/AnnotationInfoBoxActions";
 export { AnnotationInfoBoxContainer } from "./lib/components/AnnotationInfoBoxContainer";
+export {
+  ANNOTATION_INFO_BOX_HELP_ALERT_SEVERITIES,
+  ANNOTATION_INFO_BOX_HELP_ACTION_INDICATORS,
+  ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS,
+  ANNOTATION_INFO_BOX_HELP_ITEM_KINDS,
+  ANNOTATION_INFO_BOX_HELP_LAYOUTS,
+  AnnotationInfoBoxHelpContent,
+} from "./lib/components/AnnotationInfoBoxHelpContent";
 export { AnnotationInfoBoxMetricGrid } from "./lib/components/AnnotationInfoBoxMetricGrid";
 export { AnnotationInfoBoxMetaText } from "./lib/components/AnnotationInfoBoxMetaText";
 export { buildAnnotationMeasurementInfoBoxSlots } from "./lib/components/AnnotationMeasurementInfoBoxShell";
@@ -32,6 +40,18 @@ export type {
   AnnotationInfoBoxActionsProps,
 } from "./lib/components/AnnotationInfoBoxActions";
 export type { AnnotationInfoBoxMetricGridItem } from "./lib/components/AnnotationInfoBoxMetricGrid";
+export type {
+  AnnotationInfoBoxHelpAlertItem,
+  AnnotationInfoBoxHelpAlertSeverity,
+  AnnotationInfoBoxHelpActionIndicator,
+  AnnotationInfoBoxHelpActionInput,
+  AnnotationInfoBoxHelpActionInputCombination,
+  AnnotationInfoBoxHelpActionItem,
+  AnnotationInfoBoxHelpItem,
+  AnnotationInfoBoxHelpItemKind,
+  AnnotationInfoBoxHelpLayout,
+  AnnotationInfoBoxHelpTextItem,
+} from "./lib/components/AnnotationInfoBoxHelpContent";
 export type { AnnotationMeasurementInfoBoxShellProps } from "./lib/components/AnnotationMeasurementInfoBoxShell";
 export type {
   AnnotationInfoBoxNavigationLabels,

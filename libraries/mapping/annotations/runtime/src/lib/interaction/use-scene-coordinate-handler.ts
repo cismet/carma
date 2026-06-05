@@ -13,7 +13,8 @@ type UseSceneCoordinateHandlerOptions = {
   enabled: boolean;
   onCoordinate?: (
     coordinate: CesiumGeographicCoordinate,
-    screenPosition?: { x: number; y: number }
+    screenPosition?: { x: number; y: number },
+    forceAccepted?: boolean
   ) => void;
   onLineFinish?: () => void;
   onHoverCoordinateChange?: (
@@ -25,6 +26,7 @@ type UseSceneCoordinateHandlerOptions = {
     screenPosition: { x: number; y: number };
     pointECEF: Cartesian3 | null;
     surfaceNormalECEF: Cartesian3 | null;
+    forceAccepted?: boolean;
   }) => void;
   onScreenPositionChange?: (
     screenPosition: { x: number; y: number } | null
@@ -69,11 +71,17 @@ export const useSceneCoordinateHandler = (
         {
           x: payload.screenPosition.x,
           y: payload.screenPosition.y,
-        }
+        },
+        payload.forceAccepted
       );
     },
     onLineFinish,
-    onPointerMove: (positionECEF, screenPosition, surfaceNormalECEF) => {
+    onPointerMove: (
+      positionECEF,
+      screenPosition,
+      surfaceNormalECEF,
+      options
+    ) => {
       const runtimeCoordinate = positionECEF
         ? runtimeCoordinateFromCartesian(positionECEF)
         : null;
@@ -88,6 +96,7 @@ export const useSceneCoordinateHandler = (
         screenPosition: runtimeScreenPosition,
         pointECEF: positionECEF ?? null,
         surfaceNormalECEF: surfaceNormalECEF ?? null,
+        forceAccepted: options?.forceAccepted,
       });
     },
     onScreenPositionChange,

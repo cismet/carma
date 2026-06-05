@@ -6,6 +6,9 @@ import {
   getPointLength3d,
   getPolygonArea3d,
   getTriangleArea3d,
+  isPointWithinPlaneOrthogonalToLineAngleTolerance3d,
+  projectPointOntoPlaneOrthogonalToLine3d,
+  projectPointOntoPlane3d,
   subtractPoint3,
 } from "./point3";
 
@@ -56,5 +59,44 @@ describe("point3", () => {
         { x: 0, y: 2, z: 0 },
       ])
     ).toBeCloseTo(4);
+  });
+
+  it("projects points onto a plane", () => {
+    const projected = projectPointOntoPlane3d({
+      point: { x: 3, y: 2, z: 1 },
+      planeAnchor: { x: 1, y: 0, z: 0 },
+      planeNormal: { x: 1, y: 0, z: 0 },
+    });
+
+    expect(projected).toEqual({ x: 1, y: 2, z: 1 });
+  });
+
+  it("projects points onto a plane orthogonal to a line", () => {
+    const projected = projectPointOntoPlaneOrthogonalToLine3d({
+      point: { x: 0.1, y: 2, z: 3 },
+      linePoint: { x: 0, y: 0, z: 0 },
+      lineDirection: { x: 1, y: 0, z: 0 },
+    });
+
+    expect(projected).toEqual({ x: 0, y: 2, z: 3 });
+  });
+
+  it("checks point angle tolerance against a plane orthogonal to a line", () => {
+    expect(
+      isPointWithinPlaneOrthogonalToLineAngleTolerance3d({
+        point: { x: 0.1, y: 2, z: 3 },
+        linePoint: { x: 0, y: 0, z: 0 },
+        lineDirection: { x: 1, y: 0, z: 0 },
+        toleranceDeg: 3,
+      })
+    ).toBe(true);
+    expect(
+      isPointWithinPlaneOrthogonalToLineAngleTolerance3d({
+        point: { x: 1, y: 2, z: 0 },
+        linePoint: { x: 0, y: 0, z: 0 },
+        lineDirection: { x: 1, y: 0, z: 0 },
+        toleranceDeg: 3,
+      })
+    ).toBe(false);
   });
 });

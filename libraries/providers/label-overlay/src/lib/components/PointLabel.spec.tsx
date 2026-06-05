@@ -25,6 +25,22 @@ describe("PointLabel", () => {
     expect(labelRoot?.style.mixBlendMode).toBe("normal");
   });
 
+  it("can override the shared label root blend mode", () => {
+    const { container } = render(
+      <PointLabel
+        content="NHN 179,74 m"
+        hideMarker={true}
+        mixBlendMode="darken"
+      />
+    );
+
+    const labelRoot = container.querySelector(
+      '[data-point-label-root="true"]'
+    ) as HTMLDivElement | null;
+
+    expect(labelRoot?.style.mixBlendMode).toBe("darken");
+  });
+
   it("uses a lighter default label shell background with a smaller blur radius", () => {
     const { container } = render(
       <PointLabel content="NHN 179,74 m" hideMarker={true} />

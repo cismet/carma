@@ -15,7 +15,6 @@ import {
 import {
   addPointMeasurement,
   commitPointMeasurementDraft,
-  removeLatestPointMeasurement,
   trimLatestPointMeasurementDraft,
 } from "./point-tool-actions";
 import { createPointToolInfoBoxSlots } from "./point-tool-info-box-slots";
@@ -153,16 +152,7 @@ export const createPointToolPlugin = ({
           return true;
         }
 
-        const removed = removeLatestPointMeasurement(toolType, {
-          state: sessionContext.getState(),
-          dispatch: sessionContext.dispatch,
-        });
-        if (!removed) {
-          return false;
-        }
-
-        event.preventDefault();
-        return true;
+        return false;
       },
     },
     visualModels: {

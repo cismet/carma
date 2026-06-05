@@ -33,6 +33,9 @@ export type {
 } from "./lib/types/annotation-label";
 export type { AnnotationPersistenceEnvelopeBase } from "./lib/types/annotation-persistence-types";
 export {
+  ANNOTATION_AREA_PLANAR_BIGGEST_TRIANGLE_TOOL_ID,
+  ANNOTATION_AREA_PLANAR_PCA_TOOL_ID,
+  ANNOTATION_AREA_PLANAR_TRAPEZOID_TOOL_ID,
   ANNOTATION_SELECT_TOOL_ID,
   ANNOTATION_TYPES,
   isAreaAnnotationType,
@@ -173,8 +176,12 @@ export {
 } from "./lib/utils/order-by-id";
 export {
   buildEdgeRelationIdsForPolygon,
+  computePlanarPolygonArea,
+  createBestFitPlanePca,
   computePolygonGroupDerivedData,
   computePolylinePlanarAngleSumDeg,
+  createPlaneFromFirstNonCollinearPoints,
+  createPlaneFromLargestTriangle,
   createPlaneFromThreePoints,
   distancePointToPlane,
   orientPlaneNormalTowardPosition,

@@ -28,6 +28,10 @@ export type MeasurementPolygonFillsController = {
   destroy: () => void;
 };
 
+export type MeasurementPolygonFillsControllerOptions = {
+  allowPicking?: boolean;
+};
+
 const removeGroundPrimitives = (
   scene: Scene,
   groundPrimitives: readonly GroundPrimitive[]
@@ -79,7 +83,8 @@ const arePolygonFillsEqual = (
   });
 
 export const createMeasurementPolygonFillsController = (
-  scene: Scene | null
+  scene: Scene | null,
+  options: MeasurementPolygonFillsControllerOptions = {}
 ): MeasurementPolygonFillsController => {
   if (!scene || scene.isDestroyed()) {
     return {
@@ -92,6 +97,7 @@ export const createMeasurementPolygonFillsController = (
   let currentPolygonFills: readonly RuntimePolygonFillRenderModel[] = [];
   let groundPrimitives: GroundPrimitive[] = [];
   let coplanarCollection: PrimitiveCollection | null = null;
+  const allowPicking = options.allowPicking ?? true;
 
   const clearRenderedPolygonFills = ({
     requestRender,
@@ -157,6 +163,7 @@ export const createMeasurementPolygonFillsController = (
             flat: true,
             translucent: true,
           }),
+          allowPicking,
           asynchronous: false,
           releaseGeometryInstances: false,
           classificationType: ClassificationType.BOTH,
@@ -200,6 +207,7 @@ export const createMeasurementPolygonFillsController = (
             flat: true,
             translucent: true,
           }),
+          allowPicking,
           asynchronous: false,
         })
       );

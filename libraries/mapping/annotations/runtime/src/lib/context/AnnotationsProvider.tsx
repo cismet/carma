@@ -24,8 +24,10 @@ import {
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import type { PartialAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
 import type {
+  AnnotationToolDraftStore,
   AnnotationToolPlugin,
   AnnotationToolRegistry,
+  PointQueryPickResult,
 } from "../registry";
 import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 import type { Scene } from "@carma-cesium";
@@ -39,12 +41,18 @@ import {
   useAnnotationLabelTextRequest,
   type AnnotationLabelTextDialogState,
 } from "./use-annotation-label-text-request";
+import type {
+  AnnotationDeleteConfirmationRequester,
+  AnnotationDeleteRequestOptions,
+} from "./annotation-delete-confirmation";
 
 type AnnotationsRuntimeServices = {
   scene: Scene | null;
   registry: AnnotationToolRegistry;
+  annotationToolDraftStore: AnnotationToolDraftStore;
   annotationsStore: AnnotationsStore;
   formatOptions: AnnotationsRuntimeFormatOptions;
+  activePointQueryPickResult: PointQueryPickResult | null;
   addAnnotation: (
     toolType: StoredAnnotation["toolType"],
     coordinates: readonly CesiumGeographicCoordinate[],
@@ -60,12 +68,19 @@ type AnnotationsRuntimeServices = {
   focusAnnotationId: (annotationId: string | null) => void;
   flyToAnnotationById: (annotationId: string | null) => void;
   flyToAllAnnotations: () => void;
-  removeAnnotationById: (annotationId: string) => void;
+  removeAnnotationById: (
+    annotationId: string,
+    options?: AnnotationDeleteRequestOptions
+  ) => void;
+  removeAnnotationsByIds: (
+    annotationIds: readonly string[],
+    options?: AnnotationDeleteRequestOptions
+  ) => void;
   exportAnnotationGeoJson: (annotationId: string) => void;
   exportAllAnnotationsGeoJson: () => void;
   toggleAnnotationVisibility: (annotationId: string) => void;
   toggleAnnotationLocked: (annotationId: string) => void;
-  removeSelectedAnnotations: () => void;
+  removeSelectedAnnotations: (options?: AnnotationDeleteRequestOptions) => void;
   selectAllAnnotations: () => void;
   setElevationReferenceAnnotationId: (annotationId: string | null) => void;
   toggleAnnotationElevationDisplayMode: (
@@ -105,6 +120,7 @@ type AnnotationsProviderProps = {
   onPersistenceStateChange?: (
     state: AnnotationsRuntimePersistenceEnvelope
   ) => void;
+  confirmAnnotationDelete?: AnnotationDeleteConfirmationRequester;
 };
 
 type AnnotationsReduxProviderProps = {
@@ -170,6 +186,7 @@ export const AnnotationsProvider = ({
   lineLabelOptions = DEFAULT_ANNOTATION_LINE_LABEL_OPTIONS,
   initialPersistenceState,
   onPersistenceStateChange,
+  confirmAnnotationDelete,
 }: AnnotationsProviderProps) => {
   const { labelTextDialogState, requestLabelText } =
     useAnnotationLabelTextRequest({
@@ -205,6 +222,7 @@ export const AnnotationsProvider = ({
     initialPersistenceState: resolvedInitialPersistenceState,
     onPersistenceStateChange: resolvedOnPersistenceStateChange,
     requestLabelText: renderEnabled ? requestLabelText : undefined,
+    confirmAnnotationDelete,
   });
 
   const runtimeServices = useMemo(
@@ -254,6 +272,7 @@ export const useAnnotationsRuntime = () => {
   const {
     scene,
     registry,
+    annotationToolDraftStore,
     formatOptions,
     addAnnotation,
     setActiveToolType,
@@ -265,6 +284,7 @@ export const useAnnotationsRuntime = () => {
     flyToAnnotationById,
     flyToAllAnnotations,
     removeAnnotationById,
+    removeAnnotationsByIds,
     exportAnnotationGeoJson,
     exportAllAnnotationsGeoJson,
     toggleAnnotationVisibility,
@@ -275,6 +295,7 @@ export const useAnnotationsRuntime = () => {
     toggleAnnotationElevationDisplayMode,
     updateAnnotationDisplayName,
     updateAnnotationShortLabel,
+    activePointQueryPickResult,
     setPointTemporaryMode,
     setSelectedAnnotationId,
     setSelectedAnnotationIds,
@@ -304,6 +325,7 @@ export const useAnnotationsRuntime = () => {
   return {
     scene,
     registry,
+    annotationToolDraftStore,
     formatOptions,
     activeToolType,
     setActiveToolType,
@@ -315,6 +337,7 @@ export const useAnnotationsRuntime = () => {
     flyToAnnotationById,
     flyToAllAnnotations,
     removeAnnotationById,
+    removeAnnotationsByIds,
     exportAnnotationGeoJson,
     exportAllAnnotationsGeoJson,
     toggleAnnotationVisibility,
@@ -326,6 +349,7 @@ export const useAnnotationsRuntime = () => {
     toggleAnnotationElevationDisplayMode,
     updateAnnotationDisplayName,
     updateAnnotationShortLabel,
+    activePointQueryPickResult,
     pointTemporaryMode,
     setPointTemporaryMode,
     nodes,

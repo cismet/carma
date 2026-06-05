@@ -1,4 +1,7 @@
-import type { ReactNode } from "react";
+import type {
+  CSSProperties,
+  ReactNode,
+} from "react";
 
 import Icon from "react-cismap/commons/Icon";
 
@@ -12,6 +15,12 @@ import {
 } from "@carma-mapping/annotations/ui";
 
 import { ResponsiveInfoBox } from "./ResponsiveInfoBox";
+
+const ANNOTATION_POINTER_QUERY_PRESERVE_ATTRIBUTE =
+  "data-carma-pointer-query-preserve";
+const ANNOTATION_POINTER_QUERY_PRESERVE_ATTRIBUTES = {
+  [ANNOTATION_POINTER_QUERY_PRESERVE_ATTRIBUTE]: "true",
+};
 
 const renderCismapAnnotationActionIcon = ({
   actionId,
@@ -93,25 +102,66 @@ export type CismapAnnotationInfoBoxProps = Pick<
 > & {
   slots: AnnotationInfoBoxSlots;
   headerTitle?: ReactNode;
+  instructionContent?: ReactNode;
   secondaryInfoBoxElements?: ReactNode[];
 };
+
+const CismapAnnotationInstructionSlot = ({
+  content,
+  style,
+}: {
+  content: ReactNode;
+  style?: CSSProperties;
+}) => (
+  <div
+    className="relative w-full rounded bg-white px-3 py-2 text-[#212529] shadow-sm"
+    data-test-id="annotation-instruction-slot"
+    style={style}
+    {...ANNOTATION_POINTER_QUERY_PRESERVE_ATTRIBUTES}
+  >
+    <div className="min-w-0">{content}</div>
+  </div>
+);
 
 export const CismapAnnotationInfoBox = ({
   pixelWidth,
   slots,
   visualOptions,
   headerTitle = "Messungen",
+  instructionContent,
   controlOrder,
   secondaryInfoBoxElements = [],
 }: CismapAnnotationInfoBoxProps) => {
   const resolvedVisualOptions =
     resolveAnnotationInfoBoxVisualOptions(visualOptions);
-  const headingTitle = slots.headingTitle.trim();
+  const resolvedInfoBoxPixelWidth =
+    pixelWidth ?? resolvedVisualOptions.defaultPixelWidth;
+  const stackedInstructionMaxWidth =
+    typeof window !== "undefined" &&
+    window.innerWidth - 25 - resolvedInfoBoxPixelWidth - 300 <= 0
+      ? window.innerWidth - 25
+      : resolvedInfoBoxPixelWidth;
+  const headingTitle = slots.headingTitle?.trim() ?? "";
+  const resolvedSecondaryInfoBoxElements = instructionContent
+    ? [
+        <CismapAnnotationInstructionSlot
+          key="annotation-instruction-slot"
+          content={instructionContent}
+          style={{
+            marginBottom: 12,
+            maxWidth: stackedInstructionMaxWidth,
+            minWidth: stackedInstructionMaxWidth,
+            width: stackedInstructionMaxWidth,
+          }}
+        />,
+        ...secondaryInfoBoxElements,
+      ]
+    : secondaryInfoBoxElements;
 
   return (
     <div data-test-id="annotation-info-box">
       <ResponsiveInfoBox
-        pixelwidth={pixelWidth ?? resolvedVisualOptions.defaultPixelWidth}
+        pixelwidth={resolvedInfoBoxPixelWidth}
         panelClick={(event) => event.stopPropagation()}
         header={
           <div
@@ -140,7 +190,7 @@ export const CismapAnnotationInfoBox = ({
         isCollapsible={slots.collapsible ?? true}
         fixedRow={true}
         controlOrder={controlOrder}
-        secondaryInfoBoxElements={secondaryInfoBoxElements}
+        secondaryInfoBoxElements={resolvedSecondaryInfoBoxElements}
       />
     </div>
   );
@@ -158,25 +208,29 @@ export const CismapAnnotationInstructionInfoBox = ({
   pixelWidth = 350,
   controlOrder,
   secondaryInfoBoxElements = [],
-}: CismapAnnotationInstructionInfoBoxProps) => (
-  <div data-test-id="annotation-info-box">
-    <ResponsiveInfoBox
-      pixelwidth={pixelWidth}
-      panelClick={(event) => event.stopPropagation()}
-      header=""
-      isCollapsible={false}
-      alwaysVisibleDiv={
-        <div
-          className="mt-2 w-[90%] p-2 text-xs font-normal leading-normal text-[#212529] [&_*]:font-normal"
-          data-test-id="empty-annotation-info"
-        >
-          {content}
-        </div>
-      }
-      collapsibleDiv={<div />}
-      fixedRow={false}
-      controlOrder={controlOrder}
-      secondaryInfoBoxElements={secondaryInfoBoxElements}
-    />
-  </div>
-);
+}: CismapAnnotationInstructionInfoBoxProps) => {
+  const contentClassName =
+    "mt-2 w-[90%] p-2 text-xs font-normal leading-normal text-[#212529] [&_*]:font-normal";
+  const instructionContentElement = (
+    <div className={contentClassName} data-test-id="empty-annotation-info">
+      {content}
+    </div>
+  );
+
+  return (
+    <div data-test-id="annotation-info-box">
+      <ResponsiveInfoBox
+        pixelwidth={pixelWidth}
+        infoBoxDataAttributes={ANNOTATION_POINTER_QUERY_PRESERVE_ATTRIBUTES}
+        panelClick={(event) => event.stopPropagation()}
+        header=""
+        isCollapsible={false}
+        alwaysVisibleDiv={instructionContentElement}
+        collapsibleDiv={<div />}
+        fixedRow={false}
+        controlOrder={controlOrder}
+        secondaryInfoBoxElements={secondaryInfoBoxElements}
+      />
+    </div>
+  );
+};

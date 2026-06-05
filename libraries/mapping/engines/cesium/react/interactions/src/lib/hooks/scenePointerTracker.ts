@@ -6,6 +6,8 @@ const VISUALIZER_OVERLAY_ROOT_ATTRIBUTE =
   "data-annotation-visualizer-overlay-root";
 const VISUALIZER_OVERLAY_CONTAINER_ATTRIBUTE =
   "data-annotation-visualizer-overlay-container";
+export const CESIUM_POINTER_QUERY_PRESERVE_ATTRIBUTE =
+  "data-carma-pointer-query-preserve";
 
 const ALLOWED_POINTER_TARGET_SELECTOR = [
   `[${LABEL_OVERLAY_CONTAINER_ATTRIBUTE}="true"]`,
@@ -13,6 +15,7 @@ const ALLOWED_POINTER_TARGET_SELECTOR = [
   `[${VISUALIZER_OVERLAY_ROOT_ATTRIBUTE}="true"]`,
   `[${VISUALIZER_OVERLAY_CONTAINER_ATTRIBUTE}="true"]`,
 ].join(", ");
+const POINTER_QUERY_PRESERVE_TARGET_SELECTOR = `[${CESIUM_POINTER_QUERY_PRESERVE_ATTRIBUTE}="true"]`;
 
 type ClientPosition = {
   x: number;
@@ -106,6 +109,14 @@ const isAllowedPointerEventTarget = (scene: Scene, event: PointerEvent) => {
   );
 };
 
+const isPointerQueryPreservedEventTarget = (event: PointerEvent) => {
+  const eventTargetElement = resolveEventTargetElement(event);
+
+  return Boolean(
+    eventTargetElement?.closest(POINTER_QUERY_PRESERVE_TARGET_SELECTOR)
+  );
+};
+
 const ensureCanvasRect = (scene: Scene, tracker: ScenePointerTracker) => {
   if (tracker.canvasRectDirty || !tracker.canvasRect) {
     tracker.canvasRect = readCanvasRect(scene);
@@ -193,6 +204,10 @@ const createScenePointerTracker = (scene: Scene): ScenePointerTracker => {
     );
 
     if (!wasInsideCanvas && !isInsideCanvas) {
+      return;
+    }
+
+    if (isPointerQueryPreservedEventTarget(event)) {
       return;
     }
 

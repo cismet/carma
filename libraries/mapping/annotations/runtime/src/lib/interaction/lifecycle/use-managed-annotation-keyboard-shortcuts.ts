@@ -7,12 +7,11 @@ import {
   resolveAnnotationCommonShortcutAction,
 } from "@carma-mapping/annotations/core";
 
+import { selectAllAnnotationIds, setSelectedAnnotationIds } from "../../store";
 import {
-  removeAnnotationsByIds,
-  resolveRemovableSelectedAnnotationIds,
-  selectAllAnnotationIds,
-  setSelectedAnnotationIds,
-} from "../../store";
+  ANNOTATION_DELETE_CONFIRMATION_SOURCES,
+  type AnnotationDeleteRequestOptions,
+} from "../../context/annotation-delete-confirmation";
 import type {
   AnnotationToolPlugin,
   AnnotationToolSessionContext,
@@ -24,8 +23,10 @@ type UseManagedAnnotationKeyboardShortcutsOptions = {
   activePlugin: AnnotationToolPlugin | null;
   activeToolType: AnnotationToolId;
   activeToolSession: AnnotationModeSession | null;
-  primaryInteractionToolId: AnnotationToolId | null;
+  cancelToolId: AnnotationToolId | null;
   focusAdjacentAnnotationEntry: (offset: -1 | 1) => void;
+  removeSelectedAnnotations: (options?: AnnotationDeleteRequestOptions) => void;
+  clearInteractionState: () => void;
   requestFinishMeasurement: () => boolean;
   requestActivateTool: (toolId?: AnnotationToolId) => void;
   requestModeChange: (toolId: AnnotationToolId) => void;
@@ -37,8 +38,10 @@ export const useManagedAnnotationKeyboardShortcuts = ({
   activePlugin,
   activeToolType,
   activeToolSession,
-  primaryInteractionToolId,
+  cancelToolId,
   focusAdjacentAnnotationEntry,
+  removeSelectedAnnotations,
+  clearInteractionState,
   requestFinishMeasurement,
   requestActivateTool,
   requestModeChange,
@@ -67,37 +70,17 @@ export const useManagedAnnotationKeyboardShortcuts = ({
         : null;
 
       if (
-        commonAction === ANNOTATION_COMMON_SHORTCUT_ACTIONS.DELETE_SELECTION ||
-        commonAction === ANNOTATION_COMMON_SHORTCUT_ACTIONS.UNDO_LAST_POINT
-      ) {
-        const runtimeState = sessionContext.getState();
-        const selectedAnnotationIds =
-          runtimeState.selectionState.selectedAnnotationIds;
-
-        if (selectedAnnotationIds.length > 0) {
-          const removableAnnotationIds =
-            resolveRemovableSelectedAnnotationIds(runtimeState);
-          if (removableAnnotationIds.length > 0) {
-            sessionContext.dispatch(
-              removeAnnotationsByIds({
-                annotationIds: removableAnnotationIds,
-              })
-            );
-          }
-          event.preventDefault();
-          event.stopPropagation();
-          return;
-        }
-      }
-
-      if (
         commonAction ===
           ANNOTATION_COMMON_SHORTCUT_ACTIONS.CANCEL_ACTIVE_TOOL &&
-        primaryInteractionToolId !== null &&
-        activeToolType !== primaryInteractionToolId
+        cancelToolId !== null &&
+        activeToolType !== cancelToolId
       ) {
+        const runtimeState = sessionContext.getState();
         activeToolSession?.discardDraft();
-        setActiveToolTypeInStore(primaryInteractionToolId);
+        if (runtimeState.annotationEntries.length > 0) {
+          setActiveToolTypeInStore(cancelToolId);
+        }
+        clearInteractionState();
         event.preventDefault();
         return;
       }
@@ -131,7 +114,39 @@ export const useManagedAnnotationKeyboardShortcuts = ({
           sessionContext,
         })
       ) {
+        clearInteractionState();
         return;
+      }
+
+      if (
+        (commonAction === ANNOTATION_COMMON_SHORTCUT_ACTIONS.DELETE_SELECTION ||
+          commonAction ===
+            ANNOTATION_COMMON_SHORTCUT_ACTIONS.UNDO_LAST_POINT) &&
+        sessionContext.drafts.get(activeToolType).coordinates.length > 0
+      ) {
+        clearInteractionState();
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+
+      if (
+        commonAction === ANNOTATION_COMMON_SHORTCUT_ACTIONS.DELETE_SELECTION ||
+        commonAction === ANNOTATION_COMMON_SHORTCUT_ACTIONS.UNDO_LAST_POINT
+      ) {
+        const runtimeState = sessionContext.getState();
+        const selectedAnnotationIds =
+          runtimeState.selectionState.selectedAnnotationIds;
+
+        if (selectedAnnotationIds.length > 0) {
+          removeSelectedAnnotations({
+            skipConfirmation: event.shiftKey,
+            source: ANNOTATION_DELETE_CONFIRMATION_SOURCES.KEYBOARD,
+          });
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        }
       }
 
       if (
@@ -152,8 +167,10 @@ export const useManagedAnnotationKeyboardShortcuts = ({
     activePlugin,
     activeToolSession,
     activeToolType,
+    cancelToolId,
+    clearInteractionState,
     focusAdjacentAnnotationEntry,
-    primaryInteractionToolId,
+    removeSelectedAnnotations,
     requestFinishMeasurement,
     requestModeChange,
     requestActivateTool,

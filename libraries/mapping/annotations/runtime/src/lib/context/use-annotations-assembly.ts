@@ -18,7 +18,6 @@ import {
   createAnnotationsStore,
   createInitialAnnotationsStoreState,
   findAnnotationEntryById,
-  removeAnnotationById,
   removeAnnotationsByIds,
   readMaxNumericSuffix,
   resolvePersistedAnnotationsStoreState,
@@ -45,6 +44,7 @@ import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 import type {
   AnnotationToolDraftStore,
   AnnotationToolPlugin,
+  PointQueryPickResult,
 } from "../registry";
 import type { Scene } from "@carma-cesium";
 import {
@@ -62,6 +62,12 @@ import {
   type RuntimeLifecycleHostApi,
 } from "./lifecycle-host-api";
 import type { AnnotationLabelTextRequester } from "./use-annotation-label-text-request";
+import {
+  ANNOTATION_DELETE_CONFIRMATION_SOURCES,
+  requestDefaultAnnotationDeleteConfirmation,
+  type AnnotationDeleteConfirmationRequester,
+  type AnnotationDeleteRequestOptions,
+} from "./annotation-delete-confirmation";
 
 type UseAnnotationsRuntimeAssemblyOptions = {
   scene: Scene | null;
@@ -75,6 +81,7 @@ type UseAnnotationsRuntimeAssemblyOptions = {
     state: AnnotationsRuntimePersistenceEnvelope
   ) => void;
   requestLabelText?: AnnotationLabelTextRequester;
+  confirmAnnotationDelete?: AnnotationDeleteConfirmationRequester;
 };
 
 export const useAnnotationsAssembly = ({
@@ -87,6 +94,7 @@ export const useAnnotationsAssembly = ({
   initialPersistenceState,
   onPersistenceStateChange,
   requestLabelText,
+  confirmAnnotationDelete,
 }: UseAnnotationsRuntimeAssemblyOptions) => {
   const registry = useMemo(
     () => buildAnnotationToolRegistry(plugins),
@@ -120,6 +128,8 @@ export const useAnnotationsAssembly = ({
   const [activeMoveGizmoNodeId, setActiveMoveGizmoNodeId] = useState<
     string | null
   >(null);
+  const [activePointQueryPickResult, setActivePointQueryPickResult] =
+    useState<PointQueryPickResult | null>(null);
   const hoveredPointQueryNodeIdRef = useRef<string | null>(null);
   const setHoveredPointQueryNodeId = useCallback((nodeId: string | null) => {
     hoveredPointQueryNodeIdRef.current = nodeId;
@@ -276,8 +286,110 @@ export const useAnnotationsAssembly = ({
     [annotationsStore, flyToAnnotationById]
   );
 
+  const requestAnnotationDeleteConfirmation = useCallback(
+    (
+      annotations: readonly StoredAnnotation[],
+      options?: AnnotationDeleteRequestOptions
+    ) => {
+      if (annotations.length === 0) {
+        return Promise.resolve(false);
+      }
+
+      if (options?.skipConfirmation) {
+        return Promise.resolve(true);
+      }
+
+      const requester =
+        confirmAnnotationDelete ?? requestDefaultAnnotationDeleteConfirmation;
+
+      return Promise.resolve(
+        requester({
+          annotations,
+          source:
+            options?.source ??
+            ANNOTATION_DELETE_CONFIRMATION_SOURCES.PROGRAMMATIC,
+        })
+      ).catch((error) => {
+        console.error("[Annotations] Delete confirmation failed", error);
+        return false;
+      });
+    },
+    [confirmAnnotationDelete]
+  );
+  const hasOpenActiveToolDraft = useCallback(() => {
+    const activeToolType = annotationsStore.getState().annotationToolType;
+    return annotationToolDraftStore.get(activeToolType).coordinates.length > 0;
+  }, [annotationToolDraftStore, annotationsStore]);
+
+  const removeAnnotationEntriesByIds = useCallback(
+    (
+      annotationIds: readonly string[],
+      options?: AnnotationDeleteRequestOptions
+    ) => {
+      const requestedAnnotationIds = Array.from(new Set(annotationIds));
+      if (requestedAnnotationIds.length === 0) {
+        return;
+      }
+
+      if (hasOpenActiveToolDraft()) {
+        return;
+      }
+
+      const runtimeState = annotationsStore.getState();
+      const targetAnnotations = requestedAnnotationIds
+        .map((annotationId) =>
+          findAnnotationEntryById(runtimeState.annotationEntries, annotationId)
+        )
+        .filter(
+          (annotation): annotation is StoredAnnotation =>
+            annotation !== null && !annotation.locked
+        );
+
+      if (targetAnnotations.length === 0) {
+        return;
+      }
+
+      void requestAnnotationDeleteConfirmation(targetAnnotations, options).then(
+        (confirmed) => {
+          if (!confirmed) {
+            return;
+          }
+
+          const currentState = annotationsStore.getState();
+          const removableAnnotationIds = targetAnnotations
+            .map((annotation) =>
+              findAnnotationEntryById(
+                currentState.annotationEntries,
+                annotation.id
+              )
+            )
+            .filter(
+              (annotation): annotation is StoredAnnotation =>
+                annotation !== null && !annotation.locked
+            )
+            .map((annotation) => annotation.id);
+
+          if (removableAnnotationIds.length === 0) {
+            return;
+          }
+
+          annotationsStore.dispatch(
+            removeAnnotationsByIds({
+              annotationIds: removableAnnotationIds,
+            })
+          );
+        }
+      );
+    },
+    [
+      annotationsStore,
+      hasOpenActiveToolDraft,
+      requestAnnotationDeleteConfirmation,
+    ]
+  );
+
   const removeAnnotationEntryById = useCallback(
-    (annotationId: string) => {
+    (annotationId: string, options?: AnnotationDeleteRequestOptions) => {
       const targetEntry = findAnnotationEntryById(
         annotationsStore.getState().annotationEntries,
         annotationId
@@ -286,30 +398,24 @@ export const useAnnotationsAssembly = ({
         return;
       }
 
-      annotationsStore.dispatch(
-        removeAnnotationById({
-          annotationId,
-          nextSelectedAnnotationId: null,
-        })
-      );
+      removeAnnotationEntriesByIds([annotationId], options);
     },
-    [annotationsStore]
+    [annotationsStore, removeAnnotationEntriesByIds]
   );
 
-  const removeSelectedAnnotationEntries = useCallback(() => {
-    const runtimeState = annotationsStore.getState();
-    const removableAnnotationIds =
-      resolveRemovableSelectedAnnotationIds(runtimeState);
-    if (removableAnnotationIds.length === 0) {
-      return;
-    }
+  const removeSelectedAnnotationEntries = useCallback(
+    (options?: AnnotationDeleteRequestOptions) => {
+      const runtimeState = annotationsStore.getState();
+      const removableAnnotationIds =
+        resolveRemovableSelectedAnnotationIds(runtimeState);
+      if (removableAnnotationIds.length === 0) {
+        return;
+      }
 
-    annotationsStore.dispatch(
-      removeAnnotationsByIds({
-        annotationIds: removableAnnotationIds,
-      })
-    );
-  }, [annotationsStore]);
+      removeAnnotationEntriesByIds(removableAnnotationIds, options);
+    },
+    [annotationsStore, removeAnnotationEntriesByIds]
+  );
 
   const exportAnnotationGeoJson = useCallback(
     (annotationId: string) => {
@@ -600,8 +706,10 @@ export const useAnnotationsAssembly = ({
     () => ({
       scene,
       registry,
+      annotationToolDraftStore,
       annotationsStore,
       formatOptions,
+      activePointQueryPickResult,
       addAnnotation,
       setActiveToolType,
       requestModeChange: (toolType: AnnotationToolId) =>
@@ -615,6 +723,7 @@ export const useAnnotationsAssembly = ({
       flyToAnnotationById,
       flyToAllAnnotations,
       removeAnnotationById: removeAnnotationEntryById,
+      removeAnnotationsByIds: removeAnnotationEntriesByIds,
       exportAnnotationGeoJson,
       exportAllAnnotationsGeoJson,
       toggleAnnotationVisibility,
@@ -632,6 +741,8 @@ export const useAnnotationsAssembly = ({
     }),
     [
       addAnnotation,
+      activePointQueryPickResult,
+      annotationToolDraftStore,
       annotationsStore,
       focusAdjacentAnnotationEntry,
       focusAnnotationId,
@@ -641,6 +752,7 @@ export const useAnnotationsAssembly = ({
       flyToAnnotationById,
       formatOptions,
       removeAnnotationEntryById,
+      removeAnnotationEntriesByIds,
       removeSelectedAnnotationEntries,
       registry,
       scene,
@@ -670,11 +782,13 @@ export const useAnnotationsAssembly = ({
       annotationToolDraftStore,
       setActiveToolTypeInStore,
       focusAdjacentAnnotationEntry,
+      removeSelectedAnnotations: removeSelectedAnnotationEntries,
       addAnnotation,
       bindPreviewSnapTargetNodeClick,
       activeMoveGizmoNodeId,
       getHoveredPointQueryNodeId,
       setHoveredPointQueryNodeId,
+      onPointQueryPickResultChange: setActivePointQueryPickResult,
       formatOptions,
       lineLabelOptions,
       bindApi: bindLifecycleHostApi,

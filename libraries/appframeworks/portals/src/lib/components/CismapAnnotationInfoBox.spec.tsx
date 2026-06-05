@@ -1,18 +1,31 @@
 // @vitest-environment jsdom
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ANNOTATION_INFO_BOX_ACTION_IDS } from "@carma-mapping/annotations/ui";
 
 const responsiveInfoBoxMock = vi.hoisted(() =>
-  vi.fn(({ alwaysVisibleDiv, collapsibleDiv, header }) => (
-    <div data-test-id="mock-responsive-info-box">
-      <div data-test-id="mock-header">{header}</div>
-      <div data-test-id="mock-always-visible">{alwaysVisibleDiv}</div>
-      <div data-test-id="mock-collapsible">{collapsibleDiv}</div>
-    </div>
-  ))
+  vi.fn(
+    ({
+      alwaysVisibleDiv,
+      collapsibleDiv,
+      header,
+      infoBoxDataAttributes,
+      secondaryInfoBoxElements = [],
+    }) => (
+      <div data-test-id="mock-responsive-info-box" {...infoBoxDataAttributes}>
+        <div data-test-id="mock-header">{header}</div>
+        <div data-test-id="mock-secondary">
+          {secondaryInfoBoxElements.map((element: ReactNode, index: number) => (
+            <div key={index}>{element}</div>
+          ))}
+        </div>
+        <div data-test-id="mock-always-visible">{alwaysVisibleDiv}</div>
+        <div data-test-id="mock-collapsible">{collapsibleDiv}</div>
+      </div>
+    )
+  )
 );
 
 vi.mock("./ResponsiveInfoBox", () => ({
@@ -55,7 +68,7 @@ describe("CismapAnnotationInfoBox", () => {
   });
 
   it("maps annotation slots to the legacy ResponsiveInfoBox shell", () => {
-    render(
+    const { unmount } = render(
       <CismapAnnotationInfoBox
         controlOrder={12}
         pixelWidth={420}
@@ -86,6 +99,46 @@ describe("CismapAnnotationInfoBox", () => {
     expect(screen.getByText("Footer content")).toBeTruthy();
   });
 
+  it("can render instruction content above selected annotation info without passing pointer queries through", () => {
+    render(
+      <CismapAnnotationInfoBox
+        controlOrder={12}
+        instructionContent={<span>Instruction content</span>}
+        pixelWidth={420}
+        slots={{
+          content: <span>Detail content</span>,
+          headingTitle: "Distance",
+        }}
+      />
+    );
+
+    expect(responsiveInfoBoxMock.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        secondaryInfoBoxElements: expect.arrayContaining([expect.anything()]),
+      })
+    );
+    const instructionSlot = document.querySelector(
+      '[data-test-id="annotation-instruction-slot"]'
+    );
+
+    expect(instructionSlot).toBeTruthy();
+    expect(
+      instructionSlot?.getAttribute("data-carma-pointer-query-preserve")
+    ).toBe("true");
+    expect(
+      instructionSlot?.getAttribute("class")
+    ).toContain("bg-white");
+    expect(
+      instructionSlot?.getAttribute("class")
+    ).toContain("rounded");
+    expect(instructionSlot?.getAttribute("class")).toContain("w-full");
+    expect((instructionSlot as HTMLElement).style.marginBottom).toBe("12px");
+    expect((instructionSlot as HTMLElement).style.maxWidth).toBe("420px");
+    expect((instructionSlot as HTMLElement).style.minWidth).toBe("420px");
+    expect((instructionSlot as HTMLElement).style.width).toBe("420px");
+    expect(screen.getByText("Instruction content")).toBeTruthy();
+  });
+
   it("renders instruction content in the compact Cismap shell", () => {
     render(
       <CismapAnnotationInstructionInfoBox
@@ -101,9 +154,20 @@ describe("CismapAnnotationInfoBox", () => {
         fixedRow: false,
         header: "",
         isCollapsible: false,
+        infoBoxDataAttributes: {
+          "data-carma-pointer-query-preserve": "true",
+        },
         pixelwidth: 350,
       })
     );
+    expect(
+      document
+        .querySelector('[data-test-id="mock-responsive-info-box"]')
+        ?.getAttribute("data-carma-pointer-query-preserve")
+    ).toBe("true");
+    expect(
+      responsiveInfoBoxMock.mock.calls[0]?.[0].collapsibleStyle
+    ).toBeUndefined();
     const instructionContainer = document.querySelector(
       '[data-test-id="empty-annotation-info"]'
     );
@@ -112,6 +176,7 @@ describe("CismapAnnotationInfoBox", () => {
     expect(instructionContainer?.getAttribute("class")).toContain(
       "font-normal"
     );
+    expect(instructionContainer?.getAttribute("class")).toContain("w-[90%]");
     expect(screen.getByText("Instruction content")).toBeTruthy();
   });
 

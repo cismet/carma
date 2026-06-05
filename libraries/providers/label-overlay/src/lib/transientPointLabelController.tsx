@@ -39,6 +39,7 @@ export type PointLabelOverlayRenderState = {
   pointId?: string;
   content: ReactNode;
   badgeContent?: ReactNode;
+  mixBlendMode?: CSSProperties["mixBlendMode"];
   selected?: boolean;
   markerCursor?: CSSProperties["cursor"];
   labelCursor?: CSSProperties["cursor"];
@@ -114,6 +115,7 @@ export type TextOnlyPointLabelOverlayStateOptions = {
   fontSize?: string;
   fontFamily?: string;
   fontWeight?: string | number;
+  mixBlendMode?: CSSProperties["mixBlendMode"];
   attach?: PointLabelAttach;
   distance?: number;
   hideMarker?: boolean;
@@ -129,6 +131,7 @@ export const buildTextOnlyPointLabelOverlayState = ({
   fontSize,
   fontFamily,
   fontWeight,
+  mixBlendMode,
   attach = "center",
   distance = 0,
   hideMarker = true,
@@ -148,6 +151,7 @@ export const buildTextOnlyPointLabelOverlayState = ({
     fontSize,
     fontFamily,
     fontWeight,
+    mixBlendMode,
     attach,
     distance,
     getScreenPosition,
@@ -277,6 +281,7 @@ export const getPointLabelOverlayContentSignature = (
     `${state.fontSize ?? ""}`,
     `${state.fontFamily ?? ""}`,
     `${state.fontWeight ?? ""}`,
+    `${state.mixBlendMode ?? ""}`,
     `${state.longPressDurationMs ?? ""}`,
     `${state.markerOnlyPointerEvents ?? false}`,
     `${state.longPressOnlyOnMarker ?? false}`,
@@ -305,6 +310,7 @@ export const renderPointLabelOverlayContent = (
     badgeContent={resolveEffectiveBadgeContent(state)}
     markerBackgroundColor={state.markerBackgroundColor}
     markerTextColor={state.markerTextColor}
+    mixBlendMode={state.mixBlendMode}
     lineColor={state.lineColor}
     labelStyle={state.labelStyle}
     collapse={state.collapse}

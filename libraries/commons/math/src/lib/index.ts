@@ -8,11 +8,18 @@ export * from "./geometry3d";
 export * from "./orientation3d";
 export * from "./matrix4";
 export {
+  addPoint3,
   arePoint3Close,
   crossPoint3,
+  dotPoint3,
+  getPointPlaneOrthogonalToLineAngleErrorDeg3d,
   getPointLength3d,
   getPolygonArea3d,
   getTriangleArea3d,
+  isPointWithinPlaneOrthogonalToLineAngleTolerance3d,
+  projectPointOntoPlaneOrthogonalToLine3d,
+  projectPointOntoPlane3d,
+  scalePoint3,
   subtractPoint3,
   type Point3,
 } from "./point3";

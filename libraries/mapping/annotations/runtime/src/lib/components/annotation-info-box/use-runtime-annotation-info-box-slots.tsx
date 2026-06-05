@@ -1,15 +1,24 @@
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 
 import {
+  ANNOTATION_INFO_BOX_HELP_ALERT_SEVERITIES,
+  ANNOTATION_INFO_BOX_HELP_ITEM_KINDS,
+  AnnotationInfoBoxHelpContent,
   AnnotationInfoBoxTextContent,
+  type AnnotationInfoBoxHelpLayout,
+  type AnnotationInfoBoxHelpItem,
   type AnnotationInfoBoxSlots,
   type AnnotationInfoBoxVisualOptions,
   resolveAnnotationInfoBoxVisualOptions,
 } from "@carma-mapping/annotations/ui";
 
 import { useAnnotationsRuntime } from "../../context/AnnotationsProvider";
+import { useAnnotationToolDraftStates } from "../../context/use-annotation-tool-draft-states";
 import type { StoredAnnotation } from "../../store";
-import type { AnnotationToolPlugin } from "../../registry";
+import type {
+  AnnotationToolDraftState,
+  AnnotationToolPlugin,
+} from "../../registry";
 import { resolveAnnotationToolFallbackPlugin } from "../../utils/annotation-tool-collections";
 
 export const RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS = {
@@ -24,6 +33,8 @@ export type RuntimeAnnotationInfoBoxSlotsState =
   | {
       kind: typeof RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS.ANNOTATION;
       annotation: StoredAnnotation;
+      instructionContent?: ReactNode;
+      instructionToolId?: AnnotationToolPlugin["id"];
       slots: AnnotationInfoBoxSlots;
       visualOptions: AnnotationInfoBoxVisualOptions;
     }
@@ -51,9 +62,18 @@ export type RuntimeAnnotationInfoBoxVisualOptionsInput =
     ) => Partial<AnnotationInfoBoxVisualOptions>);
 
 export type UseRuntimeAnnotationInfoBoxSlotsOptions = {
+  fallbackHelpLayout?: AnnotationInfoBoxHelpLayout;
+  helpLocale?: string;
   includeFallback?: boolean;
   visualOptions?: RuntimeAnnotationInfoBoxVisualOptionsInput;
 };
+
+const EMPTY_RUNTIME_ANNOTATION_TOOL_DRAFT_STATE: AnnotationToolDraftState =
+  Object.freeze({
+    coordinates: Object.freeze([]),
+    linkedNodeGroupIds: Object.freeze([]),
+    feedback: null,
+  });
 
 const resolveRuntimeAnnotationInfoBoxVisualOptions = (
   visualOptions: RuntimeAnnotationInfoBoxVisualOptionsInput | undefined,
@@ -63,13 +83,32 @@ const resolveRuntimeAnnotationInfoBoxVisualOptions = (
     typeof visualOptions === "function" ? visualOptions(context) : visualOptions
   );
 
+const buildFallbackHelpItems = (
+  fallbackHelpText: readonly AnnotationInfoBoxHelpItem[],
+  feedback: AnnotationToolDraftState["feedback"]
+): readonly AnnotationInfoBoxHelpItem[] =>
+  feedback
+    ? [
+        {
+          kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ALERT,
+          severity: ANNOTATION_INFO_BOX_HELP_ALERT_SEVERITIES.WARNING,
+          text: feedback.message,
+        },
+        ...fallbackHelpText,
+      ]
+    : fallbackHelpText;
+
 export const useRuntimeAnnotationInfoBoxSlots = ({
+  fallbackHelpLayout,
+  helpLocale,
   includeFallback = false,
   visualOptions,
 }: UseRuntimeAnnotationInfoBoxSlotsOptions = {}): RuntimeAnnotationInfoBoxSlotsState | null => {
   const {
     registry,
     activeToolType,
+    activePointQueryPickResult,
+    annotationToolDraftStore,
     annotationEntries,
     formatOptions,
     nodes,
@@ -86,44 +125,84 @@ export const useRuntimeAnnotationInfoBoxSlots = ({
     updateAnnotationDisplayName,
     updateAnnotationShortLabel,
   } = useAnnotationsRuntime();
+  const activeDraftToolTypes = useMemo(
+    () => (activeToolType ? [activeToolType] : []),
+    [activeToolType]
+  );
+  const activeDraftStates = useAnnotationToolDraftStates({
+    draftStore: annotationToolDraftStore,
+    toolTypes: activeDraftToolTypes,
+  });
+  const activeToolDraftState = activeToolType
+    ? activeDraftStates[activeToolType] ??
+      EMPTY_RUNTIME_ANNOTATION_TOOL_DRAFT_STATE
+    : EMPTY_RUNTIME_ANNOTATION_TOOL_DRAFT_STATE;
+  const activeToolDraftFeedback = activeToolType
+    ? activeToolDraftState.feedback ?? null
+    : null;
 
   return useMemo(() => {
-    if (!selectedAnnotationId) {
-      if (!includeFallback) {
+    const fallbackPlugin = includeFallback
+      ? resolveAnnotationToolFallbackPlugin({
+          activeToolType,
+          registry,
+        })
+      : null;
+
+    const fallbackHelpText =
+      fallbackPlugin !== null
+        ? fallbackPlugin.resolveHelpText?.({
+            draftState: activeToolDraftState,
+            pointQueryPickResult: activePointQueryPickResult,
+          }) ??
+          fallbackPlugin.helpText ??
+          []
+        : [];
+    const fallbackHelpItems = buildFallbackHelpItems(
+      fallbackHelpText,
+      activeToolDraftFeedback
+    );
+
+    const hasFallbackInstructionContent = Boolean(
+      fallbackPlugin !== null && fallbackHelpItems.length > 0
+    );
+    const fallbackVisualOptions =
+      fallbackPlugin !== null && hasFallbackInstructionContent
+        ? resolveRuntimeAnnotationInfoBoxVisualOptions(visualOptions, {
+            kind: RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS.FALLBACK,
+            plugin: fallbackPlugin,
+          })
+        : null;
+    const fallbackInstructionContent = fallbackVisualOptions ? (
+      <AnnotationInfoBoxTextContent visualOptions={fallbackVisualOptions}>
+        <AnnotationInfoBoxHelpContent
+          items={fallbackHelpItems}
+          layout={fallbackHelpLayout}
+          locale={helpLocale}
+        />
+      </AnnotationInfoBoxTextContent>
+    ) : null;
+    const shouldRenderFallback =
+      fallbackPlugin !== null && !selectedAnnotationId;
+
+    if (shouldRenderFallback) {
+      if (!fallbackInstructionContent || !fallbackVisualOptions) {
         return null;
       }
-
-      const fallbackPlugin = resolveAnnotationToolFallbackPlugin({
-        activeToolType,
-        registry,
-      });
-
-      if (!fallbackPlugin?.helpText?.length) {
-        return null;
-      }
-
-      const resolvedVisualOptions =
-        resolveRuntimeAnnotationInfoBoxVisualOptions(visualOptions, {
-          kind: RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS.FALLBACK,
-          plugin: fallbackPlugin,
-        });
 
       return {
         kind: RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS.FALLBACK,
         plugin: fallbackPlugin,
         slots: {
-          headingTitle: fallbackPlugin.descriptor.label,
-          content: (
-            <AnnotationInfoBoxTextContent visualOptions={resolvedVisualOptions}>
-              {fallbackPlugin.helpText.map((line) => (
-                <p key={line}>{line}</p>
-              ))}
-            </AnnotationInfoBoxTextContent>
-          ),
-          collapsible: true,
+          content: fallbackInstructionContent,
+          collapsible: false,
         },
-        visualOptions: resolvedVisualOptions,
+        visualOptions: fallbackVisualOptions,
       };
+    }
+
+    if (!selectedAnnotationId) {
+      return null;
     }
 
     const selectedAnnotation =
@@ -175,17 +254,33 @@ export const useRuntimeAnnotationInfoBoxSlots = ({
       return null;
     }
 
+    const shouldShowActiveDraftInstruction =
+      fallbackPlugin?.alwaysShowHelpTextWhileActive === true &&
+      (activeToolDraftState.coordinates.length > 0 ||
+        activeToolDraftFeedback !== null);
+
     return {
       kind: RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS.ANNOTATION,
       annotation: selectedAnnotation,
+      instructionContent: shouldShowActiveDraftInstruction
+        ? fallbackInstructionContent ?? undefined
+        : undefined,
+      instructionToolId: shouldShowActiveDraftInstruction
+        ? fallbackPlugin.id
+        : undefined,
       slots,
       visualOptions: resolvedVisualOptions,
     };
   }, [
+    activeToolDraftFeedback,
+    activeToolDraftState,
     activeToolType,
+    activePointQueryPickResult,
     annotationEntries,
     elevationReferenceAnnotationId,
     exportAnnotationGeoJson,
+    fallbackHelpLayout,
+    helpLocale,
     flyToAllAnnotations,
     focusAnnotationId,
     formatOptions,
