@@ -5,6 +5,7 @@ const initialState = {
   jwt: undefined,
   login: undefined,
   loginRequested: false,
+  permissions: undefined,
 };
 
 const slice = createSlice({
@@ -23,18 +24,38 @@ const slice = createSlice({
       state.loginRequested = action.payload;
       return state;
     },
+    storePermissions(state, action) {
+      state.permissions = action.payload;
+      return state;
+    },
   },
 });
 
 export default slice;
 
-export const { storeJWT, storeLogin, setLoginRequested } = slice.actions;
+export const { storeJWT, storeLogin, setLoginRequested, storePermissions } =
+  slice.actions;
 
 export const getJWT = (state) => {
   return state.auth.jwt;
 };
 export const getLogin = (state) => {
   return state.auth.login;
+};
+
+export const getPermissions = (state) => {
+  return state.auth.permissions;
+};
+
+// Read-only mode: a "Gast" user is one whose only permission group is "Gast".
+// Any additional group (or absence of permissions) means full editor access.
+export const getIsReadOnly = (state) => {
+  const permissions = state.auth.permissions;
+  return (
+    Array.isArray(permissions) &&
+    permissions.length === 1 &&
+    permissions[0] === "Gast"
+  );
 };
 
 export const isLoginRequested = (state) => {
@@ -85,6 +106,7 @@ export const checkJWTValidation = () => {
 
         dispatch(storeJWT(undefined));
         dispatch(storeLogin(undefined));
+        dispatch(storePermissions(undefined));
       });
   };
 };
