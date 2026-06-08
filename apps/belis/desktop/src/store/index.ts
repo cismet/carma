@@ -72,6 +72,7 @@ const mapSettingsConfig = {
     "enabledLeitungstypen",
     "enabledCategoryFilters",
     "snappingEnabled",
+    "dangerousDeleteMode",
   ],
 };
 

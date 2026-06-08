@@ -12,6 +12,10 @@ const initialState = {
   enabledLeitungstypen: {} as Record<number, boolean>,
   enabledCategoryFilters: {} as Record<string, boolean>,
   snappingEnabled: false,
+  // "Gefährlicher Löschmodus": when on, an existing Fachobjekt's form exposes a
+  // GitHub-style "Gefahrenzone" delete action at the bottom. Off by default so
+  // the destructive UI stays hidden until a user opts in via Einstellungen.
+  dangerousDeleteMode: false,
 };
 export const searchMinimumZoomThreshhold = 18;
 
@@ -72,6 +76,9 @@ const slice = createSlice({
     setSnappingEnabled(state, action: { payload: boolean }) {
       state.snappingEnabled = action.payload;
     },
+    setDangerousDeleteMode(state, action: { payload: boolean }) {
+      state.dangerousDeleteMode = action.payload;
+    },
   },
 });
 
@@ -91,6 +98,7 @@ export const {
   setCategoryFilterEnabled,
   setAllCategoryFilters,
   setSnappingEnabled,
+  setDangerousDeleteMode,
 } = slice.actions;
 
 export const getActiveBackgroundLayer = (state) => {
@@ -141,4 +149,8 @@ export const getEnabledCategoryFilters = (state) => {
 
 export const isSnappingEnabled = (state) => {
   return state.mapSettings.snappingEnabled;
+};
+
+export const isDangerousDeleteModeActive = (state) => {
+  return state.mapSettings.dangerousDeleteMode;
 };

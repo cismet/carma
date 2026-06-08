@@ -12,6 +12,8 @@ import {
   setAdditionalLayerOpacities,
   isInPaleMode,
   setPaleModeActive,
+  isDangerousDeleteModeActive,
+  setDangerousDeleteMode,
 } from "../../store/slices/mapSettings";
 
 import {
@@ -101,6 +103,7 @@ const Settings = () => {
   const activeAdditionalLayers = useSelector(getActiveAdditionalLayers);
   const additionalLayerOpacities = useSelector(getAdditionalLayerOpacities);
   const inPaleMode = useSelector(isInPaleMode);
+  const dangerousDeleteMode = useSelector(isDangerousDeleteModeActive);
 
   return (
     <div className="flex flex-col gap-10 h-full">
@@ -191,6 +194,29 @@ const Settings = () => {
         >
           <Button block>Gemerkte Felder zurücksetzen</Button>
         </Popconfirm>
+      </div>
+      <div className="flex flex-col gap-2 rounded-md border border-[#f5c2c7] overflow-hidden">
+        <div className="bg-[#fff5f5] px-3 py-2 border-b border-[#f5c2c7]">
+          <span className="text-[#cf222e] font-semibold text-sm">
+            Gefahrenzone
+          </span>
+        </div>
+        <div className="flex items-center justify-between gap-3 px-3 pb-3 pt-1">
+          <div className="flex flex-col">
+            <span className="text-[15px] font-medium">Löschmodus</span>
+            <span className="text-[12px] text-gray-500">
+              Blendet im Fachobjekt einen Button zum Löschen ein. Vorsicht: nicht
+              umkehrbar.
+            </span>
+          </div>
+          <Switch
+            checked={dangerousDeleteMode}
+            onChange={(checked) =>
+              dispatch(setDangerousDeleteMode(checked))
+            }
+            style={{ transform: "scale(1.2)", transformOrigin: "right center" }}
+          />
+        </div>
       </div>
       <VersionInfo version={getApplicationVersion(versionData)} />
     </div>

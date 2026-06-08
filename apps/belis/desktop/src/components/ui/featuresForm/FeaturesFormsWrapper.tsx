@@ -36,6 +36,7 @@ import {
 import { getJWT, getIsReadOnly } from "../../../store/slices/auth";
 import type { DokumentItem } from "../DocumentPreview";
 import { ChangedFieldsProvider } from "./DraftFieldHighlight";
+import { DeleteFeatureProvider } from "./DeleteFeatureContext";
 import { LOCKED_FIELD_CLASSES } from "./readOnlyFormUtils";
 import {
   getAllowlistedPaths,
@@ -1070,8 +1071,29 @@ const FeaturesFormsWrapper = ({
       </div>
     ) : undefined;
 
+  // Destructive deletion of the currently open existing Fachobjekt. Provided to
+  // the form tree via context and surfaced as the bottom "Gefahrenzone" action
+  // in FeatureFormLayout (gated by the dangerous-delete-mode setting). Only
+  // available for existing features and editable (non-"Gast") users — creation
+  // drafts and read-only users get no handler, so the danger zone stays hidden.
+  // TODO: connect to the backend deletion endpoint for Fachobjekte.
+  const handleDeleteFeature = useCallback(async () => {
+    console.warn("[DELETE] Fachobjekt löschen angefordert", {
+      featureId,
+      formKey,
+      dbId: dbPK,
+    });
+    message.info("Löschen ist noch nicht mit dem Backend verbunden.");
+  }, [featureId, formKey, dbPK]);
+
+  const deleteFeatureHandler =
+    !isReadOnly && !isCreation && dbPK != null
+      ? handleDeleteFeature
+      : undefined;
+
   if (FormComponent) {
     return (
+      <DeleteFeatureProvider value={deleteFeatureHandler}>
       <SingleSaveCtx.Provider value={singleSaveValue}>
         <ChangedFieldsProvider
           originalValues={originalValues}
@@ -1149,6 +1171,7 @@ const FeaturesFormsWrapper = ({
           </div>
         </ChangedFieldsProvider>
       </SingleSaveCtx.Provider>
+      </DeleteFeatureProvider>
     );
   }
 };

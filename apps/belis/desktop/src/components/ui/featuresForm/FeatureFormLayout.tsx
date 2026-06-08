@@ -8,7 +8,11 @@ import {
 } from "react";
 import { Tabs } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
+import { useSelector } from "react-redux";
 import FormHeader from "./FormHeader";
+import DangerZone from "./DangerZone";
+import { useDeleteFeature } from "./DeleteFeatureContext";
+import { isDangerousDeleteModeActive } from "../../../store/slices/mapSettings";
 import { DokumentItem } from "../DocumentPreview";
 import FilePreview, {
   SavedImageUrls,
@@ -182,6 +186,13 @@ const FeatureFormLayout = ({
   const [isWideScreen, setIsWideScreen] = useState(
     typeof window !== "undefined" ? window.innerWidth > 1200 : false
   );
+  // "Gefährlicher Löschmodus": opt-in setting that surfaces a destructive
+  // delete action at the bottom of every existing feature's form. The handler
+  // is provided via context by FeaturesFormsWrapper and is `undefined` when
+  // deletion is not allowed (creation draft / read-only user), which keeps the
+  // box hidden regardless of the setting.
+  const dangerousDeleteMode = useSelector(isDangerousDeleteModeActive);
+  const onDeleteFeature = useDeleteFeature();
 
   // Controlled active tab key so we can intercept clicks on the "+" sentinel
   // (which must add a new Leuchte tab without navigating to a blank pane).
@@ -510,6 +521,21 @@ const FeatureFormLayout = ({
     </div>
   );
 
+  // Danger zone: only when the user opted into the dangerous delete mode and a
+  // delete handler is available (existing feature, editable user). Rendered at
+  // the very bottom of the form column so it sits below all tabs/content.
+  const dangerZone =
+    dangerousDeleteMode && onDeleteFeature ? (
+      <DangerZone
+        title={title ? `${title} löschen` : "Fachobjekt löschen"}
+        description="Das Fachobjekt wird dauerhaft aus der Datenbank entfernt."
+        buttonLabel="Fachobjekt löschen"
+        onConfirm={() => {
+          onDeleteFeature();
+        }}
+      />
+    ) : null;
+
   // Raw data tabs (only shown when ?showRaw=true / yellow mode).
   // Two separate tabs: "Feature Rohdaten" is the lightweight feature loaded
   // from the map / vector tile; "DB Rohdaten" is the full object loaded
@@ -674,6 +700,7 @@ const FeatureFormLayout = ({
             ) : (
               <div className="pt-4">{formHeaderContent}{children}</div>
             )}
+            {dangerZone}
           </div>
           {/* Documents / side column - 40% */}
           <div
@@ -791,6 +818,7 @@ const FeatureFormLayout = ({
             })()}
           </div>
         )}
+        {dangerZone}
       </div>
     </div>
   );
