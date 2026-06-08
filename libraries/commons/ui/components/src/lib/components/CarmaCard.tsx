@@ -44,6 +44,7 @@ const isPerceptuallyDark = ([r, g, b]: [number, number, number]): boolean => {
 export interface CarmaCardProps {
   header?: React.ReactNode;
   headerColor?: string;
+  headerStyle?: React.CSSProperties;
   bodyStyle?: React.CSSProperties;
   /** Always-visible line below header (not collapsed). */
   subtitle?: React.ReactNode;
@@ -74,6 +75,7 @@ export interface CarmaCardProps {
 const CarmaCard = ({
   header,
   headerColor,
+  headerStyle,
   bodyStyle,
   subtitle,
   hideSubtitleWhenCollapsed = false,
@@ -424,6 +426,7 @@ const CarmaCard = ({
             position: "relative",
             zIndex: 1,
             backgroundColor: headerColor,
+            ...headerStyle,
             backdropFilter: "blur(3px)",
             WebkitBackdropFilter: "blur(3px)",
             padding: "3px 0px",

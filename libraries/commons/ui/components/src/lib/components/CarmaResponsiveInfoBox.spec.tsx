@@ -13,17 +13,21 @@ vi.mock("@carma-mapping/map-controls-layout", () => ({
 vi.mock("./CarmaCard", () => ({
   default: ({
     header,
+    headerStyle,
     content,
     footer,
     style,
   }: {
     header?: ReactNode;
+    headerStyle?: CSSProperties;
     content?: ReactNode;
     footer?: ReactNode;
     style?: CSSProperties;
   }) => (
     <div data-test-id="carma-card" style={style}>
-      {header}
+      <div data-test-id="carma-card-header" style={headerStyle}>
+        {header}
+      </div>
       {content}
       {footer}
     </div>
@@ -87,5 +91,26 @@ describe("CarmaResponsiveInfoBox", () => {
     ) as HTMLDivElement | null;
 
     expect(card?.style.marginLeft).toBe("auto");
+  });
+
+  it("passes heading styles to the card header", () => {
+    const { container } = render(
+      <CarmaResponsiveInfoBox
+        width={350}
+        useControlLayout={false}
+        heading={<span>Titel</span>}
+        headingStyle={{
+          borderTop: "1px solid rgb(1, 2, 3)",
+        }}
+        content={<span>Inhalt</span>}
+      />
+    );
+
+    const header = container.querySelector(
+      '[data-test-id="carma-card-header"]'
+    ) as HTMLDivElement | null;
+
+    expect(header?.style.borderTopWidth).toBe("1px");
+    expect(header?.style.borderTopStyle).toBe("solid");
   });
 });

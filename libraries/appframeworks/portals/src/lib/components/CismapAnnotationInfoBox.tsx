@@ -1,7 +1,4 @@
-import type {
-  CSSProperties,
-  ReactNode,
-} from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 import Icon from "react-cismap/commons/Icon";
 
@@ -167,6 +164,7 @@ export const CismapAnnotationInfoBox = ({
         headerBackgroundColor={
           slots.headingColor ?? resolvedVisualOptions.headingColor
         }
+        headerStyle={resolvedVisualOptions.headerStyle}
         alwaysVisibleDiv={
           <div className="mb-2 mt-2 w-[96%]">
             {slots.subtitle ?? (
@@ -191,19 +189,27 @@ export const CismapAnnotationInfoBox = ({
 
 export type CismapAnnotationInstructionInfoBoxProps = {
   content: ReactNode;
+  headerTitle?: ReactNode;
   pixelWidth?: number;
   controlOrder?: number;
+  visualOptions?: Partial<AnnotationInfoBoxVisualOptions>;
   secondaryInfoBoxElements?: ReactNode[];
 };
 
 export const CismapAnnotationInstructionInfoBox = ({
   content,
+  headerTitle,
   pixelWidth = 350,
   controlOrder,
+  visualOptions,
   secondaryInfoBoxElements = [],
 }: CismapAnnotationInstructionInfoBoxProps) => {
+  const resolvedVisualOptions =
+    resolveAnnotationInfoBoxVisualOptions(visualOptions);
   const contentClassName =
     "mt-2 w-[90%] p-2 text-xs font-normal leading-normal text-[#212529] [&_*]:font-normal";
+  const hasHeaderTitle =
+    headerTitle !== undefined && headerTitle !== null && headerTitle !== false;
   const instructionContentElement = (
     <div className={contentClassName} data-test-id="empty-annotation-info">
       {content}
@@ -216,7 +222,13 @@ export const CismapAnnotationInstructionInfoBox = ({
         pixelwidth={pixelWidth}
         infoBoxDataAttributes={ANNOTATION_POINTER_QUERY_PRESERVE_ATTRIBUTES}
         panelClick={(event) => event.stopPropagation()}
-        header=""
+        header={headerTitle ?? ""}
+        headerBackgroundColor={
+          hasHeaderTitle ? resolvedVisualOptions.headingColor : undefined
+        }
+        headerStyle={
+          hasHeaderTitle ? resolvedVisualOptions.headerStyle : undefined
+        }
         isCollapsible={false}
         alwaysVisibleDiv={instructionContentElement}
         collapsibleDiv={<div />}

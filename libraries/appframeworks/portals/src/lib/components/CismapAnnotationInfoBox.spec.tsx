@@ -12,13 +12,14 @@ const responsiveInfoBoxMock = vi.hoisted(() =>
       collapsibleDiv,
       header,
       headerBackgroundColor,
+      headerStyle,
       infoBoxDataAttributes,
       secondaryInfoBoxElements = [],
     }) => (
       <div data-test-id="mock-responsive-info-box" {...infoBoxDataAttributes}>
         <div
           data-test-id="mock-header"
-          style={{ backgroundColor: headerBackgroundColor }}
+          style={{ backgroundColor: headerBackgroundColor, ...headerStyle }}
         >
           {header}
         </div>
@@ -79,6 +80,11 @@ describe("CismapAnnotationInfoBox", () => {
         controlOrder={12}
         pixelWidth={420}
         secondaryInfoBoxElements={[<span key="secondary">Secondary box</span>]}
+        visualOptions={{
+          headerStyle: {
+            backgroundImage: "linear-gradient(red, blue)",
+          },
+        }}
         slots={{
           collapsible: false,
           content: <span>Detail content</span>,
@@ -104,6 +110,9 @@ describe("CismapAnnotationInfoBox", () => {
       expect.objectContaining({
         header: "Messungen",
         headerBackgroundColor: "#eeeeee",
+        headerStyle: {
+          backgroundImage: "linear-gradient(red, blue)",
+        },
       })
     );
     expect(screen.getByText("Subtitle content")).toBeTruthy();
@@ -137,12 +146,10 @@ describe("CismapAnnotationInfoBox", () => {
     expect(
       instructionSlot?.getAttribute("data-carma-pointer-query-preserve")
     ).toBe("true");
-    expect(
-      instructionSlot?.getAttribute("class")
-    ).toContain("bg-white");
-    expect(
-      instructionSlot?.getAttribute("class")
-    ).toContain("rounded");
+    expect(instructionSlot?.getAttribute("class")).toContain("bg-white");
+    expect(instructionSlot?.getAttribute("class")).toContain("rounded");
+    expect(instructionSlot?.getAttribute("class")).toContain("px-3");
+    expect(instructionSlot?.getAttribute("class")).toContain("py-2");
     expect(instructionSlot?.getAttribute("class")).toContain("w-full");
     expect((instructionSlot as HTMLElement).style.marginBottom).toBe("12px");
     expect((instructionSlot as HTMLElement).style.maxWidth).toBe("420px");
@@ -188,8 +195,36 @@ describe("CismapAnnotationInfoBox", () => {
     expect(instructionContainer?.getAttribute("class")).toContain(
       "font-normal"
     );
+    expect(instructionContainer?.getAttribute("class")).toContain("mt-2");
     expect(instructionContainer?.getAttribute("class")).toContain("w-[90%]");
+    expect(instructionContainer?.getAttribute("class")).toContain("p-2");
+    expect(instructionContainer?.getAttribute("class")).not.toContain("w-full");
     expect(screen.getByText("Instruction content")).toBeTruthy();
+  });
+
+  it("can render a patterned title section for development-only instruction content", () => {
+    render(
+      <CismapAnnotationInstructionInfoBox
+        content={<span>Instruction content</span>}
+        headerTitle="Messungen"
+        visualOptions={{
+          headerStyle: {
+            backgroundImage: "linear-gradient(red, blue)",
+          },
+          headingColor: "rgba(255, 255, 255, 0.88)",
+        }}
+      />
+    );
+
+    expect(responsiveInfoBoxMock.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        header: "Messungen",
+        headerBackgroundColor: "rgba(255, 255, 255, 0.88)",
+        headerStyle: {
+          backgroundImage: "linear-gradient(red, blue)",
+        },
+      })
+    );
   });
 
   it("keeps the Cismap title input visually aligned with 2D measurement headings while hiding non-2D measurement actions", () => {

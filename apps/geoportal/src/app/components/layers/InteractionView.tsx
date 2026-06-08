@@ -1,10 +1,12 @@
 import { FC, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
+import { DevelopmentOnlyUiBackdrop } from "@carma-commons/ui/components";
 import {
   RuntimeAnnotationsToolbar,
   useAnnotationsRuntime,
 } from "@carma-mapping/annotations/runtime";
+import type { AnnotationToolbarTool } from "@carma-mapping/annotations/ui";
 import {
   createFilterButtons,
   FilterInfo,
@@ -32,6 +34,10 @@ import {
 } from "../../store/slices/ui";
 import { useGeoportalCesiumAnnotationToolPlugins } from "../../hooks/use-geoportal-cesium-annotation-tool-plugins";
 import { CESIUM_ANNOTATION_INTERACTION_ID } from "../annotations/cesium-annotations.constants";
+import {
+  GEOPORTAL_ANNOTATION_DEVELOPMENT_PREVIEW_PATTERN_OPTIONS,
+  isGeoportalDevelopmentPreviewAnnotationToolId,
+} from "../../helper/annotation-info-box-visual-options";
 import { useFilterBackground } from "./useFilterBackground";
 import FilterBackdrop from "./FilterBackdrop";
 import { GEOPORTAL_LAYER_TOOL_ACTION_TOOLBAR_CLASS_NAMES } from "./layer-tool-action-button-style";
@@ -43,6 +49,15 @@ import {
   AdhocRenderStyleInteractionPanel,
 } from "./AdhocModelLayerbarControls";
 
+const renderGeoportalAnnotationToolButtonBackdrop = (
+  tool: AnnotationToolbarTool
+) =>
+  isGeoportalDevelopmentPreviewAnnotationToolId(tool.id) ? (
+    <DevelopmentOnlyUiBackdrop
+      patternOptions={GEOPORTAL_ANNOTATION_DEVELOPMENT_PREVIEW_PATTERN_OPTIONS}
+    />
+  ) : null;
+
 const GeoportalAnnotationsToolbar: FC<{ layer: Layer }> = () => {
   const { registry } = useAnnotationsRuntime();
   const toolPlugins = useGeoportalCesiumAnnotationToolPlugins(registry.plugins);
@@ -53,6 +68,7 @@ const GeoportalAnnotationsToolbar: FC<{ layer: Layer }> = () => {
       classNames={GEOPORTAL_LAYER_TOOL_ACTION_TOOLBAR_CLASS_NAMES}
       disableSelectWithoutAnnotations
       tooltipPlacement="bottom"
+      renderToolButtonBackdrop={renderGeoportalAnnotationToolButtonBackdrop}
     />
   );
 };

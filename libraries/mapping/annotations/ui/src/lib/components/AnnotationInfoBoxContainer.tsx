@@ -41,6 +41,7 @@ export const AnnotationInfoBoxContainer = ({
         collapsible={slots.collapsible ?? true}
         header={undefined}
         headingColor={slots.headingColor ?? resolvedVisualOptions.headingColor}
+        headingStyle={resolvedVisualOptions.headerStyle}
         footer={slots.footer}
         hideSubtitleWhenCollapsed={false}
         hideFooterWhenCollapsed={true}

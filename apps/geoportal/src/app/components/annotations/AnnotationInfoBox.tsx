@@ -1,65 +1,19 @@
 import { useSelector } from "react-redux";
 import type { ReactNode } from "react";
 
-import {
-  CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS,
-  CismapAnnotationInfoBox,
-  CismapAnnotationInstructionInfoBox,
-} from "@carma-appframeworks/portals";
-import {
-  ANNOTATION_INFO_BOX_ACTION_IDS,
-  ANNOTATION_INFO_BOX_HELP_LAYOUTS,
-  AnnotationInfoBoxContainer,
-} from "@carma-mapping/annotations/ui";
-import {
-  ANNOTATION_SELECT_TOOL_ID,
-  ANNOTATION_TYPES,
-} from "@carma-mapping/annotations/core";
-import {
-  RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS,
-  type RuntimeAnnotationInfoBoxVisualOptionsContext,
-  useRuntimeAnnotationInfoBoxSlots,
-} from "@carma-mapping/annotations/runtime";
+import { CismapRuntimeAnnotationInfoBox } from "@carma-appframeworks/portals";
+import { ANNOTATION_INFO_BOX_HELP_LAYOUTS } from "@carma-mapping/annotations/ui";
+import { useRuntimeAnnotationInfoBoxSlots } from "@carma-mapping/annotations/runtime";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
+import { useFeatureFlags } from "@carma-providers/feature-flag";
 
 import { CESIUM_ANNOTATION_CONFIG } from "../../config/app.config";
 import { shouldShowAnnotationInfoBox } from "../../helper/annotation-info-box";
+import { resolveGeoportalAnnotationInfoBoxVisualOptions } from "../../helper/annotation-info-box-visual-options";
 import { getLayers } from "../../store/slices/mapping";
 import { getUIMode } from "../../store/slices/ui";
 
-const CISMAP_INFO_BOX_TOOL_IDS = new Set<string>([
-  ANNOTATION_SELECT_TOOL_ID,
-  ANNOTATION_TYPES.POINT,
-  ANNOTATION_TYPES.DISTANCE,
-  ANNOTATION_TYPES.POLYLINE,
-  ANNOTATION_TYPES.AREA_GROUND,
-  ANNOTATION_TYPES.AREA_PLANAR,
-  ANNOTATION_TYPES.AREA_VERTICAL,
-  ANNOTATION_TYPES.LABEL,
-]);
-
 const GEOPORTAL_ANNOTATION_HELP_LOCALE = "de-DE";
-
-const resolveGeoportalCismapInfoBoxVisualOptions = (
-  context: RuntimeAnnotationInfoBoxVisualOptionsContext
-) => {
-  const hiddenActionIds =
-    context.kind === RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS.ANNOTATION &&
-    context.annotation.toolType === ANNOTATION_TYPES.POINT
-      ? CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS.hiddenActionIds.filter(
-          (actionId) => actionId !== ANNOTATION_INFO_BOX_ACTION_IDS.REFERENCE
-        )
-      : CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS.hiddenActionIds;
-
-  return {
-    ...CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS,
-    hiddenActionIds,
-    showSubtitleMetaText:
-      context.kind !==
-        RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS.ANNOTATION ||
-      context.annotation.toolType !== ANNOTATION_TYPES.DISTANCE,
-  };
-};
 
 type AnnotationInfoBoxProps = {
   secondaryInfoBoxElements?: ReactNode[];
@@ -69,15 +23,21 @@ const AnnotationInfoBox = ({
   secondaryInfoBoxElements = [],
 }: AnnotationInfoBoxProps) => {
   const { isCesium } = useMapFrameworkSwitcherContext();
+  const flags = useFeatureFlags();
   const uiMode = useSelector(getUIMode);
   const layers = useSelector(getLayers);
+  const showAllAnnotationTools =
+    flags.featureFlagCesiumAnnotationAllTools === true;
+  const activeAnnotationToolIds = showAllAnnotationTools
+    ? CESIUM_ANNOTATION_CONFIG.tools.allToolIds
+    : CESIUM_ANNOTATION_CONFIG.tools.stableToolIds;
   const infoBoxState = useRuntimeAnnotationInfoBoxSlots({
     fallbackHelpLayout: isCesium
       ? ANNOTATION_INFO_BOX_HELP_LAYOUTS.COMPACT
       : undefined,
     helpLocale: GEOPORTAL_ANNOTATION_HELP_LOCALE,
     includeFallback: true,
-    visualOptions: resolveGeoportalCismapInfoBoxVisualOptions,
+    visualOptions: resolveGeoportalAnnotationInfoBoxVisualOptions,
   });
   const annotationsVisible = shouldShowAnnotationInfoBox({
     isCesium,
@@ -89,38 +49,13 @@ const AnnotationInfoBox = ({
     return null;
   }
 
-  if (
-    infoBoxState.kind === RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS.FALLBACK
-  ) {
-    return (
-      <CismapAnnotationInstructionInfoBox
-        content={infoBoxState.slots.content}
-        controlOrder={CESIUM_ANNOTATION_CONFIG.infoBox.controlOrder}
-        secondaryInfoBoxElements={secondaryInfoBoxElements}
-      />
-    );
-  }
-
-  if (CISMAP_INFO_BOX_TOOL_IDS.has(infoBoxState.annotation.toolType)) {
-    return (
-      <CismapAnnotationInfoBox
-        pixelWidth={CESIUM_ANNOTATION_CONFIG.infoBox.pixelWidth}
-        instructionContent={
-          isCesium ? infoBoxState.instructionContent : undefined
-        }
-        slots={infoBoxState.slots}
-        visualOptions={infoBoxState.visualOptions}
-        controlOrder={CESIUM_ANNOTATION_CONFIG.infoBox.controlOrder}
-        secondaryInfoBoxElements={secondaryInfoBoxElements}
-      />
-    );
-  }
-
   return (
-    <AnnotationInfoBoxContainer
-      {...CESIUM_ANNOTATION_CONFIG.infoBox}
-      slots={infoBoxState.slots}
-      visualOptions={infoBoxState.visualOptions}
+    <CismapRuntimeAnnotationInfoBox
+      infoBoxState={infoBoxState}
+      isCesium={isCesium}
+      annotationToolIds={activeAnnotationToolIds}
+      layoutProps={CESIUM_ANNOTATION_CONFIG.infoBox}
+      secondaryInfoBoxElements={secondaryInfoBoxElements}
     />
   );
 };

@@ -26,6 +26,7 @@ export type AnnotationInfoBoxActionIconRenderProps = {
 export type AnnotationInfoBoxVisualOptions = Readonly<{
   defaultPixelWidth: number;
   headingColor: string;
+  headerStyle: CSSProperties;
   bodyPanelStyle: CSSProperties;
   resolveActionTooltipPopupContainer: (triggerNode: HTMLElement) => HTMLElement;
   headerForegroundClassName: string;

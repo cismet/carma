@@ -19,6 +19,7 @@ interface ResponsiveInfoBoxProps {
   pixelwidth: number;
   header: React.ReactNode;
   headerBackgroundColor?: string;
+  headerStyle?: React.CSSProperties;
   collapsedInfoBox?: boolean;
   setCollapsedInfoBox?: (value: boolean) => void;
   isCollapsible?: boolean;
@@ -44,6 +45,7 @@ export const ResponsiveInfoBox = ({
   pixelwidth,
   header,
   headerBackgroundColor,
+  headerStyle,
   collapsedInfoBox,
   setCollapsedInfoBox,
   isCollapsible = true,
@@ -82,6 +84,7 @@ export const ResponsiveInfoBox = ({
         boxSizing: "border-box",
         paddingLeft: headerInsetLeft,
         width: "100%",
+        ...headerStyle,
       }}
     >
       {header}

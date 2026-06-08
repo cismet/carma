@@ -20,6 +20,7 @@ export type RuntimeAnnotationsToolbarProps = {
   showToolTypeIndicators?: boolean;
   tooltipPlacement?: AnnotationsToolbarProps["tooltipPlacement"];
   getTooltipPopupContainer?: AnnotationsToolbarProps["getTooltipPopupContainer"];
+  renderToolButtonBackdrop?: AnnotationsToolbarProps["renderToolButtonBackdrop"];
 };
 
 export type { AnnotationsToolbarClassNames, AnnotationsToolbarMetrics };
@@ -32,6 +33,7 @@ export const RuntimeAnnotationsToolbar = ({
   showToolTypeIndicators = false,
   tooltipPlacement,
   getTooltipPopupContainer,
+  renderToolButtonBackdrop,
 }: RuntimeAnnotationsToolbarProps) => {
   const { registry, activeToolType, requestModeChange, annotationEntries } =
     useAnnotationsRuntime();
@@ -83,6 +85,7 @@ export const RuntimeAnnotationsToolbar = ({
       showToolTypeIndicators={showToolTypeIndicators}
       tooltipPlacement={tooltipPlacement}
       getTooltipPopupContainer={getTooltipPopupContainer}
+      renderToolButtonBackdrop={renderToolButtonBackdrop}
     />
   );
 };

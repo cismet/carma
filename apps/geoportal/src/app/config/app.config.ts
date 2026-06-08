@@ -18,7 +18,10 @@ import {
   type AreaOcclusionStyleOptions,
   type MeasurementLineStyleOptions,
 } from "@carma-mapping/annotations/runtime";
-import type { AnnotationInfoBoxLayoutProps } from "@carma-mapping/annotations/ui";
+import {
+  DEFAULT_ANNOTATION_INFO_BOX_TOOL_IDS,
+  type AnnotationInfoBoxLayoutProps,
+} from "@carma-mapping/annotations/ui";
 import { Rectangle } from "cesium";
 
 export const APP_BASE_PATH = import.meta.env.BASE_URL;
@@ -80,6 +83,7 @@ export type GeoportalCesiumAnnotationConfig = {
   infoBox: GeoportalAnnotationInfoBoxConfig;
   tools: {
     defaultToolId: AnnotationToolId;
+    allToolIds: readonly AnnotationToolId[];
     stableToolIds: readonly AnnotationToolId[];
   };
 };
@@ -153,6 +157,7 @@ export const CESIUM_ANNOTATION_CONFIG = {
   },
   tools: {
     defaultToolId: ANNOTATION_TYPES.DISTANCE,
+    allToolIds: DEFAULT_ANNOTATION_INFO_BOX_TOOL_IDS,
     stableToolIds: [
       ANNOTATION_SELECT_TOOL_ID,
       ANNOTATION_TYPES.POINT,

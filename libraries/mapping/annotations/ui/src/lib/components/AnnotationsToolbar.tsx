@@ -20,6 +20,7 @@ export type AnnotationsToolbarClassNames = {
   toolButtonActive: string;
   toolButtonInactive: string;
   toolButtonDisabled: string;
+  toolButtonBackdrop: string;
   toolGroup: string;
   toolButtonShell: string;
   toolButtonIcon: string;
@@ -39,6 +40,7 @@ export type AnnotationsToolbarProps = {
   metrics?: Partial<AnnotationsToolbarMetrics>;
   tooltipPlacement?: TooltipProps["placement"];
   getTooltipPopupContainer?: TooltipProps["getPopupContainer"];
+  renderToolButtonBackdrop?: (tool: AnnotationToolbarTool) => ReactNode;
   showToolTypeIndicators?: boolean;
 };
 
@@ -53,6 +55,8 @@ const DEFAULT_TOOLBAR_CLASS_NAMES = {
   toolButtonActive: "text-[#1677ff]",
   toolButtonInactive: "",
   toolButtonDisabled: "cursor-not-allowed opacity-45 hover:text-gray-700",
+  toolButtonBackdrop:
+    "pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-[10px]",
   toolGroup: "relative flex min-w-12 items-center overflow-visible",
   toolButtonShell: "relative overflow-visible",
   toolButtonIcon:
@@ -70,6 +74,7 @@ export const AnnotationsToolbar = ({
   metrics,
   tooltipPlacement = "top",
   getTooltipPopupContainer,
+  renderToolButtonBackdrop,
   showToolTypeIndicators = false,
 }: AnnotationsToolbarProps) => {
   const toolbarClassNames = {
@@ -91,10 +96,16 @@ export const AnnotationsToolbar = ({
         const annotationCount = tool.annotationCount ?? 0;
         const tooltipTitle = tool.tooltipContent ?? tool.tooltip;
         const ariaLabel = tool.ariaLabel ?? tool.tooltip;
+        const toolButtonBackdrop = renderToolButtonBackdrop?.(tool);
 
         return (
           <div key={tool.id} className={toolbarClassNames.toolGroup}>
-            <div className={toolbarClassNames.toolButtonShell}>
+            <div
+              className={toolbarClassNames.toolButtonShell}
+              style={{
+                width: toolbarMetrics.toolButtonWidthPx,
+              }}
+            >
               {showToolTypeIndicators && annotationCount > 0 ? (
                 <span className={toolbarClassNames.toolButtonBadge}>
                   {annotationCount}
@@ -112,6 +123,7 @@ export const AnnotationsToolbar = ({
                   aria-label={ariaLabel}
                   disabled={tool.disabled}
                   className={[
+                    "relative z-[1] overflow-hidden",
                     toolbarClassNames.toolButtonBase,
                     isActive
                       ? toolbarClassNames.toolButtonActive
@@ -122,7 +134,20 @@ export const AnnotationsToolbar = ({
                     width: toolbarMetrics.toolButtonWidthPx,
                   }}
                 >
-                  <span className={toolbarClassNames.toolButtonIcon}>
+                  {toolButtonBackdrop ? (
+                    <span
+                      className={toolbarClassNames.toolButtonBackdrop}
+                      aria-hidden="true"
+                    >
+                      {toolButtonBackdrop}
+                    </span>
+                  ) : null}
+                  <span
+                    className={[
+                      "relative z-[1]",
+                      toolbarClassNames.toolButtonIcon,
+                    ].join(" ")}
+                  >
                     {tool.icon}
                   </span>
                 </button>

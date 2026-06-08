@@ -70,4 +70,25 @@ describe("AnnotationInfoBoxContainer", () => {
       })
     );
   });
+
+  it("passes visual header styles to the responsive card shell", () => {
+    const headerStyle = {
+      backgroundImage: "linear-gradient(red, blue)",
+    };
+
+    render(
+      <AnnotationInfoBoxContainer
+        slots={slots}
+        visualOptions={{
+          headerStyle,
+        }}
+      />
+    );
+
+    expect(carmaResponsiveInfoBoxMock.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        headingStyle: headerStyle,
+      })
+    );
+  });
 });

@@ -25,7 +25,9 @@ export {
   type DismissibleHelpBoxProps,
 } from "./lib/components/DismissibleHelpBox";
 export {
+  DevelopmentOnlyUiBackdrop,
   DevelopmentOnlyPatternBackground,
+  type DevelopmentOnlyUiBackdropProps,
   type DevelopmentOnlyPatternBackgroundProps,
 } from "./lib/components/DevBackground/DevelopmentOnlyPatternBackground";
 export {
@@ -109,10 +111,13 @@ export {
   DEVELOPMENT_ONLY_PATTERN_TEXT,
   DEVELOPMENT_ONLY_PATTERN_TEXT_DE,
   DEVELOPMENT_ONLY_PATTERN_TEXT_EN,
+  DEVELOPMENT_ONLY_UI_BACKDROP_PATTERN_TEXT,
   buildDevelopmentOnlyPatternDataUrl,
   buildDevelopmentOnlyPatternSvgMarkup,
   readDevelopmentOnlyPatternStyle,
+  readDevelopmentOnlyUiBackdropStyle,
   type DevelopmentOnlyPatternStyleOptions,
+  type DevelopmentOnlyUiBackdropStyleOptions,
 } from "./lib/components/DevBackground/developmentOnlyPattern";
 export {
   ANNOTATION_CURSOR_OVERLAY_CENTER_DOT_SIZE_PX,

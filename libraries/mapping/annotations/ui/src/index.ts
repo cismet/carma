@@ -10,6 +10,7 @@ export {
   annotationInfoBoxVisualDefaults,
   resolveAnnotationInfoBoxVisualOptions,
 } from "./lib/config/annotation-info-box-visual-defaults";
+export { DEFAULT_ANNOTATION_INFO_BOX_TOOL_IDS } from "./lib/config/default-annotation-info-box-tool-ids";
 export { AnnotationInfoBoxActionIcon } from "./lib/components/AnnotationInfoBoxActionIcon";
 export { AnnotationInfoBoxActions } from "./lib/components/AnnotationInfoBoxActions";
 export { AnnotationInfoBoxContainer } from "./lib/components/AnnotationInfoBoxContainer";

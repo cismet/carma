@@ -25,6 +25,7 @@ export interface CarmaResponsiveInfoBoxProps {
   header?: React.ReactNode;
   heading?: React.ReactNode;
   headingColor?: string;
+  headingStyle?: CSSProperties;
   bodyStyle?: CSSProperties;
   subtitle?: React.ReactNode;
   hideSubtitleWhenCollapsed?: boolean;
@@ -53,6 +54,7 @@ export const CarmaResponsiveInfoBox = ({
   header,
   heading,
   headingColor,
+  headingStyle,
   bodyStyle,
   subtitle,
   hideSubtitleWhenCollapsed = false,
@@ -225,6 +227,7 @@ export const CarmaResponsiveInfoBox = ({
       <CarmaCard
         header={heading}
         headerColor={headingColor}
+        headerStyle={headingStyle}
         bodyStyle={bodyStyle}
         subtitle={subtitle}
         hideSubtitleWhenCollapsed={hideSubtitleWhenCollapsed}

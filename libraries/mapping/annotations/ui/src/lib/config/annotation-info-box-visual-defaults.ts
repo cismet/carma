@@ -51,6 +51,7 @@ export const annotationInfoBoxVisualDefaults: AnnotationInfoBoxVisualOptions =
   Object.freeze({
     defaultPixelWidth: 430,
     headingColor: annotationInfoBoxColorPalette.heading,
+    headerStyle: {},
     bodyPanelStyle: {
       backgroundColor: formatHexRgbaCss(
         annotationInfoBoxColorPalette.panelSurface,
