@@ -106,7 +106,7 @@ const Settings = () => {
   const dangerousDeleteMode = useSelector(isDangerousDeleteModeActive);
 
   return (
-    <div className="flex flex-col gap-10 h-full">
+    <div className="flex flex-col gap-10 min-h-full">
       <div className="flex flex-col gap-2 flex-1">
         <h2 className="text-2xl font-medium">Karte</h2>
 
