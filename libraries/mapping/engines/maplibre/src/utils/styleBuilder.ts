@@ -101,6 +101,25 @@ export const getPaintProperty = (
   }
 };
 
+/** Legacy MapLibre/Mapbox "stops function" object, e.g. { stops: [[9, 0.32], [24, 1]] }. */
+type StopsObject = { stops: [number, unknown][]; [k: string]: unknown };
+
+export const isStopsObject = (value: unknown): value is StopsObject =>
+  typeof value === "object" &&
+  value !== null &&
+  !Array.isArray(value) &&
+  Array.isArray((value as { stops?: unknown }).stops);
+
+export const scaleStopsObject = (
+  stopsObj: StopsObject,
+  scaleValue: (value: unknown) => unknown
+): StopsObject => ({
+  ...stopsObj,
+  stops: stopsObj.stops.map(
+    ([zoom, value]) => [zoom, scaleValue(value)] as [number, unknown]
+  ),
+});
+
 /**
  * Apply marker symbol size scaling to a style
  */
@@ -142,6 +161,14 @@ export const styleManipulation = (
             ...layout,
             "icon-size": newIconSize as typeof iconSize,
           };
+        } else if (isStopsObject(iconSize)) {
+          updatedLayer.layout = {
+            ...layout,
+            "icon-size": scaleStopsObject(
+              iconSize,
+              (value) => (value as number) * scale
+            ) as typeof iconSize,
+          };
         }
       }
 
@@ -182,6 +209,14 @@ export const styleManipulation = (
           updatedLayer.layout = {
             ...(updatedLayer.layout || layout),
             "text-offset": [x, y * scale] as typeof textOffset,
+          };
+        } else if (isStopsObject(textOffset)) {
+          updatedLayer.layout = {
+            ...(updatedLayer.layout || layout),
+            "text-offset": scaleStopsObject(textOffset, (value) => {
+              const offset = value;
+              return [offset[0], offset[1] * scale];
+            }) as typeof textOffset,
           };
         }
       }
@@ -595,87 +630,88 @@ export const vectorStylesToMapLibreStyle = async ({
                 : (userFilter as unknown[]);
             }
             return {
-            ...styleLayer,
-            id: `${layerId}-${styleLayer.id}`,
-            ...(src && sourceRename[src] ? { source: sourceRename[src] } : {}),
-            ...(userFilter
-              ? { filter: bakedFilter as never }
-              : {}),
-            metadata: {
-              ...(
-                styleLayer as LayerSpecification & {
-                  metadata?: Record<string, unknown>;
-                }
-              ).metadata,
-              "z-index": index,
-              "layer-id": layerId,
-              ...(userFilter ? { originalFilter: origFilter } : {}),
-            },
-            paint: {
-              ...styleLayer.paint,
-              ...(() => {
-                if (styleLayer.id.toLowerCase().includes("selection"))
-                  return {};
-                // Symbol layers need both text-opacity and icon-opacity
-                const props =
-                  styleLayer.type === "symbol"
-                    ? ["text-opacity", "icon-opacity"]
-                    : ([getPaintProperty(styleLayer)].filter(
-                        Boolean
-                      ) as string[]);
-                if (props.length === 0) return {};
-                const layerOpacity = layer.opacity ?? 1;
-                const result: Record<string, unknown> = {};
-                for (const prop of props) {
-                  const baseOpacity =
-                    (styleLayer.paint as Record<string, unknown>)?.[prop] || 1;
-                  result[prop] =
-                    typeof baseOpacity === "number"
-                      ? baseOpacity * layerOpacity
-                      : layerOpacity < 1
-                      ? layerOpacity
-                      : baseOpacity;
-                }
-                return result;
-              })(),
-              ...((styleLayer.paint as Record<string, unknown>)?.[
-                "fill-pattern"
-              ] !== undefined
-                ? {
-                    "fill-pattern": prefixPatternExpression(
-                      spriteId,
-                      (styleLayer.paint as Record<string, unknown>)[
-                        "fill-pattern"
-                      ]
-                    ),
-                  }
+              ...styleLayer,
+              id: `${layerId}-${styleLayer.id}`,
+              ...(src && sourceRename[src]
+                ? { source: sourceRename[src] }
                 : {}),
-            },
-            layout: {
-              ...(
-                styleLayer as LayerSpecification & {
-                  layout?: Record<string, unknown>;
-                }
-              ).layout,
-              ...((
-                styleLayer as LayerSpecification & {
-                  layout?: Record<string, unknown>;
-                }
-              ).layout?.["icon-image"] !== undefined
-                ? {
-                    "icon-image": [
-                      "concat",
-                      `${spriteId}:`,
-                      (
-                        styleLayer as LayerSpecification & {
-                          layout?: Record<string, unknown>;
-                        }
-                      ).layout?.["icon-image"],
-                    ],
+              ...(userFilter ? { filter: bakedFilter as never } : {}),
+              metadata: {
+                ...(
+                  styleLayer as LayerSpecification & {
+                    metadata?: Record<string, unknown>;
                   }
-                : {}),
-            },
-          };
+                ).metadata,
+                "z-index": index,
+                "layer-id": layerId,
+                ...(userFilter ? { originalFilter: origFilter } : {}),
+              },
+              paint: {
+                ...styleLayer.paint,
+                ...(() => {
+                  if (styleLayer.id.toLowerCase().includes("selection"))
+                    return {};
+                  // Symbol layers need both text-opacity and icon-opacity
+                  const props =
+                    styleLayer.type === "symbol"
+                      ? ["text-opacity", "icon-opacity"]
+                      : ([getPaintProperty(styleLayer)].filter(
+                          Boolean
+                        ) as string[]);
+                  if (props.length === 0) return {};
+                  const layerOpacity = layer.opacity ?? 1;
+                  const result: Record<string, unknown> = {};
+                  for (const prop of props) {
+                    const baseOpacity =
+                      (styleLayer.paint as Record<string, unknown>)?.[prop] ||
+                      1;
+                    result[prop] =
+                      typeof baseOpacity === "number"
+                        ? baseOpacity * layerOpacity
+                        : layerOpacity < 1
+                        ? layerOpacity
+                        : baseOpacity;
+                  }
+                  return result;
+                })(),
+                ...((styleLayer.paint as Record<string, unknown>)?.[
+                  "fill-pattern"
+                ] !== undefined
+                  ? {
+                      "fill-pattern": prefixPatternExpression(
+                        spriteId,
+                        (styleLayer.paint as Record<string, unknown>)[
+                          "fill-pattern"
+                        ]
+                      ),
+                    }
+                  : {}),
+              },
+              layout: {
+                ...(
+                  styleLayer as LayerSpecification & {
+                    layout?: Record<string, unknown>;
+                  }
+                ).layout,
+                ...((
+                  styleLayer as LayerSpecification & {
+                    layout?: Record<string, unknown>;
+                  }
+                ).layout?.["icon-image"] !== undefined
+                  ? {
+                      "icon-image": [
+                        "concat",
+                        `${spriteId}:`,
+                        (
+                          styleLayer as LayerSpecification & {
+                            layout?: Record<string, unknown>;
+                          }
+                        ).layout?.["icon-image"],
+                      ],
+                    }
+                  : {}),
+              },
+            };
           }
         );
 
@@ -857,7 +893,9 @@ export const vectorStylesToMapLibreStyle = async ({
         style.sources[sourceId] = {
           type: "raster",
           tiles: [
-            `${layer.url}${querySep}service=WMS&version=${version}&request=GetMap&layers=${
+            `${
+              layer.url
+            }${querySep}service=WMS&version=${version}&request=GetMap&layers=${
               layer.layers
             }&styles=${layer.styles || ""}&format=${
               layer.format || "image/png"
