@@ -24,6 +24,7 @@ import {
   setDraftDocumentsInfo,
   setRemovedDocumentKeys,
   setPendingDeletion,
+  markFeatureDeleted,
   removeDraft,
   clearDraftGeometry,
   setOriginalValues,
@@ -591,6 +592,11 @@ const FeaturesFormsWrapper = ({
         console.log(
           "xxx [DELETE] soft-delete result:",
           JSON.stringify({ featureId, className, result: deleteResult }, null, 2)
+        );
+        // Keep the soft-deleted row hidden on both maps: the vector tiles and
+        // the brandnew FC still carry it until they are regenerated server-side.
+        dispatch(
+          markFeatureDeleted({ featureId, featureDbId: Number(dbPK) })
         );
         dispatch(removeDraft(featureId));
         dispatch(incrementFeatureDataVersion());

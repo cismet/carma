@@ -13,6 +13,7 @@ import {
   getAllDrafts,
   removeDraft,
   promoteDraftHiddenToPermanent,
+  markFeatureDeleted,
 } from "../../../store/slices/featuresForms";
 import { getJWT } from "../../../store/slices/auth";
 import { incrementFeatureDataVersion } from "../../../store/slices/featureCollection";
@@ -125,6 +126,7 @@ const FormHeader = ({
       dispatch,
       removeDraft,
       promoteDraftHiddenToPermanent,
+      markFeatureDeleted,
       incrementFeatureDataVersion,
       measurements,
       setMeasurements,
