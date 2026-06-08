@@ -192,7 +192,7 @@ const FeatureFormLayout = ({
   // deletion is not allowed (creation draft / read-only user), which keeps the
   // box hidden regardless of the setting.
   const dangerousDeleteMode = useSelector(isDangerousDeleteModeActive);
-  const onDeleteFeature = useDeleteFeature();
+  const deleteControls = useDeleteFeature();
 
   // Controlled active tab key so we can intercept clicks on the "+" sentinel
   // (which must add a new Leuchte tab without navigating to a blank pane).
@@ -525,14 +525,11 @@ const FeatureFormLayout = ({
   // delete handler is available (existing feature, editable user). Rendered at
   // the very bottom of the form column so it sits below all tabs/content.
   const dangerZone =
-    dangerousDeleteMode && onDeleteFeature ? (
+    dangerousDeleteMode && deleteControls ? (
       <DangerZone
         title={title ? `${title} löschen` : "Fachobjekt löschen"}
-        description="Das Fachobjekt wird dauerhaft aus der Datenbank entfernt."
-        buttonLabel="Fachobjekt löschen"
-        onConfirm={() => {
-          onDeleteFeature();
-        }}
+        pendingDeletion={deleteControls.pendingDeletion}
+        onMark={deleteControls.mark}
       />
     ) : null;
 

@@ -23,6 +23,7 @@ import {
   setDraftFiles,
   setDraftDocumentsInfo,
   setRemovedDocumentKeys,
+  setPendingDeletion,
   removeDraft,
   clearDraftGeometry,
   setOriginalValues,
@@ -54,6 +55,7 @@ import {
   saveFeatureDraft,
   buildStrassenschluesselByPk,
 } from "../../../helper/featureFormSaveHelpers";
+import { updateDataByClassName } from "../../../helper/apiMethods";
 import {
   buildMeasurementGeometryOptions,
   buildCurrentGeometryOption,
@@ -407,6 +409,7 @@ const FeaturesFormsWrapper = ({
 
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const pendingDeletion = !!draft?.pendingDeletion;
   // A read-only ("Gast") user must never get an editable form — not even a
   // creation form. This overrides the normal creation/editing/globalEditMode
   // logic so no CRUD UI (save buttons, green "+" create button, editable
@@ -562,6 +565,65 @@ const FeaturesFormsWrapper = ({
     }
     if (!featureId || !draft) return;
 
+    // Deletion draft: "Speichern" commits the marked deletion as a soft delete —
+    // a normal update that flips the row's `is_deleted` flag (via
+    // updateDataByClassName), not a hard server-side removal. The backend keeps
+    // the record but filters it out of the GraphQL/tile responses.
+    if (draft.pendingDeletion) {
+      const className = formKey ? formKeyToGraphqlKey[formKey] : undefined;
+      if (!className || dbPK == null) {
+        void message.error("Löschen nicht möglich: Typ oder ID unbekannt.");
+        return;
+      }
+      setSaving(true);
+      const hide = message.loading(`${className} #${dbPK} wird gelöscht …`, 0);
+      const deletePayload = { id: Number(dbPK), is_deleted: true };
+      console.log(
+        "xxx [DELETE] soft-delete start:",
+        JSON.stringify({ featureId, className, payload: deletePayload }, null, 2)
+      );
+      try {
+        const deleteResult = await updateDataByClassName(
+          jwt,
+          className,
+          deletePayload
+        );
+        console.log(
+          "xxx [DELETE] soft-delete result:",
+          JSON.stringify({ featureId, className, result: deleteResult }, null, 2)
+        );
+        dispatch(removeDraft(featureId));
+        dispatch(incrementFeatureDataVersion());
+        void message.success(`Gelöscht: ${className} #${dbPK}`);
+        setIsEditing(false);
+        onSelectNextDraft?.(featureId);
+      } catch (err) {
+        console.log(
+          "xxx [DELETE] soft-delete failed:",
+          JSON.stringify(
+            {
+              featureId,
+              className,
+              id: dbPK,
+              error: err instanceof Error ? err.message : String(err),
+            },
+            null,
+            2
+          )
+        );
+        console.error("[DELETE] fehlgeschlagen", { className, id: dbPK, err });
+        void message.error(
+          `Löschen fehlgeschlagen: ${
+            err instanceof Error ? err.message : "Unbekannter Fehler"
+          }`
+        );
+      } finally {
+        hide();
+        setSaving(false);
+      }
+      return;
+    }
+
     // Brandnew (creation) drafts without a geometry would be POSTed with no
     // geom field, producing a NULL-geometry row server-side that surfaces
     // the next day as a malformed feature in brand.new.features.json and
@@ -647,6 +709,8 @@ const FeaturesFormsWrapper = ({
     featureId,
     draft,
     isCreation,
+    formKey,
+    dbPK,
     measurements,
     dispatch,
     onSelectNextDraft,
@@ -1071,29 +1135,58 @@ const FeaturesFormsWrapper = ({
       </div>
     ) : undefined;
 
-  // Destructive deletion of the currently open existing Fachobjekt. Provided to
-  // the form tree via context and surfaced as the bottom "Gefahrenzone" action
-  // in FeatureFormLayout (gated by the dangerous-delete-mode setting). Only
-  // available for existing features and editable (non-"Gast") users — creation
-  // drafts and read-only users get no handler, so the danger zone stays hidden.
-  // TODO: connect to the backend deletion endpoint for Fachobjekte.
-  const handleDeleteFeature = useCallback(async () => {
-    console.warn("[DELETE] Fachobjekt löschen angefordert", {
+  // Mark the currently open existing Fachobjekt for deletion. Surfaced as the
+  // bottom "Gefahrenzone" action in FeatureFormLayout (gated by the
+  // dangerous-delete-mode setting) and provided to the form tree via context.
+  // Marking records the intent as a draft and enters edit mode so the form
+  // header's existing "Speichern"/"zurücksetzen" buttons commit or cancel the
+  // deletion like any other draft — Speichern runs the server-side delete in
+  // handleServerSave; zurücksetzen drops the draft via handleCancel.
+  const handleMarkForDeletion = useCallback(() => {
+    if (!featureId || !formKey) return;
+    console.log(
+      "xxx [DELETE] mark for deletion:",
+      JSON.stringify(
+        { featureId, formKey, featureDbId: dbPK != null ? Number(dbPK) : null },
+        null,
+        2
+      )
+    );
+    dispatch(
+      setPendingDeletion({
+        featureId,
+        featureType: formKey,
+        pendingDeletion: true,
+        feature: draftFeature,
+        fetchedData: data,
+        featureDbId: dbPK != null ? Number(dbPK) : undefined,
+      })
+    );
+    setIsEditing(true);
+  }, [featureId, formKey, dispatch, draftFeature, data, dbPK]);
+
+  // Deletion is only offered for existing features (creation drafts are
+  // cancelled, not deleted) and editable (non-"Gast") users. `undefined` keeps
+  // the danger zone hidden entirely.
+  const deleteControls = useMemo(
+    () =>
+      !isReadOnly && !isCreation && dbPK != null && featureId && formKey
+        ? { pendingDeletion, mark: handleMarkForDeletion }
+        : undefined,
+    [
+      isReadOnly,
+      isCreation,
+      dbPK,
       featureId,
       formKey,
-      dbId: dbPK,
-    });
-    message.info("Löschen ist noch nicht mit dem Backend verbunden.");
-  }, [featureId, formKey, dbPK]);
-
-  const deleteFeatureHandler =
-    !isReadOnly && !isCreation && dbPK != null
-      ? handleDeleteFeature
-      : undefined;
+      pendingDeletion,
+      handleMarkForDeletion,
+    ]
+  );
 
   if (FormComponent) {
     return (
-      <DeleteFeatureProvider value={deleteFeatureHandler}>
+      <DeleteFeatureProvider value={deleteControls}>
       <SingleSaveCtx.Provider value={singleSaveValue}>
         <ChangedFieldsProvider
           originalValues={originalValues}
