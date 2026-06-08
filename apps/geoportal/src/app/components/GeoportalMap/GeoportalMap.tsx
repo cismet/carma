@@ -1,5 +1,7 @@
 import L from "leaflet";
+import proj4 from "proj4";
 import { getFromWebMercatorToWGS84 } from "@carma-geo/proj";
+import { FeatureInfoRectangleLayer } from "@carma-appframeworks/envirometrics";
 import {
   useCallback,
   useContext,
@@ -113,7 +115,10 @@ import { useObliqueInitializer } from "../../oblique/hooks/useObliqueInitializer
 import { useCameraOrbit } from "../../hooks/useCameraOrbit.ts";
 import { useGeoportalInitialValues } from "../../hooks/useGeoportalInitialValues.ts";
 
-import { onClickTopicMap } from "./topicmap.utils.ts";
+import {
+  onClickTopicMap,
+  type FeatureInfoRectangle,
+} from "./topicmap.utils.ts";
 import { useGeoportalCesiumNavigationRestore } from "./hooks/useGeoportalCesiumNavigationRestore.ts";
 import { useCreateCismapLayers } from "./hooks/useCreateCismapLayer.ts";
 
@@ -371,6 +376,8 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
   const markerRef = useRef(undefined);
   const markerAccentRef = useRef(undefined);
   const [pos, setPos] = useState<[number, number] | null>(null);
+  const [featureInfoRectangle, setFeatureInfoRectangle] =
+    useState<FeatureInfoRectangle | null>(null);
   // TODO: move all these to a custom hook and collect all calls to updateFeatureInfo there
   const [shouldUpdateFeatureInfo, setShouldUpdateFeatureInfo] =
     useState<boolean>(false);
@@ -819,6 +826,36 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
   }, [maplibreMaps]);
 
   useEffect(() => {
+    if (uiMode !== UIMode.DEFAULT) {
+      setFeatureInfoRectangle(null);
+    }
+  }, [uiMode]);
+
+  useEffect(() => {
+    if (uiMode !== UIMode.DEFAULT || !selectedFeature) {
+      return;
+    }
+    const layerWithSelectedFeature = layers.find(
+      (l) => l.id === selectedFeature.id
+    );
+    if (layerWithSelectedFeature && !layerWithSelectedFeature.visible) {
+      dispatch(setSelectedFeature(null));
+      dispatch(setSecondaryInfoBoxElements([]));
+      dispatch(setFeatures([]));
+      setFeatureInfoRectangle(null);
+    }
+  }, [layers, selectedFeature, uiMode, dispatch]);
+
+  const hasPointInfoLayer = useMemo(
+    () =>
+      layers.some(
+        (layer) =>
+          layer.visible && layer.conf !== undefined && "pointInfo" in layer.conf
+      ),
+    [layers]
+  );
+
+  useEffect(() => {
     const leaflet = getLeafletMap();
 
     const handleZoomEnd = () => {
@@ -1230,6 +1267,7 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
               zoom: getLeafletZoom(),
               map: map,
               maplibreMapsRef,
+              setFeatureInfoRectangle,
             });
           }}
           gazetteerSearchControl={true}
@@ -1246,6 +1284,16 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
             )}
 
           {useCreateCismapLayers(layers, createLayerOptions)}
+          {hasPointInfoLayer &&
+            uiMode === UIMode.DEFAULT &&
+            featureInfoRectangle && (
+              <FeatureInfoRectangleLayer
+                position={featureInfoRectangle.position}
+                upperleftX={featureInfoRectangle.upperleftX}
+                upperleftY={featureInfoRectangle.upperleftY}
+                pixelsize={featureInfoRectangle.pixelsize}
+              />
+            )}
           <PrintPreview />
           <Measurements snappingLayers={maplibreMaps} />
         </TopicMapComponent>

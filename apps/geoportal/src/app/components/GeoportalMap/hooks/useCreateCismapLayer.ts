@@ -20,7 +20,6 @@ import type { RootState } from "../../../store";
 import {
   clearTriggerSelectionById,
   getTriggerSelectionById,
-  setSelectedFeature,
 } from "../../../store/slices/features";
 import {
   setLayersIdle,
@@ -37,10 +36,7 @@ import {
   cancelOngoingRequests,
   implicitVectorSelection,
   onSelectionChangedVector,
-  resolveHit,
 } from "../topicmap.utils";
-import { utils } from "@carma-appframeworks/portals";
-import { selectionPadding } from "../../../constants/selection";
 
 const MAX_ZOOM = 26;
 
@@ -230,42 +226,11 @@ export const useCreateCismapLayers = (
 
   useEffect(() => {
     updateGlobalHits();
-    if (modeRef.current === UIMode.DEFAULT) {
-      const lastObject =
-        getSemanticMatch(globalHits, semanticIdForHits) ||
-        getLastDefinedObject(globalHits);
-
-      if (lastObject) {
-        resetSelection(globalHits);
-        const layerForHits = layers.find((l) => l.id === lastObject.key);
-        const semanticInfo = layerForHits?.conf?.semanticInfo as
-          | Record<string, { layers: string[] }>
-          | undefined;
-        const selectedVectorFeature = resolveHit(
-          lastObject.value,
-          semanticInfo,
-          semanticIdForHits
-        );
-        if (selectedVectorFeature.setSelection) {
-          selectedVectorFeature.setSelection(true);
-          if (selectedVectorFeature?.state?.selected) {
-            utils.zoomToFeature({
-              selectedFeature: foundFeatures[lastObject.key],
-              leafletMap,
-              padding: selectionPadding,
-            });
-          }
-          dispatch(setSelectedFeature(foundFeatures[lastObject.key]));
-        }
-      } else {
-        dispatch(setSelectedFeature(null));
-      }
-    }
   }, [globalHits, foundFeatures, semanticIdForHits]);
 
   useEffect(() => {
     updateGlobalHits();
-    if (selectedFeature && modeRef.current !== UIMode.DEFAULT) {
+    if (selectedFeature) {
       resetSelection(globalHits);
       if (globalHits[selectedFeature.id]) {
         const hits = globalHits[selectedFeature.id];
@@ -297,237 +262,239 @@ export const useCreateCismapLayers = (
 
   // const ntList = [""];
 
-  return layers.filter((layer) => layer.props).map((layer, i) => {
-    if (layer.visible) {
-      switch (layer.layerType) {
-        case "wmts-nt":
-          return createCismapLayer({
-            key: `${layer.id}`,
-            url: layer.props.url,
-            maxZoom: MAX_ZOOM,
-            layers: layer.props.name,
-            format: "image/png",
-            tiled: true,
-            transparent: "true",
-            additionalLayerUniquePane: layer.id,
-            additionalLayersFreeZOrder: i,
-            opacity: layer.opacity.toFixed(1) || 0.7,
-            type: "wmts-nt",
-          });
-        case "wmts":
-          return createCismapLayer({
-            key: `${layer.id}`,
-            url: layer.props.url,
-            maxZoom: MAX_ZOOM,
-            layers: layer.props.name,
-            format: "image/png",
-            tiled: true,
-            transparent: "true",
-            additionalLayerUniquePane: layer.id,
-            additionalLayersFreeZOrder: i,
-            opacity: layer.opacity.toFixed(1) || 0.7,
-            type: "wmts",
-          });
-        case "vector":
-          return createCismapLayer({
-            key: `${layer.id}`,
-            style: layer.props.style,
-            maxZoom: MAX_ZOOM,
-            showTileBoundaries: showTileBoundaries,
-            additionalLayerUniquePane: layer.id,
-            additionalLayersFreeZOrder: i,
-            opacity: layer.opacity === 0 ? "0" : layer.opacity || 0.7,
-            type: "vector",
-            selectionEnabled: true,
-            manualSelectionManagement: true,
-            maxSelectionCount: 10,
-            onStyleData: (() => {
-              const configs = Array.isArray(layer.dynamicStyling)
-                ? layer.dynamicStyling
-                : layer.dynamicStyling
-                ? [layer.dynamicStyling]
-                : [];
-              if (!configs.length) return undefined;
-              return (map: maplibregl.Map) => {
-                const latestState = store.getState() as RootState;
-                const latestLayer = latestState?.mapping?.layers?.find(
-                  (l: Layer) => l.id === layer.id
-                );
-                const latestSelections: Record<number, string> =
-                  latestLayer &&
-                  typeof latestLayer.dynamicStylingSelection === "object" &&
-                  latestLayer.dynamicStylingSelection !== null
-                    ? latestLayer.dynamicStylingSelection
-                    : {};
-                const initialCarmaConf = extractCarmaConf(
-                  map.style?.stylesheet
-                );
-                if (initialCarmaConf) {
-                  dispatch(
-                    updateLayerFromLayerInfo({
-                      id: layer.id,
-                      layerInfo: {},
-                      carmaConf: initialCarmaConf,
-                    })
+  return layers
+    .filter((layer) => layer.props)
+    .map((layer, i) => {
+      if (layer.visible) {
+        switch (layer.layerType) {
+          case "wmts-nt":
+            return createCismapLayer({
+              key: `${layer.id}`,
+              url: layer.props.url,
+              maxZoom: MAX_ZOOM,
+              layers: layer.props.name,
+              format: "image/png",
+              tiled: true,
+              transparent: "true",
+              additionalLayerUniquePane: layer.id,
+              additionalLayersFreeZOrder: i,
+              opacity: layer.opacity.toFixed(1) || 0.7,
+              type: "wmts-nt",
+            });
+          case "wmts":
+            return createCismapLayer({
+              key: `${layer.id}`,
+              url: layer.props.url,
+              maxZoom: MAX_ZOOM,
+              layers: layer.props.name,
+              format: "image/png",
+              tiled: true,
+              transparent: "true",
+              additionalLayerUniquePane: layer.id,
+              additionalLayersFreeZOrder: i,
+              opacity: layer.opacity.toFixed(1) || 0.7,
+              type: "wmts",
+            });
+          case "vector":
+            return createCismapLayer({
+              key: `${layer.id}`,
+              style: layer.props.style,
+              maxZoom: MAX_ZOOM,
+              showTileBoundaries: showTileBoundaries,
+              additionalLayerUniquePane: layer.id,
+              additionalLayersFreeZOrder: i,
+              opacity: layer.opacity === 0 ? "0" : layer.opacity || 0.7,
+              type: "vector",
+              selectionEnabled: true,
+              manualSelectionManagement: true,
+              maxSelectionCount: 10,
+              onStyleData: (() => {
+                const configs = Array.isArray(layer.dynamicStyling)
+                  ? layer.dynamicStyling
+                  : layer.dynamicStyling
+                  ? [layer.dynamicStyling]
+                  : [];
+                if (!configs.length) return undefined;
+                return (map: maplibregl.Map) => {
+                  const latestState = store.getState() as RootState;
+                  const latestLayer = latestState?.mapping?.layers?.find(
+                    (l: Layer) => l.id === layer.id
                   );
-                }
-                configs.forEach((config, idx) => {
-                  const sel = latestSelections[idx];
-                  const effectiveSel = sel ?? config.default;
-                  if (!sel || sel === config.default) {
-                    setLastAppliedSelection(layer.id, idx, effectiveSel);
-                    return;
-                  }
-                  if (config.type === "list" || config.type === "toggle") {
-                    const result = applyDynamicStyling(
-                      map,
-                      layer.id,
-                      config,
-                      sel
+                  const latestSelections: Record<number, string> =
+                    latestLayer &&
+                    typeof latestLayer.dynamicStylingSelection === "object" &&
+                    latestLayer.dynamicStylingSelection !== null
+                      ? latestLayer.dynamicStylingSelection
+                      : {};
+                  const initialCarmaConf = extractCarmaConf(
+                    map.style?.stylesheet
+                  );
+                  if (initialCarmaConf) {
+                    dispatch(
+                      updateLayerFromLayerInfo({
+                        id: layer.id,
+                        layerInfo: {},
+                        carmaConf: initialCarmaConf,
+                      })
                     );
-                    setLastAppliedSelection(layer.id, idx, sel);
-                    if (result?.layerInfo || result?.carmaConf) {
-                      dispatch(
-                        updateLayerFromLayerInfo({
-                          id: layer.id,
-                          layerInfo: result.layerInfo ?? {},
-                          carmaConf: result.carmaConf ?? undefined,
-                        })
-                      );
-                    }
                   }
-                });
-              };
-            })(),
-            onMapLibreCoreMapReady: (map) => {
-              console.log("MapLibre map ready for layer:", layer.id, map);
-
-              // Store map reference outside of Redux to avoid serialization issues
-              if (maplibreMapsRef) {
-                maplibreMapsRef.current.set(layer.id, map);
-              }
-
-              if (setMaplibreMaps) {
-                setMaplibreMaps({ id: layer.id, map });
-              }
-
-              const triggerSelectionById = getTriggerSelectionById(
-                store.getState()
-              );
-              if (triggerSelectionById !== layer.id) {
-                return;
-              }
-              dispatch(clearTriggerSelectionById());
-
-              if (leafletMap && modeRef.current === UIMode.DEFAULT) {
-                const style = map.getStyle();
-                if (style?.sources) {
-                  const featuresWithGeometry: GeoJSON.Feature[] = [];
-
-                  for (const sourceKey in style.sources) {
-                    const source = style.sources[sourceKey] as any;
-                    if (
-                      source?.data &&
-                      source.data.type === "FeatureCollection"
-                    ) {
-                      const featureCollection = source.data;
-                      if (featureCollection.features) {
-                        featuresWithGeometry.push(
-                          ...featureCollection.features.filter(
-                            (f: GeoJSON.Feature) =>
-                              f.geometry &&
-                              (f.properties as { kind?: unknown } | null)
-                                ?.kind !== "label"
-                          )
+                  configs.forEach((config, idx) => {
+                    const sel = latestSelections[idx];
+                    const effectiveSel = sel ?? config.default;
+                    if (!sel || sel === config.default) {
+                      setLastAppliedSelection(layer.id, idx, effectiveSel);
+                      return;
+                    }
+                    if (config.type === "list" || config.type === "toggle") {
+                      const result = applyDynamicStyling(
+                        map,
+                        layer.id,
+                        config,
+                        sel
+                      );
+                      setLastAppliedSelection(layer.id, idx, sel);
+                      if (result?.layerInfo || result?.carmaConf) {
+                        dispatch(
+                          updateLayerFromLayerInfo({
+                            id: layer.id,
+                            layerInfo: result.layerInfo ?? {},
+                            carmaConf: result.carmaConf ?? undefined,
+                          })
                         );
                       }
                     }
-                  }
+                  });
+                };
+              })(),
+              onMapLibreCoreMapReady: (map) => {
+                console.log("MapLibre map ready for layer:", layer.id, map);
 
-                  const autoSelect = layer.conf?.autoSelect;
+                // Store map reference outside of Redux to avoid serialization issues
+                if (maplibreMapsRef) {
+                  maplibreMapsRef.current.set(layer.id, map);
+                }
 
-                  if (autoSelect === false) {
-                    return;
-                  }
+                if (setMaplibreMaps) {
+                  setMaplibreMaps({ id: layer.id, map });
+                }
 
-                  let featureToSelect: GeoJSON.Feature | undefined;
+                const triggerSelectionById = getTriggerSelectionById(
+                  store.getState()
+                );
+                if (triggerSelectionById !== layer.id) {
+                  return;
+                }
+                dispatch(clearTriggerSelectionById());
 
-                  if (
-                    typeof autoSelect === "string" ||
-                    typeof autoSelect === "number"
-                  ) {
-                    featureToSelect = featuresWithGeometry.find(
-                      (f) =>
-                        f.id === autoSelect || f.properties?.id === autoSelect
-                    );
-                  } else if (featuresWithGeometry.length === 1) {
-                    featureToSelect = featuresWithGeometry[0];
-                  }
+                if (leafletMap && modeRef.current === UIMode.DEFAULT) {
+                  const style = map.getStyle();
+                  if (style?.sources) {
+                    const featuresWithGeometry: GeoJSON.Feature[] = [];
 
-                  if (featureToSelect?.geometry) {
-                    const center = centroid(
-                      featureToSelect as GeoJSON.Feature<GeoJSON.Geometry>
-                    );
-                    const [lng, lat] = center.geometry.coordinates;
-                    const latlngPoint = L.latLng(lat, lng);
+                    for (const sourceKey in style.sources) {
+                      const source = style.sources[sourceKey] as any;
+                      if (
+                        source?.data &&
+                        source.data.type === "FeatureCollection"
+                      ) {
+                        const featureCollection = source.data;
+                        if (featureCollection.features) {
+                          featuresWithGeometry.push(
+                            ...featureCollection.features.filter(
+                              (f: GeoJSON.Feature) =>
+                                f.geometry &&
+                                (f.properties as { kind?: unknown } | null)
+                                  ?.kind !== "label"
+                            )
+                          );
+                        }
+                      }
+                    }
 
-                    leafletMap.fireEvent("click", {
-                      latlng: latlngPoint,
-                      layerPoint: leafletMap.latLngToLayerPoint(latlngPoint),
-                      containerPoint:
-                        leafletMap.latLngToContainerPoint(latlngPoint),
-                    });
+                    const autoSelect = layer.conf?.autoSelect;
+
+                    if (autoSelect === false) {
+                      return;
+                    }
+
+                    let featureToSelect: GeoJSON.Feature | undefined;
+
+                    if (
+                      typeof autoSelect === "string" ||
+                      typeof autoSelect === "number"
+                    ) {
+                      featureToSelect = featuresWithGeometry.find(
+                        (f) =>
+                          f.id === autoSelect || f.properties?.id === autoSelect
+                      );
+                    } else if (featuresWithGeometry.length === 1) {
+                      featureToSelect = featuresWithGeometry[0];
+                    }
+
+                    if (featureToSelect?.geometry) {
+                      const center = centroid(
+                        featureToSelect as GeoJSON.Feature<GeoJSON.Geometry>
+                      );
+                      const [lng, lat] = center.geometry.coordinates;
+                      const latlngPoint = L.latLng(lat, lng);
+
+                      leafletMap.fireEvent("click", {
+                        latlng: latlngPoint,
+                        layerPoint: leafletMap.latLngToLayerPoint(latlngPoint),
+                        containerPoint:
+                          leafletMap.latLngToContainerPoint(latlngPoint),
+                      });
+                    }
                   }
                 }
-              }
-            },
-            onStyleIdle: (e) => {
-              setIdleLayers((old) => {
-                return { ...old, [layer.id]: true };
-              });
-            },
-            onSelectionChanged: (e) => {
-              const currentLayer =
-                layersRef.current.find((l) => l.id === layer.id) || layer;
-              const clickKey = e.latlng
-                ? `${e.latlng.lat},${e.latlng.lng}`
-                : null;
-              const isNewClick = clickKey !== lastClickLatlngRef.current;
-              lastClickLatlngRef.current = clickKey;
-
-              const semanticIdentifier =
-                selectionSemanticIdentifierRef?.current;
-              if (selectionSemanticIdentifierRef) {
-                selectionSemanticIdentifierRef.current = undefined;
-              }
-
-              if (isNewClick) {
-                // First layer of a new click: set semantic ID (or clear if undefined)
-                setSemanticIdForHits(semanticIdentifier);
-              }
-              if (modeRef.current === UIMode.DEFAULT) {
-                implicitVectorSelection(e, {
-                  layer: currentLayer,
-                  dispatch,
-                  selectionHandler,
-                  featureHandler,
-                  leafletMap,
-                  semanticIdentifier,
+              },
+              onStyleIdle: (e) => {
+                setIdleLayers((old) => {
+                  return { ...old, [layer.id]: true };
                 });
-              } else if (modeRef.current === UIMode.FEATURE_INFO) {
-                onSelectionChangedVector(e, {
-                  layer: currentLayer,
-                  dispatch,
-                  selectionHandler,
-                  map: leafletMap,
-                  store,
-                });
-              }
-            },
-          });
+              },
+              onSelectionChanged: (e) => {
+                const currentLayer =
+                  layersRef.current.find((l) => l.id === layer.id) || layer;
+                const clickKey = e.latlng
+                  ? `${e.latlng.lat},${e.latlng.lng}`
+                  : null;
+                const isNewClick = clickKey !== lastClickLatlngRef.current;
+                lastClickLatlngRef.current = clickKey;
+
+                const semanticIdentifier =
+                  selectionSemanticIdentifierRef?.current;
+                if (selectionSemanticIdentifierRef) {
+                  selectionSemanticIdentifierRef.current = undefined;
+                }
+
+                if (isNewClick) {
+                  // First layer of a new click: set semantic ID (or clear if undefined)
+                  setSemanticIdForHits(semanticIdentifier);
+                }
+                if (modeRef.current === UIMode.DEFAULT) {
+                  implicitVectorSelection(e, {
+                    layer: currentLayer,
+                    dispatch,
+                    selectionHandler,
+                    featureHandler,
+                    leafletMap,
+                    semanticIdentifier,
+                  });
+                } else if (modeRef.current === UIMode.FEATURE_INFO) {
+                  onSelectionChangedVector(e, {
+                    layer: currentLayer,
+                    dispatch,
+                    selectionHandler,
+                    map: leafletMap,
+                    store,
+                  });
+                }
+              },
+            });
+        }
       }
-    }
-  });
+    });
 };
 
 export default useCreateCismapLayers;

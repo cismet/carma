@@ -38,6 +38,12 @@ import { getAtLeastOneLayerIsQueryable, getQueryableLayers } from "./utils";
 import { UIMode } from "../../store/slices/ui";
 import { FeatureInfoIcon } from "../feature-info/FeatureInfoIcon";
 import { proj4crs3857def } from "../../helper/gisHelper";
+import { type FeatureInfoRectangleConfig } from "../../config/app.config";
+import { resolveFeatureInfoRectangleConfig } from "../../helper/feature-info-rectangle";
+
+export type FeatureInfoRectangle = {
+  position: [number, number];
+} & FeatureInfoRectangleConfig;
 
 type Options = {
   dispatch: Dispatch;
@@ -46,6 +52,7 @@ type Options = {
   zoom: number;
   map: LeafletMap | maplibregl.Map;
   maplibreMapsRef?: React.MutableRefObject<Map<string, maplibregl.Map>>;
+  setFeatureInfoRectangle: (rectangle: FeatureInfoRectangle | null) => void;
 };
 
 // TODO: move to portal lib?
@@ -69,14 +76,35 @@ export const onClickTopicMap = async (
     target?: HTMLElement;
     type?: string;
   },
-  { dispatch, mode, store, zoom, map, maplibreMapsRef }: Options
+  {
+    dispatch,
+    mode,
+    store,
+    zoom,
+    map,
+    maplibreMapsRef,
+    setFeatureInfoRectangle,
+  }: Options
 ) => {
   const layers = getLayers(store.getState());
-  const queryableLayers = getQueryableLayers(layers, zoom);
-  if (
-    mode === UIMode.FEATURE_INFO &&
-    getAtLeastOneLayerIsQueryable(layers, zoom)
-  ) {
+  const allQueryableLayers = getQueryableLayers(layers, zoom);
+  // In DEFAULT (implicit) mode vector layers always participate (they feed
+  // their hits into vectorInfos via implicitVectorSelection) and WMS/WMTS
+  // layers participate when the `carmaConf://pointInfo` keyword lands in
+  // `layer.conf`. The combined `result` ordering then lets the topmost
+  // layer with a hit win, regardless of layer type.
+  // In FEATURE_INFO mode all queryable layers are used as before.
+  const queryableLayers =
+    mode === UIMode.DEFAULT
+      ? allQueryableLayers.filter(
+          (l) =>
+            l.layerType === "vector" ||
+            (l.conf !== undefined && "pointInfo" in l.conf)
+        )
+      : allQueryableLayers;
+  const isFeatureInfoOrImplicitMode =
+    mode === UIMode.FEATURE_INFO || mode === UIMode.DEFAULT;
+  if (isFeatureInfoOrImplicitMode && queryableLayers.length > 0) {
     const completedVectorLayers = getCompletedVectorLayers(store.getState());
     const allQueryableVectorLayers = queryableLayers.filter(
       (layer) => layer.layerType === "vector"
@@ -204,17 +232,39 @@ export const onClickTopicMap = async (
         dispatch(clearFeatures());
         dispatch(setInfoTextToNothingFound());
         dispatch(clearVectorInfos());
-        dispatch(
-          setSelectedFeature({
-            properties: {
-              header: "Position",
-              headerColor: "#0078a8",
-              title: `${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`,
-              subtitle: "(Geogr. Breite und Länge in Dezimalgrad, ETRS89)",
-            },
-            id: "information",
-          })
-        );
+        if (mode === UIMode.DEFAULT) {
+          setFeatureInfoRectangle(null);
+        } else {
+          dispatch(
+            setSelectedFeature({
+              properties: {
+                header: "Position",
+                headerColor: "#0078a8",
+                title: `${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`,
+                subtitle: "(Geogr. Breite und Länge in Dezimalgrad, ETRS89)",
+              },
+              id: "information",
+            })
+          );
+        }
+      } else if (mode === UIMode.DEFAULT) {
+        const topMost = filteredResult[0];
+        dispatch(setSelectedFeature(topMost));
+        dispatch(setSecondaryInfoBoxElements([]));
+        dispatch(setFeatures([topMost]));
+        dispatch(clearVectorInfos());
+        if (topMost?.vectorId) {
+          setFeatureInfoRectangle(null);
+        } else {
+          const winningLayer = layers.find((layer) => layer.id === topMost?.id);
+          const rectangleConfig = resolveFeatureInfoRectangleConfig(
+            winningLayer?.conf?.pointInfo
+          );
+          setFeatureInfoRectangle({
+            position: [pos[0], pos[1]],
+            ...rectangleConfig,
+          });
+        }
       } else {
         filteredResult.push({
           properties: {
@@ -278,6 +328,12 @@ export const onClickTopicMap = async (
         id: "information",
       })
     );
+  } else if (mode === UIMode.DEFAULT) {
+    dispatch(clearSelectedFeature());
+    dispatch(clearSecondaryInfoBoxElements());
+    dispatch(clearFeatures());
+    dispatch(clearVectorInfos());
+    setFeatureInfoRectangle(null);
   }
 };
 
@@ -577,39 +633,40 @@ export const implicitVectorSelection = async (
       selectedVectorFeature.setSelection(false);
     }
 
-    if (!selectedVectorFeature.selectionLayerExists) {
-      return;
-    }
+    if (selectedVectorFeature.selectionLayerExists) {
+      //make sure to get a point from any geometry type
+      const coordinates = getCoordinates(selectedVectorFeature.geometry);
+      let headerColor = "#0078a8";
+      if (layer.layerInfo?.accentColor) {
+        headerColor = layer.layerInfo.accentColor;
+      }
+      let header = layer.title || "Information";
+      if (layer.layerInfo?.header) {
+        header = layer.layerInfo.header;
+      }
+      const feature = {
+        properties: {
+          _header: header,
+          accentColor: headerColor,
+          title: "Zu diesem Objekt sind keine weiteren Sachdaten verfügbar.",
+          additionalInfo: `Position: ${coordinates[1].toFixed(
+            5
+          )}, ${coordinates[0].toFixed(5)}`,
+          subtitle: "(Geogr. Breite und Länge in Dezimalgrad, ETRS89)",
+          sourceProps: selectedVectorFeature.properties,
+        },
+        geometry: selectedVectorFeature.geometry,
+        id: "information",
+      };
 
-    //make sure to get a point from any geometry type
-    const coordinates = getCoordinates(selectedVectorFeature.geometry);
-    let headerColor = "#0078a8";
-    if (layer.layerInfo?.accentColor) {
-      headerColor = layer.layerInfo.accentColor;
+      featureHandler(feature, layer);
+      // Publish the implicit-mode vector hit so onClickTopicMap can do the
+      // topmost-layer-wins comparison against WMS feature info results.
+      // The id is overwritten with the layer id so the lookup
+      // `allVectorInfos.filter(vi => vi.id === testLayer.id)` matches.
+      dispatch(addVectorInfo({ ...feature, id: layer.id }));
     }
-    let header = layer.title || "Information";
-    if (layer.layerInfo?.header) {
-      header = layer.layerInfo.header;
-    }
-    const feature = {
-      properties: {
-        _header: header,
-        accentColor: headerColor,
-        title: "Zu diesem Objekt sind keine weiteren Sachdaten verfügbar.",
-        additionalInfo: `Position: ${coordinates[1].toFixed(
-          5
-        )}, ${coordinates[0].toFixed(5)}`,
-        subtitle: "(Geogr. Breite und Länge in Dezimalgrad, ETRS89)",
-        sourceProps: selectedVectorFeature.properties,
-      },
-      geometry: selectedVectorFeature.geometry,
-      id: "information",
-    };
-
-    featureHandler(feature, layer);
-  }
-
-  if (e.hits && layer.queryable) {
+  } else if (e.hits && layer.queryable) {
     const selectedVectorFeature = resolveHit(
       e.hits,
       semanticInfo,
@@ -620,27 +677,29 @@ export const implicitVectorSelection = async (
       selectedVectorFeature.setSelection(false);
     }
 
-    if (!selectedVectorFeature.selectionLayerExists) {
-      return;
-    }
+    if (selectedVectorFeature.selectionLayerExists) {
+      selectionHandler(e, layer);
+      //make sure to get a point from any geometry type
+      const coordinates = getCoordinates(selectedVectorFeature.geometry);
 
-    selectionHandler(e, layer);
-    //make sure to get a point from any geometry type
-    const coordinates = getCoordinates(selectedVectorFeature.geometry);
+      const feature = await createVectorFeature(
+        coordinates,
+        layer,
+        selectedVectorFeature,
+        leafletMap,
+        e.latlng
+      );
 
-    const feature = await createVectorFeature(
-      coordinates,
-      layer,
-      selectedVectorFeature,
-      leafletMap,
-      e.latlng
-    );
-
-    if (feature) {
-      featureHandler(feature, layer);
-      // dispatch(setSelectedFeature(feature));
+      if (feature) {
+        featureHandler(feature, layer);
+        // Same idea as the non-queryable branch above.
+        dispatch(addVectorInfo(feature));
+      }
     }
   }
+
+  // Mark the layer as complete so onClickTopicMap's vector-wait can resolve.
+  dispatch(addCompletedVectorLayer(layer.id));
 };
 
 export const onSelectionChangedVector = async (
