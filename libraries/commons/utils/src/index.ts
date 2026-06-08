@@ -25,6 +25,15 @@ export type { DisplayP3, Rgb255, UnitRgba } from "./lib/colors";
 
 export { useMemoMergedDefaultOptions } from "./lib/react/hooks/useMemoMergedDefaultOptions";
 
+export { isLocalhostHostname } from "./lib/hostname";
+export {
+  Deployment,
+  useDeployment,
+  useDevDeployment,
+  useLiveDeployment,
+  type DeploymentTarget,
+} from "./lib/react/hooks/useDeployment";
+
 export { isNumberArrayEqual } from "./lib/arrays";
 
 export {

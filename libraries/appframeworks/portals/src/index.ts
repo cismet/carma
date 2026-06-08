@@ -128,7 +128,6 @@ export {
 } from "./lib/utils/adhoc-render-style";
 export {
   isDevelopmentUiEnabled,
-  isLocalhostHostname,
   useDevelopmentUiEnabled,
   type DevelopmentUiEnabledOptions,
   type DevelopmentUiFeatureFlags,
