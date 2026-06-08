@@ -408,6 +408,15 @@ const FeaturesFormsWrapper = ({
     measurementOption,
   ]);
 
+  // Are there any geometry options to switch to besides the current shape?
+  // Without at least one measurement the selector has nothing to offer, so it
+  // is rendered disabled.
+  const hasAlternativeGeometryOptions = useMemo(
+    () =>
+      editGeometryOptions.some((o) => o.key !== currentGeometryOption?.key),
+    [editGeometryOptions, currentGeometryOption]
+  );
+
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const pendingDeletion = !!draft?.pendingDeletion;
@@ -1131,6 +1140,7 @@ const FeaturesFormsWrapper = ({
           className="w-full mt-1"
           size="large"
           placeholder="Messung wählen"
+          disabled={!hasAlternativeGeometryOptions}
         >
           {editGeometryOptions.map((opt) => (
             <Select.Option key={opt.key} value={opt.key}>
