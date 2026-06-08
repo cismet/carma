@@ -324,7 +324,7 @@ export const defaultAnnotationModeText = {
       deleteAll: "Alle Messungen löschen",
     },
     leafletMeasurements: {
-      focusAll: "Auf alle Messungen zoomen",
+      focusAll: "Alle Messungen anzeigen",
       save: "Messungen speichern",
       deleteAll: "Alle Messungen löschen",
     },
