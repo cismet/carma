@@ -192,7 +192,8 @@ const BelisMapPageShell = () => {
               <div className="flex items-center gap-2 my-1">
                 <span>{isDatasheetOpen ? "Datenblatt" : title}</span>
                 {editModeButton}
-                {sidebarVariant === "arbeitsauftraege" &&
+                {!isReadOnly &&
+                  sidebarVariant === "arbeitsauftraege" &&
                   totalDraftCount > 0 && (
                     <Badge
                       count={totalDraftCount}
@@ -230,7 +231,8 @@ const BelisMapPageShell = () => {
           extra={
             <div className="flex items-center gap-4">
               {windowWidth <= 1364 && editModeButton}
-              {windowWidth <= 1364 &&
+              {!isReadOnly &&
+                windowWidth <= 1364 &&
                 sidebarVariant === "arbeitsauftraege" &&
                 totalDraftCount > 0 && (
                   <Badge

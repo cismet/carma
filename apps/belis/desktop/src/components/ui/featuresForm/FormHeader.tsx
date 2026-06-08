@@ -180,7 +180,7 @@ const FormHeader = ({
                   nicht gespeicherte Änderungen
                 </span>
               )}
-              {onCreateRelatedDraft && (
+              {!readOnly && onCreateRelatedDraft && (
                 <Tooltip
                   title={
                     createDraftButtonVariant === "white"
@@ -223,7 +223,7 @@ const FormHeader = ({
                   </button>
                 </Tooltip>
               )}
-              {onCopyValues && isAltPressed && (
+              {!readOnly && onCopyValues && isAltPressed && (
                 <Tooltip title="Werte merken">
                   <button
                     type="button"

@@ -1165,11 +1165,16 @@ const BelisMapLibWrapper = ({
   // `sidebarMode` would otherwise stay "drafts" — gating out the Messungen
   // group (and anything else fachobjekte-only) until the user toggles modes
   // by some other route. Fall back to fachobjekte automatically.
+  // Read-only ("Gast") users have no draft workflow at all, so the Entwürfe
+  // tab is hidden — never leave them stranded on it.
   useEffect(() => {
-    if (sidebarMode === "drafts" && draftSidebarFeatures.length === 0) {
+    if (
+      sidebarMode === "drafts" &&
+      (draftSidebarFeatures.length === 0 || isReadOnly)
+    ) {
       setSidebarMode("fachobjekte");
     }
-  }, [sidebarMode, draftSidebarFeatures.length]);
+  }, [sidebarMode, draftSidebarFeatures.length, isReadOnly]);
 
   // Drop the captured parent selection (and the highlighted Entwürfe row) once
   // the active selection is no longer a creation draft — covers draft save
@@ -4029,7 +4034,7 @@ const BelisMapLibWrapper = ({
           sidebarMode={sidebarMode}
           onModeChange={setSidebarMode}
           hasHighlights={hasHighlights}
-          hasDrafts={draftFeaturesCount > 0}
+          hasDrafts={!isReadOnly && draftFeaturesCount > 0}
           fachobjekteCount={totalCount}
           highlightCount={adjustedHighlights?.length ?? undefined}
           draftsCount={draftFeaturesCount}
@@ -4039,7 +4044,7 @@ const BelisMapLibWrapper = ({
           brandnewSource={brandnewSource}
           adjustedHighlights={adjustedHighlights}
           setAdjustedHighlights={setAdjustedHighlights}
-          measurements={measurementsForSidebar}
+          measurements={isReadOnly ? [] : measurementsForSidebar}
           selectedMeasurementId={selectedMeasurementId}
           onMeasurementSelect={(id) => dispatch(selectMeasurement(id))}
           onMeasurementsDeleteAll={
