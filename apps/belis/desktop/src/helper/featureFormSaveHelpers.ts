@@ -758,6 +758,14 @@ interface HandleSaveAllDeps {
    * featuresForms slice. Dispatched per successfully-saved draft *before*
    * removeDraft so hiddenOriginalIds survive the draft's deletion. */
   promoteDraftHiddenToPermanent: (featureId: string) => unknown;
+  /** Action creator for `markFeatureDeleted` from the featuresForms slice.
+   * Dispatched per successfully-saved *deletion* draft so the soft-deleted row
+   * stays hidden on both maps until the server-side tiles/brandnew FC drop it. */
+  markFeatureDeleted: (payload: {
+    featureId: string;
+    sourceLayer?: string;
+    featureDbId?: number;
+  }) => unknown;
   incrementFeatureDataVersion: () => unknown;
   /** Current measurement features (already namespaced as
    * `measurement.<uuid>` in id) — used to find which ones to drop after
@@ -782,6 +790,7 @@ export const handleSaveAllDrafts = (deps: HandleSaveAllDeps) => {
     dispatch,
     removeDraft,
     promoteDraftHiddenToPermanent,
+    markFeatureDeleted,
     incrementFeatureDataVersion,
     measurements,
     setMeasurements,
@@ -867,7 +876,14 @@ export const handleSaveAllDrafts = (deps: HandleSaveAllDeps) => {
         );
 
         for (const featureId of result.succeeded) {
-          dispatch(promoteDraftHiddenToPermanent(featureId));
+          // A committed soft-delete must stay hidden on both maps until the
+          // server-side tiles/brandnew FC drop the row; other saves promote
+          // their draft's hide to the (vector-only) permanent set as before.
+          if (draftsToSave[featureId]?.pendingDeletion) {
+            dispatch(markFeatureDeleted({ featureId }));
+          } else {
+            dispatch(promoteDraftHiddenToPermanent(featureId));
+          }
           dispatch(removeDraft(featureId));
         }
 

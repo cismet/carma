@@ -167,6 +167,7 @@ import {
   getAllDraftFeatures,
   getAllDrafts,
   getBrandnewSuppressedEditIds,
+  getDeletedFeatureIds,
   getDraftFeaturesCount,
   getDraftFetchedData,
   getEffectiveHiddenOriginalIds,
@@ -813,6 +814,10 @@ const BelisMapLibWrapper = ({
   // Ids whose stale brandnew-FC copy must stay hidden after a geometry-edit
   // save, until the next poll delivers the new geometry (then cleared).
   const brandnewSuppressedEditIds = useSelector(getBrandnewSuppressedEditIds);
+  // Source-layer keyed ids of committed soft-deletes. The deleted rows linger
+  // in the vector tiles (overnight rebuild) and the brandnew FC (server-side
+  // regen) — filter them out of both layers, on both maps, until then.
+  const deletedFeatureIds = useSelector(getDeletedFeatureIds);
 
   // Map-ready draft features for the brandnew GeoJSON source. A Leuchten
   // creation draft stores a single `_sourceLayer: "leuchten"` synthetic, but
@@ -963,6 +968,9 @@ const BelisMapLibWrapper = ({
       add(sl, ids);
     for (const [sl, ids] of Object.entries(geometryEditHiddenOriginalIds))
       add(sl, ids);
+    // Committed soft-deletes: hide the lingering vector-tile row until the
+    // overnight rebuild drops it. Persisted, so it survives reloads.
+    for (const [sl, ids] of Object.entries(deletedFeatureIds)) add(sl, ids);
     const out: HiddenOriginalIds = {};
     for (const [sl, set] of Object.entries(merged)) {
       if (set.size > 0) out[sl] = [...set];
@@ -972,6 +980,7 @@ const BelisMapLibWrapper = ({
     draftHiddenOriginalIds,
     brandnewHiddenOriginalIds,
     geometryEditHiddenOriginalIds,
+    deletedFeatureIds,
   ]);
 
   // Active-draft-only hidden ids (excludes `permanentlyHiddenOriginalIds`).
@@ -1015,7 +1024,14 @@ const BelisMapLibWrapper = ({
   // Keyed on `activeDraftHiddenOriginalIds`, NOT the effective set, so the
   // post-save permanent ids never hide the brandnew layer's own features.
   const visibleBrandnewFeatures = useMemo<GeoJSON.Feature[]>(() => {
-    const all = brandnewFc.features ?? [];
+    // The server's brandnew FC still ships soft-deleted rows, flagged with
+    // `is_deleted: true` in their own properties. Drop them up front: this is
+    // data-driven, so it hides committed deletions in EVERY browser — unlike
+    // the client-side `deletedFeatureIds` set below, which only reflects the
+    // local user's own just-committed deletions until the FC next regenerates.
+    const all = (brandnewFc.features ?? []).filter(
+      (f) => f.properties?.is_deleted !== true
+    );
     // Merge the open-draft hidden set with the post-save geometry-edit
     // suppression set: both must hide a brandnew copy. The suppression set
     // bridges the gap between save and the next poll (after which it clears),
@@ -1030,7 +1046,13 @@ const BelisMapLibWrapper = ({
       addHidden(sl, ids);
     for (const [sl, ids] of Object.entries(brandnewSuppressedEditIds))
       addHidden(sl, ids);
+    // Committed soft-deletes: hide the deleted row's brandnew-FC copy until the
+    // server regenerates the FC without it. A deleted Leuchte is keyed by its
+    // own id (handled below), unlike the Standort-cascade hides above.
+    for (const [sl, ids] of Object.entries(deletedFeatureIds))
+      addHidden(sl, ids);
     const hiddenStandorteIds = hidden.standorte ?? new Set<number>();
+    const hiddenLeuchtenIds = hidden.leuchten ?? new Set<number>();
     const hasAnyHidden = Object.values(hidden).some((set) => set.size > 0);
     if (!hasAnyHidden) return all;
     return all.filter((f) => {
@@ -1040,8 +1062,11 @@ const BelisMapLibWrapper = ({
         return !hiddenStandorteIds.has(id);
       }
       if (sl === "leuchten") {
+        // Hide when the parent Standort is hidden (draft cascade) OR when this
+        // Leuchte itself is a committed soft-delete.
         const fk = Number(f.properties?.fk_standort);
-        return !hiddenStandorteIds.has(fk);
+        const id = Number(f.properties?.id ?? f.id);
+        return !hiddenStandorteIds.has(fk) && !hiddenLeuchtenIds.has(id);
       }
       const idsForLayer = hidden[sl];
       if (idsForLayer && idsForLayer.size > 0) {
@@ -1050,7 +1075,12 @@ const BelisMapLibWrapper = ({
       }
       return true;
     });
-  }, [brandnewFc, activeDraftHiddenOriginalIds, brandnewSuppressedEditIds]);
+  }, [
+    brandnewFc,
+    activeDraftHiddenOriginalIds,
+    brandnewSuppressedEditIds,
+    deletedFeatureIds,
+  ]);
 
   // A fresh brandnew FC has landed (md5 changed — `useBrandnewFcSync` only
   // fires onDataChange on an actual change, never on steady-state polls). It
@@ -1973,7 +2003,8 @@ const BelisMapLibWrapper = ({
         // standorte: hide the Standort row itself by feature id.
         // leuchten:  hide every Leuchte whose fk_standort points at one of
         //            the hidden Standorte (their icons are stacked on top
-        //            of the new draft at the same coordinates).
+        //            of the new draft at the same coordinates), AND any Leuchte
+        //            soft-deleted on its own (hidden by its own feature id).
         let filter: maplibregl.FilterSpecification | null = null;
         if (sourceLayer === "standorte") {
           const ids = hiddenOriginalIds[sourceLayer];
@@ -1988,10 +2019,26 @@ const BelisMapLibWrapper = ({
             ];
           }
         } else if (sourceLayer === "leuchten") {
+          const leuchtenIds = hiddenOriginalIds[sourceLayer] ?? [];
+          const clauses: maplibregl.ExpressionSpecification[] = [];
           if (hiddenStandortIds.length > 0) {
+            clauses.push([
+              "in",
+              ["get", "fk_standort"],
+              ["literal", hiddenStandortIds],
+            ]);
+          }
+          if (leuchtenIds.length > 0) {
+            clauses.push([
+              "any",
+              ["in", ["id"], ["literal", leuchtenIds]],
+              ["in", ["get", "id"], ["literal", leuchtenIds]],
+            ]);
+          }
+          if (clauses.length > 0) {
             filter = [
               "!",
-              ["in", ["get", "fk_standort"], ["literal", hiddenStandortIds]],
+              clauses.length === 1 ? clauses[0] : ["any", ...clauses],
             ];
           }
         } else {

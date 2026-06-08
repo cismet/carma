@@ -130,6 +130,15 @@ interface FeaturesFormsState {
   // until the refetched FC carries the new geometry — then it is cleared. Not
   // persisted (see store persist whitelist) since it only bridges a brief gap.
   brandnewSuppressedEditIds: HiddenOriginalIds;
+  // Source-layer keyed ids of Fachobjekte whose soft-delete (is_deleted = true)
+  // has been committed to the server. The deleted row keeps appearing in the
+  // vector tiles (rebuilt overnight) AND in the brandnew FC (regenerated
+  // server-side) until those sources drop it, so these ids must be filtered out
+  // of BOTH map layers — on the main AND the mini map — until then. Persisted
+  // (see store whitelist) so the feature stays gone across reloads; unlike the
+  // edit-oriented sets above it is never auto-cleared (a deletion has no
+  // replacement to wait for).
+  deletedFeatureIds: HiddenOriginalIds;
 }
 
 const initialState: FeaturesFormsState = {
@@ -141,6 +150,7 @@ const initialState: FeaturesFormsState = {
   tabFocusRequest: null,
   permanentlyHiddenOriginalIds: {},
   brandnewSuppressedEditIds: {},
+  deletedFeatureIds: {},
 };
 
 const featuresFormsSlice = createSlice({
@@ -292,9 +302,25 @@ const featuresFormsSlice = createSlice({
       } = action.payload;
       const existing = state.drafts[featureId];
 
+      // The vector-tile / brandnew filters key on the tile source-layer, which
+      // is the prefix of the composite draft key ("<sourceLayer>:<dbPK>"). The
+      // pending-deletion hide rides on the draft's own `hiddenOriginalIds`, so
+      // it is automatically dropped when the draft is discarded/unmarked
+      // (removeDraft) — no extra cleanup wiring needed.
+      const sourceLayer = featureId.split(":")[0];
+      const dbId = featureDbId ?? Number(featureId.split(":")[1]);
+      const hideSelf: HiddenOriginalIds | undefined =
+        sourceLayer && Number.isFinite(dbId)
+          ? { [sourceLayer]: [Number(dbId)] }
+          : undefined;
+
       if (!pendingDeletion) {
         if (!existing) return;
         existing.pendingDeletion = undefined;
+        // Reveal the feature again: the deletion-only hide lives in this field
+        // (geometry-edit drafts compute their hide separately), so clearing it
+        // is safe.
+        existing.hiddenOriginalIds = undefined;
         const hasOtherChanges =
           Object.keys(existing.values ?? {}).length > 0 ||
           (existing.files?.length ?? 0) > 0 ||
@@ -309,6 +335,7 @@ const featuresFormsSlice = createSlice({
         existing.feature = feature ?? existing.feature;
         existing.fetchedData = fetchedData ?? existing.fetchedData;
         if (featureDbId != null) existing.featureDbId = featureDbId;
+        existing.hiddenOriginalIds = hideSelf ?? existing.hiddenOriginalIds;
         existing.updatedAt = Date.now();
       } else {
         state.drafts[featureId] = {
@@ -318,9 +345,31 @@ const featuresFormsSlice = createSlice({
           fetchedData,
           featureDbId,
           pendingDeletion: true,
+          hiddenOriginalIds: hideSelf,
           updatedAt: Date.now(),
         };
       }
+    },
+    // Record a committed soft-delete. Adds the feature's id to the persistent
+    // `deletedFeatureIds` set so the still-present vector-tile and brandnew-FC
+    // copies stay hidden from both maps until those server-side sources drop
+    // the row. Dispatched on a successful deletion save, right before the draft
+    // (which carried the transient pending-deletion hide) is removed.
+    markFeatureDeleted(
+      state,
+      action: PayloadAction<{
+        featureId: string;
+        sourceLayer?: string;
+        featureDbId?: number;
+      }>
+    ) {
+      const { featureId, sourceLayer, featureDbId } = action.payload;
+      const sl = sourceLayer ?? featureId.split(":")[0];
+      const id = featureDbId ?? Number(featureId.split(":")[1]);
+      if (!sl || !Number.isFinite(id)) return;
+      const existing = state.deletedFeatureIds[sl] ?? [];
+      if (existing.includes(Number(id))) return;
+      state.deletedFeatureIds[sl] = [...existing, Number(id)];
     },
     // Explicitly clear the geometry of a creation draft (the only way to
     // unset; setDraft uses `geometry ?? existing.geometry` and can't clear).
@@ -638,6 +687,7 @@ export const {
   setDraft,
   removeDraft,
   setPendingDeletion,
+  markFeatureDeleted,
   clearDraftGeometry,
   clearAllDrafts,
   setFormLoading,
@@ -828,6 +878,13 @@ export const getPermanentlyHiddenOriginalIds = (
 export const getBrandnewSuppressedEditIds = (
   state: RootState
 ): HiddenOriginalIds => state.featuresForms?.brandnewSuppressedEditIds ?? {};
+
+// Source-layer keyed ids of committed soft-deletes. Consumed by the map to
+// filter the deleted rows out of both the vector tiles and the brandnew FC,
+// on the main and the mini map alike, until the server-side sources drop them.
+export const getDeletedFeatureIds = (
+  state: RootState
+): HiddenOriginalIds => state.featuresForms?.deletedFeatureIds ?? {};
 
 // Union of every draft's hiddenOriginalIds plus the permanent set — keyed
 // by source-layer. The map filter effect consumes this to exclude vector
