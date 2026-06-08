@@ -506,6 +506,50 @@ describe("useCesiumPointQuery", () => {
     );
   });
 
+  it("clears hover continuity before opt-in shift fresh picks", () => {
+    const continuityHoverPick = new Cartesian3(1, 2, 3);
+    pointQueryPickingMocks.resolvePreferredSurfacePick.mockReturnValue({
+      surfacePositionECEF: continuityHoverPick,
+      globePositionECEF: null,
+    });
+
+    const onPointerMove = vi.fn();
+    const { scene, flushPreRender } = createFakeScene();
+    const pointerPosition = new Cartesian2(10, 20);
+    cesiumInteractionMocks.currentPointerPosition = pointerPosition;
+
+    renderHook(() =>
+      useCesiumPointQuery(scene, {
+        enabled: true,
+        inputModifiers: [CESIUM_POINT_QUERY_INPUT_MODIFIERS.SHIFT],
+        onPointerMove,
+      })
+    );
+
+    act(() => {
+      cesiumInteractionMocks.pointerSubscriber?.();
+      flushPreRender();
+    });
+
+    expect(onPointerMove).toHaveBeenLastCalledWith(
+      continuityHoverPick,
+      pointerPosition,
+      null
+    );
+
+    pointQueryPickingMocks.resolvePreferredSurfacePick.mockReturnValue({
+      surfacePositionECEF: null,
+      globePositionECEF: null,
+    });
+
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Shift" }));
+      flushPreRender();
+    });
+
+    expect(onPointerMove).toHaveBeenLastCalledWith(null, pointerPosition, null);
+  });
+
   it("ignores a same-position click after delayed line finish", () => {
     vi.useFakeTimers();
     const clickPick = new Cartesian3(4, 5, 6);
@@ -523,7 +567,7 @@ describe("useCesiumPointQuery", () => {
       useCesiumPointQuery(scene, {
         enabled: true,
         clickStrategy: CESIUM_POINT_QUERY_CLICK_STRATEGY.DELAYED_LINE_FINISH,
-        pointClickDelayMs: 20,
+        config: { clickDelayMs: 20 },
         onLineFinish,
         onPointCreate,
       })
@@ -687,6 +731,98 @@ describe("useCesiumPointQuery", () => {
       settledPointerPosition,
       new Cartesian3(0, 1, 0)
     );
+  });
+
+  it("honors the hover surface miss limit and logs debug state", () => {
+    const consoleDebugSpy = vi
+      .spyOn(console, "debug")
+      .mockImplementation(() => undefined);
+
+    try {
+      const retainedHoverSurfacePosition = new Cartesian3(1, 2, 3);
+      pointQueryPickingMocks.resolvePreferredSurfacePick
+        .mockReturnValueOnce({
+          surfacePositionECEF: retainedHoverSurfacePosition,
+          globePositionECEF: null,
+        })
+        .mockReturnValue({
+          surfacePositionECEF: null,
+          globePositionECEF: null,
+        });
+
+      const onPointerMove = vi.fn();
+      const { scene, flushPreRender } = createFakeScene();
+      const initialPointerPosition = new Cartesian2(10, 20);
+      const firstMissPointerPosition = new Cartesian2(11, 21);
+      const secondMissPointerPosition = new Cartesian2(12, 22);
+
+      renderHook(() =>
+        useCesiumPointQuery(scene, {
+          enabled: true,
+          config: { surfaceMissLimit: 1, debugLog: true },
+          onPointerMove,
+        })
+      );
+
+      cesiumInteractionMocks.currentPointerPosition = initialPointerPosition;
+      act(() => {
+        cesiumInteractionMocks.pointerSubscriber?.();
+        flushPreRender();
+      });
+
+      expect(onPointerMove).toHaveBeenLastCalledWith(
+        retainedHoverSurfacePosition,
+        initialPointerPosition,
+        null
+      );
+
+      cesiumInteractionMocks.currentPointerPosition = firstMissPointerPosition;
+      act(() => {
+        cesiumInteractionMocks.pointerSubscriber?.();
+        flushPreRender();
+      });
+
+      expect(onPointerMove).toHaveBeenLastCalledWith(
+        retainedHoverSurfacePosition,
+        firstMissPointerPosition,
+        null
+      );
+
+      cesiumInteractionMocks.currentPointerPosition = secondMissPointerPosition;
+      act(() => {
+        cesiumInteractionMocks.pointerSubscriber?.();
+        flushPreRender();
+      });
+
+      expect(onPointerMove).toHaveBeenLastCalledWith(
+        null,
+        secondMissPointerPosition,
+        null
+      );
+      expect(consoleDebugSpy).toHaveBeenCalledTimes(2);
+      expect(consoleDebugSpy).toHaveBeenNthCalledWith(
+        1,
+        "[CESIUM|POINT_QUERY|HOVER_SURFACE_MISS]",
+        {
+          event: "retain",
+          missCount: 1,
+          missLimit: 1,
+          screenPosition: { x: 11, y: 21 },
+        }
+      );
+      expect(consoleDebugSpy).toHaveBeenNthCalledWith(
+        2,
+        "[CESIUM|POINT_QUERY|HOVER_SURFACE_MISS]",
+        {
+          event: "clear",
+          missCount: 2,
+          missLimit: 1,
+          screenPosition: { x: 12, y: 22 },
+        }
+      );
+    } finally {
+      consoleDebugSpy.mockRestore();
+    }
   });
 
   it("reuses the last sampled surface normal across nearby static hover moves", () => {

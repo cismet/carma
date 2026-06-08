@@ -67,7 +67,7 @@ export const useSceneCoordinateHandler = (
     clickStrategy: onLineFinish
       ? CESIUM_POINT_QUERY_CLICK_STRATEGY.DELAYED_LINE_FINISH
       : CESIUM_POINT_QUERY_CLICK_STRATEGY.IMMEDIATE,
-    pointClickDelayMs: singleClickDelayMs,
+    config: { clickDelayMs: singleClickDelayMs },
     inputModifiers,
     onPointCreate: (payload) => {
       onCoordinate?.(
