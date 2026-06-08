@@ -10,7 +10,7 @@ import { LABEL_LAYER_ID as MEASUREMENT_LABEL_LAYER_ID } from "@carma-mapping/mea
 // geometry the dots get buried — visible only once "Blass" fades the basemap
 // to ~10% opacity. Re-assert the whole measurement group to the top on every
 // style mutation, keeping the label above the geometry.
-const isMeasurementLayerId = (id: string): boolean =>
+export const isMeasurementLayerId = (id: string): boolean =>
   id.startsWith("td-") || id.startsWith("carma-measurements-");
 
 /**
