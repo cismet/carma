@@ -1,3 +1,4 @@
+import { Deployment, type DeploymentTarget } from "@carma-commons/utils";
 import { FeatureFlagConfig } from "@carma-providers/feature-flag";
 
 export const featureFlagConfig: FeatureFlagConfig = {
@@ -42,4 +43,29 @@ export const featureFlagConfig: FeatureFlagConfig = {
     default: true,
     alias: "tracking",
   },
+};
+
+type FeatureFlagConfigEntry = FeatureFlagConfig[string];
+type FeatureFlagConfigOverrides = Record<string, FeatureFlagConfigEntry>;
+
+export const devFeatureFlagConfig: FeatureFlagConfigOverrides = {};
+
+export const liveFeatureFlagConfig: FeatureFlagConfigOverrides = {};
+
+const mergeFeatureFlagConfig = (
+  base: FeatureFlagConfig,
+  overrides: FeatureFlagConfigOverrides
+): FeatureFlagConfig => ({ ...base, ...overrides });
+
+export const getFeatureFlagConfig = (
+  deployment: DeploymentTarget | null
+): FeatureFlagConfig => {
+  switch (deployment) {
+    case Deployment.DEV:
+      return mergeFeatureFlagConfig(featureFlagConfig, devFeatureFlagConfig);
+    case Deployment.LIVE:
+      return mergeFeatureFlagConfig(featureFlagConfig, liveFeatureFlagConfig);
+    default:
+      return featureFlagConfig;
+  }
 };

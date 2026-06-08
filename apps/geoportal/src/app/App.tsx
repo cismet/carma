@@ -19,6 +19,7 @@ import {
 import {
   COLORS_HEX,
   TAILWIND_CLASSNAMES_FULLSCREEN_FIXED,
+  useDeployment,
 } from "@carma-commons/utils";
 import {
   MapFrameworkSwitcherProvider,
@@ -58,7 +59,7 @@ import { geoportalMapStyleConfig } from "./config/mapStyleConfig";
 
 import { CESIUM_CONFIG, CONFIG_BASE_URL } from "./config/app.config";
 import store, { geoportalInitialHashState } from "./store";
-import { featureFlagConfig } from "./config/featureFlags";
+import { getFeatureFlagConfig } from "./config/featureFlags";
 
 import { OBLIQUE_CONFIG, CAMERA_ID_TO_DIRECTION } from "./oblique/config";
 
@@ -152,6 +153,7 @@ function App({ published }: { published?: boolean }) {
   const syncToken = useSyncToken();
   useKeyboardShortcuts();
   const customFeatureFlags = useSelector(getCustomFeatureFlags);
+  const deployment = useDeployment();
   const uiMode = useSelector(getUIMode);
   const mode =
     uiMode === UIMode.MEASUREMENT
@@ -167,8 +169,8 @@ function App({ published }: { published?: boolean }) {
 
   // Memoize config objects to prevent recreation on every render
   const featureFlagsMergedConfig = useMemo(
-    () => ({ ...featureFlagConfig, ...customFeatureFlags }),
-    [customFeatureFlags]
+    () => ({ ...getFeatureFlagConfig(deployment), ...customFeatureFlags }),
+    [deployment, customFeatureFlags]
   );
 
   const overlayOptions = useMemo(
