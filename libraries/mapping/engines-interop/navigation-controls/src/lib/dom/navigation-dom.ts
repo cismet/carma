@@ -9,8 +9,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 
 import {
-  readControlButtonContentStyle,
-  readControlButtonStyle,
+  DEFAULT_CONTROL_STYLE_OPTIONS,
 } from "@carma-mapping/map-controls-layout";
 
 import { createCompassNeedleElement } from "./compass-needle-dom";
@@ -363,24 +362,35 @@ const createButton = ({
   button.title = config.tooltip;
   button.setAttribute("aria-label", config.title);
 
+  const { button: controlButton } = DEFAULT_CONTROL_STYLE_OPTIONS;
+  const buttonState = disabled ? controlButton.disabled : controlButton.enabled;
+  const cursor = disabled
+    ? buttonState.cursor
+    : config.cursor ?? buttonState.cursor;
+  const filter = buttonState.useVisualFilter
+    ? buttonState.visualFilter
+    : controlButton.enabled.visualFilter;
+
   applyInlineStyles(button, {
-    ...readControlButtonStyle({
-      disabled,
-      cursor: config.cursor,
-    }),
+    ...controlButton.root,
+    cursor,
+    filter,
     borderBottomWidth: groupTop ? 0 : undefined,
-    borderTopWidth: groupBottom ? 1 : undefined,
+    borderTopWidth: groupBottom
+      ? controlButton.groupSeamBorderWidth
+      : undefined,
     borderBottomLeftRadius: groupTop ? 0 : undefined,
     borderBottomRightRadius: groupTop ? 0 : undefined,
     borderTopLeftRadius: groupBottom ? 0 : undefined,
     borderTopRightRadius: groupBottom ? 0 : undefined,
     padding: 0,
-    color: "#111827",
+    color: controlButton.foregroundColor,
   });
 
   const inner = document.createElement("div");
   applyInlineStyles(inner, {
-    ...readControlButtonContentStyle({ disabled }),
+    ...controlButton.content,
+    opacity: buttonState.contentOpacity,
     justifyContent: "center",
     width: "100%",
     height: "100%",

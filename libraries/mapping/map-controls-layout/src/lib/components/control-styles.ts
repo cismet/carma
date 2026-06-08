@@ -1,0 +1,184 @@
+import type { CSSProperties } from "react";
+
+const CONTROL_SURFACE_BACKGROUND = "#fff";
+const CONTROL_FONT_FAMILY = "Helvetica Neue, Arial, Helvetica, sans-serif";
+const CONTROL_LAYER_Z_INDEX = 1500;
+
+const controlMetrics = {
+  edgeInset: "0.75rem",
+  contentInsetLeft: "0.5625rem",
+  headerInsetOffset: "0.25rem",
+  controlGroupGap: "0.625rem",
+  bottomControlsColumnGap: "0.0625rem",
+  bottomControlsRowGap: "0.25rem",
+  topControlsMaxHeightOffset: "8rem",
+  topCenterInlineInset: "2rem",
+  centerSurfacePaddingBlock: "0.3125rem",
+  centerSurfacePaddingInline: "0.25rem",
+  controlButtonSize: "34px",
+  controlButtonBorderWidth: "2px",
+  controlButtonGroupSeamBorderWidth: "1px",
+  controlButtonBorderRadius: "0.25rem",
+  controlButtonFontSize: "1.125rem",
+  defaultFontSize: "0.75rem",
+  topCenterFontSize: "0.875rem",
+} as const;
+
+const controlLayoutOptions = {
+  layerZIndex: CONTROL_LAYER_Z_INDEX,
+  defaultFontFamily: CONTROL_FONT_FAMILY,
+  ...controlMetrics,
+} as const;
+
+const controlButtonOptions = {
+  foregroundColor: "#111827",
+  groupSeamBorderWidth: controlMetrics.controlButtonGroupSeamBorderWidth,
+  root: {
+    width: controlMetrics.controlButtonSize,
+    height: controlMetrics.controlButtonSize,
+    fontSize: controlMetrics.controlButtonFontSize,
+    backgroundColor: CONTROL_SURFACE_BACKGROUND,
+    border: `${controlMetrics.controlButtonBorderWidth} solid rgba(0, 0, 0, .3)`,
+    borderRadius: controlMetrics.controlButtonBorderRadius,
+    textAlign: "center",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "space-evenly",
+  },
+  enabled: {
+    cursor: "pointer",
+    useVisualFilter: false,
+    visualFilter: "",
+    contentOpacity: 1,
+  },
+  disabled: {
+    cursor: "not-allowed",
+    useVisualFilter: true,
+    visualFilter: "grayscale(100%) brightness(120%)",
+    contentOpacity: 0.5,
+  },
+  content: {
+    height: "auto",
+    display: "flex",
+    alignItems: "center",
+  },
+} as const;
+
+const controlCenterOptions = {
+  root: {
+    backgroundColor: CONTROL_SURFACE_BACKGROUND,
+    border: "none",
+    opacity: 0.9,
+    width: "100%",
+    maxWidth: "100%",
+    height: "100%",
+    textAlign: "center",
+    padding: `${controlMetrics.centerSurfacePaddingBlock} ${controlMetrics.centerSurfacePaddingInline}`,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "space-evenly",
+  },
+} as const;
+
+const safeAreaInsets = {
+  top: `max(${controlLayoutOptions.edgeInset}, env(safe-area-inset-top))`,
+  bottom: `max(${controlLayoutOptions.edgeInset}, env(safe-area-inset-bottom))`,
+  left: `max(${controlLayoutOptions.edgeInset}, env(safe-area-inset-left))`,
+  right: `max(${controlLayoutOptions.edgeInset}, env(safe-area-inset-right))`,
+} as const;
+
+const topControlGroupStyle: CSSProperties = {
+  position: "absolute",
+  top: safeAreaInsets.top,
+  display: "flex",
+  gap: controlLayoutOptions.controlGroupGap,
+  zIndex: controlLayoutOptions.layerZIndex,
+};
+
+const bottomControlGroupStyle: CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  pointerEvents: "auto",
+  height: "100%",
+  fontFamily: controlLayoutOptions.defaultFontFamily,
+  fontSize: controlLayoutOptions.defaultFontSize,
+};
+
+const topCenterInlineInsetStyle = {
+  left: `calc(${safeAreaInsets.left} + ${controlLayoutOptions.topCenterInlineInset})`,
+  right: `calc(${safeAreaInsets.right} + ${controlLayoutOptions.topCenterInlineInset})`,
+} as const;
+
+const topSideControlGroupStyle: CSSProperties = {
+  ...topControlGroupStyle,
+  flexDirection: "column",
+  flexWrap: "wrap",
+  pointerEvents: "auto",
+  maxHeight: `calc(100svh - ${controlLayoutOptions.topControlsMaxHeightOffset})`,
+};
+
+const topCenterControlGroupStyle: CSSProperties = {
+  ...topControlGroupStyle,
+  ...topCenterInlineInsetStyle,
+  flexDirection: "row",
+  fontSize: controlLayoutOptions.topCenterFontSize,
+  pointerEvents: "none",
+};
+
+const bottomContainerStyle: CSSProperties = {
+  position: "absolute",
+  bottom: safeAreaInsets.bottom,
+  left: safeAreaInsets.left,
+  right: safeAreaInsets.right,
+  display: "flex",
+  flexWrap: "wrap-reverse",
+  pointerEvents: "none",
+  zIndex: controlLayoutOptions.layerZIndex,
+  columnGap: controlLayoutOptions.bottomControlsColumnGap,
+  rowGap: controlLayoutOptions.bottomControlsRowGap,
+};
+
+const controlRendererStyles = {
+  topLeft: {
+    ...topSideControlGroupStyle,
+    left: safeAreaInsets.left,
+  },
+  topRight: {
+    ...topSideControlGroupStyle,
+    right: safeAreaInsets.right,
+  },
+  topCenter: topCenterControlGroupStyle,
+  topCenterItem: {
+    width: "100%",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    pointerEvents: "none",
+  },
+  bottomContainer: bottomContainerStyle,
+  bottomLeft: {
+    ...bottomControlGroupStyle,
+    alignItems: "flex-end",
+  },
+  bottomCenter: {
+    ...bottomControlGroupStyle,
+    alignItems: "center",
+  },
+  bottomRight: {
+    ...bottomControlGroupStyle,
+    alignItems: "flex-end",
+    pointerEvents: "none",
+  },
+  bottomCenterItem: {
+    width: "100%",
+  },
+} satisfies Record<string, CSSProperties>;
+
+export const DEFAULT_CONTROL_STYLE_OPTIONS = {
+  layout: controlLayoutOptions,
+  button: controlButtonOptions,
+  center: controlCenterOptions,
+  renderer: controlRendererStyles,
+} as const;

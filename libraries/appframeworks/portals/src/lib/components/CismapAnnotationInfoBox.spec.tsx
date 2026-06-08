@@ -11,11 +11,17 @@ const responsiveInfoBoxMock = vi.hoisted(() =>
       alwaysVisibleDiv,
       collapsibleDiv,
       header,
+      headerBackgroundColor,
       infoBoxDataAttributes,
       secondaryInfoBoxElements = [],
     }) => (
       <div data-test-id="mock-responsive-info-box" {...infoBoxDataAttributes}>
-        <div data-test-id="mock-header">{header}</div>
+        <div
+          data-test-id="mock-header"
+          style={{ backgroundColor: headerBackgroundColor }}
+        >
+          {header}
+        </div>
         <div data-test-id="mock-secondary">
           {secondaryInfoBoxElements.map((element: ReactNode, index: number) => (
             <div key={index}>{element}</div>
@@ -94,6 +100,12 @@ describe("CismapAnnotationInfoBox", () => {
       })
     );
     expect(screen.getByText("Messungen")).toBeTruthy();
+    expect(responsiveInfoBoxMock.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        header: "Messungen",
+        headerBackgroundColor: "#eeeeee",
+      })
+    );
     expect(screen.getByText("Subtitle content")).toBeTruthy();
     expect(screen.getByText("Detail content")).toBeTruthy();
     expect(screen.getByText("Footer content")).toBeTruthy();

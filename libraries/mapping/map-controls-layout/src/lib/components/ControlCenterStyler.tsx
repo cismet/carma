@@ -1,10 +1,5 @@
-import React, {
-  ReactNode,
-  useRef,
-  useState,
-  useEffect,
-  CSSProperties,
-} from "react";
+import React, { ReactNode } from "react";
+import { DEFAULT_CONTROL_STYLE_OPTIONS } from "./control-styles";
 
 interface ControlCenterStylerProps {
   children: ReactNode;
@@ -13,22 +8,7 @@ interface ControlCenterStylerProps {
 const ControlCenterStyler: React.FC<ControlCenterStylerProps> = ({
   children,
 }) => {
-  const styles = {
-    backgroundColor: "#fff",
-    border: "none",
-    opacity: 0.9,
-    width: "100%",
-    maxWidth: "100%",
-    height: "100%",
-    textAlign: "center",
-    padding: "5px 4px",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "space-evenly",
-  } as CSSProperties;
-
-  return <div style={styles}>{children}</div>;
+  return <div style={DEFAULT_CONTROL_STYLE_OPTIONS.center.root}>{children}</div>;
 };
 
 export default ControlCenterStyler;

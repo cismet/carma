@@ -1,7 +1,10 @@
 import CollapsibleWell from "react-cismap/commons/CollapsibleWell";
 import CollapsibleABWell from "react-cismap/commons/CollapsibleABWell";
 import { useContext, useEffect, useState } from "react";
-import { Control } from "@carma-mapping/map-controls-layout";
+import {
+  Control,
+  DEFAULT_CONTROL_STYLE_OPTIONS,
+} from "@carma-mapping/map-controls-layout";
 // @ts-ignore
 import { ResponsiveTopicMapDispatchContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
@@ -15,6 +18,7 @@ interface ResponsiveInfoBoxProps {
   panelClick: (event: React.MouseEvent) => void;
   pixelwidth: number;
   header: React.ReactNode;
+  headerBackgroundColor?: string;
   collapsedInfoBox?: boolean;
   setCollapsedInfoBox?: (value: boolean) => void;
   isCollapsible?: boolean;
@@ -39,6 +43,7 @@ export const ResponsiveInfoBox = ({
   panelClick,
   pixelwidth,
   header,
+  headerBackgroundColor,
   collapsedInfoBox,
   setCollapsedInfoBox,
   isCollapsible = true,
@@ -63,6 +68,27 @@ export const ResponsiveInfoBox = ({
 
   const { setInfoBoxPixelWidth } =
     useContext(ResponsiveTopicMapDispatchContext) || defaultContextValues;
+  const {
+    contentInsetLeft,
+    defaultFontFamily,
+    defaultFontSize,
+    headerInsetOffset,
+  } = DEFAULT_CONTROL_STYLE_OPTIONS.layout;
+  const headerInsetLeft = `calc(${contentInsetLeft} + ${headerInsetOffset})`;
+  const renderedHeader = headerBackgroundColor ? (
+    <div
+      style={{
+        backgroundColor: headerBackgroundColor,
+        boxSizing: "border-box",
+        paddingLeft: headerInsetLeft,
+        width: "100%",
+      }}
+    >
+      {header}
+    </div>
+  ) : (
+    header
+  );
 
   // For BIG_MOBILE_ICONS mode, use the external collapsed state or internal state
   const actualCollapsed =
@@ -106,12 +132,12 @@ export const ResponsiveInfoBox = ({
           style={{
             ...infoBoxStyle,
             marginBottom: infoBoxBottomMargin,
-            fontFamily: "Helvetica Neue, Arial, Helvetica, sans-serif",
-            fontSize: "0.75rem",
+            fontFamily: defaultFontFamily,
+            fontSize: defaultFontSize,
             pointerEvents: "auto",
           }}
         >
-          {header}
+          {renderedHeader}
           {mode === MODES.DEFAULT && (
             <CollapsibleWell
               collapsed={collapsed}
@@ -119,7 +145,7 @@ export const ResponsiveInfoBox = ({
               style={{
                 pointerEvents: "auto",
                 padding: 0,
-                paddingLeft: 9,
+                paddingLeft: contentInsetLeft,
                 ...collapsibleStyle,
               }}
               debugBorder={0}
@@ -140,7 +166,7 @@ export const ResponsiveInfoBox = ({
               style={{
                 pointerEvents: "auto",
                 padding: 0,
-                paddingLeft: 9,
+                paddingLeft: contentInsetLeft,
                 ...collapsibleStyle,
               }}
               debugBorder={0}
@@ -167,7 +193,7 @@ export const ResponsiveInfoBox = ({
               style={{
                 pointerEvents: "auto",
                 padding: 0,
-                paddingLeft: 9,
+                paddingLeft: contentInsetLeft,
                 ...collapsibleStyle,
               }}
               debugBorder={0}

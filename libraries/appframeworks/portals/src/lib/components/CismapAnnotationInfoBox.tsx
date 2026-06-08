@@ -163,16 +163,9 @@ export const CismapAnnotationInfoBox = ({
       <ResponsiveInfoBox
         pixelwidth={resolvedInfoBoxPixelWidth}
         panelClick={(event) => event.stopPropagation()}
-        header={
-          <div
-            className="w-full"
-            style={{
-              backgroundColor:
-                slots.headingColor ?? resolvedVisualOptions.headingColor,
-            }}
-          >
-            {headerTitle}
-          </div>
+        header={headerTitle}
+        headerBackgroundColor={
+          slots.headingColor ?? resolvedVisualOptions.headingColor
         }
         alwaysVisibleDiv={
           <div className="mb-2 mt-2 w-[96%]">

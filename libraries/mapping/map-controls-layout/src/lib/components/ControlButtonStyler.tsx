@@ -1,8 +1,5 @@
 import { CSSProperties, forwardRef, ReactNode } from "react";
-import {
-  readControlButtonContentStyle,
-  readControlButtonStyle,
-} from "./control-button-styles";
+import { DEFAULT_CONTROL_STYLE_OPTIONS } from "./control-styles";
 
 interface ControlButtonStylerProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -16,39 +13,52 @@ interface ControlButtonStylerProps
 }
 
 type Ref = HTMLButtonElement;
+const { button } = DEFAULT_CONTROL_STYLE_OPTIONS;
 
 const ControlButtonStyler = forwardRef<Ref, ControlButtonStylerProps>(
   (
     {
       children,
-      width = "34px",
-      height = "34px",
-      fontSize = "18px",
-      disabled,
-      dataTestId = "",
-      useDisabledStyle = true,
-      ...props
-    },
-    ref
-  ) => {
-    const iconPadding = readControlButtonStyle({
       width,
       height,
       fontSize,
       disabled,
+      dataTestId = "",
       useDisabledStyle,
-    }) as CSSProperties;
+      ...props
+    },
+    ref
+  ) => {
+    const isDisabled = disabled === true;
+    const buttonState = isDisabled ? button.disabled : button.enabled;
+    const useVisualFilter =
+      isDisabled && (useDisabledStyle ?? buttonState.useVisualFilter);
+    const buttonStyle = {
+      ...button.root,
+      width: width ?? button.root.width,
+      height: height ?? button.root.height,
+      cursor: buttonState.cursor,
+      fontSize: fontSize ?? button.root.fontSize,
+      filter: useVisualFilter
+        ? buttonState.visualFilter
+        : button.enabled.visualFilter,
+    } as CSSProperties;
 
     return (
       <button
         data-test-id={dataTestId}
         {...props}
         disabled={disabled}
-        style={iconPadding}
+        style={buttonStyle}
         ref={ref}
       >
         <div
-          style={readControlButtonContentStyle({ disabled }) as CSSProperties}
+          style={
+            {
+              ...button.content,
+              opacity: buttonState.contentOpacity,
+            } as CSSProperties
+          }
         >
           {children}
         </div>
