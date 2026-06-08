@@ -289,6 +289,64 @@ export const saveFeatureDraft = async (
     };
   }
 
+  // Soft-delete draft: flip the row's `is_deleted` flag instead of saving any
+  // field values. Applies to EVERY feature type and to BOTH the single-save
+  // (handleServerSave) and bulk-save ("Alle speichern") paths — every deletion
+  // must send exactly { id, is_deleted: true }.
+  if (draft.pendingDeletion) {
+    if (featureDbId == null) {
+      return {
+        ...base,
+        success: false,
+        error: "Missing database ID (featureDbId)",
+      };
+    }
+    const deletePayload = { id: featureDbId, is_deleted: true };
+    console.log(
+      "xxx [DELETE] soft-delete (saveFeatureDraft):",
+      JSON.stringify(
+        { featureId, className: config.className, payload: deletePayload },
+        null,
+        2
+      )
+    );
+    try {
+      const result = await updateDataByClassName(
+        jwt,
+        config.className,
+        deletePayload
+      );
+      console.log(
+        "xxx [DELETE] soft-delete result (saveFeatureDraft):",
+        JSON.stringify(
+          { featureId, className: config.className, result },
+          null,
+          2
+        )
+      );
+      return { ...base, success: true };
+    } catch (error) {
+      console.log(
+        "xxx [DELETE] soft-delete failed (saveFeatureDraft):",
+        JSON.stringify(
+          {
+            featureId,
+            className: config.className,
+            id: featureDbId,
+            error: error instanceof Error ? error.message : String(error),
+          },
+          null,
+          2
+        )
+      );
+      return {
+        ...base,
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  }
+
   // Creation drafts: create new feature with id: -1
   if (draft.isCreation) {
     return saveCreationDraft(jwt, featureId, draft, config, strassenschluesselByPk);

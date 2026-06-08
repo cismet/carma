@@ -1,34 +1,29 @@
 import { Button } from "antd";
-import { DeleteOutlined } from "@ant-design/icons";
+import { DeleteOutlined, ExclamationCircleFilled } from "@ant-design/icons";
 
 interface DangerZoneProps {
   /** Heading of the danger box. Defaults to "Gefahrenzone". */
   heading?: string;
   /** Bold title of the delete row, e.g. "Leuchte löschen". */
   title: string;
-  /** Muted explanatory line below the title. */
-  description?: string;
-  /** Label of the destructive button. Defaults to "Löschen". */
-  buttonLabel?: string;
-  /** Invoked when the delete button is clicked. */
-  onConfirm: () => void;
-  loading?: boolean;
-  disabled?: boolean;
+  /** Whether the feature is currently marked for deletion. */
+  pendingDeletion: boolean;
+  /** Mark the feature for deletion (creates the deletion draft). */
+  onMark: () => void;
 }
 
 /**
- * GitHub-style "Danger Zone": a red-bordered box with a heading and a single
- * destructive action anchored to the right. Rendered at the bottom of a
- * feature form when the dangerous delete mode is enabled.
+ * GitHub-style "Danger Zone": a red-bordered box anchored at the bottom of a
+ * feature form. Clicking the delete button marks the feature for deletion
+ * (creating a draft); the box then just shows the pending status — committing
+ * or cancelling the deletion is done via the form header's existing
+ * "Speichern" / "zurücksetzen" buttons, like any other draft.
  */
 const DangerZone = ({
   heading = "Gefahrenzone",
   title,
-  description,
-  buttonLabel = "Löschen",
-  onConfirm,
-  loading,
-  disabled,
+  pendingDeletion,
+  onMark,
 }: DangerZoneProps) => {
   return (
     <div className="mt-8 rounded-md border border-[#f5c2c7] overflow-hidden">
@@ -38,19 +33,29 @@ const DangerZone = ({
       <div className="flex items-center justify-between gap-4 px-4 py-3">
         <div className="flex flex-col">
           <span className="text-gray-900 font-semibold text-sm">{title}</span>
-          {description && (
-            <span className="text-gray-500 text-[13px]">{description}</span>
+          {pendingDeletion ? (
+            <span className="flex items-center gap-1.5 text-[#cf222e] text-[13px] font-medium">
+              <ExclamationCircleFilled />
+              Zum Löschen vorgemerkt – mit „Speichern" wird das Fachobjekt
+              dauerhaft gelöscht, „zurücksetzen" verwirft die Löschung.
+            </span>
+          ) : (
+            <span className="text-gray-500 text-[13px]">
+              Das Fachobjekt wird zum Löschen vorgemerkt. Dieser Vorgang kann
+              nicht rückgängig gemacht werden.
+            </span>
           )}
         </div>
-        <Button
-          danger
-          icon={<DeleteOutlined />}
-          loading={loading}
-          disabled={disabled}
-          onClick={onConfirm}
-        >
-          {buttonLabel}
-        </Button>
+        {!pendingDeletion && (
+          <Button
+            danger
+            icon={<DeleteOutlined />}
+            onClick={onMark}
+            className="flex-shrink-0"
+          >
+            Fachobjekt löschen
+          </Button>
+        )}
       </div>
     </div>
   );

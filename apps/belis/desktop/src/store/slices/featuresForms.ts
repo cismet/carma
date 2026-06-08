@@ -85,6 +85,12 @@ export interface Draft {
   // array is in. Drives the brandnew icon's dot count so a "+ Leuchte zu
   // Standort N" draft renders with `bestand + 1 + extras` dots.
   bestandLeuchtenCount?: number;
+  // "Gefährlicher Löschmodus": the existing Fachobjekt behind this draft is
+  // marked for deletion. Set via setPendingDeletion from the DangerZone. The
+  // draft carries no field edits — it only records the intent — so it must be
+  // treated as a change by the dirtiness selectors and committed by deleting
+  // the object server-side (see handleCommitDeletion in FeaturesFormsWrapper).
+  pendingDeletion?: boolean;
   updatedAt: number;
 }
 
@@ -254,11 +260,67 @@ const featuresFormsSlice = createSlice({
         // edits) so the icon stays correct.
         bestandLeuchtenCount:
           existing?.bestandLeuchtenCount ?? bestandLeuchtenCount,
+        // Preserve a deletion mark across form-edit setDraft replacements.
+        pendingDeletion: existing?.pendingDeletion,
         updatedAt: Date.now(),
       };
     },
     removeDraft(state, action: PayloadAction<string>) {
       delete state.drafts[action.payload];
+    },
+    // Mark/unmark an existing Fachobjekt for deletion. Creates a draft to hold
+    // the intent when none exists; on unmark drops a deletion-only draft but
+    // keeps a draft that also carries real field/file/geometry edits.
+    setPendingDeletion(
+      state,
+      action: PayloadAction<{
+        featureId: string;
+        featureType: string;
+        pendingDeletion: boolean;
+        feature?: any;
+        fetchedData?: Record<string, unknown>;
+        featureDbId?: number;
+      }>
+    ) {
+      const {
+        featureId,
+        featureType,
+        pendingDeletion,
+        feature,
+        fetchedData,
+        featureDbId,
+      } = action.payload;
+      const existing = state.drafts[featureId];
+
+      if (!pendingDeletion) {
+        if (!existing) return;
+        existing.pendingDeletion = undefined;
+        const hasOtherChanges =
+          Object.keys(existing.values ?? {}).length > 0 ||
+          (existing.files?.length ?? 0) > 0 ||
+          (existing.removedDocumentKeys?.length ?? 0) > 0 ||
+          !!existing.geometryKey;
+        if (!hasOtherChanges) delete state.drafts[featureId];
+        return;
+      }
+
+      if (existing) {
+        existing.pendingDeletion = true;
+        existing.feature = feature ?? existing.feature;
+        existing.fetchedData = fetchedData ?? existing.fetchedData;
+        if (featureDbId != null) existing.featureDbId = featureDbId;
+        existing.updatedAt = Date.now();
+      } else {
+        state.drafts[featureId] = {
+          featureType,
+          values: {},
+          feature,
+          fetchedData,
+          featureDbId,
+          pendingDeletion: true,
+          updatedAt: Date.now(),
+        };
+      }
     },
     // Explicitly clear the geometry of a creation draft (the only way to
     // unset; setDraft uses `geometry ?? existing.geometry` and can't clear).
@@ -575,6 +637,7 @@ export default featuresFormsSlice;
 export const {
   setDraft,
   removeDraft,
+  setPendingDeletion,
   clearDraftGeometry,
   clearAllDrafts,
   setFormLoading,
@@ -643,6 +706,14 @@ export const getDraftExistingDocuments = (
 export const getAllDrafts = (state: RootState): Record<string, Draft> =>
   state.featuresForms?.drafts ?? {};
 
+export const isDraftPendingDeletion = (
+  state: RootState,
+  featureId: string | undefined
+): boolean =>
+  featureId
+    ? state.featuresForms?.drafts[featureId]?.pendingDeletion === true
+    : false;
+
 // Check if a specific draft has actual changes compared to its original values
 // An existing feature whose geometry was switched to a measurement is "dirty"
 // even when no form field changed. The feature's own geometry option is keyed
@@ -660,6 +731,7 @@ export const hasDraftChanges = (
   if (!featureId) return false;
   const draft = state.featuresForms?.drafts[featureId];
   if (!draft) return false;
+  if (draft.pendingDeletion) return true;
   if (draft.files && draft.files.length > 0) return true;
   if (draft.removedDocumentKeys && draft.removedDocumentKeys.length > 0)
     return true;
@@ -675,6 +747,7 @@ export const hasAnyDraftChanges = (state: RootState): boolean => {
   const originals = state.featuresForms?.originalValues ?? {};
   return Object.entries(drafts).some(
     ([id, draft]) =>
+      (draft.pendingDeletion ?? false) ||
       (draft.files?.length ?? 0) > 0 ||
       (draft.removedDocumentKeys?.length ?? 0) > 0 ||
       isFormDirtyManaged(originals[id], draft.values) ||
