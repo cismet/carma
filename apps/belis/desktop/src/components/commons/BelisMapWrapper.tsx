@@ -128,7 +128,10 @@ import type { Feature } from "geojson";
 import type { ArbeitsauftragTileFeature } from "../../store/slices/arbeitsauftraege";
 import { transformGqlToTileFeatures } from "../../helper/transformArbeitsauftraege";
 import { fitAABounds } from "../../helper/fitAABounds";
-import { attachMeasurementsOnTop } from "../../helper/measurementLayerHelper";
+import {
+  attachMeasurementsOnTop,
+  isMeasurementLayerId,
+} from "../../helper/measurementLayerHelper";
 
 const LIST_WIDTH = 300;
 
@@ -2714,6 +2717,14 @@ const BelisMapLibWrapper = ({
       | undefined;
     if (!src || typeof src.setData !== "function") return;
 
+    // Brandnew features are a Fachobjekte-only overlay; in Arbeitsaufträge mode
+    // keep the source empty so drafts/server brandnew don't leak onto the AA
+    // map. The effect re-populates when switching back to Fachobjekte.
+    if (sidebarVariant === "arbeitsauftraege") {
+      src.setData({ type: "FeatureCollection", features: [] });
+      return;
+    }
+
     const features: GeoJSON.Feature[] = [...visibleBrandnewFeatures];
     for (const feature of draftBrandnewFeatures) {
       if (!feature.geometry) continue;
@@ -2732,6 +2743,7 @@ const BelisMapLibWrapper = ({
     brandnewSource,
     draftBrandnewFeatures,
     visibleBrandnewFeatures,
+    sidebarVariant,
   ]);
 
   // --- Z-order fix: the brandnew sub-style is appended after styleY, so by
@@ -2763,6 +2775,37 @@ const BelisMapLibWrapper = ({
     return attachMeasurementsOnTop(miniMap);
   }, [miniMap, miniMapReady]);
 
+  // Measurements are a Fachobjekte-only annotation overlay (terra-draw `td-*`
+  // geometry + `carma-measurements-*` labels/snap live on the main map). Hide
+  // the whole group in Arbeitsaufträge mode so it doesn't leak onto the AA map,
+  // and restore it when switching back. Re-asserts on every style mutation
+  // since attachMeasurementsOnTop re-orders (and re-adds) these layers.
+  useEffect(() => {
+    if (!map || !mapReady) return;
+    const desired = sidebarVariant === "arbeitsauftraege" ? "none" : "visible";
+    const apply = () => {
+      for (const layer of map.getStyle()?.layers ?? []) {
+        if (!isMeasurementLayerId(layer.id)) continue;
+        try {
+          // Only write when changed — setLayoutProperty itself fires
+          // `styledata`, so an unconditional write here would loop.
+          const current = map.getLayoutProperty(layer.id, "visibility");
+          const effective = current ?? "visible";
+          if (effective !== desired) {
+            map.setLayoutProperty(layer.id, "visibility", desired);
+          }
+        } catch {
+          /* layer may not be ready */
+        }
+      }
+    };
+    apply();
+    map.on("styledata", apply);
+    return () => {
+      map.off("styledata", apply);
+    };
+  }, [map, mapReady, sidebarVariant]);
+
   // --- Mini-map: push every open creation draft AND the server-side brandnew
   // FC into the brandnew GeoJSON source so they render together with the
   // brandnew style's per-type layers, matching the main map's brandnew group.
@@ -2776,6 +2819,13 @@ const BelisMapLibWrapper = ({
       | maplibregl.GeoJSONSource
       | undefined;
     if (!src || typeof src.setData !== "function") return;
+
+    // Brandnew features are a Fachobjekte-only overlay; keep the mini-map's
+    // brandnew source empty in Arbeitsaufträge mode (see main-map effect above).
+    if (sidebarVariant === "arbeitsauftraege") {
+      src.setData({ type: "FeatureCollection", features: [] });
+      return;
+    }
 
     const features: GeoJSON.Feature[] = [...visibleBrandnewFeatures];
     for (const feature of draftBrandnewFeatures) {
@@ -2794,6 +2844,7 @@ const BelisMapLibWrapper = ({
     brandnewSource,
     draftBrandnewFeatures,
     visibleBrandnewFeatures,
+    sidebarVariant,
   ]);
 
   // Mini-map counterpart of the main-map hidden-IDs filter effect — keeps the
