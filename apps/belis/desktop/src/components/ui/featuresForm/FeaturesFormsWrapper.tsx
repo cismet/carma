@@ -33,7 +33,7 @@ import {
   getAllDrafts,
   promoteDraftHiddenToPermanent,
 } from "../../../store/slices/featuresForms";
-import { getJWT } from "../../../store/slices/auth";
+import { getJWT, getIsReadOnly } from "../../../store/slices/auth";
 import type { DokumentItem } from "../DocumentPreview";
 import { ChangedFieldsProvider } from "./DraftFieldHighlight";
 import { LOCKED_FIELD_CLASSES } from "./readOnlyFormUtils";
@@ -406,8 +406,13 @@ const FeaturesFormsWrapper = ({
 
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  // A read-only ("Gast") user must never get an editable form — not even a
+  // creation form. This overrides the normal creation/editing/globalEditMode
+  // logic so no CRUD UI (save buttons, green "+" create button, editable
+  // fields) is exposed.
+  const isReadOnly = useSelector(getIsReadOnly) as boolean;
   const effectiveReadOnly =
-    !isCreation && readOnlyProp && !isEditing && !globalEditMode;
+    isReadOnly || (!isCreation && readOnlyProp && !isEditing && !globalEditMode);
 
   // Exit edit mode when feature data is refetched externally (e.g. Save All).
   // No FormComponent remount here: re-population happens inside *FormFields via
