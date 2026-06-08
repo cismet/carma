@@ -253,14 +253,14 @@ function SaveMeasurements({ layer }: { layer: Layer }) {
           onClick={handleSave}
           className="flex-1"
         >
-          Zum Geoportal hinzufügen
+          Im Portal speichern
         </Button>
         <Button
           disabled={shapes.length === 0}
           onClick={handleDownload}
           className="flex-1"
         >
-          Speichern
+          Datei speichern
         </Button>
       </div>
     </div>
