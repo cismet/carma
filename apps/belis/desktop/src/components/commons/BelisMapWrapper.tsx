@@ -2778,11 +2778,14 @@ const BelisMapLibWrapper = ({
   // Measurements are a Fachobjekte-only annotation overlay (terra-draw `td-*`
   // geometry + `carma-measurements-*` labels/snap live on the main map). Hide
   // the whole group in Arbeitsaufträge mode so it doesn't leak onto the AA map,
-  // and restore it when switching back. Re-asserts on every style mutation
-  // since attachMeasurementsOnTop re-orders (and re-adds) these layers.
+  // and in read-only mode (where measurements persisted from a previous editing
+  // session must not show on any page), restoring it otherwise. Re-asserts on
+  // every style mutation since attachMeasurementsOnTop re-orders (and re-adds)
+  // these layers.
   useEffect(() => {
     if (!map || !mapReady) return;
-    const desired = sidebarVariant === "arbeitsauftraege" ? "none" : "visible";
+    const desired =
+      isReadOnly || sidebarVariant === "arbeitsauftraege" ? "none" : "visible";
     const apply = () => {
       for (const layer of map.getStyle()?.layers ?? []) {
         if (!isMeasurementLayerId(layer.id)) continue;
@@ -2804,7 +2807,7 @@ const BelisMapLibWrapper = ({
     return () => {
       map.off("styledata", apply);
     };
-  }, [map, mapReady, sidebarVariant]);
+  }, [map, mapReady, sidebarVariant, isReadOnly]);
 
   // --- Mini-map: push every open creation draft AND the server-side brandnew
   // FC into the brandnew GeoJSON source so they render together with the
