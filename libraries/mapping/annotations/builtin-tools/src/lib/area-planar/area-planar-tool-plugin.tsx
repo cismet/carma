@@ -90,6 +90,8 @@ const AREA_PLANAR_OCCLUSION_STYLE_DEFAULTS = resolveAreaOcclusionStyleOptions({
 });
 const AREA_PLANAR_REJECTED_POINT_FEEDBACK =
   "Der letzte Punkt wurde nicht übernommen: Die projizierte Kontur würde sich selbst schneiden oder die Ebene zu stark kippen.";
+const AREA_PLANAR_REJECTED_FINISH_FEEDBACK =
+  "Die Fläche kann hier noch nicht geschlossen werden: Die Abschlusskante würde die Kontur schneiden oder eine Kante doppelt verwenden. Setze einen weiteren Punkt oder lösche den letzten Punkt.";
 const AREA_PLANAR_TRAPEZOID_HORIZONTAL_PLANE_REJECTED_POINT_FEEDBACK =
   "Der zweite Punkt wurde nicht übernommen: Auf die Schnittlinie von Hilfsscheibe und Dach klicken. Umschalttaste+Klick projiziert auf die Hilfsscheibe.";
 const AREA_PLANAR_TRAPEZOID_HORIZONTAL_LINE_TOO_LONG_FEEDBACK =
@@ -645,9 +647,20 @@ const createAreaPlanarToolVariantPlugin = ({
             coordinates: measurementInputCoordinates,
             mode: projectionMode,
           });
+          if (!projectedCoordinates) {
+            drafts.set(toolId, {
+              ...draft,
+              feedback: {
+                kind: "warning",
+                message: AREA_PLANAR_REJECTED_FINISH_FEEDBACK,
+              },
+            });
+            return false;
+          }
+
           const nextMeasurement = commitAreaMeasurement({
             toolType,
-            coordinates: projectedCoordinates ?? [],
+            coordinates: projectedCoordinates,
             addAnnotation,
             sourceToolId: toolId,
           });

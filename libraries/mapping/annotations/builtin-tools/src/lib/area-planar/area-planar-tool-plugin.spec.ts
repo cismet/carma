@@ -19,7 +19,10 @@ import {
   geographicCoordinateFromCartesian3,
 } from "@carma-mapping/engines/cesium/core";
 
-import { createAreaPlanarTrapezoidToolPlugin } from "./area-planar-tool-plugin";
+import {
+  createAreaPlanarToolPlugin,
+  createAreaPlanarTrapezoidToolPlugin,
+} from "./area-planar-tool-plugin";
 import { getAreaPlanarTrapezoidSecondPointHorizontalPlaneDistanceMeters } from "./area-planar-trapezoid";
 
 const createDraftStore = (): AnnotationToolDraftStore => {
@@ -92,6 +95,43 @@ const createRightAngleLimiterTestCoordinates = () => {
     nearRightAngleThirdPoint: coordinateAtOffset(10.5, 10),
     freeFourthPoint: coordinateAtOffset(0.5, 10.2),
   };
+};
+
+const createOffsetCoordinateFactory = () => {
+  const anchor = Cartesian3.fromDegrees(7, 51, 100);
+  const localUp = Cartesian3.normalize(anchor, new Cartesian3());
+  const localEast = Cartesian3.normalize(
+    Cartesian3.cross(Cartesian3.UNIT_Z, localUp, new Cartesian3()),
+    new Cartesian3()
+  );
+  const localNorth = Cartesian3.normalize(
+    Cartesian3.cross(localUp, localEast, new Cartesian3()),
+    new Cartesian3()
+  );
+
+  return (
+    eastOffsetMeters: number,
+    northOffsetMeters: number
+  ): CesiumGeographicCoordinate =>
+    geographicCoordinateFromCartesian3(
+      Cartesian3.add(
+        anchor,
+        Cartesian3.add(
+          Cartesian3.multiplyByScalar(
+            localEast,
+            eastOffsetMeters,
+            new Cartesian3()
+          ),
+          Cartesian3.multiplyByScalar(
+            localNorth,
+            northOffsetMeters,
+            new Cartesian3()
+          ),
+          new Cartesian3()
+        ),
+        new Cartesian3()
+      )
+    );
 };
 
 type HelpTextRow = Exclude<AnnotationInfoBoxHelpItem, string>;
@@ -392,6 +432,62 @@ describe("area planar tool plugin", () => {
     expect(session?.requestFinish()).toBe(false);
     expect(addAnnotation).not.toHaveBeenCalled();
     expect(drafts.get(plugin.id).coordinates).toHaveLength(2);
+  });
+
+  it("explains why appendable area drafts cannot be finished yet", () => {
+    const plugin = createAreaPlanarToolPlugin();
+    const coordinateAtOffset = createOffsetCoordinateFactory();
+    const drafts = createDraftStore();
+    const addAnnotation = vi.fn();
+    const session = plugin.session?.createSession({
+      addAnnotation,
+      dispatch: vi.fn(),
+      drafts,
+      getState: vi.fn(),
+      setActiveToolType: vi.fn(),
+    } as never);
+
+    [
+      coordinateAtOffset(0, 0),
+      coordinateAtOffset(4, 0),
+      coordinateAtOffset(4, 4),
+      coordinateAtOffset(8, 2),
+      coordinateAtOffset(8, 6),
+    ].forEach((coordinate) => session?.onNodeCreated?.(coordinate));
+
+    expect(drafts.get(plugin.id).coordinates).toHaveLength(5);
+    expect(session?.requestFinish()).toBe(false);
+    expect(addAnnotation).not.toHaveBeenCalled();
+    expect(drafts.get(plugin.id).coordinates).toHaveLength(5);
+    expect(drafts.get(plugin.id).feedback?.kind).toBe("warning");
+    expect(drafts.get(plugin.id).feedback?.message).toContain(
+      "noch nicht geschlossen"
+    );
+  });
+
+  it("keeps valid area drafts when the annotation commit is rejected", () => {
+    const plugin = createAreaPlanarToolPlugin();
+    const coordinateAtOffset = createOffsetCoordinateFactory();
+    const drafts = createDraftStore();
+    const addAnnotation = vi.fn(() => null);
+    const session = plugin.session?.createSession({
+      addAnnotation,
+      dispatch: vi.fn(),
+      drafts,
+      getState: vi.fn(),
+      setActiveToolType: vi.fn(),
+    } as never);
+
+    [
+      coordinateAtOffset(0, 0),
+      coordinateAtOffset(4, 0),
+      coordinateAtOffset(4, 4),
+    ].forEach((coordinate) => session?.onNodeCreated?.(coordinate));
+
+    expect(session?.requestFinish()).toBe(false);
+    expect(addAnnotation).toHaveBeenCalledTimes(1);
+    expect(drafts.get(plugin.id).coordinates).toHaveLength(3);
+    expect(drafts.get(plugin.id).feedback).toBeNull();
   });
 
   it("finishes automatic trapezoid measurements after the third point", () => {
