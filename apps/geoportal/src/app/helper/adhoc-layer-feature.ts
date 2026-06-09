@@ -378,14 +378,24 @@ const buildAdhocMapLibreStyleFeature = ({
     data: styleData,
     properties: extractFirstGeoJsonFeatureProperties(styleData),
   };
+  const annotationsGeoJson =
+    styleData.metadata?.carmaConf?.annotationsGeoJson ?? null;
+  const resolvedMetadata =
+    annotationsGeoJson && typeof annotationsGeoJson === "object"
+      ? {
+          ...metadata,
+          annotationsGeoJson,
+          renderAsRuntimeAnnotations: true,
+        }
+      : metadata;
 
-  if (!metadata) {
+  if (!resolvedMetadata) {
     return feature;
   }
 
   return {
     ...feature,
-    metadata,
+    metadata: resolvedMetadata,
   };
 };
 

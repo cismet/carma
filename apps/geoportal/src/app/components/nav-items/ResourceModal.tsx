@@ -160,7 +160,7 @@ const ResourceModal = () => {
               }),
             id: "favoriteLayers",
           },
-          isLeaflet && {
+          {
             Title: "Meine Messungen",
             layers: measurements.map((measurement) => {
               return {

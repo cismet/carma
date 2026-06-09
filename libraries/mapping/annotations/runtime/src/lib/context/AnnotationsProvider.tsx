@@ -18,6 +18,7 @@ import {
   selectSelectedAnnotationId,
   AnnotationsReduxContext,
   useAnnotationsSelector,
+  type AnnotationsRuntimeGeoJsonFeatureCollection,
   type AnnotationsRuntimePersistenceEnvelope,
   type AnnotationsStore,
 } from "../store";
@@ -60,6 +61,19 @@ type AnnotationsRuntimeServices = {
     linkedNodeGroupIds?: readonly (AnnotationNodeLinkId | null | undefined)[],
     sourceToolId?: AnnotationToolId
   ) => StoredAnnotation;
+  appendAnnotationsRuntimePersistenceState: (
+    persistenceState: AnnotationsRuntimePersistenceEnvelope,
+    options?: {
+      idPrefix?: string;
+      locked?: boolean;
+      readOnlySource?: StoredAnnotation["readOnlySource"];
+      selectAnnotationId?: string | null;
+      skipExisting?: boolean;
+    }
+  ) => readonly string[];
+  removeReadOnlyAnnotationsBySource: (
+    readOnlySource: NonNullable<StoredAnnotation["readOnlySource"]>
+  ) => readonly string[];
   setActiveToolType: (toolId: AnnotationToolId) => void;
   requestModeChange: (toolId: AnnotationToolId) => void;
   requestActivateTool: (toolId?: AnnotationToolId) => void;
@@ -76,6 +90,7 @@ type AnnotationsRuntimeServices = {
     annotationIds: readonly string[],
     options?: AnnotationDeleteRequestOptions
   ) => void;
+  buildAllAnnotationsGeoJson: () => AnnotationsRuntimeGeoJsonFeatureCollection;
   exportAnnotationGeoJson: (annotationId: string) => void;
   exportAllAnnotationsGeoJson: () => void;
   toggleAnnotationVisibility: (annotationId: string) => void;
@@ -114,6 +129,8 @@ type AnnotationsProviderProps = {
     storageKey: string;
   };
   renderEnabled?: boolean;
+  visualRenderEnabled?: boolean;
+  visualInteractionEnabled?: boolean;
   formatOptions?: AnnotationsRuntimeFormatOptions;
   lineLabelOptions?: PartialAnnotationLineLabelOptions;
   initialPersistenceState?: AnnotationsRuntimePersistenceEnvelope | null;
@@ -182,6 +199,8 @@ export const AnnotationsProvider = ({
   labelOverlayHost = null,
   localPersistence,
   renderEnabled = true,
+  visualRenderEnabled,
+  visualInteractionEnabled,
   formatOptions = DEFAULT_RUNTIME_FORMAT_OPTIONS,
   lineLabelOptions = DEFAULT_ANNOTATION_LINE_LABEL_OPTIONS,
   initialPersistenceState,
@@ -247,10 +266,13 @@ export const AnnotationsProvider = ({
           setActiveToolType={setActiveToolType}
         />
         {renderEnabled ? (
-          <>
-            <RuntimeAuthoringHost {...runtimeAuthoringHost} />
-            <RuntimeVisualHost {...runtimeVisualHost} />
-          </>
+          <RuntimeAuthoringHost {...runtimeAuthoringHost} />
+        ) : null}
+        {visualRenderEnabled ?? renderEnabled ? (
+          <RuntimeVisualHost
+            {...runtimeVisualHost}
+            visualInteractionEnabled={visualInteractionEnabled}
+          />
         ) : null}
         {children}
       </AnnotationsRuntimeContext.Provider>
@@ -275,6 +297,8 @@ export const useAnnotationsRuntime = () => {
     annotationToolDraftStore,
     formatOptions,
     addAnnotation,
+    appendAnnotationsRuntimePersistenceState,
+    removeReadOnlyAnnotationsBySource,
     setActiveToolType,
     requestModeChange,
     requestActivateTool,
@@ -285,6 +309,7 @@ export const useAnnotationsRuntime = () => {
     flyToAllAnnotations,
     removeAnnotationById,
     removeAnnotationsByIds,
+    buildAllAnnotationsGeoJson,
     exportAnnotationGeoJson,
     exportAllAnnotationsGeoJson,
     toggleAnnotationVisibility,
@@ -338,6 +363,7 @@ export const useAnnotationsRuntime = () => {
     flyToAllAnnotations,
     removeAnnotationById,
     removeAnnotationsByIds,
+    buildAllAnnotationsGeoJson,
     exportAnnotationGeoJson,
     exportAllAnnotationsGeoJson,
     toggleAnnotationVisibility,
@@ -360,6 +386,8 @@ export const useAnnotationsRuntime = () => {
     setSelectedAnnotationId,
     setSelectedAnnotationIds,
     addAnnotation,
+    appendAnnotationsRuntimePersistenceState,
+    removeReadOnlyAnnotationsBySource,
     labelTextDialogState,
   };
 };

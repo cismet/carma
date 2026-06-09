@@ -48,6 +48,7 @@ export type CarmaConf3D = {
 export type CarmaMapLibreStyleMetadata = {
   carmaConf?: {
     instant?: boolean;
+    annotationsGeoJson?: unknown;
     layerInfo?: {
       title?: string;
       header?: string;

@@ -182,8 +182,12 @@ export type {
 export { useLocalAnnotationsRuntimePersistence } from "./lib/store/persistence/useLocalAnnotationsStorePersistence";
 export {
   ANNOTATION_ELEVATION_DISPLAY_MODES,
+  ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_ID,
+  ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_VERSION,
+  buildAnnotationsRuntimeGeoJsonFeatureCollection,
   buildNodeLinkIdByNodeId,
   removeAnnotationById,
+  resolveAnnotationsRuntimePersistenceFromGeoJson,
   setElevationReferenceAnnotationId,
   updateAnnotationEntryById,
   useAnnotationsDispatch,
@@ -195,6 +199,8 @@ export type {
   AnnotationNode,
   AnnotationNodeLink,
   AnnotationNodeLinkId,
+  AnnotationsRuntimeGeoJsonFeatureCollection,
+  AnnotationsRuntimePersistenceEnvelope,
   AnnotationsStore,
   AnnotationsStoreState,
   CesiumGeographicCoordinate,

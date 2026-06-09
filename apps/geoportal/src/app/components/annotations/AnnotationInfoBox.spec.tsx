@@ -130,6 +130,82 @@ const enableCesiumAnnotationInfoBox = (store: TestStore) => {
   store.dispatch(appendLayer(buildCesiumAnnotationLayer()));
 };
 
+const buildSavedAnnotationLayer = (): Layer => ({
+  id: "measurement-3d-saved",
+  title: "Gespeicherte Messung",
+  type: "object",
+  icon: "measurement",
+  visible: true,
+  layerType: "vector",
+  props: {
+    style: {
+      version: 8,
+      sources: {
+        adhoc: {
+          type: "geojson",
+          data: {
+            type: "FeatureCollection",
+            features: [
+              {
+                type: "Feature",
+                id: "distance-1",
+                geometry: {
+                  type: "LineString",
+                  coordinates: [
+                    [7, 51, 100],
+                    [7.1, 51.1, 130],
+                  ],
+                },
+                properties: {
+                  carmaConf: {
+                    annotationRuntime: {
+                      formatId: "carma-3d-annotation-runtime-feature",
+                      formatVersion: 1,
+                      annotation: {
+                        id: "distance-1",
+                        toolType: "distance",
+                        nodeIds: ["node-1", "node-2"],
+                        edgeIds: ["edge-1"],
+                      },
+                      nodes: [
+                        {
+                          id: "node-1",
+                          coordinate: {
+                            longitude: 7,
+                            latitude: 51,
+                            altitude: 100,
+                          },
+                        },
+                        {
+                          id: "node-2",
+                          coordinate: {
+                            longitude: 7.1,
+                            latitude: 51.1,
+                            altitude: 130,
+                          },
+                        },
+                      ],
+                      linkedNodeGroups: [],
+                      edges: [
+                        {
+                          id: "edge-1",
+                          startNodeId: "node-1",
+                          endNodeId: "node-2",
+                        },
+                      ],
+                    },
+                  },
+                },
+              },
+            ],
+          },
+        },
+      },
+      layers: [],
+    },
+  },
+});
+
 describe("AnnotationInfoBox", () => {
   beforeEach(() => {
     cismapRuntimeAnnotationInfoBoxMock.mockClear();
@@ -211,6 +287,30 @@ describe("AnnotationInfoBox", () => {
         helpLocale: "de-DE",
       })
     );
+    expect(
+      screen.getByTestId("cismap-runtime-annotation-info-box")
+    ).toBeTruthy();
+  });
+
+  it("renders for saved 3D annotation layers outside measurement mode", () => {
+    useRuntimeAnnotationInfoBoxSlotsMock.mockReturnValue({
+      kind: "annotation",
+      annotation: {
+        toolType: "distance",
+      },
+      slots: {
+        headingTitle: "Gespeicherte Messung",
+      },
+      visualOptions: {},
+    });
+    const store = createTestStore();
+    store.dispatch(setUIMode(UIMode.DEFAULT));
+    store.dispatch(appendLayer(buildSavedAnnotationLayer()));
+
+    render(<AnnotationInfoBox />, {
+      wrapper: createWrapper(store),
+    });
+
     expect(
       screen.getByTestId("cismap-runtime-annotation-info-box")
     ).toBeTruthy();

@@ -21,10 +21,15 @@ export {
   type AnnotationNodeId,
 } from "./annotations-store.types";
 export {
+  ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_ID,
+  ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_VERSION,
+  buildAnnotationsRuntimeGeoJsonFeatureCollection,
   buildAnnotationsRuntimePersistenceState,
   loadAnnotationsRuntimePersistenceState,
+  resolveAnnotationsRuntimePersistenceFromGeoJson,
   resolvePersistedAnnotationsStoreState,
   saveAnnotationsRuntimePersistenceState,
+  type AnnotationsRuntimeGeoJsonFeatureCollection,
   type AnnotationsRuntimePersistenceEnvelope,
 } from "./persistence/annotations-store-persistence";
 export {

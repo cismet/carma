@@ -8,10 +8,13 @@ import {
 } from "react";
 import { useSelector } from "react-redux";
 
+import { useAdhocFeatureDisplay } from "@carma-appframeworks/portals";
 import { createDefaultAnnotationToolPlugins } from "@carma-mapping/annotations/builtin-tools";
 import {
   AnnotationsProvider,
+  resolveAnnotationsRuntimePersistenceFromGeoJson,
   type AnnotationDeleteConfirmationRequester,
+  useAnnotationsRuntime,
 } from "@carma-mapping/annotations/runtime";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { useCesiumContext } from "@carma-mapping/engines/cesium/legacy";
@@ -25,6 +28,7 @@ import { useGeoportalCesiumAnnotationOverlayHost } from "../../hooks/use-geoport
 import { useGeoportalCesiumAnnotationToolPlugins } from "../../hooks/use-geoportal-cesium-annotation-tool-plugins";
 import { getLayers } from "../../store/slices/mapping";
 import { getUIMode, UIMode } from "../../store/slices/ui";
+import { layerHasRuntimeAnnotationsGeoJson } from "../../helper/annotation-info-box";
 import CesiumAnnotationShortcutManager from "./CesiumAnnotationShortcutManager";
 import GeoportalLabelTextModal from "./GeoportalLabelTextModal";
 import { MeasurementDeleteConfirmationModal } from "./MeasurementDeleteConfirmationModal";
@@ -96,6 +100,78 @@ function GeoportalCesiumAnnotationLayerbarRegistration() {
   return null;
 }
 
+function GeoportalSavedAnnotationFeatureCollectionRegistration() {
+  const { featureCollections } = useAdhocFeatureDisplay();
+  const {
+    appendAnnotationsRuntimePersistenceState,
+    removeReadOnlyAnnotationsBySource,
+  } = useAnnotationsRuntime();
+  const activeSourceIds = useMemo(
+    () =>
+      new Set(
+        featureCollections.flatMap((collection) =>
+          collection.features.flatMap((feature) => {
+            if (feature.metadata?.renderAsRuntimeAnnotations !== true) {
+              return [];
+            }
+            return [collection.id];
+          })
+        )
+      ),
+    [featureCollections]
+  );
+  const registeredSourceIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    for (const collection of featureCollections) {
+      for (const feature of collection.features) {
+        if (feature.metadata?.renderAsRuntimeAnnotations !== true) {
+          continue;
+        }
+
+        const readOnlySource = {
+          type: "saved-measurement" as const,
+          id: collection.id,
+        };
+        const persistenceState =
+          resolveAnnotationsRuntimePersistenceFromGeoJson(
+            feature.metadata.annotationsGeoJson
+          );
+        if (!persistenceState) {
+          continue;
+        }
+
+        appendAnnotationsRuntimePersistenceState(persistenceState, {
+          idPrefix: collection.id,
+          locked: true,
+          readOnlySource,
+          selectAnnotationId: null,
+          skipExisting: true,
+        });
+        registeredSourceIdsRef.current.add(collection.id);
+      }
+    }
+
+    for (const sourceId of [...registeredSourceIdsRef.current]) {
+      if (activeSourceIds.has(sourceId)) {
+        continue;
+      }
+      removeReadOnlyAnnotationsBySource({
+        type: "saved-measurement",
+        id: sourceId,
+      });
+      registeredSourceIdsRef.current.delete(sourceId);
+    }
+  }, [
+    activeSourceIds,
+    appendAnnotationsRuntimePersistenceState,
+    featureCollections,
+    removeReadOnlyAnnotationsBySource,
+  ]);
+
+  return null;
+}
+
 export function AnnotationProvider({ children }: AnnotationProviderProps) {
   const { getScene } = useCesiumContext();
   const { isCesium } = useMapFrameworkSwitcherContext();
@@ -108,6 +184,8 @@ export function AnnotationProvider({ children }: AnnotationProviderProps) {
   const annotationsVisible =
     isCesiumAnnotationMode &&
     layers.some((layer) => layer.id === CESIUM_ANNOTATION_LAYER_ID);
+  const savedAnnotationsVisible =
+    isCesium && layers.some(layerHasRuntimeAnnotationsGeoJson);
   useGeoportalCesiumAnnotationModeLifecycle({
     active: isCesiumAnnotationMode,
   });
@@ -136,9 +214,12 @@ export function AnnotationProvider({ children }: AnnotationProviderProps) {
         storageKey: "@" + APP_KEY + ".app.cesium-annotations",
       }}
       renderEnabled={annotationsVisible}
+      visualRenderEnabled={annotationsVisible || savedAnnotationsVisible}
+      visualInteractionEnabled={savedAnnotationsVisible}
       confirmAnnotationDelete={confirmAnnotationDelete}
     >
       <GeoportalCesiumAnnotationLayerbarRegistration />
+      <GeoportalSavedAnnotationFeatureCollectionRegistration />
       {annotationsVisible ? <CesiumAnnotationShortcutManager /> : null}
       <GeoportalLabelTextModal />
       {deleteConfirmationModal}

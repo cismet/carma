@@ -41,6 +41,7 @@ type RuntimeVisualHostProps = {
   activeEditedNodeId: string | null;
   formatOptions: AnnotationsRuntimeFormatOptions;
   lineLabelOptions: PartialAnnotationLineLabelOptions;
+  visualInteractionEnabled?: boolean;
 };
 
 export const RuntimeVisualHost = ({
@@ -56,6 +57,7 @@ export const RuntimeVisualHost = ({
   activeEditedNodeId,
   formatOptions,
   lineLabelOptions,
+  visualInteractionEnabled = false,
 }: RuntimeVisualHostProps) => {
   const activeToolType = useAnnotationsSelector(
     (annotationsState) => annotationsState.annotationToolType
@@ -197,7 +199,7 @@ export const RuntimeVisualHost = ({
     <>
       <SceneSelectionHost
         scene={scene}
-        enabled={isInteractionToolActive}
+        enabled={isInteractionToolActive || visualInteractionEnabled}
         baseEdges={baseVisualModels.edges ?? []}
         overlayEdges={overlayVisualModels?.edges ?? []}
         basePolygonFills={baseVisualModels.polygonFills ?? []}

@@ -9,13 +9,13 @@ import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runt
 import type { PartialAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
 import {
   buildStoredAnnotationGeoJsonFeatureCollection,
-  buildStoredAnnotationsGeoJsonFeatureCollection,
   downloadAnnotationGeoJsonFile,
   resolveAnnotationExportDescriptor,
   sanitizeAnnotationExportFileSegment,
 } from "../utils/annotation-geo-json-export";
 import {
   appendAnnotationEntities,
+  buildAnnotationsRuntimeGeoJsonFeatureCollection,
   buildAnnotationsRuntimePersistenceState,
   buildMeasurementEntities,
   createAnnotationsStore,
@@ -40,6 +40,7 @@ import {
   type AnnotationsStore,
   type AddAnnotationOptions,
   type AnnotationsRuntimePersistenceEnvelope,
+  type AnnotationsRuntimeGeoJsonFeatureCollection,
   type CesiumGeographicCoordinate,
   type AnnotationNodeLinkId,
   type StoredAnnotation,
@@ -585,21 +586,19 @@ export const useAnnotationsAssembly = ({
     [annotationsStore]
   );
 
-  const exportAllAnnotationsGeoJson = useCallback(() => {
-    const runtimeState = annotationsStore.getState();
-    const featureCollection = buildStoredAnnotationsGeoJsonFeatureCollection({
-      annotations: runtimeState.annotationEntries.map((annotation) => ({
-        annotation,
-        coordinates: resolveAnnotationEntryCoordinates({
-          annotationEntries: runtimeState.annotationEntries,
-          nodes: runtimeState.nodes,
-          annotationId: annotation.id,
-        }),
-      })),
-    });
+  const buildAllAnnotationsGeoJson =
+    useCallback((): AnnotationsRuntimeGeoJsonFeatureCollection => {
+      return buildAnnotationsRuntimeGeoJsonFeatureCollection(
+        buildAnnotationsRuntimePersistenceState(annotationsStore.getState())
+      );
+    }, [annotationsStore]);
 
-    downloadAnnotationGeoJsonFile("annotations.geojson", featureCollection);
-  }, [annotationsStore]);
+  const exportAllAnnotationsGeoJson = useCallback(() => {
+    downloadAnnotationGeoJsonFile(
+      "annotations.geojson",
+      buildAllAnnotationsGeoJson()
+    );
+  }, [buildAllAnnotationsGeoJson]);
 
   const toggleAnnotationVisibility = useCallback(
     (annotationId: string) => {
@@ -804,6 +803,115 @@ export const useAnnotationsAssembly = ({
     [annotationsStore, resolvePluginForAnnotationAdd, scene]
   );
 
+  const appendAnnotationsRuntimePersistenceState = useCallback(
+    (
+      persistenceState: AnnotationsRuntimePersistenceEnvelope,
+      options: {
+        idPrefix?: string;
+        locked?: boolean;
+        readOnlySource?: StoredAnnotation["readOnlySource"];
+        selectAnnotationId?: string | null;
+        skipExisting?: boolean;
+      } = {}
+    ): readonly string[] => {
+      const mapId = (id: string) =>
+        options.idPrefix ? `${options.idPrefix}:${id}` : id;
+      const existingAnnotationIds = new Set(
+        annotationsStore.getState().annotationEntries.map(({ id }) => id)
+      );
+      const appendedAnnotationIds: string[] = [];
+
+      for (const annotationEntry of persistenceState.tables.annotationEntries) {
+        const nextAnnotationId = mapId(annotationEntry.id);
+        if (
+          options.skipExisting &&
+          existingAnnotationIds.has(nextAnnotationId)
+        ) {
+          continue;
+        }
+
+        const sourceNodeIds = new Set(annotationEntry.nodeIds);
+        const sourceEdgeIds = new Set(annotationEntry.edgeIds);
+        const nodes = persistenceState.tables.nodes
+          .filter((node) => sourceNodeIds.has(node.id))
+          .map((node) => ({
+            ...node,
+            id: mapId(node.id),
+          }));
+        const edges = persistenceState.tables.edges
+          .filter((edge) => sourceEdgeIds.has(edge.id))
+          .map((edge) => ({
+            ...edge,
+            id: mapId(edge.id),
+            startNodeId: mapId(edge.startNodeId),
+            endNodeId: mapId(edge.endNodeId),
+          }));
+        const linkedNodeGroups = persistenceState.tables.linkedNodeGroups
+          .filter((nodeLink) =>
+            nodeLink.nodeIds.some((nodeId) => sourceNodeIds.has(nodeId))
+          )
+          .map((nodeLink) => ({
+            ...nodeLink,
+            id: mapId(nodeLink.id),
+            nodeIds: nodeLink.nodeIds
+              .filter((nodeId) => sourceNodeIds.has(nodeId))
+              .map(mapId),
+          }));
+
+        annotationsStore.dispatch(
+          appendAnnotationEntities({
+            annotationEntry: {
+              ...annotationEntry,
+              id: nextAnnotationId,
+              nodeIds: annotationEntry.nodeIds.map(mapId),
+              edgeIds: annotationEntry.edgeIds.map(mapId),
+              locked: options.locked ?? annotationEntry.locked,
+              readOnlySource:
+                options.readOnlySource ?? annotationEntry.readOnlySource,
+            },
+            nodes,
+            linkedNodeGroups,
+            edges,
+            selectAnnotationId: options.selectAnnotationId,
+          })
+        );
+        existingAnnotationIds.add(nextAnnotationId);
+        appendedAnnotationIds.push(nextAnnotationId);
+      }
+
+      return appendedAnnotationIds;
+    },
+    [annotationsStore]
+  );
+
+  const removeReadOnlyAnnotationsBySource = useCallback(
+    (
+      readOnlySource: NonNullable<StoredAnnotation["readOnlySource"]>
+    ): readonly string[] => {
+      const annotationIds = annotationsStore
+        .getState()
+        .annotationEntries.filter(
+          (annotationEntry) =>
+            annotationEntry.readOnlySource?.type === readOnlySource.type &&
+            annotationEntry.readOnlySource.id === readOnlySource.id
+        )
+        .map((annotationEntry) => annotationEntry.id);
+
+      if (annotationIds.length === 0) {
+        return [];
+      }
+
+      annotationsStore.dispatch(
+        removeAnnotationsByIds({
+          annotationIds,
+          nextSelectedAnnotationId: null,
+        })
+      );
+      return annotationIds;
+    },
+    [annotationsStore]
+  );
+
   useEffect(() => {
     if (!onPersistenceStateChange) {
       return;
@@ -839,6 +947,8 @@ export const useAnnotationsAssembly = ({
       formatOptions,
       activePointQueryPickResult,
       addAnnotation,
+      appendAnnotationsRuntimePersistenceState,
+      removeReadOnlyAnnotationsBySource,
       setActiveToolType,
       requestModeChange: (toolType: AnnotationToolId) =>
         lifecycleHostApiRef.current.requestModeChange(toolType),
@@ -852,6 +962,7 @@ export const useAnnotationsAssembly = ({
       flyToAllAnnotations,
       removeAnnotationById: removeAnnotationEntryById,
       removeAnnotationsByIds: removeAnnotationEntriesByIds,
+      buildAllAnnotationsGeoJson,
       exportAnnotationGeoJson,
       exportAllAnnotationsGeoJson,
       toggleAnnotationVisibility,
@@ -869,9 +980,11 @@ export const useAnnotationsAssembly = ({
     }),
     [
       addAnnotation,
+      appendAnnotationsRuntimePersistenceState,
       activePointQueryPickResult,
       annotationToolDraftStore,
       annotationsStore,
+      buildAllAnnotationsGeoJson,
       focusAdjacentAnnotationEntry,
       focusAnnotationId,
       exportAllAnnotationsGeoJson,
@@ -881,6 +994,7 @@ export const useAnnotationsAssembly = ({
       formatOptions,
       removeAnnotationEntryById,
       removeAnnotationEntriesByIds,
+      removeReadOnlyAnnotationsBySource,
       removeSelectedAnnotationEntries,
       registry,
       scene,

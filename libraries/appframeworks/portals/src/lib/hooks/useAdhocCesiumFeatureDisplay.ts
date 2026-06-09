@@ -411,7 +411,11 @@ export const useAdhocCesiumFeatureDisplay = (
     () =>
       featureCollections.flatMap((collection) =>
         collection.features
-          .filter((feature) => feature.metadata?.shouldRemove !== true)
+          .filter(
+            (feature) =>
+              feature.metadata?.shouldRemove !== true &&
+              feature.metadata?.renderAsRuntimeAnnotations !== true
+          )
           .map((feature) => ({
             feature,
             ...(collection.metadata
@@ -1280,7 +1284,7 @@ export const useAdhocCesiumFeatureDisplay = (
     let cancelled = false;
 
     const createVisualizers = async () => {
-      const newlyRegistered: string[] = [];
+      const processedFeatureKeys = new Set<string>();
 
       for (const entry of featuresToCreate) {
         if (cancelled) break;
@@ -1361,7 +1365,10 @@ export const useAdhocCesiumFeatureDisplay = (
           featureKey,
           resolvedGeojson
         );
-        if (geoJsonFeatures.length === 0) continue;
+        if (geoJsonFeatures.length === 0) {
+          processedFeatureKeys.add(featureKey);
+          continue;
+        }
 
         const visualizersToCreate: Array<{
           key: string;
@@ -1389,7 +1396,7 @@ export const useAdhocCesiumFeatureDisplay = (
             continue;
           }
 
-          if (config.groundPolygon) {
+          if (config.groundPolygon && polygonRings.length > 0) {
             const gpOptions =
               typeof config.groundPolygon === "object"
                 ? config.groundPolygon
@@ -1495,6 +1502,10 @@ export const useAdhocCesiumFeatureDisplay = (
           visualizersToCreate.map((entry) => entry.primitiveId)
         );
         if (uniqueSelectionIds.size === 0) {
+          processedFeatureKeys.add(featureKey);
+          console.debug("[ADHOC|VIS] no Cesium visualizer for feature", {
+            featureKey,
+          });
           continue;
         }
         let attachedVisualizerCount = 0;
@@ -1523,7 +1534,6 @@ export const useAdhocCesiumFeatureDisplay = (
 
           try {
             await visualizer.attach(scene, () => scene.requestRender());
-            newlyRegistered.push(featureKey);
             attachedVisualizerCount += 1;
           } catch {
             // Visualizer failed to attach, remove from map
@@ -1550,6 +1560,7 @@ export const useAdhocCesiumFeatureDisplay = (
           failed: failedVisualizerCount,
           uniqueSelections: uniqueSelectionIds.size,
         });
+        processedFeatureKeys.add(featureKey);
 
         // Set initial selection state and potentially fly to
         const firstSelectionId = [...uniqueSelectionIds][0] ?? null;
@@ -1662,8 +1673,9 @@ export const useAdhocCesiumFeatureDisplay = (
               next.delete(featureKey);
             }
           }
-          // Add newly registered IDs
-          for (const featureKey of newlyRegistered) {
+          // Add processed IDs. A malformed or non-renderable adhoc import must
+          // not keep the 2D->3D transition waiting for the staging timeout.
+          for (const featureKey of processedFeatureKeys) {
             next.add(featureKey);
           }
           return next;

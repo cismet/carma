@@ -54,6 +54,10 @@ export type StoredAnnotation = {
   distanceTriangleAnchorCoordinateRole?: RuntimeDistanceTriangleAnchorCoordinateRole;
   closed?: boolean;
   preferredNormalBearingRad?: number;
+  readOnlySource?: {
+    type: "saved-measurement";
+    id: string;
+  };
 };
 
 export type AddAnnotationOptions = Pick<
