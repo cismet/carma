@@ -69,6 +69,11 @@ export type InsertNodeIntoMeasurementEdgePayload = {
   coordinate: CesiumGeographicCoordinate;
 };
 
+export type RemoveNodeFromAnnotationPayload = {
+  annotationId: string;
+  nodeId: string;
+};
+
 export type UpdateAnnotationEntryByIdPayload = {
   annotationId: string;
   displayName?: string;
@@ -114,6 +119,47 @@ export const createInitialAnnotationsStoreState = (
       nextShortLabelCounterByToolType: {},
     },
   };
+};
+
+const rebuildNodeChainEdges = ({
+  nodeIds,
+  closed,
+  nextEdgeNumericSuffix,
+}: {
+  nodeIds: readonly string[];
+  closed: boolean;
+  nextEdgeNumericSuffix: number;
+}): AnnotationEdge[] => {
+  const nextEdges: AnnotationEdge[] = [];
+  let edgeNumericSuffix = nextEdgeNumericSuffix;
+
+  for (let index = 0; index < nodeIds.length - 1; index += 1) {
+    const startNodeId = nodeIds[index];
+    const endNodeId = nodeIds[index + 1];
+    if (!startNodeId || !endNodeId) {
+      continue;
+    }
+
+    edgeNumericSuffix += 1;
+    nextEdges.push({
+      id: `edge-${edgeNumericSuffix}`,
+      startNodeId,
+      endNodeId,
+    });
+  }
+
+  const firstNodeId = nodeIds[0];
+  const lastNodeId = nodeIds[nodeIds.length - 1];
+  if (closed && nodeIds.length >= 3 && firstNodeId && lastNodeId) {
+    edgeNumericSuffix += 1;
+    nextEdges.push({
+      id: `edge-${edgeNumericSuffix}`,
+      startNodeId: lastNodeId,
+      endNodeId: firstNodeId,
+    });
+  }
+
+  return nextEdges;
 };
 
 const annotationsSlice = createSlice({
@@ -490,6 +536,52 @@ const annotationsSlice = createSlice({
         ...measurement.edgeIds.slice(targetEdgeIdIndex + 1),
       ];
     },
+    removeNodeFromAnnotation: (
+      state,
+      action: PayloadAction<RemoveNodeFromAnnotationPayload>
+    ) => {
+      const { annotationId, nodeId } = action.payload;
+      const measurement = state.annotationEntries.find(
+        (entry) => entry.id === annotationId
+      );
+      if (!measurement || !measurement.nodeIds.includes(nodeId)) {
+        return;
+      }
+
+      const nextNodeIds = measurement.nodeIds.filter(
+        (measurementNodeId) => measurementNodeId !== nodeId
+      );
+      if (nextNodeIds.length === measurement.nodeIds.length) {
+        return;
+      }
+
+      const previousEdgeIdSet = new Set(measurement.edgeIds);
+      const nextEdges = rebuildNodeChainEdges({
+        nodeIds: nextNodeIds,
+        closed: Boolean(measurement.closed),
+        nextEdgeNumericSuffix: readMaxNumericSuffix(
+          state.edges.map((edge) => edge.id)
+        ),
+      });
+
+      measurement.nodeIds = nextNodeIds;
+      measurement.edgeIds = nextEdges.map((edge) => edge.id);
+      state.edges = [
+        ...state.edges.filter((edge) => !previousEdgeIdSet.has(edge.id)),
+        ...nextEdges,
+      ];
+
+      const usedNodeIds = new Set(
+        state.annotationEntries.flatMap(
+          (annotationEntry) => annotationEntry.nodeIds
+        )
+      );
+      state.nodes = state.nodes.filter((node) => usedNodeIds.has(node.id));
+      state.linkedNodeGroups = reconcileNodeLinks({
+        nodes: state.nodes,
+        nodeLinks: state.linkedNodeGroups,
+      });
+    },
     updateAnnotationEntryById: (
       state,
       action: PayloadAction<UpdateAnnotationEntryByIdPayload>
@@ -556,6 +648,7 @@ export const {
   appendAnnotationEntities,
   removeAnnotationById,
   removeAnnotationsByIds,
+  removeNodeFromAnnotation,
   setElevationReferenceAnnotationId,
   setNextShortLabelCounterByToolType,
   setPointTemporaryMode,

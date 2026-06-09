@@ -21,10 +21,7 @@ const node = {
   },
 } satisfies AnnotationNode;
 
-const createNode = (
-  id: string,
-  altitude: number = 100
-): AnnotationNode => ({
+const createNode = (id: string, altitude: number = 100): AnnotationNode => ({
   id,
   coordinate: {
     longitude: 7,
@@ -39,10 +36,7 @@ const measurement = {
   nodeIds: ["node-a"],
 } as StoredAnnotation;
 
-const createAnnotationEntry = (
-  id: string,
-  nodeId: string
-): StoredAnnotation =>
+const createAnnotationEntry = (id: string, nodeId: string): StoredAnnotation =>
   ({
     id,
     toolType: "distance",
@@ -81,18 +75,20 @@ describe("usePointEditingGizmo", () => {
       result.current.handleNodeLongPress("node-a");
     });
 
-    expect(result.current.activeMoveGizmoNodeId).toBe("node-a");
+    expect(result.current.activeEditedNodeId).toBe("node-a");
     expect(annotationsStore.dispatch).not.toHaveBeenCalled();
   });
 
   it("limits live linked-node preview moves to selected measurements", () => {
-    vi.spyOn(window, "requestAnimationFrame").mockImplementation(
-      (callback) => {
-        callback(0);
-        return 1;
-      }
-    );
-    const nodes = [createNode("node-a"), createNode("node-b"), createNode("ref", 180)];
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      callback(0);
+      return 1;
+    });
+    const nodes = [
+      createNode("node-a"),
+      createNode("node-b"),
+      createNode("ref", 180),
+    ];
     const annotationEntries = [
       createAnnotationEntry("measurement-a", "node-a"),
       createAnnotationEntry("measurement-b", "node-b"),
@@ -144,13 +140,15 @@ describe("usePointEditingGizmo", () => {
   });
 
   it("keeps linked nodes together during live preview when no measurement is selected", () => {
-    vi.spyOn(window, "requestAnimationFrame").mockImplementation(
-      (callback) => {
-        callback(0);
-        return 1;
-      }
-    );
-    const nodes = [createNode("node-a"), createNode("node-b"), createNode("ref", 180)];
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      callback(0);
+      return 1;
+    });
+    const nodes = [
+      createNode("node-a"),
+      createNode("node-b"),
+      createNode("ref", 180),
+    ];
     const annotationEntries = [
       createAnnotationEntry("measurement-a", "node-a"),
       createAnnotationEntry("measurement-b", "node-b"),

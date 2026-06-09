@@ -26,6 +26,7 @@ type UseManagedAnnotationKeyboardShortcutsOptions = {
   cancelToolId: AnnotationToolId | null;
   focusAdjacentAnnotationEntry: (offset: -1 | 1) => void;
   removeSelectedAnnotations: (options?: AnnotationDeleteRequestOptions) => void;
+  removeEditedNode: () => boolean;
   clearInteractionState: () => void;
   requestFinishMeasurement: () => boolean;
   requestActivateTool: (toolId?: AnnotationToolId) => void;
@@ -41,6 +42,7 @@ export const useManagedAnnotationKeyboardShortcuts = ({
   cancelToolId,
   focusAdjacentAnnotationEntry,
   removeSelectedAnnotations,
+  removeEditedNode,
   clearInteractionState,
   requestFinishMeasurement,
   requestActivateTool,
@@ -134,6 +136,13 @@ export const useManagedAnnotationKeyboardShortcuts = ({
         commonAction === ANNOTATION_COMMON_SHORTCUT_ACTIONS.DELETE_SELECTION ||
         commonAction === ANNOTATION_COMMON_SHORTCUT_ACTIONS.UNDO_LAST_POINT
       ) {
+        if (removeEditedNode()) {
+          clearInteractionState();
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        }
+
         const runtimeState = sessionContext.getState();
         const selectedAnnotationIds =
           runtimeState.selectionState.selectedAnnotationIds;
@@ -170,6 +179,7 @@ export const useManagedAnnotationKeyboardShortcuts = ({
     cancelToolId,
     clearInteractionState,
     focusAdjacentAnnotationEntry,
+    removeEditedNode,
     removeSelectedAnnotations,
     requestFinishMeasurement,
     requestModeChange,

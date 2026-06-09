@@ -115,7 +115,7 @@ type UsePointEditingGizmoOptions = {
   annotationsStore: AnnotationsStore;
   annotationEntries: readonly StoredAnnotation[];
   selectedAnnotationIds: readonly string[];
-  onActiveMoveGizmoNodeIdChange?: (nodeId: string | null) => void;
+  onActiveEditedNodeIdChange?: (nodeId: string | null) => void;
 };
 
 type DraftCoordinatePreviewOptions = {
@@ -210,7 +210,7 @@ export const usePointEditingGizmo = (
     annotationsStore,
     annotationEntries,
     selectedAnnotationIds,
-    onActiveMoveGizmoNodeIdChange,
+    onActiveEditedNodeIdChange,
   }: UsePointEditingGizmoOptions
 ) => {
   const isNodeLocked = useCallback(
@@ -223,9 +223,9 @@ export const usePointEditingGizmo = (
         ),
     [annotationsStore]
   );
-  const [activeMoveGizmoNodeId, setActiveMoveGizmoNodeId] = useState<
-    string | null
-  >(null);
+  const [activeEditedNodeId, setActiveEditedNodeId] = useState<string | null>(
+    null
+  );
   const [isMoveGizmoDragging, setIsMoveGizmoDragging] = useState(false);
   const [axisOverride, setAxisOverride] =
     useState<MoveGizmoAxisOverride | null>(null);
@@ -251,15 +251,15 @@ export const usePointEditingGizmo = (
   const suppressReferenceInteractionsUntilRef = useRef(0);
   const activePlanarAreaEditPlane = useMemo(
     () =>
-      activeMoveGizmoNodeId
+      activeEditedNodeId
         ? resolvePlanarAreaEditPlane({
-            nodeId: activeMoveGizmoNodeId,
+            nodeId: activeEditedNodeId,
             nodes,
             annotationEntries,
             selectedAnnotationIds,
           })
         : null,
-    [activeMoveGizmoNodeId, annotationEntries, nodes, selectedAnnotationIds]
+    [activeEditedNodeId, annotationEntries, nodes, selectedAnnotationIds]
   );
   const activePlanarAreaDiscNormal = useMemo(
     () =>
@@ -517,7 +517,7 @@ export const usePointEditingGizmo = (
   );
   const effectiveLinkedNodeGroups = useMemo(() => {
     const movedNodeIds = Object.keys(draftNodeCoordinateOverrides);
-    const moveScopeNodeId = activeMoveGizmoNodeId ?? movedNodeIds[0] ?? null;
+    const moveScopeNodeId = activeEditedNodeId ?? movedNodeIds[0] ?? null;
     if (!moveScopeNodeId || movedNodeIds.length === 0) {
       return linkedNodeGroups;
     }
@@ -530,7 +530,7 @@ export const usePointEditingGizmo = (
       linkToNodeId: draftLinkToNodeId,
     });
   }, [
-    activeMoveGizmoNodeId,
+    activeEditedNodeId,
     draftLinkToNodeId,
     draftNodeCoordinateOverrides,
     effectiveNodes,
@@ -543,14 +543,14 @@ export const usePointEditingGizmo = (
         return;
       }
 
-      if (activeMoveGizmoNodeId && activeMoveGizmoNodeId !== nodeId) {
-        commitDraftNodeCoordinateOverrides(activeMoveGizmoNodeId);
+      if (activeEditedNodeId && activeEditedNodeId !== nodeId) {
+        commitDraftNodeCoordinateOverrides(activeEditedNodeId);
       }
 
       setAxisOverride(null);
-      setActiveMoveGizmoNodeId(nodeId);
+      setActiveEditedNodeId(nodeId);
     },
-    [activeMoveGizmoNodeId, commitDraftNodeCoordinateOverrides, isNodeLocked]
+    [activeEditedNodeId, commitDraftNodeCoordinateOverrides, isNodeLocked]
   );
 
   const nodesById = useMemo(
@@ -560,11 +560,11 @@ export const usePointEditingGizmo = (
 
   const handleReferenceNodeClick = useCallback(
     (referenceNodeId: string) => {
-      if (!activeMoveGizmoNodeId || areReferenceInteractionsSuppressed()) {
+      if (!activeEditedNodeId || areReferenceInteractionsSuppressed()) {
         return false;
       }
 
-      const activeNode = nodesById.get(activeMoveGizmoNodeId);
+      const activeNode = nodesById.get(activeEditedNodeId);
       const referenceNode = nodesById.get(referenceNodeId);
       if (!activeNode || !referenceNode) {
         return false;
@@ -585,7 +585,7 @@ export const usePointEditingGizmo = (
       return true;
     },
     [
-      activeMoveGizmoNodeId,
+      activeEditedNodeId,
       areReferenceInteractionsSuppressed,
       nodesById,
       setDraftCoordinateForScopedMove,
@@ -594,11 +594,11 @@ export const usePointEditingGizmo = (
 
   const handleReferenceNodeHover = useCallback(
     (referenceNodeId: string, hovered: boolean) => {
-      if (!activeMoveGizmoNodeId || areReferenceInteractionsSuppressed()) {
+      if (!activeEditedNodeId || areReferenceInteractionsSuppressed()) {
         return;
       }
 
-      const baseCoordinate = resolveDraftBaseCoordinate(activeMoveGizmoNodeId);
+      const baseCoordinate = resolveDraftBaseCoordinate(activeEditedNodeId);
       const referenceNode = nodesById.get(referenceNodeId);
       if (!baseCoordinate) {
         return;
@@ -607,7 +607,7 @@ export const usePointEditingGizmo = (
       if (hovered) {
         hoveredReferenceNodeIdRef.current = referenceNodeId;
         setDraftCoordinateForScopedMove(
-          activeMoveGizmoNodeId,
+          activeEditedNodeId,
           {
             ...baseCoordinate,
             altitude:
@@ -625,13 +625,13 @@ export const usePointEditingGizmo = (
       }
 
       hoveredReferenceNodeIdRef.current = null;
-      setDraftCoordinateForScopedMove(activeMoveGizmoNodeId, baseCoordinate, {
+      setDraftCoordinateForScopedMove(activeEditedNodeId, baseCoordinate, {
         screenPosition: draftBaseScreenPositionRef.current ?? undefined,
         disableSnap: true,
       });
     },
     [
-      activeMoveGizmoNodeId,
+      activeEditedNodeId,
       areReferenceInteractionsSuppressed,
       nodesById,
       resolveDraftBaseCoordinate,
@@ -641,7 +641,7 @@ export const usePointEditingGizmo = (
 
   const handleReferenceEdgeClick = useCallback(
     (startNodeId: string, endNodeId: string) => {
-      if (!activeMoveGizmoNodeId || areReferenceInteractionsSuppressed()) {
+      if (!activeEditedNodeId || areReferenceInteractionsSuppressed()) {
         return false;
       }
 
@@ -665,7 +665,7 @@ export const usePointEditingGizmo = (
       setAxisOverride(axisOverrideFromLine);
       return true;
     },
-    [activeMoveGizmoNodeId, areReferenceInteractionsSuppressed, nodesById]
+    [activeEditedNodeId, areReferenceInteractionsSuppressed, nodesById]
   );
 
   const handleGizmoDragStateChange = useCallback(
@@ -676,7 +676,7 @@ export const usePointEditingGizmo = (
           ? currentIsMoveGizmoDragging
           : isDragging
       );
-      if (isDragging || !activeMoveGizmoNodeId) {
+      if (isDragging || !activeEditedNodeId) {
         if (isDragging) {
           suppressReferenceInteractionsUntilRef.current = 0;
         }
@@ -686,9 +686,9 @@ export const usePointEditingGizmo = (
       suppressReferenceInteractionsUntilRef.current =
         Date.now() +
         POINT_EDITING_GIZMO_DEFAULTS.referenceNodeInteractionReleaseGuardMs;
-      commitDraftNodeCoordinateOverrides(activeMoveGizmoNodeId);
+      commitDraftNodeCoordinateOverrides(activeEditedNodeId);
     },
-    [activeMoveGizmoNodeId, commitDraftNodeCoordinateOverrides]
+    [activeEditedNodeId, commitDraftNodeCoordinateOverrides]
   );
 
   const gizmoPoints = useMemo(
@@ -702,7 +702,7 @@ export const usePointEditingGizmo = (
 
   useCesiumPointMoveGizmo(scene, {
     points: gizmoPoints,
-    movePointId: activeMoveGizmoNodeId,
+    movePointId: activeEditedNodeId,
     axisDirection: axisOverride?.axisDirection ?? null,
     discPlaneNormal: activePlanarAreaDiscNormal,
     axisTitle: axisOverride?.axisTitle ?? null,
@@ -727,47 +727,47 @@ export const usePointEditingGizmo = (
       );
     },
     onExit: () => {
-      commitDraftNodeCoordinateOverrides(activeMoveGizmoNodeId);
+      commitDraftNodeCoordinateOverrides(activeEditedNodeId);
       isMoveGizmoDraggingRef.current = false;
       setIsMoveGizmoDragging(false);
       setAxisOverride(null);
-      setActiveMoveGizmoNodeId(null);
+      setActiveEditedNodeId(null);
     },
   });
 
   useEffect(() => {
-    if (!activeMoveGizmoNodeId) {
+    if (!activeEditedNodeId) {
       clearDraftNodeCoordinateOverrides();
       return;
     }
     if (
-      !effectiveNodes.some((node) => node.id === activeMoveGizmoNodeId) ||
-      isNodeLocked(activeMoveGizmoNodeId)
+      !effectiveNodes.some((node) => node.id === activeEditedNodeId) ||
+      isNodeLocked(activeEditedNodeId)
     ) {
       clearDraftNodeCoordinateOverrides();
       setAxisOverride(null);
-      setActiveMoveGizmoNodeId(null);
+      setActiveEditedNodeId(null);
     }
   }, [
-    activeMoveGizmoNodeId,
+    activeEditedNodeId,
     clearDraftNodeCoordinateOverrides,
     effectiveNodes,
     isNodeLocked,
   ]);
 
   useEffect(() => {
-    if (activeMoveGizmoNodeId) {
+    if (activeEditedNodeId) {
       draftBaseCoordinateRef.current =
-        nodes.find((node) => node.id === activeMoveGizmoNodeId)?.coordinate ??
+        nodes.find((node) => node.id === activeEditedNodeId)?.coordinate ??
         null;
       draftBaseScreenPositionRef.current = null;
       hoveredReferenceNodeIdRef.current = null;
     }
-  }, [activeMoveGizmoNodeId, nodes]);
+  }, [activeEditedNodeId, nodes]);
 
   useEffect(() => {
-    onActiveMoveGizmoNodeIdChange?.(activeMoveGizmoNodeId);
-  }, [activeMoveGizmoNodeId, onActiveMoveGizmoNodeIdChange]);
+    onActiveEditedNodeIdChange?.(activeEditedNodeId);
+  }, [activeEditedNodeId, onActiveEditedNodeIdChange]);
 
   useEffect(
     () => () => {
@@ -782,7 +782,7 @@ export const usePointEditingGizmo = (
   );
 
   return {
-    activeMoveGizmoNodeId,
+    activeEditedNodeId,
     draftNodeCoordinateOverrides,
     effectiveLinkedNodeGroups,
     effectiveNodes,

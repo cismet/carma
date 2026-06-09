@@ -41,7 +41,7 @@ const buildInputs = (
     nodeInteractionHoverEnabled: false,
     previewSnapTargetsEnabled: false,
     blockLabelInteractions: true,
-    activeMoveGizmoNodeId: null,
+    activeEditedNodeId: null,
     isMoveGizmoDragging: false,
     nodeLinkIdByNodeId: new Map<string, string>(),
     previewNodeLinkId: null,

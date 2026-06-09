@@ -35,10 +35,10 @@ type RuntimeVisualHostProps = {
     annotationId: string,
     currentElevationDisplayMode?: AnnotationElevationDisplayMode
   ) => void;
-  onActiveMoveGizmoNodeIdChange: (nodeId: string | null) => void;
+  onActiveEditedNodeIdChange: (nodeId: string | null) => void;
   onHoveredPointQueryNodeIdChange: (nodeId: string | null) => void;
   onPreviewSnapTargetNodeClick: (nodeId: string) => boolean;
-  activeMoveGizmoNodeId: string | null;
+  activeEditedNodeId: string | null;
   formatOptions: AnnotationsRuntimeFormatOptions;
   lineLabelOptions: PartialAnnotationLineLabelOptions;
 };
@@ -50,10 +50,10 @@ export const RuntimeVisualHost = ({
   annotationToolDraftStore,
   setElevationReferenceAnnotationId,
   toggleAnnotationElevationDisplayMode,
-  onActiveMoveGizmoNodeIdChange,
+  onActiveEditedNodeIdChange,
   onHoveredPointQueryNodeIdChange,
   onPreviewSnapTargetNodeClick,
-  activeMoveGizmoNodeId,
+  activeEditedNodeId,
   formatOptions,
   lineLabelOptions,
 }: RuntimeVisualHostProps) => {
@@ -165,11 +165,11 @@ export const RuntimeVisualHost = ({
     annotationEntries,
     selectedAnnotationIds,
     annotationsStore,
-    activeMoveGizmoNodeId,
+    activeEditedNodeId,
     isInteractionToolActive,
     isMeasurementToolActive,
     isSelectionAdditiveModifierPressed,
-    onActiveMoveGizmoNodeIdChange,
+    onActiveEditedNodeIdChange,
     onHoveredPointQueryNodeIdChange,
   });
   const { baseVisualModels, overlayVisualModels } = useVisualLayers({
@@ -213,7 +213,7 @@ export const RuntimeVisualHost = ({
         selectedAnnotationIds={selectedAnnotationIds}
         formatOptions={formatOptions}
         lineLabelOptions={lineLabelOptions}
-        activeMoveGizmoNodeId={activeMoveGizmoNodeId}
+        activeEditedNodeId={activeEditedNodeId}
         isMoveGizmoDragging={isMoveGizmoDragging}
         isMeasurementToolActive={isMeasurementToolActive}
         previewSnapTargetHoverEnabled={previewSnapTargetHoverEnabled}

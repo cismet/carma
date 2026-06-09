@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { formatMeasurementShortLabelToken } from "@carma-mapping/annotations/core";
+import {
+  ANNOTATION_TYPES,
+  formatMeasurementShortLabelToken,
+} from "@carma-mapping/annotations/core";
 
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import type { PartialAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
@@ -19,7 +22,9 @@ import {
   createInitialAnnotationsStoreState,
   findAnnotationEntryById,
   removeAnnotationsByIds,
+  removeNodeFromAnnotation,
   readMaxNumericSuffix,
+  resolveNodeLinkIdForNodeId,
   resolvePersistedAnnotationsStoreState,
   resolveRemovableSelectedAnnotationIds,
   resolveNextElevationDisplayMode,
@@ -68,6 +73,31 @@ import {
   type AnnotationDeleteConfirmationRequester,
   type AnnotationDeleteRequestOptions,
 } from "./annotation-delete-confirmation";
+import { resolveDraftNodeIdsAfterEditedNodeRemoval } from "./edited-node-removal.helpers";
+
+const {
+  DISTANCE: ANNOTATION_TYPE_DISTANCE,
+  POLYLINE: ANNOTATION_TYPE_POLYLINE,
+  AREA_GROUND: ANNOTATION_TYPE_AREA_GROUND,
+  AREA_PLANAR: ANNOTATION_TYPE_AREA_PLANAR,
+  AREA_VERTICAL: ANNOTATION_TYPE_AREA_VERTICAL,
+} = ANNOTATION_TYPES;
+
+const resolveMinimumNodeCountForAnnotation = (
+  annotation: StoredAnnotation
+): number | null => {
+  switch (annotation.toolType) {
+    case ANNOTATION_TYPE_DISTANCE:
+    case ANNOTATION_TYPE_POLYLINE:
+      return 2;
+    case ANNOTATION_TYPE_AREA_GROUND:
+    case ANNOTATION_TYPE_AREA_PLANAR:
+    case ANNOTATION_TYPE_AREA_VERTICAL:
+      return 3;
+    default:
+      return null;
+  }
+};
 
 type UseAnnotationsRuntimeAssemblyOptions = {
   scene: Scene | null;
@@ -125,9 +155,9 @@ export const useAnnotationsAssembly = ({
   const nodeSequenceRef = useRef(0);
   const edgeSequenceRef = useRef(0);
 
-  const [activeMoveGizmoNodeId, setActiveMoveGizmoNodeId] = useState<
-    string | null
-  >(null);
+  const [activeEditedNodeId, setActiveEditedNodeId] = useState<string | null>(
+    null
+  );
   const [activePointQueryPickResult, setActivePointQueryPickResult] =
     useState<PointQueryPickResult | null>(null);
   const hoveredPointQueryNodeIdRef = useRef<string | null>(null);
@@ -417,6 +447,104 @@ export const useAnnotationsAssembly = ({
     [annotationsStore, removeAnnotationEntriesByIds]
   );
 
+  const removeEditedNode = useCallback(() => {
+    if (!activeEditedNodeId) {
+      return false;
+    }
+
+    const runtimeState = annotationsStore.getState();
+    const candidateAnnotations = runtimeState.annotationEntries.filter(
+      (annotation) =>
+        !annotation.locked &&
+        annotation.nodeIds.includes(activeEditedNodeId) &&
+        resolveMinimumNodeCountForAnnotation(annotation) !== null
+    );
+    if (candidateAnnotations.length === 0) {
+      return false;
+    }
+
+    const selectedAnnotationIds =
+      runtimeState.selectionState.selectedAnnotationIds;
+    const targetAnnotation =
+      [...selectedAnnotationIds]
+        .reverse()
+        .map(
+          (selectedAnnotationId) =>
+            candidateAnnotations.find(
+              (annotation) => annotation.id === selectedAnnotationId
+            ) ?? null
+        )
+        .find((annotation): annotation is StoredAnnotation =>
+          Boolean(annotation)
+        ) ??
+      candidateAnnotations[0] ??
+      null;
+    if (!targetAnnotation) {
+      return false;
+    }
+
+    const remainingNodeIds = targetAnnotation.nodeIds.filter(
+      (nodeId) => nodeId !== activeEditedNodeId
+    );
+    const minimumNodeCount =
+      resolveMinimumNodeCountForAnnotation(targetAnnotation);
+    if (minimumNodeCount === null) {
+      return false;
+    }
+
+    if (remainingNodeIds.length >= minimumNodeCount) {
+      annotationsStore.dispatch(
+        removeNodeFromAnnotation({
+          annotationId: targetAnnotation.id,
+          nodeId: activeEditedNodeId,
+        })
+      );
+      setActiveEditedNodeId(null);
+      return true;
+    }
+
+    const draftNodeIds = resolveDraftNodeIdsAfterEditedNodeRemoval({
+      nodeIds: targetAnnotation.nodeIds,
+      editedNodeId: activeEditedNodeId,
+      closed: targetAnnotation.closed === true,
+    });
+    if (draftNodeIds.length !== remainingNodeIds.length) {
+      return false;
+    }
+
+    const nodeById = new Map(
+      runtimeState.nodes.map((node) => [node.id, node] as const)
+    );
+    const draftNodes = draftNodeIds
+      .map((nodeId) => nodeById.get(nodeId) ?? null)
+      .filter((node): node is NonNullable<typeof node> => Boolean(node));
+    if (draftNodes.length !== draftNodeIds.length) {
+      return false;
+    }
+
+    annotationToolDraftStore.set(targetAnnotation.toolType, {
+      coordinates: draftNodes.map((node) => node.coordinate),
+      linkedNodeGroupIds: draftNodeIds.map((nodeId) =>
+        resolveNodeLinkIdForNodeId(runtimeState.linkedNodeGroups, nodeId)
+      ),
+      feedback: null,
+    });
+    annotationsStore.dispatch(
+      removeAnnotationsByIds({
+        annotationIds: [targetAnnotation.id],
+        nextSelectedAnnotationId: null,
+      })
+    );
+    setActiveEditedNodeId(null);
+    setActiveToolType(targetAnnotation.toolType);
+    return true;
+  }, [
+    activeEditedNodeId,
+    annotationToolDraftStore,
+    annotationsStore,
+    setActiveToolType,
+  ]);
+
   const exportAnnotationGeoJson = useCallback(
     (annotationId: string) => {
       const runtimeState = annotationsStore.getState();
@@ -513,12 +641,12 @@ export const useAnnotationsAssembly = ({
 
       if (
         nextLocked &&
-        targetEntry.nodeIds.includes(activeMoveGizmoNodeId ?? "")
+        targetEntry.nodeIds.includes(activeEditedNodeId ?? "")
       ) {
-        setActiveMoveGizmoNodeId(null);
+        setActiveEditedNodeId(null);
       }
     },
-    [activeMoveGizmoNodeId, annotationsStore]
+    [activeEditedNodeId, annotationsStore]
   );
 
   const selectAllAnnotationEntries = useCallback(() => {
@@ -783,9 +911,10 @@ export const useAnnotationsAssembly = ({
       setActiveToolTypeInStore,
       focusAdjacentAnnotationEntry,
       removeSelectedAnnotations: removeSelectedAnnotationEntries,
+      removeEditedNode,
       addAnnotation,
       bindPreviewSnapTargetNodeClick,
-      activeMoveGizmoNodeId,
+      activeEditedNodeId,
       getHoveredPointQueryNodeId,
       setHoveredPointQueryNodeId,
       onPointQueryPickResultChange: setActivePointQueryPickResult,
@@ -802,10 +931,10 @@ export const useAnnotationsAssembly = ({
       setElevationReferenceAnnotationId:
         setElevationReferenceAnnotationIdInStore,
       toggleAnnotationElevationDisplayMode,
-      onActiveMoveGizmoNodeIdChange: setActiveMoveGizmoNodeId,
+      onActiveEditedNodeIdChange: setActiveEditedNodeId,
       onHoveredPointQueryNodeIdChange: setHoveredPointQueryNodeId,
       onPreviewSnapTargetNodeClick: handlePreviewSnapTargetNodeClick,
-      activeMoveGizmoNodeId,
+      activeEditedNodeId,
       formatOptions,
       lineLabelOptions,
     },

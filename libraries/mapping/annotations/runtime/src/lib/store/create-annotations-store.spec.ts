@@ -8,6 +8,7 @@ import {
   createAnnotationsStore,
   createInitialAnnotationsStoreState,
   insertNodeIntoMeasurementEdge,
+  removeNodeFromAnnotation,
   updateAnnotationEntryById,
   updateNodeCoordinateById,
 } from "./create-annotations-store";
@@ -413,6 +414,109 @@ describe("createAnnotationsStore", () => {
       { id: "edge-2", startNodeId: "node-2", endNodeId: "node-3" },
       { id: "edge-3", startNodeId: "node-3", endNodeId: "node-4" },
       { id: "edge-4", startNodeId: "node-4", endNodeId: "node-1" },
+    ]);
+  });
+
+  it("removes a selected middle node from an open node chain and rebuilds its edge", () => {
+    const store = createAnnotationsStore({
+      ...createInitialAnnotationsStoreState(),
+      annotationEntries: [
+        createNodeChainAnnotationEntry({
+          annotationId: "polyline-1",
+          toolType: "polyline",
+          nodeIds: ["node-1", "node-2", "node-3"],
+          edgeIds: ["edge-1", "edge-2"],
+        }),
+      ],
+      nodes: [
+        { id: "node-1", coordinate: createCoordinate(7.0, 51.0, 1) },
+        { id: "node-2", coordinate: createCoordinate(7.1, 51.1, 2) },
+        { id: "node-3", coordinate: createCoordinate(7.2, 51.2, 3) },
+      ],
+      linkedNodeGroups: [
+        { id: "node-1", nodeIds: ["node-1"] },
+        { id: "node-2", nodeIds: ["node-2"] },
+        { id: "node-3", nodeIds: ["node-3"] },
+      ],
+      edges: [
+        { id: "edge-1", startNodeId: "node-1", endNodeId: "node-2" },
+        { id: "edge-2", startNodeId: "node-2", endNodeId: "node-3" },
+      ],
+    });
+
+    store.dispatch(
+      removeNodeFromAnnotation({
+        annotationId: "polyline-1",
+        nodeId: "node-2",
+      })
+    );
+
+    expect(store.getState().annotationEntries[0]).toMatchObject({
+      id: "polyline-1",
+      nodeIds: ["node-1", "node-3"],
+      edgeIds: ["edge-3"],
+    });
+    expect(store.getState().nodes).toEqual([
+      { id: "node-1", coordinate: createCoordinate(7.0, 51.0, 1) },
+      { id: "node-3", coordinate: createCoordinate(7.2, 51.2, 3) },
+    ]);
+    expect(store.getState().linkedNodeGroups).toEqual([
+      { id: "node-1", nodeIds: ["node-1"] },
+      { id: "node-3", nodeIds: ["node-3"] },
+    ]);
+    expect(store.getState().edges).toEqual([
+      { id: "edge-3", startNodeId: "node-1", endNodeId: "node-3" },
+    ]);
+  });
+
+  it("removes a selected polygon node and rebuilds the closing edge", () => {
+    const store = createAnnotationsStore({
+      ...createInitialAnnotationsStoreState(),
+      annotationEntries: [
+        createNodeChainAnnotationEntry({
+          annotationId: "area-1",
+          toolType: "area",
+          nodeIds: ["node-1", "node-2", "node-3", "node-4"],
+          edgeIds: ["edge-1", "edge-2", "edge-3", "edge-4"],
+          closed: true,
+        }),
+      ],
+      nodes: [
+        { id: "node-1", coordinate: createCoordinate(7.0, 51.0, 0) },
+        { id: "node-2", coordinate: createCoordinate(7.1, 51.0, 0) },
+        { id: "node-3", coordinate: createCoordinate(7.1, 51.1, 0) },
+        { id: "node-4", coordinate: createCoordinate(7.0, 51.1, 0) },
+      ],
+      linkedNodeGroups: [
+        { id: "node-1", nodeIds: ["node-1"] },
+        { id: "node-2", nodeIds: ["node-2"] },
+        { id: "node-3", nodeIds: ["node-3"] },
+        { id: "node-4", nodeIds: ["node-4"] },
+      ],
+      edges: [
+        { id: "edge-1", startNodeId: "node-1", endNodeId: "node-2" },
+        { id: "edge-2", startNodeId: "node-2", endNodeId: "node-3" },
+        { id: "edge-3", startNodeId: "node-3", endNodeId: "node-4" },
+        { id: "edge-4", startNodeId: "node-4", endNodeId: "node-1" },
+      ],
+    });
+
+    store.dispatch(
+      removeNodeFromAnnotation({
+        annotationId: "area-1",
+        nodeId: "node-2",
+      })
+    );
+
+    expect(store.getState().annotationEntries[0]).toMatchObject({
+      id: "area-1",
+      nodeIds: ["node-1", "node-3", "node-4"],
+      edgeIds: ["edge-5", "edge-6", "edge-7"],
+    });
+    expect(store.getState().edges).toEqual([
+      { id: "edge-5", startNodeId: "node-1", endNodeId: "node-3" },
+      { id: "edge-6", startNodeId: "node-3", endNodeId: "node-4" },
+      { id: "edge-7", startNodeId: "node-4", endNodeId: "node-1" },
     ]);
   });
 });

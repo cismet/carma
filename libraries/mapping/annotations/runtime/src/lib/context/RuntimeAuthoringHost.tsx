@@ -62,6 +62,7 @@ type RuntimeAuthoringHostProps = {
   setActiveToolTypeInStore: (toolType: AnnotationToolId) => void;
   focusAdjacentAnnotationEntry: (offset: -1 | 1) => void;
   removeSelectedAnnotations: (options?: AnnotationDeleteRequestOptions) => void;
+  removeEditedNode: () => boolean;
   addAnnotation: (
     toolType: StoredAnnotation["toolType"],
     coordinates: readonly CesiumGeographicCoordinate[],
@@ -73,7 +74,7 @@ type RuntimeAuthoringHostProps = {
   bindPreviewSnapTargetNodeClick: (
     handler: (nodeId: string) => boolean
   ) => void | (() => void);
-  activeMoveGizmoNodeId: string | null;
+  activeEditedNodeId: string | null;
   getHoveredPointQueryNodeId: () => string | null;
   setHoveredPointQueryNodeId: (nodeId: string | null) => void;
   onPointQueryPickResultChange: (
@@ -92,10 +93,11 @@ export const RuntimeAuthoringHost = ({
   setActiveToolTypeInStore,
   focusAdjacentAnnotationEntry,
   removeSelectedAnnotations,
+  removeEditedNode,
   addAnnotation,
   bindApi,
   bindPreviewSnapTargetNodeClick,
-  activeMoveGizmoNodeId,
+  activeEditedNodeId,
   getHoveredPointQueryNodeId,
   setHoveredPointQueryNodeId,
   onPointQueryPickResultChange,
@@ -283,7 +285,7 @@ export const RuntimeAuthoringHost = ({
   const pointQueryEnabled = Boolean(
     (activeToolSession?.onNodeCreated ||
       activePlugin?.pointQuery?.onPointCreated) &&
-      !activeMoveGizmoNodeId
+      !activeEditedNodeId
   );
   const handlePreviewSnapTargetNodeClick = useCallback(
     (nodeId: string) => {
@@ -552,6 +554,7 @@ export const RuntimeAuthoringHost = ({
     cancelToolId,
     clearInteractionState: resetPointQuerySampleState,
     focusAdjacentAnnotationEntry,
+    removeEditedNode,
     removeSelectedAnnotations,
     requestFinishMeasurement,
     requestModeChange,

@@ -85,6 +85,7 @@ const renderShortcuts = (options: RenderOptions = {}) => {
       cancelToolId: ANNOTATION_SELECT_TOOL_ID,
       clearInteractionState: vi.fn(),
       focusAdjacentAnnotationEntry: vi.fn(),
+      removeEditedNode: vi.fn(() => false),
       removeSelectedAnnotations: vi.fn(),
       requestActivateTool: vi.fn(),
       requestFinishMeasurement: vi.fn(),
@@ -172,6 +173,31 @@ describe("useManagedAnnotationKeyboardShortcuts", () => {
     expect(event.defaultPrevented).toBe(true);
     unmount();
   });
+
+  it.each(["Backspace", "Delete"])(
+    "deletes the edited node before deleting the whole measurement for %s",
+    (key) => {
+      const removeEditedNode = vi.fn(() => true);
+      const removeSelectedAnnotations = vi.fn();
+      const clearInteractionState = vi.fn();
+      const { unmount } = renderShortcuts({
+        clearInteractionState,
+        removeEditedNode,
+        removeSelectedAnnotations,
+      });
+      const event = createKeyboardEvent(key);
+
+      act(() => {
+        window.dispatchEvent(event);
+      });
+
+      expect(removeEditedNode).toHaveBeenCalled();
+      expect(removeSelectedAnnotations).not.toHaveBeenCalled();
+      expect(clearInteractionState).toHaveBeenCalled();
+      expect(event.defaultPrevented).toBe(true);
+      unmount();
+    }
+  );
 
   it("skips delete confirmation for Shift+Backspace", () => {
     const removeSelectedAnnotations = vi.fn();

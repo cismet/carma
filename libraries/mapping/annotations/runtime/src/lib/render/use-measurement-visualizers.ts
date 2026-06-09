@@ -34,7 +34,7 @@ type UseMeasurementVisualizersArgs = {
   selectedAnnotationIds: readonly string[];
   formatOptions: AnnotationsRuntimeFormatOptions;
   lineLabelOptions?: PartialAnnotationLineLabelOptions;
-  activeMoveGizmoNodeId: string | null;
+  activeEditedNodeId: string | null;
   isMoveGizmoDragging: boolean;
   blockLabelInteractions: boolean;
   previewSnapTargetHoverEnabled?: boolean;
@@ -67,7 +67,7 @@ export const useMeasurementVisualizers = (
     selectedAnnotationIds,
     formatOptions,
     lineLabelOptions,
-    activeMoveGizmoNodeId,
+    activeEditedNodeId,
     isMoveGizmoDragging,
     blockLabelInteractions,
     previewSnapTargetHoverEnabled = false,
@@ -98,8 +98,8 @@ export const useMeasurementVisualizers = (
     formatOptions,
     lineLabelOptions: resolvedAnnotationLineLabelOptions,
     surfaceKey,
-    activeMoveGizmoNodeId: enableHostInteractionTargets
-      ? activeMoveGizmoNodeId
+    activeEditedNodeId: enableHostInteractionTargets
+      ? activeEditedNodeId
       : null,
     blockEdgeInteractions: interactionBlocked,
     onMeasurementSelect,
@@ -121,10 +121,10 @@ export const useMeasurementVisualizers = (
   );
   const previewNodeLinkId = useMemo(
     () =>
-      activeMoveGizmoNodeId
-        ? nodeLinkIdByNodeId.get(activeMoveGizmoNodeId) ?? activeMoveGizmoNodeId
+      activeEditedNodeId
+        ? nodeLinkIdByNodeId.get(activeEditedNodeId) ?? activeEditedNodeId
         : null,
-    [activeMoveGizmoNodeId, nodeLinkIdByNodeId]
+    [activeEditedNodeId, nodeLinkIdByNodeId]
   );
   const isInPreviewNodeLink = useCallback(
     (nodeId?: string) =>
@@ -136,7 +136,7 @@ export const useMeasurementVisualizers = (
   const nodeInteractionHoverEnabled =
     enableHostInteractionTargets &&
     Boolean(onReferenceNodeHover) &&
-    ((activeMoveGizmoNodeId !== null && !isMoveGizmoDragging) ||
+    ((activeEditedNodeId !== null && !isMoveGizmoDragging) ||
       previewSnapTargetsEnabled);
   const hasNodeInteractionHandlers = Boolean(
     onMeasurementSelect ||
@@ -163,7 +163,7 @@ export const useMeasurementVisualizers = (
         nodeInteractionHoverEnabled,
         previewSnapTargetsEnabled,
         blockLabelInteractions,
-        activeMoveGizmoNodeId,
+        activeEditedNodeId,
         isMoveGizmoDragging,
         nodeLinkIdByNodeId,
         previewNodeLinkId,
@@ -177,7 +177,7 @@ export const useMeasurementVisualizers = (
         enableHostInteractionTargets,
       }),
     [
-      activeMoveGizmoNodeId,
+      activeEditedNodeId,
       blockLabelInteractions,
       enableHostInteractionTargets,
       isInPreviewNodeLink,

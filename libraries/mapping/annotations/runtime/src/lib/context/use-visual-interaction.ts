@@ -81,11 +81,11 @@ type UseVisualInteractionOptions = {
   annotationEntries: readonly StoredAnnotation[];
   selectedAnnotationIds: readonly string[];
   annotationsStore: AnnotationsStore;
-  activeMoveGizmoNodeId: string | null;
+  activeEditedNodeId: string | null;
   isInteractionToolActive: boolean;
   isMeasurementToolActive: boolean;
   isSelectionAdditiveModifierPressed: boolean;
-  onActiveMoveGizmoNodeIdChange: (nodeId: string | null) => void;
+  onActiveEditedNodeIdChange: (nodeId: string | null) => void;
   onHoveredPointQueryNodeIdChange: (nodeId: string | null) => void;
 };
 
@@ -96,15 +96,15 @@ export const useVisualInteraction = ({
   annotationEntries,
   selectedAnnotationIds,
   annotationsStore,
-  activeMoveGizmoNodeId,
+  activeEditedNodeId,
   isInteractionToolActive,
   isMeasurementToolActive,
   isSelectionAdditiveModifierPressed,
-  onActiveMoveGizmoNodeIdChange,
+  onActiveEditedNodeIdChange,
   onHoveredPointQueryNodeIdChange,
 }: UseVisualInteractionOptions) => {
   const previewSnapTargetHoverEnabled =
-    activeMoveGizmoNodeId === null && isMeasurementToolActive;
+    activeEditedNodeId === null && isMeasurementToolActive;
   const {
     draftNodeCoordinateOverrides,
     effectiveLinkedNodeGroups,
@@ -118,7 +118,7 @@ export const useVisualInteraction = ({
     annotationsStore,
     annotationEntries,
     selectedAnnotationIds,
-    onActiveMoveGizmoNodeIdChange,
+    onActiveEditedNodeIdChange,
   });
   const handleDistanceTriangleCornerClick = useCallback(
     (measurementId: string) => {

@@ -78,7 +78,7 @@ type UseRuntimeMeasurementEdgesControllerArgs = {
   formatOptions: AnnotationsRuntimeFormatOptions;
   lineLabelOptions?: PartialAnnotationLineLabelOptions;
   surfaceKey?: string;
-  activeMoveGizmoNodeId: string | null;
+  activeEditedNodeId: string | null;
   blockEdgeInteractions: boolean;
   onMeasurementSelect?: (measurementId: string) => void;
   onEdgeClick?: (startNodeId: string, endNodeId: string) => boolean;
@@ -804,7 +804,7 @@ export const useMeasurementEdgesController = (
     formatOptions,
     lineLabelOptions,
     surfaceKey = "committed",
-    activeMoveGizmoNodeId,
+    activeEditedNodeId,
     blockEdgeInteractions,
     onMeasurementSelect,
     onEdgeClick,
@@ -958,7 +958,7 @@ export const useMeasurementEdgesController = (
     () =>
       edgeSegments.flatMap((edge) => {
         const referenceEdgeClickHandler =
-          activeMoveGizmoNodeId &&
+          activeEditedNodeId &&
           edge.startNodeId &&
           edge.endNodeId &&
           onEdgeClick
@@ -1065,7 +1065,7 @@ export const useMeasurementEdgesController = (
         ];
       }),
     [
-      activeMoveGizmoNodeId,
+      activeEditedNodeId,
       blockEdgeInteractions,
       edgeSegments,
       formatOptions,
@@ -1130,7 +1130,7 @@ export const useMeasurementEdgesController = (
       !scene ||
       scene.isDestroyed() ||
       blockEdgeInteractions ||
-      activeMoveGizmoNodeId !== null ||
+      activeEditedNodeId !== null ||
       insertNodeTargetSegments.length === 0
     ) {
       return;
@@ -1230,7 +1230,7 @@ export const useMeasurementEdgesController = (
       }
     };
   }, [
-    activeMoveGizmoNodeId,
+    activeEditedNodeId,
     blockEdgeInteractions,
     insertNodeTargetSegments,
     onInsertNodeTargetClick,
@@ -1506,7 +1506,7 @@ export const useMeasurementEdgesController = (
             center: straightCenter,
             clickable:
               !blockEdgeInteractions &&
-              activeMoveGizmoNodeId === null &&
+              activeEditedNodeId === null &&
               Boolean(onDistanceTriangleCornerClick),
             onClick: onDistanceTriangleCornerClick
               ? () =>
@@ -1634,7 +1634,7 @@ export const useMeasurementEdgesController = (
           : undefined;
         const cornerHandleClickable =
           !blockEdgeInteractions &&
-          activeMoveGizmoNodeId === null &&
+          activeEditedNodeId === null &&
           Boolean(onDistanceTriangleCornerClick);
 
         applyDistanceTriangleCornerHandleLayout({
@@ -1747,7 +1747,7 @@ export const useMeasurementEdgesController = (
       }
     };
   }, [
-    activeMoveGizmoNodeId,
+    activeEditedNodeId,
     blockEdgeInteractions,
     edgeSegments,
     edgeSegmentLabelHandleByIdRef,
