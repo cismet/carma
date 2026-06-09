@@ -25,6 +25,7 @@ import {
   setRemovedDocumentKeys,
   setPendingDeletion,
   markFeatureDeleted,
+  recordLeuchteDeletionForStandort,
   removeDraft,
   clearDraftGeometry,
   setOriginalValues,
@@ -618,6 +619,46 @@ const FeaturesFormsWrapper = ({
         dispatch(
           markFeatureDeleted({ featureId, featureDbId: Number(dbPK) })
         );
+        // A deleted Leuchte must shrink its parent Standort's stacked icon by
+        // one dot. Hiding the Leuchte alone leaves the Standort (and the
+        // remaining Leuchten) still painting the old `leuchten_count`, so record
+        // a per-Standort override the map turns into a single decremented
+        // synthetic Standort. The deleted Leuchte's tile carries both its parent
+        // id (`fk_standort`) and the parent's count (`leuchten_count`); its
+        // geometry is the Standort position (Leuchten stack on their Standort).
+        if (formKey === "leuchte") {
+          const leuchteProps = (draftFeature?.properties ?? {}) as Record<
+            string,
+            unknown
+          >;
+          const standortId = leuchteProps.fk_standort;
+          const rawCount = leuchteProps.leuchten_count;
+          const baseLeuchtenCount =
+            rawCount != null && Number.isFinite(Number(rawCount))
+              ? Number(rawCount)
+              : undefined;
+          const geometry = draftFeature?.geometry as
+            | GeoJSON.Geometry
+            | undefined;
+          if (
+            standortId != null &&
+            baseLeuchtenCount != null &&
+            geometry != null
+          ) {
+            dispatch(
+              recordLeuchteDeletionForStandort({
+                standortId: standortId as number | string,
+                leuchteDbId: Number(dbPK),
+                baseLeuchtenCount,
+                geometry,
+                lfdNummer: leuchteProps.lfd_nummer as
+                  | string
+                  | number
+                  | undefined,
+              })
+            );
+          }
+        }
         dispatch(removeDraft(featureId));
         dispatch(incrementFeatureDataVersion());
         void message.success(`Gelöscht: ${className} #${dbPK}`);
@@ -743,6 +784,7 @@ const FeaturesFormsWrapper = ({
     strassenschluesselByPk,
     selectedFeatureId,
     rawFeature,
+    draftFeature,
     selectFeature,
   ]);
 

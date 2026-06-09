@@ -111,6 +111,29 @@ export interface TabFocusRequest {
   nonce: number;
 }
 
+// When a Leuchte is soft-deleted, its parent Standort's stacked icon must lose
+// one dot. Both the `standorte` and `leuchten` source-layers render the same
+// `leuchtenN` icon (N = leuchten_count) at the Standort position, so hiding only
+// the deleted Leuchte leaves the Standort + remaining Leuchten still painting N
+// dots. Mirroring the "+ Leuchte zu Standort N" mechanism, we instead hide the
+// whole Standort cluster (cascade-hides its Leuchten) and render a single
+// synthetic Standort with the decremented count. This keyed-by-Standort entry
+// carries everything that synthetic needs, captured at delete time.
+export interface StandortLeuchtenOverride {
+  // leuchten_count of the parent Standort BEFORE any deletion (read off the
+  // deleted Leuchte's tile `leuchten_count`, which mirrors the parent count).
+  // Captured once, on the first deletion for this Standort.
+  baseLeuchtenCount: number;
+  // DB ids of the Leuchten deleted from this Standort. The synthetic icon shows
+  // `baseLeuchtenCount - deletedLeuchtenIds.length` dots.
+  deletedLeuchtenIds: number[];
+  // WGS84 position of the Standort (= the deleted Leuchte's geometry, since
+  // Leuchten stack on their Standort). Drives where the synthetic icon renders.
+  geometry: GeoJSON.Geometry;
+  // Standort running number — the icon label.
+  lfdNummer?: string | number;
+}
+
 interface FeaturesFormsState {
   drafts: Record<string, Draft>;
   originalValues: Record<string, Record<string, unknown>>;
@@ -139,6 +162,12 @@ interface FeaturesFormsState {
   // edit-oriented sets above it is never auto-cleared (a deletion has no
   // replacement to wait for).
   deletedFeatureIds: HiddenOriginalIds;
+  // Per-Standort override that decrements its stacked-Leuchten icon after a
+  // child Leuchte is soft-deleted (see StandortLeuchtenOverride). Keyed by the
+  // Standort's DB id (as a string). Persisted (see store whitelist) so the
+  // corrected icon survives reloads, alongside `deletedFeatureIds`; like it,
+  // never auto-cleared (the deletion has no replacement to wait for).
+  standortLeuchtenOverrides: Record<string, StandortLeuchtenOverride>;
 }
 
 const initialState: FeaturesFormsState = {
@@ -151,6 +180,7 @@ const initialState: FeaturesFormsState = {
   permanentlyHiddenOriginalIds: {},
   brandnewSuppressedEditIds: {},
   deletedFeatureIds: {},
+  standortLeuchtenOverrides: {},
 };
 
 const featuresFormsSlice = createSlice({
@@ -370,6 +400,45 @@ const featuresFormsSlice = createSlice({
       const existing = state.deletedFeatureIds[sl] ?? [];
       if (existing.includes(Number(id))) return;
       state.deletedFeatureIds[sl] = [...existing, Number(id)];
+    },
+    // Record that a Leuchte was soft-deleted from a Standort, so the map can
+    // collapse the Standort cluster to a single synthetic icon with the
+    // decremented dot count (see StandortLeuchtenOverride). `baseLeuchtenCount`,
+    // `geometry` and `lfdNummer` are captured once — on the first deletion for
+    // the Standort — and left untouched on subsequent deletions; only the
+    // accumulated `deletedLeuchtenIds` grows. Dispatched right after
+    // markFeatureDeleted on a committed Leuchte deletion.
+    recordLeuchteDeletionForStandort(
+      state,
+      action: PayloadAction<{
+        standortId: number | string;
+        leuchteDbId: number;
+        baseLeuchtenCount: number;
+        geometry: GeoJSON.Geometry;
+        lfdNummer?: string | number;
+      }>
+    ) {
+      const { standortId, leuchteDbId, baseLeuchtenCount, geometry, lfdNummer } =
+        action.payload;
+      const key = String(standortId);
+      if (!key || key === "undefined" || key === "null") return;
+      if (!Number.isFinite(leuchteDbId)) return;
+      const existing = state.standortLeuchtenOverrides[key];
+      if (existing) {
+        if (!existing.deletedLeuchtenIds.includes(leuchteDbId)) {
+          existing.deletedLeuchtenIds = [
+            ...existing.deletedLeuchtenIds,
+            leuchteDbId,
+          ];
+        }
+        return;
+      }
+      state.standortLeuchtenOverrides[key] = {
+        baseLeuchtenCount,
+        deletedLeuchtenIds: [leuchteDbId],
+        geometry,
+        lfdNummer,
+      };
     },
     // Explicitly clear the geometry of a creation draft (the only way to
     // unset; setDraft uses `geometry ?? existing.geometry` and can't clear).
@@ -688,6 +757,7 @@ export const {
   removeDraft,
   setPendingDeletion,
   markFeatureDeleted,
+  recordLeuchteDeletionForStandort,
   clearDraftGeometry,
   clearAllDrafts,
   setFormLoading,
@@ -885,6 +955,15 @@ export const getBrandnewSuppressedEditIds = (
 export const getDeletedFeatureIds = (
   state: RootState
 ): HiddenOriginalIds => state.featuresForms?.deletedFeatureIds ?? {};
+
+// Per-Standort overrides that decrement the stacked-Leuchten icon after a child
+// Leuchte was soft-deleted. The map hides each keyed Standort (cascade-hiding
+// its Leuchten on both layers) and renders one synthetic Standort with
+// `baseLeuchtenCount - deletedLeuchtenIds.length` dots, on the main + mini map.
+export const getStandortLeuchtenOverrides = (
+  state: RootState
+): Record<string, StandortLeuchtenOverride> =>
+  state.featuresForms?.standortLeuchtenOverrides ?? {};
 
 // Union of every draft's hiddenOriginalIds plus the permanent set — keyed
 // by source-layer. The map filter effect consumes this to exclude vector
