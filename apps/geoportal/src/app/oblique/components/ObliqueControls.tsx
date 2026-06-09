@@ -20,6 +20,7 @@ import {
   selectViewerIsTransitioning,
   useCesiumContext,
 } from "@carma-mapping/engines/cesium/legacy";
+import { NAVIGATION_KEYBOARD_SHORTCUT_ACTIONS } from "@carma-mapping/engines-interop/navigation-controls";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { ContactMailButton } from "@carma-appframeworks/portals";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
@@ -43,6 +44,7 @@ import { useObliqueCameraHandlers } from "../hooks/useObliqueCameraHandlers";
 import { useSiblingsByCardinal } from "../hooks/useSiblingsByCardinal";
 import { useObliqueDirectionKeybindings } from "../hooks/useObliqueDirectionKeybindings";
 import { useObliqueNearestImage } from "../hooks/useObliqueNearestImage";
+import { useGeoportalCesiumNavigationShortcuts } from "../../hooks/useGeoportalCesiumNavigationShortcuts";
 
 import { flyToExteriorOrientation } from "../utils/cameraUtils";
 import { downloadAsBlobAsync } from "../utils/downloads";
@@ -51,6 +53,11 @@ import { getImageUrls } from "../utils/imageHandling";
 import { CAMERA_ID_INTERIOR_ORIENTATION_PERCENTAGE_OFFSETS } from "../config";
 import { CardinalDirectionEnum } from "../utils/orientationUtils";
 import { strings } from "../strings.de";
+
+const CESIUM_ROTATION_SHORTCUT_ACTIONS = [
+  NAVIGATION_KEYBOARD_SHORTCUT_ACTIONS.ROTATE_CLOCKWISE,
+  NAVIGATION_KEYBOARD_SHORTCUT_ACTIONS.ROTATE_COUNTERCLOCKWISE,
+] as const;
 
 interface ObliqueControlsProps {
   headingOffset?: number;
@@ -529,11 +536,18 @@ export const ObliqueControls: FC<ObliqueControlsProps> = ({
     [previewPath, previewQualityLevel, downloadQualityLevel, imageId]
   );
 
-  // Global keybindings for direction controls (WASD/Arrows/QE/Numpad)
+  // Global keybindings for direction controls (WASD/Arrows/Numpad)
   useObliqueDirectionKeybindings({
+    enabled: isObliqueMode,
     activeDirection,
     siblingCallbacks,
-    rotateCamera: rotateCameraKeypress,
+  });
+
+  useGeoportalCesiumNavigationShortcuts({
+    allowedActions: CESIUM_ROTATION_SHORTCUT_ACTIONS,
+    enabled: isObliqueMode,
+    isObliqueMode,
+    onRotateCamera: rotateCameraKeypress,
   });
 
   useEffect(() => {

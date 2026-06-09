@@ -5,14 +5,12 @@ type Params = {
   enabled?: boolean;
   activeDirection?: CardinalDirectionEnum;
   siblingCallbacks?: Partial<Record<CardinalDirectionEnum, () => void>>;
-  rotateCamera: (clockwise: boolean) => void;
 };
 
 export function useObliqueDirectionKeybindings({
   enabled = true,
   activeDirection,
   siblingCallbacks,
-  rotateCamera,
 }: Params) {
   const { topDir, rightDir, bottomDir, leftDir } = useMemo(() => {
     const order: CardinalDirectionEnum[] = [
@@ -82,29 +80,9 @@ export function useObliqueDirectionKeybindings({
         }
         return;
       }
-
-      // Rotate: CCW (Q / Numpad7), CW (E / Numpad9)
-      if (key === "q" || (isNumpad && num === "7")) {
-        e.preventDefault();
-        rotateCamera(false);
-        return;
-      }
-      if (key === "e" || (isNumpad && num === "9")) {
-        e.preventDefault();
-        rotateCamera(true);
-        return;
-      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [
-    enabled,
-    siblingCallbacks,
-    topDir,
-    rightDir,
-    bottomDir,
-    leftDir,
-    rotateCamera,
-  ]);
+  }, [enabled, siblingCallbacks, topDir, rightDir, bottomDir, leftDir]);
 }

@@ -1,4 +1,12 @@
 export {
+  isKeyboardTargetBlockedForNavigationShortcuts,
+  isManagedNavigationKeyboardEvent,
+  NAVIGATION_KEYBOARD_SHORTCUT_ACTIONS,
+  NAVIGATION_KEYBOARD_SHORTCUT_CONFIG,
+  resolveNavigationKeyboardShortcutAction,
+  type NavigationKeyboardShortcutAction,
+} from "./navigation-keyboard-shortcuts";
+export {
   NAVIGATION_ACTIONS,
   runNavigationAction,
   type NavigationAction,

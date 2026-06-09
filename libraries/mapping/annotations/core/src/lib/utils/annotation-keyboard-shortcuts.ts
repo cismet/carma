@@ -48,36 +48,17 @@ export const ANNOTATION_COMMON_SHORTCUT_ACTIONS = {
   UNDO_LAST_POINT: "undo-last-point",
 } as const;
 
-export const ANNOTATION_NAVIGATION_SHORTCUT_ACTIONS = {
-  ZOOM_IN: "zoom-in",
-  ZOOM_OUT: "zoom-out",
-  GO_HOME: "go-home",
-  TOGGLE_ORBIT: "toggle-orbit",
-  START_CONTINUOUS_DOLLY_IN: "start-continuous-dolly-in",
-  START_CONTINUOUS_DOLLY_OUT: "start-continuous-dolly-out",
-  RESET_FOV: "reset-fov",
-} as const;
-
 export type AnnotationCommonShortcutAction =
   (typeof ANNOTATION_COMMON_SHORTCUT_ACTIONS)[keyof typeof ANNOTATION_COMMON_SHORTCUT_ACTIONS];
 
-export type AnnotationNavigationShortcutAction =
-  (typeof ANNOTATION_NAVIGATION_SHORTCUT_ACTIONS)[keyof typeof ANNOTATION_NAVIGATION_SHORTCUT_ACTIONS];
-
-type AnnotationShortcutAction =
-  | AnnotationCommonShortcutAction
-  | AnnotationNavigationShortcutAction;
-
-type AnnotationShortcutDefinition<TAction extends AnnotationShortcutAction> = {
-  action: TAction;
+type AnnotationShortcutDefinition = {
+  action: AnnotationCommonShortcutAction;
   keys: readonly string[];
   enabled: boolean;
 };
 
-type AnnotationShortcutResolveOptions<
-  TAction extends AnnotationShortcutAction
-> = {
-  disabledActions?: readonly TAction[];
+type AnnotationShortcutResolveOptions = {
+  disabledActions?: readonly AnnotationCommonShortcutAction[];
 };
 
 const matchesKeyboardShortcut = (
@@ -96,7 +77,7 @@ const matchesKeyboardShortcut = (
   });
 };
 
-export const ANNOTATION_COMMON_SHORTCUT_CONFIG: readonly AnnotationShortcutDefinition<AnnotationCommonShortcutAction>[] =
+export const ANNOTATION_COMMON_SHORTCUT_CONFIG: readonly AnnotationShortcutDefinition[] =
   [
     {
       action: ANNOTATION_COMMON_SHORTCUT_ACTIONS.CANCEL_ACTIVE_TOOL,
@@ -126,45 +107,6 @@ export const ANNOTATION_COMMON_SHORTCUT_CONFIG: readonly AnnotationShortcutDefin
     {
       action: ANNOTATION_COMMON_SHORTCUT_ACTIONS.UNDO_LAST_POINT,
       keys: ["Backspace"],
-      enabled: true,
-    },
-  ] as const;
-
-export const ANNOTATION_NAVIGATION_SHORTCUT_CONFIG: readonly AnnotationShortcutDefinition<AnnotationNavigationShortcutAction>[] =
-  [
-    {
-      action: ANNOTATION_NAVIGATION_SHORTCUT_ACTIONS.ZOOM_IN,
-      keys: ["+", "=", "NumpadAdd"],
-      enabled: true,
-    },
-    {
-      action: ANNOTATION_NAVIGATION_SHORTCUT_ACTIONS.ZOOM_OUT,
-      keys: ["-", "NumpadSubtract"],
-      enabled: true,
-    },
-    {
-      action: ANNOTATION_NAVIGATION_SHORTCUT_ACTIONS.GO_HOME,
-      keys: ["H"],
-      enabled: true,
-    },
-    {
-      action: ANNOTATION_NAVIGATION_SHORTCUT_ACTIONS.TOGGLE_ORBIT,
-      keys: ["O"],
-      enabled: true,
-    },
-    {
-      action: ANNOTATION_NAVIGATION_SHORTCUT_ACTIONS.START_CONTINUOUS_DOLLY_IN,
-      keys: ["."],
-      enabled: true,
-    },
-    {
-      action: ANNOTATION_NAVIGATION_SHORTCUT_ACTIONS.START_CONTINUOUS_DOLLY_OUT,
-      keys: [","],
-      enabled: true,
-    },
-    {
-      action: ANNOTATION_NAVIGATION_SHORTCUT_ACTIONS.RESET_FOV,
-      keys: ["/"],
       enabled: true,
     },
   ] as const;
@@ -203,24 +145,10 @@ export const isSelectAllAnnotationKeyboardShortcut = (
 
 export const resolveAnnotationCommonShortcutAction = (
   event: KeyboardEvent,
-  options: AnnotationShortcutResolveOptions<AnnotationCommonShortcutAction> = {}
+  options: AnnotationShortcutResolveOptions = {}
 ): AnnotationCommonShortcutAction | null => {
   return (
     ANNOTATION_COMMON_SHORTCUT_CONFIG.find(
-      ({ action, enabled, keys }) =>
-        enabled &&
-        !options.disabledActions?.includes(action) &&
-        matchesKeyboardShortcut(event, keys)
-    )?.action ?? null
-  );
-};
-
-export const resolveAnnotationNavigationShortcutAction = (
-  event: KeyboardEvent,
-  options: AnnotationShortcutResolveOptions<AnnotationNavigationShortcutAction> = {}
-): AnnotationNavigationShortcutAction | null => {
-  return (
-    ANNOTATION_NAVIGATION_SHORTCUT_CONFIG.find(
       ({ action, enabled, keys }) =>
         enabled &&
         !options.disabledActions?.includes(action) &&

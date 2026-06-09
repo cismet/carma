@@ -117,14 +117,11 @@ export type {
 } from "./lib/utils/annotation-label-text-history";
 export {
   ANNOTATION_COMMON_SHORTCUT_ACTIONS,
-  ANNOTATION_NAVIGATION_SHORTCUT_ACTIONS,
   isManagedAnnotationKeyboardEvent,
   isSelectAllAnnotationKeyboardShortcut,
   renderAnnotationShortcutGlyph,
   resolveAnnotationCommonShortcutAction,
-  resolveAnnotationNavigationShortcutAction,
 } from "./lib/utils/annotation-keyboard-shortcuts";
-export type { AnnotationNavigationShortcutAction } from "./lib/utils/annotation-keyboard-shortcuts";
 export {
   applyDesiredPointLabelAnchors,
   applyLabelAppearance,

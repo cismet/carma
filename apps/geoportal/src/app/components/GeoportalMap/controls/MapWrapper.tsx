@@ -34,6 +34,7 @@ import {
   useCesiumContext,
   useZoomControls as useZoomControlsCesium,
 } from "@carma-mapping/engines/cesium/legacy";
+import { NAVIGATION_KEYBOARD_SHORTCUT_ACTIONS } from "@carma-mapping/engines-interop/navigation-controls";
 import { flyViewStateInCesium } from "@carma-mapping/engines-interop/view-state";
 import {
   MapFrameworkSwitcher,
@@ -63,6 +64,7 @@ import { useFeatureInfoModeCursorStyle } from "../../../hooks/useFeatureInfoMode
 import { useMapStyleReduxSync } from "../../../hooks/useMapStyleReduxSync";
 import { useTourRefCollabLabels } from "../../../hooks/useTourRefCollabLabels.ts";
 import { useWindowSize } from "../../../hooks/useWindowSize.ts";
+import { useGeoportalCesiumNavigationShortcuts } from "../../../hooks/useGeoportalCesiumNavigationShortcuts.ts";
 import { useGeoportalHomeValues } from "../../../hooks/useGeoportalInitialValues.ts";
 
 import { useOblique } from "../../../oblique/hooks/useOblique.ts";
@@ -95,6 +97,22 @@ let hasGPU = false;
 const setHasGPU = (flag: boolean) => (hasGPU = flag);
 const testGPU = () => detectWebGLContext(setHasGPU);
 window.addEventListener("load", testGPU, false);
+
+const CESIUM_ROTATION_SHORTCUT_ACTIONS = [
+  NAVIGATION_KEYBOARD_SHORTCUT_ACTIONS.ROTATE_CLOCKWISE,
+  NAVIGATION_KEYBOARD_SHORTCUT_ACTIONS.ROTATE_COUNTERCLOCKWISE,
+] as const;
+const DEVELOPER_ONLY_NAVIGATION_SHORTCUT_ACTIONS = [
+  NAVIGATION_KEYBOARD_SHORTCUT_ACTIONS.GO_HOME,
+  NAVIGATION_KEYBOARD_SHORTCUT_ACTIONS.TOGGLE_ORBIT,
+  NAVIGATION_KEYBOARD_SHORTCUT_ACTIONS.START_CONTINUOUS_DOLLY_IN,
+  NAVIGATION_KEYBOARD_SHORTCUT_ACTIONS.START_CONTINUOUS_DOLLY_OUT,
+] as const;
+const NON_DEVELOPER_OBLIQUE_DISABLED_NAVIGATION_SHORTCUT_ACTIONS = [
+  ...CESIUM_ROTATION_SHORTCUT_ACTIONS,
+  ...DEVELOPER_ONLY_NAVIGATION_SHORTCUT_ACTIONS,
+] as const;
+const NO_NAVIGATION_SHORTCUT_ACTIONS: readonly [] = [];
 
 const MapWrapper = () => {
   const dispatch = useDispatch();
@@ -136,8 +154,13 @@ const MapWrapper = () => {
   const ctx = useCesiumContext();
   const configSelection = useSelector(getConfigSelection);
 
-  const { isObliqueMode, isPreviewVisible: isObliquePreviewVisible } =
-    useOblique();
+  const {
+    isObliqueMode,
+    isPreviewVisible: isObliquePreviewVisible,
+    maxFov,
+    minFov,
+    restoreFovOnLeave,
+  } = useOblique();
 
   const {
     handleZoomIn: handleZoomInCesium,
@@ -162,6 +185,26 @@ const MapWrapper = () => {
       });
     });
   }, [ctx, defaultHomeViewState, isCesium]);
+
+  useGeoportalCesiumNavigationShortcuts({
+    allowedActions:
+      isModeMeasurement || isObliqueMode
+        ? undefined
+        : CESIUM_ROTATION_SHORTCUT_ACTIONS,
+    disabledActions: isObliqueMode
+      ? flags.isDeveloperMode
+        ? CESIUM_ROTATION_SHORTCUT_ACTIONS
+        : NON_DEVELOPER_OBLIQUE_DISABLED_NAVIGATION_SHORTCUT_ACTIONS
+      : flags.isDeveloperMode
+      ? NO_NAVIGATION_SHORTCUT_ACTIONS
+      : DEVELOPER_ONLY_NAVIGATION_SHORTCUT_ACTIONS,
+    enabled: isCesium && !isObliquePreviewVisible,
+    isObliqueMode,
+    maxFov,
+    minFov,
+    onGoHome: handleCesiumHomeClick,
+    resetFov: restoreFovOnLeave,
+  });
 
   const { responsiveState, gap, windowSize } = useContext<
     typeof ResponsiveTopicMapContext
@@ -263,8 +306,7 @@ const MapWrapper = () => {
       ) : (
         <div
           style={{
-            paddingTop:
-              "calc(4rem + var(--system-message-banner-height, 0px))",
+            paddingTop: "calc(4rem + var(--system-message-banner-height, 0px))",
           }}
         >
           {/* adds padding for topnavbar (+ banner if visible)*/}

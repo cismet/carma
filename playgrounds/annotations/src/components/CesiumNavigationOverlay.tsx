@@ -1,17 +1,15 @@
 import { useEffect, useRef } from "react";
 
 import {
-  ANNOTATION_NAVIGATION_SHORTCUT_ACTIONS,
-  isManagedAnnotationKeyboardEvent,
-  resolveAnnotationNavigationShortcutAction,
-  type AnnotationNavigationShortcutAction,
-} from "@carma-mapping/annotations/core";
-import {
   createCesiumNavigationMethods,
+  isManagedNavigationKeyboardEvent,
+  NAVIGATION_KEYBOARD_SHORTCUT_ACTIONS,
   NAVIGATION_ORBIT_DIRECTIONS,
   NAVIGATION_ZOOM_MODES,
   NAVIGATION_ZOOM_DIRECTIONS,
   mountNavigationControlsOverlay,
+  resolveNavigationKeyboardShortcutAction,
+  type NavigationKeyboardShortcutAction,
   type NavigationControlsOverlayMessages,
   type NavigationOrbitOptions,
   type NavigationMethods,
@@ -38,6 +36,10 @@ const DEFAULT_ORBIT_MIN_PITCH_DEG = 30;
 const DEFAULT_KEYBOARD_ZOOM_DURATION_MS = 250 as Milliseconds;
 const DEFAULT_CONTINUOUS_DOLLY_ZOOM_DELTA_PER_SECOND = 1;
 const DEFAULT_CONTINUOUS_DOLLY_EASE_IN_MS = 180 as Milliseconds;
+const PLAYGROUND_UNSUPPORTED_NAVIGATION_SHORTCUT_ACTIONS = [
+  NAVIGATION_KEYBOARD_SHORTCUT_ACTIONS.ROTATE_CLOCKWISE,
+  NAVIGATION_KEYBOARD_SHORTCUT_ACTIONS.ROTATE_COUNTERCLOCKWISE,
+] as const;
 
 const resetSceneFovToDefault = (
   scene: Scene,
@@ -67,42 +69,47 @@ const bindNavigationKeyboardShortcuts = ({
   methods,
   initialHomeCameraState,
 }: {
-  disabledNavigationShortcutActions?: readonly AnnotationNavigationShortcutAction[];
+  disabledNavigationShortcutActions?: readonly NavigationKeyboardShortcutAction[];
   scene: Scene;
   methods: NavigationMethods;
   initialHomeCameraState: AnnotationsDemoCameraState | null;
 }) => {
+  const effectiveDisabledNavigationShortcutActions = [
+    ...PLAYGROUND_UNSUPPORTED_NAVIGATION_SHORTCUT_ACTIONS,
+    ...disabledNavigationShortcutActions,
+  ];
+
   const handleKeyDown = (event: KeyboardEvent) => {
-    if (!isManagedAnnotationKeyboardEvent(event)) return;
+    if (!isManagedNavigationKeyboardEvent(event)) return;
 
     switch (
-      resolveAnnotationNavigationShortcutAction(event, {
-        disabledActions: disabledNavigationShortcutActions,
+      resolveNavigationKeyboardShortcutAction(event, {
+        disabledActions: effectiveDisabledNavigationShortcutActions,
       })
     ) {
-      case ANNOTATION_NAVIGATION_SHORTCUT_ACTIONS.ZOOM_IN:
+      case NAVIGATION_KEYBOARD_SHORTCUT_ACTIONS.ZOOM_IN:
         event.preventDefault();
         methods.zoomIn({
           duration: DEFAULT_KEYBOARD_ZOOM_DURATION_MS,
           mode: NAVIGATION_ZOOM_MODES.AUTO,
         });
         return;
-      case ANNOTATION_NAVIGATION_SHORTCUT_ACTIONS.ZOOM_OUT:
+      case NAVIGATION_KEYBOARD_SHORTCUT_ACTIONS.ZOOM_OUT:
         event.preventDefault();
         methods.zoomOut({
           duration: DEFAULT_KEYBOARD_ZOOM_DURATION_MS,
           mode: NAVIGATION_ZOOM_MODES.AUTO,
         });
         return;
-      case ANNOTATION_NAVIGATION_SHORTCUT_ACTIONS.GO_HOME:
+      case NAVIGATION_KEYBOARD_SHORTCUT_ACTIONS.GO_HOME:
         event.preventDefault();
         methods.goHome();
         return;
-      case ANNOTATION_NAVIGATION_SHORTCUT_ACTIONS.TOGGLE_ORBIT:
+      case NAVIGATION_KEYBOARD_SHORTCUT_ACTIONS.TOGGLE_ORBIT:
         event.preventDefault();
         methods.orbit();
         return;
-      case ANNOTATION_NAVIGATION_SHORTCUT_ACTIONS.START_CONTINUOUS_DOLLY_IN:
+      case NAVIGATION_KEYBOARD_SHORTCUT_ACTIONS.START_CONTINUOUS_DOLLY_IN:
         event.preventDefault();
         methods.startContinuousZoom?.({
           direction: NAVIGATION_ZOOM_DIRECTIONS.IN,
@@ -111,7 +118,7 @@ const bindNavigationKeyboardShortcuts = ({
           easeInDurationMs: DEFAULT_CONTINUOUS_DOLLY_EASE_IN_MS,
         });
         return;
-      case ANNOTATION_NAVIGATION_SHORTCUT_ACTIONS.START_CONTINUOUS_DOLLY_OUT:
+      case NAVIGATION_KEYBOARD_SHORTCUT_ACTIONS.START_CONTINUOUS_DOLLY_OUT:
         event.preventDefault();
         methods.startContinuousZoom?.({
           direction: NAVIGATION_ZOOM_DIRECTIONS.OUT,
@@ -120,7 +127,7 @@ const bindNavigationKeyboardShortcuts = ({
           easeInDurationMs: DEFAULT_CONTINUOUS_DOLLY_EASE_IN_MS,
         });
         return;
-      case ANNOTATION_NAVIGATION_SHORTCUT_ACTIONS.RESET_FOV:
+      case NAVIGATION_KEYBOARD_SHORTCUT_ACTIONS.RESET_FOV:
         event.preventDefault();
         resetSceneFovToDefault(scene, initialHomeCameraState);
         return;
@@ -130,14 +137,13 @@ const bindNavigationKeyboardShortcuts = ({
   };
 
   const handleKeyUp = (event: KeyboardEvent) => {
-    const action = resolveAnnotationNavigationShortcutAction(event, {
-      disabledActions: disabledNavigationShortcutActions,
+    const action = resolveNavigationKeyboardShortcutAction(event, {
+      disabledActions: effectiveDisabledNavigationShortcutActions,
     });
     if (
       action ===
-        ANNOTATION_NAVIGATION_SHORTCUT_ACTIONS.START_CONTINUOUS_DOLLY_IN ||
-      action ===
-        ANNOTATION_NAVIGATION_SHORTCUT_ACTIONS.START_CONTINUOUS_DOLLY_OUT
+        NAVIGATION_KEYBOARD_SHORTCUT_ACTIONS.START_CONTINUOUS_DOLLY_IN ||
+      action === NAVIGATION_KEYBOARD_SHORTCUT_ACTIONS.START_CONTINUOUS_DOLLY_OUT
     ) {
       methods.stopContinuousZoom?.();
     }
@@ -212,7 +218,7 @@ export const CesiumNavigationOverlay = ({
   scene,
   initialHomeCameraState = null,
 }: {
-  disabledNavigationShortcutActions?: readonly AnnotationNavigationShortcutAction[];
+  disabledNavigationShortcutActions?: readonly NavigationKeyboardShortcutAction[];
   scene: Scene | null;
   initialHomeCameraState?: AnnotationsDemoCameraState | null;
 }) => {
