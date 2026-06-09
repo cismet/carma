@@ -85,7 +85,21 @@ export type PolygonAuthoringMeasurementCoordinatesResolver = (args: {
   previousCoordinates?: readonly CesiumGeographicCoordinate[];
   preferredFacingPositionECEF?: Cartesian3 | null;
   inputModifier?: PointQueryPickResult["inputModifier"];
-}) => readonly CesiumGeographicCoordinate[] | null;
+}) => PolygonAuthoringMeasurementCoordinatesResolution | null;
+
+export type PolygonAuthoringMeasurementCoordinatesResolution =
+  | readonly CesiumGeographicCoordinate[]
+  | {
+      lineCoordinates: readonly CesiumGeographicCoordinate[];
+      fillCoordinates: readonly CesiumGeographicCoordinate[] | null;
+      fillCoordinateRings?: readonly (readonly CesiumGeographicCoordinate[])[];
+      markerCoordinates?: readonly CesiumGeographicCoordinate[];
+    };
+
+const isMeasurementCoordinateArrayResolution = (
+  resolution: PolygonAuthoringMeasurementCoordinatesResolution | null
+): resolution is readonly CesiumGeographicCoordinate[] =>
+  Array.isArray(resolution);
 
 export type PolygonAuthoringPointQueryVisualStyleResolver = (args: {
   pickResult: PointQueryPickResult | null;
@@ -102,6 +116,45 @@ const buildClosedLoopCoordinates = (
 
   return [...coordinates, coordinates[0]!];
 };
+
+const buildFillLoopPreviewCoordinates = (
+  fillCoordinateRings: readonly (readonly CesiumGeographicCoordinate[])[]
+): readonly CesiumGeographicCoordinate[] => {
+  const validFillCoordinateRings = fillCoordinateRings.filter(
+    (coordinates) => coordinates.length >= 3
+  );
+  if (validFillCoordinateRings.length === 0) {
+    return [];
+  }
+  if (validFillCoordinateRings.length === 1) {
+    return buildClosedLoopCoordinates(validFillCoordinateRings[0]!);
+  }
+
+  const firstRing = validFillCoordinateRings[0]!;
+  return [
+    firstRing[0]!,
+    ...validFillCoordinateRings.map(
+      (coordinates) => coordinates[coordinates.length - 1]!
+    ),
+  ];
+};
+
+const normalizeMeasurementCoordinatesResolution = (
+  resolution: PolygonAuthoringMeasurementCoordinatesResolution | null
+): {
+  lineCoordinates: readonly CesiumGeographicCoordinate[];
+  fillCoordinates: readonly CesiumGeographicCoordinate[] | null;
+  fillCoordinateRings?: readonly (readonly CesiumGeographicCoordinate[])[];
+  markerCoordinates?: readonly CesiumGeographicCoordinate[];
+} | null =>
+  isMeasurementCoordinateArrayResolution(resolution)
+    ? {
+        lineCoordinates: resolution,
+        fillCoordinates: resolution,
+        fillCoordinateRings: [resolution],
+        markerCoordinates: resolution,
+      }
+    : resolution;
 
 const toScreenPoint = (
   scene: NonNullable<AnnotationToolAuthoringContext["scene"]>,
@@ -195,38 +248,50 @@ const createProjectionNormalController = ({
 
 const buildPolygonPreviewAreaLabelState = ({
   toolType,
-  coordinates,
+  coordinateRings,
   formatOptions,
 }: {
   toolType: AnnotationTypes["AREA_GROUND"] | AnnotationTypes["AREA_PLANAR"];
-  coordinates: readonly CesiumGeographicCoordinate[];
+  coordinateRings: readonly (readonly CesiumGeographicCoordinate[])[];
   formatOptions: AnnotationToolAuthoringContext["formatOptions"];
 }): PreviewAreaLabelState | null => {
-  if (coordinates.length < 3) {
+  const validCoordinateRings = coordinateRings.filter(
+    (coordinates) => coordinates.length >= 3
+  );
+  if (validCoordinateRings.length === 0) {
     return null;
   }
 
-  const coordinateEntries = coordinates.map(
-    (coordinate, index) =>
-      [
-        `preview-area-node-${index}`,
-        cartesian3FromGeographicCoordinate(coordinate),
-      ] as const
-  );
-  const pointById = new Map(coordinateEntries);
-  const derivedMeasurement = computePolygonGroupDerivedData(
-    {
-      id: "preview-area-measurement",
-      type: toolType,
-      nodeIds: coordinateEntries.map(([nodeId]) => nodeId),
-      edgeRelationIds: [],
-      closed: true,
-      planeLocked: toolType === ANNOTATION_TYPE_AREA_PLANAR,
-    } satisfies NodeChainAnnotation,
-    pointById
+  const derivedAreaSquareMeters = validCoordinateRings.reduce(
+    (sum, coordinates, ringIndex) => {
+      const coordinateEntries = coordinates.map(
+        (coordinate, coordinateIndex) =>
+          [
+            `preview-area-node-${ringIndex}-${coordinateIndex}`,
+            cartesian3FromGeographicCoordinate(coordinate),
+          ] as const
+      );
+      const pointById = new Map(coordinateEntries);
+      const derivedMeasurement = computePolygonGroupDerivedData(
+        {
+          id: `preview-area-measurement-${ringIndex}`,
+          type: toolType,
+          nodeIds: coordinateEntries.map(([nodeId]) => nodeId),
+          edgeRelationIds: [],
+          closed: true,
+          planeLocked: toolType === ANNOTATION_TYPE_AREA_PLANAR,
+        } satisfies NodeChainAnnotation,
+        pointById
+      );
+
+      return sum + Math.max(0, derivedMeasurement.areaSquareMeters ?? 0);
+    },
+    0
   );
   const anchorECEF = averageCartesian3(
-    coordinateEntries.map(([, positionECEF]) => positionECEF)
+    validCoordinateRings.flatMap((coordinates) =>
+      coordinates.map(cartesian3FromGeographicCoordinate)
+    )
   );
 
   if (!anchorECEF) {
@@ -235,7 +300,7 @@ const buildPolygonPreviewAreaLabelState = ({
 
   return {
     text: formatAreaSquareMetersAdaptive(
-      Math.max(0, derivedMeasurement.areaSquareMeters ?? 0),
+      derivedAreaSquareMeters,
       formatOptions.areaSquareMeters
     ),
     anchorECEF,
@@ -379,16 +444,18 @@ export const createPolygonAuthoringController = ({
       coordinates: readonly CesiumGeographicCoordinate[],
       options: { inputModifier?: PointQueryPickResult["inputModifier"] } = {}
     ) =>
-      resolveMeasurementCoordinates
-        ? resolveMeasurementCoordinates({
-            coordinates,
-            previousCoordinates: draftCoordinates,
-            preferredFacingPositionECEF: scene.camera.positionWC,
-            ...(options.inputModifier
-              ? { inputModifier: options.inputModifier }
-              : {}),
-          })
-        : coordinates;
+      normalizeMeasurementCoordinatesResolution(
+        resolveMeasurementCoordinates
+          ? resolveMeasurementCoordinates({
+              coordinates,
+              previousCoordinates: draftCoordinates,
+              preferredFacingPositionECEF: scene.camera.positionWC,
+              ...(options.inputModifier
+                ? { inputModifier: options.inputModifier }
+                : {}),
+            })
+          : coordinates
+      );
     const resolvedSampleCoordinates = resolveCoordinates(sampleCoordinates, {
       inputModifier: pointQueryPickResult?.inputModifier,
     });
@@ -401,20 +468,36 @@ export const createPolygonAuthoringController = ({
     const isSamplingInitialSegment =
       resolveMeasurementCoordinates !== undefined &&
       sampleCoordinates.length < 3;
-    const previewCoordinates =
-      resolvedMeasurementCoordinates ??
+    const lineCoordinates =
+      resolvedMeasurementCoordinates?.lineCoordinates ??
       (isSamplingInitialSegment || !resolveMeasurementCoordinates
         ? sampleCoordinates
         : draftCoordinates);
+    const fillCoordinates =
+      !resolveMeasurementCoordinates
+        ? sampleCoordinates
+        : isSamplingInitialSegment
+        ? null
+        : resolvedMeasurementCoordinates?.fillCoordinates ?? null;
+    const fillCoordinateRings =
+      !resolveMeasurementCoordinates
+        ? [sampleCoordinates]
+        : isSamplingInitialSegment
+        ? []
+        : resolvedMeasurementCoordinates?.fillCoordinateRings ??
+          (fillCoordinates ? [fillCoordinates] : []);
     const markerCoordinates = isSamplingInitialSegment
-      ? resolvedSampleCoordinates ?? previewCoordinates
+      ? resolvedSampleCoordinates?.markerCoordinates ?? lineCoordinates
       : resolvedSampleCoordinates || !hoverCoordinate
       ? sampleCoordinates
       : draftCoordinates;
-    const hasResolvedMeasurementCoordinates =
+    const hasLineCoordinates =
       !resolveMeasurementCoordinates ||
       isSamplingInitialSegment ||
       resolvedMeasurementCoordinates !== null;
+    const hasFillCoordinates = fillCoordinateRings.some(
+      (coordinates) => coordinates.length >= 3
+    );
     currentPointQueryPickAcceptable =
       !hoverCoordinate || resolvedSampleCoordinates !== null;
 
@@ -434,17 +517,17 @@ export const createPolygonAuthoringController = ({
     }
 
     draftChainController.setState({
-      lineCoordinates: previewCoordinates,
+      lineCoordinates,
       markerCoordinates,
     });
     polygonLoopController.setState({
-      lineCoordinates: hasResolvedMeasurementCoordinates
-        ? buildClosedLoopCoordinates(previewCoordinates)
+      lineCoordinates: hasFillCoordinates
+        ? buildFillLoopPreviewCoordinates(fillCoordinateRings)
         : [],
       markerCoordinates: [],
     });
 
-    if (!hasResolvedMeasurementCoordinates || previewCoordinates.length < 3) {
+    if (!hasLineCoordinates || lineCoordinates.length < 3) {
       projectionNormalController.clear();
       previewFillController.clear();
       previewOverlayFillController.clear();
@@ -457,7 +540,7 @@ export const createPolygonAuthoringController = ({
     }
 
     projectionNormalController.setSegments(
-      previewCoordinates.flatMap((fromPlaneCoordinate, index) => {
+      lineCoordinates.flatMap((fromPlaneCoordinate, index) => {
         const toSampleCoordinate = markerCoordinates[index];
         return toSampleCoordinate
           ? [
@@ -470,30 +553,42 @@ export const createPolygonAuthoringController = ({
       })
     );
 
+    if (!hasFillCoordinates) {
+      previewFillController.clear();
+      previewOverlayFillController.clear();
+      currentAreaLabelState = null;
+      areaLabelController.setState(null);
+      if (requestRender) {
+        scene.requestRender();
+      }
+      return;
+    }
+
     const previewFill = getAnnotationAreaFillCssColor(toolType, false);
-    const previewPolygonFill = {
-      id: `${previewId}-draft-preview-fill`,
-      coordinates: previewCoordinates,
-      fill: previewFill,
-      ...(isCoplanarPolygonFillPlacement(previewFillPlacement) &&
-      resolvedOcclusionStyleOptions.fill.overlay
-        ? {
-            overlayFill: resolveAreaOverlayFillColor(
-              previewFill,
-              resolvedOcclusionStyleOptions
-            ),
-          }
-        : {}),
-      placement: previewFillPlacement,
-    };
-    const previewPolygonFills = [previewPolygonFill];
+    const previewPolygonFills = fillCoordinateRings
+      .filter((coordinates) => coordinates.length >= 3)
+      .map((coordinates, index) => ({
+        id: `${previewId}-draft-preview-fill-${index}`,
+        coordinates,
+        fill: previewFill,
+        ...(isCoplanarPolygonFillPlacement(previewFillPlacement) &&
+        resolvedOcclusionStyleOptions.fill.overlay
+          ? {
+              overlayFill: resolveAreaOverlayFillColor(
+                previewFill,
+                resolvedOcclusionStyleOptions
+              ),
+            }
+          : {}),
+        placement: previewFillPlacement,
+      }));
     previewFillController.setPolygonFills(previewPolygonFills);
     previewOverlayFillController.setPolygonFills(
-      previewPolygonFill.overlayFill ? previewPolygonFills : []
+      previewPolygonFills.filter((polygonFill) => polygonFill.overlayFill)
     );
     currentAreaLabelState = buildPolygonPreviewAreaLabelState({
       toolType,
-      coordinates: previewCoordinates,
+      coordinateRings: fillCoordinateRings,
       formatOptions,
     });
     const nextAreaLabelState = currentAreaLabelState;

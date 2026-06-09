@@ -52,7 +52,9 @@ import { defaultAnnotationToolTexts } from "../annotation-mode-text";
 import {
   AREA_PLANAR_DEFAULT_MAX_PLANE_NORMAL_CHANGE_DEG,
   AREA_PLANAR_PROJECTION_MODES,
+  canAppendAreaPlanarProjectedPoint,
   canResolveAreaPlanarProjectedPolygon,
+  resolveAreaPlanarProjectedAppendPreview,
   resolveAreaPlanarProjectedCoordinates,
   type AreaPlanarProjectionMode,
 } from "./area-planar-projection";
@@ -742,7 +744,7 @@ const createAreaPlanarToolVariantPlugin = ({
             const previousMeasurementInputCoordinates =
               resolveMeasurementInputCoordinates(currentDraft.coordinates);
             if (
-              !canResolveAreaPlanarProjectedPolygon({
+              !canAppendAreaPlanarProjectedPoint({
                 coordinates: nextMeasurementInputCoordinates,
                 mode: projectionMode,
                 previousCoordinates: previousMeasurementInputCoordinates,
@@ -916,19 +918,22 @@ const createAreaPlanarToolVariantPlugin = ({
               return measurementInputCoordinates;
             }
 
-            return canResolveAreaPlanarProjectedPolygon({
+            const projectedCoordinates = resolveAreaPlanarProjectedCoordinates({
+              coordinates: measurementInputCoordinates,
+              mode: projectionMode,
+              preferredFacingPositionECEF,
+            });
+            if (projectedCoordinates) {
+              return projectedCoordinates;
+            }
+
+            return resolveAreaPlanarProjectedAppendPreview({
               coordinates: measurementInputCoordinates,
               mode: projectionMode,
               previousCoordinates: previousMeasurementInputCoordinates,
               preferredFacingPositionECEF,
               maxPlaneNormalChangeDeg,
-            })
-              ? resolveAreaPlanarProjectedCoordinates({
-                  coordinates: measurementInputCoordinates,
-                  mode: projectionMode,
-                  preferredFacingPositionECEF,
-                })
-              : null;
+            });
           },
         }),
     },

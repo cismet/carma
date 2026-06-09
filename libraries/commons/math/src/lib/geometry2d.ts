@@ -187,13 +187,24 @@ const doCollinearSegmentsOverlap2d = (
   abC: number,
   abD: number,
   epsilon: number
-): boolean =>
-  Math.abs(abC) <= epsilon &&
-  Math.abs(abD) <= epsilon &&
-  Math.max(
-    getRangeOverlapLength(a.x, b.x, c.x, d.x),
-    getRangeOverlapLength(a.y, b.y, c.y, d.y)
-  ) > epsilon;
+): boolean => {
+  if (Math.abs(abC) > epsilon || Math.abs(abD) > epsilon) {
+    return false;
+  }
+
+  const overlapLengths = [
+    ...(Math.abs(a.x - b.x) > epsilon
+      ? [getRangeOverlapLength(a.x, b.x, c.x, d.x)]
+      : []),
+    ...(Math.abs(a.y - b.y) > epsilon
+      ? [getRangeOverlapLength(a.y, b.y, c.y, d.y)]
+      : []),
+  ];
+  return (
+    overlapLengths.length > 0 &&
+    overlapLengths.every((overlapLength) => overlapLength > epsilon)
+  );
+};
 
 const doSegmentsIntersect2d = (
   a: Point2,
@@ -234,7 +245,7 @@ export const hasPolygonSelfIntersection2d = ({
   points: readonly Point2[];
   epsilon?: number;
 }): boolean => {
-  if (points.length < 4) {
+  if (points.length < 3) {
     return false;
   }
 
@@ -263,6 +274,49 @@ export const hasPolygonSelfIntersection2d = ({
           firstEnd,
           points[secondEdgeIndex]!,
           points[(secondEdgeIndex + 1) % points.length]!,
+          epsilon
+        )
+      ) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+};
+
+export const hasPolylineRetracedSegment2d = ({
+  points,
+  epsilon = 1e-7,
+}: {
+  points: readonly Point2[];
+  epsilon?: number;
+}): boolean => {
+  if (points.length < 3) {
+    return false;
+  }
+
+  for (
+    let firstEdgeIndex = 0;
+    firstEdgeIndex < points.length - 1;
+    firstEdgeIndex += 1
+  ) {
+    const firstStart = points[firstEdgeIndex]!;
+    const firstEnd = points[firstEdgeIndex + 1]!;
+
+    for (
+      let secondEdgeIndex = firstEdgeIndex + 1;
+      secondEdgeIndex < points.length - 1;
+      secondEdgeIndex += 1
+    ) {
+      if (
+        doCollinearSegmentsOverlap2d(
+          firstStart,
+          firstEnd,
+          points[secondEdgeIndex]!,
+          points[secondEdgeIndex + 1]!,
+          getOrientation2d(firstStart, firstEnd, points[secondEdgeIndex]!),
+          getOrientation2d(firstStart, firstEnd, points[secondEdgeIndex + 1]!),
           epsilon
         )
       ) {

@@ -8,7 +8,11 @@ import {
 } from "@carma-mapping/annotations/core";
 import type { CesiumGeographicCoordinate } from "@carma-mapping/annotations/runtime";
 import { Cartesian3 } from "@carma-cesium";
-import { hasPolygonSelfIntersection2d, type Point2 } from "@carma-commons/math";
+import {
+  hasPolygonSelfIntersection2d,
+  hasPolylineRetracedSegment2d,
+  type Point2,
+} from "@carma-commons/math";
 import {
   cartesian3FromMetricVector3,
   cartesian3FromGeographicCoordinate,
@@ -30,6 +34,17 @@ export const AREA_PLANAR_DEFAULT_MAX_PLANE_NORMAL_CHANGE_DEG = 5;
 export type AreaPlanarProjectionResult = {
   plane: PlanarPolygonPlane;
   projectedCoordinates: readonly CesiumGeographicCoordinate[];
+};
+
+export type AreaPlanarProjectedAppendPreview = {
+  lineCoordinates: readonly CesiumGeographicCoordinate[];
+  fillCoordinates: readonly CesiumGeographicCoordinate[] | null;
+  fillCoordinateRings?: readonly (readonly CesiumGeographicCoordinate[])[];
+};
+
+type AreaPlanarProjectionPrefixResult = {
+  prefixLength: number;
+  projectionResult: AreaPlanarProjectionResult;
 };
 
 const resolveAreaPlanarProjectionPlane = ({
@@ -61,12 +76,19 @@ const resolveAreaPlanarProjectionPlane = ({
 const isProjectedPolygonValidOnPlane = (
   projectedPositions: readonly Cartesian3[],
   activePlane: PlanarPolygonPlane
-): boolean =>
-  computePlanarPolygonArea([...projectedPositions], activePlane) >
-    MIN_PROJECTED_AREA_SQUARE_METERS &&
-  !hasPolygonSelfIntersection2d({
-    points: projectPositionsToPlane2d(projectedPositions, activePlane),
-  });
+): boolean => {
+  const points = projectPositionsToPlane2d(projectedPositions, activePlane);
+  return (
+    computePlanarPolygonArea([...projectedPositions], activePlane) >
+      MIN_PROJECTED_AREA_SQUARE_METERS &&
+    !hasPolygonSelfIntersection2d({
+      points,
+    }) &&
+    !hasPolylineRetracedSegment2d({
+      points: [...points, points[0]!],
+    })
+  );
+};
 
 const projectPositionsToPlane2d = (
   projectedPositions: readonly Cartesian3[],
@@ -146,8 +168,40 @@ export const resolveAreaPlanarProjectionResult = ({
 
   return {
     plane,
-    projectedCoordinates: projectedPositions.map(geographicCoordinateFromCartesian3),
+    projectedCoordinates: projectedPositions.map(
+      geographicCoordinateFromCartesian3
+    ),
   };
+};
+
+const resolveLastValidAreaPlanarProjectionPrefixResult = ({
+  coordinates,
+  mode,
+  preferredFacingPositionECEF,
+}: {
+  coordinates: readonly CesiumGeographicCoordinate[];
+  mode: AreaPlanarProjectionMode;
+  preferredFacingPositionECEF?: Cartesian3 | null;
+}): AreaPlanarProjectionPrefixResult | null => {
+  for (
+    let prefixLength = coordinates.length;
+    prefixLength >= 3;
+    prefixLength -= 1
+  ) {
+    const result = resolveAreaPlanarProjectionResult({
+      coordinates: coordinates.slice(0, prefixLength),
+      mode,
+      preferredFacingPositionECEF,
+    });
+    if (result) {
+      return {
+        prefixLength,
+        projectionResult: result,
+      };
+    }
+  }
+
+  return null;
 };
 
 const resolvePlaneNormalChangeDeg = (
@@ -236,3 +290,166 @@ export const canResolveAreaPlanarProjectedPolygon = ({
       normalChangeDeg === null || normalChangeDeg <= maxPlaneNormalChangeDeg
     );
   })();
+
+export const canAppendAreaPlanarProjectedPoint = ({
+  coordinates,
+  mode,
+  preferredFacingPositionECEF,
+  previousCoordinates,
+  maxPlaneNormalChangeDeg = AREA_PLANAR_DEFAULT_MAX_PLANE_NORMAL_CHANGE_DEG,
+}: {
+  coordinates: readonly CesiumGeographicCoordinate[];
+  mode: AreaPlanarProjectionMode;
+  preferredFacingPositionECEF?: Cartesian3 | null;
+  previousCoordinates?: readonly CesiumGeographicCoordinate[];
+  maxPlaneNormalChangeDeg?: number | null;
+}): boolean => {
+  if (
+    !previousCoordinates ||
+    previousCoordinates.length < 3 ||
+    coordinates.length !== previousCoordinates.length + 1
+  ) {
+    return canResolveAreaPlanarProjectedPolygon({
+      coordinates,
+      mode,
+      preferredFacingPositionECEF,
+      previousCoordinates,
+      maxPlaneNormalChangeDeg,
+    });
+  }
+
+  const previousPrefixResult = resolveLastValidAreaPlanarProjectionPrefixResult({
+    coordinates: previousCoordinates,
+    mode,
+    preferredFacingPositionECEF,
+  });
+  if (!previousPrefixResult) {
+    return false;
+  }
+  const previousResult = previousPrefixResult.projectionResult;
+
+  const projectedOnPreviousPlane = coordinates
+    .map(cartesian3FromGeographicCoordinate)
+    .map((position) => projectPointOntoPlane(position, previousResult.plane));
+  if (
+    hasPolylineRetracedSegment2d({
+      points: projectPositionsToPlane2d(
+        projectedOnPreviousPlane,
+        previousResult.plane
+      ),
+    })
+  ) {
+    return false;
+  }
+
+  if (maxPlaneNormalChangeDeg === null) {
+    return true;
+  }
+
+  const nextPlane = resolveAreaPlanarProjectionPlane({
+    positions: coordinates.map(cartesian3FromGeographicCoordinate),
+    mode,
+    preferredFacingPositionECEF,
+  });
+  if (!nextPlane) {
+    return false;
+  }
+
+  const normalChangeDeg = resolvePlaneNormalChangeDeg(
+    previousResult.plane,
+    nextPlane
+  );
+  return normalChangeDeg === null || normalChangeDeg <= maxPlaneNormalChangeDeg;
+};
+
+export const resolveAreaPlanarProjectedAppendPreview = ({
+  coordinates,
+  mode,
+  preferredFacingPositionECEF,
+  previousCoordinates,
+  maxPlaneNormalChangeDeg = AREA_PLANAR_DEFAULT_MAX_PLANE_NORMAL_CHANGE_DEG,
+}: {
+  coordinates: readonly CesiumGeographicCoordinate[];
+  mode: AreaPlanarProjectionMode;
+  preferredFacingPositionECEF?: Cartesian3 | null;
+  previousCoordinates?: readonly CesiumGeographicCoordinate[];
+  maxPlaneNormalChangeDeg?: number | null;
+}): AreaPlanarProjectedAppendPreview | null => {
+  const isAppendingOnePoint =
+    !!previousCoordinates &&
+    previousCoordinates.length >= 3 &&
+    coordinates.length === previousCoordinates.length + 1;
+  if (
+    isAppendingOnePoint &&
+    !canAppendAreaPlanarProjectedPoint({
+      coordinates,
+      mode,
+      preferredFacingPositionECEF,
+      previousCoordinates,
+      maxPlaneNormalChangeDeg,
+    })
+  ) {
+    return null;
+  }
+
+  const fullProjectedCoordinates = resolveAreaPlanarProjectedCoordinates({
+    coordinates,
+    mode,
+    preferredFacingPositionECEF,
+  });
+  if (fullProjectedCoordinates) {
+    return {
+      lineCoordinates: fullProjectedCoordinates,
+      fillCoordinates: fullProjectedCoordinates,
+      fillCoordinateRings: [fullProjectedCoordinates],
+    };
+  }
+
+  if (coordinates.length < 4) {
+    return null;
+  }
+
+  const fillPrefixResult = resolveLastValidAreaPlanarProjectionPrefixResult({
+    coordinates: coordinates.slice(0, -1),
+    mode,
+    preferredFacingPositionECEF,
+  });
+  if (!fillPrefixResult) {
+    return null;
+  }
+  const fillResult = fillPrefixResult.projectionResult;
+
+  const projectedLinePositions = coordinates
+    .map(cartesian3FromGeographicCoordinate)
+    .map((position) => projectPointOntoPlane(position, fillResult.plane));
+  if (
+    hasPolylineRetracedSegment2d({
+      points: projectPositionsToPlane2d(
+        projectedLinePositions,
+        fillResult.plane
+      ),
+    })
+  ) {
+    return null;
+  }
+
+  const tailPositions = projectedLinePositions.slice(
+    fillPrefixResult.prefixLength - 1
+  );
+  const tailCoordinates =
+    tailPositions.length >= 3 &&
+    isProjectedPolygonValidOnPlane(tailPositions, fillResult.plane)
+      ? tailPositions.map(geographicCoordinateFromCartesian3)
+      : null;
+  const fillCoordinateRings = tailCoordinates
+    ? [fillResult.projectedCoordinates, tailCoordinates]
+    : [fillResult.projectedCoordinates];
+
+  return {
+    lineCoordinates: projectedLinePositions.map(
+      geographicCoordinateFromCartesian3
+    ),
+    fillCoordinates: fillResult.projectedCoordinates,
+    fillCoordinateRings,
+  };
+};
