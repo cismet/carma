@@ -842,6 +842,8 @@ const BelisMapLibWrapper = ({
         deletedLeuchtenIds: Set<number>;
         geometry: GeoJSON.Geometry;
         lfdNummer?: string | number;
+        strasse?: string;
+        strassenschluessel?: string | number;
       }
     >();
     for (const [standortId, ov] of Object.entries(standortLeuchtenOverrides)) {
@@ -851,8 +853,28 @@ const BelisMapLibWrapper = ({
         deletedLeuchtenIds: new Set(ov.deletedLeuchtenIds),
         geometry: ov.geometry,
         lfdNummer: ov.lfdNummer,
+        strasse: (ov as { strasse?: string }).strasse,
+        strassenschluessel: (ov as { strassenschluessel?: string | number })
+          .strassenschluessel,
       });
     }
+    // Group every open pending-deletion Leuchte draft by its Standort first,
+    // THEN fold into `merged`. Two passes (not one) make the decrement
+    // order-independent and resilient to a draft whose own `feature` lacks
+    // geometry or `leuchten_count`: a sibling marked for deletion while its
+    // cluster is already cascade-hidden has no rendered geometry, but its
+    // Leuchte id must still count. Base count + geometry are taken from
+    // whichever source has them (the committed override above, or any one of
+    // the Standort's deletion drafts); every draft contributes its id.
+    type PendingDeletion = {
+      ids: Set<number>;
+      geometry?: GeoJSON.Geometry;
+      count?: number;
+      lfd?: string | number;
+      strasse?: string;
+      strassenschluessel?: string | number;
+    };
+    const pending = new Map<string, PendingDeletion>();
     for (const draft of Object.values(allDraftsForMeasurementLink)) {
       if (!draft.pendingDeletion || draft.featureType !== "leuchte") continue;
       const props = (draft.feature?.properties ?? {}) as Record<
@@ -860,29 +882,58 @@ const BelisMapLibWrapper = ({
         unknown
       >;
       const standortId = props.fk_standort;
-      const geometry = draft.feature?.geometry as GeoJSON.Geometry | undefined;
       const leuchteId = draft.featureDbId;
       if (
         standortId == null ||
-        geometry == null ||
         leuchteId == null ||
         !Number.isFinite(Number(leuchteId))
       )
         continue;
       const key = String(standortId);
-      let entry = merged.get(key);
-      if (!entry) {
-        const rawCount = props.leuchten_count;
-        if (rawCount == null || !Number.isFinite(Number(rawCount))) continue;
-        entry = {
-          baseLeuchtenCount: Number(rawCount),
-          deletedLeuchtenIds: new Set<number>(),
-          geometry,
-          lfdNummer: props.lfd_nummer as string | number | undefined,
-        };
-        merged.set(key, entry);
+      let p = pending.get(key);
+      if (!p) {
+        p = { ids: new Set<number>() };
+        pending.set(key, p);
       }
-      entry.deletedLeuchtenIds.add(Number(leuchteId));
+      p.ids.add(Number(leuchteId));
+      const geometry = draft.feature?.geometry as GeoJSON.Geometry | undefined;
+      if (p.geometry == null && geometry != null) p.geometry = geometry;
+      if (p.count == null) {
+        const rawCount = props.leuchten_count;
+        if (rawCount != null && Number.isFinite(Number(rawCount)))
+          p.count = Number(rawCount);
+      }
+      if (p.lfd == null) p.lfd = props.lfd_nummer as string | number | undefined;
+      // Read off a non-`props` expression to dodge the react/prop-types false
+      // positive (member access on a local named `props`).
+      const propsRec = draft.feature?.properties as Record<string, unknown>;
+      if (p.strasse == null)
+        p.strasse = propsRec?.strasse as string | undefined;
+      if (p.strassenschluessel == null)
+        p.strassenschluessel = propsRec?.strassenschluessel as
+          | string
+          | number
+          | undefined;
+    }
+    for (const [key, p] of pending) {
+      const entry = merged.get(key);
+      if (entry) {
+        for (const id of p.ids) entry.deletedLeuchtenIds.add(id);
+        continue;
+      }
+      // A brand-new entry needs a base count + geometry to render its synthetic
+      // Standort; skip if no contributing draft supplied them.
+      if (p.geometry == null || p.count == null) continue;
+      merged.set(key, {
+        baseLeuchtenCount: p.count,
+        deletedLeuchtenIds: new Set(p.ids),
+        geometry: p.geometry,
+        lfdNummer: p.lfd,
+        // Carry the street so the synthetic Standort sorts into its block in the
+        // sidebar instead of jumping to the top of the list for lack of one.
+        strasse: p.strasse,
+        strassenschluessel: p.strassenschluessel,
+      });
     }
     return merged;
   }, [standortLeuchtenOverrides, allDraftsForMeasurementLink]);
@@ -905,11 +956,18 @@ const BelisMapLibWrapper = ({
         type: "Feature",
         id,
         properties: {
-          id,
+          // The *real* Standort DB id, not the prefixed map id above. The
+          // sidebar clusters Leuchten under their parent by matching this
+          // against `fk_standort`; the original Standort tile is hidden (see
+          // `leuchtenDeletionStandortIds`), so this synthetic is the only
+          // header left — a prefixed id here orphans it from its Leuchten.
+          id: standortId,
           _sourceLayer: "standorte",
           _isLeuchtenDeletionOverride: true,
           leuchten_count: remaining,
           lfd_nummer: ov.lfdNummer,
+          strasse: ov.strasse,
+          strassenschluessel: ov.strassenschluessel,
         },
         geometry: ov.geometry,
       } as unknown as GeoJSON.Feature);
@@ -1286,6 +1344,88 @@ const BelisMapLibWrapper = ({
       showDebugBounds: showRaw,
     });
 
+  // Sibling Leuchten of a Standort that has an open Leuchten-deletion override.
+  // The map cascade-hides every Leuchte of such a Standort so the single
+  // synthetic icon replaces the whole stacked cluster — but that also drops the
+  // siblings from `useVisibleMapFeatures` (queryRenderedFeatures respects the
+  // layer filter), which would otherwise leave the Fachobjekte cluster showing
+  // only the deleted row (you couldn't see — let alone delete — the rest).
+  //
+  // Capture them straight from the live `features` list: at the render the
+  // deletion draft is created, the hide filter hasn't repainted yet, so the
+  // siblings are still present in queryRenderedFeatures. We persist them by
+  // unioning into state, so they survive the repaint that strips them from
+  // `features`. Entries are pruned once their Standort no longer has an
+  // override (draft discarded / saved). The deleted Leuchte itself is skipped —
+  // its row is spliced in from `draftSidebarFeatures` (open draft) or genuinely
+  // gone (committed soft-delete). Using `features` (not querySourceFeatures)
+  // matters: querySourceFeatures returned empty here, leaving the cluster bare.
+  const [deletionSiblingLeuchten, setDeletionSiblingLeuchten] = useState<
+    SidebarFeature[]
+  >([]);
+  useEffect(() => {
+    const standortIdSet = new Set(
+      leuchtenDeletionStandortIds.map((n) => String(n))
+    );
+    if (standortIdSet.size === 0) {
+      setDeletionSiblingLeuchten((prev) => (prev.length ? [] : prev));
+      return;
+    }
+    const deletedLeuchtenIds = new Set(
+      (deletedFeatureIds.leuchten ?? []).map((n) => String(n))
+    );
+    setDeletionSiblingLeuchten((prev) => {
+      const byId = new Map<string, SidebarFeature>();
+      // Keep previously captured siblings whose Standort still has an override
+      // (so they don't vanish when the hide filter strips them from `features`),
+      // but drop any that have since become an open deletion draft or a
+      // committed soft-delete — those are represented by their own draft row /
+      // are gone, so keeping them here would double the row in the sidebar.
+      for (const f of prev) {
+        const fk = String(f.properties?.fk_standort ?? "");
+        if (!standortIdSet.has(fk)) continue;
+        const dbId = String(f.properties?.id ?? f.id ?? "");
+        if (!dbId) continue;
+        if (openDraftDbKeys.has(`leuchten:${Number(dbId)}`)) continue;
+        if (deletedLeuchtenIds.has(dbId)) continue;
+        byId.set(dbId, f);
+      }
+      // Capture freshly-visible siblings from the live viewport list.
+      for (const f of features) {
+        const sl = f.sourceLayer || String(f.properties?._sourceLayer ?? "");
+        if (sl !== "leuchten") continue;
+        const fk = String(f.properties?.fk_standort ?? "");
+        if (!standortIdSet.has(fk)) continue;
+        const dbId = String(f.properties?.id ?? f.id ?? "");
+        if (!dbId) continue;
+        // The deleted Leuchte is represented elsewhere (draft row) or removed.
+        if (openDraftDbKeys.has(`leuchten:${Number(dbId)}`)) continue;
+        if (deletedLeuchtenIds.has(dbId)) continue;
+        byId.set(
+          dbId,
+          Object.assign({}, f, {
+            source:
+              (f as unknown as { source?: string }).source ?? namespacedSource,
+            original: f,
+          }) as unknown as SidebarFeature
+        );
+      }
+      const out = [...byId.values()];
+      const sig = (list: SidebarFeature[]) =>
+        list
+          .map((f) => String(f.properties?.id ?? f.id))
+          .sort()
+          .join(",");
+      return sig(prev) === sig(out) ? prev : out;
+    });
+  }, [
+    leuchtenDeletionStandortIds,
+    features,
+    namespacedSource,
+    openDraftDbKeys,
+    deletedFeatureIds,
+  ]);
+
   // Sidebar mode: "karte" shows viewport features, "highlights" shows highlighted features
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>("fachobjekte");
 
@@ -1397,24 +1537,55 @@ const BelisMapLibWrapper = ({
     // already carries the synthetic draft Standort from the brandnew GeoJSON
     // layer; drop it so the expanded version from `draftSidebarFeatures`
     // wins (otherwise the Standort row would appear twice).
-    if (draftSidebarFeatures.length > 0) {
-      const nonDraftViewportFeatures = features.filter((f) => {
+    // Cascade-hidden sibling Leuchten of a deletion-override Standort (see
+    // `deletionSiblingLeuchten`) are re-added so the cluster stays complete.
+    const standortDeletionIdSet = new Set(
+      leuchtenDeletionStandortIds.map((n) => String(n))
+    );
+    const siblingsToAdd = deletionSiblingLeuchten;
+    // Viewport features minus rows represented elsewhere: open creation drafts,
+    // open non-creation draft copies, and any still-live Leuchte of a deletion-
+    // override Standort (those come from `siblingsToAdd`, so dropping them here
+    // is what prevents a transient filter race from doubling a row).
+    const filterViewport = (list: typeof features) =>
+      list.filter((f) => {
         if (f.properties?._isCreation === true) return false;
+        const sl = f.sourceLayer || String(f.properties?._sourceLayer ?? "");
+        const dbId = Number(f.properties?.id ?? f.id);
         // Drop the saved (brandnew-FC) copy of a feature that is currently open
         // as a non-creation draft — its row comes from `draftSidebarFeatures`.
-        if (openDraftDbKeys.size > 0) {
-          const sl = f.sourceLayer || String(f.properties?._sourceLayer ?? "");
-          const dbId = Number(f.properties?.id ?? f.id);
-          if (Number.isFinite(dbId) && openDraftDbKeys.has(`${sl}:${dbId}`)) {
-            return false;
-          }
+        if (
+          openDraftDbKeys.size > 0 &&
+          Number.isFinite(dbId) &&
+          openDraftDbKeys.has(`${sl}:${dbId}`)
+        ) {
+          return false;
+        }
+        if (
+          sl === "leuchten" &&
+          standortDeletionIdSet.has(String(f.properties?.fk_standort ?? ""))
+        ) {
+          return false;
         }
         return true;
       });
+    if (draftSidebarFeatures.length > 0) {
       return buildFromFeatures(
-        [...nonDraftViewportFeatures, ...draftSidebarFeatures],
+        [
+          ...filterViewport(features),
+          ...draftSidebarFeatures,
+          ...siblingsToAdd,
+        ],
         { isLoading, isOverviewMode }
       );
+    }
+    // No open drafts, but a committed deletion override may still be hiding
+    // siblings — re-add them so the cluster stays complete.
+    if (siblingsToAdd.length > 0) {
+      return buildFromFeatures([...filterViewport(features), ...siblingsToAdd], {
+        isLoading,
+        isOverviewMode,
+      });
     }
     return {
       features,
@@ -1429,6 +1600,8 @@ const BelisMapLibWrapper = ({
     adjustedHighlights,
     draftSidebarFeatures,
     openDraftDbKeys,
+    deletionSiblingLeuchten,
+    leuchtenDeletionStandortIds,
     features,
     countsByLayer,
     totalCount,

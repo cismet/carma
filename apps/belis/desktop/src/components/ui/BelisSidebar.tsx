@@ -536,24 +536,34 @@ const BelisSidebar = ({
       }
       merged.pairedStandortKeys = pairedStandortKeys;
 
-      // Sort clusters by street, then lfd_nummer
+      // Sort clusters by street, then lfd_nummer. Read each field from the
+      // Standort, falling back to its first Leuchte — a synthetic Standort
+      // (e.g. the Leuchten-deletion override) may carry no street, which would
+      // otherwise sort its whole cluster to the top instead of into its block.
+      const clusterStreet = (c: {
+        standort: SidebarFeature | null;
+        leuchten: SidebarFeature[];
+      }) =>
+        (
+          c.standort?.properties?.strasse ||
+          c.standort?.properties?.strassenschluessel ||
+          c.leuchten[0]?.properties?.strasse ||
+          c.leuchten[0]?.properties?.strassenschluessel ||
+          ""
+        ).toLowerCase();
+      const clusterNr = (c: {
+        standort: SidebarFeature | null;
+        leuchten: SidebarFeature[];
+      }) =>
+        Number(
+          c.standort?.properties?.lfd_nummer ??
+            c.leuchten[0]?.properties?.lfd_nummer
+        ) || 0;
       const sortedClusters = [...clusters.entries()].sort(([, a], [, b]) => {
-        const reprA = a.standort ?? a.leuchten[0];
-        const reprB = b.standort ?? b.leuchten[0];
-        const streetA = (
-          reprA?.properties?.strasse ||
-          reprA?.properties?.strassenschluessel ||
-          ""
-        ).toLowerCase();
-        const streetB = (
-          reprB?.properties?.strasse ||
-          reprB?.properties?.strassenschluessel ||
-          ""
-        ).toLowerCase();
+        const streetA = clusterStreet(a);
+        const streetB = clusterStreet(b);
         if (streetA !== streetB) return streetA.localeCompare(streetB);
-        const nrA = Number(reprA?.properties?.lfd_nummer) || 0;
-        const nrB = Number(reprB?.properties?.lfd_nummer) || 0;
-        return nrA - nrB;
+        return clusterNr(a) - clusterNr(b);
       });
 
       // Flatten: standort first, then leuchten sorted by leuchtennummer
