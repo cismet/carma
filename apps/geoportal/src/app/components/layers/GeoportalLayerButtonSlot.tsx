@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useState,
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from "react";
@@ -24,6 +25,7 @@ import { geoportalAnnotationModeText } from "../../config/geoportalTextConfig";
 
 import { removeLayer } from "../../store/slices/mapping";
 import { CESIUM_ANNOTATION_LAYER_ID } from "../annotations/cesium-annotations.constants";
+import { MeasurementDeleteConfirmationModal } from "../annotations/MeasurementDeleteConfirmationModal";
 import { MEASUREMENT_LAYER_ID } from "../../hooks/useMeasurementLayerButton";
 import {
   AdhocModelFlyToLayerbarAction,
@@ -124,21 +126,39 @@ const CesiumAnnotationLayerButton = (props: GeoportalLayerButtonProps) => {
 const MeasurementLayerButton = (props: GeoportalLayerButtonProps) => {
   const { layerbar } = geoportalAnnotationModeText;
   const { shapes, clearAllShapes } = useMapMeasurementsContext();
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
 
   return (
-    <GeoportalLayerButton
-      {...props}
-      actionSlot={
-        <div className="flex items-center">
-          <LayerButtonActionButton
-            title={layerbar.leafletMeasurements.deleteAll}
-            icon={<FontAwesomeIcon icon={faTrashCan} />}
-            disabled={shapes.length === 0}
-            onClick={clearAllShapes}
-          />
-        </div>
-      }
-    />
+    <>
+      <GeoportalLayerButton
+        {...props}
+        actionSlot={
+          <div className="flex items-center">
+            <LayerButtonActionButton
+              title={layerbar.leafletMeasurements.deleteAll}
+              icon={<FontAwesomeIcon icon={faTrashCan} />}
+              disabled={shapes.length === 0}
+              onClick={(event) => {
+                if (event.shiftKey) {
+                  clearAllShapes();
+                  return;
+                }
+                setShowDeleteConfirmation(true);
+              }}
+            />
+          </div>
+        }
+      />
+      <MeasurementDeleteConfirmationModal
+        show={showDeleteConfirmation}
+        count={shapes.length}
+        onConfirm={() => {
+          clearAllShapes();
+          setShowDeleteConfirmation(false);
+        }}
+        onCancel={() => setShowDeleteConfirmation(false)}
+      />
+    </>
   );
 };
 

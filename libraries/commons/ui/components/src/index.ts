@@ -79,6 +79,10 @@ export {
   type AnnotationCursorLayeredDomElementOptions,
   type AnnotationCursorShadowSvgElementOptions,
 } from "./lib/utils/annotation-cursor-dom";
+export {
+  DeleteConfirmationModal,
+  type DeleteConfirmationModalProps,
+} from "./lib/components/DeleteConfirmationModal";
 export { FileUploader } from "./lib/components/FileUploader";
 export { MODES } from "./lib/components/responsiveInfoBoxModes";
 export { uploadImage } from "./lib/utils/uploadImage";

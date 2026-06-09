@@ -7,7 +7,6 @@ import {
   type ReactNode,
 } from "react";
 import { useSelector } from "react-redux";
-import { Button, Modal } from "react-bootstrap";
 
 import { createDefaultAnnotationToolPlugins } from "@carma-mapping/annotations/builtin-tools";
 import {
@@ -28,6 +27,7 @@ import { getLayers } from "../../store/slices/mapping";
 import { getUIMode, UIMode } from "../../store/slices/ui";
 import CesiumAnnotationShortcutManager from "./CesiumAnnotationShortcutManager";
 import GeoportalLabelTextModal from "./GeoportalLabelTextModal";
+import { MeasurementDeleteConfirmationModal } from "./MeasurementDeleteConfirmationModal";
 import { CESIUM_ANNOTATION_LAYER_ID } from "./cesium-annotations.constants";
 
 type AnnotationProviderProps = {
@@ -76,35 +76,14 @@ const useGeoportalAnnotationDeleteConfirmation = () => {
     []
   );
 
-  const deleteConfirmationModal = pendingConfirmation ? (
-    <Modal
-      show
-      onHide={() => closeConfirmation(false)}
-      style={{ zIndex: 2900000000 }}
-      onKeyDown={(event) => event.stopPropagation()}
-    >
-      <Modal.Header closeButton>
-        <Modal.Title>
-          {pendingConfirmation.annotationCount === 1
-            ? "Messung löschen"
-            : "Messungen löschen"}
-        </Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        {pendingConfirmation.annotationCount === 1
-          ? "Möchten Sie diese Messung wirklich löschen?"
-          : `Möchten Sie diese ${pendingConfirmation.annotationCount} Messungen wirklich löschen?`}
-      </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={() => closeConfirmation(false)}>
-          Abbrechen
-        </Button>
-        <Button variant="danger" onClick={() => closeConfirmation(true)}>
-          Löschen
-        </Button>
-      </Modal.Footer>
-    </Modal>
-  ) : null;
+  const deleteConfirmationModal = (
+    <MeasurementDeleteConfirmationModal
+      show={pendingConfirmation !== null}
+      count={pendingConfirmation?.annotationCount ?? 0}
+      onConfirm={() => closeConfirmation(true)}
+      onCancel={() => closeConfirmation(false)}
+    />
+  );
 
   return {
     confirmAnnotationDelete,
