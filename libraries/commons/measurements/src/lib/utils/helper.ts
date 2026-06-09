@@ -131,6 +131,7 @@ export type ShapesToFeatureCollectionLayerInfo = {
   description?: string;
   keywords?: string[];
   metaDataText?: string;
+  thumbnail?: string;
 };
 
 type LabelFeature = {

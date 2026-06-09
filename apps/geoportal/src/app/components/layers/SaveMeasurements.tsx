@@ -77,6 +77,8 @@ function SaveMeasurements({ layer }: { layer: Layer }) {
       title: featureTitle,
       icon: `emoji:${selectedUnified}`,
       description: trimmedDescription,
+      thumbnail:
+        "https://wupp-digitaltwin-assets.cismet.de/v2/geoportal/thumbnails/measurements.png",
     });
 
     return { featureData, featureTitle, featureDescription };
@@ -122,8 +124,6 @@ function SaveMeasurements({ layer }: { layer: Layer }) {
       title: featureTitle,
       serviceName: "measurements",
       type: "object",
-      thumbnail:
-        "https://wupp-digitaltwin-assets.cismet.de/v2/geoportal/thumbnails/measurements.png",
       vectorStyle: JSON.stringify(featureData),
       tags: ["Messung", ...layerInfoTags],
       keywords: layerInfoKeywords,
