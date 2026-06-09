@@ -85,7 +85,12 @@ const featureCollectionConfig = {
 const featuresFormsConfig = {
   key: "@belis-desktop.featuresForms",
   storage: localForage,
-  whitelist: ["drafts", "permanentlyHiddenOriginalIds", "deletedFeatureIds"],
+  whitelist: [
+    "drafts",
+    "permanentlyHiddenOriginalIds",
+    "deletedFeatureIds",
+    "standortLeuchtenOverrides",
+  ],
 };
 
 const arbeitsauftraegeConfig = {

@@ -168,6 +168,7 @@ import {
   getAllDrafts,
   getBrandnewSuppressedEditIds,
   getDeletedFeatureIds,
+  getStandortLeuchtenOverrides,
   getDraftFeaturesCount,
   getDraftFetchedData,
   getEffectiveHiddenOriginalIds,
@@ -818,6 +819,115 @@ const BelisMapLibWrapper = ({
   // in the vector tiles (overnight rebuild) and the brandnew FC (server-side
   // regen) — filter them out of both layers, on both maps, until then.
   const deletedFeatureIds = useSelector(getDeletedFeatureIds);
+  // Per-Standort overrides recorded when a child Leuchte's deletion is
+  // *committed* (persisted, survive the save → draft-removal gap). The map hides
+  // the whole Standort cluster (cascade-hiding its Leuchten on both the vector
+  // tiles and the brandnew FC, see below) and renders one synthetic Standort
+  // with the decremented dot count.
+  const standortLeuchtenOverrides = useSelector(getStandortLeuchtenOverrides);
+
+  // Effective per-Standort decrement: the committed overrides above PLUS a live
+  // preview from every open pending-deletion Leuchte draft. Marking a Leuchte
+  // for deletion must shrink its Standort's stacked icon immediately (before
+  // "Speichern"), and "zurücksetzen" (draft discard) must restore it — both fall
+  // out of reading the open drafts here. Keyed by Standort id (string). The
+  // committed override is folded in first so its captured base count (taken
+  // before any deletion) wins; the draft only adds the Leuchte to the deleted
+  // set. Geometry is the Leuchte position (Leuchten stack on their Standort).
+  const effectiveStandortLeuchtenOverrides = useMemo(() => {
+    const merged = new Map<
+      string,
+      {
+        baseLeuchtenCount: number;
+        deletedLeuchtenIds: Set<number>;
+        geometry: GeoJSON.Geometry;
+        lfdNummer?: string | number;
+      }
+    >();
+    for (const [standortId, ov] of Object.entries(standortLeuchtenOverrides)) {
+      if (!ov.geometry) continue;
+      merged.set(String(standortId), {
+        baseLeuchtenCount: ov.baseLeuchtenCount,
+        deletedLeuchtenIds: new Set(ov.deletedLeuchtenIds),
+        geometry: ov.geometry,
+        lfdNummer: ov.lfdNummer,
+      });
+    }
+    for (const draft of Object.values(allDraftsForMeasurementLink)) {
+      if (!draft.pendingDeletion || draft.featureType !== "leuchte") continue;
+      const props = (draft.feature?.properties ?? {}) as Record<
+        string,
+        unknown
+      >;
+      const standortId = props.fk_standort;
+      const geometry = draft.feature?.geometry as GeoJSON.Geometry | undefined;
+      const leuchteId = draft.featureDbId;
+      if (
+        standortId == null ||
+        geometry == null ||
+        leuchteId == null ||
+        !Number.isFinite(Number(leuchteId))
+      )
+        continue;
+      const key = String(standortId);
+      let entry = merged.get(key);
+      if (!entry) {
+        const rawCount = props.leuchten_count;
+        if (rawCount == null || !Number.isFinite(Number(rawCount))) continue;
+        entry = {
+          baseLeuchtenCount: Number(rawCount),
+          deletedLeuchtenIds: new Set<number>(),
+          geometry,
+          lfdNummer: props.lfd_nummer as string | number | undefined,
+        };
+        merged.set(key, entry);
+      }
+      entry.deletedLeuchtenIds.add(Number(leuchteId));
+    }
+    return merged;
+  }, [standortLeuchtenOverrides, allDraftsForMeasurementLink]);
+
+  // Synthetic Standort features carrying the post-deletion `leuchten_count`.
+  // One per affected Standort, positioned at the captured Standort geometry.
+  // Both maps push these into the brandnew GeoJSON source (below), where the
+  // brandnew `standorte` style renders them by `_sourceLayer` + `leuchten_count`
+  // — the same path the "+ Leuchte zu Standort N" synthetic Standort uses.
+  const leuchtenDeletionStandortFeatures = useMemo<GeoJSON.Feature[]>(() => {
+    const out: GeoJSON.Feature[] = [];
+    for (const [standortId, ov] of effectiveStandortLeuchtenOverrides) {
+      if (!ov.geometry) continue;
+      const remaining = Math.max(
+        0,
+        ov.baseLeuchtenCount - ov.deletedLeuchtenIds.size
+      );
+      const id = `standort-leuchten-del:${standortId}`;
+      out.push({
+        type: "Feature",
+        id,
+        properties: {
+          id,
+          _sourceLayer: "standorte",
+          _isLeuchtenDeletionOverride: true,
+          leuchten_count: remaining,
+          lfd_nummer: ov.lfdNummer,
+        },
+        geometry: ov.geometry,
+      } as unknown as GeoJSON.Feature);
+    }
+    return out;
+  }, [effectiveStandortLeuchtenOverrides]);
+
+  // Standort DB ids whose original cluster must be hidden so the synthetic
+  // override above is the only icon left at that position. Consumed by both the
+  // vector-tile filter (`hiddenOriginalIds`, with its leuchten cascade) and the
+  // brandnew-FC filter (`visibleBrandnewFeatures`).
+  const leuchtenDeletionStandortIds = useMemo<number[]>(
+    () =>
+      [...effectiveStandortLeuchtenOverrides.keys()]
+        .map((k) => Number(k))
+        .filter((n) => Number.isFinite(n)),
+    [effectiveStandortLeuchtenOverrides]
+  );
 
   // Map-ready draft features for the brandnew GeoJSON source. A Leuchten
   // creation draft stores a single `_sourceLayer: "leuchten"` synthetic, but
@@ -971,6 +1081,11 @@ const BelisMapLibWrapper = ({
     // Committed soft-deletes: hide the lingering vector-tile row until the
     // overnight rebuild drops it. Persisted, so it survives reloads.
     for (const [sl, ids] of Object.entries(deletedFeatureIds)) add(sl, ids);
+    // Leuchte-deletion overrides: hide each affected Standort. The leuchten
+    // cascade in applyHiddenIdsFilter then also hides every Leuchte of that
+    // Standort, collapsing the whole stack to the single decremented synthetic
+    // Standort rendered via the brandnew source.
+    add("standorte", leuchtenDeletionStandortIds);
     const out: HiddenOriginalIds = {};
     for (const [sl, set] of Object.entries(merged)) {
       if (set.size > 0) out[sl] = [...set];
@@ -981,6 +1096,7 @@ const BelisMapLibWrapper = ({
     brandnewHiddenOriginalIds,
     geometryEditHiddenOriginalIds,
     deletedFeatureIds,
+    leuchtenDeletionStandortIds,
   ]);
 
   // Active-draft-only hidden ids (excludes `permanentlyHiddenOriginalIds`).
@@ -1051,6 +1167,11 @@ const BelisMapLibWrapper = ({
     // own id (handled below), unlike the Standort-cascade hides above.
     for (const [sl, ids] of Object.entries(deletedFeatureIds))
       addHidden(sl, ids);
+    // Leuchte-deletion overrides: hide the affected Standort's brandnew copy
+    // (and, via the standorte cascade below, its brandnew Leuchten) so only the
+    // decremented synthetic Standort remains. Mirrors the vector-tile hide in
+    // `hiddenOriginalIds`.
+    addHidden("standorte", leuchtenDeletionStandortIds);
     const hiddenStandorteIds = hidden.standorte ?? new Set<number>();
     const hiddenLeuchtenIds = hidden.leuchten ?? new Set<number>();
     const hasAnyHidden = Object.values(hidden).some((set) => set.size > 0);
@@ -1080,6 +1201,7 @@ const BelisMapLibWrapper = ({
     activeDraftHiddenOriginalIds,
     brandnewSuppressedEditIds,
     deletedFeatureIds,
+    leuchtenDeletionStandortIds,
   ]);
 
   // A fresh brandnew FC has landed (md5 changed — `useBrandnewFcSync` only
@@ -2773,7 +2895,10 @@ const BelisMapLibWrapper = ({
     }
 
     const features: GeoJSON.Feature[] = [...visibleBrandnewFeatures];
-    for (const feature of draftBrandnewFeatures) {
+    for (const feature of [
+      ...draftBrandnewFeatures,
+      ...leuchtenDeletionStandortFeatures,
+    ]) {
       if (!feature.geometry) continue;
       // Numeric feature id so MapLibre can attach selection feature-state
       // (geojson sources reject string ids). properties.id stays the key.
@@ -2789,6 +2914,7 @@ const BelisMapLibWrapper = ({
     brandnewLayerEnabled,
     brandnewSource,
     draftBrandnewFeatures,
+    leuchtenDeletionStandortFeatures,
     visibleBrandnewFeatures,
     sidebarVariant,
   ]);
@@ -2878,7 +3004,10 @@ const BelisMapLibWrapper = ({
     }
 
     const features: GeoJSON.Feature[] = [...visibleBrandnewFeatures];
-    for (const feature of draftBrandnewFeatures) {
+    for (const feature of [
+      ...draftBrandnewFeatures,
+      ...leuchtenDeletionStandortFeatures,
+    ]) {
       if (!feature.geometry) continue;
       // Numeric feature id so MapLibre can attach selection feature-state
       // (geojson sources reject string ids). properties.id stays the key.
@@ -2893,6 +3022,7 @@ const BelisMapLibWrapper = ({
     miniMapReady,
     brandnewSource,
     draftBrandnewFeatures,
+    leuchtenDeletionStandortFeatures,
     visibleBrandnewFeatures,
     sidebarVariant,
   ]);
