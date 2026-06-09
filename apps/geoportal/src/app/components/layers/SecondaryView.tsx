@@ -66,7 +66,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
   const layer =
     selectedLayerIndex >= 0 ? layers[selectedLayerIndex] : backgroundLayer;
   const vectorLegend =
-    layer.conf.vectorLegend ||
+    layer?.conf?.vectorLegend ||
     (layer?.layerInfo?.vectorLegend as string) ||
     layer?.other?.vectorLegend;
   const legend =
