@@ -170,7 +170,6 @@ function SaveMeasurements({ layer }: { layer: Layer }) {
 
     resetForm();
     dispatch(setActiveInteractionLayerID(null));
-    dispatch(setUIMode(UIMode.DEFAULT));
   };
 
   const emojiPicker = (
