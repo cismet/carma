@@ -248,6 +248,15 @@ const FeaturesFormsWrapper = ({
   // on the draft itself, since opening the creation draft replaces
   // selectedFeature in Redux and the original Standort selection is lost.
   const formKey = featureType ? featureTypeToFormKey[featureType] : undefined;
+
+  // A Leitung is a LineString; every other BelIS feature is a Point. This
+  // drives which measurement geometries the selectors (both creation and
+  // geometry edit) are allowed to offer: only LineStrings for a Leitung form,
+  // only Points for every other form — a line can't back a point feature and
+  // vice versa.
+  const featureGeometryType: "Point" | "LineString" =
+    formKey === "leitung" ? "LineString" : "Point";
+
   const standortOption = useMemo<MeasurementGeometryOption | null>(() => {
     if (!isCreation || formKey !== "leuchte") return null;
     const geometryKey = draft?.geometryKey;
@@ -324,16 +333,24 @@ const FeaturesFormsWrapper = ({
   }, [allDrafts, featureId]);
 
   const geometryOptions = useMemo(() => {
-    const measurementOpts = buildMeasurementGeometryOptions(measurements).filter(
-      (o) => !consumedByOtherDrafts.has(o.key)
-    );
+    const measurementOpts = buildMeasurementGeometryOptions(measurements)
+      // Only offer measurements of the form's own geometry type: LineStrings
+      // for a Leitung, Points for every other feature.
+      .filter((o) => o.geometry.type === featureGeometryType)
+      .filter((o) => !consumedByOtherDrafts.has(o.key));
     const base = standortOption
       ? [standortOption, ...measurementOpts]
       : measurementOpts;
     // This draft's own assigned-and-deleted measurement, prepended so the
     // Select can render its label and the value-match logic resolves it.
     return measurementOption ? [measurementOption, ...base] : base;
-  }, [measurements, standortOption, measurementOption, consumedByOtherDrafts]);
+  }, [
+    measurements,
+    standortOption,
+    measurementOption,
+    consumedByOtherDrafts,
+    featureGeometryType,
+  ]);
 
   // --- Geometry edit ("change an existing feature's shape to a measurement").
   // The feature's own geom row id + geometry are pulled from the fetched DB
@@ -352,12 +369,6 @@ const FeaturesFormsWrapper = ({
   ]);
   const isGeometryEditFeature =
     !isCreation && !!formKey && GEOMETRY_EDIT_FORM_KEYS.has(formKey);
-
-  // Leitungen are LineString features; every other geometry-edit feature is a
-  // Point. This drives which measurement geometries the selector offers and
-  // which "Momentane Geometrie" shape is built.
-  const editGeometryType: "Point" | "LineString" =
-    formKey === "leitung" ? "LineString" : "Point";
 
   const editFeatureRecord = useMemo(() => {
     if (!isGeometryEditFeature || !formKey || !data) return undefined;
@@ -388,7 +399,7 @@ const FeaturesFormsWrapper = ({
   const editGeometryOptions = useMemo<MeasurementGeometryOption[]>(() => {
     if (!isGeometryEditFeature) return [];
     const measurementOpts = buildMeasurementGeometryOptions(measurements)
-      .filter((o) => o.geometry.type === editGeometryType)
+      .filter((o) => o.geometry.type === featureGeometryType)
       .filter((o) => !consumedByOtherDrafts.has(o.key));
     const opts: MeasurementGeometryOption[] = [];
     if (currentGeometryOption) opts.push(currentGeometryOption);
@@ -401,7 +412,7 @@ const FeaturesFormsWrapper = ({
     return opts;
   }, [
     isGeometryEditFeature,
-    editGeometryType,
+    featureGeometryType,
     measurements,
     consumedByOtherDrafts,
     currentGeometryOption,
