@@ -6,7 +6,7 @@ import {
 import { useDispatch } from "react-redux";
 
 import {
-  faDownload,
+  faFloppyDisk,
   faTimes,
   faTrashCan,
 } from "@fortawesome/free-solid-svg-icons";
@@ -93,7 +93,7 @@ const CesiumAnnotationLayerButton = (props: GeoportalLayerButtonProps) => {
           />
           <LayerButtonActionButton
             title={layerbar.cesiumAnnotations.exportAllGeoJson}
-            icon={<FontAwesomeIcon icon={faDownload} />}
+            icon={<FontAwesomeIcon icon={faFloppyDisk} />}
             disabled={!hasAnnotations}
             onClick={exportAllAnnotationsGeoJson}
           />

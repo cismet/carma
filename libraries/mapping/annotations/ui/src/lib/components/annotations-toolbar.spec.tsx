@@ -17,7 +17,7 @@ describe("AnnotationsToolbar", () => {
           {
             id: "select",
             label: "Auswahl",
-            tooltip: "Messungen auswählen",
+            tooltip: "Messung auswählen",
             disabled: true,
           },
           {
@@ -30,7 +30,7 @@ describe("AnnotationsToolbar", () => {
     );
 
     const selectButton = screen.getByRole("button", {
-      name: "Messungen auswählen",
+      name: "Messung auswählen",
     });
     expect((selectButton as HTMLButtonElement).disabled).toBe(true);
 

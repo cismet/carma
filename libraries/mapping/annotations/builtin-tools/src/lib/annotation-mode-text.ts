@@ -188,7 +188,7 @@ export const defaultAnnotationToolTexts = {
   },
   select: {
     label: "Auswahl",
-    tooltip: "Messungen auswählen",
+    tooltip: "Messung auswählen",
     helpText: [
       "Messungen oder Anmerkungen anklicken, um sie auszuwählen.",
       "Langes Drücken auf einen Punkt öffnet den Editiermodus.",
@@ -319,8 +319,8 @@ export const defaultAnnotationModeText = {
   },
   layerbar: {
     cesiumAnnotations: {
-      focusAll: "Alle Messungen fokussieren",
-      exportAllGeoJson: "Alle Messungen als GeoJSON herunterladen",
+      focusAll: "Alle Messungen anzeigen",
+      exportAllGeoJson: "Alle Messungen speichern",
       deleteAll: "Alle Messungen löschen",
     },
     leafletMeasurements: {
