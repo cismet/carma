@@ -340,15 +340,25 @@ const BelisSidebar = ({
     sourceLayer?: string;
     id?: string | number;
   } | null>(null);
+  // Tracks the last sidebar tab so a tab switch can re-reveal the selection.
+  const prevSidebarModeRef = useRef(sidebarMode);
 
   // Scroll selected item into view only when selection comes from map (not list)
 
   useEffect(() => {
     if (!selectedFeatureId) return;
 
+    // A tab switch (e.g. Entwürfe → Fachobjekte) must re-reveal the active
+    // selection even though it didn't change — the user navigated back to this
+    // list expecting to see the edited feature. Bypass the list-click guard on
+    // any mode transition; otherwise the row would stay scrolled off the top.
+    const modeChanged = prevSidebarModeRef.current !== sidebarMode;
+    prevSidebarModeRef.current = sidebarMode;
+
     // Skip scroll if this selection was triggered from list click
     const listSelection = selectionFromListRef.current;
     if (
+      !modeChanged &&
       listSelection &&
       listSelection.source === selectedFeatureId.source &&
       listSelection.sourceLayer === selectedFeatureId.sourceLayer &&
@@ -360,14 +370,29 @@ const BelisSidebar = ({
     // Clear the ref since a different feature was selected (from map)
     selectionFromListRef.current = null;
 
-    const selectedFeature = filteredFeatures.find(
-      (f) =>
+    // Match the same way the row highlight does (see `isFeatureSelected`):
+    // an MVT triple match, OR a DB-pk match that ignores `source`. The latter
+    // is what locates a draft/brandnew row — it carries a different `source`
+    // and MVT id than the selection but the same DB pk on `properties.id`, so
+    // a source-bound find would miss it and the list would never scroll.
+    const selectedFeature = filteredFeatures.find((f) => {
+      if (
         f.source === selectedFeatureId.source &&
         f.sourceLayer === selectedFeatureId.sourceLayer &&
-        (String(f.id) === String(selectedFeatureId.id) ||
-          (selectedDatabaseId != null &&
-            String(f.id) === String(selectedDatabaseId)))
-    );
+        selectedFeatureId.id != null &&
+        String(f.id) === String(selectedFeatureId.id)
+      ) {
+        return true;
+      }
+      if (
+        selectedFeatureId.sourceLayer === f.sourceLayer &&
+        selectedDatabaseId != null
+      ) {
+        const dbPk = f.properties?.id;
+        return dbPk != null && String(selectedDatabaseId) === String(dbPk);
+      }
+      return false;
+    });
 
     if (selectedFeature) {
       const sl =
@@ -404,6 +429,7 @@ const BelisSidebar = ({
     selectedDatabaseId,
     filteredFeatures,
     collapsedGroups,
+    sidebarMode,
   ]);
 
   // Layers that are merged into a single "Standorte / Leuchten" group
@@ -428,6 +454,11 @@ const BelisSidebar = ({
         total: number;
         label?: string;
         indentLeuchten?: boolean;
+        // fk_standort keys whose Standort parent is actually present in this
+        // list. A Leuchte only indents when its cluster has a parent here — so
+        // an edited Leuchte draft (parent comes from the viewport) nests, while
+        // a genuinely orphaned Leuchte stays flush.
+        pairedStandortKeys?: Set<string>;
       }
     > = {};
 
@@ -496,6 +527,14 @@ const BelisSidebar = ({
           clusters.set(key, cluster);
         }
       }
+
+      // Remember which clusters actually have a Standort parent in this list.
+      // Drives indentation: a Leuchte nests only under a present parent.
+      const pairedStandortKeys = new Set<string>();
+      for (const [key, cluster] of clusters) {
+        if (cluster.standort) pairedStandortKeys.add(key);
+      }
+      merged.pairedStandortKeys = pairedStandortKeys;
 
       // Sort clusters by street, then lfd_nummer
       const sortedClusters = [...clusters.entries()].sort(([, a], [, b]) => {
@@ -923,7 +962,9 @@ const BelisSidebar = ({
                         className={`group relative px-3 py-2 cursor-pointer border-b border-gray-100 ${
                           group.indentLeuchten &&
                           feature.sourceLayer === "leuchten" &&
-                          !feature.properties?._noIndent
+                          group.pairedStandortKeys?.has(
+                            String(feature.properties?.fk_standort)
+                          )
                             ? "pl-8"
                             : "pl-4"
                         } ${
