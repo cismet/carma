@@ -7,6 +7,7 @@ import {
   type PlanarPolygonPlane,
 } from "@carma-mapping/annotations/core";
 import type { CesiumGeographicCoordinate } from "@carma-mapping/annotations/runtime";
+import { canAppendAreaPointWithoutActualEdgeCrossing } from "@carma-mapping/annotations/runtime";
 import { Cartesian3 } from "@carma-cesium";
 import {
   hasPolygonSelfIntersection2d,
@@ -250,7 +251,9 @@ export const canResolveAreaPlanarProjectedPolygon = ({
     if (previousResult) {
       const positionsProjectedOnActivePlane = coordinates
         .map(cartesian3FromGeographicCoordinate)
-        .map((position) => projectPointOntoPlane(position, previousResult.plane));
+        .map((position) =>
+          projectPointOntoPlane(position, previousResult.plane)
+        );
       if (
         !isProjectedPolygonValidOnPlane(
           positionsProjectedOnActivePlane,
@@ -318,11 +321,13 @@ export const canAppendAreaPlanarProjectedPoint = ({
     });
   }
 
-  const previousPrefixResult = resolveLastValidAreaPlanarProjectionPrefixResult({
-    coordinates: previousCoordinates,
-    mode,
-    preferredFacingPositionECEF,
-  });
+  const previousPrefixResult = resolveLastValidAreaPlanarProjectionPrefixResult(
+    {
+      coordinates: previousCoordinates,
+      mode,
+      preferredFacingPositionECEF,
+    }
+  );
   if (!previousPrefixResult) {
     return false;
   }
@@ -331,6 +336,26 @@ export const canAppendAreaPlanarProjectedPoint = ({
   const projectedOnPreviousPlane = coordinates
     .map(cartesian3FromGeographicCoordinate)
     .map((position) => projectPointOntoPlane(position, previousResult.plane));
+  const projectedPreviousCoordinates = previousCoordinates.map((coordinate) =>
+    geographicCoordinateFromCartesian3(
+      projectPointOntoPlane(
+        cartesian3FromGeographicCoordinate(coordinate),
+        previousResult.plane
+      )
+    )
+  );
+  const projectedCoordinates = projectedOnPreviousPlane.map(
+    geographicCoordinateFromCartesian3
+  );
+  if (
+    !canAppendAreaPointWithoutActualEdgeCrossing({
+      previousCoordinates: projectedPreviousCoordinates,
+      nextCoordinates: projectedCoordinates,
+    })
+  ) {
+    return false;
+  }
+
   if (
     hasPolylineRetracedSegment2d({
       points: projectPositionsToPlane2d(

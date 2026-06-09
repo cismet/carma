@@ -52,6 +52,10 @@ import {
   type MeasurementLineStyleOptions,
 } from "../config/measurement-line-style-options";
 import { createHorizontalLinePreviewController } from "./create-horizontal-line-preview-controller";
+import {
+  AREA_EDGE_CROSSING_PROJECTION_MODES,
+  canAppendAreaPointWithoutActualEdgeCrossing,
+} from "./area-edge-crossing.helpers";
 
 const DRAFT_CHAIN_OVERLAY_LAYER_ID =
   "annotation-overlay-draft-chain-preview-layer";
@@ -346,6 +350,10 @@ export const createPolygonAuthoringController = ({
     toolType === ANNOTATION_TYPE_AREA_GROUND
       ? RUNTIME_POLYGON_FILL_PLACEMENT.GROUND
       : RUNTIME_POLYGON_FILL_PLACEMENT.COPLANAR;
+  const areaEdgeCrossingProjectionMode =
+    toolType === ANNOTATION_TYPE_AREA_GROUND
+      ? AREA_EDGE_CROSSING_PROJECTION_MODES.GROUND_GEODESIC
+      : AREA_EDGE_CROSSING_PROJECTION_MODES.AREA_PLANE;
   const resolvedLineStyleOptions = resolveMeasurementLineStyleOptions(
     measurementLineStyleOptions
   );
@@ -456,13 +464,28 @@ export const createPolygonAuthoringController = ({
             })
           : coordinates
       );
-    const resolvedSampleCoordinates = resolveCoordinates(sampleCoordinates, {
+    const rawResolvedSampleCoordinates = resolveCoordinates(sampleCoordinates, {
       inputModifier: pointQueryPickResult?.inputModifier,
     });
     const resolvedDraftCoordinates =
       resolveMeasurementCoordinates && hoverCoordinate
         ? resolveCoordinates(draftCoordinates)
         : null;
+    const sampleLineCoordinates =
+      rawResolvedSampleCoordinates?.lineCoordinates ?? null;
+    const sampleRejectedByActualEdgeCrossing = Boolean(
+      hoverCoordinate &&
+        sampleLineCoordinates &&
+        !canAppendAreaPointWithoutActualEdgeCrossing({
+          previousCoordinates:
+            resolvedDraftCoordinates?.lineCoordinates ?? draftCoordinates,
+          nextCoordinates: sampleLineCoordinates,
+          projectionMode: areaEdgeCrossingProjectionMode,
+        })
+    );
+    const resolvedSampleCoordinates = sampleRejectedByActualEdgeCrossing
+      ? null
+      : rawResolvedSampleCoordinates;
     const resolvedMeasurementCoordinates =
       resolvedSampleCoordinates ?? resolvedDraftCoordinates;
     const isSamplingInitialSegment =
@@ -470,24 +493,30 @@ export const createPolygonAuthoringController = ({
       sampleCoordinates.length < 3;
     const lineCoordinates =
       resolvedMeasurementCoordinates?.lineCoordinates ??
-      (isSamplingInitialSegment || !resolveMeasurementCoordinates
+      (sampleRejectedByActualEdgeCrossing
+        ? draftCoordinates
+        : isSamplingInitialSegment || !resolveMeasurementCoordinates
         ? sampleCoordinates
         : draftCoordinates);
-    const fillCoordinates =
-      !resolveMeasurementCoordinates
-        ? sampleCoordinates
-        : isSamplingInitialSegment
-        ? null
-        : resolvedMeasurementCoordinates?.fillCoordinates ?? null;
-    const fillCoordinateRings =
-      !resolveMeasurementCoordinates
-        ? [sampleCoordinates]
-        : isSamplingInitialSegment
-        ? []
-        : resolvedMeasurementCoordinates?.fillCoordinateRings ??
-          (fillCoordinates ? [fillCoordinates] : []);
+    const fillCoordinates = sampleRejectedByActualEdgeCrossing
+      ? null
+      : !resolveMeasurementCoordinates
+      ? sampleCoordinates
+      : isSamplingInitialSegment
+      ? null
+      : resolvedMeasurementCoordinates?.fillCoordinates ?? null;
+    const fillCoordinateRings = sampleRejectedByActualEdgeCrossing
+      ? []
+      : !resolveMeasurementCoordinates
+      ? [sampleCoordinates]
+      : isSamplingInitialSegment
+      ? []
+      : resolvedMeasurementCoordinates?.fillCoordinateRings ??
+        (fillCoordinates ? [fillCoordinates] : []);
     const markerCoordinates = isSamplingInitialSegment
       ? resolvedSampleCoordinates?.markerCoordinates ?? lineCoordinates
+      : sampleRejectedByActualEdgeCrossing
+      ? draftCoordinates
       : resolvedSampleCoordinates || !hoverCoordinate
       ? sampleCoordinates
       : draftCoordinates;

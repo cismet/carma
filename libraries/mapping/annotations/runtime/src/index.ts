@@ -145,6 +145,16 @@ export {
   resolvePreviewDistanceTriangleComponentLabelVisibility,
 } from "./lib/interaction/authoring-visual-runtime";
 export {
+  AREA_EDGE_CROSSING_PROJECTION_MODES,
+  canAppendAreaPointWithoutActualEdgeCrossing,
+  hasActualAreaEdgeCrossing,
+} from "./lib/interaction/area-edge-crossing.helpers";
+export type {
+  AreaEdgeCrossingProjectionMode,
+  CanAppendAreaPointWithoutActualEdgeCrossingOptions,
+  HasActualAreaEdgeCrossingOptions,
+} from "./lib/interaction/area-edge-crossing.helpers";
+export {
   createPolygonAuthoringController,
   type PolygonAuthoringMeasurementCoordinatesResolver,
 } from "./lib/interaction/create-polygon-authoring-controller";

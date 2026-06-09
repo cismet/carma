@@ -5,7 +5,11 @@ import {
   resolveAnnotationCommonShortcutAction,
   ANNOTATION_TYPES,
 } from "@carma-mapping/annotations/core";
-import { createPolygonAuthoringController } from "@carma-mapping/annotations/runtime";
+import {
+  AREA_EDGE_CROSSING_PROJECTION_MODES,
+  canAppendAreaPointWithoutActualEdgeCrossing,
+  createPolygonAuthoringController,
+} from "@carma-mapping/annotations/runtime";
 import { RUNTIME_POLYGON_FILL_PLACEMENT } from "@carma-mapping/annotations/runtime";
 import { ANNOTATION_TOOL_PLUGIN_CAPABILITIES } from "@carma-mapping/annotations/runtime";
 import {
@@ -34,6 +38,8 @@ const { AREA_GROUND: ANNOTATION_TYPE_AREA_GROUND } = ANNOTATION_TYPES;
 
 const toolType = ANNOTATION_TYPE_AREA_GROUND;
 const labelTheme = ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME;
+const AREA_GROUND_REJECTED_POINT_FEEDBACK =
+  "Der letzte Punkt wurde nicht übernommen: Die neue Kante würde die Fläche schneiden.";
 
 export type AreaGroundToolPluginOptions = {
   occlusionStyleOptions?: AreaOcclusionStyleOptions;
@@ -117,7 +123,26 @@ export const createAreaGroundToolPlugin = ({
               currentDraft.linkedNodeGroupIds,
               linkedNodeGroupId ?? null
             ),
+            feedback: null,
           };
+          if (
+            !canAppendAreaPointWithoutActualEdgeCrossing({
+              previousCoordinates: currentDraft.coordinates,
+              nextCoordinates: nextDraft.coordinates,
+              projectionMode:
+                AREA_EDGE_CROSSING_PROJECTION_MODES.GROUND_GEODESIC,
+            })
+          ) {
+            drafts.set(toolType, {
+              ...currentDraft,
+              feedback: {
+                kind: "warning",
+                message: AREA_GROUND_REJECTED_POINT_FEEDBACK,
+              },
+            });
+            return;
+          }
+
           drafts.set(toolType, nextDraft);
         },
         finishesOnLoopClosure: true,

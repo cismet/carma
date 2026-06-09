@@ -36,6 +36,8 @@ export {
   defined,
   EasingFunction,
   Ellipsoid,
+  EllipsoidGeodesic,
+  EllipsoidTangentPlane,
   EllipsoidTerrainProvider,
   GeometryInstance,
   Globe,

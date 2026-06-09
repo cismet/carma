@@ -13,12 +13,7 @@ import {
   resolveAreaPlanarProjectedCoordinates,
 } from "./area-planar-projection";
 
-const offsetPosition = (
-  anchor: Cartesian3,
-  x: number,
-  y: number,
-  z: number
-) =>
+const offsetPosition = (anchor: Cartesian3, x: number, y: number, z: number) =>
   Cartesian3.add(anchor, new Cartesian3(x, y, z), new Cartesian3());
 
 const expectCoordinatesNearPositions = (
@@ -86,7 +81,7 @@ describe("area planar projection", () => {
     ).toBe(false);
   });
 
-  it("allows bowtie append lines while keeping fill on the last valid prefix", () => {
+  it("rejects append lines when the new actual edge crosses an older edge", () => {
     const anchor = Cartesian3.fromDegrees(7, 51, 100);
     const previousPositions = [
       offsetPosition(anchor, 0, 0, 0),
@@ -108,7 +103,7 @@ describe("area planar projection", () => {
         mode: AREA_PLANAR_PROJECTION_MODES.FIRST_NON_COLLINEAR_TRIANGLE,
         maxPlaneNormalChangeDeg: null,
       })
-    ).toBe(true);
+    ).toBe(false);
     expect(
       canResolveAreaPlanarProjectedPolygon({
         coordinates,
@@ -125,12 +120,7 @@ describe("area planar projection", () => {
       maxPlaneNormalChangeDeg: null,
     });
 
-    expect(preview?.lineCoordinates).toHaveLength(4);
-    expect(preview?.fillCoordinateRings).toHaveLength(1);
-    expectCoordinatesNearPositions(
-      preview?.fillCoordinates ?? [],
-      previousPositions
-    );
+    expect(preview).toBeNull();
   });
 
   it("allows appending a point when only the virtual close segment intersects", () => {
