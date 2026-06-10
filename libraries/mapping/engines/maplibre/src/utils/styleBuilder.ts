@@ -127,7 +127,7 @@ export const styleManipulation = (
   markerSymbolSize: number,
   style: StyleSpecification
 ): StyleSpecification => {
-  const scale = (markerSymbolSize / 35) * 1.35;
+  const scale = markerSymbolSize / 35;
   const newStyle = JSON.parse(JSON.stringify(style)) as StyleSpecification;
 
   if (newStyle.layers) {

@@ -83,7 +83,7 @@ function applySymbolScaling(
   markerSymbolSize: number
 ): void {
   if (layer.type !== "symbol") return;
-  const scale = (markerSymbolSize / 35) * 1.35;
+  const scale = markerSymbolSize / 35;
   const layout = (
     layer as LayerSpecification & { layout?: Record<string, unknown> }
   ).layout;

@@ -46,15 +46,6 @@ const statusColor = [
   statusFallbackRgba(STATUS_COLOR_ALPHA),
 ] as unknown as string;
 
-// CARMA's StyleComposer silently multiplies every symbol layer's icon-size by
-// `(markerSymbolSize / 35) * 1.35` when it loads styleY.json (see
-// libraries/mapping/engines/maplibre/src/utils/styleComposer.ts). belis
-// desktop uses the default markerSymbolSize (35), so the scale is 1.35. Our
-// hand-written symbol layers bypass the composer, so to render at the same
-// on-screen size as the Fachobjekte icons we apply the same factor here —
-// both to iconSize and to circleRadius (so the halo stays proportional).
-const COMPOSER_ICON_SCALE = 1.35;
-
 // Selection no longer changes point geometry: a dedicated Icon_Full underlay
 // layer (see the *-selection entries below) visualizes the selection instead.
 //
@@ -86,11 +77,11 @@ const buildCircleRadius = (halfPx: number) => {
     ["linear"],
     ["zoom"],
     10,
-    h * 0.05 * COMPOSER_ICON_SCALE,
+    h * 0.05,
     16,
-    h * 0.3 * COMPOSER_ICON_SCALE,
+    h * 0.3,
     23,
-    h * 0.6 * COMPOSER_ICON_SCALE,
+    h * 0.6,
   ] as unknown as number;
 };
 
@@ -159,20 +150,19 @@ const buildCirclePaint = (type: PointType) => ({
 
 /**
  * Zoom-based icon sizing, copied from the main Fachobjekte styleY.json
- * (leuchten-icon layer), then multiplied by COMPOSER_ICON_SCALE so protocol
- * icons render at the same on-screen size as Fachobjekte icons (the composer
- * applies the same factor to styleY's layers on the way in).
+ * (leuchten-icon layer) so protocol icons render at the same on-screen size
+ * as Fachobjekte icons.
  */
 const iconSize = [
   "interpolate",
   ["linear"],
   ["zoom"],
   10,
-  0.05 * COMPOSER_ICON_SCALE,
+  0.05,
   16,
-  0.3 * COMPOSER_ICON_SCALE,
+  0.3,
   23,
-  0.6 * COMPOSER_ICON_SCALE,
+  0.6,
 ] as unknown as number;
 
 export const protocolsLayers: LayerSpecification[] = [
