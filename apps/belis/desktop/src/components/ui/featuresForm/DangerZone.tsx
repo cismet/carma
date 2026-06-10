@@ -30,7 +30,7 @@ const DangerZone = ({
       <div className="flex items-center justify-between gap-4 px-4 py-3">
         <div className="flex flex-col">
           {pendingDeletion ? (
-            <span className="flex items-center gap-1.5 text-[#cf222e] text-[13px] font-medium">
+            <span className="text-gray-500 text-[13px]">
               Zum Löschen vorgemerkt mit „Speichern" wird das Fachobjekt
               dauerhaft gelöscht, „zurücksetzen" verwirft die Löschung.
             </span>
