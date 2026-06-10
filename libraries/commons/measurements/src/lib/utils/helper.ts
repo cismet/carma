@@ -132,7 +132,7 @@ export type ShapesToFeatureCollectionLayerInfo = {
   keywords?: string[];
   metaDataText?: string;
   thumbnail?: string;
-  source?: "2d" | "3d";
+  source?: string;
   visibility?: "2d" | "3d";
 };
 

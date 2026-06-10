@@ -79,7 +79,7 @@ function SaveMeasurements({ layer }: { layer: Layer }) {
       description: trimmedDescription,
       thumbnail:
         "https://wupp-digitaltwin-assets.cismet.de/v2/geoportal/thumbnails/measurements.png",
-      source: "2d",
+      source: "2dMeasurements",
       visibility: "2d",
     });
 
