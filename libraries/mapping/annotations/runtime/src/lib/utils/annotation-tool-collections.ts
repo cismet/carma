@@ -60,38 +60,48 @@ export const resolveAnnotationCancelToolId = (
   registry.getPlugin(ANNOTATION_SELECT_TOOL_ID)?.id ??
   resolvePrimaryAnnotationInteractionToolId(registry.plugins);
 
+export const isAuthoringAnnotationEntry = (
+  annotationEntry: StoredAnnotation
+): boolean => !annotationEntry.readOnlySource;
+
 export const resolveAnnotationCountByToolType = (
   annotationEntries: readonly StoredAnnotation[]
 ): ReadonlyMap<string, number> =>
-  annotationEntries.reduce((countByToolType, annotationEntry) => {
-    countByToolType.set(
-      annotationEntry.toolType,
-      (countByToolType.get(annotationEntry.toolType) ?? 0) + 1
-    );
-    return countByToolType;
-  }, new Map<string, number>());
+  annotationEntries
+    .filter(isAuthoringAnnotationEntry)
+    .reduce((countByToolType, annotationEntry) => {
+      countByToolType.set(
+        annotationEntry.toolType,
+        (countByToolType.get(annotationEntry.toolType) ?? 0) + 1
+      );
+      return countByToolType;
+    }, new Map<string, number>());
 
 export const resolveAnnotationIdsByToolType = (
   annotationEntries: readonly StoredAnnotation[]
 ): ReadonlyMap<string, readonly string[]> =>
-  annotationEntries.reduce((idsByToolType, annotationEntry) => {
-    idsByToolType.set(annotationEntry.toolType, [
-      ...(idsByToolType.get(annotationEntry.toolType) ?? []),
-      annotationEntry.id,
-    ]);
-    return idsByToolType;
-  }, new Map<string, readonly string[]>());
+  annotationEntries
+    .filter(isAuthoringAnnotationEntry)
+    .reduce((idsByToolType, annotationEntry) => {
+      idsByToolType.set(annotationEntry.toolType, [
+        ...(idsByToolType.get(annotationEntry.toolType) ?? []),
+        annotationEntry.id,
+      ]);
+      return idsByToolType;
+    }, new Map<string, readonly string[]>());
 
 export const resolveAnnotationEntriesByToolType = (
   annotationEntries: readonly StoredAnnotation[]
 ): ReadonlyMap<string, readonly StoredAnnotation[]> =>
-  annotationEntries.reduce((entriesByToolType, annotationEntry) => {
-    entriesByToolType.set(annotationEntry.toolType, [
-      ...(entriesByToolType.get(annotationEntry.toolType) ?? []),
-      annotationEntry,
-    ]);
-    return entriesByToolType;
-  }, new Map<string, readonly StoredAnnotation[]>());
+  annotationEntries
+    .filter(isAuthoringAnnotationEntry)
+    .reduce((entriesByToolType, annotationEntry) => {
+      entriesByToolType.set(annotationEntry.toolType, [
+        ...(entriesByToolType.get(annotationEntry.toolType) ?? []),
+        annotationEntry,
+      ]);
+      return entriesByToolType;
+    }, new Map<string, readonly StoredAnnotation[]>());
 
 export const areAnnotationEntriesHidden = (
   annotationEntries: readonly StoredAnnotation[]

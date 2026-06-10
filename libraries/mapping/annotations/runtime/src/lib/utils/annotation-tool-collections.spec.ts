@@ -43,16 +43,19 @@ const createPlugin = ({
 const createAnnotation = ({
   hidden = false,
   id,
+  readOnlySource,
   toolType,
 }: {
   hidden?: boolean;
   id: string;
+  readOnlySource?: StoredAnnotation["readOnlySource"];
   toolType: StoredAnnotation["toolType"];
 }): StoredAnnotation =>
   ({
     hidden,
     id,
     nodeIds: [],
+    readOnlySource,
     toolType,
   } as StoredAnnotation);
 
@@ -120,6 +123,29 @@ describe("annotation-tool-collections", () => {
         .get(ANNOTATION_TYPES.DISTANCE)
         ?.map((entry) => entry.id)
     ).toEqual(["a", "c"]);
+  });
+
+  it("excludes read-only annotation entries from authoring groups", () => {
+    const entries = [
+      createAnnotation({ id: "a", toolType: ANNOTATION_TYPES.DISTANCE }),
+      createAnnotation({
+        id: "b",
+        readOnlySource: { type: "saved-measurement", id: "saved-layer" },
+        toolType: ANNOTATION_TYPES.DISTANCE,
+      }),
+    ];
+
+    expect(
+      resolveAnnotationCountByToolType(entries).get(ANNOTATION_TYPES.DISTANCE)
+    ).toBe(1);
+    expect(
+      resolveAnnotationIdsByToolType(entries).get(ANNOTATION_TYPES.DISTANCE)
+    ).toEqual(["a"]);
+    expect(
+      resolveAnnotationEntriesByToolType(entries)
+        .get(ANNOTATION_TYPES.DISTANCE)
+        ?.map((entry) => entry.id)
+    ).toEqual(["a"]);
   });
 
   it("resolves interaction and fallback plugins", () => {

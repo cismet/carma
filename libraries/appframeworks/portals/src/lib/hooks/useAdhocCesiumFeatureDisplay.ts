@@ -50,7 +50,10 @@ import {
   type AdhocFeatureCollectionMetadata,
   type SelectedAdhocFeature,
 } from "../components/AdhocFeatureDisplayProvider";
-import { DEFAULT_ADHOC_FEATURE_LAYER_ID } from "../constants/adhoc";
+import {
+  ADHOC_LAYER_SOURCES,
+  DEFAULT_ADHOC_FEATURE_LAYER_ID,
+} from "../constants/adhoc";
 import {
   buildAdhocFeatureInfo,
   getAdhocAccentColor,
@@ -128,6 +131,10 @@ type AdhocFeatureEntry = {
   layerId: string;
   key: string;
 };
+
+const is2dMeasurementAdhocFeature = (feature: AdhocFeature): boolean =>
+  (feature.data as { source?: unknown }).source ===
+  ADHOC_LAYER_SOURCES.TWO_D_MEASUREMENTS;
 
 type VisualizerType = "ground-polygon" | "ground-polyline" | "extruded-wall";
 type ElementType = "polygon" | "polyline" | "wall" | "model";
@@ -414,7 +421,8 @@ export const useAdhocCesiumFeatureDisplay = (
           .filter(
             (feature) =>
               feature.metadata?.shouldRemove !== true &&
-              feature.metadata?.renderAsRuntimeAnnotations !== true
+              feature.metadata?.renderAsRuntimeAnnotations !== true &&
+              !is2dMeasurementAdhocFeature(feature)
           )
           .map((feature) => ({
             feature,

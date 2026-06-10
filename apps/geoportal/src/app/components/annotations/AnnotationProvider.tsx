@@ -9,6 +9,7 @@ import {
 import { useSelector } from "react-redux";
 
 import { useAdhocFeatureDisplay } from "@carma-appframeworks/portals";
+import { ANNOTATION_SELECT_TOOL_ID } from "@carma-mapping/annotations/core";
 import { createDefaultAnnotationToolPlugins } from "@carma-mapping/annotations/builtin-tools";
 import {
   AnnotationsProvider,
@@ -172,6 +173,33 @@ function GeoportalSavedAnnotationFeatureCollectionRegistration() {
   return null;
 }
 
+function GeoportalSavedAnnotationInteractionModeGuard() {
+  const layers = useSelector(getLayers);
+  const uiMode = useSelector(getUIMode);
+  const { isCesium } = useMapFrameworkSwitcherContext();
+  const { activeToolType, setActiveToolType } = useAnnotationsRuntime();
+  const savedAnnotationsVisible =
+    isCesium && layers.some(layerHasRuntimeAnnotationsGeoJson);
+  const isCesiumAnnotationMode = isCesium && uiMode === UIMode.MEASUREMENT;
+
+  useEffect(() => {
+    if (
+      savedAnnotationsVisible &&
+      !isCesiumAnnotationMode &&
+      activeToolType !== ANNOTATION_SELECT_TOOL_ID
+    ) {
+      setActiveToolType(ANNOTATION_SELECT_TOOL_ID);
+    }
+  }, [
+    activeToolType,
+    isCesiumAnnotationMode,
+    savedAnnotationsVisible,
+    setActiveToolType,
+  ]);
+
+  return null;
+}
+
 export function AnnotationProvider({ children }: AnnotationProviderProps) {
   const { getScene } = useCesiumContext();
   const { isCesium } = useMapFrameworkSwitcherContext();
@@ -220,6 +248,7 @@ export function AnnotationProvider({ children }: AnnotationProviderProps) {
     >
       <GeoportalCesiumAnnotationLayerbarRegistration />
       <GeoportalSavedAnnotationFeatureCollectionRegistration />
+      <GeoportalSavedAnnotationInteractionModeGuard />
       {annotationsVisible ? <CesiumAnnotationShortcutManager /> : null}
       <GeoportalLabelTextModal />
       {deleteConfirmationModal}

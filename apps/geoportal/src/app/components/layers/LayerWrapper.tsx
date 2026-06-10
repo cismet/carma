@@ -47,6 +47,7 @@ import SecondaryView from "./SecondaryView";
 import "./button.css";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import InteractionView from "./InteractionView";
+import { shouldShowAdhocLayerInLayerList } from "../../helper/adhoc-feature-utils";
 
 const LayerWrapper = () => {
   const dispatch: AppDispatch = useDispatch();
@@ -61,7 +62,7 @@ const LayerWrapper = () => {
   const showLeftScrollButton = useSelector(getShowLeftScrollButton);
   const showRightScrollButton = useSelector(getShowRightScrollButton);
 
-  const { isLeaflet } = useMapFrameworkSwitcherContext();
+  const { isCesium, isLeaflet } = useMapFrameworkSwitcherContext();
 
   const [isDragging, setIsDragging] = useState(false);
 
@@ -72,9 +73,12 @@ const LayerWrapper = () => {
     color: isOver ? "green" : undefined,
   };
 
-  const pinnedFirstLayers = layers.filter((l) => l.pinned === "first");
-  const sortableLayers = layers.filter((l) => !l.pinned);
-  const pinnedLastLayers = layers.filter((l) => l.pinned === "last");
+  const listedLayers = layers.filter((layer) =>
+    shouldShowAdhocLayerInLayerList(layer, isCesium)
+  );
+  const pinnedFirstLayers = listedLayers.filter((l) => l.pinned === "first");
+  const sortableLayers = listedLayers.filter((l) => !l.pinned);
+  const pinnedLastLayers = listedLayers.filter((l) => l.pinned === "last");
 
   const getLayerPos = (id) => layers.findIndex((layer) => layer.id === id);
 
@@ -226,8 +230,7 @@ const LayerWrapper = () => {
       <InteractionView isDragging={isDragging} />
       {!isNoSelectionIndex &&
         !(
-          selectedLayerIndex >= 0 &&
-          layers[selectedLayerIndex]?.skipSelection
+          selectedLayerIndex >= 0 && layers[selectedLayerIndex]?.skipSelection
         ) && <SecondaryView />}
     </>
   );

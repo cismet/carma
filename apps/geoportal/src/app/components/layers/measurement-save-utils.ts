@@ -31,3 +31,20 @@ export const getUniqueTitle = (
   }
   return `${baseTitle} (${counter})`;
 };
+
+export const downloadMeasurementJsonFile = (
+  fileName: string,
+  data: unknown
+) => {
+  const blob = new Blob([JSON.stringify(data, null, 2)], {
+    type: "application/json;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};

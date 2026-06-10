@@ -1,4 +1,7 @@
-import type { CarmaMapLibreStyleData } from "@carma-appframeworks/portals";
+import {
+  ADHOC_LAYER_SOURCES,
+  type CarmaMapLibreStyleData,
+} from "@carma-appframeworks/portals";
 import type { BackgroundLayer, Layer } from "@carma-mapping/layers";
 import type {
   GeoJSONSourceSpecification,
@@ -85,6 +88,40 @@ export const getVectorLayerStyle = async (
   const style = (layer as Layer & { props?: { style?: string | object } }).props
     ?.style;
   return resolveAdhocStyleData(style);
+};
+
+const getLayerStyleSource = (layer: Layer | BackgroundLayer): unknown => {
+  const style = (layer as { props?: { style?: unknown } }).props?.style;
+  return typeof style === "object" && style !== null
+    ? (style as { source?: unknown }).source
+    : null;
+};
+
+export const is2dMeasurementAdhocLayer = (
+  layer: Layer | BackgroundLayer
+): boolean =>
+  getLayerStyleSource(layer) === ADHOC_LAYER_SOURCES.TWO_D_MEASUREMENTS;
+
+export const shouldShowAdhocLayerInCesiumLayerList = (
+  layer: Layer | BackgroundLayer
+): boolean => {
+  return !is2dMeasurementAdhocLayer(layer);
+};
+
+export const shouldShowAdhocLayerIn2dLayerList = (
+  layer: Layer | BackgroundLayer
+): boolean => {
+  const source = getLayerStyleSource(layer);
+  return source !== ADHOC_LAYER_SOURCES.ANNOTATIONS;
+};
+
+export const shouldShowAdhocLayerInLayerList = (
+  layer: Layer | BackgroundLayer,
+  isCesium: boolean
+): boolean => {
+  return isCesium
+    ? shouldShowAdhocLayerInCesiumLayerList(layer)
+    : shouldShowAdhocLayerIn2dLayerList(layer);
 };
 
 export const filter3dLayers = (layer: Layer | BackgroundLayer): Boolean => {

@@ -104,8 +104,10 @@ export {
   type AdhocFeatureSelectionChangeListener,
 } from "./lib/components/AdhocFeatureDisplayProvider";
 export {
+  ADHOC_LAYER_SOURCES,
   DEFAULT_ADHOC_FEATURE_COLLECTION_ID,
   DEFAULT_ADHOC_FEATURE_LAYER_ID,
+  type AdhocLayerSource,
 } from "./lib/constants/adhoc";
 export {
   resolveAdhocFeatureLayerId,

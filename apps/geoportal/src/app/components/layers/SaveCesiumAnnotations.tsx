@@ -5,6 +5,7 @@ import {
   type AnnotationsRuntimeGeoJsonFeatureCollection,
   useAnnotationsRuntime,
 } from "@carma-mapping/annotations/runtime";
+import { ADHOC_LAYER_SOURCES } from "@carma-appframeworks/portals";
 import type { Layer } from "@carma-mapping/layers";
 import { parseToMapLayer } from "@carma-mapping/utils";
 import type { Geometry } from "geojson";
@@ -21,6 +22,7 @@ import {
 import { setUIMode, UIMode } from "../../store/slices/ui";
 import MeasurementSavePanel from "./MeasurementSavePanel";
 import {
+  downloadMeasurementJsonFile,
   getUniqueTitle,
   hashString,
   MEASUREMENT_THUMBNAIL_URL,
@@ -102,6 +104,8 @@ export const buildCesiumAnnotationMeasurementStyle = ({
   icon: string;
   description: string;
 }) => ({
+  source: ADHOC_LAYER_SOURCES.ANNOTATIONS,
+  visibility: "3d",
   version: 8,
   glyphs: "https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf",
   metadata: {
@@ -165,23 +169,6 @@ export const buildCesiumAnnotationMeasurementStyle = ({
     },
   ],
 });
-
-const downloadGeoJsonFile = (
-  fileName: string,
-  annotationsGeoJson: AnnotationsRuntimeGeoJsonFeatureCollection
-) => {
-  const blob = new Blob([JSON.stringify(annotationsGeoJson, null, 2)], {
-    type: "application/geo+json;charset=utf-8",
-  });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = fileName;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-};
 
 function SaveCesiumAnnotations({ layer }: { layer: Layer }) {
   const dispatch = useDispatch();
@@ -285,6 +272,10 @@ function SaveCesiumAnnotations({ layer }: { layer: Layer }) {
       console.warn("Failed to append saved 3D measurement layer:", error);
     }
 
+    if (values.clearAfterSave) {
+      clearAnnotations();
+    }
+
     dispatch(addMeasurement(item));
     appendAnnotationsRuntimePersistenceState(
       annotationsGeoJson.metadata.carmaConf.annotationsRuntimePersistence,
@@ -297,10 +288,6 @@ function SaveCesiumAnnotations({ layer }: { layer: Layer }) {
       }
     );
 
-    if (values.clearAfterSave) {
-      clearAnnotations();
-    }
-
     dispatch(setActiveInteractionLayerID(null));
     dispatch(setUIMode(UIMode.DEFAULT));
   };
@@ -309,7 +296,8 @@ function SaveCesiumAnnotations({ layer }: { layer: Layer }) {
     if (!hasAnnotations) return;
 
     const baseTitle = values.title.trim() || "Messung";
-    downloadGeoJsonFile(`${baseTitle}.geojson`, buildAllAnnotationsGeoJson());
+    const { featureData } = buildFeatureData(values, baseTitle);
+    downloadMeasurementJsonFile(`${baseTitle}.json`, featureData);
 
     if (values.clearAfterSave) {
       clearAnnotations();

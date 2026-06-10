@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { ADHOC_LAYER_SOURCES } from "@carma-appframeworks/portals";
 import { ANNOTATION_TYPES } from "@carma-mapping/annotations/core";
 import type { AnnotationsRuntimeGeoJsonFeatureCollection } from "@carma-mapping/annotations/runtime";
 
@@ -127,6 +128,8 @@ describe("SaveCesiumAnnotations helpers", () => {
       title: "Messung",
     });
 
+    expect(style.source).toBe(ADHOC_LAYER_SOURCES.ANNOTATIONS);
+    expect(style.visibility).toBe("3d");
     expect(style.sources.adhoc.data).toBe(geoJson);
     expect(style.metadata.carmaConf.annotationsGeoJson).toBe(geoJson);
     expect(style.metadata.carmaConf.layerInfo).toMatchObject({

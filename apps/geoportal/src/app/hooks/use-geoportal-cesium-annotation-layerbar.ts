@@ -5,7 +5,10 @@ import { faRuler } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import { ANNOTATION_SELECT_TOOL_ID } from "@carma-mapping/annotations/core";
-import { useAnnotationsRuntime } from "@carma-mapping/annotations/runtime";
+import {
+  isAuthoringAnnotationEntry,
+  useAnnotationsRuntime,
+} from "@carma-mapping/annotations/runtime";
 import type { AnnotationModeText } from "@carma-mapping/annotations/builtin-tools/annotation-mode-text";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import type { Layer } from "@carma-mapping/layers";
@@ -70,6 +73,9 @@ export function useGeoportalCesiumAnnotationLayerbar() {
 
   const shouldShowCesiumAnnotationLayer =
     isCesium && uiMode === UIMode.MEASUREMENT;
+  const authoringAnnotationCount = annotationEntries.filter(
+    isAuthoringAnnotationEntry
+  ).length;
   const hasCesiumAnnotationLayer = layers.some(
     (layer) => layer.id === CESIUM_ANNOTATION_LAYER_ID
   );
@@ -84,7 +90,7 @@ export function useGeoportalCesiumAnnotationLayerbar() {
         appendLayer({
           ...createCesiumAnnotationLayer(annotationModeText),
           title: getCesiumAnnotationLayerTitle(
-            annotationEntries.length,
+            authoringAnnotationCount,
             annotationModeText
           ),
         })
@@ -94,8 +100,8 @@ export function useGeoportalCesiumAnnotationLayerbar() {
     dispatch(setActiveInteractionLayerID(CESIUM_ANNOTATION_LAYER_ID));
     dispatch(setActiveInteractionButtonID(CESIUM_ANNOTATION_INTERACTION_ID));
   }, [
-    annotationEntries.length,
     annotationModeText,
+    authoringAnnotationCount,
     dispatch,
     hasCesiumAnnotationLayer,
   ]);
@@ -155,14 +161,14 @@ export function useGeoportalCesiumAnnotationLayerbar() {
       updateLayer({
         ...createCesiumAnnotationLayer(annotationModeText),
         title: getCesiumAnnotationLayerTitle(
-          annotationEntries.length,
+          authoringAnnotationCount,
           annotationModeText
         ),
       })
     );
   }, [
-    annotationEntries.length,
     annotationModeText,
+    authoringAnnotationCount,
     dispatch,
     hasCesiumAnnotationLayer,
     shouldShowCesiumAnnotationLayer,
@@ -172,7 +178,7 @@ export function useGeoportalCesiumAnnotationLayerbar() {
     const defaultToolId = CESIUM_ANNOTATION_CONFIG.tools.defaultToolId;
     if (
       !shouldShowCesiumAnnotationLayer ||
-      annotationEntries.length > 0 ||
+      authoringAnnotationCount > 0 ||
       activeToolType !== ANNOTATION_SELECT_TOOL_ID ||
       !registry.getPlugin(defaultToolId)
     ) {
@@ -182,7 +188,7 @@ export function useGeoportalCesiumAnnotationLayerbar() {
     setActiveToolType(defaultToolId);
   }, [
     activeToolType,
-    annotationEntries.length,
+    authoringAnnotationCount,
     registry,
     setActiveToolType,
     shouldShowCesiumAnnotationLayer,

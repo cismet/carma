@@ -18,7 +18,10 @@ import {
 import LayerRow from "./LayerRow";
 import "./text.css";
 import LayerInfoWrapper from "./LayerInfoWrapper";
-import { filter3dLayers } from "../../helper/adhoc-feature-utils";
+import {
+  filter3dLayers,
+  shouldShowAdhocLayerInLayerList,
+} from "../../helper/adhoc-feature-utils";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faX } from "@fortawesome/free-solid-svg-icons";
 import { useState } from "react";
@@ -34,8 +37,10 @@ const BaseLayerInfo = () => {
   const layers = useSelector(getLayers);
   const { isCesium } = useMapFrameworkSwitcherContext();
 
-  const filteredLayers = layers.filter((layer) =>
-    isCesium ? filter3dLayers(layer) : true
+  const filteredLayers = layers.filter(
+    (layer) =>
+      shouldShowAdhocLayerInLayerList(layer, isCesium) &&
+      (isCesium ? filter3dLayers(layer) : true)
   );
   const reversedLayers = filteredLayers.slice().reverse();
   const sortableLayers = filteredLayers.filter((l) => !l.pinned);

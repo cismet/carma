@@ -13,6 +13,7 @@ import {
   useMapMeasurementsContext,
   shapesToFeatureCollection,
 } from "@carma-commons/measurements";
+import { ADHOC_LAYER_SOURCES } from "@carma-appframeworks/portals";
 import type { Layer } from "@carma-mapping/layers";
 import { parseToMapLayer } from "@carma-mapping/utils";
 
@@ -21,6 +22,7 @@ import {
   hashString,
   getUniqueTitle,
   MEASUREMENT_THUMBNAIL_URL,
+  downloadMeasurementJsonFile,
   type MeasurementSaveValues,
 } from "./measurement-save-utils";
 
@@ -38,14 +40,16 @@ function SaveMeasurements({ layer }: { layer: Layer }) {
       ? `Inhalt: ${trimmedDescription}`
       : "";
 
-    const featureData = shapesToFeatureCollection(shapes, {
-      title: featureTitle,
-      icon: `emoji:${values.selectedUnified}`,
-      description: trimmedDescription,
-      thumbnail: MEASUREMENT_THUMBNAIL_URL,
-      source: "2dMeasurements",
+    const featureData = {
+      ...shapesToFeatureCollection(shapes, {
+        title: featureTitle,
+        icon: `emoji:${values.selectedUnified}`,
+        description: trimmedDescription,
+        thumbnail: MEASUREMENT_THUMBNAIL_URL,
+      }),
+      source: ADHOC_LAYER_SOURCES.TWO_D_MEASUREMENTS,
       visibility: "2d",
-    });
+    };
 
     return { featureData, featureTitle, featureDescription };
   };
@@ -112,17 +116,7 @@ function SaveMeasurements({ layer }: { layer: Layer }) {
     const baseTitle = values.title.trim() || "Messung";
     const { featureData, featureTitle } = buildFeatureData(values, baseTitle);
 
-    const blob = new Blob([JSON.stringify(featureData, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${featureTitle}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    downloadMeasurementJsonFile(`${featureTitle}.json`, featureData);
 
     if (values.clearAfterSave) {
       clearAllShapes();

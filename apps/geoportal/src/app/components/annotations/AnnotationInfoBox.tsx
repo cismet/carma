@@ -11,7 +11,7 @@ import { CESIUM_ANNOTATION_CONFIG } from "../../config/app.config";
 import { shouldShowAnnotationInfoBox } from "../../helper/annotation-info-box";
 import { resolveGeoportalAnnotationInfoBoxVisualOptions } from "../../helper/annotation-info-box-visual-options";
 import { getLayers } from "../../store/slices/mapping";
-import { getUIMode } from "../../store/slices/ui";
+import { getUIMode, UIMode } from "../../store/slices/ui";
 
 const GEOPORTAL_ANNOTATION_HELP_LOCALE = "de-DE";
 
@@ -31,12 +31,13 @@ const AnnotationInfoBox = ({
   const activeAnnotationToolIds = showAllAnnotationTools
     ? CESIUM_ANNOTATION_CONFIG.tools.allToolIds
     : CESIUM_ANNOTATION_CONFIG.tools.stableToolIds;
+  const isMeasurementMode = uiMode === UIMode.MEASUREMENT;
   const infoBoxState = useRuntimeAnnotationInfoBoxSlots({
     fallbackHelpLayout: isCesium
       ? ANNOTATION_INFO_BOX_HELP_LAYOUTS.COMPACT
       : undefined,
     helpLocale: GEOPORTAL_ANNOTATION_HELP_LOCALE,
-    includeFallback: true,
+    includeFallback: isMeasurementMode,
     visualOptions: resolveGeoportalAnnotationInfoBoxVisualOptions,
   });
   const annotationsVisible = shouldShowAnnotationInfoBox({

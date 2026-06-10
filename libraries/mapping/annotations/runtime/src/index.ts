@@ -274,6 +274,7 @@ export type {
 export { resolveBearingRadFromFirstToLastCoordinate } from "./lib/utils/resolve-bearing-rad-from-first-to-last-coordinate";
 export {
   areAnnotationEntriesHidden,
+  isAuthoringAnnotationEntry,
   resolveAnnotationCancelToolId,
   resolveAnnotationCountByToolType,
   resolveAnnotationEntriesByToolType,

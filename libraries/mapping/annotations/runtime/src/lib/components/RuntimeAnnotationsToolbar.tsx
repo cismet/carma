@@ -10,7 +10,10 @@ import { ANNOTATION_SELECT_TOOL_ID } from "@carma-mapping/annotations/core";
 
 import { useAnnotationsRuntime } from "../context/AnnotationsProvider";
 import type { AnnotationToolPlugin } from "../registry";
-import { resolveAnnotationCountByToolType } from "../utils/annotation-tool-collections";
+import {
+  isAuthoringAnnotationEntry,
+  resolveAnnotationCountByToolType,
+} from "../utils/annotation-tool-collections";
 
 export type RuntimeAnnotationsToolbarProps = {
   classNames?: Partial<AnnotationsToolbarClassNames>;
@@ -38,9 +41,13 @@ export const RuntimeAnnotationsToolbar = ({
   const { registry, activeToolType, requestModeChange, annotationEntries } =
     useAnnotationsRuntime();
   const toolPlugins = plugins ?? registry.plugins;
-  const annotationCountByToolType = useMemo(
-    () => resolveAnnotationCountByToolType(annotationEntries),
+  const authoringAnnotationEntries = useMemo(
+    () => annotationEntries.filter(isAuthoringAnnotationEntry),
     [annotationEntries]
+  );
+  const annotationCountByToolType = useMemo(
+    () => resolveAnnotationCountByToolType(authoringAnnotationEntries),
+    [authoringAnnotationEntries]
   );
   const tools = useMemo(
     () =>
@@ -48,7 +55,7 @@ export const RuntimeAnnotationsToolbar = ({
         const descriptor = plugin.descriptor;
         const isSelectionTool = descriptor.id === ANNOTATION_SELECT_TOOL_ID;
         const annotationCount = isSelectionTool
-          ? annotationEntries.length
+          ? authoringAnnotationEntries.length
           : plugin.annotationType
           ? annotationCountByToolType.get(plugin.annotationType) ?? 0
           : 0;
@@ -62,12 +69,12 @@ export const RuntimeAnnotationsToolbar = ({
           disabled:
             disableSelectWithoutAnnotations &&
             isSelectionTool &&
-            annotationEntries.length === 0,
+            authoringAnnotationEntries.length === 0,
         };
       }),
     [
       annotationCountByToolType,
-      annotationEntries.length,
+      authoringAnnotationEntries.length,
       disableSelectWithoutAnnotations,
       toolPlugins,
     ]
