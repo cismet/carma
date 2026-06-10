@@ -1278,6 +1278,7 @@ export const MeasurementHost = forwardRef<
         }
         drawRef.current = null;
       }
+      map.getCanvas()?.style.removeProperty("cursor");
       // Unregister from the provider so consumers don't invoke callbacks
       // over a stopped terra-draw instance.
       registryRef.current.setCommands(null);
