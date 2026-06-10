@@ -133,7 +133,7 @@ export type ShapesToFeatureCollectionLayerInfo = {
   metaDataText?: string;
   thumbnail?: string;
   source?: "2d" | "3d";
-  displayIn?: "2d" | "3d";
+  visibility?: "2d" | "3d";
 };
 
 type LabelFeature = {
