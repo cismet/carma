@@ -1,9 +1,7 @@
 import { Button } from "antd";
-import { DeleteOutlined, ExclamationCircleFilled } from "@ant-design/icons";
+import { DeleteOutlined } from "@ant-design/icons";
 
 interface DangerZoneProps {
-  /** Heading of the danger box. Defaults to "Gefahrenzone". */
-  heading?: string;
   /** Bold title of the delete row, e.g. "Leuchte löschen". */
   title: string;
   /** Whether the feature is currently marked for deletion. */
@@ -20,7 +18,6 @@ interface DangerZoneProps {
  * "Speichern" / "zurücksetzen" buttons, like any other draft.
  */
 const DangerZone = ({
-  heading = "Gefahrenzone",
   title,
   pendingDeletion,
   onMark,
@@ -28,21 +25,18 @@ const DangerZone = ({
   return (
     <div className="mt-8 rounded-md border border-[#f5c2c7] overflow-hidden">
       <div className="bg-[#fff5f5] px-4 py-2 border-b border-[#f5c2c7]">
-        <span className="text-[#cf222e] font-semibold text-sm">{heading}</span>
+        <span className="text-[#cf222e] font-semibold text-sm">{title}</span>
       </div>
       <div className="flex items-center justify-between gap-4 px-4 py-3">
         <div className="flex flex-col">
-          <span className="text-gray-900 font-semibold text-sm">{title}</span>
           {pendingDeletion ? (
             <span className="flex items-center gap-1.5 text-[#cf222e] text-[13px] font-medium">
-              <ExclamationCircleFilled />
-              Zum Löschen vorgemerkt – mit „Speichern" wird das Fachobjekt
+              Zum Löschen vorgemerkt mit „Speichern" wird das Fachobjekt
               dauerhaft gelöscht, „zurücksetzen" verwirft die Löschung.
             </span>
           ) : (
             <span className="text-gray-500 text-[13px]">
-              Das Fachobjekt wird zum Löschen vorgemerkt. Dieser Vorgang kann
-              nicht rückgängig gemacht werden.
+              Das Fachobjekt wird zum Löschen vorgemerkt.
             </span>
           )}
         </div>
