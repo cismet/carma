@@ -13,8 +13,12 @@ import type { Feature } from "geojson";
 
 const IS_LOCAL_DEV =
   typeof window !== "undefined" && window.location.hostname === "localhost";
+import { useSelector } from "react-redux";
 import toTitleCase from "../../helper/toTitleCase";
-import { isCreationDraftKey } from "../../store/slices/featuresForms";
+import {
+  getAllDrafts,
+  isCreationDraftKey,
+} from "../../store/slices/featuresForms";
 import {
   featureLengthMeters,
   formatMeters,
@@ -680,6 +684,31 @@ const BelisSidebar = ({
     [selectedFeatureId, selectedDatabaseId, parentFeatureId, sidebarMode]
   );
 
+  // Identity keys ("<sourceLayer>:<dbId>") of all Fachobjekte currently marked
+  // for deletion via the DangerZone, so their sidebar rows can be rendered in
+  // the danger red. Drafts are keyed "<sourceLayer>:<dbPK>" (see
+  // FeaturesFormsWrapper); featureDbId is the authoritative DB id when present.
+  const allDrafts = useSelector(getAllDrafts);
+  const pendingDeletionKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const [draftKey, draft] of Object.entries(allDrafts)) {
+      if (!draft?.pendingDeletion) continue;
+      const sourceLayer = draftKey.split(":")[0];
+      const dbId = draft.featureDbId ?? draftKey.split(":")[1];
+      if (sourceLayer && dbId != null) keys.add(`${sourceLayer}:${dbId}`);
+    }
+    return keys;
+  }, [allDrafts]);
+
+  const isFeaturePendingDeletion = useCallback(
+    (feature: SidebarFeature): boolean => {
+      const dbId = feature.properties?.id;
+      if (dbId == null || !feature.sourceLayer) return false;
+      return pendingDeletionKeys.has(`${feature.sourceLayer}:${dbId}`);
+    },
+    [pendingDeletionKeys]
+  );
+
   const listRef = useRef<HTMLDivElement>(null);
 
   const selectedIdx = useMemo(
@@ -964,6 +993,7 @@ const BelisSidebar = ({
                   group.items.map((feature, index) => {
                     const listItem = getListItem(feature);
                     const selected = isFeatureSelected(feature);
+                    const pendingDeletion = isFeaturePendingDeletion(feature);
                     return (
                       <div
                         key={`${feature.source}-${feature.sourceLayer}-${feature.id}-${index}`}
@@ -992,7 +1022,11 @@ const BelisSidebar = ({
                           }`}
                         >
                           <div className="flex justify-between gap-2 overflow-hidden">
-                            <span className="shrink-0 whitespace-nowrap text-sm">
+                            <span
+                              className={`shrink-0 whitespace-nowrap text-sm ${
+                                pendingDeletion ? "text-[#cf222e]" : ""
+                              }`}
+                            >
                               <b>{listItem.main}</b>
                               {feature.properties?._isCreation && (
                                 <span className="bg-green-500 text-white text-[10px] px-1 rounded ml-1 font-normal">
@@ -1007,12 +1041,24 @@ const BelisSidebar = ({
                                 />
                               )}
                             </span>
-                            <span className="grow text-right whitespace-nowrap text-ellipsis overflow-hidden text-sm text-gray-700">
+                            <span
+                              className={`grow text-right whitespace-nowrap text-ellipsis overflow-hidden text-sm ${
+                                pendingDeletion
+                                  ? "text-[#cf222e]"
+                                  : "text-gray-700"
+                              }`}
+                            >
                               {listItem.upperright}
                             </span>
                           </div>
                           {listItem.subtitle && (
-                            <div className="text-left text-xs text-gray-500 whitespace-nowrap text-ellipsis overflow-hidden mt-0.5">
+                            <div
+                              className={`text-left text-xs whitespace-nowrap text-ellipsis overflow-hidden mt-0.5 ${
+                                pendingDeletion
+                                  ? "text-[#cf222e]"
+                                  : "text-gray-500"
+                              }`}
+                            >
                               {listItem.subtitle}
                             </div>
                           )}
