@@ -1055,7 +1055,7 @@ const BelisSidebar = ({
                             <div
                               className={`text-left text-xs whitespace-nowrap text-ellipsis overflow-hidden mt-0.5 ${
                                 pendingDeletion
-                                  ? "text-[#cf222e]"
+                                  ? "text-[#c08a8e]"
                                   : "text-gray-500"
                               }`}
                             >
