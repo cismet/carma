@@ -11,6 +11,8 @@ export type DeleteConfirmationModalProps = {
   cancelLabel?: string;
   confirmVariant?: ButtonProps["variant"];
   zIndex?: number;
+  dialogTestId?: string;
+  confirmTestId?: string;
 };
 
 export function DeleteConfirmationModal({
@@ -23,6 +25,8 @@ export function DeleteConfirmationModal({
   cancelLabel = "Abbrechen",
   confirmVariant = "danger",
   zIndex = 2900000000,
+  dialogTestId,
+  confirmTestId,
 }: DeleteConfirmationModalProps) {
   return (
     <Modal
@@ -30,6 +34,7 @@ export function DeleteConfirmationModal({
       onHide={onCancel}
       style={{ zIndex }}
       onKeyDown={(event: KeyboardEvent) => event.stopPropagation()}
+      data-test-id={dialogTestId}
     >
       <Modal.Header closeButton>
         <Modal.Title>{title}</Modal.Title>
@@ -39,7 +44,11 @@ export function DeleteConfirmationModal({
         <Button variant="secondary" onClick={onCancel}>
           {cancelLabel}
         </Button>
-        <Button variant={confirmVariant} onClick={onConfirm}>
+        <Button
+          variant={confirmVariant}
+          onClick={onConfirm}
+          data-test-id={confirmTestId}
+        >
           {confirmLabel}
         </Button>
       </Modal.Footer>

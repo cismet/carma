@@ -13,9 +13,10 @@ import {
   faTrash,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Button, Modal, Spin } from "antd";
+import { Spin } from "antd";
 
 import { Item, Layer, SavedLayerConfig } from "@carma-mapping/layers";
+import { DeleteConfirmationModal } from "@carma-commons/ui/components";
 import {
   cn,
   extractCarmaConfig,
@@ -68,7 +69,6 @@ const LayerItem = ({
   const dispatch = useDispatch();
   const selectedLayer = useSelector(getSelectedLayer);
   const [hovered, setHovered] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [isActiveLayer, setIsActiveLayer] = useState(false);
   const isFavorite = favorites
     ? favorites.some(
@@ -167,7 +167,6 @@ const LayerItem = ({
   }, []);
 
   const deleteDiscoverItem = async () => {
-    setLoading(true);
     const apiUrl = discoverProps?.apiUrl || "https://wunda-cloud-api.cismet.de";
     const taskParameters = {
       parameters: {
@@ -201,14 +200,6 @@ const LayerItem = ({
     );
     if (response.status === 200) {
       dispatch(setTriggerRefetch(true));
-      const waitForLoadingToFinish = async () => {
-        while (loadingData) {
-          await new Promise((resolve) => setTimeout(resolve, 100));
-        }
-        setLoading(false);
-      };
-
-      waitForLoadingToFinish();
     }
   };
 
@@ -427,45 +418,27 @@ const LayerItem = ({
             />
           )}
         </div>
-        <Modal
-          footer={null}
-          open={openDeleteModal}
+        <DeleteConfirmationModal
+          show={openDeleteModal}
+          title={
+            layer.type === "collection"
+              ? `Zusammenstellung ${title} wirklich löschen?`
+              : `${title} wirklich löschen?`
+          }
+          dialogTestId="confirm-delete-collection-dialog"
+          confirmTestId="confirm-delete-collection-submit"
           onCancel={() => setOpenDeleteModal(false)}
+          onConfirm={() => {
+            setOpenDeleteModal(false);
+            if (layer.serviceName.includes("discover")) {
+              deleteDiscoverItem();
+            } else {
+              setAdditionalLayers(layer, true);
+            }
+          }}
         >
-          <div
-            data-test-id="confirm-delete-collection-dialog"
-            className="flex flex-col gap-2 p-4"
-          >
-            <h3 className="text-lg">
-              {layer.type === "collection"
-                ? `Zusammenstellung ${title} wirklich löschen?`
-                : `${title} wirklich löschen?`}
-            </h3>
-            <p className="text-base line-clamp-3 h-[66px]">
-              Diese Aktion kann nicht rückgängig gemacht werden.
-            </p>
-            <div className="flex gap-2 w-full justify-end items-center">
-              <Button onClick={() => setOpenDeleteModal(false)}>
-                Abbrechen
-              </Button>
-              <Button
-                danger
-                loading={loading}
-                data-test-id="confirm-delete-collection-submit"
-                onClick={() => {
-                  setOpenDeleteModal(false);
-                  if (layer.serviceName.includes("discover")) {
-                    deleteDiscoverItem();
-                  } else {
-                    setAdditionalLayers(layer, true);
-                  }
-                }}
-              >
-                Löschen
-              </Button>
-            </div>
-          </div>
-        </Modal>
+          Diese Aktion kann nicht rückgängig gemacht werden.
+        </DeleteConfirmationModal>
       </div>
       {showInfo && (
         <InfoCard
