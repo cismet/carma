@@ -244,7 +244,7 @@ function SaveMeasurements({ layer }: { layer: Layer }) {
         checked={clearAfterSave}
         onChange={(e) => setClearAfterSave(e.target.checked)}
       >
-        Messungen nach dem Speichern löschen
+        Messungen nach dem Speichern entfernen
       </Checkbox>
       <div className="flex gap-2">
         <Button
