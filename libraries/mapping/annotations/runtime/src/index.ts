@@ -181,6 +181,7 @@ export type {
 } from "./lib/interaction/preview-overlay-mount.shared";
 export { useLocalAnnotationsRuntimePersistence } from "./lib/store/persistence/useLocalAnnotationsStorePersistence";
 export {
+  ANNOTATION_ENTRY_ROLES,
   ANNOTATION_ELEVATION_DISPLAY_MODES,
   ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_ID,
   ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_VERSION,
@@ -195,6 +196,7 @@ export {
 export type {
   AddAnnotationOptions,
   AnnotationEdge,
+  AnnotationEntryRole,
   AnnotationElevationDisplayMode,
   AnnotationNode,
   AnnotationNodeLink,
@@ -274,8 +276,9 @@ export type {
 export { resolveBearingRadFromFirstToLastCoordinate } from "./lib/utils/resolve-bearing-rad-from-first-to-last-coordinate";
 export {
   areAnnotationEntriesHidden,
-  isAuthoringAnnotationEntry,
   isExternalAnnotationEntry,
+  isReadOnlyAnnotationEntry,
+  resolveAnnotationEntryRole,
   resolveAnnotationCancelToolId,
   resolveAnnotationCountByToolType,
   resolveAnnotationEntriesByToolType,

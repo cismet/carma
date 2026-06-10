@@ -17,8 +17,13 @@ import type GeoportalLayerButton from "./GeoportalLayerButton";
 const useAnnotationsRuntimeMock = vi.hoisted(() => vi.fn());
 const exportAllAnnotationsGeoJsonMock = vi.hoisted(() => vi.fn());
 const flyToAnnotationIdsMock = vi.hoisted(() => vi.fn());
+const annotationEntryRolesMock = vi.hoisted(() => ({
+  AUTHORING: "authoring",
+  EXTERNAL: "external",
+}));
 
 vi.mock("@carma-mapping/annotations/runtime", () => ({
+  ANNOTATION_ENTRY_ROLES: annotationEntryRolesMock,
   ANNOTATION_DELETE_CONFIRMATION_SOURCES: {
     UI: "ui",
   },
@@ -28,10 +33,11 @@ vi.mock("@carma-mapping/annotations/runtime", () => ({
   selectAuthoringAnnotationEntries: ({
     annotationEntries,
   }: {
-    annotationEntries: Array<{ externalCollection?: unknown }>;
+    annotationEntries: Array<{ annotationRole?: string }>;
   }) =>
     annotationEntries.filter(
-      (annotationEntry) => !annotationEntry.externalCollection
+      (annotationEntry) =>
+        annotationEntry.annotationRole !== annotationEntryRolesMock.EXTERNAL
     ),
   resolveAnnotationsRuntimePersistenceFromGeoJson: (value: unknown) => {
     const candidate = value as {
@@ -225,6 +231,8 @@ describe("GeoportalLayerButtonSlot", () => {
       annotationEntries: [
         {
           id: "measurement-3d-abc:distance-1",
+          annotationRole: annotationEntryRolesMock.EXTERNAL,
+          readOnly: true,
           externalCollection: {
             type: "saved-measurement",
             id: "measurement-3d-abc",
@@ -308,7 +316,8 @@ describe("GeoportalLayerButtonSlot", () => {
       }),
       expect.objectContaining({
         idPrefix: "measurement-3d-abc",
-        locked: true,
+        annotationRole: annotationEntryRolesMock.EXTERNAL,
+        readOnly: true,
         externalCollection: {
           type: "saved-measurement",
           id: "measurement-3d-abc",
@@ -331,6 +340,8 @@ describe("GeoportalLayerButtonSlot", () => {
       annotationEntries: [
         {
           id: "measurement-3d-abc:distance-1",
+          annotationRole: annotationEntryRolesMock.EXTERNAL,
+          readOnly: true,
           externalCollection: {
             type: "saved-measurement",
             id: "measurement-3d-abc",
@@ -445,7 +456,8 @@ describe("GeoportalLayerButtonSlot", () => {
       }),
       expect.objectContaining({
         idPrefix: "measurement-3d-abc",
-        locked: true,
+        annotationRole: annotationEntryRolesMock.EXTERNAL,
+        readOnly: true,
       })
     );
   });

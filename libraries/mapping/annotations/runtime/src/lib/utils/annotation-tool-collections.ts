@@ -7,7 +7,11 @@ import {
   type AnnotationToolPlugin,
   type AnnotationToolRegistry,
 } from "../registry";
-import type { AnnotationsStoreState, StoredAnnotation } from "../store";
+import {
+  ANNOTATION_ENTRY_ROLES,
+  type AnnotationsStoreState,
+  type StoredAnnotation,
+} from "../store";
 
 export type ResolveVisibleMeasurementAnnotationToolPluginsOptions = {
   toolIds?: readonly AnnotationToolId[];
@@ -60,18 +64,27 @@ export const resolveAnnotationCancelToolId = (
   registry.getPlugin(ANNOTATION_SELECT_TOOL_ID)?.id ??
   resolvePrimaryAnnotationInteractionToolId(registry.plugins);
 
+export const isReadOnlyAnnotationEntry = (
+  annotationEntry: StoredAnnotation
+): boolean => Boolean(annotationEntry.readOnly);
+
+export const resolveAnnotationEntryRole = (annotationEntry: StoredAnnotation) =>
+  annotationEntry.annotationRole ?? ANNOTATION_ENTRY_ROLES.AUTHORING;
+
 export const isExternalAnnotationEntry = (
   annotationEntry: StoredAnnotation
-): boolean => Boolean(annotationEntry.externalCollection);
-
-export const isAuthoringAnnotationEntry = (
-  annotationEntry: StoredAnnotation
-): boolean => !isExternalAnnotationEntry(annotationEntry);
+): boolean =>
+  resolveAnnotationEntryRole(annotationEntry) ===
+  ANNOTATION_ENTRY_ROLES.EXTERNAL;
 
 export const selectAuthoringAnnotationEntries = (
   state: Pick<AnnotationsStoreState, "annotationEntries">
 ): readonly StoredAnnotation[] =>
-  state.annotationEntries.filter(isAuthoringAnnotationEntry);
+  state.annotationEntries.filter(
+    (annotationEntry) =>
+      resolveAnnotationEntryRole(annotationEntry) ===
+      ANNOTATION_ENTRY_ROLES.AUTHORING
+  );
 
 export const selectRenderableAnnotationEntries = (
   state: Pick<AnnotationsStoreState, "annotationEntries">

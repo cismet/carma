@@ -811,6 +811,8 @@ export const useAnnotationsAssembly = ({
       options: {
         idPrefix?: string;
         locked?: boolean;
+        annotationRole?: StoredAnnotation["annotationRole"];
+        readOnly?: boolean;
         externalCollection?: StoredAnnotation["externalCollection"];
         selectAnnotationId?: string | null;
         skipExisting?: boolean;
@@ -829,6 +831,18 @@ export const useAnnotationsAssembly = ({
           options.skipExisting &&
           existingAnnotationIds.has(nextAnnotationId)
         ) {
+          if (
+            options.annotationRole !== undefined ||
+            options.readOnly !== undefined
+          ) {
+            annotationsStore.dispatch(
+              updateAnnotationEntryById({
+                annotationId: nextAnnotationId,
+                annotationRole: options.annotationRole,
+                readOnly: options.readOnly,
+              })
+            );
+          }
           continue;
         }
 
@@ -868,6 +882,9 @@ export const useAnnotationsAssembly = ({
               nodeIds: annotationEntry.nodeIds.map(mapId),
               edgeIds: annotationEntry.edgeIds.map(mapId),
               locked: options.locked ?? annotationEntry.locked,
+              annotationRole:
+                options.annotationRole ?? annotationEntry.annotationRole,
+              readOnly: options.readOnly ?? annotationEntry.readOnly,
               externalCollection:
                 options.externalCollection ??
                 annotationEntry.externalCollection,

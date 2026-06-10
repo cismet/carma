@@ -5,6 +5,7 @@ import {
   ANNOTATION_TYPES,
 } from "@carma-mapping/annotations/core";
 import {
+  ANNOTATION_INFO_BOX_ACTION_IDS,
   ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS,
   ANNOTATION_INFO_BOX_HELP_ITEM_KINDS,
   type AnnotationInfoBoxHelpItem,
@@ -76,15 +77,18 @@ const createRegistry = (
 
 const createAnnotation = ({
   id,
+  readOnly = false,
   toolType,
 }: {
   id: string;
+  readOnly?: boolean;
   toolType: StoredAnnotation["toolType"];
 }): StoredAnnotation =>
   ({
     edgeIds: [],
     id,
     nodeIds: [],
+    readOnly,
     toolType,
   } as StoredAnnotation);
 
@@ -184,6 +188,53 @@ describe("useRuntimeAnnotationInfoBoxSlots", () => {
         infoBoxVisualOptions: expect.objectContaining({
           bodyTextClassName: "custom-body",
           showSubtitleMetaText: false,
+        }),
+      })
+    );
+  });
+
+  it("hides mutating actions for read-only annotations", () => {
+    const annotation = createAnnotation({
+      id: "distance-1",
+      readOnly: true,
+      toolType: ANNOTATION_TYPES.DISTANCE,
+    });
+    const slots = {
+      content: <span>Distance content</span>,
+      footer: <span>Navigation footer</span>,
+    };
+    const getSlots = vi.fn(() => slots);
+    const plugin = createPlugin({
+      annotationType: ANNOTATION_TYPES.DISTANCE,
+      getSlots,
+      id: ANNOTATION_TYPES.DISTANCE,
+    });
+
+    useAnnotationsRuntimeMock.mockReturnValue(
+      createRuntime({
+        annotationEntries: [annotation],
+        registry: createRegistry([plugin]),
+        selectedAnnotationId: annotation.id,
+      })
+    );
+
+    const { result } = renderHook(() => useRuntimeAnnotationInfoBoxSlots());
+
+    expect(result.current).toEqual(
+      expect.objectContaining({
+        annotation,
+        kind: RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS.ANNOTATION,
+        slots,
+      })
+    );
+    expect(getSlots).toHaveBeenCalledWith(
+      expect.objectContaining({
+        annotation,
+        infoBoxVisualOptions: expect.objectContaining({
+          hiddenActionIds: [
+            ANNOTATION_INFO_BOX_ACTION_IDS.LOCK,
+            ANNOTATION_INFO_BOX_ACTION_IDS.DELETE,
+          ],
         }),
       })
     );

@@ -31,6 +31,14 @@ export type AnnotationEdge = {
   endNodeId: string;
 };
 
+export const ANNOTATION_ENTRY_ROLES = {
+  AUTHORING: "authoring",
+  EXTERNAL: "external",
+} as const;
+
+export type AnnotationEntryRole =
+  (typeof ANNOTATION_ENTRY_ROLES)[keyof typeof ANNOTATION_ENTRY_ROLES];
+
 export const ANNOTATION_ELEVATION_DISPLAY_MODES = {
   RELATIVE: "relative",
   ABSOLUTE: "absolute",
@@ -48,6 +56,8 @@ export type StoredAnnotation = {
   shortLabel?: string;
   hidden?: boolean;
   locked?: boolean;
+  annotationRole?: AnnotationEntryRole;
+  readOnly?: boolean;
   labelAppearance?: AnnotationLabelAppearance;
   elevationDisplayMode?: AnnotationElevationDisplayMode;
   distanceAnchorCoordinateSelection?: RuntimePointLabelCoordinateSelection;

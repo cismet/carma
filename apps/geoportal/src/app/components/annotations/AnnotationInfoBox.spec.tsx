@@ -76,6 +76,14 @@ vi.mock("@carma-mapping/annotations/ui", async () => {
   const React = await vi.importActual<typeof import("react")>("react");
 
   return {
+    ANNOTATION_INFO_BOX_ACTION_IDS: {
+      DELETE: "delete",
+      EXPORT: "export",
+      FLY_TO: "flyTo",
+      LOCK: "lock",
+      REFERENCE: "reference",
+      VISIBILITY: "visibility",
+    },
     ANNOTATION_INFO_BOX_HELP_LAYOUTS: {
       COMPACT: "compact",
       STANDARD: "standard",

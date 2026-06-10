@@ -19,6 +19,7 @@ import Icon from "react-cismap/commons/Icon";
 
 import { useMapMeasurementsContext } from "@carma-commons/measurements";
 import {
+  ANNOTATION_ENTRY_ROLES,
   ANNOTATION_DELETE_CONFIRMATION_SOURCES,
   ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_ID,
   ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_VERSION,
@@ -325,7 +326,8 @@ const SavedCesiumMeasurementLayerButton = (
       props.annotationsGeoJson.metadata.carmaConf.annotationsRuntimePersistence,
       {
         idPrefix: props.id,
-        locked: true,
+        annotationRole: ANNOTATION_ENTRY_ROLES.EXTERNAL,
+        readOnly: true,
         externalCollection,
         selectAnnotationId: null,
         skipExisting: true,

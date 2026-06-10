@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import type {
-  StoredAnnotation,
-  CesiumGeographicCoordinate,
+import {
+  ANNOTATION_ENTRY_ROLES,
+  type CesiumGeographicCoordinate,
+  type StoredAnnotation,
 } from "./annotations-store.types";
 import {
   createAnnotationsStore,
@@ -116,6 +117,31 @@ describe("createAnnotationsStore", () => {
         },
       },
     ]);
+  });
+
+  it("marks an existing annotation as external and read-only", () => {
+    const store = createAnnotationsStore({
+      ...createInitialAnnotationsStoreState(),
+      annotationEntries: [
+        createAnnotationEntry("saved-layer:annotation-a", "node-a"),
+      ],
+      nodes: [{ id: "node-a", coordinate: createCoordinate(7.0, 51.0) }],
+    });
+
+    store.dispatch(
+      updateAnnotationEntryById({
+        annotationId: "saved-layer:annotation-a",
+        annotationRole: ANNOTATION_ENTRY_ROLES.EXTERNAL,
+        readOnly: true,
+      })
+    );
+
+    expect(store.getState().annotationEntries[0]).toEqual(
+      expect.objectContaining({
+        annotationRole: ANNOTATION_ENTRY_ROLES.EXTERNAL,
+        readOnly: true,
+      })
+    );
   });
 
   it("voids linked-node relationships when a selected subset is moved away", () => {

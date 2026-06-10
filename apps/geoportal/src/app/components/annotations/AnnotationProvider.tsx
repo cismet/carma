@@ -12,6 +12,7 @@ import { useAdhocFeatureDisplay } from "@carma-appframeworks/portals";
 import { ANNOTATION_SELECT_TOOL_ID } from "@carma-mapping/annotations/core";
 import { createDefaultAnnotationToolPlugins } from "@carma-mapping/annotations/builtin-tools";
 import {
+  ANNOTATION_ENTRY_ROLES,
   AnnotationsProvider,
   resolveAnnotationsRuntimePersistenceFromGeoJson,
   type AnnotationDeleteConfirmationRequester,
@@ -144,7 +145,8 @@ function GeoportalSavedAnnotationFeatureCollectionRegistration() {
 
         appendAnnotationsRuntimePersistenceState(persistenceState, {
           idPrefix: collection.id,
-          locked: true,
+          annotationRole: ANNOTATION_ENTRY_ROLES.EXTERNAL,
+          readOnly: true,
           externalCollection,
           selectAnnotationId: null,
           skipExisting: true,

@@ -6,7 +6,7 @@ import {
 
 import type { AnnotationToolPlugin, AnnotationToolRegistry } from "../registry";
 import { ANNOTATION_TOOL_PLUGIN_KINDS } from "../registry";
-import type { StoredAnnotation } from "../store";
+import { ANNOTATION_ENTRY_ROLES, type StoredAnnotation } from "../store";
 import {
   areAnnotationEntriesHidden,
   resolveAnnotationCancelToolId,
@@ -43,21 +43,24 @@ const createPlugin = ({
 });
 
 const createAnnotation = ({
+  annotationRole,
   hidden = false,
   id,
-  externalCollection,
+  readOnly,
   toolType,
 }: {
+  annotationRole?: StoredAnnotation["annotationRole"];
   hidden?: boolean;
   id: string;
-  externalCollection?: StoredAnnotation["externalCollection"];
+  readOnly?: boolean;
   toolType: StoredAnnotation["toolType"];
 }): StoredAnnotation =>
   ({
+    annotationRole,
     hidden,
     id,
     nodeIds: [],
-    externalCollection,
+    readOnly,
     toolType,
   } as StoredAnnotation);
 
@@ -131,8 +134,8 @@ describe("annotation-tool-collections", () => {
     const entries = [
       createAnnotation({ id: "a", toolType: ANNOTATION_TYPES.DISTANCE }),
       createAnnotation({
+        annotationRole: ANNOTATION_ENTRY_ROLES.EXTERNAL,
         id: "b",
-        externalCollection: { type: "saved-measurement", id: "saved-layer" },
         toolType: ANNOTATION_TYPES.DISTANCE,
       }),
     ];
@@ -150,12 +153,12 @@ describe("annotation-tool-collections", () => {
     ).toEqual(["a"]);
   });
 
-  it("keeps external annotation entries renderable but outside authoring", () => {
+  it("keeps external annotation entries renderable but outside authoring groups", () => {
     const entries = [
       createAnnotation({ id: "a", toolType: ANNOTATION_TYPES.DISTANCE }),
       createAnnotation({
+        annotationRole: ANNOTATION_ENTRY_ROLES.EXTERNAL,
         id: "b",
-        externalCollection: { type: "saved-measurement", id: "saved-layer" },
         toolType: ANNOTATION_TYPES.DISTANCE,
       }),
     ];

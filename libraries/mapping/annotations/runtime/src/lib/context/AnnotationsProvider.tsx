@@ -66,6 +66,8 @@ type AnnotationsRuntimeServices = {
     options?: {
       idPrefix?: string;
       locked?: boolean;
+      annotationRole?: StoredAnnotation["annotationRole"];
+      readOnly?: boolean;
       externalCollection?: StoredAnnotation["externalCollection"];
       selectAnnotationId?: string | null;
       skipExisting?: boolean;
