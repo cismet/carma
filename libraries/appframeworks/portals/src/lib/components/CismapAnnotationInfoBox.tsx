@@ -52,7 +52,7 @@ export const CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS = {
   },
   subtitleMetaTextClassName:
     "mt-0 whitespace-nowrap text-[12px] font-normal leading-normal",
-  bodyContainerClassName: "pb-0 pt-0",
+  bodyContainerClassName: "pb-2 pt-0",
   bodyTextStyle: {
     color: "#212529",
     fontSize: "12px",
@@ -81,11 +81,11 @@ export const CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS = {
   titleInputClassName:
     "min-w-0 w-auto max-w-full appearance-none [field-sizing:content] break-words border-0 bg-transparent px-0 py-0 text-[14px] font-bold leading-[1.25] text-[#212529] placeholder:text-[#212529] focus:outline-none focus:ring-0",
   navigationInstructionContainerClassName:
-    "mt-1 flex w-full items-center justify-center text-[12px]",
+    "flex w-full items-center justify-center text-[12px]",
   navigationAvailabilityContainerClassName:
-    "flex w-[96%] items-center justify-center pt-3 text-[12px]",
+    "flex w-[96%] items-center justify-center text-[12px]",
   navigationSummaryContainerClassName:
-    "mb-2 mt-1 flex w-[96%] items-center justify-between text-[12px]",
+    "mb-2 flex w-[96%] items-center justify-between text-[12px]",
   navigationLinkFontSize: "10.5px",
   navigationControlLabels: {
     previous: "<<",

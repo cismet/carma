@@ -243,12 +243,27 @@ describe("CismapAnnotationInfoBox", () => {
     expect(
       CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS.titleInputClassName
     ).toContain("focus:outline-none");
+    expect(
+      CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS.bodyContainerClassName
+    ).toContain("pb-2");
+    expect(
+      CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS.bodyContainerClassName
+    ).not.toContain("pb-0");
     expect(CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS.hiddenActionIds).toEqual([
       ANNOTATION_INFO_BOX_ACTION_IDS.EXPORT,
       ANNOTATION_INFO_BOX_ACTION_IDS.VISIBILITY,
       ANNOTATION_INFO_BOX_ACTION_IDS.REFERENCE,
       ANNOTATION_INFO_BOX_ACTION_IDS.LOCK,
     ]);
+    expect(
+      CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS.navigationInstructionContainerClassName
+    ).not.toContain("mt-1");
+    expect(
+      CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS.navigationAvailabilityContainerClassName
+    ).not.toContain("pt-3");
+    expect(
+      CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS.navigationSummaryContainerClassName
+    ).not.toContain("mt-1");
     expect(
       CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS.navigationControlLabels
     ).toEqual({
