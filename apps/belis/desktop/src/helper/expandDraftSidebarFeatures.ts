@@ -159,6 +159,64 @@ function buildBestandRow(
   } as unknown as SidebarFeature;
 }
 
+// Build a sidebar row for a Leuchte that is being cascade-deleted along with
+// its Standort. Like `buildBestandRow` but with two deliberate differences:
+//   - `properties.id` is the Leuchte's real DB id (not the synthetic row id),
+//     so the sidebar's pending-deletion styling — which keys on
+//     "leuchten:<dbId>" — matches this row and paints it red.
+//   - no `_draftKey` / `_draftTabKey`: there is no form tab to focus, the row
+//     is display-only (it just shows what's going away with the Standort).
+function buildCascadeDeletionRow(
+  draftKey: string,
+  standortId: string,
+  entry: BestandLeuchteEntry
+): SidebarFeature {
+  const rowId = `${draftKey}::cascade::${entry.id}`;
+  return {
+    type: "Feature",
+    id: rowId,
+    properties: {
+      id: entry.id,
+      _featureType: "leuchte",
+      _sourceLayer: "leuchten",
+      // Cluster under the deleted Standort (its row's properties.id == standortId).
+      fk_standort: standortId,
+      leuchtennummer: entry.leuchtennummer,
+      lfd_nummer: entry.lfd_nummer,
+      leuchtentyp: entry.leuchtentyp,
+      fabrikat: entry.fabrikat,
+      strasse: entry.strasse,
+    },
+    geometry: null,
+    sourceLayer: "leuchten",
+    source: "",
+    layer: { id: "leuchten", source: "", type: "circle" as const },
+    state: {},
+  } as unknown as SidebarFeature;
+}
+
+// A Standort marked for deletion drags its Leuchten with it (cascade soft-delete
+// on save). Expand the deletion draft into the Standort's own row plus one
+// display-only Leuchte row per captured child, clustered under the Standort via
+// `fk_standort`. The rows feed BOTH the Entwürfe tab and — because the
+// Fachobjekte tab splices in these same expanded draft rows — the Fachobjekte
+// list, where the map otherwise cascade-hid the whole cluster.
+function expandStandortDeletionDraft(
+  draftKey: string,
+  draft: Draft
+): SidebarFeature[] {
+  const parent = draft.feature as SidebarFeature;
+  const standortId =
+    draft.featureDbId != null
+      ? String(draft.featureDbId)
+      : draftKey.split(":")[1] ?? "";
+  const out: SidebarFeature[] = [parent];
+  for (const entry of draft.cascadeDeleteLeuchten ?? []) {
+    out.push(buildCascadeDeletionRow(draftKey, standortId, entry));
+  }
+  return out;
+}
+
 // A Standort creation draft holds the Mast flat in `values` plus every
 // "+ Leuchte" tab under `values.leuchten[]`. Expand it into its Standort parent
 // row (the draft's own stored `feature`, id = `draftKey`) plus one `leuchten`
@@ -243,6 +301,13 @@ export function expandDraftSidebarFeatures(
       draft.feature != null
     ) {
       out.push(...expandStandortCreationDraft(draftKey, draft, keyTables));
+    } else if (
+      draft.featureType === "standort" &&
+      draft.pendingDeletion === true &&
+      (draft.cascadeDeleteLeuchten?.length ?? 0) > 0 &&
+      draft.feature != null
+    ) {
+      out.push(...expandStandortDeletionDraft(draftKey, draft));
     } else if (draft.feature != null) {
       out.push(draft.feature as SidebarFeature);
     }

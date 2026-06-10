@@ -696,6 +696,13 @@ const BelisSidebar = ({
       const sourceLayer = draftKey.split(":")[0];
       const dbId = draft.featureDbId ?? draftKey.split(":")[1];
       if (sourceLayer && dbId != null) keys.add(`${sourceLayer}:${dbId}`);
+      // A Standort marked for deletion takes its Leuchten with it (cascade
+      // soft-delete). Flag each captured child — keyed by its real DB id — so
+      // its expanded sidebar row also renders in the danger red, in both the
+      // Fachobjekte and Entwürfe lists.
+      for (const leuchte of draft.cascadeDeleteLeuchten ?? []) {
+        keys.add(`leuchten:${leuchte.id}`);
+      }
     }
     return keys;
   }, [allDrafts]);

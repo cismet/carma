@@ -47,7 +47,10 @@ import {
   recordSelectionDefaults,
   CREATION_DEFAULTS_ALLOWLIST,
 } from "../../../store/slices/creationDefaults";
-import type { DraftFile } from "../../../store/slices/featuresForms";
+import type {
+  DraftFile,
+  BestandLeuchteEntry,
+} from "../../../store/slices/featuresForms";
 import type { RootState } from "../../../store";
 import {
   serializeValues,
@@ -108,6 +111,48 @@ const formKeyToGraphqlKey: Record<string, string> = {
   schaltstelle: "schaltstelle",
   mauerlasche: "mauerlasche",
   abzweigdose: "abzweigdose",
+};
+
+// Project a Standort's fetched `leuchtenArray` into the slim BestandLeuchteEntry
+// rows the sidebar renders. Skips Leuchten already soft-deleted server-side
+// (is_deleted), denormalizes the leuchtentyp / strassenschluessel FK objects to
+// flat label strings, and keeps the DB `id` so the cascade soft-delete and the
+// red pending-deletion styling can key on it. Used when a Standort is marked
+// for deletion to capture the children that go with it.
+const projectCascadeLeuchten = (
+  standortData: unknown
+): BestandLeuchteEntry[] => {
+  const mast = Array.isArray(standortData)
+    ? (standortData[0] as Record<string, unknown> | undefined)
+    : undefined;
+  const arr = mast?.leuchtenArray;
+  if (!Array.isArray(arr)) return [];
+  const out: BestandLeuchteEntry[] = [];
+  for (const raw of arr) {
+    const l = raw as Record<string, unknown>;
+    if (l.is_deleted === true) continue;
+    const id = Number(l.id);
+    if (!Number.isFinite(id)) continue;
+    const leuchtentyp = l.tkey_leuchtentyp as
+      | Record<string, unknown>
+      | null
+      | undefined;
+    const strasse = l.tkey_strassenschluessel as
+      | Record<string, unknown>
+      | null
+      | undefined;
+    out.push({
+      id,
+      // No form tab to focus — these are display-only deletion rows.
+      tabKey: `cascade-${id}`,
+      leuchtennummer: l.leuchtennummer as number | string | undefined,
+      leuchtentyp: leuchtentyp?.leuchtentyp as string | undefined,
+      fabrikat: leuchtentyp?.fabrikat as string | undefined,
+      lfd_nummer: l.lfd_nummer as number | string | undefined,
+      strasse: strasse?.strasse as string | undefined,
+    });
+  }
+  return out;
 };
 
 // Map sourceLayer values to registry keys
@@ -656,6 +701,43 @@ const FeaturesFormsWrapper = ({
                   | number
                   | undefined,
               })
+            );
+          }
+        }
+        // Cascade: a deleted Standort takes its Leuchten with it. Soft-delete
+        // each child captured at mark time, mirroring the single-feature path
+        // (updateDataByClassName flips is_deleted; markFeatureDeleted keeps the
+        // lingering tile/brandnew copy hidden until the sources regenerate).
+        // Failures are collected and surfaced but don't abort the Standort
+        // deletion that already succeeded.
+        if (formKey === "standort" && draft.cascadeDeleteLeuchten?.length) {
+          const failedLeuchten: number[] = [];
+          for (const leuchte of draft.cascadeDeleteLeuchten) {
+            try {
+              await updateDataByClassName(jwt, "tdta_leuchten", {
+                id: leuchte.id,
+                is_deleted: true,
+              });
+              dispatch(
+                markFeatureDeleted({
+                  featureId: `leuchten:${leuchte.id}`,
+                  sourceLayer: "leuchten",
+                  featureDbId: leuchte.id,
+                })
+              );
+            } catch (leuchteErr) {
+              console.error("[DELETE] Leuchte (Kaskade) fehlgeschlagen", {
+                id: leuchte.id,
+                err: leuchteErr,
+              });
+              failedLeuchten.push(leuchte.id);
+            }
+          }
+          if (failedLeuchten.length > 0) {
+            void message.warning(
+              `Standort gelöscht, aber ${failedLeuchten.length} Leuchte(n) konnten nicht gelöscht werden: #${failedLeuchten.join(
+                ", #"
+              )}`
             );
           }
         }
@@ -1221,6 +1303,17 @@ const FeaturesFormsWrapper = ({
         2
       )
     );
+    // Deleting a Standort cascades to its Leuchten: capture them from the
+    // fetched mast (`leuchtenArray`) so the sidebar can show them as red
+    // "wird gelöscht" rows and handleServerSave can soft-delete each on commit.
+    const cascadeDeleteLeuchten =
+      formKey === "standort"
+        ? projectCascadeLeuchten(
+            (data as Record<string, unknown> | undefined)?.[
+              formKeyToGraphqlKey.standort
+            ]
+          )
+        : undefined;
     dispatch(
       setPendingDeletion({
         featureId,
@@ -1229,6 +1322,7 @@ const FeaturesFormsWrapper = ({
         feature: draftFeature,
         fetchedData: data,
         featureDbId: dbPK != null ? Number(dbPK) : undefined,
+        cascadeDeleteLeuchten,
       })
     );
     setIsEditing(true);

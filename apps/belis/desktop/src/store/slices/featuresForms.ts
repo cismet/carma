@@ -91,6 +91,14 @@ export interface Draft {
   // treated as a change by the dirtiness selectors and committed by deleting
   // the object server-side (see handleCommitDeletion in FeaturesFormsWrapper).
   pendingDeletion?: boolean;
+  // Child Leuchten of a Standort marked for deletion, projected from the
+  // Standort's `leuchtenArray` (skipping rows already `is_deleted`) at
+  // mark-for-deletion time. Drives the red "wird gelöscht" Leuchten rows shown
+  // under the Standort in BOTH the Fachobjekte and Entwürfe lists (via
+  // expandDraftSidebarFeatures + the sidebar's pending-deletion styling) and
+  // the cascade soft-delete loop in handleServerSave. Only set on a `standort`
+  // pending-deletion draft; absent/empty otherwise.
+  cascadeDeleteLeuchten?: BestandLeuchteEntry[];
   updatedAt: number;
 }
 
@@ -300,8 +308,10 @@ const featuresFormsSlice = createSlice({
         // edits) so the icon stays correct.
         bestandLeuchtenCount:
           existing?.bestandLeuchtenCount ?? bestandLeuchtenCount,
-        // Preserve a deletion mark across form-edit setDraft replacements.
+        // Preserve a deletion mark (and the captured cascade Leuchten) across
+        // form-edit setDraft replacements.
         pendingDeletion: existing?.pendingDeletion,
+        cascadeDeleteLeuchten: existing?.cascadeDeleteLeuchten,
         updatedAt: Date.now(),
       };
     },
@@ -320,6 +330,7 @@ const featuresFormsSlice = createSlice({
         feature?: any;
         fetchedData?: Record<string, unknown>;
         featureDbId?: number;
+        cascadeDeleteLeuchten?: BestandLeuchteEntry[];
       }>
     ) {
       const {
@@ -329,6 +340,7 @@ const featuresFormsSlice = createSlice({
         feature,
         fetchedData,
         featureDbId,
+        cascadeDeleteLeuchten,
       } = action.payload;
       const existing = state.drafts[featureId];
 
@@ -347,6 +359,9 @@ const featuresFormsSlice = createSlice({
       if (!pendingDeletion) {
         if (!existing) return;
         existing.pendingDeletion = undefined;
+        // Drop the captured child Leuchten — they only exist to drive the
+        // cascade delete + its red rows, both of which end with the unmark.
+        existing.cascadeDeleteLeuchten = undefined;
         // Reveal the feature again: the deletion-only hide lives in this field
         // (geometry-edit drafts compute their hide separately), so clearing it
         // is safe.
@@ -366,6 +381,8 @@ const featuresFormsSlice = createSlice({
         existing.fetchedData = fetchedData ?? existing.fetchedData;
         if (featureDbId != null) existing.featureDbId = featureDbId;
         existing.hiddenOriginalIds = hideSelf ?? existing.hiddenOriginalIds;
+        if (cascadeDeleteLeuchten != null)
+          existing.cascadeDeleteLeuchten = cascadeDeleteLeuchten;
         existing.updatedAt = Date.now();
       } else {
         state.drafts[featureId] = {
@@ -376,6 +393,7 @@ const featuresFormsSlice = createSlice({
           featureDbId,
           pendingDeletion: true,
           hiddenOriginalIds: hideSelf,
+          cascadeDeleteLeuchten,
           updatedAt: Date.now(),
         };
       }
