@@ -2,6 +2,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 import {
   ANNOTATION_DELETE_CONFIRMATION_SOURCES,
+  selectAuthoringAnnotationEntries,
   type AnnotationsRuntimeGeoJsonFeatureCollection,
   useAnnotationsRuntime,
 } from "@carma-mapping/annotations/runtime";
@@ -180,10 +181,10 @@ function SaveCesiumAnnotations({ layer }: { layer: Layer }) {
     buildAllAnnotationsGeoJson,
     removeAnnotationsByIds,
   } = useAnnotationsRuntime();
-  const liveAnnotationEntries = annotationEntries.filter(
-    (annotationEntry) => !annotationEntry.readOnlySource
-  );
-  const hasAnnotations = liveAnnotationEntries.length > 0;
+  const authoringAnnotationEntries = selectAuthoringAnnotationEntries({
+    annotationEntries,
+  });
+  const hasAuthoringAnnotations = authoringAnnotationEntries.length > 0;
 
   const buildFeatureData = (values: MeasurementSaveValues, title: string) => {
     const trimmedDescription = values.description.trim();
@@ -212,7 +213,7 @@ function SaveCesiumAnnotations({ layer }: { layer: Layer }) {
 
   const clearAnnotations = () => {
     removeAnnotationsByIds(
-      liveAnnotationEntries.map((annotationEntry) => annotationEntry.id),
+      authoringAnnotationEntries.map((annotationEntry) => annotationEntry.id),
       {
         skipConfirmation: true,
         source: ANNOTATION_DELETE_CONFIRMATION_SOURCES.UI,
@@ -221,7 +222,7 @@ function SaveCesiumAnnotations({ layer }: { layer: Layer }) {
   };
 
   const handleSave = async (values: MeasurementSaveValues) => {
-    if (!hasAnnotations) return;
+    if (!hasAuthoringAnnotations) return;
 
     const baseTitle = values.title.trim() || "Messung";
     const existingTitles = new Set(
@@ -231,7 +232,7 @@ function SaveCesiumAnnotations({ layer }: { layer: Layer }) {
     const { annotationsGeoJson, featureData, featureDescription, icon } =
       buildFeatureData(values, featureTitle);
     const featureId = buildCesiumAnnotationMeasurementId(annotationsGeoJson);
-    const readOnlySource = {
+    const externalCollection = {
       type: "saved-measurement",
       id: featureId,
     } as const;
@@ -282,7 +283,7 @@ function SaveCesiumAnnotations({ layer }: { layer: Layer }) {
       {
         idPrefix: featureId,
         locked: true,
-        readOnlySource,
+        externalCollection,
         selectAnnotationId: null,
         skipExisting: true,
       }
@@ -293,7 +294,7 @@ function SaveCesiumAnnotations({ layer }: { layer: Layer }) {
   };
 
   const handleDownload = (values: MeasurementSaveValues) => {
-    if (!hasAnnotations) return;
+    if (!hasAuthoringAnnotations) return;
 
     const baseTitle = values.title.trim() || "Messung";
     const { featureData } = buildFeatureData(values, baseTitle);
@@ -308,7 +309,7 @@ function SaveCesiumAnnotations({ layer }: { layer: Layer }) {
 
   return (
     <MeasurementSavePanel
-      disabled={!hasAnnotations}
+      disabled={!hasAuthoringAnnotations}
       onPortalSave={handleSave}
       onFileSave={handleDownload}
     />

@@ -25,6 +25,14 @@ vi.mock("@carma-mapping/annotations/runtime", () => ({
   ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_ID: "carma-3d-annotations-geojson",
   ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_VERSION: 1,
   flyToAnnotationIds: flyToAnnotationIdsMock,
+  selectAuthoringAnnotationEntries: ({
+    annotationEntries,
+  }: {
+    annotationEntries: Array<{ externalCollection?: unknown }>;
+  }) =>
+    annotationEntries.filter(
+      (annotationEntry) => !annotationEntry.externalCollection
+    ),
   resolveAnnotationsRuntimePersistenceFromGeoJson: (value: unknown) => {
     const candidate = value as {
       metadata?: {
@@ -128,7 +136,7 @@ describe("GeoportalLayerButtonSlot", () => {
       exportAllAnnotationsGeoJson: exportAllAnnotationsGeoJsonMock,
       flyToAllAnnotations: vi.fn(),
       nodes: [],
-      removeReadOnlyAnnotationsBySource: vi.fn(),
+      removeExternalAnnotationsByCollection: vi.fn(),
       removeAnnotationsByIds: vi.fn(),
       scene: null,
     });
@@ -183,7 +191,7 @@ describe("GeoportalLayerButtonSlot", () => {
     );
   });
 
-  it("keeps saved measurement object layers read-only in the layerbar", () => {
+  it("keeps saved measurement object layers external in the layerbar", () => {
     render(
       <GeoportalLayerButtonSlot
         id="measurement-3d-abc"
@@ -212,12 +220,12 @@ describe("GeoportalLayerButtonSlot", () => {
 
   it("renders saved 3D measurements from the annotation runtime payload", () => {
     const appendAnnotationsRuntimePersistenceState = vi.fn();
-    const removeReadOnlyAnnotationsBySource = vi.fn();
+    const removeExternalAnnotationsByCollection = vi.fn();
     useAnnotationsRuntimeMock.mockReturnValue({
       annotationEntries: [
         {
           id: "measurement-3d-abc:distance-1",
-          readOnlySource: {
+          externalCollection: {
             type: "saved-measurement",
             id: "measurement-3d-abc",
           },
@@ -227,7 +235,7 @@ describe("GeoportalLayerButtonSlot", () => {
       exportAllAnnotationsGeoJson: exportAllAnnotationsGeoJsonMock,
       flyToAllAnnotations: vi.fn(),
       nodes: [],
-      removeReadOnlyAnnotationsBySource,
+      removeExternalAnnotationsByCollection,
       removeAnnotationsByIds: vi.fn(),
       scene: null,
     });
@@ -301,7 +309,7 @@ describe("GeoportalLayerButtonSlot", () => {
       expect.objectContaining({
         idPrefix: "measurement-3d-abc",
         locked: true,
-        readOnlySource: {
+        externalCollection: {
           type: "saved-measurement",
           id: "measurement-3d-abc",
         },
@@ -323,7 +331,7 @@ describe("GeoportalLayerButtonSlot", () => {
       annotationEntries: [
         {
           id: "measurement-3d-abc:distance-1",
-          readOnlySource: {
+          externalCollection: {
             type: "saved-measurement",
             id: "measurement-3d-abc",
           },
@@ -333,7 +341,7 @@ describe("GeoportalLayerButtonSlot", () => {
       exportAllAnnotationsGeoJson: exportAllAnnotationsGeoJsonMock,
       flyToAllAnnotations: vi.fn(),
       nodes: [],
-      removeReadOnlyAnnotationsBySource: vi.fn(),
+      removeExternalAnnotationsByCollection: vi.fn(),
       removeAnnotationsByIds: vi.fn(),
       scene: null,
     });

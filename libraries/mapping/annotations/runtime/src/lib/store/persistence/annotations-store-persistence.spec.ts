@@ -231,7 +231,7 @@ describe("annotationsStorePersistence", () => {
     ).not.toContain(["preferredNormalBearing", "Deg"].join(""));
   });
 
-  it("keeps saved read-only measurement annotations out of live runtime persistence", () => {
+  it("keeps saved external measurement annotations out of live runtime persistence", () => {
     const persistenceState = buildAnnotationsRuntimePersistenceState(
       createStoreState([
         createStoredAnnotation({
@@ -242,7 +242,7 @@ describe("annotationsStorePersistence", () => {
           id: "measurement-3d-abc:distance-1",
           toolType: ANNOTATION_TYPES.DISTANCE,
           locked: true,
-          readOnlySource: {
+          externalCollection: {
             type: "saved-measurement",
             id: "measurement-3d-abc",
           },

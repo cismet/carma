@@ -24,6 +24,7 @@ import {
   ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_VERSION,
   flyToAnnotationIds,
   resolveAnnotationsRuntimePersistenceFromGeoJson,
+  selectAuthoringAnnotationEntries,
   type AnnotationsRuntimeGeoJsonFeatureCollection,
   useAnnotationsRuntime,
 } from "@carma-mapping/annotations/runtime";
@@ -190,13 +191,13 @@ const CesiumAnnotationLayerButton = (props: GeoportalLayerButtonProps) => {
   const { layerbar } = geoportalAnnotationModeText;
   const { annotationEntries, nodes, removeAnnotationsByIds, scene } =
     useAnnotationsRuntime();
-  const liveAnnotationEntries = annotationEntries.filter(
-    (annotationEntry) => !annotationEntry.readOnlySource
-  );
-  const liveAnnotationIds = liveAnnotationEntries.map(
+  const authoringAnnotationEntries = selectAuthoringAnnotationEntries({
+    annotationEntries,
+  });
+  const authoringAnnotationIds = authoringAnnotationEntries.map(
     (annotationEntry) => annotationEntry.id
   );
-  const hasAnnotations = liveAnnotationEntries.length > 0;
+  const hasAuthoringAnnotations = authoringAnnotationEntries.length > 0;
   const handleClose = useCallback(
     (event: ReactMouseEvent<HTMLButtonElement>) => {
       event.stopPropagation();
@@ -213,11 +214,11 @@ const CesiumAnnotationLayerButton = (props: GeoportalLayerButtonProps) => {
           <LayerButtonActionButton
             title={layerbar.cesiumAnnotations.focusAll}
             icon={<Icon name="search-location" className="leading-none" />}
-            disabled={!hasAnnotations}
+            disabled={!hasAuthoringAnnotations}
             onClick={() => {
               flyToAnnotationIds({
                 annotationEntries,
-                annotationIds: liveAnnotationIds,
+                annotationIds: authoringAnnotationIds,
                 nodes,
                 scene,
               });
@@ -226,7 +227,7 @@ const CesiumAnnotationLayerButton = (props: GeoportalLayerButtonProps) => {
           <LayerButtonActionButton
             title={layerbar.cesiumAnnotations.exportAllGeoJson}
             icon={<FontAwesomeIcon icon={faFloppyDisk} />}
-            disabled={!hasAnnotations}
+            disabled={!hasAuthoringAnnotations}
             onClick={() => {
               dispatch(setActiveInteractionLayerID(CESIUM_ANNOTATION_LAYER_ID));
               dispatch(
@@ -239,9 +240,9 @@ const CesiumAnnotationLayerButton = (props: GeoportalLayerButtonProps) => {
           <LayerButtonActionButton
             title={layerbar.cesiumAnnotations.deleteAll}
             icon={<FontAwesomeIcon icon={faTrashCan} />}
-            disabled={!hasAnnotations}
+            disabled={!hasAuthoringAnnotations}
             onClick={(event) => {
-              removeAnnotationsByIds(liveAnnotationIds, {
+              removeAnnotationsByIds(authoringAnnotationIds, {
                 skipConfirmation: event.shiftKey,
                 source: ANNOTATION_DELETE_CONFIRMATION_SOURCES.UI,
               });
@@ -305,13 +306,13 @@ const SavedCesiumMeasurementLayerButton = (
     annotationEntries,
     appendAnnotationsRuntimePersistenceState,
     nodes,
-    removeReadOnlyAnnotationsBySource,
+    removeExternalAnnotationsByCollection,
     scene,
   } = useAnnotationsRuntime();
   const {
     layerbar: { adhocModel },
   } = geoportalAnnotationModeText;
-  const readOnlySource = useMemo(
+  const externalCollection = useMemo(
     () => ({
       type: "saved-measurement" as const,
       id: props.id,
@@ -325,21 +326,21 @@ const SavedCesiumMeasurementLayerButton = (
       {
         idPrefix: props.id,
         locked: true,
-        readOnlySource,
+        externalCollection,
         selectAnnotationId: null,
         skipExisting: true,
       }
     );
 
     return () => {
-      removeReadOnlyAnnotationsBySource(readOnlySource);
+      removeExternalAnnotationsByCollection(externalCollection);
     };
   }, [
     appendAnnotationsRuntimePersistenceState,
     props.annotationsGeoJson,
     props.id,
-    readOnlySource,
-    removeReadOnlyAnnotationsBySource,
+    externalCollection,
+    removeExternalAnnotationsByCollection,
   ]);
 
   const savedAnnotationIds = useMemo(
@@ -347,11 +348,12 @@ const SavedCesiumMeasurementLayerButton = (
       annotationEntries
         .filter(
           (annotationEntry) =>
-            annotationEntry.readOnlySource?.type === readOnlySource.type &&
-            annotationEntry.readOnlySource.id === readOnlySource.id
+            annotationEntry.externalCollection?.type ===
+              externalCollection.type &&
+            annotationEntry.externalCollection.id === externalCollection.id
         )
         .map((annotationEntry) => annotationEntry.id),
-    [annotationEntries, readOnlySource]
+    [annotationEntries, externalCollection]
   );
 
   const handleFlyTo = useCallback(() => {

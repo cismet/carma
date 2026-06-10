@@ -66,13 +66,13 @@ type AnnotationsRuntimeServices = {
     options?: {
       idPrefix?: string;
       locked?: boolean;
-      readOnlySource?: StoredAnnotation["readOnlySource"];
+      externalCollection?: StoredAnnotation["externalCollection"];
       selectAnnotationId?: string | null;
       skipExisting?: boolean;
     }
   ) => readonly string[];
-  removeReadOnlyAnnotationsBySource: (
-    readOnlySource: NonNullable<StoredAnnotation["readOnlySource"]>
+  removeExternalAnnotationsByCollection: (
+    externalCollection: NonNullable<StoredAnnotation["externalCollection"]>
   ) => readonly string[];
   setActiveToolType: (toolId: AnnotationToolId) => void;
   requestModeChange: (toolId: AnnotationToolId) => void;
@@ -298,7 +298,7 @@ export const useAnnotationsRuntime = () => {
     formatOptions,
     addAnnotation,
     appendAnnotationsRuntimePersistenceState,
-    removeReadOnlyAnnotationsBySource,
+    removeExternalAnnotationsByCollection,
     setActiveToolType,
     requestModeChange,
     requestActivateTool,
@@ -387,7 +387,7 @@ export const useAnnotationsRuntime = () => {
     setSelectedAnnotationIds,
     addAnnotation,
     appendAnnotationsRuntimePersistenceState,
-    removeReadOnlyAnnotationsBySource,
+    removeExternalAnnotationsByCollection,
     labelTextDialogState,
   };
 };

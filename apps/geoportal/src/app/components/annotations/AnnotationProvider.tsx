@@ -105,9 +105,9 @@ function GeoportalSavedAnnotationFeatureCollectionRegistration() {
   const { featureCollections } = useAdhocFeatureDisplay();
   const {
     appendAnnotationsRuntimePersistenceState,
-    removeReadOnlyAnnotationsBySource,
+    removeExternalAnnotationsByCollection,
   } = useAnnotationsRuntime();
-  const activeSourceIds = useMemo(
+  const activeCollectionIds = useMemo(
     () =>
       new Set(
         featureCollections.flatMap((collection) =>
@@ -121,7 +121,7 @@ function GeoportalSavedAnnotationFeatureCollectionRegistration() {
       ),
     [featureCollections]
   );
-  const registeredSourceIdsRef = useRef<Set<string>>(new Set());
+  const registeredCollectionIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     for (const collection of featureCollections) {
@@ -130,7 +130,7 @@ function GeoportalSavedAnnotationFeatureCollectionRegistration() {
           continue;
         }
 
-        const readOnlySource = {
+        const externalCollection = {
           type: "saved-measurement" as const,
           id: collection.id,
         };
@@ -145,29 +145,29 @@ function GeoportalSavedAnnotationFeatureCollectionRegistration() {
         appendAnnotationsRuntimePersistenceState(persistenceState, {
           idPrefix: collection.id,
           locked: true,
-          readOnlySource,
+          externalCollection,
           selectAnnotationId: null,
           skipExisting: true,
         });
-        registeredSourceIdsRef.current.add(collection.id);
+        registeredCollectionIdsRef.current.add(collection.id);
       }
     }
 
-    for (const sourceId of [...registeredSourceIdsRef.current]) {
-      if (activeSourceIds.has(sourceId)) {
+    for (const collectionId of [...registeredCollectionIdsRef.current]) {
+      if (activeCollectionIds.has(collectionId)) {
         continue;
       }
-      removeReadOnlyAnnotationsBySource({
+      removeExternalAnnotationsByCollection({
         type: "saved-measurement",
-        id: sourceId,
+        id: collectionId,
       });
-      registeredSourceIdsRef.current.delete(sourceId);
+      registeredCollectionIdsRef.current.delete(collectionId);
     }
   }, [
-    activeSourceIds,
+    activeCollectionIds,
     appendAnnotationsRuntimePersistenceState,
     featureCollections,
-    removeReadOnlyAnnotationsBySource,
+    removeExternalAnnotationsByCollection,
   ]);
 
   return null;

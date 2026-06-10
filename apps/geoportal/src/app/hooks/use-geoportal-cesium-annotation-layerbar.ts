@@ -6,7 +6,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import { ANNOTATION_SELECT_TOOL_ID } from "@carma-mapping/annotations/core";
 import {
-  isAuthoringAnnotationEntry,
+  selectAuthoringAnnotationEntries,
   useAnnotationsRuntime,
 } from "@carma-mapping/annotations/runtime";
 import type { AnnotationModeText } from "@carma-mapping/annotations/builtin-tools/annotation-mode-text";
@@ -73,9 +73,9 @@ export function useGeoportalCesiumAnnotationLayerbar() {
 
   const shouldShowCesiumAnnotationLayer =
     isCesium && uiMode === UIMode.MEASUREMENT;
-  const authoringAnnotationCount = annotationEntries.filter(
-    isAuthoringAnnotationEntry
-  ).length;
+  const authoringAnnotationCount = selectAuthoringAnnotationEntries({
+    annotationEntries,
+  }).length;
   const hasCesiumAnnotationLayer = layers.some(
     (layer) => layer.id === CESIUM_ANNOTATION_LAYER_ID
   );

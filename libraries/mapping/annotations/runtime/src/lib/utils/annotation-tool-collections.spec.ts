@@ -16,6 +16,8 @@ import {
   resolveAnnotationToolFallbackPlugin,
   resolvePrimaryAnnotationInteractionToolId,
   resolveVisibleMeasurementAnnotationToolPlugins,
+  selectAuthoringAnnotationEntries,
+  selectRenderableAnnotationEntries,
 } from "./annotation-tool-collections";
 
 const createPlugin = ({
@@ -43,19 +45,19 @@ const createPlugin = ({
 const createAnnotation = ({
   hidden = false,
   id,
-  readOnlySource,
+  externalCollection,
   toolType,
 }: {
   hidden?: boolean;
   id: string;
-  readOnlySource?: StoredAnnotation["readOnlySource"];
+  externalCollection?: StoredAnnotation["externalCollection"];
   toolType: StoredAnnotation["toolType"];
 }): StoredAnnotation =>
   ({
     hidden,
     id,
     nodeIds: [],
-    readOnlySource,
+    externalCollection,
     toolType,
   } as StoredAnnotation);
 
@@ -125,12 +127,12 @@ describe("annotation-tool-collections", () => {
     ).toEqual(["a", "c"]);
   });
 
-  it("excludes read-only annotation entries from authoring groups", () => {
+  it("excludes external annotation entries from authoring groups", () => {
     const entries = [
       createAnnotation({ id: "a", toolType: ANNOTATION_TYPES.DISTANCE }),
       createAnnotation({
         id: "b",
-        readOnlySource: { type: "saved-measurement", id: "saved-layer" },
+        externalCollection: { type: "saved-measurement", id: "saved-layer" },
         toolType: ANNOTATION_TYPES.DISTANCE,
       }),
     ];
@@ -146,6 +148,25 @@ describe("annotation-tool-collections", () => {
         .get(ANNOTATION_TYPES.DISTANCE)
         ?.map((entry) => entry.id)
     ).toEqual(["a"]);
+  });
+
+  it("keeps external annotation entries renderable but outside authoring", () => {
+    const entries = [
+      createAnnotation({ id: "a", toolType: ANNOTATION_TYPES.DISTANCE }),
+      createAnnotation({
+        id: "b",
+        externalCollection: { type: "saved-measurement", id: "saved-layer" },
+        toolType: ANNOTATION_TYPES.DISTANCE,
+      }),
+    ];
+    const state = { annotationEntries: entries };
+
+    expect(
+      selectAuthoringAnnotationEntries(state).map((entry) => entry.id)
+    ).toEqual(["a"]);
+    expect(
+      selectRenderableAnnotationEntries(state).map((entry) => entry.id)
+    ).toEqual(["a", "b"]);
   });
 
   it("resolves interaction and fallback plugins", () => {

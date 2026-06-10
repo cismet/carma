@@ -24,6 +24,7 @@ import { useAnnotationSelection } from "./use-annotation-selection";
 import { ANNOTATIONS_HOST_DEFAULTS } from "./annotations-host-defaults";
 import { SceneSelectionHost } from "./SceneSelectionHost";
 import { useVisualInteraction } from "./use-visual-interaction";
+import { selectRenderableAnnotationEntries } from "../utils/annotation-tool-collections";
 
 type RuntimeVisualHostProps = {
   scene: Scene | null;
@@ -80,7 +81,7 @@ export const RuntimeVisualHost = ({
     (annotationsState) => annotationsState.edges
   );
   const annotationEntries = useAnnotationsSelector(
-    (annotationsState) => annotationsState.annotationEntries
+    selectRenderableAnnotationEntries
   );
   const selectedAnnotationId = useAnnotationsSelector(
     selectSelectedAnnotationId

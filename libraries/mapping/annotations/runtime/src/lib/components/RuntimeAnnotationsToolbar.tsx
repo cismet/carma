@@ -11,8 +11,8 @@ import { ANNOTATION_SELECT_TOOL_ID } from "@carma-mapping/annotations/core";
 import { useAnnotationsRuntime } from "../context/AnnotationsProvider";
 import type { AnnotationToolPlugin } from "../registry";
 import {
-  isAuthoringAnnotationEntry,
   resolveAnnotationCountByToolType,
+  selectAuthoringAnnotationEntries,
 } from "../utils/annotation-tool-collections";
 
 export type RuntimeAnnotationsToolbarProps = {
@@ -42,7 +42,7 @@ export const RuntimeAnnotationsToolbar = ({
     useAnnotationsRuntime();
   const toolPlugins = plugins ?? registry.plugins;
   const authoringAnnotationEntries = useMemo(
-    () => annotationEntries.filter(isAuthoringAnnotationEntry),
+    () => selectAuthoringAnnotationEntries({ annotationEntries }),
     [annotationEntries]
   );
   const annotationCountByToolType = useMemo(

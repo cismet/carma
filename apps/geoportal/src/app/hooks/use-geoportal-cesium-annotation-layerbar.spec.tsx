@@ -15,6 +15,14 @@ vi.mock("@carma-mapping/components", () => ({
 }));
 
 vi.mock("@carma-mapping/annotations/runtime", () => ({
+  selectAuthoringAnnotationEntries: ({
+    annotationEntries,
+  }: {
+    annotationEntries: Array<{ externalCollection?: unknown }>;
+  }) =>
+    annotationEntries.filter(
+      (annotationEntry) => !annotationEntry.externalCollection
+    ),
   useAnnotationsDispatch: () => useAnnotationsDispatchMock(),
   useAnnotationsRuntime: () => useAnnotationsRuntimeMock(),
 }));

@@ -13,6 +13,7 @@ import {
 } from "../../utils/short-label-sequence";
 import type { FeatureCollection, Geometry } from "geojson";
 import { buildStoredAnnotationsGeoJsonFeatureCollection } from "../../utils/annotation-geo-json-export";
+import { selectAuthoringAnnotationEntries } from "../../utils/annotation-tool-collections";
 
 const currentPersistenceFormatId = "annotations-runtime-persistence" as const;
 const currentPersistenceVersion = 1 as const;
@@ -429,9 +430,8 @@ export const buildAnnotationsRuntimeGeoJsonFeatureCollection = (
 export const buildAnnotationsRuntimePersistenceState = (
   state: AnnotationsStoreState
 ): AnnotationsRuntimePersistenceEnvelope => {
-  const annotationEntries = state.annotationEntries
-    .filter((annotationEntry) => !annotationEntry.readOnlySource)
-    .map(cloneAnnotationEntry);
+  const annotationEntries =
+    selectAuthoringAnnotationEntries(state).map(cloneAnnotationEntry);
   const usedNodeIds = new Set(
     annotationEntries.flatMap((annotationEntry) => annotationEntry.nodeIds)
   );

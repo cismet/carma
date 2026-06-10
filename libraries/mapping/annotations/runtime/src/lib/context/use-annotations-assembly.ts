@@ -13,6 +13,7 @@ import {
   resolveAnnotationExportDescriptor,
   sanitizeAnnotationExportFileSegment,
 } from "../utils/annotation-geo-json-export";
+import { selectAuthoringAnnotationEntries } from "../utils/annotation-tool-collections";
 import {
   appendAnnotationEntities,
   buildAnnotationsRuntimeGeoJsonFeatureCollection,
@@ -296,12 +297,13 @@ export const useAnnotationsAssembly = ({
 
   const flyToAllAnnotations = useCallback(() => {
     const runtimeState = annotationsStore.getState();
-    const points = runtimeState.annotationEntries.flatMap((annotationEntry) =>
-      resolveAnnotationEntryCartesianPoints({
-        annotationEntries: runtimeState.annotationEntries,
-        nodes: runtimeState.nodes,
-        annotationId: annotationEntry.id,
-      })
+    const points = selectAuthoringAnnotationEntries(runtimeState).flatMap(
+      (annotationEntry) =>
+        resolveAnnotationEntryCartesianPoints({
+          annotationEntries: runtimeState.annotationEntries,
+          nodes: runtimeState.nodes,
+          annotationId: annotationEntry.id,
+        })
     );
     flyToAnnotationPoints({
       scene,
@@ -809,7 +811,7 @@ export const useAnnotationsAssembly = ({
       options: {
         idPrefix?: string;
         locked?: boolean;
-        readOnlySource?: StoredAnnotation["readOnlySource"];
+        externalCollection?: StoredAnnotation["externalCollection"];
         selectAnnotationId?: string | null;
         skipExisting?: boolean;
       } = {}
@@ -866,8 +868,9 @@ export const useAnnotationsAssembly = ({
               nodeIds: annotationEntry.nodeIds.map(mapId),
               edgeIds: annotationEntry.edgeIds.map(mapId),
               locked: options.locked ?? annotationEntry.locked,
-              readOnlySource:
-                options.readOnlySource ?? annotationEntry.readOnlySource,
+              externalCollection:
+                options.externalCollection ??
+                annotationEntry.externalCollection,
             },
             nodes,
             linkedNodeGroups,
@@ -884,16 +887,17 @@ export const useAnnotationsAssembly = ({
     [annotationsStore]
   );
 
-  const removeReadOnlyAnnotationsBySource = useCallback(
+  const removeExternalAnnotationsByCollection = useCallback(
     (
-      readOnlySource: NonNullable<StoredAnnotation["readOnlySource"]>
+      externalCollection: NonNullable<StoredAnnotation["externalCollection"]>
     ): readonly string[] => {
       const annotationIds = annotationsStore
         .getState()
         .annotationEntries.filter(
           (annotationEntry) =>
-            annotationEntry.readOnlySource?.type === readOnlySource.type &&
-            annotationEntry.readOnlySource.id === readOnlySource.id
+            annotationEntry.externalCollection?.type ===
+              externalCollection.type &&
+            annotationEntry.externalCollection.id === externalCollection.id
         )
         .map((annotationEntry) => annotationEntry.id);
 
@@ -948,7 +952,7 @@ export const useAnnotationsAssembly = ({
       activePointQueryPickResult,
       addAnnotation,
       appendAnnotationsRuntimePersistenceState,
-      removeReadOnlyAnnotationsBySource,
+      removeExternalAnnotationsByCollection,
       setActiveToolType,
       requestModeChange: (toolType: AnnotationToolId) =>
         lifecycleHostApiRef.current.requestModeChange(toolType),
@@ -994,7 +998,7 @@ export const useAnnotationsAssembly = ({
       formatOptions,
       removeAnnotationEntryById,
       removeAnnotationEntriesByIds,
-      removeReadOnlyAnnotationsBySource,
+      removeExternalAnnotationsByCollection,
       removeSelectedAnnotationEntries,
       registry,
       scene,
