@@ -148,11 +148,21 @@ const backgroundModes = [
 const bgConf = {
   ...backgroundConfWithFastOrtho2024,
   vectorCityMap: {
-    layerkey: "osmBrightOffline",
+    layerkey: "osmBrightOffline@30",
     src: "/images/rain-hazard-map-bg/citymap.png",
     title: "Stadtplan",
   },
 };
+
+// Default background for first-time users. react-cismap hardcodes
+// `selectedBackground` to "stadtplan" and only overrides it from a persisted
+// localforage value (there is no prop for the initial value). We therefore seed
+// the persistence key with our preferred default before the styling provider
+// mounts and reads it, leaving a returning user's explicit choice untouched.
+const DEFAULT_SELECTED_BACKGROUND = "vectorCityMap";
+const SELECTED_BACKGROUND_LF_KEY =
+  "@tz.baumbewirtschaftung.styling.selectedBackground";
+
 function App() {
   const { progress, showProgress, handleProgressUpdate } = useProgress();
   const [auth, setAuth] = useState({ checked: false, jwt: null });
@@ -160,6 +170,23 @@ function App() {
   const [connectionError, setConnectionError] = useState(!navigator.onLine);
   const [followMode, setFollowMode] = useState(getUrlParam("followMode"));
   const [crossHair, setCrossHair] = useState(getUrlParam("crossHair"));
+  // Gate the provider render until the default background has been seeded, so
+  // the styling provider reads the seeded value on its first mount.
+  const [bgSeeded, setBgSeeded] = useState(false);
+
+  // Seed the default background (Vektor-Stadtplan) for first-time users only.
+  useEffect(() => {
+    (async () => {
+      const existing = await localforage.getItem(SELECTED_BACKGROUND_LF_KEY);
+      if (existing === null || existing === undefined) {
+        await localforage.setItem(
+          SELECTED_BACKGROUND_LF_KEY,
+          DEFAULT_SELECTED_BACKGROUND
+        );
+      }
+      setBgSeeded(true);
+    })();
+  }, []);
 
   // Listen for browser online/offline events
   useEffect(() => {
@@ -249,6 +276,9 @@ function App() {
     };
   };
 
+  // Wait for the background seed so the styling provider picks it up on mount.
+  if (!bgSeeded) return null;
+
   return (
     <DisplayModesContext.Provider
       value={{ followMode, setFollowMode, crossHair, setCrossHair }}
@@ -260,44 +290,44 @@ function App() {
         taskFormatter={taskFormatter}
       >
         <KampagneProvider jwt={auth.jwt}>
-        <TopicMapContextProvider
-          appKey="tz.baumbewirtschaftung"
-          backgroundConfigurations={bgConf}
-          backgroundModes={backgroundModes}
-          baseLayerConf={baseLayerConf}
-          offlineCacheConfig={offlineConfig}
-        >
-          {auth.checked && auth.jwt === undefined && (
-            <LoginForm
-              setJWT={(token) => setAuth({ checked: true, jwt: token })}
-              loginInfo={loginInfo}
-              setLoginInfo={setLoginInfo}
+          <TopicMapContextProvider
+            appKey="tz.baumbewirtschaftung"
+            backgroundConfigurations={bgConf}
+            backgroundModes={backgroundModes}
+            baseLayerConf={baseLayerConf}
+            offlineCacheConfig={offlineConfig}
+          >
+            {auth.checked && auth.jwt === undefined && (
+              <LoginForm
+                setJWT={(token) => setAuth({ checked: true, jwt: token })}
+                loginInfo={loginInfo}
+                setLoginInfo={setLoginInfo}
+              />
+            )}
+            <TitleControl
+              jwt={auth.jwt}
+              logout={() => {
+                setAuth({ checked: true, jwt: undefined });
+              }}
+              connectionError={connectionError}
             />
-          )}
-          <TitleControl
-            jwt={auth.jwt}
-            logout={() => {
-              setAuth({ checked: true, jwt: undefined });
-            }}
-            connectionError={connectionError}
-          />
-          {auth.jwt && <KampagneBanner />}
-          <Map
-            jwt={auth.jwt}
-            login={login}
-            followMode={followMode}
-            crossHair={crossHair}
-            onAuthError={() => {
-              setAuth({ checked: true, jwt: undefined });
-              setLoginInfo({
-                color: "#F9D423",
-                text: "Bitte melden Sie sich erneut an.",
-              });
-              setTimeout(() => setLoginInfo(), 2500);
-            }}
-            onConnectionError={(hasError) => setConnectionError(hasError)}
-          />
-        </TopicMapContextProvider>
+            {auth.jwt && <KampagneBanner />}
+            <Map
+              jwt={auth.jwt}
+              login={login}
+              followMode={followMode}
+              crossHair={crossHair}
+              onAuthError={() => {
+                setAuth({ checked: true, jwt: undefined });
+                setLoginInfo({
+                  color: "#F9D423",
+                  text: "Bitte melden Sie sich erneut an.",
+                });
+                setTimeout(() => setLoginInfo(), 2500);
+              }}
+              onConnectionError={(hasError) => setConnectionError(hasError)}
+            />
+          </TopicMapContextProvider>
         </KampagneProvider>
       </SyncProvider>
     </DisplayModesContext.Provider>

@@ -117,11 +117,7 @@ const TZBaumbewirtschaftung = ({
   // kampagne-filtered view (`featureCollection`) computed from it.
   const [unfilteredFeatureCollection, setUnfilteredFeatureCollection] =
     useState<any>();
-  const {
-    ready: kampagneReady,
-    showAll,
-    effectiveCampaignIds,
-  } = useKampagne();
+  const { ready: kampagneReady, showAll, effectiveCampaignIds } = useKampagne();
 
   const featureCollection = useMemo(() => {
     if (!unfilteredFeatureCollection || !kampagneReady) return undefined;
@@ -344,7 +340,10 @@ const TZBaumbewirtschaftung = ({
         (f: any) => f.id === affectedTreeId
       ) as any;
 
-      if (affectedFeature && treeMatches(affectedFeature, effectiveCampaignIds)) {
+      if (
+        affectedFeature &&
+        treeMatches(affectedFeature, effectiveCampaignIds)
+      ) {
         // Parse actions and create info object for selection
         if (typeof affectedFeature.properties.actions === "string") {
           affectedFeature.properties.actions = JSON.parse(
@@ -785,6 +784,19 @@ const TZBaumbewirtschaftung = ({
             contactButtonEnabled={false}
           >
             <TopicMapSelectionContent />
+
+            {/* Stadtbezirk vector overlay: sits in the `oneAboveBackgroundLayers`
+                pane (z-index 105), i.e. directly above the basemap (z-index 100)
+                and below the tree markers (additionalLayers0, z-index 250).
+                Non-interactive backdrop, so selection stays off. */}
+            <CismapLayer
+              key="stadtbezirk-background"
+              type="vector"
+              style="https://tiles.cismet.de/stadtbezirk/simple.style.json"
+              pane="oneAboveBackgroundLayers"
+              selectionEnabled={false}
+              opacity={0.5}
+            />
 
             {featureCollection && (
               <CismapLayer
