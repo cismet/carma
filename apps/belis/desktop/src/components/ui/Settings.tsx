@@ -198,15 +198,13 @@ const Settings = () => {
       <div className="flex flex-col gap-2 rounded-md border border-[#f5c2c7] overflow-hidden">
         <div className="bg-[#fff5f5] px-3 py-2 border-b border-[#f5c2c7]">
           <span className="text-[#cf222e] font-semibold text-sm">
-            Gefahrenzone
+            Löschmodus
           </span>
         </div>
         <div className="flex items-center justify-between gap-3 px-3 pb-3 pt-1">
           <div className="flex flex-col">
-            <span className="text-[15px] font-medium">Löschmodus</span>
             <span className="text-[12px] text-gray-500">
-              Blendet im Fachobjekt einen Button zum Löschen ein. Vorsicht: nicht
-              umkehrbar.
+              Blendet im Fachobjekt einen Button zum Löschen ein.
             </span>
           </div>
           <Switch
