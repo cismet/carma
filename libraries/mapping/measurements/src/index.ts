@@ -49,3 +49,5 @@ export type {
   MeasurementInfo,
   MeasurementSelected,
 } from "./lib/measurementInfo";
+export { MeasurementInfoBox } from "./lib/MeasurementInfoBox";
+export type { MeasurementInfoBoxProps } from "./lib/MeasurementInfoBox";
