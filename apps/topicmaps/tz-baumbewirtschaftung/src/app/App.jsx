@@ -163,6 +163,13 @@ const DEFAULT_SELECTED_BACKGROUND = "vectorCityMap";
 const SELECTED_BACKGROUND_LF_KEY =
   "@tz.baumbewirtschaftung.styling.selectedBackground";
 
+// Persisted display-mode preferences. A URL param (?followMode / ?crossHair)
+// always wins on load; otherwise we fall back to the user's last toggle stored
+// here. Toggling always writes here so the user's wish survives once the URL
+// param is gone.
+const FOLLOW_MODE_LF_KEY = "@tz.baumbewirtschaftung.displayMode.followMode";
+const CROSSHAIR_LF_KEY = "@tz.baumbewirtschaftung.displayMode.crossHair";
+
 function App() {
   const { progress, showProgress, handleProgressUpdate } = useProgress();
   const [auth, setAuth] = useState({ checked: false, jwt: null });
@@ -174,7 +181,11 @@ function App() {
   // the styling provider reads the seeded value on its first mount.
   const [bgSeeded, setBgSeeded] = useState(false);
 
-  // Seed the default background (Vektor-Stadtplan) for first-time users only.
+  // Seed the default background (Vektor-Stadtplan) for first-time users only,
+  // and hydrate the display-mode preferences. Done before the gate flips so the
+  // provider mounts with the final values (no flash). A URL param already set
+  // the initial state above and wins, so we only read localforage when the
+  // corresponding param is absent.
   useEffect(() => {
     (async () => {
       const existing = await localforage.getItem(SELECTED_BACKGROUND_LF_KEY);
@@ -184,6 +195,16 @@ function App() {
           DEFAULT_SELECTED_BACKGROUND
         );
       }
+
+      if (!getUrlParam("followMode")) {
+        const stored = await localforage.getItem(FOLLOW_MODE_LF_KEY);
+        if (typeof stored === "boolean") setFollowMode(stored);
+      }
+      if (!getUrlParam("crossHair")) {
+        const stored = await localforage.getItem(CROSSHAIR_LF_KEY);
+        if (typeof stored === "boolean") setCrossHair(stored);
+      }
+
       setBgSeeded(true);
     })();
   }, []);
@@ -276,12 +297,29 @@ function App() {
     };
   };
 
+  // Persist a display-mode toggle so it survives a reload (a URL param still
+  // wins on the next load). We only write here on an explicit toggle, so merely
+  // opening a ?followMode link does not overwrite the user's saved preference.
+  const setFollowModePersisted = (value) => {
+    setFollowMode(value);
+    localforage.setItem(FOLLOW_MODE_LF_KEY, value);
+  };
+  const setCrossHairPersisted = (value) => {
+    setCrossHair(value);
+    localforage.setItem(CROSSHAIR_LF_KEY, value);
+  };
+
   // Wait for the background seed so the styling provider picks it up on mount.
   if (!bgSeeded) return null;
 
   return (
     <DisplayModesContext.Provider
-      value={{ followMode, setFollowMode, crossHair, setCrossHair }}
+      value={{
+        followMode,
+        setFollowMode: setFollowModePersisted,
+        crossHair,
+        setCrossHair: setCrossHairPersisted,
+      }}
     >
       <SyncProvider
         jwt={auth.jwt}
