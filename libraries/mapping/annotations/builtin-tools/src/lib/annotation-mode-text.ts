@@ -325,7 +325,7 @@ export const defaultAnnotationModeText = {
     },
     leafletMeasurements: {
       focusAll: "Alle Messungen anzeigen",
-      save: "Messungen speichern",
+      save: "Alle Messungen speichern",
       deleteAll: "Alle Messungen löschen",
     },
     adhocModel: {
