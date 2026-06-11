@@ -209,6 +209,29 @@ describe("CismapRuntimeAnnotationInfoBox", () => {
     expect(annotationInfoBoxContainerMock).not.toHaveBeenCalled();
   });
 
+  it("passes custom header titles through to supported annotation tools", () => {
+    const annotationState = createAnnotationState(ANNOTATION_TYPES.DISTANCE);
+
+    render(
+      <CismapRuntimeAnnotationInfoBox
+        infoBoxState={annotationState}
+        isCesium={true}
+        annotationToolIds={annotationToolIds}
+        headerBackgroundColor="#3b82f6"
+        headerTextColor="white"
+        headerTitle="Informationen"
+      />
+    );
+
+    expect(cismapAnnotationInfoBoxMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        headerBackgroundColor: "#3b82f6",
+        headerTextColor: "white",
+        headerTitle: "Informationen",
+      })
+    );
+  });
+
   it("hides selected annotation instructions outside Cesium", () => {
     const annotationState = createAnnotationState(ANNOTATION_TYPES.AREA_PLANAR);
 

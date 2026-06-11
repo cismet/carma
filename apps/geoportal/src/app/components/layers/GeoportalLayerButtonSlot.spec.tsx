@@ -17,6 +17,7 @@ import type GeoportalLayerButton from "./GeoportalLayerButton";
 const useAnnotationsRuntimeMock = vi.hoisted(() => vi.fn());
 const exportAllAnnotationsGeoJsonMock = vi.hoisted(() => vi.fn());
 const flyToAnnotationIdsMock = vi.hoisted(() => vi.fn());
+const setSelectedAnnotationIdMock = vi.hoisted(() => vi.fn());
 const annotationEntryRolesMock = vi.hoisted(() => ({
   AUTHORING: "authoring",
   EXTERNAL: "external",
@@ -136,6 +137,7 @@ describe("GeoportalLayerButtonSlot", () => {
     useAnnotationsRuntimeMock.mockReset();
     exportAllAnnotationsGeoJsonMock.mockReset();
     flyToAnnotationIdsMock.mockReset();
+    setSelectedAnnotationIdMock.mockReset();
     useAnnotationsRuntimeMock.mockReturnValue({
       annotationEntries: [{ id: "annotation-1" }],
       appendAnnotationsRuntimePersistenceState: vi.fn(),
@@ -145,6 +147,7 @@ describe("GeoportalLayerButtonSlot", () => {
       removeExternalAnnotationsByCollection: vi.fn(),
       removeAnnotationsByIds: vi.fn(),
       scene: null,
+      setSelectedAnnotationId: setSelectedAnnotationIdMock,
     });
   });
 
@@ -253,6 +256,7 @@ describe("GeoportalLayerButtonSlot", () => {
       removeExternalAnnotationsByCollection,
       removeAnnotationsByIds: vi.fn(),
       scene: null,
+      setSelectedAnnotationId: setSelectedAnnotationIdMock,
     });
 
     render(
@@ -324,6 +328,9 @@ describe("GeoportalLayerButtonSlot", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Objekt fokussieren" }));
 
+    expect(setSelectedAnnotationIdMock).toHaveBeenCalledWith(
+      "measurement-3d-abc:distance-1"
+    );
     expect(flyToAnnotationIdsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         annotationIds: ["measurement-3d-abc:distance-1"],
@@ -352,6 +359,7 @@ describe("GeoportalLayerButtonSlot", () => {
       removeExternalAnnotationsByCollection: vi.fn(),
       removeAnnotationsByIds: vi.fn(),
       scene: null,
+      setSelectedAnnotationId: setSelectedAnnotationIdMock,
     });
 
     render(
@@ -446,6 +454,9 @@ describe("GeoportalLayerButtonSlot", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Objekt fokussieren" }));
 
+    expect(setSelectedAnnotationIdMock).toHaveBeenCalledWith(
+      "measurement-3d-abc:distance-1"
+    );
     expect(flyToAnnotationIdsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         annotationIds: ["measurement-3d-abc:distance-1"],

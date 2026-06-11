@@ -202,7 +202,8 @@ const useSavedCesiumMeasurementLayerbarActions = ({
 }: {
   layerId: string;
 }) => {
-  const { annotationEntries, nodes, scene } = useAnnotationsRuntime();
+  const { annotationEntries, nodes, scene, setSelectedAnnotationId } =
+    useAnnotationsRuntime();
   const {
     layerbar: { adhocModel },
   } = geoportalAnnotationModeText;
@@ -220,13 +221,20 @@ const useSavedCesiumMeasurementLayerbarActions = ({
   );
 
   const handleFlyTo = useCallback(() => {
+    setSelectedAnnotationId(savedAnnotationIds[0] ?? null);
     flyToAnnotationIds({
       annotationEntries,
       annotationIds: savedAnnotationIds,
       nodes,
       scene,
     });
-  }, [annotationEntries, nodes, savedAnnotationIds, scene]);
+  }, [
+    annotationEntries,
+    nodes,
+    savedAnnotationIds,
+    scene,
+    setSelectedAnnotationId,
+  ]);
 
   const actions: LayerbarAction[] = [
     {

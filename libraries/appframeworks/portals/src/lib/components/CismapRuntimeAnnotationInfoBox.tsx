@@ -24,6 +24,9 @@ export type CismapRuntimeAnnotationInfoBoxProps = {
   infoBoxState: RuntimeAnnotationInfoBoxSlotsState;
   isCesium: boolean;
   annotationToolIds: readonly AnnotationToolId[];
+  headerBackgroundColor?: string;
+  headerTextColor?: string;
+  headerTitle?: ReactNode;
   layoutProps?: CismapRuntimeAnnotationInfoBoxLayoutProps;
   secondaryInfoBoxElements?: ReactNode[];
 };
@@ -32,6 +35,9 @@ export const CismapRuntimeAnnotationInfoBox = ({
   infoBoxState,
   isCesium,
   annotationToolIds,
+  headerBackgroundColor,
+  headerTextColor,
+  headerTitle,
   layoutProps,
   secondaryInfoBoxElements = [],
 }: CismapRuntimeAnnotationInfoBoxProps) => {
@@ -45,7 +51,9 @@ export const CismapRuntimeAnnotationInfoBox = ({
       <CismapAnnotationInstructionInfoBox
         content={infoBoxState.slots.content}
         controlOrder={layoutProps?.controlOrder}
-        headerTitle={hasHeaderStyle ? "Messungen" : undefined}
+        headerBackgroundColor={headerBackgroundColor}
+        headerTextColor={headerTextColor}
+        headerTitle={hasHeaderStyle ? headerTitle ?? "Messungen" : undefined}
         pixelWidth={layoutProps?.pixelWidth}
         visualOptions={infoBoxState.visualOptions}
         secondaryInfoBoxElements={secondaryInfoBoxElements}
@@ -63,6 +71,9 @@ export const CismapRuntimeAnnotationInfoBox = ({
         slots={infoBoxState.slots}
         visualOptions={infoBoxState.visualOptions}
         controlOrder={layoutProps?.controlOrder}
+        headerBackgroundColor={headerBackgroundColor}
+        headerTextColor={headerTextColor}
+        headerTitle={headerTitle}
         secondaryInfoBoxElements={secondaryInfoBoxElements}
       />
     );

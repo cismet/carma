@@ -3,7 +3,11 @@ import type { ReactNode } from "react";
 
 import { CismapRuntimeAnnotationInfoBox } from "@carma-appframeworks/portals";
 import { ANNOTATION_INFO_BOX_HELP_LAYOUTS } from "@carma-mapping/annotations/ui";
-import { useRuntimeAnnotationInfoBoxSlots } from "@carma-mapping/annotations/runtime";
+import {
+  RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS,
+  useRuntimeAnnotationInfoBoxSlots,
+  type RuntimeAnnotationInfoBoxSlotsState,
+} from "@carma-mapping/annotations/runtime";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 
@@ -14,9 +18,35 @@ import { getLayers } from "../../store/slices/mapping";
 import { getUIMode, UIMode } from "../../store/slices/ui";
 
 const GEOPORTAL_ANNOTATION_HELP_LOCALE = "de-DE";
+const EXTERNAL_ANNOTATION_INFO_BOX_HEADER_BACKGROUND_COLOR = "#3b82f6";
+const EXTERNAL_ANNOTATION_INFO_BOX_HEADER_TEXT_COLOR = "white";
+const EXTERNAL_ANNOTATION_INFO_BOX_TITLE = "Informationen";
 
 type AnnotationInfoBoxProps = {
   secondaryInfoBoxElements?: ReactNode[];
+};
+
+const usesExternalAnnotationInfoBoxHeader = (
+  infoBoxState: RuntimeAnnotationInfoBoxSlotsState | null
+): boolean =>
+  infoBoxState?.kind ===
+    RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS.ANNOTATION &&
+  infoBoxState.annotation.externalCollection !== undefined;
+
+const resolveGeoportalInfoBoxState = (
+  infoBoxState: RuntimeAnnotationInfoBoxSlotsState | null
+): RuntimeAnnotationInfoBoxSlotsState | null => {
+  if (!usesExternalAnnotationInfoBoxHeader(infoBoxState)) {
+    return infoBoxState;
+  }
+
+  return {
+    ...infoBoxState,
+    slots: {
+      ...infoBoxState.slots,
+      headingTitle: EXTERNAL_ANNOTATION_INFO_BOX_TITLE,
+    },
+  };
 };
 
 const AnnotationInfoBox = ({
@@ -40,21 +70,36 @@ const AnnotationInfoBox = ({
     includeFallback: isMeasurementMode,
     visualOptions: resolveGeoportalAnnotationInfoBoxVisualOptions,
   });
+  const resolvedInfoBoxState = resolveGeoportalInfoBoxState(infoBoxState);
+  const useExternalAnnotationInfoBoxHeader =
+    usesExternalAnnotationInfoBoxHeader(infoBoxState);
+  const headerTitle = useExternalAnnotationInfoBoxHeader
+    ? EXTERNAL_ANNOTATION_INFO_BOX_TITLE
+    : undefined;
+  const headerBackgroundColor = useExternalAnnotationInfoBoxHeader
+    ? EXTERNAL_ANNOTATION_INFO_BOX_HEADER_BACKGROUND_COLOR
+    : undefined;
+  const headerTextColor = useExternalAnnotationInfoBoxHeader
+    ? EXTERNAL_ANNOTATION_INFO_BOX_HEADER_TEXT_COLOR
+    : undefined;
   const annotationsVisible = shouldShowAnnotationInfoBox({
     isCesium,
     layers,
     uiMode,
   });
 
-  if (!annotationsVisible || !infoBoxState) {
+  if (!annotationsVisible || !resolvedInfoBoxState) {
     return null;
   }
 
   return (
     <CismapRuntimeAnnotationInfoBox
-      infoBoxState={infoBoxState}
+      infoBoxState={resolvedInfoBoxState}
       isCesium={isCesium}
       annotationToolIds={activeAnnotationToolIds}
+      headerBackgroundColor={headerBackgroundColor}
+      headerTextColor={headerTextColor}
+      headerTitle={headerTitle}
       layoutProps={CESIUM_ANNOTATION_CONFIG.infoBox}
       secondaryInfoBoxElements={secondaryInfoBoxElements}
     />

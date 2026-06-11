@@ -98,6 +98,8 @@ export type CismapAnnotationInfoBoxProps = Pick<
   "controlOrder" | "pixelWidth" | "visualOptions"
 > & {
   slots: AnnotationInfoBoxSlots;
+  headerBackgroundColor?: string;
+  headerTextColor?: string;
   headerTitle?: ReactNode;
   instructionContent?: ReactNode;
   secondaryInfoBoxElements?: ReactNode[];
@@ -124,6 +126,8 @@ export const CismapAnnotationInfoBox = ({
   pixelWidth,
   slots,
   visualOptions,
+  headerBackgroundColor,
+  headerTextColor,
   headerTitle = "Messungen",
   instructionContent,
   controlOrder,
@@ -162,9 +166,14 @@ export const CismapAnnotationInfoBox = ({
         panelClick={(event) => event.stopPropagation()}
         header={headerTitle}
         headerBackgroundColor={
-          slots.headingColor ?? resolvedVisualOptions.headingColor
+          headerBackgroundColor ??
+          slots.headingColor ??
+          resolvedVisualOptions.headingColor
         }
-        headerStyle={resolvedVisualOptions.headerStyle}
+        headerStyle={{
+          ...resolvedVisualOptions.headerStyle,
+          ...(headerTextColor ? { color: headerTextColor } : {}),
+        }}
         alwaysVisibleDiv={
           <div className="mb-2 mt-2 w-[96%]">
             {slots.subtitle ?? (
@@ -189,6 +198,8 @@ export const CismapAnnotationInfoBox = ({
 
 export type CismapAnnotationInstructionInfoBoxProps = {
   content: ReactNode;
+  headerBackgroundColor?: string;
+  headerTextColor?: string;
   headerTitle?: ReactNode;
   pixelWidth?: number;
   controlOrder?: number;
@@ -198,6 +209,8 @@ export type CismapAnnotationInstructionInfoBoxProps = {
 
 export const CismapAnnotationInstructionInfoBox = ({
   content,
+  headerBackgroundColor,
+  headerTextColor,
   headerTitle,
   pixelWidth = 350,
   controlOrder,
@@ -224,10 +237,17 @@ export const CismapAnnotationInstructionInfoBox = ({
         panelClick={(event) => event.stopPropagation()}
         header={headerTitle ?? ""}
         headerBackgroundColor={
-          hasHeaderTitle ? resolvedVisualOptions.headingColor : undefined
+          hasHeaderTitle
+            ? headerBackgroundColor ?? resolvedVisualOptions.headingColor
+            : undefined
         }
         headerStyle={
-          hasHeaderTitle ? resolvedVisualOptions.headerStyle : undefined
+          hasHeaderTitle
+            ? {
+                ...resolvedVisualOptions.headerStyle,
+                ...(headerTextColor ? { color: headerTextColor } : {}),
+              }
+            : undefined
         }
         isCollapsible={false}
         alwaysVisibleDiv={instructionContentElement}

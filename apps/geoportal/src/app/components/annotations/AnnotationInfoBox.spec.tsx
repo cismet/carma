@@ -300,11 +300,15 @@ describe("AnnotationInfoBox", () => {
     ).toBeTruthy();
   });
 
-  it("renders for saved 3D annotation layers outside measurement mode", () => {
+  it("uses the external annotation header for saved 3D annotation layers outside measurement mode", () => {
     useRuntimeAnnotationInfoBoxSlotsMock.mockReturnValue({
       kind: "annotation",
       annotation: {
         toolType: "distance",
+        externalCollection: {
+          type: "saved-measurement",
+          id: "measurement-3d-saved",
+        },
       },
       slots: {
         headingTitle: "Gespeicherte Messung",
@@ -322,6 +326,18 @@ describe("AnnotationInfoBox", () => {
     expect(
       screen.getByTestId("cismap-runtime-annotation-info-box")
     ).toBeTruthy();
+    expect(cismapRuntimeAnnotationInfoBoxMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        infoBoxState: expect.objectContaining({
+          slots: expect.objectContaining({
+            headingTitle: "Informationen",
+          }),
+        }),
+        headerBackgroundColor: "#3b82f6",
+        headerTextColor: "white",
+        headerTitle: "Informationen",
+      })
+    );
   });
 
   it("does not request compact fallback help layout outside Cesium", () => {

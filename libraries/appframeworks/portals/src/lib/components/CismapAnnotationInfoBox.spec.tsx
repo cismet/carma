@@ -158,6 +158,31 @@ describe("CismapAnnotationInfoBox", () => {
     expect(screen.getByText("Instruction content")).toBeTruthy();
   });
 
+  it("allows overriding the legacy Cismap shell header title and colors", () => {
+    render(
+      <CismapAnnotationInfoBox
+        headerBackgroundColor="#3b82f6"
+        headerTextColor="white"
+        headerTitle="Informationen"
+        slots={{
+          content: <span>Detail content</span>,
+          headingColor: "#eeeeee",
+          headingTitle: "Distance",
+        }}
+      />
+    );
+
+    expect(responsiveInfoBoxMock.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        header: "Informationen",
+        headerBackgroundColor: "#3b82f6",
+        headerStyle: expect.objectContaining({
+          color: "white",
+        }),
+      })
+    );
+  });
+
   it("renders instruction content in the compact Cismap shell", () => {
     render(
       <CismapAnnotationInstructionInfoBox
