@@ -205,6 +205,9 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>((props, _ref) => {
 
   useEffect(() => {
     const handleOutsideClick = (event: PointerEvent) => {
+      if ((event.target as Element)?.closest?.(".ant-dropdown")) {
+        return;
+      }
       let newLayerIndex = -2;
       let removedOtherLayer = false;
       let returnFunction = false;
@@ -291,6 +294,13 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>((props, _ref) => {
       document.removeEventListener("pointerdown", handleOutsideClick);
     };
   }, [dispatch, selectedLayerIndex]);
+
+  useEffect(() => {
+    return () => {
+      routedMapRef?.leafletMap?.leafletElement.dragging.enable();
+      routedMapRef?.leafletMap?.leafletElement.scrollWheelZoom.enable();
+    };
+  }, [routedMapRef]);
 
   const iconId = `secview-icon-${layer.id}`;
 
