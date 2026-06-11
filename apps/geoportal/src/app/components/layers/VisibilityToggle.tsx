@@ -2,23 +2,21 @@ import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useDispatch, useSelector } from "react-redux";
 import {
-  changeBackgroundOpacity,
   changeBackgroundVisibility,
   changeVisibility,
-  getBackgroundLayer,
 } from "../../store/slices/mapping";
 import {
   getSelectedFeature,
   setSelectedFeature,
 } from "../../store/slices/features";
 import { cn } from "@carma-commons/utils";
-import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
 interface VisibilityToggleProps {
   visible: boolean;
   id: string;
   isBackgroundLayer?: boolean;
   disabled?: boolean;
+  onToggleVisibility?: (visible: boolean) => void;
 }
 
 const VisibilityToggle = ({
@@ -26,20 +24,25 @@ const VisibilityToggle = ({
   id,
   isBackgroundLayer,
   disabled,
+  onToggleVisibility,
 }: VisibilityToggleProps) => {
   const dispatch = useDispatch();
-  const backgroundLayer = useSelector(getBackgroundLayer);
   const selectedFeature = useSelector(getSelectedFeature);
-  const { isCesium } = useMapFrameworkSwitcherContext();
 
   return (
     <button
       className={cn(
         "hover:text-gray-500 text-gray-600 flex items-center justify-center",
-        (isCesium || disabled) && "opacity-40 cursor-not-allowed"
+        disabled && "opacity-40 cursor-not-allowed"
       )}
-      disabled={isCesium || disabled}
-      onClick={(e) => {
+      disabled={disabled}
+      onClick={() => {
+        const nextVisible = !visible;
+        if (onToggleVisibility) {
+          onToggleVisibility(nextVisible);
+          return;
+        }
+
         if (visible) {
           if (isBackgroundLayer) {
             dispatch(changeBackgroundVisibility(false));

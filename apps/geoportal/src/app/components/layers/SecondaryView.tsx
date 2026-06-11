@@ -50,9 +50,13 @@ import {
 
 type Ref = HTMLDivElement;
 
-interface SecondaryViewProps {}
+interface SecondaryViewProps {
+  onToggleVisibility?: (visible: boolean) => void;
+  visibilityToggleDisabled?: boolean;
+}
 
-const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
+const SecondaryView = forwardRef<Ref, SecondaryViewProps>((props, _ref) => {
+  const { onToggleVisibility, visibilityToggleDisabled } = props;
   void _ref;
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const infoRef = useRef<HTMLDivElement>(null);
@@ -346,7 +350,8 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
               visible={layer.visible}
               id={layer.id}
               isBackgroundLayer={isBaseLayer}
-              disabled={isCesium}
+              disabled={visibilityToggleDisabled}
+              onToggleVisibility={onToggleVisibility}
             />
             <button
               onClick={() => {

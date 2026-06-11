@@ -66,6 +66,12 @@ export const layerHasRuntimeAnnotationsGeoJson = (layer: unknown): boolean => {
   );
 };
 
+export const layerUsesRuntimeAnnotationVisibility = (
+  layer: BackgroundLayer | Layer
+): boolean =>
+  layer.id === CESIUM_ANNOTATION_LAYER_ID ||
+  layerHasRuntimeAnnotationsGeoJson(layer);
+
 export const shouldShowAnnotationInfoBox = ({
   isCesium,
   layers,

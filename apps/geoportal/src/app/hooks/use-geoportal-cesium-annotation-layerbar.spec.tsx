@@ -9,6 +9,12 @@ import { ANNOTATION_SELECT_TOOL_ID } from "@carma-mapping/annotations/core";
 const useMapFrameworkSwitcherContextMock = vi.hoisted(() => vi.fn());
 const useAnnotationsDispatchMock = vi.hoisted(() => vi.fn());
 const useAnnotationsRuntimeMock = vi.hoisted(() => vi.fn());
+const updateAnnotationEntryByIdMock = vi.hoisted(() =>
+  vi.fn((payload) => ({
+    type: "annotations/updateAnnotationEntryById",
+    payload,
+  }))
+);
 
 vi.mock("@carma-mapping/components", () => ({
   useMapFrameworkSwitcherContext: () => useMapFrameworkSwitcherContextMock(),
@@ -23,11 +29,20 @@ vi.mock("@carma-mapping/annotations/runtime", () => ({
     annotationEntries.filter(
       (annotationEntry) => !annotationEntry.externalCollection
     ),
+  updateAnnotationEntryById: updateAnnotationEntryByIdMock,
   useAnnotationsDispatch: () => useAnnotationsDispatchMock(),
   useAnnotationsRuntime: () => useAnnotationsRuntimeMock(),
 }));
 
-import mappingReducer, { removeLayer } from "../store/slices/mapping";
+vi.mock("../helper/annotation-info-box", () => ({
+  layerHasRuntimeAnnotationsGeoJson: (layer: { id?: string }) =>
+    layer.id?.startsWith("saved-annotations-") === true,
+}));
+
+import mappingReducer, {
+  changeVisibility,
+  removeLayer,
+} from "../store/slices/mapping";
 import uiReducer, { setUIMode, UIMode } from "../store/slices/ui";
 import {
   CESIUM_ANNOTATION_INTERACTION_ID,
@@ -69,6 +84,14 @@ const buildCesiumAnnotationLayer = () =>
     },
   } as const);
 
+const buildSavedAnnotationLayer = () =>
+  ({
+    id: "saved-annotations-1",
+    title: "Saved annotations",
+    type: "object",
+    visible: true,
+  } as const);
+
 describe("useGeoportalCesiumAnnotationLayerbar", () => {
   const setActiveToolType = vi.fn();
   const setSelectedAnnotationId = vi.fn();
@@ -79,9 +102,11 @@ describe("useGeoportalCesiumAnnotationLayerbar", () => {
     setActiveToolType.mockReset();
     setSelectedAnnotationId.mockReset();
     useAnnotationsRuntimeMock.mockReset();
+    updateAnnotationEntryByIdMock.mockClear();
     useMapFrameworkSwitcherContextMock.mockReturnValue({
       isCesium: true,
     });
+    useAnnotationsDispatchMock.mockReturnValue(vi.fn());
     useAnnotationsRuntimeMock.mockReturnValue({
       activeToolType: CESIUM_ANNOTATION_CONFIG.tools.defaultToolId,
       annotationEntries: [],
@@ -93,6 +118,7 @@ describe("useGeoportalCesiumAnnotationLayerbar", () => {
       },
       setActiveToolType,
       setSelectedAnnotationId,
+      selectedAnnotationIds: [],
     });
   });
 
@@ -213,6 +239,7 @@ describe("useGeoportalCesiumAnnotationLayerbar", () => {
       },
       setActiveToolType,
       setSelectedAnnotationId,
+      selectedAnnotationIds: [],
     });
     useAnnotationsDispatchMock.mockReturnValue(annotationsDispatch);
 
@@ -254,6 +281,7 @@ describe("useGeoportalCesiumAnnotationLayerbar", () => {
       },
       setActiveToolType,
       setSelectedAnnotationId,
+      selectedAnnotationIds: [],
     });
 
     act(() => {
@@ -268,6 +296,141 @@ describe("useGeoportalCesiumAnnotationLayerbar", () => {
       expect(setActiveToolType).toHaveBeenCalledWith(
         CESIUM_ANNOTATION_CONFIG.tools.defaultToolId
       );
+    });
+  });
+
+  it("mirrors the cesium annotation layer visibility to authoring annotations", async () => {
+    const store = createTestStore();
+    const annotationsDispatch = vi.fn();
+
+    useAnnotationsDispatchMock.mockReturnValue(annotationsDispatch);
+    useAnnotationsRuntimeMock.mockReturnValue({
+      activeToolType: CESIUM_ANNOTATION_CONFIG.tools.defaultToolId,
+      annotationEntries: [
+        {
+          id: "annotation-1",
+          hidden: false,
+        },
+      ],
+      registry: {
+        getPlugin: (toolId: string) =>
+          toolId === CESIUM_ANNOTATION_CONFIG.tools.defaultToolId
+            ? { id: toolId }
+            : undefined,
+      },
+      setActiveToolType,
+      setSelectedAnnotationId,
+      selectedAnnotationIds: ["annotation-1"],
+    });
+
+    renderHook(() => useGeoportalCesiumAnnotationLayerbar(), {
+      wrapper: createWrapper(store),
+    });
+
+    act(() => {
+      store.dispatch(setUIMode(UIMode.MEASUREMENT));
+    });
+
+    await waitFor(() => {
+      expect(findCesiumAnnotationLayer(store)).toBeDefined();
+    });
+
+    act(() => {
+      store.dispatch(
+        changeVisibility({
+          id: CESIUM_ANNOTATION_LAYER_ID,
+          visible: false,
+        })
+      );
+    });
+
+    await waitFor(() => {
+      expect(updateAnnotationEntryByIdMock).toHaveBeenCalledWith({
+        annotationId: "annotation-1",
+        hidden: true,
+      });
+      expect(annotationsDispatch).toHaveBeenCalledWith({
+        type: "annotations/updateAnnotationEntryById",
+        payload: {
+          annotationId: "annotation-1",
+          hidden: true,
+        },
+      });
+      expect(setSelectedAnnotationId).toHaveBeenCalledWith(null);
+    });
+  });
+
+  it("mirrors saved annotation layer visibility to its external collection", async () => {
+    const store = createTestStore();
+    const annotationsDispatch = vi.fn();
+
+    store.dispatch({
+      type: "mapping/appendLayer",
+      payload: buildSavedAnnotationLayer(),
+    });
+
+    useAnnotationsDispatchMock.mockReturnValue(annotationsDispatch);
+    useAnnotationsRuntimeMock.mockReturnValue({
+      activeToolType: CESIUM_ANNOTATION_CONFIG.tools.defaultToolId,
+      annotationEntries: [
+        {
+          id: "external-1",
+          hidden: false,
+          externalCollection: {
+            type: "saved-measurement",
+            id: "saved-annotations-1",
+          },
+        },
+        {
+          id: "external-2",
+          hidden: false,
+          externalCollection: {
+            type: "saved-measurement",
+            id: "other-collection",
+          },
+        },
+      ],
+      registry: {
+        getPlugin: (toolId: string) =>
+          toolId === CESIUM_ANNOTATION_CONFIG.tools.defaultToolId
+            ? { id: toolId }
+            : undefined,
+      },
+      setActiveToolType,
+      setSelectedAnnotationId,
+      selectedAnnotationIds: ["external-1"],
+    });
+
+    renderHook(() => useGeoportalCesiumAnnotationLayerbar(), {
+      wrapper: createWrapper(store),
+    });
+
+    act(() => {
+      store.dispatch(
+        changeVisibility({
+          id: "saved-annotations-1",
+          visible: false,
+        })
+      );
+    });
+
+    await waitFor(() => {
+      expect(updateAnnotationEntryByIdMock).toHaveBeenCalledWith({
+        annotationId: "external-1",
+        hidden: true,
+      });
+      expect(updateAnnotationEntryByIdMock).not.toHaveBeenCalledWith({
+        annotationId: "external-2",
+        hidden: true,
+      });
+      expect(annotationsDispatch).toHaveBeenCalledWith({
+        type: "annotations/updateAnnotationEntryById",
+        payload: {
+          annotationId: "external-1",
+          hidden: true,
+        },
+      });
+      expect(setSelectedAnnotationId).toHaveBeenCalledWith(null);
     });
   });
 });

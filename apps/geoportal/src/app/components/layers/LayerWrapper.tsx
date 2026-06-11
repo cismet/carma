@@ -1,7 +1,7 @@
 /* eslint-disable jsx-a11y/no-static-element-interactions */
 /* eslint-disable jsx-a11y/click-events-have-key-events */
 
-import { useContext, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
@@ -36,6 +36,7 @@ import {
   getSelectedLayerIndexIsNoSelection,
   getShowLeftScrollButton,
   getShowRightScrollButton,
+  changeVisibility,
   setLayers,
   setSelectedLayerIndex,
   setShowLeftScrollButton,
@@ -48,6 +49,7 @@ import "./button.css";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import InteractionView from "./InteractionView";
 import { shouldShowAdhocLayerInLayerList } from "../../helper/adhoc-feature-utils";
+import { getLayerVisibilityToggleProps } from "./layer-visibility-toggle-props";
 
 const LayerWrapper = () => {
   const dispatch: AppDispatch = useDispatch();
@@ -79,6 +81,19 @@ const LayerWrapper = () => {
   const pinnedFirstLayers = listedLayers.filter((l) => l.pinned === "first");
   const sortableLayers = listedLayers.filter((l) => !l.pinned);
   const pinnedLastLayers = listedLayers.filter((l) => l.pinned === "last");
+  const selectedLayer =
+    selectedLayerIndex >= 0 ? layers[selectedLayerIndex] : backgroundLayer;
+  const handleLayerVisibilityChange = useCallback(
+    (layerId: string, visible: boolean) => {
+      dispatch(changeVisibility({ id: layerId, visible }));
+    },
+    [dispatch]
+  );
+  const selectedLayerVisibilityToggleProps = getLayerVisibilityToggleProps({
+    isCesium,
+    layer: selectedLayer,
+    onChangeLayerVisibility: handleLayerVisibilityChange,
+  });
 
   const getLayerPos = (id) => layers.findIndex((layer) => layer.id === id);
 
@@ -231,7 +246,7 @@ const LayerWrapper = () => {
       {!isNoSelectionIndex &&
         !(
           selectedLayerIndex >= 0 && layers[selectedLayerIndex]?.skipSelection
-        ) && <SecondaryView />}
+        ) && <SecondaryView {...selectedLayerVisibilityToggleProps} />}
     </>
   );
 };

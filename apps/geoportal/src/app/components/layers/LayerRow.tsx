@@ -12,25 +12,31 @@ import type { BackgroundLayer, Layer } from "@carma-mapping/layers";
 import { removeLayer, setSelectedLayerIndex } from "../../store/slices/mapping";
 import OpacitySlider from "./OpacitySlider";
 import VisibilityToggle from "./VisibilityToggle";
-import {
-  LayerIcon,
-  useMapFrameworkSwitcherContext,
-} from "@carma-mapping/components";
+import { LayerIcon } from "@carma-mapping/components";
 import { useAdhocFeatureDisplay } from "@carma-appframeworks/portals";
 import { isAdhocVectorLayer } from "../../helper/adhoc-feature-utils";
-import { cesiumBackgroundlayerNames } from "../../config";
 
 interface LayerRowProps {
   layer: Layer | BackgroundLayer;
   id: string;
+  displayTitle?: string;
   isBackgroundLayer?: boolean;
   index: number;
+  onToggleVisibility?: (visible: boolean) => void;
+  visibilityToggleDisabled?: boolean;
 }
 
-const LayerRow = ({ layer, id, isBackgroundLayer, index }: LayerRowProps) => {
+const LayerRow = ({
+  layer,
+  id,
+  displayTitle,
+  isBackgroundLayer,
+  index,
+  onToggleVisibility,
+  visibilityToggleDisabled,
+}: LayerRowProps) => {
   const dispatch = useDispatch();
   const { clearFeatureCollections } = useAdhocFeatureDisplay();
-  const { isCesium } = useMapFrameworkSwitcherContext();
   const icon = (layer?.layerInfo?.icon as string) || layer?.other?.icon;
   const isPinned = !!(layer as Layer).pinned;
   const skipSelection = !!layer.skipSelection;
@@ -69,9 +75,7 @@ const LayerRow = ({ layer, id, isBackgroundLayer, index }: LayerRowProps) => {
             }
           }}
         >
-          {isCesium && isBackgroundLayer
-            ? cesiumBackgroundlayerNames[layer.id]
-            : layer.title}
+          {displayTitle ?? layer.title}
         </p>
       </div>
       <OpacitySlider
@@ -85,7 +89,8 @@ const LayerRow = ({ layer, id, isBackgroundLayer, index }: LayerRowProps) => {
         visible={layer.visible}
         id={id}
         isBackgroundLayer={isBackgroundLayer}
-        disabled={skipSelection}
+        disabled={skipSelection || visibilityToggleDisabled}
+        onToggleVisibility={onToggleVisibility}
       />
       <button
         className={`hover:text-gray-500 text-gray-600 flex items-center justify-center ${
