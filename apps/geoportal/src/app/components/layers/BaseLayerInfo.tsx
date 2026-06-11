@@ -51,7 +51,7 @@ const BaseLayerInfo = () => {
       (isCesium ? filter3dLayers(layer) : true)
   );
   const reversedLayers = filteredLayers.slice().reverse();
-  const sortableLayers = filteredLayers.filter((l) => !l.pinned);
+  const sortableLayers = reversedLayers.filter((l) => !l.pinned);
   const pinnedFirstLayers = filteredLayers.filter((l) => l.pinned === "first");
   const pinnedLastLayers = filteredLayers.filter((l) => l.pinned === "last");
 
@@ -71,7 +71,7 @@ const BaseLayerInfo = () => {
 
   const handleDragEnd = (event) => {
     const { active, over } = event;
-    if (active.id !== over.id) {
+    if (over && active.id !== over.id) {
       const originalPos = getLayerPos(active.id);
       const newPos = getLayerPos(over.id);
       const newLayers = arrayMove(layers, originalPos, newPos);
@@ -141,17 +141,15 @@ const BaseLayerInfo = () => {
                           items={sortableLayers}
                           strategy={verticalListSortingStrategy}
                         >
-                          {reversedLayers
-                            .filter((l) => !l.pinned)
-                            .map((layer) => (
-                              <LayerRow
-                                key={`layer.${layer.id}`}
-                                layer={layer}
-                                id={layer.id}
-                                index={layers.indexOf(layer)}
-                                {...resolveLayerVisibilityToggleProps(layer)}
-                              />
-                            ))}
+                          {sortableLayers.map((layer) => (
+                            <LayerRow
+                              key={`layer.${layer.id}`}
+                              layer={layer}
+                              id={layer.id}
+                              index={layers.indexOf(layer)}
+                              {...resolveLayerVisibilityToggleProps(layer)}
+                            />
+                          ))}
                         </SortableContext>
                         {pinnedFirstLayers.map((layer) => (
                           <LayerRow

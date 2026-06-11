@@ -116,7 +116,7 @@ const LayerWrapper = () => {
     setIsDragging(false);
     routedMapRef?.leafletMap?.leafletElement.dragging.enable();
     const { active, over } = event;
-    if (active.id !== over.id) {
+    if (over && active.id !== over.id) {
       const originalPos = getLayerPos(active.id);
       const newPos = getLayerPos(over.id);
       const newLayers = arrayMove(layers, originalPos, newPos);

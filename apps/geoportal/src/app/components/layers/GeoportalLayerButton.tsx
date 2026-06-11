@@ -266,6 +266,7 @@ const GeoportalLayerButton = ({
         style={{
           transform: CSS.Translate.toString(transform),
           userSelect: "none",
+          touchAction: "none",
         }}
         {...listeners}
         {...attributes}

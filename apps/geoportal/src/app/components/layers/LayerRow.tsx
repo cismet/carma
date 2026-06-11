@@ -133,7 +133,7 @@ const LayerRow = ({
         <button
           {...listeners}
           {...attributes}
-          className={`flex items-center justify-center !cursor-grab ${
+          className={`flex items-center justify-center !cursor-grab touch-none ${
             isBackgroundLayer || isPinned ? "invisible" : ""
           }`}
         >
