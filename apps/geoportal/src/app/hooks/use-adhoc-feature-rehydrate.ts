@@ -16,7 +16,10 @@ import {
   addAdhocFeatureFromLayer,
   buildAdhocFallbackFeatureInfo,
 } from "../helper/adhoc-layer-feature";
-import { isAdhocVectorLayer } from "../helper/adhoc-feature-utils";
+import {
+  isSupportedLeafletMapLibreAdhocLayer,
+  isAdhocVectorLayer,
+} from "../helper/adhoc-feature-utils";
 
 const getFeatureInfoLayerId = (
   featureInfo: ReturnType<typeof getSelectedFeature>
@@ -61,7 +64,11 @@ export const useAdhocFeatureRehydrate = () => {
         .map((collection) => collection.id)
     );
 
-    const adhocLayers = layers.filter(isAdhocVectorLayer);
+    const adhocLayers = layers.filter(
+      (layer) =>
+        isAdhocVectorLayer(layer) &&
+        (isCesium || isSupportedLeafletMapLibreAdhocLayer(layer))
+    );
 
     // Add missing features
     adhocLayers.forEach((layer) => {
@@ -105,7 +112,13 @@ export const useAdhocFeatureRehydrate = () => {
         rehydratedRef.current.delete(collectionId);
       }
     }
-  }, [layers, featureCollections, addFeature, clearFeatureCollections]);
+  }, [
+    layers,
+    featureCollections,
+    addFeature,
+    clearFeatureCollections,
+    isCesium,
+  ]);
 
   // Sync 2D selection -> Provider (when user clicks in 2D mode)
   useEffect(() => {

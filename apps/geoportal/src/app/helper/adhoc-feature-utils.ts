@@ -1,5 +1,6 @@
 import {
   ADHOC_LAYER_SOURCES,
+  type AdhocLayerSource,
   type CarmaMapLibreStyleData,
 } from "@carma-appframeworks/portals";
 import type { BackgroundLayer, Layer } from "@carma-mapping/layers";
@@ -102,6 +103,23 @@ export const is2dMeasurementAdhocLayer = (
 ): boolean =>
   getLayerStyleSource(layer) === ADHOC_LAYER_SOURCES.TWO_D_MEASUREMENTS;
 
+export const is3dAnnotationAdhocLayer = (
+  layer: Layer | BackgroundLayer
+): boolean => getLayerStyleSource(layer) === ADHOC_LAYER_SOURCES.ANNOTATIONS;
+
+export const LEAFLET_MAPLIBRE_ADHOC_LAYER_SOURCES: readonly AdhocLayerSource[] =
+  [ADHOC_LAYER_SOURCES.TWO_D_MEASUREMENTS];
+
+export const isSupportedLeafletMapLibreAdhocLayer = (
+  layer: Layer | BackgroundLayer
+): boolean => {
+  const source = getLayerStyleSource(layer);
+  return (
+    source == null ||
+    LEAFLET_MAPLIBRE_ADHOC_LAYER_SOURCES.includes(source as AdhocLayerSource)
+  );
+};
+
 export const shouldShowAdhocLayerInCesiumLayerList = (
   layer: Layer | BackgroundLayer
 ): boolean => {
@@ -111,8 +129,7 @@ export const shouldShowAdhocLayerInCesiumLayerList = (
 export const shouldShowAdhocLayerIn2dLayerList = (
   layer: Layer | BackgroundLayer
 ): boolean => {
-  const source = getLayerStyleSource(layer);
-  return source !== ADHOC_LAYER_SOURCES.ANNOTATIONS;
+  return !is3dAnnotationAdhocLayer(layer);
 };
 
 export const shouldShowAdhocLayerInLayerList = (
