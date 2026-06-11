@@ -1,6 +1,7 @@
 /* eslint-disable jsx-a11y/no-noninteractive-element-interactions */
 /* eslint-disable jsx-a11y/click-events-have-key-events */
-import { useDispatch } from "react-redux";
+import { useCallback } from "react";
+import { useDispatch, useSelector } from "react-redux";
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -9,30 +10,55 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import type { BackgroundLayer, Layer } from "@carma-mapping/layers";
 
-import { removeLayer, setSelectedLayerIndex } from "../../store/slices/mapping";
+import {
+  changeBackgroundVisibility,
+  changeVisibility,
+  removeLayer,
+  setSelectedLayerIndex,
+} from "../../store/slices/mapping";
 import OpacitySlider from "./OpacitySlider";
 import VisibilityToggle from "./VisibilityToggle";
-import {
-  LayerIcon,
-  useMapFrameworkSwitcherContext,
-} from "@carma-mapping/components";
+import { LayerIcon } from "@carma-mapping/components";
 import { useAdhocFeatureDisplay } from "@carma-appframeworks/portals";
 import { isAdhocVectorLayer } from "../../helper/adhoc-feature-utils";
-import { cesiumBackgroundlayerNames } from "../../config";
+import {
+  selectedFeatureBelongsToLayer,
+  type LayerVisibilityToggleProps,
+} from "./layer-visibility-toggle-props";
+import {
+  getSelectedFeature,
+  setSelectedFeature,
+} from "../../store/slices/features";
 
-interface LayerRowProps {
+interface LayerRowProps extends LayerVisibilityToggleProps {
   layer: Layer | BackgroundLayer;
   id: string;
+  displayTitle?: string;
   isBackgroundLayer?: boolean;
   index: number;
 }
 
-const LayerRow = ({ layer, id, isBackgroundLayer, index }: LayerRowProps) => {
+const getLayerRowFallbackIcon = (layer: Layer | BackgroundLayer) =>
+  (layer?.layerInfo?.icon as string) || layer?.other?.icon;
+
+const isPinnedLayer = (layer: Layer | BackgroundLayer): boolean =>
+  !!(layer as Layer).pinned;
+
+const LayerRow = ({
+  layer,
+  id,
+  displayTitle,
+  isBackgroundLayer,
+  index,
+  onToggleVisibility,
+  visibilityToggleDisabled,
+  visibilityToggleLabels,
+}: LayerRowProps) => {
   const dispatch = useDispatch();
+  const selectedFeature = useSelector(getSelectedFeature);
   const { clearFeatureCollections } = useAdhocFeatureDisplay();
-  const { isCesium } = useMapFrameworkSwitcherContext();
-  const icon = (layer?.layerInfo?.icon as string) || layer?.other?.icon;
-  const isPinned = !!(layer as Layer).pinned;
+  const icon = getLayerRowFallbackIcon(layer);
+  const isPinned = isPinnedLayer(layer);
   const skipSelection = !!layer.skipSelection;
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
@@ -41,6 +67,41 @@ const LayerRow = ({ layer, id, isBackgroundLayer, index }: LayerRowProps) => {
     });
 
   const style = { transform: CSS.Translate.toString(transform) };
+  const clearLayerSelection = useCallback(() => {
+    if (selectedFeatureBelongsToLayer(selectedFeature, id)) {
+      dispatch(setSelectedFeature(null));
+    }
+  }, [dispatch, id, selectedFeature]);
+  const handleSelectLayer = useCallback(() => {
+    if (index !== -1) {
+      dispatch(setSelectedLayerIndex(index));
+    }
+  }, [dispatch, index]);
+  const handleToggleVisibility = useCallback(
+    (nextVisible: boolean) => {
+      if (onToggleVisibility) {
+        onToggleVisibility(nextVisible);
+      } else if (isBackgroundLayer) {
+        dispatch(changeBackgroundVisibility(nextVisible));
+      } else {
+        dispatch(changeVisibility({ id, visible: nextVisible }));
+      }
+
+      if (!nextVisible) {
+        clearLayerSelection();
+      }
+    },
+    [clearLayerSelection, dispatch, id, isBackgroundLayer, onToggleVisibility]
+  );
+  const handleRemoveLayer = useCallback(() => {
+    dispatch(removeLayer(id));
+    if (isAdhocVectorLayer(layer)) {
+      clearFeatureCollections([id]);
+      console.debug("[ADHOC|REMOVE] row clearFeatureCollections", {
+        collectionId: id,
+      });
+    }
+  }, [clearFeatureCollections, dispatch, id, layer]);
 
   return (
     <div
@@ -63,15 +124,9 @@ const LayerRow = ({ layer, id, isBackgroundLayer, index }: LayerRowProps) => {
           className={`mb-0 text-lg max-w-14 xs:max-w-28 sm:max-w-full truncate ${
             index !== -1 && "hover:underline cursor-pointer"
           }`}
-          onClick={() => {
-            if (index !== -1) {
-              dispatch(setSelectedLayerIndex(index));
-            }
-          }}
+          onClick={handleSelectLayer}
         >
-          {isCesium && isBackgroundLayer
-            ? cesiumBackgroundlayerNames[layer.id]
-            : layer.title}
+          {displayTitle ?? layer.title}
         </p>
       </div>
       <OpacitySlider
@@ -83,23 +138,15 @@ const LayerRow = ({ layer, id, isBackgroundLayer, index }: LayerRowProps) => {
       />
       <VisibilityToggle
         visible={layer.visible}
-        id={id}
-        isBackgroundLayer={isBackgroundLayer}
-        disabled={skipSelection}
+        disabled={skipSelection || visibilityToggleDisabled}
+        labels={visibilityToggleLabels}
+        onToggleVisibility={handleToggleVisibility}
       />
       <button
         className={`hover:text-gray-500 text-gray-600 flex items-center justify-center ${
           isBackgroundLayer && "invisible"
         }`}
-        onClick={(e) => {
-          dispatch(removeLayer(id));
-          if (isAdhocVectorLayer(layer)) {
-            clearFeatureCollections([id]);
-            console.debug("[ADHOC|REMOVE] row clearFeatureCollections", {
-              collectionId: id,
-            });
-          }
-        }}
+        onClick={handleRemoveLayer}
       >
         <FontAwesomeIcon icon={faX} />
       </button>

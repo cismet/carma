@@ -24,6 +24,7 @@ import { useAnnotationSelection } from "./use-annotation-selection";
 import { ANNOTATIONS_HOST_DEFAULTS } from "./annotations-host-defaults";
 import { SceneSelectionHost } from "./SceneSelectionHost";
 import { useVisualInteraction } from "./use-visual-interaction";
+import { selectRenderableAnnotationEntries } from "../utils/annotation-tool-collections";
 
 type RuntimeVisualHostProps = {
   scene: Scene | null;
@@ -41,6 +42,7 @@ type RuntimeVisualHostProps = {
   activeEditedNodeId: string | null;
   formatOptions: AnnotationsRuntimeFormatOptions;
   lineLabelOptions: PartialAnnotationLineLabelOptions;
+  visualInteractionEnabled?: boolean;
 };
 
 export const RuntimeVisualHost = ({
@@ -56,6 +58,7 @@ export const RuntimeVisualHost = ({
   activeEditedNodeId,
   formatOptions,
   lineLabelOptions,
+  visualInteractionEnabled = false,
 }: RuntimeVisualHostProps) => {
   const activeToolType = useAnnotationsSelector(
     (annotationsState) => annotationsState.annotationToolType
@@ -78,7 +81,7 @@ export const RuntimeVisualHost = ({
     (annotationsState) => annotationsState.edges
   );
   const annotationEntries = useAnnotationsSelector(
-    (annotationsState) => annotationsState.annotationEntries
+    selectRenderableAnnotationEntries
   );
   const selectedAnnotationId = useAnnotationsSelector(
     selectSelectedAnnotationId
@@ -197,7 +200,7 @@ export const RuntimeVisualHost = ({
     <>
       <SceneSelectionHost
         scene={scene}
-        enabled={isInteractionToolActive}
+        enabled={isInteractionToolActive || visualInteractionEnabled}
         baseEdges={baseVisualModels.edges ?? []}
         overlayEdges={overlayVisualModels?.edges ?? []}
         basePolygonFills={baseVisualModels.polygonFills ?? []}

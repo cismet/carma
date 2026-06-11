@@ -181,9 +181,14 @@ export type {
 } from "./lib/interaction/preview-overlay-mount.shared";
 export { useLocalAnnotationsRuntimePersistence } from "./lib/store/persistence/useLocalAnnotationsStorePersistence";
 export {
+  ANNOTATION_ENTRY_ROLES,
   ANNOTATION_ELEVATION_DISPLAY_MODES,
+  ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_ID,
+  ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_VERSION,
+  buildAnnotationsRuntimeGeoJsonFeatureCollection,
   buildNodeLinkIdByNodeId,
   removeAnnotationById,
+  resolveAnnotationsRuntimePersistenceFromGeoJson,
   setElevationReferenceAnnotationId,
   updateAnnotationEntryById,
   useAnnotationsDispatch,
@@ -191,10 +196,13 @@ export {
 export type {
   AddAnnotationOptions,
   AnnotationEdge,
+  AnnotationEntryRole,
   AnnotationElevationDisplayMode,
   AnnotationNode,
   AnnotationNodeLink,
   AnnotationNodeLinkId,
+  AnnotationsRuntimeGeoJsonFeatureCollection,
+  AnnotationsRuntimePersistenceEnvelope,
   AnnotationsStore,
   AnnotationsStoreState,
   CesiumGeographicCoordinate,
@@ -268,6 +276,10 @@ export type {
 export { resolveBearingRadFromFirstToLastCoordinate } from "./lib/utils/resolve-bearing-rad-from-first-to-last-coordinate";
 export {
   areAnnotationEntriesHidden,
+  buildExternalAnnotationsAppendOptions,
+  isExternalAnnotationEntry,
+  isReadOnlyAnnotationEntry,
+  resolveAnnotationEntryRole,
   resolveAnnotationCancelToolId,
   resolveAnnotationCountByToolType,
   resolveAnnotationEntriesByToolType,
@@ -275,5 +287,10 @@ export {
   resolveAnnotationToolFallbackPlugin,
   resolvePrimaryAnnotationInteractionToolId,
   resolveVisibleMeasurementAnnotationToolPlugins,
+  selectAuthoringAnnotationEntries,
+  selectRenderableAnnotationEntries,
 } from "./lib/utils/annotation-tool-collections";
-export type { ResolveVisibleMeasurementAnnotationToolPluginsOptions } from "./lib/utils/annotation-tool-collections";
+export type {
+  AppendAnnotationsRuntimePersistenceStateOptions,
+  ResolveVisibleMeasurementAnnotationToolPluginsOptions,
+} from "./lib/utils/annotation-tool-collections";

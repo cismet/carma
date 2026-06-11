@@ -80,6 +80,8 @@ export type UpdateAnnotationEntryByIdPayload = {
   shortLabel?: string;
   hidden?: boolean;
   locked?: boolean;
+  annotationRole?: StoredAnnotation["annotationRole"];
+  readOnly?: boolean;
   labelAppearance?: AnnotationLabelAppearance;
   elevationDisplayMode?: AnnotationElevationDisplayMode;
   distanceAnchorCoordinateSelection?: RuntimePointLabelCoordinateSelection;
@@ -592,6 +594,8 @@ const annotationsSlice = createSlice({
         shortLabel,
         hidden,
         locked,
+        annotationRole,
+        readOnly,
         labelAppearance,
         elevationDisplayMode,
         distanceAnchorCoordinateSelection,
@@ -618,6 +622,14 @@ const annotationsSlice = createSlice({
 
       if (locked !== undefined) {
         targetEntry.locked = locked;
+      }
+
+      if (annotationRole !== undefined) {
+        targetEntry.annotationRole = annotationRole;
+      }
+
+      if (readOnly !== undefined) {
+        targetEntry.readOnly = readOnly;
       }
 
       if (labelAppearance !== undefined) {

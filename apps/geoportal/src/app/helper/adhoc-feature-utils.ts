@@ -1,4 +1,8 @@
-import type { CarmaMapLibreStyleData } from "@carma-appframeworks/portals";
+import {
+  ADHOC_LAYER_SOURCES,
+  type AdhocLayerSource,
+  type AdhocMapLibreStyleData,
+} from "@carma-appframeworks/portals";
 import type { BackgroundLayer, Layer } from "@carma-mapping/layers";
 import type {
   GeoJSONSourceSpecification,
@@ -18,8 +22,8 @@ const isGeoJsonSource = (
 ): source is GeoJSONSourceSpecification => source.type === "geojson";
 
 const resolveGeoJsonSources = async (
-  styleData: CarmaMapLibreStyleData
-): Promise<CarmaMapLibreStyleData> => {
+  styleData: AdhocMapLibreStyleData
+): Promise<AdhocMapLibreStyleData> => {
   if (!styleData.sources) return styleData;
 
   const resolvedSources: Record<string, SourceSpecification> = {};
@@ -49,25 +53,25 @@ const resolveGeoJsonSources = async (
 
 export const resolveAdhocStyleData = async (
   style: string | object | undefined
-): Promise<CarmaMapLibreStyleData | null> => {
+): Promise<AdhocMapLibreStyleData | null> => {
   if (!style) return null;
 
-  let styleData: CarmaMapLibreStyleData | null = null;
+  let styleData: AdhocMapLibreStyleData | null = null;
 
   if (typeof style === "object") {
-    styleData = style as CarmaMapLibreStyleData;
+    styleData = style as AdhocMapLibreStyleData;
   } else if (isUrl(style)) {
     try {
       const res = await fetch(style);
       if (res.ok) {
-        styleData = (await res.json()) as CarmaMapLibreStyleData;
+        styleData = (await res.json()) as AdhocMapLibreStyleData;
       }
     } catch {
       return null;
     }
   } else {
     try {
-      styleData = JSON.parse(style) as CarmaMapLibreStyleData;
+      styleData = JSON.parse(style) as AdhocMapLibreStyleData;
     } catch {
       return null;
     }
@@ -81,10 +85,62 @@ export const resolveAdhocStyleData = async (
 
 export const getVectorLayerStyle = async (
   layer: Layer
-): Promise<CarmaMapLibreStyleData | null> => {
+): Promise<AdhocMapLibreStyleData | null> => {
   const style = (layer as Layer & { props?: { style?: string | object } }).props
     ?.style;
   return resolveAdhocStyleData(style);
+};
+
+export const getAdhocLayerStyleSource = (
+  layer: Layer | BackgroundLayer
+): unknown => {
+  const style = (layer as { props?: { style?: unknown } }).props?.style;
+  return typeof style === "object" && style !== null
+    ? (style as { source?: unknown }).source
+    : null;
+};
+
+export const is2dMeasurementAdhocLayer = (
+  layer: Layer | BackgroundLayer
+): boolean =>
+  getAdhocLayerStyleSource(layer) === ADHOC_LAYER_SOURCES.TWO_D_MEASUREMENTS;
+
+export const is3dAnnotationAdhocLayer = (
+  layer: Layer | BackgroundLayer
+): boolean =>
+  getAdhocLayerStyleSource(layer) === ADHOC_LAYER_SOURCES.ANNOTATIONS;
+
+export const LEAFLET_MAPLIBRE_ADHOC_LAYER_STYLE_SOURCES: readonly AdhocLayerSource[] =
+  [ADHOC_LAYER_SOURCES.TWO_D_MEASUREMENTS];
+
+export const isSupportedLeafletMapLibreAdhocLayer = (
+  layer: Layer | BackgroundLayer
+): boolean => {
+  const source = getAdhocLayerStyleSource(layer);
+  return LEAFLET_MAPLIBRE_ADHOC_LAYER_STYLE_SOURCES.includes(
+    source as AdhocLayerSource
+  );
+};
+
+export const shouldShowAdhocLayerInCesiumLayerList = (
+  layer: Layer | BackgroundLayer
+): boolean => {
+  return !is2dMeasurementAdhocLayer(layer);
+};
+
+export const shouldShowAdhocLayerIn2dLayerList = (
+  layer: Layer | BackgroundLayer
+): boolean => {
+  return !is3dAnnotationAdhocLayer(layer);
+};
+
+export const shouldShowAdhocLayerInLayerList = (
+  layer: Layer | BackgroundLayer,
+  isCesium: boolean
+): boolean => {
+  return isCesium
+    ? shouldShowAdhocLayerInCesiumLayerList(layer)
+    : shouldShowAdhocLayerIn2dLayerList(layer);
 };
 
 export const filter3dLayers = (layer: Layer | BackgroundLayer): Boolean => {

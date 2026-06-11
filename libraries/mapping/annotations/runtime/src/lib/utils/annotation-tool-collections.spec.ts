@@ -6,16 +6,20 @@ import {
 
 import type { AnnotationToolPlugin, AnnotationToolRegistry } from "../registry";
 import { ANNOTATION_TOOL_PLUGIN_KINDS } from "../registry";
-import type { StoredAnnotation } from "../store";
+import { ANNOTATION_ENTRY_ROLES, type StoredAnnotation } from "../store";
 import {
   areAnnotationEntriesHidden,
+  buildExternalAnnotationsAppendOptions,
   resolveAnnotationCancelToolId,
   resolveAnnotationCountByToolType,
   resolveAnnotationEntriesByToolType,
+  resolveAnnotationEntryRole,
   resolveAnnotationIdsByToolType,
   resolveAnnotationToolFallbackPlugin,
   resolvePrimaryAnnotationInteractionToolId,
   resolveVisibleMeasurementAnnotationToolPlugins,
+  selectAuthoringAnnotationEntries,
+  selectRenderableAnnotationEntries,
 } from "./annotation-tool-collections";
 
 const createPlugin = ({
@@ -41,18 +45,24 @@ const createPlugin = ({
 });
 
 const createAnnotation = ({
+  annotationRole,
   hidden = false,
   id,
+  readOnly,
   toolType,
 }: {
+  annotationRole?: StoredAnnotation["annotationRole"];
   hidden?: boolean;
   id: string;
+  readOnly?: boolean;
   toolType: StoredAnnotation["toolType"];
 }): StoredAnnotation =>
   ({
+    annotationRole,
     hidden,
     id,
     nodeIds: [],
+    readOnly,
     toolType,
   } as StoredAnnotation);
 
@@ -120,6 +130,91 @@ describe("annotation-tool-collections", () => {
         .get(ANNOTATION_TYPES.DISTANCE)
         ?.map((entry) => entry.id)
     ).toEqual(["a", "c"]);
+  });
+
+  it("excludes external annotation entries from authoring groups", () => {
+    const entries = [
+      createAnnotation({ id: "a", toolType: ANNOTATION_TYPES.DISTANCE }),
+      createAnnotation({
+        annotationRole: ANNOTATION_ENTRY_ROLES.EXTERNAL,
+        id: "b",
+        toolType: ANNOTATION_TYPES.DISTANCE,
+      }),
+    ];
+
+    expect(
+      resolveAnnotationCountByToolType(entries).get(ANNOTATION_TYPES.DISTANCE)
+    ).toBe(1);
+    expect(
+      resolveAnnotationIdsByToolType(entries).get(ANNOTATION_TYPES.DISTANCE)
+    ).toEqual(["a"]);
+    expect(
+      resolveAnnotationEntriesByToolType(entries)
+        .get(ANNOTATION_TYPES.DISTANCE)
+        ?.map((entry) => entry.id)
+    ).toEqual(["a"]);
+  });
+
+  it("keeps external annotation entries renderable but outside authoring groups", () => {
+    const entries = [
+      createAnnotation({ id: "a", toolType: ANNOTATION_TYPES.DISTANCE }),
+      createAnnotation({
+        annotationRole: ANNOTATION_ENTRY_ROLES.EXTERNAL,
+        id: "b",
+        toolType: ANNOTATION_TYPES.DISTANCE,
+      }),
+    ];
+    const state = { annotationEntries: entries };
+
+    expect(
+      selectAuthoringAnnotationEntries(state).map((entry) => entry.id)
+    ).toEqual(["a"]);
+    expect(
+      selectRenderableAnnotationEntries(state).map((entry) => entry.id)
+    ).toEqual(["a", "b"]);
+  });
+
+  it("derives the external role from collection membership when no role is set", () => {
+    const externalCollection = {
+      type: "saved-measurement" as const,
+      id: "measurement-3d-abc",
+    };
+    const implicitExternalEntry = {
+      ...createAnnotation({ id: "a", toolType: ANNOTATION_TYPES.DISTANCE }),
+      externalCollection,
+    } as StoredAnnotation;
+    const authoringEntry = createAnnotation({
+      id: "b",
+      toolType: ANNOTATION_TYPES.DISTANCE,
+    });
+
+    expect(resolveAnnotationEntryRole(implicitExternalEntry)).toBe(
+      ANNOTATION_ENTRY_ROLES.EXTERNAL
+    );
+    expect(resolveAnnotationEntryRole(authoringEntry)).toBe(
+      ANNOTATION_ENTRY_ROLES.AUTHORING
+    );
+    expect(
+      selectAuthoringAnnotationEntries({
+        annotationEntries: [implicitExternalEntry, authoringEntry],
+      }).map((entry) => entry.id)
+    ).toEqual(["b"]);
+  });
+
+  it("builds canonical append options for external annotation collections", () => {
+    const externalCollection = {
+      type: "saved-measurement" as const,
+      id: "measurement-3d-abc",
+    };
+
+    expect(buildExternalAnnotationsAppendOptions(externalCollection)).toEqual({
+      idPrefix: "measurement-3d-abc",
+      annotationRole: ANNOTATION_ENTRY_ROLES.EXTERNAL,
+      readOnly: true,
+      externalCollection,
+      selectAnnotationId: null,
+      skipExisting: true,
+    });
   });
 
   it("resolves interaction and fallback plugins", () => {

@@ -7,7 +7,11 @@ import {
   type AnnotationToolPlugin,
   type AnnotationToolRegistry,
 } from "../registry";
-import type { StoredAnnotation } from "../store";
+import {
+  ANNOTATION_ENTRY_ROLES,
+  type AnnotationsStoreState,
+  type StoredAnnotation,
+} from "../store";
 
 export type ResolveVisibleMeasurementAnnotationToolPluginsOptions = {
   toolIds?: readonly AnnotationToolId[];
@@ -60,38 +64,103 @@ export const resolveAnnotationCancelToolId = (
   registry.getPlugin(ANNOTATION_SELECT_TOOL_ID)?.id ??
   resolvePrimaryAnnotationInteractionToolId(registry.plugins);
 
+export const isReadOnlyAnnotationEntry = (
+  annotationEntry: StoredAnnotation
+): boolean => Boolean(annotationEntry.readOnly);
+
+export const resolveAnnotationEntryRole = (annotationEntry: StoredAnnotation) =>
+  annotationEntry.annotationRole ??
+  (annotationEntry.externalCollection
+    ? ANNOTATION_ENTRY_ROLES.EXTERNAL
+    : ANNOTATION_ENTRY_ROLES.AUTHORING);
+
+export const isExternalAnnotationEntry = (
+  annotationEntry: StoredAnnotation
+): boolean =>
+  resolveAnnotationEntryRole(annotationEntry) ===
+  ANNOTATION_ENTRY_ROLES.EXTERNAL;
+
+export type AppendAnnotationsRuntimePersistenceStateOptions = {
+  idPrefix?: string;
+  annotationRole?: StoredAnnotation["annotationRole"];
+  readOnly?: boolean;
+  externalCollection?: StoredAnnotation["externalCollection"];
+  selectAnnotationId?: string | null;
+  skipExisting?: boolean;
+};
+
+/**
+ * Canonical append options for registering externally owned annotation
+ * collections (for example saved measurements rehydrated from adhoc
+ * carriers): entries are read-only, excluded from authoring workflows via
+ * the external role, id-prefixed by the collection id, and idempotent for
+ * repeated registration.
+ */
+export const buildExternalAnnotationsAppendOptions = (
+  externalCollection: NonNullable<StoredAnnotation["externalCollection"]>
+): AppendAnnotationsRuntimePersistenceStateOptions => ({
+  idPrefix: externalCollection.id,
+  annotationRole: ANNOTATION_ENTRY_ROLES.EXTERNAL,
+  readOnly: true,
+  externalCollection,
+  selectAnnotationId: null,
+  skipExisting: true,
+});
+
+export const selectAuthoringAnnotationEntries = (
+  state: Pick<AnnotationsStoreState, "annotationEntries">
+): readonly StoredAnnotation[] =>
+  state.annotationEntries.filter(
+    (annotationEntry) =>
+      resolveAnnotationEntryRole(annotationEntry) ===
+      ANNOTATION_ENTRY_ROLES.AUTHORING
+  );
+
+export const selectRenderableAnnotationEntries = (
+  state: Pick<AnnotationsStoreState, "annotationEntries">
+): readonly StoredAnnotation[] => state.annotationEntries;
+
 export const resolveAnnotationCountByToolType = (
   annotationEntries: readonly StoredAnnotation[]
 ): ReadonlyMap<string, number> =>
-  annotationEntries.reduce((countByToolType, annotationEntry) => {
-    countByToolType.set(
-      annotationEntry.toolType,
-      (countByToolType.get(annotationEntry.toolType) ?? 0) + 1
-    );
-    return countByToolType;
-  }, new Map<string, number>());
+  selectAuthoringAnnotationEntries({ annotationEntries }).reduce(
+    (countByToolType, annotationEntry) => {
+      countByToolType.set(
+        annotationEntry.toolType,
+        (countByToolType.get(annotationEntry.toolType) ?? 0) + 1
+      );
+      return countByToolType;
+    },
+    new Map<string, number>()
+  );
 
 export const resolveAnnotationIdsByToolType = (
   annotationEntries: readonly StoredAnnotation[]
 ): ReadonlyMap<string, readonly string[]> =>
-  annotationEntries.reduce((idsByToolType, annotationEntry) => {
-    idsByToolType.set(annotationEntry.toolType, [
-      ...(idsByToolType.get(annotationEntry.toolType) ?? []),
-      annotationEntry.id,
-    ]);
-    return idsByToolType;
-  }, new Map<string, readonly string[]>());
+  selectAuthoringAnnotationEntries({ annotationEntries }).reduce(
+    (idsByToolType, annotationEntry) => {
+      idsByToolType.set(annotationEntry.toolType, [
+        ...(idsByToolType.get(annotationEntry.toolType) ?? []),
+        annotationEntry.id,
+      ]);
+      return idsByToolType;
+    },
+    new Map<string, readonly string[]>()
+  );
 
 export const resolveAnnotationEntriesByToolType = (
   annotationEntries: readonly StoredAnnotation[]
 ): ReadonlyMap<string, readonly StoredAnnotation[]> =>
-  annotationEntries.reduce((entriesByToolType, annotationEntry) => {
-    entriesByToolType.set(annotationEntry.toolType, [
-      ...(entriesByToolType.get(annotationEntry.toolType) ?? []),
-      annotationEntry,
-    ]);
-    return entriesByToolType;
-  }, new Map<string, readonly StoredAnnotation[]>());
+  selectAuthoringAnnotationEntries({ annotationEntries }).reduce(
+    (entriesByToolType, annotationEntry) => {
+      entriesByToolType.set(annotationEntry.toolType, [
+        ...(entriesByToolType.get(annotationEntry.toolType) ?? []),
+        annotationEntry,
+      ]);
+      return entriesByToolType;
+    },
+    new Map<string, readonly StoredAnnotation[]>()
+  );
 
 export const areAnnotationEntriesHidden = (
   annotationEntries: readonly StoredAnnotation[]

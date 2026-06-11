@@ -7,8 +7,13 @@ import {
 } from "@dnd-kit/sortable";
 import { Tabs } from "antd";
 import { useDispatch, useSelector } from "react-redux";
-import { cesiumDescriptions, layerMap } from "../../config";
 import {
+  cesiumBackgroundlayerNames,
+  cesiumDescriptions,
+  layerMap,
+} from "../../config";
+import {
+  changeVisibility,
   getBackgroundLayer,
   getLayers,
   getSelectedLuftbildLayer,
@@ -18,15 +23,21 @@ import {
 import LayerRow from "./LayerRow";
 import "./text.css";
 import LayerInfoWrapper from "./LayerInfoWrapper";
-import { filter3dLayers } from "../../helper/adhoc-feature-utils";
+import {
+  filter3dLayers,
+  shouldShowAdhocLayerInLayerList,
+} from "../../helper/adhoc-feature-utils";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faX } from "@fortawesome/free-solid-svg-icons";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
+import { getLayerVisibilityToggleProps } from "./layer-visibility-toggle-props";
+import type { AppDispatch } from "../../store";
+import type { BackgroundLayer, Layer } from "@carma-mapping/layers";
 
 const BaseLayerInfo = () => {
   const [activeTab, setActiveTab] = useState("1");
-  const dispatch = useDispatch();
+  const dispatch: AppDispatch = useDispatch();
 
   const selectedMapLayer = useSelector(getSelectedMapLayer);
   const selectedLuftbildLayer = useSelector(getSelectedLuftbildLayer);
@@ -34,8 +45,10 @@ const BaseLayerInfo = () => {
   const layers = useSelector(getLayers);
   const { isCesium } = useMapFrameworkSwitcherContext();
 
-  const filteredLayers = layers.filter((layer) =>
-    isCesium ? filter3dLayers(layer) : true
+  const filteredLayers = layers.filter(
+    (layer) =>
+      shouldShowAdhocLayerInLayerList(layer, isCesium) &&
+      (isCesium ? filter3dLayers(layer) : true)
   );
   const reversedLayers = filteredLayers.slice().reverse();
   const sortableLayers = filteredLayers.filter((l) => !l.pinned);
@@ -43,6 +56,18 @@ const BaseLayerInfo = () => {
   const pinnedLastLayers = filteredLayers.filter((l) => l.pinned === "last");
 
   const getLayerPos = (id) => layers.findIndex((layer) => layer.id === id);
+  const handleLayerVisibilityChange = useCallback(
+    (layerId: string, visible: boolean) => {
+      dispatch(changeVisibility({ id: layerId, visible }));
+    },
+    [dispatch]
+  );
+  const resolveLayerVisibilityToggleProps = (layer: BackgroundLayer | Layer) =>
+    getLayerVisibilityToggleProps({
+      isCesium,
+      layer,
+      onChangeLayerVisibility: handleLayerVisibilityChange,
+    });
 
   const handleDragEnd = (event) => {
     const { active, over } = event;
@@ -56,7 +81,6 @@ const BaseLayerInfo = () => {
   };
 
   const getBackgroundDescription = () => {
-    const { isCesium } = useMapFrameworkSwitcherContext();
     if (backgroundLayer.id === "karte") {
       return isCesium
         ? "LoD2-Gebäudemodell"
@@ -110,6 +134,7 @@ const BaseLayerInfo = () => {
                               layer={layer}
                               id={layer.id}
                               index={layers.indexOf(layer)}
+                              {...resolveLayerVisibilityToggleProps(layer)}
                             />
                           ))}
                         <SortableContext
@@ -124,6 +149,7 @@ const BaseLayerInfo = () => {
                                 layer={layer}
                                 id={layer.id}
                                 index={layers.indexOf(layer)}
+                                {...resolveLayerVisibilityToggleProps(layer)}
                               />
                             ))}
                         </SortableContext>
@@ -133,13 +159,22 @@ const BaseLayerInfo = () => {
                             layer={layer}
                             id={layer.id}
                             index={layers.indexOf(layer)}
+                            {...resolveLayerVisibilityToggleProps(layer)}
                           />
                         ))}
                         <LayerRow
                           isBackgroundLayer
                           layer={backgroundLayer}
                           id={backgroundLayer.id}
+                          displayTitle={
+                            isCesium
+                              ? cesiumBackgroundlayerNames[backgroundLayer.id]
+                              : backgroundLayer.title
+                          }
                           index={-1}
+                          {...resolveLayerVisibilityToggleProps(
+                            backgroundLayer
+                          )}
                         />
                       </div>
                     </DndContext>

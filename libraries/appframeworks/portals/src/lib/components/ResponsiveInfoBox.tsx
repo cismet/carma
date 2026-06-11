@@ -82,6 +82,7 @@ export const ResponsiveInfoBox = ({
       style={{
         backgroundColor: headerBackgroundColor,
         boxSizing: "border-box",
+        color: "white",
         paddingLeft: headerInsetLeft,
         width: "100%",
         ...headerStyle,

@@ -76,7 +76,11 @@ const toGeoJsonPosition = ({
   longitude,
   latitude,
   altitude,
-}: CesiumGeographicCoordinate): Position => [longitude, latitude, altitude];
+}: CesiumGeographicCoordinate): Position => [
+  longitude,
+  latitude,
+  altitude ?? 0,
+];
 
 const resolveGeometry = ({
   toolType,

@@ -50,7 +50,10 @@ import {
   type AdhocFeatureCollectionMetadata,
   type SelectedAdhocFeature,
 } from "../components/AdhocFeatureDisplayProvider";
-import { DEFAULT_ADHOC_FEATURE_LAYER_ID } from "../constants/adhoc";
+import {
+  ADHOC_LAYER_SOURCES,
+  DEFAULT_ADHOC_FEATURE_LAYER_ID,
+} from "../constants/adhoc";
 import {
   buildAdhocFeatureInfo,
   getAdhocAccentColor,
@@ -128,6 +131,14 @@ type AdhocFeatureEntry = {
   layerId: string;
   key: string;
 };
+
+const is2dMeasurementAdhocFeature = (feature: AdhocFeature): boolean =>
+  (feature.data as { source?: unknown }).source ===
+  ADHOC_LAYER_SOURCES.TWO_D_MEASUREMENTS;
+
+const isRuntimeAnnotationAdhocFeature = (feature: AdhocFeature): boolean =>
+  (feature.data as { source?: unknown }).source ===
+  ADHOC_LAYER_SOURCES.ANNOTATIONS;
 
 type VisualizerType = "ground-polygon" | "ground-polyline" | "extruded-wall";
 type ElementType = "polygon" | "polyline" | "wall" | "model";
@@ -411,7 +422,12 @@ export const useAdhocCesiumFeatureDisplay = (
     () =>
       featureCollections.flatMap((collection) =>
         collection.features
-          .filter((feature) => feature.metadata?.shouldRemove !== true)
+          .filter(
+            (feature) =>
+              feature.metadata?.shouldRemove !== true &&
+              !isRuntimeAnnotationAdhocFeature(feature) &&
+              !is2dMeasurementAdhocFeature(feature)
+          )
           .map((feature) => ({
             feature,
             ...(collection.metadata
@@ -1280,7 +1296,7 @@ export const useAdhocCesiumFeatureDisplay = (
     let cancelled = false;
 
     const createVisualizers = async () => {
-      const newlyRegistered: string[] = [];
+      const processedFeatureKeys = new Set<string>();
 
       for (const entry of featuresToCreate) {
         if (cancelled) break;
@@ -1361,7 +1377,10 @@ export const useAdhocCesiumFeatureDisplay = (
           featureKey,
           resolvedGeojson
         );
-        if (geoJsonFeatures.length === 0) continue;
+        if (geoJsonFeatures.length === 0) {
+          processedFeatureKeys.add(featureKey);
+          continue;
+        }
 
         const visualizersToCreate: Array<{
           key: string;
@@ -1389,7 +1408,7 @@ export const useAdhocCesiumFeatureDisplay = (
             continue;
           }
 
-          if (config.groundPolygon) {
+          if (config.groundPolygon && polygonRings.length > 0) {
             const gpOptions =
               typeof config.groundPolygon === "object"
                 ? config.groundPolygon
@@ -1495,6 +1514,10 @@ export const useAdhocCesiumFeatureDisplay = (
           visualizersToCreate.map((entry) => entry.primitiveId)
         );
         if (uniqueSelectionIds.size === 0) {
+          processedFeatureKeys.add(featureKey);
+          console.debug("[ADHOC|VIS] no Cesium visualizer for feature", {
+            featureKey,
+          });
           continue;
         }
         let attachedVisualizerCount = 0;
@@ -1523,7 +1546,6 @@ export const useAdhocCesiumFeatureDisplay = (
 
           try {
             await visualizer.attach(scene, () => scene.requestRender());
-            newlyRegistered.push(featureKey);
             attachedVisualizerCount += 1;
           } catch {
             // Visualizer failed to attach, remove from map
@@ -1550,6 +1572,7 @@ export const useAdhocCesiumFeatureDisplay = (
           failed: failedVisualizerCount,
           uniqueSelections: uniqueSelectionIds.size,
         });
+        processedFeatureKeys.add(featureKey);
 
         // Set initial selection state and potentially fly to
         const firstSelectionId = [...uniqueSelectionIds][0] ?? null;
@@ -1662,8 +1685,9 @@ export const useAdhocCesiumFeatureDisplay = (
               next.delete(featureKey);
             }
           }
-          // Add newly registered IDs
-          for (const featureKey of newlyRegistered) {
+          // Add processed IDs. A malformed or non-renderable adhoc import must
+          // not keep the 2D->3D transition waiting for the staging timeout.
+          for (const featureKey of processedFeatureKeys) {
             next.add(featureKey);
           }
           return next;

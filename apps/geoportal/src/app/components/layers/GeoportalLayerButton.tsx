@@ -75,7 +75,7 @@ import { Badge, Spin, Tooltip } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import { useLayerLoading } from "@carma-mapping/utils";
 import { useGeoportalLayerButtonActions } from "../../hooks/use-geoportal-layer-button-actions";
-import { GEOPORTAL_LAYER_TOOL_ACTION_BUTTON_CLASS_NAMES } from "./layer-tool-action-button-style";
+import { getGeoportalLayerToolActionButtonClassName } from "./layer-tool-action-button-style";
 
 export interface GeoportalLayerButtonProps {
   title: string;
@@ -443,10 +443,9 @@ const GeoportalLayerButton = ({
                 id={`layerInteractionButton-${id}`}
                 className={cn(
                   "group",
-                  GEOPORTAL_LAYER_TOOL_ACTION_BUTTON_CLASS_NAMES.base,
-                  activeInteractionLayerID === id
-                    ? GEOPORTAL_LAYER_TOOL_ACTION_BUTTON_CLASS_NAMES.active
-                    : GEOPORTAL_LAYER_TOOL_ACTION_BUTTON_CLASS_NAMES.inactive
+                  getGeoportalLayerToolActionButtonClassName(
+                    activeInteractionLayerID === id
+                  )
                 )}
                 onClick={(e) => {
                   e.preventDefault();
@@ -489,11 +488,8 @@ const GeoportalLayerButton = ({
                   <button
                     key={btn.id}
                     id={`layerInteractionButton-${id}-${btn.id}`}
-                    className={cn(
-                      GEOPORTAL_LAYER_TOOL_ACTION_BUTTON_CLASS_NAMES.base,
+                    className={getGeoportalLayerToolActionButtonClassName(
                       isActive
-                        ? GEOPORTAL_LAYER_TOOL_ACTION_BUTTON_CLASS_NAMES.active
-                        : GEOPORTAL_LAYER_TOOL_ACTION_BUTTON_CLASS_NAMES.inactive
                     )}
                     onClick={(e) => {
                       e.preventDefault();

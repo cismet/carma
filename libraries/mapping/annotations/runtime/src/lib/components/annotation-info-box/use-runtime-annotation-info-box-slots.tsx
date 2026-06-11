@@ -1,10 +1,12 @@
 import { useMemo, type ReactNode } from "react";
 
 import {
+  ANNOTATION_INFO_BOX_ACTION_IDS,
   ANNOTATION_INFO_BOX_HELP_ALERT_SEVERITIES,
   ANNOTATION_INFO_BOX_HELP_ITEM_KINDS,
   AnnotationInfoBoxHelpContent,
   AnnotationInfoBoxTextContent,
+  type AnnotationInfoBoxActionId,
   type AnnotationInfoBoxHelpLayout,
   type AnnotationInfoBoxHelpItem,
   type AnnotationInfoBoxSlots,
@@ -19,7 +21,10 @@ import type {
   AnnotationToolDraftState,
   AnnotationToolPlugin,
 } from "../../registry";
-import { resolveAnnotationToolFallbackPlugin } from "../../utils/annotation-tool-collections";
+import {
+  isReadOnlyAnnotationEntry,
+  resolveAnnotationToolFallbackPlugin,
+} from "../../utils/annotation-tool-collections";
 
 export const RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS = {
   ANNOTATION: "annotation",
@@ -74,6 +79,15 @@ const EMPTY_RUNTIME_ANNOTATION_TOOL_DRAFT_STATE: AnnotationToolDraftState =
     linkedNodeGroupIds: Object.freeze([]),
     feedback: null,
   });
+
+const MUTATING_ANNOTATION_ACTION_IDS = Object.freeze<
+  readonly AnnotationInfoBoxActionId[]
+>([ANNOTATION_INFO_BOX_ACTION_IDS.LOCK, ANNOTATION_INFO_BOX_ACTION_IDS.DELETE]);
+
+const appendMutatingActionIds = (
+  hiddenActionIds: readonly AnnotationInfoBoxActionId[]
+): readonly AnnotationInfoBoxActionId[] =>
+  Array.from(new Set([...hiddenActionIds, ...MUTATING_ANNOTATION_ACTION_IDS]));
 
 const resolveRuntimeAnnotationInfoBoxVisualOptions = (
   visualOptions: RuntimeAnnotationInfoBoxVisualOptionsInput | undefined,
@@ -222,13 +236,23 @@ export const useRuntimeAnnotationInfoBoxSlots = ({
       return null;
     }
 
-    const resolvedVisualOptions = resolveRuntimeAnnotationInfoBoxVisualOptions(
+    const isReadOnly = isReadOnlyAnnotationEntry(selectedAnnotation);
+
+    const baseVisualOptions = resolveRuntimeAnnotationInfoBoxVisualOptions(
       visualOptions,
       {
         kind: RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS.ANNOTATION,
         annotation: selectedAnnotation,
       }
     );
+    const resolvedVisualOptions = isReadOnly
+      ? {
+          ...baseVisualOptions,
+          hiddenActionIds: appendMutatingActionIds(
+            baseVisualOptions.hiddenActionIds
+          ),
+        }
+      : baseVisualOptions;
 
     const slots = plugin.infoBox.getSlots({
       annotation: selectedAnnotation,

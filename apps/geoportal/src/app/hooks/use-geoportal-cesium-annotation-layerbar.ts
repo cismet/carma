@@ -5,7 +5,12 @@ import { faRuler } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import { ANNOTATION_SELECT_TOOL_ID } from "@carma-mapping/annotations/core";
-import { useAnnotationsRuntime } from "@carma-mapping/annotations/runtime";
+import {
+  selectAuthoringAnnotationEntries,
+  updateAnnotationEntryById,
+  useAnnotationsDispatch,
+  useAnnotationsRuntime,
+} from "@carma-mapping/annotations/runtime";
 import type { AnnotationModeText } from "@carma-mapping/annotations/builtin-tools/annotation-mode-text";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import type { Layer } from "@carma-mapping/layers";
@@ -26,6 +31,7 @@ import {
 } from "../components/annotations/cesium-annotations.constants";
 import { useModeLifecycleActions } from "./use-mode-lifecycle-actions";
 import { CESIUM_ANNOTATION_CONFIG } from "../config/app.config";
+import { is3dAnnotationAdhocLayer } from "../helper/adhoc-feature-utils";
 
 const createCesiumAnnotationLayer = (
   annotationModeText: AnnotationModeText
@@ -56,6 +62,7 @@ const getCesiumAnnotationLayerTitle = (
 
 export function useGeoportalCesiumAnnotationLayerbar() {
   const dispatch = useDispatch();
+  const annotationsDispatch = useAnnotationsDispatch();
   const annotationModeText = geoportalAnnotationModeText;
   const layers = useSelector(getLayers);
   const uiMode = useSelector(getUIMode);
@@ -66,13 +73,18 @@ export function useGeoportalCesiumAnnotationLayerbar() {
     registry,
     setActiveToolType,
     setSelectedAnnotationId,
+    selectedAnnotationIds,
   } = useAnnotationsRuntime();
 
   const shouldShowCesiumAnnotationLayer =
     isCesium && uiMode === UIMode.MEASUREMENT;
-  const hasCesiumAnnotationLayer = layers.some(
+  const cesiumAnnotationLayer = layers.find(
     (layer) => layer.id === CESIUM_ANNOTATION_LAYER_ID
   );
+  const authoringAnnotationCount = selectAuthoringAnnotationEntries({
+    annotationEntries,
+  }).length;
+  const hasCesiumAnnotationLayer = Boolean(cesiumAnnotationLayer);
   const hadActiveCesiumAnnotationLayerRef = useRef(
     shouldShowCesiumAnnotationLayer && hasCesiumAnnotationLayer
   );
@@ -84,7 +96,7 @@ export function useGeoportalCesiumAnnotationLayerbar() {
         appendLayer({
           ...createCesiumAnnotationLayer(annotationModeText),
           title: getCesiumAnnotationLayerTitle(
-            annotationEntries.length,
+            authoringAnnotationCount,
             annotationModeText
           ),
         })
@@ -94,8 +106,8 @@ export function useGeoportalCesiumAnnotationLayerbar() {
     dispatch(setActiveInteractionLayerID(CESIUM_ANNOTATION_LAYER_ID));
     dispatch(setActiveInteractionButtonID(CESIUM_ANNOTATION_INTERACTION_ID));
   }, [
-    annotationEntries.length,
     annotationModeText,
+    authoringAnnotationCount,
     dispatch,
     hasCesiumAnnotationLayer,
   ]);
@@ -155,24 +167,105 @@ export function useGeoportalCesiumAnnotationLayerbar() {
       updateLayer({
         ...createCesiumAnnotationLayer(annotationModeText),
         title: getCesiumAnnotationLayerTitle(
-          annotationEntries.length,
+          authoringAnnotationCount,
           annotationModeText
         ),
+        visible: cesiumAnnotationLayer?.visible ?? true,
       })
     );
   }, [
-    annotationEntries.length,
     annotationModeText,
+    authoringAnnotationCount,
+    cesiumAnnotationLayer?.visible,
     dispatch,
     hasCesiumAnnotationLayer,
     shouldShowCesiumAnnotationLayer,
   ]);
 
   useEffect(() => {
+    if (!isCesium) {
+      return;
+    }
+
+    const annotationVisibilityById = new Map<string, boolean>();
+
+    if (cesiumAnnotationLayer) {
+      const visible = cesiumAnnotationLayer.visible !== false;
+      for (const annotationEntry of selectAuthoringAnnotationEntries({
+        annotationEntries,
+      })) {
+        annotationVisibilityById.set(annotationEntry.id, visible);
+      }
+    }
+
+    const savedAnnotationLayerVisibilityByCollectionId = new Map<
+      string,
+      boolean
+    >();
+    for (const layer of layers) {
+      if (is3dAnnotationAdhocLayer(layer)) {
+        savedAnnotationLayerVisibilityByCollectionId.set(
+          layer.id,
+          layer.visible !== false
+        );
+      }
+    }
+
+    for (const annotationEntry of annotationEntries) {
+      const externalCollection = annotationEntry.externalCollection;
+      if (
+        externalCollection?.type !== "saved-measurement" ||
+        !savedAnnotationLayerVisibilityByCollectionId.has(externalCollection.id)
+      ) {
+        continue;
+      }
+
+      annotationVisibilityById.set(
+        annotationEntry.id,
+        savedAnnotationLayerVisibilityByCollectionId.get(externalCollection.id)!
+      );
+    }
+
+    let shouldClearSelection = false;
+    for (const annotationEntry of annotationEntries) {
+      const visible = annotationVisibilityById.get(annotationEntry.id);
+      if (visible === undefined) {
+        continue;
+      }
+
+      const nextHidden = !visible;
+      if (annotationEntry.hidden !== nextHidden) {
+        annotationsDispatch(
+          updateAnnotationEntryById({
+            annotationId: annotationEntry.id,
+            hidden: nextHidden,
+          })
+        );
+      }
+
+      if (nextHidden && selectedAnnotationIds.includes(annotationEntry.id)) {
+        shouldClearSelection = true;
+      }
+    }
+
+    if (shouldClearSelection) {
+      setSelectedAnnotationId(null);
+    }
+  }, [
+    annotationEntries,
+    annotationsDispatch,
+    cesiumAnnotationLayer,
+    isCesium,
+    layers,
+    selectedAnnotationIds,
+    setSelectedAnnotationId,
+  ]);
+
+  useEffect(() => {
     const defaultToolId = CESIUM_ANNOTATION_CONFIG.tools.defaultToolId;
     if (
       !shouldShowCesiumAnnotationLayer ||
-      annotationEntries.length > 0 ||
+      authoringAnnotationCount > 0 ||
       activeToolType !== ANNOTATION_SELECT_TOOL_ID ||
       !registry.getPlugin(defaultToolId)
     ) {
@@ -182,7 +275,7 @@ export function useGeoportalCesiumAnnotationLayerbar() {
     setActiveToolType(defaultToolId);
   }, [
     activeToolType,
-    annotationEntries.length,
+    authoringAnnotationCount,
     registry,
     setActiveToolType,
     shouldShowCesiumAnnotationLayer,

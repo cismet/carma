@@ -58,9 +58,7 @@ import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from 
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import type { FeatureInfo } from "@carma-mapping/utils";
 import { Measurements, InfoBoxMeasurement } from "@carma-commons/measurements";
-import {
-  ANNOTATION_SELECT_TOOL_ID,
-} from "@carma-mapping/annotations/core";
+import { ANNOTATION_SELECT_TOOL_ID } from "@carma-mapping/annotations/core";
 import { useAnnotationsRuntime } from "@carma-mapping/annotations/runtime";
 
 import { geoportalAnnotationModeText } from "../../config/geoportalTextConfig";
@@ -105,6 +103,7 @@ import AnnotationInfoBox from "../annotations/AnnotationInfoBox.tsx";
 import versionData from "../../../version.json";
 
 import { addCssToOverlayHelperItem } from "../../helper/overlayHelper.ts";
+import { is3dAnnotationAdhocLayer } from "../../helper/adhoc-feature-utils.ts";
 
 import useLeafletZoomControls from "../../hooks/leaflet/useLeafletZoomControls.ts";
 import { useDispatchSachdatenInfoText } from "../../hooks/useDispatchSachdatenInfoText.ts";
@@ -840,6 +839,12 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
   }, [activeToolType, setActiveToolType]);
 
   const renderInfoBox = useCallback(() => {
+    const shouldRenderAnnotationInfoBox =
+      getIsCesium() &&
+      (isModeMeasurement ||
+        layers.some(
+          (layer) => layer.visible !== false && is3dAnnotationAdhocLayer(layer)
+        ));
     const selectedFeatureInMeasurementMode =
       ENABLE_3D_MODEL_SELECTION_IN_MEASUREMENT_MODE ? selectedFeature : null;
     const selectedFeatureSecondaryInfoBoxElements: ReactNode[] =
@@ -895,8 +900,9 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
       </div>,
     ];
 
-    if (isModeMeasurement && getIsCesium()) {
+    if (shouldRenderAnnotationInfoBox) {
       if (
+        isModeMeasurement &&
         selectedFeatureInMeasurementMode &&
         annotationInfoBoxTop === "feature"
       ) {
@@ -915,7 +921,9 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
 
       return (
         <AnnotationInfoBox
-          secondaryInfoBoxElements={selectedFeatureSecondaryInfoBoxElements}
+          secondaryInfoBoxElements={
+            isModeMeasurement ? selectedFeatureSecondaryInfoBoxElements : []
+          }
         />
       );
     }
@@ -946,6 +954,7 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
   }, [
     getIsLeaflet,
     getIsCesium,
+    layers,
     isModeMeasurement,
     uiMode,
     selectedFeature,

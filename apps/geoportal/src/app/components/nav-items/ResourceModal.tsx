@@ -34,6 +34,7 @@ import {
 } from "../../store/slices/ui";
 import { apiUrl } from "../../constants/discover";
 import store from "../../store";
+import { withSavedMeasurementCarrierImport } from "../layers/measurement-import-utils";
 import { createResourceLayerUpdater } from "./resource-layer-updater";
 import { useCarmaMapAPIActions } from "@carma-mapping/carma-map-api";
 
@@ -73,20 +74,23 @@ const ResourceModal = () => {
     [getIsCesium, getIsLeaflet]
   );
 
-  const updateLayers = createResourceLayerUpdater({
-    dispatch,
-    activeLayers,
-    addFeature,
-    setSelectedFeatureById,
-    setShouldFocusSelected,
-    clearFeatureCollections,
-    toggleFramework: toggle,
-    getFrameworkMode,
-    routedMap,
-    setCurrentStyle,
-    messageApi,
-    addLayerById,
-  });
+  const updateLayers = withSavedMeasurementCarrierImport(
+    createResourceLayerUpdater({
+      dispatch,
+      activeLayers,
+      addFeature,
+      setSelectedFeatureById,
+      setShouldFocusSelected,
+      clearFeatureCollections,
+      toggleFramework: toggle,
+      getFrameworkMode,
+      routedMap,
+      setCurrentStyle,
+      messageApi,
+      addLayerById,
+    }),
+    { dispatch, measurements }
+  );
 
   return (
     <>
@@ -160,7 +164,7 @@ const ResourceModal = () => {
               }),
             id: "favoriteLayers",
           },
-          isLeaflet && {
+          {
             Title: "Meine Messungen",
             layers: measurements.map((measurement) => {
               return {

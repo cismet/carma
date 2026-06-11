@@ -33,7 +33,10 @@ import {
   UIMode,
 } from "../../store/slices/ui";
 import { useGeoportalCesiumAnnotationToolPlugins } from "../../hooks/use-geoportal-cesium-annotation-tool-plugins";
-import { CESIUM_ANNOTATION_INTERACTION_ID } from "../annotations/cesium-annotations.constants";
+import {
+  CESIUM_ANNOTATION_INTERACTION_ID,
+  CESIUM_ANNOTATION_SAVE_INTERACTION_ID,
+} from "../annotations/cesium-annotations.constants";
 import {
   GEOPORTAL_ANNOTATION_DEVELOPMENT_PREVIEW_PATTERN_OPTIONS,
   isGeoportalDevelopmentPreviewAnnotationToolId,
@@ -42,6 +45,7 @@ import { useFilterBackground } from "./useFilterBackground";
 import FilterBackdrop from "./FilterBackdrop";
 import { GEOPORTAL_LAYER_TOOL_ACTION_TOOLBAR_CLASS_NAMES } from "./layer-tool-action-button-style";
 import SaveMeasurements from "./SaveMeasurements";
+import SaveCesiumAnnotations from "./SaveCesiumAnnotations";
 import {
   ADHOC_MODEL_CONTROL_INTERACTION_ID,
   ADHOC_RENDER_STYLE_INTERACTION_ID,
@@ -77,6 +81,7 @@ const INTERACTION_COMPONENTS: Record<string, FC<{ layer: Layer }>> = {
   [ADHOC_RENDER_STYLE_INTERACTION_ID]: AdhocRenderStyleInteractionPanel,
   [ADHOC_MODEL_CONTROL_INTERACTION_ID]: AdhocModelControlInteractionPanel,
   [CESIUM_ANNOTATION_INTERACTION_ID]: GeoportalAnnotationsToolbar,
+  [CESIUM_ANNOTATION_SAVE_INTERACTION_ID]: SaveCesiumAnnotations,
   "save-measurements": SaveMeasurements,
 };
 

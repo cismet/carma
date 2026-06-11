@@ -176,6 +176,9 @@ export const createDistanceToolInfoBoxSlots = (
           visualOptions={infoBoxVisualOptions}
         />
       ),
+      contentStyle: {
+        paddingBottom: 0,
+      },
       navigation: {
         totalEntries: navigation?.totalEntries ?? 0,
         currentIndex: navigation?.currentIndex ?? 0,

@@ -41,6 +41,7 @@ describe("ResponsiveInfoBox", () => {
     expect(header.style.borderTopWidth).toBe("1px");
     expect(header.style.borderTopStyle).toBe("solid");
     expect(header.style.boxSizing).toBe("border-box");
+    expect(header.style.color).toBe("white");
     expect(header.style.paddingLeft).toBe("calc(0.8125rem)");
     expect(header.style.width).toBe("100%");
   });

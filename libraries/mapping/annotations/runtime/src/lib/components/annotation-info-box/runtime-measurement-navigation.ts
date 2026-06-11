@@ -1,4 +1,5 @@
 import { isNavigableMeasurementAnnotationType } from "../../config/navigable-measurement-annotation-types";
+import { selectAuthoringAnnotationEntries } from "../../utils/annotation-tool-collections";
 import type { RuntimeAnnotationInfoBoxContext } from "./annotation-info-box.types";
 
 export const resolveRuntimeMeasurementNavigation = ({
@@ -13,7 +14,9 @@ export const resolveRuntimeMeasurementNavigation = ({
   | "focusAnnotationId"
   | "flyToAllAnnotations"
 >) => {
-  const navigableEntries = annotationEntries.filter((annotationEntry) =>
+  const navigableEntries = selectAuthoringAnnotationEntries({
+    annotationEntries,
+  }).filter((annotationEntry) =>
     isNavigableMeasurementAnnotationType(annotationEntry.toolType)
   );
   const currentIndex = navigableEntries.findIndex(

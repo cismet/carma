@@ -74,7 +74,7 @@ import {
   ColorSwatchGroup,
   type ColorSwatchGroupOption,
 } from "./ColorSwatchGroup";
-import { GEOPORTAL_LAYER_TOOL_ACTION_BUTTON_CLASS_NAMES } from "./layer-tool-action-button-style";
+import { getGeoportalLayerToolActionButtonClassName } from "./layer-tool-action-button-style";
 
 export const ADHOC_RENDER_STYLE_INTERACTION_ID = "adhoc-render-style";
 export const ADHOC_MODEL_CONTROL_INTERACTION_ID = "adhoc-model-controls";
@@ -535,12 +535,7 @@ const LayerbarActionButton = ({
     <Tooltip title={title} placement="top">
       <button
         aria-label={title}
-        className={cn(
-          GEOPORTAL_LAYER_TOOL_ACTION_BUTTON_CLASS_NAMES.base,
-          active
-            ? GEOPORTAL_LAYER_TOOL_ACTION_BUTTON_CLASS_NAMES.active
-            : GEOPORTAL_LAYER_TOOL_ACTION_BUTTON_CLASS_NAMES.inactive
-        )}
+        className={getGeoportalLayerToolActionButtonClassName(active)}
         onClick={handleClick}
         onContextMenu={(event) => event.preventDefault()}
         onPointerCancel={finishLongPress}
@@ -705,10 +700,7 @@ export const AdhocModelFlyToLayerbarAction = ({
     <Tooltip title={focusObjectLabel} placement="top">
       <button
         aria-label={focusObjectLabel}
-        className={cn(
-          GEOPORTAL_LAYER_TOOL_ACTION_BUTTON_CLASS_NAMES.base,
-          GEOPORTAL_LAYER_TOOL_ACTION_BUTTON_CLASS_NAMES.inactive
-        )}
+        className={getGeoportalLayerToolActionButtonClassName(false)}
         onClick={(event) => {
           event.preventDefault();
           event.stopPropagation();

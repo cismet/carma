@@ -7,8 +7,10 @@ export {
   readMaxNumericSuffix,
 } from "./annotation-entity-builder.helpers";
 export {
+  ANNOTATION_ENTRY_ROLES,
   ANNOTATION_ELEVATION_DISPLAY_MODES,
   type AnnotationsStoreState,
+  type AnnotationEntryRole,
   type AnnotationElevationDisplayMode,
   type AnnotationLabelAppearance,
   type CesiumGeographicCoordinate,
@@ -21,10 +23,15 @@ export {
   type AnnotationNodeId,
 } from "./annotations-store.types";
 export {
+  ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_ID,
+  ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_VERSION,
+  buildAnnotationsRuntimeGeoJsonFeatureCollection,
   buildAnnotationsRuntimePersistenceState,
   loadAnnotationsRuntimePersistenceState,
+  resolveAnnotationsRuntimePersistenceFromGeoJson,
   resolvePersistedAnnotationsStoreState,
   saveAnnotationsRuntimePersistenceState,
+  type AnnotationsRuntimeGeoJsonFeatureCollection,
   type AnnotationsRuntimePersistenceEnvelope,
 } from "./persistence/annotations-store-persistence";
 export {
