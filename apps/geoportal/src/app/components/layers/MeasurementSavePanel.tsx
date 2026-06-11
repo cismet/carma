@@ -11,6 +11,18 @@ import {
   type MeasurementSaveValues,
 } from "./measurement-save-utils";
 
+const strings = {
+  title: "Messungen speichern",
+  titleLabel: "Titel",
+  titlePlaceholder: "Bezeichnung der Messungen?",
+  descriptionLabel: "Inhalt",
+  descriptionPlaceholder: "Was wurde gemessen?",
+  emojiPickerTitle: "Emoji wählen",
+  clearAfterSaveLabel: "Messungen nach dem Speichern entfernen",
+  portalSaveButton: "Im Portal speichern",
+  fileSaveButton: "Datei speichern",
+} as const;
+
 type PickedEmoji = {
   native: string;
   unified: string;
@@ -85,11 +97,11 @@ const MeasurementSavePanel = ({
   return (
     <div className="bg-white button-shadow rounded-xl p-4 flex flex-col gap-3 w-[500px]">
       <div className="flex items-center gap-2">
-        <h4 className="mb-0">Messungen speichern</h4>
+        <h4 className="mb-0">{strings.title}</h4>
       </div>
       <hr className="my-0" />
       <label htmlFor="measurement-title" className="-mb-1 font-semibold">
-        Titel
+        {strings.titleLabel}
       </label>
       <div className="flex items-center gap-2">
         <Popover
@@ -103,7 +115,7 @@ const MeasurementSavePanel = ({
         >
           <button
             type="button"
-            title="Emoji wählen"
+            title={strings.emojiPickerTitle}
             className="flex items-center justify-center shrink-0 h-8 w-10 rounded-md border border-gray-300 bg-white hover:border-gray-400 cursor-pointer"
           >
             <img
@@ -118,19 +130,19 @@ const MeasurementSavePanel = ({
           id="measurement-title"
           value={title}
           className="bg-white flex-1"
-          placeholder="Bezeichnung der Messungen?"
+          placeholder={strings.titlePlaceholder}
           onChange={(e) => setTitle(e.target.value)}
           onPressEnter={() => void submit(onPortalSave)}
         />
       </div>
       <label htmlFor="measurement-description" className="-mb-1 font-semibold">
-        Inhalt
+        {strings.descriptionLabel}
       </label>
       <Input.TextArea
         id="measurement-description"
         value={description}
         className="bg-white"
-        placeholder="Was wurde gemessen?"
+        placeholder={strings.descriptionPlaceholder}
         onChange={(e) => setDescription(e.target.value)}
         autoSize={{ minRows: 2, maxRows: 4 }}
       />
@@ -138,7 +150,7 @@ const MeasurementSavePanel = ({
         checked={clearAfterSave}
         onChange={(e) => setClearAfterSave(e.target.checked)}
       >
-        Messungen nach dem Speichern löschen
+        {strings.clearAfterSaveLabel}
       </Checkbox>
       <div className="flex gap-2">
         <Button
@@ -146,14 +158,14 @@ const MeasurementSavePanel = ({
           onClick={() => void submit(onPortalSave)}
           className="flex-1"
         >
-          Im Portal speichern
+          {strings.portalSaveButton}
         </Button>
         <Button
           disabled={disabled}
           onClick={() => void submit(onFileSave)}
           className="flex-1"
         >
-          Datei speichern
+          {strings.fileSaveButton}
         </Button>
       </div>
     </div>
