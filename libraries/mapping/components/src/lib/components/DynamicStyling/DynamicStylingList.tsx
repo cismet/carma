@@ -9,6 +9,7 @@ import { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { resolveIconSrc } from "./dynamicStyling.helpers";
 import type { DynamicStylingControlProps } from "./DynamicStylingControl";
+import { cn } from "@carma-commons/utils";
 
 export const DynamicStylingList = ({
   config: listConfig,
@@ -16,6 +17,7 @@ export const DynamicStylingList = ({
   currentSelection,
   onSelectionChange,
   showIcon: showIconProp,
+  indicatorClassName,
   children,
 }: DynamicStylingControlProps) => {
   const currentOption = listConfig.options.find(
@@ -85,8 +87,12 @@ export const DynamicStylingList = ({
           {children}
           <FontAwesomeIcon
             icon={dropdownOpen ? faChevronUp : faChevronDown}
-            style={{ fontSize: "6px", marginLeft: "2px" }}
-            className="text-gray-500"
+            style={
+              indicatorClassName
+                ? undefined
+                : { fontSize: "6px", marginLeft: "2px" }
+            }
+            className={cn("text-gray-500", indicatorClassName)}
           />
         </div>
       </Dropdown>

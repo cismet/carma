@@ -9,6 +9,7 @@ export interface DynamicStylingControlProps {
   currentSelection: string;
   onSelectionChange: (selection: string) => void;
   showIcon?: boolean;
+  indicatorClassName?: string;
   children?: React.ReactNode;
 }
 
