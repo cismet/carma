@@ -80,6 +80,16 @@ const BaseLayerInfo = () => {
     }
   };
 
+  const removeAllLayersButton = (className: string) => (
+    <button
+      onClick={() => dispatch(setLayers([]))}
+      className={`text-gray-600 hover:text-gray-500 p-2 ${className}`}
+    >
+      Alle Karteninhalte entfernen
+      <FontAwesomeIcon icon={faX} className="ml-2" />
+    </button>
+  );
+
   const getBackgroundDescription = () => {
     if (backgroundLayer.id === "karte") {
       return isCesium
@@ -103,32 +113,52 @@ const BaseLayerInfo = () => {
               animated={false}
               activeKey={activeTab}
               onChange={setActiveTab}
+              className="full-width-tabs"
               tabBarExtraContent={{
                 right:
-                  activeTab === "1" ? (
-                    <button
-                      onClick={() => dispatch(setLayers([]))}
-                      className="text-gray-600 hover:text-gray-500 p-2"
-                    >
-                      Alle Karteninhalte entfernen
-                      <FontAwesomeIcon icon={faX} className="ml-2" />
-                    </button>
-                  ) : null,
+                  activeTab === "1"
+                    ? removeAllLayersButton("hidden sm:block")
+                    : null,
               }}
               items={[
                 {
                   key: "1",
                   label: "Kartenebenen",
                   children: (
-                    <DndContext
-                      onDragEnd={handleDragEnd}
-                      modifiers={[restrictToVerticalAxis]}
-                    >
-                      <div className="h-full overflow-auto max-h-full flex flex-col gap-2 pr-1">
-                        {pinnedLastLayers
-                          .slice()
-                          .reverse()
-                          .map((layer) => (
+                    <>
+                      {removeAllLayersButton("block w-fit ml-auto sm:hidden")}
+                      <DndContext
+                        onDragEnd={handleDragEnd}
+                        modifiers={[restrictToVerticalAxis]}
+                      >
+                        <div className="h-full overflow-auto max-h-full flex flex-col gap-2 pr-1">
+                          {pinnedLastLayers
+                            .slice()
+                            .reverse()
+                            .map((layer) => (
+                              <LayerRow
+                                key={`layer.${layer.id}`}
+                                layer={layer}
+                                id={layer.id}
+                                index={layers.indexOf(layer)}
+                                {...resolveLayerVisibilityToggleProps(layer)}
+                              />
+                            ))}
+                          <SortableContext
+                            items={sortableLayers}
+                            strategy={verticalListSortingStrategy}
+                          >
+                            {sortableLayers.map((layer) => (
+                              <LayerRow
+                                key={`layer.${layer.id}`}
+                                layer={layer}
+                                id={layer.id}
+                                index={layers.indexOf(layer)}
+                                {...resolveLayerVisibilityToggleProps(layer)}
+                              />
+                            ))}
+                          </SortableContext>
+                          {pinnedFirstLayers.map((layer) => (
                             <LayerRow
                               key={`layer.${layer.id}`}
                               layer={layer}
@@ -137,45 +167,23 @@ const BaseLayerInfo = () => {
                               {...resolveLayerVisibilityToggleProps(layer)}
                             />
                           ))}
-                        <SortableContext
-                          items={sortableLayers}
-                          strategy={verticalListSortingStrategy}
-                        >
-                          {sortableLayers.map((layer) => (
-                            <LayerRow
-                              key={`layer.${layer.id}`}
-                              layer={layer}
-                              id={layer.id}
-                              index={layers.indexOf(layer)}
-                              {...resolveLayerVisibilityToggleProps(layer)}
-                            />
-                          ))}
-                        </SortableContext>
-                        {pinnedFirstLayers.map((layer) => (
                           <LayerRow
-                            key={`layer.${layer.id}`}
-                            layer={layer}
-                            id={layer.id}
-                            index={layers.indexOf(layer)}
-                            {...resolveLayerVisibilityToggleProps(layer)}
+                            isBackgroundLayer
+                            layer={backgroundLayer}
+                            id={backgroundLayer.id}
+                            displayTitle={
+                              isCesium
+                                ? cesiumBackgroundlayerNames[backgroundLayer.id]
+                                : backgroundLayer.title
+                            }
+                            index={-1}
+                            {...resolveLayerVisibilityToggleProps(
+                              backgroundLayer
+                            )}
                           />
-                        ))}
-                        <LayerRow
-                          isBackgroundLayer
-                          layer={backgroundLayer}
-                          id={backgroundLayer.id}
-                          displayTitle={
-                            isCesium
-                              ? cesiumBackgroundlayerNames[backgroundLayer.id]
-                              : backgroundLayer.title
-                          }
-                          index={-1}
-                          {...resolveLayerVisibilityToggleProps(
-                            backgroundLayer
-                          )}
-                        />
-                      </div>
-                    </DndContext>
+                        </div>
+                      </DndContext>
+                    </>
                   ),
                 },
                 {

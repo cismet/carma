@@ -2,3 +2,13 @@
   margin-left: -4px;
   margin-right: -4px;
 }
+
+@media (max-width: 639px) {
+  .full-width-tabs .ant-tabs-nav-list {
+    width: 100%;
+  }
+  .full-width-tabs .ant-tabs-tab {
+    flex: 1;
+    justify-content: center;
+  }
+}
