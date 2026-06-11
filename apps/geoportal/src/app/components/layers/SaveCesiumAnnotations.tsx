@@ -32,7 +32,7 @@ import {
 } from "./measurement-save-utils";
 
 const MEASUREMENT_VECTOR_LEGEND_URL =
-  "https://wupp-digitaltwin-assets.cismet.de/v2/geoportal/legenden/measurements.png";
+  "https://wupp-digitaltwin-assets.cismet.de/v2/geoportal/legenden/measurements3D.png";
 
 const MEASUREMENT_SERVICE_NAME = "measurements";
 const SAVED_MEASUREMENT_COLOR = "#267bdc";
