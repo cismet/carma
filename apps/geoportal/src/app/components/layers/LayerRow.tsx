@@ -1,11 +1,16 @@
 /* eslint-disable jsx-a11y/no-noninteractive-element-interactions */
 /* eslint-disable jsx-a11y/click-events-have-key-events */
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import { useSortable } from "@dnd-kit/sortable";
+import { arrayMove, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { faGripVertical, faX } from "@fortawesome/free-solid-svg-icons";
+import {
+  faChevronDown,
+  faChevronUp,
+  faGripVertical,
+  faTrash,
+} from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import type { BackgroundLayer, Layer } from "@carma-mapping/layers";
@@ -13,8 +18,10 @@ import type { BackgroundLayer, Layer } from "@carma-mapping/layers";
 import {
   changeBackgroundVisibility,
   changeVisibility,
+  getLayers,
   removeLayer,
   setLayerDynamicStylingSelection,
+  setLayers,
   setSelectedLayerIndex,
 } from "../../store/slices/mapping";
 import OpacitySlider from "./OpacitySlider";
@@ -60,8 +67,10 @@ const LayerRow = ({
   visibilityToggleDisabled,
   visibilityToggleLabels,
 }: LayerRowProps) => {
+  const [expanded, setExpanded] = useState(false);
   const dispatch = useDispatch();
   const selectedFeature = useSelector(getSelectedFeature);
+  const layers = useSelector(getLayers);
   const { clearFeatureCollections } = useAdhocFeatureDisplay();
   const icon = getLayerRowFallbackIcon(layer);
   const isPinned = isPinnedLayer(layer);
@@ -123,13 +132,32 @@ const LayerRow = ({
     }
   }, [clearFeatureCollections, dispatch, id, layer]);
 
+  const getMoveTarget = (direction: 1 | -1) => {
+    let target = index + direction;
+    while (
+      target >= 0 &&
+      target < layers.length &&
+      (layers[target] as Layer).pinned
+    ) {
+      target += direction;
+    }
+    return target >= 0 && target < layers.length ? target : null;
+  };
+
+  const moveLayer = (direction: 1 | -1) => {
+    const target = getMoveTarget(direction);
+    if (target !== null) {
+      dispatch(setLayers(arrayMove(layers, index, target)));
+    }
+  };
+
+  const transparencyPercent = Math.round(
+    (1 - (skipSelection ? 1 : layer.opacity)) * 100
+  );
+
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className="w-full flex items-center gap-2 px-1"
-    >
-      <div className="lg:max-w-80 max-w-44 w-full flex items-center gap-2">
+    <div ref={setNodeRef} style={style} className="w-full flex flex-col px-1">
+      <div className="w-full flex items-center gap-2">
         <button
           {...listeners}
           {...attributes}
@@ -164,35 +192,74 @@ const LayerRow = ({
           <LayerIcon layer={layer} fallbackIcon={icon} />
         )}
         <p
-          className={`mb-0 text-lg max-w-14 xs:max-w-28 sm:max-w-full truncate ${
+          className={`mb-0 text-lg flex-1 min-w-0 truncate ${
             index !== -1 && "hover:underline cursor-pointer"
           }`}
           onClick={handleSelectLayer}
         >
           {displayTitle ?? layer.title}
         </p>
+        <VisibilityToggle
+          visible={layer.visible}
+          disabled={skipSelection || visibilityToggleDisabled}
+          labels={visibilityToggleLabels}
+          onToggleVisibility={handleToggleVisibility}
+        />
+        <button
+          className="hover:text-gray-500 text-gray-600 flex items-center justify-center"
+          onClick={() => setExpanded(!expanded)}
+        >
+          <FontAwesomeIcon icon={expanded ? faChevronUp : faChevronDown} />
+        </button>
       </div>
-      <OpacitySlider
-        isBackgroundLayer={isBackgroundLayer}
-        opacity={skipSelection ? 1 : layer.opacity}
-        id={layer.id}
-        isVisible={layer.visible}
-        disabled={skipSelection}
-      />
-      <VisibilityToggle
-        visible={layer.visible}
-        disabled={skipSelection || visibilityToggleDisabled}
-        labels={visibilityToggleLabels}
-        onToggleVisibility={handleToggleVisibility}
-      />
-      <button
-        className={`hover:text-gray-500 text-gray-600 flex items-center justify-center ${
-          isBackgroundLayer && "invisible"
-        }`}
-        onClick={handleRemoveLayer}
-      >
-        <FontAwesomeIcon icon={faX} />
-      </button>
+      {expanded && (
+        <div className="w-full flex flex-col gap-2 rounded-lg bg-gray-100 p-2 mt-1">
+          <div className="flex items-center gap-3">
+            <span className="text-base whitespace-nowrap">Transparenz</span>
+            <OpacitySlider
+              isBackgroundLayer={isBackgroundLayer}
+              opacity={skipSelection ? 1 : layer.opacity}
+              id={layer.id}
+              isVisible={layer.visible}
+              disabled={skipSelection}
+            />
+            <span className="text-base whitespace-nowrap w-10 text-right">
+              {transparencyPercent}%
+            </span>
+          </div>
+          {!isBackgroundLayer && (
+            <div className="flex items-center gap-2">
+              {!isPinned && (
+                <>
+                  <button
+                    className="flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-3 py-1 text-sm hover:bg-gray-50 disabled:text-gray-400 disabled:hover:bg-white"
+                    disabled={getMoveTarget(1) === null}
+                    onClick={() => moveLayer(1)}
+                  >
+                    <FontAwesomeIcon icon={faChevronUp} className="text-xs" />
+                    Höher
+                  </button>
+                  <button
+                    className="flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-3 py-1 text-sm hover:bg-gray-50 disabled:text-gray-400 disabled:hover:bg-white"
+                    disabled={getMoveTarget(-1) === null}
+                    onClick={() => moveLayer(-1)}
+                  >
+                    <FontAwesomeIcon icon={faChevronDown} className="text-xs" />
+                    Tiefer
+                  </button>
+                </>
+              )}
+              <button
+                className="ml-auto flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-3 py-1 text-sm hover:bg-gray-50"
+                onClick={handleRemoveLayer}
+              >
+                <FontAwesomeIcon icon={faTrash} />
+                Entfernen
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
