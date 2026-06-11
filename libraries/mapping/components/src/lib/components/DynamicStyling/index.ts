@@ -3,6 +3,8 @@ export type { DynamicStylingControlProps } from "./DynamicStylingControl";
 export { applyDynamicStyling } from "./applyDynamicStyling";
 export type { DynamicStylingResult } from "./applyDynamicStyling";
 export {
+  getDynamicStylingOptionsConfigs,
+  getDynamicStylingSelections,
   getLastAppliedSelection,
   setLastAppliedSelection,
   extractLayerInfo,

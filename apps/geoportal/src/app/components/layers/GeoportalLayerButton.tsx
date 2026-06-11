@@ -20,11 +20,7 @@ import L from "leaflet";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
-import type {
-  BackgroundLayer,
-  Layer,
-  DynamicStylingOptionsConfig,
-} from "@carma-mapping/layers";
+import type { BackgroundLayer, Layer } from "@carma-mapping/layers";
 import { getInteractionButtons } from "@carma-mapping/layers";
 import { cn, getHashParams } from "@carma-commons/utils";
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
@@ -50,7 +46,6 @@ import {
   toggleUseInFeatureInfo,
   getMaplibreMaps,
   setLayerDynamicStylingSelection,
-  updateLayerFromLayerInfo,
 } from "../../store/slices/mapping";
 import {
   UIMode,
@@ -65,9 +60,8 @@ import {
   LayerButton,
   LayerIcon,
   DynamicStylingControl,
-  applyDynamicStyling,
-  getLastAppliedSelection,
-  setLastAppliedSelection,
+  getDynamicStylingOptionsConfigs,
+  getDynamicStylingSelections,
 } from "@carma-mapping/components";
 import { Badge, Spin, Tooltip } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
@@ -194,21 +188,12 @@ const GeoportalLayerButton = ({
     }
   }, [layersLength]);
 
-  const dynamicStylingConfigs = (
-    Array.isArray(layer.dynamicStyling)
-      ? layer.dynamicStyling
-      : layer.dynamicStyling
-      ? [layer.dynamicStyling]
-      : []
-  ).filter(
-    (c): c is DynamicStylingOptionsConfig =>
-      c.type === "list" || c.type === "toggle"
+  const dynamicStylingConfigs = getDynamicStylingOptionsConfigs(
+    layer.dynamicStyling
   );
-  const dynamicStylingSelections =
-    typeof layer.dynamicStylingSelection === "object" &&
-    layer.dynamicStylingSelection !== null
-      ? layer.dynamicStylingSelection
-      : {};
+  const dynamicStylingSelections = getDynamicStylingSelections(
+    layer.dynamicStylingSelection
+  );
 
   const primaryListConfigIndex = dynamicStylingConfigs.findIndex(
     (c) => c.type === "list"
@@ -217,45 +202,6 @@ const GeoportalLayerButton = ({
     primaryListConfigIndex >= 0
       ? dynamicStylingConfigs[primaryListConfigIndex]
       : null;
-
-  useEffect(() => {
-    if (!dynamicStylingConfigs.length) {
-      return;
-    }
-
-    const mapEntry = maplibreMaps?.find((entry) => entry.id === id);
-    if (!mapEntry?.map) {
-      return;
-    }
-
-    dynamicStylingConfigs.forEach((config, idx) => {
-      if (config.type !== "list" && config.type !== "toggle") {
-        return;
-      }
-      const currentSelection = dynamicStylingSelections[idx] ?? config.default;
-      const lastApplied = getLastAppliedSelection(id, idx) ?? config.default;
-      if (currentSelection === lastApplied) {
-        return;
-      }
-
-      const result = applyDynamicStyling(
-        mapEntry.map,
-        id,
-        config,
-        currentSelection
-      );
-      setLastAppliedSelection(id, idx, currentSelection);
-      if (result?.layerInfo || result?.carmaConf) {
-        dispatch(
-          updateLayerFromLayerInfo({
-            id,
-            layerInfo: result.layerInfo ?? {},
-            carmaConf: result.carmaConf ?? undefined,
-          })
-        );
-      }
-    });
-  }, [layer.dynamicStyling, layer.dynamicStylingSelection, maplibreMaps, id]);
 
   const isCurrentlyVisible = () => {
     if (zoom >= layer?.props?.maxZoom || zoom <= layer?.props?.minZoom) {
@@ -339,7 +285,6 @@ const GeoportalLayerButton = ({
         {primaryListConfig && !background ? (
           <DynamicStylingControl
             config={primaryListConfig}
-            maplibreMap={maplibreMaps?.find((entry) => entry.id === id)?.map}
             carmaLayerId={id}
             currentSelection={
               dynamicStylingSelections[primaryListConfigIndex] ||
@@ -353,9 +298,6 @@ const GeoportalLayerButton = ({
                   selection,
                 })
               );
-            }}
-            onLayerInfoChange={(layerInfo) => {
-              dispatch(updateLayerFromLayerInfo({ id, layerInfo }));
             }}
           >
             <LayerIcon
@@ -473,9 +415,6 @@ const GeoportalLayerButton = ({
                 <DynamicStylingControl
                   key={idx}
                   config={config}
-                  maplibreMap={
-                    maplibreMaps?.find((entry) => entry.id === id)?.map
-                  }
                   carmaLayerId={id}
                   currentSelection={
                     dynamicStylingSelections[idx] || config.default
@@ -488,9 +427,6 @@ const GeoportalLayerButton = ({
                         selection,
                       })
                     );
-                  }}
-                  onLayerInfoChange={(layerInfo) => {
-                    dispatch(updateLayerFromLayerInfo({ id, layerInfo }));
                   }}
                   showIcon={false}
                 />

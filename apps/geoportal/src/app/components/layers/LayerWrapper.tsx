@@ -56,6 +56,7 @@ import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import InteractionView from "./InteractionView";
 import { shouldShowAdhocLayerInLayerList } from "../../helper/adhoc-feature-utils";
 import { getLayerVisibilityToggleProps } from "./layer-visibility-toggle-props";
+import { useDynamicStylingSync } from "../../hooks/useDynamicStylingSync";
 
 const scrollLayerBarBy = (left: number) => {
   document.getElementById("scrollWrapper")?.scrollBy({
@@ -66,6 +67,7 @@ const scrollLayerBarBy = (left: number) => {
 
 const LayerWrapper = () => {
   const dispatch: AppDispatch = useDispatch();
+  useDynamicStylingSync();
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const size = useWindowSize();
 
