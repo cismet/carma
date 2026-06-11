@@ -1,6 +1,7 @@
 import React, { ReactNode, useEffect, forwardRef, ForwardedRef } from "react";
 import { ControlComponent, useControlContext } from "../map-control";
 import ControlRenderer from "./ControlRenderer";
+import { DEFAULT_CONTROL_STYLE_OPTIONS } from "./control-styles";
 
 interface ControlLayoutCanvasProps {
   children: ReactNode;
@@ -11,6 +12,7 @@ const ControlLayoutCanvas = forwardRef(function ControlLayoutCanvas(
   ref?: ForwardedRef<HTMLDivElement>
 ) {
   const { controls, addCanvas, removeCanvas } = useControlContext();
+  const { mapContentZIndex } = DEFAULT_CONTROL_STYLE_OPTIONS.layout;
 
   useEffect(() => {
     addCanvas(children);
@@ -25,6 +27,7 @@ const ControlLayoutCanvas = forwardRef(function ControlLayoutCanvas(
       ref={ref}
       style={{
         height: "100%",
+        isolation: "isolate",
         position: "relative",
         width: "100%",
       }}
@@ -45,6 +48,7 @@ const ControlLayoutCanvas = forwardRef(function ControlLayoutCanvas(
           left: 0,
           right: 0,
           bottom: 0,
+          zIndex: mapContentZIndex,
         }}
       >
         {children}

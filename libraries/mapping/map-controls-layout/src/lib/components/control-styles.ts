@@ -2,7 +2,11 @@ import type { CSSProperties } from "react";
 
 const CONTROL_SURFACE_BACKGROUND = "#fff";
 const CONTROL_FONT_FAMILY = "Helvetica Neue, Arial, Helvetica, sans-serif";
-const CONTROL_LAYER_Z_INDEX = 1500;
+const CONTROL_CANVAS_STACK_LEVELS = {
+  mapContent: 0,
+  mapControls: 1,
+  secondaryViews: 2,
+} as const;
 
 const controlMetrics = {
   edgeInset: "0.75rem",
@@ -25,7 +29,9 @@ const controlMetrics = {
 } as const;
 
 const controlLayoutOptions = {
-  layerZIndex: CONTROL_LAYER_Z_INDEX,
+  mapContentZIndex: CONTROL_CANVAS_STACK_LEVELS.mapContent,
+  controlLayerZIndex: CONTROL_CANVAS_STACK_LEVELS.mapControls,
+  secondaryViewLayerZIndex: CONTROL_CANVAS_STACK_LEVELS.secondaryViews,
   defaultFontFamily: CONTROL_FONT_FAMILY,
   ...controlMetrics,
 } as const;
@@ -94,7 +100,7 @@ const topControlGroupStyle: CSSProperties = {
   top: safeAreaInsets.top,
   display: "flex",
   gap: controlLayoutOptions.controlGroupGap,
-  zIndex: controlLayoutOptions.layerZIndex,
+  zIndex: controlLayoutOptions.controlLayerZIndex,
 };
 
 const bottomControlGroupStyle: CSSProperties = {
@@ -124,6 +130,7 @@ const topCenterControlGroupStyle: CSSProperties = {
   ...topCenterInlineInsetStyle,
   flexDirection: "row",
   fontSize: controlLayoutOptions.topCenterFontSize,
+  zIndex: controlLayoutOptions.secondaryViewLayerZIndex,
   pointerEvents: "none",
 };
 
@@ -135,7 +142,7 @@ const bottomContainerStyle: CSSProperties = {
   display: "flex",
   flexWrap: "wrap-reverse",
   pointerEvents: "none",
-  zIndex: controlLayoutOptions.layerZIndex,
+  zIndex: controlLayoutOptions.controlLayerZIndex,
   columnGap: controlLayoutOptions.bottomControlsColumnGap,
   rowGap: controlLayoutOptions.bottomControlsRowGap,
 };
