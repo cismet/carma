@@ -143,7 +143,7 @@ const LayerRow = ({
           <DynamicStylingControl
             config={primaryListConfig}
             carmaLayerId={layer.id}
-            indicatorClassName="ml-1 mr-[8px] lg:mr-0 text-[8px]"
+            indicatorClassName="ml-1 sm:mr-[8px] lg:mr-0 text-[8px]"
             currentSelection={
               dynamicStylingSelections[primaryListConfigIndex] ||
               primaryListConfig.default
