@@ -1,33 +1,27 @@
 import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { useDispatch, useSelector } from "react-redux";
-import {
-  changeBackgroundVisibility,
-  changeVisibility,
-} from "../../store/slices/mapping";
-import {
-  getSelectedFeature,
-  setSelectedFeature,
-} from "../../store/slices/features";
+import { useCallback } from "react";
+
 import { cn } from "@carma-commons/utils";
+import type { LayerVisibilityToggleLabels } from "./layer-visibility-toggle-props";
 
 interface VisibilityToggleProps {
   visible: boolean;
-  id: string;
-  isBackgroundLayer?: boolean;
   disabled?: boolean;
-  onToggleVisibility?: (visible: boolean) => void;
+  labels: LayerVisibilityToggleLabels;
+  onToggleVisibility: (visible: boolean) => void;
 }
 
 const VisibilityToggle = ({
   visible,
-  id,
-  isBackgroundLayer,
   disabled,
+  labels,
   onToggleVisibility,
 }: VisibilityToggleProps) => {
-  const dispatch = useDispatch();
-  const selectedFeature = useSelector(getSelectedFeature);
+  const label = visible ? labels.hide : labels.show;
+  const handleToggleVisibility = useCallback(() => {
+    onToggleVisibility(!visible);
+  }, [onToggleVisibility, visible]);
 
   return (
     <button
@@ -36,30 +30,9 @@ const VisibilityToggle = ({
         disabled && "opacity-40 cursor-not-allowed"
       )}
       disabled={disabled}
-      onClick={() => {
-        const nextVisible = !visible;
-        if (onToggleVisibility) {
-          onToggleVisibility(nextVisible);
-          return;
-        }
-
-        if (visible) {
-          if (isBackgroundLayer) {
-            dispatch(changeBackgroundVisibility(false));
-          } else {
-            dispatch(changeVisibility({ id, visible: false }));
-            if (selectedFeature?.id === id) {
-              dispatch(setSelectedFeature(null));
-            }
-          }
-        } else {
-          if (isBackgroundLayer) {
-            dispatch(changeBackgroundVisibility(true));
-          } else {
-            dispatch(changeVisibility({ id, visible: true }));
-          }
-        }
-      }}
+      title={disabled ? labels.disabled : label}
+      aria-label={label}
+      onClick={handleToggleVisibility}
     >
       <FontAwesomeIcon icon={visible ? faEye : faEyeSlash} />
     </button>

@@ -1,7 +1,13 @@
 /* eslint-disable jsx-a11y/no-static-element-interactions */
 /* eslint-disable jsx-a11y/click-events-have-key-events */
 
-import { useCallback, useContext, useEffect, useState } from "react";
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+  type WheelEvent,
+} from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
@@ -50,6 +56,13 @@ import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import InteractionView from "./InteractionView";
 import { shouldShowAdhocLayerInLayerList } from "../../helper/adhoc-feature-utils";
 import { getLayerVisibilityToggleProps } from "./layer-visibility-toggle-props";
+
+const scrollLayerBarBy = (left: number) => {
+  document.getElementById("scrollWrapper")?.scrollBy({
+    left,
+    behavior: "smooth",
+  });
+};
 
 const LayerWrapper = () => {
   const dispatch: AppDispatch = useDispatch();
@@ -121,6 +134,24 @@ const LayerWrapper = () => {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 2 } })
   );
+  const handleDragStart = useCallback(() => {
+    setIsDragging(true);
+    routedMapRef?.leafletMap?.leafletElement.dragging.disable();
+  }, [routedMapRef]);
+  const handleScrollLeft = useCallback(() => {
+    scrollLayerBarBy(-300);
+  }, []);
+  const handleScrollRight = useCallback(() => {
+    scrollLayerBarBy(300);
+  }, []);
+  const handleLayerBarWheel = useCallback(
+    (event: WheelEvent<HTMLDivElement>) => {
+      if (event.deltaY !== 0) {
+        event.currentTarget.scrollLeft += event.deltaY;
+      }
+    },
+    []
+  );
 
   useEffect(() => {
     if (size.width < 640 && (showLeftScrollButton || showRightScrollButton)) {
@@ -136,10 +167,7 @@ const LayerWrapper = () => {
       <DndContext
         onDragEnd={handleDragEnd}
         sensors={sensors}
-        onDragStart={() => {
-          setIsDragging(true);
-          routedMapRef?.leafletMap?.leafletElement.dragging.disable();
-        }}
+        onDragStart={handleDragStart}
         modifiers={[restrictToHorizontalAxis]}
       >
         <div
@@ -155,12 +183,7 @@ const LayerWrapper = () => {
                   "absolute left-14 top-0.5 bg-neutral-100 w-fit min-w-max flex items-center gap-2 px-3 rounded-3xl h-8 z-[99999999] button-shadow pointer-events-auto"
                 )}
                 role="button"
-                onClick={() => {
-                  document.getElementById("scrollWrapper").scrollBy({
-                    left: -300,
-                    behavior: "smooth",
-                  });
-                }}
+                onClick={handleScrollLeft}
               >
                 <FontAwesomeIcon icon={faChevronLeft} />
               </div>
@@ -171,12 +194,7 @@ const LayerWrapper = () => {
                   "absolute -right-7 top-0.5 bg-neutral-100 w-fit min-w-max flex items-center gap-2 px-3 rounded-3xl h-8 z-[99999999] button-shadow pointer-events-auto"
                 )}
                 role="button"
-                onClick={() => {
-                  document.getElementById("scrollWrapper").scrollBy({
-                    left: 300,
-                    behavior: "smooth",
-                  });
-                }}
+                onClick={handleScrollRight}
               >
                 <FontAwesomeIcon icon={faChevronRight} />
               </div>
@@ -194,11 +212,7 @@ const LayerWrapper = () => {
                 <div
                   id="scrollWrapper"
                   className="flex overflow-x-auto items-center h-20 gap-2 scrollbar-hide"
-                  onWheel={(e) => {
-                    if (e.deltaY !== 0) {
-                      e.currentTarget.scrollLeft += e.deltaY;
-                    }
-                  }}
+                  onWheel={handleLayerBarWheel}
                 >
                   {pinnedFirstLayers.map((layer) => (
                     <GeoportalLayerButtonSlot

@@ -5,17 +5,17 @@ import {
   faChevronLeft,
   faChevronRight,
   faChevronUp,
-  faStar,
 } from "@fortawesome/free-solid-svg-icons";
-import { faStar as regularFaStar } from "@fortawesome/free-regular-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { forwardRef, useContext, useEffect, useRef } from "react";
+import { forwardRef, useCallback, useContext, useEffect, useRef } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { useDispatch, useSelector } from "react-redux";
 import { SELECTED_LAYER_INDEX } from "@carma-appframeworks/portals";
 import { cn } from "@carma-commons/utils";
 
 import {
+  changeBackgroundVisibility,
+  changeVisibility,
   getBackgroundLayer,
   getLayers,
   getSelectedLayerIndex,
@@ -32,14 +32,19 @@ import {
   setUIShowInfoText,
 } from "../../store/slices/ui";
 import {
+  getSelectedFeature,
+  setSelectedFeature,
+} from "../../store/slices/features";
+import {
   addFavorite,
   getFavorites,
   removeFavorite,
 } from "../../store/slices/layers";
-import type { Item } from "@carma-mapping/layers";
+import type { BackgroundLayer, Layer } from "@carma-mapping/layers";
 import AerialLayerSelection from "./AerialLayerSelection";
 import BaseLayerInfo from "./BaseLayerInfo";
 import BaseLayerSelection from "./BaseLayerSelection";
+import FavoriteToggle from "./FavoriteToggle";
 import LayerInfo from "./LayerInfo";
 import OpacitySlider from "./OpacitySlider";
 import VisibilityToggle from "./VisibilityToggle";
@@ -47,16 +52,68 @@ import {
   LayerIcon,
   useMapFrameworkSwitcherContext,
 } from "@carma-mapping/components";
+import {
+  selectedFeatureBelongsToLayer,
+  type LayerVisibilityToggleProps,
+} from "./layer-visibility-toggle-props";
+import {
+  buildLayerFavoriteItem,
+  canFavoriteLayer,
+  isFavoriteLayer,
+} from "./layer-favorite-utils";
+import { DEFAULT_LAYER_FAVORITE_TOGGLE_LABELS } from "./layer-favorite-toggle-props";
 
 type Ref = HTMLDivElement;
 
-interface SecondaryViewProps {
-  onToggleVisibility?: (visible: boolean) => void;
-  visibilityToggleDisabled?: boolean;
-}
+type SecondaryViewProps = LayerVisibilityToggleProps;
+type SecondaryViewLayer = BackgroundLayer | Layer;
+
+const getSecondaryViewLegend = (layer: SecondaryViewLayer) => {
+  const vectorLegend =
+    layer?.conf?.vectorLegend ||
+    (layer?.layerInfo?.vectorLegend as string) ||
+    layer?.other?.vectorLegend;
+
+  return vectorLegend && layer.layerType === "vector"
+    ? [{ OnlineResource: vectorLegend }]
+    : layer.props?.legend || [];
+};
+
+const getSecondaryViewFallbackIcon = (
+  layer: SecondaryViewLayer
+): string | undefined =>
+  layer.title.includes("Orthofoto")
+    ? "ortho"
+    : layer.title === "Bäume"
+    ? "bäume"
+    : layer.title.includes("gärten")
+    ? "gärten"
+    : undefined;
+
+const findElementByIdRecursive = (
+  element: Element,
+  id: string
+): Element | null => {
+  if (element.id === id) {
+    return element;
+  }
+
+  for (let i = 0; i < element.children.length; i++) {
+    const found = findElementByIdRecursive(element.children[i], id);
+    if (found) {
+      return found;
+    }
+  }
+
+  return null;
+};
 
 const SecondaryView = forwardRef<Ref, SecondaryViewProps>((props, _ref) => {
-  const { onToggleVisibility, visibilityToggleDisabled } = props;
+  const {
+    onToggleVisibility,
+    visibilityToggleDisabled,
+    visibilityToggleLabels,
+  } = props;
   void _ref;
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const infoRef = useRef<HTMLDivElement>(null);
@@ -64,78 +121,74 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>((props, _ref) => {
   const showInfo = useSelector(getUIShowInfo);
   const showInfoText = useSelector(getUIShowInfoText);
   const selectedLayerIndex = useSelector(getSelectedLayerIndex);
+  const selectedFeature = useSelector(getSelectedFeature);
   const layers = useSelector(getLayers);
   const backgroundLayer = useSelector(getBackgroundLayer);
   const favorites = useSelector(getFavorites);
   const layer =
     selectedLayerIndex >= 0 ? layers[selectedLayerIndex] : backgroundLayer;
-  const vectorLegend =
-    layer?.conf?.vectorLegend ||
-    (layer?.layerInfo?.vectorLegend as string) ||
-    layer?.other?.vectorLegend;
-  const legend =
-    vectorLegend && layer.layerType === "vector"
-      ? [{ OnlineResource: vectorLegend }]
-      : layer.props?.legend || [];
-
-  const icon = layer.title.includes("Orthofoto")
-    ? "ortho"
-    : layer.title === "Bäume"
-    ? "bäume"
-    : layer.title.includes("gärten")
-    ? "gärten"
-    : undefined;
+  const legend = getSecondaryViewLegend(layer);
+  const icon = getSecondaryViewFallbackIcon(layer);
   const isBaseLayer = selectedLayerIndex === -1;
 
-  const canFavorite =
-    !isBaseLayer && (layer.type === "layer" || layer.type === "object");
-  const isFavorite =
-    canFavorite &&
-    favorites.some(
-      (favorite) =>
-        favorite.id === `fav_${layer.id}` || favorite.id === layer.id
-    );
+  const canFavorite = canFavoriteLayer({ isBaseLayer, layer });
+  const isFavorite = canFavorite && isFavoriteLayer({ favorites, layer });
 
-  const buildFavoriteItem = (): Item => {
-    const other = layer.other ?? {};
-    const layerInfo = layer.layerInfo ?? {};
-    return {
-      title: layer.title,
-      description: layer.description ?? "",
-      id: layer.id,
-      serviceName: other.serviceName ?? "custom",
-      type: layer.type,
-      tags: other.tags ?? layerInfo.tags,
-      thumbnail: other.thumbnail ?? layerInfo.thumbnail,
-      keywords: other.keywords ?? layerInfo.keywords,
-      icon: other.icon ?? layer.icon,
-      alternativeIcon: other.alternativeIcon,
-      service: other.service,
-      name: other.name,
-      path: other.path,
-      originalPath: other.originalPath,
-      vectorLegend: other.vectorLegend ?? (layerInfo.vectorLegend as string),
-      vectorStyle:
-        (layerInfo.vectorStyle as string) ?? (layer.props?.style as string),
-      props: {
-        Style: layer.props?.legend
-          ? [{ LegendURL: layer.props.legend }]
-          : undefined,
-        MetadataURL: layer.props?.metaData,
-      },
-    } as Item;
-  };
-
-  const toggleFavorite = () => {
-    const item = buildFavoriteItem();
+  const toggleFavorite = useCallback(() => {
+    const item = buildLayerFavoriteItem(layer);
     if (isFavorite) {
       dispatch(removeFavorite(item));
     } else {
       dispatch(addFavorite(item));
     }
-  };
+  }, [dispatch, isFavorite, layer]);
 
   const { isLeaflet, isCesium } = useMapFrameworkSwitcherContext();
+  const handlePreviousLayer = useCallback(() => {
+    dispatch(setPreviousSelectedLayerIndex({ isLeaflet }));
+  }, [dispatch, isLeaflet]);
+  const handleNextLayer = useCallback(() => {
+    dispatch(setNextSelectedLayerIndex({ isLeaflet }));
+  }, [dispatch, isLeaflet]);
+  const handleMouseEnter = useCallback(() => {
+    routedMapRef?.leafletMap?.leafletElement.dragging.disable();
+    routedMapRef?.leafletMap?.leafletElement.scrollWheelZoom.disable();
+  }, [routedMapRef]);
+  const handleMouseLeave = useCallback(() => {
+    routedMapRef?.leafletMap?.leafletElement.dragging.enable();
+    routedMapRef?.leafletMap?.leafletElement.scrollWheelZoom.enable();
+  }, [routedMapRef]);
+  const clearLayerSelection = useCallback(() => {
+    if (selectedFeatureBelongsToLayer(selectedFeature, layer.id)) {
+      dispatch(setSelectedFeature(null));
+    }
+  }, [dispatch, layer.id, selectedFeature]);
+  const handleToggleVisibility = useCallback(
+    (nextVisible: boolean) => {
+      if (onToggleVisibility) {
+        onToggleVisibility(nextVisible);
+      } else if (isBaseLayer) {
+        dispatch(changeBackgroundVisibility(nextVisible));
+      } else {
+        dispatch(changeVisibility({ id: layer.id, visible: nextVisible }));
+      }
+
+      if (!nextVisible) {
+        clearLayerSelection();
+      }
+    },
+    [clearLayerSelection, dispatch, isBaseLayer, layer.id, onToggleVisibility]
+  );
+  const handleToggleInfo = useCallback(() => {
+    const nextShowInfo = !showInfo;
+    const nextShowInfoText = !showInfoText;
+
+    dispatch(setUIShowInfo(nextShowInfo));
+    setTimeout(
+      () => dispatch(setUIShowInfoText(nextShowInfoText)),
+      showInfoText || isBaseLayer ? 0 : 80
+    );
+  }, [dispatch, isBaseLayer, showInfo, showInfoText]);
 
   useEffect(() => {
     const handleEscapeKey = (event: KeyboardEvent) => {
@@ -151,21 +204,6 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>((props, _ref) => {
   }, [dispatch]);
 
   useEffect(() => {
-    const findElementByIdRecursive = (element: Element, id: string) => {
-      if (element.id === id) {
-        return element;
-      }
-
-      for (let i = 0; i < element.children.length; i++) {
-        const found = findElementByIdRecursive(element.children[i], id);
-        if (found) {
-          return found;
-        }
-      }
-
-      return null;
-    };
-
     const handleOutsideClick = (event: PointerEvent) => {
       let newLayerIndex = -2;
       let removedOtherLayer = false;
@@ -271,26 +309,18 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>((props, _ref) => {
               ? "h-fit"
               : "h-12"
           )}
-          onMouseEnter={() => {
-            routedMapRef?.leafletMap?.leafletElement.dragging.disable();
-            routedMapRef?.leafletMap?.leafletElement.scrollWheelZoom.disable();
-          }}
-          onMouseLeave={() => {
-            routedMapRef?.leafletMap?.leafletElement.dragging.enable();
-            routedMapRef?.leafletMap?.leafletElement.scrollWheelZoom.enable();
-          }}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
         >
           <button
             className="text-base rounded-full flex items-center justify-center p-2 hover:text-neutral-600 absolute top-2 left-1"
-            onClick={() =>
-              dispatch(setPreviousSelectedLayerIndex({ isLeaflet }))
-            }
+            onClick={handlePreviousLayer}
           >
             <FontAwesomeIcon icon={faChevronLeft} />
           </button>
           <button
             className="text-base rounded-full flex items-center justify-center p-2 hover:text-neutral-600 absolute top-2 right-1"
-            onClick={() => dispatch(setNextSelectedLayerIndex({ isLeaflet }))}
+            onClick={handleNextLayer}
           >
             <FontAwesomeIcon icon={faChevronRight} />
           </button>
@@ -327,42 +357,23 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>((props, _ref) => {
               </div>
             </div>
             {canFavorite && (
-              <button
-                className="hover:text-gray-500 text-gray-600 flex items-center justify-center"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleFavorite();
+              <FavoriteToggle
+                favoriteToggleLabels={DEFAULT_LAYER_FAVORITE_TOGGLE_LABELS}
+                isFavorite={isFavorite}
+                onToggleFavorite={toggleFavorite}
+                favoriteToggleTestIds={{
+                  add: "add-layer-favorite-secondary-view",
+                  remove: "remove-layer-favorite-secondary-view",
                 }}
-                title={isFavorite ? "Favorit entfernen" : "Favorisieren"}
-                data-test-id={
-                  isFavorite
-                    ? "remove-layer-favorite-secondary-view"
-                    : "add-layer-favorite-secondary-view"
-                }
-              >
-                <FontAwesomeIcon
-                  icon={isFavorite ? faStar : regularFaStar}
-                  className={isFavorite ? "text-yellow-400" : ""}
-                />
-              </button>
+              />
             )}
             <VisibilityToggle
               visible={layer.visible}
-              id={layer.id}
-              isBackgroundLayer={isBaseLayer}
               disabled={visibilityToggleDisabled}
-              onToggleVisibility={onToggleVisibility}
+              labels={visibilityToggleLabels}
+              onToggleVisibility={handleToggleVisibility}
             />
-            <button
-              onClick={() => {
-                dispatch(setUIShowInfo(!showInfo));
-                setTimeout(
-                  () => dispatch(setUIShowInfoText(!showInfoText)),
-                  showInfoText || isBaseLayer ? 0 : 80
-                );
-              }}
-              className="relative fa-stack"
-            >
+            <button onClick={handleToggleInfo} className="relative fa-stack">
               {showInfo ? (
                 <FontAwesomeIcon
                   className="text-base pr-[5px]"

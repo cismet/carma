@@ -66,6 +66,7 @@ export const useAdhocFeatureRehydrate = () => {
 
     const adhocLayers = layers.filter(
       (layer) =>
+        layer.visible &&
         isAdhocVectorLayer(layer) &&
         (isCesium || isSupportedLeafletMapLibreAdhocLayer(layer))
     );
