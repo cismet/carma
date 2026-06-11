@@ -310,20 +310,10 @@ describe("GeoportalLayerButtonSlot", () => {
 
     expect(screen.queryByText("Adhoc fly-to")).toBeNull();
     expect(screen.queryByText("Adhoc model actions")).toBeNull();
-    expect(appendAnnotationsRuntimePersistenceState).toHaveBeenCalledWith(
-      expect.objectContaining({
-        formatId: "annotations-runtime-persistence",
-      }),
-      expect.objectContaining({
-        idPrefix: "measurement-3d-abc",
-        annotationRole: annotationEntryRolesMock.EXTERNAL,
-        readOnly: true,
-        externalCollection: {
-          type: "saved-measurement",
-          id: "measurement-3d-abc",
-        },
-      })
-    );
+    // Registration ownership lives in the annotation provider; the layerbar
+    // button only reads the already-registered external entries.
+    expect(appendAnnotationsRuntimePersistenceState).not.toHaveBeenCalled();
+    expect(removeExternalAnnotationsByCollection).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "Objekt fokussieren" }));
 
@@ -334,7 +324,7 @@ describe("GeoportalLayerButtonSlot", () => {
     );
   });
 
-  it("rehydrates saved 3D measurements from feature properties after metadata-only loss", () => {
+  it("detects saved 3D measurements from feature properties after metadata-only loss", () => {
     const appendAnnotationsRuntimePersistenceState = vi.fn();
     useAnnotationsRuntimeMock.mockReturnValue({
       annotationEntries: [
@@ -443,21 +433,15 @@ describe("GeoportalLayerButtonSlot", () => {
 
     expect(screen.queryByText("Adhoc fly-to")).toBeNull();
     expect(screen.queryByText("Adhoc model actions")).toBeNull();
-    expect(appendAnnotationsRuntimePersistenceState).toHaveBeenCalledWith(
+    // Detection from feature properties keeps the saved-measurement button
+    // variant; registration itself stays with the annotation provider.
+    expect(appendAnnotationsRuntimePersistenceState).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Objekt fokussieren" }));
+
+    expect(flyToAnnotationIdsMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        tables: expect.objectContaining({
-          annotationEntries: [
-            expect.objectContaining({
-              id: "distance-1",
-              toolType: "distance",
-            }),
-          ],
-        }),
-      }),
-      expect.objectContaining({
-        idPrefix: "measurement-3d-abc",
-        annotationRole: annotationEntryRolesMock.EXTERNAL,
-        readOnly: true,
+        annotationIds: ["measurement-3d-abc:distance-1"],
       })
     );
   });

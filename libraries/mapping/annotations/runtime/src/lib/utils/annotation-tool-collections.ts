@@ -69,13 +69,43 @@ export const isReadOnlyAnnotationEntry = (
 ): boolean => Boolean(annotationEntry.readOnly);
 
 export const resolveAnnotationEntryRole = (annotationEntry: StoredAnnotation) =>
-  annotationEntry.annotationRole ?? ANNOTATION_ENTRY_ROLES.AUTHORING;
+  annotationEntry.annotationRole ??
+  (annotationEntry.externalCollection
+    ? ANNOTATION_ENTRY_ROLES.EXTERNAL
+    : ANNOTATION_ENTRY_ROLES.AUTHORING);
 
 export const isExternalAnnotationEntry = (
   annotationEntry: StoredAnnotation
 ): boolean =>
   resolveAnnotationEntryRole(annotationEntry) ===
   ANNOTATION_ENTRY_ROLES.EXTERNAL;
+
+export type AppendAnnotationsRuntimePersistenceStateOptions = {
+  idPrefix?: string;
+  annotationRole?: StoredAnnotation["annotationRole"];
+  readOnly?: boolean;
+  externalCollection?: StoredAnnotation["externalCollection"];
+  selectAnnotationId?: string | null;
+  skipExisting?: boolean;
+};
+
+/**
+ * Canonical append options for registering externally owned annotation
+ * collections (for example saved measurements rehydrated from adhoc
+ * carriers): entries are read-only, excluded from authoring workflows via
+ * the external role, id-prefixed by the collection id, and idempotent for
+ * repeated registration.
+ */
+export const buildExternalAnnotationsAppendOptions = (
+  externalCollection: NonNullable<StoredAnnotation["externalCollection"]>
+): AppendAnnotationsRuntimePersistenceStateOptions => ({
+  idPrefix: externalCollection.id,
+  annotationRole: ANNOTATION_ENTRY_ROLES.EXTERNAL,
+  readOnly: true,
+  externalCollection,
+  selectAnnotationId: null,
+  skipExisting: true,
+});
 
 export const selectAuthoringAnnotationEntries = (
   state: Pick<AnnotationsStoreState, "annotationEntries">

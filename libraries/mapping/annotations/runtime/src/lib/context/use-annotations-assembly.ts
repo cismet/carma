@@ -13,7 +13,10 @@ import {
   resolveAnnotationExportDescriptor,
   sanitizeAnnotationExportFileSegment,
 } from "../utils/annotation-geo-json-export";
-import { selectAuthoringAnnotationEntries } from "../utils/annotation-tool-collections";
+import {
+  selectAuthoringAnnotationEntries,
+  type AppendAnnotationsRuntimePersistenceStateOptions,
+} from "../utils/annotation-tool-collections";
 import {
   appendAnnotationEntities,
   buildAnnotationsRuntimeGeoJsonFeatureCollection,
@@ -808,15 +811,7 @@ export const useAnnotationsAssembly = ({
   const appendAnnotationsRuntimePersistenceState = useCallback(
     (
       persistenceState: AnnotationsRuntimePersistenceEnvelope,
-      options: {
-        idPrefix?: string;
-        locked?: boolean;
-        annotationRole?: StoredAnnotation["annotationRole"];
-        readOnly?: boolean;
-        externalCollection?: StoredAnnotation["externalCollection"];
-        selectAnnotationId?: string | null;
-        skipExisting?: boolean;
-      } = {}
+      options: AppendAnnotationsRuntimePersistenceStateOptions = {}
     ): readonly string[] => {
       const mapId = (id: string) =>
         options.idPrefix ? `${options.idPrefix}:${id}` : id;
@@ -881,7 +876,6 @@ export const useAnnotationsAssembly = ({
               id: nextAnnotationId,
               nodeIds: annotationEntry.nodeIds.map(mapId),
               edgeIds: annotationEntry.edgeIds.map(mapId),
-              locked: options.locked ?? annotationEntry.locked,
               annotationRole:
                 options.annotationRole ?? annotationEntry.annotationRole,
               readOnly: options.readOnly ?? annotationEntry.readOnly,

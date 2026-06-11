@@ -32,6 +32,7 @@ import type {
 } from "../registry";
 import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 import type { Scene } from "@carma-cesium";
+import type { AppendAnnotationsRuntimePersistenceStateOptions } from "../utils/annotation-tool-collections";
 import { RuntimeAuthoringHost } from "./RuntimeAuthoringHost";
 import { RuntimeToolAvailabilityGuard } from "./RuntimeToolAvailabilityGuard";
 import { RuntimeVisualHost } from "./RuntimeVisualHost";
@@ -63,15 +64,7 @@ type AnnotationsRuntimeServices = {
   ) => StoredAnnotation;
   appendAnnotationsRuntimePersistenceState: (
     persistenceState: AnnotationsRuntimePersistenceEnvelope,
-    options?: {
-      idPrefix?: string;
-      locked?: boolean;
-      annotationRole?: StoredAnnotation["annotationRole"];
-      readOnly?: boolean;
-      externalCollection?: StoredAnnotation["externalCollection"];
-      selectAnnotationId?: string | null;
-      skipExisting?: boolean;
-    }
+    options?: AppendAnnotationsRuntimePersistenceStateOptions
   ) => readonly string[];
   removeExternalAnnotationsByCollection: (
     externalCollection: NonNullable<StoredAnnotation["externalCollection"]>

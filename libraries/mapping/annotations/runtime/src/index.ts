@@ -276,6 +276,7 @@ export type {
 export { resolveBearingRadFromFirstToLastCoordinate } from "./lib/utils/resolve-bearing-rad-from-first-to-last-coordinate";
 export {
   areAnnotationEntriesHidden,
+  buildExternalAnnotationsAppendOptions,
   isExternalAnnotationEntry,
   isReadOnlyAnnotationEntry,
   resolveAnnotationEntryRole,
@@ -289,4 +290,7 @@ export {
   selectAuthoringAnnotationEntries,
   selectRenderableAnnotationEntries,
 } from "./lib/utils/annotation-tool-collections";
-export type { ResolveVisibleMeasurementAnnotationToolPluginsOptions } from "./lib/utils/annotation-tool-collections";
+export type {
+  AppendAnnotationsRuntimePersistenceStateOptions,
+  ResolveVisibleMeasurementAnnotationToolPluginsOptions,
+} from "./lib/utils/annotation-tool-collections";

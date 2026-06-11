@@ -1,6 +1,5 @@
 import {
   useCallback,
-  useEffect,
   useMemo,
   useState,
   type MouseEvent as ReactMouseEvent,
@@ -19,12 +18,8 @@ import Icon from "react-cismap/commons/Icon";
 
 import { useMapMeasurementsContext } from "@carma-commons/measurements";
 import {
-  ANNOTATION_ENTRY_ROLES,
   ANNOTATION_DELETE_CONFIRMATION_SOURCES,
-  ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_ID,
-  ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_VERSION,
   flyToAnnotationIds,
-  resolveAnnotationsRuntimePersistenceFromGeoJson,
   selectAuthoringAnnotationEntries,
   type AnnotationsRuntimeGeoJsonFeatureCollection,
   useAnnotationsRuntime,
@@ -50,63 +45,15 @@ import {
 import GeoportalLayerButton, {
   type GeoportalLayerButtonProps,
 } from "./GeoportalLayerButton";
+import {
+  normalizeAnnotationsRuntimeGeoJsonFeatureCollection,
+  parseStyleObject,
+} from "./measurement-import-utils";
 
 const MEASUREMENT_SERVICE_NAME = "measurements";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
-
-const parseStyleObject = (style: unknown): Record<string, unknown> | null => {
-  if (isRecord(style)) {
-    return style;
-  }
-  if (typeof style !== "string") {
-    return null;
-  }
-  try {
-    const parsed = JSON.parse(style);
-    return isRecord(parsed) ? parsed : null;
-  } catch {
-    return null;
-  }
-};
-
-const normalizeAnnotationsRuntimeGeoJsonFeatureCollection = (
-  value: unknown
-): AnnotationsRuntimeGeoJsonFeatureCollection | null => {
-  const candidate = value as AnnotationsRuntimeGeoJsonFeatureCollection;
-  const persistenceState =
-    resolveAnnotationsRuntimePersistenceFromGeoJson(value);
-
-  if (!persistenceState) {
-    return null;
-  }
-
-  if (
-    candidate?.type === "FeatureCollection" &&
-    Array.isArray(candidate.features) &&
-    candidate.metadata?.carmaConf?.formatId ===
-      ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_ID &&
-    candidate.metadata.carmaConf.annotationsRuntimePersistence?.formatId ===
-      "annotations-runtime-persistence"
-  ) {
-    return candidate;
-  }
-
-  return {
-    ...candidate,
-    type: "FeatureCollection",
-    features: candidate.features,
-    metadata: {
-      carmaConf: {
-        formatId: ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_ID,
-        formatVersion: ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_VERSION,
-        source: "geoportal-cesium-annotations",
-        annotationsRuntimePersistence: persistenceState,
-      },
-    },
-  };
-};
 
 const resolveSavedMeasurementAnnotationsGeoJson = (
   layer: GeoportalLayerButtonProps["layer"]
@@ -303,16 +250,13 @@ const SavedCesiumMeasurementLayerButton = (
     annotationsGeoJson: AnnotationsRuntimeGeoJsonFeatureCollection;
   }
 ) => {
-  const {
-    annotationEntries,
-    appendAnnotationsRuntimePersistenceState,
-    nodes,
-    removeExternalAnnotationsByCollection,
-    scene,
-  } = useAnnotationsRuntime();
+  const { annotationEntries, nodes, scene } = useAnnotationsRuntime();
   const {
     layerbar: { adhocModel },
   } = geoportalAnnotationModeText;
+  // Registration of the external annotation collection is owned by
+  // GeoportalSavedAnnotationFeatureCollectionRegistration in the annotation
+  // provider; this button only reads the registered entries for fly-to.
   const externalCollection = useMemo(
     () => ({
       type: "saved-measurement" as const,
@@ -320,30 +264,6 @@ const SavedCesiumMeasurementLayerButton = (
     }),
     [props.id]
   );
-
-  useEffect(() => {
-    appendAnnotationsRuntimePersistenceState(
-      props.annotationsGeoJson.metadata.carmaConf.annotationsRuntimePersistence,
-      {
-        idPrefix: props.id,
-        annotationRole: ANNOTATION_ENTRY_ROLES.EXTERNAL,
-        readOnly: true,
-        externalCollection,
-        selectAnnotationId: null,
-        skipExisting: true,
-      }
-    );
-
-    return () => {
-      removeExternalAnnotationsByCollection(externalCollection);
-    };
-  }, [
-    appendAnnotationsRuntimePersistenceState,
-    props.annotationsGeoJson,
-    props.id,
-    externalCollection,
-    removeExternalAnnotationsByCollection,
-  ]);
 
   const savedAnnotationIds = useMemo(
     () =>

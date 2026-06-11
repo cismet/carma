@@ -1,8 +1,8 @@
 import { useDispatch, useSelector } from "react-redux";
 
 import {
-  ANNOTATION_ENTRY_ROLES,
   ANNOTATION_DELETE_CONFIRMATION_SOURCES,
+  buildExternalAnnotationsAppendOptions,
   selectAuthoringAnnotationEntries,
   type AnnotationsRuntimeGeoJsonFeatureCollection,
   useAnnotationsRuntime,
@@ -281,14 +281,7 @@ function SaveCesiumAnnotations({ layer }: { layer: Layer }) {
     dispatch(addMeasurement(item));
     appendAnnotationsRuntimePersistenceState(
       annotationsGeoJson.metadata.carmaConf.annotationsRuntimePersistence,
-      {
-        idPrefix: featureId,
-        annotationRole: ANNOTATION_ENTRY_ROLES.EXTERNAL,
-        readOnly: true,
-        externalCollection,
-        selectAnnotationId: null,
-        skipExisting: true,
-      }
+      buildExternalAnnotationsAppendOptions(externalCollection)
     );
 
     dispatch(setActiveInteractionLayerID(null));

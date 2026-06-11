@@ -9,9 +9,11 @@ import { ANNOTATION_TOOL_PLUGIN_KINDS } from "../registry";
 import { ANNOTATION_ENTRY_ROLES, type StoredAnnotation } from "../store";
 import {
   areAnnotationEntriesHidden,
+  buildExternalAnnotationsAppendOptions,
   resolveAnnotationCancelToolId,
   resolveAnnotationCountByToolType,
   resolveAnnotationEntriesByToolType,
+  resolveAnnotationEntryRole,
   resolveAnnotationIdsByToolType,
   resolveAnnotationToolFallbackPlugin,
   resolvePrimaryAnnotationInteractionToolId,
@@ -170,6 +172,49 @@ describe("annotation-tool-collections", () => {
     expect(
       selectRenderableAnnotationEntries(state).map((entry) => entry.id)
     ).toEqual(["a", "b"]);
+  });
+
+  it("derives the external role from collection membership when no role is set", () => {
+    const externalCollection = {
+      type: "saved-measurement" as const,
+      id: "measurement-3d-abc",
+    };
+    const implicitExternalEntry = {
+      ...createAnnotation({ id: "a", toolType: ANNOTATION_TYPES.DISTANCE }),
+      externalCollection,
+    } as StoredAnnotation;
+    const authoringEntry = createAnnotation({
+      id: "b",
+      toolType: ANNOTATION_TYPES.DISTANCE,
+    });
+
+    expect(resolveAnnotationEntryRole(implicitExternalEntry)).toBe(
+      ANNOTATION_ENTRY_ROLES.EXTERNAL
+    );
+    expect(resolveAnnotationEntryRole(authoringEntry)).toBe(
+      ANNOTATION_ENTRY_ROLES.AUTHORING
+    );
+    expect(
+      selectAuthoringAnnotationEntries({
+        annotationEntries: [implicitExternalEntry, authoringEntry],
+      }).map((entry) => entry.id)
+    ).toEqual(["b"]);
+  });
+
+  it("builds canonical append options for external annotation collections", () => {
+    const externalCollection = {
+      type: "saved-measurement" as const,
+      id: "measurement-3d-abc",
+    };
+
+    expect(buildExternalAnnotationsAppendOptions(externalCollection)).toEqual({
+      idPrefix: "measurement-3d-abc",
+      annotationRole: ANNOTATION_ENTRY_ROLES.EXTERNAL,
+      readOnly: true,
+      externalCollection,
+      selectAnnotationId: null,
+      skipExisting: true,
+    });
   });
 
   it("resolves interaction and fallback plugins", () => {
