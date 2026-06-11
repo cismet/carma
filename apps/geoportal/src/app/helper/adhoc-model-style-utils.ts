@@ -5,9 +5,9 @@ import {
   getCarmaConf3D,
   getCarmaConf3DClippingPolygonRing,
   type AdhocFeature,
+  type AdhocMapLibreStyleData,
   type CarmaConf3D,
   type CarmaMapLibreFeatureProperties,
-  type CarmaMapLibreStyleData,
 } from "@carma-appframeworks/portals";
 
 export type AdhocModelPositionField = "lon" | "lat" | "height" | "heading";
@@ -134,7 +134,7 @@ const updateMapLibreStyleFeatureCarmaConf3D = (
   const nextProperties = updateCarmaConf3DInProperties(properties, updater);
   let didChange = nextProperties !== properties;
 
-  const styleData = feature.data as CarmaMapLibreStyleData;
+  const styleData = feature.data as AdhocMapLibreStyleData;
   const nextSources = Object.fromEntries(
     Object.entries(styleData.sources ?? {}).map(([sourceKey, source]) => {
       if (!isGeoJsonSource(source) || !source.data) {
@@ -195,7 +195,7 @@ const updateMapLibreStyleFeatureCarmaConf3D = (
     properties: nextProperties as AdhocFeature["properties"],
     data: {
       ...styleData,
-      sources: nextSources as CarmaMapLibreStyleData["sources"],
+      sources: nextSources as AdhocMapLibreStyleData["sources"],
     },
   };
 };

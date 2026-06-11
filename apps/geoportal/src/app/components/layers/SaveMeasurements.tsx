@@ -13,7 +13,10 @@ import {
   useMapMeasurementsContext,
   shapesToFeatureCollection,
 } from "@carma-commons/measurements";
-import { ADHOC_LAYER_SOURCES } from "@carma-appframeworks/portals";
+import {
+  ADHOC_LAYER_SOURCES,
+  ADHOC_LAYER_VISIBILITIES,
+} from "@carma-appframeworks/portals";
 import type { Layer } from "@carma-mapping/layers";
 import { parseToMapLayer } from "@carma-mapping/utils";
 
@@ -48,7 +51,7 @@ function SaveMeasurements({ layer }: { layer: Layer }) {
         thumbnail: MEASUREMENT_THUMBNAIL_URL,
       }),
       source: ADHOC_LAYER_SOURCES.TWO_D_MEASUREMENTS,
-      visibility: "2d",
+      visibility: ADHOC_LAYER_VISIBILITIES.TWO_D,
     };
 
     return { featureData, featureTitle, featureDescription };

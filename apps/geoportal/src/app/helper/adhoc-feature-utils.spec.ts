@@ -3,7 +3,7 @@ import { ADHOC_LAYER_SOURCES } from "@carma-appframeworks/portals";
 import type { Layer } from "@carma-mapping/layers";
 
 import {
-  LEAFLET_MAPLIBRE_ADHOC_LAYER_SOURCES,
+  LEAFLET_MAPLIBRE_ADHOC_LAYER_STYLE_SOURCES,
   isSupportedLeafletMapLibreAdhocLayer,
   shouldShowAdhocLayerIn2dLayerList,
 } from "./adhoc-feature-utils";
@@ -26,11 +26,11 @@ describe("adhoc-feature-utils", () => {
     expect(isSupportedLeafletMapLibreAdhocLayer(annotationLayer)).toBe(false);
   });
 
-  it("supports generic and listed adhoc layer sources in Leaflet/MapLibre", () => {
-    expect(LEAFLET_MAPLIBRE_ADHOC_LAYER_SOURCES).toEqual([
+  it("supports only listed adhoc layer sources in Leaflet/MapLibre", () => {
+    expect(LEAFLET_MAPLIBRE_ADHOC_LAYER_STYLE_SOURCES).toEqual([
       ADHOC_LAYER_SOURCES.TWO_D_MEASUREMENTS,
     ]);
-    expect(isSupportedLeafletMapLibreAdhocLayer(buildLayer())).toBe(true);
+    expect(isSupportedLeafletMapLibreAdhocLayer(buildLayer())).toBe(false);
     expect(
       isSupportedLeafletMapLibreAdhocLayer(
         buildLayer(ADHOC_LAYER_SOURCES.TWO_D_MEASUREMENTS)

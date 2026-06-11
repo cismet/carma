@@ -31,7 +31,7 @@ import {
 } from "../components/annotations/cesium-annotations.constants";
 import { useModeLifecycleActions } from "./use-mode-lifecycle-actions";
 import { CESIUM_ANNOTATION_CONFIG } from "../config/app.config";
-import { layerHasRuntimeAnnotationsGeoJson } from "../helper/annotation-info-box";
+import { is3dAnnotationAdhocLayer } from "../helper/adhoc-feature-utils";
 
 const createCesiumAnnotationLayer = (
   annotationModeText: AnnotationModeText
@@ -203,7 +203,7 @@ export function useGeoportalCesiumAnnotationLayerbar() {
       boolean
     >();
     for (const layer of layers) {
-      if (layerHasRuntimeAnnotationsGeoJson(layer)) {
+      if (is3dAnnotationAdhocLayer(layer)) {
         savedAnnotationLayerVisibilityByCollectionId.set(
           layer.id,
           layer.visible !== false

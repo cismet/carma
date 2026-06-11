@@ -89,22 +89,11 @@ const createAnnotationsGeoJson =
   });
 
 describe("SaveCesiumAnnotations helpers", () => {
-  it("keeps saved area and line measurements out of generic Cesium drape rendering", () => {
-    const geoJson = buildCesiumAnnotationMeasurementGeoJson(
-      createAnnotationsGeoJson()
-    );
+  it("keeps the runtime annotation GeoJSON unchanged", () => {
+    const sourceGeoJson = createAnnotationsGeoJson();
+    const geoJson = buildCesiumAnnotationMeasurementGeoJson(sourceGeoJson);
 
-    expect(geoJson.features[0]?.properties?.carmaConf3D).toMatchObject({
-      groundPolygon: false,
-      groundPolyline: false,
-      wall: false,
-    });
-    expect(geoJson.features[1]?.properties?.carmaConf3D).toMatchObject({
-      groundPolygon: false,
-      groundPolyline: false,
-      wall: false,
-    });
-    expect(geoJson.features[2]?.properties?.carmaConf3D).toBeUndefined();
+    expect(geoJson).toBe(sourceGeoJson);
   });
 
   it("builds a stable measurement id from the runtime persistence payload", () => {

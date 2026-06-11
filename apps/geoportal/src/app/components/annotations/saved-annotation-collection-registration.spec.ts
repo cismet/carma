@@ -1,14 +1,11 @@
-import { describe, expect, it, vi } from "vitest";
-import type {
-  AdhocFeature,
-  AdhocFeatureCollection,
+import { describe, expect, it } from "vitest";
+import {
+  ADHOC_LAYER_SOURCES,
+  type AdhocFeature,
+  type AdhocFeatureCollection,
+  type AdhocLayerSource,
 } from "@carma-appframeworks/portals";
 import type { Layer } from "@carma-mapping/layers";
-
-vi.mock("../../helper/annotation-info-box", () => ({
-  layerHasRuntimeAnnotationsGeoJson: (layer: { id?: string }) =>
-    layer.id?.startsWith("saved-annotations-") === true,
-}));
 
 import {
   hasVisibleSavedAnnotationCollections,
@@ -19,22 +16,27 @@ import {
 
 const buildLayer = ({
   id,
+  source = ADHOC_LAYER_SOURCES.ANNOTATIONS,
   visible = true,
 }: {
   id: string;
+  source?: AdhocLayerSource | null;
   visible?: boolean;
 }) =>
   ({
     id,
+    props: {
+      style: source ? { source } : {},
+    },
     visible,
   } as Layer);
 
 const buildCollection = ({
   id,
-  renderAsRuntimeAnnotations = true,
+  source = ADHOC_LAYER_SOURCES.ANNOTATIONS,
 }: {
   id: string;
-  renderAsRuntimeAnnotations?: boolean;
+  source?: AdhocLayerSource | null;
 }): AdhocFeatureCollection => {
   const feature: AdhocFeature = {
     id: `${id}:feature`,
@@ -43,9 +45,7 @@ const buildCollection = ({
       version: 8,
       sources: {},
       layers: [],
-    },
-    metadata: {
-      renderAsRuntimeAnnotations,
+      ...(source ? { source } : {}),
     },
   };
 
@@ -60,7 +60,7 @@ describe("saved annotation collection registration", () => {
     const visibleCollectionIds = resolveVisibleSavedAnnotationCollectionIds([
       buildLayer({ id: "saved-annotations-visible", visible: true }),
       buildLayer({ id: "saved-annotations-hidden", visible: false }),
-      buildLayer({ id: "regular-layer", visible: true }),
+      buildLayer({ id: "regular-layer", source: null, visible: true }),
     ]);
 
     expect([...visibleCollectionIds]).toEqual(["saved-annotations-visible"]);
@@ -77,7 +77,7 @@ describe("saved annotation collection registration", () => {
       buildCollection({ id: "saved-annotations-hidden" }),
       buildCollection({
         id: "saved-annotations-no-runtime-feature",
-        renderAsRuntimeAnnotations: false,
+        source: null,
       }),
     ];
 

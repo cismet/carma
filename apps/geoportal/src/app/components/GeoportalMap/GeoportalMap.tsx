@@ -103,7 +103,7 @@ import AnnotationInfoBox from "../annotations/AnnotationInfoBox.tsx";
 import versionData from "../../../version.json";
 
 import { addCssToOverlayHelperItem } from "../../helper/overlayHelper.ts";
-import { layerHasRuntimeAnnotationsGeoJson } from "../../helper/annotation-info-box.ts";
+import { is3dAnnotationAdhocLayer } from "../../helper/adhoc-feature-utils.ts";
 
 import useLeafletZoomControls from "../../hooks/leaflet/useLeafletZoomControls.ts";
 import { useDispatchSachdatenInfoText } from "../../hooks/useDispatchSachdatenInfoText.ts";
@@ -841,7 +841,10 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
   const renderInfoBox = useCallback(() => {
     const shouldRenderAnnotationInfoBox =
       getIsCesium() &&
-      (isModeMeasurement || layers.some(layerHasRuntimeAnnotationsGeoJson));
+      (isModeMeasurement ||
+        layers.some(
+          (layer) => layer.visible !== false && is3dAnnotationAdhocLayer(layer)
+        ));
     const selectedFeatureInMeasurementMode =
       ENABLE_3D_MODEL_SELECTION_IN_MEASUREMENT_MODE ? selectedFeature : null;
     const selectedFeatureSecondaryInfoBoxElements: ReactNode[] =

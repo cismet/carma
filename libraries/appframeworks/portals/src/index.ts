@@ -33,6 +33,7 @@ export type {
   CarmaMapLibreStyleData,
   CarmaMapLibreFeatureProperties,
 } from "./lib/contracts/maplibre-style.d";
+export type { AdhocMapLibreStyleData } from "./lib/contracts/adhoc-style.d";
 
 export enum SELECTED_LAYER_INDEX {
   NO_SELECTION = -2,
@@ -105,9 +106,11 @@ export {
 } from "./lib/components/AdhocFeatureDisplayProvider";
 export {
   ADHOC_LAYER_SOURCES,
+  ADHOC_LAYER_VISIBILITIES,
   DEFAULT_ADHOC_FEATURE_COLLECTION_ID,
   DEFAULT_ADHOC_FEATURE_LAYER_ID,
   type AdhocLayerSource,
+  type AdhocLayerVisibility,
 } from "./lib/constants/adhoc";
 export {
   resolveAdhocFeatureLayerId,

@@ -1,21 +1,25 @@
-import type { AdhocFeatureCollection } from "@carma-appframeworks/portals";
+import {
+  ADHOC_LAYER_SOURCES,
+  type AdhocFeatureCollection,
+} from "@carma-appframeworks/portals";
 import type { BackgroundLayer, Layer } from "@carma-mapping/layers";
 
-import { layerHasRuntimeAnnotationsGeoJson } from "../../helper/annotation-info-box";
+import { is3dAnnotationAdhocLayer } from "../../helper/adhoc-feature-utils";
 
-type LayerWithVisibility = Pick<BackgroundLayer | Layer, "id" | "visible">;
+type LayerWithVisibility = BackgroundLayer | Layer;
 
 const hasRuntimeAnnotationFeature = (
   collection: AdhocFeatureCollection
 ): boolean =>
   collection.features.some(
-    (feature) => feature.metadata?.renderAsRuntimeAnnotations === true
+    (feature) =>
+      (feature.data as { source?: unknown }).source ===
+      ADHOC_LAYER_SOURCES.ANNOTATIONS
   );
 
 export const isVisibleSavedAnnotationLayer = (
   layer: LayerWithVisibility
-): boolean =>
-  layer.visible !== false && layerHasRuntimeAnnotationsGeoJson(layer);
+): boolean => layer.visible !== false && is3dAnnotationAdhocLayer(layer);
 
 export const resolveVisibleSavedAnnotationCollectionIds = (
   layers: readonly LayerWithVisibility[]

@@ -5,6 +5,7 @@ import { render, screen } from "@testing-library/react";
 import { Provider } from "react-redux";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Layer } from "@carma-mapping/layers";
+import { ADHOC_LAYER_SOURCES } from "@carma-appframeworks/portals";
 
 const useMapFrameworkSwitcherContextMock = vi.hoisted(() => vi.fn());
 const useFeatureFlagsMock = vi.hoisted(() => vi.fn());
@@ -37,6 +38,10 @@ vi.mock("@carma-appframeworks/portals", async () => {
     CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS: {
       hiddenActionIds: ["reference"],
       showSubtitleMetaText: true,
+    },
+    ADHOC_LAYER_SOURCES: {
+      ANNOTATIONS: "annotations",
+      TWO_D_MEASUREMENTS: "2dMeasurements",
     },
     SELECTED_LAYER_INDEX: {
       NO_SELECTION: -1,
@@ -147,6 +152,7 @@ const buildSavedAnnotationLayer = (): Layer => ({
   layerType: "vector",
   props: {
     style: {
+      source: ADHOC_LAYER_SOURCES.ANNOTATIONS,
       version: 8,
       sources: {
         adhoc: {

@@ -136,6 +136,10 @@ const is2dMeasurementAdhocFeature = (feature: AdhocFeature): boolean =>
   (feature.data as { source?: unknown }).source ===
   ADHOC_LAYER_SOURCES.TWO_D_MEASUREMENTS;
 
+const isRuntimeAnnotationAdhocFeature = (feature: AdhocFeature): boolean =>
+  (feature.data as { source?: unknown }).source ===
+  ADHOC_LAYER_SOURCES.ANNOTATIONS;
+
 type VisualizerType = "ground-polygon" | "ground-polyline" | "extruded-wall";
 type ElementType = "polygon" | "polyline" | "wall" | "model";
 type TilesetClippingPolygon = {
@@ -421,7 +425,7 @@ export const useAdhocCesiumFeatureDisplay = (
           .filter(
             (feature) =>
               feature.metadata?.shouldRemove !== true &&
-              feature.metadata?.renderAsRuntimeAnnotations !== true &&
+              !isRuntimeAnnotationAdhocFeature(feature) &&
               !is2dMeasurementAdhocFeature(feature)
           )
           .map((feature) => ({

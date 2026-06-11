@@ -7,10 +7,12 @@ import {
   type AnnotationsRuntimeGeoJsonFeatureCollection,
   useAnnotationsRuntime,
 } from "@carma-mapping/annotations/runtime";
-import { ADHOC_LAYER_SOURCES } from "@carma-appframeworks/portals";
+import {
+  ADHOC_LAYER_SOURCES,
+  ADHOC_LAYER_VISIBILITIES,
+} from "@carma-appframeworks/portals";
 import type { Layer } from "@carma-mapping/layers";
 import { parseToMapLayer } from "@carma-mapping/utils";
-import type { Geometry } from "geojson";
 
 import {
   appendLayer,
@@ -36,53 +38,10 @@ const MEASUREMENT_VECTOR_LEGEND_URL =
 
 const MEASUREMENT_SERVICE_NAME = "measurements";
 const SAVED_MEASUREMENT_COLOR = "#267bdc";
-const SAVED_MEASUREMENT_RUNTIME_ONLY_CARMA_CONF_3D = {
-  groundPolygon: false,
-  groundPolyline: false,
-  wall: false,
-} as const;
-
-const buildMeasurementCarmaConf3D = (geometry: Geometry | null | undefined) => {
-  switch (geometry?.type) {
-    case "Polygon":
-    case "MultiPolygon":
-    case "LineString":
-    case "MultiLineString":
-      return SAVED_MEASUREMENT_RUNTIME_ONLY_CARMA_CONF_3D;
-    default:
-      return undefined;
-  }
-};
 
 export const buildCesiumAnnotationMeasurementGeoJson = (
   annotationsGeoJson: AnnotationsRuntimeGeoJsonFeatureCollection
-): AnnotationsRuntimeGeoJsonFeatureCollection => ({
-  ...annotationsGeoJson,
-  features: annotationsGeoJson.features.map((feature) => {
-    const carmaConf3D = buildMeasurementCarmaConf3D(feature.geometry);
-    if (!carmaConf3D) {
-      return feature;
-    }
-
-    const properties = feature.properties ?? {};
-    const existingCarmaConf3D =
-      typeof properties.carmaConf3D === "object" &&
-      properties.carmaConf3D !== null
-        ? properties.carmaConf3D
-        : {};
-
-    return {
-      ...feature,
-      properties: {
-        ...properties,
-        carmaConf3D: {
-          ...carmaConf3D,
-          ...existingCarmaConf3D,
-        },
-      },
-    };
-  }),
-});
+): AnnotationsRuntimeGeoJsonFeatureCollection => annotationsGeoJson;
 
 export const buildCesiumAnnotationMeasurementId = (
   annotationsGeoJson: AnnotationsRuntimeGeoJsonFeatureCollection
@@ -107,7 +66,7 @@ export const buildCesiumAnnotationMeasurementStyle = ({
   description: string;
 }) => ({
   source: ADHOC_LAYER_SOURCES.ANNOTATIONS,
-  visibility: "3d",
+  visibility: ADHOC_LAYER_VISIBILITIES.THREE_D,
   version: 8,
   glyphs: "https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf",
   metadata: {

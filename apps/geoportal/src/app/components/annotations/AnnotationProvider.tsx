@@ -8,7 +8,10 @@ import {
 } from "react";
 import { useSelector } from "react-redux";
 
-import { useAdhocFeatureDisplay } from "@carma-appframeworks/portals";
+import {
+  ADHOC_LAYER_SOURCES,
+  useAdhocFeatureDisplay,
+} from "@carma-appframeworks/portals";
 import { ANNOTATION_SELECT_TOOL_ID } from "@carma-mapping/annotations/core";
 import { createDefaultAnnotationToolPlugins } from "@carma-mapping/annotations/builtin-tools";
 import {
@@ -140,7 +143,10 @@ function GeoportalSavedAnnotationFeatureCollectionRegistration() {
       }
 
       for (const feature of collection.features) {
-        if (feature.metadata?.renderAsRuntimeAnnotations !== true) {
+        if (
+          (feature.data as { source?: unknown }).source !==
+          ADHOC_LAYER_SOURCES.ANNOTATIONS
+        ) {
           continue;
         }
 

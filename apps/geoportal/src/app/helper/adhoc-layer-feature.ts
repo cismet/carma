@@ -1,4 +1,4 @@
-import type { CarmaMapLibreStyleData } from "@carma-appframeworks/portals";
+import type { AdhocMapLibreStyleData } from "@carma-appframeworks/portals";
 import type { Layer } from "@carma-mapping/layers";
 import type {
   GeoJSONSourceSpecification,
@@ -17,7 +17,7 @@ export type AdhocMapLibreLikeFeature = {
   id: string;
   layerId?: string;
   kind: "maplibre-style";
-  data: CarmaMapLibreStyleData;
+  data: AdhocMapLibreStyleData;
   properties?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
 };
@@ -49,7 +49,7 @@ type AddedAdhocFeature<
   TFeature extends AdhocMapLibreLikeFeature = AdhocMapLibreLikeFeature
 > = AdhocFeatureRef & {
   feature: TFeature;
-  styleData: CarmaMapLibreStyleData;
+  styleData: AdhocMapLibreStyleData;
 };
 
 const pickNonEmptyString = (...values: Array<unknown>): string | undefined =>
@@ -167,7 +167,7 @@ const isGeoJsonSource = (
 ): source is GeoJSONSourceSpecification => source.type === "geojson";
 
 const getPrimaryGeoJson = (
-  styleData: CarmaMapLibreStyleData
+  styleData: AdhocMapLibreStyleData
 ): Feature | FeatureCollection | null => {
   const sources = styleData.sources;
   if (!sources) {
@@ -192,7 +192,7 @@ const getPrimaryGeoJson = (
 };
 
 const getPrimaryGeoJsonFeature = (
-  styleData: CarmaMapLibreStyleData
+  styleData: AdhocMapLibreStyleData
 ): Feature | null => {
   const primaryGeoJson = getPrimaryGeoJson(styleData);
   if (!primaryGeoJson) {
@@ -222,7 +222,7 @@ const resolveAdhocFeatureId = ({
   styleData,
   fallbackLayerId,
 }: {
-  styleData: CarmaMapLibreStyleData;
+  styleData: AdhocMapLibreStyleData;
   fallbackLayerId: string;
 }): string => {
   const geoJson = getPrimaryGeoJson(styleData);
@@ -258,7 +258,7 @@ const resolveAdhocFeatureId = ({
 };
 
 const extractFirstGeoJsonFeatureProperties = (
-  styleData: CarmaMapLibreStyleData
+  styleData: AdhocMapLibreStyleData
 ): Record<string, unknown> | undefined => {
   const sources = styleData.sources as
     | Record<
@@ -287,9 +287,9 @@ const extractFirstGeoJsonFeatureProperties = (
 };
 
 const normalizeStyleDataGeoJsonFeatureIds = (
-  styleData: CarmaMapLibreStyleData
+  styleData: AdhocMapLibreStyleData
 ): {
-  styleData: CarmaMapLibreStyleData;
+  styleData: AdhocMapLibreStyleData;
   generatedGeoJsonFeatureIds: string[];
 } => {
   const sources = styleData.sources;
@@ -351,7 +351,7 @@ const normalizeStyleDataGeoJsonFeatureIds = (
   return {
     styleData: {
       ...styleData,
-      sources: normalizedSources as CarmaMapLibreStyleData["sources"],
+      sources: normalizedSources as AdhocMapLibreStyleData["sources"],
     },
     generatedGeoJsonFeatureIds,
   };
@@ -363,7 +363,7 @@ const buildAdhocMapLibreStyleFeature = ({
   layerId,
   metadata,
 }: {
-  styleData: CarmaMapLibreStyleData;
+  styleData: AdhocMapLibreStyleData;
   fallbackLayerId: string;
   layerId: string;
   metadata?: Record<string, unknown>;
@@ -385,7 +385,6 @@ const buildAdhocMapLibreStyleFeature = ({
       ? {
           ...metadata,
           annotationsGeoJson,
-          renderAsRuntimeAnnotations: true,
         }
       : metadata;
 

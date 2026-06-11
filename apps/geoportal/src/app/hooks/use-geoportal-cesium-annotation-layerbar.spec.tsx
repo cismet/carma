@@ -5,6 +5,7 @@ import { configureStore } from "@reduxjs/toolkit";
 import { Provider } from "react-redux";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ANNOTATION_SELECT_TOOL_ID } from "@carma-mapping/annotations/core";
+import { ADHOC_LAYER_SOURCES } from "@carma-appframeworks/portals";
 
 const useMapFrameworkSwitcherContextMock = vi.hoisted(() => vi.fn());
 const useAnnotationsDispatchMock = vi.hoisted(() => vi.fn());
@@ -32,11 +33,6 @@ vi.mock("@carma-mapping/annotations/runtime", () => ({
   updateAnnotationEntryById: updateAnnotationEntryByIdMock,
   useAnnotationsDispatch: () => useAnnotationsDispatchMock(),
   useAnnotationsRuntime: () => useAnnotationsRuntimeMock(),
-}));
-
-vi.mock("../helper/annotation-info-box", () => ({
-  layerHasRuntimeAnnotationsGeoJson: (layer: { id?: string }) =>
-    layer.id?.startsWith("saved-annotations-") === true,
 }));
 
 import mappingReducer, {
@@ -89,6 +85,11 @@ const buildSavedAnnotationLayer = () =>
     id: "saved-annotations-1",
     title: "Saved annotations",
     type: "object",
+    props: {
+      style: {
+        source: ADHOC_LAYER_SOURCES.ANNOTATIONS,
+      },
+    },
     visible: true,
   } as const);
 
