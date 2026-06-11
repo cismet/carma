@@ -195,6 +195,13 @@ describe("GeoportalLayerButtonSlot", () => {
     expect(store.getState().mapping.activeInteractionButtonID).toBe(
       CESIUM_ANNOTATION_SAVE_INTERACTION_ID
     );
+    expect(saveButton.className).toContain("!text-[#1677ff]");
+
+    fireEvent.click(saveButton);
+
+    expect(store.getState().mapping.activeInteractionLayerID).toBeNull();
+    expect(store.getState().mapping.activeInteractionButtonID).toBeNull();
+    expect(saveButton.className).toContain("text-gray-600");
   });
 
   it("keeps saved measurement object layers external in the layerbar", () => {
