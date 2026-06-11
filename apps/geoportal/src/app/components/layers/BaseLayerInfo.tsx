@@ -80,10 +80,10 @@ const BaseLayerInfo = () => {
     }
   };
 
-  const removeAllLayersButton = (className: string) => (
+  const removeAllLayersButton = (
     <button
       onClick={() => dispatch(setLayers([]))}
-      className={`text-gray-600 hover:text-gray-500 p-2 ${className}`}
+      className="text-gray-600 hover:text-gray-500 p-2 whitespace-nowrap"
     >
       Alle Karteninhalte entfernen
       <FontAwesomeIcon icon={faX} className="ml-2" />
@@ -116,9 +116,11 @@ const BaseLayerInfo = () => {
               className="full-width-tabs"
               tabBarExtraContent={{
                 right:
-                  activeTab === "1"
-                    ? removeAllLayersButton("hidden sm:block")
-                    : null,
+                  activeTab === "1" ? (
+                    <div className="hidden sm:flex items-center gap-3">
+                      {removeAllLayersButton}
+                    </div>
+                  ) : null,
               }}
               items={[
                 {
@@ -126,7 +128,9 @@ const BaseLayerInfo = () => {
                   label: "Kartenebenen",
                   children: (
                     <>
-                      {removeAllLayersButton("block w-fit ml-auto sm:hidden")}
+                      <div className="flex sm:hidden items-center justify-end">
+                        {removeAllLayersButton}
+                      </div>
                       <DndContext
                         onDragEnd={handleDragEnd}
                         modifiers={[restrictToVerticalAxis]}
