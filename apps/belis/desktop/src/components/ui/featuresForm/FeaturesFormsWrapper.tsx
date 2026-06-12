@@ -1329,15 +1329,22 @@ const FeaturesFormsWrapper = ({
   }, [featureId, formKey, dispatch, draftFeature, data, dbPK]);
 
   // Deletion is only offered for existing features (creation drafts are
-  // cancelled, not deleted) and editable (non-"Gast") users. `undefined` keeps
-  // the danger zone hidden entirely.
+  // cancelled, not deleted), editable (non-"Gast") users, and only while the
+  // form is actually in edit mode (`!effectiveReadOnly`) — not when merely
+  // viewing the feature. `undefined` keeps the danger zone hidden entirely.
   const deleteControls = useMemo(
     () =>
-      !isReadOnly && !isCreation && dbPK != null && featureId && formKey
+      !isReadOnly &&
+      !effectiveReadOnly &&
+      !isCreation &&
+      dbPK != null &&
+      featureId &&
+      formKey
         ? { pendingDeletion, mark: handleMarkForDeletion }
         : undefined,
     [
       isReadOnly,
+      effectiveReadOnly,
       isCreation,
       dbPK,
       featureId,
