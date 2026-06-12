@@ -165,16 +165,16 @@ interface FeaturesFormsState {
   // has been committed to the server. The deleted row keeps appearing in the
   // vector tiles (rebuilt overnight) AND in the brandnew FC (regenerated
   // server-side) until those sources drop it, so these ids must be filtered out
-  // of BOTH map layers — on the main AND the mini map — until then. Persisted
-  // (see store whitelist) so the feature stays gone across reloads; unlike the
-  // edit-oriented sets above it is never auto-cleared (a deletion has no
-  // replacement to wait for).
+  // of BOTH map layers — on the main AND the mini map — until then. No longer
+  // persisted (see store whitelist) — it resets on reload; within a session it
+  // is never auto-cleared (a deletion has no replacement to wait for).
   deletedFeatureIds: HiddenOriginalIds;
   // Per-Standort override that decrements its stacked-Leuchten icon after a
   // child Leuchte is soft-deleted (see StandortLeuchtenOverride). Keyed by the
-  // Standort's DB id (as a string). Persisted (see store whitelist) so the
-  // corrected icon survives reloads, alongside `deletedFeatureIds`; like it,
-  // never auto-cleared (the deletion has no replacement to wait for).
+  // Standort's DB id (as a string). No longer persisted (see store whitelist)
+  // — the corrected icon resets on reload, alongside `deletedFeatureIds`; like
+  // it, never auto-cleared within a session (the deletion has no replacement to
+  // wait for).
   standortLeuchtenOverrides: Record<string, StandortLeuchtenOverride>;
 }
 
