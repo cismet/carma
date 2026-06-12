@@ -1,9 +1,9 @@
-import type {
-  CesiumGeographicCoordinate,
-  AnnotationNodeLink,
-  AnnotationNodeLinkId,
-  AnnotationNodeId,
-  AnnotationNode,
+import {
+  type CesiumGeographicCoordinate,
+  type AnnotationNodeLink,
+  type AnnotationNodeLinkId,
+  type AnnotationNodeId,
+  type AnnotationNode,
 } from "./annotations-store.types";
 
 export type LegacyAnnotationNodeWithLinkedGroupId = AnnotationNode & {
@@ -121,12 +121,13 @@ export const resolveNextNodeLinksForNodeMove = ({
         ) ?? null
       : null;
 
-  if (
-    linkTargetNodeLink &&
+  const shouldMergeMovedNodeIdsIntoLinkTarget =
+    linkTargetNodeLink !== null &&
     !linkTargetNodeLink.nodeIds.some((linkedNodeId) =>
       movedNodeIdSet.has(linkedNodeId)
-    )
-  ) {
+    );
+
+  if (shouldMergeMovedNodeIdsIntoLinkTarget) {
     return reconcileNodeLinks({
       nodes,
       nodeLinks: nodeLinks.map((nodeLink) =>

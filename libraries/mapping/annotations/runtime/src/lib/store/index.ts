@@ -1,5 +1,6 @@
 export {
   findAnnotationEntryById,
+  resolveNodeEditingDisabledNodeIds,
   resolveNextElevationDisplayMode,
 } from "./annotation-entry.helpers";
 export {

@@ -258,7 +258,6 @@ export const usePointEditingGizmo = (
         : null,
     [activePlanarAreaEditPlane]
   );
-
   const areReferenceInteractionsSuppressed = useCallback(() => {
     if (isMoveGizmoDraggingRef.current) {
       return true;

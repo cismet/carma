@@ -27,12 +27,14 @@ const createCoordinate = (
 
 const createAnnotationEntry = (
   annotationId: string,
-  nodeId: string
+  nodeId: string,
+  overrides: Partial<StoredAnnotation> = {}
 ): StoredAnnotation => ({
   id: annotationId,
   toolType: "distance",
   nodeIds: [nodeId],
   edgeIds: [],
+  ...overrides,
 });
 
 const createNodeChainAnnotationEntry = ({
@@ -241,6 +243,51 @@ describe("createAnnotationsStore", () => {
     expect(nodeLinkIdByNodeId.get("node-c")).toBe("shared-group");
   });
 
+  it("moves only editable nodes from a linked group that also contains read-only nodes", () => {
+    const store = createAnnotationsStore({
+      ...createInitialAnnotationsStoreState(),
+      annotationEntries: [
+        createAnnotationEntry("annotation-a", "node-a"),
+        createAnnotationEntry("external-a", "node-b", {
+          annotationRole: ANNOTATION_ENTRY_ROLES.EXTERNAL,
+          readOnly: true,
+        }),
+      ],
+      nodes: [
+        { id: "node-a", coordinate: createCoordinate(7.0, 51.0) },
+        { id: "node-b", coordinate: createCoordinate(7.0, 51.0) },
+      ],
+      linkedNodeGroups: [
+        {
+          id: "shared-group",
+          nodeIds: ["node-a", "node-b"],
+        },
+      ],
+    });
+    const movedCoordinate = createCoordinate(7.001, 51.001, 5);
+
+    store.dispatch(
+      updateNodeCoordinateById({
+        nodeId: "node-a",
+        coordinate: movedCoordinate,
+      })
+    );
+
+    const state = store.getState();
+    const nodeLinkIdByNodeId = buildNodeLinkIdByNodeId(state.linkedNodeGroups);
+
+    expect(state.nodes).toEqual([
+      { id: "node-a", coordinate: movedCoordinate },
+      { id: "node-b", coordinate: createCoordinate(7.0, 51.0) },
+    ]);
+    expect(state.linkedNodeGroups).toEqual([
+      { id: "shared-group", nodeIds: ["node-b"] },
+      { id: "node-a", nodeIds: ["node-a"] },
+    ]);
+    expect(nodeLinkIdByNodeId.get("node-a")).toBe("node-a");
+    expect(nodeLinkIdByNodeId.get("node-b")).toBe("shared-group");
+  });
+
   it("keeps the link when the whole linked group moves together", () => {
     const store = createAnnotationsStore({
       ...createInitialAnnotationsStoreState(),
@@ -335,6 +382,45 @@ describe("createAnnotationsStore", () => {
     expect(nodeLinkIdByNodeId.get("node-a")).toBe("target-group");
     expect(nodeLinkIdByNodeId.get("node-b")).toBe("source-group");
     expect(nodeLinkIdByNodeId.get("node-c")).toBe("target-group");
+  });
+
+  it("does not merge a moved node into a node-editing-disabled target group", () => {
+    const snappedCoordinate = createCoordinate(7.002, 51.002, 8);
+    const store = createAnnotationsStore({
+      ...createInitialAnnotationsStoreState(),
+      annotationEntries: [
+        createAnnotationEntry("annotation-a", "node-a"),
+        createAnnotationEntry("external-a", "node-c", {
+          annotationRole: ANNOTATION_ENTRY_ROLES.EXTERNAL,
+          readOnly: true,
+        }),
+      ],
+      nodes: [
+        { id: "node-a", coordinate: createCoordinate(7.0, 51.0) },
+        { id: "node-b", coordinate: createCoordinate(7.0, 51.0) },
+        { id: "node-c", coordinate: createCoordinate(7.0, 51.0) },
+      ],
+      linkedNodeGroups: [
+        { id: "source-group", nodeIds: ["node-a", "node-b"] },
+        { id: "external-group", nodeIds: ["node-c"] },
+      ],
+    });
+
+    store.dispatch(
+      updateNodeCoordinateById({
+        nodeId: "node-a",
+        coordinate: snappedCoordinate,
+        movedNodeIds: ["node-a"],
+        linkToNodeId: "node-c",
+      })
+    );
+
+    const state = store.getState();
+    expect(state.linkedNodeGroups).toEqual([
+      { id: "source-group", nodeIds: ["node-b"] },
+      { id: "external-group", nodeIds: ["node-c"] },
+      { id: "node-a", nodeIds: ["node-a"] },
+    ]);
   });
 
   it("inserts a node into an open node chain edge", () => {

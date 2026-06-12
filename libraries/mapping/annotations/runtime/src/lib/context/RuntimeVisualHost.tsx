@@ -8,6 +8,7 @@ import {
   type AnnotationElevationDisplayMode,
   type AnnotationEntryRole,
   type AnnotationsStore,
+  resolveNodeEditingDisabledNodeIds,
   selectSelectedAnnotationId,
   setSelectedAnnotationIds,
   useAnnotationsSelector,
@@ -161,17 +162,21 @@ export const RuntimeVisualHost = ({
     },
     [annotationsStore, isSelectionAdditiveModifierPressed]
   );
+  const nodeEditingDisabledNodeIds = useMemo(
+    () => resolveNodeEditingDisabledNodeIds(annotationEntries),
+    [annotationEntries]
+  );
   const canStartNodeEditing = useCallback(
-    (nodeId: string, annotationId?: string) => {
-      return annotationEntries.some(
+    (nodeId: string, annotationId?: string) =>
+      !nodeEditingDisabledNodeIds.has(nodeId) &&
+      annotationEntries.some(
         (annotationEntry) =>
           (!annotationId || annotationEntry.id === annotationId) &&
           annotationEntry.nodeIds.includes(nodeId) &&
           !annotationEntry.locked &&
           !annotationEntry.readOnly
-      );
-    },
-    [annotationEntries]
+      ),
+    [annotationEntries, nodeEditingDisabledNodeIds]
   );
   const {
     draftNodeCoordinateOverrides,

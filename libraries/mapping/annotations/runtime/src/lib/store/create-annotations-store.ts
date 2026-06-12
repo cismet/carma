@@ -23,6 +23,7 @@ import {
   reconcileNodeLinks,
   resolveNextNodeLinksForNodeMove,
 } from "./node-links.helpers";
+import { resolveNodeEditingDisabledNodeIds } from "./annotation-entry.helpers";
 import { readMaxNumericSuffix } from "./annotation-entity-builder.helpers";
 import type {
   RuntimeDistanceTriangleAnchorCoordinateRole,
@@ -426,6 +427,14 @@ const annotationsSlice = createSlice({
         return;
       }
 
+      const nodeEditingDisabledNodeIds = resolveNodeEditingDisabledNodeIds(
+        state.annotationEntries
+      );
+      const editableLinkToNodeId =
+        linkToNodeId && !nodeEditingDisabledNodeIds.has(linkToNodeId)
+          ? linkToNodeId
+          : null;
+
       state.nodes.forEach((node) => {
         if (!movedNodeIdSet.has(node.id)) {
           return;
@@ -439,7 +448,7 @@ const annotationsSlice = createSlice({
         nodeLinks: state.linkedNodeGroups,
         nodeId: targetNode.id,
         movedNodeIds,
-        linkToNodeId,
+        linkToNodeId: editableLinkToNodeId,
       });
     },
     insertNodeIntoMeasurementEdge: (

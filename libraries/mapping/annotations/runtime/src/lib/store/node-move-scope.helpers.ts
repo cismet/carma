@@ -4,6 +4,7 @@ import type {
   AnnotationNodeId,
   AnnotationNode,
 } from "./annotations-store.types";
+import { resolveNodeEditingDisabledNodeIds } from "./annotation-entry.helpers";
 
 export type AnnotationNodeMoveScope = {
   targetNode: AnnotationNode | null;
@@ -65,10 +66,14 @@ export const resolveAnnotationNodeMoveScope = ({
       : selectedLinkedNodeIds.length > 0
       ? selectedLinkedNodeIds
       : [...nodeLinkNodeIds];
+  const nodeEditingDisabledNodeIds =
+    resolveNodeEditingDisabledNodeIds(annotationEntries);
 
   return {
     targetNode,
     targetLinkedNodeGroup: targetNodeLink,
-    movedNodeIds: scopedMovedNodeIds,
+    movedNodeIds: scopedMovedNodeIds.filter(
+      (scopedMovedNodeId) => !nodeEditingDisabledNodeIds.has(scopedMovedNodeId)
+    ),
   };
 };
