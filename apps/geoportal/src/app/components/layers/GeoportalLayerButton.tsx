@@ -58,11 +58,11 @@ import "./tabs.css";
 
 import {
   LayerButton,
-  LayerIcon,
   DynamicStylingControl,
   getDynamicStylingOptionsConfigs,
   getDynamicStylingSelections,
 } from "@carma-mapping/components";
+import DynamicStylingLayerIcon from "./DynamicStylingLayerIcon";
 import { Badge, Spin, Tooltip } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import { useLayerLoading } from "@carma-mapping/utils";
@@ -198,10 +198,6 @@ const GeoportalLayerButton = ({
   const primaryListConfigIndex = dynamicStylingConfigs.findIndex(
     (c) => c.type === "list"
   );
-  const primaryListConfig =
-    primaryListConfigIndex >= 0
-      ? dynamicStylingConfigs[primaryListConfigIndex]
-      : null;
 
   const isCurrentlyVisible = () => {
     if (zoom >= layer?.props?.maxZoom || zoom <= layer?.props?.minZoom) {
@@ -283,37 +279,13 @@ const GeoportalLayerButton = ({
           "pl-3",
         ]}
       >
-        {primaryListConfig && !background ? (
-          <DynamicStylingControl
-            config={primaryListConfig}
-            carmaLayerId={id}
-            currentSelection={
-              dynamicStylingSelections[primaryListConfigIndex] ||
-              primaryListConfig.default
-            }
-            onSelectionChange={(selection) => {
-              dispatch(
-                setLayerDynamicStylingSelection({
-                  id,
-                  configIndex: primaryListConfigIndex,
-                  selection,
-                })
-              );
-            }}
-          >
-            <LayerIcon
-              layer={layer}
-              fallbackIcon={layer.icon}
-              className={loading && isCurrentlyVisible() ? "icon" : ""}
-            />
-          </DynamicStylingControl>
-        ) : (
-          <LayerIcon
-            layer={layer}
-            fallbackIcon={layer.icon}
-            className={loading && isCurrentlyVisible() ? "icon" : ""}
-          />
-        )}
+        <DynamicStylingLayerIcon
+          layer={layer}
+          id={id}
+          fallbackIcon={layer.icon}
+          isBackgroundLayer={background}
+          iconClassName={loading && isCurrentlyVisible() ? "icon" : ""}
+        />
 
         {layersLength > 0 && (
           <span className="text-base sm:hidden">{layersLength} Layer</span>

@@ -20,18 +20,12 @@ import {
   changeVisibility,
   getLayers,
   removeLayer,
-  setLayerDynamicStylingSelection,
   setLayers,
   setSelectedLayerIndex,
 } from "../../store/slices/mapping";
 import OpacitySlider from "./OpacitySlider";
 import VisibilityToggle from "./VisibilityToggle";
-import {
-  DynamicStylingControl,
-  LayerIcon,
-  getDynamicStylingOptionsConfigs,
-  getDynamicStylingSelections,
-} from "@carma-mapping/components";
+import DynamicStylingLayerIcon from "./DynamicStylingLayerIcon";
 import { useAdhocFeatureDisplay } from "@carma-appframeworks/portals";
 import { isAdhocVectorLayer } from "../../helper/adhoc-feature-utils";
 import {
@@ -76,19 +70,6 @@ const LayerRow = ({
   const isPinned = isPinnedLayer(layer);
   const skipSelection = !!layer.skipSelection;
 
-  const dynamicStylingConfigs = getDynamicStylingOptionsConfigs(
-    layer.dynamicStyling
-  );
-  const dynamicStylingSelections = getDynamicStylingSelections(
-    layer.dynamicStylingSelection
-  );
-  const primaryListConfigIndex = dynamicStylingConfigs.findIndex(
-    (c) => c.type === "list"
-  );
-  const primaryListConfig =
-    primaryListConfigIndex >= 0
-      ? dynamicStylingConfigs[primaryListConfigIndex]
-      : null;
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
       id,
@@ -167,30 +148,12 @@ const LayerRow = ({
         >
           <FontAwesomeIcon icon={faGripVertical} />
         </button>
-        {primaryListConfig && !isBackgroundLayer ? (
-          <DynamicStylingControl
-            config={primaryListConfig}
-            carmaLayerId={layer.id}
-            indicatorClassName="ml-1 sm:mr-[8px] lg:mr-0 text-[8px]"
-            currentSelection={
-              dynamicStylingSelections[primaryListConfigIndex] ||
-              primaryListConfig.default
-            }
-            onSelectionChange={(selection) => {
-              dispatch(
-                setLayerDynamicStylingSelection({
-                  id: layer.id,
-                  configIndex: primaryListConfigIndex,
-                  selection,
-                })
-              );
-            }}
-          >
-            <LayerIcon layer={layer} fallbackIcon={icon} />
-          </DynamicStylingControl>
-        ) : (
-          <LayerIcon layer={layer} fallbackIcon={icon} />
-        )}
+        <DynamicStylingLayerIcon
+          layer={layer}
+          fallbackIcon={icon}
+          isBackgroundLayer={isBackgroundLayer}
+          indicatorClassName="ml-1 sm:mr-[8px] lg:mr-0 text-[8px]"
+        />
         <p
           className={`mb-0 text-lg flex-1 min-w-0 truncate ${
             index !== -1 && "hover:underline cursor-pointer"

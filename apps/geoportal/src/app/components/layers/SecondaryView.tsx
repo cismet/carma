@@ -48,10 +48,8 @@ import FavoriteToggle from "./FavoriteToggle";
 import LayerInfo from "./LayerInfo";
 import OpacitySlider from "./OpacitySlider";
 import VisibilityToggle from "./VisibilityToggle";
-import {
-  LayerIcon,
-  useMapFrameworkSwitcherContext,
-} from "@carma-mapping/components";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
+import DynamicStylingLayerIcon from "./DynamicStylingLayerIcon";
 import {
   selectedFeatureBelongsToLayer,
   type LayerVisibilityToggleProps,
@@ -317,7 +315,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>((props, _ref) => {
               ? "sm:max-h-[600px] sm:h-[70vh] h-[80vh]"
               : isBaseLayer
               ? "h-fit"
-              : "h-12"
+              : "h-fit sm:h-12"
           )}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
@@ -334,13 +332,14 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>((props, _ref) => {
           >
             <FontAwesomeIcon icon={faChevronRight} />
           </button>
-          <div className="flex items-center w-full h-8 gap-2 px-6 sm:px-0 sm:gap-6">
-            <div className="w-1/4 flex items-center gap-2">
-              <LayerIcon
+          <div className="flex flex-wrap sm:flex-nowrap items-center w-full sm:h-8 gap-2 px-6 sm:px-0 sm:gap-6">
+            <div className="flex-1 sm:flex-none sm:w-1/4 min-w-0 flex items-center gap-2">
+              <DynamicStylingLayerIcon
                 layer={layer}
                 fallbackIcon={icon}
+                isBackgroundLayer={isBaseLayer}
                 isBaseLayer={isBaseLayer}
-                id={iconId}
+                iconId={iconId}
               />
               <label
                 className="mb-0 text-base w-full truncate"
@@ -349,14 +348,14 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>((props, _ref) => {
                 {isBaseLayer ? "Hintergrund" : layer.title}
               </label>
             </div>
-            <div className="w-full flex items-center gap-2">
+            <div className="order-last sm:order-none w-full flex items-center gap-2">
               <label
-                className="mb-0 text-[15px] hidden sm:block"
+                className="mb-0 text-[15px] whitespace-nowrap"
                 htmlFor="opacity-slider"
               >
                 Transparenz:
               </label>
-              <div className="w-2/3 pt-1">
+              <div className="flex-1 sm:flex-none sm:w-2/3 pt-1">
                 <OpacitySlider
                   isBackgroundLayer={isBaseLayer}
                   opacity={layer.opacity}
@@ -365,6 +364,9 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>((props, _ref) => {
                   disabled={isCesium}
                 />
               </div>
+              <span className="sm:hidden text-sm w-10 text-right whitespace-nowrap">
+                {Math.round((1 - layer.opacity) * 100)}%
+              </span>
             </div>
             {canFavorite && (
               <FavoriteToggle
