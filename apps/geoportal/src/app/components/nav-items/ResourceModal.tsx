@@ -89,7 +89,7 @@ const ResourceModal = () => {
       messageApi,
       addLayerById,
     }),
-    { dispatch, measurements }
+    { measurements }
   );
 
   return (

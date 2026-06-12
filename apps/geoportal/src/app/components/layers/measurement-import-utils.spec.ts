@@ -9,7 +9,6 @@ import {
   buildCesiumAnnotationMeasurementId,
   buildCesiumAnnotationMeasurementStyle,
 } from "./SaveCesiumAnnotations";
-import { addMeasurement } from "../../store/slices/measurements";
 import {
   buildSavedMeasurementItemFromAnnotationCarrier,
   resolveAnnotationCarrierFromItem,
@@ -239,11 +238,9 @@ describe("buildSavedMeasurementItemFromAnnotationCarrier", () => {
 });
 
 describe("withSavedMeasurementCarrierImport", () => {
-  it("rewrites dropped annotation carriers and records them as measurements", () => {
+  it("rewrites dropped annotation carriers without recording them as measurements", () => {
     const updateLayers = vi.fn();
-    const dispatch = vi.fn();
     const wrapped = withSavedMeasurementCarrierImport(updateLayers, {
-      dispatch,
       measurements: [],
     });
 
@@ -253,7 +250,6 @@ describe("withSavedMeasurementCarrierImport", () => {
     const forwardedItem = updateLayers.mock.calls[0][0] as Item;
     expect(forwardedItem.serviceName).toBe("measurements");
     expect(forwardedItem.id.startsWith("measurement-3d-")).toBe(true);
-    expect(dispatch).toHaveBeenCalledWith(addMeasurement(forwardedItem));
     expect(updateLayers.mock.calls[0].slice(1)).toEqual([
       false,
       false,
@@ -264,9 +260,7 @@ describe("withSavedMeasurementCarrierImport", () => {
 
   it("passes non-carrier items and delete calls through unchanged", () => {
     const updateLayers = vi.fn();
-    const dispatch = vi.fn();
     const wrapped = withSavedMeasurementCarrierImport(updateLayers, {
-      dispatch,
       measurements: [],
     });
     const genericItem = {
@@ -281,7 +275,6 @@ describe("withSavedMeasurementCarrierImport", () => {
     const carrierItem = createDroppedCarrierItem();
     wrapped(carrierItem, true);
 
-    expect(dispatch).not.toHaveBeenCalled();
     expect(updateLayers).toHaveBeenNthCalledWith(
       1,
       genericItem,

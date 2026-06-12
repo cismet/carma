@@ -1,5 +1,3 @@
-import type { Dispatch } from "redux";
-
 import { extractCarmaConfig } from "@carma-commons/utils";
 import { ADHOC_LAYER_SOURCES } from "@carma-appframeworks/portals";
 import {
@@ -10,7 +8,6 @@ import {
 } from "@carma-mapping/annotations/runtime";
 import type { Item } from "@carma-mapping/layers";
 
-import { addMeasurement } from "../../store/slices/measurements";
 import { buildCesiumAnnotationMeasurementId } from "./SaveCesiumAnnotations";
 import {
   DEFAULT_MEASUREMENT_EMOJI_UNIFIED,
@@ -244,20 +241,15 @@ type LayerUpdaterLike = (
  * Decorates a generic layer updater (for example the resource layer updater
  * that also receives dropped JSON files) with saved-measurement awareness:
  * incoming annotation carriers are rewritten to the portal-save measurement
- * item shape and recorded under `Meine Messungen` before the generic layer
- * pipeline runs. All other items pass through unchanged, so the wrapped
+ * item shape before the generic layer pipeline runs. The rewrite makes the
+ * dropped carrier displayable without adding it to the persisted `Meine
+ * Messungen` list. All other items pass through unchanged, so the wrapped
  * updater stays free of annotation semantics.
  */
 export const withSavedMeasurementCarrierImport =
   (
     updateLayers: LayerUpdaterLike,
-    {
-      dispatch,
-      measurements,
-    }: {
-      dispatch: Dispatch;
-      measurements: Item[];
-    }
+    { measurements }: { measurements: Item[] }
   ): LayerUpdaterLike =>
   (layer, deleteItem = false, forceWMS, previewLayer, updateExisting) => {
     if (!deleteItem) {
@@ -268,7 +260,6 @@ export const withSavedMeasurementCarrierImport =
           ...annotationCarrier,
           existingMeasurements: measurements,
         });
-        dispatch(addMeasurement(measurementItem));
         return updateLayers(
           measurementItem,
           deleteItem,
