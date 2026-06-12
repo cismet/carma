@@ -1364,6 +1364,29 @@ const BelisMapLibWrapper = ({
     return keys;
   }, [allDraftsForMeasurementLink]);
 
+  // DB ids of Standorte being deleted whole (cascade soft-delete of all their
+  // Leuchten). Their expanded rows — the Standort header + one display-only row
+  // per captured child — come synchronously from `draftSidebarFeatures`
+  // (expandStandortDeletionDraft). But the live viewport still renders the
+  // original Standort + its Leuchten until the cascade-hide filter repaints, so
+  // those copies must be dropped up front; otherwise every child row doubles for
+  // a frame — the flicker. (The Standort header itself is already deduped via
+  // `openDraftDbKeys`; this covers its Leuchten children, keyed by fk_standort.)
+  const cascadeDeletionStandortIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const [draftKey, draft] of Object.entries(
+      allDraftsForMeasurementLink
+    )) {
+      if (draft.featureType !== "standort" || !draft.pendingDeletion) continue;
+      const id =
+        draft.featureDbId != null
+          ? String(draft.featureDbId)
+          : draftKey.split(":")[1];
+      if (id) ids.add(id);
+    }
+    return ids;
+  }, [allDraftsForMeasurementLink]);
+
   const mapWidth = mapSizes.width - LIST_WIDTH;
 
   const { features, totalCount, countsByLayer, isLoading, isOverviewMode } =
@@ -1662,6 +1685,14 @@ const BelisMapLibWrapper = ({
         if (retainedKeys.has(`${sl}:${f.properties?.id ?? f.id}`)) {
           return false;
         }
+        // Drop a live Leuchte whose parent Standort is being deleted whole — its
+        // row comes from the cascade rows in `draftSidebarFeatures` instead.
+        if (
+          sl === "leuchten" &&
+          cascadeDeletionStandortIds.has(String(f.properties?.fk_standort ?? ""))
+        ) {
+          return false;
+        }
         return true;
       });
     if (draftSidebarFeatures.length > 0) {
@@ -1698,6 +1729,7 @@ const BelisMapLibWrapper = ({
     adjustedHighlights,
     draftSidebarFeatures,
     openDraftDbKeys,
+    cascadeDeletionStandortIds,
     retainedDeletionFeatures,
     features,
     countsByLayer,
