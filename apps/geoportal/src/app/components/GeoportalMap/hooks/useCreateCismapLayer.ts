@@ -41,7 +41,7 @@ import {
 } from "../topicmap.utils";
 import { utils } from "@carma-appframeworks/portals";
 import { selectionPadding } from "../../../constants/selection";
-import { isSupportedLeafletMapLibreAdhocLayer } from "../../../helper/adhoc-feature-utils";
+import { is3dAnnotationAdhocLayer } from "../../../helper/adhoc-feature-utils";
 
 const MAX_ZOOM = 26;
 
@@ -301,7 +301,7 @@ export const useCreateCismapLayers = (
   const cismapLayers = layers.filter((layer) => layer.props);
 
   return cismapLayers.map((layer, i) => {
-    if (layer.visible && isSupportedLeafletMapLibreAdhocLayer(layer)) {
+    if (layer.visible && !is3dAnnotationAdhocLayer(layer)) {
       switch (layer.layerType) {
         case "wmts-nt":
           return createCismapLayer({
