@@ -332,7 +332,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>((props, _ref) => {
           >
             <FontAwesomeIcon icon={faChevronRight} />
           </button>
-          <div className="flex flex-wrap sm:flex-nowrap items-center w-full sm:h-8 gap-2 px-6 sm:px-0 sm:gap-6">
+          <div className="flex items-center w-full h-8 gap-2 px-6 sm:px-0 sm:gap-6">
             <div className="flex-1 sm:flex-none sm:w-1/4 min-w-0 flex items-center gap-2">
               <DynamicStylingLayerIcon
                 layer={layer}
@@ -348,14 +348,14 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>((props, _ref) => {
                 {isBaseLayer ? "Hintergrund" : layer.title}
               </label>
             </div>
-            <div className="order-last sm:order-none w-full flex items-center gap-2">
+            <div className="hidden sm:flex w-full items-center gap-2">
               <label
                 className="mb-0 text-[15px] whitespace-nowrap"
                 htmlFor="opacity-slider"
               >
                 Transparenz:
               </label>
-              <div className="flex-1 sm:flex-none sm:w-2/3 pt-1">
+              <div className="w-2/3 pt-1">
                 <OpacitySlider
                   isBackgroundLayer={isBaseLayer}
                   opacity={layer.opacity}
@@ -364,9 +364,6 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>((props, _ref) => {
                   disabled={isCesium}
                 />
               </div>
-              <span className="sm:hidden text-sm w-10 text-right whitespace-nowrap">
-                {Math.round((1 - layer.opacity) * 100)}%
-              </span>
             </div>
             {canFavorite && (
               <FavoriteToggle
@@ -398,6 +395,27 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>((props, _ref) => {
                 />
               )}
             </button>
+          </div>
+
+          <div className="flex sm:hidden items-center w-full gap-2 px-6">
+            <label
+              className="mb-0 text-[15px] whitespace-nowrap"
+              htmlFor="opacity-slider"
+            >
+              Transparenz:
+            </label>
+            <div className="flex-1 pt-1">
+              <OpacitySlider
+                isBackgroundLayer={isBaseLayer}
+                opacity={layer.opacity}
+                id={layer.id}
+                isVisible={layer.visible}
+                disabled={isCesium}
+              />
+            </div>
+            <span className="text-sm w-10 text-right whitespace-nowrap">
+              {Math.round((1 - layer.opacity) * 100)}%
+            </span>
           </div>
 
           {isBaseLayer && (
