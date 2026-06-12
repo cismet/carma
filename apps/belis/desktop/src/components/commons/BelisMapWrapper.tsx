@@ -826,6 +826,29 @@ const BelisMapLibWrapper = ({
   // with the decremented dot count.
   const standortLeuchtenOverrides = useSelector(getStandortLeuchtenOverrides);
 
+  // Stable per-Standort base data (count + geometry + street/lfd) for a
+  // PENDING-only override. The base is captured opportunistically from whichever
+  // open deletion draft happens to carry it — but the very draft that supplied it
+  // may be the one the user later undoes. Without retention, undoing that draft
+  // (while OTHER deletions for the same Standort are still pending) would leave
+  // the remaining drafts unable to reconstruct the base, collapsing the synthetic
+  // back to the full original count. Cache the first complete base per Standort
+  // and keep it as long as the Standort still has any pending deletion.
+  // Written only inside the memo below; idempotent given its inputs (prune + a
+  // first-write-wins set) → StrictMode double-invoke yields identical state.
+  const pendingStandortBaseRef = useRef<
+    Map<
+      string,
+      {
+        count: number;
+        geometry: GeoJSON.Geometry;
+        lfd?: string | number;
+        strasse?: string;
+        strassenschluessel?: string | number;
+      }
+    >
+  >(new Map());
+
   // Effective per-Standort decrement: the committed overrides above PLUS a live
   // preview from every open pending-deletion Leuchte draft. Marking a Leuchte
   // for deletion must shrink its Standort's stacked icon immediately (before
@@ -915,24 +938,44 @@ const BelisMapLibWrapper = ({
           | number
           | undefined;
     }
+    // Drop cached bases for Standorte that no longer have any pending deletion.
+    const baseCache = pendingStandortBaseRef.current;
+    for (const key of [...baseCache.keys()]) {
+      if (!pending.has(key)) baseCache.delete(key);
+    }
     for (const [key, p] of pending) {
+      // Capture the first complete base supplied by any draft; retained across
+      // the undo of whichever individual draft happened to provide it.
+      if (p.count != null && p.geometry != null && !baseCache.has(key)) {
+        baseCache.set(key, {
+          count: p.count,
+          geometry: p.geometry,
+          lfd: p.lfd,
+          strasse: p.strasse,
+          strassenschluessel: p.strassenschluessel,
+        });
+      }
       const entry = merged.get(key);
       if (entry) {
         for (const id of p.ids) entry.deletedLeuchtenIds.add(id);
         continue;
       }
       // A brand-new entry needs a base count + geometry to render its synthetic
-      // Standort; skip if no contributing draft supplied them.
-      if (p.geometry == null || p.count == null) continue;
+      // Standort. Fall back to the cached base so a still-pending Standort keeps
+      // its override even after its base-supplying draft is undone.
+      const cached = baseCache.get(key);
+      const count = p.count ?? cached?.count;
+      const geometry = p.geometry ?? cached?.geometry;
+      if (geometry == null || count == null) continue;
       merged.set(key, {
-        baseLeuchtenCount: p.count,
+        baseLeuchtenCount: count,
         deletedLeuchtenIds: new Set(p.ids),
-        geometry: p.geometry,
-        lfdNummer: p.lfd,
+        geometry,
+        lfdNummer: p.lfd ?? cached?.lfd,
         // Carry the street so the synthetic Standort sorts into its block in the
         // sidebar instead of jumping to the top of the list for lack of one.
-        strasse: p.strasse,
-        strassenschluessel: p.strassenschluessel,
+        strasse: p.strasse ?? cached?.strasse,
+        strassenschluessel: p.strassenschluessel ?? cached?.strassenschluessel,
       });
     }
     return merged;
