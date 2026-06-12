@@ -42,7 +42,8 @@ export const CismapRuntimeAnnotationInfoBox = ({
   secondaryInfoBoxElements = [],
 }: CismapRuntimeAnnotationInfoBoxProps) => {
   if (
-    infoBoxState.kind === RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS.FALLBACK
+    infoBoxState.kind ===
+    RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS.AUTHORING_INSTRUCTION
   ) {
     const hasHeaderStyle =
       Object.keys(infoBoxState.visualOptions.headerStyle ?? {}).length > 0;

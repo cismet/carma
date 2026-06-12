@@ -3,10 +3,8 @@ import {
   type AnnotationInfoBoxLayoutProps,
 } from "@carma-mapping/annotations/ui";
 
-import {
-  RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS,
-  useRuntimeAnnotationInfoBoxSlots,
-} from "./use-runtime-annotation-info-box-slots";
+import { RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS } from "./runtime-annotation-info-box-slots.types";
+import { useRuntimeAnnotationInfoBoxSlots } from "./use-runtime-annotation-info-box-slots";
 
 export const RuntimeAnnotationInfoBox = ({
   pixelWidth,

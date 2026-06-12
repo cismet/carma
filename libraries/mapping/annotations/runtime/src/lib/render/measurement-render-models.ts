@@ -150,7 +150,6 @@ export type RuntimePointLabelRenderModel = {
   selected?: boolean;
   hideLabelAndStem?: boolean;
   onClick?: () => void;
-  allowClickWhenBlocked?: boolean;
   onDoubleClick?: () => void;
   onHoverChange?: (
     hovered: boolean,
@@ -158,6 +157,5 @@ export type RuntimePointLabelRenderModel = {
   ) => void;
   onLongPress?: () => void;
   markerOnlyPointerEvents?: boolean;
-  allowLongPressWhenBlocked?: boolean;
   longPressDurationMs?: number;
 };

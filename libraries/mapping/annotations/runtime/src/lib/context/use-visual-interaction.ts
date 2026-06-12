@@ -40,11 +40,9 @@ const isInsertNodeTargetToolType = (toolType: StoredAnnotation["toolType"]) =>
   toolType === ANNOTATION_TYPE_AREA_VERTICAL;
 
 const resolveInsertedNodeCoordinate = ({
-  toolType,
   startCoordinate,
   endCoordinate,
 }: {
-  toolType: StoredAnnotation["toolType"];
   startCoordinate: {
     longitude: number;
     latitude: number;
@@ -67,10 +65,7 @@ const resolveInsertedNodeCoordinate = ({
   return {
     longitude: midpointCoordinate.longitude,
     latitude: midpointCoordinate.latitude,
-    altitude:
-      toolType === ANNOTATION_TYPE_AREA_GROUND
-        ? getEllipsoidalAltitudeOrZero(midpointCoordinate.altitude)
-        : midpointCoordinate.altitude,
+    altitude: getEllipsoidalAltitudeOrZero(midpointCoordinate.altitude),
   };
 };
 
@@ -169,6 +164,7 @@ export const useVisualInteraction = ({
         (annotationEntry) =>
           selectedAnnotationIdSet.has(annotationEntry.id) &&
           !annotationEntry.locked &&
+          !annotationEntry.readOnly &&
           isInsertNodeTargetToolType(annotationEntry.toolType)
       )
       .map((annotationEntry) => annotationEntry.id);
@@ -183,6 +179,7 @@ export const useVisualInteraction = ({
       if (
         !targetEntry ||
         targetEntry.locked ||
+        targetEntry.readOnly ||
         !isInsertNodeTargetToolType(targetEntry.toolType)
       ) {
         return false;
@@ -202,7 +199,6 @@ export const useVisualInteraction = ({
           startNodeId,
           endNodeId,
           coordinate: resolveInsertedNodeCoordinate({
-            toolType: targetEntry.toolType,
             startCoordinate: startNode.coordinate,
             endCoordinate: endNode.coordinate,
           }),

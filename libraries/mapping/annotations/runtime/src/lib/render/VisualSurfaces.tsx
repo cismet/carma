@@ -23,6 +23,7 @@ type VisualSurfacesProps = {
   onMeasurementSelect: (annotationId: string | null) => void;
   onNodeMeasurementsSelect: (annotationIds: readonly string[]) => void;
   onNodeLongPress: (nodeId: string, measurementId?: string) => void;
+  canStartNodeEditing: (nodeId: string, measurementId?: string) => boolean;
   onReferenceNodeClick: (nodeId: string) => boolean;
   onReferenceNodeHover: (nodeId: string, hovered: boolean) => void;
   onPreviewNodeHover: (nodeId: string, hovered: boolean) => void;
@@ -53,6 +54,7 @@ export const VisualSurfaces = ({
   onMeasurementSelect,
   onNodeMeasurementsSelect,
   onNodeLongPress,
+  canStartNodeEditing,
   onReferenceNodeClick,
   onReferenceNodeHover,
   onPreviewNodeHover,
@@ -74,13 +76,12 @@ export const VisualSurfaces = ({
     lineLabelOptions,
     activeEditedNodeId,
     isMoveGizmoDragging,
-    blockLabelInteractions:
-      activeEditedNodeId !== null || isMeasurementToolActive,
     previewSnapTargetHoverEnabled,
     onPreviewSnapTargetNodeClick,
     onMeasurementSelect,
     onNodeMeasurementsSelect,
     onNodeLongPress,
+    canStartNodeEditing,
     onReferenceNodeClick,
     onReferenceNodeHover:
       activeEditedNodeId !== null ? onReferenceNodeHover : onPreviewNodeHover,
@@ -102,8 +103,6 @@ export const VisualSurfaces = ({
     formatOptions,
     lineLabelOptions,
     activeEditedNodeId,
-    isMoveGizmoDragging,
-    blockLabelInteractions: true,
   });
 
   return null;

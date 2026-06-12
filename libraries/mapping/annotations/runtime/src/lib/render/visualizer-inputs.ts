@@ -12,18 +12,16 @@ type BuildHostInteractionPointLabelsArgs = {
   pointLabels: readonly RuntimePointLabelRenderModel[];
   points: readonly RuntimePointMarkerRenderModel[];
   selectedAnnotationIdSet: ReadonlySet<string>;
-  showNodeInteractionTargets: boolean;
-  nodeInteractionHoverEnabled: boolean;
   previewSnapTargetsEnabled: boolean;
-  blockLabelInteractions: boolean;
-  activeEditedNodeId: string | null;
-  isMoveGizmoDragging: boolean;
+  referenceNodeClickEnabled: boolean;
+  referenceNodeHoverEnabled: boolean;
   nodeLinkIdByNodeId: ReadonlyMap<string, string>;
   previewNodeLinkId: string | null;
   isInPreviewNodeLink: (nodeId?: string) => boolean;
   onMeasurementSelect?: (measurementId: string) => void;
   onNodeMeasurementsSelect?: (measurementIds: readonly string[]) => void;
   onNodeLongPress?: (nodeId: string, measurementId?: string) => void;
+  canStartNodeEditing?: (nodeId: string, measurementId?: string) => boolean;
   onPreviewSnapTargetNodeClick?: (nodeId: string) => boolean;
   onReferenceNodeClick?: (nodeId: string) => boolean;
   onReferenceNodeHover?: (nodeId: string, hovered: boolean) => void;
@@ -33,17 +31,15 @@ type BuildHostInteractionPointLabelsArgs = {
 type BuildHostInteractionPointMarkersArgs = {
   points: readonly RuntimePointMarkerRenderModel[];
   enableHostInteractionTargets: boolean;
-  showNodeInteractionTargets: boolean;
-  nodeInteractionHoverEnabled: boolean;
   previewSnapTargetsEnabled: boolean;
-  blockLabelInteractions: boolean;
-  activeEditedNodeId: string | null;
-  isMoveGizmoDragging: boolean;
+  referenceNodeClickEnabled: boolean;
+  referenceNodeHoverEnabled: boolean;
   nodeLinkIdByNodeId: ReadonlyMap<string, string>;
   isInPreviewNodeLink: (nodeId?: string) => boolean;
   onMeasurementSelect?: (measurementId: string) => void;
   onNodeMeasurementsSelect?: (measurementIds: readonly string[]) => void;
   onNodeLongPress?: (nodeId: string, measurementId?: string) => void;
+  canStartNodeEditing?: (nodeId: string, measurementId?: string) => boolean;
   onPreviewSnapTargetNodeClick?: (nodeId: string) => boolean;
   onReferenceNodeClick?: (nodeId: string) => boolean;
   onReferenceNodeHover?: (nodeId: string, hovered: boolean) => void;
@@ -61,14 +57,28 @@ const createNodeLongPressHandler = ({
   nodeId,
   measurementId,
   onNodeLongPress,
+  canStartNodeEditing,
 }: {
   nodeId?: string;
   measurementId?: string;
   onNodeLongPress?: (nodeId: string, measurementId?: string) => void;
+  canStartNodeEditing?: (nodeId: string, measurementId?: string) => boolean;
 }) =>
-  onNodeLongPress && nodeId
+  onNodeLongPress &&
+  nodeId &&
+  (canStartNodeEditing?.(nodeId, measurementId) ?? true)
     ? () => onNodeLongPress(nodeId, measurementId)
     : undefined;
+
+const canUseNodeEditingLongPress = ({
+  nodeId,
+  measurementId,
+  canStartNodeEditing,
+}: {
+  nodeId?: string;
+  measurementId?: string;
+  canStartNodeEditing?: (nodeId: string, measurementId?: string) => boolean;
+}) => !nodeId || (canStartNodeEditing?.(nodeId, measurementId) ?? true);
 
 const buildVisiblePointLabels = (
   pointLabels: readonly RuntimePointLabelRenderModel[]
@@ -109,24 +119,25 @@ export const buildHostInteractionPointLabels = ({
   pointLabels,
   points,
   selectedAnnotationIdSet,
-  showNodeInteractionTargets,
-  nodeInteractionHoverEnabled,
   previewSnapTargetsEnabled,
-  blockLabelInteractions,
-  activeEditedNodeId,
-  isMoveGizmoDragging,
+  referenceNodeClickEnabled,
+  referenceNodeHoverEnabled,
   nodeLinkIdByNodeId,
   previewNodeLinkId,
   isInPreviewNodeLink,
   onMeasurementSelect,
   onNodeMeasurementsSelect,
   onNodeLongPress,
+  canStartNodeEditing,
   onPreviewSnapTargetNodeClick,
   onReferenceNodeClick,
   onReferenceNodeHover,
   enableHostInteractionTargets,
 }: BuildHostInteractionPointLabelsArgs): readonly RuntimePointLabelRenderModel[] => {
   const visiblePointLabels = buildVisiblePointLabels(pointLabels);
+  const nodeInteractionHoverEnabled =
+    enableHostInteractionTargets &&
+    (referenceNodeHoverEnabled || previewSnapTargetsEnabled);
 
   const normalizedPointLabels = !enableHostInteractionTargets
     ? visiblePointLabels.map((pointLabel) => ({
@@ -135,28 +146,30 @@ export const buildHostInteractionPointLabels = ({
         onDoubleClick: undefined,
         onHoverChange: undefined,
         onLongPress: undefined,
-        allowClickWhenBlocked: false,
-        allowLongPressWhenBlocked: false,
         longPressDurationMs:
           pointLabel.longPressDurationMs ??
           visualizerInputDefaults.nodeLabelLongPressDurationMs,
       }))
     : visiblePointLabels.map((pointLabel) => {
         const referenceNodeInteractionEnabled = Boolean(
-          activeEditedNodeId &&
-            !isMoveGizmoDragging &&
+          referenceNodeClickEnabled &&
             onReferenceNodeClick &&
             pointLabel.nodeId &&
             !isInPreviewNodeLink(pointLabel.nodeId)
         );
-        const suppressLabelLongPress =
-          blockLabelInteractions &&
-          pointLabel.allowLongPressWhenBlocked !== true;
+        const routePointerQueryThroughPointMarker =
+          previewSnapTargetsEnabled && pointLabel.nodeId !== undefined;
+        const nodeEditingLongPressAllowed = canUseNodeEditingLongPress({
+          nodeId: pointLabel.nodeId,
+          measurementId: pointLabel.measurementId,
+          canStartNodeEditing,
+        });
 
         return {
           ...pointLabel,
           onClick:
-            pointLabel.onClick || referenceNodeInteractionEnabled
+            !routePointerQueryThroughPointMarker &&
+            (pointLabel.onClick || referenceNodeInteractionEnabled)
               ? () => {
                   if (
                     referenceNodeInteractionEnabled &&
@@ -169,24 +182,36 @@ export const buildHostInteractionPointLabels = ({
                   pointLabel.onClick?.();
                 }
               : undefined,
-          allowClickWhenBlocked:
-            pointLabel.allowClickWhenBlocked || referenceNodeInteractionEnabled,
           onHoverChange: pointLabel.onHoverChange,
-          onLongPress: suppressLabelLongPress
-            ? undefined
-            : pointLabel.onLongPress ??
-              createNodeLongPressHandler({
-                nodeId: pointLabel.nodeId,
-                measurementId: pointLabel.measurementId,
-                onNodeLongPress,
-              }),
+          onLongPress:
+            referenceNodeInteractionEnabled ||
+            routePointerQueryThroughPointMarker ||
+            !nodeEditingLongPressAllowed
+              ? undefined
+              : pointLabel.onLongPress ??
+                createNodeLongPressHandler({
+                  nodeId: pointLabel.nodeId,
+                  measurementId: pointLabel.measurementId,
+                  onNodeLongPress,
+                  canStartNodeEditing,
+                }),
           longPressDurationMs:
             pointLabel.longPressDurationMs ??
             visualizerInputDefaults.nodeLabelLongPressDurationMs,
         };
       });
 
-  if (!showNodeInteractionTargets) {
+  const nodeInteractionTargetsRequired = Boolean(
+    enableHostInteractionTargets &&
+      (nodeInteractionHoverEnabled ||
+        previewSnapTargetsEnabled ||
+        referenceNodeClickEnabled ||
+        onMeasurementSelect ||
+        onNodeMeasurementsSelect ||
+        onNodeLongPress)
+  );
+
+  if (!nodeInteractionTargetsRequired) {
     return normalizedPointLabels;
   }
 
@@ -225,13 +250,20 @@ export const buildHostInteractionPointLabels = ({
       return;
     }
 
-    const nodeLongPressHandler = blockLabelInteractions
-      ? undefined
-      : createNodeLongPressHandler({
-          nodeId,
-          measurementId,
-          onNodeLongPress,
-        });
+    const referenceNodeInteractionEnabled = Boolean(
+      referenceNodeClickEnabled &&
+        onReferenceNodeClick &&
+        !isInPreviewNodeLink(nodeId)
+    );
+    const nodeLongPressHandler =
+      referenceNodeInteractionEnabled || previewSnapTargetsEnabled
+        ? undefined
+        : createNodeLongPressHandler({
+            nodeId,
+            measurementId,
+            onNodeLongPress,
+            canStartNodeEditing,
+          });
     const interactionPointLabel: RuntimePointLabelRenderModel = {
       id: `${point.id}-node-interaction`,
       measurementId,
@@ -243,34 +275,28 @@ export const buildHostInteractionPointLabels = ({
       hideLabelAndStem: true,
       hideMarker: true,
       markerOnlyPointerEvents: true,
-      allowClickWhenBlocked: Boolean(
-        (activeEditedNodeId !== null && !isMoveGizmoDragging) ||
-          previewSnapTargetsEnabled
-      ),
-      allowLongPressWhenBlocked: false,
       onHoverChange: nodeInteractionHoverEnabled
         ? (hovered) => {
             onReferenceNodeHover?.(nodeId, hovered);
           }
         : undefined,
-      onClick:
-        activeEditedNodeId && !isMoveGizmoDragging && onReferenceNodeClick
-          ? () => {
-              onReferenceNodeClick?.(nodeId);
-            }
-          : previewSnapTargetsEnabled
-          ? () => {
-              onPreviewSnapTargetNodeClick?.(nodeId);
-            }
-          : nodeMeasurementIds.length > 0 && onNodeMeasurementsSelect
-          ? () => {
-              onNodeMeasurementsSelect(nodeMeasurementIds);
-            }
-          : measurementId && onMeasurementSelect
-          ? () => {
-              onMeasurementSelect(measurementId);
-            }
-          : undefined,
+      onClick: referenceNodeInteractionEnabled
+        ? () => {
+            onReferenceNodeClick?.(nodeId);
+          }
+        : previewSnapTargetsEnabled
+        ? () => {
+            onPreviewSnapTargetNodeClick?.(nodeId);
+          }
+        : nodeMeasurementIds.length > 0 && onNodeMeasurementsSelect
+        ? () => {
+            onNodeMeasurementsSelect(nodeMeasurementIds);
+          }
+        : measurementId && onMeasurementSelect
+        ? () => {
+            onMeasurementSelect(measurementId);
+          }
+        : undefined,
       onLongPress: nodeLongPressHandler,
       longPressDurationMs: visualizerInputDefaults.nodeLabelLongPressDurationMs,
     };
@@ -311,17 +337,15 @@ export const buildHostInteractionPointLabels = ({
 export const buildHostInteractionPointMarkers = ({
   points,
   enableHostInteractionTargets,
-  showNodeInteractionTargets,
-  nodeInteractionHoverEnabled,
   previewSnapTargetsEnabled,
-  blockLabelInteractions,
-  activeEditedNodeId,
-  isMoveGizmoDragging,
+  referenceNodeClickEnabled,
+  referenceNodeHoverEnabled,
   nodeLinkIdByNodeId,
   isInPreviewNodeLink,
   onMeasurementSelect,
   onNodeMeasurementsSelect,
   onNodeLongPress,
+  canStartNodeEditing,
   onPreviewSnapTargetNodeClick,
   onReferenceNodeClick,
   onReferenceNodeHover,
@@ -334,6 +358,8 @@ export const buildHostInteractionPointMarkers = ({
         onLongPress: undefined,
       }))
     : (() => {
+        const nodeInteractionHoverEnabled =
+          referenceNodeHoverEnabled || previewSnapTargetsEnabled;
         const measurementIdsByNodeLinkId = buildMeasurementIdsByNodeLinkId(
           points,
           nodeLinkIdByNodeId
@@ -349,8 +375,7 @@ export const buildHostInteractionPointMarkers = ({
             ? measurementIdsByNodeLinkId.get(nodeLinkId) ?? []
             : [];
           const referenceNodeInteractionEnabled = Boolean(
-            activeEditedNodeId &&
-              !isMoveGizmoDragging &&
+            referenceNodeClickEnabled &&
               onReferenceNodeClick &&
               nodeId &&
               !isInPreviewNodeLink(nodeId)
@@ -364,9 +389,7 @@ export const buildHostInteractionPointMarkers = ({
               ? () => {
                   onPreviewSnapTargetNodeClick?.(nodeId);
                 }
-              : showNodeInteractionTargets &&
-                nodeMeasurementIds.length > 0 &&
-                onNodeMeasurementsSelect
+              : nodeMeasurementIds.length > 0 && onNodeMeasurementsSelect
               ? () => {
                   onNodeMeasurementsSelect(nodeMeasurementIds);
                 }
@@ -385,17 +408,21 @@ export const buildHostInteractionPointMarkers = ({
               : point.onHoverChange;
           const suppressPointMarkerLongPress =
             previewSnapTargetsEnabled ||
-            (blockLabelInteractions && activeEditedNodeId === null);
-          const nodeLongPressHandler =
-            suppressPointMarkerLongPress ||
-            blockLabelInteractions ||
-            isInPreviewNodeLink(nodeId)
-              ? undefined
-              : createNodeLongPressHandler({
-                  nodeId,
-                  measurementId,
-                  onNodeLongPress,
-                });
+            referenceNodeInteractionEnabled ||
+            isInPreviewNodeLink(nodeId) ||
+            !canUseNodeEditingLongPress({
+              nodeId,
+              measurementId,
+              canStartNodeEditing,
+            });
+          const nodeLongPressHandler = suppressPointMarkerLongPress
+            ? undefined
+            : createNodeLongPressHandler({
+                nodeId,
+                measurementId,
+                onNodeLongPress,
+                canStartNodeEditing,
+              });
 
           return {
             ...point,
@@ -422,17 +449,15 @@ export const buildVisualizerInputs = ({
   const normalizedPoints = buildHostInteractionPointMarkers({
     points,
     enableHostInteractionTargets: args.enableHostInteractionTargets,
-    showNodeInteractionTargets: args.showNodeInteractionTargets,
-    nodeInteractionHoverEnabled: args.nodeInteractionHoverEnabled,
     previewSnapTargetsEnabled: args.previewSnapTargetsEnabled,
-    blockLabelInteractions: args.blockLabelInteractions,
-    activeEditedNodeId: args.activeEditedNodeId,
-    isMoveGizmoDragging: args.isMoveGizmoDragging,
+    referenceNodeClickEnabled: args.referenceNodeClickEnabled,
+    referenceNodeHoverEnabled: args.referenceNodeHoverEnabled,
     nodeLinkIdByNodeId: args.nodeLinkIdByNodeId,
     isInPreviewNodeLink: args.isInPreviewNodeLink,
     onMeasurementSelect: args.onMeasurementSelect,
     onNodeMeasurementsSelect: args.onNodeMeasurementsSelect,
     onNodeLongPress: args.onNodeLongPress,
+    canStartNodeEditing: args.canStartNodeEditing,
     onPreviewSnapTargetNodeClick: args.onPreviewSnapTargetNodeClick,
     onReferenceNodeClick: args.onReferenceNodeClick,
     onReferenceNodeHover: args.onReferenceNodeHover,

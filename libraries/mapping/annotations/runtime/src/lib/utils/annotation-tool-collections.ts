@@ -183,14 +183,14 @@ export const areAnnotationEntriesHidden = (
   annotationEntries.length > 0 &&
   annotationEntries.every((annotationEntry) => annotationEntry.hidden);
 
-export const resolveAnnotationToolFallbackPlugin = ({
+export const resolveAnnotationToolAuthoringInstructionPlugin = ({
   activeToolType,
   registry,
-  fallbackToolId = ANNOTATION_SELECT_TOOL_ID,
+  defaultToolId = ANNOTATION_SELECT_TOOL_ID,
 }: {
   activeToolType: AnnotationToolId | null;
   registry: AnnotationToolRegistry;
-  fallbackToolId?: AnnotationToolId;
+  defaultToolId?: AnnotationToolId;
 }): AnnotationToolPlugin | null => {
   if (activeToolType) {
     const activePlugin = registry.getPlugin(activeToolType);
@@ -199,11 +199,5 @@ export const resolveAnnotationToolFallbackPlugin = ({
     }
   }
 
-  return (
-    registry.getPlugin(fallbackToolId) ??
-    [...registry.plugins].sort(
-      (left, right) => left.descriptor.order - right.descriptor.order
-    )[0] ??
-    null
-  );
+  return registry.getPlugin(defaultToolId) ?? null;
 };

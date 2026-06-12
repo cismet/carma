@@ -22,7 +22,8 @@ export const resolveRemovableSelectedAnnotationIds = (state: {
     .filter(
       (annotationEntry) =>
         selectedAnnotationIdSet.has(annotationEntry.id) &&
-        !annotationEntry.locked
+        !annotationEntry.locked &&
+        !annotationEntry.readOnly
     )
     .map((annotationEntry) => annotationEntry.id);
 };

@@ -150,6 +150,7 @@ export const buildAnnotationMeasurementInfoBoxSlots = ({
         <div className="flex items-center justify-between gap-2">
           <AnnotationInfoBoxTitleInput
             {...titleInput}
+            readOnly={resolvedVisualOptions.readOnly}
             visualOptions={resolvedVisualOptions}
           />
           <div className="shrink-0">

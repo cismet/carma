@@ -13,6 +13,7 @@ export type AnnotationInfoBoxTitleInputProps = {
   value: string;
   placeholder: string;
   onCommit: (nextValue: string) => void;
+  readOnly?: boolean;
   shortLabelValue?: string;
   shortLabelPlaceholder?: string;
   onShortLabelCommit?: (nextValue: string) => void;
@@ -41,6 +42,7 @@ export const AnnotationInfoBoxTitleInput = ({
   value,
   placeholder,
   onCommit,
+  readOnly = false,
   shortLabelValue,
   shortLabelPlaceholder,
   onShortLabelCommit,
@@ -60,8 +62,7 @@ export const AnnotationInfoBoxTitleInput = ({
   const shortLabelWidthCh = Math.min(
     Math.max(
       normalizeTitle(draftShortLabelValue || shortLabelPlaceholder || "")
-        .length +
-        annotationInfoBoxTitleInputDefaults.shortLabelWidthPaddingCh,
+        .length + annotationInfoBoxTitleInputDefaults.shortLabelWidthPaddingCh,
       annotationInfoBoxTitleInputDefaults.shortLabelMinWidthCh
     ),
     shortLabelMaxWidthCh
@@ -76,13 +77,19 @@ export const AnnotationInfoBoxTitleInput = ({
   }, [shortLabelValue]);
 
   const commitValue = (nextValue: string) => {
+    if (readOnly) {
+      setDraftValue(normalizeTitle(value));
+      return;
+    }
+
     const normalizedValue = normalizeTitle(nextValue);
     setDraftValue(normalizedValue);
     onCommit(normalizedValue);
   };
 
   const commitShortLabelValue = (nextValue: string) => {
-    if (!onShortLabelCommit) {
+    if (!onShortLabelCommit || readOnly) {
+      setDraftShortLabelValue(normalizeShortLabel(shortLabelValue ?? ""));
       return;
     }
 
@@ -151,6 +158,8 @@ export const AnnotationInfoBoxTitleInput = ({
         type="text"
         value={draftValue}
         placeholder={placeholder}
+        readOnly={readOnly}
+        aria-readonly={readOnly}
         className={resolvedVisualOptions.titleInputClassName}
         style={titleInputStyle}
         onMouseDown={stopPointerPropagation}
@@ -165,6 +174,8 @@ export const AnnotationInfoBoxTitleInput = ({
           type="text"
           value={draftShortLabelValue}
           placeholder={shortLabelPlaceholder}
+          readOnly={readOnly}
+          aria-readonly={readOnly}
           maxLength={annotationInfoBoxTitleInputDefaults.shortLabelMaxLength}
           className={resolvedVisualOptions.shortLabelInputClassName}
           style={shortLabelInputStyle}

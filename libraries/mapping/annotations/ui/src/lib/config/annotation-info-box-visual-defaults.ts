@@ -88,6 +88,7 @@ export const annotationInfoBoxVisualDefaults: AnnotationInfoBoxVisualOptions =
     },
     subtitleMetaTextClassName: `mt-[0.08em] whitespace-nowrap text-[${annotationInfoBoxTypographyDefaults.supportFontSizeRem}] leading-[1.1] font-semibold`,
     showSubtitleMetaText: true,
+    readOnly: false,
     bodyContainerClassName: "px-2 pb-2 pt-1",
     bodyTextStyle: {
       fontSize: annotationInfoBoxTypographyDefaults.rootFontSizeRem,

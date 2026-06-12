@@ -25,10 +25,8 @@ vi.mock("../../context/AnnotationsProvider", () => ({
   useAnnotationsRuntime: useAnnotationsRuntimeMock,
 }));
 
-import {
-  RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS,
-  useRuntimeAnnotationInfoBoxSlots,
-} from "./use-runtime-annotation-info-box-slots";
+import { RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS } from "./runtime-annotation-info-box-slots.types";
+import { useRuntimeAnnotationInfoBoxSlots } from "./use-runtime-annotation-info-box-slots";
 
 type AnnotationInfoBoxGetSlots = NonNullable<
   AnnotationToolPlugin["infoBox"]
@@ -77,16 +75,19 @@ const createRegistry = (
 
 const createAnnotation = ({
   id,
+  locked,
   readOnly = false,
   toolType,
 }: {
   id: string;
+  locked?: boolean;
   readOnly?: boolean;
   toolType: StoredAnnotation["toolType"];
 }): StoredAnnotation =>
   ({
     edgeIds: [],
     id,
+    locked,
     nodeIds: [],
     readOnly,
     toolType,
@@ -194,6 +195,8 @@ describe("useRuntimeAnnotationInfoBoxSlots", () => {
   });
 
   it("hides mutating actions for read-only annotations", () => {
+    const updateAnnotationDisplayName = vi.fn();
+    const updateAnnotationShortLabel = vi.fn();
     const annotation = createAnnotation({
       id: "distance-1",
       readOnly: true,
@@ -215,6 +218,8 @@ describe("useRuntimeAnnotationInfoBoxSlots", () => {
         annotationEntries: [annotation],
         registry: createRegistry([plugin]),
         selectedAnnotationId: annotation.id,
+        updateAnnotationDisplayName,
+        updateAnnotationShortLabel,
       })
     );
 
@@ -231,6 +236,7 @@ describe("useRuntimeAnnotationInfoBoxSlots", () => {
       expect.objectContaining({
         annotation,
         infoBoxVisualOptions: expect.objectContaining({
+          readOnly: true,
           hiddenActionIds: [
             ANNOTATION_INFO_BOX_ACTION_IDS.LOCK,
             ANNOTATION_INFO_BOX_ACTION_IDS.DELETE,
@@ -238,9 +244,51 @@ describe("useRuntimeAnnotationInfoBoxSlots", () => {
         }),
       })
     );
+    const context = getSlots.mock.calls[0][0];
+    context.updateAnnotationDisplayName(annotation.id, "Renamed");
+    context.updateAnnotationShortLabel(annotation.id, "R1");
+    expect(updateAnnotationDisplayName).not.toHaveBeenCalled();
+    expect(updateAnnotationShortLabel).not.toHaveBeenCalled();
   });
 
-  it("resolves active tool help text as fallback slots when requested", () => {
+  it("keeps the lock action visible for locked annotations while making fields read-only", () => {
+    const annotation = createAnnotation({
+      id: "distance-1",
+      locked: true,
+      toolType: ANNOTATION_TYPES.DISTANCE,
+    });
+    const slots = {
+      content: <span>Distance content</span>,
+    };
+    const getSlots = vi.fn(() => slots);
+    const plugin = createPlugin({
+      annotationType: ANNOTATION_TYPES.DISTANCE,
+      getSlots,
+      id: ANNOTATION_TYPES.DISTANCE,
+    });
+
+    useAnnotationsRuntimeMock.mockReturnValue(
+      createRuntime({
+        annotationEntries: [annotation],
+        registry: createRegistry([plugin]),
+        selectedAnnotationId: annotation.id,
+      })
+    );
+
+    renderHook(() => useRuntimeAnnotationInfoBoxSlots());
+
+    expect(getSlots).toHaveBeenCalledWith(
+      expect.objectContaining({
+        annotation,
+        infoBoxVisualOptions: expect.objectContaining({
+          readOnly: true,
+          hiddenActionIds: [],
+        }),
+      })
+    );
+  });
+
+  it("resolves active tool help text as authoring instruction slots when requested", () => {
     const plugin = createPlugin({
       helpText: ["Klick auf die Karte.", "Jeder weitere Klick misst neu."],
       id: ANNOTATION_TYPES.POINT,
@@ -255,13 +303,13 @@ describe("useRuntimeAnnotationInfoBoxSlots", () => {
 
     const { result } = renderHook(() =>
       useRuntimeAnnotationInfoBoxSlots({
-        includeFallback: true,
+        includeAuthoringInstruction: true,
       })
     );
 
     expect(result.current).toEqual(
       expect.objectContaining({
-        kind: RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS.FALLBACK,
+        kind: RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS.AUTHORING_INSTRUCTION,
         plugin,
         slots: expect.objectContaining({
           collapsible: false,
@@ -276,7 +324,7 @@ describe("useRuntimeAnnotationInfoBoxSlots", () => {
     expect(screen.getByText("Jeder weitere Klick misst neu.")).toBeTruthy();
   });
 
-  it("passes the configured locale into fallback help content", () => {
+  it("passes the configured locale into authoring instruction help content", () => {
     const plugin = createPlugin({
       helpText: [
         {
@@ -301,7 +349,7 @@ describe("useRuntimeAnnotationInfoBoxSlots", () => {
     const { result } = renderHook(() =>
       useRuntimeAnnotationInfoBoxSlots({
         helpLocale: "de-DE",
-        includeFallback: true,
+        includeAuthoringInstruction: true,
       })
     );
 
@@ -347,7 +395,7 @@ describe("useRuntimeAnnotationInfoBoxSlots", () => {
 
     const { result } = renderHook(() =>
       useRuntimeAnnotationInfoBoxSlots({
-        includeFallback: true,
+        includeAuthoringInstruction: true,
       })
     );
 
@@ -405,7 +453,7 @@ describe("useRuntimeAnnotationInfoBoxSlots", () => {
 
     const { result } = renderHook(() =>
       useRuntimeAnnotationInfoBoxSlots({
-        includeFallback: true,
+        includeAuthoringInstruction: true,
       })
     );
 
@@ -423,7 +471,7 @@ describe("useRuntimeAnnotationInfoBoxSlots", () => {
     expect(screen.getByText("Selected annotation content")).toBeTruthy();
   });
 
-  it("renders active tool draft feedback above fallback help text", () => {
+  it("renders active tool draft feedback above authoring instruction help text", () => {
     const plugin = createPlugin({
       helpText: ["Klick auf die Karte."],
       id: ANNOTATION_TYPES.POINT,
@@ -447,7 +495,7 @@ describe("useRuntimeAnnotationInfoBoxSlots", () => {
 
     const { result } = renderHook(() =>
       useRuntimeAnnotationInfoBoxSlots({
-        includeFallback: true,
+        includeAuthoringInstruction: true,
       })
     );
 
@@ -463,7 +511,7 @@ describe("useRuntimeAnnotationInfoBoxSlots", () => {
     expect(screen.getByText("Klick auf die Karte.")).toBeTruthy();
   });
 
-  it("resolves fallback help text from the active draft state when supported", () => {
+  it("resolves authoring instruction help text from the active draft state when supported", () => {
     const resolveHelpText = vi.fn(({ draftState }) => [
       `${draftState.coordinates.length} gesetzter Punkt`,
     ]);
@@ -493,7 +541,7 @@ describe("useRuntimeAnnotationInfoBoxSlots", () => {
 
     const { result } = renderHook(() =>
       useRuntimeAnnotationInfoBoxSlots({
-        includeFallback: true,
+        includeAuthoringInstruction: true,
       })
     );
 
@@ -512,7 +560,7 @@ describe("useRuntimeAnnotationInfoBoxSlots", () => {
     expect(screen.queryByText("Statischer Hinweis")).toBeNull();
   });
 
-  it("does not return fallback slots unless fallback rendering is enabled", () => {
+  it("does not return authoring instruction slots unless authoring instruction rendering is enabled", () => {
     const plugin = createPlugin({
       helpText: ["Klick auf die Karte."],
       id: ANNOTATION_TYPES.POINT,

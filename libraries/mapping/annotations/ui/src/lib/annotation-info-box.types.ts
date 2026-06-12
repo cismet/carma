@@ -37,6 +37,7 @@ export type AnnotationInfoBoxVisualOptions = Readonly<{
   subtitleMetaTextStyle: CSSProperties;
   subtitleMetaTextClassName: string;
   showSubtitleMetaText: boolean;
+  readOnly: boolean;
   bodyContainerClassName: string;
   bodyTextStyle: CSSProperties;
   bodyTextClassName: string;

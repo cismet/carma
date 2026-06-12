@@ -20,7 +20,6 @@ import {
   type PartialAnnotationLineLabelOptions,
   type AnnotationLineLabelOptions,
 } from "../config/annotation-line-label-options";
-import { shouldShowNodeInteractionTargets } from "./node-interaction-targets";
 import { buildVisualizerInputs } from "./visualizer-inputs";
 
 type UseMeasurementVisualizersArgs = {
@@ -35,13 +34,13 @@ type UseMeasurementVisualizersArgs = {
   formatOptions: AnnotationsRuntimeFormatOptions;
   lineLabelOptions?: PartialAnnotationLineLabelOptions;
   activeEditedNodeId: string | null;
-  isMoveGizmoDragging: boolean;
-  blockLabelInteractions: boolean;
+  isMoveGizmoDragging?: boolean;
   previewSnapTargetHoverEnabled?: boolean;
   onPreviewSnapTargetNodeClick?: (nodeId: string) => boolean;
   onMeasurementSelect?: (measurementId: string) => void;
   onNodeMeasurementsSelect?: (measurementIds: readonly string[]) => void;
   onNodeLongPress?: (nodeId: string, measurementId?: string) => void;
+  canStartNodeEditing?: (nodeId: string, measurementId?: string) => boolean;
   onReferenceNodeClick?: (nodeId: string) => boolean;
   onReferenceNodeHover?: (nodeId: string, hovered: boolean) => void;
   onReferenceEdgeClick?: (startNodeId: string, endNodeId: string) => boolean;
@@ -68,13 +67,13 @@ export const useMeasurementVisualizers = (
     formatOptions,
     lineLabelOptions,
     activeEditedNodeId,
-    isMoveGizmoDragging,
-    blockLabelInteractions,
+    isMoveGizmoDragging = false,
     previewSnapTargetHoverEnabled = false,
     onPreviewSnapTargetNodeClick,
     onMeasurementSelect,
     onNodeMeasurementsSelect,
     onNodeLongPress,
+    canStartNodeEditing,
     onReferenceNodeClick,
     onReferenceNodeHover,
     onReferenceEdgeClick,
@@ -90,8 +89,10 @@ export const useMeasurementVisualizers = (
   const previewSnapTargetsEnabled = Boolean(
     previewSnapTargetHoverEnabled && onPreviewSnapTargetNodeClick
   );
-  const interactionBlocked =
-    blockLabelInteractions || !enableHostInteractionTargets;
+  const blockEdgeInteractions =
+    !enableHostInteractionTargets ||
+    previewSnapTargetsEnabled ||
+    activeEditedNodeId !== null;
 
   useMeasurementEdgesController(scene, {
     edges,
@@ -101,7 +102,7 @@ export const useMeasurementVisualizers = (
     activeEditedNodeId: enableHostInteractionTargets
       ? activeEditedNodeId
       : null,
-    blockEdgeInteractions: interactionBlocked,
+    blockEdgeInteractions,
     onMeasurementSelect,
     onEdgeClick: onReferenceEdgeClick,
     insertNodeTargetMeasurementIds,
@@ -133,60 +134,43 @@ export const useMeasurementVisualizers = (
       (nodeLinkIdByNodeId.get(nodeId) ?? nodeId) === previewNodeLinkId,
     [nodeLinkIdByNodeId, previewNodeLinkId]
   );
-  const nodeInteractionHoverEnabled =
-    enableHostInteractionTargets &&
-    Boolean(onReferenceNodeHover) &&
-    ((activeEditedNodeId !== null && !isMoveGizmoDragging) ||
-      previewSnapTargetsEnabled);
-  const hasNodeInteractionHandlers = Boolean(
-    onMeasurementSelect ||
-      onNodeLongPress ||
-      onReferenceNodeClick ||
-      onReferenceNodeHover ||
-      onPreviewSnapTargetNodeClick
+  const referenceNodeInteractionsEnabled =
+    activeEditedNodeId !== null && !isMoveGizmoDragging;
+  const referenceNodeClickEnabled = Boolean(
+    referenceNodeInteractionsEnabled && onReferenceNodeClick
   );
-  const nodeLongPressInteractionEnabled = Boolean(onNodeLongPress);
-  const showNodeInteractionTargets = shouldShowNodeInteractionTargets({
-    enableHostInteractionTargets,
-    hasNodeInteractionHandlers,
-    nodeInteractionHoverEnabled,
-    nodeLongPressInteractionEnabled,
-    blockLabelInteractions,
-  });
+  const referenceNodeHoverEnabled = Boolean(
+    referenceNodeInteractionsEnabled && onReferenceNodeHover
+  );
   const visualizerInputs = useMemo(
     () =>
       buildVisualizerInputs({
         points,
         pointLabels,
         selectedAnnotationIdSet,
-        showNodeInteractionTargets,
-        nodeInteractionHoverEnabled,
         previewSnapTargetsEnabled,
-        blockLabelInteractions,
-        activeEditedNodeId,
-        isMoveGizmoDragging,
+        referenceNodeClickEnabled,
+        referenceNodeHoverEnabled,
         nodeLinkIdByNodeId,
         previewNodeLinkId,
         isInPreviewNodeLink,
         onMeasurementSelect,
         onNodeMeasurementsSelect,
         onNodeLongPress,
+        canStartNodeEditing,
         onPreviewSnapTargetNodeClick,
         onReferenceNodeClick,
         onReferenceNodeHover,
         enableHostInteractionTargets,
       }),
     [
-      activeEditedNodeId,
-      blockLabelInteractions,
       enableHostInteractionTargets,
       isInPreviewNodeLink,
-      isMoveGizmoDragging,
-      nodeInteractionHoverEnabled,
       nodeLinkIdByNodeId,
       onMeasurementSelect,
       onNodeMeasurementsSelect,
       onNodeLongPress,
+      canStartNodeEditing,
       onPreviewSnapTargetNodeClick,
       onReferenceNodeClick,
       onReferenceNodeHover,
@@ -194,8 +178,9 @@ export const useMeasurementVisualizers = (
       points,
       previewNodeLinkId,
       previewSnapTargetsEnabled,
+      referenceNodeClickEnabled,
+      referenceNodeHoverEnabled,
       selectedAnnotationIdSet,
-      showNodeInteractionTargets,
     ]
   );
 
@@ -208,7 +193,6 @@ export const useMeasurementVisualizers = (
   usePointLabelVisualizer(
     scene,
     visualizerInputs.pointLabels,
-    interactionBlocked,
     isInPreviewNodeLink,
     `${surfaceKey}-runtime-point-label`,
     resolvedAnnotationLineLabelOptions

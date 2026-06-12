@@ -13,7 +13,7 @@ import type { RuntimeAnnotationInfoBoxSlotsState } from "@carma-mapping/annotati
 
 const runtimeAnnotationInfoBoxSlotStateKindsMock = vi.hoisted(() => ({
   ANNOTATION: "annotation",
-  FALLBACK: "fallback",
+  AUTHORING_INSTRUCTION: "authoringInstruction",
 }));
 const annotationInfoBoxContainerMock = vi.hoisted(() => vi.fn());
 const cismapAnnotationInfoBoxMock = vi.hoisted(() => vi.fn());
@@ -108,7 +108,7 @@ const createFallbackState = (
   visualOptions: object = {}
 ): RuntimeAnnotationInfoBoxSlotsState =>
   ({
-    kind: runtimeAnnotationInfoBoxSlotStateKindsMock.FALLBACK,
+    kind: runtimeAnnotationInfoBoxSlotStateKindsMock.AUTHORING_INSTRUCTION,
     plugin: {
       id: ANNOTATION_SELECT_TOOL_ID,
     },

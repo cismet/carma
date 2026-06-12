@@ -213,16 +213,6 @@ export const usePointEditingGizmo = (
     onActiveEditedNodeIdChange,
   }: UsePointEditingGizmoOptions
 ) => {
-  const isNodeLocked = useCallback(
-    (nodeId: string) =>
-      annotationsStore
-        .getState()
-        .annotationEntries.some(
-          (annotationEntry) =>
-            annotationEntry.locked && annotationEntry.nodeIds.includes(nodeId)
-        ),
-    [annotationsStore]
-  );
   const [activeEditedNodeId, setActiveEditedNodeId] = useState<string | null>(
     null
   );
@@ -539,10 +529,6 @@ export const usePointEditingGizmo = (
 
   const handleNodeLongPress = useCallback(
     (nodeId: string) => {
-      if (isNodeLocked(nodeId)) {
-        return;
-      }
-
       if (activeEditedNodeId && activeEditedNodeId !== nodeId) {
         commitDraftNodeCoordinateOverrides(activeEditedNodeId);
       }
@@ -550,7 +536,7 @@ export const usePointEditingGizmo = (
       setAxisOverride(null);
       setActiveEditedNodeId(nodeId);
     },
-    [activeEditedNodeId, commitDraftNodeCoordinateOverrides, isNodeLocked]
+    [activeEditedNodeId, commitDraftNodeCoordinateOverrides]
   );
 
   const nodesById = useMemo(
@@ -700,6 +686,24 @@ export const usePointEditingGizmo = (
     [effectiveNodes]
   );
 
+  const handleGizmoPointPositionChange = useCallback(
+    (
+      nodeId: string,
+      nextPosition: Cartesian3,
+      screenPosition?: CesiumGizmoScreenPosition
+    ) => {
+      setDraftCoordinateForScopedMove(
+        nodeId,
+        geographicCoordinateFromCartesian3(nextPosition),
+        {
+          screenPosition,
+          rememberBaseCoordinate: true,
+        }
+      );
+    },
+    [setDraftCoordinateForScopedMove]
+  );
+
   useCesiumPointMoveGizmo(scene, {
     points: gizmoPoints,
     movePointId: activeEditedNodeId,
@@ -712,20 +716,7 @@ export const usePointEditingGizmo = (
     showRotationHandle: false,
     snapPlaneDragToGround: activePlanarAreaEditPlane === null,
     onDragStateChange: handleGizmoDragStateChange,
-    onPointPositionChange: (nodeId, nextPosition, screenPosition) => {
-      if (isNodeLocked(nodeId)) {
-        return;
-      }
-
-      setDraftCoordinateForScopedMove(
-        nodeId,
-        geographicCoordinateFromCartesian3(nextPosition),
-        {
-          screenPosition,
-          rememberBaseCoordinate: true,
-        }
-      );
-    },
+    onPointPositionChange: handleGizmoPointPositionChange,
     onExit: () => {
       commitDraftNodeCoordinateOverrides(activeEditedNodeId);
       isMoveGizmoDraggingRef.current = false;
@@ -740,20 +731,12 @@ export const usePointEditingGizmo = (
       clearDraftNodeCoordinateOverrides();
       return;
     }
-    if (
-      !effectiveNodes.some((node) => node.id === activeEditedNodeId) ||
-      isNodeLocked(activeEditedNodeId)
-    ) {
+    if (!effectiveNodes.some((node) => node.id === activeEditedNodeId)) {
       clearDraftNodeCoordinateOverrides();
       setAxisOverride(null);
       setActiveEditedNodeId(null);
     }
-  }, [
-    activeEditedNodeId,
-    clearDraftNodeCoordinateOverrides,
-    effectiveNodes,
-    isNodeLocked,
-  ]);
+  }, [activeEditedNodeId, clearDraftNodeCoordinateOverrides, effectiveNodes]);
 
   useEffect(() => {
     if (activeEditedNodeId) {

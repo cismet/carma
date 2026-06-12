@@ -65,17 +65,10 @@ export const resolveAnnotationNodeMoveScope = ({
       : selectedLinkedNodeIds.length > 0
       ? selectedLinkedNodeIds
       : [...nodeLinkNodeIds];
-  const lockedNodeIdSet = new Set(
-    annotationEntries
-      .filter((annotationEntry) => annotationEntry.locked)
-      .flatMap((annotationEntry) => annotationEntry.nodeIds)
-  );
 
   return {
     targetNode,
     targetLinkedNodeGroup: targetNodeLink,
-    movedNodeIds: scopedMovedNodeIds.filter(
-      (movedNodeId) => !lockedNodeIdSet.has(movedNodeId)
-    ),
+    movedNodeIds: scopedMovedNodeIds,
   };
 };

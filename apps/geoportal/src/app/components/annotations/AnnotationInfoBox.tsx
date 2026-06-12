@@ -63,11 +63,11 @@ const AnnotationInfoBox = ({
     : CESIUM_ANNOTATION_CONFIG.tools.stableToolIds;
   const isMeasurementMode = uiMode === UIMode.MEASUREMENT;
   const infoBoxState = useRuntimeAnnotationInfoBoxSlots({
-    fallbackHelpLayout: isCesium
+    authoringInstructionHelpLayout: isCesium
       ? ANNOTATION_INFO_BOX_HELP_LAYOUTS.COMPACT
       : undefined,
     helpLocale: GEOPORTAL_ANNOTATION_HELP_LOCALE,
-    includeFallback: isMeasurementMode,
+    includeAuthoringInstruction: isMeasurementMode,
     visualOptions: resolveGeoportalAnnotationInfoBoxVisualOptions,
   });
   const resolvedInfoBoxState = resolveGeoportalInfoBoxState(infoBoxState);

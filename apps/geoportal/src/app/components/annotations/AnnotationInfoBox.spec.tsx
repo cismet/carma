@@ -70,7 +70,7 @@ vi.mock("@carma-mapping/annotations/runtime", async (importOriginal) => {
     ...actual,
     RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS: {
       ANNOTATION: "annotation",
-      FALLBACK: "fallback",
+      AUTHORING_INSTRUCTION: "authoringInstruction",
     },
     useRuntimeAnnotationInfoBoxSlots: (options: unknown) =>
       useRuntimeAnnotationInfoBoxSlotsMock(options),
@@ -277,9 +277,9 @@ describe("AnnotationInfoBox", () => {
     );
   });
 
-  it("requests compact German fallback help in Cesium", () => {
+  it("requests compact German authoring instruction help in Cesium", () => {
     useRuntimeAnnotationInfoBoxSlotsMock.mockReturnValue({
-      kind: "fallback",
+      kind: "authoringInstruction",
       plugin: {
         id: "select",
       },
@@ -297,7 +297,7 @@ describe("AnnotationInfoBox", () => {
 
     expect(useRuntimeAnnotationInfoBoxSlotsMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        fallbackHelpLayout: "compact",
+        authoringInstructionHelpLayout: "compact",
         helpLocale: "de-DE",
       })
     );
@@ -346,12 +346,12 @@ describe("AnnotationInfoBox", () => {
     );
   });
 
-  it("does not request compact fallback help layout outside Cesium", () => {
+  it("does not request compact authoring instruction help layout outside Cesium", () => {
     useMapFrameworkSwitcherContextMock.mockReturnValue({
       isCesium: false,
     });
     useRuntimeAnnotationInfoBoxSlotsMock.mockReturnValue({
-      kind: "fallback",
+      kind: "authoringInstruction",
       plugin: {
         id: "select",
       },
@@ -369,7 +369,7 @@ describe("AnnotationInfoBox", () => {
 
     expect(useRuntimeAnnotationInfoBoxSlotsMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        fallbackHelpLayout: undefined,
+        authoringInstructionHelpLayout: undefined,
         helpLocale: "de-DE",
       })
     );

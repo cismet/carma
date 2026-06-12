@@ -86,14 +86,17 @@ export const RuntimeVisualHost = ({
   const allAnnotationEntries = useAnnotationsSelector(
     (annotationsState) => annotationsState.annotationEntries
   );
-  const annotationEntries = useMemo(
-    () =>
-      selectRenderableAnnotationEntries(
-        { annotationEntries: allAnnotationEntries },
-        { roles: visualAnnotationEntryRoles }
-      ),
-    [allAnnotationEntries, visualAnnotationEntryRoles]
-  );
+  const annotationEntries = useMemo(() => {
+    const renderableAnnotationEntries = selectRenderableAnnotationEntries(
+      { annotationEntries: allAnnotationEntries },
+      { roles: visualAnnotationEntryRoles }
+    );
+    return renderableAnnotationEntries.map((annotationEntry) =>
+      annotationEntry.readOnly && !annotationEntry.locked
+        ? { ...annotationEntry, locked: true }
+        : annotationEntry
+    );
+  }, [allAnnotationEntries, visualAnnotationEntryRoles]);
   const selectedAnnotationId = useAnnotationsSelector(
     selectSelectedAnnotationId
   );
@@ -157,6 +160,18 @@ export const RuntimeVisualHost = ({
       );
     },
     [annotationsStore, isSelectionAdditiveModifierPressed]
+  );
+  const canStartNodeEditing = useCallback(
+    (nodeId: string, annotationId?: string) => {
+      return annotationEntries.some(
+        (annotationEntry) =>
+          (!annotationId || annotationEntry.id === annotationId) &&
+          annotationEntry.nodeIds.includes(nodeId) &&
+          !annotationEntry.locked &&
+          !annotationEntry.readOnly
+      );
+    },
+    [annotationEntries]
   );
   const {
     draftNodeCoordinateOverrides,
@@ -235,6 +250,7 @@ export const RuntimeVisualHost = ({
         onMeasurementSelect={handleMeasurementSelection}
         onNodeMeasurementsSelect={handleNodeMeasurementsSelection}
         onNodeLongPress={handleNodeLongPress}
+        canStartNodeEditing={canStartNodeEditing}
         onReferenceNodeClick={handleReferenceNodeClick}
         onReferenceNodeHover={handleReferenceNodeHover}
         onPreviewNodeHover={handlePreviewSnapTargetNodeHover}

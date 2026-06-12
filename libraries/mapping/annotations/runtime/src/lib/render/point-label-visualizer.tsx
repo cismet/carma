@@ -212,7 +212,6 @@ const resolveEffectivePointLabelCoordinateCandidate = ({
 export const usePointLabelVisualizer = (
   scene: Scene | null,
   labels: readonly RuntimePointLabelRenderModel[],
-  blockLabelInteractions: boolean = false,
   isInPreviewNodeLink?: (nodeId?: string) => boolean,
   overlayIdPrefix: string = "runtime-point-label",
   areaLabelLineOptions: AnnotationLineLabelOptions = annotationLineLabelDefaults
@@ -481,10 +480,10 @@ export const usePointLabelVisualizer = (
       labels.filter(
         (label) =>
           !label.hideLabelAndStem ||
-          label.allowClickWhenBlocked === true ||
-          (Boolean(label.onHoverChange) && label.markerOnlyPointerEvents) ||
-          (label.allowLongPressWhenBlocked === true &&
-            label.markerOnlyPointerEvents === true)
+          (label.markerOnlyPointerEvents === true &&
+            (Boolean(label.onClick) ||
+              Boolean(label.onHoverChange) ||
+              Boolean(label.onLongPress)))
       ),
     [labels]
   );
@@ -518,8 +517,6 @@ export const usePointLabelVisualizer = (
     const nextLabelIds = new Set<string>();
 
     normalizedLabels.forEach((label) => {
-      const clickBlocked =
-        blockLabelInteractions && label.allowClickWhenBlocked !== true;
       const isLineBlendLabel =
         label.renderStyle === RUNTIME_POINT_LABEL_RENDER_STYLE.LINE_BLEND;
       const areaLabelSurfaceBlendMode =
@@ -571,13 +568,10 @@ export const usePointLabelVisualizer = (
           (label.anchorKind === POINT_LABEL_ANCHOR_KIND.AREA_CENTROID
             ? areaLabelSurfaceBlendMode
             : undefined),
-        onClick: clickBlocked ? undefined : label.onClick,
-        onDoubleClick: blockLabelInteractions ? undefined : label.onDoubleClick,
+        onClick: label.onClick,
+        onDoubleClick: label.onDoubleClick,
         onHoverChange: label.onHoverChange,
-        onLongPress:
-          blockLabelInteractions && !label.allowLongPressWhenBlocked
-            ? undefined
-            : label.onLongPress,
+        onLongPress: label.onLongPress,
         markerOnlyPointerEvents: label.markerOnlyPointerEvents,
         longPressDurationMs: label.longPressDurationMs,
         longPressOnlyOnMarker:
@@ -693,7 +687,6 @@ export const usePointLabelVisualizer = (
     }
   }, [
     addLabelOverlayElement,
-    blockLabelInteractions,
     normalizedLabels,
     overlayIdPrefix,
     areaLabelLineOptions,

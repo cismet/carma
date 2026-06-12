@@ -10,12 +10,13 @@ import { ANNOTATION_ENTRY_ROLES, type StoredAnnotation } from "../store";
 import {
   areAnnotationEntriesHidden,
   buildExternalAnnotationsAppendOptions,
+  isReadOnlyAnnotationEntry,
   resolveAnnotationCancelToolId,
   resolveAnnotationCountByToolType,
   resolveAnnotationEntriesByToolType,
   resolveAnnotationEntryRole,
   resolveAnnotationIdsByToolType,
-  resolveAnnotationToolFallbackPlugin,
+  resolveAnnotationToolAuthoringInstructionPlugin,
   resolvePrimaryAnnotationInteractionToolId,
   resolveVisibleMeasurementAnnotationToolPlugins,
   selectAuthoringAnnotationEntries,
@@ -48,12 +49,14 @@ const createAnnotation = ({
   annotationRole,
   hidden = false,
   id,
+  locked,
   readOnly,
   toolType,
 }: {
   annotationRole?: StoredAnnotation["annotationRole"];
   hidden?: boolean;
   id: string;
+  locked?: boolean;
   readOnly?: boolean;
   toolType: StoredAnnotation["toolType"];
 }): StoredAnnotation =>
@@ -61,6 +64,7 @@ const createAnnotation = ({
     annotationRole,
     hidden,
     id,
+    locked,
     nodeIds: [],
     readOnly,
     toolType,
@@ -219,6 +223,27 @@ describe("annotation-tool-collections", () => {
     ).toEqual(["b"]);
   });
 
+  it("keeps read-only state independent from external role", () => {
+    const externalEntry = {
+      ...createAnnotation({ id: "a", toolType: ANNOTATION_TYPES.DISTANCE }),
+      externalCollection: {
+        type: "saved-measurement" as const,
+        id: "measurement-3d-abc",
+      },
+    } as StoredAnnotation;
+    const readOnlyEntry = createAnnotation({
+      id: "b",
+      readOnly: true,
+      toolType: ANNOTATION_TYPES.DISTANCE,
+    });
+
+    expect(resolveAnnotationEntryRole(externalEntry)).toBe(
+      ANNOTATION_ENTRY_ROLES.EXTERNAL
+    );
+    expect(isReadOnlyAnnotationEntry(externalEntry)).toBe(false);
+    expect(isReadOnlyAnnotationEntry(readOnlyEntry)).toBe(true);
+  });
+
   it("builds canonical append options for external annotation collections", () => {
     const externalCollection = {
       type: "saved-measurement" as const,
@@ -235,7 +260,7 @@ describe("annotation-tool-collections", () => {
     });
   });
 
-  it("resolves interaction and fallback plugins", () => {
+  it("resolves interaction and authoring instruction plugins", () => {
     const selectPlugin = createPlugin({
       id: ANNOTATION_SELECT_TOOL_ID,
       kind: ANNOTATION_TOOL_PLUGIN_KINDS.INTERACTION,
@@ -259,11 +284,31 @@ describe("annotation-tool-collections", () => {
       ANNOTATION_SELECT_TOOL_ID
     );
     expect(
-      resolveAnnotationToolFallbackPlugin({
+      resolveAnnotationToolAuthoringInstructionPlugin({
         activeToolType: ANNOTATION_TYPES.POINT,
         registry,
       })
     ).toBe(selectPlugin);
+  });
+
+  it("does not invent an authoring instruction plugin when active and default tools are unavailable", () => {
+    const interactionPlugin = createPlugin({
+      id: ANNOTATION_TYPES.POLYLINE,
+      kind: ANNOTATION_TOOL_PLUGIN_KINDS.INTERACTION,
+      order: 1,
+    });
+    const registry = {
+      plugins: [interactionPlugin],
+      getPlugin: (id: string) =>
+        [interactionPlugin].find((plugin) => plugin.id === id),
+    } as unknown as AnnotationToolRegistry;
+
+    expect(
+      resolveAnnotationToolAuthoringInstructionPlugin({
+        activeToolType: ANNOTATION_TYPES.POINT,
+        registry,
+      })
+    ).toBeNull();
   });
 
   it("falls back to the first interaction tool when select is unavailable", () => {

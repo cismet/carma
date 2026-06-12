@@ -378,7 +378,7 @@ export const useAnnotationsAssembly = ({
         )
         .filter(
           (annotation): annotation is StoredAnnotation =>
-            annotation !== null && !annotation.locked
+            annotation !== null && !annotation.locked && !annotation.readOnly
         );
 
       if (targetAnnotations.length === 0) {
@@ -401,7 +401,9 @@ export const useAnnotationsAssembly = ({
             )
             .filter(
               (annotation): annotation is StoredAnnotation =>
-                annotation !== null && !annotation.locked
+                annotation !== null &&
+                !annotation.locked &&
+                !annotation.readOnly
             )
             .map((annotation) => annotation.id);
 
@@ -430,7 +432,7 @@ export const useAnnotationsAssembly = ({
         annotationsStore.getState().annotationEntries,
         annotationId
       );
-      if (targetEntry?.locked) {
+      if (!targetEntry || targetEntry.locked || targetEntry.readOnly) {
         return;
       }
 
@@ -462,6 +464,7 @@ export const useAnnotationsAssembly = ({
     const candidateAnnotations = runtimeState.annotationEntries.filter(
       (annotation) =>
         !annotation.locked &&
+        !annotation.readOnly &&
         annotation.nodeIds.includes(activeEditedNodeId) &&
         resolveMinimumNodeCountForAnnotation(annotation) !== null
     );
@@ -631,7 +634,7 @@ export const useAnnotationsAssembly = ({
         annotationsStore.getState().annotationEntries,
         annotationId
       );
-      if (!targetEntry) {
+      if (!targetEntry || targetEntry.readOnly) {
         return;
       }
 
@@ -662,6 +665,14 @@ export const useAnnotationsAssembly = ({
 
   const updateAnnotationDisplayName = useCallback(
     (annotationId: string, displayName: string) => {
+      const targetEntry = findAnnotationEntryById(
+        annotationsStore.getState().annotationEntries,
+        annotationId
+      );
+      if (!targetEntry || targetEntry.locked || targetEntry.readOnly) {
+        return;
+      }
+
       annotationsStore.dispatch(
         updateAnnotationEntryById({
           annotationId,
@@ -674,6 +685,14 @@ export const useAnnotationsAssembly = ({
 
   const updateAnnotationShortLabel = useCallback(
     (annotationId: string, shortLabel: string) => {
+      const targetEntry = findAnnotationEntryById(
+        annotationsStore.getState().annotationEntries,
+        annotationId
+      );
+      if (!targetEntry || targetEntry.locked || targetEntry.readOnly) {
+        return;
+      }
+
       annotationsStore.dispatch(
         updateAnnotationEntryById({
           annotationId,

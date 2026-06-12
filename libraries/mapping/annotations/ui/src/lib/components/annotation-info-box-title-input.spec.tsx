@@ -64,9 +64,7 @@ describe("AnnotationInfoBoxTitleInput", () => {
       />
     );
 
-    const input = screen.getByDisplayValue(
-      shortLabelValue
-    ) as HTMLInputElement;
+    const input = screen.getByDisplayValue(shortLabelValue) as HTMLInputElement;
 
     expect(input.maxLength).toBe(64);
     expect(input.style.width).toBe(`${shortLabelValue.length + 0.5}ch`);
@@ -122,5 +120,38 @@ describe("AnnotationInfoBoxTitleInput", () => {
 
     expect(input.value).toBe("A B");
     expect(onShortLabelCommit).toHaveBeenCalledWith("A B");
+  });
+
+  it("does not commit title or short-label changes while read-only", () => {
+    const onCommit = vi.fn();
+    const onShortLabelCommit = vi.fn();
+
+    render(
+      <AnnotationInfoBoxTitleInput
+        value="Distanzmessung"
+        placeholder="Distanzmessung"
+        readOnly
+        shortLabelValue="D1"
+        shortLabelPlaceholder="D1"
+        onCommit={onCommit}
+        onShortLabelCommit={onShortLabelCommit}
+      />
+    );
+
+    const titleInput = screen.getByDisplayValue(
+      "Distanzmessung"
+    ) as HTMLInputElement;
+    const shortLabelInput = screen.getByDisplayValue("D1") as HTMLInputElement;
+
+    expect(titleInput.readOnly).toBe(true);
+    expect(shortLabelInput.readOnly).toBe(true);
+
+    fireEvent.change(titleInput, { target: { value: "Neu" } });
+    fireEvent.blur(titleInput);
+    fireEvent.change(shortLabelInput, { target: { value: "N1" } });
+    fireEvent.blur(shortLabelInput);
+
+    expect(onCommit).not.toHaveBeenCalled();
+    expect(onShortLabelCommit).not.toHaveBeenCalled();
   });
 });

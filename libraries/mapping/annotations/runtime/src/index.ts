@@ -12,14 +12,14 @@ export {
 } from "./lib/components/RuntimeAnnotationsToolbar";
 export { RuntimeAnnotationInfoBox } from "./lib/components/annotation-info-box/RuntimeAnnotationInfoBox";
 export {
-  useRuntimeAnnotationInfoBoxSlots,
   RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS,
   type RuntimeAnnotationInfoBoxSlotsState,
   type RuntimeAnnotationInfoBoxSlotStateKind,
   type RuntimeAnnotationInfoBoxVisualOptionsContext,
   type RuntimeAnnotationInfoBoxVisualOptionsInput,
   type UseRuntimeAnnotationInfoBoxSlotsOptions,
-} from "./lib/components/annotation-info-box/use-runtime-annotation-info-box-slots";
+} from "./lib/components/annotation-info-box/runtime-annotation-info-box-slots.types";
+export { useRuntimeAnnotationInfoBoxSlots } from "./lib/components/annotation-info-box/use-runtime-annotation-info-box-slots";
 export {
   ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE,
   ANNOTATION_MEASUREMENT_TEXT_COLOR,
@@ -284,7 +284,7 @@ export {
   resolveAnnotationCountByToolType,
   resolveAnnotationEntriesByToolType,
   resolveAnnotationIdsByToolType,
-  resolveAnnotationToolFallbackPlugin,
+  resolveAnnotationToolAuthoringInstructionPlugin,
   resolvePrimaryAnnotationInteractionToolId,
   resolveVisibleMeasurementAnnotationToolPlugins,
   selectAuthoringAnnotationEntries,
