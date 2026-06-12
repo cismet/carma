@@ -9,6 +9,7 @@ import { FORMAT_LOCALE, LENGTH_UNIT_MODE } from "@carma-units";
 
 import type {
   AddAnnotationOptions,
+  AnnotationEntryRole,
   AnnotationElevationDisplayMode,
   CesiumGeographicCoordinate,
   StoredAnnotation,
@@ -126,6 +127,7 @@ type AnnotationsProviderProps = {
   renderEnabled?: boolean;
   visualRenderEnabled?: boolean;
   visualInteractionEnabled?: boolean;
+  visualAnnotationEntryRoles?: readonly AnnotationEntryRole[];
   formatOptions?: AnnotationsRuntimeFormatOptions;
   lineLabelOptions?: PartialAnnotationLineLabelOptions;
   initialPersistenceState?: AnnotationsRuntimePersistenceEnvelope | null;
@@ -196,6 +198,7 @@ export const AnnotationsProvider = ({
   renderEnabled = true,
   visualRenderEnabled,
   visualInteractionEnabled,
+  visualAnnotationEntryRoles,
   formatOptions = DEFAULT_RUNTIME_FORMAT_OPTIONS,
   lineLabelOptions = DEFAULT_ANNOTATION_LINE_LABEL_OPTIONS,
   initialPersistenceState,
@@ -266,6 +269,7 @@ export const AnnotationsProvider = ({
         {visualRenderEnabled ?? renderEnabled ? (
           <RuntimeVisualHost
             {...runtimeVisualHost}
+            visualAnnotationEntryRoles={visualAnnotationEntryRoles}
             visualInteractionEnabled={visualInteractionEnabled}
           />
         ) : null}

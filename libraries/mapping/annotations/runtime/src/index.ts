@@ -293,4 +293,5 @@ export {
 export type {
   AppendAnnotationsRuntimePersistenceStateOptions,
   ResolveVisibleMeasurementAnnotationToolPluginsOptions,
+  SelectRenderableAnnotationEntriesOptions,
 } from "./lib/utils/annotation-tool-collections";

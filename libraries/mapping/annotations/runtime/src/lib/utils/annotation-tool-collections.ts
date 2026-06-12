@@ -9,6 +9,7 @@ import {
 } from "../registry";
 import {
   ANNOTATION_ENTRY_ROLES,
+  type AnnotationEntryRole,
   type AnnotationsStoreState,
   type StoredAnnotation,
 } from "../store";
@@ -116,9 +117,23 @@ export const selectAuthoringAnnotationEntries = (
       ANNOTATION_ENTRY_ROLES.AUTHORING
   );
 
+export type SelectRenderableAnnotationEntriesOptions = {
+  roles?: readonly AnnotationEntryRole[];
+};
+
 export const selectRenderableAnnotationEntries = (
-  state: Pick<AnnotationsStoreState, "annotationEntries">
-): readonly StoredAnnotation[] => state.annotationEntries;
+  state: Pick<AnnotationsStoreState, "annotationEntries">,
+  options: SelectRenderableAnnotationEntriesOptions = {}
+): readonly StoredAnnotation[] => {
+  if (options.roles === undefined) {
+    return state.annotationEntries;
+  }
+
+  const roleSet = new Set(options.roles);
+  return state.annotationEntries.filter((annotationEntry) =>
+    roleSet.has(resolveAnnotationEntryRole(annotationEntry))
+  );
+};
 
 export const resolveAnnotationCountByToolType = (
   annotationEntries: readonly StoredAnnotation[]

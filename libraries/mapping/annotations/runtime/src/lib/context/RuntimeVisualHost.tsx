@@ -6,6 +6,7 @@ import type { PartialAnnotationLineLabelOptions } from "../config/annotation-lin
 import { useAnnotationToolDraftStates } from "./use-annotation-tool-draft-states";
 import {
   type AnnotationElevationDisplayMode,
+  type AnnotationEntryRole,
   type AnnotationsStore,
   selectSelectedAnnotationId,
   setSelectedAnnotationIds,
@@ -43,6 +44,7 @@ type RuntimeVisualHostProps = {
   formatOptions: AnnotationsRuntimeFormatOptions;
   lineLabelOptions: PartialAnnotationLineLabelOptions;
   visualInteractionEnabled?: boolean;
+  visualAnnotationEntryRoles?: readonly AnnotationEntryRole[];
 };
 
 export const RuntimeVisualHost = ({
@@ -59,6 +61,7 @@ export const RuntimeVisualHost = ({
   formatOptions,
   lineLabelOptions,
   visualInteractionEnabled = false,
+  visualAnnotationEntryRoles,
 }: RuntimeVisualHostProps) => {
   const activeToolType = useAnnotationsSelector(
     (annotationsState) => annotationsState.annotationToolType
@@ -80,8 +83,16 @@ export const RuntimeVisualHost = ({
   const edges = useAnnotationsSelector(
     (annotationsState) => annotationsState.edges
   );
-  const annotationEntries = useAnnotationsSelector(
-    selectRenderableAnnotationEntries
+  const allAnnotationEntries = useAnnotationsSelector(
+    (annotationsState) => annotationsState.annotationEntries
+  );
+  const annotationEntries = useMemo(
+    () =>
+      selectRenderableAnnotationEntries(
+        { annotationEntries: allAnnotationEntries },
+        { roles: visualAnnotationEntryRoles }
+      ),
+    [allAnnotationEntries, visualAnnotationEntryRoles]
   );
   const selectedAnnotationId = useAnnotationsSelector(
     selectSelectedAnnotationId

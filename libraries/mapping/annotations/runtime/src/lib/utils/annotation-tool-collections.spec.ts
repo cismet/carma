@@ -174,6 +174,24 @@ describe("annotation-tool-collections", () => {
     ).toEqual(["a", "b"]);
   });
 
+  it("limits renderable annotation entries by role when requested", () => {
+    const entries = [
+      createAnnotation({ id: "a", toolType: ANNOTATION_TYPES.DISTANCE }),
+      createAnnotation({
+        annotationRole: ANNOTATION_ENTRY_ROLES.EXTERNAL,
+        id: "b",
+        toolType: ANNOTATION_TYPES.DISTANCE,
+      }),
+    ];
+
+    expect(
+      selectRenderableAnnotationEntries(
+        { annotationEntries: entries },
+        { roles: [ANNOTATION_ENTRY_ROLES.EXTERNAL] }
+      ).map((entry) => entry.id)
+    ).toEqual(["b"]);
+  });
+
   it("derives the external role from collection membership when no role is set", () => {
     const externalCollection = {
       type: "saved-measurement" as const,

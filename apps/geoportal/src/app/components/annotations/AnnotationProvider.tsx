@@ -15,6 +15,7 @@ import {
 import { ANNOTATION_SELECT_TOOL_ID } from "@carma-mapping/annotations/core";
 import { createDefaultAnnotationToolPlugins } from "@carma-mapping/annotations/builtin-tools";
 import {
+  ANNOTATION_ENTRY_ROLES,
   AnnotationsProvider,
   buildExternalAnnotationsAppendOptions,
   resolveAnnotationsRuntimePersistenceFromGeoJson,
@@ -47,6 +48,10 @@ import {
 type AnnotationProviderProps = {
   children: ReactNode;
 };
+
+const EXTERNAL_ANNOTATION_ENTRY_ROLES = [
+  ANNOTATION_ENTRY_ROLES.EXTERNAL,
+] as const;
 
 type PendingAnnotationDeleteConfirmation = {
   annotationCount: number;
@@ -261,6 +266,11 @@ export function AnnotationProvider({ children }: AnnotationProviderProps) {
       }}
       renderEnabled={annotationsVisible}
       visualRenderEnabled={annotationsVisible || savedAnnotationsVisible}
+      visualAnnotationEntryRoles={
+        !annotationsVisible && savedAnnotationsVisible
+          ? EXTERNAL_ANNOTATION_ENTRY_ROLES
+          : undefined
+      }
       visualInteractionEnabled={savedAnnotationsVisible}
       confirmAnnotationDelete={confirmAnnotationDelete}
     >
