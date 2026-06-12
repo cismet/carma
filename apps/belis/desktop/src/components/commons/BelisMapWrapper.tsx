@@ -1344,86 +1344,134 @@ const BelisMapLibWrapper = ({
       showDebugBounds: showRaw,
     });
 
-  // Sibling Leuchten of a Standort that has an open Leuchten-deletion override.
-  // The map cascade-hides every Leuchte of such a Standort so the single
-  // synthetic icon replaces the whole stacked cluster — but that also drops the
-  // siblings from `useVisibleMapFeatures` (queryRenderedFeatures respects the
-  // layer filter), which would otherwise leave the Fachobjekte cluster showing
-  // only the deleted row (you couldn't see — let alone delete — the rest).
+  // When a Standort has an open Leuchten-deletion override, the map cascade-hides
+  // the original Standort header AND all its Leuchten so the single synthetic
+  // red icon replaces the whole stacked cluster. But the sidebar list is derived
+  // from `useVisibleMapFeatures` (queryRenderedFeatures), so those rows would
+  // drop out of the sidebar the moment the hide filter repaints — then a synthetic
+  // header + re-captured siblings would settle back in over the following ticks.
+  // That multi-tick churn is exactly the flicker the user sees in the sidebar.
   //
-  // Capture them straight from the live `features` list: at the render the
-  // deletion draft is created, the hide filter hasn't repainted yet, so the
-  // siblings are still present in queryRenderedFeatures. We persist them by
-  // unioning into state, so they survive the repaint that strips them from
-  // `features`. Entries are pruned once their Standort no longer has an
-  // override (draft discarded / saved). The deleted Leuchte itself is skipped —
-  // its row is spliced in from `draftSidebarFeatures` (open draft) or genuinely
-  // gone (committed soft-delete). Using `features` (not querySourceFeatures)
-  // matters: querySourceFeatures returned empty here, leaving the cluster bare.
-  const [deletionSiblingLeuchten, setDeletionSiblingLeuchten] = useState<
-    SidebarFeature[]
-  >([]);
-  useEffect(() => {
+  // To decouple the sidebar from the map round-trip, retain the affected rows by
+  // DB id in a synchronous sticky registry. At the render the override first
+  // appears, the hide filter hasn't repainted yet, so the original header + its
+  // Leuchten are still in `features`; we capture them here (keyed
+  // "<sourceLayer>:<dbId>") and keep them across the repaint that strips them.
+  // The sidebar then recolors the deleted row in place (via `pendingDeletionKeys`)
+  // instead of removing and re-adding it. Entries are evicted once the Standort
+  // no longer has an override (draft discarded / saved) or a Leuchte becomes an
+  // open deletion draft / committed soft-delete (represented elsewhere — its own
+  // draft row, or genuinely gone). The synthetic override header is never stickied;
+  // it stays a map-only feature and is filtered out of the sidebar list below.
+  //
+  // The ref is written only inside the memo and every set/delete/emit is
+  // idempotent given the inputs, so a StrictMode double-invoke yields identical
+  // output. A pure useMemo cannot do selective eviction-on-override-clear without
+  // reading its own prior output, so the ref is the minimal honest mechanism.
+  const stickyDeletionRegistryRef = useRef<Map<string, SidebarFeature>>(
+    new Map()
+  );
+  const retainedDeletionFeatures = useMemo<SidebarFeature[]>(() => {
+    const registry = stickyDeletionRegistryRef.current;
     const standortIdSet = new Set(
       leuchtenDeletionStandortIds.map((n) => String(n))
     );
     if (standortIdSet.size === 0) {
-      setDeletionSiblingLeuchten((prev) => (prev.length ? [] : prev));
-      return;
+      if (registry.size) registry.clear();
+      return [];
     }
     const deletedLeuchtenIds = new Set(
       (deletedFeatureIds.leuchten ?? []).map((n) => String(n))
     );
-    setDeletionSiblingLeuchten((prev) => {
-      const byId = new Map<string, SidebarFeature>();
-      // Keep previously captured siblings whose Standort still has an override
-      // (so they don't vanish when the hide filter strips them from `features`),
-      // but drop any that have since become an open deletion draft or a
-      // committed soft-delete — those are represented by their own draft row /
-      // are gone, so keeping them here would double the row in the sidebar.
-      for (const f of prev) {
-        const fk = String(f.properties?.fk_standort ?? "");
-        if (!standortIdSet.has(fk)) continue;
-        const dbId = String(f.properties?.id ?? f.id ?? "");
-        if (!dbId) continue;
-        if (openDraftDbKeys.has(`leuchten:${Number(dbId)}`)) continue;
-        if (deletedLeuchtenIds.has(dbId)) continue;
-        byId.set(dbId, f);
+    const slOf = (f: SidebarFeature) =>
+      f.sourceLayer || String(f.properties?._sourceLayer ?? "");
+    // The cluster a feature belongs to: a Standort by its own id, a Leuchte by
+    // its parent's id. Used both to scope capture/eviction to overridden clusters.
+    const clusterIdOf = (f: SidebarFeature) => {
+      const sl = slOf(f);
+      if (sl === "standorte") return String(f.properties?.id ?? f.id ?? "");
+      if (sl === "leuchten") return String(f.properties?.fk_standort ?? "");
+      return "";
+    };
+    const keyOf = (f: SidebarFeature) => {
+      const sl = slOf(f);
+      const dbId = String(f.properties?.id ?? f.id ?? "");
+      return sl && dbId ? `${sl}:${dbId}` : "";
+    };
+    // Capture/refresh the original header + siblings while still rendered.
+    for (const f of features) {
+      // Never sticky the synthetic override header — it is a map-only feature.
+      if (f.properties?._isLeuchtenDeletionOverride === true) continue;
+      const sl = slOf(f);
+      if (sl !== "standorte" && sl !== "leuchten") continue;
+      if (!standortIdSet.has(clusterIdOf(f))) continue;
+      const dbId = String(f.properties?.id ?? f.id ?? "");
+      if (!dbId) continue;
+      if (
+        sl === "leuchten" &&
+        (openDraftDbKeys.has(`leuchten:${Number(dbId)}`) ||
+          deletedLeuchtenIds.has(dbId))
+      )
+        continue;
+      const key = keyOf(f);
+      if (!key) continue;
+      registry.set(
+        key,
+        Object.assign({}, f, {
+          source:
+            (f as unknown as { source?: string }).source ?? namespacedSource,
+          original: f,
+        }) as unknown as SidebarFeature
+      );
+    }
+    // Evict stale entries: cluster no longer overridden, or a Leuchte that has
+    // since become an open draft / committed soft-delete.
+    for (const [key, f] of registry) {
+      if (!standortIdSet.has(clusterIdOf(f))) {
+        registry.delete(key);
+        continue;
       }
-      // Capture freshly-visible siblings from the live viewport list.
-      for (const f of features) {
-        const sl = f.sourceLayer || String(f.properties?._sourceLayer ?? "");
-        if (sl !== "leuchten") continue;
-        const fk = String(f.properties?.fk_standort ?? "");
-        if (!standortIdSet.has(fk)) continue;
+      if (slOf(f) === "leuchten") {
         const dbId = String(f.properties?.id ?? f.id ?? "");
-        if (!dbId) continue;
-        // The deleted Leuchte is represented elsewhere (draft row) or removed.
-        if (openDraftDbKeys.has(`leuchten:${Number(dbId)}`)) continue;
-        if (deletedLeuchtenIds.has(dbId)) continue;
-        byId.set(
-          dbId,
-          Object.assign({}, f, {
-            source:
-              (f as unknown as { source?: string }).source ?? namespacedSource,
-            original: f,
-          }) as unknown as SidebarFeature
+        if (
+          openDraftDbKeys.has(`leuchten:${Number(dbId)}`) ||
+          deletedLeuchtenIds.has(dbId)
+        )
+          registry.delete(key);
+      }
+    }
+    // Emit, stamping the decremented count on retained Standort headers. The
+    // sidebar doesn't render leuchten_count as text (count is implicit from the
+    // nested rows + group badge), so this is data honesty, not display-critical.
+    const out: SidebarFeature[] = [];
+    for (const f of registry.values()) {
+      if (slOf(f) === "standorte") {
+        const ov = effectiveStandortLeuchtenOverrides.get(
+          String(f.properties?.id ?? f.id)
         );
+        if (ov) {
+          const remaining = Math.max(
+            0,
+            ov.baseLeuchtenCount - ov.deletedLeuchtenIds.size
+          );
+          out.push(
+            Object.assign({}, f, {
+              properties: { ...f.properties, leuchten_count: remaining },
+            }) as SidebarFeature
+          );
+          continue;
+        }
       }
-      const out = [...byId.values()];
-      const sig = (list: SidebarFeature[]) =>
-        list
-          .map((f) => String(f.properties?.id ?? f.id))
-          .sort()
-          .join(",");
-      return sig(prev) === sig(out) ? prev : out;
-    });
+      out.push(f);
+    }
+    return out;
   }, [
-    leuchtenDeletionStandortIds,
     features,
-    namespacedSource,
+    leuchtenDeletionStandortIds,
+    effectiveStandortLeuchtenOverrides,
     openDraftDbKeys,
     deletedFeatureIds,
+    namespacedSource,
   ]);
 
   // Sidebar mode: "karte" shows viewport features, "highlights" shows highlighted features
@@ -1537,19 +1585,26 @@ const BelisMapLibWrapper = ({
     // already carries the synthetic draft Standort from the brandnew GeoJSON
     // layer; drop it so the expanded version from `draftSidebarFeatures`
     // wins (otherwise the Standort row would appear twice).
-    // Cascade-hidden sibling Leuchten of a deletion-override Standort (see
-    // `deletionSiblingLeuchten`) are re-added so the cluster stays complete.
-    const standortDeletionIdSet = new Set(
-      leuchtenDeletionStandortIds.map((n) => String(n))
+    // Cascade-hidden header + sibling Leuchten of a deletion-override Standort
+    // come from the sticky `retainedDeletionFeatures` registry (kept stable by DB
+    // id so the rows don't flicker out and back as the map repaints).
+    const retainedKeys = new Set(
+      retainedDeletionFeatures.map(
+        (f) =>
+          `${f.sourceLayer || f.properties?._sourceLayer || ""}:${
+            f.properties?.id ?? f.id
+          }`
+      )
     );
-    const siblingsToAdd = deletionSiblingLeuchten;
     // Viewport features minus rows represented elsewhere: open creation drafts,
-    // open non-creation draft copies, and any still-live Leuchte of a deletion-
-    // override Standort (those come from `siblingsToAdd`, so dropping them here
-    // is what prevents a transient filter race from doubling a row).
+    // open non-creation draft copies, the map-only synthetic override header, and
+    // any row already held by the retained registry (dropping the latter here is
+    // what prevents the capture-render from doubling a row).
     const filterViewport = (list: typeof features) =>
       list.filter((f) => {
         if (f.properties?._isCreation === true) return false;
+        // The synthetic deletion-override header is a map-only feature.
+        if (f.properties?._isLeuchtenDeletionOverride === true) return false;
         const sl = f.sourceLayer || String(f.properties?._sourceLayer ?? "");
         const dbId = Number(f.properties?.id ?? f.id);
         // Drop the saved (brandnew-FC) copy of a feature that is currently open
@@ -1561,10 +1616,7 @@ const BelisMapLibWrapper = ({
         ) {
           return false;
         }
-        if (
-          sl === "leuchten" &&
-          standortDeletionIdSet.has(String(f.properties?.fk_standort ?? ""))
-        ) {
+        if (retainedKeys.has(`${sl}:${f.properties?.id ?? f.id}`)) {
           return false;
         }
         return true;
@@ -1574,18 +1626,21 @@ const BelisMapLibWrapper = ({
         [
           ...filterViewport(features),
           ...draftSidebarFeatures,
-          ...siblingsToAdd,
+          ...retainedDeletionFeatures,
         ],
         { isLoading, isOverviewMode }
       );
     }
-    // No open drafts, but a committed deletion override may still be hiding
-    // siblings — re-add them so the cluster stays complete.
-    if (siblingsToAdd.length > 0) {
-      return buildFromFeatures([...filterViewport(features), ...siblingsToAdd], {
-        isLoading,
-        isOverviewMode,
-      });
+    // No open drafts, but a committed deletion override may still be hiding the
+    // cluster — re-add the retained header + siblings so it stays complete.
+    if (retainedDeletionFeatures.length > 0) {
+      return buildFromFeatures(
+        [...filterViewport(features), ...retainedDeletionFeatures],
+        {
+          isLoading,
+          isOverviewMode,
+        }
+      );
     }
     return {
       features,
@@ -1600,8 +1655,7 @@ const BelisMapLibWrapper = ({
     adjustedHighlights,
     draftSidebarFeatures,
     openDraftDbKeys,
-    deletionSiblingLeuchten,
-    leuchtenDeletionStandortIds,
+    retainedDeletionFeatures,
     features,
     countsByLayer,
     totalCount,
