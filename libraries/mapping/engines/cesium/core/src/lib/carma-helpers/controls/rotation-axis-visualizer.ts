@@ -13,10 +13,14 @@ import {
   PolylineCollection,
   type Scene,
 } from "@carma-cesium";
+import {
+  areCameraSnapshotsEqual,
+  getCameraSnapshot,
+  type CameraSnapshot,
+} from "../camera";
 export type RotationAxisVisualizerOptions = {
   origin: Cartesian3;
   upVector: Cartesian3;
-  cameraPosition?: Cartesian3;
   lengthMultiplier?: number;
   dashPixelLength?: number;
   gapPixelLength?: number;
@@ -32,11 +36,7 @@ export type RotationAxisVisualizer = {
   attach: (scene: Scene, requestRender: () => void) => void;
   detach: () => void;
   destroy: () => void;
-  update: (
-    origin: Cartesian3,
-    upVector: Cartesian3,
-    cameraPosition?: Cartesian3
-  ) => void;
+  update: (origin: Cartesian3, upVector: Cartesian3) => void;
   show: () => void;
   hide: () => void;
   fadeIn: (durationMs: number) => void;
@@ -58,6 +58,8 @@ const DEFAULT_WIDTH = 1;
 const DEFAULT_COLOR = Color.WHITE;
 const DEFAULT_OPACITY_EASING = Easing.SINUSOIDAL_IN_OUT;
 const AXIS_VISUALIZER_ID_KEY = "__carmaAxisVisualizerId";
+const AXIS_VECTOR_RELATIVE_EPSILON = 0;
+const AXIS_VECTOR_ABSOLUTE_EPSILON = 1e-7;
 
 const animateOpacity = (
   startOpacity: number,
@@ -165,6 +167,9 @@ const isSceneAlive = (scene: Scene | null): scene is Scene => {
   }
 };
 
+const getSceneViewportHeightPx = (scene: Scene): number =>
+  Math.max(1, scene.canvas.clientHeight);
+
 const removeStaleAxisPrimitivesById = (scene: Scene, visualizerId: string) => {
   const primitives = scene.primitives;
   for (let index = primitives.length - 1; index >= 0; index -= 1) {
@@ -195,7 +200,6 @@ export const createRotationAxisVisualizer = (
   {
     origin: initialOrigin,
     upVector: initialUpVector,
-    cameraPosition: initialCameraPosition,
     lengthMultiplier = DEFAULT_LENGTH_MULTIPLIER,
     dashPixelLength = DEFAULT_DASH_PIXEL_LENGTH,
     gapPixelLength = DEFAULT_GAP_PIXEL_LENGTH,
@@ -203,9 +207,10 @@ export const createRotationAxisVisualizer = (
     width = DEFAULT_WIDTH,
   }: RotationAxisVisualizerOptions
 ): RotationAxisVisualizer => {
-  let origin = initialOrigin;
+  let origin = Cartesian3.clone(initialOrigin);
   let upVector = Cartesian3.normalize(initialUpVector, new Cartesian3());
-  let cameraPosition = initialCameraPosition;
+  let cameraSnapshot: CameraSnapshot | null = null;
+  let viewportHeightPx: number | undefined;
   let isAttached = false;
   let isDestroyed = false;
   let isVisible = true;
@@ -228,29 +233,25 @@ export const createRotationAxisVisualizer = (
   };
 
   const getMetersPerPixel = (distance: number): number => {
-    if (!scene) {
-      return 1;
-    }
-
-    const fov = (scene.camera.frustum as { fov?: number }).fov || 1;
-    return (distance * Math.tan(fov / 2) * 2) / scene.canvas.clientHeight;
+    const fov = cameraSnapshot?.frustumFovY || 1;
+    return (distance * Math.tan(fov / 2) * 2) / (viewportHeightPx ?? 1);
   };
 
   const getLineLength = (): number => {
-    if (!cameraPosition) {
+    if (!cameraSnapshot) {
       return 100000;
     }
 
-    const distance = Cartesian3.distance(cameraPosition, origin);
+    const distance = Cartesian3.distance(cameraSnapshot.position, origin);
     return distance * lengthMultiplier;
   };
 
   const getDashParams = () => {
-    if (!cameraPosition || !scene) {
+    if (!cameraSnapshot) {
       return { dashMeters: 1000, gapMeters: 500 };
     }
 
-    const distance = Cartesian3.distance(cameraPosition, origin);
+    const distance = Cartesian3.distance(cameraSnapshot.position, origin);
     const metersPerPixel = getMetersPerPixel(distance);
 
     return {
@@ -398,6 +399,8 @@ export const createRotationAxisVisualizer = (
 
       scene = sceneRef;
       requestRender = requestRenderFn;
+      cameraSnapshot = getCameraSnapshot(scene);
+      viewportHeightPx = getSceneViewportHeightPx(scene);
       createPolyline();
       isAttached = true;
       safeRequestRender();
@@ -435,15 +438,58 @@ export const createRotationAxisVisualizer = (
       requestRender = null;
     },
 
-    update: (nextOrigin, nextUpVector, nextCameraPosition) => {
+    update: (nextOrigin, nextUpVector) => {
       if (isDestroyed) {
         return;
       }
 
-      origin = nextOrigin;
-      upVector = Cartesian3.normalize(nextUpVector, new Cartesian3());
-      if (nextCameraPosition) {
-        cameraPosition = nextCameraPosition;
+      const currentScene = isSceneAlive(scene) ? scene : null;
+      const nextCameraSnapshot = currentScene
+        ? getCameraSnapshot(currentScene)
+        : null;
+      const nextViewportHeightPx =
+        currentScene !== null
+          ? getSceneViewportHeightPx(currentScene)
+          : undefined;
+      const nextNormalizedUpVector = Cartesian3.normalize(
+        nextUpVector,
+        new Cartesian3()
+      );
+      const originChanged = !Cartesian3.equalsEpsilon(
+        origin,
+        nextOrigin,
+        AXIS_VECTOR_RELATIVE_EPSILON,
+        AXIS_VECTOR_ABSOLUTE_EPSILON
+      );
+      const upVectorChanged = !Cartesian3.equalsEpsilon(
+        upVector,
+        nextNormalizedUpVector,
+        AXIS_VECTOR_RELATIVE_EPSILON,
+        AXIS_VECTOR_ABSOLUTE_EPSILON
+      );
+      const cameraSnapshotChanged =
+        nextCameraSnapshot !== null &&
+        !areCameraSnapshotsEqual(cameraSnapshot, nextCameraSnapshot);
+      const viewportHeightChanged =
+        nextViewportHeightPx !== undefined &&
+        viewportHeightPx !== nextViewportHeightPx;
+
+      if (
+        !originChanged &&
+        !upVectorChanged &&
+        !cameraSnapshotChanged &&
+        !viewportHeightChanged
+      ) {
+        return;
+      }
+
+      Cartesian3.clone(nextOrigin, origin);
+      Cartesian3.clone(nextNormalizedUpVector, upVector);
+      if (nextCameraSnapshot) {
+        cameraSnapshot = nextCameraSnapshot;
+      }
+      if (nextViewportHeightPx !== undefined) {
+        viewportHeightPx = nextViewportHeightPx;
       }
 
       if (isAttached) {

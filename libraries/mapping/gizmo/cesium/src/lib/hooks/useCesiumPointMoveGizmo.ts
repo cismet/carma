@@ -877,11 +877,7 @@ export const useCesiumPointMoveGizmo = (
       const axisDirection = Cartesian3.clone(activeAxisCandidate.direction);
       activeAxisIdRef.current = activeAxisCandidate.id;
       if (axisVisualizerRef.current && !scene.isDestroyed()) {
-        axisVisualizerRef.current.update(
-          axisOrigin,
-          axisDirection,
-          scene.camera.position
-        );
+        axisVisualizerRef.current.update(axisOrigin, axisDirection);
       }
       onAxisDirectionChangeRef.current?.(
         axisDirection,
@@ -1376,7 +1372,6 @@ export const useCesiumPointMoveGizmo = (
       {
         origin: movePoint.geometryECEF,
         upVector: initialAxisDirection,
-        cameraPosition: scene.camera.position,
         lengthMultiplier: 2,
         dashPixelLength: 5,
         gapPixelLength: 3,
@@ -1424,8 +1419,7 @@ export const useCesiumPointMoveGizmo = (
         );
         axisVisualizer.update(
           currentPoint.geometryECEF,
-          axisDirection,
-          scene.camera.position
+          axisDirection
         );
 
         const discVisualizer = discVisualizerRef.current;

@@ -47,6 +47,11 @@ export {
   captureCurrentCameraState,
   readCameraWorldBasis,
 } from "./StateCapture";
+export {
+  areCameraSnapshotsEqual,
+  getCameraSnapshot,
+  type CameraSnapshot,
+} from "./CameraSnapshot";
 export { validateCameraStateHeadingPitchRoll } from "./StateValidation";
 export {
   flyToBoundingSphereExtent,

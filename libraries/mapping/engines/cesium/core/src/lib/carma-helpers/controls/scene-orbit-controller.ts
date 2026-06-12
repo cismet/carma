@@ -204,7 +204,6 @@ export const createCesiumSceneOrbitController = (
     const nextVisualizer = createRotationAxisVisualizer("orbit-axis", {
       origin: Cartesian3.ZERO,
       upVector: Cartesian3.UNIT_Z,
-      cameraPosition: scene.camera.position,
       lengthMultiplier: 2,
       dashPixelLength: 5,
       gapPixelLength: 3,
@@ -252,11 +251,7 @@ export const createCesiumSceneOrbitController = (
           new Cartesian3()
         );
         nextVisualizer.show();
-        nextVisualizer.update(
-          scenePosition,
-          surfaceNormal,
-          scene.camera.position
-        );
+        nextVisualizer.update(scenePosition, surfaceNormal);
       }
     }
 
