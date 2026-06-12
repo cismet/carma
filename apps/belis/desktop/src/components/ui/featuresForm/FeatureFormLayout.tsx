@@ -521,11 +521,14 @@ const FeatureFormLayout = ({
     </div>
   );
 
-  // Danger zone: only when the user opted into the dangerous delete mode and a
-  // delete handler is available (existing feature, editable user). Rendered at
-  // the very bottom of the form column so it sits below all tabs/content.
+  // Danger zone: only when the user opted into the dangerous delete mode, a
+  // delete handler is available (existing feature, editable user), and the
+  // general ("Allgemein") tab is the active one — deletion targets the whole
+  // Fachobjekt, so it doesn't belong under the per-Leuchte/Standort tabs.
+  // Rendered at the very bottom of the form column so it sits below all
+  // tabs/content.
   const dangerZone =
-    dangerousDeleteMode && deleteControls ? (
+    dangerousDeleteMode && deleteControls && activeTabKey === "general" ? (
       <DangerZone
         title={title ? `${title} löschen` : "Fachobjekt löschen"}
         pendingDeletion={deleteControls.pendingDeletion}
