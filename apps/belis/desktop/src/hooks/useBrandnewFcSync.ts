@@ -146,9 +146,24 @@ export const useBrandnewFcSync = ({
           );
           return;
         }
+        // The server's brandnew FC still ships soft-deleted rows flagged with
+        // `is_deleted: true`. They must never be rendered: a deleted feature
+        // drawn on top of (or next to) its live counterpart produces an
+        // overlapping ghost that steals clicks and corrupts selection. Strip
+        // them here so the map source only ever receives live features —
+        // regardless of which writer (this hook, or the BelisMapWrapper
+        // re-merge effect) last set the data. The full, unfiltered `fc` is
+        // still passed to `onDataChange` below, so downstream consumers that
+        // need to see deletions (stale-id pruning, counts) keep working.
+        const visibleFc: GeoJSON.FeatureCollection = {
+          ...fc,
+          features: (fc.features ?? []).filter(
+            (f) => f.properties?.is_deleted !== true
+          ),
+        };
         const wasBaseline = lastMd5 === null && !fcMissing;
         const wasMissing = fcMissing;
-        src.setData(fc);
+        src.setData(visibleFc);
         lastMd5 = md5;
         fcMissing = false;
         if (wasBaseline) {
