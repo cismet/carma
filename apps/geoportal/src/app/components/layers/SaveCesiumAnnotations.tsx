@@ -39,11 +39,11 @@ const MEASUREMENT_VECTOR_LEGEND_URL =
 const MEASUREMENT_SERVICE_NAME = "measurements";
 const SAVED_MEASUREMENT_COLOR = "#267bdc";
 
-export const buildCesiumAnnotationMeasurementGeoJson = (
+export const buildCesiumAnnotationLayerGeoJson = (
   annotationsGeoJson: AnnotationsRuntimeGeoJsonFeatureCollection
 ): AnnotationsRuntimeGeoJsonFeatureCollection => annotationsGeoJson;
 
-export const buildCesiumAnnotationMeasurementId = (
+export const buildCesiumAnnotationLayerId = (
   annotationsGeoJson: AnnotationsRuntimeGeoJsonFeatureCollection
 ) => {
   const contentHash = hashString(
@@ -54,7 +54,7 @@ export const buildCesiumAnnotationMeasurementId = (
   return `measurement-3d-${contentHash}`;
 };
 
-export const buildCesiumAnnotationMeasurementStyle = ({
+export const buildCesiumAnnotationLayerStyle = ({
   annotationsGeoJson,
   title,
   icon,
@@ -153,10 +153,10 @@ function SaveCesiumAnnotations({ layer }: { layer: Layer }) {
       : "";
     const icon = `emoji:${values.selectedUnified}`;
     const rawAnnotationsGeoJson = buildAllAnnotationsGeoJson();
-    const annotationsGeoJson = buildCesiumAnnotationMeasurementGeoJson(
+    const annotationsGeoJson = buildCesiumAnnotationLayerGeoJson(
       rawAnnotationsGeoJson
     );
-    const featureData = buildCesiumAnnotationMeasurementStyle({
+    const featureData = buildCesiumAnnotationLayerStyle({
       annotationsGeoJson,
       title,
       icon,
@@ -191,7 +191,7 @@ function SaveCesiumAnnotations({ layer }: { layer: Layer }) {
     const featureTitle = getUniqueTitle(baseTitle, existingTitles);
     const { annotationsGeoJson, featureData, featureDescription, icon } =
       buildFeatureData(values, featureTitle);
-    const featureId = buildCesiumAnnotationMeasurementId(annotationsGeoJson);
+    const featureId = buildCesiumAnnotationLayerId(annotationsGeoJson);
     const externalCollection = {
       type: "saved-measurement",
       id: featureId,

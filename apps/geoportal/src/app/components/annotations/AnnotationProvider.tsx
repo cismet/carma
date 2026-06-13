@@ -34,8 +34,8 @@ import { useGeoportalCesiumAnnotationOverlayHost } from "../../hooks/use-geoport
 import { useGeoportalCesiumAnnotationToolPlugins } from "../../hooks/use-geoportal-cesium-annotation-tool-plugins";
 import { getLayers } from "../../store/slices/mapping";
 import { getUIMode, UIMode } from "../../store/slices/ui";
-import CesiumAnnotationShortcutManager from "./CesiumAnnotationShortcutManager";
-import GeoportalLabelTextModal from "./GeoportalLabelTextModal";
+import AnnotationLabelTextModal from "./AnnotationLabelTextModal";
+import AnnotationShortcutBindings from "./AnnotationShortcutBindings";
 import { MeasurementDeleteConfirmationModal } from "./MeasurementDeleteConfirmationModal";
 import { CESIUM_ANNOTATION_LAYER_ID } from "./cesium-annotations.constants";
 import {
@@ -110,12 +110,12 @@ const useGeoportalAnnotationDeleteConfirmation = () => {
   };
 };
 
-function GeoportalCesiumAnnotationLayerbarRegistration() {
+function AnnotationLayerbarSync() {
   useGeoportalCesiumAnnotationLayerbar();
   return null;
 }
 
-function GeoportalSavedAnnotationFeatureCollectionRegistration() {
+function SavedAnnotationCollectionSync() {
   const { featureCollections } = useAdhocFeatureDisplay();
   const layers = useSelector(getLayers);
   const {
@@ -196,7 +196,7 @@ function GeoportalSavedAnnotationFeatureCollectionRegistration() {
   return null;
 }
 
-function GeoportalSavedAnnotationInteractionModeGuard() {
+function SavedAnnotationModeGuard() {
   const layers = useSelector(getLayers);
   const uiMode = useSelector(getUIMode);
   const { isCesium } = useMapFrameworkSwitcherContext();
@@ -245,8 +245,8 @@ export function AnnotationProvider({ children }: AnnotationProviderProps) {
   const annotationToolPlugins = useMemo(
     () =>
       createDefaultAnnotationToolPlugins({
-        measurementLineStyle: CESIUM_ANNOTATION_CONFIG.measurementLineStyle,
-        areaOcclusionStyle: CESIUM_ANNOTATION_CONFIG.areaOcclusionStyle,
+        annotationLineStyle: CESIUM_ANNOTATION_CONFIG.style.lines,
+        areaOcclusionStyle: CESIUM_ANNOTATION_CONFIG.style.areaOcclusion,
         texts: geoportalAnnotationModeText.annotationTools,
       }),
     [geoportalAnnotationModeText.annotationTools]
@@ -274,11 +274,11 @@ export function AnnotationProvider({ children }: AnnotationProviderProps) {
       visualInteractionEnabled={savedAnnotationsVisible}
       confirmAnnotationDelete={confirmAnnotationDelete}
     >
-      <GeoportalCesiumAnnotationLayerbarRegistration />
-      <GeoportalSavedAnnotationFeatureCollectionRegistration />
-      <GeoportalSavedAnnotationInteractionModeGuard />
-      {annotationsVisible ? <CesiumAnnotationShortcutManager /> : null}
-      <GeoportalLabelTextModal />
+      <AnnotationLayerbarSync />
+      <SavedAnnotationCollectionSync />
+      <SavedAnnotationModeGuard />
+      {annotationsVisible ? <AnnotationShortcutBindings /> : null}
+      <AnnotationLabelTextModal />
       {deleteConfirmationModal}
       {children}
     </AnnotationsProvider>

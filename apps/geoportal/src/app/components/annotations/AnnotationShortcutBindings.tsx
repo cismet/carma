@@ -12,7 +12,7 @@ import { isManagedAnnotationKeyboardEvent } from "@carma-mapping/annotations/cor
 import { getUIMode, UIMode } from "../../store/slices/ui";
 import { useGeoportalCesiumAnnotationToolPlugins } from "../../hooks/use-geoportal-cesium-annotation-tool-plugins";
 
-const CesiumAnnotationShortcutManager = () => {
+const AnnotationShortcutBindings = () => {
   const { isCesium } = useMapFrameworkSwitcherContext();
   const uiMode = useSelector(getUIMode);
   const { registry, activeToolType, requestModeChange } =
@@ -70,4 +70,4 @@ const CesiumAnnotationShortcutManager = () => {
   return null;
 };
 
-export default CesiumAnnotationShortcutManager;
+export default AnnotationShortcutBindings;

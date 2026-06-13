@@ -8,7 +8,7 @@ import {
 } from "@carma-mapping/annotations/runtime";
 import type { Item } from "@carma-mapping/layers";
 
-import { buildCesiumAnnotationMeasurementId } from "./SaveCesiumAnnotations";
+import { buildCesiumAnnotationLayerId } from "./SaveCesiumAnnotations";
 import {
   DEFAULT_MEASUREMENT_EMOJI_UNIFIED,
   getUniqueTitle,
@@ -185,7 +185,7 @@ export const buildSavedMeasurementItemFromAnnotationCarrier = ({
   item: Item;
   existingMeasurements: Item[];
 }): Item => {
-  const id = buildCesiumAnnotationMeasurementId(annotationsGeoJson);
+  const id = buildCesiumAnnotationLayerId(annotationsGeoJson);
 
   const existingMeasurement = existingMeasurements.find(
     (measurement) => measurement.id === id

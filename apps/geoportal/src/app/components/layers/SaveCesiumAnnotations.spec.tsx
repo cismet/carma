@@ -5,9 +5,9 @@ import { ANNOTATION_TYPES } from "@carma-mapping/annotations/core";
 import type { AnnotationsRuntimeGeoJsonFeatureCollection } from "@carma-mapping/annotations/runtime";
 
 import {
-  buildCesiumAnnotationMeasurementGeoJson,
-  buildCesiumAnnotationMeasurementId,
-  buildCesiumAnnotationMeasurementStyle,
+  buildCesiumAnnotationLayerGeoJson,
+  buildCesiumAnnotationLayerId,
+  buildCesiumAnnotationLayerStyle,
 } from "./SaveCesiumAnnotations";
 
 const createAnnotationsGeoJson =
@@ -91,7 +91,7 @@ const createAnnotationsGeoJson =
 describe("SaveCesiumAnnotations helpers", () => {
   it("keeps the runtime annotation GeoJSON unchanged", () => {
     const sourceGeoJson = createAnnotationsGeoJson();
-    const geoJson = buildCesiumAnnotationMeasurementGeoJson(sourceGeoJson);
+    const geoJson = buildCesiumAnnotationLayerGeoJson(sourceGeoJson);
 
     expect(geoJson).toBe(sourceGeoJson);
   });
@@ -99,18 +99,18 @@ describe("SaveCesiumAnnotations helpers", () => {
   it("builds a stable measurement id from the runtime persistence payload", () => {
     const sourceGeoJson = createAnnotationsGeoJson();
     const visualizedGeoJson =
-      buildCesiumAnnotationMeasurementGeoJson(sourceGeoJson);
+      buildCesiumAnnotationLayerGeoJson(sourceGeoJson);
 
-    expect(buildCesiumAnnotationMeasurementId(visualizedGeoJson)).toBe(
-      buildCesiumAnnotationMeasurementId(sourceGeoJson)
+    expect(buildCesiumAnnotationLayerId(visualizedGeoJson)).toBe(
+      buildCesiumAnnotationLayerId(sourceGeoJson)
     );
   });
 
   it("embeds the visualized GeoJSON as the saved vector style source", () => {
-    const geoJson = buildCesiumAnnotationMeasurementGeoJson(
+    const geoJson = buildCesiumAnnotationLayerGeoJson(
       createAnnotationsGeoJson()
     );
-    const style = buildCesiumAnnotationMeasurementStyle({
+    const style = buildCesiumAnnotationLayerStyle({
       annotationsGeoJson: geoJson,
       description: "Dachmessung",
       icon: "emoji:1f4d0",

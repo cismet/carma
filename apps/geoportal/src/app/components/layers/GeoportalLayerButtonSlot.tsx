@@ -381,7 +381,7 @@ const SavedCesiumMeasurementLayerButton = (
   }
 ) => {
   // Registration of the external annotation collection is owned by
-  // GeoportalSavedAnnotationFeatureCollectionRegistration in the annotation
+  // SavedAnnotationCollectionSync in the annotation
   // provider; this button only reads the registered entries for fly-to.
   const { actions } = useSavedCesiumMeasurementLayerbarActions({
     layerId: props.id,

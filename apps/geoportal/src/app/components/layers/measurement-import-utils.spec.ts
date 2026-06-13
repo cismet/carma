@@ -6,8 +6,8 @@ import type { AnnotationsRuntimeGeoJsonFeatureCollection } from "@carma-mapping/
 import type { Item } from "@carma-mapping/layers";
 
 import {
-  buildCesiumAnnotationMeasurementId,
-  buildCesiumAnnotationMeasurementStyle,
+  buildCesiumAnnotationLayerId,
+  buildCesiumAnnotationLayerStyle,
 } from "./SaveCesiumAnnotations";
 import {
   buildSavedMeasurementItemFromAnnotationCarrier,
@@ -77,7 +77,7 @@ const createAnnotationsGeoJson =
   });
 
 const createAnnotationCarrierStyle = () =>
-  buildCesiumAnnotationMeasurementStyle({
+  buildCesiumAnnotationLayerStyle({
     annotationsGeoJson: createAnnotationsGeoJson(),
     title: "Messung A",
     icon: "emoji:1f4cf",
@@ -166,7 +166,7 @@ describe("buildSavedMeasurementItemFromAnnotationCarrier", () => {
     });
 
     expect(measurementItem.id).toBe(
-      buildCesiumAnnotationMeasurementId(resolution!.annotationsGeoJson)
+      buildCesiumAnnotationLayerId(resolution!.annotationsGeoJson)
     );
     expect(measurementItem.id.startsWith("measurement-3d-")).toBe(true);
     expect(measurementItem.serviceName).toBe("measurements");
@@ -198,7 +198,7 @@ describe("buildSavedMeasurementItemFromAnnotationCarrier", () => {
   it("reuses an existing saved measurement with the same content id", () => {
     const item = createDroppedCarrierItem();
     const resolution = resolveAnnotationCarrierFromItem(item)!;
-    const existingId = buildCesiumAnnotationMeasurementId(
+    const existingId = buildCesiumAnnotationLayerId(
       resolution.annotationsGeoJson
     );
     const existingMeasurement = {

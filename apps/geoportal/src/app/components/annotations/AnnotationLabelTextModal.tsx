@@ -6,7 +6,7 @@ import { useAnnotationLabelTextDialogState } from "@carma-mapping/annotations/ru
 import { geoportalAnnotationModeText } from "../../config/geoportalTextConfig";
 import { useGeoportalLabelTextModalInput } from "../../hooks/use-geoportal-label-text-modal-input";
 
-export const GeoportalLabelTextModal = () => {
+export const AnnotationLabelTextModal = () => {
   const { labelTextModal: options } = geoportalAnnotationModeText;
   const { open, initialValue, labelSuggestions, onAbort, onFinish } =
     useAnnotationLabelTextDialogState();
@@ -80,4 +80,4 @@ export const GeoportalLabelTextModal = () => {
   );
 };
 
-export default GeoportalLabelTextModal;
+export default AnnotationLabelTextModal;
