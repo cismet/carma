@@ -9,7 +9,7 @@ import type {
   RuntimePointMarkerRenderModel,
   RuntimePolygonFillRenderModel,
   RuntimeEdgeRenderModel,
-} from "../render/measurement-render-models";
+} from "../render/annotation-render-models";
 import type { RuntimeVisualModels } from "../render/visual-models";
 
 export type NodeCoordinateOverrides = Readonly<
@@ -135,7 +135,7 @@ export const applyNodeCoordinateOverridesToVisualModels = (
   };
 };
 
-const collectAffectedMeasurementIdSet = ({
+const collectAffectedAnnotationIdSet = ({
   annotationEntries,
   coordinateOverrides,
 }: {
@@ -222,54 +222,54 @@ const filterAffectedRuntimeRenderModels = <
 
 const isAffectedPointMarkerRenderModel = ({
   point,
-  affectedMeasurementIdSet,
+  affectedAnnotationIdSet,
   movedNodeIdSet,
 }: {
   point: RuntimePointMarkerRenderModel;
-  affectedMeasurementIdSet: ReadonlySet<string>;
+  affectedAnnotationIdSet: ReadonlySet<string>;
   movedNodeIdSet: ReadonlySet<string>;
 }) =>
-  (typeof point.measurementId === "string" &&
-    affectedMeasurementIdSet.has(point.measurementId)) ||
+  (typeof point.annotationId === "string" &&
+    affectedAnnotationIdSet.has(point.annotationId)) ||
   (typeof point.nodeId === "string" && movedNodeIdSet.has(point.nodeId));
 
 const isAffectedEdgeRenderModel = ({
   edge,
-  affectedMeasurementIdSet,
+  affectedAnnotationIdSet,
   movedNodeIdSet,
 }: {
   edge: RuntimeEdgeRenderModel;
-  affectedMeasurementIdSet: ReadonlySet<string>;
+  affectedAnnotationIdSet: ReadonlySet<string>;
   movedNodeIdSet: ReadonlySet<string>;
 }) =>
-  (typeof edge.measurementId === "string" &&
-    affectedMeasurementIdSet.has(edge.measurementId)) ||
+  (typeof edge.annotationId === "string" &&
+    affectedAnnotationIdSet.has(edge.annotationId)) ||
   Boolean(edge.nodeIds?.some((nodeId) => movedNodeIdSet.has(nodeId)));
 
 const isAffectedPolygonFillRenderModel = ({
   polygonFill,
-  affectedMeasurementIdSet,
+  affectedAnnotationIdSet,
   movedNodeIdSet,
 }: {
   polygonFill: RuntimePolygonFillRenderModel;
-  affectedMeasurementIdSet: ReadonlySet<string>;
+  affectedAnnotationIdSet: ReadonlySet<string>;
   movedNodeIdSet: ReadonlySet<string>;
 }) =>
-  (typeof polygonFill.measurementId === "string" &&
-    affectedMeasurementIdSet.has(polygonFill.measurementId)) ||
+  (typeof polygonFill.annotationId === "string" &&
+    affectedAnnotationIdSet.has(polygonFill.annotationId)) ||
   Boolean(polygonFill.nodeIds?.some((nodeId) => movedNodeIdSet.has(nodeId)));
 
 const isAffectedPointLabelRenderModel = ({
   pointLabel,
-  affectedMeasurementIdSet,
+  affectedAnnotationIdSet,
   movedNodeIdSet,
 }: {
   pointLabel: RuntimePointLabelRenderModel;
-  affectedMeasurementIdSet: ReadonlySet<string>;
+  affectedAnnotationIdSet: ReadonlySet<string>;
   movedNodeIdSet: ReadonlySet<string>;
 }) =>
-  (typeof pointLabel.measurementId === "string" &&
-    affectedMeasurementIdSet.has(pointLabel.measurementId)) ||
+  (typeof pointLabel.annotationId === "string" &&
+    affectedAnnotationIdSet.has(pointLabel.annotationId)) ||
   (typeof pointLabel.nodeId === "string" &&
     movedNodeIdSet.has(pointLabel.nodeId)) ||
   Boolean(
@@ -296,7 +296,7 @@ export const mergeRuntimeVisualModelsForCoordinateOverlay = ({
   }
 
   const movedNodeIdSet = new Set(Object.keys(coordinateOverrides));
-  const affectedMeasurementIdSet = collectAffectedMeasurementIdSet({
+  const affectedAnnotationIdSet = collectAffectedAnnotationIdSet({
     annotationEntries,
     coordinateOverrides,
   });
@@ -308,7 +308,7 @@ export const mergeRuntimeVisualModelsForCoordinateOverlay = ({
       isAffected: (point) =>
         isAffectedPointMarkerRenderModel({
           point,
-          affectedMeasurementIdSet,
+          affectedAnnotationIdSet,
           movedNodeIdSet,
         }),
     }),
@@ -318,7 +318,7 @@ export const mergeRuntimeVisualModelsForCoordinateOverlay = ({
       isAffected: (edge) =>
         isAffectedEdgeRenderModel({
           edge,
-          affectedMeasurementIdSet,
+          affectedAnnotationIdSet,
           movedNodeIdSet,
         }),
     }),
@@ -328,7 +328,7 @@ export const mergeRuntimeVisualModelsForCoordinateOverlay = ({
       isAffected: (polygonFill) =>
         isAffectedPolygonFillRenderModel({
           polygonFill,
-          affectedMeasurementIdSet,
+          affectedAnnotationIdSet,
           movedNodeIdSet,
         }),
     }),
@@ -338,7 +338,7 @@ export const mergeRuntimeVisualModelsForCoordinateOverlay = ({
       isAffected: (pointLabel) =>
         isAffectedPointLabelRenderModel({
           pointLabel,
-          affectedMeasurementIdSet,
+          affectedAnnotationIdSet,
           movedNodeIdSet,
         }),
     }),
@@ -367,32 +367,32 @@ export const splitRuntimeVisualModelsForCoordinateOverlay = ({
   }
 
   const movedNodeIdSet = new Set(Object.keys(coordinateOverrides));
-  const affectedMeasurementIdSet = collectAffectedMeasurementIdSet({
+  const affectedAnnotationIdSet = collectAffectedAnnotationIdSet({
     annotationEntries,
     coordinateOverrides,
   });
   const isAffectedPoint = (point: RuntimePointMarkerRenderModel) =>
     isAffectedPointMarkerRenderModel({
       point,
-      affectedMeasurementIdSet,
+      affectedAnnotationIdSet,
       movedNodeIdSet,
     });
   const isAffectedEdge = (edge: RuntimeEdgeRenderModel) =>
     isAffectedEdgeRenderModel({
       edge,
-      affectedMeasurementIdSet,
+      affectedAnnotationIdSet,
       movedNodeIdSet,
     });
   const isAffectedPolygonFill = (polygonFill: RuntimePolygonFillRenderModel) =>
     isAffectedPolygonFillRenderModel({
       polygonFill,
-      affectedMeasurementIdSet,
+      affectedAnnotationIdSet,
       movedNodeIdSet,
     });
   const isAffectedPointLabel = (pointLabel: RuntimePointLabelRenderModel) =>
     isAffectedPointLabelRenderModel({
       pointLabel,
-      affectedMeasurementIdSet,
+      affectedAnnotationIdSet,
       movedNodeIdSet,
     });
 

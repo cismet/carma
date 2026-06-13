@@ -7,7 +7,7 @@ import {
 import type { PolygonType } from "@carma-mapping/annotations/core";
 import {
   AnnotationInfoBoxMetricGrid,
-  buildAnnotationMeasurementInfoBoxSlots,
+  buildAnnotationInfoBoxSlots,
   type AnnotationInfoBoxActionLabels,
   type AnnotationInfoBoxNavigationLabels,
 } from "@carma-mapping/annotations/ui";
@@ -15,7 +15,7 @@ import {
 import type { RuntimeAnnotationInfoBoxContext } from "@carma-mapping/annotations/runtime";
 import {
   ANNOTATION_DELETE_CONFIRMATION_SOURCES,
-  resolveRuntimeMeasurementNavigation,
+  resolveRuntimeAnnotationNavigation,
 } from "@carma-mapping/annotations/runtime";
 import { resolveAreaMeasurementSummary } from "../utils/measurement-summaries";
 import {
@@ -28,7 +28,7 @@ export const createNodeChainAreaToolInfoBoxSlots = (
   {
     headingTitle,
     headingColor,
-    formatMeasurementLabelToken,
+    formatLabelToken,
     actionLabels,
     navigationLabels,
     metricLabels,
@@ -37,7 +37,7 @@ export const createNodeChainAreaToolInfoBoxSlots = (
   }: {
     headingTitle: string;
     headingColor: string;
-    formatMeasurementLabelToken: (counter: number) => string;
+    formatLabelToken: (counter: number) => string;
     actionLabels?: Partial<AnnotationInfoBoxActionLabels>;
     navigationLabels?: Partial<AnnotationInfoBoxNavigationLabels>;
     metricLabels: {
@@ -70,25 +70,25 @@ export const createNodeChainAreaToolInfoBoxSlots = (
       return null;
     }
 
-    const measurements = annotationEntries.filter(
-      (measurementEntry) => measurementEntry.toolType === toolType
+    const annotations = annotationEntries.filter(
+      (annotationEntry) => annotationEntry.toolType === toolType
     );
-    const measurementOrder =
-      measurements.findIndex(
-        (measurementEntry) => measurementEntry.id === annotation.id
+    const annotationOrder =
+      annotations.findIndex(
+        (annotationEntry) => annotationEntry.id === annotation.id
       ) + 1;
     const coordinates = resolveMeasurementCoordinates(
       annotation,
       buildRuntimeNodeCoordinateMap(nodes)
     );
-    const navigation = resolveRuntimeMeasurementNavigation({
+    const navigation = resolveRuntimeAnnotationNavigation({
       annotationEntries,
       selectedAnnotationId: annotation.id,
       focusAnnotationId,
       flyToAllAnnotations,
     });
     const summary = resolveAreaMeasurementSummary({
-      measurement: annotation,
+      annotation,
       toolType,
       coordinates,
     });
@@ -96,11 +96,11 @@ export const createNodeChainAreaToolInfoBoxSlots = (
       summary.areaSquareMeters,
       formatOptions.areaSquareMeters
     );
-    const shortLabelToken = formatMeasurementLabelToken(measurementOrder);
+    const shortLabelToken = formatLabelToken(annotationOrder);
     const defaultDisplayName = headingTitle;
     const effectiveShortLabel =
       annotation.shortLabel?.trim() || shortLabelToken;
-    return buildAnnotationMeasurementInfoBoxSlots({
+    return buildAnnotationInfoBoxSlots({
       headingTitle,
       headingColor,
       titleInput: {
@@ -140,13 +140,13 @@ export const createNodeChainAreaToolInfoBoxSlots = (
           });
         },
         labels: actionLabels,
-        dataTestIdPrefix: "carma-annotation-area-measurement",
+        dataTestIdPrefix: "carma-annotation-area-annotation",
         dataTestIds: {
-          flyTo: "carma-annotation-flyto-area-measurement-btn",
-          export: "carma-annotation-export-area-measurement-geojson-btn",
-          visibility: "carma-annotation-toggle-area-measurement-visibility-btn",
-          lock: "carma-annotation-toggle-area-measurement-lock-btn",
-          delete: "carma-annotation-delete-area-measurement-btn",
+          flyTo: "carma-annotation-flyto-area-annotation-btn",
+          export: "carma-annotation-export-area-annotation-geojson-btn",
+          visibility: "carma-annotation-toggle-area-annotation-visibility-btn",
+          lock: "carma-annotation-toggle-area-annotation-lock-btn",
+          delete: "carma-annotation-delete-area-annotation-btn",
         },
       },
       metaText: areaText,
@@ -192,9 +192,9 @@ export const createNodeChainAreaToolInfoBoxSlots = (
       navigation: {
         totalEntries: navigation?.totalEntries ?? 0,
         currentIndex: navigation?.currentIndex ?? 0,
-        onFlyToAllMeasurements: navigation?.flyToAllMeasurements,
-        onPreviousMeasurement: () => navigation?.selectRelativeMeasurement(-1),
-        onNextMeasurement: () => navigation?.selectRelativeMeasurement(1),
+        onFlyToAll: navigation?.flyToAllAnnotations,
+        onPrevious: () => navigation?.selectRelativeAnnotation(-1),
+        onNext: () => navigation?.selectRelativeAnnotation(1),
         labels: navigationLabels,
       },
       visualOptions: infoBoxVisualOptions,

@@ -172,7 +172,7 @@ describe("createAnnotationsStore", () => {
       updateNodeCoordinateById({
         nodeId: "node-a",
         coordinate: movedCoordinate,
-        selectedMeasurementIds: ["annotation-a", "annotation-b"],
+        selectedAnnotationIds: ["annotation-a", "annotation-b"],
       })
     );
 
@@ -221,7 +221,7 @@ describe("createAnnotationsStore", () => {
         nodeId: "node-a",
         coordinate: movedCoordinate,
         movedNodeIds: ["node-a", "node-b"],
-        selectedMeasurementIds: [],
+        selectedAnnotationIds: [],
       })
     );
 
@@ -452,7 +452,7 @@ describe("createAnnotationsStore", () => {
 
     store.dispatch(
       insertNodeIntoMeasurementEdge({
-        measurementId: "polyline-1",
+        annotationId: "polyline-1",
         startNodeId: "node-1",
         endNodeId: "node-2",
         coordinate: createCoordinate(7.05, 51.05, 1.5),
@@ -509,7 +509,7 @@ describe("createAnnotationsStore", () => {
 
     store.dispatch(
       insertNodeIntoMeasurementEdge({
-        measurementId: "area-1",
+        annotationId: "area-1",
         startNodeId: "node-3",
         endNodeId: "node-1",
         coordinate: createCoordinate(7.025, 51.05, 0),

@@ -119,11 +119,11 @@ export const RuntimeVisualHost = ({
   const isSelectionAdditiveModifierPressed = useSelectionAdditiveModifierState(
     ANNOTATIONS_HOST_DEFAULTS.additiveSelectionModifierKey
   );
-  const handleMeasurementSelection = useAnnotationSelection({
+  const handleAnnotationSelection = useAnnotationSelection({
     annotationsStore,
     isSelectionAdditiveModifierPressed,
   });
-  const handleNodeMeasurementsSelection = useCallback(
+  const handleNodeAnnotationsSelection = useCallback(
     (annotationIds: readonly string[]) => {
       const normalizedAnnotationIds = Array.from(
         new Set(annotationIds.filter(Boolean))
@@ -189,7 +189,7 @@ export const RuntimeVisualHost = ({
     handleReferenceEdgeClick,
     handleReferenceNodeClick,
     handleReferenceNodeHover,
-    insertNodeTargetMeasurementIds,
+    insertNodeTargetAnnotationIds,
     isMoveGizmoDragging,
     previewSnapTargetHoverEnabled,
   } = useVisualInteraction({
@@ -217,7 +217,7 @@ export const RuntimeVisualHost = ({
     selectedAnnotationId,
     selectedAnnotationIds,
     isSelectionAdditiveModifierPressed,
-    onMeasurementSelect: handleMeasurementSelection,
+    onAnnotationSelect: handleAnnotationSelection,
     setElevationReferenceAnnotationId,
     toggleAnnotationElevationDisplayMode,
     onNodeLongPress: handleNodeLongPress,
@@ -236,7 +236,7 @@ export const RuntimeVisualHost = ({
         overlayEdges={overlayVisualModels?.edges ?? []}
         basePolygonFills={baseVisualModels.polygonFills ?? []}
         overlayPolygonFills={overlayVisualModels?.polygonFills ?? []}
-        onMeasurementSelect={handleMeasurementSelection}
+        onAnnotationSelect={handleAnnotationSelection}
       />
       <VisualSurfaces
         scene={scene}
@@ -252,15 +252,15 @@ export const RuntimeVisualHost = ({
         isMeasurementToolActive={isMeasurementToolActive}
         previewSnapTargetHoverEnabled={previewSnapTargetHoverEnabled}
         onPreviewSnapTargetNodeClick={onPreviewSnapTargetNodeClick}
-        onMeasurementSelect={handleMeasurementSelection}
-        onNodeMeasurementsSelect={handleNodeMeasurementsSelection}
+        onAnnotationSelect={handleAnnotationSelection}
+        onNodeAnnotationsSelect={handleNodeAnnotationsSelection}
         onNodeLongPress={handleNodeLongPress}
         canStartNodeEditing={canStartNodeEditing}
         onReferenceNodeClick={handleReferenceNodeClick}
         onReferenceNodeHover={handleReferenceNodeHover}
         onPreviewNodeHover={handlePreviewSnapTargetNodeHover}
         onReferenceEdgeClick={handleReferenceEdgeClick}
-        insertNodeTargetMeasurementIds={insertNodeTargetMeasurementIds}
+        insertNodeTargetAnnotationIds={insertNodeTargetAnnotationIds}
         onInsertNodeTargetClick={handleInsertNodeTargetClick}
         onDistanceTriangleCornerClick={handleDistanceTriangleCornerClick}
       />

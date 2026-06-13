@@ -71,7 +71,7 @@ const nodes: readonly AnnotationNode[] = [
   },
 ];
 
-const measurement: StoredAnnotation = {
+const annotation: StoredAnnotation = {
   id: "polyline-1",
   toolType: "polyline",
   nodeIds: ["node-a", "node-b", "node-c"],
@@ -88,10 +88,10 @@ describe("buildPolylineToolRenderModels", () => {
         lengthMeters: {},
       },
       badgeStyle,
-      getMeasurementLabel: () => "P1",
+      getLabel: () => "P1",
       nodes,
-      measurements: [measurement],
-      selectedMeasurementIds: [],
+      annotations: [annotation],
+      selectedAnnotationIds: [],
     });
 
     expect(renderModels.pointLabels).toHaveLength(1);
@@ -118,10 +118,10 @@ describe("buildPolylineToolRenderModels", () => {
         lengthMeters: {},
       },
       badgeStyle,
-      getMeasurementLabel: () => "P1",
+      getLabel: () => "P1",
       nodes,
-      measurements: [measurement],
-      selectedMeasurementIds: [],
+      annotations: [annotation],
+      selectedAnnotationIds: [],
     });
 
     expect(renderModels.pointLabels[0]).toMatchObject({

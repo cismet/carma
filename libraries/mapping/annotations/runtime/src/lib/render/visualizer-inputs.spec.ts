@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { CesiumGeographicCoordinate } from "../store";
-import type { RuntimePointMarkerRenderModel } from "./measurement-render-models";
+import type { RuntimePointMarkerRenderModel } from "./annotation-render-models";
 import { buildVisualizerInputs } from "./visualizer-inputs";
 
 const coordinate: CesiumGeographicCoordinate = {
@@ -12,15 +12,15 @@ const coordinate: CesiumGeographicCoordinate = {
 
 const buildPoint = ({
   id,
-  measurementId,
+  annotationId,
   nodeId,
 }: {
   id: string;
-  measurementId: string;
+  annotationId: string;
   nodeId: string;
 }): RuntimePointMarkerRenderModel => ({
   id,
-  measurementId,
+  annotationId,
   nodeId,
   coordinate,
   pixelSize: 10,
@@ -58,7 +58,7 @@ describe("measurement visualizer node interaction inputs", () => {
         {
           ...buildPoint({
             id: "point-a",
-            measurementId: "measurement-a",
+            annotationId: "measurement-a",
             nodeId: "node-a",
           }),
           onClick: onPointClick,
@@ -99,7 +99,7 @@ describe("measurement visualizer node interaction inputs", () => {
       pointLabels: [
         {
           id: "distance-a-label",
-          measurementId: "measurement-a",
+          annotationId: "measurement-a",
           nodeId: "node-a",
           coordinate,
           content: "S",
@@ -132,7 +132,7 @@ describe("measurement visualizer node interaction inputs", () => {
       points: [
         buildPoint({
           id: "point-a",
-          measurementId: "measurement-a",
+          annotationId: "measurement-a",
           nodeId: "node-a",
         }),
       ],
@@ -150,17 +150,17 @@ describe("measurement visualizer node interaction inputs", () => {
   });
 
   it("selects all measurements sharing a node interaction target", () => {
-    const onNodeMeasurementsSelect = vi.fn();
+    const onNodeAnnotationsSelect = vi.fn();
     const inputs = buildInputs({
       points: [
         buildPoint({
           id: "point-a",
-          measurementId: "measurement-a",
+          annotationId: "measurement-a",
           nodeId: "node-a",
         }),
         buildPoint({
           id: "point-b",
-          measurementId: "measurement-b",
+          annotationId: "measurement-b",
           nodeId: "node-b",
         }),
       ],
@@ -168,7 +168,7 @@ describe("measurement visualizer node interaction inputs", () => {
         ["node-a", "link-1"],
         ["node-b", "link-1"],
       ]),
-      onNodeMeasurementsSelect,
+      onNodeAnnotationsSelect,
     });
 
     const point = inputs.visibleStandalonePoints[0];
@@ -178,7 +178,7 @@ describe("measurement visualizer node interaction inputs", () => {
 
     point?.onClick?.();
 
-    expect(onNodeMeasurementsSelect).toHaveBeenCalledWith([
+    expect(onNodeAnnotationsSelect).toHaveBeenCalledWith([
       "measurement-a",
       "measurement-b",
     ]);
@@ -190,7 +190,7 @@ describe("measurement visualizer node interaction inputs", () => {
       points: [
         buildPoint({
           id: "point-a",
-          measurementId: "measurement-a",
+          annotationId: "measurement-a",
           nodeId: "node-a",
         }),
       ],
@@ -213,7 +213,7 @@ describe("measurement visualizer node interaction inputs", () => {
       points: [
         buildPoint({
           id: "point-a",
-          measurementId: "measurement-a",
+          annotationId: "measurement-a",
           nodeId: "node-a",
         }),
       ],
@@ -233,7 +233,7 @@ describe("measurement visualizer node interaction inputs", () => {
         {
           ...buildPoint({
             id: "point-a",
-            measurementId: "measurement-a",
+            annotationId: "measurement-a",
             nodeId: "node-a",
           }),
           onLongPress: onPointLongPress,
@@ -242,7 +242,7 @@ describe("measurement visualizer node interaction inputs", () => {
       pointLabels: [
         {
           id: "label-a",
-          measurementId: "measurement-a",
+          annotationId: "measurement-a",
           nodeId: "node-a",
           coordinate,
           content: "Label",
@@ -263,7 +263,7 @@ describe("measurement visualizer node interaction inputs", () => {
         {
           ...buildPoint({
             id: "point-a",
-            measurementId: "measurement-a",
+            annotationId: "measurement-a",
             nodeId: "node-a",
           }),
           onLongPress: vi.fn(),
@@ -281,12 +281,12 @@ describe("measurement visualizer node interaction inputs", () => {
       points: [
         buildPoint({
           id: "point-a",
-          measurementId: "measurement-a",
+          annotationId: "measurement-a",
           nodeId: "node-a",
         }),
         buildPoint({
           id: "point-b",
-          measurementId: "measurement-b",
+          annotationId: "measurement-b",
           nodeId: "node-b",
         }),
       ],
@@ -318,7 +318,7 @@ describe("measurement visualizer node interaction inputs", () => {
       pointLabels: [
         {
           id: "label-a",
-          measurementId: "measurement-a",
+          annotationId: "measurement-a",
           nodeId: "node-a",
           coordinate,
           content: "Label",

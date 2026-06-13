@@ -11,12 +11,12 @@ describe("resolveRuntimeSceneSelectionTarget", () => {
             polygonGroupId: "area-1-fill",
           },
         },
-        edgeMeasurementIdsById: new Map(),
-        polygonFillMeasurementIdsById: new Map([["area-1-fill", "area-1"]]),
+        edgeAnnotationIdsById: new Map(),
+        polygonFillAnnotationIdsById: new Map([["area-1-fill", "area-1"]]),
       })
     ).toEqual({
       isRuntimeTarget: true,
-      measurementId: "area-1",
+      annotationId: "area-1",
     });
   });
 
@@ -28,12 +28,12 @@ describe("resolveRuntimeSceneSelectionTarget", () => {
             polygonGroupId: "preview-area-fill",
           },
         },
-        edgeMeasurementIdsById: new Map(),
-        polygonFillMeasurementIdsById: new Map([["preview-area-fill", null]]),
+        edgeAnnotationIdsById: new Map(),
+        polygonFillAnnotationIdsById: new Map([["preview-area-fill", null]]),
       })
     ).toEqual({
       isRuntimeTarget: true,
-      measurementId: null,
+      annotationId: null,
     });
   });
 
@@ -43,14 +43,14 @@ describe("resolveRuntimeSceneSelectionTarget", () => {
         pickedObject: {
           id: "distance-1-vertical-0",
         },
-        edgeMeasurementIdsById: new Map([
+        edgeAnnotationIdsById: new Map([
           ["distance-1-vertical", "distance-1"],
         ]),
-        polygonFillMeasurementIdsById: new Map(),
+        polygonFillAnnotationIdsById: new Map(),
       })
     ).toEqual({
       isRuntimeTarget: true,
-      measurementId: "distance-1",
+      annotationId: "distance-1",
     });
   });
 
@@ -62,12 +62,12 @@ describe("resolveRuntimeSceneSelectionTarget", () => {
             id: "polyline-1-segment-0",
           },
         },
-        edgeMeasurementIdsById: new Map([["polyline-1-segment", "polyline-1"]]),
-        polygonFillMeasurementIdsById: new Map(),
+        edgeAnnotationIdsById: new Map([["polyline-1-segment", "polyline-1"]]),
+        polygonFillAnnotationIdsById: new Map(),
       })
     ).toEqual({
       isRuntimeTarget: true,
-      measurementId: "polyline-1",
+      annotationId: "polyline-1",
     });
   });
 });

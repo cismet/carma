@@ -10,15 +10,15 @@ export type AnnotationInfoBoxNavigationProps = {
   instructionText?: string | null;
   availabilityLabel?: ReactNode;
   labels?: Partial<AnnotationInfoBoxNavigationLabels>;
-  onFlyToAllMeasurements?: () => void;
-  onPreviousMeasurement: () => void;
-  onNextMeasurement: () => void;
+  onFlyToAll?: () => void;
+  onPrevious: () => void;
+  onNext: () => void;
   visualOptions?: AnnotationInfoBoxVisualOptions;
 };
 
 export type AnnotationInfoBoxNavigationLabels = Readonly<{
-  measurementSingular: string;
-  measurementPlural: string;
+  entrySingular: string;
+  entryPlural: string;
   availableSuffix: string;
   previousAriaLabel: string;
   nextAriaLabel: string;
@@ -27,8 +27,8 @@ export type AnnotationInfoBoxNavigationLabels = Readonly<{
 
 export const DEFAULT_ANNOTATION_INFO_BOX_NAVIGATION_LABELS =
   Object.freeze<AnnotationInfoBoxNavigationLabels>({
-    measurementSingular: "Messung",
-    measurementPlural: "Messungen",
+    entrySingular: "Messung",
+    entryPlural: "Messungen",
     availableSuffix: "verfügbar",
     previousAriaLabel: "Vorherige Messung",
     nextAriaLabel: "Nächste Messung",
@@ -40,7 +40,7 @@ const formatAvailabilityLabel = (
   labels: AnnotationInfoBoxNavigationLabels
 ) =>
   `${totalEntries} ${
-    totalEntries === 1 ? labels.measurementSingular : labels.measurementPlural
+    totalEntries === 1 ? labels.entrySingular : labels.entryPlural
   } ${labels.availableSuffix}`.trim();
 
 export const AnnotationInfoBoxNavigation = ({
@@ -49,9 +49,9 @@ export const AnnotationInfoBoxNavigation = ({
   instructionText,
   availabilityLabel,
   labels,
-  onFlyToAllMeasurements,
-  onPreviousMeasurement,
-  onNextMeasurement,
+  onFlyToAll,
+  onPrevious,
+  onNext,
   visualOptions,
 }: AnnotationInfoBoxNavigationProps) => {
   const resolvedVisualOptions =
@@ -90,11 +90,11 @@ export const AnnotationInfoBoxNavigation = ({
             resolvedVisualOptions.navigationAvailabilityContainerClassName
           }
         >
-          {onFlyToAllMeasurements ? (
+          {onFlyToAll ? (
             <button
               type="button"
               className={`${resolvedVisualOptions.linkTextClassName} cursor-pointer`}
-              onClick={onFlyToAllMeasurements}
+              onClick={onFlyToAll}
               style={{
                 border: "none",
                 background: "transparent",
@@ -119,7 +119,7 @@ export const AnnotationInfoBoxNavigation = ({
           <button
             type="button"
             className={`renderAsLink cursor-pointer select-none ${resolvedVisualOptions.linkTextClassName}`}
-            onClick={onPreviousMeasurement}
+            onClick={onPrevious}
             data-test-id="switch-measurement-left"
             style={navigationButtonStyle}
             aria-label={resolvedLabels.previousAriaLabel}
@@ -132,7 +132,7 @@ export const AnnotationInfoBoxNavigation = ({
           <button
             type="button"
             className={`renderAsLink cursor-pointer select-none ${resolvedVisualOptions.linkTextClassName}`}
-            onClick={onNextMeasurement}
+            onClick={onNext}
             data-test-id="switch-measurement-right"
             style={navigationButtonStyle}
             aria-label={resolvedLabels.nextAriaLabel}

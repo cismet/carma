@@ -1,7 +1,7 @@
 import { formatAreaSquareMetersAdaptive } from "@carma-units";
 import type { PolygonType } from "@carma-mapping/annotations/core";
 import {
-  buildAnnotationMeasurementInfoBoxSlots,
+  buildAnnotationInfoBoxSlots,
   type AnnotationInfoBoxActionLabels,
   type AnnotationInfoBoxNavigationLabels,
 } from "@carma-mapping/annotations/ui";
@@ -9,7 +9,7 @@ import {
 import type { RuntimeAnnotationInfoBoxContext } from "@carma-mapping/annotations/runtime";
 import {
   ANNOTATION_DELETE_CONFIRMATION_SOURCES,
-  resolveRuntimeMeasurementNavigation,
+  resolveRuntimeAnnotationNavigation,
 } from "@carma-mapping/annotations/runtime";
 import { resolveAreaMeasurementSummary } from "../utils/measurement-summaries";
 import { formatCardinalBearing } from "@carma-mapping/annotations/runtime";
@@ -23,14 +23,14 @@ export const createVerticalAreaToolInfoBoxSlots = (
   {
     headingTitle,
     headingColor,
-    formatMeasurementLabelToken,
+    formatLabelToken,
     actionLabels,
     navigationLabels,
     contentLabels,
   }: {
     headingTitle: string;
     headingColor: string;
-    formatMeasurementLabelToken: (counter: number) => string;
+    formatLabelToken: (counter: number) => string;
     actionLabels?: Partial<AnnotationInfoBoxActionLabels>;
     navigationLabels?: Partial<AnnotationInfoBoxNavigationLabels>;
     contentLabels: {
@@ -57,15 +57,15 @@ export const createVerticalAreaToolInfoBoxSlots = (
       return null;
     }
 
-    const measurements = annotationEntries.filter(
-      (measurementEntry) => measurementEntry.toolType === toolType
+    const annotations = annotationEntries.filter(
+      (annotationEntry) => annotationEntry.toolType === toolType
     );
-    const measurementOrder =
-      measurements.findIndex(
-        (measurementEntry) => measurementEntry.id === annotation.id
+    const annotationOrder =
+      annotations.findIndex(
+        (annotationEntry) => annotationEntry.id === annotation.id
       ) + 1;
-    const shortLabelToken = formatMeasurementLabelToken(measurementOrder);
-    const navigation = resolveRuntimeMeasurementNavigation({
+    const shortLabelToken = formatLabelToken(annotationOrder);
+    const navigation = resolveRuntimeAnnotationNavigation({
       annotationEntries,
       selectedAnnotationId: annotation.id,
       focusAnnotationId,
@@ -76,7 +76,7 @@ export const createVerticalAreaToolInfoBoxSlots = (
       buildRuntimeNodeCoordinateMap(nodes)
     );
     const summary = resolveAreaMeasurementSummary({
-      measurement: annotation,
+      annotation,
       toolType,
       coordinates,
     });
@@ -87,7 +87,7 @@ export const createVerticalAreaToolInfoBoxSlots = (
     const defaultDisplayName = headingTitle;
     const effectiveShortLabel =
       annotation.shortLabel?.trim() || shortLabelToken;
-    return buildAnnotationMeasurementInfoBoxSlots({
+    return buildAnnotationInfoBoxSlots({
       headingTitle,
       headingColor,
       titleInput: {
@@ -127,15 +127,15 @@ export const createVerticalAreaToolInfoBoxSlots = (
           });
         },
         labels: actionLabels,
-        dataTestIdPrefix: "carma-annotation-vertical-area-measurement",
+        dataTestIdPrefix: "carma-annotation-vertical-area-annotation",
         dataTestIds: {
-          flyTo: "carma-annotation-flyto-vertical-area-measurement-btn",
+          flyTo: "carma-annotation-flyto-vertical-area-annotation-btn",
           export:
-            "carma-annotation-export-vertical-area-measurement-geojson-btn",
+            "carma-annotation-export-vertical-area-annotation-geojson-btn",
           visibility:
-            "carma-annotation-toggle-vertical-area-measurement-visibility-btn",
-          lock: "carma-annotation-toggle-vertical-area-measurement-lock-btn",
-          delete: "carma-annotation-delete-vertical-area-measurement-btn",
+            "carma-annotation-toggle-vertical-area-annotation-visibility-btn",
+          lock: "carma-annotation-toggle-vertical-area-annotation-lock-btn",
+          delete: "carma-annotation-delete-vertical-area-annotation-btn",
         },
       },
       metaText: areaText,
@@ -151,9 +151,9 @@ export const createVerticalAreaToolInfoBoxSlots = (
       navigation: {
         totalEntries: navigation?.totalEntries ?? 0,
         currentIndex: navigation?.currentIndex ?? 0,
-        onFlyToAllMeasurements: navigation?.flyToAllMeasurements,
-        onPreviousMeasurement: () => navigation?.selectRelativeMeasurement(-1),
-        onNextMeasurement: () => navigation?.selectRelativeMeasurement(1),
+        onFlyToAll: navigation?.flyToAllAnnotations,
+        onPrevious: () => navigation?.selectRelativeAnnotation(-1),
+        onNext: () => navigation?.selectRelativeAnnotation(1),
         labels: navigationLabels,
       },
       visualOptions: infoBoxVisualOptions,

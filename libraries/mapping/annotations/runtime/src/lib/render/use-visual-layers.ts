@@ -34,13 +34,13 @@ type BuildVisualModelsArgs = {
   selectedAnnotationId: string | null;
   selectedAnnotationIds: readonly string[];
   isSelectionAdditiveModifierPressed: boolean;
-  onMeasurementSelect: (annotationId: string | null) => void;
+  onAnnotationSelect: (annotationId: string | null) => void;
   setElevationReferenceAnnotationId: (annotationId: string | null) => void;
   toggleAnnotationElevationDisplayMode: (
     annotationId: string,
     currentElevationDisplayMode?: AnnotationElevationDisplayMode
   ) => void;
-  onNodeLongPress: (nodeId: string, measurementId?: string) => void;
+  onNodeLongPress: (nodeId: string, annotationId?: string) => void;
   formatOptions: AnnotationsRuntimeFormatOptions;
 };
 
@@ -61,7 +61,7 @@ const buildRuntimeVisualModels = ({
   selectedAnnotationId,
   selectedAnnotationIds,
   isSelectionAdditiveModifierPressed,
-  onMeasurementSelect,
+  onAnnotationSelect,
   setElevationReferenceAnnotationId,
   toggleAnnotationElevationDisplayMode,
   onNodeLongPress,
@@ -78,7 +78,7 @@ const buildRuntimeVisualModels = ({
     selectedAnnotationId,
     selectedAnnotationIds,
     isSelectionAdditiveModifierPressed,
-    setSelectedAnnotationId: onMeasurementSelect,
+    setSelectedAnnotationId: onAnnotationSelect,
     setElevationReferenceAnnotationId,
     toggleAnnotationElevationDisplayMode,
     onNodeLongPress,
@@ -96,7 +96,7 @@ export const useVisualLayers = ({
   selectedAnnotationId,
   selectedAnnotationIds,
   isSelectionAdditiveModifierPressed,
-  onMeasurementSelect,
+  onAnnotationSelect,
   setElevationReferenceAnnotationId,
   toggleAnnotationElevationDisplayMode,
   onNodeLongPress,
@@ -118,7 +118,7 @@ export const useVisualLayers = ({
         selectedAnnotationId,
         selectedAnnotationIds,
         isSelectionAdditiveModifierPressed,
-        onMeasurementSelect,
+        onAnnotationSelect,
         setElevationReferenceAnnotationId,
         toggleAnnotationElevationDisplayMode,
         onNodeLongPress,
@@ -133,7 +133,7 @@ export const useVisualLayers = ({
       isSelectionAdditiveModifierPressed,
       linkedNodeGroups,
       nodes,
-      onMeasurementSelect,
+      onAnnotationSelect,
       onNodeLongPress,
       plugins,
       selectedAnnotationId,
@@ -159,7 +159,7 @@ export const useVisualLayers = ({
       selectedAnnotationId,
       selectedAnnotationIds,
       isSelectionAdditiveModifierPressed,
-      onMeasurementSelect,
+      onAnnotationSelect,
       setElevationReferenceAnnotationId,
       toggleAnnotationElevationDisplayMode,
       onNodeLongPress,
@@ -175,7 +175,7 @@ export const useVisualLayers = ({
     elevationReferenceAnnotationId,
     formatOptions,
     isSelectionAdditiveModifierPressed,
-    onMeasurementSelect,
+    onAnnotationSelect,
     onNodeLongPress,
     plugins,
     selectedAnnotationId,

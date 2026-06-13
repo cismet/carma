@@ -33,13 +33,13 @@ import {
   createPreviewOverlayLayer,
   destroyLineCollection,
   destroyPreviewOverlayLayer,
-  previewControllerDefaults,
-  type PreviewLineRuntime,
+  annotationOverlayDefaults,
+  type AuthoringLineRuntime,
 } from "./authoring-visual-runtime";
 import { createPathAuthoringController } from "./create-path-authoring-controller";
-import { RUNTIME_POLYGON_FILL_PLACEMENT } from "../render/measurement-render-models";
-import { createMeasurementPolygonFillsController } from "../render/measurement-polygon-fills-controller.shared";
-import { createMeasurementOverlayPolygonFillsController } from "../render/measurement-overlay-polygon-fills-controller.shared";
+import { RUNTIME_POLYGON_FILL_PLACEMENT } from "../render/annotation-render-models";
+import { createAnnotationPolygonFillsController } from "../render/annotation-polygon-fills-controller.shared";
+import { createAnnotationOverlayPolygonFillsController } from "../render/annotation-overlay-polygon-fills-controller.shared";
 import {
   isCoplanarPolygonFillPlacement,
   resolveAreaOcclusionLineRenderOptions,
@@ -48,9 +48,9 @@ import {
   type AreaOcclusionStyleOptions,
 } from "../config/area-occlusion-style-options";
 import {
-  resolveMeasurementLineStyleOptions,
-  type MeasurementLineStyleOptions,
-} from "../config/measurement-line-style-options";
+  resolveAnnotationLineStyleOptions,
+  type AnnotationLineStyleOptions,
+} from "../config/annotation-line-style-options";
 import { createHorizontalLinePreviewController } from "./create-horizontal-line-preview-controller";
 import {
   AREA_EDGE_CROSSING_PROJECTION_MODES,
@@ -68,7 +68,7 @@ const {
   AREA_PLANAR: ANNOTATION_TYPE_AREA_PLANAR,
 } = ANNOTATION_TYPES;
 
-type PreviewAreaLabelState = {
+type AuthoringAreaLabelState = {
   text: string;
   anchorECEF: Cartesian3;
 };
@@ -209,7 +209,7 @@ const createProjectionNormalController = ({
   strokeWidth: number;
 }): ProjectionNormalController => {
   const lineCollection = createLineCollection(scene);
-  const lines: PreviewLineRuntime[] = [];
+  const lines: AuthoringLineRuntime[] = [];
 
   const ensureLineCount = (count: number) => {
     while (lines.length < count) {
@@ -258,7 +258,7 @@ const buildPolygonPreviewAreaLabelState = ({
   toolType: AnnotationTypes["AREA_GROUND"] | AnnotationTypes["AREA_PLANAR"];
   coordinateRings: readonly (readonly CesiumGeographicCoordinate[])[];
   formatOptions: AnnotationToolAuthoringContext["formatOptions"];
-}): PreviewAreaLabelState | null => {
+}): AuthoringAreaLabelState | null => {
   const validCoordinateRings = coordinateRings.filter(
     (coordinates) => coordinates.length >= 3
   );
@@ -316,7 +316,7 @@ export const createPolygonAuthoringController = ({
   draftToolId,
   context,
   occlusionStyleOptions,
-  measurementLineStyleOptions,
+  annotationLineStyleOptions,
   resolveMeasurementCoordinates,
   showInitialHorizontalLinePreview,
   initialHorizontalLinePreviewDiskColorCss,
@@ -329,7 +329,7 @@ export const createPolygonAuthoringController = ({
   draftToolId?: AnnotationToolId;
   context: AnnotationToolAuthoringContext;
   occlusionStyleOptions?: AreaOcclusionStyleOptions;
-  measurementLineStyleOptions?: MeasurementLineStyleOptions;
+  annotationLineStyleOptions?: AnnotationLineStyleOptions;
   resolveMeasurementCoordinates?: PolygonAuthoringMeasurementCoordinatesResolver;
   showInitialHorizontalLinePreview?: boolean;
   initialHorizontalLinePreviewDiskColorCss?: string;
@@ -354,8 +354,8 @@ export const createPolygonAuthoringController = ({
     toolType === ANNOTATION_TYPE_AREA_GROUND
       ? AREA_EDGE_CROSSING_PROJECTION_MODES.GROUND_GEODESIC
       : AREA_EDGE_CROSSING_PROJECTION_MODES.AREA_PLANE;
-  const resolvedLineStyleOptions = resolveMeasurementLineStyleOptions(
-    measurementLineStyleOptions
+  const resolvedLineStyleOptions = resolveAnnotationLineStyleOptions(
+    annotationLineStyleOptions
   );
   const previewLineOptions = {
     ...(resolveAreaOcclusionLineRenderOptions(resolvedOcclusionStyleOptions) ??
@@ -367,14 +367,14 @@ export const createPolygonAuthoringController = ({
   const draftChainController = createPathAuthoringController(scene, {
     overlayLayerId: DRAFT_CHAIN_OVERLAY_LAYER_ID,
     lineId: `${previewId}-draft-preview-chain`,
-    lineColor: previewControllerDefaults.draftChainColor,
+    lineColor: annotationOverlayDefaults.draftChainColor,
     showPointMarkers: true,
     lineOptions: previewLineOptions,
   });
   const polygonLoopController = createPathAuthoringController(scene, {
     overlayLayerId: POLYGON_LOOP_OVERLAY_LAYER_ID,
     lineId: `${previewId}-draft-preview-loop`,
-    lineColor: previewControllerDefaults.draftChainColor,
+    lineColor: annotationOverlayDefaults.draftChainColor,
     showPointMarkers: false,
     lineOptions: previewLineOptions,
   });
@@ -400,11 +400,11 @@ export const createPolygonAuthoringController = ({
           maxLengthMeters: initialHorizontalLinePreviewMaxLengthMeters,
         })
       : null;
-  const previewFillController = createMeasurementPolygonFillsController(scene, {
+  const previewFillController = createAnnotationPolygonFillsController(scene, {
     allowPicking: false,
   });
   const previewOverlayFillController =
-    createMeasurementOverlayPolygonFillsController(
+    createAnnotationOverlayPolygonFillsController(
       scene,
       `${previewId}-draft-preview`
     );
@@ -420,7 +420,7 @@ export const createPolygonAuthoringController = ({
   let enabled = false;
   let pointQueryPickResult: PointQueryPickResult | null = null;
   let draftCoordinates = [...drafts.get(previewId).coordinates];
-  let currentAreaLabelState: PreviewAreaLabelState | null = null;
+  let currentAreaLabelState: AuthoringAreaLabelState | null = null;
   let currentPointQueryPickAcceptable = true;
 
   const render = (requestRender = true) => {

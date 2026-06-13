@@ -10,11 +10,11 @@ import {
   type Cartesian3,
   type Scene,
 } from "@carma-cesium";
-import type { RuntimeEdgeRenderModel } from "../render/measurement-render-models";
+import type { RuntimeEdgeRenderModel } from "../render/annotation-render-models";
 import {
-  measurementVisualDefaults,
+  annotationVisualDefaults,
   type PointMarkerVisualStyle,
-} from "../config/measurement-visual-defaults";
+} from "../config/annotation-visual-defaults";
 import {
   applyLineRuntime,
   clearLineRuntime,
@@ -25,7 +25,7 @@ import {
   destroyPreviewOverlayLayer,
   hidePointMarkers,
   placePointMarkers,
-  previewControllerDefaults,
+  annotationOverlayDefaults,
 } from "./authoring-visual-runtime";
 import { areCoordinateListsEqual } from "../utils/coordinate-equality";
 
@@ -75,14 +75,14 @@ const createPreviewOverlayPathLine = (
   polyline.setAttribute("stroke", lineColor);
   polyline.setAttribute(
     "stroke-width",
-    `${lineOptions?.strokeWidth ?? previewControllerDefaults.lineStrokeWidthPx}`
+    `${lineOptions?.strokeWidth ?? annotationOverlayDefaults.lineStrokeWidthPx}`
   );
   polyline.setAttribute("stroke-linecap", "round");
   polyline.setAttribute("stroke-linejoin", "round");
   polyline.setAttribute(
     "stroke-dasharray",
     lineOptions?.overlayDashPattern ??
-      measurementVisualDefaults.patterns.edgeDashPattern
+      annotationVisualDefaults.patterns.edgeDashPattern
   );
   polyline.style.display = "none";
   root.appendChild(polyline);

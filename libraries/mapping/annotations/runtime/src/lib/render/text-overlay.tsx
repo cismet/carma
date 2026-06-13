@@ -13,9 +13,9 @@ import {
   annotationLineLabelDefaults,
 } from "../config/annotation-line-label-options";
 import {
-  ANNOTATION_THEME_STYLE,
+  ANNOTATION_THEME,
   type AnnotationThemeStyle,
-} from "../config/annotation-theme-style";
+} from "../config/annotation-theme";
 
 import "./text-overlay.css";
 
@@ -55,8 +55,8 @@ export const TEXT_OVERLAY_AREA_LABEL_STYLE: TextOverlayStyleOptions =
 const TEXT_OVERLAY_THEME_BACKDROP_RGB: Readonly<
   Record<AnnotationThemeStyle, string>
 > = Object.freeze({
-  [ANNOTATION_THEME_STYLE.BRIGHT_ON_DARK]: "15, 23, 42",
-  [ANNOTATION_THEME_STYLE.DARK_ON_BRIGHT]: "255, 255, 255",
+  [ANNOTATION_THEME.style.BRIGHT_ON_DARK]: "15, 23, 42",
+  [ANNOTATION_THEME.style.DARK_ON_BRIGHT]: "255, 255, 255",
 });
 
 type TextOverlayDomElements = {

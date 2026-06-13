@@ -17,6 +17,7 @@ const distanceScreenSpaceDefaults = (() => {
   return Object.freeze({
     lineLengthEpsilonPx: 1e-3,
     referenceDistanceFactor: 0.2,
+    lineLabelReferenceDistancePx: 24,
     flipThresholdPx: 4,
     referenceMinDistancePx: 24,
     referenceMaxDistancePx: 48,
@@ -64,6 +65,22 @@ export type DistanceScreenTriangle = {
   highest: CssPixelPosition;
 };
 
+export type DistanceTriangleLineLabelKind =
+  | "direct"
+  | "vertical"
+  | "horizontal";
+
+export type DistanceTriangleLineLabelOutsideSigns = Partial<
+  Record<DistanceTriangleLineLabelKind, -1 | 1>
+>;
+
+export type DistanceTriangleLineLabelReferences = {
+  directOutsideReferencePoint: CssPixelPosition | null;
+  verticalOutsideReferencePoint: CssPixelPosition | null;
+  horizontalOutsideReferencePoint: CssPixelPosition | null;
+  nextOutsideSigns: DistanceTriangleLineLabelOutsideSigns;
+};
+
 export type VerticalDistanceLineScreenData = {
   start: CssPixelPosition;
   end: CssPixelPosition;
@@ -73,6 +90,11 @@ export type VerticalDistanceLineScreenData = {
   normalX: number;
   normalY: number;
   lineLength: number;
+};
+
+export type OutsideReferencePoint2D = {
+  outsideSign: -1 | 1;
+  referencePoint: CssPixelPosition;
 };
 
 const resolveStableSideSign = (
@@ -87,13 +109,27 @@ const resolveStableSideSign = (
   return nextSign;
 };
 
-export const buildOutsideReferencePoint2D = (
-  start: CssPixelPosition,
-  end: CssPixelPosition,
-  insidePoint: CssPixelPosition,
+export const resolveOutsideReferencePoint2D = ({
+  start,
+  end,
+  insidePoint,
+  previousOutsideSign,
+  flipThresholdPx = distanceScreenSpaceDefaults.flipThresholdPx,
+  referenceDistanceFactor = distanceScreenSpaceDefaults.referenceDistanceFactor,
+  referenceDistancePx,
   minDistancePx = distanceScreenSpaceDefaults.referenceMinDistancePx,
-  maxDistancePx = distanceScreenSpaceDefaults.referenceMaxDistancePx
-): CssPixelPosition | null => {
+  maxDistancePx = distanceScreenSpaceDefaults.referenceMaxDistancePx,
+}: {
+  start: CssPixelPosition;
+  end: CssPixelPosition;
+  insidePoint: CssPixelPosition;
+  previousOutsideSign?: -1 | 1;
+  flipThresholdPx?: number;
+  referenceDistanceFactor?: number;
+  referenceDistancePx?: number;
+  minDistancePx?: number;
+  maxDistancePx?: number;
+}): OutsideReferencePoint2D | null => {
   const edgeFrame = getSegmentFrame2d({
     start,
     end,
@@ -105,19 +141,46 @@ export const buildOutsideReferencePoint2D = (
 
   const insideOffset = subtractPoint2d(insidePoint, edgeFrame.midpoint);
   const insideProjection = dotPoint2d(insideOffset, edgeFrame.leftUnitNormal);
-  const insideSign = insideProjection >= 0 ? 1 : -1;
-  const referenceDistancePx = clamp(
-    edgeFrame.length * distanceScreenSpaceDefaults.referenceDistanceFactor,
-    minDistancePx,
-    maxDistancePx
+  const outsideSign = resolveStableSideSign(
+    -insideProjection,
+    previousOutsideSign,
+    flipThresholdPx
   );
+  const resolvedReferenceDistancePx =
+    referenceDistancePx ??
+    clamp(
+      edgeFrame.length * referenceDistanceFactor,
+      minDistancePx,
+      maxDistancePx
+    );
   const referenceOffset = scalePoint2d(
     edgeFrame.leftUnitNormal,
-    insideSign * referenceDistancePx
+    outsideSign * resolvedReferenceDistancePx
   );
 
-  return addPoint2d(edgeFrame.midpoint, referenceOffset) as CssPixelPosition;
+  return {
+    outsideSign,
+    referencePoint: addPoint2d(
+      edgeFrame.midpoint,
+      referenceOffset
+    ) as CssPixelPosition,
+  };
 };
+
+export const buildOutsideReferencePoint2D = (
+  start: CssPixelPosition,
+  end: CssPixelPosition,
+  insidePoint: CssPixelPosition,
+  minDistancePx = distanceScreenSpaceDefaults.referenceMinDistancePx,
+  maxDistancePx = distanceScreenSpaceDefaults.referenceMaxDistancePx
+): CssPixelPosition | null =>
+  resolveOutsideReferencePoint2D({
+    start,
+    end,
+    insidePoint,
+    minDistancePx,
+    maxDistancePx,
+  })?.referencePoint ?? null;
 
 export const buildDistanceTriangleInsidePoint2D = ({
   triangle,
@@ -144,6 +207,83 @@ export const buildDistanceTriangleInsidePoint2D = ({
       elevationDriverPoint.y +
       (triangle.centroid.y - elevationDriverPoint.y) * insideBlendFactor,
   } as CssPixelPosition;
+};
+
+export const buildDistanceTriangleLineLabelReferences = ({
+  anchor,
+  target,
+  aux,
+  anchorAltitudeMeters,
+  targetAltitudeMeters,
+  previousOutsideSigns,
+  insideBlendFactor = distanceScreenSpaceDefaults.insideBlendFactor,
+  flipThresholdPx = distanceScreenSpaceDefaults.flipThresholdPx,
+  referenceDistancePx = distanceScreenSpaceDefaults.lineLabelReferenceDistancePx,
+}: {
+  anchor: CssPixelPosition;
+  target: CssPixelPosition;
+  aux: CssPixelPosition;
+  anchorAltitudeMeters: number;
+  targetAltitudeMeters: number;
+  previousOutsideSigns?: DistanceTriangleLineLabelOutsideSigns;
+  insideBlendFactor?: number;
+  flipThresholdPx?: number;
+  referenceDistancePx?: number;
+}): DistanceTriangleLineLabelReferences => {
+  const highest =
+    anchorAltitudeMeters >= targetAltitudeMeters ? anchor : target;
+  const triangle: DistanceScreenTriangle = {
+    anchor,
+    target,
+    aux,
+    highest,
+    centroid: {
+      x: (anchor.x + target.x + aux.x) / 3,
+      y: (anchor.y + target.y + aux.y) / 3,
+    } as CssPixelPosition,
+  };
+  const insidePoint = buildDistanceTriangleInsidePoint2D({
+    triangle,
+    auxiliaryAltitudeMeters: targetAltitudeMeters,
+    highestAltitudeMeters: Math.max(anchorAltitudeMeters, targetAltitudeMeters),
+    insideBlendFactor,
+  });
+  const directReference = resolveOutsideReferencePoint2D({
+    start: anchor,
+    end: target,
+    insidePoint,
+    previousOutsideSign: previousOutsideSigns?.direct,
+    flipThresholdPx,
+    referenceDistancePx,
+  });
+  const horizontalReference = resolveOutsideReferencePoint2D({
+    start: aux,
+    end: target,
+    insidePoint,
+    previousOutsideSign: previousOutsideSigns?.horizontal,
+    flipThresholdPx,
+    referenceDistancePx,
+  });
+  const verticalReference = resolveOutsideReferencePoint2D({
+    start: anchor,
+    end: aux,
+    insidePoint: target,
+    previousOutsideSign: previousOutsideSigns?.vertical,
+    flipThresholdPx,
+    referenceDistancePx,
+  });
+
+  return {
+    directOutsideReferencePoint: directReference?.referencePoint ?? null,
+    verticalOutsideReferencePoint: verticalReference?.referencePoint ?? null,
+    horizontalOutsideReferencePoint:
+      horizontalReference?.referencePoint ?? null,
+    nextOutsideSigns: {
+      direct: directReference?.outsideSign,
+      vertical: verticalReference?.outsideSign,
+      horizontal: horizontalReference?.outsideSign,
+    },
+  };
 };
 
 export const buildVerticalDistanceLineScreenData = ({

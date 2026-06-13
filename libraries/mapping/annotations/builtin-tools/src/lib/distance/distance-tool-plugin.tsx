@@ -10,14 +10,14 @@ import { ANNOTATION_TOOL_PLUGIN_CAPABILITIES } from "@carma-mapping/annotations/
 import {
   AUTHORING_MEASUREMENT_PLUGIN_CAPABILITIES,
   createMeasurementToolPlugin,
-  measurementVisualStyles,
-  resolveMeasurementLineStyleOptions,
+  annotationVisualStyles,
+  resolveAnnotationLineStyleOptions,
   withEdgeVisualStyle,
   withPointMarkerVisualStyle,
 } from "@carma-mapping/annotations/runtime";
 import type {
   AnnotationToolDraftState,
-  MeasurementLineStyleOptions,
+  AnnotationLineStyleOptions,
 } from "@carma-mapping/annotations/runtime";
 import {
   appendDistancePreviewPoint,
@@ -28,43 +28,43 @@ import { resolveDistanceToolAddAnnotationOptions } from "./resolve-distance-tool
 import { createDistanceToolInfoBoxSlots } from "./distance-tool-info-box-slots";
 import { createDistanceAuthoringController } from "./create-distance-authoring-controller";
 import { buildDistanceToolRenderModels } from "./distance-tool-render-models";
-import { ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME } from "@carma-mapping/annotations/runtime";
+import { ANNOTATION_DEFAULT_LABEL_THEME } from "@carma-mapping/annotations/runtime";
 import type { DefaultAnnotationToolTexts } from "../annotation-mode-text";
 import { defaultAnnotationToolTexts } from "../annotation-mode-text";
 const { DISTANCE: ANNOTATION_TYPE_DISTANCE } = ANNOTATION_TYPES;
 
 const toolType = ANNOTATION_TYPE_DISTANCE;
-const labelTheme = ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME;
+const labelTheme = ANNOTATION_DEFAULT_LABEL_THEME;
 
 export type DistanceToolPluginOptions = {
-  measurementLineStyleOptions?: MeasurementLineStyleOptions;
+  annotationLineStyleOptions?: AnnotationLineStyleOptions;
   texts?: DefaultAnnotationToolTexts;
 };
 
 export const createDistanceToolPlugin = ({
-  measurementLineStyleOptions,
+  annotationLineStyleOptions,
   texts = defaultAnnotationToolTexts,
 }: DistanceToolPluginOptions = {}) => {
   const text = texts.distance;
   const getDistanceToolInfoBoxSlots = createDistanceToolInfoBoxSlots(toolType, {
     headingTitle: text.headingTitle,
     headingColor: labelTheme.scheme.colorPrimary,
-    formatMeasurementLabelToken: (counter) =>
+    formatLabelToken: (counter) =>
       formatMeasurementShortLabelToken(toolType, counter),
     actionLabels: texts.actions,
     navigationLabels: texts.navigation,
     metricLabels: text.metricLabels,
   });
-  const resolvedLineStyleOptions = resolveMeasurementLineStyleOptions(
-    measurementLineStyleOptions
+  const resolvedLineStyleOptions = resolveAnnotationLineStyleOptions(
+    annotationLineStyleOptions
   );
   const distanceToolVisuals = {
-    edge: withEdgeVisualStyle(measurementVisualStyles.edge, {
+    edge: withEdgeVisualStyle(annotationVisualStyles.edge, {
       strokeWidth: resolvedLineStyleOptions.strokeWidthPx,
       overlayDashPattern: resolvedLineStyleOptions.overlayDashPattern,
       overlayDashed: true,
     }),
-    point: withPointMarkerVisualStyle(measurementVisualStyles.point),
+    point: withPointMarkerVisualStyle(annotationVisualStyles.point),
   };
 
   return createMeasurementToolPlugin({
@@ -155,7 +155,7 @@ export const createDistanceToolPlugin = ({
         createDistanceAuthoringController({
           toolType,
           context,
-          measurementLineStyleOptions: resolvedLineStyleOptions,
+          annotationLineStyleOptions: resolvedLineStyleOptions,
         }),
     },
     keyboard: {
@@ -209,14 +209,14 @@ export const createDistanceToolPlugin = ({
           toolType,
           visuals: distanceToolVisuals,
           labelTheme,
-          getMeasurementLabel: (counter) =>
+          getLabel: (counter) =>
             formatMeasurementShortLabelToken(toolType, counter),
           nodes,
           edges,
           linkedNodeGroups,
-          measurements: annotationEntries,
-          selectedMeasurementIds: selectedAnnotationIds,
-          onMeasurementSelect: setSelectedAnnotationId,
+          annotations: annotationEntries,
+          selectedAnnotationIds: selectedAnnotationIds,
+          onSelect: setSelectedAnnotationId,
           onNodeLongPress,
         });
 

@@ -22,7 +22,7 @@ import type { Scene } from "@carma-cesium";
 import {
   createPreviewOverlayLayer,
   destroyPreviewOverlayLayer,
-  previewControllerDefaults,
+  annotationOverlayDefaults,
   PREVIEW_OVERLAY_GROUP,
 } from "./authoring-visual-runtime";
 
@@ -211,7 +211,7 @@ export const useCursorOverlay = (
     const unregisterScenePointerTracker =
       registerCesiumScenePointerTracker(scene);
     applyStyles(cursorLayer, {
-      zIndex: previewControllerDefaults.layerZIndex,
+      zIndex: annotationOverlayDefaults.layerZIndex,
     });
 
     const cursorElement = createCursorElement(variant);

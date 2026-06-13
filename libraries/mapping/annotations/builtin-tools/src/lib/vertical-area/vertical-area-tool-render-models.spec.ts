@@ -25,7 +25,7 @@ const nodes: readonly AnnotationNode[] = [
   },
 ];
 
-const measurement: StoredAnnotation = {
+const annotation: StoredAnnotation = {
   id: "vertical-1",
   toolType: "vertical",
   nodeIds: ["node-a", "node-b", "node-c", "node-d"],
@@ -51,11 +51,11 @@ describe("buildVerticalAreaToolRenderModels", () => {
     const renderModels = buildVerticalAreaToolRenderModels(
       "vertical",
       nodes,
-      [measurement],
+      [annotation],
       {
         visuals,
         formatOptions: {},
-        selectedMeasurementIds: [],
+        selectedAnnotationIds: [],
         occlusionStyleOptions: {
           fill: {
             overlay: true,
@@ -81,11 +81,11 @@ describe("buildVerticalAreaToolRenderModels", () => {
     const renderModels = buildVerticalAreaToolRenderModels(
       "vertical",
       nodes,
-      [measurement],
+      [annotation],
       {
         visuals,
         formatOptions: {},
-        selectedMeasurementIds: ["vertical-1"],
+        selectedAnnotationIds: ["vertical-1"],
         onNodeLongPress,
       }
     );

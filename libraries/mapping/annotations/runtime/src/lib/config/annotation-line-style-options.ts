@@ -1,15 +1,15 @@
-export type MeasurementLineStyleOptions = {
+export type AnnotationLineStyleOptions = {
   strokeWidthPx?: number;
   overlayDashPattern?: string;
 };
 
-export type ResolvedMeasurementLineStyleOptions = {
+export type ResolvedAnnotationLineStyleOptions = {
   strokeWidthPx: number;
   overlayDashPattern: string;
 };
 
-export const MEASUREMENT_LINE_STYLE_DEFAULTS =
-  Object.freeze<ResolvedMeasurementLineStyleOptions>({
+export const ANNOTATION_LINE_STYLE_DEFAULTS =
+  Object.freeze<ResolvedAnnotationLineStyleOptions>({
     strokeWidthPx: 1.5,
     overlayDashPattern: "8 8",
   });
@@ -27,10 +27,10 @@ const resolveNonEmptyString = (value: string | undefined, fallback: string) => {
   return trimmedValue ? trimmedValue : fallback;
 };
 
-export const resolveMeasurementLineStyleOptions = (
-  options?: MeasurementLineStyleOptions,
-  defaults: ResolvedMeasurementLineStyleOptions = MEASUREMENT_LINE_STYLE_DEFAULTS
-): ResolvedMeasurementLineStyleOptions => ({
+export const resolveAnnotationLineStyleOptions = (
+  options?: AnnotationLineStyleOptions,
+  defaults: ResolvedAnnotationLineStyleOptions = ANNOTATION_LINE_STYLE_DEFAULTS
+): ResolvedAnnotationLineStyleOptions => ({
   strokeWidthPx: resolvePositiveFiniteNumber(
     options?.strokeWidthPx,
     defaults.strokeWidthPx

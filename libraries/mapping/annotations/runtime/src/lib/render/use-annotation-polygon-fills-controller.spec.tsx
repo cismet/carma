@@ -2,18 +2,18 @@ import { renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Scene } from "@carma-cesium";
-import type { RuntimePolygonFillRenderModel } from "./measurement-render-models";
-import { createMeasurementOverlayPolygonFillsController } from "./measurement-overlay-polygon-fills-controller.shared";
-import { createMeasurementPolygonFillsController } from "./measurement-polygon-fills-controller.shared";
-import { useMeasurementOverlayPolygonFillsController } from "./use-measurement-overlay-polygon-fills-controller";
-import { useMeasurementPolygonFillsController } from "./use-measurement-polygon-fills-controller";
+import type { RuntimePolygonFillRenderModel } from "./annotation-render-models";
+import { createAnnotationOverlayPolygonFillsController } from "./annotation-overlay-polygon-fills-controller.shared";
+import { createAnnotationPolygonFillsController } from "./annotation-polygon-fills-controller.shared";
+import { useAnnotationOverlayPolygonFillsController } from "./use-annotation-overlay-polygon-fills-controller";
+import { useAnnotationPolygonFillsController } from "./use-annotation-polygon-fills-controller";
 
-vi.mock("./measurement-polygon-fills-controller.shared", () => ({
-  createMeasurementPolygonFillsController: vi.fn(),
+vi.mock("./annotation-polygon-fills-controller.shared", () => ({
+  createAnnotationPolygonFillsController: vi.fn(),
 }));
 
-vi.mock("./measurement-overlay-polygon-fills-controller.shared", () => ({
-  createMeasurementOverlayPolygonFillsController: vi.fn(),
+vi.mock("./annotation-overlay-polygon-fills-controller.shared", () => ({
+  createAnnotationOverlayPolygonFillsController: vi.fn(),
 }));
 
 type FillController = {
@@ -30,7 +30,7 @@ const createFillController = (): FillController => ({
 
 const basePolygonFill = {
   id: "polygon-fill-1",
-  measurementId: "measurement-1",
+  annotationId: "measurement-1",
   coordinates: [
     { longitude: 7, latitude: 51, altitude: 100 },
     { longitude: 7.0001, latitude: 51, altitude: 100 },
@@ -49,7 +49,7 @@ const nextPolygonFill = Object.freeze([
   },
 ] satisfies readonly RuntimePolygonFillRenderModel[]);
 
-describe("useMeasurementPolygonFillsController", () => {
+describe("useAnnotationPolygonFillsController", () => {
   afterEach(() => {
     vi.clearAllMocks();
   });
@@ -57,14 +57,14 @@ describe("useMeasurementPolygonFillsController", () => {
   it("syncs existing fills when a Cesium scene becomes available later", () => {
     const nullSceneController = createFillController();
     const sceneController = createFillController();
-    vi.mocked(createMeasurementPolygonFillsController)
+    vi.mocked(createAnnotationPolygonFillsController)
       .mockReturnValueOnce(nullSceneController)
       .mockReturnValueOnce(sceneController);
     const scene = {} as Scene;
 
     const { rerender } = renderHook(
       ({ currentScene }) =>
-        useMeasurementPolygonFillsController(currentScene, polygonFill),
+        useAnnotationPolygonFillsController(currentScene, polygonFill),
       {
         initialProps: {
           currentScene: null as Scene | null,
@@ -75,7 +75,7 @@ describe("useMeasurementPolygonFillsController", () => {
     rerender({ currentScene: scene });
 
     expect(nullSceneController.destroy).toHaveBeenCalledOnce();
-    expect(createMeasurementPolygonFillsController).toHaveBeenLastCalledWith(
+    expect(createAnnotationPolygonFillsController).toHaveBeenLastCalledWith(
       scene
     );
     expect(sceneController.setPolygonFills).toHaveBeenCalledWith(polygonFill);
@@ -83,13 +83,13 @@ describe("useMeasurementPolygonFillsController", () => {
 
   it("updates fills without recreating the current Cesium fill controller", () => {
     const sceneController = createFillController();
-    vi.mocked(createMeasurementPolygonFillsController).mockReturnValue(
+    vi.mocked(createAnnotationPolygonFillsController).mockReturnValue(
       sceneController
     );
     const scene = {} as Scene;
 
     const { rerender } = renderHook(
-      ({ fills }) => useMeasurementPolygonFillsController(scene, fills),
+      ({ fills }) => useAnnotationPolygonFillsController(scene, fills),
       {
         initialProps: {
           fills: polygonFill,
@@ -99,14 +99,14 @@ describe("useMeasurementPolygonFillsController", () => {
 
     rerender({ fills: nextPolygonFill });
 
-    expect(createMeasurementPolygonFillsController).toHaveBeenCalledOnce();
+    expect(createAnnotationPolygonFillsController).toHaveBeenCalledOnce();
     expect(sceneController.setPolygonFills).toHaveBeenCalledWith(
       nextPolygonFill
     );
   });
 });
 
-describe("useMeasurementOverlayPolygonFillsController", () => {
+describe("useAnnotationOverlayPolygonFillsController", () => {
   afterEach(() => {
     vi.clearAllMocks();
   });
@@ -114,14 +114,14 @@ describe("useMeasurementOverlayPolygonFillsController", () => {
   it("syncs existing fills when an overlay scene becomes available later", () => {
     const nullSceneController = createFillController();
     const sceneController = createFillController();
-    vi.mocked(createMeasurementOverlayPolygonFillsController)
+    vi.mocked(createAnnotationOverlayPolygonFillsController)
       .mockReturnValueOnce(nullSceneController)
       .mockReturnValueOnce(sceneController);
     const scene = {} as Scene;
 
     const { rerender } = renderHook(
       ({ currentScene }) =>
-        useMeasurementOverlayPolygonFillsController(
+        useAnnotationOverlayPolygonFillsController(
           currentScene,
           polygonFill,
           "committed"
@@ -137,7 +137,7 @@ describe("useMeasurementOverlayPolygonFillsController", () => {
 
     expect(nullSceneController.destroy).toHaveBeenCalledOnce();
     expect(
-      createMeasurementOverlayPolygonFillsController
+      createAnnotationOverlayPolygonFillsController
     ).toHaveBeenLastCalledWith(scene, "committed");
     expect(sceneController.setPolygonFills).toHaveBeenCalledWith(polygonFill);
   });
@@ -145,14 +145,14 @@ describe("useMeasurementOverlayPolygonFillsController", () => {
   it("syncs existing fills when the overlay surface changes", () => {
     const committedController = createFillController();
     const previewController = createFillController();
-    vi.mocked(createMeasurementOverlayPolygonFillsController)
+    vi.mocked(createAnnotationOverlayPolygonFillsController)
       .mockReturnValueOnce(committedController)
       .mockReturnValueOnce(previewController);
     const scene = {} as Scene;
 
     const { rerender } = renderHook(
       ({ surfaceKey }) =>
-        useMeasurementOverlayPolygonFillsController(
+        useAnnotationOverlayPolygonFillsController(
           scene,
           polygonFill,
           surfaceKey
@@ -168,7 +168,7 @@ describe("useMeasurementOverlayPolygonFillsController", () => {
 
     expect(committedController.destroy).toHaveBeenCalledOnce();
     expect(
-      createMeasurementOverlayPolygonFillsController
+      createAnnotationOverlayPolygonFillsController
     ).toHaveBeenLastCalledWith(scene, "preview");
     expect(previewController.setPolygonFills).toHaveBeenCalledWith(polygonFill);
   });

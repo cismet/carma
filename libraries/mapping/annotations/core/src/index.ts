@@ -1,5 +1,6 @@
 export {
   buildDistanceTriangleInsidePoint2D,
+  buildDistanceTriangleLineLabelReferences,
   buildOutsideReferencePoint2D,
   buildVerticalDistanceLineScreenData,
   buildVerticalLabelReferencePoint2D,
@@ -7,8 +8,15 @@ export {
   hasVisibleDistanceRelationComponentLines,
   isDistanceRelationHorizontalLineVisible,
   isDistanceRelationVerticalLineVisible,
+  resolveOutsideReferencePoint2D,
 } from "./lib/distance-screen-space";
-export type { DistanceScreenTriangle } from "./lib/distance-screen-space";
+export type {
+  DistanceTriangleLineLabelKind,
+  DistanceTriangleLineLabelOutsideSigns,
+  DistanceTriangleLineLabelReferences,
+  DistanceScreenTriangle,
+  OutsideReferencePoint2D,
+} from "./lib/distance-screen-space";
 export { ANNOTATION_CANDIDATE_KINDS } from "./lib/types/annotation-candidate";
 export type { AnnotationCandidateKind } from "./lib/types/annotation-candidate";
 export {
@@ -69,7 +77,7 @@ export {
   formatAnnotationRgbaCss,
   getAnnotationLineComponentCssColor,
   getAnnotationLineComponentLabelAccentCssColor,
-  getAnnotationMeasurementTextCssColor,
+  getAnnotationLabelTextCssColor,
   getAnnotationSelectionCssColor,
   getAnnotationShortLabelBackgroundCssColor,
   getAnnotationShortLabelBackgroundRgb255,

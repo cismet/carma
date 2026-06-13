@@ -23,7 +23,7 @@ import {
   resolveDistanceTriangleAnchorCoordinateSelection,
   resolveOppositeDistanceTriangleAnchorCoordinateRole,
 } from "../render/distance-triangle-overlay";
-import { RUNTIME_POINT_LABEL_COORDINATE_SELECTION } from "../render/measurement-render-models";
+import { RUNTIME_POINT_LABEL_COORDINATE_SELECTION } from "../render/annotation-render-models";
 import { resolveAnnotationEntryCoordinates } from "../utils/annotation-coordinates";
 
 const {
@@ -116,11 +116,11 @@ export const useVisualInteraction = ({
     onActiveEditedNodeIdChange,
   });
   const handleDistanceTriangleCornerClick = useCallback(
-    (measurementId: string) => {
+    (annotationId: string) => {
       const runtimeState = annotationsStore.getState();
       const targetEntry = findAnnotationEntryById(
         runtimeState.annotationEntries,
-        measurementId
+        annotationId
       );
       if (!targetEntry) {
         return;
@@ -129,7 +129,7 @@ export const useVisualInteraction = ({
       const coordinates = resolveAnnotationEntryCoordinates({
         annotationEntries: runtimeState.annotationEntries,
         nodes: runtimeState.nodes,
-        annotationId: measurementId,
+        annotationId: annotationId,
       });
 
       const currentTriangleAnchorCoordinateRole =
@@ -145,7 +145,7 @@ export const useVisualInteraction = ({
 
       annotationsStore.dispatch(
         updateAnnotationEntryById({
-          annotationId: measurementId,
+          annotationId: annotationId,
           distanceAnchorCoordinateSelection: nextSelection,
           distanceTriangleAnchorCoordinateRole:
             resolveOppositeDistanceTriangleAnchorCoordinateRole(
@@ -156,7 +156,7 @@ export const useVisualInteraction = ({
     },
     [annotationsStore]
   );
-  const insertNodeTargetMeasurementIds = useMemo(() => {
+  const insertNodeTargetAnnotationIds = useMemo(() => {
     const selectedAnnotationIdSet = new Set(selectedAnnotationIds);
 
     return annotationEntries
@@ -170,11 +170,11 @@ export const useVisualInteraction = ({
       .map((annotationEntry) => annotationEntry.id);
   }, [annotationEntries, selectedAnnotationIds]);
   const handleInsertNodeTargetClick = useCallback(
-    (measurementId: string, startNodeId: string, endNodeId: string) => {
+    (annotationId: string, startNodeId: string, endNodeId: string) => {
       const runtimeState = annotationsStore.getState();
       const targetEntry = findAnnotationEntryById(
         runtimeState.annotationEntries,
-        measurementId
+        annotationId
       );
       if (
         !targetEntry ||
@@ -195,7 +195,7 @@ export const useVisualInteraction = ({
 
       annotationsStore.dispatch(
         insertNodeIntoMeasurementEdge({
-          measurementId,
+          annotationId,
           startNodeId,
           endNodeId,
           coordinate: resolveInsertedNodeCoordinate({
@@ -243,7 +243,7 @@ export const useVisualInteraction = ({
     handleReferenceEdgeClick,
     handleReferenceNodeClick,
     handleReferenceNodeHover,
-    insertNodeTargetMeasurementIds,
+    insertNodeTargetAnnotationIds,
     isMoveGizmoDragging,
     previewSnapTargetHoverEnabled,
   };

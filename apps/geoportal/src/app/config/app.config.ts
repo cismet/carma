@@ -16,7 +16,7 @@ import {
 import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 import {
   type AreaOcclusionStyleOptions,
-  type MeasurementLineStyleOptions,
+  type AnnotationLineStyleOptions,
 } from "@carma-mapping/annotations/runtime";
 import {
   DEFAULT_ANNOTATION_INFO_BOX_TOOL_IDS,
@@ -78,8 +78,10 @@ export type GeoportalAnnotationInfoBoxConfig = Pick<
 >;
 
 export type GeoportalCesiumAnnotationConfig = {
-  measurementLineStyle: MeasurementLineStyleOptions;
-  areaOcclusionStyle: AreaOcclusionStyleOptions;
+  style: {
+    lines: AnnotationLineStyleOptions;
+    areaOcclusion: AreaOcclusionStyleOptions;
+  };
   infoBox: GeoportalAnnotationInfoBoxConfig;
   tools: {
     defaultToolId: AnnotationToolId;
@@ -137,17 +139,19 @@ export const CESIUM_CONFIG: CesiumConfig = {
 };
 
 export const CESIUM_ANNOTATION_CONFIG = {
-  measurementLineStyle: {
-    strokeWidthPx: 1.5,
-    overlayDashPattern: "8 8",
-  },
-  areaOcclusionStyle: {
-    fill: {
-      overlay: true,
-      overlayAlphaMultiplier: 0.5,
+  style: {
+    lines: {
+      strokeWidthPx: 1.5,
+      overlayDashPattern: "8 8",
     },
-    line: {
-      overlayDashed: true,
+    areaOcclusion: {
+      fill: {
+        overlay: true,
+        overlayAlphaMultiplier: 0.5,
+      },
+      line: {
+        overlayDashed: true,
+      },
     },
   },
   infoBox: {

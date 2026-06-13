@@ -10,15 +10,15 @@ import {
 import {
   AUTHORING_MEASUREMENT_PLUGIN_CAPABILITIES,
   createMeasurementToolPlugin,
-  measurementVisualStyles,
-  resolveMeasurementLineStyleOptions,
+  annotationVisualStyles,
+  resolveAnnotationLineStyleOptions,
   withEdgeVisualStyle,
   withPointMarkerVisualStyle,
 } from "@carma-mapping/annotations/runtime";
 import { ANNOTATION_TOOL_PLUGIN_CAPABILITIES } from "@carma-mapping/annotations/runtime";
 import type {
   AnnotationToolDraftState,
-  MeasurementLineStyleOptions,
+  AnnotationLineStyleOptions,
 } from "@carma-mapping/annotations/runtime";
 import { createSegmentAuthoringController } from "@carma-mapping/annotations/runtime";
 import {
@@ -27,13 +27,13 @@ import {
 } from "./polyline-tool-actions";
 import { createPolylineToolInfoBoxSlots } from "./polyline-tool-info-box-slots";
 import { buildPolylineToolRenderModels } from "./polyline-tool-render-models";
-import { ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME } from "@carma-mapping/annotations/runtime";
+import { ANNOTATION_DEFAULT_LABEL_THEME } from "@carma-mapping/annotations/runtime";
 import type { DefaultAnnotationToolTexts } from "../annotation-mode-text";
 import { defaultAnnotationToolTexts } from "../annotation-mode-text";
 const { POLYLINE: ANNOTATION_TYPE_POLYLINE } = ANNOTATION_TYPES;
 
 const toolType = ANNOTATION_TYPE_POLYLINE;
-const labelTheme = ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME;
+const labelTheme = ANNOTATION_DEFAULT_LABEL_THEME;
 const badgeStyle = {
   ...DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG[toolType],
   backgroundColor: labelTheme.scheme.colorPrimary,
@@ -41,33 +41,33 @@ const badgeStyle = {
 };
 
 export type PolylineToolPluginOptions = {
-  measurementLineStyleOptions?: MeasurementLineStyleOptions;
+  annotationLineStyleOptions?: AnnotationLineStyleOptions;
   texts?: DefaultAnnotationToolTexts;
 };
 
 export const createPolylineToolPlugin = ({
-  measurementLineStyleOptions,
+  annotationLineStyleOptions,
   texts = defaultAnnotationToolTexts,
 }: PolylineToolPluginOptions = {}) => {
   const text = texts.polyline;
   const getPolylineToolInfoBoxSlots = createPolylineToolInfoBoxSlots(toolType, {
     headingTitle: text.headingTitle,
     headingColor: labelTheme.scheme.colorPrimary,
-    formatMeasurementLabelToken: (counter) =>
+    formatLabelToken: (counter) =>
       formatMeasurementShortLabelToken(toolType, counter),
     actionLabels: texts.actions,
     navigationLabels: texts.navigation,
     metricLabels: text.metricLabels,
   });
-  const resolvedLineStyleOptions = resolveMeasurementLineStyleOptions(
-    measurementLineStyleOptions
+  const resolvedLineStyleOptions = resolveAnnotationLineStyleOptions(
+    annotationLineStyleOptions
   );
   const polylineToolVisuals = {
-    edge: withEdgeVisualStyle(measurementVisualStyles.edge, {
+    edge: withEdgeVisualStyle(annotationVisualStyles.edge, {
       strokeWidth: resolvedLineStyleOptions.strokeWidthPx,
       overlayDashPattern: resolvedLineStyleOptions.overlayDashPattern,
     }),
-    point: withPointMarkerVisualStyle(measurementVisualStyles.point),
+    point: withPointMarkerVisualStyle(annotationVisualStyles.point),
   };
 
   return createMeasurementToolPlugin({
@@ -187,12 +187,12 @@ export const createPolylineToolPlugin = ({
           visuals: polylineToolVisuals,
           formatOptions,
           badgeStyle,
-          getMeasurementLabel: (counter) =>
+          getLabel: (counter) =>
             formatMeasurementShortLabelToken(toolType, counter),
           nodes,
-          measurements: annotationEntries,
-          selectedMeasurementIds: selectedAnnotationIds,
-          onMeasurementSelect: setSelectedAnnotationId,
+          annotations: annotationEntries,
+          selectedAnnotationIds: selectedAnnotationIds,
+          onSelect: setSelectedAnnotationId,
           onNodeLongPress,
         });
 

@@ -179,8 +179,8 @@ export const defaultAnnotationToolTexts = {
     deleteLocked: "Gesperrte Messung kann nicht gelöscht werden",
   },
   navigation: {
-    measurementSingular: "Messung",
-    measurementPlural: "Messungen",
+    entrySingular: "Messung",
+    entryPlural: "Messungen",
     availableSuffix: "verfügbar",
     previousAriaLabel: "Vorherige Messung",
     nextAriaLabel: "Nächste Messung",

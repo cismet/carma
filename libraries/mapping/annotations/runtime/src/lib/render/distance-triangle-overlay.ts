@@ -9,7 +9,7 @@ import {
   RUNTIME_POINT_LABEL_COORDINATE_SELECTION,
   type RuntimeDistanceTriangleAnchorCoordinateRole,
   type RuntimePointLabelCoordinateSelection,
-} from "./measurement-render-models";
+} from "./annotation-render-models";
 import type { CesiumGeographicCoordinate } from "../store";
 
 export const resolveOppositeDistanceTriangleAnchorCoordinateRole = (

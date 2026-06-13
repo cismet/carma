@@ -1,3 +1,4 @@
+import type { DistanceTriangleLineLabelOutsideSigns } from "@carma-mapping/annotations/core";
 import { isValidScene } from "@carma-mapping/engines/cesium/core";
 
 import type { CesiumGeographicCoordinate } from "../store";
@@ -11,12 +12,12 @@ import {
   createLineCollection,
   createLineRuntime,
   createPreviewOverlayLayer,
-  createPreviewSegmentScratch,
+  createAnnotationGeometryScratch,
   createSegmentLineLabels,
   destroyLineCollection,
   destroyPreviewOverlayLayer,
   hideLineLabels,
-  previewControllerDefaults,
+  annotationOverlayDefaults,
 } from "./authoring-visual-runtime";
 import { resolveSegmentGuideFrame } from "./resolve-segment-guide-frame";
 
@@ -61,31 +62,33 @@ export const createSegmentGuideController = (
     direct: createLineRuntime(
       lineCollection,
       "draft-preview-direct",
-      previewControllerDefaults.directLineColor
+      annotationOverlayDefaults.directLineColor
     ),
     vertical: createLineRuntime(
       lineCollection,
       "draft-preview-vertical",
-      previewControllerDefaults.verticalLineColor
+      annotationOverlayDefaults.verticalLineColor
     ),
     horizontal: createLineRuntime(
       lineCollection,
       "draft-preview-horizontal",
-      previewControllerDefaults.horizontalLineColor
+      annotationOverlayDefaults.horizontalLineColor
     ),
   };
-  const scratch = createPreviewSegmentScratch();
+  const scratch = createAnnotationGeometryScratch();
   let currentAnchorCoordinate: CesiumGeographicCoordinate | null = null;
   let currentHoverCoordinate: CesiumGeographicCoordinate | null = null;
-  let previousVerticalLabelOutsideSign: -1 | 1 | undefined;
+  let previousLabelOutsideSigns:
+    | DistanceTriangleLineLabelOutsideSigns
+    | undefined;
 
-  const hide = (resetVerticalOutsideSign = true) => {
+  const hide = (resetOutsideSigns = true) => {
     clearLineRuntime(lines.direct);
     clearLineRuntime(lines.vertical);
     clearLineRuntime(lines.horizontal);
     hideLineLabels(lineLabels);
-    if (resetVerticalOutsideSign) {
-      previousVerticalLabelOutsideSign = undefined;
+    if (resetOutsideSigns) {
+      previousLabelOutsideSigns = undefined;
     }
   };
 
@@ -100,18 +103,18 @@ export const createSegmentGuideController = (
       anchorCoordinate: currentAnchorCoordinate,
       hoverCoordinate: currentHoverCoordinate,
       formatOptions,
-      previousVerticalOutsideSign: previousVerticalLabelOutsideSign,
+      previousOutsideSigns: previousLabelOutsideSigns,
       scratch,
     });
 
     if (!frame) {
-      previousVerticalLabelOutsideSign = undefined;
+      previousLabelOutsideSigns = undefined;
       if (requestRender) {
         scene.requestRender();
       }
       return;
     }
-    previousVerticalLabelOutsideSign = frame.nextVerticalOutsideSign;
+    previousLabelOutsideSigns = frame.nextOutsideSigns;
 
     applyLineRuntime(lines.direct, [
       frame.direct.startECEF,

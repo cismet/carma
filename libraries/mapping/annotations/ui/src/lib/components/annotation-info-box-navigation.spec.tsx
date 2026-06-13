@@ -8,17 +8,17 @@ import { AnnotationInfoBoxNavigation } from "./AnnotationInfoBoxNavigation";
 
 describe("AnnotationInfoBoxNavigation", () => {
   it("renders fly-to and paging controls as accessible buttons", () => {
-    const onFlyToAllMeasurements = vi.fn();
-    const onPreviousMeasurement = vi.fn();
-    const onNextMeasurement = vi.fn();
+    const onFlyToAll = vi.fn();
+    const onPrevious = vi.fn();
+    const onNext = vi.fn();
 
     render(
       <AnnotationInfoBoxNavigation
         totalEntries={3}
         currentIndex={1}
-        onFlyToAllMeasurements={onFlyToAllMeasurements}
-        onPreviousMeasurement={onPreviousMeasurement}
-        onNextMeasurement={onNextMeasurement}
+        onFlyToAll={onFlyToAll}
+        onPrevious={onPrevious}
+        onNext={onNext}
       />
     );
 
@@ -28,9 +28,9 @@ describe("AnnotationInfoBoxNavigation", () => {
     fireEvent.click(screen.getByRole("button", { name: "Vorherige Messung" }));
     fireEvent.click(screen.getByRole("button", { name: "Nächste Messung" }));
 
-    expect(onFlyToAllMeasurements).toHaveBeenCalledTimes(1);
-    expect(onPreviousMeasurement).toHaveBeenCalledTimes(1);
-    expect(onNextMeasurement).toHaveBeenCalledTimes(1);
+    expect(onFlyToAll).toHaveBeenCalledTimes(1);
+    expect(onPrevious).toHaveBeenCalledTimes(1);
+    expect(onNext).toHaveBeenCalledTimes(1);
   });
 
   it("can render plain paging labels without losing pointer behavior", () => {
@@ -38,8 +38,8 @@ describe("AnnotationInfoBoxNavigation", () => {
       <AnnotationInfoBoxNavigation
         totalEntries={3}
         currentIndex={1}
-        onPreviousMeasurement={vi.fn()}
-        onNextMeasurement={vi.fn()}
+        onPrevious={vi.fn()}
+        onNext={vi.fn()}
         visualOptions={{
           ...annotationInfoBoxVisualDefaults,
           navigationControlLabels: {

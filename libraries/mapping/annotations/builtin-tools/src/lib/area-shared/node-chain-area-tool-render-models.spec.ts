@@ -22,7 +22,7 @@ const nodes: readonly AnnotationNode[] = [
   },
 ];
 
-const measurement: StoredAnnotation = {
+const annotation: StoredAnnotation = {
   id: "area-1",
   toolType: "planar",
   nodeIds: ["node-a", "node-b", "node-c"],
@@ -51,8 +51,8 @@ describe("buildNodeChainAreaToolRenderModels", () => {
       toolType: "area",
       visuals,
       nodes,
-      measurements: [{ ...measurement, toolType: "area" }],
-      selectedMeasurementIds: [],
+      annotations: [{ ...annotation, toolType: "area" }],
+      selectedAnnotationIds: [],
       fillPlacement: RUNTIME_POLYGON_FILL_PLACEMENT.COPLANAR,
       formatOptions: {},
       occlusionStyleOptions: {
@@ -78,8 +78,8 @@ describe("buildNodeChainAreaToolRenderModels", () => {
       toolType: "planar",
       visuals,
       nodes,
-      measurements: [measurement],
-      selectedMeasurementIds: [],
+      annotations: [annotation],
+      selectedAnnotationIds: [],
       fillPlacement: RUNTIME_POLYGON_FILL_PLACEMENT.GROUND,
       formatOptions: {},
       occlusionStyleOptions: {
@@ -110,8 +110,8 @@ describe("buildNodeChainAreaToolRenderModels", () => {
       toolType: "planar",
       visuals,
       nodes,
-      measurements: [measurement],
-      selectedMeasurementIds: ["area-1"],
+      annotations: [annotation],
+      selectedAnnotationIds: ["area-1"],
       fillPlacement: RUNTIME_POLYGON_FILL_PLACEMENT.COPLANAR,
       formatOptions: {},
       onNodeLongPress,

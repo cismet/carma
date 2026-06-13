@@ -1,4 +1,4 @@
-import { buildAnnotationMeasurementInfoBoxSlots } from "@carma-mapping/annotations/ui";
+import { buildAnnotationInfoBoxSlots } from "@carma-mapping/annotations/ui";
 import type { AnnotationInfoBoxActionLabels } from "@carma-mapping/annotations/ui";
 
 import type { RuntimeAnnotationInfoBoxContext } from "@carma-mapping/annotations/runtime";
@@ -38,19 +38,19 @@ export const createLabelToolInfoBoxSlots = (
       return null;
     }
 
-    const labelMeasurements = annotationEntries.filter(
-      (measurementEntry) => measurementEntry.toolType === toolType
+    const labelAnnotations = annotationEntries.filter(
+      (annotationEntry) => annotationEntry.toolType === toolType
     );
     const labelOrder =
-      labelMeasurements.findIndex(
-        (measurementEntry) => measurementEntry.id === annotation.id
+      labelAnnotations.findIndex(
+        (annotationEntry) => annotationEntry.id === annotation.id
       ) + 1;
     const defaultDisplayName = getDefaultLabelDisplayName(
       labelOrder,
       defaultDisplayNamePrefix
     );
 
-    return buildAnnotationMeasurementInfoBoxSlots({
+    return buildAnnotationInfoBoxSlots({
       headingTitle,
       titleInput: {
         value: annotation.displayName ?? "",
@@ -85,14 +85,13 @@ export const createLabelToolInfoBoxSlots = (
           });
         },
         labels: actionLabels,
-        dataTestIdPrefix: "carma-annotation-label-measurement",
+        dataTestIdPrefix: "carma-annotation-label-annotation",
         dataTestIds: {
-          flyTo: "carma-annotation-flyto-label-measurement-btn",
-          export: "carma-annotation-export-label-measurement-geojson-btn",
-          visibility:
-            "carma-annotation-toggle-label-measurement-visibility-btn",
-          lock: "carma-annotation-toggle-label-measurement-lock-btn",
-          delete: "carma-annotation-delete-label-measurement-btn",
+          flyTo: "carma-annotation-flyto-label-annotation-btn",
+          export: "carma-annotation-export-label-annotation-geojson-btn",
+          visibility: "carma-annotation-toggle-label-annotation-visibility-btn",
+          lock: "carma-annotation-toggle-label-annotation-lock-btn",
+          delete: "carma-annotation-delete-label-annotation-btn",
         },
       },
       content: (

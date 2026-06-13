@@ -39,13 +39,13 @@ export const resolvePointElevationReferenceAnnotationId = ({
   annotationEntries: readonly StoredAnnotation[];
   configuredReferenceAnnotationId: string | null;
 }): string | null => {
-  const pointMeasurements = annotationEntries.filter(
+  const pointAnnotations = annotationEntries.filter(
     (annotationEntry) => annotationEntry.toolType === ANNOTATION_TYPE_POINT
   );
 
   if (
     configuredReferenceAnnotationId &&
-    pointMeasurements.some(
+    pointAnnotations.some(
       (annotationEntry) =>
         annotationEntry.id === configuredReferenceAnnotationId
     )
@@ -53,7 +53,7 @@ export const resolvePointElevationReferenceAnnotationId = ({
     return configuredReferenceAnnotationId;
   }
 
-  return pointMeasurements[0]?.id ?? null;
+  return pointAnnotations[0]?.id ?? null;
 };
 
 export const resolvePointElevationReferenceCoordinate = ({
@@ -73,11 +73,11 @@ export const resolvePointElevationReferenceCoordinate = ({
     return null;
   }
 
-  const referenceMeasurement =
+  const referenceAnnotation =
     annotationEntries.find(
       (annotationEntry) => annotationEntry.id === referenceAnnotationId
     ) ?? null;
-  const referenceNodeId = referenceMeasurement?.nodeIds[0] ?? null;
+  const referenceNodeId = referenceAnnotation?.nodeIds[0] ?? null;
 
   return nodes.find((node) => node.id === referenceNodeId)?.coordinate ?? null;
 };

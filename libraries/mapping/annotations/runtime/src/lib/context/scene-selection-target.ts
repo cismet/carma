@@ -20,24 +20,24 @@ const resolvePickedIdCandidates = (pickedObject: unknown): unknown[] => {
 
 export const resolveSceneSelectionTarget = ({
   pickedObject,
-  edgeMeasurementIdsById,
-  polygonFillMeasurementIdsById,
+  edgeAnnotationIdsById,
+  polygonFillAnnotationIdsById,
 }: {
   pickedObject: unknown;
-  edgeMeasurementIdsById: ReadonlyMap<string, string | null>;
-  polygonFillMeasurementIdsById: ReadonlyMap<string, string | null>;
+  edgeAnnotationIdsById: ReadonlyMap<string, string | null>;
+  polygonFillAnnotationIdsById: ReadonlyMap<string, string | null>;
 }) => {
   const pickedIdCandidates = resolvePickedIdCandidates(pickedObject);
 
   for (const pickedId of pickedIdCandidates) {
     if (typeof pickedId === "string") {
-      const matchingEdgeEntry = [...edgeMeasurementIdsById.entries()].find(
+      const matchingEdgeEntry = [...edgeAnnotationIdsById.entries()].find(
         ([edgeId]) => pickedId === edgeId || pickedId.startsWith(`${edgeId}-`)
       );
       if (matchingEdgeEntry) {
         return {
           isRuntimeTarget: true,
-          measurementId: matchingEdgeEntry[1],
+          annotationId: matchingEdgeEntry[1],
         };
       }
     }
@@ -50,11 +50,11 @@ export const resolveSceneSelectionTarget = ({
       const polygonGroupId = (pickedId as { polygonGroupId?: unknown })
         .polygonGroupId;
       if (typeof polygonGroupId === "string") {
-        if (polygonFillMeasurementIdsById.has(polygonGroupId)) {
+        if (polygonFillAnnotationIdsById.has(polygonGroupId)) {
           return {
             isRuntimeTarget: true,
-            measurementId:
-              polygonFillMeasurementIdsById.get(polygonGroupId) ?? null,
+            annotationId:
+              polygonFillAnnotationIdsById.get(polygonGroupId) ?? null,
           };
         }
       }
@@ -63,6 +63,6 @@ export const resolveSceneSelectionTarget = ({
 
   return {
     isRuntimeTarget: false,
-    measurementId: null,
+    annotationId: null,
   };
 };

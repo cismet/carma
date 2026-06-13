@@ -7,7 +7,7 @@ import type {
   RuntimePointLabelRenderModel,
   RuntimePointMarkerRenderModel,
   RuntimePolygonFillRenderModel,
-} from "./measurement-render-models";
+} from "./annotation-render-models";
 export type RuntimeVisualModels = {
   points?: readonly RuntimePointMarkerRenderModel[];
   edges?: readonly RuntimeEdgeRenderModel[];
@@ -70,7 +70,7 @@ const arePointLabelsEqual = (
     return (
       otherLabel !== undefined &&
       label.id === otherLabel.id &&
-      label.measurementId === otherLabel.measurementId &&
+      label.annotationId === otherLabel.annotationId &&
       label.nodeId === otherLabel.nodeId &&
       label.pointMarkerId === otherLabel.pointMarkerId &&
       areCoordinatesEqual(label.coordinate, otherLabel.coordinate) &&
@@ -111,7 +111,7 @@ const arePolygonFillsEqual = (
     return (
       otherFill !== undefined &&
       fill.id === otherFill.id &&
-      fill.measurementId === otherFill.measurementId &&
+      fill.annotationId === otherFill.annotationId &&
       (fill.nodeIds?.length ?? 0) === (otherFill.nodeIds?.length ?? 0) &&
       (fill.nodeIds?.every(
         (nodeId, nodeIndex) => nodeId === otherFill.nodeIds?.[nodeIndex]

@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef } from "react";
 
 import { createSvgLineVisualizers } from "@carma-commons/svg";
 import {
+  buildDistanceTriangleLineLabelReferences,
+  type DistanceTriangleLineLabelOutsideSigns,
   distanceVisualizationDefaults,
   getAnnotationSurfaceAccentCssColor,
 } from "@carma-mapping/annotations/core";
@@ -36,25 +38,24 @@ import type { Scene } from "@carma-cesium";
 import {
   ANNOTATION_OVERLAY_GROUP,
   buildAuxiliaryPoint,
-  buildPreviewDistanceTriangleLabelReferences,
   createAnnotationOverlayLayers,
   createLineLabel,
-  createPreviewSegmentScratch,
+  createAnnotationGeometryScratch,
   createSegmentLineLabels,
   destroyAnnotationOverlayLayer,
   hideLineLabels,
-  previewControllerDefaults,
+  annotationOverlayDefaults,
   resolveAnnotationOverlayContainer,
-  resolvePreviewDistanceTriangleComponentLabelVisibility,
-  type PreviewSegmentLineLabelElements,
-  type PreviewSegmentScratch,
+  resolveDistanceTriangleComponentLabelVisibility,
+  type AuthoringSegmentLineLabels,
+  type AnnotationGeometryScratch,
 } from "../interaction/authoring-visual-runtime";
 import {
   RUNTIME_DISTANCE_TRIANGLE_ANCHOR_COORDINATE_ROLE,
   resolveRuntimeOverlayDistanceZIndex,
   type RuntimeDistanceTriangleOverlayRenderModel,
   type RuntimeEdgeRenderModel,
-} from "./measurement-render-models";
+} from "./annotation-render-models";
 import {
   areOverlayVisibilitySceneSnapshotsEqual,
   captureOverlayVisibilitySceneSnapshot,
@@ -71,24 +72,24 @@ import {
   type PartialAnnotationLineLabelOptions,
   type AnnotationLineLabelOptions,
 } from "../config/annotation-line-label-options";
-import { measurementVisualDefaults } from "../config/measurement-visual-defaults";
+import { annotationVisualDefaults } from "../config/annotation-visual-defaults";
 
-type UseRuntimeMeasurementEdgesControllerArgs = {
+type UseRuntimeAnnotationEdgesControllerArgs = {
   edges: readonly RuntimeEdgeRenderModel[];
   formatOptions: AnnotationsRuntimeFormatOptions;
   lineLabelOptions?: PartialAnnotationLineLabelOptions;
   surfaceKey?: string;
   activeEditedNodeId: string | null;
   blockEdgeInteractions: boolean;
-  onMeasurementSelect?: (measurementId: string) => void;
+  onAnnotationSelect?: (annotationId: string) => void;
   onEdgeClick?: (startNodeId: string, endNodeId: string) => boolean;
-  insertNodeTargetMeasurementIds?: readonly string[];
+  insertNodeTargetAnnotationIds?: readonly string[];
   onInsertNodeTargetClick?: (
-    measurementId: string,
+    annotationId: string,
     startNodeId: string,
     endNodeId: string
   ) => boolean;
-  onDistanceTriangleCornerClick?: (measurementId: string) => void;
+  onDistanceTriangleCornerClick?: (annotationId: string) => void;
 };
 
 type EdgeSceneLine = {
@@ -101,7 +102,7 @@ type EdgeSceneLine = {
 
 type EdgeSegment = {
   id: string;
-  measurementId?: string;
+  annotationId?: string;
   startNodeId?: string;
   endNodeId?: string;
   startCoordinate: RuntimeEdgeRenderModel["coordinates"][number];
@@ -114,8 +115,8 @@ type EdgeSegment = {
   distanceTriangleOverlay?: RuntimeDistanceTriangleOverlayRenderModel;
 };
 
-const resolveDistanceTriangleMeasurementId = (edge: EdgeSegment) =>
-  edge.distanceTriangleOverlay?.measurementId ?? edge.id;
+const resolveDistanceTriangleAnnotationId = (edge: EdgeSegment) =>
+  edge.distanceTriangleOverlay?.annotationId ?? edge.id;
 
 const resolveOverlayZIndexAtWorldPosition = (
   scene: Scene,
@@ -136,23 +137,23 @@ const resolveOverlayZIndexBetweenWorldPositions = (
       2
   );
 
-const measurementEdgeMidpointMarkerDefaults = Object.freeze({
+const annotationEdgeMidpointMarkerDefaults = Object.freeze({
   ...resolveOverlayMidpointTickMetrics({
-    markerDiameterPx: measurementVisualDefaults.sizes.pointPixelSize,
-    markerStrokeWidthPx: measurementVisualDefaults.sizes.pointOutlineWidth,
+    markerDiameterPx: annotationVisualDefaults.sizes.pointPixelSize,
+    markerStrokeWidthPx: annotationVisualDefaults.sizes.pointOutlineWidth,
   }),
   tickColor: labelOverlayAffordanceDefaults.colors.surfaceStrong,
   minOverlayZIndex: labelOverlayLayerDefaults.zIndex.interactionHandleFloor,
 });
 
-const measurementEdgeDefaults = Object.freeze({
+const annotationEdgeDefaults = Object.freeze({
   pointLabelCollisionSelector:
     '[data-pillbutton-root="true"], [data-point-label-content-root="true"]',
   svgNamespace: "http://www.w3.org/2000/svg",
   distanceTriangle: Object.freeze({
     cornerDotRadiusPx: 1.25 / 2,
   }),
-  midpointMarker: measurementEdgeMidpointMarkerDefaults,
+  midpointMarker: annotationEdgeMidpointMarkerDefaults,
 });
 
 const distanceTriangleVisualDefaults = Object.freeze({
@@ -182,7 +183,7 @@ const resolveVisiblePointLabelRects = (scene: Scene): Rect[] => {
 
   return Array.from(
     container.querySelectorAll<HTMLElement>(
-      measurementEdgeDefaults.pointLabelCollisionSelector
+      annotationEdgeDefaults.pointLabelCollisionSelector
     )
   )
     .map((element) => toLayoutRect(element.getBoundingClientRect()))
@@ -210,13 +211,13 @@ type DistanceTriangleOverlayScreenData = {
   directOutsideReferencePoint: CssPixelPosition | null;
   verticalOutsideReferencePoint: CssPixelPosition | null;
   horizontalOutsideReferencePoint: CssPixelPosition | null;
-  nextVerticalOutsideSign: -1 | 1 | undefined;
+  nextOutsideSigns: DistanceTriangleLineLabelOutsideSigns | undefined;
 };
 
 type DistanceTriangleLabelHandle = {
-  lineLabels: PreviewSegmentLineLabelElements;
-  scratch: PreviewSegmentScratch;
-  previousVerticalOutsideSign?: -1 | 1;
+  lineLabels: AuthoringSegmentLineLabels;
+  scratch: AnnotationGeometryScratch;
+  previousOutsideSigns?: DistanceTriangleLineLabelOutsideSigns;
 };
 
 type EdgeSegmentLabelHandle = {
@@ -323,13 +324,13 @@ const resolveDistanceTriangleOverlayScreenData = ({
   scene,
   edge,
   scratch,
-  previousVerticalOutsideSign,
+  previousOutsideSigns,
   formatOptions,
 }: {
   scene: Scene;
   edge: EdgeSegment;
-  scratch: PreviewSegmentScratch;
-  previousVerticalOutsideSign?: -1 | 1;
+  scratch: AnnotationGeometryScratch;
+  previousOutsideSigns?: DistanceTriangleLineLabelOutsideSigns;
   formatOptions: AnnotationsRuntimeFormatOptions;
 }): DistanceTriangleOverlayScreenData | null => {
   const overlay = edge.distanceTriangleOverlay;
@@ -401,13 +402,13 @@ const resolveDistanceTriangleOverlayScreenData = ({
     auxiliaryCanvasPosition.x,
     auxiliaryCanvasPosition.y
   );
-  const labelReferences = buildPreviewDistanceTriangleLabelReferences({
+  const labelReferences = buildDistanceTriangleLineLabelReferences({
     anchor: anchorScreenPosition,
     target: targetScreenPosition,
     aux: auxiliaryScreenPosition,
     anchorAltitudeMeters: anchorCoordinate.altitude,
     targetAltitudeMeters: targetCoordinate.altitude,
-    previousVerticalOutsideSign,
+    previousOutsideSigns,
   });
   const directLabelText = formatLengthMeters(
     Cartesian3.distance(anchorPointECEF, targetPointECEF),
@@ -422,15 +423,15 @@ const resolveDistanceTriangleOverlayScreenData = ({
     targetPointECEF
   );
   const verticalLabelText =
-    verticalDistanceMeters > previewControllerDefaults.geometryEpsilonMeters
+    verticalDistanceMeters > annotationOverlayDefaults.geometryEpsilonMeters
       ? formatLengthMeters(verticalDistanceMeters, formatOptions.lengthMeters)
       : null;
   const horizontalLabelText =
-    horizontalDistanceMeters > previewControllerDefaults.geometryEpsilonMeters
+    horizontalDistanceMeters > annotationOverlayDefaults.geometryEpsilonMeters
       ? formatLengthMeters(horizontalDistanceMeters, formatOptions.lengthMeters)
       : null;
   const componentLabelVisibility =
-    resolvePreviewDistanceTriangleComponentLabelVisibility({
+    resolveDistanceTriangleComponentLabelVisibility({
       directLabelText,
       verticalLabelText,
       horizontalLabelText,
@@ -453,7 +454,7 @@ const resolveDistanceTriangleOverlayScreenData = ({
       labelReferences.verticalOutsideReferencePoint,
     horizontalOutsideReferencePoint:
       labelReferences.horizontalOutsideReferencePoint,
-    nextVerticalOutsideSign: labelReferences.nextVerticalOutsideSign,
+    nextOutsideSigns: labelReferences.nextOutsideSigns,
   };
 };
 
@@ -470,7 +471,7 @@ const createDistanceTriangleLabelHandle = (
 
   return {
     lineLabels,
-    scratch: createPreviewSegmentScratch(),
+    scratch: createAnnotationGeometryScratch(),
   };
 };
 
@@ -479,7 +480,7 @@ const createEdgeSegmentLabelHandle = (
   lineLabelOptions?: PartialAnnotationLineLabelOptions
 ): EdgeSegmentLabelHandle => {
   const element = createLineLabel(
-    measurementVisualDefaults.colors.componentLabelAccents.direct,
+    annotationVisualDefaults.colors.componentLabelAccents.direct,
     lineLabelOptions
   );
   overlayLayer.appendChild(element);
@@ -534,7 +535,7 @@ const createDistanceTriangleCornerHandle = (
   root.style.zIndex = "0";
 
   const svg = document.createElementNS(
-    measurementEdgeDefaults.svgNamespace,
+    annotationEdgeDefaults.svgNamespace,
     "svg"
   );
   svg.setAttribute("width", "100%");
@@ -543,7 +544,7 @@ const createDistanceTriangleCornerHandle = (
   svg.style.pointerEvents = "none";
 
   const path = document.createElementNS(
-    measurementEdgeDefaults.svgNamespace,
+    annotationEdgeDefaults.svgNamespace,
     "path"
   );
   path.setAttribute("fill", "none");
@@ -559,12 +560,12 @@ const createDistanceTriangleCornerHandle = (
   path.setAttribute("stroke-linejoin", "round");
 
   const dot = document.createElementNS(
-    measurementEdgeDefaults.svgNamespace,
+    annotationEdgeDefaults.svgNamespace,
     "circle"
   );
   dot.setAttribute(
     "r",
-    `${measurementEdgeDefaults.distanceTriangle.cornerDotRadiusPx}`
+    `${annotationEdgeDefaults.distanceTriangle.cornerDotRadiusPx}`
   );
   dot.setAttribute("fill", distanceTriangleVisualDefaults.cornerOverlay.color);
 
@@ -702,10 +703,10 @@ const createEdgeMidpointHandle = (
   tick.style.position = "absolute";
   tick.style.left = "50%";
   tick.style.top = "50%";
-  tick.style.width = `${measurementEdgeDefaults.midpointMarker.tickLengthPx}px`;
-  tick.style.height = `${measurementEdgeDefaults.midpointMarker.tickWidthPx}px`;
+  tick.style.width = `${annotationEdgeDefaults.midpointMarker.tickLengthPx}px`;
+  tick.style.height = `${annotationEdgeDefaults.midpointMarker.tickWidthPx}px`;
   tick.style.borderRadius = "999px";
-  tick.style.background = measurementEdgeDefaults.midpointMarker.tickColor;
+  tick.style.background = annotationEdgeDefaults.midpointMarker.tickColor;
   tick.style.transform = "translate(-50%, -50%)";
   tick.style.pointerEvents = "none";
   tick.style.transition = buildOverlayHoverTransitionCss();
@@ -772,13 +773,13 @@ const applyEdgeMidpointHandleLayout = ({
 }) => {
   handle.root.style.left = `${center.x}px`;
   handle.root.style.top = `${center.y}px`;
-  handle.root.style.width = `${measurementEdgeDefaults.midpointMarker.hitTargetPx}px`;
-  handle.root.style.height = `${measurementEdgeDefaults.midpointMarker.hitTargetPx}px`;
+  handle.root.style.width = `${annotationEdgeDefaults.midpointMarker.hitTargetPx}px`;
+  handle.root.style.height = `${annotationEdgeDefaults.midpointMarker.hitTargetPx}px`;
   handle.root.style.transform = `translate(-50%, -50%) rotate(${angleRad}rad)`;
   handle.root.style.transformOrigin = "50% 50%";
   handle.root.style.zIndex = `${Math.max(
     zIndex,
-    measurementEdgeDefaults.midpointMarker.minOverlayZIndex
+    annotationEdgeDefaults.midpointMarker.minOverlayZIndex
   )}`;
   handle.root.style.display = "block";
   handle.root.style.pointerEvents = clickable ? "auto" : "none";
@@ -797,7 +798,7 @@ const applyEdgeMidpointHandleLayout = ({
   setEdgeMidpointHandleHovered(handle, false);
 };
 
-export const useMeasurementEdgesController = (
+export const useAnnotationEdgesController = (
   scene: Scene | null,
   {
     edges,
@@ -806,12 +807,12 @@ export const useMeasurementEdgesController = (
     surfaceKey = "committed",
     activeEditedNodeId,
     blockEdgeInteractions,
-    onMeasurementSelect,
+    onAnnotationSelect,
     onEdgeClick,
-    insertNodeTargetMeasurementIds = [],
+    insertNodeTargetAnnotationIds = [],
     onInsertNodeTargetClick,
     onDistanceTriangleCornerClick,
-  }: UseRuntimeMeasurementEdgesControllerArgs
+  }: UseRuntimeAnnotationEdgesControllerArgs
 ) => {
   const sceneLineHandleByIdRef = useRef<Map<string, SceneLineHandle>>(
     new Map()
@@ -832,9 +833,9 @@ export const useMeasurementEdgesController = (
     () => resolveAnnotationLineLabelOptions(lineLabelOptions),
     [lineLabelOptions]
   );
-  const insertNodeTargetMeasurementIdSet = useMemo(
-    () => new Set(insertNodeTargetMeasurementIds),
-    [insertNodeTargetMeasurementIds]
+  const insertNodeTargetAnnotationIdSet = useMemo(
+    () => new Set(insertNodeTargetAnnotationIds),
+    [insertNodeTargetAnnotationIds]
   );
 
   const edgeSegments = useMemo<readonly EdgeSegment[]>(
@@ -843,10 +844,10 @@ export const useMeasurementEdgesController = (
         const segments: EdgeSegment[] = [];
         const strokeWidth = Number.isFinite(edge.strokeWidth)
           ? edge.strokeWidth
-          : measurementVisualDefaults.sizes.edgeStrokeWidth;
+          : annotationVisualDefaults.sizes.edgeStrokeWidth;
         const overlayDashPattern =
           edge.overlayDashPattern ??
-          measurementVisualDefaults.patterns.edgeDashPattern;
+          annotationVisualDefaults.patterns.edgeDashPattern;
 
         for (let index = 0; index < edge.coordinates.length - 1; index += 1) {
           const startCoordinate = edge.coordinates[index];
@@ -867,7 +868,7 @@ export const useMeasurementEdgesController = (
 
           segments.push({
             id: `${edge.id}-${index}`,
-            measurementId: edge.measurementId,
+            annotationId: edge.annotationId,
             startNodeId,
             endNodeId,
             startCoordinate,
@@ -893,12 +894,12 @@ export const useMeasurementEdgesController = (
     () =>
       edgeSegments.filter(
         (edge) =>
-          edge.measurementId !== undefined &&
-          insertNodeTargetMeasurementIdSet.has(edge.measurementId) &&
+          edge.annotationId !== undefined &&
+          insertNodeTargetAnnotationIdSet.has(edge.annotationId) &&
           edge.startNodeId !== undefined &&
           edge.endNodeId !== undefined
       ),
-    [edgeSegments, insertNodeTargetMeasurementIdSet]
+    [edgeSegments, insertNodeTargetAnnotationIdSet]
   );
 
   const sceneLines = useMemo<readonly EdgeSceneLine[]>(
@@ -916,7 +917,7 @@ export const useMeasurementEdgesController = (
           return [directLine];
         }
 
-        const componentScratch = createPreviewSegmentScratch();
+        const componentScratch = createAnnotationGeometryScratch();
         const screenData = resolveDistanceTriangleOverlayScreenData({
           scene,
           edge,
@@ -934,7 +935,7 @@ export const useMeasurementEdgesController = (
             id: `${edge.id}-vertical`,
             start: screenData.anchorPointECEF,
             end: screenData.auxiliaryPointECEF,
-            stroke: previewControllerDefaults.verticalLineColor,
+            stroke: annotationOverlayDefaults.verticalLineColor,
             strokeWidth: edge.strokeWidth,
           });
         }
@@ -944,7 +945,7 @@ export const useMeasurementEdgesController = (
             id: `${edge.id}-horizontal`,
             start: screenData.auxiliaryPointECEF,
             end: screenData.targetPointECEF,
-            stroke: previewControllerDefaults.horizontalLineColor,
+            stroke: annotationOverlayDefaults.horizontalLineColor,
             strokeWidth: edge.strokeWidth,
           });
         }
@@ -966,11 +967,11 @@ export const useMeasurementEdgesController = (
             : undefined;
         const selectionEdgeClickHandler =
           !blockEdgeInteractions &&
-          onMeasurementSelect &&
-          edge.distanceTriangleOverlay?.measurementId
+          onAnnotationSelect &&
+          edge.distanceTriangleOverlay?.annotationId
             ? () =>
-                onMeasurementSelect(
-                  edge.distanceTriangleOverlay!.measurementId!
+                onAnnotationSelect(
+                  edge.distanceTriangleOverlay!.annotationId!
                 )
             : undefined;
         const lineClickHandler =
@@ -1011,7 +1012,7 @@ export const useMeasurementEdgesController = (
           return baseLines;
         }
 
-        const componentScratch = createPreviewSegmentScratch();
+        const componentScratch = createAnnotationGeometryScratch();
         const getScreenData = () =>
           resolveDistanceTriangleOverlayScreenData({
             scene,
@@ -1035,7 +1036,7 @@ export const useMeasurementEdgesController = (
                 end: screenData.auxiliaryScreenPosition,
               };
             },
-            stroke: previewControllerDefaults.verticalLineColor,
+            stroke: annotationOverlayDefaults.verticalLineColor,
             strokeWidth: edge.strokeWidth,
             dashed: true,
             dashPattern: edge.overlayDashPattern,
@@ -1055,7 +1056,7 @@ export const useMeasurementEdgesController = (
                 end: screenData.targetScreenPosition,
               };
             },
-            stroke: previewControllerDefaults.horizontalLineColor,
+            stroke: annotationOverlayDefaults.horizontalLineColor,
             strokeWidth: edge.strokeWidth,
             dashed: true,
             dashPattern: edge.overlayDashPattern,
@@ -1070,7 +1071,7 @@ export const useMeasurementEdgesController = (
       edgeSegments,
       formatOptions,
       onEdgeClick,
-      onMeasurementSelect,
+      onAnnotationSelect,
       scene,
       surfaceKey,
     ]
@@ -1180,7 +1181,7 @@ export const useMeasurementEdgesController = (
           !defined(startScreen) ||
           !defined(endScreen) ||
           !defined(midpointScreen) ||
-          !edge.measurementId ||
+          !edge.annotationId ||
           !edge.startNodeId ||
           !edge.endNodeId
         ) {
@@ -1206,7 +1207,7 @@ export const useMeasurementEdgesController = (
           onClick: onInsertNodeTargetClick
             ? () =>
                 onInsertNodeTargetClick(
-                  edge.measurementId!,
+                  edge.annotationId!,
                   edge.startNodeId!,
                   edge.endNodeId!
                 )
@@ -1374,7 +1375,7 @@ export const useMeasurementEdgesController = (
           scene,
           edge,
           scratch: labelHandle.scratch,
-          previousVerticalOutsideSign: labelHandle.previousVerticalOutsideSign,
+          previousOutsideSigns: labelHandle.previousOutsideSigns,
           formatOptions,
         });
         if (!screenData) {
@@ -1385,12 +1386,11 @@ export const useMeasurementEdgesController = (
           if (cornerHandle) {
             hideDistanceTriangleCornerHandle(cornerHandle);
           }
-          labelHandle.previousVerticalOutsideSign = undefined;
+          labelHandle.previousOutsideSigns = undefined;
           return;
         }
 
-        labelHandle.previousVerticalOutsideSign =
-          screenData.nextVerticalOutsideSign;
+        labelHandle.previousOutsideSigns = screenData.nextOutsideSigns;
 
         const directOverlayZIndex = resolveOverlayZIndexBetweenWorldPositions(
           scene,
@@ -1412,7 +1412,7 @@ export const useMeasurementEdgesController = (
           scene,
           screenData.auxiliaryPointECEF
         );
-        const measurementId = resolveDistanceTriangleMeasurementId(edge);
+        const annotationId = resolveDistanceTriangleAnnotationId(edge);
         const directLengthMeters = Cartesian3.distance(
           screenData.anchorPointECEF,
           screenData.targetPointECEF
@@ -1430,7 +1430,7 @@ export const useMeasurementEdgesController = (
         secondaryLineLabelCandidates.push({
           element: labelHandle.lineLabels.direct,
           zIndex: directOverlayZIndex,
-          measurementId,
+          annotationId,
           metricValueMeters: directLengthMeters,
           text: screenData.directLabelText,
           start: screenData.anchorScreenPosition,
@@ -1443,7 +1443,7 @@ export const useMeasurementEdgesController = (
           secondaryLineLabelCandidates.push({
             element: labelHandle.lineLabels.vertical,
             zIndex: verticalOverlayZIndex,
-            measurementId,
+            annotationId,
             metricValueMeters: verticalLengthMeters,
             text: screenData.verticalLabelText,
             start: screenData.anchorScreenPosition,
@@ -1460,7 +1460,7 @@ export const useMeasurementEdgesController = (
           secondaryLineLabelCandidates.push({
             element: labelHandle.lineLabels.horizontal,
             zIndex: horizontalOverlayZIndex,
-            measurementId,
+            annotationId,
             metricValueMeters: horizontalLengthMeters,
             text: screenData.horizontalLabelText,
             start: screenData.auxiliaryScreenPosition,
@@ -1511,7 +1511,7 @@ export const useMeasurementEdgesController = (
             onClick: onDistanceTriangleCornerClick
               ? () =>
                   onDistanceTriangleCornerClick(
-                    resolveDistanceTriangleMeasurementId(edge)
+                    resolveDistanceTriangleAnnotationId(edge)
                   )
               : undefined,
           });
@@ -1629,7 +1629,7 @@ export const useMeasurementEdgesController = (
         const onClick = onDistanceTriangleCornerClick
           ? () =>
               onDistanceTriangleCornerClick(
-                resolveDistanceTriangleMeasurementId(edge)
+                resolveDistanceTriangleAnnotationId(edge)
               )
           : undefined;
         const cornerHandleClickable =
@@ -1694,7 +1694,7 @@ export const useMeasurementEdgesController = (
         secondaryLineLabelCandidates.push({
           element: labelHandle.element,
           zIndex: overlayZIndex,
-          measurementId: edge.measurementId ?? edge.id,
+          annotationId: edge.annotationId ?? edge.id,
           metricValueMeters: segmentLengthMeters,
           text: formatLengthMeters(
             segmentLengthMeters,

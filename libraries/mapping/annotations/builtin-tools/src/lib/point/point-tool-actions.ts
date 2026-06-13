@@ -11,7 +11,7 @@ import {
   type AnnotationsStoreState,
 } from "@carma-mapping/annotations/runtime";
 import type { AnnotationToolDraftState } from "@carma-mapping/annotations/runtime";
-type AddPointMeasurementArgs = {
+type AddPointAnnotationArgs = {
   addAnnotation: (
     toolType: StoredAnnotation["toolType"],
     nextCoordinates: readonly CesiumGeographicCoordinate[],
@@ -23,7 +23,7 @@ type AddPointMeasurementArgs = {
   dispatch: AnnotationsStore["dispatch"];
 };
 
-const setFirstPointMeasurementAsElevationReference = ({
+const setFirstPointAnnotationAsElevationReference = ({
   toolType,
   state,
   dispatch,
@@ -34,23 +34,23 @@ const setFirstPointMeasurementAsElevationReference = ({
   dispatch: AnnotationsStore["dispatch"];
   annotations: readonly StoredAnnotation[];
 }) => {
-  const hasExistingPointMeasurement = state.annotationEntries.some(
+  const hasExistingPointAnnotation = state.annotationEntries.some(
     (annotationEntry) => annotationEntry.toolType === toolType
   );
   const firstAnnotation = annotations[0] ?? null;
 
-  if (hasExistingPointMeasurement || !firstAnnotation) {
+  if (hasExistingPointAnnotation || !firstAnnotation) {
     return;
   }
 
   dispatch(setElevationReferenceAnnotationId(firstAnnotation.id));
 };
 
-export const addPointMeasurement = (
+export const addPointAnnotation = (
   toolType: StoredAnnotation["toolType"],
   coordinate: CesiumGeographicCoordinate,
   linkedNodeGroupId: AnnotationNodeLinkId | null | undefined,
-  { addAnnotation, state, dispatch }: AddPointMeasurementArgs,
+  { addAnnotation, state, dispatch }: AddPointAnnotationArgs,
   sourceToolId?: AnnotationToolId
 ) => {
   const annotation = addAnnotation(
@@ -61,7 +61,7 @@ export const addPointMeasurement = (
     sourceToolId
   );
 
-  setFirstPointMeasurementAsElevationReference({
+  setFirstPointAnnotationAsElevationReference({
     toolType,
     state,
     dispatch,
@@ -71,10 +71,10 @@ export const addPointMeasurement = (
   return annotation;
 };
 
-export const commitPointMeasurementDraft = (
+export const commitPointAnnotationDraft = (
   toolType: StoredAnnotation["toolType"],
   draft: AnnotationToolDraftState,
-  { addAnnotation, state, dispatch }: AddPointMeasurementArgs,
+  { addAnnotation, state, dispatch }: AddPointAnnotationArgs,
   sourceToolId?: AnnotationToolId
 ): readonly StoredAnnotation[] => {
   const annotations = draft.coordinates.flatMap((coordinate, index) => [
@@ -87,7 +87,7 @@ export const commitPointMeasurementDraft = (
     ),
   ]);
 
-  setFirstPointMeasurementAsElevationReference({
+  setFirstPointAnnotationAsElevationReference({
     toolType,
     state,
     dispatch,
@@ -97,7 +97,7 @@ export const commitPointMeasurementDraft = (
   return annotations;
 };
 
-export const trimLatestPointMeasurementDraft = (
+export const trimLatestPointAnnotationDraft = (
   draft: AnnotationToolDraftState
 ): AnnotationToolDraftState => ({
   coordinates: draft.coordinates.slice(0, -1),
@@ -106,14 +106,14 @@ export const trimLatestPointMeasurementDraft = (
 
 export type PointToolAction = "removeLatestPoint";
 
-type RemovePointMeasurementArgs = {
+type RemovePointAnnotationArgs = {
   state: AnnotationsStoreState;
   dispatch: AnnotationsStore["dispatch"];
 };
 
-export const removeLatestPointMeasurement = (
+export const removeLatestPointAnnotation = (
   toolType: StoredAnnotation["toolType"],
-  { state, dispatch }: RemovePointMeasurementArgs
+  { state, dispatch }: RemovePointAnnotationArgs
 ): boolean => {
   const selectedAnnotationId =
     state.selectionState.selectedAnnotationIds[
@@ -123,22 +123,22 @@ export const removeLatestPointMeasurement = (
     return false;
   }
 
-  const pointMeasurements = state.annotationEntries.filter(
+  const pointAnnotations = state.annotationEntries.filter(
     (annotationEntry) => annotationEntry.toolType === toolType
   );
-  const latestPointMeasurement =
-    pointMeasurements[pointMeasurements.length - 1] ?? null;
-  if (!latestPointMeasurement) {
+  const latestPointAnnotation =
+    pointAnnotations[pointAnnotations.length - 1] ?? null;
+  if (!latestPointAnnotation) {
     return false;
   }
 
-  const previousPointMeasurement =
-    pointMeasurements[pointMeasurements.length - 2] ?? null;
+  const previousPointAnnotation =
+    pointAnnotations[pointAnnotations.length - 2] ?? null;
 
   dispatch(
     removeAnnotationById({
-      annotationId: latestPointMeasurement.id,
-      nextSelectedAnnotationId: previousPointMeasurement?.id ?? null,
+      annotationId: latestPointAnnotation.id,
+      nextSelectedAnnotationId: previousPointAnnotation?.id ?? null,
     })
   );
 

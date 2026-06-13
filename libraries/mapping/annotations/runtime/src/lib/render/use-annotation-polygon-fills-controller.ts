@@ -1,24 +1,24 @@
 import { useEffect, useRef } from "react";
 
 import type { Scene } from "@carma-cesium";
-import type { RuntimePolygonFillRenderModel } from "./measurement-render-models";
+import type { RuntimePolygonFillRenderModel } from "./annotation-render-models";
 import {
-  createMeasurementPolygonFillsController,
-  type MeasurementPolygonFillsController,
-} from "./measurement-polygon-fills-controller.shared";
+  createAnnotationPolygonFillsController,
+  type AnnotationPolygonFillsController,
+} from "./annotation-polygon-fills-controller.shared";
 
-export const useMeasurementPolygonFillsController = (
+export const useAnnotationPolygonFillsController = (
   scene: Scene | null,
   polygonFills: readonly RuntimePolygonFillRenderModel[]
 ) => {
   const polygonFillControllerRef =
-    useRef<MeasurementPolygonFillsController | null>(null);
+    useRef<AnnotationPolygonFillsController | null>(null);
   const latestPolygonFillsRef = useRef(polygonFills);
   latestPolygonFillsRef.current = polygonFills;
 
   useEffect(() => {
     const polygonFillController =
-      createMeasurementPolygonFillsController(scene);
+      createAnnotationPolygonFillsController(scene);
     polygonFillControllerRef.current = polygonFillController;
     polygonFillController.setPolygonFills(latestPolygonFillsRef.current);
 

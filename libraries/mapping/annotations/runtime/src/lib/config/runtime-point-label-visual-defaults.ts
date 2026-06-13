@@ -1,35 +1,35 @@
-import type { RuntimePointLabelRenderModel } from "../render/measurement-render-models";
+import type { RuntimePointLabelRenderModel } from "../render/annotation-render-models";
 
 import { typographyDefaults } from "./annotation-typography-defaults";
-import { ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME } from "./annotation-measurement-label-themes";
-import { measurementVisualDefaults } from "./measurement-visual-defaults";
+import { ANNOTATION_DEFAULT_LABEL_THEME } from "./annotation-label-themes";
+import { annotationVisualDefaults } from "./annotation-visual-defaults";
 
 export const pointLabelVisualDefaults = Object.freeze({
   fontSize: typographyDefaults.rootFontSizeRem,
-  fontFamily: ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME.fontFamily,
-  fontWeight: ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME.contentFontWeight,
-  lineColor: ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME.scheme.lineColor,
+  fontFamily: ANNOTATION_DEFAULT_LABEL_THEME.fontFamily,
+  fontWeight: ANNOTATION_DEFAULT_LABEL_THEME.contentFontWeight,
+  lineColor: ANNOTATION_DEFAULT_LABEL_THEME.scheme.lineColor,
   textBackgroundColor:
-    ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME.scheme.colorPrimaryReduced,
-  textColor: ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME.scheme.textColor,
+    ANNOTATION_DEFAULT_LABEL_THEME.scheme.colorPrimaryReduced,
+  textColor: ANNOTATION_DEFAULT_LABEL_THEME.scheme.textColor,
   markerBackgroundColor:
-    ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME.scheme.colorPrimary,
-  markerTextColor: ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME.scheme.textColor,
+    ANNOTATION_DEFAULT_LABEL_THEME.scheme.colorPrimary,
+  markerTextColor: ANNOTATION_DEFAULT_LABEL_THEME.scheme.textColor,
   selectedBackgroundColor:
-    ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME.selection.backgroundColor,
+    ANNOTATION_DEFAULT_LABEL_THEME.selection.backgroundColor,
   selectedTextColor:
-    ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME.selection.textColor,
+    ANNOTATION_DEFAULT_LABEL_THEME.selection.textColor,
   selectedGlowColor:
-    ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME.selection.glowColor,
+    ANNOTATION_DEFAULT_LABEL_THEME.selection.glowColor,
   selectedGlowRadiusPx:
-    ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME.selection.glowRadiusPx,
+    ANNOTATION_DEFAULT_LABEL_THEME.selection.glowRadiusPx,
   preserveFillOnSelection:
-    ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME.selection
+    ANNOTATION_DEFAULT_LABEL_THEME.selection
       .preserveFillOnSelection,
   hoverBackgroundColor:
-    ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME.selection.hoverBackgroundColor,
-  markerPixelSize: measurementVisualDefaults.sizes.pointPixelSize,
-  markerOutlineWidth: measurementVisualDefaults.sizes.pointOutlineWidth,
+    ANNOTATION_DEFAULT_LABEL_THEME.selection.hoverBackgroundColor,
+  markerPixelSize: annotationVisualDefaults.sizes.pointPixelSize,
+  markerOutlineWidth: annotationVisualDefaults.sizes.pointOutlineWidth,
 } satisfies Pick<RuntimePointLabelRenderModel, "fontSize" | "fontFamily" | "fontWeight" | "lineColor" | "textBackgroundColor" | "textColor" | "markerBackgroundColor" | "markerTextColor" | "selectedBackgroundColor" | "selectedTextColor" | "selectedGlowColor" | "selectedGlowRadiusPx" | "preserveFillOnSelection" | "hoverBackgroundColor" | "markerPixelSize" | "markerOutlineWidth">);
 
 export const resolvePointLabelVisualDefaults = (

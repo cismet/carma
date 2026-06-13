@@ -127,17 +127,17 @@ export const resolvePolylineMeasurementSummary = (
 };
 
 export const resolveAreaMeasurementSummary = ({
-  measurement,
+  annotation,
   toolType,
   coordinates,
 }: {
-  measurement: StoredAnnotation;
+  annotation: StoredAnnotation;
   toolType: PolygonType;
   coordinates: readonly CesiumGeographicCoordinate[];
 }): AreaMeasurementSummary => ({
   perimeterMeters: computeClosedCoordinatePathLengthMeters(coordinates),
   ...resolveDerivedAreaMeasurement({
-    measurement,
+    annotation,
     toolType,
     coordinates,
   }),

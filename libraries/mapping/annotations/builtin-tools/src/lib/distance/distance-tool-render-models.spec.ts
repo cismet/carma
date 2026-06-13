@@ -122,23 +122,23 @@ const primaryMeasurement: StoredAnnotation = {
 
 const getBadgeLabel = ({
   linkedNodeGroups,
-  measurements = [primaryMeasurement],
+  annotations = [primaryMeasurement],
   edges = [],
 }: {
   linkedNodeGroups: readonly AnnotationNodeLink[];
-  measurements?: readonly StoredAnnotation[];
+  annotations?: readonly StoredAnnotation[];
   edges?: readonly AnnotationEdge[];
 }) =>
   buildDistanceToolRenderModels({
     toolType: "distance",
     visuals,
     labelTheme,
-    getMeasurementLabel: () => "D1",
+    getLabel: () => "D1",
     nodes,
     edges,
     linkedNodeGroups,
-    measurements,
-    selectedMeasurementIds: [],
+    annotations,
+    selectedAnnotationIds: [],
   }).pointLabels.find((label) => label.id === "distance-1-label");
 
 describe("buildDistanceToolRenderModels", () => {
@@ -147,7 +147,7 @@ describe("buildDistanceToolRenderModels", () => {
       toolType: "distance",
       visuals,
       labelTheme,
-      getMeasurementLabel: () => "D1",
+      getLabel: () => "D1",
       nodes,
       edges: [
         {
@@ -160,8 +160,8 @@ describe("buildDistanceToolRenderModels", () => {
         { id: "node-a", nodeIds: ["node-a"] },
         { id: "node-b", nodeIds: ["node-b"] },
       ],
-      measurements: [primaryMeasurement],
-      selectedMeasurementIds: [],
+      annotations: [primaryMeasurement],
+      selectedAnnotationIds: [],
     }).pointLabels;
 
     expect(pointLabels.map((label) => label.id)).toEqual(["distance-1-label"]);
@@ -205,7 +205,7 @@ describe("buildDistanceToolRenderModels", () => {
         { id: "shared-end", nodeIds: ["node-b", "node-d"] },
         { id: "node-e", nodeIds: ["node-e"] },
       ],
-      measurements: [primaryMeasurement, secondaryMeasurement],
+      annotations: [primaryMeasurement, secondaryMeasurement],
       edges: [
         {
           id: "edge-1",

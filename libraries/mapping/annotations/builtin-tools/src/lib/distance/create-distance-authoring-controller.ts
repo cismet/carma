@@ -1,4 +1,7 @@
-import type { AnnotationToolId } from "@carma-mapping/annotations/core";
+import type {
+  AnnotationToolId,
+  DistanceTriangleLineLabelOutsideSigns,
+} from "@carma-mapping/annotations/core";
 import { isValidScene } from "@carma-mapping/engines/cesium/core";
 
 import { type CesiumGeographicCoordinate } from "@carma-mapping/annotations/runtime";
@@ -14,21 +17,21 @@ import {
   clearLineRuntime,
   createLineCollection,
   createLineRuntime,
-  createPreviewSegmentScratch,
+  createAnnotationGeometryScratch,
   createSegmentLineLabels,
   destroyLineCollection,
   destroyPreviewOverlayLayer,
   hideLineLabels,
   hidePointMarkers,
   placePointMarkers,
-  previewControllerDefaults,
+  annotationOverlayDefaults,
   createPreviewOverlayLayer,
 } from "@carma-mapping/annotations/runtime";
 import { resolveSegmentGuideFrame } from "@carma-mapping/annotations/runtime";
 import {
-  resolveMeasurementLineStyleOptions,
-  type MeasurementLineStyleOptions,
-  type ResolvedMeasurementLineStyleOptions,
+  resolveAnnotationLineStyleOptions,
+  type AnnotationLineStyleOptions,
+  type ResolvedAnnotationLineStyleOptions,
 } from "@carma-mapping/annotations/runtime";
 
 const DISTANCE_PREVIEW_LAYER_ID = "annotation-overlay-distance-preview-layer";
@@ -43,7 +46,7 @@ type PreviewOverlayLines = {
 
 const createPreviewOverlayLine = (
   stroke: string,
-  lineStyleOptions: ResolvedMeasurementLineStyleOptions
+  lineStyleOptions: ResolvedAnnotationLineStyleOptions
 ) => {
   const line = document.createElementNS(SVG_NAMESPACE, "line");
   line.setAttribute("stroke", stroke);
@@ -55,7 +58,7 @@ const createPreviewOverlayLine = (
 };
 
 const createPreviewOverlayLines = (
-  lineStyleOptions: ResolvedMeasurementLineStyleOptions
+  lineStyleOptions: ResolvedAnnotationLineStyleOptions
 ): PreviewOverlayLines => {
   const root = document.createElementNS(SVG_NAMESPACE, "svg");
   root.setAttribute("width", "100%");
@@ -66,15 +69,15 @@ const createPreviewOverlayLines = (
   root.style.pointerEvents = "none";
 
   const direct = createPreviewOverlayLine(
-    previewControllerDefaults.directLineColor,
+    annotationOverlayDefaults.directLineColor,
     lineStyleOptions
   );
   const vertical = createPreviewOverlayLine(
-    previewControllerDefaults.verticalLineColor,
+    annotationOverlayDefaults.verticalLineColor,
     lineStyleOptions
   );
   const horizontal = createPreviewOverlayLine(
-    previewControllerDefaults.horizontalLineColor,
+    annotationOverlayDefaults.horizontalLineColor,
     lineStyleOptions
   );
   root.append(direct, vertical, horizontal);
@@ -110,14 +113,13 @@ const applyPreviewOverlayLine = ({
 export const createDistanceAuthoringController = ({
   toolType,
   context,
-  measurementLineStyleOptions,
+  annotationLineStyleOptions,
 }: {
   toolType: AnnotationToolId;
   context: AnnotationToolAuthoringContext;
-  measurementLineStyleOptions?: MeasurementLineStyleOptions;
+  annotationLineStyleOptions?: AnnotationLineStyleOptions;
 }): AnnotationToolAuthoringController | null => {
-  const { scene, drafts, formatOptions, lineLabelOptions } =
-    context;
+  const { scene, drafts, formatOptions, lineLabelOptions } = context;
   if (!scene || scene.isDestroyed()) {
     return null;
   }
@@ -130,8 +132,8 @@ export const createDistanceAuthoringController = ({
     return null;
   }
 
-  const resolvedLineStyleOptions = resolveMeasurementLineStyleOptions(
-    measurementLineStyleOptions
+  const resolvedLineStyleOptions = resolveAnnotationLineStyleOptions(
+    annotationLineStyleOptions
   );
   const overlayLines = createPreviewOverlayLines(resolvedLineStyleOptions);
   overlayLayer.appendChild(overlayLines.root);
@@ -149,7 +151,7 @@ export const createDistanceAuthoringController = ({
     direct: createLineRuntime(
       lineCollection,
       "distance-preview-direct",
-      previewControllerDefaults.directLineColor,
+      annotationOverlayDefaults.directLineColor,
       {
         width: resolvedLineStyleOptions.strokeWidthPx,
       }
@@ -157,7 +159,7 @@ export const createDistanceAuthoringController = ({
     vertical: createLineRuntime(
       lineCollection,
       "distance-preview-vertical",
-      previewControllerDefaults.verticalLineColor,
+      annotationOverlayDefaults.verticalLineColor,
       {
         width: resolvedLineStyleOptions.strokeWidthPx,
       }
@@ -165,20 +167,22 @@ export const createDistanceAuthoringController = ({
     horizontal: createLineRuntime(
       lineCollection,
       "distance-preview-horizontal",
-      previewControllerDefaults.horizontalLineColor,
+      annotationOverlayDefaults.horizontalLineColor,
       {
         width: resolvedLineStyleOptions.strokeWidthPx,
       }
     ),
   };
-  const scratch = createPreviewSegmentScratch();
+  const scratch = createAnnotationGeometryScratch();
 
   let enabled = false;
   let pointQueryPickResult: PointQueryPickResult | null = null;
-  let previousVerticalLabelOutsideSign: -1 | 1 | undefined;
+  let previousLabelOutsideSigns:
+    | DistanceTriangleLineLabelOutsideSigns
+    | undefined;
   let draftCoordinates = [...drafts.get(toolType).coordinates];
 
-  const hide = (resetVerticalOutsideSign = true) => {
+  const hide = (resetOutsideSigns = true) => {
     clearLineRuntime(lines.direct);
     clearLineRuntime(lines.vertical);
     clearLineRuntime(lines.horizontal);
@@ -187,8 +191,8 @@ export const createDistanceAuthoringController = ({
     hidePreviewOverlayLine(overlayLines.horizontal);
     hideLineLabels(lineLabels);
     hidePointMarkers(pointMarkers);
-    if (resetVerticalOutsideSign) {
-      previousVerticalLabelOutsideSign = undefined;
+    if (resetOutsideSigns) {
+      previousLabelOutsideSigns = undefined;
     }
   };
 
@@ -230,18 +234,18 @@ export const createDistanceAuthoringController = ({
       hoverPointECEF: currentPointQueryPickResult?.pointECEF ?? null,
       hoverScreenPosition: currentPointQueryPickResult?.screenPosition ?? null,
       formatOptions,
-      previousVerticalOutsideSign: previousVerticalLabelOutsideSign,
+      previousOutsideSigns: previousLabelOutsideSigns,
       scratch,
     });
 
     if (!frame) {
-      previousVerticalLabelOutsideSign = undefined;
+      previousLabelOutsideSigns = undefined;
       if (requestRender) {
         scene.requestRender();
       }
       return;
     }
-    previousVerticalLabelOutsideSign = frame.nextVerticalOutsideSign;
+    previousLabelOutsideSigns = frame.nextOutsideSigns;
 
     applyLineRuntime(lines.direct, [
       frame.direct.startECEF,

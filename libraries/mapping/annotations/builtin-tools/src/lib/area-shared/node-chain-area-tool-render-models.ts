@@ -15,14 +15,14 @@ import {
 import {
   applySelectedEdgeVisualStyle,
   applySelectedPointMarkerVisualStyle,
-  measurementVisualStyles,
+  annotationVisualStyles,
   isCoplanarPolygonFillPlacement,
   resolveAreaOcclusionLineRenderOptions,
   resolveAreaOcclusionStyleOptions,
   resolveAreaOverlayFillColor,
-  resolveMeasurementLineStyleOptions,
+  resolveAnnotationLineStyleOptions,
   type EdgeVisualStyle,
-  type MeasurementLineStyleOptions,
+  type AnnotationLineStyleOptions,
   type PointMarkerVisualStyle,
   type AreaOcclusionStyleOptions,
   withEdgeVisualStyle,
@@ -55,17 +55,17 @@ export type NodeChainAreaToolVisualSettings = {
   selectedFill: string;
 };
 
-const defaults = measurementVisualStyles;
+const defaults = annotationVisualStyles;
 
 export const createNodeChainAreaToolVisuals = ({
   fillType,
-  measurementLineStyleOptions,
+  annotationLineStyleOptions,
 }: {
   fillType: PolygonType;
-  measurementLineStyleOptions?: MeasurementLineStyleOptions;
+  annotationLineStyleOptions?: AnnotationLineStyleOptions;
 }): NodeChainAreaToolVisualSettings => {
-  const resolvedLineStyleOptions = resolveMeasurementLineStyleOptions(
-    measurementLineStyleOptions
+  const resolvedLineStyleOptions = resolveAnnotationLineStyleOptions(
+    annotationLineStyleOptions
   );
 
   return {
@@ -121,23 +121,23 @@ export const buildNodeChainAreaToolRenderModels = ({
   toolType,
   visuals,
   nodes,
-  measurements,
-  selectedMeasurementIds,
+  annotations,
+  selectedAnnotationIds,
   fillPlacement,
   formatOptions,
-  onMeasurementSelect,
+  onSelect,
   onNodeLongPress,
   occlusionStyleOptions,
 }: {
   toolType: PolygonType;
   visuals: NodeChainAreaToolVisualSettings;
   nodes: readonly AnnotationNode[];
-  measurements: readonly StoredAnnotation[];
-  selectedMeasurementIds: readonly string[];
+  annotations: readonly StoredAnnotation[];
+  selectedAnnotationIds: readonly string[];
   fillPlacement: RuntimePolygonFillPlacement;
   formatOptions: AnnotationsRuntimeFormatOptions;
-  onMeasurementSelect?: (measurementId: string) => void;
-  onNodeLongPress?: (nodeId: string, measurementId: string) => void;
+  onSelect?: (annotationId: string) => void;
+  onNodeLongPress?: (nodeId: string, annotationId: string) => void;
   occlusionStyleOptions?: AreaOcclusionStyleOptions;
 }): {
   points: readonly RuntimePointMarkerRenderModel[];
@@ -146,13 +146,13 @@ export const buildNodeChainAreaToolRenderModels = ({
   pointLabels: readonly RuntimePointLabelRenderModel[];
 } => {
   const nodeCoordinatesById = buildRuntimeNodeCoordinateMap(nodes);
-  const areaMeasurements = measurements.filter(
-    (measurement) => measurement.toolType === toolType
+  const areaAnnotations = annotations.filter(
+    (annotation) => annotation.toolType === toolType
   );
-  const visibleAreaMeasurements = areaMeasurements.filter(
-    (measurement) => !measurement.hidden
+  const visibleAreaAnnotations = areaAnnotations.filter(
+    (annotation) => !annotation.hidden
   );
-  const selectedMeasurementIdSet = new Set(selectedMeasurementIds);
+  const selectedAnnotationIdSet = new Set(selectedAnnotationIds);
   const resolvedOcclusionStyleOptions = resolveAreaOcclusionStyleOptions(
     occlusionStyleOptions
   );
@@ -161,9 +161,9 @@ export const buildNodeChainAreaToolRenderModels = ({
     resolvedOcclusionStyleOptions
   );
 
-  const committedEdges = visibleAreaMeasurements.flatMap((measurement) => {
+  const committedEdges = visibleAreaAnnotations.flatMap((annotation) => {
     const coordinates = resolveMeasurementCoordinates(
-      measurement,
+      annotation,
       nodeCoordinatesById
     );
     if (coordinates.length < 3) {
@@ -172,35 +172,35 @@ export const buildNodeChainAreaToolRenderModels = ({
 
     return [
       {
-        id: measurement.id,
-        measurementId: measurement.id,
-        nodeIds: measurement.nodeIds,
+        id: annotation.id,
+        annotationId: annotation.id,
+        nodeIds: annotation.nodeIds,
         coordinates: [...coordinates, coordinates[0]!],
         ...(lineRenderOptions ?? {}),
-        ...(selectedMeasurementIdSet.has(measurement.id)
+        ...(selectedAnnotationIdSet.has(annotation.id)
           ? applySelectedEdgeVisualStyle(visuals.edge)
           : visuals.edge),
       },
     ];
   });
 
-  const polygonFills = visibleAreaMeasurements.flatMap((measurement) => {
+  const polygonFills = visibleAreaAnnotations.flatMap((annotation) => {
     const coordinates = resolveMeasurementCoordinates(
-      measurement,
+      annotation,
       nodeCoordinatesById
     );
     if (coordinates.length < 3) {
       return [];
     }
-    const fill = selectedMeasurementIdSet.has(measurement.id)
+    const fill = selectedAnnotationIdSet.has(annotation.id)
       ? visuals.selectedFill
       : visuals.fill;
 
     return [
       {
-        id: `${measurement.id}-fill`,
-        measurementId: measurement.id,
-        nodeIds: measurement.nodeIds,
+        id: `${annotation.id}-fill`,
+        annotationId: annotation.id,
+        nodeIds: annotation.nodeIds,
         coordinates,
         fill,
         ...(isCoplanarFill && resolvedOcclusionStyleOptions.fill.overlay
@@ -212,13 +212,13 @@ export const buildNodeChainAreaToolRenderModels = ({
             }
           : {}),
         placement: fillPlacement,
-        selected: selectedMeasurementIdSet.has(measurement.id),
+        selected: selectedAnnotationIdSet.has(annotation.id),
       },
     ];
   });
 
-  const points = visibleAreaMeasurements.flatMap((measurement) =>
-    measurement.nodeIds.flatMap((nodeId, index) => {
+  const points = visibleAreaAnnotations.flatMap((annotation) =>
+    annotation.nodeIds.flatMap((nodeId, index) => {
       const coordinate = nodeCoordinatesById.get(nodeId);
       if (!coordinate) {
         return [];
@@ -226,14 +226,12 @@ export const buildNodeChainAreaToolRenderModels = ({
 
       return [
         {
-          id: `${measurement.id}-node-${index}`,
-          measurementId: measurement.id,
+          id: `${annotation.id}-node-${index}`,
+          annotationId: annotation.id,
           nodeId,
           coordinate,
-          onClick: onMeasurementSelect
-            ? () => onMeasurementSelect(measurement.id)
-            : undefined,
-          ...(selectedMeasurementIdSet.has(measurement.id)
+          onClick: onSelect ? () => onSelect(annotation.id) : undefined,
+          ...(selectedAnnotationIdSet.has(annotation.id)
             ? applySelectedPointMarkerVisualStyle(visuals.point)
             : visuals.point),
         },
@@ -241,46 +239,44 @@ export const buildNodeChainAreaToolRenderModels = ({
     })
   );
 
-  const areaLabels = visibleAreaMeasurements.flatMap((measurement) => {
+  const areaLabels = visibleAreaAnnotations.flatMap((annotation) => {
     const coordinates = resolveMeasurementCoordinates(
-      measurement,
+      annotation,
       nodeCoordinatesById
     );
     const coordinate = getPolygonLabelCoordinate(coordinates);
-    const lastNodeIndex = measurement.nodeIds.length - 1;
+    const lastNodeIndex = annotation.nodeIds.length - 1;
     const lastNodeId =
-      lastNodeIndex >= 0 ? measurement.nodeIds[lastNodeIndex] : undefined;
+      lastNodeIndex >= 0 ? annotation.nodeIds[lastNodeIndex] : undefined;
     if (!coordinate || !lastNodeId) {
       return [];
     }
 
     return [
       {
-        id: `${measurement.id}-area-label`,
-        measurementId: measurement.id,
+        id: `${annotation.id}-area-label`,
+        annotationId: annotation.id,
         nodeId: lastNodeId,
         coordinate,
         anchorKind: POINT_LABEL_ANCHOR_KIND.AREA_CENTROID,
         content: formatAreaSquareMetersAdaptive(
           resolveAreaMeasurementSummary({
-            measurement,
+            annotation,
             toolType,
             coordinates,
           }).areaSquareMeters,
           formatOptions.areaSquareMeters
         ),
-        selected: selectedMeasurementIdSet.has(measurement.id),
+        selected: selectedAnnotationIdSet.has(annotation.id),
         hideMarker: true,
         collapse: false,
         renderStyle: RUNTIME_POINT_LABEL_RENDER_STYLE.LINE_BLEND,
         labelStyle: POINT_LABEL_STYLE.AUTO,
-        onClick: onMeasurementSelect
-          ? () => onMeasurementSelect(measurement.id)
-          : undefined,
+        onClick: onSelect ? () => onSelect(annotation.id) : undefined,
         allowLongPressWhenBlocked: true,
         onLongPress:
-          onNodeLongPress && !measurement.locked
-            ? () => onNodeLongPress(lastNodeId, measurement.id)
+          onNodeLongPress && !annotation.locked
+            ? () => onNodeLongPress(lastNodeId, annotation.id)
             : undefined,
       },
     ];

@@ -9,26 +9,26 @@ import { ANNOTATION_TOOL_PLUGIN_CAPABILITIES } from "@carma-mapping/annotations/
 import {
   createMeasurementToolPlugin,
   KEYBOARD_MEASUREMENT_PLUGIN_CAPABILITIES,
-  measurementVisualStyles,
+  annotationVisualStyles,
   withPointMarkerVisualStyle,
 } from "@carma-mapping/annotations/runtime";
 import {
-  addPointMeasurement,
-  commitPointMeasurementDraft,
-  trimLatestPointMeasurementDraft,
+  addPointAnnotation,
+  commitPointAnnotationDraft,
+  trimLatestPointAnnotationDraft,
 } from "./point-tool-actions";
 import { createPointToolInfoBoxSlots } from "./point-tool-info-box-slots";
 import { buildPointToolRenderModels } from "./point-tool-render-models";
-import { ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME } from "@carma-mapping/annotations/runtime";
+import { ANNOTATION_DEFAULT_LABEL_THEME } from "@carma-mapping/annotations/runtime";
 import type { AnnotationToolDraftState } from "@carma-mapping/annotations/runtime";
 import type { DefaultAnnotationToolTexts } from "../annotation-mode-text";
 import { defaultAnnotationToolTexts } from "../annotation-mode-text";
 const { POINT: ANNOTATION_TYPE_POINT } = ANNOTATION_TYPES;
 
 const toolType = ANNOTATION_TYPE_POINT;
-const labelTheme = ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME;
+const labelTheme = ANNOTATION_DEFAULT_LABEL_THEME;
 const pointToolVisuals = {
-  point: withPointMarkerVisualStyle(measurementVisualStyles.point),
+  point: withPointMarkerVisualStyle(annotationVisualStyles.point),
 };
 
 export type PointToolPluginOptions = {
@@ -42,7 +42,7 @@ export const createPointToolPlugin = ({
   const getPointToolInfoBoxSlots = createPointToolInfoBoxSlots(toolType, {
     headingTitle: text.headingTitle,
     headingColor: labelTheme.scheme.colorPrimary,
-    formatMeasurementLabelToken: (counter) =>
+    formatLabelToken: (counter) =>
       formatMeasurementShortLabelToken(toolType, counter),
     actionLabels: texts.actions,
     navigationLabels: texts.navigation,
@@ -83,14 +83,14 @@ export const createPointToolPlugin = ({
             return false;
           }
 
-          const committedMeasurements = commitPointMeasurementDraft(
+          const committedAnnotations = commitPointAnnotationDraft(
             toolType,
             draft,
             { addAnnotation, state: getState(), dispatch },
             toolType
           );
           drafts.clear(toolType);
-          return committedMeasurements.length > 0;
+          return committedAnnotations.length > 0;
         },
         discardDraft: () => {
           drafts.clear(toolType);
@@ -113,7 +113,7 @@ export const createPointToolPlugin = ({
           return;
         }
 
-        addPointMeasurement(
+        addPointAnnotation(
           toolType,
           coordinate,
           linkedNodeGroupId,
@@ -146,7 +146,7 @@ export const createPointToolPlugin = ({
         if (currentDraft.coordinates.length > 0) {
           sessionContext.drafts.set(
             toolType,
-            trimLatestPointMeasurementDraft(currentDraft)
+            trimLatestPointAnnotationDraft(currentDraft)
           );
           event.preventDefault();
           return true;
@@ -174,17 +174,17 @@ export const createPointToolPlugin = ({
           visuals: pointToolVisuals,
           labelTheme,
           formatOptions,
-          getMeasurementLabel: (counter) =>
+          getLabel: (counter) =>
             formatMeasurementShortLabelToken(toolType, counter),
           nodes,
-          measurements: annotationEntries,
+          annotations: annotationEntries,
           draft: draftStatesByToolType[toolType],
           elevationReferenceAnnotationId,
-          selectedMeasurementIds: selectedAnnotationIds,
+          selectedAnnotationIds: selectedAnnotationIds,
           isSelectionAdditiveModifierPressed,
-          onMeasurementSelect: setSelectedAnnotationId,
-          onMeasurementLabelClick: toggleAnnotationElevationDisplayMode,
-          onMeasurementLabelDoubleClick: setElevationReferenceAnnotationId,
+          onSelect: setSelectedAnnotationId,
+          onLabelClick: toggleAnnotationElevationDisplayMode,
+          onLabelDoubleClick: setElevationReferenceAnnotationId,
           onNodeLongPress,
           elevationLabels: text.elevationLabels,
         });

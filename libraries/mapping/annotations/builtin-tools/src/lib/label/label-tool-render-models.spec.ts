@@ -34,7 +34,7 @@ const createLabelAnnotation = (
 describe("buildLabelToolRenderModels", () => {
   it("applies per-annotation label appearance to selected label render models", () => {
     const { pointLabels } = buildLabelToolRenderModels({
-      measurements: [
+      annotations: [
         createLabelAnnotation({
           labelAppearance: {
             backgroundColor: "#123456",
@@ -44,8 +44,8 @@ describe("buildLabelToolRenderModels", () => {
         }),
       ],
       nodes: [createNode()],
-      onMeasurementSelect: vi.fn(),
-      selectedMeasurementIds: ["label-1"],
+      onSelect: vi.fn(),
+      selectedAnnotationIds: ["label-1"],
       toolType: "label",
     });
 
@@ -65,7 +65,7 @@ describe("buildLabelToolRenderModels", () => {
 
   it("keeps default selected fill behavior when only the custom text color is set", () => {
     const { pointLabels } = buildLabelToolRenderModels({
-      measurements: [
+      annotations: [
         createLabelAnnotation({
           labelAppearance: {
             textColor: "#abcdef",
@@ -73,8 +73,8 @@ describe("buildLabelToolRenderModels", () => {
         }),
       ],
       nodes: [createNode()],
-      onMeasurementSelect: vi.fn(),
-      selectedMeasurementIds: ["label-1"],
+      onSelect: vi.fn(),
+      selectedAnnotationIds: ["label-1"],
       toolType: "label",
     });
 
@@ -93,7 +93,7 @@ describe("buildLabelToolRenderModels", () => {
 
   it("keeps custom label appearance scoped to the matching label annotation", () => {
     const { pointLabels } = buildLabelToolRenderModels({
-      measurements: [
+      annotations: [
         createLabelAnnotation({
           id: "label-1",
           labelAppearance: {
@@ -108,8 +108,8 @@ describe("buildLabelToolRenderModels", () => {
         }),
       ],
       nodes: [createNodeWithId("node-1"), createNodeWithId("node-2")],
-      onMeasurementSelect: vi.fn(),
-      selectedMeasurementIds: [],
+      onSelect: vi.fn(),
+      selectedAnnotationIds: [],
       toolType: "label",
     });
 
@@ -127,10 +127,10 @@ describe("buildLabelToolRenderModels", () => {
 
   it("keeps default selection fill behavior when a label has no custom appearance", () => {
     const { pointLabels } = buildLabelToolRenderModels({
-      measurements: [createLabelAnnotation()],
+      annotations: [createLabelAnnotation()],
       nodes: [createNode()],
-      onMeasurementSelect: vi.fn(),
-      selectedMeasurementIds: ["label-1"],
+      onSelect: vi.fn(),
+      selectedAnnotationIds: ["label-1"],
       toolType: "label",
     });
 

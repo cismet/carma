@@ -5,7 +5,7 @@ import {
   getAnnotationSurfaceStrokeCssColor,
 } from "@carma-mapping/annotations/core";
 import { resolveDisplayP3WhiteCssColor } from "@carma-commons/utils";
-import { MEASUREMENT_LINE_STYLE_DEFAULTS } from "./measurement-line-style-options";
+import { ANNOTATION_LINE_STYLE_DEFAULTS } from "./annotation-line-style-options";
 
 export type EdgeVisualStyle = {
   stroke: string;
@@ -21,7 +21,7 @@ export type PointMarkerVisualStyle = {
   outlineWidth: number;
 };
 
-export type MeasurementVisualDefaults = {
+export type AnnotationVisualDefaults = {
   colors: {
     neutral: string;
     accent: string;
@@ -49,30 +49,30 @@ export type MeasurementVisualDefaults = {
   };
 };
 
-export type MeasurementVisualStyles = {
+export type AnnotationVisualStyles = {
   edge: EdgeVisualStyle;
   point: PointMarkerVisualStyle;
 };
 
-export type MeasurementVisualSelectionStyleOverrides = {
+export type AnnotationVisualSelectionStyleOverrides = {
   edge: Partial<EdgeVisualStyle>;
   point: Partial<PointMarkerVisualStyle>;
 };
 
-const measurementVisualColorDefaults = Object.freeze({
+const annotationVisualColorDefaults = Object.freeze({
   previewAlpha: 0.9,
   surfaceAlpha: 0.92,
 });
 
-export const measurementVisualDefaults: MeasurementVisualDefaults = {
+export const annotationVisualDefaults: AnnotationVisualDefaults = {
   colors: {
     neutral: getAnnotationSurfaceStrokeCssColor(1),
     accent: getAnnotationSurfaceStrokeCssColor(1),
     preview: getAnnotationSurfaceStrokeCssColor(
-      measurementVisualColorDefaults.previewAlpha
+      annotationVisualColorDefaults.previewAlpha
     ),
     surface: resolveDisplayP3WhiteCssColor(
-      measurementVisualColorDefaults.surfaceAlpha
+      annotationVisualColorDefaults.surfaceAlpha
     ),
     transparent: "transparent",
     components: {
@@ -99,36 +99,36 @@ export const measurementVisualDefaults: MeasurementVisualDefaults = {
     },
   },
   sizes: {
-    edgeStrokeWidth: MEASUREMENT_LINE_STYLE_DEFAULTS.strokeWidthPx,
+    edgeStrokeWidth: ANNOTATION_LINE_STYLE_DEFAULTS.strokeWidthPx,
     pointPixelSize: 10,
     pointOutlineWidth: 1,
   },
   patterns: {
-    edgeDashPattern: MEASUREMENT_LINE_STYLE_DEFAULTS.overlayDashPattern,
+    edgeDashPattern: ANNOTATION_LINE_STYLE_DEFAULTS.overlayDashPattern,
   },
 };
 
-export const measurementVisualStyles: MeasurementVisualStyles = Object.freeze({
+export const annotationVisualStyles: AnnotationVisualStyles = Object.freeze({
   edge: Object.freeze({
-    stroke: measurementVisualDefaults.colors.accent,
-    strokeWidth: measurementVisualDefaults.sizes.edgeStrokeWidth,
-    overlayDashPattern: measurementVisualDefaults.patterns.edgeDashPattern,
+    stroke: annotationVisualDefaults.colors.accent,
+    strokeWidth: annotationVisualDefaults.sizes.edgeStrokeWidth,
+    overlayDashPattern: annotationVisualDefaults.patterns.edgeDashPattern,
   } satisfies EdgeVisualStyle),
   point: Object.freeze({
-    pixelSize: measurementVisualDefaults.sizes.pointPixelSize,
-    fill: measurementVisualDefaults.colors.transparent,
-    outline: measurementVisualDefaults.colors.surface,
-    outlineWidth: measurementVisualDefaults.sizes.pointOutlineWidth,
+    pixelSize: annotationVisualDefaults.sizes.pointPixelSize,
+    fill: annotationVisualDefaults.colors.transparent,
+    outline: annotationVisualDefaults.colors.surface,
+    outlineWidth: annotationVisualDefaults.sizes.pointOutlineWidth,
   } satisfies PointMarkerVisualStyle),
 });
 
-export const measurementVisualSelectionStyleOverrides: MeasurementVisualSelectionStyleOverrides =
+export const annotationVisualSelectionStyleOverrides: AnnotationVisualSelectionStyleOverrides =
   Object.freeze({
     edge: Object.freeze({
-      stroke: measurementVisualDefaults.colors.neutral,
+      stroke: annotationVisualDefaults.colors.neutral,
     } satisfies Partial<EdgeVisualStyle>),
     point: Object.freeze({
-      outline: measurementVisualDefaults.colors.neutral,
+      outline: annotationVisualDefaults.colors.neutral,
     } satisfies Partial<PointMarkerVisualStyle>),
   });
 
@@ -151,12 +151,12 @@ export const withPointMarkerVisualStyle = (
 export const applySelectedEdgeVisualStyle = (
   base: EdgeVisualStyle
 ): EdgeVisualStyle =>
-  withEdgeVisualStyle(base, measurementVisualSelectionStyleOverrides.edge);
+  withEdgeVisualStyle(base, annotationVisualSelectionStyleOverrides.edge);
 
 export const applySelectedPointMarkerVisualStyle = (
   base: PointMarkerVisualStyle
 ): PointMarkerVisualStyle =>
   withPointMarkerVisualStyle(
     base,
-    measurementVisualSelectionStyleOverrides.point
+    annotationVisualSelectionStyleOverrides.point
   );

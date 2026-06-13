@@ -17,14 +17,14 @@ export const resolveAnnotationNodeMoveScope = ({
   nodes,
   linkedNodeGroups,
   annotationEntries,
-  selectedMeasurementIds = [],
+  selectedAnnotationIds = [],
   preferredMovedNodeIds,
 }: {
   nodeId: string;
   nodes: readonly AnnotationNode[];
   linkedNodeGroups: readonly AnnotationNodeLink[];
   annotationEntries: readonly StoredAnnotation[];
-  selectedMeasurementIds?: readonly string[];
+  selectedAnnotationIds?: readonly string[];
   preferredMovedNodeIds?: readonly AnnotationNodeId[];
 }): AnnotationNodeMoveScope => {
   const targetNode = nodes.find((node) => node.id === nodeId) ?? null;
@@ -47,13 +47,13 @@ export const resolveAnnotationNodeMoveScope = ({
       )
     )
   );
-  const selectedMeasurementIdSet = new Set(
-    selectedMeasurementIds.filter(Boolean)
+  const selectedAnnotationIdSet = new Set(
+    selectedAnnotationIds.filter(Boolean)
   );
   const selectedNodeIdSet = new Set(
     annotationEntries
       .filter((annotationEntry) =>
-        selectedMeasurementIdSet.has(annotationEntry.id)
+        selectedAnnotationIdSet.has(annotationEntry.id)
       )
       .flatMap((annotationEntry) => annotationEntry.nodeIds)
   );

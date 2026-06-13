@@ -7,10 +7,10 @@ import type {
   RuntimePointLabelRenderModel,
   RuntimePointMarkerRenderModel,
   RuntimePolygonFillRenderModel,
-} from "./measurement-render-models";
-import { useMeasurementEdgesController } from "./use-measurement-edges-controller";
-import { useMeasurementOverlayPolygonFillsController } from "./use-measurement-overlay-polygon-fills-controller";
-import { useMeasurementPolygonFillsController } from "./use-measurement-polygon-fills-controller";
+} from "./annotation-render-models";
+import { useAnnotationEdgesController } from "./use-annotation-edges-controller";
+import { useAnnotationOverlayPolygonFillsController } from "./use-annotation-overlay-polygon-fills-controller";
+import { useAnnotationPolygonFillsController } from "./use-annotation-polygon-fills-controller";
 import type { Scene } from "@carma-cesium";
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import type { AnnotationNodeLink } from "../store";
@@ -22,7 +22,7 @@ import {
 } from "../config/annotation-line-label-options";
 import { buildVisualizerInputs } from "./visualizer-inputs";
 
-type UseMeasurementVisualizersArgs = {
+type UseAnnotationVisualizersArgs = {
   surfaceKey?: string;
   enableHostInteractionTargets: boolean;
   points: readonly RuntimePointMarkerRenderModel[];
@@ -37,23 +37,23 @@ type UseMeasurementVisualizersArgs = {
   isMoveGizmoDragging?: boolean;
   previewSnapTargetHoverEnabled?: boolean;
   onPreviewSnapTargetNodeClick?: (nodeId: string) => boolean;
-  onMeasurementSelect?: (measurementId: string) => void;
-  onNodeMeasurementsSelect?: (measurementIds: readonly string[]) => void;
-  onNodeLongPress?: (nodeId: string, measurementId?: string) => void;
-  canStartNodeEditing?: (nodeId: string, measurementId?: string) => boolean;
+  onAnnotationSelect?: (annotationId: string) => void;
+  onNodeAnnotationsSelect?: (annotationIds: readonly string[]) => void;
+  onNodeLongPress?: (nodeId: string, annotationId?: string) => void;
+  canStartNodeEditing?: (nodeId: string, annotationId?: string) => boolean;
   onReferenceNodeClick?: (nodeId: string) => boolean;
   onReferenceNodeHover?: (nodeId: string, hovered: boolean) => void;
   onReferenceEdgeClick?: (startNodeId: string, endNodeId: string) => boolean;
-  insertNodeTargetMeasurementIds?: readonly string[];
+  insertNodeTargetAnnotationIds?: readonly string[];
   onInsertNodeTargetClick?: (
-    measurementId: string,
+    annotationId: string,
     startNodeId: string,
     endNodeId: string
   ) => boolean;
-  onDistanceTriangleCornerClick?: (measurementId: string) => void;
+  onDistanceTriangleCornerClick?: (annotationId: string) => void;
 };
 
-export const useMeasurementVisualizers = (
+export const useAnnotationVisualizers = (
   scene: Scene | null,
   {
     surfaceKey = "committed",
@@ -70,17 +70,17 @@ export const useMeasurementVisualizers = (
     isMoveGizmoDragging = false,
     previewSnapTargetHoverEnabled = false,
     onPreviewSnapTargetNodeClick,
-    onMeasurementSelect,
-    onNodeMeasurementsSelect,
+    onAnnotationSelect,
+    onNodeAnnotationsSelect,
     onNodeLongPress,
     canStartNodeEditing,
     onReferenceNodeClick,
     onReferenceNodeHover,
     onReferenceEdgeClick,
-    insertNodeTargetMeasurementIds = [],
+    insertNodeTargetAnnotationIds = [],
     onInsertNodeTargetClick,
     onDistanceTriangleCornerClick,
-  }: UseMeasurementVisualizersArgs
+  }: UseAnnotationVisualizersArgs
 ) => {
   const resolvedAnnotationLineLabelOptions = useMemo(
     () => resolveAnnotationLineLabelOptions(lineLabelOptions),
@@ -94,7 +94,7 @@ export const useMeasurementVisualizers = (
     previewSnapTargetsEnabled ||
     activeEditedNodeId !== null;
 
-  useMeasurementEdgesController(scene, {
+  useAnnotationEdgesController(scene, {
     edges,
     formatOptions,
     lineLabelOptions: resolvedAnnotationLineLabelOptions,
@@ -103,14 +103,14 @@ export const useMeasurementVisualizers = (
       ? activeEditedNodeId
       : null,
     blockEdgeInteractions,
-    onMeasurementSelect,
+    onAnnotationSelect,
     onEdgeClick: onReferenceEdgeClick,
-    insertNodeTargetMeasurementIds,
+    insertNodeTargetAnnotationIds,
     onInsertNodeTargetClick,
     onDistanceTriangleCornerClick,
   });
-  useMeasurementPolygonFillsController(scene, polygonFills);
-  useMeasurementOverlayPolygonFillsController(scene, polygonFills, surfaceKey);
+  useAnnotationPolygonFillsController(scene, polygonFills);
+  useAnnotationOverlayPolygonFillsController(scene, polygonFills, surfaceKey);
 
   const selectedAnnotationIdSet = useMemo(
     () => new Set(selectedAnnotationIds),
@@ -154,8 +154,8 @@ export const useMeasurementVisualizers = (
         nodeLinkIdByNodeId,
         previewNodeLinkId,
         isInPreviewNodeLink,
-        onMeasurementSelect,
-        onNodeMeasurementsSelect,
+        onAnnotationSelect,
+        onNodeAnnotationsSelect,
         onNodeLongPress,
         canStartNodeEditing,
         onPreviewSnapTargetNodeClick,
@@ -167,8 +167,8 @@ export const useMeasurementVisualizers = (
       enableHostInteractionTargets,
       isInPreviewNodeLink,
       nodeLinkIdByNodeId,
-      onMeasurementSelect,
-      onNodeMeasurementsSelect,
+      onAnnotationSelect,
+      onNodeAnnotationsSelect,
       onNodeLongPress,
       canStartNodeEditing,
       onPreviewSnapTargetNodeClick,

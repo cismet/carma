@@ -1,7 +1,7 @@
 import type { AnnotationToolPlugin } from "@carma-mapping/annotations/runtime";
 import type {
   AreaOcclusionStyleOptions,
-  MeasurementLineStyleOptions,
+  AnnotationLineStyleOptions,
 } from "@carma-mapping/annotations/runtime";
 import {
   areaGroundToolPlugin,
@@ -46,17 +46,17 @@ import type { DefaultAnnotationToolTexts } from "./annotation-mode-text";
 export type DefaultAnnotationToolPluginsOptions = {
   areaOcclusionStyle?: AreaOcclusionStyleOptions;
   areaPlanarMaxPlaneNormalChangeDeg?: number | null;
-  measurementLineStyle?: MeasurementLineStyleOptions;
+  annotationLineStyle?: AnnotationLineStyleOptions;
   texts?: DefaultAnnotationToolTexts;
 };
 
 export const createDefaultAnnotationToolPlugins = ({
   areaOcclusionStyle,
   areaPlanarMaxPlaneNormalChangeDeg,
-  measurementLineStyle,
+  annotationLineStyle,
   texts,
 }: DefaultAnnotationToolPluginsOptions = {}): readonly AnnotationToolPlugin[] => {
-  const hasMeasurementLineStyle = measurementLineStyle !== undefined;
+  const hasAnnotationLineStyle = annotationLineStyle !== undefined;
   const hasAreaPlanarNormalChangeLimit =
     areaPlanarMaxPlaneNormalChangeDeg !== undefined;
   const hasCustomTexts = texts !== undefined;
@@ -64,73 +64,73 @@ export const createDefaultAnnotationToolPlugins = ({
   return [
     hasCustomTexts ? createSelectToolPlugin({ texts }) : selectToolPlugin,
     hasCustomTexts ? createPointToolPlugin({ texts }) : pointToolPlugin,
-    hasMeasurementLineStyle || hasCustomTexts
+    hasAnnotationLineStyle || hasCustomTexts
       ? createDistanceToolPlugin({
-          measurementLineStyleOptions: measurementLineStyle,
+          annotationLineStyleOptions: annotationLineStyle,
           texts,
         })
       : distanceToolPlugin,
-    hasMeasurementLineStyle || hasCustomTexts
+    hasAnnotationLineStyle || hasCustomTexts
       ? createPolylineToolPlugin({
-          measurementLineStyleOptions: measurementLineStyle,
+          annotationLineStyleOptions: annotationLineStyle,
           texts,
         })
       : polylineToolPlugin,
-    areaOcclusionStyle || hasMeasurementLineStyle || hasCustomTexts
+    areaOcclusionStyle || hasAnnotationLineStyle || hasCustomTexts
       ? createAreaGroundToolPlugin({
           occlusionStyleOptions: areaOcclusionStyle,
-          measurementLineStyleOptions: measurementLineStyle,
+          annotationLineStyleOptions: annotationLineStyle,
           texts,
         })
       : areaGroundToolPlugin,
     areaOcclusionStyle ||
-    hasMeasurementLineStyle ||
+    hasAnnotationLineStyle ||
     hasAreaPlanarNormalChangeLimit ||
     hasCustomTexts
       ? createAreaPlanarToolPlugin({
           occlusionStyleOptions: areaOcclusionStyle,
           maxPlaneNormalChangeDeg: areaPlanarMaxPlaneNormalChangeDeg,
-          measurementLineStyleOptions: measurementLineStyle,
+          annotationLineStyleOptions: annotationLineStyle,
           texts,
         })
       : areaPlanarToolPlugin,
     areaOcclusionStyle ||
-    hasMeasurementLineStyle ||
+    hasAnnotationLineStyle ||
     hasAreaPlanarNormalChangeLimit ||
     hasCustomTexts
       ? createAreaPlanarBiggestTriangleToolPlugin({
           occlusionStyleOptions: areaOcclusionStyle,
           maxPlaneNormalChangeDeg: areaPlanarMaxPlaneNormalChangeDeg,
-          measurementLineStyleOptions: measurementLineStyle,
+          annotationLineStyleOptions: annotationLineStyle,
           texts,
         })
       : areaPlanarBiggestTriangleToolPlugin,
     areaOcclusionStyle ||
-    hasMeasurementLineStyle ||
+    hasAnnotationLineStyle ||
     hasAreaPlanarNormalChangeLimit ||
     hasCustomTexts
       ? createAreaPlanarPcaToolPlugin({
           occlusionStyleOptions: areaOcclusionStyle,
           maxPlaneNormalChangeDeg: areaPlanarMaxPlaneNormalChangeDeg,
-          measurementLineStyleOptions: measurementLineStyle,
+          annotationLineStyleOptions: annotationLineStyle,
           texts,
         })
       : areaPlanarPcaToolPlugin,
     areaOcclusionStyle ||
-    hasMeasurementLineStyle ||
+    hasAnnotationLineStyle ||
     hasAreaPlanarNormalChangeLimit ||
     hasCustomTexts
       ? createAreaPlanarTrapezoidToolPlugin({
           occlusionStyleOptions: areaOcclusionStyle,
           maxPlaneNormalChangeDeg: areaPlanarMaxPlaneNormalChangeDeg,
-          measurementLineStyleOptions: measurementLineStyle,
+          annotationLineStyleOptions: annotationLineStyle,
           texts,
         })
       : areaPlanarTrapezoidToolPlugin,
-    areaOcclusionStyle || hasMeasurementLineStyle || hasCustomTexts
+    areaOcclusionStyle || hasAnnotationLineStyle || hasCustomTexts
       ? createVerticalAreaToolPlugin({
           occlusionStyleOptions: areaOcclusionStyle,
-          measurementLineStyleOptions: measurementLineStyle,
+          annotationLineStyleOptions: annotationLineStyle,
           texts,
         })
       : verticalAreaToolPlugin,

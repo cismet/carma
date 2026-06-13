@@ -1,7 +1,7 @@
 import { ANNOTATION_TYPES } from "@carma-mapping/annotations/core";
 import {
   ANNOTATION_ELEVATION_DISPLAY_MODES,
-  ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME,
+  ANNOTATION_DEFAULT_LABEL_THEME,
   type AnnotationNode,
   type StoredAnnotation,
 } from "@carma-mapping/annotations/runtime";
@@ -52,42 +52,42 @@ const createPointMeasurement = (
 });
 
 const buildModels = ({
-  measurements,
-  selectedMeasurementIds = [],
-  onMeasurementLabelClick = vi.fn(),
+  annotations,
+  selectedAnnotationIds = [],
+  onLabelClick = vi.fn(),
 }: {
-  measurements: readonly StoredAnnotation[];
-  selectedMeasurementIds?: readonly string[];
-  onMeasurementLabelClick?: ReturnType<typeof vi.fn>;
+  annotations: readonly StoredAnnotation[];
+  selectedAnnotationIds?: readonly string[];
+  onLabelClick?: ReturnType<typeof vi.fn>;
 }) =>
   buildPointToolRenderModels({
     toolType: ANNOTATION_TYPE_POINT,
     visuals,
-    labelTheme: ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME,
+    labelTheme: ANNOTATION_DEFAULT_LABEL_THEME,
     formatOptions: {},
-    getMeasurementLabel: (counter) => `P${counter}`,
+    getLabel: (counter) => `P${counter}`,
     nodes,
-    measurements,
+    annotations,
     elevationReferenceAnnotationId: null,
-    selectedMeasurementIds,
+    selectedAnnotationIds,
     isSelectionAdditiveModifierPressed: false,
-    onMeasurementSelect: vi.fn(),
-    onMeasurementLabelClick,
-    onMeasurementLabelDoubleClick: vi.fn(),
+    onSelect: vi.fn(),
+    onLabelClick,
+    onLabelDoubleClick: vi.fn(),
   });
 
 describe("buildPointToolRenderModels", () => {
-  it("shows the first point measurement as NHN while it is the only point", () => {
+  it("shows the first point annotation as NHN while it is the only point", () => {
     const pointLabels = buildModels({
-      measurements: [createPointMeasurement("point-1", "node-1")],
+      annotations: [createPointMeasurement("point-1", "node-1")],
     }).pointLabels;
 
     expect(String(pointLabels[0]?.content)).toContain("NHN");
   });
 
-  it("uses relative elevation by default once a second point measurement exists", () => {
+  it("uses relative elevation by default once a second point annotation exists", () => {
     const pointLabels = buildModels({
-      measurements: [
+      annotations: [
         createPointMeasurement("point-1", "node-1"),
         createPointMeasurement("point-2", "node-2"),
       ],
@@ -99,7 +99,7 @@ describe("buildPointToolRenderModels", () => {
 
   it("keeps explicit elevation display mode overrides", () => {
     const pointLabels = buildModels({
-      measurements: [
+      annotations: [
         createPointMeasurement("point-1", "node-1", {
           elevationDisplayMode: ANNOTATION_ELEVATION_DISPLAY_MODES.ABSOLUTE,
         }),
@@ -111,16 +111,16 @@ describe("buildPointToolRenderModels", () => {
   });
 
   it("passes the effective display mode into the label toggle handler", () => {
-    const onMeasurementLabelClick = vi.fn();
+    const onLabelClick = vi.fn();
     const pointLabels = buildModels({
-      measurements: [createPointMeasurement("point-1", "node-1")],
-      selectedMeasurementIds: ["point-1"],
-      onMeasurementLabelClick,
+      annotations: [createPointMeasurement("point-1", "node-1")],
+      selectedAnnotationIds: ["point-1"],
+      onLabelClick,
     }).pointLabels;
 
     pointLabels[0]?.onClick?.();
 
-    expect(onMeasurementLabelClick).toHaveBeenCalledWith(
+    expect(onLabelClick).toHaveBeenCalledWith(
       "point-1",
       ANNOTATION_ELEVATION_DISPLAY_MODES.ABSOLUTE
     );

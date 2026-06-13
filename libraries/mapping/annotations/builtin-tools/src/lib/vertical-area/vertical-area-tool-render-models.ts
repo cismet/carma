@@ -52,9 +52,9 @@ type VerticalAreaToolVisuals = {
 type BuildVerticalAreaToolRenderModelsArgs = {
   visuals: VerticalAreaToolVisuals;
   formatOptions: AnnotationsRuntimeFormatOptions;
-  selectedMeasurementIds: readonly string[];
-  onMeasurementSelect?: (measurementId: string) => void;
-  onNodeLongPress?: (nodeId: string, measurementId: string) => void;
+  selectedAnnotationIds: readonly string[];
+  onSelect?: (annotationId: string) => void;
+  onNodeLongPress?: (nodeId: string, annotationId: string) => void;
   occlusionStyleOptions?: AreaOcclusionStyleOptions;
 };
 
@@ -96,12 +96,12 @@ const getVerticalAreaLabelCoordinate = (
 export const buildVerticalAreaToolRenderModels = (
   toolType: StoredAnnotation["toolType"],
   nodes: readonly AnnotationNode[],
-  measurements: readonly StoredAnnotation[],
+  annotations: readonly StoredAnnotation[],
   {
     visuals,
     formatOptions,
-    selectedMeasurementIds,
-    onMeasurementSelect,
+    selectedAnnotationIds,
+    onSelect,
     onNodeLongPress,
     occlusionStyleOptions,
   }: BuildVerticalAreaToolRenderModelsArgs
@@ -112,13 +112,13 @@ export const buildVerticalAreaToolRenderModels = (
   pointLabels: readonly RuntimePointLabelRenderModel[];
 } => {
   const nodeCoordinatesById = buildRuntimeNodeCoordinateMap(nodes);
-  const verticalAreaMeasurements = measurements.filter(
-    (measurement) => measurement.toolType === toolType
+  const verticalAreaAnnotations = annotations.filter(
+    (annotation) => annotation.toolType === toolType
   );
-  const visibleVerticalAreaMeasurements = verticalAreaMeasurements.filter(
-    (measurement) => !measurement.hidden
+  const visibleVerticalAreaMeasurements = verticalAreaAnnotations.filter(
+    (annotation) => !annotation.hidden
   );
-  const selectedMeasurementIdSet = new Set(selectedMeasurementIds);
+  const selectedAnnotationIdSet = new Set(selectedAnnotationIds);
   const resolvedOcclusionStyleOptions = resolveAreaOcclusionStyleOptions(
     occlusionStyleOptions
   );
@@ -129,9 +129,9 @@ export const buildVerticalAreaToolRenderModels = (
   );
 
   const committedEdges = visibleVerticalAreaMeasurements.flatMap(
-    (measurement) => {
+    (annotation) => {
       const coordinates = resolveMeasurementCoordinates(
-        measurement,
+        annotation,
         nodeCoordinatesById
       );
 
@@ -141,14 +141,14 @@ export const buildVerticalAreaToolRenderModels = (
 
       return [
         {
-          id: measurement.id,
-          measurementId: measurement.id,
-          nodeIds: measurement.nodeIds,
-          coordinates: measurement.closed
+          id: annotation.id,
+          annotationId: annotation.id,
+          nodeIds: annotation.nodeIds,
+          coordinates: annotation.closed
             ? [...coordinates, coordinates[0]!]
             : coordinates,
           ...(lineRenderOptions ?? {}),
-          ...(selectedMeasurementIdSet.has(measurement.id)
+          ...(selectedAnnotationIdSet.has(annotation.id)
             ? applySelectedEdgeVisualStyle(visuals.edge)
             : visuals.edge),
         },
@@ -157,9 +157,9 @@ export const buildVerticalAreaToolRenderModels = (
   );
 
   const committedPolygonFills = visibleVerticalAreaMeasurements.flatMap(
-    (measurement) => {
+    (annotation) => {
       const coordinates = resolveMeasurementCoordinates(
-        measurement,
+        annotation,
         nodeCoordinatesById
       );
       if (coordinates.length < 3) {
@@ -167,14 +167,14 @@ export const buildVerticalAreaToolRenderModels = (
       }
       const fill = getAnnotationAreaFillCssColor(
         ANNOTATION_TYPE_AREA_VERTICAL,
-        selectedMeasurementIdSet.has(measurement.id)
+        selectedAnnotationIdSet.has(annotation.id)
       );
 
       return [
         {
-          id: `${measurement.id}-fill`,
-          measurementId: measurement.id,
-          nodeIds: measurement.nodeIds,
+          id: `${annotation.id}-fill`,
+          annotationId: annotation.id,
+          nodeIds: annotation.nodeIds,
           coordinates,
           fill,
           ...(isCoplanarFill && resolvedOcclusionStyleOptions.fill.overlay
@@ -186,15 +186,15 @@ export const buildVerticalAreaToolRenderModels = (
               }
             : {}),
           placement: fillPlacement,
-          selected: selectedMeasurementIdSet.has(measurement.id),
+          selected: selectedAnnotationIdSet.has(annotation.id),
         },
       ];
     }
   );
 
   const committedPoints = visibleVerticalAreaMeasurements.flatMap(
-    (measurement) =>
-      measurement.nodeIds.flatMap((nodeId, index) => {
+    (annotation) =>
+      annotation.nodeIds.flatMap((nodeId, index) => {
         const coordinate = nodeCoordinatesById.get(nodeId);
         if (!coordinate) {
           return [];
@@ -202,14 +202,14 @@ export const buildVerticalAreaToolRenderModels = (
 
         return [
           {
-            id: `${measurement.id}-node-${index}`,
-            measurementId: measurement.id,
+            id: `${annotation.id}-node-${index}`,
+            annotationId: annotation.id,
             nodeId,
             coordinate,
-            onClick: onMeasurementSelect
-              ? () => onMeasurementSelect(measurement.id)
+            onClick: onSelect
+              ? () => onSelect(annotation.id)
               : undefined,
-            ...(selectedMeasurementIdSet.has(measurement.id)
+            ...(selectedAnnotationIdSet.has(annotation.id)
               ? applySelectedPointMarkerVisualStyle(visuals.point)
               : visuals.point),
           },
@@ -218,15 +218,15 @@ export const buildVerticalAreaToolRenderModels = (
   );
 
   const committedAreaLabels = visibleVerticalAreaMeasurements.flatMap(
-    (measurement) => {
+    (annotation) => {
       const coordinates = resolveMeasurementCoordinates(
-        measurement,
+        annotation,
         nodeCoordinatesById
       );
       const coordinate = getVerticalAreaLabelCoordinate(coordinates);
-      const lastNodeIndex = measurement.nodeIds.length - 1;
+      const lastNodeIndex = annotation.nodeIds.length - 1;
       const lastNodeId =
-        lastNodeIndex >= 0 ? measurement.nodeIds[lastNodeIndex] : undefined;
+        lastNodeIndex >= 0 ? annotation.nodeIds[lastNodeIndex] : undefined;
 
       if (!coordinate || !lastNodeId) {
         return [];
@@ -234,31 +234,31 @@ export const buildVerticalAreaToolRenderModels = (
 
       return [
         {
-          id: `${measurement.id}-area-label`,
-          measurementId: measurement.id,
+          id: `${annotation.id}-area-label`,
+          annotationId: annotation.id,
           nodeId: lastNodeId,
           coordinate,
           anchorKind: POINT_LABEL_ANCHOR_KIND.AREA_CENTROID,
           content: formatAreaSquareMetersAdaptive(
             resolveAreaMeasurementSummary({
-              measurement,
+              annotation,
               toolType: ANNOTATION_TYPE_AREA_VERTICAL,
               coordinates,
             }).areaSquareMeters,
             formatOptions.areaSquareMeters
           ),
-          selected: selectedMeasurementIdSet.has(measurement.id),
+          selected: selectedAnnotationIdSet.has(annotation.id),
           hideMarker: true,
           collapse: false,
           renderStyle: RUNTIME_POINT_LABEL_RENDER_STYLE.LINE_BLEND,
           labelStyle: POINT_LABEL_STYLE.AUTO,
-          onClick: onMeasurementSelect
-            ? () => onMeasurementSelect(measurement.id)
+          onClick: onSelect
+            ? () => onSelect(annotation.id)
             : undefined,
           allowLongPressWhenBlocked: true,
           onLongPress:
-            onNodeLongPress && !measurement.locked
-              ? () => onNodeLongPress(lastNodeId, measurement.id)
+            onNodeLongPress && !annotation.locked
+              ? () => onNodeLongPress(lastNodeId, annotation.id)
               : undefined,
         },
       ];

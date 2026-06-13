@@ -145,9 +145,9 @@ export const createLabelToolPlugin = ({
         const { points, pointLabels } = buildLabelToolRenderModels({
           toolType,
           nodes,
-          measurements: annotationEntries,
-          selectedMeasurementIds: selectedAnnotationIds,
-          onMeasurementSelect: setSelectedAnnotationId,
+          annotations: annotationEntries,
+          selectedAnnotationIds: selectedAnnotationIds,
+          onSelect: setSelectedAnnotationId,
           onNodeLongPress,
           defaultDisplayNamePrefix: text.defaultDisplayNamePrefix,
         });

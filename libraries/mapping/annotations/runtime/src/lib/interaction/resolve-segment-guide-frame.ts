@@ -4,7 +4,12 @@ import {
   SceneTransforms,
   defined,
 } from "@carma-cesium";
-import { formatLengthMeters } from "@carma-units";
+import { formatLengthMeters, type CssPixelPosition } from "@carma-units";
+import {
+  buildDistanceTriangleLineLabelReferences,
+  type DistanceTriangleLineLabelOutsideSigns,
+  type DistanceTriangleLineLabelReferences,
+} from "@carma-mapping/annotations/core";
 import { cartesian3FromGeographicCoordinate } from "@carma-mapping/engines/cesium/core";
 
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
@@ -12,12 +17,10 @@ import type { CesiumGeographicCoordinate } from "../store";
 import type { Scene } from "@carma-cesium";
 import {
   buildAuxiliaryPoint,
-  buildPreviewDistanceTriangleLabelReferences,
-  createPreviewSegmentScratch,
-  previewControllerDefaults,
-  resolvePreviewDistanceTriangleComponentLabelVisibility,
-  type PreviewDistanceTriangleLabelReferences,
-  type PreviewSegmentScratch,
+  createAnnotationGeometryScratch,
+  annotationOverlayDefaults,
+  resolveDistanceTriangleComponentLabelVisibility,
+  type AnnotationGeometryScratch,
 } from "./authoring-visual-runtime";
 
 type ScreenPointLike = {
@@ -38,7 +41,7 @@ export type SegmentGuideFrame = {
   direct: SegmentGuideFrameSegment;
   vertical: SegmentGuideFrameSegment | null;
   horizontal: SegmentGuideFrameSegment | null;
-  nextVerticalOutsideSign: -1 | 1 | undefined;
+  nextOutsideSigns: DistanceTriangleLineLabelOutsideSigns | undefined;
 };
 
 const toScreenPoint = (
@@ -62,6 +65,12 @@ const toScreenPoint = (
   };
 };
 
+const toCssPixelPosition = (point: ScreenPointLike): CssPixelPosition =>
+  ({
+    x: point.x as CssPixelPosition["x"],
+    y: point.y as CssPixelPosition["y"],
+  } as CssPixelPosition);
+
 const resolveComponentSegment = ({
   startECEF,
   endECEF,
@@ -78,7 +87,7 @@ const resolveComponentSegment = ({
   outsideReferencePoint: ScreenPointLike | null;
 }): SegmentGuideFrameSegment | null =>
   Cartesian3.distance(startECEF, endECEF) >
-  previewControllerDefaults.geometryEpsilonMeters
+  annotationOverlayDefaults.geometryEpsilonMeters
     ? {
         startECEF,
         endECEF,
@@ -96,8 +105,8 @@ export const resolveSegmentGuideFrame = ({
   hoverPointECEF,
   hoverScreenPosition,
   formatOptions,
-  previousVerticalOutsideSign,
-  scratch = createPreviewSegmentScratch(),
+  previousOutsideSigns,
+  scratch = createAnnotationGeometryScratch(),
 }: {
   scene: Scene;
   anchorCoordinate: CesiumGeographicCoordinate | null;
@@ -105,8 +114,8 @@ export const resolveSegmentGuideFrame = ({
   hoverPointECEF?: Cartesian3 | null;
   hoverScreenPosition?: ScreenPointLike | null;
   formatOptions: AnnotationsRuntimeFormatOptions;
-  previousVerticalOutsideSign?: -1 | 1;
-  scratch?: PreviewSegmentScratch;
+  previousOutsideSigns?: DistanceTriangleLineLabelOutsideSigns;
+  scratch?: AnnotationGeometryScratch;
 }): SegmentGuideFrame | null => {
   if (!anchorCoordinate || !hoverCoordinate) {
     return null;
@@ -117,7 +126,7 @@ export const resolveSegmentGuideFrame = ({
     hoverPointECEF ?? cartesian3FromGeographicCoordinate(hoverCoordinate);
   if (
     Cartesian3.distance(anchorPointECEF, effectiveHoverPointECEF) <=
-    previewControllerDefaults.geometryEpsilonMeters
+    annotationOverlayDefaults.geometryEpsilonMeters
   ) {
     return null;
   }
@@ -141,17 +150,17 @@ export const resolveSegmentGuideFrame = ({
     scratch.auxiliaryScreen
   );
 
-  const labelReferences: PreviewDistanceTriangleLabelReferences | null =
+  const labelReferences: DistanceTriangleLineLabelReferences | null =
     anchorScreenPosition &&
     effectiveHoverScreenPosition &&
     auxiliaryScreenPosition
-      ? buildPreviewDistanceTriangleLabelReferences({
-          anchor: anchorScreenPosition,
-          target: effectiveHoverScreenPosition,
-          aux: auxiliaryScreenPosition,
+      ? buildDistanceTriangleLineLabelReferences({
+          anchor: toCssPixelPosition(anchorScreenPosition),
+          target: toCssPixelPosition(effectiveHoverScreenPosition),
+          aux: toCssPixelPosition(auxiliaryScreenPosition),
           anchorAltitudeMeters: anchorCoordinate.altitude,
           targetAltitudeMeters: hoverCoordinate.altitude,
-          previousVerticalOutsideSign,
+          previousOutsideSigns,
         })
       : null;
 
@@ -168,7 +177,7 @@ export const resolveSegmentGuideFrame = ({
     formatOptions.lengthMeters
   );
   const componentLabelVisibility =
-    resolvePreviewDistanceTriangleComponentLabelVisibility({
+    resolveDistanceTriangleComponentLabelVisibility({
       directLabelText,
       verticalLabelText,
       horizontalLabelText,
@@ -206,6 +215,6 @@ export const resolveSegmentGuideFrame = ({
       outsideReferencePoint:
         labelReferences?.horizontalOutsideReferencePoint ?? null,
     }),
-    nextVerticalOutsideSign: labelReferences?.nextVerticalOutsideSign,
+    nextOutsideSigns: labelReferences?.nextOutsideSigns,
   };
 };

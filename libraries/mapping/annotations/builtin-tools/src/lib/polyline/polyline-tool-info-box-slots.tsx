@@ -5,7 +5,7 @@ import {
 } from "@carma-units";
 import {
   AnnotationInfoBoxMetricGrid,
-  buildAnnotationMeasurementInfoBoxSlots,
+  buildAnnotationInfoBoxSlots,
   type AnnotationInfoBoxActionLabels,
   type AnnotationInfoBoxNavigationLabels,
 } from "@carma-mapping/annotations/ui";
@@ -13,7 +13,7 @@ import {
 import type { RuntimeAnnotationInfoBoxContext } from "@carma-mapping/annotations/runtime";
 import {
   ANNOTATION_DELETE_CONFIRMATION_SOURCES,
-  resolveRuntimeMeasurementNavigation,
+  resolveRuntimeAnnotationNavigation,
 } from "@carma-mapping/annotations/runtime";
 import { resolvePolylineMeasurementSummary } from "../utils/measurement-summaries";
 import {
@@ -26,14 +26,14 @@ export const createPolylineToolInfoBoxSlots = (
   {
     headingTitle,
     headingColor,
-    formatMeasurementLabelToken,
+    formatLabelToken,
     actionLabels,
     navigationLabels,
     metricLabels,
   }: {
     headingTitle: string;
     headingColor: string;
-    formatMeasurementLabelToken: (counter: number) => string;
+    formatLabelToken: (counter: number) => string;
     actionLabels?: Partial<AnnotationInfoBoxActionLabels>;
     navigationLabels?: Partial<AnnotationInfoBoxNavigationLabels>;
     metricLabels: {
@@ -67,18 +67,18 @@ export const createPolylineToolInfoBoxSlots = (
       return null;
     }
 
-    const polylineMeasurements = annotationEntries.filter(
-      (measurementEntry) => measurementEntry.toolType === toolType
+    const polylineAnnotations = annotationEntries.filter(
+      (annotationEntry) => annotationEntry.toolType === toolType
     );
     const polylineOrder =
-      polylineMeasurements.findIndex(
-        (measurementEntry) => measurementEntry.id === annotation.id
+      polylineAnnotations.findIndex(
+        (annotationEntry) => annotationEntry.id === annotation.id
       ) + 1;
     const coordinates = resolveMeasurementCoordinates(
       annotation,
       buildRuntimeNodeCoordinateMap(nodes)
     );
-    const navigation = resolveRuntimeMeasurementNavigation({
+    const navigation = resolveRuntimeAnnotationNavigation({
       annotationEntries,
       selectedAnnotationId: annotation.id,
       focusAnnotationId,
@@ -91,13 +91,13 @@ export const createPolylineToolInfoBoxSlots = (
       return null;
     }
 
-    const shortLabelToken = formatMeasurementLabelToken(polylineOrder);
+    const shortLabelToken = formatLabelToken(polylineOrder);
     const defaultDisplayName = headingTitle;
     const effectiveShortLabel =
       annotation.shortLabel?.trim() || shortLabelToken;
     const formatDistance = (value: number) =>
       formatLengthMeters(value, formatOptions.lengthMeters);
-    return buildAnnotationMeasurementInfoBoxSlots({
+    return buildAnnotationInfoBoxSlots({
       headingTitle,
       headingColor,
       titleInput: {
@@ -137,14 +137,14 @@ export const createPolylineToolInfoBoxSlots = (
           });
         },
         labels: actionLabels,
-        dataTestIdPrefix: "carma-annotation-polyline-measurement",
+        dataTestIdPrefix: "carma-annotation-polyline-annotation",
         dataTestIds: {
-          flyTo: "carma-annotation-flyto-polyline-measurement-btn",
-          export: "carma-annotation-export-polyline-measurement-geojson-btn",
+          flyTo: "carma-annotation-flyto-polyline-annotation-btn",
+          export: "carma-annotation-export-polyline-annotation-geojson-btn",
           visibility:
-            "carma-annotation-toggle-polyline-measurement-visibility-btn",
-          lock: "carma-annotation-toggle-polyline-measurement-lock-btn",
-          delete: "carma-annotation-delete-polyline-measurement-btn",
+            "carma-annotation-toggle-polyline-annotation-visibility-btn",
+          lock: "carma-annotation-toggle-polyline-annotation-lock-btn",
+          delete: "carma-annotation-delete-polyline-annotation-btn",
         },
       },
       metaText: formatDistance(summary.totalLengthMeters),
@@ -205,9 +205,9 @@ export const createPolylineToolInfoBoxSlots = (
       navigation: {
         totalEntries: navigation?.totalEntries ?? 0,
         currentIndex: navigation?.currentIndex ?? 0,
-        onFlyToAllMeasurements: navigation?.flyToAllMeasurements,
-        onPreviousMeasurement: () => navigation?.selectRelativeMeasurement(-1),
-        onNextMeasurement: () => navigation?.selectRelativeMeasurement(1),
+        onFlyToAll: navigation?.flyToAllAnnotations,
+        onPrevious: () => navigation?.selectRelativeAnnotation(-1),
+        onNext: () => navigation?.selectRelativeAnnotation(1),
         labels: navigationLabels,
       },
       visualOptions: infoBoxVisualOptions,

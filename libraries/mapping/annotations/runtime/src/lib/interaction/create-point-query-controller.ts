@@ -43,7 +43,7 @@ import {
   createLineRuntime,
   destroyLineCollection,
   setLineRuntimeColor,
-  type PreviewLineRuntime,
+  type AuthoringLineRuntime,
 } from "./authoring-visual-runtime";
 import {
   createPointQueryDebugRuntime,
@@ -145,7 +145,7 @@ export const createPointQueryController = ({
   let discNormalLineCollection = null as ReturnType<
     typeof createLineCollection
   > | null;
-  let discNormalLineRuntime: PreviewLineRuntime | null = null;
+  let discNormalLineRuntime: AuthoringLineRuntime | null = null;
   let discNeedsRender = false;
   let previousSurfaceNormal: Cartesian3 | null = null;
   let latestDiscWorldPosition: Cartesian3 | null = null;

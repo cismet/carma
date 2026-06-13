@@ -9,7 +9,7 @@ import {
 import type {
   RuntimeEdgeRenderModel,
   RuntimePolygonFillRenderModel,
-} from "../render/measurement-render-models";
+} from "../render/annotation-render-models";
 import { resolveSceneSelectionTarget } from "./scene-selection-target";
 
 type SceneSelectionHostProps = {
@@ -19,7 +19,7 @@ type SceneSelectionHostProps = {
   overlayEdges: readonly RuntimeEdgeRenderModel[];
   basePolygonFills: readonly RuntimePolygonFillRenderModel[];
   overlayPolygonFills: readonly RuntimePolygonFillRenderModel[];
-  onMeasurementSelect: (annotationId: string | null) => void;
+  onAnnotationSelect: (annotationId: string | null) => void;
 };
 
 export const SceneSelectionHost = ({
@@ -29,23 +29,23 @@ export const SceneSelectionHost = ({
   overlayEdges,
   basePolygonFills,
   overlayPolygonFills,
-  onMeasurementSelect,
+  onAnnotationSelect,
 }: SceneSelectionHostProps) => {
-  const edgeMeasurementIdsById = useMemo(
+  const edgeAnnotationIdsById = useMemo(
     () =>
       new Map(
         [...baseEdges, ...overlayEdges].map(
-          (edge) => [edge.id, edge.measurementId ?? null] as const
+          (edge) => [edge.id, edge.annotationId ?? null] as const
         )
       ),
     [baseEdges, overlayEdges]
   );
-  const polygonFillMeasurementIdsById = useMemo(
+  const polygonFillAnnotationIdsById = useMemo(
     () =>
       new Map(
         [...basePolygonFills, ...overlayPolygonFills].map(
           (polygonFill) =>
-            [polygonFill.id, polygonFill.measurementId ?? null] as const
+            [polygonFill.id, polygonFill.annotationId ?? null] as const
         )
       ),
     [basePolygonFills, overlayPolygonFills]
@@ -61,16 +61,16 @@ export const SceneSelectionHost = ({
       const pickedObject = scene.pick(event.position);
       const selectionTarget = resolveSceneSelectionTarget({
         pickedObject,
-        edgeMeasurementIdsById,
-        polygonFillMeasurementIdsById,
+        edgeAnnotationIdsById,
+        polygonFillAnnotationIdsById,
       });
       if (selectionTarget.isRuntimeTarget) {
-        onMeasurementSelect(selectionTarget.measurementId);
+        onAnnotationSelect(selectionTarget.annotationId);
         scene.requestRender();
         return;
       }
 
-      onMeasurementSelect(null);
+      onAnnotationSelect(null);
       scene.requestRender();
     }, ScreenSpaceEventType.LEFT_CLICK);
 
@@ -80,10 +80,10 @@ export const SceneSelectionHost = ({
       }
     };
   }, [
-    edgeMeasurementIdsById,
+    edgeAnnotationIdsById,
     enabled,
-    onMeasurementSelect,
-    polygonFillMeasurementIdsById,
+    onAnnotationSelect,
+    polygonFillAnnotationIdsById,
     scene,
   ]);
 

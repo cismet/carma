@@ -25,7 +25,7 @@ import {
   createLineLabel,
   createPreviewOverlayLayer,
   destroyPreviewOverlayLayer,
-  previewControllerDefaults,
+  annotationOverlayDefaults,
 } from "./authoring-visual-runtime";
 import {
   computePolylineSegmentLengthsMeters,
@@ -68,13 +68,8 @@ export const createSegmentAuthoringController = ({
   showCommittedDraftChain: boolean;
   lineOptions?: PathAuthoringLineOptions;
 }): AnnotationToolAuthoringController | null => {
-  const {
-    scene,
-    drafts,
-    labelOverlay,
-    formatOptions,
-    lineLabelOptions,
-  } = context;
+  const { scene, drafts, labelOverlay, formatOptions, lineLabelOptions } =
+    context;
   if (!scene || scene.isDestroyed()) {
     return null;
   }
@@ -82,7 +77,7 @@ export const createSegmentAuthoringController = ({
   const draftChainController = createPathAuthoringController(scene, {
     overlayLayerId: DRAFT_CHAIN_OVERLAY_LAYER_ID,
     lineId: "draft-preview-chain",
-    lineColor: previewControllerDefaults.draftChainColor,
+    lineColor: annotationOverlayDefaults.draftChainColor,
     showPointMarkers: true,
     lineOptions: {
       ...lineOptions,
@@ -116,7 +111,7 @@ export const createSegmentAuthoringController = ({
 
     while (committedSegmentLabels.length < count) {
       const label = createLineLabel(
-        previewControllerDefaults.directLineColor,
+        annotationOverlayDefaults.directLineColor,
         lineLabelOptions
       );
       committedSegmentLabels.push(label);
@@ -203,7 +198,7 @@ export const createSegmentAuthoringController = ({
           computePolylineTotalLengthMeters(previewCoordinates),
           formatOptions.lengthMeters
         ),
-        lineColor: previewControllerDefaults.directLineColor,
+        lineColor: annotationOverlayDefaults.directLineColor,
         theme: resolvedAnnotationLineLabelOptions.appearance.themeStyle,
         fontFamily: resolvedAnnotationLineLabelOptions.text.fontFamily,
         fontWeight: resolvedAnnotationLineLabelOptions.text.fontWeight,

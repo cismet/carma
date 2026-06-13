@@ -4,7 +4,7 @@ import {
   RUNTIME_POLYGON_FILL_PLACEMENT,
   type RuntimeEdgeRenderModel,
   type RuntimePolygonFillPlacement,
-} from "../render/measurement-render-models";
+} from "../render/annotation-render-models";
 
 export type AreaOcclusionStyleOptions = {
   fill?: {

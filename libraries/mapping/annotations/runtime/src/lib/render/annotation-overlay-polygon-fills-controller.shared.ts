@@ -1,8 +1,8 @@
 import { SceneTransforms, defined } from "@carma-cesium";
 
 import type { Scene } from "@carma-cesium";
-import type { RuntimePolygonFillRenderModel } from "./measurement-render-models";
-import { RUNTIME_POLYGON_FILL_PLACEMENT } from "./measurement-render-models";
+import type { RuntimePolygonFillRenderModel } from "./annotation-render-models";
+import { RUNTIME_POLYGON_FILL_PLACEMENT } from "./annotation-render-models";
 import { areCoordinateListsEqual } from "../utils/coordinate-equality";
 import {
   createAnnotationOverlayLayer,
@@ -11,7 +11,7 @@ import {
 import { ANNOTATION_OVERLAY_GROUP } from "../interaction/preview-overlay-mount.shared";
 import { cartesian3FromGeographicCoordinate } from "@carma-mapping/engines/cesium/core";
 
-export type MeasurementOverlayPolygonFillsController = {
+export type AnnotationOverlayPolygonFillsController = {
   setPolygonFills: (
     polygonFills: readonly RuntimePolygonFillRenderModel[]
   ) => void;
@@ -58,7 +58,7 @@ const areOverlayPolygonFillsEqual = (
     return (
       otherPolygonFill !== undefined &&
       polygonFill.id === otherPolygonFill.id &&
-      polygonFill.measurementId === otherPolygonFill.measurementId &&
+      polygonFill.annotationId === otherPolygonFill.annotationId &&
       polygonFill.overlayFill === otherPolygonFill.overlayFill &&
       polygonFill.selected === otherPolygonFill.selected &&
       areCoordinateListsEqual(
@@ -77,10 +77,10 @@ const createOverlayPolygonElement = () => {
   return polygon;
 };
 
-export const createMeasurementOverlayPolygonFillsController = (
+export const createAnnotationOverlayPolygonFillsController = (
   scene: Scene | null,
   surfaceKey: string
-): MeasurementOverlayPolygonFillsController => {
+): AnnotationOverlayPolygonFillsController => {
   if (!scene || scene.isDestroyed()) {
     return {
       setPolygonFills: () => undefined,

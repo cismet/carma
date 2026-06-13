@@ -2,15 +2,10 @@ import type { CssMixBlendMode } from "@carma-commons/dom/document";
 import type { Radians } from "@carma-units";
 
 import {
-  ANNOTATION_THEME_STYLE,
+  ANNOTATION_THEME,
   type AnnotationThemeStyle,
-} from "./annotation-theme-style";
+} from "./annotation-theme";
 import { typographyDefaults } from "./annotation-typography-defaults";
-
-export const ANNOTATION_LINE_LABEL_BACKGROUND_STYLE = {
-  SOFT_RECT_FADE: "soft-rect-fade",
-  TEXT_ECHO_DARKEN: "text-echo-darken",
-} as const;
 
 export const ANNOTATION_LINE_LABEL_COLLISION_RESOLUTION_STRATEGY = {
   NONE: "none",
@@ -18,7 +13,7 @@ export const ANNOTATION_LINE_LABEL_COLLISION_RESOLUTION_STRATEGY = {
 } as const;
 
 export type AnnotationLineLabelBackgroundStyle =
-  (typeof ANNOTATION_LINE_LABEL_BACKGROUND_STYLE)[keyof typeof ANNOTATION_LINE_LABEL_BACKGROUND_STYLE];
+  (typeof ANNOTATION_THEME.lineLabel.backgroundStyle)[keyof typeof ANNOTATION_THEME.lineLabel.backgroundStyle];
 export type AnnotationLineLabelCollisionResolutionStrategy =
   (typeof ANNOTATION_LINE_LABEL_COLLISION_RESOLUTION_STRATEGY)[keyof typeof ANNOTATION_LINE_LABEL_COLLISION_RESOLUTION_STRATEGY];
 
@@ -96,25 +91,22 @@ export type PartialAnnotationLineLabelOptions = Readonly<{
 }>;
 
 export type AnnotationLineLabelPlacementDefaults = Readonly<{
-  horizontalLabelOffsetPx: number;
   verticalFlippedBaselineOffsetPx: number;
   verticalBaselineAngleEpsilonRad: Radians;
   sideHysteresisPx: number;
-  upperSideGapFactor: number;
-  upperSideGapNormalYEpsilon: number;
 }>;
 
 export const annotationLineLabelDefaults: AnnotationLineLabelOptions =
   Object.freeze({
     appearance: Object.freeze({
-      themeStyle: ANNOTATION_THEME_STYLE.BRIGHT_ON_DARK,
+      themeStyle: ANNOTATION_THEME.style.BRIGHT_ON_DARK,
     }),
     text: Object.freeze({
       fontFamily: typographyDefaults.fontFamily,
       fontWeight: typographyDefaults.lineLabelFontWeight,
     }),
     background: Object.freeze({
-      style: ANNOTATION_LINE_LABEL_BACKGROUND_STYLE.TEXT_ECHO_DARKEN,
+      style: ANNOTATION_THEME.lineLabel.backgroundStyle.TEXT_ECHO_DARKEN,
     }),
     surface: Object.freeze({}),
     layout: Object.freeze({
@@ -131,12 +123,9 @@ export const annotationLineLabelDefaults: AnnotationLineLabelOptions =
 
 export const annotationLineLabelPlacementDefaults: AnnotationLineLabelPlacementDefaults =
   Object.freeze({
-    horizontalLabelOffsetPx: 7,
-    verticalFlippedBaselineOffsetPx: 6,
+    verticalFlippedBaselineOffsetPx: 0,
     verticalBaselineAngleEpsilonRad: 1e-9 as Radians,
     sideHysteresisPx: 1.5,
-    upperSideGapFactor: 0.15,
-    upperSideGapNormalYEpsilon: 1e-3,
   });
 
 export const resolveAnnotationLineLabelOptions = (
@@ -180,6 +169,6 @@ export const resolveAnnotationLineLabelSurfaceBlendMode = (
   options: AnnotationLineLabelOptions
 ): CssMixBlendMode =>
   options.surface.blendMode ??
-  (options.appearance.themeStyle === ANNOTATION_THEME_STYLE.DARK_ON_BRIGHT
+  (options.appearance.themeStyle === ANNOTATION_THEME.style.DARK_ON_BRIGHT
     ? "lighten"
     : "darken");

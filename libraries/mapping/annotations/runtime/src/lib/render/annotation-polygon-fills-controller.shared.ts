@@ -16,11 +16,11 @@ import {
 import { offsetCartesian3Positions } from "@carma-mapping/engines/cesium/core";
 
 import type { Scene } from "@carma-cesium";
-import type { RuntimePolygonFillRenderModel } from "./measurement-render-models";
-import { RUNTIME_POLYGON_FILL_PLACEMENT } from "./measurement-render-models";
+import type { RuntimePolygonFillRenderModel } from "./annotation-render-models";
+import { RUNTIME_POLYGON_FILL_PLACEMENT } from "./annotation-render-models";
 import { areCoordinateListsEqual } from "../utils/coordinate-equality";
 
-export type MeasurementPolygonFillsController = {
+export type AnnotationPolygonFillsController = {
   setPolygonFills: (
     polygonFills: readonly RuntimePolygonFillRenderModel[]
   ) => void;
@@ -28,7 +28,7 @@ export type MeasurementPolygonFillsController = {
   destroy: () => void;
 };
 
-export type MeasurementPolygonFillsControllerOptions = {
+export type AnnotationPolygonFillsControllerOptions = {
   allowPicking?: boolean;
 };
 
@@ -71,7 +71,7 @@ const arePolygonFillsEqual = (
     return (
       otherPolygonFill !== undefined &&
       polygonFill.id === otherPolygonFill.id &&
-      polygonFill.measurementId === otherPolygonFill.measurementId &&
+      polygonFill.annotationId === otherPolygonFill.annotationId &&
       polygonFill.fill === otherPolygonFill.fill &&
       polygonFill.placement === otherPolygonFill.placement &&
       polygonFill.selected === otherPolygonFill.selected &&
@@ -82,10 +82,10 @@ const arePolygonFillsEqual = (
     );
   });
 
-export const createMeasurementPolygonFillsController = (
+export const createAnnotationPolygonFillsController = (
   scene: Scene | null,
-  options: MeasurementPolygonFillsControllerOptions = {}
-): MeasurementPolygonFillsController => {
+  options: AnnotationPolygonFillsControllerOptions = {}
+): AnnotationPolygonFillsController => {
   if (!scene || scene.isDestroyed()) {
     return {
       setPolygonFills: () => undefined,

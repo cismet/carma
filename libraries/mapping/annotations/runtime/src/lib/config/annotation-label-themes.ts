@@ -1,10 +1,8 @@
 import { type AnnotationType } from "@carma-mapping/annotations/core";
 
 import { typographyDefaults } from "./annotation-typography-defaults";
-import {
-  ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE,
-  ANNOTATION_MEASUREMENT_SHARED_COLOR_SCHEME,
-} from "./annotation-measurement-label-theme-defaults";
+import { ANNOTATION_SHARED_COLOR_SCHEME } from "./annotation-label-theme-defaults";
+import { ANNOTATION_THEME } from "./annotation-theme";
 
 export type StoredAnnotationQualitativeColorScheme = Readonly<{
   id: string;
@@ -32,14 +30,14 @@ export type StoredAnnotationLabelTheme = Readonly<{
   selection: StoredAnnotationSelectedHighlightPalette;
 }>;
 
-export const ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME = Object.freeze({
-  scheme: ANNOTATION_MEASUREMENT_SHARED_COLOR_SCHEME,
+export const ANNOTATION_DEFAULT_LABEL_THEME = Object.freeze({
+  scheme: ANNOTATION_SHARED_COLOR_SCHEME,
   fontFamily: typographyDefaults.fontFamily,
   contentFontWeight: typographyDefaults.lineLabelFontWeight,
   badgeFontWeight: typographyDefaults.badgeFontWeight,
-  selection: ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE,
+  selection: ANNOTATION_THEME.selection.highlightPalette,
 } satisfies StoredAnnotationLabelTheme);
 
 export const resolveStoredAnnotationLabelTheme = (
   _toolType?: AnnotationType
-): StoredAnnotationLabelTheme => ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME;
+): StoredAnnotationLabelTheme => ANNOTATION_DEFAULT_LABEL_THEME;

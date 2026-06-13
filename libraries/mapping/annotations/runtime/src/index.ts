@@ -21,17 +21,18 @@ export {
 } from "./lib/components/annotation-info-box/runtime-annotation-info-box-slots.types";
 export { useRuntimeAnnotationInfoBoxSlots } from "./lib/components/annotation-info-box/use-runtime-annotation-info-box-slots";
 export {
-  ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE,
-  ANNOTATION_MEASUREMENT_TEXT_COLOR,
-} from "./lib/config/annotation-measurement-label-theme-defaults";
+  ANNOTATION_THEME,
+  type AnnotationTheme,
+  type AnnotationThemeStyle,
+} from "./lib/config/annotation-theme";
 export {
-  ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME,
+  ANNOTATION_DEFAULT_LABEL_THEME,
   resolveStoredAnnotationLabelTheme,
-} from "./lib/config/annotation-measurement-label-themes";
+} from "./lib/config/annotation-label-themes";
 export type {
   StoredAnnotationLabelTheme,
   StoredAnnotationQualitativeColorScheme,
-} from "./lib/config/annotation-measurement-label-themes";
+} from "./lib/config/annotation-label-themes";
 export { typographyDefaults } from "./lib/config/annotation-typography-defaults";
 export type { TypographyDefaults } from "./lib/config/annotation-typography-defaults";
 export {
@@ -52,32 +53,32 @@ export type {
   ResolvedAreaOcclusionStyleOptions,
 } from "./lib/config/area-occlusion-style-options";
 export {
-  MEASUREMENT_LINE_STYLE_DEFAULTS,
-  resolveMeasurementLineStyleOptions,
-} from "./lib/config/measurement-line-style-options";
+  ANNOTATION_LINE_STYLE_DEFAULTS,
+  resolveAnnotationLineStyleOptions,
+} from "./lib/config/annotation-line-style-options";
 export type {
-  MeasurementLineStyleOptions,
-  ResolvedMeasurementLineStyleOptions,
-} from "./lib/config/measurement-line-style-options";
+  AnnotationLineStyleOptions,
+  ResolvedAnnotationLineStyleOptions,
+} from "./lib/config/annotation-line-style-options";
 export {
   applySelectedEdgeVisualStyle,
   applySelectedPointMarkerVisualStyle,
-  measurementVisualDefaults,
-  measurementVisualStyles,
+  annotationVisualDefaults,
+  annotationVisualStyles,
   withEdgeVisualStyle,
   withPointMarkerVisualStyle,
-} from "./lib/config/measurement-visual-defaults";
+} from "./lib/config/annotation-visual-defaults";
 export type {
   EdgeVisualStyle,
-  MeasurementVisualDefaults,
+  AnnotationVisualDefaults,
   PointMarkerVisualStyle,
-} from "./lib/config/measurement-visual-defaults";
+} from "./lib/config/annotation-visual-defaults";
 export { pointLabelVisualDefaults } from "./lib/config/runtime-point-label-visual-defaults";
-export { previewControllerDefaults } from "./lib/config/preview-controller-defaults";
-export { ANNOTATION_THEME_STYLE } from "./lib/config/annotation-theme-style";
-export type { AnnotationThemeStyle } from "./lib/config/annotation-theme-style";
 export {
-  ANNOTATION_LINE_LABEL_BACKGROUND_STYLE,
+  annotationOverlayDefaults,
+  type AnnotationOverlayDefaults,
+} from "./lib/config/annotation-overlay-defaults";
+export {
   ANNOTATION_LINE_LABEL_COLLISION_RESOLUTION_STRATEGY,
   annotationLineLabelDefaults,
 } from "./lib/config/annotation-line-label-options";
@@ -118,7 +119,7 @@ export {
   resolveAnnotationIdsCartesianPoints,
 } from "./lib/context/annotation-fly-to";
 export type { RuntimeAnnotationInfoBoxContext } from "./lib/components/annotation-info-box/annotation-info-box.types";
-export { resolveRuntimeMeasurementNavigation } from "./lib/components/annotation-info-box/runtime-measurement-navigation";
+export { resolveRuntimeAnnotationNavigation } from "./lib/components/annotation-info-box/runtime-annotation-navigation";
 export { createPointQueryController } from "./lib/interaction/create-point-query-controller";
 export {
   CROSSHAIR_CURSOR_STYLES,
@@ -127,14 +128,13 @@ export {
 export {
   applyLineLabel,
   applyLineRuntime,
-  buildPreviewDistanceTriangleLabelReferences,
   clearLineRuntime,
   createAnnotationOverlayLayer,
   createAnnotationOverlayLayers,
   createLineCollection,
   createLineRuntime,
   createPreviewOverlayLayer,
-  createPreviewSegmentScratch,
+  createAnnotationGeometryScratch,
   createSegmentLineLabels,
   destroyLineCollection,
   destroyAnnotationOverlayLayer,
@@ -142,7 +142,7 @@ export {
   hideLineLabels,
   hidePointMarkers,
   placePointMarkers,
-  resolvePreviewDistanceTriangleComponentLabelVisibility,
+  resolveDistanceTriangleComponentLabelVisibility,
 } from "./lib/interaction/authoring-visual-runtime";
 export {
   AREA_EDGE_CROSSING_PROJECTION_MODES,
@@ -249,7 +249,7 @@ export {
   RUNTIME_POINT_LABEL_COORDINATE_SELECTION,
   RUNTIME_POINT_LABEL_RENDER_STYLE,
   RUNTIME_POLYGON_FILL_PLACEMENT,
-} from "./lib/render/measurement-render-models";
+} from "./lib/render/annotation-render-models";
 export type {
   RuntimeEdgeRenderModel,
   RuntimePointLabelCoordinateCandidate,
@@ -258,7 +258,7 @@ export type {
   RuntimePointMarkerRenderModel,
   RuntimePolygonFillPlacement,
   RuntimePolygonFillRenderModel,
-} from "./lib/render/measurement-render-models";
+} from "./lib/render/annotation-render-models";
 export {
   buildRuntimeNodeCoordinateMap,
   resolveMeasurementCoordinates,

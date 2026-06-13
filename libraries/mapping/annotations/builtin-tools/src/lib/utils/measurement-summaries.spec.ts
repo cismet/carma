@@ -21,7 +21,7 @@ const buildCoordinate = (
   ...overrides,
 });
 
-const buildAreaMeasurement = (
+const buildAreaAnnotation = (
   overrides: Partial<StoredAnnotation> = {}
 ): StoredAnnotation =>
   ({
@@ -30,7 +30,7 @@ const buildAreaMeasurement = (
     nodeIds: ["node-1", "node-2", "node-3"],
     closed: true,
     ...overrides,
-  }) as StoredAnnotation;
+  } as StoredAnnotation);
 
 describe("measurement summaries", () => {
   it("returns null for polyline summaries with fewer than two coordinates", () => {
@@ -68,7 +68,7 @@ describe("measurement summaries", () => {
 
   it("returns zero area for area summaries with fewer than three coordinates", () => {
     const summary = resolveAreaMeasurementSummary({
-      measurement: buildAreaMeasurement(),
+      annotation: buildAreaAnnotation(),
       toolType: ANNOTATION_TYPES.AREA_GROUND,
       coordinates: [
         buildCoordinate({}),
@@ -87,7 +87,7 @@ describe("measurement summaries", () => {
       buildCoordinate({ latitude: 51.0001, longitude: 7.0003 }),
     ] as const;
     const summary = resolveAreaMeasurementSummary({
-      measurement: buildAreaMeasurement(),
+      annotation: buildAreaAnnotation(),
       toolType: ANNOTATION_TYPES.AREA_GROUND,
       coordinates,
     });

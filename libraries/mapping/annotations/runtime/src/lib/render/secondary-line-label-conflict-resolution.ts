@@ -8,7 +8,7 @@ import {
 
 export type SecondaryLineLabelConflictCandidate = {
   zIndex: number;
-  measurementId: string;
+  annotationId: string;
   metricValueMeters: number;
 } & SecondaryLineLabelPlacementCandidate;
 
@@ -28,20 +28,20 @@ const sortSecondaryLineLabelCandidatesBySameMeasurementPriority = (
   return sortSecondaryLineLabelCandidatesByGlobalPriority(left, right);
 };
 
-const groupSecondaryLineLabelCandidatesByMeasurementId = (
+const groupSecondaryLineLabelCandidatesByAnnotationId = (
   candidates: readonly SecondaryLineLabelConflictCandidate[]
 ) =>
   candidates.reduce<Map<string, SecondaryLineLabelConflictCandidate[]>>(
     (groupedCandidates, candidate) => {
       const measurementCandidates = groupedCandidates.get(
-        candidate.measurementId
+        candidate.annotationId
       );
       if (measurementCandidates) {
         measurementCandidates.push(candidate);
         return groupedCandidates;
       }
 
-      groupedCandidates.set(candidate.measurementId, [candidate]);
+      groupedCandidates.set(candidate.annotationId, [candidate]);
       return groupedCandidates;
     },
     new Map()
@@ -102,7 +102,7 @@ export const reconcileSecondaryLineLabelVisibility = ({
   maxAnchorSlideDeltaRatio: number;
 }) => {
   const globallyVisibleCandidates = [
-    ...groupSecondaryLineLabelCandidatesByMeasurementId(candidates).values(),
+    ...groupSecondaryLineLabelCandidatesByAnnotationId(candidates).values(),
   ]
     .flatMap((measurementCandidates) =>
       resolveVisibleSecondaryLineLabelCandidatesWithinMeasurement({

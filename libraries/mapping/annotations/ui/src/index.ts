@@ -24,7 +24,7 @@ export {
 } from "./lib/components/AnnotationInfoBoxHelpContent";
 export { AnnotationInfoBoxMetricGrid } from "./lib/components/AnnotationInfoBoxMetricGrid";
 export { AnnotationInfoBoxMetaText } from "./lib/components/AnnotationInfoBoxMetaText";
-export { buildAnnotationMeasurementInfoBoxSlots } from "./lib/components/AnnotationMeasurementInfoBoxShell";
+export { buildAnnotationInfoBoxSlots } from "./lib/components/AnnotationInfoBoxShell";
 export { AnnotationInfoBoxNavigation } from "./lib/components/AnnotationInfoBoxNavigation";
 export { AnnotationInfoBoxSubtitleText } from "./lib/components/AnnotationInfoBoxSubtitleText";
 export { AnnotationInfoBoxTextContent } from "./lib/components/AnnotationInfoBoxTextContent";
@@ -53,7 +53,7 @@ export type {
   AnnotationInfoBoxHelpLayout,
   AnnotationInfoBoxHelpTextItem,
 } from "./lib/components/AnnotationInfoBoxHelpContent";
-export type { AnnotationMeasurementInfoBoxShellProps } from "./lib/components/AnnotationMeasurementInfoBoxShell";
+export type { AnnotationInfoBoxShellProps } from "./lib/components/AnnotationInfoBoxShell";
 export type {
   AnnotationInfoBoxNavigationLabels,
   AnnotationInfoBoxNavigationProps,

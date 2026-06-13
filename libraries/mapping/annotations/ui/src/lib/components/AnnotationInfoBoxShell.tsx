@@ -25,7 +25,7 @@ import {
   type AnnotationInfoBoxTitleInputProps,
 } from "./AnnotationInfoBoxTitleInput";
 
-export type AnnotationMeasurementInfoBoxShellProps = {
+export type AnnotationInfoBoxShellProps = {
   headingTitle: string;
   headingColor?: string;
   titleInput: AnnotationInfoBoxTitleInputProps;
@@ -85,7 +85,7 @@ const wrapInfoBoxContent = ({
   visualOptions,
 }: {
   content: ReactNode;
-  contentVariant: AnnotationMeasurementInfoBoxShellProps["contentVariant"];
+  contentVariant: AnnotationInfoBoxShellProps["contentVariant"];
   contentClassName?: string;
   contentStyle?: CSSProperties;
   visualOptions: AnnotationInfoBoxVisualOptions;
@@ -109,7 +109,7 @@ const wrapInfoBoxContent = ({
     </AnnotationInfoBoxTextContent>
   );
 
-export const buildAnnotationMeasurementInfoBoxSlots = ({
+export const buildAnnotationInfoBoxSlots = ({
   headingTitle,
   headingColor,
   titleInput,
@@ -122,7 +122,7 @@ export const buildAnnotationMeasurementInfoBoxSlots = ({
   navigation,
   collapsible = true,
   visualOptions,
-}: AnnotationMeasurementInfoBoxShellProps): AnnotationInfoBoxSlots => {
+}: AnnotationInfoBoxShellProps): AnnotationInfoBoxSlots => {
   const resolvedVisualOptions =
     resolveAnnotationInfoBoxVisualOptions(visualOptions);
   const contentIsRenderable = hasRenderableContent(content);

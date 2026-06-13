@@ -3,7 +3,7 @@ import { annotationInfoBoxVisualDefaults } from "@carma-mapping/annotations/ui";
 import { isValidElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { RuntimeAnnotationInfoBoxContext } from "@carma-mapping/annotations/runtime";
-import { ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME } from "@carma-mapping/annotations/runtime";
+import { ANNOTATION_DEFAULT_LABEL_THEME } from "@carma-mapping/annotations/runtime";
 import type {
   StoredAnnotation,
   AnnotationNode,
@@ -38,15 +38,15 @@ const createBaseContext = ({
   infoBoxVisualOptions: annotationInfoBoxVisualDefaults,
 });
 
-describe("measurement info box theme header colors", () => {
-  it("uses the shared measurement theme hue for the selected point info box header", () => {
-    const labelTheme = ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME;
+describe("annotation info box theme header colors", () => {
+  it("uses the shared annotation theme hue for the selected point info box header", () => {
+    const labelTheme = ANNOTATION_DEFAULT_LABEL_THEME;
     const getPointToolInfoBoxSlots = createPointToolInfoBoxSlots(
       ANNOTATION_TYPE_POINT,
       {
         headingTitle: "Punktmessung",
         headingColor: labelTheme.scheme.colorPrimary,
-        formatMeasurementLabelToken: (counter) => `P${counter}`,
+        formatLabelToken: (counter) => `P${counter}`,
       }
     );
     const annotation: StoredAnnotation = {
@@ -73,14 +73,14 @@ describe("measurement info box theme header colors", () => {
     expect(slots?.headingColor).toBe(labelTheme.scheme.colorPrimary);
   });
 
-  it("uses the shared measurement theme hue for the selected distance info box header", () => {
-    const labelTheme = ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME;
+  it("uses the shared annotation theme hue for the selected distance info box header", () => {
+    const labelTheme = ANNOTATION_DEFAULT_LABEL_THEME;
     const getDistanceToolInfoBoxSlots = createDistanceToolInfoBoxSlots(
       ANNOTATION_TYPE_DISTANCE,
       {
         headingTitle: "Distanzmessung",
         headingColor: labelTheme.scheme.colorPrimary,
-        formatMeasurementLabelToken: (counter) => `D${counter}`,
+        formatLabelToken: (counter) => `D${counter}`,
         metricLabels: {
           direct: "Direkt",
           horizontal: "Horizontal",
@@ -122,7 +122,7 @@ describe("measurement info box theme header colors", () => {
       {
         headingTitle: "Distanzmessung",
         headingColor: "#ffffff",
-        formatMeasurementLabelToken: (counter) => `D${counter}`,
+        formatLabelToken: (counter) => `D${counter}`,
         metricLabels: {
           direct: "Direkt",
           horizontal: "Horizontal",

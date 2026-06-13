@@ -36,7 +36,7 @@ import {
   createLineRuntime,
   destroyLineCollection,
   setLineRuntimeColor,
-  type PreviewLineRuntime,
+  type AuthoringLineRuntime,
 } from "./authoring-visual-runtime";
 
 type PreviewRingQueuedInput = {
@@ -130,7 +130,7 @@ export const createPointQueryIndicatorController = (
   let previewRingNormalLineCollection: ReturnType<
     typeof createLineCollection
   > | null = null;
-  let previewRingNormalLineRuntime: PreviewLineRuntime | null = null;
+  let previewRingNormalLineRuntime: AuthoringLineRuntime | null = null;
   let removePreviewRingPostRenderListener: (() => void) | null = null;
   let previewPoint: Cartesian3 | null = null;
   let previewSurfaceNormal: Cartesian3 | null = null;

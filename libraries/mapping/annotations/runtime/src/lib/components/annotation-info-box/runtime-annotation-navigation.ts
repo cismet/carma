@@ -2,7 +2,7 @@ import { isNavigableMeasurementAnnotationType } from "../../config/navigable-mea
 import { selectAuthoringAnnotationEntries } from "../../utils/annotation-tool-collections";
 import type { RuntimeAnnotationInfoBoxContext } from "./annotation-info-box.types";
 
-export const resolveRuntimeMeasurementNavigation = ({
+export const resolveRuntimeAnnotationNavigation = ({
   annotationEntries,
   selectedAnnotationId,
   focusAnnotationId,
@@ -30,8 +30,8 @@ export const resolveRuntimeMeasurementNavigation = ({
   return {
     currentIndex,
     totalEntries: navigableEntries.length,
-    flyToAllMeasurements: flyToAllAnnotations,
-    selectRelativeMeasurement: (offset: -1 | 1) => {
+    flyToAllAnnotations,
+    selectRelativeAnnotation: (offset: -1 | 1) => {
       const nextEntry =
         navigableEntries[
           (currentIndex + offset + navigableEntries.length) %

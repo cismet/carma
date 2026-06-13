@@ -27,7 +27,7 @@ import {
 } from "@carma-providers/label-overlay";
 import { cartesian3FromGeographicCoordinate } from "@carma-mapping/engines/cesium/core";
 
-import { measurementVisualDefaults } from "../config/measurement-visual-defaults";
+import { annotationVisualDefaults } from "../config/annotation-visual-defaults";
 import type { Scene } from "@carma-cesium";
 import {
   RUNTIME_POINT_LABEL_RENDER_STYLE,
@@ -36,7 +36,7 @@ import {
   resolveRuntimeOverlayDistanceZIndex,
   type RuntimePointLabelCoordinateCandidate,
   type RuntimePointLabelRenderModel,
-} from "./measurement-render-models";
+} from "./annotation-render-models";
 import {
   annotationLineLabelDefaults,
   resolveAnnotationLineLabelSurfaceBlendMode,
@@ -55,8 +55,8 @@ import {
 const pointLabelVisualizerDefaults = Object.freeze({
   layoutConfig: resolvePointLabelLayoutConfig(undefined),
   markerPixelSize: 10,
-  markerOutlineWidth: measurementVisualDefaults.sizes.pointOutlineWidth,
-  stemColor: measurementVisualDefaults.colors.surface,
+  markerOutlineWidth: annotationVisualDefaults.sizes.pointOutlineWidth,
+  stemColor: annotationVisualDefaults.colors.surface,
   activeMoveGizmoLabelZIndex: RUNTIME_OVERLAY_DISTANCE_Z_INDEX.MAX + 1,
 });
 

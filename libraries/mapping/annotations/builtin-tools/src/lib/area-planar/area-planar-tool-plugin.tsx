@@ -27,7 +27,7 @@ import {
   RUNTIME_AUTHORING_SAMPLE_GUIDE_COLOR_CSS,
   resolveAreaOcclusionStyleOptions,
   type AreaOcclusionStyleOptions,
-  type MeasurementLineStyleOptions,
+  type AnnotationLineStyleOptions,
 } from "@carma-mapping/annotations/runtime";
 import type {
   AnnotationToolDraftState,
@@ -45,7 +45,7 @@ import {
   buildNodeChainAreaToolRenderModels,
   createNodeChainAreaToolVisuals,
 } from "../area-shared/node-chain-area-tool-render-models";
-import { ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME } from "@carma-mapping/annotations/runtime";
+import { ANNOTATION_DEFAULT_LABEL_THEME } from "@carma-mapping/annotations/runtime";
 import { formatCardinalBearing } from "@carma-mapping/annotations/runtime";
 import type { DefaultAnnotationToolTexts } from "../annotation-mode-text";
 import { defaultAnnotationToolTexts } from "../annotation-mode-text";
@@ -75,7 +75,7 @@ import {
 const { AREA_PLANAR: ANNOTATION_TYPE_AREA_PLANAR } = ANNOTATION_TYPES;
 
 const toolType = ANNOTATION_TYPE_AREA_PLANAR;
-const labelTheme = ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME;
+const labelTheme = ANNOTATION_DEFAULT_LABEL_THEME;
 
 const isShiftInputModifier = (inputModifier: unknown) =>
   inputModifier === ANNOTATION_POINT_QUERY_INPUT_MODIFIERS.SHIFT;
@@ -420,7 +420,7 @@ const resolveAreaPlanarOcclusionStyleOptions = (
 
 export type AreaPlanarToolPluginOptions = {
   occlusionStyleOptions?: AreaOcclusionStyleOptions;
-  measurementLineStyleOptions?: MeasurementLineStyleOptions;
+  annotationLineStyleOptions?: AnnotationLineStyleOptions;
   maxPlaneNormalChangeDeg?: number | null;
   trapezoidHorizontalPlaneToleranceMeters?: number | null;
   trapezoidHorizontalLineMaxLengthMeters?: number | null;
@@ -564,7 +564,7 @@ const createAreaPlanarToolVariantPlugin = ({
   renderStoredPlanarAnnotations = false,
   exposeInfoBox = false,
   occlusionStyleOptions,
-  measurementLineStyleOptions,
+  annotationLineStyleOptions,
   maxPlaneNormalChangeDeg = AREA_PLANAR_DEFAULT_MAX_PLANE_NORMAL_CHANGE_DEG,
   trapezoidHorizontalPlaneToleranceMeters = AREA_PLANAR_TRAPEZOID_DEFAULT_HORIZONTAL_PLANE_TOLERANCE_METERS,
   trapezoidHorizontalLineMaxLengthMeters = AREA_PLANAR_TRAPEZOID_DEFAULT_HORIZONTAL_LINE_MAX_LENGTH_METERS,
@@ -598,7 +598,7 @@ const createAreaPlanarToolVariantPlugin = ({
     {
       headingTitle: text.headingTitle,
       headingColor: labelTheme.scheme.colorPrimary,
-      formatMeasurementLabelToken: (counter) =>
+      formatLabelToken: (counter) =>
         formatMeasurementShortLabelToken(toolType, counter),
       actionLabels: texts.actions,
       navigationLabels: texts.navigation,
@@ -611,7 +611,7 @@ const createAreaPlanarToolVariantPlugin = ({
   );
   const areaPlanarToolVisuals = createNodeChainAreaToolVisuals({
     fillType: toolType,
-    measurementLineStyleOptions,
+    annotationLineStyleOptions,
   });
 
   return createMeasurementToolPlugin({
@@ -818,7 +818,7 @@ const createAreaPlanarToolVariantPlugin = ({
           draftToolId: toolId,
           context,
           occlusionStyleOptions: resolvedOcclusionStyleOptions,
-          measurementLineStyleOptions,
+          annotationLineStyleOptions,
           showInitialHorizontalLinePreview: isTrapezoidInputMode,
           initialHorizontalLinePreviewDiskColorCss:
             trapezoidHorizontalLinePreviewDiskColorCss,
@@ -1001,11 +1001,11 @@ const createAreaPlanarToolVariantPlugin = ({
           toolType,
           visuals: areaPlanarToolVisuals,
           nodes,
-          measurements: annotationEntries,
-          selectedMeasurementIds: selectedAnnotationIds,
+          annotations: annotationEntries,
+          selectedAnnotationIds: selectedAnnotationIds,
           fillPlacement: RUNTIME_POLYGON_FILL_PLACEMENT.COPLANAR,
           formatOptions,
-          onMeasurementSelect: setSelectedAnnotationId,
+          onSelect: setSelectedAnnotationId,
           onNodeLongPress,
           occlusionStyleOptions: resolvedOcclusionStyleOptions,
         });

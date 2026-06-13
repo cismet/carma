@@ -26,47 +26,47 @@ const resolveLabelAppearanceFontSize = (
 export const buildLabelToolRenderModels = ({
   toolType,
   nodes,
-  measurements,
-  selectedMeasurementIds,
-  onMeasurementSelect,
+  annotations,
+  selectedAnnotationIds,
+  onSelect,
   onNodeLongPress,
   defaultDisplayNamePrefix,
 }: {
   toolType: StoredAnnotation["toolType"];
   nodes: readonly AnnotationNode[];
-  measurements: readonly StoredAnnotation[];
-  selectedMeasurementIds: readonly string[];
-  onMeasurementSelect: (measurementId: string) => void;
-  onNodeLongPress?: (nodeId: string, measurementId: string) => void;
+  annotations: readonly StoredAnnotation[];
+  selectedAnnotationIds: readonly string[];
+  onSelect: (annotationId: string) => void;
+  onNodeLongPress?: (nodeId: string, annotationId: string) => void;
   defaultDisplayNamePrefix?: string;
 }): {
   points: readonly RuntimePointMarkerRenderModel[];
   pointLabels: readonly RuntimePointLabelRenderModel[];
 } => {
   const nodeCoordinatesById = buildRuntimeNodeCoordinateMap(nodes);
-  const labelMeasurements = measurements.filter(
-    (measurement) => measurement.toolType === toolType
+  const labelAnnotations = annotations.filter(
+    (annotation) => annotation.toolType === toolType
   );
-  const visibleLabelMeasurements = labelMeasurements.filter(
-    (measurement) => !measurement.hidden
+  const visibleLabelMeasurements = labelAnnotations.filter(
+    (annotation) => !annotation.hidden
   );
-  const selectedMeasurementIdSet = new Set(selectedMeasurementIds);
+  const selectedAnnotationIdSet = new Set(selectedAnnotationIds);
 
   return {
     points: [],
-    pointLabels: visibleLabelMeasurements.flatMap((measurement, labelIndex) => {
+    pointLabels: visibleLabelMeasurements.flatMap((annotation, labelIndex) => {
       const coordinate =
-        resolveMeasurementCoordinates(measurement, nodeCoordinatesById)[0] ??
+        resolveMeasurementCoordinates(annotation, nodeCoordinatesById)[0] ??
         null;
       if (!coordinate) {
         return [];
       }
 
       const displayName =
-        measurement.displayName?.trim() ||
+        annotation.displayName?.trim() ||
         getDefaultLabelDisplayName(labelIndex + 1, defaultDisplayNamePrefix);
-      const pointNodeId = measurement.nodeIds[0] ?? null;
-      const labelAppearance = measurement.labelAppearance;
+      const pointNodeId = annotation.nodeIds[0] ?? null;
+      const labelAppearance = annotation.labelAppearance;
       const customBackgroundColor =
         labelAppearance?.backgroundColor ?? undefined;
       const customTextColor = labelAppearance?.textColor ?? undefined;
@@ -74,8 +74,8 @@ export const buildLabelToolRenderModels = ({
 
       return [
         {
-          id: `${measurement.id}-label`,
-          measurementId: measurement.id,
+          id: `${annotation.id}-label`,
+          annotationId: annotation.id,
           nodeId: pointNodeId ?? undefined,
           coordinate,
           content: displayName,
@@ -92,11 +92,11 @@ export const buildLabelToolRenderModels = ({
           labelStyle: POINT_LABEL_STYLE.AUTO,
           hideMarker: true,
           collapse: false,
-          selected: selectedMeasurementIdSet.has(measurement.id),
-          onClick: () => onMeasurementSelect(measurement.id),
+          selected: selectedAnnotationIdSet.has(annotation.id),
+          onClick: () => onSelect(annotation.id),
           onLongPress:
-            onNodeLongPress && pointNodeId && !measurement.locked
-              ? () => onNodeLongPress(pointNodeId, measurement.id)
+            onNodeLongPress && pointNodeId && !annotation.locked
+              ? () => onNodeLongPress(pointNodeId, annotation.id)
               : undefined,
         },
       ];

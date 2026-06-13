@@ -4,7 +4,7 @@ import { CarmaTransforms } from "@carma-mapping/engines/cesium/core";
 import { formatLengthMeters } from "@carma-units";
 import {
   AnnotationInfoBoxMetricGrid,
-  buildAnnotationMeasurementInfoBoxSlots,
+  buildAnnotationInfoBoxSlots,
   type AnnotationInfoBoxActionLabels,
   type AnnotationInfoBoxNavigationLabels,
 } from "@carma-mapping/annotations/ui";
@@ -12,7 +12,7 @@ import {
 import type { RuntimeAnnotationInfoBoxContext } from "@carma-mapping/annotations/runtime";
 import {
   ANNOTATION_DELETE_CONFIRMATION_SOURCES,
-  resolveRuntimeMeasurementNavigation,
+  resolveRuntimeAnnotationNavigation,
 } from "@carma-mapping/annotations/runtime";
 import {
   buildRuntimeNodeCoordinateMap,
@@ -24,14 +24,14 @@ export const createDistanceToolInfoBoxSlots = (
   {
     headingTitle,
     headingColor,
-    formatMeasurementLabelToken,
+    formatLabelToken,
     actionLabels,
     navigationLabels,
     metricLabels,
   }: {
     headingTitle: string;
     headingColor: string;
-    formatMeasurementLabelToken: (counter: number) => string;
+    formatLabelToken: (counter: number) => string;
     actionLabels?: Partial<AnnotationInfoBoxActionLabels>;
     navigationLabels?: Partial<AnnotationInfoBoxNavigationLabels>;
     metricLabels: {
@@ -60,18 +60,18 @@ export const createDistanceToolInfoBoxSlots = (
       return null;
     }
 
-    const distanceMeasurements = annotationEntries.filter(
-      (measurementEntry) => measurementEntry.toolType === toolType
+    const distanceAnnotations = annotationEntries.filter(
+      (annotationEntry) => annotationEntry.toolType === toolType
     );
     const distanceOrder =
-      distanceMeasurements.findIndex(
-        (measurementEntry) => measurementEntry.id === annotation.id
+      distanceAnnotations.findIndex(
+        (annotationEntry) => annotationEntry.id === annotation.id
       ) + 1;
     const coordinates = resolveMeasurementCoordinates(
       annotation,
       buildRuntimeNodeCoordinateMap(nodes)
     );
-    const navigation = resolveRuntimeMeasurementNavigation({
+    const navigation = resolveRuntimeAnnotationNavigation({
       annotationEntries,
       selectedAnnotationId: annotation.id,
       focusAnnotationId,
@@ -96,14 +96,14 @@ export const createDistanceToolInfoBoxSlots = (
       enuOffset.north
     );
     const verticalDistanceMeters = Math.abs(enuOffset.up);
-    const shortLabelToken = formatMeasurementLabelToken(distanceOrder);
+    const shortLabelToken = formatLabelToken(distanceOrder);
     const defaultDisplayName = headingTitle;
     const effectiveShortLabel =
       annotation.shortLabel?.trim() || shortLabelToken;
     const formatDistance = (value: number) =>
       formatLengthMeters(value, formatOptions.lengthMeters);
     const directDistanceText = formatDistance(directDistanceMeters);
-    return buildAnnotationMeasurementInfoBoxSlots({
+    return buildAnnotationInfoBoxSlots({
       headingTitle,
       headingColor,
       titleInput: {
@@ -143,14 +143,14 @@ export const createDistanceToolInfoBoxSlots = (
           });
         },
         labels: actionLabels,
-        dataTestIdPrefix: "carma-annotation-distance-measurement",
+        dataTestIdPrefix: "carma-annotation-distance-annotation",
         dataTestIds: {
-          flyTo: "carma-annotation-flyto-distance-measurement-btn",
-          export: "carma-annotation-export-distance-measurement-geojson-btn",
+          flyTo: "carma-annotation-flyto-distance-annotation-btn",
+          export: "carma-annotation-export-distance-annotation-geojson-btn",
           visibility:
-            "carma-annotation-toggle-distance-measurement-visibility-btn",
-          lock: "carma-annotation-toggle-distance-measurement-lock-btn",
-          delete: "carma-annotation-delete-distance-measurement-btn",
+            "carma-annotation-toggle-distance-annotation-visibility-btn",
+          lock: "carma-annotation-toggle-distance-annotation-lock-btn",
+          delete: "carma-annotation-delete-distance-annotation-btn",
         },
       },
       metaText: directDistanceText,
@@ -182,9 +182,9 @@ export const createDistanceToolInfoBoxSlots = (
       navigation: {
         totalEntries: navigation?.totalEntries ?? 0,
         currentIndex: navigation?.currentIndex ?? 0,
-        onFlyToAllMeasurements: navigation?.flyToAllMeasurements,
-        onPreviousMeasurement: () => navigation?.selectRelativeMeasurement(-1),
-        onNextMeasurement: () => navigation?.selectRelativeMeasurement(1),
+        onFlyToAll: navigation?.flyToAllAnnotations,
+        onPrevious: () => navigation?.selectRelativeAnnotation(-1),
+        onNext: () => navigation?.selectRelativeAnnotation(1),
         labels: navigationLabels,
       },
       visualOptions: infoBoxVisualOptions,

@@ -34,12 +34,12 @@ type BuildPolylineToolRenderModelsArgs = {
     backgroundColor: string;
     textColor: string;
   };
-  getMeasurementLabel: (measurementIndex: number) => string;
+  getLabel: (annotationIndex: number) => string;
   nodes: readonly AnnotationNode[];
-  measurements: readonly StoredAnnotation[];
-  selectedMeasurementIds: readonly string[];
-  onMeasurementSelect?: (measurementId: string) => void;
-  onNodeLongPress?: (nodeId: string, measurementId: string) => void;
+  annotations: readonly StoredAnnotation[];
+  selectedAnnotationIds: readonly string[];
+  onSelect?: (annotationId: string) => void;
+  onNodeLongPress?: (nodeId: string, annotationId: string) => void;
 };
 
 export const buildPolylineToolRenderModels = ({
@@ -47,11 +47,11 @@ export const buildPolylineToolRenderModels = ({
   visuals,
   formatOptions,
   badgeStyle,
-  getMeasurementLabel,
+  getLabel,
   nodes,
-  measurements,
-  selectedMeasurementIds,
-  onMeasurementSelect,
+  annotations,
+  selectedAnnotationIds,
+  onSelect,
   onNodeLongPress,
 }: BuildPolylineToolRenderModelsArgs): {
   points: readonly RuntimePointMarkerRenderModel[];
@@ -59,17 +59,17 @@ export const buildPolylineToolRenderModels = ({
   pointLabels: readonly RuntimePointLabelRenderModel[];
 } => {
   const nodeCoordinatesById = buildRuntimeNodeCoordinateMap(nodes);
-  const committedPolylines = measurements.filter(
-    (measurement) => measurement.toolType === toolType
+  const committedPolylineAnnotations = annotations.filter(
+    (annotation) => annotation.toolType === toolType
   );
-  const visiblePolylines = committedPolylines.filter(
-    (measurement) => !measurement.hidden
+  const visiblePolylines = committedPolylineAnnotations.filter(
+    (annotation) => !annotation.hidden
   );
-  const selectedMeasurementIdSet = new Set(selectedMeasurementIds);
+  const selectedAnnotationIdSet = new Set(selectedAnnotationIds);
 
-  const committedEdges = visiblePolylines.flatMap((measurement) => {
+  const committedEdges = visiblePolylines.flatMap((annotation) => {
     const coordinates = resolveMeasurementCoordinates(
-      measurement,
+      annotation,
       nodeCoordinatesById
     );
 
@@ -79,21 +79,21 @@ export const buildPolylineToolRenderModels = ({
 
     return [
       {
-        id: measurement.id,
-        measurementId: measurement.id,
-        nodeIds: measurement.nodeIds,
+        id: annotation.id,
+        annotationId: annotation.id,
+        nodeIds: annotation.nodeIds,
         coordinates,
         overlayDashed: true as const,
         showSegmentLengthLabels: true as const,
-        ...(selectedMeasurementIdSet.has(measurement.id)
+        ...(selectedAnnotationIdSet.has(annotation.id)
           ? applySelectedEdgeVisualStyle(visuals.edge)
           : visuals.edge),
       },
     ];
   });
 
-  const committedPoints = visiblePolylines.flatMap((measurement) =>
-    measurement.nodeIds.flatMap((nodeId, index) => {
+  const committedPoints = visiblePolylines.flatMap((annotation) =>
+    annotation.nodeIds.flatMap((nodeId, index) => {
       const coordinate = nodeCoordinatesById.get(nodeId);
       if (!coordinate) {
         return [];
@@ -101,14 +101,14 @@ export const buildPolylineToolRenderModels = ({
 
       return [
         {
-          id: `${measurement.id}-node-${index}`,
-          measurementId: measurement.id,
+          id: `${annotation.id}-node-${index}`,
+          annotationId: annotation.id,
           nodeId,
           coordinate,
-          onClick: onMeasurementSelect
-            ? () => onMeasurementSelect(measurement.id)
+          onClick: onSelect
+            ? () => onSelect(annotation.id)
             : undefined,
-          ...(selectedMeasurementIdSet.has(measurement.id)
+          ...(selectedAnnotationIdSet.has(annotation.id)
             ? applySelectedPointMarkerVisualStyle(visuals.point)
             : visuals.point),
         },
@@ -117,13 +117,13 @@ export const buildPolylineToolRenderModels = ({
   );
 
   const committedPointLabels = visiblePolylines.flatMap(
-    (measurement, measurementIndex) => {
+    (annotation, annotationIndex) => {
       const badgeText =
-        measurement.shortLabel?.trim() ||
-        getMeasurementLabel(measurementIndex + 1);
-      const lastNodeIndex = measurement.nodeIds.length - 1;
+        annotation.shortLabel?.trim() ||
+        getLabel(annotationIndex + 1);
+      const lastNodeIndex = annotation.nodeIds.length - 1;
       const lastNodeId =
-        lastNodeIndex >= 0 ? measurement.nodeIds[lastNodeIndex] : undefined;
+        lastNodeIndex >= 0 ? annotation.nodeIds[lastNodeIndex] : undefined;
       const coordinate = lastNodeId
         ? nodeCoordinatesById.get(lastNodeId)
         : undefined;
@@ -131,22 +131,22 @@ export const buildPolylineToolRenderModels = ({
         return [];
       }
 
-      const pointVisuals = selectedMeasurementIdSet.has(measurement.id)
+      const pointVisuals = selectedAnnotationIdSet.has(annotation.id)
         ? applySelectedPointMarkerVisualStyle(visuals.point)
         : visuals.point;
       const totalLengthText = formatLengthMeters(
         computePolylineTotalLengthMeters(
-          resolveMeasurementCoordinates(measurement, nodeCoordinatesById)
+          resolveMeasurementCoordinates(annotation, nodeCoordinatesById)
         ),
         formatOptions.lengthMeters
       );
 
       return [
         {
-          id: `${measurement.id}-label`,
-          measurementId: measurement.id,
+          id: `${annotation.id}-label`,
+          annotationId: annotation.id,
           nodeId: lastNodeId,
-          pointMarkerId: `${measurement.id}-node-${lastNodeIndex}`,
+          pointMarkerId: `${annotation.id}-node-${lastNodeIndex}`,
           coordinate,
           markerPixelSize: pointVisuals.pixelSize,
           markerOutlineWidth: pointVisuals.outlineWidth,
@@ -154,13 +154,13 @@ export const buildPolylineToolRenderModels = ({
           badgeContent: badgeText,
           markerBackgroundColor: badgeStyle.backgroundColor,
           markerTextColor: badgeStyle.textColor,
-          selected: selectedMeasurementIdSet.has(measurement.id),
-          onClick: onMeasurementSelect
-            ? () => onMeasurementSelect(measurement.id)
+          selected: selectedAnnotationIdSet.has(annotation.id),
+          onClick: onSelect
+            ? () => onSelect(annotation.id)
             : undefined,
           onLongPress:
-            onNodeLongPress && !measurement.locked
-              ? () => onNodeLongPress(lastNodeId, measurement.id)
+            onNodeLongPress && !annotation.locked
+              ? () => onNodeLongPress(lastNodeId, annotation.id)
               : undefined,
         },
       ];

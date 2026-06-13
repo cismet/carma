@@ -26,7 +26,7 @@ export const annotationVisualPalette = Object.freeze({
     dark: [17, 24, 39],
     light: [255, 255, 255],
   } as const satisfies Record<AnnotationTextTone, Rgb255>,
-  measurementTextRgb255: [248, 250, 252] as const satisfies Rgb255,
+  labelTextRgb255: [248, 250, 252] as const satisfies Rgb255,
   shortLabelRgb255ByType: {
     [ANNOTATION_TYPES.POINT]: [200, 200, 200],
     [ANNOTATION_TYPES.DISTANCE]: [102, 126, 234],
@@ -154,7 +154,7 @@ export const getAnnotationSelectionCssColor = (
 ): string =>
   formatAnnotationRgbaCss(annotationVisualPalette.selectionRgb255[role], alpha);
 
-export const getAnnotationMeasurementTextCssColor = (
+export const getAnnotationLabelTextCssColor = (
   alpha: number = 1
 ): string =>
-  formatAnnotationRgbaCss(annotationVisualPalette.measurementTextRgb255, alpha);
+  formatAnnotationRgbaCss(annotationVisualPalette.labelTextRgb255, alpha);

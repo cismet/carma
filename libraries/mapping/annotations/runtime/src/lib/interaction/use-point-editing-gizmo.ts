@@ -379,7 +379,7 @@ export const usePointEditingGizmo = (
           coordinate,
           movedNodeIds: Object.keys(latestDraftNodeCoordinateOverrides),
           linkToNodeId: latestDraftLinkToNodeId,
-          selectedMeasurementIds: selectedAnnotationIds,
+          selectedAnnotationIds: selectedAnnotationIds,
         })
       );
       clearDraftNodeCoordinateOverrides();
@@ -417,7 +417,7 @@ export const usePointEditingGizmo = (
         nodes,
         linkedNodeGroups,
         annotationEntries: runtimeState.annotationEntries,
-        selectedMeasurementIds: selectedAnnotationIds,
+        selectedAnnotationIds: selectedAnnotationIds,
       });
 
       if (movedNodeIds.length === 0) {

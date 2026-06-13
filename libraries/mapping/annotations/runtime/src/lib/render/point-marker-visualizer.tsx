@@ -18,7 +18,7 @@ import {
 } from "@carma-providers/label-overlay";
 
 import type { Scene } from "@carma-cesium";
-import type { RuntimePointMarkerRenderModel } from "./measurement-render-models";
+import type { RuntimePointMarkerRenderModel } from "./annotation-render-models";
 import {
   areOverlayVisibilitySceneSnapshotsEqual,
   captureOverlayVisibilitySceneSnapshot,

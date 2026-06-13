@@ -10,13 +10,13 @@ import { ANNOTATION_TOOL_PLUGIN_CAPABILITIES } from "@carma-mapping/annotations/
 import {
   AUTHORING_MEASUREMENT_PLUGIN_CAPABILITIES,
   createMeasurementToolPlugin,
-  measurementVisualStyles,
+  annotationVisualStyles,
   resolveAreaOcclusionStyleOptions,
-  resolveMeasurementLineStyleOptions,
+  resolveAnnotationLineStyleOptions,
   withEdgeVisualStyle,
   withPointMarkerVisualStyle,
   type AreaOcclusionStyleOptions,
-  type MeasurementLineStyleOptions,
+  type AnnotationLineStyleOptions,
 } from "@carma-mapping/annotations/runtime";
 import { createVerticalAreaAuthoringController } from "@carma-mapping/annotations/runtime";
 import type { AnnotationToolDraftState } from "@carma-mapping/annotations/runtime";
@@ -28,23 +28,23 @@ import {
 import { resolveAreaToolAddAnnotationOptions } from "../area-shared/resolve-area-tool-add-annotation-options";
 import { createVerticalAreaToolInfoBoxSlots } from "./vertical-area-tool-info-box-slots";
 import { buildVerticalAreaToolRenderModels } from "./vertical-area-tool-render-models";
-import { ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME } from "@carma-mapping/annotations/runtime";
+import { ANNOTATION_DEFAULT_LABEL_THEME } from "@carma-mapping/annotations/runtime";
 import type { DefaultAnnotationToolTexts } from "../annotation-mode-text";
 import { defaultAnnotationToolTexts } from "../annotation-mode-text";
 const { AREA_VERTICAL: ANNOTATION_TYPE_AREA_VERTICAL } = ANNOTATION_TYPES;
 
 const toolType = ANNOTATION_TYPE_AREA_VERTICAL;
-const labelTheme = ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME;
+const labelTheme = ANNOTATION_DEFAULT_LABEL_THEME;
 
 export type VerticalAreaToolPluginOptions = {
   occlusionStyleOptions?: AreaOcclusionStyleOptions;
-  measurementLineStyleOptions?: MeasurementLineStyleOptions;
+  annotationLineStyleOptions?: AnnotationLineStyleOptions;
   texts?: DefaultAnnotationToolTexts;
 };
 
 export const createVerticalAreaToolPlugin = ({
   occlusionStyleOptions,
-  measurementLineStyleOptions,
+  annotationLineStyleOptions,
   texts = defaultAnnotationToolTexts,
 }: VerticalAreaToolPluginOptions = {}) => {
   const text = texts.verticalArea;
@@ -53,7 +53,7 @@ export const createVerticalAreaToolPlugin = ({
     {
       headingTitle: text.headingTitle,
       headingColor: labelTheme.scheme.colorPrimary,
-      formatMeasurementLabelToken: (counter) =>
+      formatLabelToken: (counter) =>
         formatMeasurementShortLabelToken(toolType, counter),
       actionLabels: texts.actions,
       navigationLabels: texts.navigation,
@@ -63,15 +63,15 @@ export const createVerticalAreaToolPlugin = ({
   const resolvedOcclusionStyleOptions = resolveAreaOcclusionStyleOptions(
     occlusionStyleOptions
   );
-  const resolvedLineStyleOptions = resolveMeasurementLineStyleOptions(
-    measurementLineStyleOptions
+  const resolvedLineStyleOptions = resolveAnnotationLineStyleOptions(
+    annotationLineStyleOptions
   );
   const verticalAreaToolVisuals = {
-    edge: withEdgeVisualStyle(measurementVisualStyles.edge, {
+    edge: withEdgeVisualStyle(annotationVisualStyles.edge, {
       strokeWidth: resolvedLineStyleOptions.strokeWidthPx,
       overlayDashPattern: resolvedLineStyleOptions.overlayDashPattern,
     }),
-    point: withPointMarkerVisualStyle(measurementVisualStyles.point),
+    point: withPointMarkerVisualStyle(annotationVisualStyles.point),
   };
 
   return createMeasurementToolPlugin({
@@ -165,7 +165,7 @@ export const createVerticalAreaToolPlugin = ({
         createVerticalAreaAuthoringController({
           context,
           occlusionStyleOptions: resolvedOcclusionStyleOptions,
-          measurementLineStyleOptions,
+          annotationLineStyleOptions,
         }),
     },
     keyboard: {
@@ -218,8 +218,8 @@ export const createVerticalAreaToolPlugin = ({
             {
               visuals: verticalAreaToolVisuals,
               formatOptions,
-              selectedMeasurementIds: selectedAnnotationIds,
-              onMeasurementSelect: setSelectedAnnotationId,
+              selectedAnnotationIds: selectedAnnotationIds,
+              onSelect: setSelectedAnnotationId,
               onNodeLongPress,
               occlusionStyleOptions: resolvedOcclusionStyleOptions,
             }

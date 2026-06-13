@@ -2,7 +2,7 @@ import { render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { ANNOTATION_INFO_BOX_ACTION_IDS } from "../annotation-info-box.types";
-import { buildAnnotationMeasurementInfoBoxSlots } from "./AnnotationMeasurementInfoBoxShell";
+import { buildAnnotationInfoBoxSlots } from "./AnnotationInfoBoxShell";
 
 const buildRequiredShellProps = () =>
   ({
@@ -30,9 +30,9 @@ const queryEmptyContentLine = (container: HTMLElement) =>
     '[data-test-id="annotation-info-box-empty-content-line"]'
   ) as HTMLDivElement | null;
 
-describe("buildAnnotationMeasurementInfoBoxSlots", () => {
+describe("buildAnnotationInfoBoxSlots", () => {
   it("renders a default empty content line when content is unavailable", () => {
-    const slots = buildAnnotationMeasurementInfoBoxSlots({
+    const slots = buildAnnotationInfoBoxSlots({
       ...buildRequiredShellProps(),
       content: null,
     });
@@ -50,7 +50,7 @@ describe("buildAnnotationMeasurementInfoBoxSlots", () => {
   });
 
   it("treats empty fragments as unavailable content", () => {
-    const slots = buildAnnotationMeasurementInfoBoxSlots({
+    const slots = buildAnnotationInfoBoxSlots({
       ...buildRequiredShellProps(),
       content: <>{null}</>,
     });
@@ -66,7 +66,7 @@ describe("buildAnnotationMeasurementInfoBoxSlots", () => {
   });
 
   it("allows the default empty content line style to be overridden", () => {
-    const slots = buildAnnotationMeasurementInfoBoxSlots({
+    const slots = buildAnnotationInfoBoxSlots({
       ...buildRequiredShellProps(),
       content: undefined,
       visualOptions: {
@@ -91,7 +91,7 @@ describe("buildAnnotationMeasurementInfoBoxSlots", () => {
   });
 
   it("allows host presentations to hide specific action buttons", () => {
-    const slots = buildAnnotationMeasurementInfoBoxSlots({
+    const slots = buildAnnotationInfoBoxSlots({
       ...buildRequiredShellProps(),
       visualOptions: {
         hiddenActionIds: [
@@ -134,7 +134,7 @@ describe("buildAnnotationMeasurementInfoBoxSlots", () => {
   });
 
   it("allows host presentations to hide subtitle meta text", () => {
-    const slots = buildAnnotationMeasurementInfoBoxSlots({
+    const slots = buildAnnotationInfoBoxSlots({
       ...buildRequiredShellProps(),
       metaText: "12.34 m",
       visualOptions: {
@@ -148,7 +148,7 @@ describe("buildAnnotationMeasurementInfoBoxSlots", () => {
   });
 
   it("renders subtitle meta text by default", () => {
-    const slots = buildAnnotationMeasurementInfoBoxSlots({
+    const slots = buildAnnotationInfoBoxSlots({
       ...buildRequiredShellProps(),
       metaText: "12.34 m",
     });

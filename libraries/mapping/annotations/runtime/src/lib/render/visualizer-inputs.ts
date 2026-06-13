@@ -2,7 +2,7 @@ import { resolvePointLabelVisualDefaults } from "../config/runtime-point-label-v
 import type {
   RuntimePointLabelRenderModel,
   RuntimePointMarkerRenderModel,
-} from "./measurement-render-models";
+} from "./annotation-render-models";
 
 const visualizerInputDefaults = Object.freeze({
   nodeLabelLongPressDurationMs: 320,
@@ -18,10 +18,10 @@ type BuildHostInteractionPointLabelsArgs = {
   nodeLinkIdByNodeId: ReadonlyMap<string, string>;
   previewNodeLinkId: string | null;
   isInPreviewNodeLink: (nodeId?: string) => boolean;
-  onMeasurementSelect?: (measurementId: string) => void;
-  onNodeMeasurementsSelect?: (measurementIds: readonly string[]) => void;
-  onNodeLongPress?: (nodeId: string, measurementId?: string) => void;
-  canStartNodeEditing?: (nodeId: string, measurementId?: string) => boolean;
+  onAnnotationSelect?: (annotationId: string) => void;
+  onNodeAnnotationsSelect?: (annotationIds: readonly string[]) => void;
+  onNodeLongPress?: (nodeId: string, annotationId?: string) => void;
+  canStartNodeEditing?: (nodeId: string, annotationId?: string) => boolean;
   onPreviewSnapTargetNodeClick?: (nodeId: string) => boolean;
   onReferenceNodeClick?: (nodeId: string) => boolean;
   onReferenceNodeHover?: (nodeId: string, hovered: boolean) => void;
@@ -36,10 +36,10 @@ type BuildHostInteractionPointMarkersArgs = {
   referenceNodeHoverEnabled: boolean;
   nodeLinkIdByNodeId: ReadonlyMap<string, string>;
   isInPreviewNodeLink: (nodeId?: string) => boolean;
-  onMeasurementSelect?: (measurementId: string) => void;
-  onNodeMeasurementsSelect?: (measurementIds: readonly string[]) => void;
-  onNodeLongPress?: (nodeId: string, measurementId?: string) => void;
-  canStartNodeEditing?: (nodeId: string, measurementId?: string) => boolean;
+  onAnnotationSelect?: (annotationId: string) => void;
+  onNodeAnnotationsSelect?: (annotationIds: readonly string[]) => void;
+  onNodeLongPress?: (nodeId: string, annotationId?: string) => void;
+  canStartNodeEditing?: (nodeId: string, annotationId?: string) => boolean;
   onPreviewSnapTargetNodeClick?: (nodeId: string) => boolean;
   onReferenceNodeClick?: (nodeId: string) => boolean;
   onReferenceNodeHover?: (nodeId: string, hovered: boolean) => void;
@@ -48,37 +48,37 @@ type BuildHostInteractionPointMarkersArgs = {
 type BuildVisualizerInputsArgs = BuildHostInteractionPointLabelsArgs &
   BuildHostInteractionPointMarkersArgs;
 
-const isMeasurementSelected = (
+const isAnnotationSelected = (
   selectedAnnotationIdSet: ReadonlySet<string>,
-  measurementId?: string
-) => measurementId !== undefined && selectedAnnotationIdSet.has(measurementId);
+  annotationId?: string
+) => annotationId !== undefined && selectedAnnotationIdSet.has(annotationId);
 
 const createNodeLongPressHandler = ({
   nodeId,
-  measurementId,
+  annotationId,
   onNodeLongPress,
   canStartNodeEditing,
 }: {
   nodeId?: string;
-  measurementId?: string;
-  onNodeLongPress?: (nodeId: string, measurementId?: string) => void;
-  canStartNodeEditing?: (nodeId: string, measurementId?: string) => boolean;
+  annotationId?: string;
+  onNodeLongPress?: (nodeId: string, annotationId?: string) => void;
+  canStartNodeEditing?: (nodeId: string, annotationId?: string) => boolean;
 }) =>
   onNodeLongPress &&
   nodeId &&
-  (canStartNodeEditing?.(nodeId, measurementId) ?? true)
-    ? () => onNodeLongPress(nodeId, measurementId)
+  (canStartNodeEditing?.(nodeId, annotationId) ?? true)
+    ? () => onNodeLongPress(nodeId, annotationId)
     : undefined;
 
 const canUseNodeEditingLongPress = ({
   nodeId,
-  measurementId,
+  annotationId,
   canStartNodeEditing,
 }: {
   nodeId?: string;
-  measurementId?: string;
-  canStartNodeEditing?: (nodeId: string, measurementId?: string) => boolean;
-}) => !nodeId || (canStartNodeEditing?.(nodeId, measurementId) ?? true);
+  annotationId?: string;
+  canStartNodeEditing?: (nodeId: string, annotationId?: string) => boolean;
+}) => !nodeId || (canStartNodeEditing?.(nodeId, annotationId) ?? true);
 
 const buildVisiblePointLabels = (
   pointLabels: readonly RuntimePointLabelRenderModel[]
@@ -93,26 +93,26 @@ const buildVisiblePointLabels = (
         )
     );
 
-const buildMeasurementIdsByNodeLinkId = (
+const buildAnnotationIdsByNodeLinkId = (
   points: readonly RuntimePointMarkerRenderModel[],
   nodeLinkIdByNodeId: ReadonlyMap<string, string>
 ) => {
-  const measurementIdsByNodeLinkId = new Map<string, string[]>();
+  const annotationIdsByNodeLinkId = new Map<string, string[]>();
 
   points.forEach((point) => {
-    if (!point.nodeId || !point.measurementId) {
+    if (!point.nodeId || !point.annotationId) {
       return;
     }
 
     const nodeLinkId = nodeLinkIdByNodeId.get(point.nodeId) ?? point.nodeId;
-    const measurementIds = measurementIdsByNodeLinkId.get(nodeLinkId) ?? [];
-    if (!measurementIds.includes(point.measurementId)) {
-      measurementIds.push(point.measurementId);
-      measurementIdsByNodeLinkId.set(nodeLinkId, measurementIds);
+    const annotationIds = annotationIdsByNodeLinkId.get(nodeLinkId) ?? [];
+    if (!annotationIds.includes(point.annotationId)) {
+      annotationIds.push(point.annotationId);
+      annotationIdsByNodeLinkId.set(nodeLinkId, annotationIds);
     }
   });
 
-  return measurementIdsByNodeLinkId;
+  return annotationIdsByNodeLinkId;
 };
 
 export const buildHostInteractionPointLabels = ({
@@ -125,8 +125,8 @@ export const buildHostInteractionPointLabels = ({
   nodeLinkIdByNodeId,
   previewNodeLinkId,
   isInPreviewNodeLink,
-  onMeasurementSelect,
-  onNodeMeasurementsSelect,
+  onAnnotationSelect,
+  onNodeAnnotationsSelect,
   onNodeLongPress,
   canStartNodeEditing,
   onPreviewSnapTargetNodeClick,
@@ -161,7 +161,7 @@ export const buildHostInteractionPointLabels = ({
           previewSnapTargetsEnabled && pointLabel.nodeId !== undefined;
         const nodeEditingLongPressAllowed = canUseNodeEditingLongPress({
           nodeId: pointLabel.nodeId,
-          measurementId: pointLabel.measurementId,
+          annotationId: pointLabel.annotationId,
           canStartNodeEditing,
         });
 
@@ -191,7 +191,7 @@ export const buildHostInteractionPointLabels = ({
               : pointLabel.onLongPress ??
                 createNodeLongPressHandler({
                   nodeId: pointLabel.nodeId,
-                  measurementId: pointLabel.measurementId,
+                  annotationId: pointLabel.annotationId,
                   onNodeLongPress,
                   canStartNodeEditing,
                 }),
@@ -206,8 +206,8 @@ export const buildHostInteractionPointLabels = ({
       (nodeInteractionHoverEnabled ||
         previewSnapTargetsEnabled ||
         referenceNodeClickEnabled ||
-        onMeasurementSelect ||
-        onNodeMeasurementsSelect ||
+        onAnnotationSelect ||
+        onNodeAnnotationsSelect ||
         onNodeLongPress)
   );
 
@@ -228,14 +228,14 @@ export const buildHostInteractionPointLabels = ({
     string,
     RuntimePointLabelRenderModel
   >();
-  const measurementIdsByNodeLinkId = buildMeasurementIdsByNodeLinkId(
+  const annotationIdsByNodeLinkId = buildAnnotationIdsByNodeLinkId(
     points,
     nodeLinkIdByNodeId
   );
 
   points.forEach((point) => {
     const nodeId = point.nodeId;
-    const measurementId = point.measurementId;
+    const annotationId = point.annotationId;
 
     if (!nodeId) {
       return;
@@ -245,7 +245,7 @@ export const buildHostInteractionPointLabels = ({
     }
 
     const nodeLinkId = nodeLinkIdByNodeId.get(nodeId) ?? nodeId;
-    const nodeMeasurementIds = measurementIdsByNodeLinkId.get(nodeLinkId) ?? [];
+    const nodeAnnotationIds = annotationIdsByNodeLinkId.get(nodeLinkId) ?? [];
     if (previewNodeLinkId !== null && nodeLinkId === previewNodeLinkId) {
       return;
     }
@@ -260,13 +260,13 @@ export const buildHostInteractionPointLabels = ({
         ? undefined
         : createNodeLongPressHandler({
             nodeId,
-            measurementId,
+            annotationId,
             onNodeLongPress,
             canStartNodeEditing,
           });
     const interactionPointLabel: RuntimePointLabelRenderModel = {
       id: `${point.id}-node-interaction`,
-      measurementId,
+      annotationId,
       nodeId,
       pointMarkerId: point.id,
       coordinate: point.coordinate,
@@ -288,13 +288,13 @@ export const buildHostInteractionPointLabels = ({
         ? () => {
             onPreviewSnapTargetNodeClick?.(nodeId);
           }
-        : nodeMeasurementIds.length > 0 && onNodeMeasurementsSelect
+        : nodeAnnotationIds.length > 0 && onNodeAnnotationsSelect
         ? () => {
-            onNodeMeasurementsSelect(nodeMeasurementIds);
+            onNodeAnnotationsSelect(nodeAnnotationIds);
           }
-        : measurementId && onMeasurementSelect
+        : annotationId && onAnnotationSelect
         ? () => {
-            onMeasurementSelect(measurementId);
+            onAnnotationSelect(annotationId);
           }
         : undefined,
       onLongPress: nodeLongPressHandler,
@@ -314,13 +314,13 @@ export const buildHostInteractionPointLabels = ({
       return;
     }
 
-    const existingIsSelected = isMeasurementSelected(
+    const existingIsSelected = isAnnotationSelected(
       selectedAnnotationIdSet,
-      existingInteractionPointLabel.measurementId
+      existingInteractionPointLabel.annotationId
     );
-    const nextIsSelected = isMeasurementSelected(
+    const nextIsSelected = isAnnotationSelected(
       selectedAnnotationIdSet,
-      point.measurementId
+      point.annotationId
     );
 
     if (!existingIsSelected && nextIsSelected) {
@@ -342,8 +342,8 @@ export const buildHostInteractionPointMarkers = ({
   referenceNodeHoverEnabled,
   nodeLinkIdByNodeId,
   isInPreviewNodeLink,
-  onMeasurementSelect,
-  onNodeMeasurementsSelect,
+  onAnnotationSelect,
+  onNodeAnnotationsSelect,
   onNodeLongPress,
   canStartNodeEditing,
   onPreviewSnapTargetNodeClick,
@@ -360,19 +360,19 @@ export const buildHostInteractionPointMarkers = ({
     : (() => {
         const nodeInteractionHoverEnabled =
           referenceNodeHoverEnabled || previewSnapTargetsEnabled;
-        const measurementIdsByNodeLinkId = buildMeasurementIdsByNodeLinkId(
+        const annotationIdsByNodeLinkId = buildAnnotationIdsByNodeLinkId(
           points,
           nodeLinkIdByNodeId
         );
 
         return points.map((point) => {
           const nodeId = point.nodeId;
-          const measurementId = point.measurementId;
+          const annotationId = point.annotationId;
           const nodeLinkId = nodeId
             ? nodeLinkIdByNodeId.get(nodeId) ?? nodeId
             : null;
-          const nodeMeasurementIds = nodeLinkId
-            ? measurementIdsByNodeLinkId.get(nodeLinkId) ?? []
+          const nodeAnnotationIds = nodeLinkId
+            ? annotationIdsByNodeLinkId.get(nodeLinkId) ?? []
             : [];
           const referenceNodeInteractionEnabled = Boolean(
             referenceNodeClickEnabled &&
@@ -389,13 +389,13 @@ export const buildHostInteractionPointMarkers = ({
               ? () => {
                   onPreviewSnapTargetNodeClick?.(nodeId);
                 }
-              : nodeMeasurementIds.length > 0 && onNodeMeasurementsSelect
+              : nodeAnnotationIds.length > 0 && onNodeAnnotationsSelect
               ? () => {
-                  onNodeMeasurementsSelect(nodeMeasurementIds);
+                  onNodeAnnotationsSelect(nodeAnnotationIds);
                 }
-              : measurementId && onMeasurementSelect
+              : annotationId && onAnnotationSelect
               ? () => {
-                  onMeasurementSelect(measurementId);
+                  onAnnotationSelect(annotationId);
                 }
               : point.onClick;
           const nodeHoverHandler =
@@ -412,14 +412,14 @@ export const buildHostInteractionPointMarkers = ({
             isInPreviewNodeLink(nodeId) ||
             !canUseNodeEditingLongPress({
               nodeId,
-              measurementId,
+              annotationId,
               canStartNodeEditing,
             });
           const nodeLongPressHandler = suppressPointMarkerLongPress
             ? undefined
             : createNodeLongPressHandler({
                 nodeId,
-                measurementId,
+                annotationId,
                 onNodeLongPress,
                 canStartNodeEditing,
               });
@@ -454,8 +454,8 @@ export const buildVisualizerInputs = ({
     referenceNodeHoverEnabled: args.referenceNodeHoverEnabled,
     nodeLinkIdByNodeId: args.nodeLinkIdByNodeId,
     isInPreviewNodeLink: args.isInPreviewNodeLink,
-    onMeasurementSelect: args.onMeasurementSelect,
-    onNodeMeasurementsSelect: args.onNodeMeasurementsSelect,
+    onAnnotationSelect: args.onAnnotationSelect,
+    onNodeAnnotationsSelect: args.onNodeAnnotationsSelect,
     onNodeLongPress: args.onNodeLongPress,
     canStartNodeEditing: args.canStartNodeEditing,
     onPreviewSnapTargetNodeClick: args.onPreviewSnapTargetNodeClick,

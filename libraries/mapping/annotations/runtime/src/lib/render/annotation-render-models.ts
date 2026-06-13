@@ -36,13 +36,13 @@ export type RuntimePointLabelRenderStyle =
   (typeof RUNTIME_POINT_LABEL_RENDER_STYLE)[keyof typeof RUNTIME_POINT_LABEL_RENDER_STYLE];
 
 export type RuntimeDistanceTriangleOverlayRenderModel = {
-  measurementId?: string;
+  annotationId?: string;
   anchorCoordinateRole?: RuntimeDistanceTriangleAnchorCoordinateRole;
 };
 
 export type RuntimePointMarkerRenderModel = {
   id: string;
-  measurementId?: string;
+  annotationId?: string;
   nodeId?: string;
   coordinate: CesiumGeographicCoordinate;
   pixelSize: number;
@@ -57,7 +57,7 @@ export type RuntimePointMarkerRenderModel = {
 
 export type RuntimeEdgeRenderModel = {
   id: string;
-  measurementId?: string;
+  annotationId?: string;
   nodeIds?: readonly string[];
   coordinates: readonly CesiumGeographicCoordinate[];
   stroke: string;
@@ -70,7 +70,7 @@ export type RuntimeEdgeRenderModel = {
 
 export type RuntimePolygonFillRenderModel = {
   id: string;
-  measurementId?: string;
+  annotationId?: string;
   nodeIds?: readonly string[];
   coordinates: readonly CesiumGeographicCoordinate[];
   fill: string;
@@ -114,7 +114,7 @@ export const resolveRuntimeOverlayDistanceZIndex = (
 
 export type RuntimePointLabelRenderModel = {
   id: string;
-  measurementId?: string;
+  annotationId?: string;
   nodeId?: string;
   pointMarkerId?: string;
   coordinate: CesiumGeographicCoordinate;

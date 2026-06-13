@@ -73,11 +73,11 @@ const resolveStableBearingRad = ({
 };
 
 export const resolveDerivedAreaMeasurement = ({
-  measurement,
+  annotation,
   toolType,
   coordinates,
 }: {
-  measurement: StoredAnnotation;
+  annotation: StoredAnnotation;
   toolType: PolygonType;
   coordinates: readonly CesiumGeographicCoordinate[];
 }): DerivedAreaMeasurement => {
@@ -88,7 +88,7 @@ export const resolveDerivedAreaMeasurement = ({
   }
 
   const nodeIds = coordinates.map(
-    (_, index) => `${measurement.id}-derived-area-node-${index}`
+    (_, index) => `${annotation.id}-derived-area-node-${index}`
   );
   const pointById = new Map(
     coordinates.map(
@@ -98,11 +98,11 @@ export const resolveDerivedAreaMeasurement = ({
   );
   const derivedMeasurement = computePolygonGroupDerivedData(
     {
-      id: measurement.id,
+      id: annotation.id,
       type: toolType,
       nodeIds,
       edgeRelationIds: [],
-      closed: measurement.closed ?? true,
+      closed: annotation.closed ?? true,
       planeLocked: toolType !== ANNOTATION_TYPE_AREA_GROUND,
     } satisfies NodeChainAnnotation,
     pointById
@@ -115,7 +115,7 @@ export const resolveDerivedAreaMeasurement = ({
       : undefined,
     bearingRad: resolveStableBearingRad({
       derivedBearingRad: derivedMeasurement.bearingRad,
-      preferredNormalBearingRad: measurement.preferredNormalBearingRad,
+      preferredNormalBearingRad: annotation.preferredNormalBearingRad,
     }),
   };
 };

@@ -26,13 +26,13 @@ import {
   createSegmentLineLabels,
   destroyPreviewOverlayLayer,
   hideLineLabels,
-  previewControllerDefaults,
+  annotationOverlayDefaults,
   runtimeCoordinateFromCartesian,
 } from "./authoring-visual-runtime";
 import { createPathAuthoringController } from "./create-path-authoring-controller";
-import { RUNTIME_POLYGON_FILL_PLACEMENT } from "../render/measurement-render-models";
-import { createMeasurementPolygonFillsController } from "../render/measurement-polygon-fills-controller.shared";
-import { createMeasurementOverlayPolygonFillsController } from "../render/measurement-overlay-polygon-fills-controller.shared";
+import { RUNTIME_POLYGON_FILL_PLACEMENT } from "../render/annotation-render-models";
+import { createAnnotationPolygonFillsController } from "../render/annotation-polygon-fills-controller.shared";
+import { createAnnotationOverlayPolygonFillsController } from "../render/annotation-overlay-polygon-fills-controller.shared";
 import {
   isCoplanarPolygonFillPlacement,
   resolveAreaOcclusionLineRenderOptions,
@@ -41,9 +41,9 @@ import {
   type AreaOcclusionStyleOptions,
 } from "../config/area-occlusion-style-options";
 import {
-  resolveMeasurementLineStyleOptions,
-  type MeasurementLineStyleOptions,
-} from "../config/measurement-line-style-options";
+  resolveAnnotationLineStyleOptions,
+  type AnnotationLineStyleOptions,
+} from "../config/annotation-line-style-options";
 const { AREA_VERTICAL: ANNOTATION_TYPE_AREA_VERTICAL } = ANNOTATION_TYPES;
 
 const DRAFT_CHAIN_OVERLAY_LAYER_ID =
@@ -53,7 +53,7 @@ const POLYGON_LOOP_OVERLAY_LAYER_ID =
 const VERTICAL_AREA_PREVIEW_LABEL_LAYER_ID =
   "annotation-overlay-vertical-area-preview-label-layer";
 
-type PreviewAreaLabelState = {
+type AuthoringAreaLabelState = {
   text: string;
   anchorECEF: Cartesian3;
 };
@@ -92,7 +92,7 @@ const buildVerticalAreaPreviewAreaLabelState = ({
 }: {
   loopCoordinates: readonly Cartesian3[];
   formatOptions: AnnotationToolAuthoringContext["formatOptions"];
-}): PreviewAreaLabelState | null => {
+}): AuthoringAreaLabelState | null => {
   const firstCorner = loopCoordinates[0];
   const oppositeCorner = loopCoordinates[2];
   if (!firstCorner || !oppositeCorner) {
@@ -150,18 +150,13 @@ const buildVerticalAreaPreviewEdgeLabelsState = ({
 export const createVerticalAreaAuthoringController = ({
   context,
   occlusionStyleOptions,
-  measurementLineStyleOptions,
+  annotationLineStyleOptions,
 }: {
   context: AnnotationToolAuthoringContext;
   occlusionStyleOptions?: AreaOcclusionStyleOptions;
-  measurementLineStyleOptions?: MeasurementLineStyleOptions;
+  annotationLineStyleOptions?: AnnotationLineStyleOptions;
 }): AnnotationToolAuthoringController | null => {
-  const {
-    scene,
-    drafts,
-    formatOptions,
-    lineLabelOptions,
-  } = context;
+  const { scene, drafts, formatOptions, lineLabelOptions } = context;
   if (!scene || scene.isDestroyed()) {
     return null;
   }
@@ -169,8 +164,8 @@ export const createVerticalAreaAuthoringController = ({
     occlusionStyleOptions
   );
   const previewFillPlacement = RUNTIME_POLYGON_FILL_PLACEMENT.COPLANAR;
-  const resolvedLineStyleOptions = resolveMeasurementLineStyleOptions(
-    measurementLineStyleOptions
+  const resolvedLineStyleOptions = resolveAnnotationLineStyleOptions(
+    annotationLineStyleOptions
   );
   const previewLineOptions = {
     ...(resolveAreaOcclusionLineRenderOptions(resolvedOcclusionStyleOptions) ??
@@ -182,20 +177,20 @@ export const createVerticalAreaAuthoringController = ({
   const draftChainController = createPathAuthoringController(scene, {
     overlayLayerId: DRAFT_CHAIN_OVERLAY_LAYER_ID,
     lineId: "draft-preview-chain",
-    lineColor: previewControllerDefaults.draftChainColor,
+    lineColor: annotationOverlayDefaults.draftChainColor,
     showPointMarkers: true,
     lineOptions: previewLineOptions,
   });
   const polygonLoopController = createPathAuthoringController(scene, {
     overlayLayerId: POLYGON_LOOP_OVERLAY_LAYER_ID,
     lineId: "draft-preview-loop",
-    lineColor: previewControllerDefaults.draftChainColor,
+    lineColor: annotationOverlayDefaults.draftChainColor,
     showPointMarkers: false,
     lineOptions: previewLineOptions,
   });
-  const previewFillController = createMeasurementPolygonFillsController(scene);
+  const previewFillController = createAnnotationPolygonFillsController(scene);
   const previewOverlayFillController =
-    createMeasurementOverlayPolygonFillsController(
+    createAnnotationOverlayPolygonFillsController(
       scene,
       `${ANNOTATION_TYPE_AREA_VERTICAL}-draft-preview`
     );
@@ -221,7 +216,7 @@ export const createVerticalAreaAuthoringController = ({
   let draftCoordinates = [
     ...drafts.get(ANNOTATION_TYPE_AREA_VERTICAL).coordinates,
   ];
-  let currentAreaLabelState: PreviewAreaLabelState | null = null;
+  let currentAreaLabelState: AuthoringAreaLabelState | null = null;
   let currentEdgeLabelsState: PreviewVerticalAreaEdgeLabelsState | null = null;
 
   const renderOverlayLabels = (requestRender = true) => {
@@ -401,8 +396,7 @@ export const createVerticalAreaAuthoringController = ({
       nextAreaLabelState
         ? {
             text: nextAreaLabelState.text,
-            screenPosition:
-              toScreenPoint(scene, nextAreaLabelState.anchorECEF),
+            screenPosition: toScreenPoint(scene, nextAreaLabelState.anchorECEF),
           }
         : null
     );

@@ -1,11 +1,11 @@
 import { formatLatLonDegrees, formatLengthMeters } from "@carma-units";
 import type { Degrees } from "@carma-units";
-import { buildAnnotationMeasurementInfoBoxSlots } from "@carma-mapping/annotations/ui";
+import { buildAnnotationInfoBoxSlots } from "@carma-mapping/annotations/ui";
 
 import type { RuntimeAnnotationInfoBoxContext } from "@carma-mapping/annotations/runtime";
 import {
   ANNOTATION_DELETE_CONFIRMATION_SOURCES,
-  resolveRuntimeMeasurementNavigation,
+  resolveRuntimeAnnotationNavigation,
 } from "@carma-mapping/annotations/runtime";
 import {
   buildRuntimeNodeCoordinateMap,
@@ -27,14 +27,14 @@ export const createPointToolInfoBoxSlots = (
   {
     headingTitle,
     headingColor,
-    formatMeasurementLabelToken,
+    formatLabelToken,
     actionLabels,
     navigationLabels,
     elevationLabels,
   }: {
     headingTitle: string;
     headingColor: string;
-    formatMeasurementLabelToken: (counter: number) => string;
+    formatLabelToken: (counter: number) => string;
     actionLabels?: Partial<AnnotationInfoBoxActionLabels>;
     navigationLabels?: Partial<AnnotationInfoBoxNavigationLabels>;
     elevationLabels?: PointElevationTextLabels;
@@ -61,19 +61,19 @@ export const createPointToolInfoBoxSlots = (
       return null;
     }
 
-    const pointMeasurements = annotationEntries.filter(
-      (measurementEntry) => measurementEntry.toolType === toolType
+    const pointAnnotations = annotationEntries.filter(
+      (annotationEntry) => annotationEntry.toolType === toolType
     );
     const pointOrder =
-      pointMeasurements.findIndex(
-        (measurementEntry) => measurementEntry.id === annotation.id
+      pointAnnotations.findIndex(
+        (annotationEntry) => annotationEntry.id === annotation.id
       ) + 1;
     const coordinate =
       resolveMeasurementCoordinates(
         annotation,
         buildRuntimeNodeCoordinateMap(nodes)
       )[0] ?? null;
-    const navigation = resolveRuntimeMeasurementNavigation({
+    const navigation = resolveRuntimeAnnotationNavigation({
       annotationEntries,
       selectedAnnotationId: annotation.id,
       focusAnnotationId,
@@ -84,7 +84,7 @@ export const createPointToolInfoBoxSlots = (
       return null;
     }
 
-    const shortLabelToken = formatMeasurementLabelToken(pointOrder);
+    const shortLabelToken = formatLabelToken(pointOrder);
     const defaultDisplayName = headingTitle;
     const effectiveShortLabel =
       annotation.shortLabel?.trim() || shortLabelToken;
@@ -106,8 +106,8 @@ export const createPointToolInfoBoxSlots = (
       annotationEntries,
       configuredReferenceAnnotationId: elevationReferenceAnnotationId,
     });
-    const isReferenceMeasurement = referenceAnnotationId === annotation.id;
-    return buildAnnotationMeasurementInfoBoxSlots({
+    const isReferenceAnnotation = referenceAnnotationId === annotation.id;
+    return buildAnnotationInfoBoxSlots({
       headingTitle,
       headingColor,
       titleInput: {
@@ -135,7 +135,7 @@ export const createPointToolInfoBoxSlots = (
           event.stopPropagation();
           toggleAnnotationVisibility(annotation.id);
         },
-        onSetReference: isReferenceMeasurement
+        onSetReference: isReferenceAnnotation
           ? undefined
           : (event) => {
               event.stopPropagation();
@@ -153,15 +153,14 @@ export const createPointToolInfoBoxSlots = (
           });
         },
         labels: actionLabels,
-        dataTestIdPrefix: "carma-annotation-point-measurement",
+        dataTestIdPrefix: "carma-annotation-point-annotation",
         dataTestIds: {
-          flyTo: "carma-annotation-flyto-point-measurement-btn",
-          export: "carma-annotation-export-point-measurement-geojson-btn",
-          visibility:
-            "carma-annotation-toggle-point-measurement-visibility-btn",
-          reference: "carma-annotation-set-reference-point-measurement-btn",
-          lock: "carma-annotation-toggle-point-measurement-lock-btn",
-          delete: "carma-annotation-delete-point-measurement-btn",
+          flyTo: "carma-annotation-flyto-point-annotation-btn",
+          export: "carma-annotation-export-point-annotation-geojson-btn",
+          visibility: "carma-annotation-toggle-point-annotation-visibility-btn",
+          reference: "carma-annotation-set-reference-point-annotation-btn",
+          lock: "carma-annotation-toggle-point-annotation-lock-btn",
+          delete: "carma-annotation-delete-point-annotation-btn",
         },
       },
       metaText: `${latitude} ${longitude} • ${elevationText}`,
@@ -178,9 +177,9 @@ export const createPointToolInfoBoxSlots = (
       navigation: {
         totalEntries: navigation?.totalEntries ?? 0,
         currentIndex: navigation?.currentIndex ?? 0,
-        onFlyToAllMeasurements: navigation?.flyToAllMeasurements,
-        onPreviousMeasurement: () => navigation?.selectRelativeMeasurement(-1),
-        onNextMeasurement: () => navigation?.selectRelativeMeasurement(1),
+        onFlyToAll: navigation?.flyToAllAnnotations,
+        onPrevious: () => navigation?.selectRelativeAnnotation(-1),
+        onNext: () => navigation?.selectRelativeAnnotation(1),
         labels: navigationLabels,
       },
       visualOptions: infoBoxVisualOptions,

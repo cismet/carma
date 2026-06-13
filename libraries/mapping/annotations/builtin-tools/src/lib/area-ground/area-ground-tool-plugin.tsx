@@ -17,7 +17,7 @@ import {
   createMeasurementToolPlugin,
   resolveAreaOcclusionStyleOptions,
   type AreaOcclusionStyleOptions,
-  type MeasurementLineStyleOptions,
+  type AnnotationLineStyleOptions,
 } from "@carma-mapping/annotations/runtime";
 import type { AnnotationToolDraftState } from "@carma-mapping/annotations/runtime";
 import {
@@ -31,25 +31,25 @@ import {
   buildNodeChainAreaToolRenderModels,
   createNodeChainAreaToolVisuals,
 } from "../area-shared/node-chain-area-tool-render-models";
-import { ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME } from "@carma-mapping/annotations/runtime";
+import { ANNOTATION_DEFAULT_LABEL_THEME } from "@carma-mapping/annotations/runtime";
 import type { DefaultAnnotationToolTexts } from "../annotation-mode-text";
 import { defaultAnnotationToolTexts } from "../annotation-mode-text";
 const { AREA_GROUND: ANNOTATION_TYPE_AREA_GROUND } = ANNOTATION_TYPES;
 
 const toolType = ANNOTATION_TYPE_AREA_GROUND;
-const labelTheme = ANNOTATION_MEASUREMENT_DEFAULT_LABEL_THEME;
+const labelTheme = ANNOTATION_DEFAULT_LABEL_THEME;
 const AREA_GROUND_REJECTED_POINT_FEEDBACK =
   "Der letzte Punkt wurde nicht übernommen: Die neue Kante würde die Fläche schneiden.";
 
 export type AreaGroundToolPluginOptions = {
   occlusionStyleOptions?: AreaOcclusionStyleOptions;
-  measurementLineStyleOptions?: MeasurementLineStyleOptions;
+  annotationLineStyleOptions?: AnnotationLineStyleOptions;
   texts?: DefaultAnnotationToolTexts;
 };
 
 export const createAreaGroundToolPlugin = ({
   occlusionStyleOptions,
-  measurementLineStyleOptions,
+  annotationLineStyleOptions,
   texts = defaultAnnotationToolTexts,
 }: AreaGroundToolPluginOptions = {}) => {
   const text = texts.areaGround;
@@ -58,7 +58,7 @@ export const createAreaGroundToolPlugin = ({
     {
       headingTitle: text.headingTitle,
       headingColor: labelTheme.scheme.colorPrimary,
-      formatMeasurementLabelToken: (counter) =>
+      formatLabelToken: (counter) =>
         formatMeasurementShortLabelToken(toolType, counter),
       actionLabels: texts.actions,
       navigationLabels: texts.navigation,
@@ -70,7 +70,7 @@ export const createAreaGroundToolPlugin = ({
   );
   const areaGroundToolVisuals = createNodeChainAreaToolVisuals({
     fillType: toolType,
-    measurementLineStyleOptions,
+    annotationLineStyleOptions,
   });
 
   return createMeasurementToolPlugin({
@@ -166,7 +166,7 @@ export const createAreaGroundToolPlugin = ({
           toolType,
           context,
           occlusionStyleOptions: resolvedOcclusionStyleOptions,
-          measurementLineStyleOptions,
+          annotationLineStyleOptions,
         }),
     },
     keyboard: {
@@ -215,11 +215,11 @@ export const createAreaGroundToolPlugin = ({
           toolType,
           visuals: areaGroundToolVisuals,
           nodes,
-          measurements: annotationEntries,
-          selectedMeasurementIds: selectedAnnotationIds,
+          annotations: annotationEntries,
+          selectedAnnotationIds: selectedAnnotationIds,
           fillPlacement: RUNTIME_POLYGON_FILL_PLACEMENT.GROUND,
           formatOptions,
-          onMeasurementSelect: setSelectedAnnotationId,
+          onSelect: setSelectedAnnotationId,
           onNodeLongPress,
           occlusionStyleOptions: resolvedOcclusionStyleOptions,
         }),

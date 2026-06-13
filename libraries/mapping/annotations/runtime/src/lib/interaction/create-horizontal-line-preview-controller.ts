@@ -18,8 +18,8 @@ import {
   createLineCollection,
   createLineRuntime,
   destroyLineCollection,
-  previewControllerDefaults,
-  type PreviewLineRuntime,
+  annotationOverlayDefaults,
+  type AuthoringLineRuntime,
 } from "./authoring-visual-runtime";
 
 const MIN_HORIZONTAL_LINE_PREVIEW_RADIUS_METERS = 1e-3;
@@ -83,7 +83,7 @@ export const createHorizontalLinePreviewController = (
     colorCss,
     opacity,
     materialPreset = pointPreviewRingVisualDefaults.materialPreset,
-    invalidLineColorCss = previewControllerDefaults.verticalLineColor,
+    invalidLineColorCss = annotationOverlayDefaults.verticalLineColor,
     planePlacementToleranceMeters,
     maxLengthMeters,
   }: HorizontalLinePreviewControllerOptions
@@ -98,7 +98,7 @@ export const createHorizontalLinePreviewController = (
   let previewDisc: Primitive | null = null;
   let invalidLineCollection: ReturnType<typeof createLineCollection> | null =
     null;
-  let invalidNormalLine: PreviewLineRuntime | null = null;
+  let invalidNormalLine: AuthoringLineRuntime | null = null;
 
   const requestRender = () => {
     if (isValidScene(scene)) {
@@ -125,7 +125,7 @@ export const createHorizontalLinePreviewController = (
     return nextDisc;
   };
 
-  const ensureInvalidNormalLine = (): PreviewLineRuntime => {
+  const ensureInvalidNormalLine = (): AuthoringLineRuntime => {
     if (invalidNormalLine) {
       return invalidNormalLine;
     }
@@ -139,7 +139,7 @@ export const createHorizontalLinePreviewController = (
       `${id}-invalid-plane-normal`,
       invalidLineColorCss,
       {
-        width: previewControllerDefaults.lineStrokeWidthPx,
+        width: annotationOverlayDefaults.lineStrokeWidthPx,
       }
     );
     return invalidNormalLine;

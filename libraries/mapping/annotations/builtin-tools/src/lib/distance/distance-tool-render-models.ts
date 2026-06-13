@@ -191,27 +191,27 @@ type BuildDistanceToolRenderModelsArgs = {
   toolType: StoredAnnotation["toolType"];
   visuals: DistanceToolVisuals;
   labelTheme: StoredAnnotationLabelTheme;
-  getMeasurementLabel: (measurementIndex: number) => string;
+  getLabel: (annotationIndex: number) => string;
   nodes: readonly AnnotationNode[];
   edges: readonly AnnotationEdge[];
   linkedNodeGroups: readonly AnnotationNodeLink[];
-  measurements: readonly StoredAnnotation[];
-  selectedMeasurementIds: readonly string[];
-  onMeasurementSelect?: (measurementId: string) => void;
-  onNodeLongPress?: (nodeId: string, measurementId: string) => void;
+  annotations: readonly StoredAnnotation[];
+  selectedAnnotationIds: readonly string[];
+  onSelect?: (annotationId: string) => void;
+  onNodeLongPress?: (nodeId: string, annotationId: string) => void;
 };
 
 export const buildDistanceToolRenderModels = ({
   toolType,
   visuals,
   labelTheme,
-  getMeasurementLabel,
+  getLabel,
   nodes,
   edges,
   linkedNodeGroups,
-  measurements,
-  selectedMeasurementIds,
-  onMeasurementSelect,
+  annotations,
+  selectedAnnotationIds,
+  onSelect,
 }: BuildDistanceToolRenderModelsArgs): {
   points: readonly RuntimePointMarkerRenderModel[];
   edges: readonly RuntimeEdgeRenderModel[];
@@ -224,17 +224,17 @@ export const buildDistanceToolRenderModels = ({
       edges,
     });
   const nodeLinkSizeByNodeId = buildNodeLinkSizeByNodeId(linkedNodeGroups);
-  const distanceMeasurements = measurements.filter(
-    (measurement) => measurement.toolType === toolType
+  const distanceAnnotations = annotations.filter(
+    (annotation) => annotation.toolType === toolType
   );
-  const visibleDistanceMeasurements = distanceMeasurements.filter(
-    (measurement) => !measurement.hidden
+  const visibleDistanceMeasurements = distanceAnnotations.filter(
+    (annotation) => !annotation.hidden
   );
-  const selectedMeasurementIdSet = new Set(selectedMeasurementIds);
+  const selectedAnnotationIdSet = new Set(selectedAnnotationIds);
 
-  const committedEdges = visibleDistanceMeasurements.flatMap((measurement) => {
+  const committedEdges = visibleDistanceMeasurements.flatMap((annotation) => {
     const coordinates = resolveMeasurementCoordinates(
-      measurement,
+      annotation,
       nodeCoordinatesById
     );
 
@@ -244,34 +244,34 @@ export const buildDistanceToolRenderModels = ({
 
     return [
       {
-        id: measurement.id,
-        measurementId: measurement.id,
-        nodeIds: measurement.nodeIds,
+        id: annotation.id,
+        annotationId: annotation.id,
+        nodeIds: annotation.nodeIds,
         coordinates,
         distanceTriangleOverlay: {
-          measurementId: measurement.id,
+          annotationId: annotation.id,
           anchorCoordinateRole:
-            measurement.distanceTriangleAnchorCoordinateRole ??
+            annotation.distanceTriangleAnchorCoordinateRole ??
             resolveDistanceTriangleAnchorCoordinateRole(coordinates),
         },
-        ...(selectedMeasurementIdSet.has(measurement.id)
+        ...(selectedAnnotationIdSet.has(annotation.id)
           ? applySelectedEdgeVisualStyle(visuals.edge)
           : visuals.edge),
       },
     ];
   });
 
-  const committedPoints = visibleDistanceMeasurements.flatMap((measurement) =>
-    resolveMeasurementCoordinates(measurement, nodeCoordinatesById).map(
+  const committedPoints = visibleDistanceMeasurements.flatMap((annotation) =>
+    resolveMeasurementCoordinates(annotation, nodeCoordinatesById).map(
       (coordinate, index) => ({
-        id: `${measurement.id}-node-${index}`,
-        measurementId: measurement.id,
-        nodeId: measurement.nodeIds[index],
+        id: `${annotation.id}-node-${index}`,
+        annotationId: annotation.id,
+        nodeId: annotation.nodeIds[index],
         coordinate,
-        onClick: onMeasurementSelect
-          ? () => onMeasurementSelect(measurement.id)
+        onClick: onSelect
+          ? () => onSelect(annotation.id)
           : undefined,
-        ...(selectedMeasurementIdSet.has(measurement.id)
+        ...(selectedAnnotationIdSet.has(annotation.id)
           ? applySelectedPointMarkerVisualStyle(visuals.point)
           : visuals.point),
       })
@@ -279,15 +279,15 @@ export const buildDistanceToolRenderModels = ({
   );
 
   const committedPointLabels = visibleDistanceMeasurements.flatMap(
-    (measurement, measurementIndex) => {
+    (annotation, annotationIndex) => {
       const badgeText =
-        measurement.shortLabel?.trim() ||
-        getMeasurementLabel(measurementIndex + 1);
+        annotation.shortLabel?.trim() ||
+        getLabel(annotationIndex + 1);
       const measurementCoordinates = resolveMeasurementCoordinates(
-        measurement,
+        annotation,
         nodeCoordinatesById
       );
-      const coordinateCandidates = measurement.nodeIds.reduce<
+      const coordinateCandidates = annotation.nodeIds.reduce<
         RuntimePointLabelCoordinateCandidate[]
       >((candidates, nodeId) => {
         const coordinate = nodeCoordinatesById.get(nodeId);
@@ -302,7 +302,7 @@ export const buildDistanceToolRenderModels = ({
         return [];
       }
       const anchorCoordinateSelection =
-        measurement.distanceAnchorCoordinateSelection ??
+        annotation.distanceAnchorCoordinateSelection ??
         resolveDistanceTriangleAnchorCoordinateSelection(
           measurementCoordinates
         );
@@ -320,7 +320,7 @@ export const buildDistanceToolRenderModels = ({
       const effectiveBadgeCoordinate =
         leastLinkedBadgeCandidate?.coordinate ?? coordinate;
 
-      const isSelected = selectedMeasurementIdSet.has(measurement.id);
+      const isSelected = selectedAnnotationIdSet.has(annotation.id);
       const pointVisuals = isSelected
         ? applySelectedPointMarkerVisualStyle(visuals.point)
         : visuals.point;
@@ -337,8 +337,8 @@ export const buildDistanceToolRenderModels = ({
         });
       return [
         {
-          id: `${measurement.id}-label`,
-          measurementId: measurement.id,
+          id: `${annotation.id}-label`,
+          annotationId: annotation.id,
           nodeId: badgeNodeId,
           coordinate: effectiveBadgeCoordinate,
           coordinateCandidates: effectiveBadgeCoordinateCandidates,
@@ -368,8 +368,8 @@ export const buildDistanceToolRenderModels = ({
           hoverBackgroundColor: selectedHighlight.hoverBackgroundColor,
           selected: isSelected,
           allowLongPressWhenBlocked: false,
-          onClick: onMeasurementSelect
-            ? () => onMeasurementSelect(measurement.id)
+          onClick: onSelect
+            ? () => onSelect(annotation.id)
             : undefined,
           onLongPress: undefined,
         },

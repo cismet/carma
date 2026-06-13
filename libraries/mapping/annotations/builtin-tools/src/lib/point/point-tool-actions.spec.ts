@@ -4,9 +4,9 @@ import {
 } from "@carma-mapping/annotations/runtime";
 import { describe, expect, it, vi } from "vitest";
 
-import { addPointMeasurement } from "./point-tool-actions";
+import { addPointAnnotation } from "./point-tool-actions";
 
-const createPointMeasurement = (id: string): StoredAnnotation => ({
+const createPointAnnotation = (id: string): StoredAnnotation => ({
   id,
   toolType: "point",
   nodeIds: [`${id}-node`],
@@ -14,11 +14,11 @@ const createPointMeasurement = (id: string): StoredAnnotation => ({
 });
 
 describe("point tool actions", () => {
-  it("sets the first point measurement as elevation reference", () => {
-    const annotation = createPointMeasurement("point-1");
+  it("sets the first point annotation as elevation reference", () => {
+    const annotation = createPointAnnotation("point-1");
     const dispatch = vi.fn();
 
-    addPointMeasurement(
+    addPointAnnotation(
       "point",
       { latitude: 51, longitude: 7, altitude: 100 },
       null,
@@ -53,10 +53,10 @@ describe("point tool actions", () => {
   });
 
   it("keeps the current elevation reference when a point already exists", () => {
-    const annotation = createPointMeasurement("point-2");
+    const annotation = createPointAnnotation("point-2");
     const dispatch = vi.fn();
 
-    addPointMeasurement(
+    addPointAnnotation(
       "point",
       { latitude: 51, longitude: 7, altitude: 100 },
       null,
@@ -68,7 +68,7 @@ describe("point tool actions", () => {
             selectedAnnotationIds: [],
             previousSelectedAnnotationId: null,
           },
-          annotationEntries: [createPointMeasurement("point-1")],
+          annotationEntries: [createPointAnnotation("point-1")],
           nodes: [],
           linkedNodeGroups: [],
           edges: [],

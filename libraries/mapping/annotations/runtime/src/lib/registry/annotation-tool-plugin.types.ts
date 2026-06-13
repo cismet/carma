@@ -173,7 +173,7 @@ export type AnnotationToolVisualModelContext = {
     annotationId: string,
     currentElevationDisplayMode?: AnnotationElevationDisplayMode
   ) => void;
-  onNodeLongPress?: (nodeId: string, measurementId: string) => void;
+  onNodeLongPress?: (nodeId: string, annotationId: string) => void;
   formatOptions: AnnotationsRuntimeFormatOptions;
 };
 

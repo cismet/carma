@@ -28,7 +28,7 @@ import { readMaxNumericSuffix } from "./annotation-entity-builder.helpers";
 import type {
   RuntimeDistanceTriangleAnchorCoordinateRole,
   RuntimePointLabelCoordinateSelection,
-} from "../render/measurement-render-models";
+} from "../render/annotation-render-models";
 import { resolveAnnotationNodeMoveScope } from "./node-move-scope.helpers";
 export type CreateInitialAnnotationsStoreStateOptions = {
   initialToolType?: AnnotationToolId;
@@ -58,13 +58,13 @@ export type SetSelectedAnnotationIdsPayload = readonly string[];
 export type UpdateNodeCoordinateByIdPayload = {
   nodeId: string;
   coordinate: CesiumGeographicCoordinate;
-  selectedMeasurementIds?: readonly string[];
+  selectedAnnotationIds?: readonly string[];
   movedNodeIds?: readonly AnnotationNodeId[];
   linkToNodeId?: AnnotationNodeId | null;
 };
 
 export type InsertNodeIntoMeasurementEdgePayload = {
-  measurementId: string;
+  annotationId: string;
   startNodeId: string;
   endNodeId: string;
   coordinate: CesiumGeographicCoordinate;
@@ -405,7 +405,7 @@ const annotationsSlice = createSlice({
       const {
         nodeId,
         coordinate,
-        selectedMeasurementIds = [],
+        selectedAnnotationIds = [],
         movedNodeIds: preferredMovedNodeIds,
         linkToNodeId,
       } = action.payload;
@@ -414,7 +414,7 @@ const annotationsSlice = createSlice({
         nodes: state.nodes,
         linkedNodeGroups: state.linkedNodeGroups,
         annotationEntries: state.annotationEntries,
-        selectedMeasurementIds,
+        selectedAnnotationIds,
         preferredMovedNodeIds,
       });
       if (!targetNode) {
@@ -455,10 +455,10 @@ const annotationsSlice = createSlice({
       state,
       action: PayloadAction<InsertNodeIntoMeasurementEdgePayload>
     ) => {
-      const { measurementId, startNodeId, endNodeId, coordinate } =
+      const { annotationId, startNodeId, endNodeId, coordinate } =
         action.payload;
       const measurement = state.annotationEntries.find(
-        (entry) => entry.id === measurementId
+        (entry) => entry.id === annotationId
       );
       if (!measurement) {
         return;
