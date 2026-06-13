@@ -9,10 +9,9 @@ import {
   Cartesian2,
   Cartesian3,
   Cartographic,
-  defined,
   type Scene,
 } from "@carma-cesium";
-import { isValidScene } from "../../carma-guards";
+import { isValidCartesian3, isValidScene } from "../../carma-guards";
 
 export type PickResult = {
   position: [number, number];
@@ -20,6 +19,36 @@ export type PickResult = {
   windowPositionCartesian2: Cartesian2;
   scenePosition: Cartesian3 | null;
   coordinates: Cartographic | null;
+};
+
+const tryPickScenePosition = (
+  scene: Scene,
+  screenPosition: Cartesian2,
+  label: string
+): Cartesian3 | null => {
+  try {
+    const scenePosition = scene.pickPosition(screenPosition);
+    return isValidCartesian3(scenePosition) ? scenePosition : null;
+  } catch {
+    warnOnce(
+      `[CESIUM|PICKER|${label}] scene.pickPosition(...) failed while resolving a scene pick.`
+    );
+    return null;
+  }
+};
+
+const tryCartographicFromCartesian = (
+  scenePosition: Cartesian3,
+  label: string
+): Cartographic | null => {
+  try {
+    return Cartographic.fromCartesian(scenePosition);
+  } catch {
+    warnOnce(
+      `[CESIUM|PICKER|${label}] Cartographic.fromCartesian(...) failed for a picked scene position.`
+    );
+    return null;
+  }
 };
 
 export const pickScenePositions = (
@@ -49,14 +78,15 @@ export const pickScenePositions = (
   return positions.map((position) => {
     const [windowPosition, windowPositionCartesian2] =
       normalizedToPixelPosition(canvasDimensions, position);
-    const scenePosition = scene.pickPosition(
-      windowPositionCartesian2
-    ) as Cartesian3 | null;
-
-    const coordinates =
-      scenePosition && defined(scenePosition)
-        ? Cartographic.fromCartesian(scenePosition)
-        : null;
+    const pickedScenePosition = tryPickScenePosition(
+      scene,
+      windowPositionCartesian2,
+      label
+    );
+    const coordinates = pickedScenePosition
+      ? tryCartographicFromCartesian(pickedScenePosition, label)
+      : null;
+    const scenePosition = coordinates ? pickedScenePosition : null;
 
     return {
       position,
@@ -77,7 +107,12 @@ export const pickSceneCenter = (scene: Scene): Cartesian3 | undefined =>
 export const pickScenePositionAtScreenPosition = (
   scene: Scene,
   screenPosition: Cartesian2
-): Cartesian3 | null => scene.pickPosition(screenPosition) ?? null;
+): Cartesian3 | null =>
+  tryPickScenePosition(
+    scene,
+    screenPosition,
+    "pickScenePositionAtScreenPosition"
+  );
 
 export const pickGlobePositionAtScreenPosition = (
   scene: Scene,
@@ -85,5 +120,6 @@ export const pickGlobePositionAtScreenPosition = (
 ): Cartesian3 | null => {
   const pickRay = scene.camera.getPickRay(screenPosition);
   if (!pickRay) return null;
-  return scene.globe.pick(pickRay, scene) ?? null;
+  const globePosition = scene.globe.pick(pickRay, scene);
+  return isValidCartesian3(globePosition) ? globePosition : null;
 };

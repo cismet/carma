@@ -32,7 +32,11 @@ export const isValidCartesian2 = (
 
 export const isValidCartesian3 = (
   cartesian: unknown
-): cartesian is Cartesian3 => cartesian instanceof Cartesian3;
+): cartesian is Cartesian3 =>
+  cartesian instanceof Cartesian3 &&
+  Number.isFinite(cartesian.x) &&
+  Number.isFinite(cartesian.y) &&
+  Number.isFinite(cartesian.z);
 
 export const isValidTileset = (tileset: unknown): tileset is Cesium3DTileset =>
   tileset instanceof Cesium3DTileset && tileset.isDestroyed() === false;

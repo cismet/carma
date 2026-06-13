@@ -1,6 +1,7 @@
 import { Cartesian2, Cartesian3, type Scene } from "@carma-cesium";
 import { warnOnce } from "@carma-commons/utils";
 
+import { isValidCartesian3 } from "../../carma-guards";
 import {
   pickGlobePositionAtScreenPosition,
   pickScenePositionAtScreenPosition,
@@ -32,16 +33,6 @@ const surfacePickingFrameCacheByScene = new WeakMap<
   SurfacePickingFrameCache
 >();
 const SURFACE_PICKING_WARN_PREFIX = "[CESIUM|SURFACE_PICKING]";
-
-const isUsablePickPosition = (
-  positionECEF: Cartesian3 | null
-): positionECEF is Cartesian3 =>
-  Boolean(
-    positionECEF &&
-      Number.isFinite(positionECEF.x) &&
-      Number.isFinite(positionECEF.y) &&
-      Number.isFinite(positionECEF.z)
-  );
 
 const readSceneFrameNumber = (scene: SceneWithFrameState): number | null => {
   const frameNumber = scene.frameState?.frameNumber;
@@ -111,7 +102,7 @@ const resolveSurfaceDepthPickAtScreenPosition = (
     screenPosition
   );
 
-  const resolvedPosition = isUsablePickPosition(pickedPosition)
+  const resolvedPosition = isValidCartesian3(pickedPosition)
     ? pickedPosition
     : null;
   frameCache.surfacePickByScreenKey.set(screenKey, resolvedPosition);
