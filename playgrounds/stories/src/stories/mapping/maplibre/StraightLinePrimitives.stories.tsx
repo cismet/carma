@@ -5,7 +5,7 @@ import {
   ANNOTATION_LINE_COMPONENT_KINDS,
   getAnnotationLineComponentCssColor,
 } from "@carma-mapping/annotations/core";
-import { measurementVisualDefaults } from "@carma-mapping/annotations/runtime";
+import { annotationVisualDefaults } from "@carma-mapping/annotations/runtime";
 import type { Meta, StoryObj } from "@storybook/react";
 import maplibregl, {
   type CustomLayerInterface,
@@ -79,7 +79,7 @@ const MEASUREMENT_VERTICAL_COLOR = getAnnotationLineComponentCssColor(
 const MEASUREMENT_HORIZONTAL_COLOR = getAnnotationLineComponentCssColor(
   ANNOTATION_LINE_COMPONENT_KINDS.HORIZONTAL
 );
-const MEASUREMENT_NODE_COLOR = measurementVisualDefaults.colors.surface;
+const ANNOTATION_NODE_COLOR = annotationVisualDefaults.colors.surface;
 const SAMPLE_POINT_EXTRUSION_SOURCE = parsePointExtrusionGeoJson(
   samplePointExtrusionsGeoJsonRaw
 );
@@ -810,7 +810,7 @@ const useDomMarkers = (
                 id: `${markerPoint.id}-label`,
                 x: screen.x,
                 y: screen.y,
-                color: MEASUREMENT_NODE_COLOR,
+                color: ANNOTATION_NODE_COLOR,
                 label: markerPoint.displayName
                   ? `${markerPoint.label} ${markerPoint.displayName}`
                   : markerPoint.label,

@@ -6,8 +6,7 @@ import {
   POINT_LABEL_THEME_DEFAULTS,
 } from "@carma-providers/label-overlay";
 import {
-  ANNOTATION_LINE_LABEL_BACKGROUND_STYLE,
-  ANNOTATION_THEME_STYLE,
+  ANNOTATION_THEME,
   typographyDefaults,
   type AnnotationThemeStyle,
   type TypographyDefaults,
@@ -269,7 +268,7 @@ const LineLabelSpecimen = ({
       <span
         className="carma-annotation-overlay-line-label__backdrop"
         data-annotation-overlay-line-label-background-style={
-          ANNOTATION_LINE_LABEL_BACKGROUND_STYLE.SOFT_RECT_FADE
+          ANNOTATION_THEME.lineLabel.backgroundStyle.SOFT_RECT_FADE
         }
       />
       <span
@@ -482,14 +481,14 @@ const InfoboxTypographyPanel = ({
 
 export const ANNOTATION_TYPOGRAPHY_ARGS: AnnotationTypographyStoryArgs = {
   typography: { ...typographyDefaults },
-  lineLabelTheme: ANNOTATION_THEME_STYLE.BRIGHT_ON_DARK,
+  lineLabelTheme: ANNOTATION_THEME.style.BRIGHT_ON_DARK,
 };
 
 export const ANNOTATION_TYPOGRAPHY_ARG_TYPES = {
   typography: { control: "object" },
   lineLabelTheme: {
     control: "inline-radio",
-    options: Object.values(ANNOTATION_THEME_STYLE),
+    options: Object.values(ANNOTATION_THEME.style),
   },
 } as const;
 

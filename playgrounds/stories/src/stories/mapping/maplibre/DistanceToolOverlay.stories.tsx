@@ -12,6 +12,7 @@ import { flushSync } from "react-dom";
 import {
   ANNOTATION_TYPES,
   ANNOTATION_LINE_COMPONENT_KINDS,
+  buildDistanceTriangleLineLabelReferences,
   formatMeasurementShortLabelToken,
   getAnnotationLineComponentCssColor,
   type AnnotationToolId,
@@ -40,8 +41,7 @@ import type {
 import {
   applyLineLabel,
   annotationLineLabelDefaults,
-  buildPreviewDistanceTriangleLabelReferences,
-  measurementVisualDefaults,
+  annotationVisualDefaults,
   PointMarkerOverlayShell,
   RUNTIME_POINT_LABEL_COORDINATE_SELECTION,
 } from "@carma-mapping/annotations/runtime";
@@ -101,7 +101,7 @@ const THREE_LAYER_ID = "carma-story-maplibre-distance-tool-three";
 const THREE_DRAFT_LAYER_ID = "carma-story-maplibre-distance-tool-three-draft";
 const GROUND_SOURCE_ID = "carma-story-maplibre-distance-tool-ground-source";
 const GROUND_LAYER_ID = "carma-story-maplibre-distance-tool-ground";
-const MEASUREMENT_LINE_WIDTH = measurementVisualDefaults.sizes.edgeStrokeWidth;
+const ANNOTATION_LINE_WIDTH = annotationVisualDefaults.sizes.edgeStrokeWidth;
 const AUTHORING_THREE_LINE_WIDTH_PX = 3;
 const MODEL_AXES_LENGTH_METERS = 40;
 const MEASUREMENT_DIRECT_COLOR = getAnnotationLineComponentCssColor(
@@ -150,7 +150,7 @@ type ThreeLayerSyncOptions = Pick<
   | "showBugaBridge"
   | "showModelAxes"
 > & {
-  selectedMeasurementId: string | null;
+  selectedAnnotationId: string | null;
   onProjectionSync?: (state: ThreeProjectionState) => void;
 };
 
@@ -554,10 +554,10 @@ const buildRuntimeVisualModels = ({
   setSelectedAnnotationId: (annotationId: string | null) => void;
 }) => {
   const distanceTool = createDistanceToolPlugin({
-    measurementLineStyleOptions: {
+    annotationLineStyleOptions: {
       strokeWidthPx: clampNumber(
         args.lineWidthPx,
-        MEASUREMENT_LINE_WIDTH,
+        ANNOTATION_LINE_WIDTH,
         0.5,
         6
       ),
@@ -798,7 +798,7 @@ const projectDistanceTriangleWithThreeProjection = (
     return null;
   }
 
-  const labelReferences = buildPreviewDistanceTriangleLabelReferences({
+  const labelReferences = buildDistanceTriangleLineLabelReferences({
     anchor,
     target,
     aux: auxiliary,
@@ -888,7 +888,7 @@ const projectPointLabelWithThreeProjection = (
 type DistanceToolThreeLayerConfig = {
   visualModels: RuntimeVisualModelsForStory;
   lineWidthPx: number;
-  selectedMeasurementId: string | null;
+  selectedAnnotationId: string | null;
   showThreePrimitives: boolean;
   showThreeVerticalDrops: boolean;
   showBugaBridge: boolean;
@@ -1216,7 +1216,7 @@ class DraftDistanceThreeLayer implements CustomLayerInterface {
       color: createThreeColor(MEASUREMENT_DIRECT_COLOR, "#ffffff").getHex(),
       linewidth: clampNumber(
         this.config.lineWidthPx,
-        MEASUREMENT_LINE_WIDTH,
+        ANNOTATION_LINE_WIDTH,
         0.5,
         6
       ),
@@ -1279,7 +1279,7 @@ const syncGroundLineLayer = (
     source: GROUND_SOURCE_ID,
     paint: {
       "line-color": MEASUREMENT_HORIZONTAL_COLOR,
-      "line-width": MEASUREMENT_LINE_WIDTH,
+      "line-width": ANNOTATION_LINE_WIDTH,
       "line-opacity": 0.68,
     },
   });
@@ -1305,8 +1305,8 @@ const syncThreeDistanceLayer = (
   map.addLayer(
     new DistanceToolThreeLayer({
       visualModels,
-      lineWidthPx: finiteNumber(options.lineWidthPx, MEASUREMENT_LINE_WIDTH),
-      selectedMeasurementId: options.selectedMeasurementId,
+      lineWidthPx: finiteNumber(options.lineWidthPx, ANNOTATION_LINE_WIDTH),
+      selectedAnnotationId: options.selectedAnnotationId,
       showThreePrimitives: options.showThreePrimitives === true,
       showThreeVerticalDrops: options.showThreeVerticalDrops === true,
       showBugaBridge: options.showBugaBridge === true,
@@ -1361,7 +1361,7 @@ const lineLabelStyle = (kind: "direct" | "vertical" | "horizontal") =>
       annotationLineLabelDefaults.text.fontFamily,
     "--carma-annotation-overlay-line-label-font-weight": `${annotationLineLabelDefaults.text.fontWeight}`,
     "--carma-annotation-overlay-line-label-glow-color":
-      measurementVisualDefaults.colors.componentLabelAccents[kind],
+      annotationVisualDefaults.colors.componentLabelAccents[kind],
   } as CssVariableProperties);
 
 const RuntimeLineLabel = ({
@@ -1509,17 +1509,17 @@ const RuntimePointLabelOverlay = ({
   pitch,
 }: {
   label: ProjectedPointLabel;
-  onSelect: (measurementId: string | null) => void;
+  onSelect: (annotationId: string | null) => void;
   pitch: Radians;
 }) => {
   const placement = resolvePointLabelPlacement(label.preferredAttach);
   const handleClick = () => {
     label.onClick?.();
-    onSelect(label.measurementId ?? null);
+    onSelect(label.annotationId ?? null);
   };
   const handleDoubleClick = () => {
     label.onDoubleClick?.();
-    onSelect(label.measurementId ?? null);
+    onSelect(label.annotationId ?? null);
   };
 
   return (
@@ -1570,17 +1570,17 @@ const DistanceToolOverlay = ({
   projectedModels,
   showRuntimeBadgeLabels,
   showDistanceTriangle,
-  onSelectMeasurement,
+  onSelectAnnotation,
   pitch,
 }: {
   lineWidthPx: number;
   projectedModels: ProjectedOverlayModels;
   showRuntimeBadgeLabels: boolean;
   showDistanceTriangle: boolean;
-  onSelectMeasurement: (measurementId: string | null) => void;
+  onSelectAnnotation: (annotationId: string | null) => void;
   pitch: Radians;
 }) => {
-  const dashPattern = measurementVisualDefaults.patterns.edgeDashPattern;
+  const dashPattern = annotationVisualDefaults.patterns.edgeDashPattern;
   const dashedEdges = projectedModels.edges.filter(
     (edge) => edge.overlayDashed
   );
@@ -1723,7 +1723,7 @@ const DistanceToolOverlay = ({
             <RuntimePointLabelOverlay
               key={label.id}
               label={label}
-              onSelect={onSelectMeasurement}
+              onSelect={onSelectAnnotation}
               pitch={pitch}
             />
           ))
@@ -1737,8 +1737,8 @@ const resolveOverlayStrokeWidth = (
   maxStrokeWidth: number
 ) =>
   Math.min(
-    clampNumber(strokeWidth, MEASUREMENT_LINE_WIDTH, 0.5, 6),
-    clampNumber(maxStrokeWidth, MEASUREMENT_LINE_WIDTH, 0.5, 6)
+    clampNumber(strokeWidth, ANNOTATION_LINE_WIDTH, 0.5, 6),
+    clampNumber(maxStrokeWidth, ANNOTATION_LINE_WIDTH, 0.5, 6)
   );
 
 type ProjectedDraftDistancePreview = {
@@ -1844,16 +1844,16 @@ const isScreenCoordinateInViewport = (
   point.y >= 0 &&
   point.y <= state.height;
 
-const buildOutsideEndpointMeasurementIds = (
+const buildOutsideEndpointAnnotationIds = (
   state: ThreeProjectionState,
   edges: readonly ProjectedRuntimeEdge[]
 ) => {
-  const measurementIds = new Set<string>();
+  const annotationIds = new Set<string>();
 
   edges.forEach((edge) => {
     const first = edge.screenCoordinates[0];
     const last = edge.screenCoordinates[edge.screenCoordinates.length - 1];
-    if (!edge.measurementId || !first || !last) {
+    if (!edge.annotationId || !first || !last) {
       return;
     }
 
@@ -1861,11 +1861,11 @@ const buildOutsideEndpointMeasurementIds = (
       !isScreenCoordinateInViewport(state, first) &&
       !isScreenCoordinateInViewport(state, last)
     ) {
-      measurementIds.add(edge.measurementId);
+      annotationIds.add(edge.annotationId);
     }
   });
 
-  return measurementIds;
+  return annotationIds;
 };
 
 const projectOverlayModelsWithThreeProjection = ({
@@ -1880,7 +1880,7 @@ const projectOverlayModelsWithThreeProjection = ({
   const edges = visualModels.edges
     .map((edge) => projectRuntimeEdgeWithThreeProjection(projectionState, edge))
     .filter((edge): edge is ProjectedRuntimeEdge => edge !== null);
-  const outsideEndpointMeasurementIds = buildOutsideEndpointMeasurementIds(
+  const outsideEndpointAnnotationIds = buildOutsideEndpointAnnotationIds(
     projectionState,
     edges
   );
@@ -1896,8 +1896,8 @@ const projectOverlayModelsWithThreeProjection = ({
     .filter((point): point is ProjectedPointMarker => point !== null)
     .filter(
       (point) =>
-        !point.measurementId ||
-        !outsideEndpointMeasurementIds.has(point.measurementId)
+        !point.annotationId ||
+        !outsideEndpointAnnotationIds.has(point.annotationId)
     );
   const pointLabels = visualModels.pointLabels
     .map((label) =>
@@ -1995,7 +1995,7 @@ const DistanceAuthoringOverlay = ({
   showDistanceTriangle,
   showDraftPreview,
   lineWidthPx,
-  onSelectMeasurement,
+  onSelectAnnotation,
 }: {
   map: MapLibreMap | null;
   projectionState: ThreeProjectionState | null;
@@ -2008,7 +2008,7 @@ const DistanceAuthoringOverlay = ({
   showDistanceTriangle: boolean;
   showDraftPreview: boolean;
   lineWidthPx: number;
-  onSelectMeasurement: (measurementId: string | null) => void;
+  onSelectAnnotation: (annotationId: string | null) => void;
 }) => {
   const projectedModels = useProjectedThreeOverlayModels({
     map,
@@ -2053,7 +2053,7 @@ const DistanceAuthoringOverlay = ({
     return null;
   }
 
-  const dashPattern = measurementVisualDefaults.patterns.edgeDashPattern;
+  const dashPattern = annotationVisualDefaults.patterns.edgeDashPattern;
   const dashedEdges = projectedEdges.filter((edge) => edge.overlayDashed);
   const triangleEdges = showDistanceTriangle
     ? projectedEdges.filter((edge) => edge.triangle)
@@ -2208,7 +2208,7 @@ const DistanceAuthoringOverlay = ({
         <RuntimePointLabelOverlay
           key={label.id}
           label={label}
-          onSelect={onSelectMeasurement}
+          onSelect={onSelectAnnotation}
           pitch={labelPitch}
         />
       ))}
@@ -2409,8 +2409,8 @@ const MapLibreDistanceToolScene = (args: MapLibreDistanceToolStoryArgs) => {
 
   const threeLayerOptions = useMemo<ThreeLayerSyncOptions>(
     () => ({
-      lineWidthPx: finiteNumber(args.lineWidthPx, MEASUREMENT_LINE_WIDTH),
-      selectedMeasurementId: selectedAnnotationId,
+      lineWidthPx: finiteNumber(args.lineWidthPx, ANNOTATION_LINE_WIDTH),
+      selectedAnnotationId: selectedAnnotationId,
       showThreePrimitives: args.showThreePrimitives === true,
       showThreeVerticalDrops: args.showThreeVerticalDrops === true,
       showBugaBridge: args.showBugaBridge === true,
@@ -2568,11 +2568,11 @@ const MapLibreDistanceToolScene = (args: MapLibreDistanceToolStoryArgs) => {
         <DistanceToolOverlay
           lineWidthPx={clampNumber(
             args.lineWidthPx,
-            MEASUREMENT_LINE_WIDTH,
+            ANNOTATION_LINE_WIDTH,
             0.5,
             6
           )}
-          onSelectMeasurement={setSelectedAnnotationId}
+          onSelectAnnotation={setSelectedAnnotationId}
           pitch={mapLibrePitchToCesiumPitchRad(
             mapInstance?.getPitch() ?? args.pitch
           )}
@@ -2862,7 +2862,7 @@ const MapLibreDistanceTerrainAuthoringScene = (
       return {
         anchorCoordinate,
         hoverCoordinate,
-        lineWidthPx: finiteNumber(args.lineWidthPx, MEASUREMENT_LINE_WIDTH),
+        lineWidthPx: finiteNumber(args.lineWidthPx, ANNOTATION_LINE_WIDTH),
       };
     }, [
       args.lineWidthPx,
@@ -2874,8 +2874,8 @@ const MapLibreDistanceTerrainAuthoringScene = (
 
   const threeLayerOptions = useMemo<ThreeLayerSyncOptions>(
     () => ({
-      lineWidthPx: finiteNumber(args.lineWidthPx, MEASUREMENT_LINE_WIDTH),
-      selectedMeasurementId: selectedAnnotationId,
+      lineWidthPx: finiteNumber(args.lineWidthPx, ANNOTATION_LINE_WIDTH),
+      selectedAnnotationId: selectedAnnotationId,
       showThreePrimitives: args.showThreePrimitives === true,
       showThreeVerticalDrops: args.showThreeVerticalDrops === true,
       showBugaBridge: args.showBugaBridge === true,
@@ -3136,12 +3136,12 @@ const MapLibreDistanceTerrainAuthoringScene = (
         hoverQuery={hoverQuery}
         lineWidthPx={clampNumber(
           args.lineWidthPx,
-          MEASUREMENT_LINE_WIDTH,
+          ANNOTATION_LINE_WIDTH,
           0.5,
           6
         )}
         map={mapInstance}
-        onSelectMeasurement={setSelectedAnnotationId}
+        onSelectAnnotation={setSelectedAnnotationId}
         projectionState={threeProjectionState}
         showDistanceTriangle={args.showDistanceTriangle}
         showDraftPreview={args.showDraftPreview}
@@ -3178,7 +3178,7 @@ const meta: Meta<MapLibreDistanceToolStoryArgs> = {
   title: "MapLibre Playground",
   render: (args) => <MapLibreDistanceToolStory {...args} />,
   args: {
-    lineWidthPx: MEASUREMENT_LINE_WIDTH,
+    lineWidthPx: ANNOTATION_LINE_WIDTH,
     showThreePrimitives: true,
     showThreeVerticalDrops: false,
     showGroundReference: false,
@@ -3203,7 +3203,7 @@ const meta: Meta<MapLibreDistanceToolStoryArgs> = {
     lineWidthPx: {
       control: { type: "range", min: 0.5, max: 6, step: 0.5 },
       description:
-        "Distance tool measurementLineStyleOptions.strokeWidthPx; used by the runtime edge model and overlay.",
+        "Distance tool annotationLineStyleOptions.strokeWidthPx; used by the runtime edge model and overlay.",
       table: { category: CONTROL_CATEGORY_LINE },
     },
     showThreePrimitives: {

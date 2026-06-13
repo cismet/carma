@@ -22,10 +22,7 @@ import {
 } from "@carma-providers/label-overlay";
 import { MINUS_PI_OVER_FOUR } from "@carma-commons/math";
 import {
-  ANNOTATION_LINE_LABEL_BACKGROUND_STYLE,
-  ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE,
-  ANNOTATION_MEASUREMENT_TEXT_COLOR,
-  ANNOTATION_THEME_STYLE,
+  ANNOTATION_THEME,
   resolveStoredAnnotationLabelTheme,
   typographyDefaults,
   type StoredAnnotationQualitativeColorScheme,
@@ -99,7 +96,7 @@ const toCssPixelPosition = (x: number, y: number): CssPixelPosition => ({
 const LABEL_MARKERS_FONT_FAMILY = typographyDefaults.fontFamily;
 const REPRESENTATIVE_CONTENT_FONT_WEIGHT = 400;
 const REPRESENTATIVE_BADGE_FONT_WEIGHT = typographyDefaults.badgeFontWeight;
-const REPRESENTATIVE_TEXT_COLOR = ANNOTATION_MEASUREMENT_TEXT_COLOR;
+const REPRESENTATIVE_TEXT_COLOR = ANNOTATION_THEME.label.textColor;
 
 const toRepresentativePillColorScheme = (
   colorScheme: StoredAnnotationQualitativeColorScheme
@@ -121,9 +118,9 @@ const REPRESENTATIVE_DEFAULT_COLOR_SCHEME: QualitativePillColorScheme = {
 
 const REPRESENTATIVE_SELECTED_COLOR_SCHEME = {
   labelBackgroundColor:
-    ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE.backgroundColor,
+    ANNOTATION_THEME.selection.highlightPalette.backgroundColor,
   hoverBackgroundColor:
-    ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE.hoverBackgroundColor,
+    ANNOTATION_THEME.selection.highlightPalette.hoverBackgroundColor,
   lineColor: REPRESENTATIVE_DEFAULT_COLOR_SCHEME.lineColor,
 } as const;
 
@@ -141,15 +138,13 @@ const REPRESENTATIVE_SELECTION_VARIANT: RepresentativeSelectionVariant = {
   id: "dark-chip-white-light",
   label: "dark chip · white light",
   selectedBackgroundColor:
-    ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE.backgroundColor,
-  selectedTextColor:
-    ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE.textColor,
-  selectedGlowColor:
-    ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE.glowColor,
+    ANNOTATION_THEME.selection.highlightPalette.backgroundColor,
+  selectedTextColor: ANNOTATION_THEME.selection.highlightPalette.textColor,
+  selectedGlowColor: ANNOTATION_THEME.selection.highlightPalette.glowColor,
   selectedGlowRadiusPx:
-    ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE.glowRadiusPx,
+    ANNOTATION_THEME.selection.highlightPalette.glowRadiusPx,
   preserveFillOnSelection:
-    ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE.preserveFillOnSelection,
+    ANNOTATION_THEME.selection.highlightPalette.preserveFillOnSelection,
 };
 
 const REPRESENTATIVE_QUALITATIVE_COLOR_SCHEMES: readonly QualitativePillColorScheme[] =
@@ -492,14 +487,12 @@ const makeSharedStyleProps = (
   textBackgroundColor: args.labelBackgroundColor,
   selectedBackgroundColor:
     REPRESENTATIVE_SELECTED_COLOR_SCHEME.labelBackgroundColor,
-  selectedTextColor:
-    ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE.textColor,
-  selectedGlowColor:
-    ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE.glowColor,
+  selectedTextColor: ANNOTATION_THEME.selection.highlightPalette.textColor,
+  selectedGlowColor: ANNOTATION_THEME.selection.highlightPalette.glowColor,
   selectedGlowRadiusPx:
-    ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE.glowRadiusPx,
+    ANNOTATION_THEME.selection.highlightPalette.glowRadiusPx,
   preserveFillOnSelection:
-    ANNOTATION_MEASUREMENT_SELECTED_HIGHLIGHT_PALETTE.preserveFillOnSelection,
+    ANNOTATION_THEME.selection.highlightPalette.preserveFillOnSelection,
   hoverBackgroundColor:
     REPRESENTATIVE_SELECTED_COLOR_SCHEME.hoverBackgroundColor,
   lineColor: REPRESENTATIVE_DEFAULT_COLOR_SCHEME.lineColor,
@@ -1241,7 +1234,7 @@ const RepresentativeLineLabelDemo = ({
     <div
       className="carma-annotation-overlay-line-label"
       data-annotation-overlay-line-label-theme={
-        ANNOTATION_THEME_STYLE.BRIGHT_ON_DARK
+        ANNOTATION_THEME.style.BRIGHT_ON_DARK
       }
       style={
         {
@@ -1262,7 +1255,7 @@ const RepresentativeLineLabelDemo = ({
           <span
             className="carma-annotation-overlay-line-label__backdrop"
             data-annotation-overlay-line-label-background-style={
-              ANNOTATION_LINE_LABEL_BACKGROUND_STYLE.SOFT_RECT_FADE
+              ANNOTATION_THEME.lineLabel.backgroundStyle.SOFT_RECT_FADE
             }
           />
         ) : null}
@@ -2067,7 +2060,7 @@ export const LabelBackgroundsStory = (args: LabelMarkersStoryArgs) => {
         <div
           className="carma-annotation-overlay-line-label"
           data-annotation-overlay-line-label-theme={
-            ANNOTATION_THEME_STYLE.BRIGHT_ON_DARK
+            ANNOTATION_THEME.style.BRIGHT_ON_DARK
           }
           style={
             {
@@ -2087,7 +2080,7 @@ export const LabelBackgroundsStory = (args: LabelMarkersStoryArgs) => {
             <span
               className="carma-annotation-overlay-line-label__backdrop"
               data-annotation-overlay-line-label-background-style={
-                ANNOTATION_LINE_LABEL_BACKGROUND_STYLE.SOFT_RECT_FADE
+                ANNOTATION_THEME.lineLabel.backgroundStyle.SOFT_RECT_FADE
               }
             />
             <span
