@@ -1,5 +1,4 @@
 import React, {
-  createContext,
   useEffect,
   useState,
   ReactNode,
@@ -9,93 +8,27 @@ import React, {
 } from "react";
 import debounce from "lodash/debounce";
 
-import type { FeatureCollection, Polygon } from "geojson";
-
 import { useSelection } from "@carma-appframeworks/portals";
 
 import { useHashState } from "@carma-providers/hash-state";
 
-import type { Radians } from "@carma-geo/data-structures";
-
+import { ObliqueContext } from "../context/ObliqueContext";
 import type {
-  ExteriorOrientations,
   NearestObliqueImageRecord,
-  ObliqueAnimationsConfig,
   ObliqueDataProviderConfig,
-  ObliqueFootprintsStyle,
-  ObliqueImagePreviewStyle,
-  ObliqueImageRecordMap,
-  Proj4Converter,
 } from "../types";
 
 import { useObliqueData } from "../hooks/useObliqueData";
 import { useCesiumContext } from "@carma-mapping/engines/cesium/legacy";
 
-import { FootprintProperties } from "../utils/footprintUtils";
-import { RBushBySectorBlocks } from "../utils/spatialIndexing";
 import type { CardinalDirectionEnum } from "../utils/orientationUtils";
 
-import { OBLIQUE_PREVIEW_QUALITY } from "../constants";
 import { createConverter } from "../utils/crsUtils";
 import { prefetchSiblingPreviewFor } from "../utils/prefetch";
 import { useKnownSiblings } from "../hooks/useKnownSiblings";
 
 const DEBOUNCE_MS = 250; // time in milliseconds
 const DEBOUNCE_LEADING_EDGE = { leading: true, trailing: false };
-
-interface ObliqueContextType {
-  isObliqueMode: boolean;
-  toggleObliqueMode: () => void;
-  converter: Proj4Converter;
-
-  isPreviewVisible: boolean;
-  setPreviewVisible: (visible: boolean) => void;
-
-  imageRecords: ObliqueImageRecordMap | null;
-  exteriorOrientations: ExteriorOrientations | null;
-  footprintData: FeatureCollection<Polygon, FootprintProperties> | null;
-  footprintCenterpointsRBushByCardinals: RBushBySectorBlocks | null;
-
-  selectedImage: NearestObliqueImageRecord | null;
-  setSelectedImage: (image: NearestObliqueImageRecord | null) => void;
-  selectedImageDistanceRef: React.MutableRefObject<number | null>;
-  lockFootprint: boolean;
-  setLockFootprint: (value: boolean) => void;
-  suspendSelectionSearch: boolean;
-  setSuspendSelectionSearch: (value: boolean) => void;
-
-  isLoading: boolean;
-  isAllDataReady: boolean;
-  error: string | null;
-
-  previewQualityLevel: OBLIQUE_PREVIEW_QUALITY;
-  downloadQualityLevel?: OBLIQUE_PREVIEW_QUALITY;
-  previewPath: string;
-  fixedPitch: number;
-  fixedHeight: number;
-  minFov: Radians;
-  maxFov: Radians;
-  targetEnterObliqueModeFov?: Radians;
-  restoreFovOnLeave?: Radians;
-  headingOffset: number;
-
-  animations: ObliqueAnimationsConfig;
-  footprintsStyle: ObliqueFootprintsStyle;
-  imagePreviewStyle: ObliqueImagePreviewStyle;
-
-  // Known sibling lookup after visiting images
-  knownSiblingIds: Record<
-    string,
-    Partial<Record<CardinalDirectionEnum, string>>
-  >;
-  prefetchSiblingPreview: (imageId: string, dir: CardinalDirectionEnum) => void;
-  // Optional override for heading used in nearest-image computation (radians). One-shot.
-  requestedHeadingRef: React.MutableRefObject<number | null>;
-}
-
-const ObliqueContext = createContext<ObliqueContextType | null>(null);
-
-export { ObliqueContext };
 
 interface ObliqueProviderProps {
   children: ReactNode;

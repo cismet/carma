@@ -1,6 +1,4 @@
 import {
-  createContext,
-  ReactNode,
   useCallback,
   useContext,
   useEffect,
@@ -8,26 +6,17 @@ import {
   useRef,
   useState,
 } from "react";
+import type { ReactNode } from "react";
 
+import { defaultGazDataConfig } from "@carma-commons/resources";
 import { md5FetchText } from "@carma-commons/utils";
 import {
   type GazDataConfig,
   type GazDataItem,
   getGazData,
 } from "@carma-mapping/fuzzy-search";
-import { defaultGazDataConfig } from "@carma-commons/resources";
 
-interface GazDataContextType {
-  gazData: GazDataItem[];
-  crs: string;
-  isLoading: boolean;
-  error: Error | null;
-  landParcelData: Record<string, unknown> | undefined;
-  landParcelLoading: boolean;
-  loadLandParcelData: () => void;
-}
-
-const GazDataContext = createContext<GazDataContextType | undefined>(undefined);
+import { GazDataContext } from "./GazDataContext";
 
 interface GazDataProviderProps {
   children: ReactNode;

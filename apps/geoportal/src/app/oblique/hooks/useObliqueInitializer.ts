@@ -37,6 +37,7 @@ export function useObliqueInitializer(debug = false) {
 
   // Derived scene ref for useCesiumCameraForceOblique
   const sceneRef = useRef<Scene | null>(null);
+  const lastHandledObliqueModeRef = useRef<boolean | null>(null);
   const scene = getScene();
   sceneRef.current = scene;
 
@@ -94,6 +95,11 @@ export function useObliqueInitializer(debug = false) {
 
     const scene = getScene();
     if (scene) {
+      const lastHandledObliqueMode = lastHandledObliqueModeRef.current;
+      const shouldLeaveObliqueMode =
+        !isObliqueMode && lastHandledObliqueMode === true;
+      lastHandledObliqueModeRef.current = isObliqueMode;
+
       const requestRender = (opts?: { delay?: number; repeat?: number }) =>
         handleDelayedRender(() => scene.requestRender(), opts);
 
@@ -137,7 +143,7 @@ export function useObliqueInitializer(debug = false) {
             }
           );
         }
-      } else {
+      } else if (shouldLeaveObliqueMode) {
         debug && console.debug("leaving Oblique Mode");
         setTransitionLimitersSuspended(true);
         leaveObliqueMode(

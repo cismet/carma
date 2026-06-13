@@ -1,6 +1,7 @@
 import {
   createElement,
   CSSProperties,
+  useContext,
   useEffect,
   useRef,
   useState,
@@ -11,6 +12,7 @@ import type maplibregl from "maplibre-gl";
 import centroid from "@turf/centroid";
 
 import CismapLayer from "react-cismap/CismapLayer";
+import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import type { Layer } from "@carma-mapping/layers";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
@@ -79,8 +81,23 @@ interface VectorLayerProps {
   onMapLibreCoreMapReady?: (map: any) => void;
 }
 
-const createCismapLayer = (props: WMTSLayerProps | VectorLayerProps) => {
+const CismapLayerWhenLeafletReady = (
+  props: WMTSLayerProps | VectorLayerProps
+) => {
+  const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
+
+  if (
+    props.additionalLayerUniquePane &&
+    !routedMapRef?.leafletMap?.leafletElement
+  ) {
+    return null;
+  }
+
   return createElement(CismapLayer, props);
+};
+
+const createCismapLayer = (props: WMTSLayerProps | VectorLayerProps) => {
+  return createElement(CismapLayerWhenLeafletReady, props);
 };
 
 export const useCreateCismapLayers = (
@@ -100,7 +117,7 @@ export const useCreateCismapLayers = (
     dispatch: Dispatch;
     zoom: number;
     selectedFeature: any;
-    leafletMap: LeafletMap;
+    leafletMap?: LeafletMap | null;
     maplibreMapsRef?: React.MutableRefObject<Map<string, any>>;
     store: Store;
     selectionSemanticIdentifierRef?: React.MutableRefObject<string | undefined>;
@@ -249,7 +266,7 @@ export const useCreateCismapLayers = (
         );
         if (selectedVectorFeature.setSelection) {
           selectedVectorFeature.setSelection(true);
-          if (selectedVectorFeature?.state?.selected) {
+          if (selectedVectorFeature?.state?.selected && leafletMap) {
             utils.zoomToFeature({
               selectedFeature: foundFeatures[lastObject.key],
               leafletMap,
