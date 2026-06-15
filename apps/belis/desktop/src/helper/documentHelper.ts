@@ -1,5 +1,4 @@
-// const SECRES_BASE_URL = "https://belis-mobile-api.cismet.de/secres";
-const SECRES_BASE_URL = "https://belis-cloud.cismet.de/belis2/api/secres";
+import { SECRES_BASE_URL } from "../constants/belis";
 
 export const getSecureDocumentUrl = (
   jwt: string,

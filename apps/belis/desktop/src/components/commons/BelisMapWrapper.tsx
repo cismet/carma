@@ -32,7 +32,6 @@ import {
   brandNewDataLayer,
   BELIS_STYLE_URL,
   BELIS_BRAND_NEW_STYLE_URL,
-  BELIS_BRAND_NEW_FC_URL,
   BELIS_ORIGINAL_SOURCE,
   BELIS_SOURCE_LAYERS,
   AA_LAYER_STYLES,
@@ -117,6 +116,7 @@ import { protocolsLayers as protocolsLayersNew } from "../../config/protocolsLay
 import {
   MINI_MAP_TARGET_ZOOM,
   MINI_MAP_TRANSITION_MS,
+  BELIS_BRAND_NEW_FC_URL,
 } from "../../constants/belis";
 
 // Toggle between the preliminary debug layer styles and the new protocols styles.

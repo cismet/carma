@@ -3,6 +3,26 @@ import { gql } from "graphql-request";
 export const REST_SERVICE =
   import.meta.env.VITE_REST_SERVICE || "https://belis-cloud-api.cismet.de";
 
+// RxDB offline-actions sync endpoints (Hasura GraphQL, http + websocket).
+export const SYNC_HTTP_URL =
+  import.meta.env.VITE_BELIS_DESKTOP_SYNC_HTTP_URL ||
+  "https://offline-actions-belis-cloud.cismet.de/v1/graphql";
+export const SYNC_WS_URL =
+  import.meta.env.VITE_BELIS_DESKTOP_SYNC_WS_URL ||
+  "wss://offline-actions-belis-cloud.cismet.de/v1/graphql";
+
+// Secure document store (read-only: preview/download of attachments).
+export const SECRES_BASE_URL =
+  import.meta.env.VITE_BELIS_DESKTOP_SECRES_URL ||
+  "https://belis-cloud.cismet.de/belis2/api/secres";
+
+// "Brand new"/updated features GeoJSON: same-day creations not yet in the main
+// vector tiles. Default (dev) serves brand.new.features.json; live sets the env
+// var to updated.features.json. The `.md5` sidecar is derived from this URL.
+export const BELIS_BRAND_NEW_FC_URL =
+  import.meta.env.VITE_BELIS_DESKTOP_BRAND_NEW_FC_URL ||
+  "https://tiles.cismet.de/belis/brand.new.features.json";
+
 export const DOMAIN = "BELIS2";
 export const ENDPOINT = REST_SERVICE + `/graphql/` + DOMAIN + "/execute";
 export const SAVE_ENDPOINT =

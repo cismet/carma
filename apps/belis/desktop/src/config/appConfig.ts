@@ -1,48 +1,28 @@
 /**
  * Application Configuration for Belis Desktop
  *
- * All configuration values have sensible defaults.
- * Environment variables can override defaults if needed.
+ * Backend service URLs are centralized in `constants/belis.ts` (single source
+ * of truth, env-overridable). This file only assembles the consumer-facing
+ * config objects that reuse them.
  */
 
+import { SYNC_HTTP_URL, SYNC_WS_URL } from "../constants/belis";
+
 export const APP_CONFIG = {
-  // REST Service URL
-  restService:
-    import.meta.env.VITE_BELIS_DESKTOP_REST_SERVICE ||
-    "https://belis-cloud-api.cismet.de",
-
-  // Auth Domain
-  domain: import.meta.env.VITE_BELIS_DESKTOP_DOMAIN || "BELIS2",
-
-  // GraphQL Endpoint (computed from restService + domain)
-  get endpoint() {
-    const base = this.restService.endsWith("/")
-      ? this.restService
-      : this.restService + "/";
-    return `${base}graphql/${this.domain}/execute`;
-  },
-
-  // RxDB Sync Configuration
+  // RxDB Sync Configuration (URLs sourced from constants/belis.ts)
   sync: {
-    httpUrl:
-      import.meta.env.VITE_BELIS_DESKTOP_SYNC_HTTP_URL ||
-      "https://offline-actions-belis-cloud.cismet.de/v1/graphql",
-    wsUrl:
-      import.meta.env.VITE_BELIS_DESKTOP_SYNC_WS_URL ||
-      "wss://offline-actions-belis-cloud.cismet.de/v1/graphql",
+    httpUrl: SYNC_HTTP_URL,
+    wsUrl: SYNC_WS_URL,
     appId: "belis-desktop",
     dbVersion: "v2",
   },
 };
 
 /**
- * Environment Variables (optional overrides):
+ * Environment Variables (optional overrides, defined in constants/belis.ts):
  *
- * VITE_BELIS_DESKTOP_REST_SERVICE - REST API URL (default: https://belis-cloud-api.cismet.de)
- * VITE_BELIS_DESKTOP_DOMAIN - Auth domain (default: BELIS2)
+ * VITE_REST_SERVICE                - REST API URL (default: https://belis-cloud-api.cismet.de)
  * VITE_BELIS_DESKTOP_SYNC_HTTP_URL - Sync HTTP endpoint
- * VITE_BELIS_DESKTOP_SYNC_WS_URL - Sync WebSocket endpoint
- *
- * Computed values:
- * - endpoint: Automatically built from restService + domain
+ * VITE_BELIS_DESKTOP_SYNC_WS_URL   - Sync WebSocket endpoint
+ * VITE_BELIS_DESKTOP_SECRES_URL    - Secure document store base URL
  */
