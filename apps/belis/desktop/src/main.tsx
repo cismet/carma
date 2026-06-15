@@ -60,7 +60,7 @@ const DevDeploymentBorder = () => {
         right: 0,
         bottom: 0,
         left: 0,
-        border: "6px solid #eab308",
+        border: "3px solid #eab308",
         pointerEvents: "none", // don't intercept clicks/interactions
         boxSizing: "border-box",
         zIndex: 999999,

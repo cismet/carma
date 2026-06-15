@@ -124,7 +124,7 @@ const TopNavbar = () => {
   return (
     <div className="relative flex items-center mx-3 mb-4 mt-3">
       {!isLiveVersion && (
-        <span className="absolute left-1/2 -translate-x-1/2 inline-flex items-center px-2.5 py-0.5 text-[10px] font-medium text-gray-500 whitespace-nowrap pointer-events-none">
+        <span className="absolute left-1/2 -translate-x-1/2 text-[11px] font-medium tracking-wide text-gray-400 whitespace-nowrap pointer-events-none">
           Entwicklungsversion – {getApplicationVersion(versionData)}
         </span>
       )}
