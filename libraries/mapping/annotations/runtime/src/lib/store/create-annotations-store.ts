@@ -79,6 +79,8 @@ export type UpdateAnnotationEntryByIdPayload = {
   annotationId: string;
   displayName?: string;
   shortLabel?: string;
+  shortLabelSource?: StoredAnnotation["shortLabelSource"];
+  shortLabelCounter?: StoredAnnotation["shortLabelCounter"];
   hidden?: boolean;
   locked?: boolean;
   annotationRole?: StoredAnnotation["annotationRole"];
@@ -601,6 +603,8 @@ const annotationsSlice = createSlice({
         annotationId,
         displayName,
         shortLabel,
+        shortLabelSource,
+        shortLabelCounter,
         hidden,
         locked,
         annotationRole,
@@ -623,6 +627,14 @@ const annotationsSlice = createSlice({
 
       if (shortLabel !== undefined) {
         targetEntry.shortLabel = shortLabel;
+      }
+
+      if (shortLabelSource !== undefined) {
+        targetEntry.shortLabelSource = shortLabelSource;
+      }
+
+      if (shortLabelCounter !== undefined) {
+        targetEntry.shortLabelCounter = shortLabelCounter;
       }
 
       if (hidden !== undefined) {

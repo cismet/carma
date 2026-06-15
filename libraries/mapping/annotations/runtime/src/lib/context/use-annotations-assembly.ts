@@ -18,6 +18,7 @@ import {
   type AppendAnnotationsRuntimePersistenceStateOptions,
 } from "../utils/annotation-tool-collections";
 import {
+  ANNOTATION_SHORT_LABEL_SOURCES,
   appendAnnotationEntities,
   buildAnnotationsRuntimeGeoJsonFeatureCollection,
   buildAnnotationsRuntimePersistenceState,
@@ -697,6 +698,7 @@ export const useAnnotationsAssembly = ({
         updateAnnotationEntryById({
           annotationId,
           shortLabel: shortLabel.trim(),
+          shortLabelSource: ANNOTATION_SHORT_LABEL_SOURCES.CUSTOM,
         })
       );
     },
@@ -794,11 +796,19 @@ export const useAnnotationsAssembly = ({
           annotationEntries: runtimeStateBeforeInsert.annotationEntries,
           toolType,
         });
+        const resolvedShortLabel = resolvedOptions?.shortLabel?.trim();
         resolvedOptions = {
           ...resolvedOptions,
           shortLabel:
-            resolvedOptions?.shortLabel?.trim() ||
+            resolvedShortLabel ||
             formatMeasurementShortLabelToken(toolType, nextShortLabelCounter),
+          shortLabelSource: resolvedShortLabel
+            ? resolvedOptions?.shortLabelSource ??
+              ANNOTATION_SHORT_LABEL_SOURCES.CUSTOM
+            : ANNOTATION_SHORT_LABEL_SOURCES.DEFAULT,
+          shortLabelCounter: resolvedShortLabel
+            ? resolvedOptions?.shortLabelCounter
+            : nextShortLabelCounter,
         };
       }
 

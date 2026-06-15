@@ -39,6 +39,14 @@ export const ANNOTATION_ENTRY_ROLES = {
 export type AnnotationEntryRole =
   (typeof ANNOTATION_ENTRY_ROLES)[keyof typeof ANNOTATION_ENTRY_ROLES];
 
+export const ANNOTATION_SHORT_LABEL_SOURCES = {
+  DEFAULT: "default",
+  CUSTOM: "custom",
+} as const;
+
+export type AnnotationShortLabelSource =
+  (typeof ANNOTATION_SHORT_LABEL_SOURCES)[keyof typeof ANNOTATION_SHORT_LABEL_SOURCES];
+
 export const ANNOTATION_ELEVATION_DISPLAY_MODES = {
   RELATIVE: "relative",
   ABSOLUTE: "absolute",
@@ -54,6 +62,8 @@ export type StoredAnnotation = {
   edgeIds: readonly string[];
   displayName?: string;
   shortLabel?: string;
+  shortLabelSource?: AnnotationShortLabelSource;
+  shortLabelCounter?: number;
   hidden?: boolean;
   locked?: boolean;
   annotationRole?: AnnotationEntryRole;
@@ -76,6 +86,8 @@ export type AddAnnotationOptions = Pick<
   | "preferredNormalBearingRad"
   | "displayName"
   | "shortLabel"
+  | "shortLabelSource"
+  | "shortLabelCounter"
   | "hidden"
   | "locked"
   | "labelAppearance"

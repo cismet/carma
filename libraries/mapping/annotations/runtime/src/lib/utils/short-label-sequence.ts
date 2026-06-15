@@ -1,12 +1,12 @@
 import {
-  ANNOTATION_SHORT_LABEL_COUNTER_STYLES,
-  DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG,
   formatMeasurementShortLabelToken,
-  fromAlphabeticSequence,
   type AnnotationType,
   ANNOTATION_TYPES,
 } from "@carma-mapping/annotations/core";
-import type { StoredAnnotation } from "../store/annotations-store.types";
+import {
+  ANNOTATION_SHORT_LABEL_SOURCES,
+  type StoredAnnotation,
+} from "../store/annotations-store.types";
 const {
   AREA_GROUND: ANNOTATION_TYPE_AREA_GROUND,
   AREA_PLANAR: ANNOTATION_TYPE_AREA_PLANAR,
@@ -32,53 +32,66 @@ export const isShortLabelKind = (
 ): toolType is AnnotationType =>
   RUNTIME_SHORT_LABEL_KINDS.has(toolType as AnnotationType);
 
-const parseShortLabelCounter = (
-  kind: AnnotationType,
-  shortLabel: string | undefined
+const resolveDefaultShortLabelCounter = (
+  annotationEntry: StoredAnnotation
 ): number | null => {
-  const normalizedShortLabel = shortLabel?.trim();
-  if (!normalizedShortLabel) {
+  if (
+    annotationEntry.shortLabelSource === ANNOTATION_SHORT_LABEL_SOURCES.CUSTOM
+  ) {
     return null;
   }
 
-  const config = DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG[kind];
-  if (!normalizedShortLabel.startsWith(config.prefix)) {
-    return null;
-  }
-
-  const counterToken = normalizedShortLabel.slice(config.prefix.length).trim();
-  if (!counterToken) {
-    return null;
-  }
-
-  if (config.counterStyle === ANNOTATION_SHORT_LABEL_COUNTER_STYLES.NUMERIC) {
-    const value = Number.parseInt(counterToken, 10);
-    return Number.isFinite(value) && value > 0 ? value : null;
-  }
-
-  const zeroBasedValue = fromAlphabeticSequence(counterToken);
-  return zeroBasedValue === null ? null : zeroBasedValue + 1;
+  const counter = annotationEntry.shortLabelCounter;
+  return typeof counter === "number" && Number.isFinite(counter) && counter > 0
+    ? Math.floor(counter)
+    : null;
 };
 
-export const resolveNextShortLabelCounterByToolType = (
+const resolveNextFreeShortLabelCounter = (
+  usedCounters: ReadonlySet<number> | undefined
+): number => {
+  let nextCounter = 1;
+  while (usedCounters?.has(nextCounter)) {
+    nextCounter += 1;
+  }
+  return nextCounter;
+};
+
+const resolveUsedShortLabelCountersByToolType = (
   annotationEntries: readonly StoredAnnotation[]
-): Record<string, number> => {
-  const nextCounterByToolType: Record<string, number> = {};
+): Record<string, Set<number>> => {
+  const usedCountersByToolType: Record<string, Set<number>> = {};
 
   for (const annotationEntry of annotationEntries) {
     if (!isShortLabelKind(annotationEntry.toolType)) {
       continue;
     }
 
-    const counter =
-      parseShortLabelCounter(
-        annotationEntry.toolType,
-        annotationEntry.shortLabel
-      ) ?? 1;
-    nextCounterByToolType[annotationEntry.toolType] = Math.max(
-      nextCounterByToolType[annotationEntry.toolType] ?? 1,
-      counter + 1
+    const counter = resolveDefaultShortLabelCounter(annotationEntry);
+    if (counter === null) {
+      continue;
+    }
+
+    (usedCountersByToolType[annotationEntry.toolType] ??= new Set()).add(
+      counter
     );
+  }
+
+  return usedCountersByToolType;
+};
+
+export const resolveNextShortLabelCounterByToolType = (
+  annotationEntries: readonly StoredAnnotation[]
+): Record<string, number> => {
+  const usedCountersByToolType =
+    resolveUsedShortLabelCountersByToolType(annotationEntries);
+  const nextCounterByToolType: Record<string, number> = {};
+
+  for (const [toolType, usedCounters] of Object.entries(
+    usedCountersByToolType
+  )) {
+    nextCounterByToolType[toolType] =
+      resolveNextFreeShortLabelCounter(usedCounters);
   }
 
   return nextCounterByToolType;
@@ -103,8 +116,8 @@ export const resolveNextShortLabelCounterForToolType = ({
 export const normalizeAnnotationShortLabels = (
   annotationEntries: readonly StoredAnnotation[]
 ): readonly StoredAnnotation[] => {
-  const nextCounterByToolType =
-    resolveNextShortLabelCounterByToolType(annotationEntries);
+  const usedCountersByToolType =
+    resolveUsedShortLabelCountersByToolType(annotationEntries);
 
   return annotationEntries.map((annotationEntry) => {
     if (
@@ -114,8 +127,11 @@ export const normalizeAnnotationShortLabels = (
       return annotationEntry;
     }
 
-    const nextCounter = nextCounterByToolType[annotationEntry.toolType] ?? 1;
-    nextCounterByToolType[annotationEntry.toolType] = nextCounter + 1;
+    const usedCounters =
+      usedCountersByToolType[annotationEntry.toolType] ?? new Set<number>();
+    usedCountersByToolType[annotationEntry.toolType] = usedCounters;
+    const nextCounter = resolveNextFreeShortLabelCounter(usedCounters);
+    usedCounters.add(nextCounter);
 
     return {
       ...annotationEntry,
@@ -123,6 +139,8 @@ export const normalizeAnnotationShortLabels = (
         annotationEntry.toolType,
         nextCounter
       ),
+      shortLabelSource: ANNOTATION_SHORT_LABEL_SOURCES.DEFAULT,
+      shortLabelCounter: nextCounter,
     };
   });
 };

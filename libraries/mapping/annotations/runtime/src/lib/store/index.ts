@@ -10,9 +10,11 @@ export {
 export {
   ANNOTATION_ENTRY_ROLES,
   ANNOTATION_ELEVATION_DISPLAY_MODES,
+  ANNOTATION_SHORT_LABEL_SOURCES,
   type AnnotationsStoreState,
   type AnnotationEntryRole,
   type AnnotationElevationDisplayMode,
+  type AnnotationShortLabelSource,
   type AnnotationLabelAppearance,
   type CesiumGeographicCoordinate,
   type AddAnnotationOptions,
