@@ -7,11 +7,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { storeJWT, storeLogin, storePermissions } from "../../store/slices/auth";
 import { resetKeyTablesFetched } from "../../store/slices/keyTables";
 import { DOMAIN, REST_SERVICE } from "../../constants/belis";
-import {
-  useDeployment,
-  Deployment,
-  getApplicationVersion,
-} from "@carma-commons/utils";
+import { getApplicationVersion } from "@carma-commons/utils";
 import versionData from "../../version.json";
 
 export const background = "belis_background_iStock-139701369_blurred.jpg";
@@ -29,9 +25,11 @@ const Login = () => {
   const navigate = useNavigate();
   const [loginInfo, setLoginInfo] = useState<LoginInfo | null>(null);
 
-  const deployment = useDeployment();
-  const isDevDeployment =
-    deployment !== Deployment.LIVE && deployment !== null;
+  // Show the dev marker whenever this is not a live build. The live build is
+  // stamped with `triggered: "live"` in version.json (same signal used by
+  // getApplicationVersion); everything else (local dev, dev/PR builds) is dev.
+  const isLiveVersion =
+    (versionData as { triggered?: string | null }).triggered === "live";
 
   const windowHeight = windowSize[1];
 
@@ -155,7 +153,7 @@ const Login = () => {
         >
           BelIS-Desktop
         </h1>
-        {isDevDeployment && (
+        {!isLiveVersion && (
           <div
             className="text-left whitespace-nowrap"
             style={{ color: "black", opacity: 0.5, paddingLeft: 25, marginTop: -8 }}

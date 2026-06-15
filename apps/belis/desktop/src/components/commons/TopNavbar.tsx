@@ -13,7 +13,6 @@ import { NavLink, useNavigate } from "react-router-dom";
 import SettingsUi from "../ui/SettingsUi";
 import SyncMenuModal from "../ui/SyncMenuModal";
 import { useMapHighlight } from "@carma-mapping/engines/maplibre";
-import { useDeployment, Deployment } from "@carma-commons/utils";
 import { getApplicationVersion } from "@carma-commons/utils";
 import versionData from "../../version.json";
 import { useMapPage } from "../../contexts/MapPageContext";
@@ -51,9 +50,11 @@ const TopNavbar = () => {
   > | null;
   const draftMode = useSelector(getDraftMode) as boolean;
 
-  const deployment = useDeployment();
-  const isDevDeployment =
-    deployment !== Deployment.LIVE && deployment !== null;
+  // Show the dev marker whenever this is not a live build (stamped with
+  // `triggered: "live"` in version.json — the same signal getApplicationVersion
+  // uses). Everything else (local dev, dev/PR builds) counts as dev.
+  const isLiveVersion =
+    (versionData as { triggered?: string | null }).triggered === "live";
 
   const isOnAAPage = config.sidebarVariant === "arbeitsauftraege";
   const canAddToExistingAA =
@@ -122,7 +123,7 @@ const TopNavbar = () => {
 
   return (
     <div className="relative flex items-center mx-3 mb-4 mt-3">
-      {isDevDeployment && (
+      {!isLiveVersion && (
         <span className="absolute left-1/2 -translate-x-1/2 inline-flex items-center px-2.5 py-0.5 text-[10px] font-medium text-gray-500 whitespace-nowrap pointer-events-none">
           Entwicklungsversion – {getApplicationVersion(versionData)}
         </span>
