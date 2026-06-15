@@ -521,7 +521,7 @@ export const PointLabel = React.memo(
         return;
       }
       if (!onClick) return;
-      if (!onDoubleClick) {
+      if (!onDoubleClick || !selected) {
         onClick();
         return;
       }

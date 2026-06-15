@@ -26,6 +26,7 @@ export interface UseCesiumModelManagerOptions {
     onModelAdded?: (primitiveId: string, primitive: Model) => void;
     onModelFirstRendered?: (primitiveId: string, primitive: Model) => void;
     deselectOnEmptyClick?: boolean;
+    deselectOnNonModelClick?: boolean;
     shader?: Omit<
       ModelShaderSelectionOptions,
       "enabled" | "getPrimitiveBySelectionId" | "selected"
@@ -98,6 +99,7 @@ export const useCesiumModelManager = ({
 
   useCesiumModelSelectionInteraction({
     deselectOnEmptyClick: selection?.deselectOnEmptyClick,
+    deselectOnNonModelClick: selection?.deselectOnNonModelClick,
     enabled: selectionEnabled,
     getScene,
     hoverHighlightEnabled: selection?.shader?.hover?.enabled,

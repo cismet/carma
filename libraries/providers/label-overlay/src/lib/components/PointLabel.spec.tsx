@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react";
+import { fireEvent, render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { PILLBUTTON_BADGE_POSITIONS } from "./PillbuttonLabelMarker";
@@ -524,6 +524,64 @@ describe("PointLabel", () => {
     labelRoot?.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
 
     expect(onLongPress).not.toHaveBeenCalled();
+  });
+
+  it("selects unselected labels immediately even when double-click handling exists", () => {
+    vi.useFakeTimers();
+    const onClick = vi.fn();
+    const onDoubleClick = vi.fn();
+    const { container } = render(
+      <PointLabel
+        content="NHN 179,74 m"
+        hideMarker={true}
+        onClick={onClick}
+        onDoubleClick={onDoubleClick}
+        selected={false}
+      />
+    );
+
+    const labelRoot = container.querySelector(
+      '[data-point-label-content-root="true"]'
+    ) as HTMLDivElement | null;
+
+    fireEvent.click(labelRoot!);
+
+    expect(onClick).toHaveBeenCalledTimes(1);
+    expect(onDoubleClick).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(240);
+
+    expect(onClick).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  it("keeps selected-label single clicks delayed when double-click handling exists", () => {
+    vi.useFakeTimers();
+    const onClick = vi.fn();
+    const onDoubleClick = vi.fn();
+    const { container } = render(
+      <PointLabel
+        content="NHN 179,74 m"
+        hideMarker={true}
+        onClick={onClick}
+        onDoubleClick={onDoubleClick}
+        selected={true}
+      />
+    );
+
+    const labelRoot = container.querySelector(
+      '[data-point-label-content-root="true"]'
+    ) as HTMLDivElement | null;
+
+    fireEvent.click(labelRoot!);
+
+    expect(onClick).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(240);
+
+    expect(onClick).toHaveBeenCalledTimes(1);
+    expect(onDoubleClick).not.toHaveBeenCalled();
+    vi.useRealTimers();
   });
 
   it("arms long press on a hidden marker interaction target when the visible marker is suppressed", () => {

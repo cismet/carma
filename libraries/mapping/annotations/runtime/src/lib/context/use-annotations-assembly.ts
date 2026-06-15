@@ -248,6 +248,9 @@ export const useAnnotationsAssembly = ({
 
   const setSelectedAnnotationIdInStore = useCallback(
     (annotationId: string | null) => {
+      if (annotationId === null) {
+        setActiveEditedNodeId(null);
+      }
       annotationsStore.dispatch(setSelectedAnnotationId(annotationId));
     },
     [annotationsStore]
@@ -255,6 +258,9 @@ export const useAnnotationsAssembly = ({
 
   const setSelectedAnnotationIdsInStore = useCallback(
     (annotationIds: readonly string[]) => {
+      if (annotationIds.length === 0) {
+        setActiveEditedNodeId(null);
+      }
       annotationsStore.dispatch(setSelectedAnnotationIds(annotationIds));
     },
     [annotationsStore]
@@ -317,6 +323,9 @@ export const useAnnotationsAssembly = ({
 
   const focusAnnotationId = useCallback(
     (annotationId: string | null) => {
+      if (annotationId === null) {
+        setActiveEditedNodeId(null);
+      }
       annotationsStore.dispatch(setSelectedAnnotationId(annotationId));
       flyToAnnotationById(annotationId);
     },

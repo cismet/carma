@@ -149,6 +149,38 @@ describe("measurement visualizer node interaction inputs", () => {
     expect(onReferenceNodeClick).toHaveBeenCalledWith("node-a");
   });
 
+  it("keeps visible point label clicks ahead of reference node clicks", () => {
+    const onLabelClick = vi.fn();
+    const onReferenceNodeClick = vi.fn();
+    const inputs = buildInputs({
+      points: [],
+      pointLabels: [
+        {
+          id: "distance-a-label",
+          annotationId: "measurement-a",
+          nodeId: "node-a",
+          coordinate,
+          content: "A",
+          hideMarker: true,
+          onClick: onLabelClick,
+        },
+      ],
+      onReferenceNodeClick,
+      referenceNodeClickEnabled: true,
+    });
+
+    const label = inputs.pointLabels.find(
+      (pointLabel) => pointLabel.id === "distance-a-label"
+    );
+
+    expect(label?.onClick).toEqual(expect.any(Function));
+
+    label?.onClick?.();
+
+    expect(onLabelClick).toHaveBeenCalledTimes(1);
+    expect(onReferenceNodeClick).not.toHaveBeenCalled();
+  });
+
   it("selects all measurements sharing a node interaction target", () => {
     const onNodeAnnotationsSelect = vi.fn();
     const inputs = buildInputs({

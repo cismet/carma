@@ -21,6 +21,7 @@ type UseCesiumModelSelectionInteractionOptions = {
   hoverHighlightEnabled?: boolean;
   silhouettePickRadiusPx?: number;
   onClearSelection?: () => void;
+  deselectOnNonModelClick?: boolean;
   onSelect?: (feature: unknown) => void;
   modelShader: ModelSelectionInteractionShaderActions;
 };
@@ -32,6 +33,7 @@ export const useCesiumModelSelectionInteraction = ({
   hoverHighlightEnabled,
   silhouettePickRadiusPx,
   onClearSelection,
+  deselectOnNonModelClick,
   onSelect,
   modelShader,
 }: UseCesiumModelSelectionInteractionOptions) => {
@@ -64,6 +66,7 @@ export const useCesiumModelSelectionInteraction = ({
 
   useCesiumModelSelectionInputHandler({
     deselectOnEmptyClick,
+    deselectOnNonModelClick,
     enabled,
     getScene,
     hoverHighlightEnabled,

@@ -24,6 +24,7 @@ type UseCesiumModelSelectionInputHandlerOptions = {
   hoverHighlightEnabled?: boolean;
   silhouettePickRadiusPx?: number;
   deselectOnEmptyClick?: boolean;
+  deselectOnNonModelClick?: boolean;
   onModelClick: (picked: PickedCesiumModel) => void;
   onEmptyClick: () => void;
   onModelHover: (primitive: Model | null) => void;
@@ -53,6 +54,7 @@ const isVisibleModelSilhouettePick = (
 
 export const useCesiumModelSelectionInputHandler = ({
   deselectOnEmptyClick = true,
+  deselectOnNonModelClick = true,
   enabled,
   getScene,
   hoverHighlightEnabled = true,
@@ -108,14 +110,17 @@ export const useCesiumModelSelectionInputHandler = ({
         includeSilhouetteFallback: boolean
       ) => {
         if (!position) {
-          return null;
+          return { hasExactPick: false, model: null };
         }
         const picked = scene.pick(position, 1, 1);
         if (isModelPick(picked)) {
-          return picked as PickedCesiumModel;
+          return {
+            hasExactPick: true,
+            model: picked as PickedCesiumModel,
+          };
         }
         if (!includeSilhouetteFallback || silhouettePickDiameter <= 1) {
-          return null;
+          return { hasExactPick: picked != null, model: null };
         }
 
         const pickedObjects = scene.drillPick(
@@ -124,29 +129,33 @@ export const useCesiumModelSelectionInputHandler = ({
           silhouettePickDiameter,
           silhouettePickDiameter
         );
-        return (
+        const silhouetteModel =
           (pickedObjects.find(isVisibleModelSilhouettePick) as
             | PickedCesiumModel
-            | undefined) ?? null
-        );
+            | undefined) ?? null;
+
+        return { hasExactPick: picked != null, model: silhouetteModel };
       };
 
       const handleLeftClick = ({
         position,
       }: ScreenSpaceEventHandler.PositionedEvent) => {
-        const picked = findPickedModel(position, true);
-        if (picked) {
-          onModelClickRef.current(picked);
+        const pickResult = findPickedModel(position, true);
+        if (pickResult.model) {
+          onModelClickRef.current(pickResult.model);
           return;
         }
-        if (deselectOnEmptyClick) {
+        if (
+          deselectOnEmptyClick &&
+          (!pickResult.hasExactPick || deselectOnNonModelClick)
+        ) {
           onEmptyClickRef.current();
         }
       };
 
       const handleMouseMove = (event: { endPosition?: Cartesian2 }) => {
-        const picked = findPickedModel(event.endPosition, false);
-        onModelHoverRef.current(picked?.primitive ?? null);
+        const pickResult = findPickedModel(event.endPosition, false);
+        onModelHoverRef.current(pickResult.model?.primitive ?? null);
       };
 
       handler.setInputAction(handleLeftClick, ScreenSpaceEventType.LEFT_CLICK);
@@ -175,6 +184,7 @@ export const useCesiumModelSelectionInputHandler = ({
     };
   }, [
     deselectOnEmptyClick,
+    deselectOnNonModelClick,
     enabled,
     getScene,
     hoverHighlightEnabled,

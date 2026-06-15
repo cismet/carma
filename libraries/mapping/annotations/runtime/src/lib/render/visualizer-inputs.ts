@@ -171,15 +171,14 @@ export const buildHostInteractionPointLabels = ({
             !routePointerQueryThroughPointMarker &&
             (pointLabel.onClick || referenceNodeInteractionEnabled)
               ? () => {
-                  if (
-                    referenceNodeInteractionEnabled &&
-                    pointLabel.nodeId &&
-                    onReferenceNodeClick?.(pointLabel.nodeId)
-                  ) {
+                  if (pointLabel.onClick) {
+                    pointLabel.onClick();
                     return;
                   }
 
-                  pointLabel.onClick?.();
+                  if (referenceNodeInteractionEnabled && pointLabel.nodeId) {
+                    onReferenceNodeClick?.(pointLabel.nodeId);
+                  }
                 }
               : undefined,
           onHoverChange: pointLabel.onHoverChange,

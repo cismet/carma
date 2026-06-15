@@ -278,6 +278,10 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
     new Map()
   );
   const previousSelectedAnnotationIdRef = useRef<string | null>(null);
+  const annotationSelectionHandoffRef = useRef<string | null>(null);
+  const annotationSelectionHandoffTimeoutRef = useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
 
   // State and Selectors
   const backgroundLayer = useSelector(getBackgroundLayer);
@@ -449,11 +453,19 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
         return;
       }
 
-      if (selectedAnnotationId) {
-        setSelectedAnnotationId(null);
+      if (
+        selectedAnnotationId &&
+        annotationSelectionHandoffRef.current === selectedAnnotationId
+      ) {
+        // The adhoc model display can re-emit the previous model selection
+        // while provider and Redux selection state settle after an annotation click.
+        return;
       }
       if (selectedFeature?.id === feature.id) {
         return;
+      }
+      if (selectedAnnotationId) {
+        setSelectedAnnotationId(null);
       }
       dispatchModelSelection(feature);
     },
@@ -481,7 +493,8 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
       modelHighlightStyle: MODEL_CONFIG?.highlight?.style,
       modelShader: MODEL_SHADER_OPTIONS,
       selectionEnabled: is3dModelSelectionEnabled,
-      deselectOnEmptyClick: !isModeMeasurement,
+      deselectOnEmptyClick: is3dModelSelectionEnabled,
+      deselectOnNonModelClick: !isModeMeasurement,
       onFeatureInfoChange: handleModelFeatureInfoChange,
     });
 
@@ -820,23 +833,40 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
       return;
     }
 
+    annotationSelectionHandoffRef.current = selectedAnnotationId;
+    if (annotationSelectionHandoffTimeoutRef.current) {
+      clearTimeout(annotationSelectionHandoffTimeoutRef.current);
+    }
+    annotationSelectionHandoffTimeoutRef.current = setTimeout(() => {
+      if (annotationSelectionHandoffRef.current === selectedAnnotationId) {
+        annotationSelectionHandoffRef.current = null;
+      }
+      annotationSelectionHandoffTimeoutRef.current = null;
+    }, 0);
+
+    clearSelectedAdhocFeature();
+
     if (selectedFeature) {
       dispatch(setSelectedFeature(null));
       dispatch(setSecondaryInfoBoxElements([]));
       dispatch(setFeatures([]));
     }
-
-    if (selectedAdhocFeature) {
-      clearSelectedAdhocFeature();
-    }
   }, [
     clearSelectedAdhocFeature,
     dispatch,
     isCesium,
-    selectedAdhocFeature,
     selectedAnnotationId,
     selectedFeature,
   ]);
+
+  useEffect(
+    () => () => {
+      if (annotationSelectionHandoffTimeoutRef.current) {
+        clearTimeout(annotationSelectionHandoffTimeoutRef.current);
+      }
+    },
+    []
+  );
 
   useEffect(() => {
     // TODO wrap this with 3d component in own component?

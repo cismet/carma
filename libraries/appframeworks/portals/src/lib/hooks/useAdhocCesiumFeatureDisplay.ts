@@ -114,6 +114,7 @@ export type UseAdhocCesiumFeatureDisplayOptions = {
   selectionLineWidthPixels?: number;
   selectionEnabled?: boolean;
   deselectOnEmptyClick?: boolean;
+  deselectOnNonModelClick?: boolean;
   modelHighlightStyle?: CesiumModelStyleConfig;
   modelShader?: AdhocCesiumModelShaderOptions;
   onFeatureInfoChange?: (feature: FeatureInfo | null) => void;
@@ -404,6 +405,7 @@ export const useAdhocCesiumFeatureDisplay = (
     selectionLineWidthPixels,
     selectionEnabled = true,
     deselectOnEmptyClick = true,
+    deselectOnNonModelClick = true,
     modelHighlightStyle,
     modelShader: modelShaderOptions,
     onFeatureInfoChange,
@@ -978,6 +980,7 @@ export const useAdhocCesiumFeatureDisplay = (
           selectionEnabled &&
           !isAdhocRenderStyleEditing,
         deselectOnEmptyClick,
+        deselectOnNonModelClick,
         shader: modelShaderOptions?.selection,
         silhouettePickRadiusPx:
           modelShaderOptions?.selection?.style?.edge?.widthPx,
@@ -1050,6 +1053,7 @@ export const useAdhocCesiumFeatureDisplay = (
     isAdhocRenderStyleEditing,
     selectionEnabled,
     deselectOnEmptyClick,
+    deselectOnNonModelClick,
     modelShaderOptions?.selection,
     onFeatureInfoChange,
     selectedFeatureFlashKey,
@@ -2111,6 +2115,7 @@ export const useAdhocCesiumFeatureDisplay = (
       handler = new ScreenSpaceEventHandler(scene.canvas);
       handler.setInputAction((event: { position: Cartesian2 }) => {
         const picked = scene.pick(event.position);
+        const hasPick = picked != null;
         const pickedId = picked?.id;
         const pickedPrimitiveId =
           typeof pickedId === "string"
@@ -2201,7 +2206,7 @@ export const useAdhocCesiumFeatureDisplay = (
           }
         }
 
-        // No visualizer picked - deselect if not a model pick
+        // No visualizer picked - apply model/empty-click selection policy.
         const isModelPickId =
           (pickedId as { is3dModel?: boolean } | undefined)?.is3dModel === true;
         const isModelPickPrimitive =
@@ -2213,6 +2218,16 @@ export const useAdhocCesiumFeatureDisplay = (
             ? resolveAdhocFeatureEntryFromPrimitiveId(pickedPrimitiveId)
             : null;
           if (!modelEntry) {
+            if (deselectOnEmptyClick && deselectOnNonModelClick) {
+              if (selectedFeatureKey) {
+                selectedPrimitiveIdByFeatureRef.current.delete(
+                  selectedFeatureKey
+                );
+              }
+              setShouldFocusSelected(false);
+              clearSelectedFeature();
+              onFeatureInfoChange?.(null);
+            }
             return;
           }
           setShouldFocusSelected(false);
@@ -2232,7 +2247,7 @@ export const useAdhocCesiumFeatureDisplay = (
           onFeatureInfoChange?.(info);
           return;
         }
-        if (!isModelPick && deselectOnEmptyClick) {
+        if (deselectOnEmptyClick && (!hasPick || deselectOnNonModelClick)) {
           if (selectedFeatureKey) {
             selectedPrimitiveIdByFeatureRef.current.delete(selectedFeatureKey);
           }
@@ -2258,6 +2273,7 @@ export const useAdhocCesiumFeatureDisplay = (
     isCesiumEnabled,
     selectionEnabled,
     deselectOnEmptyClick,
+    deselectOnNonModelClick,
     onFeatureInfoChange,
     selectedFeatureKey,
     clearSelectedFeature,
