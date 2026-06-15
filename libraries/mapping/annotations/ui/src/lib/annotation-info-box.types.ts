@@ -48,7 +48,7 @@ export type AnnotationInfoBoxVisualOptions = Readonly<{
   actionIconClassName: string;
   actionIconColor: string;
   actionIconHoverColor: string;
-  actionIconFontSize: string;
+  actionIconFontSize: string | null;
   hiddenActionIds: readonly AnnotationInfoBoxActionId[];
   renderActionIcon?: (
     props: AnnotationInfoBoxActionIconRenderProps

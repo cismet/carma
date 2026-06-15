@@ -105,7 +105,7 @@ export const annotationInfoBoxVisualDefaults: AnnotationInfoBoxVisualOptions =
     actionIconClassName: "transition-colors",
     actionIconColor: COLORS_HEX.ACCENT_NEUTRALS,
     actionIconHoverColor: COLORS_HEX.ACCENT_NEUTRALS_HOVER,
-    actionIconFontSize: "16px",
+    actionIconFontSize: null,
     hiddenActionIds: [],
     fieldTextClassName: `text-[${annotationInfoBoxColorPalette.fieldText}]`,
     fieldBorderClassName: `border-[${annotationInfoBoxUiDefaults.hairlineBorderWidthRem}] border-[${annotationInfoBoxColorPalette.fieldBorder}]`,

@@ -64,7 +64,6 @@ export const CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS = {
   linkTextClassName: "text-[#0078a8]",
   actionIconColor: "#808080",
   actionIconHoverColor: "#a0a0a0",
-  actionIconFontSize: "16px",
   hiddenActionIds: [
     ANNOTATION_INFO_BOX_ACTION_IDS.EXPORT,
     ANNOTATION_INFO_BOX_ACTION_IDS.VISIBILITY,

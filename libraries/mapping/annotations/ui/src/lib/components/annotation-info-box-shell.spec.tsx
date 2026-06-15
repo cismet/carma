@@ -133,6 +133,22 @@ describe("buildAnnotationInfoBoxSlots", () => {
     ).toBeNull();
   });
 
+  it("keeps action icon sizing on the shared action trigger by default", () => {
+    const slots = buildAnnotationInfoBoxSlots(buildRequiredShellProps());
+
+    const { container } = render(<>{slots.subtitle}</>);
+    const icon = container.querySelector(
+      '[data-test-id="test-measurement-flyto-btn"]'
+    ) as SVGElement | null;
+    const actionTrigger = icon?.parentElement as HTMLSpanElement | undefined;
+
+    expect(icon).toBeTruthy();
+    expect(actionTrigger?.className).toContain("text-[16px]");
+    expect(icon?.getAttribute("class")).toContain("transition-colors");
+    expect(icon?.getAttribute("class")).not.toContain("fa-2x");
+    expect(icon?.style.fontSize).toBe("");
+  });
+
   it("allows host presentations to hide subtitle meta text", () => {
     const slots = buildAnnotationInfoBoxSlots({
       ...buildRequiredShellProps(),

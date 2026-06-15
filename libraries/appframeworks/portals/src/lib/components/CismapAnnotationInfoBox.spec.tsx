@@ -3,7 +3,10 @@ import type { CSSProperties, ReactNode } from "react";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ANNOTATION_INFO_BOX_ACTION_IDS } from "@carma-mapping/annotations/ui";
+import {
+  ANNOTATION_INFO_BOX_ACTION_IDS,
+  buildAnnotationInfoBoxSlots,
+} from "@carma-mapping/annotations/ui";
 
 const responsiveInfoBoxMock = vi.hoisted(() =>
   vi.fn(
@@ -307,7 +310,6 @@ describe("CismapAnnotationInfoBox", () => {
       icon: {} as never,
       style: {
         color: "#808080",
-        fontSize: "16px",
       },
     });
 
@@ -320,5 +322,44 @@ describe("CismapAnnotationInfoBox", () => {
     expect(renderedIcon).toBeTruthy();
     expect(renderedIcon?.getAttribute("data-test-id")).toBe("fly-to-icon");
     expect(renderedIcon?.getAttribute("class")).toBe("icon-class");
+  });
+
+  it("keeps visible Cismap annotation action icons on the shared 16px trigger", () => {
+    const slots = buildAnnotationInfoBoxSlots({
+      headingTitle: "Messung",
+      titleInput: {
+        value: "",
+        placeholder: "Messung",
+        onCommit: vi.fn(),
+      },
+      actions: {
+        hidden: false,
+        locked: false,
+        onFlyTo: vi.fn(),
+        onExport: vi.fn(),
+        onToggleVisibility: vi.fn(),
+        onToggleLock: vi.fn(),
+        onDelete: vi.fn(),
+        onSetReference: vi.fn(),
+        dataTestIdPrefix: "cismap-annotation",
+      },
+      visualOptions: CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS,
+    });
+
+    render(<>{slots.subtitle}</>);
+
+    const flyToIcon = document.querySelector(
+      '[data-test-id="cismap-annotation-flyto-btn"]'
+    ) as SVGElement | null;
+    const deleteIcon = document.querySelector(
+      '[data-test-id="cismap-annotation-delete-btn"]'
+    ) as SVGElement | null;
+
+    expect(flyToIcon?.parentElement?.className).toContain("text-[16px]");
+    expect(deleteIcon?.parentElement?.className).toContain("text-[16px]");
+    expect(flyToIcon?.style.fontSize).toBe("");
+    expect(deleteIcon?.style.fontSize).toBe("");
+    expect(flyToIcon?.getAttribute("class")).not.toContain("fa-2x");
+    expect(deleteIcon?.getAttribute("class")).not.toContain("fa-2x");
   });
 });

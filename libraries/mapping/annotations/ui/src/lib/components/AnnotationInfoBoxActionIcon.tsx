@@ -1,4 +1,8 @@
-import { useState, type MouseEvent as ReactMouseEvent } from "react";
+import {
+  useState,
+  type CSSProperties,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
 
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -11,6 +15,7 @@ import type {
 
 const annotationInfoBoxActionIconDefaults = Object.freeze({
   tooltipZIndex: 1700,
+  triggerClassName: "inline-flex items-center text-[16px] leading-none",
 });
 
 type AnnotationInfoBoxActionIconProps = {
@@ -42,13 +47,15 @@ export const AnnotationInfoBoxActionIcon = ({
   const iconClassName = `${resolvedVisualOptions.actionIconClassName}${
     className ? ` ${className}` : ""
   }${disabled ? " cursor-not-allowed opacity-50" : " cursor-pointer"}`;
-  const iconStyle = {
-    fontSize: resolvedVisualOptions.actionIconFontSize,
+  const iconStyle: CSSProperties = {
     color:
       hovered && !disabled
         ? resolvedVisualOptions.actionIconHoverColor
         : resolvedVisualOptions.actionIconColor,
   };
+  if (resolvedVisualOptions.actionIconFontSize !== null) {
+    iconStyle.fontSize = resolvedVisualOptions.actionIconFontSize;
+  }
   const renderedCustomIcon = resolvedVisualOptions.renderActionIcon?.({
     actionId,
     icon,
@@ -83,7 +90,7 @@ export const AnnotationInfoBoxActionIcon = ({
         }}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
-        className="inline-flex items-center leading-none"
+        className={annotationInfoBoxActionIconDefaults.triggerClassName}
         aria-label={ariaLabel}
         aria-disabled={disabled}
       >
