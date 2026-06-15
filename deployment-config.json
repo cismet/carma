@@ -1273,8 +1273,15 @@
           },
           "live": {
             "pages": {
-              "org": "carma-dev-deployments",
-              "prj": "belis-desktop"
+              "org": "digital-twin-wuppertal-live",
+              "prj": "belis-desktop",
+              "envs": [
+                "VITE_REST_SERVICE=https://belis-mobile-api.cismet.de",
+                "VITE_BELIS_DESKTOP_SYNC_HTTP_URL=https://belis-mobile-offline-actions.cismet.de/v1/graphql",
+                "VITE_BELIS_DESKTOP_SYNC_WS_URL=wss://belis-mobile-offline-actions.cismet.de/v1/graphql",
+                "VITE_BELIS_DESKTOP_SECRES_URL=https://belis-mobile-api.cismet.de/secres",
+                "VITE_BELIS_DESKTOP_BRAND_NEW_FC_URL=https://tiles.cismet.de/belis/updated.features.json"
+              ]
             }
           }
         },
