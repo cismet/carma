@@ -13,6 +13,9 @@ import { NavLink, useNavigate } from "react-router-dom";
 import SettingsUi from "../ui/SettingsUi";
 import SyncMenuModal from "../ui/SyncMenuModal";
 import { useMapHighlight } from "@carma-mapping/engines/maplibre";
+import { useDeployment, Deployment } from "@carma-commons/utils";
+import { getApplicationVersion } from "@carma-commons/utils";
+import versionData from "../../version.json";
 import { useMapPage } from "../../contexts/MapPageContext";
 import CreateAAModal from "../ui/CreateAAModal";
 import {
@@ -47,6 +50,10 @@ const TopNavbar = () => {
     unknown
   > | null;
   const draftMode = useSelector(getDraftMode) as boolean;
+
+  const deployment = useDeployment();
+  const isDevDeployment =
+    deployment !== Deployment.LIVE && deployment !== null;
 
   const isOnAAPage = config.sidebarVariant === "arbeitsauftraege";
   const canAddToExistingAA =
@@ -114,7 +121,12 @@ const TopNavbar = () => {
     : "";
 
   return (
-    <div className="flex items-center mx-3 mb-4 mt-2">
+    <div className="relative flex items-center mx-3 mb-4 mt-3">
+      {isDevDeployment && (
+        <span className="absolute left-1/2 -translate-x-1/2 inline-flex items-center px-2.5 py-0.5 text-[10px] font-medium text-gray-500 whitespace-nowrap pointer-events-none">
+          Entwicklungsversion – {getApplicationVersion(versionData)}
+        </span>
+      )}
       <span className="font-semibold mr-8">BelISDesktop</span>
       <div className="flex items-center gap-4">
         <NavLink

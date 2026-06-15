@@ -7,6 +7,12 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { storeJWT, storeLogin, storePermissions } from "../../store/slices/auth";
 import { resetKeyTablesFetched } from "../../store/slices/keyTables";
 import { DOMAIN, REST_SERVICE } from "../../constants/belis";
+import {
+  useDeployment,
+  Deployment,
+  getApplicationVersion,
+} from "@carma-commons/utils";
+import versionData from "../../version.json";
 
 export const background = "belis_background_iStock-139701369_blurred.jpg";
 
@@ -22,6 +28,10 @@ const Login = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [loginInfo, setLoginInfo] = useState<LoginInfo | null>(null);
+
+  const deployment = useDeployment();
+  const isDevDeployment =
+    deployment !== Deployment.LIVE && deployment !== null;
 
   const windowHeight = windowSize[1];
 
@@ -84,6 +94,7 @@ const Login = () => {
     <div
       style={{
         // background: "#dddddd",
+        position: "relative",
         height: windowHeight,
         width: "100%",
         background: `url(${baseUrl}images/${background})`,
@@ -95,6 +106,36 @@ const Login = () => {
         alignItems: "center",
       }}
     >
+      <div className="absolute bottom-6 right-6 text-white/80 text-[11px] text-right max-w-[340px]">
+        <b>BelISDesktop {getApplicationVersion(versionData)}</b>:{" "}
+        <a href="https://cismet.de/" target="_cismet">
+          cismet GmbH
+        </a>{" "}
+        auf Basis von{" "}
+        <a href="https://maplibre.org/" target="_cismet">
+          MapLibre
+        </a>{" "}
+        und{" "}
+        <a href="https://github.com/cismet/carma" target="_cismet">
+          carma
+        </a>{" "}
+        |{" "}
+        <a
+          target="_blank"
+          rel="noopener noreferrer"
+          href="https://cismet.de/datenschutzerklaerung.html"
+        >
+          Datenschutzerklärung
+        </a>{" "}
+        |{" "}
+        <a
+          target="_blank"
+          rel="noopener noreferrer"
+          href="https://cismet.de/impressum.html"
+        >
+          Impressum
+        </a>
+      </div>
       <div
         style={{
           width: loginPanelWidth,
@@ -114,6 +155,14 @@ const Login = () => {
         >
           BelIS-Desktop
         </h1>
+        {isDevDeployment && (
+          <div
+            className="text-left whitespace-nowrap"
+            style={{ color: "black", opacity: 0.5, paddingLeft: 25, marginTop: -8 }}
+          >
+            Entwicklungsversion
+          </div>
+        )}
         <div
           style={{
             minHeight: 21,
