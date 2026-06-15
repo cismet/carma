@@ -12,7 +12,7 @@ import { buildCesiumAnnotationLayerId } from "./SaveCesiumAnnotations";
 import {
   DEFAULT_MEASUREMENT_EMOJI_UNIFIED,
   getUniqueTitle,
-  MEASUREMENT_THUMBNAIL_URL,
+  MEASUREMENT_3D_THUMBNAIL_URL,
 } from "./measurement-save-utils";
 
 const MEASUREMENT_SERVICE_NAME = "measurements";
@@ -207,7 +207,7 @@ export const buildSavedMeasurementItemFromAnnotationCarrier = ({
     pickNonEmptyString(layerInfo.icon) ??
     `emoji:${DEFAULT_MEASUREMENT_EMOJI_UNIFIED}`;
   const thumbnail =
-    pickNonEmptyString(layerInfo.thumbnail) ?? MEASUREMENT_THUMBNAIL_URL;
+    pickNonEmptyString(layerInfo.thumbnail) ?? MEASUREMENT_3D_THUMBNAIL_URL;
 
   return {
     description,

@@ -14,6 +14,7 @@ import {
   resolveAnnotationCarrierFromItem,
   withSavedMeasurementCarrierImport,
 } from "./measurement-import-utils";
+import { MEASUREMENT_3D_THUMBNAIL_URL } from "./measurement-save-utils";
 
 const createAnnotationsGeoJson =
   (): AnnotationsRuntimeGeoJsonFeatureCollection => ({
@@ -177,6 +178,7 @@ describe("buildSavedMeasurementItemFromAnnotationCarrier", () => {
     expect(measurementItem.title).toBe("Messung A");
     expect(measurementItem.description).toBe("Inhalt: Beschreibung A");
     expect(measurementItem.icon).toBe("emoji:1f4cf");
+    expect(measurementItem.thumbnail).toBe(MEASUREMENT_3D_THUMBNAIL_URL);
     expect((measurementItem as { tags?: string[] }).tags).toEqual([
       "Messung",
       "3D-Messung",

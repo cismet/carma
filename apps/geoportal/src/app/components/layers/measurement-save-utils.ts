@@ -3,6 +3,9 @@ export const DEFAULT_MEASUREMENT_EMOJI_UNIFIED = "1f4cf";
 export const MEASUREMENT_THUMBNAIL_URL =
   "https://wupp-digitaltwin-assets.cismet.de/v2/geoportal/thumbnails/measurements.png";
 
+export const MEASUREMENT_3D_THUMBNAIL_URL =
+  "https://wupp-digitaltwin-assets.cismet.de/v2/geoportal/thumbnails/measurements3D.png";
+
 export type MeasurementSaveValues = {
   title: string;
   description: string;

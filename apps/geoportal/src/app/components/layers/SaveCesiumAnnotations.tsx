@@ -29,7 +29,7 @@ import {
   downloadMeasurementJsonFile,
   getUniqueTitle,
   hashString,
-  MEASUREMENT_THUMBNAIL_URL,
+  MEASUREMENT_3D_THUMBNAIL_URL,
   type MeasurementSaveValues,
 } from "./measurement-save-utils";
 
@@ -80,7 +80,7 @@ export const buildCesiumAnnotationLayerStyle = ({
         metaDataText:
           'Messung-Steuerelemente stellen eine oder mehrere 3D-Messungsgeometrien bereit, die lokal unter "Objekte / Meine Messungen" gespeichert wurden.',
         keywords: ["carmaconf://lazyInfoBox"],
-        thumbnail: MEASUREMENT_THUMBNAIL_URL,
+        thumbnail: MEASUREMENT_3D_THUMBNAIL_URL,
         vectorLegend: MEASUREMENT_VECTOR_LEGEND_URL,
       },
     },
@@ -213,7 +213,7 @@ function SaveCesiumAnnotations({ layer }: { layer: Layer }) {
       serviceName: MEASUREMENT_SERVICE_NAME,
       tags: ["Messung", "3D-Messung"],
       keywords: [],
-      thumbnail: MEASUREMENT_THUMBNAIL_URL,
+      thumbnail: MEASUREMENT_3D_THUMBNAIL_URL,
       title: featureTitle,
       type: "object",
       vectorStyle: JSON.stringify(featureData),

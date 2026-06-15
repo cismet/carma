@@ -9,6 +9,7 @@ import {
   buildCesiumAnnotationLayerId,
   buildCesiumAnnotationLayerStyle,
 } from "./SaveCesiumAnnotations";
+import { MEASUREMENT_3D_THUMBNAIL_URL } from "./measurement-save-utils";
 
 const createAnnotationsGeoJson =
   (): AnnotationsRuntimeGeoJsonFeatureCollection => ({
@@ -124,6 +125,7 @@ describe("SaveCesiumAnnotations helpers", () => {
     expect(style.metadata.carmaConf.layerInfo).toMatchObject({
       description: "Dachmessung",
       icon: "emoji:1f4d0",
+      thumbnail: MEASUREMENT_3D_THUMBNAIL_URL,
       title: "Messung",
     });
   });
