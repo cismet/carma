@@ -8,7 +8,6 @@ import {
   useRef,
   useState,
   type CSSProperties,
-  type ReactNode,
 } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -38,11 +37,11 @@ import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 
 import {
-  InfoBoxHeader,
   SelectionItem,
   TopicMapSelectionContent,
   type AdhocCesiumModelShaderOptions,
   useAdhocCesiumFeatureDisplay,
+  useAdhocFeatureDisplay,
   useGazData,
   useMapHashRouting,
   useSelectionCesium,
@@ -60,8 +59,6 @@ import type { FeatureInfo } from "@carma-mapping/utils";
 import { Measurements, InfoBoxMeasurement } from "@carma-commons/measurements";
 import { ANNOTATION_SELECT_TOOL_ID } from "@carma-mapping/annotations/core";
 import { useAnnotationsRuntime } from "@carma-mapping/annotations/runtime";
-
-import { geoportalAnnotationModeText } from "../../config/geoportalTextConfig";
 
 import {
   useOverlayHelper,
@@ -103,7 +100,7 @@ import AnnotationInfoBox from "../annotations/AnnotationInfoBox.tsx";
 import versionData from "../../../version.json";
 
 import { addCssToOverlayHelperItem } from "../../helper/overlayHelper.ts";
-import { is3dAnnotationAdhocLayer } from "../../helper/adhoc-feature-utils.ts";
+import { isVisible3dAnnotationAdhocLayer } from "../../helper/adhoc-feature-utils.ts";
 
 import useLeafletZoomControls from "../../hooks/leaflet/useLeafletZoomControls.ts";
 import { useDispatchSachdatenInfoText } from "../../hooks/useDispatchSachdatenInfoText.ts";
@@ -164,9 +161,7 @@ const CLICK_DELAY_MS = 200;
 const GEOPORTAL_CESIUM_VIEW_ADAPTER_ID = "geoportal-cesium";
 const DEFAULT_MARKER_ANCHOR_HEIGHT = 10;
 const FLY_TO_BOUNDING_SPHERE_PADDING_FACTOR = 1.1;
-type AnnotationInfoBoxTop = "annotation" | "feature";
 
-const ENABLE_3D_MODEL_SELECTION_IN_MEASUREMENT_MODE = false;
 const HEX_COLOR_WITHOUT_ALPHA_PATTERN = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
 const colorFromHexWithoutAlpha = (
@@ -250,8 +245,11 @@ const buildFlyToBoundingSphereOptions = (minRange: number) => ({
 
 const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
   const dispatch = useDispatch();
-  const { activeToolType, setActiveToolType } = useAnnotationsRuntime();
-  const annotationModeText = geoportalAnnotationModeText;
+  const {
+    activeToolType,
+    selectedAnnotationId,
+    setSelectedAnnotationId,
+  } = useAnnotationsRuntime();
 
   // Contexts
   const {
@@ -279,6 +277,7 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
   const flyToSphereFallbackCacheRef = useRef<Map<string, BoundingSphere>>(
     new Map()
   );
+  const previousSelectedAnnotationIdRef = useRef<string | null>(null);
 
   // State and Selectors
   const backgroundLayer = useSelector(getBackgroundLayer);
@@ -302,17 +301,21 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
   );
   const layers = useSelector(getLayers);
   const [maplibreMaps, setMaplibreMaps] = useState<MaplibreMap[]>([]);
-  const [annotationInfoBoxTop, setAnnotationInfoBoxTop] =
-    useState<AnnotationInfoBoxTop>("annotation");
   const uiMode = useSelector(getUIMode);
   const isModeMeasurement = uiMode === UIMode.MEASUREMENT;
+  const isAnnotationSelectToolActive =
+    activeToolType === ANNOTATION_SELECT_TOOL_ID;
   const is3dModelSelectionEnabled =
-    !isModeMeasurement || ENABLE_3D_MODEL_SELECTION_IN_MEASUREMENT_MODE;
+    !isModeMeasurement || isAnnotationSelectToolActive;
   const isModeFeatureInfo = uiMode === UIMode.FEATURE_INFO;
   const showHamburgerMenu = useSelector(getShowHamburgerMenu);
   const selectedFeature = useSelector(getSelectedFeature);
   const loadingFeatureInfo = useSelector(getLoading);
   const { jwt, setJWT } = useAuth();
+  const {
+    selectedFeature: selectedAdhocFeature,
+    clearSelectedFeature: clearSelectedAdhocFeature,
+  } = useAdhocFeatureDisplay();
 
   const { getLeafletZoom } = useLeafletZoomControls();
   const showPrimaryTileset = useSelector(selectShowPrimaryTileset);
@@ -435,7 +438,33 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
   );
 
   useDispatchSachdatenInfoText();
-  const modelSelectionDispatcher = useModelSelectionDispatcher();
+  const dispatchModelSelection = useModelSelectionDispatcher();
+  const handleModelFeatureInfoChange = useCallback(
+    (feature: FeatureInfo | null) => {
+      if (!feature) {
+        if (!selectedFeature && !selectedAdhocFeature) {
+          return;
+        }
+        dispatchModelSelection(null);
+        return;
+      }
+
+      if (selectedAnnotationId) {
+        setSelectedAnnotationId(null);
+      }
+      if (selectedFeature?.id === feature.id) {
+        return;
+      }
+      dispatchModelSelection(feature);
+    },
+    [
+      dispatchModelSelection,
+      selectedAdhocFeature,
+      selectedAnnotationId,
+      selectedFeature,
+      setSelectedAnnotationId,
+    ]
+  );
 
   const { getAdhocBoundingSphere, stageCesiumPrimitivesForTransition } =
     useAdhocCesiumFeatureDisplay({
@@ -452,7 +481,8 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
       modelHighlightStyle: MODEL_CONFIG?.highlight?.style,
       modelShader: MODEL_SHADER_OPTIONS,
       selectionEnabled: is3dModelSelectionEnabled,
-      onFeatureInfoChange: modelSelectionDispatcher,
+      deselectOnEmptyClick: !isModeMeasurement,
+      onFeatureInfoChange: handleModelFeatureInfoChange,
     });
 
   const routingOptions = useMemo(
@@ -779,6 +809,36 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
   }, [layers]);
 
   useEffect(() => {
+    const previousSelectedAnnotationId = previousSelectedAnnotationIdRef.current;
+    previousSelectedAnnotationIdRef.current = selectedAnnotationId;
+
+    if (
+      !isCesium ||
+      !selectedAnnotationId ||
+      previousSelectedAnnotationId === selectedAnnotationId
+    ) {
+      return;
+    }
+
+    if (selectedFeature) {
+      dispatch(setSelectedFeature(null));
+      dispatch(setSecondaryInfoBoxElements([]));
+      dispatch(setFeatures([]));
+    }
+
+    if (selectedAdhocFeature) {
+      clearSelectedAdhocFeature();
+    }
+  }, [
+    clearSelectedAdhocFeature,
+    dispatch,
+    isCesium,
+    selectedAdhocFeature,
+    selectedAnnotationId,
+    selectedFeature,
+  ]);
+
+  useEffect(() => {
     // TODO wrap this with 3d component in own component?
     // INTIALIZE Cesium Tileset style from Geoportal/TopicMap background later style
     if (isValidViewerCtx() && backgroundLayer) {
@@ -832,100 +892,30 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
     };
   }, [getLeafletMap]);
 
-  const ensureAnnotationSelectTool = useCallback(() => {
-    if (activeToolType !== ANNOTATION_SELECT_TOOL_ID) {
-      setActiveToolType(ANNOTATION_SELECT_TOOL_ID);
-    }
-  }, [activeToolType, setActiveToolType]);
-
   const renderInfoBox = useCallback(() => {
+    const hasVisibleSavedAnnotationLayer = layers.some(
+      isVisible3dAnnotationAdhocLayer
+    );
+    const selectedFeatureInMeasurementMode =
+      isAnnotationSelectToolActive ? selectedFeature : null;
     const shouldRenderAnnotationInfoBox =
       getIsCesium() &&
       (isModeMeasurement ||
-        layers.some(
-          (layer) => layer.visible !== false && is3dAnnotationAdhocLayer(layer)
-        ));
-    const selectedFeatureInMeasurementMode =
-      ENABLE_3D_MODEL_SELECTION_IN_MEASUREMENT_MODE ? selectedFeature : null;
-    const selectedFeatureSecondaryInfoBoxElements: ReactNode[] =
-      selectedFeatureInMeasurementMode
-        ? [
-            <div
-              style={{
-                width: "340px",
-                paddingBottom: 3,
-                paddingLeft: 10,
-                cursor: "pointer",
-              }}
-              key={`selected-feature-header-${
-                selectedFeatureInMeasurementMode.id ?? "feature"
-              }`}
-              onClick={() => {
-                ensureAnnotationSelectTool();
-                setAnnotationInfoBoxTop("feature");
-              }}
-            >
-              <InfoBoxHeader
-                content={
-                  selectedFeatureInMeasurementMode.properties.header ||
-                  selectedFeatureInMeasurementMode.properties._header ||
-                  "Informationen"
-                }
-                headerColor="grey"
-                properties={
-                  selectedFeatureInMeasurementMode.properties.sourceProps
-                }
-              />
-            </div>,
-          ]
-        : [];
-    const annotationSecondaryInfoBoxElements: ReactNode[] = [
-      <div
-        style={{
-          width: "340px",
-          paddingBottom: 3,
-          paddingLeft: 10,
-          cursor: "pointer",
-        }}
-        key="annotation-header"
-        onClick={() => {
-          ensureAnnotationSelectTool();
-          setAnnotationInfoBoxTop("annotation");
-        }}
-      >
-        <InfoBoxHeader
-          content={annotationModeText.secondaryInfoBoxHeader}
-          headerColor="grey"
-        />
-      </div>,
-    ];
+        (!selectedFeature && hasVisibleSavedAnnotationLayer));
 
-    if (shouldRenderAnnotationInfoBox) {
-      if (
-        isModeMeasurement &&
-        selectedFeatureInMeasurementMode &&
-        annotationInfoBoxTop === "feature"
-      ) {
-        return (
-          <FeatureInfoBox
-            onZoomToFeature={handleZoomToFeature}
-            displayOrbit={true}
-            isOrbiting={isOrbiting}
-            onOrbitToggle={toggleOrbit}
-            additionalSecondaryInfoBoxElements={
-              annotationSecondaryInfoBoxElements
-            }
-          />
-        );
-      }
-
+    if (isModeMeasurement && selectedFeatureInMeasurementMode) {
       return (
-        <AnnotationInfoBox
-          secondaryInfoBoxElements={
-            isModeMeasurement ? selectedFeatureSecondaryInfoBoxElements : []
-          }
+        <FeatureInfoBox
+          onZoomToFeature={handleZoomToFeature}
+          displayOrbit={true}
+          isOrbiting={isOrbiting}
+          onOrbitToggle={toggleOrbit}
         />
       );
+    }
+
+    if (shouldRenderAnnotationInfoBox) {
+      return <AnnotationInfoBox />;
     }
 
     if (isModeMeasurement && getIsLeaflet()) {
@@ -963,8 +953,7 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
     handleZoomToFeature,
     isOrbiting,
     toggleOrbit,
-    annotationInfoBoxTop,
-    ensureAnnotationSelectTool,
+    isAnnotationSelectToolActive,
   ]);
 
   const showOverlayFromOutside = useCallback(

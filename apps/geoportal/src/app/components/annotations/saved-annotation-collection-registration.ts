@@ -4,7 +4,7 @@ import {
 } from "@carma-appframeworks/portals";
 import type { BackgroundLayer, Layer } from "@carma-mapping/layers";
 
-import { is3dAnnotationAdhocLayer } from "../../helper/adhoc-feature-utils";
+import { isVisible3dAnnotationAdhocLayer } from "../../helper/adhoc-feature-utils";
 
 type LayerWithVisibility = BackgroundLayer | Layer;
 
@@ -19,7 +19,7 @@ const hasRuntimeAnnotationFeature = (
 
 export const isVisibleSavedAnnotationLayer = (
   layer: LayerWithVisibility
-): boolean => layer.visible !== false && is3dAnnotationAdhocLayer(layer);
+): boolean => isVisible3dAnnotationAdhocLayer(layer);
 
 export const resolveVisibleSavedAnnotationCollectionIds = (
   layers: readonly LayerWithVisibility[]

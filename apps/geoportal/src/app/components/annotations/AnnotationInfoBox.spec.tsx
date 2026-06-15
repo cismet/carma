@@ -346,6 +346,59 @@ describe("AnnotationInfoBox", () => {
     );
   });
 
+  it("does not render saved 3D annotation layer state as a global Cesium annotation info box", () => {
+    useRuntimeAnnotationInfoBoxSlotsMock.mockReturnValue({
+      kind: "annotation",
+      annotation: {
+        toolType: "distance",
+      },
+      slots: {
+        headingTitle: "Messung",
+      },
+      visualOptions: {},
+    });
+    const store = createTestStore();
+    store.dispatch(setUIMode(UIMode.DEFAULT));
+    store.dispatch(appendLayer(buildSavedAnnotationLayer()));
+
+    render(<AnnotationInfoBox />, {
+      wrapper: createWrapper(store),
+    });
+
+    expect(cismapRuntimeAnnotationInfoBoxMock).not.toHaveBeenCalled();
+  });
+
+  it("does not render external annotation info box state when the saved 3D annotation layer is hidden", () => {
+    useRuntimeAnnotationInfoBoxSlotsMock.mockReturnValue({
+      kind: "annotation",
+      annotation: {
+        toolType: "distance",
+        externalCollection: {
+          type: "saved-measurement",
+          id: "measurement-3d-saved",
+        },
+      },
+      slots: {
+        headingTitle: "Gespeicherte Messung",
+      },
+      visualOptions: {},
+    });
+    const store = createTestStore();
+    store.dispatch(setUIMode(UIMode.DEFAULT));
+    store.dispatch(
+      appendLayer({
+        ...buildSavedAnnotationLayer(),
+        visible: false,
+      })
+    );
+
+    render(<AnnotationInfoBox />, {
+      wrapper: createWrapper(store),
+    });
+
+    expect(cismapRuntimeAnnotationInfoBoxMock).not.toHaveBeenCalled();
+  });
+
   it("does not request compact authoring instruction help layout outside Cesium", () => {
     useMapFrameworkSwitcherContextMock.mockReturnValue({
       isCesium: false,

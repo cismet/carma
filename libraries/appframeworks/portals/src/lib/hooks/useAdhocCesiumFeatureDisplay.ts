@@ -113,6 +113,7 @@ export type UseAdhocCesiumFeatureDisplayOptions = {
   };
   selectionLineWidthPixels?: number;
   selectionEnabled?: boolean;
+  deselectOnEmptyClick?: boolean;
   modelHighlightStyle?: CesiumModelStyleConfig;
   modelShader?: AdhocCesiumModelShaderOptions;
   onFeatureInfoChange?: (feature: FeatureInfo | null) => void;
@@ -402,6 +403,7 @@ export const useAdhocCesiumFeatureDisplay = (
     wallOpacityAnimation,
     selectionLineWidthPixels,
     selectionEnabled = true,
+    deselectOnEmptyClick = true,
     modelHighlightStyle,
     modelShader: modelShaderOptions,
     onFeatureInfoChange,
@@ -975,7 +977,7 @@ export const useAdhocCesiumFeatureDisplay = (
           hasCesiumModels &&
           selectionEnabled &&
           !isAdhocRenderStyleEditing,
-        deselectOnEmptyClick: true,
+        deselectOnEmptyClick,
         shader: modelShaderOptions?.selection,
         silhouettePickRadiusPx:
           modelShaderOptions?.selection?.style?.edge?.widthPx,
@@ -1047,6 +1049,7 @@ export const useAdhocCesiumFeatureDisplay = (
     isCesiumEnabled,
     isAdhocRenderStyleEditing,
     selectionEnabled,
+    deselectOnEmptyClick,
     modelShaderOptions?.selection,
     onFeatureInfoChange,
     selectedFeatureFlashKey,
@@ -2229,7 +2232,7 @@ export const useAdhocCesiumFeatureDisplay = (
           onFeatureInfoChange?.(info);
           return;
         }
-        if (!isModelPick) {
+        if (!isModelPick && deselectOnEmptyClick) {
           if (selectedFeatureKey) {
             selectedPrimitiveIdByFeatureRef.current.delete(selectedFeatureKey);
           }
@@ -2254,6 +2257,7 @@ export const useAdhocCesiumFeatureDisplay = (
     getScene,
     isCesiumEnabled,
     selectionEnabled,
+    deselectOnEmptyClick,
     onFeatureInfoChange,
     selectedFeatureKey,
     clearSelectedFeature,

@@ -110,6 +110,10 @@ export const is3dAnnotationAdhocLayer = (
 ): boolean =>
   getAdhocLayerStyleSource(layer) === ADHOC_LAYER_SOURCES.ANNOTATIONS;
 
+export const isVisible3dAnnotationAdhocLayer = (
+  layer: Layer | BackgroundLayer
+): boolean => layer.visible !== false && is3dAnnotationAdhocLayer(layer);
+
 export const LEAFLET_MAPLIBRE_ADHOC_LAYER_STYLE_SOURCES: readonly AdhocLayerSource[] =
   [ADHOC_LAYER_SOURCES.TWO_D_MEASUREMENTS];
 
