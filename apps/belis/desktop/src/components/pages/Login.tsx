@@ -33,8 +33,7 @@ const Login = () => {
 
   const windowHeight = windowSize[1];
 
-  const loginPanelWidth = 450;
-  const loginPanelHeight = 300;
+  const loginPanelWidth = 400;
 
   const onFinishFailed = (errorInfo) => {
     console.log("Failed:", errorInfo);
@@ -137,26 +136,30 @@ const Login = () => {
       <div
         style={{
           width: loginPanelWidth,
-          height: loginPanelHeight,
-          background: "#ffffff22",
-
-          borderRadius: 25,
+          padding: 36,
+          background: "rgba(255, 255, 255, 0.13)",
+          backdropFilter: "blur(2px)",
+          WebkitBackdropFilter: "blur(2px)",
+          borderRadius: 16,
+          border: "1px solid rgba(255, 255, 255, 0.55)",
+          boxShadow: "0 24px 64px rgba(0, 0, 0, 0.45)",
         }}
       >
         <h1
           style={{
-            padding: 25,
-            color: "black",
-            opacity: 0.5,
-            paddingBottom: 4,
+            margin: 0,
+            color: "#1f1f1f",
+            fontSize: 24,
+            fontWeight: 600,
+            lineHeight: 1.2,
           }}
         >
           BelIS-Desktop
         </h1>
         {!isLiveVersion && (
           <div
-            className="text-left whitespace-nowrap"
-            style={{ color: "black", opacity: 0.5, paddingLeft: 25, marginTop: -8 }}
+            className="whitespace-nowrap"
+            style={{ color: "#595959", fontSize: 13, marginTop: 2 }}
           >
             Entwicklungsversion
           </div>
@@ -164,8 +167,9 @@ const Login = () => {
         <div
           style={{
             minHeight: 21,
-            color: loginInfo?.color || "black",
-            marginLeft: 26,
+            color: loginInfo?.color || "transparent",
+            fontSize: 13,
+            marginTop: 12,
           }}
         >
           {loginInfo?.text || ""}
@@ -173,19 +177,12 @@ const Login = () => {
         <Form
           form={form}
           name="basic"
-          //   labelCol={{ span: 8 }}
-          //   wrapperCol={{ span: 16 }}
+          layout="vertical"
           onFinish={onFinish}
           onFinishFailed={onFinishFailed}
           autoComplete="off"
-          style={{
-            justifyContent: "left",
-            width: "100%",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "left",
-            padding: 20,
-          }}
+          requiredMark={false}
+          style={{ width: "100%" }}
         >
           <Form.Item
             label="Benutzer"
@@ -197,7 +194,7 @@ const Login = () => {
               },
             ]}
           >
-            <Input />
+            <Input size="large" autoFocus />
           </Form.Item>
 
           <Form.Item
@@ -207,15 +204,13 @@ const Login = () => {
               { required: true, message: "Bitte geben Sie ein Passwort an." },
             ]}
           >
-            <Input.Password />
+            <Input.Password size="large" />
           </Form.Item>
-          <div style={{ width: "100%" }}>
-            <Form.Item style={{ float: "right" }}>
-              <Button type="primary" htmlType="submit">
-                Login
-              </Button>
-            </Form.Item>
-          </div>
+          <Form.Item style={{ marginBottom: 0, marginTop: 8 }}>
+            <Button type="primary" htmlType="submit" size="large" block>
+              Login
+            </Button>
+          </Form.Item>
         </Form>
       </div>
       <div style={{ position: "absolute", top: 20, left: 30, opacity: 0.7 }}>
@@ -229,7 +224,8 @@ const Login = () => {
           top: 20,
           right: 20,
           textAlign: "right",
-          opacity: 0.7,
+          opacity: 0.85,
+          textShadow: "0 1px 4px rgba(0, 0, 0, 0.6)",
         }}
       >
         <h5 style={{ color: "white" }}>Stadt Wuppertal</h5>
