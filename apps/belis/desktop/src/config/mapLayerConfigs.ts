@@ -169,8 +169,7 @@ export const leuchtenDataLayer: LibreLayer = {
  * Toggleable in local dev only. */
 export const BELIS_BRAND_NEW_STYLE_URL =
   "https://tiles.cismet.de/belis/brand.new.features.style.json";
-export const BELIS_BRAND_NEW_FC_URL =
-  "https://tiles.cismet.de/belis/brand.new.features.json";
+// BELIS_BRAND_NEW_FC_URL lives in constants/belis.ts (centralized service link).
 
 export const brandNewDataLayer: LibreLayer = {
   type: "vector",

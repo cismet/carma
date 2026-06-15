@@ -25,10 +25,8 @@ import {
   setDraftMode,
 } from "../../store/slices/arbeitsauftraege";
 import { getTotalDraftCount } from "../../store/slices/arbeitsauftraegeDrafts";
-import {
-  BELIS_FILTER_CATEGORIES,
-  BELIS_BRAND_NEW_FC_URL,
-} from "../../config/mapLayerConfigs";
+import { BELIS_FILTER_CATEGORIES } from "../../config/mapLayerConfigs";
+import { BELIS_BRAND_NEW_FC_URL } from "../../constants/belis";
 import LeitungstypDropdown from "../ui/LeitungstypDropdown";
 import TeamSelect from "../ui/TeamSelect";
 import SearchModal from "../ui/SearchModal";
