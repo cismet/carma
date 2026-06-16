@@ -159,7 +159,9 @@ const BelisMapPageShell = () => {
     [streets]
   );
 
-  const cardGaps = 24 + 24 + 1;
+  // Horizontal chrome around the map wrapper inside the Card:
+  // mx-3 margins (12+12) + Card body padding (12+12) + Card borders (1+1).
+  const cardGaps = 24 + 24 + 2;
   const navbarHeight = 60;
 
   const mapStyle = {
@@ -185,6 +187,7 @@ const BelisMapPageShell = () => {
     <Spin spinning={keyTablesLoading}>
       <div className="mx-3 mt-1">
         <CustomCard
+          className="belis-map-card"
           title={
             windowWidth > 1364 ? (
               <div className="flex items-center gap-2 my-1">
