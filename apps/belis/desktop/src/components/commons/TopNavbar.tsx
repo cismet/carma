@@ -12,6 +12,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { NavLink, useNavigate } from "react-router-dom";
 import SettingsUi from "../ui/SettingsUi";
 import SyncMenuModal from "../ui/SyncMenuModal";
+import HelpModal from "../ui/HelpModal";
 import { useMapHighlight } from "@carma-mapping/engines/maplibre";
 import { getApplicationVersion } from "@carma-commons/utils";
 import versionData from "../../version.json";
@@ -229,6 +230,7 @@ const TopNavbar = () => {
             }}
           />
         </Tooltip>
+        <HelpModal />
         <SettingsUi />
       </div>
       <CreateAAModal
