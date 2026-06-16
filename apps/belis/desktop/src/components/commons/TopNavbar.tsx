@@ -138,7 +138,11 @@ const TopNavbar = () => {
         <NavLink
           to="/"
           end
-          className={({ isActive }) => `text-base hover:text-gray-600`}
+          // text-gray-900 keeps the inactive link dark: the help modal's global
+          // Bootstrap CSS reboots `a` to blue, and this class out-specifies it.
+          className={({ isActive }) =>
+            `text-base hover:text-gray-600 ${isActive ? "" : "text-gray-900"}`
+          }
           style={({ isActive }) => ({
             color: isActive ? "#1677ff" : undefined,
           })}
@@ -148,7 +152,11 @@ const TopNavbar = () => {
         {!isReadOnly && <CreateFeatureDropdown />}
         <NavLink
           to="/arbeitsauftraege"
-          className={({ isActive }) => `text-base hover:text-gray-600`}
+          // text-gray-900 keeps the inactive link dark: the help modal's global
+          // Bootstrap CSS reboots `a` to blue, and this class out-specifies it.
+          className={({ isActive }) =>
+            `text-base hover:text-gray-600 ${isActive ? "" : "text-gray-900"}`
+          }
           style={({ isActive }) => ({
             color: isActive ? "#1677ff" : undefined,
           })}
@@ -211,7 +219,11 @@ const TopNavbar = () => {
       <div className="ml-auto flex items-center gap-4">
         <NavLink
           to="/key-tables"
-          className={({ isActive }) => `text-base hover:text-gray-600`}
+          // text-gray-900 keeps the inactive link dark: the help modal's global
+          // Bootstrap CSS reboots `a` to blue, and this class out-specifies it.
+          className={({ isActive }) =>
+            `text-base hover:text-gray-600 ${isActive ? "" : "text-gray-900"}`
+          }
           style={({ isActive }) => ({
             color: isActive ? "#1677ff" : undefined,
           })}
