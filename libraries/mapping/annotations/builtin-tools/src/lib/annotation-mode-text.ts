@@ -331,7 +331,7 @@ export const defaultAnnotationModeText = {
     adhocModel: {
       actions: {
         close: "Schließen",
-        focusObject: "Objekt fokussieren",
+        focusObject: "Messungen anzeigen und erste auswählen",
         toggleClipping: "Clipping umschalten",
       },
       highlight: {
