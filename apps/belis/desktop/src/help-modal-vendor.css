@@ -1,0 +1,10 @@
+/* Vendor CSS required only by the HelpModal (react-cismap
+   GenericModalApplicationMenu -> react-bootstrap Modal + colored accordion
+   panels). It is pulled into a dedicated, low-priority cascade layer so that
+   Bootstrap's global `reboot` (heading/paragraph margins, `a` color, base
+   typography) and topicMaps' `html { font-size: 14px }` can NOT leak into the
+   BelIS desktop layout: unlayered app + Tailwind styles always out-rank any
+   layered rule, regardless of import order. Loading these stylesheets
+   unlayered is what previously inflated the spacing across the whole app. */
+@import "bootstrap/dist/css/bootstrap.min.css" layer(vendor);
+@import "react-cismap/topicMaps.css" layer(vendor);
