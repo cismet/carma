@@ -10,8 +10,6 @@ import { createRoot } from "react-dom/client";
 import PrintButton from "../components/map-print/PrintButton";
 import PrintPrevTexts from "../components/map-print/PrintPrevTexts";
 import ClosePrintButton from "../components/map-print/ClosePrintButton";
-import UpdateScalePrintButton from "../components/map-print/UpdateScalePrintButton";
-import { constant } from "lodash";
 import { convertLayerStringToLayers } from "../config";
 let reactRoot = null;
 interface DraggablePolygonOptions extends L.PolylineOptions {
@@ -25,6 +23,10 @@ interface CustomPolygon extends L.Polygon {
 function getStyleName(vectorStyle) {
   if (!vectorStyle) {
     throw new Error("vectorStyle is undefined or null.");
+  }
+
+  if (!/^https?:\/\//.test(vectorStyle)) {
+    return null;
   }
 
   // Extract the parts of the path
@@ -197,6 +199,11 @@ export const getPrintLayers = (bgLayer, layers) => {
             layer.style ||
             layer.props.style;
           const styleName = getStyleName(vectorStyle);
+
+          // Local (non-url) styles cannot be printed, so skip this layer.
+          if (!styleName) {
+            break;
+          }
 
           layerPrint.unshift(
             buildVecorStylePrint(styleName, layer.opacity, 2, 1)
