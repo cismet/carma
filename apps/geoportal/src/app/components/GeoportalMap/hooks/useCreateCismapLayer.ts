@@ -305,10 +305,11 @@ export const useCreateCismapLayers = (
   }, [selectedFeature, globalHits]);
 
   useEffect(() => {
-    if (
-      Object.keys(idleLayers).length ===
-      layers.filter((l) => l.layerType === "vector").length
-    ) {
+    const renderedVectorLayerCount = layers.filter(
+      (l) =>
+        l.layerType === "vector" && l.visible && !is3dAnnotationAdhocLayer(l)
+    ).length;
+    if (Object.keys(idleLayers).length === renderedVectorLayerCount) {
       dispatch(setLayersIdle(true));
     }
   }, [idleLayers]);
