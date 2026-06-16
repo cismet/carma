@@ -13,9 +13,9 @@ module.exports = {
     ...depsGlobs,
   ],
   // Tailwind's `.collapse` utility (visibility: collapse) collides with
-  // Bootstrap's `.collapse` class used by the react-cismap help modal
-  // (HelpModal -> GenericModalApplicationMenu accordion panels), which made the
-  // expanded panel bodies invisible. We don't use the Tailwind visibility:collapse
+  // Bootstrap's `.collapse` class used by the lazily-loaded HelpModal accordion
+  // (HelpModal -> GenericModalApplicationMenu panels), which made the expanded
+  // panel bodies invisible. We don't use the Tailwind visibility:collapse
   // utility, so block it to resolve the name clash.
   blocklist: ["collapse"],
 };

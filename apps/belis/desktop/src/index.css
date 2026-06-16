@@ -1,3 +1,11 @@
+/* No-op at rest (16px is the browser default, so this keeps the app identical to
+   `dev`), but it pins the base size while the HelpModal is open: that modal lazily
+   loads topicMaps.css, whose `html { font-size: 14px }` would otherwise shrink the
+   whole page behind the dialog. */
+html {
+  font-size: 16px;
+}
+
 /* react-image-lightbox (used via PhotoLightbox from the react-cismap library)
    has a hardcoded English error message "This image failed to load" with no
    i18n prop exposed through the wrapper. We hide the English text via
