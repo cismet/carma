@@ -7,7 +7,7 @@ const LayoutContent = () => {
   const { config } = useMapPage();
 
   return (
-    <div className="bg-[#F1F1F1] flex flex-col w-full h-full min-h-screen overflow-clip">
+    <div className="bg-[#F1F1F1] flex flex-col w-full h-screen overflow-hidden">
       <TopNavbar />
       <div className="w-full flex-1">
         {/* Always mounted — display:none preserves map state across route changes */}

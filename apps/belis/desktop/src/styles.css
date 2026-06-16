@@ -196,6 +196,12 @@ iframe {
   display: none;
 } */
 
+/* Map card body holds a fixed-pixel-sized map; clip any sub-pixel rounding
+   so it never produces a horizontal scrollbar. */
+.belis-map-card > .ant-card-body {
+  overflow-x: hidden;
+}
+
 .ant-select-dropdown {
   z-index: 40000000 !important;
 }
