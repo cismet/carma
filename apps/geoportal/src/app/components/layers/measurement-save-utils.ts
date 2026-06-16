@@ -1,5 +1,8 @@
 export const DEFAULT_MEASUREMENT_EMOJI_UNIFIED = "1f4cf";
 
+export const SAVED_MEASUREMENT_FOCUS_OBJECT_LABEL =
+  "Messungen anzeigen und erste auswählen";
+
 export const MEASUREMENT_THUMBNAIL_URL =
   "https://wupp-digitaltwin-assets.cismet.de/v2/geoportal/thumbnails/measurements.png";
 

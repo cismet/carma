@@ -52,6 +52,7 @@ import { getGeoportalLayerToolActionButtonClassName } from "./layer-tool-action-
 import {
   normalizeAnnotationsRuntimeGeoJsonFeatureCollection,
   parseStyleObject,
+  resolveAdhocFocusObjectLabel,
 } from "./measurement-import-utils";
 
 const MEASUREMENT_SERVICE_NAME = "measurements";
@@ -199,8 +200,10 @@ const useMeasurementLayerbarActions = (
 
 const useSavedCesiumMeasurementLayerbarActions = ({
   layerId,
+  focusObjectLabel,
 }: {
   layerId: string;
+  focusObjectLabel?: string | null;
 }) => {
   const { annotationEntries, nodes, scene, setSelectedAnnotationId } =
     useAnnotationsRuntime();
@@ -239,7 +242,7 @@ const useSavedCesiumMeasurementLayerbarActions = ({
   const actions: LayerbarAction[] = [
     {
       id: "focus-object",
-      title: adhocModel.actions.focusObject,
+      title: focusObjectLabel ?? adhocModel.actions.focusObject,
       icon: <Icon name="search-location" className="leading-none" />,
       disabled: savedAnnotationIds.length === 0,
       onClick: handleFlyTo,
@@ -378,6 +381,7 @@ const MeasurementLayerButton = (props: GeoportalLayerButtonProps) => {
 const SavedCesiumMeasurementLayerButton = (
   props: GeoportalLayerButtonProps & {
     annotationsGeoJson: AnnotationsRuntimeGeoJsonFeatureCollection;
+    focusObjectLabel?: string | null;
   }
 ) => {
   // Registration of the external annotation collection is owned by
@@ -385,6 +389,7 @@ const SavedCesiumMeasurementLayerButton = (
   // provider; this button only reads the registered entries for fly-to.
   const { actions } = useSavedCesiumMeasurementLayerbarActions({
     layerId: props.id,
+    focusObjectLabel: props.focusObjectLabel,
   });
 
   return (
@@ -425,6 +430,7 @@ const GeoportalLayerButtonSlot = (props: GeoportalLayerButtonProps) => {
       <SavedCesiumMeasurementLayerButton
         {...props}
         annotationsGeoJson={savedMeasurementAnnotationsGeoJson}
+        focusObjectLabel={resolveAdhocFocusObjectLabel(props.layer)}
       />
     );
   }

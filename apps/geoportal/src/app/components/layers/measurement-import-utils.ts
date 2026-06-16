@@ -74,6 +74,42 @@ export const normalizeAnnotationsRuntimeGeoJsonFeatureCollection = (
   };
 };
 
+const readFocusObjectLabelFromCarmaConf = (
+  carmaConf: unknown
+): string | null => {
+  if (isRecord(carmaConf) && typeof carmaConf.focusObjectLabel === "string") {
+    const label = carmaConf.focusObjectLabel.trim();
+    if (label.length > 0) {
+      return label;
+    }
+  }
+  return null;
+};
+
+export const resolveAdhocFocusObjectLabel = (layer: unknown): string | null => {
+  if (!isRecord(layer)) {
+    return null;
+  }
+
+  const directMetadata = layer.metadata;
+  if (isRecord(directMetadata)) {
+    const label = readFocusObjectLabelFromCarmaConf(directMetadata.carmaConf);
+    if (label) {
+      return label;
+    }
+  }
+
+  const styleCandidate = isRecord(layer.props)
+    ? layer.props.style ?? layer.vectorStyle
+    : layer.vectorStyle;
+  const styleData = parseStyleObject(styleCandidate);
+  if (styleData && isRecord(styleData.metadata)) {
+    return readFocusObjectLabelFromCarmaConf(styleData.metadata.carmaConf);
+  }
+
+  return null;
+};
+
 const resolveAnnotationsGeoJsonFromStyleData = (
   styleData: Record<string, unknown>
 ): AnnotationsRuntimeGeoJsonFeatureCollection | null => {

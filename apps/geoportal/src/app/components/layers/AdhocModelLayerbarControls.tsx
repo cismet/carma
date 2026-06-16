@@ -75,6 +75,7 @@ import {
   type ColorSwatchGroupOption,
 } from "./ColorSwatchGroup";
 import { getGeoportalLayerToolActionButtonClassName } from "./layer-tool-action-button-style";
+import { resolveAdhocFocusObjectLabel } from "./measurement-import-utils";
 
 export const ADHOC_RENDER_STYLE_INTERACTION_ID = "adhoc-render-style";
 export const ADHOC_MODEL_CONTROL_INTERACTION_ID = "adhoc-model-controls";
@@ -585,7 +586,8 @@ export const AdhocModelFlyToLayerbarAction = ({
     layerbar: { adhocModel },
   } = geoportalAnnotationModeText;
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
-  const focusObjectLabel = adhocModel.actions.focusObject;
+  const focusObjectLabel =
+    resolveAdhocFocusObjectLabel(layer) ?? adhocModel.actions.focusObject;
   const {
     featureCollections,
     addFeature,

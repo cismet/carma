@@ -30,6 +30,7 @@ import {
   getUniqueTitle,
   hashString,
   MEASUREMENT_3D_THUMBNAIL_URL,
+  SAVED_MEASUREMENT_FOCUS_OBJECT_LABEL,
   type MeasurementSaveValues,
 } from "./measurement-save-utils";
 
@@ -73,6 +74,7 @@ export const buildCesiumAnnotationLayerStyle = ({
     carmaConf: {
       instant: true,
       annotationsGeoJson,
+      focusObjectLabel: SAVED_MEASUREMENT_FOCUS_OBJECT_LABEL,
       layerInfo: {
         title,
         icon,

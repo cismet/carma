@@ -25,6 +25,7 @@ import {
   hashString,
   getUniqueTitle,
   MEASUREMENT_THUMBNAIL_URL,
+  SAVED_MEASUREMENT_FOCUS_OBJECT_LABEL,
   downloadMeasurementJsonFile,
   type MeasurementSaveValues,
 } from "./measurement-save-utils";
@@ -43,15 +44,24 @@ function SaveMeasurements({ layer }: { layer: Layer }) {
       ? `Inhalt: ${trimmedDescription}`
       : "";
 
+    const baseFeatureData = shapesToFeatureCollection(shapes, {
+      title: featureTitle,
+      icon: `emoji:${values.selectedUnified}`,
+      description: trimmedDescription,
+      thumbnail: MEASUREMENT_THUMBNAIL_URL,
+    });
+
     const featureData = {
-      ...shapesToFeatureCollection(shapes, {
-        title: featureTitle,
-        icon: `emoji:${values.selectedUnified}`,
-        description: trimmedDescription,
-        thumbnail: MEASUREMENT_THUMBNAIL_URL,
-      }),
+      ...baseFeatureData,
       source: ADHOC_LAYER_SOURCES.TWO_D_MEASUREMENTS,
       visibility: ADHOC_LAYER_VISIBILITIES.TWO_D,
+      metadata: {
+        ...baseFeatureData.metadata,
+        carmaConf: {
+          ...baseFeatureData.metadata.carmaConf,
+          focusObjectLabel: SAVED_MEASUREMENT_FOCUS_OBJECT_LABEL,
+        },
+      },
     };
 
     return { featureData, featureTitle, featureDescription };
