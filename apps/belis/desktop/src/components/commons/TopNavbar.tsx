@@ -125,7 +125,7 @@ const TopNavbar = () => {
     <div className="relative flex items-center mx-3 mb-4 mt-3">
       {!isLiveVersion && (
         <span className="absolute left-1/2 -translate-x-1/2 text-[11px] font-medium tracking-wide text-gray-400 whitespace-nowrap pointer-events-none">
-          Entwicklungsversion – {getApplicationVersion(versionData)}
+          Entwicklungsversion
         </span>
       )}
       <span className="font-semibold mr-8">BelISDesktop</span>
