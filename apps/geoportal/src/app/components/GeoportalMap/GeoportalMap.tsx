@@ -927,7 +927,7 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
       isVisible3dAnnotationAdhocLayer
     );
     const selectedFeatureInMeasurementMode =
-      isAnnotationSelectToolActive ? selectedFeature : null;
+      getIsCesium() && isAnnotationSelectToolActive ? selectedFeature : null;
     const shouldRenderAnnotationInfoBox =
       getIsCesium() &&
       (isModeMeasurement ||
