@@ -8,6 +8,13 @@ const depsGlobs = createGlobPatternsForDependencies(__dirname);
 
 module.exports = {
   presets: [preset],
+  // Make Tailwind utilities `!important` so they can win the cascade against
+  // Bootstrap 4's own `!important` utility classes (`.mx-3`, `.border`, ...)
+  // loaded by the HelpModal. Combined with the `tw`-before-`vendor` layer order
+  // in styles.css, the earlier `tw` layer wins for `!important` declarations, so
+  // Bootstrap can no longer inflate the app shell's Tailwind spacing. Same
+  // approach as the sibling verdis/lagis apps that mix Bootstrap with Tailwind.
+  important: true,
   content: [
     join(__dirname, "src/**/*!(*.stories|*.spec|*.test).{js,ts,jsx,tsx}"),
     ...depsGlobs,
