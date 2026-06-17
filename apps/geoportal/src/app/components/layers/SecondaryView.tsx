@@ -252,7 +252,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>((props, _ref) => {
         }
       });
 
-      layerButtons.forEach((layerButton, i) => {
+      layerButtons.forEach((layerButton) => {
         if (layerButton.contains(event.target as Node)) {
           const layerId = layerButton.id.replace("layer-", "");
           const clickedLayer = layers.find((l) => l.id === layerId);
@@ -260,7 +260,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>((props, _ref) => {
             returnFunction = true;
             return;
           }
-          newLayerIndex = i - 1;
+          newLayerIndex = layers.findIndex((l) => l.id === layerId);
         }
       });
 

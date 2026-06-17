@@ -17,6 +17,7 @@ import { extractCarmaConfig } from "@carma-commons/utils";
 
 import { RootState } from "..";
 import { layerMap } from "../../config";
+import { shouldShowAdhocLayerInLayerList } from "../../helper/adhoc-feature-utils";
 
 type MapLibreMapEntry = {
   id: string;
@@ -36,6 +37,9 @@ const shouldSkipLayerForSelection = (
     return true;
   }
   if (!isLeaflet && layer.type !== "object") {
+    return true;
+  }
+  if (!shouldShowAdhocLayerInLayerList(layer, !isLeaflet)) {
     return true;
   }
   return false;
