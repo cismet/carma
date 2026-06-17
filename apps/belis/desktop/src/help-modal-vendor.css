@@ -8,3 +8,43 @@
    unlayered is what previously inflated the spacing across the whole app. */
 @import "bootstrap/dist/css/bootstrap.min.css" layer(vendor);
 @import "react-cismap/topicMaps.css" layer(vendor);
+
+/* Match the react-cismap Storybook reference rendering of this dialog.
+   Storybook loads the sheets above globally and UNLAYERED, so topicMaps'
+   `html { font-size: 14px }` wins and the whole modal renders on a 14px base.
+   In BelIS those sheets are layered (so they can't inflate the app), and the
+   root stays at 16px -> the same markup renders ~14% larger / looser than the
+   reference. Re-pin the compact 14px base, but unlayered (outranks the vendor
+   layer) and scoped to the bootstrap modal subtree only, so it reproduces the
+   Storybook look without touching the rest of the BelIS layout. The modal is a
+   portal at <body>, so `.modal` cannot collide with the app's own content. */
+.modal {
+  font-size: 14px;
+}
+
+/* Tailwind's preflight (`@tailwind base` in styles.css) is UNLAYERED and resets
+   `border-width: 0` on every element and strips `<button>` background/color.
+   Bootstrap (in `layer(vendor)` above) restores those for `.btn-primary` and
+   the panel/well borders, but a layered rule always loses to the unlayered
+   preflight -> inside the modal the Ok button lost its blue fill and every
+   border disappeared. Revert just the affected properties to the vendor layer,
+   scoped to the modal subtree: Bootstrap's values reappear exactly where it set
+   them (buttons, panels), and nowhere else, so the app reset stays untouched.
+   `revert-layer` needs the same browser support as `@layer` (Safari 15.4+). */
+.modal *,
+.modal *::before,
+.modal *::after {
+  border-width: revert-layer;
+  border-style: revert-layer;
+  border-color: revert-layer;
+}
+
+.modal button,
+.modal [type="button"],
+.modal [type="submit"],
+.modal [type="reset"] {
+  padding: revert-layer;
+  color: revert-layer;
+  background-color: revert-layer;
+  background-image: revert-layer;
+}
