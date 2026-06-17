@@ -17,23 +17,35 @@ const VENDOR_CSS_ID = "belis-help-modal-vendor-css";
 // does without the modal (identical to `dev`). The CSS still ships in its own
 // cascade layer (see help-modal-vendor.css) so that, even while it is loaded,
 // the modal's vendor styles stay below the app's own styles.
-const useVendorCss = (active: boolean) => {
+//
+// Returns whether the stylesheet has finished loading. The modal must wait for
+// this: react-bootstrap's modal/backdrop renders as a solid black screen until
+// its CSS arrives, so mounting it before the stylesheet is ready flashes black.
+const useVendorCss = (active: boolean): boolean => {
+  const [ready, setReady] = useState(false);
   useEffect(() => {
-    if (!active) return;
-    let link = document.getElementById(
+    if (!active) {
+      setReady(false);
+      return;
+    }
+    const existing = document.getElementById(
       VENDOR_CSS_ID
     ) as HTMLLinkElement | null;
-    if (!link) {
-      link = document.createElement("link");
-      link.id = VENDOR_CSS_ID;
-      link.rel = "stylesheet";
-      link.href = vendorCssUrl;
-      document.head.appendChild(link);
+    if (existing) {
+      setReady(true);
+      return;
     }
+    const link = document.createElement("link");
+    link.id = VENDOR_CSS_ID;
+    link.rel = "stylesheet";
+    link.href = vendorCssUrl;
+    link.onload = () => setReady(true);
+    document.head.appendChild(link);
     return () => {
       document.getElementById(VENDOR_CSS_ID)?.remove();
     };
   }, [active]);
+  return ready;
 };
 
 // "Kompaktanleitung und Hintergrundinformationen" – mirrors the Geoportal help
@@ -45,7 +57,7 @@ const useVendorCss = (active: boolean) => {
 const HelpModal = () => {
   const [open, setOpen] = useState(false);
   const version = getApplicationVersion(versionData);
-  useVendorCss(open);
+  const cssReady = useVendorCss(open);
 
   return (
     <>
@@ -58,7 +70,7 @@ const HelpModal = () => {
           onClick={() => setOpen(true)}
         />
       </Tooltip>
-      {open && (
+      {open && cssReady && (
         <GenericModalApplicationMenu
           visible={open}
           setVisible={setOpen}
