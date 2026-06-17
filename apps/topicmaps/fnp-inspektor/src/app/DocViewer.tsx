@@ -25,17 +25,28 @@ export function App() {
   const [docs, setDocs] = useState<Doc[]>([]);
 
   const getMeta = async (url: string) => {
-    const extra = await fetch(url)
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Network response was not ok");
-        }
-        return response.json();
-      })
-      .then((result) => {
-        return result;
-      });
-    return extra;
+    // A document's meta.json is produced by an overnight tile/document prep run.
+    // While that run is temporarily out of sync a single meta.json can 404 (and
+    // self-heals the next day). Treat any failure as a soft, per-document miss:
+    // return undefined so the viewer shows its "Vorschau nicht verfügbar"
+    // download fallback instead of crashing the whole batch.
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        console.warn(
+          "[FNP-DOC] meta.json unavailable, showing download fallback",
+          { url, status: response.status }
+        );
+        return undefined;
+      }
+      return await response.json();
+    } catch (error) {
+      console.warn(
+        "[FNP-DOC] meta.json request failed, showing download fallback",
+        { url, error }
+      );
+      return undefined;
+    }
   };
 
   const getDocsWithUpdatedMetaData = async (tmpDocs: Doc[]) => {
