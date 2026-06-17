@@ -2,10 +2,24 @@ import type { CSSProperties } from "react";
 
 const CONTROL_SURFACE_BACKGROUND = "#fff";
 const CONTROL_FONT_FAMILY = "Helvetica Neue, Arial, Helvetica, sans-serif";
+// Stack levels inside the ControlLayoutCanvas, which is sealed by
+// `isolation: isolate` (see ControlLayoutCanvas.tsx). Because the canvas is its
+// own stacking context, these numbers never leak out to the page (e.g. they
+// cannot collide with geoportal's oblique overlay at z-index 1500) and only
+// rank against each other AND against whatever the app renders as its map.
+//
+// They must therefore clear the internal z-index ceiling of the map library
+// living inside the canvas. react-cismap (used by all topicmap apps) paints its
+// own chrome at roughly 600-1000, so `mapControls` must sit ABOVE that, hence
+// 1000/2000 rather than 1/2. Plain Cesium/Leaflet divs (geoportal) sit low and
+// don't need it, but the high values are harmless there thanks to the isolation.
+//
+// Do NOT lower these back to 1/2: it silently re-buries the controls (gazetteer,
+// zoom, info box) under react-cismap's UI in every topicmap app.
 const CONTROL_CANVAS_STACK_LEVELS = {
   mapContent: 0,
-  mapControls: 1,
-  secondaryViews: 2,
+  mapControls: 1000,
+  secondaryViews: 2000,
 } as const;
 
 const controlMetrics = {
