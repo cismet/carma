@@ -4221,6 +4221,33 @@ const BelisMapLibWrapper = ({
     map?.resize();
   }, [map]);
 
+  // MapLibre only auto-resizes on `window` resize events, not when its own
+  // container changes size. On first load the map mounts while its container is
+  // still 0x0 (the route wrapper in Layout is `display:none` until the map route
+  // activates, and the layout has not settled yet), so the canvas locks to that
+  // tiny size and only corrects on the next window resize / interaction — the
+  // "small map until I touch it" symptom. Observe the map's actual container and
+  // resize whenever its box changes (hidden -> visible, sidebar width changes,
+  // window resize). A rAF coalesces the burst of callbacks during initial layout
+  // into a single resize.
+  useEffect(() => {
+    if (!map) return;
+    const container = map.getContainer();
+    let frame = 0;
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => map.resize());
+    });
+    observer.observe(container);
+    // Catch the case where the container already has its final size by the time
+    // the map instance is wired up (observer only fires on subsequent changes).
+    map.resize();
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [map]);
+
   // In the Entwürfe tab a Leuchten creation draft spans several rows (Standort
   // parent + nested Leuchten). The primary `selectedFeatureId` only holds the
   // draft key, so steer the sidebar highlight at the specific expanded row
