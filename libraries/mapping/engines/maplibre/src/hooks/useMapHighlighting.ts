@@ -276,15 +276,31 @@ export const useMapHighlighting = ({
     [explicitSources, stateKey]
   );
 
-  // Sync highlightingActive to map global state
+  // Sync highlightingActive to map global state. The style dims
+  // non-highlighted features via ["global-state", "highlightingEnabled"], so
+  // this value MUST always converge to highlightingActive — otherwise a
+  // deactivation that gets dropped leaves the map permanently dimmed.
+  //
+  // The style isn't always loaded when this runs (e.g. a concurrent source
+  // setData from a data refresh momentarily flips isStyleLoaded() to false).
+  // Instead of silently bailing in that case, defer the write via a one-shot
+  // "idle" listener so it still lands once the map settles.
   useEffect(() => {
     if (!map) return;
-    // Guard: style must be loaded before setting global state
-    if (!map.isStyleLoaded()) return;
     const m = map as MapWithGlobalState;
-    if (typeof m.setGlobalStateProperty === "function") {
-      m.setGlobalStateProperty("highlightingEnabled", highlightingActive);
+    const apply = () => {
+      if (typeof m.setGlobalStateProperty === "function") {
+        m.setGlobalStateProperty("highlightingEnabled", highlightingActive);
+      }
+    };
+    if (map.isStyleLoaded()) {
+      apply();
+      return;
     }
+    map.once("idle", apply);
+    return () => {
+      map.off("idle", apply);
+    };
   }, [map, highlightingActive]);
 
   // Apply highlights when criteria change
