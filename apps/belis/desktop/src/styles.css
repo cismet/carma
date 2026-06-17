@@ -1,6 +1,26 @@
+/* Tailwind <-> Bootstrap class-name collision fix.
+ *
+ * Bootstrap 4 (loaded by the HelpModal, see help-modal-vendor.css) ships its own
+ * `!important` utility classes whose names overlap Tailwind's: `.mx-3`, `.mb-4`,
+ * `.border`, `.shadow`, ... With Bootstrap in `layer(vendor)`, a *layered
+ * !important* rule still beats an *unlayered non-important* Tailwind utility, so
+ * once the modal CSS loaded, Bootstrap's `.mx-3` (1rem) overrode Tailwind's
+ * `.mx-3` (0.75rem) and the whole app shell inflated.
+ *
+ * Fix: declare the layer order `tw` before `vendor`, put Tailwind's utilities in
+ * the `tw` layer, and make them `!important` (`important: true` in the Tailwind
+ * config). For *!important* declarations the cascade order is reversed, so the
+ * EARLIER layer (`tw`) wins over `vendor` -> Tailwind's utilities beat
+ * Bootstrap's. `@tailwind base` (preflight) deliberately stays UNLAYERED: as a
+ * normal declaration, unlayered already outranks Bootstrap's layered reboot, and
+ * keeping it out of `tw` lets the modal's `.modal *{ border:revert-layer }` hooks
+ * still restore Bootstrap's component borders inside the dialog. */
 @tailwind base;
-@tailwind components;
-@tailwind utilities;
+@layer tw, vendor;
+@layer tw {
+  @tailwind components;
+  @tailwind utilities;
+}
 
 .leaflet-control * img {
   display: initial;

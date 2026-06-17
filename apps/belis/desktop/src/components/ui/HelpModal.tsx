@@ -12,20 +12,25 @@ import versionData from "../../version.json";
 
 const VENDOR_CSS_ID = "belis-help-modal-vendor-css";
 
-// Inject the bootstrap/topicMaps stylesheet only while the help modal is open,
-// and remove it again on close, so the rest of the app renders exactly like it
-// does without the modal (identical to `dev`). The CSS still ships in its own
-// cascade layer (see help-modal-vendor.css) so that, even while it is loaded,
-// the modal's vendor styles stay below the app's own styles.
+// Lazily inject the bootstrap/topicMaps stylesheet the first time the help modal
+// is opened, and then LEAVE it in the document. It ships in its own low-priority
+// cascade layer (see help-modal-vendor.css) and the root font-size is pinned in
+// index.css, so once loaded it has no effect on the rest of the app — it renders
+// exactly like `dev`. Crucially we must NOT add/remove the link on every toggle:
+// adding or removing a stylesheet this large forces the browser to re-run the
+// whole cascade against every element in the app (a full style recalc + reflow),
+// which is what flickered the shell and momentarily shifted the layout on each
+// open/close. Loading it once pays that recalc a single time.
 //
 // Returns whether the stylesheet has finished loading. The modal must wait for
 // this: react-bootstrap's modal/backdrop renders as a solid black screen until
 // its CSS arrives, so mounting it before the stylesheet is ready flashes black.
 const useVendorCss = (active: boolean): boolean => {
-  const [ready, setReady] = useState(false);
+  const [ready, setReady] = useState(
+    () => document.getElementById(VENDOR_CSS_ID) !== null
+  );
   useEffect(() => {
-    if (!active) {
-      setReady(false);
+    if (!active || ready) {
       return;
     }
     const existing = document.getElementById(
@@ -41,10 +46,9 @@ const useVendorCss = (active: boolean): boolean => {
     link.href = vendorCssUrl;
     link.onload = () => setReady(true);
     document.head.appendChild(link);
-    return () => {
-      document.getElementById(VENDOR_CSS_ID)?.remove();
-    };
-  }, [active]);
+    // Intentionally no cleanup: the stylesheet stays loaded for the lifetime of
+    // the app so reopening the modal never re-triggers a full-page style recalc.
+  }, [active, ready]);
   return ready;
 };
 

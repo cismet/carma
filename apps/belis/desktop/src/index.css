@@ -6,6 +6,20 @@ html {
   font-size: 16px;
 }
 
+/* The HelpModal renders through react-cismap -> react-bootstrap, whose
+   ModalManager "compensates" for the body scrollbar by writing inline
+   `overflow:hidden` and `padding-right:<scrollbarWidth>px` onto <body> while the
+   modal is open, then restoring them on close (see react-overlays ModalManager).
+   In this fixed, full-screen app that just shifts the whole shell sideways and
+   leaves a gap on the right — exactly the flicker seen on open/close. The shell
+   owns its own scrolling (h-screen + overflow-hidden), so the body should never
+   scroll: pin it so the manager measures no scrollbar (adds no padding) and its
+   inline mutations become no-ops. `!important` outranks the inline styles. */
+body {
+  overflow: hidden !important;
+  padding-right: 0 !important;
+}
+
 /* react-image-lightbox (used via PhotoLightbox from the react-cismap library)
    has a hardcoded English error message "This image failed to load" with no
    i18n prop exposed through the wrapper. We hide the English text via
