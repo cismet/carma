@@ -84,7 +84,11 @@ const TopNavbar = () => {
       void message.success(
         `${activeHighlights.length} Protokoll(e) zum Arbeitsauftrag hinzugefügt`
       );
+      // Close highlight mode after adding to an AA, same as creating a new AA,
+      // so the map isn't left in the dimmed/highlighted state.
       setActiveHighlights(null);
+      setHighlightingActive(false);
+      clearHighlights();
       dispatch(incrementFeatureDataVersion());
     } catch (err) {
       console.error("[AddToAA] ERROR", err);
