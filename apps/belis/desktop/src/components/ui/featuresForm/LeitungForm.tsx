@@ -177,7 +177,6 @@ const LeitungForm = ({
           : {}),
       };
 
-      console.log("xxx saving leitung:", JSON.stringify(dataToSave, null, 2));
       await updateDataByClassName(jwt, "leitung", dataToSave);
 
       // Update local documents so changes appear immediately

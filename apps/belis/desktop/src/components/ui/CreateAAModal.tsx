@@ -78,8 +78,6 @@ const CreateAAModal = ({
       features: highlights,
     });
 
-    console.log("xxx final save payload:", JSON.stringify(aaSaveData, null, 2));
-
     setSaving(true);
 
     try {
@@ -101,17 +99,11 @@ const CreateAAModal = ({
 
       if (bezeichnung || beschreibung) {
         try {
-          console.log("xxx editVeranlassungViaAA →", {
-            bezeichnung,
-            beschreibung,
-            aaid: aaId,
-          });
           const actionResult = await executeAction(
             jwt as string,
             "editVeranlassungViaAA",
             { bezeichnung, beschreibung, aaid: aaId }
           );
-          console.log("xxx editVeranlassungViaAA response:", actionResult);
 
           // try {
           //   const aaAfter = (await fetchArbeitsauftragById(

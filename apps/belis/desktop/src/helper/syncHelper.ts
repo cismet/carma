@@ -94,7 +94,6 @@ export const saveKeyTableItem = (
   // Create onComplete callback for new items to handle ID update
   const onComplete = isNewItem
     ? (action: { result?: string }) => {
-        console.log("xxx syncHelper onComplete action:", action);
         if (action.result && onIdUpdated) {
           try {
             const result = JSON.parse(action.result);

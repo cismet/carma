@@ -722,7 +722,6 @@ const SearchModal = ({
           );
 
           if (results.length === 0) {
-            console.warn(`xxx ${logPrefix} No results found`);
             setNoResults(true);
             setIsSearching(false);
             return;
