@@ -377,7 +377,15 @@ const AuswahlBlock = ({
               )}
             </div>
             {altHeld && !standortAlreadyHighlighted && (
-              <div className="absolute inset-0 flex items-center justify-center gap-6 opacity-0 group-hover:opacity-100">
+              // Hidden base state via inline opacity, not the `opacity-0`
+              // utility: under `important: true` Tailwind keeps `opacity-0` in
+              // `@layer tw` but hoists `group-hover:opacity-100` out unlayered,
+              // and a layered !important beats an unlayered one — so `opacity-0`
+              // would always win and the +/++ buttons never reveal on hover.
+              <div
+                style={{ opacity: 0 }}
+                className="absolute inset-0 flex items-center justify-center gap-6 group-hover:opacity-100"
+              >
                 <button
                   onClick={handleAddStandort}
                   className="text-gray-700 text-3xl font-light"
@@ -444,7 +452,11 @@ const AuswahlBlock = ({
                 )}
               </div>
               {altHeld && !alreadyHighlighted && (
-                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                // inline opacity base state — see note on the +/++ block above
+                <div
+                  style={{ opacity: 0 }}
+                  className="absolute inset-0 flex items-center justify-center group-hover:opacity-100"
+                >
                   <button
                     onClick={() => handleAddLeuchte(leuchte)}
                     className="text-gray-700 text-3xl font-light"
