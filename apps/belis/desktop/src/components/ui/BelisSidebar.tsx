@@ -1079,7 +1079,16 @@ const BelisSidebar = ({
                                 e.stopPropagation();
                                 onFeatureDismiss(feature);
                               }}
-                              className="absolute inset-0 flex items-center justify-center text-black opacity-0 group-hover:opacity-100 text-lg font-bold"
+                              // Hidden base state via inline opacity, NOT the
+                              // `opacity-0` utility: with `important: true`,
+                              // Tailwind keeps `opacity-0` inside `@layer tw` but
+                              // hoists `group-hover:opacity-100` out unlayered, and
+                              // a layered !important wins over an unlayered one — so
+                              // `opacity-0` would always beat the hover reveal and
+                              // the ✕ never shows. Inline opacity is a normal
+                              // declaration the !important hover rule can override.
+                              style={{ opacity: 0 }}
+                              className="absolute inset-0 flex items-center justify-center text-black group-hover:opacity-100 text-lg font-bold"
                               title="Hervorhebung entfernen"
                             >
                               ✕
