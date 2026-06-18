@@ -48,3 +48,26 @@
   background-color: revert-layer;
   background-image: revert-layer;
 }
+
+/* The Modal.Body carries an inline `max-height: (windowHeight - 180px)` with its
+   own `overflow-y: auto`. Those 180px do NOT cover the dialog's top/bottom margin
+   (~3.5rem) plus the header and footer, so when a tall help section is expanded
+   the whole dialog grows past the viewport and react-bootstrap's `.modal` element
+   shows a SECOND, outer scrollbar next to the body's own one (the "scroll from
+   outside"). Pin the dialog to the viewport and make the content a flex column so
+   only the body scrolls — Bootstrap's `modal-dialog-scrollable` behavior, applied
+   here without touching the react-cismap component. Scoped to the modal subtree,
+   which is a portal at <body> and never collides with the app's own content. */
+.modal-dialog {
+  max-height: calc(100vh - 3.5rem);
+}
+.modal-content {
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+  overflow: hidden;
+}
+.modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+}
