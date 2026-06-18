@@ -49,6 +49,7 @@ export { CarmaMapProviderWrapper } from "./lib/components/CarmaMapProviderWrappe
 export { InfoBox } from "./lib/components/InfoBox.tsx";
 export { ResponsiveInfoBox } from "./lib/components/ResponsiveInfoBox.tsx";
 export {
+  CISMAP_ANNOTATION_INFO_BOX_GENERIC_VISUAL_OPTIONS,
   CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS,
   CismapAnnotationInfoBox,
   CismapAnnotationInstructionInfoBox,

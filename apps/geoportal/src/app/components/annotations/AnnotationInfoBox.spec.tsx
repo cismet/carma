@@ -340,7 +340,7 @@ describe("AnnotationInfoBox", () => {
           }),
         }),
         headerBackgroundColor: "#3b82f6",
-        headerTextColor: "white",
+        headerTextColor: undefined,
         headerTitle: "Informationen",
       })
     );

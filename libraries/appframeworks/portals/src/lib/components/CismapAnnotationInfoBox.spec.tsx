@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   ANNOTATION_INFO_BOX_ACTION_IDS,
+  annotationInfoBoxVisualDefaults,
   buildAnnotationInfoBoxSlots,
 } from "@carma-mapping/annotations/ui";
 
@@ -67,6 +68,7 @@ vi.mock("react-cismap/commons/Icon", () => ({
 }));
 
 import {
+  CISMAP_ANNOTATION_INFO_BOX_GENERIC_VISUAL_OPTIONS,
   CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS,
   CismapAnnotationInfoBox,
   CismapAnnotationInstructionInfoBox,
@@ -101,6 +103,14 @@ describe("CismapAnnotationInfoBox", () => {
 
     expect(responsiveInfoBoxMock.mock.calls[0]?.[0]).toEqual(
       expect.objectContaining({
+        collapsibleStyle: expect.objectContaining({
+          backgroundColor: "#f5f5f5",
+          border: "1px solid #e3e3e3",
+          borderRadius: "4px",
+          boxShadow: "rgba(0, 0, 0, 0.05) 0px 1px 1px inset",
+          minHeight: "20px",
+          padding: "0px 0px 0px 0.5625rem",
+        }),
         controlOrder: 12,
         fixedRow: true,
         isCollapsible: false,
@@ -108,16 +118,24 @@ describe("CismapAnnotationInfoBox", () => {
         secondaryInfoBoxElements: expect.arrayContaining([expect.anything()]),
       })
     );
+    const responsiveInfoBoxProps = responsiveInfoBoxMock.mock.calls[0]?.[0];
+    expect(responsiveInfoBoxProps.headerBackgroundColor).toBeUndefined();
+    expect(responsiveInfoBoxProps.headerStyle).toBeUndefined();
+    const headerElement = responsiveInfoBoxProps.header as {
+      props: {
+        children: ReactNode;
+        className?: string;
+        style?: CSSProperties;
+      };
+    };
+
+    expect(headerElement.props.children).toBe("Messungen");
+    expect(headerElement.props.className).toBe("w-full");
+    expect(headerElement.props.style).toEqual({
+      backgroundColor: "#eeeeee",
+      backgroundImage: "linear-gradient(red, blue)",
+    });
     expect(screen.getByText("Messungen")).toBeTruthy();
-    expect(responsiveInfoBoxMock.mock.calls[0]?.[0]).toEqual(
-      expect.objectContaining({
-        header: "Messungen",
-        headerBackgroundColor: "#eeeeee",
-        headerStyle: {
-          backgroundImage: "linear-gradient(red, blue)",
-        },
-      })
-    );
     expect(screen.getByText("Subtitle content")).toBeTruthy();
     expect(screen.getByText("Detail content")).toBeTruthy();
     expect(screen.getByText("Footer content")).toBeTruthy();
@@ -175,15 +193,21 @@ describe("CismapAnnotationInfoBox", () => {
       />
     );
 
-    expect(responsiveInfoBoxMock.mock.calls[0]?.[0]).toEqual(
-      expect.objectContaining({
-        header: "Informationen",
-        headerBackgroundColor: "#3b82f6",
-        headerStyle: expect.objectContaining({
-          color: "white",
-        }),
-      })
-    );
+    const responsiveInfoBoxProps = responsiveInfoBoxMock.mock.calls[0]?.[0];
+    expect(responsiveInfoBoxProps.headerBackgroundColor).toBeUndefined();
+    expect(responsiveInfoBoxProps.headerStyle).toBeUndefined();
+    const headerElement = responsiveInfoBoxProps.header as {
+      props: {
+        children: ReactNode;
+        style?: CSSProperties;
+      };
+    };
+
+    expect(headerElement.props.children).toBe("Informationen");
+    expect(headerElement.props.style).toEqual({
+      backgroundColor: "#3b82f6",
+      color: "white",
+    });
   });
 
   it("renders instruction content in the compact Cismap shell", () => {
@@ -212,9 +236,18 @@ describe("CismapAnnotationInfoBox", () => {
         .querySelector('[data-test-id="mock-responsive-info-box"]')
         ?.getAttribute("data-carma-pointer-query-preserve")
     ).toBe("true");
-    expect(
-      responsiveInfoBoxMock.mock.calls[0]?.[0].collapsibleStyle
-    ).toBeUndefined();
+    expect(responsiveInfoBoxMock.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        collapsibleStyle: expect.objectContaining({
+          backgroundColor: "#f5f5f5",
+          border: "1px solid #e3e3e3",
+          borderRadius: "4px",
+          boxShadow: "rgba(0, 0, 0, 0.05) 0px 1px 1px inset",
+          minHeight: "20px",
+          padding: "0px 0px 0px 0.5625rem",
+        }),
+      })
+    );
     const instructionContainer = document.querySelector(
       '[data-test-id="empty-annotation-info"]'
     );
@@ -244,15 +277,21 @@ describe("CismapAnnotationInfoBox", () => {
       />
     );
 
-    expect(responsiveInfoBoxMock.mock.calls[0]?.[0]).toEqual(
-      expect.objectContaining({
-        header: "Messungen",
-        headerBackgroundColor: "rgba(255, 255, 255, 0.88)",
-        headerStyle: {
-          backgroundImage: "linear-gradient(red, blue)",
-        },
-      })
-    );
+    const responsiveInfoBoxProps = responsiveInfoBoxMock.mock.calls[0]?.[0];
+    expect(responsiveInfoBoxProps.headerBackgroundColor).toBeUndefined();
+    expect(responsiveInfoBoxProps.headerStyle).toBeUndefined();
+    const headerElement = responsiveInfoBoxProps.header as {
+      props: {
+        children: ReactNode;
+        style?: CSSProperties;
+      };
+    };
+
+    expect(headerElement.props.children).toBe("Messungen");
+    expect(headerElement.props.style).toEqual({
+      backgroundColor: "rgba(255, 255, 255, 0.88)",
+      backgroundImage: "linear-gradient(red, blue)",
+    });
   });
 
   it("keeps the Cismap title input visually aligned with 2D measurement headings while hiding non-2D measurement actions", () => {
@@ -260,8 +299,14 @@ describe("CismapAnnotationInfoBox", () => {
       CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS.titleTextClassName
     ).toContain("font-bold");
     expect(
+      CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS.titleTextClassName
+    ).toContain("leading-normal");
+    expect(
       CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS.titleInputClassName
     ).toContain("font-bold");
+    expect(
+      CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS.titleInputClassName
+    ).toContain("leading-normal");
     expect(
       CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS.titleInputClassName
     ).toContain("border-0");
@@ -271,6 +316,25 @@ describe("CismapAnnotationInfoBox", () => {
     expect(
       CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS.titleInputClassName
     ).toContain("focus:outline-none");
+    expect(
+      CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS.shortLabelInputClassName
+    ).toContain("tabular-nums");
+    expect(
+      CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS.shortLabelInputClassName
+    ).toContain("bg-white/85");
+    expect(
+      CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS.shortLabelInputClassName
+    ).toContain("font-semibold");
+    expect(CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS.bodyPanelStyle).toEqual(
+      expect.objectContaining({
+        backgroundColor: "#f5f5f5",
+        border: "1px solid #e3e3e3",
+        borderRadius: "4px",
+        boxShadow: "rgba(0, 0, 0, 0.05) 0px 1px 1px inset",
+        minHeight: "20px",
+        padding: "0px 0px 0px 0.5625rem",
+      })
+    );
     expect(
       CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS.bodyContainerClassName
     ).toContain("pb-2");
@@ -288,16 +352,48 @@ describe("CismapAnnotationInfoBox", () => {
     ).not.toContain("mt-1");
     expect(
       CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS.navigationAvailabilityContainerClassName
-    ).not.toContain("pt-3");
+    ).toContain("mt-1");
+    expect(
+      CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS.navigationAvailabilityContainerClassName
+    ).toContain("pt-1");
+    expect(
+      CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS.navigationAvailabilityContainerClassName
+    ).toContain("w-[96%]");
     expect(
       CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS.navigationSummaryContainerClassName
-    ).not.toContain("mt-1");
+    ).toContain("mt-1");
+    expect(
+      CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS.navigationSummaryContainerClassName
+    ).toContain("mb-2");
+    expect(
+      CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS.navigationSummaryContainerClassName
+    ).toContain("w-[96%]");
+    expect(
+      CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS.navigationSummaryContainerClassName
+    ).toContain("justify-between");
+    expect(
+      CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS.navigationSummaryContainerClassName
+    ).toContain("items-center");
+    expect(
+      CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS.navigationSummaryContainerClassName
+    ).toContain("text-[12px]");
     expect(
       CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS.navigationControlLabels
     ).toEqual({
       previous: "<<",
       next: ">>",
     });
+    expect(CISMAP_ANNOTATION_INFO_BOX_GENERIC_VISUAL_OPTIONS).toEqual(
+      expect.objectContaining({
+        bodyPanelStyle: annotationInfoBoxVisualDefaults.bodyPanelStyle,
+        defaultPixelWidth: annotationInfoBoxVisualDefaults.defaultPixelWidth,
+        titleInputClassName:
+          annotationInfoBoxVisualDefaults.titleInputClassName,
+      })
+    );
+    expect(
+      CISMAP_ANNOTATION_INFO_BOX_GENERIC_VISUAL_OPTIONS.hiddenActionIds
+    ).toEqual(CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS.hiddenActionIds);
   });
 
   it("uses the same Cismap search-location icon for the fly-to action as the layerbar", () => {

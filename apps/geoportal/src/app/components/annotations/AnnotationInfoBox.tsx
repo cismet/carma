@@ -21,7 +21,6 @@ import { getUIMode, UIMode } from "../../store/slices/ui";
 
 const GEOPORTAL_ANNOTATION_HELP_LOCALE = "de-DE";
 const EXTERNAL_ANNOTATION_INFO_BOX_HEADER_BACKGROUND_COLOR = "#3b82f6";
-const EXTERNAL_ANNOTATION_INFO_BOX_HEADER_TEXT_COLOR = "white";
 const EXTERNAL_ANNOTATION_INFO_BOX_TITLE = "Informationen";
 
 type AnnotationInfoBoxProps = {
@@ -75,7 +74,7 @@ const AnnotationInfoBox = ({
     ? EXTERNAL_ANNOTATION_INFO_BOX_HEADER_BACKGROUND_COLOR
     : undefined;
   const headerTextColor = useExternalAnnotationInfoBoxHeader
-    ? EXTERNAL_ANNOTATION_INFO_BOX_HEADER_TEXT_COLOR
+    ? undefined
     : undefined;
   const annotationsVisible = shouldShowAnnotationInfoBox({
     infoBoxState,
