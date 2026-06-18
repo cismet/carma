@@ -32,6 +32,8 @@ import {
   applyDynamicStyling,
   extractCarmaConf,
   setLastAppliedSelection,
+  buildFilterExpression,
+  captureOriginalFilters,
 } from "@carma-mapping/components";
 
 import { UIMode } from "../../../store/slices/ui";
@@ -349,7 +351,70 @@ export const useCreateCismapLayers = (
             opacity: layer.opacity.toFixed(1) || 0.7,
             type: "wmts",
           });
-        case "vector":
+        case "vector": {
+          const originalFiltersByLayer = new Map<string, unknown>();
+
+          const applyLayerFilters = (map: maplibregl.Map) => {
+            const latestLayer = (
+              store.getState() as RootState
+            )?.mapping?.layers?.find((l: Layer) => l.id === layer.id);
+            const filterConfig = latestLayer?.filterConfig;
+            const filterState = latestLayer?.filterState;
+            if (!filterConfig || !filterState) {
+              return;
+            }
+
+            const pattern = filterConfig.layerPattern.toLowerCase();
+            const styleLayers = (map.getStyle()?.layers ?? []).filter(
+              (styleLayer) => styleLayer.id.toLowerCase().includes(pattern)
+            );
+            if (styleLayers.length === 0) {
+              return;
+            }
+
+            styleLayers.forEach((styleLayer) => {
+              if (!originalFiltersByLayer.has(styleLayer.id)) {
+                originalFiltersByLayer.set(
+                  styleLayer.id,
+                  (styleLayer as { filter?: unknown }).filter ?? null
+                );
+              }
+            });
+
+            captureOriginalFilters(filterConfig.layerPattern, map);
+
+            const filterExpression = buildFilterExpression(
+              filterConfig,
+              filterState
+            );
+
+            styleLayers.forEach((styleLayer) => {
+              try {
+                const originalFilter = originalFiltersByLayer.get(
+                  styleLayer.id
+                ) as unknown[] | null;
+                let combinedFilter = filterExpression;
+                if (originalFilter && filterExpression) {
+                  combinedFilter = ["all", originalFilter, filterExpression];
+                } else if (originalFilter && !filterExpression) {
+                  combinedFilter = originalFilter;
+                }
+                const currentFilter = map.getFilter(styleLayer.id);
+                if (
+                  JSON.stringify(currentFilter) !==
+                  JSON.stringify(combinedFilter ?? null)
+                ) {
+                  map.setFilter(styleLayer.id, combinedFilter as never);
+                }
+              } catch (error) {
+                console.error(
+                  `[FilterRestore] Error setting filter on layer ${styleLayer.id}:`,
+                  error
+                );
+              }
+            });
+          };
+
           return createCismapLayer({
             key: `${layer.id}`,
             style: layer.props.style,
@@ -368,60 +433,71 @@ export const useCreateCismapLayers = (
                 : layer.dynamicStyling
                 ? [layer.dynamicStyling]
                 : [];
-              if (!configs.length) return undefined;
+              const hasFilter = !!layer.filterConfig;
+              if (!configs.length && !hasFilter) return undefined;
               return (map: maplibregl.Map) => {
                 const latestState = store.getState() as RootState;
                 const latestLayer = latestState?.mapping?.layers?.find(
                   (l: Layer) => l.id === layer.id
                 );
-                const latestSelections: Record<number, string> =
-                  latestLayer &&
-                  typeof latestLayer.dynamicStylingSelection === "object" &&
-                  latestLayer.dynamicStylingSelection !== null
-                    ? latestLayer.dynamicStylingSelection
-                    : {};
-                const initialCarmaConf = extractCarmaConf(
-                  map.style?.stylesheet
-                );
-                if (initialCarmaConf) {
-                  dispatch(
-                    updateLayerFromLayerInfo({
-                      id: layer.id,
-                      layerInfo: {},
-                      carmaConf: initialCarmaConf,
-                    })
+
+                applyLayerFilters(map);
+
+                if (configs.length) {
+                  const latestSelections: Record<number, string> =
+                    latestLayer &&
+                    typeof latestLayer.dynamicStylingSelection === "object" &&
+                    latestLayer.dynamicStylingSelection !== null
+                      ? latestLayer.dynamicStylingSelection
+                      : {};
+                  const initialCarmaConf = extractCarmaConf(
+                    map.style?.stylesheet
                   );
-                }
-                configs.forEach((config, idx) => {
-                  const sel = latestSelections[idx];
-                  const effectiveSel = sel ?? config.default;
-                  if (!sel || sel === config.default) {
-                    setLastAppliedSelection(layer.id, idx, effectiveSel);
-                    return;
-                  }
-                  if (config.type === "list" || config.type === "toggle") {
-                    const result = applyDynamicStyling(
-                      map,
-                      layer.id,
-                      config,
-                      sel
+                  if (initialCarmaConf) {
+                    dispatch(
+                      updateLayerFromLayerInfo({
+                        id: layer.id,
+                        layerInfo: {},
+                        carmaConf: initialCarmaConf,
+                      })
                     );
-                    setLastAppliedSelection(layer.id, idx, sel);
-                    if (result?.layerInfo || result?.carmaConf) {
-                      dispatch(
-                        updateLayerFromLayerInfo({
-                          id: layer.id,
-                          layerInfo: result.layerInfo ?? {},
-                          carmaConf: result.carmaConf ?? undefined,
-                        })
-                      );
-                    }
                   }
-                });
+                  configs.forEach((config, idx) => {
+                    const sel = latestSelections[idx];
+                    const effectiveSel = sel ?? config.default;
+                    if (!sel || sel === config.default) {
+                      setLastAppliedSelection(layer.id, idx, effectiveSel);
+                      return;
+                    }
+                    if (config.type === "list" || config.type === "toggle") {
+                      const result = applyDynamicStyling(
+                        map,
+                        layer.id,
+                        config,
+                        sel
+                      );
+                      setLastAppliedSelection(layer.id, idx, sel);
+                      if (result?.layerInfo || result?.carmaConf) {
+                        dispatch(
+                          updateLayerFromLayerInfo({
+                            id: layer.id,
+                            layerInfo: result.layerInfo ?? {},
+                            carmaConf: result.carmaConf ?? undefined,
+                          })
+                        );
+                      }
+                    }
+                  });
+                }
               };
             })(),
             onMapLibreCoreMapReady: (map) => {
               console.log("MapLibre map ready for layer:", layer.id, map);
+
+              if (layer.filterConfig?.layerPattern) {
+                applyLayerFilters(map);
+                map.on("styledata", () => applyLayerFilters(map));
+              }
 
               // Store map reference outside of Redux to avoid serialization issues
               if (maplibreMapsRef) {
@@ -546,6 +622,7 @@ export const useCreateCismapLayers = (
               }
             },
           });
+        }
       }
     }
   });

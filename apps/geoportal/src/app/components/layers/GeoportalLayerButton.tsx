@@ -64,8 +64,6 @@ import "./tabs.css";
 import {
   LayerButton,
   LayerIcon,
-  buildFilterExpression,
-  captureOriginalFilters,
   DynamicStylingControl,
   applyDynamicStyling,
   getLastAppliedSelection,
@@ -195,55 +193,6 @@ const GeoportalLayerButton = ({
       dispatch(setShowRightScrollButton(false));
     }
   }, [layersLength]);
-
-  const filterAppliedRef = useRef(false);
-  useEffect(() => {
-    if (!layer.filterConfig || !layer.filterState || filterAppliedRef.current)
-      return;
-
-    const mapEntry = maplibreMaps?.find((entry) => entry.id === id);
-    if (!mapEntry?.map) return;
-
-    const libreMap = mapEntry.map;
-    try {
-      const originals = captureOriginalFilters(
-        layer.filterConfig.layerPattern,
-        libreMap
-      );
-
-      const filterExpression = buildFilterExpression(
-        layer.filterConfig,
-        layer.filterState
-      );
-
-      Object.keys(originals).forEach((layerId) => {
-        try {
-          const origFilter = originals[layerId];
-          let combinedFilter = filterExpression;
-
-          if (origFilter && filterExpression) {
-            combinedFilter = ["all", origFilter, filterExpression];
-          } else if (origFilter && !filterExpression) {
-            combinedFilter = origFilter;
-          }
-
-          libreMap.setFilter(layerId, combinedFilter);
-        } catch (error) {
-          console.error(
-            `[FilterRestore] Error setting filter on layer ${layerId}:`,
-            error
-          );
-        }
-      });
-
-      filterAppliedRef.current = true;
-    } catch (error) {
-      console.error(
-        `[FilterRestore] Error restoring filters for ${id}:`,
-        error
-      );
-    }
-  }, [layer.filterConfig, layer.filterState, maplibreMaps, id]);
 
   const dynamicStylingConfigs = (
     Array.isArray(layer.dynamicStyling)
