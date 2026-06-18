@@ -71,3 +71,66 @@
   flex: 1 1 auto;
   min-height: 0;
 }
+
+/* Contain Bootstrap 4's reboot OUTSIDE the modal (the inverse of the border/
+   button block above). Reboot — in `layer(vendor)` — also styles bare elements
+   that Tailwind's preflight does NOT reset (`label`, `legend`, `address`,
+   `caption`, `table`). Unlike the heading/paragraph margins preflight covers,
+   these are uncontested, so the layered rule is not out-ranked and LEAKS into
+   the whole app once the help stylesheet is injected — and it stays injected for
+   the app's lifetime. The clearest victim: antd's `Segmented` renders each tab as
+   a native <label>, so reboot's `label{margin-bottom:.5rem}` pushes the
+   "Erweiterte Suche" tabs down. Reboot also adds `table{margin-bottom:1rem}`,
+   which inserts a gap below every nested <table> in the map info box. Re-zero the
+   leaked margin app-wide, UNLAYERED so it out-ranks the vendor layer, then
+   `revert-layer` it back to Bootstrap's value inside the `.modal` subtree where
+   the help dialog still needs it. Tailwind utility classes (specificity 0,1,0)
+   still win over these bare-element rules (0,0,1), so deliberate app spacing is
+   untouched.
+
+   Only `margin-bottom` is reset here — NOT `width`/`color`. Reboot's
+   `table{width:100%}` is harmless (the info box tables already opt in via the
+   `width="100%"` HTML attribute or inline styles), and a CSS `table{width:auto}`
+   reset would OVERRIDE that presentational attribute (specificity 0,0,1 > 0,0,0)
+   and collapse the info box layout. Leave width/color alone. */
+label,
+legend,
+address,
+caption,
+table {
+  margin-bottom: 0;
+}
+
+.modal label,
+.modal legend,
+.modal address,
+.modal caption,
+.modal table {
+  margin-bottom: revert-layer;
+}
+
+/* Same leak class, different property: reboot sets `h1..h6{line-height:1.2}` and
+   preflight only resets heading font-size/font-weight/margin — not line-height —
+   so it is uncontested and leaks app-wide. In the map info box the additionalInfo
+   <h6> (e.g. "M1 / Stahlmast") ends with a trailing <br/>, and that empty line's
+   height IS the h6 line-height, so the leak visibly tightens the gap to the
+   subtitle below once the help stylesheet is injected. Restore the inherited
+   line-height (the app's 1.5 base) app-wide, revert inside the modal. Tailwind
+   leading-* utilities (0,1,0) still win over this bare-element rule (0,0,1). */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  line-height: inherit;
+}
+
+.modal h1,
+.modal h2,
+.modal h3,
+.modal h4,
+.modal h5,
+.modal h6 {
+  line-height: revert-layer;
+}
