@@ -22,6 +22,7 @@ import {
 } from "@carma-commons/measurements";
 import { ControlLayout } from "@carma-mapping/map-controls-layout";
 import {
+  ANNOTATION_INFO_BOX_ACTION_IDS,
   AnnotationInfoBoxMetricGrid,
   buildAnnotationInfoBoxSlots,
   type AnnotationInfoBoxVisualOptions,
@@ -347,54 +348,18 @@ const buildPointSlots = (
     visualOptions,
   });
 
-const buildInformationSlots = (
-  visualOptions: Partial<AnnotationInfoBoxVisualOptions>,
-  variant: "distance" | "point"
-) =>
-  buildAnnotationInfoBoxSlots({
-    actions: {
-      ...actions,
-      dataTestIdPrefix: `storybook-${variant}-information`,
-    },
-    content: (
-      <div className="text-[12px]">
-        {variant === "distance" ? (
-          <>
-            <div>Direkt: 1.383,40 m</div>
-            <div>Vertikal: 4,81 m</div>
-          </>
-        ) : (
-          <>
-            <div>Typ: Messpunkt</div>
-            <div>Höhe: 183,74 m NHN</div>
-          </>
-        )}
-      </div>
-    ),
-    contentStyle: metricGridStyle,
-    contentVariant: "raw",
-    headingColor: BLUE_HEADER,
-    headingTitle: variant === "distance" ? "Distanzmessung" : "Punktmessung",
-    navigation: {
-      currentIndex: 0,
-      totalEntries: 1,
-      onFlyToAll: noop,
-      onNext: noop,
-      onPrevious: noop,
-    },
-    titleInput: {
-      onCommit: noop,
-      onShortLabelCommit: noop,
-      placeholder: variant === "distance" ? "Distanzmessung" : "Punktmessung",
-      shortLabelPlaceholder: variant === "distance" ? "D" : "P",
-      shortLabelValue: variant === "distance" ? "D" : "P",
-      value: variant === "distance" ? "Distanzmessung" : "Punktmessung",
-    },
-    visualOptions: {
-      ...visualOptions,
-      readOnly: true,
-    },
-  });
+const buildReadOnlyInfoBoxVisualOptions = (
+  visualOptions: Partial<AnnotationInfoBoxVisualOptions>
+): Partial<AnnotationInfoBoxVisualOptions> => ({
+  ...visualOptions,
+  hiddenActionIds: Array.from(
+    new Set([
+      ...(visualOptions.hiddenActionIds ?? []),
+      ANNOTATION_INFO_BOX_ACTION_IDS.DELETE,
+    ])
+  ),
+  readOnly: true,
+});
 
 const ThreeDimensionalBox = ({
   headerTitle = "Messungen",
@@ -453,9 +418,10 @@ const InfoBoxParityMatrix = ({
     >
       <ThreeDimensionalBox
         headerTitle="Informationen"
-        slots={buildInformationSlots(
-          CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS,
-          "distance"
+        slots={buildDistanceSlots(
+          buildReadOnlyInfoBoxVisualOptions(
+            CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS
+          )
         )}
       />
     </PreviewFrame>
@@ -490,9 +456,10 @@ const InfoBoxParityMatrix = ({
     >
       <ThreeDimensionalBox
         headerTitle="Informationen"
-        slots={buildInformationSlots(
-          CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS,
-          "distance"
+        slots={buildDistanceSlots(
+          buildReadOnlyInfoBoxVisualOptions(
+            CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS
+          )
         )}
       />
     </PreviewFrame>
@@ -517,9 +484,10 @@ const InfoBoxParityMatrix = ({
     >
       <ThreeDimensionalBox
         headerTitle="Informationen"
-        slots={buildInformationSlots(
-          CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS,
-          "point"
+        slots={buildPointSlots(
+          buildReadOnlyInfoBoxVisualOptions(
+            CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS
+          )
         )}
       />
     </PreviewFrame>
@@ -546,9 +514,10 @@ const InfoBoxParityMatrix = ({
     >
       <ThreeDimensionalBox
         headerTitle="Informationen"
-        slots={buildInformationSlots(
-          CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS,
-          "point"
+        slots={buildPointSlots(
+          buildReadOnlyInfoBoxVisualOptions(
+            CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS
+          )
         )}
       />
     </PreviewFrame>
