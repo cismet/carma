@@ -20,6 +20,20 @@ body {
   padding-right: 0 !important;
 }
 
+/* Bootstrap's reboot sets typography directly on `body` (font-family, color,
+   text-align). Tailwind's preflight only sets font-family on `html`, so it never
+   competes on `body` — and a layered Bootstrap `body` rule then wins by default
+   and cascades into the app via inheritance (the BelISDesktop title etc. flipped
+   to Bootstrap's font/color the moment the modal CSS loaded). Re-assert these on
+   `body` UNLAYERED so they inherit from `html` (Tailwind's stack / browser
+   defaults) and out-rank Bootstrap's layered reboot. No-op when Bootstrap isn't
+   loaded, so the app is unchanged at rest. */
+body {
+  font-family: inherit;
+  color: inherit;
+  text-align: inherit;
+}
+
 /* react-image-lightbox (used via PhotoLightbox from the react-cismap library)
    has a hardcoded English error message "This image failed to load" with no
    i18n prop exposed through the wrapper. We hide the English text via
