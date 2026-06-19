@@ -3,7 +3,7 @@ import { DownloadOutlined, LoadingOutlined } from "@ant-design/icons";
 import { Tooltip } from "antd";
 import { useSelector } from "react-redux";
 import type { SidebarFeature } from "./BelisSidebar";
-import { exportFeaturesToCsv } from "../../utils/csvExport";
+import { exportFeaturesToCsvByType } from "../../utils/csvExport";
 import { fetchFeaturesForExport } from "../../helper/fetchFeaturesForExport";
 import { getJWT } from "../../store/slices/auth";
 
@@ -24,7 +24,7 @@ const ExportCsvButton = ({ features }: ExportCsvButtonProps) => {
       const enriched = jwt
         ? await fetchFeaturesForExport(features, jwt)
         : features;
-      exportFeaturesToCsv(enriched);
+      exportFeaturesToCsvByType(enriched);
     } finally {
       setLoading(false);
     }
