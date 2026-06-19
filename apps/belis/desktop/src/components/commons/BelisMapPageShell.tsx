@@ -6,11 +6,7 @@ import { useWindowSize } from "@react-hook/window-size";
 import type { AppDispatch } from "../../store";
 import { useDatasheet } from "@carma-mapping/engines/maplibre";
 import { Badge, Button, Spin, Switch, Tooltip } from "antd";
-import {
-  EditOutlined,
-  LockOutlined,
-  SaveOutlined,
-} from "@ant-design/icons";
+import { EditOutlined, LockOutlined, SaveOutlined } from "@ant-design/icons";
 import {
   getGlobalEditMode,
   toggleGlobalEditMode,
@@ -121,9 +117,7 @@ const BelisMapPageShell = () => {
       .then((r) => (r.ok ? r.json() : null))
       .then((fc) => {
         if (cancelled) return;
-        setBrandnewCount(
-          Array.isArray(fc?.features) ? fc.features.length : 0
-        );
+        setBrandnewCount(Array.isArray(fc?.features) ? fc.features.length : 0);
       })
       .catch(() => {
         if (!cancelled) setBrandnewCount(0);
@@ -295,25 +289,24 @@ const BelisMapPageShell = () => {
               )}
 
               {showSearch && (
-                <button
-                  onClick={() => setLassoActive((prev) => !prev)}
-                  title={
-                    lassoActive
-                      ? "Lasso-Auswahl beenden"
-                      : "Lasso-Auswahl starten"
-                  }
-                  className={`flex items-center justify-center w-8 h-8 rounded border ${
-                    lassoActive
-                      ? "border-blue-500 bg-blue-50 text-blue-600"
-                      : "border-gray-300 bg-white text-gray-500 hover:bg-gray-50"
-                  }`}
-                >
-                  <FontAwesomeIcon icon={faDrawPolygon} />
-                </button>
-              )}
-
-              {showSearch && (
-                <ExportCsvButton features={exportableFeatures} />
+                <div className="flex items-center gap-2 mr-[1px]">
+                  <button
+                    onClick={() => setLassoActive((prev) => !prev)}
+                    title={
+                      lassoActive
+                        ? "Lasso-Auswahl beenden"
+                        : "Lasso-Auswahl starten"
+                    }
+                    className={`flex items-center justify-center w-8 h-8 rounded border ${
+                      lassoActive
+                        ? "border-blue-500 bg-blue-50 text-blue-600"
+                        : "border-gray-300 bg-white text-gray-500 hover:bg-gray-50"
+                    }`}
+                  >
+                    <FontAwesomeIcon icon={faDrawPolygon} />
+                  </button>
+                  <ExportCsvButton features={exportableFeatures} />
+                </div>
               )}
 
               {filterConfig?.variant === "fachobjekte" && onFilterChange && (
