@@ -14,6 +14,14 @@ export const flattenGqlRecord = (
         id: r.id,
         bezeichnung: r.bauart?.bezeichnung,
         schaltstellen_nummer: r.schaltstellen_nummer,
+        haus_nummer: r.haus_nummer,
+        zusaetzliche_standortbezeichnung: r.zusaetzliche_standortbezeichnung,
+        laufende_nummer: r.laufende_nummer,
+        erstellungsjahr: r.erstellungsjahr,
+        einbaudatum: r.einbaudatum_rs,
+        pruefdatum: r.pruefdatum,
+        rundsteuerempfaenger: r.rundsteuerempfaengerObject?.rs_typ,
+        bemerkung: r.bemerkung,
         strassenschluessel: r.tkey_strassenschluessel?.pk,
         strasse: r.tkey_strassenschluessel?.strasse,
       };
@@ -66,6 +74,9 @@ export const flattenGqlRecord = (
         id: r.id,
         bezeichnung: r.material_mauerlasche?.bezeichnung,
         laufende_nummer: r.laufende_nummer,
+        erstellungsjahr: r.erstellungsjahr,
+        pruefdatum: r.pruefdatum,
+        bemerkung: r.bemerkung,
         strassenschluessel: r.tkey_strassenschluessel?.pk,
         strasse: r.tkey_strassenschluessel?.strasse,
       };
@@ -74,6 +85,8 @@ export const flattenGqlRecord = (
         id: r.id,
         bezeichnung: r.leitungstyp?.bezeichnung,
         leitungstyp: r.leitungstyp?.bezeichnung,
+        material: r.material_leitung?.bezeichnung,
+        querschnitt: r.querschnitt?.groesse,
         laenge: r.laenge,
       };
     case "abzweigdosen":
