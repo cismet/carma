@@ -24,7 +24,7 @@ export const LEUCHTEN_FIELDS = FETCH_EXTENDED_SEARCH_RESULTS
     fk_dk1Object { beschreibung }
     fk_dk2Object { beschreibung }
     leuchtmittelObject { hersteller lichtfarbe }
-    tdta_standort_mast { lfd_nummer tkey_mastart { mastart } tkey_masttyp { masttyp } geom_84 { x y } }`
+    tdta_standort_mast { lfd_nummer geom_84 { x y } }`
   : `id
     tdta_standort_mast { geom_84 { x y } }`;
 
