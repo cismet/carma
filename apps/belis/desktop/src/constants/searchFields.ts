@@ -24,7 +24,7 @@ export const LEUCHTEN_FIELDS = FETCH_EXTENDED_SEARCH_RESULTS
 
 export const MAST_FIELDS = FETCH_EXTENDED_SEARCH_RESULTS
   ? `id
-    lfd_nummer standortangabe haus_nr plz
+    lfd_nummer standortangabe haus_nr
     tkey_mastart { mastart }
     tkey_masttyp { masttyp }
     tkey_strassenschluessel { pk strasse }
