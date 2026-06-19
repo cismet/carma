@@ -181,6 +181,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
       let newLayerIndex = -2;
       let removedOtherLayer = false;
       let returnFunction = false;
+      let clickedInteractionButton = false;
       const layerButtons = document.querySelectorAll('[id^="layer-"]');
       const removeLayerButtons = document.querySelectorAll(
         '[id^="removeLayerButton-"]'
@@ -188,8 +189,8 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
       const openBaseLayerViewButtons = document.querySelectorAll(
         '[id^="openBaseLayerView"]'
       );
-      const filterLayerButtons = document.querySelectorAll(
-        '[id^="filterLayerButton-"]'
+      const interactionLayerButtons = document.querySelectorAll(
+        '[id^="layerInteractionButton-"]'
       );
 
       openBaseLayerViewButtons.forEach((layerButton) => {
@@ -199,10 +200,9 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
         }
       });
 
-      filterLayerButtons.forEach((filterButton) => {
-        if (filterButton.contains(event.target as Node)) {
-          returnFunction = true;
-          return;
+      interactionLayerButtons.forEach((interactionButton) => {
+        if (interactionButton.contains(event.target as Node)) {
+          clickedInteractionButton = true;
         }
       });
 
@@ -253,7 +253,10 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
         newLayerIndex === currentLayerIndex
           ? dispatch(setSelectedLayerIndexNoSelection())
           : dispatch(setSelectedLayerIndex(newLayerIndex));
-        if (newLayerIndex !== SELECTED_LAYER_INDEX.NO_SELECTION) {
+        if (
+          newLayerIndex !== SELECTED_LAYER_INDEX.NO_SELECTION &&
+          !clickedInteractionButton
+        ) {
           dispatch(setClickFromInfoView(true));
         }
       }
@@ -347,7 +350,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
             </div>
             {canFilter && (
               <button
-                className="hover:text-gray-500 text-gray-600 flex items-center justify-center"
+                className="hover:text-gray-500 text-gray-600 flex items-center justify-center sm:hidden"
                 onClick={(e) => {
                   e.stopPropagation();
                   dispatch(
