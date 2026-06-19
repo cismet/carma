@@ -139,9 +139,17 @@ const topSideControlGroupStyle: CSSProperties = {
   maxHeight: `calc(100svh - ${controlLayoutOptions.topControlsMaxHeightOffset})`,
 };
 
+// The no-op `transform` is load-bearing: it makes this group its own containing
+// block + stacking context, which isolates the dnd-kit coordinate math for the
+// geoportal layer bar (rendered into this topcenter slot) from the sibling
+// control groups. Without it, dragging a layer button to the far-right end made
+// all buttons flicker/jump. The pre-existing left/right-anchored centering had
+// no transform, which is what regressed it. Keep a transform here; the exact
+// value is irrelevant as long as it is not `none`.
 const topCenterControlGroupStyle: CSSProperties = {
   ...topControlGroupStyle,
   ...topCenterInlineInsetStyle,
+  transform: "translateZ(0)",
   flexDirection: "row",
   fontSize: controlLayoutOptions.topCenterFontSize,
   zIndex: controlLayoutOptions.secondaryViewLayerZIndex,
