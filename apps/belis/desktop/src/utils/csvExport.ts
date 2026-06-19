@@ -1,5 +1,6 @@
 import {
   CSV_COLUMN_CONFIG,
+  CSV_COLUMN_ORDER,
   CSV_LAYER_LABEL_OVERRIDES,
   CSV_LAYER_SHOW_OVERRIDES,
   LAYER_LABELS,
@@ -72,11 +73,20 @@ const orderByStandort = (
   return ordered;
 };
 
+// Map a feature's sourceLayer to the export file it belongs to. Standorte and
+// Leuchten share a single file (so each Standort stays grouped with its own
+// Leuchten via orderByStandort); every other layer gets its own file named
+// after the layer. Features without a sourceLayer land in "sonstige".
+const fileKeyForLayer = (layer: string | undefined): string => {
+  if (layer === "standorte" || layer === "leuchten") return "standorte-leuchten";
+  return layer ?? "sonstige";
+};
+
 // Build a CSV string from a list of features. The columns are the union of all
 // `properties` keys across the given features, filtered to the ones configured
-// as visible (CSV_COLUMN_CONFIG); each column's header is its human-readable
-// label. One row per feature, grouped so each Standort is followed by its
-// Leuchten.
+// as visible (CSV_COLUMN_CONFIG) and ordered to match the feature forms
+// (CSV_COLUMN_ORDER); each column's header is its human-readable label. One row
+// per feature, grouped so each Standort is followed by its Leuchten.
 export const featuresToCsv = (input: ExportableFeature[]): string => {
   const features = orderByStandort(input);
   const layers = new Set(features.map((f) => f.sourceLayer ?? ""));
@@ -90,10 +100,20 @@ export const featuresToCsv = (input: ExportableFeature[]): string => {
     }
     return CSV_COLUMN_CONFIG[key]?.show !== false;
   };
-  // All property keys present, then drop the ones not shown.
+  // Order columns to match the feature forms. Keys are sorted by their index in
+  // this file's CSV_COLUMN_ORDER list; unlisted keys sort to the end, keeping
+  // their natural (flatten) order via the stable sort.
+  const order = CSV_COLUMN_ORDER[fileKeyForLayer([...layers][0])] ?? [];
+  const orderIndex = (key: string): number => {
+    const i = order.indexOf(key);
+    return i === -1 ? Number.MAX_SAFE_INTEGER : i;
+  };
+  // All property keys present, then drop the ones not shown, then order them.
   const columns = [
     ...new Set(features.flatMap((f) => Object.keys(f.properties ?? {}))),
-  ].filter(isShown);
+  ]
+    .filter(isShown)
+    .sort((a, b) => orderIndex(a) - orderIndex(b));
   // Resolve a column's header: a per-layer override (for keys whose label
   // depends on the feature type, e.g. `bezeichnung`) wins over the shared
   // label, which in turn falls back to the raw key.
@@ -134,15 +154,6 @@ export const exportFeaturesToCsv = (
   filename = "belis-export.csv"
 ): void => {
   triggerCsvDownload(featuresToCsv(features), filename);
-};
-
-// Map a feature's sourceLayer to the export file it belongs to. Standorte and
-// Leuchten share a single file (so each Standort stays grouped with its own
-// Leuchten via orderByStandort); every other layer gets its own file named
-// after the layer. Features without a sourceLayer land in "sonstige".
-const fileKeyForLayer = (layer: string | undefined): string => {
-  if (layer === "standorte" || layer === "leuchten") return "standorte-leuchten";
-  return layer ?? "sonstige";
 };
 
 // Split features by feature type, build one CSV per group, and download each

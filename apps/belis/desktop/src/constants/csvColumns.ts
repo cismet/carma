@@ -46,7 +46,6 @@ export const CSV_COLUMN_CONFIG: Record<string, CsvColumnConfig> = {
   // Standorte.
   standortangabe: { label: "Standortangabe", show: true },
   haus_nr: { label: "Hausnummer", show: true },
-  plz: { label: "PLZ", show: true },
   anlagengruppe: { label: "Anlagengruppe", show: true },
   kennziffer: { label: "Kennziffer", show: true },
   stadtbezirk: { label: "Stadtbezirk", show: true },
@@ -61,8 +60,8 @@ export const CSV_COLUMN_CONFIG: Record<string, CsvColumnConfig> = {
   zusaetzliche_standortbezeichnung: { label: "Standortbez.", show: true },
   erstellungsjahr: { label: "Erstellungsjahr", show: true },
   einbaudatum: { label: "Einbaudatum", show: true },
-  pruefdatum: { label: "Prüfung", show: false },
-  bemerkung: { label: "Bemerkung", show: false },
+  pruefdatum: { label: "Prüfung", show: true },
+  bemerkung: { label: "Bemerkung", show: true },
 
   // Mauerlaschen.
   laufende_nummer: { label: "Laufende Nr.", show: true },
@@ -96,6 +95,63 @@ export const CSV_LAYER_SHOW_OVERRIDES: Record<
   Record<string, boolean>
 > = {
   mauerlaschen: { pruefdatum: true, bemerkung: true },
+};
+
+// Column order per export file (keys match the file groups produced by
+// exportFeaturesToCsvByType: Standorte + Leuchten share one file, every other
+// layer gets its own). Columns are sorted by their index in this list, so the
+// order mirrors the feature forms. Property keys not listed keep their natural
+// order after the listed ones — reorder a column by moving its key here.
+export const CSV_COLUMN_ORDER: Record<string, string[]> = {
+  // Standort form fields first, then Leuchte form fields (combined file).
+  "standorte-leuchten": [
+    "strasse",
+    "kennziffer",
+    "lfd_nummer",
+    "haus_nr",
+    "standortangabe",
+    "stadtbezirk",
+    "mastart",
+    "masttyp",
+    "klassifizierung",
+    "unterhalt",
+    "anlagengruppe",
+    "leuchtennummer",
+    "leuchtentyp",
+    "fabrikat",
+    "inbetriebnahme",
+    "montagefirma",
+    "energielieferant",
+    "schaltstelle",
+    "rundsteuerempfaenger",
+    "doppelkommando_1",
+    "anzahl_1dk",
+    "anschlussleistung_1dk",
+    "unterhalt_leuchte",
+    "sonderturnus",
+  ],
+  schaltstelle: [
+    "strasse",
+    "haus_nummer",
+    "zusaetzliche_standortbezeichnung",
+    "laufende_nummer",
+    "schaltstellen_nummer",
+    "bezeichnung",
+    "erstellungsjahr",
+    "rundsteuerempfaenger",
+    "einbaudatum",
+    "pruefdatum",
+    "bemerkung",
+  ],
+  mauerlaschen: [
+    "strasse",
+    "laufende_nummer",
+    "erstellungsjahr",
+    "bezeichnung",
+    "pruefdatum",
+    "bemerkung",
+  ],
+  leitungen: ["bezeichnung", "material", "querschnitt"],
 };
 
 // Human-readable labels for the "Typ" column values (derived from sourceLayer).
