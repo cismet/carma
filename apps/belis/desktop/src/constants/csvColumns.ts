@@ -71,13 +71,13 @@ export const CSV_COLUMN_CONFIG: Record<string, CsvColumnConfig> = {
   naechstes_pruefdatum: { label: "Nächstes Prüfdatum", show: true },
   verfahren: { label: "Verfahren", show: true },
   elek_pruefung: { label: "Elektrische Prüfung", show: true },
-  erdung: { label: "Erdung", show: false },
+  erdung: { label: "Erdung", show: true },
   monteur: { label: "Monteur", show: true },
   mastschutz: { label: "Mastschutz", show: true },
-  revision: { label: "Revision", show: false },
-  anbauten: { label: "Anbauten", show: false },
-  bemerkungen: { label: "Bemerkung", show: false },
-  letzte_aenderung: { label: "Letzte Änderung", show: false },
+  revision: { label: "Revision", show: true },
+  anbauten: { label: "Anbauten", show: true },
+  bemerkungen: { label: "Bemerkung", show: true },
+  letzte_aenderung: { label: "Letzte Änderung", show: true },
 
   // Schaltstelle. `bezeichnung` is the Bauart here (see per-layer override);
   // `erstellungsjahr` is "Erstellungsjahr" here but "Montage" on Mauerlaschen.
