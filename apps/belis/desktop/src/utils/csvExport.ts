@@ -1,3 +1,10 @@
+import {
+  CSV_COLUMN_CONFIG,
+  CSV_LAYER_LABEL_OVERRIDES,
+  CSV_LAYER_SHOW_OVERRIDES,
+  LAYER_LABELS,
+} from "../constants/csvColumns";
+
 // Minimal structural shape the CSV needs — any feature (tile, search result,
 // or enriched record) with a sourceLayer and properties satisfies it.
 export interface ExportableFeature {
@@ -65,20 +72,45 @@ const orderByStandort = (
   return ordered;
 };
 
-// Build a CSV string from a list of features. The header is the union of all
-// `properties` keys across the given features; one row per feature. Rows are
-// grouped so each Standort is followed by its Leuchten.
+// Build a CSV string from a list of features. The columns are the union of all
+// `properties` keys across the given features, filtered to the ones configured
+// as visible (CSV_COLUMN_CONFIG); each column's header is its human-readable
+// label. One row per feature, grouped so each Standort is followed by its
+// Leuchten.
 export const featuresToCsv = (input: ExportableFeature[]): string => {
   const features = orderByStandort(input);
+  const layers = new Set(features.map((f) => f.sourceLayer ?? ""));
+  // Whether a column is shown: a per-layer override (e.g. Mauerlaschen forcing
+  // pruefdatum/bemerkung visible) wins over the shared CSV_COLUMN_CONFIG.show;
+  // unknown keys default to shown so new fields aren't silently lost.
+  const isShown = (key: string): boolean => {
+    for (const layer of layers) {
+      const override = CSV_LAYER_SHOW_OVERRIDES[layer]?.[key];
+      if (override !== undefined) return override;
+    }
+    return CSV_COLUMN_CONFIG[key]?.show !== false;
+  };
+  // All property keys present, then drop the ones not shown.
   const columns = [
     ...new Set(features.flatMap((f) => Object.keys(f.properties ?? {}))),
-  ];
-  // Prepend a "typ" column derived from each feature's sourceLayer, so every
-  // row identifies its feature type (e.g. leuchten, standorte).
-  const header = ["typ", ...columns].join(";");
+  ].filter(isShown);
+  // Resolve a column's header: a per-layer override (for keys whose label
+  // depends on the feature type, e.g. `bezeichnung`) wins over the shared
+  // label, which in turn falls back to the raw key.
+  const headerLabel = (key: string): string => {
+    for (const layer of layers) {
+      const override = CSV_LAYER_LABEL_OVERRIDES[layer]?.[key];
+      if (override) return override;
+    }
+    return CSV_COLUMN_CONFIG[key]?.label ?? key;
+  };
+
+  // Prepend a "Typ" column derived from each feature's sourceLayer, so every
+  // row identifies its feature type (e.g. Leuchte, Standort).
+  const header = ["Typ", ...columns.map(headerLabel)].join(";");
   const rows = features.map((f) =>
     [
-      escapeCsv(f.sourceLayer),
+      escapeCsv(LAYER_LABELS[f.sourceLayer ?? ""] ?? f.sourceLayer),
       ...columns.map((c) => escapeCsv(f.properties?.[c])),
     ].join(";")
   );
