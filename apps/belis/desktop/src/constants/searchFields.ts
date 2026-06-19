@@ -40,7 +40,15 @@ export const MAST_FIELDS = FETCH_EXTENDED_SEARCH_RESULTS
 export const SCHALTSTELLE_FIELDS = FETCH_EXTENDED_SEARCH_RESULTS
   ? `id
     schaltstellen_nummer
+    haus_nummer
+    zusaetzliche_standortbezeichnung
+    laufende_nummer
+    erstellungsjahr
+    einbaudatum_rs
+    pruefdatum
+    bemerkung
     bauart { bezeichnung }
+    rundsteuerempfaengerObject { rs_typ }
     tkey_strassenschluessel { pk strasse }
     geom_84 { x y }`
   : `id
@@ -49,15 +57,25 @@ export const SCHALTSTELLE_FIELDS = FETCH_EXTENDED_SEARCH_RESULTS
 export const MAUERLASCHE_FIELDS = FETCH_EXTENDED_SEARCH_RESULTS
   ? `id
     laufende_nummer
+    erstellungsjahr
+    pruefdatum
+    bemerkung
     material_mauerlasche { bezeichnung }
     tkey_strassenschluessel { pk strasse }
     geom_84 { x y }`
   : `id
     geom_84 { x y }`;
 
+// Leitungen are export-only (not part of the search modal), so no geom and no
+// minimal/extended split — the export always wants the full attribute set.
+export const LEITUNG_FIELDS = `id
+    leitungstyp { bezeichnung }
+    material_leitung { bezeichnung }
+    querschnitt { groesse }`;
+
 // Maps a tile/sidebar sourceLayer to the GraphQL table + field selection used
-// to fetch full records by id for export. Layers absent here (e.g. leitungen,
-// abzweigdosen) have no enrichment query and fall back to their tile props.
+// to fetch full records by id for export. Layers absent here (e.g. abzweigdosen)
+// have no enrichment query and fall back to their tile props.
 export const EXPORT_QUERY_BY_LAYER: Record<
   string,
   { table: string; fields: string }
@@ -66,4 +84,5 @@ export const EXPORT_QUERY_BY_LAYER: Record<
   standorte: { table: "tdta_standort_mast", fields: MAST_FIELDS },
   schaltstelle: { table: "schaltstelle", fields: SCHALTSTELLE_FIELDS },
   mauerlaschen: { table: "mauerlasche", fields: MAUERLASCHE_FIELDS },
+  leitungen: { table: "leitung", fields: LEITUNG_FIELDS },
 };
