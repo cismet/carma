@@ -10,14 +10,20 @@ export const FETCH_EXTENDED_SEARCH_RESULTS = true;
 export const LEUCHTEN_FIELDS = FETCH_EXTENDED_SEARCH_RESULTS
   ? `id
     leuchtennummer lfd_nummer fk_standort
-    inbetriebnahme_leuchte montagefirma_leuchte schaltstelle
-    anzahl_1dk anschlussleistung_1dk wartungszyklus
+    inbetriebnahme_leuchte zaehler montagefirma_leuchte schaltstelle
+    einbaudatum anzahl_1dk anschlussleistung_1dk
+    anzahl_2dk anschlussleistung_2dk
+    wechseldatum naechster_wechsel lebensdauer wartungszyklus
+    vorschaltgeraet wechselvorschaltgeraet bemerkungen
     tkey_leuchtentyp { leuchtentyp fabrikat }
     tkey_strassenschluessel { pk strasse }
+    tkey_kennziffer { beschreibung }
     tkey_energielieferant { energielieferant }
     tkey_unterh_leuchte { unterhaltspflichtiger_leuchte }
     rundsteuerempfaengerObject { rs_typ }
     fk_dk1Object { beschreibung }
+    fk_dk2Object { beschreibung }
+    leuchtmittelObject { hersteller lichtfarbe }
     tdta_standort_mast { lfd_nummer tkey_mastart { mastart } tkey_masttyp { masttyp } geom_84 { x y } }`
   : `id
     tdta_standort_mast { geom_84 { x y } }`;
@@ -25,6 +31,10 @@ export const LEUCHTEN_FIELDS = FETCH_EXTENDED_SEARCH_RESULTS
 export const MAST_FIELDS = FETCH_EXTENDED_SEARCH_RESULTS
   ? `id
     lfd_nummer standortangabe haus_nr
+    inbetriebnahme_mast verrechnungseinheit mastanstrich anstrichfarbe
+    montagefirma gruendung standsicherheitspruefung naechstes_pruefdatum
+    verfahren elek_pruefung erdung monteur mastschutz revision
+    anbauten bemerkungen letzte_aenderung
     tkey_mastart { mastart }
     tkey_masttyp { masttyp }
     tkey_strassenschluessel { pk strasse }
