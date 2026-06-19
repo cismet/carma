@@ -111,6 +111,11 @@ export const CSV_LAYER_LABEL_OVERRIDES: Record<
   schaltstelle: { bezeichnung: "Bauart" },
   mauerlaschen: { bezeichnung: "Material", erstellungsjahr: "Montage" },
   leitungen: { bezeichnung: "Leitungstyp" },
+  // Mastart/Masttyp on a Leuchte come from its parent Standort — flag the source.
+  leuchten: {
+    mastart: "Mastart (Standort)",
+    masttyp: "Masttyp (Standort)",
+  },
 };
 
 // Per-layer visibility overrides. A `show` value here wins over the shared
@@ -124,15 +129,14 @@ export const CSV_LAYER_SHOW_OVERRIDES: Record<
   mauerlaschen: { pruefdatum: true, bemerkung: true },
 };
 
-// Column order per export file (keys match the file groups produced by
-// exportFeaturesToCsvByType: Standorte + Leuchten share one file, every other
-// layer gets its own). Columns are sorted by their index in this list, so the
-// order mirrors the feature forms. Property keys not listed keep their natural
-// order after the listed ones — reorder a column by moving its key here.
+// Column order per export file (keys are the file groups produced by
+// exportFeaturesToCsvByType — one file per feature type). Columns are sorted by
+// their index in this list, so the order mirrors the feature forms. Property
+// keys not listed keep their natural order after the listed ones — reorder a
+// column by moving its key here.
 export const CSV_COLUMN_ORDER: Record<string, string[]> = {
-  // Standort form fields first, then Leuchte form fields (combined file).
-  "standorte-leuchten": [
-    // Standort (form order)
+  // Standort (form order).
+  standorte: [
     "strasse",
     "kennziffer",
     "lfd_nummer",
@@ -161,12 +165,21 @@ export const CSV_COLUMN_ORDER: Record<string, string[]> = {
     "anbauten",
     "bemerkungen",
     "letzte_aenderung",
-    // Leuchte (form order)
+  ],
+  // Leuchte (form order). Straße plus Mastart/Masttyp (inherited from the
+  // parent Standort) lead, then the Leuchte's own form fields.
+  leuchten: [
+    "strasse",
+    "mastart",
+    "masttyp",
+    "kennziffer",
+    "lfd_nummer",
     "leuchtennummer",
     "leuchtentyp",
     "fabrikat",
     "inbetriebnahme",
     "zaehler",
+    "montagefirma",
     "energielieferant",
     "schaltstelle",
     "rundsteuerempfaenger",

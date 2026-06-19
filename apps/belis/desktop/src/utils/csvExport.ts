@@ -74,12 +74,10 @@ const orderByStandort = (
   return ordered;
 };
 
-// Map a feature's sourceLayer to the export file it belongs to. Standorte and
-// Leuchten share a single file (so each Standort stays grouped with its own
-// Leuchten via orderByStandort); every other layer gets its own file named
-// after the layer. Features without a sourceLayer land in "sonstige".
+// Map a feature's sourceLayer to the export file it belongs to: each feature
+// type gets its own file named after the layer. Features without a sourceLayer
+// land in "sonstige".
 const fileKeyForLayer = (layer: string | undefined): string => {
-  if (layer === "standorte" || layer === "leuchten") return "standorte-leuchten";
   return layer ?? "sonstige";
 };
 
