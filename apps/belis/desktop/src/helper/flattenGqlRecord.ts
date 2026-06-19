@@ -33,6 +33,16 @@ export const flattenGqlRecord = (
         strassenschluessel: r.tkey_strassenschluessel?.pk,
         strasse: r.tkey_strassenschluessel?.strasse,
         fk_standort: r.fk_standort ?? r.tdta_standort_mast?.id,
+        inbetriebnahme: r.inbetriebnahme_leuchte,
+        montagefirma: r.montagefirma_leuchte,
+        schaltstelle: r.schaltstelle,
+        anzahl_1dk: r.anzahl_1dk,
+        anschlussleistung_1dk: r.anschlussleistung_1dk,
+        sonderturnus: r.wartungszyklus,
+        energielieferant: r.tkey_energielieferant?.energielieferant,
+        unterhalt_leuchte: r.tkey_unterh_leuchte?.unterhaltspflichtiger_leuchte,
+        rundsteuerempfaenger: r.rundsteuerempfaengerObject?.rs_typ,
+        doppelkommando_1: r.fk_dk1Object?.beschreibung,
       };
     case "standorte":
       return {
@@ -42,6 +52,14 @@ export const flattenGqlRecord = (
         lfd_nummer: r.lfd_nummer,
         strassenschluessel: r.tkey_strassenschluessel?.pk,
         strasse: r.tkey_strassenschluessel?.strasse,
+        standortangabe: r.standortangabe,
+        haus_nr: r.haus_nr,
+        plz: r.plz,
+        anlagengruppe: r.anlagengruppeObject?.bezeichnung,
+        kennziffer: r.tkey_kennziffer?.kennziffer,
+        stadtbezirk: r.tkey_bezirk?.bezirk,
+        klassifizierung: r.tkey_klassifizierung?.klassifizierung,
+        unterhalt: r.tkey_unterh_mast?.unterhalt_mast,
       };
     case "mauerlaschen":
       return {

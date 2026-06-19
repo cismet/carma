@@ -13,6 +13,12 @@ import {
 } from "./featuresSearches";
 import { getJWT } from "../../store/slices/auth";
 import { ENDPOINT } from "../../constants/belis";
+import {
+  LEUCHTEN_FIELDS,
+  MAST_FIELDS,
+  SCHALTSTELLE_FIELDS,
+  MAUERLASCHE_FIELDS,
+} from "../../constants/searchFields";
 import RawDisplay from "./RawDisplay";
 import {
   useLibreContext,
@@ -116,48 +122,6 @@ const searchTypeLabels: Partial<Record<SearchType, string>> = {
   schaltstelle: "Schaltstellen",
   mauerlasche: "Mauerlaschen",
 };
-
-// When true, GraphQL queries include all display fields (for future search results sidebar).
-// When false, queries fetch only id + geom_84 (minimal, faster).
-// Extended: ~527 KB / 341ms vs minimal: ~127 KB / 203ms (benchmarked).
-const FETCH_EXTENDED_SEARCH_RESULTS = true;
-
-const LEUCHTEN_FIELDS = FETCH_EXTENDED_SEARCH_RESULTS
-  ? `id
-    leuchtennummer lfd_nummer fk_standort
-    tkey_leuchtentyp { leuchtentyp fabrikat }
-    tkey_strassenschluessel { pk strasse }
-    tdta_standort_mast { lfd_nummer tkey_mastart { mastart } tkey_masttyp { masttyp } geom_84 { x y } }`
-  : `id
-    tdta_standort_mast { geom_84 { x y } }`;
-
-const MAST_FIELDS = FETCH_EXTENDED_SEARCH_RESULTS
-  ? `id
-    lfd_nummer
-    tkey_mastart { mastart }
-    tkey_masttyp { masttyp }
-    tkey_strassenschluessel { pk strasse }
-    geom_84 { x y }`
-  : `id
-    geom_84 { x y }`;
-
-const SCHALTSTELLE_FIELDS = FETCH_EXTENDED_SEARCH_RESULTS
-  ? `id
-    schaltstellen_nummer
-    bauart { bezeichnung }
-    tkey_strassenschluessel { pk strasse }
-    geom_84 { x y }`
-  : `id
-    geom_84 { x y }`;
-
-const MAUERLASCHE_FIELDS = FETCH_EXTENDED_SEARCH_RESULTS
-  ? `id
-    laufende_nummer
-    material_mauerlasche { bezeichnung }
-    tkey_strassenschluessel { pk strasse }
-    geom_84 { x y }`
-  : `id
-    geom_84 { x y }`;
 
 const ARBEITSAUFTRAG_FIELDS = `id
     nummer
