@@ -5,6 +5,7 @@ import { useSelector } from "react-redux";
 import type { SidebarFeature } from "./BelisSidebar";
 import { exportFeaturesToCsvByType } from "../../utils/csvExport";
 import { fetchFeaturesForExport } from "../../helper/fetchFeaturesForExport";
+import { CSV_SKIP_EXPORT_LAYERS } from "../../constants/csvColumns";
 import { getJWT } from "../../store/slices/auth";
 
 interface ExportCsvButtonProps {
@@ -14,7 +15,13 @@ interface ExportCsvButtonProps {
 const ExportCsvButton = ({ features }: ExportCsvButtonProps) => {
   const jwt = useSelector(getJWT);
   const [loading, setLoading] = useState(false);
-  const enabled = features.length > 0 && !loading;
+  // Only features that actually produce a file count — types skipped from the
+  // export (e.g. abzweigdosen) don't. If a selection is all skipped types, the
+  // export would create nothing, so the button stays disabled.
+  const exportableCount = features.filter(
+    (f) => !CSV_SKIP_EXPORT_LAYERS.has(f.sourceLayer ?? "")
+  ).length;
+  const enabled = exportableCount > 0 && !loading;
 
   const handleExport = async () => {
     setLoading(true);
