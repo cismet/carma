@@ -5,6 +5,7 @@ import {
   faEyeSlash,
   faLock,
   faLockOpen,
+  faPalette,
   faSearchLocation,
   faTrashCan,
 } from "@fortawesome/free-solid-svg-icons";
@@ -25,6 +26,7 @@ export type AnnotationInfoBoxActionsProps = {
   onExport: AnnotationInfoBoxActionHandler;
   onToggleVisibility: AnnotationInfoBoxActionHandler;
   onToggleLock: AnnotationInfoBoxActionHandler;
+  onEditStyle?: AnnotationInfoBoxActionHandler;
   onDelete: AnnotationInfoBoxActionHandler;
   onSetReference?: AnnotationInfoBoxActionHandler;
   visualOptions?: AnnotationInfoBoxVisualOptions;
@@ -51,6 +53,7 @@ export type AnnotationInfoBoxActionLabels = Readonly<{
   setReference: string;
   lock: string;
   unlock: string;
+  editStyle: string;
   delete: string;
   deleteLocked: string;
 }>;
@@ -64,6 +67,7 @@ export const DEFAULT_ANNOTATION_INFO_BOX_ACTION_LABELS =
     setReference: "Als Referenzhöhe setzen",
     lock: "Sperren",
     unlock: "Entsperren",
+    editStyle: "Darstellung bearbeiten",
     delete: "Löschen",
     deleteLocked: "Gesperrte Messung kann nicht gelöscht werden",
   });
@@ -76,6 +80,7 @@ export const AnnotationInfoBoxActions = ({
   onExport,
   onToggleVisibility,
   onToggleLock,
+  onEditStyle,
   onDelete,
   onSetReference,
   visualOptions,
@@ -151,6 +156,15 @@ export const AnnotationInfoBoxActions = ({
           dataTestId={
             dataTestIds?.lock ?? `${dataTestIdPrefix}-toggle-lock-btn`
           }
+          visualOptions={visualOptions}
+        />
+      ) : null}
+      {onEditStyle && isActionVisible(ANNOTATION_INFO_BOX_ACTION_IDS.STYLE) ? (
+        <AnnotationInfoBoxActionIcon
+          actionId={ANNOTATION_INFO_BOX_ACTION_IDS.STYLE}
+          title={resolvedLabels.editStyle}
+          icon={faPalette}
+          onClick={onEditStyle}
           visualOptions={visualOptions}
         />
       ) : null}

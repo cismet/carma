@@ -7,6 +7,7 @@ export const ANNOTATION_INFO_BOX_ACTION_IDS = {
   VISIBILITY: "visibility",
   REFERENCE: "reference",
   LOCK: "lock",
+  STYLE: "style",
   DELETE: "delete",
 } as const;
 

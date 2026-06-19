@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
@@ -26,6 +27,10 @@ import {
   MEASUREMENT_MODE,
   useMapMeasurementsContext,
 } from "@carma-commons/measurements";
+import {
+  readDevelopmentOnlyUiBackdropStyle,
+  type DevelopmentOnlyUiBackdropStyleOptions,
+} from "@carma-commons/ui/components";
 import { ControlLayout } from "@carma-mapping/map-controls-layout";
 import {
   ANNOTATION_INFO_BOX_ACTION_IDS,
@@ -59,6 +64,7 @@ type InfoBoxParityStoryBackdrop =
 
 type InfoBoxParityStoryArgs = {
   backdrop: InfoBoxParityStoryBackdrop;
+  markAllToolsAsDevelopmentPreview: boolean;
   includeAllTools: boolean;
   preCollapsed: boolean;
   solidBackdropColor: string;
@@ -87,7 +93,8 @@ const meta = {
   },
   args: {
     backdrop: INFO_BOX_PARITY_STORY_BACKDROPS.TOPOGRAPHIC,
-    includeAllTools: false,
+    includeAllTools: true,
+    markAllToolsAsDevelopmentPreview: true,
     preCollapsed: false,
     solidBackdropColor: "#f3f4f6",
   },
@@ -105,6 +112,10 @@ const meta = {
     includeAllTools: {
       control: "boolean",
       name: "Alltools content",
+    },
+    markAllToolsAsDevelopmentPreview: {
+      control: "boolean",
+      name: "Alltools dev preview headers",
     },
     preCollapsed: {
       control: "boolean",
@@ -365,7 +376,7 @@ const buildDistanceSlots = (
     ),
     contentStyle: metricGridStyle,
     contentVariant: "raw",
-    headingColor: BLUE_HEADER,
+    headingColor: readInfoBoxHeadingColor(visualOptions),
     headingTitle: "Distanzmessung",
     navigation: {
       currentIndex: 5,
@@ -396,7 +407,7 @@ const buildPointSlots = (
     content: <div className="text-[12px]">NHN-Höhe: 183,74 m</div>,
     contentStyle: metricGridStyle,
     contentVariant: "raw",
-    headingColor: BLUE_HEADER,
+    headingColor: readInfoBoxHeadingColor(visualOptions),
     headingTitle: "Punktmessung",
     navigation: {
       currentIndex: 0,
@@ -417,8 +428,19 @@ const buildPointSlots = (
   });
 
 type InfoBoxParitySlots = ReturnType<typeof buildAnnotationInfoBoxSlots>;
+type LabelStyleModalPlacement = "top" | "bottom";
+
+type InfoBoxParityActionHandler = (
+  event: ReactMouseEvent<HTMLElement, MouseEvent>
+) => void;
+
+type InfoBoxParitySlotsBuilderContext = {
+  onOpenLabelStyleModal?: InfoBoxParityActionHandler;
+};
+
 type InfoBoxParitySlotsBuilder = (
-  visualOptions: Partial<AnnotationInfoBoxVisualOptions>
+  visualOptions: Partial<AnnotationInfoBoxVisualOptions>,
+  context?: InfoBoxParitySlotsBuilderContext
 ) => InfoBoxParitySlots;
 
 type AllToolsContentDefinition = {
@@ -460,7 +482,7 @@ const buildMetricToolSlots = ({
       ),
       contentStyle: metricGridStyle,
       contentVariant: "raw",
-      headingColor: BLUE_HEADER,
+      headingColor: readInfoBoxHeadingColor(visualOptions),
       headingTitle,
       metaText,
       navigation: {
@@ -482,19 +504,21 @@ const buildMetricToolSlots = ({
     });
 };
 
-const labelToolContentStyle: CSSProperties = {
-  ...metricGridStyle,
-  display: "grid",
-  gap: 4,
-};
-
 const inlineMetricContentStyle: CSSProperties = {
   ...metricGridStyle,
   display: "flex",
-  gap: 4,
+  columnGap: 24,
   alignItems: "baseline",
   flexWrap: "wrap",
 };
+
+const hiddenLabelContentStyle: CSSProperties = {
+  display: "none",
+};
+
+const readInfoBoxHeadingColor = (
+  visualOptions: Partial<AnnotationInfoBoxVisualOptions>
+) => visualOptions.headingColor ?? BLUE_HEADER;
 
 const buildVerticalAreaSlots: InfoBoxParitySlotsBuilder = (visualOptions) =>
   buildAnnotationInfoBoxSlots({
@@ -505,13 +529,12 @@ const buildVerticalAreaSlots: InfoBoxParitySlotsBuilder = (visualOptions) =>
     content: (
       <div style={inlineMetricContentStyle}>
         <span>Fläche: 42,6 m²</span>
-        <span aria-hidden="true">·</span>
         <span>Ausrichtung: E</span>
       </div>
     ),
     contentStyle: metricGridStyle,
     contentVariant: "raw",
-    headingColor: BLUE_HEADER,
+    headingColor: readInfoBoxHeadingColor(visualOptions),
     headingTitle: "Vertikale Fläche",
     navigation: {
       currentIndex: 0,
@@ -531,22 +554,24 @@ const buildVerticalAreaSlots: InfoBoxParitySlotsBuilder = (visualOptions) =>
     visualOptions,
   });
 
-const buildLabelSlots: InfoBoxParitySlotsBuilder = (visualOptions) =>
-  buildAnnotationInfoBoxSlots({
+const buildLabelSlots: InfoBoxParitySlotsBuilder = (visualOptions, context) => {
+  const onEditStyle = visualOptions.readOnly
+    ? undefined
+    : context?.onOpenLabelStyleModal;
+
+  return buildAnnotationInfoBoxSlots({
     actions: {
       ...actions,
       dataTestIdPrefix: "storybook-label",
+      labels: {
+        editStyle: "Darstellung bearbeiten",
+      },
+      onEditStyle,
     },
-    content: (
-      <div style={labelToolContentStyle}>
-        <div>Text: Baustellenhinweis</div>
-        <div>Schriftgröße: 14 px</div>
-        <div>Hintergrund: #ffffff</div>
-      </div>
-    ),
-    contentStyle: metricGridStyle,
+    content: <span aria-hidden="true" />,
+    contentStyle: hiddenLabelContentStyle,
     contentVariant: "raw",
-    headingColor: BLUE_HEADER,
+    headingColor: readInfoBoxHeadingColor(visualOptions),
     headingTitle: "Beschriftung",
     navigation: {
       currentIndex: 1,
@@ -562,6 +587,7 @@ const buildLabelSlots: InfoBoxParitySlotsBuilder = (visualOptions) =>
     },
     visualOptions,
   });
+};
 
 const ALLTOOLS_CONTENT_DEFINITIONS: readonly AllToolsContentDefinition[] = [
   {
@@ -634,6 +660,7 @@ const buildReadOnlyInfoBoxVisualOptions = (
   hiddenActionIds: Array.from(
     new Set([
       ...(visualOptions.hiddenActionIds ?? []),
+      ANNOTATION_INFO_BOX_ACTION_IDS.STYLE,
       ANNOTATION_INFO_BOX_ACTION_IDS.DELETE,
     ])
   ),
@@ -669,6 +696,64 @@ const StoryLabel = ({
   style: CSSProperties;
 }) => <div style={buildStoryLabelStyle(style, contrastStyle)}>{children}</div>;
 
+const LabelStyleModal = ({
+  markDevelopmentPreview,
+  onClose,
+  placement,
+}: {
+  markDevelopmentPreview: boolean;
+  onClose: () => void;
+  placement: LabelStyleModalPlacement;
+}) => (
+  <div
+    role="presentation"
+    style={buildModalBackdropStyle(placement)}
+    onClick={onClose}
+    data-test-id="infobox-parity-label-style-modal"
+  >
+    <section
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="infobox-parity-label-style-title"
+      style={modalPanelStyle}
+      onClick={(event) => event.stopPropagation()}
+    >
+      {markDevelopmentPreview ? (
+        <div style={modalDevelopmentMarkerStyle}>
+          <span style={modalDevelopmentMarkerTextStyle}>
+            Entwicklungsversion
+          </span>
+        </div>
+      ) : null}
+      <div style={modalContentStyle}>
+        <div style={modalHeaderStyle}>
+          <h2 id="infobox-parity-label-style-title" style={modalTitleStyle}>
+            Darstellung
+          </h2>
+          <button
+            type="button"
+            aria-label="Schließen"
+            style={modalCloseButtonStyle}
+            onClick={onClose}
+          >
+            x
+          </button>
+        </div>
+        <dl style={modalDefinitionListStyle}>
+          <div style={modalDefinitionRowStyle}>
+            <dt style={modalDefinitionTermStyle}>Schriftgröße</dt>
+            <dd style={modalDefinitionDescriptionStyle}>14 px</dd>
+          </div>
+          <div style={modalDefinitionRowStyle}>
+            <dt style={modalDefinitionTermStyle}>Hintergrund</dt>
+            <dd style={modalDefinitionDescriptionStyle}>#ffffff</dd>
+          </div>
+        </dl>
+      </div>
+    </section>
+  </div>
+);
+
 type ToolComparisonRowProps = {
   buildSlots: InfoBoxParitySlotsBuilder;
   collapsed: boolean;
@@ -676,8 +761,10 @@ type ToolComparisonRowProps = {
   geoBackdrop: InfoBoxParityGeoBackdropPreset;
   labelContrastStyle?: CSSProperties;
   rowLabel: string;
+  slotsBuilderContext?: InfoBoxParitySlotsBuilderContext;
   storyBackdrop: InfoBoxParityStoryBackdrop;
   twoDimensionalReference?: ReactNode;
+  visualOptions?: Partial<AnnotationInfoBoxVisualOptions>;
 };
 
 const ToolComparisonRow = ({
@@ -687,11 +774,15 @@ const ToolComparisonRow = ({
   geoBackdrop,
   labelContrastStyle,
   rowLabel,
+  slotsBuilderContext,
   storyBackdrop,
   twoDimensionalReference,
+  visualOptions = CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS,
 }: ToolComparisonRowProps) => {
   const stateId = collapsed ? "collapsed" : "expanded";
   const rowId = `${contentId}-${stateId}`;
+  const readOnlyVisualOptions =
+    buildReadOnlyInfoBoxVisualOptions(visualOptions);
 
   return (
     <>
@@ -721,7 +812,8 @@ const ToolComparisonRow = ({
         collapsed={collapsed}
       >
         <ThreeDimensionalBox
-          slots={buildSlots(CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS)}
+          slots={buildSlots(visualOptions, slotsBuilderContext)}
+          visualOptions={visualOptions}
         />
       </PreviewFrame>
       <PreviewFrame
@@ -734,11 +826,8 @@ const ToolComparisonRow = ({
       >
         <ThreeDimensionalBox
           headerTitle="Informationen"
-          slots={buildSlots(
-            buildReadOnlyInfoBoxVisualOptions(
-              CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS
-            )
-          )}
+          slots={buildSlots(readOnlyVisualOptions, slotsBuilderContext)}
+          visualOptions={readOnlyVisualOptions}
         />
       </PreviewFrame>
     </>
@@ -750,77 +839,104 @@ const InfoBoxParityMatrix = ({
   geoBackdrop,
   includeAllTools,
   labelContrastStyle,
+  markAllToolsAsDevelopmentPreview,
+  slotsBuilderContext,
   storyBackdrop,
 }: {
   collapsed: boolean;
   geoBackdrop: InfoBoxParityGeoBackdropPreset;
   includeAllTools: boolean;
   labelContrastStyle?: CSSProperties;
+  markAllToolsAsDevelopmentPreview: boolean;
+  slotsBuilderContext?: InfoBoxParitySlotsBuilderContext;
   storyBackdrop: InfoBoxParityStoryBackdrop;
-}) => (
-  <div style={contactSheetStyle} data-backdrop-preset={geoBackdrop}>
-    <div style={cornerHeaderStyle} />
-    <StoryLabel contrastStyle={labelContrastStyle} style={columnHeaderStyle}>
-      2D
-    </StoryLabel>
-    <StoryLabel contrastStyle={labelContrastStyle} style={columnHeaderStyle}>
-      3D Messung
-    </StoryLabel>
-    <StoryLabel contrastStyle={labelContrastStyle} style={columnHeaderStyle}>
-      3D Info
-    </StoryLabel>
+}) => {
+  const allToolsVisualOptions = resolveAllToolsVisualOptions(
+    markAllToolsAsDevelopmentPreview
+  );
 
-    <ToolComparisonRow
-      buildSlots={buildDistanceSlots}
-      collapsed={collapsed}
-      contentId="distance"
-      geoBackdrop={geoBackdrop}
-      labelContrastStyle={labelContrastStyle}
-      rowLabel="Distanz"
-      storyBackdrop={storyBackdrop}
-      twoDimensionalReference={
-        <TwoDimensionalDistanceReference collapsed={collapsed} />
-      }
-    />
-    <ToolComparisonRow
-      buildSlots={buildPointSlots}
-      collapsed={collapsed}
-      contentId="point"
-      geoBackdrop={geoBackdrop}
-      labelContrastStyle={labelContrastStyle}
-      rowLabel="Punkt"
-      storyBackdrop={storyBackdrop}
-    />
+  return (
+    <div style={contactSheetStyle} data-backdrop-preset={geoBackdrop}>
+      <div style={cornerHeaderStyle} />
+      <StoryLabel contrastStyle={labelContrastStyle} style={columnHeaderStyle}>
+        2D
+      </StoryLabel>
+      <StoryLabel contrastStyle={labelContrastStyle} style={columnHeaderStyle}>
+        3D Messung
+      </StoryLabel>
+      <StoryLabel contrastStyle={labelContrastStyle} style={columnHeaderStyle}>
+        3D Info
+      </StoryLabel>
 
-    {includeAllTools
-      ? ALLTOOLS_CONTENT_DEFINITIONS.map((definition) => (
-          <ToolComparisonRow
-            key={definition.id}
-            buildSlots={definition.buildSlots}
-            collapsed={collapsed}
-            contentId={definition.id}
-            geoBackdrop={geoBackdrop}
-            labelContrastStyle={labelContrastStyle}
-            rowLabel={definition.rowLabel}
-            storyBackdrop={storyBackdrop}
-          />
-        ))
-      : null}
-  </div>
-);
+      <ToolComparisonRow
+        buildSlots={buildDistanceSlots}
+        collapsed={collapsed}
+        contentId="distance"
+        geoBackdrop={geoBackdrop}
+        labelContrastStyle={labelContrastStyle}
+        rowLabel="Distanz"
+        slotsBuilderContext={slotsBuilderContext}
+        storyBackdrop={storyBackdrop}
+        twoDimensionalReference={
+          <TwoDimensionalDistanceReference collapsed={collapsed} />
+        }
+      />
+      <ToolComparisonRow
+        buildSlots={buildPointSlots}
+        collapsed={collapsed}
+        contentId="point"
+        geoBackdrop={geoBackdrop}
+        labelContrastStyle={labelContrastStyle}
+        rowLabel="Punkt"
+        slotsBuilderContext={slotsBuilderContext}
+        storyBackdrop={storyBackdrop}
+      />
+
+      {includeAllTools
+        ? ALLTOOLS_CONTENT_DEFINITIONS.map((definition) => (
+            <ToolComparisonRow
+              key={definition.id}
+              buildSlots={definition.buildSlots}
+              collapsed={collapsed}
+              contentId={definition.id}
+              geoBackdrop={geoBackdrop}
+              labelContrastStyle={labelContrastStyle}
+              rowLabel={definition.rowLabel}
+              slotsBuilderContext={slotsBuilderContext}
+              storyBackdrop={storyBackdrop}
+              visualOptions={allToolsVisualOptions}
+            />
+          ))
+        : null}
+    </div>
+  );
+};
 
 const InfoBoxParityStory = ({
   backdrop,
   includeAllTools,
+  markAllToolsAsDevelopmentPreview,
   preCollapsed,
   solidBackdropColor,
 }: InfoBoxParityStoryArgs) => {
   const rootRef = useRef<HTMLElement | null>(null);
+  const labelStyleModalOpenTimeoutRef = useRef<number | null>(null);
   const [collapsed, setCollapsed] = useState(preCollapsed);
+  const [labelStyleModalOpen, setLabelStyleModalOpen] = useState(false);
+  const [labelStyleModalPlacement, setLabelStyleModalPlacement] =
+    useState<LabelStyleModalPlacement>("top");
 
   useEffect(() => {
     setCollapsed(preCollapsed);
   }, [preCollapsed]);
+
+  useEffect(() => {
+    return () => {
+      if (labelStyleModalOpenTimeoutRef.current !== null) {
+        window.clearTimeout(labelStyleModalOpenTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const syncCollapsedState = (event: MouseEvent) => {
@@ -853,6 +969,44 @@ const InfoBoxParityStory = ({
   const labelContrastStyle = isStoryWideBackdrop(backdrop)
     ? buildLabelContrastStyle({ backdrop, solidBackdropColor })
     : undefined;
+  const slotsBuilderContext: InfoBoxParitySlotsBuilderContext = {
+    onOpenLabelStyleModal: (event) => {
+      event.stopPropagation();
+
+      const trigger = event.currentTarget;
+      const focusTarget =
+        trigger.closest<HTMLElement>("[data-crop-cell]") ??
+        trigger.closest<HTMLElement>('[data-test-id="info-box"]') ??
+        trigger;
+      const focusRect = focusTarget.getBoundingClientRect();
+      const isVisible = isViewportRectVisible(focusRect);
+
+      setLabelStyleModalPlacement(
+        isVisible ? readModalPlacementForRect(focusRect) : "top"
+      );
+
+      if (labelStyleModalOpenTimeoutRef.current !== null) {
+        window.clearTimeout(labelStyleModalOpenTimeoutRef.current);
+      }
+
+      if (!isVisible) {
+        setLabelStyleModalOpen(false);
+        focusTarget.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+          inline: "nearest",
+        });
+
+        labelStyleModalOpenTimeoutRef.current = window.setTimeout(() => {
+          labelStyleModalOpenTimeoutRef.current = null;
+          setLabelStyleModalOpen(true);
+        }, 220);
+        return;
+      }
+
+      setLabelStyleModalOpen(true);
+    },
+  };
 
   return (
     <main
@@ -874,10 +1028,19 @@ const InfoBoxParityStory = ({
             geoBackdrop={preset.id}
             includeAllTools={includeAllTools}
             labelContrastStyle={labelContrastStyle}
+            markAllToolsAsDevelopmentPreview={markAllToolsAsDevelopmentPreview}
+            slotsBuilderContext={slotsBuilderContext}
             storyBackdrop={backdrop}
           />
         </section>
       ))}
+      {labelStyleModalOpen ? (
+        <LabelStyleModal
+          markDevelopmentPreview={markAllToolsAsDevelopmentPreview}
+          onClose={() => setLabelStyleModalOpen(false)}
+          placement={labelStyleModalPlacement}
+        />
+      ) : null}
     </main>
   );
 };
@@ -1065,6 +1228,149 @@ const rowHeaderStyle: CSSProperties = {
   fontWeight: 700,
   paddingTop: 4,
 };
+
+const geoportalAnnotationDevelopmentPreviewPatternOptions = {
+  backgroundColor: "transparent",
+  primaryColor: "rgba(0, 0, 0, 0.1)",
+  rotationDeg: 45,
+  secondaryColor: "transparent",
+  stripeGapPx: 5,
+  stripeWidthPx: 5,
+  textVisible: false,
+} satisfies DevelopmentOnlyUiBackdropStyleOptions;
+
+const allToolsDevelopmentPreviewHeaderStyle =
+  readDevelopmentOnlyUiBackdropStyle({
+    ...geoportalAnnotationDevelopmentPreviewPatternOptions,
+    backgroundColor: "rgba(255, 255, 255, 0.88)",
+  });
+
+const allToolsDevelopmentPreviewVisualOptions = {
+  ...CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS,
+  headerForegroundClassName: "text-[#374151]",
+  headerStyle: allToolsDevelopmentPreviewHeaderStyle,
+  headingColor: "rgba(255, 255, 255, 0.88)",
+} satisfies Partial<AnnotationInfoBoxVisualOptions>;
+
+const resolveAllToolsVisualOptions = (
+  markAllToolsAsDevelopmentPreview: boolean
+): Partial<AnnotationInfoBoxVisualOptions> =>
+  markAllToolsAsDevelopmentPreview
+    ? allToolsDevelopmentPreviewVisualOptions
+    : CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS;
+
+const modalBackdropStyle: CSSProperties = {
+  backgroundColor: "rgba(15, 23, 42, 0.28)",
+  display: "flex",
+  inset: 0,
+  justifyContent: "center",
+  padding: "12vh 24px",
+  pointerEvents: "auto",
+  position: "fixed",
+  zIndex: 2000,
+};
+
+const buildModalBackdropStyle = (
+  placement: LabelStyleModalPlacement
+): CSSProperties => ({
+  ...modalBackdropStyle,
+  alignItems: placement === "top" ? "flex-start" : "flex-end",
+});
+
+const modalPanelStyle: CSSProperties = {
+  backgroundColor: "#ffffff",
+  border: "1px solid rgba(17, 24, 39, 0.16)",
+  borderRadius: 4,
+  boxShadow: "0 16px 40px rgba(15, 23, 42, 0.24)",
+  color: "#212529",
+  fontFamily: '"Helvetica Neue", Arial, Helvetica, sans-serif',
+  fontSize: 12,
+  minWidth: 240,
+  overflow: "hidden",
+};
+
+const modalDevelopmentMarkerStyle: CSSProperties = {
+  ...readDevelopmentOnlyUiBackdropStyle({
+    ...geoportalAnnotationDevelopmentPreviewPatternOptions,
+    backgroundColor: "rgba(255, 255, 255, 0.88)",
+  }),
+  alignItems: "center",
+  borderBottom: "1px solid rgba(17, 24, 39, 0.12)",
+  display: "flex",
+  minHeight: 18,
+  padding: "2px 12px",
+};
+
+const modalDevelopmentMarkerTextStyle: CSSProperties = {
+  color: "#4b5563",
+  fontSize: 10,
+  fontWeight: 600,
+  lineHeight: 1.2,
+};
+
+const modalContentStyle: CSSProperties = {
+  padding: 12,
+};
+
+const modalHeaderStyle: CSSProperties = {
+  alignItems: "center",
+  display: "flex",
+  justifyContent: "space-between",
+  marginBottom: 8,
+};
+
+const modalTitleStyle: CSSProperties = {
+  fontSize: 14,
+  fontWeight: 700,
+  lineHeight: 1.4,
+  margin: 0,
+};
+
+const modalCloseButtonStyle: CSSProperties = {
+  alignItems: "center",
+  background: "transparent",
+  border: 0,
+  color: "#808080",
+  display: "inline-flex",
+  fontSize: 16,
+  height: 20,
+  justifyContent: "center",
+  lineHeight: 1,
+  padding: 0,
+  width: 20,
+};
+
+const modalDefinitionListStyle: CSSProperties = {
+  display: "grid",
+  gap: 6,
+  margin: 0,
+};
+
+const modalDefinitionRowStyle: CSSProperties = {
+  display: "grid",
+  gap: 16,
+  gridTemplateColumns: "1fr auto",
+};
+
+const modalDefinitionTermStyle: CSSProperties = {
+  color: "#808080",
+  fontWeight: 400,
+};
+
+const modalDefinitionDescriptionStyle: CSSProperties = {
+  color: "#212529",
+  fontWeight: 400,
+  margin: 0,
+};
+
+const isViewportRectVisible = (rect: DOMRect): boolean =>
+  rect.top >= 0 &&
+  rect.left >= 0 &&
+  rect.bottom <= window.innerHeight &&
+  rect.right <= window.innerWidth;
+
+const readModalPlacementForRect = (rect: DOMRect): LabelStyleModalPlacement =>
+  rect.top + rect.height / 2 < window.innerHeight / 2 ? "bottom" : "top";
 
 const previewPanelStyle: CSSProperties = {
   alignSelf: "start",

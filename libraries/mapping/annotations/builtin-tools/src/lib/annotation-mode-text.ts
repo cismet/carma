@@ -175,6 +175,7 @@ export const defaultAnnotationToolTexts = {
     setReference: "Als Referenzhöhe setzen",
     lock: "Sperren",
     unlock: "Entsperren",
+    editStyle: "Darstellung bearbeiten",
     delete: "Löschen",
     deleteLocked: "Gesperrte Messung kann nicht gelöscht werden",
   },
