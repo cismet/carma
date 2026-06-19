@@ -106,7 +106,6 @@ const LayerInfo = ({ description, legend, zoomLevels }: LayerInfoProps) => {
     <LayerInfoWrapper
       content={
         <>
-          <hr className="h-px my-0 bg-gray-300 border-0 w-full sm:hidden" />
           <div className="flex sm:flex-row flex-col gap-2 w-full h-full overflow-y-auto sm:overflow-hidden show-scrollbar">
             <div className="formContainer flex flex-col gap-2 w-full sm:w-[80%] hide-tabs shrink-0 sm:shrink sm:min-h-0 sm:overflow-hidden">
               {parsedDescription && parsedDescription.length > 0 && (
