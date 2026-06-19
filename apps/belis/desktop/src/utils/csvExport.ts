@@ -103,3 +103,38 @@ export const exportFeaturesToCsv = (
 ): void => {
   triggerCsvDownload(featuresToCsv(features), filename);
 };
+
+// Map a feature's sourceLayer to the export file it belongs to. Standorte and
+// Leuchten share a single file (so each Standort stays grouped with its own
+// Leuchten via orderByStandort); every other layer gets its own file named
+// after the layer. Features without a sourceLayer land in "sonstige".
+const fileKeyForLayer = (layer: string | undefined): string => {
+  if (layer === "standorte" || layer === "leuchten") return "standorte-leuchten";
+  return layer ?? "sonstige";
+};
+
+// Split features by feature type, build one CSV per group, and download each
+// as a separate file. Standorte and Leuchten are combined into one file; all
+// other types get their own. Downloads are staggered slightly so browsers do
+// not suppress rapid successive download triggers.
+export const exportFeaturesToCsvByType = (
+  features: ExportableFeature[],
+  prefix = "belis-export"
+): void => {
+  const groups = new Map<string, ExportableFeature[]>();
+  for (const f of features) {
+    const key = fileKeyForLayer(f.sourceLayer);
+    const list = groups.get(key) ?? [];
+    list.push(f);
+    groups.set(key, list);
+  }
+
+  let i = 0;
+  for (const [key, groupFeatures] of groups) {
+    const csv = featuresToCsv(groupFeatures);
+    const filename = `${prefix}-${key}.csv`;
+    // Stagger downloads to avoid browsers dropping rapid successive ones.
+    setTimeout(() => triggerCsvDownload(csv, filename), i * 300);
+    i++;
+  }
+};
