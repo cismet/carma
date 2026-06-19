@@ -210,6 +210,13 @@ export const CSV_COLUMN_ORDER: Record<string, string[]> = {
   leitungen: ["bezeichnung", "material", "querschnitt"],
 };
 
+// Feature types to skip when generating export files — no CSV is created for
+// these. Abzweigdosen carry no user-facing attributes (only an id/geometry), so
+// a file for them would be empty.
+export const CSV_SKIP_EXPORT_LAYERS: ReadonlySet<string> = new Set([
+  "abzweigdosen",
+]);
+
 // Human-readable labels for the "Typ" column values (derived from sourceLayer).
 export const LAYER_LABELS: Record<string, string> = {
   leuchten: "Leuchte",
