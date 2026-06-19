@@ -488,6 +488,49 @@ const labelToolContentStyle: CSSProperties = {
   gap: 4,
 };
 
+const inlineMetricContentStyle: CSSProperties = {
+  ...metricGridStyle,
+  display: "flex",
+  gap: 4,
+  alignItems: "baseline",
+  flexWrap: "wrap",
+};
+
+const buildVerticalAreaSlots: InfoBoxParitySlotsBuilder = (visualOptions) =>
+  buildAnnotationInfoBoxSlots({
+    actions: {
+      ...actions,
+      dataTestIdPrefix: "storybook-vertical-area",
+    },
+    content: (
+      <div style={inlineMetricContentStyle}>
+        <span>Fläche: 42,6 m²</span>
+        <span aria-hidden="true">·</span>
+        <span>Ausrichtung: E</span>
+      </div>
+    ),
+    contentStyle: metricGridStyle,
+    contentVariant: "raw",
+    headingColor: BLUE_HEADER,
+    headingTitle: "Vertikale Fläche",
+    navigation: {
+      currentIndex: 0,
+      totalEntries: 2,
+      onFlyToAll: noop,
+      onNext: noop,
+      onPrevious: noop,
+    },
+    titleInput: {
+      onCommit: noop,
+      onShortLabelCommit: noop,
+      placeholder: "Vertikale Fläche",
+      shortLabelPlaceholder: "V",
+      shortLabelValue: "V",
+      value: "Vertikale Fläche",
+    },
+    visualOptions,
+  });
+
 const buildLabelSlots: InfoBoxParitySlotsBuilder = (visualOptions) =>
   buildAnnotationInfoBoxSlots({
     actions: {
@@ -575,15 +618,7 @@ const ALLTOOLS_CONTENT_DEFINITIONS: readonly AllToolsContentDefinition[] = [
   {
     id: "vertical-area",
     rowLabel: "Vertikal",
-    buildSlots: buildMetricToolSlots({
-      dataTestIdPrefix: "storybook-vertical-area",
-      headingTitle: "Vertikale Fläche",
-      items: [{ id: "bearing", label: "Ausrichtung", value: "E" }],
-      metaText: "42,6 m²",
-      navigationCurrentIndex: 0,
-      navigationTotalEntries: 2,
-      shortLabelValue: "V",
-    }),
+    buildSlots: buildVerticalAreaSlots,
   },
   {
     id: "label",

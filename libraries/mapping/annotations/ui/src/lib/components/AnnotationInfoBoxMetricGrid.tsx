@@ -30,7 +30,7 @@ export const AnnotationInfoBoxMetricGrid = ({
 
   return (
     <dl
-      className={`flex flex-wrap items-start tabular-nums${
+      className={`m-0 flex flex-wrap items-start tabular-nums${
         className ? ` ${className}` : ""
       }`}
       style={{
