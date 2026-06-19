@@ -1,0 +1,69 @@
+// Shared GraphQL field selections for BELIS feature queries.
+// Used by both the search modal (SearchModal.tsx) and the CSV export
+// enrichment (fetchFeaturesForExport.ts) so the selected fields — and thus
+// the columns available downstream via flattenGqlRecord — stay in sync.
+
+// When true, queries include all display fields. When false, only id + geom.
+// Extended: ~527 KB / 341ms vs minimal: ~127 KB / 203ms (benchmarked).
+export const FETCH_EXTENDED_SEARCH_RESULTS = true;
+
+export const LEUCHTEN_FIELDS = FETCH_EXTENDED_SEARCH_RESULTS
+  ? `id
+    leuchtennummer lfd_nummer fk_standort
+    inbetriebnahme_leuchte montagefirma_leuchte schaltstelle
+    anzahl_1dk anschlussleistung_1dk wartungszyklus
+    tkey_leuchtentyp { leuchtentyp fabrikat }
+    tkey_strassenschluessel { pk strasse }
+    tkey_energielieferant { energielieferant }
+    tkey_unterh_leuchte { unterhaltspflichtiger_leuchte }
+    rundsteuerempfaengerObject { rs_typ }
+    fk_dk1Object { beschreibung }
+    tdta_standort_mast { lfd_nummer tkey_mastart { mastart } tkey_masttyp { masttyp } geom_84 { x y } }`
+  : `id
+    tdta_standort_mast { geom_84 { x y } }`;
+
+export const MAST_FIELDS = FETCH_EXTENDED_SEARCH_RESULTS
+  ? `id
+    lfd_nummer standortangabe haus_nr plz
+    tkey_mastart { mastart }
+    tkey_masttyp { masttyp }
+    tkey_strassenschluessel { pk strasse }
+    anlagengruppeObject { bezeichnung }
+    tkey_kennziffer { kennziffer beschreibung }
+    tkey_bezirk { bezirk }
+    tkey_klassifizierung { klassifizierung }
+    tkey_unterh_mast { unterhalt_mast }
+    geom_84 { x y }`
+  : `id
+    geom_84 { x y }`;
+
+export const SCHALTSTELLE_FIELDS = FETCH_EXTENDED_SEARCH_RESULTS
+  ? `id
+    schaltstellen_nummer
+    bauart { bezeichnung }
+    tkey_strassenschluessel { pk strasse }
+    geom_84 { x y }`
+  : `id
+    geom_84 { x y }`;
+
+export const MAUERLASCHE_FIELDS = FETCH_EXTENDED_SEARCH_RESULTS
+  ? `id
+    laufende_nummer
+    material_mauerlasche { bezeichnung }
+    tkey_strassenschluessel { pk strasse }
+    geom_84 { x y }`
+  : `id
+    geom_84 { x y }`;
+
+// Maps a tile/sidebar sourceLayer to the GraphQL table + field selection used
+// to fetch full records by id for export. Layers absent here (e.g. leitungen,
+// abzweigdosen) have no enrichment query and fall back to their tile props.
+export const EXPORT_QUERY_BY_LAYER: Record<
+  string,
+  { table: string; fields: string }
+> = {
+  leuchten: { table: "tdta_leuchten", fields: LEUCHTEN_FIELDS },
+  standorte: { table: "tdta_standort_mast", fields: MAST_FIELDS },
+  schaltstelle: { table: "schaltstelle", fields: SCHALTSTELLE_FIELDS },
+  mauerlaschen: { table: "mauerlasche", fields: MAUERLASCHE_FIELDS },
+};

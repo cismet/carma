@@ -36,6 +36,8 @@ import type { SidebarFeature } from "../ui/BelisSidebar";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faDrawPolygon } from "@fortawesome/free-solid-svg-icons";
 import { useMapPage } from "../../contexts/MapPageContext";
+import { getFeatureCollection } from "../../store/slices/featureCollection";
+import ExportCsvButton from "../ui/ExportCsvButton";
 
 interface BelisStreet {
   s: string;
@@ -58,6 +60,7 @@ const BelisMapPageShell = () => {
   const selectedTeamId = useSelector(getSelectedTeamId);
   const draftMode = useSelector(getDraftMode);
   const totalDraftCount = useSelector(getTotalDraftCount);
+  const featureCollection = useSelector(getFeatureCollection);
 
   const { config } = useMapPage();
   const {
@@ -70,12 +73,18 @@ const BelisMapPageShell = () => {
   } = config;
 
   const [streets, setStreets] = useState<BelisStreet[]>([]);
-  const { setActiveHighlights } = useMapPage();
+  const { activeHighlights, setActiveHighlights } = useMapPage();
 
   const [highlightResults, setHighlightResults] = useState<
     SidebarFeature[] | null
   >(null);
   const [lassoActive, setLassoActive] = useState(false);
+
+  const exportableFeatures = activeHighlights?.length
+    ? activeHighlights
+    : highlightResults?.length
+    ? highlightResults
+    : featureCollection ?? [];
 
   const handleHighlightsChange = useCallback(
     (highlights: SidebarFeature[] | null) => {
@@ -301,6 +310,10 @@ const BelisMapPageShell = () => {
                 >
                   <FontAwesomeIcon icon={faDrawPolygon} />
                 </button>
+              )}
+
+              {showSearch && (
+                <ExportCsvButton features={exportableFeatures} />
               )}
 
               {filterConfig?.variant === "fachobjekte" && onFilterChange && (
