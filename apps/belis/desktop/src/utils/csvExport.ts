@@ -3,6 +3,7 @@ import {
   CSV_COLUMN_ORDER,
   CSV_LAYER_LABEL_OVERRIDES,
   CSV_LAYER_SHOW_OVERRIDES,
+  CSV_SKIP_EXPORT_LAYERS,
   LAYER_LABELS,
 } from "../constants/csvColumns";
 
@@ -166,6 +167,9 @@ export const exportFeaturesToCsvByType = (
 ): void => {
   const groups = new Map<string, ExportableFeature[]>();
   for (const f of features) {
+    // Skip feature types that have no user-facing attributes (e.g. abzweigdosen)
+    // so no empty file is created for them.
+    if (CSV_SKIP_EXPORT_LAYERS.has(f.sourceLayer ?? "")) continue;
     const key = fileKeyForLayer(f.sourceLayer);
     const list = groups.get(key) ?? [];
     list.push(f);
