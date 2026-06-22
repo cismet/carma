@@ -584,6 +584,18 @@ export const useCreateCismapLayers = (
               });
             },
             onSelectionChanged: (e) => {
+              // [PANORAMA] debug: the RAW native maplibre features for this
+              // layer, before carma maps them into the redux selectedFeature.
+              // Stashed on window for interactive inspection.
+              console.log("[PANORAMA] native maplibre features", {
+                layerId: layer.id,
+                hits: e.hits,
+                hit: e.hit,
+                properties: (e.hits ?? []).map((h) => h.properties),
+              });
+              (
+                window as typeof window & { __panoramaHits?: unknown }
+              ).__panoramaHits = e.hits;
               const currentLayer =
                 layersRef.current.find((l) => l.id === layer.id) || layer;
               const clickKey = e.latlng
