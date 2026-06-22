@@ -1,4 +1,12 @@
-import { useContext, useEffect, useState, useRef, type ReactNode } from "react";
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  useRef,
+  type ReactNode,
+} from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import InfoBoxFotoPreview from "react-cismap/topicmaps/InfoBoxFotoPreview";
@@ -22,7 +30,7 @@ import {
   moveFeatureToFront,
   setPreferredVectorLayerId,
 } from "../../store/slices/features";
-import { getLayers } from "../../store/slices/mapping";
+import { getLayers, getMaplibreMaps } from "../../store/slices/mapping";
 import { truncateString } from "./featureInfoHelper";
 
 import "../infoBox.css";
@@ -47,6 +55,18 @@ import { useFeatureFlags } from "@carma-providers/feature-flag";
 import { addCustomFeatureFlags } from "../../store/slices/layers";
 import type { FeatureInfo } from "@carma-mapping/utils";
 import { selectionPadding } from "../../constants/selection";
+
+// Panorama: live-rotate the selected arrow on the map to follow the viewing
+// direction inside the 360° viewer. The style layer that renders the selected
+// arrow (see oelberg_panorama style.json). Only the selected feature is visible
+// in that layer, so overriding the layer-wide icon-rotate to a constant rotates
+// just the visible arrow; we restore the data-driven value on deselect.
+const PANORAMA_SELECTION_ARROW_LAYER = "selection-arrow";
+// Calibration: map icon-rotate is clockwise-from-north (deg); pannellum yaw is
+// degrees from the image centre (positive to the right). Tune sign/offset once
+// against the live behaviour.
+const PANORAMA_YAW_SIGN = 1;
+const PANORAMA_YAW_OFFSET = 0;
 
 interface InfoBoxProps {
   pos?: [number, number];
@@ -80,6 +100,7 @@ const FeatureInfoBox = ({
   const layers = useSelector(getLayers);
   const numOfLayers = layers.length;
   const infoText = useSelector(getInfoText);
+  const maplibreMaps = useSelector(getMaplibreMaps);
   const lightBoxDispatchContext = useContext(LightBoxDispatchContext);
 
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
@@ -255,6 +276,54 @@ const FeatureInfoBox = ({
     });
   }, [selectedFeature]);
 
+  // The maplibre map for the currently selected layer (holds the panorama
+  // arrow layers); selectedFeature.id is the layer id.
+  const selectedLayerMap = useMemo(
+    () => maplibreMaps?.find((entry) => entry.id === selectedFeature?.id)?.map,
+    [maplibreMaps, selectedFeature?.id]
+  );
+  const panoramaHeading = Number(
+    selectedFeature?.properties?.sourceProps?.heading
+  );
+
+  // Rotate the selected arrow to follow the panorama view direction.
+  const handlePanoramaYaw = useCallback(
+    (yaw: number) => {
+      if (
+        !selectedLayerMap ||
+        typeof selectedLayerMap.getLayer !== "function" ||
+        !selectedLayerMap.getLayer(PANORAMA_SELECTION_ARROW_LAYER) ||
+        Number.isNaN(panoramaHeading)
+      ) {
+        return;
+      }
+      selectedLayerMap.setLayoutProperty(
+        PANORAMA_SELECTION_ARROW_LAYER,
+        "icon-rotate",
+        panoramaHeading + yaw * PANORAMA_YAW_SIGN + PANORAMA_YAW_OFFSET
+      );
+    },
+    [selectedLayerMap, panoramaHeading]
+  );
+
+  // Restore the data-driven heading when the selection (and thus its map)
+  // changes or the box unmounts; we overrode icon-rotate to a constant above.
+  useEffect(() => {
+    if (!selectedLayerMap) return;
+    return () => {
+      if (
+        typeof selectedLayerMap.getLayer === "function" &&
+        selectedLayerMap.getLayer(PANORAMA_SELECTION_ARROW_LAYER)
+      ) {
+        selectedLayerMap.setLayoutProperty(
+          PANORAMA_SELECTION_ARROW_LAYER,
+          "icon-rotate",
+          ["get", "heading"]
+        );
+      }
+    };
+  }, [selectedLayerMap]);
+
   if (loadingFeatureInfo && shouldRenderLoadingInfobox)
     return <LoadingInfoBox />;
 
@@ -310,6 +379,9 @@ const FeatureInfoBox = ({
           key="infobox-panorama-preview"
           src={selectedFeature.properties.panorama}
           onExpand={() => setOpenPanorama(true)}
+          // Only the active viewer drives the map arrow; yield to the
+          // fullscreen lightbox while it is open.
+          onYawChange={openPanorama ? undefined : handlePanoramaYaw}
         />,
       ]
     : [];
@@ -394,6 +466,7 @@ const FeatureInfoBox = ({
           src={selectedFeature.properties.panorama}
           title={selectedFeature.properties.title}
           onClose={() => setOpenPanorama(false)}
+          onYawChange={handlePanoramaYaw}
         />
       )}
     </>
