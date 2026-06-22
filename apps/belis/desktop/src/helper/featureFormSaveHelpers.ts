@@ -302,43 +302,14 @@ export const saveFeatureDraft = async (
       };
     }
     const deletePayload = { id: featureDbId, is_deleted: true };
-    console.log(
-      "xxx [DELETE] soft-delete (saveFeatureDraft):",
-      JSON.stringify(
-        { featureId, className: config.className, payload: deletePayload },
-        null,
-        2
-      )
-    );
     try {
-      const result = await updateDataByClassName(
+      await updateDataByClassName(
         jwt,
         config.className,
         deletePayload
       );
-      console.log(
-        "xxx [DELETE] soft-delete result (saveFeatureDraft):",
-        JSON.stringify(
-          { featureId, className: config.className, result },
-          null,
-          2
-        )
-      );
       return { ...base, success: true };
     } catch (error) {
-      console.log(
-        "xxx [DELETE] soft-delete failed (saveFeatureDraft):",
-        JSON.stringify(
-          {
-            featureId,
-            className: config.className,
-            id: featureDbId,
-            error: error instanceof Error ? error.message : String(error),
-          },
-          null,
-          2
-        )
-      );
       return {
         ...base,
         success: false,
@@ -453,11 +424,9 @@ const saveCreationDraft = async (
     : undefined;
 
   try {
-    console.debug("[CREATE-FEATURE] raw draft.values:", JSON.stringify(draft.values, null, 2));
     const formValues =
       prepareSaveValues(featureType, draft.values ?? {}, strassenschluesselByPk) ??
       {};
-    console.debug("[CREATE-FEATURE] after prepareSaveValues:", JSON.stringify(formValues, null, 2));
     let payload: Record<string, unknown>;
     // Hoisted out of the `featureType === "leuchte"` branch so the Scope-B
     // extras loop below can reuse them when creating additional Leuchten that
@@ -511,10 +480,6 @@ const saveCreationDraft = async (
           fk_strassenschluessel: mastFkStrassenschluessel,
           ...(geomPayload ? { geom: geomPayload } : {}),
         };
-        console.debug(
-          "[CREATE-FEATURE] Standort payload:",
-          JSON.stringify(mastPayload, null, 2)
-        );
         const mastResult = await updateDataByClassName(
           jwt,
           featureSaveConfigs["standort"].className,
@@ -588,14 +553,12 @@ const saveCreationDraft = async (
       );
     }
 
-    console.debug(`[CREATE-FEATURE] ${featureType} → ${config.className} payload:`, JSON.stringify(payload, null, 2));
     const result = await updateDataByClassName(
       jwt,
       config.className,
       payload,
       extraSaveParams
     );
-    console.debug(`[CREATE-FEATURE] ${featureType} → ${config.className} result:`, JSON.stringify(result, null, 2));
 
     // Id of the row just created — needed both for late document upload and
     // (for a Standort) for linking its "+ Leuchte" tabs to the new Mast.
@@ -627,7 +590,7 @@ const saveCreationDraft = async (
       >;
       const mastFk =
         (formValues.fk_strassenschluessel as number | null | undefined) ?? null;
-      for (const [extraIdx, extra] of extras.entries()) {
+      for (const extra of extras) {
         const { _tabId: _tabIdUnused, ...extraFields } = extra;
         void _tabIdUnused;
         const extraCleaned =
@@ -642,10 +605,6 @@ const saveCreationDraft = async (
               | undefined) ?? mastFk,
           tdta_standort_mast: { id: createdId },
         };
-        console.debug(
-          `[CREATE-FEATURE] standort leuchte ${extraIdx + 1} payload:`,
-          JSON.stringify(extraPayload, null, 2)
-        );
         await updateDataByClassName(
           jwt,
           featureSaveConfigs["leuchte"].className,
@@ -663,7 +622,7 @@ const saveCreationDraft = async (
       const extras = (draft.values?.leuchten ?? []) as Array<
         Record<string, unknown>
       >;
-      for (const [extraIdx, extra] of extras.entries()) {
+      for (const extra of extras) {
         const { _tabId: _tabIdUnused, ...extraFields } = extra;
         void _tabIdUnused;
         const extraCleaned =
@@ -678,10 +637,6 @@ const saveCreationDraft = async (
               | undefined) ?? leuchteStrassenschluesselId,
           tdta_standort_mast: { id: mastIdForLink },
         };
-        console.debug(
-          `[CREATE-FEATURE] extra leuchte ${extraIdx + 1} payload:`,
-          JSON.stringify(extraPayload, null, 2)
-        );
         await updateDataByClassName(
           jwt,
           config.className,

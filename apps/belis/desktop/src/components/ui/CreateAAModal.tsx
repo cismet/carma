@@ -49,14 +49,6 @@ const CreateAAModal = ({
 
   useEffect(() => {
     if (open) {
-      console.log(
-        "xxx features:",
-        highlights.map((f) => ({
-          sourceLayer: f.sourceLayer,
-          dbId: f.properties?.id,
-          properties: f.properties,
-        }))
-      );
     }
   }, [open, highlights]);
 
@@ -99,7 +91,7 @@ const CreateAAModal = ({
 
       if (bezeichnung || beschreibung) {
         try {
-          const actionResult = await executeAction(
+          await executeAction(
             jwt as string,
             "editVeranlassungViaAA",
             { bezeichnung, beschreibung, aaid: aaId }

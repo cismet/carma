@@ -73,14 +73,12 @@ const TopNavbar = () => {
         existingProtokolle,
         features: activeHighlights,
       });
-      console.log("[AddToAA] payload", JSON.stringify(payload, null, 2));
 
-      const result = await updateDataByClassName(
+      await updateDataByClassName(
         jwt,
         "arbeitsauftrag",
         payload
       );
-      console.log("[AddToAA] server response", result);
 
       void message.success(
         `${activeHighlights.length} Protokoll(e) zum Arbeitsauftrag hinzugefügt`

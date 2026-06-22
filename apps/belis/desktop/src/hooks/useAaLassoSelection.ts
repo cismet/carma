@@ -90,12 +90,7 @@ export function useAaLassoSelection({
       }));
 
       if (serialized.length > 0) {
-        console.log(
-          `[AA Lasso] ${serialized.length} feature(s) selected:`,
-          serialized
-        );
       } else {
-        console.log("[AA Lasso] No features found in selection.");
       }
 
       onFeaturesSelectedRef.current?.(serialized);

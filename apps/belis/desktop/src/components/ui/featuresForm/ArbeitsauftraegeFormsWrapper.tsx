@@ -212,11 +212,6 @@ const ArbeitsauftraegeFormsWrapper = ({
 
   const handleSave = useCallback(() => {
     if (!id || !draft) return;
-    console.log(
-      `[ArbeitsauftraegeDrafts] Save ${mode.toUpperCase()}`,
-      id,
-      draft.values
-    );
     // Update baseline to saved values
     if (draft.values && Object.keys(draft.values).length > 0) {
       if (mode === "aa") {
