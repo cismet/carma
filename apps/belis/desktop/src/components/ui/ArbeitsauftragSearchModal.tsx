@@ -81,7 +81,9 @@ const AA_SEARCH_FIELDS = `id
 const generateQueryPreview = (values: ArbeitsauftragSearchValues): string => {
   const whereClause = buildArbeitsauftragWhereClause(values);
   return `query ArbeitsauftragSearch {
-  arbeitsauftrag(${whereClause ? `${whereClause}, ` : ""}order_by: {angelegt_am: desc}) {
+  arbeitsauftrag(${
+    whereClause ? `${whereClause}, ` : ""
+  }order_by: {angelegt_am: desc}) {
     ${AA_SEARCH_FIELDS}
   }
 }`;
@@ -91,7 +93,9 @@ interface ArbeitsauftragSearchModalProps {
   onSearchDone?: () => void;
 }
 
-const ArbeitsauftragSearchModal = ({ onSearchDone }: ArbeitsauftragSearchModalProps) => {
+const ArbeitsauftragSearchModal = ({
+  onSearchDone,
+}: ArbeitsauftragSearchModalProps) => {
   const dispatch: AppDispatch = useDispatch();
   const jwt = useSelector(getJWT);
 
@@ -122,9 +126,7 @@ const ArbeitsauftragSearchModal = ({ onSearchDone }: ArbeitsauftragSearchModalPr
   );
 
   const executeSearch = useCallback(() => {
-
     if (!jwt) {
-      console.warn("yyy [AA_SEARCH] No JWT available, please log in first");
       return;
     }
 
@@ -155,7 +157,7 @@ const ArbeitsauftragSearchModal = ({ onSearchDone }: ArbeitsauftragSearchModalPr
       })
       .then((json) => {
         if (json.errors) {
-          console.error("yyy [AA_SEARCH] GraphQL errors:", json.errors);
+          console.error("[AA_SEARCH] GraphQL errors:", json.errors);
         }
         const results = json.data?.arbeitsauftrag ?? [];
 
@@ -179,7 +181,6 @@ const ArbeitsauftragSearchModal = ({ onSearchDone }: ArbeitsauftragSearchModalPr
         onSearchDone?.();
       })
       .catch((err) => {
-        console.error("yyy [AA_SEARCH] fetch error:", err);
         setIsSearching(false);
       });
   }, [jwt, dispatch, onSearchDone]);

@@ -250,11 +250,6 @@ const creationDefaultsSlice = createSlice({
       state.defaults[featureType] = existing
         ? mergeDefaults(existing, picked)
         : picked;
-      // eslint-disable-next-line no-console
-      // console.log(
-      //   `xxx [creationDefaults] remember fields changed (recordDefaults) for "${featureType}". Whole state now:`,
-      //   JSON.parse(JSON.stringify(state))
-      // );
     },
     // Seed the in-form "+" and toolbar dropdown's memory from an existing
     // feature selected in Fachobjekte (or captured by a green "+" press).
@@ -289,11 +284,6 @@ const creationDefaultsSlice = createSlice({
     clearAllDefaults(state) {
       state.defaults = {};
       state.selectionDefaults = {};
-      // eslint-disable-next-line no-console
-      // console.log(
-      //   "xxx [creationDefaults] all remember fields cleared (clearAllDefaults). Whole state now:",
-      //   JSON.parse(JSON.stringify(state))
-      // );
     },
   },
   extraReducers: (builder) => {
@@ -347,11 +337,6 @@ const creationDefaultsSlice = createSlice({
           // edits even after an earlier open-existing or green-"+" event
           // left a stale template behind.
           state.selectionDefaults[featureType] = picked;
-          // eslint-disable-next-line no-console
-          // console.log(
-          //   `xxx [creationDefaults] remember fields changed (setDraft) for "${featureType}". Whole state now:`,
-          //   JSON.parse(JSON.stringify(state))
-          // );
         }
       })
       .addCase(removeDraft, (state, action) => {

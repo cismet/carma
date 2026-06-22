@@ -664,8 +664,6 @@ const SearchModal = ({
 
       setIsSearching(true);
       setNoResults(false);
-      // console.log(`xxx ${logPrefix} Fetching data...`);
-      // console.log(`xxx ${logPrefix} Query:`, query);
 
       fetch(ENDPOINT, {
         method: "POST",
@@ -677,7 +675,6 @@ const SearchModal = ({
       })
         .then((res) => res.json())
         .then((json) => {
-          // console.log(`xxx ${logPrefix} Raw result:`, json);
           const results = json.data?.[dataKey] ?? [];
 
           if (results.length === 0) {

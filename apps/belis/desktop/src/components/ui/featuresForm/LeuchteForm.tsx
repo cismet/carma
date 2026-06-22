@@ -364,7 +364,6 @@ const LeuchteForm = ({
           : {}),
       });
 
-      // console.log("xxx saving leuchte:", JSON.stringify(dataToSave, null, 2));
       await updateDataByClassName(jwt, "tdta_leuchten", dataToSave);
 
       // Update local documents so changes appear immediately
@@ -1267,11 +1266,6 @@ const LeuchteForm = ({
             mast: serializeValues(mastSlice),
           },
         };
-        // eslint-disable-next-line no-console
-        // console.log(
-        //   "xxx [LeuchteForm] copy → set Leuchten defaults:",
-        //   JSON.parse(JSON.stringify(recordPayload.values))
-        // );
         dispatch(recordDefaults(recordPayload));
         dispatch(recordSelectionDefaults(recordPayload));
       }}
