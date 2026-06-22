@@ -1856,7 +1856,6 @@ const BelisMapLibWrapper = ({
       const cachedData =
         store.getState().featuresForms?.drafts[draftKey]?.fetchedData;
       if (cachedData) {
-        console.log("[SELECTION] using cached draft data for", draftKey);
         setFetchedFeatureData(cachedData);
         return;
       }
@@ -1898,12 +1897,6 @@ const BelisMapLibWrapper = ({
   const [featureOnMap, setFeatureOnMap] = useState(true);
 
   useEffect(() => {
-    console.log("[AA-DEBUG] bounds-check effect fired", {
-      sidebarMode,
-      sidebarVariant,
-      selectedFeatureId,
-      rawFeature: !!rawFeature,
-    });
     if (
       sidebarVariant === "arbeitsauftraege" ||
       (sidebarMode !== "fachobjekte" && sidebarMode !== "highlights") ||
@@ -1921,7 +1914,6 @@ const BelisMapLibWrapper = ({
 
     const geometry = rawFeature?.geometry;
     if (!geometry) {
-      console.log("[AA-DEBUG] no geometry, skipping");
       setFeatureOnMap(true);
       return;
     }
@@ -1944,14 +1936,8 @@ const BelisMapLibWrapper = ({
       );
     }
     setFeatureOnMap(inside);
-    console.log("[AA-DEBUG] bounds check result", {
-      inside,
-      geometryType: geometry.type,
-      sourceLayer: selectedFeatureId.sourceLayer,
-    });
 
     if (!inside) {
-      console.log("[AA-DEBUG] >>> openDatasheet() called from bounds-check");
       openDatasheet();
     }
   }, [map, selectedFeatureId, rawFeature, sidebarMode, openDatasheet]);

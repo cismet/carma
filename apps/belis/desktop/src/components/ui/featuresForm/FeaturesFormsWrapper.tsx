@@ -645,19 +645,11 @@ const FeaturesFormsWrapper = ({
       setSaving(true);
       const hide = message.loading(`${className} #${dbPK} wird gelöscht …`, 0);
       const deletePayload = { id: Number(dbPK), is_deleted: true };
-      console.log(
-        "xxx [DELETE] soft-delete start:",
-        JSON.stringify({ featureId, className, payload: deletePayload }, null, 2)
-      );
       try {
-        const deleteResult = await updateDataByClassName(
+        await updateDataByClassName(
           jwt,
           className,
           deletePayload
-        );
-        console.log(
-          "xxx [DELETE] soft-delete result:",
-          JSON.stringify({ featureId, className, result: deleteResult }, null, 2)
         );
         // Keep the soft-deleted row hidden on both maps: the vector tiles and
         // the brandnew FC still carry it until they are regenerated server-side.
@@ -747,19 +739,6 @@ const FeaturesFormsWrapper = ({
         setIsEditing(false);
         onSelectNextDraft?.(featureId);
       } catch (err) {
-        console.log(
-          "xxx [DELETE] soft-delete failed:",
-          JSON.stringify(
-            {
-              featureId,
-              className,
-              id: dbPK,
-              error: err instanceof Error ? err.message : String(err),
-            },
-            null,
-            2
-          )
-        );
         console.error("[DELETE] fehlgeschlagen", { className, id: dbPK, err });
         void message.error(
           `Löschen fehlgeschlagen: ${
@@ -1295,14 +1274,6 @@ const FeaturesFormsWrapper = ({
   // handleServerSave; zurücksetzen drops the draft via handleCancel.
   const handleMarkForDeletion = useCallback(() => {
     if (!featureId || !formKey) return;
-    console.log(
-      "xxx [DELETE] mark for deletion:",
-      JSON.stringify(
-        { featureId, formKey, featureDbId: dbPK != null ? Number(dbPK) : null },
-        null,
-        2
-      )
-    );
     // Deleting a Standort cascades to its Leuchten: capture them from the
     // fetched mast (`leuchtenArray`) so the sidebar can show them as red
     // "wird gelöscht" rows and handleServerSave can soft-delete each on commit.

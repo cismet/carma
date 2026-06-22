@@ -34,11 +34,6 @@ const AktionModal = ({
         if (onSubmit) {
           onSubmit(aktion?.label ?? "", fachobjektType, values);
         } else {
-          console.log("[AktionModal] Submit", {
-            aktion: aktion?.label,
-            fachobjektType,
-            values,
-          });
         }
         form.resetFields();
         onClose();

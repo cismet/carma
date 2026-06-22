@@ -679,11 +679,6 @@ const SearchModal = ({
         .then((json) => {
           // console.log(`xxx ${logPrefix} Raw result:`, json);
           const results = json.data?.[dataKey] ?? [];
-          console.log(
-            `xxx ${logPrefix} Result count:`,
-            results.length,
-            ...(showFinalQuery ? [results] : [])
-          );
 
           if (results.length === 0) {
             setNoResults(true);
@@ -691,7 +686,6 @@ const SearchModal = ({
             return;
           }
 
-          const t0 = performance.now();
           const coords: [number, number][] = [];
           for (const item of results as Record<string, unknown>[]) {
             if (getAllGeometries) {
@@ -701,7 +695,6 @@ const SearchModal = ({
               if (geom) coords.push(geom);
             }
           }
-          const t1 = performance.now();
 
           if (coords.length === 0) {
             console.warn(`${logPrefix} No coordinates found`);
@@ -715,14 +708,6 @@ const SearchModal = ({
             minLat: Math.min(...coords.map((c) => c[1])),
             maxLat: Math.max(...coords.map((c) => c[1])),
           };
-          const t2 = performance.now();
-          console.log(
-            `[SEARCH] ${coords.length} coords: transform=${(t1 - t0).toFixed(
-              1
-            )}ms, bbox=${(t2 - t1).toFixed(1)}ms, total=${(t2 - t0).toFixed(
-              1
-            )}ms`
-          );
           // Expand bbox by 10% on each side to ensure all features are visible
           const lngPadding = (rawBbox.maxLng - rawBbox.minLng) * 0.1 || 0.001;
           const latPadding = (rawBbox.maxLat - rawBbox.minLat) * 0.1 || 0.001;
@@ -752,7 +737,6 @@ const SearchModal = ({
           clearHighlights();
           setHighlightingActive(true);
           highlightByIds(highlightArray);
-          console.log(`${logPrefix} Highlighting:`, highlightArray);
           // console.log(`${logPrefix} Highlighted`, ids.length, "features");
           // console.log(`${logPrefix} Highlight Array`, highlightArray);
 
