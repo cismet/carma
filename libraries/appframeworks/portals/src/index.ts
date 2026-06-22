@@ -66,6 +66,8 @@ export {
 export { GenericInfoBoxFromFeature } from "./lib/components/GenericInfoBoxFromFeature.tsx";
 export { ContactMailButton } from "./lib/components/ContactMailButton.tsx";
 export { FeatureInfobox } from "./lib/components/FeatureInfobox.tsx";
+export { PanoramaLightBox } from "./lib/components/PanoramaLightBox.tsx";
+export { PanoramaPreview } from "./lib/components/PanoramaPreview.tsx";
 export { InfoBoxHeader } from "./lib/components/InfoBoxHeader.tsx";
 // CarmaMap moved to @carma-mapping/core
 // PreviewLibreMap moved to @carma-mapping/engines/maplibre
