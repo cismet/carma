@@ -1,30 +1,50 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import "pannellum/build/pannellum.css";
 import "pannellum";
+import "./PanoramaPreview.css";
 
 interface PanoramaPreviewProps {
   /** URL of an equirectangular panorama image. */
   src: string;
-  width?: number;
-  height?: number;
   /** Called when the user clicks the expand control (open fullscreen). */
   onExpand?: () => void;
 }
 
 /**
- * Small inline, draggable 360° preview rendered in the infobox, mirroring the
- * flat-photo thumbnail. Drag to peek around; the expand control opens the
- * fullscreen PanoramaLightBox. PoC: raw pannellum.
+ * Desktop: fixed thumbnail. Mobile (infobox goes full width): fill the row.
+ *
+ * The infobox places each secondary element in a shrink-to-fit, right-aligned
+ * cell, so a percentage width collapses the cell to ~zero. We must set an
+ * explicit pixel width.
  */
-export const PanoramaPreview = ({
-  src,
-  width = 250,
-  height = 160,
-  onExpand,
-}: PanoramaPreviewProps) => {
-  const containerRef = useRef<HTMLDivElement>(null);
+const getPreviewWidth = () =>
+  typeof window !== "undefined" && window.innerWidth <= 700
+    ? window.innerWidth - 16
+    : 250;
 
+const PREVIEW_HEIGHT = 160;
+
+/**
+ * Small inline, draggable 360° preview rendered in the infobox. Drag to peek;
+ * the expand control opens the fullscreen PanoramaLightBox.
+ */
+export const PanoramaPreview = ({ src, onExpand }: PanoramaPreviewProps) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const viewerRef = useRef<{
+    destroy: () => void;
+    resize: () => void;
+  } | null>(null);
+  const [width, setWidth] = useState<number>(getPreviewWidth);
+
+  useEffect(() => {
+    const onResize = () => setWidth(getPreviewWidth());
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  // Init the viewer once per panorama. Re-initialising on width changes would
+  // reload the image; instead we refit the existing viewer below.
   useEffect(() => {
     const el = containerRef.current;
     const pannellum = window.pannellum;
@@ -42,22 +62,25 @@ export const PanoramaPreview = ({
       compass: false,
       draggable: true,
     });
+    viewerRef.current = viewer;
 
-    return () => viewer.destroy();
+    return () => {
+      viewer.destroy();
+      viewerRef.current = null;
+    };
   }, [src]);
+
+  // Refit the already-loaded viewer to the new container width (no reload).
+  useEffect(() => {
+    viewerRef.current?.resize();
+  }, [width]);
 
   return (
     <div
-      style={{
-        position: "relative",
-        width,
-        height,
-        marginLeft: "auto",
-        borderRadius: 4,
-        overflow: "hidden",
-      }}
+      className="carma-panorama-preview"
+      style={{ width, height: PREVIEW_HEIGHT }}
     >
-      <div ref={containerRef} style={{ width, height }} />
+      <div ref={containerRef} className="carma-panorama-preview__viewer" />
       {onExpand && (
         <button
           type="button"
@@ -66,21 +89,7 @@ export const PanoramaPreview = ({
             e.stopPropagation();
             onExpand();
           }}
-          style={{
-            position: "absolute",
-            top: 4,
-            right: 4,
-            zIndex: 2,
-            width: 26,
-            height: 26,
-            borderRadius: 4,
-            border: "none",
-            background: "rgba(0,0,0,0.55)",
-            color: "white",
-            fontSize: 14,
-            lineHeight: "26px",
-            cursor: "pointer",
-          }}
+          className="carma-panorama-preview__expand"
         >
           ⤢
         </button>
