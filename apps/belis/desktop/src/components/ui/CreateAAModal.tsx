@@ -96,53 +96,6 @@ const CreateAAModal = ({
             "editVeranlassungViaAA",
             { bezeichnung, beschreibung, aaid: aaId }
           );
-
-          // try {
-          //   const aaAfter = (await fetchArbeitsauftragById(
-          //     jwt as string,
-          //     Number(aaId)
-          //   )) as
-          //     | {
-          //         nummer?: string;
-          //         veranlassung?: {
-          //           nummer?: string;
-          //           bezeichnung?: string;
-          //           beschreibung?: string;
-          //         };
-          //         ar_protokolleArray?: {
-          //           arbeitsprotokoll?: {
-          //             id?: number;
-          //             veranlassungsnummer?: string;
-          //             veranlassung?: {
-          //               nummer?: string;
-          //               bezeichnung?: string;
-          //               beschreibung?: string;
-          //             };
-          //           };
-          //         }[];
-          //       }
-          //     | null;
-
-          //   console.log("xxx full AA after save:", aaAfter);
-          //   console.log(
-          //     "xxx AA.veranlassung (AA-level) after save:",
-          //     aaAfter?.veranlassung
-          //   );
-          //   const perProtokoll = aaAfter?.ar_protokolleArray?.map((p) => ({
-          //     protokoll_id: p.arbeitsprotokoll?.id,
-          //     veranlassungsnummer: p.arbeitsprotokoll?.veranlassungsnummer,
-          //     veranlassung: p.arbeitsprotokoll?.veranlassung,
-          //   }));
-          //   console.log(
-          //     "xxx protokoll.veranlassung (nested) after save:",
-          //     perProtokoll
-          //   );
-          // } catch (verifyErr: unknown) {
-          //   console.warn(
-          //     "[CreateAAModal] verify fetchArbeitsauftragById failed:",
-          //     verifyErr
-          //   );
-          // }
         } catch (err: unknown) {
           console.error("[CreateAAModal] editVeranlassungViaAA failed:", err);
           void message.error(
