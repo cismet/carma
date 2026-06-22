@@ -11,6 +11,8 @@ interface PanoramaPreviewProps {
   onExpand?: () => void;
   /** Called with the viewer's current yaw (deg) as the user looks around. */
   onYawChange?: (yaw: number) => void;
+  /** Initial view yaw (deg); rotates the image so it opens facing forward. */
+  initialYaw?: number;
 }
 
 /**
@@ -35,17 +37,21 @@ export const PanoramaPreview = ({
   src,
   onExpand,
   onYawChange,
+  initialYaw,
 }: PanoramaPreviewProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<{
     destroy: () => void;
     resize: () => void;
     getYaw: () => number;
+    isLoaded: () => boolean;
   } | null>(null);
   const [width, setWidth] = useState<number>(getPreviewWidth);
-  // Held in a ref so changing the callback identity never re-inits the viewer.
+  // Held in refs so changing their identity never re-inits the viewer.
   const onYawChangeRef = useRef(onYawChange);
   onYawChangeRef.current = onYawChange;
+  const initialYawRef = useRef(initialYaw);
+  initialYawRef.current = initialYaw;
 
   useEffect(() => {
     const onResize = () => setWidth(getPreviewWidth());
@@ -71,6 +77,7 @@ export const PanoramaPreview = ({
       mouseZoom: false,
       compass: false,
       draggable: true,
+      yaw: initialYawRef.current ?? 0,
     });
     viewerRef.current = viewer;
 
@@ -79,10 +86,14 @@ export const PanoramaPreview = ({
     let raf = 0;
     let lastYaw = NaN;
     const tick = () => {
-      const yaw = viewer.getYaw();
-      if (yaw !== lastYaw) {
-        lastYaw = yaw;
-        onYawChangeRef.current?.(yaw);
+      // Skip until loaded: before that pannellum reports yaw 0, not the
+      // configured initial yaw, which would briefly flip the map arrow 180°.
+      if (!viewer.isLoaded || viewer.isLoaded()) {
+        const yaw = viewer.getYaw();
+        if (yaw !== lastYaw) {
+          lastYaw = yaw;
+          onYawChangeRef.current?.(yaw);
+        }
       }
       raf = requestAnimationFrame(tick);
     };
