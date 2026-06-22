@@ -202,7 +202,14 @@ function SaveCesiumAnnotations({ layer }: { layer: Layer }) {
       (measurement) => measurement.id === featureId
     );
 
+    const layerInfo: Record<string, unknown> =
+      featureData.metadata?.carmaConf?.layerInfo ?? {};
+    const layerInfoKeywords = Array.isArray(layerInfo.keywords)
+      ? layerInfo.keywords
+      : [];
+
     const item: any = existingMeasurement ?? {
+      ...layerInfo,
       description: featureDescription,
       icon,
       id: featureId,
@@ -214,7 +221,7 @@ function SaveCesiumAnnotations({ layer }: { layer: Layer }) {
       },
       serviceName: MEASUREMENT_SERVICE_NAME,
       tags: ["Messung", "3D-Messung"],
-      keywords: [],
+      keywords: layerInfoKeywords,
       thumbnail: MEASUREMENT_3D_THUMBNAIL_URL,
       title: featureTitle,
       type: "object",
