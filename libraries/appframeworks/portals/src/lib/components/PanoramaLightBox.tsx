@@ -12,7 +12,7 @@ declare global {
       viewer: (
         container: HTMLElement | string,
         config: Record<string, unknown>
-      ) => { destroy: () => void };
+      ) => { destroy: () => void; resize: () => void };
     };
   }
 }
