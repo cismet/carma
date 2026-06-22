@@ -195,10 +195,6 @@ const MauerlascheForm = ({
           : {}),
       });
 
-      console.log(
-        "xxx saving mauerlasche:",
-        JSON.stringify(dataToSave, null, 2)
-      );
       await updateDataByClassName(jwt, "mauerlasche", dataToSave);
 
       // Update local documents so changes appear immediately

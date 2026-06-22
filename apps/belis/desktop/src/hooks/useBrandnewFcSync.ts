@@ -167,11 +167,8 @@ export const useBrandnewFcSync = ({
         lastMd5 = md5;
         fcMissing = false;
         if (wasBaseline) {
-          console.log(LOG_PREFIX, "baseline md5", { md5, count });
         } else if (wasMissing) {
-          console.log(LOG_PREFIX, "md5 reappeared, loaded FC", { md5, count });
         } else {
-          console.log(LOG_PREFIX, "md5 changed, loaded FC", { md5, count });
         }
         reportCount(count);
         onDataChangeRef.current?.(fc);
