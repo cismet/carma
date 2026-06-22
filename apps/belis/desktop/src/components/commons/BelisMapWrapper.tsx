@@ -1822,12 +1822,6 @@ const BelisMapLibWrapper = ({
         setLastFeatureType(sourceLayer);
       }
 
-      // console.log("xxx [SELECTION] fetching feature by id:", {
-      //   featureId,
-      //   sourceLayer,
-      //   fallback: !selectedFeature,
-      // });
-
       // Creation drafts have synthetic fetchedData — skip API fetch. There is
       // no DB record to fetch by their synthetic key, and the draft already
       // carries its synthetic fetchedData. Without this, the override useEffect
