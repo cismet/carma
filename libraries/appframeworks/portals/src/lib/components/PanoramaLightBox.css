@@ -1,0 +1,34 @@
+/* Street-View-style navigation hotspot: a translucent disc with an upward
+   chevron, placed in the panorama at the bearing of a neighbouring pano.
+   Pannellum renders a bare <div> with this class (cssClass replaces its default
+   sprite styling), so we size and centre it ourselves via negative margins. */
+.carma-pano-nav-hotspot {
+  width: 46px;
+  height: 46px;
+  margin-left: -23px;
+  margin-top: -23px;
+  border-radius: 50%;
+  box-sizing: border-box;
+  background: rgba(255, 127, 0, 0.5);
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+
+.carma-pano-nav-hotspot::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  /* up-pointing chevron drawn from two borders, rotated 45° */
+  border-top: 4px solid #fff;
+  border-left: 4px solid #fff;
+  transform: translate(-50%, -30%) rotate(45deg);
+}
+
+.carma-pano-nav-hotspot:hover {
+  transform: scale(1.15);
+  background: rgba(255, 127, 0, 0.8);
+}
