@@ -15,7 +15,7 @@ import {
 } from "@carma-commons/measurements";
 import {
   ADHOC_LAYER_SOURCES,
-  ADHOC_LAYER_VISIBILITIES,
+  ADHOC_LAYER_MAP_MODES,
 } from "@carma-appframeworks/portals";
 import type { Layer } from "@carma-mapping/layers";
 import { parseToMapLayer } from "@carma-mapping/utils";
@@ -49,12 +49,12 @@ function SaveMeasurements({ layer }: { layer: Layer }) {
       icon: `emoji:${values.selectedUnified}`,
       description: trimmedDescription,
       thumbnail: MEASUREMENT_THUMBNAIL_URL,
+      source: ADHOC_LAYER_SOURCES.TWO_D_MEASUREMENTS,
+      mapMode: ADHOC_LAYER_MAP_MODES.TWO_D,
     });
 
     const featureData = {
       ...baseFeatureData,
-      source: ADHOC_LAYER_SOURCES.TWO_D_MEASUREMENTS,
-      visibility: ADHOC_LAYER_VISIBILITIES.TWO_D,
       metadata: {
         ...baseFeatureData.metadata,
         carmaConf: {

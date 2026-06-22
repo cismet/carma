@@ -13,7 +13,11 @@ const hasRuntimeAnnotationFeature = (
 ): boolean =>
   collection.features.some(
     (feature) =>
-      (feature.data as { source?: unknown }).source ===
+      (
+        feature.data as {
+          metadata?: { carmaConf?: { layerInfo?: { source?: unknown } } };
+        }
+      ).metadata?.carmaConf?.layerInfo?.source ===
       ADHOC_LAYER_SOURCES.ANNOTATIONS
   );
 

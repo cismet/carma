@@ -85,10 +85,10 @@ const buildSavedAnnotationLayer = () =>
     id: "saved-annotations-1",
     title: "Saved annotations",
     type: "object",
-    props: {
-      style: {
-        source: ADHOC_LAYER_SOURCES.ANNOTATIONS,
-      },
+    // The 2D/3D layer check reads the parsed layer's general `layerInfo`.
+    layerInfo: {
+      source: ADHOC_LAYER_SOURCES.ANNOTATIONS,
+      mapMode: "3d",
     },
     visible: true,
   } as const);

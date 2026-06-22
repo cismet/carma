@@ -13,9 +13,10 @@ import {
   faTrash,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Spin } from "antd";
+import { Button, message, Spin } from "antd";
 
-import { Item, Layer, SavedLayerConfig } from "@carma-mapping/layers";
+import { Item, SavedLayerConfig } from "@carma-mapping/layers";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { DeleteConfirmationModal } from "@carma-commons/ui/components";
 import {
   cn,
@@ -36,6 +37,11 @@ import { setTriggerRefetch } from "../slices/ui";
 import ImageCollage from "./ImageCollage";
 import type { ActiveLayers } from "./NewLibModal";
 import ThumbnailDisplay from "./ThumbnailDisplay";
+
+// Kept as local literals to avoid a circular dependency on
+// @carma-appframeworks/portals (which already depends on this lib).
+const MAP_MODE_2D = "2d";
+const MAP_MODE_3D = "3d";
 
 interface LayerItemProps {
   setAdditionalLayers: any;
@@ -68,6 +74,9 @@ const LayerItem = ({
 }: LayerItemProps) => {
   const dispatch = useDispatch();
   const selectedLayer = useSelector(getSelectedLayer);
+  const { isCesium, requestTransitionToCesium, requestTransitionToLeaflet } =
+    useMapFrameworkSwitcherContext();
+  const [messageApi, contextHolder] = message.useMessage();
   const [hovered, setHovered] = useState(false);
   const [isActiveLayer, setIsActiveLayer] = useState(false);
   const isFavorite = favorites
@@ -100,12 +109,53 @@ const LayerItem = ({
 
   const { jwt } = useAuth();
 
+  const layerMapMode = layer?.mapMode;
+  const currentMapMode = isCesium ? MAP_MODE_3D : MAP_MODE_2D;
+  const hasMapModeMismatch =
+    layerMapMode !== undefined && layerMapMode !== currentMapMode;
+
+  const addLayer = (preview: boolean) => {
+    setAdditionalLayers(layer, false, forceWMS, preview);
+  };
+
   const handleLayerClick = (
     e: React.MouseEvent<HTMLElement, MouseEvent>,
     preview: boolean = false
   ) => {
     e.stopPropagation();
-    setAdditionalLayers(layer, false, forceWMS, preview);
+
+    if (!hasMapModeMismatch || isActiveLayer) {
+      addLayer(preview);
+      return;
+    }
+
+    const targetIs3d = layerMapMode === MAP_MODE_3D;
+    const targetModeLabel = targetIs3d ? "3D" : "2D";
+    messageApi.open({
+      type: "warning",
+      duration: 6,
+      content: (
+        <span>
+          Dieser Layer ist nur in der {targetModeLabel}-Ansicht verfügbar.{" "}
+          <Button
+            type="link"
+            size="small"
+            className="!px-0"
+            onClick={async () => {
+              messageApi.destroy();
+              if (targetIs3d) {
+                await requestTransitionToCesium();
+              } else {
+                await requestTransitionToLeaflet();
+              }
+              addLayer(preview);
+            }}
+          >
+            Zur {targetModeLabel}-Ansicht wechseln und hinzufügen
+          </Button>
+        </span>
+      ),
+    });
   };
 
   useEffect(() => {
@@ -440,6 +490,7 @@ const LayerItem = ({
           Diese Aktion kann nicht rückgängig gemacht werden.
         </DeleteConfirmationModal>
       </div>
+      {contextHolder}
       {showInfo && (
         <InfoCard
           isFavorite={isFavorite}

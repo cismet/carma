@@ -43,6 +43,10 @@ vi.mock("@carma-appframeworks/portals", async () => {
       ANNOTATIONS: "annotations",
       TWO_D_MEASUREMENTS: "2dMeasurements",
     },
+    ADHOC_LAYER_MAP_MODES: {
+      TWO_D: "2d",
+      THREE_D: "3d",
+    },
     SELECTED_LAYER_INDEX: {
       NO_SELECTION: -1,
       BACKGROUND_LAYER: -2,
@@ -150,9 +154,13 @@ const buildSavedAnnotationLayer = (): Layer => ({
   icon: "measurement",
   visible: true,
   layerType: "vector",
+  // The 2D/3D layer check reads the parsed layer's general `layerInfo`.
+  layerInfo: {
+    source: ADHOC_LAYER_SOURCES.ANNOTATIONS,
+    mapMode: "3d",
+  },
   props: {
     style: {
-      source: ADHOC_LAYER_SOURCES.ANNOTATIONS,
       version: 8,
       sources: {
         adhoc: {

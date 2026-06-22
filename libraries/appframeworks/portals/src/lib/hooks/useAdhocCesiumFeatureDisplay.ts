@@ -52,6 +52,7 @@ import {
 } from "../components/AdhocFeatureDisplayProvider";
 import {
   ADHOC_LAYER_SOURCES,
+  ADHOC_LAYER_MAP_MODES,
   DEFAULT_ADHOC_FEATURE_LAYER_ID,
 } from "../constants/adhoc";
 import {
@@ -134,13 +135,25 @@ type AdhocFeatureEntry = {
   key: string;
 };
 
+type AdhocFeatureLayerInfo = {
+  source?: unknown;
+  mapMode?: unknown;
+};
+
+const getAdhocFeatureLayerInfo = (
+  feature: AdhocFeature
+): AdhocFeatureLayerInfo =>
+  (
+    feature.data as {
+      metadata?: { carmaConf?: { layerInfo?: AdhocFeatureLayerInfo } };
+    }
+  ).metadata?.carmaConf?.layerInfo ?? {};
+
 const is2dMeasurementAdhocFeature = (feature: AdhocFeature): boolean =>
-  (feature.data as { source?: unknown }).source ===
-  ADHOC_LAYER_SOURCES.TWO_D_MEASUREMENTS;
+  getAdhocFeatureLayerInfo(feature).mapMode === ADHOC_LAYER_MAP_MODES.TWO_D;
 
 const isRuntimeAnnotationAdhocFeature = (feature: AdhocFeature): boolean =>
-  (feature.data as { source?: unknown }).source ===
-  ADHOC_LAYER_SOURCES.ANNOTATIONS;
+  getAdhocFeatureLayerInfo(feature).source === ADHOC_LAYER_SOURCES.ANNOTATIONS;
 
 type VisualizerType = "ground-polygon" | "ground-polyline" | "extruded-wall";
 type ElementType = "polygon" | "polyline" | "wall" | "model";

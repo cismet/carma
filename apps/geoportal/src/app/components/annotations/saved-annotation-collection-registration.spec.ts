@@ -25,9 +25,8 @@ const buildLayer = ({
 }) =>
   ({
     id,
-    props: {
-      style: source ? { source } : {},
-    },
+    // The 2D/3D layer check reads the parsed layer's general `layerInfo`.
+    layerInfo: source ? { source, mapMode: "3d" } : {},
     visible,
   } as Layer);
 
@@ -45,7 +44,9 @@ const buildCollection = ({
       version: 8,
       sources: {},
       layers: [],
-      ...(source ? { source } : {}),
+      ...(source
+        ? { metadata: { carmaConf: { layerInfo: { source } } } }
+        : {}),
     },
   };
 

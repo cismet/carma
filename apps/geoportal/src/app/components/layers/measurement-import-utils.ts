@@ -171,10 +171,12 @@ export const resolveAnnotationCarrierFromItem = (
   }
 
   // Carriers explicitly marked with a non-annotation source keep their
-  // existing generic behavior.
+  // existing generic behavior. The source marker now lives in the style's
+  // metadata.carmaConf.layerInfo rather than at the style top level.
+  const layerSource = resolveCarrierLayerInfo(styleData).source;
   if (
-    styleData.source !== undefined &&
-    styleData.source !== ADHOC_LAYER_SOURCES.ANNOTATIONS
+    layerSource !== undefined &&
+    layerSource !== ADHOC_LAYER_SOURCES.ANNOTATIONS
   ) {
     return null;
   }

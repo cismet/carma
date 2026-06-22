@@ -9,10 +9,10 @@ export const ADHOC_LAYER_SOURCES = {
 export type AdhocLayerSource =
   (typeof ADHOC_LAYER_SOURCES)[keyof typeof ADHOC_LAYER_SOURCES];
 
-export const ADHOC_LAYER_VISIBILITIES = {
+export const ADHOC_LAYER_MAP_MODES = {
   TWO_D: "2d",
   THREE_D: "3d",
 } as const;
 
-export type AdhocLayerVisibility =
-  (typeof ADHOC_LAYER_VISIBILITIES)[keyof typeof ADHOC_LAYER_VISIBILITIES];
+export type AdhocLayerMapMode =
+  (typeof ADHOC_LAYER_MAP_MODES)[keyof typeof ADHOC_LAYER_MAP_MODES];

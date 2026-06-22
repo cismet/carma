@@ -1,10 +1,6 @@
 import type { CarmaMapLibreStyleData } from "./maplibre-style.d";
-import type {
-  AdhocLayerSource,
-  AdhocLayerVisibility,
-} from "../constants/adhoc";
 
-export type AdhocMapLibreStyleData = CarmaMapLibreStyleData & {
-  source?: AdhocLayerSource;
-  visibility?: AdhocLayerVisibility;
-};
+// The adhoc-specific `source` and `mapMode` markers live in
+// `metadata.carmaConf.layerInfo` (typed on CarmaMapLibreStyleMetadata), so the
+// adhoc style data is structurally the same as the base carma style data.
+export type AdhocMapLibreStyleData = CarmaMapLibreStyleData;
