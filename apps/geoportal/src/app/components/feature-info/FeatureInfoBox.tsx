@@ -340,28 +340,27 @@ const FeatureInfoBox = ({
     () => maplibreMaps?.find((entry) => entry.id === selectedFeature?.id)?.map,
     [maplibreMaps, selectedFeature?.id]
   );
-  const panoramaHeading = Number(
-    selectedFeature?.properties?.sourceProps?.heading
-  );
 
-  // Rotate the selected arrow to follow the panorama view direction.
+  // Rotate the selected arrow to follow the panorama view direction. The value
+  // is an expression on the feature's own `heading` (not a precomputed scalar),
+  // so the visible arrow stays correct even in the single frame where the
+  // selection moves before the snap effect runs (avoids a heading-flip flicker).
   const handlePanoramaYaw = useCallback(
     (yaw: number) => {
       if (
         !selectedLayerMap ||
         typeof selectedLayerMap.getLayer !== "function" ||
-        !selectedLayerMap.getLayer(PANORAMA_SELECTION_ARROW_LAYER) ||
-        Number.isNaN(panoramaHeading)
+        !selectedLayerMap.getLayer(PANORAMA_SELECTION_ARROW_LAYER)
       ) {
         return;
       }
       selectedLayerMap.setLayoutProperty(
         PANORAMA_SELECTION_ARROW_LAYER,
         "icon-rotate",
-        panoramaHeading + yaw * PANORAMA_YAW_SIGN + PANORAMA_YAW_OFFSET
+        ["+", ["get", "heading"], yaw * PANORAMA_YAW_SIGN + PANORAMA_YAW_OFFSET]
       );
     },
-    [selectedLayerMap, panoramaHeading]
+    [selectedLayerMap]
   );
 
   // Restore the data-driven heading and clear the highlight when the selection
@@ -377,7 +376,11 @@ const FeatureInfoBox = ({
         selectedLayerMap.setLayoutProperty(
           PANORAMA_SELECTION_ARROW_LAYER,
           "icon-rotate",
-          ["get", "heading"]
+          [
+            "+",
+            ["get", "heading"],
+            PANORAMA_INITIAL_YAW * PANORAMA_YAW_SIGN + PANORAMA_YAW_OFFSET,
+          ]
         );
       }
       const src = resolvePanoSource(selectedLayerMap);
@@ -418,18 +421,18 @@ const FeatureInfoBox = ({
         { source: src.sourceId, sourceLayer: src.sourceLayer, id: fid },
         { selected: true }
       );
-      // Snap the arrow to the new feature's initial orientation right away.
-      // Otherwise it keeps the previous selection's overridden icon-rotate until
-      // the new viewer's first yaw tick arrives (a brief wrong-direction jump,
-      // ~90° at a T-junction).
-      const heading = Number(selectedFeature?.properties?.sourceProps?.heading);
-      if (!Number.isNaN(heading)) {
-        selectedLayerMap.setLayoutProperty(
-          PANORAMA_SELECTION_ARROW_LAYER,
-          "icon-rotate",
-          heading + PANORAMA_INITIAL_YAW * PANORAMA_YAW_SIGN + PANORAMA_YAW_OFFSET
-        );
-      }
+      // Snap the arrow to the new feature's initial (forward) orientation right
+      // away. Data-driven on heading so it is correct the instant the selection
+      // moves, before the new viewer's first yaw tick arrives.
+      selectedLayerMap.setLayoutProperty(
+        PANORAMA_SELECTION_ARROW_LAYER,
+        "icon-rotate",
+        [
+          "+",
+          ["get", "heading"],
+          PANORAMA_INITIAL_YAW * PANORAMA_YAW_SIGN + PANORAMA_YAW_OFFSET,
+        ]
+      );
     } catch {
       // ignore feature-state errors
     }
