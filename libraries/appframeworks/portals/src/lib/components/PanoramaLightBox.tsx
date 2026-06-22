@@ -12,7 +12,11 @@ declare global {
       viewer: (
         container: HTMLElement | string,
         config: Record<string, unknown>
-      ) => { destroy: () => void; resize: () => void };
+      ) => {
+        destroy: () => void;
+        resize: () => void;
+        getYaw: () => number;
+      };
     };
   }
 }
@@ -22,6 +26,8 @@ interface PanoramaLightBoxProps {
   src: string;
   title?: string;
   onClose: () => void;
+  /** Called with the viewer's current yaw (deg) as the user looks around. */
+  onYawChange?: (yaw: number) => void;
 }
 
 /**
@@ -34,8 +40,12 @@ interface PanoramaLightBoxProps {
 export const PanoramaLightBox = ({
   src,
   onClose,
+  onYawChange,
 }: PanoramaLightBoxProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  // Held in a ref so changing the callback identity never re-inits the viewer.
+  const onYawChangeRef = useRef(onYawChange);
+  onYawChangeRef.current = onYawChange;
 
   useEffect(() => {
     const el = containerRef.current;
@@ -52,7 +62,24 @@ export const PanoramaLightBox = ({
       showFullscreenCtrl: false,
     });
 
-    return () => viewer.destroy();
+    // Pannellum has no continuous "view changed" event, so poll the yaw on each
+    // frame and report changes (lets the map's selection arrow follow the view).
+    let raf = 0;
+    let lastYaw = NaN;
+    const tick = () => {
+      const yaw = viewer.getYaw();
+      if (yaw !== lastYaw) {
+        lastYaw = yaw;
+        onYawChangeRef.current?.(yaw);
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      viewer.destroy();
+    };
   }, [src]);
 
   useEffect(() => {

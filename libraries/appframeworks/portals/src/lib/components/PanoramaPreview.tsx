@@ -9,6 +9,8 @@ interface PanoramaPreviewProps {
   src: string;
   /** Called when the user clicks the expand control (open fullscreen). */
   onExpand?: () => void;
+  /** Called with the viewer's current yaw (deg) as the user looks around. */
+  onYawChange?: (yaw: number) => void;
 }
 
 /**
@@ -29,13 +31,21 @@ const PREVIEW_HEIGHT = 160;
  * Small inline, draggable 360° preview rendered in the infobox. Drag to peek;
  * the expand control opens the fullscreen PanoramaLightBox.
  */
-export const PanoramaPreview = ({ src, onExpand }: PanoramaPreviewProps) => {
+export const PanoramaPreview = ({
+  src,
+  onExpand,
+  onYawChange,
+}: PanoramaPreviewProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<{
     destroy: () => void;
     resize: () => void;
+    getYaw: () => number;
   } | null>(null);
   const [width, setWidth] = useState<number>(getPreviewWidth);
+  // Held in a ref so changing the callback identity never re-inits the viewer.
+  const onYawChangeRef = useRef(onYawChange);
+  onYawChangeRef.current = onYawChange;
 
   useEffect(() => {
     const onResize = () => setWidth(getPreviewWidth());
@@ -64,7 +74,22 @@ export const PanoramaPreview = ({ src, onExpand }: PanoramaPreviewProps) => {
     });
     viewerRef.current = viewer;
 
+    // Pannellum has no continuous "view changed" event, so poll the yaw on each
+    // frame and report changes (lets the map's selection arrow follow the view).
+    let raf = 0;
+    let lastYaw = NaN;
+    const tick = () => {
+      const yaw = viewer.getYaw();
+      if (yaw !== lastYaw) {
+        lastYaw = yaw;
+        onYawChangeRef.current?.(yaw);
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+
     return () => {
+      cancelAnimationFrame(raf);
       viewer.destroy();
       viewerRef.current = null;
     };
