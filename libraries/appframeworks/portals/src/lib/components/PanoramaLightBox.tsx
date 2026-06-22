@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 // only declares react@16 as a peer dependency, so we drive the library directly.
 import "pannellum/build/pannellum.css";
 import "pannellum";
+import "./PanoramaLightBox.css";
 
 declare global {
   interface Window {
@@ -16,9 +17,23 @@ declare global {
         destroy: () => void;
         resize: () => void;
         getYaw: () => number;
+        isLoaded: () => boolean;
       };
     };
   }
+}
+
+/**
+ * A pannellum navigation hotspot (subset of pannellum's hotspot config). Placed
+ * at a (pitch, yaw) inside the panorama; clicking it triggers clickHandlerFunc
+ * (used here to jump to a neighbouring panorama — a Street-View-style tour).
+ */
+export interface PanoramaHotspot {
+  id?: string;
+  pitch: number;
+  yaw: number;
+  cssClass?: string;
+  clickHandlerFunc?: () => void;
 }
 
 interface PanoramaLightBoxProps {
@@ -28,6 +43,10 @@ interface PanoramaLightBoxProps {
   onClose: () => void;
   /** Called with the viewer's current yaw (deg) as the user looks around. */
   onYawChange?: (yaw: number) => void;
+  /** Navigation hotspots to the surrounding panoramas. */
+  hotspots?: PanoramaHotspot[];
+  /** Initial view yaw (deg); rotates the image so it opens facing forward. */
+  initialYaw?: number;
 }
 
 /**
@@ -41,11 +60,19 @@ export const PanoramaLightBox = ({
   src,
   onClose,
   onYawChange,
+  hotspots,
+  initialYaw,
 }: PanoramaLightBoxProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  // Held in a ref so changing the callback identity never re-inits the viewer.
+  // Held in refs so changing their identity never re-inits the viewer. The
+  // viewer re-inits on src change (a tour hop), which is exactly when fresh
+  // hotspots / initial yaw apply, so reading the ref at init time is enough.
   const onYawChangeRef = useRef(onYawChange);
   onYawChangeRef.current = onYawChange;
+  const hotspotsRef = useRef(hotspots);
+  hotspotsRef.current = hotspots;
+  const initialYawRef = useRef(initialYaw);
+  initialYawRef.current = initialYaw;
 
   useEffect(() => {
     const el = containerRef.current;
@@ -60,6 +87,8 @@ export const PanoramaLightBox = ({
       // (compass/gyroscope) control stays available; only hide zoom + fullscreen.
       showZoomCtrl: false,
       showFullscreenCtrl: false,
+      hotSpots: hotspotsRef.current ?? [],
+      yaw: initialYawRef.current ?? 0,
     });
 
     // Pannellum has no continuous "view changed" event, so poll the yaw on each
@@ -67,10 +96,14 @@ export const PanoramaLightBox = ({
     let raf = 0;
     let lastYaw = NaN;
     const tick = () => {
-      const yaw = viewer.getYaw();
-      if (yaw !== lastYaw) {
-        lastYaw = yaw;
-        onYawChangeRef.current?.(yaw);
+      // Skip until loaded: before that pannellum reports yaw 0, not the
+      // configured initial yaw, which would briefly flip the map arrow 180°.
+      if (!viewer.isLoaded || viewer.isLoaded()) {
+        const yaw = viewer.getYaw();
+        if (yaw !== lastYaw) {
+          lastYaw = yaw;
+          onYawChangeRef.current?.(yaw);
+        }
       }
       raf = requestAnimationFrame(tick);
     };
