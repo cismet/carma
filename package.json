@@ -70,6 +70,7 @@
     "markdown-it": "^14.1.0",
     "match-sorter": "^6.3.4",
     "md5": "^2.3.0",
+    "pannellum": "^2.5.7",
     "postcss": "8.4.40",
     "prismjs": "^1.29.0",
     "proj4": "^2.19.4",

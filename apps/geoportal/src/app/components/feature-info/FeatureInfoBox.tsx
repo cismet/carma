@@ -39,6 +39,8 @@ import {
   InfoBoxHeader,
   utils,
   getActionLinksForFeature,
+  PanoramaLightBox,
+  PanoramaPreview,
 } from "@carma-appframeworks/portals";
 import { parseColor } from "../../helper/color";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
@@ -64,6 +66,7 @@ const FeatureInfoBox = ({
   additionalSecondaryInfoBoxElements = [],
 }: InfoBoxProps) => {
   const [open, setOpen] = useState(false);
+  const [openPanorama, setOpenPanorama] = useState(false);
   const [shouldRenderLoadingInfobox, setShouldRenderLoadingInfobox] =
     useState(false);
   const [headerColor, setHeaderColor] = useState<string>("");
@@ -244,6 +247,14 @@ const FeatureInfoBox = ({
     updateHeaderAndColor();
   }, [selectedFeature]);
 
+  useEffect(() => {
+    console.log("[PANORAMA] selected feature", {
+      selectedFeature,
+      panorama: selectedFeature?.properties?.panorama,
+      sourceProps: selectedFeature?.properties?.sourceProps,
+    });
+  }, [selectedFeature]);
+
   if (loadingFeatureInfo && shouldRenderLoadingInfobox)
     return <LoadingInfoBox />;
 
@@ -293,18 +304,33 @@ const FeatureInfoBox = ({
     return <></>;
   }
 
+  const panoramaElements = selectedFeature.properties.panorama
+    ? [
+        <PanoramaPreview
+          key="infobox-panorama-preview"
+          src={selectedFeature.properties.panorama}
+          onExpand={() => setOpenPanorama(true)}
+        />,
+      ]
+    : [];
+
   const visibleSecondaryInfoBoxElements =
     selectedFeature.properties.foto || selectedFeature.properties.fotos
       ? [
           ...additionalSecondaryInfoBoxElements,
           ...featureHeaders,
+          ...panoramaElements,
           <InfoBoxFotoPreview
             currentFeature={selectedFeature}
             lightBoxDispatchContext={lightBoxDispatchContext}
             urlManipulation={updateUrl}
           />,
         ]
-      : [...additionalSecondaryInfoBoxElements, ...featureHeaders];
+      : [
+          ...additionalSecondaryInfoBoxElements,
+          ...featureHeaders,
+          ...panoramaElements,
+        ];
 
   return (
     <>
@@ -361,6 +387,13 @@ const FeatureInfoBox = ({
             isTopicMap: false,
           })}
           skipTeilzwilling={true}
+        />
+      )}
+      {openPanorama && selectedFeature.properties.panorama && (
+        <PanoramaLightBox
+          src={selectedFeature.properties.panorama}
+          title={selectedFeature.properties.title}
+          onClose={() => setOpenPanorama(false)}
         />
       )}
     </>
