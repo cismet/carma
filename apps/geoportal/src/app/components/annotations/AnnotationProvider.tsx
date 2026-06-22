@@ -149,7 +149,11 @@ function SavedAnnotationCollectionSync() {
 
       for (const feature of collection.features) {
         if (
-          (feature.data as { source?: unknown }).source !==
+          (
+            feature.data as {
+              metadata?: { carmaConf?: { layerInfo?: { source?: unknown } } };
+            }
+          ).metadata?.carmaConf?.layerInfo?.source !==
           ADHOC_LAYER_SOURCES.ANNOTATIONS
         ) {
           continue;

@@ -107,11 +107,11 @@ export {
 } from "./lib/components/AdhocFeatureDisplayProvider";
 export {
   ADHOC_LAYER_SOURCES,
-  ADHOC_LAYER_VISIBILITIES,
+  ADHOC_LAYER_MAP_MODES,
   DEFAULT_ADHOC_FEATURE_COLLECTION_ID,
   DEFAULT_ADHOC_FEATURE_LAYER_ID,
   type AdhocLayerSource,
-  type AdhocLayerVisibility,
+  type AdhocLayerMapMode,
 } from "./lib/constants/adhoc";
 export {
   resolveAdhocFeatureLayerId,

@@ -196,6 +196,8 @@ type BaseLayer = {
     vectorLegendTitle?: string;
     vectorTitle?: string;
     vectorDescription?: string;
+    source?: string;
+    mapMode?: "2d" | "3d";
     [key: string]: unknown;
   };
 };

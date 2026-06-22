@@ -106,7 +106,13 @@ describe("resolveAnnotationCarrierFromItem", () => {
     );
 
     expect(resolution).not.toBeNull();
-    expect(resolution?.styleData.source).toBe(ADHOC_LAYER_SOURCES.ANNOTATIONS);
+    expect(
+      (
+        resolution?.styleData as {
+          metadata?: { carmaConf?: { layerInfo?: { source?: unknown } } };
+        }
+      )?.metadata?.carmaConf?.layerInfo?.source
+    ).toBe(ADHOC_LAYER_SOURCES.ANNOTATIONS);
     expect(
       resolution?.annotationsGeoJson.metadata.carmaConf
         .annotationsRuntimePersistence.formatId
@@ -134,9 +140,19 @@ describe("resolveAnnotationCarrierFromItem", () => {
   });
 
   it("returns null for carriers marked with a non-annotation source", () => {
+    const baseStyle = createAnnotationCarrierStyle();
     const styleData = {
-      ...createAnnotationCarrierStyle(),
-      source: ADHOC_LAYER_SOURCES.TWO_D_MEASUREMENTS,
+      ...baseStyle,
+      metadata: {
+        ...baseStyle.metadata,
+        carmaConf: {
+          ...baseStyle.metadata.carmaConf,
+          layerInfo: {
+            ...baseStyle.metadata.carmaConf.layerInfo,
+            source: ADHOC_LAYER_SOURCES.TWO_D_MEASUREMENTS,
+          },
+        },
+      },
     };
 
     expect(
@@ -194,7 +210,9 @@ describe("buildSavedMeasurementItemFromAnnotationCarrier", () => {
     const vectorStyle = JSON.parse(
       (measurementItem as { vectorStyle?: string }).vectorStyle ?? "null"
     );
-    expect(vectorStyle.source).toBe(ADHOC_LAYER_SOURCES.ANNOTATIONS);
+    expect(vectorStyle.metadata.carmaConf.layerInfo.source).toBe(
+      ADHOC_LAYER_SOURCES.ANNOTATIONS
+    );
   });
 
   it("reuses an existing saved measurement with the same content id", () => {

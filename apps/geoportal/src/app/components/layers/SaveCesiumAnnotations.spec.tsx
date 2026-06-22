@@ -118,8 +118,6 @@ describe("SaveCesiumAnnotations helpers", () => {
       title: "Messung",
     });
 
-    expect(style.source).toBe(ADHOC_LAYER_SOURCES.ANNOTATIONS);
-    expect(style.visibility).toBe("3d");
     expect(style.sources.adhoc.data).toBe(geoJson);
     expect(style.metadata.carmaConf.annotationsGeoJson).toBe(geoJson);
     expect(style.metadata.carmaConf.layerInfo).toMatchObject({
@@ -127,6 +125,8 @@ describe("SaveCesiumAnnotations helpers", () => {
       icon: "emoji:1f4d0",
       thumbnail: MEASUREMENT_3D_THUMBNAIL_URL,
       title: "Messung",
+      source: ADHOC_LAYER_SOURCES.ANNOTATIONS,
+      mapMode: "3d",
     });
   });
 });

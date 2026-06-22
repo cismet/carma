@@ -1,5 +1,7 @@
 import type { StyleSpecification } from "maplibre-gl";
 
+import type { AdhocLayerMapMode, AdhocLayerSource } from "../constants/adhoc";
+
 export type CarmaConf3DModel = {
   url: string;
   position: {
@@ -54,6 +56,8 @@ export type CarmaMapLibreStyleMetadata = {
       header?: string;
       accentColor?: string;
       keywords?: string[];
+      source?: AdhocLayerSource;
+      mapMode?: AdhocLayerMapMode;
     };
   };
 };

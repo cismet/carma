@@ -9,7 +9,7 @@ import {
 } from "@carma-mapping/annotations/runtime";
 import {
   ADHOC_LAYER_SOURCES,
-  ADHOC_LAYER_VISIBILITIES,
+  ADHOC_LAYER_MAP_MODES,
 } from "@carma-appframeworks/portals";
 import type { Layer } from "@carma-mapping/layers";
 import { parseToMapLayer } from "@carma-mapping/utils";
@@ -66,8 +66,6 @@ export const buildCesiumAnnotationLayerStyle = ({
   icon: string;
   description: string;
 }) => ({
-  source: ADHOC_LAYER_SOURCES.ANNOTATIONS,
-  visibility: ADHOC_LAYER_VISIBILITIES.THREE_D,
   version: 8,
   glyphs: "https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf",
   metadata: {
@@ -84,6 +82,8 @@ export const buildCesiumAnnotationLayerStyle = ({
         keywords: ["carmaconf://lazyInfoBox"],
         thumbnail: MEASUREMENT_3D_THUMBNAIL_URL,
         vectorLegend: MEASUREMENT_VECTOR_LEGEND_URL,
+        source: ADHOC_LAYER_SOURCES.ANNOTATIONS,
+        mapMode: ADHOC_LAYER_MAP_MODES.THREE_D,
       },
     },
   },

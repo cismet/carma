@@ -1,5 +1,6 @@
 import {
   ADHOC_LAYER_SOURCES,
+  ADHOC_LAYER_MAP_MODES,
   type AdhocLayerSource,
   type AdhocMapLibreStyleData,
 } from "@carma-appframeworks/portals";
@@ -91,24 +92,18 @@ export const getVectorLayerStyle = async (
   return resolveAdhocStyleData(style);
 };
 
-export const getAdhocLayerStyleSource = (
+const getAdhocLayerInfo = (
   layer: Layer | BackgroundLayer
-): unknown => {
-  const style = (layer as { props?: { style?: unknown } }).props?.style;
-  return typeof style === "object" && style !== null
-    ? (style as { source?: unknown }).source
-    : null;
-};
+): { source?: string; mapMode?: "2d" | "3d" } => layer.layerInfo ?? {};
 
 export const is2dMeasurementAdhocLayer = (
   layer: Layer | BackgroundLayer
-): boolean =>
-  getAdhocLayerStyleSource(layer) === ADHOC_LAYER_SOURCES.TWO_D_MEASUREMENTS;
+): boolean => getAdhocLayerInfo(layer).mapMode === ADHOC_LAYER_MAP_MODES.TWO_D;
 
 export const is3dAnnotationAdhocLayer = (
   layer: Layer | BackgroundLayer
 ): boolean =>
-  getAdhocLayerStyleSource(layer) === ADHOC_LAYER_SOURCES.ANNOTATIONS;
+  getAdhocLayerInfo(layer).mapMode === ADHOC_LAYER_MAP_MODES.THREE_D;
 
 export const isVisible3dAnnotationAdhocLayer = (
   layer: Layer | BackgroundLayer
@@ -119,12 +114,10 @@ export const LEAFLET_MAPLIBRE_ADHOC_LAYER_STYLE_SOURCES: readonly AdhocLayerSour
 
 export const isSupportedLeafletMapLibreAdhocLayer = (
   layer: Layer | BackgroundLayer
-): boolean => {
-  const source = getAdhocLayerStyleSource(layer);
-  return LEAFLET_MAPLIBRE_ADHOC_LAYER_STYLE_SOURCES.includes(
-    source as AdhocLayerSource
+): boolean =>
+  LEAFLET_MAPLIBRE_ADHOC_LAYER_STYLE_SOURCES.includes(
+    getAdhocLayerInfo(layer).source as AdhocLayerSource
   );
-};
 
 export const shouldShowAdhocLayerInCesiumLayerList = (
   layer: Layer | BackgroundLayer
