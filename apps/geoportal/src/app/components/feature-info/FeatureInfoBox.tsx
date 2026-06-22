@@ -49,7 +49,9 @@ import {
   getActionLinksForFeature,
   PanoramaLightBox,
   PanoramaPreview,
+  type PanoramaHotspot,
 } from "@carma-appframeworks/portals";
+import { createFeature } from "../GeoportalMap/libremap.utils";
 import { parseColor } from "../../helper/color";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 import { addCustomFeatureFlags } from "../../store/slices/layers";
@@ -67,6 +69,62 @@ const PANORAMA_SELECTION_ARROW_LAYER = "selection-arrow";
 // against the live behaviour.
 const PANORAMA_YAW_SIGN = 1;
 const PANORAMA_YAW_OFFSET = 0;
+// The panorama image's yaw=0 (centre) faces the BACK of the survey car, so the
+// viewer must START rotated 180° to look forward (down the street / toward the
+// next pano). This lives on the IMAGE (pannellum initial yaw), NOT on the arrow:
+// the arrow already follows getYaw(), so with the image rotated the arrow tracks
+// correctly and stays in sync with what is on screen.
+const PANORAMA_INITIAL_YAW = 180;
+
+// Tour navigation hotspots: pick surrounding panos from the vector source and
+// render a clickable arrow at each one's bearing.
+const PANORAMA_NEIGHBOR_RADIUS_M = 12;
+const PANORAMA_MAX_HOTSPOTS = 6;
+// Drop a candidate whose bearing is within this of an already-kept one (keeps
+// the nearer); avoids a cluster of overlapping arrows down a straight street.
+const PANORAMA_MIN_HOTSPOT_SEPARATION_DEG = 22;
+// Assumed camera height above ground; together with the horizontal distance and
+// the proj_z difference it sets how far below the horizon a hotspot sits.
+const PANORAMA_CAMERA_HEIGHT_M = 2.2;
+const PANORAMA_HOTSPOT_MIN_PITCH = -45;
+const PANORAMA_HOTSPOT_MAX_PITCH = 5;
+
+// Wrap an angle (deg) into (-180, 180].
+const normalizeDeg = (deg: number): number => {
+  let x = deg % 360;
+  if (x > 180) x -= 360;
+  if (x < -180) x += 360;
+  return x;
+};
+const angularDiffDeg = (a: number, b: number): number =>
+  Math.abs(normalizeDeg(a - b));
+
+// The single vector source + source-layer of a panorama style (e.g. the
+// oelberg_panorama style has exactly one vector source).
+const resolvePanoSource = (
+  map: { getStyle?: () => unknown } | undefined
+): { sourceId: string; sourceLayer: string } | null => {
+  try {
+    const style = map?.getStyle?.() as
+      | {
+          sources?: Record<string, { type?: string }>;
+          layers?: Array<{ source?: string; "source-layer"?: string }>;
+        }
+      | undefined;
+    const sources = style?.sources ?? {};
+    const sourceId = Object.keys(sources).find(
+      (id) => sources[id]?.type === "vector"
+    );
+    if (!sourceId) return null;
+    const sourceLayer = style?.layers?.find(
+      (l) => l.source === sourceId && l["source-layer"]
+    )?.["source-layer"];
+    if (!sourceLayer) return null;
+    return { sourceId, sourceLayer };
+  } catch {
+    return null;
+  }
+};
 
 interface InfoBoxProps {
   pos?: [number, number];
@@ -306,8 +364,9 @@ const FeatureInfoBox = ({
     [selectedLayerMap, panoramaHeading]
   );
 
-  // Restore the data-driven heading when the selection (and thus its map)
-  // changes or the box unmounts; we overrode icon-rotate to a constant above.
+  // Restore the data-driven heading and clear the highlight when the selection
+  // leaves this layer (the map changes) or the box unmounts; we overrode
+  // icon-rotate to a constant and drive feature-state programmatically.
   useEffect(() => {
     if (!selectedLayerMap) return;
     return () => {
@@ -321,8 +380,184 @@ const FeatureInfoBox = ({
           ["get", "heading"]
         );
       }
+      const src = resolvePanoSource(selectedLayerMap);
+      if (src) {
+        try {
+          selectedLayerMap.removeFeatureState({
+            source: src.sourceId,
+            sourceLayer: src.sourceLayer,
+          });
+        } catch {
+          // ignore feature-state errors
+        }
+      }
     };
   }, [selectedLayerMap]);
+
+  // Keep the pano selection highlight in sync with the redux selection. The
+  // click path sets feature-state itself, but programmatic tour hops do not, so
+  // we make the highlight a pure function of the current selection.
+  useEffect(() => {
+    if (!selectedLayerMap) return;
+    const fid = selectedFeature?.properties?.sourceProps?.fid;
+    const src = resolvePanoSource(selectedLayerMap);
+    if (
+      !src ||
+      fid == null ||
+      typeof selectedLayerMap.getLayer !== "function" ||
+      !selectedLayerMap.getLayer(PANORAMA_SELECTION_ARROW_LAYER)
+    ) {
+      return;
+    }
+    try {
+      selectedLayerMap.removeFeatureState({
+        source: src.sourceId,
+        sourceLayer: src.sourceLayer,
+      });
+      selectedLayerMap.setFeatureState(
+        { source: src.sourceId, sourceLayer: src.sourceLayer, id: fid },
+        { selected: true }
+      );
+      // Snap the arrow to the new feature's initial orientation right away.
+      // Otherwise it keeps the previous selection's overridden icon-rotate until
+      // the new viewer's first yaw tick arrives (a brief wrong-direction jump,
+      // ~90° at a T-junction).
+      const heading = Number(selectedFeature?.properties?.sourceProps?.heading);
+      if (!Number.isNaN(heading)) {
+        selectedLayerMap.setLayoutProperty(
+          PANORAMA_SELECTION_ARROW_LAYER,
+          "icon-rotate",
+          heading + PANORAMA_INITIAL_YAW * PANORAMA_YAW_SIGN + PANORAMA_YAW_OFFSET
+        );
+      }
+    } catch {
+      // ignore feature-state errors
+    }
+  }, [selectedFeature, selectedLayerMap]);
+
+  // Jump to a neighbouring panorama (tour hop): build its carma feature from the
+  // raw vector feature via the layer's infoBoxMapping, move the map highlight,
+  // and select it — the viewer, infobox and arrow all follow.
+  const handlePanoramaNavigate = useCallback(
+    async (targetFid: number) => {
+      if (!selectedLayerMap || !selectedFeature) return;
+      const layer = layers.find((l) => l.id === selectedFeature.id);
+      const src = resolvePanoSource(selectedLayerMap);
+      if (!layer || !src) return;
+      let raw;
+      try {
+        raw = selectedLayerMap.querySourceFeatures(src.sourceId, {
+          sourceLayer: src.sourceLayer,
+          filter: ["==", "fid", targetFid],
+        })?.[0];
+      } catch {
+        return;
+      }
+      if (!raw) return;
+      const neighborFeature = await createFeature(raw, layer);
+      if (!neighborFeature) return;
+      // The map highlight (selection-arrow feature-state) is kept in sync with
+      // the redux selection by the effect below, so just select the neighbour.
+      dispatch(setSelectedFeature(neighborFeature));
+    },
+    [selectedLayerMap, selectedFeature, layers, dispatch]
+  );
+
+  // Build navigation hotspots from the panos surrounding the selected one.
+  const panoramaHotspots = useMemo<PanoramaHotspot[]>(() => {
+    const props = selectedFeature?.properties?.sourceProps;
+    if (
+      !selectedLayerMap ||
+      !props ||
+      typeof selectedLayerMap.querySourceFeatures !== "function"
+    ) {
+      return [];
+    }
+    const cx = Number(props.proj_x);
+    const cy = Number(props.proj_y);
+    const cz = Number(props.proj_z);
+    const cHeading = Number(props.heading);
+    const cFid = props.fid;
+    if (Number.isNaN(cx) || Number.isNaN(cy) || Number.isNaN(cHeading)) {
+      return [];
+    }
+    const src = resolvePanoSource(selectedLayerMap);
+    if (!src) return [];
+
+    let all: Array<{ properties?: Record<string, number> }> = [];
+    try {
+      all = selectedLayerMap.querySourceFeatures(src.sourceId, {
+        sourceLayer: src.sourceLayer,
+      });
+    } catch {
+      return [];
+    }
+
+    const seen = new Set<number>();
+    const candidates: Array<{
+      fid: number;
+      dist: number;
+      dz: number;
+      bearing: number;
+    }> = [];
+    for (const f of all) {
+      const p = f?.properties;
+      if (!p || p.fid === cFid || seen.has(p.fid)) continue;
+      seen.add(p.fid);
+      const px = Number(p.proj_x);
+      const py = Number(p.proj_y);
+      if (Number.isNaN(px) || Number.isNaN(py)) continue;
+      const dE = px - cx;
+      const dN = py - cy;
+      const dist = Math.hypot(dE, dN);
+      if (dist < 0.01 || dist > PANORAMA_NEIGHBOR_RADIUS_M) continue;
+      const dz = Number(p.proj_z) - cz;
+      const bearing = (Math.atan2(dE, dN) * 180) / Math.PI; // 0=N, clockwise
+      candidates.push({
+        fid: p.fid,
+        dist,
+        dz: Number.isNaN(dz) ? 0 : dz,
+        bearing,
+      });
+    }
+
+    candidates.sort((a, b) => a.dist - b.dist);
+    const kept: typeof candidates = [];
+    for (const c of candidates) {
+      if (kept.length >= PANORAMA_MAX_HOTSPOTS) break;
+      if (
+        kept.some(
+          (k) =>
+            angularDiffDeg(k.bearing, c.bearing) <
+            PANORAMA_MIN_HOTSPOT_SEPARATION_DEG
+        )
+      ) {
+        continue;
+      }
+      kept.push(c);
+    }
+
+    return kept.map((c) => {
+      // Inverse of the arrow calibration: absolute bearing = heading + yaw.
+      const yaw = normalizeDeg(
+        (c.bearing - cHeading - PANORAMA_YAW_OFFSET) / PANORAMA_YAW_SIGN
+      );
+      const pitch = Math.max(
+        PANORAMA_HOTSPOT_MIN_PITCH,
+        Math.min(
+          PANORAMA_HOTSPOT_MAX_PITCH,
+          (Math.atan2(c.dz - PANORAMA_CAMERA_HEIGHT_M, c.dist) * 180) / Math.PI
+        )
+      );
+      return {
+        id: `pano-nav-${c.fid}`,
+        pitch,
+        yaw,
+        cssClass: "carma-pano-nav-hotspot",
+        clickHandlerFunc: () => handlePanoramaNavigate(c.fid),
+      };
+    });
+  }, [selectedFeature, selectedLayerMap, handlePanoramaNavigate]);
 
   if (loadingFeatureInfo && shouldRenderLoadingInfobox)
     return <LoadingInfoBox />;
@@ -382,6 +617,7 @@ const FeatureInfoBox = ({
           // Only the active viewer drives the map arrow; yield to the
           // fullscreen lightbox while it is open.
           onYawChange={openPanorama ? undefined : handlePanoramaYaw}
+          initialYaw={PANORAMA_INITIAL_YAW}
         />,
       ]
     : [];
@@ -467,6 +703,8 @@ const FeatureInfoBox = ({
           title={selectedFeature.properties.title}
           onClose={() => setOpenPanorama(false)}
           onYawChange={handlePanoramaYaw}
+          hotspots={panoramaHotspots}
+          initialYaw={PANORAMA_INITIAL_YAW}
         />
       )}
     </>
