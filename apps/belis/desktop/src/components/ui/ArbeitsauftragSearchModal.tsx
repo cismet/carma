@@ -113,7 +113,6 @@ const ArbeitsauftragSearchModal = ({ onSearchDone }: ArbeitsauftragSearchModalPr
 
   const handleValuesChange = useCallback(
     (values: ArbeitsauftragSearchValues) => {
-      console.log("yyy [AA_SEARCH] onValuesChange called:", JSON.stringify(values));
       searchValuesRef.current = values;
       if (showRaw) {
         setQueryPreview(generateQueryPreview(values));
@@ -123,9 +122,6 @@ const ArbeitsauftragSearchModal = ({ onSearchDone }: ArbeitsauftragSearchModalPr
   );
 
   const executeSearch = useCallback(() => {
-    console.log("yyy [AA_SEARCH] executeSearch called");
-    console.log("yyy [AA_SEARCH] jwt present:", !!jwt);
-    console.log("yyy [AA_SEARCH] searchValuesRef.current:", JSON.stringify(searchValuesRef.current));
 
     if (!jwt) {
       console.warn("yyy [AA_SEARCH] No JWT available, please log in first");
@@ -134,7 +130,6 @@ const ArbeitsauftragSearchModal = ({ onSearchDone }: ArbeitsauftragSearchModalPr
 
     const values = searchValuesRef.current;
     const whereClause = buildArbeitsauftragWhereClause(values);
-    console.log("yyy [AA_SEARCH] whereClause:", whereClause);
 
     const query = `query ArbeitsauftragSearch {
       arbeitsauftrag(${
@@ -143,12 +138,10 @@ const ArbeitsauftragSearchModal = ({ onSearchDone }: ArbeitsauftragSearchModalPr
         ${AA_SEARCH_FIELDS}
       }
     }`;
-    console.log("yyy [AA_SEARCH] query:", query);
 
     setIsSearching(true);
     setNoResults(false);
 
-    console.log("yyy [AA_SEARCH] fetching from:", ENDPOINT);
     fetch(ENDPOINT, {
       method: "POST",
       headers: {
@@ -158,28 +151,21 @@ const ArbeitsauftragSearchModal = ({ onSearchDone }: ArbeitsauftragSearchModalPr
       body: JSON.stringify({ query }),
     })
       .then((res) => {
-        console.log("yyy [AA_SEARCH] response status:", res.status);
         return res.json();
       })
       .then((json) => {
-        console.log("yyy [AA_SEARCH] raw json:", json);
         if (json.errors) {
           console.error("yyy [AA_SEARCH] GraphQL errors:", json.errors);
         }
         const results = json.data?.arbeitsauftrag ?? [];
-        console.log("yyy [AA_SEARCH] result count:", results.length);
 
         if (results.length === 0) {
-          console.log("yyy [AA_SEARCH] no results, showing message");
           setNoResults(true);
           setIsSearching(false);
           return;
         }
 
-        console.log("yyy [AA_SEARCH] first result sample:", JSON.stringify(results[0]).substring(0, 500));
         const transformed = transformGqlToTileFeatures(results);
-        console.log("yyy [AA_SEARCH] transformed count:", transformed.length);
-        console.log("yyy [AA_SEARCH] first transformed:", JSON.stringify(transformed[0]));
 
         // Set searchActive BEFORE clearing team to prevent tile extraction from overwriting
         dispatch(setSearchActive(true));
@@ -187,7 +173,6 @@ const ArbeitsauftragSearchModal = ({ onSearchDone }: ArbeitsauftragSearchModalPr
         dispatch(clearSelection());
         dispatch(setFeatures(transformed));
         dispatch(bumpSearchResultsVersion());
-        console.log("yyy [AA_SEARCH] dispatched setSearchActive + setSelectedTeamId(null) + setFeatures");
 
         setIsSearching(false);
         setIsOpen(false);

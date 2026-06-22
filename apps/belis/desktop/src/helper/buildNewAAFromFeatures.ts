@@ -167,12 +167,6 @@ export function buildAddFeaturesToAAPayload({
     -2
   );
 
-  console.log("[buildAddFeaturesToAAPayload]", {
-    aaId,
-    existingCount: existingRefs.length,
-    maxProtokollnummer,
-    newEntries,
-  });
 
   return {
     id: aaId,

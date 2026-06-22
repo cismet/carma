@@ -105,26 +105,10 @@ export const saveKeyTableItem = (
             console.error("Failed to parse server response:", e, action.result);
           }
         } else {
-          console.log(
-            "syncHelper no result or no onIdUpdated. result:",
-            action.result,
-            "onIdUpdated:",
-            !!onIdUpdated
-          );
         }
       }
     : undefined;
 
-  console.log(
-    "xxx dataToSave " + (onComplete !== undefined ? "with onComplete" : ""),
-    JSON.stringify(dataToSave),
-    "isNewItem:",
-    isNewItem,
-    "item.id:",
-    item.id,
-    "typeof item.id:",
-    typeof item.id
-  );
 
   // Execute the synced action
   sync.syncedAction(
@@ -198,16 +182,6 @@ export const saveKeyTableItemWithCallback = (
       }
     : undefined;
 
-  console.log(
-    "xxx dataToSave " + (onComplete !== undefined ? "with onComplete" : ""),
-    JSON.stringify(dataToSave),
-    "isNewItem:",
-    isNewItem,
-    "item.id:",
-    item.id,
-    "typeof item.id:",
-    typeof item.id
-  );
 
   // Execute the synced action
   sync.syncedAction(

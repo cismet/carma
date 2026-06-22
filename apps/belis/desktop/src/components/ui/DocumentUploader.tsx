@@ -26,9 +26,6 @@ const DocumentUploader = ({
         message.success(`${info.file.name} Datei hinzugefügt.`);
       }
     },
-    onDrop(e) {
-      console.log("Dropped files", e.dataTransfer.files);
-    },
     onRemove() {
       return true;
     },

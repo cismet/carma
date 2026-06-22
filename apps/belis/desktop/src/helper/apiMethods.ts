@@ -72,7 +72,7 @@ export const savebauart = async (jwt: string) => {
       "taskparams"
     );
 
-    const response = await fetch(SAVE_ENDPOINT, {
+    await fetch(SAVE_ENDPOINT, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${jwt}`,
@@ -80,7 +80,6 @@ export const savebauart = async (jwt: string) => {
       body: formData,
     });
 
-    console.log(response);
   } catch (error) {
     console.log(error);
   }

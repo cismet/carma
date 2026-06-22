@@ -167,13 +167,9 @@ const KeyTablesPage = () => {
       }
 
       try {
-        console.log(`[CrossTabSync] Refetching table: ${tableName}`);
         const newTableData = await fetcher(storedJWT);
         const newData = { ...dataRef.current, [tableName]: newTableData };
         dispatch(setKeyTablesData(newData));
-        console.log(
-          `[CrossTabSync] Updated table ${tableName} with ${newTableData.length} items`
-        );
       } catch (error) {
         console.error(`[CrossTabSync] Failed to refetch ${tableName}:`, error);
       }
@@ -206,9 +202,6 @@ const KeyTablesPage = () => {
 
       if (tableName) {
         tablesToRefetch.add(tableName);
-        console.log(
-          `[CrossTabSync] Detected completed action ${task.id} for table: ${tableName} (className: ${apiClassName})`
-        );
       }
 
       // Mark as processed
