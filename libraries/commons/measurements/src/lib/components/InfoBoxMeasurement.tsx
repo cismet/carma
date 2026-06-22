@@ -367,7 +367,7 @@ export function InfoBoxMeasurement({
               <p className="text-[#212529] font-normal text-xs leading-normal">
                 {measurementsData.length !== 0
                   ? "Um alle Messungen zu sehen, klicken Sie auf den unten stehenden Link"
-                  : "Aktuell sind keine Messungen vorhanden. Neue Messungen können mit einem Klick auf die Karte angelegt werden."}
+                  : "Aktuell sind keine Messungen vorhanden. Klicken Sie in die Karte zum Zeichnen neuer Messgeometrien."}
               </p>
             </div>
           }
