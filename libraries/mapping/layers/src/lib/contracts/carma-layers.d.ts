@@ -328,6 +328,7 @@ export type Item = {
   createdAt?: string;
   createdBy?: string;
   updatedAt?: string;
+  mapMode?: "2d" | "3d";
 } & (TmpLayer | Link | Feature | Collection);
 
 export interface WMSLatLonBoundingBox {
