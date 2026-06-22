@@ -1,0 +1,45 @@
+.carma-panorama-preview-wrap {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.carma-panorama-preview-wrap td {
+  padding: 0;
+  /* right-align the box on desktop, like the photo preview */
+  text-align: right;
+}
+
+.carma-panorama-preview {
+  position: relative;
+  display: inline-block;
+  vertical-align: top;
+  width: 250px;
+  max-width: 100%;
+  height: 160px;
+  /* gap to the infobox header below, matching the photo preview */
+  margin-bottom: 5px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+/* Full width when the infobox goes full width on small screens. */
+@media (max-width: 700px) {
+  .carma-panorama-preview {
+    width: 100%;
+  }
+}
+
+.carma-panorama-preview__viewer {
+  width: 100%;
+  height: 100%;
+}
+
+/* Loading state: clean placeholder instead of pannellum's faint grid, and a
+   larger spinner (its default is a fixed ~20px box that looks tiny here). */
+.carma-panorama-preview .pnlm-container {
+  background: #2a2a2a;
+}
+
+.carma-panorama-preview .pnlm-lbox {
+  transform: scale(2.5);
+}
