@@ -31,6 +31,8 @@ export interface PanoramaHotspot {
   yaw: number;
   cssClass?: string;
   clickHandlerFunc?: () => void;
+  /** Horizontal distance to the neighbour (m); drives the ground-decal scale. */
+  distanceM?: number;
 }
 
 interface PanoramaLightBoxProps {
@@ -51,14 +53,6 @@ interface PanoramaLightBoxProps {
   /** Initial view yaw (deg); rotates the image so it opens facing forward. */
   initialYaw?: number;
 }
-
-// Wrap an angle (deg) into (-180, 180].
-const normalizeDeg = (deg: number): number => {
-  let x = deg % 360;
-  if (x > 180) x -= 360;
-  if (x < -180) x += 360;
-  return x;
-};
 
 /**
  * Fullscreen overlay that renders a 360° panorama with pannellum.
@@ -99,7 +93,9 @@ export const PanoramaLightBox = ({
   const viewerRef = useRef<PannellumViewer | null>(null);
   const rafRef = useRef(0);
   const sceneSeqRef = useRef(0);
-  const hotspotElsRef = useRef<Array<{ el: HTMLElement; yaw: number }>>([]);
+  const hotspotElsRef = useRef<
+    Array<{ el: HTMLElement; yaw: number; navigate?: () => void }>
+  >([]);
 
   // Create the pannellum viewer once and reuse it across tour hops: a hop adds
   // the new pano as a scene and crossfades to it (loadScene) instead of tearing
@@ -113,19 +109,35 @@ export const PanoramaLightBox = ({
     const initialYaw = initialYawRef.current ?? 0;
 
     // Build this scene's hotspots. pannellum calls createTooltipFunc with each
-    // hotspot element after applying its cssClass, which is our handle: stamp
-    // the initial aim and collect the elements so the yaw poll can re-aim them.
-    const hotspotEls: Array<{ el: HTMLElement; yaw: number }> = [];
-    const hotSpots = (hotspotsRef.current ?? []).map((h) => ({
-      ...h,
-      createTooltipFunc: (div: HTMLElement) => {
-        div.style.setProperty(
-          "--pano-hotspot-dir",
-          `${normalizeDeg(h.yaw - initialYaw)}deg`
-        );
-        hotspotEls.push({ el: div, yaw: h.yaw });
-      },
-    }));
+    // hotspot element after applying its cssClass, which is our handle: collect
+    // the elements (and their navigate fn) so the viewer-level mouse handlers
+    // can find the cross nearest the cursor. We deliberately DON'T pass
+    // clickHandlerFunc to pannellum — navigation is driven from a viewer-level
+    // click that jumps to the nearest cross, so a per-element click would
+    // double-fire.
+    const hotspotEls: Array<{
+      el: HTMLElement;
+      yaw: number;
+      navigate?: () => void;
+    }> = [];
+    const hotSpots = (hotspotsRef.current ?? []).map((h) => {
+      const { clickHandlerFunc, ...rest } = h;
+      return {
+        ...rest,
+        createTooltipFunc: (div: HTMLElement) => {
+          // Lay the ring on the road: a flat decal's foreshortening depends only
+          // on its depression below horizontal (= its pitch), so tilt = 90−|pitch|
+          // is correct regardless of where the user looks. Scale by distance so
+          // nearer panos read as larger (the perspective cue pannellum's
+          // fixed-size hotspots lack).
+          const tilt = Math.max(25, Math.min(86, 90 - Math.abs(h.pitch)));
+          const scale = Math.max(0.45, Math.min(1.5, 6 / (h.distanceM ?? 6)));
+          div.style.setProperty("--pano-cross-tilt", `${tilt}deg`);
+          div.style.setProperty("--pano-cross-scale", `${scale}`);
+          hotspotEls.push({ el: div, yaw: h.yaw, navigate: clickHandlerFunc });
+        },
+      };
+    });
 
     // Scene resolution is async (a multires config is fetched); guard against
     // the effect being cleaned up (hop / unmount) before it resolves.
@@ -166,8 +178,8 @@ export const PanoramaLightBox = ({
       });
 
       // Pannellum has no continuous "view changed" event, so poll the yaw each
-      // frame: report it (the map arrow follows) and re-aim the current scene's
-      // hotspots. The poll runs for the viewer's whole life, across scene loads.
+      // frame and report it (the map arrow follows). The poll runs for the
+      // viewer's whole life, across scene loads.
       let lastYaw = NaN;
       const tick = () => {
         const viewer = viewerRef.current;
@@ -178,14 +190,6 @@ export const PanoramaLightBox = ({
           if (yaw !== lastYaw) {
             lastYaw = yaw;
             onYawChangeRef.current?.(yaw);
-            // On-screen angle from view-centre to each neighbour is its
-            // (panorama yaw − current view yaw).
-            for (const hs of hotspotElsRef.current) {
-              hs.el.style.setProperty(
-                "--pano-hotspot-dir",
-                `${normalizeDeg(hs.yaw - yaw)}deg`
-              );
-            }
           }
         }
         rafRef.current = requestAnimationFrame(tick);
@@ -224,6 +228,83 @@ export const PanoramaLightBox = ({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
+
+  // Street-View interaction: a click ANYWHERE jumps to the cross nearest the
+  // cursor (not just a direct hit), and hover always highlights that same
+  // nearest cross so the preview matches the jump.
+  //
+  // Listeners run in the CAPTURE phase: pannellum binds drag handlers on its
+  // canvas and swallows mousedown there, so a bubble-phase listener would only
+  // see presses that land on a cross div (above the canvas) — which is exactly
+  // why a click used to need a dead-on hit. Capturing means we always see the
+  // press, wherever it lands.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const DRAG_PX = 6; // moved more than this since mousedown => a pan, not a click
+    const down = { x: 0, y: 0 };
+
+    // Nearest on-screen cross to a client point (or null). Only crosses whose
+    // centre is inside the viewer rect count, which drops ones behind you that
+    // pannellum may park at the edges.
+    const nearestTo = (x: number, y: number) => {
+      const bounds = el.getBoundingClientRect();
+      let best: { el: HTMLElement; navigate?: () => void; dist: number } | null =
+        null;
+      for (const entry of hotspotElsRef.current) {
+        const r = entry.el.getBoundingClientRect();
+        const cx = r.left + r.width / 2;
+        const cy = r.top + r.height / 2;
+        if (
+          cx < bounds.left ||
+          cx > bounds.right ||
+          cy < bounds.top ||
+          cy > bounds.bottom
+        ) {
+          continue;
+        }
+        const dist = Math.hypot(x - cx, y - cy);
+        if (!best || dist < best.dist) {
+          best = { el: entry.el, navigate: entry.navigate, dist };
+        }
+      }
+      return best;
+    };
+
+    const highlight = (target: HTMLElement | null) => {
+      for (const entry of hotspotElsRef.current) {
+        entry.el.classList.toggle("is-hover", entry.el === target);
+      }
+    };
+
+    const onMove = (e: MouseEvent) => {
+      const best = nearestTo(e.clientX, e.clientY);
+      highlight(best ? best.el : null);
+    };
+    const onLeave = () => highlight(null);
+    const onDown = (e: MouseEvent) => {
+      down.x = e.clientX;
+      down.y = e.clientY;
+    };
+    const onClick = (e: MouseEvent) => {
+      // Ignore the click that ends a drag-to-pan.
+      if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > DRAG_PX) return;
+      const best = nearestTo(e.clientX, e.clientY);
+      best?.navigate?.();
+    };
+
+    el.addEventListener("mousemove", onMove, true);
+    el.addEventListener("mouseleave", onLeave, true);
+    el.addEventListener("mousedown", onDown, true);
+    el.addEventListener("click", onClick, true);
+    return () => {
+      el.removeEventListener("mousemove", onMove, true);
+      el.removeEventListener("mouseleave", onLeave, true);
+      el.removeEventListener("mousedown", onDown, true);
+      el.removeEventListener("click", onClick, true);
+    };
+  }, []);
 
   return createPortal(
     <div
