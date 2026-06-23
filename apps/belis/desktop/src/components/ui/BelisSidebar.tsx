@@ -874,7 +874,7 @@ const BelisSidebar = ({
             Fachobjekte
             {fachobjekteCount != null ? ` (${fachobjekteCount})` : ""}
           </button>
-          {hasHighlights && (
+          {hasHighlights && highlightCount != null && highlightCount < 2000 && (
             <button
               onClick={() => onModeChange?.("highlights")}
               className={`px-2 py-0.5 text-xs rounded ${
