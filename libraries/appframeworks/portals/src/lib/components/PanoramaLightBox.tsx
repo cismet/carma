@@ -153,7 +153,11 @@ export const PanoramaLightBox = ({
       >
         ×
       </button>
-      <div ref={containerRef} style={{ width: "100%", height: "100%" }} />
+      <div
+        ref={containerRef}
+        className="carma-panorama-lightbox__viewer"
+        style={{ width: "100%", height: "100%" }}
+      />
     </div>,
     document.body
   );
