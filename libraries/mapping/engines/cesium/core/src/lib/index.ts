@@ -99,7 +99,6 @@ export * from "./carma-helpers/scene/SurfaceNormalSampling";
 export * from "./carma-helpers/geojson";
 export * from "./carma-helpers/environment";
 export * from "./carma-helpers/terrain";
-export { guardTileset } from "./carma-helpers/tileset/Guard";
 export { CUSTOM_SHADERS_DEFINITIONS } from "./carma-helpers/tileset/custom-shaders";
 export { createMinimalCesiumWidget } from "./carma-helpers/widget";
 export * from "./carma-helpers/Transforms";

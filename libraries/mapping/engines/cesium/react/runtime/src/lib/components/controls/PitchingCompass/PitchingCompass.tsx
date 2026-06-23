@@ -22,7 +22,6 @@ import {
 import type { Radians, Meters } from "@carma-units";
 
 import { useCesiumContext } from "../../../hooks/useCesiumContext";
-import { guardCamera } from "../../../utils/guardCamera";
 import { isValidScreenSpaceEventHandler } from "../../../utils/instanceGates";
 import { pickSceneCenter } from "../../../utils/pick-position/pick-scene-positions";
 import { Needle } from "./Needle";
@@ -127,7 +126,7 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
 
         const target = pickSceneCenter(scene);
         if (target && initialRange !== null) {
-          guardCamera(camera).lookAt(
+          camera.lookAt(
             target,
             new HeadingPitchRange(heading, pitch, initialRange)
           );
@@ -242,10 +241,10 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
       };
       updateOrientation();
       camera.percentageChanged = 0.01;
-      guardCamera(camera).changed.addEventListener(updateOrientation);
+      camera.changed.addEventListener(updateOrientation);
 
       cleanup = () => {
-        guardCamera(camera).changed.removeEventListener(updateOrientation);
+        camera.changed.removeEventListener(updateOrientation);
       };
     });
     return () => cleanup?.();
