@@ -76,13 +76,16 @@ const PANORAMA_YAW_OFFSET = 0;
 // correctly and stays in sync with what is on screen.
 const PANORAMA_INITIAL_YAW = 180;
 
-// Tour navigation hotspots: pick surrounding panos from the vector source and
-// render a clickable arrow at each one's bearing.
-const PANORAMA_NEIGHBOR_RADIUS_M = 12;
-const PANORAMA_MAX_HOTSPOTS = 6;
-// Drop a candidate whose bearing is within this of an already-kept one (keeps
-// the nearer); avoids a cluster of overlapping arrows down a straight street.
-const PANORAMA_MIN_HOTSPOT_SEPARATION_DEG = 22;
+// Street-View navigation: pick the surrounding panos and render a clickable
+// ground cross at each. The radius is generous so the line of panos down the
+// street shows several steps out, receding toward the horizon.
+const PANORAMA_NEIGHBOR_RADIUS_M = 30;
+const PANORAMA_MAX_HOTSPOTS = 8;
+// Drop a candidate that lands within this on-screen angular distance (combined
+// yaw+pitch, deg) of an already-kept one. Crosses straight down the street
+// share a yaw but differ in pitch, so thinning in (yaw, pitch) space keeps the
+// receding line of targets while still removing true overlaps.
+const PANORAMA_MIN_HOTSPOT_SCREEN_SEP_DEG = 7;
 // Assumed camera height above ground; together with the horizontal distance and
 // the proj_z difference it sets how far below the horizon a hotspot sits.
 const PANORAMA_CAMERA_HEIGHT_M = 2.2;
@@ -102,6 +105,31 @@ const normalizeDeg = (deg: number): number => {
 };
 const angularDiffDeg = (a: number, b: number): number =>
   Math.abs(normalizeDeg(a - b));
+
+// A pano's file_name is fully derivable from its integer fid: the names are
+// always `pano_NNNNNN_NNNNNN` (6+6 digits) and fid is those 12 digits parsed as
+// an int. So the baked neighbour list can carry only the fid (an int) and we
+// reconstruct the file name here for the image URL / preload.
+const fidToFileName = (fid: number): string => {
+  const s = String(fid).padStart(12, "0");
+  return `pano_${s.slice(0, 6)}_${s.slice(6)}`;
+};
+
+// A single baked neighbour: [fid, bearing(deg, 0=N CW), distance(m), dz(m)].
+type BakedNeighbour = [number, number, number, number];
+
+// Parse the per-feature `nb` property baked by the tiling pipeline (a compact
+// JSON string of [fid, bearing, dist, dz] tuples). Returns null when absent or
+// malformed so the caller can fall back to a live querySourceFeatures search.
+const parseBakedNeighbours = (nb: unknown): BakedNeighbour[] | null => {
+  if (typeof nb !== "string" || nb.length === 0) return null;
+  try {
+    const parsed = JSON.parse(nb);
+    return Array.isArray(parsed) ? (parsed as BakedNeighbour[]) : null;
+  } catch {
+    return null;
+  }
+};
 
 // The pano source of a panorama style (the oelberg_panorama style has exactly
 // one). Supports both a vector-tile source (needs a source-layer) and a
@@ -509,75 +537,91 @@ const FeatureInfoBox = ({
     ) {
       return empty;
     }
-    const cx = Number(props.proj_x);
-    const cy = Number(props.proj_y);
-    const cz = Number(props.proj_z);
     const cHeading = Number(props.heading);
     const cFid = props.fid;
-    if (Number.isNaN(cx) || Number.isNaN(cy) || Number.isNaN(cHeading)) {
-      return empty;
-    }
-    const src = resolvePanoSource(selectedLayerMap);
-    if (!src) return empty;
+    if (!Number.isFinite(cHeading)) return empty;
 
-    let all: Array<{ properties?: Record<string, number> }> = [];
-    try {
-      all = selectedLayerMap.querySourceFeatures(src.sourceId, {
-        sourceLayer: src.sourceLayer,
-      });
-    } catch {
-      return empty;
-    }
-
-    const seen = new Set<number>();
-    const candidates: Array<{
+    type Candidate = {
       fid: number;
       dist: number;
       dz: number;
       bearing: number;
       fileName?: string;
-    }> = [];
-    for (const f of all) {
-      const p = f?.properties;
-      if (!p || p.fid === cFid || seen.has(p.fid)) continue;
-      seen.add(p.fid);
-      const px = Number(p.proj_x);
-      const py = Number(p.proj_y);
-      if (Number.isNaN(px) || Number.isNaN(py)) continue;
-      const dE = px - cx;
-      const dN = py - cy;
-      const dist = Math.hypot(dE, dN);
-      if (dist < 0.01 || dist > PANORAMA_NEIGHBOR_RADIUS_M) continue;
-      const dz = Number(p.proj_z) - cz;
-      const bearing = (Math.atan2(dE, dN) * 180) / Math.PI; // 0=N, clockwise
-      const rawFileName = (p as { file_name?: unknown }).file_name;
-      candidates.push({
-        fid: p.fid,
-        dist,
-        dz: Number.isNaN(dz) ? 0 : dz,
-        bearing,
-        fileName: typeof rawFileName === "string" ? rawFileName : undefined,
-      });
-    }
+    };
+    const candidates: Candidate[] = [];
 
-    candidates.sort((a, b) => a.dist - b.dist);
-    const kept: typeof candidates = [];
-    for (const c of candidates) {
-      if (kept.length >= PANORAMA_MAX_HOTSPOTS) break;
-      if (
-        kept.some(
-          (k) =>
-            angularDiffDeg(k.bearing, c.bearing) <
-            PANORAMA_MIN_HOTSPOT_SEPARATION_DEG
-        )
-      ) {
-        continue;
+    // Prefer the baked neighbour list: it rides inside the pano's own vector
+    // tile, so it is viewport-independent and available the instant the pano is
+    // selected. querySourceFeatures only sees the current viewport, so it drops
+    // neighbours across a tile border or when zoomed in. The fallback below
+    // keeps things working for data that does not carry `nb` yet (e.g. before
+    // the pipeline is redeployed).
+    const baked = parseBakedNeighbours((props as { nb?: unknown }).nb);
+    if (baked) {
+      for (const entry of baked) {
+        if (!Array.isArray(entry) || entry.length < 4) continue;
+        const fid = Number(entry[0]);
+        const bearing = Number(entry[1]);
+        const dist = Number(entry[2]);
+        const dz = Number(entry[3]);
+        if (!Number.isFinite(fid) || fid === cFid) continue;
+        if (!Number.isFinite(dist) || dist < 0.01) continue;
+        if (dist > PANORAMA_NEIGHBOR_RADIUS_M) continue;
+        candidates.push({
+          fid,
+          dist,
+          dz: Number.isFinite(dz) ? dz : 0,
+          bearing: Number.isFinite(bearing) ? bearing : 0,
+          fileName: fidToFileName(fid),
+        });
       }
-      kept.push(c);
+    } else {
+      const cx = Number(props.proj_x);
+      const cy = Number(props.proj_y);
+      const cz = Number(props.proj_z);
+      if (Number.isNaN(cx) || Number.isNaN(cy)) return empty;
+      const src = resolvePanoSource(selectedLayerMap);
+      if (!src) return empty;
+
+      let all: Array<{ properties?: Record<string, number> }> = [];
+      try {
+        all = selectedLayerMap.querySourceFeatures(src.sourceId, {
+          sourceLayer: src.sourceLayer,
+        });
+      } catch {
+        return empty;
+      }
+
+      const seen = new Set<number>();
+      for (const f of all) {
+        const p = f?.properties;
+        if (!p || p.fid === cFid || seen.has(p.fid)) continue;
+        seen.add(p.fid);
+        const px = Number(p.proj_x);
+        const py = Number(p.proj_y);
+        if (Number.isNaN(px) || Number.isNaN(py)) continue;
+        const dE = px - cx;
+        const dN = py - cy;
+        const dist = Math.hypot(dE, dN);
+        if (dist < 0.01 || dist > PANORAMA_NEIGHBOR_RADIUS_M) continue;
+        const dz = Number(p.proj_z) - cz;
+        const bearing = (Math.atan2(dE, dN) * 180) / Math.PI; // 0=N, clockwise
+        const rawFileName = (p as { file_name?: unknown }).file_name;
+        candidates.push({
+          fid: p.fid,
+          dist,
+          dz: Number.isNaN(dz) ? 0 : dz,
+          bearing,
+          fileName: typeof rawFileName === "string" ? rawFileName : undefined,
+        });
+      }
     }
 
-    const hotspots = kept.map((c) => {
-      // Inverse of the arrow calibration: absolute bearing = heading + yaw.
+    // Project each candidate into the panorama: yaw from the bearing/heading
+    // calibration, pitch from the camera height and distance. We need both up
+    // front so the declutter can work in on-screen space.
+    type Projected = Candidate & { yaw: number; pitch: number };
+    const projected: Projected[] = candidates.map((c) => {
       const yaw = normalizeDeg(
         (c.bearing - cHeading - PANORAMA_YAW_OFFSET) / PANORAMA_YAW_SIGN
       );
@@ -588,18 +632,45 @@ const FeatureInfoBox = ({
           (Math.atan2(c.dz - PANORAMA_CAMERA_HEIGHT_M, c.dist) * 180) / Math.PI
         )
       );
-      return {
-        id: `pano-nav-${c.fid}`,
-        pitch,
-        yaw,
-        cssClass: "carma-pano-nav-hotspot",
-        clickHandlerFunc: () => handlePanoramaNavigate(c.fid),
-      };
+      return { ...c, yaw, pitch };
     });
+
+    // Nearest first, then thin by on-screen separation in (yaw, pitch): panos
+    // straight down the street share a yaw but differ in pitch, so this keeps
+    // the receding line of crosses toward the horizon instead of collapsing it
+    // to a single target.
+    projected.sort((a, b) => a.dist - b.dist);
+    const kept: Projected[] = [];
+    for (const c of projected) {
+      if (kept.length >= PANORAMA_MAX_HOTSPOTS) break;
+      const clashes = kept.some((k) => {
+        const dYaw = normalizeDeg(k.yaw - c.yaw);
+        const dPitch = k.pitch - c.pitch;
+        return Math.hypot(dYaw, dPitch) < PANORAMA_MIN_HOTSPOT_SCREEN_SEP_DEG;
+      });
+      if (!clashes) kept.push(c);
+    }
+
+    const hotspots = kept.map((c) => ({
+      id: `pano-nav-${c.fid}`,
+      pitch: c.pitch,
+      yaw: c.yaw,
+      distanceM: c.dist,
+      cssClass: "carma-pano-cross-hotspot",
+      clickHandlerFunc: () => handlePanoramaNavigate(c.fid),
+    }));
 
     const neighbourFileNames = kept
       .map((c) => c.fileName)
       .filter((n): n is string => !!n);
+
+    // [PANORAMA] dev: prove which neighbour source is live and how many targets
+    // survive declutter. Strip before merge.
+    console.log("[PANORAMA] neighbours", {
+      source: baked ? "baked-nb" : "fallback-querySourceFeatures",
+      found: candidates.length,
+      shown: kept.length,
+    });
 
     return { hotspots, neighbourFileNames };
   }, [selectedFeature, selectedLayerMap, handlePanoramaNavigate]);
