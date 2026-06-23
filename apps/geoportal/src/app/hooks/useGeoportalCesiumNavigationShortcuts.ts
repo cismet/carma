@@ -21,7 +21,7 @@ import {
   pickSceneCenter,
   writePerspectiveFrustumVerticalFov,
 } from "@carma-mapping/engines/cesium/core";
-import { useCesiumContext } from "@carma-mapping/engines/cesium/legacy";
+import { useCesiumContext } from "@carma-mapping/engines/cesium/react/runtime";
 import type { Milliseconds, Radians } from "@carma-units";
 
 import { DEFAULT_CAMERA_FOV_DEG } from "../config/app.config";

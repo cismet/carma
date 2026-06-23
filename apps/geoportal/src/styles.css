@@ -32,16 +32,8 @@ html {
   max-width: 100% !important;
 }
 
-.cesium-viewer {
-  background-color: transparent;
-}
-
-.cesium-viewer-cesiumWidgetContainer {
-  background-color: var(--cesium-bg-color, rgba(255, 255, 255, 1));
-}
-
 .cesium-widget {
-  background-color: transparent;
+  background-color: var(--cesium-bg-color, rgba(255, 255, 255, 1));
 }
 
 #preview {

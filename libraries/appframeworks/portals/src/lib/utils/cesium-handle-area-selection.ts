@@ -20,7 +20,7 @@ import {
   polygonHierarchyFromPolygonCoords,
   removeGroundPrimitiveById,
   type CesiumOptions,
-} from "@carma-mapping/engines/cesium/legacy";
+} from "@carma-mapping/engines/cesium/react/runtime";
 
 import type { HitTriggerOptions } from "./cesium-selection-types";
 import { DerivedGeometries } from "./getDerivedGeometries";
@@ -70,7 +70,7 @@ const handlePolygonSelection = (
 ) => {
   // Add/update polygon geometry only if not skipping marker update
   if (!skipMarkerUpdate) {
-    // Convert polygon to GroundPrimitive instead of Entity
+    // Convert polygon to GroundPrimitive for scene-local selection rendering.
     const selectedPolygonGeometry = new PolygonGeometry({
       polygonHierarchy: polygonHierarchyFromPolygonCoords(polygon),
       extrudedHeight: 1,

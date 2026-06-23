@@ -1,6 +1,6 @@
 import { Color } from "cesium";
 
-import { CesiumState } from "@carma-mapping/engines/cesium/legacy";
+import { CesiumState } from "@carma-mapping/engines/cesium/react/runtime";
 import { colorToConstructorArgs } from "@carma-mapping/engines/cesium/core";
 
 import { MODEL_ASSETS } from "./assets.config";

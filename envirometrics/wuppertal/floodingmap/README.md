@@ -6,7 +6,7 @@ Flooding Map (Hochwassergefahrenkare HGK) with integrated 3D component extending
 
 Changes vs old Envirometrics:
 
-to enable Cesium CustomViewer lib added:
+to enable Cesium CesiumHost lib added:
 - Redux-Store,
 - HashRouter
 - Providers

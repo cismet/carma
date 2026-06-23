@@ -19,7 +19,7 @@ import type {
 } from "../types";
 
 import { useObliqueData } from "../hooks/useObliqueData";
-import { useCesiumContext } from "@carma-mapping/engines/cesium/legacy";
+import { useCesiumContext } from "@carma-mapping/engines/cesium/react/runtime";
 
 import type { CardinalDirectionEnum } from "../utils/orientationUtils";
 
@@ -44,7 +44,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   config,
   fallbackDirectionConfig,
 }) => {
-  const { isViewerReady, requestRender } = useCesiumContext();
+  const { isRuntimeReady, requestRender } = useCesiumContext();
   const { selectionFlyToCameraHeightRef } = useSelection();
   const { updateHashState, getHashStateValues } = useHashState();
   // Read initial oblique mode from hash only once on mount
@@ -162,15 +162,15 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     }
   }, [selectedImage]);
 
-  // Once a nearest image exists and the viewer is ready, retrigger render twice (100ms apart)
+  // Once a nearest image exists and the runtime is ready, retrigger render twice (100ms apart)
   // to ensure derived visuals (e.g., footprint outline) become visible without interaction
   useEffect(() => {
-    if (isObliqueMode && isViewerReady && selectedImage && !lockFootprint) {
+    if (isObliqueMode && isRuntimeReady && selectedImage && !lockFootprint) {
       requestRender({ delay: 500, repeat: 10, repeatInterval: 200 });
     }
   }, [
     isObliqueMode,
-    isViewerReady,
+    isRuntimeReady,
     requestRender,
     selectedImage,
     lockFootprint,

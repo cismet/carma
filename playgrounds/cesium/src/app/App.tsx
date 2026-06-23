@@ -1,12 +1,12 @@
-import React, { useRef } from "react";
+import React from "react";
 import { HashRouter, Route, Routes } from "react-router-dom";
 
 import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextProvider";
 
 import {
-  CustomViewer,
+  CesiumHost,
   CesiumContextProvider,
-} from "@carma-mapping/engines/cesium/legacy";
+} from "@carma-mapping/engines/cesium/react/runtime";
 import { HashStateProvider } from "@carma-providers/hash-state";
 import {
   BASEMAP_METROPOLE_RUHR_WMS_GRAUBLAU,
@@ -14,7 +14,6 @@ import {
   WUPP_MESH_2024,
   WUPP_TERRAIN_PROVIDER,
 } from "@carma-commons/resources";
-
 import { Navigation } from "./components/Navigation";
 import { viewerRoutes, otherRoutes } from "./routes";
 import { routeGenerator } from "./utils/routeGenerator";
@@ -27,8 +26,6 @@ const ViewerRoutes = routeGenerator(viewerRoutes);
 const OtherRoutes = routeGenerator(otherRoutes);
 
 export function App() {
-  const viewerContainerRef = useRef<HTMLDivElement>(null);
-
   return (
     <CesiumContextProvider
       //initialViewerState={defaultViewerState}
@@ -69,14 +66,7 @@ export function App() {
                       height: "100vh",
                     }}
                   >
-                    <div
-                      ref={viewerContainerRef}
-                      style={{ position: "absolute", inset: 0 }}
-                    />
-                    <CustomViewer
-                      containerRef={viewerContainerRef}
-                      homeValidationCenter={CESIUM_HOME_POSITION}
-                    />
+                    <CesiumHost homeValidationCenter={CESIUM_HOME_POSITION} />
                     <div
                       style={{
                         pointerEvents: "none",

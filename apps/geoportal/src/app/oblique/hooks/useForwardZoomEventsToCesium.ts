@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { MutableRefObject } from "react";
-import { useCesiumContext } from "@carma-mapping/engines/cesium/legacy";
+import { useCesiumContext } from "@carma-mapping/engines/cesium/react/runtime";
 import { useCesiumFovWheelZoom } from "@carma-mapping/engines/cesium/react/interactions";
 
 const handledNativeEvents = new WeakSet<Event>();

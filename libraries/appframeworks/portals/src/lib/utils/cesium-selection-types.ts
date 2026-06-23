@@ -1,4 +1,4 @@
-import type { CesiumOptions } from "@carma-mapping/engines/cesium/legacy";
+import type { CesiumOptions } from "@carma-mapping/engines/cesium/react/runtime";
 
 export type HitTriggerOptions = {
   mapOptions: CesiumOptions;

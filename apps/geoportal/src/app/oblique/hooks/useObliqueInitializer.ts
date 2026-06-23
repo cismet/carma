@@ -8,7 +8,7 @@ import {
   useCesiumFovWheelZoom,
 } from "@carma-mapping/engines/cesium/react/interactions";
 
-import { useCesiumContext } from "@carma-mapping/engines/cesium/legacy";
+import { useCesiumContext } from "@carma-mapping/engines/cesium/react/runtime";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
 import { useOblique } from "./useOblique";
@@ -86,7 +86,7 @@ export function useObliqueInitializer(debug = false) {
   );
 
   useEffect(() => {
-    // Always set the zoom handler state based on oblique mode; the hook will defer attaching until a viewer exists
+    // Always set the zoom handler state based on oblique mode; the hook will defer attaching until a runtime exists
     setWheelZoomEnabled(isObliqueMode);
 
     if (!initialViewApplied) {

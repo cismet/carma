@@ -3,7 +3,7 @@ import { Button, Table, Typography, Modal } from "antd";
 import { Math as CesiumMath } from "cesium";
 import "./TraverseTable.css";
 import { TraverseMeasurementEntry } from "../types/MeasurementTypes";
-import { useCesiumViewer } from "../../contexts/CesiumViewerContext";
+import { useCesiumRuntime } from "../../contexts/CesiumViewerContext";
 import { CoordinateDisplayMode, useCRS } from "../CRSContext";
 import { useCesiumMeasurements } from "../CesiumMeasurementsContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -36,7 +36,7 @@ const TraverseTable: FC<TraverseTableProps> = ({ traverse }) => {
   const { coordinateDisplayMode, toCartographic } = useCRS();
   const { setReferencePoint, setMeasurements, referenceElevation } =
     useCesiumMeasurements();
-  const { viewer } = useCesiumViewer();
+  const { viewer } = useCesiumRuntime();
   const [infoModalVisible, setInfoModalVisible] = useState(false);
   const tableDataSource = useMemo((): TableRecord[] => {
     if (!viewer) return [];

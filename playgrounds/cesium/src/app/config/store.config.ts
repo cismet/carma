@@ -1,9 +1,8 @@
 import { Cartesian3 } from "cesium";
 
 import { WUPPERTAL } from "@carma-commons/resources";
-import { CesiumState } from "@carma-mapping/engines/cesium/legacy";
+import { CesiumState } from "@carma-mapping/engines/cesium/react/runtime";
 
-import { FOOTPRINT_GEOJSON_SOURCES } from "./dataSources.config";
 import { MODEL_ASSETS } from "./assets.config";
 
 // SETUP Store State
@@ -26,9 +25,6 @@ export const defaultViewerState: CesiumState = {
     tileset: {
       opacity: 1.0,
     },
-  },
-  dataSources: {
-    footprintGeoJson: FOOTPRINT_GEOJSON_SOURCES.VORONOI,
   },
   models: MODEL_ASSETS,
 };

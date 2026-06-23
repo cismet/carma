@@ -6,7 +6,6 @@ import {
   type MutableRefObject,
   type ReactNode,
 } from "react";
-import type { Viewer } from "cesium";
 import {
   Cartesian3,
   Cesium3DTileset,
@@ -29,7 +28,7 @@ import {
 import {
   CesiumContext,
   type CesiumContextType,
-} from "@carma-mapping/engines/cesium/legacy";
+} from "@carma-mapping/engines/cesium/react/runtime";
 
 const requestRenderWithOptions = (
   scene: Scene | null,
@@ -156,16 +155,15 @@ export function CesiumWidgetContainer({
   children,
 }: CesiumWidgetContainerProps) {
   const cesiumContainerRef = useRef<HTMLDivElement>(null);
-  const viewerRef = useRef<Viewer | null>(null);
   const sceneAnimationMapRef = useRef<SceneAnimationMap | null>(null);
   const shouldSuspendPitchLimiterRef = useRef(false);
   const shouldSuspendCameraLimitersRef = useRef(false);
-  const widgetRef = useRef<CesiumWidget | null>(null);
+  const runtimeRef = useRef<CesiumWidget | null>(null);
   const terrainProviderRef = useRef<CesiumTerrainProvider | null>(null);
   const surfaceProviderRef = useRef<CesiumTerrainProvider | null>(null);
   const tilesetRef = useRef<Cesium3DTileset | null>(null);
   const [providersReady, setProvidersReady] = useState(false);
-  const [isViewerReady, setIsViewerReady] = useState(false);
+  const [isRuntimeReady, setIsRuntimeReady] = useState(false);
   const [initialViewApplied, setInitialViewApplied] = useState(true);
 
   useEffect(() => {
@@ -181,8 +179,8 @@ export function CesiumWidgetContainer({
         return;
       }
 
-      widgetRef.current = widget;
-      setIsViewerReady(true);
+      runtimeRef.current = widget;
+      setIsRuntimeReady(true);
       setInitialViewApplied(true);
 
       const [providers, tileset] = await Promise.all([
@@ -209,12 +207,12 @@ export function CesiumWidgetContainer({
     return () => {
       disposed = true;
       setProvidersReady(false);
-      setIsViewerReady(false);
+      setIsRuntimeReady(false);
       terrainProviderRef.current = null;
       surfaceProviderRef.current = null;
       tilesetRef.current = null;
-      const widget = widgetRef.current;
-      widgetRef.current = null;
+      const widget = runtimeRef.current;
+      runtimeRef.current = null;
       if (widget && !widget.isDestroyed()) {
         widget.destroy();
       }
@@ -223,55 +221,76 @@ export function CesiumWidgetContainer({
 
   const contextValue = useMemo<CesiumContextType>(() => {
     const getScene = () => {
-      const widget = widgetRef.current;
+      const widget = runtimeRef.current;
       if (!widget || widget.isDestroyed()) return null;
       return widget.scene;
     };
 
-    const withScene = (cb: (scene: Scene, viewer: Viewer) => void): boolean => {
+    const withRuntime = (cb: (runtime: CesiumWidget) => void): boolean => {
+      const runtime = runtimeRef.current;
+      if (!runtime || runtime.isDestroyed()) return false;
+      cb(runtime);
+      return true;
+    };
+
+    const withScene = (
+      cb: (scene: Scene, runtime: CesiumWidget) => void
+    ): boolean => {
       const scene = getScene();
-      if (!scene) return false;
-      cb(scene, viewerRef.current as Viewer);
+      const runtime = runtimeRef.current;
+      if (!scene || !runtime || runtime.isDestroyed()) return false;
+      cb(scene, runtime);
       return true;
     };
 
     return {
-      viewerRef: viewerRef as MutableRefObject<Viewer | null>,
+      runtimeRef: runtimeRef as MutableRefObject<CesiumWidget | null>,
       sceneAnimationMapRef:
         sceneAnimationMapRef as MutableRefObject<SceneAnimationMap | null>,
       shouldSuspendPitchLimiterRef,
       shouldSuspendCameraLimitersRef,
-      isViewerReady,
-      setIsViewerReady,
+      isRuntimeReady,
+      setIsRuntimeReady,
       providersReady,
       initialViewApplied,
       setInitialViewApplied,
       requestRender: (opts) => requestRenderWithOptions(getScene(), opts),
-      isValidViewer: () => false,
-      withViewer: () => false,
-      withCamera: () => false,
-      withCanvas: () => false,
+      isValidRuntime: () => {
+        const runtime = runtimeRef.current;
+        return Boolean(runtime && !runtime.isDestroyed());
+      },
+      withRuntime,
+      withCamera: (cb) =>
+        withRuntime((runtime) => {
+          cb(runtime.camera, runtime);
+        }),
+      withCanvas: (cb) =>
+        withRuntime((runtime) => {
+          cb(runtime.canvas, runtime);
+        }),
       withScene,
-      withEntities: () => false,
       withImageryLayer: () => false,
       withPrimaryTileset: (cb) => {
+        const runtime = runtimeRef.current;
         const tileset = tilesetRef.current;
-        if (!tileset) return false;
-        cb(tileset, viewerRef.current as Viewer);
+        if (!tileset || !runtime || runtime.isDestroyed()) return false;
+        cb(tileset, runtime);
         return true;
       },
       withSecondaryTileset: () => false,
       withEllipsoidTerrainProvider: () => false,
       withTerrainProvider: (cb) => {
+        const runtime = runtimeRef.current;
         const provider = terrainProviderRef.current;
-        if (!provider) return false;
-        cb(provider, viewerRef.current as Viewer);
+        if (!provider || !runtime || runtime.isDestroyed()) return false;
+        cb(provider, runtime);
         return true;
       },
       withSurfaceProvider: (cb) => {
+        const runtime = runtimeRef.current;
         const provider = surfaceProviderRef.current;
-        if (!provider) return false;
-        cb(provider, viewerRef.current as Viewer);
+        if (!provider || !runtime || runtime.isDestroyed()) return false;
+        cb(provider, runtime);
         return true;
       },
       getTerrainProvider: () => terrainProviderRef.current,
@@ -279,7 +298,7 @@ export function CesiumWidgetContainer({
       getImageryLayer: () => null as ImageryLayer | null,
       getScene,
     };
-  }, [initialViewApplied, isViewerReady, providersReady]);
+  }, [initialViewApplied, isRuntimeReady, providersReady]);
 
   return (
     <div

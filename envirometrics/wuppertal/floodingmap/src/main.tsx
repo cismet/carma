@@ -22,7 +22,7 @@ import {
   MapFrameworkSwitcherProvider,
   type CarmaMapFramework,
 } from "@carma-mapping/components";
-import { CesiumContextProvider } from "@carma-mapping/engines/cesium/legacy";
+import { CesiumContextProvider } from "@carma-mapping/engines/cesium/react/runtime";
 import { setupCesiumEnvironment } from "@carma-mapping/engines/cesium/core";
 import { HashStateProvider } from "@carma-providers/hash-state";
 

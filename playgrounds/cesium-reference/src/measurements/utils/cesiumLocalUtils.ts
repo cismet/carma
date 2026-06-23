@@ -1,6 +1,14 @@
 import { Viewer } from "cesium";
 import { handleDelayedRender } from "@carma-commons/dom/window";
-import { withValidViewer } from "@carma-mapping/engines/cesium/legacy";
+
+const withValidViewer = (viewer: Viewer | null, cb: (viewer: Viewer) => void) => {
+  if (!viewer || viewer.isDestroyed()) {
+    return false;
+  }
+
+  cb(viewer);
+  return true;
+};
 
 /**
  * Local Cesium context utilities (can be replaced by context later)

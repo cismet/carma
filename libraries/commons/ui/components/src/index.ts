@@ -55,6 +55,12 @@ export {
   type ResponsiveStatusBarProps,
 } from "./lib/components/ResponsiveStatusBar";
 export {
+  useHostElementSize,
+  useHostElementSizeRef,
+  type HostElementSize,
+  type HostElementSizeRef,
+} from "./lib/hooks/useHostElementSize";
+export {
   ANNOTATION_CURSOR_DEFAULT_AURA_PADDING_PX,
   ANNOTATION_CURSOR_DEFAULT_CANVAS_SIZE_PX,
   ANNOTATION_CURSOR_DEFAULT_PATH_DEFINITIONS,

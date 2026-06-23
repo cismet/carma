@@ -3,7 +3,7 @@ import { useMemo, useState, useEffect } from "react";
 import { defined } from "cesium";
 
 import { usePointLabels, type PointLabelData } from "../../overlay";
-import { useCesiumViewer } from "../../contexts/CesiumViewerContext";
+import { useCesiumRuntime } from "../../contexts/CesiumViewerContext";
 import { PointMeasurementEntry } from "../types/MeasurementTypes";
 import { formatNumberToEnclosed } from "../utils/cesiumLabels";
 import {
@@ -20,7 +20,7 @@ export const useCesiumPointLabels = (
   showLabels: boolean,
   referenceElevation: number = 0
 ) => {
-  const { viewer } = useCesiumViewer();
+  const { viewer } = useCesiumRuntime();
   const [occlusionResults, setOcclusionResults] = useState<
     Record<string, boolean>
   >({});

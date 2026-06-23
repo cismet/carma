@@ -7,7 +7,7 @@ import localForage from "localforage";
 import {
   getCesiumConfig,
   cesiumReducer,
-} from "@carma-mapping/engines/cesium/legacy";
+} from "@carma-mapping/engines/cesium/react/runtime";
 import { HASH_LAUNCH_MODE } from "@carma-commons/utils";
 
 import { APP_KEY, STORAGE_PREFIX } from "../config";

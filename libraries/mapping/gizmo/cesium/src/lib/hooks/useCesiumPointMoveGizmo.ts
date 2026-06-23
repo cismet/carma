@@ -19,7 +19,7 @@ import {
 import {
   createRotationAxisVisualizer,
   type RotationAxisVisualizer,
-} from "@carma-mapping/engines/cesium/legacy";
+} from "@carma-mapping/engines/cesium/react/runtime";
 import { AXIS_NUMERIC_EPSILON, toSvgPathD } from "@carma-mapping/gizmo/core";
 import { useLabelOverlay } from "@carma-providers/label-overlay";
 import {

@@ -59,15 +59,15 @@ import {
 } from "@carma-commons/utils";
 
 import {
-  CustomViewer,
+  CesiumHost,
   Compass,
   selectShowPrimaryTileset,
-  selectViewerModels,
+  selectCesiumRuntimeModels,
   useCesiumContext,
   useZoomControls as useZoomControlsCesium,
   setCurrentSceneStyle,
   SceneStyleToggle,
-} from "@carma-mapping/engines/cesium/legacy";
+} from "@carma-mapping/engines/cesium/react/runtime";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { type SearchResultItem } from "@carma-mapping/fuzzy-search";
@@ -160,7 +160,6 @@ export const CarmaMap = ({
   const dispatch = useDispatch();
 
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const container3dMapRef = useRef<HTMLDivElement>(null);
 
   // url param handling
   const [urlParams, setUrlParams] = useSearchParams();
@@ -192,14 +191,14 @@ export const CarmaMap = ({
   const backgroundLayer = useSelector(getBackgroundLayer);
   const selectedMapLayer = useSelector(getSelectedMapLayer);
 
-  const models = useSelector(selectViewerModels);
+  const models = useSelector(selectCesiumRuntimeModels);
   const markerAsset = models[CESIUM_CONFIG.markerKey]; //
   const markerAnchorHeight = CESIUM_CONFIG.markerAnchorHeight ?? 10;
   const layers = useSelector(getLayers);
   const uiMode = useSelector(getUIMode);
   const showFullscreenButton = useSelector(getShowFullscreenButton);
   const ctx = useCesiumContext();
-  const { viewerRef } = ctx;
+  const { runtimeRef } = ctx;
 
   const {
     handleZoomIn: handleZoomInCesium,
@@ -253,7 +252,7 @@ export const CarmaMap = ({
   };
 
   useEffect(() => {
-    if (viewerRef.current && backgroundLayer) {
+    if (runtimeRef.current && backgroundLayer) {
       if (backgroundLayer.id === MANAGED_BACKGROUND_LAYERS.ORTHO) {
         dispatch(setCurrentSceneStyle("primary"));
       } else {
@@ -300,7 +299,7 @@ export const CarmaMap = ({
   };
 
   const onHomeClick = () => {
-    ctx.withViewer((viewer) => {
+    ctx.withRuntime((viewer) => {
       viewer.camera.flyHome(0.5);
       viewer.scene.requestRender();
     });
@@ -386,23 +385,23 @@ export const CarmaMap = ({
           }
         }
         const provider = hgkTerrainProviders[hqKey];
-        if (viewerRef.current && provider) {
+        if (runtimeRef.current && provider) {
           setTimeout(() => {
             // overwrite default terrain provider
             console.debug("set HGK terrain provider for", hqKey, provider);
-            const viewer = viewerRef.current;
+            const viewer = runtimeRef.current;
             viewer.scene.terrainProvider = provider;
             viewer.scene.requestRender();
           }, 500);
         }
       })();
     }
-  }, [hqKey, viewerRef]);
+  }, [hqKey, runtimeRef]);
 
   useEffect(() => {
-    if (isCesium && viewerRef.current) {
+    if (isCesium && runtimeRef.current) {
       setTimeout(() => {
-        const viewer = viewerRef.current;
+        const viewer = runtimeRef.current;
         setCurrentSceneStyle("primary");
         console.debug("force hide default imagery layer hgk");
         viewer.scene.backgroundColor = Color.DIMGREY;
@@ -419,7 +418,7 @@ export const CarmaMap = ({
         viewer.scene.requestRender();
       }, 300);
     }
-  }, [isCesium, viewerRef]);
+  }, [isCesium, runtimeRef]);
 
   console.debug("CARMAMAP render hgk", hqKey);
 
@@ -543,8 +542,13 @@ export const CarmaMap = ({
             </TopicMapComponent>
           </div>
           {allow3d && (
-            <div
-              ref={container3dMapRef}
+            /*
+              Legacy hash sync intentionally removed.
+              If 3D URL sync is needed again here, replace this with the current
+              `ViewStateProvider` + `ViewStateNavigationManagerProvider`
+              pattern instead of `onSceneChange` + legacy camera hash encoding.
+            */
+            <CesiumHost
               className={"map-container-3d"}
               style={{
                 position: "absolute",
@@ -557,19 +561,9 @@ export const CarmaMap = ({
                 transition: `opacity ${CESIUM_CONFIG.transitions.mapMode.duration}ms ease-in-out`,
                 pointerEvents: isLeaflet ? "none" : "auto",
               }}
-            >
-              {/*
-                Legacy hash sync intentionally removed.
-                If 3D URL sync is needed again here, replace this with the current
-                `ViewStateProvider` + `ViewStateNavigationManagerProvider`
-                pattern instead of `onSceneChange` + legacy camera hash encoding.
-              */}
-              <CustomViewer
-                containerRef={container3dMapRef}
-                cameraLimiterOptions={CESIUM_CONFIG.camera}
-                homeValidationCenter={CESIUM_HOME_POSITION}
-              ></CustomViewer>
-            </div>
+              cameraLimiterOptions={CESIUM_CONFIG.camera}
+              homeValidationCenter={CESIUM_HOME_POSITION}
+            />
           )}
         </>
       </ControlLayoutCanvas>

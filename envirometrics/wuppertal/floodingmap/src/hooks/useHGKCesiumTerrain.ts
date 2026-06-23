@@ -1,34 +1,36 @@
 import { useEffect, useState, useRef } from "react";
 
-import { CesiumTerrainProvider } from "cesium";
-import type { Viewer } from "cesium";
+import { CesiumTerrainProvider } from "@carma-cesium";
 
-import { useCesiumContext } from "@carma-mapping/engines/cesium/legacy";
+import {
+  type CesiumRuntime,
+  useCesiumContext,
+} from "@carma-mapping/engines/cesium/react/runtime";
 
 import { prepareSceneForHGK } from "../utils/scene";
 const MAX_RETRIES = 5;
 const RETRY_DELAY = 100;
 
 const terrainProvidersMap = new WeakMap<
-  Viewer,
+  CesiumRuntime,
   Record<string, CesiumTerrainProvider>
 >();
 
 const getProvider = async (
-  viewer: Viewer,
+  runtime: CesiumRuntime,
   hqKey: string,
   HGK_TERRAIN_PROVIDER_URLS: Record<string, string>
 ) => {
-  if (viewer.isDestroyed()) return null;
-  if (!terrainProvidersMap.has(viewer)) {
-    terrainProvidersMap.set(viewer, {});
+  if (runtime.isDestroyed()) return null;
+  if (!terrainProvidersMap.has(runtime)) {
+    terrainProvidersMap.set(runtime, {});
   }
 
-  const viewerTerrainProviders = terrainProvidersMap.get(viewer) ?? {};
+  const runtimeTerrainProviders = terrainProvidersMap.get(runtime) ?? {};
 
-  if (viewerTerrainProviders[hqKey]) {
+  if (runtimeTerrainProviders[hqKey]) {
     console.debug("Existing HQ Terrain Layer Provider found", hqKey);
-    return viewerTerrainProviders[hqKey];
+    return runtimeTerrainProviders[hqKey];
   }
 
   try {
@@ -41,8 +43,8 @@ const getProvider = async (
     const provider = await CesiumTerrainProvider.fromUrl(url);
     console.debug("New HQ Terrain Layer Provider Initialized", hqKey);
 
-    viewerTerrainProviders[hqKey] = provider;
-    terrainProvidersMap.set(viewer, viewerTerrainProviders);
+    runtimeTerrainProviders[hqKey] = provider;
+    terrainProvidersMap.set(runtime, runtimeTerrainProviders);
 
     return provider;
   } catch (e) {
@@ -57,7 +59,7 @@ export const useHGKCesiumTerrain = (
   HGK_KEYS,
   HGK_TERRAIN_PROVIDER_URLS
 ) => {
-  const { viewerRef, isViewerReady } = useCesiumContext();
+  const { runtimeRef, isRuntimeReady } = useCesiumContext();
   const retryTimeoutRef = useRef<number | null>(null);
   const currentAttemptRef = useRef<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
@@ -81,12 +83,12 @@ export const useHGKCesiumTerrain = (
       if (currentAttemptRef.current !== attemptId) return;
 
       if (
-        !isViewerReady ||
-        !viewerRef.current ||
-        viewerRef.current.isDestroyed()
+        !isRuntimeReady ||
+        !runtimeRef.current ||
+        runtimeRef.current.isDestroyed()
       ) {
         console.debug(
-          "hq Key changed, viewer not ready yet",
+          "hq Key changed, runtime not ready yet",
           hqKey,
           selectedSimulation,
           useHws,
@@ -109,33 +111,33 @@ export const useHGKCesiumTerrain = (
       }
 
       console.debug(
-        "hq Key changed, viewer ready",
+        "hq Key changed, runtime ready",
         hqKey,
         selectedSimulation,
         useHws,
         retry
       );
 
-      const viewer = viewerRef.current;
-      if (!viewer) return;
+      const runtime = runtimeRef.current;
+      if (!runtime) return;
 
       setTimeout(() => {
-        !viewer.isDestroyed() && prepareSceneForHGK(viewer);
+        !runtime.isDestroyed() && prepareSceneForHGK(runtime);
       }, 500);
-      viewer.scene.requestRender();
+      runtime.scene.requestRender();
 
-      getProvider(viewer, hqKey, HGK_TERRAIN_PROVIDER_URLS).then((provider) => {
+      getProvider(runtime, hqKey, HGK_TERRAIN_PROVIDER_URLS).then((provider) => {
         if (
           currentAttemptRef.current !== attemptId ||
-          !viewer ||
-          viewer.isDestroyed()
+          !runtime ||
+          runtime.isDestroyed()
         )
           return;
 
-        if (provider && viewer.scene) {
+        if (provider && runtime.scene) {
           try {
-            viewer.scene.terrainProvider = provider;
-            viewer.scene.requestRender();
+            runtime.scene.terrainProvider = provider;
+            runtime.scene.requestRender();
           } catch (e) {
             console.warn("Error applying terrain provider:", e);
           }
@@ -154,8 +156,8 @@ export const useHGKCesiumTerrain = (
   }, [
     isHWS,
     selectedSimulation,
-    viewerRef,
-    isViewerReady,
+    runtimeRef,
+    isRuntimeReady,
     HGK_KEYS,
     HGK_TERRAIN_PROVIDER_URLS,
     retryCount,

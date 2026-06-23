@@ -17,9 +17,9 @@ import { Tooltip } from "antd";
 import { useControls } from "leva";
 
 import {
-  selectViewerIsTransitioning,
+  selectCesiumRuntimeIsTransitioning,
   useCesiumContext,
-} from "@carma-mapping/engines/cesium/legacy";
+} from "@carma-mapping/engines/cesium/react/runtime";
 import { NAVIGATION_KEYBOARD_SHORTCUT_ACTIONS } from "@carma-mapping/engines-interop/navigation-controls";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { ContactMailButton } from "@carma-appframeworks/portals";
@@ -105,7 +105,7 @@ export const ObliqueControls: FC<ObliqueControlsProps> = ({
     shouldSuspendPitchLimiterRef,
     shouldSuspendCameraLimitersRef,
     requestRender,
-    isValidViewer,
+    isValidRuntime,
     withScene,
   } = useCesiumContext();
   const imageId = selectedImage?.record?.id;
@@ -193,7 +193,7 @@ export const ObliqueControls: FC<ObliqueControlsProps> = ({
     };
   }, []);
 
-  const isTransitioning = useSelector(selectViewerIsTransitioning);
+  const isTransitioning = useSelector(selectCesiumRuntimeIsTransitioning);
   // Track last directional move to prefetch ahead in the same direction on arrival
   const lastMoveDirRef = useRef<CardinalDirectionEnum | null>(null);
   // Debounced intent for sibling navigation
@@ -292,7 +292,7 @@ export const ObliqueControls: FC<ObliqueControlsProps> = ({
   // Fly-to handling for next capture (without opening preview)
 
   const flyToCurrentEOWithoutPreview = useCallback(() => {
-    if (!isValidViewer() || !derivedExteriorOrientationRef.current) return;
+    if (!isValidRuntime() || !derivedExteriorOrientationRef.current) return;
     animationInProgressRef.current = true;
     // Choose animation based on whether this fly was triggered by a rotation in preview
     const flyOptions = rotatedFlyPendingRef.current
@@ -326,7 +326,7 @@ export const ObliqueControls: FC<ObliqueControlsProps> = ({
     setSuspendSelectionSearch,
     isPreviewVisible,
     requestRender,
-    isValidViewer,
+    isValidRuntime,
     withScene,
   ]);
 
@@ -562,7 +562,7 @@ export const ObliqueControls: FC<ObliqueControlsProps> = ({
   }, [isObliqueMode]);
 
   useEffect(() => {
-    if (isTransitioning && isValidViewer()) {
+    if (isTransitioning && isValidRuntime()) {
       isDebugMode &&
         console.debug(
           "ObliqueControls: Transitioning to 2D mode disabling oblique mode"
@@ -573,7 +573,7 @@ export const ObliqueControls: FC<ObliqueControlsProps> = ({
       requestRender();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isTransitioning, isValidViewer]);
+  }, [isTransitioning, isValidRuntime]);
 
   useEffect(() => {
     return () => {
@@ -588,7 +588,7 @@ export const ObliqueControls: FC<ObliqueControlsProps> = ({
     }
 
     if (
-      !isValidViewer() ||
+      !isValidRuntime() ||
       !selectedImage ||
       !derivedExteriorOrientationRef.current
     )
@@ -615,7 +615,7 @@ export const ObliqueControls: FC<ObliqueControlsProps> = ({
     setPreviewVisible,
     setLockFootprint,
     derivedExteriorOrientationRef,
-    isValidViewer,
+    isValidRuntime,
     withScene,
   ]);
 
