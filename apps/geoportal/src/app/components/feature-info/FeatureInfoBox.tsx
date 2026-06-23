@@ -88,6 +88,10 @@ const PANORAMA_MIN_HOTSPOT_SEPARATION_DEG = 22;
 const PANORAMA_CAMERA_HEIGHT_M = 2.2;
 const PANORAMA_HOTSPOT_MIN_PITCH = -45;
 const PANORAMA_HOTSPOT_MAX_PITCH = 5;
+// Arrow-key navigation: ↑ jumps to the neighbour nearest the current view, ↓ to
+// the one behind it. Only consider neighbours within this angle of the target
+// direction (a hemisphere), so ↑ never jumps to a pano clearly behind you.
+const PANORAMA_NAV_HEMISPHERE_DEG = 90;
 
 // Wrap an angle (deg) into (-180, 180].
 const normalizeDeg = (deg: number): number => {
@@ -350,12 +354,17 @@ const FeatureInfoBox = ({
     [maplibreMaps, selectedFeature?.id]
   );
 
+  // Latest panorama view yaw (deg), captured from the viewer yaw poll, so the
+  // arrow-key navigation can pick the neighbour nearest the current view.
+  const panoramaYawRef = useRef<number | null>(null);
+
   // Rotate the selected arrow to follow the panorama view direction. The value
   // is an expression on the feature's own `heading` (not a precomputed scalar),
   // so the visible arrow stays correct even in the single frame where the
   // selection moves before the snap effect runs (avoids a heading-flip flicker).
   const handlePanoramaYaw = useCallback(
     (yaw: number) => {
+      panoramaYawRef.current = yaw;
       if (
         !selectedLayerMap ||
         typeof selectedLayerMap.getLayer !== "function" ||
@@ -628,6 +637,37 @@ const FeatureInfoBox = ({
     preloadedPanoramasRef.current = images;
   }, [selectedFeature, neighbourFileNames]);
 
+  // ↑/↓ in the fullscreen viewer: hop to the neighbour nearest the current view
+  // direction (↑) or its opposite (↓). The hotspots already carry each
+  // neighbour's panorama yaw + its navigate handler, so reuse them.
+  const navigatePanoramaTowardView = useCallback(
+    (offsetDeg: number) => {
+      const viewYaw = panoramaYawRef.current ?? PANORAMA_INITIAL_YAW;
+      const targetYaw = viewYaw + offsetDeg;
+      let best: PanoramaHotspot | null = null;
+      let bestDiff = Infinity;
+      for (const hotspot of panoramaHotspots) {
+        const diff = angularDiffDeg(hotspot.yaw, targetYaw);
+        if (diff < bestDiff) {
+          bestDiff = diff;
+          best = hotspot;
+        }
+      }
+      if (best && bestDiff <= PANORAMA_NAV_HEMISPHERE_DEG) {
+        best.clickHandlerFunc?.();
+      }
+    },
+    [panoramaHotspots]
+  );
+  const handlePanoramaNext = useCallback(
+    () => navigatePanoramaTowardView(0),
+    [navigatePanoramaTowardView]
+  );
+  const handlePanoramaPrevious = useCallback(
+    () => navigatePanoramaTowardView(180),
+    [navigatePanoramaTowardView]
+  );
+
   if (loadingFeatureInfo && shouldRenderLoadingInfobox)
     return <LoadingInfoBox />;
 
@@ -774,6 +814,8 @@ const FeatureInfoBox = ({
           title={selectedFeature.properties.title}
           onClose={() => setOpenPanorama(false)}
           onYawChange={handlePanoramaYaw}
+          onNext={handlePanoramaNext}
+          onPrevious={handlePanoramaPrevious}
           hotspots={panoramaHotspots}
           initialYaw={PANORAMA_INITIAL_YAW}
         />

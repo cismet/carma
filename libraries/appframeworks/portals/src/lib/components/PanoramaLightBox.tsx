@@ -42,6 +42,10 @@ interface PanoramaLightBoxProps {
   onClose: () => void;
   /** Called with the viewer's current yaw (deg) as the user looks around. */
   onYawChange?: (yaw: number) => void;
+  /** Arrow Up: navigate to the next position (the parent decides which). */
+  onNext?: () => void;
+  /** Arrow Down: navigate to the previous position (the parent decides which). */
+  onPrevious?: () => void;
   /** Navigation hotspots to the surrounding panoramas. */
   hotspots?: PanoramaHotspot[];
   /** Initial view yaw (deg); rotates the image so it opens facing forward. */
@@ -68,6 +72,8 @@ export const PanoramaLightBox = ({
   multiResConfigUrl,
   onClose,
   onYawChange,
+  onNext,
+  onPrevious,
   hotspots,
   initialYaw,
 }: PanoramaLightBoxProps) => {
@@ -81,6 +87,10 @@ export const PanoramaLightBox = ({
   hotspotsRef.current = hotspots;
   const initialYawRef = useRef(initialYaw);
   initialYawRef.current = initialYaw;
+  const onNextRef = useRef(onNext);
+  onNextRef.current = onNext;
+  const onPreviousRef = useRef(onPrevious);
+  onPreviousRef.current = onPrevious;
 
   // The one reused pannellum viewer (created for the first scene, destroyed on
   // unmount), the yaw-poll rAF handle, a monotonic scene-id counter, and the
@@ -148,6 +158,9 @@ export const PanoramaLightBox = ({
           // fullscreen.
           showZoomCtrl: false,
           showFullscreenCtrl: false,
+          // Free the arrow keys (pannellum pans with them by default) so they
+          // can drive tour navigation instead. Dragging still pans the view.
+          disableKeyboardCtrl: true,
         },
         scenes: { [sceneId]: sceneConfig },
       });
@@ -198,7 +211,15 @@ export const PanoramaLightBox = ({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        onClose();
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        onNextRef.current?.();
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        onPreviousRef.current?.();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
