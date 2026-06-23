@@ -40,17 +40,18 @@ const getRuntimeSyncedSize = (
   ctx: ReturnType<typeof useCesiumContext>,
   overrideFov?: number
 ): number | undefined => {
-  let maxCanvas: number | undefined;
-  let frustum: unknown;
-
   const wDim = getWindowDimensions(window);
   const maxWindow = Math.max(wDim.width, wDim.height);
 
-  ctx.withRuntime((runtime) => {
+  const dims = ctx.withRuntime((runtime) => {
     const { width, height } = getCanvasDimensions(runtime.canvas);
-    maxCanvas = Math.max(width, height);
-    frustum = runtime?.scene?.camera?.frustum;
+    return {
+      maxCanvas: Math.max(width, height),
+      frustum: runtime?.scene?.camera?.frustum as unknown,
+    };
   });
+  const maxCanvas = dims?.maxCanvas;
+  const frustum = dims?.frustum;
 
   const syncedSize = readRuntimeSyncedSizeFromViewport(
     maxCanvas > 0 ? maxCanvas : maxWindow,

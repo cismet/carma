@@ -5,7 +5,6 @@ import type {
   CesiumWidget,
   Cesium3DTileset,
   CesiumTerrainProvider,
-  EllipsoidTerrainProvider,
   ImageryLayer,
   Scene,
 } from "@carma-cesium";
@@ -32,32 +31,34 @@ export interface CesiumContextType {
     repeat?: number; // times
     repeatInterval?: number; // ms
   }) => void;
-  // Shorthands for runtime validation
+  // Guarded, return-value-first runtime access. Each runs cb only when the
+  // runtime (and requested resource) is valid and returns the callback's value,
+  // or undefined when invalid. SYNCHRONOUS-ENTRY-ONLY: validity is not held
+  // across an await — for async work re-acquire after each await and bail on
+  // undefined. Use getScene()/getX():T|null for plain value reads.
   isValidRuntime: () => boolean;
-  withRuntime: (cb: (runtime: CesiumRuntime) => void) => boolean;
-  withCamera: (cb: (camera: Camera, runtime: CesiumRuntime) => void) => boolean;
-  withCanvas: (
-    cb: (canvas: HTMLCanvasElement, runtime: CesiumRuntime) => void
-  ) => boolean;
-  withScene: (cb: (scene: Scene, runtime: CesiumRuntime) => void) => boolean;
-  withImageryLayer: (
-    cb: (imageryLayer: ImageryLayer, scene: Scene) => void
-  ) => boolean;
-  withPrimaryTileset: (
-    cb: (tileset: Cesium3DTileset, runtime: CesiumRuntime) => void
-  ) => boolean;
-  withSecondaryTileset: (
-    cb: (tileset: Cesium3DTileset, runtime: CesiumRuntime) => void
-  ) => boolean;
-  withEllipsoidTerrainProvider: (
-    cb: (provider: EllipsoidTerrainProvider, runtime: CesiumRuntime) => void
-  ) => boolean;
-  withTerrainProvider: (
-    cb: (provider: CesiumTerrainProvider, runtime: CesiumRuntime) => void
-  ) => boolean;
-  withSurfaceProvider: (
-    cb: (provider: CesiumTerrainProvider, runtime: CesiumRuntime) => void
-  ) => boolean;
+  withRuntime: <T>(cb: (runtime: CesiumRuntime) => T) => T | undefined;
+  withScene: <T>(
+    cb: (scene: Scene, runtime: CesiumRuntime) => T
+  ) => T | undefined;
+  withCamera: <T>(
+    cb: (camera: Camera, runtime: CesiumRuntime) => T
+  ) => T | undefined;
+  withImageryLayer: <T>(
+    cb: (imageryLayer: ImageryLayer, scene: Scene) => T
+  ) => T | undefined;
+  withPrimaryTileset: <T>(
+    cb: (tileset: Cesium3DTileset, runtime: CesiumRuntime) => T
+  ) => T | undefined;
+  withSecondaryTileset: <T>(
+    cb: (tileset: Cesium3DTileset, runtime: CesiumRuntime) => T
+  ) => T | undefined;
+  withTerrainProvider: <T>(
+    cb: (provider: CesiumTerrainProvider, runtime: CesiumRuntime) => T
+  ) => T | undefined;
+  withSurfaceProvider: <T>(
+    cb: (provider: CesiumTerrainProvider, runtime: CesiumRuntime) => T
+  ) => T | undefined;
   // Direct getters for terrain providers (don't require runtime)
   getTerrainProvider: () => CesiumTerrainProvider | null;
   getSurfaceProvider: () => CesiumTerrainProvider | null;
@@ -68,11 +69,8 @@ export interface CesiumContextType {
   // 2D <-> 3D transition
   currentTransition: CESIUM_RUNTIME_TRANSITION_STATE;
   isTransitioning: boolean;
-  setTransitionTo2d: () => void;
-  setTransitionTo3d: () => void;
   clearTransition: () => void;
   // scene styles: static config + current selection
-  sceneStyles: SceneStyles | undefined;
   sceneStylePrimary: Partial<SceneStyle> | undefined;
   sceneStyleSecondary: Partial<SceneStyle> | undefined;
   currentSceneStyle: keyof SceneStyles | undefined;
@@ -84,15 +82,10 @@ export interface CesiumContextType {
   showSecondaryTileset: boolean;
   setShowPrimaryTileset: (show: boolean) => void;
   setShowSecondaryTileset: (show: boolean) => void;
-  tilesetOpacity: number;
-  setTilesetOpacity: (opacity: number) => void;
-  // screen-space camera controller bounds
+  // screen-space camera controller bounds (read-only config)
   ssccMinimumZoomDistance: number;
   ssccMaximumZoomDistance: number;
   ssccEnableCollisionDetection: boolean;
-  setSsccMinimumZoomDistance: (distance: number) => void;
-  setSsccMaximumZoomDistance: (distance: number) => void;
-  setSsccEnableCollisionDetection: (enabled: boolean) => void;
   // Camera animation flag. Plain reactive state — flips per-episode (limiter
   // flyTo / orbit toggle), not per-frame, so re-renders are negligible.
   // (Future: derive from a unified animation registry — see

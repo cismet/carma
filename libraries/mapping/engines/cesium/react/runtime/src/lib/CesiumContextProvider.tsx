@@ -3,7 +3,6 @@ import type { ReactNode } from "react";
 import {
   CesiumWidget,
   CesiumTerrainProvider,
-  EllipsoidTerrainProvider,
   ImageryLayer,
   Cesium3DTileset,
   Scene,
@@ -44,7 +43,6 @@ export const CesiumContextProvider = ({
   const sceneAnimationMapRef = useRef<SceneAnimationMap | null>(
     initSceneAnimationMap()
   );
-  const ellipsoidTerrainProviderRef = useRef(new EllipsoidTerrainProvider());
   const terrainProviderRef = useRef<CesiumTerrainProvider | null>(null);
   const surfaceProviderRef = useRef<CesiumTerrainProvider | null>(null);
   const imageryLayerRef = useRef<ImageryLayer | null>(null);
@@ -79,23 +77,11 @@ export const CesiumContextProvider = ({
   );
   const [showSecondaryTileset, setShowSecondaryTilesetState] =
     useState<boolean>(defaultRuntimeState?.showSecondaryTileset ?? false);
-  const [tilesetOpacity, setTilesetOpacityState] = useState<number>(
-    defaultRuntimeState?.styling?.tileset?.opacity ?? 1.0
-  );
-  const [ssccMinimumZoomDistance, setSsccMinimumZoomDistanceState] =
-    useState<number>(
-      defaultRuntimeState?.sceneSpaceCameraController?.minimumZoomDistance ?? 1
-    );
-  const [ssccMaximumZoomDistance, setSsccMaximumZoomDistanceState] =
-    useState<number>(
-      defaultRuntimeState?.sceneSpaceCameraController?.maximumZoomDistance ??
-        Infinity
-    );
-  const [ssccEnableCollisionDetection, setSsccEnableCollisionDetectionState] =
-    useState<boolean>(
-      defaultRuntimeState?.sceneSpaceCameraController
-        ?.enableCollisionDetection ?? false
-    );
+  // Read-only screen-space-camera-controller bounds (config, never mutated).
+  const sscc = defaultRuntimeState?.sceneSpaceCameraController;
+  const ssccMinimumZoomDistance = sscc?.minimumZoomDistance ?? 1;
+  const ssccMaximumZoomDistance = sscc?.maximumZoomDistance ?? Infinity;
+  const ssccEnableCollisionDetection = sscc?.enableCollisionDetection ?? false;
 
   const isTransitioning =
     currentTransition !== CESIUM_RUNTIME_TRANSITION_STATE.NONE;
@@ -105,14 +91,6 @@ export const CesiumContextProvider = ({
   const [isAnimating, setIsAnimating] = useState<boolean>(false);
 
   // Setters (stable identities)
-  const setTransitionTo2d = useCallback(
-    () => setCurrentTransition(CESIUM_RUNTIME_TRANSITION_STATE.TO2D),
-    []
-  );
-  const setTransitionTo3d = useCallback(
-    () => setCurrentTransition(CESIUM_RUNTIME_TRANSITION_STATE.TO3D),
-    []
-  );
   const clearTransition = useCallback(
     () => setCurrentTransition(CESIUM_RUNTIME_TRANSITION_STATE.NONE),
     []
@@ -136,23 +114,6 @@ export const CesiumContextProvider = ({
     (show: boolean) => setShowSecondaryTilesetState(show),
     []
   );
-  const setTilesetOpacity = useCallback(
-    (opacity: number) => setTilesetOpacityState(opacity),
-    []
-  );
-  const setSsccMinimumZoomDistance = useCallback(
-    (distance: number) => setSsccMinimumZoomDistanceState(distance),
-    []
-  );
-  const setSsccMaximumZoomDistance = useCallback(
-    (distance: number) => setSsccMaximumZoomDistanceState(distance),
-    []
-  );
-  const setSsccEnableCollisionDetection = useCallback(
-    (enabled: boolean) => setSsccEnableCollisionDetectionState(enabled),
-    []
-  );
-
   const getScene = useCallback((): Scene | null => {
     if (runtimeRef.current && !runtimeRef.current.isDestroyed()) {
       const scene = runtimeRef.current.scene;
@@ -206,7 +167,6 @@ export const CesiumContextProvider = ({
     primaryTilesetRef,
     secondaryTilesetRef,
     terrainProviderRef,
-    ellipsoidTerrainProviderRef,
     surfaceProviderRef
   );
 
@@ -324,10 +284,7 @@ export const CesiumContextProvider = ({
       // runtime UI state (formerly the cesium redux slice)
       currentTransition,
       isTransitioning,
-      setTransitionTo2d,
-      setTransitionTo3d,
       clearTransition,
-      sceneStyles,
       sceneStylePrimary,
       sceneStyleSecondary,
       currentSceneStyle,
@@ -338,14 +295,9 @@ export const CesiumContextProvider = ({
       showSecondaryTileset,
       setShowPrimaryTileset,
       setShowSecondaryTileset,
-      tilesetOpacity,
-      setTilesetOpacity,
       ssccMinimumZoomDistance,
       ssccMaximumZoomDistance,
       ssccEnableCollisionDetection,
-      setSsccMinimumZoomDistance,
-      setSsccMaximumZoomDistance,
-      setSsccEnableCollisionDetection,
       isAnimating,
       setIsAnimating,
       ...instanceCallbacks,
@@ -361,10 +313,7 @@ export const CesiumContextProvider = ({
       requestRender,
       currentTransition,
       isTransitioning,
-      setTransitionTo2d,
-      setTransitionTo3d,
       clearTransition,
-      sceneStyles,
       sceneStylePrimary,
       sceneStyleSecondary,
       currentSceneStyle,
@@ -375,14 +324,9 @@ export const CesiumContextProvider = ({
       showSecondaryTileset,
       setShowPrimaryTileset,
       setShowSecondaryTileset,
-      tilesetOpacity,
-      setTilesetOpacity,
       ssccMinimumZoomDistance,
       ssccMaximumZoomDistance,
       ssccEnableCollisionDetection,
-      setSsccMinimumZoomDistance,
-      setSsccMaximumZoomDistance,
-      setSsccEnableCollisionDetection,
       isAnimating,
       setIsAnimating,
       instanceCallbacks,

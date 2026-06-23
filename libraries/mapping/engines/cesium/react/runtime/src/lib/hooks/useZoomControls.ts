@@ -69,6 +69,7 @@ const fovZoom = (
       minimumFovRad: minFov,
       maximumFovRad: maxFov,
     });
+    return true;
   });
 
   if (!hasScene) return;

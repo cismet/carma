@@ -1,29 +1,30 @@
 import { useEffect } from "react";
 
-import { guardScene } from "../utils/guardScene";
-import { guardTileset } from "../utils/guardTileset";
 import { useCesiumContext } from "./useCesiumContext";
 import { useSecondaryStyleTilesetClickHandler } from "./useSecondaryStyleTilesetClickHandler";
+
+// withPrimaryTileset/withSecondaryTileset already validate runtime + tileset
+// synchronously, so the callback args (scene, tileset) are live — no inner
+// guardScene/guardTileset re-check needed.
 export const useTilesets = () => {
   const ctx = useCesiumContext();
-  const { showPrimaryTileset: showPrimary, showSecondaryTileset: showSecondary } = ctx;
+  const {
+    showPrimaryTileset: showPrimary,
+    showSecondaryTileset: showSecondary,
+  } = ctx;
 
+  // Add primary tileset to the scene once it becomes available.
   useEffect(() => {
     let added = false;
     const repeatUntilAdded = () => {
       if (added) return;
       const has = ctx.withPrimaryTileset((tileset, runtime) => {
-        const contains = guardScene(
-          runtime.scene,
-          "useTilesets-primary"
-        ).primitives.contains(tileset);
-        if (!contains) {
-          guardScene(runtime.scene, "useTilesets-primary").primitives.add(
-            tileset
-          );
+        if (!runtime.scene.primitives.contains(tileset)) {
+          runtime.scene.primitives.add(tileset);
         }
-        guardTileset(tileset, "useTilesets-primary").show(showPrimary);
+        tileset.show = showPrimary;
         added = true;
+        return true;
       });
       if (!has) {
         // not yet available -> retry next frame
@@ -34,22 +35,18 @@ export const useTilesets = () => {
     ctx.requestRender();
   }, [ctx, showPrimary]);
 
+  // Add secondary tileset to the scene once it becomes available.
   useEffect(() => {
     let added = false;
     const repeatUntilAdded = () => {
       if (added) return;
       const has = ctx.withSecondaryTileset((tileset, runtime) => {
-        const contains = guardScene(
-          runtime.scene,
-          "useTilesets-secondary"
-        ).primitives.contains(tileset);
-        if (!contains) {
-          guardScene(runtime.scene, "useTilesets-secondary").primitives.add(
-            tileset
-          );
+        if (!runtime.scene.primitives.contains(tileset)) {
+          runtime.scene.primitives.add(tileset);
         }
-        guardTileset(tileset, "useTilesets-secondary").show(showSecondary);
+        tileset.show = showSecondary;
         added = true;
+        return true;
       });
       if (!has) {
         requestAnimationFrame(repeatUntilAdded);
@@ -62,7 +59,7 @@ export const useTilesets = () => {
   useEffect(() => {
     console.debug("HOOK BaseTilesets: showSecondary", showSecondary);
     ctx.withSecondaryTileset((tileset) => {
-      guardTileset(tileset, "useTilesets-secondary").show(showSecondary);
+      tileset.show = showSecondary;
       ctx.requestRender();
     });
   }, [ctx, showSecondary]);
@@ -70,7 +67,7 @@ export const useTilesets = () => {
   useEffect(() => {
     console.debug("HOOK BaseTilesets: showPrimary", showPrimary);
     ctx.withPrimaryTileset((tileset) => {
-      guardTileset(tileset, "useTilesets-primary").show(showPrimary);
+      tileset.show = showPrimary;
       ctx.requestRender();
     });
   }, [ctx, showPrimary]);
@@ -78,13 +75,12 @@ export const useTilesets = () => {
   useSecondaryStyleTilesetClickHandler();
 
   useEffect(() => {
-    // Show/hide tilesets based on style selection
-    // Parent controls when Cesium is visible, not this hook
-    ctx.withPrimaryTileset((tileset) =>
-      guardTileset(tileset, "useTilesets-primary").show(showPrimary)
-    );
-    ctx.withSecondaryTileset((tileset) =>
-      guardTileset(tileset, "useTilesets-secondary").show(showSecondary)
-    );
+    // Show/hide tilesets based on style selection.
+    ctx.withPrimaryTileset((tileset) => {
+      tileset.show = showPrimary;
+    });
+    ctx.withSecondaryTileset((tileset) => {
+      tileset.show = showSecondary;
+    });
   }, [ctx, showPrimary, showSecondary]);
 };

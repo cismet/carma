@@ -27,6 +27,7 @@ const waitAndSetTerrainProvider = (
       runtime.scene.terrainProvider = terrainProvider;
       isTerrainProviderSet = true;
       onReady?.();
+      return true;
     });
     if (!hasProvider) {
       requestAnimationFrame(checkTerrainProvider);
@@ -38,6 +39,7 @@ const waitAndSetTerrainProvider = (
     isTerrainProviderSet = true;
     onReady?.();
     console.debug("[STYLES|TERRAIN|CESIUM] terrainProvider already set");
+    return true;
   });
   if (!isSet) {
     checkTerrainProvider();
