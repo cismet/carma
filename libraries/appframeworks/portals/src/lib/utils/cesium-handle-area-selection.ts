@@ -64,10 +64,15 @@ const handlePolygonSelection = (
   idSelected: string,
   idInverted: string,
   duration: number,
-  { isPrimaryStyle }: CesiumOptions,
+  { selectionClassification }: CesiumOptions,
   skipFlyTo: boolean,
   skipMarkerUpdate: boolean
 ) => {
+  const classificationType =
+    selectionClassification === "tileset"
+      ? ClassificationType.CESIUM_3D_TILE
+      : ClassificationType.BOTH;
+
   // Add/update polygon geometry only if not skipping marker update
   if (!skipMarkerUpdate) {
     // Convert polygon to GroundPrimitive for scene-local selection rendering.
@@ -91,9 +96,7 @@ const handlePolygonSelection = (
       geometryInstances: selectedGeometryInstance,
       allowPicking: false,
       releaseGeometryInstances: false,
-      classificationType: isPrimaryStyle
-        ? ClassificationType.CESIUM_3D_TILE
-        : ClassificationType.BOTH,
+      classificationType,
     });
     // For the inverted polygon
     const invertedPolygonGeometry = new PolygonGeometry({
@@ -115,9 +118,7 @@ const handlePolygonSelection = (
       geometryInstances: invertedGeometryInstance,
       allowPicking: false,
       releaseGeometryInstances: false, // needed to get ID
-      classificationType: isPrimaryStyle
-        ? ClassificationType.CESIUM_3D_TILE
-        : ClassificationType.BOTH,
+      classificationType,
     });
 
     scene.groundPrimitives.add(selectedGroundPrimitive);

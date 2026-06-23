@@ -14,26 +14,27 @@ type SceneStyleToggleProps = {
 };
 
 export const SceneStyleToggle = (props: SceneStyleToggleProps) => {
-  const { currentSceneStyle, toggleCurrentSceneStyle } = useCesiumContext();
-  const isPrimaryStyle = currentSceneStyle === "primary";
+  const { currentSceneStyle, sceneStyleIds, toggleCurrentSceneStyle } =
+    useCesiumContext();
+  const isFirstStyle = currentSceneStyle === sceneStyleIds[0];
   const { onToggle } = props;
   const handleToggle = (e: MouseEvent) => {
     e.preventDefault();
     toggleCurrentSceneStyle();
-    onToggle?.(isPrimaryStyle);
+    onToggle?.(isFirstStyle);
   };
 
   return (
     <ControlButtonStyler
       title={
-        isPrimaryStyle
+        isFirstStyle
           ? "Wechsel zur vereinfachten Ansicht"
           : "Wechsel zur realistischen Ansicht"
       }
       onClick={handleToggle}
     >
       <FontAwesomeIcon
-        icon={isPrimaryStyle ? faCubes : faTreeCity}
+        icon={isFirstStyle ? faCubes : faTreeCity}
       ></FontAwesomeIcon>
     </ControlButtonStyler>
   );

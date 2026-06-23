@@ -1,6 +1,7 @@
 import { Color } from "@carma-cesium";
 
 import {
+  WUPP_MESH_2020,
   WUPP_MESH_2024,
   WUPP_TERRAIN_PROVIDER,
   WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
@@ -12,6 +13,14 @@ import {
 
 import { APP_BASE_PATH } from "../app.config";
 export const CESIUM_PATHNAME = "__cesium__";
+export const FLOODINGMAP_TILESET_IDS = {
+  MESH_2020: "wupp-mesh-2020",
+  MESH_2024: "wupp-mesh-2024",
+} as const;
+export const FLOODINGMAP_TERRAIN_PROVIDER_IDS = {
+  TERRAIN_2020: "terrain-2020",
+  DSM_MESH_2024_1M: "dsm-mesh-2024-1m",
+} as const;
 
 // disable cesium canvas background transparency
 export const CONSTRUCTOR_OPTIONS: CesiumWidgetConstructorOptions = {
@@ -38,11 +47,15 @@ export const CESIUM_CONFIG: CesiumConfig = {
   baseUrl: `${APP_BASE_PATH}${CESIUM_PATHNAME}`,
   pathName: CESIUM_PATHNAME,
   providerConfig: {
-    terrainProvider: WUPP_TERRAIN_PROVIDER,
-    surfaceProvider: WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
+    terrainProviders: {
+      [FLOODINGMAP_TERRAIN_PROVIDER_IDS.TERRAIN_2020]: WUPP_TERRAIN_PROVIDER,
+      [FLOODINGMAP_TERRAIN_PROVIDER_IDS.DSM_MESH_2024_1M]:
+        WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
+    },
   },
   tilesetConfigs: {
-    primary: WUPP_MESH_2024,
+    [FLOODINGMAP_TILESET_IDS.MESH_2020]: WUPP_MESH_2020,
+    [FLOODINGMAP_TILESET_IDS.MESH_2024]: WUPP_MESH_2024,
   },
 };
 

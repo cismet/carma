@@ -6,12 +6,17 @@ import type { CesiumTerrainProvider, ImageryLayer } from "@carma-cesium";
 import {
   loadCesiumTerrainProvider,
   loadCesiumImageryLayer,
+  normalizeImageryLayerConfigs,
+  normalizeTerrainProviderConfigs,
 } from "../utils/cesiumProviders";
 import type { ProviderConfig } from "../utils/cesiumProviders";
 interface ProviderRefs {
-  terrainProviderRef: MutableRefObject<CesiumTerrainProvider | null>;
-  surfaceProviderRef: MutableRefObject<CesiumTerrainProvider | null>;
-  imageryLayerRef: MutableRefObject<ImageryLayer | null>;
+  terrainProviderRefsByIdRef: MutableRefObject<
+    Record<string, CesiumTerrainProvider | null | undefined>
+  >;
+  imageryLayerRefsByIdRef: MutableRefObject<
+    Record<string, ImageryLayer | null | undefined>
+  >;
 }
 
 /**
@@ -34,40 +39,33 @@ export const usePreloadProviders = (
 
       try {
         const promises: Promise<void>[] = [];
+        const terrainProviderConfigs = normalizeTerrainProviderConfigs(config);
+        const imageryLayerConfigs = normalizeImageryLayerConfigs(config);
 
-        // Load terrain provider
-        promises.push(
-          loadCesiumTerrainProvider(
-            refs.terrainProviderRef,
-            config.terrainProvider.url,
-            signal
-          ).then(() => {
-            console.debug("[CESIUM|PRELOAD] Terrain provider ready");
-          })
-        );
-
-        // Load surface provider if configured
-        if (config.surfaceProvider) {
+        for (const [id, terrainProviderConfig] of Object.entries(
+          terrainProviderConfigs
+        )) {
           promises.push(
-            loadCesiumTerrainProvider(
-              refs.surfaceProviderRef,
-              config.surfaceProvider.url,
-              signal
-            ).then(() => {
-              console.debug("[CESIUM|PRELOAD] Surface provider ready");
-            })
+            loadCesiumTerrainProvider(terrainProviderConfig.url, signal).then(
+              (provider) => {
+                if (!signal.aborted) {
+                  refs.terrainProviderRefsByIdRef.current[id] = provider;
+                }
+                console.debug("[CESIUM|PRELOAD] Terrain provider ready", id);
+              }
+            )
           );
         }
 
-        // Load imagery layer if configured
-        if (config.imageryProvider) {
+        for (const [id, imageryLayerConfig] of Object.entries(
+          imageryLayerConfigs
+        )) {
           promises.push(
-            loadCesiumImageryLayer(
-              refs.imageryLayerRef,
-              config.imageryProvider,
-              signal
-            ).then(() => {
-              console.debug("[CESIUM|PRELOAD] Imagery layer ready");
+            loadCesiumImageryLayer(imageryLayerConfig, signal).then((layer) => {
+              if (!signal.aborted) {
+                refs.imageryLayerRefsByIdRef.current[id] = layer;
+              }
+              console.debug("[CESIUM|PRELOAD] Imagery layer ready", id);
             })
           );
         }

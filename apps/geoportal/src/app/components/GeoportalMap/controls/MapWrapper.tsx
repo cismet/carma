@@ -386,7 +386,6 @@ const MapWrapper = () => {
                   enableMobileWarning={true}
                   className="!rounded-t-none !border-t-[1px]"
                   ref={tourRefLabels.toggle2d3d}
-                  disabled={isObliquePreviewVisible}
                   useDisabledStyle={false}
 
                   // nativeTooltip={true}

@@ -5,53 +5,95 @@ import {
   WebMapTileServiceImageryProvider,
 } from "cesium";
 
+import { createResourceInitSignature } from "./resourceSignatures";
+
+export const DEFAULT_TERRAIN_PROVIDER_ID = "terrain";
+export const DEFAULT_SURFACE_PROVIDER_ID = "surface";
+export const DEFAULT_IMAGERY_LAYER_ID = "imagery";
+
+export type TerrainProviderConfig = {
+  url: string;
+};
+
+export type ImageryLayerConfig =
+  | WebMapTileServiceImageryProvider.ConstructorOptions
+  | WebMapServiceImageryProvider.ConstructorOptions;
+
+export type TerrainProviderConfigs = Record<string, TerrainProviderConfig>;
+export type ImageryLayerConfigs = Record<string, ImageryLayerConfig>;
+
 export interface ProviderConfig {
-  surfaceProvider?: {
-    url: string;
-  };
-  terrainProvider: {
-    url: string;
-  };
-  imageryProvider?:
-    | WebMapTileServiceImageryProvider.ConstructorOptions
-    | WebMapServiceImageryProvider.ConstructorOptions;
+  terrainProvider?: TerrainProviderConfig;
+  surfaceProvider?: TerrainProviderConfig;
+  terrainProviders?: TerrainProviderConfigs;
+  imageryProvider?: ImageryLayerConfig;
+  imageryProviders?: ImageryLayerConfigs;
 }
 
 const nativeTileSize = 128;
 
+export const normalizeTerrainProviderConfigs = (
+  config: ProviderConfig
+): TerrainProviderConfigs => ({
+  ...(config.terrainProvider
+    ? { [DEFAULT_TERRAIN_PROVIDER_ID]: config.terrainProvider }
+    : {}),
+  ...(config.surfaceProvider
+    ? { [DEFAULT_SURFACE_PROVIDER_ID]: config.surfaceProvider }
+    : {}),
+  ...(config.terrainProviders ?? {}),
+});
+
+export const normalizeImageryLayerConfigs = (
+  config: ProviderConfig
+): ImageryLayerConfigs => ({
+  ...(config.imageryProvider
+    ? { [DEFAULT_IMAGERY_LAYER_ID]: config.imageryProvider }
+    : {}),
+  ...(config.imageryProviders ?? {}),
+});
+
+export const getTerrainProviderInitSignature = (
+  config: TerrainProviderConfig
+): string =>
+  createResourceInitSignature({
+    type: "CesiumTerrainProvider",
+    url: config.url,
+  });
+
 export const loadCesiumTerrainProvider = async (
-  ref: React.MutableRefObject<CesiumTerrainProvider | null>,
   url: string,
   signal: AbortSignal
-) => {
+): Promise<CesiumTerrainProvider | null> => {
   try {
     const provider = await CesiumTerrainProvider.fromUrl(url);
     if (!signal.aborted) {
-      ref.current = provider;
+      return provider;
     }
   } catch (error) {
     if (!signal.aborted) {
       console.error("Failed to load terrain provider", url, error);
     }
   }
+  return null;
 };
 
 export const loadCesiumWebMapServiceImageryLayer = async (
-  ref: React.MutableRefObject<ImageryLayer | null>,
   config: WebMapServiceImageryProvider.ConstructorOptions,
   signal: AbortSignal
-) => {
+): Promise<ImageryLayer | null> => {
   try {
     const imageryProvider = new WebMapServiceImageryProvider(config);
     const newImageryLayer = new ImageryLayer(imageryProvider);
     if (!signal.aborted) {
-      ref.current = newImageryLayer;
+      return newImageryLayer;
     }
   } catch (error) {
     if (!signal.aborted) {
       console.error("Failed to load imagery provider:", error);
     }
   }
+  return null;
 };
 
 const isWebMapServiceConfig = (
@@ -71,10 +113,9 @@ const isWebMapTileServiceConfig = (
 };
 
 export const loadCesiumWebMapTileServiceImageryLayer = async (
-  ref: React.MutableRefObject<ImageryLayer | null>,
   config: WebMapTileServiceImageryProvider.ConstructorOptions,
   signal: AbortSignal
-) => {
+): Promise<ImageryLayer | null> => {
   try {
     const dpr = window.devicePixelRatio ?? 1;
     const renderSize = Math.floor(nativeTileSize / dpr);
@@ -93,28 +134,27 @@ export const loadCesiumWebMapTileServiceImageryLayer = async (
 
     const newImageryLayer = new ImageryLayer(imageryProvider);
     if (!signal.aborted) {
-      ref.current = newImageryLayer;
+      return newImageryLayer;
     }
   } catch (error) {
     if (!signal.aborted) {
       console.error("Failed to load WMTS imagery provider:", error);
     }
   }
+  return null;
 };
 
 // Generic loader that uses type guards to determine which provider to use
 export const loadCesiumImageryLayer = async (
-  ref: React.MutableRefObject<ImageryLayer | null>,
-  config:
-    | WebMapServiceImageryProvider.ConstructorOptions
-    | WebMapTileServiceImageryProvider.ConstructorOptions,
+  config: ImageryLayerConfig,
   signal: AbortSignal
-) => {
+): Promise<ImageryLayer | null> => {
   if (isWebMapServiceConfig(config)) {
-    return loadCesiumWebMapServiceImageryLayer(ref, config, signal);
+    return loadCesiumWebMapServiceImageryLayer(config, signal);
   } else if (isWebMapTileServiceConfig(config)) {
-    return loadCesiumWebMapTileServiceImageryLayer(ref, config, signal);
+    return loadCesiumWebMapTileServiceImageryLayer(config, signal);
   } else {
     console.error("Unknown imagery provider config type:", config);
   }
+  return null;
 };

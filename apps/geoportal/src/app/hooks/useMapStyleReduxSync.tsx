@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useCesiumContext } from "@carma-mapping/engines/cesium/react/runtime";
 
-import { useMapStyle } from "./useGeoportalMapStyle";
+import { geoportalCesiumSceneStyleByMapStyle } from "../config/mapStyleConfig";
 import { MapStyleKeys } from "../constants/MapStyleKeys";
 import {
   setBackgroundLayer,
@@ -11,6 +11,8 @@ import {
   getBackgroundLayer,
 } from "../store/slices/mapping";
 import type { RootState } from "../store";
+
+import { useMapStyle } from "./useGeoportalMapStyle";
 
 /**
  * Custom hook to determine map layers from map styles and and layer selection
@@ -40,28 +42,30 @@ export const useMapStyleReduxSync = () => {
       dispatch(
         setBackgroundLayer({
           ...selectedMapLayer,
-          id: "karte",
+          id: MapStyleKeys.TOPO,
           visible: backgroundLayer.visible,
           opacity: backgroundLayer.opacity,
         })
       );
-      setCurrentSceneStyle("secondary");
+      setCurrentSceneStyle(geoportalCesiumSceneStyleByMapStyle[currentStyle]);
     } else if (currentStyle === MapStyleKeys.AERIAL) {
       dispatch(
         setBackgroundLayer({
           ...selectedLuftbildLayer,
-          id: "luftbild",
+          id: MapStyleKeys.AERIAL,
           visible: backgroundLayer.visible,
           opacity: backgroundLayer.opacity,
         })
       );
-      setCurrentSceneStyle("primary");
+      setCurrentSceneStyle(geoportalCesiumSceneStyleByMapStyle[currentStyle]);
     }
   }, [
     currentStyle,
     selectedMapLayer,
     selectedLuftbildLayer,
     backgroundLayer.visible,
+    backgroundLayer.opacity,
     dispatch,
+    setCurrentSceneStyle,
   ]);
 };

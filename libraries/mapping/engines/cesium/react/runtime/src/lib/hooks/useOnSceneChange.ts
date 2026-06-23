@@ -77,12 +77,15 @@ const encodeCesiumCamera = (camera: Camera): StringifiedCameraState => {
 
 const toHashParams = (
   cesiumCameraState: StringifiedCameraState,
-  args: { isSecondaryStyle: boolean; isCesiumActive: boolean }
+  args: { currentSceneStyle?: string; isCesiumActive: boolean }
 ) => {
-  const runtimeState = {
-    [CESIUM_RUNTIME_STATE_KEYS.mapStyle]: args.isSecondaryStyle ? "0" : "1",
+  const runtimeState: Record<string, string> = {
     [CESIUM_RUNTIME_STATE_KEYS.is3d]: args.isCesiumActive ? "1" : "0",
   };
+
+  if (args.currentSceneStyle) {
+    runtimeState[CESIUM_RUNTIME_STATE_KEYS.mapStyle] = args.currentSceneStyle;
+  }
 
   const hashParams = cesiumCameraState.reduce((acc, { key, value }) => {
     acc[key] = value;
@@ -96,15 +99,13 @@ export const useOnSceneChange = (
   onSceneChange?: (
     e: { hashParams: Record<string, string> },
     runtime?: CesiumRuntime,
-    cesiumCameraState?: StringifiedCameraState | null,
-    isSecondaryStyle?: boolean
+    cesiumCameraState?: StringifiedCameraState | null
   ) => void,
   isCesiumActive: boolean = true
 ) => {
   const ctx = useCesiumContext();
-  const { showSecondaryTileset: isSecondaryStyle, isTransitioning } = ctx;
+  const { currentSceneStyle, isTransitioning } = ctx;
 
-  // todo handle style change explicitly not via tileset, is secondarystyle
   // todo consider declaring changed part of state in the callback, not full state only
 
   useEffect(() => {
@@ -115,7 +116,7 @@ export const useOnSceneChange = (
     if (ctx.isValidRuntime() && isCesiumActive) {
       console.debug(
         "HOOK: update Hash, route or style changed",
-        isSecondaryStyle
+        currentSceneStyle
       );
       let cameraState: StringifiedCameraState | null = null;
       ctx.withCamera((camera) => {
@@ -125,14 +126,14 @@ export const useOnSceneChange = (
         return;
       }
       const hashParams = toHashParams(cameraState, {
-        isSecondaryStyle,
+        currentSceneStyle,
         isCesiumActive,
       });
       hashParams.zoom = "";
       onSceneChange({ hashParams });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ctx, isCesiumActive, isSecondaryStyle, isTransitioning]);
+  }, [ctx, isCesiumActive, currentSceneStyle, isTransitioning]);
 
   useEffect(() => {
     // update hash hook
@@ -154,7 +155,7 @@ export const useOnSceneChange = (
         if (camera && isCesiumActive) {
           console.debug(
             "LISTENER: Cesium moveEndListener encode runtime to hash",
-            isSecondaryStyle
+            currentSceneStyle
           );
 
           let cameraState: StringifiedCameraState | null = null;
@@ -163,7 +164,7 @@ export const useOnSceneChange = (
             return;
           }
           const hashParams = toHashParams(cameraState, {
-            isSecondaryStyle,
+            currentSceneStyle,
             isCesiumActive,
           });
           onSceneChange({ hashParams });
@@ -180,7 +181,7 @@ export const useOnSceneChange = (
         });
       };
     }
-  }, [ctx, isSecondaryStyle, isCesiumActive, onSceneChange, isTransitioning]);
+  }, [ctx, currentSceneStyle, isCesiumActive, onSceneChange, isTransitioning]);
 };
 
 export default useOnSceneChange;

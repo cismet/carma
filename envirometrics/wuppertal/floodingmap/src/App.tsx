@@ -49,6 +49,7 @@ import {
 } from "@carma-mapping/engines-interop/view-state";
 import {
   CesiumHost,
+  type CesiumOptions,
   type CesiumHostState,
   PitchingCompass,
   useCesiumContext,
@@ -145,12 +146,9 @@ function FloodingmapAppContent({ sync = false }: { sync?: boolean }) {
   const cesiumReadyPromiseRef = useRef<Promise<void> | null>(null);
   const cesiumReadyResolversRef = useRef<Array<() => void>>([]);
 
-  const handleCesiumHostChange = useCallback(
-    ({ element }: CesiumHostState) => {
-      container3dMapRef.current = element;
-    },
-    []
-  );
+  const handleCesiumHostChange = useCallback(({ element }: CesiumHostState) => {
+    container3dMapRef.current = element;
+  }, []);
 
   // Register map frameworks with switcher
   const leafletMap = routedMap?.leafletMap?.leafletElement ?? null;
@@ -277,11 +275,11 @@ function FloodingmapAppContent({ sync = false }: { sync?: boolean }) {
   useSelectionTopicMap();
   useSelectionCesium(
     getIsCesium,
-    useMemo(
+    useMemo<CesiumOptions>(
       () => ({
         markerAsset,
         markerAnchorHeight,
-        isPrimaryStyle: true,
+        selectionClassification: "tileset",
         withTerrainProvider: (cb) => ctx.withTerrainProvider(cb),
         withSurfaceProvider: (cb) => ctx.withSurfaceProvider(cb),
       }),

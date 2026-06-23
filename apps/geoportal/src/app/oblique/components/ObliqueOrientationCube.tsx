@@ -5,7 +5,6 @@ import { Cartesian3, HeadingPitchRange, Matrix4 } from "@carma-cesium";
 import {
   cancelSceneAnimation,
   cesiumCameraToCssTransform,
-  guardCamera,
   useCesiumContext,
 } from "@carma-mapping/engines/cesium/react/runtime";
 import { pickSceneCenter } from "@carma-mapping/engines/cesium/core";
@@ -207,7 +206,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
       camera.changed.addEventListener(onChanged);
       onChanged();
       cleanup = () => {
-        guardCamera(camera).changed.removeEventListener(onChanged);
+        camera.changed.removeEventListener(onChanged);
       };
     });
     return () => {
