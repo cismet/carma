@@ -684,8 +684,12 @@ const BelisMapLibWrapper = ({
   // Sidebar dismiss: remove a single feature from highlights
   const handleSidebarDismiss = useCallback(
     (feature: SidebarFeature) => {
+      const tStart = performance.now();
       const sl = feature.sourceLayer ?? "";
       const dbId = String(feature.properties?.id ?? feature.id ?? "");
+      console.log(
+        `yyy [SIDEBAR-DISMISS] start | sourceLayer="${sl}" dbId="${dbId}"`
+      );
       // Use the source the sidebar feature was stamped with (set by
       // useMapHighlighting / handleHighlightToggle) and fall back to the
       // regular source if missing — that way both vector and brandnew
@@ -701,6 +705,11 @@ const BelisMapLibWrapper = ({
         const sourceFeatures = map.querySourceFeatures(
           featureSource,
           queryOpts
+        );
+        console.log(
+          `yyy [SIDEBAR-DISMISS-QSF] querySourceFeatures(source="${featureSource}", sourceLayer="${
+            isFeatureGeojson ? "(geojson/all)" : sl
+          }") -> ${sourceFeatures.length} features`
         );
         const match = sourceFeatures.find((f) => {
           if (
@@ -728,6 +737,12 @@ const BelisMapLibWrapper = ({
           return key !== `${sl}::${dbId}`;
         });
       });
+
+      console.log(
+        `yyy [SIDEBAR-DISMISS] done | ${(performance.now() - tStart).toFixed(
+          1
+        )}ms`
+      );
     },
     [map, namespacedSource, ensureToggledFeatures]
   );
@@ -760,7 +775,13 @@ const BelisMapLibWrapper = ({
     active: lassoActive,
     sources: highlightSources,
     onDeactivate: onLassoDeactivate,
-    onToggle: handleHighlightToggle,
+    // NOTE: handleHighlightToggle is intentionally NOT passed here. For the
+    // lasso it is pure waste (~10s of the freeze): the lasso already sets map
+    // state in one batched ensureToggledFeatures, the PIP already caught the
+    // sibling leuchten, and the applyHighlights sweep's onHighlightsApplied
+    // (handleHighlightsApplied) rebuilds the whole sidebar in one pass. So
+    // handleHighlightToggle now fires only on a real alt+click toggle.
+    // onToggle: handleHighlightToggle,
   });
 
   // Brandnew FC poll-and-reload: short cadence in localhost (yellow-border
@@ -2171,13 +2192,21 @@ const BelisMapLibWrapper = ({
 
     let prevMvtId: string | number | undefined;
 
-    const trySelect = () => {
+    const trySelect = (caller = "unknown") => {
       try {
+        const t0 = performance.now();
         const features = map.querySourceFeatures(namespacedSource, {
           sourceLayer,
         });
         const match = features.find(
           (f) => f.properties && String(f.properties.id) === String(dbId)
+        );
+        console.log(
+          `yyy [SEL-OVERRIDE-QSF] called by: ${caller} | querySourceFeatures(sourceLayer="${sourceLayer}") -> ${
+            features.length
+          } features | match=${match?.id != null} | ${(
+            performance.now() - t0
+          ).toFixed(1)}ms`
         );
         if (match?.id != null) {
           if (prevMvtId != null && prevMvtId !== match.id) {
@@ -2197,11 +2226,15 @@ const BelisMapLibWrapper = ({
       }
     };
 
-    trySelect();
-    map.on("sourcedata", trySelect);
+    trySelect("selection-change");
+    const handler = () => {
+      console.log("yyy [SEL-OVERRIDE-PING] sourcedata event fired");
+      trySelect("sourcedata");
+    };
+    map.on("sourcedata", handler);
 
     return () => {
-      map.off("sourcedata", trySelect);
+      map.off("sourcedata", handler);
       if (prevMvtId != null) {
         try {
           map.setFeatureState(
