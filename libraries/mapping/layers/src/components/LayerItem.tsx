@@ -151,7 +151,7 @@ const LayerItem = ({
               addLayer(preview);
             }}
           >
-            Zur {targetModeLabel}-Ansicht wechseln und hinzufügen
+            zur {targetModeLabel}-Ansicht wechseln und hinzufügen
           </Button>
         </span>
       ),
