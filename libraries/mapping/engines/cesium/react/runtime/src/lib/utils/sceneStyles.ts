@@ -25,6 +25,160 @@ const appliedTilesetAppearances = new WeakMap<
   CesiumTilesetSceneMember["appearance"]
 >();
 
+type ImageryRequestImage = (
+  x: number,
+  y: number,
+  level: number,
+  request?: unknown
+) => unknown;
+
+type RequestGatedImageryProvider = {
+  requestImage?: ImageryRequestImage;
+};
+
+type ImageryProviderRequestGate = {
+  originalRequestImage: ImageryRequestImage;
+  knownLayers: Set<unknown>;
+  hiddenLayers: Set<unknown>;
+  blockedRequestCount: number;
+};
+
+type SoftHiddenImageryLayerState = {
+  previousAlpha: number;
+  provider?: RequestGatedImageryProvider;
+};
+
+const imageryProviderRequestGates = new WeakMap<
+  RequestGatedImageryProvider,
+  ImageryProviderRequestGate
+>();
+const softHiddenImageryLayerStates = new WeakMap<
+  unknown,
+  SoftHiddenImageryLayerState
+>();
+
+const destroyManagedCustomShader = (tileset: Cesium3DTileset) => {
+  const shader = managedCustomShaders.get(tileset);
+  if (shader && tileset.customShader === shader) {
+    tileset.customShader = undefined;
+  }
+  if (shader && !shader.isDestroyed()) {
+    shader.destroy();
+  }
+  managedCustomShaders.delete(tileset);
+};
+
+const clearManagedTileStyle = (tileset: Cesium3DTileset) => {
+  const style = managedTileStyles.get(tileset);
+  if (style && tileset.style === style) {
+    tileset.style = undefined;
+  }
+  managedTileStyles.delete(tileset);
+};
+
+const getImageryProvider = (
+  imageryLayer: unknown
+): RequestGatedImageryProvider | undefined =>
+  (imageryLayer as { imageryProvider?: RequestGatedImageryProvider })
+    .imageryProvider;
+
+const forgetLayerFromProviderGate = (
+  imageryLayer: unknown,
+  provider: RequestGatedImageryProvider | undefined
+) => {
+  if (!provider) {
+    return;
+  }
+
+  const gate = imageryProviderRequestGates.get(provider);
+  gate?.knownLayers.delete(imageryLayer);
+  gate?.hiddenLayers.delete(imageryLayer);
+};
+
+const ensureProviderRequestGate = (
+  imageryLayer: unknown
+): ImageryProviderRequestGate | undefined => {
+  const provider = getImageryProvider(imageryLayer);
+  const requestImage = provider?.requestImage;
+  if (!provider || typeof requestImage !== "function") {
+    return undefined;
+  }
+
+  const existingGate = imageryProviderRequestGates.get(provider);
+  if (existingGate) {
+    existingGate.knownLayers.add(imageryLayer);
+    return existingGate;
+  }
+
+  const gate: ImageryProviderRequestGate = {
+    originalRequestImage: requestImage,
+    knownLayers: new Set([imageryLayer]),
+    hiddenLayers: new Set(),
+    blockedRequestCount: 0,
+  };
+
+  provider.requestImage = function (
+    this: RequestGatedImageryProvider,
+    x: number,
+    y: number,
+    level: number,
+    request?: unknown
+  ) {
+    const currentGate = imageryProviderRequestGates.get(provider);
+    if (
+      currentGate &&
+      currentGate.hiddenLayers.size > 0 &&
+      currentGate.hiddenLayers.size === currentGate.knownLayers.size
+    ) {
+      ++currentGate.blockedRequestCount;
+      return undefined;
+    }
+
+    return gate.originalRequestImage.call(this, x, y, level, request);
+  };
+
+  imageryProviderRequestGates.set(provider, gate);
+  return gate;
+};
+
+const softHideImageryLayer = (imageryLayer: unknown) => {
+  const gate = ensureProviderRequestGate(imageryLayer);
+  if (!gate) {
+    (imageryLayer as { show: boolean }).show = false;
+    return;
+  }
+
+  const previousState = softHiddenImageryLayerStates.get(imageryLayer);
+  const provider = getImageryProvider(imageryLayer);
+  if (previousState?.provider !== provider) {
+    forgetLayerFromProviderGate(imageryLayer, previousState?.provider);
+  }
+
+  const layer = imageryLayer as { alpha: number; show: boolean };
+  softHiddenImageryLayerStates.set(imageryLayer, {
+    previousAlpha: previousState?.previousAlpha ?? layer.alpha,
+    provider,
+  });
+  gate.hiddenLayers.add(imageryLayer);
+  layer.show = true;
+  layer.alpha = 0;
+};
+
+const showImageryLayer = (imageryLayer: unknown, opacity?: number) => {
+  const state = softHiddenImageryLayerStates.get(imageryLayer);
+  const provider = getImageryProvider(imageryLayer);
+  if (state?.provider && state.provider !== provider) {
+    forgetLayerFromProviderGate(imageryLayer, state?.provider);
+  }
+  const gate = ensureProviderRequestGate(imageryLayer);
+  gate?.hiddenLayers.delete(imageryLayer);
+
+  const layer = imageryLayer as { alpha: number; show: boolean };
+  layer.show = true;
+  layer.alpha = opacity ?? state?.previousAlpha ?? layer.alpha;
+  softHiddenImageryLayerStates.delete(imageryLayer);
+};
+
 const idsEqual = (left: readonly string[], right: readonly string[]) => {
   if (left.length !== right.length) {
     return false;
@@ -432,9 +586,11 @@ const syncImageryLayers = (
     if (!nextIds.has(id)) {
       ctx.withImageryLayerById(id, (imageryLayer, scene) => {
         const layers = scene.imageryLayers;
-        imageryLayer.show = false;
         if (layers.contains(imageryLayer)) {
-          layers.remove(imageryLayer, false);
+          softHideImageryLayer(imageryLayer);
+        } else {
+          showImageryLayer(imageryLayer);
+          imageryLayer.show = false;
         }
         scene.requestRender();
         return true;
@@ -446,18 +602,10 @@ const syncImageryLayers = (
     ctx.withImageryLayerById(imageryMember.id, (imageryLayer, scene) => {
       const layers = scene.imageryLayers;
       const alreadyAdded = layers.contains(imageryLayer);
-      const wasShown = imageryLayer.show;
 
-      if (alreadyAdded && !wasShown) {
-        layers.remove(imageryLayer, false);
-      }
+      showImageryLayer(imageryLayer, imageryMember.opacity);
 
-      imageryLayer.show = true;
-      if (imageryMember.opacity !== undefined) {
-        imageryLayer.alpha = imageryMember.opacity;
-      }
-
-      if (!alreadyAdded || !wasShown) {
+      if (!alreadyAdded) {
         layers.add(imageryLayer);
       }
       layers.raiseToTop(imageryLayer);
