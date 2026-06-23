@@ -752,18 +752,64 @@ const BelisMapLibWrapper = ({
     [map, namespacedSource, ensureToggledFeatures]
   );
 
+  // Signature of the *match intent* (property/query criteria only — NOT the
+  // individually toggled features). Changes when a new street search starts or
+  // the highlight is cleared, but stays stable across pans, zooms and
+  // alt+click / dismiss toggles.
+  const highlightCriteriaSignature = useMemo(() => {
+    const pm = criteria.propertyMatchers
+      .map((m) => `${m.property}=${m.regex.source}`)
+      .join("|");
+    const qi = criteria.queryIds
+      .map((q) => `${q.sourceLayer}:${q.property}:${q.value}`)
+      .join("|");
+    return `${pm}##${qi}`;
+    // criteria is a stable ref object; highlightVersion is its change signal,
+    // so it must stay in the deps even though it isn't read directly.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [criteria, highlightVersion]);
+
+  // Last criteria signature reflected in adjustedHighlights. A change means a
+  // fresh highlight session, so the accumulated list must start empty.
+  const appliedCriteriaSigRef = useRef(highlightCriteriaSignature);
+
   const handleHighlightsApplied = useCallback(
     (matched: maplibregl.GeoJSONFeature[]) => {
       // Only collect when there are no SearchModal results (i.e. street search)
       if (highlightResults != null) return;
-      if (matched.length > 0) {
+
+      // For vector-tile sources querySourceFeatures (inside applyHighlights)
+      // only returns features in the currently loaded tiles — i.e. the
+      // viewport. Replacing the list on every callback made the highlight
+      // count track the viewport (shrinking on zoom-in, growing on zoom-out).
+      // Instead we ACCUMULATE: a feature, once matched, stays in the list as
+      // the user pans/zooms and more tiles load, so the count is stable and
+      // converges to the true total. The accumulation is reset only when the
+      // match criteria themselves change (new / cleared search).
+      const isNewSession =
+        appliedCriteriaSigRef.current !== highlightCriteriaSignature;
+      appliedCriteriaSigRef.current = highlightCriteriaSignature;
+
+      const keyOf = (f: SidebarFeature) =>
+        `${f.sourceLayer ?? ""}::${String(f.properties?.id ?? f.id ?? "")}`;
+
+      setAdjustedHighlights((prev) => {
+        const base = isNewSession ? null : prev;
         const converted = matched.map(
           (f) => Object.assign(f, { original: f }) as unknown as SidebarFeature
         );
-        setAdjustedHighlights(converted);
-      }
+        if (!base) return converted.length > 0 ? converted : null;
+        const seen = new Set(base.map(keyOf));
+        const toAdd = converted.filter((f) => {
+          const k = keyOf(f);
+          if (seen.has(k)) return false;
+          seen.add(k);
+          return true;
+        });
+        return toAdd.length > 0 ? [...base, ...toAdd] : base;
+      });
     },
-    [highlightResults]
+    [highlightResults, highlightCriteriaSignature]
   );
 
   useMapHighlighting({
