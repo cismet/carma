@@ -55,7 +55,9 @@ const createImageryLayer = () =>
   ({
     show: false,
     alpha: 0,
-    imageryProvider: {},
+    imageryProvider: {
+      requestImage: vi.fn(() => "image"),
+    },
   } as unknown as ImageryLayer);
 
 describe("diffCesiumSceneStyles", () => {
@@ -241,11 +243,12 @@ describe("setupSceneStyle imagery layer visibility", () => {
     expect(calls).toContain("raiseToTop");
   });
 
-  it("removes inactive imagery layers from the collection without destroying them", () => {
+  it("soft-hides inactive imagery layers and blocks hidden provider requests", () => {
     const { scene, layers } = createScene({ containsLayer: true });
     const imageryLayer = createImageryLayer();
     imageryLayer.show = true;
     imageryLayer.alpha = 1;
+    const requestImage = imageryLayer.imageryProvider.requestImage;
     const terrainProvider = scene.terrainProvider;
     const ctx = {
       withScene: <T>(cb: (scene: Scene) => T) => cb(scene),
@@ -270,16 +273,20 @@ describe("setupSceneStyle imagery layer visibility", () => {
 
     setupSceneStyle(ctx, mesh, lod2);
 
-    expect(layers.remove).toHaveBeenCalledWith(imageryLayer, false);
+    expect(layers.remove).not.toHaveBeenCalled();
     expect(layers.add).not.toHaveBeenCalled();
-    expect(imageryLayer.show).toBe(false);
-    expect(imageryLayer.alpha).toBe(1);
+    expect(imageryLayer.show).toBe(true);
+    expect(imageryLayer.alpha).toBe(0);
+    expect(imageryLayer.imageryProvider.requestImage(0, 0, 0)).toBeUndefined();
+    expect(requestImage).not.toHaveBeenCalled();
 
     setupSceneStyle(ctx, lod2, mesh);
 
-    expect(layers.add).toHaveBeenCalledWith(imageryLayer);
+    expect(layers.add).not.toHaveBeenCalled();
     expect(imageryLayer.show).toBe(true);
     expect(imageryLayer.alpha).toBe(1);
+    expect(imageryLayer.imageryProvider.requestImage(0, 0, 0)).toBe("image");
+    expect(requestImage).toHaveBeenCalledWith(0, 0, 0, undefined);
   });
 
   it("leaves missing inactive imagery layers outside the collection so Cesium does not fetch them", () => {
@@ -287,6 +294,7 @@ describe("setupSceneStyle imagery layer visibility", () => {
     const imageryLayer = createImageryLayer();
     imageryLayer.show = true;
     imageryLayer.alpha = 1;
+    const requestImage = imageryLayer.imageryProvider.requestImage;
     const terrainProvider = scene.terrainProvider;
     const ctx = {
       withScene: <T>(cb: (scene: Scene) => T) => cb(scene),
@@ -316,9 +324,11 @@ describe("setupSceneStyle imagery layer visibility", () => {
     expect(calls).not.toContain("add:false");
     expect(imageryLayer.show).toBe(false);
     expect(imageryLayer.alpha).toBe(1);
+    expect(imageryLayer.imageryProvider.requestImage(0, 0, 0)).toBe("image");
+    expect(requestImage).toHaveBeenCalledWith(0, 0, 0, undefined);
   });
 
-  it("re-adds a legacy hidden-in-collection imagery layer visible to trigger Cesium layerAdded", () => {
+  it("shows a legacy hidden-in-collection imagery layer without re-adding it", () => {
     const { scene, calls, layers } = createScene({ containsLayer: true });
     const imageryLayer = createImageryLayer();
     imageryLayer.show = false;
@@ -347,9 +357,57 @@ describe("setupSceneStyle imagery layer visibility", () => {
 
     setupSceneStyle(ctx, lod2, mesh);
 
-    expect(layers.remove).toHaveBeenCalledWith(imageryLayer, false);
-    expect(calls).toContain("add:true");
+    expect(layers.remove).not.toHaveBeenCalled();
+    expect(layers.add).not.toHaveBeenCalled();
+    expect(calls).not.toContain("add:true");
     expect(imageryLayer.show).toBe(true);
     expect(imageryLayer.alpha).toBe(1);
+  });
+
+  it("does not block a shared provider while another known layer remains visible", () => {
+    const { scene } = createScene({ containsLayer: true });
+    const requestImage = vi.fn(() => "image");
+    const sharedProvider = { requestImage };
+    const hiddenLayer = {
+      show: true,
+      alpha: 1,
+      imageryProvider: sharedProvider,
+    } as unknown as ImageryLayer;
+    const visibleLayer = {
+      show: true,
+      alpha: 1,
+      imageryProvider: sharedProvider,
+    } as unknown as ImageryLayer;
+    const terrainProvider = scene.terrainProvider;
+    const ctx = {
+      withScene: <T>(cb: (scene: Scene) => T) => cb(scene),
+      withImageryLayerById: <T>(
+        id: string,
+        cb: (imageryLayer: ImageryLayer, scene: Scene) => T
+      ) => cb(id === "hidden" ? hiddenLayer : visibleLayer, scene),
+      getTerrainProviderById: () => terrainProvider,
+      getTerrainProviderInitSignatureById: () => "terrain-init",
+      requestRender: vi.fn(),
+    } as unknown as CesiumContextType;
+    const previous: SceneStyle = {
+      members: {
+        imageryLayers: [
+          { id: "hidden", opacity: 1 },
+          { id: "visible", opacity: 1 },
+        ],
+      },
+    };
+    const next: SceneStyle = {
+      members: {
+        imageryLayers: [{ id: "visible", opacity: 1 }],
+      },
+    };
+
+    setupSceneStyle(ctx, next, previous);
+
+    expect(hiddenLayer.alpha).toBe(0);
+    expect(visibleLayer.alpha).toBe(1);
+    expect(sharedProvider.requestImage(0, 0, 0)).toBe("image");
+    expect(requestImage).toHaveBeenCalledWith(0, 0, 0, undefined);
   });
 });
