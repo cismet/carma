@@ -4,16 +4,11 @@ export {
   cssPerspectiveFromCesiumCameraForElement,
   fovToCssPerspectiveByFov,
 } from "./cesiumCameraToCssTransform";
-export { guardCamera } from "./guardCamera";
 export {
   cesiumCameraForceOblique,
   testCameraObliqueCompliant,
   type CameraForceObliqueOptions,
 } from "@carma-mapping/engines/cesium/core";
-
-// Scene utilities
-export { guardScene } from "./guardScene";
-export { guardScreenSpaceCameraController } from "./guardScreenSpaceCameraController";
 
 // Animation utilities
 export {
@@ -73,7 +68,6 @@ export {
   polygonHierarchyFromPolygonCoords,
   removeGroundPrimitiveById,
 } from "./cesiumGroundPrimitives";
-export { guardPrimitiveCollection } from "./guardPrimitiveCollection";
 
 // Adhoc primitives
 export { createSelectionEdgePrimitive } from "./adhoc-primitives/create-selection-edge-primitive";
@@ -118,9 +112,6 @@ export {
   type RotationAxisVisualizer,
   type RotationAxisVisualizerOptions,
 } from "./createRotationAxisVisualizer";
-
-// Tileset
-export { guardTileset } from "./guardTileset";
 
 export {
   getCesiumVersion,
