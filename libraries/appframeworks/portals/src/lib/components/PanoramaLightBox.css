@@ -35,10 +35,13 @@
   left: 50%;
   width: 16px;
   height: 16px;
-  /* up-pointing chevron drawn from two borders, rotated 45° */
+  margin: -8px 0 0 -8px; /* centre the chevron box on the disc centre */
+  /* chevron drawn from two borders; base 45° points it up, and the live
+     --pano-hotspot-dir (set from the viewer yaw) aims it at the neighbour. */
   border-top: 4px solid #fff;
   border-left: 4px solid #fff;
-  transform: translate(-50%, -30%) rotate(45deg);
+  transform-origin: center;
+  transform: rotate(calc(45deg + var(--pano-hotspot-dir, 0deg)));
 }
 
 .carma-pano-nav-hotspot:hover::before {
