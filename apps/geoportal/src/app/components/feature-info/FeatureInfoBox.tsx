@@ -99,11 +99,13 @@ const normalizeDeg = (deg: number): number => {
 const angularDiffDeg = (a: number, b: number): number =>
   Math.abs(normalizeDeg(a - b));
 
-// The single vector source + source-layer of a panorama style (e.g. the
-// oelberg_panorama style has exactly one vector source).
+// The pano source of a panorama style (the oelberg_panorama style has exactly
+// one). Supports both a vector-tile source (needs a source-layer) and a
+// client-side geojson source (no source-layer). querySourceFeatures /
+// feature-state accept an undefined sourceLayer for geojson sources.
 const resolvePanoSource = (
   map: { getStyle?: () => unknown } | undefined
-): { sourceId: string; sourceLayer: string } | null => {
+): { sourceId: string; sourceLayer?: string } | null => {
   try {
     const style = map?.getStyle?.() as
       | {
@@ -112,15 +114,22 @@ const resolvePanoSource = (
         }
       | undefined;
     const sources = style?.sources ?? {};
-    const sourceId = Object.keys(sources).find(
+    // Prefer a vector source with its source-layer.
+    const vectorId = Object.keys(sources).find(
       (id) => sources[id]?.type === "vector"
     );
-    if (!sourceId) return null;
-    const sourceLayer = style?.layers?.find(
-      (l) => l.source === sourceId && l["source-layer"]
-    )?.["source-layer"];
-    if (!sourceLayer) return null;
-    return { sourceId, sourceLayer };
+    if (vectorId) {
+      const sourceLayer = style?.layers?.find(
+        (l) => l.source === vectorId && l["source-layer"]
+      )?.["source-layer"];
+      if (sourceLayer) return { sourceId: vectorId, sourceLayer };
+    }
+    // Fall back to a geojson source (no source-layer).
+    const geojsonId = Object.keys(sources).find(
+      (id) => sources[id]?.type === "geojson"
+    );
+    if (geojsonId) return { sourceId: geojsonId };
+    return null;
   } catch {
     return null;
   }
@@ -369,19 +378,26 @@ const FeatureInfoBox = ({
   useEffect(() => {
     if (!selectedLayerMap) return;
     return () => {
-      if (
-        typeof selectedLayerMap.getLayer === "function" &&
-        selectedLayerMap.getLayer(PANORAMA_SELECTION_ARROW_LAYER)
-      ) {
-        selectedLayerMap.setLayoutProperty(
-          PANORAMA_SELECTION_ARROW_LAYER,
-          "icon-rotate",
-          [
-            "+",
-            ["get", "heading"],
-            PANORAMA_INITIAL_YAW * PANORAMA_YAW_SIGN + PANORAMA_YAW_OFFSET,
-          ]
-        );
+      // The map may already be torn down here (e.g. the user removed this
+      // layer): getLayer/setLayoutProperty then throw because the map's style
+      // is gone. A typeof check doesn't prevent that, so guard the call.
+      try {
+        if (
+          typeof selectedLayerMap.getLayer === "function" &&
+          selectedLayerMap.getLayer(PANORAMA_SELECTION_ARROW_LAYER)
+        ) {
+          selectedLayerMap.setLayoutProperty(
+            PANORAMA_SELECTION_ARROW_LAYER,
+            "icon-rotate",
+            [
+              "+",
+              ["get", "heading"],
+              PANORAMA_INITIAL_YAW * PANORAMA_YAW_SIGN + PANORAMA_YAW_OFFSET,
+            ]
+          );
+        }
+      } catch {
+        // map already removed — nothing to restore
       }
       const src = resolvePanoSource(selectedLayerMap);
       if (src) {
@@ -413,6 +429,9 @@ const FeatureInfoBox = ({
       return;
     }
     try {
+      // The pano feature's id is its `fid` natively: vector tiles bake it in,
+      // and the geojson dataset carries it as the GeoJSON feature `id` (so the
+      // style must NOT set generateId, which would override it).
       selectedLayerMap.removeFeatureState({
         source: src.sourceId,
         sourceLayer: src.sourceLayer,
@@ -466,15 +485,20 @@ const FeatureInfoBox = ({
     [selectedLayerMap, selectedFeature, layers, dispatch]
   );
 
-  // Build navigation hotspots from the panos surrounding the selected one.
-  const panoramaHotspots = useMemo<PanoramaHotspot[]>(() => {
+  // Build navigation hotspots from the panos surrounding the selected one, and
+  // surface the kept neighbours' file names so their images can be preloaded.
+  const { hotspots: panoramaHotspots, neighbourFileNames } = useMemo<{
+    hotspots: PanoramaHotspot[];
+    neighbourFileNames: string[];
+  }>(() => {
+    const empty = { hotspots: [], neighbourFileNames: [] };
     const props = selectedFeature?.properties?.sourceProps;
     if (
       !selectedLayerMap ||
       !props ||
       typeof selectedLayerMap.querySourceFeatures !== "function"
     ) {
-      return [];
+      return empty;
     }
     const cx = Number(props.proj_x);
     const cy = Number(props.proj_y);
@@ -482,10 +506,10 @@ const FeatureInfoBox = ({
     const cHeading = Number(props.heading);
     const cFid = props.fid;
     if (Number.isNaN(cx) || Number.isNaN(cy) || Number.isNaN(cHeading)) {
-      return [];
+      return empty;
     }
     const src = resolvePanoSource(selectedLayerMap);
-    if (!src) return [];
+    if (!src) return empty;
 
     let all: Array<{ properties?: Record<string, number> }> = [];
     try {
@@ -493,7 +517,7 @@ const FeatureInfoBox = ({
         sourceLayer: src.sourceLayer,
       });
     } catch {
-      return [];
+      return empty;
     }
 
     const seen = new Set<number>();
@@ -502,6 +526,7 @@ const FeatureInfoBox = ({
       dist: number;
       dz: number;
       bearing: number;
+      fileName?: string;
     }> = [];
     for (const f of all) {
       const p = f?.properties;
@@ -516,11 +541,13 @@ const FeatureInfoBox = ({
       if (dist < 0.01 || dist > PANORAMA_NEIGHBOR_RADIUS_M) continue;
       const dz = Number(p.proj_z) - cz;
       const bearing = (Math.atan2(dE, dN) * 180) / Math.PI; // 0=N, clockwise
+      const rawFileName = (p as { file_name?: unknown }).file_name;
       candidates.push({
         fid: p.fid,
         dist,
         dz: Number.isNaN(dz) ? 0 : dz,
         bearing,
+        fileName: typeof rawFileName === "string" ? rawFileName : undefined,
       });
     }
 
@@ -540,7 +567,7 @@ const FeatureInfoBox = ({
       kept.push(c);
     }
 
-    return kept.map((c) => {
+    const hotspots = kept.map((c) => {
       // Inverse of the arrow calibration: absolute bearing = heading + yaw.
       const yaw = normalizeDeg(
         (c.bearing - cHeading - PANORAMA_YAW_OFFSET) / PANORAMA_YAW_SIGN
@@ -560,7 +587,46 @@ const FeatureInfoBox = ({
         clickHandlerFunc: () => handlePanoramaNavigate(c.fid),
       };
     });
+
+    const neighbourFileNames = kept
+      .map((c) => c.fileName)
+      .filter((n): n is string => !!n);
+
+    return { hotspots, neighbourFileNames };
   }, [selectedFeature, selectedLayerMap, handlePanoramaNavigate]);
+
+  // Preload the reachable neighbours' panorama images so a tour hop is
+  // near-instant (fetch + decode happen while the user looks at the current
+  // pano). Each neighbour URL is derived by swapping the current file name in
+  // the current panorama URL — the file name appears verbatim once. The Image
+  // objects are kept in a ref so their in-flight downloads aren't GC'd.
+  const preloadedPanoramasRef = useRef<HTMLImageElement[]>([]);
+  useEffect(() => {
+    const currentUrl = selectedFeature?.properties?.panorama;
+    const currentFile = selectedFeature?.properties?.sourceProps?.file_name;
+    if (
+      typeof currentUrl !== "string" ||
+      typeof currentFile !== "string" ||
+      !currentFile ||
+      neighbourFileNames.length === 0
+    ) {
+      preloadedPanoramasRef.current = [];
+      return;
+    }
+    const images: HTMLImageElement[] = [];
+    for (const fileName of neighbourFileNames) {
+      if (fileName === currentFile) continue;
+      const url = currentUrl.replace(currentFile, fileName);
+      if (url === currentUrl) continue;
+      const img = new Image();
+      img.src = url;
+      img.decode?.().catch(() => {
+        // ignore decode failures (e.g. aborted when selection changes)
+      });
+      images.push(img);
+    }
+    preloadedPanoramasRef.current = images;
+  }, [selectedFeature, neighbourFileNames]);
 
   if (loadingFeatureInfo && shouldRenderLoadingInfobox)
     return <LoadingInfoBox />;
