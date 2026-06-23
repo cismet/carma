@@ -3,10 +3,13 @@ import { useEffect, useRef, useState } from "react";
 import "pannellum/build/pannellum.css";
 import "pannellum";
 import "./PanoramaPreview.css";
+import { resolvePanoramaScene, type PannellumViewer } from "./panoramaScene";
 
 interface PanoramaPreviewProps {
-  /** URL of an equirectangular panorama image. */
+  /** URL of an equirectangular panorama image (fallback when no multires). */
   src: string;
+  /** URL of a pannellum multiresolution config.json; preferred over `src`. */
+  multiResConfigUrl?: string;
   /** Called when the user clicks the expand control (open fullscreen). */
   onExpand?: () => void;
   /** Called with the viewer's current yaw (deg) as the user looks around. */
@@ -35,17 +38,13 @@ const PREVIEW_HEIGHT = 160;
  */
 export const PanoramaPreview = ({
   src,
+  multiResConfigUrl,
   onExpand,
   onYawChange,
   initialYaw,
 }: PanoramaPreviewProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const viewerRef = useRef<{
-    destroy: () => void;
-    resize: () => void;
-    getYaw: () => number;
-    isLoaded: () => boolean;
-  } | null>(null);
+  const viewerRef = useRef<PannellumViewer | null>(null);
   const [width, setWidth] = useState<number>(getPreviewWidth);
   // Held in refs so changing their identity never re-inits the viewer.
   const onYawChangeRef = useRef(onYawChange);
@@ -66,45 +65,52 @@ export const PanoramaPreview = ({
     const pannellum = window.pannellum;
     if (!el || !pannellum) return;
 
-    const viewer = pannellum.viewer(el, {
-      type: "equirectangular",
-      panorama: src,
-      autoLoad: true,
-      showControls: false,
-      showFullscreenCtrl: false,
-      showZoomCtrl: false,
-      keyboardZoom: false,
-      mouseZoom: false,
-      compass: false,
-      draggable: true,
-      yaw: initialYawRef.current ?? 0,
-    });
-    viewerRef.current = viewer;
-
-    // Pannellum has no continuous "view changed" event, so poll the yaw on each
-    // frame and report changes (lets the map's selection arrow follow the view).
+    // Scene resolution is async (a multires config is fetched), so guard against
+    // the effect being cleaned up before the viewer is created.
+    let cancelled = false;
     let raf = 0;
-    let lastYaw = NaN;
-    const tick = () => {
-      // Skip until loaded: before that pannellum reports yaw 0, not the
-      // configured initial yaw, which would briefly flip the map arrow 180°.
-      if (!viewer.isLoaded || viewer.isLoaded()) {
-        const yaw = viewer.getYaw();
-        if (yaw !== lastYaw) {
-          lastYaw = yaw;
-          onYawChangeRef.current?.(yaw);
+
+    resolvePanoramaScene(src, multiResConfigUrl).then((scene) => {
+      if (cancelled) return;
+      const viewer = pannellum.viewer(el, {
+        ...scene,
+        autoLoad: true,
+        showControls: false,
+        showFullscreenCtrl: false,
+        showZoomCtrl: false,
+        keyboardZoom: false,
+        mouseZoom: false,
+        compass: false,
+        draggable: true,
+        yaw: initialYawRef.current ?? 0,
+      });
+      viewerRef.current = viewer;
+
+      // Pannellum has no continuous "view changed" event, so poll the yaw on
+      // each frame and report changes (lets the map's selection arrow follow).
+      let lastYaw = NaN;
+      const tick = () => {
+        // Skip until loaded: before that pannellum reports yaw 0, not the
+        // configured initial yaw, which would briefly flip the map arrow 180°.
+        if (!viewer.isLoaded || viewer.isLoaded()) {
+          const yaw = viewer.getYaw();
+          if (yaw !== lastYaw) {
+            lastYaw = yaw;
+            onYawChangeRef.current?.(yaw);
+          }
         }
-      }
+        raf = requestAnimationFrame(tick);
+      };
       raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
+    });
 
     return () => {
+      cancelled = true;
       cancelAnimationFrame(raf);
-      viewer.destroy();
+      viewerRef.current?.destroy();
       viewerRef.current = null;
     };
-  }, [src]);
+  }, [src, multiResConfigUrl]);
 
   // Refit the already-loaded viewer to the new container width (no reload).
   useEffect(() => {
