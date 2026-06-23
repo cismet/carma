@@ -1,6 +1,8 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
+import { resolvePanoramaScene, type PannellumViewer } from "./panoramaScene";
+
 // PoC: raw pannellum (vanilla JS). The official React wrapper (pannellum-react)
 // only declares react@16 as a peer dependency, so we drive the library directly.
 import "pannellum/build/pannellum.css";
@@ -37,8 +39,10 @@ export interface PanoramaHotspot {
 }
 
 interface PanoramaLightBoxProps {
-  /** URL of an equirectangular panorama image. */
+  /** URL of an equirectangular panorama image (fallback when no multires). */
   src: string;
+  /** URL of a pannellum multiresolution config.json; preferred over `src`. */
+  multiResConfigUrl?: string;
   title?: string;
   onClose: () => void;
   /** Called with the viewer's current yaw (deg) as the user looks around. */
@@ -66,6 +70,7 @@ const normalizeDeg = (deg: number): number => {
  */
 export const PanoramaLightBox = ({
   src,
+  multiResConfigUrl,
   onClose,
   onYawChange,
   hotspots,
@@ -105,49 +110,59 @@ export const PanoramaLightBox = ({
       },
     }));
 
-    const viewer = pannellum.viewer(el, {
-      type: "equirectangular",
-      panorama: src,
-      autoLoad: true,
-      // Keep the controls container so the mobile device-orientation
-      // (compass/gyroscope) control stays available; only hide zoom + fullscreen.
-      showZoomCtrl: false,
-      showFullscreenCtrl: false,
-      hotSpots,
-      yaw: initialYaw,
-    });
-
-    // Pannellum has no continuous "view changed" event, so poll the yaw on each
-    // frame and report changes (lets the map's selection arrow follow the view).
+    // Scene resolution is async (a multires config is fetched), so guard against
+    // the effect being cleaned up before the viewer is created.
+    let cancelled = false;
+    let viewer: PannellumViewer | undefined;
     let raf = 0;
-    let lastYaw = NaN;
-    const tick = () => {
-      // Skip until loaded: before that pannellum reports yaw 0, not the
-      // configured initial yaw, which would briefly flip the map arrow 180°.
-      if (!viewer.isLoaded || viewer.isLoaded()) {
-        const yaw = viewer.getYaw();
-        if (yaw !== lastYaw) {
-          lastYaw = yaw;
-          onYawChangeRef.current?.(yaw);
-          // Re-aim each hotspot arrow: the on-screen angle from view-centre to
-          // the neighbour is its (panorama yaw − current view yaw).
-          for (const hs of hotspotEls) {
-            hs.el.style.setProperty(
-              "--pano-hotspot-dir",
-              `${normalizeDeg(hs.yaw - yaw)}deg`
-            );
+
+    resolvePanoramaScene(src, multiResConfigUrl).then((scene) => {
+      if (cancelled) return;
+      const v = pannellum.viewer(el, {
+        ...scene,
+        autoLoad: true,
+        // Keep the controls container so the mobile device-orientation
+        // (compass/gyroscope) control stays available; only hide zoom +
+        // fullscreen.
+        showZoomCtrl: false,
+        showFullscreenCtrl: false,
+        hotSpots,
+        yaw: initialYaw,
+      });
+      viewer = v;
+
+      // Pannellum has no continuous "view changed" event, so poll the yaw on
+      // each frame and report changes (lets the map's selection arrow follow).
+      let lastYaw = NaN;
+      const tick = () => {
+        // Skip until loaded: before that pannellum reports yaw 0, not the
+        // configured initial yaw, which would briefly flip the map arrow 180°.
+        if (!v.isLoaded || v.isLoaded()) {
+          const yaw = v.getYaw();
+          if (yaw !== lastYaw) {
+            lastYaw = yaw;
+            onYawChangeRef.current?.(yaw);
+            // Re-aim each hotspot arrow: the on-screen angle from view-centre to
+            // the neighbour is its (panorama yaw − current view yaw).
+            for (const hs of hotspotEls) {
+              hs.el.style.setProperty(
+                "--pano-hotspot-dir",
+                `${normalizeDeg(hs.yaw - yaw)}deg`
+              );
+            }
           }
         }
-      }
+        raf = requestAnimationFrame(tick);
+      };
       raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
+    });
 
     return () => {
+      cancelled = true;
       cancelAnimationFrame(raf);
-      viewer.destroy();
+      viewer?.destroy();
     };
-  }, [src]);
+  }, [src, multiResConfigUrl]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

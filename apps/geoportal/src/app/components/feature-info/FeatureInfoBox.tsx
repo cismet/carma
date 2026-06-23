@@ -712,6 +712,7 @@ const FeatureInfoBox = ({
         <PanoramaPreview
           key="infobox-panorama-preview"
           src={selectedFeature.properties.panorama}
+          multiResConfigUrl={selectedFeature.properties.panoramaMultiResConfig}
           onExpand={() => setOpenPanorama(true)}
           // Only the active viewer drives the map arrow; yield to the
           // fullscreen lightbox while it is open.
@@ -814,6 +815,7 @@ const FeatureInfoBox = ({
       {openPanorama && selectedFeature.properties.panorama && (
         <PanoramaLightBox
           src={selectedFeature.properties.panorama}
+          multiResConfigUrl={selectedFeature.properties.panoramaMultiResConfig}
           title={selectedFeature.properties.title}
           onClose={() => setOpenPanorama(false)}
           onYawChange={handlePanoramaYaw}
