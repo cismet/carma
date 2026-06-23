@@ -457,7 +457,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
           </div>
 
           {isInteractionActive && (
-            <div className="w-full px-6 pb-1">
+            <div className="w-full px-6 pb-1 sm:hidden">
               <InteractionContent layer={layer as Layer} />
             </div>
           )}

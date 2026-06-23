@@ -247,9 +247,7 @@ const LayerWrapper = () => {
         </div>
       </DndContext>
 
-      {!isSecondaryViewOpen && size.width >= 640 && (
-        <InteractionView isDragging={isDragging} />
-      )}
+      {size.width >= 640 && <InteractionView isDragging={isDragging} />}
       {isSecondaryViewOpen && <SecondaryView />}
     </>
   );
