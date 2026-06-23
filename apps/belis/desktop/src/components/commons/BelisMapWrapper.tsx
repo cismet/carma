@@ -1972,12 +1972,16 @@ const BelisMapLibWrapper = ({
 
   // Check if selected feature is inside visible map boundary.
   // When not visible, auto-open the datasheet to show NoFeatureSelected.
+  // Skipped in "highlights" mode: a highlight is deliberately selected from
+  // the sidebar and may sit outside the current viewport — there we keep the
+  // map and let the overrideSelectedFeature info box render instead of forcing
+  // the empty datasheet.
   const [featureOnMap, setFeatureOnMap] = useState(true);
 
   useEffect(() => {
     if (
       sidebarVariant === "arbeitsauftraege" ||
-      (sidebarMode !== "fachobjekte" && sidebarMode !== "highlights") ||
+      sidebarMode !== "fachobjekte" ||
       !selectedFeatureId ||
       !map
     ) {
