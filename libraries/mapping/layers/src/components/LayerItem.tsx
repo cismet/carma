@@ -136,7 +136,7 @@ const LayerItem = ({
       duration: 6,
       content: (
         <span>
-          Dieser Layer ist nur in der {targetModeLabel}-Ansicht verfügbar.{" "}
+          Dieses Objekt ist nur in der {targetModeLabel}-Ansicht verfügbar.{" "}
           <Button
             type="link"
             size="small"
