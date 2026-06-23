@@ -471,7 +471,9 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
             </div>
           )}
 
-          <hr className="h-px my-0 bg-gray-300 border-0 w-full sm:hidden" />
+          {showInfoText && (
+            <hr className="h-px my-0 bg-gray-300 border-0 w-full sm:hidden" />
+          )}
           {showInfoText &&
             (isBaseLayer ? (
               <BaseLayerInfo />
