@@ -135,6 +135,11 @@ import {
 
 const LIST_WIDTH = 300;
 
+/** Above this feature count the sidebar drops the detailed per-item list and
+ *  shows only the grouped counts (overview mode). Applies to both the
+ *  Fachobjekte (viewport) tab and the Highlights tab. */
+const OVERVIEW_FEATURE_LIMIT = 2000;
+
 /** Debug flag: translucent main map + red mini-map border, mini-map always visible */
 const MINI_MAP_DEBUGGING = false;
 
@@ -1415,7 +1420,7 @@ const BelisMapLibWrapper = ({
       maplibreMap: map,
       visibleMapWidth: mapWidth,
       visibleMapHeight: mapSizes.height,
-      maxFeatures: 2000,
+      maxFeatures: OVERVIEW_FEATURE_LIMIT,
       layerFilterExpressions: [
         "Leuchten.*-base",
         "Leuchten.*-icon",
@@ -1661,6 +1666,18 @@ const BelisMapLibWrapper = ({
       adjustedHighlights &&
       adjustedHighlights.length > 0
     ) {
+      // Above the limit, fall back to grouped counts only (overview mode) —
+      // same threshold the Fachobjekte viewport list uses. Blank the feature
+      // list (keeping counts + totalCount) so the sidebar derives its groups
+      // purely from countsByLayer, matching the viewport overview exactly —
+      // otherwise the distribution loop would also build a stray merged
+      // "Standorte / Leuchten" group with a 0 total.
+      if (adjustedHighlights.length > OVERVIEW_FEATURE_LIMIT) {
+        const base = buildFromFeatures(adjustedHighlights, {
+          isOverviewMode: true,
+        });
+        return { ...base, features: [] };
+      }
       return buildFromFeatures(adjustedHighlights);
     }
     if (sidebarMode === "drafts" && draftSidebarFeatures.length > 0) {
