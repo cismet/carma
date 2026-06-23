@@ -49,6 +49,14 @@ interface PanoramaLightBoxProps {
   initialYaw?: number;
 }
 
+// Wrap an angle (deg) into (-180, 180].
+const normalizeDeg = (deg: number): number => {
+  let x = deg % 360;
+  if (x > 180) x -= 360;
+  if (x < -180) x += 360;
+  return x;
+};
+
 /**
  * Fullscreen overlay that renders a 360° panorama with pannellum.
  *
@@ -79,6 +87,24 @@ export const PanoramaLightBox = ({
     const pannellum = window.pannellum;
     if (!el || !pannellum) return;
 
+    const initialYaw = initialYawRef.current ?? 0;
+
+    // Each rendered hotspot's div plus the panorama yaw of its neighbour. The
+    // yaw poll below rotates each arrow to keep pointing at its neighbour as the
+    // user looks around (Street-View style). pannellum calls createTooltipFunc
+    // with the hotspot element after applying its cssClass, which is our handle.
+    const hotspotEls: Array<{ el: HTMLElement; yaw: number }> = [];
+    const hotSpots = (hotspotsRef.current ?? []).map((h) => ({
+      ...h,
+      createTooltipFunc: (div: HTMLElement) => {
+        div.style.setProperty(
+          "--pano-hotspot-dir",
+          `${normalizeDeg(h.yaw - initialYaw)}deg`
+        );
+        hotspotEls.push({ el: div, yaw: h.yaw });
+      },
+    }));
+
     const viewer = pannellum.viewer(el, {
       type: "equirectangular",
       panorama: src,
@@ -87,8 +113,8 @@ export const PanoramaLightBox = ({
       // (compass/gyroscope) control stays available; only hide zoom + fullscreen.
       showZoomCtrl: false,
       showFullscreenCtrl: false,
-      hotSpots: hotspotsRef.current ?? [],
-      yaw: initialYawRef.current ?? 0,
+      hotSpots,
+      yaw: initialYaw,
     });
 
     // Pannellum has no continuous "view changed" event, so poll the yaw on each
@@ -103,6 +129,14 @@ export const PanoramaLightBox = ({
         if (yaw !== lastYaw) {
           lastYaw = yaw;
           onYawChangeRef.current?.(yaw);
+          // Re-aim each hotspot arrow: the on-screen angle from view-centre to
+          // the neighbour is its (panorama yaw − current view yaw).
+          for (const hs of hotspotEls) {
+            hs.el.style.setProperty(
+              "--pano-hotspot-dir",
+              `${normalizeDeg(hs.yaw - yaw)}deg`
+            );
+          }
         }
       }
       raf = requestAnimationFrame(tick);
