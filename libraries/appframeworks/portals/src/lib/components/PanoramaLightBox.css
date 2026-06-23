@@ -32,3 +32,15 @@
   transform: scale(1.15);
   background: rgba(255, 127, 0, 0.8);
 }
+
+/* Dark placeholder + hide pannellum's load indicator (set inline, hence
+   !important) so a cached/fast panorama doesn't briefly flash a spinner / 100%
+   progress bar; the dark overlay covers the short decode time. */
+.carma-panorama-lightbox__viewer .pnlm-container {
+  background: #2a2a2a;
+}
+
+.carma-panorama-lightbox__viewer .pnlm-lbox,
+.carma-panorama-lightbox__viewer .pnlm-load-box {
+  display: none !important;
+}
