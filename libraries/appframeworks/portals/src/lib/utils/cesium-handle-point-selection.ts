@@ -16,7 +16,7 @@ import {
   getHeadingPitchRangeFromZoom,
   removeCesiumMarker,
   type MarkerPrimitiveData,
-} from "@carma-mapping/engines/cesium/legacy";
+} from "@carma-mapping/engines/cesium/react/runtime";
 
 import type { HitTriggerOptions } from "./cesium-selection-types";
 import { DerivedGeometries } from "./getDerivedGeometries";

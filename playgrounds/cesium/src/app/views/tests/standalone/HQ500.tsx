@@ -16,11 +16,11 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 
 import {
-  CustomViewer,
+  CesiumHost,
   isValidCesiumTerrainProvider,
   useCesiumContext,
   useZoomControls as useZoomControlsCesium,
-} from "@carma-mapping/engines/cesium/legacy";
+} from "@carma-mapping/engines/cesium/react/runtime";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import { CESIUM_HOME_POSITION } from "../../../config/store.config";
@@ -32,17 +32,16 @@ export const HQ500 = () => {
   const lastRenderTimeStampRef = useRef(Date.now());
   const lastRenderIntervalRef = useRef(0);
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const container3dMapRef = useRef<HTMLDivElement>(null);
 
   // State and Selectors
   const ctx = useCesiumContext();
-  const { viewerRef, withScene } = ctx;
+  const { runtimeRef, withScene } = ctx;
   const {
     handleZoomIn: handleZoomInCesium,
     handleZoomOut: handleZoomOutCesium,
   } = useZoomControlsCesium(ctx);
   const handleHomeClick = useCallback(() => {
-    ctx.withViewer((viewer) => {
+    ctx.withRuntime((viewer) => {
       viewer.camera.flyHome(0.5);
       viewer.scene.requestRender();
     });
@@ -110,36 +109,31 @@ export const HQ500 = () => {
         </ControlButtonStyler>
       </Control>
       <ControlLayoutCanvas ref={wrapperRef}>
-        <div
-          ref={container3dMapRef}
+        {/*
+          Legacy hash sync intentionally removed.
+          If 3D URL sync is needed again here, replace this with the current
+          `ViewStateProvider` + `ViewStateNavigationManagerProvider` pattern
+          instead of `onSceneChange` + legacy camera hash encoding.
+        */}
+        <CesiumHost
           className={"map-container-3d"}
           style={{
             height: "100vh",
           }}
-        >
-          {/*
-            Legacy hash sync intentionally removed.
-            If 3D URL sync is needed again here, replace this with the current
-            `ViewStateProvider` + `ViewStateNavigationManagerProvider` pattern
-            instead of `onSceneChange` + legacy camera hash encoding.
-          */}
-          <CustomViewer
-            containerRef={container3dMapRef}
-            homeValidationCenter={CESIUM_HOME_POSITION}
-            cameraLimiterOptions={{
-              limiter: {
-                pitch: {
-                  enabled: false,
-                },
+          homeValidationCenter={CESIUM_HOME_POSITION}
+          cameraLimiterOptions={{
+            limiter: {
+              pitch: {
+                enabled: false,
               },
-            }}
-            globeOptions={{
-              showGroundAtmosphere: false,
-              showSkirts: true,
-              baseColor: Color.RED,
-            }}
-          ></CustomViewer>
-        </div>
+            },
+          }}
+          globeOptions={{
+            showGroundAtmosphere: false,
+            showSkirts: true,
+            baseColor: Color.RED,
+          }}
+        />
       </ControlLayoutCanvas>
     </ControlLayout>
   );

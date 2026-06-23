@@ -12,7 +12,7 @@ import { type Cartesian3 } from "cesium";
 
 import { normalizeOptions } from "@carma-commons/utils";
 
-import { useCesiumViewer } from "../contexts/CesiumViewerContext";
+import { useCesiumRuntime } from "../contexts/CesiumViewerContext";
 
 import { useCesiumPointQuery } from "./hooks/useCesiumPointQuery";
 import { useCesiumPointVisualizer } from "./hooks/useCesiumPointVisualizer";
@@ -104,7 +104,7 @@ const deleteFromHideMeasurementsOfType =
 export const CesiumMeasurementsProvider: React.FC<
   CesiumMeasurementsProviderProps
 > = ({ children, options }) => {
-  const { viewer, tilesetReady } = useCesiumViewer();
+  const { viewer, tilesetReady } = useCesiumRuntime();
 
   const pointQueryOptions = normalizeOptions(
     options?.pointQueries,

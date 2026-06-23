@@ -86,11 +86,11 @@ export const CesiumViewerProvider = ({
   );
 };
 
-export const useCesiumViewer = (): CesiumViewerContextType => {
+export const useCesiumRuntime = (): CesiumViewerContextType => {
   const context = useContext(CesiumViewerContext);
   if (context === undefined) {
     throw new Error(
-      "useCesiumViewer must be used within a CesiumViewerProvider"
+      "useCesiumRuntime must be used within a CesiumViewerProvider"
     );
   }
   return context;

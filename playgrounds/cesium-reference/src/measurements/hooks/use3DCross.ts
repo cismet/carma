@@ -1,10 +1,10 @@
 import { useEffect, useRef, useCallback } from "react";
 import { Cartesian3, type Entity } from "cesium";
 import { create3DCross } from "../utils/cesium3DCross";
-import { useCesiumViewer } from "../../contexts/CesiumViewerContext";
+import { useCesiumRuntime } from "../../contexts/CesiumViewerContext";
 
 const use3DCross = () => {
-  const { viewer } = useCesiumViewer();
+  const { viewer } = useCesiumRuntime();
   const crossEntitiesRef = useRef<Entity[]>([]);
 
   // Create the cross entities once

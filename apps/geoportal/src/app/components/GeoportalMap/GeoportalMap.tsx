@@ -67,16 +67,17 @@ import {
 import { getApplicationVersion } from "@carma-commons/utils";
 
 import {
-  CustomViewer,
+  CesiumHost,
+  type CesiumHostState,
   getGeoJsonGeometryCacheKey,
   getProviderScopedCache,
   getTerrainAwareBoundingSphereFromGeoJsonGeometry,
   selectScreenSpaceCameraControllerMinimumZoomDistance,
   selectShowPrimaryTileset,
-  selectViewerModels,
+  selectCesiumRuntimeModels,
   setCurrentSceneStyle,
   useCesiumContext,
-} from "@carma-mapping/engines/cesium/legacy";
+} from "@carma-mapping/engines/cesium/react/runtime";
 import { useCesiumNavigationBridge } from "@carma-mapping/engines-interop/view-state";
 import {
   useMapFrameworkSwitcherContext,
@@ -253,15 +254,15 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     getSurfaceProvider,
     getTerrainProvider,
     getScene,
-    isValidViewer: isValidViewerCtx,
-    isViewerReady,
+    isValidRuntime: isValidRuntimeCtx,
+    isRuntimeReady,
     initialViewApplied,
   } = useCesiumContext();
 
   const rerenderCountRef = useRef(0);
   const lastRenderTimeStampRef = useRef(Date.now());
   const lastRenderIntervalRef = useRef(0);
-  const container3dMapRef = useRef<HTMLDivElement>(null);
+  const container3dMapRef = useRef<HTMLDivElement | null>(null);
   // Store MapLibre maps outside Redux to avoid serialization issues
   const maplibreMapsRef = useRef<Map<string, MaplibreMap>>(new Map());
   const selectionSemanticIdentifierRef = useRef<string | undefined>(undefined);
@@ -291,7 +292,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     registerCallbacks,
   } = useMapFrameworkSwitcherContext();
 
-  const models = useSelector(selectViewerModels);
+  const models = useSelector(selectCesiumRuntimeModels);
   const markerAsset = models[CESIUM_CONFIG.markerKey]; //
   const markerAnchorHeight =
     CESIUM_CONFIG.markerAnchorHeight ?? DEFAULT_MARKER_ANCHOR_HEIGHT;
@@ -528,9 +529,13 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   // Map framework switcher (2D ↔ 3D transitions)
   const leafletMap = getLeafletMap();
   const cesiumScene = getScene();
-  const cesiumContainer = container3dMapRef.current;
-  const isCesiumRuntimeReady = Boolean(
-    cesiumScene && cesiumContainer && isViewerReady
+  const isCesiumRuntimeReady = Boolean(cesiumScene && isRuntimeReady);
+
+  const handleCesiumHostChange = useCallback(
+    ({ element }: CesiumHostState) => {
+      container3dMapRef.current = element;
+    },
+    []
   );
 
   useEffect(() => {
@@ -606,10 +611,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     }
   }, [selectedFeature, isOrbiting, stopOrbit]);
 
-  const getCesiumContainer = useCallback(
-    () => container3dMapRef.current,
-    [container3dMapRef]
-  );
+  const getCesiumContainer = useCallback(() => container3dMapRef.current, []);
   const getCesiumTerrainProviders = useCallback(
     () => ({
       TERRAIN: getTerrainProvider() ?? null,
@@ -865,7 +867,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   useEffect(() => {
     // TODO wrap this with 3d component in own component?
     // INTIALIZE Cesium Tileset style from Geoportal/TopicMap background later style
-    if (isValidViewerCtx() && backgroundLayer) {
+    if (isValidRuntimeCtx() && backgroundLayer) {
       if (backgroundLayer.id === "luftbild") {
         dispatch(setCurrentSceneStyle("primary"));
       } else {
@@ -1261,19 +1263,15 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
         <AdhocSelectionSync maplibreMapsRef={maplibreMapsRef} />
       </div>
       {allow3d && isInitialCameraResolved && shouldMountCesium && (
-        <div
+        <CesiumHost
           id={GEOPORTAL_CESIUM_CONTAINER_ID}
-          ref={container3dMapRef}
           className={"map-container-3d"}
           style={MAP_CONTAINER_STYLE}
-        >
-          <CustomViewer
-            containerRef={container3dMapRef}
-            cameraLimiterOptions={CESIUM_CONFIG.camera}
-            homeValidationCenter={homeValidationCenter}
-            initialCameraView={cesiumInitialCameraView}
-          />
-        </div>
+          onHostChange={handleCesiumHostChange}
+          cameraLimiterOptions={CESIUM_CONFIG.camera}
+          homeValidationCenter={homeValidationCenter}
+          initialCameraView={cesiumInitialCameraView}
+        />
       )}
     </>
   );

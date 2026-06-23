@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useMemo } from "react";
-import { useCesiumViewer } from "../contexts/CesiumViewerContext";
+import { useCesiumRuntime } from "../contexts/CesiumViewerContext";
 import { useNivPoints } from "./hooks/useNivPoints";
 import { FESTPUNKTE_WUPPERTAL } from "@carma-commons/resources";
 import { Entity } from "cesium";
@@ -24,7 +24,7 @@ interface CesiumNivPointProviderProps {
 export const CesiumNivPointProvider: React.FC<CesiumNivPointProviderProps> = ({
   children,
 }) => {
-  const { viewer } = useCesiumViewer();
+  const { viewer } = useCesiumRuntime();
 
   const [showNivPoints, setShowNivPoints] = useState(true);
   const [showHistoricNivPoints, setShowHistoricNivPoints] = useState(false);

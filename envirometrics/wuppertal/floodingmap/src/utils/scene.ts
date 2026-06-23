@@ -1,20 +1,21 @@
-import { Color, Viewer } from "cesium";
+import { Color } from "@carma-cesium";
+import type { CesiumRuntime } from "@carma-mapping/engines/cesium/react/runtime";
 
 import { WATER_CESIUM_COLOR } from "../config/cesium/cesium.config";
-export const prepareSceneForHGK = (viewer: Viewer) => {
+export const prepareSceneForHGK = (runtime: CesiumRuntime) => {
   //console.debug("3d setup for HGK terrain style");
-  if (viewer.isDestroyed()) return;
+  if (runtime.isDestroyed()) return;
 
-  viewer.scene.backgroundColor = Color.DIMGREY;
-  viewer.scene.globe.baseColor = WATER_CESIUM_COLOR;
-  viewer.scene.globe.show = true;
-  viewer.scene.globe.translucency.enabled = true;
-  viewer.scene.globe.translucency.frontFaceAlpha = 1.0;
-  viewer.scene.globe.translucency.backFaceAlpha = 1.0;
-  if (viewer.imageryLayers.length > 0) {
+  runtime.scene.backgroundColor = Color.DIMGREY;
+  runtime.scene.globe.baseColor = WATER_CESIUM_COLOR;
+  runtime.scene.globe.show = true;
+  runtime.scene.globe.translucency.enabled = true;
+  runtime.scene.globe.translucency.frontFaceAlpha = 1.0;
+  runtime.scene.globe.translucency.backFaceAlpha = 1.0;
+  if (runtime.imageryLayers.length > 0) {
     //console.debug("hide default imagery layer hgk");
-    const imageryLayer = viewer.imageryLayers.get(0);
+    const imageryLayer = runtime.imageryLayers.get(0);
     imageryLayer.show = false;
   }
-  viewer.scene.requestRender();
+  runtime.scene.requestRender();
 };

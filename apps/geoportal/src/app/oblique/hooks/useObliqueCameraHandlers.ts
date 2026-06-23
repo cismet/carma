@@ -6,7 +6,7 @@ import {
   pickSceneCenter,
 } from "@carma-mapping/engines/cesium/core";
 
-import { useCesiumContext } from "@carma-mapping/engines/cesium/legacy";
+import { useCesiumContext } from "@carma-mapping/engines/cesium/react/runtime";
 
 import {
   CardinalDirectionEnum,

@@ -1,10 +1,7 @@
-import ClassifyByGeoJson from "./views/ByGeoJsonClassifier";
-
 import TestExtrudeGeoJson from "./views/tests/ExtrudeGeoJson";
 import TestMarkers from "./views/tests/Markers";
 
-import TestComponentCustomViewer from "./views/tests/components/CustomViewer";
-import TestComponentByGeoJsonClassifier from "./views/tests/components/ByGeoJsonClassifier";
+import TestComponentCesiumWidgetMap from "./views/tests/components/CesiumWidgetMap";
 
 import StandaloneResium from "./views/tests/standalone/Resium";
 import StandaloneTopicMap from "./views/tests/standalone/TopicMap";
@@ -24,20 +21,14 @@ export type RouteDescriptor = RouteItem | RoutePath;
 // ⚙️ for debug or test views
 
 export const viewerRoutes: RouteDescriptor[] = [
-  ["/", "", ClassifyByGeoJson],
-  ["/geojson-classify", "Gebäudeauswahl", ClassifyByGeoJson],
+  ["/", "", TestExtrudeGeoJson],
   ["/extrude", "Extrusion", TestExtrudeGeoJson],
   ["/poi", "Marker", TestMarkers],
   [
     "/test",
     "⚙️ Test",
     [
-      [
-        "/geojson",
-        "ComponentTest GeoJSON Overlay",
-        TestComponentByGeoJsonClassifier,
-      ],
-      ["/viewer", "ComponentTest Viewer", TestComponentCustomViewer],
+      ["/viewer", "ComponentTest Viewer", TestComponentCesiumWidgetMap],
     ],
   ],
 ];

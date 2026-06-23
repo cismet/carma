@@ -1,19 +1,18 @@
 // Intentionally omitted from the curated API surface:
-// - Viewer
-// - Entity
-// - EntityCollection
-// - DataSource / DataSourceCollection / CustomDataSource
+// - high-level runtime facades
+// - high-level feature/data-source collections
 // - Property-layer and entity-graphics helpers such as ConstantProperty,
 //   ColorMaterialProperty, and ModelGraphics
 // - High-level scene collections such as LabelCollection
 // - Additional higher-level helpers should only be added with an explicit
 //   API-boundary decision and a concrete consumer need
 //
-// Those remain raw-Cesium or legacy-layer concerns and should not leak into the
+// Those remain raw-Cesium or dedicated integration concerns and should not leak into the
 // default not-so-high-level CARMA Cesium API.
 
 export {
   ArcType,
+  BillboardCollection,
   BoxGeometry,
   BoxOutlineGeometry,
   BoundingSphere,
@@ -33,6 +32,7 @@ export {
   CoplanarPolygonGeometry,
   CesiumWidget,
   CustomShader,
+  DebugModelMatrixPrimitive,
   defined,
   EasingFunction,
   Ellipsoid,

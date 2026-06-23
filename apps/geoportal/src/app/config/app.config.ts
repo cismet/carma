@@ -6,7 +6,7 @@ import {
   WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
 } from "@carma-commons/resources";
 
-import type { CesiumConfig } from "@carma-mapping/engines/cesium/legacy";
+import type { CesiumConfig } from "@carma-mapping/engines/cesium/react/runtime";
 import type { CesiumModelConfig } from "@carma-mapping/engines/cesium/core";
 import type { LeafletConfig } from "@carma-mapping/engines/leaflet";
 import {
@@ -175,7 +175,7 @@ export const LEAFLET_CONFIG: LeafletConfig = {
   zoomDelta: 1.0,
 };
 
-// URL hash parameter keys for viewer state
+// URL hash parameter keys for runtime state
 export const URL_PARAM_KEYS = {
   mapStyle: "m",
   measurements: "mm",

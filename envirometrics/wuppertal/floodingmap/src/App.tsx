@@ -50,12 +50,13 @@ import {
   useCesiumNavigationBridge,
 } from "@carma-mapping/engines-interop/view-state";
 import {
-  CustomViewer,
+  CesiumHost,
+  type CesiumHostState,
   PitchingCompass,
-  selectViewerModels,
+  selectCesiumRuntimeModels,
   useCesiumContext,
   useZoomControls as useZoomControlsCesium,
-} from "@carma-mapping/engines/cesium/legacy";
+} from "@carma-mapping/engines/cesium/react/runtime";
 import {
   EmptySearchComponent,
   LibFuzzySearch,
@@ -89,7 +90,7 @@ const VIEW_STATE_HASH_CODEC_OPTIONS: ShareableViewStateHashCodecOptions = {
 const FLOODINGMAP_CESIUM_VIEW_ADAPTER_ID = "floodingmap-cesium";
 const HIDDEN_DISPLAY_VALUE = "none" as const;
 
-type CesiumViewerCreditContainer = {
+type CesiumRuntimeCreditContainer = {
   _cesiumWidget?: {
     _creditContainer?: { style?: { display?: string } };
   };
@@ -125,7 +126,7 @@ function FloodingmapAppContent({ sync = false }: { sync?: boolean }) {
     getScene,
     getTerrainProvider,
     getSurfaceProvider,
-    isViewerReady,
+    isRuntimeReady,
     initialViewApplied,
   } = ctx;
   const cesiumScene = getScene();
@@ -142,35 +143,27 @@ function FloodingmapAppContent({ sync = false }: { sync?: boolean }) {
     useContext<typeof TopicMapContext>(TopicMapContext);
 
   // CESIUM related
-  const container3dMapRef = useRef<HTMLDivElement>(null);
-  const [cesiumContainerElement, setCesiumContainerElement] =
-    useState<HTMLDivElement | null>(null);
+  const container3dMapRef = useRef<HTMLDivElement | null>(null);
   const [shouldMountCesium, setShouldMountCesium] = useState(false);
   const cesiumReadyPromiseRef = useRef<Promise<void> | null>(null);
   const cesiumReadyResolversRef = useRef<Array<() => void>>([]);
 
-  const handleCesiumContainerRef = useCallback(
-    (node: HTMLDivElement | null) => {
-      container3dMapRef.current = node;
-      setCesiumContainerElement(node);
+  const handleCesiumHostChange = useCallback(
+    ({ element }: CesiumHostState) => {
+      container3dMapRef.current = element;
     },
     []
   );
 
   // Register map frameworks with switcher
   const leafletMap = routedMap?.leafletMap?.leafletElement ?? null;
-  const isCesiumRuntimeReady = Boolean(
-    cesiumScene && cesiumContainerElement && isViewerReady
-  );
+  const isCesiumRuntimeReady = Boolean(cesiumScene && isRuntimeReady);
 
   const getLeafletMap = useCallback(
     () => routedMap?.leafletMap?.leafletElement ?? null,
     [routedMap]
   );
-  const getCesiumContainer = useCallback(
-    () => container3dMapRef.current,
-    [container3dMapRef]
-  );
+  const getCesiumContainer = useCallback(() => container3dMapRef.current, []);
   const getCesiumTerrainProviders = useCallback(
     () => ({
       TERRAIN: getTerrainProvider() ?? null,
@@ -242,7 +235,7 @@ function FloodingmapAppContent({ sync = false }: { sync?: boolean }) {
     isCommitEnabled: isCesium && Boolean(cesiumScene) && initialViewApplied,
   });
 
-  const models = useSelector(selectViewerModels);
+  const models = useSelector(selectCesiumRuntimeModels);
 
   const markerAsset = models![CESIUM_CONFIG.markerKey!];
   const markerAnchorHeight = CESIUM_CONFIG.markerAnchorHeight ?? 10;
@@ -300,12 +293,13 @@ function FloodingmapAppContent({ sync = false }: { sync?: boolean }) {
   );
 
   useEffect(() => {
-    ctx.withViewer((viewer) => {
-      const viewerWithCreditContainer = viewer as CesiumViewerCreditContainer;
+    ctx.withRuntime((runtime) => {
+      const runtimeWithCreditContainer =
+        runtime as CesiumRuntimeCreditContainer;
 
       // remove default cesium credit because no ion resource is used
       const creditContainer =
-        viewerWithCreditContainer._cesiumWidget?._creditContainer;
+        runtimeWithCreditContainer._cesiumWidget?._creditContainer;
       if (creditContainer?.style) {
         creditContainer.style.display = HIDDEN_DISPLAY_VALUE;
       }
@@ -475,8 +469,7 @@ function FloodingmapAppContent({ sync = false }: { sync?: boolean }) {
         </EnviroMetricMap>
       </div>
       {shouldMountCesium && (
-        <div
-          ref={handleCesiumContainerRef}
+        <CesiumHost
           className={"map-container-3d"}
           style={{
             position: "absolute",
@@ -486,16 +479,13 @@ function FloodingmapAppContent({ sync = false }: { sync?: boolean }) {
             bottom: 0,
             zIndex: 400,
           }}
-        >
-          <CustomViewer
-            containerRef={container3dMapRef}
-            cameraLimiterOptions={CESIUM_CONFIG.camera}
-            homeValidationCenter={homeValidationCenter}
-            initialCameraView={initialCameraView}
-            constructorOptions={CONSTRUCTOR_OPTIONS}
-            enableSceneStyles={false}
-          ></CustomViewer>
-        </div>
+          onHostChange={handleCesiumHostChange}
+          cameraLimiterOptions={CESIUM_CONFIG.camera}
+          homeValidationCenter={homeValidationCenter}
+          initialCameraView={initialCameraView}
+          constructorOptions={CONSTRUCTOR_OPTIONS}
+          enableSceneStyles={false}
+        />
       )}
     </div>
   );

@@ -1,17 +1,20 @@
-import { Color, Viewer } from "cesium";
+import { Color } from "@carma-cesium";
 
 import {
   WUPP_MESH_2024,
   WUPP_TERRAIN_PROVIDER,
   WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
 } from "@carma-commons/resources";
-import { CesiumConfig } from "@carma-mapping/engines/cesium/legacy";
+import {
+  type CesiumConfig,
+  type CesiumWidgetConstructorOptions,
+} from "@carma-mapping/engines/cesium/react/runtime";
 
 import { APP_BASE_PATH } from "../app.config";
 export const CESIUM_PATHNAME = "__cesium__";
 
 // disable cesium canvas background transparency
-export const CONSTRUCTOR_OPTIONS: Viewer.ConstructorOptions = {
+export const CONSTRUCTOR_OPTIONS: CesiumWidgetConstructorOptions = {
   contextOptions: { webgl: { alpha: false } },
 };
 

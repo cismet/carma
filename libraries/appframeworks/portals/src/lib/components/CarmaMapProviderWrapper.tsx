@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { OverlayTourProvider } from "@carma-commons/ui/helper-overlay";
-import { CesiumContextProvider } from "@carma-mapping/engines/cesium/legacy";
+import { CesiumContextProvider } from "@carma-mapping/engines/cesium/react/runtime";
 import {
   LibreContextProvider,
   MapSelectionProvider,

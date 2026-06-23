@@ -2,10 +2,11 @@ import { useContext, useEffect, useRef, useState } from "react";
 
 import {
   Cartographic,
-  Entity,
+  PolylineCollection,
+  Primitive,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
-} from "cesium";
+} from "@carma-cesium";
 
 import {
   EnviroMetricMapContext,
@@ -16,7 +17,7 @@ import StyledWMSTileLayer from "react-cismap/StyledWMSTileLayer";
 import { isNumberArrayEqual } from "@carma-commons/utils";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { getTerrainElevationAsync } from "@carma-mapping/engines/cesium/core";
-import { useCesiumContext } from "@carma-mapping/engines/cesium/legacy";
+import { useCesiumContext } from "@carma-mapping/engines/cesium/react/runtime";
 import { useHashState } from "@carma-providers/hash-state";
 
 import config from "../config";
@@ -54,12 +55,12 @@ export const StateAwareChildren = () => {
 
   // CESIUM
   const cesiumContext = useCesiumContext();
-  const { isViewerReady, viewerRef, getTerrainProvider } = cesiumContext;
+  const { isRuntimeReady, runtimeRef, getTerrainProvider } = cesiumContext;
   const [cesiumPickedPosition, setCesiumPickedPosition] = useState<
     [number, number] | null
   >(null);
-  const markerEntityRef = useRef<Entity | null>(null);
-  const highlightEntityRef = useRef<Entity | null>(null);
+  const markerPrimitiveRef = useRef<Primitive | null>(null);
+  const highlightPrimitiveRef = useRef<PolylineCollection | null>(null);
   const prevPositionRef = useRef<[number, number] | null>(null);
   const initialRestoredQueryPositionRef = useRef<[number, number] | null>(
     controlState.currentFeatureInfoPosition ?? null
@@ -140,9 +141,9 @@ export const StateAwareChildren = () => {
     ) {
       const asyncUpdate = async () => {
         if (
-          !isViewerReady ||
-          !viewerRef.current ||
-          viewerRef.current.isDestroyed()
+          !isRuntimeReady ||
+          !runtimeRef.current ||
+          runtimeRef.current.isDestroyed()
         )
           return;
         const { lat, lon } = getWebMercatorInWGS84(
@@ -161,18 +162,18 @@ export const StateAwareChildren = () => {
         if (!groundPositionCartographic) return;
 
         updateMarkerPosition(
-          viewerRef.current!,
-          markerEntityRef,
-          highlightEntityRef,
+          runtimeRef.current!,
+          markerPrimitiveRef,
+          highlightPrimitiveRef,
           groundPositionCartographic
         );
       };
       asyncUpdate();
     }
   }, [
-    isViewerReady,
+    isRuntimeReady,
     getTerrainProvider,
-    viewerRef,
+    runtimeRef,
     cesiumContext,
     controlState.featureInfoModeActivated,
     controlState.currentFeatureInfoPosition,
@@ -194,13 +195,13 @@ export const StateAwareChildren = () => {
   useEffect(() => {
     if (
       !isLeaflet &&
-      isViewerReady &&
-      viewerRef.current &&
+      isRuntimeReady &&
+      runtimeRef.current &&
       controlState.featureInfoModeActivated
     ) {
-      const viewer = viewerRef.current;
+      const runtime = runtimeRef.current;
 
-      const handler = new ScreenSpaceEventHandler(viewer.scene.canvas);
+      const handler = new ScreenSpaceEventHandler(runtime.scene.canvas);
       handler.setInputAction(async (click) => {
         const terrainProvider = getTerrainProvider();
         if (!terrainProvider) {
@@ -212,11 +213,11 @@ export const StateAwareChildren = () => {
 
         await onCesiumClick(
           click,
-          viewerRef,
-          viewer.scene,
+          runtimeRef,
+          runtime.scene,
           terrainProvider,
-          markerEntityRef,
-          highlightEntityRef,
+          markerPrimitiveRef,
+          highlightPrimitiveRef,
           setCesiumPickedPosition
         );
       }, ScreenSpaceEventType.LEFT_CLICK);
@@ -225,43 +226,43 @@ export const StateAwareChildren = () => {
         handler.destroy();
         setCesiumPickedPosition(null);
 
-        if (viewer.isDestroyed()) return;
+        if (runtime.isDestroyed()) return;
 
-        if (markerEntityRef.current) {
-          viewer.entities.remove(markerEntityRef.current);
-          markerEntityRef.current = null;
+        if (markerPrimitiveRef.current) {
+          runtime.scene.primitives.remove(markerPrimitiveRef.current);
+          markerPrimitiveRef.current = null;
         }
-        if (highlightEntityRef.current) {
-          viewer.entities.remove(highlightEntityRef.current);
-          highlightEntityRef.current = null;
+        if (highlightPrimitiveRef.current) {
+          runtime.scene.primitives.remove(highlightPrimitiveRef.current);
+          highlightPrimitiveRef.current = null;
         }
-        viewer.scene.requestRender();
+        runtime.scene.requestRender();
       };
     }
   }, [
-    viewerRef,
+    runtimeRef,
     getTerrainProvider,
     controlState.featureInfoModeActivated,
     isLeaflet,
-    isViewerReady,
+    isRuntimeReady,
   ]);
 
   // Add effect to cleanup marker when feature info mode is disabled
   useEffect(() => {
-    if (!controlState.featureInfoModeActivated && viewerRef.current) {
-      if (viewerRef.current.isDestroyed()) return;
+    if (!controlState.featureInfoModeActivated && runtimeRef.current) {
+      if (runtimeRef.current.isDestroyed()) return;
 
-      if (markerEntityRef.current) {
-        viewerRef.current.entities.remove(markerEntityRef.current);
-        markerEntityRef.current = null;
+      if (markerPrimitiveRef.current) {
+        runtimeRef.current.scene.primitives.remove(markerPrimitiveRef.current);
+        markerPrimitiveRef.current = null;
       }
-      if (highlightEntityRef.current) {
-        viewerRef.current.entities.remove(highlightEntityRef.current);
-        highlightEntityRef.current = null;
+      if (highlightPrimitiveRef.current) {
+        runtimeRef.current.scene.primitives.remove(highlightPrimitiveRef.current);
+        highlightPrimitiveRef.current = null;
       }
       setCesiumPickedPosition(null);
     }
-  }, [viewerRef, controlState.featureInfoModeActivated]);
+  }, [runtimeRef, controlState.featureInfoModeActivated]);
 
   useEffect(() => {
     if (
