@@ -327,7 +327,7 @@ const RuntimeWidgetDemo = ({
           clearTilesetClipping(tileset);
           requestRender();
           cleanup = () => {};
-          return;
+          return true;
         }
 
         const clippingPolygon = createClippingPolygon({
@@ -340,7 +340,7 @@ const RuntimeWidgetDemo = ({
           clearTilesetClipping(tileset);
           requestRender();
           cleanup = () => {};
-          return;
+          return true;
         }
 
         const clippingPolygonCollection = new ClippingPolygonCollection({
@@ -358,6 +358,7 @@ const RuntimeWidgetDemo = ({
             requestRender();
           }
         };
+        return true;
       });
 
       if (!applied) {

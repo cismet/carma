@@ -39,12 +39,12 @@ export type CesiumOptions = {
   isPrimaryStyle: boolean;
   markerAnchorHeight?: number;
   pitchAdjustHeight?: number;
-  withTerrainProvider: (
-    cb: (provider: CesiumTerrainProvider, runtime: CesiumRuntime) => void
-  ) => boolean;
-  withSurfaceProvider: (
-    cb: (provider: CesiumTerrainProvider, runtime: CesiumRuntime) => void
-  ) => boolean;
+  withTerrainProvider: <T>(
+    cb: (provider: CesiumTerrainProvider, runtime: CesiumRuntime) => T
+  ) => T | undefined;
+  withSurfaceProvider: <T>(
+    cb: (provider: CesiumTerrainProvider, runtime: CesiumRuntime) => T
+  ) => T | undefined;
 };
 
 export type TerrainProviderConfig = {

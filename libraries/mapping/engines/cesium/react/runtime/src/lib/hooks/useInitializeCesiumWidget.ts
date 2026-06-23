@@ -617,14 +617,8 @@ export const useInitializeCesiumWidget = (
       if (!initialViewApplied) {
         let cancelled = false;
         (async () => {
-          let sceneRef: Scene | null = null;
-          let cameraRef: Camera | null = null;
-          withScene((scene) => {
-            sceneRef = scene;
-          });
-          withCamera((camera) => {
-            cameraRef = camera;
-          });
+          const sceneRef = withScene((scene) => scene) ?? null;
+          const cameraRef = withCamera((camera) => camera) ?? null;
           if (!sceneRef || !cameraRef) return;
           await waitForStableCameraAndViewport({
             scene: sceneRef,
@@ -763,12 +757,8 @@ export const useInitializeCesiumWidget = (
     withRuntime((runtime) => initialViewSetMap.set(runtime, true));
 
     (async () => {
-      let sceneRef: Scene | null = null;
-      let cameraRef: Camera | null = null;
-      withScene((scene) => {
-        sceneRef = scene;
-        cameraRef = scene.camera;
-      });
+      const sceneRef = withScene((scene) => scene) ?? null;
+      const cameraRef = sceneRef?.camera ?? null;
 
       if (!sceneRef || !cameraRef) return;
 
