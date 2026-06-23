@@ -1,9 +1,7 @@
-import TestExtrudeGeoJson from "./views/tests/ExtrudeGeoJson";
 import TestMarkers from "./views/tests/Markers";
 
 import TestComponentCesiumWidgetMap from "./views/tests/components/CesiumWidgetMap";
 
-import StandaloneResium from "./views/tests/standalone/Resium";
 import StandaloneTopicMap from "./views/tests/standalone/TopicMap";
 import StandaloneWidget from "./views/tests/standalone/Widget";
 import { HQ500 } from "./views/tests/standalone/HQ500";
@@ -21,8 +19,7 @@ export type RouteDescriptor = RouteItem | RoutePath;
 // ⚙️ for debug or test views
 
 export const viewerRoutes: RouteDescriptor[] = [
-  ["/", "", TestExtrudeGeoJson],
-  ["/extrude", "Extrusion", TestExtrudeGeoJson],
+  ["/", "", TestMarkers],
   ["/poi", "Marker", TestMarkers],
   [
     "/test",
@@ -38,7 +35,6 @@ export const otherRoutes: RouteDescriptor[] = [
     "/testapp",
     "⚙️ Standalone",
     [
-      ["/resium", "Standalone Test Resium", StandaloneResium],
       [
         "/topicMapWithBaseLayer",
         "Standalone Test TopicMapWithBaseLayer",
