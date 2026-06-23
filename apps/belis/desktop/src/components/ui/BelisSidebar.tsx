@@ -447,6 +447,8 @@ const BelisSidebar = ({
     schaltstelle: 2,
     abzweigdosen: 3,
     mauerlaschen: 4,
+    standorte: 5,
+    leuchten: 6,
   };
 
   // Group features by sourceLayer, merging standorte + leuchten into one group
@@ -874,7 +876,7 @@ const BelisSidebar = ({
             Fachobjekte
             {fachobjekteCount != null ? ` (${fachobjekteCount})` : ""}
           </button>
-          {hasHighlights && highlightCount != null && highlightCount < 2000 && (
+          {hasHighlights && (
             <button
               onClick={() => onModeChange?.("highlights")}
               className={`px-2 py-0.5 text-xs rounded ${
