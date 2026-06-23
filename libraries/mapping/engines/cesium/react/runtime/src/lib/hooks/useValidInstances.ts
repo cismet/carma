@@ -9,7 +9,6 @@ import {
   Cesium3DTileset,
   Scene,
 } from "@carma-cesium";
-import { isValidScene } from "@carma-mapping/engines/cesium/core";
 
 import {
   isValidCesiumWidget as isValidRuntimeNoCtx,
@@ -64,7 +63,6 @@ export const useValidInstances = (
     ): boolean => {
       if (
         isValidRuntimeNoCtx(runtimeRef.current) &&
-        isValidScene(runtimeRef.current.scene) &&
         isValidImageryLayer(imageryLayerRef.current)
       ) {
         cb(imageryLayerRef.current, runtimeRef.current.scene);

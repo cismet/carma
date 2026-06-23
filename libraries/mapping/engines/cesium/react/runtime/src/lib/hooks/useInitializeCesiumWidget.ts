@@ -710,7 +710,7 @@ export const useInitializeCesiumWidget = (
               0
             )
           : true;
-        withCamera((camera) => {
+        withCamera((camera, runtime) => {
           if (isValidDestination) {
             // clear any non-identity transform to avoid offsets
             camera.lookAtTransform(Matrix4.IDENTITY);
@@ -741,7 +741,7 @@ export const useInitializeCesiumWidget = (
               }
             }
             usedInitial = true;
-            withScene((scene) => scene.requestRender());
+            runtime.scene.requestRender();
           } else {
             console.warn(
               "[CESIUM] invalid initial camera position restored; skipping initial apply",
