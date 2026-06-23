@@ -26,7 +26,6 @@ import { ProviderConfig } from "./utils/cesiumProviders";
 import { loadTileset, TilesetConfigs } from "./utils/cesiumTilesetProviders";
 import { useValidInstances } from "./hooks/useValidInstances";
 import { usePreloadProviders } from "./hooks/usePreloadProviders";
-import { guardScene } from "./utils/guardScene";
 
 export const CesiumContextProvider = ({
   children,
@@ -295,7 +294,7 @@ export const CesiumContextProvider = ({
     (opts) => {
       const renderOnce = () => {
         withScene((scene) => {
-          guardScene(scene, "ctx requestRender").requestRender();
+          scene.requestRender();
         });
       };
       handleDelayedRender(renderOnce, opts);
