@@ -24,6 +24,14 @@ html {
   }
 }
 
+/* The filter factory caps its width at calc(100vw - 120px) for the floating
+   map overlay. Inside the layer info card that is narrower than the card
+   itself and makes the chips wrap too early, so let them use the full card
+   width here. The chips keep their original pill styling. */
+.secondary-view .generic-filter-buttons {
+  max-width: 100% !important;
+}
+
 .cesium-viewer {
   background-color: transparent;
 }

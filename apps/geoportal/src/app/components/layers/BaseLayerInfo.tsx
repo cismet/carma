@@ -51,7 +51,7 @@ const BaseLayerInfo = () => {
       (isCesium ? filter3dLayers(layer) : true)
   );
   const reversedLayers = filteredLayers.slice().reverse();
-  const sortableLayers = filteredLayers.filter((l) => !l.pinned);
+  const sortableLayers = reversedLayers.filter((l) => !l.pinned);
   const pinnedFirstLayers = filteredLayers.filter((l) => l.pinned === "first");
   const pinnedLastLayers = filteredLayers.filter((l) => l.pinned === "last");
 
@@ -71,7 +71,7 @@ const BaseLayerInfo = () => {
 
   const handleDragEnd = (event) => {
     const { active, over } = event;
-    if (active.id !== over.id) {
+    if (over && active.id !== over.id) {
       const originalPos = getLayerPos(active.id);
       const newPos = getLayerPos(over.id);
       const newLayers = arrayMove(layers, originalPos, newPos);
@@ -79,6 +79,16 @@ const BaseLayerInfo = () => {
       dispatch(setLayers(newLayers));
     }
   };
+
+  const removeAllLayersButton = (
+    <button
+      onClick={() => dispatch(setLayers([]))}
+      className="text-gray-600 hover:text-gray-500 p-2 whitespace-nowrap"
+    >
+      Alle Karteninhalte entfernen
+      <FontAwesomeIcon icon={faX} className="ml-2" />
+    </button>
+  );
 
   const getBackgroundDescription = () => {
     if (backgroundLayer.id === "karte") {
@@ -103,16 +113,13 @@ const BaseLayerInfo = () => {
               animated={false}
               activeKey={activeTab}
               onChange={setActiveTab}
+              className="full-width-tabs"
               tabBarExtraContent={{
                 right:
                   activeTab === "1" ? (
-                    <button
-                      onClick={() => dispatch(setLayers([]))}
-                      className="text-gray-600 hover:text-gray-500 p-2"
-                    >
-                      Alle Karteninhalte entfernen
-                      <FontAwesomeIcon icon={faX} className="ml-2" />
-                    </button>
+                    <div className="hidden sm:flex items-center gap-3">
+                      {removeAllLayersButton}
+                    </div>
                   ) : null,
               }}
               items={[
@@ -120,29 +127,18 @@ const BaseLayerInfo = () => {
                   key: "1",
                   label: "Kartenebenen",
                   children: (
-                    <DndContext
-                      onDragEnd={handleDragEnd}
-                      modifiers={[restrictToVerticalAxis]}
-                    >
-                      <div className="h-full overflow-auto max-h-full flex flex-col gap-2 pr-1">
-                        {pinnedLastLayers
-                          .slice()
-                          .reverse()
-                          .map((layer) => (
-                            <LayerRow
-                              key={`layer.${layer.id}`}
-                              layer={layer}
-                              id={layer.id}
-                              index={layers.indexOf(layer)}
-                              {...resolveLayerVisibilityToggleProps(layer)}
-                            />
-                          ))}
-                        <SortableContext
-                          items={sortableLayers}
-                          strategy={verticalListSortingStrategy}
-                        >
-                          {reversedLayers
-                            .filter((l) => !l.pinned)
+                    <>
+                      <div className="flex sm:hidden items-center justify-end">
+                        {removeAllLayersButton}
+                      </div>
+                      <DndContext
+                        onDragEnd={handleDragEnd}
+                        modifiers={[restrictToVerticalAxis]}
+                      >
+                        <div className="h-full overflow-auto max-h-full flex flex-col gap-2 pr-1">
+                          {pinnedLastLayers
+                            .slice()
+                            .reverse()
                             .map((layer) => (
                               <LayerRow
                                 key={`layer.${layer.id}`}
@@ -152,32 +148,46 @@ const BaseLayerInfo = () => {
                                 {...resolveLayerVisibilityToggleProps(layer)}
                               />
                             ))}
-                        </SortableContext>
-                        {pinnedFirstLayers.map((layer) => (
+                          <SortableContext
+                            items={sortableLayers}
+                            strategy={verticalListSortingStrategy}
+                          >
+                            {sortableLayers.map((layer) => (
+                              <LayerRow
+                                key={`layer.${layer.id}`}
+                                layer={layer}
+                                id={layer.id}
+                                index={layers.indexOf(layer)}
+                                {...resolveLayerVisibilityToggleProps(layer)}
+                              />
+                            ))}
+                          </SortableContext>
+                          {pinnedFirstLayers.map((layer) => (
+                            <LayerRow
+                              key={`layer.${layer.id}`}
+                              layer={layer}
+                              id={layer.id}
+                              index={layers.indexOf(layer)}
+                              {...resolveLayerVisibilityToggleProps(layer)}
+                            />
+                          ))}
                           <LayerRow
-                            key={`layer.${layer.id}`}
-                            layer={layer}
-                            id={layer.id}
-                            index={layers.indexOf(layer)}
-                            {...resolveLayerVisibilityToggleProps(layer)}
+                            isBackgroundLayer
+                            layer={backgroundLayer}
+                            id={backgroundLayer.id}
+                            displayTitle={
+                              isCesium
+                                ? cesiumBackgroundlayerNames[backgroundLayer.id]
+                                : backgroundLayer.title
+                            }
+                            index={-1}
+                            {...resolveLayerVisibilityToggleProps(
+                              backgroundLayer
+                            )}
                           />
-                        ))}
-                        <LayerRow
-                          isBackgroundLayer
-                          layer={backgroundLayer}
-                          id={backgroundLayer.id}
-                          displayTitle={
-                            isCesium
-                              ? cesiumBackgroundlayerNames[backgroundLayer.id]
-                              : backgroundLayer.title
-                          }
-                          index={-1}
-                          {...resolveLayerVisibilityToggleProps(
-                            backgroundLayer
-                          )}
-                        />
-                      </div>
-                    </DndContext>
+                        </div>
+                      </DndContext>
+                    </>
                   ),
                 },
                 {

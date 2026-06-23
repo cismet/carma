@@ -3,6 +3,8 @@ export {
   applyDynamicStyling,
   extractCarmaConf,
   extractLayerInfo,
+  getDynamicStylingOptionsConfigs,
+  getDynamicStylingSelections,
   getLastAppliedSelection,
   setLastAppliedSelection,
   type DynamicStylingControlProps,

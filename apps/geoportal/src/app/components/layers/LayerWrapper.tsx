@@ -42,7 +42,6 @@ import {
   getSelectedLayerIndexIsNoSelection,
   getShowLeftScrollButton,
   getShowRightScrollButton,
-  changeVisibility,
   setLayers,
   setSelectedLayerIndex,
   setShowLeftScrollButton,
@@ -55,7 +54,7 @@ import "./button.css";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import InteractionView from "./InteractionView";
 import { shouldShowAdhocLayerInLayerList } from "../../helper/adhoc-feature-utils";
-import { getLayerVisibilityToggleProps } from "./layer-visibility-toggle-props";
+import { useDynamicStylingSync } from "../../hooks/useDynamicStylingSync";
 
 const scrollLayerBarBy = (left: number) => {
   document.getElementById("scrollWrapper")?.scrollBy({
@@ -66,6 +65,7 @@ const scrollLayerBarBy = (left: number) => {
 
 const LayerWrapper = () => {
   const dispatch: AppDispatch = useDispatch();
+  useDynamicStylingSync();
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const size = useWindowSize();
 
@@ -81,6 +81,10 @@ const LayerWrapper = () => {
 
   const [isDragging, setIsDragging] = useState(false);
 
+  const isSecondaryViewOpen =
+    !isNoSelectionIndex &&
+    !(selectedLayerIndex >= 0 && layers[selectedLayerIndex]?.skipSelection);
+
   const { isOver, setNodeRef } = useDroppable({
     id: "droppable",
   });
@@ -94,19 +98,6 @@ const LayerWrapper = () => {
   const pinnedFirstLayers = listedLayers.filter((l) => l.pinned === "first");
   const sortableLayers = listedLayers.filter((l) => !l.pinned);
   const pinnedLastLayers = listedLayers.filter((l) => l.pinned === "last");
-  const selectedLayer =
-    selectedLayerIndex >= 0 ? layers[selectedLayerIndex] : backgroundLayer;
-  const handleLayerVisibilityChange = useCallback(
-    (layerId: string, visible: boolean) => {
-      dispatch(changeVisibility({ id: layerId, visible }));
-    },
-    [dispatch]
-  );
-  const selectedLayerVisibilityToggleProps = getLayerVisibilityToggleProps({
-    isCesium,
-    layer: selectedLayer,
-    onChangeLayerVisibility: handleLayerVisibilityChange,
-  });
 
   const getLayerPos = (id) => layers.findIndex((layer) => layer.id === id);
 
@@ -114,7 +105,7 @@ const LayerWrapper = () => {
     setIsDragging(false);
     routedMapRef?.leafletMap?.leafletElement.dragging.enable();
     const { active, over } = event;
-    if (active.id !== over.id) {
+    if (over && active.id !== over.id) {
       const originalPos = getLayerPos(active.id);
       const newPos = getLayerPos(over.id);
       const newLayers = arrayMove(layers, originalPos, newPos);
@@ -256,11 +247,8 @@ const LayerWrapper = () => {
         </div>
       </DndContext>
 
-      <InteractionView isDragging={isDragging} />
-      {!isNoSelectionIndex &&
-        !(
-          selectedLayerIndex >= 0 && layers[selectedLayerIndex]?.skipSelection
-        ) && <SecondaryView {...selectedLayerVisibilityToggleProps} />}
+      {size.width >= 640 && <InteractionView isDragging={isDragging} />}
+      {isSecondaryViewOpen && <SecondaryView />}
     </>
   );
 };

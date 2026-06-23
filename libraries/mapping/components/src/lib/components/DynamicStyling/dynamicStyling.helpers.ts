@@ -1,4 +1,29 @@
-import type { DynamicStylingOptionsConfig } from "@carma-mapping/layers";
+import type {
+  DynamicStylingConfig,
+  DynamicStylingOptionsConfig,
+} from "@carma-mapping/layers";
+
+export const getDynamicStylingOptionsConfigs = (
+  dynamicStyling: DynamicStylingConfig | DynamicStylingConfig[] | undefined
+): DynamicStylingOptionsConfig[] => {
+  const configs = Array.isArray(dynamicStyling)
+    ? dynamicStyling
+    : dynamicStyling
+    ? [dynamicStyling]
+    : [];
+  return configs.filter(
+    (c): c is DynamicStylingOptionsConfig =>
+      c.type === "list" || c.type === "toggle"
+  );
+};
+
+export const getDynamicStylingSelections = (
+  selection: unknown
+): Record<number, string> => {
+  return typeof selection === "object" && selection !== null
+    ? (selection as Record<number, string>)
+    : {};
+};
 
 export const ICON_PREFIX =
   "https://geo.wuppertal.de/geoportal/geoportal_icon_legends/";

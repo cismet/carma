@@ -21,9 +21,9 @@ export const tabItems = (
       key: "1",
       children: (
         <>
-          <p>{metadataText}</p>
+          <p className="text-sm">{metadataText}</p>
           {pdfUrl && (
-            <a href={pdfUrl} target="_metadata">
+            <a className="text-sm" href={pdfUrl} target="_metadata">
               Vollständiger Metadatensatz (PDF)
             </a>
           )}
@@ -40,6 +40,7 @@ export const tabItems = (
         <div className="flex flex-col gap-2">
           {wmsUrl && (
             <a
+              className="text-sm"
               href={`${wmsUrl}?service=WMS&request=GetCapabilities&version=1.1.1`}
               target="_blank"
             >
@@ -47,7 +48,7 @@ export const tabItems = (
             </a>
           )}
           {opendataUrl && (
-            <a href={opendataUrl as string} target="_blank">
+            <a className="text-sm" href={opendataUrl as string} target="_blank">
               Datenquelle im Open-Data-Portal Wuppertal
             </a>
           )}

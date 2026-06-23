@@ -83,6 +83,15 @@ const LayerInfo = ({ description, legend, zoomLevels }: LayerInfoProps) => {
     }
   }, [metadataUrl, currentLayer?.layerInfo?.metaDataText]);
 
+  const legendImages = legend?.map((legendItem, i) => (
+    <LegendDisplay
+      key={`legend_${i}`}
+      url={legendItem.OnlineResource}
+      updateUrl
+      className="aspect-auto h-auto object-contain overflow-clip"
+    />
+  ));
+
   const getFooterText = () => {
     const layerCurrentlyVisible =
       zoom < zoomLevels.maxZoom && zoom > zoomLevels.minZoom;
@@ -97,10 +106,10 @@ const LayerInfo = ({ description, legend, zoomLevels }: LayerInfoProps) => {
     <LayerInfoWrapper
       content={
         <>
-          <div className="flex sm:flex-row flex-col gap-2 w-full h-full overflow-hidden">
-            <div className="formContainer flex flex-col gap-2 w-full sm:w-[80%] hide-tabs min-h-0 overflow-hidden">
+          <div className="flex sm:flex-row flex-col gap-2 w-full h-full overflow-y-auto sm:overflow-hidden show-scrollbar">
+            <div className="formContainer flex flex-col gap-2 w-full sm:w-[80%] hide-tabs shrink-0 sm:shrink sm:min-h-0 sm:overflow-hidden">
               {parsedDescription && parsedDescription.length > 0 && (
-                <div className="flex-shrink-0 overflow-y-auto max-h-[60%]">
+                <div className="flex-shrink-0 sm:overflow-y-auto sm:max-h-[60%]">
                   {parsedDescription.map((section, index) => {
                     if (
                       section.title === "Sichtbarkeit" &&
@@ -122,7 +131,13 @@ const LayerInfo = ({ description, legend, zoomLevels }: LayerInfoProps) => {
               )}
               <hr className="h-px my-0 bg-gray-300 border-0 w-full flex-shrink-0" />
 
-              <div className="flex-1 min-h-0 overflow-y-auto">
+              <div className="sm:hidden">
+                <h5 className="pl-1.5">Legende</h5>
+                {legendImages}
+              </div>
+              <hr className="h-px my-0 bg-gray-300 border-0 w-full sm:hidden" />
+
+              <div className="sm:flex-1 sm:min-h-0 sm:overflow-y-auto">
                 <Tabs
                   animated={false}
                   items={tabItems(currentLayer, metadataText, pdfUrl)}
@@ -130,20 +145,10 @@ const LayerInfo = ({ description, legend, zoomLevels }: LayerInfoProps) => {
                   onChange={(key) => dispatch(setUIActiveTabKey(key))}
                 />
               </div>
-              <hr className="h-px my-0 bg-gray-300 border-0 w-full sm:hidden" />
             </div>
-            <div className="w-1/3 h-[calc(100%-26px)]">
+            <div className="hidden sm:block w-1/3 h-[calc(100%-26px)]">
               <h5 className="pl-1.5">Legende</h5>
-              <div className="h-full sm:overflow-auto">
-                {legend?.map((legend, i) => (
-                  <LegendDisplay
-                    key={`legend_${i}`}
-                    url={legend.OnlineResource}
-                    updateUrl
-                    className="aspect-auto h-auto object-contain overflow-clip"
-                  />
-                ))}
-              </div>
+              <div className="h-full overflow-auto">{legendImages}</div>
             </div>
           </div>
         </>
