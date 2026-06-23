@@ -10,7 +10,7 @@ import { HASH_ZOOM_CONVENTION } from "../core/viewStateHash";
 import type { ShareableViewState } from "../types";
 import {
   applyToShareableViewState,
-  createViewStateShareableHashCodec,
+  createShareableViewStateHashCodec,
   readFromShareableViewState,
   readShareableViewState,
   resolveViewStateForViewport,
@@ -281,9 +281,9 @@ describe("readFromShareableViewState", () => {
 
 const createShareableHashCodec = (
   options: ShareableViewStateHashCodecOptions = {}
-) => createViewStateShareableHashCodec(options);
+) => createShareableViewStateHashCodec(options);
 
-describe("createViewStateShareableHashCodec", () => {
+describe("createShareableViewStateHashCodec", () => {
   it("encodes directly into hash-equivalent ShareableViewState", () => {
     const codec = createShareableHashCodec({
       zoomConvention: HASH_ZOOM_CONVENTION.LEAFLET_256,

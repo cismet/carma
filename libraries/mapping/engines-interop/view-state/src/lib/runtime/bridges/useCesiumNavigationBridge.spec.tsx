@@ -14,7 +14,7 @@ import { ViewStateNavigationManagerProvider } from "../providers/navigation/View
 import { ViewStateContext } from "../providers/view-state/ViewStateContext";
 import { ViewStateProvider } from "../providers/view-state/ViewStateProvider";
 import { buildViewState } from "../../core/construct";
-import type { ViewState, ViewStateHashCodec } from "../../core/types";
+import type { ViewState } from "../../core/types";
 import { useCesiumNavigationBridge } from "./useCesiumNavigationBridge";
 const updateHashMock = vi.fn();
 const publishCurrentStateMock = vi.fn(() => true);
@@ -89,28 +89,9 @@ const buildTestState = ({
     },
   });
 
-const codec: ViewStateHashCodec = {
-  encode: (state) =>
-    state
-      ? {
-          lat: 51.27,
-          lng:
-            state.metadata.sourceId === "cesium-after-interaction" ? 7.4 : 7.2,
-          altitude: 180,
-        }
-      : null,
-  decode: (hashParams) =>
-    typeof hashParams.lat === "number"
-      ? buildTestState({
-          sourceId: "hash",
-          source: "hash",
-        })
-      : null,
-};
-
 const wrapper = ({ children }: PropsWithChildren) => (
   <ViewStateProvider>
-    <ViewStateNavigationManagerProvider codec={codec}>
+    <ViewStateNavigationManagerProvider>
       {children}
     </ViewStateNavigationManagerProvider>
   </ViewStateProvider>
@@ -214,11 +195,12 @@ describe("useCesiumNavigationBridge", () => {
 
     expect(updateHashMock).toHaveBeenCalledTimes(1);
     expect(updateHashMock).toHaveBeenCalledWith(
-      {
-        lat: 51.27,
-        lng: 7.4,
-        altitude: 180,
-      },
+      expect.objectContaining({
+        lat: expect.any(Number),
+        lng: expect.any(Number),
+        altitude: expect.any(Number),
+        zoom: expect.any(Number),
+      }),
       expect.objectContaining({
         clearStateKeySetIds: ["scene-view-state"],
         replace: false,

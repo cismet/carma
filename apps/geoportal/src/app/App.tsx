@@ -27,6 +27,12 @@ import {
 } from "@carma-mapping/components";
 import { useCesiumDevConsoleTrigger } from "@carma-mapping/engines/cesium/react/interactions";
 import {
+  HASH_ZOOM_CONVENTION,
+  type ShareableViewStateHashCodecOptions,
+  ViewStateNavigationManagerProvider,
+  ViewStateProvider,
+} from "@carma-mapping/engines-interop/view-state";
+import {
   FeatureFlagProvider,
   useFeatureFlags,
 } from "@carma-providers/feature-flag";
@@ -53,26 +59,20 @@ import { useSyncToken } from "./hooks/useSyncToken";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useMeasurementLayerButton } from "./hooks/useMeasurementLayerButton";
 import { useGeoportalAppSearchParams } from "./hooks/use-geoportal-app-search-params";
+import { useAdhocFeatureRehydrate } from "./hooks/use-adhoc-feature-rehydrate";
 
 import { APP_KEY, layerMap } from "./config";
 import { geoportalMapStyleConfig } from "./config/mapStyleConfig";
 
-import { CESIUM_CONFIG, CONFIG_BASE_URL } from "./config/app.config";
+import {
+  CESIUM_CONFIG,
+  CONFIG_BASE_URL,
+  DEFAULT_CAMERA_FOV_DEG,
+} from "./config/app.config";
 import store, { geoportalInitialHashState } from "./store";
 import { getFeatureFlagConfig } from "./config/featureFlags";
 
 import { OBLIQUE_CONFIG, CAMERA_ID_TO_DIRECTION } from "./oblique/config";
-
-// Stable config objects
-const MEASUREMENTS_BASE_CONFIG = {
-  editableTitle: true,
-  infoBoxHeaderColor: COLORS_HEX.ACCENT_MEASUREMENTS,
-  snappingEnabled: false,
-  snappingOnUpdate: false,
-  localStorageKey: "@" + APP_KEY + ".app.measurements",
-};
-
-import { useAdhocFeatureRehydrate } from "./hooks/use-adhoc-feature-rehydrate";
 
 import { getCustomFeatureFlags } from "./store/slices/layers";
 import {
@@ -89,6 +89,25 @@ import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import "./index.css";
 // import { setDrawingShape } from "./store/slices/measurements";
+
+// Stable config objects
+const MEASUREMENTS_BASE_CONFIG = {
+  editableTitle: true,
+  infoBoxHeaderColor: COLORS_HEX.ACCENT_MEASUREMENTS,
+  snappingEnabled: false,
+  snappingOnUpdate: false,
+  localStorageKey: "@" + APP_KEY + ".app.measurements",
+};
+
+const VIEW_STATE_HASH_CODEC_OPTIONS: ShareableViewStateHashCodecOptions = {
+  defaultFovDeg: DEFAULT_CAMERA_FOV_DEG,
+  zoomConvention: HASH_ZOOM_CONVENTION.LEAFLET_256,
+  cameraLimiterOptions: CESIUM_CONFIG.camera,
+};
+
+const MAP_OVERLAY_OPTIONS = {
+  background: backgroundSettings,
+};
 
 function CesiumDevConsoleIntegration() {
   const flags = useFeatureFlags();
@@ -173,10 +192,6 @@ function App({ published }: { published?: boolean }) {
     [deployment, customFeatureFlags]
   );
 
-  const overlayOptions = useMemo(
-    () => ({ background: backgroundSettings }),
-    []
-  );
   const { initialMapFramework } = geoportalInitialHashState;
 
   if (isLoadingConfig === null) {
@@ -193,7 +208,7 @@ function App({ published }: { published?: boolean }) {
           <MapFrameworkSwitcherProvider initialFramework={initialMapFramework}>
             <CarmaMapProviderWrapper
               cesiumOptions={CESIUM_CONFIG}
-              overlayOptions={overlayOptions}
+              overlayOptions={MAP_OVERLAY_OPTIONS}
               mapStyleConfig={geoportalMapStyleConfig}
               store={store}
             >
@@ -222,7 +237,14 @@ function App({ published }: { published?: boolean }) {
                           </div>
                         )}
                         {!published && <TopNavbar />}
-                        <MapWrapper />
+                        <ViewStateProvider>
+                          <ViewStateNavigationManagerProvider
+                            shareableHashOptions={VIEW_STATE_HASH_CODEC_OPTIONS}
+                            replace={true}
+                          >
+                            <MapWrapper />
+                          </ViewStateNavigationManagerProvider>
+                        </ViewStateProvider>
                         <MobileWarningMessage
                           headerText={mobileInfo.headerText}
                           bodyText={mobileInfo.bodyText}

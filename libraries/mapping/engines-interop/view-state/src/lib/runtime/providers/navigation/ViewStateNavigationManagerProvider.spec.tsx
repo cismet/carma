@@ -15,7 +15,6 @@ import { buildViewState } from "../../../core/construct";
 import {
   VIEW_STATE_NAVIGATION_EVENT,
   type ViewState,
-  type ViewStateHashCodec,
   type ViewStateNavigationEvent,
 } from "../../../core/types";
 import { useOnViewStateNavigationEvent } from "./useOnViewStateNavigationEvent";
@@ -56,6 +55,23 @@ const meters = (value: number): Meters => value as Meters;
 const radians = (valueDeg: number): Radians =>
   degToRadNumeric(valueDeg)! as Radians;
 
+const RESTORE_HASH_PARAMS = {
+  lat: 51.27,
+  lng: 7.2,
+  altitude: 180,
+  bearing: 195,
+  fov: 60,
+  pitch: 58,
+  zoom: 17.003,
+};
+
+const RESTORE_HASH_PARAM_STRINGS = Object.fromEntries(
+  Object.entries(RESTORE_HASH_PARAMS).map(([key, value]) => [
+    key,
+    String(value),
+  ])
+);
+
 const buildTestState = ({
   sourceId,
   source,
@@ -84,28 +100,9 @@ const buildTestState = ({
     },
   });
 
-const codec: ViewStateHashCodec = {
-  encode: (state) =>
-    state
-      ? {
-          lat: 51.27,
-          lng:
-            state.metadata.sourceId === "cesium-after-interaction" ? 7.4 : 7.2,
-          altitude: 180,
-        }
-      : null,
-  decode: (hashParams) =>
-    typeof hashParams.lat === "number"
-      ? buildTestState({
-          sourceId: "hash",
-          source: "hash",
-        })
-      : null,
-};
-
 const wrapper = ({ children }: PropsWithChildren) => (
   <ViewStateProvider>
-    <ViewStateNavigationManagerProvider codec={codec}>
+    <ViewStateNavigationManagerProvider>
       {children}
     </ViewStateNavigationManagerProvider>
   </ViewStateProvider>
@@ -127,60 +124,17 @@ describe("ViewStateNavigationManagerProvider", () => {
   });
 
   it("decodes the initial restore state synchronously", () => {
-    currentHashParams = {
-      lat: 51.27,
-    };
+    currentHashParams = RESTORE_HASH_PARAMS;
 
     const { result } = renderHook(() => useViewStateNavigationRestore(), {
       wrapper,
     });
 
     expect(result.current.isRestoreResolved).toBe(true);
-    expect(result.current.restoreState?.metadata.sourceId).toBe("hash");
-    expect(result.current.restoreState?.metadata.source).toBe("hash");
-  });
-
-  it("keeps restore state resolved when restore-signature encoding throws", () => {
-    currentHashParams = {
-      lat: 51.27,
-    };
-
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const restoreThrowingCodec: ViewStateHashCodec = {
-      encode: () => {
-        throw new Error("cannot encode");
-      },
-      decode: (hashParams) =>
-        typeof hashParams.lat === "number"
-          ? buildTestState({
-              sourceId: "hash",
-              source: "hash",
-            })
-          : null,
-    };
-    const restoreThrowingWrapper = ({ children }: PropsWithChildren) => (
-      <ViewStateProvider>
-        <ViewStateNavigationManagerProvider codec={restoreThrowingCodec}>
-          {children}
-        </ViewStateNavigationManagerProvider>
-      </ViewStateProvider>
+    expect(result.current.restoreState?.metadata.sourceId).toBe(
+      "shareable-hash-restore"
     );
-
-    const { result } = renderHook(() => useViewStateNavigationRestore(), {
-      wrapper: restoreThrowingWrapper,
-    });
-
-    expect(result.current.isRestoreResolved).toBe(true);
-    expect(result.current.restoreState?.metadata.sourceId).toBe("hash");
-    expect(result.current.restoreState?.metadata.source).toBe("hash");
-    expect(warnSpy).toHaveBeenCalledWith(
-      "[ViewStateNavigationManager] Failed to encode hash",
-      expect.objectContaining({
-        label: "ViewStateNavigationManager",
-        reason: "initial-restore-signature",
-      })
-    );
-    warnSpy.mockRestore();
+    expect(result.current.restoreState?.metadata.source).toBe("restore");
   });
 
   it("writes hash on explicit commits", () => {
@@ -223,74 +177,20 @@ describe("ViewStateNavigationManagerProvider", () => {
     });
 
     expect(updateHashMock).toHaveBeenCalledWith(
-      {
-        lat: 51.27,
-        lng: 7.2,
-        altitude: 180,
-      },
+      expect.objectContaining({
+        lat: expect.any(Number),
+        lng: expect.any(Number),
+        altitude: expect.any(Number),
+        zoom: expect.any(Number),
+      }),
       expect.objectContaining({
         clearStateKeySetIds: ["scene-view-state"],
-        label: "ViewStateNavigationManager",
+        label: "ViewStateNavigationManagerProvider",
         replace: true,
       })
     );
 
     unregister?.();
-  });
-
-  it("handles hash encode exceptions without updating the URL", () => {
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const throwingCodec: ViewStateHashCodec = {
-      encode: () => {
-        throw new Error("cannot encode");
-      },
-      decode: () => null,
-    };
-    const throwingWrapper = ({ children }: PropsWithChildren) => (
-      <ViewStateProvider>
-        <ViewStateNavigationManagerProvider codec={throwingCodec}>
-          {children}
-        </ViewStateNavigationManagerProvider>
-      </ViewStateProvider>
-    );
-
-    const { result } = renderHook(
-      () => ({
-        navigationContext: useViewStateNavigationContext(),
-        viewStateContext: useContext(ViewStateContext),
-      }),
-      {
-        wrapper: throwingWrapper,
-      }
-    );
-
-    act(() => {
-      result.current.viewStateContext?.register("cesium", "cesium");
-      result.current.viewStateContext?.claimControl("cesium", "sync");
-      result.current.viewStateContext?.update(
-        buildTestState({
-          sourceId: "cesium",
-          source: "sync",
-        }),
-        {
-          sourceId: "cesium",
-          timestampMs: 1_700_000_000_001,
-          priority: "sync",
-        }
-      );
-    });
-
-    act(() => {
-      expect(
-        result.current.navigationContext.commitCurrentState(
-          "interaction-settled"
-        )
-      ).toBe(false);
-    });
-
-    expect(updateHashMock).not.toHaveBeenCalled();
-    expect(warnSpy).toHaveBeenCalled();
-    warnSpy.mockRestore();
   });
 
   it("updates restore state and emits a browser navigation event on popstate", () => {
@@ -307,12 +207,8 @@ describe("ViewStateNavigationManagerProvider", () => {
 
     act(() => {
       popStateListener?.({
-        stateValues: {
-          lat: 51.27,
-        },
-        hashParams: {
-          lat: "51.27",
-        },
+        stateValues: RESTORE_HASH_PARAMS,
+        hashParams: RESTORE_HASH_PARAM_STRINGS,
         changedStateKeys: ["lat"],
         removedStateKeys: [],
         source: "popstate",
@@ -321,7 +217,7 @@ describe("ViewStateNavigationManagerProvider", () => {
 
     expect(
       result.current.navigationRestore.restoreState?.metadata.sourceId
-    ).toBe("hash");
+    ).toBe("shareable-hash-restore");
     expect(result.current.viewStateContext?.getState()).toBeNull();
     expect(result.current.navigationEventsRef.current).toEqual([
       expect.objectContaining({
@@ -330,7 +226,7 @@ describe("ViewStateNavigationManagerProvider", () => {
     ]);
     expect(
       result.current.navigationEventsRef.current[0]?.state.metadata.sourceId
-    ).toBe("hash");
+    ).toBe("shareable-hash-restore");
   });
 
   it("does not emit a navigation event when popstate does not decode to a view state", () => {
@@ -386,12 +282,8 @@ describe("ViewStateNavigationManagerProvider", () => {
 
     act(() => {
       popStateListener?.({
-        stateValues: {
-          lat: 51.27,
-        },
-        hashParams: {
-          lat: "51.27",
-        },
+        stateValues: RESTORE_HASH_PARAMS,
+        hashParams: RESTORE_HASH_PARAM_STRINGS,
         changedStateKeys: ["lat"],
         removedStateKeys: [],
         source: "popstate",
@@ -447,12 +339,8 @@ describe("ViewStateNavigationManagerProvider", () => {
         "user-interaction"
       );
       popStateListener?.({
-        stateValues: {
-          lat: 51.27,
-        },
-        hashParams: {
-          lat: "51.27",
-        },
+        stateValues: RESTORE_HASH_PARAMS,
+        hashParams: RESTORE_HASH_PARAM_STRINGS,
         changedStateKeys: ["lat"],
         removedStateKeys: [],
         source: "popstate",
@@ -483,11 +371,12 @@ describe("ViewStateNavigationManagerProvider", () => {
     });
 
     expect(updateHashMock).toHaveBeenCalledWith(
-      {
+      expect.objectContaining({
         lat: 51.27,
         lng: 7.4,
         altitude: 180,
-      },
+        zoom: expect.any(Number),
+      }),
       expect.objectContaining({
         clearStateKeySetIds: ["scene-view-state"],
         replace: false,

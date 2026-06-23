@@ -91,7 +91,7 @@ export {
   readLeafletHomeViewState,
   readShareableViewState,
   applyToShareableViewState,
-  createViewStateShareableHashCodec,
+  createShareableViewStateHashCodec,
   type ShareableViewStatePrecision,
   type ShareableViewStateAdapterOptions,
   type ShareableViewStateHashCodecOptions,

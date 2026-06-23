@@ -527,7 +527,7 @@ export const readFromShareableViewState = (
   });
 };
 
-export const createViewStateShareableHashCodec = (
+export const createShareableViewStateHashCodec = (
   options: ShareableViewStateHashCodecOptions = {}
 ): ViewStateHashCodec => ({
   encode: (state) => {

@@ -77,13 +77,7 @@ import {
   setCurrentSceneStyle,
   useCesiumContext,
 } from "@carma-mapping/engines/cesium/legacy";
-import {
-  createViewStateShareableHashCodec,
-  HASH_ZOOM_CONVENTION,
-  ViewStateNavigationManagerProvider,
-  ViewStateProvider,
-  useCesiumNavigationBridge,
-} from "@carma-mapping/engines-interop/view-state";
+import { useCesiumNavigationBridge } from "@carma-mapping/engines-interop/view-state";
 import {
   useMapFrameworkSwitcherContext,
   useRegisterMapFramework,
@@ -139,11 +133,7 @@ import {
 import LoginForm from "../LoginForm.tsx";
 import { useModelSelectionDispatcher } from "../../hooks/useModelSelectionDispatcher.ts";
 
-import {
-  CESIUM_CONFIG,
-  DEFAULT_CAMERA_FOV_DEG,
-  LEAFLET_CONFIG,
-} from "../../config/app.config";
+import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../leaflet.css";
@@ -161,6 +151,14 @@ const CLICK_DELAY_MS = 200;
 const GEOPORTAL_CESIUM_VIEW_ADAPTER_ID = "geoportal-cesium";
 const DEFAULT_MARKER_ANCHOR_HEIGHT = 10;
 const FLY_TO_BOUNDING_SPHERE_PADDING_FACTOR = 1.1;
+const MAP_CONTAINER_STYLE: CSSProperties = {
+  position: "absolute",
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  zIndex: 400,
+};
 
 const HEX_COLOR_WITHOUT_ALPHA_PATTERN = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
@@ -243,13 +241,10 @@ const buildFlyToBoundingSphereOptions = (minRange: number) => ({
   paddingFactor: FLY_TO_BOUNDING_SPHERE_PADDING_FACTOR,
 });
 
-const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
+export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const dispatch = useDispatch();
-  const {
-    activeToolType,
-    selectedAnnotationId,
-    setSelectedAnnotationId,
-  } = useAnnotationsRuntime();
+  const { activeToolType, selectedAnnotationId, setSelectedAnnotationId } =
+    useAnnotationsRuntime();
 
   // Contexts
   const {
@@ -323,14 +318,12 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
 
   const { getLeafletZoom } = useLeafletZoomControls();
   const showPrimaryTileset = useSelector(selectShowPrimaryTileset);
-  const minFlyToRange = useMemo(() => {
-    const minHeight =
-      typeof minimumCameraHeight === "number" &&
-      Number.isFinite(minimumCameraHeight)
-        ? Math.max(0, minimumCameraHeight)
-        : 0;
-    return minHeight * 1.5;
-  }, [minimumCameraHeight]);
+  const minHeight =
+    typeof minimumCameraHeight === "number" &&
+    Number.isFinite(minimumCameraHeight)
+      ? Math.max(0, minimumCameraHeight)
+      : 0;
+  const minFlyToRange = minHeight * 1.5;
 
   const infoBoxOverlay = addCssToOverlayHelperItem(
     getCollabedHelpElementsConfig("INFOBOX", geoElements),
@@ -822,7 +815,8 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
   }, [layers]);
 
   useEffect(() => {
-    const previousSelectedAnnotationId = previousSelectedAnnotationIdRef.current;
+    const previousSelectedAnnotationId =
+      previousSelectedAnnotationIdRef.current;
     previousSelectedAnnotationIdRef.current = selectedAnnotationId;
 
     if (
@@ -1021,19 +1015,6 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
       handleTopicMapLocationChange,
       updateLayersIdleState,
     ]
-  );
-
-  const containerStyle: CSSProperties = useMemo(
-    () => ({
-      position: "absolute",
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      zIndex: 400,
-      // CSS transition managed by useMapFrameworkSwitcher hook
-    }),
-    []
   );
 
   const show2dContainer = !(isCesium && !initialViewApplied);
@@ -1284,7 +1265,7 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
           id={GEOPORTAL_CESIUM_CONTAINER_ID}
           ref={container3dMapRef}
           className={"map-container-3d"}
-          style={containerStyle}
+          style={MAP_CONTAINER_STYLE}
         >
           <CustomViewer
             containerRef={container3dMapRef}
@@ -1295,28 +1276,6 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
         </div>
       )}
     </>
-  );
-};
-
-export const GeoportalMap = (props: MapProps) => {
-  const codec = useMemo(() => {
-    return createViewStateShareableHashCodec({
-      defaultFovDeg: DEFAULT_CAMERA_FOV_DEG,
-      zoomConvention: HASH_ZOOM_CONVENTION.LEAFLET_256,
-      cameraLimiterOptions: CESIUM_CONFIG.camera,
-    });
-  }, []);
-
-  return (
-    <ViewStateProvider>
-      <ViewStateNavigationManagerProvider
-        codec={codec}
-        label="[GEOPORTAL] Cesium camera hash"
-        replace={true}
-      >
-        <GeoportalMapInner {...props} />
-      </ViewStateNavigationManagerProvider>
-    </ViewStateProvider>
   );
 };
 
