@@ -5,7 +5,6 @@ import {
   useEffect,
   useRef,
 } from "react";
-import { useDispatch, useSelector } from "react-redux";
 
 import { faSync } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -20,10 +19,6 @@ import {
 import type { CesiumRuntime } from "../../CesiumContext";
 import { useCesiumContext } from "../../hooks/useCesiumContext";
 import { useCesiumRuntime } from "../../hooks/useCesiumRuntime";
-import {
-  toggleIsAnimating,
-  selectCesiumRuntimeIsAnimating,
-} from "../../slices/cesium";
 import { pickScenePositions } from "../../utils/pick-position/pick-scene-positions";
 import OnMapButton from "./OnMapButton";
 // TODO use config/context
@@ -37,14 +32,12 @@ type SpinningControlProps = {
 const ORBIT_CENTER_POSITION: [number, number] = [0.5, 0.6]; // A bit lower than center to adjust for typical pitch
 
 const OrbitControl = ({ showCenterPoint = true }: SpinningControlProps) => {
-  const dispatch = useDispatch();
-
   const runtime = useCesiumRuntime();
-  const { withRuntime, getScene } = useCesiumContext();
+  const { withRuntime, getScene, isAnimating, setIsAnimating } =
+    useCesiumContext();
   const orbitPointRef = useRef<Cartesian3 | null>(null);
   const orbitPointCollectionRef = useRef<PointPrimitiveCollection | null>(null);
   const lastRenderTimeRef = useRef<number | null>(null);
-  const isAnimating = useSelector(selectCesiumRuntimeIsAnimating);
 
   const removeOrbitPoint = useCallback(() => {
     const scene = getScene();
@@ -106,7 +99,7 @@ const OrbitControl = ({ showCenterPoint = true }: SpinningControlProps) => {
         orbitPointCollectionRef.current = collection;
       }
     }
-    dispatch(toggleIsAnimating());
+    setIsAnimating(!isAnimating);
   };
 
   const handleOrbit = (event: MouseEvent) => {

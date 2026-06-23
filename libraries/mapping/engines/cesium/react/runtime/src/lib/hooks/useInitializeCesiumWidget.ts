@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react";
-import { useSelector } from "react-redux";
 
 import {
   readLongerEdgeFovFromIntrinsics,
@@ -30,16 +29,6 @@ import {
 } from "@carma-mapping/engines/cesium/core";
 
 import { useCesiumContext } from "./useCesiumContext";
-
-import {
-  selectScreenSpaceCameraControllerMaximumZoomDistance,
-  selectScreenSpaceCameraControllerMinimumZoomDistance,
-  selectScreenSpaceCameraControllerEnableCollisionDetection,
-  selectShowSecondaryTileset,
-  selectCurrentSceneStyle,
-  selectSceneStylePrimary,
-  selectSceneStyleSecondary,
-} from "../slices/cesium";
 
 import { configureCesiumErrorHandling } from "../utils/cesiumErrorHandling";
 import { validateWorldCoordinate } from "../utils/positions";
@@ -277,21 +266,15 @@ export const useInitializeCesiumWidget = (
     withRuntime,
     getTerrainProvider,
     getImageryLayer,
+    showSecondaryTileset: isSecondaryStyle,
+    currentSceneStyle,
+    sceneStylePrimary: primaryStyle,
+    sceneStyleSecondary: secondaryStyle,
+    ssccMinimumZoomDistance: minZoom,
+    ssccMaximumZoomDistance: maxZoom,
+    ssccEnableCollisionDetection: enableCollisionDetection,
   } = useCesiumContext();
 
-  const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
-  const currentSceneStyle = useSelector(selectCurrentSceneStyle);
-  const primaryStyle = useSelector(selectSceneStylePrimary);
-  const secondaryStyle = useSelector(selectSceneStyleSecondary);
-  const minZoom = useSelector(
-    selectScreenSpaceCameraControllerMinimumZoomDistance
-  );
-  const maxZoom = useSelector(
-    selectScreenSpaceCameraControllerMaximumZoomDistance
-  );
-  const enableCollisionDetection = useSelector(
-    selectScreenSpaceCameraControllerEnableCollisionDetection
-  );
   // Store camera position and orientation vectors
   const lastGoodCameraState = useRef<CameraState | null>(null);
 

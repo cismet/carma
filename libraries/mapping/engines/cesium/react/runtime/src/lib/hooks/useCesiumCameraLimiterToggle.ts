@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSelector } from "react-redux";
 
 import { Cartesian3, type Scene } from "@carma-cesium";
 
@@ -9,11 +8,6 @@ import {
   type CameraLimiterConfig,
   type CameraLimiterReenableTransitionOptions,
 } from "../camera-limiter-options";
-import {
-  selectScreenSpaceCameraControllerEnableCollisionDetection,
-  selectScreenSpaceCameraControllerMaximumZoomDistance,
-  selectScreenSpaceCameraControllerMinimumZoomDistance,
-} from "../slices/cesium";
 import { useCesiumContext } from "./useCesiumContext";
 
 export interface UseCesiumCameraLimiterToggleOptions {
@@ -34,18 +28,12 @@ export const useCesiumCameraLimiterToggle = ({
     shouldSuspendCameraLimitersRef,
     shouldSuspendPitchLimiterRef,
     withScene,
+    ssccEnableCollisionDetection: cameraCollisionDetection,
+    ssccMinimumZoomDistance: cameraMinimumZoomDistance,
+    ssccMaximumZoomDistance: cameraMaximumZoomDistance,
   } = useCesiumContext();
   const [areCameraLimitersDisabled, setAreCameraLimitersDisabled] =
     useState(false);
-  const cameraCollisionDetection = useSelector(
-    selectScreenSpaceCameraControllerEnableCollisionDetection
-  );
-  const cameraMinimumZoomDistance = useSelector(
-    selectScreenSpaceCameraControllerMinimumZoomDistance
-  );
-  const cameraMaximumZoomDistance = useSelector(
-    selectScreenSpaceCameraControllerMaximumZoomDistance
-  );
   const cameraControllerLimitersRef = useRef({
     enableCollisionDetection: cameraCollisionDetection,
     maximumZoomDistance: cameraMaximumZoomDistance,

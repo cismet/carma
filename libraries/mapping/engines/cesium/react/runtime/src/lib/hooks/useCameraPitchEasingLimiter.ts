@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react";
-import { useSelector } from "react-redux";
 
 import {
   CESIUM_LOCAL_NORTH_HEADING_RAD,
@@ -9,11 +8,6 @@ import { Easing, type Easing as EasingFunction } from "@carma-commons/math";
 import { Cartesian3, Cartographic } from "cesium";
 import type { Radians } from "@carma-units";
 
-import {
-  selectScreenSpaceCameraControllerEnableCollisionDetection,
-  selectCesiumRuntimeIsAnimating,
-  selectCesiumRuntimeIsTransitioning,
-} from "../slices/cesium";
 import {
   resolveCameraLimiterOptions,
   type CameraLimiterOptions,
@@ -206,15 +200,13 @@ const useCameraPitchEasingLimiter = (
     correctionStartPitch,
   } = resolvePitchEasingLimiterConfig(options);
   const runtime = useCesiumRuntime();
-  const { shouldSuspendCameraLimitersRef, initialViewApplied } =
-    useCesiumContext();
-
-  const isAnimating = useSelector(selectCesiumRuntimeIsAnimating);
-
-  const isTransitioning = useSelector(selectCesiumRuntimeIsTransitioning);
-  const collisions = useSelector(
-    selectScreenSpaceCameraControllerEnableCollisionDetection
-  );
+  const {
+    shouldSuspendCameraLimitersRef,
+    initialViewApplied,
+    isAnimating,
+    isTransitioning,
+    ssccEnableCollisionDetection: collisions,
+  } = useCesiumContext();
 
   const isAnimatingRef = useRef(isAnimating);
   const isTransitioningRef = useRef(isTransitioning);

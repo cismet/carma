@@ -1,16 +1,6 @@
-import { configureStore, Reducer, UnknownAction } from "@reduxjs/toolkit";
+import { configureStore } from "@reduxjs/toolkit";
 import { createLogger } from "redux-logger";
-import { persistReducer } from "redux-persist";
-import { PersistPartial } from "redux-persist/lib/persistReducer";
 
-import {
-  getCesiumConfig,
-  cesiumReducer,
-  CesiumState,
-} from "@carma-mapping/engines/cesium/react/runtime";
-
-import { APP_KEY, STORAGE_PREFIX } from "../config/app.config";
-import { defaultCesiumState } from "../config/cesium/store.config";
 const devToolsEnabled =
   new URLSearchParams(window.location.search).get("devToolsEnabled") === "true";
 console.debug("devToolsEnabled:", devToolsEnabled);
@@ -50,15 +40,7 @@ if (stateLoggingEnabled === true) {
 }
 
 const store = configureStore({
-  reducer: {
-    cesium: persistReducer(
-      getCesiumConfig({ appKey: APP_KEY, storagePrefix: STORAGE_PREFIX }),
-      cesiumReducer
-    ) as Reducer<CesiumState & PersistPartial, UnknownAction, CesiumState>,
-  },
-  preloadedState: {
-    cesium: defaultCesiumState,
-  },
+  reducer: {},
   devTools: devToolsEnabled === true && inProduction === false,
   middleware,
 });

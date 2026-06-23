@@ -1,5 +1,4 @@
 import { useEffect } from "react";
-import { useSelector } from "react-redux";
 
 import {
   ScreenSpaceEventHandler,
@@ -10,13 +9,13 @@ import {
   Color,
 } from "cesium";
 
-import { selectShowSecondaryTileset } from "../slices/cesium";
+import { useCesiumContext } from "./useCesiumContext";
 import { useCesiumRuntime } from "./useCesiumRuntime";
 export const useSecondaryStyleTilesetClickHandler = (
   disableSelection = true
 ) => {
   const runtime = useCesiumRuntime();
-  const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
+  const { showSecondaryTileset: isSecondaryStyle } = useCesiumContext();
 
   useEffect(() => {
     if (!runtime || !isSecondaryStyle || disableSelection) return;

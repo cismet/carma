@@ -17,7 +17,7 @@ import {
 import { Navigation } from "./components/Navigation";
 import { viewerRoutes, otherRoutes } from "./routes";
 import { routeGenerator } from "./utils/routeGenerator";
-import { CESIUM_HOME_POSITION } from "./config/store.config";
+import { CESIUM_HOME_POSITION, defaultViewerState } from "./config/store.config";
 
 import "leaflet/dist/leaflet.css";
 import "cesium/Build/Cesium/Widgets/widgets.css";
@@ -28,7 +28,6 @@ const OtherRoutes = routeGenerator(otherRoutes);
 export function App() {
   return (
     <CesiumContextProvider
-      //initialViewerState={defaultViewerState}
       providerConfig={{
         terrainProvider: WUPP_TERRAIN_PROVIDER,
         imageryProvider: BASEMAP_METROPOLE_RUHR_WMS_GRAUBLAU,
@@ -37,6 +36,7 @@ export function App() {
         primary: WUPP_MESH_2024,
         secondary: WUPP_LOD2_TILESET,
       }}
+      defaultRuntimeState={defaultViewerState}
     >
       <HashRouter>
         <HashStateProvider>

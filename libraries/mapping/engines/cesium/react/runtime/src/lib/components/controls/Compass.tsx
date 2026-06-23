@@ -1,5 +1,4 @@
 import { MouseEvent, ReactNode, forwardRef } from "react";
-import { useSelector } from "react-redux";
 
 import { faCompass } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -16,7 +15,6 @@ import { radToDegNumeric } from "@carma-units";
 
 import { useCesiumContext } from "../../hooks/useCesiumContext";
 import { useCesiumRuntime } from "../../hooks/useCesiumRuntime";
-import { selectScreenSpaceCameraControllerMinimumZoomDistance } from "../../slices/cesium";
 import { pickScenePositions } from "../../utils/pick-position/pick-scene-positions";
 
 type CompassProps = {
@@ -32,10 +30,7 @@ export const Compass = forwardRef<Ref, CompassProps>(
   ({ children, disabled }, ref) => {
     // todo remove cesium runtime dep for direct scene use
     const runtime = useCesiumRuntime();
-    const { withScene } = useCesiumContext();
-    const minZoomDistance = useSelector(
-      selectScreenSpaceCameraControllerMinimumZoomDistance
-    );
+    const { withScene, ssccMinimumZoomDistance: minZoomDistance } = useCesiumContext();
 
     const handleFlyToCenter = (e: MouseEvent) => {
       e.preventDefault();

@@ -1,6 +1,9 @@
 import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { OverlayTourProvider } from "@carma-commons/ui/helper-overlay";
-import { CesiumContextProvider } from "@carma-mapping/engines/cesium/react/runtime";
+import {
+  CesiumContextProvider,
+  type CesiumState,
+} from "@carma-mapping/engines/cesium/react/runtime";
 import {
   LibreContextProvider,
   MapSelectionProvider,
@@ -74,6 +77,7 @@ type CarmaMapProviderWrapperProps = {
   stateKeyToHashParamValueCodecMap?: StateKeyToHashParamValueCodecMap;
   /** @deprecated HashStateProvider should be placed higher in the tree. These props are ignored. */
   hashParamNameOrder?: string[];
+  defaultRuntimeState?: Partial<CesiumState>;
   topicMapConfig?: {
     appKey?: string;
     featureItemsURL?: string;
@@ -170,6 +174,7 @@ export const CarmaMapProviderWrapper = ({
   mapStyleConfig,
   topicMapConfig = {},
   store,
+  defaultRuntimeState,
 }: CarmaMapProviderWrapperProps) => {
   const { background } = overlayOptions;
   const { transparency, color } = background;
@@ -199,12 +204,11 @@ export const CarmaMapProviderWrapper = ({
               >
                 <OverlayTourProvider transparency={transparency} color={color}>
                   <CesiumContextProvider
-                    //initialViewerState={defaultCesiumState}
-                    // TODO move these to store/slice setup ?
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     providerConfig={cesiumOptions.providerConfig as any}
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     tilesetConfigs={cesiumOptions.tilesetConfigs as any}
+                    defaultRuntimeState={defaultRuntimeState}
                   >
                     <LibreContextProvider>
                       <MapSelectionProvider>

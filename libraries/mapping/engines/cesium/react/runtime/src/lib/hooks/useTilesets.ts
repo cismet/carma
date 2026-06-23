@@ -1,18 +1,12 @@
 import { useEffect } from "react";
-import { useSelector } from "react-redux";
 
-import {
-  selectShowPrimaryTileset,
-  selectShowSecondaryTileset,
-} from "../slices/cesium";
 import { guardScene } from "../utils/guardScene";
 import { guardTileset } from "../utils/guardTileset";
 import { useCesiumContext } from "./useCesiumContext";
 import { useSecondaryStyleTilesetClickHandler } from "./useSecondaryStyleTilesetClickHandler";
 export const useTilesets = () => {
-  const showPrimary = useSelector(selectShowPrimaryTileset);
   const ctx = useCesiumContext();
-  const showSecondary = useSelector(selectShowSecondaryTileset);
+  const { showPrimaryTileset: showPrimary, showSecondaryTileset: showSecondary } = ctx;
 
   useEffect(() => {
     let added = false;

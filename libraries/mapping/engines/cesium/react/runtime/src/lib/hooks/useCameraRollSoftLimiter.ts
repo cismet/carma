@@ -1,5 +1,4 @@
 import { useCallback, useEffect } from "react";
-import { useDispatch } from "react-redux";
 import {
   CESIUM_UP_ROLL_RAD,
   computeCesiumPitchDistanceFromNadir,
@@ -12,7 +11,6 @@ import {
   resolveCameraLimiterOptions,
   type CameraLimiterOptions,
 } from "../camera-limiter-options";
-import { clearIsAnimating, setIsAnimating } from "../slices/cesium";
 import { useCesiumContext } from "./useCesiumContext";
 import { useCesiumRuntime } from "./useCesiumRuntime";
 const NADIR_THRESHOLD = 0.2;
@@ -38,13 +36,12 @@ const useCameraRollSoftLimiter = (
     },
   } = resolveCameraLimiterOptions(options);
   const runtime = useCesiumRuntime();
-  const dispatch = useDispatch();
-  const { shouldSuspendCameraLimitersRef, initialViewApplied } =
+  const { shouldSuspendCameraLimitersRef, initialViewApplied, setIsAnimating } =
     useCesiumContext();
 
   const onComplete = useCallback(
-    () => dispatch(clearIsAnimating()),
-    [dispatch]
+    () => setIsAnimating(false),
+    [setIsAnimating]
   );
 
   useEffect(() => {
@@ -82,7 +79,7 @@ const useCameraRollSoftLimiter = (
               );
             const rollDelta = Math.abs(normalizedRoll);
             const duration = Math.min(rollDelta, 1);
-            dispatch(setIsAnimating());
+            setIsAnimating(true);
             runtime.camera.flyTo({
               destination: runtime.camera.position,
               orientation: {
@@ -107,7 +104,7 @@ const useCameraRollSoftLimiter = (
     runtime,
     pitchLimiterEnabled,
     onComplete,
-    dispatch,
+    setIsAnimating,
     debug,
     nadirThreshold,
     rollThreshold,

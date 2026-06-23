@@ -19,6 +19,8 @@ import {
 import { handleDelayedRender } from "@carma-commons/dom/window";
 
 import { CesiumContext, type CesiumContextType } from "./CesiumContext";
+import { CESIUM_RUNTIME_TRANSITION_STATE } from "./runtime-transition-state";
+import type { CesiumState, SceneStyles } from "./index.d";
 
 import { ProviderConfig } from "./utils/cesiumProviders";
 import { loadTileset, TilesetConfigs } from "./utils/cesiumTilesetProviders";
@@ -30,10 +32,13 @@ export const CesiumContextProvider = ({
   children,
   providerConfig,
   tilesetConfigs,
+  defaultRuntimeState,
 }: {
   children: ReactNode;
   providerConfig: ProviderConfig;
   tilesetConfigs: TilesetConfigs;
+  // Initial runtime UI state (was the redux `cesium` preloadedState / config).
+  defaultRuntimeState?: Partial<CesiumState>;
 }) => {
   // Use refs for Cesium instances to prevent re-renders
   const runtimeRef = useRef<CesiumWidget | null>(null);
@@ -54,6 +59,100 @@ export const CesiumContextProvider = ({
   const [isRuntimeReady, setIsRuntimeReady] = useState<boolean>(false);
   // Track when initial camera view from URL has been applied
   const [initialViewApplied, setInitialViewApplied] = useState<boolean>(false);
+
+  // --- Runtime UI state (formerly the redux `cesium` slice) ---
+  // Static, config-injected (do not change at runtime):
+  const sceneStyles = defaultRuntimeState?.sceneStyles;
+  const sceneStylePrimary = sceneStyles?.primary;
+  const sceneStyleSecondary = sceneStyles?.secondary;
+  const models = defaultRuntimeState?.models;
+
+  // Low-frequency reactive fields (rare user/transition changes → plain state):
+  const [currentTransition, setCurrentTransition] =
+    useState<CESIUM_RUNTIME_TRANSITION_STATE>(
+      CESIUM_RUNTIME_TRANSITION_STATE.NONE
+    );
+  const [currentSceneStyle, setCurrentSceneStyleState] = useState<
+    keyof SceneStyles | undefined
+  >(defaultRuntimeState?.currentSceneStyle);
+  const [showPrimaryTileset, setShowPrimaryTilesetState] = useState<boolean>(
+    defaultRuntimeState?.showPrimaryTileset ?? true
+  );
+  const [showSecondaryTileset, setShowSecondaryTilesetState] =
+    useState<boolean>(defaultRuntimeState?.showSecondaryTileset ?? false);
+  const [tilesetOpacity, setTilesetOpacityState] = useState<number>(
+    defaultRuntimeState?.styling?.tileset?.opacity ?? 1.0
+  );
+  const [ssccMinimumZoomDistance, setSsccMinimumZoomDistanceState] =
+    useState<number>(
+      defaultRuntimeState?.sceneSpaceCameraController?.minimumZoomDistance ?? 1
+    );
+  const [ssccMaximumZoomDistance, setSsccMaximumZoomDistanceState] =
+    useState<number>(
+      defaultRuntimeState?.sceneSpaceCameraController?.maximumZoomDistance ??
+        Infinity
+    );
+  const [ssccEnableCollisionDetection, setSsccEnableCollisionDetectionState] =
+    useState<boolean>(
+      defaultRuntimeState?.sceneSpaceCameraController
+        ?.enableCollisionDetection ?? false
+    );
+
+  const isTransitioning =
+    currentTransition !== CESIUM_RUNTIME_TRANSITION_STATE.NONE;
+
+  // Camera animation flag — plain reactive state. Flips per-episode (limiter
+  // flyTo / orbit toggle), not per-frame, so re-renders are negligible.
+  const [isAnimating, setIsAnimating] = useState<boolean>(false);
+
+  // Setters (stable identities)
+  const setTransitionTo2d = useCallback(
+    () => setCurrentTransition(CESIUM_RUNTIME_TRANSITION_STATE.TO2D),
+    []
+  );
+  const setTransitionTo3d = useCallback(
+    () => setCurrentTransition(CESIUM_RUNTIME_TRANSITION_STATE.TO3D),
+    []
+  );
+  const clearTransition = useCallback(
+    () => setCurrentTransition(CESIUM_RUNTIME_TRANSITION_STATE.NONE),
+    []
+  );
+  const setCurrentSceneStyle = useCallback(
+    (style: keyof SceneStyles) => setCurrentSceneStyleState(style),
+    []
+  );
+  const toggleCurrentSceneStyle = useCallback(
+    () =>
+      setCurrentSceneStyleState((current) =>
+        current === "primary" ? "secondary" : "primary"
+      ),
+    []
+  );
+  const setShowPrimaryTileset = useCallback(
+    (show: boolean) => setShowPrimaryTilesetState(show),
+    []
+  );
+  const setShowSecondaryTileset = useCallback(
+    (show: boolean) => setShowSecondaryTilesetState(show),
+    []
+  );
+  const setTilesetOpacity = useCallback(
+    (opacity: number) => setTilesetOpacityState(opacity),
+    []
+  );
+  const setSsccMinimumZoomDistance = useCallback(
+    (distance: number) => setSsccMinimumZoomDistanceState(distance),
+    []
+  );
+  const setSsccMaximumZoomDistance = useCallback(
+    (distance: number) => setSsccMaximumZoomDistanceState(distance),
+    []
+  );
+  const setSsccEnableCollisionDetection = useCallback(
+    (enabled: boolean) => setSsccEnableCollisionDetectionState(enabled),
+    []
+  );
 
   const getScene = useCallback((): Scene | null => {
     if (runtimeRef.current && !runtimeRef.current.isDestroyed()) {
@@ -223,6 +322,33 @@ export const CesiumContextProvider = ({
       // to schedule additional renders in requestRenderMode when needed. These
       // options should be deprecated once upstream behavior is improved.
       requestRender,
+      // runtime UI state (formerly the cesium redux slice)
+      currentTransition,
+      isTransitioning,
+      setTransitionTo2d,
+      setTransitionTo3d,
+      clearTransition,
+      sceneStyles,
+      sceneStylePrimary,
+      sceneStyleSecondary,
+      currentSceneStyle,
+      setCurrentSceneStyle,
+      toggleCurrentSceneStyle,
+      models,
+      showPrimaryTileset,
+      showSecondaryTileset,
+      setShowPrimaryTileset,
+      setShowSecondaryTileset,
+      tilesetOpacity,
+      setTilesetOpacity,
+      ssccMinimumZoomDistance,
+      ssccMaximumZoomDistance,
+      ssccEnableCollisionDetection,
+      setSsccMinimumZoomDistance,
+      setSsccMaximumZoomDistance,
+      setSsccEnableCollisionDetection,
+      isAnimating,
+      setIsAnimating,
       ...instanceCallbacks,
     }),
     [
@@ -234,6 +360,32 @@ export const CesiumContextProvider = ({
       initialViewApplied,
       providersReady,
       requestRender,
+      currentTransition,
+      isTransitioning,
+      setTransitionTo2d,
+      setTransitionTo3d,
+      clearTransition,
+      sceneStyles,
+      sceneStylePrimary,
+      sceneStyleSecondary,
+      currentSceneStyle,
+      setCurrentSceneStyle,
+      toggleCurrentSceneStyle,
+      models,
+      showPrimaryTileset,
+      showSecondaryTileset,
+      setShowPrimaryTileset,
+      setShowSecondaryTileset,
+      tilesetOpacity,
+      setTilesetOpacity,
+      ssccMinimumZoomDistance,
+      ssccMaximumZoomDistance,
+      ssccEnableCollisionDetection,
+      setSsccMinimumZoomDistance,
+      setSsccMaximumZoomDistance,
+      setSsccEnableCollisionDetection,
+      isAnimating,
+      setIsAnimating,
       instanceCallbacks,
     ]
   );

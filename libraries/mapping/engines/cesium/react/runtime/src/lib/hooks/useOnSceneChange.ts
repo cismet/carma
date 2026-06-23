@@ -1,14 +1,9 @@
 import { useEffect } from "react";
-import { useSelector } from "react-redux";
 
 import { Camera, CesiumMath, PerspectiveFrustum } from "@carma-cesium";
 
 import type { CesiumRuntime } from "../CesiumContext";
 import { CESIUM_RUNTIME_STATE_KEYS } from "../runtime-state-keys";
-import {
-  selectShowSecondaryTileset,
-  selectCesiumRuntimeIsTransitioning,
-} from "../slices/cesium";
 import { useCesiumContext } from "./useCesiumContext";
 type HashParamEncoder = {
   key: string;
@@ -107,8 +102,7 @@ export const useOnSceneChange = (
   isCesiumActive: boolean = true
 ) => {
   const ctx = useCesiumContext();
-  const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
-  const isTransitioning = useSelector(selectCesiumRuntimeIsTransitioning);
+  const { showSecondaryTileset: isSecondaryStyle, isTransitioning } = ctx;
 
   // todo handle style change explicitly not via tileset, is secondarystyle
   // todo consider declaring changed part of state in the callback, not full state only
