@@ -42,9 +42,9 @@ import {
   useRegisterMapFramework,
 } from "@carma-mapping/components";
 import {
-  createViewStateShareableHashCodec,
   flyViewStateInCesium,
   HASH_ZOOM_CONVENTION,
+  type ShareableViewStateHashCodecOptions,
   ViewStateNavigationManagerProvider,
   ViewStateProvider,
   useCesiumNavigationBridge,
@@ -81,6 +81,11 @@ import versionData from "./version.json";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 const DEFAULT_HASH_FOV_DEG = 45;
+const VIEW_STATE_HASH_CODEC_OPTIONS: ShareableViewStateHashCodecOptions = {
+  defaultFovDeg: DEFAULT_HASH_FOV_DEG,
+  zoomConvention: HASH_ZOOM_CONVENTION.LEAFLET_256,
+  cameraLimiterOptions: CESIUM_CONFIG.camera,
+};
 const FLOODINGMAP_CESIUM_VIEW_ADAPTER_ID = "floodingmap-cesium";
 const HIDDEN_DISPLAY_VALUE = "none" as const;
 
@@ -497,21 +502,11 @@ function FloodingmapAppContent({ sync = false }: { sync?: boolean }) {
 }
 
 function App({ sync = false }: { sync?: boolean }) {
-  const codec = useMemo(
-    () =>
-      createViewStateShareableHashCodec({
-        defaultFovDeg: DEFAULT_HASH_FOV_DEG,
-        zoomConvention: HASH_ZOOM_CONVENTION.LEAFLET_256,
-        cameraLimiterOptions: CESIUM_CONFIG.camera,
-      }),
-    []
-  );
-
   return (
     <ViewStateProvider>
       <ViewStateNavigationManagerProvider
-        codec={codec}
-        label="app/hgk:3D"
+        shareableHashOptions={VIEW_STATE_HASH_CODEC_OPTIONS}
+        debugLabel="app/hgk:3D"
         replace={true}
       >
         <FloodingmapAppContent sync={sync} />
