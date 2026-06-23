@@ -315,7 +315,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
           >
             <FontAwesomeIcon icon={faChevronRight} />
           </button>
-          <div className="flex items-center w-full h-8 gap-2 px-6 sm:px-0 sm:gap-6">
+          <div className="flex items-center w-full h-8 shrink-0 gap-2 px-6 sm:px-0 sm:gap-6">
             <div className="flex-1 sm:flex-none sm:w-1/4 min-w-0 flex items-center gap-2">
               <DynamicStylingLayerIcon
                 layer={layer}
@@ -435,7 +435,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
             </button>
           </div>
 
-          <div className="flex sm:hidden items-center w-full gap-2 px-6">
+          <div className="flex sm:hidden items-center w-full gap-2 px-6 shrink-0">
             <label
               className="mb-0 text-[15px] whitespace-nowrap"
               htmlFor="opacity-slider"
