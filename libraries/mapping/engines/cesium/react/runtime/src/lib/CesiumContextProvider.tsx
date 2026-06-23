@@ -10,8 +10,6 @@ import {
 import {
   initSceneAnimationMap,
   isValidScene,
-  isValidCesiumTerrainProvider,
-  isValidImageryLayer,
   type SceneAnimationMap,
 } from "@carma-mapping/engines/cesium/core";
 
@@ -19,12 +17,24 @@ import { handleDelayedRender } from "@carma-commons/dom/window";
 
 import { CesiumContext, type CesiumContextType } from "./CesiumContext";
 import { CESIUM_RUNTIME_TRANSITION_STATE } from "./runtime-transition-state";
-import type { CesiumState, SceneStyles } from "./index.d";
+import type { CesiumState, SceneStyleId, SceneStyles } from "./index.d";
 
-import { ProviderConfig } from "./utils/cesiumProviders";
-import { loadTileset, TilesetConfigs } from "./utils/cesiumTilesetProviders";
+import {
+  DEFAULT_SURFACE_PROVIDER_ID,
+  DEFAULT_TERRAIN_PROVIDER_ID,
+  getTerrainProviderInitSignature,
+  normalizeTerrainProviderConfigs,
+  type ProviderConfig,
+} from "./utils/cesiumProviders";
+import {
+  getTilesetInitSignature,
+  loadTileset,
+  TilesetConfigs,
+} from "./utils/cesiumTilesetProviders";
 import { useValidInstances } from "./hooks/useValidInstances";
 import { usePreloadProviders } from "./hooks/usePreloadProviders";
+
+const EMPTY_SCENE_STYLES: SceneStyles = {};
 
 export const CesiumContextProvider = ({
   children,
@@ -43,12 +53,19 @@ export const CesiumContextProvider = ({
   const sceneAnimationMapRef = useRef<SceneAnimationMap | null>(
     initSceneAnimationMap()
   );
-  const terrainProviderRef = useRef<CesiumTerrainProvider | null>(null);
-  const surfaceProviderRef = useRef<CesiumTerrainProvider | null>(null);
-  const imageryLayerRef = useRef<ImageryLayer | null>(null);
+  const terrainProviderRefsByIdRef = useRef<
+    Record<string, CesiumTerrainProvider | null | undefined>
+  >({});
+  const imageryLayerRefsByIdRef = useRef<
+    Record<string, ImageryLayer | null | undefined>
+  >({});
 
-  const primaryTilesetRef = useRef<Cesium3DTileset | null>(null);
-  const secondaryTilesetRef = useRef<Cesium3DTileset | null>(null);
+  const tilesetRefsByIdRef = useRef<
+    Record<string, Cesium3DTileset | null | undefined>
+  >({});
+  const tilesetLoadedInitSignaturesByIdRef = useRef<
+    Record<string, string | undefined>
+  >({});
   const shouldSuspendPitchLimiterRef = useRef(false);
   const shouldSuspendCameraLimitersRef = useRef(false);
 
@@ -59,9 +76,32 @@ export const CesiumContextProvider = ({
 
   // --- Runtime UI state (formerly the redux `cesium` slice) ---
   // Static, config-injected (do not change at runtime):
-  const sceneStyles = defaultRuntimeState?.sceneStyles;
-  const sceneStylePrimary = sceneStyles?.primary;
-  const sceneStyleSecondary = sceneStyles?.secondary;
+  const sceneStyles = defaultRuntimeState?.sceneStyles ?? EMPTY_SCENE_STYLES;
+  const sceneStyleIds = useMemo(() => Object.keys(sceneStyles), [sceneStyles]);
+  const tilesetIds = useMemo(
+    () => Object.keys(tilesetConfigs),
+    [tilesetConfigs]
+  );
+  const terrainProviderInitSignaturesById = useMemo(() => {
+    const terrainProviderConfigs =
+      normalizeTerrainProviderConfigs(providerConfig);
+    return Object.fromEntries(
+      Object.entries(terrainProviderConfigs).map(([id, config]) => [
+        id,
+        getTerrainProviderInitSignature(config),
+      ])
+    );
+  }, [providerConfig]);
+  const tilesetInitSignaturesById = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(tilesetConfigs).map(([id, config]) => [
+          id,
+          getTilesetInitSignature(config),
+        ])
+      ),
+    [tilesetConfigs]
+  );
   const models = defaultRuntimeState?.models;
 
   // Low-frequency reactive fields (rare user/transition changes → plain state):
@@ -70,13 +110,32 @@ export const CesiumContextProvider = ({
       CESIUM_RUNTIME_TRANSITION_STATE.NONE
     );
   const [currentSceneStyle, setCurrentSceneStyleState] = useState<
-    keyof SceneStyles | undefined
-  >(defaultRuntimeState?.currentSceneStyle);
-  const [showPrimaryTileset, setShowPrimaryTilesetState] = useState<boolean>(
-    defaultRuntimeState?.showPrimaryTileset ?? true
+    SceneStyleId | undefined
+  >(
+    defaultRuntimeState?.currentSceneStyle ?? sceneStyleIds[0] ?? tilesetIds[0]
   );
-  const [showSecondaryTileset, setShowSecondaryTilesetState] =
-    useState<boolean>(defaultRuntimeState?.showSecondaryTileset ?? false);
+  const currentSceneStyleConfig =
+    currentSceneStyle !== undefined
+      ? sceneStyles[currentSceneStyle]
+      : undefined;
+  const currentTerrainProviderId =
+    currentSceneStyleConfig?.members?.terrainProviderId ??
+    DEFAULT_TERRAIN_PROVIDER_ID;
+  const currentSurfaceProviderId =
+    currentSceneStyleConfig?.members?.surfaceProviderId ??
+    DEFAULT_SURFACE_PROVIDER_ID;
+  const visibleTilesetIds = useMemo(
+    () => currentSceneStyleConfig?.members?.tilesets?.map(({ id }) => id) ?? [],
+    [currentSceneStyleConfig]
+  );
+  const getTerrainProviderInitSignatureById = useCallback(
+    (id: string) => terrainProviderInitSignaturesById[id],
+    [terrainProviderInitSignaturesById]
+  );
+  const getTilesetInitSignatureById = useCallback(
+    (id: string) => tilesetInitSignaturesById[id],
+    [tilesetInitSignaturesById]
+  );
   // Read-only screen-space-camera-controller bounds (config, never mutated).
   const sscc = defaultRuntimeState?.sceneSpaceCameraController;
   const ssccMinimumZoomDistance = sscc?.minimumZoomDistance ?? 1;
@@ -96,23 +155,20 @@ export const CesiumContextProvider = ({
     []
   );
   const setCurrentSceneStyle = useCallback(
-    (style: keyof SceneStyles) => setCurrentSceneStyleState(style),
+    (style: SceneStyleId) => setCurrentSceneStyleState(style),
     []
   );
   const toggleCurrentSceneStyle = useCallback(
     () =>
-      setCurrentSceneStyleState((current) =>
-        current === "primary" ? "secondary" : "primary"
-      ),
-    []
-  );
-  const setShowPrimaryTileset = useCallback(
-    (show: boolean) => setShowPrimaryTilesetState(show),
-    []
-  );
-  const setShowSecondaryTileset = useCallback(
-    (show: boolean) => setShowSecondaryTilesetState(show),
-    []
+      setCurrentSceneStyleState((current) => {
+        if (sceneStyleIds.length === 0) {
+          return current;
+        }
+
+        const index = current ? sceneStyleIds.indexOf(current) : -1;
+        return sceneStyleIds[(index + 1) % sceneStyleIds.length];
+      }),
+    [sceneStyleIds]
   );
   const getScene = useCallback((): Scene | null => {
     if (runtimeRef.current && !runtimeRef.current.isDestroyed()) {
@@ -124,38 +180,13 @@ export const CesiumContextProvider = ({
     return null;
   }, []);
 
-  const getTerrainProvider = useCallback((): CesiumTerrainProvider | null => {
-    const provider = terrainProviderRef.current;
-    if (isValidCesiumTerrainProvider(provider)) {
-      return provider;
-    }
-    return null;
-  }, []);
-
-  const getSurfaceProvider = useCallback((): CesiumTerrainProvider | null => {
-    const provider = surfaceProviderRef.current;
-    if (isValidCesiumTerrainProvider(provider)) {
-      return provider;
-    }
-    return null;
-  }, []);
-
-  const getImageryLayer = useCallback((): ImageryLayer | null => {
-    const layer = imageryLayerRef.current;
-    if (isValidImageryLayer(layer)) {
-      return layer;
-    }
-    return null;
-  }, []);
-
   // Memoize refs object to prevent recreation on every render
   const providerRefs = useMemo(
     () => ({
-      terrainProviderRef,
-      surfaceProviderRef,
-      imageryLayerRef,
+      terrainProviderRefsByIdRef,
+      imageryLayerRefsByIdRef,
     }),
-    [terrainProviderRef, surfaceProviderRef, imageryLayerRef]
+    [terrainProviderRefsByIdRef, imageryLayerRefsByIdRef]
   );
 
   // Pre-load all providers before widget initialization
@@ -163,92 +194,99 @@ export const CesiumContextProvider = ({
 
   const instanceCallbacks = useValidInstances(
     runtimeRef,
-    imageryLayerRef,
-    primaryTilesetRef,
-    secondaryTilesetRef,
-    terrainProviderRef,
-    surfaceProviderRef
+    imageryLayerRefsByIdRef,
+    tilesetRefsByIdRef,
+    terrainProviderRefsByIdRef,
+    currentTerrainProviderId,
+    currentSurfaceProviderId
   );
 
-  const { withScene, isValidRuntime } = instanceCallbacks;
+  const {
+    withScene,
+    isValidRuntime,
+    getTerrainProvider,
+    getSurfaceProvider,
+    getImageryLayer,
+  } = instanceCallbacks;
 
-  // Load Primary Tileset
+  // Load configured scene-member tilesets.
   useEffect(() => {
     let cancelled = false;
-    if (tilesetConfigs.primary && isRuntimeReady) {
-      const fetchPrimary = async () => {
-        console.debug(
-          "[CESIUM|DEBUG] Loading primary tileset",
-          tilesetConfigs.primary
-        );
-        const tileset = await loadTileset(tilesetConfigs.primary);
+    const entries = Object.entries(tilesetConfigs);
+
+    if (!isRuntimeReady || !isValidRuntime() || entries.length === 0) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const destroyLoadedTileset = (id: string, tileset: Cesium3DTileset) => {
+      const scene = getScene();
+      if (scene?.primitives.contains(tileset)) {
+        scene.primitives.remove(tileset);
+        scene.requestRender();
+      } else if (!tileset.isDestroyed()) {
+        tileset.destroy();
+      }
+      tilesetRefsByIdRef.current[id] = undefined;
+      tilesetLoadedInitSignaturesByIdRef.current[id] = undefined;
+    };
+
+    for (const [id, config] of entries) {
+      const initSignature = tilesetInitSignaturesById[id];
+      const loadedTileset = tilesetRefsByIdRef.current[id];
+      const loadedInitSignature =
+        tilesetLoadedInitSignaturesByIdRef.current[id];
+
+      if (loadedTileset && loadedInitSignature === initSignature) {
+        continue;
+      }
+
+      if (loadedTileset && !loadedTileset.isDestroyed()) {
+        console.debug("[CESIUM|DEBUG] Replacing tileset", id);
+        destroyLoadedTileset(id, loadedTileset);
+      }
+
+      const loadConfiguredTileset = async () => {
+        console.debug("[CESIUM|DEBUG] Loading tileset", id, config);
+        const tileset = await loadTileset(config);
         if (cancelled) {
           if (!tileset.isDestroyed()) {
             tileset.destroy();
           }
           return;
         }
-        primaryTilesetRef.current = tileset;
-        console.debug(
-          "[CESIUM|DEBUG] Loaded primary tileset",
-          primaryTilesetRef.current
-        );
+
+        tilesetRefsByIdRef.current[id] = tileset;
+        tilesetLoadedInitSignaturesByIdRef.current[id] = initSignature;
+        console.debug("[CESIUM|DEBUG] Loaded tileset", id, tileset);
       };
-      fetchPrimary().catch(console.error);
-    } else {
-      console.debug("[CESIUM|DEBUG] No primary tileset configured");
+
+      loadConfiguredTileset().catch(console.error);
     }
 
     return () => {
       cancelled = true;
-      // Don't destroy providers when transitioning to 2D mode - only when runtime is destroyed
-      const t = primaryTilesetRef.current;
-      if (t && !t.isDestroyed() && isValidRuntime()) {
-        console.debug("[CESIUM|DEBUG] Destroying primary tileset");
-        t.destroy();
-        primaryTilesetRef.current = null;
-      }
-    };
-  }, [tilesetConfigs.primary, isRuntimeReady, isValidRuntime]);
-
-  // Load Secondary Tileset
-  useEffect(() => {
-    let cancelled = false;
-    if (tilesetConfigs.secondary && isRuntimeReady && isValidRuntime()) {
-      const fetchSecondary = async () => {
-        console.debug(
-          "[CESIUM|DEBUG] Loading secondary tileset",
-          tilesetConfigs.secondary
-        );
-        const tileset = await loadTileset(tilesetConfigs.secondary!);
-        if (cancelled) {
-          if (!tileset.isDestroyed()) {
+      if (!isValidRuntime()) {
+        for (const [id, tileset] of Object.entries(
+          tilesetRefsByIdRef.current
+        )) {
+          if (tileset && !tileset.isDestroyed()) {
+            console.debug("[CESIUM|DEBUG] Destroying tileset", id);
             tileset.destroy();
           }
-          return;
         }
-        secondaryTilesetRef.current = tileset;
-        console.debug(
-          "[CESIUM|DEBUG] Loaded secondary tileset",
-          secondaryTilesetRef.current
-        );
-      };
-      fetchSecondary().catch(console.error);
-    } else {
-      console.debug("[CESIUM|DEBUG] No secondary tileset configured");
-    }
-
-    return () => {
-      cancelled = true;
-      // Don't destroy providers when transitioning to 2D mode - only when runtime is destroyed
-      const t = secondaryTilesetRef.current;
-      if (t && !t.isDestroyed() && isValidRuntime()) {
-        console.debug("[CESIUM|DEBUG] Destroying secondary tileset");
-        t.destroy();
-        secondaryTilesetRef.current = null;
+        tilesetRefsByIdRef.current = {};
+        tilesetLoadedInitSignaturesByIdRef.current = {};
       }
     };
-  }, [tilesetConfigs.secondary, isRuntimeReady, isValidRuntime]);
+  }, [
+    getScene,
+    tilesetConfigs,
+    tilesetInitSignaturesById,
+    isRuntimeReady,
+    isValidRuntime,
+  ]);
 
   const requestRender = useCallback(
     (opts) => {
@@ -269,6 +307,8 @@ export const CesiumContextProvider = ({
       getTerrainProvider,
       getSurfaceProvider,
       getImageryLayer,
+      getTerrainProviderInitSignatureById,
+      getTilesetInitSignatureById,
       sceneAnimationMapRef,
       shouldSuspendPitchLimiterRef,
       shouldSuspendCameraLimitersRef,
@@ -285,16 +325,15 @@ export const CesiumContextProvider = ({
       currentTransition,
       isTransitioning,
       clearTransition,
-      sceneStylePrimary,
-      sceneStyleSecondary,
+      sceneStyles,
+      sceneStyleIds,
       currentSceneStyle,
+      currentSceneStyleConfig,
       setCurrentSceneStyle,
       toggleCurrentSceneStyle,
       models,
-      showPrimaryTileset,
-      showSecondaryTileset,
-      setShowPrimaryTileset,
-      setShowSecondaryTileset,
+      tilesetIds,
+      visibleTilesetIds,
       ssccMinimumZoomDistance,
       ssccMaximumZoomDistance,
       ssccEnableCollisionDetection,
@@ -307,6 +346,8 @@ export const CesiumContextProvider = ({
       getTerrainProvider,
       getSurfaceProvider,
       getImageryLayer,
+      getTerrainProviderInitSignatureById,
+      getTilesetInitSignatureById,
       isRuntimeReady,
       initialViewApplied,
       providersReady,
@@ -314,16 +355,15 @@ export const CesiumContextProvider = ({
       currentTransition,
       isTransitioning,
       clearTransition,
-      sceneStylePrimary,
-      sceneStyleSecondary,
+      sceneStyles,
+      sceneStyleIds,
       currentSceneStyle,
+      currentSceneStyleConfig,
       setCurrentSceneStyle,
       toggleCurrentSceneStyle,
       models,
-      showPrimaryTileset,
-      showSecondaryTileset,
-      setShowPrimaryTileset,
-      setShowSecondaryTileset,
+      tilesetIds,
+      visibleTilesetIds,
       ssccMinimumZoomDistance,
       ssccMaximumZoomDistance,
       ssccEnableCollisionDetection,

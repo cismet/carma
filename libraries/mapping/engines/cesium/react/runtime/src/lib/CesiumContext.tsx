@@ -11,7 +11,12 @@ import type {
 import type { SceneAnimationMap } from "@carma-mapping/engines/cesium/core";
 
 import { CESIUM_RUNTIME_TRANSITION_STATE } from "./runtime-transition-state";
-import type { CesiumState, SceneStyle, SceneStyles } from "./index.d";
+import type {
+  CesiumState,
+  SceneStyle,
+  SceneStyleId,
+  SceneStyles,
+} from "./index.d";
 
 export type CesiumRuntime = CesiumWidget;
 
@@ -47,13 +52,19 @@ export interface CesiumContextType {
   withImageryLayer: <T>(
     cb: (imageryLayer: ImageryLayer, scene: Scene) => T
   ) => T | undefined;
-  withPrimaryTileset: <T>(
-    cb: (tileset: Cesium3DTileset, runtime: CesiumRuntime) => T
+  withImageryLayerById: <T>(
+    id: string,
+    cb: (imageryLayer: ImageryLayer, scene: Scene) => T
   ) => T | undefined;
-  withSecondaryTileset: <T>(
+  withTileset: <T>(
+    id: string,
     cb: (tileset: Cesium3DTileset, runtime: CesiumRuntime) => T
   ) => T | undefined;
   withTerrainProvider: <T>(
+    cb: (provider: CesiumTerrainProvider, runtime: CesiumRuntime) => T
+  ) => T | undefined;
+  withTerrainProviderById: <T>(
+    id: string,
     cb: (provider: CesiumTerrainProvider, runtime: CesiumRuntime) => T
   ) => T | undefined;
   withSurfaceProvider: <T>(
@@ -61,8 +72,12 @@ export interface CesiumContextType {
   ) => T | undefined;
   // Direct getters for terrain providers (don't require runtime)
   getTerrainProvider: () => CesiumTerrainProvider | null;
+  getTerrainProviderById: (id: string) => CesiumTerrainProvider | null;
   getSurfaceProvider: () => CesiumTerrainProvider | null;
   getImageryLayer: () => ImageryLayer | null;
+  getImageryLayerById: (id: string) => ImageryLayer | null;
+  getTerrainProviderInitSignatureById: (id: string) => string | undefined;
+  getTilesetInitSignatureById: (id: string) => string | undefined;
   getScene: () => Scene | null;
 
   // --- Runtime UI state (formerly the `cesium` redux slice) ---
@@ -71,17 +86,16 @@ export interface CesiumContextType {
   isTransitioning: boolean;
   clearTransition: () => void;
   // scene styles: static config + current selection
-  sceneStylePrimary: Partial<SceneStyle> | undefined;
-  sceneStyleSecondary: Partial<SceneStyle> | undefined;
-  currentSceneStyle: keyof SceneStyles | undefined;
-  setCurrentSceneStyle: (style: keyof SceneStyles) => void;
+  sceneStyles: SceneStyles;
+  sceneStyleIds: readonly SceneStyleId[];
+  currentSceneStyle: SceneStyleId | undefined;
+  currentSceneStyleConfig: SceneStyle | undefined;
+  setCurrentSceneStyle: (style: SceneStyleId) => void;
   toggleCurrentSceneStyle: () => void;
   models: CesiumState["models"];
   // tilesets
-  showPrimaryTileset: boolean;
-  showSecondaryTileset: boolean;
-  setShowPrimaryTileset: (show: boolean) => void;
-  setShowSecondaryTileset: (show: boolean) => void;
+  tilesetIds: readonly string[];
+  visibleTilesetIds: readonly string[];
   // screen-space camera controller bounds (read-only config)
   ssccMinimumZoomDistance: number;
   ssccMaximumZoomDistance: number;

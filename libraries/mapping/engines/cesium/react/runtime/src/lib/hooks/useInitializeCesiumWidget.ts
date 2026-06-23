@@ -31,6 +31,7 @@ import {
 import { useCesiumContext } from "./useCesiumContext";
 
 import { configureCesiumErrorHandling } from "../utils/cesiumErrorHandling";
+import { DEFAULT_TERRAIN_PROVIDER_ID } from "../utils/cesiumProviders";
 import { validateWorldCoordinate } from "../utils/positions";
 
 import type { InitialCameraView } from "../CesiumHost";
@@ -265,11 +266,9 @@ export const useInitializeCesiumWidget = (
     withCamera,
     withRuntime,
     getTerrainProvider,
-    getImageryLayer,
-    showSecondaryTileset: isSecondaryStyle,
+    getImageryLayerById,
     currentSceneStyle,
-    sceneStylePrimary: primaryStyle,
-    sceneStyleSecondary: secondaryStyle,
+    currentSceneStyleConfig,
     ssccMinimumZoomDistance: minZoom,
     ssccMaximumZoomDistance: maxZoom,
     ssccEnableCollisionDetection: enableCollisionDetection,
@@ -397,29 +396,26 @@ export const useInitializeCesiumWidget = (
         return;
       }
 
-      // Prepare initial configuration based on scene style
-      const isSecondary = currentSceneStyle === "secondary";
-      const styleToUse = isSecondary ? secondaryStyle : primaryStyle;
+      const styleToUse = currentSceneStyleConfig;
 
       const terrainProvider = getTerrainProvider();
-
-      // Get imagery layer (will set visibility after creation)
-      const imageryLayer = getImageryLayer();
 
       // Create and configure Globe with initial style settings
       const globe = new Globe(Ellipsoid.WGS84);
 
       // Set globe baseColor based on style
       const globeBaseColor =
-        colorFromConstructorArgs(styleToUse?.globe?.baseColor) ??
-        (isSecondary ? Color.WHITE : Color.LIGHTGREY);
+        colorFromConstructorArgs(styleToUse?.live?.globe?.baseColor) ??
+        Color.LIGHTGREY;
       globe.baseColor = globeBaseColor;
 
-      // For primary style, enable translucency to make globe transparent
-      if (!isSecondary) {
-        globe.translucency.enabled = true;
-        globe.translucency.frontFaceAlpha = 0.0;
-        globe.translucency.backFaceAlpha = 0.0;
+      if (styleToUse?.live?.globe?.translucency) {
+        globe.translucency.enabled =
+          styleToUse.live.globe.translucency.enabled ?? false;
+        globe.translucency.frontFaceAlpha =
+          styleToUse.live.globe.translucency.frontFaceAlpha ?? 1.0;
+        globe.translucency.backFaceAlpha =
+          styleToUse.live.globe.translucency.backFaceAlpha ?? 1.0;
       }
 
       // Merge initial configuration into widget options.
@@ -431,18 +427,18 @@ export const useInitializeCesiumWidget = (
       };
 
       const backgroundColor =
-        colorFromConstructorArgs(styleToUse?.backgroundColor) ??
+        colorFromConstructorArgs(styleToUse?.live?.scene?.backgroundColor) ??
         new Color(0, 0, 0, 0.01);
 
       console.info(
         "[CESIUM|INIT] Creating Cesium widget with pre-configured globe",
         currentSceneStyle,
         "terrain:",
-        isSecondary ? "SURFACE" : "TERRAIN",
+        styleToUse?.members?.terrainProviderId ?? DEFAULT_TERRAIN_PROVIDER_ID,
         "globeBaseColor:",
         globeBaseColor,
         "translucency:",
-        !isSecondary
+        styleToUse?.live?.globe?.translucency
       );
 
       const widget = createMinimalCesiumWidget(containerEl, {
@@ -458,14 +454,24 @@ export const useInitializeCesiumWidget = (
         );
       }
 
-      // Add imagery layer with correct initial visibility
-      if (imageryLayer) {
-        widget.imageryLayers.add(imageryLayer);
-        imageryLayer.show = isSecondary; // Show only for secondary style
-        console.info(
-          "[CESIUM|INIT] Initial imagery layer added, show:",
-          isSecondary
-        );
+      for (const imageryMember of styleToUse?.members?.imageryLayers ?? []) {
+        const imageryLayer = getImageryLayerById(imageryMember.id);
+        if (imageryLayer) {
+          widget.imageryLayers.add(imageryLayer);
+          imageryLayer.show = true;
+          if (imageryMember.opacity !== undefined) {
+            imageryLayer.alpha = imageryMember.opacity;
+          }
+          console.info(
+            "[CESIUM|INIT] Initial imagery layer added",
+            imageryMember.id
+          );
+        } else {
+          console.warn(
+            "[CESIUM|INIT] Missing initial imagery layer",
+            imageryMember.id
+          );
+        }
       }
 
       console.info("[CESIUM|INIT] Cesium widget created", Date.now());
@@ -557,10 +563,9 @@ export const useInitializeCesiumWidget = (
     setIsRuntimeReady,
     withCamera,
     currentSceneStyle,
-    primaryStyle,
-    secondaryStyle,
+    currentSceneStyleConfig,
     getTerrainProvider,
-    getImageryLayer,
+    getImageryLayerById,
   ]);
 
   useEffect(() => {
@@ -570,11 +575,16 @@ export const useInitializeCesiumWidget = (
 
       // Guard: scene.globe might not be initialized yet during early setup
       if (scene.globe) {
-        scene.globe.depthTestAgainstTerrain = true;
-        // Terrain would show up as opaques surface over mesh if not set transparent
-        scene.globe.translucency.enabled = true;
-        scene.globe.translucency.frontFaceAlpha = isSecondaryStyle ? 1.0 : 0.0;
-        scene.globe.translucency.backFaceAlpha = isSecondaryStyle ? 1.0 : 0.0;
+        scene.globe.depthTestAgainstTerrain =
+          currentSceneStyleConfig?.live?.globe?.depthTestAgainstTerrain ?? true;
+        scene.globe.translucency.enabled =
+          currentSceneStyleConfig?.live?.globe?.translucency?.enabled ?? false;
+        scene.globe.translucency.frontFaceAlpha =
+          currentSceneStyleConfig?.live?.globe?.translucency?.frontFaceAlpha ??
+          1.0;
+        scene.globe.translucency.backFaceAlpha =
+          currentSceneStyleConfig?.live?.globe?.translucency?.backFaceAlpha ??
+          1.0;
       }
 
       sscc.enableCollisionDetection = shouldSuspendCameraLimitersRef.current
@@ -589,7 +599,7 @@ export const useInitializeCesiumWidget = (
     });
   }, [
     withScene,
-    isSecondaryStyle,
+    currentSceneStyleConfig,
     maxZoom,
     minZoom,
     enableCollisionDetection,

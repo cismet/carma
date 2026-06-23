@@ -68,6 +68,7 @@ import { getApplicationVersion } from "@carma-commons/utils";
 
 import {
   CesiumHost,
+  type CesiumOptions,
   type CesiumHostState,
   getGeoJsonGeometryCacheKey,
   getProviderScopedCache,
@@ -131,6 +132,7 @@ import LoginForm from "../LoginForm.tsx";
 import { useModelSelectionDispatcher } from "../../hooks/useModelSelectionDispatcher.ts";
 
 import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
+import { MapStyleKeys } from "../../constants/MapStyleKeys";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../leaflet.css";
@@ -250,19 +252,18 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     getSurfaceProvider,
     getTerrainProvider,
     getScene,
-    isValidRuntime: isValidRuntimeCtx,
     isRuntimeReady,
     initialViewApplied,
     models,
     ssccMinimumZoomDistance: minimumCameraHeight,
-    showPrimaryTileset,
-    setCurrentSceneStyle,
+    currentSceneStyle,
   } = useCesiumContext();
 
   const rerenderCountRef = useRef(0);
   const lastRenderTimeStampRef = useRef(Date.now());
   const lastRenderIntervalRef = useRef(0);
-  const container3dMapRef = useRef<HTMLDivElement | null>(null);
+  const [cesiumContainerElement, setCesiumContainerElement] =
+    useState<HTMLDivElement | null>(null);
   // Store MapLibre maps outside Redux to avoid serialization issues
   const maplibreMapsRef = useRef<Map<string, MaplibreMap>>(new Map());
   const selectionSemanticIdentifierRef = useRef<string | undefined>(undefined);
@@ -524,14 +525,15 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   // Map framework switcher (2D ↔ 3D transitions)
   const leafletMap = getLeafletMap();
   const cesiumScene = getScene();
-  const isCesiumRuntimeReady = Boolean(cesiumScene && isRuntimeReady);
-
-  const handleCesiumHostChange = useCallback(
-    ({ element }: CesiumHostState) => {
-      container3dMapRef.current = element;
-    },
-    []
+  const isCesiumRuntimeReady = Boolean(
+    cesiumScene && cesiumContainerElement && isRuntimeReady
   );
+
+  const handleCesiumHostChange = useCallback(({ element }: CesiumHostState) => {
+    setCesiumContainerElement((previous) =>
+      previous === element ? previous : element
+    );
+  }, []);
 
   useEffect(() => {
     if (!allow3d || !isInitialCameraResolved) {
@@ -606,7 +608,10 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     }
   }, [selectedFeature, isOrbiting, stopOrbit]);
 
-  const getCesiumContainer = useCallback(() => container3dMapRef.current, []);
+  const getCesiumContainer = useCallback(
+    () => cesiumContainerElement,
+    [cesiumContainerElement]
+  );
   const getCesiumTerrainProviders = useCallback(
     () => ({
       TERRAIN: getTerrainProvider() ?? null,
@@ -713,18 +718,19 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     }, 150);
   }, [pos, getLeafletMap]);
 
-  const selectionCesiumOptions = useMemo(
+  const selectionCesiumOptions = useMemo<CesiumOptions>(
     () => ({
       markerAsset,
       markerAnchorHeight,
-      isPrimaryStyle: showPrimaryTileset,
+      selectionClassification:
+        currentSceneStyle === MapStyleKeys.AERIAL ? "tileset" : "both",
       withTerrainProvider,
       withSurfaceProvider,
     }),
     [
+      currentSceneStyle,
       markerAsset,
       markerAnchorHeight,
-      showPrimaryTileset,
       withTerrainProvider,
       withSurfaceProvider,
     ]
@@ -858,19 +864,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     },
     []
   );
-
-  useEffect(() => {
-    // TODO wrap this with 3d component in own component?
-    // INTIALIZE Cesium Tileset style from Geoportal/TopicMap background later style
-    if (isValidRuntimeCtx() && backgroundLayer) {
-      if (backgroundLayer.id === "luftbild") {
-        setCurrentSceneStyle("primary");
-      } else {
-        setCurrentSceneStyle("secondary");
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [backgroundLayer]);
 
   useEffect(() => {
     const leaflet = getLeafletMap();

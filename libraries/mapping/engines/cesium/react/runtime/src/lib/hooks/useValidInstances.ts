@@ -12,6 +12,11 @@ import {
 } from "@carma-cesium";
 
 import {
+  DEFAULT_IMAGERY_LAYER_ID,
+  DEFAULT_SURFACE_PROVIDER_ID,
+  DEFAULT_TERRAIN_PROVIDER_ID,
+} from "../utils/cesiumProviders";
+import {
   isValidCesiumWidget as isValidRuntimeNoCtx,
   isValidImageryLayer,
   isValidTileset,
@@ -29,11 +34,17 @@ export type KnownProviders =
 // re-acquire via a fresh withX/getScene after each await and bail on undefined.
 export const useValidInstances = (
   runtimeRef: MutableRefObject<CesiumWidget | null>,
-  imageryLayerRef: MutableRefObject<ImageryLayer | null>,
-  primaryTilesetRef: MutableRefObject<Cesium3DTileset | null>,
-  secondaryTilesetRef: MutableRefObject<Cesium3DTileset | null>,
-  terrainProviderRef: MutableRefObject<CesiumTerrainProvider | null>,
-  surfaceProviderRef: MutableRefObject<CesiumTerrainProvider | null>
+  imageryLayerRefsByIdRef: MutableRefObject<
+    Record<string, ImageryLayer | null | undefined>
+  >,
+  tilesetRefsByIdRef: MutableRefObject<
+    Record<string, Cesium3DTileset | null | undefined>
+  >,
+  terrainProviderRefsByIdRef: MutableRefObject<
+    Record<string, CesiumTerrainProvider | null | undefined>
+  >,
+  terrainProviderId: string = DEFAULT_TERRAIN_PROVIDER_ID,
+  surfaceProviderId: string = DEFAULT_SURFACE_PROVIDER_ID
 ) => {
   const isValidRuntime = useCallback(
     () => isValidRuntimeNoCtx(runtimeRef.current),
@@ -59,59 +70,100 @@ export const useValidInstances = (
     [withRuntime]
   );
 
+  const getImageryLayerById = useCallback(
+    (id: string): ImageryLayer | null => {
+      const layer = imageryLayerRefsByIdRef.current[id];
+      return isValidImageryLayer(layer) ? layer : null;
+    },
+    [imageryLayerRefsByIdRef]
+  );
+
+  const getImageryLayer = useCallback(
+    () => getImageryLayerById(DEFAULT_IMAGERY_LAYER_ID),
+    [getImageryLayerById]
+  );
+
+  const withImageryLayerById = useCallback(
+    <T>(
+      id: string,
+      cb: (imageryLayer: ImageryLayer, scene: Scene) => T
+    ): T | undefined => {
+      const layer = getImageryLayerById(id);
+      return isValidRuntimeNoCtx(runtimeRef.current) && layer
+        ? cb(layer, runtimeRef.current.scene)
+        : undefined;
+    },
+    [runtimeRef, getImageryLayerById]
+  );
+
   const withImageryLayer = useCallback(
     <T>(cb: (imageryLayer: ImageryLayer, scene: Scene) => T): T | undefined =>
-      isValidRuntimeNoCtx(runtimeRef.current) &&
-      isValidImageryLayer(imageryLayerRef.current)
-        ? cb(imageryLayerRef.current, runtimeRef.current.scene)
-        : undefined,
-    [runtimeRef, imageryLayerRef]
+      withImageryLayerById(DEFAULT_IMAGERY_LAYER_ID, cb),
+    [withImageryLayerById]
   );
 
-  // Private validated-tileset access; the primary/secondary wrappers are the
-  // public surface (no ref-builder is exposed).
   const withTileset = useCallback(
     <T>(
-      tilesetRef: MutableRefObject<Cesium3DTileset | null>,
+      id: string,
       cb: (tileset: Cesium3DTileset, runtime: CesiumWidget) => T
-    ): T | undefined =>
-      isValidRuntimeNoCtx(runtimeRef.current) &&
-      isValidTileset(tilesetRef.current)
-        ? cb(tilesetRef.current, runtimeRef.current)
-        : undefined,
-    [runtimeRef]
-  );
-  const withPrimaryTileset = useCallback(
-    <T>(cb: (tileset: Cesium3DTileset, runtime: CesiumWidget) => T) =>
-      withTileset(primaryTilesetRef, cb),
-    [withTileset, primaryTilesetRef]
-  );
-  const withSecondaryTileset = useCallback(
-    <T>(cb: (tileset: Cesium3DTileset, runtime: CesiumWidget) => T) =>
-      withTileset(secondaryTilesetRef, cb),
-    [withTileset, secondaryTilesetRef]
+    ): T | undefined => {
+      const tileset = tilesetRefsByIdRef.current[id];
+      return isValidRuntimeNoCtx(runtimeRef.current) && isValidTileset(tileset)
+        ? cb(tileset, runtimeRef.current)
+        : undefined;
+    },
+    [runtimeRef, tilesetRefsByIdRef]
   );
 
-  const withProvider = useCallback(
-    <T>(
-      providerRef: MutableRefObject<CesiumTerrainProvider | null>,
-      cb: (provider: CesiumTerrainProvider, runtime: CesiumWidget) => T
-    ): T | undefined =>
-      isValidRuntimeNoCtx(runtimeRef.current) &&
-      isValidCesiumTerrainProvider(providerRef.current)
-        ? cb(providerRef.current, runtimeRef.current)
-        : undefined,
-    [runtimeRef]
+  const getTerrainProviderById = useCallback(
+    (id: string): CesiumTerrainProvider | null => {
+      const provider = terrainProviderRefsByIdRef.current[id];
+      return isValidCesiumTerrainProvider(provider) ? provider : null;
+    },
+    [terrainProviderRefsByIdRef]
   );
+
+  const getTerrainProvider = useCallback(
+    () => getTerrainProviderById(terrainProviderId),
+    [getTerrainProviderById, terrainProviderId]
+  );
+
+  const getSurfaceProvider = useCallback(
+    () =>
+      getTerrainProviderById(surfaceProviderId) ??
+      getTerrainProviderById(terrainProviderId),
+    [getTerrainProviderById, surfaceProviderId, terrainProviderId]
+  );
+
+  const withTerrainProviderById = useCallback(
+    <T>(
+      id: string,
+      cb: (provider: CesiumTerrainProvider, runtime: CesiumWidget) => T
+    ): T | undefined => {
+      const provider = getTerrainProviderById(id);
+      return isValidRuntimeNoCtx(runtimeRef.current) && provider
+        ? cb(provider, runtimeRef.current)
+        : undefined;
+    },
+    [runtimeRef, getTerrainProviderById]
+  );
+
   const withTerrainProvider = useCallback(
     <T>(cb: (provider: CesiumTerrainProvider, runtime: CesiumWidget) => T) =>
-      withProvider(terrainProviderRef, cb),
-    [withProvider, terrainProviderRef]
+      withTerrainProviderById(terrainProviderId, cb),
+    [withTerrainProviderById, terrainProviderId]
   );
+
   const withSurfaceProvider = useCallback(
-    <T>(cb: (provider: CesiumTerrainProvider, runtime: CesiumWidget) => T) =>
-      withProvider(surfaceProviderRef, cb),
-    [withProvider, surfaceProviderRef]
+    <T>(
+      cb: (provider: CesiumTerrainProvider, runtime: CesiumWidget) => T
+    ): T | undefined => {
+      const provider = getSurfaceProvider();
+      return isValidRuntimeNoCtx(runtimeRef.current) && provider
+        ? cb(provider, runtimeRef.current)
+        : undefined;
+    },
+    [runtimeRef, getSurfaceProvider]
   );
 
   return useMemo(
@@ -120,10 +172,16 @@ export const useValidInstances = (
       withRuntime,
       withScene,
       withCamera,
+      getImageryLayer,
+      getImageryLayerById,
       withImageryLayer,
-      withPrimaryTileset,
-      withSecondaryTileset,
+      withImageryLayerById,
+      withTileset,
+      getTerrainProvider,
+      getSurfaceProvider,
+      getTerrainProviderById,
       withTerrainProvider,
+      withTerrainProviderById,
       withSurfaceProvider,
     }),
     [
@@ -131,10 +189,16 @@ export const useValidInstances = (
       withRuntime,
       withScene,
       withCamera,
+      getImageryLayer,
+      getImageryLayerById,
       withImageryLayer,
-      withPrimaryTileset,
-      withSecondaryTileset,
+      withImageryLayerById,
+      withTileset,
+      getTerrainProvider,
+      getSurfaceProvider,
+      getTerrainProviderById,
       withTerrainProvider,
+      withTerrainProviderById,
       withSurfaceProvider,
     ]
   );

@@ -141,4 +141,8 @@ export {
 } from "./instanceGates";
 
 // Scene styles
-export { setupPrimaryStyle, setupSecondaryStyle } from "./sceneStyles";
+export {
+  classifyCesiumSceneStyleChange,
+  diffCesiumSceneStyles,
+  setupSceneStyle,
+} from "./sceneStyles";

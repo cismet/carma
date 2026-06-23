@@ -90,8 +90,7 @@ type CesiumHostRuntimeProps = {
   onSceneChange?: (
     e: { hashParams: Record<string, string> },
     runtime?: CesiumWidget,
-    cesiumCameraState?: StringifiedCameraState | null,
-    isSecondaryStyle?: boolean
+    cesiumCameraState?: StringifiedCameraState | null
   ) => void;
   enableSceneStyles?: boolean;
   // debug/error handling wiring

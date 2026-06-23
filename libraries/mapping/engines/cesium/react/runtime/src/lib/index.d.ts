@@ -1,12 +1,10 @@
+import type { Cartesian3, CesiumTerrainProvider } from "@carma-cesium";
 import type {
-  Cartesian3,
-  CesiumTerrainProvider,
-} from "@carma-cesium";
-import type {
+  CesiumCustomShaderOptions,
   CesiumModelConfig,
+  ColorConstructorArgs,
   ModelConfig,
 } from "@carma-mapping/engines/cesium/core";
-import { type ColorConstructorArgs } from "@carma-mapping/engines/cesium/core";
 
 import type { CameraLimiterOptions } from "./camera-limiter-options";
 import type { CesiumRuntime } from "./CesiumContext";
@@ -17,6 +15,14 @@ import type {
 import type { CESIUM_RUNTIME_TRANSITION_STATE } from "./runtime-transition-state";
 import type { ProviderConfig } from "./utils/cesiumProviders";
 import type { TilesetConfigs } from "./utils/cesiumTilesetProviders";
+export type {
+  ImageryLayerConfig,
+  ImageryLayerConfigs,
+  ProviderConfig,
+  TerrainProviderConfig,
+  TerrainProviderConfigs,
+} from "./utils/cesiumProviders";
+
 export type CameraPositionAndOrientation = {
   position: Cartesian3;
   up: Cartesian3;
@@ -36,7 +42,7 @@ export type {
 
 export type CesiumOptions = {
   markerAsset: MarkerModelAsset;
-  isPrimaryStyle: boolean;
+  selectionClassification: CesiumSelectionClassification;
   markerAnchorHeight?: number;
   pitchAdjustHeight?: number;
   withTerrainProvider: <T>(
@@ -47,21 +53,99 @@ export type CesiumOptions = {
   ) => T | undefined;
 };
 
-export type TerrainProviderConfig = {
-  url: string;
+export type CesiumSceneStyleChangeMode =
+  | "live"
+  | "resource-reload"
+  | "runtime-reinit";
+
+export type CesiumSceneStyleDiff = {
+  mode: CesiumSceneStyleChangeMode;
+  reasons: readonly string[];
 };
 
-export type SceneStyle = {
-  backgroundColor: ColorConstructorArgs;
-  globe: {
-    baseColor: ColorConstructorArgs;
+export type CesiumSceneStyleChange = {
+  path: string;
+  mode: CesiumSceneStyleChangeMode;
+  reason: string;
+};
+
+export type CesiumSceneStyleChangeSet = {
+  mode: CesiumSceneStyleChangeMode;
+  reasons: readonly string[];
+  changes: readonly CesiumSceneStyleChange[];
+};
+
+export type CesiumSceneResourceInitSignatures = {
+  terrainProviders?: Readonly<Record<string, string | undefined>>;
+  tilesets?: Readonly<Record<string, string | undefined>>;
+};
+
+export type CesiumTerrainProviderMemberId = string;
+export type CesiumImageryLayerMemberId = string;
+export type CesiumSelectionClassification = "tileset" | "both";
+
+export type CesiumGlobeTranslucencyStyle = {
+  enabled?: boolean;
+  frontFaceAlpha?: number;
+  backFaceAlpha?: number;
+};
+
+export type CesiumGlobeLiveStyle = {
+  baseColor?: ColorConstructorArgs;
+  depthTestAgainstTerrain?: boolean;
+  enableLighting?: boolean;
+  translucency?: CesiumGlobeTranslucencyStyle;
+};
+
+export type CesiumSceneLiveStyle = {
+  backgroundColor?: ColorConstructorArgs;
+};
+
+export type CesiumImageryLayerMember = {
+  id: CesiumImageryLayerMemberId;
+  opacity?: number;
+};
+
+export type Cesium3DTileStyleDescription = Record<string, unknown>;
+
+export type CesiumTilesetAppearance =
+  | {
+      type?: "default";
+    }
+  | {
+      type: "cesium-3d-tile-style";
+      style: Cesium3DTileStyleDescription;
+    }
+  | {
+      type: "custom-shader";
+      shader: CesiumCustomShaderOptions;
+    };
+
+export type CesiumTilesetSceneMember = {
+  id: string;
+  appearance?: CesiumTilesetAppearance;
+};
+
+export type CesiumSceneMembers = {
+  terrainProviderId?: CesiumTerrainProviderMemberId;
+  surfaceProviderId?: CesiumTerrainProviderMemberId;
+  imageryLayers?: readonly CesiumImageryLayerMember[];
+  tilesets?: readonly CesiumTilesetSceneMember[];
+};
+
+export type CesiumScenePreset = {
+  name?: string;
+  runtimeProfileId?: string;
+  members?: CesiumSceneMembers;
+  live?: {
+    scene?: CesiumSceneLiveStyle;
+    globe?: CesiumGlobeLiveStyle;
   };
 };
 
-export type SceneStyles = {
-  primary?: Partial<SceneStyle>;
-  secondary?: Partial<SceneStyle>;
-};
+export type SceneStyle = CesiumScenePreset;
+export type SceneStyleId = string;
+export type SceneStyles = Record<SceneStyleId, SceneStyle>;
 
 export type CesiumConfig = {
   transitions: {
@@ -82,10 +166,7 @@ export type CesiumConfig = {
 export interface CesiumState {
   isAnimating?: boolean;
   currentTransition?: CESIUM_RUNTIME_TRANSITION_STATE;
-  currentSceneStyle?: keyof SceneStyles;
-  showPrimaryTileset: boolean; // tileset is the base 3D model equivalent to a basemap
-  showSecondaryTileset: boolean; // tileset is the base 3D model equivalent to a basemap
-
+  currentSceneStyle?: SceneStyleId;
   sceneSpaceCameraController: {
     enableCollisionDetection: boolean;
     minimumZoomDistance: number; // default is 1.0
@@ -115,11 +196,9 @@ export type SceneStateDescription = {
   };
   zoom?: number | null;
   isAnimating?: boolean | null;
-  isSecondaryStyle?: boolean | null;
 };
 
 export type AppState = {
   isAnimating?: boolean;
-  isSecondaryStyle?: boolean;
   zoom?: number;
 };

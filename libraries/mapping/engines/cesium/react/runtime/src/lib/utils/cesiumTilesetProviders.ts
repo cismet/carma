@@ -1,14 +1,12 @@
-import { Cesium3DTileset, CustomShader, ShadowMode } from "cesium";
+import { Cesium3DTileset, ShadowMode } from "cesium";
 
 import { TilesetConfig, TilesetType } from "@carma-commons/resources";
-import { CUSTOM_SHADERS_DEFINITIONS } from "@carma-mapping/engines/cesium/core";
+
+import { createResourceInitSignature } from "./resourceSignatures";
 
 export type TilesetConfigs = {
-  primary: TilesetConfig;
-  secondary?: TilesetConfig;
+  [id: string]: TilesetConfig;
 };
-
-const MESH_SHADER = CUSTOM_SHADERS_DEFINITIONS.UNLIT_ENHANCED_2024;
 
 const DEFAULT_MESH_OPTIONS: Cesium3DTileset.ConstructorOptions = {
   preloadWhenHidden: false,
@@ -42,33 +40,36 @@ const DEFAULT_LOD2_OPTIONS: Cesium3DTileset.ConstructorOptions = {
   enableCollision: false,
 };
 
-const loadLOD2Tileset = async (tileset: TilesetConfig) => {
-  const lod2Options = {
-    ...tileset.constructorOptions,
-    ...DEFAULT_LOD2_OPTIONS,
-  };
-  const lod2 = await Cesium3DTileset.fromUrl(tileset.url, lod2Options);
-  return lod2;
+export const getEffectiveTilesetConstructorOptions = (
+  tileset: TilesetConfig
+): Cesium3DTileset.ConstructorOptions => {
+  if (tileset.type === TilesetType.LOD2) {
+    return {
+      ...tileset.constructorOptions,
+      ...DEFAULT_LOD2_OPTIONS,
+    };
+  }
+
+  if (tileset.type === TilesetType.MESH) {
+    return {
+      ...tileset.constructorOptions,
+      ...DEFAULT_MESH_OPTIONS,
+    };
+  }
+
+  throw new Error(`Unknown tileset type: ${tileset.type}`);
 };
 
-const loadMeshTileset = async (tileset: TilesetConfig) => {
-  // TODO get shader from tileset config
-  const shader = new CustomShader(MESH_SHADER);
-  const meshOptions = {
-    ...tileset.constructorOptions,
-    ...DEFAULT_MESH_OPTIONS,
-  };
-  const mesh = await Cesium3DTileset.fromUrl(tileset.url, meshOptions);
-  mesh.customShader = shader;
-  return mesh;
-};
+export const getTilesetInitSignature = (tileset: TilesetConfig): string =>
+  createResourceInitSignature({
+    type: tileset.type,
+    url: tileset.url,
+    constructorOptions: getEffectiveTilesetConstructorOptions(tileset),
+  });
 
 export const loadTileset = async (tileset: TilesetConfig) => {
-  if (tileset.type === TilesetType.LOD2) {
-    return await loadLOD2Tileset(tileset);
-  } else if (tileset.type === TilesetType.MESH) {
-    return await loadMeshTileset(tileset);
-  } else {
-    throw new Error(`Unknown tileset type: ${tileset.type}`);
-  }
+  return await Cesium3DTileset.fromUrl(
+    tileset.url,
+    getEffectiveTilesetConstructorOptions(tileset)
+  );
 };
