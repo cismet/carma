@@ -72,10 +72,6 @@ import {
   getGeoJsonGeometryCacheKey,
   getProviderScopedCache,
   getTerrainAwareBoundingSphereFromGeoJsonGeometry,
-  selectScreenSpaceCameraControllerMinimumZoomDistance,
-  selectShowPrimaryTileset,
-  selectCesiumRuntimeModels,
-  setCurrentSceneStyle,
   useCesiumContext,
 } from "@carma-mapping/engines/cesium/react/runtime";
 import { useCesiumNavigationBridge } from "@carma-mapping/engines-interop/view-state";
@@ -257,6 +253,10 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     isValidRuntime: isValidRuntimeCtx,
     isRuntimeReady,
     initialViewApplied,
+    models,
+    ssccMinimumZoomDistance: minimumCameraHeight,
+    showPrimaryTileset,
+    setCurrentSceneStyle,
   } = useCesiumContext();
 
   const rerenderCountRef = useRef(0);
@@ -292,13 +292,9 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     registerCallbacks,
   } = useMapFrameworkSwitcherContext();
 
-  const models = useSelector(selectCesiumRuntimeModels);
   const markerAsset = models[CESIUM_CONFIG.markerKey]; //
   const markerAnchorHeight =
     CESIUM_CONFIG.markerAnchorHeight ?? DEFAULT_MARKER_ANCHOR_HEIGHT;
-  const minimumCameraHeight = useSelector(
-    selectScreenSpaceCameraControllerMinimumZoomDistance
-  );
   const layers = useSelector(getLayers);
   const [maplibreMaps, setMaplibreMaps] = useState<MaplibreMap[]>([]);
   const uiMode = useSelector(getUIMode);
@@ -318,7 +314,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   } = useAdhocFeatureDisplay();
 
   const { getLeafletZoom } = useLeafletZoomControls();
-  const showPrimaryTileset = useSelector(selectShowPrimaryTileset);
   const minHeight =
     typeof minimumCameraHeight === "number" &&
     Number.isFinite(minimumCameraHeight)
@@ -869,9 +864,9 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     // INTIALIZE Cesium Tileset style from Geoportal/TopicMap background later style
     if (isValidRuntimeCtx() && backgroundLayer) {
       if (backgroundLayer.id === "luftbild") {
-        dispatch(setCurrentSceneStyle("primary"));
+        setCurrentSceneStyle("primary");
       } else {
-        dispatch(setCurrentSceneStyle("secondary"));
+        setCurrentSceneStyle("secondary");
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

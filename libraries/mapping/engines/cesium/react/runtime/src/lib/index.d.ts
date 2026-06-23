@@ -14,7 +14,7 @@ import type {
   MarkerModelAsset,
   ParsedMarkerModelAsset,
 } from "./extensions/markers";
-import type { CESIUM_RUNTIME_TRANSITION_STATE } from "./slices/cesium";
+import type { CESIUM_RUNTIME_TRANSITION_STATE } from "./runtime-transition-state";
 import type { ProviderConfig } from "./utils/cesiumProviders";
 import type { TilesetConfigs } from "./utils/cesiumTilesetProviders";
 export type CameraPositionAndOrientation = {

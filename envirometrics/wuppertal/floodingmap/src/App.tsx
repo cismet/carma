@@ -6,8 +6,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { useSelector } from "react-redux";
-
 import {
   faHouseChimney,
   faMinus,
@@ -53,7 +51,6 @@ import {
   CesiumHost,
   type CesiumHostState,
   PitchingCompass,
-  selectCesiumRuntimeModels,
   useCesiumContext,
   useZoomControls as useZoomControlsCesium,
 } from "@carma-mapping/engines/cesium/react/runtime";
@@ -235,7 +232,7 @@ function FloodingmapAppContent({ sync = false }: { sync?: boolean }) {
     isCommitEnabled: isCesium && Boolean(cesiumScene) && initialViewApplied,
   });
 
-  const models = useSelector(selectCesiumRuntimeModels);
+  const models = ctx.models;
 
   const markerAsset = models![CESIUM_CONFIG.markerKey!];
   const markerAnchorHeight = CESIUM_CONFIG.markerAnchorHeight ?? 10;

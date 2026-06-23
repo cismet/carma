@@ -1,13 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import { BoundingSphere, Cartesian3, HeadingPitchRange } from "@carma-cesium";
 import type { Meters, Radians } from "@carma-units";
 
-import {
-  selectScreenSpaceCameraControllerEnableCollisionDetection,
-  setIsAnimating,
-  clearIsAnimating,
-} from "../slices/cesium";
 import {
   resolveCameraLimiterOptions,
   type CameraLimiterOptions,
@@ -118,17 +112,15 @@ const useCameraPitchSoftLimiter = (
     resolvePitchSoftLimiterConfig(options);
 
   const runtime = useCesiumRuntime();
-  const dispatch = useDispatch();
-  const collisions = useSelector(
-    selectScreenSpaceCameraControllerEnableCollisionDetection
-  );
-  const { getScene, shouldSuspendCameraLimitersRef, initialViewApplied } =
-    useCesiumContext();
+  const {
+    getScene,
+    shouldSuspendCameraLimitersRef,
+    initialViewApplied,
+    ssccEnableCollisionDetection: collisions,
+    setIsAnimating,
+  } = useCesiumContext();
 
-  const onComplete = useCallback(
-    () => dispatch(clearIsAnimating()),
-    [dispatch]
-  );
+  const onComplete = useCallback(() => setIsAnimating(false), [setIsAnimating]);
   const pitchResetFlightRef = useRef(createScratchPitchResetFlight(onComplete));
 
   useEffect(() => {
@@ -170,7 +162,7 @@ const useCameraPitchSoftLimiter = (
           // TODO Get CenterPos Lower from screen if distance is multiple of elevation. prevent pitch around distant point on horizon
           const centerPos = readPitchResetCenter(scene);
           if (centerPos) {
-            dispatch(setIsAnimating());
+            setIsAnimating(true);
             const distance = Cartesian3.distance(
               centerPos,
               runtime.camera.position
@@ -201,7 +193,7 @@ const useCameraPitchSoftLimiter = (
     collisions,
     pitchLimiterEnabled,
     onComplete,
-    dispatch,
+    setIsAnimating,
     getScene,
     minCesiumPitch,
     resetPitch,

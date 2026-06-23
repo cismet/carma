@@ -1,12 +1,11 @@
 // DEPRECATED only used for testing in playground, custom runtime should be handle by a common parent managing the the Topicmap View
 
 import { useEffect, useRef } from "react";
-import { useSelector } from "react-redux";
 
 import StyledWMSTileLayer from "react-cismap/StyledWMSTileLayer";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 
-import { selectShowPrimaryTileset } from "../slices/cesium";
+import { useCesiumContext } from "../hooks/useCesiumContext";
 // TODO sync this setting across app
 const DEFAULT_MODE_2D_3D_CHANGE_FADE_DURATION = 1000;
 
@@ -18,7 +17,7 @@ export const TopicMap = ({
   forceShow?: boolean;
   isVisible?: boolean;
 } = {}) => {
-  const isPrimaryStyle = useSelector(selectShowPrimaryTileset);
+  const { showPrimaryTileset: isPrimaryStyle } = useCesiumContext();
 
   const componentRef = useRef<null | HTMLDivElement>(null);
 

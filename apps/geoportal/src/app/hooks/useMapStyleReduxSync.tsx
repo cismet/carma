@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { setCurrentSceneStyle } from "@carma-mapping/engines/cesium/react/runtime";
+import { useCesiumContext } from "@carma-mapping/engines/cesium/react/runtime";
 
 import { useMapStyle } from "./useGeoportalMapStyle";
 import { MapStyleKeys } from "../constants/MapStyleKeys";
@@ -21,6 +21,7 @@ import type { RootState } from "../store";
 
 export const useMapStyleReduxSync = () => {
   const dispatch = useDispatch();
+  const { setCurrentSceneStyle } = useCesiumContext();
   const { currentStyle } = useMapStyle();
 
   const selectedMapLayer = useSelector((state: RootState) =>
@@ -44,7 +45,7 @@ export const useMapStyleReduxSync = () => {
           opacity: backgroundLayer.opacity,
         })
       );
-      dispatch(setCurrentSceneStyle("secondary"));
+      setCurrentSceneStyle("secondary");
     } else if (currentStyle === MapStyleKeys.AERIAL) {
       dispatch(
         setBackgroundLayer({
@@ -54,7 +55,7 @@ export const useMapStyleReduxSync = () => {
           opacity: backgroundLayer.opacity,
         })
       );
-      dispatch(setCurrentSceneStyle("primary"));
+      setCurrentSceneStyle("primary");
     }
   }, [
     currentStyle,

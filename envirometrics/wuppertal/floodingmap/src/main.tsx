@@ -29,6 +29,7 @@ import { HashStateProvider } from "@carma-providers/hash-state";
 import App from "./App";
 import { SYNC_TOKEN } from "./config/app.config";
 import { CESIUM_CONFIG } from "./config/cesium/cesium.config";
+import { defaultCesiumState } from "./config/cesium/store.config";
 import { gazDataConfig } from "./config/gazData";
 import {
   FLOODINGMAP_HASH_PARAM_NAME_ORDER,
@@ -80,6 +81,7 @@ const appWithContext = (
             <CesiumContextProvider
               providerConfig={CESIUM_CONFIG.providerConfig}
               tilesetConfigs={CESIUM_CONFIG.tilesetConfigs}
+              defaultRuntimeState={defaultCesiumState}
             >
               {enableSync ? syncedApp : <App />}
             </CesiumContextProvider>

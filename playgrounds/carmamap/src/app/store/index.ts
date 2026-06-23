@@ -4,13 +4,7 @@ import { createLogger } from "redux-logger";
 import { persistReducer } from "redux-persist";
 import localForage from "localforage";
 
-import {
-  getCesiumConfig,
-  cesiumReducer,
-} from "@carma-mapping/engines/cesium/react/runtime";
-
 import { APP_KEY, STORAGE_PREFIX } from "../config";
-import { defaultCesiumState } from "../config/cesium/store.config";
 import mappingReducer from "./slices/mapping";
 import layersReducer from "./slices/layers";
 import uiReducer from "./slices/ui";
@@ -87,13 +81,6 @@ const store = configureStore({
     mapping: persistReducer(mappingConfig, mappingReducer),
     ui: persistReducer(uiConfig, uiReducer),
     layers: persistReducer(layersConfig, layersReducer),
-    cesium: persistReducer(
-      getCesiumConfig({ appKey: APP_KEY, storagePrefix: STORAGE_PREFIX }),
-      cesiumReducer
-    ),
-  },
-  preloadedState: {
-    cesium: defaultCesiumState,
   },
   devTools: devToolsEnabled === true && inProduction === false,
   middleware,

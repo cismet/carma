@@ -1,19 +1,12 @@
 import { useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
 
-import {
-  clearTransition,
-  selectCesiumRuntimeCurrentTransition,
-  selectCesiumRuntimeIsTransitioning,
-} from "../slices/cesium";
+import { useCesiumContext } from "./useCesiumContext";
 import { useCesiumRuntime } from "./useCesiumRuntime";
 const DEFAULT_TIMEOUT = 4000;
 
 const useTransitionTimeout = (timeOut = DEFAULT_TIMEOUT) => {
-  const isTransitioning = useSelector(selectCesiumRuntimeIsTransitioning);
-  const currentTransition = useSelector(selectCesiumRuntimeCurrentTransition);
+  const { isTransitioning, currentTransition, clearTransition } = useCesiumContext();
   const runtime = useCesiumRuntime();
-  const dispatch = useDispatch();
 
   useEffect(() => {
     // reset isTransitioning after 2 seconds
@@ -31,7 +24,7 @@ const useTransitionTimeout = (timeOut = DEFAULT_TIMEOUT) => {
           console.warn(
             "HOOK [CESIUM|2D3D|TIMEOUT] transition timed out, clearing state"
           );
-          dispatch(clearTransition());
+          clearTransition();
         }
       }, timeOut);
     }
@@ -44,7 +37,7 @@ const useTransitionTimeout = (timeOut = DEFAULT_TIMEOUT) => {
         clearTimeout(timeoutId);
       }
     };
-  }, [runtime, isTransitioning, currentTransition, dispatch, timeOut]);
+  }, [runtime, isTransitioning, currentTransition, clearTransition, timeOut]);
 };
 
 export default useTransitionTimeout;

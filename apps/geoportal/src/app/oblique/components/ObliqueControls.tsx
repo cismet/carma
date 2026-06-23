@@ -6,8 +6,6 @@ import {
   useMemo,
   type FC,
 } from "react";
-import { useSelector } from "react-redux";
-
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faExternalLink,
@@ -16,10 +14,7 @@ import {
 import { Tooltip } from "antd";
 import { useControls } from "leva";
 
-import {
-  selectCesiumRuntimeIsTransitioning,
-  useCesiumContext,
-} from "@carma-mapping/engines/cesium/react/runtime";
+import { useCesiumContext } from "@carma-mapping/engines/cesium/react/runtime";
 import { NAVIGATION_KEYBOARD_SHORTCUT_ACTIONS } from "@carma-mapping/engines-interop/navigation-controls";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { ContactMailButton } from "@carma-appframeworks/portals";
@@ -107,6 +102,7 @@ export const ObliqueControls: FC<ObliqueControlsProps> = ({
     requestRender,
     isValidRuntime,
     withScene,
+    isTransitioning,
   } = useCesiumContext();
   const imageId = selectedImage?.record?.id;
   const cameraId = selectedImage?.record?.cameraId;
@@ -193,7 +189,6 @@ export const ObliqueControls: FC<ObliqueControlsProps> = ({
     };
   }, []);
 
-  const isTransitioning = useSelector(selectCesiumRuntimeIsTransitioning);
   // Track last directional move to prefetch ahead in the same direction on arrival
   const lastMoveDirRef = useRef<CardinalDirectionEnum | null>(null);
   // Debounced intent for sibling navigation

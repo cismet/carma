@@ -34,6 +34,7 @@ import { getUIAllowChanges } from "./store/slices/ui";
 
 import { CESIUM_CONFIG } from "./config/app.config";
 import { carmaMapStyleConfig } from "./config/mapStyleConfig";
+import { defaultCesiumState } from "./config/cesium/store.config";
 
 // Side-Effect Imports
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -87,6 +88,7 @@ function App({ published }: { published?: boolean }) {
         background: backgroundSettings,
       }}
       mapStyleConfig={carmaMapStyleConfig}
+      defaultRuntimeState={defaultCesiumState}
     >
       <ErrorBoundary FallbackComponent={AppErrorFallback}>
         <div className="flex flex-col w-full " style={{ height: "100dvh" }}>

@@ -61,8 +61,6 @@ import {
 import {
   CesiumHost,
   Compass,
-  selectShowPrimaryTileset,
-  selectCesiumRuntimeModels,
   useCesiumContext,
   useZoomControls as useZoomControlsCesium,
   setCurrentSceneStyle,
@@ -191,13 +189,13 @@ export const CarmaMap = ({
   const backgroundLayer = useSelector(getBackgroundLayer);
   const selectedMapLayer = useSelector(getSelectedMapLayer);
 
-  const models = useSelector(selectCesiumRuntimeModels);
+  const ctx = useCesiumContext();
+  const models = ctx.models;
   const markerAsset = models[CESIUM_CONFIG.markerKey]; //
   const markerAnchorHeight = CESIUM_CONFIG.markerAnchorHeight ?? 10;
   const layers = useSelector(getLayers);
   const uiMode = useSelector(getUIMode);
   const showFullscreenButton = useSelector(getShowFullscreenButton);
-  const ctx = useCesiumContext();
   const { runtimeRef } = ctx;
 
   const {
@@ -206,7 +204,7 @@ export const CarmaMap = ({
   } = useZoomControlsCesium(ctx);
   const { getLeafletZoom, zoomInLeaflet, zoomOutLeaflet } =
     useLeafletZoomControls();
-  const showPrimaryTileset = useSelector(selectShowPrimaryTileset);
+  const showPrimaryTileset = ctx.showPrimaryTileset;
 
   const { routedMapRef: routedMap } =
     useContext<typeof TopicMapContext>(TopicMapContext);

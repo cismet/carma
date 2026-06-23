@@ -63,6 +63,7 @@ import { useAdhocFeatureRehydrate } from "./hooks/use-adhoc-feature-rehydrate";
 
 import { APP_KEY, layerMap } from "./config";
 import { geoportalMapStyleConfig } from "./config/mapStyleConfig";
+import { defaultCesiumState } from "./config/cesium/store.config";
 
 import {
   CESIUM_CONFIG,
@@ -211,6 +212,7 @@ function App({ published }: { published?: boolean }) {
               overlayOptions={MAP_OVERLAY_OPTIONS}
               mapStyleConfig={geoportalMapStyleConfig}
               store={store}
+              defaultRuntimeState={defaultCesiumState}
             >
               <ObliqueProvider
                 config={OBLIQUE_CONFIG}
