@@ -6,6 +6,15 @@ export type PannellumViewer = {
   resize: () => void;
   getYaw: () => number;
   isLoaded: () => boolean;
+  /** Register a scene config under an id (tour mode). */
+  addScene: (sceneId: string, config: Record<string, unknown>) => void;
+  /** Crossfade to a registered scene; no-ops until the first scene loaded. */
+  loadScene: (
+    sceneId: string,
+    pitch?: number,
+    yaw?: number,
+    hfov?: number
+  ) => void;
 };
 
 /**
