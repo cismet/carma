@@ -5,6 +5,8 @@ export type PannellumViewer = {
   destroy: () => void;
   resize: () => void;
   getYaw: () => number;
+  getPitch: () => number;
+  getHfov: () => number;
   isLoaded: () => boolean;
   /** Register a scene config under an id (tour mode). */
   addScene: (sceneId: string, config: Record<string, unknown>) => void;
@@ -15,6 +17,8 @@ export type PannellumViewer = {
     yaw?: number,
     hfov?: number
   ) => void;
+  /** Sphere coords [pitch, yaw] (deg) under a mouse event, or undefined. */
+  mouseEventToCoords?: (event: MouseEvent) => [number, number] | undefined;
 };
 
 /**
