@@ -10,7 +10,7 @@ import { SceneStyles } from "../../..";
 type SceneStyleToggleProps = {
   children?: ReactNode;
   defaultStyle?: keyof SceneStyles;
-  onToggle?: (isToPrimary: boolean) => void;
+  onToggle?: (isFirstStyle: boolean) => void;
 };
 
 export const SceneStyleToggle = (props: SceneStyleToggleProps) => {
