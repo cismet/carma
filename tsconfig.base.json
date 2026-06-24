@@ -45,6 +45,12 @@
       "@carma-mapping/annotations/builtin-tools/annotation-mode-text": [
         "libraries/mapping/annotations/builtin-tools/src/lib/annotation-mode-text.ts"
       ],
+      "@carma-mapping/print-core/leaflet": [
+        "libraries/mapping/print-core/src/lib/leaflet/index.ts"
+      ],
+      "@carma-mapping/print-core/maplibre": [
+        "libraries/mapping/print-core/src/lib/maplibre/index.ts"
+      ],
       "@carma-mapping/*": ["libraries/mapping/*/src/index.ts"],
       "@carma-providers/*": ["libraries/providers/*/src/index.ts"],
       "@carma-collab/pecher/*": ["libraries/collaboration/carma-pecher-collab/src/*/index.jsx"],

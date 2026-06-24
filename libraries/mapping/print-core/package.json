@@ -1,0 +1,14 @@
+{
+  "name": "@carma-mapping/print-core",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {},
+  "main": "./index.js",
+  "module": "./index.mjs",
+  "typings": "./index.d.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./leaflet": "./src/lib/leaflet/index.ts",
+    "./maplibre": "./src/lib/maplibre/index.ts"
+  }
+}
