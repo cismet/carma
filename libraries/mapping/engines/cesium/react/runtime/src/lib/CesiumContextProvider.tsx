@@ -17,7 +17,12 @@ import { handleDelayedRender } from "@carma-commons/dom/window";
 
 import { CesiumContext, type CesiumContextType } from "./CesiumContext";
 import { CESIUM_RUNTIME_TRANSITION_STATE } from "./runtime-transition-state";
-import type { CesiumState, SceneStyleId, SceneStyles } from "./index.d";
+import type {
+  CesiumState,
+  SceneStyle,
+  SceneStyleId,
+  SceneStyles,
+} from "./index.d";
 
 import {
   DEFAULT_SURFACE_PROVIDER_ID,
@@ -35,6 +40,9 @@ import { useValidInstances } from "./hooks/useValidInstances";
 import { usePreloadProviders } from "./hooks/usePreloadProviders";
 
 const EMPTY_SCENE_STYLES: SceneStyles = {};
+// Fallback id for an ad-hoc scene style passed without a name, so that
+// currentSceneStyle stays defined (useSceneStyles skips an undefined id).
+const DYNAMIC_SCENE_STYLE_ID = "__dynamic__";
 
 export const CesiumContextProvider = ({
   children,
@@ -114,10 +122,18 @@ export const CesiumContextProvider = ({
   >(
     defaultRuntimeState?.currentSceneStyle ?? sceneStyleIds[0] ?? tilesetIds[0]
   );
+  // Ad-hoc style created at runtime via setCurrentSceneStyle(styleObject). When
+  // set, it overrides the registered-by-id lookup, so apps can compose a style
+  // on the fly (e.g. base + selected terrain) and still flow through the
+  // standard diff/apply path. Cleared when an id is selected.
+  const [sceneStyleOverride, setSceneStyleOverride] = useState<
+    SceneStyle | undefined
+  >(undefined);
   const currentSceneStyleConfig =
-    currentSceneStyle !== undefined
+    sceneStyleOverride ??
+    (currentSceneStyle !== undefined
       ? sceneStyles[currentSceneStyle]
-      : undefined;
+      : undefined);
   const currentTerrainProviderId =
     currentSceneStyleConfig?.members?.terrainProviderId ??
     DEFAULT_TERRAIN_PROVIDER_ID;
@@ -155,21 +171,32 @@ export const CesiumContextProvider = ({
     []
   );
   const setCurrentSceneStyle = useCallback(
-    (style: SceneStyleId) => setCurrentSceneStyleState(style),
+    (style: SceneStyleId | SceneStyle) => {
+      if (typeof style === "string") {
+        // Registered style: clear any ad-hoc override and select by id.
+        setSceneStyleOverride(undefined);
+        setCurrentSceneStyleState(style);
+      } else {
+        // Ad-hoc style object: store it as the active config. Keep a defined
+        // currentSceneStyle id (from the style name) so useSceneStyles applies
+        // it; identity is only used for hash/telemetry, not config lookup.
+        setSceneStyleOverride(style);
+        setCurrentSceneStyleState(style.name ?? DYNAMIC_SCENE_STYLE_ID);
+      }
+    },
     []
   );
-  const toggleCurrentSceneStyle = useCallback(
-    () =>
-      setCurrentSceneStyleState((current) => {
-        if (sceneStyleIds.length === 0) {
-          return current;
-        }
+  const toggleCurrentSceneStyle = useCallback(() => {
+    setSceneStyleOverride(undefined);
+    setCurrentSceneStyleState((current) => {
+      if (sceneStyleIds.length === 0) {
+        return current;
+      }
 
-        const index = current ? sceneStyleIds.indexOf(current) : -1;
-        return sceneStyleIds[(index + 1) % sceneStyleIds.length];
-      }),
-    [sceneStyleIds]
-  );
+      const index = current ? sceneStyleIds.indexOf(current) : -1;
+      return sceneStyleIds[(index + 1) % sceneStyleIds.length];
+    });
+  }, [sceneStyleIds]);
   const getScene = useCallback((): Scene | null => {
     if (runtimeRef.current && !runtimeRef.current.isDestroyed()) {
       const scene = runtimeRef.current.scene;

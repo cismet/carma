@@ -12,76 +12,66 @@ import {
 import { HGK_KEYS } from "../app.config";
 import { MODEL_ASSETS } from "./assets.config";
 import {
-  FLOOD_TERRAIN_PROVIDER_IDS,
   FLOODINGMAP_TERRAIN_PROVIDER_IDS,
   FLOODINGMAP_TILESET_IDS,
   WATER_CESIUM_COLOR,
 } from "./cesium.config";
 
-// Human-readable labels for the flood-simulation scene styles, keyed by the
-// HGK terrain-provider id (= scene-style id).
-const FLOOD_STYLE_LABELS: Record<string, string> = {
-  "HQ10-50": "HQ 10-50 (mit HW-Schutz)",
-  HQ100: "HQ 100 (mit HW-Schutz)",
-  HQ500: "HQ 500 (Extremereignis)",
-  "HQ10-50_noHWS": "HQ 10-50 (ohne HW-Schutz)",
-  HQ100_noHWS: "HQ 100 (ohne HW-Schutz)",
-};
-
-// Shared look + members for every flood style. Only the terrain provider — the
-// visible flood water surface — differs between styles; that is the toggled
-// elevation provider. The globe is drawn as a translucent water surface over a
-// dim-grey background, the 3D mesh sits on top (depth test against terrain off
-// so it stays visible through the water). This replaces the former imperative
-// prepareSceneForHGK scene setup.
-const FLOOD_STYLE_BASE = {
-  live: {
-    scene: {
-      backgroundColor: colorToConstructorArgs(Color.DIMGREY),
-    },
-    globe: {
-      baseColor: colorToConstructorArgs(WATER_CESIUM_COLOR),
-      depthTestAgainstTerrain: false,
-      translucency: {
-        enabled: true,
-        frontFaceAlpha: 1.0,
-        backFaceAlpha: 1.0,
-      },
-    },
+// Shared look for every flood scene style: a translucent water-surface globe
+// over a dim-grey background, with the 3D mesh drawn on top (depth test off so
+// it stays visible through the water). Replaces the former prepareSceneForHGK.
+const FLOOD_STYLE_LIVE = {
+  scene: {
+    backgroundColor: colorToConstructorArgs(Color.DIMGREY),
   },
-  members: {
-    surfaceProviderId: FLOODINGMAP_TERRAIN_PROVIDER_IDS.DSM_MESH_2024_1M,
-    tilesets: [
-      {
-        id: FLOODINGMAP_TILESET_IDS.MESH_2024,
-        appearance: {
-          type: "custom-shader",
-          shader: CUSTOM_SHADERS_DEFINITIONS.UNLIT_ENHANCED_2024,
-        },
-      },
-    ],
+  globe: {
+    baseColor: colorToConstructorArgs(WATER_CESIUM_COLOR),
+    depthTestAgainstTerrain: false,
+    translucency: {
+      enabled: true,
+      frontFaceAlpha: 1.0,
+      backFaceAlpha: 1.0,
+    },
   },
 } as const;
 
-const sceneStyles: Record<string, SceneStyle> = Object.fromEntries(
-  FLOOD_TERRAIN_PROVIDER_IDS.map((id) => [
-    id,
-    {
-      name: FLOOD_STYLE_LABELS[id] ?? id,
-      live: FLOOD_STYLE_BASE.live,
-      members: {
-        ...FLOOD_STYLE_BASE.members,
-        terrainProviderId: id,
-      },
+const FLOOD_STYLE_TILESETS = [
+  {
+    id: FLOODINGMAP_TILESET_IDS.MESH_2024,
+    appearance: {
+      type: "custom-shader",
+      shader: CUSTOM_SHADERS_DEFINITIONS.UNLIT_ENHANCED_2024,
     },
-  ])
-);
+  },
+] as const;
 
-// Initial style matches the default control state: simulation 0 + HW-Schutz on.
-const DEFAULT_SCENE_STYLE = HGK_KEYS[0].hws;
+/**
+ * Build a flood scene style for a given flood water-surface terrain provider.
+ *
+ * Selecting a simulation / HW-Schutz combination creates a fresh style with
+ * that terrain (see useFloodingSceneStyleSync) and hands the object to
+ * setCurrentSceneStyle; the runtime scene-style orchestration then diffs it
+ * against the previous style and applies the delta — the same flow the main
+ * app uses, instead of an imperative scene.terrainProvider swap.
+ */
+export const createFloodingSceneStyle = (
+  terrainProviderId: string
+): SceneStyle => ({
+  name: terrainProviderId,
+  live: FLOOD_STYLE_LIVE,
+  members: {
+    terrainProviderId,
+    surfaceProviderId: FLOODINGMAP_TERRAIN_PROVIDER_IDS.DSM_MESH_2024_1M,
+    tilesets: FLOOD_STYLE_TILESETS,
+  },
+});
+
+// Initial flood surface: simulation 0 + HW-Schutz on (the default control
+// state, from App.tsx hochwasserschutz useState(true)).
+const DEFAULT_TERRAIN_PROVIDER_ID = HGK_KEYS[0].hws;
 
 export const defaultCesiumState: CesiumState = {
-  currentSceneStyle: DEFAULT_SCENE_STYLE,
+  currentSceneStyle: DEFAULT_TERRAIN_PROVIDER_ID,
   styling: {
     tileset: {
       opacity: 1.0,
@@ -92,7 +82,13 @@ export const defaultCesiumState: CesiumState = {
     maximumZoomDistance: 50000,
     minimumZoomDistance: 25,
   },
-  sceneStyles,
+  // One registered style so the first paint has a valid config; subsequent
+  // selections create ad-hoc styles via createFloodingSceneStyle.
+  sceneStyles: {
+    [DEFAULT_TERRAIN_PROVIDER_ID]: createFloodingSceneStyle(
+      DEFAULT_TERRAIN_PROVIDER_ID
+    ),
+  },
   models: MODEL_ASSETS,
 };
 

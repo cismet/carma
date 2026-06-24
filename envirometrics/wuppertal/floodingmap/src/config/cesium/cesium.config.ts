@@ -28,10 +28,6 @@ const FLOOD_TERRAIN_PROVIDERS: Record<string, { url: string }> =
     Object.entries(HGK_TERRAIN_PROVIDER_URLS).map(([id, url]) => [id, { url }])
   );
 
-export const FLOOD_TERRAIN_PROVIDER_IDS = Object.keys(
-  HGK_TERRAIN_PROVIDER_URLS
-);
-
 // disable cesium canvas background transparency
 export const CONSTRUCTOR_OPTIONS: CesiumWidgetConstructorOptions = {
   contextOptions: { webgl: { alpha: false } },
