@@ -34,6 +34,7 @@ import { faDrawPolygon } from "@fortawesome/free-solid-svg-icons";
 import { useMapPage } from "../../contexts/MapPageContext";
 import { getFeatureCollection } from "../../store/slices/featureCollection";
 import ExportCsvButton from "../ui/ExportCsvButton";
+import PrintControl from "../ui/PrintControl";
 
 interface BelisStreet {
   s: string;
@@ -306,6 +307,7 @@ const BelisMapPageShell = () => {
                     <FontAwesomeIcon icon={faDrawPolygon} />
                   </button>
                   <ExportCsvButton features={exportableFeatures} />
+                  <PrintControl />
                 </div>
               )}
 

@@ -370,9 +370,7 @@ const BelisMapLibWrapper = ({
   // out so they don't resurrect on top of the draft icons that consumed them.
   const [initialMeasurementFeatures] = useState<Feature[]>(() =>
     measurements
-      .filter(
-        (f) => !attachedMeasurementReduxIds.has(String(f.id))
-      )
+      .filter((f) => !attachedMeasurementReduxIds.has(String(f.id)))
       .map((f) => ({
         ...f,
         id:
@@ -998,7 +996,8 @@ const BelisMapLibWrapper = ({
         if (rawCount != null && Number.isFinite(Number(rawCount)))
           p.count = Number(rawCount);
       }
-      if (p.lfd == null) p.lfd = props.lfd_nummer as string | number | undefined;
+      if (p.lfd == null)
+        p.lfd = props.lfd_nummer as string | number | undefined;
       // Read off a non-`props` expression to dodge the react/prop-types false
       // positive (member access on a local named `props`).
       const propsRec = draft.feature?.properties as Record<string, unknown>;
@@ -1177,7 +1176,8 @@ const BelisMapLibWrapper = ({
   // and persisted hidden sets are empty. Hiding by id is a no-op for freshly
   // created features (their new ids aren't in the tiles).
   const SELF_POSITIONED_EDIT_LAYERS = useMemo(
-    () => new Set(["mauerlaschen", "schaltstelle", "abzweigdosen", "leitungen"]),
+    () =>
+      new Set(["mauerlaschen", "schaltstelle", "abzweigdosen", "leitungen"]),
     []
   );
   const brandnewHiddenOriginalIds = useMemo<HiddenOriginalIds>(() => {
@@ -1246,7 +1246,8 @@ const BelisMapLibWrapper = ({
       const bucket = merged[sourceLayer] ?? (merged[sourceLayer] = new Set());
       for (const id of ids) bucket.add(id);
     };
-    for (const [sl, ids] of Object.entries(draftHiddenOriginalIds)) add(sl, ids);
+    for (const [sl, ids] of Object.entries(draftHiddenOriginalIds))
+      add(sl, ids);
     for (const [sl, ids] of Object.entries(brandnewHiddenOriginalIds))
       add(sl, ids);
     for (const [sl, ids] of Object.entries(geometryEditHiddenOriginalIds))
@@ -1284,8 +1285,7 @@ const BelisMapLibWrapper = ({
       if (!ids) continue;
       for (const [sourceLayer, list] of Object.entries(ids)) {
         if (!list || list.length === 0) continue;
-        const bucket =
-          merged[sourceLayer] ?? (merged[sourceLayer] = new Set());
+        const bucket = merged[sourceLayer] ?? (merged[sourceLayer] = new Set());
         for (const id of list) bucket.add(id);
       }
     }
@@ -1773,7 +1773,9 @@ const BelisMapLibWrapper = ({
         // row comes from the cascade rows in `draftSidebarFeatures` instead.
         if (
           sl === "leuchten" &&
-          cascadeDeletionStandortIds.has(String(f.properties?.fk_standort ?? ""))
+          cascadeDeletionStandortIds.has(
+            String(f.properties?.fk_standort ?? "")
+          )
         ) {
           return false;
         }
@@ -4112,7 +4114,10 @@ const BelisMapLibWrapper = ({
       for (const id of geometryEditPreviewStateIds) {
         try {
           mapInstance.setFeatureState(
-            buildFeatureStateTarget(mapInstance, { source: brandnewSource, id }),
+            buildFeatureStateTarget(mapInstance, {
+              source: brandnewSource,
+              id,
+            }),
             { selected: id === selectedEditPreviewStateId }
           );
         } catch {
@@ -4133,8 +4138,7 @@ const BelisMapLibWrapper = ({
             const match = mapInstance
               .querySourceFeatures(namespacedSource, { sourceLayer })
               .find(
-                (f) =>
-                  f.properties && String(f.properties.id) === String(dbId)
+                (f) => f.properties && String(f.properties.id) === String(dbId)
               );
             if (match?.id != null) {
               matchId = match.id;

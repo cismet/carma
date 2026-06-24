@@ -12,6 +12,7 @@ import featuresFormsSlice from "./slices/featuresForms";
 import arbeitsauftraegeDraftsSlice from "./slices/arbeitsauftraegeDrafts";
 import measurementsSlice from "./slices/measurements";
 import creationDefaultsSlice from "./slices/creationDefaults";
+import printSlice from "./slices/print";
 
 
 const devToolsEnabled =
@@ -113,6 +114,7 @@ const store = configureStore({
     ),
     ui: ui.reducer,
     keyTables: keyTables.reducer,
+    print: printSlice.reducer,
     arbeitsauftraege: persistReducer(
       arbeitsauftraegeConfig,
       arbeitsauftraege.reducer
