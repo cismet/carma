@@ -85,12 +85,15 @@ export interface CesiumContextType {
   currentTransition: CESIUM_RUNTIME_TRANSITION_STATE;
   isTransitioning: boolean;
   clearTransition: () => void;
-  // scene styles: static config + current selection
+  // scene styles: static config + current selection.
+  // The active style can be either a registered id or an ad-hoc SceneStyle
+  // object created at runtime (see setCurrentSceneStyle); in both cases the
+  // change flows through the same diff/apply path (useSceneStyles).
   sceneStyles: SceneStyles;
   sceneStyleIds: readonly SceneStyleId[];
   currentSceneStyle: SceneStyleId | undefined;
   currentSceneStyleConfig: SceneStyle | undefined;
-  setCurrentSceneStyle: (style: SceneStyleId) => void;
+  setCurrentSceneStyle: (style: SceneStyleId | SceneStyle) => void;
   toggleCurrentSceneStyle: () => void;
   models: CesiumState["models"];
   // tilesets
