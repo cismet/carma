@@ -3,6 +3,13 @@
 // map, overlays the controls on top of it, keeps both in sync as the map
 // pans / zooms, and submits the MapFish print job via the core printMap().
 //
+// The rectangle is a plain DOM box (this overlay div), NOT a WebGL layer — the
+// same trick Leaflet uses. While dragging we just slide the div with a CSS
+// transform (compositor-only, perfectly smooth) and never touch any map
+// geometry; the real WGS84 bounds are recomputed once, on mouse-up. The map
+// still owns hit-testing (a pixel test against the rectangle's screen box), so
+// pan / zoom / click outside all keep working.
+//
 // The component is Redux-free and fully controlled (like PrintSettings): the
 // consuming app feeds it the print state as props and maps the callbacks onto
 // its own store. It MAY import maplibre-gl (types), React and from "../core".
@@ -20,17 +27,12 @@ import {
 import type { Orientation, PrintInputLayer } from "../core";
 import { PrintPreviewControls } from "../ui/PrintPreviewControls";
 import {
-  PREVIEW_FILL_LAYER_ID,
-  PREVIEW_SOURCE_ID,
-  attachRectDblClick,
-  attachRectDrag,
   buildRectBounds,
-  ensureRectLayers,
   fitMapToRect,
   getRectCenter3857,
   getRectScreenBox,
-  removeRectLayers,
-  updateRectData,
+  pointInRectBox,
+  unprojectScreenBox,
 } from "./previewRect";
 import type { RectBounds, RectScreenBox } from "./previewRect";
 
@@ -102,6 +104,10 @@ export const MapLibrePrintPreview = ({
   const [screenBox, setScreenBox] = useState<RectScreenBox | null>(null);
   const [hideContent, setHideContent] = useState(false);
 
+  // The rectangle div: dragged via a direct CSS transform on this node so the
+  // motion never goes through React state (Leaflet-smooth, compositor-only).
+  const overlayRef = useRef<HTMLDivElement | null>(null);
+
   // Latest-value refs so the map-level listeners (attached once per active
   // session) always read fresh props without being re-bound on every change.
   const loadingRef = useRef(loading);
@@ -109,21 +115,14 @@ export const MapLibrePrintPreview = ({
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
   const printRef = useRef<() => void>(() => undefined);
+  // Current rectangle pixel box, mirrored into a ref for the map hit-tests.
+  const screenBoxRef = useRef<RectScreenBox | null>(null);
+  screenBoxRef.current = screenBox;
 
   const recomputeBox = useCallback(() => {
     if (!map || !boundsRef.current) return;
     setScreenBox(getRectScreenBox(map, boundsRef.current));
   }, [map]);
-
-  const applyBounds = useCallback(
-    (bounds: RectBounds) => {
-      if (!map) return;
-      boundsRef.current = bounds;
-      updateRectData(map, bounds);
-      recomputeBox();
-    },
-    [map, recomputeBox]
-  );
 
   const startPrint = useCallback(() => {
     const bounds = boundsRef.current;
@@ -158,57 +157,143 @@ export const MapLibrePrintPreview = ({
   useEffect(() => {
     if (!map || !active) return;
 
+    const canvas = map.getCanvas();
     const detachers: Array<() => void> = [];
 
-    const bindInteractions = () => {
-      detachers.push(
-        attachRectDrag(map, {
-          getBounds: () => boundsRef.current,
-          applyBounds,
-          onDragStart: () => setHideContent(true),
-          // fitBounds → 'moveend' recomputes the box and reveals the overlay.
-          onDragEnd: (b) => fitMapToRect(map, b),
-          isEnabled: () => !loadingRef.current,
-        })
-      );
-      detachers.push(attachRectDblClick(map, () => printRef.current()));
+    // --- Drag the rectangle (Leaflet-style: CSS transform, commit on release).
+    // The rectangle div is pointer-events:none, so mousedown lands on the map
+    // canvas; we hit-test the pixel box ourselves and slide the div directly.
+    let dragging = false;
+    let startX = 0;
+    let startY = 0;
+    let startBox: RectScreenBox | null = null;
 
-      const onMoveStart = () => setHideContent(true);
-      const onMove = () => recomputeBox();
-      const onMoveEnd = () => {
-        recomputeBox();
-        setHideContent(false);
-      };
-      map.on("movestart", onMoveStart);
-      map.on("move", onMove);
-      map.on("moveend", onMoveEnd);
-      map.on("zoomstart", onMoveStart);
-      map.on("zoom", onMove);
-      map.on("zoomend", onMoveEnd);
-      detachers.push(() => {
-        map.off("movestart", onMoveStart);
-        map.off("move", onMove);
-        map.off("moveend", onMoveEnd);
-        map.off("zoomstart", onMoveStart);
-        map.off("zoom", onMove);
-        map.off("zoomend", onMoveEnd);
-      });
-
-      if (closeOnMapClick) {
-        const onMapClick = (e: MapMouseEvent) => {
-          const hits = map.queryRenderedFeatures(e.point, {
-            layers: map.getLayer(PREVIEW_FILL_LAYER_ID)
-              ? [PREVIEW_FILL_LAYER_ID]
-              : [],
-          });
-          if (hits.length === 0) onCloseRef.current?.();
-        };
-        map.on("click", onMapClick);
-        detachers.push(() => map.off("click", onMapClick));
-      }
+    const onMouseDown = (e: MapMouseEvent) => {
+      if (loadingRef.current) return;
+      const box = screenBoxRef.current;
+      if (!box || !pointInRectBox(e.point, box)) return;
+      // Stop the map's own drag-pan while grabbing the rectangle.
+      e.preventDefault();
+      dragging = true;
+      startX = e.point.x;
+      startY = e.point.y;
+      startBox = box;
+      map.dragPan.disable();
+      canvas.style.cursor = "grabbing";
+      // Promote the rectangle to its own compositor layer so the per-frame
+      // transform never triggers a repaint of its border / text-shadow.
+      if (overlayRef.current) overlayRef.current.style.willChange = "transform";
     };
 
-    bindInteractions();
+    const onMouseMove = (e: MapMouseEvent) => {
+      if (dragging) {
+        if (!startBox || !overlayRef.current) return;
+        const dx = e.point.x - startX;
+        const dy = e.point.y - startY;
+        // Compositor-only translate — no React render, no map work.
+        overlayRef.current.style.transform = `translate(${dx}px, ${dy}px)`;
+        return;
+      }
+      // Idle: show a grab cursor while hovering the rectangle.
+      const box = screenBoxRef.current;
+      canvas.style.cursor =
+        box && !loadingRef.current && pointInRectBox(e.point, box)
+          ? "grab"
+          : "";
+    };
+
+    const onMouseUp = (e: MapMouseEvent) => {
+      if (!dragging || !startBox) return;
+      dragging = false;
+      map.dragPan.enable();
+      canvas.style.cursor = "";
+
+      const dx = e.point.x - startX;
+      const dy = e.point.y - startY;
+      const moved: RectScreenBox = {
+        top: startBox.top + dy,
+        left: startBox.left + dx,
+        width: startBox.width,
+        height: startBox.height,
+      };
+      startBox = null;
+
+      // Commit the dropped position atomically (clear transform + set the new
+      // top/left in the same frame) so there is no flash, then recover the
+      // real WGS84 bounds and re-fit the map to the rectangle.
+      const el = overlayRef.current;
+      if (el) {
+        el.style.transform = "";
+        el.style.left = `${moved.left}px`;
+        el.style.top = `${moved.top}px`;
+        el.style.willChange = "";
+      }
+      if (dx === 0 && dy === 0) return;
+      const bounds = unprojectScreenBox(map, moved);
+      boundsRef.current = bounds;
+      setScreenBox(moved);
+      // Animated re-fit: the map eases to re-center the rectangle (the 'move'
+      // events reposition the overlay each frame), so it glides instead of
+      // snapping — matching the geoportal release animation.
+      fitMapToRect(map, bounds, true);
+    };
+
+    map.on("mousedown", onMouseDown);
+    map.on("mousemove", onMouseMove);
+    map.on("mouseup", onMouseUp);
+    detachers.push(() => {
+      map.off("mousedown", onMouseDown);
+      map.off("mousemove", onMouseMove);
+      map.off("mouseup", onMouseUp);
+      if (dragging) {
+        map.dragPan.enable();
+        canvas.style.cursor = "";
+      }
+    });
+
+    // --- Double-click the rectangle to print.
+    const onDblClick = (e: MapMouseEvent) => {
+      const box = screenBoxRef.current;
+      if (box && pointInRectBox(e.point, box)) {
+        e.preventDefault(); // stop the map's double-click zoom
+        printRef.current();
+      }
+    };
+    map.on("dblclick", onDblClick);
+    detachers.push(() => map.off("dblclick", onDblClick));
+
+    // --- Keep the overlay glued to the rectangle while the map pans / zooms.
+    const onMoveStart = () => setHideContent(true);
+    const onMove = () => recomputeBox();
+    const onMoveEnd = () => {
+      recomputeBox();
+      setHideContent(false);
+    };
+    map.on("movestart", onMoveStart);
+    map.on("move", onMove);
+    map.on("moveend", onMoveEnd);
+    map.on("zoomstart", onMoveStart);
+    map.on("zoom", onMove);
+    map.on("zoomend", onMoveEnd);
+    detachers.push(() => {
+      map.off("movestart", onMoveStart);
+      map.off("move", onMove);
+      map.off("moveend", onMoveEnd);
+      map.off("zoomstart", onMoveStart);
+      map.off("zoom", onMove);
+      map.off("zoomend", onMoveEnd);
+    });
+
+    // --- Single click outside the rectangle closes the preview.
+    if (closeOnMapClick) {
+      const onMapClick = (e: MapMouseEvent) => {
+        const box = screenBoxRef.current;
+        if (box && pointInRectBox(e.point, box)) return;
+        onCloseRef.current?.();
+      };
+      map.on("click", onMapClick);
+      detachers.push(() => map.off("click", onMapClick));
+    }
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onCloseRef.current?.();
@@ -218,12 +303,12 @@ export const MapLibrePrintPreview = ({
     return () => {
       window.removeEventListener("keydown", onKeyDown);
       detachers.forEach((d) => d());
-      removeRectLayers(map);
+      canvas.style.cursor = "";
       boundsRef.current = null;
       setScreenBox(null);
       setHideContent(false);
     };
-  }, [map, active, applyBounds, recomputeBox, closeOnMapClick]);
+  }, [map, active, recomputeBox, closeOnMapClick]);
 
   // --- Rectangle seeding: (re)seed on scale / orientation / redraw changes ---
   useEffect(() => {
@@ -233,20 +318,15 @@ export const MapLibrePrintPreview = ({
 
     const seed = () => {
       if (disposed) return;
-      const hasRect =
-        boundsRef.current !== null && !!map.getSource(PREVIEW_SOURCE_ID);
 
-      if (keepRectangle && hasRect && boundsRef.current) {
-        // Keep the existing rectangle (post-print); just make sure the layers
-        // are present and the overlay is positioned.
-        ensureRectLayers(map, boundsRef.current);
+      if (keepRectangle && boundsRef.current) {
+        // Keep the existing rectangle (post-print); just reposition the overlay.
         recomputeBox();
         return;
       }
 
       const bounds = buildRectBounds(map, Number(scale), orientation);
       boundsRef.current = bounds;
-      ensureRectLayers(map, bounds);
       fitMapToRect(map, bounds);
       recomputeBox();
     };
@@ -272,6 +352,7 @@ export const MapLibrePrintPreview = ({
   return createPortal(
     <div
       id="carma-print-preview-overlay"
+      ref={overlayRef}
       style={{
         top: screenBox.top,
         left: screenBox.left,

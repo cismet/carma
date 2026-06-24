@@ -144,6 +144,35 @@ export const getRectScreenBox = (
   };
 };
 
+/** Pixel hit-test: is the screen point inside the rectangle's screen box? */
+export const pointInRectBox = (
+  point: { x: number; y: number },
+  box: RectScreenBox
+): boolean =>
+  point.x >= box.left &&
+  point.x <= box.left + box.width &&
+  point.y >= box.top &&
+  point.y <= box.top + box.height;
+
+/**
+ * Inverse of getRectScreenBox: recover WGS84 bounds from a (north-up) pixel
+ * box. Used to commit the new rectangle position after a DOM-transform drag —
+ * the screen box is translated by the drag delta, then unprojected once.
+ */
+export const unprojectScreenBox = (
+  map: MapLibreMap,
+  box: RectScreenBox
+): RectBounds => {
+  const nw = map.unproject([box.left, box.top]);
+  const se = map.unproject([box.left + box.width, box.top + box.height]);
+  return {
+    minLng: Math.min(nw.lng, se.lng),
+    maxLng: Math.max(nw.lng, se.lng),
+    minLat: Math.min(nw.lat, se.lat),
+    maxLat: Math.max(nw.lat, se.lat),
+  };
+};
+
 /** Zoom/pan the map so the rectangle fills the view (geoportal fitBounds). */
 export const fitMapToRect = (
   map: MapLibreMap,

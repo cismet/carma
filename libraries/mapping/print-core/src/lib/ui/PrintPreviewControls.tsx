@@ -144,7 +144,7 @@ export const PrintPreviewControls = ({
             icon={faTimes}
             className="text-xl cursor-pointer"
             style={{
-              fontSize: "28px",
+              fontSize: "50px",
               marginLeft: "auto",
               pointerEvents: "auto",
             }}
@@ -154,10 +154,7 @@ export const PrintPreviewControls = ({
       </div>
 
       {!hideContent && !smallMode && (
-        <div
-          className="print-tooltip-text"
-          style={{ ...textStyle, fontSize }}
-        >
+        <div className="print-tooltip-text" style={{ ...textStyle, fontSize }}>
           <div className="print-tooltip-text">
             Format: {orientation === "portrait" ? "hoch" : "quer"}
           </div>
