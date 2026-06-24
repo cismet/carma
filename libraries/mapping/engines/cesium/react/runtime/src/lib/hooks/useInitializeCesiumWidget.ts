@@ -45,34 +45,6 @@ interface CameraState {
   postionCartographic?: Cartographic;
 }
 
-type ContainerViewport = {
-  width: number;
-  height: number;
-};
-
-const readContainerViewport = (
-  container: HTMLDivElement | null | undefined
-): ContainerViewport | null => {
-  if (!container) {
-    return null;
-  }
-
-  const rect = container.getBoundingClientRect();
-  const width = Math.round(rect.width);
-  const height = Math.round(rect.height);
-
-  if (
-    !Number.isFinite(width) ||
-    !Number.isFinite(height) ||
-    width <= 0 ||
-    height <= 0
-  ) {
-    return null;
-  }
-
-  return { width, height };
-};
-
 const postRenderHandlerMap: WeakMap<CesiumWidget, () => void> = new WeakMap();
 const cameraChangedHandlerMap: WeakMap<CesiumWidget, () => void> =
   new WeakMap();
@@ -312,20 +284,18 @@ export const useInitializeCesiumWidget = (
     }
 
     const syncContainerViewport = () => {
-      const viewport = readContainerViewport(container);
-      if (!viewport) {
-        return;
-      }
-
       const runtime = runtimeRef.current;
       if (!runtime || runtime.isDestroyed()) {
         return;
       }
 
-      runtime.canvas.width = viewport.width;
-      runtime.canvas.height = viewport.height;
+      // Let the canvas track its container via CSS; Cesium's render loop
+      // sizes the drawing buffer to clientWidth/Height * devicePixelRatio.
+      // Do NOT set canvas.width/height here — that pins the buffer to CSS
+      // pixels and renders at low resolution on HiDPI/HDR displays.
       runtime.canvas.style.width = "100%";
       runtime.canvas.style.height = "100%";
+      runtime.resize();
     };
 
     syncContainerViewport();
