@@ -1,8 +1,5 @@
 import { createRoot } from "react-dom/client";
-import { Provider } from "react-redux";
 import { createHashRouter, RouterProvider } from "react-router-dom";
-import { persistStore } from "redux-persist";
-import { PersistGate } from "redux-persist/integration/react";
 
 import { CrossTabCommunicationContextProvider } from "react-cismap/contexts/CrossTabCommunicationContextProvider";
 import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextProvider";
@@ -35,11 +32,8 @@ import {
   FLOODINGMAP_HASH_PARAM_NAME_ORDER,
   FLOODINGMAP_STATE_KEY_TO_HASH_PARAM_VALUE_CODEC_MAP,
 } from "./config/hash-state.config";
-import store from "./store";
 suppressReactCismapErrors();
 setupCesiumEnvironment(CESIUM_CONFIG);
-
-const persistor = persistStore(store);
 
 const enableSync = true;
 
@@ -100,10 +94,4 @@ const router = createHashRouter([
 ]);
 const root = createRoot(document.getElementById("root") as HTMLElement);
 
-root.render(
-  <Provider store={store}>
-    <PersistGate loading={null} persistor={persistor}>
-      <RouterProvider router={router} />
-    </PersistGate>
-  </Provider>
-);
+root.render(<RouterProvider router={router} />);
