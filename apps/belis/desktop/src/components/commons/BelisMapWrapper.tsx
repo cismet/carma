@@ -216,6 +216,23 @@ import {
   featureLengthMeters,
   formatMeters,
 } from "../../utils/measurementGeometry";
+import { MapLibrePrintPreview } from "@carma-mapping/print-core/maplibre";
+import {
+  getPrintActive,
+  getOrientation as getPrintOrientation,
+  getScale as getPrintScale,
+  getDPI as getPrintDPI,
+  getPrintName,
+  getIsLoading as getPrintLoading,
+  getRedrawPreview as getPrintRedraw,
+  getIfMapPrinted,
+  changePrintActive,
+  changeIsLoading as changePrintLoading,
+  changePrintError,
+  changeIfMapPrinted,
+  changeRedrawPreview,
+} from "../../store/slices/print";
+import { buildBelisPrintLayers } from "../../helper/printLayers";
 
 function buildAAFeatureCollection(
   features: ArbeitsauftragTileFeature[]
@@ -483,6 +500,31 @@ const BelisMapLibWrapper = ({
   const activeAdditionalLayers = useSelector(getActiveAdditionalLayers);
   const additionalLayerOpacities = useSelector(getAdditionalLayerOpacities);
   const inPaleMode = useSelector(isInPaleMode);
+
+  // --- Print preview state (see store/slices/print + PrintControl) ---
+  const printActive = useSelector(getPrintActive);
+  const printOrientation = useSelector(getPrintOrientation);
+  const printScale = useSelector(getPrintScale);
+  const printDpi = useSelector(getPrintDPI);
+  const printName = useSelector(getPrintName);
+  const printLoading = useSelector(getPrintLoading);
+  const printRedraw = useSelector(getPrintRedraw);
+  const printIfMapPrinted = useSelector(getIfMapPrinted);
+  const printLayers = useMemo(
+    () =>
+      buildBelisPrintLayers({
+        activeBackgroundLayer,
+        backgroundLayerOpacities,
+        activeAdditionalLayers,
+        additionalLayerOpacities,
+      }),
+    [
+      activeBackgroundLayer,
+      backgroundLayerOpacities,
+      activeAdditionalLayers,
+      additionalLayerOpacities,
+    ]
+  );
 
   // Highlighting: compute namespaced source + call useMapHighlighting
   const namespacedSource = `${slugifyUrl(
@@ -4862,6 +4904,28 @@ const BelisMapLibWrapper = ({
                   dispatch(
                     selectMeasurement(id != null ? `measurement.${id}` : null)
                   );
+                }}
+              />
+              <MapLibrePrintPreview
+                map={map}
+                active={printActive}
+                orientation={printOrientation}
+                scale={printScale}
+                dpi={printDpi}
+                name={printName}
+                layers={printLayers}
+                redrawTrigger={printRedraw}
+                keepRectangle={printIfMapPrinted}
+                loading={printLoading}
+                onClose={() => dispatch(changePrintActive(false))}
+                onLoadingChange={(loading) =>
+                  dispatch(changePrintLoading(loading))
+                }
+                onError={(message) => dispatch(changePrintError(message))}
+                onPrintStart={() => dispatch(changeIfMapPrinted(true))}
+                onRequestRedraw={() => {
+                  dispatch(changeIfMapPrinted(false));
+                  dispatch(changeRedrawPreview(!printRedraw));
                 }}
               />
             </>

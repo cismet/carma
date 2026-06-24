@@ -14,6 +14,8 @@ export {
   scaleOptions,
   getPrintPixelSize,
   getMercatorScale,
+  getPreviewFontSize,
+  getPreviewIsSmallMode,
   calculateBBox,
   createFeatureFromBBox,
 } from "./scale";
