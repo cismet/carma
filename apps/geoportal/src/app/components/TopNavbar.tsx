@@ -56,7 +56,7 @@ const TopNavbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showHelpTooltip, setShowHelpTooltip] = useState(false);
   const { showOverlayHandler } = useOverlayTourContext();
-  const { isObliqueMode, toggleObliqueMode } = useOblique();
+  const { isObliqueMode, setObliqueMode } = useOblique();
   const { currentStyle, setCurrentStyle } = useMapStyle();
 
   const isTouchDevice =
@@ -256,7 +256,7 @@ const TopNavbar = () => {
               >
                 <Button
                   type={isObliqueMode ? "primary" : "default"}
-                  onClick={toggleObliqueMode}
+                  onClick={() => setObliqueMode(!isObliqueMode)}
                   ref={oblqTourRef}
                   className="mr-2 select-none"
                 >

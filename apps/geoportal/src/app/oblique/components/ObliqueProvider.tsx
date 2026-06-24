@@ -6,7 +6,6 @@ import React, {
   useMemo,
   useRef,
 } from "react";
-import debounce from "lodash/debounce";
 
 import { useSelection } from "@carma-appframeworks/portals";
 
@@ -26,9 +25,6 @@ import type { CardinalDirectionEnum } from "../utils/orientationUtils";
 import { createConverter } from "../utils/crsUtils";
 import { prefetchSiblingPreviewFor } from "../utils/prefetch";
 import { useKnownSiblings } from "../hooks/useKnownSiblings";
-
-const DEBOUNCE_MS = 250; // time in milliseconds
-const DEBOUNCE_LEADING_EDGE = { leading: true, trailing: false };
 
 interface ObliqueProviderProps {
   children: ReactNode;
@@ -125,17 +121,17 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   // Allows one-shot override of camera heading for nearest-image search flows
   const requestedHeadingRef = useRef<number | null>(null);
 
-  const performToggleAction = useCallback(() => {
-    setIsObliqueMode((prevMode: boolean) => {
-      const newMode = !prevMode;
-      updateHashState?.({ isOblique: newMode ? "1" : undefined });
-      return newMode;
-    });
-  }, [setIsObliqueMode, updateHashState]);
-
-  const toggleObliqueMode = useMemo(
-    () => debounce(performToggleAction, DEBOUNCE_MS, DEBOUNCE_LEADING_EDGE),
-    [performToggleAction]
+  const setObliqueMode = useCallback(
+    (enabled: boolean) => {
+      setIsObliqueMode((prevMode: boolean) => {
+        if (prevMode === enabled) {
+          return prevMode;
+        }
+        updateHashState?.({ isOblique: enabled ? "1" : undefined });
+        return enabled;
+      });
+    },
+    [updateHashState]
   );
 
   const prefetchSiblingPreview = useCallback(
@@ -179,6 +175,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   const value = useMemo(
     () => ({
       isObliqueMode,
+      setObliqueMode,
       isPreviewVisible,
       setPreviewVisible,
       imageRecords,
@@ -186,7 +183,6 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
       isAllDataReady,
       error,
       selectedImageDistanceRef,
-      toggleObliqueMode,
       selectedImage,
       setSelectedImage,
       converter,
@@ -216,6 +212,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     }),
     [
       isObliqueMode,
+      setObliqueMode,
       isPreviewVisible,
       setPreviewVisible,
       imageRecords,
@@ -223,7 +220,6 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
       isAllDataReady,
       error,
       selectedImageDistanceRef,
-      toggleObliqueMode,
       selectedImage,
       setSelectedImage,
       converter,
