@@ -86,7 +86,6 @@ export const ObliqueControls: FC<ObliqueControlsProps> = ({
     setLockFootprint,
     animations,
     isObliqueMode,
-    toggleObliqueMode,
     imagePreviewStyle,
     setSelectedImage,
     prefetchSiblingPreview,
@@ -102,7 +101,6 @@ export const ObliqueControls: FC<ObliqueControlsProps> = ({
     requestRender,
     isValidRuntime,
     withScene,
-    isTransitioning,
   } = useCesiumContext();
   const imageId = selectedImage?.record?.id;
   const cameraId = selectedImage?.record?.cameraId;
@@ -555,20 +553,6 @@ export const ObliqueControls: FC<ObliqueControlsProps> = ({
       return () => clearTimeout(timeout);
     }
   }, [isObliqueMode]);
-
-  useEffect(() => {
-    if (isTransitioning && isValidRuntime()) {
-      isDebugMode &&
-        console.debug(
-          "ObliqueControls: Transitioning to 2D mode disabling oblique mode"
-        );
-      if (isObliqueMode) {
-        toggleObliqueMode();
-      }
-      requestRender();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isTransitioning, isValidRuntime]);
 
   useEffect(() => {
     return () => {

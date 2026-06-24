@@ -391,7 +391,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const [shouldMountCesium, setShouldMountCesium] = useState(false);
   const cesiumReadyPromiseRef = useRef<Promise<void> | null>(null);
   const cesiumReadyResolversRef = useRef<Array<() => void>>([]);
-  const { isObliqueMode } = useObliqueInitializer(isDebugMode);
+  const { isObliqueMode, leaveObliqueMode } = useObliqueInitializer(isDebugMode);
 
   const previousPositionRef = useRef<{
     lat: number;
@@ -631,6 +631,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     registerCallbacks({
       onEnsureCesiumReady: allow3d ? ensureCesiumReadyForTransition : undefined,
       onBeforeTransitionToCesium: stageCesiumPrimitivesForTransition,
+      onBeforeTransitionToLeaflet: leaveObliqueMode,
       onAfterTransitionToCesium: () => {
         commitCurrentSceneState("transition-complete", {
           force: true,
@@ -641,6 +642,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     allow3d,
     commitCurrentSceneState,
     ensureCesiumReadyForTransition,
+    leaveObliqueMode,
     registerCallbacks,
     stageCesiumPrimitivesForTransition,
   ]);
