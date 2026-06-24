@@ -1,11 +1,4 @@
-import {
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { isMobile } from "react-device-detect";
 import { useDispatch, useSelector } from "react-redux";
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
@@ -73,13 +66,13 @@ import { MeasurementHost, useMeasurements } from "@carma-mapping/measurements";
 import { useLibreContext } from "@carma-mapping/contexts";
 
 import { GeoportalMap } from "../GeoportalMap.tsx";
-import { geoportalLayersToLibreLayers } from "../geoportalLayersToLibreLayers.ts";
-import { geoportalBackgroundToLibreLayers } from "../geoportalBackgroundToLibreLayers.ts";
 import { ObliqueControls } from "../../../oblique/components/ObliqueControls.tsx";
 import LayerWrapper from "../../layers/LayerWrapper.tsx";
 
 import useLeafletZoomControls from "../../../hooks/leaflet/useLeafletZoomControls.ts";
 import { useLibreMapSelectionHandler } from "../../../hooks/libre/useLibreMapClickHandler.ts";
+import { useLibreLayers } from "../../../hooks/libre/useLibreLayers.ts";
+import { useLibreTerrain } from "../../../hooks/libre/useLibreTerrain.ts";
 import { useDispatchSachdatenInfoText } from "../../../hooks/useDispatchSachdatenInfoText.ts";
 import { useFeatureInfoModeCursorStyle } from "../../../hooks/useFeatureInfoModeCursorStyle.ts";
 import { useMapStyleReduxSync } from "../../../hooks/useMapStyleReduxSync";
@@ -99,9 +92,7 @@ import {
   setSelectedFeature,
 } from "../../../store/slices/features.ts";
 import {
-  getBackgroundLayer,
   getConfigSelection,
-  getLayers,
   getShowFullscreenButton,
   getShowLocatorButton,
 } from "../../../store/slices/mapping.ts";
@@ -163,26 +154,7 @@ const MapWrapper = () => {
 
   // State and Selectors
   const { map: libreMap } = useLibreContext();
-  const geoportalLayers = useSelector(getLayers);
-  const backgroundLayer = useSelector(getBackgroundLayer);
-  const computedLibreLayers = useMemo(
-    () => [
-      ...geoportalBackgroundToLibreLayers(backgroundLayer),
-      ...geoportalLayersToLibreLayers(geoportalLayers),
-    ],
-    [backgroundLayer, geoportalLayers]
-  );
-  const libreLayersRef = useRef(computedLibreLayers);
-  const libreLayers = useMemo(() => {
-    if (
-      JSON.stringify(libreLayersRef.current) ===
-      JSON.stringify(computedLibreLayers)
-    ) {
-      return libreLayersRef.current;
-    }
-    libreLayersRef.current = computedLibreLayers;
-    return computedLibreLayers;
-  }, [computedLibreLayers]);
+  const libreLayers = useLibreLayers();
 
   // Get framework switcher state from context
   const {
@@ -274,7 +246,7 @@ const MapWrapper = () => {
   const { jwt, setJWT } = useAuth();
 
   const [isLoginFormVisible, setIsLoginFormVisible] = useState(false);
-  const [showTerrain, setShowTerrain] = useState(false);
+  const { isTerrainEnabled, toggleTerrain } = useLibreTerrain(libreMap);
 
   const {
     pos,
@@ -582,24 +554,12 @@ const MapWrapper = () => {
             <Control position="topleft" order={80}>
               <Tooltip title={"Terrain"} placement="right">
                 <ControlButtonStyler
-                  onClick={() => {
-                    if (!libreMap) return;
-                    if (libreMap.terrain) {
-                      libreMap.setTerrain(null);
-                      setShowTerrain(false);
-                    } else {
-                      libreMap.setTerrain({
-                        source: "terrainSource",
-                        exaggeration: 1,
-                      });
-                      setShowTerrain(true);
-                    }
-                  }}
+                  onClick={toggleTerrain}
                   className="font-semibold"
                 >
                   <FontAwesomeIcon
                     icon={faMountainCity}
-                    className={showTerrain ? "text-[#1677ff]" : ""}
+                    className={isTerrainEnabled ? "text-[#1677ff]" : ""}
                   />
                 </ControlButtonStyler>
               </Tooltip>
