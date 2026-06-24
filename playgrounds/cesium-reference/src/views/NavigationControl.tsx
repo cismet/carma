@@ -33,6 +33,7 @@ import {
 } from "@carma-mapping/engines/cesium/core";
 
 import {
+  CESIUM_RUNTIME_TRANSITION_STATE,
   CesiumContext,
   useZoomControls,
   PitchingCompass,
@@ -51,11 +52,11 @@ const NavigationControlView: FC = () => {
   const shouldSuspendCameraLimitersRef = useRef(false);
   const [isRuntimeReady, setIsRuntimeReady] = useState(false);
   const ctx = useMemo<CesiumContextType>(() => {
-    const withRuntime = (cb: (runtime: CesiumRuntime) => void) => {
+    const withRuntime = <T,>(
+      cb: (runtime: CesiumRuntime) => T
+    ): T | undefined => {
       const runtime = viewerRef.current as unknown as CesiumRuntime | null;
-      if (!runtime || runtime.isDestroyed()) return false;
-      cb(runtime);
-      return true;
+      return runtime && !runtime.isDestroyed() ? cb(runtime) : undefined;
     };
 
     return {
@@ -79,29 +80,46 @@ const NavigationControlView: FC = () => {
       withRuntime,
       withCamera: (cb) =>
         withRuntime((runtime) => {
-          cb(runtime.camera, runtime);
-        }),
-      withCanvas: (cb) =>
-        withRuntime((runtime) => {
-          cb(runtime.canvas, runtime);
+          return cb(runtime.camera, runtime);
         }),
       withScene: (cb) =>
         withRuntime((runtime) => {
-          cb(runtime.scene, runtime);
+          return cb(runtime.scene, runtime);
         }),
-      withImageryLayer: () => false,
-      withPrimaryTileset: () => false,
-      withSecondaryTileset: () => false,
-      withEllipsoidTerrainProvider: () => false,
-      withTerrainProvider: () => false,
-      withSurfaceProvider: () => false,
+      withImageryLayer: () => undefined,
+      withImageryLayerById: () => undefined,
+      withTileset: () => undefined,
+      withTerrainProvider: () => undefined,
+      withTerrainProviderById: () => undefined,
+      withSurfaceProvider: () => undefined,
       getTerrainProvider: () => null,
+      getTerrainProviderById: () => null,
       getSurfaceProvider: () => null,
       getImageryLayer: () => null,
+      getImageryLayerById: () => null,
+      getTerrainProviderInitSignatureById: (id) => `reference:${id}`,
+      getTilesetInitSignatureById: (id) => `reference:${id}`,
       getScene: () => {
         const runtime = viewerRef.current;
         return runtime && !runtime.isDestroyed() ? runtime.scene : null;
       },
+      currentTransition: CESIUM_RUNTIME_TRANSITION_STATE.NONE,
+      isTransitioning: false,
+      clearTransition: () => undefined,
+      sceneStyles: {},
+      sceneStyleIds: [],
+      currentSceneStyle: undefined,
+      currentSceneStyleConfig: undefined,
+      setCurrentSceneStyle: () => undefined,
+      toggleCurrentSceneStyle: () => undefined,
+      models: undefined,
+      tilesetIds: [],
+      visibleTilesetIds: [],
+      ssccMinimumZoomDistance: 1,
+      ssccMaximumZoomDistance: Infinity,
+      ssccEnableCollisionDetection: false,
+      isAnimating: false,
+      setIsAnimating: () => undefined,
     };
   }, [isRuntimeReady]);
 

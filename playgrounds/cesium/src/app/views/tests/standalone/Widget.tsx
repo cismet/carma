@@ -27,6 +27,7 @@ import {
   type CesiumWidgetConstructorOptions,
 } from "@carma-mapping/engines/cesium/react/runtime";
 
+import { CESIUM_TILESET_IDS } from "../../../config/store.config";
 import { FOOTPRINT_GEOJSON_SOURCES } from "../../../config/dataSources.config";
 
 const { Option } = Select;
@@ -205,7 +206,7 @@ const RuntimeWidgetDemo = ({
   animate?: boolean;
   children?: ReactNode;
 }) => {
-  const { isRuntimeReady, requestRender, withPrimaryTileset, withRuntime } =
+  const { isRuntimeReady, requestRender, withRuntime, withTileset } =
     useCesiumContext();
 
   const cartesian = useMemo(
@@ -320,7 +321,7 @@ const RuntimeWidgetDemo = ({
         return;
       }
 
-      const applied = withPrimaryTileset((tileset) => {
+      const applied = withTileset(CESIUM_TILESET_IDS.PRIMARY, (tileset) => {
         cleanup();
 
         if (!clip) {
@@ -379,7 +380,7 @@ const RuntimeWidgetDemo = ({
     isRuntimeReady,
     position,
     requestRender,
-    withPrimaryTileset,
+    withTileset,
   ]);
 
   useEffect(() => {
@@ -410,7 +411,6 @@ const RuntimeWidgetDemo = ({
     >
       <CesiumHost
         constructorOptions={constructorOptions}
-        enableSceneStyles={false}
         style={{ position: "absolute", inset: 0 }}
       />
       <div

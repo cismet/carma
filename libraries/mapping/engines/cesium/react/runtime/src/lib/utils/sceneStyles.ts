@@ -3,6 +3,7 @@ import { Cesium3DTileStyle } from "cesium";
 import { colorFromConstructorArgs } from "@carma-mapping/engines/cesium/core";
 import { createResourceInitSignature } from "./resourceSignatures";
 
+import type { ImageryLayer } from "@carma-cesium";
 import type { CesiumContextType } from "../CesiumContext";
 import type {
   CesiumSceneStyleChange,
@@ -38,8 +39,8 @@ type RequestGatedImageryProvider = {
 
 type ImageryProviderRequestGate = {
   originalRequestImage: ImageryRequestImage;
-  knownLayers: Set<unknown>;
-  hiddenLayers: Set<unknown>;
+  knownLayers: Set<ImageryLayer>;
+  hiddenLayers: Set<ImageryLayer>;
   blockedRequestCount: number;
 };
 
@@ -53,7 +54,7 @@ const imageryProviderRequestGates = new WeakMap<
   ImageryProviderRequestGate
 >();
 const softHiddenImageryLayerStates = new WeakMap<
-  unknown,
+  ImageryLayer,
   SoftHiddenImageryLayerState
 >();
 
@@ -77,13 +78,13 @@ const clearManagedTileStyle = (tileset: Cesium3DTileset) => {
 };
 
 const getImageryProvider = (
-  imageryLayer: unknown
+  imageryLayer: ImageryLayer
 ): RequestGatedImageryProvider | undefined =>
   (imageryLayer as { imageryProvider?: RequestGatedImageryProvider })
     .imageryProvider;
 
 const forgetLayerFromProviderGate = (
-  imageryLayer: unknown,
+  imageryLayer: ImageryLayer,
   provider: RequestGatedImageryProvider | undefined
 ) => {
   if (!provider) {
@@ -96,7 +97,7 @@ const forgetLayerFromProviderGate = (
 };
 
 const ensureProviderRequestGate = (
-  imageryLayer: unknown
+  imageryLayer: ImageryLayer
 ): ImageryProviderRequestGate | undefined => {
   const provider = getImageryProvider(imageryLayer);
   const requestImage = provider?.requestImage;
@@ -141,7 +142,7 @@ const ensureProviderRequestGate = (
   return gate;
 };
 
-const softHideImageryLayer = (imageryLayer: unknown) => {
+const softHideImageryLayer = (imageryLayer: ImageryLayer) => {
   const gate = ensureProviderRequestGate(imageryLayer);
   if (!gate) {
     (imageryLayer as { show: boolean }).show = false;
@@ -164,7 +165,7 @@ const softHideImageryLayer = (imageryLayer: unknown) => {
   layer.alpha = 0;
 };
 
-const showImageryLayer = (imageryLayer: unknown, opacity?: number) => {
+const showImageryLayer = (imageryLayer: ImageryLayer, opacity?: number) => {
   const state = softHiddenImageryLayerStates.get(imageryLayer);
   const provider = getImageryProvider(imageryLayer);
   if (state?.provider && state.provider !== provider) {

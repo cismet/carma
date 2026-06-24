@@ -424,33 +424,6 @@
       },
       "projectPath": "./dist/playgrounds/geoportal-playground"
     },
-    "__disabled_issue454_carmamap-playground": {
-      "deployment": {
-        "manual": {
-          "dev": {
-            "pages": {
-              "org": "carma-dev-playground-deployments",
-              "prj": "carmamap-playground"
-            }
-          },
-          "live": {
-            "pages": {
-              "org": "carma-dev-playground-deployments",
-              "prj": "carmamap-playground"
-            }
-          }
-        },
-        "auto": {
-          "dev": {
-            "pages": {
-              "org": "carma-dev-playground-deployments",
-              "prj": "carmamap-playground"
-            }
-          }
-        }
-      },
-      "projectPath": "./dist/playgrounds/carmamap"
-    },
     "generic-topicmaps-playground": {
       "deployment": {
         "manual": {

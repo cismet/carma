@@ -304,7 +304,7 @@ export const MapFrameworkSwitcherProvider = ({
       return;
     }
 
-    let timeoutId: ReturnType<typeof window.setTimeout> | null = null;
+    let timeoutId: number | null = null;
     const pollReadyState = () => {
       const nowReady = syncReadyState();
       if (!nowReady) {
