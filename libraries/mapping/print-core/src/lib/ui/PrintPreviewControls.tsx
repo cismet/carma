@@ -142,11 +142,15 @@ export const PrintPreviewControls = ({
         {!hideContent && !smallMode && (
           <FontAwesomeIcon
             icon={faTimes}
-            className="text-xl cursor-pointer"
+            // NOTE: no `text-xl` here on purpose — belis-desktop's Tailwind runs
+            // with `important: true`, so a `text-*` class would emit
+            // `font-size !important` and override this inline fontSize.
+            className="cursor-pointer"
             style={{
-              fontSize: "50px",
+              fontSize: "28px",
               marginLeft: "auto",
               pointerEvents: "auto",
+              cursor: "pointer",
             }}
             onClick={onClose}
           />
