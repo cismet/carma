@@ -479,7 +479,6 @@ function FloodingmapAppContent({ sync = false }: { sync?: boolean }) {
           homeValidationCenter={homeValidationCenter}
           initialCameraView={initialCameraView}
           constructorOptions={CONSTRUCTOR_OPTIONS}
-          enableSceneStyles={false}
         />
       )}
     </div>

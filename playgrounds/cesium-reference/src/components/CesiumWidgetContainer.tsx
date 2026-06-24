@@ -26,9 +26,14 @@ import {
   WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
 } from "@carma-commons/resources";
 import {
+  CESIUM_RUNTIME_TRANSITION_STATE,
   CesiumContext,
   type CesiumContextType,
 } from "@carma-mapping/engines/cesium/react/runtime";
+
+const REFERENCE_TILESET_ID = "mesh-2024";
+const REFERENCE_TERRAIN_PROVIDER_ID = "terrain";
+const REFERENCE_SURFACE_PROVIDER_ID = "surface";
 
 const requestRenderWithOptions = (
   scene: Scene | null,
@@ -226,21 +231,56 @@ export function CesiumWidgetContainer({
       return widget.scene;
     };
 
-    const withRuntime = (cb: (runtime: CesiumWidget) => void): boolean => {
+    const withRuntime = <T,>(
+      cb: (runtime: CesiumWidget) => T
+    ): T | undefined => {
       const runtime = runtimeRef.current;
-      if (!runtime || runtime.isDestroyed()) return false;
-      cb(runtime);
-      return true;
+      return runtime && !runtime.isDestroyed() ? cb(runtime) : undefined;
     };
 
-    const withScene = (
-      cb: (scene: Scene, runtime: CesiumWidget) => void
-    ): boolean => {
+    const withScene = <T,>(
+      cb: (scene: Scene, runtime: CesiumWidget) => T
+    ): T | undefined => {
       const scene = getScene();
       const runtime = runtimeRef.current;
-      if (!scene || !runtime || runtime.isDestroyed()) return false;
-      cb(scene, runtime);
-      return true;
+      return scene && runtime && !runtime.isDestroyed()
+        ? cb(scene, runtime)
+        : undefined;
+    };
+
+    const withTileset = <T,>(
+      id: string,
+      cb: (tileset: Cesium3DTileset, runtime: CesiumWidget) => T
+    ): T | undefined => {
+      const runtime = runtimeRef.current;
+      const tileset = tilesetRef.current;
+      return id === REFERENCE_TILESET_ID &&
+        tileset &&
+        runtime &&
+        !runtime.isDestroyed()
+        ? cb(tileset, runtime)
+        : undefined;
+    };
+
+    const getTerrainProviderById = (id: string) => {
+      if (id === REFERENCE_TERRAIN_PROVIDER_ID) {
+        return terrainProviderRef.current;
+      }
+      if (id === REFERENCE_SURFACE_PROVIDER_ID) {
+        return surfaceProviderRef.current;
+      }
+      return null;
+    };
+
+    const withTerrainProviderById = <T,>(
+      id: string,
+      cb: (provider: CesiumTerrainProvider, runtime: CesiumWidget) => T
+    ): T | undefined => {
+      const runtime = runtimeRef.current;
+      const provider = getTerrainProviderById(id);
+      return provider && runtime && !runtime.isDestroyed()
+        ? cb(provider, runtime)
+        : undefined;
     };
 
     return {
@@ -262,41 +302,44 @@ export function CesiumWidgetContainer({
       withRuntime,
       withCamera: (cb) =>
         withRuntime((runtime) => {
-          cb(runtime.camera, runtime);
-        }),
-      withCanvas: (cb) =>
-        withRuntime((runtime) => {
-          cb(runtime.canvas, runtime);
+          return cb(runtime.camera, runtime);
         }),
       withScene,
-      withImageryLayer: () => false,
-      withPrimaryTileset: (cb) => {
-        const runtime = runtimeRef.current;
-        const tileset = tilesetRef.current;
-        if (!tileset || !runtime || runtime.isDestroyed()) return false;
-        cb(tileset, runtime);
-        return true;
-      },
-      withSecondaryTileset: () => false,
-      withEllipsoidTerrainProvider: () => false,
+      withImageryLayer: () => undefined,
+      withImageryLayerById: () => undefined,
+      withTileset,
       withTerrainProvider: (cb) => {
-        const runtime = runtimeRef.current;
-        const provider = terrainProviderRef.current;
-        if (!provider || !runtime || runtime.isDestroyed()) return false;
-        cb(provider, runtime);
-        return true;
+        return withTerrainProviderById(REFERENCE_TERRAIN_PROVIDER_ID, cb);
       },
+      withTerrainProviderById,
       withSurfaceProvider: (cb) => {
-        const runtime = runtimeRef.current;
-        const provider = surfaceProviderRef.current;
-        if (!provider || !runtime || runtime.isDestroyed()) return false;
-        cb(provider, runtime);
-        return true;
+        return withTerrainProviderById(REFERENCE_SURFACE_PROVIDER_ID, cb);
       },
       getTerrainProvider: () => terrainProviderRef.current,
+      getTerrainProviderById,
       getSurfaceProvider: () => surfaceProviderRef.current,
       getImageryLayer: () => null as ImageryLayer | null,
+      getImageryLayerById: () => null as ImageryLayer | null,
+      getTerrainProviderInitSignatureById: (id) => `reference:${id}`,
+      getTilesetInitSignatureById: (id) => `reference:${id}`,
       getScene,
+      currentTransition: CESIUM_RUNTIME_TRANSITION_STATE.NONE,
+      isTransitioning: false,
+      clearTransition: () => undefined,
+      sceneStyles: {},
+      sceneStyleIds: [],
+      currentSceneStyle: undefined,
+      currentSceneStyleConfig: undefined,
+      setCurrentSceneStyle: () => undefined,
+      toggleCurrentSceneStyle: () => undefined,
+      models: undefined,
+      tilesetIds: [REFERENCE_TILESET_ID],
+      visibleTilesetIds: [REFERENCE_TILESET_ID],
+      ssccMinimumZoomDistance: 1,
+      ssccMaximumZoomDistance: Infinity,
+      ssccEnableCollisionDetection: false,
+      isAnimating: false,
+      setIsAnimating: () => undefined,
     };
   }, [initialViewApplied, isRuntimeReady, providersReady]);
 
