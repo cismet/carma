@@ -21,16 +21,13 @@ import { useCesiumContext } from "@carma-mapping/engines/cesium/react/runtime";
 import { useHashState } from "@carma-providers/hash-state";
 
 import config from "../config";
-import {
-  AERIAL_BACKGROUND_INDEX,
-  HGK_KEYS,
-  HGK_TERRAIN_PROVIDER_URLS,
-} from "../config/app.config";
+import { AERIAL_BACKGROUND_INDEX, HGK_KEYS } from "../config/app.config";
+import { FLOODINGMAP_TERRAIN_PROVIDER_IDS } from "../config/cesium/cesium.config";
 import {
   FLOODINGMAP_HASH_KEYS,
   FLOODINGMAP_QUERY_HASH_CLEAR_KEYS,
 } from "../config/hash-state.config";
-import { useHGKCesiumTerrain } from "../hooks/useHGKCesiumTerrain";
+import { useFloodingSceneStyleSync } from "../hooks/useFloodingSceneStyleSync";
 import { onCesiumClick } from "../utils/cesiumHandlers";
 import { getWebMercatorInWGS84, getWGS84InWebMercator } from "../utils/geo";
 import { updateMarkerPosition } from "../utils/marker";
@@ -55,7 +52,11 @@ export const StateAwareChildren = () => {
 
   // CESIUM
   const cesiumContext = useCesiumContext();
-  const { isRuntimeReady, runtimeRef, getTerrainProvider } = cesiumContext;
+  const { isRuntimeReady, runtimeRef, getTerrainProviderById } = cesiumContext;
+  // The active scene terrain is now the flood water surface; the marker /
+  // feature-info elevation is sampled against the bare-ground (DGM) terrain
+  // (TERRAIN_2020) instead, so the marker sits on the ground as before and the
+  // water rises above it.
   const [cesiumPickedPosition, setCesiumPickedPosition] = useState<
     [number, number] | null
   >(null);
@@ -152,7 +153,9 @@ export const StateAwareChildren = () => {
 
         const cartographic = Cartographic.fromDegrees(lon, lat);
 
-        const terrainProvider = getTerrainProvider();
+        const terrainProvider = getTerrainProviderById(
+          FLOODINGMAP_TERRAIN_PROVIDER_IDS.TERRAIN_2020
+        );
         if (!terrainProvider) return;
 
         const [groundPositionCartographic] = await getTerrainElevationAsync(
@@ -172,7 +175,7 @@ export const StateAwareChildren = () => {
     }
   }, [
     isRuntimeReady,
-    getTerrainProvider,
+    getTerrainProviderById,
     runtimeRef,
     cesiumContext,
     controlState.featureInfoModeActivated,
@@ -203,7 +206,9 @@ export const StateAwareChildren = () => {
 
       const handler = new ScreenSpaceEventHandler(runtime.scene.canvas);
       handler.setInputAction(async (click) => {
-        const terrainProvider = getTerrainProvider();
+        const terrainProvider = getTerrainProviderById(
+          FLOODINGMAP_TERRAIN_PROVIDER_IDS.TERRAIN_2020
+        );
         if (!terrainProvider) {
           console.warn(
             "[FLOODINGMAP] Cannot process click - terrain provider not available"
@@ -241,7 +246,7 @@ export const StateAwareChildren = () => {
     }
   }, [
     runtimeRef,
-    getTerrainProvider,
+    getTerrainProviderById,
     controlState.featureInfoModeActivated,
     isLeaflet,
     isRuntimeReady,
@@ -314,12 +319,7 @@ export const StateAwareChildren = () => {
     updateHashState,
   ]);
 
-  useHGKCesiumTerrain(
-    controlState.selectedSimulation,
-    isHWS,
-    HGK_KEYS,
-    HGK_TERRAIN_PROVIDER_URLS
-  );
+  useFloodingSceneStyleSync(controlState.selectedSimulation, isHWS, HGK_KEYS);
 
   //console.debug("RENDER: StateAwareChildren", controlState);
 

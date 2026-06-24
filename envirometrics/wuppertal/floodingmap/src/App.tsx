@@ -73,6 +73,7 @@ import { EMAIL } from "./config/app.config";
 import {
   CESIUM_CONFIG,
   CONSTRUCTOR_OPTIONS,
+  FLOODINGMAP_TERRAIN_PROVIDER_IDS,
 } from "./config/cesium/cesium.config";
 import { useFloodingmapInitialValues } from "./hooks/useFloodingmapInitialValues";
 import useLeafletZoomControls from "./hooks/useLeafletZoomControls";
@@ -122,7 +123,7 @@ function FloodingmapAppContent({ sync = false }: { sync?: boolean }) {
   const ctx = useCesiumContext();
   const {
     getScene,
-    getTerrainProvider,
+    getTerrainProviderById,
     getSurfaceProvider,
     isRuntimeReady,
     initialViewApplied,
@@ -161,10 +162,15 @@ function FloodingmapAppContent({ sync = false }: { sync?: boolean }) {
   const getCesiumContainer = useCallback(() => container3dMapRef.current, []);
   const getCesiumTerrainProviders = useCallback(
     () => ({
-      TERRAIN: getTerrainProvider() ?? null,
+      // The active scene terrain is the flood water surface; register the
+      // bare-ground (DGM) terrain as TERRAIN so framework consumers sample
+      // against the ground, as on dev.
+      TERRAIN:
+        getTerrainProviderById(FLOODINGMAP_TERRAIN_PROVIDER_IDS.TERRAIN_2020) ??
+        null,
       SURFACE: getSurfaceProvider() ?? null,
     }),
-    [getSurfaceProvider, getTerrainProvider]
+    [getSurfaceProvider, getTerrainProviderById]
   );
 
   useRegisterMapFramework({
