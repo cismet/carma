@@ -62,6 +62,7 @@ export const StateAwareChildren = () => {
   >(null);
   const markerPrimitiveRef = useRef<Primitive | null>(null);
   const highlightPrimitiveRef = useRef<PolylineCollection | null>(null);
+  const markerRestoreTimeoutRef = useRef<number | null>(null);
   const prevPositionRef = useRef<[number, number] | null>(null);
   const initialRestoredQueryPositionRef = useRef<[number, number] | null>(
     controlState.currentFeatureInfoPosition ?? null
@@ -135,49 +136,85 @@ export const StateAwareChildren = () => {
   ]);
 
   useEffect(() => {
-    // update 3d marker position from 2d while in 2d
-    if (
-      controlState.featureInfoModeActivated &&
-      controlState.currentFeatureInfoPosition
-    ) {
-      const asyncUpdate = async () => {
-        if (
-          !isRuntimeReady ||
-          !runtimeRef.current ||
-          runtimeRef.current.isDestroyed()
-        )
-          return;
-        const { lat, lon } = getWebMercatorInWGS84(
-          controlState.currentFeatureInfoPosition
-        );
-
-        const cartographic = Cartographic.fromDegrees(lon, lat);
-
-        const terrainProvider = getTerrainProviderById(
-          FLOODINGMAP_TERRAIN_PROVIDER_IDS.TERRAIN_2020
-        );
-        if (!terrainProvider) return;
-
-        const [groundPositionCartographic] = await getTerrainElevationAsync(
-          terrainProvider,
-          [cartographic]
-        );
-        if (!groundPositionCartographic) return;
-
-        updateMarkerPosition(
-          runtimeRef.current!,
-          markerPrimitiveRef,
-          highlightPrimitiveRef,
-          groundPositionCartographic
-        );
-      };
-      asyncUpdate();
+    // Place the 3D marker for the active feature-info position (incl. a query
+    // restored from the URL on load). This must wait until the ground (DGM)
+    // terrain provider is ready to sample — on a cold load the runtime/terrain
+    // can still be loading when the position is already known, so retry until
+    // the elevation sample succeeds instead of silently giving up.
+    const position = controlState.currentFeatureInfoPosition;
+    if (!controlState.featureInfoModeActivated || !position) {
+      return;
     }
+
+    let cancelled = false;
+    let attempt = 0;
+    const MAX_ATTEMPTS = 40; // ~10s at 250ms — covers cold terrain loads
+    const RETRY_DELAY_MS = 250;
+
+    const clearPendingRetry = () => {
+      if (markerRestoreTimeoutRef.current !== null) {
+        clearTimeout(markerRestoreTimeoutRef.current);
+        markerRestoreTimeoutRef.current = null;
+      }
+    };
+
+    const scheduleRetry = () => {
+      if (cancelled || attempt >= MAX_ATTEMPTS) return;
+      attempt += 1;
+      markerRestoreTimeoutRef.current = window.setTimeout(
+        placeMarker,
+        RETRY_DELAY_MS
+      );
+    };
+
+    const placeMarker = async () => {
+      if (cancelled) return;
+
+      const runtime = runtimeRef.current;
+      const terrainProvider =
+        isRuntimeReady && runtime && !runtime.isDestroyed()
+          ? getTerrainProviderById(FLOODINGMAP_TERRAIN_PROVIDER_IDS.TERRAIN_2020)
+          : null;
+
+      // Gate: runtime + ground terrain provider must be ready before sampling.
+      if (!runtime || !terrainProvider) {
+        scheduleRetry();
+        return;
+      }
+
+      const { lat, lon } = getWebMercatorInWGS84(position);
+      const cartographic = Cartographic.fromDegrees(lon, lat);
+
+      const [groundPositionCartographic] = await getTerrainElevationAsync(
+        terrainProvider,
+        [cartographic]
+      );
+      if (cancelled || runtime.isDestroyed()) return;
+
+      // Terrain tiles not loaded yet (sampling returned nothing) — retry.
+      if (!groundPositionCartographic) {
+        scheduleRetry();
+        return;
+      }
+
+      updateMarkerPosition(
+        runtime,
+        markerPrimitiveRef,
+        highlightPrimitiveRef,
+        groundPositionCartographic
+      );
+    };
+
+    placeMarker();
+
+    return () => {
+      cancelled = true;
+      clearPendingRetry();
+    };
   }, [
     isRuntimeReady,
     getTerrainProviderById,
     runtimeRef,
-    cesiumContext,
     controlState.featureInfoModeActivated,
     controlState.currentFeatureInfoPosition,
     isLeaflet,
