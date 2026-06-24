@@ -656,6 +656,7 @@ const MapWrapper = () => {
           {showLibreMap && isLeaflet ? (
             <>
               <CarmaMap
+                appKey="geoportal"
                 mapEngine="maplibre"
                 backgroundLayers={null}
                 zoomControls={false}
