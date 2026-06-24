@@ -37,8 +37,8 @@ export function App() {
         imageryProvider: BASEMAP_METROPOLE_RUHR_WMS_GRAUBLAU,
       }}
       tilesetConfigs={{
-        [CESIUM_TILESET_IDS.PRIMARY]: WUPP_MESH_2024,
-        [CESIUM_TILESET_IDS.SECONDARY]: WUPP_LOD2_TILESET,
+        [CESIUM_TILESET_IDS.MESH_2024]: WUPP_MESH_2024,
+        [CESIUM_TILESET_IDS.LOD2]: WUPP_LOD2_TILESET,
       }}
       defaultRuntimeState={defaultViewerState}
     >

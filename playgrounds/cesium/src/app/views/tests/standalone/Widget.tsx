@@ -321,7 +321,7 @@ const RuntimeWidgetDemo = ({
         return;
       }
 
-      const applied = withTileset(CESIUM_TILESET_IDS.PRIMARY, (tileset) => {
+      const applied = withTileset(CESIUM_TILESET_IDS.MESH_2024, (tileset) => {
         cleanup();
 
         if (!clip) {
