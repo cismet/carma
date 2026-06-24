@@ -33,6 +33,12 @@ export interface PanoramaHotspot {
   clickHandlerFunc?: () => void;
   /** Horizontal distance to the neighbour (m); drives the ground-decal scale. */
   distanceM?: number;
+  /**
+   * Viewer yaw (deg) of the neighbour's own street direction (from its heading),
+   * pointing toward the neighbour. Aims the cursor arrow along the street, which
+   * differs from the bearing to the neighbour at a junction.
+   */
+  streetYaw?: number;
 }
 
 interface PanoramaLightBoxProps {
@@ -54,6 +60,59 @@ interface PanoramaLightBoxProps {
   initialYaw?: number;
 }
 
+// Project a world direction (vx,vy,vz; x right, y up, z forward at yaw 0) to a
+// pixel in the viewer, given the current view (yaw0, pitch0, hfov) and viewport
+// size. pannellum renders a rectilinear (pinhole) view, so this is a standard
+// perspective projection; the screen position depends only on direction, so it
+// projects both sphere points (a cross) and points-at-infinity (a vanishing
+// point). Returns null when the direction is behind the camera.
+const projectVec = (
+  vx: number,
+  vy: number,
+  vz: number,
+  yaw0Deg: number,
+  pitch0Deg: number,
+  hfovDeg: number,
+  w: number,
+  h: number
+): { x: number; y: number } | null => {
+  const d2r = Math.PI / 180;
+  const yaw0 = yaw0Deg * d2r;
+  const pitch0 = pitch0Deg * d2r;
+  const F = [
+    Math.sin(yaw0) * Math.cos(pitch0),
+    Math.sin(pitch0),
+    Math.cos(yaw0) * Math.cos(pitch0),
+  ];
+  const R = [Math.cos(yaw0), 0, -Math.sin(yaw0)]; // horizontal right
+  const U = [
+    F[1] * R[2] - F[2] * R[1],
+    F[2] * R[0] - F[0] * R[2],
+    F[0] * R[1] - F[1] * R[0],
+  ]; // up = F x R
+  const xc = vx * R[0] + vy * R[1] + vz * R[2];
+  const yc = vx * U[0] + vy * U[1] + vz * U[2];
+  const zc = vx * F[0] + vy * F[1] + vz * F[2];
+  if (zc <= 0.001) return null; // behind the camera
+  const f = w / 2 / Math.tan((hfovDeg * d2r) / 2);
+  return { x: w / 2 + (f * xc) / zc, y: h / 2 - (f * yc) / zc };
+};
+
+// Unit direction for a (yaw, pitch) in degrees.
+const dirFromYawPitch = (
+  yawDeg: number,
+  pitchDeg: number
+): [number, number, number] => {
+  const d2r = Math.PI / 180;
+  const yaw = yawDeg * d2r;
+  const pitch = pitchDeg * d2r;
+  return [
+    Math.sin(yaw) * Math.cos(pitch),
+    Math.sin(pitch),
+    Math.cos(yaw) * Math.cos(pitch),
+  ];
+};
+
 /**
  * Fullscreen overlay that renders a 360° panorama with pannellum.
  *
@@ -72,6 +131,8 @@ export const PanoramaLightBox = ({
   initialYaw,
 }: PanoramaLightBoxProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  // The Street-View-style arrow that follows the cursor on the ground.
+  const cursorArrowRef = useRef<HTMLDivElement>(null);
   // Held in refs so changing their identity never re-runs the init effect.
   // onYawChange is read live each frame; hotspots / initialYaw are read when a
   // scene is (re)built on a hop.
@@ -94,7 +155,13 @@ export const PanoramaLightBox = ({
   const rafRef = useRef(0);
   const sceneSeqRef = useRef(0);
   const hotspotElsRef = useRef<
-    Array<{ el: HTMLElement; yaw: number; navigate?: () => void }>
+    Array<{
+      el: HTMLElement;
+      yaw: number;
+      pitch: number;
+      streetYaw?: number;
+      navigate?: () => void;
+    }>
   >([]);
 
   // Create the pannellum viewer once and reuse it across tour hops: a hop adds
@@ -118,6 +185,8 @@ export const PanoramaLightBox = ({
     const hotspotEls: Array<{
       el: HTMLElement;
       yaw: number;
+      pitch: number;
+      streetYaw?: number;
       navigate?: () => void;
     }> = [];
     const hotSpots = (hotspotsRef.current ?? []).map((h) => {
@@ -134,7 +203,13 @@ export const PanoramaLightBox = ({
           const scale = Math.max(0.45, Math.min(1.5, 6 / (h.distanceM ?? 6)));
           div.style.setProperty("--pano-cross-tilt", `${tilt}deg`);
           div.style.setProperty("--pano-cross-scale", `${scale}`);
-          hotspotEls.push({ el: div, yaw: h.yaw, navigate: clickHandlerFunc });
+          hotspotEls.push({
+            el: div,
+            yaw: h.yaw,
+            pitch: h.pitch,
+            streetYaw: h.streetYaw,
+            navigate: clickHandlerFunc,
+          });
         },
       };
     });
@@ -245,13 +320,14 @@ export const PanoramaLightBox = ({
     const DRAG_PX = 6; // moved more than this since mousedown => a pan, not a click
     const down = { x: 0, y: 0 };
 
+    type Entry = (typeof hotspotElsRef.current)[number];
+
     // Nearest on-screen cross to a client point (or null). Only crosses whose
     // centre is inside the viewer rect count, which drops ones behind you that
     // pannellum may park at the edges.
-    const nearestTo = (x: number, y: number) => {
+    const nearestTo = (x: number, y: number): { entry: Entry; dist: number } | null => {
       const bounds = el.getBoundingClientRect();
-      let best: { el: HTMLElement; navigate?: () => void; dist: number } | null =
-        null;
+      let best: { entry: Entry; dist: number } | null = null;
       for (const entry of hotspotElsRef.current) {
         const r = entry.el.getBoundingClientRect();
         const cx = r.left + r.width / 2;
@@ -265,9 +341,7 @@ export const PanoramaLightBox = ({
           continue;
         }
         const dist = Math.hypot(x - cx, y - cy);
-        if (!best || dist < best.dist) {
-          best = { el: entry.el, navigate: entry.navigate, dist };
-        }
+        if (!best || dist < best.dist) best = { entry, dist };
       }
       return best;
     };
@@ -278,11 +352,91 @@ export const PanoramaLightBox = ({
       }
     };
 
+    const hideArrow = () => {
+      if (cursorArrowRef.current) cursorArrowRef.current.style.opacity = "0";
+    };
+
+    // The cursor arrow follows the mouse but is oriented by the TRAVEL direction
+    // (current pano -> target node), not the cursor: that direction is the
+    // target's street, whose on-screen slope is the line from the target cross
+    // up to its vanishing point on the horizon (same azimuth, pitch 0). So the
+    // arrow points "down the street toward where you'd jump" wherever the cursor
+    // sits. It is foreshortened by the cursor's ground pitch, and hidden above
+    // the horizon (no street there).
+    const updateArrow = (e: MouseEvent, target: Entry | null) => {
+      const arrow = cursorArrowRef.current;
+      if (!arrow) return;
+      const viewer = viewerRef.current;
+      if (!target || !viewer) {
+        arrow.style.opacity = "0";
+        return;
+      }
+
+      let cursorPitch = -30; // assume ground if pannellum can't tell us
+      if (typeof viewer.mouseEventToCoords === "function") {
+        try {
+          const coords = viewer.mouseEventToCoords(e);
+          if (coords) cursorPitch = coords[0];
+        } catch {
+          // ignore — keep the ground assumption
+        }
+      }
+      if (cursorPitch > -1) {
+        arrow.style.opacity = "0"; // pointing at sky / buildings, not the road
+        return;
+      }
+
+      const bounds = el.getBoundingClientRect();
+      const yaw0 = viewer.getYaw();
+      const pitch0 = viewer.getPitch();
+      const hfov = viewer.getHfov();
+      const w = bounds.width;
+      const h = bounds.height;
+      // The street is a straight ground line through the target along its own
+      // heading; in a pinhole view it projects to a straight screen line through
+      // the target cross and the street's vanishing point. So aim the arrow from
+      // the cross toward that vanishing direction.
+      const nearDir = dirFromYawPitch(target.yaw, target.pitch);
+      const near = projectVec(...nearDir, yaw0, pitch0, hfov, w, h);
+      const streetYaw = target.streetYaw ?? target.yaw;
+      const sr = (streetYaw * Math.PI) / 180;
+      // Horizontal direction of the street (a point at infinity along it).
+      let vanish = projectVec(Math.sin(sr), 0, Math.cos(sr), yaw0, pitch0, hfov, w, h);
+      let flip = false;
+      if (!vanish) {
+        // forward vanishing point is behind the camera: use the opposite end of
+        // the same street line and flip the arrow back to the travel sense.
+        vanish = projectVec(-Math.sin(sr), 0, -Math.cos(sr), yaw0, pitch0, hfov, w, h);
+        flip = true;
+      }
+      if (!near || !vanish) {
+        arrow.style.opacity = "0";
+        return;
+      }
+      let theta =
+        (Math.atan2(vanish.y - near.y, vanish.x - near.x) * 180) / Math.PI;
+      if (flip) theta += 180;
+      // Flatter near the horizon (small |pitch| = far away), rounder when the
+      // cursor is low and near.
+      const k = Math.max(
+        0.3,
+        Math.min(0.85, Math.sin((Math.abs(cursorPitch) * Math.PI) / 180))
+      );
+      arrow.style.left = `${e.clientX}px`;
+      arrow.style.top = `${e.clientY}px`;
+      arrow.style.transform = `scaleY(${k}) rotate(${theta}deg)`;
+      arrow.style.opacity = "1";
+    };
+
     const onMove = (e: MouseEvent) => {
       const best = nearestTo(e.clientX, e.clientY);
-      highlight(best ? best.el : null);
+      highlight(best ? best.entry.el : null);
+      updateArrow(e, best ? best.entry : null);
     };
-    const onLeave = () => highlight(null);
+    const onLeave = () => {
+      highlight(null);
+      hideArrow();
+    };
     const onDown = (e: MouseEvent) => {
       down.x = e.clientX;
       down.y = e.clientY;
@@ -291,7 +445,7 @@ export const PanoramaLightBox = ({
       // Ignore the click that ends a drag-to-pan.
       if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > DRAG_PX) return;
       const best = nearestTo(e.clientX, e.clientY);
-      best?.navigate?.();
+      best?.entry.navigate?.();
     };
 
     el.addEventListener("mousemove", onMove, true);
@@ -341,6 +495,22 @@ export const PanoramaLightBox = ({
         className="carma-panorama-lightbox__viewer"
         style={{ width: "100%", height: "100%" }}
       />
+      <div
+        ref={cursorArrowRef}
+        className="carma-pano-cursor-arrow"
+        aria-hidden="true"
+      >
+        <svg viewBox="0 0 32 32">
+          <path
+            d="M11 6 L23 16 L11 26"
+            fill="none"
+            stroke="#ffffff"
+            strokeWidth={6}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </div>
     </div>,
     document.body
   );
