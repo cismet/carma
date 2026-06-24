@@ -996,7 +996,8 @@ const BelisMapLibWrapper = ({
         if (rawCount != null && Number.isFinite(Number(rawCount)))
           p.count = Number(rawCount);
       }
-      if (p.lfd == null) p.lfd = props.lfd_nummer as string | number | undefined;
+      if (p.lfd == null)
+        p.lfd = props.lfd_nummer as string | number | undefined;
       // Read off a non-`props` expression to dodge the react/prop-types false
       // positive (member access on a local named `props`).
       const propsRec = draft.feature?.properties as Record<string, unknown>;
@@ -1772,7 +1773,9 @@ const BelisMapLibWrapper = ({
         // row comes from the cascade rows in `draftSidebarFeatures` instead.
         if (
           sl === "leuchten" &&
-          cascadeDeletionStandortIds.has(String(f.properties?.fk_standort ?? ""))
+          cascadeDeletionStandortIds.has(
+            String(f.properties?.fk_standort ?? "")
+          )
         ) {
           return false;
         }
