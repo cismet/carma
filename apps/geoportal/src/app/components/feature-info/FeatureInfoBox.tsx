@@ -115,8 +115,10 @@ const fidToFileName = (fid: number): string => {
   return `pano_${s.slice(0, 6)}_${s.slice(6)}`;
 };
 
-// A single baked neighbour: [fid, bearing(deg, 0=N CW), distance(m), dz(m)].
-type BakedNeighbour = [number, number, number, number];
+// A single baked neighbour: [fid, bearing(deg, 0=N CW), distance(m), dz(m),
+// heading(deg)]. heading is the neighbour's own street orientation; optional on
+// older tiles, so callers treat it as maybe-undefined.
+type BakedNeighbour = [number, number, number, number, number?];
 
 // Parse the per-feature `nb` property baked by the tiling pipeline (a compact
 // JSON string of [fid, bearing, dist, dz] tuples). Returns null when absent or
@@ -547,6 +549,8 @@ const FeatureInfoBox = ({
       dz: number;
       bearing: number;
       fileName?: string;
+      /** The neighbour's own heading (deg, 0=N CW): its street orientation. */
+      headingDeg?: number;
     };
     const candidates: Candidate[] = [];
 
@@ -564,6 +568,7 @@ const FeatureInfoBox = ({
         const bearing = Number(entry[1]);
         const dist = Number(entry[2]);
         const dz = Number(entry[3]);
+        const headingDeg = Number(entry[4]);
         if (!Number.isFinite(fid) || fid === cFid) continue;
         if (!Number.isFinite(dist) || dist < 0.01) continue;
         if (dist > PANORAMA_NEIGHBOR_RADIUS_M) continue;
@@ -573,6 +578,7 @@ const FeatureInfoBox = ({
           dz: Number.isFinite(dz) ? dz : 0,
           bearing: Number.isFinite(bearing) ? bearing : 0,
           fileName: fidToFileName(fid),
+          headingDeg: Number.isFinite(headingDeg) ? headingDeg : undefined,
         });
       }
     } else {
@@ -607,12 +613,14 @@ const FeatureInfoBox = ({
         const dz = Number(p.proj_z) - cz;
         const bearing = (Math.atan2(dE, dN) * 180) / Math.PI; // 0=N, clockwise
         const rawFileName = (p as { file_name?: unknown }).file_name;
+        const pHeading = Number(p.heading);
         candidates.push({
           fid: p.fid,
           dist,
           dz: Number.isNaN(dz) ? 0 : dz,
           bearing,
           fileName: typeof rawFileName === "string" ? rawFileName : undefined,
+          headingDeg: Number.isFinite(pHeading) ? pHeading : undefined,
         });
       }
     }
@@ -651,25 +659,81 @@ const FeatureInfoBox = ({
       if (!clashes) kept.push(c);
     }
 
-    const hotspots = kept.map((c) => ({
-      id: `pano-nav-${c.fid}`,
-      pitch: c.pitch,
-      yaw: c.yaw,
-      distanceM: c.dist,
-      cssClass: "carma-pano-cross-hotspot",
-      clickHandlerFunc: () => handlePanoramaNavigate(c.fid),
-    }));
+    // Make sure each target carries its neighbour's heading so the cursor arrow
+    // can visualise that point's orientation. Baked `nb` written before the
+    // heading field won't have it, so read it from the live source (the
+    // neighbour is within 30 m, hence in a loaded tile). No-ops once the tiles
+    // bake heading and on the fallback path (which already has it).
+    if (kept.some((c) => c.headingDeg == null)) {
+      const src = resolvePanoSource(selectedLayerMap);
+      if (src && typeof selectedLayerMap.querySourceFeatures === "function") {
+        try {
+          const all = selectedLayerMap.querySourceFeatures(src.sourceId, {
+            sourceLayer: src.sourceLayer,
+          }) as Array<{ properties?: Record<string, number> }>;
+          const headingByFid = new Map<number, number>();
+          for (const f of all) {
+            const p = f?.properties;
+            if (!p || p.fid == null || headingByFid.has(p.fid)) continue;
+            const hd = Number(p.heading);
+            if (Number.isFinite(hd)) headingByFid.set(p.fid, hd);
+          }
+          for (const c of kept) {
+            if (c.headingDeg == null) {
+              const hd = headingByFid.get(c.fid);
+              if (hd != null) c.headingDeg = hd;
+            }
+          }
+        } catch {
+          // ignore — heading stays undefined; arrow falls back to the bearing
+        }
+      }
+    }
+
+    const hotspots = kept.map((c) => {
+      // Aim the cursor arrow along the neighbour's OWN street (its heading), not
+      // the bearing to it — at a junction those differ. Put the heading into the
+      // same yaw frame as the cross, then pick the sense (heading or +180) that
+      // points toward the neighbour, so the arrow points the way you'd travel.
+      let streetYaw = c.yaw;
+      if (c.headingDeg != null && Number.isFinite(c.headingDeg)) {
+        const hy = normalizeDeg(
+          (c.headingDeg - cHeading - PANORAMA_YAW_OFFSET) / PANORAMA_YAW_SIGN
+        );
+        const hyOpp = normalizeDeg(hy + 180);
+        streetYaw =
+          angularDiffDeg(hy, c.yaw) <= angularDiffDeg(hyOpp, c.yaw) ? hy : hyOpp;
+      }
+      return {
+        id: `pano-nav-${c.fid}`,
+        pitch: c.pitch,
+        yaw: c.yaw,
+        streetYaw,
+        distanceM: c.dist,
+        cssClass: "carma-pano-cross-hotspot",
+        clickHandlerFunc: () => handlePanoramaNavigate(c.fid),
+      };
+    });
 
     const neighbourFileNames = kept
       .map((c) => c.fileName)
       .filter((n): n is string => !!n);
 
-    // [PANORAMA] dev: prove which neighbour source is live and how many targets
-    // survive declutter. Strip before merge.
+    // [PANORAMA] dev: prove which neighbour source is live, how many targets
+    // survive declutter, and whether each cross has a distinct street direction
+    // (streetYaw != yaw means the neighbour heading reached the arrow). Strip
+    // before merge.
     console.log("[PANORAMA] neighbours", {
       source: baked ? "baked-nb" : "fallback-querySourceFeatures",
       found: candidates.length,
       shown: kept.length,
+      cHeading: Math.round(cHeading),
+      crosses: hotspots.map((h) => ({
+        fid: h.id,
+        yaw: Math.round(h.yaw),
+        streetYaw: Math.round(h.streetYaw),
+        headingReached: Math.round(h.streetYaw) !== Math.round(h.yaw),
+      })),
     });
 
     return { hotspots, neighbourFileNames };
