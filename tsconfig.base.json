@@ -45,6 +45,9 @@
       "@carma-mapping/annotations/builtin-tools/annotation-mode-text": [
         "libraries/mapping/annotations/builtin-tools/src/lib/annotation-mode-text.ts"
       ],
+      "@carma-mapping/print-core/ui": [
+        "libraries/mapping/print-core/src/lib/ui/index.ts"
+      ],
       "@carma-mapping/print-core/leaflet": [
         "libraries/mapping/print-core/src/lib/leaflet/index.ts"
       ],
