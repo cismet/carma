@@ -75,6 +75,7 @@ import {
   CONSTRUCTOR_OPTIONS,
   FLOODINGMAP_TERRAIN_PROVIDER_IDS,
 } from "./config/cesium/cesium.config";
+import { useDisableInfoBoxMapClicks } from "./hooks/useDisableInfoBoxMapClicks";
 import { useFloodingmapInitialValues } from "./hooks/useFloodingmapInitialValues";
 import useLeafletZoomControls from "./hooks/useLeafletZoomControls";
 import versionData from "./version.json";
@@ -154,6 +155,9 @@ function FloodingmapAppContent({ sync = false }: { sync?: boolean }) {
   // Register map frameworks with switcher
   const leafletMap = routedMap?.leafletMap?.leafletElement ?? null;
   const isCesiumRuntimeReady = Boolean(cesiumScene && isRuntimeReady);
+
+  // Absorb info-box clicks so they don't fall through to the map (2D + 3D).
+  useDisableInfoBoxMapClicks(leafletMap);
 
   const getLeafletMap = useCallback(
     () => routedMap?.leafletMap?.leafletElement ?? null,
