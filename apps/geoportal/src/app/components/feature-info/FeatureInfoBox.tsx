@@ -517,11 +517,24 @@ const FeatureInfoBox = ({
       if (!raw) return;
       const neighborFeature = await createFeature(raw, layer);
       if (!neighborFeature) return;
+      // Recenter the (Leaflet) base map on the pano we jump to, so that when the
+      // fullscreen viewer is closed the just-visited point sits in the map
+      // centre. Navigation hotspots only exist in the fullscreen viewer, so this
+      // path only runs for in-viewer tour hops. Keep the current zoom; no
+      // animation since the map is hidden behind the lightbox.
+      const geom = neighborFeature.geometry;
+      const leaflet = routedMapRef?.leafletMap?.leafletElement;
+      if (leaflet && geom?.type === "Point" && Array.isArray(geom.coordinates)) {
+        const [lng, lat] = geom.coordinates as number[];
+        if (Number.isFinite(lng) && Number.isFinite(lat)) {
+          leaflet.setView([lat, lng], leaflet.getZoom(), { animate: false });
+        }
+      }
       // The map highlight (selection-arrow feature-state) is kept in sync with
       // the redux selection by the effect below, so just select the neighbour.
       dispatch(setSelectedFeature(neighborFeature));
     },
-    [selectedLayerMap, selectedFeature, layers, dispatch]
+    [selectedLayerMap, selectedFeature, layers, dispatch, routedMapRef]
   );
 
   // Build navigation hotspots from the panos surrounding the selected one, and
