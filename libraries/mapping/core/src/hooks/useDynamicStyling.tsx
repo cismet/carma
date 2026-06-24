@@ -140,7 +140,6 @@ export const useDynamicStyling = ({
         <DynamicStylingControl
           key={`${layerId}-dyn-${configIndex}`}
           config={config}
-          maplibreMap={null}
           carmaLayerId={`${layerId}-${configIndex}`}
           currentSelection={selection}
           onSelectionChange={(nextSelection) =>
