@@ -187,6 +187,14 @@ export const fitMapToRect = (
 };
 
 /** Add the source + fill/line layers if absent, then set the rectangle data. */
+// Rectangle outline color/width. Border in the geoportal dark blue over a black
+// fill at Leaflet's default polygon fill-opacity of 0.2 (the fill doubles as the
+// drag hit area).
+const PREVIEW_LINE_COLOR = "#1677ff";
+const PREVIEW_LINE_WIDTH = 3;
+const PREVIEW_FILL_COLOR = "#ff0000"; // TEMP DIAGNOSTIC: prove this code is live
+const PREVIEW_FILL_OPACITY = 0.4;
+
 export const ensureRectLayers = (
   map: MapLibreMap,
   bounds: RectBounds
@@ -198,21 +206,44 @@ export const ensureRectLayers = (
 
   if (existing) {
     existing.setData(data);
+    // Re-apply paint on the already-added layers. MapLibre bakes the paint into
+    // the layer at addLayer time, so without this an updated color/width would
+    // never reach a rectangle that is already on the map.
+    if (map.getLayer(PREVIEW_FILL_LAYER_ID)) {
+      map.setPaintProperty(
+        PREVIEW_FILL_LAYER_ID,
+        "fill-color",
+        PREVIEW_FILL_COLOR
+      );
+      map.setPaintProperty(
+        PREVIEW_FILL_LAYER_ID,
+        "fill-opacity",
+        PREVIEW_FILL_OPACITY
+      );
+    }
+    if (map.getLayer(PREVIEW_LINE_LAYER_ID)) {
+      map.setPaintProperty(
+        PREVIEW_LINE_LAYER_ID,
+        "line-color",
+        PREVIEW_LINE_COLOR
+      );
+      map.setPaintProperty(
+        PREVIEW_LINE_LAYER_ID,
+        "line-width",
+        PREVIEW_LINE_WIDTH
+      );
+    }
     return;
   }
 
   map.addSource(PREVIEW_SOURCE_ID, { type: "geojson", data });
-  // Match the geoportal Leaflet preview polygon exactly: black hairline
-  // outline (color: black, weight: 1) over a black fill at Leaflet's default
-  // polygon fill-opacity of 0.2 (fillColor defaults to the stroke color, and
-  // the fill doubles as the drag hit area).
   map.addLayer({
     id: PREVIEW_FILL_LAYER_ID,
     type: "fill",
     source: PREVIEW_SOURCE_ID,
     paint: {
-      "fill-color": "#000000",
-      "fill-opacity": 0.2,
+      "fill-color": PREVIEW_FILL_COLOR,
+      "fill-opacity": PREVIEW_FILL_OPACITY,
     },
   });
   map.addLayer({
@@ -220,8 +251,8 @@ export const ensureRectLayers = (
     type: "line",
     source: PREVIEW_SOURCE_ID,
     paint: {
-      "line-color": "#000000",
-      "line-width": 1,
+      "line-color": PREVIEW_LINE_COLOR,
+      "line-width": PREVIEW_LINE_WIDTH,
     },
   });
 };
