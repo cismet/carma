@@ -103,10 +103,10 @@
    eats pointer events. Hidden by default; the viewer shows it on the ground. */
 .carma-pano-cursor-arrow {
   position: fixed;
-  width: 46px;
-  height: 46px;
-  margin-left: -23px;
-  margin-top: -23px;
+  width: 92px;
+  height: 92px;
+  margin-left: -46px;
+  margin-top: -46px;
   z-index: 100002;
   pointer-events: none;
   opacity: 0;
@@ -148,10 +148,10 @@
    Never eats pointer events; faded in/out from JS by toggling opacity. */
 .carma-pano-back-cursor {
   position: fixed;
-  width: 46px;
-  height: 46px;
-  margin-left: -23px;
-  margin-top: -23px;
+  width: 92px;
+  height: 92px;
+  margin-left: -46px;
+  margin-top: -46px;
   z-index: 100003;
   pointer-events: none;
   opacity: 0;
