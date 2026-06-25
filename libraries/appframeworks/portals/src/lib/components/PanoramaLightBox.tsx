@@ -133,6 +133,10 @@ export const PanoramaLightBox = ({
   const containerRef = useRef<HTMLDivElement>(null);
   // The Street-View-style arrow that follows the cursor on the ground.
   const cursorArrowRef = useRef<HTMLDivElement>(null);
+  // A DOM "back" arrow that replaces the native cursor over the go-back zone.
+  // (An SVG image cursor renders blank in Chrome, so we draw our own and hide
+  // the real cursor there — same approach as the ground cursor arrow above.)
+  const backCursorRef = useRef<HTMLDivElement>(null);
   // Held in refs so changing their identity never re-runs the init effect.
   // onYawChange is read live each frame; hotspots / initialYaw are read when a
   // scene is (re)built on a hop.
@@ -495,6 +499,58 @@ export const PanoramaLightBox = ({
         className="carma-panorama-lightbox__viewer"
         style={{ width: "100%", height: "100%" }}
       />
+      {onPrevious && (
+        // "Go back" hit zone pinned to the bottom centre (over the survey
+        // vehicle, where the road behind you is): the pano behind you is
+        // otherwise only reachable with the ArrowDown key or by panning 180°.
+        // The zone itself is invisible; the only feedback is the native cursor
+        // being replaced by a downward "back" arrow (backCursorRef) while you
+        // hover it. Clicking mirrors ArrowDown (onPrevious). It sits outside the
+        // viewer container, so its click never reaches the viewer-level capture
+        // handlers (no double navigation).
+        <>
+          <button
+            type="button"
+            onClick={() => onPreviousRef.current?.()}
+            onMouseEnter={(e) => {
+              const c = backCursorRef.current;
+              if (!c) return;
+              c.style.left = `${e.clientX}px`;
+              c.style.top = `${e.clientY}px`;
+              c.style.opacity = "1";
+            }}
+            onMouseMove={(e) => {
+              const c = backCursorRef.current;
+              if (!c) return;
+              c.style.left = `${e.clientX}px`;
+              c.style.top = `${e.clientY}px`;
+            }}
+            onMouseLeave={() => {
+              const c = backCursorRef.current;
+              if (c) c.style.opacity = "0";
+            }}
+            aria-label="Zurück zur vorherigen Position"
+            className="carma-pano-back-btn"
+          />
+          <div
+            ref={backCursorRef}
+            className="carma-pano-back-cursor"
+            aria-hidden="true"
+          >
+            <svg viewBox="0 0 32 32">
+              {/* Same chevron as the ground cursor arrow, pointing down (back). */}
+              <path
+                d="M6 12 L16 22 L26 12"
+                fill="none"
+                stroke="#ffffff"
+                strokeWidth={6}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+        </>
+      )}
       <div
         ref={cursorArrowRef}
         className="carma-pano-cursor-arrow"
