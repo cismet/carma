@@ -154,7 +154,7 @@ export const additionalLayerConfigs: Record<string, LayerEntry> = {
   // need to import bottstrap and cismap in main.tsx for this one to work, so leaving it out for now
 };
 
-/** Leuchten data layer, always visible */
+/** Leuchten (all map features) data layer, always visible */
 export const BELIS_STYLE_URL = "https://tiles.cismet.de/belis/styleY.json";
 /**
  * Style used for printing. The on-screen styleY draws features white (for the
@@ -173,6 +173,9 @@ export const leuchtenDataLayer: LibreLayer = {
 
 /** Experimental "brand new features" data layer (GeoJSON-backed style).
  * Toggleable in local dev only. */
+export const BELIS_BRAND_NEW_PRINT_STYLE_URL =
+  "https://tiles.cismet.de/belis/brand.new.features.print.style.json";
+
 export const BELIS_BRAND_NEW_STYLE_URL =
   "https://tiles.cismet.de/belis/brand.new.features.style.json";
 // BELIS_BRAND_NEW_FC_URL lives in constants/belis.ts (centralized service link).

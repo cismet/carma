@@ -19,10 +19,22 @@ import type { LibreLayer } from "@carma-mapping/engines/maplibre";
 import {
   additionalLayerConfigs,
   backgroundLayerConfigs,
+  BELIS_BRAND_NEW_STYLE_URL,
   BELIS_PRINT_STYLE_URL,
+  BELIS_BRAND_NEW_PRINT_STYLE_URL,
   BELIS_STYLE_URL,
+  brandNewDataLayer,
   leuchtenDataLayer,
 } from "../config/mapLayerConfigs";
+
+// On-screen style URL → its print-server variant. The on-screen styles draw
+// features for the dark map and/or use feature-state expressions the print
+// WMS cannot evaluate; the *.print.* variants are the colored, server-renderable
+// counterparts registered on tsgl4printing-wms.
+const PRINT_STYLE_OVERRIDES: Record<string, string> = {
+  [BELIS_STYLE_URL]: BELIS_PRINT_STYLE_URL,
+  [BELIS_BRAND_NEW_STYLE_URL]: BELIS_BRAND_NEW_PRINT_STYLE_URL,
+};
 
 const toInputLayer = (
   layer: LibreLayer,
@@ -38,21 +50,19 @@ const toInputLayer = (
         layers: layer.layers,
         opacity: layer.opacity ?? fallbackOpacity,
       };
-    case "vector":
+    case "vector": {
+      const printingStyle = PRINT_STYLE_OVERRIDES[layer.style];
       return {
         visible: true,
         layerType: "vector",
         style: layer.style,
         props: { style: layer.style },
         opacity: layer.opacity ?? fallbackOpacity,
-        // The on-screen styleY draws features white (for the dark map), so they
-        // vanish on the white print page. getPrintLayers prefers conf.printingStyle,
-        // so print the colored style.json variant (-> WMS layer "belis-style").
-        conf:
-          layer.style === BELIS_STYLE_URL
-            ? { printingStyle: BELIS_PRINT_STYLE_URL }
-            : undefined,
+        // getPrintLayers prefers conf.printingStyle over the on-screen style.
+        // See PRINT_STYLE_OVERRIDES above for the mapping rationale.
+        conf: printingStyle ? { printingStyle } : undefined,
       };
+    }
     // geojson / cog layers have no MapFish equivalent here.
     default:
       return null;
@@ -105,6 +115,10 @@ export const buildBelisPrintLayers = (params: {
       additionalLayerOpacities[key] ?? 1
     );
   }
+
+  // Brand-new features draw under Leuchten (matches the on-screen z-order:
+  // the brandnew layer is attached below the leuchten-selection layer).
+  pushEntry(brandNewDataLayer, 1);
 
   // Always-on Leuchten data layer (vector styleY) renders on top.
   pushEntry(leuchtenDataLayer, 1);
