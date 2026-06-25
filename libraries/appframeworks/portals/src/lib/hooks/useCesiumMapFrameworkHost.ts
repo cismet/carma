@@ -138,7 +138,14 @@ export const useCesiumMapFrameworkHost = ({
     isSyncEnabled: Boolean(cesiumScene),
     isCommitEnabled: isCesium && initialViewApplied && isCommitEnabled,
   });
-  const { commitCurrentSceneState } = bridge;
+  const { commitCurrentSceneState, reduceToTopDownView } = bridge;
+
+  // Handover to 2D: the cesium writer drops its own 3D-only hash keys, then the
+  // app's before-leaflet step runs. lat/lng/zoom are left for the 2D map to own.
+  const handleBeforeTransitionToLeaflet = useCallback(() => {
+    reduceToTopDownView();
+    return onBeforeTransitionToLeaflet?.();
+  }, [reduceToTopDownView, onBeforeTransitionToLeaflet]);
 
   // Host owns all switcher transition callbacks. force:true on the post-transition
   // commit bypasses suppressCommitsUntilInteraction.
@@ -149,14 +156,14 @@ export const useCesiumMapFrameworkHost = ({
         commitCurrentSceneState("transition-complete", { force: true });
       },
       onBeforeTransitionToCesium,
-      onBeforeTransitionToLeaflet,
+      onBeforeTransitionToLeaflet: handleBeforeTransitionToLeaflet,
     });
   }, [
     allow3d,
     commitCurrentSceneState,
     ensureCesiumReadyForTransition,
     onBeforeTransitionToCesium,
-    onBeforeTransitionToLeaflet,
+    handleBeforeTransitionToLeaflet,
     registerCallbacks,
   ]);
 

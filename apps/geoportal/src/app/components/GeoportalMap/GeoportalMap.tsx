@@ -494,7 +494,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
         return isInitialCameraResolved;
       },
       labels: {
-        clearCesium: "GPM:2D:clearCesium",
         writeLeafletLike: "GPM:2D:writeLocation",
         topicMapLocation: "GPM:TopicMap:locationChangedHandler",
         cesiumScene: "GPM:3D",

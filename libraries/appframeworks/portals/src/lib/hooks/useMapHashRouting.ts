@@ -28,7 +28,6 @@ export type LatLngZoom = { lat: number; lng: number; zoom: number };
 export type CesiumSceneChangeEvent = { hashParams: HashParams };
 
 type Labels = {
-  clearCesium?: string;
   writeLeafletLike?: string;
   topicMapLocation?: string;
   cesiumScene?: string;
@@ -162,10 +161,7 @@ export function useMapHashRouting({
       updateHashState(
         { lat, lng, zoom },
         {
-          clearStateKeySetIds: [
-            HASH_CLEAR_STATE_KEY_SET.SCENE_VIEW_STATE,
-            HASH_CLEAR_STATE_KEY_SET.LAUNCH_MODE,
-          ],
+          clearStateKeySetIds: [HASH_CLEAR_STATE_KEY_SET.LAUNCH_MODE],
           clearStateKeys: resolvedAdditionalClearStateKeys,
           label: labels?.topicMapLocation ?? "Map:2D:location",
           replace: false,
@@ -215,17 +211,8 @@ export function useMapHashRouting({
         prevIsModeLeafletLikeRef.current = isLeafletLike;
         return;
       }
-      // Replace current entry to clear 3D-specific state
-      updateHashState(undefined, {
-        clearStateKeySetIds: [
-          HASH_CLEAR_STATE_KEY_SET.SCENE_VIEW_STATE,
-          HASH_CLEAR_STATE_KEY_SET.LAUNCH_MODE,
-        ],
-        clearStateKeys: resolvedAdditionalClearStateKeys,
-        label: labels?.clearCesium ?? "Map:2D:clearCesium",
-        replace: true,
-      });
-      // Then push current 2D location
+      // Write the current 2D location. The cesium writer drops its own 3D-only
+      // keys on handover (neutralize), so the routing leaves them alone here.
       const map = getLeafletMap?.();
       if (
         map &&
@@ -251,8 +238,6 @@ export function useMapHashRouting({
     updateHashState,
     getLeafletMap,
     getLeafletZoom,
-    resolvedAdditionalClearStateKeys,
-    labels?.clearCesium,
     labels?.writeLeafletLike,
     isHashWriteEnabled,
   ]);

@@ -30,6 +30,13 @@ vi.mock("@carma-providers/hash-state", () => ({
   HASH_CLEAR_STATE_KEY_SET: {
     SCENE_VIEW_STATE: "scene-view-state",
   },
+  SCENE_VIEW_STATE_THREE_D_ONLY_HASH_PARAMS: [
+    "altitude",
+    "bearing",
+    "pitch",
+    "roll",
+    "fov",
+  ],
   useHashState: () => ({
     getHashStateValues: () => currentHashParams,
     registerOnPopState: () => () => {
