@@ -20,9 +20,7 @@ export const FLOODINGMAP_TERRAIN_PROVIDER_IDS = {
   DSM_MESH_2024_1M: "dsm-mesh-2024-1m",
 } as const;
 
-// One Cesium terrain provider per flood-simulation water surface. These are
-// toggled at runtime by switching the active scene style (see store.config +
-// useFloodingSceneStyleSync) — the scene-style id equals the HGK provider id.
+// One terrain provider per flood-simulation water surface; scene-style id equals the HGK provider id.
 const FLOOD_TERRAIN_PROVIDERS: Record<string, { url: string }> =
   Object.fromEntries(
     Object.entries(HGK_TERRAIN_PROVIDER_URLS).map(([id, url]) => [id, { url }])
@@ -54,8 +52,7 @@ export const CESIUM_CONFIG: CesiumConfig = {
   pathName: CESIUM_PATHNAME,
   providerConfig: {
     terrainProviders: {
-      // Base ground (DGM) + surface (DOM/DSM) providers used for marker and
-      // selection elevation sampling; not the visible flood surface.
+      // Ground/surface providers for elevation sampling; not the visible flood surface.
       [FLOODINGMAP_TERRAIN_PROVIDER_IDS.TERRAIN_2020]: WUPP_TERRAIN_PROVIDER,
       [FLOODINGMAP_TERRAIN_PROVIDER_IDS.DSM_MESH_2024_1M]:
         WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,

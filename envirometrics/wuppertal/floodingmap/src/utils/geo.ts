@@ -23,3 +23,6 @@ export const getWebMercatorInWGS84 = ([x, y]: [number, number]) => {
     lon: coords[0],
   };
 };
+
+/** Snap a (web-mercator) coordinate to the 1m grid for stable hash values. */
+export const floorToMeterGrid = (value: number): number => Math.floor(value);
