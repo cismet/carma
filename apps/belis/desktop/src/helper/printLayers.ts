@@ -6,7 +6,10 @@
 //   - vector      -> tgl4printing WMS keyed by getStyleName(style)
 //
 // NOTE: the tgl4printing service must actually host a style matching
-// getStyleName() for a vector layer to print (e.g. styleY.json -> "belis-styleY").
+// getStyleName() for a vector layer to print. The Leuchten layer's on-screen
+// styleY draws features white (for the dark map) and is therefore invisible on
+// the white print page, so we print via conf.printingStyle = style.json, which
+// getStyleName maps to the colored "belis-style" registered on tgl4printing.
 // Those endpoints are not verified here — this is the documented best-effort
 // pass; layers the service does not know about simply come back blank.
 
@@ -16,6 +19,8 @@ import type { LibreLayer } from "@carma-mapping/engines/maplibre";
 import {
   additionalLayerConfigs,
   backgroundLayerConfigs,
+  BELIS_PRINT_STYLE_URL,
+  BELIS_STYLE_URL,
   leuchtenDataLayer,
 } from "../config/mapLayerConfigs";
 
@@ -40,6 +45,13 @@ const toInputLayer = (
         style: layer.style,
         props: { style: layer.style },
         opacity: layer.opacity ?? fallbackOpacity,
+        // The on-screen styleY draws features white (for the dark map), so they
+        // vanish on the white print page. getPrintLayers prefers conf.printingStyle,
+        // so print the colored style.json variant (-> WMS layer "belis-style").
+        conf:
+          layer.style === BELIS_STYLE_URL
+            ? { printingStyle: BELIS_PRINT_STYLE_URL }
+            : undefined,
       };
     // geojson / cog layers have no MapFish equivalent here.
     default:

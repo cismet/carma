@@ -156,6 +156,12 @@ export const additionalLayerConfigs: Record<string, LayerEntry> = {
 
 /** Leuchten data layer, always visible */
 export const BELIS_STYLE_URL = "https://tiles.cismet.de/belis/styleY.json";
+/**
+ * Style used for printing. The on-screen styleY draws features white (for the
+ * dark map background), which are invisible on the white print page; style.json
+ * is the colored variant (registered as `belis-style` on tsgl4printing-wms).
+ */
+export const BELIS_PRINT_STYLE_URL = "https://tiles.cismet.de/belis/style.json";
 export const BELIS_ORIGINAL_SOURCE = "belis-source";
 
 export const leuchtenDataLayer: LibreLayer = {
