@@ -70,6 +70,22 @@ describe("routing launch-mode helpers", () => {
       readHashLaunchMode({ lat: "51.27", lng: "7.20", zoom: "16", h: "nope" })
     ).toBe(HASH_LAUNCH_MODE.TWO_D);
   });
+
+  it("uses injected altitudeKeys (codec-provided) for the 3d switch", () => {
+    expect(isThreeDViewHash({ elev: "300" }, { altitudeKeys: ["elev"] })).toBe(
+      true
+    );
+    // the default key is not recognized once a custom codec mapping is injected
+    expect(isThreeDViewHash({ h: "300" }, { altitudeKeys: ["elev"] })).toBe(
+      false
+    );
+    expect(
+      readHashLaunchMode(
+        { lat: "51", lng: "7", zoom: "16", elev: "300" },
+        { altitudeKeys: ["elev"] }
+      )
+    ).toBe(HASH_LAUNCH_MODE.THREE_D);
+  });
 });
 
 describe("hash value helpers", () => {
