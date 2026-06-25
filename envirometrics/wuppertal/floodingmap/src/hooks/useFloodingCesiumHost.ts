@@ -3,6 +3,7 @@ import { useCallback, useContext, useEffect } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import { useCesiumMapFrameworkHost } from "@carma-appframeworks/portals";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { useCesiumContext } from "@carma-mapping/engines/cesium/react/runtime";
 
 import { FLOODINGMAP_TERRAIN_PROVIDER_IDS } from "../config/cesium/cesium.config";
@@ -23,6 +24,7 @@ type CesiumRuntimeCreditContainer = {
 export const useFloodingCesiumHost = (allow3d: boolean) => {
   const ctx = useCesiumContext();
   const { getTerrainProviderById, getSurfaceProvider } = ctx;
+  const { isTransitioning } = useMapFrameworkSwitcherContext();
   const { routedMapRef: routedMap } =
     useContext<typeof TopicMapContext>(TopicMapContext);
 
@@ -46,6 +48,10 @@ export const useFloodingCesiumHost = (allow3d: boolean) => {
       getLeafletMap,
       getCesiumTerrainProviders,
       allow3d,
+      // Disable scene-state commits while a framework transition is in progress, so
+      // the cesium morph/settle can't re-write the 3D hash keys (h, …) after the
+      // handover cleared them. Mirrors geoportal's isCommitEnabled gate.
+      isCommitEnabled: !isTransitioning,
     });
 
   // Hide the default Cesium ion credit container (no ion resource).
