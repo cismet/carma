@@ -17,9 +17,7 @@ import {
   WATER_CESIUM_COLOR,
 } from "./cesium.config";
 
-// Shared look for every flood scene style: a translucent water-surface globe
-// over a dim-grey background, with the 3D mesh drawn on top (depth test off so
-// it stays visible through the water). Replaces the former prepareSceneForHGK.
+// Shared look for flood scene styles: translucent water globe with the mesh drawn on top (depth test off).
 const FLOOD_STYLE_LIVE = {
   scene: {
     backgroundColor: colorToConstructorArgs(Color.DIMGREY),
@@ -45,15 +43,7 @@ const FLOOD_STYLE_TILESETS = [
   },
 ] as const;
 
-/**
- * Build a flood scene style for a given flood water-surface terrain provider.
- *
- * Selecting a simulation / HW-Schutz combination creates a fresh style with
- * that terrain (see useFloodingSceneStyleSync) and hands the object to
- * setCurrentSceneStyle; the runtime scene-style orchestration then diffs it
- * against the previous style and applies the delta — the same flow the main
- * app uses, instead of an imperative scene.terrainProvider swap.
- */
+/** Build a flood scene style for a given flood water-surface terrain provider. */
 export const createFloodingSceneStyle = (
   terrainProviderId: string
 ): SceneStyle => ({
@@ -66,8 +56,7 @@ export const createFloodingSceneStyle = (
   },
 });
 
-// Initial flood surface: simulation 0 + HW-Schutz on (the default control
-// state, from App.tsx hochwasserschutz useState(true)).
+// Initial flood surface: simulation 0 + HW-Schutz on (matches App.tsx default).
 const DEFAULT_TERRAIN_PROVIDER_ID = HGK_KEYS[0].hws;
 
 export const defaultCesiumState: CesiumState = {
@@ -82,8 +71,7 @@ export const defaultCesiumState: CesiumState = {
     maximumZoomDistance: 50000,
     minimumZoomDistance: 25,
   },
-  // One registered style so the first paint has a valid config; subsequent
-  // selections create ad-hoc styles via createFloodingSceneStyle.
+  // One registered style for first paint; later selections create ad-hoc styles via createFloodingSceneStyle.
   sceneStyles: {
     [DEFAULT_TERRAIN_PROVIDER_ID]: createFloodingSceneStyle(
       DEFAULT_TERRAIN_PROVIDER_ID
