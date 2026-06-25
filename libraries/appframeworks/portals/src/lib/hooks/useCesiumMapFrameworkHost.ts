@@ -40,7 +40,6 @@ export type UseCesiumMapFrameworkHostOptions = {
 export type CesiumMapFrameworkHost = CesiumNavigationBridgeHandle & {
   shouldMountCesium: boolean;
   handleCesiumHostChange: (state: CesiumHostState) => void;
-  isCesiumRuntimeReady: boolean;
 };
 
 /**
@@ -76,11 +75,6 @@ export const useCesiumMapFrameworkHost = ({
     );
   }, []);
 
-  // Container is implied by isRuntimeReady; kept to match geoportal's tested gate.
-  const isCesiumRuntimeReady = Boolean(
-    cesiumScene && isRuntimeReady && cesiumContainerElement
-  );
-
   const getCesiumContainer = useCallback(
     () => cesiumContainerElement,
     [cesiumContainerElement]
@@ -101,7 +95,7 @@ export const useCesiumMapFrameworkHost = ({
   }, [allow3d, isCesium, shouldMountCesium]);
 
   useEffect(() => {
-    if (!isCesiumRuntimeReady) {
+    if (!isRuntimeReady) {
       return;
     }
 
@@ -114,14 +108,14 @@ export const useCesiumMapFrameworkHost = ({
     cesiumReadyResolversRef.current = [];
     cesiumReadyPromiseRef.current = null;
     resolvers.forEach((resolve) => resolve());
-  }, [isCesiumRuntimeReady]);
+  }, [isRuntimeReady]);
 
   const ensureCesiumReadyForTransition = useCallback(() => {
     if (!allow3d) {
       return Promise.reject(new Error("3D is disabled for the current app."));
     }
 
-    if (isCesiumRuntimeReady) {
+    if (isRuntimeReady) {
       return Promise.resolve();
     }
 
@@ -136,7 +130,7 @@ export const useCesiumMapFrameworkHost = ({
     });
 
     return cesiumReadyPromiseRef.current;
-  }, [allow3d, isCesiumRuntimeReady]);
+  }, [allow3d, isRuntimeReady]);
 
   const bridge = useCesiumNavigationBridge({
     id: viewAdapterId,
@@ -170,6 +164,5 @@ export const useCesiumMapFrameworkHost = ({
     ...bridge,
     shouldMountCesium,
     handleCesiumHostChange,
-    isCesiumRuntimeReady,
   };
 };
