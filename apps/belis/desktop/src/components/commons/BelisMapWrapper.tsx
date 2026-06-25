@@ -21,6 +21,7 @@ import {
   getAdditionalLayerOpacities,
   isInPaleMode,
   getEnabledLeitungstypen,
+  getEnabledCategoryFilters,
   isSnappingEnabled,
   setSnappingEnabled,
 } from "../../store/slices/mapSettings";
@@ -354,6 +355,7 @@ const BelisMapLibWrapper = ({
   const jwt = useSelector(getJWT);
   const featureDataVersion = useSelector(getFeatureDataVersion);
   const enabledLeitungstypen = useSelector(getEnabledLeitungstypen);
+  const enabledCategoryFilters = useSelector(getEnabledCategoryFilters);
   const keyTablesData = useSelector(getKeyTablesData);
   const reduxSelectedFeature = useSelector(getReduxSelectedFeature);
   const measurements = useSelector(getMeasurements);
@@ -517,12 +519,27 @@ const BelisMapLibWrapper = ({
         backgroundLayerOpacities,
         activeAdditionalLayers,
         additionalLayerOpacities,
+        // Print mirrors the on-map filters: only visible categories /
+        // Leitungstypen / sources are printed.
+        enabledCategoryFilters,
+        enabledLeitungstypen,
+        leitungstypen: (keyTablesData.leitungstyp || []) as {
+          id: number;
+          bezeichnung?: string;
+        }[],
+        regularEnabled: regularLayerEnabled,
+        brandnewEnabled: brandnewLayerEnabled,
       }),
     [
       activeBackgroundLayer,
       backgroundLayerOpacities,
       activeAdditionalLayers,
       additionalLayerOpacities,
+      enabledCategoryFilters,
+      enabledLeitungstypen,
+      keyTablesData.leitungstyp,
+      regularLayerEnabled,
+      brandnewLayerEnabled,
     ]
   );
 
