@@ -80,6 +80,13 @@ import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import { useAuth } from "@carma-providers/auth";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 import { getLayers as getBackgroundLayers } from "@carma-appframeworks/portals";
+import { CarmaMap } from "@carma-mapping/core";
+import { useLibreContext } from "@carma-mapping/contexts";
+import {
+  MeasurementHost,
+  MeasurementInfoBox,
+  useMeasurements,
+} from "@carma-mapping/measurements";
 
 import FeatureInfoBox from "../feature-info/FeatureInfoBox.tsx";
 import PrintPreview from "../map-print/PrintPreview.tsx";
@@ -96,6 +103,8 @@ import { useFeatureInfoModeCursorStyle } from "../../hooks/useFeatureInfoModeCur
 import { useObliqueInitializer } from "../../oblique/hooks/useObliqueInitializer.ts";
 import { useCameraOrbit } from "../../hooks/useCameraOrbit.ts";
 import { useGeoportalInitialValues } from "../../hooks/useGeoportalInitialValues.ts";
+import useLibreLayers from "../../hooks/libre/useLibreLayers.ts";
+import { useLibreMapSelectionHandler } from "../../hooks/libre/useLibreMapClickHandler.ts";
 
 import { onClickTopicMap } from "./topicmap.utils.ts";
 import { useGeoportalCesiumNavigationRestore } from "./hooks/useGeoportalCesiumNavigationRestore.ts";
@@ -125,6 +134,7 @@ import {
   getUIMapInteractionEnabled,
   getUIVisibleControls,
 } from "../../store/slices/ui.ts";
+import { getLibreDrawMode } from "../../store/slices/measurements.ts";
 
 import LoginForm from "../LoginForm.tsx";
 import { useModelSelectionDispatcher } from "../../hooks/useModelSelectionDispatcher.ts";
@@ -238,7 +248,7 @@ const buildFlyToBoundingSphereOptions = (minRange: number) => ({
   paddingFactor: FLY_TO_BOUNDING_SPHERE_PADDING_FACTOR,
 });
 
-export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
+const LeafletGeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const dispatch = useDispatch();
   const { activeToolType, selectedAnnotationId, setSelectedAnnotationId } =
     useAnnotationsRuntime();
@@ -303,7 +313,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const showHamburgerMenu = useSelector(getShowHamburgerMenu);
   const selectedFeature = useSelector(getSelectedFeature);
   const loadingFeatureInfo = useSelector(getLoading);
-  const { jwt, setJWT } = useAuth();
   const {
     selectedFeature: selectedAdhocFeature,
     clearSelectedFeature: clearSelectedAdhocFeature,
@@ -349,16 +358,12 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     [routedMapRef]
   );
 
-  const { setAppMenuVisible } =
-    useContext<typeof UIDispatchContext>(UIDispatchContext);
-  const { setSecondaryWithKey, showOverlayHandler } = useOverlayTourContext();
   const {
     homeValidationCenter,
     initialCameraView: cesiumInitialCameraView,
     isInitialCameraResolved,
   } = useGeoportalInitialValues();
 
-  const [isLoginFormVisible, setIsLoginFormVisible] = useState(false);
   const markerRef = useRef(undefined);
   const markerAccentRef = useRef(undefined);
   const [pos, setPos] = useState<[number, number] | null>(null);
@@ -379,8 +384,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       setMaplibreMaps(maps);
     }
   }, [layers, layersIdle]);
-
-  const version = getApplicationVersion(versionData);
 
   // custom hooks
   const flags = useFeatureFlags();
@@ -914,15 +917,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     visibleControls.infoBox,
   ]);
 
-  const showOverlayFromOutside = useCallback(
-    (key: string) => {
-      setAppMenuVisible(false);
-      setSecondaryWithKey(key);
-      showOverlayHandler();
-    },
-    [setAppMenuVisible, setSecondaryWithKey, showOverlayHandler]
-  );
-
   useEffect(() => {
     if (shouldUpdateFeatureInfo || triggerFeatureInfoUpdate > 0)
       updateFeatureInfoLeaflet();
@@ -998,46 +992,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       >
         <TopicMapComponent
           gazData={gazData}
-          modalMenu={
-            <GenericModalApplicationMenu
-              {...getCollabedHelpComponentConfig({
-                versionString: version,
-                showOverlayFromOutside,
-                loginFormToggle: () =>
-                  setIsLoginFormVisible(!isLoginFormVisible),
-                isLoginFormVisible,
-                loginForm: (
-                  <LoginForm
-                    onSuccess={() => {
-                      setIsLoginFormVisible(false);
-                      setAppMenuVisible(false);
-                    }}
-                    closeLoginForm={() => setIsLoginFormVisible(false)}
-                  />
-                ),
-                loginFormTrigger: (
-                  <Tooltip
-                    title={jwt ? "Abmeldung" : "Anmeldung"}
-                    zIndex={99999999}
-                  >
-                    <Button
-                      type="text"
-                      onClick={() =>
-                        jwt
-                          ? setJWT(null)
-                          : setIsLoginFormVisible(!isLoginFormVisible)
-                      }
-                    >
-                      <FontAwesomeIcon
-                        icon={jwt ? faArrowRightFromBracket : faKey}
-                        size="lg"
-                      />
-                    </Button>
-                  </Tooltip>
-                ),
-              })}
-            />
-          }
+          modalMenu={<GeoportalModalMenu />}
           gazetteerSearchComponent={EmptySearchComponent}
           applicationMenuTooltipString={tooltipText}
           hamburgerMenu={showHamburgerMenu}
@@ -1209,6 +1164,110 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
         />
       )}
     </>
+  );
+};
+
+const GeoportalModalMenu = () => {
+  const { jwt, setJWT } = useAuth();
+  const { setAppMenuVisible } =
+    useContext<typeof UIDispatchContext>(UIDispatchContext);
+  const { setSecondaryWithKey, showOverlayHandler } = useOverlayTourContext();
+  const [isLoginFormVisible, setIsLoginFormVisible] = useState(false);
+  const version = getApplicationVersion(versionData);
+
+  const showOverlayFromOutside = useCallback(
+    (key: string) => {
+      setAppMenuVisible(false);
+      setSecondaryWithKey(key);
+      showOverlayHandler();
+    },
+    [setAppMenuVisible, setSecondaryWithKey, showOverlayHandler]
+  );
+
+  return (
+    <GenericModalApplicationMenu
+      {...getCollabedHelpComponentConfig({
+        versionString: version,
+        showOverlayFromOutside,
+        loginFormToggle: () => setIsLoginFormVisible(!isLoginFormVisible),
+        isLoginFormVisible,
+        loginForm: (
+          <LoginForm
+            onSuccess={() => {
+              setIsLoginFormVisible(false);
+              setAppMenuVisible(false);
+            }}
+            closeLoginForm={() => setIsLoginFormVisible(false)}
+          />
+        ),
+        loginFormTrigger: (
+          <Tooltip title={jwt ? "Abmeldung" : "Anmeldung"} zIndex={99999999}>
+            <Button
+              type="text"
+              onClick={() =>
+                jwt ? setJWT(null) : setIsLoginFormVisible(!isLoginFormVisible)
+              }
+            >
+              <FontAwesomeIcon
+                icon={jwt ? faArrowRightFromBracket : faKey}
+                size="lg"
+              />
+            </Button>
+          </Tooltip>
+        ),
+      })}
+    />
+  );
+};
+
+const LibreGeoportalMap = () => {
+  const { map: libreMap } = useLibreContext();
+  const libreLayers = useLibreLayers();
+  const uiMode = useSelector(getUIMode);
+  const isModeMeasurement = uiMode === UIMode.MEASUREMENT;
+  const libreDrawMode = useSelector(getLibreDrawMode);
+  const { selectedFeature: selectedMeasurement } = useMeasurements();
+  const {
+    pos,
+    onSelectionChanged: handleLibreSelectionChanged,
+    selectFromHits: handleLibreSelectFromHits,
+  } = useLibreMapSelectionHandler(libreMap);
+
+  return (
+    <>
+      <CarmaMap
+        appKey="geoportal"
+        mapEngine="maplibre"
+        backgroundLayers={null}
+        zoomControls={false}
+        fullScreenControl={false}
+        terrainControl={false}
+        libreLayers={libreLayers}
+        disableInternalSelection={true}
+        selectionEnabled={!isModeMeasurement}
+        onSelectionChanged={handleLibreSelectionChanged}
+        selectFromHits={handleLibreSelectFromHits}
+        modalMenu={<GeoportalModalMenu />}
+      />
+      {isModeMeasurement && <MeasurementHost mode={libreDrawMode} snapping />}
+      {isModeMeasurement || selectedMeasurement ? (
+        <MeasurementInfoBox selectionPadding={selectionPadding} />
+      ) : (
+        <FeatureInfoBox pos={pos ?? undefined} />
+      )}
+    </>
+  );
+};
+
+export const GeoportalMap = (props: MapProps) => {
+  const flags = useFeatureFlags();
+  const { isLeaflet } = useMapFrameworkSwitcherContext();
+  const useLibreMap = flags.featureFlagLibreMap && isLeaflet;
+
+  return useLibreMap ? (
+    <LibreGeoportalMap />
+  ) : (
+    <LeafletGeoportalMap {...props} />
   );
 };
 

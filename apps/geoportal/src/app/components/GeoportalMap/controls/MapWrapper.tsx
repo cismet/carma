@@ -1,16 +1,13 @@
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { isMobile } from "react-device-detect";
 import { useDispatch, useSelector } from "react-redux";
-import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 
-import { Button, Tooltip } from "antd";
+import { Tooltip } from "antd";
 
 import {
-  faArrowRightFromBracket,
   faEyeSlash,
   faHouseChimney,
   faInfo,
-  faKey,
   faMinus,
   faMountainCity,
   faPlus,
@@ -19,7 +16,6 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
-import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
 import {
   SelectionMapMode,
@@ -30,15 +26,8 @@ import {
 
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import type { SearchResultItem } from "@carma-mapping/fuzzy-search";
-import {
-  detectWebGLContext,
-  getApplicationVersion,
-} from "@carma-commons/utils";
+import { detectWebGLContext } from "@carma-commons/utils";
 import { ResponsiveStatusBar } from "@carma-commons/ui/components";
-import { useOverlayTourContext } from "@carma-commons/ui/helper-overlay";
-import { useAuth } from "@carma-providers/auth";
-import { CarmaMap } from "@carma-mapping/core";
-import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/geoportal";
 import {
   PitchingCompass,
   useCesiumContext,
@@ -62,7 +51,6 @@ import {
 } from "@carma-mapping/map-controls-layout";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 import { MeasurementControl } from "@carma-commons/measurements";
-import { MeasurementHost, useMeasurements } from "@carma-mapping/measurements";
 import { useLibreContext } from "@carma-mapping/contexts";
 
 import { GeoportalMap } from "../GeoportalMap.tsx";
@@ -70,8 +58,6 @@ import { ObliqueControls } from "../../../oblique/components/ObliqueControls.tsx
 import LayerWrapper from "../../layers/LayerWrapper.tsx";
 
 import useLeafletZoomControls from "../../../hooks/leaflet/useLeafletZoomControls.ts";
-import { useLibreMapSelectionHandler } from "../../../hooks/libre/useLibreMapClickHandler.ts";
-import { useLibreLayers } from "../../../hooks/libre/useLibreLayers.ts";
 import { useLibreTerrain } from "../../../hooks/libre/useLibreTerrain.ts";
 import { useDispatchSachdatenInfoText } from "../../../hooks/useDispatchSachdatenInfoText.ts";
 import { useFeatureInfoModeCursorStyle } from "../../../hooks/useFeatureInfoModeCursorStyle.ts";
@@ -108,11 +94,6 @@ import {
   toggleUIMode,
   UIMode,
 } from "../../../store/slices/ui.ts";
-import versionData from "../../../../version.json";
-import LoginForm from "../../LoginForm.tsx";
-import FeatureInfoBox from "../../feature-info/FeatureInfoBox.tsx";
-import { MeasurementInfoBox } from "@carma-mapping/measurements";
-import { selectionPadding } from "../../../constants/selection.ts";
 
 // detect GPU support, disables 3d mode if not supported
 let hasGPU = false;
@@ -154,7 +135,6 @@ const MapWrapper = () => {
 
   // State and Selectors
   const { map: libreMap } = useLibreContext();
-  const libreLayers = useLibreLayers();
 
   // Get framework switcher state from context
   const {
@@ -171,7 +151,6 @@ const MapWrapper = () => {
   const isModeMeasurement = uiMode === UIMode.MEASUREMENT;
   const isModeFeatureInfo = uiMode === UIMode.FEATURE_INFO;
   const libreDrawMode = useSelector(getLibreDrawMode);
-  const { selectedFeature: selectedMeasurement } = useMeasurements();
   const showFullscreenButton = useSelector(getShowFullscreenButton);
   const showLocatorButton = useSelector(getShowLocatorButton);
   const visibleControls = useSelector(getUIVisibleControls);
@@ -179,7 +158,6 @@ const MapWrapper = () => {
   const zenMode = useSelector(getZenMode);
   const ctx = useCesiumContext();
   const configSelection = useSelector(getConfigSelection);
-  const version = getApplicationVersion(versionData);
 
   const {
     isObliqueMode,
@@ -240,28 +218,7 @@ const MapWrapper = () => {
   const { routedMapRef: routedMap } =
     useContext<typeof TopicMapContext>(TopicMapContext);
 
-  const { setAppMenuVisible } =
-    useContext<typeof UIDispatchContext>(UIDispatchContext);
-  const { setSecondaryWithKey, showOverlayHandler } = useOverlayTourContext();
-  const { jwt, setJWT } = useAuth();
-
-  const [isLoginFormVisible, setIsLoginFormVisible] = useState(false);
   const { isTerrainEnabled, toggleTerrain } = useLibreTerrain(libreMap);
-
-  const {
-    pos,
-    onSelectionChanged: handleLibreSelectionChanged,
-    selectFromHits: handleLibreSelectFromHits,
-  } = useLibreMapSelectionHandler(libreMap);
-
-  const showOverlayFromOutside = useCallback(
-    (key: string) => {
-      setAppMenuVisible(false);
-      setSecondaryWithKey(key);
-      showOverlayHandler();
-    },
-    [setAppMenuVisible, setSecondaryWithKey, showOverlayHandler]
-  );
 
   const [zenButtonHidden, setZenButtonHidden] = useState(false);
   const [isHoveringZenButton, setIsHoveringZenButton] = useState(false);
@@ -597,13 +554,6 @@ const MapWrapper = () => {
           )}
         </div>
       )}
-      {showLibreMap &&
-        isLeaflet &&
-        (isModeMeasurement || selectedMeasurement ? (
-          <MeasurementInfoBox selectionPadding={selectionPadding} />
-        ) : (
-          <FeatureInfoBox pos={pos ?? undefined} />
-        ))}
       <ControlLayoutCanvas>
         <div
           id="mapContainer"
@@ -613,71 +563,8 @@ const MapWrapper = () => {
             marginTop: zenMode || !visibleControls.navbar ? "0px" : "-56px",
           }}
         >
-          {showLibreMap && isLeaflet ? (
-            <>
-              <CarmaMap
-                appKey="geoportal"
-                mapEngine="maplibre"
-                backgroundLayers={null}
-                zoomControls={false}
-                fullScreenControl={false}
-                terrainControl={false}
-                libreLayers={libreLayers}
-                disableInternalSelection={true}
-                selectionEnabled={!isModeMeasurement}
-                onSelectionChanged={handleLibreSelectionChanged}
-                selectFromHits={handleLibreSelectFromHits}
-                modalMenu={
-                  <GenericModalApplicationMenu
-                    {...getCollabedHelpComponentConfig({
-                      versionString: version,
-                      showOverlayFromOutside,
-                      loginFormToggle: () =>
-                        setIsLoginFormVisible(!isLoginFormVisible),
-                      isLoginFormVisible,
-                      loginForm: (
-                        <LoginForm
-                          onSuccess={() => {
-                            setIsLoginFormVisible(false);
-                            setAppMenuVisible(false);
-                          }}
-                          closeLoginForm={() => setIsLoginFormVisible(false)}
-                        />
-                      ),
-                      loginFormTrigger: (
-                        <Tooltip
-                          title={jwt ? "Abmeldung" : "Anmeldung"}
-                          zIndex={99999999}
-                        >
-                          <Button
-                            type="text"
-                            onClick={() =>
-                              jwt
-                                ? setJWT(null)
-                                : setIsLoginFormVisible(!isLoginFormVisible)
-                            }
-                          >
-                            <FontAwesomeIcon
-                              icon={jwt ? faArrowRightFromBracket : faKey}
-                              size="lg"
-                            />
-                          </Button>
-                        </Tooltip>
-                      ),
-                    })}
-                  />
-                }
-              />
-              {isModeMeasurement && (
-                <MeasurementHost mode={libreDrawMode} snapping />
-              )}
-            </>
-          ) : (
-            <>
-              <GeoportalMap height={height} width={width} allow3d={allow3d} />
-              {isCesium && <ObliqueControls hideControls={zenMode} />}
-            </>
-          )}
+          <GeoportalMap height={height} width={width} allow3d={allow3d} />
+          {isCesium && <ObliqueControls hideControls={zenMode} />}
         </div>
       </ControlLayoutCanvas>
       <div
