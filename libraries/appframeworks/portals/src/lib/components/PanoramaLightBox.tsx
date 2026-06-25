@@ -429,7 +429,7 @@ export const PanoramaLightBox = ({
       arrow.style.left = `${e.clientX}px`;
       arrow.style.top = `${e.clientY}px`;
       arrow.style.transform = `scaleY(${k}) rotate(${theta}deg)`;
-      arrow.style.opacity = "1";
+      arrow.style.opacity = "0.4";
     };
 
     const onMove = (e: MouseEvent) => {
@@ -517,7 +517,7 @@ export const PanoramaLightBox = ({
               if (!c) return;
               c.style.left = `${e.clientX}px`;
               c.style.top = `${e.clientY}px`;
-              c.style.opacity = "1";
+              c.style.opacity = "0.4";
             }}
             onMouseMove={(e) => {
               const c = backCursorRef.current;
