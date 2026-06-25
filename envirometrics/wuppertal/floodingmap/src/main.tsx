@@ -22,7 +22,10 @@ import {
 } from "@carma-mapping/components";
 import { CesiumContextProvider } from "@carma-mapping/engines/cesium/react/runtime";
 import { setupCesiumEnvironment } from "@carma-mapping/engines/cesium/core";
-import { HashStateProvider } from "@carma-providers/hash-state";
+import {
+  HashStateProvider,
+  SCENE_VIEW_STATE_ALTITUDE_HASH_KEYS,
+} from "@carma-providers/hash-state";
 
 import App from "./App";
 import { SYNC_TOKEN } from "./config/app.config";
@@ -49,6 +52,9 @@ detectWebGLContext((flag) => {
 const readInitialFrameworkFromHash = (): CarmaMapFramework => {
   const mode = resolveHashLaunchMode(getHashParams(), {
     defaultMode: hasWebGL ? HASH_LAUNCH_MODE.THREE_D : HASH_LAUNCH_MODE.TWO_D,
+    // Wire the codec's altitude key(s) into the 3D check so this app — not the
+    // shared util — owns the codec coupling.
+    altitudeKeys: SCENE_VIEW_STATE_ALTITUDE_HASH_KEYS,
   });
 
   return mode === HASH_LAUNCH_MODE.TWO_D
