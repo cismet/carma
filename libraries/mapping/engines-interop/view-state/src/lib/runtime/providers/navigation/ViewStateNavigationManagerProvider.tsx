@@ -128,7 +128,6 @@ export const ViewStateNavigationManagerProvider = ({
   const lastCommitSignatureRef = useRef<string | null>(null);
   const lastCommitReplaceRef = useRef<boolean>(replace);
   const lastCommitTimestampRef = useRef(0);
-  const hashWriteSuspensionCountRef = useRef(0);
   const navigationListenersRef = useRef<
     Set<(event: ViewStateNavigationEvent) => void>
   >(new Set());
@@ -191,10 +190,6 @@ export const ViewStateNavigationManagerProvider = ({
     ViewStateNavigationManagerContextValue["commitCurrentState"]
   >(
     (reason, options) => {
-      if (hashWriteSuspensionCountRef.current > 0) {
-        return false;
-      }
-
       if (isHashWriteEnabled && !isHashWriteEnabled()) {
         return false;
       }
@@ -271,30 +266,18 @@ export const ViewStateNavigationManagerProvider = ({
     ]
   );
 
-  const suspendHashWrites = useCallback((_reason?: string) => {
-    hashWriteSuspensionCountRef.current += 1;
-    return () => {
-      hashWriteSuspensionCountRef.current = Math.max(
-        0,
-        hashWriteSuspensionCountRef.current - 1
-      );
-    };
-  }, []);
-
   const value = useMemo<ViewStateNavigationManagerContextValue>(
     () => ({
       restoreState,
       isRestoreResolved,
       registerOnNavigationEvent,
       commitCurrentState,
-      suspendHashWrites,
     }),
     [
       commitCurrentState,
       isRestoreResolved,
       registerOnNavigationEvent,
       restoreState,
-      suspendHashWrites,
     ]
   );
 

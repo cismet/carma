@@ -221,5 +221,4 @@ export type ViewStateNavigationManagerContextValue = {
     reason: ViewStateNavigationCommitReason,
     options?: { replace?: boolean; force?: boolean }
   ): boolean;
-  suspendHashWrites(reason?: string): () => void;
 };
