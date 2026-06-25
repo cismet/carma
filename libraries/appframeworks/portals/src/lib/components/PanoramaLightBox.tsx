@@ -158,6 +158,11 @@ export const PanoramaLightBox = ({
   const viewerRef = useRef<PannellumViewer | null>(null);
   const rafRef = useRef(0);
   const sceneSeqRef = useRef(0);
+  // When true, the next hop resets the view to the forward (initial) yaw; set
+  // only when a cross dot is clicked directly. Otherwise a hop keeps the user's
+  // current view direction (the yaw frame is street-relative, so e.g. a sidewalk
+  // stays in view from pano to pano).
+  const resetViewOnNextHopRef = useRef(false);
   const hotspotElsRef = useRef<
     Array<{
       el: HTMLElement;
@@ -230,11 +235,18 @@ export const PanoramaLightBox = ({
       hotspotElsRef.current = hotspotEls;
 
       if (viewerRef.current) {
-        // Reuse: register the new pano and crossfade to it (open facing
-        // forward, level). loadScene no-ops until the first scene has loaded,
-        // which it has by the time the user can click a hotspot.
+        // Reuse: register the new pano and crossfade to it. Keep the user's
+        // current view direction across the hop (so they can follow e.g. a
+        // sidewalk from pano to pano); only a direct click on a cross dot resets
+        // the view to the forward (initial) yaw and level pitch. loadScene
+        // no-ops until the first scene has loaded, which it has by the time the
+        // user can navigate.
+        const reset = resetViewOnNextHopRef.current;
+        resetViewOnNextHopRef.current = false;
+        const hopYaw = reset ? initialYaw : viewerRef.current.getYaw();
+        const hopPitch = reset ? 0 : viewerRef.current.getPitch();
         viewerRef.current.addScene(sceneId, sceneConfig);
-        viewerRef.current.loadScene(sceneId, 0, initialYaw);
+        viewerRef.current.loadScene(sceneId, hopPitch, hopYaw);
         return;
       }
 
@@ -449,7 +461,15 @@ export const PanoramaLightBox = ({
       // Ignore the click that ends a drag-to-pan.
       if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > DRAG_PX) return;
       const best = nearestTo(e.clientX, e.clientY);
-      best?.entry.navigate?.();
+      if (!best) return;
+      // A direct click on a cross dot resets the next pano to the forward view;
+      // clicking elsewhere (which still jumps to the nearest dot) keeps the
+      // current view direction.
+      const target = e.target as Node | null;
+      resetViewOnNextHopRef.current = hotspotElsRef.current.some(
+        (h) => !!target && h.el.contains(target)
+      );
+      best.entry.navigate?.();
     };
 
     el.addEventListener("mousemove", onMove, true);
