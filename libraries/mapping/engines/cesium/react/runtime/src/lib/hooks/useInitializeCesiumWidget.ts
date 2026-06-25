@@ -37,7 +37,6 @@ import { validateWorldCoordinate } from "../utils/positions";
 import type { InitialCameraView } from "../CesiumHost";
 import type { CesiumWidgetConstructorOptions } from "../cesiumWidgetDefaults";
 
-// Type for storing position and orientation
 interface CameraState {
   position: Cartesian3;
   direction: Cartesian3;
@@ -246,7 +245,6 @@ export const useInitializeCesiumWidget = (
     ssccEnableCollisionDetection: enableCollisionDetection,
   } = useCesiumContext();
 
-  // Store camera position and orientation vectors
   const lastGoodCameraState = useRef<CameraState | null>(null);
 
   useEffect(
@@ -289,10 +287,8 @@ export const useInitializeCesiumWidget = (
         return;
       }
 
-      // Let the canvas track its container via CSS; Cesium's render loop
-      // sizes the drawing buffer to clientWidth/Height * devicePixelRatio.
-      // Do NOT set canvas.width/height here — that pins the buffer to CSS
-      // pixels and renders at low resolution on HiDPI/HDR displays.
+      // Do NOT set canvas.width/height here — that pins the drawing buffer to
+      // CSS pixels and renders at low resolution on HiDPI displays.
       runtime.canvas.style.width = "100%";
       runtime.canvas.style.height = "100%";
       runtime.resize();
@@ -316,9 +312,8 @@ export const useInitializeCesiumWidget = (
     runtimeRef,
   ]);
 
-  // override cesium default home
+  // Align Cesium's default home fallback with local home.
   useEffect(() => {
-    // align Cesium Default fallback with local home
     if (homeValidationCenter) {
       const { longitude, latitude } =
         Cartographic.fromCartesian(homeValidationCenter);
@@ -342,7 +337,6 @@ export const useInitializeCesiumWidget = (
     const containerViewport =
       containerEl && hostContainerSize ? hostContainerSize : null;
 
-    // Wait for providers to be ready before creating the Cesium runtime.
     if (!providersReady) {
       console.debug(
         "[CESIUM] HOOK: [CESIUM|INIT] Waiting for providers to be ready..."
@@ -358,7 +352,6 @@ export const useInitializeCesiumWidget = (
     }
 
     try {
-      // Reuse existing widget if it exists and isn't destroyed.
       if (isValidRuntime()) {
         console.debug(
           "[CESIUM] HOOK: [CESIUM|INIT] Reusing existing Cesium widget - no recreation needed"
@@ -370,10 +363,8 @@ export const useInitializeCesiumWidget = (
 
       const terrainProvider = getTerrainProvider();
 
-      // Create and configure Globe with initial style settings
       const globe = new Globe(Ellipsoid.WGS84);
 
-      // Set globe baseColor based on style
       const globeBaseColor =
         colorFromConstructorArgs(styleToUse?.live?.globe?.baseColor) ??
         Color.LIGHTGREY;
@@ -388,7 +379,6 @@ export const useInitializeCesiumWidget = (
           styleToUse.live.globe.translucency.backFaceAlpha ?? 1.0;
       }
 
-      // Merge initial configuration into widget options.
       const widgetOptions: CesiumWidgetConstructorOptions = {
         ...options,
         terrainProvider: terrainProvider || undefined,
@@ -415,7 +405,6 @@ export const useInitializeCesiumWidget = (
         ...(widgetOptions || {}),
       });
 
-      // Set scene background color immediately after creation
       if (widget.scene) {
         widget.scene.backgroundColor = backgroundColor;
         console.info(
@@ -448,13 +437,11 @@ export const useInitializeCesiumWidget = (
 
       runtimeRef.current = widget;
 
-      // Configure centralized error handling: suppress Cesium panel, don't crash ErrorBoundary by default, log warn
       configureCesiumErrorHandling(widget, {
         suppressErrorPanel: true,
         suppressErrorBoundaryForwarding: true,
         logLevel: "warn",
       });
-      // Initial state: not started determining yet
 
       const handlePostRender = () => {
         withScene((scene, widget) => {
@@ -477,7 +464,6 @@ export const useInitializeCesiumWidget = (
             maxZoom
           );
           if (isValidWorldCoordinate) {
-            // Save the camera position and orientation vectors
             lastGoodCameraState.current = {
               position: camera.positionWC.clone(),
               direction: camera.directionWC.clone(),
@@ -492,7 +478,6 @@ export const useInitializeCesiumWidget = (
               camera.positionCartographic,
               lastGoodCameraState.current
             );
-            // Restore camera position and orientation vectors
             camera.lookAtTransform(Matrix4.IDENTITY);
             camera.setView({
               destination: lastGoodCameraState.current.position,
@@ -514,6 +499,10 @@ export const useInitializeCesiumWidget = (
 
         scene.postRender.addEventListener(handlePostRender);
         postRenderHandlerMap.set(widget, handlePostRender);
+
+        // handlePostRender only runs on a requested render (requestRenderMode);
+        // request one now so readiness doesn't depend on another hook.
+        scene.requestRender();
       });
     } catch (error) {
       console.error("[CESIUM] Error initializing Cesium widget:", error);
@@ -593,7 +582,7 @@ export const useInitializeCesiumWidget = (
         "[CESIUM] HOOK: [CESIUM|CAMERA] Initial view already set, skipping."
       );
 
-      // Edge case: effect can re-run during startup; ensure the flag is eventually set.
+      // Effect can re-run during startup; ensure the flag is eventually set.
       if (!initialViewApplied) {
         let cancelled = false;
         (async () => {
@@ -625,7 +614,7 @@ export const useInitializeCesiumWidget = (
 
     let cancelled = false;
     let usedInitial = false;
-    // suspend camera limiters during the initial apply to avoid unintended corrections
+    // Suspend camera limiters during the initial apply.
     if (shouldSuspendCameraLimitersRef) {
       shouldSuspendCameraLimitersRef.current = true;
     }
@@ -686,7 +675,6 @@ export const useInitializeCesiumWidget = (
           : true;
         withCamera((camera, runtime) => {
           if (isValidDestination) {
-            // clear any non-identity transform to avoid offsets
             camera.lookAtTransform(Matrix4.IDENTITY);
             camera.setView({
               destination,

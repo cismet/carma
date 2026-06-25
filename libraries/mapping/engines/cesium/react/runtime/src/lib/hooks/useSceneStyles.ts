@@ -43,7 +43,6 @@ export const useSceneStyles = (enabled = true) => {
   const previousSceneStyleConfigRef = useRef<SceneStyle | undefined>(undefined);
 
   useEffect(() => {
-    // Wait for runtime to be fully ready (including imageryLayers collection)
     if (
       !enabled ||
       !ctx.isValidRuntime() ||
@@ -69,7 +68,10 @@ export const useSceneStyles = (enabled = true) => {
         currentSceneStyleConfig.live?.scene?.backgroundColor
       );
     } else {
-      throw new Error(`Unknown style: ${currentSceneStyle}`);
+      // Unknown id: warn and bail instead of throwing so it never crashes the scene.
+      console.warn(
+        `[STYLES|CESIUM] Unknown scene style id, skipping: ${currentSceneStyle}`
+      );
     }
   }, [
     enabled,
