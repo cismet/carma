@@ -1417,10 +1417,7 @@ export const useCesiumPointMoveGizmo = (
         const discPlaneNormal = getDiscPlaneNormalAtPosition(
           currentPoint.geometryECEF
         );
-        axisVisualizer.update(
-          currentPoint.geometryECEF,
-          axisDirection
-        );
+        axisVisualizer.update(currentPoint.geometryECEF, axisDirection);
 
         const discVisualizer = discVisualizerRef.current;
         if (discVisualizer) {

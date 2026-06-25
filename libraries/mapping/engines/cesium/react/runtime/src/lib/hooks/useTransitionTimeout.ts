@@ -5,7 +5,8 @@ import { useCesiumRuntime } from "./useCesiumRuntime";
 const DEFAULT_TIMEOUT = 4000;
 
 const useTransitionTimeout = (timeOut = DEFAULT_TIMEOUT) => {
-  const { isTransitioning, currentTransition, clearTransition } = useCesiumContext();
+  const { isTransitioning, currentTransition, clearTransition } =
+    useCesiumContext();
   const runtime = useCesiumRuntime();
 
   useEffect(() => {

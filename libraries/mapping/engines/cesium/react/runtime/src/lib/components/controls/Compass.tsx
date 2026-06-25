@@ -30,7 +30,8 @@ export const Compass = forwardRef<Ref, CompassProps>(
   ({ children, disabled }, ref) => {
     // todo remove cesium runtime dep for direct scene use
     const runtime = useCesiumRuntime();
-    const { withScene, ssccMinimumZoomDistance: minZoomDistance } = useCesiumContext();
+    const { withScene, ssccMinimumZoomDistance: minZoomDistance } =
+      useCesiumContext();
 
     const handleFlyToCenter = (e: MouseEvent) => {
       e.preventDefault();

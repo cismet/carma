@@ -381,7 +381,8 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   // custom hooks
   const flags = useFeatureFlags();
   const { isDebugMode } = flags;
-  const { isObliqueMode, leaveObliqueMode } = useObliqueInitializer(isDebugMode);
+  const { isObliqueMode, leaveObliqueMode } =
+    useObliqueInitializer(isDebugMode);
 
   const previousPositionRef = useRef<{
     lat: number;

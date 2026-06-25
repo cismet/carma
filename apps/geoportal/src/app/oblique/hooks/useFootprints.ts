@@ -214,7 +214,10 @@ export const useFootprints = (debug = false): void => {
             opacityAnimationRef.current,
             requestRender
           );
-          writeOutlinePrimitiveColor(primitive, outlineColor.withAlpha(opacity));
+          writeOutlinePrimitiveColor(
+            primitive,
+            outlineColor.withAlpha(opacity)
+          );
           if (!opacityAnimationRef.current.isAnimating) {
             scene.postRender.removeEventListener(updateOpacity);
           }

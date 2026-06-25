@@ -1,9 +1,6 @@
 import { useContext, useEffect, useRef, useState } from "react";
 
-import {
-  ScreenSpaceEventHandler,
-  ScreenSpaceEventType,
-} from "@carma-cesium";
+import { ScreenSpaceEventHandler, ScreenSpaceEventType } from "@carma-cesium";
 
 import {
   EnviroMetricMapContext,

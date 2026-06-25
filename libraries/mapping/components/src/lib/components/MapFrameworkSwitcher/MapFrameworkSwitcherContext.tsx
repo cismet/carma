@@ -628,11 +628,7 @@ export const MapFrameworkSwitcherProvider = ({
       // The container has already been hidden by the error handler
       setActiveFrameworkLeaflet();
     }
-  }, [
-    isTransitioning,
-    setActiveFrameworkLeaflet,
-    transitionOptions,
-  ]);
+  }, [isTransitioning, setActiveFrameworkLeaflet, transitionOptions]);
 
   // Toggle between frameworks
   const toggle = useCallback(async () => {

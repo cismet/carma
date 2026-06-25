@@ -61,9 +61,7 @@ export const isValidImageryLayer = (
   imageryLayer.isDestroyed() === false &&
   imageryLayer.ready === true;
 
-export const isValidTileset = (
-  tileset: unknown
-): tileset is Cesium3DTileset =>
+export const isValidTileset = (tileset: unknown): tileset is Cesium3DTileset =>
   tileset instanceof Cesium3DTileset && tileset.isDestroyed() === false;
 
 export const isValidRuntime = (
