@@ -69,13 +69,21 @@ import { getApplicationVersion } from "@carma-commons/utils";
 
 import {
   CesiumHost,
+  type CesiumHostState,
   type CesiumOptions,
   getGeoJsonGeometryCacheKey,
   getProviderScopedCache,
   getTerrainAwareBoundingSphereFromGeoJsonGeometry,
   useCesiumContext,
 } from "@carma-mapping/engines/cesium/react/runtime";
-import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
+import {
+  useCesiumNavigationBridge,
+  useMaplibreRuntimeBridge,
+} from "@carma-mapping/engines-interop/view-state";
+import {
+  useMapFrameworkSwitcherContext,
+  useRegisterMapFramework,
+} from "@carma-mapping/components";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import { useAuth } from "@carma-providers/auth";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
@@ -1220,7 +1228,7 @@ const GeoportalModalMenu = () => {
   );
 };
 
-const LibreGeoportalMap = () => {
+const LibreGeoportalMap = ({ allow3d }: MapProps) => {
   const { map: libreMap } = useLibreContext();
   const libreLayers = useLibreLayers();
   const uiMode = useSelector(getUIMode);
@@ -1233,27 +1241,109 @@ const LibreGeoportalMap = () => {
     selectFromHits: handleLibreSelectFromHits,
   } = useLibreMapSelectionHandler(libreMap);
 
+  const { isCesium } = useMapFrameworkSwitcherContext();
+  const {
+    getScene,
+    getTerrainProvider,
+    getSurfaceProvider,
+    isRuntimeReady,
+    initialViewApplied,
+  } = useCesiumContext();
+  const {
+    homeValidationCenter,
+    initialCameraView: cesiumInitialCameraView,
+    isInitialCameraResolved,
+  } = useGeoportalInitialValues();
+  // CesiumHost owns its container element and reports it via onHostChange;
+  // keep it in state so getCesiumContainer can hand it to the framework switcher.
+  const [cesiumContainerElement, setCesiumContainerElement] =
+    useState<HTMLElement | null>(null);
+  const [shouldMountCesium, setShouldMountCesium] = useState(false);
+
+  useEffect(() => {
+    if (allow3d && isCesium && !shouldMountCesium) {
+      setShouldMountCesium(true);
+    }
+  }, [allow3d, isCesium, shouldMountCesium]);
+
+  const handleCesiumHostChange = useCallback(({ element }: CesiumHostState) => {
+    setCesiumContainerElement((previous) =>
+      previous === element ? previous : element
+    );
+  }, []);
+
+  const getCesiumContainer = useCallback(
+    () => cesiumContainerElement,
+    [cesiumContainerElement]
+  );
+  const getCesiumTerrainProviders = useCallback(
+    () => ({
+      TERRAIN: getTerrainProvider() ?? null,
+      SURFACE: getSurfaceProvider() ?? null,
+    }),
+    [getSurfaceProvider, getTerrainProvider]
+  );
+
+  useRegisterMapFramework({
+    getLeafletMap: () => null,
+    getCesiumScene: getScene,
+    getCesiumContainer,
+    getCesiumTerrainProviders,
+  });
+
+  const cesiumScene = getScene();
+  useMaplibreRuntimeBridge({
+    id: "geoportal-maplibre",
+    map: libreMap,
+    enabled: !isCesium,
+    claimOnInteraction: true,
+  });
+  useCesiumNavigationBridge({
+    id: GEOPORTAL_CESIUM_VIEW_ADAPTER_ID,
+    scene: cesiumScene,
+    isSyncEnabled: isCesium && isRuntimeReady && Boolean(cesiumScene),
+    isCommitEnabled: isCesium && initialViewApplied,
+  });
+
   return (
     <>
-      <CarmaMap
-        appKey="geoportal"
-        mapEngine="maplibre"
-        backgroundLayers={null}
-        zoomControls={false}
-        fullScreenControl={false}
-        terrainControl={false}
-        libreLayers={libreLayers}
-        disableInternalSelection={true}
-        selectionEnabled={!isModeMeasurement}
-        onSelectionChanged={handleLibreSelectionChanged}
-        selectFromHits={handleLibreSelectFromHits}
-        modalMenu={<GeoportalModalMenu />}
-      />
-      {isModeMeasurement && <MeasurementHost mode={libreDrawMode} snapping />}
-      {isModeMeasurement || selectedMeasurement ? (
-        <MeasurementInfoBox selectionPadding={selectionPadding} />
-      ) : (
-        <FeatureInfoBox pos={pos ?? undefined} />
+      <div style={{ visibility: isCesium ? "hidden" : "visible" }}>
+        <CarmaMap
+          appKey="geoportal"
+          mapEngine="maplibre"
+          backgroundLayers={null}
+          zoomControls={false}
+          fullScreenControl={false}
+          terrainControl={false}
+          libreLayers={libreLayers}
+          disableInternalSelection={true}
+          selectionEnabled={!isModeMeasurement}
+          onSelectionChanged={handleLibreSelectionChanged}
+          selectFromHits={handleLibreSelectFromHits}
+          modalMenu={<GeoportalModalMenu />}
+        />
+        {isModeMeasurement && <MeasurementHost mode={libreDrawMode} snapping />}
+        {isModeMeasurement || selectedMeasurement ? (
+          <MeasurementInfoBox selectionPadding={selectionPadding} />
+        ) : (
+          <FeatureInfoBox pos={pos ?? undefined} />
+        )}
+      </div>
+      {allow3d && isInitialCameraResolved && shouldMountCesium && (
+        <CesiumHost
+          id={GEOPORTAL_CESIUM_CONTAINER_ID}
+          className={"map-container-3d"}
+          style={{
+            ...MAP_CONTAINER_STYLE,
+            visibility: isCesium ? "visible" : "hidden",
+            opacity: isCesium ? 1 : 0,
+            pointerEvents: isCesium ? "auto" : "none",
+          }}
+          onHostChange={handleCesiumHostChange}
+          cameraLimiterOptions={CESIUM_CONFIG.camera}
+          homeValidationCenter={homeValidationCenter}
+          initialCameraView={cesiumInitialCameraView}
+        />
       )}
     </>
   );
@@ -1261,11 +1351,10 @@ const LibreGeoportalMap = () => {
 
 export const GeoportalMap = (props: MapProps) => {
   const flags = useFeatureFlags();
-  const { isLeaflet } = useMapFrameworkSwitcherContext();
-  const useLibreMap = flags.featureFlagLibreMap && isLeaflet;
+  const useLibreMap = flags.featureFlagLibreMap;
 
   return useLibreMap ? (
-    <LibreGeoportalMap />
+    <LibreGeoportalMap {...props} />
   ) : (
     <LeafletGeoportalMap {...props} />
   );

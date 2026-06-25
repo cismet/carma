@@ -142,6 +142,8 @@ const MapWrapper = () => {
     isCesium,
     isPreparingCesiumTransition,
     preparingCesiumMessage,
+    setActiveFrameworkCesium,
+    setActiveFrameworkLeaflet,
   } = useMapFrameworkSwitcherContext();
   const statusFooterText = isPreparingCesiumTransition
     ? preparingCesiumMessage ?? "3D Modelle werden geladen"
@@ -408,7 +410,13 @@ const MapWrapper = () => {
                   className="!rounded-t-none !border-t-[1px]"
                   ref={tourRefLabels.toggle2d3d}
                   useDisabledStyle={false}
-
+                  onToggleOverride={
+                    showLibreMap
+                      ? isLeaflet
+                        ? setActiveFrameworkCesium
+                        : setActiveFrameworkLeaflet
+                      : undefined
+                  }
                   // nativeTooltip={true}
                 />
               </div>
