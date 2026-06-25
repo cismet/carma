@@ -37,3 +37,15 @@ export const SCENE_VIEW_STATE_HASH_PARAM_NAME_ORDER: string[] = [
   ],
   SCENE_VIEW_STATE_HASH_PARAM_NAMES.FOV,
 ];
+
+/**
+ * Scene-view-state hash params only a 3D (perspective) view uses. Clearing these
+ * on a 3D→2D handover leaves the shared lat/lng/zoom, i.e. a plain top-down view.
+ */
+export const SCENE_VIEW_STATE_THREE_D_ONLY_HASH_PARAMS: string[] = [
+  SCENE_VIEW_STATE_HASH_PARAM_NAMES.ALTITUDE,
+  SCENE_VIEW_STATE_HASH_PARAM_NAMES.BEARING,
+  SCENE_VIEW_STATE_HASH_PARAM_NAMES.PITCH,
+  SCENE_VIEW_STATE_HASH_PARAM_NAMES.ROLL,
+  SCENE_VIEW_STATE_HASH_PARAM_NAMES.FOV,
+];

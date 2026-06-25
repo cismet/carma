@@ -1473,7 +1473,6 @@ export const LibreMap = ({
 
   const hashRoutingLabels = useMemo(
     () => ({
-      clearCesium: "LGM:2D:clearCesium",
       writeLeafletLike: "LGM:2D:writeLocation",
       topicMapLocation: "LGM:2D:location",
     }),

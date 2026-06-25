@@ -24,3 +24,5 @@ export {
   defaultHashParamNameOrder,
   normalizeHashParamsForWrite,
 } from "./lib/hashParamValueCodecs";
+
+export { SCENE_VIEW_STATE_THREE_D_ONLY_HASH_PARAMS } from "./lib/scene-state-hash/hashParamNames";

@@ -172,7 +172,6 @@ const LibreGeoportalMap = ({
       return m ? zoom512as256(m.getZoom()) : normalizedMapOptions.zoom;
     },
     labels: {
-      clearCesium: "LGM:2D:clearCesium",
       writeLeafletLike: "LGM:2D:writeLocation",
       topicMapLocation: "LGM:2D:location",
     },
