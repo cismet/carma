@@ -16,8 +16,6 @@ export {
 
 export {
   defaultStateKeyToHashParamValueCodecMap,
-  type HashParamScalarMap,
-  type HashParamScalar,
   encodeHashParams,
   encodeHashFragment,
   defaultStateKeyToHashParamNameAliases,
