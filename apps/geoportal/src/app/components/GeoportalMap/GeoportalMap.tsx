@@ -248,6 +248,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     getSurfaceProvider,
     getTerrainProvider,
     getScene,
+    isRuntimeReady,
     initialViewApplied,
     models,
     ssccMinimumZoomDistance: minimumCameraHeight,
@@ -524,7 +525,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const {
     shouldMountCesium,
     handleCesiumHostChange,
-    isCesiumRuntimeReady,
     suppressCommitsUntilInteraction,
   } = useCesiumMapFrameworkHost({
     viewAdapterId: GEOPORTAL_CESIUM_VIEW_ADAPTER_ID,
@@ -544,7 +544,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
 
   useGeoportalCesiumNavigationRestore({
     scene: cesiumScene,
-    enabled: isCesiumRuntimeReady,
+    enabled: isRuntimeReady,
     suppressCommitsUntilInteraction,
   });
 
