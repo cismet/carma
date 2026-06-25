@@ -9,6 +9,7 @@ import {
   SelectionProvider,
 } from "@carma-appframeworks/portals";
 import {
+  detectWebGLContext,
   getHashParams,
   HASH_LAUNCH_MODE,
   resolveHashLaunchMode,
@@ -37,9 +38,17 @@ setupCesiumEnvironment(CESIUM_CONFIG);
 
 const enableSync = true;
 
+// WebGL detected synchronously at module load: an options-free URL launches 3D
+// only when the device can run Cesium; otherwise 2D. This is the single source of
+// truth for the launch framework, resolved from the URL before the app mounts.
+let hasWebGL = false;
+detectWebGLContext((flag) => {
+  hasWebGL = flag;
+});
+
 const readInitialFrameworkFromHash = (): CarmaMapFramework => {
   const mode = resolveHashLaunchMode(getHashParams(), {
-    defaultMode: HASH_LAUNCH_MODE.THREE_D,
+    defaultMode: hasWebGL ? HASH_LAUNCH_MODE.THREE_D : HASH_LAUNCH_MODE.TWO_D,
   });
 
   return mode === HASH_LAUNCH_MODE.TWO_D
