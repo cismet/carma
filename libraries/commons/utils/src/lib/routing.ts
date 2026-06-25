@@ -118,6 +118,19 @@ const hasValid2dViewParams = (params: Record<string, unknown>): boolean =>
     (key) => parseFiniteNumber(params[key]) !== undefined
   );
 
+/**
+ * Deterministic 3D qualifier for a hash: a URL is a 3D view iff it carries a
+ * valid (finite) altitude. Altitude is the ONLY camera param the shareable
+ * view-state codec always emits for 3D — bearing/pitch/roll/fov are dropped at
+ * their defaults (e.g. pitch at nadir), and lat/lng/zoom are shared with 2D — so
+ * a finite altitude is a hard switch, not a heuristic. Must stay in sync with the
+ * codec's required-fields invariant (altitude is mandatory; it throws otherwise).
+ */
+export const isThreeDViewHash = (params: Record<string, unknown>): boolean =>
+  DEFAULT_HASH_LAUNCH_ALTITUDE_KEYS.some(
+    (key) => parseFiniteNumber(params[key]) !== undefined
+  );
+
 export const readHashLaunchMode = (
   hash: Record<string, unknown> | undefined,
   config: HashLaunchModeConfig = {}
@@ -125,10 +138,8 @@ export const readHashLaunchMode = (
   const resolved = resolveLaunchModeConfig(config);
   const params = hash ?? {};
 
-  const hasAltitude = DEFAULT_HASH_LAUNCH_ALTITUDE_KEYS.some(
-    (key) => params[key] !== undefined
-  );
-  if (hasAltitude) {
+  // Deterministic view-state switch: a valid altitude qualifies as a 3D view.
+  if (isThreeDViewHash(params)) {
     return HASH_LAUNCH_MODE.THREE_D;
   }
 
