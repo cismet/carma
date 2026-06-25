@@ -191,6 +191,10 @@ const DEFAULT_VERTICAL_AXIS_TITLE = "Punkt entlang der U-Achse verschieben";
 const DEFAULT_EAST_AXIS_TITLE = "Punkt entlang der E-Achse verschieben";
 const DEFAULT_NORTH_AXIS_TITLE = "Punkt entlang der N-Achse verschieben";
 
+// Full local ENU frame. The geometry generator keeps the horizontal East/West
+// and North/South axes so a hyper-local ENU frame (e.g. aligned to a plane
+// corner) can be wired up later, the way reference-line editing already lets a
+// caller translate along an explicit distance axis.
 const DEFAULT_AXIS_PRESENTATION = [
   {
     id: "vertical",
@@ -212,12 +216,25 @@ const DEFAULT_AXIS_PRESENTATION = [
 
 type DefaultAxisId = (typeof DEFAULT_AXIS_PRESENTATION)[number]["id"];
 
+// Which default axes are actually surfaced to tools for now (cismet/wupp#4078).
+// Only height adjustment is enabled; the horizontal axes stay generated but
+// hidden until a hyper-local ENU use case enables them.
+const DEFAULT_ENABLED_AXIS_IDS: readonly string[] = ["vertical"];
+
+const isDefaultAxisEnabled = (axisId: string): boolean =>
+  DEFAULT_ENABLED_AXIS_IDS.includes(axisId);
+
 const getDefaultAxisPresentation = (axisTitle?: string | null) =>
   DEFAULT_AXIS_PRESENTATION.map((axisDefinition) => ({
     id: axisDefinition.id,
     color: axisDefinition.color,
     title: axisDefinition.getTitle(axisTitle),
   }));
+
+const getEnabledDefaultAxisPresentation = (axisTitle?: string | null) =>
+  getDefaultAxisPresentation(axisTitle).filter((axisDefinition) =>
+    isDefaultAxisEnabled(axisDefinition.id)
+  );
 
 const getPhysicalHairlinePx = (): number => {
   if (typeof window === "undefined") return 1;
@@ -376,6 +393,16 @@ const getDefaultAxisCandidatesAtPosition = (
     title: axisDefinition.title,
   }));
 };
+
+// Default axis candidates limited to the axes currently enabled for tools.
+// `getDefaultAxisCandidatesAtPosition` keeps generating the full ENU frame.
+const getEnabledDefaultAxisCandidatesAtPosition = (
+  origin: Cartesian3,
+  axisTitle?: string | null
+): CesiumMoveGizmoAxisCandidate[] =>
+  getDefaultAxisCandidatesAtPosition(origin, axisTitle).filter((candidate) =>
+    isDefaultAxisEnabled(candidate.id)
+  );
 
 export const useCesiumPointMoveGizmo = (
   scene: Scene | null,
@@ -624,7 +651,10 @@ export const useCesiumPointMoveGizmo = (
     const candidates =
       axisCandidates && axisCandidates.length > 0
         ? axisCandidates
-        : getDefaultAxisCandidatesAtPosition(movePoint.geometryECEF, axisTitle);
+        : getEnabledDefaultAxisCandidatesAtPosition(
+            movePoint.geometryECEF,
+            axisTitle
+          );
     if (candidates.length === 0) return;
 
     if (preferredAxisId) {
@@ -682,7 +712,7 @@ export const useCesiumPointMoveGizmo = (
     (origin: Cartesian3): CesiumMoveGizmoAxisCandidate[] => {
       const configuredCandidates = axisCandidatesRef.current;
       if (!configuredCandidates || configuredCandidates.length === 0) {
-        return getDefaultAxisCandidatesAtPosition(origin, axisTitle);
+        return getEnabledDefaultAxisCandidatesAtPosition(origin, axisTitle);
       }
 
       const normalizedCandidates = configuredCandidates
@@ -1518,12 +1548,14 @@ export const useCesiumPointMoveGizmo = (
       "horizontal-north": Cartesian3.UNIT_Y,
     };
 
-    return getDefaultAxisPresentation(axisTitle).map((axisDefinition) => ({
-      id: axisDefinition.id,
-      direction: unitDirectionsByAxisId[axisDefinition.id],
-      color: axisDefinition.color,
-      title: axisDefinition.title,
-    })) as CesiumMoveGizmoAxisCandidate[];
+    return getEnabledDefaultAxisPresentation(axisTitle).map(
+      (axisDefinition) => ({
+        id: axisDefinition.id,
+        direction: unitDirectionsByAxisId[axisDefinition.id],
+        color: axisDefinition.color,
+        title: axisDefinition.title,
+      })
+    ) as CesiumMoveGizmoAxisCandidate[];
   }, [axisCandidates, axisTitle]);
 
   const handleContent = useMemo(

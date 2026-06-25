@@ -190,10 +190,7 @@ export const defaultAnnotationToolTexts = {
   select: {
     label: "Auswahl",
     tooltip: "Messung auswählen",
-    helpText: [
-      "Messungen oder Anmerkungen anklicken, um sie auszuwählen.",
-      "Langes Drücken auf einen Punkt öffnet den Editiermodus.",
-    ],
+    helpText: ["Messungen oder Anmerkungen anklicken, um sie auszuwählen."],
   },
   point: {
     label: "Punktmessung",
@@ -215,7 +212,6 @@ export const defaultAnnotationToolTexts = {
     headingTitle: "Distanzmessung",
     helpText: [
       "Zwei Positionen in der Karte anklicken, um eine Distanzmessung zu erstellen.",
-      "Backspace entfernt den letzten Vorschaupunkt, Escape verwirft ihn.",
     ],
     metricLabels: {
       direct: "Direkt",
