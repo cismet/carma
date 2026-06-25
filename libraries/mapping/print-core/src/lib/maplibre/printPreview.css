@@ -3,8 +3,8 @@
    imperatively (top/left/width/height) by the component.
 
    This div IS the print rectangle (it replaces the old WebGL fill/line layers):
-   a 1px black outline over a black fill at 0.2 opacity — identical to the
-   Leaflet default polygon. It is pointer-events:none so mousedown/zoom/click
+   a 1px blue (#1677ff) outline over a black fill at 0.2 opacity, matching the
+   geoportal print preview. It is pointer-events:none so mousedown/zoom/click
    reach the map canvas underneath; the component hit-tests the pixel box and
    slides this node with a CSS transform while dragging. */
 
@@ -16,7 +16,7 @@
   justify-content: center;
   line-height: 1.3;
   box-sizing: border-box;
-  border: 1px solid #000;
+  border: 1px solid #1677ff;
   background: rgba(0, 0, 0, 0.2);
   pointer-events: none;
 }
