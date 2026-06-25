@@ -122,6 +122,50 @@
   filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.7));
 }
 
+/* "Go back" hit zone pinned to the bottom centre of the viewer (over the survey
+   vehicle). The pano behind you is otherwise only reachable with the ArrowDown
+   key or by panning 180°, so this gives backward navigation a mouse target. The
+   zone is invisible; the native cursor is hidden here and replaced by the DOM
+   .carma-pano-back-cursor arrow (an SVG *image* cursor renders blank in Chrome,
+   so we draw our own). It mirrors the ArrowDown key (onPrevious). */
+.carma-pano-back-btn {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100001;
+  width: 140px;
+  height: 84px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: none;
+}
+
+/* The downward "back" chevron drawn in place of the native cursor over the zone
+   — identical look/size to .carma-pano-cursor-arrow, just pointing down.
+   Positioned via left/top at the pointer and centred on it via negative margins.
+   Never eats pointer events; faded in/out from JS by toggling opacity. */
+.carma-pano-back-cursor {
+  position: fixed;
+  width: 46px;
+  height: 46px;
+  margin-left: -23px;
+  margin-top: -23px;
+  z-index: 100003;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.08s ease;
+  will-change: left, top, opacity;
+}
+
+.carma-pano-back-cursor svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.7));
+}
+
 /* Dark placeholder + hide pannellum's load indicator (set inline, hence
    !important) so a cached/fast panorama doesn't briefly flash a spinner / 100%
    progress bar; the dark overlay covers the short decode time. */
