@@ -138,25 +138,14 @@ export const useCesiumMapFrameworkHost = ({
     isSyncEnabled: Boolean(cesiumScene),
     isCommitEnabled: isCesium && initialViewApplied && isCommitEnabled,
   });
-  const {
-    commitCurrentSceneState,
-    reduceToTopDownView,
-    suppressCommitsUntilInteraction,
-  } = bridge;
+  const { commitCurrentSceneState, reduceToTopDownView } = bridge;
 
-  // Handover to 2D: suppress further cesium commits FIRST, so the transition's
-  // camera morph (moveEnd / morphComplete) can't re-commit the 3D keys after we
-  // clear them; then drop this writer's 3D-only hash keys and run the app's
-  // before-leaflet step. lat/lng/zoom are left for the 2D map to own.
+  // Handover to 2D: the cesium writer drops its own 3D-only hash keys, then the
+  // app's before-leaflet step runs. lat/lng/zoom are left for the 2D map to own.
   const handleBeforeTransitionToLeaflet = useCallback(() => {
-    suppressCommitsUntilInteraction();
     reduceToTopDownView();
     return onBeforeTransitionToLeaflet?.();
-  }, [
-    suppressCommitsUntilInteraction,
-    reduceToTopDownView,
-    onBeforeTransitionToLeaflet,
-  ]);
+  }, [reduceToTopDownView, onBeforeTransitionToLeaflet]);
 
   // Host owns all switcher transition callbacks. force:true on the post-transition
   // commit bypasses suppressCommitsUntilInteraction.

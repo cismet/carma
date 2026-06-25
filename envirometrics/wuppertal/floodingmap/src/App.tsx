@@ -9,13 +9,11 @@ import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplic
 import {
   TopicMapSelectionContent,
   useGazData,
-  useHashLaunchMode,
 } from "@carma-appframeworks/portals";
 import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/hochwassergefahrenkarte";
 import {
   detectWebGLContext,
   getApplicationVersion,
-  HASH_LAUNCH_MODE,
 } from "@carma-commons/utils";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import {
@@ -72,13 +70,6 @@ function FloodingmapAppContent({ sync = false }: { sync?: boolean }) {
       supported = flag;
     });
     return supported;
-  });
-
-  // Resolve launch mode from hash, set framework, clean up flags.
-  useHashLaunchMode({
-    defaultMode: is3dSupported
-      ? HASH_LAUNCH_MODE.THREE_D
-      : HASH_LAUNCH_MODE.TWO_D,
   });
 
   const {
