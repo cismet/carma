@@ -173,6 +173,13 @@ export const unprojectScreenBox = (
   };
 };
 
+// Fraction of the smaller viewport dimension kept as a margin ("buffer") of
+// live map context around the print rectangle — the geoportal look. In Leaflet
+// this ring is an accidental side-effect of integer zoom snapping; MapLibre
+// zooms fractionally and would fit the rectangle edge-to-edge, so we request an
+// explicit padding to reproduce it.
+const PREVIEW_BUFFER_FRACTION = 0.1;
+
 /** Zoom/pan the map so the rectangle fills the view (geoportal fitBounds). */
 export const fitMapToRect = (
   map: MapLibreMap,
@@ -183,7 +190,12 @@ export const fitMapToRect = (
     [bounds.minLng, bounds.minLat],
     [bounds.maxLng, bounds.maxLat],
   ];
-  map.fitBounds(bbox, { animate, padding: 0 });
+  const container = map.getContainer();
+  const padding = Math.round(
+    Math.min(container.clientWidth, container.clientHeight) *
+      PREVIEW_BUFFER_FRACTION
+  );
+  map.fitBounds(bbox, { animate, padding });
 };
 
 /** Add the source + fill/line layers if absent, then set the rectangle data. */
@@ -192,8 +204,8 @@ export const fitMapToRect = (
 // drag hit area).
 const PREVIEW_LINE_COLOR = "#1677ff";
 const PREVIEW_LINE_WIDTH = 3;
-const PREVIEW_FILL_COLOR = "#ff0000"; // TEMP DIAGNOSTIC: prove this code is live
-const PREVIEW_FILL_OPACITY = 0.4;
+const PREVIEW_FILL_COLOR = "#000000";
+const PREVIEW_FILL_OPACITY = 0.2;
 
 export const ensureRectLayers = (
   map: MapLibreMap,
