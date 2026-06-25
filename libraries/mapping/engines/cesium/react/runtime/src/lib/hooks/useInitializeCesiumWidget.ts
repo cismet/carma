@@ -491,8 +491,11 @@ export const useInitializeCesiumWidget = (
 
         scene.postRender.addEventListener(handlePostRender);
 
-        // handlePostRender only runs on a requested render (requestRenderMode);
-        // request one now so readiness doesn't depend on another hook.
+        // Size the canvas now (container size is known) and request a render, so
+        // readiness flips on the first frame without depending on the resize observer.
+        widget.canvas.style.width = "100%";
+        widget.canvas.style.height = "100%";
+        widget.resize();
         scene.requestRender();
       });
     } catch (error) {
