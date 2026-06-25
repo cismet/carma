@@ -1,7 +1,10 @@
 import { Viewer } from "cesium";
 import { handleDelayedRender } from "@carma-commons/dom/window";
 
-const withValidViewer = (viewer: Viewer | null, cb: (viewer: Viewer) => void) => {
+const withValidViewer = (
+  viewer: Viewer | null,
+  cb: (viewer: Viewer) => void
+) => {
   if (!viewer || viewer.isDestroyed()) {
     return false;
   }

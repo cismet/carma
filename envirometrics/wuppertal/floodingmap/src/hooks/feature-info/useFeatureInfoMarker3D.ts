@@ -1,10 +1,6 @@
 import { useCallback, useContext, useEffect, useRef } from "react";
 
-import {
-  Cartographic,
-  PolylineCollection,
-  Primitive,
-} from "@carma-cesium";
+import { Cartographic, PolylineCollection, Primitive } from "@carma-cesium";
 
 import { EnviroMetricMapContext } from "@cismet-dev/react-cismap-envirometrics-maps/EnviroMetricMapContextProvider";
 
@@ -86,7 +82,9 @@ export const useFeatureInfoMarker3D = (): FeatureInfoMarkerRefs => {
       const runtime = runtimeRef.current;
       const terrainProvider =
         isRuntimeReady && runtime && !runtime.isDestroyed()
-          ? getTerrainProviderById(FLOODINGMAP_TERRAIN_PROVIDER_IDS.TERRAIN_2020)
+          ? getTerrainProviderById(
+              FLOODINGMAP_TERRAIN_PROVIDER_IDS.TERRAIN_2020
+            )
           : null;
 
       if (!runtime || !terrainProvider) {

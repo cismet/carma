@@ -10,10 +10,7 @@ import {
   type Scene,
 } from "@carma-cesium";
 
-import {
-  IMAGE_ASSETS,
-  MODEL_ASSETS as GLB,
-} from "../../config/assets.config";
+import { IMAGE_ASSETS, MODEL_ASSETS as GLB } from "../../config/assets.config";
 import {
   addCesiumMarker,
   removeCesiumMarker,
@@ -52,7 +49,11 @@ const addSvgMarker = (
 
   const [longitude, latitude, height = 0] = marker.position;
   const position = Cartesian3.fromDegrees(longitude, latitude, height);
-  const lineTopPosition = Cartesian3.fromDegrees(longitude, latitude, height - 10);
+  const lineTopPosition = Cartesian3.fromDegrees(
+    longitude,
+    latitude,
+    height - 10
+  );
   const groundPosition = Cartesian3.fromDegrees(longitude, latitude, 0);
 
   const billboards = new BillboardCollection();

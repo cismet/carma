@@ -23,9 +23,7 @@ export const viewerRoutes: RouteDescriptor[] = [
   [
     "/test",
     "⚙️ Test",
-    [
-      ["/viewer", "ComponentTest Viewer", TestComponentCesiumWidgetMap],
-    ],
+    [["/viewer", "ComponentTest Viewer", TestComponentCesiumWidgetMap]],
   ],
 ];
 

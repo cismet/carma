@@ -60,7 +60,8 @@ const NavigationControlView: FC = () => {
     };
 
     return {
-      runtimeRef: viewerRef as unknown as MutableRefObject<CesiumRuntime | null>,
+      runtimeRef:
+        viewerRef as unknown as MutableRefObject<CesiumRuntime | null>,
       sceneAnimationMapRef:
         sceneAnimationMapRef as MutableRefObject<SceneAnimationMap | null>,
       shouldSuspendPitchLimiterRef,

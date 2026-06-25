@@ -14,9 +14,10 @@ export const useRestoreFeatureInfoQuery = () => {
   const { controlState } = useContext<typeof EnviroMetricMapContext>(
     EnviroMetricMapContext
   );
-  const { executeFeatureInfoRequest, setFeatureInfoModeActivation } = useContext<
-    typeof EnviroMetricMapDispatchContext
-  >(EnviroMetricMapDispatchContext);
+  const { executeFeatureInfoRequest, setFeatureInfoModeActivation } =
+    useContext<typeof EnviroMetricMapDispatchContext>(
+      EnviroMetricMapDispatchContext
+    );
 
   const initialRestoredQueryPositionRef = useRef<[number, number] | null>(
     controlState.currentFeatureInfoPosition ?? null

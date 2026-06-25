@@ -39,10 +39,7 @@ const useCameraRollSoftLimiter = (
   const { shouldSuspendCameraLimitersRef, initialViewApplied, setIsAnimating } =
     useCesiumContext();
 
-  const onComplete = useCallback(
-    () => setIsAnimating(false),
-    [setIsAnimating]
-  );
+  const onComplete = useCallback(() => setIsAnimating(false), [setIsAnimating]);
 
   useEffect(() => {
     if (runtime && pitchLimiterEnabled) {

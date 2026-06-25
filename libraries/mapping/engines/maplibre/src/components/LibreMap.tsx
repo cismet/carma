@@ -349,49 +349,45 @@ export const LibreMap = ({
   const openDatasheetRef = useRef(datasheetEnabled ? openDatasheet : undefined);
   openDatasheetRef.current = datasheetEnabled ? openDatasheet : undefined;
 
-
   // Helper: clear all visual selection state on the map
-  const clearVisualSelection = useCallback(
-    (mapInstance: maplibregl.Map) => {
-      selectedFeaturesRef.current.forEach((feature) => {
-        try {
-          if (
-            feature.selectionLayerId &&
-            mapInstance.getLayer(feature.selectionLayerId)
-          ) {
-            mapInstance.setFilter(feature.selectionLayerId, [
-              "==",
-              "__selected__",
-              "true",
-            ]);
-          } else if (feature.id != null) {
-            mapInstance.setFeatureState(
-              buildFeatureStateTarget(mapInstance, feature),
-              { selected: false }
-            );
-          }
+  const clearVisualSelection = useCallback((mapInstance: maplibregl.Map) => {
+    selectedFeaturesRef.current.forEach((feature) => {
+      try {
+        if (
+          feature.selectionLayerId &&
+          mapInstance.getLayer(feature.selectionLayerId)
+        ) {
+          mapInstance.setFilter(feature.selectionLayerId, [
+            "==",
+            "__selected__",
+            "true",
+          ]);
+        } else if (feature.id != null) {
+          mapInstance.setFeatureState(
+            buildFeatureStateTarget(mapInstance, feature),
+            { selected: false }
+          );
+        }
 
-          // Also clear forwarded selections
-          if (feature.forwardedTo) {
-            for (const forwarded of feature.forwardedTo) {
-              try {
-                mapInstance.setFeatureState(
-                  buildFeatureStateTarget(mapInstance, forwarded),
-                  { selected: false }
-                );
-              } catch {
-                // Forwarded feature may not exist
-              }
+        // Also clear forwarded selections
+        if (feature.forwardedTo) {
+          for (const forwarded of feature.forwardedTo) {
+            try {
+              mapInstance.setFeatureState(
+                buildFeatureStateTarget(mapInstance, forwarded),
+                { selected: false }
+              );
+            } catch {
+              // Forwarded feature may not exist
             }
           }
-        } catch (error) {
-          console.error("Error clearing feature selection:", error);
         }
-      });
-      selectedFeaturesRef.current.clear();
-    },
-    []
-  );
+      } catch (error) {
+        console.error("Error clearing feature selection:", error);
+      }
+    });
+    selectedFeaturesRef.current.clear();
+  }, []);
 
   // Helper: apply visual selection highlighting for a feature
   const applyVisualSelection = useCallback(
@@ -725,37 +721,45 @@ export const LibreMap = ({
             }
           }
 
-          if (bestHitLayer && bestResult && bestResult.resolvedSourceIndex != null) {
-              // Before accepting the 3D hit, check if there's a 2D symbol
-              // feature at the click point. Symbol layers (POI icons/text)
-              // render visually above 3D layers, so they should win clicks.
-              const hits2d = mapInstance.queryRenderedFeatures(e.point);
-              // queryRenderedFeatures returns hits in visual order (top first).
-              // If the topmost hit has a layerMapping, it's a selectable feature
-              // rendered above the 3D layer, so let the 2D path handle the click.
-              // If the topmost 2D hit is from a LIBRE_LAYERS sub-style (has
-              // layer-id metadata) but NOT from a source that has a 3D layer,
-              // it renders above the 3D objects, so let 2D selection win.
-              // Check if any 2D hit comes from a layer positioned after all
-              // 3D source layers in the style stack. Such layers render visually
-              // above the 3D objects and should win the click.
-              const styleLayers = mapInstance.getStyle()?.layers ?? [];
-              const threeSources = new Set(threeLayers.map((l) => l._config.sourceId));
-              let lastThreeSourceIdx = -1;
-              for (let i = 0; i < styleLayers.length; i++) {
-                const src = (styleLayers[i] as { source?: string }).source;
-                if (src && threeSources.has(src)) lastThreeSourceIdx = i;
-              }
-              const hitAbove3d = lastThreeSourceIdx >= 0 && hits2d.some((f) => {
+          if (
+            bestHitLayer &&
+            bestResult &&
+            bestResult.resolvedSourceIndex != null
+          ) {
+            // Before accepting the 3D hit, check if there's a 2D symbol
+            // feature at the click point. Symbol layers (POI icons/text)
+            // render visually above 3D layers, so they should win clicks.
+            const hits2d = mapInstance.queryRenderedFeatures(e.point);
+            // queryRenderedFeatures returns hits in visual order (top first).
+            // If the topmost hit has a layerMapping, it's a selectable feature
+            // rendered above the 3D layer, so let the 2D path handle the click.
+            // If the topmost 2D hit is from a LIBRE_LAYERS sub-style (has
+            // layer-id metadata) but NOT from a source that has a 3D layer,
+            // it renders above the 3D objects, so let 2D selection win.
+            // Check if any 2D hit comes from a layer positioned after all
+            // 3D source layers in the style stack. Such layers render visually
+            // above the 3D objects and should win the click.
+            const styleLayers = mapInstance.getStyle()?.layers ?? [];
+            const threeSources = new Set(
+              threeLayers.map((l) => l._config.sourceId)
+            );
+            let lastThreeSourceIdx = -1;
+            for (let i = 0; i < styleLayers.length; i++) {
+              const src = (styleLayers[i] as { source?: string }).source;
+              if (src && threeSources.has(src)) lastThreeSourceIdx = i;
+            }
+            const hitAbove3d =
+              lastThreeSourceIdx >= 0 &&
+              hits2d.some((f) => {
                 const idx = styleLayers.findIndex((sl) => sl.id === f.layer.id);
                 return idx > lastThreeSourceIdx;
               });
-              if (hitAbove3d) {
-                // Let the 2D selection path handle this click
-                threeLayers.forEach((l) => l.unhighlight());
-              }
+            if (hitAbove3d) {
+              // Let the 2D selection path handle this click
+              threeLayers.forEach((l) => l.unhighlight());
+            }
 
-              if (!hitAbove3d) {
+            if (!hitAbove3d) {
               const threeLayer = bestHitLayer;
               const result = bestResult;
               // [3D-SELECT] closest hit log suppressed
@@ -866,7 +870,7 @@ export const LibreMap = ({
                 );
               }
               return; // skip 2D selection
-              } // end if (!hitAbove3d)
+            } // end if (!hitAbove3d)
           }
         }
         // ── end 3D raycast ────────────────────────────────────
