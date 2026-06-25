@@ -44,7 +44,6 @@ interface CameraState {
   postionCartographic?: Cartographic;
 }
 
-const postRenderHandlerMap: WeakMap<CesiumWidget, () => void> = new WeakMap();
 const cameraChangedHandlerMap: WeakMap<CesiumWidget, () => void> =
   new WeakMap();
 const initialViewSetMap: WeakMap<CesiumWidget, boolean> = new WeakMap();
@@ -254,12 +253,6 @@ export const useInitializeCesiumWidget = (
         return;
       }
 
-      const postRenderHandler = postRenderHandlerMap.get(widget);
-      if (postRenderHandler) {
-        widget.scene.postRender.removeEventListener(postRenderHandler);
-        postRenderHandlerMap.delete(widget);
-      }
-
       const cameraChangedHandler = cameraChangedHandlerMap.get(widget);
       if (cameraChangedHandler) {
         widget.camera.changed.removeEventListener(cameraChangedHandler);
@@ -448,7 +441,6 @@ export const useInitializeCesiumWidget = (
           if (widget.canvas.width > 0 && widget.canvas.height > 0) {
             setIsRuntimeReady(true);
             scene.postRender.removeEventListener(handlePostRender);
-            postRenderHandlerMap.delete(widget);
           }
         });
       };
@@ -498,7 +490,6 @@ export const useInitializeCesiumWidget = (
         cameraChangedHandlerMap.set(widget, handleValidCameraPosition);
 
         scene.postRender.addEventListener(handlePostRender);
-        postRenderHandlerMap.set(widget, handlePostRender);
 
         // handlePostRender only runs on a requested render (requestRenderMode);
         // request one now so readiness doesn't depend on another hook.
