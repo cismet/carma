@@ -1,16 +1,15 @@
 import { MutableRefObject, useEffect, useRef, useMemo } from "react";
 
-import { Color, type Cartesian3 } from "@carma-cesium";
-// Property-layer helpers still live outside the curated low-level @carma-cesium surface.
-// eslint-disable-next-line carma/no-direct-cesium
 import {
-  ColorMaterialProperty,
-  ConstantProperty,
-  Entity,
-  CallbackProperty,
-  PolylineGraphics,
-  EntityCollection,
-} from "cesium";
+  Color,
+  ColorGeometryInstanceAttribute,
+  GeometryInstance,
+  GroundPolylineGeometry,
+  GroundPolylinePrimitive,
+  PolylineColorAppearance,
+  type Cartesian3,
+  type Scene,
+} from "@carma-cesium";
 import { Easing } from "@carma-commons/math";
 
 import {
@@ -21,7 +20,7 @@ import {
 import {
   useCesiumContext,
   polygonHierarchyFromPolygonCoords,
-} from "@carma-mapping/engines/cesium/legacy";
+} from "@carma-mapping/engines/cesium/react/runtime";
 
 import { useOblique } from "../hooks/useOblique";
 import {
@@ -38,7 +37,6 @@ import {
 
 type OpacityAnimationState = AnimationState<number>;
 
-const OBLIQUE_DATASOURCE_PREFIX = "oblq-footprint";
 const FOOTPRINT_OUTLINE_ID = "oblq-footprint-outline";
 
 const defaultFootprintsStyle: ObliqueFootprintsStyle = {
@@ -47,31 +45,76 @@ const defaultFootprintsStyle: ObliqueFootprintsStyle = {
   outlineOpacity: 1,
 };
 
-const cleanupOutlineEntity = (
-  withEntities: (callback: (entities: EntityCollection) => void) => void,
-  ref: MutableRefObject<Entity | null>,
+const writeOutlinePrimitiveColor = (
+  primitive: GroundPolylinePrimitive,
+  color: Color
+) => {
+  try {
+    const attributes =
+      primitive.getGeometryInstanceAttributes(FOOTPRINT_OUTLINE_ID);
+    if (attributes) {
+      attributes.color = ColorGeometryInstanceAttribute.toValue(color);
+    }
+  } catch {
+    // Primitive attributes are unavailable until the primitive is added/ready.
+  }
+};
+
+const cleanupOutlinePrimitive = (
+  scene: Scene | null,
+  ref: MutableRefObject<GroundPolylinePrimitive | null>,
   debug = false,
   requestRender?: () => void
 ) => {
-  debug && console.debug(`Oblique Footprints: Removing outline entity`);
+  debug && console.debug(`Oblique Footprints: Removing outline primitive`);
   try {
-    withEntities((entities) => {
-      // removeById is the safe entity removal API on Cesium EntityCollection
-      if (typeof entities.removeById === "function") {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        entities.removeById(FOOTPRINT_OUTLINE_ID as any);
-      }
-    });
+    const primitive = ref.current;
+    const { groundPrimitives } = scene ?? {};
+    if (
+      groundPrimitives &&
+      !groundPrimitives.isDestroyed() &&
+      primitive &&
+      groundPrimitives.contains(primitive)
+    ) {
+      groundPrimitives.remove(primitive);
+    }
   } catch (e) {
-    console.error("Error removing outline entity", e);
+    console.error("Error removing outline primitive", e);
   }
   ref.current = null;
   requestRender?.();
 };
 
+const createOutlinePrimitive = ({
+  positions,
+  color,
+  width,
+}: {
+  positions: Cartesian3[];
+  color: Color;
+  width: number;
+}) => {
+  const outlinePositions = [...positions, positions[0]];
+
+  return new GroundPolylinePrimitive({
+    geometryInstances: new GeometryInstance({
+      id: FOOTPRINT_OUTLINE_ID,
+      geometry: new GroundPolylineGeometry({
+        positions: outlinePositions,
+        width,
+      }),
+      attributes: {
+        color: ColorGeometryInstanceAttribute.fromColor(color),
+      },
+    }),
+    appearance: new PolylineColorAppearance(),
+    show: true,
+    debugShowBoundingVolume: false,
+  });
+};
+
 export const useFootprints = (debug = false): void => {
-  const { viewerRef, requestRender, isValidViewer, withEntities } =
-    useCesiumContext();
+  const { requestRender, isValidRuntime, getScene } = useCesiumContext();
   const {
     isObliqueMode,
     selectedImage,
@@ -102,7 +145,7 @@ export const useFootprints = (debug = false): void => {
     animations?.outlineFadeOut?.easingFunction || Easing.LINEAR_NONE;
 
   const lastImageIdRef = useRef<string | null>(null);
-  const outlineEntityRef = useRef<Entity | null>(null);
+  const outlinePrimitiveRef = useRef<GroundPolylinePrimitive | null>(null);
   const prevObliqueMode = useRef<boolean>(isObliqueMode);
 
   const opacityAnimationRef = useRef<OpacityAnimationState>(
@@ -115,31 +158,31 @@ export const useFootprints = (debug = false): void => {
     })
   );
 
-  // Clean up entities when component unmounts
+  // Clean up primitives when component unmounts
   useEffect(() => {
     return () => {
-      cleanupOutlineEntity(
-        withEntities,
-        outlineEntityRef,
+      cleanupOutlinePrimitive(
+        getScene(),
+        outlinePrimitiveRef,
         debug,
         requestRender
       );
     };
-  }, [debug, withEntities, requestRender]);
+  }, [debug, getScene, requestRender]);
 
   useEffect(() => {
     // If we're leaving oblique mode, trigger exit animation then clean up the footprint
     if (prevObliqueMode.current && !isObliqueMode) {
       // Always clean up the outline immediately
-      cleanupOutlineEntity(
-        withEntities,
-        outlineEntityRef,
+      cleanupOutlinePrimitive(
+        getScene(),
+        outlinePrimitiveRef,
         debug,
         requestRender
       );
     }
     prevObliqueMode.current = isObliqueMode;
-  }, [isObliqueMode, withEntities, debug, requestRender]);
+  }, [isObliqueMode, getScene, debug, requestRender]);
 
   useEffect(() => {
     opacityAnimationRef.current.duration = animationDuration;
@@ -148,24 +191,46 @@ export const useFootprints = (debug = false): void => {
   }, [animationDuration, animationDelay, animationEasing]);
 
   useEffect(() => {
-    // When lockFootprint is set, start fade-out animation with a completion callback to clean up
-    if (outlineEntityRef.current && outlineEntityRef.current.polyline) {
+    // When lockFootprint is set, start fade-out animation with a completion callback to clean up.
+    const scene = getScene();
+    const primitive = outlinePrimitiveRef.current;
+    if (scene && primitive) {
       if (lockFootprint) {
         startAnimation(opacityAnimationRef.current, outlineOpacity, 0.0, {
           forceStart: true,
           onComplete: () => {
-            // Remove entity completely when animation finishes
-            cleanupOutlineEntity(
-              withEntities,
-              outlineEntityRef,
+            cleanupOutlinePrimitive(
+              scene,
+              outlinePrimitiveRef,
               debug,
               requestRender
             );
             lastImageIdRef.current = null;
           },
         });
+
+        const updateOpacity = () => {
+          const opacity = processAnimation(
+            opacityAnimationRef.current,
+            requestRender
+          );
+          writeOutlinePrimitiveColor(
+            primitive,
+            outlineColor.withAlpha(opacity)
+          );
+          if (!opacityAnimationRef.current.isAnimating) {
+            scene.postRender.removeEventListener(updateOpacity);
+          }
+        };
+
+        scene.postRender.addEventListener(updateOpacity);
+        requestRender();
+
+        return () => {
+          scene.postRender.removeEventListener(updateOpacity);
+        };
       } else if (lastImageIdRef.current === null && selectedImage) {
-        // Coming back from locked state - we'll recreate the entity
+        // Coming back from locked state - we'll recreate the primitive
         // by setting last ref to null to force the next effect to run
         lastImageIdRef.current = null;
       }
@@ -178,12 +243,12 @@ export const useFootprints = (debug = false): void => {
     selectedImage,
     debug,
     requestRender,
-    withEntities,
+    getScene,
   ]);
 
   useEffect(() => {
     if (
-      !isValidViewer() ||
+      !isValidRuntime() ||
       !selectedImage ||
       !footprintData ||
       !isObliqueMode
@@ -191,7 +256,12 @@ export const useFootprints = (debug = false): void => {
       return;
     }
 
-    // If footprint is locked, don't create a new entity
+    const scene = getScene();
+    if (!scene) {
+      return;
+    }
+
+    // If footprint is locked, don't create a new primitive
     if (lockFootprint) {
       return;
     }
@@ -199,68 +269,18 @@ export const useFootprints = (debug = false): void => {
     const currentImageId = selectedImage.record.id;
     const sameImage = lastImageIdRef.current === currentImageId;
 
-    // Only clean up and recreate entity if:
+    // Only clean up and recreate primitive if:
     // 1. It's a new image
-    // 2. We don't already have an entity
-    if (sameImage && outlineEntityRef.current) {
-      // If it's the same image and we already have an entity, no need to recreate
+    // 2. We don't already have a primitive
+    if (sameImage && outlinePrimitiveRef.current) {
+      // If it's the same image and we already have a primitive, no need to recreate
       return;
     }
 
     lastImageIdRef.current = currentImageId;
 
-    // Clean up any existing entity
-    cleanupOutlineEntity(withEntities, outlineEntityRef, debug, requestRender);
-
-    const createOpacityCallbackProperty = () => {
-      return new CallbackProperty(() => {
-        const newOpacity = processAnimation(
-          opacityAnimationRef.current,
-          requestRender
-        );
-
-        // If opacity is near zero, remove the entity completely instead of just hiding it
-        if (Math.abs(newOpacity) < 0.01 && outlineEntityRef.current) {
-          debug &&
-            console.debug(
-              `Oblique Footprints: Animation complete, removing outline entity`
-            );
-          requestAnimationFrame(() => {
-            // Delay to avoid conflict with current updates, then remove the entity completely
-            cleanupOutlineEntity(
-              withEntities,
-              outlineEntityRef,
-              debug,
-              requestRender
-            );
-          });
-        }
-        return outlineColor.withAlpha(newOpacity);
-      }, false);
-    };
-
-    const createOutlineEntity = (positions: Cartesian3[]) => {
-      if (!positions || positions.length === 0) return null;
-
-      // Close the loop by adding the first position to the end
-      const outlinePositions = [...positions, positions[0]];
-
-      debug && console.debug(`Oblique Footprints: Creating outline entity`);
-
-      return new Entity({
-        id: FOOTPRINT_OUTLINE_ID,
-        name: `${OBLIQUE_DATASOURCE_PREFIX}-outline-${
-          selectedImage?.record.id || ""
-        }`,
-        show: true,
-        polyline: new PolylineGraphics({
-          positions: outlinePositions,
-          width: new ConstantProperty(outlineWidth),
-          material: new ColorMaterialProperty(createOpacityCallbackProperty()),
-          clampToGround: new ConstantProperty(true),
-        }),
-      });
-    };
+    // Clean up any existing primitive
+    cleanupOutlinePrimitive(scene, outlinePrimitiveRef, debug, requestRender);
 
     const matchingFeature = findMatchingFeature(
       footprintData.features as FootprintFeature[],
@@ -274,11 +294,11 @@ export const useFootprints = (debug = false): void => {
       ring.map((coord) => [coord[0], coord[1]])
     );
 
-    // Get polygon hierarchy for use in both entities
+    // Get polygon hierarchy for the footprint primitive
     const polygonHierarchy = polygonHierarchyFromPolygonCoords(polygonCoords);
 
     if (polygonHierarchy.positions && polygonHierarchy.positions.length > 0) {
-      // Create fresh animation state for this entity
+      // Create fresh animation state for this primitive
       opacityAnimationRef.current = createAnimationState({
         startValue: outlineOpacity,
         targetValue: outlineOpacity,
@@ -287,14 +307,17 @@ export const useFootprints = (debug = false): void => {
         easingFunction: animationEasing,
       });
 
-      withEntities((entities) => {
-        const outlineEntity = createOutlineEntity(polygonHierarchy.positions);
-        entities.add(outlineEntity);
-        outlineEntityRef.current = outlineEntity;
+      debug && console.debug(`Oblique Footprints: Creating outline primitive`);
+      const outlinePrimitive = createOutlinePrimitive({
+        positions: polygonHierarchy.positions,
+        color: outlineColor.withAlpha(outlineOpacity),
+        width: outlineWidth,
       });
+      scene.groundPrimitives.add(outlinePrimitive);
+      outlinePrimitiveRef.current = outlinePrimitive;
+      requestRender();
     }
   }, [
-    viewerRef,
     isObliqueMode,
     selectedImage,
     footprintData,
@@ -306,9 +329,9 @@ export const useFootprints = (debug = false): void => {
     animationDelay,
     animationEasing,
     debug,
-    isValidViewer,
+    isValidRuntime,
     requestRender,
-    withEntities,
+    getScene,
   ]);
 };
 

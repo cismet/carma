@@ -20,7 +20,7 @@ import {
   polygonHierarchyFromPolygonCoords,
   removeGroundPrimitiveById,
   type CesiumOptions,
-} from "@carma-mapping/engines/cesium/legacy";
+} from "@carma-mapping/engines/cesium/react/runtime";
 
 import type { HitTriggerOptions } from "./cesium-selection-types";
 import { DerivedGeometries } from "./getDerivedGeometries";
@@ -64,13 +64,18 @@ const handlePolygonSelection = (
   idSelected: string,
   idInverted: string,
   duration: number,
-  { isPrimaryStyle }: CesiumOptions,
+  { selectionClassification }: CesiumOptions,
   skipFlyTo: boolean,
   skipMarkerUpdate: boolean
 ) => {
+  const classificationType =
+    selectionClassification === "tileset"
+      ? ClassificationType.CESIUM_3D_TILE
+      : ClassificationType.BOTH;
+
   // Add/update polygon geometry only if not skipping marker update
   if (!skipMarkerUpdate) {
-    // Convert polygon to GroundPrimitive instead of Entity
+    // Convert polygon to GroundPrimitive for scene-local selection rendering.
     const selectedPolygonGeometry = new PolygonGeometry({
       polygonHierarchy: polygonHierarchyFromPolygonCoords(polygon),
       extrudedHeight: 1,
@@ -91,9 +96,7 @@ const handlePolygonSelection = (
       geometryInstances: selectedGeometryInstance,
       allowPicking: false,
       releaseGeometryInstances: false,
-      classificationType: isPrimaryStyle
-        ? ClassificationType.CESIUM_3D_TILE
-        : ClassificationType.BOTH,
+      classificationType,
     });
     // For the inverted polygon
     const invertedPolygonGeometry = new PolygonGeometry({
@@ -115,9 +118,7 @@ const handlePolygonSelection = (
       geometryInstances: invertedGeometryInstance,
       allowPicking: false,
       releaseGeometryInstances: false, // needed to get ID
-      classificationType: isPrimaryStyle
-        ? ClassificationType.CESIUM_3D_TILE
-        : ClassificationType.BOTH,
+      classificationType,
     });
 
     scene.groundPrimitives.add(selectedGroundPrimitive);

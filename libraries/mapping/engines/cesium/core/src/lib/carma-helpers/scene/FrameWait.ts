@@ -15,20 +15,40 @@ export type SceneRenderStage =
 export const waitForRenderFrames = (
   scene: Scene,
   frameCount: number = 1,
-  stage: SceneRenderStage = "postRender"
+  stage: SceneRenderStage = "postRender",
+  timeoutMs: number = 4000
 ): Promise<void> => {
   return new Promise<void>((resolve) => {
     let count = 0;
+    let settled = false;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
-    const listener = () => {
+    // Hoisted so finish/listener can reference each other.
+    function finish() {
+      if (settled) return;
+      settled = true;
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
+      scene[stage].removeEventListener(listener);
+      resolve();
+    }
+
+    function listener() {
+      // Scene torn down mid-wait — resolve so awaiting callers never hang.
+      if (!isValidScene(scene)) {
+        finish();
+        return;
+      }
       count += 1;
       if (count >= frameCount) {
-        scene[stage].removeEventListener(listener);
-        resolve();
+        finish();
       } else {
         scene.requestRender();
       }
-    };
+    }
+
+    // Fallback: under requestRenderMode a stalled/destroyed scene may never fire
+    // postRender again, leaving this promise pending forever.
+    timeoutId = setTimeout(finish, timeoutMs);
 
     scene[stage].addEventListener(listener);
     scene.requestRender();

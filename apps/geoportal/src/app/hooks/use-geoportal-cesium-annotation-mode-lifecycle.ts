@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 
-import { useCesiumCameraLimiterToggle } from "@carma-mapping/engines/cesium/legacy";
+import { useCesiumCameraLimiterToggle } from "@carma-mapping/engines/cesium/react/runtime";
 
 import { CESIUM_CONFIG } from "../config/app.config";
 import { useModeLifecycleActions } from "./use-mode-lifecycle-actions";

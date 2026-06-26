@@ -2,16 +2,44 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   Entity,
   Transforms,
+  HeadingPitchRoll,
   DebugModelMatrixPrimitive,
   Viewer,
   Cesium3DTileset,
   Cartesian3,
+  type ModelGraphics,
 } from "cesium";
 import { BRUECKENENTWURF_GLB, WUPP_MESH_2024 } from "@carma-commons/resources";
-import { createModelEntityConstructorOptions } from "@carma-mapping/engines/cesium/legacy";
+import type { ModelConfig } from "@carma-mapping/engines/cesium/core";
 import { cesiumConstructorOptions } from "../config";
 import { useCameraPersistence } from "../hooks/useCameraPersistence";
 import { ModelPlacementUI } from "./ModelPlacement.UI";
+
+const createModelEntityConstructorOptions = (config: ModelConfig) => {
+  const position = Cartesian3.fromDegrees(
+    config.position.longitude,
+    config.position.latitude,
+    config.position.altitude
+  );
+  const hpr = HeadingPitchRoll.fromDegrees(
+    config.orientation?.heading ?? 0,
+    config.orientation?.pitch ?? 0,
+    config.orientation?.roll ?? 0
+  );
+  const orientation = Transforms.headingPitchRollQuaternion(position, hpr);
+  const modelOptions: ModelGraphics.ConstructorOptions = {
+    scale: 1.0,
+    show: true,
+    ...config.model,
+  };
+
+  return {
+    ...config,
+    position,
+    orientation,
+    model: modelOptions,
+  };
+};
 
 const modelConstructorOptions =
   createModelEntityConstructorOptions(BRUECKENENTWURF_GLB);

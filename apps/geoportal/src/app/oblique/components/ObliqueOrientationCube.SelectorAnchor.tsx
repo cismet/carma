@@ -6,7 +6,7 @@ export type SelectorAnchorProps = {
   aria: string;
   onClick: () => void;
   label: React.ReactNode;
-  billboardTransform: string; // transform that billboards to the viewer
+  billboardTransform: string; // transform that billboards to the camera
   disabled?: boolean;
   color?: string;
   hoverColor?: string;

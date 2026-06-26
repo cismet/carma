@@ -13,7 +13,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { Tooltip, Radio, type RadioChangeEvent } from "antd";
 
-import { useCesiumContext } from "@carma-mapping/engines/cesium/legacy";
+import { useCesiumContext } from "@carma-mapping/engines/cesium/react/runtime";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { PREVIEW_IMAGE_BASE_SCALE_FACTOR } from "../config";
 import type { ObliqueImagePreviewStyle } from "../types";
@@ -28,8 +28,8 @@ import ObliqueOrientationCube from "./ObliqueOrientationCube";
 import type { CardinalDirectionEnum } from "../utils/orientationUtils";
 import {
   getSceneSyncedDimensions,
-  getViewerSyncedDimensions,
-} from "../utils/getViewerSyncedDimensions";
+  getRuntimeSyncedDimensions,
+} from "../utils/getRuntimeSyncedDimensions";
 import { useProgressivePreviewSource } from "../hooks/useProgressivePreviewSource";
 import { useForwardZoomEventsToCesium } from "../hooks/useForwardZoomEventsToCesium";
 import { strings } from "../strings.de";
@@ -433,7 +433,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
 
   if (!isVisible) return null;
 
-  const { syncedWidth, syncedHeight } = getViewerSyncedDimensions(
+  const { syncedWidth, syncedHeight } = getRuntimeSyncedDimensions(
     ctx,
     isVertical,
     imageAspectRatio,

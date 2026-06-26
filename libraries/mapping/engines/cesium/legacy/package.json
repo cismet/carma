@@ -1,9 +1,0 @@
-{
-  "name": "@carma-mapping/engines/cesium/legacy",
-  "version": "0.0.1",
-  "private": true,
-  "dependencies": {},
-  "main": "./index.js",
-  "module": "./index.mjs",
-  "typings": "./index.d.ts"
-}

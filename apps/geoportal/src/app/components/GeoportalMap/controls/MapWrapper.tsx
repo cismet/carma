@@ -33,7 +33,7 @@ import {
   PitchingCompass,
   useCesiumContext,
   useZoomControls as useZoomControlsCesium,
-} from "@carma-mapping/engines/cesium/legacy";
+} from "@carma-mapping/engines/cesium/react/runtime";
 import { NAVIGATION_KEYBOARD_SHORTCUT_ACTIONS } from "@carma-mapping/engines-interop/navigation-controls";
 import { flyViewStateInCesium } from "@carma-mapping/engines-interop/view-state";
 import {
@@ -386,7 +386,6 @@ const MapWrapper = () => {
                   enableMobileWarning={true}
                   className="!rounded-t-none !border-t-[1px]"
                   ref={tourRefLabels.toggle2d3d}
-                  disabled={isObliquePreviewVisible}
                   useDisabledStyle={false}
 
                   // nativeTooltip={true}

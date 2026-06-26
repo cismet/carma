@@ -9,7 +9,7 @@ import {
 import {
   cancelSceneAnimation,
   useCesiumContext,
-} from "@carma-mapping/engines/cesium/legacy";
+} from "@carma-mapping/engines/cesium/react/runtime";
 import { pickSceneCenter } from "@carma-mapping/engines/cesium/core";
 
 export type UseOrientationCubeDragParams = {
@@ -56,8 +56,8 @@ export function useOrientationCubeDrag({
       animFrameRef.current = null;
       return;
     }
-    ctx.withViewer((viewer) => {
-      const camera = viewer.camera;
+    ctx.withRuntime((runtime) => {
+      const camera = runtime.camera;
       const currentHeading = camera.heading;
       const currentPitch = camera.pitch;
       const targetH = targetHeadingRef.current;
@@ -71,7 +71,7 @@ export function useOrientationCubeDrag({
         MIN_PITCH,
         MAX_PITCH
       );
-      viewer.camera.lookAt(
+      runtime.camera.lookAt(
         orbitPointRef.current!,
         new HeadingPitchRange(nextHeading, nextPitch, rangeRef.current)
       );
@@ -80,18 +80,18 @@ export function useOrientationCubeDrag({
   }, [ctx]);
 
   const handleMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (!ctx.isValidViewer()) return;
+    if (!ctx.isValidRuntime()) return;
     if (event.button !== 0) return; // primary button only
     event.preventDefault();
     isPointerDownRef.current = true;
     const { clientX: x, clientY: y } = event;
     lastMouseRef.current = [x, y];
     startMouseRef.current = [x, y];
-    ctx.withViewer((viewer) => {
-      const camera = viewer.camera;
+    ctx.withRuntime((runtime) => {
+      const camera = runtime.camera;
       targetHeadingRef.current = camera.heading;
       targetPitchRef.current = camera.pitch;
-      const target = pickSceneCenter(viewer.scene);
+      const target = pickSceneCenter(runtime.scene);
       if (target) {
         const range = Cartesian3.distance(target, camera.positionWC);
         orbitPointRef.current = target;
@@ -113,17 +113,17 @@ export function useOrientationCubeDrag({
       animFrameRef.current = null;
     }
     if (!wasDragging) return;
-    if (!ctx.isValidViewer()) return;
+    if (!ctx.isValidRuntime()) return;
     let camera: Camera | undefined;
-    ctx.withViewer((viewer) => {
-      camera = viewer.camera;
+    ctx.withRuntime((runtime) => {
+      camera = runtime.camera;
     });
     if (!camera) return;
     if (previousPercentageChangedRef.current !== undefined) {
       camera.percentageChanged = previousPercentageChangedRef.current;
     }
-    ctx.withViewer((viewer) => {
-      viewer.camera.lookAtTransform(Matrix4.IDENTITY);
+    ctx.withRuntime((runtime) => {
+      runtime.camera.lookAtTransform(Matrix4.IDENTITY);
     });
   }, [ctx, shouldSuspendPitchLimiterRef]);
 
@@ -142,13 +142,13 @@ export function useOrientationCubeDrag({
         if (Math.hypot(totalDx, totalDy) < dragThresholdPx) {
           return;
         }
-        if (!ctx.isValidViewer()) return;
+        if (!ctx.isValidRuntime()) return;
         shouldSuspendPitchLimiterRef.current = true;
-        ctx.withViewer((viewer) => {
+        ctx.withRuntime((runtime) => {
           if (sceneAnimationMapRef?.current) {
-            cancelSceneAnimation(viewer.scene, sceneAnimationMapRef.current);
+            cancelSceneAnimation(runtime.scene, sceneAnimationMapRef.current);
           }
-          const camera = viewer.camera;
+          const camera = runtime.camera;
           previousPercentageChangedRef.current =
             camera.percentageChanged ?? 0.01;
           camera.percentageChanged = 0.002;

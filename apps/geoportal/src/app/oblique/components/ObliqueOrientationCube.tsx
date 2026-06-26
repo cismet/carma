@@ -5,9 +5,8 @@ import { Cartesian3, HeadingPitchRange, Matrix4 } from "@carma-cesium";
 import {
   cancelSceneAnimation,
   cesiumCameraToCssTransform,
-  guardCamera,
   useCesiumContext,
-} from "@carma-mapping/engines/cesium/legacy";
+} from "@carma-mapping/engines/cesium/react/runtime";
 import { pickSceneCenter } from "@carma-mapping/engines/cesium/core";
 
 import {
@@ -130,7 +129,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
   const half = size / 2;
 
   const ctx = useCesiumContext();
-  const { viewerRef, isViewerReady, sceneAnimationMapRef } = ctx;
+  const { runtimeRef, isRuntimeReady, sceneAnimationMapRef } = ctx;
   const [, setTransformTick] = useState(0);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const lastFrustumRef = useRef<{ angle?: number; w?: number; h?: number }>({});
@@ -207,7 +206,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
       camera.changed.addEventListener(onChanged);
       onChanged();
       cleanup = () => {
-        guardCamera(camera).changed.removeEventListener(onChanged);
+        camera.changed.removeEventListener(onChanged);
       };
     });
     return () => {
@@ -217,15 +216,15 @@ const ObliqueOrientationCube: React.FC<Props> = ({
 
   // Ensure perspective updates even when only FOV/aspect/size changes (pose unchanged)
   useEffect(() => {
-    if (!ctx.isValidViewer()) return;
+    if (!ctx.isValidRuntime()) return;
     let cleanup: (() => void) | undefined;
-    ctx.withViewer((viewer) => {
-      const camera = viewer.camera;
-      const scene = viewer.scene;
+    ctx.withRuntime((runtime) => {
+      const camera = runtime.camera;
+      const scene = runtime.scene;
 
       const updateFrustum = () => {
         try {
-          const el = viewer.container as Element;
+          const el = runtime.container as Element;
           const rect = el.getBoundingClientRect();
           const w = rect.width;
           const h = rect.height;
@@ -263,14 +262,14 @@ const ObliqueOrientationCube: React.FC<Props> = ({
     return () => {
       cleanup?.();
     };
-  }, [viewerRef, isViewerReady, ctx]);
+  }, [runtimeRef, isRuntimeReady, ctx]);
 
   // Build forward scene transform and inverse (for billboarding labels)
-  const cam = viewerRef.current?.camera;
+  const cam = runtimeRef.current?.camera;
   const [sceneTransform, inverseSceneTransform, perspectivePx] = cam
     ? cesiumCameraToCssTransform(cam, {
         offsetRad: offsetCube ? offsetRad : 0,
-        targetEl: viewerRef.current?.container,
+        targetEl: runtimeRef.current?.container,
         fallback: 1600,
       })
     : ["", "", 1600];
@@ -318,21 +317,21 @@ const ObliqueOrientationCube: React.FC<Props> = ({
       onHeadingSelect(0);
       return;
     }
-    // Fallback: instant snap (legacy behavior)
-    if (!ctx.isValidViewer()) return;
-    ctx.withViewer((viewer) => {
+    // Fallback: instant snap
+    if (!ctx.isValidRuntime()) return;
+    ctx.withRuntime((runtime) => {
       if (sceneAnimationMapRef?.current) {
-        cancelSceneAnimation(viewer.scene, sceneAnimationMapRef.current);
+        cancelSceneAnimation(runtime.scene, sceneAnimationMapRef.current);
       }
-      const camera = viewer.camera;
-      const target = pickSceneCenter(viewer.scene);
+      const camera = runtime.camera;
+      const target = pickSceneCenter(runtime.scene);
       if (target) {
         const range = Cartesian3.distance(target, camera.positionWC);
-        viewer.camera.lookAt(
+        runtime.camera.lookAt(
           target,
           new HeadingPitchRange(0, camera.pitch, range)
         );
-        viewer.camera.lookAtTransform(Matrix4.IDENTITY);
+        runtime.camera.lookAtTransform(Matrix4.IDENTITY);
         ctx.requestRender();
       }
     });
@@ -647,7 +646,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
           </Button>
         </Tooltip>
       </div>
-      {/* NSOW selectors anchored in 3D at face centers; buttons billboard to the viewer */}
+      {/* NSOW selectors anchored in 3D at face centers; buttons billboard to the camera */}
       <div
         className={`absolute inset-0 transition-opacity duration-150 ${
           isDragging ? "opacity-0" : "opacity-100"

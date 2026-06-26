@@ -58,7 +58,7 @@ export type AnimationConfig = {
 };
 
 export type ObliqueAnimationsConfig = {
-  // Enter animation when switching the viewer into oblique mode.
+  // Enter animation when switching the 3D runtime into oblique mode.
   enterObliqueMode?: AnimationConfig;
   flyToExteriorOrientation?: AnimationConfig;
   // Optional: animation config for navigating to sibling/next image.

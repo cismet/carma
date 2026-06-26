@@ -20,7 +20,7 @@ import type { RBushBySectorBlocks } from "../utils/spatialIndexing";
 
 export interface ObliqueContextType {
   isObliqueMode: boolean;
-  toggleObliqueMode: () => void;
+  setObliqueMode: (enabled: boolean) => void;
   converter: Proj4Converter;
 
   isPreviewVisible: boolean;

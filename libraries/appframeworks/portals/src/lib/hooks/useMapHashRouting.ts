@@ -17,7 +17,6 @@ import {
   HASH_CLEAR_STATE_KEY_SET,
   useHashState,
   type HashStateChangeEvent,
-  type HashParams,
 } from "@carma-providers/hash-state";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { isMapCenterZoomEquivalent } from "@carma-geo/utils";
@@ -25,10 +24,19 @@ import { Degrees } from "@carma-units";
 import { useRegisterDefaultMapHashClearStateKeySets } from "./useRegisterDefaultMapHashClearStateKeySets";
 
 export type LatLngZoom = { lat: number; lng: number; zoom: number };
-export type CesiumSceneChangeEvent = { hashParams: HashParams };
+
+// Verbose hash-routing logs; enable at runtime via
+// globalThis.__CARMA_DEBUG_HASH_ROUTING__ = true
+const hashRoutingDebug = (...args: unknown[]) => {
+  if (
+    (globalThis as { __CARMA_DEBUG_HASH_ROUTING__?: boolean })
+      .__CARMA_DEBUG_HASH_ROUTING__
+  ) {
+    console.debug(...args);
+  }
+};
 
 type Labels = {
-  clearCesium?: string;
   writeLeafletLike?: string;
   topicMapLocation?: string;
   cesiumScene?: string;
@@ -45,25 +53,20 @@ type LeafletLikeMap = {
 export interface UseMapHashRoutingOptions {
   getLeafletMap?: () => LeafletLikeMap | null | undefined;
   getLeafletZoom?: () => number;
-  additionalClearStateKeys?: string[];
   labels?: Labels;
-  pixelTolerance?: number; // px
   isHashWriteEnabled?: () => boolean;
 }
 
 export function useMapHashRouting({
   getLeafletMap,
   getLeafletZoom,
-  additionalClearStateKeys,
   labels,
-  pixelTolerance,
   isHashWriteEnabled,
 }: UseMapHashRoutingOptions) {
   useRegisterDefaultMapHashClearStateKeySets();
-  const resolvedAdditionalClearStateKeys = additionalClearStateKeys ?? [];
   const { updateHashState, registerOnPopState, getHashStateValues } =
     useHashState();
-  const { getIsLeaflet, getIsCesium, getIsTransitioning, activeFramework } =
+  const { getIsLeaflet, getIsTransitioning, activeFramework } =
     useMapFrameworkSwitcherContext();
 
   // Skip leaflet writes when the map move was initiated by a navigation (popstate)
@@ -77,21 +80,21 @@ export function useMapHashRouting({
 
   const handleTopicMapLocationChange = useCallback(
     ({ lat, lng, zoom }: LatLngZoom) => {
-      console.debug("[Routing][hash]", lat, lng, zoom);
+      hashRoutingDebug("[Routing][hash]", lat, lng, zoom);
       if (isHashWriteEnabled && !isHashWriteEnabled()) {
-        console.debug(
+        hashRoutingDebug(
           "[Routing][hash] (Leaflet) suppress push: hash writes disabled by guard"
         );
         return;
       }
       if (!getIsLeaflet() || getIsTransitioning()) {
-        console.debug(
+        hashRoutingDebug(
           "[Routing][hash] (Leaflet) suppress push: not in Leaflet mode or transitioning"
         );
         return;
       }
       if (navMoveInProgressRef.current) {
-        console.debug(
+        hashRoutingDebug(
           "[Routing][hash] (Leaflet) suppress push: popstate navigation in progress",
           {
             lat,
@@ -116,11 +119,10 @@ export function useMapHashRouting({
               longitude: target.lng as Degrees,
             },
             zoom: target.zoom,
-          },
-          { pixelTolerance }
+          }
         );
         if (eq) {
-          console.debug(
+          hashRoutingDebug(
             "[Routing][hash] (Leaflet) skip push: equals popstate target within tolerance",
             { lat, lng, zoom, target }
           );
@@ -147,11 +149,10 @@ export function useMapHashRouting({
             {
               center: { latitude: hLat, longitude: hLng },
               zoom: hZoom,
-            },
-            { pixelTolerance }
+            }
           );
           if (eq) {
-            console.debug(
+            hashRoutingDebug(
               "[Routing][hash] (LeafletLike) skip push: equals current hash within tolerance",
               { lat, lng, zoom, hLat, hLng, hZoom }
             );
@@ -162,11 +163,7 @@ export function useMapHashRouting({
       updateHashState(
         { lat, lng, zoom },
         {
-          clearStateKeySetIds: [
-            HASH_CLEAR_STATE_KEY_SET.SCENE_VIEW_STATE,
-            HASH_CLEAR_STATE_KEY_SET.LAUNCH_MODE,
-          ],
-          clearStateKeys: resolvedAdditionalClearStateKeys,
+          clearStateKeySetIds: [HASH_CLEAR_STATE_KEY_SET.LAUNCH_MODE],
           label: labels?.topicMapLocation ?? "Map:2D:location",
           replace: false,
         }
@@ -177,30 +174,7 @@ export function useMapHashRouting({
       getIsTransitioning,
       updateHashState,
       getHashStateValues,
-      resolvedAdditionalClearStateKeys,
       labels?.topicMapLocation,
-      pixelTolerance,
-      isHashWriteEnabled,
-    ]
-  );
-
-  const handleCesiumSceneChange = useCallback(
-    (e: CesiumSceneChangeEvent) => {
-      if (isHashWriteEnabled && !isHashWriteEnabled()) {
-        return;
-      }
-      if (!getIsCesium() || getIsTransitioning()) return;
-      updateHashState(e.hashParams, {
-        clearStateKeys: ["zoom"],
-        label: labels?.cesiumScene ?? "Map:3D:scene",
-        replace: true, // don't push to history until cesium handled history navigation
-      });
-    },
-    [
-      getIsCesium,
-      updateHashState,
-      labels?.cesiumScene,
-      getIsTransitioning,
       isHashWriteEnabled,
     ]
   );
@@ -215,17 +189,8 @@ export function useMapHashRouting({
         prevIsModeLeafletLikeRef.current = isLeafletLike;
         return;
       }
-      // Replace current entry to clear 3D-specific state
-      updateHashState(undefined, {
-        clearStateKeySetIds: [
-          HASH_CLEAR_STATE_KEY_SET.SCENE_VIEW_STATE,
-          HASH_CLEAR_STATE_KEY_SET.LAUNCH_MODE,
-        ],
-        clearStateKeys: resolvedAdditionalClearStateKeys,
-        label: labels?.clearCesium ?? "Map:2D:clearCesium",
-        replace: true,
-      });
-      // Then push current 2D location
+      // Write the current 2D location. The cesium writer drops its own 3D-only
+      // keys on handover (neutralize), so the routing leaves them alone here.
       const map = getLeafletMap?.();
       if (
         map &&
@@ -251,8 +216,6 @@ export function useMapHashRouting({
     updateHashState,
     getLeafletMap,
     getLeafletZoom,
-    resolvedAdditionalClearStateKeys,
-    labels?.clearCesium,
     labels?.writeLeafletLike,
     isHashWriteEnabled,
   ]);
@@ -345,5 +308,5 @@ export function useMapHashRouting({
     return registerOnPopState(handlePopState);
   }, [registerOnPopState, getIsLeaflet, getLeafletMap, getLeafletZoom]);
 
-  return { handleTopicMapLocationChange, handleCesiumSceneChange };
+  return { handleTopicMapLocationChange };
 }

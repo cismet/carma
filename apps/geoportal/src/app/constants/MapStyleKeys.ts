@@ -3,4 +3,4 @@ export enum MapStyleKeys {
   AERIAL = "luftbild",
 }
 
-export type MapStyle = keyof typeof MapStyleKeys;
+export type MapStyle = `${MapStyleKeys}`;

@@ -79,12 +79,20 @@ export type HashLaunchModeConfig = {
   defaultMode?: ResolvedHashLaunchMode;
   flag2dKey?: string;
   flag3dKey?: string;
+  /**
+   * Hash keys an altitude/elevation can appear under — the 3D marker. Inject the
+   * codec's altitude key(s) here so this util stays decoupled from any specific
+   * view-state codec; the app (which owns the codec) wires them. Defaults to the
+   * generic `DEFAULT_HASH_LAUNCH_ALTITUDE_KEYS` fallback.
+   */
+  altitudeKeys?: readonly string[];
 };
 
 const resolveLaunchModeConfig = (config: HashLaunchModeConfig = {}) => ({
   defaultMode: config.defaultMode,
   flag2dKey: config.flag2dKey ?? DEFAULT_HASH_LAUNCH_FLAG_2D_KEY,
   flag3dKey: config.flag3dKey ?? DEFAULT_HASH_LAUNCH_FLAG_3D_KEY,
+  altitudeKeys: config.altitudeKeys ?? DEFAULT_HASH_LAUNCH_ALTITUDE_KEYS,
 });
 
 export const isTruthyHashValue = (value: unknown): boolean => {
@@ -118,6 +126,23 @@ const hasValid2dViewParams = (params: Record<string, unknown>): boolean =>
     (key) => parseFiniteNumber(params[key]) !== undefined
   );
 
+/**
+ * Deterministic 3D qualifier for a hash: a URL is a 3D view iff it carries a
+ * valid (finite) altitude under one of the configured `altitudeKeys`. Altitude is
+ * the ONLY camera param the shareable view-state codec always emits for 3D —
+ * bearing/pitch/roll/fov are dropped at their defaults (e.g. pitch at nadir), and
+ * lat/lng/zoom are shared with 2D — so a finite altitude is a hard switch, not a
+ * heuristic. Pass the codec's altitude key(s) via `altitudeKeys` so this stays
+ * decoupled from any specific codec; the app wires that mapping.
+ */
+export const isThreeDViewHash = (
+  params: Record<string, unknown>,
+  config: HashLaunchModeConfig = {}
+): boolean =>
+  resolveLaunchModeConfig(config).altitudeKeys.some(
+    (key) => parseFiniteNumber(params[key]) !== undefined
+  );
+
 export const readHashLaunchMode = (
   hash: Record<string, unknown> | undefined,
   config: HashLaunchModeConfig = {}
@@ -125,10 +150,8 @@ export const readHashLaunchMode = (
   const resolved = resolveLaunchModeConfig(config);
   const params = hash ?? {};
 
-  const hasAltitude = DEFAULT_HASH_LAUNCH_ALTITUDE_KEYS.some(
-    (key) => params[key] !== undefined
-  );
-  if (hasAltitude) {
+  // Deterministic view-state switch: a valid altitude qualifies as a 3D view.
+  if (isThreeDViewHash(params, config)) {
     return HASH_LAUNCH_MODE.THREE_D;
   }
 

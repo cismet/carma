@@ -160,6 +160,12 @@ export {
 export { useUrlFeatureSelection } from "./lib/hooks/useUrlFeatureSelection";
 export { useHashLaunchMode } from "./lib/hooks/useHashLaunchMode";
 export {
+  useCesiumMapFrameworkHost,
+  type CesiumMapFrameworkHost,
+  type CesiumMapFrameworkTerrainProviders,
+  type UseCesiumMapFrameworkHostOptions,
+} from "./lib/hooks/useCesiumMapFrameworkHost";
+export {
   useAppSearchParams,
   type AppSearchParamsCustomStateSnapshot,
   type AppSearchParamsDefaultHashOptions,

@@ -2,11 +2,11 @@ import React, { useRef, useCallback, useEffect } from "react";
 import { Flex, Collapse, theme, Switch, Typography } from "antd";
 
 import { WUPP_MESH_2024 } from "@carma-commons/resources";
-import { CesiumErrorHandling } from "@carma-mapping/engines/cesium/legacy";
+import { CesiumErrorHandling } from "@carma-mapping/engines/cesium/react/runtime";
 
 import {
   CesiumViewerProvider,
-  useCesiumViewer,
+  useCesiumRuntime,
 } from "../contexts/CesiumViewerContext";
 import { CesiumMeasurementsProvider } from "../measurements/CesiumMeasurementsContext";
 import { OverlayProvider } from "../overlay";
@@ -27,7 +27,7 @@ const { Text } = Typography;
 const ContextAwareApp: React.FC<{
   overlayUpdateRef: React.MutableRefObject<(() => void) | null>;
 }> = ({ overlayUpdateRef }) => {
-  const { zoomToTileset, setHQMode, hqMode, viewer } = useCesiumViewer();
+  const { zoomToTileset, setHQMode, hqMode, viewer } = useCesiumRuntime();
   const { token } = theme.useToken();
 
   // Connect overlay updates to Cesium render events
