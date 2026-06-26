@@ -173,10 +173,13 @@ export const RuntimeVisualHost = ({
         (annotationEntry) =>
           (!annotationId || annotationEntry.id === annotationId) &&
           annotationEntry.nodeIds.includes(nodeId) &&
+          // Editing is gated behind selection (cismet/wupp#4078): the long-press
+          // target is only attached to nodes of a selected measurement.
+          selectedAnnotationIds.includes(annotationEntry.id) &&
           !annotationEntry.locked &&
           !annotationEntry.readOnly
       ),
-    [annotationEntries, nodeEditingDisabledNodeIds]
+    [annotationEntries, nodeEditingDisabledNodeIds, selectedAnnotationIds]
   );
   const {
     draftNodeCoordinateOverrides,

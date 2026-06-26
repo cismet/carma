@@ -1,7 +1,11 @@
-import { useMemo } from "react";
+import { createElement, useMemo, type ReactNode } from "react";
 import {
   ANNOTATION_INFO_BOX_ACTION_IDS,
+  ANNOTATION_INFO_BOX_HELP_ITEM_KINDS,
+  AnnotationInfoBoxHelpContent,
+  AnnotationInfoBoxTextContent,
   type AnnotationInfoBoxActionId,
+  type AnnotationInfoBoxHelpItem,
   type AnnotationInfoBoxVisualOptions,
   resolveAnnotationInfoBoxVisualOptions,
 } from "@carma-mapping/annotations/ui";
@@ -10,6 +14,7 @@ import type { StoredAnnotation } from "../../store";
 import type { AnnotationToolDraftState } from "../../registry";
 import type { useAnnotationsRuntime } from "../../context/AnnotationsProvider";
 import { isReadOnlyAnnotationEntry } from "../../utils/annotation-tool-collections";
+import { resolveEditGeometryCategory } from "./node-edit-help";
 import {
   RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS,
   type RuntimeAnnotationInfoBoxSlotsState,
@@ -21,6 +26,16 @@ import type { RuntimeAnnotationInfoBoxAuthoringInstruction } from "./use-runtime
 const MUTATING_ANNOTATION_ACTION_IDS = Object.freeze<
   readonly AnnotationInfoBoxActionId[]
 >([ANNOTATION_INFO_BOX_ACTION_IDS.LOCK, ANNOTATION_INFO_BOX_ACTION_IDS.DELETE]);
+
+// Shown in the selected-measurement panel once a measurement is selected and
+// editable, so the long-press editing entry is only advertised when it is
+// actually reachable (cismet/wupp#4078).
+const SELECT_EDIT_ENTRY_HELP_ITEMS: readonly AnnotationInfoBoxHelpItem[] = [
+  {
+    kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.TEXT,
+    text: "Langer Klick auf einen Punkt öffnet die Bearbeitung.",
+  },
+];
 
 const resolveAnnotationVisualOptions = ({
   annotation,
@@ -159,12 +174,27 @@ export const useRuntimeSelectedAnnotationInfoBoxSlots = ({
       (activeToolDraftState.coordinates.length > 0 ||
         activeToolDraftFeedback !== null);
 
+    const isNodeEditable =
+      resolveEditGeometryCategory(selectedAnnotation.toolType) !== null &&
+      !selectedAnnotation.locked &&
+      !isReadOnly;
+    let editEntryInstructionContent: ReactNode | undefined;
+    if (isNodeEditable) {
+      // eslint-disable-next-line react/no-children-prop -- createElement props form, mirrors the authoring/editing instructions
+      editEntryInstructionContent = createElement(AnnotationInfoBoxTextContent, {
+        visualOptions: resolvedVisualOptions,
+        children: createElement(AnnotationInfoBoxHelpContent, {
+          items: SELECT_EDIT_ENTRY_HELP_ITEMS,
+        }),
+      });
+    }
+
     return {
       kind: RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS.ANNOTATION,
       annotation: selectedAnnotation,
       instructionContent: shouldShowActiveDraftInstruction
         ? authoringInstruction.content ?? undefined
-        : undefined,
+        : editEntryInstructionContent,
       instructionToolId: shouldShowActiveDraftInstruction
         ? authoringInstruction.plugin.id
         : undefined,
