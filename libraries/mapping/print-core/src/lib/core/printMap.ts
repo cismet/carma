@@ -24,6 +24,8 @@ const isIOS = () =>
 export interface PrintMapHandlers {
   onLoading?: (loading: boolean) => void;
   onError?: (message: string) => void;
+  /** Fired once the print PDF was produced and opened / downloaded. */
+  onSuccess?: () => void;
 }
 
 /**
@@ -80,6 +82,7 @@ export const printMap = async (
       a.click();
     }
 
+    handlers.onSuccess?.();
     handlers.onLoading?.(false);
   } catch (error) {
     handlers.onLoading?.(false);
