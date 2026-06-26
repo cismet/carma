@@ -14,6 +14,17 @@ import { PrintErrorDetails } from "./PrintErrorDetails";
 // stacking a new toast on every failed retry.
 const TOAST_KEY = "carma-print-error";
 
+// Only offer the "Details anzeigen" link once printing has failed this many
+// times in a row — a one-off glitch just shows the short toast, a persistent
+// problem exposes the technical details. Reset on the next successful print.
+const FAILURES_BEFORE_DETAILS = 3;
+let consecutiveFailures = 0;
+
+/** Reset the consecutive-failure counter — call after a successful print. */
+export const resetPrintErrorCount = (): void => {
+  consecutiveFailures = 0;
+};
+
 const showPrintErrorDetails = (errorMessage: string) => {
   message.destroy(TOAST_KEY);
   Modal.info({
@@ -36,20 +47,29 @@ const showPrintErrorDetails = (errorMessage: string) => {
  * @param errorMessage The detailed error text (shown in the details Modal).
  */
 export const showPrintErrorToast = (errorMessage: string): void => {
+  consecutiveFailures += 1;
+  // Surface the technical details only after repeated failures in a row.
+  const showDetails = consecutiveFailures >= FAILURES_BEFORE_DETAILS;
+
   void message.error({
     key: TOAST_KEY,
     duration: 8,
     content: (
       <span>
-        Beim Drucken ist ein Fehler aufgetreten.{" "}
-        <Button
-          type="link"
-          size="small"
-          style={{ padding: 0, height: "auto" }}
-          onClick={() => showPrintErrorDetails(errorMessage)}
-        >
-          Details anzeigen
-        </Button>
+        Beim Drucken ist ein Fehler aufgetreten.
+        {showDetails && (
+          <>
+            {" "}
+            <Button
+              type="link"
+              size="small"
+              style={{ padding: 0, height: "auto" }}
+              onClick={() => showPrintErrorDetails(errorMessage)}
+            >
+              Details anzeigen
+            </Button>
+          </>
+        )}
       </span>
     ),
   });
