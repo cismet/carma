@@ -528,6 +528,21 @@ export const usePointEditingGizmo = (
 
   const handleNodeLongPress = useCallback(
     (nodeId: string) => {
+      // Editing is gated behind selection (cismet/wupp#4078): the node's
+      // measurement must be selected and editable before edit mode opens. This
+      // removes the ambiguity of editing an unselected measurement and lets the
+      // info box always show the edited measurement together with its help.
+      const isEditableSelectedNode = annotationEntries.some(
+        (annotation) =>
+          annotation.nodeIds.includes(nodeId) &&
+          selectedAnnotationIds.includes(annotation.id) &&
+          !annotation.locked &&
+          !annotation.readOnly
+      );
+      if (!isEditableSelectedNode) {
+        return;
+      }
+
       if (activeEditedNodeId && activeEditedNodeId !== nodeId) {
         commitDraftNodeCoordinateOverrides(activeEditedNodeId);
       }
@@ -535,7 +550,12 @@ export const usePointEditingGizmo = (
       setAxisOverride(null);
       setActiveEditedNodeId(nodeId);
     },
-    [activeEditedNodeId, commitDraftNodeCoordinateOverrides]
+    [
+      activeEditedNodeId,
+      annotationEntries,
+      commitDraftNodeCoordinateOverrides,
+      selectedAnnotationIds,
+    ]
   );
 
   const nodesById = useMemo(

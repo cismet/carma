@@ -5,6 +5,7 @@ import {
   type UseRuntimeAnnotationInfoBoxSlotsOptions,
 } from "./runtime-annotation-info-box-slots.types";
 import { useRuntimeAnnotationInfoBoxAuthoringInstruction } from "./use-runtime-annotation-info-box-authoring-instruction";
+import { useRuntimeAnnotationInfoBoxEditingInstruction } from "./use-runtime-annotation-info-box-editing-instruction";
 import { useRuntimeAnnotationInfoBoxDraftState } from "./use-runtime-annotation-info-box-draft-state";
 import { useRuntimeSelectedAnnotationInfoBoxSlots } from "./use-runtime-selected-annotation-info-box-slots";
 
@@ -26,6 +27,15 @@ export const useRuntimeAnnotationInfoBoxSlots = ({
     helpLocale,
     includeAuthoringInstruction,
     registry: runtime.registry,
+    visualOptions,
+  });
+  const editingInstruction = useRuntimeAnnotationInfoBoxEditingInstruction({
+    activeEditedNodeId: runtime.activeEditedNodeId,
+    annotationEntries: runtime.annotationEntries,
+    registry: runtime.registry,
+    authoringInstructionHelpLayout,
+    helpLocale,
+    includeAuthoringInstruction,
     visualOptions,
   });
   const selectedAnnotationSlots = useRuntimeSelectedAnnotationInfoBoxSlots({
@@ -51,6 +61,12 @@ export const useRuntimeAnnotationInfoBoxSlots = ({
     updateAnnotationShortLabel: runtime.updateAnnotationShortLabel,
     visualOptions,
   });
+
+  // While a node is being edited the help describes that interaction; it takes
+  // priority over the selected-measurement panel and the creation hint.
+  if (editingInstruction) {
+    return editingInstruction;
+  }
 
   if (selectedAnnotationSlots || runtime.selectedAnnotationId) {
     return selectedAnnotationSlots;

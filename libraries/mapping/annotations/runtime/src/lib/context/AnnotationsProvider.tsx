@@ -56,6 +56,7 @@ type AnnotationsRuntimeServices = {
   annotationsStore: AnnotationsStore;
   formatOptions: AnnotationsRuntimeFormatOptions;
   activePointQueryPickResult: PointQueryPickResult | null;
+  activeEditedNodeId: string | null;
   addAnnotation: (
     toolType: StoredAnnotation["toolType"],
     coordinates: readonly CesiumGeographicCoordinate[],
@@ -320,6 +321,7 @@ export const useAnnotationsRuntime = () => {
     updateAnnotationDisplayName,
     updateAnnotationShortLabel,
     activePointQueryPickResult,
+    activeEditedNodeId,
     setPointTemporaryMode,
     setSelectedAnnotationId,
     setSelectedAnnotationIds,
@@ -375,6 +377,7 @@ export const useAnnotationsRuntime = () => {
     updateAnnotationDisplayName,
     updateAnnotationShortLabel,
     activePointQueryPickResult,
+    activeEditedNodeId,
     pointTemporaryMode,
     setPointTemporaryMode,
     nodes,
