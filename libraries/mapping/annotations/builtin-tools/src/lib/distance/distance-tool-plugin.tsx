@@ -81,8 +81,14 @@ export const createDistanceToolPlugin = ({
     },
     helpText: buildMeasurementToolHelpItems({
       primaryInstructions: text.helpText,
-      includeRunningMeasurementStartPointHint: true,
     }),
+    resolveHelpText: ({ draftState }) =>
+      buildMeasurementToolHelpItems({
+        primaryInstructions: text.helpText,
+        // The start point can only be removed once it has been placed.
+        includeRunningMeasurementStartPointHint:
+          draftState.coordinates.length >= 1,
+      }),
     capabilities: [
       ...AUTHORING_MEASUREMENT_PLUGIN_CAPABILITIES,
       ANNOTATION_TOOL_PLUGIN_CAPABILITIES.ADD_ANNOTATION,

@@ -18,13 +18,10 @@ const RUNNING_MEASUREMENT_START_POINT_HINT = {
   description: "Entfernt den zuletzt gesetzten Punkt der laufenden Messung.",
 } satisfies AnnotationInfoBoxHelpItem;
 
-const ENTER_EDIT_MODE_HINT = {
-  kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.TEXT,
-  text: "Langer Klick auf einen Punkt einer ausgewählten Messung öffnet den Bearbeitungsmodus.",
-} satisfies AnnotationInfoBoxHelpItem;
-
 export type BuildMeasurementToolHelpItemsOptions = {
   primaryInstructions: readonly string[];
+  // Only set while a measurement is actually in progress: there is no point to
+  // remove before the first one is placed.
   includeRunningMeasurementStartPointHint?: boolean;
 };
 
@@ -36,5 +33,4 @@ export const buildMeasurementToolHelpItems = ({
   ...(includeRunningMeasurementStartPointHint
     ? [RUNNING_MEASUREMENT_START_POINT_HINT]
     : []),
-  ENTER_EDIT_MODE_HINT,
 ];
