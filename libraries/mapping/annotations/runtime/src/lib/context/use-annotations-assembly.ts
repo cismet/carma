@@ -555,14 +555,11 @@ export const useAnnotationsAssembly = ({
       })
     );
     setActiveEditedNodeId(null);
-    setActiveToolType(targetAnnotation.toolType);
+    // Keep the UI in Select mode: reopening the degraded measurement's draft is
+    // only needed to restore it, and must not switch the selected tool to the
+    // measurement's authoring tool (cismet/wupp#4078).
     return true;
-  }, [
-    activeEditedNodeId,
-    annotationToolDraftStore,
-    annotationsStore,
-    setActiveToolType,
-  ]);
+  }, [activeEditedNodeId, annotationToolDraftStore, annotationsStore]);
 
   const exportAnnotationGeoJson = useCallback(
     (annotationId: string) => {

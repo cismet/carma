@@ -13,7 +13,10 @@ import {
   setSelectedAnnotationIds,
   useAnnotationsSelector,
 } from "../store";
-import type { AnnotationToolId } from "@carma-mapping/annotations/core";
+import {
+  ANNOTATION_SELECT_TOOL_ID,
+  type AnnotationToolId,
+} from "@carma-mapping/annotations/core";
 import {
   ANNOTATION_TOOL_PLUGIN_KINDS,
   type AnnotationToolDraftStore,
@@ -168,18 +171,26 @@ export const RuntimeVisualHost = ({
   );
   const canStartNodeEditing = useCallback(
     (nodeId: string, annotationId?: string) =>
+      // Node editing is only available in Select mode (cismet/wupp#4078): no
+      // long-press editing while a measurement/point-query tool is active.
+      activeToolType === ANNOTATION_SELECT_TOOL_ID &&
       !nodeEditingDisabledNodeIds.has(nodeId) &&
       annotationEntries.some(
         (annotationEntry) =>
           (!annotationId || annotationEntry.id === annotationId) &&
           annotationEntry.nodeIds.includes(nodeId) &&
-          // Editing is gated behind selection (cismet/wupp#4078): the long-press
-          // target is only attached to nodes of a selected measurement.
+          // The long-press target is only attached to nodes of a selected
+          // measurement.
           selectedAnnotationIds.includes(annotationEntry.id) &&
           !annotationEntry.locked &&
           !annotationEntry.readOnly
       ),
-    [annotationEntries, nodeEditingDisabledNodeIds, selectedAnnotationIds]
+    [
+      activeToolType,
+      annotationEntries,
+      nodeEditingDisabledNodeIds,
+      selectedAnnotationIds,
+    ]
   );
   const {
     draftNodeCoordinateOverrides,
