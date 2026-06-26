@@ -512,11 +512,23 @@ const BelisMapLibWrapper = ({
   const printLoading = useSelector(getPrintLoading);
   const printRedraw = useSelector(getPrintRedraw);
   const printIfMapPrinted = useSelector(getIfMapPrinted);
+  // Mirror the on-screen "Blass" (pale) mode in print: when active, dim the
+  // active background to 10%, matching the on-screen effectiveOpacity factor
+  // (see the `inPaleMode ? bgOpacity * 0.1 : bgOpacity` rule in libreLayers).
+  const printBackgroundOpacities = useMemo(() => {
+    if (!inPaleMode) return backgroundLayerOpacities;
+    const current = backgroundLayerOpacities[activeBackgroundLayer] ?? 1;
+    return {
+      ...backgroundLayerOpacities,
+      [activeBackgroundLayer]: current * 0.1,
+    };
+  }, [inPaleMode, backgroundLayerOpacities, activeBackgroundLayer]);
+
   const printLayers = useMemo(
     () =>
       buildBelisPrintLayers({
         activeBackgroundLayer,
-        backgroundLayerOpacities,
+        backgroundLayerOpacities: printBackgroundOpacities,
         activeAdditionalLayers,
         additionalLayerOpacities,
         // Print mirrors the on-map filters: only visible categories /
@@ -532,7 +544,7 @@ const BelisMapLibWrapper = ({
       }),
     [
       activeBackgroundLayer,
-      backgroundLayerOpacities,
+      printBackgroundOpacities,
       activeAdditionalLayers,
       additionalLayerOpacities,
       enabledCategoryFilters,
