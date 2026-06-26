@@ -13,11 +13,14 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   BoundingSphere,
   Cartesian3,
+  Cartographic,
   Color,
   type CesiumTerrainProvider,
 } from "@carma-cesium";
 import {
   flyToBoundingSphereExtent,
+  isValidCesiumTerrainProvider,
+  sampleTerrainMostDetailedGuardedAsync,
   type CesiumModelFlashConfig,
   type CesiumModelConfig,
   type CesiumModelStyleConfig,
@@ -168,6 +171,10 @@ const CLICK_DELAY_MS = 200;
 const GEOPORTAL_CESIUM_VIEW_ADAPTER_ID = "geoportal-cesium";
 const DEFAULT_MARKER_ANCHOR_HEIGHT = 10;
 const FLY_TO_BOUNDING_SPHERE_PADDING_FACTOR = 1.1;
+// Fallback ground height (m) used when the surface/terrain provider cannot be
+// sampled for the 2D->3D switch. Matches the leaflet transition default.
+const SWITCH_SURFACE_FALLBACK_HEIGHT_M = 350;
+
 const MAP_CONTAINER_STYLE: CSSProperties = {
   position: "absolute",
   top: 0,
@@ -1272,6 +1279,14 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
   const [switchInitialCameraView, setSwitchInitialCameraView] =
     useState<ReturnType<typeof readInitialCameraViewFromViewState>>(undefined);
   const wasCesiumRef = useRef(isCesium);
+  const coldSurfaceAnchorStartedRef = useRef(false);
+
+  const maplibreBridge = useMaplibreRuntimeBridge({
+    id: "geoportal-maplibre",
+    map: libreMap,
+    enabled: !isCesium,
+    claimOnInteraction: true,
+  });
 
   useEffect(() => {
     const wasCesium = wasCesiumRef.current;
@@ -1281,7 +1296,58 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
       return;
     }
 
-    if (!wasCesium && libreMap) {
+    if (!libreMap) {
+      if (!shouldMountCesium) {
+        setShouldMountCesium(true);
+      }
+      return;
+    }
+    if (!coldSurfaceAnchorStartedRef.current && !shouldMountCesium) {
+      coldSurfaceAnchorStartedRef.current = true;
+
+      (async () => {
+        const surfaceProvider = getSurfaceProvider();
+        const terrainProvider = getTerrainProvider();
+        const provider = isValidCesiumTerrainProvider(surfaceProvider)
+          ? surfaceProvider
+          : terrainProvider;
+
+        const center = libreMap.getCenter();
+        let groundHeightM = SWITCH_SURFACE_FALLBACK_HEIGHT_M;
+        if (isValidCesiumTerrainProvider(provider)) {
+          const [sampled] = await sampleTerrainMostDetailedGuardedAsync(
+            provider,
+            [
+              Cartographic.fromDegrees(
+                center.lng,
+                center.lat,
+                SWITCH_SURFACE_FALLBACK_HEIGHT_M
+              ),
+            ]
+          );
+          if (sampled && Number.isFinite(sampled.height)) {
+            groundHeightM = sampled.height;
+          }
+        }
+
+        const correctedViewState = readFromMaplibre(
+          libreMap,
+          "geoportal-maplibre",
+          { altitudeM: groundHeightM }
+        );
+        if (correctedViewState) {
+          maplibreBridge.pushState(correctedViewState, "sync");
+          setSwitchInitialCameraView(
+            readInitialCameraViewFromViewState(correctedViewState)
+          );
+        }
+
+        setShouldMountCesium(true);
+      })();
+      return;
+    }
+
+    if (!wasCesium) {
       const maplibreViewState = readFromMaplibre(
         libreMap,
         "geoportal-maplibre"
@@ -1292,11 +1358,15 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
         );
       }
     }
-
-    if (!shouldMountCesium) {
-      setShouldMountCesium(true);
-    }
-  }, [allow3d, isCesium, libreMap, shouldMountCesium]);
+  }, [
+    allow3d,
+    isCesium,
+    libreMap,
+    shouldMountCesium,
+    getSurfaceProvider,
+    getTerrainProvider,
+    maplibreBridge,
+  ]);
 
   const handleCesiumHostChange = useCallback(({ element }: CesiumHostState) => {
     setCesiumContainerElement((previous) =>
@@ -1324,12 +1394,6 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
   });
 
   const cesiumScene = getScene();
-  useMaplibreRuntimeBridge({
-    id: "geoportal-maplibre",
-    map: libreMap,
-    enabled: !isCesium,
-    claimOnInteraction: true,
-  });
   useCesiumNavigationBridge({
     id: GEOPORTAL_CESIUM_VIEW_ADAPTER_ID,
     scene: cesiumScene,
