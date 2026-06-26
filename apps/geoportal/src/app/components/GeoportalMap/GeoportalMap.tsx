@@ -77,6 +77,8 @@ import {
   useCesiumContext,
 } from "@carma-mapping/engines/cesium/react/runtime";
 import {
+  readFromMaplibre,
+  readInitialCameraViewFromViewState,
   useCesiumNavigationBridge,
   useMaplibreRuntimeBridge,
 } from "@carma-mapping/engines-interop/view-state";
@@ -1259,12 +1261,34 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
   const [cesiumContainerElement, setCesiumContainerElement] =
     useState<HTMLElement | null>(null);
   const [shouldMountCesium, setShouldMountCesium] = useState(false);
+  const [switchInitialCameraView, setSwitchInitialCameraView] =
+    useState<ReturnType<typeof readInitialCameraViewFromViewState>>(undefined);
+  const wasCesiumRef = useRef(isCesium);
 
   useEffect(() => {
-    if (allow3d && isCesium && !shouldMountCesium) {
+    const wasCesium = wasCesiumRef.current;
+    wasCesiumRef.current = isCesium;
+
+    if (!allow3d || !isCesium) {
+      return;
+    }
+
+    if (!wasCesium && libreMap) {
+      const maplibreViewState = readFromMaplibre(
+        libreMap,
+        "geoportal-maplibre"
+      );
+      if (maplibreViewState) {
+        setSwitchInitialCameraView(
+          readInitialCameraViewFromViewState(maplibreViewState)
+        );
+      }
+    }
+
+    if (!shouldMountCesium) {
       setShouldMountCesium(true);
     }
-  }, [allow3d, isCesium, shouldMountCesium]);
+  }, [allow3d, isCesium, libreMap, shouldMountCesium]);
 
   const handleCesiumHostChange = useCallback(({ element }: CesiumHostState) => {
     setCesiumContainerElement((previous) =>
@@ -1342,7 +1366,7 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
           onHostChange={handleCesiumHostChange}
           cameraLimiterOptions={CESIUM_CONFIG.camera}
           homeValidationCenter={homeValidationCenter}
-          initialCameraView={cesiumInitialCameraView}
+          initialCameraView={switchInitialCameraView ?? cesiumInitialCameraView}
         />
       )}
     </>
