@@ -364,10 +364,16 @@ const renderPointerToken = (label: string) => (
   </span>
 );
 
+// Cursor symbols render without the key/pointer backdrop, at the same effective
+// footprint as the bordered tokens, with a 16px glyph.
 const dragTargetTokenStyle: CSSProperties = {
-  ...keyTokenStyle,
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
   minWidth: "1.35rem",
-  padding: "0.16rem",
+  minHeight: "1.35rem",
+  fontSize: "16px",
+  lineHeight: 1,
 };
 
 const renderDragTargetToken = (icon: IconDefinition) => (

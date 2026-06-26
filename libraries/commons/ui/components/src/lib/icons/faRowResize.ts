@@ -5,12 +5,14 @@ import type {
 } from "@fortawesome/fontawesome-svg-core";
 
 // Custom FontAwesome-style icon mirroring the CSS `row-resize` cursor: a
-// vertical double-headed arrow with a horizontal bar through the middle. There
-// is no stock FontAwesome equivalent. Used to mark the move gizmo's disc centre,
-// which moves a point to ground/surface height (cismet/wupp#4078).
+// vertical double-headed arrow with a straight horizontal bar through the
+// middle. Used to mark the move gizmo's disc centre, which moves a point to
+// ground/surface height (cismet/wupp#4078).
 //
-// The artwork is three non-overlapping sub-paths (a plus/cross for the shaft and
-// bar, plus an up and a down arrowhead) so it fills cleanly with any winding.
+// Derived from Font Awesome Free "up-down-left-right" (faUpDownLeftRight): the
+// vertical arrows are the original artwork; the left/right arrowheads are
+// replaced by a flat horizontal bar. Font Awesome Free icons are licensed under
+// CC BY 4.0 (https://fontawesome.com), which permits this modification.
 export const faRowResize: IconDefinition = {
   prefix: "fac" as IconPrefix,
   iconName: "row-resize" as IconName,
@@ -19,7 +21,7 @@ export const faRowResize: IconDefinition = {
     512,
     [],
     "",
-    "M216 140 L296 140 L296 216 L432 216 L432 296 L296 296 L296 372 L216 372 L216 296 L80 296 L80 216 L216 216 Z M256 48 L150 140 L362 140 Z M256 464 L362 372 L150 372 Z",
+    "M278.6 9.4c-12.5-12.5-32.8-12.5-45.3 0l-64 64c-9.2 9.2-11.9 22.9-6.9 34.9s16.6 19.8 29.6 19.8l32 0l0 96l-96 0l0 64l96 0l0 96l-32 0c-12.9 0-24.6 7.8-29.6 19.8s-2.2 25.7 6.9 34.9l64 64c12.5 12.5 32.8 12.5 45.3 0l64-64c9.2-9.2 11.9-22.9 6.9-34.9s-16.6-19.8-29.6-19.8l-32 0l0-96l96 0l0-64l-96 0l0-96l32 0c12.9 0 24.6-7.8 29.6-19.8s2.2-25.7-6.9-34.9l-64-64z",
   ],
 };
 

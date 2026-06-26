@@ -31,6 +31,7 @@ export const useRuntimeAnnotationInfoBoxSlots = ({
   });
   const editingInstruction = useRuntimeAnnotationInfoBoxEditingInstruction({
     activeEditedNodeId: runtime.activeEditedNodeId,
+    activeToolType: runtime.activeToolType,
     annotationEntries: runtime.annotationEntries,
     registry: runtime.registry,
     authoringInstructionHelpLayout,
@@ -41,6 +42,7 @@ export const useRuntimeAnnotationInfoBoxSlots = ({
   const selectedAnnotationSlots = useRuntimeSelectedAnnotationInfoBoxSlots({
     activeToolDraftFeedback,
     activeToolDraftState,
+    activeToolType: runtime.activeToolType,
     annotationEntries: runtime.annotationEntries,
     elevationReferenceAnnotationId: runtime.elevationReferenceAnnotationId,
     exportAnnotationGeoJson: runtime.exportAnnotationGeoJson,

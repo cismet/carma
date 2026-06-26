@@ -14,6 +14,7 @@ import type { StoredAnnotation } from "../../store";
 import type { AnnotationToolDraftState } from "../../registry";
 import type { useAnnotationsRuntime } from "../../context/AnnotationsProvider";
 import { isReadOnlyAnnotationEntry } from "../../utils/annotation-tool-collections";
+import { ANNOTATION_SELECT_TOOL_ID } from "@carma-mapping/annotations/core";
 import { resolveEditGeometryCategory } from "./node-edit-help";
 import {
   RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS,
@@ -70,6 +71,7 @@ const resolveAnnotationVisualOptions = ({
 export const useRuntimeSelectedAnnotationInfoBoxSlots = ({
   activeToolDraftFeedback,
   activeToolDraftState,
+  activeToolType,
   annotationEntries,
   elevationReferenceAnnotationId,
   exportAnnotationGeoJson,
@@ -90,6 +92,7 @@ export const useRuntimeSelectedAnnotationInfoBoxSlots = ({
   visualOptions,
 }: Pick<
   ReturnType<typeof useAnnotationsRuntime>,
+  | "activeToolType"
   | "annotationEntries"
   | "elevationReferenceAnnotationId"
   | "exportAnnotationGeoJson"
@@ -175,6 +178,9 @@ export const useRuntimeSelectedAnnotationInfoBoxSlots = ({
         activeToolDraftFeedback !== null);
 
     const isNodeEditable =
+      // Only advertise long-press editing while the Select tool is active
+      // (cismet/wupp#4078), not when a measurement is selected under another tool.
+      activeToolType === ANNOTATION_SELECT_TOOL_ID &&
       resolveEditGeometryCategory(selectedAnnotation.toolType) !== null &&
       !selectedAnnotation.locked &&
       !isReadOnly;
@@ -204,6 +210,7 @@ export const useRuntimeSelectedAnnotationInfoBoxSlots = ({
   }, [
     activeToolDraftFeedback,
     activeToolDraftState,
+    activeToolType,
     annotationEntries,
     elevationReferenceAnnotationId,
     exportAnnotationGeoJson,

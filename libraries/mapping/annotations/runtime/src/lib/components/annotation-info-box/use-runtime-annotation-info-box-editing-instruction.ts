@@ -4,6 +4,7 @@ import {
   AnnotationInfoBoxTextContent,
   resolveAnnotationInfoBoxVisualOptions,
 } from "@carma-mapping/annotations/ui";
+import { ANNOTATION_SELECT_TOOL_ID } from "@carma-mapping/annotations/core";
 
 import type { useAnnotationsRuntime } from "../../context/AnnotationsProvider";
 import { resolveNodeEditHelpItems } from "./node-edit-help";
@@ -19,6 +20,7 @@ import {
 // node count — independent of the active tool (works from Select or any tool).
 export const useRuntimeAnnotationInfoBoxEditingInstruction = ({
   activeEditedNodeId,
+  activeToolType,
   annotationEntries,
   registry,
   authoringInstructionHelpLayout,
@@ -27,7 +29,7 @@ export const useRuntimeAnnotationInfoBoxEditingInstruction = ({
   visualOptions,
 }: Pick<
   ReturnType<typeof useAnnotationsRuntime>,
-  "activeEditedNodeId" | "annotationEntries" | "registry"
+  "activeEditedNodeId" | "activeToolType" | "annotationEntries" | "registry"
 > &
   Pick<
     UseRuntimeAnnotationInfoBoxSlotsOptions,
@@ -40,7 +42,14 @@ export const useRuntimeAnnotationInfoBoxEditingInstruction = ({
   { kind: typeof RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS.AUTHORING_INSTRUCTION }
 > | null =>
   useMemo(() => {
-    if (!includeAuthoringInstruction || !activeEditedNodeId) {
+    // The editing tutorial is only shown while the Select tool is active, so it
+    // does not appear when a measurement is selected under another tool
+    // (cismet/wupp#4078).
+    if (
+      !includeAuthoringInstruction ||
+      !activeEditedNodeId ||
+      activeToolType !== ANNOTATION_SELECT_TOOL_ID
+    ) {
       return null;
     }
 
@@ -96,6 +105,7 @@ export const useRuntimeAnnotationInfoBoxEditingInstruction = ({
     };
   }, [
     activeEditedNodeId,
+    activeToolType,
     annotationEntries,
     authoringInstructionHelpLayout,
     helpLocale,
