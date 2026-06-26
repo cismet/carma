@@ -33,7 +33,7 @@ import {
   type ExtrudedWallVisualizer,
   type GroundPolygonVisualizer,
   type GroundPolylineVisualizer,
-} from "@carma-mapping/engines/cesium/legacy";
+} from "@carma-mapping/engines/cesium/react/runtime";
 import {
   modelShader,
   type ModelShaderSamplingOptions,

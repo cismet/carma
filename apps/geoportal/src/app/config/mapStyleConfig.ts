@@ -6,4 +6,12 @@ export const geoportalMapStyleConfig: MapStyleConfig = {
   availableStyles: [MapStyleKeys.TOPO, MapStyleKeys.AERIAL] as const,
 };
 
+export const geoportalCesiumSceneStyleByMapStyle: Record<
+  MapStyleKeys,
+  MapStyleKeys
+> = {
+  [MapStyleKeys.TOPO]: MapStyleKeys.TOPO,
+  [MapStyleKeys.AERIAL]: MapStyleKeys.AERIAL,
+};
+
 export { MapStyleKeys };

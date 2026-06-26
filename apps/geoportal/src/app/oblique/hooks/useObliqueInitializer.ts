@@ -2,17 +2,25 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import { type Scene } from "@carma-cesium";
 import { handleDelayedRender } from "@carma-commons/dom/window";
-import { testCameraObliqueCompliant } from "@carma-mapping/engines/cesium/core";
+import {
+  cancelSceneAnimation,
+  testCameraObliqueCompliant,
+} from "@carma-mapping/engines/cesium/core";
 import {
   useCesiumCameraForceOblique,
   useCesiumFovWheelZoom,
 } from "@carma-mapping/engines/cesium/react/interactions";
 
-import { useCesiumContext } from "@carma-mapping/engines/cesium/legacy";
+import { useCesiumContext } from "@carma-mapping/engines/cesium/react/runtime";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
 import { useOblique } from "./useOblique";
-import { enterObliqueMode, leaveObliqueMode } from "../utils/cameraUtils";
+import {
+  enterObliqueMode,
+  leaveObliqueMode as animateLeaveObliqueMode,
+} from "../utils/cameraUtils";
+
+const LEAVE_OBLIQUE_TRANSITION_TIMEOUT_MS = 3000;
 
 export function useObliqueInitializer(debug = false) {
   const {
@@ -32,12 +40,16 @@ export function useObliqueInitializer(debug = false) {
     targetEnterObliqueModeFov,
     animations,
     restoreFovOnLeave,
+    setLockFootprint,
+    setObliqueMode,
+    setPreviewVisible,
     setSuspendSelectionSearch,
   } = useOblique();
 
   // Derived scene ref for useCesiumCameraForceOblique
   const sceneRef = useRef<Scene | null>(null);
   const lastHandledObliqueModeRef = useRef<boolean | null>(null);
+  const leaveObliqueModeResolversRef = useRef(new Set<() => void>());
   const scene = getScene();
   sceneRef.current = scene;
 
@@ -85,8 +97,67 @@ export function useObliqueInitializer(debug = false) {
     [shouldSuspendPitchLimiterRef, shouldSuspendCameraLimitersRef]
   );
 
+  const resolveLeaveObliqueModeWaiters = useCallback(() => {
+    const waiters = Array.from(leaveObliqueModeResolversRef.current);
+    leaveObliqueModeResolversRef.current.clear();
+    for (const resolve of waiters) {
+      resolve();
+    }
+  }, []);
+
+  const leaveObliqueMode = useCallback(() => {
+    setPreviewVisible(false);
+
+    if (!isObliqueMode) {
+      return Promise.resolve();
+    }
+
+    const scene = getScene();
+    if (!initialViewApplied || !scene) {
+      setLockFootprint(false);
+      setSuspendSelectionSearch(false);
+      setTransitionLimitersSuspended(false);
+      setObliqueMode(false);
+      return Promise.resolve();
+    }
+
+    scene.camera.cancelFlight();
+    cancelSceneAnimation(scene, sceneAnimationMapRef.current);
+
+    return new Promise<void>((resolve) => {
+      let timeoutId: number | undefined;
+      const resolveOnce = () => {
+        if (timeoutId !== undefined) {
+          window.clearTimeout(timeoutId);
+        }
+        leaveObliqueModeResolversRef.current.delete(resolveOnce);
+        resolve();
+      };
+
+      timeoutId = window.setTimeout(
+        resolveOnce,
+        LEAVE_OBLIQUE_TRANSITION_TIMEOUT_MS
+      );
+      leaveObliqueModeResolversRef.current.add(resolveOnce);
+      setLockFootprint(true);
+      setSuspendSelectionSearch(true);
+      setTransitionLimitersSuspended(true);
+      setObliqueMode(false);
+    });
+  }, [
+    getScene,
+    initialViewApplied,
+    isObliqueMode,
+    sceneAnimationMapRef,
+    setLockFootprint,
+    setObliqueMode,
+    setPreviewVisible,
+    setSuspendSelectionSearch,
+    setTransitionLimitersSuspended,
+  ]);
+
   useEffect(() => {
-    // Always set the zoom handler state based on oblique mode; the hook will defer attaching until a viewer exists
+    // Always set the zoom handler state based on oblique mode; the hook will defer attaching until a runtime exists
     setWheelZoomEnabled(isObliqueMode);
 
     if (!initialViewApplied) {
@@ -146,12 +217,16 @@ export function useObliqueInitializer(debug = false) {
       } else if (shouldLeaveObliqueMode) {
         debug && console.debug("leaving Oblique Mode");
         setTransitionLimitersSuspended(true);
-        leaveObliqueMode(
+        camera.cancelFlight();
+        animateLeaveObliqueMode(
           scene,
           () => {
             setTransitionLimitersSuspended(false);
+            setLockFootprint(false);
+            setSuspendSelectionSearch(false);
             disableCameraForceOblique();
             requestRender();
+            resolveLeaveObliqueModeWaiters();
           },
           restoreFovOnLeave
         );
@@ -180,11 +255,14 @@ export function useObliqueInitializer(debug = false) {
     enableCameraForceOblique,
     disableCameraForceOblique,
     setTransitionLimitersSuspended,
+    setLockFootprint,
     setSuspendSelectionSearch,
+    resolveLeaveObliqueModeWaiters,
   ]);
 
   return {
     isObliqueMode,
+    leaveObliqueMode,
   };
 }
 

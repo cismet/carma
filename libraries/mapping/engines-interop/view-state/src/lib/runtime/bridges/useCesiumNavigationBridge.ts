@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { type Scene } from "@carma-cesium";
+import {
+  SCENE_VIEW_STATE_THREE_D_ONLY_HASH_PARAMS,
+  useHashState,
+} from "@carma-providers/hash-state";
 
 import { useViewStateNavigationContext } from "../providers/navigation/useViewStateNavigationContext";
 import type {
@@ -46,6 +50,7 @@ export type CesiumNavigationBridgeHandle = SubscribedRuntimeBridgeHandle & {
     options?: { replace?: boolean; force?: boolean }
   ) => boolean;
   suppressCommitsUntilInteraction: () => void;
+  reduceToTopDownView: () => void;
 };
 
 export const useCesiumNavigationBridge = ({
@@ -58,6 +63,7 @@ export const useCesiumNavigationBridge = ({
   listeners = DEFAULT_CESIUM_NAVIGATION_BRIDGE_LISTENERS,
 }: UseCesiumNavigationBridgeOptions): CesiumNavigationBridgeHandle => {
   const { commitCurrentState } = useViewStateNavigationContext();
+  const { updateHashState } = useHashState();
   const releaseSuppression = useCallback(() => {
     suppressCommitUntilInteractionRef.current = false;
   }, []);
@@ -99,6 +105,19 @@ export const useCesiumNavigationBridge = ({
     },
     [adapter, commitCurrentState, isCommitEnabled, replace]
   );
+
+  // Handover to 2D: drop this writer's 3D-only hash keys (altitude/bearing/pitch/
+  // roll/fov), leaving the shared lat/lng/zoom — a plain top-down view.
+  const reduceToTopDownView = useCallback(() => {
+    updateHashState(
+      {},
+      {
+        clearStateKeys: SCENE_VIEW_STATE_THREE_D_ONLY_HASH_PARAMS,
+        label: `${id}:reduceToTopDownView`,
+        replace: true,
+      }
+    );
+  }, [updateHashState, id]);
 
   useEffect(() => {
     if (!scene || !isSyncEnabled) {
@@ -143,7 +162,13 @@ export const useCesiumNavigationBridge = ({
       ...adapter,
       commitCurrentSceneState,
       suppressCommitsUntilInteraction,
+      reduceToTopDownView,
     }),
-    [adapter, commitCurrentSceneState, suppressCommitsUntilInteraction]
+    [
+      adapter,
+      commitCurrentSceneState,
+      suppressCommitsUntilInteraction,
+      reduceToTopDownView,
+    ]
   );
 };

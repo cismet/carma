@@ -12,7 +12,6 @@ import {
   useRef,
   useCallback,
   useMemo,
-  startTransition,
   type MutableRefObject,
   type ReactNode,
 } from "react";
@@ -67,6 +66,7 @@ export interface MapFrameworkSwitcherRefs {
 export interface MapFrameworkSwitcherCallbacks {
   onEnsureCesiumReady?: () => Promise<void> | void;
   onBeforeTransitionToCesium?: () => Promise<void> | void;
+  onBeforeTransitionToLeaflet?: () => Promise<void> | void;
   onAfterTransitionToCesium?: () => void;
   onLeafletViewSet?: (params: {
     center: { lat: number; lng: number };
@@ -113,7 +113,7 @@ export interface MapFrameworkSwitcherContextValue {
   ) => void;
 }
 
-const CESIUM_RUNTIME_READY_TIMEOUT_MS = 10_000;
+const MAP_RUNTIME_READY_TIMEOUT_MS = 10_000;
 
 const readHasLeafletRuntime = (refs: MapFrameworkSwitcherRefs): boolean =>
   Boolean(refs.getLeafletMap());
@@ -144,27 +144,29 @@ const readIsFrameworkSwitcherReady = ({
     );
   }
 
-  return hasLeafletRuntime && hasCesiumRuntime;
+  return hasCesiumRuntime;
 };
 
-const waitForCesiumRuntime = async ({
-  refsRef,
-  timeoutMs = CESIUM_RUNTIME_READY_TIMEOUT_MS,
+const waitForRuntime = async ({
+  readIsReady,
+  timeoutMs = MAP_RUNTIME_READY_TIMEOUT_MS,
+  timeoutMessage,
 }: {
-  refsRef: MutableRefObject<MapFrameworkSwitcherRefs>;
+  readIsReady: () => boolean;
   timeoutMs?: number;
+  timeoutMessage: string;
 }): Promise<void> => {
   const startTimeMs = performance.now();
 
   await new Promise<void>((resolve, reject) => {
     const tick = () => {
-      if (readHasCesiumRuntime(refsRef.current)) {
+      if (readIsReady()) {
         resolve();
         return;
       }
 
       if (performance.now() - startTimeMs >= timeoutMs) {
-        reject(new Error("Timed out while waiting for Cesium runtime."));
+        reject(new Error(timeoutMessage));
         return;
       }
 
@@ -174,6 +176,32 @@ const waitForCesiumRuntime = async ({
     tick();
   });
 };
+
+const waitForCesiumRuntime = async ({
+  refsRef,
+  timeoutMs = MAP_RUNTIME_READY_TIMEOUT_MS,
+}: {
+  refsRef: MutableRefObject<MapFrameworkSwitcherRefs>;
+  timeoutMs?: number;
+}): Promise<void> =>
+  waitForRuntime({
+    readIsReady: () => readHasCesiumRuntime(refsRef.current),
+    timeoutMs,
+    timeoutMessage: "Timed out while waiting for Cesium runtime.",
+  });
+
+const waitForLeafletRuntime = async ({
+  refsRef,
+  timeoutMs = MAP_RUNTIME_READY_TIMEOUT_MS,
+}: {
+  refsRef: MutableRefObject<MapFrameworkSwitcherRefs>;
+  timeoutMs?: number;
+}): Promise<void> =>
+  waitForRuntime({
+    readIsReady: () => readHasLeafletRuntime(refsRef.current),
+    timeoutMs,
+    timeoutMessage: "Timed out while waiting for Leaflet runtime.",
+  });
 
 // ============================================================================
 // Context
@@ -253,17 +281,45 @@ export const MapFrameworkSwitcherProvider = ({
   const stagedCesiumSceneRef = useRef<Scene | null>(null);
   const cesiumStagingPromiseRef = useRef<Promise<void> | null>(null);
 
-  const syncReadyState = useCallback(() => {
-    const nowReady = readIsFrameworkSwitcherReady({
-      activeFramework: activeFrameworkRef.current,
-      refs: refsRef.current,
-      callbacks: callbacksRef.current,
-    });
+  const readCurrentReadyState = useCallback(
+    () =>
+      readIsFrameworkSwitcherReady({
+        activeFramework: activeFrameworkRef.current,
+        refs: refsRef.current,
+        callbacks: callbacksRef.current,
+      }),
+    []
+  );
 
-    startTransition(() => {
-      setIsReady((previous) => (previous === nowReady ? previous : nowReady));
-    });
-  }, []);
+  const syncReadyState = useCallback(() => {
+    const nowReady = readCurrentReadyState();
+
+    setIsReady((previous) => (previous === nowReady ? previous : nowReady));
+
+    return nowReady;
+  }, [readCurrentReadyState]);
+
+  useEffect(() => {
+    if (isReady) {
+      return;
+    }
+
+    let timeoutId: number | null = null;
+    const pollReadyState = () => {
+      const nowReady = syncReadyState();
+      if (!nowReady) {
+        timeoutId = window.setTimeout(pollReadyState, 100);
+      }
+    };
+
+    timeoutId = window.setTimeout(pollReadyState, 100);
+
+    return () => {
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [isReady, syncReadyState]);
 
   // Register callbacks from app (rerender-free)
   const registerCallbacks = useCallback(
@@ -476,17 +532,38 @@ export const MapFrameworkSwitcherProvider = ({
 
   // Transition to Leaflet
   const requestTransitionToLeaflet = useCallback(async () => {
-    if (isTransitioning || !isReady) {
+    if (
+      isTransitioning ||
+      isPreparingCesiumTransitionRef.current ||
+      !readHasCesiumRuntime(refsRef.current)
+    ) {
       console.warn(
         "[FRAMEWORK-SWITCHER] Cannot transition - not ready or already transitioning"
       );
       return;
     }
 
-    const scene = refsRef.current.getCesiumScene();
-    const leaflet = refsRef.current.getLeafletMap();
-    const cesiumContainer = refsRef.current.getCesiumContainer();
-    const terrainProviders = refsRef.current.getCesiumTerrainProviders();
+    let scene = refsRef.current.getCesiumScene();
+    let leaflet = refsRef.current.getLeafletMap();
+    let cesiumContainer = refsRef.current.getCesiumContainer();
+    let terrainProviders = refsRef.current.getCesiumTerrainProviders();
+
+    if (!leaflet) {
+      try {
+        await waitForLeafletRuntime({ refsRef });
+      } catch (error) {
+        console.warn(
+          "[FRAMEWORK-SWITCHER] Cannot transition - Leaflet runtime is not available",
+          error
+        );
+        return;
+      }
+
+      scene = refsRef.current.getCesiumScene();
+      leaflet = refsRef.current.getLeafletMap();
+      cesiumContainer = refsRef.current.getCesiumContainer();
+      terrainProviders = refsRef.current.getCesiumTerrainProviders();
+    }
 
     const hasValidRequirements = validateRequirements(
       scene,
@@ -502,6 +579,11 @@ export const MapFrameworkSwitcherProvider = ({
     }
 
     try {
+      const beforeTransition = callbacksRef.current.onBeforeTransitionToLeaflet;
+      if (beforeTransition) {
+        await beforeTransition();
+      }
+
       // Wait for Cesium to complete render cycles after React re-renders
       // This ensures WebGL state is stable before picking operations
       // See: https://github.com/CesiumGS/cesium/issues/11427
@@ -546,7 +628,7 @@ export const MapFrameworkSwitcherProvider = ({
       // The container has already been hidden by the error handler
       setActiveFrameworkLeaflet();
     }
-  }, [isTransitioning, isReady, setActiveFrameworkLeaflet, transitionOptions]);
+  }, [isTransitioning, setActiveFrameworkLeaflet, transitionOptions]);
 
   // Toggle between frameworks
   const toggle = useCallback(async () => {

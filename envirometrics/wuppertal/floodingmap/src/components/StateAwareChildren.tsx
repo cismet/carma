@@ -1,326 +1,40 @@
-import { useContext, useEffect, useRef, useState } from "react";
+import { useContext } from "react";
 
-import {
-  Cartographic,
-  Entity,
-  ScreenSpaceEventHandler,
-  ScreenSpaceEventType,
-} from "cesium";
-
-import {
-  EnviroMetricMapContext,
-  EnviroMetricMapDispatchContext,
-} from "@cismet-dev/react-cismap-envirometrics-maps/EnviroMetricMapContextProvider";
+import { EnviroMetricMapContext } from "@cismet-dev/react-cismap-envirometrics-maps/EnviroMetricMapContextProvider";
 import StyledWMSTileLayer from "react-cismap/StyledWMSTileLayer";
 
-import { isNumberArrayEqual } from "@carma-commons/utils";
-import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
-import { getTerrainElevationAsync } from "@carma-mapping/engines/cesium/core";
-import { useCesiumContext } from "@carma-mapping/engines/cesium/legacy";
-import { useHashState } from "@carma-providers/hash-state";
-
 import config from "../config";
+import { HGK_KEYS } from "../config/app.config";
 import {
-  AERIAL_BACKGROUND_INDEX,
-  HGK_KEYS,
-  HGK_TERRAIN_PROVIDER_URLS,
-} from "../config/app.config";
-import {
-  FLOODINGMAP_HASH_KEYS,
-  FLOODINGMAP_QUERY_HASH_CLEAR_KEYS,
-} from "../config/hash-state.config";
-import { useHGKCesiumTerrain } from "../hooks/useHGKCesiumTerrain";
-import { onCesiumClick } from "../utils/cesiumHandlers";
-import { getWebMercatorInWGS84, getWGS84InWebMercator } from "../utils/geo";
-import { updateMarkerPosition } from "../utils/marker";
+  useCesiumFeatureInfoClick,
+  useFeatureInfoMarker3D,
+  useFeatureInfoQueryHashSync,
+  useForceAerialBackground,
+  useRestoreFeatureInfoQuery,
+} from "../hooks/feature-info";
+import { useFloodingSceneStyleSync } from "../hooks/useFloodingSceneStyleSync";
 import NotesDisplay from "./NotesDisplay";
-export const StateAwareChildren = () => {
-  const floorToMeterGrid = (value: number): number => Math.floor(value);
 
-  // ENVIROMETRICMAP
+/**
+ * Context-reading child of EnviroMetricMap: wires flooding feature-info hooks and
+ * renders the map overlays. Must be a descendant of <EnviroMetricMap>.
+ */
+export const StateAwareChildren = () => {
   const { controlState } = useContext<typeof EnviroMetricMapContext>(
     EnviroMetricMapContext
   );
-  const { isLeaflet } = useMapFrameworkSwitcherContext();
-  const { updateHashState } = useHashState();
-
-  const { executeFeatureInfoRequest, setBackgroundIndex } = useContext<
-    typeof EnviroMetricMapDispatchContext
-  >(EnviroMetricMapDispatchContext);
-
   const isHWS = controlState.customInfoBoxToggleState;
-
   const conf = config.config;
 
-  // CESIUM
-  const cesiumContext = useCesiumContext();
-  const { isViewerReady, viewerRef, getTerrainProvider } = cesiumContext;
-  const [cesiumPickedPosition, setCesiumPickedPosition] = useState<
-    [number, number] | null
-  >(null);
-  const markerEntityRef = useRef<Entity | null>(null);
-  const highlightEntityRef = useRef<Entity | null>(null);
-  const prevPositionRef = useRef<[number, number] | null>(null);
-  const initialRestoredQueryPositionRef = useRef<[number, number] | null>(
-    controlState.currentFeatureInfoPosition ?? null
-  );
-  const didAutoFetchRestoredQueryRef = useRef(false);
-  const selectedBackground2dRef = useRef<number>(
-    controlState.selectedBackground
-  );
+  // Feature-info query: URL restoration, hash sync, 3D marker, click-to-query.
+  useRestoreFeatureInfoQuery();
+  useFeatureInfoQueryHashSync();
+  const markerRefs = useFeatureInfoMarker3D();
+  useCesiumFeatureInfoClick(markerRefs);
 
-  useEffect(() => {
-    if (
-      !controlState.featureInfoModeActivated ||
-      !controlState.currentFeatureInfoPosition
-    ) {
-      updateHashState(undefined, {
-        label: "app/hgk:query",
-        clearStateKeys: [...FLOODINGMAP_QUERY_HASH_CLEAR_KEYS],
-        replace: true,
-      });
-      return;
-    }
-
-    const [x, y] = controlState.currentFeatureInfoPosition;
-    updateHashState(
-      {
-        [FLOODINGMAP_HASH_KEYS.QUERY_X]: floorToMeterGrid(x),
-        [FLOODINGMAP_HASH_KEYS.QUERY_Y]: floorToMeterGrid(y),
-      },
-      {
-        label: "app/hgk:query",
-        clearStateKeys: [...FLOODINGMAP_QUERY_HASH_CLEAR_KEYS],
-        replace: true,
-      }
-    );
-  }, [
-    controlState.currentFeatureInfoPosition,
-    controlState.featureInfoModeActivated,
-    updateHashState,
-  ]);
-
-  useEffect(() => {
-    const initialRestoredPosition = initialRestoredQueryPositionRef.current;
-    if (!initialRestoredPosition || didAutoFetchRestoredQueryRef.current) {
-      return;
-    }
-
-    const restoredPosition = controlState.currentFeatureInfoPosition;
-    if (
-      !restoredPosition ||
-      !isNumberArrayEqual(restoredPosition, initialRestoredPosition)
-    ) {
-      return;
-    }
-
-    if (controlState.currentFeatureInfoValue !== undefined) {
-      didAutoFetchRestoredQueryRef.current = true;
-      return;
-    }
-
-    didAutoFetchRestoredQueryRef.current = true;
-
-    const { lat, lon } = getWebMercatorInWGS84(restoredPosition);
-    executeFeatureInfoRequest({
-      lat,
-      lng: lon,
-    });
-  }, [
-    controlState.currentFeatureInfoPosition,
-    controlState.currentFeatureInfoValue,
-    executeFeatureInfoRequest,
-  ]);
-
-  useEffect(() => {
-    // update 3d marker position from 2d while in 2d
-    if (
-      controlState.featureInfoModeActivated &&
-      controlState.currentFeatureInfoPosition
-    ) {
-      const asyncUpdate = async () => {
-        if (
-          !isViewerReady ||
-          !viewerRef.current ||
-          viewerRef.current.isDestroyed()
-        )
-          return;
-        const { lat, lon } = getWebMercatorInWGS84(
-          controlState.currentFeatureInfoPosition
-        );
-
-        const cartographic = Cartographic.fromDegrees(lon, lat);
-
-        const terrainProvider = getTerrainProvider();
-        if (!terrainProvider) return;
-
-        const [groundPositionCartographic] = await getTerrainElevationAsync(
-          terrainProvider,
-          [cartographic]
-        );
-        if (!groundPositionCartographic) return;
-
-        updateMarkerPosition(
-          viewerRef.current!,
-          markerEntityRef,
-          highlightEntityRef,
-          groundPositionCartographic
-        );
-      };
-      asyncUpdate();
-    }
-  }, [
-    isViewerReady,
-    getTerrainProvider,
-    viewerRef,
-    cesiumContext,
-    controlState.featureInfoModeActivated,
-    controlState.currentFeatureInfoPosition,
-    isLeaflet,
-  ]);
-
-  useEffect(() => {
-    // force background to aerial in 2d
-    if (isLeaflet) {
-      setBackgroundIndex(selectedBackground2dRef.current);
-    } else {
-      // store 2d background layer style before forcing to aerial
-      selectedBackground2dRef.current = controlState.selectedBackground;
-      setBackgroundIndex(AERIAL_BACKGROUND_INDEX);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLeaflet]); // intentionally only trigger on mode change
-
-  useEffect(() => {
-    if (
-      !isLeaflet &&
-      isViewerReady &&
-      viewerRef.current &&
-      controlState.featureInfoModeActivated
-    ) {
-      const viewer = viewerRef.current;
-
-      const handler = new ScreenSpaceEventHandler(viewer.scene.canvas);
-      handler.setInputAction(async (click) => {
-        const terrainProvider = getTerrainProvider();
-        if (!terrainProvider) {
-          console.warn(
-            "[FLOODINGMAP] Cannot process click - terrain provider not available"
-          );
-          return;
-        }
-
-        await onCesiumClick(
-          click,
-          viewerRef,
-          viewer.scene,
-          terrainProvider,
-          markerEntityRef,
-          highlightEntityRef,
-          setCesiumPickedPosition
-        );
-      }, ScreenSpaceEventType.LEFT_CLICK);
-
-      return () => {
-        handler.destroy();
-        setCesiumPickedPosition(null);
-
-        if (viewer.isDestroyed()) return;
-
-        if (markerEntityRef.current) {
-          viewer.entities.remove(markerEntityRef.current);
-          markerEntityRef.current = null;
-        }
-        if (highlightEntityRef.current) {
-          viewer.entities.remove(highlightEntityRef.current);
-          highlightEntityRef.current = null;
-        }
-        viewer.scene.requestRender();
-      };
-    }
-  }, [
-    viewerRef,
-    getTerrainProvider,
-    controlState.featureInfoModeActivated,
-    isLeaflet,
-    isViewerReady,
-  ]);
-
-  // Add effect to cleanup marker when feature info mode is disabled
-  useEffect(() => {
-    if (!controlState.featureInfoModeActivated && viewerRef.current) {
-      if (viewerRef.current.isDestroyed()) return;
-
-      if (markerEntityRef.current) {
-        viewerRef.current.entities.remove(markerEntityRef.current);
-        markerEntityRef.current = null;
-      }
-      if (highlightEntityRef.current) {
-        viewerRef.current.entities.remove(highlightEntityRef.current);
-        highlightEntityRef.current = null;
-      }
-      setCesiumPickedPosition(null);
-    }
-  }, [viewerRef, controlState.featureInfoModeActivated]);
-
-  useEffect(() => {
-    if (
-      controlState.featureInfoModeActivated &&
-      cesiumPickedPosition &&
-      (!prevPositionRef.current ||
-        !isNumberArrayEqual(prevPositionRef.current, cesiumPickedPosition))
-    ) {
-      /*
-      console.debug(
-        "cesium picked position changed",
-        controlState,
-        cesiumPickedPosition,
-        executeFeatureInfoRequest
-      );
-      */
-      prevPositionRef.current = cesiumPickedPosition;
-
-      const projectedQueryPosition = getWGS84InWebMercator({
-        lat: cesiumPickedPosition[0],
-        lon: cesiumPickedPosition[1],
-      });
-
-      updateHashState(
-        {
-          [FLOODINGMAP_HASH_KEYS.QUERY_X]: floorToMeterGrid(
-            projectedQueryPosition.x
-          ),
-          [FLOODINGMAP_HASH_KEYS.QUERY_Y]: floorToMeterGrid(
-            projectedQueryPosition.y
-          ),
-        },
-        {
-          label: "app/hgk:query",
-          clearStateKeys: [...FLOODINGMAP_QUERY_HASH_CLEAR_KEYS],
-          replace: true,
-        }
-      );
-
-      executeFeatureInfoRequest({
-        lat: cesiumPickedPosition[0],
-        lng: cesiumPickedPosition[1],
-      });
-    }
-  }, [
-    cesiumPickedPosition,
-    controlState.featureInfoModeActivated,
-    executeFeatureInfoRequest,
-    updateHashState,
-  ]);
-
-  useHGKCesiumTerrain(
-    controlState.selectedSimulation,
-    isHWS,
-    HGK_KEYS,
-    HGK_TERRAIN_PROVIDER_URLS
-  );
-
-  //console.debug("RENDER: StateAwareChildren", controlState);
+  // Scene presentation tied to the flooding state.
+  useForceAerialBackground();
+  useFloodingSceneStyleSync(controlState.selectedSimulation, isHWS, HGK_KEYS);
 
   return (
     <>

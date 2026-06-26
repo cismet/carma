@@ -8,7 +8,7 @@ import {
 } from "@carma-mapping/engines/cesium/core";
 import { readCesiumPrivateSceneTweens } from "@carma-cesium";
 
-import { useCesiumContext } from "@carma-mapping/engines/cesium/legacy";
+import { useCesiumContext } from "@carma-mapping/engines/cesium/react/runtime";
 
 import { NUM_NEAREST_IMAGES } from "../config";
 import type { NearestObliqueImageRecord } from "../types";

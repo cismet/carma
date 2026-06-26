@@ -1,4 +1,4 @@
-import { MarkerModelAsset } from "@carma-mapping/engines/cesium/legacy";
+import { MarkerModelAsset } from "@carma-mapping/engines/cesium/react/runtime";
 
 import { APP_BASE_PATH } from "../app.config";
 export const GLB_SAMPLE = `${APP_BASE_PATH}data/glb/map_pointer.glb`;

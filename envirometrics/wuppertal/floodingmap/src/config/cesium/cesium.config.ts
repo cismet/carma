@@ -1,17 +1,33 @@
-import { Color, Viewer } from "cesium";
+import { Color } from "@carma-cesium";
 
 import {
   WUPP_MESH_2024,
   WUPP_TERRAIN_PROVIDER,
   WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
 } from "@carma-commons/resources";
-import { CesiumConfig } from "@carma-mapping/engines/cesium/legacy";
+import {
+  type CesiumConfig,
+  type CesiumWidgetConstructorOptions,
+} from "@carma-mapping/engines/cesium/react/runtime";
 
-import { APP_BASE_PATH } from "../app.config";
+import { APP_BASE_PATH, HGK_TERRAIN_PROVIDER_URLS } from "../app.config";
 export const CESIUM_PATHNAME = "__cesium__";
+export const FLOODINGMAP_TILESET_IDS = {
+  MESH_2024: "wupp-mesh-2024",
+} as const;
+export const FLOODINGMAP_TERRAIN_PROVIDER_IDS = {
+  TERRAIN_2020: "terrain-2020",
+  DSM_MESH_2024_1M: "dsm-mesh-2024-1m",
+} as const;
+
+// One terrain provider per flood-simulation water surface; scene-style id equals the HGK provider id.
+const FLOOD_TERRAIN_PROVIDERS: Record<string, { url: string }> =
+  Object.fromEntries(
+    Object.entries(HGK_TERRAIN_PROVIDER_URLS).map(([id, url]) => [id, { url }])
+  );
 
 // disable cesium canvas background transparency
-export const CONSTRUCTOR_OPTIONS: Viewer.ConstructorOptions = {
+export const CONSTRUCTOR_OPTIONS: CesiumWidgetConstructorOptions = {
   contextOptions: { webgl: { alpha: false } },
 };
 
@@ -35,11 +51,17 @@ export const CESIUM_CONFIG: CesiumConfig = {
   baseUrl: `${APP_BASE_PATH}${CESIUM_PATHNAME}`,
   pathName: CESIUM_PATHNAME,
   providerConfig: {
-    terrainProvider: WUPP_TERRAIN_PROVIDER,
-    surfaceProvider: WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
+    terrainProviders: {
+      // Ground/surface providers for elevation sampling; not the visible flood surface.
+      [FLOODINGMAP_TERRAIN_PROVIDER_IDS.TERRAIN_2020]: WUPP_TERRAIN_PROVIDER,
+      [FLOODINGMAP_TERRAIN_PROVIDER_IDS.DSM_MESH_2024_1M]:
+        WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
+      // Visible, per-simulation flood water surfaces (toggled via scene styles).
+      ...FLOOD_TERRAIN_PROVIDERS,
+    },
   },
   tilesetConfigs: {
-    primary: WUPP_MESH_2024,
+    [FLOODINGMAP_TILESET_IDS.MESH_2024]: WUPP_MESH_2024,
   },
 };
 

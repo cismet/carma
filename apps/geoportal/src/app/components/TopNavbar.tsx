@@ -56,8 +56,8 @@ const TopNavbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showHelpTooltip, setShowHelpTooltip] = useState(false);
   const { showOverlayHandler } = useOverlayTourContext();
-  const { isObliqueMode, toggleObliqueMode } = useOblique();
-  const { setCurrentStyle } = useMapStyle();
+  const { isObliqueMode, setObliqueMode } = useOblique();
+  const { currentStyle, setCurrentStyle } = useMapStyle();
 
   const isTouchDevice =
     "ontouchstart" in window || navigator.maxTouchPoints > 0;
@@ -191,139 +191,139 @@ const TopNavbar = () => {
           onVisibilityChange={setBannerVisible}
         />
       </div>
-    <div
-      className={`bg-white h-16 fixed left-0 right-0 items-center justify-between gap-2 xs:gap-3 sm:gap-6 py-2 pt-safe-top pb-safe-bottom pl-safe-left xs:pl-safe-left-xs pr-safe-right xs:pr-safe-right-xs`}
-      style={mainStyle}
-    >
-      <ResourceModal />
-
-      <p
-        className={`mb-0 font-semibold text-lg min-w-max ${
-          mobileMenuOpen ? "sm:block hidden" : ""
-        }`}
-      >
-        DigiTal Zwilling / Geoportal
-      </p>
-
-      <button
-        onClick={toggleMobileMenu}
-        className="sm:hidden flex items-center justify-center p-2 select-none"
-      >
-        <FontAwesomeIcon
-          icon={mobileMenuOpen ? faChevronRight : faChevronLeft}
-        />
-      </button>
-
       <div
-        className={cn("transition-all duration-300 ease-in-out", {
-          "hidden sm:block": !mobileMenuOpen,
-        })}
+        className={`bg-white h-16 fixed left-0 right-0 items-center justify-between gap-2 xs:gap-3 sm:gap-6 py-2 pt-safe-top pb-safe-bottom pl-safe-left xs:pl-safe-left-xs pr-safe-right xs:pr-safe-right-xs`}
+        style={mainStyle}
       >
-        <ActionButtons />
-      </div>
+        <ResourceModal />
 
-      <div
-        className={cn("transition-all duration-300 ease-in-out", {
-          "hidden sm:block": !mobileMenuOpen,
-        })}
-      >
-        <div className={cn("flex items-center gap-3 sm:gap-6")}>
-          <Tooltip
-            open={!isTouchDevice && showHelpTooltip}
-            title="Hilfefolie überlagern"
-          >
-            <button
-              className="hover:text-gray-600 text-xl lg:mr-11 hidden sm:block xl:mr-40 select-none"
-              onClick={showOverlayHandler}
-              data-test-id="helper-overlay-btn"
-              ref={helpOverlayTourRef}
-              onMouseEnter={handleShowHelpTooltip}
-              onMouseLeave={handleHideHelpTooltip}
-            >
-              <FontAwesomeIcon
-                className="h-[24px] pt-1"
-                icon={faCircleQuestion}
-              />
-            </button>
-          </Tooltip>
-          {flags.featureFlagObliqueMode && isCesium && (
+        <p
+          className={`mb-0 font-semibold text-lg min-w-max ${
+            mobileMenuOpen ? "sm:block hidden" : ""
+          }`}
+        >
+          DigiTal Zwilling / Geoportal
+        </p>
+
+        <button
+          onClick={toggleMobileMenu}
+          className="sm:hidden flex items-center justify-center p-2 select-none"
+        >
+          <FontAwesomeIcon
+            icon={mobileMenuOpen ? faChevronRight : faChevronLeft}
+          />
+        </button>
+
+        <div
+          className={cn("transition-all duration-300 ease-in-out", {
+            "hidden sm:block": !mobileMenuOpen,
+          })}
+        >
+          <ActionButtons />
+        </div>
+
+        <div
+          className={cn("transition-all duration-300 ease-in-out", {
+            "hidden sm:block": !mobileMenuOpen,
+          })}
+        >
+          <div className={cn("flex items-center gap-3 sm:gap-6")}>
             <Tooltip
-              title={
-                isObliqueMode
-                  ? "Modus Schrägluftbilder ausschalten"
-                  : "Modus Schrägluftbilder einschalten"
-              }
+              open={!isTouchDevice && showHelpTooltip}
+              title="Hilfefolie überlagern"
             >
-              <Button
-                type={isObliqueMode ? "primary" : "default"}
-                onClick={toggleObliqueMode}
-                ref={oblqTourRef}
-                className="mr-2 select-none"
+              <button
+                className="hover:text-gray-600 text-xl lg:mr-11 hidden sm:block xl:mr-40 select-none"
+                onClick={showOverlayHandler}
+                data-test-id="helper-overlay-btn"
+                ref={helpOverlayTourRef}
+                onMouseEnter={handleShowHelpTooltip}
+                onMouseLeave={handleHideHelpTooltip}
               >
-                <FontAwesomeIcon icon={faPlane} rotation={270} />
-                <FontAwesomeIcon icon={faImages} />
+                <FontAwesomeIcon
+                  className="h-[24px] pt-1"
+                  icon={faCircleQuestion}
+                />
+              </button>
+            </Tooltip>
+            {flags.featureFlagObliqueMode && isCesium && (
+              <Tooltip
+                title={
+                  isObliqueMode
+                    ? "Modus Schrägluftbilder ausschalten"
+                    : "Modus Schrägluftbilder einschalten"
+                }
+              >
+                <Button
+                  type={isObliqueMode ? "primary" : "default"}
+                  onClick={() => setObliqueMode(!isObliqueMode)}
+                  ref={oblqTourRef}
+                  className="mr-2 select-none"
+                >
+                  <FontAwesomeIcon icon={faPlane} rotation={270} />
+                  <FontAwesomeIcon icon={faImages} />
+                </Button>
+              </Tooltip>
+            )}
+            <div className="lg:flex hidden" ref={hintergrundTourRef}>
+              {backgroundLayer && (
+                <Radio.Group
+                  value={currentStyle}
+                  onChange={handleBackgroundLayerChange}
+                >
+                  <Tooltip
+                    title={
+                      isLeaflet ? selectedMapLayer.title : "LoD2-Gebäude (NRW)"
+                    }
+                  >
+                    <Radio.Button
+                      className="select-none"
+                      value={MapStyleKeys.TOPO}
+                    >
+                      Karte
+                    </Radio.Button>
+                  </Tooltip>
+                  <Tooltip
+                    title={
+                      isLeaflet ? selectedLuftbildLayer.title : "3D-Mesh 03/24"
+                    }
+                  >
+                    <Radio.Button
+                      className="select-none"
+                      value={MapStyleKeys.AERIAL}
+                    >
+                      Luftbild
+                    </Radio.Button>
+                  </Tooltip>
+                  <Tooltip title="Hintergrund auswählen">
+                    <Radio.Button
+                      className="select-none"
+                      value="openBaseLayerView"
+                      disabled={!isLeaflet}
+                    >
+                      <FontAwesomeIcon
+                        id="openBaseLayerView"
+                        icon={faLayerGroup}
+                      />
+                    </Radio.Button>
+                  </Tooltip>
+                </Radio.Group>
+              )}
+            </div>
+
+            <Tooltip title="Kompaktanleitung | Login">
+              <Button
+                onClick={handleAppMenuVisible}
+                ref={modalMenuTourRef}
+                data-test-id="modal-menu-btn"
+                className="select-none"
+              >
+                <FontAwesomeIcon icon={faBars} />
               </Button>
             </Tooltip>
-          )}
-          <div className="lg:flex hidden" ref={hintergrundTourRef}>
-            {backgroundLayer && (
-              <Radio.Group
-                value={backgroundLayer.id}
-                onChange={handleBackgroundLayerChange}
-              >
-                <Tooltip
-                  title={
-                    isLeaflet ? selectedMapLayer.title : "LoD2-Gebäude (NRW)"
-                  }
-                >
-                  <Radio.Button
-                    className="select-none"
-                    value={MapStyleKeys.TOPO}
-                  >
-                    Karte
-                  </Radio.Button>
-                </Tooltip>
-                <Tooltip
-                  title={
-                    isLeaflet ? selectedLuftbildLayer.title : "3D-Mesh 03/24"
-                  }
-                >
-                  <Radio.Button
-                    className="select-none"
-                    value={MapStyleKeys.AERIAL}
-                  >
-                    Luftbild
-                  </Radio.Button>
-                </Tooltip>
-                <Tooltip title="Hintergrund auswählen">
-                  <Radio.Button
-                    className="select-none"
-                    value="openBaseLayerView"
-                    disabled={!isLeaflet}
-                  >
-                    <FontAwesomeIcon
-                      id="openBaseLayerView"
-                      icon={faLayerGroup}
-                    />
-                  </Radio.Button>
-                </Tooltip>
-              </Radio.Group>
-            )}
           </div>
-
-          <Tooltip title="Kompaktanleitung | Login">
-            <Button
-              onClick={handleAppMenuVisible}
-              ref={modalMenuTourRef}
-              data-test-id="modal-menu-btn"
-              className="select-none"
-            >
-              <FontAwesomeIcon icon={faBars} />
-            </Button>
-          </Tooltip>
         </div>
       </div>
-    </div>
     </>
   );
 };

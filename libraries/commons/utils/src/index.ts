@@ -88,6 +88,7 @@ export {
   HASH_LAUNCH_MODE,
   buildHashLaunchModeParams,
   buildOrderedSearchParamsString,
+  isThreeDViewHash,
   readHashLaunchMode,
   resolveHashLaunchMode,
   isTruthyHashValue,

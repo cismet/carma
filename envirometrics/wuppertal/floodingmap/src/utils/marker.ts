@@ -1,58 +1,112 @@
+import type { MutableRefObject } from "react";
+
 import {
-  ArcType,
-  Cartesian2,
+  BoxGeometry,
   Cartesian3,
   Cartographic,
-  CheckerboardMaterialProperty,
   Color,
-  ConstantProperty,
+  ColorGeometryInstanceAttribute,
+  GeometryInstance,
+  Material,
+  PerInstanceColorAppearance,
+  PolylineCollection,
+  Primitive,
   ShadowMode,
-  Viewer,
-} from "cesium";
+  Transforms,
+  type Polyline,
+} from "@carma-cesium";
 import { debounce } from "lodash";
+
+import type { CesiumRuntime } from "@carma-mapping/engines/cesium/react/runtime";
 
 import {
   FEATUREINFO_MARKER_HIGHLIGHT_HEIGHT,
   FEATUREINFO_MARKER_HIGHLIGHT_MAX_WIDTH,
   FEATUREINFO_MARKER_HIGHLIGHT_MIN_SHOW_DISTANCE,
 } from "../config/cesium/cesium.config";
-const interval = 0.1; // 10 cm
 const rodHeight = 2.0;
 const rodWidth = 0.3;
-const repeats = Math.floor(rodHeight / interval);
 
-export const getMarkerConstructorOptions = (position: Cartesian3) => {
-  return {
-    position,
-    box: {
-      dimensions: new Cartesian3(rodWidth, rodWidth, rodHeight),
-      /*
-          material: new StripeMaterialProperty({
-            orientation: StripeOrientation.HORIZONTAL,
-            offset: 0.05,
-            repeat: 20,
-            oddColor: Color.YELLOW,
-            evenColor: Color.BLACK,
-          }),
-          */
-      material: new CheckerboardMaterialProperty({
-        oddColor: Color.ORANGE,
-        evenColor: Color.BLACK,
-        repeat: new Cartesian2(2, repeats),
-      }),
-      outline: false,
-      shadows: ShadowMode.CAST_ONLY,
+type HighlightPolylineCollection = PolylineCollection & {
+  cleanupListener?: () => void;
+};
+
+export const createMarkerPrimitive = (position: Cartesian3) => {
+  const geometry = BoxGeometry.fromDimensions({
+    dimensions: new Cartesian3(rodWidth, rodWidth, rodHeight),
+    vertexFormat: PerInstanceColorAppearance.VERTEX_FORMAT,
+  });
+
+  const geometryInstance = new GeometryInstance({
+    geometry,
+    modelMatrix: Transforms.eastNorthUpToFixedFrame(position),
+    attributes: {
+      color: ColorGeometryInstanceAttribute.fromColor(Color.ORANGE),
     },
-  };
+  });
+
+  return new Primitive({
+    geometryInstances: geometryInstance,
+    appearance: new PerInstanceColorAppearance({
+      closed: true,
+      translucent: false,
+    }),
+    shadows: ShadowMode.CAST_ONLY,
+    asynchronous: false,
+  });
+};
+
+const removePrimitiveIfPresent = (
+  runtime: CesiumRuntime,
+  primitive: Primitive | PolylineCollection | null
+) => {
+  if (primitive && runtime.scene.primitives.contains(primitive)) {
+    runtime.scene.primitives.remove(primitive);
+  }
+};
+
+const createHighlightCollection = ({
+  position,
+  top,
+  show,
+  width,
+}: {
+  position: Cartesian3;
+  top: Cartesian3;
+  show: boolean;
+  width: number;
+}) => {
+  const collection = new PolylineCollection() as HighlightPolylineCollection;
+  const polyline = collection.add({
+    positions: [position, top],
+    show,
+    width,
+    material: Material.fromType("Color", {
+      color: Color.WHITE.withAlpha(0.5),
+    }),
+  });
+
+  return { collection, polyline };
+};
+
+const updateHighlightPolyline = (
+  polyline: Polyline,
+  show: boolean,
+  width: number
+) => {
+  polyline.show = show;
+  if (Math.abs(width - polyline.width) > 0.1 && width > 0.1) {
+    polyline.width = width;
+  }
 };
 
 const getHighlightStyle = (
-  viewer: Viewer,
+  runtime: CesiumRuntime,
   position: Cartesian3,
   maxWidth: number,
   minDistance: number
 ) => {
-  const cameraPosition = viewer.camera.position;
+  const cameraPosition = runtime.camera.position;
   const distance = Cartesian3.distance(cameraPosition, position);
   return {
     show: distance > minDistance,
@@ -64,83 +118,65 @@ const getHighlightStyle = (
 };
 
 export const updateMarkerPosition = (
-  viewer: Viewer,
-  markerEntityRef,
-  markerHighlightRef,
+  runtime: CesiumRuntime,
+  markerPrimitiveRef: MutableRefObject<Primitive | null>,
+  markerHighlightRef: MutableRefObject<HighlightPolylineCollection | null>,
   positionCartographic: Cartographic
 ) => {
-  // Remove existing marker if any
-  if (markerEntityRef.current) {
-    // Cleanup previous listener if exists
-    if (markerEntityRef.current.cleanupListener) {
-      markerEntityRef.current.cleanupListener();
-    }
-    viewer.entities.remove(markerEntityRef.current);
-    viewer.entities.remove(markerHighlightRef.current);
+  if (markerHighlightRef.current?.cleanupListener) {
+    markerHighlightRef.current.cleanupListener();
   }
+  removePrimitiveIfPresent(runtime, markerPrimitiveRef.current);
+  removePrimitiveIfPresent(runtime, markerHighlightRef.current);
 
   const position = Cartographic.toCartesian(positionCartographic);
 
-  const newMarker = viewer.entities.add(getMarkerConstructorOptions(position));
-  markerEntityRef.current = newMarker;
+  const marker = createMarkerPrimitive(position);
+  runtime.scene.primitives.add(marker);
+  markerPrimitiveRef.current = marker;
 
-  // higlight
+  // highlight
   const positionCartographicTop = positionCartographic.clone();
   positionCartographicTop.height += FEATUREINFO_MARKER_HIGHLIGHT_HEIGHT;
   const top = Cartographic.toCartesian(positionCartographicTop);
 
   const { show, width } = getHighlightStyle(
-    viewer,
+    runtime,
     position,
     FEATUREINFO_MARKER_HIGHLIGHT_MAX_WIDTH,
     FEATUREINFO_MARKER_HIGHLIGHT_MIN_SHOW_DISTANCE
   );
 
-  const highlight = viewer.entities.add({
-    name: "FeatureInfoHighlight",
-    show: show,
-    polyline: {
-      positions: [position, top],
-      arcType: ArcType.NONE,
-      width,
-      material: Color.WHITE.withAlpha(0.5),
-    },
-  });
+  const { collection: highlightCollection, polyline: highlightPolyline } =
+    createHighlightCollection({ position, top, show, width });
 
-  markerHighlightRef.current = highlight;
+  runtime.scene.primitives.add(highlightCollection);
+  markerHighlightRef.current = highlightCollection;
 
   const updateHighlightVisibility = debounce(() => {
-    // Update polyline visibility based on distance
+    const { show, width } = getHighlightStyle(
+      runtime,
+      position,
+      FEATUREINFO_MARKER_HIGHLIGHT_MAX_WIDTH,
+      FEATUREINFO_MARKER_HIGHLIGHT_MIN_SHOW_DISTANCE
+    );
 
-    if (highlight.polyline && highlight.polyline.width) {
-      const { show, width } = getHighlightStyle(
-        viewer,
-        position,
-        FEATUREINFO_MARKER_HIGHLIGHT_MAX_WIDTH,
-        FEATUREINFO_MARKER_HIGHLIGHT_MIN_SHOW_DISTANCE
-      );
-      highlight.show = show;
-
-      console.debug("updateHighlightVisibility", width);
-      const currentWidth = highlight.polyline.width.getValue();
-      if (Math.abs(width - currentWidth) > 0.1 && width > 0.1) {
-        (highlight.polyline.width as ConstantProperty).setValue(width);
-        viewer.scene.requestRender();
-      }
-    }
+    console.debug("updateHighlightVisibility", width);
+    updateHighlightPolyline(highlightPolyline, show, width);
+    runtime.scene.requestRender();
   }, 50);
 
   // Use a closure to manage the event listener
   const manageListener = (() => {
-    viewer.camera.percentageChanged = 0.0001;
+    runtime.camera.percentageChanged = 0.0001;
     // TODO: still not firing/updating every rendererd frame, but responsive enough.
     // using postRender events is even less responsive
-    viewer.camera.changed.addEventListener(updateHighlightVisibility);
+    runtime.camera.changed.addEventListener(updateHighlightVisibility);
     return () => {
-      viewer.camera.changed.removeEventListener(updateHighlightVisibility);
+      runtime.camera.changed.removeEventListener(updateHighlightVisibility);
     };
   })();
 
-  markerEntityRef.current.cleanupListener = manageListener;
-  //console.debug("LISTENER: updateHighlightVisibility", viewer.camera.changed.numberOfListeners);
+  markerHighlightRef.current.cleanupListener = manageListener;
+  runtime.scene.requestRender();
 };

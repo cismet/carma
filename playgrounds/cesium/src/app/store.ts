@@ -1,17 +1,8 @@
 import { configureStore } from "@reduxjs/toolkit";
-import {
-  CesiumState,
-  cesiumReducer,
-} from "@carma-mapping/engines/cesium/legacy";
 
-export const setupStore = (preloadViewerState: CesiumState) => {
+export const setupStore = () => {
   const store = configureStore({
-    reducer: {
-      cesium: cesiumReducer,
-    },
-    preloadedState: {
-      cesium: preloadViewerState,
-    },
+    reducer: {},
   });
 
   return store;

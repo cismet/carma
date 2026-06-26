@@ -1,116 +1,77 @@
-import {
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import { useSelector } from "react-redux";
-
-import {
-  faHouseChimney,
-  faMinus,
-  faPlus,
-} from "@fortawesome/free-solid-svg-icons";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { useCallback, useContext, useEffect, useState } from "react";
 
 import EnviroMetricMap from "@cismet-dev/react-cismap-envirometrics-maps/EnviroMetricMap";
 import { version as cismapEnvirometricsVersion } from "@cismet-dev/react-cismap-envirometrics-maps/meta";
-import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import CrossTabCommunicationControl from "react-cismap/CrossTabCommunicationControl";
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 
 import {
-  SelectionMetaData,
   TopicMapSelectionContent,
   useGazData,
-  useHashLaunchMode,
-  useSelection,
-  useSelectionCesium,
-  useSelectionTopicMap,
 } from "@carma-appframeworks/portals";
 import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/hochwassergefahrenkarte";
-import { ENDPOINT, isAreaTypeWithGEP } from "@carma-commons/resources";
-import { getApplicationVersion, HASH_LAUNCH_MODE } from "@carma-commons/utils";
 import {
-  FullscreenControl,
-  MapFrameworkSwitcher,
-  RoutedMapLocateControl,
-  useMapFrameworkSwitcherContext,
-  useRegisterMapFramework,
-} from "@carma-mapping/components";
+  detectWebGLContext,
+  getApplicationVersion,
+} from "@carma-commons/utils";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import {
   flyViewStateInCesium,
   HASH_ZOOM_CONVENTION,
   type ShareableViewStateHashCodecOptions,
   ViewStateNavigationManagerProvider,
   ViewStateProvider,
-  useCesiumNavigationBridge,
 } from "@carma-mapping/engines-interop/view-state";
 import {
-  CustomViewer,
-  PitchingCompass,
-  selectViewerModels,
+  CesiumHost,
   useCesiumContext,
-  useZoomControls as useZoomControlsCesium,
-} from "@carma-mapping/engines/cesium/legacy";
-import {
-  EmptySearchComponent,
-  LibFuzzySearch,
-  type SearchResultItem,
-} from "@carma-mapping/fuzzy-search";
-import {
-  Control,
-  ControlButtonStyler,
-  ControlLayout,
-} from "@carma-mapping/map-controls-layout";
+} from "@carma-mapping/engines/cesium/react/runtime";
+import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 
-import FloodingTopicMapContainer from "./components/FloodingTopicMapContainer";
 import { StateAwareChildren } from "./components/StateAwareChildren";
+import FloodingTopicMapContainer from "./components/FloodingTopicMapContainer";
+import { MapControls } from "./components/MapControls";
 import config from "./config";
 import { EMAIL } from "./config/app.config";
 import {
   CESIUM_CONFIG,
   CONSTRUCTOR_OPTIONS,
 } from "./config/cesium/cesium.config";
+import { useDisableInfoBoxMapClicks } from "./hooks/useDisableInfoBoxMapClicks";
+import { useFloodingCesiumHost } from "./hooks/useFloodingCesiumHost";
 import { useFloodingmapInitialValues } from "./hooks/useFloodingmapInitialValues";
-import useLeafletZoomControls from "./hooks/useLeafletZoomControls";
+import { useFloodingSelection } from "./hooks/useFloodingSelection";
 import versionData from "./version.json";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
+
 const DEFAULT_HASH_FOV_DEG = 45;
 const VIEW_STATE_HASH_CODEC_OPTIONS: ShareableViewStateHashCodecOptions = {
   defaultFovDeg: DEFAULT_HASH_FOV_DEG,
   zoomConvention: HASH_ZOOM_CONVENTION.LEAFLET_256,
   cameraLimiterOptions: CESIUM_CONFIG.camera,
 };
-const FLOODINGMAP_CESIUM_VIEW_ADAPTER_ID = "floodingmap-cesium";
-const HIDDEN_DISPLAY_VALUE = "none" as const;
 
-type CesiumViewerCreditContainer = {
-  _cesiumWidget?: {
-    _creditContainer?: { style?: { display?: string } };
-  };
-};
+const enableControlStateToggle = (controlState) =>
+  controlState.selectedSimulation !== 2;
+
+const onToggleState = (toggleState, state) =>
+  state.selectedSimulation !== 2 && toggleState;
 
 function FloodingmapAppContent({ sync = false }: { sync?: boolean }) {
   const version = getApplicationVersion(versionData);
-  const { responsiveState, gap, windowSize } = useContext<
-    typeof ResponsiveTopicMapContext
-  >(ResponsiveTopicMapContext);
-
-  const pixelwidth =
-    responsiveState === "normal" ? "300px" : windowSize.width - gap - 2;
-
-  const { gazData } = useGazData();
-
-  // Resolve launch mode from hash, set framework, clean up flags
-  useHashLaunchMode({ defaultMode: HASH_LAUNCH_MODE.THREE_D });
-
-  const reactCismapEnvirometricsVersion = cismapEnvirometricsVersion;
   const [hochwasserschutz, setHochwasserschutz] = useState(true);
+
+  // 3D capability gate: detect WebGL once; without it, stay 2D and never mount Cesium.
+  const [is3dSupported] = useState(() => {
+    let supported = false;
+    detectWebGLContext((flag) => {
+      supported = flag;
+    });
+    return supported;
+  });
+
   const {
     defaultHomeViewState,
     homeCenter,
@@ -120,213 +81,54 @@ function FloodingmapAppContent({ sync = false }: { sync?: boolean }) {
     initialEnviroMetricState,
     isInitialCameraResolved,
   } = useFloodingmapInitialValues();
-  const ctx = useCesiumContext();
-  const {
-    getScene,
-    getTerrainProvider,
-    getSurfaceProvider,
-    isViewerReady,
-    initialViewApplied,
-  } = ctx;
-  const cesiumScene = getScene();
-  const {
-    handleZoomIn: handleZoomInCesium,
-    handleZoomOut: handleZoomOutCesium,
-  } = useZoomControlsCesium(ctx, {
-    fovMode: false,
-  });
-  const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
 
-  // LEAFLET related
+  const { gazData } = useGazData();
+  const { isCesium, isLeaflet, setActiveFrameworkLeaflet } =
+    useMapFrameworkSwitcherContext();
   const { routedMapRef: routedMap } =
     useContext<typeof TopicMapContext>(TopicMapContext);
+  const cesiumScene = useCesiumContext().getScene();
 
-  // CESIUM related
-  const container3dMapRef = useRef<HTMLDivElement>(null);
-  const [cesiumContainerElement, setCesiumContainerElement] =
-    useState<HTMLDivElement | null>(null);
-  const [shouldMountCesium, setShouldMountCesium] = useState(false);
-  const cesiumReadyPromiseRef = useRef<Promise<void> | null>(null);
-  const cesiumReadyResolversRef = useRef<Array<() => void>>([]);
+  // Absorb info-box clicks so they don't fall through to the map (2D + 3D).
+  useDisableInfoBoxMapClicks(routedMap?.leafletMap?.leafletElement ?? null);
 
-  const handleCesiumContainerRef = useCallback(
-    (node: HTMLDivElement | null) => {
-      container3dMapRef.current = node;
-      setCesiumContainerElement(node);
-    },
-    []
-  );
+  // Cesium-host wiring (framework registration, lazy mount + ready gate) and gazetteer/selection wiring.
+  const { shouldMountCesium, handleCesiumHostChange } =
+    useFloodingCesiumHost(is3dSupported);
+  const { onGazetteerSelection } = useFloodingSelection();
 
-  // Register map frameworks with switcher
-  const leafletMap = routedMap?.leafletMap?.leafletElement ?? null;
-  const isCesiumRuntimeReady = Boolean(
-    cesiumScene && cesiumContainerElement && isViewerReady
-  );
-
-  const getLeafletMap = useCallback(
-    () => routedMap?.leafletMap?.leafletElement ?? null,
-    [routedMap]
-  );
-  const getCesiumContainer = useCallback(
-    () => container3dMapRef.current,
-    [container3dMapRef]
-  );
-  const getCesiumTerrainProviders = useCallback(
-    () => ({
-      TERRAIN: getTerrainProvider() ?? null,
-      SURFACE: getSurfaceProvider() ?? null,
-    }),
-    [getSurfaceProvider, getTerrainProvider]
-  );
-
-  useRegisterMapFramework({
-    getLeafletMap,
-    getCesiumScene: () => cesiumScene,
-    getCesiumContainer,
-    getCesiumTerrainProviders,
-  });
-
-  const { isCesium, isLeaflet, getIsCesium, registerCallbacks } =
-    useMapFrameworkSwitcherContext();
-
+  // Without WebGL, never sit in 3D even if a 3d hash flag launched it.
   useEffect(() => {
-    if (isCesium && !shouldMountCesium) {
-      setShouldMountCesium(true);
+    if (!is3dSupported && isCesium) {
+      setActiveFrameworkLeaflet();
     }
-  }, [isCesium, shouldMountCesium]);
+  }, [is3dSupported, isCesium, setActiveFrameworkLeaflet]);
 
-  useEffect(() => {
-    if (!isCesiumRuntimeReady) {
-      return;
-    }
-
-    const resolvers = cesiumReadyResolversRef.current;
-    if (resolvers.length === 0) {
-      cesiumReadyPromiseRef.current = null;
-      return;
-    }
-
-    cesiumReadyResolversRef.current = [];
-    cesiumReadyPromiseRef.current = null;
-    resolvers.forEach((resolve) => resolve());
-  }, [isCesiumRuntimeReady]);
-
-  const ensureCesiumReadyForTransition = useCallback(() => {
-    if (isCesiumRuntimeReady) {
-      return Promise.resolve();
-    }
-
-    setShouldMountCesium(true);
-
-    if (cesiumReadyPromiseRef.current) {
-      return cesiumReadyPromiseRef.current;
-    }
-
-    cesiumReadyPromiseRef.current = new Promise<void>((resolve) => {
-      cesiumReadyResolversRef.current.push(resolve);
-    });
-
-    return cesiumReadyPromiseRef.current;
-  }, [isCesiumRuntimeReady]);
-
-  useEffect(() => {
-    registerCallbacks({
-      onEnsureCesiumReady: ensureCesiumReadyForTransition,
-    });
-  }, [ensureCesiumReadyForTransition, registerCallbacks]);
-
-  useCesiumNavigationBridge({
-    id: FLOODINGMAP_CESIUM_VIEW_ADAPTER_ID,
-    scene: cesiumScene,
-    isSyncEnabled: Boolean(cesiumScene),
-    isCommitEnabled: isCesium && Boolean(cesiumScene) && initialViewApplied,
-  });
-
-  const models = useSelector(selectViewerModels);
-
-  const markerAsset = models![CESIUM_CONFIG.markerKey!];
-  const markerAnchorHeight = CESIUM_CONFIG.markerAnchorHeight ?? 10;
-
-  // selection handling
-  const { setSelection } = useSelection();
-
-  const onGazetteerSelection = (selection: SearchResultItem | null) => {
-    if (!selection) {
-      //console.debug("onGazetteerSelection", selection);
-      setSelection(null);
-      return;
-    }
-    const selectionMetaData: SelectionMetaData = {
-      selectedFrom: "gazetteer",
-      selectionTimestamp: Date.now(),
-      isAreaSelection: isAreaTypeWithGEP(selection.type as ENDPOINT),
-    };
-    setSelection(Object.assign({}, selection, selectionMetaData));
-  };
-
-  const homeControlLeaflet = useCallback(() => {
+  const onHomeClick = useCallback(() => {
     if (homeCenter && routedMap?.leafletMap?.leafletElement) {
       routedMap.leafletMap.leafletElement.flyTo(homeCenter, homeLeafletZoom);
     }
-  }, [homeCenter, homeLeafletZoom, routedMap]);
-
-  const homeControlCesium = useCallback(() => {
-    if (!isCesium || !cesiumScene) return;
-
-    flyViewStateInCesium(cesiumScene, defaultHomeViewState, {
-      duration: 2,
-      applyFov: false,
-    });
-  }, [cesiumScene, defaultHomeViewState, isCesium]);
-
-  const onHomeClick = useCallback(() => {
-    homeControlLeaflet();
-    homeControlCesium();
-  }, [homeControlCesium, homeControlLeaflet]);
-
-  useSelectionTopicMap();
-  useSelectionCesium(
-    getIsCesium,
-    useMemo(
-      () => ({
-        markerAsset,
-        markerAnchorHeight,
-        isPrimaryStyle: true,
-        withTerrainProvider: (cb) => ctx.withTerrainProvider(cb),
-        withSurfaceProvider: (cb) => ctx.withSurfaceProvider(cb),
-      }),
-      [markerAsset, markerAnchorHeight, ctx]
-    )
-  );
-
-  useEffect(() => {
-    ctx.withViewer((viewer) => {
-      const viewerWithCreditContainer = viewer as CesiumViewerCreditContainer;
-
-      // remove default cesium credit because no ion resource is used
-      const creditContainer =
-        viewerWithCreditContainer._cesiumWidget?._creditContainer;
-      if (creditContainer?.style) {
-        creditContainer.style.display = HIDDEN_DISPLAY_VALUE;
-      }
-      ctx.requestRender();
-    });
-  }, [ctx]);
-
-  const enableControlStateToggle = (controlState) => {
-    return controlState.selectedSimulation !== 2;
-  };
-
-  const onToggleState = (toggleState, state) => {
-    return state.selectedSimulation !== 2 && toggleState;
-  };
+    if (isCesium && cesiumScene) {
+      flyViewStateInCesium(cesiumScene, defaultHomeViewState, {
+        duration: 2,
+        applyFov: false,
+      });
+    }
+  }, [
+    homeCenter,
+    homeLeafletZoom,
+    routedMap,
+    isCesium,
+    cesiumScene,
+    defaultHomeViewState,
+  ]);
 
   const appMenu = (
     <GenericModalApplicationMenu
       {...getCollabedHelpComponentConfig({
         version,
         versionString: version,
-        reactCismapRHMVersion: reactCismapEnvirometricsVersion,
+        reactCismapRHMVersion: cismapEnvirometricsVersion,
         email: EMAIL,
       })}
     />
@@ -349,90 +151,11 @@ function FloodingmapAppContent({ sync = false }: { sync?: boolean }) {
           zIndex: 600,
         }}
       >
-        <ControlLayout ifStorybook={false}>
-          <Control position="topleft" order={10}>
-            <div className="flex flex-col">
-              {/* <Tooltip title="Maßstab vergrößern (Zoom in)" placement="right"> */}
-              <ControlButtonStyler
-                onClick={isLeaflet ? zoomInLeaflet : handleZoomInCesium}
-                className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
-                dataTestId="zoom-in-control"
-                title="Maßstab vergrößern (Zoom in)"
-              >
-                <FontAwesomeIcon icon={faPlus} className="text-base" />
-              </ControlButtonStyler>
-              {/* </Tooltip> */}
-              {/* <Tooltip title="Maßstab verkleinern (Zoom out)" placement="right"> */}
-              <ControlButtonStyler
-                onClick={isLeaflet ? zoomOutLeaflet : handleZoomOutCesium}
-                className="!rounded-t-none !border-t-[1px]"
-                dataTestId="zoom-out-control"
-                title="Maßstab verkleinern (Zoom out)"
-              >
-                <FontAwesomeIcon icon={faMinus} className="text-base" />
-              </ControlButtonStyler>
-              {/* </Tooltip> */}
-            </div>
-          </Control>
-          <Control position="topleft" order={30}>
-            <div className="flex flex-col">
-              {/* <Tooltip title="Nach Norden ausrichten" placement="right"> */}
-              <ControlButtonStyler
-                useDisabledStyle={false}
-                className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
-                disabled={isLeaflet}
-                //ref={tourRefLabels.alignNorth}
-                dataTestId="compass-control"
-                title="Nach Norden ausrichten"
-              >
-                <PitchingCompass />
-              </ControlButtonStyler>
-              {/* </Tooltip> */}
-              <MapFrameworkSwitcher nativeTooltip={true} />
-            </div>
-          </Control>
-          <Control position="topleft" order={50}>
-            <FullscreenControl />
-          </Control>
-          <Control position="topleft" order={60}>
-            <RoutedMapLocateControl
-              tourRefLabels={null}
-              disabled={isCesium}
-              nativeTooltip={true}
-            />
-          </Control>
-
-          <Control position="topleft" order={70}>
-            {/* <Tooltip
-              title={
-                "Zur Startposition:\nÜberflutungsbereich Unterdörnen, Barmen"
-              }
-              placement="right"
-            > */}
-            <ControlButtonStyler
-              onClick={onHomeClick}
-              dataTestId="home-control"
-              title={
-                "Zur Startposition:\nÜberflutungsbereich Unterdörnen, Barmen"
-              }
-            >
-              <FontAwesomeIcon icon={faHouseChimney} className="text-lg" />
-            </ControlButtonStyler>
-            {/* </Tooltip> */}
-          </Control>
-          <Control position="bottomleft" order={10}>
-            <div className="pl-1">
-              <LibFuzzySearch
-                gazData={gazData}
-                //referenceSystem={referenceSystem}
-                //referenceSystemDefinition={referenceSystemDefinition}
-                pixelwidth={pixelwidth}
-                onSelection={onGazetteerSelection}
-                placeholder="Stadtteil | Adresse | POI | GEP"
-              />
-            </div>
-          </Control>
-        </ControlLayout>
+        <MapControls
+          is3dSupported={is3dSupported}
+          onHomeClick={onHomeClick}
+          onGazetteerSelection={onGazetteerSelection}
+        />
       </div>
 
       <div
@@ -475,8 +198,7 @@ function FloodingmapAppContent({ sync = false }: { sync?: boolean }) {
         </EnviroMetricMap>
       </div>
       {shouldMountCesium && (
-        <div
-          ref={handleCesiumContainerRef}
+        <CesiumHost
           className={"map-container-3d"}
           style={{
             position: "absolute",
@@ -486,16 +208,12 @@ function FloodingmapAppContent({ sync = false }: { sync?: boolean }) {
             bottom: 0,
             zIndex: 400,
           }}
-        >
-          <CustomViewer
-            containerRef={container3dMapRef}
-            cameraLimiterOptions={CESIUM_CONFIG.camera}
-            homeValidationCenter={homeValidationCenter}
-            initialCameraView={initialCameraView}
-            constructorOptions={CONSTRUCTOR_OPTIONS}
-            enableSceneStyles={false}
-          ></CustomViewer>
-        </div>
+          onHostChange={handleCesiumHostChange}
+          cameraLimiterOptions={CESIUM_CONFIG.camera}
+          homeValidationCenter={homeValidationCenter}
+          initialCameraView={initialCameraView}
+          constructorOptions={CONSTRUCTOR_OPTIONS}
+        />
       )}
     </div>
   );

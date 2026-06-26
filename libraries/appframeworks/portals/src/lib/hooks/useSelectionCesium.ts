@@ -7,7 +7,7 @@ import {
   removeCesiumMarker,
   removeGroundPrimitiveById,
   useCesiumContext,
-} from "@carma-mapping/engines/cesium/legacy";
+} from "@carma-mapping/engines/cesium/react/runtime";
 
 import {
   SelectionMapMode,
@@ -121,7 +121,7 @@ export const useSelectionCesium = (
   duration: number = 3,
   durationFactor: number = 0.2
 ) => {
-  const { isValidViewer, getScene, getSurfaceProvider, getTerrainProvider } =
+  const { isValidRuntime, getScene, getSurfaceProvider, getTerrainProvider } =
     useCesiumContext();
 
   const { selection, selectionFlyToCameraHeightRef } = useSelection();
@@ -148,10 +148,10 @@ export const useSelectionCesium = (
 
     wasActiveRef.current = isActive;
 
-    if (!isActive || !isValidViewer()) {
+    if (!isActive || !isValidRuntime()) {
       console.debug("[CESIUM-SELECTION] Early return", {
         isActive,
-        isValidViewer: isValidViewer(),
+        isValidRuntime: isValidRuntime(),
       });
       return;
     }
@@ -336,7 +336,7 @@ export const useSelectionCesium = (
   }, [
     isActive,
     getScene,
-    isValidViewer,
+    isValidRuntime,
     getSurfaceProvider,
     getTerrainProvider,
     selection,

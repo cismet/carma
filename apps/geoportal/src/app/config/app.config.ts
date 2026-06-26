@@ -6,7 +6,7 @@ import {
   WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
 } from "@carma-commons/resources";
 
-import type { CesiumConfig } from "@carma-mapping/engines/cesium/legacy";
+import type { CesiumConfig } from "@carma-mapping/engines/cesium/react/runtime";
 import type { CesiumModelConfig } from "@carma-mapping/engines/cesium/core";
 import type { LeafletConfig } from "@carma-mapping/engines/leaflet";
 import {
@@ -36,6 +36,17 @@ export const DEFAULT_CAMERA_FOV_DEG = 60;
 
 const CESIUM_PATHNAME = "__cesium__";
 const METROPOLE_RUHR_GRAUBLAU_RECTANGLE = Rectangle.fromDegrees(4, 48, 10, 52);
+export const CESIUM_TILESET_IDS = {
+  MESH_2024: "wupp-mesh-2024",
+  LOD2: "wupp-lod2",
+} as const;
+export const CESIUM_TERRAIN_PROVIDER_IDS = {
+  TERRAIN_2020: "terrain-2020",
+  DSM_MESH_2024_1M: "dsm-mesh-2024-1m",
+} as const;
+export const CESIUM_IMAGERY_LAYER_IDS = {
+  BASEMAP_GRAUBLAU: "basemap-graublau",
+} as const;
 const MODEL_SHADER_CONFIG_DEFAULTS = {
   hover: {
     clearDelayMs: 40,
@@ -102,16 +113,21 @@ export const CESIUM_CONFIG: CesiumConfig = {
   baseUrl: `${APP_BASE_PATH}${CESIUM_PATHNAME}`,
   pathName: CESIUM_PATHNAME,
   providerConfig: {
-    terrainProvider: WUPP_TERRAIN_PROVIDER,
-    surfaceProvider: WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
-    imageryProvider: {
-      ...BASEMAP_METROPOLE_RUHR_WMTS_GRAUBLAU_HQ,
-      rectangle: METROPOLE_RUHR_GRAUBLAU_RECTANGLE,
+    terrainProviders: {
+      [CESIUM_TERRAIN_PROVIDER_IDS.TERRAIN_2020]: WUPP_TERRAIN_PROVIDER,
+      [CESIUM_TERRAIN_PROVIDER_IDS.DSM_MESH_2024_1M]:
+        WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
+    },
+    imageryProviders: {
+      [CESIUM_IMAGERY_LAYER_IDS.BASEMAP_GRAUBLAU]: {
+        ...BASEMAP_METROPOLE_RUHR_WMTS_GRAUBLAU_HQ,
+        rectangle: METROPOLE_RUHR_GRAUBLAU_RECTANGLE,
+      },
     },
   },
   tilesetConfigs: {
-    primary: WUPP_MESH_2024,
-    secondary: WUPP_LOD2_TILESET,
+    [CESIUM_TILESET_IDS.MESH_2024]: WUPP_MESH_2024,
+    [CESIUM_TILESET_IDS.LOD2]: WUPP_LOD2_TILESET,
   },
   model: {
     hover: MODEL_SHADER_CONFIG_DEFAULTS.hover,
@@ -175,7 +191,7 @@ export const LEAFLET_CONFIG: LeafletConfig = {
   zoomDelta: 1.0,
 };
 
-// URL hash parameter keys for viewer state
+// URL hash parameter keys for runtime state
 export const URL_PARAM_KEYS = {
   mapStyle: "m",
   measurements: "mm",
