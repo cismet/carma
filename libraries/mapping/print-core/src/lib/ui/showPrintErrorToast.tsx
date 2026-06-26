@@ -8,29 +8,25 @@
 
 import { Button, message, Modal } from "antd";
 
+import { PrintErrorDetails } from "./PrintErrorDetails";
+
 // Single toast at a time: re-keying replaces the previous one instead of
 // stacking a new toast on every failed retry.
 const TOAST_KEY = "carma-print-error";
 
 const showPrintErrorDetails = (errorMessage: string) => {
   message.destroy(TOAST_KEY);
-  Modal.error({
+  Modal.info({
     title: "Fehler beim Drucken",
-    width: 600,
-    content: (
-      <pre
-        style={{
-          whiteSpace: "pre-wrap",
-          wordBreak: "break-word",
-          maxHeight: 360,
-          overflow: "auto",
-          margin: 0,
-          fontSize: 12,
-        }}
-      >
-        {errorMessage}
-      </pre>
-    ),
+    // Drop the default red error glyph and the content indentation it forces.
+    icon: null,
+    width: 640,
+    // No footer button: dismiss via the corner ✕, a backdrop click, or Esc.
+    footer: null,
+    closable: true,
+    maskClosable: true,
+    keyboard: true,
+    content: <PrintErrorDetails errorMessage={errorMessage} />,
   });
 };
 
