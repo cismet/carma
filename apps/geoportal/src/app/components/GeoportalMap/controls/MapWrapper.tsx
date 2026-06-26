@@ -446,11 +446,15 @@ const MapWrapper = () => {
                   ref={tourRefLabels.home}
                   onClick={() => {
                     if (showLibreMap) {
-                      libreMap?.flyTo({
-                        center: [homeCenter[1], homeCenter[0]],
-                        zoom: homeMaplibreZoom,
-                        essential: true,
-                      });
+                      if (isCesium) {
+                        handleCesiumHomeClick();
+                      } else {
+                        libreMap?.flyTo({
+                          center: [homeCenter[1], homeCenter[0]],
+                          zoom: homeMaplibreZoom,
+                          essential: true,
+                        });
+                      }
                     } else {
                       routedMap.leafletMap.leafletElement.flyTo(
                         homeCenter,
