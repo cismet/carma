@@ -1,6 +1,9 @@
 {
   "workbench.colorCustomizations": {
     "commandCenter.border": "#15202b99",
+    "commandCenter.foreground": "#000000",
+    "commandCenter.activeForeground": "#000000",
+    "commandCenter.inactiveForeground": "#000000aa",
     "sash.hoverBorder": "#f4af50",
     "statusBar.background": "#f19920",
     "statusBar.foreground": "#15202b",
