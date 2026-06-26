@@ -7,6 +7,7 @@ import {
   type KeyboardDisplayLabels,
   type KeyboardDisplayPlatform,
 } from "@carma-commons/ui/components";
+import { COLORS_HEX } from "@carma-commons/utils";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import {
@@ -365,7 +366,8 @@ const renderPointerToken = (label: string) => (
 );
 
 // Cursor symbols render without the key/pointer backdrop, at the same effective
-// footprint as the bordered tokens, with a 16px glyph.
+// footprint as the bordered tokens, with a 16px glyph in the info box's action
+// icon grey.
 const dragTargetTokenStyle: CSSProperties = {
   display: "inline-flex",
   alignItems: "center",
@@ -374,6 +376,7 @@ const dragTargetTokenStyle: CSSProperties = {
   minHeight: "1.35rem",
   fontSize: "16px",
   lineHeight: 1,
+  color: COLORS_HEX.ACCENT_NEUTRALS,
 };
 
 const renderDragTargetToken = (icon: IconDefinition) => (
