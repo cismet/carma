@@ -26,6 +26,7 @@ import {
 } from "../core";
 import type { Orientation, PrintInputLayer } from "../core";
 import { PrintPreviewControls } from "../ui/PrintPreviewControls";
+import { showPrintErrorToast } from "../ui/showPrintErrorToast";
 import {
   buildRectBounds,
   fitMapToRect,
@@ -138,7 +139,13 @@ export const MapLibrePrintPreview = ({
     };
     void printMap(job, {
       onLoading: onLoadingChange,
-      onError,
+      // The print library owns error surfacing: it always shows a toast with a
+      // link to the concrete error, then forwards to the consumer's onError
+      // (e.g. for an app-level error indicator).
+      onError: (errorMessage) => {
+        showPrintErrorToast(errorMessage);
+        onError?.(errorMessage);
+      },
     });
   }, [
     map,
