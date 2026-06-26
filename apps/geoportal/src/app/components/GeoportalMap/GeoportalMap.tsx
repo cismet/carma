@@ -1243,14 +1243,22 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
     selectFromHits: handleLibreSelectFromHits,
   } = useLibreMapSelectionHandler(libreMap);
 
-  const { isCesium } = useMapFrameworkSwitcherContext();
+  const { isCesium, getIsCesium } = useMapFrameworkSwitcherContext();
   const {
     getScene,
     getTerrainProvider,
     getSurfaceProvider,
     isRuntimeReady,
+    withTerrainProvider,
+    withSurfaceProvider,
     initialViewApplied,
+    models,
+    currentSceneStyle,
   } = useCesiumContext();
+
+  const markerAsset = models[CESIUM_CONFIG.markerKey];
+  const markerAnchorHeight =
+    CESIUM_CONFIG.markerAnchorHeight ?? DEFAULT_MARKER_ANCHOR_HEIGHT;
   const {
     homeValidationCenter,
     initialCameraView: cesiumInitialCameraView,
@@ -1328,6 +1336,25 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
     isSyncEnabled: isCesium && isRuntimeReady && Boolean(cesiumScene),
     isCommitEnabled: isCesium && initialViewApplied,
   });
+
+  const selectionCesiumOptions = useMemo<CesiumOptions>(
+    () => ({
+      markerAsset,
+      markerAnchorHeight,
+      selectionClassification:
+        currentSceneStyle === MapStyleKeys.AERIAL ? "tileset" : "both",
+      withTerrainProvider,
+      withSurfaceProvider,
+    }),
+    [
+      currentSceneStyle,
+      markerAsset,
+      markerAnchorHeight,
+      withTerrainProvider,
+      withSurfaceProvider,
+    ]
+  );
+  useSelectionCesium(getIsCesium, selectionCesiumOptions);
 
   return (
     <>
