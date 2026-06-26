@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 import {
+  faRowResize,
   resolveBackspaceDisplayLabel,
   resolveKeyboardDisplayLabels,
   resolveKeyboardDisplayPlatform,
@@ -9,13 +10,11 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import {
-  faCircleDot,
   faCircleExclamation,
   faCircleInfo,
   faComputerMouse,
-  faUpDown,
+  faUpDownLeftRight,
 } from "@fortawesome/free-solid-svg-icons";
-import { faCircle } from "@fortawesome/free-regular-svg-icons";
 
 export const ANNOTATION_INFO_BOX_HELP_ITEM_KINDS = {
   TEXT: "text",
@@ -30,10 +29,10 @@ export const ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS = {
   BACKSPACE: "backspace",
   ESCAPE: "escape",
   SHIFT: "shift",
-  // Drag-target symbols for the point-move gizmo (cismet/wupp#4078).
+  // Drag-target cursor symbols for the point-move gizmo (cismet/wupp#4078):
+  // the disc centre uses a row-resize cursor, the outer disc a move cursor.
   DISC_CENTER: "disc-center",
   DISC_OUTER: "disc-outer",
-  HEIGHT_AXIS: "height-axis",
 } as const;
 
 export const ANNOTATION_INFO_BOX_HELP_ACTION_INDICATORS = {
@@ -365,18 +364,14 @@ const renderPointerToken = (label: string) => (
   </span>
 );
 
-const HEIGHT_AXIS_TOKEN_COLOR_CSS = "#3b82f6";
-
 const dragTargetTokenStyle: CSSProperties = {
   ...keyTokenStyle,
   minWidth: "1.35rem",
   padding: "0.16rem",
 };
 
-const renderDragTargetToken = (icon: IconDefinition, color?: string) => (
-  <span
-    style={color ? { ...dragTargetTokenStyle, color } : dragTargetTokenStyle}
-  >
+const renderDragTargetToken = (icon: IconDefinition) => (
+  <span style={dragTargetTokenStyle}>
     <FontAwesomeIcon icon={icon} />
   </span>
 );
@@ -430,11 +425,9 @@ const renderHelpActionInput = (
     case ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.SHIFT:
       return renderKeyToken(keyboardLabels.shift);
     case ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.DISC_CENTER:
-      return renderDragTargetToken(faCircleDot);
+      return renderDragTargetToken(faRowResize);
     case ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.DISC_OUTER:
-      return renderDragTargetToken(faCircle);
-    case ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.HEIGHT_AXIS:
-      return renderDragTargetToken(faUpDown, HEIGHT_AXIS_TOKEN_COLOR_CSS);
+      return renderDragTargetToken(faUpDownLeftRight);
   }
 };
 

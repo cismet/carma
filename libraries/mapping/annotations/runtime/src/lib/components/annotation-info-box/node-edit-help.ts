@@ -115,9 +115,8 @@ const DRAG_HELP_ITEMS: readonly AnnotationInfoBoxHelpItem[] = [
     description: "Äußere Scheibe – in der Höhenebene.",
   },
   {
-    kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ACTION,
-    inputAlternatives: [[ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.HEIGHT_AXIS]],
-    description: "Blaue Pfeile – entlang der Höhenachse.",
+    kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.TEXT,
+    text: "Blaue Pfeile – entlang der Höhenachse.",
   },
 ];
 
