@@ -7,7 +7,9 @@ import type { Orientation, PrintJob } from "./types";
 
 const MAPFISH_BASE = "https://mapfish.cismet.de/print";
 
-const getOrientationTemplateParams = (orientation: Orientation = "portrait") => ({
+const getOrientationTemplateParams = (
+  orientation: Orientation = "portrait"
+) => ({
   url:
     orientation === "portrait"
       ? `${MAPFISH_BASE}/A4_Portrait/buildreport.pdf`
