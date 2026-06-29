@@ -9,9 +9,11 @@ import {
 } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import InfoBoxFotoPreview from "react-cismap/topicmaps/InfoBoxFotoPreview";
+import {
+  InfoBoxFotoPreview,
+  LightBoxDispatchContext,
+} from "@carma-mapping/lightbox";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
-import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 
 import { additionalInfoFactory } from "@carma-collab/wuppertal/geoportal";
 import { genericSecondaryInfoFooterFactory } from "@carma-collab/wuppertal/commons";
