@@ -329,6 +329,12 @@ interface BelisMapLibWrapperProps {
   onLassoDeactivate?: () => void;
   sidebarVariant: "fachobjekte" | "arbeitsauftraege";
   onHighlightsChange?: (highlights: SidebarFeature[] | null) => void;
+  /** Notified with the filter-aware highlight list (the same one the Highlights
+   *  sidebar tab renders): the filtered copy when layer/Leitungstyp toggles drop
+   *  something, otherwise the full list. Used by the CSV export so it mirrors the
+   *  visible selection. Separate from `onHighlightsChange`, which stays unfiltered
+   *  for the Arbeitsauftrag actions. */
+  onFilteredHighlightsChange?: (highlights: SidebarFeature[] | null) => void;
   /** Local-dev toggle: include the styleY-based Fachobjekte layer (default true). */
   regularLayerEnabled?: boolean;
   /** Local-dev toggle: include the brand.new.features GeoJSON-backed layer (default true). */
@@ -346,6 +352,7 @@ const BelisMapLibWrapper = ({
   onLassoDeactivate,
   sidebarVariant,
   onHighlightsChange,
+  onFilteredHighlightsChange,
   regularLayerEnabled = true,
   brandnewLayerEnabled = true,
   onBrandnewCountChange,
@@ -1753,16 +1760,29 @@ const BelisMapLibWrapper = ({
     (unfilteredHighlights != null && unfilteredHighlights.length > 0);
 
   // Mirror the map's layer-filter toggles onto the highlight list: when a
-  // category (Leuchten / Standorte / … / Mauerlaschen) is toggled off, drop its
+  // category (Leuchten / Standorte / … / Mauerlaschen) is toggled off — or a
+  // Leitungstyp is switched off in the Leitungen dropdown — drop the matching
   // highlights from the Highlights sidebar tab too. `highlightsForSidebar` is the
   // filtered copy when something was removed, otherwise the original reference.
   const { filteredHighlights, isHighlightFiltered } = useFilteredHighlights(
     unfilteredHighlights,
-    activeSourceLayers
+    activeSourceLayers,
+    enabledLeitungstypen,
+    (keyTablesData.leitungstyp || []) as {
+      id: number;
+      bezeichnung?: string;
+    }[]
   );
   const highlightsForSidebar = isHighlightFiltered
     ? filteredHighlights
     : unfilteredHighlights;
+
+  // Notify the parent with the filter-aware list (same as the sidebar shows) so
+  // the CSV export mirrors the visible selection. Kept separate from
+  // `onHighlightsChange` above, which stays unfiltered for the AA actions.
+  useEffect(() => {
+    onFilteredHighlightsChange?.(highlightsForSidebar);
+  }, [highlightsForSidebar, onFilteredHighlightsChange]);
 
   // Compute effective sidebar data based on mode
   const effectiveSidebarData = useMemo(() => {
