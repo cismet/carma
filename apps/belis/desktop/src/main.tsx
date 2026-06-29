@@ -21,6 +21,7 @@ import store from "./store";
 import persistStore from "redux-persist/es/persistStore";
 import { PersistGate } from "redux-persist/integration/react";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
+import { CarmaLightBox } from "@carma-mapping/lightbox";
 import MainPage from "./components/pages/MainPage";
 import KeyTablesPage from "./components/pages/KeyTablesPage";
 import ArbeitsauftraegeePage from "./components/pages/ArbeitsauftraegeePage";
@@ -160,7 +161,9 @@ root.render(
                   <MapSelectionProvider>
                     <MapHighlightProvider>
                       <DatasheetProvider>
-                        <RouterProvider router={router} />
+                        <CarmaLightBox>
+                          <RouterProvider router={router} />
+                        </CarmaLightBox>
                       </DatasheetProvider>
                     </MapHighlightProvider>
                   </MapSelectionProvider>
