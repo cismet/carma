@@ -10,6 +10,7 @@ import {
   MapSelectionProvider,
   MapHighlightProvider,
 } from "@carma-mapping/contexts";
+import { CarmaLightBox } from "@carma-mapping/lightbox";
 import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextProvider";
 
 import { GazDataProvider } from "./GazDataProvider";
@@ -213,7 +214,7 @@ export const CarmaMapProviderWrapper = ({
                         <CarmaApiBridge store={store} />
                         <MapHighlightProvider>
                           <AddonProvider addons={addons} scopeKey={addonScope}>
-                            {wrappedChildren}
+                            <CarmaLightBox>{wrappedChildren}</CarmaLightBox>
                           </AddonProvider>
                         </MapHighlightProvider>
                       </MapSelectionProvider>
