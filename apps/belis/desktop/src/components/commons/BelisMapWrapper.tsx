@@ -618,12 +618,12 @@ const BelisMapLibWrapper = ({
   } = useMapHighlight();
 
   // Adjusted highlights: starts from highlightResults, updated by Alt+click toggles
-  const [adjustedHighlights, setAdjustedHighlights] = useState<
+  const [unfilteredHighlights, setUnfilteredHighlights] = useState<
     SidebarFeature[] | null
   >(highlightResults);
   // Reset when new highlight results arrive
   useEffect(() => {
-    setAdjustedHighlights(highlightResults);
+    setUnfilteredHighlights(highlightResults);
   }, [highlightResults]);
 
   // Clear selection when highlighting activates (e.g. search)
@@ -645,8 +645,8 @@ const BelisMapLibWrapper = ({
 
   // Notify parent about highlight changes
   useEffect(() => {
-    onHighlightsChange?.(adjustedHighlights);
-  }, [adjustedHighlights, onHighlightsChange]);
+    onHighlightsChange?.(unfilteredHighlights);
+  }, [unfilteredHighlights, onHighlightsChange]);
 
   const handleHighlightToggle = useCallback(
     (feature: maplibregl.MapGeoJSONFeature) => {
@@ -683,7 +683,7 @@ const BelisMapLibWrapper = ({
         }
       }
 
-      // Sync sibling leuchten in the highlight context BEFORE updating adjustedHighlights.
+      // Sync sibling leuchten in the highlight context BEFORE updating unfilteredHighlights.
       // toggleFeatureHighlight already toggled the standort itself (called by useMapHighlighting
       // before onToggle fires), so criteria.toggledFeatures already reflects the standort's state.
       // Read direction from the ref: if standort is now toggled ON, we add siblings; if OFF, remove.
@@ -701,7 +701,7 @@ const BelisMapLibWrapper = ({
       }
 
       // Update sidebar content
-      setAdjustedHighlights((prev) => {
+      setUnfilteredHighlights((prev) => {
         if (!prev) {
           const items = [toSidebarFeature(feature)];
           for (const l of siblingLeuchten) items.push(toSidebarFeature(l));
@@ -805,7 +805,7 @@ const BelisMapLibWrapper = ({
       }
 
       // Remove from sidebar list
-      setAdjustedHighlights((prev) => {
+      setUnfilteredHighlights((prev) => {
         if (!prev) return prev;
         return prev.filter((f) => {
           const key = `${f.sourceLayer ?? ""}::${String(
@@ -841,7 +841,7 @@ const BelisMapLibWrapper = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [criteria, highlightVersion]);
 
-  // Last criteria signature reflected in adjustedHighlights. A change means a
+  // Last criteria signature reflected in unfilteredHighlights. A change means a
   // fresh highlight session, so the accumulated list must start empty.
   const appliedCriteriaSigRef = useRef(highlightCriteriaSignature);
 
@@ -865,7 +865,7 @@ const BelisMapLibWrapper = ({
       const keyOf = (f: SidebarFeature) =>
         `${f.sourceLayer ?? ""}::${String(f.properties?.id ?? f.id ?? "")}`;
 
-      setAdjustedHighlights((prev) => {
+      setUnfilteredHighlights((prev) => {
         const base = isNewSession ? null : prev;
         const converted = matched.map(
           (f) => Object.assign(f, { original: f }) as unknown as SidebarFeature
@@ -1710,7 +1710,7 @@ const BelisMapLibWrapper = ({
   useEffect(() => {
     if (!highlightingActive) {
       setSidebarMode("fachobjekte");
-      setAdjustedHighlights(null);
+      setUnfilteredHighlights(null);
     }
   }, [highlightingActive]);
 
@@ -1750,19 +1750,19 @@ const BelisMapLibWrapper = ({
 
   const hasHighlights =
     highlightingActive ||
-    (adjustedHighlights != null && adjustedHighlights.length > 0);
+    (unfilteredHighlights != null && unfilteredHighlights.length > 0);
 
   // Mirror the map's layer-filter toggles onto the highlight list: when a
   // category (Leuchten / Standorte / … / Mauerlaschen) is toggled off, drop its
   // highlights from the Highlights sidebar tab too. `highlightsForSidebar` is the
   // filtered copy when something was removed, otherwise the original reference.
   const { filteredHighlights, isHighlightFiltered } = useFilteredHighlights(
-    adjustedHighlights,
+    unfilteredHighlights,
     activeSourceLayers
   );
   const highlightsForSidebar = isHighlightFiltered
     ? filteredHighlights
-    : adjustedHighlights;
+    : unfilteredHighlights;
 
   // Compute effective sidebar data based on mode
   const effectiveSidebarData = useMemo(() => {
@@ -1793,13 +1793,13 @@ const BelisMapLibWrapper = ({
 
     if (
       sidebarMode === "highlights" &&
-      adjustedHighlights &&
-      adjustedHighlights.length > 0
+      unfilteredHighlights &&
+      unfilteredHighlights.length > 0
     ) {
       // Build from the filter-aware copy so toggled-off categories drop out of
-      // the Highlights tab. Gate availability on the raw `adjustedHighlights`
+      // the Highlights tab. Gate availability on the raw `unfilteredHighlights`
       // above (the tab stays open even if everything is currently filtered out).
-      const highlightsList = highlightsForSidebar ?? adjustedHighlights;
+      const highlightsList = highlightsForSidebar ?? unfilteredHighlights;
       // Above the limit, fall back to grouped counts only (overview mode) —
       // same threshold the Fachobjekte viewport list uses. Blank the feature
       // list (keeping counts + totalCount) so the sidebar derives its groups
@@ -1900,7 +1900,7 @@ const BelisMapLibWrapper = ({
     };
   }, [
     sidebarMode,
-    adjustedHighlights,
+    unfilteredHighlights,
     highlightsForSidebar,
     draftSidebarFeatures,
     openDraftDbKeys,
@@ -4775,8 +4775,8 @@ const BelisMapLibWrapper = ({
           auswahlActiveSourceLayers={activeSourceLayers}
           namespacedSource={namespacedSource}
           brandnewSource={brandnewSource}
-          adjustedHighlights={adjustedHighlights}
-          setAdjustedHighlights={setAdjustedHighlights}
+          unfilteredHighlights={unfilteredHighlights}
+          setUnfilteredHighlights={setUnfilteredHighlights}
           measurements={isReadOnly ? [] : measurementsForSidebar}
           selectedMeasurementId={selectedMeasurementId}
           onMeasurementSelect={(id) => dispatch(selectMeasurement(id))}

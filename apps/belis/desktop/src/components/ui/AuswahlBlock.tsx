@@ -14,8 +14,8 @@ export interface AuswahlBlockProps {
   /** Optional brandnew GeoJSON source — queried alongside `namespacedSource`
    *  so newly-created Standorte/Leuchten resolve their siblings. */
   brandnewSource?: string;
-  adjustedHighlights: SidebarFeature[] | null;
-  setAdjustedHighlights: React.Dispatch<
+  unfilteredHighlights: SidebarFeature[] | null;
+  setUnfilteredHighlights: React.Dispatch<
     React.SetStateAction<SidebarFeature[] | null>
   >;
   getListItem: (feature: SidebarFeature) => ListItemData;
@@ -47,8 +47,8 @@ const toSidebarFeature = (
 const AuswahlBlock = ({
   namespacedSource,
   brandnewSource,
-  adjustedHighlights,
-  setAdjustedHighlights,
+  unfilteredHighlights,
+  setUnfilteredHighlights,
   getListItem,
   onFeatureSelect,
   activeSourceLayers,
@@ -118,7 +118,7 @@ const AuswahlBlock = ({
     const clickedKey = buildFeatureKey(
       toSidebarFeature(rawFeature, namespacedSource, sl)
     );
-    const isAlreadyHighlighted = adjustedHighlights?.some(
+    const isAlreadyHighlighted = unfilteredHighlights?.some(
       (h) => buildFeatureKey(h) === clickedKey
     );
     if (isAlreadyHighlighted) {
@@ -223,9 +223,9 @@ const AuswahlBlock = ({
 
   // Set of keys already in highlights — used to hide + buttons
   const highlightedKeys = useMemo(() => {
-    if (!adjustedHighlights) return new Set<string>();
-    return new Set(adjustedHighlights.map(buildFeatureKey));
-  }, [adjustedHighlights]);
+    if (!unfilteredHighlights) return new Set<string>();
+    return new Set(unfilteredHighlights.map(buildFeatureKey));
+  }, [unfilteredHighlights]);
 
   // Re-query MVT tile features by DB id to get current tile IDs, then add to highlights
   const addFeaturesToHighlights = useCallback(
@@ -267,7 +267,7 @@ const AuswahlBlock = ({
         ensureToggledFeatures(toToggle, true);
       }
 
-      setAdjustedHighlights((prev) => {
+      setUnfilteredHighlights((prev) => {
         const existing = new Set((prev ?? []).map(buildFeatureKey));
         const newItems = toAppend.filter(
           (f) => !existing.has(buildFeatureKey(f))
@@ -276,7 +276,7 @@ const AuswahlBlock = ({
         return [...(prev ?? []), ...newItems];
       });
     },
-    [map, namespacedSource, ensureToggledFeatures, setAdjustedHighlights]
+    [map, namespacedSource, ensureToggledFeatures, setUnfilteredHighlights]
   );
 
   const handleAddStandort = useCallback(() => {
