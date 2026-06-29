@@ -77,8 +77,20 @@ const BelisMapPageShell = () => {
   >(null);
   const [lassoActive, setLassoActive] = useState(false);
 
+  // Filter-aware highlight list (mirrors the Highlights sidebar tab): the CSV
+  // export uses this so it exports exactly the visible selection. The unfiltered
+  // `activeHighlights` channel is left untouched for the Arbeitsauftrag actions.
+  const [filteredHighlights, setFilteredHighlights] = useState<
+    SidebarFeature[] | null
+  >(null);
+
+  // Export mirrors the visible selection. Once highlights exist, the filter-aware
+  // list wins even when it is empty — so toggling every category off (which drops
+  // all highlights from the sidebar) also empties the export and disables the
+  // button, instead of silently falling back to the unfiltered selection. Only
+  // when there are no highlights at all do we fall back to the viewport list.
   const exportableFeatures = activeHighlights?.length
-    ? activeHighlights
+    ? filteredHighlights ?? []
     : highlightResults?.length
     ? highlightResults
     : featureCollection ?? [];
@@ -88,6 +100,13 @@ const BelisMapPageShell = () => {
       setActiveHighlights(highlights);
     },
     [setActiveHighlights]
+  );
+
+  const handleFilteredHighlightsChange = useCallback(
+    (highlights: SidebarFeature[] | null) => {
+      setFilteredHighlights(highlights);
+    },
+    []
   );
 
   const { isDatasheetOpen, closeDatasheet } = useDatasheet();
@@ -404,6 +423,7 @@ const BelisMapPageShell = () => {
             onLassoDeactivate={() => setLassoActive(false)}
             sidebarVariant={sidebarVariant}
             onHighlightsChange={handleHighlightsChange}
+            onFilteredHighlightsChange={handleFilteredHighlightsChange}
             regularLayerEnabled={regularLayerEnabled}
             brandnewLayerEnabled={brandnewLayerEnabled}
             onBrandnewCountChange={setBrandnewCount}
