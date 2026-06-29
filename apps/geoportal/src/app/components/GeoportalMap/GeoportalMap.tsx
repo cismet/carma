@@ -613,6 +613,7 @@ const LeafletGeoportalMap = ({ height, width, allow3d }: MapProps) => {
           locatorControl={false}
           fullScreenControl={false}
           zoomControls={false}
+          photoLightBox={false}
           mapStyle={{
             width,
             height,
