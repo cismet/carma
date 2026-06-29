@@ -256,9 +256,9 @@ export interface BelisSidebarProps {
    *  Standorte/Leuchten resolve their siblings. */
   brandnewSource?: string;
   /** Current adjusted highlights list (needed by AuswahlBlock). */
-  adjustedHighlights?: SidebarFeature[] | null;
+  unfilteredHighlights?: SidebarFeature[] | null;
   /** Setter for adjusted highlights (needed by AuswahlBlock). */
-  setAdjustedHighlights?: React.Dispatch<
+  setUnfilteredHighlights?: React.Dispatch<
     React.SetStateAction<SidebarFeature[] | null>
   >;
   /** Drawn measurements (Punkte / Linien / Flächen). Rendered as a
@@ -299,8 +299,8 @@ const BelisSidebar = ({
   auswahlActiveSourceLayers,
   namespacedSource,
   brandnewSource,
-  adjustedHighlights,
-  setAdjustedHighlights,
+  unfilteredHighlights,
+  setUnfilteredHighlights,
   measurements,
   selectedMeasurementId,
   onMeasurementSelect,
@@ -906,13 +906,13 @@ const BelisSidebar = ({
         )}
       </div>
       {namespacedSource &&
-        setAdjustedHighlights &&
+        setUnfilteredHighlights &&
         sidebarMode !== "drafts" && (
           <AuswahlBlock
             namespacedSource={namespacedSource}
             brandnewSource={brandnewSource}
-            adjustedHighlights={adjustedHighlights ?? null}
-            setAdjustedHighlights={setAdjustedHighlights}
+            unfilteredHighlights={unfilteredHighlights ?? null}
+            setUnfilteredHighlights={setUnfilteredHighlights}
             getListItem={getListItem}
             onFeatureSelect={onFeatureSelect}
             activeSourceLayers={auswahlActiveSourceLayers ?? activeSourceLayers}
