@@ -201,6 +201,7 @@ import {
 } from "../../helper/buildSyntheticFeature";
 // import { useAaLassoSelection } from "../../hooks/useAaLassoSelection";
 import { useBrandnewFcSync } from "../../hooks/useBrandnewFcSync";
+import { useFilteredHighlights } from "../../hooks/useFilteredHighlights";
 import {
   DrawModeControls,
   MeasurementHost,
@@ -1751,6 +1752,18 @@ const BelisMapLibWrapper = ({
     highlightingActive ||
     (adjustedHighlights != null && adjustedHighlights.length > 0);
 
+  // Mirror the map's layer-filter toggles onto the highlight list: when a
+  // category (Leuchten / Standorte / … / Mauerlaschen) is toggled off, drop its
+  // highlights from the Highlights sidebar tab too. `highlightsForSidebar` is the
+  // filtered copy when something was removed, otherwise the original reference.
+  const { filteredHighlights, isHighlightFiltered } = useFilteredHighlights(
+    adjustedHighlights,
+    activeSourceLayers
+  );
+  const highlightsForSidebar = isHighlightFiltered
+    ? filteredHighlights
+    : adjustedHighlights;
+
   // Compute effective sidebar data based on mode
   const effectiveSidebarData = useMemo(() => {
     // Shared derivation: counts per sourceLayer + merged activeSourceLayers.
@@ -1783,19 +1796,23 @@ const BelisMapLibWrapper = ({
       adjustedHighlights &&
       adjustedHighlights.length > 0
     ) {
+      // Build from the filter-aware copy so toggled-off categories drop out of
+      // the Highlights tab. Gate availability on the raw `adjustedHighlights`
+      // above (the tab stays open even if everything is currently filtered out).
+      const highlightsList = highlightsForSidebar ?? adjustedHighlights;
       // Above the limit, fall back to grouped counts only (overview mode) —
       // same threshold the Fachobjekte viewport list uses. Blank the feature
       // list (keeping counts + totalCount) so the sidebar derives its groups
       // purely from countsByLayer, matching the viewport overview exactly —
       // otherwise the distribution loop would also build a stray merged
       // "Standorte / Leuchten" group with a 0 total.
-      if (adjustedHighlights.length > OVERVIEW_FEATURE_LIMIT) {
-        const base = buildFromFeatures(adjustedHighlights, {
+      if (highlightsList.length > OVERVIEW_FEATURE_LIMIT) {
+        const base = buildFromFeatures(highlightsList, {
           isOverviewMode: true,
         });
         return { ...base, features: [] };
       }
-      return buildFromFeatures(adjustedHighlights);
+      return buildFromFeatures(highlightsList);
     }
     if (sidebarMode === "drafts" && draftSidebarFeatures.length > 0) {
       return buildFromFeatures(draftSidebarFeatures);
@@ -1884,6 +1901,7 @@ const BelisMapLibWrapper = ({
   }, [
     sidebarMode,
     adjustedHighlights,
+    highlightsForSidebar,
     draftSidebarFeatures,
     openDraftDbKeys,
     cascadeDeletionStandortIds,
@@ -4751,7 +4769,7 @@ const BelisMapLibWrapper = ({
           hasHighlights={hasHighlights}
           hasDrafts={!isReadOnly && draftFeaturesCount > 0}
           fachobjekteCount={totalCount}
-          highlightCount={adjustedHighlights?.length ?? undefined}
+          highlightCount={highlightsForSidebar?.length ?? undefined}
           draftsCount={draftFeaturesCount}
           onFeatureDismiss={handleSidebarDismiss}
           auswahlActiveSourceLayers={activeSourceLayers}
