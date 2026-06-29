@@ -10,9 +10,11 @@ import {
 import { useDispatch, useSelector } from "react-redux";
 import { faRightFromBracket, faTrain } from "@fortawesome/free-solid-svg-icons";
 
-import InfoBoxFotoPreview from "react-cismap/topicmaps/InfoBoxFotoPreview";
+import {
+  InfoBoxFotoPreview,
+  LightBoxDispatchContext,
+} from "@carma-mapping/lightbox";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
-import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 
 import { useLibreContext } from "@carma-mapping/contexts";
 import {
