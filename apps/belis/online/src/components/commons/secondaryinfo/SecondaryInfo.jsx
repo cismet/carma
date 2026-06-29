@@ -1,5 +1,5 @@
 import React, { useContext, useState } from "react";
-import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
+import { LightBoxDispatchContext } from "@carma-mapping/lightbox";
 import { version as reactCismapVersion } from "react-cismap/meta";
 import { useDispatch, useSelector } from "react-redux";
 
