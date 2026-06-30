@@ -44,6 +44,7 @@ export {
   type LabelOverlayWorldAnchor,
   type LabelOverlayFrameSubscription,
   type LabelOverlayHostBinding,
+  type LabelOverlayViewChangeProbe,
   type LabelOverlayWorldAnchorProjector,
   type UseWorldAnchoredOverlayElementOptions,
   type PointLabelStyle,

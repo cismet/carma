@@ -18,6 +18,7 @@ export type {
 export type {
   LabelOverlayFrameSubscription,
   LabelOverlayHostBinding,
+  LabelOverlayViewChangeProbe,
   LabelOverlayWorldAnchorProjector,
 } from "../host";
 export {

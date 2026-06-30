@@ -90,6 +90,10 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
   );
   const renderScheduledRef = useRef(false);
   const requestRenderRef = useRef<(() => void) | null>(null);
+  // Set whenever something the overlay loop depends on changes (element set/data,
+  // live anchors, manual updatePositions). Together with the host's view-change
+  // probe it lets the per-frame loop skip reprojection on otherwise-idle frames.
+  const positionsDirtyRef = useRef(true);
   const liveAnchorsMapRef = useRef<Map<string, LabelOverlayWorldAnchor>>(
     new Map()
   );
@@ -109,7 +113,12 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
   const resolvedContainerRef = host.containerRef;
   const resolvedFrameSubscription = host.subscribeFrame;
   const resolvedProjectWorldAnchor = host.projectWorldAnchor;
+  const resolvedHasViewChanged = host.hasViewChanged;
   const forceLayoutOnPortalRender = host.forceLayoutOnPortalRender ?? true;
+
+  const markPositionsDirty = useCallback(() => {
+    positionsDirtyRef.current = true;
+  }, []);
 
   // Shared, stable registry of live world anchors (see LabelOverlayLiveAnchors).
   // Backed by a ref so writes never re-render; the frame loop and engine readers
@@ -119,12 +128,18 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
     return {
       set: (id, anchor) => {
         map.set(id, anchor);
+        positionsDirtyRef.current = true;
       },
       get: (id) => map.get(id),
       delete: (id) => {
-        map.delete(id);
+        if (map.delete(id)) {
+          positionsDirtyRef.current = true;
+        }
       },
       clear: () => {
+        if (map.size > 0) {
+          positionsDirtyRef.current = true;
+        }
         map.clear();
       },
       get size() {
@@ -185,6 +200,7 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
 
   const addLabelOverlayElement = useCallback(
     (element: LabelOverlayElement) => {
+      markPositionsDirty();
       const existing = overlayElementsRef.current.get(element.id);
       if (existing && shouldReuseOverlayPortal(existing, element)) {
         overlayElementsRef.current.set(element.id, element);
@@ -194,7 +210,7 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
       overlayElementsRef.current.set(element.id, element);
       forceRender();
     },
-    [forceRender]
+    [forceRender, markPositionsDirty]
   );
 
   const removeLabelOverlayElement = useCallback(
@@ -202,9 +218,10 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
       if (!overlayElementsRef.current.has(id)) return;
       overlayElementsRef.current.delete(id);
       overlayElementNodeByIdRef.current.delete(id);
+      markPositionsDirty();
       forceRender();
     },
-    [forceRender]
+    [forceRender, markPositionsDirty]
   );
 
   const updateLabelOverlayElement = useCallback(
@@ -214,26 +231,37 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
         const updated = { ...existing, ...updates };
         const shouldRender = !shouldReuseOverlayPortal(existing, updated);
         overlayElementsRef.current.set(id, updated);
+        markPositionsDirty();
 
         if (shouldRender) {
           forceRender();
         }
       }
     },
-    [forceRender]
+    [forceRender, markPositionsDirty]
   );
 
   const clearLabelOverlayElements = useCallback(() => {
     if (overlayElementsRef.current.size === 0) return;
     overlayElementsRef.current.clear();
     overlayElementNodeByIdRef.current.clear();
+    markPositionsDirty();
     forceRender();
-  }, [forceRender]);
+  }, [forceRender, markPositionsDirty]);
 
-  // Update overlay positions (imperative, no React render)
-  const updatePositionsInternal = useCallback(() => {
+  // Update overlay positions (imperative, no React render). `force` bypasses the
+  // idle gate for explicit/structural updates; the per-frame loop calls it
+  // unforced so it can skip reprojection when neither the view nor any tracked
+  // input changed (see positionsDirtyRef / host.hasViewChanged).
+  const updatePositionsInternal = useCallback(
+    (force = false) => {
     const overlayContainer = overlayRef.current;
     if (!overlayContainer) return;
+
+    // Probe the view every frame even when forcing, so its cache stays current.
+    const viewChanged = resolvedHasViewChanged ? resolvedHasViewChanged() : true;
+    if (!force && !viewChanged && !positionsDirtyRef.current) return;
+    positionsDirtyRef.current = false;
 
     overlayElementsRef.current.forEach((element, id) => {
       const elementDiv = overlayElementNodeByIdRef.current.get(id);
@@ -282,16 +310,22 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
         elementDiv.style.display = "none";
       }
     });
-  }, [resolvedProjectWorldAnchor]);
+    },
+    [resolvedHasViewChanged, resolvedProjectWorldAnchor]
+  );
 
+  // Explicit, consumer-driven update — always runs (a caller asking for it has
+  // changed something the loop's gate may not see this frame).
   const updatePositions = useCallback(() => {
-    updatePositionsInternal();
+    updatePositionsInternal(true);
   }, [updatePositionsInternal]);
 
-  // Register update loop
+  // Register update loop. The frame source passes its own args (e.g. Cesium's
+  // (scene, time)); wrap so they never land in `force`.
   useEffect(() => {
+    const runFrame = () => updatePositionsInternal();
     if (resolvedFrameSubscription) {
-      const cleanup = resolvedFrameSubscription(updatePositionsInternal);
+      const cleanup = resolvedFrameSubscription(runFrame);
       return () => {
         if (typeof cleanup === "function") {
           cleanup();
@@ -300,7 +334,7 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
     } else {
       let animationFrameId: number;
       const animationLoop = () => {
-        updatePositionsInternal();
+        runFrame();
         animationFrameId = requestAnimationFrame(animationLoop);
       };
       animationFrameId = requestAnimationFrame(animationLoop);
@@ -317,7 +351,8 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
       return;
     }
 
-    updatePositionsInternal();
+    // Portals (re)mounted — newly attached nodes must be positioned now.
+    updatePositionsInternal(true);
   }, [forceLayoutOnPortalRender, renderCounter, updatePositionsInternal]);
 
   const contextValue: LabelOverlayContextType = useMemo(
