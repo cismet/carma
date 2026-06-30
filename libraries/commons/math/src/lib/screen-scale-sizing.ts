@@ -79,6 +79,72 @@ export const shouldRestepScreenScale = (
   return ratio >= factor || ratio <= 1 / factor;
 };
 
+export type SteppedScreenScaleInput = {
+  // Projected pixels per world unit at the anchor this frame. A non-finite or
+  // <= 0 value means "unmeasurable" (e.g. anchor behind the camera).
+  currentScale: number;
+  // Desired on-screen size in pixels.
+  targetScreenPx: number;
+  // World size to return while the scale is unmeasurable and no step is held yet.
+  fallback: number;
+  // Hysteresis band factor (see SCREEN_SCALE_STEP_FACTOR).
+  stepFactor?: number;
+  // Snap each step to the 1-2-5 series when true.
+  quantize?: boolean;
+  // Floor for the stepped world size.
+  minWorldSize?: number;
+};
+
+export type SteppedScreenScaler = {
+  // World size for the current frame: holds the last step until the projection
+  // scale crosses the hysteresis band, then re-steps to the screen-targeted size.
+  resolve: (input: SteppedScreenScaleInput) => number;
+  // Forget the held step so the next resolve re-captures (e.g. new selection).
+  reset: () => void;
+};
+
+// Stateful scale-bar stepper: owns only the held world size and the scale at
+// which it was set, so it suits both a hook (via a ref) and a plain controller
+// (via a closure). All sizing parameters are passed per-call so they may vary
+// per frame.
+export const createSteppedScreenScaler = (): SteppedScreenScaler => {
+  let steppedWorldSize: number | null = null;
+  let referenceScale: number | null = null;
+  return {
+    resolve: ({
+      currentScale,
+      targetScreenPx,
+      fallback,
+      stepFactor = SCREEN_SCALE_STEP_FACTOR,
+      quantize = false,
+      minWorldSize = 0,
+    }) => {
+      if (!Number.isFinite(currentScale) || currentScale <= 0) {
+        return steppedWorldSize ?? fallback;
+      }
+      if (
+        steppedWorldSize === null ||
+        shouldRestepScreenScale(referenceScale ?? 0, currentScale, stepFactor)
+      ) {
+        steppedWorldSize = Math.max(
+          resolveWorldSizeForScreenTarget({
+            targetScreenPx,
+            pixelPerWorld: currentScale,
+            quantize,
+          }),
+          minWorldSize
+        );
+        referenceScale = currentScale;
+      }
+      return steppedWorldSize;
+    },
+    reset: () => {
+      steppedWorldSize = null;
+      referenceScale = null;
+    },
+  };
+};
+
 export type CircleSegmentOptions = {
   // Smallest segment count, so even tiny circles stay smooth.
   minSegments?: number;

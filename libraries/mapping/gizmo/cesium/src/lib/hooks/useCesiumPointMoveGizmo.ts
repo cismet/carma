@@ -18,8 +18,8 @@ import {
   getSupportRadius2d,
   MINUS_PI_OVER_FOUR,
   negativePiToPi,
+  createSteppedScreenScaler,
   resolveWorldSizeForScreenTarget,
-  shouldRestepScreenScale,
 } from "@carma-commons/math";
 import {
   createRotationAxisVisualizer,
@@ -446,13 +446,10 @@ export const useCesiumPointMoveGizmo = (
   const rotationStateRef = useRef<RotationState | null>(null);
   const rotationFrameRef = useRef<RotationFrameState | null>(null);
   const radiusRef = useRef(radius);
-  // `selection` resize trigger: the disc world radius is held fixed across the
-  // selection and only re-steps once the screen-centre resolution doubles or
-  // halves. `frozenDiscRadiusRef` is the current stepped world radius;
-  // `discStepReferenceScaleRef` is the screen-centre pixels-per-world at which
-  // that step was set. Both reset on (re)attach. (cismet/wupp#4078)
-  const frozenDiscRadiusRef = useRef<number | null>(null);
-  const discStepReferenceScaleRef = useRef<number | null>(null);
+  // `selection` resize trigger: hold the disc world radius fixed across the
+  // selection, re-stepping only when the screen-centre resolution doubles/halves.
+  // Reset on (re)attach. (cismet/wupp#4078)
+  const discSteppedScalerRef = useRef(createSteppedScreenScaler());
   // Disc world radius captured at the start of a drag and held until it ends,
   // when `freezeDiscScaleDuringDrag` is on. Null outside a frozen drag.
   const frozenDragDiscRadiusRef = useRef<number | null>(null);
@@ -550,35 +547,14 @@ export const useCesiumPointMoveGizmo = (
         return Math.max(radiusRef.current, AXIS_NUMERIC_EPSILON);
       }
 
-      const currentScale = getScreenPixelsPerMeterAtWorldPoint(scene, origin);
-      if (currentScale <= AXIS_NUMERIC_EPSILON) {
-        // Cannot measure (e.g. anchor behind camera) — keep the current step.
-        return (
-          frozenDiscRadiusRef.current ??
-          Math.max(radiusRef.current, AXIS_NUMERIC_EPSILON)
-        );
-      }
-
-      if (
-        frozenDiscRadiusRef.current === null ||
-        shouldRestepScreenScale(
-          discStepReferenceScaleRef.current ?? 0,
-          currentScale,
-          stepFactorRef.current
-        )
-      ) {
-        frozenDiscRadiusRef.current = Math.max(
-          resolveWorldSizeForScreenTarget({
-            targetScreenPx: discOutlineScreenPixelRadius,
-            pixelPerWorld: currentScale,
-            quantize: discQuantizeWorldRadius,
-          }),
-          AXIS_NUMERIC_EPSILON
-        );
-        discStepReferenceScaleRef.current = currentScale;
-      }
-
-      return frozenDiscRadiusRef.current;
+      return discSteppedScalerRef.current.resolve({
+        currentScale: getScreenPixelsPerMeterAtWorldPoint(scene, origin),
+        targetScreenPx: discOutlineScreenPixelRadius,
+        fallback: Math.max(radiusRef.current, AXIS_NUMERIC_EPSILON),
+        stepFactor: stepFactorRef.current,
+        quantize: discQuantizeWorldRadius,
+        minWorldSize: AXIS_NUMERIC_EPSILON,
+      });
     },
     [
       discOutlineFixedScreenSize,
@@ -1511,8 +1487,7 @@ export const useCesiumPointMoveGizmo = (
 
     if (showDisc) {
       // Fresh selection: clear any prior step so the size is captured anew.
-      frozenDiscRadiusRef.current = null;
-      discStepReferenceScaleRef.current = null;
+      discSteppedScalerRef.current.reset();
       const initialDiscRadius = computeDiscWorldRadius(
         movePoint.geometryECEF,
         initialDiscPlaneNormal

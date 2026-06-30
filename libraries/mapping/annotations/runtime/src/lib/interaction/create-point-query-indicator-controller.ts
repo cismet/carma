@@ -15,10 +15,7 @@ import {
   safeRemovePrimitive,
   type RingMaterialPreset,
 } from "@carma-mapping/engines/cesium/core";
-import {
-  resolveWorldSizeForScreenTarget,
-  shouldRestepScreenScale,
-} from "@carma-commons/math";
+import { createSteppedScreenScaler } from "@carma-commons/math";
 import {
   type CandidateRingSample,
   getAveragedCandidateRingNormal,
@@ -148,40 +145,20 @@ export const createPointQueryIndicatorController = (
   let previewRingNormalLineRuntime: AuthoringLineRuntime | null = null;
   let removePreviewRingFrameListener: (() => void) | null = null;
   let previewPoint: Cartesian3 | null = null;
-  // `stepped` scaling: the captured world radius held across authoring and the
-  // screen-centre resolution at which it was captured. Reset when authoring
-  // restarts so each session re-captures its size. (cismet/wupp#4078)
-  let frozenStepRadiusMeters: number | null = null;
-  let stepReferenceScale: number | null = null;
+  // `stepped` scaling: hold a captured world radius across authoring and re-step
+  // only on a meaningful zoom change. Reset when authoring restarts so each
+  // session re-captures its size. (cismet/wupp#4078)
+  const steppedScaler = createSteppedScreenScaler();
 
-  const resolveSteppedRadiusMeters = (center: Cartesian3): number => {
-    const currentScale = getScreenPixelsPerMeterAtWorldPoint(
-      activeScene,
-      center
-    );
-    if (!Number.isFinite(currentScale) || currentScale <= 0) {
-      return frozenStepRadiusMeters ?? previewRingRadius;
-    }
-    if (
-      frozenStepRadiusMeters === null ||
-      shouldRestepScreenScale(
-        stepReferenceScale ?? 0,
-        currentScale,
-        discResizeStepFactor
-      )
-    ) {
-      frozenStepRadiusMeters = Math.max(
-        resolveWorldSizeForScreenTarget({
-          targetScreenPx: targetScreenRadiusCssPx,
-          pixelPerWorld: currentScale,
-          quantize: quantizeStepWorldRadius,
-        }),
-        0.1
-      );
-      stepReferenceScale = currentScale;
-    }
-    return frozenStepRadiusMeters;
-  };
+  const resolveSteppedRadiusMeters = (center: Cartesian3): number =>
+    steppedScaler.resolve({
+      currentScale: getScreenPixelsPerMeterAtWorldPoint(activeScene, center),
+      targetScreenPx: targetScreenRadiusCssPx,
+      fallback: previewRingRadius,
+      stepFactor: discResizeStepFactor,
+      quantize: quantizeStepWorldRadius,
+      minWorldSize: 0.1,
+    });
   let previewSurfaceNormal: Cartesian3 | null = null;
   let latestTruePreviewPoint: Cartesian3 | null = null;
   let latestTrueSurfaceNormal: Cartesian3 | null = null;
@@ -201,8 +178,7 @@ export const createPointQueryIndicatorController = (
     previewRingSamples = [];
     previewRingLastQueuedInput = null;
     // Re-capture the stepped size at the next authoring session.
-    frozenStepRadiusMeters = null;
-    stepReferenceScale = null;
+    steppedScaler.reset();
   };
 
   const ensurePreviewRingNormalLine = () => {
