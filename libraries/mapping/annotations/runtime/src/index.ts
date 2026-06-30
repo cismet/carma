@@ -122,6 +122,11 @@ export type { RuntimeAnnotationInfoBoxContext } from "./lib/components/annotatio
 export { resolveRuntimeAnnotationNavigation } from "./lib/components/annotation-info-box/runtime-annotation-navigation";
 export { createPointQueryController } from "./lib/interaction/create-point-query-controller";
 export {
+  createPointQueryIndicatorController,
+  type PointQueryIndicatorControllerOptions,
+  type PointQueryIndicatorController,
+} from "./lib/interaction/create-point-query-indicator-controller";
+export {
   CROSSHAIR_CURSOR_STYLES,
   resolveCrosshairCursorCssValue,
 } from "./lib/interaction/crosshair-cursor-asset";
