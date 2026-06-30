@@ -105,6 +105,13 @@ type EdgeSceneLine = {
   // so the polyline tracks the gizmo in the same frame. (cismet/wupp#4078)
   startNodeId?: string;
   endNodeId?: string;
+  // Re-derive both endpoints from the live drag anchors. Used by distance-
+  // triangle component (height-leg) lines whose geometry depends on both edge
+  // endpoints (anchor/auxiliary/target), not a single node. Returns null when no
+  // relevant anchor is overridden, so the base geometry is kept. (cismet/wupp#4078)
+  recompute?: (
+    liveAnchors: LabelOverlayLiveAnchors
+  ) => readonly [Cartesian3, Cartesian3] | null;
 };
 
 type EdgeSegment = {
@@ -210,6 +217,9 @@ type SceneLineHandle = {
   endNodeId?: string;
   baseStart: Cartesian3;
   baseEnd: Cartesian3;
+  recompute?: (
+    liveAnchors: LabelOverlayLiveAnchors
+  ) => readonly [Cartesian3, Cartesian3] | null;
   overridden: boolean;
   destroy: () => void;
 };
@@ -315,6 +325,7 @@ const createSceneLineHandle = (
     endNodeId: line.endNodeId,
     baseStart: line.start,
     baseEnd: line.end,
+    recompute: line.recompute,
     overridden: false,
     destroy,
   };
@@ -337,21 +348,31 @@ const applyLiveAnchorsToSceneLines = (
 ) => {
   const hasAnchors = liveAnchors.size > 0;
   handles.forEach((handle) => {
-    const liveStart = handle.startNodeId
-      ? (liveAnchors.get(handle.startNodeId) as Cartesian3 | undefined)
-      : undefined;
-    const liveEnd = handle.endNodeId
-      ? (liveAnchors.get(handle.endNodeId) as Cartesian3 | undefined)
-      : undefined;
-    const wantsOverride = liveStart !== undefined || liveEnd !== undefined;
-    if (!wantsOverride && !handle.overridden) {
+    let nextPositions: readonly [Cartesian3, Cartesian3] | null = null;
+    if (handle.recompute) {
+      // Component (height-leg) lines re-derive both endpoints from the live edge.
+      nextPositions = hasAnchors ? handle.recompute(liveAnchors) : null;
+    } else {
+      const liveStart = handle.startNodeId
+        ? (liveAnchors.get(handle.startNodeId) as Cartesian3 | undefined)
+        : undefined;
+      const liveEnd = handle.endNodeId
+        ? (liveAnchors.get(handle.endNodeId) as Cartesian3 | undefined)
+        : undefined;
+      if (liveStart !== undefined || liveEnd !== undefined) {
+        nextPositions = [
+          liveStart ?? handle.baseStart,
+          liveEnd ?? handle.baseEnd,
+        ];
+      }
+    }
+    if (nextPositions === null && !handle.overridden) {
       return;
     }
-    handle.polyline.positions = [
-      liveStart ?? handle.baseStart,
-      liveEnd ?? handle.baseEnd,
-    ];
-    handle.overridden = wantsOverride && hasAnchors;
+    handle.polyline.positions = nextPositions
+      ? [nextPositions[0], nextPositions[1]]
+      : [handle.baseStart, handle.baseEnd];
+    handle.overridden = nextPositions !== null && hasAnchors;
   });
 };
 
@@ -388,6 +409,62 @@ const resolveDistanceTriangleAnchorSelection = ({
 }) =>
   overlay.anchorCoordinateRole !==
   RUNTIME_DISTANCE_TRIANGLE_ANCHOR_COORDINATE_ROLE.END_COORDINATE;
+
+const edgeSegmentHasLiveAnchor = (
+  edge: EdgeSegment,
+  liveAnchors: LabelOverlayLiveAnchors
+): boolean =>
+  (edge.startNodeId !== undefined &&
+    liveAnchors.get(edge.startNodeId) !== undefined) ||
+  (edge.endNodeId !== undefined &&
+    liveAnchors.get(edge.endNodeId) !== undefined);
+
+// ECEF anchor/auxiliary/target points of a distance-triangle, re-derived from
+// the live drag anchors. The component (height-leg) scene lines use this to track
+// a dragged node every frame in preRender, without the React rebuild. Returns
+// fresh Cartesian3s the caller may keep. (cismet/wupp#4078)
+const resolveDistanceTriangleComponentEndpointsECEF = (
+  scene: Scene,
+  edge: EdgeSegment,
+  liveAnchors: LabelOverlayLiveAnchors,
+  scratch: AnnotationGeometryScratch
+): {
+  anchorECEF: Cartesian3;
+  auxiliaryECEF: Cartesian3;
+  targetECEF: Cartesian3;
+} | null => {
+  const overlay = edge.distanceTriangleOverlay;
+  if (!overlay || !edge.startCoordinate || !edge.endCoordinate) {
+    return null;
+  }
+  const startECEF = resolveEdgePointECEF(
+    liveAnchors,
+    edge.startNodeId,
+    edge.startCoordinate
+  );
+  const endECEF = resolveEdgePointECEF(
+    liveAnchors,
+    edge.endNodeId,
+    edge.endCoordinate
+  );
+  const anchorIsStart = resolveDistanceTriangleAnchorSelection({ overlay });
+  const anchorECEF = anchorIsStart ? startECEF : endECEF;
+  const targetECEF = anchorIsStart ? endECEF : startECEF;
+  const auxiliaryECEF = buildAuxiliaryPoint({
+    scene,
+    anchorPointECEF: anchorECEF,
+    targetPointECEF: targetECEF,
+    scratch,
+  });
+  if (!auxiliaryECEF) {
+    return null;
+  }
+  return {
+    anchorECEF,
+    auxiliaryECEF: Cartesian3.clone(auxiliaryECEF, new Cartesian3()),
+    targetECEF,
+  };
+};
 
 const resolveDistanceTriangleOverlayScreenData = ({
   scene,
@@ -1012,22 +1089,53 @@ export const useAnnotationEdgesController = (
         const componentLines: EdgeSceneLine[] = [];
 
         if (screenData.showVerticalLabel && screenData.verticalLabelText) {
+          // Persistent scratch so the per-frame recompute does not allocate.
+          const verticalRecomputeScratch = createAnnotationGeometryScratch();
           componentLines.push({
             id: `${edge.id}-vertical`,
             start: screenData.anchorPointECEF,
             end: screenData.auxiliaryPointECEF,
             stroke: annotationOverlayDefaults.verticalLineColor,
             strokeWidth: edge.strokeWidth,
+            recompute: (currentLiveAnchors) => {
+              if (!edgeSegmentHasLiveAnchor(edge, currentLiveAnchors)) {
+                return null;
+              }
+              const endpoints = resolveDistanceTriangleComponentEndpointsECEF(
+                scene,
+                edge,
+                currentLiveAnchors,
+                verticalRecomputeScratch
+              );
+              return endpoints
+                ? [endpoints.anchorECEF, endpoints.auxiliaryECEF]
+                : null;
+            },
           });
         }
 
         if (screenData.showHorizontalLabel && screenData.horizontalLabelText) {
+          const horizontalRecomputeScratch = createAnnotationGeometryScratch();
           componentLines.push({
             id: `${edge.id}-horizontal`,
             start: screenData.auxiliaryPointECEF,
             end: screenData.targetPointECEF,
             stroke: annotationOverlayDefaults.horizontalLineColor,
             strokeWidth: edge.strokeWidth,
+            recompute: (currentLiveAnchors) => {
+              if (!edgeSegmentHasLiveAnchor(edge, currentLiveAnchors)) {
+                return null;
+              }
+              const endpoints = resolveDistanceTriangleComponentEndpointsECEF(
+                scene,
+                edge,
+                currentLiveAnchors,
+                horizontalRecomputeScratch
+              );
+              return endpoints
+                ? [endpoints.auxiliaryECEF, endpoints.targetECEF]
+                : null;
+            },
           });
         }
 
