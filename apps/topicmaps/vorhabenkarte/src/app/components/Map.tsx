@@ -56,7 +56,7 @@ type LightboxDispatch = {
 import { FeatureIconOverlay } from "./FeatureIconOverlay";
 import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { isAreaType } from "@carma-commons/resources";
-import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
+import { LightBoxDispatchContext } from "@carma-mapping/lightbox";
 import { useGazData } from "@carma-appframeworks/portals";
 import versionData from "../../version.json";
 import { useUrlFeatureSelection } from "@carma-appframeworks/portals";
