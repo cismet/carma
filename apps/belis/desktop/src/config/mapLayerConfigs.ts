@@ -11,6 +11,7 @@ import type {
   FilterCategory,
 } from "@carma-mapping/engines/maplibre";
 import type { ExpressionSpecification } from "maplibre-gl";
+import { BELIS_BRAND_NEW_STYLE_PREFIX } from "../constants/belis";
 
 export interface LayerEntry {
   title: string;
@@ -226,7 +227,9 @@ export const BELIS_SOURCE_LAYERS = [
  * can mirror the on-map filter toggles (print only the categories that are
  * visible). Two source flavours exist:
  *   - regular  : vector-tile backed  -> belis4print/<cat>.style.json
- *   - brandnew : same-day GeoJSON    -> belis4print/brand.new.features.<cat>.style.json
+ *   - brandnew : same-day GeoJSON    -> belis4print/<prefix><cat>.style.json
+ *                (prefix = BELIS_BRAND_NEW_STYLE_PREFIX, dev "brand.new.features.",
+ *                 live "updated.features.", derived from the FC URL)
  * Leitungen is special: it has one combined style plus one style per Leitungstyp
  * (filtered by `bezeichnung`), so it can mirror the Leitungstyp sub-toggles.
  */
@@ -238,7 +241,7 @@ export const printCategoryStyleUrl = (
   brandnew: boolean
 ): string =>
   brandnew
-    ? `${BELIS_PRINT_STYLE_BASE}/brand.new.features.${basename}.style.json`
+    ? `${BELIS_PRINT_STYLE_BASE}/${BELIS_BRAND_NEW_STYLE_PREFIX}${basename}.style.json`
     : `${BELIS_PRINT_STYLE_BASE}/${basename}.style.json`;
 
 /**
