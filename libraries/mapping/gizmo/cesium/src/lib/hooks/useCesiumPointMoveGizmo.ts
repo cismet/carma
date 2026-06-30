@@ -578,7 +578,7 @@ export const useCesiumPointMoveGizmo = (
   // Frame disc radius with the optional during-drag freeze: the first frame of a
   // drag captures (and may re-step) the radius, then it is held until the drag
   // ends so the disc never resizes mid-drag. `frozenDragDiscRadiusRef` is reset
-  // to null on drag start/end. (cismet/wupp#4078)
+  // to null on drag end, so the next drag re-captures at its start. (cismet/wupp#4078)
   const resolveDiscWorldRadiusForFrame = useCallback(
     (origin: Cartesian3, planeNormal: Cartesian3): number => {
       if (freezeDiscScaleDuringDragRef.current && isDraggingRef.current) {

@@ -12,7 +12,10 @@ import { readSceneCameraIntrinsics } from "../camera/Intrinsics";
  * camera intrinsics + line-of-sight range + CSS viewport. It therefore depends
  * only on zoom (range/FOV/viewport), not on camera orientation — orbiting or
  * panning at a fixed zoom leaves it unchanged. Returns 0 when it cannot be
- * determined (point at/behind the camera, or missing intrinsics).
+ * determined (range collapses to ~0 at the camera, or intrinsics are missing).
+ * Note: range is an unsigned distance, so a point strictly behind the camera
+ * yields the same scale as one the same distance in front — callers pass points
+ * that are in view (e.g. the selected node under the visible gizmo).
  *
  * Callers that already track the scene scale (e.g. via the view-state) should
  * prefer that value directly; this is the engine-level derivation for code that

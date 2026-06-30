@@ -924,7 +924,8 @@ export const Cesium: StoryObj<GizmoSandboxProps> = {
 // driven by the Storybook controls (no in-canvas panel). Switch `referenceObject`
 // between the move-gizmo disc and the point-query indicator disc; switch
 // `discResizeTrigger` between screen-fixed (CAMERA, the pre-PR behaviour) and the
-// stepped scale-bar sizing (SELECTION). Defaults to the stepped reference object.
+// stepped scale-bar sizing (SELECTION). Defaults to the gizmo disc with the
+// stepped (SELECTION) trigger.
 export const ReferenceObjectSizing: StoryObj<GizmoSandboxProps> = {
   name: "Dynamic Scene Reference Object Sizing",
   args: {
