@@ -7,6 +7,7 @@ import "leaflet/dist/leaflet.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
+import { CarmaLightBox } from "@carma-mapping/lightbox";
 
 import getGTMFeatureStyler from "react-cismap/topicmaps/generic/GTMStyler";
 import ContactButton from "react-cismap/ContactButton";
@@ -80,7 +81,9 @@ function App() {
       backgroundConfigurations={backgroundConfWithFastOrtho2024}
     >
       <ProgressIndicator progress={progress} show={showProgress} />
-      <Luftmessstationskarte />
+      <CarmaLightBox>
+        <Luftmessstationskarte />
+      </CarmaLightBox>
     </TopicMapContextProvider>
   );
 }
