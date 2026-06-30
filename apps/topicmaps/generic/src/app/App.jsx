@@ -9,6 +9,7 @@ import { md5FetchText } from "react-cismap/tools/fetching";
 import { getGazDataForTopicIds } from "react-cismap/tools/gazetteerHelper";
 import { pointOnFeature } from "@turf/point-on-feature";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
+import { CarmaLightBox } from "@carma-mapping/lightbox";
 import { getClusterIconCreatorFunction } from "react-cismap/tools/uiHelper";
 import { getSimpleHelpForGenericTM } from "react-cismap/tools/genericTopicMapHelper";
 import getGTMFeatureStyler, {
@@ -1296,13 +1297,15 @@ function App({ name }) {
               appKey="GenericTopicMap"
             >
               <SandboxedEvalProvider>
-                <Map
-                  slugName={slugName}
-                  config={config}
-                  featureGazData={featureGazData || []}
-                  layerInformation={layerInformation}
-                  layerHelpBlocks={layerHelpBlocks}
-                />
+                <CarmaLightBox>
+                  <Map
+                    slugName={slugName}
+                    config={config}
+                    featureGazData={featureGazData || []}
+                    layerInformation={layerInformation}
+                    layerHelpBlocks={layerHelpBlocks}
+                  />
+                </CarmaLightBox>
               </SandboxedEvalProvider>
             </TopicMapContextProvider>
           </SelectionProvider>
