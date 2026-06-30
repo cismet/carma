@@ -28,6 +28,7 @@ import {
 import {
   AXIS_NUMERIC_EPSILON,
   GIZMO_DISC_RESIZE_TRIGGERS,
+  beginPointerDragSession,
   toSvgPathD,
   type GizmoDiscResizeTrigger,
 } from "@carma-mapping/gizmo/core";
@@ -1104,25 +1105,15 @@ export const useCesiumPointMoveGizmo = (
         scene.requestRender();
       };
 
-      const finishDrag = (suppressSceneClick: boolean) => {
-        if (suppressSceneClick) {
-          suppressNextSceneClickRef.current = true;
-        }
-        stopDragging(false);
-      };
-      const onWindowMouseUp = () => finishDrag(true);
-      const onWindowPointerUp = () => finishDrag(true);
-      const onWindowBlur = () => finishDrag(false);
-      const onVisibilityChange = () => {
-        if (document.visibilityState === "visible") return;
-        finishDrag(false);
-      };
-
-      window.addEventListener("mousemove", onWindowMouseMove);
-      window.addEventListener("mouseup", onWindowMouseUp);
-      window.addEventListener("pointerup", onWindowPointerUp);
-      window.addEventListener("blur", onWindowBlur);
-      document.addEventListener("visibilitychange", onVisibilityChange);
+      const dragSession = beginPointerDragSession({
+        onMove: onWindowMouseMove,
+        onEnd: ({ reason }) => {
+          if (reason === "pointerup") {
+            suppressNextSceneClickRef.current = true;
+          }
+          stopDragging(false);
+        },
+      });
 
       dragStateRef.current = {
         mode: "translate",
@@ -1130,13 +1121,7 @@ export const useCesiumPointMoveGizmo = (
         axisOrigin,
         axisDirection,
         startAxisParam,
-        cleanupWindowListeners: () => {
-          window.removeEventListener("mousemove", onWindowMouseMove);
-          window.removeEventListener("mouseup", onWindowMouseUp);
-          window.removeEventListener("pointerup", onWindowPointerUp);
-          window.removeEventListener("blur", onWindowBlur);
-          document.removeEventListener("visibilitychange", onVisibilityChange);
-        },
+        cleanupWindowListeners: dragSession.cleanup,
       };
 
       isDraggingRef.current = true;
@@ -1246,26 +1231,15 @@ export const useCesiumPointMoveGizmo = (
         scene.requestRender();
       };
 
-      const finishRotation = (suppressSceneClick: boolean) => {
-        if (suppressSceneClick) {
-          suppressNextSceneClickRef.current = true;
-        }
-        stopDragging(false);
-      };
-
-      const onWindowMouseUp = () => finishRotation(true);
-      const onWindowPointerUp = () => finishRotation(true);
-      const onWindowBlur = () => finishRotation(false);
-      const onVisibilityChange = () => {
-        if (document.visibilityState === "visible") return;
-        finishRotation(false);
-      };
-
-      window.addEventListener("mousemove", onWindowMouseMove);
-      window.addEventListener("mouseup", onWindowMouseUp);
-      window.addEventListener("pointerup", onWindowPointerUp);
-      window.addEventListener("blur", onWindowBlur);
-      document.addEventListener("visibilitychange", onVisibilityChange);
+      const dragSession = beginPointerDragSession({
+        onMove: onWindowMouseMove,
+        onEnd: ({ reason }) => {
+          if (reason === "pointerup") {
+            suppressNextSceneClickRef.current = true;
+          }
+          stopDragging(false);
+        },
+      });
 
       dragStateRef.current = {
         mode: "rotate",
@@ -1277,13 +1251,7 @@ export const useCesiumPointMoveGizmo = (
         lastPlaneAngleRad: startPlaneAngleRad,
         accumulatedDeltaRad: 0,
         baseRotationAngleRad,
-        cleanupWindowListeners: () => {
-          window.removeEventListener("mousemove", onWindowMouseMove);
-          window.removeEventListener("mouseup", onWindowMouseUp);
-          window.removeEventListener("pointerup", onWindowPointerUp);
-          window.removeEventListener("blur", onWindowBlur);
-          document.removeEventListener("visibilitychange", onVisibilityChange);
-        },
+        cleanupWindowListeners: dragSession.cleanup,
       };
 
       isDraggingRef.current = true;
@@ -1452,25 +1420,15 @@ export const useCesiumPointMoveGizmo = (
         scene.requestRender();
       };
 
-      const finishDrag = (suppressSceneClick: boolean) => {
-        if (suppressSceneClick) {
-          suppressNextSceneClickRef.current = true;
-        }
-        stopDragging(false);
-      };
-      const onWindowMouseUp = () => finishDrag(true);
-      const onWindowPointerUp = () => finishDrag(true);
-      const onWindowBlur = () => finishDrag(false);
-      const onVisibilityChange = () => {
-        if (document.visibilityState === "visible") return;
-        finishDrag(false);
-      };
-
-      window.addEventListener("mousemove", onWindowMouseMove);
-      window.addEventListener("mouseup", onWindowMouseUp);
-      window.addEventListener("pointerup", onWindowPointerUp);
-      window.addEventListener("blur", onWindowBlur);
-      document.addEventListener("visibilitychange", onVisibilityChange);
+      const dragSession = beginPointerDragSession({
+        onMove: onWindowMouseMove,
+        onEnd: ({ reason }) => {
+          if (reason === "pointerup") {
+            suppressNextSceneClickRef.current = true;
+          }
+          stopDragging(false);
+        },
+      });
 
       dragStateRef.current = {
         mode: "plane-translate",
@@ -1480,13 +1438,7 @@ export const useCesiumPointMoveGizmo = (
         planeBasisX,
         planeBasisY,
         startPlanePoint,
-        cleanupWindowListeners: () => {
-          window.removeEventListener("mousemove", onWindowMouseMove);
-          window.removeEventListener("mouseup", onWindowMouseUp);
-          window.removeEventListener("pointerup", onWindowPointerUp);
-          window.removeEventListener("blur", onWindowBlur);
-          document.removeEventListener("visibilitychange", onVisibilityChange);
-        },
+        cleanupWindowListeners: dragSession.cleanup,
       };
 
       isDraggingRef.current = true;
