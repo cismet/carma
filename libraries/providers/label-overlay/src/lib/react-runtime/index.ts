@@ -5,6 +5,10 @@ export {
 } from "../constants";
 export { useLabelOverlay } from "../useLabelOverlay";
 export { useLabelOverlayHost } from "../useLabelOverlayHost";
+export {
+  useWorldAnchoredOverlayElement,
+  type UseWorldAnchoredOverlayElementOptions,
+} from "../useWorldAnchoredOverlayElement";
 export type {
   LabelOverlayElement,
   LabelOverlayContextType,
