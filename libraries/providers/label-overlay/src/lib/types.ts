@@ -3,21 +3,14 @@ import type { ReactNode } from "react";
 
 import type { CssPixelPosition } from "@carma-units";
 
-/**
- * A world-space anchor that the (engine-specific) host can project to screen.
- * Kept structural (x/y/z) so the provider stays engine-agnostic; a Cesium
- * Cartesian3 satisfies it directly.
- */
+/** World-space anchor (structural x/y/z, so the provider stays engine-agnostic; a Cesium Cartesian3 satisfies it) the host projects to screen. */
 export type LabelOverlayWorldAnchor = { x: number; y: number; z: number };
 
 /**
- * Shared, per-frame registry of live world anchors keyed by an arbitrary entity
- * id (gizmo point id, annotation node id, ...). It is the single source of truth
- * for "where is this entity right now", including mid-interaction positions that
- * are known synchronously from pointer input but not yet committed to React
- * state. Writers (a drag interaction) set/clear entries; readers consume them in
- * the same render frame: overlay elements via their `worldAnchor`, and 3D engine
- * primitives via the host's render loop. (cismet/wupp#4078)
+ * Per-frame registry of live world anchors by entity id — the single source of
+ * truth for an entity's mid-interaction position (set synchronously from pointer
+ * input, before React commits). Read by `worldAnchor` overlay elements and by 3D
+ * primitives in the render loop. (cismet/wupp#4078)
  */
 export interface LabelOverlayLiveAnchors {
   set: (id: string, anchor: LabelOverlayWorldAnchor) => void;

@@ -20,6 +20,7 @@ import {
   useLabelOverlay,
   type LayoutPointInput,
   type LabelOverlayElement,
+  type LabelOverlayLiveAnchors,
   type PointLabelAttach,
   type PointLabelOverlayDomRefs,
   type PointLabelOverlayRenderState,
@@ -170,6 +171,20 @@ const resolvePointLabelCoordinateProjection = (
     x: canvasPosition.x,
     y: canvasPosition.y,
   };
+};
+
+// Prefer the live drag anchor (as geographic) over the React-fed coordinate so a
+// moved node's label tracks it every frame, like the lines/disc. (cismet/wupp#4078)
+const resolveLiveLabelCoordinate = (
+  candidate: RuntimePointLabelCoordinateCandidate,
+  liveAnchors: LabelOverlayLiveAnchors
+) => {
+  const liveAnchor = candidate.nodeId
+    ? (liveAnchors.get(candidate.nodeId) as Cartesian3 | undefined)
+    : undefined;
+  return liveAnchor
+    ? geographicCoordinateFromCartesian3(liveAnchor)
+    : candidate.coordinate;
 };
 
 const resolveEffectivePointLabelCoordinateCandidate = ({
@@ -332,18 +347,10 @@ export const usePointLabelVisualizer = (
           scene,
           label,
         });
-      // Prefer the live drag anchor (ECEF) for this node so the label tracks the
-      // moved node in the same frame as the lines/disc, instead of the React-fed
-      // coordinate. Converted to geographic to keep the existing layout path
-      // unchanged. (cismet/wupp#4078)
-      const liveAnchor = effectiveCoordinateCandidate.nodeId
-        ? (liveAnchors.get(effectiveCoordinateCandidate.nodeId) as
-            | Cartesian3
-            | undefined)
-        : undefined;
-      const effectiveCoordinate = liveAnchor
-        ? geographicCoordinateFromCartesian3(liveAnchor)
-        : effectiveCoordinateCandidate.coordinate;
+      const effectiveCoordinate = resolveLiveLabelCoordinate(
+        effectiveCoordinateCandidate,
+        liveAnchors
+      );
       const computedBaseState = computeOverlayVisibilityState({
         scene,
         coordinate: effectiveCoordinate,
@@ -362,7 +369,7 @@ export const usePointLabelVisualizer = (
         : computedBaseState;
       const cameraDistanceMeters = Cartesian3.distance(
         scene.camera.positionWC,
-        liveAnchor ?? cartesian3FromGeographicCoordinate(effectiveCoordinate)
+        cartesian3FromGeographicCoordinate(effectiveCoordinate)
       );
       const overlayZIndex =
         resolveRuntimeOverlayDistanceZIndex(cameraDistanceMeters);

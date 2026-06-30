@@ -44,9 +44,8 @@ import { resolveNodeSnapSample } from "./lifecycle/node-snap.helpers";
 
 const { AREA_PLANAR: ANNOTATION_TYPE_AREA_PLANAR } = ANNOTATION_TYPES;
 
-// Min interval between draft-preview React flushes during a drag (~5 Hz). The
-// live geometry tracks the pointer every frame via liveAnchors; this only paces
-// the derived React readouts (area/length values, counts). (cismet/wupp#4078)
+// React readouts (area/length, counts) are paced to ~5 Hz; live geometry tracks
+// the pointer every frame via liveAnchors. (cismet/wupp#4078)
 const DRAFT_PREVIEW_FLUSH_INTERVAL_MS = 200;
 
 const POINT_EDITING_GIZMO_DEFAULTS = {
@@ -235,13 +234,9 @@ export const usePointEditingGizmo = (
     EMPTY_NODE_COORDINATE_OVERRIDES
   );
   const draftLinkToNodeIdRef = useRef<string | null>(null);
-  // The draft preview React state is throttled to DRAFT_PREVIEW_FLUSH_INTERVAL_MS:
-  // the live geometry already tracks the pointer every frame via liveAnchors, so
-  // this state only drives the (low-frequency) derived readouts (area, counts).
-  // Holds the pending setTimeout id; lastDraftPreviewFlushAtRef is the last flush
-  // time for the trailing throttle. (cismet/wupp#4078)
-  const draftPreviewFlushTimeoutRef = useRef<number | null>(null);
-  const lastDraftPreviewFlushAtRef = useRef(0);
+  // Trailing-throttle handles for the draft flush (DRAFT_PREVIEW_FLUSH_INTERVAL_MS).
+  const draftFlushTimeoutRef = useRef<number | null>(null);
+  const lastDraftFlushAtRef = useRef(0);
   const snappedNodeIdRef = useRef<string | null>(null);
   const draftBaseCoordinateRef = useRef<CesiumGeographicCoordinate | null>(
     null
@@ -280,8 +275,8 @@ export const usePointEditingGizmo = (
   }, []);
 
   const flushDraftPreviewState = useCallback(() => {
-    draftPreviewFlushTimeoutRef.current = null;
-    lastDraftPreviewFlushAtRef.current =
+    draftFlushTimeoutRef.current = null;
+    lastDraftFlushAtRef.current =
       typeof performance !== "undefined" ? performance.now() : 0;
     setDraftLinkToNodeId((currentDraftLinkToNodeId) =>
       currentDraftLinkToNodeId === draftLinkToNodeIdRef.current
@@ -299,7 +294,7 @@ export const usePointEditingGizmo = (
   }, []);
 
   const scheduleDraftPreviewStateFlush = useCallback(() => {
-    if (draftPreviewFlushTimeoutRef.current !== null) {
+    if (draftFlushTimeoutRef.current !== null) {
       return;
     }
 
@@ -313,9 +308,9 @@ export const usePointEditingGizmo = (
     // live geometry stays at frame rate via liveAnchors regardless.
     const now =
       typeof performance !== "undefined" ? performance.now() : 0;
-    const elapsed = now - lastDraftPreviewFlushAtRef.current;
+    const elapsed = now - lastDraftFlushAtRef.current;
     const delay = Math.max(0, DRAFT_PREVIEW_FLUSH_INTERVAL_MS - elapsed);
-    draftPreviewFlushTimeoutRef.current = window.setTimeout(() => {
+    draftFlushTimeoutRef.current = window.setTimeout(() => {
       flushDraftPreviewState();
     }, delay);
   }, [flushDraftPreviewState]);
@@ -354,11 +349,11 @@ export const usePointEditingGizmo = (
 
   const clearDraftNodeCoordinateOverrides = useCallback(() => {
     if (
-      draftPreviewFlushTimeoutRef.current !== null &&
+      draftFlushTimeoutRef.current !== null &&
       typeof window !== "undefined"
     ) {
-      window.clearTimeout(draftPreviewFlushTimeoutRef.current);
-      draftPreviewFlushTimeoutRef.current = null;
+      window.clearTimeout(draftFlushTimeoutRef.current);
+      draftFlushTimeoutRef.current = null;
     }
 
     draftNodeCoordinateOverridesRef.current = EMPTY_NODE_COORDINATE_OVERRIDES;
@@ -816,10 +811,10 @@ export const usePointEditingGizmo = (
   useEffect(
     () => () => {
       if (
-        draftPreviewFlushTimeoutRef.current !== null &&
+        draftFlushTimeoutRef.current !== null &&
         typeof window !== "undefined"
       ) {
-        window.clearTimeout(draftPreviewFlushTimeoutRef.current);
+        window.clearTimeout(draftFlushTimeoutRef.current);
       }
     },
     []

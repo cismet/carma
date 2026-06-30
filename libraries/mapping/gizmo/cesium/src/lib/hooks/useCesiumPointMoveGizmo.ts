@@ -457,7 +457,7 @@ export const useCesiumPointMoveGizmo = (
   // when `freezeDiscScaleDuringDrag` is on. Null outside a frozen drag.
   const frozenDragDiscRadiusRef = useRef<number | null>(null);
   const freezeDiscScaleDuringDragRef = useRef(freezeDiscScaleDuringDrag);
-  const discResizeStepFactorRef = useRef(discResizeStepFactor);
+  const stepFactorRef = useRef(discResizeStepFactor);
   const showDiscRadiusLabelRef = useRef(showDiscRadiusLabel);
   // Radius readout reuses the label-overlay line visualizer (DOM-only SVG line
   // + label, no Cesium scene primitive). updatePosition publishes the current
@@ -564,7 +564,7 @@ export const useCesiumPointMoveGizmo = (
         shouldRestepScreenScale(
           discStepReferenceScaleRef.current ?? 0,
           currentScale,
-          discResizeStepFactorRef.current
+          stepFactorRef.current
         )
       ) {
         frozenDiscRadiusRef.current = Math.max(
@@ -748,7 +748,7 @@ export const useCesiumPointMoveGizmo = (
   }, [showDiscRadiusLabel]);
 
   useEffect(() => {
-    discResizeStepFactorRef.current = discResizeStepFactor;
+    stepFactorRef.current = discResizeStepFactor;
   }, [discResizeStepFactor]);
 
   useEffect(() => {
