@@ -3,7 +3,7 @@ import {
   FeatureCollectionContext,
   FeatureCollectionDispatchContext,
 } from "react-cismap/contexts/FeatureCollectionContextProvider";
-import { LightBoxContext } from "react-cismap/contexts/LightBoxContextProvider";
+import { LightBoxContext } from "@carma-mapping/lightbox";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import FeatureCollection from "react-cismap/FeatureCollection";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
