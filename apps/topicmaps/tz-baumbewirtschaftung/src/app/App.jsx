@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import localforage from "localforage";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
+import { CarmaLightBox } from "@carma-mapping/lightbox";
 import { defaultLayerConf } from "react-cismap/tools/layerFactory";
 import LoginForm from "./components/LoginForm";
 import TitleControl from "./components/TitleControl";
@@ -350,21 +351,23 @@ function App() {
               connectionError={connectionError}
             />
             {auth.jwt && <KampagneBanner />}
-            <Map
-              jwt={auth.jwt}
-              login={login}
-              followMode={followMode}
-              crossHair={crossHair}
-              onAuthError={() => {
-                setAuth({ checked: true, jwt: undefined });
-                setLoginInfo({
-                  color: "#F9D423",
-                  text: "Bitte melden Sie sich erneut an.",
-                });
-                setTimeout(() => setLoginInfo(), 2500);
-              }}
-              onConnectionError={(hasError) => setConnectionError(hasError)}
-            />
+            <CarmaLightBox>
+              <Map
+                jwt={auth.jwt}
+                login={login}
+                followMode={followMode}
+                crossHair={crossHair}
+                onAuthError={() => {
+                  setAuth({ checked: true, jwt: undefined });
+                  setLoginInfo({
+                    color: "#F9D423",
+                    text: "Bitte melden Sie sich erneut an.",
+                  });
+                  setTimeout(() => setLoginInfo(), 2500);
+                }}
+                onConnectionError={(hasError) => setConnectionError(hasError)}
+              />
+            </CarmaLightBox>
           </TopicMapContextProvider>
         </KampagneProvider>
       </SyncProvider>
