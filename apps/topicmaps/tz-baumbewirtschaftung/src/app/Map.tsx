@@ -57,7 +57,7 @@ import {
   maxActionIdInLegacyFC,
   updateFeatureCollectionWithNewActions,
 } from "./helper/treeHelper";
-import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
+import { LightBoxDispatchContext } from "@carma-mapping/lightbox";
 import { treeMatches, useKampagne } from "./context/KampagneContext";
 import type { VectorOverlay } from "../config/attributesets";
 
