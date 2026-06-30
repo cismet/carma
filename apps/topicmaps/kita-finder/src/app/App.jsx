@@ -1,5 +1,6 @@
 import { MappingConstants } from "react-cismap";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
+import { CarmaLightBox } from "@carma-mapping/lightbox";
 
 import createItemsDictionary from "./helper/createItemsDistionary";
 import itemFilterFunction, { traegertypMap } from "./helper/filter";
@@ -75,7 +76,9 @@ function App() {
         backgroundConfigurations={backgroundConfWithFastOrtho2024}
       >
         <ProgressIndicator progress={progress} show={showProgress} />
-        <KitaKarte />
+        <CarmaLightBox>
+          <KitaKarte />
+        </CarmaLightBox>
       </TopicMapContextProvider>
     );
   }
