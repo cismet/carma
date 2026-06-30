@@ -17,7 +17,8 @@ import {
   useLabelOverlay,
 } from "@carma-providers/label-overlay";
 
-import type { Scene } from "@carma-cesium";
+import type { Cartesian3, Scene } from "@carma-cesium";
+import { geographicCoordinateFromCartesian3 } from "@carma-mapping/engines/cesium/core";
 import type { RuntimePointMarkerRenderModel } from "./annotation-render-models";
 import {
   areOverlayVisibilitySceneSnapshotsEqual,
@@ -177,8 +178,12 @@ export const usePointMarkerVisualizer = (
   points: readonly RuntimePointMarkerRenderModel[],
   overlayIdPrefix: string = "runtime-point-marker"
 ) => {
-  const { addLabelOverlayElement, removeLabelOverlayElement, updatePositions } =
-    useLabelOverlay();
+  const {
+    addLabelOverlayElement,
+    removeLabelOverlayElement,
+    updatePositions,
+    liveAnchors,
+  } = useLabelOverlay();
   const pointsRef = useRef(points);
   const stateCacheRef = useRef<{
     frameKey: number | null;
@@ -247,9 +252,16 @@ export const usePointMarkerVisualizer = (
     const preserveOcclusionDuringCameraMove = isCameraMovingRef.current;
 
     pointsRef.current.forEach((point) => {
+      // During a drag the node moves while the camera is static, so anchor to its
+      // live position when present — otherwise the marker lags the gizmo/lines.
+      const liveAnchor = point.nodeId
+        ? (liveAnchors.get(point.nodeId) as Cartesian3 | undefined)
+        : undefined;
       const computedState = computeOverlayVisibilityState({
         scene,
-        coordinate: point.coordinate,
+        coordinate: liveAnchor
+          ? geographicCoordinateFromCartesian3(liveAnchor)
+          : point.coordinate,
         shouldTestOcclusion: !preserveOcclusionDuringCameraMove,
       });
       nextStatesById.set(
@@ -264,17 +276,21 @@ export const usePointMarkerVisualizer = (
     });
 
     return nextStatesById;
-  }, [scene]);
+  }, [liveAnchors, scene]);
 
   const resolvePointVisibilityState = useCallback(
     (pointId: string) => {
       const frameKey = getSceneFrameKey(scene);
       if (stateCacheRef.current.frameKey !== frameKey) {
         const sceneSnapshot = captureOverlayVisibilitySceneSnapshot(scene);
-        const shouldRecomputeStates = !areOverlayVisibilitySceneSnapshotsEqual(
-          stateCacheRef.current.sceneSnapshot,
-          sceneSnapshot
-        );
+        // Live drag anchors move the node while the camera is static (equal
+        // snapshot), so force a recompute then or the marker freezes. (cismet/wupp#4078)
+        const shouldRecomputeStates =
+          liveAnchors.size > 0 ||
+          !areOverlayVisibilitySceneSnapshotsEqual(
+            stateCacheRef.current.sceneSnapshot,
+            sceneSnapshot
+          );
 
         stateCacheRef.current = shouldRecomputeStates
           ? {
@@ -294,7 +310,7 @@ export const usePointMarkerVisualizer = (
         createEmptyPointVisibilityState()
       );
     },
-    [computeStatesById, scene]
+    [computeStatesById, liveAnchors, scene]
   );
 
   useEffect(() => {

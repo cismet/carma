@@ -1397,10 +1397,18 @@ export const useAnnotationEdgesController = (
           return;
         }
 
-        const startWorld = cartesian3FromGeographicCoordinate(
+        // Track live drag anchors so an edge's insert-node handle follows the
+        // dragged endpoint in lockstep with the patched line. (cismet/wupp#4078)
+        const startWorld = resolveEdgePointECEF(
+          liveAnchors,
+          edge.startNodeId,
           edge.startCoordinate
         );
-        const endWorld = cartesian3FromGeographicCoordinate(edge.endCoordinate);
+        const endWorld = resolveEdgePointECEF(
+          liveAnchors,
+          edge.endNodeId,
+          edge.endCoordinate
+        );
         const startScreen = SceneTransforms.worldToWindowCoordinates(
           scene,
           startWorld
@@ -1471,6 +1479,7 @@ export const useAnnotationEdgesController = (
     activeEditedNodeId,
     blockEdgeInteractions,
     insertNodeTargetSegments,
+    liveAnchors,
     onInsertNodeTargetClick,
     scene,
     surfaceKey,
