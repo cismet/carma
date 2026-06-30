@@ -11,12 +11,15 @@ import {
 
 import {
   buildCirclePoints,
+  computeCircleSegments,
   getEquilateralTriangleHeight,
   getEquilateralTrianglePathD,
   getEquilateralTriangleViewBox,
   getSupportRadius2d,
   MINUS_PI_OVER_FOUR,
   negativePiToPi,
+  resolveWorldSizeForScreenTarget,
+  shouldRestepScreenScale,
 } from "@carma-commons/math";
 import {
   createRotationAxisVisualizer,
@@ -25,9 +28,6 @@ import {
 import {
   AXIS_NUMERIC_EPSILON,
   GIZMO_DISC_RESIZE_TRIGGERS,
-  computeGizmoDiscSegments,
-  resolveGizmoDiscWorldRadius,
-  shouldRestepGizmoDisc,
   toSvgPathD,
   type GizmoDiscResizeTrigger,
 } from "@carma-mapping/gizmo/core";
@@ -566,7 +566,7 @@ export const useCesiumPointMoveGizmo = (
         return baseRadius;
       }
 
-      const worldRadius = resolveGizmoDiscWorldRadius({
+      const worldRadius = resolveWorldSizeForScreenTarget({
         targetScreenPx: discOutlineScreenPixelRadius,
         pixelPerWorld: pixelPerWorldMax,
         quantize: discQuantizeWorldRadius,
@@ -601,14 +601,14 @@ export const useCesiumPointMoveGizmo = (
 
       if (
         frozenDiscRadiusRef.current === null ||
-        shouldRestepGizmoDisc(
+        shouldRestepScreenScale(
           discStepReferenceScaleRef.current ?? 0,
           currentScale,
           discResizeStepFactorRef.current
         )
       ) {
         frozenDiscRadiusRef.current = Math.max(
-          resolveGizmoDiscWorldRadius({
+          resolveWorldSizeForScreenTarget({
             targetScreenPx: discOutlineScreenPixelRadius,
             pixelPerWorld: currentScale,
             quantize: discQuantizeWorldRadius,
@@ -1612,7 +1612,7 @@ export const useCesiumPointMoveGizmo = (
         radius: 1,
         innerRadius: 0.5,
         color: DISC_FILL_COLOR,
-        segments: computeGizmoDiscSegments(discOutlineScreenPixelRadius),
+        segments: computeCircleSegments(discOutlineScreenPixelRadius),
         modelMatrix: createOrientedDiscModelMatrix(
           movePoint.geometryECEF,
           initialDiscPlaneNormal,
@@ -2140,7 +2140,7 @@ export const useCesiumPointMoveGizmo = (
                 planeCandidate.id === activeAxisId;
               const fallbackPoints = buildCirclePoints(
                 discOutlineScreenPixelRadius,
-                computeGizmoDiscSegments(discOutlineScreenPixelRadius)
+                computeCircleSegments(discOutlineScreenPixelRadius)
               );
               const fallbackPathD = toSvgPathD(fallbackPoints, {
                 close: true,
@@ -2194,7 +2194,7 @@ export const useCesiumPointMoveGizmo = (
                 ? discWorldRadius * pixelPerWorldMax
                 : discOutlineScreenPixelRadius;
             const outlineSegments =
-              computeGizmoDiscSegments(outlineScreenRadiusPx);
+              computeCircleSegments(outlineScreenRadiusPx);
 
             const projectedOutlinePoints = projectPlaneOutlinePoints(
               scene,

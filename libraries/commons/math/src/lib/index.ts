@@ -3,6 +3,7 @@ export * as PI_VALUES from "./pi";
 export * from "./numeric";
 export * from "./easing-functions";
 export * from "./scaling";
+export * from "./screen-scale-sizing";
 export * from "./geometry2d";
 export * from "./geometry3d";
 export * from "./orientation3d";

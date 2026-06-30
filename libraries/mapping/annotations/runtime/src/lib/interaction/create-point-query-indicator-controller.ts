@@ -16,9 +16,9 @@ import {
   type RingMaterialPreset,
 } from "@carma-mapping/engines/cesium/core";
 import {
-  resolveGizmoDiscWorldRadius,
-  shouldRestepGizmoDisc,
-} from "@carma-mapping/gizmo/core";
+  resolveWorldSizeForScreenTarget,
+  shouldRestepScreenScale,
+} from "@carma-commons/math";
 import {
   type CandidateRingSample,
   getAveragedCandidateRingNormal,
@@ -164,14 +164,14 @@ export const createPointQueryIndicatorController = (
     }
     if (
       frozenStepRadiusMeters === null ||
-      shouldRestepGizmoDisc(
+      shouldRestepScreenScale(
         stepReferenceScale ?? 0,
         currentScale,
         discResizeStepFactor
       )
     ) {
       frozenStepRadiusMeters = Math.max(
-        resolveGizmoDiscWorldRadius({
+        resolveWorldSizeForScreenTarget({
           targetScreenPx: targetScreenRadiusCssPx,
           pixelPerWorld: currentScale,
           quantize: quantizeStepWorldRadius,
