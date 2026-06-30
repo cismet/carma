@@ -9,10 +9,7 @@ import { CarmaMap } from "@carma-mapping/core";
 import { LibreContextProvider } from "@carma-mapping/engines/maplibre";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
 import { defaultGazDataConfig } from "@carma-commons/resources";
-import {
-  backgroundModes,
-  backgroundConfigurations,
-} from "./backgroundConfig";
+import { backgroundModes, backgroundConfigurations } from "./backgroundConfig";
 import Menu from "./Menu";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
@@ -40,6 +37,7 @@ export function Stadtplan() {
                 exposeMapToWindow
                 overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
                 onProgressUpdate={handleProgressUpdate}
+                useRouting
                 libreLayers={[
                   {
                     type: "geojson",
