@@ -1,5 +1,7 @@
-import InfoBoxFotoPreview from "react-cismap/topicmaps/InfoBoxFotoPreview";
-import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
+import {
+  InfoBoxFotoPreview,
+  LightBoxDispatchContext,
+} from "@carma-mapping/lightbox";
 
 import { useContext, useState, useCallback, useEffect, useRef } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
