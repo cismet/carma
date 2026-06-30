@@ -275,7 +275,23 @@ export const getGroundPointFromClientPosition = (
     clientY - canvasRect.top
   );
 
-  if (scene.pickPositionSupported) {
+  const pickRay = scene.camera.getPickRay(windowPosition);
+  if (!pickRay) return null;
+
+  // Ray picking runs its own offscreen render pass, so primitives the caller has
+  // hidden (gizmo visuals, the dragged node's own lines) are genuinely excluded —
+  // unlike scene.pickPosition, which reads the cached depth buffer from the last
+  // main render and so cannot be filtered. pickFromRay still hits the globe and
+  // every other primitive, keeping all foreign geometry snappable. (cismet/wupp#4078)
+  // `pickFromRay` is an experimental Cesium API absent from the bundled typings.
+  const rayPick = scene as unknown as {
+    pickFromRay?: (
+      ray: typeof pickRay,
+      objectsToExclude?: unknown[],
+      width?: number
+    ) => { position?: Cartesian3 } | undefined;
+  };
+  if (typeof rayPick.pickFromRay === "function") {
     const previousPickTranslucentDepth = scene.pickTranslucentDepth;
     const shouldIgnoreTranslucentDepth =
       options?.ignoreTranslucentDepth === true &&
@@ -284,12 +300,12 @@ export const getGroundPointFromClientPosition = (
       scene.pickTranslucentDepth = false;
     }
     try {
-      const pickedPosition = scene.pickPosition(windowPosition);
-      if (defined(pickedPosition)) {
-        return Cartesian3.clone(pickedPosition);
+      const rayPickResult = rayPick.pickFromRay(pickRay);
+      if (rayPickResult && defined(rayPickResult.position)) {
+        return Cartesian3.clone(rayPickResult.position);
       }
     } catch {
-      // Depth picking may fail during tileset/terrain streaming.
+      // Ray picking may fail during tileset/terrain streaming.
     } finally {
       if (shouldIgnoreTranslucentDepth) {
         scene.pickTranslucentDepth = previousPickTranslucentDepth;
@@ -297,9 +313,7 @@ export const getGroundPointFromClientPosition = (
     }
   }
 
-  const pickRay = scene.camera.getPickRay(windowPosition);
-  if (!pickRay) return null;
-
+  // Fallback: terrain-only intersection (also excludes every primitive).
   const groundPoint = scene.globe?.pick(pickRay, scene);
   if (defined(groundPoint)) {
     return Cartesian3.clone(groundPoint);

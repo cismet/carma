@@ -11,6 +11,7 @@ import {
   cartesian3FromGeographicCoordinate,
   getArcPointsInSpannedPlane,
   isValidScene,
+  setSceneDragSampleOccluderResolver,
 } from "@carma-mapping/engines/cesium/core";
 import { formatLengthMeters, type CssPixelPosition } from "@carma-units";
 import {
@@ -1337,8 +1338,26 @@ export const useAnnotationEdgesController = (
         // Ignore frame races during teardown.
       }
     });
+    // Let a drag tool (the point-move gizmo) exclude this annotation's own lines
+    // from depth sampling while a node is being dragged — those are exactly the
+    // handles incident to a live-anchored node. Foreign lines stay snappable.
+    setSceneDragSampleOccluderResolver(scene, () => {
+      const occluders: Array<{ show: boolean }> = [];
+      sceneLineHandleByIdRef.current.forEach((handle) => {
+        const incidentToDraggedNode =
+          (handle.startNodeId !== undefined &&
+            liveAnchors.get(handle.startNodeId) !== undefined) ||
+          (handle.endNodeId !== undefined &&
+            liveAnchors.get(handle.endNodeId) !== undefined);
+        if (incidentToDraggedNode) {
+          occluders.push(handle.collection);
+        }
+      });
+      return occluders;
+    });
     return () => {
       removePreRenderListener?.();
+      setSceneDragSampleOccluderResolver(scene, null);
     };
   }, [liveAnchors, scene]);
 

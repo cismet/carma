@@ -54,6 +54,7 @@ import {
   CarmaTransforms,
   createOrientedDiscModelMatrix,
   createRing,
+  getSceneDragSampleOccluders,
   getScreenPixelsPerMeterAtWorldPoint,
   safeCall,
   safeRemovePrimitive,
@@ -598,10 +599,14 @@ export const useCesiumPointMoveGizmo = (
     (clientX: number, clientY: number): Cartesian3 | null => {
       if (!scene || scene.isDestroyed()) return null;
 
-      // Ignore gizmo visuals during depth sampling so snaps never land on
-      // axis/disc helper geometry.
+      // Hide self-geometry during depth sampling so snaps never land on it:
+      // the gizmo's own axis/disc helpers, plus any geometry attached to the
+      // dragged node (its measurement lines) that the host registers as a drag
+      // occluder. Foreign lines/models stay visible and snappable. Works because
+      // getGroundPointFromClientPosition ray-picks (its own render pass) rather
+      // than reading the cached depth buffer. (cismet/wupp#4078)
       const hiddenVisualizers: Array<{ show: () => void }> = [];
-      const hiddenPrimitives: Primitive[] = [];
+      const hiddenPrimitives: Array<{ show: boolean }> = [];
       const axisVisualizer = axisVisualizerRef.current;
       if (axisVisualizer?.isVisible) {
         axisVisualizer.hide();
@@ -611,6 +616,12 @@ export const useCesiumPointMoveGizmo = (
       if (discVisualizer?.show) {
         discVisualizer.show = false;
         hiddenPrimitives.push(discVisualizer);
+      }
+      for (const occluder of getSceneDragSampleOccluders(scene)) {
+        if (occluder.show) {
+          occluder.show = false;
+          hiddenPrimitives.push(occluder);
+        }
       }
 
       try {
