@@ -51,8 +51,11 @@ import {
 } from "@carma-cesium";
 import {
   CarmaTransforms,
+  createOrientedDiscModelMatrix,
   createRing,
   getScreenPixelsPerMeterAtWorldPoint,
+  safeCall,
+  safeRemovePrimitive,
 } from "@carma-mapping/engines/cesium/core";
 
 import {
@@ -291,15 +294,6 @@ const safeDestroy = (
   }
 };
 
-const safeCall = (callback: (() => void) | null | undefined) => {
-  if (!callback) return;
-  try {
-    callback();
-  } catch {
-    // Listener removal can race with scene/widget destruction.
-  }
-};
-
 const setGlobalDragCursor = (
   restoreRef: { current: (() => void) | null },
   cursor: string
@@ -334,42 +328,7 @@ const restoreGlobalDragCursor = (restoreRef: {
   restoreRef.current?.();
 };
 
-const safeRemovePrimitive = (
-  scene: Scene | null,
-  primitive: Primitive | null | undefined
-) => {
-  if (!scene || !primitive) return;
-  try {
-    if (!scene.isDestroyed()) {
-      scene.primitives.remove(primitive);
-    }
-  } catch {
-    // Scene/primitive teardown may race while effects are cleaning up.
-  }
-};
-
 const DEFAULT_AXIS_ENU_MATRIX_SCRATCH = new Matrix4();
-
-const createOrientedDiscModelMatrix = (
-  origin: Cartesian3,
-  planeNormal: Cartesian3,
-  radius: number,
-  result?: Matrix4
-): Matrix4 => {
-  const safeRadius = Math.max(radius, AXIS_NUMERIC_EPSILON);
-  const normalizedNormal = Cartesian3.normalize(planeNormal, new Cartesian3());
-  const planeBasis = createPlaneBasis(normalizedNormal);
-  return CarmaTransforms.createBasisScaleTranslationMatrix(
-    origin,
-    planeBasis.xAxis,
-    planeBasis.yAxis,
-    normalizedNormal,
-    safeRadius,
-    safeRadius,
-    1,
-    result
-  );
-};
 
 const updateTrianglePathAppearance = (
   pathElement: SVGPathElement | null,
