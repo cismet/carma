@@ -44,6 +44,11 @@ import { resolveNodeSnapSample } from "./lifecycle/node-snap.helpers";
 
 const { AREA_PLANAR: ANNOTATION_TYPE_AREA_PLANAR } = ANNOTATION_TYPES;
 
+// Min interval between draft-preview React flushes during a drag (~5 Hz). The
+// live geometry tracks the pointer every frame via liveAnchors; this only paces
+// the derived React readouts (area/length values, counts). (cismet/wupp#4078)
+const DRAFT_PREVIEW_FLUSH_INTERVAL_MS = 200;
+
 const POINT_EDITING_GIZMO_DEFAULTS = {
   radiusMeters: 3,
   referenceNodeInteractionReleaseGuardMs: 48,
@@ -230,7 +235,13 @@ export const usePointEditingGizmo = (
     EMPTY_NODE_COORDINATE_OVERRIDES
   );
   const draftLinkToNodeIdRef = useRef<string | null>(null);
-  const draftPreviewAnimationFrameRef = useRef<number | null>(null);
+  // The draft preview React state is throttled to DRAFT_PREVIEW_FLUSH_INTERVAL_MS:
+  // the live geometry already tracks the pointer every frame via liveAnchors, so
+  // this state only drives the (low-frequency) derived readouts (area, counts).
+  // Holds the pending setTimeout id; lastDraftPreviewFlushAtRef is the last flush
+  // time for the trailing throttle. (cismet/wupp#4078)
+  const draftPreviewFlushTimeoutRef = useRef<number | null>(null);
+  const lastDraftPreviewFlushAtRef = useRef(0);
   const snappedNodeIdRef = useRef<string | null>(null);
   const draftBaseCoordinateRef = useRef<CesiumGeographicCoordinate | null>(
     null
@@ -269,7 +280,9 @@ export const usePointEditingGizmo = (
   }, []);
 
   const flushDraftPreviewState = useCallback(() => {
-    draftPreviewAnimationFrameRef.current = null;
+    draftPreviewFlushTimeoutRef.current = null;
+    lastDraftPreviewFlushAtRef.current =
+      typeof performance !== "undefined" ? performance.now() : 0;
     setDraftLinkToNodeId((currentDraftLinkToNodeId) =>
       currentDraftLinkToNodeId === draftLinkToNodeIdRef.current
         ? currentDraftLinkToNodeId
@@ -286,7 +299,7 @@ export const usePointEditingGizmo = (
   }, []);
 
   const scheduleDraftPreviewStateFlush = useCallback(() => {
-    if (draftPreviewAnimationFrameRef.current !== null) {
+    if (draftPreviewFlushTimeoutRef.current !== null) {
       return;
     }
 
@@ -295,9 +308,16 @@ export const usePointEditingGizmo = (
       return;
     }
 
-    draftPreviewAnimationFrameRef.current = window.requestAnimationFrame(() => {
+    // Trailing throttle: at most one React flush per interval. Pointer moves
+    // arriving within the interval are coalesced into the trailing flush; the
+    // live geometry stays at frame rate via liveAnchors regardless.
+    const now =
+      typeof performance !== "undefined" ? performance.now() : 0;
+    const elapsed = now - lastDraftPreviewFlushAtRef.current;
+    const delay = Math.max(0, DRAFT_PREVIEW_FLUSH_INTERVAL_MS - elapsed);
+    draftPreviewFlushTimeoutRef.current = window.setTimeout(() => {
       flushDraftPreviewState();
-    });
+    }, delay);
   }, [flushDraftPreviewState]);
 
   const updateDraftPreviewState = useCallback(
@@ -334,11 +354,11 @@ export const usePointEditingGizmo = (
 
   const clearDraftNodeCoordinateOverrides = useCallback(() => {
     if (
-      draftPreviewAnimationFrameRef.current !== null &&
+      draftPreviewFlushTimeoutRef.current !== null &&
       typeof window !== "undefined"
     ) {
-      window.cancelAnimationFrame(draftPreviewAnimationFrameRef.current);
-      draftPreviewAnimationFrameRef.current = null;
+      window.clearTimeout(draftPreviewFlushTimeoutRef.current);
+      draftPreviewFlushTimeoutRef.current = null;
     }
 
     draftNodeCoordinateOverridesRef.current = EMPTY_NODE_COORDINATE_OVERRIDES;
@@ -796,10 +816,10 @@ export const usePointEditingGizmo = (
   useEffect(
     () => () => {
       if (
-        draftPreviewAnimationFrameRef.current !== null &&
+        draftPreviewFlushTimeoutRef.current !== null &&
         typeof window !== "undefined"
       ) {
-        window.cancelAnimationFrame(draftPreviewAnimationFrameRef.current);
+        window.clearTimeout(draftPreviewFlushTimeoutRef.current);
       }
     },
     []
