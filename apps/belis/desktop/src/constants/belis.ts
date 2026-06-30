@@ -23,6 +23,13 @@ export const BELIS_BRAND_NEW_FC_URL =
   import.meta.env.VITE_BELIS_DESKTOP_BRAND_NEW_FC_URL ||
   "https://tiles.cismet.de/belis/brand.new.features.json";
 
+// Print style prefix for the "brand new"/updated feature styles, derived from the
+// FC URL's filename stem so it tracks the dev/live switch automatically (dev:
+// "brand.new.features.", live: "updated.features."). No separate env var needed:
+// the print styles can never drift from the data source they colour.
+export const BELIS_BRAND_NEW_STYLE_PREFIX =
+  (BELIS_BRAND_NEW_FC_URL.split("/").pop() ?? "").replace(/\.json$/, "") + ".";
+
 export const DOMAIN = "BELIS2";
 export const ENDPOINT = REST_SERVICE + `/graphql/` + DOMAIN + "/execute";
 export const SAVE_ENDPOINT =
