@@ -88,6 +88,10 @@ export const createDistanceToolPlugin = ({
         // The start point can only be removed once it has been placed.
         includeRunningMeasurementStartPointHint:
           draftState.coordinates.length >= 1,
+        // A running distance measurement only ever holds the start point until
+        // the second click completes it (cismet/wupp#4078).
+        runningMeasurementRemovePointDescription:
+          "Entfernt bei laufender Messung den Startpunkt.",
       }),
     capabilities: [
       ...AUTHORING_MEASUREMENT_PLUGIN_CAPABILITIES,

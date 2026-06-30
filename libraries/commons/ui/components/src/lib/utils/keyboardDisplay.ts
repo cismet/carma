@@ -13,12 +13,12 @@ const KEYBOARD_DISPLAY_LABELS_BY_LANGUAGE: Readonly<
 > = {
   de: {
     backspace: "Rücktaste",
-    escape: "Esc",
+    escape: "Escape",
     shift: "Umschalt",
   },
   en: {
     backspace: "Backspace",
-    escape: "Esc",
+    escape: "Escape",
     shift: "Shift",
   },
 };
@@ -50,7 +50,10 @@ export const resolveKeyboardDisplayLabels = (
     : KEYBOARD_DISPLAY_LABELS_BY_LANGUAGE.en;
 };
 
+// Always pair the backspace key with its keyboard symbol (⌫) so the running
+// measurement / edit hints make clear that a specific key is meant, independent
+// of platform (cismet/wupp#4078).
 export const resolveBackspaceDisplayLabel = (
-  platform: KeyboardDisplayPlatform,
+  _platform: KeyboardDisplayPlatform,
   labels: KeyboardDisplayLabels
-): string => (platform === "macos" ? "⌫" : `← ${labels.backspace}`);
+): string => `⌫ ${labels.backspace}`;

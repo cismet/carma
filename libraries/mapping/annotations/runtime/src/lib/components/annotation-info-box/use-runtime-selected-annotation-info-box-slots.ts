@@ -34,7 +34,7 @@ const MUTATING_ANNOTATION_ACTION_IDS = Object.freeze<
 const SELECT_EDIT_ENTRY_HELP_ITEMS: readonly AnnotationInfoBoxHelpItem[] = [
   {
     kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.TEXT,
-    text: "Langer Klick auf einen Punkt öffnet die Bearbeitung.",
+    text: "Langer Klick auf einen Punkt einer ausgewählten Messung öffnet die Bearbeitung.",
   },
 ];
 
