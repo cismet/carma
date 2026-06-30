@@ -674,8 +674,14 @@ export const useCesiumPointMoveGizmo = (
     // mid-drag (movePoint also changes every move while dragging).
     if (!isDraggingRef.current) {
       liveAnchors.clear();
+      // Render one settle frame so overlays re-resolve from the committed
+      // position now that the live anchors are gone (otherwise they only
+      // refresh on the next camera move). (cismet/wupp#4078)
+      if (scene && !scene.isDestroyed()) {
+        scene.requestRender();
+      }
     }
-  }, [liveAnchors, movePoint]);
+  }, [liveAnchors, movePoint, scene]);
 
   useEffect(() => {
     axisScreenDirectionRef.current = {};

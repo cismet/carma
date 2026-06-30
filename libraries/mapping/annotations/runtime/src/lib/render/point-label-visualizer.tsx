@@ -256,6 +256,7 @@ export const usePointLabelVisualizer = (
     statesById: new Map(),
   });
   const isCameraMovingRef = useRef(false);
+  const hadLiveAnchorsRef = useRef(false);
 
   useEffect(() => {
     labelsRef.current = labels;
@@ -471,9 +472,15 @@ export const usePointLabelVisualizer = (
       if (stateCacheRef.current.frameKey !== frameKey) {
         const sceneSnapshot = captureOverlayVisibilitySceneSnapshot(scene);
         // Live drag anchors move the node while the camera is static (equal
-        // snapshot), so force a recompute then or the label freezes. (cismet/wupp#4078)
+        // snapshot), so force a recompute then or the label freezes. Also force it
+        // on the settle frame (anchors just cleared, e.g. closing an edit) so the
+        // committed position/visibility is restored without a camera move. (cismet/wupp#4078)
+        const liveAnchorsActive = liveAnchors.size > 0;
+        const justSettled = hadLiveAnchorsRef.current && !liveAnchorsActive;
+        hadLiveAnchorsRef.current = liveAnchorsActive;
         const shouldRecomputeStates =
-          liveAnchors.size > 0 ||
+          liveAnchorsActive ||
+          justSettled ||
           !areOverlayVisibilitySceneSnapshotsEqual(
             stateCacheRef.current.sceneSnapshot,
             sceneSnapshot

@@ -195,6 +195,7 @@ export const usePointMarkerVisualizer = (
     statesById: new Map(),
   });
   const isCameraMovingRef = useRef(false);
+  const hadLiveAnchorsRef = useRef(false);
 
   useEffect(() => {
     pointsRef.current = points;
@@ -284,9 +285,15 @@ export const usePointMarkerVisualizer = (
       if (stateCacheRef.current.frameKey !== frameKey) {
         const sceneSnapshot = captureOverlayVisibilitySceneSnapshot(scene);
         // Live drag anchors move the node while the camera is static (equal
-        // snapshot), so force a recompute then or the marker freezes. (cismet/wupp#4078)
+        // snapshot), so force a recompute then or the marker freezes. Also force
+        // it on the settle frame (anchors just cleared) so the committed position
+        // replaces the last live one without needing a camera move. (cismet/wupp#4078)
+        const liveAnchorsActive = liveAnchors.size > 0;
+        const justSettled = hadLiveAnchorsRef.current && !liveAnchorsActive;
+        hadLiveAnchorsRef.current = liveAnchorsActive;
         const shouldRecomputeStates =
-          liveAnchors.size > 0 ||
+          liveAnchorsActive ||
+          justSettled ||
           !areOverlayVisibilitySceneSnapshotsEqual(
             stateCacheRef.current.sceneSnapshot,
             sceneSnapshot
