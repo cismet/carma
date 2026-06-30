@@ -541,25 +541,41 @@ export const useAnnotationsAssembly = ({
       return false;
     }
 
-    annotationToolDraftStore.set(targetAnnotation.toolType, {
-      coordinates: draftNodes.map((node) => node.coordinate),
-      linkedNodeGroupIds: draftNodeIds.map((nodeId) =>
-        resolveNodeLinkIdForNodeId(runtimeState.linkedNodeGroups, nodeId)
-      ),
-      feedback: null,
+    // Removing this node drops the measurement below its minimum node count, so
+    // it deletes the whole measurement — confirm first (matches the "nach
+    // Rückfrage" help and the other delete paths). The node-edit keyboard handler
+    // is already "handled" (true); the actual removal runs once confirmed.
+    // (cismet/wupp#4078)
+    void requestAnnotationDeleteConfirmation([targetAnnotation], {
+      source: ANNOTATION_DELETE_CONFIRMATION_SOURCES.KEYBOARD,
+    }).then((confirmed) => {
+      if (!confirmed) {
+        return;
+      }
+      // Keep the degraded measurement's draft so it can be restored, but stay in
+      // Select mode — restoring must not switch to the authoring tool.
+      annotationToolDraftStore.set(targetAnnotation.toolType, {
+        coordinates: draftNodes.map((node) => node.coordinate),
+        linkedNodeGroupIds: draftNodeIds.map((nodeId) =>
+          resolveNodeLinkIdForNodeId(runtimeState.linkedNodeGroups, nodeId)
+        ),
+        feedback: null,
+      });
+      annotationsStore.dispatch(
+        removeAnnotationsByIds({
+          annotationIds: [targetAnnotation.id],
+          nextSelectedAnnotationId: null,
+        })
+      );
+      setActiveEditedNodeId(null);
     });
-    annotationsStore.dispatch(
-      removeAnnotationsByIds({
-        annotationIds: [targetAnnotation.id],
-        nextSelectedAnnotationId: null,
-      })
-    );
-    setActiveEditedNodeId(null);
-    // Keep the UI in Select mode: reopening the degraded measurement's draft is
-    // only needed to restore it, and must not switch the selected tool to the
-    // measurement's authoring tool (cismet/wupp#4078).
     return true;
-  }, [activeEditedNodeId, annotationToolDraftStore, annotationsStore]);
+  }, [
+    activeEditedNodeId,
+    annotationToolDraftStore,
+    annotationsStore,
+    requestAnnotationDeleteConfirmation,
+  ]);
 
   const exportAnnotationGeoJson = useCallback(
     (annotationId: string) => {
