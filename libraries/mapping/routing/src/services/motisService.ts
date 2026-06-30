@@ -3,7 +3,7 @@
  */
 import * as motis from "@motis-project/motis-client";
 
-const MOTIS_BASE_URL = "https://beta.motis.routen.nrw/";
+const MOTIS_BASE_URL = "https://motis.routen.nrw/";
 
 motis.client.setConfig({
   baseUrl: MOTIS_BASE_URL,
