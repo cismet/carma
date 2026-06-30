@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 
 import type { Meta, StoryObj } from "@storybook/react";
 
@@ -9,10 +16,17 @@ import {
   type CesiumGizmoRotationDelta,
   type CesiumMoveGizmoAxisCandidate,
 } from "@carma-mapping/gizmo/cesium";
+import {
+  GIZMO_DISC_RESIZE_TRIGGERS,
+  type GizmoDiscResizeTrigger,
+} from "@carma-mapping/gizmo/core";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
+import { WUPPERTAL } from "@carma-commons/resources";
 import {
   Cartesian3,
   Cartesian4,
+  CesiumMath,
+  HeadingPitchRange,
   Matrix3,
   Matrix4,
   Quaternion,
@@ -50,12 +64,17 @@ type GizmoSandboxProps = {
   snapPlaneDragToGround: boolean;
   discOutlineFixedScreenSize: boolean;
   discOutlineScreenPixelRadius: number;
+  discQuantizeWorldRadius: boolean;
+  discResizeTrigger: GizmoDiscResizeTrigger;
   axisWidthPx?: number;
   arrowActiveEdgePx: number;
   arrowInactiveEdgePx: number;
   axisMode: AxisMode;
   preferredAxisId: string;
   axisTitle: string;
+  // Render the in-canvas disc-sizing panel and let it drive the disc options
+  // (overriding the Storybook args for those three controls).
+  interactiveDiscControls?: boolean;
 };
 
 type CubeState = {
@@ -67,10 +86,15 @@ type CubeState = {
 
 const CUBE_HALF_SIZE_M = 10;
 const ROTATION_DELTA_EPSILON = 1e-7;
-const RATHAUS_START = {
-  longitude: 7.19993,
-  latitude: 51.27225,
-  height: 170,
+// Centre of the Barmen plaza, taken from the WUPPERTAL position preset in the
+// resources lib. The preset's nominal altitude is not the real surface; ground
+// there is ~162.6 m, so the anchor sits 5 m above ground (the cube extends
+// ±CUBE_HALF_SIZE_M around it).
+const PLACE_CENTER_GROUND_HEIGHT_M = 162.6;
+const PLACE_CENTER = {
+  longitude: WUPPERTAL.position.longitude,
+  latitude: WUPPERTAL.position.latitude,
+  height: PLACE_CENTER_GROUND_HEIGHT_M + 5,
 } as const;
 
 const buildEnuCandidates = (
@@ -222,6 +246,8 @@ const GizmoSandboxContent = ({
   snapPlaneDragToGround,
   discOutlineFixedScreenSize,
   discOutlineScreenPixelRadius,
+  discQuantizeWorldRadius,
+  discResizeTrigger,
   axisWidthPx,
   arrowActiveEdgePx,
   arrowInactiveEdgePx,
@@ -325,6 +351,18 @@ const GizmoSandboxContent = ({
       onSceneChange(widget.scene);
 
       setPointPosition(initialCubeCenter);
+
+      // Frame the cube wherever it sits (the default camera is over the city
+      // centre); release the look-at frame afterwards so free orbit still works.
+      widget.camera.lookAt(
+        initialCubeCenter,
+        new HeadingPitchRange(
+          CesiumMath.toRadians(20),
+          CesiumMath.toRadians(-30),
+          90
+        )
+      );
+      widget.camera.lookAtTransform(Matrix4.IDENTITY);
 
       widget.scene.requestRender();
     };
@@ -530,6 +568,8 @@ const GizmoSandboxContent = ({
     snapPlaneDragToGround,
     discOutlineFixedScreenSize,
     discOutlineScreenPixelRadius,
+    discQuantizeWorldRadius,
+    discResizeTrigger,
     axisWidthPx,
     arrowActiveEdgePx,
     arrowInactiveEdgePx,
@@ -557,7 +597,111 @@ const GizmoSandboxContent = ({
   );
 };
 
-const GizmoSandbox = (props: GizmoSandboxProps) => {
+const PANEL_STYLE: CSSProperties = {
+  position: "fixed",
+  top: 12,
+  left: 12,
+  zIndex: 4000,
+  padding: "12px 14px",
+  borderRadius: 10,
+  background: "rgba(17, 24, 39, 0.86)",
+  color: "#e5e7eb",
+  font: "12px/1.5 Inter, system-ui, sans-serif",
+  pointerEvents: "auto",
+  minWidth: 232,
+  boxShadow: "0 6px 24px rgba(0, 0, 0, 0.35)",
+  userSelect: "none",
+};
+
+const segmentButtonStyle = (active: boolean): CSSProperties => ({
+  flex: 1,
+  padding: "5px 8px",
+  borderRadius: 6,
+  border: `1px solid ${active ? "#60a5fa" : "rgba(148,163,184,0.4)"}`,
+  background: active ? "rgba(59,130,246,0.32)" : "transparent",
+  color: active ? "#e0f2fe" : "#cbd5e1",
+  cursor: "pointer",
+  font: "inherit",
+});
+
+const RESIZE_TRIGGER_OPTIONS: ReadonlyArray<{
+  value: GizmoDiscResizeTrigger;
+  label: string;
+}> = [
+  { value: GIZMO_DISC_RESIZE_TRIGGERS.CAMERA, label: "Follow camera" },
+  { value: GIZMO_DISC_RESIZE_TRIGGERS.SELECTION, label: "Fixed on selection" },
+];
+
+type DiscControlPanelProps = {
+  resizeTrigger: GizmoDiscResizeTrigger;
+  onResizeTriggerChange: (next: GizmoDiscResizeTrigger) => void;
+  quantize: boolean;
+  onQuantizeChange: (next: boolean) => void;
+  targetPx: number;
+  onTargetPxChange: (next: number) => void;
+};
+
+const DiscControlPanel = ({
+  resizeTrigger,
+  onResizeTriggerChange,
+  quantize,
+  onQuantizeChange,
+  targetPx,
+  onTargetPxChange,
+}: DiscControlPanelProps) => (
+  <div style={PANEL_STYLE}>
+    <div style={{ fontWeight: 700, marginBottom: 8 }}>Disc sizing</div>
+
+    <div style={{ marginBottom: 4, color: "#94a3b8" }}>Resize trigger</div>
+    <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+      {RESIZE_TRIGGER_OPTIONS.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          style={segmentButtonStyle(resizeTrigger === option.value)}
+          onClick={() => onResizeTriggerChange(option.value)}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+
+    <label
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        marginBottom: 12,
+        cursor: "pointer",
+      }}
+    >
+      <input
+        type="checkbox"
+        checked={quantize}
+        onChange={(event) => onQuantizeChange(event.target.checked)}
+      />
+      Quantize to 1-2-5 steps
+    </label>
+
+    <div style={{ marginBottom: 4, color: "#94a3b8" }}>
+      Target size: {targetPx}px
+    </div>
+    <input
+      type="range"
+      min={8}
+      max={64}
+      step={1}
+      value={targetPx}
+      onChange={(event) => onTargetPxChange(Number(event.target.value))}
+      style={{ width: "100%" }}
+    />
+  </div>
+);
+
+const GizmoSandbox = ({
+  interactiveDiscControls = false,
+  ...props
+}: GizmoSandboxProps) => {
   const rootRef = useRef<HTMLDivElement>(null);
   const [scene, setScene] = useState<Scene | null>(null);
   const overlayHost = useCesiumLabelOverlayHost({
@@ -565,14 +709,49 @@ const GizmoSandbox = (props: GizmoSandboxProps) => {
     containerRef: rootRef,
   });
 
+  // Seed the in-canvas controls from the args; the panel then owns these three
+  // disc options live. Re-seed if the corresponding arg changes.
+  const [resizeTrigger, setResizeTrigger] = useState(props.discResizeTrigger);
+  const [quantize, setQuantize] = useState(props.discQuantizeWorldRadius);
+  const [targetPx, setTargetPx] = useState(props.discOutlineScreenPixelRadius);
+
+  useEffect(() => {
+    setResizeTrigger(props.discResizeTrigger);
+  }, [props.discResizeTrigger]);
+  useEffect(() => {
+    setQuantize(props.discQuantizeWorldRadius);
+  }, [props.discQuantizeWorldRadius]);
+  useEffect(() => {
+    setTargetPx(props.discOutlineScreenPixelRadius);
+  }, [props.discOutlineScreenPixelRadius]);
+
+  const effectiveProps = interactiveDiscControls
+    ? {
+        ...props,
+        discResizeTrigger: resizeTrigger,
+        discQuantizeWorldRadius: quantize,
+        discOutlineScreenPixelRadius: targetPx,
+      }
+    : props;
+
   return (
     <LabelOverlayProvider host={overlayHost}>
       <GizmoSandboxContent
-        {...props}
+        {...effectiveProps}
         scene={scene}
         onSceneChange={setScene}
         rootRef={rootRef}
       />
+      {interactiveDiscControls ? (
+        <DiscControlPanel
+          resizeTrigger={resizeTrigger}
+          onResizeTriggerChange={setResizeTrigger}
+          quantize={quantize}
+          onQuantizeChange={setQuantize}
+          targetPx={targetPx}
+          onTargetPxChange={setTargetPx}
+        />
+      ) : null}
     </LabelOverlayProvider>
   );
 };
@@ -624,6 +803,18 @@ const meta: Meta<GizmoSandboxProps> = {
       control: { type: "boolean" },
       table: { category: "Disc" },
     },
+    discQuantizeWorldRadius: {
+      control: { type: "boolean" },
+      table: { category: "Disc" },
+    },
+    discResizeTrigger: {
+      control: { type: "inline-radio" },
+      options: [
+        GIZMO_DISC_RESIZE_TRIGGERS.CAMERA,
+        GIZMO_DISC_RESIZE_TRIGGERS.SELECTION,
+      ],
+      table: { category: "Disc" },
+    },
     axisWidthPx: {
       control: { type: "range", min: 0.5, max: 6, step: 0.5 },
       table: { category: "Axes" },
@@ -661,6 +852,9 @@ const meta: Meta<GizmoSandboxProps> = {
       control: { type: "text" },
       table: { category: "Axes" },
     },
+    interactiveDiscControls: {
+      table: { disable: true },
+    },
   },
 };
 
@@ -669,20 +863,43 @@ export default meta;
 export const Cesium: StoryObj<GizmoSandboxProps> = {
   name: "Cesium Integration",
   args: {
-    pointLon: RATHAUS_START.longitude,
-    pointLat: RATHAUS_START.latitude,
-    pointHeight: RATHAUS_START.height,
+    pointLon: PLACE_CENTER.longitude,
+    pointLat: PLACE_CENTER.latitude,
+    pointHeight: PLACE_CENTER.height,
     radius: 8,
     showRotationHandle: true,
     showDisc: true,
     snapPlaneDragToGround: true,
     discOutlineFixedScreenSize: true,
-    discOutlineScreenPixelRadius: 32,
+    discOutlineScreenPixelRadius: 16,
+    discQuantizeWorldRadius: false,
+    discResizeTrigger: GIZMO_DISC_RESIZE_TRIGGERS.CAMERA,
     axisWidthPx: 1,
     arrowActiveEdgePx: 16,
     arrowInactiveEdgePx: 12,
     axisMode: "enu",
     preferredAxisId: "auto",
     axisTitle: "Move cube anchor along selected axis",
+  },
+};
+
+// Single interactive disc-sizing demo (cismet/wupp#4078). The in-canvas panel
+// switches the two mode dimensions and the main sizing option:
+//   - Resize trigger: "Follow camera" continuously holds the on-screen size,
+//     while "Fixed on selection" holds the world size for the whole selection
+//     and only steps to the next size once the screen-centre resolution doubles
+//     or halves (so it stays stable while panning/orbiting).
+//   - Quantize: snap each size step to the 1-2-5 series.
+//   - Target size: the on-screen radius the steps aim for.
+// Defaults to the intended behaviour (fixed-on-selection + quantized); zoom
+// in/out and re-select the cube to watch it step.
+export const DiscSizing: StoryObj<GizmoSandboxProps> = {
+  name: "Disc Sizing",
+  args: {
+    ...Cesium.args,
+    interactiveDiscControls: true,
+    discResizeTrigger: GIZMO_DISC_RESIZE_TRIGGERS.SELECTION,
+    discQuantizeWorldRadius: true,
+    discOutlineScreenPixelRadius: 16,
   },
 };

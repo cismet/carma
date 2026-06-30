@@ -5,10 +5,16 @@ export {
 } from "../constants";
 export { useLabelOverlay } from "../useLabelOverlay";
 export { useLabelOverlayHost } from "../useLabelOverlayHost";
-export type { LabelOverlayElement, LabelOverlayContextType } from "../types";
+export type {
+  LabelOverlayElement,
+  LabelOverlayContextType,
+  LabelOverlayLiveAnchors,
+  LabelOverlayWorldAnchor,
+} from "../types";
 export type {
   LabelOverlayFrameSubscription,
   LabelOverlayHostBinding,
+  LabelOverlayWorldAnchorProjector,
 } from "../host";
 export {
   PointLabel,

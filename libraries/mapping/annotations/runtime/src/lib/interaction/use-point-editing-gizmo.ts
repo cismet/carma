@@ -19,6 +19,7 @@ import {
   type CesiumMoveGizmoAxisCandidate,
   type CesiumGizmoScreenPosition,
 } from "@carma-mapping/gizmo/cesium";
+import { useLabelOverlay } from "@carma-providers/label-overlay";
 import { Cartesian3 } from "@carma-cesium";
 
 import {
@@ -213,6 +214,7 @@ export const usePointEditingGizmo = (
     onActiveEditedNodeIdChange,
   }: UsePointEditingGizmoOptions
 ) => {
+  const { liveAnchors } = useLabelOverlay();
   const [activeEditedNodeId, setActiveEditedNodeId] = useState<string | null>(
     null
   );
@@ -439,6 +441,16 @@ export const usePointEditingGizmo = (
           return draftCoordinatesByNodeId;
         }, {});
 
+        // Publish all moved nodes on the shared live-anchor registry so the
+        // measurement visualizers patch their geometry this frame, in lockstep
+        // with the gizmo disc, ahead of the draft-state round-trip. The gizmo
+        // clears the registry once React has committed. (cismet/wupp#4078)
+        const liveAnchorECEF =
+          cartesian3FromGeographicCoordinate(constrainedCoordinate);
+        movedNodeIds.forEach((movedNodeId) => {
+          liveAnchors.set(movedNodeId, liveAnchorECEF);
+        });
+
         updateDraftPreviewState({
           nextDraftNodeCoordinateOverrides,
           nextDraftLinkToNodeId: null,
@@ -475,6 +487,15 @@ export const usePointEditingGizmo = (
         return draftCoordinatesByNodeId;
       }, {});
 
+      // See the disableSnap branch: publish the resolved (snapped) position for
+      // all moved nodes on the shared live-anchor registry. (cismet/wupp#4078)
+      const liveAnchorECEF = cartesian3FromGeographicCoordinate(
+        resolvedNodeSnapSample.coordinate
+      );
+      movedNodeIds.forEach((movedNodeId) => {
+        liveAnchors.set(movedNodeId, liveAnchorECEF);
+      });
+
       updateDraftPreviewState({
         nextDraftNodeCoordinateOverrides,
         nextDraftLinkToNodeId: resolvedNodeSnapSample.snappedNodeId,
@@ -484,6 +505,7 @@ export const usePointEditingGizmo = (
       activePlanarAreaEditPlane,
       annotationsStore,
       linkedNodeGroups,
+      liveAnchors,
       nodes,
       scene,
       selectedAnnotationIds,

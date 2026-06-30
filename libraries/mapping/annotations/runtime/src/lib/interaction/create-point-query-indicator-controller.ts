@@ -131,7 +131,7 @@ export const createPointQueryIndicatorController = (
     typeof createLineCollection
   > | null = null;
   let previewRingNormalLineRuntime: AuthoringLineRuntime | null = null;
-  let removePreviewRingPostRenderListener: (() => void) | null = null;
+  let removePreviewRingFrameListener: (() => void) | null = null;
   let previewPoint: Cartesian3 | null = null;
   let previewSurfaceNormal: Cartesian3 | null = null;
   let latestTruePreviewPoint: Cartesian3 | null = null;
@@ -369,8 +369,11 @@ export const createPointQueryIndicatorController = (
     }
   );
 
-  removePreviewRingPostRenderListener =
-    activeScene.postRender.addEventListener(updatePreviewRing);
+  // preRender (not postRender): set the ring modelMatrix before the draw so the
+  // probe/query disc tracks the cursor on the same frame, matching the gizmo
+  // disc. postRender would draw the new matrix one frame late. (cismet/wupp#4078)
+  removePreviewRingFrameListener =
+    activeScene.preRender.addEventListener(updatePreviewRing);
 
   return {
     setEnabled: (nextEnabled) => {
@@ -450,8 +453,8 @@ export const createPointQueryIndicatorController = (
     destroy: () => {
       unsubscribeClientPosition();
       unregisterPointerTracker();
-      safeCall(removePreviewRingPostRenderListener);
-      removePreviewRingPostRenderListener = null;
+      safeCall(removePreviewRingFrameListener);
+      removePreviewRingFrameListener = null;
       clearPreviewRing();
       destroyLineCollection(activeScene, previewRingNormalLineCollection);
       previewRingNormalLineCollection = null;

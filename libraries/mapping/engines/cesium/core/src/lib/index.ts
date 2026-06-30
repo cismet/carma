@@ -94,6 +94,7 @@ export {
 export * from "./carma-helpers/scene/CoordinateAdapters";
 export * from "./carma-helpers/scene/Occlusion";
 export * from "./carma-helpers/scene/Picking";
+export * from "./carma-helpers/scene/ProjectionScale";
 export * from "./carma-helpers/scene/SurfacePicking";
 export * from "./carma-helpers/scene/SurfaceNormalSampling";
 export * from "./carma-helpers/geojson";

@@ -3,12 +3,14 @@ import { useCallback, useMemo, type RefObject } from "react";
 import type {
   LabelOverlayFrameSubscription,
   LabelOverlayHostBinding,
+  LabelOverlayWorldAnchorProjector,
 } from "./host";
 type UseLabelOverlayHostOptions = {
   kind?: string;
   instanceId?: string;
   containerRef: RefObject<HTMLElement | null>;
   subscribeFrame?: LabelOverlayFrameSubscription | null;
+  projectWorldAnchor?: LabelOverlayWorldAnchorProjector | null;
   onResize?: (() => void) | null;
   forceLayoutOnPortalRender?: boolean;
 };
@@ -18,6 +20,7 @@ export const useLabelOverlayHost = ({
   instanceId,
   containerRef,
   subscribeFrame,
+  projectWorldAnchor,
   onResize,
   forceLayoutOnPortalRender = true,
 }: UseLabelOverlayHostOptions): LabelOverlayHostBinding => {
@@ -93,6 +96,7 @@ export const useLabelOverlayHost = ({
       instanceId,
       containerRef,
       subscribeFrame: subscribeResponsiveFrame,
+      projectWorldAnchor: projectWorldAnchor ?? undefined,
       forceLayoutOnPortalRender,
     }),
     [
@@ -100,6 +104,7 @@ export const useLabelOverlayHost = ({
       forceLayoutOnPortalRender,
       instanceId,
       kind,
+      projectWorldAnchor,
       subscribeResponsiveFrame,
     ]
   );

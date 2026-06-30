@@ -5,6 +5,7 @@ import {
   useMemo,
   useRef,
   type MouseEvent as ReactMouseEvent,
+  type WheelEvent as ReactWheelEvent,
 } from "react";
 
 import {
@@ -20,7 +21,15 @@ import {
   createRotationAxisVisualizer,
   type RotationAxisVisualizer,
 } from "@carma-mapping/engines/cesium/react/runtime";
-import { AXIS_NUMERIC_EPSILON, toSvgPathD } from "@carma-mapping/gizmo/core";
+import {
+  AXIS_NUMERIC_EPSILON,
+  GIZMO_DISC_RESIZE_TRIGGERS,
+  computeGizmoDiscSegments,
+  resolveGizmoDiscWorldRadius,
+  shouldRestepGizmoDisc,
+  toSvgPathD,
+  type GizmoDiscResizeTrigger,
+} from "@carma-mapping/gizmo/core";
 import { useLabelOverlay } from "@carma-providers/label-overlay";
 import {
   Cartesian3,
@@ -37,6 +46,7 @@ import {
 import {
   CarmaTransforms,
   createRing,
+  getScreenPixelsPerMeterAtWorldPoint,
 } from "@carma-mapping/engines/cesium/core";
 
 import {
@@ -131,6 +141,12 @@ export type UseCesiumPointMoveGizmoOptions = {
   showDisc?: boolean;
   discOutlineFixedScreenSize?: boolean;
   discOutlineScreenPixelRadius?: number;
+  // Snap the disc world radius to the 1-2-5 decade series (cismet/wupp#4078).
+  discQuantizeWorldRadius?: boolean;
+  // `camera`: recompute the world radius every frame to hold the screen size.
+  // `selection`: compute once when the gizmo attaches and keep that world size,
+  // letting perspective change the apparent size.
+  discResizeTrigger?: GizmoDiscResizeTrigger;
   axisWidthPx?: number;
   outlineWidthPx?: number;
   arrowActiveEdgePx?: number;
@@ -162,7 +178,6 @@ const DISC_OUTLINE_COLOR = "rgba(255,255,255,0.92)";
 const DISC_OUTLINE_BASE_OPACITY = 0.92;
 const DISC_FILL_COLOR = Color.WHITE.withAlpha(0.5);
 const DISC_SCREEN_PIXEL_RADIUS = 32;
-const DISC_OUTLINE_SEGMENTS = 72;
 const DISC_SVG_EXTENT = 320;
 const DISC_SVG_HALF_EXTENT = DISC_SVG_EXTENT / 2;
 const DISC_PROJECTION_SCALE_SAMPLE_COUNT = 16;
@@ -182,6 +197,11 @@ const PLANE_DRAG_GROUND_SNAP_CURSOR = "row-resize";
 const PLANE_DRAG_DISC_CURSOR = "move";
 const ACTIVE_AXIS_ANCHOR_RADIUS_MULTIPLIER = 1.3;
 const INACTIVE_AXIS_ANCHOR_RADIUS_MULTIPLIER = 1.05;
+// Perspective sizing for the move arrows: their edge length scales with the
+// disc's apparent radius relative to its target, clamped so they neither vanish
+// when far nor overwhelm the view when close.
+const ARROW_PERSPECTIVE_SCALE_MIN = 0.4;
+const ARROW_PERSPECTIVE_SCALE_MAX = 4;
 const ROTATION_HANDLE_RADIUS_PX = 8;
 const ROTATION_HANDLE_OFFSET_FROM_DISC_ZERO_RAD = MINUS_PI_OVER_FOUR;
 const ROTATION_HANDLE_MIN_MINOR_RADIUS_PX = 0.25;
@@ -418,6 +438,8 @@ export const useCesiumPointMoveGizmo = (
     showDisc = true,
     discOutlineFixedScreenSize = true,
     discOutlineScreenPixelRadius = DISC_SCREEN_PIXEL_RADIUS,
+    discQuantizeWorldRadius = false,
+    discResizeTrigger = GIZMO_DISC_RESIZE_TRIGGERS.CAMERA,
     axisWidthPx,
     outlineWidthPx: _outlineWidthPx,
     arrowActiveEdgePx = DEFAULT_ACTIVE_ARROW_EDGE_PX,
@@ -431,11 +453,11 @@ export const useCesiumPointMoveGizmo = (
     onExit,
   }: UseCesiumPointMoveGizmoOptions
 ) => {
-  const { addLabelOverlayElement, removeLabelOverlayElement } =
+  const { addLabelOverlayElement, removeLabelOverlayElement, liveAnchors } =
     useLabelOverlay();
   const axisVisualizerRef = useRef<RotationAxisVisualizer | null>(null);
   const discVisualizerRef = useRef<Primitive | null>(null);
-  const removePostRenderListenerRef = useRef<(() => void) | null>(null);
+  const removeDiscFrameListenerRef = useRef<(() => void) | null>(null);
   const dragStateRef = useRef<AxisDragState | null>(null);
   const isDraggingRef = useRef(false);
   const suppressNextSceneClickRef = useRef(false);
@@ -444,6 +466,13 @@ export const useCesiumPointMoveGizmo = (
   const rotationStateRef = useRef<RotationState | null>(null);
   const rotationFrameRef = useRef<RotationFrameState | null>(null);
   const radiusRef = useRef(radius);
+  // `selection` resize trigger: the disc world radius is held fixed across the
+  // selection and only re-steps once the screen-centre resolution doubles or
+  // halves. `frozenDiscRadiusRef` is the current stepped world radius;
+  // `discStepReferenceScaleRef` is the screen-centre pixels-per-world at which
+  // that step was set. Both reset on (re)attach. (cismet/wupp#4078)
+  const frozenDiscRadiusRef = useRef<number | null>(null);
+  const discStepReferenceScaleRef = useRef<number | null>(null);
   const restoreGlobalCursorRef = useRef<(() => void) | null>(null);
   const onPointPositionChangeRef = useRef(onPointPositionChange);
   const onDragStateChangeRef = useRef(onDragStateChange);
@@ -499,12 +528,72 @@ export const useCesiumPointMoveGizmo = (
         return baseRadius;
       }
 
-      return Math.max(
-        discOutlineScreenPixelRadius / pixelPerWorldMax,
-        AXIS_NUMERIC_EPSILON
-      );
+      const worldRadius = resolveGizmoDiscWorldRadius({
+        targetScreenPx: discOutlineScreenPixelRadius,
+        pixelPerWorld: pixelPerWorldMax,
+        quantize: discQuantizeWorldRadius,
+      });
+      return Math.max(worldRadius, AXIS_NUMERIC_EPSILON);
     },
-    [discOutlineFixedScreenSize, discOutlineScreenPixelRadius, scene]
+    [
+      discOutlineFixedScreenSize,
+      discOutlineScreenPixelRadius,
+      discQuantizeWorldRadius,
+      scene,
+    ]
+  );
+
+  // `selection` trigger: hold the disc world radius fixed across the selection,
+  // re-stepping (to the screen-targeted, optionally quantized size) only when
+  // the screen-centre resolution has doubled or halved since the current step.
+  const resolveSteppedDiscWorldRadius = useCallback(
+    (origin: Cartesian3): number => {
+      if (!discOutlineFixedScreenSize || !scene || scene.isDestroyed()) {
+        return Math.max(radiusRef.current, AXIS_NUMERIC_EPSILON);
+      }
+
+      const currentScale = getScreenPixelsPerMeterAtWorldPoint(scene, origin);
+      if (currentScale <= AXIS_NUMERIC_EPSILON) {
+        // Cannot measure (e.g. anchor behind camera) — keep the current step.
+        return (
+          frozenDiscRadiusRef.current ??
+          Math.max(radiusRef.current, AXIS_NUMERIC_EPSILON)
+        );
+      }
+
+      if (
+        frozenDiscRadiusRef.current === null ||
+        shouldRestepGizmoDisc(discStepReferenceScaleRef.current ?? 0, currentScale)
+      ) {
+        frozenDiscRadiusRef.current = Math.max(
+          resolveGizmoDiscWorldRadius({
+            targetScreenPx: discOutlineScreenPixelRadius,
+            pixelPerWorld: currentScale,
+            quantize: discQuantizeWorldRadius,
+          }),
+          AXIS_NUMERIC_EPSILON
+        );
+        discStepReferenceScaleRef.current = currentScale;
+      }
+
+      return frozenDiscRadiusRef.current;
+    },
+    [
+      discOutlineFixedScreenSize,
+      discOutlineScreenPixelRadius,
+      discQuantizeWorldRadius,
+      scene,
+    ]
+  );
+
+  // Disc world radius for the current frame: continuous (hold screen size) for
+  // the `camera` trigger, stepped/fixed for the `selection` trigger.
+  const computeDiscWorldRadius = useCallback(
+    (origin: Cartesian3, planeNormal: Cartesian3): number =>
+      discResizeTrigger === GIZMO_DISC_RESIZE_TRIGGERS.SELECTION
+        ? resolveSteppedDiscWorldRadius(origin)
+        : getDiscWorldRadius(origin, planeNormal, radiusRef.current),
+    [discResizeTrigger, getDiscWorldRadius, resolveSteppedDiscWorldRadius]
   );
 
   const getGroundPointWithoutGizmoVisuals = useCallback(
@@ -570,7 +659,14 @@ export const useCesiumPointMoveGizmo = (
 
   useEffect(() => {
     movePointRef.current = movePoint;
-  }, [movePoint]);
+    // Once React has committed the drag result, movePoint.geometryECEF equals
+    // the last published anchor, so drop the live anchors here (not on mouseup)
+    // to avoid a one-frame snap-back to the pre-commit position. Never clear
+    // mid-drag (movePoint also changes every move while dragging).
+    if (!isDraggingRef.current) {
+      liveAnchors.clear();
+    }
+  }, [liveAnchors, movePoint]);
 
   useEffect(() => {
     axisScreenDirectionRef.current = {};
@@ -955,6 +1051,11 @@ export const useCesiumPointMoveGizmo = (
           new Cartesian3()
         );
 
+        // Publish synchronously so the disc + overlay (and downstream
+        // visualizers) repaint this position on the render we request below,
+        // ahead of the setState round-trip.
+        liveAnchors.set(dragState.pointId, nextPosition);
+
         onPointPositionChangeRef.current?.(
           dragState.pointId,
           nextPosition,
@@ -1248,6 +1349,9 @@ export const useCesiumPointMoveGizmo = (
             mouseMoveEvent.clientY
           );
           if (nextGroundPoint) {
+            // Depth pick already resolved synchronously above, so the snapped
+            // world point is known now — publish it for this frame's repaint.
+            liveAnchors.set(dragState.pointId, nextGroundPoint);
             onPointPositionChangeRef.current?.(
               dragState.pointId,
               nextGroundPoint,
@@ -1295,6 +1399,10 @@ export const useCesiumPointMoveGizmo = (
           ),
           new Cartesian3()
         );
+
+        // Plane intersection is pure math against the frozen plane, so the
+        // position is known now — publish before requesting the render.
+        liveAnchors.set(dragState.pointId, nextPosition);
 
         onPointPositionChangeRef.current?.(
           dragState.pointId,
@@ -1370,17 +1478,17 @@ export const useCesiumPointMoveGizmo = (
         safeRemovePrimitive(scene, discVisualizerRef.current);
         discVisualizerRef.current = null;
       }
-      if (removePostRenderListenerRef.current) {
-        safeCall(removePostRenderListenerRef.current);
-        removePostRenderListenerRef.current = null;
+      if (removeDiscFrameListenerRef.current) {
+        safeCall(removeDiscFrameListenerRef.current);
+        removeDiscFrameListenerRef.current = null;
       }
       return;
     }
 
     // Defensive reset before (re)attach to guarantee at most one axis/disc visualizer pair.
-    if (removePostRenderListenerRef.current) {
-      safeCall(removePostRenderListenerRef.current);
-      removePostRenderListenerRef.current = null;
+    if (removeDiscFrameListenerRef.current) {
+      safeCall(removeDiscFrameListenerRef.current);
+      removeDiscFrameListenerRef.current = null;
     }
     if (axisVisualizerRef.current) {
       safeDestroy(axisVisualizerRef.current);
@@ -1413,16 +1521,20 @@ export const useCesiumPointMoveGizmo = (
     axisVisualizerRef.current = visualizer;
 
     if (showDisc) {
-      const initialDiscRadius = getDiscWorldRadius(
+      // Fresh selection: clear any prior step so the size is captured anew.
+      frozenDiscRadiusRef.current = null;
+      discStepReferenceScaleRef.current = null;
+      const initialDiscRadius = computeDiscWorldRadius(
         movePoint.geometryECEF,
-        initialDiscPlaneNormal,
-        radiusRef.current
+        initialDiscPlaneNormal
       );
+      // Tessellate from the disc's apparent screen size so the filled ring
+      // reads as round rather than a visible polygon (cismet/wupp#4078).
       const disc = createRing(`point-move-disc-${movePoint.id}`, {
         radius: 1,
         innerRadius: 0.5,
         color: DISC_FILL_COLOR,
-        segments: 24,
+        segments: computeGizmoDiscSegments(discOutlineScreenPixelRadius),
         modelMatrix: createOrientedDiscModelMatrix(
           movePoint.geometryECEF,
           initialDiscPlaneNormal,
@@ -1433,7 +1545,15 @@ export const useCesiumPointMoveGizmo = (
       discVisualizerRef.current = disc;
     }
 
-    const removePostRenderListener = scene.postRender.addEventListener(() => {
+    // Update the disc/axis in preRender, not postRender: preRender fires after
+    // the camera/scene is updated but BEFORE primitives build their draw
+    // commands, so a modelMatrix set here is drawn in THIS frame. Setting it in
+    // postRender (after the draw) would only show up next frame, leaving the 3D
+    // disc one frame behind the DOM overlay. With both reading the shared
+    // liveAnchors inside the same synchronous render turn, the disc (drawn this
+    // frame) and the overlay (postRender DOM, composited with this frame's canvas)
+    // stay locked to the same position on the same frame. (cismet/wupp#4078)
+    const removeDiscFrameListener = scene.preRender.addEventListener(() => {
       try {
         const currentPoint = movePointRef.current;
         const axisVisualizer = axisVisualizerRef.current;
@@ -1441,40 +1561,42 @@ export const useCesiumPointMoveGizmo = (
           return;
         }
 
-        const axisDirection = getActiveAxisAtPosition(
-          currentPoint.geometryECEF
-        ).direction;
-        const discPlaneNormal = getDiscPlaneNormalAtPosition(
-          currentPoint.geometryECEF
-        );
-        axisVisualizer.update(currentPoint.geometryECEF, axisDirection);
+        // Prefer the synchronously-published live anchor so the disc tracks the
+        // pointer without the setState round-trip, locked to the same shared
+        // position the measurement visualizers read this frame (cismet/wupp#4078).
+        const livePosition =
+          (liveAnchors.get(currentPoint.id) as Cartesian3 | undefined) ??
+          currentPoint.geometryECEF;
+
+        const axisDirection = getActiveAxisAtPosition(livePosition).direction;
+        const discPlaneNormal = getDiscPlaneNormalAtPosition(livePosition);
+        axisVisualizer.update(livePosition, axisDirection);
 
         const discVisualizer = discVisualizerRef.current;
         if (discVisualizer) {
-          const discWorldRadius = getDiscWorldRadius(
-            currentPoint.geometryECEF,
-            discPlaneNormal,
-            radiusRef.current
+          const discWorldRadius = computeDiscWorldRadius(
+            livePosition,
+            discPlaneNormal
           );
           discVisualizer.modelMatrix = createOrientedDiscModelMatrix(
-            currentPoint.geometryECEF,
+            livePosition,
             discPlaneNormal,
             discWorldRadius,
             discVisualizer.modelMatrix
           );
         }
       } catch {
-        // Ignore postRender races during teardown.
+        // Ignore frame races during teardown.
       }
     });
-    removePostRenderListenerRef.current = removePostRenderListener;
+    removeDiscFrameListenerRef.current = removeDiscFrameListener;
 
     scene.requestRender();
 
     return () => {
-      if (removePostRenderListenerRef.current) {
-        safeCall(removePostRenderListenerRef.current);
-        removePostRenderListenerRef.current = null;
+      if (removeDiscFrameListenerRef.current) {
+        safeCall(removeDiscFrameListenerRef.current);
+        removeDiscFrameListenerRef.current = null;
       }
       if (axisVisualizerRef.current) {
         safeDestroy(axisVisualizerRef.current);
@@ -1492,7 +1614,9 @@ export const useCesiumPointMoveGizmo = (
     getDiscPlaneNormalAtPosition,
     resolvedAxisWidthPx,
     getActiveAxisAtPosition,
-    getDiscWorldRadius,
+    computeDiscWorldRadius,
+    discOutlineScreenPixelRadius,
+    liveAnchors,
     movePoint?.id,
     scene,
     showDisc,
@@ -1528,6 +1652,31 @@ export const useCesiumPointMoveGizmo = (
       });
     },
     [startPlaneDragging]
+  );
+
+  // The interactive overlay parts capture pointer events (so drags work), which
+  // would otherwise swallow the wheel and stop Cesium zooming when the cursor is
+  // over the disc/handles. Re-dispatch the wheel to the scene canvas so zoom
+  // keeps working over the gizmo.
+  const forwardWheelToScene = useCallback(
+    (event: ReactWheelEvent) => {
+      if (!scene || scene.isDestroyed()) return;
+      const canvas = scene.canvas;
+      if (!canvas) return;
+      canvas.dispatchEvent(
+        new WheelEvent("wheel", {
+          deltaX: event.deltaX,
+          deltaY: event.deltaY,
+          deltaZ: event.deltaZ,
+          deltaMode: event.deltaMode,
+          clientX: event.clientX,
+          clientY: event.clientY,
+          bubbles: false,
+          cancelable: true,
+        })
+      );
+    },
+    [scene]
   );
   const axisUiLengthPx = useMemo(
     () => Math.min(108, Math.max(72, radius * 16)),
@@ -1596,6 +1745,7 @@ export const useCesiumPointMoveGizmo = (
               "data-point-move-axis-arrow-up": axisCandidate.id,
               onMouseDown: (event: ReactMouseEvent<HTMLDivElement>) =>
                 handleAxisMouseDown(event, axisCandidate),
+              onWheel: forwardWheelToScene,
               viewBox: getEquilateralTriangleViewBox(arrowActiveEdgePx),
               style: {
                 position: "absolute",
@@ -1635,6 +1785,7 @@ export const useCesiumPointMoveGizmo = (
               "data-point-move-axis-arrow-down": axisCandidate.id,
               onMouseDown: (event: ReactMouseEvent<HTMLDivElement>) =>
                 handleAxisMouseDown(event, axisCandidate),
+              onWheel: forwardWheelToScene,
               viewBox: getEquilateralTriangleViewBox(arrowActiveEdgePx),
               style: {
                 position: "absolute",
@@ -1712,6 +1863,7 @@ export const useCesiumPointMoveGizmo = (
             "data-point-move-disc-interaction-path": "true",
             d: "",
             onMouseDown: handleDiscPlaneMouseDown,
+            onWheel: forwardWheelToScene,
             fill: "rgba(255,255,255,0.001)",
             stroke: "none",
             style: {
@@ -1730,6 +1882,7 @@ export const useCesiumPointMoveGizmo = (
                   rx: `${ROTATION_HANDLE_RADIUS_PX}`,
                   ry: `${ROTATION_HANDLE_RADIUS_PX}`,
                   onMouseDown: handleRotationHandleMouseDown,
+                  onWheel: forwardWheelToScene,
                   fill: DISC_OUTLINE_COLOR,
                   stroke: DISC_OUTLINE_COLOR,
                   strokeWidth: `${AXIS_AND_DISC_OUTLINE_STROKE_WIDTH_PX}`,
@@ -1749,6 +1902,7 @@ export const useCesiumPointMoveGizmo = (
             startPlaneDragging(event.clientX, event.clientY, {
               snapToGround: snapPlaneDragToGround,
             }),
+          onWheel: forwardWheelToScene,
           style: {
             position: "absolute",
             left: "50%",
@@ -1777,6 +1931,7 @@ export const useCesiumPointMoveGizmo = (
       handleDiscPlaneMouseDown,
       handleAxisMouseDown,
       handleRotationHandleMouseDown,
+      forwardWheelToScene,
       overlayAxisCandidates,
       centerPlaneDragCursor,
       showRotationHandle,
@@ -1800,8 +1955,21 @@ export const useCesiumPointMoveGizmo = (
       content: handleContent,
       updatePosition: (elementDiv) => {
         try {
-          const activePoint = movePointRef.current;
-          if (!activePoint || scene.isDestroyed()) return false;
+          const rawPoint = movePointRef.current;
+          if (!rawPoint || scene.isDestroyed()) return false;
+
+          // Anchor on the synchronously-published live anchor (known from the
+          // pointer + frozen axis/plane) rather than the React-state-backed
+          // movePointRef, so the overlay anchor stays locked to the 3D disc with
+          // no setState round-trip. Only the disc *scale* (computeDiscWorldRadius
+          // below) may ride a frame behind; the anchor never does.
+          // (cismet/wupp#4078)
+          const activePoint = {
+            id: rawPoint.id,
+            geometryECEF:
+              (liveAnchors.get(rawPoint.id) as Cartesian3 | undefined) ??
+              rawPoint.geometryECEF,
+          };
 
           const anchorCanvasPosition = SceneTransforms.worldToWindowCoordinates(
             scene,
@@ -1856,7 +2024,7 @@ export const useCesiumPointMoveGizmo = (
                 planeCandidate.id === activeAxisId;
               const fallbackPoints = buildCirclePoints(
                 discOutlineScreenPixelRadius,
-                DISC_OUTLINE_SEGMENTS
+                computeGizmoDiscSegments(discOutlineScreenPixelRadius)
               );
               const fallbackPathD = toSvgPathD(fallbackPoints, {
                 close: true,
@@ -1875,43 +2043,49 @@ export const useCesiumPointMoveGizmo = (
               discOutlinePath.style.stroke = DISC_OUTLINE_COLOR;
             };
 
-            const planeBasis = createPlaneBasis(
+            const planeNormalForCandidate =
               configuredDiscPlaneNormal &&
-                Cartesian3.magnitudeSquared(configuredDiscPlaneNormal) >
-                  AXIS_NUMERIC_EPSILON
+              Cartesian3.magnitudeSquared(configuredDiscPlaneNormal) >
+                AXIS_NUMERIC_EPSILON
                 ? activeDiscPlaneNormal
-                : planeCandidate.direction
+                : planeCandidate.direction;
+            const planeBasis = createPlaneBasis(planeNormalForCandidate);
+
+            // Sync the overlay outline to the exact world radius the 3D disc
+            // uses (same continuous/stepped logic) so both representations
+            // always agree (cismet/wupp#4078).
+            const discWorldRadius = computeDiscWorldRadius(
+              activePoint.geometryECEF,
+              planeNormalForCandidate
             );
-            let discWorldRadius = Math.max(radius, AXIS_NUMERIC_EPSILON);
-
-            if (discOutlineFixedScreenSize) {
-              const pixelPerWorldMax = getPlanePixelsPerWorldMax(
-                scene,
-                activePoint.geometryECEF,
-                planeBasis,
-                anchorCanvasPosition,
-                DISC_PROJECTION_SCALE_SAMPLE_COUNT
-              );
-
-              if (pixelPerWorldMax > AXIS_NUMERIC_EPSILON) {
-                discWorldRadius = Math.max(
-                  discOutlineScreenPixelRadius / pixelPerWorldMax,
-                  AXIS_NUMERIC_EPSILON
-                );
-              }
-            }
 
             if (!Number.isFinite(discWorldRadius) || discWorldRadius <= 0) {
               showFallbackCenteredCircle();
               return;
             }
 
+            // Tessellate from the disc's apparent screen radius so the outline
+            // stays smooth (round) as it grows/shrinks with the camera.
+            const pixelPerWorldMax = getPlanePixelsPerWorldMax(
+              scene,
+              activePoint.geometryECEF,
+              planeBasis,
+              anchorCanvasPosition,
+              DISC_PROJECTION_SCALE_SAMPLE_COUNT
+            );
+            const outlineScreenRadiusPx =
+              pixelPerWorldMax > AXIS_NUMERIC_EPSILON
+                ? discWorldRadius * pixelPerWorldMax
+                : discOutlineScreenPixelRadius;
+            const outlineSegments =
+              computeGizmoDiscSegments(outlineScreenRadiusPx);
+
             const projectedOutlinePoints = projectPlaneOutlinePoints(
               scene,
               activePoint.geometryECEF,
               planeBasis,
               discWorldRadius,
-              DISC_OUTLINE_SEGMENTS,
+              outlineSegments,
               anchorCanvasPosition
             );
 
@@ -1962,6 +2136,23 @@ export const useCesiumPointMoveGizmo = (
           const activeOutline = activeAxisId
             ? projectedOutlinesByAxisId.get(activeAxisId)
             : undefined;
+
+          // Perspective sizing factor for the arrows: how big the disc actually
+          // appears vs its target screen size. ~1 when the disc holds screen
+          // size (`camera` mode), and shrinks/grows with zoom when the disc
+          // holds world size (`selection` mode), so the arrows track the disc.
+          const arrowPerspectiveScale =
+            activeOutline &&
+            discOutlineScreenPixelRadius > AXIS_NUMERIC_EPSILON
+              ? Math.min(
+                  ARROW_PERSPECTIVE_SCALE_MAX,
+                  Math.max(
+                    ARROW_PERSPECTIVE_SCALE_MIN,
+                    activeOutline.supportRadius / discOutlineScreenPixelRadius
+                  )
+                )
+              : 1;
+
           const activeAxisColor =
             axisCandidatesAtPoint.find(
               (candidate) => candidate.id === activeAxisId
@@ -2244,9 +2435,13 @@ export const useCesiumPointMoveGizmo = (
 
             const isActiveAxis = activeAxisIdRef.current === axisCandidate.id;
             const axisOpacity = isActiveAxis ? 1 : INACTIVE_AXIS_OPACITY;
-            const arrowEdgePx = isActiveAxis
-              ? Math.max(1, arrowActiveEdgePx)
-              : Math.max(1, arrowInactiveEdgePx);
+            const baseArrowEdgePx = isActiveAxis
+              ? arrowActiveEdgePx
+              : arrowInactiveEdgePx;
+            const arrowEdgePx = Math.max(
+              1,
+              baseArrowEdgePx * arrowPerspectiveScale
+            );
             const arrowHeightPx = getEquilateralTriangleHeight(arrowEdgePx);
             let arrowAnchorBaseDistancePx = axisArrowOffsetPx;
 
@@ -2259,12 +2454,14 @@ export const useCesiumPointMoveGizmo = (
                   const s = outline.supportRadius;
                   if (s > supportDistance) supportDistance = s;
                 });
-              } else {
-                const activeOutline =
-                  projectedOutlinesByAxisId.get(activeAxisId);
-                if (activeOutline) {
-                  supportDistance = activeOutline.supportRadius;
+                // No other in-plane disc to clear (e.g. only the vertical axis
+                // is enabled) → sit just outside our own disc so the distance
+                // tracks the disc under perspective.
+                if (supportDistance <= AXIS_NUMERIC_EPSILON) {
+                  supportDistance = activeOutline?.supportRadius ?? 0;
                 }
+              } else if (activeOutline) {
+                supportDistance = activeOutline.supportRadius;
               }
 
               if (supportDistance > AXIS_NUMERIC_EPSILON) {
@@ -2393,11 +2590,13 @@ export const useCesiumPointMoveGizmo = (
   }, [
     addLabelOverlayElement,
     handleContent,
+    liveAnchors,
     movePoint?.id,
     axisArrowOffsetPx,
     removeLabelOverlayElement,
     scene,
     getAxisCandidatesAtPosition,
+    computeDiscWorldRadius,
     radius,
     discOutlineFixedScreenSize,
     discOutlineScreenPixelRadius,
@@ -2456,9 +2655,9 @@ export const useCesiumPointMoveGizmo = (
         safeRemovePrimitive(scene, discVisualizerRef.current);
         discVisualizerRef.current = null;
       }
-      if (removePostRenderListenerRef.current) {
-        safeCall(removePostRenderListenerRef.current);
-        removePostRenderListenerRef.current = null;
+      if (removeDiscFrameListenerRef.current) {
+        safeCall(removeDiscFrameListenerRef.current);
+        removeDiscFrameListenerRef.current = null;
       }
     },
     [removeLabelOverlayElement, scene, stopDragging]

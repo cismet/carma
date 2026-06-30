@@ -39,8 +39,11 @@ export {
 export {
   type LabelOverlayElement,
   type LabelOverlayContextType,
+  type LabelOverlayLiveAnchors,
+  type LabelOverlayWorldAnchor,
   type LabelOverlayFrameSubscription,
   type LabelOverlayHostBinding,
+  type LabelOverlayWorldAnchorProjector,
   type PointLabelStyle,
   type PointLabelStyleProps,
   type PillbuttonBadgePosition,

@@ -29,7 +29,9 @@ import {
   labelOverlayAffordanceDefaults,
   labelOverlayLayerDefaults,
   resolveOverlayMidpointTickMetrics,
+  useLabelOverlay,
   useLineVisualizers,
+  type LabelOverlayLiveAnchors,
   type LineVisualizerData,
   type Rect,
 } from "@carma-providers/label-overlay";
@@ -98,6 +100,11 @@ type EdgeSceneLine = {
   end: Cartesian3;
   stroke: string;
   strokeWidth: number;
+  // Node ids of the endpoints, when this line maps directly to a node-to-node
+  // segment. Lets the preRender patch override endpoints from live drag anchors
+  // so the polyline tracks the gizmo in the same frame. (cismet/wupp#4078)
+  startNodeId?: string;
+  endNodeId?: string;
 };
 
 type EdgeSegment = {
@@ -190,9 +197,20 @@ const resolveVisiblePointLabelRects = (scene: Scene): Rect[] => {
     .filter((rect) => rect.right > rect.left && rect.bottom > rect.top);
 };
 
+type ScenePolyline = ReturnType<PolylineCollection["add"]>;
+
 type SceneLineHandle = {
   signature: string;
   collection: PolylineCollection;
+  // The single polyline in `collection`, kept for in-place position patching.
+  polyline: ScenePolyline;
+  // Endpoint node ids + the React-fed base positions, so the preRender patch can
+  // swap to live drag anchors and restore the base when the drag clears.
+  startNodeId?: string;
+  endNodeId?: string;
+  baseStart: Cartesian3;
+  baseEnd: Cartesian3;
+  overridden: boolean;
   destroy: () => void;
 };
 
@@ -258,7 +276,7 @@ const createSceneLineHandle = (
     color: Color.fromCssColorString(line.stroke),
   });
 
-  collection.add({
+  const polyline = collection.add({
     id: line.id,
     positions: [line.start, line.end],
     width: line.strokeWidth,
@@ -292,6 +310,12 @@ const createSceneLineHandle = (
   return {
     signature: buildSceneLineSignature(line),
     collection,
+    polyline,
+    startNodeId: line.startNodeId,
+    endNodeId: line.endNodeId,
+    baseStart: line.start,
+    baseEnd: line.end,
+    overridden: false,
     destroy,
   };
 };
@@ -301,6 +325,51 @@ const destroySceneLineHandles = (handles: Map<string, SceneLineHandle>) => {
     handle.destroy();
   });
   handles.clear();
+};
+
+// Patch polyline endpoints from the shared live-drag anchors so the lines track
+// the gizmo in the same frame, bypassing the React rebuild. Runs in preRender
+// (before the draw). Restores the React-fed base positions once an anchor
+// clears. Cheap no-op when nothing is/was overridden. (cismet/wupp#4078)
+const applyLiveAnchorsToSceneLines = (
+  handles: Map<string, SceneLineHandle>,
+  liveAnchors: LabelOverlayLiveAnchors
+) => {
+  const hasAnchors = liveAnchors.size > 0;
+  handles.forEach((handle) => {
+    const liveStart = handle.startNodeId
+      ? (liveAnchors.get(handle.startNodeId) as Cartesian3 | undefined)
+      : undefined;
+    const liveEnd = handle.endNodeId
+      ? (liveAnchors.get(handle.endNodeId) as Cartesian3 | undefined)
+      : undefined;
+    const wantsOverride = liveStart !== undefined || liveEnd !== undefined;
+    if (!wantsOverride && !handle.overridden) {
+      return;
+    }
+    handle.polyline.positions = [
+      liveStart ?? handle.baseStart,
+      liveEnd ?? handle.baseEnd,
+    ];
+    handle.overridden = wantsOverride && hasAnchors;
+  });
+};
+
+// Resolve an edge endpoint to ECEF, preferring the live drag anchor for its node
+// over the React-fed coordinate, so the SVG overlay lines and every label track
+// the drag in the same frame (the Cesium 3D polylines are patched separately in
+// preRender). Returns a fresh Cartesian3 so callers may mutate it. (cismet/wupp#4078)
+const resolveEdgePointECEF = (
+  liveAnchors: LabelOverlayLiveAnchors,
+  nodeId: string | undefined,
+  coordinate: Parameters<typeof cartesian3FromGeographicCoordinate>[0]
+): Cartesian3 => {
+  const liveAnchor = nodeId
+    ? (liveAnchors.get(nodeId) as Cartesian3 | undefined)
+    : undefined;
+  return liveAnchor
+    ? Cartesian3.clone(liveAnchor, new Cartesian3())
+    : cartesian3FromGeographicCoordinate(coordinate);
 };
 
 const resolveDistanceTriangleLabelLayerId = (surfaceKey: string) =>
@@ -326,22 +395,30 @@ const resolveDistanceTriangleOverlayScreenData = ({
   scratch,
   previousOutsideSigns,
   formatOptions,
+  liveAnchors,
 }: {
   scene: Scene;
   edge: EdgeSegment;
   scratch: AnnotationGeometryScratch;
   previousOutsideSigns?: DistanceTriangleLineLabelOutsideSigns;
   formatOptions: AnnotationsRuntimeFormatOptions;
+  liveAnchors: LabelOverlayLiveAnchors;
 }): DistanceTriangleOverlayScreenData | null => {
   const overlay = edge.distanceTriangleOverlay;
   if (!overlay || !edge.startCoordinate || !edge.endCoordinate) {
     return null;
   }
 
-  const startPointECEF = cartesian3FromGeographicCoordinate(
+  const startPointECEF = resolveEdgePointECEF(
+    liveAnchors,
+    edge.startNodeId,
     edge.startCoordinate
   );
-  const endPointECEF = cartesian3FromGeographicCoordinate(edge.endCoordinate);
+  const endPointECEF = resolveEdgePointECEF(
+    liveAnchors,
+    edge.endNodeId,
+    edge.endCoordinate
+  );
   const startCanvasPosition = SceneTransforms.worldToWindowCoordinates(
     scene,
     startPointECEF
@@ -814,6 +891,7 @@ export const useAnnotationEdgesController = (
     onDistanceTriangleCornerClick,
   }: UseRuntimeAnnotationEdgesControllerArgs
 ) => {
+  const { liveAnchors } = useLabelOverlay();
   const sceneLineHandleByIdRef = useRef<Map<string, SceneLineHandle>>(
     new Map()
   );
@@ -911,6 +989,8 @@ export const useAnnotationEdgesController = (
           end: cartesian3FromGeographicCoordinate(edge.endCoordinate),
           stroke: edge.stroke,
           strokeWidth: edge.strokeWidth,
+          startNodeId: edge.startNodeId,
+          endNodeId: edge.endNodeId,
         };
 
         if (!scene || scene.isDestroyed() || !edge.distanceTriangleOverlay) {
@@ -923,6 +1003,7 @@ export const useAnnotationEdgesController = (
           edge,
           scratch: componentScratch,
           formatOptions,
+          liveAnchors,
         });
         if (!screenData) {
           return [directLine];
@@ -952,7 +1033,7 @@ export const useAnnotationEdgesController = (
 
         return [directLine, ...componentLines];
       }),
-    [edgeSegments, formatOptions, scene]
+    [edgeSegments, formatOptions, liveAnchors, scene]
   );
 
   const overlayLines = useMemo<readonly LineVisualizerData[]>(
@@ -985,11 +1066,19 @@ export const useAnnotationEdgesController = (
 
             const start = SceneTransforms.worldToWindowCoordinates(
               scene,
-              cartesian3FromGeographicCoordinate(edge.startCoordinate)
+              resolveEdgePointECEF(
+                liveAnchors,
+                edge.startNodeId,
+                edge.startCoordinate
+              )
             );
             const end = SceneTransforms.worldToWindowCoordinates(
               scene,
-              cartesian3FromGeographicCoordinate(edge.endCoordinate)
+              resolveEdgePointECEF(
+                liveAnchors,
+                edge.endNodeId,
+                edge.endCoordinate
+              )
             );
             if (!defined(start) || !defined(end)) {
               return null;
@@ -1019,6 +1108,7 @@ export const useAnnotationEdgesController = (
             edge,
             scratch: componentScratch,
             formatOptions,
+            liveAnchors,
           });
 
         return [
@@ -1070,6 +1160,7 @@ export const useAnnotationEdgesController = (
       blockEdgeInteractions,
       edgeSegments,
       formatOptions,
+      liveAnchors,
       onEdgeClick,
       onAnnotationSelect,
       scene,
@@ -1123,6 +1214,25 @@ export const useAnnotationEdgesController = (
       }
     };
   }, [scene, sceneLines]);
+
+  // Patch polyline endpoints from live drag anchors every frame, before the draw,
+  // so the lines move in lockstep with the gizmo disc instead of waiting for the
+  // React rebuild above. Stable listener (keyed on scene) reading the handle ref.
+  useEffect(() => {
+    if (!scene || scene.isDestroyed()) {
+      return;
+    }
+    const removePreRenderListener = scene.preRender.addEventListener(() => {
+      try {
+        applyLiveAnchorsToSceneLines(sceneLineHandleByIdRef.current, liveAnchors);
+      } catch {
+        // Ignore frame races during teardown.
+      }
+    });
+    return () => {
+      removePreRenderListener?.();
+    };
+  }, [liveAnchors, scene]);
 
   useEffect(() => {
     destroyEdgeMidpointHandles(edgeMidpointHandleByIdRef.current);
@@ -1348,8 +1458,12 @@ export const useAnnotationEdgesController = (
       force?: boolean;
     } = {}) => {
       const nextSceneSnapshot = captureOverlayVisibilitySceneSnapshot(scene);
+      // While a drag is live (anchors present) the camera is usually static, so
+      // the snapshot compares equal — but the dragged node IS moving. Don't skip
+      // then, or the labels freeze while the lines/disc track. (cismet/wupp#4078)
       if (
         !force &&
+        liveAnchors.size === 0 &&
         areOverlayVisibilitySceneSnapshotsEqual(
           previousSceneSnapshot,
           nextSceneSnapshot
@@ -1377,6 +1491,7 @@ export const useAnnotationEdgesController = (
           scratch: labelHandle.scratch,
           previousOutsideSigns: labelHandle.previousOutsideSigns,
           formatOptions,
+          liveAnchors,
         });
         if (!screenData) {
           hideLineLabels(labelHandle.lineLabels);
@@ -1656,10 +1771,14 @@ export const useAnnotationEdgesController = (
           return;
         }
 
-        const startPointECEF = cartesian3FromGeographicCoordinate(
+        const startPointECEF = resolveEdgePointECEF(
+          liveAnchors,
+          edge.startNodeId,
           edge.startCoordinate
         );
-        const endPointECEF = cartesian3FromGeographicCoordinate(
+        const endPointECEF = resolveEdgePointECEF(
+          liveAnchors,
+          edge.endNodeId,
           edge.endCoordinate
         );
         const startScreenPosition = SceneTransforms.worldToWindowCoordinates(
@@ -1752,6 +1871,7 @@ export const useAnnotationEdgesController = (
     edgeSegments,
     edgeSegmentLabelHandleByIdRef,
     formatOptions,
+    liveAnchors,
     onDistanceTriangleCornerClick,
     resolvedAnnotationLineLabelOptions,
     scene,

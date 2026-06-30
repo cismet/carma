@@ -25,7 +25,10 @@ import {
   type PointLabelOverlayRenderState,
   type PointLabelLayoutResult,
 } from "@carma-providers/label-overlay";
-import { cartesian3FromGeographicCoordinate } from "@carma-mapping/engines/cesium/core";
+import {
+  cartesian3FromGeographicCoordinate,
+  geographicCoordinateFromCartesian3,
+} from "@carma-mapping/engines/cesium/core";
 
 import { annotationVisualDefaults } from "../config/annotation-visual-defaults";
 import type { Scene } from "@carma-cesium";
@@ -221,6 +224,7 @@ export const usePointLabelVisualizer = (
     removeLabelOverlayElement,
     updateLabelOverlayElement,
     updatePositions,
+    liveAnchors,
   } = useLabelOverlay();
   const labelsRef = useRef(labels);
   const previousLabelIdsRef = useRef<Set<string>>(new Set());
@@ -328,9 +332,21 @@ export const usePointLabelVisualizer = (
           scene,
           label,
         });
+      // Prefer the live drag anchor (ECEF) for this node so the label tracks the
+      // moved node in the same frame as the lines/disc, instead of the React-fed
+      // coordinate. Converted to geographic to keep the existing layout path
+      // unchanged. (cismet/wupp#4078)
+      const liveAnchor = effectiveCoordinateCandidate.nodeId
+        ? (liveAnchors.get(effectiveCoordinateCandidate.nodeId) as
+            | Cartesian3
+            | undefined)
+        : undefined;
+      const effectiveCoordinate = liveAnchor
+        ? geographicCoordinateFromCartesian3(liveAnchor)
+        : effectiveCoordinateCandidate.coordinate;
       const computedBaseState = computeOverlayVisibilityState({
         scene,
-        coordinate: effectiveCoordinateCandidate.coordinate,
+        coordinate: effectiveCoordinate,
         shouldTestOcclusion:
           !preserveOcclusionDuringCameraMove &&
           shouldTestPointLabelOcclusion({
@@ -346,9 +362,7 @@ export const usePointLabelVisualizer = (
         : computedBaseState;
       const cameraDistanceMeters = Cartesian3.distance(
         scene.camera.positionWC,
-        cartesian3FromGeographicCoordinate(
-          effectiveCoordinateCandidate.coordinate
-        )
+        liveAnchor ?? cartesian3FromGeographicCoordinate(effectiveCoordinate)
       );
       const overlayZIndex =
         resolveRuntimeOverlayDistanceZIndex(cameraDistanceMeters);
@@ -442,17 +456,21 @@ export const usePointLabelVisualizer = (
     });
 
     return nextStatesById;
-  }, [isInPreviewNodeLink, scene]);
+  }, [isInPreviewNodeLink, liveAnchors, scene]);
 
   const resolveLabelOverlayState = useCallback(
     (labelId: string) => {
       const frameKey = getSceneFrameKey(scene);
       if (stateCacheRef.current.frameKey !== frameKey) {
         const sceneSnapshot = captureOverlayVisibilitySceneSnapshot(scene);
-        const shouldRecomputeStates = !areOverlayVisibilitySceneSnapshotsEqual(
-          stateCacheRef.current.sceneSnapshot,
-          sceneSnapshot
-        );
+        // Live drag anchors move the node while the camera is static (equal
+        // snapshot), so force a recompute then or the label freezes. (cismet/wupp#4078)
+        const shouldRecomputeStates =
+          liveAnchors.size > 0 ||
+          !areOverlayVisibilitySceneSnapshotsEqual(
+            stateCacheRef.current.sceneSnapshot,
+            sceneSnapshot
+          );
 
         stateCacheRef.current = shouldRecomputeStates
           ? {
@@ -472,7 +490,7 @@ export const usePointLabelVisualizer = (
         createEmptyLabelOverlayState()
       );
     },
-    [computeStatesById, scene]
+    [computeStatesById, liveAnchors, scene]
   );
 
   const normalizedLabels = useMemo(

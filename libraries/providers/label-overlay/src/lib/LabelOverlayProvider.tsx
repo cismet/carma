@@ -16,7 +16,12 @@ import {
   LABEL_OVERLAY_CONTAINER_ATTRIBUTE,
   LABEL_OVERLAY_CONTAINER_SELECTOR,
 } from "./constants";
-import type { LabelOverlayElement, LabelOverlayContextType } from "./types";
+import type {
+  LabelOverlayElement,
+  LabelOverlayContextType,
+  LabelOverlayLiveAnchors,
+  LabelOverlayWorldAnchor,
+} from "./types";
 const hasSameOverlayPortalContent = (
   left: LabelOverlayElement,
   right: LabelOverlayElement
@@ -85,6 +90,9 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
   );
   const renderScheduledRef = useRef(false);
   const requestRenderRef = useRef<(() => void) | null>(null);
+  const liveAnchorsMapRef = useRef<Map<string, LabelOverlayWorldAnchor>>(
+    new Map()
+  );
   // Force a re-render when we need to update Portals (add/remove/content change)
   const [renderCounter, setRenderCounter] = useState(0);
   const forceRender = useCallback(() => {
@@ -100,7 +108,30 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
   }, []);
   const resolvedContainerRef = host.containerRef;
   const resolvedFrameSubscription = host.subscribeFrame;
+  const resolvedProjectWorldAnchor = host.projectWorldAnchor;
   const forceLayoutOnPortalRender = host.forceLayoutOnPortalRender ?? true;
+
+  // Shared, stable registry of live world anchors (see LabelOverlayLiveAnchors).
+  // Backed by a ref so writes never re-render; the frame loop and engine readers
+  // observe it imperatively. Identity is stable for the provider's lifetime.
+  const liveAnchors = useMemo<LabelOverlayLiveAnchors>(() => {
+    const map = liveAnchorsMapRef.current;
+    return {
+      set: (id, anchor) => {
+        map.set(id, anchor);
+      },
+      get: (id) => map.get(id),
+      delete: (id) => {
+        map.delete(id);
+      },
+      clear: () => {
+        map.clear();
+      },
+      get size() {
+        return map.size;
+      },
+    };
+  }, []);
 
   // Create overlay container
   useLayoutEffect(() => {
@@ -220,6 +251,23 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
         return;
       }
 
+      if (element.worldAnchor && resolvedProjectWorldAnchor) {
+        const anchor = element.worldAnchor();
+        const anchorScreenPosition = anchor
+          ? resolvedProjectWorldAnchor(anchor)
+          : null;
+        if (anchorScreenPosition && element.visible !== false) {
+          elementDiv.style.position = "absolute";
+          elementDiv.style.left = `${anchorScreenPosition.x}px`;
+          elementDiv.style.top = `${anchorScreenPosition.y}px`;
+          elementDiv.style.transform = "translate(-50%, -50%)";
+          elementDiv.style.display = "block";
+        } else {
+          elementDiv.style.display = "none";
+        }
+        return;
+      }
+
       const canvasPosition = element.getCanvasPosition
         ? element.getCanvasPosition()
         : null;
@@ -234,7 +282,7 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
         elementDiv.style.display = "none";
       }
     });
-  }, []);
+  }, [resolvedProjectWorldAnchor]);
 
   const updatePositions = useCallback(() => {
     updatePositionsInternal();
@@ -279,6 +327,7 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
       updateLabelOverlayElement,
       clearLabelOverlayElements,
       updatePositions,
+      liveAnchors,
     }),
     [
       addLabelOverlayElement,
@@ -286,6 +335,7 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
       updateLabelOverlayElement,
       clearLabelOverlayElements,
       updatePositions,
+      liveAnchors,
     ]
   );
 
