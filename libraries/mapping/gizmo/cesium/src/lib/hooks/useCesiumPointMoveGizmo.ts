@@ -4,6 +4,7 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
   type MouseEvent as ReactMouseEvent,
   type WheelEvent as ReactWheelEvent,
 } from "react";
@@ -30,7 +31,12 @@ import {
   toSvgPathD,
   type GizmoDiscResizeTrigger,
 } from "@carma-mapping/gizmo/core";
-import { useLabelOverlay } from "@carma-providers/label-overlay";
+import {
+  useLabelOverlay,
+  useLineVisualizers,
+  type LineVisualizerData,
+} from "@carma-providers/label-overlay";
+import { formatLengthMeters, type CssPixelPosition } from "@carma-units";
 import {
   Cartesian3,
   Color,
@@ -147,6 +153,17 @@ export type UseCesiumPointMoveGizmoOptions = {
   // `selection`: compute once when the gizmo attaches and keep that world size,
   // letting perspective change the apparent size.
   discResizeTrigger?: GizmoDiscResizeTrigger;
+  // Hold the disc world radius fixed for the duration of a drag: the size is
+  // captured at drag start (where a re-step may happen) and then frozen until
+  // the drag ends, so the disc never resizes mid-drag (cismet/wupp#4078).
+  freezeDiscScaleDuringDrag?: boolean;
+  // `selection` trigger only: how far the on-screen resolution may drift before
+  // the disc re-steps. The permissible apparent-size band is [1/factor, factor]
+  // of the target, so 4 → 0.25×–4×. Default 4 (cismet/wupp#4078).
+  discResizeStepFactor?: number;
+  // Draw a DOM-only hairline from the disc centre to its outer edge and label it
+  // with the disc's world radius (8px). Edit-tool readout only (cismet/wupp#4078).
+  showDiscRadiusLabel?: boolean;
   axisWidthPx?: number;
   outlineWidthPx?: number;
   arrowActiveEdgePx?: number;
@@ -177,7 +194,7 @@ const INACTIVE_AXIS_OPACITY = 1;
 const DISC_OUTLINE_COLOR = "rgba(255,255,255,0.92)";
 const DISC_OUTLINE_BASE_OPACITY = 0.92;
 const DISC_FILL_COLOR = Color.WHITE.withAlpha(0.5);
-const DISC_SCREEN_PIXEL_RADIUS = 32;
+const DISC_SCREEN_PIXEL_RADIUS = 48;
 const DISC_SVG_EXTENT = 320;
 const DISC_SVG_HALF_EXTENT = DISC_SVG_EXTENT / 2;
 const DISC_PROJECTION_SCALE_SAMPLE_COUNT = 16;
@@ -434,12 +451,15 @@ export const useCesiumPointMoveGizmo = (
     axisTitle = null,
     preferredAxisId = null,
     axisCandidates = null,
-    showRotationHandle = true,
+    showRotationHandle = false,
     showDisc = true,
     discOutlineFixedScreenSize = true,
     discOutlineScreenPixelRadius = DISC_SCREEN_PIXEL_RADIUS,
     discQuantizeWorldRadius = false,
     discResizeTrigger = GIZMO_DISC_RESIZE_TRIGGERS.CAMERA,
+    freezeDiscScaleDuringDrag = false,
+    discResizeStepFactor = 4,
+    showDiscRadiusLabel = false,
     axisWidthPx,
     outlineWidthPx: _outlineWidthPx,
     arrowActiveEdgePx = DEFAULT_ACTIVE_ARROW_EDGE_PX,
@@ -473,6 +493,24 @@ export const useCesiumPointMoveGizmo = (
   // that step was set. Both reset on (re)attach. (cismet/wupp#4078)
   const frozenDiscRadiusRef = useRef<number | null>(null);
   const discStepReferenceScaleRef = useRef<number | null>(null);
+  // Disc world radius captured at the start of a drag and held until it ends,
+  // when `freezeDiscScaleDuringDrag` is on. Null outside a frozen drag.
+  const frozenDragDiscRadiusRef = useRef<number | null>(null);
+  const freezeDiscScaleDuringDragRef = useRef(freezeDiscScaleDuringDrag);
+  const discResizeStepFactorRef = useRef(discResizeStepFactor);
+  const showDiscRadiusLabelRef = useRef(showDiscRadiusLabel);
+  // Radius readout reuses the label-overlay line visualizer (DOM-only SVG line
+  // + label, no Cesium scene primitive). updatePosition publishes the current
+  // screen-space hairline endpoints here; the visualizer's getSvgLine reads them
+  // each frame. The label text is React state (changes rarely). (cismet/wupp#4078)
+  const radiusHairlineGeometryRef = useRef<{
+    startX: number;
+    startY: number;
+    endX: number;
+    endY: number;
+  } | null>(null);
+  const [radiusLabelText, setRadiusLabelText] = useState("");
+  const radiusLabelTextRef = useRef("");
   const restoreGlobalCursorRef = useRef<(() => void) | null>(null);
   const onPointPositionChangeRef = useRef(onPointPositionChange);
   const onDragStateChangeRef = useRef(onDragStateChange);
@@ -563,7 +601,11 @@ export const useCesiumPointMoveGizmo = (
 
       if (
         frozenDiscRadiusRef.current === null ||
-        shouldRestepGizmoDisc(discStepReferenceScaleRef.current ?? 0, currentScale)
+        shouldRestepGizmoDisc(
+          discStepReferenceScaleRef.current ?? 0,
+          currentScale,
+          discResizeStepFactorRef.current
+        )
       ) {
         frozenDiscRadiusRef.current = Math.max(
           resolveGizmoDiscWorldRadius({
@@ -594,6 +636,26 @@ export const useCesiumPointMoveGizmo = (
         ? resolveSteppedDiscWorldRadius(origin)
         : getDiscWorldRadius(origin, planeNormal, radiusRef.current),
     [discResizeTrigger, getDiscWorldRadius, resolveSteppedDiscWorldRadius]
+  );
+
+  // Frame disc radius with the optional during-drag freeze: the first frame of a
+  // drag captures (and may re-step) the radius, then it is held until the drag
+  // ends so the disc never resizes mid-drag. `frozenDragDiscRadiusRef` is reset
+  // to null on drag start/end. (cismet/wupp#4078)
+  const resolveDiscWorldRadiusForFrame = useCallback(
+    (origin: Cartesian3, planeNormal: Cartesian3): number => {
+      if (freezeDiscScaleDuringDragRef.current && isDraggingRef.current) {
+        if (frozenDragDiscRadiusRef.current === null) {
+          frozenDragDiscRadiusRef.current = computeDiscWorldRadius(
+            origin,
+            planeNormal
+          );
+        }
+        return frozenDragDiscRadiusRef.current;
+      }
+      return computeDiscWorldRadius(origin, planeNormal);
+    },
+    [computeDiscWorldRadius]
   );
 
   const getGroundPointWithoutGizmoVisuals = useCallback(
@@ -716,6 +778,18 @@ export const useCesiumPointMoveGizmo = (
   useEffect(() => {
     radiusRef.current = radius;
   }, [radius]);
+
+  useEffect(() => {
+    freezeDiscScaleDuringDragRef.current = freezeDiscScaleDuringDrag;
+  }, [freezeDiscScaleDuringDrag]);
+
+  useEffect(() => {
+    showDiscRadiusLabelRef.current = showDiscRadiusLabel;
+  }, [showDiscRadiusLabel]);
+
+  useEffect(() => {
+    discResizeStepFactorRef.current = discResizeStepFactor;
+  }, [discResizeStepFactor]);
 
   useEffect(() => {
     onPointPositionChangeRef.current = onPointPositionChange;
@@ -961,6 +1035,10 @@ export const useCesiumPointMoveGizmo = (
     }
 
     restoreGlobalDragCursor(restoreGlobalCursorRef);
+
+    // Drop the frozen-during-drag radius so the next drag re-captures (and may
+    // re-step) its size at its own start. (cismet/wupp#4078)
+    frozenDragDiscRadiusRef.current = null;
 
     if (isDraggingRef.current) {
       isDraggingRef.current = false;
@@ -1574,7 +1652,7 @@ export const useCesiumPointMoveGizmo = (
 
         const discVisualizer = discVisualizerRef.current;
         if (discVisualizer) {
-          const discWorldRadius = computeDiscWorldRadius(
+          const discWorldRadius = resolveDiscWorldRadiusForFrame(
             livePosition,
             discPlaneNormal
           );
@@ -1615,6 +1693,7 @@ export const useCesiumPointMoveGizmo = (
     resolvedAxisWidthPx,
     getActiveAxisAtPosition,
     computeDiscWorldRadius,
+    resolveDiscWorldRadiusForFrame,
     discOutlineScreenPixelRadius,
     liveAnchors,
     movePoint?.id,
@@ -1940,6 +2019,43 @@ export const useCesiumPointMoveGizmo = (
     ]
   );
 
+  // Disc radius readout as a reusable DOM-only line visualizer (SVG line +
+  // label, no Cesium scene primitive). getSvgLine reads the screen-space
+  // endpoints published by updatePosition each frame. (cismet/wupp#4078)
+  const radiusHairlineLineVisualizers = useMemo<LineVisualizerData[]>(() => {
+    if (!showDiscRadiusLabel || !showDisc || !movePoint) {
+      return [];
+    }
+    return [
+      {
+        id: `${OVERLAY_HANDLE_ID}-radius-hairline`,
+        getSvgLine: () => {
+          const geometry = radiusHairlineGeometryRef.current;
+          if (!geometry) {
+            return null;
+          }
+          return {
+            start: {
+              x: geometry.startX,
+              y: geometry.startY,
+            } as CssPixelPosition,
+            end: { x: geometry.endX, y: geometry.endY } as CssPixelPosition,
+          };
+        },
+        stroke: DISC_OUTLINE_COLOR,
+        strokeWidth: 0.25,
+        labelText: radiusLabelText,
+        labelColor: DISC_OUTLINE_COLOR,
+        labelFontSize: 8,
+      },
+    ];
+  }, [movePoint, radiusLabelText, showDisc, showDiscRadiusLabel]);
+
+  useLineVisualizers(
+    radiusHairlineLineVisualizers,
+    radiusHairlineLineVisualizers.length > 0
+  );
+
   useEffect(() => {
     if (!scene || scene.isDestroyed() || !movePoint) {
       removeLabelOverlayElement(OVERLAY_HANDLE_ID);
@@ -2052,9 +2168,9 @@ export const useCesiumPointMoveGizmo = (
             const planeBasis = createPlaneBasis(planeNormalForCandidate);
 
             // Sync the overlay outline to the exact world radius the 3D disc
-            // uses (same continuous/stepped logic) so both representations
+            // uses (same continuous/stepped/frozen logic) so both representations
             // always agree (cismet/wupp#4078).
-            const discWorldRadius = computeDiscWorldRadius(
+            const discWorldRadius = resolveDiscWorldRadiusForFrame(
               activePoint.geometryECEF,
               planeNormalForCandidate
             );
@@ -2574,6 +2690,38 @@ export const useCesiumPointMoveGizmo = (
                 : centerPlaneDragCursor;
           }
 
+          // Radius readout: publish the hairline endpoints (screen space) +
+          // label text for the line visualizer below. The hairline is a
+          // billboard — it lives in the screen plane (orthogonal to the view
+          // axis), a horizontal line of the disc's apparent screen radius — so
+          // no perspective math is needed to keep it oriented. (cismet/wupp#4078)
+          const horizontalRadiusPx = activeOutline?.supportRadius ?? 0;
+          const radiusWorldValue = activeOutline?.worldRadius;
+          if (
+            showDiscRadiusLabelRef.current &&
+            showDisc &&
+            horizontalRadiusPx > AXIS_NUMERIC_EPSILON &&
+            radiusWorldValue !== undefined &&
+            Number.isFinite(radiusWorldValue)
+          ) {
+            radiusHairlineGeometryRef.current = {
+              startX: anchorCanvasPosition.x,
+              startY: anchorCanvasPosition.y,
+              endX: anchorCanvasPosition.x + horizontalRadiusPx,
+              endY: anchorCanvasPosition.y,
+            };
+            // Localised length unit, rounded to whole metres (no fractions).
+            const nextRadiusLabelText = formatLengthMeters(radiusWorldValue, {
+              maximumFractionDigitsMeters: 0,
+            });
+            if (nextRadiusLabelText !== radiusLabelTextRef.current) {
+              radiusLabelTextRef.current = nextRadiusLabelText;
+              setRadiusLabelText(nextRadiusLabelText);
+            }
+          } else if (radiusHairlineGeometryRef.current !== null) {
+            radiusHairlineGeometryRef.current = null;
+          }
+
           return true;
         } catch {
           // Overlay refresh can race with scene/widget teardown.
@@ -2597,6 +2745,7 @@ export const useCesiumPointMoveGizmo = (
     scene,
     getAxisCandidatesAtPosition,
     computeDiscWorldRadius,
+    resolveDiscWorldRadiusForFrame,
     radius,
     discOutlineFixedScreenSize,
     discOutlineScreenPixelRadius,

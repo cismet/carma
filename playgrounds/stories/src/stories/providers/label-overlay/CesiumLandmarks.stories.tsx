@@ -1296,7 +1296,8 @@ const CesiumLandmarksStory = ({
     let cleanupRenderErrorHandling: (() => void) | undefined;
     const initialize = async () => {
       const setup = await setupCesium(container, {
-        useBrowserRecommendedResolution: true,
+        // Physical-pixel (DPR) resolution like the geoportal widget (sharp).
+        useBrowserRecommendedResolution: false,
       });
       if (disposed) {
         if (!setup.widget.isDestroyed()) {

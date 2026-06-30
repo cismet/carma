@@ -8,12 +8,17 @@ import {
   GUIDE_NORMAL_EPSILON_SQUARED,
   createOrientedDiscModelMatrix,
   createRing,
+  getScreenPixelsPerMeterAtWorldPoint,
   isValidScene,
   resolveStableDiscNormal,
   safeCall,
   safeRemovePrimitive,
   type RingMaterialPreset,
 } from "@carma-mapping/engines/cesium/core";
+import {
+  resolveGizmoDiscWorldRadius,
+  shouldRestepGizmoDisc,
+} from "@carma-mapping/gizmo/core";
 import {
   type CandidateRingSample,
   getAveragedCandidateRingNormal,
@@ -61,8 +66,16 @@ export type PointQueryIndicatorControllerOptions = {
   opacity?: number;
   materialPreset?: RingMaterialPreset;
   innerHoleRadiusRatio?: number;
-  scalingMode?: "screen" | "world";
+  // `screen`: hold the on-screen size every frame. `world`: fixed metres.
+  // `stepped`: capture a world size at authoring start that hits the screen
+  // target, then hold it and only re-step once the on-screen resolution drifts
+  // past the [1/factor, factor] band — the scale-bar rule (cismet/wupp#4078).
+  scalingMode?: "screen" | "world" | "stepped";
   targetScreenRadiusCssPx?: number;
+  // `stepped` only: permissible apparent-size band is [1/factor, factor]
+  // (4 → 0.25×–4×). Snap each step to the 1-2-5 series when quantize is set.
+  discResizeStepFactor?: number;
+  quantizeStepWorldRadius?: boolean;
   showNormalLine?: boolean;
   tangentDiscVisualizerTrailSampleCount?: number;
   tangentDiscVisualizerSmoothingWindowMs?: number;
@@ -88,6 +101,8 @@ export const createPointQueryIndicatorController = (
     innerHoleRadiusRatio = pointPreviewRingVisualDefaults.innerHoleRadiusRatio,
     scalingMode = pointPreviewRingVisualDefaults.scalingMode,
     targetScreenRadiusCssPx = pointPreviewRingVisualDefaults.targetScreenRadiusCssPx,
+    discResizeStepFactor = 4,
+    quantizeStepWorldRadius = false,
     showNormalLine = false,
     tangentDiscVisualizerTrailSampleCount = pointPreviewRingVisualDefaults.smoothingSampleCount,
     tangentDiscVisualizerSmoothingWindowMs = pointPreviewRingVisualDefaults.smoothingWindowMs,
@@ -133,6 +148,40 @@ export const createPointQueryIndicatorController = (
   let previewRingNormalLineRuntime: AuthoringLineRuntime | null = null;
   let removePreviewRingFrameListener: (() => void) | null = null;
   let previewPoint: Cartesian3 | null = null;
+  // `stepped` scaling: the captured world radius held across authoring and the
+  // screen-centre resolution at which it was captured. Reset when authoring
+  // restarts so each session re-captures its size. (cismet/wupp#4078)
+  let frozenStepRadiusMeters: number | null = null;
+  let stepReferenceScale: number | null = null;
+
+  const resolveSteppedRadiusMeters = (center: Cartesian3): number => {
+    const currentScale = getScreenPixelsPerMeterAtWorldPoint(
+      activeScene,
+      center
+    );
+    if (!Number.isFinite(currentScale) || currentScale <= 0) {
+      return frozenStepRadiusMeters ?? previewRingRadius;
+    }
+    if (
+      frozenStepRadiusMeters === null ||
+      shouldRestepGizmoDisc(
+        stepReferenceScale ?? 0,
+        currentScale,
+        discResizeStepFactor
+      )
+    ) {
+      frozenStepRadiusMeters = Math.max(
+        resolveGizmoDiscWorldRadius({
+          targetScreenPx: targetScreenRadiusCssPx,
+          pixelPerWorld: currentScale,
+          quantize: quantizeStepWorldRadius,
+        }),
+        0.1
+      );
+      stepReferenceScale = currentScale;
+    }
+    return frozenStepRadiusMeters;
+  };
   let previewSurfaceNormal: Cartesian3 | null = null;
   let latestTruePreviewPoint: Cartesian3 | null = null;
   let latestTrueSurfaceNormal: Cartesian3 | null = null;
@@ -151,6 +200,9 @@ export const createPointQueryIndicatorController = (
     }
     previewRingSamples = [];
     previewRingLastQueuedInput = null;
+    // Re-capture the stepped size at the next authoring session.
+    frozenStepRadiusMeters = null;
+    stepReferenceScale = null;
   };
 
   const ensurePreviewRingNormalLine = () => {
@@ -317,14 +369,17 @@ export const createPointQueryIndicatorController = (
       latestTrueSurfaceNormal ?? previewSurfaceNormal,
       previewSurfaceNormal
     );
-    const sampledRadius = resolvePointQueryDiscRadius({
-      scene: activeScene,
-      pointECEF: center,
-      discNormalECEF: discNormal,
-      radiusMeters: previewRingRadius,
-      scalingMode,
-      targetScreenRadiusCssPx,
-    });
+    const sampledRadius =
+      scalingMode === "stepped"
+        ? resolveSteppedRadiusMeters(center)
+        : resolvePointQueryDiscRadius({
+            scene: activeScene,
+            pointECEF: center,
+            discNormalECEF: discNormal,
+            radiusMeters: previewRingRadius,
+            scalingMode,
+            targetScreenRadiusCssPx,
+          });
     const activeRing = previewRing ?? ensurePreviewRing();
     if (!activeRing) {
       return;

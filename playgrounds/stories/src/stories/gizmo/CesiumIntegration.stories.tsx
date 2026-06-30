@@ -61,11 +61,17 @@ type GizmoSandboxProps = {
   radius: number;
   showRotationHandle: boolean;
   showDisc: boolean;
+  showCube: boolean;
   snapPlaneDragToGround: boolean;
   discOutlineFixedScreenSize: boolean;
   discOutlineScreenPixelRadius: number;
   discQuantizeWorldRadius: boolean;
   discResizeTrigger: GizmoDiscResizeTrigger;
+  freezeDiscScaleDuringDrag: boolean;
+  // Permissible apparent-size band before the disc re-steps: [1/factor, factor]
+  // (4 → 0.25×–4×). Applies to the `selection` trigger and the query disc.
+  discResizeStepFactor: number;
+  showDiscRadiusLabel: boolean;
   axisWidthPx?: number;
   arrowActiveEdgePx: number;
   arrowInactiveEdgePx: number;
@@ -243,11 +249,15 @@ const GizmoSandboxContent = ({
   radius,
   showRotationHandle,
   showDisc,
+  showCube,
   snapPlaneDragToGround,
   discOutlineFixedScreenSize,
   discOutlineScreenPixelRadius,
   discQuantizeWorldRadius,
   discResizeTrigger,
+  freezeDiscScaleDuringDrag,
+  discResizeStepFactor,
+  showDiscRadiusLabel,
   axisWidthPx,
   arrowActiveEdgePx,
   arrowInactiveEdgePx,
@@ -332,7 +342,9 @@ const GizmoSandboxContent = ({
       const result = await setupCesium(
         cesiumContainerRef.current as HTMLDivElement,
         {
-          useBrowserRecommendedResolution: true,
+          // Physical-pixel (DPR) resolution like the geoportal widget, so the
+          // disc/gizmo render sharp instead of blurry (cismet/wupp#4078).
+          useBrowserRecommendedResolution: false,
         }
       );
       if (!mounted) {
@@ -390,10 +402,11 @@ const GizmoSandboxContent = ({
   }, [initialCubeCenter, onSceneChange, setPointPosition]);
 
   useEffect(() => {
-    if (!scene || scene.isDestroyed()) {
+    if (!scene || scene.isDestroyed() || !showCube) {
       if (cubeVisualsRef.current) {
         cubeVisualsRef.current.destroy();
         cubeVisualsRef.current = null;
+        scene?.requestRender();
       }
       return;
     }
@@ -411,7 +424,7 @@ const GizmoSandboxContent = ({
         cubeVisualsRef.current = null;
       }
     };
-  }, [localCorners, scene]);
+  }, [localCorners, scene, showCube]);
 
   useEffect(() => {
     if (!scene || scene.isDestroyed()) return;
@@ -570,6 +583,9 @@ const GizmoSandboxContent = ({
     discOutlineScreenPixelRadius,
     discQuantizeWorldRadius,
     discResizeTrigger,
+    freezeDiscScaleDuringDrag,
+    discResizeStepFactor,
+    showDiscRadiusLabel,
     axisWidthPx,
     arrowActiveEdgePx,
     arrowInactiveEdgePx,
@@ -791,6 +807,10 @@ const meta: Meta<GizmoSandboxProps> = {
       control: { type: "boolean" },
       table: { category: "Disc" },
     },
+    showCube: {
+      control: { type: "boolean" },
+      table: { category: "Scene" },
+    },
     snapPlaneDragToGround: {
       control: { type: "boolean" },
       table: { category: "Disc" },
@@ -815,6 +835,18 @@ const meta: Meta<GizmoSandboxProps> = {
       ],
       table: { category: "Disc" },
     },
+    freezeDiscScaleDuringDrag: {
+      control: { type: "boolean" },
+      table: { category: "Disc" },
+    },
+    discResizeStepFactor: {
+      control: { type: "range", min: 2, max: 8, step: 1 },
+      table: { category: "Disc" },
+    },
+    showDiscRadiusLabel: {
+      control: { type: "boolean" },
+      table: { category: "Disc" },
+    },
     axisWidthPx: {
       control: { type: "range", min: 0.5, max: 6, step: 0.5 },
       table: { category: "Axes" },
@@ -828,7 +860,15 @@ const meta: Meta<GizmoSandboxProps> = {
       table: { category: "Axes" },
     },
     axisMode: {
-      control: { type: "inline-radio" },
+      control: {
+        type: "inline-radio",
+        labels: {
+          "geoportal-default": "Vertical axis + disc only",
+          enu: "ENU (E/N/Up)",
+          "up-only": "Up only",
+          world: "World X/Y/Z",
+        },
+      },
       options: ["geoportal-default", "enu", "up-only", "world"],
       table: { category: "Axes" },
     },
@@ -867,13 +907,17 @@ export const Cesium: StoryObj<GizmoSandboxProps> = {
     pointLat: PLACE_CENTER.latitude,
     pointHeight: PLACE_CENTER.height,
     radius: 8,
-    showRotationHandle: true,
+    showRotationHandle: false,
     showDisc: true,
+    showCube: true,
     snapPlaneDragToGround: true,
     discOutlineFixedScreenSize: true,
-    discOutlineScreenPixelRadius: 16,
+    discOutlineScreenPixelRadius: 48,
     discQuantizeWorldRadius: false,
     discResizeTrigger: GIZMO_DISC_RESIZE_TRIGGERS.CAMERA,
+    freezeDiscScaleDuringDrag: false,
+    discResizeStepFactor: 4,
+    showDiscRadiusLabel: false,
     axisWidthPx: 1,
     arrowActiveEdgePx: 16,
     arrowInactiveEdgePx: 12,
@@ -894,12 +938,20 @@ export const Cesium: StoryObj<GizmoSandboxProps> = {
 // Defaults to the intended behaviour (fixed-on-selection + quantized); zoom
 // in/out and re-select the cube to watch it step.
 export const DiscSizing: StoryObj<GizmoSandboxProps> = {
-  name: "Disc Sizing",
+  name: "Dynamic Scene Reference Object Sizing",
   args: {
     ...Cesium.args,
     interactiveDiscControls: true,
+    // The geoportal edit-tool default: only the vertical (height) axis plus the
+    // disc, no cube — so the demo matches the in-app gizmo (cismet/wupp#4078).
+    axisMode: "geoportal-default",
+    showCube: false,
     discResizeTrigger: GIZMO_DISC_RESIZE_TRIGGERS.SELECTION,
     discQuantizeWorldRadius: true,
-    discOutlineScreenPixelRadius: 16,
+    // Hold the disc size during a drag; it re-steps only at the next drag start.
+    freezeDiscScaleDuringDrag: true,
+    // Show the world-radius readout hairline + 8px label.
+    showDiscRadiusLabel: true,
+    discOutlineScreenPixelRadius: 48,
   },
 };
