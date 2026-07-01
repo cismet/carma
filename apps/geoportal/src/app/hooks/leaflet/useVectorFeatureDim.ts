@@ -11,26 +11,27 @@ import { getLayersIdle } from "../../store/slices/mapping";
  * at the map level so it needs no per-layer style config and works for any
  * vector layer that gets added.
  *
- * PAINT: wrap each layer's opacity paint property with
- * `["case", ["boolean", ["feature-state","dimmed"], false], DIM, <orig>]`,
- * so any feature with `dimmed=true` renders at reduced opacity.
+ * PAINT (dim-by-default): wrap each layer's opacity paint property with
+ * `["case", ["boolean", ["feature-state","keepBright"], false], <orig>, DIM]`,
+ * so EVERY feature renders dimmed by default and only a feature with
+ * `keepBright=true` renders at full opacity. The else-branch covers all
+ * non-highlighted features automatically — no enumeration needed.
  *
  * CLICK SIGNAL: in Geoportal the MapLibre canvases are non-interactive
  * overlays inside Leaflet panes, so a raw `map.on("click")` never fires —
  * clicks flow through Leaflet → cismap, which (via `manualSelectionManagement`)
  * calls `map.setFeatureState({...}, { selected: true })` on the clicked
- * feature. But cismap keeps only ONE feature selected (it resets the previous
- * one), so we cannot reuse `selected` to dim ALL clicked features. Instead we
- * wrap `map.setFeatureState`: whenever cismap flips a feature to
- * `selected:true` we also stamp a persistent `dimmed:true` on it, and we never
- * clear `dimmed` — so every clicked feature stays dimmed and they accumulate.
+ * feature. We wrap `map.setFeatureState`: whenever cismap flips a feature to
+ * `selected:true` we stamp a persistent `keepBright:true` on it, and we never
+ * clear it — so every clicked feature becomes (and stays) normal, and they
+ * accumulate.
  *
  * WMS/raster layers are unaffected (no per-feature model); this covers the
  * vector case, which is what BELIS-style highlighting targets.
  */
 
 const DIM_OPACITY = 0.25;
-const STATE_KEY = "dimmed";
+const STATE_KEY = "keepBright";
 const INSTALLED = "__carmaVectorDimInstalled";
 
 // Opacity paint props per MapLibre layer type.
@@ -45,8 +46,8 @@ const OPACITY_PROPS: Record<string, string[]> = {
 const dimBranch = (original: unknown) => [
   "case",
   ["boolean", ["feature-state", STATE_KEY], false],
-  DIM_OPACITY,
   original == null ? 1 : original,
+  DIM_OPACITY,
 ];
 
 const installDim = (map: MaplibreMap) => {
@@ -56,6 +57,18 @@ const installDim = (map: MaplibreMap) => {
 
   const applyPaint = () => {
     for (const layer of map.getStyle()?.layers ?? []) {
+      // cismap draws the selection border/highlight in a dedicated style layer
+      // whose id contains "selection" — hide it so no border shows.
+      if (layer.id.toLowerCase().includes("selection")) {
+        try {
+          if (map.getLayoutProperty(layer.id, "visibility") !== "none") {
+            map.setLayoutProperty(layer.id, "visibility", "none");
+          }
+        } catch {
+          /* ignore */
+        }
+        continue;
+      }
       const props = OPACITY_PROPS[layer.type];
       if (!props) continue;
       for (const prop of props) {
@@ -88,7 +101,17 @@ const installDim = (map: MaplibreMap) => {
   map.on("styledata", applyPaint);
 
   // Piggyback on cismap's selection signal: every time it selects a feature,
-  // also stamp a persistent `dimmed` so all clicked features accumulate.
+  // stamp a persistent `keepBright` so all clicked features become normal
+  // (un-dimmed) and accumulate.
+  const notDimmed = new Map<
+    string,
+    {
+      source: string;
+      sourceLayer?: string;
+      id: string | number;
+      feature?: GeoJSON.Feature;
+    }
+  >();
   // eslint-disable-next-line @typescript-eslint/unbound-method
   const originalSetFeatureState = map.setFeatureState.bind(map);
   map.setFeatureState = ((
@@ -98,6 +121,27 @@ const installDim = (map: MaplibreMap) => {
     originalSetFeatureState(target, state);
     if (state && (state as { selected?: unknown }).selected === true) {
       originalSetFeatureState(target, { [STATE_KEY]: true });
+      const t = target as { source: string; sourceLayer?: string; id: string | number };
+      // Resolve the real feature (geometry + properties) from the source.
+      // Only finds features in currently-loaded tiles/viewport.
+      let feature: GeoJSON.Feature | undefined;
+      try {
+        const isGeojson = map.getSource(t.source)?.type === "geojson";
+        feature = map.querySourceFeatures(t.source, {
+          ...(isGeojson ? {} : { sourceLayer: t.sourceLayer }),
+          filter: ["==", ["id"], t.id],
+        } as never)[0] as unknown as GeoJSON.Feature | undefined;
+      } catch {
+        /* ignore */
+      }
+      notDimmed.set(`${t.source}::${t.sourceLayer ?? ""}::${t.id}`, {
+        source: t.source,
+        sourceLayer: t.sourceLayer,
+        id: t.id,
+        feature,
+      });
+      // Collected non-dimmed (kept-bright) features so far.
+      console.log("xxx [VectorFeatureDim] not dimmed:", [...notDimmed.values()]);
     }
   }) as MaplibreMap["setFeatureState"];
 };
