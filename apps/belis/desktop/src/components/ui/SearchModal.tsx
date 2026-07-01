@@ -20,7 +20,7 @@ import {
   MAUERLASCHE_FIELDS,
 } from "../../constants/searchFields";
 import RawDisplay from "./RawDisplay";
-import ExpertSearch from "./ExpertSearch";
+import ExpertSearch from "./expert-search/ExpertSearch";
 import {
   useLibreContext,
   useMapHighlight,
@@ -1105,16 +1105,17 @@ const SearchModal = ({
       >
         <div
           style={{
-            height: showFinalQuery
-              ? "min(400px, calc(100vh - 450px))"
-              : "min(640px, calc(100vh - 250px))",
+            height:
+              showFinalQuery && !isExpertSearch
+                ? "min(400px, calc(100vh - 450px))"
+                : "min(640px, calc(100vh - 250px))",
             overflowY: "auto",
             paddingRight: 8,
           }}
         >
           {isExpertSearch ? <ExpertSearch /> : renderSearchComponent()}
         </div>
-        {showFinalQuery && (
+        {showFinalQuery && !isExpertSearch && (
           <div className="mt-4 border-t border-gray-200 pt-4">
             <div className="text-sm font-medium text-gray-500 mb-2">
               GraphQL Query:
