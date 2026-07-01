@@ -1,6 +1,10 @@
+import { ControlOutlined } from "@ant-design/icons";
+
 const FilterEmptyState = () => (
-  <div className="flex flex-col items-center justify-center text-center mb-6">
-    <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center mb-3 text-gray-400" />
+  <div className="flex flex-col items-center justify-center text-center">
+    <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center mb-3 text-gray-400">
+      <ControlOutlined className="text-lg" />
+    </div>
     <p className="max-w-sm text-sm leading-relaxed">
       Klicke links auf ein <strong>Feld</strong>, um eine Bedingung zu erstellen.
       Mehrere Gruppen lassen sich mit <strong>UND</strong> / <strong>ODER</strong>{" "}

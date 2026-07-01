@@ -182,7 +182,7 @@ const SearchModalHeader = ({
         </button>
       </div>
     </div>
-    <div className="flex items-center gap-6 border-b border-gray-200">
+    <div className="flex items-center gap-6 border-b border-gray-200 -mx-6 px-6">
       {Object.entries(searchTypeLabels).map(([value, label]) => (
         <button
           key={value}
@@ -618,6 +618,7 @@ const SearchModal = ({
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const [searchType, setSearchType] = useState<SearchType>("leuchte");
   const [isExpertSearch, setIsExpertSearch] = useState(false);
+  const [expertResetKey, setExpertResetKey] = useState(0);
   const [isSearching, setIsSearching] = useState(false);
   const [queryPreview, setQueryPreview] = useState<string>("");
   const [noResults, setNoResults] = useState(false);
@@ -1079,9 +1080,18 @@ const SearchModal = ({
         onCancel={() => setIsOpen(false)}
         closable={false}
         footer={
-          <div className="flex justify-between items-center pt-2 border-t border-gray-100">
-            <div className="text-sm text-gray-500">
-              {noResults && "Keine Ergebnisse gefunden"}
+          <div className="flex justify-between items-center pt-3 border-t border-gray-100 -mx-6 px-6">
+            <div className="flex items-center gap-3 text-sm text-gray-500">
+              {isExpertSearch && (
+                <button
+                  type="button"
+                  onClick={() => setExpertResetKey((key) => key + 1)}
+                  className="text-[#6B7280] hover:text-[#4B5563] bg-transparent border-none cursor-pointer p-0"
+                >
+                  Zurücksetzen
+                </button>
+              )}
+              {noResults && <span>Keine Ergebnisse gefunden</span>}
             </div>
             <div className="flex gap-2">
               <Button onClick={() => setIsOpen(false)}>Abbrechen</Button>
@@ -1098,30 +1108,45 @@ const SearchModal = ({
         width={1200}
         centered
         styles={{
-          body: { paddingTop: 16 },
-          header: { paddingBottom: 0 },
+          content: { padding: 0, overflow: "hidden" },
+          header: { padding: "20px 24px 0", margin: 0 },
+          body: { padding: 0 },
+          footer: { padding: "0 24px 16px", margin: 0 },
         }}
       >
         <div
           style={{
-            height:
-              showFinalQuery && !isExpertSearch
-                ? "min(560px, calc(100vh - 350px))"
-                : "min(720px, calc(100vh - 160px))",
-            overflowY: "auto",
-            paddingRight: 8,
+            height: "min(720px, calc(100vh - 160px))",
+            display: "flex",
+            flexDirection: "column",
           }}
         >
-          {isExpertSearch ? <ExpertSearch /> : renderSearchComponent()}
-        </div>
-        {showFinalQuery && !isExpertSearch && (
-          <div className="mt-4 border-t border-gray-200 pt-4">
-            <div className="text-sm font-medium text-gray-500 mb-2">
-              GraphQL Query:
-            </div>
-            <RawDisplay maxHeight={200}>{queryPreview}</RawDisplay>
+          <div
+            style={{
+              flex: 1,
+              minHeight: 0,
+              overflowY: "auto",
+              overflowX: "hidden",
+              paddingTop: 16,
+              paddingLeft: isExpertSearch ? 0 : 24,
+              paddingRight: isExpertSearch ? 0 : 24,
+            }}
+          >
+            {isExpertSearch ? (
+              <ExpertSearch key={expertResetKey} />
+            ) : (
+              renderSearchComponent()
+            )}
           </div>
-        )}
+          {showFinalQuery && !isExpertSearch && (
+            <div className="mt-4 border-t border-gray-200 pt-4 px-6 flex-shrink-0">
+              <div className="text-sm font-medium text-gray-500 mb-2">
+                GraphQL Query:
+              </div>
+              <RawDisplay maxHeight={200}>{queryPreview}</RawDisplay>
+            </div>
+          )}
+        </div>
       </Modal>
     </>
   );
