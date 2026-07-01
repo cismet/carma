@@ -300,6 +300,7 @@ function KlimaorteMap() {
             }}
           />
           <TopicMapComponent
+            photoLightBox={false}
             maxZoom={19}
             minZoom={8}
             applicationMenuTooltipString={<MenuTooltip appMode={appMode} />}
