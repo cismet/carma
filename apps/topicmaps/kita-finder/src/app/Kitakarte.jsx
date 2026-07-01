@@ -124,6 +124,7 @@ const KitaKarte = () => {
           </div>
         </Control>
         <TopicMapComponent
+          photoLightBox={false}
           modalMenu={
             <Menu previewFeatureCollectionProps={featureCollectionProps} />
           }
