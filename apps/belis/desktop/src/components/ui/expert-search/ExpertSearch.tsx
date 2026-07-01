@@ -1,12 +1,21 @@
 import { useState } from "react";
 import { Input } from "antd";
-import { SearchOutlined } from "@ant-design/icons";
+import { SearchOutlined, ControlOutlined } from "@ant-design/icons";
+import FilterGroup from "./FilterGroup";
 
 interface ExpertField {
   key: string;
   label: string;
   color: string;
 }
+
+interface FilterGroupItem {
+  id: string;
+  title: string;
+}
+
+// Temporary hardcoded demo groups for the filter content area
+const DEMO_GROUPS: FilterGroupItem[] = [{ id: "1", title: "Gruppe 1" }];
 
 // Temporary hardcoded demo fields for the expert search sidebar
 const DEMO_FIELDS: ExpertField[] = [
@@ -76,15 +85,22 @@ const ExpertSearch = () => {
             + Gruppe
           </button>
         </div>
-        <div className="flex-1 flex flex-col items-center justify-center text-center border border-dashed border-gray-200 rounded-xl bg-gray-50 px-6 py-10 text-gray-500">
-          <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center mb-3 text-gray-400">
-            <SearchOutlined className="text-lg" />
+        <div className="flex-1 overflow-y-auto border border-dashed border-gray-200 rounded-xl bg-gray-50 p-6 text-gray-500">
+          <div className="flex flex-col items-center justify-center text-center mb-6">
+            <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center mb-3 text-gray-400">
+              <ControlOutlined className="text-lg" />
+            </div>
+            <p className="max-w-sm text-sm leading-relaxed">
+              Klicke links auf ein <strong>Feld</strong>, um eine Bedingung zu
+              erstellen. Mehrere Gruppen lassen sich mit <strong>UND</strong> /{" "}
+              <strong>ODER</strong> verschachteln.
+            </p>
           </div>
-          <p className="max-w-sm text-sm leading-relaxed">
-            Klicke links auf ein <strong>Feld</strong>, um eine Bedingung zu
-            erstellen. Mehrere Gruppen lassen sich mit <strong>UND</strong> /{" "}
-            <strong>ODER</strong> verschachteln.
-          </p>
+          <div className="flex flex-col gap-4">
+            {DEMO_GROUPS.map((group) => (
+              <FilterGroup key={group.id} title={group.title} />
+            ))}
+          </div>
         </div>
       </div>
     </div>
