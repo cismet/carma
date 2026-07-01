@@ -759,6 +759,7 @@ const TZBaumbewirtschaftung = ({
             </div>
           </Control>
           <TopicMapComponent
+            photoLightBox={false}
             modalMenu={<Menu />}
             gazetteerSearchControl={true}
             gazetteerSearchComponent={EmptySearchComponent}
