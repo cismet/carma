@@ -12,6 +12,18 @@ import type { LightBoxDispatchValue } from "./LightBoxContextProvider";
 // react-cismap features are loosely typed; keep them permissive on purpose.
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+// The default attribution caption shown in the photo lightbox (Stadt
+// Wuppertal). Exported so other viewers — e.g. the panorama in the media
+// lightbox — can render the identical attribution for a consistent look.
+export const defaultLightBoxCaptionFactory = (
+  _linkUrl?: string,
+  _feature?: any
+): ReactNode => (
+  <a href="https://www.wuppertal.de/service/impressum.php" target="_impressum">
+    <FontAwesomeIcon icon={faCopyright} /> Stadt Wuppertal
+  </a>
+);
+
 export interface TriggerLightBoxForFeatureArgs {
   currentFeature: any;
   getPhotoUrl: (feature: any) => string | undefined;
@@ -31,11 +43,7 @@ export const triggerLightBoxForFeature = ({
   getPhotoSeriesArray = () => undefined,
   urlManipulation = (input) => input,
   lightBoxDispatchContext,
-  captionFactory = (linkUrl) => (
-    <a href="https://www.wuppertal.de/service/impressum.php" target="_impressum">
-      <FontAwesomeIcon icon={faCopyright} /> Stadt Wuppertal
-    </a>
-  ),
+  captionFactory = defaultLightBoxCaptionFactory,
   fallbackLinkUrl = "http://www.fotokraemer-wuppertal.de/",
   harvester = (data) => {
     const tmp = document.implementation.createHTMLDocument();
