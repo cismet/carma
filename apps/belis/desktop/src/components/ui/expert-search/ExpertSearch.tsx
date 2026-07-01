@@ -1,21 +1,15 @@
-import { useState } from "react";
+import { Fragment, useCallback, useRef, useState } from "react";
 import { Input } from "antd";
-import { SearchOutlined, ControlOutlined } from "@ant-design/icons";
+import { SearchOutlined } from "@ant-design/icons";
 import FilterGroup from "./FilterGroup";
+import GroupConjunction from "./GroupConjunction";
+import FilterEmptyState from "./FilterEmptyState";
 
 interface ExpertField {
   key: string;
   label: string;
   color: string;
 }
-
-interface FilterGroupItem {
-  id: string;
-  title: string;
-}
-
-// Temporary hardcoded demo groups for the filter content area
-const DEMO_GROUPS: FilterGroupItem[] = [{ id: "1", title: "Gruppe 1" }];
 
 // Temporary hardcoded demo fields for the expert search sidebar
 const DEMO_FIELDS: ExpertField[] = [
@@ -30,6 +24,29 @@ const DEMO_FIELDS: ExpertField[] = [
 
 const ExpertSearch = () => {
   const [fieldFilter, setFieldFilter] = useState("");
+  const [groupIds, setGroupIds] = useState<number[]>([1]);
+  const [ruleCounts, setRuleCounts] = useState<Record<number, number>>({});
+  const nextGroupId = useRef(2);
+
+  const addGroup = () => {
+    setGroupIds((ids) => [...ids, nextGroupId.current++]);
+  };
+
+  const removeGroup = (id: number) => {
+    setGroupIds((ids) => ids.filter((groupId) => groupId !== id));
+    setRuleCounts((counts) => {
+      const { [id]: _removed, ...rest } = counts;
+      return rest;
+    });
+  };
+
+  const handleRuleCountChange = useCallback((id: number, count: number) => {
+    setRuleCounts((counts) =>
+      counts[id] === count ? counts : { ...counts, [id]: count }
+    );
+  }, []);
+
+  const totalRules = Object.values(ruleCounts).reduce((sum, n) => sum + n, 0);
 
   const filteredFields = DEMO_FIELDS.filter((field) =>
     field.label.toLowerCase().includes(fieldFilter.toLowerCase())
@@ -76,29 +93,31 @@ const ExpertSearch = () => {
             <span className="font-semibold tracking-wide uppercase">
               Filter
             </span>{" "}
-            <span className="text-gray-500">0 Bedingungen</span>
+            <span className="text-gray-500">{totalRules} Bedingungen</span>
           </div>
           <button
             type="button"
+            onClick={addGroup}
             className="text-sm text-gray-700 border border-gray-200 rounded-lg px-3 py-1.5 bg-white hover:border-blue-400 hover:bg-blue-50 cursor-pointer transition-colors"
           >
             + Gruppe
           </button>
         </div>
         <div className="flex-1 overflow-y-auto border border-dashed border-gray-200 rounded-xl bg-gray-50 p-6 text-gray-500">
-          <div className="flex flex-col items-center justify-center text-center mb-6">
-            <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center mb-3 text-gray-400">
-              <ControlOutlined className="text-lg" />
-            </div>
-            <p className="max-w-sm text-sm leading-relaxed">
-              Klicke links auf ein <strong>Feld</strong>, um eine Bedingung zu
-              erstellen. Mehrere Gruppen lassen sich mit <strong>UND</strong> /{" "}
-              <strong>ODER</strong> verschachteln.
-            </p>
-          </div>
+          {totalRules === 0 && groupIds.length === 1 && <FilterEmptyState />}
           <div className="flex flex-col gap-4">
-            {DEMO_GROUPS.map((group) => (
-              <FilterGroup key={group.id} title={group.title} />
+            {groupIds.map((id, index) => (
+              <Fragment key={id}>
+                {index > 0 && <GroupConjunction />}
+                <FilterGroup
+                  groupId={id}
+                  title={`Gruppe ${index + 1}`}
+                  onDelete={
+                    groupIds.length > 1 ? () => removeGroup(id) : undefined
+                  }
+                  onRuleCountChange={handleRuleCountChange}
+                />
+              </Fragment>
             ))}
           </div>
         </div>

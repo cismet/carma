@@ -274,7 +274,6 @@ const buildMastWhereClause = (values: MastSearchValues): string => {
     `_or: [{is_deleted: {_eq: false}}, {is_deleted: {_is_null: true}}]`
   );
 
-
   // Date range conditions (combined into single objects)
   const inbetriebnahmeCondition = buildDateRangeCondition(
     "inbetriebnahme_mast",
@@ -1096,7 +1095,7 @@ const SearchModal = ({
             </div>
           </div>
         }
-        width={900}
+        width={1200}
         centered
         styles={{
           body: { paddingTop: 16 },
@@ -1107,8 +1106,8 @@ const SearchModal = ({
           style={{
             height:
               showFinalQuery && !isExpertSearch
-                ? "min(400px, calc(100vh - 450px))"
-                : "min(640px, calc(100vh - 250px))",
+                ? "min(560px, calc(100vh - 350px))"
+                : "min(720px, calc(100vh - 160px))",
             overflowY: "auto",
             paddingRight: 8,
           }}
