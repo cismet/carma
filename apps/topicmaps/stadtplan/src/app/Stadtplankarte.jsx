@@ -83,6 +83,7 @@ const Stadtplankarte = ({ poiColors }) => {
           </div>
         </Control>
         <TopicMapComponent
+          photoLightBox={false}
           modalMenu={<Menu />}
           locatorControl={false}
           fullScreenControl={false}
