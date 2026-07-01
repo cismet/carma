@@ -13,13 +13,18 @@ interface ExpertField {
 
 // Temporary hardcoded demo fields for the expert search sidebar
 const DEMO_FIELDS: ExpertField[] = [
-  { key: "bemerkung", label: "Bemerkung", color: "#9ca3af" },
-  { key: "dokumente", label: "Dokumente", color: "#9ca3af" },
+  { key: "bemerkung", label: "Bemerkung", color: "#6b7280" },
+  { key: "dokumente", label: "Dokumente", color: "#6b7280" },
   { key: "erstellungsjahr", label: "Erstellungsjahr", color: "#3b82f6" },
-  { key: "geometrie", label: "Geometrie", color: "#9ca3af" },
-  { key: "material", label: "Material", color: "#3b82f6" },
-  { key: "montage", label: "Montage", color: "#3b82f6" },
-  { key: "pruefdatum", label: "Prüfdatum", color: "#3b82f6" },
+  { key: "geometrie", label: "Geometrie", color: "#14b8a6" },
+  { key: "material", label: "Material", color: "#14b8a6" },
+  { key: "strassenschluessel", label: "Straßenschlüssel", color: "#14b8a6" },
+  { key: "foto", label: "Foto", color: "#6b7280" },
+  { key: "geloescht", label: "Gelöscht", color: "#ea580c" },
+  { key: "laufende_nummer", label: "Laufende Nummer", color: "#3b82f6" },
+  { key: "monteur", label: "Monteur", color: "#6b7280" },
+  { key: "pruefdatum", label: "Prüfdatum", color: "#8b5cf6" },
+  { key: "id", label: "ID", color: "#3b82f6" },
 ];
 
 const ExpertSearch = () => {
@@ -55,8 +60,8 @@ const ExpertSearch = () => {
   return (
     <div className="flex h-full gap-6">
       {/* Sidebar: fields */}
-      <div className="w-64 flex-shrink-0 flex flex-col">
-        <div className="text-xs font-semibold tracking-wide text-gray-400 uppercase mb-2">
+      <div className="w-[310px] flex-shrink-0 flex flex-col bg-slate-50 border-r border-gray-200 pl-6 pr-4 pb-6 -mt-4 pt-4">
+        <div className="text-xs font-semibold tracking-wide text-gray-400 uppercase mt-2 mb-2">
           Felder
         </div>
         <Input
@@ -66,7 +71,7 @@ const ExpertSearch = () => {
           prefix={<SearchOutlined className="text-gray-400" />}
           placeholder="Feld suchen…"
         />
-        <div className="text-xs text-gray-400 mt-2 mb-2">
+        <div className="text-xs text-gray-400 mt-3 mb-2">
           Klick fügt zur letzten Gruppe hinzu
         </div>
         <div className="flex flex-col gap-2 overflow-y-auto pr-1">
@@ -87,7 +92,7 @@ const ExpertSearch = () => {
       </div>
 
       {/* Content: filter groups (empty state) */}
-      <div className="flex-1 min-w-0 flex flex-col">
+      <div className="flex-1 min-w-0 flex flex-col pr-6">
         <div className="flex items-center justify-between mb-3">
           <div className="text-xs text-gray-400">
             <span className="font-semibold tracking-wide uppercase">
@@ -98,13 +103,17 @@ const ExpertSearch = () => {
           <button
             type="button"
             onClick={addGroup}
-            className="text-sm text-gray-700 border border-gray-200 rounded-lg px-3 py-1.5 bg-white hover:border-blue-400 hover:bg-blue-50 cursor-pointer transition-colors"
+            className="text-sm text-gray-700 border border-gray-200 rounded-lg px-5 py-1.5 bg-white hover:border-blue-400 hover:bg-blue-50 cursor-pointer transition-colors"
           >
             + Gruppe
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto border border-dashed border-gray-200 rounded-xl bg-gray-50 p-6 text-gray-500">
-          {totalRules === 0 && groupIds.length === 1 && <FilterEmptyState />}
+        <div className="flex-1 overflow-y-auto flex flex-col border border-dashed border-gray-200 rounded-xl bg-gray-50 p-3 text-gray-500 mt-2 mb-5">
+          {totalRules === 0 && groupIds.length === 1 && (
+            <div className="flex-1 flex items-center justify-center">
+              <FilterEmptyState />
+            </div>
+          )}
           <div className="flex flex-col gap-4">
             {groupIds.map((id, index) => (
               <Fragment key={id}>
