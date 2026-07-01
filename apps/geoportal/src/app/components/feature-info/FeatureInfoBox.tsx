@@ -11,7 +11,12 @@ import { useDispatch, useSelector } from "react-redux";
 
 import {
   InfoBoxFotoPreview,
+  LightBoxContext,
   LightBoxDispatchContext,
+  defaultLightBoxCaptionFactory,
+  type LightBoxCustomSlide,
+  type LightBoxImageSlide,
+  type LightBoxSlide,
 } from "@carma-mapping/lightbox";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
@@ -49,7 +54,7 @@ import {
   InfoBoxHeader,
   utils,
   getActionLinksForFeature,
-  PanoramaLightBox,
+  PanoramaViewer,
   PanoramaPreview,
   type PanoramaHotspot,
 } from "@carma-appframeworks/portals";
@@ -189,7 +194,6 @@ const FeatureInfoBox = ({
   additionalSecondaryInfoBoxElements = [],
 }: InfoBoxProps) => {
   const [open, setOpen] = useState(false);
-  const [openPanorama, setOpenPanorama] = useState(false);
   const [shouldRenderLoadingInfobox, setShouldRenderLoadingInfobox] =
     useState(false);
   const [headerColor, setHeaderColor] = useState<string>("");
@@ -205,6 +209,7 @@ const FeatureInfoBox = ({
   const infoText = useSelector(getInfoText);
   const maplibreMaps = useSelector(getMaplibreMaps);
   const lightBoxDispatchContext = useContext(LightBoxDispatchContext);
+  const lightBoxState = useContext(LightBoxContext);
 
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
 
@@ -818,6 +823,99 @@ const FeatureInfoBox = ({
     [navigatePanoramaTowardView]
   );
 
+  // The panorama as a custom lightbox slide: it hosts the embeddable
+  // PanoramaViewer (the media lightbox supplies the surrounding chrome). Only
+  // the active slide is rendered, so the viewer mounts once and tears down when
+  // the user pages to a photo.
+  const panoramaSlide = useMemo<LightBoxCustomSlide | null>(() => {
+    const props = selectedFeature?.properties;
+    if (!props?.panorama) {
+      return null;
+    }
+    const src = props.panorama as string;
+    const multiResConfigUrl = props.panoramaMultiResConfig as string | undefined;
+    return {
+      type: "custom",
+      key: "panorama",
+      render: ({ active }) =>
+        active ? (
+          <PanoramaViewer
+            src={src}
+            multiResConfigUrl={multiResConfigUrl}
+            onYawChange={handlePanoramaYaw}
+            onNext={handlePanoramaNext}
+            onPrevious={handlePanoramaPrevious}
+            hotspots={panoramaHotspots}
+            initialYaw={PANORAMA_INITIAL_YAW}
+          />
+        ) : null,
+    };
+  }, [
+    selectedFeature,
+    handlePanoramaYaw,
+    handlePanoramaNext,
+    handlePanoramaPrevious,
+    panoramaHotspots,
+  ]);
+
+  // Simple photo images (single `foto` or a `fotos` array) as image slides, so
+  // they sit alongside the panorama in one lightbox. The harvested-fotostrecke
+  // path stays on the legacy react-image-lightbox flow (used when there is no
+  // panorama).
+  const photoSlides = useMemo<LightBoxImageSlide[]>(() => {
+    const props = selectedFeature?.properties;
+    if (!props) {
+      return [];
+    }
+    const urls: string[] = [];
+    if (Array.isArray(props.fotos)) {
+      urls.push(...props.fotos);
+    } else if (props.foto) {
+      urls.push(props.foto);
+    }
+    return urls
+      .filter((u): u is string => typeof u === "string" && u.length > 0)
+      .map((u) => ({ type: "image", src: updateUrl(u) }));
+  }, [selectedFeature]);
+
+  const mediaSlides = useMemo<LightBoxSlide[]>(
+    () => (panoramaSlide ? [panoramaSlide, ...photoSlides] : photoSlides),
+    [panoramaSlide, photoSlides]
+  );
+
+  // While the unified (panorama) lightbox is open, keep its slides current: a
+  // tour hop swaps selectedFeature, so src/hotspots/handlers change and the
+  // embedded viewer must follow. Guarded to the custom-slide case so the
+  // photo-only react-image-lightbox path keeps managing its own slides.
+  const lightboxVisible = !!lightBoxState?.visible;
+  const lightboxHasCustomSlides = !!lightBoxState?.slides?.some(
+    (slide) => slide.type === "custom"
+  );
+  useEffect(() => {
+    if (lightboxVisible && lightboxHasCustomSlides) {
+      lightBoxDispatchContext?.setSlides(mediaSlides);
+    }
+  }, [
+    mediaSlides,
+    lightboxVisible,
+    lightboxHasCustomSlides,
+    lightBoxDispatchContext,
+  ]);
+
+  const openPanoramaLightBox = useCallback(() => {
+    lightBoxDispatchContext?.setAll({
+      // No title — matches the standalone photo lightbox, which shows none here.
+      title: "",
+      photourls: [],
+      // Same Stadt-Wuppertal attribution the photo lightbox shows, so the two
+      // viewers read identically. Slides may override per-slide if needed.
+      caption: defaultLightBoxCaptionFactory(),
+      index: 0, // the panorama is always the first slide
+      visible: true,
+      slides: mediaSlides,
+    });
+  }, [lightBoxDispatchContext, selectedFeature, mediaSlides]);
+
   if (loadingFeatureInfo && shouldRenderLoadingInfobox)
     return <LoadingInfoBox />;
 
@@ -873,10 +971,10 @@ const FeatureInfoBox = ({
           key="infobox-panorama-preview"
           src={selectedFeature.properties.panorama}
           multiResConfigUrl={selectedFeature.properties.panoramaMultiResConfig}
-          onExpand={() => setOpenPanorama(true)}
+          onExpand={openPanoramaLightBox}
           // Only the active viewer drives the map arrow; yield to the
-          // fullscreen lightbox while it is open.
-          onYawChange={openPanorama ? undefined : handlePanoramaYaw}
+          // lightbox viewer while it is open.
+          onYawChange={lightboxVisible ? undefined : handlePanoramaYaw}
           initialYaw={PANORAMA_INITIAL_YAW}
         />,
       ]
@@ -955,19 +1053,6 @@ const FeatureInfoBox = ({
             isTopicMap: false,
           })}
           skipTeilzwilling={true}
-        />
-      )}
-      {openPanorama && selectedFeature.properties.panorama && (
-        <PanoramaLightBox
-          src={selectedFeature.properties.panorama}
-          multiResConfigUrl={selectedFeature.properties.panoramaMultiResConfig}
-          title={selectedFeature.properties.title}
-          onClose={() => setOpenPanorama(false)}
-          onYawChange={handlePanoramaYaw}
-          onNext={handlePanoramaNext}
-          onPrevious={handlePanoramaPrevious}
-          hotspots={panoramaHotspots}
-          initialYaw={PANORAMA_INITIAL_YAW}
         />
       )}
     </>

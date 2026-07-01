@@ -66,7 +66,11 @@ export { PieChart } from "./lib/components/PieChart.tsx";
 export { ContactMailButton } from "./lib/components/ContactMailButton.tsx";
 export { FeatureInfobox } from "./lib/components/FeatureInfobox.tsx";
 export { PanoramaLightBox } from "./lib/components/PanoramaLightBox.tsx";
-export type { PanoramaHotspot } from "./lib/components/PanoramaLightBox.tsx";
+export { PanoramaViewer } from "./lib/components/PanoramaViewer.tsx";
+export type {
+  PanoramaHotspot,
+  PanoramaViewerProps,
+} from "./lib/components/PanoramaViewer.tsx";
 export { PanoramaPreview } from "./lib/components/PanoramaPreview.tsx";
 export { InfoBoxHeader } from "./lib/components/InfoBoxHeader.tsx";
 // CarmaMap moved to @carma-mapping/core
