@@ -7,10 +7,16 @@ import {
   type LightBoxDispatchValue,
   type LightBoxState,
 } from "./LightBoxContextProvider";
+import MediaLightBox from "./MediaLightBox";
 
 // Ported from react-cismap src/lib/topicmaps/PhotoLightbox.js (unchanged
-// behaviour). Renders nothing while visible === false, so it is safe to mount
-// idle wherever the map shell lives.
+// behaviour for image-only sets). Renders nothing while visible === false, so
+// it is safe to mount idle wherever the map shell lives.
+//
+// When the slide set contains a custom (non-image) slide — e.g. a panorama —
+// it delegates to the custom MediaLightBox shell, which can render arbitrary
+// content per slide. Pure-image sets keep using react-image-lightbox so their
+// zoom/swipe behaviour is unchanged.
 
 export interface PhotoLightBoxProps {
   reactModalStyleOverride?: CSSProperties;
@@ -32,8 +38,15 @@ const PhotoLightBox = ({
     index = 0,
     visible,
     reactModalStyle,
+    slides,
   } = state;
   const { setVisible, setIndex } = dispatchContext;
+
+  // Mixed media: hand off to the custom shell. It reads the same context, so no
+  // props need threading through here.
+  if ((slides ?? []).some((slide) => slide.type === "custom")) {
+    return <MediaLightBox defaultContextValues={defaultContextValues} />;
+  }
 
   if (visible) {
     let nextSrc: string | undefined = photourls[(index + 1) % photourls.length];

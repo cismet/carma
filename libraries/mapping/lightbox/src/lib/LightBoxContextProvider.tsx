@@ -4,7 +4,36 @@ import { useImmer, type Updater } from "use-immer";
 import { setFromLocalforage } from "./_helper";
 
 // Ported from react-cismap src/lib/contexts/LightBoxContextProvider.js,
-// converted to TS. Runtime behaviour is intentionally unchanged.
+// converted to TS. The original image-only behaviour (photourls/captions) is
+// intentionally unchanged; `slides` is an additive, richer media model layered
+// on top so the lightbox can host mixed content (images + a panorama viewer).
+
+// A single image slide: just a URL, optionally with its own title/caption.
+export interface LightBoxImageSlide {
+  type: "image";
+  src: string;
+  title?: ReactNode;
+  caption?: ReactNode;
+}
+
+// A custom slide: the consumer supplies whatever React node fills the centre
+// (e.g. a panorama viewer). `render` is called with `active` so the consumer
+// can mount the heavy viewer only while its slide is the one on screen. `key`
+// keeps React reconciliation stable across slide changes.
+//
+// NOTE: the lightbox library deliberately knows nothing about pannellum /
+// panoramas — the panorama lives in @carma-appframeworks/portals, which already
+// depends on this library. Keeping slides generic (a render fn) avoids a
+// dependency cycle while still letting the shared lightbox display a panorama.
+export interface LightBoxCustomSlide {
+  type: "custom";
+  key: string;
+  render: (ctx: { active: boolean }) => ReactNode;
+  title?: ReactNode;
+  caption?: ReactNode;
+}
+
+export type LightBoxSlide = LightBoxImageSlide | LightBoxCustomSlide;
 
 export interface LightBoxState {
   title: string;
@@ -14,6 +43,9 @@ export interface LightBoxState {
   index: number;
   visible: boolean;
   reactModalStyle?: CSSProperties;
+  // Mixed-media slides. When any slide is a custom one, the viewer renders the
+  // custom MediaLightBox shell instead of react-image-lightbox.
+  slides?: LightBoxSlide[];
 }
 
 export interface LightBoxSetAllPayload {
@@ -22,6 +54,7 @@ export interface LightBoxSetAllPayload {
   caption: ReactNode;
   index: number;
   visible?: boolean;
+  slides?: LightBoxSlide[];
 }
 
 export interface LightBoxDispatchValue {
@@ -32,6 +65,7 @@ export interface LightBoxDispatchValue {
   setCaptions: (x: ReactNode[]) => void;
   setIndex: (x: number) => void;
   setVisible: (x: boolean) => void;
+  setSlides: (x: LightBoxSlide[] | undefined) => void;
   setAll: (all: LightBoxSetAllPayload) => void;
 }
 
@@ -98,6 +132,14 @@ const UIContextProvider = ({
     setCaptions: set("captions"),
     setIndex: set("index"),
     setVisible: set("visible"),
+    // Slides carry render functions, which JSON.stringify drops — so the usual
+    // deep-equality guard in `set` would wrongly treat two different slide sets
+    // as equal. Assign directly instead.
+    setSlides: (x: LightBoxSlide[] | undefined) => {
+      dispatch((draft) => {
+        draft.slides = x;
+      });
+    },
     setAll: (all: LightBoxSetAllPayload) => {
       dispatch((draft) => {
         draft.title = all.title;
@@ -105,6 +147,7 @@ const UIContextProvider = ({
         draft.caption = all.caption;
         draft.index = all.index;
         draft.visible = all.visible === undefined ? true : all.visible;
+        draft.slides = all.slides;
       });
     },
   };

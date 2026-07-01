@@ -1,0 +1,159 @@
+/* Custom mixed-media lightbox shell (MediaLightBox.tsx). The chrome is a
+   deliberate visual match for react-image-lightbox (same backdrop opacity, bar
+   heights, translucent bars, and the identical close/nav SVG icons) so a
+   panorama or image shown here is indistinguishable from the photo lightbox
+   used across the apps.
+
+   The overlay is position:fixed with a high z-index, so it establishes a
+   stacking context: the toolbar/caption/nav sit above a panorama slide's own
+   position:fixed cursor arrows because they share this context. */
+.carma-media-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  background-color: rgba(0, 0, 0, 0.85);
+  color: #fff;
+}
+
+/* The centre fills the whole overlay; the translucent bars float on top, just
+   like react-image-lightbox overlays its toolbar/caption on the image. A
+   panorama viewer (which needs an explicitly sized container) gets the full
+   area; images are contained within it. */
+.carma-media-lightbox__content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Contain the image clear of the 50px top toolbar + 50px bottom caption (plus
+   breathing room), so it never slips under the bars or fills edge-to-edge. The
+   inline transform applies the zoom/pan on top of this fitted base size. */
+.carma-media-lightbox__image {
+  max-width: calc(100% - 80px);
+  max-height: calc(100% - 130px);
+  object-fit: contain;
+  transform-origin: center center;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* Top toolbar — matches .ril__toolbar (50px, translucent, space-between). */
+.carma-media-lightbox__toolbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  /* Above a panorama slide's own position:fixed cursor arrows (z ~100002). */
+  z-index: 100010;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.carma-media-lightbox__title {
+  flex: 0 1 auto;
+  min-width: 0;
+  padding-left: 20px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 50px;
+  font-size: 120%;
+}
+
+/* Toolbar right cluster: zoom buttons (image slides only) + close. */
+.carma-media-lightbox__toolbar-right {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  margin-right: 20px;
+}
+
+/* Builtin buttons — 40x35, white SVG icon, 0.7 -> 1 on hover, matching
+   .ril__builtinButton. */
+.carma-media-lightbox__close,
+.carma-media-lightbox__zoom {
+  width: 40px;
+  height: 35px;
+  border: none;
+  cursor: pointer;
+  opacity: 0.7;
+  background-color: transparent;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.carma-media-lightbox__close:hover,
+.carma-media-lightbox__zoom:hover {
+  opacity: 1;
+}
+
+/* Close — identical to .ril__closeButton. */
+.carma-media-lightbox__close {
+  background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZlcnNpb249IjEuMSIgd2lkdGg9IjIwIiBoZWlnaHQ9IjIwIj48cGF0aCBkPSJtIDEsMyAxLjI1LC0xLjI1IDcuNSw3LjUgNy41LC03LjUgMS4yNSwxLjI1IC03LjUsNy41IDcuNSw3LjUgLTEuMjUsMS4yNSAtNy41LC03LjUgLTcuNSw3LjUgLTEuMjUsLTEuMjUgNy41LC03LjUgLTcuNSwtNy41IHoiIGZpbGw9IiNGRkYiLz48L3N2Zz4=');
+}
+
+/* Zoom in / out — identical to .ril__zoomInButton / .ril__zoomOutButton. */
+.carma-media-lightbox__zoom--in {
+  background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+PGcgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCI+PHBhdGggZD0iTTEgMTlsNi02Ii8+PHBhdGggZD0iTTkgOGg2Ii8+PHBhdGggZD0iTTEyIDV2NiIvPjwvZz48Y2lyY2xlIGN4PSIxMiIgY3k9IjgiIHI9IjciIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIyIi8+PC9zdmc+');
+}
+
+.carma-media-lightbox__zoom--out {
+  background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+PGcgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCI+PHBhdGggZD0iTTEgMTlsNi02Ii8+PHBhdGggZD0iTTkgOGg2Ii8+PC9nPjxjaXJjbGUgY3g9IjEyIiBjeT0iOCIgcj0iNyIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiLz48L3N2Zz4=');
+}
+
+/* Edge nav buttons — match .ril__navButtons (translucent strip, white chevron
+   SVG, 0.7 -> 1 on hover). */
+.carma-media-lightbox__nav {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 100010;
+  width: 20px;
+  height: 34px;
+  padding: 40px 30px;
+  margin: auto;
+  border: none;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.carma-media-lightbox__nav:hover {
+  opacity: 1;
+}
+
+.carma-media-lightbox__nav--prev {
+  left: 0;
+  background: rgba(0, 0, 0, 0.2)
+    url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZlcnNpb249IjEuMSIgd2lkdGg9IjIwIiBoZWlnaHQ9IjM0Ij48cGF0aCBkPSJtIDE5LDMgLTIsLTIgLTE2LDE2IDE2LDE2IDEsLTEgLTE1LC0xNSAxNSwtMTUgeiIgZmlsbD0iI0ZGRiIvPjwvc3ZnPg==')
+    no-repeat center;
+}
+
+.carma-media-lightbox__nav--next {
+  right: 0;
+  background: rgba(0, 0, 0, 0.2)
+    url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZlcnNpb249IjEuMSIgd2lkdGg9IjIwIiBoZWlnaHQ9IjM0Ij48cGF0aCBkPSJtIDEsMyAyLC0yIDE2LDE2IC0xNiwxNiAtMSwtMSAxNSwtMTUgLTE1LC0xNSB6IiBmaWxsPSIjRkZGIi8+PC9zdmc+')
+    no-repeat center;
+}
+
+/* Bottom caption — matches .ril__caption (translucent bar, left-aligned
+   content). */
+.carma-media-lightbox__caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100010;
+  max-height: 150px;
+  overflow: auto;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.carma-media-lightbox__caption-content {
+  padding: 10px 20px;
+  color: #fff;
+}
