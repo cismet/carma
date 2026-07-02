@@ -3,7 +3,7 @@ import { Modal, Button, Switch } from "antd";
 import { SearchOutlined, CloseOutlined } from "@ant-design/icons";
 import { FontAwesomeIcon as Icon } from "@fortawesome/react-fontawesome";
 import { faFilter } from "@fortawesome/free-solid-svg-icons";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import {
   LeuchteSearch,
   MastSearch,
@@ -12,6 +12,8 @@ import {
   ArbeitsauftragSearch,
 } from "./featuresSearches";
 import { getJWT } from "../../store/slices/auth";
+import { resetType } from "../../store/slices/expertSearch";
+import type { ObjectType } from "./expert-search/fieldRegistry";
 import { ENDPOINT } from "../../constants/belis";
 import {
   LEUCHTEN_FIELDS,
@@ -637,14 +639,18 @@ const SearchModal = ({
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const [searchType, setSearchType] = useState<SearchType>("leuchte");
   const [isExpertSearch, setIsExpertSearch] = useState(false);
-  const [expertResetKey, setExpertResetKey] = useState(0);
   const [isQueryView, setIsQueryView] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [queryPreview, setQueryPreview] = useState<string>("");
   const [noResults, setNoResults] = useState(false);
 
   const jwt = useSelector(getJWT);
+  const dispatch = useDispatch();
   const { map } = useLibreContext();
+
+  // arbeitsauftrag has no scalar filter surface in expert mode; fall back to leuchte.
+  const expertObjectType: ObjectType =
+    searchType === "arbeitsauftrag" ? "leuchte" : searchType;
   const { setHighlightingActive, highlightByIds, clearHighlights } =
     useMapHighlight();
 
@@ -1114,7 +1120,7 @@ const SearchModal = ({
               {isExpertSearch && (
                 <button
                   type="button"
-                  onClick={() => setExpertResetKey((key) => key + 1)}
+                  onClick={() => dispatch(resetType(expertObjectType))}
                   className="text-[#6B7280] hover:text-[#4B5563] bg-transparent border-none cursor-pointer p-0"
                 >
                   Zurücksetzen
@@ -1171,10 +1177,7 @@ const SearchModal = ({
                 </div>
               </div>
             ) : isExpertSearch ? (
-              <ExpertSearch
-                key={expertResetKey}
-                objectType={searchType === "arbeitsauftrag" ? "leuchte" : searchType}
-              />
+              <ExpertSearch objectType={expertObjectType} />
             ) : (
               renderSearchComponent()
             )}
