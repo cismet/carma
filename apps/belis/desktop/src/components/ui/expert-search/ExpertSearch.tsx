@@ -5,7 +5,7 @@ import FilterGroup from "./FilterGroup";
 import type { FilterGroupHandle } from "./FilterGroup";
 import GroupConjunction from "./GroupConjunction";
 import FilterEmptyState from "./FilterEmptyState";
-import { CATEGORIES, REGISTRY } from "./fieldRegistry";
+import { TYPE_META, REGISTRY } from "./fieldRegistry";
 import type { ObjectType } from "./fieldRegistry";
 
 interface ExpertSearchProps {
@@ -78,8 +78,8 @@ const ExpertSearch = ({ objectType }: ExpertSearchProps) => {
             >
               <span
                 className="w-2 h-2 rounded-full flex-shrink-0"
-                style={{ backgroundColor: CATEGORIES[field.category].color }}
-                title={CATEGORIES[field.category].label}
+                style={{ backgroundColor: TYPE_META[field.type].color }}
+                title={TYPE_META[field.type].label}
               />
               {field.label}
             </button>
