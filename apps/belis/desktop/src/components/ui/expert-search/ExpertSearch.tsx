@@ -47,9 +47,17 @@ const ExpertSearch = ({ objectType }: ExpertSearchProps) => {
 
   const totalRules = Object.values(ruleCounts).reduce((sum, n) => sum + n, 0);
 
-  const filteredFields = fields.filter((field) =>
-    field.label.toLowerCase().includes(fieldFilter.toLowerCase())
-  );
+  // Group the sidebar by field type (the colored tag), keeping registry order
+  // within each type. Object.keys(TYPE_META) defines the type ordering.
+  const typeOrder = Object.keys(TYPE_META);
+  const filteredFields = fields
+    .filter((field) =>
+      field.label.toLowerCase().includes(fieldFilter.toLowerCase())
+    )
+    .slice()
+    .sort(
+      (a, b) => typeOrder.indexOf(a.type) - typeOrder.indexOf(b.type)
+    );
 
   return (
     <div className="flex h-full gap-6">
