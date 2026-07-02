@@ -28,6 +28,17 @@ const BOOLEAN_OPTIONS = [
   { value: "false", label: "Nein" },
 ];
 
+// Some reference key tables (bezirk, straßenschlüssel) are intentionally absent
+// from keyTableDisplayConfig — they are read-only and must not show up in the
+// key-table management UI (which lists every config key). Their option-label
+// templates for the FK dropdowns live here instead, so the selects show names
+// rather than raw ids.
+const FK_LABEL_TEMPLATE_FALLBACK: Record<string, string> = {
+  bezirk: "{bezirk}",
+  // Show the key (pk) then the street name, e.g. "1234 - Musterstraße".
+  "straßenschlüssel": "{pk} - {strasse}",
+};
+
 interface FilterRuleProps {
   objectType: ObjectType;
   groupId: number;
@@ -67,17 +78,24 @@ const FilterRule = ({
   // keyTableDisplayConfig template — the same source the classic searches use.
   const renderFkInput = () => {
     const table = fieldDef?.fkTable;
-    const rule = table ? keyTableDisplayConfig[table] : undefined;
+    const template =
+      (table && keyTableDisplayConfig[table]?.template) ??
+      (table && FK_LABEL_TEMPLATE_FALLBACK[table]) ??
+      undefined;
     const items = ((table && keyTablesData[table]) || []) as Record<
       string,
       unknown
     >[];
-    const options = items
+    // straßenschlüssel has admin codes without a street name; drop those so the
+    // dropdown never shows a bare number (mirrors StrassenschluesselFieldsModal).
+    const usableItems =
+      table === "straßenschlüssel"
+        ? items.filter((item) => item.pk && item.strasse)
+        : items;
+    const options = usableItems
       .map((item) => ({
         value: item.id as number,
-        label: rule?.template
-          ? parseTemplate(rule.template, item)
-          : String(item.id),
+        label: template ? parseTemplate(template, item) : String(item.id),
       }))
       .sort((a, b) =>
         a.label.localeCompare(b.label, "de", {
@@ -91,10 +109,19 @@ const FilterRule = ({
         className="w-full"
         showSearch
         optionFilterProp="label"
+        // Match anywhere in the label so both the number (pk) and the text
+        // (e.g. street name) are searchable.
+        filterOption={(input, option) =>
+          (option?.label ?? "")
+            .toLowerCase()
+            .includes(input.toLowerCase())
+        }
         value={value as number | undefined}
         onChange={(val) => setValue(val)}
         options={options}
-        placeholder="— wählen —"
+        placeholder={
+          fieldDef?.label ? `${fieldDef.label} auswählen…` : "— wählen —"
+        }
       />
     );
   };
