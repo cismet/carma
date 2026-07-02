@@ -5,30 +5,15 @@ import FilterGroup from "./FilterGroup";
 import type { FilterGroupHandle } from "./FilterGroup";
 import GroupConjunction from "./GroupConjunction";
 import FilterEmptyState from "./FilterEmptyState";
+import { CATEGORIES, REGISTRY } from "./fieldRegistry";
+import type { ObjectType } from "./fieldRegistry";
 
-interface ExpertField {
-  key: string;
-  label: string;
-  color: string;
+interface ExpertSearchProps {
+  objectType: ObjectType;
 }
 
-// Temporary hardcoded demo fields for the expert search sidebar
-const DEMO_FIELDS: ExpertField[] = [
-  { key: "bemerkung", label: "Bemerkung", color: "#6b7280" },
-  { key: "dokumente", label: "Dokumente", color: "#6b7280" },
-  { key: "erstellungsjahr", label: "Erstellungsjahr", color: "#3b82f6" },
-  { key: "geometrie", label: "Geometrie", color: "#14b8a6" },
-  { key: "material", label: "Material", color: "#14b8a6" },
-  { key: "strassenschluessel", label: "Straßenschlüssel", color: "#14b8a6" },
-  { key: "foto", label: "Foto", color: "#6b7280" },
-  { key: "geloescht", label: "Gelöscht", color: "#ea580c" },
-  { key: "laufende_nummer", label: "Laufende Nummer", color: "#3b82f6" },
-  { key: "monteur", label: "Monteur", color: "#6b7280" },
-  { key: "pruefdatum", label: "Prüfdatum", color: "#8b5cf6" },
-  { key: "id", label: "ID", color: "#3b82f6" },
-];
-
-const ExpertSearch = () => {
+const ExpertSearch = ({ objectType }: ExpertSearchProps) => {
+  const fields = REGISTRY[objectType];
   const [fieldFilter, setFieldFilter] = useState("");
   const [groupIds, setGroupIds] = useState<number[]>([1]);
   const [ruleCounts, setRuleCounts] = useState<Record<number, number>>({});
@@ -62,7 +47,7 @@ const ExpertSearch = () => {
 
   const totalRules = Object.values(ruleCounts).reduce((sum, n) => sum + n, 0);
 
-  const filteredFields = DEMO_FIELDS.filter((field) =>
+  const filteredFields = fields.filter((field) =>
     field.label.toLowerCase().includes(fieldFilter.toLowerCase())
   );
 
@@ -93,7 +78,8 @@ const ExpertSearch = () => {
             >
               <span
                 className="w-2 h-2 rounded-full flex-shrink-0"
-                style={{ backgroundColor: field.color }}
+                style={{ backgroundColor: CATEGORIES[field.category].color }}
+                title={CATEGORIES[field.category].label}
               />
               {field.label}
             </button>
@@ -138,6 +124,7 @@ const ExpertSearch = () => {
                   }}
                   groupId={id}
                   title={`Gruppe ${index + 1}`}
+                  fields={fields}
                   onDelete={
                     groupIds.length > 1 ? () => removeGroup(id) : undefined
                   }

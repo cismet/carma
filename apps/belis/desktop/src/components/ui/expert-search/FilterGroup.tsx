@@ -9,6 +9,7 @@ import { PlusOutlined, DeleteOutlined } from "@ant-design/icons";
 import FilterRule from "./rules/FilterRule";
 import ConjunctionToggle from "./ConjunctionToggle";
 import type { Conjunction } from "./ConjunctionToggle";
+import type { Field } from "./fieldRegistry";
 
 export interface FilterGroupHandle {
   addRule: (field?: string) => void;
@@ -17,6 +18,7 @@ export interface FilterGroupHandle {
 interface FilterGroupProps {
   groupId: number;
   title: string;
+  fields: Field[];
   onDelete?: () => void;
   onRuleCountChange?: (groupId: number, count: number) => void;
 }
@@ -27,7 +29,7 @@ interface RuleItem {
 }
 
 const FilterGroup = forwardRef<FilterGroupHandle, FilterGroupProps>(
-  ({ groupId, title, onDelete, onRuleCountChange }, ref) => {
+  ({ groupId, title, fields, onDelete, onRuleCountChange }, ref) => {
     const [conjunction, setConjunction] = useState<Conjunction>("UND");
     const [rules, setRules] = useState<RuleItem[]>([]);
     const nextRuleId = useRef(1);
@@ -76,6 +78,7 @@ const FilterGroup = forwardRef<FilterGroupHandle, FilterGroupProps>(
           {rules.map((rule) => (
             <FilterRule
               key={rule.id}
+              fields={fields}
               initialField={rule.initialField}
               onDelete={() => removeRule(rule.id)}
             />

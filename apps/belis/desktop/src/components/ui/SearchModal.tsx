@@ -1171,7 +1171,10 @@ const SearchModal = ({
                 </div>
               </div>
             ) : isExpertSearch ? (
-              <ExpertSearch key={expertResetKey} />
+              <ExpertSearch
+                key={expertResetKey}
+                objectType={searchType === "arbeitsauftrag" ? "leuchte" : searchType}
+              />
             ) : (
               renderSearchComponent()
             )}
