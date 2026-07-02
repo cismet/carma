@@ -1,31 +1,11 @@
 import { useState } from "react";
 import { Select, Input, InputNumber, DatePicker } from "antd";
 import { DeleteOutlined } from "@ant-design/icons";
-
-export type FieldType = "text" | "number" | "date" | "boolean" | "fk";
-
-interface FieldOption {
-  value: string;
-  label: string;
-  type: FieldType;
-}
-
-// Temporary hardcoded demo field definitions.
-// The `type` drives which value input is rendered as the last element.
-const FIELD_OPTIONS: FieldOption[] = [
-  { value: "bemerkung", label: "Bemerkung", type: "text" },
-  { value: "dokumente", label: "Dokumente", type: "text" },
-  { value: "erstellungsjahr", label: "Erstellungsjahr", type: "number" },
-  { value: "geometrie", label: "Geometrie", type: "text" },
-  { value: "material", label: "Material", type: "fk" },
-  { value: "strassenschluessel", label: "Straßenschlüssel", type: "fk" },
-  { value: "foto", label: "Foto", type: "boolean" },
-  { value: "geloescht", label: "Gelöscht", type: "boolean" },
-  { value: "laufende_nummer", label: "Laufende Nummer", type: "number" },
-  { value: "monteur", label: "Monteur", type: "text" },
-  { value: "pruefdatum", label: "Prüfdatum", type: "date" },
-  { value: "id", label: "ID", type: "number" },
-];
+import { useSelector } from "react-redux";
+import { getKeyTablesData } from "../../../../store/slices/keyTables";
+import { keyTableDisplayConfig } from "../../../../config/keyTableDisplayConfig";
+import { parseTemplate } from "../../../../utils/templateParser";
+import type { Field, FieldType } from "../fieldRegistry";
 
 const OPERATOR_OPTIONS = [
   { value: "eq", label: "= ist gleich" },
@@ -43,33 +23,66 @@ const BOOLEAN_OPTIONS = [
   { value: "false", label: "Nein" },
 ];
 
-// Temporary hardcoded demo foreign-key options (e.g. Straßenschlüssel).
-const FK_OPTIONS = [
-  { value: "01001", label: "01001 — Hauptstraße" },
-  { value: "01002", label: "01002 — Bahnhofstraße" },
-  { value: "01003", label: "01003 — Lindenallee" },
-  { value: "02014", label: "02014 — Ravensberg" },
-];
-
 interface FilterRuleProps {
+  fields: Field[];
   onDelete?: () => void;
   initialField?: string;
 }
 
-const FilterRule = ({ onDelete, initialField }: FilterRuleProps) => {
+const FilterRule = ({ fields, onDelete, initialField }: FilterRuleProps) => {
+  const keyTablesData = useSelector(getKeyTablesData);
+
   const [field, setField] = useState<string>(
-    initialField ?? FIELD_OPTIONS[0].value
+    initialField ?? fields[0]?.key ?? ""
   );
   const [operator, setOperator] = useState<string>("contains");
   const [value, setValue] = useState<unknown>(undefined);
 
-  const fieldDef = FIELD_OPTIONS.find((f) => f.value === field);
+  const fieldDef = fields.find((f) => f.key === field);
   const fieldType: FieldType = fieldDef?.type ?? "text";
+
+  const fieldOptions = fields.map((f) => ({ value: f.key, label: f.label }));
 
   const handleFieldChange = (nextField: string) => {
     setField(nextField);
     // Reset the value because the input type may change with the field
     setValue(undefined);
+  };
+
+  // FK options come from the redux key tables, labelled via the shared
+  // keyTableDisplayConfig template — the same source the classic searches use.
+  const renderFkInput = () => {
+    const table = fieldDef?.fkTable;
+    const rule = table ? keyTableDisplayConfig[table] : undefined;
+    const items = ((table && keyTablesData[table]) || []) as Record<
+      string,
+      unknown
+    >[];
+    const options = items
+      .map((item) => ({
+        value: item.id as number,
+        label: rule?.template
+          ? parseTemplate(rule.template, item)
+          : String(item.id),
+      }))
+      .sort((a, b) =>
+        a.label.localeCompare(b.label, "de", {
+          numeric: true,
+          sensitivity: "base",
+        })
+      );
+
+    return (
+      <Select
+        className="w-full"
+        showSearch
+        optionFilterProp="label"
+        value={value as number | undefined}
+        onChange={(val) => setValue(val)}
+        options={options}
+        placeholder="— wählen —"
+      />
+    );
   };
 
   // The last element type depends on the selected field.
@@ -110,17 +123,7 @@ const FilterRule = ({ onDelete, initialField }: FilterRuleProps) => {
           />
         );
       case "fk":
-        return (
-          <Select
-            className="w-full"
-            showSearch
-            optionFilterProp="label"
-            value={value as string | undefined}
-            onChange={(val) => setValue(val)}
-            options={FK_OPTIONS}
-            placeholder="— wählen —"
-          />
-        );
+        return renderFkInput();
       case "text":
       default:
         return (
@@ -139,7 +142,7 @@ const FilterRule = ({ onDelete, initialField }: FilterRuleProps) => {
         className="w-44 flex-shrink-0"
         value={field}
         onChange={handleFieldChange}
-        options={FIELD_OPTIONS}
+        options={fieldOptions}
         showSearch
         optionFilterProp="label"
       />
