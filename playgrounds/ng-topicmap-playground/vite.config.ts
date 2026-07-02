@@ -39,11 +39,13 @@ export default defineConfig({
 
   esbuild: {
     supported: {
+      "class-field": true,
       "class-static-field": true,
     },
   },
 
   build: {
+    target: "es2022",
     outDir: "../../dist/playgrounds/ng-topicmap-playground",
     reportCompressedSize: true,
     commonjsOptions: {
