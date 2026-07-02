@@ -53,10 +53,13 @@ const FK_OPTIONS = [
 
 interface FilterRuleProps {
   onDelete?: () => void;
+  initialField?: string;
 }
 
-const FilterRule = ({ onDelete }: FilterRuleProps) => {
-  const [field, setField] = useState<string>(FIELD_OPTIONS[0].value);
+const FilterRule = ({ onDelete, initialField }: FilterRuleProps) => {
+  const [field, setField] = useState<string>(
+    initialField ?? FIELD_OPTIONS[0].value
+  );
   const [operator, setOperator] = useState<string>("contains");
   const [value, setValue] = useState<unknown>(undefined);
 

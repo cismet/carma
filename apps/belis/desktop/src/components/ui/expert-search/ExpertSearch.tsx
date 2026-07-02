@@ -2,6 +2,7 @@ import { Fragment, useCallback, useRef, useState } from "react";
 import { Input } from "antd";
 import { SearchOutlined } from "@ant-design/icons";
 import FilterGroup from "./FilterGroup";
+import type { FilterGroupHandle } from "./FilterGroup";
 import GroupConjunction from "./GroupConjunction";
 import FilterEmptyState from "./FilterEmptyState";
 
@@ -32,6 +33,13 @@ const ExpertSearch = () => {
   const [groupIds, setGroupIds] = useState<number[]>([1]);
   const [ruleCounts, setRuleCounts] = useState<Record<number, number>>({});
   const nextGroupId = useRef(2);
+  const groupRefs = useRef<Record<number, FilterGroupHandle | null>>({});
+
+  // Clicking a field in the sidebar adds a rule (prefilled) to the last group
+  const handleFieldClick = (fieldKey: string) => {
+    const lastGroupId = groupIds[groupIds.length - 1];
+    groupRefs.current[lastGroupId]?.addRule(fieldKey);
+  };
 
   const addGroup = () => {
     setGroupIds((ids) => [...ids, nextGroupId.current++]);
@@ -40,7 +48,8 @@ const ExpertSearch = () => {
   const removeGroup = (id: number) => {
     setGroupIds((ids) => ids.filter((groupId) => groupId !== id));
     setRuleCounts((counts) => {
-      const { [id]: _removed, ...rest } = counts;
+      const rest = { ...counts };
+      delete rest[id];
       return rest;
     });
   };
@@ -79,6 +88,7 @@ const ExpertSearch = () => {
             <button
               key={field.key}
               type="button"
+              onClick={() => handleFieldClick(field.key)}
               className="flex items-center gap-2 w-full text-left text-sm text-gray-700 border border-gray-200 rounded-lg px-3 py-2 bg-white hover:border-blue-400 hover:bg-blue-50 cursor-pointer transition-colors"
             >
               <span
@@ -119,6 +129,13 @@ const ExpertSearch = () => {
               <Fragment key={id}>
                 {index > 0 && <GroupConjunction />}
                 <FilterGroup
+                  ref={(handle) => {
+                    if (handle) {
+                      groupRefs.current[id] = handle;
+                    } else {
+                      delete groupRefs.current[id];
+                    }
+                  }}
                   groupId={id}
                   title={`Gruppe ${index + 1}`}
                   onDelete={
