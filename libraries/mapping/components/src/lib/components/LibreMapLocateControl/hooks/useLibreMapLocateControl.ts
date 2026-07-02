@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import { Marker } from "maplibre-gl";
-import type { Map as MapLibreMap } from "maplibre-gl";
+import type { Map as MapLibreMap, Marker } from "maplibre-gl";
 
 interface UseLibreMapLocateControlProps {
   map: MapLibreMap | null;
@@ -53,9 +52,12 @@ export const useLibreMapLocateControl = ({
           box-shadow: 0 0 4px rgba(0,0,0,0.3);
         `;
 
-        markerRef.current = new Marker({ element: el })
-          .setLngLat([longitude, latitude])
-          .addTo(map);
+        // Dynamic import to avoid SSR issues
+        import("maplibre-gl").then(({ Marker }) => {
+          markerRef.current = new Marker({ element: el })
+            .setLngLat([longitude, latitude])
+            .addTo(map);
+        });
       } else {
         markerRef.current.setLngLat([longitude, latitude]);
       }
