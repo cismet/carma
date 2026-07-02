@@ -321,7 +321,10 @@ export const usePointLabelVisualizer = (
     const previousStatesById = stateCacheRef.current.statesById;
     // Keep the shared label field stable during active node editing so the
     // dragged label can float above its neighbors without re-laying them out.
-    const preserveOcclusionDuringCameraMove = isCameraMovingRef.current;
+    // Also reuse occlusion verdicts during live drags: re-testing runs a
+    // pick-pass render per label per frame. (cismet/wupp#4078)
+    const preserveOcclusionDuringCameraMove =
+      isCameraMovingRef.current || liveAnchors.size > 0;
     const freezeLayoutDuringActiveMove =
       !preserveOcclusionDuringCameraMove &&
       labelsRef.current.some(
