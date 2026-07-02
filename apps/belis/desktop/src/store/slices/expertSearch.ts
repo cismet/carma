@@ -209,3 +209,17 @@ export const getExpertTypeState =
   (objectType: ObjectType) =>
   (state: RootState): ExpertTypeState =>
     state.expertSearch[objectType];
+
+// A rule is complete when its value is filled — except "ist leer" (empty),
+// which needs no value. 0 / false count as filled.
+export const isRuleComplete = (rule: ExpertRuleState): boolean =>
+  rule.operator === "empty" ||
+  !(rule.value === undefined || rule.value === null || rule.value === "");
+
+// True when the tab has at least one rule still missing its value.
+export const getExpertTypeHasIncompleteRule =
+  (objectType: ObjectType) =>
+  (state: RootState): boolean =>
+    state.expertSearch[objectType].groups.some((group) =>
+      group.rules.some((rule) => !isRuleComplete(rule))
+    );

@@ -6,6 +6,7 @@ import {
   setRuleField,
   setRuleOperator,
   setRuleValue,
+  isRuleComplete,
 } from "../../../../store/slices/expertSearch";
 import type { ExpertRuleState } from "../../../../store/slices/expertSearch";
 import { keyTableDisplayConfig } from "../../../../config/keyTableDisplayConfig";
@@ -62,6 +63,11 @@ const FilterRule = ({
   const fieldDef = fields.find((f) => f.key === field);
   const fieldType: FieldType = fieldDef?.type ?? "text";
 
+  // Value is required for every operator except "ist leer"; flag it when empty
+  // so the input shows a red border (and the Suchen button can be disabled).
+  const hasError = !isRuleComplete(rule);
+  const errorStatus = hasError ? "error" : undefined;
+
   const fieldOptions = fields.map((f) => ({ value: f.key, label: f.label }));
 
   const setValue = (val: unknown) =>
@@ -107,6 +113,7 @@ const FilterRule = ({
     return (
       <Select
         className="w-full"
+        status={errorStatus}
         showSearch
         optionFilterProp="label"
         // Match anywhere in the label so both the number (pk) and the text
@@ -138,6 +145,7 @@ const FilterRule = ({
         return (
           <InputNumber
             className="w-full"
+            status={errorStatus}
             value={value as number | undefined}
             onChange={(val) => setValue(val)}
             placeholder="Zahl eingeben…"
@@ -147,6 +155,7 @@ const FilterRule = ({
         return (
           <DatePicker
             className="w-full"
+            status={errorStatus}
             value={value as never}
             onChange={(val) => setValue(val)}
             format="DD.MM.YYYY"
@@ -157,6 +166,7 @@ const FilterRule = ({
         return (
           <Select
             className="w-full"
+            status={errorStatus}
             value={value as string | undefined}
             onChange={(val) => setValue(val)}
             options={BOOLEAN_OPTIONS}
@@ -169,6 +179,7 @@ const FilterRule = ({
       default:
         return (
           <Input
+            status={errorStatus}
             value={value as string | undefined}
             onChange={(e) => setValue(e.target.value)}
             placeholder="Text eingeben…"

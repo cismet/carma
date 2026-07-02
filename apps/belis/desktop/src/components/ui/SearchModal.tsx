@@ -12,7 +12,10 @@ import {
   ArbeitsauftragSearch,
 } from "./featuresSearches";
 import { getJWT } from "../../store/slices/auth";
-import { resetType } from "../../store/slices/expertSearch";
+import {
+  resetType,
+  getExpertTypeHasIncompleteRule,
+} from "../../store/slices/expertSearch";
 import type { ObjectType } from "./expert-search/fieldRegistry";
 import { ENDPOINT } from "../../constants/belis";
 import {
@@ -651,6 +654,12 @@ const SearchModal = ({
   // arbeitsauftrag has no scalar filter surface in expert mode; fall back to leuchte.
   const expertObjectType: ObjectType =
     searchType === "arbeitsauftrag" ? "leuchte" : searchType;
+
+  // In expert mode, block the search while any rule is missing its value.
+  const expertHasIncompleteRule = useSelector(
+    getExpertTypeHasIncompleteRule(expertObjectType)
+  );
+  const searchDisabled = isExpertSearch && expertHasIncompleteRule;
   const { setHighlightingActive, highlightByIds, clearHighlights } =
     useMapHighlight();
 
@@ -1134,6 +1143,7 @@ const SearchModal = ({
                 type="primary"
                 onClick={executeSearch}
                 loading={isSearching}
+                disabled={searchDisabled}
               >
                 Suchen
               </Button>
