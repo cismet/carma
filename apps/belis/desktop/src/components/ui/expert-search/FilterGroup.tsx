@@ -1,54 +1,34 @@
-import {
-  forwardRef,
-  useEffect,
-  useImperativeHandle,
-  useRef,
-  useState,
-} from "react";
 import { PlusOutlined, DeleteOutlined } from "@ant-design/icons";
+import { useDispatch } from "react-redux";
 import FilterRule from "./rules/FilterRule";
 import ConjunctionToggle from "./ConjunctionToggle";
-import type { Conjunction } from "./ConjunctionToggle";
-import type { Field } from "./fieldRegistry";
-
-export interface FilterGroupHandle {
-  addRule: (field?: string) => void;
-}
+import type { Field, ObjectType } from "./fieldRegistry";
+import {
+  addRule,
+  removeRule,
+  setGroupInnerConjunction,
+} from "../../../store/slices/expertSearch";
+import type { ExpertGroupState } from "../../../store/slices/expertSearch";
 
 interface FilterGroupProps {
-  groupId: number;
+  objectType: ObjectType;
+  group: ExpertGroupState;
   title: string;
   fields: Field[];
   onDelete?: () => void;
-  onRuleCountChange?: (groupId: number, count: number) => void;
 }
 
-interface RuleItem {
-  id: number;
-  initialField?: string;
-}
+const FilterGroup = ({
+  objectType,
+  group,
+  title,
+  fields,
+  onDelete,
+}: FilterGroupProps) => {
+  const dispatch = useDispatch();
+  const { rules } = group;
 
-const FilterGroup = forwardRef<FilterGroupHandle, FilterGroupProps>(
-  ({ groupId, title, fields, onDelete, onRuleCountChange }, ref) => {
-    const [conjunction, setConjunction] = useState<Conjunction>("UND");
-    const [rules, setRules] = useState<RuleItem[]>([]);
-    const nextRuleId = useRef(1);
-
-    useEffect(() => {
-      onRuleCountChange?.(groupId, rules.length);
-    }, [groupId, rules.length, onRuleCountChange]);
-
-    const addRule = (field?: string) => {
-      setRules((rs) => [...rs, { id: nextRuleId.current++, initialField: field }]);
-    };
-
-    const removeRule = (id: number) => {
-      setRules((rs) => rs.filter((rule) => rule.id !== id));
-    };
-
-    useImperativeHandle(ref, () => ({ addRule }), []);
-
-    return (
+  return (
     <div className="border border-gray-200 rounded-xl p-4 bg-white">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2 text-xs font-semibold tracking-wide text-gray-500 uppercase">
@@ -56,7 +36,18 @@ const FilterGroup = forwardRef<FilterGroupHandle, FilterGroupProps>(
           {title}
         </div>
         <div className="flex items-center gap-2">
-          <ConjunctionToggle value={conjunction} onChange={setConjunction} />
+          <ConjunctionToggle
+            value={group.conjunction}
+            onChange={(conjunction) =>
+              dispatch(
+                setGroupInnerConjunction({
+                  objectType,
+                  groupId: group.id,
+                  conjunction,
+                })
+              )
+            }
+          />
           {onDelete && (
             <button
               type="button"
@@ -78,26 +69,37 @@ const FilterGroup = forwardRef<FilterGroupHandle, FilterGroupProps>(
           {rules.map((rule) => (
             <FilterRule
               key={rule.id}
+              objectType={objectType}
+              groupId={group.id}
+              rule={rule}
               fields={fields}
-              initialField={rule.initialField}
-              onDelete={() => removeRule(rule.id)}
+              onDelete={() =>
+                dispatch(
+                  removeRule({ objectType, groupId: group.id, ruleId: rule.id })
+                )
+              }
             />
           ))}
         </div>
       )}
       <button
         type="button"
-        onClick={() => addRule()}
+        onClick={() =>
+          dispatch(
+            addRule({
+              objectType,
+              groupId: group.id,
+              field: fields[0]?.key ?? "",
+            })
+          )
+        }
         aria-label="Bedingung hinzufügen"
         className="w-9 h-9 flex items-center justify-center rounded-lg border border-dashed border-gray-300 bg-white text-gray-400 hover:border-blue-400 hover:text-blue-500 cursor-pointer transition-colors"
       >
         <PlusOutlined />
       </button>
     </div>
-    );
-  }
-);
-
-FilterGroup.displayName = "FilterGroup";
+  );
+};
 
 export default FilterGroup;

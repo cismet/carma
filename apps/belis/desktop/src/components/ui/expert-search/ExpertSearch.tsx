@@ -1,51 +1,37 @@
-import { Fragment, useCallback, useRef, useState } from "react";
+import { Fragment, useState } from "react";
 import { Input } from "antd";
 import { SearchOutlined } from "@ant-design/icons";
+import { useDispatch, useSelector } from "react-redux";
 import FilterGroup from "./FilterGroup";
-import type { FilterGroupHandle } from "./FilterGroup";
 import GroupConjunction from "./GroupConjunction";
 import FilterEmptyState from "./FilterEmptyState";
 import { TYPE_META, REGISTRY } from "./fieldRegistry";
 import type { ObjectType } from "./fieldRegistry";
+import {
+  addGroup,
+  addRule,
+  removeGroup,
+  getExpertTypeState,
+} from "../../../store/slices/expertSearch";
 
 interface ExpertSearchProps {
   objectType: ObjectType;
 }
 
 const ExpertSearch = ({ objectType }: ExpertSearchProps) => {
+  const dispatch = useDispatch();
   const fields = REGISTRY[objectType];
+  const { groups } = useSelector(getExpertTypeState(objectType));
   const [fieldFilter, setFieldFilter] = useState("");
-  const [groupIds, setGroupIds] = useState<number[]>([1]);
-  const [ruleCounts, setRuleCounts] = useState<Record<number, number>>({});
-  const nextGroupId = useRef(2);
-  const groupRefs = useRef<Record<number, FilterGroupHandle | null>>({});
 
   // Clicking a field in the sidebar adds a rule (prefilled) to the last group
   const handleFieldClick = (fieldKey: string) => {
-    const lastGroupId = groupIds[groupIds.length - 1];
-    groupRefs.current[lastGroupId]?.addRule(fieldKey);
+    const lastGroup = groups[groups.length - 1];
+    if (!lastGroup) return;
+    dispatch(addRule({ objectType, groupId: lastGroup.id, field: fieldKey }));
   };
 
-  const addGroup = () => {
-    setGroupIds((ids) => [...ids, nextGroupId.current++]);
-  };
-
-  const removeGroup = (id: number) => {
-    setGroupIds((ids) => ids.filter((groupId) => groupId !== id));
-    setRuleCounts((counts) => {
-      const rest = { ...counts };
-      delete rest[id];
-      return rest;
-    });
-  };
-
-  const handleRuleCountChange = useCallback((id: number, count: number) => {
-    setRuleCounts((counts) =>
-      counts[id] === count ? counts : { ...counts, [id]: count }
-    );
-  }, []);
-
-  const totalRules = Object.values(ruleCounts).reduce((sum, n) => sum + n, 0);
+  const totalRules = groups.reduce((sum, g) => sum + g.rules.length, 0);
 
   // Group the sidebar by field type (the colored tag), keeping registry order
   // within each type. Object.keys(TYPE_META) defines the type ordering.
@@ -55,9 +41,7 @@ const ExpertSearch = ({ objectType }: ExpertSearchProps) => {
       field.label.toLowerCase().includes(fieldFilter.toLowerCase())
     )
     .slice()
-    .sort(
-      (a, b) => typeOrder.indexOf(a.type) - typeOrder.indexOf(b.type)
-    );
+    .sort((a, b) => typeOrder.indexOf(a.type) - typeOrder.indexOf(b.type));
 
   return (
     <div className="flex h-full gap-6">
@@ -106,37 +90,32 @@ const ExpertSearch = ({ objectType }: ExpertSearchProps) => {
           </div>
           <button
             type="button"
-            onClick={addGroup}
+            onClick={() => dispatch(addGroup(objectType))}
             className="text-sm text-gray-700 border border-gray-200 rounded-lg px-5 py-1.5 bg-white hover:border-blue-400 hover:bg-blue-50 cursor-pointer transition-colors"
           >
             + Gruppe
           </button>
         </div>
         <div className="flex-1 overflow-y-auto flex flex-col border border-dashed border-gray-200 rounded-xl bg-gray-50 p-3 text-gray-500 mt-2 mb-5">
-          {totalRules === 0 && groupIds.length === 1 && (
+          {totalRules === 0 && groups.length === 1 && (
             <div className="flex-1 flex items-center justify-center">
               <FilterEmptyState />
             </div>
           )}
           <div className="flex flex-col gap-4">
-            {groupIds.map((id, index) => (
-              <Fragment key={id}>
-                {index > 0 && <GroupConjunction />}
+            {groups.map((group, index) => (
+              <Fragment key={group.id}>
+                {index > 0 && <GroupConjunction objectType={objectType} />}
                 <FilterGroup
-                  ref={(handle) => {
-                    if (handle) {
-                      groupRefs.current[id] = handle;
-                    } else {
-                      delete groupRefs.current[id];
-                    }
-                  }}
-                  groupId={id}
+                  objectType={objectType}
+                  group={group}
                   title={`Gruppe ${index + 1}`}
                   fields={fields}
                   onDelete={
-                    groupIds.length > 1 ? () => removeGroup(id) : undefined
+                    groups.length > 1
+                      ? () => dispatch(removeGroup({ objectType, groupId: group.id }))
+                      : undefined
                   }
-                  onRuleCountChange={handleRuleCountChange}
                 />
               </Fragment>
             ))}

@@ -13,6 +13,7 @@ import arbeitsauftraegeDraftsSlice from "./slices/arbeitsauftraegeDrafts";
 import measurementsSlice from "./slices/measurements";
 import creationDefaultsSlice from "./slices/creationDefaults";
 import printSlice from "./slices/print";
+import expertSearchSlice from "./slices/expertSearch";
 
 
 const devToolsEnabled =
@@ -115,6 +116,8 @@ const store = configureStore({
     ui: ui.reducer,
     keyTables: keyTables.reducer,
     print: printSlice.reducer,
+    // Not persisted: rule values can hold dayjs objects (non-serializable).
+    expertSearch: expertSearchSlice.reducer,
     arbeitsauftraege: persistReducer(
       arbeitsauftraegeConfig,
       arbeitsauftraege.reducer

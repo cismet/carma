@@ -1,11 +1,16 @@
-import { useState } from "react";
 import { Select, Input, InputNumber, DatePicker } from "antd";
 import { DeleteOutlined } from "@ant-design/icons";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { getKeyTablesData } from "../../../../store/slices/keyTables";
+import {
+  setRuleField,
+  setRuleOperator,
+  setRuleValue,
+} from "../../../../store/slices/expertSearch";
+import type { ExpertRuleState } from "../../../../store/slices/expertSearch";
 import { keyTableDisplayConfig } from "../../../../config/keyTableDisplayConfig";
 import { parseTemplate } from "../../../../utils/templateParser";
-import type { Field, FieldType } from "../fieldRegistry";
+import type { Field, FieldType, ObjectType } from "../fieldRegistry";
 
 const OPERATOR_OPTIONS = [
   { value: "eq", label: "= ist gleich" },
@@ -24,29 +29,38 @@ const BOOLEAN_OPTIONS = [
 ];
 
 interface FilterRuleProps {
+  objectType: ObjectType;
+  groupId: number;
+  rule: ExpertRuleState;
   fields: Field[];
   onDelete?: () => void;
-  initialField?: string;
 }
 
-const FilterRule = ({ fields, onDelete, initialField }: FilterRuleProps) => {
+const FilterRule = ({
+  objectType,
+  groupId,
+  rule,
+  fields,
+  onDelete,
+}: FilterRuleProps) => {
+  const dispatch = useDispatch();
   const keyTablesData = useSelector(getKeyTablesData);
 
-  const [field, setField] = useState<string>(
-    initialField ?? fields[0]?.key ?? ""
-  );
-  const [operator, setOperator] = useState<string>("contains");
-  const [value, setValue] = useState<unknown>(undefined);
+  const { id: ruleId, field, operator, value } = rule;
 
   const fieldDef = fields.find((f) => f.key === field);
   const fieldType: FieldType = fieldDef?.type ?? "text";
 
   const fieldOptions = fields.map((f) => ({ value: f.key, label: f.label }));
 
+  const setValue = (val: unknown) =>
+    dispatch(setRuleValue({ objectType, groupId, ruleId, value: val }));
+  const setOperator = (op: string) =>
+    dispatch(setRuleOperator({ objectType, groupId, ruleId, operator: op }));
+
   const handleFieldChange = (nextField: string) => {
-    setField(nextField);
-    // Reset the value because the input type may change with the field
-    setValue(undefined);
+    // The reducer also resets the value, since the input type may change.
+    dispatch(setRuleField({ objectType, groupId, ruleId, field: nextField }));
   };
 
   // FK options come from the redux key tables, labelled via the shared
