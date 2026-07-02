@@ -5,6 +5,7 @@ import { rawDataPreStyle } from "../../helper/uiHelper";
 interface RawDisplayProps {
   children: string;
   maxHeight?: number;
+  fill?: boolean;
 }
 
 const CopyIcon = () => (
@@ -39,7 +40,7 @@ const copyButtonStyle: React.CSSProperties = {
   opacity: 0.8,
 };
 
-const RawDisplay = ({ children, maxHeight }: RawDisplayProps) => {
+const RawDisplay = ({ children, maxHeight, fill }: RawDisplayProps) => {
   const [copied, setCopied] = useState(false);
   const [hovered, setHovered] = useState(false);
 
@@ -50,7 +51,7 @@ const RawDisplay = ({ children, maxHeight }: RawDisplayProps) => {
   };
 
   return (
-    <div style={{ position: "relative" }}>
+    <div style={{ position: "relative", ...(fill ? { height: "100%" } : {}) }}>
       <button
         onClick={handleCopy}
         onMouseEnter={() => setHovered(true)}
@@ -66,7 +67,11 @@ const RawDisplay = ({ children, maxHeight }: RawDisplayProps) => {
       <pre
         style={{
           ...rawDataPreStyle,
-          ...(maxHeight != null ? { maxHeight } : {}),
+          ...(fill
+            ? { height: "100%", maxHeight: "100%", width: "100%", margin: 0 }
+            : maxHeight != null
+            ? { maxHeight }
+            : {}),
         }}
       >
         {children}

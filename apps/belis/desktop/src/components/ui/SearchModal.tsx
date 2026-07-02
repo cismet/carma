@@ -148,12 +148,18 @@ const SearchModalHeader = ({
   isExpertSearch,
   onExpertSearchChange,
   onClose,
+  isQueryView,
+  showQueryTab,
+  onSelectQueryTab,
 }: {
   searchType: SearchType;
   onSearchTypeChange: (type: SearchType) => void;
   isExpertSearch: boolean;
   onExpertSearchChange: (value: boolean) => void;
   onClose: () => void;
+  isQueryView: boolean;
+  showQueryTab: boolean;
+  onSelectQueryTab: () => void;
 }) => (
   <div className="flex flex-col gap-5">
     <div className="flex items-center gap-3">
@@ -189,7 +195,7 @@ const SearchModalHeader = ({
           type="button"
           onClick={() => onSearchTypeChange(value as SearchType)}
           className={`text-sm pb-2 -mb-px border-b-2 bg-transparent cursor-pointer transition-colors ${
-            searchType === value
+            !isQueryView && searchType === value
               ? "text-blue-600 border-blue-600 font-medium"
               : "text-gray-500 border-transparent hover:text-gray-700"
           }`}
@@ -197,6 +203,19 @@ const SearchModalHeader = ({
           {label}
         </button>
       ))}
+      {showQueryTab && (
+        <button
+          type="button"
+          onClick={onSelectQueryTab}
+          className={`text-sm pb-2 -mb-px border-b-2 bg-transparent cursor-pointer transition-colors ${
+            isQueryView
+              ? "text-blue-600 border-blue-600 font-medium"
+              : "text-gray-500 border-transparent hover:text-gray-700"
+          }`}
+        >
+          GraphQL
+        </button>
+      )}
     </div>
   </div>
 );
@@ -619,6 +638,7 @@ const SearchModal = ({
   const [searchType, setSearchType] = useState<SearchType>("leuchte");
   const [isExpertSearch, setIsExpertSearch] = useState(false);
   const [expertResetKey, setExpertResetKey] = useState(0);
+  const [isQueryView, setIsQueryView] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [queryPreview, setQueryPreview] = useState<string>("");
   const [noResults, setNoResults] = useState(false);
@@ -1070,10 +1090,19 @@ const SearchModal = ({
         title={
           <SearchModalHeader
             searchType={searchType}
-            onSearchTypeChange={setSearchType}
+            onSearchTypeChange={(type) => {
+              setSearchType(type);
+              setIsQueryView(false);
+            }}
             isExpertSearch={isExpertSearch}
-            onExpertSearchChange={setIsExpertSearch}
+            onExpertSearchChange={(value) => {
+              setIsExpertSearch(value);
+              setIsQueryView(false);
+            }}
             onClose={() => setIsOpen(false)}
+            isQueryView={isQueryView}
+            showQueryTab={showFinalQuery}
+            onSelectQueryTab={() => setIsQueryView(true)}
           />
         }
         open={isOpen}
@@ -1128,24 +1157,25 @@ const SearchModal = ({
               overflowY: "auto",
               overflowX: "hidden",
               paddingTop: 16,
-              paddingLeft: isExpertSearch ? 0 : 24,
-              paddingRight: isExpertSearch ? 0 : 24,
+              paddingLeft: isExpertSearch && !isQueryView ? 0 : 24,
+              paddingRight: isExpertSearch && !isQueryView ? 0 : 24,
             }}
           >
-            {isExpertSearch ? (
+            {isQueryView ? (
+              <div className="h-full flex flex-col">
+                <div className="text-sm font-medium text-gray-500 mb-2">
+                  GraphQL Query:
+                </div>
+                <div className="flex-1 min-h-0">
+                  <RawDisplay fill>{queryPreview}</RawDisplay>
+                </div>
+              </div>
+            ) : isExpertSearch ? (
               <ExpertSearch key={expertResetKey} />
             ) : (
               renderSearchComponent()
             )}
           </div>
-          {showFinalQuery && !isExpertSearch && (
-            <div className="mt-4 border-t border-gray-200 pt-4 px-6 flex-shrink-0">
-              <div className="text-sm font-medium text-gray-500 mb-2">
-                GraphQL Query:
-              </div>
-              <RawDisplay maxHeight={200}>{queryPreview}</RawDisplay>
-            </div>
-          )}
         </div>
       </Modal>
     </>

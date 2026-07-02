@@ -1,8 +1,18 @@
-import { useEffect, useRef, useState } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import { PlusOutlined, DeleteOutlined } from "@ant-design/icons";
 import FilterRule from "./rules/FilterRule";
 import ConjunctionToggle from "./ConjunctionToggle";
 import type { Conjunction } from "./ConjunctionToggle";
+
+export interface FilterGroupHandle {
+  addRule: (field?: string) => void;
+}
 
 interface FilterGroupProps {
   groupId: number;
@@ -11,29 +21,32 @@ interface FilterGroupProps {
   onRuleCountChange?: (groupId: number, count: number) => void;
 }
 
-const FilterGroup = ({
-  groupId,
-  title,
-  onDelete,
-  onRuleCountChange,
-}: FilterGroupProps) => {
-  const [conjunction, setConjunction] = useState<Conjunction>("UND");
-  const [ruleIds, setRuleIds] = useState<number[]>([]);
-  const nextRuleId = useRef(1);
+interface RuleItem {
+  id: number;
+  initialField?: string;
+}
 
-  useEffect(() => {
-    onRuleCountChange?.(groupId, ruleIds.length);
-  }, [groupId, ruleIds.length, onRuleCountChange]);
+const FilterGroup = forwardRef<FilterGroupHandle, FilterGroupProps>(
+  ({ groupId, title, onDelete, onRuleCountChange }, ref) => {
+    const [conjunction, setConjunction] = useState<Conjunction>("UND");
+    const [rules, setRules] = useState<RuleItem[]>([]);
+    const nextRuleId = useRef(1);
 
-  const addRule = () => {
-    setRuleIds((ids) => [...ids, nextRuleId.current++]);
-  };
+    useEffect(() => {
+      onRuleCountChange?.(groupId, rules.length);
+    }, [groupId, rules.length, onRuleCountChange]);
 
-  const removeRule = (id: number) => {
-    setRuleIds((ids) => ids.filter((ruleId) => ruleId !== id));
-  };
+    const addRule = (field?: string) => {
+      setRules((rs) => [...rs, { id: nextRuleId.current++, initialField: field }]);
+    };
 
-  return (
+    const removeRule = (id: number) => {
+      setRules((rs) => rs.filter((rule) => rule.id !== id));
+    };
+
+    useImperativeHandle(ref, () => ({ addRule }), []);
+
+    return (
     <div className="border border-gray-200 rounded-xl p-4 bg-white">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2 text-xs font-semibold tracking-wide text-gray-500 uppercase">
@@ -54,27 +67,34 @@ const FilterGroup = ({
           )}
         </div>
       </div>
-      {ruleIds.length === 0 ? (
+      {rules.length === 0 ? (
         <div className="text-sm text-gray-400 mb-3">
           Noch keine Bedingung — Feld links anklicken oder unten hinzufügen.
         </div>
       ) : (
         <div className="flex flex-col gap-2 mb-3">
-          {ruleIds.map((id) => (
-            <FilterRule key={id} onDelete={() => removeRule(id)} />
+          {rules.map((rule) => (
+            <FilterRule
+              key={rule.id}
+              initialField={rule.initialField}
+              onDelete={() => removeRule(rule.id)}
+            />
           ))}
         </div>
       )}
       <button
         type="button"
-        onClick={addRule}
+        onClick={() => addRule()}
         aria-label="Bedingung hinzufügen"
         className="w-9 h-9 flex items-center justify-center rounded-lg border border-dashed border-gray-300 bg-white text-gray-400 hover:border-blue-400 hover:text-blue-500 cursor-pointer transition-colors"
       >
         <PlusOutlined />
       </button>
     </div>
-  );
-};
+    );
+  }
+);
+
+FilterGroup.displayName = "FilterGroup";
 
 export default FilterGroup;
