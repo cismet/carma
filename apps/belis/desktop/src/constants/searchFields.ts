@@ -79,6 +79,7 @@ export const MAUERLASCHE_FIELDS = FETCH_EXTENDED_SEARCH_RESULTS
 // Leitungen are export-only (not part of the search modal), so no geom and no
 // minimal/extended split — the export always wants the full attribute set.
 export const LEITUNG_FIELDS = `id
+    geom { geo_field }
     leitungstyp { bezeichnung }
     material_leitung { bezeichnung }
     querschnitt { groesse }`;

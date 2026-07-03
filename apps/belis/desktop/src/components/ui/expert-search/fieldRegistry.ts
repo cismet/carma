@@ -17,7 +17,12 @@ export type FieldType = "text" | "number" | "date" | "boolean" | "fk";
 
 // The BELIS object types filterable via expert search — matches SearchModal's
 // SearchType (minus arbeitsauftrag, which has no scalar filter surface here).
-export type ObjectType = "leuchte" | "mast" | "schaltstelle" | "mauerlasche";
+export type ObjectType =
+  | "leuchte"
+  | "mast"
+  | "schaltstelle"
+  | "mauerlasche"
+  | "leitung";
 
 // The sidebar dot color describes the field's DATA TYPE, so a field carries no
 // separate color — it comes from its `type` via this map (defined once here).
@@ -150,6 +155,16 @@ export const REGISTRY: Record<ObjectType, Field[]> = {
     COMMON.pruefdatum,
     COMMON.bemerkung,
     COMMON.dokumente,
+    COMMON.is_deleted,
+  ],
+  // leitung
+  leitung: [
+    COMMON.id,
+    // Geometrie temporarily hidden — filtering a geom FK by value is meaningless.
+    // { key: "fk_geom", label: "Geometrie", type: "number" },
+    { key: "fk_leitungstyp", label: "Leitungstyp", type: "fk", fkTable: "leitungstyp" },
+    { key: "fk_material", label: "Material", type: "fk", fkTable: "materialLeitung" },
+    { key: "fk_querschnitt", label: "Querschnitt", type: "fk", fkTable: "querschnitt" },
     COMMON.is_deleted,
   ],
 };

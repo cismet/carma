@@ -37,6 +37,7 @@ const OBJECT_TYPES: ObjectType[] = [
   "mast",
   "schaltstelle",
   "mauerlasche",
+  "leitung",
 ];
 
 // Every tab starts with a single empty group, matching the previous default.
