@@ -5,7 +5,7 @@ import { useDispatch, useSelector } from "react-redux";
 import FilterGroup from "./FilterGroup";
 import GroupConjunction from "./GroupConjunction";
 import FilterEmptyState from "./FilterEmptyState";
-import { TYPE_META, REGISTRY } from "./fieldRegistry";
+import { TYPE_META, REGISTRY, defaultOperatorForType } from "./fieldRegistry";
 import type { ObjectType } from "./fieldRegistry";
 import {
   addGroup,
@@ -28,7 +28,15 @@ const ExpertSearch = ({ objectType }: ExpertSearchProps) => {
   const handleFieldClick = (fieldKey: string) => {
     const lastGroup = groups[groups.length - 1];
     if (!lastGroup) return;
-    dispatch(addRule({ objectType, groupId: lastGroup.id, field: fieldKey }));
+    const fieldType = fields.find((f) => f.key === fieldKey)?.type ?? "text";
+    dispatch(
+      addRule({
+        objectType,
+        groupId: lastGroup.id,
+        field: fieldKey,
+        operator: defaultOperatorForType(fieldType),
+      })
+    );
   };
 
   const totalRules = groups.reduce((sum, g) => sum + g.rules.length, 0);

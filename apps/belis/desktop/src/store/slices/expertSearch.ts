@@ -113,7 +113,7 @@ const slice = createSlice({
       group.rules.push({
         id: t.nextRuleId++,
         field: action.payload.field,
-        operator: action.payload.operator ?? "contains",
+        operator: action.payload.operator ?? "eq",
         value: undefined,
       });
     },
