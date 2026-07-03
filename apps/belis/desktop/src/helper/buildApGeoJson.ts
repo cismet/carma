@@ -69,14 +69,14 @@ export function extractGeometry(protokoll: Record<string, any>): {
     }
     if (!geoField) continue;
 
-    const converted = convertGeometry(geoField);
+    const converted = convertGeoFieldToWgs84(geoField);
     if (converted) return { geometry: converted, featureType: key };
   }
 
   // Last resort: protokoll.geometrie without a known feature type
   const fallbackGeo = protokoll.geometrie?.geom?.geo_field;
   if (fallbackGeo) {
-    const converted = convertGeometry(fallbackGeo);
+    const converted = convertGeoFieldToWgs84(fallbackGeo);
     if (converted)
       return { geometry: converted, featureType: "tdta_standort_mast" };
   }
@@ -85,10 +85,12 @@ export function extractGeometry(protokoll: Record<string, any>): {
 }
 
 /**
- * Convert an EPSG:25832 GeoJSON geometry to WGS84.
+ * Convert an EPSG:25832 GeoJSON geometry (as returned in `geom.geo_field`) to
+ * WGS84. Exported so other callers (e.g. the expert search) can resolve a
+ * Fachobjekt's real geometry.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function convertGeometry(geoField: any): GeoJSON.Geometry | null {
+export function convertGeoFieldToWgs84(geoField: any): GeoJSON.Geometry | null {
   if (!geoField?.type) return null;
 
   try {

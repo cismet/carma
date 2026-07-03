@@ -26,6 +26,7 @@ import {
   MAST_FIELDS,
   SCHALTSTELLE_FIELDS,
   MAUERLASCHE_FIELDS,
+  LEITUNG_FIELDS,
 } from "../../constants/searchFields";
 import RawDisplay from "./RawDisplay";
 import ExpertSearch from "./expert-search/ExpertSearch";
@@ -40,6 +41,7 @@ import {
   BELIS_ORIGINAL_SOURCE,
 } from "../../config/mapLayerConfigs";
 import { flattenGqlRecord } from "../../helper/flattenGqlRecord";
+import { convertGeoFieldToWgs84 } from "../../helper/buildApGeoJson";
 import {
   buildDateRangeCondition,
   buildArbeitsauftragWhereClause,
@@ -51,7 +53,8 @@ type SearchType =
   | "leuchte"
   | "mast"
   | "schaltstelle"
-  | "mauerlasche";
+  | "mauerlasche"
+  | "leitung";
 
 interface SearchModalProps {
   defaultOpen?: boolean;
@@ -130,7 +133,12 @@ const searchTypeLabels: Partial<Record<SearchType, string>> = {
   mast: "Standorte",
   schaltstelle: "Schaltstellen",
   mauerlasche: "Mauerlaschen",
+  leitung: "Leitungen",
 };
+
+// Object types that only exist in the expert search (no classic form / where
+// builder). Their tabs are hidden while the Expertensuche switch is off.
+const EXPERT_ONLY_TYPES: ReadonlySet<SearchType> = new Set(["leitung"]);
 
 const ARBEITSAUFTRAG_FIELDS = `id
     nummer
@@ -197,7 +205,11 @@ const SearchModalHeader = ({
       </div>
     </div>
     <div className="flex items-center gap-6 border-b border-gray-200 -mx-6 px-6">
-      {Object.entries(searchTypeLabels).map(([value, label]) => (
+      {Object.entries(searchTypeLabels)
+        .filter(
+          ([value]) => isExpertSearch || !EXPERT_ONLY_TYPES.has(value as SearchType)
+        )
+        .map(([value, label]) => (
         <button
           key={value}
           type="button"
@@ -510,6 +522,17 @@ const generateQueryString = (
     ${SCHALTSTELLE_FIELDS}
   }
 }`;
+  } else if (searchType === "leitung") {
+    // Leitungen exist only in the expert search, so there is no classic
+    // where builder — the where clause always comes from whereOverride.
+    const whereClause = whereOverride ?? "";
+    return `query LeitungSearch {
+  leitung(${
+    whereClause ? `${whereClause}, ` : ""
+  }order_by: {id: desc}) {
+    ${LEITUNG_FIELDS}
+  }
+}`;
   } else {
     const whereClause =
       whereOverride ??
@@ -530,6 +553,7 @@ const SEARCH_TYPE_SIDEBAR_META: Record<string, { sourceLayer: string }> = {
   mast: { sourceLayer: "standorte" },
   schaltstelle: { sourceLayer: "schaltstelle" },
   mauerlasche: { sourceLayer: "mauerlaschen" },
+  leitung: { sourceLayer: "leitungen" },
 };
 
 // Entity type mapping for arbeitsauftrag protokoll items
@@ -538,6 +562,27 @@ const PROTOKOLL_ENTITY_META: Record<string, { sourceLayer: string }> = {
   tdta_standort_mast: { sourceLayer: "standorte" },
   schaltstelle: { sourceLayer: "schaltstelle" },
   mauerlasche: { sourceLayer: "mauerlaschen" },
+};
+
+// Leitungen are line features with no geom_84 point. Derive a representative
+// WGS84 point (line midpoint) from their EPSG:25832 `geom.geo_field` so the
+// map can fit-to-bounds and the sidebar "Auf Fachobjekt zoomen" has a real
+// target instead of falling back to [0, 0].
+const leitungPoint = (
+  item: Record<string, unknown>
+): [number, number] | undefined => {
+  const geoField = (item.geom as { geo_field?: unknown } | undefined)
+    ?.geo_field;
+  const wgs = convertGeoFieldToWgs84(geoField);
+  if (!wgs) return undefined;
+  const midOf = (ring: number[][]): [number, number] | undefined => {
+    if (!ring.length) return undefined;
+    return ring[Math.floor(ring.length / 2)] as [number, number];
+  };
+  if (wgs.type === "Point") return wgs.coordinates as [number, number];
+  if (wgs.type === "LineString") return midOf(wgs.coordinates);
+  if (wgs.type === "MultiLineString") return midOf(wgs.coordinates[0] ?? []);
+  return undefined;
 };
 
 /** Convert flat GraphQL results into SidebarFeature[] */
@@ -616,6 +661,8 @@ const convertResultsToSidebarFeatures = (
       if (mast?.geom_84?.x != null && mast?.geom_84?.y != null) {
         coords = [mast.geom_84.x, mast.geom_84.y];
       }
+    } else if (searchType === "leitung") {
+      coords = leitungPoint(item);
     } else {
       const geom = item.geom_84 as { x?: number; y?: number } | undefined;
       if (geom?.x != null && geom?.y != null) {
@@ -771,27 +818,10 @@ const SearchModal = ({
             }
           }
 
-          if (coords.length === 0) {
-            console.warn(`${logPrefix} No coordinates found`);
-            setIsSearching(false);
-            return;
-          }
-
-          const rawBbox = {
-            minLng: Math.min(...coords.map((c) => c[0])),
-            maxLng: Math.max(...coords.map((c) => c[0])),
-            minLat: Math.min(...coords.map((c) => c[1])),
-            maxLat: Math.max(...coords.map((c) => c[1])),
-          };
-          // Expand bbox by 10% on each side to ensure all features are visible
-          const lngPadding = (rawBbox.maxLng - rawBbox.minLng) * 0.1 || 0.001;
-          const latPadding = (rawBbox.maxLat - rawBbox.minLat) * 0.1 || 0.001;
-          const bbox = {
-            minLng: rawBbox.minLng - lngPadding,
-            maxLng: rawBbox.maxLng + lngPadding,
-            minLat: rawBbox.minLat - latPadding,
-            maxLat: rawBbox.maxLat + latPadding,
-          };
+          // Some result types (e.g. Leitungen, line features) carry no point
+          // geometry. They can still be highlighted by id against their tile
+          // layer — we just skip the fit-to-bounds step below.
+          const hasCoords = coords.length > 0;
 
           // Highlight the returned features on the map
           let highlightArray: string[];
@@ -815,7 +845,22 @@ const SearchModal = ({
           // console.log(`${logPrefix} Highlighted`, ids.length, "features");
           // console.log(`${logPrefix} Highlight Array`, highlightArray);
 
-          if (map) {
+          if (map && hasCoords) {
+            const rawBbox = {
+              minLng: Math.min(...coords.map((c) => c[0])),
+              maxLng: Math.max(...coords.map((c) => c[0])),
+              minLat: Math.min(...coords.map((c) => c[1])),
+              maxLat: Math.max(...coords.map((c) => c[1])),
+            };
+            // Expand bbox by 10% on each side to ensure all features are visible
+            const lngPadding = (rawBbox.maxLng - rawBbox.minLng) * 0.1 || 0.001;
+            const latPadding = (rawBbox.maxLat - rawBbox.minLat) * 0.1 || 0.001;
+            const bbox = {
+              minLng: rawBbox.minLng - lngPadding,
+              maxLng: rawBbox.maxLng + lngPadding,
+              minLat: rawBbox.minLat - latPadding,
+              maxLat: rawBbox.maxLat + latPadding,
+            };
             map.fitBounds(
               [
                 [bbox.minLng, bbox.minLat],
@@ -1092,6 +1137,30 @@ const SearchModal = ({
           return [geom.x, geom.y];
         },
       });
+    } else if (effectiveType === "leitung") {
+      // Leitungen have no classic where builder — expertWhere is always set
+      // here because the tab is only reachable in expert mode.
+      const whereClause = expertWhere ?? "";
+      const query = `query LeitungSearch {
+        leitung(${
+          whereClause ? `${whereClause}, ` : ""
+        }order_by: {id: desc}) {
+          ${LEITUNG_FIELDS}
+        }
+      }`;
+
+      handleGraphQLSearch({
+        query,
+        dataKey: "leitung",
+        featurePrefix: "leitungen",
+        forSearchType: "leitung",
+        logPrefix: "[LEITUNG_SEARCH]",
+        // Leitungen are line features with no point geom_84; derive a
+        // representative WGS84 point from geom.geo_field for fit-to-bounds.
+        // The map highlight itself matches by id against the "leitungen"
+        // tile layer regardless of this point.
+        getGeometry: (item) => leitungPoint(item),
+      });
     }
   }, [
     searchType,
@@ -1138,6 +1207,11 @@ const SearchModal = ({
             onExpertSearchChange={(value) => {
               setIsExpertSearch(value);
               setIsQueryView(false);
+              // Expert-only tabs (e.g. Leitungen) vanish when leaving expert
+              // mode — fall back to a classic tab so no empty view is shown.
+              if (!value && EXPERT_ONLY_TYPES.has(searchType)) {
+                setSearchType("leuchte");
+              }
             }}
             onClose={() => setIsOpen(false)}
             isQueryView={isQueryView}

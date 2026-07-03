@@ -38,6 +38,8 @@ const FK_LABEL_TEMPLATE_FALLBACK: Record<string, string> = {
   bezirk: "{bezirk}",
   // Show the key (pk) then the street name, e.g. "1234 - Musterstraße".
   "straßenschlüssel": "{pk} - {strasse}",
+  // querschnitt has no keyTableDisplayConfig entry; label options by size.
+  querschnitt: "{groesse}",
 };
 
 interface FilterRuleProps {
