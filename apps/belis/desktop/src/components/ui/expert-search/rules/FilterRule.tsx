@@ -24,6 +24,25 @@ const OPERATOR_OPTIONS = [
   { value: "empty", label: "ø ist leer" },
 ];
 
+// Only offer operators that actually mean something for the field type, so the
+// dropdown never shows a choice that silently degrades in buildRuleCondition:
+//  - "enthält" (substring/_ilike) is a Text-only concept.
+//  - Ja/Nein only supports equality; >, ≥, <, ≤ collapse to _eq there.
+const getOperatorOptions = (fieldType: FieldType) =>
+  OPERATOR_OPTIONS.filter((op) => {
+    if (op.value === "contains") return fieldType === "text";
+    if (
+      fieldType === "boolean" &&
+      (op.value === "gt" ||
+        op.value === "gte" ||
+        op.value === "lt" ||
+        op.value === "lte")
+    ) {
+      return false;
+    }
+    return true;
+  });
+
 const BOOLEAN_OPTIONS = [
   { value: "true", label: "Ja" },
   { value: "false", label: "Nein" },
@@ -80,6 +99,13 @@ const FilterRule = ({
   const handleFieldChange = (nextField: string) => {
     // The reducer also resets the value, since the input type may change.
     dispatch(setRuleField({ objectType, groupId, ruleId, field: nextField }));
+    // If the current operator is not valid for the new field type (e.g.
+    // "enthält" after switching from Text to a number field), fall back to "=".
+    const nextType = fields.find((f) => f.key === nextField)?.type ?? "text";
+    const allowed = getOperatorOptions(nextType).map((o) => o.value);
+    if (!allowed.includes(operator)) {
+      dispatch(setRuleOperator({ objectType, groupId, ruleId, operator: "eq" }));
+    }
   };
 
   // FK options come from the redux key tables, labelled via the shared
@@ -204,7 +230,7 @@ const FilterRule = ({
         className="w-40 flex-shrink-0"
         value={operator}
         onChange={setOperator}
-        options={OPERATOR_OPTIONS}
+        options={getOperatorOptions(fieldType)}
       />
       <div className="flex-1 min-w-0">{renderValueInput()}</div>
       <button
