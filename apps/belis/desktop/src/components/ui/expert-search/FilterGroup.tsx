@@ -3,6 +3,7 @@ import { useDispatch } from "react-redux";
 import FilterRule from "./rules/FilterRule";
 import ConjunctionToggle from "./ConjunctionToggle";
 import type { Field, ObjectType } from "./fieldRegistry";
+import { defaultOperatorForType } from "./fieldRegistry";
 import {
   addRule,
   removeRule,
@@ -90,6 +91,7 @@ const FilterGroup = ({
               objectType,
               groupId: group.id,
               field: fields[0]?.key ?? "",
+              operator: defaultOperatorForType(fields[0]?.type ?? "text"),
             })
           )
         }

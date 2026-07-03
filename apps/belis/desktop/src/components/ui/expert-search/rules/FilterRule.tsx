@@ -12,6 +12,7 @@ import type { ExpertRuleState } from "../../../../store/slices/expertSearch";
 import { keyTableDisplayConfig } from "../../../../config/keyTableDisplayConfig";
 import { parseTemplate } from "../../../../utils/templateParser";
 import type { Field, FieldType, ObjectType } from "../fieldRegistry";
+import { defaultOperatorForType } from "../fieldRegistry";
 
 const OPERATOR_OPTIONS = [
   { value: "eq", label: "= ist gleich" },
@@ -27,18 +28,13 @@ const OPERATOR_OPTIONS = [
 // Only offer operators that actually mean something for the field type, so the
 // dropdown never shows a choice that silently degrades in buildRuleCondition:
 //  - "enthält" (substring/_ilike) is a Text-only concept.
-//  - Ja/Nein only supports equality; >, ≥, <, ≤ collapse to _eq there.
+//  - Ja/Nein only needs "=" and "ist leer": "≠ Ja" is just "= Nein", and the
+//    comparison operators (>, ≥, <, ≤) collapse to _eq there.
 const getOperatorOptions = (fieldType: FieldType) =>
   OPERATOR_OPTIONS.filter((op) => {
     if (op.value === "contains") return fieldType === "text";
-    if (
-      fieldType === "boolean" &&
-      (op.value === "gt" ||
-        op.value === "gte" ||
-        op.value === "lt" ||
-        op.value === "lte")
-    ) {
-      return false;
+    if (fieldType === "boolean") {
+      return op.value === "eq" || op.value === "empty";
     }
     return true;
   });
@@ -99,12 +95,19 @@ const FilterRule = ({
   const handleFieldChange = (nextField: string) => {
     // The reducer also resets the value, since the input type may change.
     dispatch(setRuleField({ objectType, groupId, ruleId, field: nextField }));
-    // If the current operator is not valid for the new field type (e.g.
-    // "enthält" after switching from Text to a number field), fall back to "=".
+    // When the field TYPE changes, reset to that type's default operator
+    // (Text → "enthält", otherwise "="). Switching between same-type fields
+    // keeps the chosen operator.
     const nextType = fields.find((f) => f.key === nextField)?.type ?? "text";
-    const allowed = getOperatorOptions(nextType).map((o) => o.value);
-    if (!allowed.includes(operator)) {
-      dispatch(setRuleOperator({ objectType, groupId, ruleId, operator: "eq" }));
+    if (nextType !== fieldType) {
+      dispatch(
+        setRuleOperator({
+          objectType,
+          groupId,
+          ruleId,
+          operator: defaultOperatorForType(nextType),
+        })
+      );
     }
   };
 

@@ -15,6 +15,11 @@
 
 export type FieldType = "text" | "number" | "date" | "boolean" | "fk";
 
+// Default comparison operator for a field type: Text starts with substring
+// search ("enthält"/contains), every other type with exact equality ("=").
+export const defaultOperatorForType = (type: FieldType): string =>
+  type === "text" ? "contains" : "eq";
+
 // The BELIS object types filterable via expert search — matches SearchModal's
 // SearchType (minus arbeitsauftrag, which has no scalar filter surface here).
 export type ObjectType =
@@ -83,9 +88,9 @@ export const REGISTRY: Record<ObjectType, Field[]> = {
     { key: "wechseldatum", label: "Leuchtmittelwechsel", type: "date" },
     { key: "naechster_wechsel", label: "Nächster Wechsel", type: "date" },
     { key: "lebensdauer", label: "Lebensdauer", type: "number" },
-    { key: "wartungszyklus", label: "Sonderturnus", type: "number" },
-    { key: "vorschaltgeraet", label: "Vorschaltgerät", type: "boolean" },
-    { key: "wechselvorschaltgeraet", label: "Erneuerung VG", type: "boolean" },
+    { key: "wartungszyklus", label: "Sonderturnus", type: "date" },
+    { key: "vorschaltgeraet", label: "Vorschaltgerät", type: "text" },
+    { key: "wechselvorschaltgeraet", label: "Erneuerung VG", type: "date" },
     { key: "montagefirma_leuchte", label: "Montagefirma", type: "text" },
     { key: "schaltstelle", label: "Schaltstelle", type: "text" },
     { key: "zaehler", label: "Zähler vorhanden", type: "text" },
@@ -121,7 +126,7 @@ export const REGISTRY: Record<ObjectType, Field[]> = {
     { key: "anbauten", label: "Anbauten", type: "text" },
     { key: "erdung", label: "Erdung", type: "boolean" },
     { key: "verfahren", label: "Verfahren", type: "text" },
-    { key: "verrechnungseinheit", label: "V-Einheit", type: "text" },
+    { key: "verrechnungseinheit", label: "V-Einheit", type: "boolean" },
     { key: "revision", label: "Revision", type: "date" },
     { key: "montagefirma", label: "Montagefirma", type: "text" },
     { key: "bemerkungen", label: "Bemerkung", type: "text" },
