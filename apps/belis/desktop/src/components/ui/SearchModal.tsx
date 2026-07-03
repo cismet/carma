@@ -15,8 +15,11 @@ import { getJWT } from "../../store/slices/auth";
 import {
   resetType,
   getExpertTypeHasIncompleteRule,
+  getExpertTypeState,
 } from "../../store/slices/expertSearch";
+import { REGISTRY } from "./expert-search/fieldRegistry";
 import type { ObjectType } from "./expert-search/fieldRegistry";
+import { buildExpertWhereClause } from "./expert-search/expertSearchUtils";
 import { ENDPOINT } from "../../constants/belis";
 import {
   LEUCHTEN_FIELDS,
@@ -462,7 +465,8 @@ const buildMauerlascheWhereClause = (
 // Helper to generate query string for preview
 const generateQueryString = (
   searchType: SearchType,
-  values: SearchValues
+  values: SearchValues,
+  whereOverride?: string | null
 ): string => {
   if (searchType === "arbeitsauftrag") {
     const whereClause = buildArbeitsauftragWhereClause(
@@ -476,7 +480,8 @@ const generateQueryString = (
   }
 }`;
   } else if (searchType === "leuchte") {
-    const whereClause = buildLeuchteWhereClause(values as LeuchteSearchValues);
+    const whereClause =
+      whereOverride ?? buildLeuchteWhereClause(values as LeuchteSearchValues);
     return `query LeuchtenSearch {
   tdta_leuchten(${
     whereClause ? `${whereClause}, ` : ""
@@ -485,7 +490,8 @@ const generateQueryString = (
   }
 }`;
   } else if (searchType === "mast") {
-    const whereClause = buildMastWhereClause(values as MastSearchValues);
+    const whereClause =
+      whereOverride ?? buildMastWhereClause(values as MastSearchValues);
     return `query MastSearch {
   tdta_standort_mast(${
     whereClause ? `${whereClause}, ` : ""
@@ -494,9 +500,9 @@ const generateQueryString = (
   }
 }`;
   } else if (searchType === "schaltstelle") {
-    const whereClause = buildSchaltstelleWhereClause(
-      values as SchaltstelleSearchValues
-    );
+    const whereClause =
+      whereOverride ??
+      buildSchaltstelleWhereClause(values as SchaltstelleSearchValues);
     return `query SchaltstelleSearch {
   schaltstelle(${
     whereClause ? `${whereClause}, ` : ""
@@ -505,9 +511,9 @@ const generateQueryString = (
   }
 }`;
   } else {
-    const whereClause = buildMauerlascheWhereClause(
-      values as MauerlascheSearchValues
-    );
+    const whereClause =
+      whereOverride ??
+      buildMauerlascheWhereClause(values as MauerlascheSearchValues);
     return `query MauerlascheSearch {
   mauerlasche(${
     whereClause ? `${whereClause}, ` : ""
@@ -660,6 +666,9 @@ const SearchModal = ({
     getExpertTypeHasIncompleteRule(expertObjectType)
   );
   const searchDisabled = isExpertSearch && expertHasIncompleteRule;
+
+  // The current expert filter tree — fed to buildExpertWhereClause on Suchen.
+  const expertTypeState = useSelector(getExpertTypeState(expertObjectType));
   const { setHighlightingActive, highlightByIds, clearHighlights } =
     useMapHighlight();
 
@@ -854,7 +863,17 @@ const SearchModal = ({
   const executeSearch = useCallback(() => {
     const values = searchValuesRef.current;
 
-    if (searchType === "arbeitsauftrag") {
+    // In expert mode the where clause comes from the query builder (redux),
+    // and the query targets the object type behind the tab (arbeitsauftrag →
+    // leuchte, which has no scalar filter surface of its own).
+    const effectiveType: SearchType = isExpertSearch
+      ? expertObjectType
+      : searchType;
+    const expertWhere = isExpertSearch
+      ? buildExpertWhereClause(expertTypeState, REGISTRY[expertObjectType])
+      : null;
+
+    if (effectiveType === "arbeitsauftrag") {
       const whereClause = buildArbeitsauftragWhereClause(
         values as ArbeitsauftragSearchValues
       );
@@ -976,10 +995,9 @@ const SearchModal = ({
           return ids;
         },
       });
-    } else if (searchType === "leuchte") {
-      const whereClause = buildLeuchteWhereClause(
-        values as LeuchteSearchValues
-      );
+    } else if (effectiveType === "leuchte") {
+      const whereClause =
+        expertWhere ?? buildLeuchteWhereClause(values as LeuchteSearchValues);
       const query = `query LeuchtenSearch {
         tdta_leuchten(${
           whereClause ? `${whereClause}, ` : ""
@@ -1003,8 +1021,9 @@ const SearchModal = ({
           return [geom.x, geom.y];
         },
       });
-    } else if (searchType === "mast") {
-      const whereClause = buildMastWhereClause(values as MastSearchValues);
+    } else if (effectiveType === "mast") {
+      const whereClause =
+        expertWhere ?? buildMastWhereClause(values as MastSearchValues);
       const query = `query MastSearch {
         tdta_standort_mast(${
           whereClause ? `${whereClause}, ` : ""
@@ -1025,10 +1044,10 @@ const SearchModal = ({
           return [geom.x, geom.y];
         },
       });
-    } else if (searchType === "schaltstelle") {
-      const whereClause = buildSchaltstelleWhereClause(
-        values as SchaltstelleSearchValues
-      );
+    } else if (effectiveType === "schaltstelle") {
+      const whereClause =
+        expertWhere ??
+        buildSchaltstelleWhereClause(values as SchaltstelleSearchValues);
       const query = `query SchaltstelleSearch {
         schaltstelle(${
           whereClause ? `${whereClause}, ` : ""
@@ -1049,10 +1068,10 @@ const SearchModal = ({
           return [geom.x, geom.y];
         },
       });
-    } else if (searchType === "mauerlasche") {
-      const whereClause = buildMauerlascheWhereClause(
-        values as MauerlascheSearchValues
-      );
+    } else if (effectiveType === "mauerlasche") {
+      const whereClause =
+        expertWhere ??
+        buildMauerlascheWhereClause(values as MauerlascheSearchValues);
       const query = `query MauerlascheSearch {
         mauerlasche(${
           whereClause ? `${whereClause}, ` : ""
@@ -1074,7 +1093,13 @@ const SearchModal = ({
         },
       });
     }
-  }, [searchType, handleGraphQLSearch]);
+  }, [
+    searchType,
+    isExpertSearch,
+    expertObjectType,
+    expertTypeState,
+    handleGraphQLSearch,
+  ]);
 
   const renderSearchComponent = () => {
     switch (searchType) {
@@ -1117,7 +1142,22 @@ const SearchModal = ({
             onClose={() => setIsOpen(false)}
             isQueryView={isQueryView}
             showQueryTab={showFinalQuery}
-            onSelectQueryTab={() => setIsQueryView(true)}
+            onSelectQueryTab={() => {
+              if (isExpertSearch) {
+                // Snapshot the builder so the preview matches what Suchen runs.
+                setQueryPreview(
+                  generateQueryString(
+                    expertObjectType,
+                    searchValuesRef.current,
+                    buildExpertWhereClause(
+                      expertTypeState,
+                      REGISTRY[expertObjectType]
+                    )
+                  )
+                );
+              }
+              setIsQueryView(true);
+            }}
           />
         }
         open={isOpen}

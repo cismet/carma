@@ -1,32 +1,19 @@
 // Where-clause builder for the expert search (Expertensuche).
 //
-// The expert search UI (components/ui/expert-search) produces a small tree of
-// groups → rules. This module turns that tree into a Hasura GraphQL `where`
-// clause string, in the same shape the classic per-type builders in
-// SearchModal.tsx emit (so it plugs into the same query execution).
+// The expert search UI in this folder produces a small tree of groups → rules,
+// stored in the `expertSearch` redux slice. This module turns that tree into a
+// Hasura GraphQL `where` clause string, in the same shape the classic per-type
+// builders in SearchModal.tsx emit (so it plugs into the same query execution).
 //
 // `field.key` in the registry is already the real backend column name, so each
 // rule maps to a flat `{ key: { _op: value } }` condition.
 
-import type { Field } from "../components/ui/expert-search/fieldRegistry";
-
-export type Conjunction = "UND" | "ODER";
-
-export interface ExpertRule {
-  field: string; // registry key = backend column
-  operator: string; // eq | neq | contains | gt | gte | lt | lte | empty
-  value: unknown;
-}
-
-export interface ExpertGroup {
-  conjunction: Conjunction; // how rules inside the group combine
-  rules: ExpertRule[];
-}
-
-export interface ExpertQuery {
-  groupConjunction: Conjunction; // how the groups combine
-  groups: ExpertGroup[];
-}
+import type { Field } from "./fieldRegistry";
+import type {
+  Conjunction,
+  ExpertRuleState,
+  ExpertTypeState,
+} from "../../../store/slices/expertSearch";
 
 // Scalar comparison operators → Hasura operators.
 const OP_MAP: Record<string, string> = {
@@ -61,7 +48,10 @@ const toBoolean = (v: unknown): boolean =>
 
 // Build the condition body for one rule (e.g. `fk_leuchttyp: {_eq: 5}`), or
 // null when the rule is incomplete and should be skipped.
-const buildRuleCondition = (rule: ExpertRule, field: Field): string | null => {
+const buildRuleCondition = (
+  rule: ExpertRuleState,
+  field: Field
+): string | null => {
   const col = field.key;
   const { operator, value } = rule;
 
@@ -126,7 +116,7 @@ const NOT_DELETED =
 // AND-ing the not-deleted guard. Returns just the not-deleted guard when no
 // usable rules are present.
 export const buildExpertWhereClause = (
-  query: ExpertQuery,
+  query: ExpertTypeState,
   fields: Field[]
 ): string => {
   const fieldMap = new Map(fields.map((f) => [f.key, f]));
