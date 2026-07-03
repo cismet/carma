@@ -109,18 +109,23 @@ const buildRuleCondition = (
   }
 };
 
+const IS_DELETED_COL = "is_deleted";
+
 const NOT_DELETED =
   "{_or: [{is_deleted: {_eq: false}}, {is_deleted: {_is_null: true}}]}";
 
-// Combine the group tree into a single GraphQL `where: {...}` string, always
-// AND-ing the not-deleted guard. Returns just the not-deleted guard when no
-// usable rules are present.
+// Combine the group tree into a single GraphQL `where: {...}` string, AND-ing
+// the not-deleted guard by default. When the user's own rules already filter on
+// `is_deleted` (e.g. "Gelöscht = Ja"), the guard is dropped so their explicit
+// filter wins instead of contradicting it. Returns just the not-deleted guard
+// when no usable rules are present.
 export const buildExpertWhereClause = (
   query: ExpertTypeState,
   fields: Field[]
 ): string => {
   const fieldMap = new Map(fields.map((f) => [f.key, f]));
 
+  let userFiltersDeleted = false;
   const groupClauses: string[] = [];
   for (const group of query.groups) {
     const ruleClauses: string[] = [];
@@ -128,7 +133,10 @@ export const buildExpertWhereClause = (
       const field = fieldMap.get(rule.field);
       if (!field) continue;
       const cond = buildRuleCondition(rule, field);
-      if (cond) ruleClauses.push(`{${cond}}`);
+      if (cond) {
+        ruleClauses.push(`{${cond}}`);
+        if (field.key === IS_DELETED_COL) userFiltersDeleted = true;
+      }
     }
     if (ruleClauses.length === 0) continue;
     groupClauses.push(
@@ -148,6 +156,11 @@ export const buildExpertWhereClause = (
   if (!userFilter) {
     // Strip the outer braces so it sits directly inside `where: {...}`.
     return `where: {${NOT_DELETED.slice(1, -1)}}`;
+  }
+
+  // The user is explicitly querying deleted state — don't force the guard on top.
+  if (userFiltersDeleted) {
+    return `where: {${userFilter.slice(1, -1)}}`;
   }
 
   return `where: {_and: [${NOT_DELETED}, ${userFilter}]}`;
