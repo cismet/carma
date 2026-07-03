@@ -96,14 +96,14 @@ const BPlanInfo = ({
     headertext = "rechtswirksam";
     headerColor = "#82BB8F"; //'#2AFF00';
   } else if (status === "nicht rechtskräftig") {
-    headertext = "nicht rechtswirksam";
+    headertext = "im Verfahren";
 
     headerColor = "#F48286"; //'#FC0000'
   } else {
     headertext = (
       <div>
         <Icon style={{ color: "#F48286" }} name="square-full" /> rechtswirksam |
-        laufende Änderung
+        im Verfahren
       </div>
     );
     headerColor = "#82BB8F";
