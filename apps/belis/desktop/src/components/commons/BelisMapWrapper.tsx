@@ -633,12 +633,23 @@ const BelisMapLibWrapper = ({
     setUnfilteredHighlights(highlightResults);
   }, [highlightResults]);
 
-  // Clear selection when highlighting activates (e.g. search)
+  // Clear selection when highlighting activates (e.g. search).
+  // When highlighting is deactivated (the "clean" X button), also drop the
+  // accumulated sidebar list. The map feature-state is cleared by
+  // useMapHighlighting's deactivate effect, but unfilteredHighlights otherwise
+  // only resets when the highlightResults prop changes — which is a no-op after
+  // a lasso / street search (highlightResults stays null). Without this reset a
+  // following lasso is treated as the same session (highlightCriteriaSignature
+  // ignores toggledFeatures) and stacks onto the stale old list -> old + new.
   useEffect(() => {
     if (highlightingActive) {
       clearMapSelection();
+    } else if (highlightResults == null) {
+      // Only drop the accumulated list when there's no externally supplied
+      // (funnel/SearchModal) result set to fall back to.
+      setUnfilteredHighlights(null);
     }
-  }, [highlightingActive]);
+  }, [highlightingActive, highlightResults]);
 
   // Drop any fachobjekt selection the moment the user enters a measurement
   // draw mode. Otherwise a previously-selected leuchte stays highlighted

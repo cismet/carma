@@ -168,6 +168,16 @@ export const useMapHighlighting = ({
   // feature already renders as not-highlighted.
   const markedRef = useRef<Map<string, FeatureStateRef>>(new Map());
 
+  // A clear-of-the-previous-set can be requested (criteria change or
+  // deactivation) at a moment when the style isn't loaded — e.g. a concurrent
+  // source setData (the brandnew FC poll fires every 1s in localhost / 15s in
+  // prod) momentarily flips isStyleLoaded() to false. When that happens we
+  // can't touch feature-state, so we remember the owed clear here and honor it
+  // on the next style-loaded apply. Without this, the recovery re-apply runs
+  // with clearPrevious=false and UNIONS the stale old highlights with the new
+  // ones (old + new both shown after a "clean" + new lasso/search).
+  const pendingClearRef = useRef(false);
+
   // Stable ref so applyHighlights doesn't need onHighlightsApplied as a dependency
   const onHighlightsAppliedRef = useRef<
     ((features: GeoJSONFeature[]) => void) | undefined
@@ -192,8 +202,13 @@ export const useMapHighlighting = ({
   // tiles (keep existing marks, only add newly-visible matches).
   const applyHighlights = useCallback(
     (mapInst: MaplibreMap, clearPrevious: boolean) => {
-      // Guard: style must be loaded before we can query sources/features
-      if (!mapInst.isStyleLoaded()) return;
+      // Guard: style must be loaded before we can query sources/features.
+      // If a clear was owed, remember it so the next (style-loaded) apply
+      // clears the old set first instead of unioning it with the new one.
+      if (!mapInst.isStyleLoaded()) {
+        if (clearPrevious) pendingClearRef.current = true;
+        return;
+      }
 
       // Ensure global state is in sync: the style uses ["global-state",
       // "highlightingEnabled"] to dim non-highlighted features. Setting it
@@ -204,7 +219,8 @@ export const useMapHighlighting = ({
         mGlobal.setGlobalStateProperty("highlightingEnabled", true);
       }
 
-      if (clearPrevious) clearMarked(mapInst);
+      if (clearPrevious || pendingClearRef.current) clearMarked(mapInst);
+      pendingClearRef.current = false;
 
       const srcs = explicitSources ?? discoverSources(mapInst);
       const queryIdLookup = buildQueryIdLookup(criteria);
@@ -278,8 +294,15 @@ export const useMapHighlighting = ({
   // clearing; unset features already render as not-highlighted.
   const clearAllState = useCallback(
     (mapInst: MaplibreMap) => {
-      // Guard: style must be loaded before we can touch feature state
-      if (!mapInst.isStyleLoaded()) return;
+      // Guard: style must be loaded before we can touch feature state. If it
+      // isn't (e.g. a concurrent source setData), remember the owed clear so
+      // the next apply still wipes the stale set first — otherwise a "clean"
+      // that lands during a style reload leaves the old highlights set (only
+      // hidden by dimming) and they resurface on the next selection.
+      if (!mapInst.isStyleLoaded()) {
+        pendingClearRef.current = true;
+        return;
+      }
       clearMarked(mapInst);
     },
     [clearMarked]
