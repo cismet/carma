@@ -4401,15 +4401,31 @@ const BelisMapLibWrapper = ({
     return selectedFeatureId;
   }, [sidebarMode, activeDraftRow, selectedFeatureId]);
 
-  // Database primary key of the selected feature (from tile properties).
-  // MVT feature IDs differ from database PKs; Highlights mode uses database PKs.
+  // Database primary key of the selected feature, used by the sidebar's
+  // pk-match branch to highlight the selected row.
+  //
+  // Prefer the id carried by the *live* selection: `sidebarSelectedFeatureId`
+  // updates synchronously on click and — now that the source promotes the DB
+  // pk to the feature id (`promoteId: "id"`) — already IS the database pk.
+  // `selectedFeature` / `rawFeature` only catch up after the info-box data
+  // resolves; deriving the pk from them alone let the sidebar briefly show TWO
+  // selected rows during a switch (the new row matched by id, the old row still
+  // matched by this now-stale pk). Fall back to the async sources only when the
+  // live id isn't a plain numeric pk (e.g. a creation-draft key).
   const selectedDatabaseId = useMemo(() => {
+    const liveId = sidebarSelectedFeatureId?.id;
+    if (
+      typeof liveId === "number" ||
+      (typeof liveId === "string" && /^\d+$/.test(liveId))
+    ) {
+      return liveId;
+    }
     return (
       selectedFeature?.properties?.sourceProps?.id ??
       rawFeature?.properties?.id ??
       null
     );
-  }, [selectedFeature, rawFeature]);
+  }, [sidebarSelectedFeatureId, selectedFeature, rawFeature]);
 
   // Always pass the raw feature so the mini-map can center on its geometry.
   // LibreMap's external selection watcher will attempt createFeature() via
