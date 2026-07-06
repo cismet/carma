@@ -182,6 +182,12 @@ export const leuchtenDataLayer: LibreLayer = {
   name: "Leuchten",
   style: BELIS_STYLE_URL,
   opacity: 1,
+  // Promote the DB primary key to the MapLibre feature id. Every belis
+  // source-layer (leuchten/standorte/mauerlaschen/…) carries a unique `id`;
+  // without this, selection/highlight `feature-state` keys by the tile-local
+  // MVT id and a DB id passed to setFeatureState aliases unrelated features in
+  // other tiles (phantom selections that shift on zoom).
+  promoteId: "id",
 };
 
 /** Experimental "brand new features" data layer (GeoJSON-backed style).

@@ -2358,74 +2358,19 @@ const BelisMapLibWrapper = ({
     sidebarVariant,
   ]);
 
-  // Visually select the MVT feature on the map when using the override path.
-  // The override path means LibreMap didn't handle the selection (no on-map click),
-  // so we need to set feature-state { selected: true } ourselves.
-  // Retry on sourcedata because the tile may not be loaded yet (e.g. after fly-to).
-  useEffect(() => {
-    if (!map || !overrideSelectedFeature || !selectedFeatureId) return;
-
-    const sourceLayer = selectedFeatureId.sourceLayer ?? "";
-    const dbId = selectedFeatureId.id;
-    if (dbId == null) return;
-
-    let prevMvtId: string | number | undefined;
-
-    const trySelect = (caller = "unknown") => {
-      try {
-        const t0 = performance.now();
-        const features = map.querySourceFeatures(namespacedSource, {
-          sourceLayer,
-        });
-        const match = features.find(
-          (f) => f.properties && String(f.properties.id) === String(dbId)
-        );
-        console.log(
-          `yyy [SEL-OVERRIDE-QSF] called by: ${caller} | querySourceFeatures(sourceLayer="${sourceLayer}") -> ${
-            features.length
-          } features | match=${match?.id != null} | ${(
-            performance.now() - t0
-          ).toFixed(1)}ms`
-        );
-        if (match?.id != null) {
-          if (prevMvtId != null && prevMvtId !== match.id) {
-            map.setFeatureState(
-              { source: namespacedSource, sourceLayer, id: prevMvtId },
-              { selected: false }
-            );
-          }
-          map.setFeatureState(
-            { source: namespacedSource, sourceLayer, id: match.id },
-            { selected: true }
-          );
-          prevMvtId = match.id;
-        }
-      } catch {
-        // source/layer may not exist yet
-      }
-    };
-
-    trySelect("selection-change");
-    const handler = () => {
-      console.log("yyy [SEL-OVERRIDE-PING] sourcedata event fired");
-      trySelect("sourcedata");
-    };
-    map.on("sourcedata", handler);
-
-    return () => {
-      map.off("sourcedata", handler);
-      if (prevMvtId != null) {
-        try {
-          map.setFeatureState(
-            { source: namespacedSource, sourceLayer, id: prevMvtId },
-            { selected: false }
-          );
-        } catch {
-          // ignore
-        }
-      }
-    };
-  }, [map, overrideSelectedFeature, selectedFeatureId, namespacedSource]);
+  // NOTE: the on-map visual selection is owned solely by LibreMap's external
+  // selection watcher (clearVisualSelection + applyVisualSelection on
+  // selectedFeatureId). Now that `belis-source` promotes the DB pk to the
+  // feature id (`promoteId: "id"` on leuchtenDataLayer), that native path keys
+  // feature-state by the stable DB id and MapLibre applies it even for tiles
+  // that load after a fly-to — so no manual override is needed here.
+  //
+  // A previous override effect re-set `feature-state.selected` via
+  // querySourceFeatures because, before promoteId, LibreMap selected the wrong
+  // (tile-local MVT) id. With promoteId both paths share the same DB id, so
+  // that override only fought LibreMap: its cleanup cleared the real selection
+  // ("loses selection at the final moment"), and its stale sets survived
+  // LibreMap's clear ("two features selected"). Removed intentionally.
 
   const libreLayers = useMemo(() => {
     const layers: LibreLayer[] = [];
@@ -4621,6 +4566,31 @@ const BelisMapLibWrapper = ({
 
       // Normal flow for fachobjekte/highlights
       setActiveDraftRow(null);
+
+      // `identifier.id` is an MVT tile id in Fachobjekte mode (rows come from
+      // queryRenderedFeatures) but a database primary key in Highlights mode
+      // (expert / street search rows carry `id: <dbId>`). The `belis-source`
+      // vector tiles are served WITHOUT `promoteId`, so `setFeatureState` keys
+      // on the tile-local MVT id — passing a DB id there aliases every feature
+      // that happens to share that integer in each loaded tile, painting
+      // phantom `mauerlaschen-selection` icons across the map (and shifting
+      // them as tiles reload on zoom). Resolve the DB id to the real MVT id via
+      // the loaded tiles first — exactly like the drafts branch above.
+      if (map) {
+        const sl = identifier.sourceLayer ?? "";
+        const dbPK = String(feature.properties?.id ?? identifier.id);
+        const match = map
+          .querySourceFeatures(namespacedSource, { sourceLayer: sl })
+          .find((f) => f.properties && String(f.properties.id) === dbPK);
+        if (match) {
+          selectFeature(
+            { source: identifier.source, sourceLayer: sl, id: match.id },
+            match as any
+          );
+          return;
+        }
+      }
+
       selectFeature(identifier, feature as any);
     },
     [

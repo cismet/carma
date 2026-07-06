@@ -284,7 +284,14 @@ export class StyleComposer {
       for (const [srcId, srcDef] of Object.entries(remoteSources)) {
         const namespacedSrc = `${layerId}::${srcId}`;
         if (!this.map.getSource(namespacedSrc)) {
-          this.map.addSource(namespacedSrc, srcDef);
+          // Opt-in: promote a feature property (e.g. "id") to the source's
+          // feature id so `feature-state` keys by the stable DB pk instead of
+          // the tile-local MVT id, which is only unique within one tile.
+          const withPromote =
+            vectorLayer.promoteId && "type" in srcDef && srcDef.type === "vector"
+              ? { ...srcDef, promoteId: vectorLayer.promoteId }
+              : srcDef;
+          this.map.addSource(namespacedSrc, withPromote);
         }
         sourceIds.push(namespacedSrc);
       }
