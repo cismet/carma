@@ -20,6 +20,7 @@ import type {
 import { useMapHighlight } from "../contexts/MapHighlightContext";
 import type { HighlightCriteria } from "../contexts/MapHighlightContext";
 import { buildFeatureStateTarget } from "../utils/featureStateTarget";
+import type { FeatureStateRef } from "../utils/featureStateTarget";
 
 /**
  * Pre-built index for O(1) queryId lookups.
@@ -157,6 +158,15 @@ export const useMapHighlighting = ({
   const sourceDataCleanupRef = useRef<(() => void) | null>(null);
   const prevVersionRef = useRef(-1);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Targets we've currently marked as highlighted (key -> target), so we can
+  // clear exactly those when criteria change. We deliberately never write
+  // `false` to the (many) non-matching features: MapLibre treats every
+  // setFeatureState call as a change and re-evaluates + re-uploads those
+  // features at render even when the value is unchanged, which stalls for
+  // seconds when the whole dataset is loaded (city-level zoom). The style
+  // reads `["boolean", ["feature-state", "highlighted"], false]`, so an unset
+  // feature already renders as not-highlighted.
+  const markedRef = useRef<Map<string, FeatureStateRef>>(new Map());
 
   // Stable ref so applyHighlights doesn't need onHighlightsApplied as a dependency
   const onHighlightsAppliedRef = useRef<
@@ -164,9 +174,24 @@ export const useMapHighlighting = ({
   >(onHighlightsApplied);
   onHighlightsAppliedRef.current = onHighlightsApplied;
 
-  // Apply highlight feature state to all currently loaded features
-  const applyHighlights = useCallback(
+  // Clear only the currently-marked highlights. Cheap: proportional to the
+  // number of highlighted features, not to the number of loaded features.
+  const clearMarked = useCallback(
     (mapInst: MaplibreMap) => {
+      for (const target of markedRef.current.values()) {
+        mapInst.setFeatureState(target, { [stateKey]: false });
+      }
+      markedRef.current.clear();
+    },
+    [stateKey]
+  );
+
+  // Apply highlight feature state to currently loaded features.
+  // `clearPrevious` = true on a genuine criteria change (clear the old
+  // highlight set first); false on a same-criteria re-apply for newly loaded
+  // tiles (keep existing marks, only add newly-visible matches).
+  const applyHighlights = useCallback(
+    (mapInst: MaplibreMap, clearPrevious: boolean) => {
       // Guard: style must be loaded before we can query sources/features
       if (!mapInst.isStyleLoaded()) return;
 
@@ -179,10 +204,13 @@ export const useMapHighlighting = ({
         mGlobal.setGlobalStateProperty("highlightingEnabled", true);
       }
 
+      if (clearPrevious) clearMarked(mapInst);
+
       const srcs = explicitSources ?? discoverSources(mapInst);
       const queryIdLookup = buildQueryIdLookup(criteria);
       const matched: GeoJSONFeature[] = [];
       const seen = new Set<string>();
+      const marked = markedRef.current;
 
       for (const { source, sourceLayers } of srcs) {
         // Geojson sources: querySourceFeatures ignores sourceLayer; iterate
@@ -212,26 +240,30 @@ export const useMapHighlighting = ({
               effectiveSL,
               source
             );
-            mapInst.setFeatureState(
-              buildFeatureStateTarget(mapInst, {
+            // Only touch feature-state for actual matches; non-matches are
+            // left unset (== false in the style). Skip matches already marked
+            // (feature can recur across tiles / sourcedata re-applies).
+            if (!shouldHighlight) continue;
+            const stateId = `${source}::${effectiveSL}::${String(f.id)}`;
+            if (!marked.has(stateId)) {
+              const target = buildFeatureStateTarget(mapInst, {
                 source,
                 sourceLayer: effectiveSL,
                 id: f.id,
-              }),
-              { [stateKey]: shouldHighlight }
-            );
-            if (shouldHighlight) {
-              const key = `${effectiveSL}::${String(props.id ?? f.id)}`;
-              if (!seen.has(key)) {
-                seen.add(key);
-                const fAny = f as GeoJSONFeature & {
-                  source?: string;
-                  sourceLayer?: string;
-                };
-                fAny.source = source;
-                fAny.sourceLayer = effectiveSL;
-                matched.push(f);
-              }
+              });
+              mapInst.setFeatureState(target, { [stateKey]: true });
+              marked.set(stateId, target);
+            }
+            const dedupKey = `${effectiveSL}::${String(props.id ?? f.id)}`;
+            if (!seen.has(dedupKey)) {
+              seen.add(dedupKey);
+              const fAny = f as GeoJSONFeature & {
+                source?: string;
+                sourceLayer?: string;
+              };
+              fAny.source = source;
+              fAny.sourceLayer = effectiveSL;
+              matched.push(f);
             }
           }
         }
@@ -239,41 +271,18 @@ export const useMapHighlighting = ({
 
       onHighlightsAppliedRef.current?.(matched);
     },
-    [criteria, explicitSources, stateKey]
+    [criteria, explicitSources, stateKey, clearMarked]
   );
 
-  // Clear all highlight state from loaded features
+  // Clear all highlight state we've applied. Only the features we marked need
+  // clearing; unset features already render as not-highlighted.
   const clearAllState = useCallback(
     (mapInst: MaplibreMap) => {
-      // Guard: style must be loaded before we can query sources/features
+      // Guard: style must be loaded before we can touch feature state
       if (!mapInst.isStyleLoaded()) return;
-
-      const srcs = explicitSources ?? discoverSources(mapInst);
-      for (const { source, sourceLayers } of srcs) {
-        const isGeojson = mapInst.getSource(source)?.type === "geojson";
-        const iterLayers: (string | undefined)[] = isGeojson
-          ? [undefined]
-          : [...sourceLayers];
-        for (const iterSL of iterLayers) {
-          const features =
-            iterSL === undefined
-              ? mapInst.querySourceFeatures(source)
-              : mapInst.querySourceFeatures(source, { sourceLayer: iterSL });
-          for (const f of features) {
-            if (f.id == null) continue;
-            mapInst.setFeatureState(
-              buildFeatureStateTarget(mapInst, {
-                source,
-                sourceLayer: iterSL,
-                id: f.id,
-              }),
-              { [stateKey]: false }
-            );
-          }
-        }
-      }
+      clearMarked(mapInst);
     },
-    [explicitSources, stateKey]
+    [clearMarked]
   );
 
   // Sync highlightingActive to map global state. The style dims
@@ -310,13 +319,13 @@ export const useMapHighlighting = ({
     if (prevVersionRef.current === highlightVersion) return;
     prevVersionRef.current = highlightVersion;
 
-    applyHighlights(map);
+    applyHighlights(map, true);
 
     // Start debounced sourcedata listener for new tiles
     sourceDataCleanupRef.current?.();
     const handler = () => {
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-      debounceTimerRef.current = setTimeout(() => applyHighlights(map), 100);
+      debounceTimerRef.current = setTimeout(() => applyHighlights(map, false), 100);
     };
     map.on("sourcedata", handler);
     sourceDataCleanupRef.current = () => {
