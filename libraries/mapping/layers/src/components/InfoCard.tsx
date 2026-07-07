@@ -76,22 +76,19 @@ const InfoCard = ({
   const dispatch = useDispatch();
   const layer = useSelector(getSelectedLayer);
   const [messageApi, contextHolder] = message.useMessage();
-  if (!layer) return null;
-  const { title, description, tags } = layer;
-  const displayTitle = resolveLayerTitle(layer);
 
   const [editCollection, setEditCollection] = useState(false);
-  const [updatedTitle, setUpdatedTitle] = useState(title);
+  const [updatedTitle, setUpdatedTitle] = useState(layer?.title);
   const [editedDescriptions, setEditedDescriptions] = useState<{
     [key: string]: string;
   }>({});
   const [updatedService, setUpdatedService] = useState(
-    layer.serviceName || "discoverPoi"
+    layer?.serviceName || "discoverPoi"
   );
-  const [updatedThumbnail, setUpdatedThumbnail] = useState(layer.thumbnail);
-  const [updatedKeywords, setUpdatedKeywords] = useState(tags || []);
+  const [updatedThumbnail, setUpdatedThumbnail] = useState(layer?.thumbnail);
+  const [updatedKeywords, setUpdatedKeywords] = useState(layer?.tags || []);
   const [updatedFile, setUpdatedFile] = useState<File | string | null>(
-    layer.thumbnail || null
+    layer?.thumbnail || null
   );
   const [keywordInput, setKeywordInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -120,6 +117,12 @@ const InfoCard = ({
   };
 
   const { jwt, userGroups } = useAuth();
+
+  if (!layer) {
+    return null;
+  }
+  const { title, description, tags } = layer;
+  const displayTitle = resolveLayerTitle(layer);
 
   const allowPublishing =
     userGroups.includes("_Geoportal_Publizieren") && !!jwt;
