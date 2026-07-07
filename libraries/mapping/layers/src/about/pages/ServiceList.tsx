@@ -7,7 +7,7 @@ import React, {
 } from "react";
 import { useSelector } from "react-redux";
 import { useStore } from "react-redux";
-import type { Item } from "@carma-mapping/layers";
+import type { Item } from "../../lib/contracts/carma-layers.d";
 import {
   getAllLayers,
   getloadingCapabilitiesIDs,

@@ -20,7 +20,7 @@ import isEqual from "lodash/isEqual";
 
 import { serviceOptions } from "@carma-commons/resources";
 import { FileUploader, uploadImage } from "@carma-commons/ui/components";
-import { BackgroundLayer, Item, Layer } from "@carma-mapping/layers";
+import { BackgroundLayer, Item, Layer } from "../lib/contracts/carma-layers.d";
 import {
   extractCarmaConfig,
   resolveLayerTitle,

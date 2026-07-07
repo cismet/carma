@@ -1,10 +1,12 @@
 import { Dispatch, SetStateAction, useEffect } from "react";
 import { message } from "antd";
 import WMSCapabilities from "wms-capabilities";
-import { SavedLayerConfig } from "@carma-mapping/layers";
+import type {
+  Layer,
+  SavedLayerConfig,
+} from "../lib/contracts/carma-layers.d";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 import { ActiveLayers } from "../components/LayerCatalog";
-import type { Layer } from "@carma-mapping/layers";
 import { useDispatch } from "react-redux";
 import { setCustomLayerConfig } from "../slices/mapLayers";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";

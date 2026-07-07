@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { useStore } from "react-redux";
-import type { Item, Layer } from "@carma-mapping/layers";
+import type { Item, Layer } from "../../lib/contracts/carma-layers.d";
 import { getAllLayers } from "../../slices/mapLayers";
 import { useAdditionalConfig } from "../../hooks/useAdditionalConfig";
 import { useLoadCapabilities } from "../../hooks/useLoadCapabilities";

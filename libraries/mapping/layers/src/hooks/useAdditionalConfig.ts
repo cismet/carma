@@ -5,7 +5,7 @@ import {
   type FeatureFlagConfig,
 } from "@carma-providers/feature-flag";
 import { addReplaceLayers, getCustomLayerConfig } from "../slices/mapLayers";
-import type { Config, SavedLayerConfig } from "@carma-mapping/layers";
+import type { Config, SavedLayerConfig } from "../lib/contracts/carma-layers.d";
 import { processCategoryConfig } from "../helper/processCategoryConfig";
 import {
   ADDITIONAL_LAYER_CONFIG_URL,

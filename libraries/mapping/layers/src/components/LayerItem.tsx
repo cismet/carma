@@ -15,7 +15,7 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Button, message, Spin } from "antd";
 
-import { Item, SavedLayerConfig } from "@carma-mapping/layers";
+import { Item, SavedLayerConfig } from "../lib/contracts/carma-layers.d";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { DeleteConfirmationModal } from "@carma-commons/ui/components";
 import {

@@ -1,4 +1,4 @@
-import type { SavedLayerConfig } from "@carma-mapping/layers";
+import type { SavedLayerConfig } from "../lib/contracts/carma-layers.d";
 import type { Dispatch, SetStateAction } from "react";
 
 interface ProcessCategoryConfigParams {

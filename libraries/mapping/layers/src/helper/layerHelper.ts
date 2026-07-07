@@ -5,7 +5,7 @@ import type {
   Item,
   XMLLayer,
   Layer,
-} from "@carma-mapping/layers";
+} from "../lib/contracts/carma-layers.d";
 
 import { serviceConfig } from "./config";
 import { ExtendedItem, getReplaceLayers } from "../slices/mapLayers";
