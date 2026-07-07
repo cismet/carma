@@ -621,6 +621,7 @@ const BelisMapLibWrapper = ({
     highlightingActive,
     highlightVersion,
     ensureToggledFeatures,
+    ensureSuppressedFeatures,
     criteria,
   } = useMapHighlight();
 
@@ -776,70 +777,47 @@ const BelisMapLibWrapper = ({
     [map, namespacedSource, ensureToggledFeatures, criteria]
   );
 
-  // Sidebar dismiss: remove a single feature from highlights
+  // Sidebar dismiss: remove a single feature from highlights.
+  //
+  // Uniform across origination paths (lasso → toggledFeatures, modal search →
+  // queryIds, street search → propertyMatchers): mark the feature as suppressed
+  // so useMapHighlighting's matchesCriteria treats it as un-highlighted no
+  // matter which store originally selected it. Also drop it from toggledFeatures
+  // to keep state clean when the feature was lasso-selected.
+  //
+  // promoteId: "id" is set on every BelIS vector layer, so MVT feature.id ===
+  // properties.id === DB pk. That means we can suppress by the sidebar feature's
+  // own id without re-querying source features — works even when the feature is
+  // outside the current viewport.
   const handleSidebarDismiss = useCallback(
     (feature: SidebarFeature) => {
-      const tStart = performance.now();
       const sl = feature.sourceLayer ?? "";
-      const dbId = String(feature.properties?.id ?? feature.id ?? "");
-      console.log(
-        `yyy [SIDEBAR-DISMISS] start | sourceLayer="${sl}" dbId="${dbId}"`
-      );
-      // Use the source the sidebar feature was stamped with (set by
-      // useMapHighlighting / handleHighlightToggle) and fall back to the
-      // regular source if missing — that way both vector and brandnew
-      // (geojson) features get cleared from the right source.
+      const dbId = feature.properties?.id ?? feature.id;
+      if (dbId == null || !sl) return;
       const featureSource =
         (feature as unknown as { source?: string }).source ?? namespacedSource;
-      const isFeatureGeojson =
-        map?.getSource(featureSource)?.type === "geojson";
 
-      // Remove from map highlight state
-      if (map) {
-        const queryOpts = isFeatureGeojson ? undefined : { sourceLayer: sl };
-        const sourceFeatures = map.querySourceFeatures(
-          featureSource,
-          queryOpts
-        );
-        console.log(
-          `yyy [SIDEBAR-DISMISS-QSF] querySourceFeatures(source="${featureSource}", sourceLayer="${
-            isFeatureGeojson ? "(geojson/all)" : sl
-          }") -> ${sourceFeatures.length} features`
-        );
-        const match = sourceFeatures.find((f) => {
-          if (
-            isFeatureGeojson &&
-            String(f.properties?._sourceLayer ?? "") !== sl
-          )
-            return false;
-          return String(f.properties?.id ?? "") === dbId;
-        });
-        if (match?.id != null) {
-          ensureToggledFeatures(
-            [{ source: featureSource, sourceLayer: sl, id: match.id }],
-            false
-          );
-        }
-      }
+      ensureSuppressedFeatures(
+        [{ source: featureSource, sourceLayer: sl, id: dbId }],
+        true
+      );
+      ensureToggledFeatures(
+        [{ source: featureSource, sourceLayer: sl, id: dbId }],
+        false
+      );
 
-      // Remove from sidebar list
+      const dbIdStr = String(dbId);
       setUnfilteredHighlights((prev) => {
         if (!prev) return prev;
         return prev.filter((f) => {
           const key = `${f.sourceLayer ?? ""}::${String(
             f.properties?.id ?? f.id ?? ""
           )}`;
-          return key !== `${sl}::${dbId}`;
+          return key !== `${sl}::${dbIdStr}`;
         });
       });
-
-      console.log(
-        `yyy [SIDEBAR-DISMISS] done | ${(performance.now() - tStart).toFixed(
-          1
-        )}ms`
-      );
     },
-    [map, namespacedSource, ensureToggledFeatures]
+    [namespacedSource, ensureToggledFeatures, ensureSuppressedFeatures]
   );
 
   // Signature of the *match intent* (property/query criteria only — NOT the

@@ -101,6 +101,10 @@ function matchesCriteria(
   source: string
 ): boolean {
   const toggleKey = `${source}::${sourceLayer}::${featureId}`;
+  // Dismiss wins over every other match — unified un-highlight regardless of
+  // which store originally selected the feature (toggledFeatures / queryIds /
+  // propertyMatchers). Cleared by re-adding the feature or clearHighlights.
+  if (criteria.suppressedFeatures.has(toggleKey)) return false;
   const isToggled = criteria.toggledFeatures.has(toggleKey);
 
   // Check property matchers
@@ -348,7 +352,10 @@ export const useMapHighlighting = ({
     sourceDataCleanupRef.current?.();
     const handler = () => {
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-      debounceTimerRef.current = setTimeout(() => applyHighlights(map, false), 100);
+      debounceTimerRef.current = setTimeout(
+        () => applyHighlights(map, false),
+        100
+      );
     };
     map.on("sourcedata", handler);
     sourceDataCleanupRef.current = () => {
