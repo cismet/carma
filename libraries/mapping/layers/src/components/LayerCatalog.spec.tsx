@@ -51,37 +51,6 @@ const textResponse = (body: string, status = 200) =>
 
 const jsonResponse = (data: unknown) => textResponse(JSON.stringify(data));
 
-// The replace/merge handling in getLayerStructure only works when the
-// additional config layers are already dispatched to the store when the WMS
-// capabilities arrive (in production the WMS responses are far slower than
-// the small config files). The gate holds the mocked capabilities responses
-// back until the store has received the replace layers.
-let capabilitiesGate: Promise<void> = Promise.resolve();
-
-const createCapabilitiesGate = (
-  store: ReturnType<typeof createTestStore>,
-  timeoutMs = 4000
-) =>
-  new Promise<void>((resolve) => {
-    const hasReplaceLayers = () =>
-      (store.getState() as any).mapLayers.replaceLayers.length > 0;
-    if (hasReplaceLayers()) {
-      resolve();
-      return;
-    }
-    const timer = setTimeout(() => {
-      unsubscribe();
-      resolve();
-    }, timeoutMs);
-    const unsubscribe = store.subscribe(() => {
-      if (hasReplaceLayers()) {
-        clearTimeout(timer);
-        unsubscribe();
-        resolve();
-      }
-    });
-  });
-
 const routedFetch = (input: RequestInfo | URL): Promise<Response> => {
   const url = String(input);
 
@@ -104,11 +73,11 @@ const routedFetch = (input: RequestInfo | URL): Promise<Response> => {
     url.includes("maps.wuppertal.de/karten") &&
     url.includes("GetCapabilities")
   ) {
-    return capabilitiesGate.then(() => textResponse(capabilitiesKartenXml));
+    return textResponse(capabilitiesKartenXml);
   }
   if (url.includes("maps.wuppertal.de")) {
     // the other WMS services stay empty in the tests
-    return capabilitiesGate.then(() => textResponse("", 204));
+    return textResponse("", 204);
   }
   if (url.includes("dataAquisition")) {
     // force the fallback to the public discover JSON
@@ -148,7 +117,6 @@ const renderModal = (
   overrides: Partial<Parameters<typeof LayerCatalog>[0]> = {}
 ) => {
   const store = createTestStore();
-  capabilitiesGate = createCapabilitiesGate(store);
   const props = {
     open: true,
     setOpen: vi.fn(),
@@ -196,6 +164,8 @@ describe("LayerCatalog", () => {
   });
 
   beforeEach(() => {
+    // isolate the localforage-backed query cache (persisted capabilities)
+    window.localStorage.clear();
     vi.stubGlobal("fetch", vi.fn(routedFetch));
   });
 
@@ -368,6 +338,25 @@ describe("LayerCatalog", () => {
     expect(props.addFavorite).toHaveBeenCalledWith(
       expect.objectContaining({ id: "wuppKarten:alkomgw" })
     );
+  });
+
+  it("remounts cleanly with a persisted capabilities cache (page refresh)", async () => {
+    const first = renderModal();
+    await screen.findByText("Stadtgrundkarte (grau)", undefined, {
+      timeout: 8000,
+    });
+    // let the throttled persister flush the capabilities to storage
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+    first.unmount();
+
+    // fresh store + fresh QueryClient over the same storage = page refresh
+    renderModal();
+    await screen.findByText("Stadtgrundkarte (grau)", undefined, {
+      timeout: 8000,
+    });
+    await screen.findByText("ALKIS Ersatzkarte (Test)", undefined, {
+      timeout: 8000,
+    });
   });
 
   it("clears the loading state when capabilities fail to load", async () => {

@@ -53,13 +53,10 @@ import "./input.css";
 import "./modal.css";
 import ItemSkeleton from "./ItemSkeleton";
 import SystemMessageBanner from "./SystemMessageBanner";
-import {
-  addReplaceLayers,
-  setSelectedLayer,
-  getAllLayers,
-  setAllLayers,
-} from "../slices/mapLayers";
+import { setSelectedLayer, getAllLayers } from "../slices/mapLayers";
 import { useDispatch, useSelector } from "react-redux";
+import { useQuery } from "@tanstack/react-query";
+import { CatalogQueryProvider } from "../config/CatalogQueryProvider";
 import { getTriggerRefetch, setTriggerRefetch } from "../slices/ui";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import {
@@ -103,7 +100,7 @@ export interface LayerCatalogProps {
   config?: LayerCatalogConfig;
 }
 
-export const LayerCatalog = ({
+const LayerCatalogView = ({
   open,
   setOpen,
   setAdditionalLayers,
@@ -154,10 +151,7 @@ export const LayerCatalog = ({
   const [currentShownCategory, setCurrentShownCategory] = useState(
     filteredCategories[0]?.id
   );
-  const [discoverItems, setDiscoverItems] = useState<any[]>([]);
-  const [loadingData, setLoadingData] = useState(false);
   const [delayedLoading, setDelayedLoading] = useState(false);
-  const [discoverError, setDiscoverError] = useState<string | null>(null);
 
   const triggerRefetch = useSelector(getTriggerRefetch);
   const dispatch = useDispatch();
@@ -166,33 +160,44 @@ export const LayerCatalog = ({
 
   const { jwt, setJWT } = useAuth();
 
-  const handleFetchDiscoverItems = () => {
-    if (catalogConfig.discoverProps) {
-      setLoadingData(true);
-      setDiscoverError(null);
-      fetchDiscoverItems(catalogConfig.discoverProps, jwt || undefined)
-        .then((data) => {
-          setDiscoverItems(data);
-          setLoadingData(false);
-          dispatch(setTriggerRefetch(false));
-        })
-        .catch((e) => {
-          if (jwt && e.status === 401) {
-            unauthorizedCallback?.();
-            setJWT("");
-          }
-          console.error("Error fetching gp_entdecken: ", e);
-          setDiscoverError("Fehler beim Laden der Inhalte");
-          setLoadingData(false);
-        });
-    }
-  };
+  const discoverProps = catalogConfig.discoverProps;
+  const {
+    data: discoverItems,
+    isFetching: loadingData,
+    isError: discoverHasError,
+    error: rawDiscoverError,
+    refetch: refetchDiscoverItems,
+  } = useQuery({
+    queryKey: ["discoverItems", discoverProps?.daqKey ?? "", jwt ?? ""],
+    queryFn: () => fetchDiscoverItems(discoverProps!, jwt || undefined),
+    enabled: !!discoverProps && (open || triggerRefetch),
+    retry: false,
+  });
+  const discoverError = discoverHasError
+    ? "Fehler beim Laden der Inhalte"
+    : null;
 
   useEffect(() => {
-    if (open || triggerRefetch) {
-      handleFetchDiscoverItems();
+    const error = rawDiscoverError as (Error & { status?: number }) | null;
+    if (!error) {
+      return;
     }
-  }, [open, triggerRefetch, jwt]);
+    if (jwt && error.status === 401) {
+      unauthorizedCallback?.();
+      setJWT("");
+    }
+    console.error("Error fetching gp_entdecken: ", error);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rawDiscoverError]);
+
+  useEffect(() => {
+    if (triggerRefetch) {
+      refetchDiscoverItems().finally(() => {
+        dispatch(setTriggerRefetch(false));
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [triggerRefetch]);
 
   useEffect(() => {
     if (!loadingData) {
@@ -401,12 +406,11 @@ export const LayerCatalog = ({
     activeLayers,
     updateActiveLayer,
     setAllCategories,
-    getDataFromJson,
     services: catalogConfig.services,
   });
 
   useEffect(() => {
-    if (discoverItems?.length === 0) {
+    if (!discoverItems || discoverItems.length === 0) {
       return;
     }
     const discoverCategories: {
@@ -677,16 +681,6 @@ export const LayerCatalog = ({
         path: "Neu",
         originalPath: layer.path,
       }));
-      setAllLayers((prev) => {
-        return [
-          {
-            id: "featured",
-            Title: "Neu",
-            layers: featuredLayersWithServiceName,
-          },
-          ...prev,
-        ];
-      });
       addItemToCategory(
         "mapLayers",
         { id: "featured", Title: "Neu" },
@@ -814,170 +808,124 @@ export const LayerCatalog = ({
   };
 
   return (
-    <LayerCatalogConfigProvider value={catalogConfig}>
-      <Modal
-        open={open}
-        classNames={{
-          content: "modal-content",
-        }}
-        onCancel={() => {
-          if (preview) {
-            setPreview(false);
-            if (removeLastLayer) {
-              removeLastLayer();
-            }
-          } else {
-            setOpen(false);
+    <Modal
+      open={open}
+      classNames={{
+        content: "modal-content",
+      }}
+      onCancel={() => {
+        if (preview) {
+          setPreview(false);
+          if (removeLastLayer) {
+            removeLastLayer();
           }
-        }}
+        } else {
+          setOpen(false);
+        }
+      }}
+      style={{
+        top: preview ? "84%" : undefined,
+        transition: "top 400ms linear",
+      }}
+      mask={!preview}
+      footer={<></>}
+      width={"100%"}
+      closeIcon={false}
+      wrapClassName="h-full !overflow-y-hidden hide-tabs"
+      className="h-[88%]"
+      styles={{
+        content: {
+          backgroundColor: "#f2f2f2",
+        },
+      }}
+    >
+      <div
+        className="w-full h-full flex bg-[#f2f2f2]"
         style={{
-          top: preview ? "84%" : undefined,
-          transition: "top 400ms linear",
-        }}
-        mask={!preview}
-        footer={<></>}
-        width={"100%"}
-        closeIcon={false}
-        wrapClassName="h-full !overflow-y-hidden hide-tabs"
-        className="h-[88%]"
-        styles={{
-          content: {
-            backgroundColor: "#f2f2f2",
-          },
+          maxHeight: "calc(100vh - 200px)",
+          minHeight: "calc(100vh - 200px)",
         }}
       >
         <div
-          className="w-full h-full flex bg-[#f2f2f2]"
+          className={`sm:w-40 w-16 h-full flex justify-between items-center flex-col pb-3 bg-gray-600`}
+          style={{ height: "calc(100vh - 188px)" }}
+        >
+          <div className="flex flex-col w-full items-center gap-2 overflow-y-auto overflow-x-hidden">
+            <div className="h-8 sm:h-24"></div>
+            {sidebarElements.map((element, i) => {
+              return (
+                <SidebarItem
+                  icon={element.icon}
+                  text={element.text}
+                  active={i === selectedNavItemIndex}
+                  onClick={() => {
+                    setSelectedNavItemIndex(i);
+                  }}
+                  key={element.id}
+                  numberOfItems={
+                    isSearching || !searchValue
+                      ? 0
+                      : getNumberOfLayers(
+                          categoriesToShownLayers(
+                            filteredCategories,
+                            element.id
+                          )
+                        )
+                  }
+                  showNumberOfItems={!!searchValue && !!debouncedSearchTerm}
+                  disabled={
+                    (i === sidebarElements.length - 1 && !searchValue) ||
+                    element.disabled
+                  }
+                />
+              );
+            })}
+          </div>
+        </div>
+
+        <div
+          className="sm:w-[calc(100vw-160px)] w-[calc(100vw-56px)] h-full flex flex-col bg-[#f2f2f2]"
           style={{
             maxHeight: "calc(100vh - 200px)",
             minHeight: "calc(100vh - 200px)",
           }}
         >
-          <div
-            className={`sm:w-40 w-16 h-full flex justify-between items-center flex-col pb-3 bg-gray-600`}
-            style={{ height: "calc(100vh - 188px)" }}
-          >
-            <div className="flex flex-col w-full items-center gap-2 overflow-y-auto overflow-x-hidden">
-              <div className="h-8 sm:h-24"></div>
-              {sidebarElements.map((element, i) => {
-                return (
-                  <SidebarItem
-                    icon={element.icon}
-                    text={element.text}
-                    active={i === selectedNavItemIndex}
-                    onClick={() => {
-                      setSelectedNavItemIndex(i);
-                    }}
-                    key={element.id}
-                    numberOfItems={
-                      isSearching || !searchValue
-                        ? 0
-                        : getNumberOfLayers(
-                            categoriesToShownLayers(
-                              filteredCategories,
-                              element.id
-                            )
-                          )
-                    }
-                    showNumberOfItems={!!searchValue && !!debouncedSearchTerm}
-                    disabled={
-                      (i === sidebarElements.length - 1 && !searchValue) ||
-                      element.disabled
-                    }
-                  />
-                );
-              })}
-            </div>
-          </div>
-
-          <div
-            className="sm:w-[calc(100vw-160px)] w-[calc(100vw-56px)] h-full flex flex-col bg-[#f2f2f2]"
-            style={{
-              maxHeight: "calc(100vh - 200px)",
-              minHeight: "calc(100vh - 200px)",
-            }}
-          >
-            <div className="sticky top-0 px-6 pt-6">
-              <div className="flex flex-col sm:flex-row justify-between md:gap-0 gap-1 items-center">
-                <div className="flex w-full sm:w-fit items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <h1 className="mb-0 text-3xl font-semibold">
-                      Karteninhalte
-                    </h1>
-                    {sidebarElements[selectedNavItemIndex].id === "discover" &&
-                      (discoverError || delayedLoading) &&
-                      (discoverError ? (
-                        <FontAwesomeIcon
-                          icon={faTriangleExclamation}
-                          className="text-red-500"
-                          title={
-                            discoverError || "Fehler beim Laden der Karten"
+          <div className="sticky top-0 px-6 pt-6">
+            <div className="flex flex-col sm:flex-row justify-between md:gap-0 gap-1 items-center">
+              <div className="flex w-full sm:w-fit items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <h1 className="mb-0 text-3xl font-semibold">Karteninhalte</h1>
+                  {sidebarElements[selectedNavItemIndex].id === "discover" &&
+                    (discoverError || delayedLoading) &&
+                    (discoverError ? (
+                      <FontAwesomeIcon
+                        icon={faTriangleExclamation}
+                        className="text-red-500"
+                        title={discoverError || "Fehler beim Laden der Karten"}
+                        role="status"
+                        aria-label={
+                          discoverError || "Fehler beim Laden der Karten"
+                        }
+                      />
+                    ) : (
+                      filteredCategories
+                        .find((cat) => cat.id === "discover")
+                        ?.categories.some(
+                          (subCat) => subCat.layers?.length > 0
+                        ) && (
+                        <Spin
+                          indicator={
+                            <LoadingOutlined spin className="text-gray-600" />
                           }
-                          role="status"
-                          aria-label={
-                            discoverError || "Fehler beim Laden der Karten"
-                          }
+                          size="small"
+                          aria-label="Anfrage dauert länger als erwartet"
                         />
-                      ) : (
-                        filteredCategories
-                          .find((cat) => cat.id === "discover")
-                          ?.categories.some(
-                            (subCat) => subCat.layers?.length > 0
-                          ) && (
-                          <Spin
-                            indicator={
-                              <LoadingOutlined spin className="text-gray-600" />
-                            }
-                            size="small"
-                            aria-label="Anfrage dauert länger als erwartet"
-                          />
-                        )
-                      ))}
-                  </div>
-                  <Button
-                    type="text"
-                    className="sm:hidden block"
-                    onClick={() => {
-                      setOpen(false);
-                      setPreview(false);
-                      dispatch(setSelectedLayer(null));
-                    }}
-                  >
-                    <FontAwesomeIcon icon={faX} />
-                  </Button>
+                      )
+                    ))}
                 </div>
-                <Search
-                  placeholder="Suchbegriff eingeben"
-                  className="w-full sm:w-[76%]"
-                  allowClear
-                  onChange={(e) => {
-                    setSearchValue(e.target.value);
-
-                    const searchResultsIndex = sidebarElements.findIndex(
-                      (item) => item.id === "searchResults"
-                    );
-
-                    if (
-                      selectedNavItemIndex === searchResultsIndex &&
-                      !e.target.value
-                    ) {
-                      setSelectedNavItemIndex(0);
-                    }
-                  }}
-                  loading={isSearching}
-                  onSearch={(value) => {
-                    const searchResultsIndex = sidebarElements.findIndex(
-                      (item) => item.id === "searchResults"
-                    );
-
-                    if (value !== "") {
-                      setSelectedNavItemIndex(searchResultsIndex);
-                    }
-                  }}
-                />
                 <Button
                   type="text"
-                  className="hidden sm:block"
+                  className="sm:hidden block"
                   onClick={() => {
                     setOpen(false);
                     setPreview(false);
@@ -987,70 +935,117 @@ export const LayerCatalog = ({
                   <FontAwesomeIcon icon={faX} />
                 </Button>
               </div>
-              <SystemMessageBanner
-                appKey={appKey}
-                slot="karteninhalte"
-                className="-mx-6 mt-2"
+              <Search
+                placeholder="Suchbegriff eingeben"
+                className="w-full sm:w-[76%]"
+                allowClear
+                onChange={(e) => {
+                  setSearchValue(e.target.value);
+
+                  const searchResultsIndex = sidebarElements.findIndex(
+                    (item) => item.id === "searchResults"
+                  );
+
+                  if (
+                    selectedNavItemIndex === searchResultsIndex &&
+                    !e.target.value
+                  ) {
+                    setSelectedNavItemIndex(0);
+                  }
+                }}
+                loading={isSearching}
+                onSearch={(value) => {
+                  const searchResultsIndex = sidebarElements.findIndex(
+                    (item) => item.id === "searchResults"
+                  );
+
+                  if (value !== "") {
+                    setSelectedNavItemIndex(searchResultsIndex);
+                  }
+                }}
               />
-              <div className="flex w-full gap-2">
-                <LayerTabs
-                  layers={categoriesToShownLayers(
+              <Button
+                type="text"
+                className="hidden sm:block"
+                onClick={() => {
+                  setOpen(false);
+                  setPreview(false);
+                  dispatch(setSelectedLayer(null));
+                }}
+              >
+                <FontAwesomeIcon icon={faX} />
+              </Button>
+            </div>
+            <SystemMessageBanner
+              appKey={appKey}
+              slot="karteninhalte"
+              className="-mx-6 mt-2"
+            />
+            <div className="flex w-full gap-2">
+              <LayerTabs
+                layers={categoriesToShownLayers(
+                  filteredCategories,
+                  sidebarElements[selectedNavItemIndex].id
+                )}
+                activeId={currentShownCategory}
+                setActiveId={setCurrentShownCategory}
+                numberOfItems={getNumberOfLayers(allLayers)}
+              />
+              <hr className="h-px bg-gray-300 border-0 mt-0 mb-2" />
+            </div>
+          </div>
+          <div
+            className="w-full gap-4 h-full overflow-auto pt-0.5 px-6"
+            id="scrollContainer"
+          >
+            {!showItems && open && (
+              <div className="w-full">
+                <div className="pt-2 grid xl:grid-cols-7 grid-flow-dense lg:grid-cols-5 sm:grid-cols-3 min-[490px]:grid-cols-2 gap-8 mb-4">
+                  {[...Array(10)].map((_, i) => (
+                    <ItemSkeleton key={`itemSkeleton_${i}`} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="w-full">
+              {showItems && (
+                <ItemGrid
+                  categories={categoriesToShownLayers(
                     filteredCategories,
                     sidebarElements[selectedNavItemIndex].id
                   )}
-                  activeId={currentShownCategory}
-                  setActiveId={setCurrentShownCategory}
-                  numberOfItems={getNumberOfLayers(allLayers)}
+                  setAdditionalLayers={setAdditionalLayers}
+                  activeLayers={activeLayers}
+                  favorites={favorites}
+                  addFavorite={addFavorite}
+                  removeFavorite={removeFavorite}
+                  setPreview={setPreview}
+                  isSearchCategory={
+                    sidebarElements[selectedNavItemIndex].id === "searchResults"
+                  }
+                  isDiscoverCategory={
+                    sidebarElements[selectedNavItemIndex].id === "discover"
+                  }
+                  loadingData={loadingData}
+                  currentCategoryIndex={selectedNavItemIndex}
+                  currentlySearching={!!debouncedSearchTerm}
                 />
-                <hr className="h-px bg-gray-300 border-0 mt-0 mb-2" />
-              </div>
-            </div>
-            <div
-              className="w-full gap-4 h-full overflow-auto pt-0.5 px-6"
-              id="scrollContainer"
-            >
-              {!showItems && open && (
-                <div className="w-full">
-                  <div className="pt-2 grid xl:grid-cols-7 grid-flow-dense lg:grid-cols-5 sm:grid-cols-3 min-[490px]:grid-cols-2 gap-8 mb-4">
-                    {[...Array(10)].map((_, i) => (
-                      <ItemSkeleton key={`itemSkeleton_${i}`} />
-                    ))}
-                  </div>
-                </div>
               )}
-
-              <div className="w-full">
-                {showItems && (
-                  <ItemGrid
-                    categories={categoriesToShownLayers(
-                      filteredCategories,
-                      sidebarElements[selectedNavItemIndex].id
-                    )}
-                    setAdditionalLayers={setAdditionalLayers}
-                    activeLayers={activeLayers}
-                    favorites={favorites}
-                    addFavorite={addFavorite}
-                    removeFavorite={removeFavorite}
-                    setPreview={setPreview}
-                    isSearchCategory={
-                      sidebarElements[selectedNavItemIndex].id ===
-                      "searchResults"
-                    }
-                    isDiscoverCategory={
-                      sidebarElements[selectedNavItemIndex].id === "discover"
-                    }
-                    loadingData={loadingData}
-                    currentCategoryIndex={selectedNavItemIndex}
-                    currentlySearching={!!debouncedSearchTerm}
-                  />
-                )}
-              </div>
             </div>
           </div>
         </div>
-      </Modal>
-    </LayerCatalogConfigProvider>
+      </div>
+    </Modal>
   );
 };
+
+export const LayerCatalog = (props: LayerCatalogProps) => (
+  <LayerCatalogConfigProvider value={props.config ?? wuppLayerCatalogConfig}>
+    <CatalogQueryProvider>
+      <LayerCatalogView {...props} />
+    </CatalogQueryProvider>
+  </LayerCatalogConfigProvider>
+);
 
 export default LayerCatalog;

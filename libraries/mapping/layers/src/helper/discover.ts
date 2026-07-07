@@ -14,6 +14,9 @@ type DiscoverResult = {
     id: number;
     name: string;
     draft?: boolean;
+    created_at?: string;
+    created_by?: string;
+    updated_at?: string;
   }[];
 };
 

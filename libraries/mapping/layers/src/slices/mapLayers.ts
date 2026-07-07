@@ -1,18 +1,13 @@
 import localForage from "localforage";
-import { createSlice } from "@reduxjs/toolkit";
-import {
-  Config,
-  ExtendedItem,
-  Item,
-} from "../lib/contracts/carma-layers.d";
+import { createSlice, current } from "@reduxjs/toolkit";
+import { isEqual } from "lodash";
+import { Config, ExtendedItem, Item } from "../lib/contracts/carma-layers.d";
 
 export type { ExtendedItem };
 
 interface MapLayersState {
   replaceLayers: ExtendedItem[];
-  // IDs to show loading state for the specific capabilities
   loadingCapabilitiesIDs: string[];
-  // Global loading state for capabilities. Turns to false when one capability finished loading
   loadingCapabilities: boolean;
   selectedLayer: Item | null;
   allLayers: { Title: string; id: string; layers: Item[] }[];
@@ -42,7 +37,7 @@ export const getMapLayersConfig = ({
   return {
     key: `@${appKey}.${storagePrefix}.app.mapLayers`,
     storage: localForage,
-    whitelist: ["allLayers"],
+    whitelist: [],
   };
 };
 
@@ -50,16 +45,32 @@ const sliceMapLayers = createSlice({
   name: "mapLayers",
   initialState,
   reducers: {
+    // All reducers here must be idempotent: re-dispatching unchanged data may
+    // not produce new state, otherwise derivation effects depending on it
+    // (useLoadCapabilities) loop with host re-renders.
     addReplaceLayers: (state, action) => {
-      state.replaceLayers.push(action.payload);
+      const existingIndex = state.replaceLayers.findIndex(
+        (layer) => layer.id === action.payload.id
+      );
+      if (existingIndex === -1) {
+        state.replaceLayers.push(action.payload);
+      } else if (
+        !isEqual(current(state.replaceLayers[existingIndex]), action.payload)
+      ) {
+        state.replaceLayers[existingIndex] = action.payload;
+      }
     },
     addloadingCapabilitiesIDs: (state, action) => {
-      state.loadingCapabilitiesIDs.push(action.payload);
+      if (!state.loadingCapabilitiesIDs.includes(action.payload)) {
+        state.loadingCapabilitiesIDs.push(action.payload);
+      }
     },
     removeloadingCapabilitiesIDs: (state, action) => {
-      state.loadingCapabilitiesIDs = state.loadingCapabilitiesIDs.filter(
-        (item) => item !== action.payload
-      );
+      if (state.loadingCapabilitiesIDs.includes(action.payload)) {
+        state.loadingCapabilitiesIDs = state.loadingCapabilitiesIDs.filter(
+          (item) => item !== action.payload
+        );
+      }
     },
     clearReplaceLayers: (state) => {
       state.replaceLayers = [];
@@ -84,8 +95,12 @@ const sliceMapLayers = createSlice({
             );
 
             if (existingIndex !== -1) {
-              // Replace the existing item's layers
-              state.allLayers[existingIndex] = payloadItem;
+              // Replace the existing item only when its content changed
+              if (
+                !isEqual(current(state.allLayers[existingIndex]), payloadItem)
+              ) {
+                state.allLayers[existingIndex] = payloadItem;
+              }
             } else {
               // Create new item at the same position as in payload
               // If the position doesn't exist yet, push to end

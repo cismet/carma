@@ -8,6 +8,7 @@ import React, {
 import { useSelector } from "react-redux";
 import type { Item } from "../../lib/contracts/carma-layers.d";
 import { wuppLayerCatalogConfig } from "../../config/layerCatalogConfig";
+import { CatalogQueryProvider } from "../../config/CatalogQueryProvider";
 import {
   getAllLayers,
   getloadingCapabilitiesIDs,
@@ -643,7 +644,7 @@ interface ServiceListProps {
   markdown?: boolean;
 }
 
-const ServiceList = ({
+const ServiceListContent = ({
   discoverProps = wuppLayerCatalogConfig.discoverProps,
   markdown = false,
 }: ServiceListProps) => {
@@ -1534,5 +1535,11 @@ const ServiceList = ({
     </PageLayout>
   );
 };
+
+const ServiceList = (props: ServiceListProps) => (
+  <CatalogQueryProvider>
+    <ServiceListContent {...props} />
+  </CatalogQueryProvider>
+);
 
 export default ServiceList;
